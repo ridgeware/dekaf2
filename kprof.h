@@ -1,0 +1,334 @@
+/*
+//
+// DEKAF(tm): Lighter, Faster, Smarter(tm)
+//
+// Copyright (c) 2017, Ridgeware, Inc.
+//
+// +-------------------------------------------------------------------------+
+// | /\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\|
+// |/+---------------------------------------------------------------------+/|
+// |/|                                                                     |/|
+// |\|  ** THIS NOTICE MUST NOT BE REMOVED FROM THE SOURCE CODE MODULE **  |\|
+// |/|                                                                     |/|
+// |\|   OPEN SOURCE LICENSE                                               |\|
+// |/|                                                                     |/|
+// |\|   Permission is hereby granted, free of charge, to any person       |\|
+// |/|   obtaining a copy of this software and associated                  |/|
+// |\|   documentation files (the "Software"), to deal in the              |\|
+// |/|   Software without restriction, including without limitation        |/|
+// |\|   the rights to use, copy, modify, merge, publish,                  |\|
+// |/|   distribute, sublicense, and/or sell copies of the Software,       |/|
+// |\|   and to permit persons to whom the Software is furnished to        |\|
+// |/|   do so, subject to the following conditions:                       |/|
+// |\|                                                                     |\|
+// |/|   The above copyright notice and this permission notice shall       |/|
+// |\|   be included in all copies or substantial portions of the          |\|
+// |/|   Software.                                                         |/|
+// |\|                                                                     |\|
+// |/|   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY         |/|
+// |\|   KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE        |\|
+// |/|   WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR           |/|
+// |\|   PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS        |\|
+// |/|   OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR          |/|
+// |\|   OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR        |\|
+// |/|   OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE         |/|
+// |\|   SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.            |\|
+// |/|                                                                     |/|
+// |/+---------------------------------------------------------------------+/|
+// |\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/ |
+// +-------------------------------------------------------------------------+
+//
+*/
+
+#pragma once
+
+#if defined(ENABLE_PROFILING) || defined(DEKAF_LIBRARY_BUILD)
+
+#include <map>
+#include <cinttypes>
+#include <cstring>
+#include <chrono>
+#include <mutex>
+#include <atomic>
+
+namespace dekaf2 {
+namespace enabled {
+
+class KProf;
+
+extern const char* g_empty_label;
+
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// "Quick-and-Dirty" profiling helper
+/// - simply prints one line per call with label and used usecs
+/// - can be disabled and enabled on command, e.g. for branch analysis
+class KQDProf
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+//----------
+public:
+//----------
+	typedef std::chrono::steady_clock clock_t;
+
+	explicit KQDProf(const char* label = g_empty_label)
+		: m_label(label)
+		, m_start(clock_t::now())
+	{
+	}
+
+	~KQDProf()
+	{
+		if (m_print)
+		{
+			fprintf(stdout, "KQDProf::%-25.25s %10li nsecs\n", m_label, (clock_t::now()-m_start).count());
+		}
+	}
+
+	void disable()
+	{
+		m_print = false;
+	}
+
+	void enable()
+	{
+		m_print = true;
+	}
+
+//----------
+private:
+//----------
+
+	const char*         m_label;
+	bool                m_print{true};
+	clock_t::time_point m_start;
+};
+
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// profiler class, working single process, single thread, multi threaded
+class KSharedProfiler
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+	friend class KProf;
+
+//----------
+public:
+//----------
+	typedef std::chrono::steady_clock clock_t;
+
+	KSharedProfiler();
+	~KSharedProfiler();
+
+	/// put this profiler to sleep when it is waiting
+	/// for another thread (with own profiler) to finish
+	void sleep()
+	{
+		m_sleeps_since = clock_t::now();
+	}
+
+	/// wake this profiler up when the other thread has
+	/// finished
+	void wake()
+	{
+		m_slept_for += clock_t::now() - m_sleeps_since;
+	}
+
+//----------
+private:
+//----------
+	typedef std::chrono::nanoseconds duration_t;
+
+	struct data_t
+	{
+		data_t()
+		{
+		}
+
+		data_t(uint32_t level_p, uint32_t order_p)
+			: level(level_p)
+			, order(order_p)
+		{
+		}
+
+		data_t& operator +=(const data_t& d);
+
+		uint64_t   count{0};
+		uint32_t   level{0};
+		uint32_t   order{0};
+		duration_t duration{0};
+	};
+
+	struct less_for_c_strings
+	{
+		bool operator()(const char* p1, const char* p2)
+		{
+			return std::strcmp(p1, p2) < 0;
+		}
+	};
+
+	typedef std::map<const char*, data_t, less_for_c_strings> map_t;
+
+	KSharedProfiler& operator+=(const KSharedProfiler& other);
+
+	void print();
+
+	uint32_t level_up()
+	{
+		// the postinc is on purpose to make 0 the first level
+		return m_level++;
+	}
+
+	void level_down()
+	{
+		--m_level;
+	}
+
+	uint32_t current_level()
+	{
+		return m_level;
+	}
+
+	map_t::iterator find(const char* label, uint32_t level = 0);
+
+	static size_t                s_refcount;
+	static KSharedProfiler*      s_parent;
+	static std::mutex            s_constructor_mutex;
+	static std::atomic<uint32_t> s_order;
+
+	clock_t::time_point          m_start;             // used for percentage calculations
+	clock_t::time_point          m_sleeps_since;
+	duration_t                   m_profiled_runtime;  // for how long did this profiler wake?
+	duration_t                   m_slept_for;
+	map_t                        m_map;
+	uint32_t                     m_level{0};
+
+}; // SharedProfile
+
+
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// utility (RAII) class used to measure and count activity
+/// it has to stay in the same thread as the parent it is reporting
+/// to, or it will cause races.
+class KProf
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+//----------
+public:
+//----------
+#ifdef DISABLE_AUTOMATIC_PROFILER
+	explicit KProf(SharedProfiler& parent, const char* label, bool increment_level = true);
+#else
+	explicit KProf(const char* label, bool increment_level = true);
+#endif
+	~KProf();
+	void start();
+	void stop();
+
+//----------
+private:
+//----------
+	KSharedProfiler&                     m_parent;
+	KSharedProfiler::map_t::iterator     m_perfcounter;
+	KSharedProfiler::clock_t::time_point m_start;
+	KSharedProfiler::duration_t          m_slept_before;
+	KSharedProfiler::data_t              m_data;
+	bool                                 m_stopped{false};
+	bool                                 m_increment_level{true};
+
+}; // Profiler
+
+} // of namespace enabled
+} // namespace dekaf2
+
+#endif // ENABLE_PROFILING || DEKAF_LIBRARY_BUILD
+
+#if !defined(ENABLE_PROFILING)
+
+namespace dekaf2 {
+namespace disabled {
+
+class KQDProf
+{
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+//----------
+public:
+//----------
+	explicit KQDProf(const char* label = "") {}
+	~KQDProf() {}
+	void disable() {}
+	void enable() {}
+};
+
+/// the nil version that generates no code at all
+class KSharedProfiler
+{
+public:
+	KSharedProfiler() {}
+	KSharedProfiler(KSharedProfiler& parent) {}
+	~KSharedProfiler() {}
+	void sleep() {}
+	void wake() {}
+	void print() {}
+};
+
+/// the nil version that generates no code at all
+class KProf
+{
+public:
+#ifdef DISABLE_AUTOMATIC_PROFILER
+	KProf(KSharedProfiler& parent, const char* label, bool increment_level = true) {}
+#else
+	KProf(const char* label, bool increment_level = true) {}
+#endif
+	~KProf() {}
+	void start() {}
+	void stop() {}
+};
+
+} // of namespace disabled
+
+} // of namespace dekaf2
+
+#endif // ENABLE_PROFILING == false
+
+namespace dekaf2
+{
+
+#if defined(ENABLE_PROFILING) || defined(DEKAF_LIBRARY_BUILD)
+#ifndef DISABLE_AUTOMATIC_PROFILER
+extern thread_local enabled::KSharedProfiler g_Prof;
+#endif
+#endif
+
+#if defined(ENABLE_PROFILING)
+typedef enabled::KQDProf KQDProf;
+typedef enabled::KSharedProfiler SharedProfiler;
+typedef enabled::KProf KProf;
+
+#ifndef DISABLE_AUTOMATIC_PROFILER
+inline void sleep()
+{
+	g_Prof.sleep();
+}
+inline void wake()
+{
+	g_Prof.wake();
+}
+#endif // DISABLE_AUTOMATIC_PROFILER
+
+#else // ENABLE_PROFILING
+
+typedef disabled::KQDProf KQDProf;
+typedef disabled::KSharedProfiler KSharedProfiler;
+typedef disabled::KProf KProf;
+
+#ifndef DISABLE_AUTOMATIC_PROFILER
+inline void sleep()
+{}
+inline void wake()
+{}
+#endif
+
+#endif // ENABLE_PROFILING == false
+
+} // of namespace dekaf2
+

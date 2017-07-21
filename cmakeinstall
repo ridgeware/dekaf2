@@ -1,0 +1,303 @@
+#! /bin/bash
+
+#%
+#% cmakeinstall - Install a version of cmake that is compatible with dekaf.
+#%
+#% usage: cmakeinstall -go
+#%
+
+
+# are we in test mode?
+if [ "$1" = "-x" ]; then
+	set -x
+	shift
+fi # end check test mode
+
+setx=Synopsis
+#==================
+Synopsis ()
+#==================
+{
+	awk '/^#%/ {print substr($0,3)}' "${ME_FULLPATH}"
+
+} # Synopsis
+
+setx=SetupColors
+#==============================
+SetupColors ()
+#==============================
+{
+	# Note, coloring possibility is tested for stderr and thus should not be used for stdout
+	if test -t 2 && which tput >/dev/null 2>&1; then
+		ncolors=$(tput colors)
+		if test -n "$ncolors"; then
+			xWarnColor=$((tput setf 6 || tput setaf 3) && (tput setb 0 || tput setab 0)) # yellow on black
+			xErrorColor=$((tput setf 7 || tput setaf 7) && (tput setb 4 || tput setab 1)) # white on red
+			xResetColor=$(tput sgr0)
+		fi
+	fi
+
+} # SetupColors
+
+setx=Info
+#==================
+Info ()
+#==================
+{
+	# All input args are interpreted as info text to display
+
+	echo ":: $(date +%T) : ${*:-unspecified}"
+
+} # Info
+
+setx=Error
+#==================
+Error ()
+#==================
+{
+	# All input args are interpreted as error text to display
+
+	echo "${xErrorColor}${ME}: $(date +%T) : ERROR: ${*:-unspecified}${xResetColor}" >&2
+
+} # Error
+
+setx=Die
+#==================
+Die ()
+#==================
+{
+	# All input args are interpreted as error text to display
+
+	local sMessage="${FUNCNAME[1]}: ${*}"
+	[[ ${BASH_SUBSHELL} -eq 0 ]] && sMessage="${sMessage}. Aborting"
+	Error "${sMessage}"
+
+	exit 1
+
+} # Die
+
+setx=InstallSystemPackages
+#==============================
+InstallSystemPackages ()
+#==============================
+{
+	while [[ $# -gt 0 ]]; do
+		if ! IsSystemPackageInstalled "${1}"; then
+			Info "installing missing ${BINDIR} package '${1}' ..."
+			sudo yum install -y "${1}" || Die "could not install package '${1}'"
+		fi
+		shift
+	done
+
+} # InstallSystemPackages
+
+setx=IsSystemPackageInstalled
+#==============================
+IsSystemPackageInstalled ()
+#==============================
+{
+	[[ $# -eq 1 ]] || Die "script error: expected one argument, $# provided: $@"
+	yum list installed "$1" &> /dev/null 2>&1
+
+} # IsSystemPackageInstalled
+
+setx=RemoveSystemPackages
+#==============================
+RemoveSystemPackages ()
+#==============================
+{
+	while [[ $# -gt 0 ]]; do
+		if IsSystemPackageInstalled "${1}"; then
+			Info "removing ${BINDIR} package '${1}' ..."
+			sudo yum remove -y "${1}" || Die "could not remove package '${1}'"
+		fi
+		shift
+	done
+
+} # RemoveSystemPackages
+
+setx=CMakeSetupAbort
+#==================
+CMakeSetupAbort ()
+#==================
+{
+	cd /
+	# clean up in /tmp
+	sudo rm -rf /tmp/cmake-install
+	# and leave
+	Die $*
+
+} # CMakeSetupAbort
+
+setx=CMakeSetup
+#==================
+CMakeSetup ()
+#==================
+{
+	# check version of installed cmake
+	sCMakeVersion=$(cmake --version 2>/dev/null | sed 's|[^0-9.]||g')
+	if [ "$sCMakeVersion" == "" ]; then
+		CMakeMajor="0"
+		CMakeMinor="0"
+	else
+		CMakeMajor=$(echo $sCMakeVersion | cut -d . -f 1)
+		CMakeMinor=$(echo $sCMakeVersion | cut -d . -f 2)
+	fi
+
+	# we want at least 3.6
+	if [ $CMakeMajor -lt 3 ] || ( [ $CMakeMajor -eq 3 ] && [ $CMakeMinor -lt 8 ] ); then
+
+		sCMakeNewVersion="3.8.2"
+
+		test -z "$BINDIR" && Die "BINDIR label cannot be determined"
+
+		if [ "$sCMakeVersion" == "" ]; then
+			Info "CMakeSetup: CMake is not installed"
+		else
+			Info "CMakeSetup: found insufficient CMake ${sCMakeVersion}. Will upgrade to ${sCMakeNewVersion}"
+		fi
+
+		(
+			sudo rm -rf /tmp/cmake-install \
+				&& mkdir /tmp/cmake-install \
+				&& cd /tmp/cmake-install \
+					|| CMakeSetupAbort "Cannot setup build dir /tmp/cmake-install"
+
+			RemoveSystemPackages cmake \
+				|| CMakeSetupAbort "cannot remove old CMake install"
+			InstallSystemPackages rpm-build \
+				|| CMakeSetupAbort "cannot install needed system package"
+			if [ "${BINDIR}" != "redhat64v6" ] && [ "${BINDIR}" != "redhat64" ] && [ "${BINDIR}" != "centos64v6" ]; then
+				InstallSystemPackages libarchive-devel \
+					|| CMakeSetupAbort "cannot install needed system package"
+			fi
+
+			Info "downloading CMake ${sCMakeNewVersion}"
+			if [ "${BINDIR}" == "redhat64v6" ] || [ "${BINDIR}" == "redhat64" ] || [ "${BINDIR}" == "centos64v6" ]; then
+				wget --no-check-certificate https://cmake.org/files/v3.8/cmake-${sCMakeNewVersion}.tar.gz \
+					|| CMakeSetupAbort "cannot download cmake"
+			else
+				wget https://cmake.org/files/v3.8/cmake-${sCMakeNewVersion}.tar.gz \
+					|| CMakeSetupAbort "cannot download cmake"
+			fi
+
+			tar -xzf cmake-${sCMakeNewVersion}.tar.gz \
+				|| CMakeSetupAbort "cannot untar cmake"
+			cd cmake-${sCMakeNewVersion} \
+				|| CMakeSetupAbort "cannot enter cmake build dir"
+
+			# we must patch the cmake install recipe for one file, as it will
+			# otherwise collide with another RPM package
+			Info "patching CMake ${sCMakeNewVersion}"
+			cat Auxiliary/CMakeLists.txt | \
+					sed 's|aclocal|aclocal\.cmake|' >Auxiliary/CMakeLists.txt2 \
+				&& rm Auxiliary/CMakeLists.txt \
+				&& mv Auxiliary/CMakeLists.txt2 Auxiliary/CMakeLists.txt \
+					|| CMakeSetupAbort "cannot patch cmake"
+
+			Info "building CMake ${sCMakeNewVersion}"
+			./bootstrap \
+				--no-system-libs \
+				--prefix=/usr \
+				--datadir=share/cmake \
+				--docdir=share/doc/cmake-3.8 \
+				--mandir=share/man \
+				--parallel=4 \
+			&& make -j4 \
+				|| CMakeSetupAbort "cannot build cmake"
+
+			Info "creating CMake ${sCMakeNewVersion} RPM"
+			bin/cpack -G RPM \
+				|| CMakeSetupAbort "cannot create cmake RPM"
+
+			Info "installing CMake ${sCMakeNewVersion} RPM"
+			sudo yum install -y -q --nogpgcheck cmake-${sCMakeNewVersion}-Linux-x86_64.rpm \
+				|| CMakeSetupAbort "cannot install built cmake RPM"
+
+			cd /
+
+			sudo rm -rf /tmp/cmake-install \
+				|| CMakeSetupAbort "cannot remove build directory"
+
+			# check again version of installed cmake
+			sCMakeNewInstVersion=$(cmake --version | sed 's|[^0-9.]||g')
+			CMakeNewMajor=$(echo $sCMakeNewInstVersion | cut -d . -f 1)
+			CMakeNewMinor=$(echo $sCMakeNewInstVersion | cut -d . -f 2)
+
+			# expected 3.8
+			if [ $CMakeNewMajor -eq 3 ] && [ $CMakeNewMinor -eq 8 ]; then
+				Info "successfully installed CMake ${sCMakeNewInstVersion}"
+			else
+				Die "CMake ${sCMakeNewVersion} failed to install - found version ${sCMakeNewInstVersion} instead"
+			fi
+
+		) || Die "could not set up CMake $sCMakeNewVersion"
+	fi
+
+} # CMakeSetup
+
+setx=SetBinDir
+#==================
+SetBinDir ()
+#==================
+{
+	local fAmazon=0
+
+	# get the linux release information
+	if [[ -f /etc/system-release-cpe ]]; then
+		grep amazon /etc/system-release-cpe > /dev/null && fAmazon=1
+
+	# of the systems we support, only RHEL5 would cause us to go to this path
+	elif [[ ! -f /etc/redhat-release ]]; then
+		Warn "could not determine type of system"
+	fi
+
+	# is this a red hat release
+	if [[ -f /etc/redhat-release ]]; then
+		# which release is this?
+		if [ "$(cat /etc/redhat-release 2>/dev/null | tr '.' ' ' | awk '{print $1}')" == "CentOS" ]; then
+			local BaseOS="centos"
+			local RHEL="$(cat /etc/redhat-release 2>/dev/null | tr '.' ' ' | awk '{print $4}')"
+		else
+			local BaseOS="redhat"
+			local RHEL="$(cat /etc/redhat-release 2>/dev/null | tr '.' ' ' | awk '{print $7}')"
+		fi
+
+		# RHEL 5 gets special handling
+		if [[ "${RHEL}" -eq 5 ]]; then
+			BINDIR="${BaseOS}64"
+		else
+			BINDIR="${BaseOS}64v${RHEL}"
+		fi
+
+	elif [[ ${fAmazon} -ne 0 ]]; then
+		Info "configuring for Amazon AWS"
+		local sMajorRevision=$(grep -Po '(?<=cpe:/o:amazon:linux:).+(?=:ga)' /etc/system-release-cpe)
+		[[ "${sMajorRevision}" != "" ]] || Die "could not determine major revision of Amazon AWS VM"
+		BINDIR="aws64v${sMajorRevision}"
+
+	else
+		Die "unable to determine the BINDIR"
+	fi
+
+} # SetBinDir
+
+
+#==================
+setx=Main_Body
+#==================
+
+ME=$(basename "${BASH_SOURCE}")
+ME_ONLYPATH="$(cd $(dirname ${BASH_SOURCE}) && pwd)"
+ME_FULLPATH="$ME_ONLYPATH/$ME"
+
+if [ "$1" != "-go" ]; then
+	Synopsis
+	exit 1
+fi
+
+SetupColors
+SetBinDir
+CMakeSetup
+
+exit 0

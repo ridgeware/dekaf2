@@ -35,6 +35,7 @@ set (HEADERS
     ksignals.h
     kcrashexit.h
     kgetruntimestack.h
+    ksubscribe.h
 )
 
 set (SOURCES

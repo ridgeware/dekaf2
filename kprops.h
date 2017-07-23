@@ -342,11 +342,15 @@ public:
 		m_vector.clear();
 	}
 
+	// ranges point into the map, not into the vector (a range groups a number of elements with the same
+	// key, of which the vector does not know
+	using range       = std::pair<typename map_type::iterator, typename map_type::iterator>;
+	using const_range = std::pair<typename map_type::const_iterator, typename map_type::const_iterator>;
+
+	using size_type   = typename map_type::size_type;
+
 	// public standard iterator interface, using our custom iterators
 	// iterates over vector, but returns pointers and refs to map
-	typedef std::pair<typename map_type::iterator, typename map_type::iterator> range;
-	typedef typename std::pair<typename map_type::const_iterator, typename map_type::const_iterator> const_range;
-	typedef typename map_type::size_type size_type;
 
 	size_type size() const { return base_type::m_map.size(); }
 	bool empty() const { return base_type::m_map.empty(); }
@@ -361,14 +365,22 @@ public:
 
 /// The KProps template class is a generic key value store that allows
 /// for optimized associative and random (index) access at the same time.
+///
 /// It combines a multimap for storage and key search, and a vector for
-/// sequential access. While its storage performance is slower than that of
-/// a pure map or a pure vector, it offers the optimized read access from
-/// both of them. However, if index sequential access is not needed, it can
-/// be switched off by instantiating with the template parameter Sequential
-/// set to false, and it will only build a map. Also, per default, multiple
-/// keys (or key/value pairs) with different or the same value may exist.
-/// To switch to unique keys, set Unique to true.
+/// sequential access. While its storage performance is slightly slower
+/// than that of a pure map or a pure vector, it offers the optimized
+/// read access from both of them. Removal of elements is slower though
+/// for the *Sequential* access instances, as the vector needs to be searched
+/// linearily for keys to be removed, so it is not proposed to use this type
+/// for data sets that are frequently changed.
+///
+/// However, if sequential access is not needed, it can be switched off by
+/// instantiating with the template parameter Sequential set to false, and
+/// it will only build a map.
+///
+/// Also, per default, multiple keys (or key/value pairs) with different or
+/// the same value may exist. To switch to unique keys, set Unique to true.
+///
 template <class Key, class Value, bool Sequential = true, bool Unique = false>
 class KPropsTemplate : public KProps_base<Key, Value, Sequential, Unique>
 {
@@ -720,7 +732,7 @@ public:
 		}
 		else
 		{
-			KLog().warning("KProps::at() called for index {}, which is out of range ([0..{}[})", index, base_type::size());
+			KLog().warning("KProps::at() called for index {}, which is out of range [0,{})", index, base_type::size());
 			return base_type::s_EmptyMapValue;
 		}
 	}
@@ -735,7 +747,7 @@ public:
 		}
 		else
 		{
-			KLog().warning("KProps::at() const called for index {}, which is out of range ([0..{}[})", index, base_type::size());
+			KLog().warning("KProps::at() const called for index {}, which is out of range [0,{})", index, base_type::size());
 			return base_type::s_EmptyMapValue;
 		}
 	}

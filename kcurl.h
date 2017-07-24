@@ -103,13 +103,13 @@ public:
 	bool         addRequestHeader(const KString& sHeaderName, const KString& sHeaderValue);
 	bool         delRequestHeader(const KString& sHeaderName);
 
-	bool         getCookie       (const KString& sCookieName, KString& sCookieValue) const;
-	bool         setCookie       (const KString& sCookieName, const KString& sCookieValue);
-	bool         addCookie       (const KString& sCookieName, const KString& sCookieValue);
-	bool         delCookie       (const KString& sCookieName, const KString& sCookieValue = "");
+	bool         getRequestCookie       (const KString& sCookieName, KString& sCookieValue) const;
+	bool         setRequestCookie       (const KString& sCookieName, const KString& sCookieValue);
+	bool         addRequestCookie       (const KString& sCookieName, const KString& sCookieValue);
+	bool         delRequestCookie       (const KString& sCookieName, const KString& sCookieValue = "");
 
-	virtual bool addToResponseHeader(KString& sHeaderPart);
-	virtual bool addToResponseBody  (KString& sBodyPart);
+	virtual bool addToResponseHeader(KString sHeaderPart);
+	virtual bool addToResponseBody  (KString sBodyPart);
 	virtual bool printResponseHeader();
 
 protected:

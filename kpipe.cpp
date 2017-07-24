@@ -95,7 +95,8 @@ bool KPIPE::Open(const KString& sCommand, const char* pszMode)
 		KLog().debug (0, "POPEN CMD FAILED: %s ERROR: %s",
 		              sCommand.c_str(),
 		              strerror(errno));
-		exit(errno);
+		m_iExitcode = errno;
+		//exit(errno);
 		//kCheckSystemResources (errno);
 	}
 	else
@@ -112,9 +113,12 @@ int KPIPE::Close()
 	if (m_pipe)
 	{
 		m_iExitcode = pclose (m_pipe);
+		m_pipe = nullptr;
 	}
-	m_pipe = nullptr;
-	return (m_iExitcode);
+	else
+	{
+		return -1; //attemtping to close a pipe that is not open
+	}
 
 	KLog().debug(3, "KPIPE::Close::Done:: Exit Code = %u", m_iExitcode);
 

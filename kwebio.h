@@ -59,14 +59,15 @@ public:
 	KWebIO(const KString& requestURL, bool bEchoHeader = false, bool bEchoBody = false);
 	~KWebIO();
 
-	virtual bool   addToResponseHeader(KString& sHeaderPart);
-	virtual bool   addToResponseBody  (KString& sBodyPart);
+	virtual bool   addToResponseHeader(KString sHeaderPart);
+	virtual bool   addToResponseBody  (KString sBodyPart);
 	virtual bool   printResponseHeader(); // prints response header from m_responseHeaderss
 
+	// TODO ANDREW: Temporarily making these return pointers instead of references so nullptr can be returned when value doesn't exist;
 	const KHeader& getResponseHeaders() const;
 	const KString& getResponseHeader(const KString& sHeaderName) const;
 	const KHeader& getResponseCookies() const;
-	const KString&  getResponseCookie(const KString& sCookieName);// const; // gets first cookie with name
+	const KString& getResponseCookie(const KString& sCookieName);// const; // gets first cookie with name
 
 private:
 	KHeader        m_responseHeaders;
@@ -74,7 +75,7 @@ private:
 	KString        m_sPartialHeader; // when streaming can't guarantee always have full header.
 	KString        m_sResponseVersion;
 	KString        m_sResponseStatus;
-	uint16_t        m_iResponseStatusCode{0};
+	uint16_t       m_iResponseStatusCode{0};
 
 	bool           addResponseHeader(const KString& sHeaderName, const KString& sHeaderValue);
 	bool           isLastHeader(KString& sHeaderPart, size_t lineEndPos);

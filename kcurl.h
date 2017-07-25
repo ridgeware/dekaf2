@@ -85,6 +85,7 @@ public:
 	typedef KPropsTemplate<KString, KHeaderPair> KHeader; // case insensitive map for header info
 
 	KCurl();
+	// TODO Change pair of bools to one uint16_t and an enum to set/check flags
 	KCurl(const KString& sRequestURL, bool bEchoHeader = false, bool bEchoBody = false);
 	virtual ~KCurl();
 

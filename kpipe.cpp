@@ -67,14 +67,12 @@ bool KPIPE::Open(const KString& sCommand, const char* pszMode)
 {
 	KLog().debug(3, "KPIPE::Open(): %s %s", sCommand.c_str(), pszMode);
 
-	//std::cout << "KPIPE::Open (\"" << sCommand.c_str() << "\" , \"" << pszMode << "\")"<< std::endl;
 	if (pszMode &&
 	    (strcmp(pszMode, "r")  &&
 	     strcmp(pszMode, "w")  &&
 	     strcmp(pszMode, "rw") &&
 	     strcmp(pszMode, "a")))
 		KLog().warning("KPIPE::Open(): suspicious Mode '%s'", pszMode);
-	    //std::cout << "KPIPE::Open(): suspicious mode\"" << pszMode << "\""<< std::endl;
 
 	Close(); // ensure a previous pipe is closed
 	errno = 0;
@@ -82,10 +80,8 @@ bool KPIPE::Open(const KString& sCommand, const char* pszMode)
 	// - - - - - - - - - - - - - - - - - - - - - - - -
 	// shell out to run the command:
 	// - - - - - - - - - - - - - - - - - - - - - - - -
-	//m_pipe = pipeopen (sCommand, pszMode); // see dekaf.h for kpopen() macro
-	// need to replace the stock popen with a custom version that allows
-	// us to kill a hung process at the other end of the pipe.
 	m_pipe = popen(sCommand.c_str(), pszMode);
+	initialize(m_pipe);
 
 	// - - - - - - - - - - - - - - - - - - - - - - - -
 	// interpret success:
@@ -148,7 +144,9 @@ bool KPIPE::getline(KString & sOutputBuffer, size_t iMaxLen/*=0*/, bool bTextOnl
 	{
 		return false;
 	}
-	iMaxLen = (iMaxLen == 0) ? 999999: iMaxLen;
+	//std::cout << "iMaxLen: " << iMaxLen ;
+	iMaxLen = (iMaxLen == 0) ? iMaxLen-1: iMaxLen; // size_t is unsigned, ergo 0-1=max_value
+	//std::cout << "| iMaxLen: " << iMaxLen << std::endl;
 	for (int i = 0; i < iMaxLen; i++)
 	{
 		int iCh = fgetc(m_pipe);
@@ -182,9 +180,14 @@ bool KPIPE::getline(KString & sOutputBuffer, size_t iMaxLen/*=0*/, bool bTextOnl
 KPIPE::operator FILE* ()
 //-----------------------------------------------------------------------------
 {
-
 	return (m_pipe);
-
 }
+
+////-----------------------------------------------------------------------------
+//KStreamIter& KPIPE::getIter()
+////-----------------------------------------------------------------------------
+//{
+//	return m_kiter;
+//}
 
 } // end of namespace dekaf2

@@ -34,7 +34,7 @@ TEST_CASE("KPipe")
 	SECTION("KPipe Curl Test")
 	{
 		KPIPE   pipe;
-		KString sCurlCMD = "curl -i www.acme.com 2> /dev/null";
+		KString sCurlCMD = "curl -i www.google.com 2> /dev/null";
 		CHECK(pipe.Open(sCurlCMD, "r"));
 
 		KString sCurrentLine;
@@ -206,4 +206,45 @@ TEST_CASE("KPipe")
 		INFO("KPipe  using_file_star_operator::Done:");
 
 	} // using_file_star_operator
+
+	SECTION("KPipe Iterator Test")
+	{
+		KPIPE   pipe;
+		KString sCurlCMD = " echo 'random text asdl;kf;alksdfa;sdklf\nasdf\nasdf\nasdffsdafasdf\n\n' > /tmp/tmp.file | cat /tmp/tmp.file 2> /dev/null";
+		CHECK(pipe.Open(sCurlCMD, "r"));
+
+		KString sCurrentLine;
+		KString output;
+		//for (auto iter : pipe.begin())
+		for (KStreamIter& iter = pipe.begin(); iter != pipe.end(); iter++)
+		{
+			output = output + *iter;
+			//std::cout << *iter ;
+		}
+		//std::cout << output << std::endl;
+		CHECK_FALSE(output.empty());
+
+		CHECK(pipe.Close() == 0);
+	} // Iterator Test
+
+	SECTION("KPipe Curl Iterator Test")
+	{
+		KPIPE   pipe;
+		KString sCurlCMD = "curl -i www.google.com 2> /dev/null";
+		CHECK(pipe.Open(sCurlCMD, "r"));
+
+		KString sCurrentLine;
+		KString output;
+		//for (auto iter : pipe.begin())
+		for (KStreamIter& iter = pipe.begin(); iter != pipe.end(); iter++)
+		{
+			output = output + *iter;
+			//std::cout << *iter ;
+		}
+		//std::cout << output << std::endl;
+		CHECK_FALSE(output.empty());
+
+		CHECK(pipe.Close() == 0);
+	} // Curl Iterator Test
+
 }

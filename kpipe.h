@@ -43,9 +43,8 @@
 #pragma once
 
 #include "kstring.h"
+#include "kstreamiter.h"
 
-namespace dekaf2
-{
 /*
 KPIPE pipe;
 pipe.Open ("ls -l", "r");
@@ -57,35 +56,39 @@ for (auto it = pipe.begin(); it != pipe.END(); ++it) {
 }
 */
 
-
+namespace dekaf2
+{
 
 //-----------------------------------------------------------------------------
-class KPIPE
+class KPIPE : public KStreamIter
 //-----------------------------------------------------------------------------
 {
 public:
 	KPIPE ();
-	~KPIPE ();
+	virtual ~KPIPE ();
 
 	bool Open        (const KString& sCommand, const char* pszMode="r");
 	int  Close       ();
 	bool isOpen      ()       { return (m_pipe != NULL); }
 
 	bool getline     (KString& sTheLine, size_t iMaxLen=0, bool bTextOnly = false);
+	virtual bool getNext() { return getline(m_sLine, m_iLen); }
 	bool appendline  (KString& sBufferToAppend, size_t iMaxLen=0);
 
-	int  getErrno() const { return m_iExitcode; } //0 = success
+	int getErrno     () const { return m_iExitcode; } //0 = success
 
-	operator FILE*    ();
-	operator const KString&    ();
-	operator KString     ();
+	operator FILE*          ();
+	operator const KString& ();
+	operator KString        ();
+	//KStreamIter& getIter();
 /*
 	const_iterator begin();
-	const_iterator end();   // help from theo guys
+	const_iterator end();    // help from theo guys
 */
 private:
-	FILE* m_pipe{nullptr};
-	int   m_iExitcode{0};
+	FILE*        m_pipe{nullptr};
+	//KStreamIter  m_kiter;
+	int          m_iExitcode{0};
 }; // class KPIPE
 
-} // end of namespace DEKAF
+} // end of namespace DEKAF2

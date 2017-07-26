@@ -43,7 +43,7 @@
 #pragma once
 
 #include "kstring.h"
-#include "kstreamiter.h"
+#include "kstreamrw.h"
 
 /*
 KPIPE pipe;
@@ -60,7 +60,7 @@ namespace dekaf2
 {
 
 //-----------------------------------------------------------------------------
-class KPIPE : public KStreamIter
+class KPIPE : public KStreamRW
 //-----------------------------------------------------------------------------
 {
 public:
@@ -80,11 +80,7 @@ public:
 	operator FILE*          ();
 	operator const KString& ();
 	operator KString        ();
-	//KStreamIter& getIter();
-/*
-	const_iterator begin();
-	const_iterator end();    // help from theo guys
-*/
+
 private:
 	FILE*        m_pipe{nullptr};
 	//KStreamIter  m_kiter;

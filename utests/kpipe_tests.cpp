@@ -216,7 +216,7 @@ TEST_CASE("KPipe")
 		KString sCurrentLine;
 		KString output;
 		//for (auto iter : pipe.begin())
-		for (KStreamIter& iter = pipe.begin(); iter != pipe.end(); iter++)
+		for (KStreamRW& iter = pipe.begin(); iter != pipe.end(); iter++)
 		{
 			output = output + *iter;
 			//std::cout << *iter ;
@@ -236,7 +236,7 @@ TEST_CASE("KPipe")
 		KString sCurrentLine;
 		KString output;
 		//for (auto iter : pipe.begin())
-		for (KStreamIter& iter = pipe.begin(); iter != pipe.end(); iter++)
+		for (KStreamRW& iter = pipe.begin(); iter != pipe.end(); iter++)
 		{
 			output = output + *iter;
 			//std::cout << *iter ;

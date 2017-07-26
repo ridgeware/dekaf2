@@ -1,10 +1,12 @@
-#include "kstreamiter.h"
+#include "kstreamrw.h"
+
+#include "klog.h"
 
 namespace dekaf2
 {
 
 //-----------------------------------------------------------------------------
-KStreamIter::KStreamIter ()
+KStreamRW::KStreamRW ()
 //-----------------------------------------------------------------------------
     : m_pSelf   (this)
     , m_sLine   (NULL)
@@ -17,7 +19,7 @@ KStreamIter::KStreamIter ()
 }
 
 //-----------------------------------------------------------------------------
-KStreamIter::KStreamIter (FILE* pFile)
+KStreamRW::KStreamRW (FILE* pFile)
 //-----------------------------------------------------------------------------
     : m_pSelf   (this)
     , m_sLine   (NULL)
@@ -27,7 +29,7 @@ KStreamIter::KStreamIter (FILE* pFile)
     , m_sData   ("")
     , m_bEmpty  (true)
 {
-	static KStreamIter sentinel = KStreamIter();
+	static KStreamRW sentinel = KStreamRW();
 
 	debug ("ctor", "enter");
 	m_pSentinel = &sentinel;
@@ -41,35 +43,32 @@ KStreamIter::KStreamIter (FILE* pFile)
 }
 
 //-----------------------------------------------------------------------------
-KStreamIter::~KStreamIter()
+KStreamRW::~KStreamRW()
 //-----------------------------------------------------------------------------
 {
 	if (m_pFILE)
 	{
 		//std::fclose (m_pFILE);
 	}
-//	if (m_sLine)
-//	{
-//		std::free (m_sLine);
-//	}
+
 }
 
 //-----------------------------------------------------------------------------
-bool KStreamIter::operator!=(const KStreamIter& rhs) const
+bool KStreamRW::operator!=(const KStreamRW& rhs) const
 //-----------------------------------------------------------------------------
 {
 	return (this->m_pSelf != &rhs);
 }
 
 //-----------------------------------------------------------------------------
-bool KStreamIter::operator==(const KStreamIter& rhs) const
+bool KStreamRW::operator==(const KStreamRW& rhs) const
 //-----------------------------------------------------------------------------
 {
 	return (this->m_pSelf == &rhs);
 }
 
 //-----------------------------------------------------------------------------
-KStreamIter& KStreamIter::operator++(int iIgnore)
+KStreamRW& KStreamRW::operator++(int iIgnore)
 //-----------------------------------------------------------------------------
 {
 	debug("++", "enter");
@@ -99,7 +98,7 @@ KStreamIter& KStreamIter::operator++(int iIgnore)
 }
 
 //-----------------------------------------------------------------------------
-std::string KStreamIter::operator*()
+KString KStreamRW::operator*()
 //-----------------------------------------------------------------------------
 {
 	debug("*", "enter");
@@ -126,9 +125,9 @@ std::string KStreamIter::operator*()
 
 			debug("*", "getline");
 
-			size_t ret = getline(&m_ssLine, &m_iLen, m_pFILE);
-			//bool bRet = getline(m_sLine, m_iLen);
-			bool bRet = getNext();
+			//size_t ret = getline(&m_ssLine, &m_iLen, m_pFILE);
+			bool bRet = readLine(m_sLine, m_iLen);
+			//bool bRet = getNext();
 
 			//if (ret == -1)
 			if (!bRet)
@@ -154,11 +153,11 @@ std::string KStreamIter::operator*()
 }
 
 //-----------------------------------------------------------------------------
-bool KStreamIter::initialize(FILE* pipe)
+bool KStreamRW::initialize(FILE* pipe)
 //-----------------------------------------------------------------------------
 {
 	m_pFILE = pipe;
-	static KStreamIter sentinel = KStreamIter();
+	static KStreamRW sentinel = KStreamRW();
 
 	m_pSentinel = &sentinel;
 
@@ -169,15 +168,78 @@ bool KStreamIter::initialize(FILE* pipe)
 	return (m_pFILE != nullptr);
 }
 
-////-----------------------------------------------------------------------------
-//bool KStreamIter::getline (KString& sTheLine, size_t iMaxLen, bool bTextOnly)//{ return true; }
-////-----------------------------------------------------------------------------
-//{
-//	return true;
-//}
+//-----------------------------------------------------------------------------
+bool KStreamRW::readLine (KString& sOutputBuffer, size_t iMaxLen, bool bTextOnly)
+//-----------------------------------------------------------------------------
+{
+	KLog().debug(3, "KStreamRW::readLine(KString & sOutputBuffer = %s, size_t iMaxLen = %i, bool bTextOnly = %s )", sOutputBuffer.c_str(), iMaxLen, btoa(bTextOnly));
+
+	//sOutputBuffer.clear(); // If I don't clear, then this will also append, could be useful.
+	if (!m_pFILE)
+	{
+		return false;
+	}
+	//std::cout << "iMaxLen: " << iMaxLen ;
+	iMaxLen = (iMaxLen == 0) ? iMaxLen-1: iMaxLen; // size_t is unsigned, ergo 0-1=max_value
+	//std::cout << "| iMaxLen: " << iMaxLen << std::endl;
+	for (int i = 0; i < iMaxLen; i++)
+	{
+		int iCh = fgetc(m_pFILE);
+		switch (iCh)
+		{
+			case EOF:
+			{
+				return !sOutputBuffer.empty();
+			}
+			case '\r':
+				if (!bTextOnly) // don't want EOL chars in text only mode
+				{
+					sOutputBuffer += static_cast<KString::value_type>(iCh);
+				}
+				break;
+			case '\n':
+				if (!bTextOnly) // don't want EOL chars in text only mode
+				{
+					sOutputBuffer += static_cast<KString::value_type>(iCh);
+				}
+				return true;
+			default:
+				sOutputBuffer += static_cast<KString::value_type>(iCh);
+				break;
+		}
+	}
+	return (0 < sOutputBuffer.length()); // return true if chars were read
+}
 
 //-----------------------------------------------------------------------------
-KStreamIter& KStreamIter::begin()
+bool KStreamRW::writeLine (KString& sOutputBuffer)
+//-----------------------------------------------------------------------------
+{
+	KLog().debug(3, "KStreamRW::writeLine(KString & sOutputBuffer = %s) start", sOutputBuffer.c_str());
+
+	//sOutputBuffer.clear(); // If I don't clear, then this will also append, could be useful.
+	if (!m_pFILE)
+	{
+		return false;
+	}
+
+	for (size_t i = 0; i < sOutputBuffer.size(); i++)
+	{
+		int iNewChar = static_cast<int>(sOutputBuffer[i]);
+		int iRetChar = fputc(iNewChar, m_pFILE);
+		if (iNewChar != iRetChar)
+		{
+			// EOF should have been returned to indicate error, otherwise char inserted is returned
+			KLog().debug(1, "KStreamRW::writeLine(KString & sOutputBuffer = %s) FAILED to write %i char %s", sOutputBuffer.c_str(), i, iNewChar);
+			return false;
+		}
+
+	}
+	return true; // return true if chars were written as expected
+}
+
+//-----------------------------------------------------------------------------
+KStreamRW& KStreamRW::begin()
 //-----------------------------------------------------------------------------
 {
 	debug("begin");
@@ -186,7 +248,7 @@ KStreamIter& KStreamIter::begin()
 }
 
 //-----------------------------------------------------------------------------
-KStreamIter& KStreamIter::end()
+KStreamRW& KStreamRW::end()
 //-----------------------------------------------------------------------------
 {
 	debug("end");
@@ -194,7 +256,7 @@ KStreamIter& KStreamIter::end()
 }
 
 //-----------------------------------------------------------------------------
-void KStreamIter::clear()
+void KStreamRW::clear()
 //-----------------------------------------------------------------------------
 {
 	debug("clear");
@@ -205,35 +267,34 @@ void KStreamIter::clear()
 }
 
 //-----------------------------------------------------------------------------
-void KStreamIter::done()
+void KStreamRW::done()
 //-----------------------------------------------------------------------------
 {
 	debug("done");
-	//std::cout << "done" << std::endl;
 	m_pSelf = m_pSentinel;
 	m_sData = "";
 }
 
 //-----------------------------------------------------------------------------
-void KStreamIter::debug(const char* sTag, const char* sMsg)
+void KStreamRW::debug(const char* sTag, const char* sMsg)
 //-----------------------------------------------------------------------------
 {
 	//std::cout << sTag << "\t" << sMsg << std::endl;
 }
 
 //-----------------------------------------------------------------------------
-void asFILE(KStreamIter& instance)
+void asFILE(KStreamRW& instance)
 //-----------------------------------------------------------------------------
 {
 	instance.begin();
 }
 
 //-----------------------------------------------------------------------------
-void asIter(KStreamIter& instance)
+void asIter(KStreamRW& instance)
 //-----------------------------------------------------------------------------
 {
 	std::cout << "asIter enter" << std::endl;
-	KStreamIter local = instance.begin();
+	KStreamRW local = instance.begin();
 	std::cout << "asIter begin" << std::endl;
 	while (local != local.end())
 	{

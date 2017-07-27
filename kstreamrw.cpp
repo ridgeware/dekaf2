@@ -5,29 +5,30 @@
 namespace dekaf2
 {
 
-//-----------------------------------------------------------------------------
-KStreamRW::KStreamRW ()
-//-----------------------------------------------------------------------------
-    : m_pSelf   (this)
-    , m_sLine   (NULL)
-    , m_iLen    (0)
-    , m_pFILE   (nullptr)
-    , m_iLine   (1)
-    , m_sData   ("")
-    , m_bEmpty  (true)
-{
-}
+////-----------------------------------------------------------------------------
+//KStreamRW::KStreamRW ()
+////-----------------------------------------------------------------------------
+//    : m_pSelf   (this)
+//    , m_sLine   (NULL)
+//    : m_iLen    (0)
+//    , m_pFILE   (nullptr)
+//    , m_iLine   (1)
+//    , m_sData   ("")
+//    , m_bEmpty  (true)
+//{
+//}// default constructor
 
 //-----------------------------------------------------------------------------
 KStreamRW::KStreamRW (FILE* pFile)
 //-----------------------------------------------------------------------------
-    : m_pSelf   (this)
-    , m_sLine   (NULL)
-    , m_iLen    (0)
-    , m_pFILE   (pFile)
-    , m_iLine   (1)
-    , m_sData   ("")
-    , m_bEmpty  (true)
+    : m_pFILE   (pFile)
+//    : m_pSelf   (this)
+//    , m_sLine   (NULL)
+//    , m_iLen    (0)
+
+//    , m_iLine   (1)
+//    , m_sData   ("")
+//    , m_bEmpty  (true)
 {
 	static KStreamRW sentinel = KStreamRW();
 
@@ -40,7 +41,7 @@ KStreamRW::KStreamRW (FILE* pFile)
 		m_pSelf = m_pSentinel;
 	}
 	debug ("ctor", "leave");
-}
+} // full constructor
 
 //-----------------------------------------------------------------------------
 KStreamRW::~KStreamRW()
@@ -51,21 +52,21 @@ KStreamRW::~KStreamRW()
 		//std::fclose (m_pFILE);
 	}
 
-}
+} // destructor
 
 //-----------------------------------------------------------------------------
 bool KStreamRW::operator!=(const KStreamRW& rhs) const
 //-----------------------------------------------------------------------------
 {
 	return (this->m_pSelf != &rhs);
-}
+} // operator !=
 
 //-----------------------------------------------------------------------------
 bool KStreamRW::operator==(const KStreamRW& rhs) const
 //-----------------------------------------------------------------------------
 {
 	return (this->m_pSelf == &rhs);
-}
+} // operator ==
 
 //-----------------------------------------------------------------------------
 KStreamRW& KStreamRW::operator++(int iIgnore)
@@ -95,7 +96,7 @@ KStreamRW& KStreamRW::operator++(int iIgnore)
 	}
 	debug("++", "leave");
 	return *m_pSelf;             // either this or &sentinel
-}
+} // operator ++
 
 //-----------------------------------------------------------------------------
 KString KStreamRW::operator*()
@@ -150,14 +151,14 @@ KString KStreamRW::operator*()
 	}
 	debug("*", "leave");
 	return m_sData;
-}
+} // operator *
 
 //-----------------------------------------------------------------------------
 bool KStreamRW::initialize(FILE* pipe)
 //-----------------------------------------------------------------------------
 {
-	m_pFILE = pipe;
 	static KStreamRW sentinel = KStreamRW();
+	m_pFILE = pipe;
 
 	m_pSentinel = &sentinel;
 
@@ -166,7 +167,7 @@ bool KStreamRW::initialize(FILE* pipe)
 		m_pSelf = m_pSentinel;
 	}
 	return (m_pFILE != nullptr);
-}
+} // initialize
 
 //-----------------------------------------------------------------------------
 bool KStreamRW::readLine (KString& sOutputBuffer, size_t iMaxLen, bool bTextOnly)
@@ -209,7 +210,7 @@ bool KStreamRW::readLine (KString& sOutputBuffer, size_t iMaxLen, bool bTextOnly
 		}
 	}
 	return (0 < sOutputBuffer.length()); // return true if chars were read
-}
+} // readline
 
 //-----------------------------------------------------------------------------
 bool KStreamRW::writeLine (KString& sOutputBuffer)
@@ -236,7 +237,7 @@ bool KStreamRW::writeLine (KString& sOutputBuffer)
 
 	}
 	return true; // return true if chars were written as expected
-}
+} // writeLine
 
 //-----------------------------------------------------------------------------
 KStreamRW& KStreamRW::begin()
@@ -245,7 +246,7 @@ KStreamRW& KStreamRW::begin()
 	debug("begin");
 	clear();
 	return *m_pSelf;
-}
+} // begin
 
 //-----------------------------------------------------------------------------
 KStreamRW& KStreamRW::end()
@@ -253,7 +254,7 @@ KStreamRW& KStreamRW::end()
 {
 	debug("end");
 	return *m_pSentinel;
-}
+} // end
 
 //-----------------------------------------------------------------------------
 void KStreamRW::clear()
@@ -264,7 +265,7 @@ void KStreamRW::clear()
 	m_iLine  = 1L;
 	m_sData  = "";
 	m_bEmpty = true;
-}
+} // clear
 
 //-----------------------------------------------------------------------------
 void KStreamRW::done()
@@ -273,21 +274,21 @@ void KStreamRW::done()
 	debug("done");
 	m_pSelf = m_pSentinel;
 	m_sData = "";
-}
+} // done
 
 //-----------------------------------------------------------------------------
 void KStreamRW::debug(const char* sTag, const char* sMsg)
 //-----------------------------------------------------------------------------
 {
 	//std::cout << sTag << "\t" << sMsg << std::endl;
-}
+} // debug
 
 //-----------------------------------------------------------------------------
 void asFILE(KStreamRW& instance)
 //-----------------------------------------------------------------------------
 {
 	instance.begin();
-}
+} // asFILE
 
 //-----------------------------------------------------------------------------
 void asIter(KStreamRW& instance)
@@ -303,6 +304,6 @@ void asIter(KStreamRW& instance)
 		local++;
 	}
 	std::cout << "asIter leave" << std::endl;
-}
+} // asIter
 
 } // END NAMESPACE DEKAF2

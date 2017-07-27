@@ -17,7 +17,7 @@ class KStreamRW
 //------
 public:
 //------
-	KStreamRW(); // Needed for sentinel
+	KStreamRW(){} // Needed for sentinel
 	KStreamRW(FILE* pFile);
 	virtual ~KStreamRW();
 	bool initialize(FILE* pipe);
@@ -43,20 +43,21 @@ public:
 protected:
 //------
 	KString      m_sLine;
-	size_t       m_iLen;
+	size_t       m_iLen{0};
 
 //------
 private:
 //------
 
-	//char*      m_sLine;
-	FILE*        m_pFILE; // TODO different kinds of file descriptors for file I/O?
-	KStreamRW*   m_pSelf;        // becomes sentinel ptr when end is reached
+	FILE*        m_pFILE{nullptr}; // TODO different kinds of file descriptors for file I/O?
+	//basic stream, stringstream later?
+	std::basic_ios<KString>* m_pStream{nullptr};
+	KStreamRW*   m_pSelf{this};        // becomes sentinel ptr when end is reached
 	KStreamRW*   m_pSentinel;    // sentinel ptr
 
-	size_t       m_iLine;
-	std::string  m_sData;
-	bool         m_bEmpty;
+	size_t       m_iLine{1};
+	std::string  m_sData{""};
+	bool         m_bEmpty{true};
 
 	void         clear();
 	void         done();

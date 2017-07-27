@@ -210,7 +210,8 @@ TEST_CASE("KPipe")
 	SECTION("KPipe Iterator Test")
 	{
 		KPIPE   pipe;
-		KString sCurlCMD = " echo 'random text asdl;kf;alksdfa;sdklf\nasdf\nasdf\nasdffsdafasdf\n\n' > /tmp/tmp.file | cat /tmp/tmp.file 2> /dev/null";
+		//KString sCurlCMD = "echo 'random text asdfjkl;asdfjkl;\nqwerty\nuoip\nzxcvbnm,zxcvbnm,\n\n' > /tmp/tmp.file && cat /tmp/tmp.file 2> /dev/null";
+		KString sCurlCMD = "echo 'random text asdfjkl;asdfjkl; qwerty uoip zxcvbnm,zxcvbnm,  ' > /tmp/tmp.file && cat /tmp/tmp.file 2> /dev/null";
 		CHECK(pipe.Open(sCurlCMD, "r"));
 
 		KString sCurrentLine;
@@ -223,6 +224,8 @@ TEST_CASE("KPipe")
 		}
 		//std::cout << output << std::endl;
 		CHECK_FALSE(output.empty());
+		//CHECK(output.length() == 343);
+		CHECK(output.length() == 120);
 
 		CHECK(pipe.Close() == 0);
 	} // Iterator Test

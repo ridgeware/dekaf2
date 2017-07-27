@@ -53,11 +53,39 @@ namespace dekaf2
 const KString::size_type KString::npos;
 
 //------------------------------------------------------------------------------
-KString& KString::replace(size_type pos, size_type n, const KString& str)
+KString& KString::append(const string_type& str, size_type pos, size_type n)
 //------------------------------------------------------------------------------
 {
 	try {
-		m_rep.replace(pos, n, str.m_rep);
+		m_rep.append(str, pos, n);
+	} catch (std::exception& e) {
+		KLog().exception(e, "append", "KString");
+	} catch (...) {
+		KLog().exception("append", "KString");
+	}
+	return *this;
+}
+
+//------------------------------------------------------------------------------
+KString& KString::assign(const string_type& str, size_type pos, size_type n)
+//------------------------------------------------------------------------------
+{
+	try {
+		m_rep.assign(str, pos, n);
+	} catch (std::exception& e) {
+		KLog().exception(e, "assign", "KString");
+	} catch (...) {
+		KLog().exception("assign", "KString");
+	}
+	return *this;
+}
+
+//------------------------------------------------------------------------------
+KString& KString::replace(size_type pos, size_type n, const string_type& str)
+//------------------------------------------------------------------------------
+{
+	try {
+		m_rep.replace(pos, n, str);
 	} catch (std::exception& e) {
 		KLog().exception(e, "replace", "KString");
 	} catch (...) {
@@ -67,11 +95,11 @@ KString& KString::replace(size_type pos, size_type n, const KString& str)
 }
 
 //------------------------------------------------------------------------------
-KString& KString::replace(size_type pos1, size_type n1, const KString& str, size_type pos2, size_type n2)
+KString& KString::replace(size_type pos1, size_type n1, const string_type& str, size_type pos2, size_type n2)
 //------------------------------------------------------------------------------
 {
 	try {
-		m_rep.replace(pos1, n1, str.m_rep, pos2, n2);
+		m_rep.replace(pos1, n1, str, pos2, n2);
 	} catch (std::exception& e) {
 		KLog().exception(e, "replace", "KString");
 	} catch (...) {
@@ -123,11 +151,11 @@ KString& KString::replace(size_type pos, size_type n1, size_type n2, value_type 
 }
 
 //------------------------------------------------------------------------------
-KString& KString::replace(iterator i1, iterator i2, const KString& str)
+KString& KString::replace(iterator i1, iterator i2, const string_type& str)
 //------------------------------------------------------------------------------
 {
 	try {
-		m_rep.replace(i1, i2, str.m_rep);
+		m_rep.replace(i1, i2, str);
 	} catch (std::exception& e) {
 		KLog().exception(e, "replace", "KString");
 	} catch (...) {
@@ -221,11 +249,11 @@ KString::size_type KString::copy(value_type* s, size_type n, size_type pos) cons
 }
 
 //------------------------------------------------------------------------------
-KString& KString::insert(size_type pos1, const KString& str)
+KString& KString::insert(size_type pos, const string_type& str)
 //------------------------------------------------------------------------------
 {
 	try {
-		m_rep.insert(pos1, str.m_rep);
+		m_rep.insert(pos, str);
 	} catch (std::exception& e) {
 		KLog().exception(e, "insert", "KString");
 	} catch (...) {
@@ -235,11 +263,11 @@ KString& KString::insert(size_type pos1, const KString& str)
 }
 
 //------------------------------------------------------------------------------
-KString& KString::insert(size_type pos1, const KString& str, size_type pos2, size_type n)
+KString& KString::insert(size_type pos1, const string_type& str, size_type pos2, size_type n)
 //------------------------------------------------------------------------------
 {
 	try {
-		m_rep.insert(pos1, str.m_rep, pos2, n);
+		m_rep.insert(pos1, str, pos2, n);
 	} catch (std::exception& e) {
 		KLog().exception(e, "insert", "KString");
 	} catch (...) {
@@ -375,11 +403,11 @@ KString::iterator KString::erase(iterator first, iterator last)
 }
 
 //----------------------------------------------------------------------
-int KString::compare(size_type pos, size_type n, const KString& str) const
+int KString::compare(size_type pos, size_type n, const string_type& str) const
 //----------------------------------------------------------------------
 {
 	try {
-		return m_rep.compare(pos, n, str.m_rep);
+		return m_rep.compare(pos, n, str);
 	} catch (std::exception& e) {
 		KLog().exception(e, "compare", "KString");
 	} catch (...) {
@@ -389,11 +417,11 @@ int KString::compare(size_type pos, size_type n, const KString& str) const
 }
 
 //----------------------------------------------------------------------
-int KString::compare(size_type pos1, size_type n1, const KString& str,  size_type pos2, size_type n2) const
+int KString::compare(size_type pos1, size_type n1, const string_type& str,  size_type pos2, size_type n2) const
 //----------------------------------------------------------------------
 {
 	try {
-		return m_rep.compare(pos1, n1, str.m_rep, pos2, n2);
+		return m_rep.compare(pos1, n1, str, pos2, n2);
 	} catch (std::exception& e) {
 		KLog().exception(e, "compare", "KString");
 	} catch (...) {
@@ -469,97 +497,31 @@ KString::size_type KString::InnerReplace(size_type iIdxStartMatch, size_type iId
 } // InnerReplace
 
 //----------------------------------------------------------------------
-inline int strmatchN(const char* S1, const char* S2)
+// static
+bool KString::StartsWith(KStringView sInput, KStringView sPattern)
 //----------------------------------------------------------------------
 {
-	return !strncmp(S1, S2, strlen(S2));
-}
-
-//----------------------------------------------------------------------
-bool KString::StartsWith(const char* pszStr) const
-//----------------------------------------------------------------------
-{
-	return strmatchN(m_rep.c_str(), pszStr);
-} // StartsWith
-
-//----------------------------------------------------------------------
-bool KString::EndsWith(const char* pszStr) const
-//----------------------------------------------------------------------
-{
-	size_type len = strlen(pszStr);
-	if (m_rep.size() < len)
-	{
-		return false;
-	}
-
-	return strmatchN(m_rep.c_str() + m_rep.size() - len, pszStr);
-} // EndsWith
-
-//----------------------------------------------------------------------
-bool KString::StartsWith(const KString& input, const KString& pattern)
-//----------------------------------------------------------------------
-{
-	return StartsWith(input.c_str(), input.size(), pattern.c_str(), pattern.size());
-} // StartsWith
-
-//----------------------------------------------------------------------
-bool KString::StartsWith(const char* pszInput, size_t iInputSize, const char* pszPattern, size_t iPatternSize)
-//----------------------------------------------------------------------
-{
-	if (iInputSize >= iPatternSize)
-	{
-		return !memcmp(pszInput, pszPattern, iPatternSize);
-	}
-	
-	return false;
-
-} // StartsWith
-
-//----------------------------------------------------------------------
-bool KString::EndsWith(const char* pszInput, size_t iInputSize, const char* pszPattern, size_t iPatternSize)
-//----------------------------------------------------------------------
-{
-	if (iInputSize < iPatternSize)
+	if (sInput.size() < sPattern.size())
 	{
 		return false;
 	}
 	
-	// TODO switch to memcmp to allow for null chars
-	return !strcmp(pszInput + iInputSize - iPatternSize, pszPattern);
-}
+	return !memcmp(sInput.data(), sPattern.data(), sPattern.size());
 
-//----------------------------------------------------------------------
-bool KString::StartsWith(const KString& sPattern, size_type iOffset, size_type iBackOffset) const
-//----------------------------------------------------------------------
-{
-	if (iOffset + iBackOffset >= sPattern.size())
-	{
-		return false;
-	}
-
-	const size_type iPurePatternSize = sPattern.length() - iOffset - iBackOffset;
-
-	const char* lhs = m_rep.c_str();
-	size_type lhsSize = m_rep.size();
-
-	const char* rhs = sPattern.c_str() + iOffset;
-	size_type rhsSize = iPurePatternSize;
-
-	return StartsWith(lhs, lhsSize, rhs, rhsSize);
 } // StartsWith
 
 //----------------------------------------------------------------------
-bool KString::EndsWith(const KString& sPattern, size_type iOffset, size_type iBackOffset) const
+// static
+bool KString::EndsWith(KStringView sInput, KStringView sPattern)
 //----------------------------------------------------------------------
 {
-	size_type iPurePatternSize = sPattern.length() - iOffset - iBackOffset;
-	if (m_rep.size() < iPurePatternSize)
+	if (sInput.size() < sPattern.size())
 	{
 		return false;
 	}
+	
+	return !memcmp(sInput.data() + sInput.size() - sPattern.size(), sPattern.data(), sPattern.size());
 
-	// TODO switch to memcmp to allow for null chars
-	return !strncmp(m_rep.c_str() + m_rep.size() - iPurePatternSize, sPattern.c_str() + iOffset, iPurePatternSize);
 } // EndsWith
 
 //----------------------------------------------------------------------

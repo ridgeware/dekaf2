@@ -363,6 +363,22 @@ inline float KToFloat(const char* s) noexcept
 }
 
 //-----------------------------------------------------------------------------
+inline short int KToShort(const char* s) noexcept
+//-----------------------------------------------------------------------------
+{
+	if (!s || !*s) return 0;
+	else return static_cast<short int>(std::atoi(s));
+}
+
+//-----------------------------------------------------------------------------
+inline unsigned short int KToUShort(const char* s) noexcept
+//-----------------------------------------------------------------------------
+{
+	if (!s || !*s) return 0;
+	else return static_cast<unsigned short int>(std::strtoul(s, nullptr, 10));
+}
+
+//-----------------------------------------------------------------------------
 inline int KToInt(const char* s) noexcept
 //-----------------------------------------------------------------------------
 {
@@ -417,11 +433,15 @@ inline double KToDouble(const String& s) noexcept { return KToDouble(s.data()); 
 template<class String, typename = std::enable_if_t<dekaf2::is_narrow_cpp_str<String>::value> >
 inline long double KToLongDouble(const String& s) noexcept { return KToLongDouble(s.data); }
 template<class String, typename = std::enable_if_t<dekaf2::is_narrow_cpp_str<String>::value> >
+inline int KToShort(const String& s) noexcept { return KToShort(s.data()); }
+template<class String, typename = std::enable_if_t<dekaf2::is_narrow_cpp_str<String>::value> >
 inline int KToInt(const String& s) noexcept { return KToInt(s.data()); }
 template<class String, typename = std::enable_if_t<dekaf2::is_narrow_cpp_str<String>::value> >
 inline long KToLong(const String& s) noexcept { return KToLong(s.data()); }
 template<class String, typename = std::enable_if_t<dekaf2::is_narrow_cpp_str<String>::value> >
 inline long long KToLongLong(const String& s) noexcept { return KToLongLong(s.data()); }
+template<class String, typename = std::enable_if_t<dekaf2::is_narrow_cpp_str<String>::value> >
+inline unsigned int KToUShort(const String& s) noexcept { return KToUShort(s.data()); }
 template<class String, typename = std::enable_if_t<dekaf2::is_narrow_cpp_str<String>::value> >
 inline unsigned int KToUInt(const String& s) noexcept { return KToUInt(s.data()); }
 template<class String, typename = std::enable_if_t<dekaf2::is_narrow_cpp_str<String>::value> >
@@ -433,16 +453,18 @@ namespace // hide kx2c in an anonymous namespace
 {
 
 //-----------------------------------------------------------------------------
-inline char kx2c (const char *pszGoop)
+template<class Ch>
+inline Ch kx2c (Ch* pszGoop)
 //-----------------------------------------------------------------------------
 {
-	char digit;
+	Ch digit;
 
 	digit = (pszGoop[0] >= 'A' ? ((pszGoop[0] & 0xdf) - 'A')+10 : (pszGoop[0] - '0'));
 	digit *= 16;
 	digit += (pszGoop[1] >= 'A' ? ((pszGoop[1] & 0xdf) - 'A')+10 : (pszGoop[1] - '0'));
 
 	return digit;
+
 } // kx2c
 
 } // anonymous until here
@@ -457,7 +479,12 @@ void kUrlDecode (String& sDecode)
 	auto end     = current + sDecode.size();
 	while (current != end)
 	{
-		if (*current == '%'
+		if (*current == '+')
+		{
+			*insert++ = ' ';
+			++current;
+		}
+		else if (*current == '%'
 			&& end - current > 2
 			&& std::isxdigit(*(current + 1))
 			&& std::isxdigit(*(current + 2)))
@@ -476,6 +503,7 @@ void kUrlDecode (String& sDecode)
 		size_t nsz = insert - &sDecode[0];
 		sDecode.erase(nsz);
 	}
+
 } // kUrlDecode
 
 } // end of namespace dekaf2

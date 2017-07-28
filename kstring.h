@@ -56,15 +56,6 @@
 #include <istream>
 #include "kformat.h"
 
-namespace dekaf2
-{
-	class KString;
-}
-
-namespace std
-{
-	std::istream& getline(std::istream& stream, dekaf2::KString& str);
-}
 
 namespace dekaf2
 {
@@ -74,6 +65,11 @@ using KStringView = std::experimental::string_view;
 #else
 using KStringView = re2::StringPiece;
 #endif
+
+bool kStartsWith(KStringView sInput, KStringView sPattern);
+bool kEndsWith(KStringView sInput, KStringView sPattern);
+
+bool kStrIn (const char* sNeedle, const char* sHaystack, char iDelim=',');
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// dekaf's own string class - a wrapper around std::string
@@ -155,49 +151,57 @@ public:
 
 	//operator+=
 	KString& operator+= (const KString& str){ m_rep += str.m_rep; return *this; }
+	KString& operator+= (const string_type& str){ m_rep += str; return *this; }
 	KString& operator+= (const value_type ch){ m_rep += ch; return *this; }
 	KString& operator+= (const value_type *s){ if (s) m_rep += s; return *this; }
 	KString& operator+= (std::initializer_list<value_type> il) { m_rep += il; return *this; }
 	KString& operator+= (KStringView sv) { m_rep.append(sv.data(), sv.size()); return *this; }
 
 	//operator=
-	KString& operator= (const KString& str) { m_rep = str.m_rep; }
+	KString& operator= (const KString& str) { m_rep = str.m_rep; return *this; }
+	KString& operator= (const string_type& sStr) { m_rep = sStr; return *this; }
 	KString& operator= (const value_type* pszStr) { if (pszStr) m_rep = pszStr; return *this; }
 	KString& operator= (const value_type c) { m_rep = c; return *this; }
-	KString& operator= (const string_type& sStr) { m_rep = sStr; return *this; }
 	KString& operator= (KString&& str) noexcept { m_rep = std::move(str.m_rep); return *this; }
 	KString& operator= (string_type&& sStr) noexcept { m_rep = std::move(sStr); return *this; }
 	KString& operator= (std::initializer_list<value_type> il) { m_rep = il; return *this; }
 	KString& operator= (KStringView sv) { m_rep.assign(sv.data(), sv.size()); return *this; }
 
 	//std methods
-	KString& append(const KString& str){m_rep.append(str.m_rep); return *this; } 
-	KString& append(const KString& str, size_type pos, size_type n = npos){m_rep.append(str.m_rep, pos, n); return *this; }
-	KString& append(const value_type* str, size_type n) {m_rep.append(str, n); return *this; }
-	KString& append(const value_type* str) {m_rep.append(str); return *this; }
-	KString& append(size_type n, value_type ch){m_rep.append(n, ch); return *this; }
+	KString& append(const KString& str){ m_rep.append(str.m_rep); return *this; }
+	KString& append(const KString& str, size_type pos, size_type n = npos) { return append(str.m_rep, pos, n); }
+	KString& append(const string_type& str){ m_rep.append(str); return *this; }
+	KString& append(const string_type& str, size_type pos, size_type n = npos);
+	KString& append(const value_type* str) { m_rep.append(str); return *this; }
+	KString& append(const value_type* str, size_type n) { m_rep.append(str, n); return *this; }
+	KString& append(size_type n, value_type ch){ m_rep.append(n, ch); return *this; }
 	template<class _InputIterator>
-		KString& append(_InputIterator first, _InputIterator last) {m_rep.append(first, last); return *this; }
+		KString& append(_InputIterator first, _InputIterator last) { m_rep.append(first, last); return *this; }
 	KString& append(std::initializer_list<value_type> il) { m_rep.append(il); return *this; }
 	KString& append(KStringView sv) { m_rep.append(sv.data(), sv.size()); return *this; }
 
 	KString& push_back(const value_type chPushBack) { m_rep.push_back(chPushBack); return *this; }
 	void pop_back() { m_rep.pop_back(); }
 
-	KString& assign(const KString& str) {m_rep.assign(str.m_rep); return *this; }
-	KString& assign(const KString& str, size_type pos, size_type n = npos) {m_rep.assign(str.m_rep, pos, n); return *this;}
-	KString& assign(const value_type* s, size_type n) {m_rep.assign(s, n); return *this; } 
-	KString& assign(const value_type* str) {m_rep.assign(str); return *this;}
-	KString& assign(size_type n, value_type ch) {m_rep.assign(n, ch); return *this;}
+	KString& assign(const KString& str) { m_rep.assign(str.m_rep); return *this; }
+	KString& assign(const KString& str, size_type pos, size_type n = npos) { return assign(str.m_rep, pos, n); }
+	KString& assign(const string_type& str) { m_rep.assign(str); return *this; }
+	KString& assign(const string_type& str, size_type pos, size_type n = npos);
+	KString& assign(const value_type* s, size_type n) { m_rep.assign(s, n); return *this; }
+	KString& assign(const value_type* str) { m_rep.assign(str); return *this;}
+	KString& assign(size_type n, value_type ch) { m_rep.assign(n, ch); return *this;}
 	template<class _InputIterator>
-		KString& assign(_InputIterator first, _InputIterator last) {m_rep.assign(first, last); return *this; }
+		KString& assign(_InputIterator first, _InputIterator last) { m_rep.assign(first, last); return *this; }
 	KString& assign(std::initializer_list<value_type> il) { m_rep.assign(il); return *this; }
 	KString& assign(KString&& str) { m_rep.assign(std::move(str.m_rep)); return *this; }
 	KString& assign(KStringView sv) { m_rep.assign(sv.data(), sv.size()); return *this; }
 
 	int compare(const KString& str) const { return m_rep.compare(str.m_rep); }
-	int compare(size_type pos, size_type n, const KString& str) const;
-	int compare(size_type pos1, size_type n1, const KString& str,  size_type pos2, size_type n2 = npos) const;
+	int compare(size_type pos, size_type n, const KString& str) const { return compare(pos, n, str.m_rep); }
+	int compare(size_type pos1, size_type n1, const KString& str, size_type pos2, size_type n2 = npos) const { return compare(pos1, n1, str.m_rep, pos2, n2); }
+	int compare(const string_type& str) const { return m_rep.compare(str); }
+	int compare(size_type pos, size_type n, const string_type& str) const;
+	int compare(size_type pos1, size_type n1, const string_type& str, size_type pos2, size_type n2 = npos) const;
 	int compare(const value_type* s) const { return m_rep.compare(s ? s : ""); }
 	int compare(size_type pos, size_type n1, const value_type* s) const;
 	int compare(size_type pos, size_type n1, const value_type* s, size_type n2) const;
@@ -206,45 +210,53 @@ public:
 
 	size_type copy(value_type* s, size_type n, size_type pos = 0) const;
 
-	size_type find(const value_type* s, size_type pos, size_type n) const { return m_rep.find(s, pos, n); } 
 	size_type find(const KString& str, size_type pos = 0) const { return m_rep.find(str.m_rep, pos); }
+	size_type find(const string_type& str, size_type pos = 0) const { return m_rep.find(str, pos); }
 	size_type find(const value_type* s, size_type pos = 0) const { return m_rep.find(s, pos); }
+	size_type find(const value_type* s, size_type pos, size_type n) const { return m_rep.find(s, pos, n); }
 	size_type find(value_type c, size_type pos = 0) const { return m_rep.find(c, pos); }
 	size_type find(KStringView sv, size_type pos = 0) const { return m_rep.find(sv.data(), pos, sv.size()); }
 
 	size_type rfind(const KString& str, size_type pos = npos) const { return m_rep.rfind(str.m_rep, pos); }
-	size_type rfind(const value_type* s, size_type pos, size_type n) const { return m_rep.rfind(s, pos, n); }
+	size_type rfind(const string_type& str, size_type pos = npos) const { return m_rep.rfind(str, pos); }
 	size_type rfind(const value_type* s, size_type pos = npos) const { return m_rep.rfind(s, pos); }
+	size_type rfind(const value_type* s, size_type pos, size_type n) const { return m_rep.rfind(s, pos, n); }
 	size_type rfind(value_type c, size_type pos = npos) const { return m_rep.rfind(c, pos); }
 	size_type rfind(KStringView sv, size_type pos = npos) const { return m_rep.rfind(sv.data(), pos, sv.size()); }
 
 	size_type find_first_of(const KString& str, size_type pos = 0) const { return m_rep.find_first_of(str.m_rep, pos); }
-	size_type find_first_of(const value_type* s, size_type pos, size_type n) const { return m_rep.find_first_of(s, pos, n); }
+	size_type find_first_of(const string_type& str, size_type pos = 0) const { return m_rep.find_first_of(str, pos); }
 	size_type find_first_of(const value_type* s, size_type pos = 0) const { return m_rep.find_first_of(s, pos); }
+	size_type find_first_of(const value_type* s, size_type pos, size_type n) const { return m_rep.find_first_of(s, pos, n); }
 	size_type find_first_of(value_type c, size_type pos = 0) const { return m_rep.find_first_of(c, pos); }
 	size_type find_first_of(KStringView sv, size_type pos = 0) const { return m_rep.find_first_of(sv.data(), pos, sv.size()); }
 
 	size_type find_last_of(const KString& str, size_type pos = npos) const { return m_rep.find_last_of(str.m_rep, pos); }
-	size_type find_last_of(const value_type* s, size_type pos, size_type n) const { return m_rep.find_last_of(s, pos, n); }
+	size_type find_last_of(const string_type& str, size_type pos = npos) const { return m_rep.find_last_of(str, pos); }
 	size_type find_last_of(const value_type* s, size_type pos = npos) const { return m_rep.find_last_of(s, pos); }
+	size_type find_last_of(const value_type* s, size_type pos, size_type n) const { return m_rep.find_last_of(s, pos, n); }
 	size_type find_last_of(value_type c, size_type pos = npos) const {  return m_rep.find_last_of(c, pos); }
 	size_type find_last_of(KStringView sv, size_type pos = npos) const { return m_rep.find_last_of(sv.data(), pos, sv.size()); }
 
 	size_type find_first_not_of(const KString& str, size_type pos = 0) const { return m_rep.find_first_not_of(str.m_rep, pos); }
-	size_type find_first_not_of(const value_type* s, size_type pos, size_type n) const { return m_rep.find_first_not_of(s, pos, n); }
+	size_type find_first_not_of(const string_type& str, size_type pos = 0) const { return m_rep.find_first_not_of(str, pos); }
 	size_type find_first_not_of(const value_type* s, size_type pos = 0) const { return m_rep.find_first_not_of(s, pos); }
+	size_type find_first_not_of(const value_type* s, size_type pos, size_type n) const { return m_rep.find_first_not_of(s, pos, n); }
 	size_type find_first_not_of(value_type c, size_type pos = 0) const { return m_rep.find_first_not_of(c, pos); }
 	size_type find_first_not_of(KStringView sv, size_type pos = 0) const { return m_rep.find_first_not_of(sv.data(), pos, sv.size()); }
 
 	size_type find_last_not_of(const KString& str, size_type pos = npos) const { return m_rep.find_last_not_of(str.m_rep, pos); }
-	size_type find_last_not_of(const value_type* s, size_type pos, size_type n) const { return m_rep.find_last_not_of(s, pos, n); }
+	size_type find_last_not_of(const string_type& str, size_type pos = npos) const { return m_rep.find_last_not_of(str, pos); }
 	size_type find_last_not_of(const value_type* s, size_type pos = npos) const { return m_rep.find_last_not_of(s, pos); }
+	size_type find_last_not_of(const value_type* s, size_type pos, size_type n) const { return m_rep.find_last_not_of(s, pos, n); }
 	size_type find_last_not_of(value_type c, size_type pos = npos) const { return m_rep.find_last_not_of(c, pos); }
 	size_type find_last_not_of(KStringView sv, size_type pos = npos) const { return m_rep.find_last_not_of(sv.data(), pos, sv.size()); }
 
-	void insert(iterator p, size_type n, value_type c) {m_rep.insert(p, n, c);}
-	KString& insert(size_type pos1, const KString& str);
-	KString& insert(size_type pos1, const KString& str, size_type pos2, size_type n = npos);
+	void insert(iterator p, size_type n, value_type c) { m_rep.insert(p, n, c); }
+	KString& insert(size_type pos, const KString& str) { return insert(pos, str.m_rep); }
+	KString& insert(size_type pos1, const KString& str, size_type pos2, size_type n = npos) { return insert(pos1, str.m_rep, pos2, n); }
+	KString& insert(size_type pos, const string_type& str);
+	KString& insert(size_type pos1, const string_type& str, size_type pos2, size_type n = npos);
 	KString& insert(size_type pos, const value_type* s, size_type n);
 	KString& insert(size_type pos, const value_type* s);
 	KString& insert(size_type pos, size_type n, value_type c);
@@ -267,13 +279,17 @@ public:
 	// C++17 wants a const_iterator here, but the COW string implementation in libstdc++ does not have it
 	iterator erase(iterator first, iterator last);
 	
-	KString& replace(size_type pos, size_type n, const KString& str);
-	KString& replace(size_type pos1, size_type n1, const KString& str, size_type pos2, size_type n2 = npos);
+	KString& replace(size_type pos, size_type n, const KString& str) { return replace(pos, n, str.m_rep); }
+	KString& replace(size_type pos1, size_type n1, const KString& str, size_type pos2, size_type n2 = npos) { return replace(pos1, n1, str.m_rep, pos2, n2); }
+	KString& replace(size_type pos, size_type n, const string_type& str);
+	KString& replace(size_type pos1, size_type n1, const string_type& str, size_type pos2, size_type n2 = npos);
 	KString& replace(size_type pos, size_type n1, const value_type* s, size_type n2);
 	KString& replace(size_type pos, size_type n1, const value_type* s);
 	KString& replace(size_type pos, size_type n1, size_type n2, value_type c);
 	// C++17 wants a const_iterator here, but the COW string implementation in libstdc++ does not have it
-	KString& replace(iterator i1, iterator i2, const KString& str);
+	KString& replace(iterator i1, iterator i2, const KString& str) { return replace(i1, i2, str.m_rep); }
+	// C++17 wants a const_iterator here, but the COW string implementation in libstdc++ does not have it
+	KString& replace(iterator i1, iterator i2, const string_type& str);
 	// C++17 wants a const_iterator here, but the COW string implementation in libstdc++ does not have it
 	KString& replace(iterator i1, iterator i2, const value_type* s, size_type n);
 	template<class _InputIterator>
@@ -298,30 +314,15 @@ public:
 		return *this;
 	}
 
-	template<class... Args>
-	KString& Printf(Args&&... args)
-	{
-		m_rep = kPrintf(std::forward<Args>(args)...);
-		return *this;
-	}
+	size_type ReplaceRegex(KStringView sRegEx, KStringView sReplaceWith, bool bReplaceAll = true);
+	size_type Replace(KStringView sSearch, KStringView sReplace, bool bReplaceAll = false);
 
-	size_type ReplaceRegex(const KStringView& sRegEx, const KStringView& sReplaceWith, bool bReplaceAll = true);
+	bool     StartsWith(KStringView sPattern) const { return kStartsWith(*this, sPattern); }
+	bool     EndsWith(KStringView sPattern) const { return kEndsWith(*this, sPattern); }
 
-	size_type Replace(const value_type* pszSearch, const value_type* pszReplaceWith, bool bReplaceAll = false) { return Replace(pszSearch, strlen(pszSearch), pszReplaceWith, strlen(pszReplaceWith), bReplaceAll); }
-	size_type Replace(const KString& sSearch, const KString& sReplaceWith, bool bReplaceAll = false) { return Replace(sSearch.data(), sSearch.size(), sReplaceWith.data(), sReplaceWith.size(), bReplaceAll); }
-	size_type Replace(const value_type* pszSearch, size_type iSearchLen, const value_type* pszReplaceWith, size_type iReplaceWithLen, bool bReplaceAll = false);
-
-	char*    strdup() const { return ::strdup (c_str()); }
-	
-	bool     StartsWith(const char* pszStr) const;
-	bool     EndsWith(const char* pszStr) const;
 	bool     IsEmail() const;
 	bool     IsURL() const;
 	bool     IsFilePath() const;
-
-	//Compare head and tail of the string. iOffset - where should we shift before comparison
-	bool     StartsWith(const KString& sPattern, size_type iFrontOffset = 0, size_type iBackOffset = 0) const;
-	bool     EndsWith(const KString& sPattern, size_type iFrontOffset = 0, size_type iBackOffset = 0) const;
 
 	/// changes the string to lowercase
 	KString& MakeLower();
@@ -337,82 +338,51 @@ public:
 	KString  Right(size_type iCount);
 
 	KString& TrimLeft();
-	KString& TrimLeft(const value_type chTarget);
-	KString& TrimLeft(const value_type* pszTarget);
+	KString& TrimLeft(value_type chTarget);
+	KString& TrimLeft(KStringView sTarget);
 
 	KString& TrimRight();
-	KString& TrimRight(const value_type chTarget);
-	KString& TrimRight(const value_type* pszTarget);
+	KString& TrimRight(value_type chTarget);
+	KString& TrimRight(KStringView sTarget);
 
 	KString& Trim();
-	KString& Trim(const value_type chTarget);
-	KString& Trim(const value_type* pszTarget);
+	KString& Trim(value_type chTarget);
+	KString& Trim(KStringView sTarget);
 
 	KString& PushBack(const value_type chPushBack) { return push_back(chPushBack); }
 	void PopBack() { pop_back(); }
-	KString& Append(const value_type* pszAppend) { return append(pszAppend); }
+	KString& Append(KStringView sAppend) { return append(sAppend); }
 
 	// Clip removing pszClipAt and everything to its right if found; otherwise do not alter the string
-	KString& ClipAt(const value_type* pszClipAt);
+	KString& ClipAt(KStringView sClipAt);
 
 	// Clip removing everything to the left of pszClipAtReverse so that pszClipAtReverse becomes the beginning of the string;
 	// otherwise do not alter the string
-	KString& ClipAtReverse(const value_type* pszClipAtReverse);
+	KString& ClipAtReverse(KStringView sClipAtReverse);
 
 	void RemoveIllegalChars(const KString& sIllegalChars);
 
 	// return a pointer of value type
-	const value_type* c() const {return c_str();}
+	const value_type* c() const { return c_str(); }
 
 	// convert to representation type
-	operator string_type&() {return m_rep;}
-	operator const string_type&() const {return m_rep;}
+	operator string_type&() { return m_rep; }
+	operator const string_type&() const { return m_rep; }
 
 	// return the representation type
-	const string_type& s() const {return operator const string_type&();}
-	string_type& s() {return operator string_type&();}
+	const string_type& s() const { return operator const string_type&(); }
+	string_type& s() { return operator string_type&(); }
 
-	operator KStringView() { return m_rep; }
-	operator const KStringView() const { return m_rep; }
+	KStringView sv() { return m_rep; }
+	operator KStringView() const { return m_rep; }
 
-	bool In (const KString& sHaystack, value_type iDelim=',');
+	bool In (KStringView sHaystack, value_type iDelim=',');
 
-	static bool StartsWith(const KString& input, const KString& pattern);
-	static bool StartsWith(const char* pszInput, size_t iInputSize, const char* pszPattern, size_t iPatternSize);
-	static bool EndsWith(const char* pszInput, size_t iInputSize, const char* pszPattern, size_t iPatternSize);
-	static bool kstrin (const char* sNeedle, const char* sHaystack, char iDelim=',');
 
 //----------
 protected:
 //----------
 	string_type m_rep;
-
-//----------
-private:
-//----------
-	size_type InnerReplace(size_type iIdxStartMatch, size_type iIdxEndMatch, const char* pszReplaceWith);
-
-	friend bool operator==(const KString&, const KString&);
-	friend bool operator==(const KString&, const value_type*);
-	friend bool operator==(const value_type*, const KString&);
-	friend bool operator!=(const KString&, const KString&);
-	friend bool operator!=(const KString&, const value_type*);
-	friend bool operator!=(const value_type*, const KString&);
-	friend bool operator>(const KString&, const KString&);
-	friend bool operator>(const KString&, const value_type*);
-	friend bool operator>(const value_type*, const KString&);
-	friend bool operator<(const KString&, const KString&);
-	friend bool operator<(const KString&, const value_type*);
-	friend bool operator<(const value_type*, const KString&);
-	friend bool operator>=(const KString&, const KString&);
-	friend bool operator>=(const KString&, const value_type*);
-	friend bool operator>=(const value_type*, const KString&);
-	friend bool operator<=(const KString&, const KString&);
-	friend bool operator<=(const KString&, const value_type*);
-	friend bool operator<=(const value_type*, const KString&);
-	friend std::ostream& operator <<(std::ostream& stream, const KString& str);
-	friend std::istream& operator >>(std::istream& stream, KString& str);
-	friend std::istream& std::getline(std::istream& stream, KString& str);
 
 }; // KString
 
@@ -420,18 +390,122 @@ typedef std::basic_stringstream<KString::value_type> KStringStream;
 
 inline std::ostream& operator <<(std::ostream& stream, const KString& str)
 {
-	return stream << str.m_rep;
+	return stream << str.s();
 }
 
 inline std::istream& operator >>(std::istream& stream, KString& str)
 {
-	return stream >> str.m_rep;
+	return stream >> str.s();
 }
 
-} // of namespace dekaf2
+inline KString operator+(KStringView left, KStringView right)
+{
+	KString temp;
+	temp.reserve(left.size() + right.size());
+	temp += left;
+	temp += right;
+	return temp;
+}
+
+inline KString operator+(const KString::value_type* left, KStringView right)
+{
+	KStringView sv(left);
+	return sv + right;
+}
+
+inline KString operator+(KStringView left, KString::value_type right)
+{
+	KString temp(left);
+	temp.reserve(left.size() + 1);
+	temp += right;
+	return temp;
+}
+
+inline KString operator+(KString::value_type left, KStringView right)
+{
+	KString temp;
+	temp.reserve(right.size() + 1);
+	temp += left;
+	temp += right;
+	return temp;
+}
+
+// now all operator+() with rvalues (only make sense for the rvalue as the left param)
+inline KString operator+(KString&& left, KStringView right)
+{
+	KString temp(std::move(left));
+	temp += right;
+	return temp;
+}
+
+inline KString operator+(KString&& left, KString::value_type right)
+{
+	KString temp(std::move(left));
+	temp += right;
+	return temp;
+}
+
+// KStringView includes comparison for KString
+inline bool operator==(KStringView left, KStringView right)
+{
+#ifdef DEKAF_HAS_CPP_17
+	return std::experimental::operator==(left, right);
+#else
+	return re2::operator==(left, right);
+#endif
+}
+
+inline bool operator!=(KStringView left, KStringView right)
+{
+#ifdef DEKAF_HAS_CPP_17
+	return std::experimental::operator!=(left, right);
+#else
+	return re2::operator!=(left, right);
+#endif
+}
+
+inline bool operator<(KStringView left, KStringView right)
+{
+#ifdef DEKAF_HAS_CPP_17
+	return std::experimental::operator<(left, right);
+#else
+	return re2::operator<(left, right);
+#endif
+}
+
+inline bool operator<=(KStringView left, KStringView right)
+{
+#ifdef DEKAF_HAS_CPP_17
+	return std::experimental::operator<=(left, right);
+#else
+	return re2::operator<=(left, right);
+#endif
+}
+
+inline bool operator>(KStringView left, KStringView right)
+{
+#ifdef DEKAF_HAS_CPP_17
+	return std::experimental::operator>(left, right);
+#else
+	return re2::operator>(left, right);
+#endif
+}
+
+inline bool operator>=(KStringView left, KStringView right)
+{
+#ifdef DEKAF_HAS_CPP_17
+	return std::experimental::operator>=(left, right);
+#else
+	return re2::operator>=(left, right);
+#endif
+}
+
+} // end of namespace dekaf2
 
 namespace std
 {
+	std::istream& getline(std::istream& stream, dekaf2::KString& str);
+
 	template<> struct hash<dekaf2::KString>
 	{
 		typedef dekaf2::KString argument_type;
@@ -441,213 +515,6 @@ namespace std
 			return std::hash<std::string>{}(s);
 		}
 	};
-}
 
-namespace dekaf2
-{
-
-//-----------------------------------------------------------------------------
-class KStringBuffer
-//-----------------------------------------------------------------------------
-{
-public:
-	enum CB_NEXT_OP {RET_NOOP, RET_REPLACE};
-	typedef std::function<
-		CB_NEXT_OP(
-			const KString& sWorkBuffer,
-			std::size_t iPos,
-			std::size_t iLen,
-			KString& sReplacer)
-		> SearchHandler;
-
-	explicit KStringBuffer(KString& sWorkBuffer):m_sWorkBuffer(sWorkBuffer){}
-
-	KString::size_type Replace(const KString& sSearchPattern, const KString& sWith);
-	KString::size_type Replace(const KString& sSearchPattern, const SearchHandler& foundHandler);
-
-private:
-	class SimpleReplacer;
-
-	KString& m_sWorkBuffer;
-};
-
-inline KString operator+(const KString& left, const KString& right)
-{
-	KString temp(left);
-	temp += right;
-	return temp;
-}
-
-inline KString operator+(const KString& left, const char* right)
-{
-	KString temp(left);
-	temp += right;
-	return temp;
-}
-
-inline KString operator+(const char* left, const KString& right)
-{
-	KString temp(left);
-	temp += right;
-	return temp;
-}
-
-inline KString operator+(const KString& left, char right)
-{
-	KString temp(left);
-	temp += right;
-	return temp;
-}
-
-inline KString operator+(char left, const KString& right)
-{
-	KString temp;
-	temp += left;
-	temp += right;
-	return temp;
-}
-
-// now all operator+() with rvalues
-inline KString operator+(KString&& left, KString&& right)
-{
-	KString temp(std::move(left));
-	temp += right;
-	return temp;
-}
-
-inline KString operator+(KString&& left, const KString& right)
-{
-	KString temp(std::move(left));
-	temp += right;
-	return temp;
-}
-
-inline KString operator+(const KString& left, KString&& right)
-{
-	KString temp(left);
-	temp.append(std::move(right));
-	return temp;
-}
-
-inline KString operator+(KString&& left, const char* right)
-{
-	KString temp(std::move(left));
-	temp += right;
-	return temp;
-}
-
-inline KString operator+(const char* left, KString&& right)
-{
-	KString temp(left);
-	temp.append(std::move(right));
-	return temp;
-}
-
-inline KString operator+(KString&& left, char right)
-{
-	KString temp(std::move(left));
-	temp += right;
-	return temp;
-}
-
-inline KString operator+(char left, KString&& right)
-{
-	KString temp;
-	temp += left;
-	temp.append(std::move(right));
-	return temp;
-}
-
-inline bool operator==(const KString& left, const KString& right)
-{
-	return left.m_rep == right.m_rep;
-}
-
-inline bool operator==(const KString& left, const KString::value_type* right)
-{
-	return left.m_rep == right;
-}
-
-inline bool operator==(const KString::value_type* left, const KString& right)
-{
-	return left == right.m_rep;
-}
-
-inline bool operator!=(const KString& left, const KString& right)
-{
-	return left.m_rep != right.m_rep;
-}
-
-inline bool operator!=(const KString& left, const KString::value_type* right)
-{
-	return left.m_rep != right;
-}
-
-inline bool operator!=(const KString::value_type* left, const KString& right)
-{
-	return left != right.m_rep;
-}
-
-inline bool operator>(const KString& left, const KString& right)
-{
-	return left.m_rep > right.m_rep;
-}
-
-inline bool operator>(const KString& left, const KString::value_type* right)
-{
-	return left.m_rep > right;
-}
-
-inline bool operator>(const KString::value_type* left, const KString& right)
-{
-	return left > right.m_rep;
-}
-
-inline bool operator<(const KString& left, const KString& right)
-{
-	return left.m_rep < right.m_rep;
-}
-
-inline bool operator<(const KString::value_type* left, const KString& right)
-{
-	return left < right.m_rep;
-}
-
-inline bool operator<(const KString& left, const KString::value_type* right)
-{
-	return left.m_rep < right;
-}
-
-inline bool operator>=(const KString& left, const KString& right)
-{
-	return left.m_rep >= right.m_rep;
-}
-
-inline bool operator>=(const KString& left, const KString::value_type* right)
-{
-	return left.m_rep >= right;
-}
-
-inline bool operator>=(const KString::value_type* left, const KString& right)
-{
-	return left >= right.m_rep;
-}
-
-inline bool operator<=(const KString& left, const KString& right)
-{
-	return left.m_rep <= right.m_rep;
-}
-
-inline bool operator<=(const KString::value_type* left, const KString& right)
-{
-	return left <= right.m_rep;
-}
-
-inline bool operator<=(const KString& left, const KString::value_type* right)
-{
-	return left.m_rep <= right;
-}
-
-
-} // end of namespace dekaf2
+} // end of namespace std
 

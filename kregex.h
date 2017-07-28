@@ -108,11 +108,6 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// converting constructor, takes KString
-	KRegex(const KString& expression);
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
 	/// assignment operator
 	KRegex& operator=(const KRegex& other)
 	//-----------------------------------------------------------------------------
@@ -136,25 +131,25 @@ public:
 	// member function interface
 	//-----------------------------------------------------------------------------
 	/// match a regular expression in sStr
-	bool Matches(const std::experimental::string_view& sStr);
+	bool Matches(const KStringView& sStr);
 	//-----------------------------------------------------------------------------
 
 	// member function interface
 	//-----------------------------------------------------------------------------
 	/// match a regular expression in sStr and return all match groups, including the overall match in group 0.
-	bool Matches(const std::experimental::string_view& sStr, Groups& sGroups, size_t iMaxGroups = static_cast<size_t>(~0L));
+	bool Matches(const KStringView& sStr, Groups& sGroups, size_t iMaxGroups = static_cast<size_t>(~0L));
 	//-----------------------------------------------------------------------------
 
 	// member function interface
 	//-----------------------------------------------------------------------------
 	/// match a regular expression in sStr and return the overall match (group 0) in iStart, iSize as in a substring definition
-	bool Matches(const std::experimental::string_view& sStr, size_t& iStart, size_t& iSize);
+	bool Matches(const KStringView& sStr, size_t& iStart, size_t& iSize);
 	//-----------------------------------------------------------------------------
 
 	// member function interface
 	//-----------------------------------------------------------------------------
 	/// replace a regular expression with new text. Sub groups can be addressed with \1 \2 etc. in the replacement text
-	size_t Replace(std::string& sStr, const std::experimental::string_view& sReplaceWith, bool bReplaceAll = true);
+	size_t Replace(std::string& sStr, const KStringView& sReplaceWith, bool bReplaceAll = true);
 	//-----------------------------------------------------------------------------
 
 	// member function interface
@@ -169,25 +164,25 @@ public:
 	// static interface
 	//-----------------------------------------------------------------------------
 	/// match a regular expression in sStr
-	static bool Matches(const std::experimental::string_view& sStr, const std::experimental::string_view& sRegex);
+	static bool Matches(const KStringView& sStr, const KStringView& sRegex);
 	//-----------------------------------------------------------------------------
 
 	// static interface
 	//-----------------------------------------------------------------------------
 	/// match a regular expression in sStr and return all match groups, including the overall match in group 0.
-	static bool Matches(const std::experimental::string_view& sStr, const std::experimental::string_view& sRegex, Groups& sGroups, size_t iMaxGroups = static_cast<size_t>(~0L));
+	static bool Matches(const KStringView& sStr, const KStringView& sRegex, Groups& sGroups, size_t iMaxGroups = static_cast<size_t>(~0L));
 	//-----------------------------------------------------------------------------
 
 	// static interface
 	//-----------------------------------------------------------------------------
 	/// match a regular expression in sStr and return the overall match (group 0) in iStart, iSize as in a substring definition
-	static bool Matches(const std::experimental::string_view& sStr, const std::experimental::string_view& sRegex, size_t& iStart, size_t& iSize);
+	static bool Matches(const KStringView& sStr, const KStringView& sRegex, size_t& iStart, size_t& iSize);
 	//-----------------------------------------------------------------------------
 
 	// static interface
 	//-----------------------------------------------------------------------------
 	/// replace a regular expression with new text. Sub groups can be addressed with \1 \2 etc. in the replacement text
-	static size_t Replace(std::string& sStr, const std::experimental::string_view& sRegex, const std::experimental::string_view& sReplaceWith, bool bReplaceAll = true);
+	static size_t Replace(std::string& sStr, const KStringView& sRegex, const KStringView& sReplaceWith, bool bReplaceAll = true);
 	//-----------------------------------------------------------------------------
 
 	// static interface

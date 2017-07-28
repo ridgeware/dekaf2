@@ -56,15 +56,6 @@
 #include <istream>
 #include "kformat.h"
 
-namespace dekaf2
-{
-	class KString;
-}
-
-namespace std
-{
-	std::istream& getline(std::istream& stream, dekaf2::KString& str);
-}
 
 namespace dekaf2
 {
@@ -74,6 +65,11 @@ using KStringView = std::experimental::string_view;
 #else
 using KStringView = re2::StringPiece;
 #endif
+
+bool kStartsWith(KStringView sInput, KStringView sPattern);
+bool kEndsWith(KStringView sInput, KStringView sPattern);
+
+bool kStrIn (const char* sNeedle, const char* sHaystack, char iDelim=',');
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// dekaf's own string class - a wrapper around std::string
@@ -162,10 +158,10 @@ public:
 	KString& operator+= (KStringView sv) { m_rep.append(sv.data(), sv.size()); return *this; }
 
 	//operator=
-	KString& operator= (const KString& str) { m_rep = str.m_rep; }
+	KString& operator= (const KString& str) { m_rep = str.m_rep; return *this; }
+	KString& operator= (const string_type& sStr) { m_rep = sStr; return *this; }
 	KString& operator= (const value_type* pszStr) { if (pszStr) m_rep = pszStr; return *this; }
 	KString& operator= (const value_type c) { m_rep = c; return *this; }
-	KString& operator= (const string_type& sStr) { m_rep = sStr; return *this; }
 	KString& operator= (KString&& str) noexcept { m_rep = std::move(str.m_rep); return *this; }
 	KString& operator= (string_type&& sStr) noexcept { m_rep = std::move(sStr); return *this; }
 	KString& operator= (std::initializer_list<value_type> il) { m_rep = il; return *this; }
@@ -318,14 +314,11 @@ public:
 		return *this;
 	}
 
-	size_type ReplaceRegex(const KStringView& sRegEx, const KStringView& sReplaceWith, bool bReplaceAll = true);
+	size_type ReplaceRegex(KStringView sRegEx, KStringView sReplaceWith, bool bReplaceAll = true);
+	size_type Replace(KStringView sSearch, KStringView sReplace, bool bReplaceAll = false);
 
-	size_type Replace(const value_type* pszSearch, const value_type* pszReplaceWith, bool bReplaceAll = false) { return Replace(pszSearch, strlen(pszSearch), pszReplaceWith, strlen(pszReplaceWith), bReplaceAll); }
-	size_type Replace(const KString& sSearch, const KString& sReplaceWith, bool bReplaceAll = false) { return Replace(sSearch.data(), sSearch.size(), sReplaceWith.data(), sReplaceWith.size(), bReplaceAll); }
-	size_type Replace(const value_type* pszSearch, size_type iSearchLen, const value_type* pszReplaceWith, size_type iReplaceWithLen, bool bReplaceAll = false);
-
-	bool     StartsWith(KStringView sPattern) const { return StartsWith(*this, sPattern); }
-	bool     EndsWith(KStringView sPattern) const { return EndsWith(*this, sPattern); }
+	bool     StartsWith(KStringView sPattern) const { return kStartsWith(*this, sPattern); }
+	bool     EndsWith(KStringView sPattern) const { return kEndsWith(*this, sPattern); }
 
 	bool     IsEmail() const;
 	bool     IsURL() const;
@@ -345,27 +338,27 @@ public:
 	KString  Right(size_type iCount);
 
 	KString& TrimLeft();
-	KString& TrimLeft(const value_type chTarget);
-	KString& TrimLeft(const value_type* pszTarget);
+	KString& TrimLeft(value_type chTarget);
+	KString& TrimLeft(KStringView sTarget);
 
 	KString& TrimRight();
-	KString& TrimRight(const value_type chTarget);
-	KString& TrimRight(const value_type* pszTarget);
+	KString& TrimRight(value_type chTarget);
+	KString& TrimRight(KStringView sTarget);
 
 	KString& Trim();
-	KString& Trim(const value_type chTarget);
-	KString& Trim(const value_type* pszTarget);
+	KString& Trim(value_type chTarget);
+	KString& Trim(KStringView sTarget);
 
 	KString& PushBack(const value_type chPushBack) { return push_back(chPushBack); }
 	void PopBack() { pop_back(); }
-	KString& Append(const value_type* pszAppend) { return append(pszAppend); }
+	KString& Append(KStringView sAppend) { return append(sAppend); }
 
 	// Clip removing pszClipAt and everything to its right if found; otherwise do not alter the string
-	KString& ClipAt(const value_type* pszClipAt);
+	KString& ClipAt(KStringView sClipAt);
 
 	// Clip removing everything to the left of pszClipAtReverse so that pszClipAtReverse becomes the beginning of the string;
 	// otherwise do not alter the string
-	KString& ClipAtReverse(const value_type* pszClipAtReverse);
+	KString& ClipAtReverse(KStringView sClipAtReverse);
 
 	void RemoveIllegalChars(const KString& sIllegalChars);
 
@@ -380,46 +373,16 @@ public:
 	const string_type& s() const { return operator const string_type&(); }
 	string_type& s() { return operator string_type&(); }
 
-	operator KStringView() { return m_rep; }
-	operator const KStringView() const { return m_rep; }
+	KStringView sv() { return m_rep; }
+	operator KStringView() const { return m_rep; }
 
-	bool In (const KString& sHaystack, value_type iDelim=',');
+	bool In (KStringView sHaystack, value_type iDelim=',');
 
-	static bool StartsWith(KStringView sInput, KStringView sPattern);
-	static bool EndsWith(KStringView sInput, KStringView sPattern);
-	static bool kstrin (const char* sNeedle, const char* sHaystack, char iDelim=',');
 
 //----------
 protected:
 //----------
 	string_type m_rep;
-
-//----------
-private:
-//----------
-	size_type InnerReplace(size_type iIdxStartMatch, size_type iIdxEndMatch, const char* pszReplaceWith);
-
-	friend bool operator==(const KString&, const KString&);
-	friend bool operator==(const KString&, const value_type*);
-	friend bool operator==(const value_type*, const KString&);
-	friend bool operator!=(const KString&, const KString&);
-	friend bool operator!=(const KString&, const value_type*);
-	friend bool operator!=(const value_type*, const KString&);
-	friend bool operator>(const KString&, const KString&);
-	friend bool operator>(const KString&, const value_type*);
-	friend bool operator>(const value_type*, const KString&);
-	friend bool operator<(const KString&, const KString&);
-	friend bool operator<(const KString&, const value_type*);
-	friend bool operator<(const value_type*, const KString&);
-	friend bool operator>=(const KString&, const KString&);
-	friend bool operator>=(const KString&, const value_type*);
-	friend bool operator>=(const value_type*, const KString&);
-	friend bool operator<=(const KString&, const KString&);
-	friend bool operator<=(const KString&, const value_type*);
-	friend bool operator<=(const value_type*, const KString&);
-	friend std::ostream& operator <<(std::ostream& stream, const KString& str);
-	friend std::istream& operator >>(std::istream& stream, KString& str);
-	friend std::istream& std::getline(std::istream& stream, KString& str);
 
 }; // KString
 
@@ -427,18 +390,122 @@ typedef std::basic_stringstream<KString::value_type> KStringStream;
 
 inline std::ostream& operator <<(std::ostream& stream, const KString& str)
 {
-	return stream << str.m_rep;
+	return stream << str.s();
 }
 
 inline std::istream& operator >>(std::istream& stream, KString& str)
 {
-	return stream >> str.m_rep;
+	return stream >> str.s();
 }
 
-} // of namespace dekaf2
+inline KString operator+(KStringView left, KStringView right)
+{
+	KString temp;
+	temp.reserve(left.size() + right.size());
+	temp += left;
+	temp += right;
+	return temp;
+}
+
+inline KString operator+(const KString::value_type* left, KStringView right)
+{
+	KStringView sv(left);
+	return sv + right;
+}
+
+inline KString operator+(KStringView left, KString::value_type right)
+{
+	KString temp(left);
+	temp.reserve(left.size() + 1);
+	temp += right;
+	return temp;
+}
+
+inline KString operator+(KString::value_type left, KStringView right)
+{
+	KString temp;
+	temp.reserve(right.size() + 1);
+	temp += left;
+	temp += right;
+	return temp;
+}
+
+// now all operator+() with rvalues (only make sense for the rvalue as the left param)
+inline KString operator+(KString&& left, KStringView right)
+{
+	KString temp(std::move(left));
+	temp += right;
+	return temp;
+}
+
+inline KString operator+(KString&& left, KString::value_type right)
+{
+	KString temp(std::move(left));
+	temp += right;
+	return temp;
+}
+
+// KStringView includes comparison for KString
+inline bool operator==(KStringView left, KStringView right)
+{
+#ifdef DEKAF_HAS_CPP_17
+	return std::experimental::operator==(left, right);
+#else
+	return re2::operator==(left, right);
+#endif
+}
+
+inline bool operator!=(KStringView left, KStringView right)
+{
+#ifdef DEKAF_HAS_CPP_17
+	return std::experimental::operator!=(left, right);
+#else
+	return re2::operator!=(left, right);
+#endif
+}
+
+inline bool operator<(KStringView left, KStringView right)
+{
+#ifdef DEKAF_HAS_CPP_17
+	return std::experimental::operator<(left, right);
+#else
+	return re2::operator<(left, right);
+#endif
+}
+
+inline bool operator<=(KStringView left, KStringView right)
+{
+#ifdef DEKAF_HAS_CPP_17
+	return std::experimental::operator<=(left, right);
+#else
+	return re2::operator<=(left, right);
+#endif
+}
+
+inline bool operator>(KStringView left, KStringView right)
+{
+#ifdef DEKAF_HAS_CPP_17
+	return std::experimental::operator>(left, right);
+#else
+	return re2::operator>(left, right);
+#endif
+}
+
+inline bool operator>=(KStringView left, KStringView right)
+{
+#ifdef DEKAF_HAS_CPP_17
+	return std::experimental::operator>=(left, right);
+#else
+	return re2::operator>=(left, right);
+#endif
+}
+
+} // end of namespace dekaf2
 
 namespace std
 {
+	std::istream& getline(std::istream& stream, dekaf2::KString& str);
+
 	template<> struct hash<dekaf2::KString>
 	{
 		typedef dekaf2::KString argument_type;
@@ -448,213 +515,6 @@ namespace std
 			return std::hash<std::string>{}(s);
 		}
 	};
-}
 
-namespace dekaf2
-{
-
-//-----------------------------------------------------------------------------
-class KStringBuffer
-//-----------------------------------------------------------------------------
-{
-public:
-	enum CB_NEXT_OP {RET_NOOP, RET_REPLACE};
-	typedef std::function<
-		CB_NEXT_OP(
-			const KString& sWorkBuffer,
-			std::size_t iPos,
-			std::size_t iLen,
-			KString& sReplacer)
-		> SearchHandler;
-
-	explicit KStringBuffer(KString& sWorkBuffer):m_sWorkBuffer(sWorkBuffer){}
-
-	KString::size_type Replace(const KString& sSearchPattern, const KString& sWith);
-	KString::size_type Replace(const KString& sSearchPattern, const SearchHandler& foundHandler);
-
-private:
-	class SimpleReplacer;
-
-	KString& m_sWorkBuffer;
-};
-
-inline KString operator+(const KString& left, const KString& right)
-{
-	KString temp(left);
-	temp += right;
-	return temp;
-}
-
-inline KString operator+(const KString& left, const char* right)
-{
-	KString temp(left);
-	temp += right;
-	return temp;
-}
-
-inline KString operator+(const char* left, const KString& right)
-{
-	KString temp(left);
-	temp += right;
-	return temp;
-}
-
-inline KString operator+(const KString& left, char right)
-{
-	KString temp(left);
-	temp += right;
-	return temp;
-}
-
-inline KString operator+(char left, const KString& right)
-{
-	KString temp;
-	temp += left;
-	temp += right;
-	return temp;
-}
-
-// now all operator+() with rvalues
-inline KString operator+(KString&& left, KString&& right)
-{
-	KString temp(std::move(left));
-	temp += right;
-	return temp;
-}
-
-inline KString operator+(KString&& left, const KString& right)
-{
-	KString temp(std::move(left));
-	temp += right;
-	return temp;
-}
-
-inline KString operator+(const KString& left, KString&& right)
-{
-	KString temp(left);
-	temp.append(std::move(right));
-	return temp;
-}
-
-inline KString operator+(KString&& left, const char* right)
-{
-	KString temp(std::move(left));
-	temp += right;
-	return temp;
-}
-
-inline KString operator+(const char* left, KString&& right)
-{
-	KString temp(left);
-	temp.append(std::move(right));
-	return temp;
-}
-
-inline KString operator+(KString&& left, char right)
-{
-	KString temp(std::move(left));
-	temp += right;
-	return temp;
-}
-
-inline KString operator+(char left, KString&& right)
-{
-	KString temp;
-	temp += left;
-	temp.append(std::move(right));
-	return temp;
-}
-
-inline bool operator==(const KString& left, const KString& right)
-{
-	return left.m_rep == right.m_rep;
-}
-
-inline bool operator==(const KString& left, const KString::value_type* right)
-{
-	return left.m_rep == right;
-}
-
-inline bool operator==(const KString::value_type* left, const KString& right)
-{
-	return left == right.m_rep;
-}
-
-inline bool operator!=(const KString& left, const KString& right)
-{
-	return left.m_rep != right.m_rep;
-}
-
-inline bool operator!=(const KString& left, const KString::value_type* right)
-{
-	return left.m_rep != right;
-}
-
-inline bool operator!=(const KString::value_type* left, const KString& right)
-{
-	return left != right.m_rep;
-}
-
-inline bool operator>(const KString& left, const KString& right)
-{
-	return left.m_rep > right.m_rep;
-}
-
-inline bool operator>(const KString& left, const KString::value_type* right)
-{
-	return left.m_rep > right;
-}
-
-inline bool operator>(const KString::value_type* left, const KString& right)
-{
-	return left > right.m_rep;
-}
-
-inline bool operator<(const KString& left, const KString& right)
-{
-	return left.m_rep < right.m_rep;
-}
-
-inline bool operator<(const KString::value_type* left, const KString& right)
-{
-	return left < right.m_rep;
-}
-
-inline bool operator<(const KString& left, const KString::value_type* right)
-{
-	return left.m_rep < right;
-}
-
-inline bool operator>=(const KString& left, const KString& right)
-{
-	return left.m_rep >= right.m_rep;
-}
-
-inline bool operator>=(const KString& left, const KString::value_type* right)
-{
-	return left.m_rep >= right;
-}
-
-inline bool operator>=(const KString::value_type* left, const KString& right)
-{
-	return left >= right.m_rep;
-}
-
-inline bool operator<=(const KString& left, const KString& right)
-{
-	return left.m_rep <= right.m_rep;
-}
-
-inline bool operator<=(const KString::value_type* left, const KString& right)
-{
-	return left <= right.m_rep;
-}
-
-inline bool operator<=(const KString& left, const KString::value_type* right)
-{
-	return left.m_rep <= right;
-}
-
-
-} // end of namespace dekaf2
+} // end of namespace std
 

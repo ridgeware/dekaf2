@@ -68,19 +68,7 @@ KRegex::KRegex(const KStringView& expression)
 }
 
 //-----------------------------------------------------------------------------
-/// converting constructor, takes KString
-KRegex::KRegex(const KString& expression)
-//-----------------------------------------------------------------------------
-    : m_Regex(s_Cache.Get(expression.s()))
-{
-	if (!OK())
-	{
-		LogExpError();
-	}
-}
-
-//-----------------------------------------------------------------------------
-bool KRegex::Matches(const std::experimental::string_view& sStr, Groups& sGroups, size_t iMaxGroups)
+bool KRegex::Matches(const KStringView& sStr, Groups& sGroups, size_t iMaxGroups)
 //-----------------------------------------------------------------------------
 {
 	sGroups.clear();
@@ -95,7 +83,7 @@ bool KRegex::Matches(const std::experimental::string_view& sStr, Groups& sGroups
 }
 
 //-----------------------------------------------------------------------------
-bool KRegex::Matches(const std::experimental::string_view& sStr, size_t& iStart, size_t& iSize)
+bool KRegex::Matches(const KStringView& sStr, size_t& iStart, size_t& iSize)
 //-----------------------------------------------------------------------------
 {
 	Groups sGroups;
@@ -115,7 +103,7 @@ bool KRegex::Matches(const std::experimental::string_view& sStr, size_t& iStart,
 }
 
 //-----------------------------------------------------------------------------
-bool KRegex::Matches(const std::experimental::string_view& sStr)
+bool KRegex::Matches(const KStringView& sStr)
 //-----------------------------------------------------------------------------
 {
 	Groups sGroups;
@@ -123,7 +111,7 @@ bool KRegex::Matches(const std::experimental::string_view& sStr)
 }
 
 //-----------------------------------------------------------------------------
-size_t KRegex::Replace(std::string& sStr, const std::experimental::string_view& sReplaceWith, bool bReplaceAll)
+size_t KRegex::Replace(std::string& sStr, const KStringView& sReplaceWith, bool bReplaceAll)
 //-----------------------------------------------------------------------------
 {
 	size_t iCount{0};
@@ -151,7 +139,7 @@ size_t KRegex::Replace(std::string& sStr, const std::experimental::string_view& 
 // the static calls to the member functions:
 
 //-----------------------------------------------------------------------------
-bool KRegex::Matches(const std::experimental::string_view& sStr, const std::experimental::string_view& sRegex, Groups& sGroups, size_t iMaxGroups)
+bool KRegex::Matches(const KStringView& sStr, const KStringView& sRegex, Groups& sGroups, size_t iMaxGroups)
 //-----------------------------------------------------------------------------
 {
 	KRegex regex(sRegex);
@@ -159,7 +147,7 @@ bool KRegex::Matches(const std::experimental::string_view& sStr, const std::expe
 }
 
 //-----------------------------------------------------------------------------
-bool KRegex::Matches(const std::experimental::string_view& sStr, const std::experimental::string_view& sRegex, size_t& iStart, size_t& iSize)
+bool KRegex::Matches(const KStringView& sStr, const KStringView& sRegex, size_t& iStart, size_t& iSize)
 //-----------------------------------------------------------------------------
 {
 	KRegex regex(sRegex);
@@ -167,7 +155,7 @@ bool KRegex::Matches(const std::experimental::string_view& sStr, const std::expe
 }
 
 //-----------------------------------------------------------------------------
-bool KRegex::Matches(const std::experimental::string_view& sStr, const std::experimental::string_view& sRegex)
+bool KRegex::Matches(const KStringView& sStr, const KStringView& sRegex)
 //-----------------------------------------------------------------------------
 {
 	KRegex regex(sRegex);
@@ -175,7 +163,7 @@ bool KRegex::Matches(const std::experimental::string_view& sStr, const std::expe
 }
 
 //-----------------------------------------------------------------------------
-size_t KRegex::Replace(std::string& sStr, const std::experimental::string_view& sRegex, const std::experimental::string_view& sReplaceWith, bool bReplaceAll)
+size_t KRegex::Replace(std::string& sStr, const KStringView& sRegex, const KStringView& sReplaceWith, bool bReplaceAll)
 //-----------------------------------------------------------------------------
 {
 	KRegex regex(sRegex);

@@ -35,6 +35,8 @@ set (HEADERS
     ksignals.h
     kcrashexit.h
     kgetruntimestack.h
+    kreader.h
+    kwriter.h
 )
 
 set (SOURCES
@@ -54,6 +56,7 @@ set (SOURCES
     ksignals.cpp
     kcrashexit.cpp
     kgetruntimestack.cpp
+    kreader.cpp
 )
 
 # make sure we have the necessary version of cmake installed

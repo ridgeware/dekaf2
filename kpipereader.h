@@ -1,9 +1,3 @@
-///////////////////////////////////////////////////////////////////////////////
-//
-// DEKAF(tm): Lighter, Faster, Smarter(tm)
-//
-// Copyright (c) 2000-2017, Ridgeware, Inc.
-//
 // +-------------------------------------------------------------------------+
 // | /\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\|
 // |/+---------------------------------------------------------------------+/|
@@ -42,49 +36,42 @@
 
 #pragma once
 
-#include "kstring.h"
-#include "kstreamrw.h"
-
-/*
-KPIPE pipe;
-pipe.Open ("ls -l", "r");
-KString sOutput;
-
-for (auto it = pipe.begin(); it != pipe.END(); ++it) {
-	sOutput += *it;
-
-}
-*/
+#include "kreader.h"
 
 namespace dekaf2
 {
 
 //-----------------------------------------------------------------------------
-class KPIPE : public KStreamRW
+class KPipeReader : public KFILEReader
 //-----------------------------------------------------------------------------
 {
+
+//------
 public:
-	KPIPE ();
-	virtual ~KPIPE ();
+//------
 
-	bool Open        (const KString& sCommand, const char* pszMode="r");
-	int  Close       ();
-	bool isOpen      ()       { return (m_pipe != NULL); }
+	/// Default KPipeReader Constructor
+	KPipeReader() {}
+	/// Virtual Default KPipeReader Destructor
+	virtual ~KPipeReader() { Close(); }
 
-	bool getline     (KString& sTheLine, size_t iMaxLen=0, bool bTextOnly = false);
-	virtual bool getNext() { return getline(m_sLine, m_iLen); }
-	bool appendline  (KString& sBufferToAppend, size_t iMaxLen=~0ULL);
+	/// Opens a shell pipe and executes given command
+	virtual bool Open (KStringView sCommand);
+	/// Closes pipe saving exit code.
+	virtual void Close();
 
-	int getErrno     () const { return m_iExitcode; } //0 = success
+	/// Get error code, 0 indicates no errors
+	int          GetErrno() { return m_iExitCode; }
+	/// Allows KPipeReader to be passed where File* can be.
+	operator     FILE*();
 
-	operator FILE*          ();
-	operator const KString& ();
-	operator KString        ();
-
+//------
 private:
-	FILE*        m_pipe{nullptr};
-	//KStreamIter  m_kiter;
-	int          m_iExitcode{0};
-}; // class KPIPE
+//------
 
-} // end of namespace DEKAF2
+	FILE*        m_pipe{nullptr};
+	int          m_iExitCode{0};
+
+}; // END KPipeReader
+
+} // END NAMESPACE DEKAF2

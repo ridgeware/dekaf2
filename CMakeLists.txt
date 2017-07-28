@@ -38,6 +38,7 @@ set (HEADERS
     kstreamrw.h
     kreader.h
     kwriter.h
+    kpipereader.h
 )
 
 set (SOURCES
@@ -59,6 +60,7 @@ set (SOURCES
     kgetruntimestack.cpp
     kstreamrw.cpp
     kreader.cpp
+    kpipereader.cpp
 )
 
 # make sure we have the necessary version of cmake installed

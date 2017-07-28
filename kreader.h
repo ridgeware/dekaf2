@@ -58,7 +58,7 @@ public:
 	KReader& operator=(const KReader& other) = delete;
 	KReader& operator=(KReader&& other) noexcept;
 
-	virtual ~KReader() = 0;
+	virtual ~KReader() {}// = 0;
 
 	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	class const_iterator

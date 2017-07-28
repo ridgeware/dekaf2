@@ -145,7 +145,7 @@ bool KPIPE::getline(KString & sOutputBuffer, size_t iMaxLen/*=0*/, bool bTextOnl
 		return false;
 	}
 	//std::cout << "iMaxLen: " << iMaxLen ;
-	iMaxLen = (iMaxLen == 0) ? iMaxLen-1: iMaxLen; // size_t is unsigned, ergo 0-1=max_value
+	//iMaxLen = (iMaxLen == 0) ? iMaxLen-1: iMaxLen; // size_t is unsigned, ergo 0-1=max_value
 	//std::cout << "| iMaxLen: " << iMaxLen << std::endl;
 	for (int i = 0; i < iMaxLen; i++)
 	{

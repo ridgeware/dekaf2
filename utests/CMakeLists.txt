@@ -19,6 +19,7 @@ set (USOURCES
     kwebio_tests.cpp
     kcurl_tests.cpp
     kfile_tests.cpp
+    kpipereader_tests.cpp
 )
 
 add_executable(dekaf-utests ${UHEADERS} ${USOURCES})

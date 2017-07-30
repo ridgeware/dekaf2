@@ -64,7 +64,7 @@ bool Dekaf::SetUnicodeLocale(KString sName)
 {
 	try
 	{
-#ifdef DEKAF_IS_OSX
+#ifdef DEKAF2_IS_OSX
 		// no way to get the user's locale in OSX with C++. So simply set to en_US if not given as a parameter.
 		if (sName.empty() || sName == "C" || sName == "C.UTF-8")
 		{
@@ -96,11 +96,11 @@ bool Dekaf::SetUnicodeLocale(KString sName)
 #endif
 	}
 	catch (std::exception& e) {
-		KLog().exception(e, DEKAF_FUNCTION_NAME);
+		KLog().exception(e, DEKAF2_FUNCTION_NAME);
 		sName.erase();
 	}
 	catch (...) {
-		KLog().exception(DEKAF_FUNCTION_NAME);
+		KLog().exception(DEKAF2_FUNCTION_NAME);
 		sName.erase();
 	}
 	m_sLocale = sName;

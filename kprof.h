@@ -42,7 +42,7 @@
 
 #pragma once
 
-#if defined(ENABLE_PROFILING) || defined(DEKAF_LIBRARY_BUILD)
+#if defined(ENABLE_PROFILING) || defined(DEKAF2_LIBRARY_BUILD)
 
 #include <map>
 #include <cinttypes>
@@ -239,7 +239,7 @@ private:
 } // of namespace enabled
 } // namespace dekaf2
 
-#endif // ENABLE_PROFILING || DEKAF_LIBRARY_BUILD
+#endif // ENABLE_PROFILING || DEKAF2_LIBRARY_BUILD
 
 #if !defined(ENABLE_PROFILING)
 
@@ -293,7 +293,7 @@ public:
 namespace dekaf2
 {
 
-#if defined(ENABLE_PROFILING) || defined(DEKAF_LIBRARY_BUILD)
+#if defined(ENABLE_PROFILING) || defined(DEKAF2_LIBRARY_BUILD)
 #ifndef DISABLE_AUTOMATIC_PROFILER
 extern thread_local enabled::KSharedProfiler g_Prof;
 #endif

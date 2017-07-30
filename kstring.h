@@ -44,7 +44,7 @@
 
 #include "kcppcompat.h"
 #include <string>
-#ifdef DEKAF_HAS_CPP_17
+#ifdef DEKAF2_HAS_CPP_17
 #include <experimental/string_view>
 #else // prepare to use re2's StringPiece as string_view
 #include <re2/re2.h>
@@ -60,7 +60,7 @@
 namespace dekaf2
 {
 
-#ifdef DEKAF_HAS_CPP_17
+#ifdef DEKAF2_HAS_CPP_17
 using KStringView = std::experimental::string_view;
 #else
 using KStringView = re2::StringPiece;
@@ -448,7 +448,7 @@ inline KString operator+(KString&& left, KString::value_type right)
 // KStringView includes comparison for KString
 inline bool operator==(KStringView left, KStringView right)
 {
-#ifdef DEKAF_HAS_CPP_17
+#ifdef DEKAF2_HAS_CPP_17
 	return std::experimental::operator==(left, right);
 #else
 	return re2::operator==(left, right);
@@ -457,7 +457,7 @@ inline bool operator==(KStringView left, KStringView right)
 
 inline bool operator!=(KStringView left, KStringView right)
 {
-#ifdef DEKAF_HAS_CPP_17
+#ifdef DEKAF2_HAS_CPP_17
 	return std::experimental::operator!=(left, right);
 #else
 	return re2::operator!=(left, right);
@@ -466,7 +466,7 @@ inline bool operator!=(KStringView left, KStringView right)
 
 inline bool operator<(KStringView left, KStringView right)
 {
-#ifdef DEKAF_HAS_CPP_17
+#ifdef DEKAF2_HAS_CPP_17
 	return std::experimental::operator<(left, right);
 #else
 	return re2::operator<(left, right);
@@ -475,7 +475,7 @@ inline bool operator<(KStringView left, KStringView right)
 
 inline bool operator<=(KStringView left, KStringView right)
 {
-#ifdef DEKAF_HAS_CPP_17
+#ifdef DEKAF2_HAS_CPP_17
 	return std::experimental::operator<=(left, right);
 #else
 	return re2::operator<=(left, right);
@@ -484,7 +484,7 @@ inline bool operator<=(KStringView left, KStringView right)
 
 inline bool operator>(KStringView left, KStringView right)
 {
-#ifdef DEKAF_HAS_CPP_17
+#ifdef DEKAF2_HAS_CPP_17
 	return std::experimental::operator>(left, right);
 #else
 	return re2::operator>(left, right);
@@ -493,7 +493,7 @@ inline bool operator>(KStringView left, KStringView right)
 
 inline bool operator>=(KStringView left, KStringView right)
 {
-#ifdef DEKAF_HAS_CPP_17
+#ifdef DEKAF2_HAS_CPP_17
 	return std::experimental::operator>=(left, right);
 #else
 	return re2::operator>=(left, right);

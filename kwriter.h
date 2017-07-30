@@ -44,6 +44,9 @@
 
 #include <cinttypes>
 #include <streambuf>
+#include <ostream>
+#include <fstream>
+#include <sstream>
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -188,11 +191,12 @@ protected:
 
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-template<class OStream /*, typename std::enable_if<std::is_base_of<std::ostream, OStream>::value>::type* = nullptr */>
+template<class OStream, typename std::enable_if<std::is_base_of<std::ostream, OStream>::value>::type* = nullptr>
 class KWriter : public OStream
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 	using base_type = OStream;
+	using self_type = KWriter<OStream>;
 
 public:
 
@@ -201,8 +205,11 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	KWriter(OStream&& os);
+	KWriter(OStream&& os)
 	//-----------------------------------------------------------------------------
+		: base_type(std::move(os))
+	{
+	}
 
 	//-----------------------------------------------------------------------------
 	KWriter(const char* sName, std::ios::openmode mode = std::ios::out)
@@ -215,27 +222,41 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	KWriter(const KWriter& other) = delete;
+	KWriter(const self_type& other) = delete;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	KWriter(KWriter&& other) noexcept;
+	KWriter(self_type&& other) noexcept
+	//-----------------------------------------------------------------------------
+	    : base_type(std::move(other))
+	{
+	}
+
+	//-----------------------------------------------------------------------------
+	KWriter(int iFileDesc) noexcept
+	//-----------------------------------------------------------------------------
+	    : base_type(iFileDesc)
+	{
+	}
+
+	//-----------------------------------------------------------------------------
+	self_type& operator=(const self_type& other) = delete;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	KWriter& operator=(const KWriter& other) = delete;
+	self_type& operator=(self_type&& other) noexcept
 	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	KWriter& operator=(KWriter&& other) noexcept;
-	//-----------------------------------------------------------------------------
+	{
+		base_type::operator=(std::move(other));
+		return *this;
+	}
 
 	//-----------------------------------------------------------------------------
 	virtual ~KWriter() {}
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	inline KWriter& Write(KString::value_type& ch)
+	inline self_type& Write(KString::value_type& ch)
 	//-----------------------------------------------------------------------------
 	{
 		base_type::put();
@@ -243,7 +264,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	inline KWriter& Write(const typename base_type::char_type* pAddress, size_t iCount)
+	inline self_type& Write(const typename base_type::char_type* pAddress, size_t iCount)
 	//-----------------------------------------------------------------------------
 	{
 		base_type::write(pAddress, iCount);
@@ -260,7 +281,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	template<typename T, typename std::enable_if<std::is_trivially_copyable<T>::value>::type* = nullptr>
-	inline KWriter& Write(T& value)
+	inline self_type& Write(T& value)
 	//-----------------------------------------------------------------------------
 	{
 		Write(&value, sizeof(T));
@@ -268,7 +289,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	inline KWriter& WriteLine(KStringView line, KStringView delimiter = "\n")
+	inline self_type& WriteLine(KStringView line, KStringView delimiter = "\n")
 	//-----------------------------------------------------------------------------
 	{
 		Write(line.data(), line.size());
@@ -285,6 +306,10 @@ public:
 	}
 
 };
+
+using KFileWriter     = KWriter<std::ofstream>;
+using KStringWriter   = KWriter<std::ostringstream>;
+using KFileDescWriter = KWriter<KOutputFDStream>;
 
 } // end of namespace dekaf2
 

@@ -3,6 +3,7 @@
 #include <kfile.h>
 #include <vector>
 #include <fstream>
+#include "kwriter.h"
 
 using namespace dekaf2;
 
@@ -23,10 +24,10 @@ TEST_CASE("KFile") {
 	};
 
 	{
-		KFile fWriter(sFile, KFile::WRITE);
-		CHECK( fWriter.IsOpen() == true );
+		KFileWriter fWriter(sFile, std::ios_base::trunc);
+		CHECK( fWriter.is_open() == true );
 
-		if (fWriter.IsOpen())
+		if (fWriter.is_open())
 		{
 			fWriter.Write(sOut);
 		}

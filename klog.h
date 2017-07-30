@@ -152,7 +152,7 @@ private:
 	int m_iLevel{0};
 	KString m_sLogfile;
 	KString m_sFlagfile;
-	KWriter<std::ofstream> m_Log;
+	KFileWriter m_Log;
 };
 
 

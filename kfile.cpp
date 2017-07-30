@@ -169,52 +169,6 @@ void KFile::Close()
 }
 
 //-----------------------------------------------------------------------------
-bool KFile::GetLine(KString& sLine)
-//-----------------------------------------------------------------------------
-{
-	sLine.clear();
-
-	if (!m_File)
-	{
-		return false;
-	}
-
-
-	for (;;)
-	{
-		int iCh = fgetc(m_File);
-
-		switch (iCh)
-		{
-			case EOF:
-				{
-					bool bReturn = !sLine.empty();
-					if (m_eFlags & TRIM)
-					{
-						sLine.TrimRight();
-					}
-					return bReturn;
-				}
-
-			case '\r':
-				break;
-
-			case '\n':
-				if (m_eFlags & TRIM)
-				{
-					sLine.TrimRight();
-				}
-				return true;
-
-			default:
-				sLine += static_cast<KString::value_type>(iCh);
-				break;
-		}
-
-	}
-}
-
-//-----------------------------------------------------------------------------
 bool KFile::Write(const KString& sLine)
 //-----------------------------------------------------------------------------
 {
@@ -306,58 +260,6 @@ bool KFile::Exists(KFileFlags eFlags) const
 	return true;
 } // Exists
 
-//-----------------------------------------------------------------------------
-size_t KFile::GetSize() const
-//-----------------------------------------------------------------------------
-{
-	std::error_code ec;
-	size_t sz = fs::file_size(m_FilePath, ec);
-	if (ec)
-	{
-		return (0);
-	}
-	return sz;
-
-} // GetSize
-
-//-----------------------------------------------------------------------------
-bool KFile::GetContent(KString& sContent) const
-//-----------------------------------------------------------------------------
-{
-	sContent.clear();
-
-	if (!m_File)
-	{
-		return false;
-	}
-
-	// get size of the file.
-	const auto iSize = GetSize();
-
-	// create the read buffer
-	sContent.resize(iSize);
-
-	if (fread(sContent.data(), 1, iSize, m_File) != iSize)
-	{
-		KLog().warning ("KFile: Unable to read file '{0}': {1}", m_FilePath.string(), strerror(errno));
-		return false;
-	}
-
-	if (m_eFlags & TEXT) // dos2unix
-	{
-		sContent.Replace("\r\n", "\n", true);
-	}
-
-	if (m_eFlags & TRIM)
-	{
-		sContent.TrimRight();
-	}
-
-	return true;
-
-} // GetContent
-
-
 // static versions
 
 //-----------------------------------------------------------------------------
@@ -374,7 +276,7 @@ bool KFile::GetContent (KString& sContent, const KString& sPath, KFileFlags eFla
 //-----------------------------------------------------------------------------
 {
 	KFile File(sPath, eFlags | READ);
-	return File.GetContent(sContent);
+	return File.KFileReader::GetContent(sContent);
 
 } // GetContent
 
@@ -383,127 +285,10 @@ size_t KFile::GetSize (const KString& sPath)
 //-----------------------------------------------------------------------------
 {
 	KFile File(sPath);
-	return File.GetSize();
+	return File.KFileReader::GetSize();
 
 } // GetSize
 
-
-
-// KFile::const_iterator
-
-//-----------------------------------------------------------------------------
-KFile::const_iterator::const_iterator(KFile* it, bool bToEnd)
-//-----------------------------------------------------------------------------
-	: m_it(it)
-{
-	if (!bToEnd)
-	{
-		if (m_it->GetLine(m_sBuffer))
-		{
-			++m_iCount;
-		}
-	}
-}
-
-//-----------------------------------------------------------------------------
-KFile::const_iterator::const_iterator(const self_type& other)
-//-----------------------------------------------------------------------------
-	: m_it(other.m_it)
-	, m_iCount(other.m_iCount)
-	, m_sBuffer(other.m_sBuffer)
-{
-}
-
-//-----------------------------------------------------------------------------
-KFile::const_iterator::const_iterator(self_type&& other)
-//-----------------------------------------------------------------------------
-	: m_it(std::move(other.m_it))
-	, m_iCount(std::move(other.m_iCount))
-	, m_sBuffer(std::move(other.m_sBuffer))
-{
-}
-
-//-----------------------------------------------------------------------------
-KFile::const_iterator::self_type& KFile::const_iterator::operator=(const self_type& other)
-//-----------------------------------------------------------------------------
-{
-	m_it = other.m_it;
-	m_iCount = other.m_iCount;
-	m_sBuffer = other.m_sBuffer;
-	return *this;
-}
-
-//-----------------------------------------------------------------------------
-KFile::const_iterator::self_type& KFile::const_iterator::operator=(self_type&& other)
-//-----------------------------------------------------------------------------
-{
-	m_it = std::move(other.m_it);
-	m_iCount = std::move(other.m_iCount);
-	m_sBuffer = std::move(other.m_sBuffer);
-	return *this;
-}
-
-//-----------------------------------------------------------------------------
-KFile::const_iterator::self_type& KFile::const_iterator::operator++()
-//-----------------------------------------------------------------------------
-{
-	if (m_it->GetLine(m_sBuffer))
-	{
-		++m_iCount;
-	}
-	else
-	{
-		m_iCount = 0;
-	}
-
-	return *this;
-} // prefix
-
-//-----------------------------------------------------------------------------
-KFile::const_iterator::self_type KFile::const_iterator::operator++(int dummy)
-//-----------------------------------------------------------------------------
-{
-	self_type i = *this;
-
-	if (m_it->GetLine(m_sBuffer))
-	{
-		++m_iCount;
-	}
-	else
-	{
-		m_iCount = 0;
-	}
-
-	return i;
-} // postfix
-
-//-----------------------------------------------------------------------------
-KFile::const_iterator::reference KFile::const_iterator::operator*()
-//-----------------------------------------------------------------------------
-{
-	return m_sBuffer;
-}
-
-//-----------------------------------------------------------------------------
-KFile::const_iterator::pointer KFile::const_iterator::operator->()
-//-----------------------------------------------------------------------------
-{
-	return &m_sBuffer;
-}
-
-//-----------------------------------------------------------------------------
-bool KFile::const_iterator::operator==(const self_type& rhs)
-//-----------------------------------------------------------------------------
-{
-	return m_it == rhs.m_it && m_iCount == rhs.m_iCount;
-}
-
-//-----------------------------------------------------------------------------
-bool KFile::const_iterator::operator!=(const self_type& rhs)
-//-----------------------------------------------------------------------------
-{
-	return m_it != rhs.m_it || m_iCount != rhs.m_iCount;
-}
 
 } // end of namespace dekaf2
 

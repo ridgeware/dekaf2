@@ -47,12 +47,13 @@
 #include <cstdio>
 #include <iterator>
 #include "kstring.h"
+#include "kreader.h"
 
 namespace dekaf2
 {
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class KFile
+class KFile : public KFileReader
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 //-------
@@ -88,66 +89,19 @@ public:
 		Close();
 	}
 
-	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-	class const_iterator
-	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-	{
-	//-------
-	public:
-	//-------
-		typedef const_iterator self_type;
-		typedef KString value_type;
-		typedef value_type& reference;
-		typedef value_type* pointer;
-		typedef KFile* base_iterator;
-		typedef std::input_iterator_tag iterator_category;
-		typedef std::ptrdiff_t difference_type;
-
-		const_iterator() {}
-		const_iterator(KFile* it, bool bToEnd);
-		const_iterator(const self_type&);
-		const_iterator(self_type&& other);
-		self_type& operator=(const self_type&);
-		self_type& operator=(self_type&& other);
-		self_type& operator++();
-		self_type operator++(int dummy);
-		reference operator*();
-		pointer operator->();
-		bool operator==(const self_type& rhs);
-		bool operator!=(const self_type& rhs);
-
-	//-------
-	private:
-	//-------
-		KFile* m_it{nullptr};
-		size_t m_iCount{0};
-		KString m_sBuffer;
-	};
-
-	typedef const_iterator iterator;
-
 	bool             Open         (const KString& sPathName, KFileFlags eFlags = TEXT | READ);
 	bool             Open         (int filedesc, KFileFlags eFlags = TEXT | READ);
 	bool             Open         (FILE* fileptr, KFileFlags eFlags = TEXT | READ);
 	void             Close        ();
-	bool             GetLine      (KString& sLine);
-	operator         KString      () { KString sStr; GetLine(sStr); return sStr; }
-	const_iterator   cbegin       () { return const_iterator(this, false); }
-	const_iterator   cend         () { return const_iterator(this, true); }
-	const_iterator   begin        () { return cbegin(); }
-	const_iterator   end          () { return cend(); }
 
 	bool             Write        (const KString& sLine);
 	bool             WriteLine    (const KString& sLine);
 	bool             Flush        ();
 
-	bool             IsOpen       () const { return m_File; }
-	bool             IsEOF        () const { return !m_File || feof(m_File); }
-
 	bool             Exists       (KFileFlags iFlags = NONE) const;
-	size_t           GetSize      () const;
-	size_t           GetBytes     () const { return GetSize(); }
-	bool             GetContent   (KString& sContent) const;
+	size_t           GetBytes     () const { return KFileReader::GetSize(); }
+
+	bool             GetContent   (KString& sContent, bool bIsText = false) { return KFileReader::GetContent(sContent, bIsText); }
 
 	// static interface
 	static bool      Exists       (const KString& sPath, KFileFlags iFlags = NONE);

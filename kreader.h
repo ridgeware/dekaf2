@@ -42,23 +42,47 @@
 
 #pragma once
 
+#include <cstdio>
 #include "kstring.h"
 
 namespace dekaf2
 {
 
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class KReader
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
+//----------
 public:
+//----------
 
+	//-----------------------------------------------------------------------------
 	KReader() {}
-	KReader(const KStringView& sPathName) {}
-	KReader(const KReader& other) = delete;
-	KReader(KReader&& other) noexcept;
-	KReader& operator=(const KReader& other) = delete;
-	KReader& operator=(KReader&& other) noexcept;
+	//-----------------------------------------------------------------------------
 
-	virtual ~KReader() = 0;
+	//-----------------------------------------------------------------------------
+	KReader(KStringView sName) {}
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	KReader(const KReader& other) = delete;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	KReader(KReader&& other) noexcept;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	KReader& operator=(const KReader& other) = delete;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	KReader& operator=(KReader&& other) noexcept;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	virtual ~KReader() {}
+	//-----------------------------------------------------------------------------
 
 	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	class const_iterator
@@ -98,70 +122,155 @@ public:
 
 	typedef const_iterator iterator;
 
-	virtual bool Open(KStringView name) = 0;
+	//-----------------------------------------------------------------------------
+	virtual bool Open(KStringView sName) = 0;
+	//-----------------------------------------------------------------------------
 
+	//-----------------------------------------------------------------------------
 	virtual void Close() = 0;
+	//-----------------------------------------------------------------------------
 
+	//-----------------------------------------------------------------------------
 	virtual bool IsOpen() const = 0;
+	//-----------------------------------------------------------------------------
 
+	//-----------------------------------------------------------------------------
 	virtual bool IsEOF() const = 0;
+	//-----------------------------------------------------------------------------
 
+	//-----------------------------------------------------------------------------
 	virtual size_t GetSize() const = 0;
+	//-----------------------------------------------------------------------------
 
+	//-----------------------------------------------------------------------------
 	virtual bool GetContent(KString& sContent, bool bIsText = false);
+	//-----------------------------------------------------------------------------
 
+	//-----------------------------------------------------------------------------
 	virtual bool Read(KString::value_type& ch) = 0;
+	//-----------------------------------------------------------------------------
 
+	//-----------------------------------------------------------------------------
 	virtual size_t Read(void* pAddress, size_t iCount) = 0;
+	//-----------------------------------------------------------------------------
 
-	virtual bool ReadLine(KString& line, bool bOnlyText = true);
+	//-----------------------------------------------------------------------------
+	template<typename T>
+	inline bool Read(T& value)
+	//-----------------------------------------------------------------------------
+	{
+		return Read(&value, sizeof(T)) == sizeof(T);
+	}
 
-	operator KString()
+	//-----------------------------------------------------------------------------
+	virtual bool ReadLine(KString& line, KString::value_type delim = '\n');
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	inline operator KString()
+	//-----------------------------------------------------------------------------
 	{
 		KString sStr;
 		ReadLine(sStr);
 		return sStr;
 	}
 
-	const_iterator cbegin()
+	//-----------------------------------------------------------------------------
+	inline const_iterator cbegin()
+	//-----------------------------------------------------------------------------
 	{
 		return const_iterator(this, false);
 	}
 
-	const_iterator cend()
+	//-----------------------------------------------------------------------------
+	inline const_iterator cend()
+	//-----------------------------------------------------------------------------
 	{
 		return const_iterator(this, true);
 	}
 
-	const_iterator begin()
+	//-----------------------------------------------------------------------------
+	inline const_iterator begin()
+	//-----------------------------------------------------------------------------
 	{
 		return cbegin();
 	}
 
-	const_iterator end()
+	//-----------------------------------------------------------------------------
+	inline const_iterator end()
+	//-----------------------------------------------------------------------------
 	{
 		return cend();
 	}
 
 };
 
-class KFILEReader : public KReader
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+class KStringReader : public KReader
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
+//----------
 public:
-	KFILEReader() {}
-	explicit KFILEReader(int filedesc);
-	explicit KFILEReader(FILE* fileptr);
-	KFILEReader(const KStringView& sPathName)
+//----------
+	KStringReader() {}
+	KStringReader(KStringView sSource)
 	{
-		Open(sPathName);
+		Open(sSource);
 	}
-	KFILEReader(const KFILEReader& other) = delete;
-	KFILEReader(KFILEReader&& other) noexcept;
-	KFILEReader& operator=(const KFILEReader& other) = delete;
-	KFILEReader& operator=(KFILEReader&& other) noexcept;
-	virtual ~KFILEReader();
+	KStringReader(const KStringReader& other) = delete;
+	KStringReader(KStringReader&& other) noexcept;
+	KStringReader& operator=(const KStringReader& other) = delete;
+	KStringReader& operator=(KStringReader&& other) noexcept;
+	virtual ~KStringReader();
 
-	virtual bool Open(KStringView name);
+	virtual bool Open(KStringView sSource);
+	virtual void Close();
+	virtual bool IsOpen() const;
+	virtual bool IsEOF() const;
+	virtual size_t GetSize() const;
+	virtual bool Read(KString::value_type& ch);
+	virtual size_t Read(void* pAddress, size_t iCount);
+
+//----------
+protected:
+//----------
+
+	KStringView m_Source;
+	KStringView::const_iterator m_it{m_Source.cend()};
+
+}; // KFileReader
+
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+class KFileReader : public KReader
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+//----------
+public:
+//----------
+	KFileReader() {}
+
+	explicit KFileReader(int filedesc)
+	{
+		Open(filedesc);
+	}
+
+	explicit KFileReader(FILE* fileptr)
+	{
+		Open(fileptr);
+	}
+
+	KFileReader(KStringView sName)
+	{
+		Open(sName);
+	}
+
+	KFileReader(const KFileReader& other) = delete;
+	KFileReader(KFileReader&& other) noexcept;
+	KFileReader& operator=(const KFileReader& other) = delete;
+	KFileReader& operator=(KFileReader&& other) noexcept;
+	virtual ~KFileReader();
+
+	virtual bool Open(KStringView sName);
 	bool Open(FILE* fileptr);
 	bool Open(int filedesc);
 	virtual void Close();
@@ -171,11 +280,13 @@ public:
 	virtual bool Read(KString::value_type& ch);
 	virtual size_t Read(void* pAddress, size_t iCount);
 
-private:
+//----------
+protected:
+//----------
 
 	FILE* m_File{nullptr};
 
-}; // KFILEReader
+}; // KFileReader
 
 } // end of namespace dekaf2
 

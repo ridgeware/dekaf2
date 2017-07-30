@@ -57,6 +57,7 @@ set (SOURCES
     kcrashexit.cpp
     kgetruntimestack.cpp
     kreader.cpp
+    kwriter.cpp
 )
 
 # make sure we have the necessary version of cmake installed

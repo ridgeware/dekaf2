@@ -1,4 +1,6 @@
 /*
+//-----------------------------------------------------------------------------//
+//
 // DEKAF(tm): Lighter, Faster, Smarter (tm)
 //
 // Copyright (c) 2017, Ridgeware, Inc.
@@ -38,44 +40,111 @@
 // +-------------------------------------------------------------------------+
 */
 
-#pragma once
-
-#include <ostream>
-#include "fmt/format.h"
-#include "fmt/ostream.h"
+#include <fstream>
+#include "kwriter.h"
 #include "klog.h"
 
 namespace dekaf2
 {
 
+
 //-----------------------------------------------------------------------------
-template<class... Args>
-std::string kFormat(Args&&... args)
+KOStreamBuf::~KOStreamBuf()
 //-----------------------------------------------------------------------------
 {
-	try {
-		return fmt::format(std::forward<Args>(args)...);
-	} catch (std::exception& e) {
-		KLog().exception(e, "kFormat");
-	} catch (...) {
-		KLog().exception("kFormat");
-	}
-	return std::string();
 }
 
 //-----------------------------------------------------------------------------
-template<class... Args>
-void kfFormat(std::ostream& os, Args&&... args)
+std::streamsize KOStreamBuf::xsputn(const char_type* s, std::streamsize n)
 //-----------------------------------------------------------------------------
 {
-	try {
-		fmt::print(os, std::forward<Args>(args)...);
-	} catch (std::exception& e) {
-		KLog().exception(e, "kfFormat");
-	} catch (...) {
-		KLog().exception("kfFormat");
-	}
+	return m_Callback(s, n, m_CustomPointer);
 }
+
+//-----------------------------------------------------------------------------
+KOStreamBuf::int_type KOStreamBuf::overflow(int_type ch)
+//-----------------------------------------------------------------------------
+{
+	return static_cast<int_type>(m_Callback(&ch, 1, m_CustomPointer));
+}
+
+
+//-----------------------------------------------------------------------------
+KOutputFDStream::KOutputFDStream(KOutputFDStream&& other)
+    : m_FileDesc{other.m_FileDesc}
+    , m_FPStreamBuf{std::move(other.m_FPStreamBuf)}
+//-----------------------------------------------------------------------------
+{
+	other.m_FileDesc = -1;
+
+} // move ctor
+
+//-----------------------------------------------------------------------------
+KOutputFDStream::~KOutputFDStream()
+//-----------------------------------------------------------------------------
+{
+	close();
+}
+
+//-----------------------------------------------------------------------------
+KOutputFDStream& KOutputFDStream::operator=(KOutputFDStream&& other)
+//-----------------------------------------------------------------------------
+{
+	m_FileDesc = other.m_FileDesc;
+	m_FPStreamBuf = std::move(other.m_FPStreamBuf);
+	other.m_FileDesc = -1;
+	return *this;
+}
+
+//-----------------------------------------------------------------------------
+void KOutputFDStream::open(int iFileDesc)
+//-----------------------------------------------------------------------------
+{
+	close();
+
+	m_FileDesc = iFileDesc;
+
+	base_type::init(&m_FPStreamBuf);
+
+} // open
+
+//-----------------------------------------------------------------------------
+void KOutputFDStream::close()
+//-----------------------------------------------------------------------------
+{
+	if (m_FileDesc >= 0)
+	{
+		base_type::flush();
+		if (::close(m_FileDesc))
+		{
+			KLog().warning("KOFDStream: Cannot close file: {}", strerror(errno));
+		}
+		m_FileDesc = -1;
+	}
+
+} // close
+
+//-----------------------------------------------------------------------------
+std::streamsize KOutputFDStream::FileDescWriter(const void* sBuffer, std::streamsize iCount, void* filedesc)
+//-----------------------------------------------------------------------------
+{
+	std::streamsize iWrote{0};
+
+	if (filedesc)
+	{
+		// it is more difficult than one would expect to convert a void* into an int..
+		int fd = static_cast<int>(*static_cast<long*>(filedesc));
+		iWrote = ::write(fd, sBuffer, static_cast<size_t>(iCount));
+		if (iWrote != iCount)
+		{
+			// do some logging
+			KLog().warning("KOFDStream: cannot write to file: {}", strerror(errno));
+		}
+	}
+
+	return iWrote;
+}
+
 
 } // end of namespace dekaf2
 

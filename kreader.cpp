@@ -49,7 +49,7 @@ namespace dekaf2
 {
 
 //-----------------------------------------------------------------------------
-bool KReader::ReadLine(KString& sLine, bool bOnlyText)
+bool KReader::ReadLine(KString& sLine, KString::value_type delim)
 //-----------------------------------------------------------------------------
 {
 	sLine.clear();
@@ -69,25 +69,11 @@ bool KReader::ReadLine(KString& sLine, bool bOnlyText)
 			return !sLine.empty();
 		}
 
-		switch (Ch)
+		sLine += Ch;
+
+		if (Ch == delim)
 		{
-			case '\r':
-				if (!bOnlyText)
-				{
-					sLine += Ch;
-				}
-				break;
-
-			case '\n':
-				if (!bOnlyText)
-				{
-					sLine += Ch;
-				}
-				return true;
-
-			default:
-				sLine += Ch;
-				break;
+			return true;
 		}
 	}
 }
@@ -250,17 +236,88 @@ bool KReader::const_iterator::operator!=(const self_type& rhs)
 }
 
 
-// KFILEReader
+// KStringReader
 
 //-----------------------------------------------------------------------------
-KFILEReader::~KFILEReader()
+bool KStringReader::Open(KStringView sSource)
+//-----------------------------------------------------------------------------
+{
+	m_Source = sSource;
+	m_it = m_Source.cbegin();
+	return m_Source.data();
+}
+
+//-----------------------------------------------------------------------------
+void KStringReader::Close()
+//-----------------------------------------------------------------------------
+{
+	m_Source = nullptr;
+}
+
+//-----------------------------------------------------------------------------
+bool KStringReader::IsOpen() const
+//-----------------------------------------------------------------------------
+{
+	return m_Source.data();
+}
+
+//-----------------------------------------------------------------------------
+bool KStringReader::IsEOF() const
+//-----------------------------------------------------------------------------
+{
+	return !m_Source.data() || m_it == m_Source.cend();
+}
+
+//-----------------------------------------------------------------------------
+size_t KStringReader::GetSize() const
+//-----------------------------------------------------------------------------
+{
+	return m_Source.size();
+}
+
+//-----------------------------------------------------------------------------
+bool KStringReader::Read(KString::value_type& ch)
+//-----------------------------------------------------------------------------
+{
+	if (m_it == m_Source.cend())
+	{
+		return false;
+	}
+
+	ch = *m_it;
+	++m_it;
+	return true;
+}
+
+
+//-----------------------------------------------------------------------------
+size_t KStringReader::Read(void* pAddress, size_t iCount)
+//-----------------------------------------------------------------------------
+{
+	size_t iCopy = std::min(iCount, static_cast<size_t>(m_Source.cend() - m_it));
+
+	if (iCopy)
+	{
+		std::memcpy(pAddress, m_it, iCopy);
+		m_it += iCopy;
+	}
+
+	return iCopy;
+}
+
+
+
+// KFileReader
+
+//-----------------------------------------------------------------------------
+KFileReader::~KFileReader()
 //-----------------------------------------------------------------------------
 {
 	Close();
 }
 
 //-----------------------------------------------------------------------------
-bool KFILEReader::Open(KStringView svName)
+bool KFileReader::Open(KStringView svName)
 //-----------------------------------------------------------------------------
 {
 	Close();
@@ -271,7 +328,7 @@ bool KFILEReader::Open(KStringView svName)
 
 	if (!m_File)
 	{
-		KLog().warning ("KFILEReader: Unable to open file '{0}': {1}", sName.s(), strerror(errno));
+		KLog().warning ("KFileReader: Unable to open file '{0}': {1}", sName.s(), strerror(errno));
 		return false;
 	}
 
@@ -279,7 +336,7 @@ bool KFILEReader::Open(KStringView svName)
 }
 
 //-----------------------------------------------------------------------------
-bool KFILEReader::Open(FILE* fileptr)
+bool KFileReader::Open(FILE* fileptr)
 //-----------------------------------------------------------------------------
 {
 	Close();
@@ -290,14 +347,14 @@ bool KFILEReader::Open(FILE* fileptr)
 }
 
 //-----------------------------------------------------------------------------
-bool KFILEReader::Open(int filedesc)
+bool KFileReader::Open(int filedesc)
 //-----------------------------------------------------------------------------
 {
 	return Open(fdopen(filedesc, "r"));
 }
 
 //-----------------------------------------------------------------------------
-void KFILEReader::Close()
+void KFileReader::Close()
 //-----------------------------------------------------------------------------
 {
 	if (m_File)
@@ -308,7 +365,7 @@ void KFILEReader::Close()
 }
 
 //-----------------------------------------------------------------------------
-bool KFILEReader::Read(KString::value_type& ch)
+bool KFileReader::Read(KString::value_type& ch)
 //-----------------------------------------------------------------------------
 {
 	if (!m_File)
@@ -329,7 +386,7 @@ bool KFILEReader::Read(KString::value_type& ch)
 }
 
 //-----------------------------------------------------------------------------
-size_t KFILEReader::Read(void* pAddress, size_t iCount)
+size_t KFileReader::Read(void* pAddress, size_t iCount)
 //-----------------------------------------------------------------------------
 {
 	if (!m_File)
@@ -344,7 +401,7 @@ size_t KFILEReader::Read(void* pAddress, size_t iCount)
 		// could be an error, or just EOF - we want to log if it is not EOF
 		if (std::ferror(m_File))
 		{
-			KLog().warning("KFILEReader: Unable to read file: {0}", strerror(errno));
+			KLog().warning("KFileReader: Unable to read file: {0}", strerror(errno));
 		}
 	}
 
@@ -352,21 +409,21 @@ size_t KFILEReader::Read(void* pAddress, size_t iCount)
 }
 
 //-----------------------------------------------------------------------------
-bool KFILEReader::IsOpen() const
+bool KFileReader::IsOpen() const
 //-----------------------------------------------------------------------------
 {
 	return m_File;
 }
 
 //-----------------------------------------------------------------------------
-bool KFILEReader::IsEOF() const
+bool KFileReader::IsEOF() const
 //-----------------------------------------------------------------------------
 {
 	return !m_File || feof(m_File);
 }
 
 //-----------------------------------------------------------------------------
-size_t KFILEReader::GetSize() const
+size_t KFileReader::GetSize() const
 //-----------------------------------------------------------------------------
 {
 	if (!m_File)
@@ -380,7 +437,7 @@ size_t KFILEReader::GetSize() const
 
 	if (fstat(fd, &buf))
 	{
-		KLog().warning("KFILEReader: Unable to stat file: {0}", strerror(errno));
+		KLog().warning("KFileReader: Unable to stat file: {0}", strerror(errno));
 		return 0;
 	}
 

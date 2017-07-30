@@ -42,8 +42,8 @@
 
 #include <stdio.h>
 #include <assert.h>
-#include "kstringutils.h"
 #include "kstring.h"
+#include "kstringutils.h"
 #include "klog.h"
 #include "kregex.h"
 

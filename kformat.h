@@ -43,10 +43,18 @@
 #include <ostream>
 #include "fmt/format.h"
 #include "fmt/ostream.h"
-#include "klog.h"
+#include "kcppcompat.h"
 
 namespace dekaf2
 {
+
+namespace kFormat_internal
+{
+
+void report_format_exception(const char* where);
+void report_format_exception(std::exception& e, const char* where);
+
+} // end of namespace kFormat_internal
 
 //-----------------------------------------------------------------------------
 template<class... Args>
@@ -56,25 +64,26 @@ std::string kFormat(Args&&... args)
 	try {
 		return fmt::format(std::forward<Args>(args)...);
 	} catch (std::exception& e) {
-		KLog().exception(e, "kFormat");
+		kFormat_internal::report_format_exception(e, DEKAF_FUNCTION_NAME);
 	} catch (...) {
-		KLog().exception("kFormat");
+		kFormat_internal::report_format_exception(DEKAF_FUNCTION_NAME);
 	}
 	return std::string();
 }
 
 //-----------------------------------------------------------------------------
 template<class... Args>
-void kfFormat(std::ostream& os, Args&&... args)
+std::ostream& kfFormat(std::ostream& os, Args&&... args)
 //-----------------------------------------------------------------------------
 {
 	try {
 		fmt::print(os, std::forward<Args>(args)...);
 	} catch (std::exception& e) {
-		KLog().exception(e, "kfFormat");
+		kFormat_internal::report_format_exception(e, DEKAF_FUNCTION_NAME);
 	} catch (...) {
-		KLog().exception("kfFormat");
+		kFormat_internal::report_format_exception(DEKAF_FUNCTION_NAME);
 	}
+	return os;
 }
 
 } // end of namespace dekaf2

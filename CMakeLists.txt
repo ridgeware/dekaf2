@@ -53,6 +53,7 @@ set (SOURCES
     kparallel.cpp
     kcurl.cpp
     kwebio.cpp
+    kformat.cpp
     ksignals.cpp
     kcrashexit.cpp
     kgetruntimestack.cpp

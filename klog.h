@@ -43,8 +43,9 @@
 #pragma once
 
 #include <exception>
+#include <fstream>
 #include "kstring.h"
-#include "kfile.h"
+#include "kwriter.h"
 #include "kformat.h"
 
 namespace dekaf2
@@ -151,7 +152,7 @@ private:
 	int m_iLevel{0};
 	KString m_sLogfile;
 	KString m_sFlagfile;
-	KFile m_Log;
+	KWriter<std::ofstream> m_Log;
 };
 
 

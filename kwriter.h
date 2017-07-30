@@ -188,7 +188,7 @@ protected:
 
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-template<class OStream, typename std::enable_if<std::is_base_of<std::ostream, OStream>::value>::type* = nullptr>
+template<class OStream /*, typename std::enable_if<std::is_base_of<std::ostream, OStream>::value>::type* = nullptr */>
 class KWriter : public OStream
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -205,7 +205,13 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	KWriter(KStringView sName);
+	KWriter(const char* sName, std::ios::openmode mode = std::ios::out)
+	    : base_type(sName, mode) {}
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	KWriter(const KString& sName, std::ios::openmode mode = std::ios::out)
+	    : base_type(sName, mode) {}
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------

@@ -44,5 +44,10 @@
 
 #include "kstring.h"
 
-dekaf2::KString kGetRuntimeStack ();
+namespace dekaf2
+{
 
+KString kGetRuntimeStack ();
+KString kGetBacktrace (size_t iSkipStackLines = 0);
+
+}

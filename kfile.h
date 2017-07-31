@@ -43,88 +43,35 @@
 #pragma once
 
 #include <cinttypes>
-#include <experimental/filesystem>
-#include <cstdio>
-#include <iterator>
 #include "kstring.h"
-#include "kreader.h"
 
 namespace dekaf2
 {
 
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class KFile : public KFileReader
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+namespace KFile
 {
-//-------
-public:
-//-------
-	enum // flags
-	{
-		NONE   = 0,
-		TEXT   = 1 << 0,
-		TRIM   = 1 << 1,
-		TEST0  = 1 << 2,  // test for zero-length file
-		READ   = 1 << 3,
-		WRITE  = 1 << 4,
-		APPEND = 1 << 5
-	};
 
-	typedef uint16_t KFileFlags;
-
-	KFile() {}
-	explicit KFile(int filedesc);
-	explicit KFile(FILE* fileptr);
-	KFile(const KString& sPathName, KFileFlags eFlags = TEXT)
-	{
-		Open(sPathName, eFlags);
-	}
-	KFile(const KFile& other) = delete;
-	KFile(KFile&& other) noexcept;
-	KFile& operator=(const KFile& other) = delete;
-	KFile& operator=(KFile&& other) noexcept;
-
-	virtual ~KFile()
-	{
-		Close();
-	}
-
-	bool             Open         (const KString& sPathName, KFileFlags eFlags = TEXT | READ);
-	bool             Open         (int filedesc, KFileFlags eFlags = TEXT | READ);
-	bool             Open         (FILE* fileptr, KFileFlags eFlags = TEXT | READ);
-	void             Close        ();
-
-	bool             Write        (const KString& sLine);
-	bool             WriteLine    (const KString& sLine);
-	bool             Flush        ();
-
-	bool             Exists       (KFileFlags iFlags = NONE) const;
-	size_t           GetBytes     () const { return KFileReader::GetSize(); }
-
-	bool             GetContent   (KString& sContent, bool bIsText = false) { return KFileReader::GetContent(sContent, bIsText); }
-
-	// static interface
-	static bool      Exists       (const KString& sPath, KFileFlags iFlags = NONE);
-	static bool      GetContent   (KString& sContent, const KString& sPath, KFileFlags eFlags = TEXT);
-	static size_t    GetSize      (const KString& sPath);
-	static size_t    GetBytes     (const KString& sPath) { return GetSize(sPath); }
-	static KString   CalcFOpenModeString(KFileFlags eFlags);
-	static KString   GetCWD       ();
-
-//-------
-protected:
-//-------
-
-//-------
-private:
-//-------
-	std::experimental::filesystem::path m_FilePath;
-	KFileFlags m_eFlags{NONE};
-	FILE* m_File{nullptr};
-
+enum // flags
+{
+	NONE   = 0,
+	TEXT   = 1 << 0,
+	TRIM   = 1 << 1,
+	TEST0  = 1 << 2,  // test for zero-length file
 };
 
-inline KString       kGetCWD      () { return KFile::GetCWD(); }
+typedef uint16_t KFileFlags;
+
+// static interface
+bool      Exists       (const KString& sPath, KFileFlags iFlags = NONE);
+bool      GetContent   (KString& sContent, const KString& sPath, KFileFlags eFlags = TEXT);
+size_t    GetSize      (const KString& sPath);
+inline size_t GetBytes (const KString& sPath) { return GetSize(sPath); }
+KString   GetCWD       ();
+
+} // end of namespace KFile
+
+inline
+KString   kGetCWD      () { return KFile::GetCWD(); }
 
 } // end of namespace dekaf2
 

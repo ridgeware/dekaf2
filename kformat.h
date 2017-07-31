@@ -43,6 +43,7 @@
 #include <ostream>
 #include "fmt/format.h"
 #include "fmt/ostream.h"
+#include "fmt/printf.h"
 #include "kcppcompat.h"
 
 namespace dekaf2
@@ -78,6 +79,36 @@ std::ostream& kfFormat(std::ostream& os, Args&&... args)
 {
 	try {
 		fmt::print(os, std::forward<Args>(args)...);
+	} catch (std::exception& e) {
+		kFormat_internal::report_format_exception(e, DEKAF2_FUNCTION_NAME);
+	} catch (...) {
+		kFormat_internal::report_format_exception(DEKAF2_FUNCTION_NAME);
+	}
+	return os;
+}
+
+//-----------------------------------------------------------------------------
+template<class... Args>
+std::string kPrintf(Args&&... args)
+//-----------------------------------------------------------------------------
+{
+	try {
+		return fmt::sprintf(std::forward<Args>(args)...);
+	} catch (std::exception& e) {
+		kFormat_internal::report_format_exception(e, DEKAF2_FUNCTION_NAME);
+	} catch (...) {
+		kFormat_internal::report_format_exception(DEKAF2_FUNCTION_NAME);
+	}
+	return std::string();
+}
+
+//-----------------------------------------------------------------------------
+template<class... Args>
+std::ostream& kfPrintf(std::ostream& os, Args&&... args)
+//-----------------------------------------------------------------------------
+{
+	try {
+		fmt::printf(os, std::forward<Args>(args)...);
 	} catch (std::exception& e) {
 		kFormat_internal::report_format_exception(e, DEKAF2_FUNCTION_NAME);
 	} catch (...) {

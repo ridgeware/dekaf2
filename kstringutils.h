@@ -157,6 +157,29 @@ typename String::size_type Replace(String& string,
 	return iNumReplacement;
 }
 
+//-----------------------------------------------------------------------------
+template<class String>
+String& PadLeft(String& string, size_t iWidth, typename String::value_type chPad = ' ')
+//-----------------------------------------------------------------------------
+{
+	if (string.size() < iWidth)
+	{
+		string.insert(0, iWidth - string.size(), chPad);
+	}
+	return string;
+}
+
+//-----------------------------------------------------------------------------
+template<class String>
+String& PadRight(String& string, size_t iWidth, typename String::value_type chPad = ' ')
+//-----------------------------------------------------------------------------
+{
+	if (string.size() < iWidth)
+	{
+		string.append(iWidth - string.size(), chPad);
+	}
+	return string;
+}
 
 //-----------------------------------------------------------------------------
 template<class String, class Compare>

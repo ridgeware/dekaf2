@@ -42,6 +42,7 @@
 
 #include "klog.h"
 #include "kstring.h"
+#include "kgetruntimestack.h"
 
 namespace dekaf2
 {
@@ -67,7 +68,7 @@ KLog::KLog()
 
 //---------------------------------------------------------------------------
 //	filename set/get debuglog("stderr/stdout/syslog" special files) /tmp/dekaf.log
-bool KLog::set_debuglog(const KString& sLogfile)
+bool KLog::set_debuglog(KStringView sLogfile)
 //---------------------------------------------------------------------------
 {
 	if (sLogfile.empty())
@@ -88,7 +89,7 @@ bool KLog::set_debuglog(const KString& sLogfile)
 
 //---------------------------------------------------------------------------
 //	set/get debugflag() /tmp/dekaf.dbg
-bool KLog::set_debugflag(const KString& sFlagfile)
+bool KLog::set_debugflag(KStringView sFlagfile)
 //---------------------------------------------------------------------------
 {
 	if (sFlagfile.empty())
@@ -100,35 +101,48 @@ bool KLog::set_debugflag(const KString& sFlagfile)
 }
 
 //---------------------------------------------------------------------------
-bool KLog::int_debug(int level, const KString& sMessage)
+bool KLog::int_debug(int level, KStringView sMessage)
 //---------------------------------------------------------------------------
 {
+	bool bGood{true};
 	if (level > m_iLevel)
 	{
 		return true;
 	}
 	else
 	{
-		return m_Log.WriteLine(sMessage) && m_Log.flush();
+		bGood = m_Log.WriteLine(sMessage) && m_Log.flush();
 	}
+	if (level <= 0)
+	{
+		KString sStack = kGetBacktrace();
+
+		if (!sStack.empty())
+		{
+			m_Log.WriteLine("====== Backtrace follows:   ======");
+			m_Log.Write(sStack);
+			m_Log.WriteLine("====== Backtrace until here ======");
+		}
+		m_Log.flush();
+	}
+	return bGood;
 }
 
 //---------------------------------------------------------------------------
-void KLog::int_exception(const char* sWhat, const char* sFunction, const char* sClass)
+void KLog::int_exception(KStringView sWhat, KStringView sFunction, KStringView sClass)
 //---------------------------------------------------------------------------
 {
-	const char* sF(sFunction);
-	if (!sF || !*sF)
+	if (sFunction.empty())
 	{
-		sF = "(unknown)";
+		sFunction = "(unknown)";
 	}
-	if (sClass && *sClass)
+	if (!sClass.empty())
 	{
-		warning("{0}::{1}() caught exception: '{2}'", sClass, sF, sWhat);
+		warning("{0}::{1}() caught exception: '{2}'", sClass, sFunction, sWhat);
 	}
 	else
 	{
-		warning("{0} caught exception: '{1}'", sF, sWhat);
+		warning("{0} caught exception: '{1}'", sFunction, sWhat);
 	}
 }
 

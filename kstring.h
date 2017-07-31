@@ -77,7 +77,6 @@ bool kStrIn (const char* sNeedle, const char* sHaystack, char iDelim=',');
 class KString 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
-	friend class KStringBuffer;
 	typedef std::string string_type;
 
 //----------
@@ -100,38 +99,38 @@ public:
 	static const size_type npos = string_type::npos;
 
 	//Iterators
-	iterator begin() { return m_rep.begin(); }
-	const_iterator begin() const { return m_rep.begin(); }
-	iterator end() { return m_rep.end(); }
-	const_iterator end() const { return m_rep.end(); }
-	reverse_iterator rbegin() { return m_rep.rbegin(); }
-	const_reverse_iterator rbegin() const { return m_rep.rbegin(); }
-	reverse_iterator rend() { return m_rep.rend(); }
-	const_reverse_iterator rend() const { return m_rep.rend(); }
-	const_iterator cbegin() const noexcept { return m_rep.cbegin(); }
-	const_iterator cend() const noexcept { return m_rep.cend(); }
-	const_reverse_iterator crbegin() const noexcept { return m_rep.crbegin(); }
-	const_reverse_iterator crend() const noexcept { return m_rep.crend(); }
+	inline iterator begin() { return m_rep.begin(); }
+	inline const_iterator begin() const { return m_rep.begin(); }
+	inline iterator end() { return m_rep.end(); }
+	inline const_iterator end() const { return m_rep.end(); }
+	inline reverse_iterator rbegin() { return m_rep.rbegin(); }
+	inline const_reverse_iterator rbegin() const { return m_rep.rbegin(); }
+	inline reverse_iterator rend() { return m_rep.rend(); }
+	inline const_reverse_iterator rend() const { return m_rep.rend(); }
+	inline const_iterator cbegin() const noexcept { return m_rep.cbegin(); }
+	inline const_iterator cend() const noexcept { return m_rep.cend(); }
+	inline const_reverse_iterator crbegin() const noexcept { return m_rep.crbegin(); }
+	inline const_reverse_iterator crend() const noexcept { return m_rep.crend(); }
 
-	size_type size() const { return m_rep.size(); }
-	size_type length() const { return m_rep.length(); }
-	size_type max_size() const { return m_rep.max_size(); }
-	void resize(size_type n, value_type c) { m_rep.resize(n, c); }
-	void resize(size_type n) { m_rep.resize(n); }
-	size_type capacity() const {return m_rep.capacity(); }
-	void reserve(size_type res_arg = 0) { m_rep.reserve(res_arg); }
-	void clear() { m_rep.clear(); }
-	bool empty() const { return m_rep.empty(); }
-	void shrink_to_fit() { m_rep.shrink_to_fit(); }
+	inline size_type size() const { return m_rep.size(); }
+	inline size_type length() const { return m_rep.length(); }
+	inline size_type max_size() const { return m_rep.max_size(); }
+	inline void resize(size_type n, value_type c) { m_rep.resize(n, c); }
+	inline void resize(size_type n) { m_rep.resize(n); }
+	inline size_type capacity() const { return m_rep.capacity(); }
+	inline void reserve(size_type res_arg = 0) { m_rep.reserve(res_arg); }
+	inline void clear() { m_rep.clear(); }
+	inline bool empty() const { return m_rep.empty(); }
+	inline void shrink_to_fit() { m_rep.shrink_to_fit(); }
 	
-	const_reference operator[] (size_type pos) const { return m_rep[pos]; }
-	reference operator[](size_type pos) { return m_rep[pos]; }
-	const_reference at(size_type n) const { return m_rep.at(n); }
-	reference at(size_type n) { return m_rep.at(n); }
-	const_reference back() const { return m_rep.back(); }
-	reference back() { return m_rep.back(); }
-	const_reference front() const { return m_rep.front(); }
-	reference front() { return m_rep.front(); }
+	inline const_reference operator[] (size_type pos) const { return m_rep[pos]; }
+	inline reference operator[](size_type pos) { return m_rep[pos]; }
+	inline const_reference at(size_type n) const { return m_rep.at(n); }
+	inline reference at(size_type n) { return m_rep.at(n); }
+	inline const_reference back() const { return m_rep.back(); }
+	inline reference back() { return m_rep.back(); }
+	inline const_reference front() const { return m_rep.front(); }
+	inline reference front() { return m_rep.front(); }
 
 	//Constructors
 	KString () {}
@@ -147,7 +146,7 @@ public:
 	KString (KString&& str) noexcept : m_rep(std::move(str.m_rep)){}
 	KString (string_type&& sStr) noexcept : m_rep(std::move(sStr)){}
 	KString (std::initializer_list<value_type> il) : m_rep(il) {}
-	explicit KString (KStringView sv) : m_rep(sv.data(), sv.size()) {}
+	KString (KStringView sv) : m_rep(sv.data(), sv.size()) {}
 
 	//operator+=
 	KString& operator+= (const KString& str){ m_rep += str.m_rep; return *this; }
@@ -293,7 +292,15 @@ public:
 	// C++17 wants a const_iterator here, but the COW string implementation in libstdc++ does not have it
 	KString& replace(iterator i1, iterator i2, const value_type* s, size_type n);
 	template<class _InputIterator>
-		KString& replace(const_iterator i1, iterator i2, _InputIterator first, _InputIterator last) { m_rep.replace(i1, i2, first, last); return *this; }
+	KString& replace(const_iterator i1, iterator i2, _InputIterator first, _InputIterator last)
+	{
+		try {
+			m_rep.replace(i1, i2, first, last);
+		} catch (std::exception& e) {
+			log_exception(e, "replace");
+		}
+		return *this;
+	}
 	// C++17 wants a const_iterator here, but the COW string implementation in libstdc++ does not have it
 	KString& replace(iterator i1, iterator i2, std::initializer_list<value_type> il);
 	KString& replace(size_type pos, size_type n, KStringView sv);
@@ -314,6 +321,13 @@ public:
 		return *this;
 	}
 
+	template<class... Args>
+	KString& Printf(Args&&... args)
+	{
+		m_rep = kPrintf(std::forward<Args>(args)...);
+		return *this;
+	}
+
 	size_type ReplaceRegex(KStringView sRegEx, KStringView sReplaceWith, bool bReplaceAll = true);
 	size_type Replace(KStringView sSearch, KStringView sReplace, bool bReplaceAll = false);
 
@@ -330,12 +344,15 @@ public:
 	KString& MakeUpper();
 
 	/// returns a copy of the string in uppercase
-	KString  ToUpper() const;
+	KString ToUpper() const;
 	/// returns a copy of the string in lowercase
-	KString  ToLower() const;
+	KString ToLower() const;
 
-	KString  Left(size_type iCount);
-	KString  Right(size_type iCount);
+	KStringView Left(size_type iCount);
+	KStringView Right(size_type iCount);
+
+	KString& PadLeft(size_t iWidth, value_type chPad = ' ');
+	KString& PadRight(size_t iWidth, value_type chPad = ' ');
 
 	KString& TrimLeft();
 	KString& TrimLeft(value_type chTarget);
@@ -382,6 +399,8 @@ public:
 //----------
 protected:
 //----------
+	static void log_exception(std::exception& e, KStringView sWhere);
+
 	string_type m_rep;
 
 }; // KString

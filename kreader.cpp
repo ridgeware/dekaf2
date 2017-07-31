@@ -49,86 +49,225 @@ namespace dekaf2
 {
 
 //-----------------------------------------------------------------------------
-bool KReader::ReadLine(KString& sLine, KString::value_type delim)
+bool KReader_detail::Rewind(std::streambuf* Stream)
 //-----------------------------------------------------------------------------
 {
-	sLine.clear();
-
-	if (!IsOpen())
-	{
-		return false;
-	}
-
-
-	for (;;)
-	{
-		KString::value_type Ch;
-		if (!Read(Ch))
-		{
-			// the EOF case
-			return !sLine.empty();
-		}
-
-		sLine += Ch;
-
-		if (Ch == delim)
-		{
-			return true;
-		}
-	}
+	return Stream && Stream->pubseekoff(0, std::ios_base::beg) != std::streambuf::pos_type(std::streambuf::off_type(-1));
 }
 
 //-----------------------------------------------------------------------------
-bool KReader::GetContent(KString& sContent, bool bIsText)
+ssize_t KReader_detail::GetSize(std::streambuf* Stream, bool bReposition)
+//-----------------------------------------------------------------------------
+{
+	if (!Stream)
+	{
+		return std::streambuf::pos_type(std::streambuf::off_type(-1));
+	}
+
+	std::streambuf::pos_type curPos = Stream->pubseekoff(0, std::ios_base::cur);
+	if (curPos == std::streambuf::pos_type(std::streambuf::off_type(-1)))
+	{
+		return curPos;
+	}
+
+	std::streambuf::pos_type endPos = Stream->pubseekoff(0, std::ios_base::end);
+	if (endPos == std::streambuf::pos_type(std::streambuf::off_type(-1)))
+	{
+		return endPos;
+	}
+
+	if (bReposition && endPos != curPos)
+	{
+		Stream->pubseekoff(curPos, std::ios_base::beg);
+	}
+
+	return endPos;
+}
+
+//-----------------------------------------------------------------------------
+ssize_t KReader_detail::GetRemainingSize(std::streambuf* Stream)
+//-----------------------------------------------------------------------------
+{
+	if (!Stream)
+	{
+		return std::streambuf::pos_type(std::streambuf::off_type(-1));
+	}
+
+	std::streambuf::pos_type curPos = Stream->pubseekoff(0, std::ios_base::cur);
+	if (curPos == std::streambuf::pos_type(std::streambuf::off_type(-1)))
+	{
+		return curPos;
+	}
+
+	std::streambuf::pos_type endPos = Stream->pubseekoff(0, std::ios_base::end);
+	if (endPos == std::streambuf::pos_type(std::streambuf::off_type(-1)))
+	{
+		return endPos;
+	}
+
+	if (endPos != curPos)
+	{
+		Stream->pubseekoff(curPos, std::ios_base::beg);
+	}
+
+	return endPos - curPos;
+}
+
+//-----------------------------------------------------------------------------
+//bool KReader::GetContent(KString& sContent, bool bIsText)
+bool KReader_detail::ReadAll(std::streambuf* Stream, KString& sContent)
 //-----------------------------------------------------------------------------
 {
 	sContent.clear();
 
-	if (!IsOpen())
+	if (!Stream)
 	{
 		return false;
 	}
 
 	// get size of the file.
-	const auto iSize = GetSize();
+	const auto iSize = GetSize(Stream, false);
+
+	if (iSize < 0)
+	{
+		return false;
+	}
 
 	if (!iSize)
 	{
 		return true;
 	}
 
+	// position stream to the beginning
+	if (!Rewind(Stream))
+	{
+		return false;
+	}
+
+	size_t uiSize = static_cast<size_t>(iSize);
+
 	// create the read buffer
-	sContent.resize(iSize);
+	sContent.resize(uiSize);
 
-	size_t iRead = Read(sContent.data(), iSize);
+	size_t iRead = static_cast<size_t>(Stream->sgetn(sContent.data(), iSize));
 
-	if (iRead != iSize)
+	if (iRead != uiSize)
 	{
 		KLog().warning ("KReader: Unable to read full file, requested {0} bytes, got {1}", iSize, iRead);
 		return false;
 	}
-
+/*
 	if (bIsText) // dos2unix
 	{
 		sContent.Replace("\r\n", "\n", true);
 	}
-
+*/
 	return true;
 
-} // GetContent
-
-
-
-// KReader::const_iterator
+} // ReadAll
 
 //-----------------------------------------------------------------------------
-KReader::const_iterator::const_iterator(KReader* it, bool bToEnd)
+bool KReader_detail::ReadRemaining(std::streambuf* Stream, KString& sContent)
+//-----------------------------------------------------------------------------
+{
+	sContent.clear();
+
+	if (!Stream)
+	{
+		return false;
+	}
+
+	// get size of the file
+	const auto iSize = GetRemainingSize(Stream);
+
+	if (iSize < 0)
+	{
+		return false;
+	}
+
+	if (!iSize)
+	{
+		return true;
+	}
+
+	size_t uiSize = static_cast<size_t>(iSize);
+
+	// create the read buffer
+	sContent.resize(uiSize);
+
+	size_t iRead = static_cast<size_t>(Stream->sgetn(sContent.data(), iSize));
+
+	if (iRead != uiSize)
+	{
+		KLog().warning ("KReader: Unable to read remaining file, requested {0} bytes, got {1}", iSize, iRead);
+		return false;
+	}
+/*
+	if (bIsText) // dos2unix
+	{
+		sContent.Replace("\r\n", "\n", true);
+	}
+*/
+	return true;
+
+} // ReadRemaining
+
+
+namespace KReader_detail
+{
+
+//-----------------------------------------------------------------------------
+bool ReadLine(std::streambuf* Stream, KString& sLine, KString::value_type delimiter, KStringView sTrimRight)
+//-----------------------------------------------------------------------------
+{
+	sLine.clear();
+
+	if (!Stream)
+	{
+		return false;
+	}
+
+	for (;;)
+	{
+		std::streambuf::int_type iCh = Stream->sbumpc();
+		if (std::streambuf::traits_type::eq_int_type(iCh, std::streambuf::traits_type::eof()))
+		{
+			// the EOF case
+			bool bSuccess = !sLine.empty();
+			if (!sTrimRight.empty())
+			{
+				sLine.TrimRight(sTrimRight);
+			}
+			return bSuccess;
+		}
+
+		KString::value_type Ch = static_cast<KString::value_type>(iCh);
+
+		sLine += Ch;
+
+		if (Ch == delimiter)
+		{
+			if (!sTrimRight.empty())
+			{
+				sLine.TrimRight(sTrimRight);
+			}
+			return true;
+		}
+	}
+}
+
+// KReader_detail::const_iterator
+
+//-----------------------------------------------------------------------------
+const_streambuf_iterator::const_streambuf_iterator(base_iterator it, bool bToEnd, KString::value_type chDelimiter, KStringView sTrimRight)
 //-----------------------------------------------------------------------------
 	: m_it(it)
+    , m_chDelimiter(chDelimiter)
+    , m_sTrimRight(sTrimRight)
 {
 	if (!bToEnd)
 	{
-		if (m_it->ReadLine(m_sBuffer))
+		if (ReadLine(m_it, m_sBuffer, m_chDelimiter, m_sTrimRight))
 		{
 			++m_iCount;
 		}
@@ -136,48 +275,56 @@ KReader::const_iterator::const_iterator(KReader* it, bool bToEnd)
 }
 
 //-----------------------------------------------------------------------------
-KReader::const_iterator::const_iterator(const self_type& other)
+const_streambuf_iterator::const_streambuf_iterator(const self_type& other)
 //-----------------------------------------------------------------------------
-	: m_it(other.m_it)
-	, m_iCount(other.m_iCount)
-	, m_sBuffer(other.m_sBuffer)
+    : m_it(other.m_it)
+    , m_iCount(other.m_iCount)
+    , m_sBuffer(other.m_sBuffer)
+    , m_chDelimiter(other.m_chDelimiter)
+    , m_sTrimRight(other.m_sTrimRight)
 {
 }
 
 //-----------------------------------------------------------------------------
-KReader::const_iterator::const_iterator(self_type&& other)
+const_streambuf_iterator::const_streambuf_iterator(self_type&& other)
 //-----------------------------------------------------------------------------
-	: m_it(std::move(other.m_it))
-	, m_iCount(std::move(other.m_iCount))
-	, m_sBuffer(std::move(other.m_sBuffer))
+    : m_it(std::move(other.m_it))
+    , m_iCount(std::move(other.m_iCount))
+    , m_sBuffer(std::move(other.m_sBuffer))
+    , m_chDelimiter(std::move(other.m_chDelimiter))
+    , m_sTrimRight(std::move(other.m_sTrimRight))
 {
 }
 
 //-----------------------------------------------------------------------------
-KReader::const_iterator::self_type& KReader::const_iterator::operator=(const self_type& other)
+const_streambuf_iterator::self_type& const_streambuf_iterator::operator=(const self_type& other)
 //-----------------------------------------------------------------------------
 {
 	m_it = other.m_it;
 	m_iCount = other.m_iCount;
 	m_sBuffer = other.m_sBuffer;
+	m_chDelimiter = other.m_chDelimiter;
+	m_sTrimRight = other.m_sTrimRight;
 	return *this;
 }
 
 //-----------------------------------------------------------------------------
-KReader::const_iterator::self_type& KReader::const_iterator::operator=(self_type&& other)
+const_streambuf_iterator::self_type& const_streambuf_iterator::operator=(self_type&& other)
 //-----------------------------------------------------------------------------
 {
 	m_it = std::move(other.m_it);
 	m_iCount = std::move(other.m_iCount);
 	m_sBuffer = std::move(other.m_sBuffer);
+	m_chDelimiter = std::move(other.m_chDelimiter);
+	m_sTrimRight = std::move(other.m_sTrimRight);
 	return *this;
 }
 
 //-----------------------------------------------------------------------------
-KReader::const_iterator::self_type& KReader::const_iterator::operator++()
+const_streambuf_iterator::self_type& const_streambuf_iterator::operator++()
 //-----------------------------------------------------------------------------
 {
-	if (m_it->ReadLine(m_sBuffer))
+	if (ReadLine(m_it, m_sBuffer, m_chDelimiter, m_sTrimRight))
 	{
 		++m_iCount;
 	}
@@ -190,12 +337,12 @@ KReader::const_iterator::self_type& KReader::const_iterator::operator++()
 } // prefix
 
 //-----------------------------------------------------------------------------
-KReader::const_iterator::self_type KReader::const_iterator::operator++(int dummy)
+const_streambuf_iterator::self_type const_streambuf_iterator::operator++(int dummy)
 //-----------------------------------------------------------------------------
 {
 	self_type i = *this;
 
-	if (m_it->ReadLine(m_sBuffer))
+	if (ReadLine(m_it, m_sBuffer, m_chDelimiter, m_sTrimRight))
 	{
 		++m_iCount;
 	}
@@ -208,241 +355,36 @@ KReader::const_iterator::self_type KReader::const_iterator::operator++(int dummy
 } // postfix
 
 //-----------------------------------------------------------------------------
-KReader::const_iterator::reference KReader::const_iterator::operator*()
+const_streambuf_iterator::reference const_streambuf_iterator::operator*()
 //-----------------------------------------------------------------------------
 {
 	return m_sBuffer;
 }
 
 //-----------------------------------------------------------------------------
-KReader::const_iterator::pointer KReader::const_iterator::operator->()
+const_streambuf_iterator::pointer const_streambuf_iterator::operator->()
 //-----------------------------------------------------------------------------
 {
 	return &m_sBuffer;
 }
 
 //-----------------------------------------------------------------------------
-bool KReader::const_iterator::operator==(const self_type& rhs)
+bool const_streambuf_iterator::operator==(const self_type& rhs)
 //-----------------------------------------------------------------------------
 {
 	return m_it == rhs.m_it && m_iCount == rhs.m_iCount;
 }
 
 //-----------------------------------------------------------------------------
-bool KReader::const_iterator::operator!=(const self_type& rhs)
+bool const_streambuf_iterator::operator!=(const self_type& rhs)
 //-----------------------------------------------------------------------------
 {
 	return m_it != rhs.m_it || m_iCount != rhs.m_iCount;
 }
 
+} // end of namespace KReader_detail
 
 // KStringReader
-
-//-----------------------------------------------------------------------------
-bool KStringReader::Open(KStringView sSource)
-//-----------------------------------------------------------------------------
-{
-	m_Source = sSource;
-	m_it = m_Source.cbegin();
-	return m_Source.data();
-}
-
-//-----------------------------------------------------------------------------
-void KStringReader::Close()
-//-----------------------------------------------------------------------------
-{
-	m_Source = nullptr;
-}
-
-//-----------------------------------------------------------------------------
-bool KStringReader::IsOpen() const
-//-----------------------------------------------------------------------------
-{
-	return m_Source.data();
-}
-
-//-----------------------------------------------------------------------------
-bool KStringReader::IsEOF() const
-//-----------------------------------------------------------------------------
-{
-	return !m_Source.data() || m_it == m_Source.cend();
-}
-
-//-----------------------------------------------------------------------------
-size_t KStringReader::GetSize() const
-//-----------------------------------------------------------------------------
-{
-	return m_Source.size();
-}
-
-//-----------------------------------------------------------------------------
-bool KStringReader::Read(KString::value_type& ch)
-//-----------------------------------------------------------------------------
-{
-	if (m_it == m_Source.cend())
-	{
-		return false;
-	}
-
-	ch = *m_it;
-	++m_it;
-	return true;
-}
-
-
-//-----------------------------------------------------------------------------
-size_t KStringReader::Read(void* pAddress, size_t iCount)
-//-----------------------------------------------------------------------------
-{
-	size_t iCopy = std::min(iCount, static_cast<size_t>(m_Source.cend() - m_it));
-
-	if (iCopy)
-	{
-		std::memcpy(pAddress, m_it, iCopy);
-		m_it += iCopy;
-	}
-
-	return iCopy;
-}
-
-
-
-// KFileReader
-
-//-----------------------------------------------------------------------------
-KFileReader::~KFileReader()
-//-----------------------------------------------------------------------------
-{
-	Close();
-}
-
-//-----------------------------------------------------------------------------
-bool KFileReader::Open(KStringView svName)
-//-----------------------------------------------------------------------------
-{
-	Close();
-
-	KString sName(svName);
-
-	m_File = fopen(sName.c_str(), "r");
-
-	if (!m_File)
-	{
-		KLog().warning ("KFileReader: Unable to open file '{0}': {1}", sName.s(), strerror(errno));
-		return false;
-	}
-
-	return true;
-}
-
-//-----------------------------------------------------------------------------
-bool KFileReader::Open(FILE* fileptr)
-//-----------------------------------------------------------------------------
-{
-	Close();
-
-	m_File = fileptr;
-
-	return IsOpen();
-}
-
-//-----------------------------------------------------------------------------
-bool KFileReader::Open(int filedesc)
-//-----------------------------------------------------------------------------
-{
-	return Open(fdopen(filedesc, "r"));
-}
-
-//-----------------------------------------------------------------------------
-void KFileReader::Close()
-//-----------------------------------------------------------------------------
-{
-	if (m_File)
-	{
-		fclose(m_File);
-		m_File = nullptr;
-	}
-}
-
-//-----------------------------------------------------------------------------
-bool KFileReader::Read(KString::value_type& ch)
-//-----------------------------------------------------------------------------
-{
-	if (!m_File)
-	{
-		return false;
-	}
-
-	int iCh = fgetc(m_File);
-
-	if (iCh == EOF)
-	{
-		return false;
-	}
-
-	ch = static_cast<KString::value_type>(iCh);
-
-	return true;
-}
-
-//-----------------------------------------------------------------------------
-size_t KFileReader::Read(void* pAddress, size_t iCount)
-//-----------------------------------------------------------------------------
-{
-	if (!m_File)
-	{
-		return 0;
-	}
-
-	size_t iRead = std::fread(pAddress, 1, iCount, m_File);
-
-	if (iRead != iCount)
-	{
-		// could be an error, or just EOF - we want to log if it is not EOF
-		if (std::ferror(m_File))
-		{
-			KLog().warning("KFileReader: Unable to read file: {0}", strerror(errno));
-		}
-	}
-
-	return iRead;
-}
-
-//-----------------------------------------------------------------------------
-bool KFileReader::IsOpen() const
-//-----------------------------------------------------------------------------
-{
-	return m_File;
-}
-
-//-----------------------------------------------------------------------------
-bool KFileReader::IsEOF() const
-//-----------------------------------------------------------------------------
-{
-	return !m_File || feof(m_File);
-}
-
-//-----------------------------------------------------------------------------
-size_t KFileReader::GetSize() const
-//-----------------------------------------------------------------------------
-{
-	if (!m_File)
-	{
-		return 0;
-	}
-
-	int fd = fileno(m_File);
-
-	struct stat buf;
-
-	if (fstat(fd, &buf))
-	{
-		KLog().warning("KFileReader: Unable to stat file: {0}", strerror(errno));
-		return 0;
-	}
-
-	return static_cast<size_t>(buf.st_size);
-}
 
 } // end of namespace dekaf2
 

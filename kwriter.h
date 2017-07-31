@@ -191,7 +191,7 @@ protected:
 
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-template<class OStream, typename std::enable_if<std::is_base_of<std::ostream, OStream>::value>::type* = nullptr>
+template<class OStream>
 class KWriter : public OStream
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -201,8 +201,12 @@ class KWriter : public OStream
 public:
 
 	//-----------------------------------------------------------------------------
-	KWriter() {}
+	KWriter()
 	//-----------------------------------------------------------------------------
+	{
+		static_assert(std::is_base_of<std::ostream, OStream>::value,
+		              "KWriter can only be instantiated with std::ostream derivates as the template argument");
+	}
 
 	//-----------------------------------------------------------------------------
 	KWriter(OStream&& os)
@@ -212,12 +216,16 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// be prepared to get compiler warnings when you call this method on an
+	/// ostream that does not have this constructor (i.e. all non-ofstreams)
 	KWriter(const char* sName, std::ios::openmode mode = std::ios::out)
 	    : base_type(sName, mode) {}
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	KWriter(const KString& sName, std::ios::openmode mode = std::ios::out)
+	/// be prepared to get compiler warnings when you call this method on an
+	/// ostream that does not have this constructor (i.e. all non-ofstreams)
+	KWriter(const std::string& sName, std::ios::openmode mode = std::ios::out)
 	    : base_type(sName, mode) {}
 	//-----------------------------------------------------------------------------
 
@@ -233,6 +241,8 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// be prepared to get compiler warnings when you call this method on an
+	/// ostream that does not have this constructor (i.e. all non-KOutputFDStreams)
 	KWriter(int iFileDesc) noexcept
 	//-----------------------------------------------------------------------------
 	    : base_type(iFileDesc)
@@ -303,6 +313,14 @@ public:
 	//-----------------------------------------------------------------------------
 	{
 		kfFormat(*this, std::forward<Args>(args)...);
+	}
+
+	//-----------------------------------------------------------------------------
+	template<class... Args>
+	KWriter& Printf(Args&&... args)
+	//-----------------------------------------------------------------------------
+	{
+		kfPrintf(*this, std::forward<Args>(args)...);
 	}
 
 };

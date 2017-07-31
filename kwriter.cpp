@@ -83,7 +83,8 @@ KOutputFDStream::KOutputFDStream(KOutputFDStream&& other)
 KOutputFDStream::~KOutputFDStream()
 //-----------------------------------------------------------------------------
 {
-	close();
+	// do not call close on destruction. This class did not open the file
+	// but just received a handle for it
 }
 
 //-----------------------------------------------------------------------------

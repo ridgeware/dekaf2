@@ -3,6 +3,8 @@
 #include <kfile.h>
 #include <vector>
 #include <fstream>
+#include "kreader.h"
+#include "kwriter.h"
 
 using namespace dekaf2;
 
@@ -23,10 +25,10 @@ TEST_CASE("KFile") {
 	};
 
 	{
-		KFile fWriter(sFile, KFile::WRITE);
-		CHECK( fWriter.IsOpen() == true );
+		KFileWriter fWriter(sFile, std::ios_base::trunc);
+		CHECK( fWriter.is_open() == true );
 
-		if (fWriter.IsOpen())
+		if (fWriter.is_open())
 		{
 			fWriter.Write(sOut);
 		}
@@ -40,7 +42,7 @@ TEST_CASE("KFile") {
 
 	SECTION("KFile read all")
 	{
-		KFile File(sFile, KFile::READ | KFile::TEXT);
+		KFileReader File(sFile);
 		KString sRead;
 		CHECK( File.GetContent(sRead) == true );
 		CHECK( sRead == sOut );
@@ -48,32 +50,32 @@ TEST_CASE("KFile") {
 
 	SECTION("KFile read iterator 1")
 	{
-		KFile File(sFile, KFile::READ | KFile::TEXT);
+		KFileReader File(sFile);
 		auto it = File.begin();
 		KString s1;
 		s1 = *it;
-		CHECK( s1 == "line 1" );
+		CHECK( s1 == "line 1\n" );
 		s1 = *it;
-		CHECK( s1 == "line 1" );
+		CHECK( s1 == "line 1\n" );
 		++it;
 		s1 = std::move(*it);
-		CHECK( s1 == "line 2" );
+		CHECK( s1 == "line 2\n" );
 		s1 = *it;
-		CHECK( s1 != "line 2" );
+		CHECK( s1 != "line 2\n" );
 		s1 = *++it;
-		CHECK( s1 == "line 3" );
+		CHECK( s1 == "line 3\n" );
 		s1 = *it++;
-		CHECK( s1 == "line 3" );
+		CHECK( s1 == "line 3\n" );
 		s1 = *it++;
-		CHECK( s1 == "line 4" );
+		CHECK( s1 == "line 4\n" );
 		s1 = *it;
-		CHECK( s1 == "line 5" );
+		CHECK( s1 == "line 5\n" );
 
 	}
 
 	SECTION("KFile read iterator 2")
 	{
-		KFile File(sFile, KFile::READ | KFile::TEXT);
+		KFileReader File(sFile);
 		for (const auto& it : File)
 		{
 			CHECK( it.StartsWith("line ") == true );

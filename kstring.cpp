@@ -42,8 +42,8 @@
 
 #include <stdio.h>
 #include <assert.h>
-#include "kstringutils.h"
 #include "kstring.h"
+#include "kstringutils.h"
 #include "klog.h"
 #include "kregex.h"
 
@@ -51,6 +51,13 @@ namespace dekaf2
 {
 
 const KString::size_type KString::npos;
+
+//------------------------------------------------------------------------------
+void KString::log_exception(std::exception& e, KStringView sWhere)
+//------------------------------------------------------------------------------
+{
+	KLog().exception(e, sWhere, "KString");
+}
 
 //------------------------------------------------------------------------------
 KString& KString::append(const string_type& str, size_type pos, size_type n)
@@ -563,26 +570,46 @@ KString& KString::MakeUpper()
 } // MakeUpper
 
 //----------------------------------------------------------------------
-KString KString::Left(size_type iCount)
+KStringView KString::Left(size_type iCount)
 //----------------------------------------------------------------------
 {
 	if (iCount >= size())
 	{
 		return *this;
 	}
-	return substr(0, iCount);
+	return KStringView(m_rep.data(), iCount);
 } // Left
 
 //----------------------------------------------------------------------
-KString KString::Right(size_type iCount)
+KStringView KString::Right(size_type iCount)
 //----------------------------------------------------------------------
 {
 	if (iCount >= size())
 	{
 		return *this;
 	}
-	return substr(size() - iCount, iCount);
+	else if (!iCount || !size())
+	{
+		// return an empty string
+		return KStringView("");
+	}
+	else
+	{
+		return KStringView(m_rep.data() + size() - iCount, iCount);
+	}
 } // Right
+
+KString& KString::PadLeft(size_t iWidth, value_type chPad)
+{
+	dekaf2::PadLeft(m_rep, iWidth, chPad);
+	return *this;
+}
+
+KString& KString::PadRight(size_t iWidth, value_type chPad)
+{
+	dekaf2::PadRight(m_rep, iWidth, chPad);
+	return *this;
+}
 
 //----------------------------------------------------------------------
 KString& KString::TrimLeft()
@@ -604,6 +631,10 @@ KString& KString::TrimLeft(value_type chTarget)
 KString& KString::TrimLeft(KStringView sTarget)
 //----------------------------------------------------------------------
 {
+	if (sTarget.size() == 1)
+	{
+		return TrimLeft(sTarget[0]);
+	}
 	dekaf2::TrimLeft(m_rep, [sTarget](value_type ch){ return memchr(sTarget.data(), ch, sTarget.size()) != nullptr; } );
 	return *this;
 }
@@ -628,6 +659,10 @@ KString& KString::TrimRight(value_type chTarget)
 KString& KString::TrimRight(KStringView sTarget)
 //----------------------------------------------------------------------
 {
+	if (sTarget.size() == 1)
+	{
+		return TrimRight(sTarget[0]);
+	}
 	dekaf2::TrimRight(m_rep, [sTarget](value_type ch){ return memchr(sTarget.data(), ch, sTarget.size()) != nullptr; } );
 	return *this;
 }
@@ -650,6 +685,10 @@ KString& KString::Trim(value_type chTarget)
 KString& KString::Trim(KStringView sTarget)
 //----------------------------------------------------------------------
 {
+	if (sTarget.size() == 1)
+	{
+		return Trim(sTarget[0]);
+	}
 	dekaf2::Trim(m_rep, [sTarget](value_type ch){ return memchr(sTarget.data(), ch, sTarget.size()) != nullptr; } );
 }
 

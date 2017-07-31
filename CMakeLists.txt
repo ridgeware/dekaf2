@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.2)
 
-project(dekaf)
+project(dekaf2)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -55,29 +55,31 @@ set (SOURCES
     kparallel.cpp
     kcurl.cpp
     kwebio.cpp
+    kformat.cpp
     ksignals.cpp
     kcrashexit.cpp
     kgetruntimestack.cpp
     kstreamrw.cpp
     kreader.cpp
     kpipereader.cpp
+    kwriter.cpp
 )
 
 # make sure we have the necessary version of cmake installed
 execute_process(COMMAND "./cmakeinstall -go")
 
-if (DEKAF_INSTALL_HEADERS)
+if (DEKAF2_INSTALL_HEADERS)
 
-    set (DEKAF_INCLUDE_DIR "${CMAKE_CURRENT_BINARY_DIR}/include")
-    file(MAKE_DIRECTORY ${DEKAF_INCLUDE_DIR})
+    set (DEKAF2_INCLUDE_DIR "${CMAKE_CURRENT_BINARY_DIR}/include")
+    file(MAKE_DIRECTORY ${DEKAF2_INCLUDE_DIR})
 
     foreach(HEADER ${HEADERS})
         add_custom_command(
-            OUTPUT ${DEKAF_INCLUDE_DIR}/${HEADER}
+            OUTPUT ${DEKAF2_INCLUDE_DIR}/${HEADER}
             DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/${HEADER}
-            COMMAND ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_CURRENT_SOURCE_DIR}/${HEADER} ${DEKAF_INCLUDE_DIR}/${HEADER}
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_CURRENT_SOURCE_DIR}/${HEADER} ${DEKAF2_INCLUDE_DIR}/${HEADER}
         )
-        set(header_deps	${header_deps}	${DEKAF_INCLUDE_DIR}/${HEADER})
+        set(header_deps	${header_deps}	${DEKAF2_INCLUDE_DIR}/${HEADER})
     endforeach(HEADER dekaf_library_headers)
 
     add_custom_target(lib-headers
@@ -86,15 +88,15 @@ if (DEKAF_INSTALL_HEADERS)
 
 else()
 
-    set (DEKAF_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
+    set (DEKAF2_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
     add_custom_target(lib-headers)
 
-endif(DEKAF_INSTALL_HEADERS)
+endif(DEKAF2_INSTALL_HEADERS)
 
 add_library(dekaf2 ${HEADERS} ${SOURCES})
 target_link_libraries(dekaf2 fmt re2 libstdc++fs.a Threads::Threads)
 add_dependencies(dekaf2 lib-headers)
-set_target_properties(dekaf2 PROPERTIES INTERFACE_INCLUDE_DIRECTORIES ${DEKAF_INCLUDE_DIR})
-target_compile_definitions(dekaf2 PRIVATE DEKAF_LIBRARY_BUILD)
+set_target_properties(dekaf2 PROPERTIES INTERFACE_INCLUDE_DIRECTORIES ${DEKAF2_INCLUDE_DIR})
+target_compile_definitions(dekaf2 PRIVATE DEKAF2_LIBRARY_BUILD)
 
 add_subdirectory(utests)

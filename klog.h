@@ -43,8 +43,9 @@
 #pragma once
 
 #include <exception>
+#include <fstream>
 #include "kstring.h"
-#include "kfile.h"
+#include "kwriter.h"
 #include "kformat.h"
 
 namespace dekaf2
@@ -79,22 +80,22 @@ public:
 	}
 
 	//---------------------------------------------------------------------------
-	bool set_debuglog(const KString& sLogfile);
+	bool set_debuglog(KStringView sLogfile);
 	//---------------------------------------------------------------------------
 
 	//---------------------------------------------------------------------------
-	const KString& get_debuglog() const
+	KStringView get_debuglog() const
 	//---------------------------------------------------------------------------
 	{
 		return m_sLogfile;
 	}
 
 	//---------------------------------------------------------------------------
-	bool set_debugflag(const KString& sFlagfile);
+	bool set_debugflag(KStringView sFlagfile);
 	//---------------------------------------------------------------------------
 
 	//---------------------------------------------------------------------------
-	const KString& get_debugflag() const
+	KStringView get_debugflag() const
 	//---------------------------------------------------------------------------
 	{
 		return m_sFlagfile;
@@ -122,7 +123,7 @@ public:
 
 	//---------------------------------------------------------------------------
 	/// report a known exception
-	void exception(const std::exception& e, const char* sFunction, const char* sClass = "")
+	void exception(const std::exception& e, KStringView sFunction, KStringView sClass = "")
 	//---------------------------------------------------------------------------
 	{
 		int_exception(e.what(), sFunction, sClass);
@@ -131,7 +132,7 @@ public:
 
 	//---------------------------------------------------------------------------
 	/// report an unknown exception
-	void exception(const char* sFunction, const char* sClass = "")
+	void exception(KStringView sFunction, KStringView sClass = "")
 	//---------------------------------------------------------------------------
 	{
 		int_exception("unknown", sFunction, sClass);
@@ -141,17 +142,17 @@ public:
 private:
 //----------
 	//---------------------------------------------------------------------------
-	bool int_debug(int level, const KString& sMessage);
+	bool int_debug(int level, KStringView sMessage);
 	//---------------------------------------------------------------------------
 
 	//---------------------------------------------------------------------------
-	void int_exception(const char* sWhat, const char* sFunction, const char* sClass);
+	void int_exception(KStringView sWhat, KStringView sFunction, KStringView sClass);
 	//---------------------------------------------------------------------------
 
 	int m_iLevel{0};
 	KString m_sLogfile;
 	KString m_sFlagfile;
-	KFile m_Log;
+	KFileWriter m_Log;
 };
 
 

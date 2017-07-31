@@ -97,7 +97,11 @@ namespace detail
 		{
 			return sName;
 		}
-		return sName.substr(0, i+1) + DemangleCPlusPlusName_ (sName.substr(i + 1, e - i - 1)) + sName.substr (e);
+		KString sRet = sName.substr(0, i+1);
+		sRet += DemangleCPlusPlusName_ (sName.substr(i + 1, e - i - 1));
+		sRet += sName.substr (e);
+		return sRet;
+//		return sName.substr(0, i+1) + DemangleCPlusPlusName_ (sName.substr(i + 1, e - i - 1)) + sName.substr (e);
 	}
 } // namespace detail
 
@@ -126,8 +130,10 @@ namespace detail
 			}
 			sMyExeName[n] = '\0';
 
-			KString sCmdLine;
-			sCmdLine.Format("addr2line -f -C -e \"{0}\" {1}", sMyExeName, sAddress.s());
+			KString sCmdLine = "addr2line -f -C -e \"";
+			sCmdLine += sMyExeName;
+			sCmdLine += "\" ";
+			sCmdLine += sAddress;
 			KPIPE pipe;
 			if (pipe.Open (sCmdLine, "r"))
 			{
@@ -144,7 +150,7 @@ namespace detail
 				if (pipe.getline (sLineBuf, MAX))
 				{
 					sLineBuf.TrimRight();
-					if (sLineBuf != "??:0") {
+					if (!sLineBuf.StartsWith("??:")) {
 						sResult += " at ";
 						sResult += sLineBuf;
 					}
@@ -175,12 +181,7 @@ namespace detail
 		{
 			return KString();
 		}
-		KString tmp = Addr2LineMsg_ (sBacktraceLine.substr(i + 1, e - i - 1));
-		if (!tmp.empty ())
-		{
-			return " " + tmp;
-		}
-		return KString();
+		return Addr2LineMsg_ (sBacktraceLine.substr(i + 1, e - i - 1));
 	}
 } // namespace detail
 
@@ -211,8 +212,12 @@ namespace detail
 				return sStack;
 			}
 			name_buf[iRead] = 0;
-			KString sCmdLine;
-			sCmdLine.Format("gdb --batch -n -ex thread -ex bt \"{0}\" {1} 2>&1", name_buf, getpid ());
+			// don't use Format() inside the stacktrace
+			KString sCmdLine = "gdb --batch -n -ex thread -ex bt \"";
+			sCmdLine += name_buf;
+			sCmdLine += "\" ";
+			sCmdLine += std::to_string(getpid());
+			sCmdLine += " 2>&1";
 			KPIPE pipe;
 
 			if (pipe.Open (sCmdLine, "r"))
@@ -270,7 +275,7 @@ namespace detail
 #if SUPPORT_BACKTRACE_PRINTCALLSTACK
 namespace detail
 {
-	KString GetBacktraceBased_Callstack_ ()
+	KString GetBacktraceBased_Callstack_ (size_t iSkipStackLines)
 	{
 		KString sStack;
 
@@ -281,15 +286,15 @@ namespace detail
 		iStackSize = backtrace (Stack, MAXSTACK);
 		char** Names = backtrace_symbols (Stack, iStackSize);
 	 
-		for (size_t ii = 0; ii < iStackSize; ++ii) 
+		for (size_t ii = iSkipStackLines; ii < iStackSize; ++ii)
 		{
 			KString sFrame;
-			
-			sFrame.Format("%3lu. %s%s\n", 
-				iStackSize-ii, 
-				detail::DemangleBacktraceDumpLine_(Names[ii]).c_str (),
-				detail::ComputeSrcLinesAppendageForBacktraceDumpLine_(Names[ii]).c_str ());
-
+			sFrame = std::to_string(iStackSize-ii);
+			sFrame.PadLeft(3);
+			sFrame += ' ';
+//			sFrame += detail::DemangleBacktraceDumpLine_(Names[ii]);
+			sFrame += detail::ComputeSrcLinesAppendageForBacktraceDumpLine_(Names[ii]);
+			sFrame += '\n';
 			sStack.append(sFrame);
 		}
 	 
@@ -315,8 +320,24 @@ KString kGetRuntimeStack ()
 
 	if (sStack.empty())
 	{
-		sStack = detail::GetBacktraceBased_Callstack_();
+		sStack = detail::GetBacktraceBased_Callstack_(0);
 	}
+
+#endif
+
+	return sStack;
+
+} // kGetRuntimeStack
+
+//-----------------------------------------------------------------------------
+KString kGetBacktrace (size_t iSkipStackLines)
+//-----------------------------------------------------------------------------
+{
+	KString sStack;
+
+#if SUPPORT_BACKTRACE_PRINTCALLSTACK
+
+	sStack = detail::GetBacktraceBased_Callstack_(iSkipStackLines);
 
 #endif
 

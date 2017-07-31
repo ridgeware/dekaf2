@@ -609,4 +609,30 @@ TEST_CASE("KProp") {
 			CHECK( it->second    == KString("value 2") );
 		}
 	}
+
+	SECTION("assignments")
+	{
+		typedef KPropsTemplate<KString, KString, true, true> CMyKProps;
+		CMyKProps data1;
+		CMyKProps data2;
+
+		data1.Add("hello", "world");
+		data1.Add("copy", "me");
+
+		SECTION("copy assignment")
+		{
+			CHECK ( data1.size() == 2                   );
+			data2 = data1;
+			CHECK ( data2.size() == 2                   );
+		}
+
+		SECTION("move assignment")
+		{
+			CHECK ( data1.size() == 2                   );
+			data2 = std::move(data1);
+			CHECK ( data2.size() == 2                   );
+			CHECK ( data1.size() == 0                   );
+		}
+
+	}
 }

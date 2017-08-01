@@ -68,6 +68,146 @@ ssize_t kGetSize(std::istream& Stream, bool bFromStart = true);
 bool kRewind(std::istream& Stream);
 
 
+
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// a customizable input stream buffer
+struct KIStreamBuf : public std::streambuf
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+	//-----------------------------------------------------------------------------
+	/// the Reader's function's signature:
+	/// std::streamsize Reader(const void* sBuffer, std::streamsize iCount, void* CustomPointer)
+	///  - returns read bytes. CustomPointer can be used for anything, to the discretion of the
+	/// Reader.
+	typedef std::streamsize (*Reader)(void*, std::streamsize, void*);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// provide a Reader function, it will be called by std::streambuf on buffer reads
+	KIStreamBuf(Reader cb, void* CustomPointer = nullptr)
+	//-----------------------------------------------------------------------------
+	    : m_Callback(cb), m_CustomPointer(CustomPointer)
+	{
+	}
+	//-----------------------------------------------------------------------------
+	virtual ~KIStreamBuf();
+	//-----------------------------------------------------------------------------
+
+protected:
+	//-----------------------------------------------------------------------------
+	virtual std::streamsize xsgetn(char_type* s, std::streamsize n) override;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+//	virtual int_type underflow() override;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	virtual int_type uflow() override;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+//	virtual std::streamsize showmanyc() override;
+	//-----------------------------------------------------------------------------
+
+private:
+	Reader m_Callback{nullptr};
+	void* m_CustomPointer{nullptr};
+};
+
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// an unbuffered std::ostream that is constructed around a unix file descriptor
+/// (mainly to allow its usage with pipes, for general file I/O use std::ofstream)
+/// (really, do it - this one is really slow on small writes to files, on purpose,
+/// because pipes should not be buffered!)
+class KInputFDStream : public std::istream
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+//----------
+protected:
+//----------
+
+	using base_type = std::istream;
+
+	//-----------------------------------------------------------------------------
+	/// this is the custom streambuf writer
+	static std::streamsize FileDescReader(void* sBuffer, std::streamsize iCount, void* filedesc);
+	//-----------------------------------------------------------------------------
+
+//----------
+public:
+//----------
+
+	//-----------------------------------------------------------------------------
+	KInputFDStream()
+	//-----------------------------------------------------------------------------
+	{
+	}
+
+	KInputFDStream(const KInputFDStream&) = delete;
+
+	//-----------------------------------------------------------------------------
+	KInputFDStream(KInputFDStream&& other);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// the main purpose of this class: allow construction from a standard unix
+	/// file descriptor
+	KInputFDStream(int iFileDesc)
+	//-----------------------------------------------------------------------------
+	{
+		open(iFileDesc);
+	}
+
+	//-----------------------------------------------------------------------------
+	virtual ~KInputFDStream();
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	KInputFDStream& operator=(KInputFDStream&& other);
+	//-----------------------------------------------------------------------------
+
+	KInputFDStream& operator=(const KInputFDStream&) = delete;
+
+	//-----------------------------------------------------------------------------
+	/// the main purpose of this class: open from a standard unix
+	/// file descriptor
+	void open(int iFileDesc);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// test if a file is associated to this output stream
+	inline bool is_open() const
+	//-----------------------------------------------------------------------------
+	{
+		return m_FileDesc >= 0;
+	}
+
+	//-----------------------------------------------------------------------------
+	/// close the output stream
+	void close();
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// get the file descriptor
+	int GetDescriptor() const
+	//-----------------------------------------------------------------------------
+	{
+		return m_FileDesc;
+	}
+
+//----------
+protected:
+//----------
+	int m_FileDesc{-1};
+
+	// see comment in KWriter's KOStreamBuf about the legality
+	// to only construct the KIStreamBuf here, but to use it in
+	// the constructor before
+	KIStreamBuf m_FPStreamBuf{&FileDescReader, &m_FileDesc};
+};
+
+
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// The general reader abstraction for dekaf2. Can be constructed around any
 /// std::istream, and has iterators and read accessors that attach to the
@@ -256,6 +396,19 @@ public:
 	    , m_sTrimRight(sTrimRight)
 	    , m_chDelimiter(chDelimiter)
 	{}
+
+	//-----------------------------------------------------------------------------
+	/// Construct a KReader on a (possibly) file descriptor input source.
+	/// Be prepared to get compiler warnings when you call this method on an
+	/// istream that does not have this constructor (i.e. all non-KInputFDStreams)
+	KReader(int iFileDesc,
+	        KStringView sTrimRight = "", KString::value_type chDelimiter = '\n') noexcept
+	//-----------------------------------------------------------------------------
+	    : base_type(iFileDesc)
+	    , m_sTrimRight(sTrimRight)
+	    , m_chDelimiter(chDelimiter)
+	{
+	}
 
 	//-----------------------------------------------------------------------------
 	KReader(const self_type& other) = delete;
@@ -466,10 +619,15 @@ protected:
 
 }; // KReader
 
+
 /// File reader based on std::ifstream
-using KFileReader   = KReader<std::ifstream>;
+using KFileReader     = KReader<std::ifstream>;
+
 /// String reader based on std::istringstream
-using KStringReader = KReader<std::istringstream>;
+using KStringReader   = KReader<std::istringstream>;
+
+/// File descriptor reader based on KInputFDStream
+using KFileDescReader = KReader<KInputFDStream>;
 
 } // end of namespace dekaf2
 

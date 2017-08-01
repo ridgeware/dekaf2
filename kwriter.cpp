@@ -101,7 +101,7 @@ KOutputFDStream& KOutputFDStream::operator=(KOutputFDStream&& other)
 void KOutputFDStream::open(int iFileDesc)
 //-----------------------------------------------------------------------------
 {
-	close();
+	// do not close the stream here - this class did not open it..
 
 	m_FileDesc = iFileDesc;
 
@@ -118,7 +118,7 @@ void KOutputFDStream::close()
 		base_type::flush();
 		if (::close(m_FileDesc))
 		{
-			KLog().warning("KOFDStream: Cannot close file: {}", strerror(errno));
+			KLog().warning("KOutputFDStream: Cannot close file: {}", strerror(errno));
 		}
 		m_FileDesc = -1;
 	}
@@ -139,7 +139,7 @@ std::streamsize KOutputFDStream::FileDescWriter(const void* sBuffer, std::stream
 		if (iWrote != iCount)
 		{
 			// do some logging
-			KLog().warning("KOFDStream: cannot write to file: {}", strerror(errno));
+			KLog().warning("KOutputFDStream: cannot write to file: {}", strerror(errno));
 		}
 	}
 

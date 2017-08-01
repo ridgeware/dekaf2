@@ -109,7 +109,7 @@ TEST_CASE("KReader") {
 
 	SECTION("KFileReader read iterator 2")
 	{
-		KFileReader File(sFile, std::ios_base::out, "\r\n4 ", '\n');
+		KFileReader File(sFile, std::ios_base::in, "\r\n4 ", '\n');
 		auto it = File.begin();
 		KString s1;
 		s1 = *it;
@@ -146,7 +146,7 @@ TEST_CASE("KReader") {
 
 	SECTION("KFileReader read iterator 4")
 	{
-		KFileReader File(sFile, std::ios_base::out, "\n", '\n');
+		KFileReader File(sFile, std::ios_base::in, "\n", '\n');
 		CHECK( File.eof() == false);
 		CHECK( File.GetSize() == 63 );
 		CHECK( File.GetRemainingSize() == 63 );
@@ -162,5 +162,63 @@ TEST_CASE("KReader") {
 		CHECK( File.eof() == true );
 		CHECK( iCount == 9 );
 	}
+
+	SECTION("KFileDescReader test 1")
+	{
+		int fd = ::open(sFile.c_str(), O_RDONLY);
+		KFileDescReader File(fd);
+		KString sRead;
+		CHECK( File.eof() == false);
+		CHECK( File.ReadRemaining(sRead) == true );
+		CHECK( sRead == sOut );
+		CHECK( File.eof() == true);
+		::close(fd);
+	}
+
+	SECTION("KFileDescReader read iterator 1")
+	{
+		int fd = ::open(sFile.c_str(), O_RDONLY);
+		KFileDescReader File(fd);
+		KString sRead;
+		auto it = File.begin();
+		KString s1;
+		s1 = *it;
+		CHECK( s1 == "line 1\n" );
+		s1 = *it;
+		CHECK( s1 == "line 1\n" );
+		++it;
+		s1 = std::move(*it);
+		CHECK( s1 == "line 2\n" );
+		s1 = *it;
+		CHECK( s1 != "line 2\n" );
+		s1 = *++it;
+		CHECK( s1 == "line 3\n" );
+		s1 = *it++;
+		CHECK( s1 == "line 3\n" );
+		s1 = *it++;
+		CHECK( s1 == "line 4\n" );
+		s1 = *it;
+		CHECK( s1 == "line 5\n" );
+		::close(fd);
+	}
+
+	SECTION("KFileDescReader read iterator 2")
+	{
+		int fd = ::open(sFile.c_str(), O_RDONLY);
+		KFileDescReader File(fd, "\n", '\n');
+		KString sRead;
+		CHECK( File.eof() == false);
+		int iCount = 0;
+		for (const auto& it : File)
+		{
+			++iCount;
+			CHECK( File.eof() == false             );
+			CHECK( it.StartsWith("line ") == true  );
+			CHECK( it.EndsWith  ("\n")    == false );
+		}
+		CHECK( File.eof() == true );
+		CHECK( iCount == 9 );
+	}
+
 
 }

@@ -109,11 +109,6 @@ bool kReadAll(std::istream& Stream, KString& sContent, bool bFromStart)
 	// get size of the file.
 	ssize_t iSize = kGetSize(Stream, bFromStart);
 
-	if (iSize < 0)
-	{
-		return false;
-	}
-
 	if (!iSize)
 	{
 		return true;
@@ -124,6 +119,34 @@ bool kReadAll(std::istream& Stream, KString& sContent, bool bFromStart)
 	{
 		return false;
 	}
+
+	if (iSize < 0)
+	{
+		// We could not determine the input size - this might be a
+		// minimalistic input stream buffer, or a non-seekable stream.
+		// We will simply try to read blocks until we fail.
+		enum { BUFSIZE = 2048 };
+		char buf[BUFSIZE];
+
+		for (;;)
+		{
+			size_t iRead = static_cast<size_t>(sb->sgetn(buf, BUFSIZE));
+			if (iRead > 0)
+			{
+				sContent.append(buf, iRead);
+			}
+			if (iRead < BUFSIZE)
+			{
+				break;
+			}
+		}
+
+		Stream.setstate(std::ios_base::eofbit);
+
+		return sContent.size();
+
+	}
+
 
 	size_t uiSize = static_cast<size_t>(iSize);
 
@@ -204,6 +227,128 @@ bool kReadLine(std::istream& Stream, KString& sLine, KStringView sTrimRight, KSt
 		}
 	}
 }
+
+
+//-----------------------------------------------------------------------------
+KIStreamBuf::~KIStreamBuf()
+//-----------------------------------------------------------------------------
+{
+}
+
+//-----------------------------------------------------------------------------
+std::streamsize KIStreamBuf::xsgetn(char_type* s, std::streamsize n)
+//-----------------------------------------------------------------------------
+{
+	return m_Callback(s, n, m_CustomPointer);
+}
+/*
+//-----------------------------------------------------------------------------
+KIStreamBuf::int_type KIStreamBuf::underflow()
+//-----------------------------------------------------------------------------
+{
+	char ch;
+	m_Callback(&ch, 1, m_CustomPointer);
+	return static_cast<int_type>(ch);
+}
+*/
+//-----------------------------------------------------------------------------
+KIStreamBuf::int_type KIStreamBuf::uflow()
+//-----------------------------------------------------------------------------
+{
+	char ch;
+	if (m_Callback(&ch, 1, m_CustomPointer) == 1)
+	{
+		return static_cast<int_type>(ch);
+	}
+	else
+	{
+		return traits_type::eof();
+	}
+}
+/*
+std::streamsize KIStreamBuf::showmanyc()
+{
+}
+*/
+
+
+//-----------------------------------------------------------------------------
+KInputFDStream::KInputFDStream(KInputFDStream&& other)
+    : m_FileDesc{other.m_FileDesc}
+    , m_FPStreamBuf{std::move(other.m_FPStreamBuf)}
+//-----------------------------------------------------------------------------
+{
+	other.m_FileDesc = -1;
+
+} // move ctor
+
+//-----------------------------------------------------------------------------
+KInputFDStream::~KInputFDStream()
+//-----------------------------------------------------------------------------
+{
+	// do not call close on destruction. This class did not open the file
+	// but just received a handle for it
+}
+
+//-----------------------------------------------------------------------------
+KInputFDStream& KInputFDStream::operator=(KInputFDStream&& other)
+//-----------------------------------------------------------------------------
+{
+	m_FileDesc = other.m_FileDesc;
+	m_FPStreamBuf = std::move(other.m_FPStreamBuf);
+	other.m_FileDesc = -1;
+	return *this;
+}
+
+//-----------------------------------------------------------------------------
+void KInputFDStream::open(int iFileDesc)
+//-----------------------------------------------------------------------------
+{
+	// do not close the stream here - this class did not open it
+
+	m_FileDesc = iFileDesc;
+
+	base_type::init(&m_FPStreamBuf);
+
+} // open
+
+//-----------------------------------------------------------------------------
+void KInputFDStream::close()
+//-----------------------------------------------------------------------------
+{
+	if (m_FileDesc >= 0)
+	{
+		if (::close(m_FileDesc))
+		{
+			KLog().warning("KInputFDStream: Cannot close file: {}", strerror(errno));
+		}
+		m_FileDesc = -1;
+	}
+
+} // close
+
+//-----------------------------------------------------------------------------
+std::streamsize KInputFDStream::FileDescReader(void* sBuffer, std::streamsize iCount, void* filedesc)
+//-----------------------------------------------------------------------------
+{
+	std::streamsize iRead{0};
+
+	if (filedesc)
+	{
+		// it is more difficult than one would expect to convert a void* into an int..
+		int fd = static_cast<int>(*static_cast<long*>(filedesc));
+		iRead = ::read(fd, sBuffer, static_cast<size_t>(iCount));
+		if (iRead != iCount)
+		{
+			// do some logging
+			KLog().warning("KInputFDStream: cannot write to file: {}", strerror(errno));
+		}
+	}
+
+	return iRead;
+}
+
+
 
 } // end of namespace dekaf2
 

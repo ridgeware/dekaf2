@@ -226,7 +226,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	/// Construct a KWriter on a file-like input source.
+	/// Construct a KWriter on a file-like output target.
 	/// Be prepared to get compiler warnings when you call this method on an
 	/// ostream that does not have this constructor (i.e. all non-ofstreams)
 	KWriter(const char* sName, std::ios::openmode mode = std::ios::out)
@@ -234,12 +234,22 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// Construct a KWriter on a file-like input source.
+	/// Construct a KWriter on a file-like output target.
 	/// be prepared to get compiler warnings when you call this method on an
 	/// ostream that does not have this constructor (i.e. all non-ofstreams)
 	KWriter(const std::string& sName, std::ios::openmode mode = std::ios::out)
 	    : base_type(sName, mode) {}
 	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// Construct a KWriter on a (possibly) file descriptor output target.
+	/// Be prepared to get compiler warnings when you call this method on an
+	/// ostream that does not have this constructor (i.e. all non-KOutputFDStreams)
+	KWriter(int iFileDesc) noexcept
+	//-----------------------------------------------------------------------------
+	    : base_type(iFileDesc)
+	{
+	}
 
 	//-----------------------------------------------------------------------------
 	KWriter(const self_type& other) = delete;
@@ -250,16 +260,6 @@ public:
 	KWriter(self_type&& other) noexcept
 	//-----------------------------------------------------------------------------
 	    : base_type(std::move(other))
-	{
-	}
-
-	//-----------------------------------------------------------------------------
-	/// Construct a KWriter on a (possibly) file descriptor input source.
-	/// Be prepared to get compiler warnings when you call this method on an
-	/// ostream that does not have this constructor (i.e. all non-KOutputFDStreams)
-	KWriter(int iFileDesc) noexcept
-	//-----------------------------------------------------------------------------
-	    : base_type(iFileDesc)
 	{
 	}
 
@@ -369,8 +369,14 @@ public:
 
 };
 
+
+/// File writer based on std::ofstream
 using KFileWriter     = KWriter<std::ofstream>;
+
+/// String writer based on std::ostringstream
 using KStringWriter   = KWriter<std::ostringstream>;
+
+/// File descriptor writer based on KOutputFDStream>
 using KFileDescWriter = KWriter<KOutputFDStream>;
 
 } // end of namespace dekaf2

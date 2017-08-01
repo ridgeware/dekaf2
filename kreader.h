@@ -290,15 +290,20 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Read a character. Returns std::istream::traits_type::eof() (== -1) if no input available
-	inline typename base_type::int_type Read()
+	typename base_type::int_type Read()
 	//-----------------------------------------------------------------------------
 	{
-		typename base_type::int_type iCh = this->rdbuf()->sbumpc();
-		if (base_type::traits_type::eq_int_type(iCh, base_type::traits_type::eof()))
+		std::streambuf* sb = this->rdbuf();
+		if (sb)
 		{
-			this->setstate(std::ios::eofbit);
+			typename base_type::int_type iCh = sb->sbumpc();
+			if (base_type::traits_type::eq_int_type(iCh, base_type::traits_type::eof()))
+			{
+				this->setstate(std::ios::eofbit);
+			}
+			return iCh;
 		}
-		return iCh;
+		return base_type::traits_type::eof();
 	}
 
 	//-----------------------------------------------------------------------------
@@ -312,15 +317,20 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Read a range of characters. Returns count of successfully read charcters.
-	inline size_t Read(const typename base_type::char_type* pAddress, size_t iCount)
+	size_t Read(const typename base_type::char_type* pAddress, size_t iCount)
 	//-----------------------------------------------------------------------------
 	{
-		size_t iRead = static_cast<size_t>(this->rdbuf()->sgetn(pAddress, iCount));
-		if (iRead != iCount)
+		std::streambuf* sb = this->rdbuf();
+		if (sb)
 		{
-			this->setstate(std::ios::eofbit);
+			size_t iRead = static_cast<size_t>(sb->sgetn(pAddress, iCount));
+			if (iRead != iCount)
+			{
+				this->setstate(std::ios::eofbit);
+			}
+			return iRead;
 		}
-		return iRead;
+		return 0;
 	}
 
 	//-----------------------------------------------------------------------------

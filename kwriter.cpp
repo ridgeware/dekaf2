@@ -41,7 +41,7 @@
 */
 
 #include <fstream>
-#include "kfdwriter.h"
+#include "kwriter.h"
 #include "klog.h"
 
 namespace dekaf2

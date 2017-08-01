@@ -54,45 +54,6 @@
 namespace dekaf2
 {
 
-
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// a customized output stream buffer
-struct KOStreamBuf : public std::streambuf
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-{
-	//-----------------------------------------------------------------------------
-	/// the Writer function's signature:
-	/// std::streamsize Writer(const void* sBuffer, std::streamsize iCount, void* CustomPointer)
-	///  - returns written bytes. CustomPointer can be used for anything, to the discretion of the
-	/// Writer.
-	typedef std::streamsize (*Writer)(const void*, std::streamsize, void*);
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// provide a Writer function, it will be called by std::streambuf on buffer flushes
-	KOStreamBuf(Writer cb, void* CustomPointer = nullptr)
-	//-----------------------------------------------------------------------------
-	    : m_Callback(cb), m_CustomPointer(CustomPointer)
-	{
-	}
-	//-----------------------------------------------------------------------------
-	virtual ~KOStreamBuf();
-	//-----------------------------------------------------------------------------
-
-protected:
-	//-----------------------------------------------------------------------------
-	virtual std::streamsize xsputn(const char_type* s, std::streamsize n) override;
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	virtual int_type overflow(int_type ch) override;
-	//-----------------------------------------------------------------------------
-
-private:
-	Writer m_Callback{nullptr};
-	void* m_CustomPointer{nullptr};
-};
-
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// an unbuffered std::ostream that is constructed around a unix file descriptor
 /// (mainly to allow its usage with pipes, for general file I/O use std::ofstream)

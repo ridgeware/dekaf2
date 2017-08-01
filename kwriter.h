@@ -54,6 +54,44 @@
 namespace dekaf2
 {
 
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// a customized output stream buffer
+struct KOStreamBuf : public std::streambuf
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+	//-----------------------------------------------------------------------------
+	/// the Writer function's signature:
+	/// std::streamsize Writer(const void* sBuffer, std::streamsize iCount, void* CustomPointer)
+	///  - returns written bytes. CustomPointer can be used for anything, to the discretion of the
+	/// Writer.
+	typedef std::streamsize (*Writer)(const void*, std::streamsize, void*);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// provide a Writer function, it will be called by std::streambuf on buffer flushes
+	KOStreamBuf(Writer cb, void* CustomPointer = nullptr)
+	//-----------------------------------------------------------------------------
+	    : m_Callback(cb), m_CustomPointer(CustomPointer)
+	{
+	}
+	//-----------------------------------------------------------------------------
+	virtual ~KOStreamBuf();
+	//-----------------------------------------------------------------------------
+
+protected:
+	//-----------------------------------------------------------------------------
+	virtual std::streamsize xsputn(const char_type* s, std::streamsize n) override;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	virtual int_type overflow(int_type ch) override;
+	//-----------------------------------------------------------------------------
+
+private:
+	Writer m_Callback{nullptr};
+	void* m_CustomPointer{nullptr};
+};
+
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 template<class OStream>
@@ -102,7 +140,7 @@ public:
 	/// Construct a KWriter on a (possibly) file descriptor output target.
 	/// Be prepared to get compiler warnings when you call this method on an
 	/// ostream that does not have this constructor (i.e. all non-KOutputFDStreams)
-	KWriter(int iFileDesc) noexcept
+	KWriter(int iFileDesc)
 	//-----------------------------------------------------------------------------
 	    : base_type(iFileDesc)
 	{
@@ -112,7 +150,7 @@ public:
 	/// Construct a KWriter on a FILE* output target.
 	/// Be prepared to get compiler warnings when you call this method on an
 	/// ostream that does not have this constructor (i.e. all non-KOutputFPStreams)
-	KWriter(FILE* iFilePtr) noexcept
+	KWriter(FILE* iFilePtr)
 	//-----------------------------------------------------------------------------
 	    : base_type(iFilePtr)
 	{

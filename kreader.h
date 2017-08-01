@@ -309,7 +309,7 @@ public:
 	/// Be prepared to get compiler warnings when you call this method on an
 	/// istream that does not have this constructor (i.e. all non-KInputFDStreams)
 	KReader(int iFileDesc,
-	        KStringView sTrimRight = "", KString::value_type chDelimiter = '\n') noexcept
+	        KStringView sTrimRight = "", KString::value_type chDelimiter = '\n')
 	//-----------------------------------------------------------------------------
 	    : base_type(iFileDesc)
 	    , m_sTrimRight(sTrimRight)
@@ -322,7 +322,7 @@ public:
 	/// Be prepared to get compiler warnings when you call this method on an
 	/// istream that does not have this constructor (i.e. all non-KInputFPStreams)
 	KReader(FILE* iFilePtr,
-	        KStringView sTrimRight = "", KString::value_type chDelimiter = '\n') noexcept
+	        KStringView sTrimRight = "", KString::value_type chDelimiter = '\n')
 	//-----------------------------------------------------------------------------
 	    : base_type(iFilePtr)
 	    , m_sTrimRight(sTrimRight)

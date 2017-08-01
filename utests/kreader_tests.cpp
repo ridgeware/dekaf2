@@ -8,6 +8,26 @@ using namespace dekaf2;
 
 TEST_CASE("KReader") {
 
+	SECTION("KReader exception safety")
+	{
+		KString buf;
+
+		SECTION("default constructor")
+		{
+			KFileReader File;
+			CHECK ( File.ReadLine(buf) == false );
+			CHECK ( buf.empty()        == true  );
+		}
+
+		SECTION("nonexisting file")
+		{
+			KFileReader File("/tmp/this_file_should_not_exist_ASKJFHsdkfgj37r6");
+			CHECK ( File.ReadLine(buf) == false );
+			CHECK ( buf.empty()        == true  );
+		}
+
+	}
+
 	KString sFile("/tmp/KReader.test");
 
 	KString sOut {
@@ -32,12 +52,34 @@ TEST_CASE("KReader") {
 		}
 	}
 
-	SECTION("KFileReader read all")
+	SECTION("KFileReader read all 1")
 	{
 		KFileReader File(sFile);
 		KString sRead;
+		CHECK( File.eof() == false);
 		CHECK( File.GetContent(sRead) == true );
 		CHECK( sRead == sOut );
+		CHECK( File.eof() == true);
+	}
+
+
+
+	SECTION("KFileReader read all 2")
+	{
+		KFileReader File(sFile);
+		CHECK( File.eof() == false);
+		KString sRead;
+		for (;;)
+		{
+			auto ch = File.Read();
+			if (ch == std::istream::traits_type::eof())
+			{
+				break;
+			}
+			sRead += static_cast<KString::value_type>(ch);
+		}
+		CHECK( sRead == sOut );
+		CHECK( File.eof() == true);
 	}
 
 	SECTION("KFileReader read iterator 1")
@@ -92,12 +134,33 @@ TEST_CASE("KReader") {
 
 	SECTION("KFileReader read iterator 3")
 	{
+		KFileReader File(sFile);
+		CHECK( File.eof() == false);
+		auto it = File.begin();
+		for (int iCount = 0; iCount < 9; ++iCount)
+		{
+			++it;
+		}
+		CHECK( File.eof() == true);
+	}
+
+	SECTION("KFileReader read iterator 4")
+	{
 		KFileReader File(sFile, std::ios_base::out, "\n", '\n');
+		CHECK( File.eof() == false);
+		CHECK( File.GetSize() == 63 );
+		CHECK( File.GetRemainingSize() == 63 );
+		CHECK( File.GetRemainingSize() == 63 );
+		int iCount = 0;
 		for (const auto& it : File)
 		{
-			CHECK( it.StartsWith("line ") == true );
+			++iCount;
+			CHECK( File.eof() == false             );
+			CHECK( it.StartsWith("line ") == true  );
 			CHECK( it.EndsWith  ("\n")    == false );
 		}
+		CHECK( File.eof() == true );
+		CHECK( iCount == 9 );
 	}
 
 }

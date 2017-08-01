@@ -36,13 +36,13 @@
 
 #pragma once
 
-#include "kfdreader.h"
+#include "kfdwriter.h"
 
 namespace dekaf2
 {
 
 //-----------------------------------------------------------------------------
-class KPipeReader : public KFPReader
+class KPipeWriter : public KFPWriter
 //-----------------------------------------------------------------------------
 {
 
@@ -50,10 +50,10 @@ class KPipeReader : public KFPReader
 public:
 //------
 
-	/// Default KPipeReader Constructor
-	KPipeReader() {}
-	/// Virtual Default KPipeReader Destructor
-	virtual ~KPipeReader() { Close(); }
+	/// Default KPipeWriter Constructor
+	KPipeWriter() {}
+	/// Default KPipeWriter Destructor
+	virtual ~KPipeWriter() { Close(); }
 
 	/// Opens a shell pipe and executes given command
 	virtual bool Open (KStringView sCommand);
@@ -72,6 +72,7 @@ private:
 	FILE*        m_pipe{nullptr};
 	int          m_iExitCode{0};
 
-}; // END KPipeReader
+};
 
 } // END NAMESPACE DEKAF2
+

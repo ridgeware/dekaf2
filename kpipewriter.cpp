@@ -1,13 +1,11 @@
-#include "kpipereader.h"
+#include "kpipewriter.h"
 #include "klog.h"
 
-//#include <stdio.h>
-//#include <unistd.h>
 namespace dekaf2
 {
 
 //-----------------------------------------------------------------------------
-bool KPipeReader::Open(KStringView sCommand)
+bool KPipeWriter::Open(KStringView sCommand)
 //-----------------------------------------------------------------------------
 {
 	KString sCmd(sCommand); // char* is not compatible with KStringView
@@ -19,7 +17,7 @@ bool KPipeReader::Open(KStringView sCommand)
 	// - - - - - - - - - - - - - - - - - - - - - - - -
 	// shell out to run the command:
 	// - - - - - - - - - - - - - - - - - - - - - - - -
-	m_pipe = popen(sCmd.c_str(), "r");
+	m_pipe = popen(sCmd.c_str(), "w");
 
 	// - - - - - - - - - - - - - - - - - - - - - - - -
 	// interpret success:
@@ -32,13 +30,13 @@ bool KPipeReader::Open(KStringView sCommand)
 	else
 	{
 		KLog().debug(2, "KPIPE::Open(): POPEN: ok...");
-		KFPReader::open(m_pipe);
+		KFPWriter::open(m_pipe);
 	}
 	return (m_pipe != NULL);
 } // Open
 
 //-----------------------------------------------------------------------------
-int  KPipeReader::Close()
+int  KPipeWriter::Close()
 //-----------------------------------------------------------------------------
 {
 	KLog().debug(3, "KPIPE::Close");
@@ -57,9 +55,8 @@ int  KPipeReader::Close()
 	return (m_iExitCode);
 } // Close
 
-
 //-----------------------------------------------------------------------------
-KPipeReader::operator FILE* ()
+KPipeWriter::operator FILE* ()
 //-----------------------------------------------------------------------------
 {
 	return (m_pipe);

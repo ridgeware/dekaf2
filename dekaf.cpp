@@ -96,11 +96,11 @@ bool Dekaf::SetUnicodeLocale(KString sName)
 #endif
 	}
 	catch (std::exception& e) {
-		KLog().exception(e, DEKAF2_FUNCTION_NAME);
+		KLog().Exception(e, DEKAF2_FUNCTION_NAME);
 		sName.erase();
 	}
 	catch (...) {
-		KLog().exception(DEKAF2_FUNCTION_NAME);
+		KLog().Exception(DEKAF2_FUNCTION_NAME);
 		sName.erase();
 	}
 	m_sLocale = sName;

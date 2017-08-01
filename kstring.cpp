@@ -56,7 +56,7 @@ const KString::size_type KString::npos;
 void KString::log_exception(std::exception& e, KStringView sWhere)
 //------------------------------------------------------------------------------
 {
-	KLog().exception(e, sWhere, "KString");
+	KLog().Exception(e, sWhere, "KString");
 }
 
 //------------------------------------------------------------------------------
@@ -66,9 +66,9 @@ KString& KString::append(const string_type& str, size_type pos, size_type n)
 	try {
 		m_rep.append(str, pos, n);
 	} catch (std::exception& e) {
-		KLog().exception(e, "append", "KString");
+		KLog().Exception(e, "append", "KString");
 	} catch (...) {
-		KLog().exception("append", "KString");
+		KLog().Exception("append", "KString");
 	}
 	return *this;
 }
@@ -80,9 +80,9 @@ KString& KString::assign(const string_type& str, size_type pos, size_type n)
 	try {
 		m_rep.assign(str, pos, n);
 	} catch (std::exception& e) {
-		KLog().exception(e, "assign", "KString");
+		KLog().Exception(e, "assign", "KString");
 	} catch (...) {
-		KLog().exception("assign", "KString");
+		KLog().Exception("assign", "KString");
 	}
 	return *this;
 }
@@ -94,9 +94,9 @@ KString& KString::replace(size_type pos, size_type n, const string_type& str)
 	try {
 		m_rep.replace(pos, n, str);
 	} catch (std::exception& e) {
-		KLog().exception(e, "replace", "KString");
+		KLog().Exception(e, "replace", "KString");
 	} catch (...) {
-		KLog().exception("replace", "KString");
+		KLog().Exception("replace", "KString");
 	}
 	return *this;
 }
@@ -108,9 +108,9 @@ KString& KString::replace(size_type pos1, size_type n1, const string_type& str, 
 	try {
 		m_rep.replace(pos1, n1, str, pos2, n2);
 	} catch (std::exception& e) {
-		KLog().exception(e, "replace", "KString");
+		KLog().Exception(e, "replace", "KString");
 	} catch (...) {
-		KLog().exception("replace", "KString");
+		KLog().Exception("replace", "KString");
 	}
 	return *this;
 }
@@ -122,9 +122,9 @@ KString& KString::replace(size_type pos, size_type n1, const value_type* s, size
 	try {
 		m_rep.replace(pos, n1, s ? s : "", n2);
 	} catch (std::exception& e) {
-		KLog().exception(e, "replace", "KString");
+		KLog().Exception(e, "replace", "KString");
 	} catch (...) {
-		KLog().exception("replace", "KString");
+		KLog().Exception("replace", "KString");
 	}
 	return *this;
 }
@@ -136,9 +136,9 @@ KString& KString::replace(size_type pos, size_type n1, const value_type* s)
 	try {
 		m_rep.replace(pos, n1, s ? s : "");
 	} catch (std::exception& e) {
-		KLog().exception(e, "replace", "KString");
+		KLog().Exception(e, "replace", "KString");
 	} catch (...) {
-		KLog().exception("replace", "KString");
+		KLog().Exception("replace", "KString");
 	}
 	return *this;
 }
@@ -150,9 +150,9 @@ KString& KString::replace(size_type pos, size_type n1, size_type n2, value_type 
 	try {
 		m_rep.replace(pos, n1, n2, c);
 	} catch (std::exception& e) {
-		KLog().exception(e, "replace", "KString");
+		KLog().Exception(e, "replace", "KString");
 	} catch (...) {
-		KLog().exception("replace", "KString");
+		KLog().Exception("replace", "KString");
 	}
 	return *this;
 }
@@ -164,9 +164,9 @@ KString& KString::replace(iterator i1, iterator i2, const string_type& str)
 	try {
 		m_rep.replace(i1, i2, str);
 	} catch (std::exception& e) {
-		KLog().exception(e, "replace", "KString");
+		KLog().Exception(e, "replace", "KString");
 	} catch (...) {
-		KLog().exception("replace", "KString");
+		KLog().Exception("replace", "KString");
 	}
 	return *this;
 }
@@ -178,9 +178,9 @@ KString& KString::replace(iterator i1, iterator i2, const value_type* s, size_ty
 	try {
 		m_rep.replace(i1, i2, s ? s : "", n);
 	} catch (std::exception& e) {
-		KLog().exception(e, "replace", "KString");
+		KLog().Exception(e, "replace", "KString");
 	} catch (...) {
-		KLog().exception("replace", "KString");
+		KLog().Exception("replace", "KString");
 	}
 	return *this;
 }
@@ -192,9 +192,9 @@ KString& KString::replace(iterator i1, iterator i2, std::initializer_list<value_
 	try {
 		m_rep.replace(i1, i2, il);
 	} catch (std::exception& e) {
-		KLog().exception(e, "replace", "KString");
+		KLog().Exception(e, "replace", "KString");
 	} catch (...) {
-		KLog().exception("replace", "KString");
+		KLog().Exception("replace", "KString");
 	}
 	return *this;
 }
@@ -206,9 +206,9 @@ KString& KString::replace(size_type pos, size_type n, KStringView sv)
 	try {
 		m_rep.replace(pos, n, sv.data(), sv.size());
 	} catch (std::exception& e) {
-		KLog().exception(e, "replace", "KString");
+		KLog().Exception(e, "replace", "KString");
 	} catch (...) {
-		KLog().exception("replace", "KString");
+		KLog().Exception("replace", "KString");
 	}
 	return *this;
 }
@@ -220,9 +220,9 @@ KString& KString::replace(iterator i1, iterator i2, KStringView sv)
 	try {
 		m_rep.replace(i1, i2, sv.data(), sv.size());
 	} catch (std::exception& e) {
-		KLog().exception(e, "replace", "KString");
+		KLog().Exception(e, "replace", "KString");
 	} catch (...) {
-		KLog().exception("replace", "KString");
+		KLog().Exception("replace", "KString");
 	}
 	return *this;
 }
@@ -234,9 +234,9 @@ KString KString::substr(size_type pos, size_type n) const
 	try {
 		return m_rep.substr(pos, n);
 	} catch (std::exception& e) {
-		KLog().exception(e, "substr", "KString");
+		KLog().Exception(e, "substr", "KString");
 	} catch (...) {
-		KLog().exception("substr", "KString");
+		KLog().Exception("substr", "KString");
 	}
 	return KString();
 }
@@ -248,9 +248,9 @@ KString::size_type KString::copy(value_type* s, size_type n, size_type pos) cons
 	try {
 		return m_rep.copy(s, n, pos);
 	} catch (std::exception& e) {
-		KLog().exception(e, "copy", "KString");
+		KLog().Exception(e, "copy", "KString");
 	} catch (...) {
-		KLog().exception("copy", "KString");
+		KLog().Exception("copy", "KString");
 	}
 	return 0;
 }
@@ -262,9 +262,9 @@ KString& KString::insert(size_type pos, const string_type& str)
 	try {
 		m_rep.insert(pos, str);
 	} catch (std::exception& e) {
-		KLog().exception(e, "insert", "KString");
+		KLog().Exception(e, "insert", "KString");
 	} catch (...) {
-		KLog().exception("insert", "KString");
+		KLog().Exception("insert", "KString");
 	}
 	return *this;
 }
@@ -276,9 +276,9 @@ KString& KString::insert(size_type pos1, const string_type& str, size_type pos2,
 	try {
 		m_rep.insert(pos1, str, pos2, n);
 	} catch (std::exception& e) {
-		KLog().exception(e, "insert", "KString");
+		KLog().Exception(e, "insert", "KString");
 	} catch (...) {
-		KLog().exception("insert", "KString");
+		KLog().Exception("insert", "KString");
 	}
 	return *this;
 }
@@ -290,9 +290,9 @@ KString& KString::insert(size_type pos, const value_type* s, size_type n)
 	try {
 		m_rep.insert(pos, s ? s : "", n);
 	} catch (std::exception& e) {
-		KLog().exception(e, "insert", "KString");
+		KLog().Exception(e, "insert", "KString");
 	} catch (...) {
-		KLog().exception("insert", "KString");
+		KLog().Exception("insert", "KString");
 	}
 	return *this;
 }
@@ -304,9 +304,9 @@ KString& KString::insert(size_type pos, const value_type* s)
 	try {
 		m_rep.insert(pos, s ? s : "");
 	} catch (std::exception& e) {
-		KLog().exception(e, "insert", "KString");
+		KLog().Exception(e, "insert", "KString");
 	} catch (...) {
-		KLog().exception("insert", "KString");
+		KLog().Exception("insert", "KString");
 	}
 	return *this;
 }
@@ -318,9 +318,9 @@ KString& KString::insert(size_type pos, size_type n, value_type c)
 	try {
 		m_rep.insert(pos, n, c);
 	} catch (std::exception& e) {
-		KLog().exception(e, "insert", "KString");
+		KLog().Exception(e, "insert", "KString");
 	} catch (...) {
-		KLog().exception("insert", "KString");
+		KLog().Exception("insert", "KString");
 	}
 	return *this;
 }
@@ -332,9 +332,9 @@ KString::iterator KString::insert(iterator it, value_type c)
 	try {
 		return m_rep.insert(it, c);
 	} catch (std::exception& e) {
-		KLog().exception(e, "insert", "KString");
+		KLog().Exception(e, "insert", "KString");
 	} catch (...) {
-		KLog().exception("insert", "KString");
+		KLog().Exception("insert", "KString");
 	}
 	return end();
 }
@@ -346,9 +346,9 @@ KString& KString::insert (iterator it, std::initializer_list<value_type> il)
 	try {
 		m_rep.insert(it, il);
 	} catch (std::exception& e) {
-		KLog().exception(e, "insert", "KString");
+		KLog().Exception(e, "insert", "KString");
 	} catch (...) {
-		KLog().exception("insert", "KString");
+		KLog().Exception("insert", "KString");
 	}
 	return *this;
 }
@@ -360,9 +360,9 @@ KString& KString::insert(size_type pos, KStringView sv)
 	try {
 		m_rep.insert(pos, sv.data(), sv.size());
 	} catch (std::exception& e) {
-		KLog().exception(e, "insert", "KString");
+		KLog().Exception(e, "insert", "KString");
 	} catch (...) {
-		KLog().exception("insert", "KString");
+		KLog().Exception("insert", "KString");
 	}
 	return *this;
 }
@@ -374,9 +374,9 @@ KString& KString::erase(size_type pos, size_type n)
 	try {
 		m_rep.erase(pos, n);
 	} catch (std::exception& e) {
-		KLog().exception(e, "erase", "KString");
+		KLog().Exception(e, "erase", "KString");
 	} catch (...) {
-		KLog().exception("erase", "KString");
+		KLog().Exception("erase", "KString");
 	}
 	return *this;
 }
@@ -388,9 +388,9 @@ KString::iterator KString::erase(iterator position)
 	try {
 		return m_rep.erase(position);
 	} catch (std::exception& e) {
-		KLog().exception(e, "erase", "KString");
+		KLog().Exception(e, "erase", "KString");
 	} catch (...) {
-		KLog().exception("erase", "KString");
+		KLog().Exception("erase", "KString");
 	}
 	return end();
 }
@@ -402,9 +402,9 @@ KString::iterator KString::erase(iterator first, iterator last)
 	try {
 		return m_rep.erase(first, last);
 	} catch (std::exception& e) {
-		KLog().exception(e, "erase", "KString");
+		KLog().Exception(e, "erase", "KString");
 	} catch (...) {
-		KLog().exception("erase", "KString");
+		KLog().Exception("erase", "KString");
 	}
 	return end();
 }
@@ -416,9 +416,9 @@ int KString::compare(size_type pos, size_type n, const string_type& str) const
 	try {
 		return m_rep.compare(pos, n, str);
 	} catch (std::exception& e) {
-		KLog().exception(e, "compare", "KString");
+		KLog().Exception(e, "compare", "KString");
 	} catch (...) {
-		KLog().exception("compare", "KString");
+		KLog().Exception("compare", "KString");
 	}
 	return 1;
 }
@@ -430,9 +430,9 @@ int KString::compare(size_type pos1, size_type n1, const string_type& str,  size
 	try {
 		return m_rep.compare(pos1, n1, str, pos2, n2);
 	} catch (std::exception& e) {
-		KLog().exception(e, "compare", "KString");
+		KLog().Exception(e, "compare", "KString");
 	} catch (...) {
-		KLog().exception("compare", "KString");
+		KLog().Exception("compare", "KString");
 	}
 	return 1;
 }
@@ -444,9 +444,9 @@ int KString::compare(size_type pos, size_type n1, const value_type* s) const
 	try {
 		return m_rep.compare(pos, n1, s ? s : "");
 	} catch (std::exception& e) {
-		KLog().exception(e, "compare", "KString");
+		KLog().Exception(e, "compare", "KString");
 	} catch (...) {
-		KLog().exception("compare", "KString");
+		KLog().Exception("compare", "KString");
 	}
 	return 1;
 }
@@ -458,9 +458,9 @@ int KString::compare(size_type pos, size_type n1, const value_type* s, size_type
 	try {
 		return m_rep.compare(pos, n1, s ? s : "", n2);
 	} catch (std::exception& e) {
-		KLog().exception(e, "compare", "KString");
+		KLog().Exception(e, "compare", "KString");
 	} catch (...) {
-		KLog().exception("compare", "KString");
+		KLog().Exception("compare", "KString");
 	}
 	return 1;
 }
@@ -472,9 +472,9 @@ int KString::compare(size_type pos, size_type n1, KStringView sv) const
 	try {
 		return m_rep.compare(pos, n1, sv.data(), sv.size());
 	} catch (std::exception& e) {
-		KLog().exception(e, "compare", "KString");
+		KLog().Exception(e, "compare", "KString");
 	} catch (...) {
-		KLog().exception("compare", "KString");
+		KLog().Exception("compare", "KString");
 	}
 	return 1;
 }

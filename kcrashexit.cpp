@@ -58,6 +58,11 @@ namespace dekaf2
 void kCrashExit (int iSignalNum)
 //-----------------------------------------------------------------------------
 {
+	// switch automatic backtracing off
+	KLog().SetBackTrace(100);
+
+	// and start our own stackdump
+
 	KLog().warning ("                 *      \n");
 	KLog().warning ("            *    *    * \n");
 	KLog().warning ("              *  *  *   \n");

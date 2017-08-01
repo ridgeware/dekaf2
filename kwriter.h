@@ -209,6 +209,7 @@ class KWriter : public OStream
 public:
 
 	//-----------------------------------------------------------------------------
+	/// default ctor
 	KWriter()
 	//-----------------------------------------------------------------------------
 	{
@@ -217,6 +218,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// construct a KWriter on a passed std::ostream (use std::move()!)
 	KWriter(OStream&& os)
 	//-----------------------------------------------------------------------------
 		: base_type(std::move(os))
@@ -224,13 +226,15 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	/// be prepared to get compiler warnings when you call this method on an
+	/// Construct a KWriter on a file-like output target.
+	/// Be prepared to get compiler warnings when you call this method on an
 	/// ostream that does not have this constructor (i.e. all non-ofstreams)
 	KWriter(const char* sName, std::ios::openmode mode = std::ios::out)
 	    : base_type(sName, mode) {}
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	/// Construct a KWriter on a file-like output target.
 	/// be prepared to get compiler warnings when you call this method on an
 	/// ostream that does not have this constructor (i.e. all non-ofstreams)
 	KWriter(const std::string& sName, std::ios::openmode mode = std::ios::out)
@@ -238,18 +242,8 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	KWriter(const self_type& other) = delete;
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	KWriter(self_type&& other) noexcept
-	//-----------------------------------------------------------------------------
-	    : base_type(std::move(other))
-	{
-	}
-
-	//-----------------------------------------------------------------------------
-	/// be prepared to get compiler warnings when you call this method on an
+	/// Construct a KWriter on a (possibly) file descriptor output target.
+	/// Be prepared to get compiler warnings when you call this method on an
 	/// ostream that does not have this constructor (i.e. all non-KOutputFDStreams)
 	KWriter(int iFileDesc) noexcept
 	//-----------------------------------------------------------------------------
@@ -258,10 +252,23 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	KWriter(const self_type& other) = delete;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// Move-construct a KWriter
+	KWriter(self_type&& other) noexcept
+	//-----------------------------------------------------------------------------
+	    : base_type(std::move(other))
+	{
+	}
+
+	//-----------------------------------------------------------------------------
 	self_type& operator=(const self_type& other) = delete;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	/// move-assign a KWriter
 	self_type& operator=(self_type&& other) noexcept
 	//-----------------------------------------------------------------------------
 	{
@@ -274,22 +281,41 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	/// Write a character. Returns stream reference that resolves to false on failure
 	inline self_type& Write(KString::value_type& ch)
 	//-----------------------------------------------------------------------------
 	{
-		base_type::put();
+		std::streambuf* sb = this->rdbuf();
+		if (sb != nullptr)
+		{
+			typename base_type::int_type iCh = sb->sputc(ch);
+			if (base_type::traits_type::eq_int_type(iCh, base_type::traits_type::eof()))
+			{
+				this->setstate(std::ios_base::badbit);
+			}
+		}
 		return *this;
 	}
 
 	//-----------------------------------------------------------------------------
+	/// Write a range of characters. Returns stream reference that resolves to false on failure
 	inline self_type& Write(const typename base_type::char_type* pAddress, size_t iCount)
 	//-----------------------------------------------------------------------------
 	{
-		base_type::write(pAddress, iCount);
+		std::streambuf* sb = this->rdbuf();
+		if (sb != nullptr)
+		{
+			size_t iWrote = static_cast<size_t>(sb->sputn(pAddress, iCount));
+			if (iWrote != iCount)
+			{
+				this->setstate(std::ios_base::badbit);
+			}
+		}
 		return *this;
 	}
 
 	//-----------------------------------------------------------------------------
+	/// Write a string. Returns stream reference that resolves to false on failure
 	inline KWriter& Write(KStringView str)
 	//-----------------------------------------------------------------------------
 	{
@@ -298,6 +324,8 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// Write a type. Returns stream reference that resolves to false on failure.
+	/// Type must be trivially copyable.
 	template<typename T, typename std::enable_if<std::is_trivially_copyable<T>::value>::type* = nullptr>
 	inline self_type& Write(T& value)
 	//-----------------------------------------------------------------------------
@@ -307,6 +335,8 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// Write a string and a line delimiter. Returns stream reference that resolves
+	/// to false on failure.
 	inline self_type& WriteLine(KStringView line, KStringView delimiter = "\n")
 	//-----------------------------------------------------------------------------
 	{
@@ -316,25 +346,37 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// Write a fmt::format() formatted argument list. Returns stream reference that
+	/// resolves to false on failure.
 	template<class... Args>
-	KWriter& Format(Args&&... args)
+	self_type& Format(Args&&... args)
 	//-----------------------------------------------------------------------------
 	{
 		kfFormat(*this, std::forward<Args>(args)...);
+		return *this;
 	}
 
 	//-----------------------------------------------------------------------------
+	/// Write a fmt::printf() formatted argument list. Returns stream reference that
+	/// resolves to false on failure.
 	template<class... Args>
-	KWriter& Printf(Args&&... args)
+	self_type& Printf(Args&&... args)
 	//-----------------------------------------------------------------------------
 	{
 		kfPrintf(*this, std::forward<Args>(args)...);
+		return *this;
 	}
 
 };
 
+
+/// File writer based on std::ofstream
 using KFileWriter     = KWriter<std::ofstream>;
+
+/// String writer based on std::ostringstream
 using KStringWriter   = KWriter<std::ostringstream>;
+
+/// File descriptor writer based on KOutputFDStream>
 using KFileDescWriter = KWriter<KOutputFDStream>;
 
 } // end of namespace dekaf2

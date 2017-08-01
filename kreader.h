@@ -53,61 +53,168 @@
 namespace dekaf2
 {
 
-namespace KReader_detail
-{
+/// Read a line of text until EOF or delimiter from a std::istream. Right trim values of sTrimRight.
+/// Reads directly in the underlying streambuf
+bool kReadLine(std::istream& Stream, KString& sLine, KStringView sTrimRight = "", KString::value_type delimiter = '\n');
 
-bool ReadLine(std::streambuf* Stream, KString& sLine, KString::value_type delimiter = '\n', KStringView sTrimRight = "");
-bool ReadAll(std::streambuf* Stream, KString& sContent);
-ssize_t GetSize(std::streambuf* Stream, bool bReposition = true);
-bool ReadRemaining(std::streambuf* Stream, KString& sContent);
-ssize_t GetRemainingSize(std::streambuf* Stream);
-bool Rewind(std::streambuf* Stream);
+/// Read all content of a std::istream device into a string. Fails on non-seekable istreams.
+/// Reads directly in the underlying streambuf
+bool kReadAll(std::istream& Stream, KString& sContent, bool bFromStart = true);
 
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// a streambuf iterator that returns strings, line by line
-class const_streambuf_iterator
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-{
-//-------
-public:
-//-------
-	typedef const_streambuf_iterator self_type;
-	typedef KString value_type;
-	typedef value_type& reference;
-	typedef value_type* pointer;
-	typedef std::streambuf* base_iterator;
-	typedef std::input_iterator_tag iterator_category;
-	typedef std::ptrdiff_t difference_type;
+/// Get the total size of a std::istream device. Returns -1 on Failure. Fails on non-seekable istreams.
+ssize_t kGetSize(std::istream& Stream, bool bFromStart = true);
 
-	const_streambuf_iterator() {}
-	const_streambuf_iterator(base_iterator it, bool bToEnd, KString::value_type chDelimiter = '\n', KStringView sTrimRight = "");
-	const_streambuf_iterator(const self_type&);
-	const_streambuf_iterator(self_type&& other);
-	self_type& operator=(const self_type&);
-	self_type& operator=(self_type&& other);
-	self_type& operator++();
-	self_type operator++(int dummy);
-	reference operator*();
-	pointer operator->();
-	bool operator==(const self_type& rhs);
-	bool operator!=(const self_type& rhs);
+/// Reposition the device of a std::istream to the beginning. Fails on non-seekable istreams.
+bool kRewind(std::istream& Stream);
 
-//-------
-private:
-//-------
-	base_iterator m_it{nullptr};
-	size_t m_iCount{0};
-	KString m_sBuffer;
-	KString::value_type m_chDelimiter{'\n'};
-	KString m_sTrimRight;
-};
-
-} // end of namespace KReader_detail
 
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// a customizable input stream buffer
+struct KIStreamBuf : public std::streambuf
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+	//-----------------------------------------------------------------------------
+	/// the Reader's function's signature:
+	/// std::streamsize Reader(const void* sBuffer, std::streamsize iCount, void* CustomPointer)
+	///  - returns read bytes. CustomPointer can be used for anything, to the discretion of the
+	/// Reader.
+	typedef std::streamsize (*Reader)(void*, std::streamsize, void*);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// provide a Reader function, it will be called by std::streambuf on buffer reads
+	KIStreamBuf(Reader cb, void* CustomPointer = nullptr)
+	//-----------------------------------------------------------------------------
+	    : m_Callback(cb), m_CustomPointer(CustomPointer)
+	{
+	}
+	//-----------------------------------------------------------------------------
+	virtual ~KIStreamBuf();
+	//-----------------------------------------------------------------------------
+
+protected:
+	//-----------------------------------------------------------------------------
+	virtual std::streamsize xsgetn(char_type* s, std::streamsize n) override;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+//	virtual int_type underflow() override;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	virtual int_type uflow() override;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+//	virtual std::streamsize showmanyc() override;
+	//-----------------------------------------------------------------------------
+
+private:
+	Reader m_Callback{nullptr};
+	void* m_CustomPointer{nullptr};
+};
+
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// an unbuffered std::ostream that is constructed around a unix file descriptor
+/// (mainly to allow its usage with pipes, for general file I/O use std::ofstream)
+/// (really, do it - this one is really slow on small writes to files, on purpose,
+/// because pipes should not be buffered!)
+class KInputFDStream : public std::istream
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+//----------
+protected:
+//----------
+
+	using base_type = std::istream;
+
+	//-----------------------------------------------------------------------------
+	/// this is the custom streambuf writer
+	static std::streamsize FileDescReader(void* sBuffer, std::streamsize iCount, void* filedesc);
+	//-----------------------------------------------------------------------------
+
+//----------
+public:
+//----------
+
+	//-----------------------------------------------------------------------------
+	KInputFDStream()
+	//-----------------------------------------------------------------------------
+	{
+	}
+
+	KInputFDStream(const KInputFDStream&) = delete;
+
+	//-----------------------------------------------------------------------------
+	KInputFDStream(KInputFDStream&& other);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// the main purpose of this class: allow construction from a standard unix
+	/// file descriptor
+	KInputFDStream(int iFileDesc)
+	//-----------------------------------------------------------------------------
+	{
+		open(iFileDesc);
+	}
+
+	//-----------------------------------------------------------------------------
+	virtual ~KInputFDStream();
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	KInputFDStream& operator=(KInputFDStream&& other);
+	//-----------------------------------------------------------------------------
+
+	KInputFDStream& operator=(const KInputFDStream&) = delete;
+
+	//-----------------------------------------------------------------------------
+	/// the main purpose of this class: open from a standard unix
+	/// file descriptor
+	void open(int iFileDesc);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// test if a file is associated to this output stream
+	inline bool is_open() const
+	//-----------------------------------------------------------------------------
+	{
+		return m_FileDesc >= 0;
+	}
+
+	//-----------------------------------------------------------------------------
+	/// close the output stream
+	void close();
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// get the file descriptor
+	int GetDescriptor() const
+	//-----------------------------------------------------------------------------
+	{
+		return m_FileDesc;
+	}
+
+//----------
+protected:
+//----------
+	int m_FileDesc{-1};
+
+	// see comment in KWriter's KOStreamBuf about the legality
+	// to only construct the KIStreamBuf here, but to use it in
+	// the constructor before
+	KIStreamBuf m_FPStreamBuf{&FileDescReader, &m_FileDesc};
+};
+
+
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// The general reader abstraction for dekaf2. Can be constructed around any
+/// std::istream, and has iterators and read accessors that attach to the
+/// std::streambuf of the istream. Provides a line iterator on the file
+/// content, and can right trim returned lines.
 template<class IStream>
-class KReader : public IStream, public KReader_detail::const_streambuf_iterator
+class KReader : public IStream
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 	using self_type = KReader<IStream>;
@@ -117,10 +224,136 @@ class KReader : public IStream, public KReader_detail::const_streambuf_iterator
 public:
 //-------
 
-	using const_iterator = const_streambuf_iterator;
+	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	/// a istream iterator that returns strings, line by line, by reading directly
+	/// from the underlying streambuf
+	class const_istream_line_iterator
+	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	{
+	//-------
+	public:
+	//-------
+		typedef const_istream_line_iterator self_type;
+		typedef KString value_type;
+		typedef value_type& reference;
+		typedef value_type* pointer;
+		typedef KReader<IStream> base_iterator;
+		typedef std::input_iterator_tag iterator_category;
+		typedef std::ptrdiff_t difference_type;
+
+		const_istream_line_iterator()
+		{
+			// beware, m_it is a nullptr now
+		}
+
+		const_istream_line_iterator(base_iterator& it, bool bToEnd)
+		    : m_it(&it)
+		{
+			if (m_it != nullptr && !bToEnd)
+			{
+				if (kReadLine(*m_it, m_sBuffer, m_it->m_sTrimRight, m_it->m_chDelimiter))
+				{
+					++m_iCount;
+				}
+			}
+		}
+
+		const_istream_line_iterator(const self_type& other)
+		    : m_it(other.m_it)
+		    , m_iCount(other.m_iCount)
+		    , m_sBuffer(other.m_sBuffer)
+		{
+		}
+
+		const_istream_line_iterator(self_type&& other)
+		    : m_it(std::move(other.m_it))
+		    , m_iCount(std::move(other.m_iCount))
+		    , m_sBuffer(std::move(other.m_sBuffer))
+		{
+		}
+
+		self_type& operator=(const self_type& other)
+		{
+			m_it = other.m_it;
+			m_iCount = other.m_iCount;
+			m_sBuffer = other.m_sBuffer;
+			return *this;
+		}
+
+		self_type& operator=(self_type&& other)
+		{
+			m_it = std::move(other.m_it);
+			m_iCount = std::move(other.m_iCount);
+			m_sBuffer = std::move(other.m_sBuffer);
+			return *this;
+		}
+
+		self_type& operator++()
+		{
+			if (m_it != nullptr && kReadLine(*m_it, m_sBuffer, m_it->m_sTrimRight, m_it->m_chDelimiter))
+			{
+				++m_iCount;
+			}
+			else
+			{
+				m_iCount = 0;
+			}
+
+			return *this;
+		} // prefix
+
+		self_type operator++(int)
+		{
+			self_type i = *this;
+
+			if (m_it != nullptr && kReadLine(*m_it, m_sBuffer, m_it->m_sTrimRight, m_it->m_chDelimiter))
+			{
+				++m_iCount;
+			}
+			else
+			{
+				m_iCount = 0;
+			}
+
+			return i;
+		} // postfix
+
+		/// returns the current string
+		inline reference operator*()
+		{
+			return m_sBuffer;
+		}
+
+		/// returns the current string
+		inline pointer operator->()
+		{
+			return &m_sBuffer;
+		}
+
+		inline bool operator==(const self_type& rhs)
+		{
+			return m_it == rhs.m_it && m_iCount == rhs.m_iCount;
+		}
+
+		bool operator!=(const self_type& rhs)
+		{
+			return !operator==(rhs);
+		}
+
+	//-------
+	protected:
+	//-------
+		base_iterator* m_it{nullptr};
+		size_t m_iCount{0};
+		KString m_sBuffer;
+
+	}; // const_istream_line_iterator
+
+	using const_iterator = const_istream_line_iterator;
 	using iterator = const_iterator;
 
 	//-----------------------------------------------------------------------------
+	/// default ctor
 	KReader()
 	//-----------------------------------------------------------------------------
 	{
@@ -129,47 +362,65 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	KReader(IStream&& is, KString::value_type chDelimiter = '\n', KStringView sTrimRight = "")
+	/// construct a KReader on a passed std::istream (use std::move()!)
+	KReader(IStream&& is,
+	        KStringView sTrimRight = "", KString::value_type chDelimiter = '\n')
 	//-----------------------------------------------------------------------------
 	    : base_type(std::move(is))
-	    , m_chDelimiter(chDelimiter)
 	    , m_sTrimRight(sTrimRight)
+	    , m_chDelimiter(chDelimiter)
 	{
 	}
 
 	//-----------------------------------------------------------------------------
-	/// be prepared to get compiler warnings when you call this method on an
+	/// Construct a KReader on a file-like input source.
+	/// Be prepared to get compiler warnings when you call this method on an
 	/// istream that does not have this constructor (i.e. all non-ifstreams..)
 	KReader(const char* sName, std::ios::openmode mode = std::ios::in,
-	        KString::value_type chDelimiter = '\n', KStringView sTrimRight = "")
+	        KStringView sTrimRight = "", KString::value_type chDelimiter = '\n')
 	//-----------------------------------------------------------------------------
 	    : base_type(sName, mode)
-	    , m_chDelimiter(chDelimiter)
 	    , m_sTrimRight(sTrimRight)
+	    , m_chDelimiter(chDelimiter)
 	{
 	}
 
 	//-----------------------------------------------------------------------------
+	/// Construct a KReader on a file-like input source.
 	/// be prepared to get compiler warnings when you call this method on an
 	/// istream that does not have this constructor (i.e. all non-ifstreams..)
 	KReader(const std::string& sName, std::ios::openmode mode = std::ios::in,
-	        KString::value_type chDelimiter = '\n', KStringView sTrimRight = "")
+	        KStringView sTrimRight = "", KString::value_type chDelimiter = '\n')
 	//-----------------------------------------------------------------------------
 	    : base_type(sName, mode)
-	    , m_chDelimiter(chDelimiter)
 	    , m_sTrimRight(sTrimRight)
+	    , m_chDelimiter(chDelimiter)
 	{}
+
+	//-----------------------------------------------------------------------------
+	/// Construct a KReader on a (possibly) file descriptor input source.
+	/// Be prepared to get compiler warnings when you call this method on an
+	/// istream that does not have this constructor (i.e. all non-KInputFDStreams)
+	KReader(int iFileDesc,
+	        KStringView sTrimRight = "", KString::value_type chDelimiter = '\n') noexcept
+	//-----------------------------------------------------------------------------
+	    : base_type(iFileDesc)
+	    , m_sTrimRight(sTrimRight)
+	    , m_chDelimiter(chDelimiter)
+	{
+	}
 
 	//-----------------------------------------------------------------------------
 	KReader(const self_type& other) = delete;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	/// Move-construct a KReader
 	KReader(self_type&& other) noexcept
 	//-----------------------------------------------------------------------------
 	    : base_type(std::move(other))
-	    , m_chDelimiter(other.m_chDelimiter)
 	    , m_sTrimRight(std::move(other.m_sTrimRight))
+	    , m_chDelimiter(other.m_chDelimiter)
 	{}
 
 	//-----------------------------------------------------------------------------
@@ -177,38 +428,67 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	self_type& operator=(self_type&& other) noexcept;
+	/// move-assign a KReader
+	self_type& operator=(self_type&& other) noexcept
 	//-----------------------------------------------------------------------------
+	{
+		base_type::operator=(std::move(other));
+		m_sTrimRight = std::move(other.m_sTrimRight);
+		m_chDelimiter = other.m_chDelimiter;
+	}
 
 	//-----------------------------------------------------------------------------
 	virtual ~KReader() {}
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	inline typename base_type::int_type Read()
+	/// Read a character. Returns std::istream::traits_type::eof() (== -1) if no input available
+	typename base_type::int_type Read()
 	//-----------------------------------------------------------------------------
 	{
-		return base_type::sbumpc();
+		std::streambuf* sb = this->rdbuf();
+		if (sb)
+		{
+			typename base_type::int_type iCh = sb->sbumpc();
+			if (base_type::traits_type::eq_int_type(iCh, base_type::traits_type::eof()))
+			{
+				this->setstate(std::ios::eofbit);
+			}
+			return iCh;
+		}
+		return base_type::traits_type::eof();
 	}
 
 	//-----------------------------------------------------------------------------
-	inline bool Read(KString::value_type& ch)
+	/// Read a character. Returns stream reference that resolves to false if no input available
+	inline self_type& Read(KString::value_type& ch)
 	//-----------------------------------------------------------------------------
 	{
-		auto iCh = Read();
-		ch = IStream::traits_type::to_char_type(iCh);
-		return !base_type::traits_type::eq_int_type(iCh, base_type::traits_type::eof());
-	}
-
-	//-----------------------------------------------------------------------------
-	inline KReader& Read(const typename base_type::char_type* pAddress, size_t iCount)
-	//-----------------------------------------------------------------------------
-	{
-		base_type::sgetn(pAddress, iCount);
+		ch = IStream::traits_type::to_char_type(Read());
 		return *this;
 	}
 
 	//-----------------------------------------------------------------------------
+	/// Read a range of characters. Returns count of successfully read charcters.
+	size_t Read(const typename base_type::char_type* pAddress, size_t iCount)
+	//-----------------------------------------------------------------------------
+	{
+		std::streambuf* sb = this->rdbuf();
+		if (sb)
+		{
+			size_t iRead = static_cast<size_t>(sb->sgetn(pAddress, iCount));
+			if (iRead != iCount)
+			{
+				this->setstate(std::ios::eofbit);
+			}
+			return iRead;
+		}
+		return 0;
+	}
+
+	//-----------------------------------------------------------------------------
+	/// Read a type. Returns stream reference that resolves to false if no input available.
+	/// Type must be trivially copyable.
 	template<typename T, typename std::enable_if<std::is_trivially_copyable<T>::value>::type* = nullptr>
 	inline self_type& Read(T& value)
 	//-----------------------------------------------------------------------------
@@ -218,28 +498,39 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	inline self_type& ReadLine(KString& sLine)
+	/// Read a line of text. Returns false if no input available. Stops at delimiter
+	/// character defined with the constructor and optionally right trims the string
+	/// from the trim definition given to the constructor. Per default contains the
+	/// end-of-line character in the returned string.
+	/// Please note that this method does _not_ return the stream reference,
+	/// but a boolean. std::istreams would not read a file with a missing newline
+	/// at the end successfully, but report an error. This function would succeed.
+	inline bool ReadLine(KString& sLine)
 	//-----------------------------------------------------------------------------
 	{
-		KReader_detail::ReadLine(this->rdbuf(), sLine, m_chDelimiter, m_sTrimRight);
-		return *this;
+		return kReadLine(*this, sLine, m_sTrimRight, m_chDelimiter);
 	}
 
 	//-----------------------------------------------------------------------------
+	/// Returns the complete content of a file in a string. Returns false if no input
+	/// available. Fails on non-seekable inputs, e.g. streams.
 	inline bool ReadAll(KString& sBuffer)
 	//-----------------------------------------------------------------------------
 	{
-		return KReader_detail::ReadAll(this->rdbuf(), sBuffer);
+		return kReadAll(*this, sBuffer, true);
 	}
 
 	//-----------------------------------------------------------------------------
+	/// Returns the remaining content of a file in a string. Returns false if no input
+	/// available. Fails on non-seekable inputs, e.g. streams.
 	inline bool ReadRemaining(KString& sBuffer)
 	//-----------------------------------------------------------------------------
 	{
-		return KReader_detail::ReadRemaining(this->rdbuf(), sBuffer);
+		return kReadAll(*this, sBuffer, false);
 	}
 
 	//-----------------------------------------------------------------------------
+	/// Alias for ReadAll
 	inline bool GetContent(KString& sBuffer)
 	//-----------------------------------------------------------------------------
 	{
@@ -247,20 +538,28 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	size_t GetSize()
+	/// Returns the size of a file. Returns 0 if no input available. Fails on
+	/// non-seekable inputs, e.g. streams.
+	inline size_t GetSize()
 	//-----------------------------------------------------------------------------
 	{
-		return KReader_detail::GetSize(this->rdbuf());
+		return kGetSize(*this, true);
 	}
 
 	//-----------------------------------------------------------------------------
-	size_t GetRemainingSize()
+	/// Returns the remaining size of a file. Returns 0 if no input available.
+	/// Fails on non-seekable inputs, e.g. streams.
+	inline size_t GetRemainingSize()
 	//-----------------------------------------------------------------------------
 	{
-		return KReader_detail::GetRemainingSize(this->rdbuf());
+		return kGetSize(*this, false);
 	}
 
 	//-----------------------------------------------------------------------------
+	/// Returns a line of text as if read by ReadLine(). If trimming as specified
+	/// in the constructor includes the end-of-line delimiter, returns an empty
+	/// string for both an empty line, and unavailable input. In that case call
+	/// eof() to distinguish between both cases.
 	inline operator KString()
 	//-----------------------------------------------------------------------------
 	{
@@ -270,20 +569,32 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// Reposition the input device of the std::istream to the beginning. Fails on streams.
+	inline bool Rewind()
+	//-----------------------------------------------------------------------------
+	{
+		return kRewind(*this);
+	}
+
+	//-----------------------------------------------------------------------------
+	/// Returns a const_iterator to the current read position in a stream
 	inline const_iterator cbegin()
 	//-----------------------------------------------------------------------------
 	{
-		return const_iterator(this->rdbuf(), false, m_chDelimiter, m_sTrimRight);
+		return const_iterator(*this, false);
 	}
 
 	//-----------------------------------------------------------------------------
+	/// Returns a const_iterator that is equal to an iterator that has reached the
+	/// end of a stream
 	inline const_iterator cend()
 	//-----------------------------------------------------------------------------
 	{
-		return const_iterator(this->rdbuf(), true);
+		return const_iterator(*this, true);
 	}
 
 	//-----------------------------------------------------------------------------
+	/// Returns a const_iterator to the current read position in a stream
 	inline const_iterator begin()
 	//-----------------------------------------------------------------------------
 	{
@@ -291,44 +602,32 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// Returns a const_iterator that is equal to an iterator that has reached the
+	/// end of a stream
 	inline const_iterator end()
 	//-----------------------------------------------------------------------------
 	{
 		return cend();
 	}
 
-	//-----------------------------------------------------------------------------
-	inline bool IsEOF()
-	//-----------------------------------------------------------------------------
-	{
-		return base_type::traits_type::eq_int_type(base_type::rdbuf()->sgetc(), base_type::traits_type::eof());
-	}
-
-	//-----------------------------------------------------------------------------
-	void SetTrimRight(KStringView sTrimRight)
-	//-----------------------------------------------------------------------------
-	{
-		m_sTrimRight = sTrimRight;
-	}
-
-	//-----------------------------------------------------------------------------
-	void SetDelimiter(KString::value_type chDelimiter)
-	//-----------------------------------------------------------------------------
-	{
-		m_chDelimiter = chDelimiter;
-	}
-
 //-------
 protected:
 //-------
 
-	KString::value_type m_chDelimiter{'\n'};
 	KString m_sTrimRight;
+	KString::value_type m_chDelimiter{'\n'};
 
 }; // KReader
 
-using KFileReader   = KReader<std::ifstream>;
-using KStringReader = KReader<std::istringstream>;
+
+/// File reader based on std::ifstream
+using KFileReader     = KReader<std::ifstream>;
+
+/// String reader based on std::istringstream
+using KStringReader   = KReader<std::istringstream>;
+
+/// File descriptor reader based on KInputFDStream
+using KFileDescReader = KReader<KInputFDStream>;
 
 } // end of namespace dekaf2
 

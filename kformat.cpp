@@ -49,12 +49,12 @@ namespace kFormat_internal
 // to avoid circular includes we call KLog only from the implementation and not from the header
 void report_format_exception(const char* where)
 {
-	KLog().exception(where);
+	KLog().Exception(where);
 }
 
 void report_format_exception(std::exception& e, const char* where)
 {
-	KLog().exception(e, where);
+	KLog().Exception(e, where);
 }
 
 }

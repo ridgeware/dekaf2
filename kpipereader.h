@@ -36,7 +36,7 @@
 
 #pragma once
 
-#include "kreader.h"
+#include "kfdreader.h"
 
 namespace dekaf2
 {

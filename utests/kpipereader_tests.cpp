@@ -22,8 +22,9 @@ TEST_CASE("KPipeReader")
 
 		KString sCurrentLine;
 
-		//bool output = pipe.ReadLine(sCurrentLine);
-		pipe.ReadLine(sCurrentLine);
+		bool output = pipe.ReadLine(sCurrentLine);
+		CHECK(output);
+		//pipe.ReadLine(sCurrentLine);
 #if kprPRINT
 		std::cout << "output is: " << sCurrentLine << std::endl;
 #endif

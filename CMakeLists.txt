@@ -66,6 +66,7 @@ set (SOURCES
     kpipereader.cpp
     kwriter.cpp
     kfdreader.cpp
+    kwriter.cpp
     kfdwriter.cpp
 )
 

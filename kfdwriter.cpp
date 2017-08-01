@@ -47,28 +47,6 @@
 namespace dekaf2
 {
 
-
-//-----------------------------------------------------------------------------
-KOStreamBuf::~KOStreamBuf()
-//-----------------------------------------------------------------------------
-{
-}
-
-//-----------------------------------------------------------------------------
-std::streamsize KOStreamBuf::xsputn(const char_type* s, std::streamsize n)
-//-----------------------------------------------------------------------------
-{
-	return m_Callback(s, n, m_CustomPointer);
-}
-
-//-----------------------------------------------------------------------------
-KOStreamBuf::int_type KOStreamBuf::overflow(int_type ch)
-//-----------------------------------------------------------------------------
-{
-	return static_cast<int_type>(m_Callback(&ch, 1, m_CustomPointer));
-}
-
-
 //-----------------------------------------------------------------------------
 KOutputFDStream::KOutputFDStream(KOutputFDStream&& other)
     : m_FileDesc{other.m_FileDesc}

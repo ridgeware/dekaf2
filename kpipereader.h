@@ -42,7 +42,7 @@ namespace dekaf2
 {
 
 //-----------------------------------------------------------------------------
-class KPipeReader : public KFileReader
+class KPipeReader : public KFPReader
 //-----------------------------------------------------------------------------
 {
 
@@ -58,7 +58,7 @@ public:
 	/// Opens a shell pipe and executes given command
 	virtual bool Open (KStringView sCommand);
 	/// Closes pipe saving exit code.
-	virtual void Close();
+	virtual int Close();
 
 	/// Get error code, 0 indicates no errors
 	int          GetErrno() { return m_iExitCode; }

@@ -5,6 +5,8 @@
 
 #include <iostream>
 
+#define kprPRINT 0
+
 using namespace dekaf2;
 TEST_CASE("KPipeReader")
 {
@@ -22,13 +24,13 @@ TEST_CASE("KPipeReader")
 
 		//bool output = pipe.ReadLine(sCurrentLine);
 		pipe.ReadLine(sCurrentLine);
+#if kprPRINT
 		std::cout << "output is: " << sCurrentLine << std::endl;
-		//std::cout << "output is: " << output << std::endl;
-		//CHECK(output);
-		//CHECK("1\n" == sCurrentLine);
+#endif
+		CHECK("1\n" == sCurrentLine);
 
 
-		//REQUIRE(0 == pipe.Close());
+		CHECK(0 == pipe.Close());
 
 		INFO("normal_open_close_test::Done:");
 	}
@@ -42,15 +44,17 @@ TEST_CASE("KPipeReader")
 
 		KString sCurrentLine;
 		KString output;
-		//for (auto iter : pipe.begin())
-//		for (auto& iter = pipe.begin(); iter != pipe.cend(); iter++)
-//		{
-//			output = output + *iter;
-//			//std::cout << *iter ;
-//		}
-		//std::cout << output << std::endl;
-		//CHECK_FALSE(output.empty());
 
-		//CHECK(pipe.Close() == 0);
+		for (auto iter = pipe.begin(); iter != pipe.end(); iter++)
+		{
+			output = output + *iter;
+			//std::cout << *iter ;
+		}
+#if kprPRINT
+		std::cout << output << std::endl;
+#endif
+
+		CHECK_FALSE(output.empty());
+		CHECK(pipe.Close() == 0);
 	} // Curl Iterator Test
 }

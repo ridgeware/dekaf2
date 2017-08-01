@@ -32,23 +32,13 @@ bool KPipeReader::Open(KStringView sCommand)
 	else
 	{
 		KLog().debug(2, "KPIPE::Open(): POPEN: ok...");
-		//KFileReader(m_pipe);
-//		bool bSuccess = KFileReader::Open(m_pipe); // Call KFILEReader::Open(FILE* fileptr);
-//		if (bSuccess)
-//		{
-//			KLog().debug(2, "KPIPE::Open(): POPEN: ok...");
-//		}
-//		else
-//		{
-//			KLog().debug(2, "KPIPE::Open(): POPEN: ok, but reader failed to initialize.");
-//			return false;
-//		}
+		KFPReader::open(m_pipe);
 	}
 	return (m_pipe != NULL);
 } // Open
 
 //-----------------------------------------------------------------------------
-void  KPipeReader::Close()
+int  KPipeReader::Close()
 //-----------------------------------------------------------------------------
 {
 	KLog().debug(3, "KPIPE::Close");
@@ -58,16 +48,13 @@ void  KPipeReader::Close()
 		m_iExitCode = pclose (m_pipe);
 		m_pipe = nullptr;
 	}
-	// TODO Discuss with Joachim, method should indicate "error" on close
-	// Minimally return a bool, but int allows returning exit code and distinguishing from this error.
-//	else
-//	{
-//		return -1; //attemtping to close a pipe that is not open
-//	}
+	else
+	{
+		return -1; //attemtping to close a pipe that is not open
+	}
 
 	KLog().debug(3, "KPIPE::Close::Done:: Exit Code = %u", m_iExitCode);
-	//KFILEReader::Close(); // make sure reader is also closed
-	//return (m_iExitCode);
+	return (m_iExitCode);
 } // Close
 
 

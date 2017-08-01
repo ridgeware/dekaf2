@@ -3,31 +3,54 @@
 #include <kpipereader.h>
 #include <kstring.h>
 
+#include <iostream>
+
 using namespace dekaf2;
 TEST_CASE("KPipeReader")
 {
 
 	SECTION("KPipe normal Open and Close")
 	{
-//		INFO("normal_open_close_test::Start:");
+		INFO("normal_open_close_test::Start:");
 
-//		KPipeReader   pipe;
+		KPipeReader pipe;
 
-//		// open the pipe
-//		CHECK(pipe.Open("ls -al $dekaf/kpipe.cpp | grep kpipe.cpp | wc -l 2>&1"));
+		// open the pipe
+		CHECK(pipe.Open("ls -al $dekaf/kpipe.cpp | grep kpipe.cpp | wc -l 2>&1"));
 
-//		KString sCurrentLine;
+		KString sCurrentLine;
 
-//		bool output = pipe.ReadLine(sCurrentLine);
-//		//std::cout << "output is: " << output << std::endl;
-//		CHECK(output);
-//		//REQUIRE("1\n" == sCurrentLine);
-//		CHECK("1\n" == sCurrentLine);
+		//bool output = pipe.ReadLine(sCurrentLine);
+		pipe.ReadLine(sCurrentLine);
+		std::cout << "output is: " << sCurrentLine << std::endl;
+		//std::cout << "output is: " << output << std::endl;
+		//CHECK(output);
+		//CHECK("1\n" == sCurrentLine);
 
 
-//		//REQUIRE(0 == pipe.Close());
+		//REQUIRE(0 == pipe.Close());
 
 		INFO("normal_open_close_test::Done:");
 	}
 
+
+	SECTION("KPipe Curl Iterator Test")
+	{
+		KPipeReader   pipe;
+		KString sCurlCMD = "curl -i www.google.com 2> /dev/null";
+		CHECK(pipe.Open(sCurlCMD));
+
+		KString sCurrentLine;
+		KString output;
+		//for (auto iter : pipe.begin())
+//		for (auto& iter = pipe.begin(); iter != pipe.cend(); iter++)
+//		{
+//			output = output + *iter;
+//			//std::cout << *iter ;
+//		}
+		//std::cout << output << std::endl;
+		//CHECK_FALSE(output.empty());
+
+		//CHECK(pipe.Close() == 0);
+	} // Curl Iterator Test
 }

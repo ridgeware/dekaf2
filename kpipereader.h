@@ -42,7 +42,7 @@ namespace dekaf2
 {
 
 //-----------------------------------------------------------------------------
-class KPipeReader : public KFILEReader
+class KPipeReader : public KFileReader
 //-----------------------------------------------------------------------------
 {
 

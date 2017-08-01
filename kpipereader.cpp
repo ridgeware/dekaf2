@@ -31,16 +31,18 @@ bool KPipeReader::Open(KStringView sCommand)
 	}
 	else
 	{
-		bool bSuccess = KFILEReader::Open(m_pipe); // Call KFILEReader::Open(FILE* fileptr);
-		if (bSuccess)
-		{
-			KLog().debug(2, "KPIPE::Open(): POPEN: ok...");
-		}
-		else
-		{
-			KLog().debug(2, "KPIPE::Open(): POPEN: ok, but reader failed to initialize.");
-			return false;
-		}
+		KLog().debug(2, "KPIPE::Open(): POPEN: ok...");
+		//KFileReader(m_pipe);
+//		bool bSuccess = KFileReader::Open(m_pipe); // Call KFILEReader::Open(FILE* fileptr);
+//		if (bSuccess)
+//		{
+//			KLog().debug(2, "KPIPE::Open(): POPEN: ok...");
+//		}
+//		else
+//		{
+//			KLog().debug(2, "KPIPE::Open(): POPEN: ok, but reader failed to initialize.");
+//			return false;
+//		}
 	}
 	return (m_pipe != NULL);
 } // Open

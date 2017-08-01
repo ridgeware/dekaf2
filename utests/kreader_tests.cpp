@@ -1,8 +1,14 @@
 #include "catch.hpp"
 
 #include <kreader.h>
+#include <kfdreader.h>
 #include <kwriter.h>
 #include <vector>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+
 
 using namespace dekaf2;
 

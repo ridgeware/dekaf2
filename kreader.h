@@ -42,7 +42,6 @@
 
 #pragma once
 
-#include <cstdio>
 #include <streambuf>
 #include <istream>
 #include <fstream>
@@ -52,22 +51,6 @@
 
 namespace dekaf2
 {
-
-/// Read a line of text until EOF or delimiter from a std::istream. Right trim values of sTrimRight.
-/// Reads directly in the underlying streambuf
-bool kReadLine(std::istream& Stream, KString& sLine, KStringView sTrimRight = "", KString::value_type delimiter = '\n');
-
-/// Read all content of a std::istream device into a string. Fails on non-seekable istreams.
-/// Reads directly in the underlying streambuf
-bool kReadAll(std::istream& Stream, KString& sContent, bool bFromStart = true);
-
-/// Get the total size of a std::istream device. Returns -1 on Failure. Fails on non-seekable istreams.
-ssize_t kGetSize(std::istream& Stream, bool bFromStart = true);
-
-/// Reposition the device of a std::istream to the beginning. Fails on non-seekable istreams.
-bool kRewind(std::istream& Stream);
-
-
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// a customizable input stream buffer
@@ -115,189 +98,21 @@ private:
 	void* m_CustomPointer{nullptr};
 };
 
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// an unbuffered std::ostream that is constructed around a unix file descriptor
-/// (mainly to allow its usage with pipes, for general file I/O use std::ofstream)
-/// (really, do it - this one is really slow on small writes to files, on purpose,
-/// because pipes should not be buffered!)
-class KInputFDStream : public std::istream
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-{
-//----------
-protected:
-//----------
 
-	using base_type = std::istream;
+/// Read a line of text until EOF or delimiter from a std::istream. Right trim values of sTrimRight.
+/// Reads directly in the underlying streambuf
+bool kReadLine(std::istream& Stream, KString& sLine, KStringView sTrimRight = "", KString::value_type delimiter = '\n');
 
-	//-----------------------------------------------------------------------------
-	/// this is the custom streambuf writer
-	static std::streamsize FileDescReader(void* sBuffer, std::streamsize iCount, void* filedesc);
-	//-----------------------------------------------------------------------------
+/// Read all content of a std::istream device into a string. Fails on non-seekable istreams.
+/// Reads directly in the underlying streambuf
+bool kReadAll(std::istream& Stream, KString& sContent, bool bFromStart = true);
 
-//----------
-public:
-//----------
+/// Get the total size of a std::istream device. Returns -1 on Failure. Fails on non-seekable istreams.
+ssize_t kGetSize(std::istream& Stream, bool bFromStart = true);
 
-	//-----------------------------------------------------------------------------
-	KInputFDStream()
-	//-----------------------------------------------------------------------------
-	{
-	}
+/// Reposition the device of a std::istream to the beginning. Fails on non-seekable istreams.
+bool kRewind(std::istream& Stream);
 
-	KInputFDStream(const KInputFDStream&) = delete;
-
-	//-----------------------------------------------------------------------------
-	KInputFDStream(KInputFDStream&& other);
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// the main purpose of this class: allow construction from a standard unix
-	/// file descriptor
-	KInputFDStream(int iFileDesc)
-	//-----------------------------------------------------------------------------
-	{
-		open(iFileDesc);
-	}
-
-	//-----------------------------------------------------------------------------
-	virtual ~KInputFDStream();
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	KInputFDStream& operator=(KInputFDStream&& other);
-	//-----------------------------------------------------------------------------
-
-	KInputFDStream& operator=(const KInputFDStream&) = delete;
-
-	//-----------------------------------------------------------------------------
-	/// the main purpose of this class: open from a standard unix
-	/// file descriptor
-	void open(int iFileDesc);
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// test if a file is associated to this output stream
-	inline bool is_open() const
-	//-----------------------------------------------------------------------------
-	{
-		return m_FileDesc >= 0;
-	}
-
-	//-----------------------------------------------------------------------------
-	/// close the output stream
-	void close();
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// get the file descriptor
-	int GetDescriptor() const
-	//-----------------------------------------------------------------------------
-	{
-		return m_FileDesc;
-	}
-
-//----------
-protected:
-//----------
-	int m_FileDesc{-1};
-
-	// see comment in KWriter's KOStreamBuf about the legality
-	// to only construct the KIStreamBuf here, but to use it in
-	// the constructor before
-	KIStreamBuf m_FPStreamBuf{&FileDescReader, &m_FileDesc};
-};
-
-
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// an buffered std::ostream that is constructed around a FILE ptr
-/// (mainly to allow its usage with pipes, for general file I/O use std::ofstream)
-/// (really, do it - this one does not implement the full istream interface)
-class KInputFPStream : public std::istream
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-{
-//----------
-protected:
-//----------
-
-	using base_type = std::istream;
-
-	//-----------------------------------------------------------------------------
-	/// this is the custom streambuf writer
-	static std::streamsize FilePtrReader(void* sBuffer, std::streamsize iCount, void* filedesc);
-	//-----------------------------------------------------------------------------
-
-//----------
-public:
-//----------
-
-	//-----------------------------------------------------------------------------
-	KInputFPStream()
-	//-----------------------------------------------------------------------------
-	{
-	}
-
-	KInputFPStream(const KInputFPStream&) = delete;
-
-	//-----------------------------------------------------------------------------
-	KInputFPStream(KInputFPStream&& other);
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// the main purpose of this class: allow construction from a standard unix
-	/// file descriptor
-	KInputFPStream(FILE* iFilePtr)
-	//-----------------------------------------------------------------------------
-	{
-		open(iFilePtr);
-	}
-
-	//-----------------------------------------------------------------------------
-	virtual ~KInputFPStream();
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	KInputFPStream& operator=(KInputFPStream&& other);
-	//-----------------------------------------------------------------------------
-
-	KInputFPStream& operator=(const KInputFPStream&) = delete;
-
-	//-----------------------------------------------------------------------------
-	/// the main purpose of this class: open from a standard unix
-	/// file descriptor
-	void open(FILE* iFilePtr);
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// test if a file is associated to this output stream
-	inline bool is_open() const
-	//-----------------------------------------------------------------------------
-	{
-		return m_FilePtr;
-	}
-
-	//-----------------------------------------------------------------------------
-	/// close the output stream
-	void close();
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// get the file ptr
-	FILE* GetPtr() const
-	//-----------------------------------------------------------------------------
-	{
-		return m_FilePtr;
-	}
-
-//----------
-protected:
-//----------
-	FILE* m_FilePtr{nullptr};
-
-	// see comment in KWriter's KOStreamBuf about the legality
-	// to only construct the KIStreamBuf here, but to use it in
-	// the constructor before
-	KIStreamBuf m_FPStreamBuf{&FilePtrReader, &m_FilePtr};
-};
 
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -730,12 +545,6 @@ using KFileReader     = KReader<std::ifstream>;
 
 /// String reader based on std::istringstream
 using KStringReader   = KReader<std::istringstream>;
-
-/// File descriptor reader based on KInputFDStream
-using KFDReader = KReader<KInputFDStream>;
-
-/// FILE* reader based on KInputFPStream
-using KFPReader = KReader<KInputFPStream>;
 
 } // end of namespace dekaf2
 

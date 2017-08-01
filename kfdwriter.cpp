@@ -40,236 +40,192 @@
 // +-------------------------------------------------------------------------+
 */
 
-
-#include "kreader.h"
+#include <fstream>
+#include "kfdwriter.h"
 #include "klog.h"
 
 namespace dekaf2
 {
 
+
 //-----------------------------------------------------------------------------
-KIStreamBuf::~KIStreamBuf()
+KOStreamBuf::~KOStreamBuf()
 //-----------------------------------------------------------------------------
 {
 }
 
 //-----------------------------------------------------------------------------
-std::streamsize KIStreamBuf::xsgetn(char_type* s, std::streamsize n)
+std::streamsize KOStreamBuf::xsputn(const char_type* s, std::streamsize n)
 //-----------------------------------------------------------------------------
 {
 	return m_Callback(s, n, m_CustomPointer);
 }
-/*
-//-----------------------------------------------------------------------------
-KIStreamBuf::int_type KIStreamBuf::underflow()
-//-----------------------------------------------------------------------------
-{
-	char ch;
-	m_Callback(&ch, 1, m_CustomPointer);
-	return static_cast<int_type>(ch);
-}
-*/
-//-----------------------------------------------------------------------------
-KIStreamBuf::int_type KIStreamBuf::uflow()
-//-----------------------------------------------------------------------------
-{
-	char ch;
-	if (m_Callback(&ch, 1, m_CustomPointer) == 1)
-	{
-		return static_cast<int_type>(ch);
-	}
-	else
-	{
-		return traits_type::eof();
-	}
-}
-/*
-std::streamsize KIStreamBuf::showmanyc()
-{
-}
-*/
 
+//-----------------------------------------------------------------------------
+KOStreamBuf::int_type KOStreamBuf::overflow(int_type ch)
+//-----------------------------------------------------------------------------
+{
+	return static_cast<int_type>(m_Callback(&ch, 1, m_CustomPointer));
+}
 
 
 //-----------------------------------------------------------------------------
-bool kRewind(std::istream& Stream)
+KOutputFDStream::KOutputFDStream(KOutputFDStream&& other)
+    : m_FileDesc{other.m_FileDesc}
+    , m_FPStreamBuf{std::move(other.m_FPStreamBuf)}
 //-----------------------------------------------------------------------------
 {
-	return Stream.rdbuf() && Stream.rdbuf()->pubseekoff(0, std::ios_base::beg) != std::streambuf::pos_type(std::streambuf::off_type(-1));
+	other.m_FileDesc = -1;
+
+} // move ctor
+
+//-----------------------------------------------------------------------------
+KOutputFDStream::~KOutputFDStream()
+//-----------------------------------------------------------------------------
+{
+	// do not call close on destruction. This class did not open the file
+	// but just received a handle for it
 }
 
 //-----------------------------------------------------------------------------
-ssize_t kGetSize(std::istream& Stream, bool bFromStart)
+KOutputFDStream& KOutputFDStream::operator=(KOutputFDStream&& other)
 //-----------------------------------------------------------------------------
 {
-	std::streambuf* sb = Stream.rdbuf();
-
-	if (!sb)
-	{
-		return std::streambuf::pos_type(std::streambuf::off_type(-1));
-	}
-
-	std::streambuf::pos_type curPos = sb->pubseekoff(0, std::ios_base::cur);
-	if (curPos == std::streambuf::pos_type(std::streambuf::off_type(-1)))
-	{
-		return curPos;
-	}
-
-	std::streambuf::pos_type endPos = sb->pubseekoff(0, std::ios_base::end);
-	if (endPos == std::streambuf::pos_type(std::streambuf::off_type(-1)))
-	{
-		return endPos;
-	}
-
-	if (endPos != curPos)
-	{
-		sb->pubseekoff(curPos, std::ios_base::beg);
-	}
-
-	if (bFromStart)
-	{
-		return endPos;
-	}
-	else
-	{
-		return endPos - curPos;
-	}
+	m_FileDesc = other.m_FileDesc;
+	m_FPStreamBuf = std::move(other.m_FPStreamBuf);
+	other.m_FileDesc = -1;
+	return *this;
 }
 
 //-----------------------------------------------------------------------------
-bool kReadAll(std::istream& Stream, KString& sContent, bool bFromStart)
+void KOutputFDStream::open(int iFileDesc)
 //-----------------------------------------------------------------------------
 {
-	sContent.clear();
+	// do not close the stream here - this class did not open it..
 
-	std::streambuf* sb = Stream.rdbuf();
+	m_FileDesc = iFileDesc;
 
-	if (!sb)
+	base_type::init(&m_FPStreamBuf);
+
+} // open
+
+//-----------------------------------------------------------------------------
+void KOutputFDStream::close()
+//-----------------------------------------------------------------------------
+{
+	if (m_FileDesc >= 0)
 	{
-		return false;
-	}
-
-	// get size of the file.
-	ssize_t iSize = kGetSize(Stream, bFromStart);
-
-	if (!iSize)
-	{
-		return true;
-	}
-
-	// position stream to the beginning
-	if (bFromStart && !kRewind(Stream))
-	{
-		return false;
-	}
-
-	if (iSize < 0)
-	{
-		// We could not determine the input size - this might be a
-		// minimalistic input stream buffer, or a non-seekable stream.
-		// We will simply try to read blocks until we fail.
-		enum { BUFSIZE = 2048 };
-		char buf[BUFSIZE];
-
-		for (;;)
+		base_type::flush();
+		if (::close(m_FileDesc))
 		{
-			size_t iRead = static_cast<size_t>(sb->sgetn(buf, BUFSIZE));
-			if (iRead > 0)
-			{
-				sContent.append(buf, iRead);
-			}
-			if (iRead < BUFSIZE)
-			{
-				break;
-			}
+			KLog().warning("KOutputFDStream: Cannot close file: {}", strerror(errno));
 		}
-
-		Stream.setstate(std::ios_base::eofbit);
-
-		return sContent.size();
-
+		m_FileDesc = -1;
 	}
 
-
-	size_t uiSize = static_cast<size_t>(iSize);
-
-	// create the read buffer
-	sContent.resize(uiSize);
-
-	size_t iRead = static_cast<size_t>(sb->sgetn(sContent.data(), iSize));
-
-	// we should now be at the end of the input..
-	if (std::istream::traits_type::eq_int_type(sb->sgetc(), std::istream::traits_type::eof()))
-	{
-		Stream.setstate(std::ios_base::eofbit);
-	}
-	else
-	{
-		KLog().warning ("kReadAll: stream grew during read, did not read all new content");
-	}
-
-	if (iRead != uiSize)
-	{
-		KLog().warning ("KReader: Unable to read full file, requested {0} bytes, got {1}", iSize, iRead);
-		return false;
-	}
-/*
-	if (bIsText) // dos2unix
-	{
-		sContent.Replace("\r\n", "\n", true);
-	}
-*/
-	return true;
-
-} // ReadAll
+} // close
 
 //-----------------------------------------------------------------------------
-bool kReadLine(std::istream& Stream, KString& sLine, KStringView sTrimRight, KString::value_type delimiter)
+std::streamsize KOutputFDStream::FileDescWriter(const void* sBuffer, std::streamsize iCount, void* filedesc)
 //-----------------------------------------------------------------------------
 {
-	sLine.clear();
+	std::streamsize iWrote{0};
 
-	std::streambuf* sb = Stream.rdbuf();
-
-	if (!sb)
+	if (filedesc)
 	{
-		Stream.setstate(std::ios_base::badbit);
-
-		return false;
-	}
-
-	for (;;)
-	{
-		std::streambuf::int_type iCh = sb->sbumpc();
-		if (std::streambuf::traits_type::eq_int_type(iCh, std::streambuf::traits_type::eof()))
+		// it is more difficult than one would expect to convert a void* into an int..
+		int fd = static_cast<int>(*static_cast<long*>(filedesc));
+		iWrote = ::write(fd, sBuffer, static_cast<size_t>(iCount));
+		if (iWrote != iCount)
 		{
-			// the EOF case
-			Stream.setstate(std::ios_base::eofbit);
-
-			bool bSuccess = !sLine.empty();
-
-			if (!sTrimRight.empty())
-			{
-				sLine.TrimRight(sTrimRight);
-			}
-
-			return bSuccess;
-		}
-
-		KString::value_type Ch = static_cast<KString::value_type>(iCh);
-
-		sLine += Ch;
-
-		if (Ch == delimiter)
-		{
-			if (!sTrimRight.empty())
-			{
-				sLine.TrimRight(sTrimRight);
-			}
-			return true;
+			// do some logging
+			KLog().warning("KOutputFDStream: cannot write to file: {}", strerror(errno));
 		}
 	}
+
+	return iWrote;
 }
+
+
+//-----------------------------------------------------------------------------
+KOutputFPStream::KOutputFPStream(KOutputFPStream&& other)
+    : m_FilePtr{other.m_FilePtr}
+    , m_FPStreamBuf{std::move(other.m_FPStreamBuf)}
+//-----------------------------------------------------------------------------
+{
+	other.m_FilePtr = nullptr;
+
+} // move ctor
+
+//-----------------------------------------------------------------------------
+KOutputFPStream::~KOutputFPStream()
+//-----------------------------------------------------------------------------
+{
+	// do not call close on destruction. This class did not open the file
+	// but just received a handle for it
+}
+
+//-----------------------------------------------------------------------------
+KOutputFPStream& KOutputFPStream::operator=(KOutputFPStream&& other)
+//-----------------------------------------------------------------------------
+{
+	m_FilePtr = other.m_FilePtr;
+	m_FPStreamBuf = std::move(other.m_FPStreamBuf);
+	other.m_FilePtr = nullptr;
+	return *this;
+}
+
+//-----------------------------------------------------------------------------
+void KOutputFPStream::open(FILE* iFilePtr)
+//-----------------------------------------------------------------------------
+{
+	// do not close the stream here - this class did not open it..
+
+	m_FilePtr = iFilePtr;
+
+	base_type::init(&m_FPStreamBuf);
+
+} // open
+
+//-----------------------------------------------------------------------------
+void KOutputFPStream::close()
+//-----------------------------------------------------------------------------
+{
+	if (m_FilePtr >= 0)
+	{
+		base_type::flush();
+		if (::fclose(m_FilePtr))
+		{
+			KLog().warning("KOutputFPStream: Cannot close file: {}", strerror(errno));
+		}
+		m_FilePtr = nullptr;
+	}
+
+} // close
+
+//-----------------------------------------------------------------------------
+std::streamsize KOutputFPStream::FilePtrWriter(const void* sBuffer, std::streamsize iCount, void* fileptr)
+//-----------------------------------------------------------------------------
+{
+	std::streamsize iWrote{0};
+
+	if (fileptr)
+	{
+		FILE** fp = static_cast<FILE**>(fileptr);
+		if (fp && *fp)
+		{
+			iWrote = static_cast<std::streamsize>(std::fwrite(sBuffer, 1, static_cast<size_t>(iCount), *fp));
+			if (iWrote != iCount)
+			{
+				// do some logging
+				KLog().warning("KOutputFPStream: cannot write to file: {}", strerror(errno));
+			}
+		}
+	}
+
+	return iWrote;
+}
+
 
 } // end of namespace dekaf2
 

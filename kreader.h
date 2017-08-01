@@ -56,7 +56,7 @@ namespace dekaf2
 namespace KReader_detail
 {
 
-bool ReadLine(std::streambuf* Stream, KString& sLine, KString::value_type delimiter = '\n', KStringView sTrimRight = "");
+bool ReadLine(std::streambuf* Stream, KString& sLine, KStringView sTrimRight = "", KString::value_type delimiter = '\n');
 bool ReadAll(std::streambuf* Stream, KString& sContent);
 ssize_t GetSize(std::streambuf* Stream, bool bReposition = true);
 bool ReadRemaining(std::streambuf* Stream, KString& sContent);
@@ -80,7 +80,7 @@ public:
 	typedef std::ptrdiff_t difference_type;
 
 	const_streambuf_iterator() {}
-	const_streambuf_iterator(base_iterator it, bool bToEnd, KString::value_type chDelimiter = '\n', KStringView sTrimRight = "");
+	const_streambuf_iterator(base_iterator it, bool bToEnd, KStringView sTrimRight = "", KString::value_type chDelimiter = '\n');
 	const_streambuf_iterator(const self_type&);
 	const_streambuf_iterator(self_type&& other);
 	self_type& operator=(const self_type&);
@@ -98,8 +98,8 @@ private:
 	base_iterator m_it{nullptr};
 	size_t m_iCount{0};
 	KString m_sBuffer;
-	KString::value_type m_chDelimiter{'\n'};
 	KString m_sTrimRight;
+	KString::value_type m_chDelimiter{'\n'};
 };
 
 } // end of namespace KReader_detail
@@ -129,11 +129,12 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	KReader(IStream&& is, KString::value_type chDelimiter = '\n', KStringView sTrimRight = "")
+	KReader(IStream&& is,
+	        KStringView sTrimRight = "", KString::value_type chDelimiter = '\n')
 	//-----------------------------------------------------------------------------
 	    : base_type(std::move(is))
-	    , m_chDelimiter(chDelimiter)
 	    , m_sTrimRight(sTrimRight)
+	    , m_chDelimiter(chDelimiter)
 	{
 	}
 
@@ -141,11 +142,11 @@ public:
 	/// be prepared to get compiler warnings when you call this method on an
 	/// istream that does not have this constructor (i.e. all non-ifstreams..)
 	KReader(const char* sName, std::ios::openmode mode = std::ios::in,
-	        KString::value_type chDelimiter = '\n', KStringView sTrimRight = "")
+	        KStringView sTrimRight = "", KString::value_type chDelimiter = '\n')
 	//-----------------------------------------------------------------------------
 	    : base_type(sName, mode)
-	    , m_chDelimiter(chDelimiter)
 	    , m_sTrimRight(sTrimRight)
+	    , m_chDelimiter(chDelimiter)
 	{
 	}
 
@@ -153,11 +154,11 @@ public:
 	/// be prepared to get compiler warnings when you call this method on an
 	/// istream that does not have this constructor (i.e. all non-ifstreams..)
 	KReader(const std::string& sName, std::ios::openmode mode = std::ios::in,
-	        KString::value_type chDelimiter = '\n', KStringView sTrimRight = "")
+	        KStringView sTrimRight = "", KString::value_type chDelimiter = '\n')
 	//-----------------------------------------------------------------------------
 	    : base_type(sName, mode)
-	    , m_chDelimiter(chDelimiter)
 	    , m_sTrimRight(sTrimRight)
+	    , m_chDelimiter(chDelimiter)
 	{}
 
 	//-----------------------------------------------------------------------------
@@ -168,8 +169,8 @@ public:
 	KReader(self_type&& other) noexcept
 	//-----------------------------------------------------------------------------
 	    : base_type(std::move(other))
-	    , m_chDelimiter(other.m_chDelimiter)
 	    , m_sTrimRight(std::move(other.m_sTrimRight))
+	    , m_chDelimiter(other.m_chDelimiter)
 	{}
 
 	//-----------------------------------------------------------------------------
@@ -209,10 +210,12 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	template<typename T, typename std::enable_if<std::is_trivially_copyable<T>::value>::type* = nullptr>
+	template<typename T>
 	inline self_type& Read(T& value)
 	//-----------------------------------------------------------------------------
 	{
+		static_assert(std::is_trivially_copyable<T>::value,
+		              "KReader::Read() needs a trivially copyable type to succeed");
 		Read(&value, sizeof(T));
 		return *this;
 	}
@@ -221,7 +224,7 @@ public:
 	inline self_type& ReadLine(KString& sLine)
 	//-----------------------------------------------------------------------------
 	{
-		KReader_detail::ReadLine(this->rdbuf(), sLine, m_chDelimiter, m_sTrimRight);
+		KReader_detail::ReadLine(this->rdbuf(), sLine, m_sTrimRight, m_chDelimiter);
 		return *this;
 	}
 
@@ -273,7 +276,7 @@ public:
 	inline const_iterator cbegin()
 	//-----------------------------------------------------------------------------
 	{
-		return const_iterator(this->rdbuf(), false, m_chDelimiter, m_sTrimRight);
+		return const_iterator(this->rdbuf(), false, m_sTrimRight, m_chDelimiter);
 	}
 
 	//-----------------------------------------------------------------------------
@@ -304,26 +307,12 @@ public:
 		return base_type::traits_type::eq_int_type(base_type::rdbuf()->sgetc(), base_type::traits_type::eof());
 	}
 
-	//-----------------------------------------------------------------------------
-	void SetTrimRight(KStringView sTrimRight)
-	//-----------------------------------------------------------------------------
-	{
-		m_sTrimRight = sTrimRight;
-	}
-
-	//-----------------------------------------------------------------------------
-	void SetDelimiter(KString::value_type chDelimiter)
-	//-----------------------------------------------------------------------------
-	{
-		m_chDelimiter = chDelimiter;
-	}
-
 //-------
 protected:
 //-------
 
-	KString::value_type m_chDelimiter{'\n'};
 	KString m_sTrimRight;
+	KString::value_type m_chDelimiter{'\n'};
 
 }; // KReader
 

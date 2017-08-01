@@ -217,7 +217,7 @@ namespace KReader_detail
 {
 
 //-----------------------------------------------------------------------------
-bool ReadLine(std::streambuf* Stream, KString& sLine, KString::value_type delimiter, KStringView sTrimRight)
+bool ReadLine(std::streambuf* Stream, KString& sLine, KStringView sTrimRight, KString::value_type delimiter)
 //-----------------------------------------------------------------------------
 {
 	sLine.clear();
@@ -259,15 +259,15 @@ bool ReadLine(std::streambuf* Stream, KString& sLine, KString::value_type delimi
 // KReader_detail::const_iterator
 
 //-----------------------------------------------------------------------------
-const_streambuf_iterator::const_streambuf_iterator(base_iterator it, bool bToEnd, KString::value_type chDelimiter, KStringView sTrimRight)
+const_streambuf_iterator::const_streambuf_iterator(base_iterator it, bool bToEnd, KStringView sTrimRight, KString::value_type chDelimiter)
 //-----------------------------------------------------------------------------
 	: m_it(it)
-    , m_chDelimiter(chDelimiter)
     , m_sTrimRight(sTrimRight)
+    , m_chDelimiter(chDelimiter)
 {
 	if (!bToEnd)
 	{
-		if (ReadLine(m_it, m_sBuffer, m_chDelimiter, m_sTrimRight))
+		if (ReadLine(m_it, m_sBuffer, m_sTrimRight, m_chDelimiter))
 		{
 			++m_iCount;
 		}
@@ -280,8 +280,8 @@ const_streambuf_iterator::const_streambuf_iterator(const self_type& other)
     : m_it(other.m_it)
     , m_iCount(other.m_iCount)
     , m_sBuffer(other.m_sBuffer)
-    , m_chDelimiter(other.m_chDelimiter)
     , m_sTrimRight(other.m_sTrimRight)
+    , m_chDelimiter(other.m_chDelimiter)
 {
 }
 
@@ -291,8 +291,8 @@ const_streambuf_iterator::const_streambuf_iterator(self_type&& other)
     : m_it(std::move(other.m_it))
     , m_iCount(std::move(other.m_iCount))
     , m_sBuffer(std::move(other.m_sBuffer))
-    , m_chDelimiter(std::move(other.m_chDelimiter))
     , m_sTrimRight(std::move(other.m_sTrimRight))
+    , m_chDelimiter(std::move(other.m_chDelimiter))
 {
 }
 
@@ -303,8 +303,8 @@ const_streambuf_iterator::self_type& const_streambuf_iterator::operator=(const s
 	m_it = other.m_it;
 	m_iCount = other.m_iCount;
 	m_sBuffer = other.m_sBuffer;
-	m_chDelimiter = other.m_chDelimiter;
 	m_sTrimRight = other.m_sTrimRight;
+	m_chDelimiter = other.m_chDelimiter;
 	return *this;
 }
 
@@ -315,8 +315,8 @@ const_streambuf_iterator::self_type& const_streambuf_iterator::operator=(self_ty
 	m_it = std::move(other.m_it);
 	m_iCount = std::move(other.m_iCount);
 	m_sBuffer = std::move(other.m_sBuffer);
-	m_chDelimiter = std::move(other.m_chDelimiter);
 	m_sTrimRight = std::move(other.m_sTrimRight);
+	m_chDelimiter = std::move(other.m_chDelimiter);
 	return *this;
 }
 
@@ -324,7 +324,7 @@ const_streambuf_iterator::self_type& const_streambuf_iterator::operator=(self_ty
 const_streambuf_iterator::self_type& const_streambuf_iterator::operator++()
 //-----------------------------------------------------------------------------
 {
-	if (ReadLine(m_it, m_sBuffer, m_chDelimiter, m_sTrimRight))
+	if (ReadLine(m_it, m_sBuffer, m_sTrimRight, m_chDelimiter))
 	{
 		++m_iCount;
 	}
@@ -342,7 +342,7 @@ const_streambuf_iterator::self_type const_streambuf_iterator::operator++(int dum
 {
 	self_type i = *this;
 
-	if (ReadLine(m_it, m_sBuffer, m_chDelimiter, m_sTrimRight))
+	if (ReadLine(m_it, m_sBuffer, m_sTrimRight, m_chDelimiter))
 	{
 		++m_iCount;
 	}

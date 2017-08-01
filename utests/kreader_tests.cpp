@@ -67,7 +67,7 @@ TEST_CASE("KReader") {
 
 	SECTION("KFileReader read iterator 2")
 	{
-		KFileReader File(sFile, std::ios_base::out, '\n', "\r\n4 ");
+		KFileReader File(sFile, std::ios_base::out, "\r\n4 ", '\n');
 		auto it = File.begin();
 		KString s1;
 		s1 = *it;
@@ -92,12 +92,11 @@ TEST_CASE("KReader") {
 
 	SECTION("KFileReader read iterator 3")
 	{
-		KFileReader File(sFile);
-		File.SetTrimRight("\n");
+		KFileReader File(sFile, std::ios_base::out, "\n", '\n');
 		for (const auto& it : File)
 		{
 			CHECK( it.StartsWith("line ") == true );
-			CHECK( it.EndsWith("\n") == false );
+			CHECK( it.EndsWith  ("\n")    == false );
 		}
 	}
 

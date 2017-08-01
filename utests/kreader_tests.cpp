@@ -28,6 +28,47 @@ TEST_CASE("KReader") {
 
 	}
 
+	SECTION("KFDReader exception safety")
+	{
+		KString buf;
+
+		SECTION("default constructor")
+		{
+			KFDReader File;
+			CHECK ( File.ReadLine(buf) == false );
+			CHECK ( buf.empty()        == true  );
+		}
+
+		SECTION("nonexisting file")
+		{
+			KFDReader File(-3);
+			CHECK ( File.ReadLine(buf) == false );
+			CHECK ( buf.empty()        == true  );
+		}
+
+	}
+
+	SECTION("KFPReader exception safety")
+	{
+		KString buf;
+
+		SECTION("default constructor")
+		{
+			KFPReader File;
+			CHECK ( File.ReadLine(buf) == false );
+			CHECK ( buf.empty()        == true  );
+		}
+
+		SECTION("nonexisting file")
+		{
+			FILE* fp = nullptr;
+			KFPReader File(fp);
+			CHECK ( File.ReadLine(buf) == false );
+			CHECK ( buf.empty()        == true  );
+		}
+
+	}
+
 	KString sFile("/tmp/KReader.test");
 
 	KString sOut {
@@ -163,10 +204,10 @@ TEST_CASE("KReader") {
 		CHECK( iCount == 9 );
 	}
 
-	SECTION("KFileDescReader test 1")
+	SECTION("KFDReader test 1")
 	{
 		int fd = ::open(sFile.c_str(), O_RDONLY);
-		KFileDescReader File(fd);
+		KFDReader File(fd);
 		KString sRead;
 		CHECK( File.eof() == false);
 		CHECK( File.ReadRemaining(sRead) == true );
@@ -175,10 +216,10 @@ TEST_CASE("KReader") {
 		::close(fd);
 	}
 
-	SECTION("KFileDescReader read iterator 1")
+	SECTION("KFDReader read iterator 1")
 	{
 		int fd = ::open(sFile.c_str(), O_RDONLY);
-		KFileDescReader File(fd);
+		KFDReader File(fd);
 		KString sRead;
 		auto it = File.begin();
 		KString s1;
@@ -202,10 +243,10 @@ TEST_CASE("KReader") {
 		::close(fd);
 	}
 
-	SECTION("KFileDescReader read iterator 2")
+	SECTION("KFDReader read iterator 2")
 	{
 		int fd = ::open(sFile.c_str(), O_RDONLY);
-		KFileDescReader File(fd, "\n", '\n');
+		KFDReader File(fd, "\n", '\n');
 		KString sRead;
 		CHECK( File.eof() == false);
 		int iCount = 0;
@@ -218,6 +259,66 @@ TEST_CASE("KReader") {
 		}
 		CHECK( File.eof() == true );
 		CHECK( iCount == 9 );
+		::close(fd);
+	}
+
+
+	SECTION("KFPReader test 1")
+	{
+		FILE* fp = std::fopen(sFile.c_str(), "r");
+		KFPReader File(fp);
+		KString sRead;
+		CHECK( File.eof() == false);
+		CHECK( File.ReadRemaining(sRead) == true );
+		CHECK( sRead == sOut );
+		CHECK( File.eof() == true);
+		std::fclose(fp);
+	}
+
+	SECTION("KFPReader read iterator 1")
+	{
+		FILE* fp = std::fopen(sFile.c_str(), "r");
+		KFPReader File(fp);
+		KString sRead;
+		auto it = File.begin();
+		KString s1;
+		s1 = *it;
+		CHECK( s1 == "line 1\n" );
+		s1 = *it;
+		CHECK( s1 == "line 1\n" );
+		++it;
+		s1 = std::move(*it);
+		CHECK( s1 == "line 2\n" );
+		s1 = *it;
+		CHECK( s1 != "line 2\n" );
+		s1 = *++it;
+		CHECK( s1 == "line 3\n" );
+		s1 = *it++;
+		CHECK( s1 == "line 3\n" );
+		s1 = *it++;
+		CHECK( s1 == "line 4\n" );
+		s1 = *it;
+		CHECK( s1 == "line 5\n" );
+		std::fclose(fp);
+	}
+
+	SECTION("KFPReader read iterator 2")
+	{
+		FILE* fp = std::fopen(sFile.c_str(), "r");
+		KFPReader File(fp, "\n", '\n');
+		KString sRead;
+		CHECK( File.eof() == false);
+		int iCount = 0;
+		for (const auto& it : File)
+		{
+			++iCount;
+			CHECK( File.eof() == false             );
+			CHECK( it.StartsWith("line ") == true  );
+			CHECK( it.EndsWith  ("\n")    == false );
+		}
+		CHECK( File.eof() == true );
+		CHECK( iCount == 9 );
+		std::fclose(fp);
 	}
 
 

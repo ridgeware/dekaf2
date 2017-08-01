@@ -199,6 +199,95 @@ protected:
 
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// a buffered std::ostream that is constructed around a FILE ptr
+/// (mainly to allow its usage with pipes, for general file I/O use std::ofstream)
+/// (really, do it - this one does not implement the full ostream interface)
+class KOutputFPStream : public std::ostream
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+//----------
+protected:
+//----------
+
+	using base_type = std::ostream;
+
+	//-----------------------------------------------------------------------------
+	/// this is the custom streambuf writer
+	static std::streamsize FilePtrWriter(const void* sBuffer, std::streamsize iCount, void* fileptr);
+	//-----------------------------------------------------------------------------
+
+//----------
+public:
+//----------
+
+	//-----------------------------------------------------------------------------
+	KOutputFPStream()
+	//-----------------------------------------------------------------------------
+	{
+	}
+
+	KOutputFPStream(const KOutputFPStream&) = delete;
+
+	//-----------------------------------------------------------------------------
+	KOutputFPStream(KOutputFPStream&& other);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// the main purpose of this class: allow construction from a standard unix
+	/// file descriptor
+	KOutputFPStream(FILE* iFilePtr)
+	//-----------------------------------------------------------------------------
+	{
+		open(iFilePtr);
+	}
+
+	//-----------------------------------------------------------------------------
+	virtual ~KOutputFPStream();
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	KOutputFPStream& operator=(KOutputFPStream&& other);
+	//-----------------------------------------------------------------------------
+
+	KOutputFPStream& operator=(const KOutputFPStream&) = delete;
+
+	//-----------------------------------------------------------------------------
+	/// the main purpose of this class: open from a standard unix
+	/// file descriptor
+	void open(FILE* iFilePtr);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// test if a file is associated to this output stream
+	inline bool is_open() const
+	//-----------------------------------------------------------------------------
+	{
+		return m_FilePtr;
+	}
+
+	//-----------------------------------------------------------------------------
+	/// close the output stream
+	void close();
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// get the file ptr
+	FILE* GetPtr() const
+	//-----------------------------------------------------------------------------
+	{
+		return m_FilePtr;
+	}
+
+//----------
+protected:
+//----------
+	FILE* m_FilePtr{nullptr};
+
+	KOStreamBuf m_FPStreamBuf{&FilePtrWriter, &m_FilePtr};
+};
+
+
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 template<class OStream>
 class KWriter : public OStream
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -248,6 +337,16 @@ public:
 	KWriter(int iFileDesc) noexcept
 	//-----------------------------------------------------------------------------
 	    : base_type(iFileDesc)
+	{
+	}
+
+	//-----------------------------------------------------------------------------
+	/// Construct a KWriter on a FILE* output target.
+	/// Be prepared to get compiler warnings when you call this method on an
+	/// ostream that does not have this constructor (i.e. all non-KOutputFPStreams)
+	KWriter(FILE* iFilePtr) noexcept
+	//-----------------------------------------------------------------------------
+	    : base_type(iFilePtr)
 	{
 	}
 
@@ -377,7 +476,10 @@ using KFileWriter     = KWriter<std::ofstream>;
 using KStringWriter   = KWriter<std::ostringstream>;
 
 /// File descriptor writer based on KOutputFDStream>
-using KFileDescWriter = KWriter<KOutputFDStream>;
+using KFDWriter = KWriter<KOutputFDStream>;
+
+/// FILE ptr writer based on KOutputFPStream>
+using KFPWriter = KWriter<KOutputFPStream>;
 
 } // end of namespace dekaf2
 

@@ -104,14 +104,13 @@ bool KLog::set_debugflag(KStringView sFlagfile)
 bool KLog::int_debug(int level, KStringView sMessage)
 //---------------------------------------------------------------------------
 {
-	bool bGood{true};
 	if (level > m_iLevel)
 	{
 		return true;
 	}
 	else
 	{
-		bGood = m_Log.WriteLine(sMessage) && m_Log.flush();
+		m_Log.WriteLine(sMessage).flush();
 	}
 	if (level <= 0)
 	{
@@ -122,10 +121,10 @@ bool KLog::int_debug(int level, KStringView sMessage)
 			m_Log.WriteLine("====== Backtrace follows:   ======");
 			m_Log.Write(sStack);
 			m_Log.WriteLine("====== Backtrace until here ======");
+			m_Log.flush();
 		}
-		m_Log.flush();
 	}
-	return bGood;
+	return m_Log.good();
 }
 
 //---------------------------------------------------------------------------

@@ -302,13 +302,12 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	/// Read a character. Returns false if no input available
-	inline bool Read(KString::value_type& ch)
+	/// Read a character. Returns stream reference that resolves to false if no input available
+	inline self_type& Read(KString::value_type& ch)
 	//-----------------------------------------------------------------------------
 	{
-		auto iCh = Read();
-		ch = IStream::traits_type::to_char_type(iCh);
-		return !base_type::traits_type::eq_int_type(iCh, base_type::traits_type::eof());
+		ch = IStream::traits_type::to_char_type(Read());
+		return *this;
 	}
 
 	//-----------------------------------------------------------------------------
@@ -325,15 +324,14 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	/// Read a type. Returns false if no input available. Type must be trivially
-	/// copyable.
-	template<typename T>
-	inline bool Read(T& value)
+	/// Read a type. Returns stream reference that resolves to false if no input available.
+	/// Type must be trivially copyable.
+	template<typename T, typename std::enable_if<std::is_trivially_copyable<T>::value>::type* = nullptr>
+	inline self_type& Read(T& value)
 	//-----------------------------------------------------------------------------
 	{
-		static_assert(std::is_trivially_copyable<T>::value,
-		              "KReader::Read() needs a trivially copyable type to succeed");
-		return Read(&value, sizeof(T)) == sizeof(T);
+		Read(&value, sizeof(T));
+		return *this;
 	}
 
 	//-----------------------------------------------------------------------------
@@ -341,6 +339,9 @@ public:
 	/// character defined with the constructor and optionally right trims the string
 	/// from the trim definition given to the constructor. Per default contains the
 	/// end-of-line character in the returned string.
+	/// Please note that this method does _not_ return the stream reference,
+	/// but a boolean. std::istreams would not read a file with a missing newline
+	/// at the end successfully, but report an error. This function would succeed.
 	inline bool ReadLine(KString& sLine)
 	//-----------------------------------------------------------------------------
 	{

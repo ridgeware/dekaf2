@@ -317,18 +317,20 @@ public:
 
 	//-----------------------------------------------------------------------------
 	template<class... Args>
-	KWriter& Format(Args&&... args)
+	self_type& Format(Args&&... args)
 	//-----------------------------------------------------------------------------
 	{
 		kfFormat(*this, std::forward<Args>(args)...);
+		return *this;
 	}
 
 	//-----------------------------------------------------------------------------
 	template<class... Args>
-	KWriter& Printf(Args&&... args)
+	self_type& Printf(Args&&... args)
 	//-----------------------------------------------------------------------------
 	{
 		kfPrintf(*this, std::forward<Args>(args)...);
+		return *this;
 	}
 
 };

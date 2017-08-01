@@ -167,6 +167,8 @@ bool kReadLine(std::istream& Stream, KString& sLine, KStringView sTrimRight, KSt
 
 	if (!sb)
 	{
+		Stream.setstate(std::ios_base::badbit);
+
 		return false;
 	}
 

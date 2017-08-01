@@ -209,6 +209,98 @@ protected:
 
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// an buffered std::ostream that is constructed around a FILE ptr
+/// (mainly to allow its usage with pipes, for general file I/O use std::ofstream)
+/// (really, do it - this one does not implement the full istream interface)
+class KInputFPStream : public std::istream
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+//----------
+protected:
+//----------
+
+	using base_type = std::istream;
+
+	//-----------------------------------------------------------------------------
+	/// this is the custom streambuf writer
+	static std::streamsize FilePtrReader(void* sBuffer, std::streamsize iCount, void* filedesc);
+	//-----------------------------------------------------------------------------
+
+//----------
+public:
+//----------
+
+	//-----------------------------------------------------------------------------
+	KInputFPStream()
+	//-----------------------------------------------------------------------------
+	{
+	}
+
+	KInputFPStream(const KInputFPStream&) = delete;
+
+	//-----------------------------------------------------------------------------
+	KInputFPStream(KInputFPStream&& other);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// the main purpose of this class: allow construction from a standard unix
+	/// file descriptor
+	KInputFPStream(FILE* iFilePtr)
+	//-----------------------------------------------------------------------------
+	{
+		open(iFilePtr);
+	}
+
+	//-----------------------------------------------------------------------------
+	virtual ~KInputFPStream();
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	KInputFPStream& operator=(KInputFPStream&& other);
+	//-----------------------------------------------------------------------------
+
+	KInputFPStream& operator=(const KInputFPStream&) = delete;
+
+	//-----------------------------------------------------------------------------
+	/// the main purpose of this class: open from a standard unix
+	/// file descriptor
+	void open(FILE* iFilePtr);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// test if a file is associated to this output stream
+	inline bool is_open() const
+	//-----------------------------------------------------------------------------
+	{
+		return m_FilePtr;
+	}
+
+	//-----------------------------------------------------------------------------
+	/// close the output stream
+	void close();
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// get the file ptr
+	FILE* GetPtr() const
+	//-----------------------------------------------------------------------------
+	{
+		return m_FilePtr;
+	}
+
+//----------
+protected:
+//----------
+	FILE* m_FilePtr{nullptr};
+
+	// see comment in KWriter's KOStreamBuf about the legality
+	// to only construct the KIStreamBuf here, but to use it in
+	// the constructor before
+	KIStreamBuf m_FPStreamBuf{&FilePtrReader, &m_FilePtr};
+};
+
+
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// The general reader abstraction for dekaf2. Can be constructed around any
 /// std::istream, and has iterators and read accessors that attach to the
 /// std::streambuf of the istream. Provides a line iterator on the file
@@ -405,6 +497,19 @@ public:
 	        KStringView sTrimRight = "", KString::value_type chDelimiter = '\n') noexcept
 	//-----------------------------------------------------------------------------
 	    : base_type(iFileDesc)
+	    , m_sTrimRight(sTrimRight)
+	    , m_chDelimiter(chDelimiter)
+	{
+	}
+
+	//-----------------------------------------------------------------------------
+	/// Construct a KReader on a FILE* input source.
+	/// Be prepared to get compiler warnings when you call this method on an
+	/// istream that does not have this constructor (i.e. all non-KInputFPStreams)
+	KReader(FILE* iFilePtr,
+	        KStringView sTrimRight = "", KString::value_type chDelimiter = '\n') noexcept
+	//-----------------------------------------------------------------------------
+	    : base_type(iFilePtr)
 	    , m_sTrimRight(sTrimRight)
 	    , m_chDelimiter(chDelimiter)
 	{
@@ -627,7 +732,10 @@ using KFileReader     = KReader<std::ifstream>;
 using KStringReader   = KReader<std::istringstream>;
 
 /// File descriptor reader based on KInputFDStream
-using KFileDescReader = KReader<KInputFDStream>;
+using KFDReader = KReader<KInputFDStream>;
+
+/// FILE* reader based on KInputFPStream
+using KFPReader = KReader<KInputFPStream>;
 
 } // end of namespace dekaf2
 

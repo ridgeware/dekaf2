@@ -147,5 +147,85 @@ std::streamsize KOutputFDStream::FileDescWriter(const void* sBuffer, std::stream
 }
 
 
+//-----------------------------------------------------------------------------
+KOutputFPStream::KOutputFPStream(KOutputFPStream&& other)
+    : m_FilePtr{other.m_FilePtr}
+    , m_FPStreamBuf{std::move(other.m_FPStreamBuf)}
+//-----------------------------------------------------------------------------
+{
+	other.m_FilePtr = nullptr;
+
+} // move ctor
+
+//-----------------------------------------------------------------------------
+KOutputFPStream::~KOutputFPStream()
+//-----------------------------------------------------------------------------
+{
+	// do not call close on destruction. This class did not open the file
+	// but just received a handle for it
+}
+
+//-----------------------------------------------------------------------------
+KOutputFPStream& KOutputFPStream::operator=(KOutputFPStream&& other)
+//-----------------------------------------------------------------------------
+{
+	m_FilePtr = other.m_FilePtr;
+	m_FPStreamBuf = std::move(other.m_FPStreamBuf);
+	other.m_FilePtr = nullptr;
+	return *this;
+}
+
+//-----------------------------------------------------------------------------
+void KOutputFPStream::open(FILE* iFilePtr)
+//-----------------------------------------------------------------------------
+{
+	// do not close the stream here - this class did not open it..
+
+	m_FilePtr = iFilePtr;
+
+	base_type::init(&m_FPStreamBuf);
+
+} // open
+
+//-----------------------------------------------------------------------------
+void KOutputFPStream::close()
+//-----------------------------------------------------------------------------
+{
+	if (m_FilePtr >= 0)
+	{
+		base_type::flush();
+		if (::fclose(m_FilePtr))
+		{
+			KLog().warning("KOutputFPStream: Cannot close file: {}", strerror(errno));
+		}
+		m_FilePtr = nullptr;
+	}
+
+} // close
+
+//-----------------------------------------------------------------------------
+std::streamsize KOutputFPStream::FilePtrWriter(const void* sBuffer, std::streamsize iCount, void* fileptr)
+//-----------------------------------------------------------------------------
+{
+	std::streamsize iWrote{0};
+
+	if (fileptr)
+	{
+		FILE** fp = static_cast<FILE**>(fileptr);
+		if (fp && *fp)
+		{
+			iWrote = static_cast<std::streamsize>(std::fwrite(sBuffer, 1, static_cast<size_t>(iCount), *fp));
+			if (iWrote != iCount)
+			{
+				// do some logging
+				KLog().warning("KOutputFPStream: cannot write to file: {}", strerror(errno));
+			}
+		}
+	}
+
+	return iWrote;
+}
+
+
 } // end of namespace dekaf2
 

@@ -65,14 +65,14 @@ public:
 	KLog& operator=(KLog&&) = delete;
 
 	//---------------------------------------------------------------------------
-	int get_level() const
+	inline int GetLevel() const
 	//---------------------------------------------------------------------------
 	{
 		return m_iLevel;
 	}
 
 	//---------------------------------------------------------------------------
-	int set_level(int iLevel)
+	inline int SetLevel(int iLevel)
 	//---------------------------------------------------------------------------
 	{
 		m_iLevel = iLevel;
@@ -80,22 +80,37 @@ public:
 	}
 
 	//---------------------------------------------------------------------------
-	bool set_debuglog(KStringView sLogfile);
+	inline int GetBackTrace() const
+	//---------------------------------------------------------------------------
+	{
+		return m_iBackTrace;
+	}
+
+	//---------------------------------------------------------------------------
+	inline int SetBackTrace(int iLevel)
+	//---------------------------------------------------------------------------
+	{
+		m_iBackTrace = iLevel;
+		return m_iBackTrace;
+	}
+
+	//---------------------------------------------------------------------------
+	bool SetDebugLog(KStringView sLogfile);
 	//---------------------------------------------------------------------------
 
 	//---------------------------------------------------------------------------
-	KStringView get_debuglog() const
+	inline KStringView GetDebugLog() const
 	//---------------------------------------------------------------------------
 	{
 		return m_sLogfile;
 	}
 
 	//---------------------------------------------------------------------------
-	bool set_debugflag(KStringView sFlagfile);
+	bool SetDebugFlag(KStringView sFlagfile);
 	//---------------------------------------------------------------------------
 
 	//---------------------------------------------------------------------------
-	KStringView get_debugflag() const
+	inline KStringView GetDebugFlag() const
 	//---------------------------------------------------------------------------
 	{
 		return m_sFlagfile;
@@ -103,19 +118,15 @@ public:
 
 	//---------------------------------------------------------------------------
 	template<class... Args>
-	bool debug(int level, Args&&... args)
+	inline bool debug(int level, Args&&... args)
 	//---------------------------------------------------------------------------
 	{
-		if (level > m_iLevel)
-		{
-			return true;
-		}
-		return int_debug(level, kFormat(std::forward<Args>(args)...));
+		return (level > m_iLevel) || IntDebug(level, kFormat(std::forward<Args>(args)...));
 	}
 
 	//---------------------------------------------------------------------------
 	template<class... Args>
-	bool warning(Args&&... args)
+	inline bool warning(Args&&... args)
 	//---------------------------------------------------------------------------
 	{
 		return debug(-1, std::forward<Args>(args)...);
@@ -123,33 +134,38 @@ public:
 
 	//---------------------------------------------------------------------------
 	/// report a known exception
-	void exception(const std::exception& e, KStringView sFunction, KStringView sClass = "")
+	void Exception(const std::exception& e, KStringView sFunction, KStringView sClass = "")
 	//---------------------------------------------------------------------------
 	{
-		int_exception(e.what(), sFunction, sClass);
+		IntException(e.what(), sFunction, sClass);
 	}
 
 
 	//---------------------------------------------------------------------------
 	/// report an unknown exception
-	void exception(KStringView sFunction, KStringView sClass = "")
+	void Exception(KStringView sFunction, KStringView sClass = "")
 	//---------------------------------------------------------------------------
 	{
-		int_exception("unknown", sFunction, sClass);
+		IntException("unknown", sFunction, sClass);
 	}
 
 //----------
 private:
 //----------
 	//---------------------------------------------------------------------------
-	bool int_debug(int level, KStringView sMessage);
+	bool IntDebug(int level, KStringView sMessage);
 	//---------------------------------------------------------------------------
 
 	//---------------------------------------------------------------------------
-	void int_exception(KStringView sWhat, KStringView sFunction, KStringView sClass);
+	bool IntBacktrace();
+	//---------------------------------------------------------------------------
+
+	//---------------------------------------------------------------------------
+	void IntException(KStringView sWhat, KStringView sFunction, KStringView sClass);
 	//---------------------------------------------------------------------------
 
 	int m_iLevel{0};
+	int m_iBackTrace{0};
 	KString m_sLogfile;
 	KString m_sFlagfile;
 	KFileWriter m_Log;

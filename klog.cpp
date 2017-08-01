@@ -68,7 +68,7 @@ KLog::KLog()
 
 //---------------------------------------------------------------------------
 //	filename set/get debuglog("stderr/stdout/syslog" special files) /tmp/dekaf.log
-bool KLog::set_debuglog(KStringView sLogfile)
+bool KLog::SetDebugLog(KStringView sLogfile)
 //---------------------------------------------------------------------------
 {
 	if (sLogfile.empty())
@@ -89,7 +89,7 @@ bool KLog::set_debuglog(KStringView sLogfile)
 
 //---------------------------------------------------------------------------
 //	set/get debugflag() /tmp/dekaf.dbg
-bool KLog::set_debugflag(KStringView sFlagfile)
+bool KLog::SetDebugFlag(KStringView sFlagfile)
 //---------------------------------------------------------------------------
 {
 	if (sFlagfile.empty())
@@ -101,34 +101,39 @@ bool KLog::set_debugflag(KStringView sFlagfile)
 }
 
 //---------------------------------------------------------------------------
-bool KLog::int_debug(int level, KStringView sMessage)
+bool KLog::IntBacktrace()
 //---------------------------------------------------------------------------
 {
-	if (level > m_iLevel)
+	KString sStack = kGetBacktrace();
+
+	if (!sStack.empty())
 	{
-		return true;
+		m_Log.WriteLine("====== Backtrace follows:   ======");
+		m_Log.Write(sStack);
+		m_Log.WriteLine("====== Backtrace until here ======");
+		m_Log.flush();
 	}
-	else
+	return m_Log.good();
+}
+
+//---------------------------------------------------------------------------
+bool KLog::IntDebug(int level, KStringView sMessage)
+//---------------------------------------------------------------------------
+{
+	if (level <= m_iLevel)
 	{
 		m_Log.WriteLine(sMessage).flush();
-	}
-	if (level <= 0)
-	{
-		KString sStack = kGetBacktrace();
 
-		if (!sStack.empty())
+		if (level <= m_iBackTrace)
 		{
-			m_Log.WriteLine("====== Backtrace follows:   ======");
-			m_Log.Write(sStack);
-			m_Log.WriteLine("====== Backtrace until here ======");
-			m_Log.flush();
+			IntBacktrace();
 		}
 	}
 	return m_Log.good();
 }
 
 //---------------------------------------------------------------------------
-void KLog::int_exception(KStringView sWhat, KStringView sFunction, KStringView sClass)
+void KLog::IntException(KStringView sWhat, KStringView sFunction, KStringView sClass)
 //---------------------------------------------------------------------------
 {
 	if (sFunction.empty())

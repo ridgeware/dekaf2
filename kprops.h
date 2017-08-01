@@ -677,7 +677,7 @@ public:
 		{
 			return it->second;
 		}
-		KLog().warning("KProps::Get() called for non-existing key");
+		KLog().debug(2, "KProps::Get() called for non-existing key");
 		return base_type::s_EmptyMapValue.second;
 	}
 
@@ -690,7 +690,7 @@ public:
 		{
 			return it->second;
 		}
-		KLog().warning("KProps::Get() const called for non-existing key");
+		KLog().debug(2, "KProps::Get() const called for non-existing key");
 		return base_type::s_EmptyMapValue.second;
 	}
 

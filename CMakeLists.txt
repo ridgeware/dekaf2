@@ -61,6 +61,7 @@ set (SOURCES
     kgetruntimestack.cpp
     kreader.cpp
     kfdreader.cpp
+    kwriter.cpp
     kfdwriter.cpp
 )
 

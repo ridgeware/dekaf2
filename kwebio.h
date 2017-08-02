@@ -56,31 +56,50 @@ namespace dekaf2
 class KWebIO : public KCurl
 //-----------------------------------------------------------------------------
 {
-public:
-	KWebIO();
-	KWebIO(const KString& requestURL, bool bEchoHeader = false, bool bEchoBody = false);
-	~KWebIO();
 
+//------
+public:
+//------
+	/// KWebIO default constructor, must be initialized after construction.
+	KWebIO() {}
+	/// KWebIO Constructor that allows full initialization on construction.
+	KWebIO(const KString& requestURL, bool bEchoHeader = false, bool bEchoBody = false)
+	    : KCurl(requestURL, bEchoHeader, bEchoBody) {}
+	/// Default virutal destructor
+	virtual ~KWebIO() {}
+
+	/// Overriden virtual method that parses response header
 	virtual bool   addToResponseHeader(KString sHeaderPart);
+	/// Overriden virtual method that parses response body
 	virtual bool   addToResponseBody  (KString sBodyPart);
+	/// Overriden virtual method that prints out parsed response header
 	virtual bool   printResponseHeader(); // prints response header from m_responseHeaderss
 
-	// TODO ANDREW: Temporarily making these return pointers instead of references so nullptr can be returned when value doesn't exist;
+	/// Get all response headers except Cookies as a KHeader
 	const KHeader& getResponseHeaders() const;
+	/// Get response header value from given header name (case insensitive)
 	const KString& getResponseHeader(const KString& sHeaderName) const;
+	/// Get all response cookies as a KHeader
 	const KHeader& getResponseCookies() const;
+	/// Get response cookie value from given cookie name (case insensitive)
 	const KString& getResponseCookie(const KString& sCookieName);// const; // gets first cookie with name
 
+//------
 private:
-	KHeader        m_responseHeaders;
-	KHeader        m_responseCookies;
-	KString        m_sPartialHeader; // when streaming can't guarantee always have full header.
-	KString        m_sResponseVersion;
-	KString        m_sResponseStatus;
-	uint16_t       m_iResponseStatusCode{0};
+//------
 
+	KHeader        m_responseHeaders; // response headers read in
+	KHeader        m_responseCookies; // response cookies read in
+	KString        m_sPartialHeader; // when streaming can't guarantee always have full header.
+	KString        m_sResponseVersion; // HTTP resonse version
+	KString        m_sResponseStatus; // HTTP response status
+	uint16_t       m_iResponseStatusCode{0}; // HTTP response code
+
+	// method that takes care of case-insentive header add logic and cookie add logic
 	bool           addResponseHeader(const KString& sHeaderName, const KString& sHeaderValue);
+	// method to determine if header ends with \n\n or \r\n\r\n indicating end of header
 	bool           isLastHeader(KString& sHeaderPart, size_t lineEndPos);
+	// if parsing multi line header, this gets to the end of it
 	size_t         findEndOfHeader(KString& sHeaderPart, size_t lineEndPos);
 };
 

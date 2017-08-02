@@ -9,28 +9,6 @@ namespace dekaf2
 {
 
 //-----------------------------------------------------------------------------
-KCurl::KCurl()
-//-----------------------------------------------------------------------------
-{
-	KLog().debug(3, "KCurl::KCurl() constructor");
-}
-
-//-----------------------------------------------------------------------------
-KCurl::KCurl(const KString& sRequestURL, bool bEchoHeader /*=false*/, bool bEchoBody /*=false*/)
-    : m_bEchoHeader{bEchoHeader}, m_bEchoBody{bEchoBody}, m_sRequestURL{sRequestURL}
-//-----------------------------------------------------------------------------
-{
-	KLog().debug(3, "KCurl::KCurl(%s,%s,%s) constructor", sRequestURL.c_str(), btoa(bEchoHeader) , btoa(bEchoBody));
-}
-
-//-----------------------------------------------------------------------------
-KCurl::~KCurl()
-//-----------------------------------------------------------------------------
-{
-	KLog().debug(3, "KCurl::~KCurl() destructor");
-}
-
-//-----------------------------------------------------------------------------
 bool KCurl::setRequestURL(const KString& sRequestURL)
 //-----------------------------------------------------------------------------
 {
@@ -50,7 +28,7 @@ bool KCurl::setRequestURL(const KString& sRequestURL)
 } // setRequestURL
 
 //-----------------------------------------------------------------------------
-bool KCurl::initiateRequest() // set header complete false
+bool KCurl::initiateRequest()
 //-----------------------------------------------------------------------------
 {
 	KLog().debug(3, "KCurl::initiateRequest() start.");
@@ -79,17 +57,17 @@ bool KCurl::initiateRequest() // set header complete false
 	KString sCurlCMD = "curl " + sFlags + " " + m_sRequestURL + " " + headers +" 2> /dev/null";// + " | cat";
 	//std::cout << "curl cmd: " << sCurlCMD << std::endl;
 	KLog().debug(3, "KCurl::initiateRequest() end.");
-	return m_kpipe.Open(sCurlCMD, "r");
+	return m_kpipe.Open(sCurlCMD);
 
 } // initiateRequest
 
 //-----------------------------------------------------------------------------
-bool KCurl::getStreamChunk() // get next chunk
+bool KCurl::getStreamChunk()
 //-----------------------------------------------------------------------------
 {
 	KLog().debug(3, "KCurl::getStreamChunk() start.");
 	KString sCurrentChunk("");
-	bool bSuccess = m_kpipe.getline(sCurrentChunk, 4096);
+	bool bSuccess = m_kpipe.ReadLine(sCurrentChunk);
 	//std::cout << "grabbing stream chunk:";
 	//std::cout << sCurrentChunk;
 	if (bSuccess)

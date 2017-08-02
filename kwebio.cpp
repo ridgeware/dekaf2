@@ -43,6 +43,8 @@
 #include "kwebio.h"
 #include "klog.h"
 
+#include "kstringutils.h"
+
 #include <iostream>
 
 #define btoa(b) ((b)?"true":"false")
@@ -50,55 +52,15 @@
 namespace dekaf2 {
 
 //-----------------------------------------------------------------------------
-KWebIO::KWebIO() : KCurl ()
-//-----------------------------------------------------------------------------
-{
-	KLog().debug(3, "KWebIO::KWebIO() constructor");
-}
-
-//-----------------------------------------------------------------------------
-KWebIO::KWebIO(const KString& requestURL, bool bEchoHeader /*=false*/, bool bEchoBody /*=false*/)
-    : KCurl(requestURL, bEchoHeader, bEchoBody)
-//-----------------------------------------------------------------------------
-{
-	KLog().debug(3, "KWebIO::KWebIO(%s,%s,%s) constructor", requestURL.c_str(), btoa(bEchoHeader) , btoa(bEchoBody));
-}
-
-//-----------------------------------------------------------------------------
-KWebIO::~KWebIO()
-//-----------------------------------------------------------------------------
-{
-	KLog().debug(3, "KWebIO::~KWebIO() destructor");
-}
-
-// placeholder atoi() function
-//-----------------------------------------------------------------------------
-uint16_t katoi(KString& num)
-//-----------------------------------------------------------------------------
-{
-	int res = 0; // Initialize result
-
-	// Iterate through all characters of input string and
-	for (int i = 0; i < num.size(); i++)
-	{
-		res = res*10 + num[i] - '0';
-	}
-	return static_cast<uint16_t>(res);
-
-} // katoi
-
-//-----------------------------------------------------------------------------
 bool KWebIO::addToResponseHeader(KString sHeaderPart)
 //-----------------------------------------------------------------------------
 {
 	KLog().debug(3, "KWebIO::addToResponseHeader(%s) start", sHeaderPart.c_str());
-	// Garbage in garbase out!
-	// whitespace at beginning of line means continuation.
+	// Garbage in garbage out!
 	size_t iCurrentPos = 0;
 	// Check if we're holding onto an incomplete header
 	if (!m_sPartialHeader.empty())
 	{
-		//std::cout << "partial header concat" << std::endl;
 		sHeaderPart = m_sPartialHeader + sHeaderPart; // append new content to previous partial content
 		m_sPartialHeader.clear(); // empty partial header
 	}
@@ -111,7 +73,7 @@ bool KWebIO::addToResponseHeader(KString sHeaderPart)
 		KString sHeaderName, sHeaderValue;
 
 		// edge case, blank \r\n line comes in by itself
-		// old mac style newlines: "\n\r"
+		// TODO old mac style newlines: "\n\r"
 		if (sHeaderPart.StartsWith("\r\n") || sHeaderPart.StartsWith("\n"))
 		{
 			// add it to the last header
@@ -152,27 +114,27 @@ bool KWebIO::addToResponseHeader(KString sHeaderPart)
 			// Status variable, but assume to end
 			if (sHeaderPart.StartsWith("HTTP/"))
 			{
+				// Start positions of elements
 				size_t versionPos = 5;
 				size_t statusCodePos = 9;
 				size_t statusPos = 13;
+				// Grab status line given assumed positions
 				m_sResponseVersion = sHeaderPart.substr(versionPos, 3);
 				KString responseCode = sHeaderPart.substr(statusCodePos, 3);
 				m_sResponseStatus = sHeaderPart.substr(statusPos, lineEndPos-statusPos);
-				//m_iResponseStatusCode = responseCode.
-				// TODO implement int KString::toInt();
-				m_iResponseStatusCode = katoi(responseCode);
-				iCurrentPos = lineEndPos+1;//update beginning of line
+				m_iResponseStatusCode = KToUShort(responseCode);
+				//update beginning of line to process next line
+				iCurrentPos = lineEndPos+1;
 				continue;
 			}
 		}
-		// last line
+		// last header, try to grab extra newline as part of last header
 		if (isLastHeader(sHeaderPart, nextEnd))
 		{
 			nextEnd = (sHeaderPart.find('\r') == KString::npos) ? nextEnd+1 : nextEnd+2;
 			if (colonPos != KString::npos) // valid
 			{
 				sHeaderName = sHeaderPart.substr(iCurrentPos, colonPos-iCurrentPos);
-				//sHeaderValue = sHeaderPart.substr(colonPos + 1, nextEnd-colonPos-1);
 				sHeaderValue = sHeaderPart.substr(colonPos + 1, nextEnd-colonPos);
 			}
 			else // invalid
@@ -181,7 +143,7 @@ bool KWebIO::addToResponseHeader(KString sHeaderPart)
 				lineEndPos = (nextEnd != KString::npos) ? nextEnd : sHeaderPart.size() ;
 				sHeaderValue = sHeaderPart.substr(iCurrentPos , lineEndPos-iCurrentPos);
 			}
-
+			// Offload logic of adding so lookup is case insensitve while data is not
 			addResponseHeader(sHeaderName, sHeaderValue);
 			m_bHeaderComplete = true;
 			// Before body stream, output header if desired
@@ -202,17 +164,13 @@ bool KWebIO::addToResponseHeader(KString sHeaderPart)
 		}
 		//not last header, valid
 		else if (colonPos != KString::npos && lineEndPos != KString::npos && colonPos < lineEndPos)
-		//if (colonPos != KString::npos && lineEndPos != KString::npos && colonPos < lineEndPos)
 		{
 			lineEndPos = nextEnd;
 			// iCurrentPos is beginning of line, lineEndPos is end of line, colonPos is end of header name for line
 			sHeaderName = sHeaderPart.substr(iCurrentPos, colonPos-iCurrentPos);
-			//sHeaderValue = sHeaderPart.substr(colonPos + 1, lineEndPos-colonPos-1);
 			sHeaderValue = sHeaderPart.substr(colonPos + 1, lineEndPos-colonPos);
-			//sHeaderValue.Trim();
-			//m_responseHeaders.Add(sHeaderName, sHeaderValue);
 			addResponseHeader(sHeaderName, sHeaderValue);
-			iCurrentPos = lineEndPos+1;//update beginning of line
+			iCurrentPos = lineEndPos+1; //update beginning of line
 			continue;
 		}
 		//not last header, invalid
@@ -225,18 +183,18 @@ bool KWebIO::addToResponseHeader(KString sHeaderPart)
 			continue;
 		}
 	} while (iCurrentPos < sHeaderPart.size()); // until end of given content is reached
+
 	KLog().debug(3, "KWebIO::addToResponseHeader(%s) end", sHeaderPart.c_str());
 	return true;
 
 } // addToResponseHeader
-
 
 //-----------------------------------------------------------------------------
 bool KWebIO::addToResponseBody(KString sBodyPart)
 //-----------------------------------------------------------------------------
 {
 	KLog().debug(3, "KWebIO::addToResponseBody(%s) start", sBodyPart.c_str());
-	// m_sResponseBody.push_back(KString(sBodyPart)); // if wanted to save
+	// m_sResponseBody.push_back(KString(sBodyPart)); // if we wanted to save body for processing
 	if (m_bEchoBody)
 	{
 		std::cout << sBodyPart;
@@ -340,6 +298,8 @@ const KString& KWebIO::getResponseCookie(const KString& sCookieName) //const
 } // getResponseCookie
 
 //-----------------------------------------------------------------------------
+/// This method takes care of the logic for storing case sensitive data so
+/// that it can be looked up in a case insensitive fashion.
 bool KWebIO::addResponseHeader(const KString& sHeaderName, const KString& sHeaderValue)
 //-----------------------------------------------------------------------------
 {

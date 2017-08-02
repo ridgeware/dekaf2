@@ -43,7 +43,7 @@
 
 #include "kstring.h"
 #include "kcppcompat.h"
-#include "kpipe.h"
+#include "kpipereader.h"
 #include "kgetruntimestack.h"
 
 #ifdef UNIX
@@ -134,20 +134,20 @@ namespace detail
 			sCmdLine += sMyExeName;
 			sCmdLine += "\" ";
 			sCmdLine += sAddress;
-			KPIPE pipe;
-			if (pipe.Open (sCmdLine, "r"))
+			KPipeReader pipe;
+			if (pipe.Open (sCmdLine))
 			{
 				KString	sLineBuf;
 				KString sResult;
 				enum {MAX = 1024};
 
-				if (pipe.getline (sLineBuf, MAX))
+				if (pipe.ReadLine (sLineBuf))
 				{
 					sLineBuf.TrimRight();
 					sResult += sLineBuf;
 				}
 
-				if (pipe.getline (sLineBuf, MAX))
+				if (pipe.ReadLine (sLineBuf))
 				{
 					sLineBuf.TrimRight();
 					if (!sLineBuf.StartsWith("??:")) {
@@ -218,15 +218,15 @@ namespace detail
 			sCmdLine += "\" ";
 			sCmdLine += std::to_string(getpid());
 			sCmdLine += " 2>&1";
-			KPIPE pipe;
+			KPipeReader pipe;
 
-			if (pipe.Open (sCmdLine, "r"))
+			if (pipe.Open (sCmdLine))
 			{
 				enum {MAX=1024};
 				enum {TIMEOUT_SEC=10};
 
 				KString	sLineBuf;
-				while (pipe.getline (sLineBuf, MAX))
+				while (pipe.ReadLine (sLineBuf))
 				{
 					sLineBuf.TrimRight();
 					if (0 == sLineBuf.length())

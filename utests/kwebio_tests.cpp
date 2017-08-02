@@ -2522,7 +2522,7 @@ TEST_CASE("KWebIO")
 		KString sHeaderPart7 = "db8:cafe::17,  192.168.1.100, 192.168.1.1";
 		KString sHeaderPart8 = "\nForwarded: for=192.0.";
 		KString sHeaderPart9 = "2.43, for='[2001:db8:cafe::17]'\n";
-		KString sHeaderPart10 = "COOKIE: muhCookie=mostYummy; \n ohYeahCookies=yaahhh;\n\n  <html><body><h1>HelloWorld!</h1> \n <p>There are multiple lines here on page.</p>\n More than 1 or 2  \n\n\n </body></html>";
+		KString sHeaderPart10 = "COOKIE: muhCookie=mostYummy; \n ohYeahCookies=yaahhh\n\n  <html><body><h1>HelloWorld!</h1> \n <p>There are multiple lines here on page.</p>\n More than 1 or 2  \n\n\n </body></html>";
 		webIO.addToResponseHeader(sHeaderPart1);
 		webIO.addToResponseHeader(sHeaderPart2);
 		webIO.addToResponseHeader(sHeaderPart3);

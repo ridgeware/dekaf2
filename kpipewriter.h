@@ -36,13 +36,14 @@
 
 #pragma once
 
+#include "kpipe.h"
 #include "kfdwriter.h"
 
 namespace dekaf2
 {
 
 //-----------------------------------------------------------------------------
-class KPipeWriter : public KFPWriter
+class KPipeWriter : public KPIPE, public KFPWriter
 //-----------------------------------------------------------------------------
 {
 
@@ -55,22 +56,8 @@ public:
 	/// Default KPipeWriter Destructor
 	virtual ~KPipeWriter() { Close(); }
 
-	/// Opens a shell pipe and executes given command
+	/// Executes given command via a shell pipe which input can be written to
 	virtual bool Open (KStringView sCommand);
-	/// Closes pipe saving exit code.
-	virtual int  Close();
-
-	/// Get error code, 0 indicates no errors
-	int          GetErrno() { return m_iExitCode; }
-	/// Allows KPipeReader to be passed where File* can be.
-	operator     FILE*();
-
-//------
-private:
-//------
-
-	FILE*        m_pipe{nullptr};
-	int          m_iExitCode{0};
 
 };
 

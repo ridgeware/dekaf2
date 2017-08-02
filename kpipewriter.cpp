@@ -35,31 +35,4 @@ bool KPipeWriter::Open(KStringView sCommand)
 	return (m_pipe != NULL);
 } // Open
 
-//-----------------------------------------------------------------------------
-int  KPipeWriter::Close()
-//-----------------------------------------------------------------------------
-{
-	KLog().debug(3, "KPIPE::Close");
-
-	if (m_pipe)
-	{
-		m_iExitCode = pclose (m_pipe);
-		m_pipe = nullptr;
-	}
-	else
-	{
-		return -1; //attemtping to close a pipe that is not open
-	}
-
-	KLog().debug(3, "KPIPE::Close::Done:: Exit Code = %u", m_iExitCode);
-	return (m_iExitCode);
-} // Close
-
-//-----------------------------------------------------------------------------
-KPipeWriter::operator FILE* ()
-//-----------------------------------------------------------------------------
-{
-	return (m_pipe);
-}
-
 } // END NAMESPACE dekaf2

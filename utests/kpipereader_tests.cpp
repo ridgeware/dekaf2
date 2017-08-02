@@ -46,7 +46,7 @@ TEST_CASE("KPipeReader")
 		}
 		CHECK_FALSE(output);
 		CHECK(pipe.Close() == 0);
-	}
+	} // curl test
 
 	SECTION("KPipeReader normal Open and Close")
 	{
@@ -71,7 +71,7 @@ TEST_CASE("KPipeReader")
 		CHECK(0 == pipe.Close());
 
 		INFO("normal_open_close_test::Done:");
-	}
+	} // normal open close
 
 	SECTION("KPipeReader  get_errno_should_return_zero")
 	{
@@ -207,4 +207,5 @@ TEST_CASE("KPipeReader")
 		CHECK_FALSE(output.empty());
 		CHECK(pipe.Close() == 0);
 	} // Curl Iterator Test
+
 }

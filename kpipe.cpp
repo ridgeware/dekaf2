@@ -35,70 +35,12 @@
 // |\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/ |
 // +-------------------------------------------------------------------------+
 ///////////////////////////////////////////////////////////////////////////////
-#include <unistd.h>
-#include <stdio.h>
-#include <fcntl.h>
-#include <poll.h>
-#include <sys/wait.h>
+
 #include "klog.h"
 #include "kpipe.h"
-#include <iostream>
-#include <streambuf>
+
 namespace dekaf2
 {
-
-//-----------------------------------------------------------------------------
-KPIPE::KPIPE ()
-//-----------------------------------------------------------------------------
-{
-	// initialization moved to header file per c++ standard techniques
-} // constructor
-
-//-----------------------------------------------------------------------------
-KPIPE::~KPIPE ()
-//-----------------------------------------------------------------------------
-{
-	Close();
-} // destructor
-
-//-----------------------------------------------------------------------------
-bool KPIPE::Open(const KString& sCommand, const char* pszMode)
-//-----------------------------------------------------------------------------
-{
-	KLog().debug(3, "KPIPE::Open(): %s %s", sCommand.c_str(), pszMode);
-
-	if (pszMode &&
-	    (strcmp(pszMode, "r")  &&
-	     strcmp(pszMode, "w")  &&
-	     strcmp(pszMode, "rw") &&
-	     strcmp(pszMode, "a")))
-		KLog().warning("KPIPE::Open(): suspicious Mode '%s'", pszMode);
-
-	Close(); // ensure a previous pipe is closed
-	errno = 0;
-
-	// - - - - - - - - - - - - - - - - - - - - - - - -
-	// shell out to run the command:
-	// - - - - - - - - - - - - - - - - - - - - - - - -
-	m_pipe = popen(sCommand.c_str(), pszMode);
-	initialize(m_pipe);
-
-	// - - - - - - - - - - - - - - - - - - - - - - - -
-	// interpret success:
-	// - - - - - - - - - - - - - - - - - - - - - - - -
-	if (!m_pipe)
-	{
-		KLog().debug (0, "POPEN CMD FAILED: %s ERROR: %s",
-		              sCommand.c_str(),
-		              strerror(errno));
-		m_iExitcode = errno;
-		//exit(errno);
-		//kCheckSystemResources (errno);
-	}
-	else
-		KLog().debug(2, "POPEN: ok...");
-	return (m_pipe != NULL);
-} // Open
 
 //-----------------------------------------------------------------------------
 int KPIPE::Close()
@@ -108,86 +50,17 @@ int KPIPE::Close()
 
 	if (m_pipe)
 	{
-		m_iExitcode = pclose (m_pipe);
+		m_iExitCode = pclose (m_pipe);
 		m_pipe = nullptr;
 	}
 	else
 	{
-		return -1; //attemtping to close a pipe that is not open
+		return -1; //attempting to close a pipe that is not open
 	}
 
-	KLog().debug(3, "KPIPE::Close::Done:: Exit Code = %u", m_iExitcode);
+	KLog().debug(3, "KPIPE::Close::Done:: Exit Code = %u", m_iExitCode);
 
-	return (m_iExitcode);
+	return (m_iExitCode);
 } // Close
-
-//-----------------------------------------------------------------------------
-bool KPIPE::getline(KString & sOutputBuffer, size_t iMaxLen/*=0*/, bool bTextOnly/*=false*/ )
-//-----------------------------------------------------------------------------
-{
-	/*
-	 *
-	Functionally identical to fgets with the result in a string object
-		needs
-			reference to an output buffer
-			maximum number of bytes to receive
-		returns
-			true - all went well and there is data in the buffer to process
-			false - there was an error or the pipe is empty
-		NOTE:
-			existing data in the output buffer will be discarded
-	*/
-	KLog().debug(3, "KPIPE::getline(KString & sOutputBuffer, size_t iMaxLen )");
-
-	sOutputBuffer.clear();
-	if (!m_pipe)
-	{
-		return false;
-	}
-	//std::cout << "iMaxLen: " << iMaxLen ;
-	//iMaxLen = (iMaxLen == 0) ? iMaxLen-1: iMaxLen; // size_t is unsigned, ergo 0-1=max_value
-	//std::cout << "| iMaxLen: " << iMaxLen << std::endl;
-	for (int i = 0; i < iMaxLen; i++)
-	{
-		int iCh = fgetc(m_pipe);
-		switch (iCh)
-		{
-			case EOF:
-			{
-				return !sOutputBuffer.empty();
-			}
-			case '\r':
-				if (!bTextOnly) // don't want EOL chars in text only mode
-				{
-					sOutputBuffer += static_cast<KString::value_type>(iCh);
-				}
-				break;
-			case '\n':
-				if (!bTextOnly) // don't want EOL chars in text only mode
-				{
-					sOutputBuffer += static_cast<KString::value_type>(iCh);
-				}
-				return true;
-			default:
-				sOutputBuffer += static_cast<KString::value_type>(iCh);
-				break;
-		}
-	}
-	return (0 < sOutputBuffer.length());
-} // getline
-
-//-----------------------------------------------------------------------------
-KPIPE::operator FILE* ()
-//-----------------------------------------------------------------------------
-{
-	return (m_pipe);
-}
-
-////-----------------------------------------------------------------------------
-//KStreamIter& KPIPE::getIter()
-////-----------------------------------------------------------------------------
-//{
-//	return m_kiter;
-//}
 
 } // end of namespace dekaf2

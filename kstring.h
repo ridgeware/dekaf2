@@ -309,11 +309,12 @@ public:
 
 	KString substr(size_type pos = 0, size_type n = npos) const;
 
-	void swap(KString& s) { m_rep.swap(s.m_rep); }
+	inline void swap(KString& s) { m_rep.swap(s.m_rep); }
 
-	allocator_type get_allocator() const noexcept { return m_rep.get_allocator(); }
+	inline allocator_type get_allocator() const noexcept { return m_rep.get_allocator(); }
 
 	// other methods
+	/// print arguments with fmt::format
 	template<class... Args>
 	KString& Format(Args&&... args)
 	{
@@ -321,6 +322,7 @@ public:
 		return *this;
 	}
 
+	/// print arguments with fmt::printf
 	template<class... Args>
 	KString& Printf(Args&&... args)
 	{
@@ -328,30 +330,44 @@ public:
 		return *this;
 	}
 
+	/// replace with regular expression
 	size_type ReplaceRegex(KStringView sRegEx, KStringView sReplaceWith, bool bReplaceAll = true);
+
+	/// replace one part of the string with another string
 	size_type Replace(KStringView sSearch, KStringView sReplace, bool bReplaceAll = false);
 
-	bool     StartsWith(KStringView sPattern) const { return kStartsWith(*this, sPattern); }
-	bool     EndsWith(KStringView sPattern) const { return kEndsWith(*this, sPattern); }
+	/// does the string start with sPattern?
+	bool StartsWith(KStringView sPattern) const { return kStartsWith(*this, sPattern); }
 
-	bool     IsEmail() const;
-	bool     IsURL() const;
-	bool     IsFilePath() const;
+	/// does the string end with sPattern?
+	bool EndsWith(KStringView sPattern) const { return kEndsWith(*this, sPattern); }
+
+	bool IsEmail() const;
+	bool IsURL() const;
+	bool IsFilePath() const;
 
 	/// changes the string to lowercase
 	KString& MakeLower();
+
 	/// changes the string to uppercase
 	KString& MakeUpper();
 
 	/// returns a copy of the string in uppercase
 	KString ToUpper() const;
+
 	/// returns a copy of the string in lowercase
 	KString ToLower() const;
 
+	/// returns leftmost iCount chars of string
 	KStringView Left(size_type iCount);
+
+	/// returns rightmost iCount chars of string
 	KStringView Right(size_type iCount);
 
+	/// pads string at the left up to iWidth size with chPad
 	KString& PadLeft(size_t iWidth, value_type chPad = ' ');
+
+	/// pads string at the right up to iWidth size with chPad
 	KString& PadRight(size_t iWidth, value_type chPad = ' ');
 
 	KString& TrimLeft();
@@ -366,33 +382,30 @@ public:
 	KString& Trim(value_type chTarget);
 	KString& Trim(KStringView sTarget);
 
-	KString& PushBack(const value_type chPushBack) { return push_back(chPushBack); }
-	void PopBack() { pop_back(); }
-	KString& Append(KStringView sAppend) { return append(sAppend); }
-
-	// Clip removing pszClipAt and everything to its right if found; otherwise do not alter the string
+	/// Clip removing pszClipAt and everything to its right if found; otherwise do not alter the string
 	KString& ClipAt(KStringView sClipAt);
 
-	// Clip removing everything to the left of pszClipAtReverse so that pszClipAtReverse becomes the beginning of the string;
-	// otherwise do not alter the string
+	/// Clip removing everything to the left of pszClipAtReverse so that pszClipAtReverse becomes the beginning of the string;
+	/// otherwise do not alter the string
 	KString& ClipAtReverse(KStringView sClipAtReverse);
 
 	void RemoveIllegalChars(const KString& sIllegalChars);
 
-	// return a pointer of value type
+	/// return a pointer of value type
 	const value_type* c() const { return c_str(); }
 
-	// convert to representation type
+	/// convert to representation type
 	operator string_type&() { return m_rep; }
 	operator const string_type&() const { return m_rep; }
 
-	// return the representation type
+	/// return the representation type
 	const string_type& s() const { return operator const string_type&(); }
 	string_type& s() { return operator string_type&(); }
 
 	KStringView sv() { return m_rep; }
 	operator KStringView() const { return m_rep; }
 
+	/// is string one of the values in sHaystack, delimited by iDelim?
 	bool In (KStringView sHaystack, value_type iDelim=',');
 
 

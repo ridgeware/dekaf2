@@ -40,7 +40,6 @@
 // +-------------------------------------------------------------------------+
 */
 
-
 #include "kreader.h"
 #include "klog.h"
 
@@ -59,6 +58,7 @@ std::streamsize KIStreamBuf::xsgetn(char_type* s, std::streamsize n)
 {
 	return m_Callback(s, n, m_CustomPointer);
 }
+
 /*
 //-----------------------------------------------------------------------------
 KIStreamBuf::int_type KIStreamBuf::underflow()
@@ -69,6 +69,7 @@ KIStreamBuf::int_type KIStreamBuf::underflow()
 	return static_cast<int_type>(ch);
 }
 */
+
 //-----------------------------------------------------------------------------
 KIStreamBuf::int_type KIStreamBuf::uflow()
 //-----------------------------------------------------------------------------
@@ -83,13 +84,12 @@ KIStreamBuf::int_type KIStreamBuf::uflow()
 		return traits_type::eof();
 	}
 }
+
 /*
 std::streamsize KIStreamBuf::showmanyc()
 {
 }
 */
-
-
 
 //-----------------------------------------------------------------------------
 bool kRewind(std::istream& Stream)
@@ -187,9 +187,7 @@ bool kReadAll(std::istream& Stream, KString& sContent, bool bFromStart)
 		Stream.setstate(std::ios_base::eofbit);
 
 		return sContent.size();
-
 	}
-
 
 	size_t uiSize = static_cast<size_t>(iSize);
 
@@ -205,7 +203,7 @@ bool kReadAll(std::istream& Stream, KString& sContent, bool bFromStart)
 	}
 	else
 	{
-		KLog().warning ("kReadAll: stream grew during read, did not read all new content");
+		KLog().debug (1, "kReadAll: stream grew during read, did not read all new content");
 	}
 
 	if (iRead != uiSize)
@@ -213,12 +211,7 @@ bool kReadAll(std::istream& Stream, KString& sContent, bool bFromStart)
 		KLog().warning ("KReader: Unable to read full file, requested {0} bytes, got {1}", iSize, iRead);
 		return false;
 	}
-/*
-	if (bIsText) // dos2unix
-	{
-		sContent.Replace("\r\n", "\n", true);
-	}
-*/
+
 	return true;
 
 } // ReadAll
@@ -270,6 +263,97 @@ bool kReadLine(std::istream& Stream, KString& sLine, KStringView sTrimRight, KSt
 		}
 	}
 }
+
+
+//-----------------------------------------------------------------------------
+KBasicReader::const_kreader_line_iterator::const_kreader_line_iterator(base_iterator& it, bool bToEnd)
+//-----------------------------------------------------------------------------
+    : m_it(bToEnd ? nullptr : &it)
+{
+	if (m_it != nullptr)
+	{
+		if (!kReadLine(*(m_it->m_sRef), m_sBuffer, m_it->m_sTrimRight, m_it->m_chDelimiter))
+		{
+			m_it = nullptr;
+		}
+	}
+}
+
+//-----------------------------------------------------------------------------
+KBasicReader::const_kreader_line_iterator::self_type& KBasicReader::const_kreader_line_iterator::operator++()
+//-----------------------------------------------------------------------------
+{
+	if (m_it != nullptr)
+	{
+		if (!kReadLine(*(m_it->m_sRef), m_sBuffer, m_it->m_sTrimRight, m_it->m_chDelimiter))
+		{
+			m_it = nullptr;
+		}
+	}
+
+	return *this;
+} // prefix
+
+//-----------------------------------------------------------------------------
+KBasicReader::const_kreader_line_iterator::self_type KBasicReader::const_kreader_line_iterator::operator++(int)
+//-----------------------------------------------------------------------------
+{
+	self_type i = *this;
+
+	if (m_it != nullptr)
+	{
+		if (!kReadLine(*(m_it->m_sRef), m_sBuffer, m_it->m_sTrimRight, m_it->m_chDelimiter))
+		{
+			m_it = nullptr;
+		}
+	}
+
+	return i;
+} // postfix
+
+
+//-----------------------------------------------------------------------------
+KBasicReader::~KBasicReader()
+//-----------------------------------------------------------------------------
+{
+}
+
+//-----------------------------------------------------------------------------
+/// Read a character. Returns std::istream::traits_type::eof() (== -1) if no input available
+typename std::istream::int_type KBasicReader::Read()
+//-----------------------------------------------------------------------------
+{
+	std::streambuf* sb = m_sRef->rdbuf();
+	if (sb)
+	{
+		typename std::istream::int_type iCh = sb->sbumpc();
+		if (std::istream::traits_type::eq_int_type(iCh, std::istream::traits_type::eof()))
+		{
+			m_sRef->setstate(std::ios::eofbit);
+		}
+		return iCh;
+	}
+	return std::istream::traits_type::eof();
+}
+
+//-----------------------------------------------------------------------------
+/// Read a range of characters. Returns count of successfully read charcters.
+size_t KBasicReader::Read(typename std::istream::char_type* pAddress, size_t iCount)
+//-----------------------------------------------------------------------------
+{
+	std::streambuf* sb = m_sRef->rdbuf();
+	if (sb)
+	{
+		size_t iRead = static_cast<size_t>(sb->sgetn(pAddress, static_cast<std::streamsize>(iCount)));
+		if (iRead != iCount)
+		{
+			m_sRef->setstate(std::ios::eofbit);
+		}
+		return iRead;
+	}
+	return 0;
+}
+
 
 } // end of namespace dekaf2
 

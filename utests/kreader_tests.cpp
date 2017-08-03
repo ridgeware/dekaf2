@@ -109,8 +109,6 @@ TEST_CASE("KReader") {
 		CHECK( File.eof() == true);
 	}
 
-
-
 	SECTION("KFileReader read all 2")
 	{
 		KFileReader File(sFile);
@@ -156,7 +154,8 @@ TEST_CASE("KReader") {
 
 	SECTION("KFileReader read iterator 2")
 	{
-		KFileReader File(sFile, std::ios_base::in, "\r\n4 ", '\n');
+		KFileReader File(sFile, std::ios_base::in);
+		File.SetRightTrim("\r\n4 ");
 		auto it = File.begin();
 		KString s1;
 		s1 = *it;
@@ -193,7 +192,8 @@ TEST_CASE("KReader") {
 
 	SECTION("KFileReader read iterator 4")
 	{
-		KFileReader File(sFile, std::ios_base::in, "\n", '\n');
+		KFileReader File(sFile, std::ios_base::in);
+		File.SetRightTrim("\n");
 		CHECK( File.eof() == false);
 		CHECK( File.GetSize() == 63 );
 		CHECK( File.GetRemainingSize() == 63 );
@@ -252,7 +252,8 @@ TEST_CASE("KReader") {
 	SECTION("KFDReader read iterator 2")
 	{
 		int fd = ::open(sFile.c_str(), O_RDONLY);
-		KFDReader File(fd, "\n", '\n');
+		KFDReader File(fd);
+		File.SetRightTrim("\n");
 		KString sRead;
 		CHECK( File.eof() == false);
 		int iCount = 0;
@@ -311,7 +312,8 @@ TEST_CASE("KReader") {
 	SECTION("KFPReader read iterator 2")
 	{
 		FILE* fp = std::fopen(sFile.c_str(), "r");
-		KFPReader File(fp, "\n", '\n');
+		KFPReader File(fp);
+		File.SetRightTrim("\n");
 		KString sRead;
 		CHECK( File.eof() == false);
 		int iCount = 0;

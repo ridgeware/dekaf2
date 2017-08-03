@@ -106,7 +106,8 @@ bool Exists (const KString& sPath, KFileFlags iFlags/*=NONE*/)
 bool GetContent (KString& sContent, const KString& sPath, KFileFlags eFlags/*=TEXT*/)
 //-----------------------------------------------------------------------------
 {
-	KFileReader File(sPath, std::ios_base::in, ((eFlags & TEXT) != 0) ? "\r\n\t " : "", '\n');
+	KFileReader File(sPath, std::ios_base::in);
+	File.SetRightTrim(((eFlags & TEXT) != 0) ? "\r\n\t " : "");
 	return File.ReadAll(sContent);
 
 } // GetContent

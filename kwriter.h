@@ -101,7 +101,9 @@ class KWriter : public OStream
 	using base_type = OStream;
 	using self_type = KWriter<OStream>;
 
+//-------
 public:
+//-------
 
 	//-----------------------------------------------------------------------------
 	/// default ctor

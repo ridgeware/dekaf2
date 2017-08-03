@@ -53,7 +53,7 @@ namespace dekaf2
 {
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// an unbuffered std::ostream that is constructed around a unix file descriptor
+/// an unbuffered std::istream that is constructed around a unix file descriptor
 /// (mainly to allow its usage with pipes, for general file I/O use std::ofstream)
 /// (really, do it - this one is really slow on small writes to files, on purpose,
 /// because pipes should not be buffered!)
@@ -67,7 +67,7 @@ protected:
 	using base_type = std::istream;
 
 	//-----------------------------------------------------------------------------
-	/// this is the custom streambuf writer
+	/// this is the custom streambuf reader
 	static std::streamsize FileDescReader(void* sBuffer, std::streamsize iCount, void* filedesc);
 	//-----------------------------------------------------------------------------
 
@@ -146,7 +146,7 @@ protected:
 
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// an buffered std::ostream that is constructed around a FILE ptr
+/// a buffered std::istream that is constructed around a FILE ptr
 /// (mainly to allow its usage with pipes, for general file I/O use std::ofstream)
 /// (really, do it - this one does not implement the full istream interface)
 class KInputFPStream : public std::istream
@@ -159,7 +159,7 @@ protected:
 	using base_type = std::istream;
 
 	//-----------------------------------------------------------------------------
-	/// this is the custom streambuf writer
+	/// this is the custom streambuf reader
 	static std::streamsize FilePtrReader(void* sBuffer, std::streamsize iCount, void* filedesc);
 	//-----------------------------------------------------------------------------
 
@@ -180,8 +180,7 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// the main purpose of this class: allow construction from a standard unix
-	/// file descriptor
+	/// the main purpose of this class: allow construction from a FILE ptr
 	KInputFPStream(FILE* iFilePtr)
 	//-----------------------------------------------------------------------------
 	{
@@ -199,13 +198,12 @@ public:
 	KInputFPStream& operator=(const KInputFPStream&) = delete;
 
 	//-----------------------------------------------------------------------------
-	/// the main purpose of this class: open from a standard unix
-	/// file descriptor
+	/// the main purpose of this class: open from a FILE ptr
 	void open(FILE* iFilePtr);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// test if a file is associated to this output stream
+	/// test if a file is associated to this input stream
 	inline bool is_open() const
 	//-----------------------------------------------------------------------------
 	{

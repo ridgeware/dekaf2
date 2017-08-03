@@ -49,20 +49,20 @@ namespace dekaf2
 
 
 //-----------------------------------------------------------------------------
-KOStreamBuf::~KOStreamBuf()
+KOutStreamBuf::~KOutStreamBuf()
 //-----------------------------------------------------------------------------
 {
 }
 
 //-----------------------------------------------------------------------------
-std::streamsize KOStreamBuf::xsputn(const char_type* s, std::streamsize n)
+std::streamsize KOutStreamBuf::xsputn(const char_type* s, std::streamsize n)
 //-----------------------------------------------------------------------------
 {
 	return m_Callback(s, n, m_CustomPointer);
 }
 
 //-----------------------------------------------------------------------------
-KOStreamBuf::int_type KOStreamBuf::overflow(int_type ch)
+KOutStreamBuf::int_type KOutStreamBuf::overflow(int_type ch)
 //-----------------------------------------------------------------------------
 {
 	return static_cast<int_type>(m_Callback(&ch, 1, m_CustomPointer));
@@ -70,14 +70,14 @@ KOStreamBuf::int_type KOStreamBuf::overflow(int_type ch)
 
 
 //-----------------------------------------------------------------------------
-KBasicWriter::~KBasicWriter()
+KOutStream::~KOutStream()
 //-----------------------------------------------------------------------------
 {
 }
 
 //-----------------------------------------------------------------------------
 /// Write a character. Returns stream reference that resolves to false on failure
-KBasicWriter::self_type& KBasicWriter::Write(KString::value_type& ch)
+KOutStream::self_type& KOutStream::Write(KString::value_type& ch)
 //-----------------------------------------------------------------------------
 {
 	std::streambuf* sb = m_sRef->rdbuf();
@@ -94,7 +94,7 @@ KBasicWriter::self_type& KBasicWriter::Write(KString::value_type& ch)
 
 //-----------------------------------------------------------------------------
 /// Write a range of characters. Returns stream reference that resolves to false on failure
-KBasicWriter::self_type& KBasicWriter::Write(const typename std::ostream::char_type* pAddress, size_t iCount)
+KOutStream::self_type& KOutStream::Write(const typename std::ostream::char_type* pAddress, size_t iCount)
 //-----------------------------------------------------------------------------
 {
 	if (iCount)

@@ -64,6 +64,7 @@ set (SOURCES
     kfdreader.cpp
     kwriter.cpp
     kfdwriter.cpp
+    kstream.cpp
 )
 
 # make sure we have the necessary version of cmake installed

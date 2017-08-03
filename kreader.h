@@ -54,7 +54,7 @@ namespace dekaf2
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// a customizable input stream buffer
-struct KIStreamBuf : public std::streambuf
+struct KInStreamBuf : public std::streambuf
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 	//-----------------------------------------------------------------------------
@@ -67,13 +67,13 @@ struct KIStreamBuf : public std::streambuf
 
 	//-----------------------------------------------------------------------------
 	/// provide a Reader function, it will be called by std::streambuf on buffer reads
-	KIStreamBuf(Reader cb, void* CustomPointer = nullptr)
+	KInStreamBuf(Reader cb, void* CustomPointer = nullptr)
 	//-----------------------------------------------------------------------------
 	    : m_Callback(cb), m_CustomPointer(CustomPointer)
 	{
 	}
 	//-----------------------------------------------------------------------------
-	virtual ~KIStreamBuf();
+	virtual ~KInStreamBuf();
 	//-----------------------------------------------------------------------------
 
 protected:
@@ -132,10 +132,10 @@ bool kRewind(std::istream& Stream);
 /// std::istream, and has iterators and read accessors that attach to the
 /// std::streambuf of the istream. Provides a line iterator on the file
 /// content, and can trim returned lines. Is used as a component for KReader.
-class KBasicReader
+class KInStream
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
-	using self_type = KBasicReader;
+	using self_type = KInStream;
 	using ios_type  = std::istream;
 
 //-------
@@ -155,7 +155,7 @@ public:
 		typedef KString value_type;
 		typedef value_type& reference;
 		typedef value_type* pointer;
-		typedef KBasicReader base_iterator;
+		typedef KInStream base_iterator;
 		typedef std::input_iterator_tag iterator_category;
 		typedef std::ptrdiff_t difference_type;
 
@@ -265,7 +265,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// value constructor
-	KBasicReader(std::istream& sRef,
+	KInStream(std::istream& sRef,
 	             KStringView sTrimRight = "",
 	             KString::value_type chDelimiter = '\n')
 	//-----------------------------------------------------------------------------
@@ -276,17 +276,13 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	/// copy construct a KBasicReader
-	KBasicReader(const self_type& other)
+	/// copy construction is deleted, as with std::istream
+	KInStream(const self_type& other) = delete;
 	//-----------------------------------------------------------------------------
-	    : m_sRef(other.m_sRef)
-	    , m_sTrimRight(other.m_sTrimRight)
-	    , m_chDelimiter(other.m_chDelimiter)
-	{}
 
 	//-----------------------------------------------------------------------------
-	/// move construct a KBasicReader
-	KBasicReader(self_type&& other) noexcept
+	/// move construct a KInStream
+	KInStream(self_type&& other) noexcept
 	//-----------------------------------------------------------------------------
 	    : m_sRef(std::move(other.m_sRef))
 	    , m_sTrimRight(std::move(other.m_sTrimRight))
@@ -294,18 +290,12 @@ public:
 	{}
 
 	//-----------------------------------------------------------------------------
-	/// copy assign a KBasicReader
-	self_type& operator=(const self_type& other)
+	/// copy assignment is deleted, as with std::istream
+	self_type& operator=(const self_type& other) = delete;
 	//-----------------------------------------------------------------------------
-	{
-		m_sRef = other.m_sRef;
-		m_sTrimRight = other.m_sTrimRight;
-		m_chDelimiter = other.m_chDelimiter;
-		return *this;
-	}
 
 	//-----------------------------------------------------------------------------
-	/// move assign a KBasicReader
+	/// move assign a KInStream
 	self_type& operator=(self_type&& other) noexcept
 	//-----------------------------------------------------------------------------
 	{
@@ -316,7 +306,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	virtual ~KBasicReader();
+	virtual ~KInStream();
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -511,6 +501,38 @@ public:
 		SetReaderRightTrim(sTrimRight);
 	}
 
+	//-----------------------------------------------------------------------------
+	/// Get the std::istream
+	const std::istream& InStream() const
+	//-----------------------------------------------------------------------------
+	{
+		return *m_sRef;
+	}
+
+	//-----------------------------------------------------------------------------
+	/// Get the std::istream
+	std::istream& InStream()
+	//-----------------------------------------------------------------------------
+	{
+		return *m_sRef;
+	}
+
+	//-----------------------------------------------------------------------------
+	/// Get the std::istream
+	operator const std::istream& () const
+	//-----------------------------------------------------------------------------
+	{
+		return InStream();
+	}
+
+	//-----------------------------------------------------------------------------
+	/// Get the std::istream
+	operator std::istream& ()
+	//-----------------------------------------------------------------------------
+	{
+		return InStream();
+	}
+
 //-------
 protected:
 //-------
@@ -521,15 +543,17 @@ protected:
 	KString m_sTrimRight;
 	KString::value_type m_chDelimiter{'\n'};
 
-}; // KBasicReader
+}; // KInStream
 
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// The general reader abstraction for dekaf2. Can be constructed around any
+/// The templatized reader abstraction for dekaf2. Can be constructed around any
 /// std::istream.
 template<class IStream>
-class KReader : public IStream, public KBasicReader
+class KReader
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+        : public IStream
+        , public KInStream
 {
 	using base_type = IStream;
 	using self_type = KReader<IStream>;
@@ -543,16 +567,13 @@ public:
 	KReader(self_type&& other) noexcept
 	//-----------------------------------------------------------------------------
 	    : base_type(std::move(other))
-	    , KBasicReader(std::move(other))
+	    , KInStream(std::move(other))
 	{}
 
 	//-----------------------------------------------------------------------------
-	/// copy construct a KReader
-	KReader(self_type& other)
+	/// copy constructor is deleted, as with std::istream
+	KReader(self_type& other) = delete;
 	//-----------------------------------------------------------------------------
-	    : base_type(other)
-	    , KBasicReader(other)
-	{}
 
 	//-----------------------------------------------------------------------------
 	// semi-perfect forwarding - currently needed as std::istream does not yet
@@ -560,7 +581,7 @@ public:
 	template<class... Args>
 	KReader(KStringView sv, Args&&... args)
 	    : base_type(std::string(sv), std::forward<Args>(args)...)
-	    , KBasicReader(static_cast<std::istream&>(*this))
+	    , KInStream(static_cast<std::istream&>(*this))
 	//-----------------------------------------------------------------------------
 	{
 		static_assert(std::is_base_of<std::istream, IStream>::value,
@@ -572,7 +593,7 @@ public:
 	template<class... Args>
 	KReader(Args&&... args)
 	    : base_type(std::forward<Args>(args)...)
-	    , KBasicReader(static_cast<std::istream&>(*this))
+	    , KInStream(static_cast<std::istream&>(*this))
 	//-----------------------------------------------------------------------------
 	{
 		static_assert(std::is_base_of<std::istream, IStream>::value,
@@ -580,13 +601,9 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	/// copy assignment
-	self_type& operator=(const self_type& other)
+	/// copy assignment is deleted, as with std::istream
+	self_type& operator=(const self_type& other) = delete;
 	//-----------------------------------------------------------------------------
-	{
-		base_type::operator=(other);
-		KBasicReader::operator=(other);
-	}
 
 	//-----------------------------------------------------------------------------
 	/// move assignment
@@ -594,7 +611,7 @@ public:
 	//-----------------------------------------------------------------------------
 	{
 		base_type::operator=(std::move(other));
-		KBasicReader::operator=(std::move(other));
+		KInStream::operator=(std::move(other));
 	}
 
 	//-----------------------------------------------------------------------------
@@ -602,7 +619,7 @@ public:
 	const_iterator end()
 	//-----------------------------------------------------------------------------
 	 {
-		return KBasicReader::end();
+		return KInStream::end();
 	 }
 
 };

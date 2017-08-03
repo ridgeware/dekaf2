@@ -56,7 +56,7 @@ namespace dekaf2
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// a customized output stream buffer
-struct KOStreamBuf : public std::streambuf
+struct KOutStreamBuf : public std::streambuf
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 	//-----------------------------------------------------------------------------
@@ -69,13 +69,13 @@ struct KOStreamBuf : public std::streambuf
 
 	//-----------------------------------------------------------------------------
 	/// provide a Writer function, it will be called by std::streambuf on buffer flushes
-	KOStreamBuf(Writer cb, void* CustomPointer = nullptr)
+	KOutStreamBuf(Writer cb, void* CustomPointer = nullptr)
 	//-----------------------------------------------------------------------------
 	    : m_Callback(cb), m_CustomPointer(CustomPointer)
 	{
 	}
 	//-----------------------------------------------------------------------------
-	virtual ~KOStreamBuf();
+	virtual ~KOutStreamBuf();
 	//-----------------------------------------------------------------------------
 
 protected:
@@ -98,10 +98,10 @@ private:
 /// std::ostream. Provides localization friendly formatting methods and a fast
 /// bypass of std::ostream's formatting functions by directly writing to the
 /// std::streambuf. Is used as a component for KReader.
-class KBasicWriter
+class KOutStream
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
-	using self_type = KBasicWriter;
+	using self_type = KOutStream;
 	using ios_type  = std::ostream;
 
 //-------
@@ -109,7 +109,7 @@ public:
 //-------
 	//-----------------------------------------------------------------------------
 	/// value constructor
-	KBasicWriter(std::ostream& sRef,
+	KOutStream(std::ostream& sRef,
 	             KStringView sDelimiter = "\n")
 	//-----------------------------------------------------------------------------
 	    : m_sRef(&sRef)
@@ -118,33 +118,25 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	/// copy construct a KBasicWriter
-	KBasicWriter(const self_type& other)
+	/// copy constructor is deleted, as with std::ostream
+	KOutStream(const self_type& other) = delete;
 	//-----------------------------------------------------------------------------
-	    : m_sRef(other.m_sRef)
-	    , m_sDelimiter(other.m_sDelimiter)
-	{}
 
 	//-----------------------------------------------------------------------------
-	/// move construct a KBasicWriter
-	KBasicWriter(self_type&& other) noexcept
+	/// move construct a KOutStream
+	KOutStream(self_type&& other) noexcept
 	//-----------------------------------------------------------------------------
 	    : m_sRef(std::move(other.m_sRef))
 	    , m_sDelimiter(std::move(other.m_sDelimiter))
 	{}
 
 	//-----------------------------------------------------------------------------
-	/// copy assign a KBasicWriter
-	self_type& operator=(const self_type& other)
+	/// copy assignment is deleted, as with std::ostream
+	self_type& operator=(const self_type& other) = delete;
 	//-----------------------------------------------------------------------------
-	{
-		m_sRef = other.m_sRef;
-		m_sDelimiter = other.m_sDelimiter;
-		return *this;
-	}
 
 	//-----------------------------------------------------------------------------
-	/// move assign a KBasicWriter
+	/// move assign a KOutStream
 	self_type& operator=(self_type&& other) noexcept
 	//-----------------------------------------------------------------------------
 	{
@@ -154,7 +146,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	virtual ~KBasicWriter();
+	virtual ~KOutStream();
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -229,6 +221,38 @@ public:
 		return *this;
 	}
 
+	//-----------------------------------------------------------------------------
+	/// Get the std::ostream
+	const std::ostream& OutStream() const
+	//-----------------------------------------------------------------------------
+	{
+		return *m_sRef;
+	}
+
+	//-----------------------------------------------------------------------------
+	/// Get the std::ostream
+	std::ostream& OutStream()
+	//-----------------------------------------------------------------------------
+	{
+		return *m_sRef;
+	}
+
+	//-----------------------------------------------------------------------------
+	/// Get the std::ostream
+	operator const std::ostream& () const
+	//-----------------------------------------------------------------------------
+	{
+		return OutStream();
+	}
+
+	//-----------------------------------------------------------------------------
+	/// Get the std::ostream
+	operator std::ostream& ()
+	//-----------------------------------------------------------------------------
+	{
+		return OutStream();
+	}
+
 //-------
 protected:
 //-------
@@ -243,8 +267,10 @@ protected:
 /// The general Writer abstraction for dekaf2. Can be constructed around any
 /// std::ostream.
 template<class OStream>
-class KWriter : public OStream, public KBasicWriter
+class KWriter
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+        : public OStream
+        , public KOutStream
 {
 	using base_type = OStream;
 	using self_type = KWriter<OStream>;
@@ -258,16 +284,13 @@ public:
 	KWriter(self_type&& other) noexcept
 	//-----------------------------------------------------------------------------
 	    : base_type(std::move(other))
-	    , KBasicWriter(std::move(other))
+	    , KOutStream(std::move(other))
 	{}
 
 	//-----------------------------------------------------------------------------
-	/// copy construct a KWriter
-	KWriter(self_type& other)
+	/// copy constructor is deleted, as with std::ostream
+	KWriter(self_type& other) = delete;
 	//-----------------------------------------------------------------------------
-	    : base_type(other)
-	    , KBasicWriter(other)
-	{}
 
 	//-----------------------------------------------------------------------------
 	// semi-perfect forwarding - currently needed as std::ostream does not yet
@@ -275,7 +298,7 @@ public:
 	template<class... Args>
 	KWriter(KStringView sv, Args&&... args)
 	    : base_type(std::string(sv), std::forward<Args>(args)...)
-	    , KBasicWriter(static_cast<std::ostream&>(*this))
+	    , KOutStream(static_cast<std::ostream&>(*this))
 	//-----------------------------------------------------------------------------
 	{
 		static_assert(std::is_base_of<std::ostream, OStream>::value,
@@ -287,7 +310,7 @@ public:
 	template<class... Args>
 	KWriter(Args&&... args)
 	    : base_type(std::forward<Args>(args)...)
-	    , KBasicWriter(static_cast<std::ostream&>(*this))
+	    , KOutStream(static_cast<std::ostream&>(*this))
 	//-----------------------------------------------------------------------------
 	{
 		static_assert(std::is_base_of<std::ostream, OStream>::value,
@@ -295,13 +318,9 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	/// copy assignment
-	self_type& operator=(const self_type& other)
+	/// copy assignment is deleted, as with std::ostream
+	self_type& operator=(const self_type& other) = delete;
 	//-----------------------------------------------------------------------------
-	{
-		base_type::operator=(other);
-		KBasicWriter::operator=(other);
-	}
 
 	//-----------------------------------------------------------------------------
 	/// move assignment
@@ -309,7 +328,7 @@ public:
 	//-----------------------------------------------------------------------------
 	{
 		base_type::operator=(std::move(other));
-		KBasicWriter::operator=(std::move(other));
+		KOutStream::operator=(std::move(other));
 	}
 
 };

@@ -50,19 +50,72 @@ namespace dekaf2
 {
 
 
+/// The generalized bidirectional stream abstraction for dekaf2
+class KStream : public KInStream, public KOutStream
+{
+	using self_type   = KStream;
+	using reader_type = KInStream;
+	using writer_type = KOutStream;
+
+//-------
+public:
+//-------
+
+	//-----------------------------------------------------------------------------
+	/// move construct a KReaderWriter
+	KStream(self_type&& other) noexcept
+	//-----------------------------------------------------------------------------
+		: reader_type(std::move(other))
+		, writer_type(std::move(other))
+	{}
+
+	//-----------------------------------------------------------------------------
+	/// copy construction is deleted, as with std::iostream
+	KStream(self_type& other) = delete;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// value construct a KStream
+	KStream(std::iostream& Stream)
+	//-----------------------------------------------------------------------------
+	    : reader_type(Stream)
+	    , writer_type(Stream)
+	{}
+
+	//-----------------------------------------------------------------------------
+	/// dtor
+	virtual ~KStream();
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// assignment operator is deleted, as with std::iostream
+	self_type& operator=(const self_type& other) = delete;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// move operator
+	self_type& operator=(self_type&& other)
+	//-----------------------------------------------------------------------------
+	{
+		reader_type::operator=(std::move(other));
+		writer_type::operator=(std::move(other));
+		return *this;
+	}
+
+};
+
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// The general bidirectional stream abstraction for dekaf2. Can be constructed around any
+/// The templatized bidirectional stream abstraction for dekaf2. Can be constructed around any
 /// std::iostream.
 template<class IOStream>
 class KReaderWriter
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
         : public IOStream
-        , public KBasicReader
-        , public KBasicWriter
+        , public KStream
 {
 	using base_type = IOStream;
 	using self_type = KReaderWriter<IOStream>;
-	using reader_type = KBasicReader;
-	using writer_type = KBasicWriter;
+	using k_rw_type = KStream;
 
 //-------
 public:
@@ -73,18 +126,13 @@ public:
 	KReaderWriter(self_type&& other) noexcept
 	//-----------------------------------------------------------------------------
 	    : base_type(std::move(other))
-	    , reader_type(std::move(other))
-	    , writer_type(std::move(other))
+	    , k_rw_type(std::move(other))
 	{}
 
 	//-----------------------------------------------------------------------------
-	/// copy construct a KReaderWriter
-	KReaderWriter(self_type& other)
+	/// copy constructor is deleted - std::iostreams is, too
+	KReaderWriter(self_type& other) = delete;
 	//-----------------------------------------------------------------------------
-	    : base_type(other)
-	    , reader_type(other)
-	    , writer_type(other)
-	{}
 
 	//-----------------------------------------------------------------------------
 	// semi-perfect forwarding - currently needed as std::iostream does not yet
@@ -92,8 +140,7 @@ public:
 	template<class... Args>
 	KReaderWriter(KStringView sv, Args&&... args)
 	    : base_type(std::string(sv), std::forward<Args>(args)...)
-	    , reader_type(static_cast<std::istream&>(*this))
-	    , writer_type(static_cast<std::ostream&>(*this))
+	    , k_rw_type(*this)
 	//-----------------------------------------------------------------------------
 	{
 		static_assert(std::is_base_of<std::iostream, IOStream>::value,
@@ -105,8 +152,7 @@ public:
 	template<class... Args>
 	KReaderWriter(Args&&... args)
 	    : base_type(std::forward<Args>(args)...)
-	    , reader_type(static_cast<std::istream&>(*this))
-	    , writer_type(static_cast<std::ostream&>(*this))
+	    , k_rw_type(static_cast<std::iostream&>(*this))
 	//-----------------------------------------------------------------------------
 	{
 		static_assert(std::is_base_of<std::iostream, IOStream>::value,
@@ -114,14 +160,9 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	/// copy assignment
-	self_type& operator=(const self_type& other)
+	/// copy assignment is deleted - std::iostring's is, too
+	self_type& operator=(const self_type& other) = delete;
 	//-----------------------------------------------------------------------------
-	{
-		base_type::operator=(other);
-		reader_type::operator=(other);
-		writer_type::operator=(other);
-	}
 
 	//-----------------------------------------------------------------------------
 	/// move assignment
@@ -129,8 +170,7 @@ public:
 	//-----------------------------------------------------------------------------
 	{
 		base_type::operator=(std::move(other));
-		reader_type::operator=(std::move(other));
-		writer_type::operator=(std::move(other));
+		k_rw_type::operator=(std::move(other));
 	}
 
 };

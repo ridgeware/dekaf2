@@ -2,6 +2,7 @@
 
 #include <kreader.h>
 #include <kfdreader.h>
+#include <kstream.h>
 #include <kwriter.h>
 #include <vector>
 #include <unistd.h>

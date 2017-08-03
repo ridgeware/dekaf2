@@ -62,13 +62,13 @@ namespace dekaf2
 #endif
 
 //-----------------------------------------------------------------------------
-KIStreamBuf::~KIStreamBuf()
+KInStreamBuf::~KInStreamBuf()
 //-----------------------------------------------------------------------------
 {
 }
 
 //-----------------------------------------------------------------------------
-std::streamsize KIStreamBuf::xsgetn(char_type* s, std::streamsize n)
+std::streamsize KInStreamBuf::xsgetn(char_type* s, std::streamsize n)
 //-----------------------------------------------------------------------------
 {
 	return m_Callback(s, n, m_CustomPointer);
@@ -76,7 +76,7 @@ std::streamsize KIStreamBuf::xsgetn(char_type* s, std::streamsize n)
 
 /*
 //-----------------------------------------------------------------------------
-KIStreamBuf::int_type KIStreamBuf::underflow()
+KInStreamBuf::int_type KInStreamBuf::underflow()
 //-----------------------------------------------------------------------------
 {
 	char ch;
@@ -86,7 +86,7 @@ KIStreamBuf::int_type KIStreamBuf::underflow()
 */
 
 //-----------------------------------------------------------------------------
-KIStreamBuf::int_type KIStreamBuf::uflow()
+KInStreamBuf::int_type KInStreamBuf::uflow()
 //-----------------------------------------------------------------------------
 {
 	char ch;
@@ -101,7 +101,7 @@ KIStreamBuf::int_type KIStreamBuf::uflow()
 }
 
 /*
-std::streamsize KIStreamBuf::showmanyc()
+std::streamsize KInStreamBuf::showmanyc()
 {
 }
 */
@@ -328,7 +328,7 @@ bool kReadLine(std::istream& Stream, KString& sLine, KStringView sTrimRight, KSt
 
 
 //-----------------------------------------------------------------------------
-KBasicReader::const_kreader_line_iterator::const_kreader_line_iterator(base_iterator& it, bool bToEnd)
+KInStream::const_kreader_line_iterator::const_kreader_line_iterator(base_iterator& it, bool bToEnd)
 //-----------------------------------------------------------------------------
     : m_it(bToEnd ? nullptr : &it)
 {
@@ -342,7 +342,7 @@ KBasicReader::const_kreader_line_iterator::const_kreader_line_iterator(base_iter
 }
 
 //-----------------------------------------------------------------------------
-KBasicReader::const_kreader_line_iterator::self_type& KBasicReader::const_kreader_line_iterator::operator++()
+KInStream::const_kreader_line_iterator::self_type& KInStream::const_kreader_line_iterator::operator++()
 //-----------------------------------------------------------------------------
 {
 	if (m_it != nullptr)
@@ -357,7 +357,7 @@ KBasicReader::const_kreader_line_iterator::self_type& KBasicReader::const_kreade
 } // prefix
 
 //-----------------------------------------------------------------------------
-KBasicReader::const_kreader_line_iterator::self_type KBasicReader::const_kreader_line_iterator::operator++(int)
+KInStream::const_kreader_line_iterator::self_type KInStream::const_kreader_line_iterator::operator++(int)
 //-----------------------------------------------------------------------------
 {
 	self_type i = *this;
@@ -375,14 +375,14 @@ KBasicReader::const_kreader_line_iterator::self_type KBasicReader::const_kreader
 
 
 //-----------------------------------------------------------------------------
-KBasicReader::~KBasicReader()
+KInStream::~KInStream()
 //-----------------------------------------------------------------------------
 {
 }
 
 //-----------------------------------------------------------------------------
 /// Read a character. Returns std::istream::traits_type::eof() (== -1) if no input available
-typename std::istream::int_type KBasicReader::Read()
+typename std::istream::int_type KInStream::Read()
 //-----------------------------------------------------------------------------
 {
 	std::streambuf* sb = m_sRef->rdbuf();
@@ -400,7 +400,7 @@ typename std::istream::int_type KBasicReader::Read()
 
 //-----------------------------------------------------------------------------
 /// Read a range of characters. Returns count of successfully read charcters.
-size_t KBasicReader::Read(typename std::istream::char_type* pAddress, size_t iCount)
+size_t KInStream::Read(typename std::istream::char_type* pAddress, size_t iCount)
 //-----------------------------------------------------------------------------
 {
 	std::streambuf* sb = m_sRef->rdbuf();

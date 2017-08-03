@@ -141,7 +141,7 @@ protected:
 	// see comment in KWriter's KOStreamBuf about the legality
 	// to only construct the KIStreamBuf here, but to use it in
 	// the constructor before
-	KIStreamBuf m_FPStreamBuf{&FileDescReader, &m_FileDesc};
+	KInStreamBuf m_FPStreamBuf{&FileDescReader, &m_FileDesc};
 };
 
 
@@ -231,7 +231,7 @@ protected:
 	// see comment in KWriter's KOStreamBuf about the legality
 	// to only construct the KIStreamBuf here, but to use it in
 	// the constructor before
-	KIStreamBuf m_FPStreamBuf{&FilePtrReader, &m_FilePtr};
+	KInStreamBuf m_FPStreamBuf{&FilePtrReader, &m_FilePtr};
 };
 
 

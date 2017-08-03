@@ -1,4 +1,4 @@
-#include "kpipereader.h"
+#include "kinshell.h"
 #include "klog.h"
 
 namespace dekaf2

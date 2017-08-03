@@ -43,7 +43,7 @@
 
 #include "kstring.h"
 #include "kcppcompat.h"
-#include "kpipereader.h"
+#include "kinshell.h"
 #include "kgetruntimestack.h"
 
 #ifdef UNIX

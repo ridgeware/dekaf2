@@ -1,6 +1,6 @@
 #include "catch.hpp"
-#include "kpipewriter.h"
-#include "kpipereader.h"
+#include "koutshell.h"
+#include "kinshell.h"
 
 #include <iostream>
 

@@ -1,6 +1,10 @@
-///////////////////////////////////////////////////////////////////////////////
-// DEKAF(tm): Lighter, Faster, Smarter(tm)
-// Copyright (c) 2000-2017, Ridgeware, Inc.
+/*
+//-----------------------------------------------------------------------------//
+//
+// DEKAF(tm): Lighter, Faster, Smarter (tm)
+//
+// Copyright (c) 2017, Ridgeware, Inc.
+//
 // +-------------------------------------------------------------------------+
 // | /\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\|
 // |/+---------------------------------------------------------------------+/|
@@ -34,33 +38,33 @@
 // |/+---------------------------------------------------------------------+/|
 // |\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/ |
 // +-------------------------------------------------------------------------+
-///////////////////////////////////////////////////////////////////////////////
+*/
 
-#include "klog.h"
-#include "kpipe.h"
+#pragma once
+
+#include "kbaseshell.h"
+#include "kfdreader.h"
 
 namespace dekaf2
 {
 
 //-----------------------------------------------------------------------------
-int KBaseShell::Close()
+class KInShell : public KBaseShell, public KFPReader
 //-----------------------------------------------------------------------------
 {
-	KLog().debug(3, "KPIPE::Close");
 
-	if (m_pipe)
-	{
-		m_iExitCode = pclose (m_pipe);
-		m_pipe = nullptr;
-	}
-	else
-	{
-		return -1; //attempting to close a pipe that is not open
-	}
+//------
+public:
+//------
 
-	KLog().debug(3, "KPIPE::Close::Done:: Exit Code = %u", m_iExitCode);
+	/// Default KPipeReader Constructor
+	KInShell() {}
+	/// Virtual Default KPipeReader Destructor
+	virtual ~KInShell() { Close(); }
 
-	return (m_iExitCode);
-} // Close
+	/// Executes given command via a shell pipe from which output can be read
+	virtual bool Open (KStringView sCommand);
 
-} // end of namespace dekaf2
+}; // END KPipeReader
+
+} // END NAMESPACE DEKAF2

@@ -1,4 +1,4 @@
-#include "kpipewriter.h"
+#include "koutshell.h"
 #include "klog.h"
 
 namespace dekaf2

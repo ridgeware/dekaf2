@@ -1,6 +1,6 @@
 #include "catch.hpp"
 
-#include <kpipereader.h>
+#include <kinshell.h>
 #include <kstring.h>
 
 #include <iostream>

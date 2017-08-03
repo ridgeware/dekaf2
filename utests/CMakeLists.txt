@@ -14,14 +14,14 @@ set (USOURCES
     kstring_tests.cpp
     kstringutils_tests.cpp
     kprops_tests.cpp
-    kpipe_tests.cpp
     kurl_tests.cpp
     kwebio_tests.cpp
     kcurl_tests.cpp
     kfile_tests.cpp
-    kpipereader_tests.cpp
     kreader_tests.cpp
-    kpipewriter_tests.cpp
+    kbaseshell_tests.cpp
+    kinshell_tests.cpp
+    koutshell_tests.cpp
 )
 
 add_executable(dekaf-utests ${UHEADERS} ${USOURCES})

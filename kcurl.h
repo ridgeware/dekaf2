@@ -62,7 +62,7 @@ Cookie: foo=bar; yummy_cookie=choco; tasty_cookie=strawberry
 #pragma once
 #include "kstring.h"
 #include "kprops.h"
-#include "kpipereader.h"
+#include "kinshell.h"
 //#include "kpipe.h"
 
 namespace dekaf2

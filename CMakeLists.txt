@@ -24,7 +24,6 @@ set (HEADERS
     kurl.h
     kurl2.h
     kprops.h
-    kpipe.h
     kcurl.h
     kwebio.h
     kstringutils.h
@@ -39,10 +38,11 @@ set (HEADERS
     kreader.h
     kfdreader.h
     kwriter.h
-    kpipereader.h
     kfdwriter.h
-    kpipewriter.h
     kstream.h
+    kbaseshell.h
+    kinshell.h
+    koutshell.h
 )
 
 set (SOURCES
@@ -54,7 +54,6 @@ set (SOURCES
     kprof.cpp
     kurl.cpp
     kurl2.cpp
-    kpipe.cpp
     kstringutils.cpp
     kparallel.cpp
     kcurl.cpp
@@ -65,13 +64,14 @@ set (SOURCES
     kgetruntimestack.cpp
     kstreamrw.cpp
     kreader.cpp
-    kpipereader.cpp
     kwriter.cpp
     kfdreader.cpp
     kwriter.cpp
     kfdwriter.cpp
-    kpipewriter.cpp
     kstream.cpp
+    kbaseshell.cpp
+    kinshell.cpp
+    koutshell.cpp
 )
 
 # make sure we have the necessary version of cmake installed

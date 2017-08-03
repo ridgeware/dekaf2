@@ -42,7 +42,7 @@
 
 #pragma once
 
-#include "kpipe.h"
+#include "kbaseshell.h"
 #include "kfdwriter.h"
 
 namespace dekaf2

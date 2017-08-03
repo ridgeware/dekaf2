@@ -168,7 +168,7 @@ private:
 	int m_iBackTrace{0};
 	KString m_sLogfile;
 	KString m_sFlagfile;
-	KFileWriter m_Log;
+	KOutFile m_Log;
 };
 
 

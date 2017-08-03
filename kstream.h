@@ -42,204 +42,145 @@
 
 #pragma once
 
-#include <cstdio>
-#include <streambuf>
-#include <istream>
-#include <type_traits>
 #include "kreader.h"
+#include "kwriter.h"
 
 
 namespace dekaf2
 {
 
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// an unbuffered std::istream that is constructed around a unix file descriptor
-/// (mainly to allow its usage with pipes, for general file I/O use std::ofstream)
-/// (really, do it - this one is really slow on small writes to files, on purpose,
-/// because pipes should not be buffered!)
-class KInputFDStream : public std::istream
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+/// The generalized bidirectional stream abstraction for dekaf2
+class KStream : public KInStream, public KOutStream
 {
-//----------
-protected:
-//----------
+	using self_type   = KStream;
+	using reader_type = KInStream;
+	using writer_type = KOutStream;
 
-	using base_type = std::istream;
-
-	//-----------------------------------------------------------------------------
-	/// this is the custom streambuf reader
-	static std::streamsize FileDescReader(void* sBuffer, std::streamsize iCount, void* filedesc);
-	//-----------------------------------------------------------------------------
-
-//----------
+//-------
 public:
-//----------
+//-------
 
 	//-----------------------------------------------------------------------------
-	KInputFDStream()
+	/// move construct a KReaderWriter
+	KStream(self_type&& other) noexcept
+	//-----------------------------------------------------------------------------
+		: reader_type(std::move(other))
+		, writer_type(std::move(other))
+	{}
+
+	//-----------------------------------------------------------------------------
+	/// copy construction is deleted, as with std::iostream
+	KStream(self_type& other) = delete;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// value construct a KStream
+	KStream(std::iostream& Stream)
+	//-----------------------------------------------------------------------------
+	    : reader_type(Stream)
+	    , writer_type(Stream)
+	{}
+
+	//-----------------------------------------------------------------------------
+	/// dtor
+	virtual ~KStream();
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// assignment operator is deleted, as with std::iostream
+	self_type& operator=(const self_type& other) = delete;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// move operator
+	self_type& operator=(self_type&& other)
 	//-----------------------------------------------------------------------------
 	{
+		reader_type::operator=(std::move(other));
+		writer_type::operator=(std::move(other));
+		return *this;
 	}
 
-	KInputFDStream(const KInputFDStream&) = delete;
+};
+
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// The templatized bidirectional stream abstraction for dekaf2. Can be constructed around any
+/// std::iostream.
+template<class IOStream>
+class KReaderWriter
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+        : public IOStream
+        , public KStream
+{
+	using base_type = IOStream;
+	using self_type = KReaderWriter<IOStream>;
+	using k_rw_type = KStream;
+
+//-------
+public:
+//-------
 
 	//-----------------------------------------------------------------------------
-	KInputFDStream(KInputFDStream&& other);
+	/// move construct a KReaderWriter
+	KReaderWriter(self_type&& other) noexcept
+	//-----------------------------------------------------------------------------
+	    : base_type(std::move(other))
+	    , k_rw_type(std::move(other))
+	{}
+
+	//-----------------------------------------------------------------------------
+	/// copy constructor is deleted - std::iostreams is, too
+	KReaderWriter(self_type& other) = delete;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// the main purpose of this class: allow construction from a standard unix
-	/// file descriptor
-	KInputFDStream(int iFileDesc)
+	// semi-perfect forwarding - currently needed as std::iostream does not yet
+	// support string_views as arguments
+	template<class... Args>
+	KReaderWriter(KStringView sv, Args&&... args)
+	    : base_type(std::string(sv), std::forward<Args>(args)...)
+	    , k_rw_type(*this)
 	//-----------------------------------------------------------------------------
 	{
-		open(iFileDesc);
+		static_assert(std::is_base_of<std::iostream, IOStream>::value,
+		              "KReaderWriter cannot be derived from a non-std::iostream class");
 	}
 
 	//-----------------------------------------------------------------------------
-	virtual ~KInputFDStream();
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	KInputFDStream& operator=(KInputFDStream&& other);
-	//-----------------------------------------------------------------------------
-
-	KInputFDStream& operator=(const KInputFDStream&) = delete;
-
-	//-----------------------------------------------------------------------------
-	/// the main purpose of this class: open from a standard unix
-	/// file descriptor
-	void open(int iFileDesc);
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// test if a file is associated to this output stream
-	inline bool is_open() const
+	// perfect forwarding
+	template<class... Args>
+	KReaderWriter(Args&&... args)
+	    : base_type(std::forward<Args>(args)...)
+	    , k_rw_type(static_cast<std::iostream&>(*this))
 	//-----------------------------------------------------------------------------
 	{
-		return m_FileDesc >= 0;
+		static_assert(std::is_base_of<std::iostream, IOStream>::value,
+		              "KReaderWriter cannot be derived from a non-std::iostream class");
 	}
 
 	//-----------------------------------------------------------------------------
-	/// close the output stream
-	void close();
+	/// copy assignment is deleted - std::iostring's is, too
+	self_type& operator=(const self_type& other) = delete;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// get the file descriptor
-	int GetDescriptor() const
+	/// move assignment
+	self_type& operator=(self_type&& other)
 	//-----------------------------------------------------------------------------
 	{
-		return m_FileDesc;
+		base_type::operator=(std::move(other));
+		k_rw_type::operator=(std::move(other));
 	}
 
-//----------
-protected:
-//----------
-	int m_FileDesc{-1};
-
-	// see comment in KWriter's KOStreamBuf about the legality
-	// to only construct the KIStreamBuf here, but to use it in
-	// the constructor before
-	KInStreamBuf m_FPStreamBuf{&FileDescReader, &m_FileDesc};
 };
 
 
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// a buffered std::istream that is constructed around a FILE ptr
-/// (mainly to allow its usage with pipes, for general file I/O use std::ofstream)
-/// (really, do it - this one does not implement the full istream interface)
-class KInputFPStream : public std::istream
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-{
-//----------
-protected:
-//----------
+/// File stream based on std::fstream
+using KFile           = KReaderWriter<std::fstream>;
 
-	using base_type = std::istream;
-
-	//-----------------------------------------------------------------------------
-	/// this is the custom streambuf reader
-	static std::streamsize FilePtrReader(void* sBuffer, std::streamsize iCount, void* filedesc);
-	//-----------------------------------------------------------------------------
-
-//----------
-public:
-//----------
-
-	//-----------------------------------------------------------------------------
-	KInputFPStream()
-	//-----------------------------------------------------------------------------
-	{
-	}
-
-	KInputFPStream(const KInputFPStream&) = delete;
-
-	//-----------------------------------------------------------------------------
-	KInputFPStream(KInputFPStream&& other);
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// the main purpose of this class: allow construction from a FILE ptr
-	KInputFPStream(FILE* iFilePtr)
-	//-----------------------------------------------------------------------------
-	{
-		open(iFilePtr);
-	}
-
-	//-----------------------------------------------------------------------------
-	virtual ~KInputFPStream();
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	KInputFPStream& operator=(KInputFPStream&& other);
-	//-----------------------------------------------------------------------------
-
-	KInputFPStream& operator=(const KInputFPStream&) = delete;
-
-	//-----------------------------------------------------------------------------
-	/// the main purpose of this class: open from a FILE ptr
-	void open(FILE* iFilePtr);
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// test if a file is associated to this input stream
-	inline bool is_open() const
-	//-----------------------------------------------------------------------------
-	{
-		return m_FilePtr;
-	}
-
-	//-----------------------------------------------------------------------------
-	/// close the output stream
-	void close();
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// get the file ptr
-	FILE* GetPtr() const
-	//-----------------------------------------------------------------------------
-	{
-		return m_FilePtr;
-	}
-
-//----------
-protected:
-//----------
-	FILE* m_FilePtr{nullptr};
-
-	// see comment in KWriter's KOStreamBuf about the legality
-	// to only construct the KIStreamBuf here, but to use it in
-	// the constructor before
-	KInStreamBuf m_FPStreamBuf{&FilePtrReader, &m_FilePtr};
-};
-
-
-/// FOR PIPES AND SPECIAL DEVICES ONLY! File descriptor reader based on KInputFDStream
-using KFDReader = KReader<KInputFDStream>;
-
-/// FOR PIPES AND SPECIAL DEVICES ONLY! FILE* reader based on KInputFPStream
-using KFPReader = KReader<KInputFPStream>;
+/// String writer based on std::stringstream
+using KStringStream   = KReaderWriter<std::stringstream>;
 
 } // end of namespace dekaf2
 

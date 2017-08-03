@@ -122,7 +122,8 @@ bool KLog::IntDebug(int level, KStringView sMessage)
 {
 	if (level <= m_iLevel)
 	{
-		m_Log.WriteLine(sMessage).flush();
+		m_Log.WriteLine(sMessage);
+		m_Log.flush();
 
 		if (level <= m_iBackTrace)
 		{

@@ -49,24 +49,69 @@ namespace dekaf2
 
 
 //-----------------------------------------------------------------------------
-KOStreamBuf::~KOStreamBuf()
+KOutStreamBuf::~KOutStreamBuf()
 //-----------------------------------------------------------------------------
 {
 }
 
 //-----------------------------------------------------------------------------
-std::streamsize KOStreamBuf::xsputn(const char_type* s, std::streamsize n)
+std::streamsize KOutStreamBuf::xsputn(const char_type* s, std::streamsize n)
 //-----------------------------------------------------------------------------
 {
 	return m_Callback(s, n, m_CustomPointer);
 }
 
 //-----------------------------------------------------------------------------
-KOStreamBuf::int_type KOStreamBuf::overflow(int_type ch)
+KOutStreamBuf::int_type KOutStreamBuf::overflow(int_type ch)
 //-----------------------------------------------------------------------------
 {
 	return static_cast<int_type>(m_Callback(&ch, 1, m_CustomPointer));
 }
+
+
+//-----------------------------------------------------------------------------
+KOutStream::~KOutStream()
+//-----------------------------------------------------------------------------
+{
+}
+
+//-----------------------------------------------------------------------------
+/// Write a character. Returns stream reference that resolves to false on failure
+KOutStream::self_type& KOutStream::Write(KString::value_type& ch)
+//-----------------------------------------------------------------------------
+{
+	std::streambuf* sb = m_sRef->rdbuf();
+	if (sb != nullptr)
+	{
+		typename std::ostream::int_type iCh = sb->sputc(ch);
+		if (std::ostream::traits_type::eq_int_type(iCh, std::ostream::traits_type::eof()))
+		{
+			m_sRef->setstate(std::ios_base::badbit);
+		}
+	}
+	return *this;
+}
+
+//-----------------------------------------------------------------------------
+/// Write a range of characters. Returns stream reference that resolves to false on failure
+KOutStream::self_type& KOutStream::Write(const typename std::ostream::char_type* pAddress, size_t iCount)
+//-----------------------------------------------------------------------------
+{
+	if (iCount)
+	{
+		std::streambuf* sb = m_sRef->rdbuf();
+		if (sb != nullptr)
+		{
+			size_t iWrote = static_cast<size_t>(sb->sputn(pAddress, iCount));
+			if (iWrote != iCount)
+			{
+				m_sRef->setstate(std::ios_base::badbit);
+			}
+		}
+	}
+	return *this;
+}
+
 
 } // end of namespace dekaf2
 

@@ -42,6 +42,7 @@ set (HEADERS
     kpipereader.h
     kfdwriter.h
     kpipewriter.h
+    kstream.h
 )
 
 set (SOURCES
@@ -70,6 +71,7 @@ set (SOURCES
     kwriter.cpp
     kfdwriter.cpp
     kpipewriter.cpp
+    kstream.cpp
 )
 
 # make sure we have the necessary version of cmake installed

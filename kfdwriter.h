@@ -151,7 +151,7 @@ protected:
 	// constructor order when declaring this class, and did not know that this was
 	// solved by the standard before reading her article:
 	// http://www.angelikalanger.com/Articles/C++Report/IOStreamsDerivation/IOStreamsDerivation.html
-	KOStreamBuf m_FPStreamBuf{&FileDescWriter, &m_FileDesc};
+	KOutStreamBuf m_FPStreamBuf{&FileDescWriter, &m_FileDesc};
 };
 
 
@@ -240,7 +240,7 @@ protected:
 //----------
 	FILE* m_FilePtr{nullptr};
 
-	KOStreamBuf m_FPStreamBuf{&FilePtrWriter, &m_FilePtr};
+	KOutStreamBuf m_FPStreamBuf{&FilePtrWriter, &m_FilePtr};
 };
 
 

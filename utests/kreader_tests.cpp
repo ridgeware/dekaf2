@@ -2,6 +2,7 @@
 
 #include <kreader.h>
 #include <kfdreader.h>
+#include <kstream.h>
 #include <kwriter.h>
 #include <vector>
 #include <unistd.h>
@@ -20,14 +21,14 @@ TEST_CASE("KReader") {
 
 		SECTION("default constructor")
 		{
-			KFileReader File;
+			KInFile File;
 			CHECK ( File.ReadLine(buf) == false );
 			CHECK ( buf.empty()        == true  );
 		}
 
 		SECTION("nonexisting file")
 		{
-			KFileReader File("/tmp/this_file_should_not_exist_ASKJFHsdkfgj37r6");
+			KInFile File("/tmp/this_file_should_not_exist_ASKJFHsdkfgj37r6");
 			CHECK ( File.ReadLine(buf) == false );
 			CHECK ( buf.empty()        == true  );
 		}
@@ -89,19 +90,22 @@ TEST_CASE("KReader") {
 		"line 9\n"
 	};
 
+	SECTION("create test file")
 	{
-		KFileWriter fWriter(sFile, std::ios_base::trunc);
+		KOutFile fWriter(sFile, std::ios_base::trunc);
 		CHECK( fWriter.is_open() == true );
 
 		if (fWriter.is_open())
 		{
 			fWriter.Write(sOut);
 		}
+		CHECK ( fWriter.good() );
+		CHECK ( fWriter        );
 	}
 
 	SECTION("KFileReader read all 1")
 	{
-		KFileReader File(sFile);
+		KInFile File(sFile);
 		KString sRead;
 		CHECK( File.eof() == false);
 		CHECK( File.GetContent(sRead) == true );
@@ -109,11 +113,9 @@ TEST_CASE("KReader") {
 		CHECK( File.eof() == true);
 	}
 
-
-
 	SECTION("KFileReader read all 2")
 	{
-		KFileReader File(sFile);
+		KInFile File(sFile);
 		CHECK( File.eof() == false);
 		KString sRead;
 		for (;;)
@@ -131,7 +133,7 @@ TEST_CASE("KReader") {
 
 	SECTION("KFileReader read iterator 1")
 	{
-		KFileReader File(sFile);
+		KInFile File(sFile);
 		auto it = File.begin();
 		KString s1;
 		s1 = *it;
@@ -156,7 +158,8 @@ TEST_CASE("KReader") {
 
 	SECTION("KFileReader read iterator 2")
 	{
-		KFileReader File(sFile, std::ios_base::in, "\r\n4 ", '\n');
+		KInFile File(sFile, std::ios_base::in);
+		File.SetReaderRightTrim("\r\n4 ");
 		auto it = File.begin();
 		KString s1;
 		s1 = *it;
@@ -181,7 +184,7 @@ TEST_CASE("KReader") {
 
 	SECTION("KFileReader read iterator 3")
 	{
-		KFileReader File(sFile);
+		KInFile File(sFile);
 		CHECK( File.eof() == false);
 		auto it = File.begin();
 		for (int iCount = 0; iCount < 9; ++iCount)
@@ -193,7 +196,8 @@ TEST_CASE("KReader") {
 
 	SECTION("KFileReader read iterator 4")
 	{
-		KFileReader File(sFile, std::ios_base::in, "\n", '\n');
+		KInFile File(sFile, std::ios_base::in);
+		File.SetReaderRightTrim("\n");
 		CHECK( File.eof() == false);
 		CHECK( File.GetSize() == 63 );
 		CHECK( File.GetRemainingSize() == 63 );
@@ -252,7 +256,8 @@ TEST_CASE("KReader") {
 	SECTION("KFDReader read iterator 2")
 	{
 		int fd = ::open(sFile.c_str(), O_RDONLY);
-		KFDReader File(fd, "\n", '\n');
+		KFDReader File(fd);
+		File.SetReaderRightTrim("\n");
 		KString sRead;
 		CHECK( File.eof() == false);
 		int iCount = 0;
@@ -311,7 +316,8 @@ TEST_CASE("KReader") {
 	SECTION("KFPReader read iterator 2")
 	{
 		FILE* fp = std::fopen(sFile.c_str(), "r");
-		KFPReader File(fp, "\n", '\n');
+		KFPReader File(fp);
+		File.SetReaderRightTrim("\n");
 		KString sRead;
 		CHECK( File.eof() == false);
 		int iCount = 0;

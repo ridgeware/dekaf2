@@ -155,7 +155,7 @@ TEST_CASE("KReader") {
 	SECTION("KFileReader read iterator 2")
 	{
 		KFileReader File(sFile, std::ios_base::in);
-		File.SetRightTrim("\r\n4 ");
+		File.SetReaderRightTrim("\r\n4 ");
 		auto it = File.begin();
 		KString s1;
 		s1 = *it;
@@ -193,7 +193,7 @@ TEST_CASE("KReader") {
 	SECTION("KFileReader read iterator 4")
 	{
 		KFileReader File(sFile, std::ios_base::in);
-		File.SetRightTrim("\n");
+		File.SetReaderRightTrim("\n");
 		CHECK( File.eof() == false);
 		CHECK( File.GetSize() == 63 );
 		CHECK( File.GetRemainingSize() == 63 );
@@ -253,7 +253,7 @@ TEST_CASE("KReader") {
 	{
 		int fd = ::open(sFile.c_str(), O_RDONLY);
 		KFDReader File(fd);
-		File.SetRightTrim("\n");
+		File.SetReaderRightTrim("\n");
 		KString sRead;
 		CHECK( File.eof() == false);
 		int iCount = 0;
@@ -313,7 +313,7 @@ TEST_CASE("KReader") {
 	{
 		FILE* fp = std::fopen(sFile.c_str(), "r");
 		KFPReader File(fp);
-		File.SetRightTrim("\n");
+		File.SetReaderRightTrim("\n");
 		KString sRead;
 		CHECK( File.eof() == false);
 		int iCount = 0;

@@ -467,42 +467,42 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	/// Set the end-of-line character (defaults to LF at construction)
-	void SetEndOfLine(char chDelimiter)
+	/// Set the end-of-line character (defaults to LF)
+	void SetReaderEndOfLine(char chDelimiter = '\n')
 	//-----------------------------------------------------------------------------
 	{
 		m_chDelimiter = chDelimiter;
 	}
 
 	//-----------------------------------------------------------------------------
-	/// Set the left trim characters for line based reading (default to none at construction)
-	void SetLeftTrim(KStringView sTrimLeft)
+	/// Set the left trim characters for line based reading (default to none)
+	void SetReaderLeftTrim(KStringView sTrimLeft = "")
 	//-----------------------------------------------------------------------------
 	{
 		m_sTrimLeft  = sTrimLeft;
 	}
 
 	//-----------------------------------------------------------------------------
-	/// Set the right trim characters for line based reading (default to none at construction)
-	void SetRightTrim(KStringView sTrimRight)
+	/// Set the right trim characters for line based reading (default to none)
+	void SetReaderRightTrim(KStringView sTrimRight = "")
 	//-----------------------------------------------------------------------------
 	{
 		m_sTrimRight = sTrimRight;
 	}
 
 	//-----------------------------------------------------------------------------
-	/// Set the left and right trim characters for line based reading (default to none at construction)
-	void SetTrim(KStringView sTrimLeft, KStringView sTrimRight)
+	/// Set the left and right trim characters for line based reading (default to none)
+	void SetReaderTrim(KStringView sTrimLeft = "", KStringView sTrimRight = "")
 	//-----------------------------------------------------------------------------
 	{
-		SetLeftTrim(sTrimLeft);
-		SetRightTrim(sTrimRight);
+		SetReaderLeftTrim(sTrimLeft);
+		SetReaderRightTrim(sTrimRight);
 	}
 
 //-------
 protected:
 //-------
-	// m_sRef always has to be valid after the constructor
+	// m_sRef always has to be valid after construction
 	// - do not assign a nullptr per default
 	std::istream* m_sRef;
 	KString m_sTrimLeft;

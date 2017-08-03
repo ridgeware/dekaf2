@@ -68,5 +68,50 @@ KOStreamBuf::int_type KOStreamBuf::overflow(int_type ch)
 	return static_cast<int_type>(m_Callback(&ch, 1, m_CustomPointer));
 }
 
+
+//-----------------------------------------------------------------------------
+KBasicWriter::~KBasicWriter()
+//-----------------------------------------------------------------------------
+{
+}
+
+//-----------------------------------------------------------------------------
+/// Write a character. Returns stream reference that resolves to false on failure
+KBasicWriter::self_type& KBasicWriter::Write(KString::value_type& ch)
+//-----------------------------------------------------------------------------
+{
+	std::streambuf* sb = m_sRef->rdbuf();
+	if (sb != nullptr)
+	{
+		typename std::ostream::int_type iCh = sb->sputc(ch);
+		if (std::ostream::traits_type::eq_int_type(iCh, std::ostream::traits_type::eof()))
+		{
+			m_sRef->setstate(std::ios_base::badbit);
+		}
+	}
+	return *this;
+}
+
+//-----------------------------------------------------------------------------
+/// Write a range of characters. Returns stream reference that resolves to false on failure
+KBasicWriter::self_type& KBasicWriter::Write(const typename std::ostream::char_type* pAddress, size_t iCount)
+//-----------------------------------------------------------------------------
+{
+	if (iCount)
+	{
+		std::streambuf* sb = m_sRef->rdbuf();
+		if (sb != nullptr)
+		{
+			size_t iWrote = static_cast<size_t>(sb->sputn(pAddress, iCount));
+			if (iWrote != iCount)
+			{
+				m_sRef->setstate(std::ios_base::badbit);
+			}
+		}
+	}
+	return *this;
+}
+
+
 } // end of namespace dekaf2
 

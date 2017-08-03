@@ -107,7 +107,7 @@ bool GetContent (KString& sContent, const KString& sPath, KFileFlags eFlags/*=TE
 //-----------------------------------------------------------------------------
 {
 	KFileReader File(sPath, std::ios_base::in);
-	File.SetRightTrim(((eFlags & TEXT) != 0) ? "\r\n\t " : "");
+	File.SetReaderRightTrim(((eFlags & TEXT) != 0) ? "\r\n\t " : "");
 	return File.ReadAll(sContent);
 
 } // GetContent

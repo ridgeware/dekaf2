@@ -418,7 +418,7 @@ protected:
 
 }; // KString
 
-typedef std::basic_stringstream<KString::value_type> KStringStream;
+// typedef std::basic_stringstream<KString::value_type> KStringStream;
 
 inline std::ostream& operator <<(std::ostream& stream, const KString& str)
 {

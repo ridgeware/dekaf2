@@ -40,27 +40,28 @@
 //
 */
 
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <unistd.h>
-#include <cstdio>
-#include <experimental/filesystem>
+#include "kcppcompat.h"
+
+#ifdef DEKAF2_HAS_CPP_17
+ #include <experimental/filesystem>
+#else
+ #include <sys/types.h>
+ #include <sys/stat.h>
+ #include <unistd.h>
+ #include <cstdio>
+#endif
 
 #include "kfile.h"
 #include "kstring.h"
 #include "klog.h"
-#include "kreader.h"
 
 namespace dekaf2
 {
 
 namespace fs = std::experimental::filesystem;
 
-namespace KFile
-{
-
 //-----------------------------------------------------------------------------
-bool Exists (const KString& sPath, KFileFlags iFlags/*=NONE*/)
+bool kExists (const KString& sPath, bool bTestForEmptyFile /* = false */ )
 //-----------------------------------------------------------------------------
 {
 	std::error_code ec;
@@ -82,7 +83,7 @@ bool Exists (const KString& sPath, KFileFlags iFlags/*=NONE*/)
 		return false;
 	}
 
-	if ((iFlags & TEST0) == 0)
+	if (!bTestForEmptyFile)
 	{
 		// exists and is a file
 		return true;
@@ -102,26 +103,14 @@ bool Exists (const KString& sPath, KFileFlags iFlags/*=NONE*/)
 
 } // Exists
 
-//-----------------------------------------------------------------------------
-bool GetContent (KString& sContent, const KString& sPath, KFileFlags eFlags/*=TEXT*/)
-//-----------------------------------------------------------------------------
-{
-	KFileReader File(sPath, std::ios_base::in);
-	File.SetReaderRightTrim(((eFlags & TEXT) != 0) ? "\r\n\t " : "");
-	return File.ReadAll(sContent);
-
-} // GetContent
 
 //-----------------------------------------------------------------------------
-size_t GetSize (const KString& sPath)
+KString kGetCWD ()
 //-----------------------------------------------------------------------------
 {
-	KFileReader File(sPath);
-	return File.GetSize();
+	return fs::current_path().string();
 
-} // GetSize
-
-} // end of namespace KFile
+} // kGetCWD
 
 } // end of namespace dekaf2
 

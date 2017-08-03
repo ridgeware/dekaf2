@@ -24,8 +24,9 @@ TEST_CASE("KFile") {
 		"line 9\n"
 	};
 
+	SECTION("setup test file")
 	{
-		KFileWriter fWriter(sFile, std::ios_base::trunc);
+		KOutFile fWriter(sFile, std::ios_base::trunc);
 		CHECK( fWriter.is_open() == true );
 
 		if (fWriter.is_open())
@@ -36,13 +37,13 @@ TEST_CASE("KFile") {
 
 	SECTION("KFile stats")
 	{
-		CHECK( KFile::Exists(sFile, KFile::TEST0) == true );
-		CHECK( KFile::GetSize(sFile) == 63 );
+		CHECK( kExists(sFile, true) == true );
+		CHECK( kGetSize(sFile) == 63 );
 	}
 
 	SECTION("KFile read all")
 	{
-		KFileReader File(sFile);
+		KInFile File(sFile);
 		KString sRead;
 		CHECK( File.GetContent(sRead) == true );
 		CHECK( sRead == sOut );
@@ -50,7 +51,7 @@ TEST_CASE("KFile") {
 
 	SECTION("KFile read iterator 1")
 	{
-		KFileReader File(sFile);
+		KInFile File(sFile);
 		auto it = File.begin();
 		KString s1;
 		s1 = *it;
@@ -75,7 +76,7 @@ TEST_CASE("KFile") {
 
 	SECTION("KFile read iterator 2")
 	{
-		KFileReader File(sFile);
+		KInFile File(sFile);
 		for (const auto& it : File)
 		{
 			CHECK( it.StartsWith("line ") == true );

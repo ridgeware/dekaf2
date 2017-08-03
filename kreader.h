@@ -108,8 +108,20 @@ bool kReadLine(std::istream& Stream, KString& sLine, KStringView sTrimRight = ""
 /// Reads directly in the underlying streambuf
 bool kReadAll(std::istream& Stream, KString& sContent, bool bFromStart = true);
 
+/// Read all content of a file with name sFileName into a string
+bool kReadAll(KStringView sFileName, KString& sContent);
+
 /// Get the total size of a std::istream device. Returns -1 on Failure. Fails on non-seekable istreams.
 ssize_t kGetSize(std::istream& Stream, bool bFromStart = true);
+
+/// Get the total size of a file with name sFileName. Returns -1 on Failure.
+ssize_t kGetSize(const char* sFileName);
+
+/// Get the total size of a file with name sFileName. Returns -1 on Failure.
+inline ssize_t kGetSize(const KString& sFileName)
+{
+	return kGetSize(sFileName.c_str());
+}
 
 /// Reposition the device of a std::istream to the beginning. Fails on non-seekable istreams.
 bool kRewind(std::istream& Stream);
@@ -543,6 +555,19 @@ public:
 	{}
 
 	//-----------------------------------------------------------------------------
+	// semi-perfect forwarding - currently needed as std::istream does not yet
+	// support string_views as arguments
+	template<class... Args>
+	KReader(KStringView sv, Args&&... args)
+	    : base_type(std::string(sv), std::forward<Args>(args)...)
+	    , KBasicReader(static_cast<std::istream&>(*this))
+	//-----------------------------------------------------------------------------
+	{
+		static_assert(std::is_base_of<std::istream, IStream>::value,
+		              "KReader cannot be derived from a non-std::istream class");
+	}
+
+	//-----------------------------------------------------------------------------
 	// perfect forwarding
 	template<class... Args>
 	KReader(Args&&... args)
@@ -583,10 +608,10 @@ public:
 };
 
 /// File reader based on std::ifstream
-using KFileReader     = KReader<std::ifstream>;
+using KInFile          = KReader<std::ifstream>;
 
 /// String reader based on std::istreamstream
-using KStringReader   = KReader<std::istringstream>;
+using KInStringStream  = KReader<std::istringstream>;
 
 } // end of namespace dekaf2
 

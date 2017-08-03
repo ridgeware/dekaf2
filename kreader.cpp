@@ -40,11 +40,26 @@
 // +-------------------------------------------------------------------------+
 */
 
+#include "kcppcompat.h"
+
+#ifdef DEKAF2_HAS_CPP_17
+ #include <experimental/filesystem>
+#else
+ #include <sys/types.h>
+ #include <sys/stat.h>
+ #include <unistd.h>
+ #include <cstdio>
+#endif
+
 #include "kreader.h"
 #include "klog.h"
 
 namespace dekaf2
 {
+
+#ifdef DEKAF2_HAS_CPP_17
+ namespace fs = std::experimental::filesystem;
+#endif
 
 //-----------------------------------------------------------------------------
 KIStreamBuf::~KIStreamBuf()
@@ -96,7 +111,8 @@ bool kRewind(std::istream& Stream)
 //-----------------------------------------------------------------------------
 {
 	return Stream.rdbuf() && Stream.rdbuf()->pubseekoff(0, std::ios_base::beg) != std::streambuf::pos_type(std::streambuf::off_type(-1));
-}
+
+} // kRewind
 
 //-----------------------------------------------------------------------------
 ssize_t kGetSize(std::istream& Stream, bool bFromStart)
@@ -134,6 +150,33 @@ ssize_t kGetSize(std::istream& Stream, bool bFromStart)
 	{
 		return endPos - curPos;
 	}
+
+} // kGetSize
+
+//-----------------------------------------------------------------------------
+// we cannot use KStringView as we need to access a C API
+ssize_t kGetSize(const char* sFileName)
+//-----------------------------------------------------------------------------
+{
+#ifdef DEKAF2_HAS_CPP_17
+	std::error_code ec;
+	ssize_t iSize = static_cast<ssize_t>(fs::file_size(sFileName, ec));
+	if (ec)
+	{
+		iSize = -1;
+	}
+	return iSize;
+#else // default to posix interface
+	struct stat buf;
+	if (!::stat(sFileName, &buf))
+	{
+		return buf.st_size;
+	}
+	else
+	{
+		return -1;
+	}
+#endif
 }
 
 //-----------------------------------------------------------------------------
@@ -168,20 +211,30 @@ bool kReadAll(std::istream& Stream, KString& sContent, bool bFromStart)
 		// We could not determine the input size - this might be a
 		// minimalistic input stream buffer, or a non-seekable stream.
 		// We will simply try to read blocks until we fail.
-		enum { BUFSIZE = 2048 };
+		enum { BUFSIZE = 4096 };
 		char buf[BUFSIZE];
 
-		for (;;)
+		// as this approach can be really dangerous on endless input
+		// streams we do wrap it at least into a try-catch block..
+		try
 		{
-			size_t iRead = static_cast<size_t>(sb->sgetn(buf, BUFSIZE));
-			if (iRead > 0)
+			for (;;)
 			{
-				sContent.append(buf, iRead);
+				size_t iRead = static_cast<size_t>(sb->sgetn(buf, BUFSIZE));
+				if (iRead > 0)
+				{
+					sContent.append(buf, iRead);
+				}
+				if (iRead < BUFSIZE)
+				{
+					break;
+				}
 			}
-			if (iRead < BUFSIZE)
-			{
-				break;
-			}
+		}
+		catch (std::exception& e)
+		{
+			sContent.clear();
+			KLog().Exception(e, "kReadAll");
 		}
 
 		Stream.setstate(std::ios_base::eofbit);
@@ -214,7 +267,15 @@ bool kReadAll(std::istream& Stream, KString& sContent, bool bFromStart)
 
 	return true;
 
-} // ReadAll
+} // kReadAll
+
+//-----------------------------------------------------------------------------
+bool kReadAll(KStringView sFileName, KString& sContent)
+//-----------------------------------------------------------------------------
+{
+	KInFile File(sFileName);
+	return File.ReadRemaining(sContent);
+} // kReadAll
 
 //-----------------------------------------------------------------------------
 bool kReadLine(std::istream& Stream, KString& sLine, KStringView sTrimRight, KString::value_type delimiter)
@@ -262,7 +323,8 @@ bool kReadLine(std::istream& Stream, KString& sLine, KStringView sTrimRight, KSt
 			return true;
 		}
 	}
-}
+
+} // kReadLine
 
 
 //-----------------------------------------------------------------------------

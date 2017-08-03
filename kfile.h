@@ -44,34 +44,15 @@
 
 #include <cinttypes>
 #include "kstring.h"
+#include "kstream.h"
 
 namespace dekaf2
 {
 
-namespace KFile
-{
-
-enum // flags
-{
-	NONE   = 0,
-	TEXT   = 1 << 0,
-	TRIM   = 1 << 1,
-	TEST0  = 1 << 2,  // test for zero-length file
-};
-
 typedef uint16_t KFileFlags;
 
-// static interface
-bool      Exists       (const KString& sPath, KFileFlags iFlags = NONE);
-bool      GetContent   (KString& sContent, const KString& sPath, KFileFlags eFlags = TEXT);
-size_t    GetSize      (const KString& sPath);
-inline size_t GetBytes (const KString& sPath) { return GetSize(sPath); }
-KString   GetCWD       ();
-
-} // end of namespace KFile
-
-inline
-KString   kGetCWD      () { return KFile::GetCWD(); }
+bool kExists (const KString& sPath, bool bTestForEmptyFile = false);
+KString kGetCWD ();
 
 } // end of namespace dekaf2
 

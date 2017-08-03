@@ -270,6 +270,19 @@ public:
 	{}
 
 	//-----------------------------------------------------------------------------
+	// semi-perfect forwarding - currently needed as std::ostream does not yet
+	// support string_views as arguments
+	template<class... Args>
+	KWriter(KStringView sv, Args&&... args)
+	    : base_type(std::string(sv), std::forward<Args>(args)...)
+	    , KBasicWriter(static_cast<std::ostream&>(*this))
+	//-----------------------------------------------------------------------------
+	{
+		static_assert(std::is_base_of<std::ostream, OStream>::value,
+		              "KReader cannot be derived from a non-std::istream class");
+	}
+
+	//-----------------------------------------------------------------------------
 	// perfect forwarding
 	template<class... Args>
 	KWriter(Args&&... args)
@@ -303,10 +316,10 @@ public:
 
 
 /// File writer based on std::ofstream
-using KFileWriter     = KWriter<std::ofstream>;
+using KOutFile         = KWriter<std::ofstream>;
 
 /// String writer based on std::ostringstream
-using KStringWriter   = KWriter<std::ostringstream>;
+using KOutStringStream = KWriter<std::ostringstream>;
 
 } // end of namespace dekaf2
 

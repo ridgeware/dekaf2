@@ -39,6 +39,7 @@ set (HEADERS
     kfdreader.h
     kwriter.h
     kfdwriter.h
+    kstream.h
 )
 
 set (SOURCES

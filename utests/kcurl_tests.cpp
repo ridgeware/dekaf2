@@ -46,6 +46,17 @@ public:
 
 TEST_CASE("KCurl")
 {
+	SECTION("KCurl Init Destroy Test")
+	{
+		KCurl myCurl;
+		myCurl.setRequestURL("www.google.com");
+
+		CHECK_FALSE(myCurl.getEchoBody());
+		CHECK_FALSE(myCurl.getEchoHeader());
+
+		myCurl.~KCurl();
+	}
+
 	SECTION("KCurl Stream Test")
 	{
 
@@ -96,6 +107,7 @@ TEST_CASE("KCurl")
 		}
 
 		CHECK_FALSE(bSuccess);
+
 	}
 
 	SECTION("KCurl Delayed Set Stream Test")

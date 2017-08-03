@@ -5,6 +5,7 @@
 
 #include <iostream>
 #include <unistd.h>
+#include <sys/resource.h>
 
 #define kprPRINT 0
 
@@ -29,7 +30,7 @@ TEST_CASE("KPipeReader")
 
 	SECTION("KPipeReader Curl Test")
 	{
-		KPipeReader pipe;
+		KInShell pipe;
 		KString sCurlCMD = "curl -i www.google.com 2> /dev/null";
 		CHECK(pipe.Open(sCurlCMD));
 
@@ -52,7 +53,7 @@ TEST_CASE("KPipeReader")
 	{
 		INFO("normal_open_close_test::Start:");
 
-		KPipeReader pipe;
+		KInShell pipe;
 
 		// open the pipe
 		CHECK(pipe.Open("ls -al $dekaf/kpipe.cpp | grep kpipe.cpp | wc -l 2>&1"));
@@ -77,7 +78,7 @@ TEST_CASE("KPipeReader")
 	{
 		INFO("get_pid_should_not_return_zero::Start:");
 
-		KPipeReader   pipe;
+		KInShell   pipe;
 		kpipereader_testKillDelayTask();
 
 		// open the pipe
@@ -94,7 +95,7 @@ TEST_CASE("KPipeReader")
 	{
 		INFO("KPipeReader check_is_running::Start:");
 
-		KPipeReader pipe;
+		KInShell pipe;
 
 		CHECK(pipe.Open("usleep 2"));
 
@@ -120,7 +121,7 @@ TEST_CASE("KPipeReader")
 	{
 		INFO("KPipeReader is_open_return_false_if_pipe_is_not_open::Start:");
 
-		KPipeReader pipe;
+		KInShell pipe;
 		CHECK_FALSE(pipe.is_open());
 
 		INFO("KPipeReader is_open_return_false_if_pipe_is_not_open::Done:");
@@ -131,7 +132,7 @@ TEST_CASE("KPipeReader")
 	{
 		INFO("KPipeReader cannot_readline_of_bad_pipe::Start:");
 
-		KPipeReader pipe;
+		KInShell pipe;
 		//CHECK_FALSE(pipe.Open("echo rdoanm txet > /tmp/tmp.file"));
 		CHECK_FALSE(pipe.is_open());
 		KString outBuff;
@@ -145,7 +146,7 @@ TEST_CASE("KPipeReader")
 	{
 		INFO("KPipeReader  using_file_star_operator::Start:");
 
-		KPipeReader pipe;
+		KInShell pipe;
 
 		CHECK(pipe.Open("echo rdoanm txet > /tmp/tmp.file && cat /tmp/tmp.file > /dev/null"));
 		//CHECK(pipe.Open("echo rdoanm txet > /tmp/tmp.file", "w"));
@@ -164,7 +165,7 @@ TEST_CASE("KPipeReader")
 
 	SECTION("KPipeReader Iterator Test")
 	{
-		KPipeReader   pipe;
+		KInShell   pipe;
 		//KString sCurlCMD = "echo 'random text asdfjkl;asdfjkl;\nqwerty\nuoip\nzxcvbnm,zxcvbnm,\n\n' > /tmp/tmp.file && cat /tmp/tmp.file 2> /dev/null";
 		KString sCurlCMD = "echo 'random text asdfjkl;asdfjkl; qwerty uoip zxcvbnm,zxcvbnm,  ' > /tmp/tmp.file && cat /tmp/tmp.file 2> /dev/null";
 		CHECK(pipe.Open(sCurlCMD));
@@ -188,7 +189,7 @@ TEST_CASE("KPipeReader")
 
 	SECTION("KPipe Curl Iterator Test")
 	{
-		KPipeReader   pipe;
+		KInShell   pipe;
 		KString sCurlCMD = "curl -i www.google.com 2> /dev/null";
 		CHECK(pipe.Open(sCurlCMD));
 
@@ -212,24 +213,16 @@ TEST_CASE("KPipeReader")
 	{
 		INFO("normal_open_close_test::Start:");
 
-		KPipeReader pipe;
+		KInShell pipe;
 
-		// open the pipe
-		//CHECK_FALSE(pipe.Open("cd / ; find . -iname 'cpp' 2>&1 | xargs cat 2>&1"));
-		//[onelink@localhost /]$ find . -iname "cpp" | xargs cat
+		// fail open the pipe with empty string
+		CHECK_FALSE(pipe.Open(""));
 
-		KString sCurrentLine;
-
-		//bool output = pipe.ReadLine(sCurrentLine);
-		//CHECK(output);
-		//pipe.ReadLine(sCurrentLine);
 #if kprPRINT
 		std::cout << "output is: " << sCurrentLine << std::endl;
 #endif
-		//CHECK("1\n" == sCurrentLine);
 
-		//CHECK_FALSE(pipe.is_open());
-		//CHECK(0 == pipe.Close());
+		CHECK(pipe.Close() == -1);
 
 		INFO("normal_open_close_test::Done:");
 	} // normal open close

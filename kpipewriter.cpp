@@ -5,7 +5,7 @@ namespace dekaf2
 {
 
 //-----------------------------------------------------------------------------
-bool KPipeWriter::Open(KStringView sCommand)
+bool KOutShell::Open(KStringView sCommand)
 //-----------------------------------------------------------------------------
 {
 	KString sCmd(sCommand); // char* is not compatible with KStringView
@@ -17,7 +17,10 @@ bool KPipeWriter::Open(KStringView sCommand)
 	// - - - - - - - - - - - - - - - - - - - - - - - -
 	// shell out to run the command:
 	// - - - - - - - - - - - - - - - - - - - - - - - -
-	m_pipe = popen(sCmd.c_str(), "w");
+	if (!sCmd.empty())
+	{
+		m_pipe = popen(sCmd.c_str(), "w");
+	}
 
 	// - - - - - - - - - - - - - - - - - - - - - - - -
 	// interpret success:

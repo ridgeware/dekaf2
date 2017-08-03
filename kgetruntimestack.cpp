@@ -134,7 +134,7 @@ namespace detail
 			sCmdLine += sMyExeName;
 			sCmdLine += "\" ";
 			sCmdLine += sAddress;
-			KPipeReader pipe;
+			KInShell pipe;
 			if (pipe.Open (sCmdLine))
 			{
 				KString	sLineBuf;
@@ -218,7 +218,7 @@ namespace detail
 			sCmdLine += "\" ";
 			sCmdLine += std::to_string(getpid());
 			sCmdLine += " 2>&1";
-			KPipeReader pipe;
+			KInShell pipe;
 
 			if (pipe.Open (sCmdLine))
 			{

@@ -152,7 +152,7 @@ protected:
 //--------
 private:
 //--------
-	KPipeReader  m_kpipe; // pipe to read response data from
+	KInShell  m_kpipe; // pipe to read response data from
 	KString      m_sRequestURL; // request url, must be set
 	KHeader      m_requestHeaders; // headers to add to requests
 	KHeader      m_requestCookies; // cookies to add to request

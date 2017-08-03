@@ -14,7 +14,7 @@ TEST_CASE("KPipeWriter")
 	{
 		INFO("KPipe  write_pipe::Start:");
 
-		KPipeWriter pipe;
+		KOutShell pipe;
 
 		//CHECK(pipe.Open("echo rdoanm txet 1 > /tmp/tmp.file"));
 		CHECK(pipe.Open("cat > /tmp/tmp.file"));
@@ -32,7 +32,7 @@ TEST_CASE("KPipeWriter")
 	{
 		INFO("KPipe  write_pipe then read to confirm");
 
-		KPipeWriter pipe;
+		KOutShell pipe;
 
 		//CHECK(pipe.Open("echo rdoanm txet 1 > /tmp/tmp.file"));
 		CHECK(pipe.Open("cat > /tmp/tmp.file"));
@@ -42,7 +42,7 @@ TEST_CASE("KPipeWriter")
 		CHECK(pipe.is_open());
 		CHECK(0 == pipe.Close());
 
-		KPipeReader readPipe;
+		KInShell readPipe;
 		CHECK(readPipe.Open("cat /tmp/tmp.file"));
 		KString output;
 		for (auto iter = readPipe.begin(); iter != readPipe.end(); iter++)
@@ -58,5 +58,21 @@ TEST_CASE("KPipeWriter")
 
 	} // write_pipe
 
+	SECTION("KPipeReader fail to open test")
+	{
+		INFO("KPipeReader fail to open test::Start:");
 
+		KOutShell pipe;
+
+		// fail open the pipe with empty string
+		CHECK_FALSE(pipe.Open(""));
+
+#if kpwPRINT
+		std::cout << "output is: " << sCurrentLine << std::endl;
+#endif
+
+		CHECK(pipe.Close() == -1);
+
+		INFO("KPipeReader fail to open test::Done:");
+	} // normal open close
 }

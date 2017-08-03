@@ -208,4 +208,29 @@ TEST_CASE("KPipeReader")
 		CHECK(pipe.Close() == 0);
 	} // Curl Iterator Test
 
+	SECTION("KPipeReader fail to open test")
+	{
+		INFO("normal_open_close_test::Start:");
+
+		KPipeReader pipe;
+
+		// open the pipe
+		//CHECK_FALSE(pipe.Open("cd / ; find . -iname 'cpp' 2>&1 | xargs cat 2>&1"));
+		//[onelink@localhost /]$ find . -iname "cpp" | xargs cat
+
+		KString sCurrentLine;
+
+		//bool output = pipe.ReadLine(sCurrentLine);
+		//CHECK(output);
+		//pipe.ReadLine(sCurrentLine);
+#if kprPRINT
+		std::cout << "output is: " << sCurrentLine << std::endl;
+#endif
+		//CHECK("1\n" == sCurrentLine);
+
+		//CHECK_FALSE(pipe.is_open());
+		//CHECK(0 == pipe.Close());
+
+		INFO("normal_open_close_test::Done:");
+	} // normal open close
 }

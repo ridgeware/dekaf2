@@ -65,7 +65,7 @@ uint16_t katoi(KString& num)
 	int res = 0; // Initialize result
 
 	// Iterate through all characters of input string and
-	for (int i = 0; i < num.size(); i++)
+	for (size_t i = 0; i < num.size(); i++)
 	{
 		res = res*10 + num[i] - '0';
 	}

@@ -672,6 +672,7 @@ KString& KString::Trim()
 //----------------------------------------------------------------------
 {
 	dekaf2::Trim(m_rep, [](value_type ch){ return std::isspace(ch) != 0; } );
+	return *this;
 }
 
 //----------------------------------------------------------------------
@@ -679,6 +680,7 @@ KString& KString::Trim(value_type chTarget)
 //----------------------------------------------------------------------
 {
 	dekaf2::Trim(m_rep, [chTarget](value_type ch){ return ch == chTarget; } );
+	return *this;
 }
 
 //----------------------------------------------------------------------
@@ -690,6 +692,7 @@ KString& KString::Trim(KStringView sTarget)
 		return Trim(sTarget[0]);
 	}
 	dekaf2::Trim(m_rep, [sTarget](value_type ch){ return memchr(sTarget.data(), ch, sTarget.size()) != nullptr; } );
+	return *this;
 }
 
 //----------------------------------------------------------------------

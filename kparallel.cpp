@@ -110,8 +110,8 @@ void KParallelForEachPrintProgress(size_t iMax, size_t iDone, size_t iRunning)
 		return;
 	}
 
-	size_t iPercent    = iDone    * 100 / iMax;
-	size_t iInProgress = iRunning * 100 / iMax;
+//	size_t iPercent    = iDone    * 100 / iMax;
+//	size_t iInProgress = iRunning * 100 / iMax;
 
 	// TODO add output
 //	cVerboseOut(2, "%s parallel_for_each: completed %lu%%, in progress %lu%% \n",

@@ -145,7 +145,7 @@ bool KPIPE::getline(KString & sOutputBuffer, size_t iMaxLen/*=0*/, bool bTextOnl
 		return false;
 	}
 	iMaxLen = (iMaxLen == 0) ? 999999: iMaxLen;
-	for (int i = 0; i < iMaxLen; i++)
+	for (size_t i = 0; i < iMaxLen; i++)
 	{
 		int iCh = fgetc(m_pipe);
 		switch (iCh)

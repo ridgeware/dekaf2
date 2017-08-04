@@ -1,9 +1,9 @@
 #include "catch.hpp"
 
-#include <kreader.h>
-#include <kfdreader.h>
-#include <kstream.h>
-#include <kwriter.h>
+#include <dekaf2/kreader.h>
+#include <dekaf2/kfdreader.h>
+#include <dekaf2/kstream.h>
+#include <dekaf2/kwriter.h>
 #include <vector>
 #include <unistd.h>
 #include <sys/types.h>

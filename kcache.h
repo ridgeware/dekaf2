@@ -45,7 +45,7 @@
 #include "kcppcompat.h"
 #include <unordered_map>
 #include <functional>
-#include "dekaf.h"
+#include "dekaf2.h"
 #include "ksharedref.h"
 
 

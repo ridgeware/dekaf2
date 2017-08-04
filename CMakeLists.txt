@@ -13,7 +13,7 @@ find_package(Threads REQUIRED)
 add_subdirectory(libs)
 
 set (HEADERS
-    dekaf.h
+    dekaf2.h
     kstring.h
     kcache.h
     kregex.h
@@ -44,7 +44,7 @@ set (HEADERS
 )
 
 set (SOURCES
-    dekaf.cpp
+    dekaf2.cpp
     kstring.cpp
     kregex.cpp
     klog.cpp
@@ -91,7 +91,7 @@ if (DEKAF2_INSTALL_HEADERS)
 
 else()
 
-    set (DEKAF2_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
+    set (DEKAF2_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/..")
     add_custom_target(lib-headers-dekaf2)
 
 endif(DEKAF2_INSTALL_HEADERS)
@@ -99,7 +99,7 @@ endif(DEKAF2_INSTALL_HEADERS)
 add_library(dekaf2 ${HEADERS} ${SOURCES})
 target_link_libraries(dekaf2 fmt re2 libstdc++fs.a Threads::Threads)
 add_dependencies(dekaf2 lib-headers-dekaf2)
-set_target_properties(dekaf2 PROPERTIES INTERFACE_INCLUDE_DIRECTORIES ${DEKAF2_INCLUDE_DIR})
+set_target_properties(dekaf2 PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${DEKAF2_INCLUDE_DIR}")
 target_compile_definitions(dekaf2 PRIVATE DEKAF2_LIBRARY_BUILD)
 
 add_subdirectory(utests)

@@ -1,8 +1,8 @@
 #include "catch.hpp"
 
-#include <kprops.h>
-#include <kstring.h>
-#include <kcppcompat.h>
+#include <dekaf2/kprops.h>
+#include <dekaf2/kstring.h>
+#include <dekaf2/kcppcompat.h>
 
 using namespace dekaf2;
 

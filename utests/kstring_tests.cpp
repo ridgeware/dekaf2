@@ -1,7 +1,7 @@
 #include "catch.hpp"
 
-#include <kstring.h>
-#include <kstringutils.h>
+#include <dekaf2/kstring.h>
+#include <dekaf2/kstringutils.h>
 #include <vector>
 #include <iostream>
 

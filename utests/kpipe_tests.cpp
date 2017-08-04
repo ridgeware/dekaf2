@@ -1,11 +1,11 @@
 #include "catch.hpp"
 
-#include <klog.h>
-#include <kpipe.h>
+#include <dekaf2/klog.h>
+#include <dekaf2/kpipe.h>
 
 #include <signal.h>
 #include <unistd.h>
-#include <kstring.h>
+#include <dekaf2/kstring.h>
 #include <iostream>
 
 #include <fmt/format.h>

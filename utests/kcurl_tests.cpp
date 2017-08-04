@@ -1,4 +1,4 @@
-#include <kwebio.h>
+#include <dekaf2/kwebio.h>
 
 #include "catch.hpp"
 using namespace dekaf2;

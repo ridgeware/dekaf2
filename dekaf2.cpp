@@ -41,7 +41,7 @@
 */
 
 #include <clocale>
-#include "dekaf.h"
+#include "dekaf2.h"
 #include "klog.h"
 #include "kcppcompat.h"
 

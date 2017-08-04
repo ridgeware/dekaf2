@@ -1,9 +1,9 @@
 #include <map>
 #include <tuple>
 
-#include "dekaf.h"
+#include <dekaf2/dekaf2.h>
 #include "catch.hpp"
-#include "kurl.h"
+#include <dekaf2/kurl.h>
 
 using namespace dekaf2;
 using std::get;

@@ -1,10 +1,10 @@
 #include "catch.hpp"
 
-#include <kfile.h>
+#include <dekaf2/kfile.h>
 #include <vector>
 #include <fstream>
-#include "kreader.h"
-#include "kwriter.h"
+#include <dekaf2/kreader.h>
+#include <dekaf2/kwriter.h>
 
 using namespace dekaf2;
 

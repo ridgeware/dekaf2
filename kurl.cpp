@@ -7,7 +7,6 @@
 #include "kurl.h"
 
 using dekaf2::KString;
-using std::experimental::string_view;
 using fmt::format;
 using std::vector;
 

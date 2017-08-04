@@ -46,6 +46,10 @@
 #pragma once
 
 #if defined __GNUC__
+ #define DEKAF2_GCC_VERSION 100 * __GNUC__ + __GNUC_MINOR__
+#endif
+
+#if defined __GNUC__
 	#define DEKAF2_FUNCTION_NAME __PRETTY_FUNCTION__
 #else
 	#define DEKAF2_FUNCTION_NAME __FUNCTION__
@@ -81,5 +85,56 @@
 // compilers would not know it (but support C++17)
 #if (__cplusplus > 201402L && !defined(DEKAF2_HAS_CPP_17))
 	#define DEKAF2_HAS_CPP_17
+#endif
+
+// prepare for the shared_mutex enabler below - this has to go into
+// the base namespace
+#ifdef DEKAF2_HAS_CPP_14
+ #include <shared_mutex>
+ #include <mutex> // to be balanced with the C++11 case below
+#else
+ #include <mutex>
+#endif
+
+namespace std
+{
+
+// make sure we have a shared_mutex and a shared_lock by injecting
+// matching types into the std:: namespace
+#ifdef DEKAF2_HAS_CPP_14
+ // C++17 has both already
+ #ifndef DEKAF2_HAS_CPP_17
+	// for C++14 that's easy - just alias a shared_timed_mutex - it's a superset
+	using shared_mutex = shared_timed_mutex;
+ #endif
+#else
+ #ifdef DEKAF2_HAS_CPP_11
+	// for C++11 we alias a non-shared mutex - it can be costly on lock contention
+	// TODO implement a platform native shared mutex..
+	using shared_mutex = mutex;
+	template<class T>
+	using shared_lock = unique_lock<T>;
+ #endif
+#endif
+
+}
+
+// Make sure we have standard helper templates from C++14 available in namespace std::
+// It does not matter if they had been declared by other code already. The compiler
+// simply picks the first one that matches.
+#ifndef DEKAF2_HAS_CPP_14
+namespace std
+{
+
+template<bool B, class T, class F>
+using conditional_t = typename conditional<B,T,F>::type;
+
+template <bool B, typename T = void>
+using enable_if_t = typename enable_if<B,T>::type;
+
+template< class T >
+using decay_t = typename decay<T>::type;
+
+}
 #endif
 

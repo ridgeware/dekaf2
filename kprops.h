@@ -47,6 +47,7 @@
 #include <vector>
 #include <functional>
 #include <iterator>
+#include "kcppcompat.h"
 #include "klog.h"
 
 namespace dekaf2
@@ -54,19 +55,12 @@ namespace dekaf2
 
 // create some helpers for older C++ versions than C++14
 
-template<bool B, class T, class F>
-using kprops_conditional_t = typename std::conditional<B,T,F>::type;
-
-template <bool B, typename T = void>
-using kprops_enable_if_t = typename std::enable_if<B,T>::type;
-
-
 template<class Key, class Value, bool Unique>
 class KProps_map
 {
 protected:
 	using map_type =
-	    kprops_conditional_t<
+	    std::conditional_t<
 	        Unique,
 	        std::unordered_map<Key, Value>,
 	        std::unordered_multimap<Key, Value>
@@ -198,7 +192,7 @@ public:
 	using map_type       = typename base_type::map_type;
 	using map_value_type = typename base_type::map_value_type;
 	using MapValueRef    =
-		kprops_conditional_t<
+		std::conditional_t<
 	        std::is_const<base_type>::value,
 	        std::reference_wrapper<const map_value_type>,
 	        std::reference_wrapper<map_value_type>
@@ -753,28 +747,28 @@ public:
 	}
 
 	// SFINAE, only active for non-integral Sequential instances
-	template<class T = Key, bool Seq = Sequential, typename = kprops_enable_if_t<!std::is_integral<T>::value && Seq == true> >
+	template<class T = Key, bool Seq = Sequential, typename = std::enable_if_t<!std::is_integral<T>::value && Seq == true> >
 	map_value_type& operator[](size_t index)
 	{
 		return at(index);
 	}
 
 	// SFINAE, only active for non-integral Sequential instances
-	template<class T = Key, bool Seq = Sequential, typename = kprops_enable_if_t<!std::is_integral<T>::value && Seq == true> >
+	template<class T = Key, bool Seq = Sequential, typename = std::enable_if_t<!std::is_integral<T>::value && Seq == true> >
 	const map_value_type& operator[](size_t index) const
 	{
 		return at(index);
 	}
 
 	// SFINAE && perfect forwarding, only active for non-integral K, or if the Key is integral
-	template<class K, class T = Key, typename = kprops_enable_if_t<std::is_integral<T>::value || !std::is_integral<K>::value> >
+	template<class K, class T = Key, typename = std::enable_if_t<std::is_integral<T>::value || !std::is_integral<K>::value> >
 	const Value& operator[](K&& key) const
 	{
 		return Get(std::forward<K>(key));
 	}
 
 	// SFINAE && perfect forwarding, only active for non-integral K, or if the Key is integral
-	template<class K, class T = Key, typename = kprops_enable_if_t<std::is_integral<T>::value || !std::is_integral<K>::value> >
+	template<class K, class T = Key, typename = std::enable_if_t<std::is_integral<T>::value || !std::is_integral<K>::value> >
 	Value& operator[](K&& key)
 	{
 		auto it = base_type::m_map.find(key);

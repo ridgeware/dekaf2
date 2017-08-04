@@ -42,9 +42,9 @@
 
 #pragma once
 
+#include "kcppcompat.h"
 #include <unordered_map>
 #include <functional>
-#include <shared_mutex>
 #include "dekaf.h"
 #include "ksharedref.h"
 
@@ -182,6 +182,7 @@ template<class Key, class Value>
 class KSharedCacheTemplate : public KCacheTemplate<Key, KSharedRef<Value, true>>
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
+
 //----------
 public:
 //----------

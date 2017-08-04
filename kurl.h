@@ -44,9 +44,8 @@
 
 #include <cinttypes>
 #include "kstring.h"
-#include <experimental/string_view>
 
-using std::experimental::string_view;
+using string_view = dekaf2::KStringView;
 
 namespace dekaf2
 {

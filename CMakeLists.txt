@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.2)
 project(dekaf2)
 
 set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
+# set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(CMAKE_THREAD_PREFER_PTHREAD TRUE)
 set(THREADS_PREFER_PTHREAD_FLAG TRUE)
@@ -40,6 +40,7 @@ set (HEADERS
     kwriter.h
     kfdwriter.h
     kstream.h
+    khash.h
 )
 
 set (SOURCES
@@ -84,20 +85,20 @@ if (DEKAF2_INSTALL_HEADERS)
         set(header_deps	${header_deps}	${DEKAF2_INCLUDE_DIR}/${HEADER})
     endforeach(HEADER dekaf_library_headers)
 
-    add_custom_target(lib-headers
+    add_custom_target(lib-headers-dekaf2
         DEPENDS ${header_deps}
     )
 
 else()
 
     set (DEKAF2_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
-    add_custom_target(lib-headers)
+    add_custom_target(lib-headers-dekaf2)
 
 endif(DEKAF2_INSTALL_HEADERS)
 
 add_library(dekaf2 ${HEADERS} ${SOURCES})
 target_link_libraries(dekaf2 fmt re2 libstdc++fs.a Threads::Threads)
-add_dependencies(dekaf2 lib-headers)
+add_dependencies(dekaf2 lib-headers-dekaf2)
 set_target_properties(dekaf2 PROPERTIES INTERFACE_INCLUDE_DIRECTORIES ${DEKAF2_INCLUDE_DIR})
 target_compile_definitions(dekaf2 PRIVATE DEKAF2_LIBRARY_BUILD)
 

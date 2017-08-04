@@ -45,6 +45,7 @@
 #include <functional>
 #include "kstring.h"
 #include <cwctype>
+#include <type_traits>
 
 namespace dekaf2
 {

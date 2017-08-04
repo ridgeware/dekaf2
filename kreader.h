@@ -580,7 +580,7 @@ public:
 	// support string_views as arguments
 	template<class... Args>
 	KReader(KStringView sv, Args&&... args)
-	    : base_type(std::string(sv), std::forward<Args>(args)...)
+	    : base_type(std::string(sv.data(), sv.size()), std::forward<Args>(args)...)
 	    , KInStream(static_cast<std::istream&>(*this))
 	//-----------------------------------------------------------------------------
 	{

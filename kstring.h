@@ -63,7 +63,21 @@ namespace dekaf2
 #ifdef DEKAF2_HAS_CPP_17
 using KStringView = std::experimental::string_view;
 #else
-using KStringView = re2::StringPiece;
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// an extended StringPiece with the methods of
+/// C++17's std::string_view
+class KStringView : public re2::StringPiece
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+public:
+	KStringView() {}
+	KStringView(const std::string& str) : StringPiece(str) {}
+	KStringView(const char* str) : StringPiece(str) {}
+	KStringView(const char* str, size_type len) : StringPiece(str, len) {}
+
+// TODO implement find_first_of, find_last_of family of methods
+};
+
 #endif
 
 bool kStartsWith(KStringView sInput, KStringView sPattern);

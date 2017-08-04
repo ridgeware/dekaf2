@@ -2,6 +2,7 @@
 
 #include <kprops.h>
 #include <kstring.h>
+#include <kcppcompat.h>
 
 using namespace dekaf2;
 
@@ -31,8 +32,10 @@ TEST_CASE("KProp") {
 
 			CHECK ( data.size()   == 2 );
 			CHECK ( data["key 10"]  == "value 20" );
+#if (DEKAF2_GCC_VERSION > 600) && defined(DEKAF2_HAS_CPP_17)
 			CHECK ( k1 == KString{} );
 			CHECK ( v1 == KString{} );
+#endif
 
 			KString k100("key 100");
 			KString v100("value 100");
@@ -40,7 +43,9 @@ TEST_CASE("KProp") {
 
 			CHECK ( data.size()   == 3 );
 			CHECK ( data["key 100"]  == "value 100" );
+#if (DEKAF2_GCC_VERSION > 600) && defined(DEKAF2_HAS_CPP_17)
 			CHECK ( k100 == KString{} );
+#endif
 			CHECK ( v100 == KString{"value 100"} );
 
 			KString k200("key 200");
@@ -50,7 +55,9 @@ TEST_CASE("KProp") {
 			CHECK ( data.size()   == 4 );
 			CHECK ( data["key 200"]  == "value 200" );
 			CHECK ( k200 == KString{"key 200"} );
+#if (DEKAF2_GCC_VERSION > 600) && defined(DEKAF2_HAS_CPP_17)
 			CHECK ( v200 == KString{} );
+#endif
 		}
 
 		SECTION("Sequential non-unique KProps, bulk generation")

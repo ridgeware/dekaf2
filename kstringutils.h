@@ -46,6 +46,7 @@
 #include <algorithm>
 #include <functional>
 #include <cwchar>
+#include "kcppcompat.h"
 #include "kstring.h"
 #include "ktemplate.h"
 

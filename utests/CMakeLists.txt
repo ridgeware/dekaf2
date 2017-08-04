@@ -1,9 +1,9 @@
 cmake_minimum_required(VERSION 3.2)
 
-project(dekaf-utests)
+project(dekaf2-utests)
 
 set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
+#set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set (UHEADERS
     catch.hpp
@@ -22,6 +22,6 @@ set (USOURCES
     kreader_tests.cpp
 )
 
-add_executable(dekaf-utests ${UHEADERS} ${USOURCES})
-target_link_libraries(dekaf-utests dekaf2)
+add_executable(dekaf2-utests ${UHEADERS} ${USOURCES})
+target_link_libraries(dekaf2-utests dekaf2)
 

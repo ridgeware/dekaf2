@@ -42,10 +42,12 @@
 
 #pragma once
 
+#include "kcppcompat.h"
 #include <re2/re2.h>
 #include <vector>
 #include "kcache.h"
 #include "kstring.h"
+#include "khash.h"
 
 namespace std
 {
@@ -59,7 +61,11 @@ namespace std
 		typedef std::size_t result_type;
 		result_type operator()(const argument_type& s) const
 		{
+#ifdef DEKAF2_HAS_CPP_17
 			return std::hash<dekaf2::KStringView>{}({s.data(), s.size()});
+#else
+			return dekaf2::hash_bytes_FNV(s.data(), s.size());
+#endif
 		}
 	};
 

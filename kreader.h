@@ -562,6 +562,9 @@ class KReader
 	using base_type = IStream;
 	using self_type = KReader<IStream>;
 
+	static_assert(std::is_base_of<std::istream, IStream>::value,
+	              "KReader cannot be derived from a non-std::istream class");
+
 //-------
 public:
 //-------
@@ -588,8 +591,6 @@ public:
 	    , KInStream(static_cast<std::istream&>(*this))
 	//-----------------------------------------------------------------------------
 	{
-		static_assert(std::is_base_of<std::istream, IStream>::value,
-		              "KReader cannot be derived from a non-std::istream class");
 	}
 
 	//-----------------------------------------------------------------------------
@@ -600,8 +601,6 @@ public:
 	    , KInStream(static_cast<std::istream&>(*this))
 	//-----------------------------------------------------------------------------
 	{
-		static_assert(std::is_base_of<std::istream, IStream>::value,
-		              "KReader cannot be derived from a non-std::istream class");
 	}
 
 	//-----------------------------------------------------------------------------

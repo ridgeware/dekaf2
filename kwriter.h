@@ -280,6 +280,9 @@ class KWriter
 	using base_type = OStream;
 	using self_type = KWriter<OStream>;
 
+	static_assert(std::is_base_of<std::ostream, OStream>::value,
+	              "KWriter cannot be derived from a non-std::ostream class");
+
 //-------
 public:
 //-------
@@ -306,8 +309,6 @@ public:
 	    , KOutStream(static_cast<std::ostream&>(*this))
 	//-----------------------------------------------------------------------------
 	{
-		static_assert(std::is_base_of<std::ostream, OStream>::value,
-		              "KReader cannot be derived from a non-std::istream class");
 	}
 
 	//-----------------------------------------------------------------------------
@@ -318,8 +319,6 @@ public:
 	    , KOutStream(static_cast<std::ostream&>(*this))
 	//-----------------------------------------------------------------------------
 	{
-		static_assert(std::is_base_of<std::ostream, OStream>::value,
-		              "KWriter cannot be derived from a non-std::ostream class");
 	}
 
 	//-----------------------------------------------------------------------------

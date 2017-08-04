@@ -50,8 +50,10 @@ namespace dekaf2
 {
 
 
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// The generalized bidirectional stream abstraction for dekaf2
 class KStream : public KInStream, public KOutStream
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 	using self_type   = KStream;
 	using reader_type = KInStream;
@@ -62,7 +64,7 @@ public:
 //-------
 
 	//-----------------------------------------------------------------------------
-	/// move construct a KReaderWriter
+	/// move construct a KStream
 	KStream(self_type&& other) noexcept
 	//-----------------------------------------------------------------------------
 		: reader_type(std::move(other))
@@ -117,6 +119,9 @@ class KReaderWriter
 	using self_type = KReaderWriter<IOStream>;
 	using k_rw_type = KStream;
 
+	static_assert(std::is_base_of<std::iostream, IOStream>::value,
+	              "KReaderWriter cannot be derived from a non-std::iostream class");
+
 //-------
 public:
 //-------
@@ -155,8 +160,6 @@ public:
 	    , k_rw_type(static_cast<std::iostream&>(*this))
 	//-----------------------------------------------------------------------------
 	{
-		static_assert(std::is_base_of<std::iostream, IOStream>::value,
-		              "KReaderWriter cannot be derived from a non-std::iostream class");
 	}
 
 	//-----------------------------------------------------------------------------

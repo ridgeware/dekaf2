@@ -57,15 +57,17 @@ class KOutShell : public KBaseShell, public KFPWriter
 public:
 //------
 
-	/// Default KPipeWriter Constructor
+	/// Default KOutShell Constructor
 	KOutShell() {}
-	/// Default KPipeWriter Destructor
-	virtual ~KOutShell() { Close(); }
+	/// Constructor which takes and executes command immediately
+	KOutShell(const KString& sCommand);
+	/// Default KOutShell Destructor
+	virtual ~KOutShell();
 
 	/// Executes given command via a shell pipe which input can be written to
-	virtual bool Open (KStringView sCommand);
+	virtual bool Open (const KString& sCommand);
 
-};
+}; // END KOutShell
 
 } // END NAMESPACE DEKAF2
 

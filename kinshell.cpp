@@ -5,11 +5,26 @@ namespace dekaf2
 {
 
 //-----------------------------------------------------------------------------
-bool KInShell::Open(KStringView sCommand)
+KInShell::KInShell(const KString& sCommand)
 //-----------------------------------------------------------------------------
 {
-	KString sCmd(sCommand); // char* is not compatible with KStringView
-	KLog().debug(3, "KPIPE::Open(): {0}", sCmd.c_str());
+	Open(sCommand);
+
+} // Immediate Open Constructor
+
+//-----------------------------------------------------------------------------
+KInShell::~KInShell()
+//-----------------------------------------------------------------------------
+{
+	Close();
+
+} // Default Destructor
+
+//-----------------------------------------------------------------------------
+bool KInShell::Open(const KString& sCommand)
+//-----------------------------------------------------------------------------
+{
+	KLog().debug(3, "KPIPE::Open(): {0}", sCommand.c_str());
 
 	Close(); // ensure a previous pipe is closed
 	errno = 0;
@@ -17,9 +32,9 @@ bool KInShell::Open(KStringView sCommand)
 	// - - - - - - - - - - - - - - - - - - - - - - - -
 	// shell out to run the command:
 	// - - - - - - - - - - - - - - - - - - - - - - - -
-	if (!sCmd.empty())
+	if (!sCommand.empty())
 	{
-		m_pipe = popen(sCmd.c_str(), "r");
+		m_pipe = popen(sCommand.c_str(), "r");
 	}
 
 	// - - - - - - - - - - - - - - - - - - - - - - - -
@@ -27,15 +42,17 @@ bool KInShell::Open(KStringView sCommand)
 	// - - - - - - - - - - - - - - - - - - - - - - - -
 	if (!m_pipe)
 	{
-		KLog().debug (0, "KPIPE::Open(): POPEN CMD FAILED: %s ERROR: %s", sCmd.c_str(), strerror(errno));
+		KLog().debug (0, "KPIPE::Open(): POPEN CMD FAILED: {} ERROR: {}", sCommand, strerror(errno));
 		m_iExitCode = errno;
+		return false;
 	}
 	else
 	{
-		KLog().debug(2, "KPIPE::Open(): POPEN: ok...");
+		KLog().debug(3, "KPIPE::Open(): POPEN: ok...");
 		KFPReader::open(m_pipe);
+		return KFPReader::good();
 	}
-	return (m_pipe != NULL);
+
 } // Open
 
 } // END NAMESPACE dekaf2

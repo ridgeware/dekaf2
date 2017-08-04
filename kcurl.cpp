@@ -244,11 +244,11 @@ bool KCurl::delRequestCookie(const KString& sCookieName, const KString& sCookieV
 } // delCookie
 
 //-----------------------------------------------------------------------------
-bool KCurl::addToResponseHeader(KString sHeaderPart){ return true; }
+bool KCurl::addToResponseHeader(KString& sHeaderPart){ return true; }
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
-bool KCurl::addToResponseBody  (KString sBodyPart){ return true; }
+bool KCurl::addToResponseBody  (KString& sBodyPart){ return true; }
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------

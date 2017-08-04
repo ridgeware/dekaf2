@@ -69,9 +69,9 @@ public:
 	virtual ~KWebIO() {}
 
 	/// Overriden virtual method that parses response header
-	virtual bool   addToResponseHeader(KString sHeaderPart);
+	virtual bool   addToResponseHeader(KString& sHeaderPart);
 	/// Overriden virtual method that parses response body
-	virtual bool   addToResponseBody  (KString sBodyPart);
+	virtual bool   addToResponseBody  (KString& sBodyPart);
 	/// Overriden virtual method that prints out parsed response header
 	virtual bool   printResponseHeader(); // prints response header from m_responseHeaderss
 

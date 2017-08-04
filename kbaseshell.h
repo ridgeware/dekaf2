@@ -57,20 +57,27 @@ public:
 	/// Default Constructor
 	KBaseShell () {}
 	/// Default Virtual Destructor
-	virtual ~KBaseShell () {}
+	virtual ~KBaseShell ();
 
 	/// Executes given command via a shell pipe saving FILE* pipe in class member
-	virtual bool Open (KStringView sCommand) = 0;
+	virtual bool Open (const KString& sCommand) = 0;
 	/// Closes pipe saving exit code.
 	virtual int  Close();
 
 	/// Get error code, 0 indicates no errors
-	int          GetErrno() { return m_iExitCode; }
+	int          GetErrno()
+	{
+		return m_iExitCode;
+	}
+
 	/// Allows KPipeReader to be passed where File* can be.
-	operator     FILE*() { return m_pipe; }
+	operator     FILE*()
+	{
+		return m_pipe;
+	}
 
 //--------
-protected:
+public:
 //--------
 
 	FILE*        m_pipe{nullptr};

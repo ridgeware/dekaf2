@@ -136,9 +136,9 @@ public:
 	bool         delRequestCookie       (const KString& sCookieName, const KString& sCookieValue = "");
 
 	/// Method children must override to receive and process response header
-	virtual bool addToResponseHeader(KString sHeaderPart);
+	virtual bool addToResponseHeader(KString& sHeaderPart);
 	/// Method children must override to receive and process response body
-	virtual bool addToResponseBody  (KString sBodyPart);
+	virtual bool addToResponseBody  (KString& sBodyPart);
 	/// A method to print reponse header as currently read in
 	virtual bool printResponseHeader();
 

@@ -57,14 +57,16 @@ class KInShell : public KBaseShell, public KFPReader
 public:
 //------
 
-	/// Default KPipeReader Constructor
+	/// Default KInShell Constructor
 	KInShell() {}
-	/// Virtual Default KPipeReader Destructor
-	virtual ~KInShell() { Close(); }
+	/// Constructor which takes and executes command immediately
+	KInShell(const KString& sCommand);
+	/// Virtual Default KInShell Destructor
+	virtual ~KInShell();
 
 	/// Executes given command via a shell pipe from which output can be read
-	virtual bool Open (KStringView sCommand);
+	virtual bool Open (const KString& sCommand);
 
-}; // END KPipeReader
+}; // END KInShell
 
 } // END NAMESPACE DEKAF2

@@ -52,7 +52,7 @@
 namespace dekaf2 {
 
 //-----------------------------------------------------------------------------
-bool KWebIO::addToResponseHeader(KString sHeaderPart)
+bool KWebIO::addToResponseHeader(KString& sHeaderPart)
 //-----------------------------------------------------------------------------
 {
 	KLog().debug(3, "KWebIO::addToResponseHeader(%s) start", sHeaderPart.c_str());
@@ -190,7 +190,7 @@ bool KWebIO::addToResponseHeader(KString sHeaderPart)
 } // addToResponseHeader
 
 //-----------------------------------------------------------------------------
-bool KWebIO::addToResponseBody(KString sBodyPart)
+bool KWebIO::addToResponseBody(KString& sBodyPart)
 //-----------------------------------------------------------------------------
 {
 	KLog().debug(3, "KWebIO::addToResponseBody(%s) start", sBodyPart.c_str());

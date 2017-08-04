@@ -57,6 +57,8 @@ TEST_CASE("KCurl")
 		myCurl.~KCurl();
 	}
 
+#if kcurlDump
+//#if 1
 	SECTION("KCurl Stream Test")
 	{
 
@@ -109,7 +111,9 @@ TEST_CASE("KCurl")
 		CHECK_FALSE(bSuccess);
 
 	}
+#endif
 
+#if kcurlDump
 	SECTION("KCurl Delayed Set Stream Test")
 	{
 		KString url = "www.google.com";
@@ -135,7 +139,7 @@ TEST_CASE("KCurl")
 
 		CHECK_FALSE(bSuccess);
 	}
-
+#endif
 	SECTION("KCurl Dummy Stream Test")
 	{
 		KString url = "www.google.com";
@@ -162,7 +166,8 @@ TEST_CASE("KCurl")
 
 		CHECK_FALSE(bSuccess);
 
-		webIO.addToResponseHeader("something");
+		KString randHeader("something");
+		webIO.addToResponseHeader(randHeader);
 		webIO.printResponseHeader();
 	}
 // TODO Make KCurl Grandchild which stores body so tests can selectively print

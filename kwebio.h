@@ -44,10 +44,11 @@
 #include "kstring.h"
 #include "kprops.h"
 #include "kcurl.h"
+#include "kwriter.h"
 
 //include <locale>
 #include <ctype.h>
-#include <iostream>
+//#include <iostream>
 
 namespace dekaf2
 {
@@ -76,11 +77,19 @@ public:
 	virtual bool   printResponseHeader(); // prints response header from m_responseHeaderss
 
 	/// Get all response headers except Cookies as a KHeader
-	const KHeader& getResponseHeaders() const;
+	const KHeader& getResponseHeaders() const
+	{
+		return m_responseHeaders;
+	}
+
 	/// Get response header value from given header name (case insensitive)
 	const KString& getResponseHeader(const KString& sHeaderName) const;
 	/// Get all response cookies as a KHeader
-	const KHeader& getResponseCookies() const;
+	const KHeader& getResponseCookies() const
+	{
+		return m_responseCookies;
+	}
+
 	/// Get response cookie value from given cookie name (case insensitive)
 	const KString& getResponseCookie(const KString& sCookieName);// const; // gets first cookie with name
 
@@ -95,12 +104,14 @@ private:
 	KString        m_sResponseStatus; // HTTP response status
 	uint16_t       m_iResponseStatusCode{0}; // HTTP response code
 
+	//KOutStream     m_outStream; // TODO Add KOutStream
+
 	// method that takes care of case-insentive header add logic and cookie add logic
-	bool           addResponseHeader(const KString& sHeaderName, const KString& sHeaderValue);
+	bool           addResponseHeader(const KString&& sHeaderName, const KString&& sHeaderValue);
 	// method to determine if header ends with \n\n or \r\n\r\n indicating end of header
-	bool           isLastHeader(KString& sHeaderPart, size_t lineEndPos);
+	bool           isLastHeader(const KString& sHeaderPart, size_t lineEndPos);
 	// if parsing multi line header, this gets to the end of it
-	size_t         findEndOfHeader(KString& sHeaderPart, size_t lineEndPos);
+	size_t         findEndOfHeader(const KString& sHeaderPart, size_t lineEndPos);
 };
 
 } // end namespace dekaf2

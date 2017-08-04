@@ -1,5 +1,7 @@
 #include <kwebio.h>
 
+#include <iostream>
+
 #include "catch.hpp"
 using namespace dekaf2;
 

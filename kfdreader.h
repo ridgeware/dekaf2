@@ -83,9 +83,11 @@ public:
 
 	KInputFDStream(const KInputFDStream&) = delete;
 
+#if !defined(__GNUC__) || (DEKAF2_GCC_VERSION >= 500)
 	//-----------------------------------------------------------------------------
 	KInputFDStream(KInputFDStream&& other);
 	//-----------------------------------------------------------------------------
+#endif
 
 	//-----------------------------------------------------------------------------
 	/// the main purpose of this class: allow construction from a standard unix
@@ -100,9 +102,11 @@ public:
 	virtual ~KInputFDStream();
 	//-----------------------------------------------------------------------------
 
+#if !defined(__GNUC__) || (DEKAF2_GCC_VERSION >= 500)
 	//-----------------------------------------------------------------------------
 	KInputFDStream& operator=(KInputFDStream&& other);
 	//-----------------------------------------------------------------------------
+#endif
 
 	KInputFDStream& operator=(const KInputFDStream&) = delete;
 

@@ -767,10 +767,12 @@ bool kEndsWith(KStringView sInput, KStringView sPattern)
 bool KString::In (KStringView sHaystack, value_type iDelim/*=','*/)
 //-----------------------------------------------------------------------------
 {
-	auto& sNeedle{m_rep};
+	// gcc 4.8.5 needs the non-brace initialization here..
+	auto& sNeedle(m_rep);
 
 	size_t iNeedle = 0, iHaystack = 0; // Beginning indices
-	size_t iNsize = sNeedle.size (), iHsize = sHaystack.size (); // Ending
+	size_t iNsize = sNeedle.size ();
+	size_t iHsize = sHaystack.size (); // Ending
 
 	while (iHaystack < iHsize)
 	{

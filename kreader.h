@@ -331,7 +331,11 @@ public:
 	//-----------------------------------------------------------------------------
 	/// Read a type. Returns stream reference that resolves to false if no input available.
 	/// Type must be trivially copyable.
+#if !defined(__GNUC__) || (DEKAF2_GCC_VERSION >= 500)
 	template<typename T, typename std::enable_if<std::is_trivially_copyable<T>::value>::type* = nullptr>
+#else
+	template<typename T, typename std::enable_if<std::is_integral<T>::value>::type* = nullptr>
+#endif
 	inline ios_type& Read(T& value)
 	//-----------------------------------------------------------------------------
 	{

@@ -97,7 +97,12 @@ else()
 endif(DEKAF2_INSTALL_HEADERS)
 
 add_library(dekaf2 ${HEADERS} ${SOURCES})
-target_link_libraries(dekaf2 fmt re2 libstdc++fs.a Threads::Threads)
+
+if(CMAKE_COMPILER_IS_GNUCC AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 6.0)
+	set (FSLIB libstdc++fs.a)
+endif()
+
+target_link_libraries(dekaf2 fmt re2 ${FSLIB} Threads::Threads)
 add_dependencies(dekaf2 lib-headers-dekaf2)
 set_target_properties(dekaf2 PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${DEKAF2_INCLUDE_DIR}")
 target_compile_definitions(dekaf2 PRIVATE DEKAF2_LIBRARY_BUILD)

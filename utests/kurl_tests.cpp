@@ -103,6 +103,7 @@ TEST_CASE ("KURL")
 				CHECK (hint == 8);
 		}
 
+#if !defined(__GNUC__) || (DEKAF2_GCC_VERSION >= 500)
 		SECTION ("KProto/KUserInfo/KDomain simple test")
 		{
 			    KString target;
@@ -120,7 +121,9 @@ TEST_CASE ("KURL")
 				CHECK (target == expect);
 				CHECK (hint == expect.size());
 		}
+#endif
 
+#if !defined(__GNUC__) || (DEKAF2_GCC_VERSION >= 500)
 		SECTION ("KProto/KDomain hint offset")
 		{
 			    KString target;
@@ -134,6 +137,7 @@ TEST_CASE ("KURL")
 				CHECK (target == expect);
 				//CHECK (hint == 41);
 		}
+#endif
 
 		//||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
 		// SOLO unit tests

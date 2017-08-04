@@ -85,9 +85,11 @@ public:
 
 	KOutputFDStream(const KOutputFDStream&) = delete;
 
+#if !defined(__GNUC__) || (DEKAF2_GCC_VERSION >= 500)
 	//-----------------------------------------------------------------------------
 	KOutputFDStream(KOutputFDStream&& other);
 	//-----------------------------------------------------------------------------
+#endif
 
 	//-----------------------------------------------------------------------------
 	/// the main purpose of this class: allow construction from a standard unix
@@ -102,9 +104,11 @@ public:
 	virtual ~KOutputFDStream();
 	//-----------------------------------------------------------------------------
 
+#if !defined(__GNUC__) || (DEKAF2_GCC_VERSION >= 500)
 	//-----------------------------------------------------------------------------
 	KOutputFDStream& operator=(KOutputFDStream&& other);
 	//-----------------------------------------------------------------------------
+#endif
 
 	KOutputFDStream& operator=(const KOutputFDStream&) = delete;
 
@@ -185,9 +189,11 @@ public:
 
 	KOutputFPStream(const KOutputFPStream&) = delete;
 
+#if !defined(__GNUC__) || (DEKAF2_GCC_VERSION >= 500)
 	//-----------------------------------------------------------------------------
 	KOutputFPStream(KOutputFPStream&& other);
 	//-----------------------------------------------------------------------------
+#endif
 
 	//-----------------------------------------------------------------------------
 	/// the main purpose of this class: allow construction from a standard unix
@@ -202,9 +208,11 @@ public:
 	virtual ~KOutputFPStream();
 	//-----------------------------------------------------------------------------
 
+#if !defined(__GNUC__) || (DEKAF2_GCC_VERSION >= 500)
 	//-----------------------------------------------------------------------------
 	KOutputFPStream& operator=(KOutputFPStream&& other);
 	//-----------------------------------------------------------------------------
+#endif
 
 	KOutputFPStream& operator=(const KOutputFPStream&) = delete;
 

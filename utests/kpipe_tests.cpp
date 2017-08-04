@@ -51,7 +51,7 @@ TEST_CASE("KPipe")
 	SECTION("KPipe Curl Test")
 	{
 		KPIPE   pipe;
-		KString sCurlCMD = "curl -i www.acme.com 2> /dev/null";
+		KString sCurlCMD = "curl -i www.google.com 2> /dev/null";
 		CHECK(pipe.Open(sCurlCMD, "r"));
 
 		KString sCurrentLine;

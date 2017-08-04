@@ -48,6 +48,7 @@
 #include <fstream>
 #include <sstream>
 #include <algorithm>
+#include <type_traits>
 #include "kstring.h"
 #include "kformat.h"
 
@@ -171,7 +172,11 @@ public:
 	//-----------------------------------------------------------------------------
 	/// Write a type. Returns stream reference that resolves to false on failure.
 	/// Type must be trivially copyable.
+#if !defined(__GNUC__) || (DEKAF2_GCC_VERSION >= 500)
 	template<typename T, typename std::enable_if<std::is_trivially_copyable<T>::value>::type* = nullptr>
+#else
+	template<typename T, typename std::enable_if<std::is_integral<T>::value>::type* = nullptr>
+#endif
 	inline self_type& Write(T& value)
 	//-----------------------------------------------------------------------------
 	{

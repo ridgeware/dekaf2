@@ -84,6 +84,13 @@ class KCurl
 //------
 public:
 //------
+
+	/// Request Type Enum GET or POST
+	typedef enum
+	{
+		GET, POST//, PUT, DELETE
+	} RequestType;
+
 	/// The data structure for original case-sensitive data
 	typedef std::pair<KString,KString> KHeaderPair;
 	/// The key for this is trimmed and lower cased, value is original key-value pair.
@@ -93,8 +100,8 @@ public:
 	KCurl() {}
 	// TODO Change pair of bools to one uint16_t and an enum to set/check flags
 	/// KURL Constructor that allows full initialization on construction.
-	KCurl(const KString& sRequestURL, bool bEchoHeader = false, bool bEchoBody = false)
-	    : m_bEchoHeader{bEchoHeader}, m_bEchoBody{bEchoBody}, m_sRequestURL{sRequestURL}{}
+	KCurl(const KString& sRequestURL, RequestType requestType, bool bEchoHeader = false, bool bEchoBody = false)
+	    : m_bEchoHeader{bEchoHeader}, m_bEchoBody{bEchoBody},  m_requestType{requestType}, m_sRequestURL{sRequestURL}{}
 	/// Default virtual constructor
 	virtual ~KCurl(){}
 
@@ -106,16 +113,48 @@ public:
 	/// Returns false when there stream is done
 	bool         getStreamChunk(); // get next chunk
 	/// Returns true if request is still active
-	bool         requestInProgress() { return m_kpipe.is_open(); }
+	bool         requestInProgress() {
+		return m_kpipe.is_open();
+	}
 
 	/// Returns true if header will be output from a web response
-	bool         getEchoHeader();
+	bool         getEchoHeader()
+	{
+		return m_bEchoHeader;
+	}
+
 	/// Returns true if body will be output from a web response
-	bool         getEchoBody();
+	bool         getEchoBody()
+	{
+		return m_bEchoBody;
+	}
+
+	/// Returns the current request type
+	const RequestType& getRequestType()
+	{
+		return m_requestType;
+	}
+
 	/// Sets whether header will be output from a web response, defaults to true
-	bool         setEchoHeader(bool bEchoHeader = true);
+	bool         setEchoHeader(bool bEchoHeader = true)
+	{
+		m_bEchoHeader = bEchoHeader;
+		return true;
+	}
+
 	/// Sets whether body will be output from a web response, defaults to true
-	bool         setEchoBody  (bool bEchoBody = true);
+	bool         setEchoBody  (bool bEchoBody = true)
+	{
+		m_bEchoBody = bEchoBody;
+		return true;
+	}
+
+	/// Sets the Request Type
+	bool         setRequestType(RequestType requestType)
+	{
+		m_requestType = requestType;
+		return true;
+	}
 
 	/// Gets the case-sensitive request header value set for the given header name, case-insensitive
 	bool         getRequestHeader(const KString& sHeaderName, KString& sHeaderValue) const;
@@ -148,11 +187,12 @@ protected:
 	bool         m_bHeaderComplete{false}; // Whether to interpret response chunk as header or body
 	bool         m_bEchoHeader{false}; // Whether to output header
 	bool         m_bEchoBody{false}; // Whether to output body
+	RequestType m_requestType{GET};
 
 //--------
 private:
 //--------
-	KInShell  m_kpipe; // pipe to read response data from
+	KInShell     m_kpipe; // pipe to read response data from
 	KString      m_sRequestURL; // request url, must be set
 	KHeader      m_requestHeaders; // headers to add to requests
 	KHeader      m_requestCookies; // cookies to add to request

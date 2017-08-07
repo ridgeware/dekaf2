@@ -42,13 +42,14 @@
 
 #pragma once
 #include "kstring.h"
+#include "kstringutils.h"
 #include "kprops.h"
 #include "kcurl.h"
 #include "kwriter.h"
 
 //include <locale>
 #include <ctype.h>
-//#include <iostream>
+#include <iostream>
 
 namespace dekaf2
 {
@@ -64,8 +65,8 @@ public:
 	/// KWebIO default constructor, must be initialized after construction.
 	KWebIO() {}
 	/// KWebIO Constructor that allows full initialization on construction.
-	KWebIO(const KString& requestURL, bool bEchoHeader = false, bool bEchoBody = false)
-	    : KCurl(requestURL, bEchoHeader, bEchoBody) {}
+	KWebIO(const KString& requestURL, RequestType requestType = GET, bool bEchoHeader = false, bool bEchoBody = false)
+	    : KCurl(requestURL, requestType, bEchoHeader, bEchoBody) {}
 	/// Default virutal destructor
 	virtual ~KWebIO() {}
 
@@ -104,7 +105,7 @@ private:
 	KString        m_sResponseStatus; // HTTP response status
 	uint16_t       m_iResponseStatusCode{0}; // HTTP response code
 
-	//KOutStream     m_outStream; // TODO Add KOutStream
+	KOutStream     m_outStream{std::cout}; // TODO Add KOutStream
 
 	// method that takes care of case-insentive header add logic and cookie add logic
 	bool           addResponseHeader(const KString&& sHeaderName, const KString&& sHeaderValue);

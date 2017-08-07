@@ -9,6 +9,8 @@ using namespace dekaf2;
 #define kcurlHead 0
 #define kcurlBoth 0
 
+
+
 //-----------------------------------------------------------------------------
 class KCurlTest : public KWebIO
 //-----------------------------------------------------------------------------
@@ -21,8 +23,8 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	KCurlTest(const KString& sRequestURL, bool bEchoHeader = false, bool bEchoBody = false)
-	    : KWebIO(sRequestURL, bEchoHeader, bEchoBody)
+	KCurlTest(const KString& sRequestURL, KCurl::RequestType requestType, bool bEchoHeader = false, bool bEchoBody = false)
+	    : KWebIO(sRequestURL,requestType, bEchoHeader, bEchoBody)
 	{
 	}
 	~KCurlTest(){}

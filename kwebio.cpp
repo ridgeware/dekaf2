@@ -1,8 +1,9 @@
-///////////////////////////////////////////////////////////////////////////////
+/*
+//-----------------------------------------------------------------------------//
 //
-// DEKAF(tm): Lighter, Faster, Smarter(tm)
+// DEKAF(tm): Lighter, Faster, Smarter (tm)
 //
-// Copyright (c) 2000-2017, Ridgeware, Inc.
+// Copyright (c) 2017, Ridgeware, Inc.
 //
 // +-------------------------------------------------------------------------+
 // | /\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\|
@@ -37,15 +38,14 @@
 // |/+---------------------------------------------------------------------+/|
 // |\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/ |
 // +-------------------------------------------------------------------------+
-//
-///////////////////////////////////////////////////////////////////////////////
+*/
 
 #include "kwebio.h"
 #include "klog.h"
 
 #include "kstringutils.h"
 
-#include <iostream>
+//#include <iostream>
 
 namespace dekaf2 {
 
@@ -210,18 +210,21 @@ bool KWebIO::printResponseHeader()
 	if (m_iResponseStatusCode > 0)
 	{
 		//HTTP/1.1 200 OK
-		std::cout << "HTTP/" << m_sResponseVersion << " " << m_iResponseStatusCode << " " << m_sResponseStatus << std::endl;
+		//std::cout << "HTTP/" << m_sResponseVersion << " " << m_iResponseStatusCode << " " << m_sResponseStatus << std::endl;
+		m_outStream.WriteLine("HTTP/" + m_sResponseVersion + " " + std::to_string(m_iResponseStatusCode) + " " + m_sResponseStatus);
 	}
 	auto cookieIter = m_responseCookies.begin();
 	for (const auto& iter : m_responseHeaders)
 	{
 		if (iter.first == sGarbageHeader)
 		{
-			std::cout << iter.second.second << std::endl;
+			//std::cout << iter.second.second << std::endl;
+			m_outStream.WriteLine(iter.second.second);
 		}
 		else if (iter.first == CookieHeader)
 		{
-			std::cout << iter.second.first << ":";
+			//std::cout << iter.second.first << ":";
+			m_outStream.Write(iter.second.first + ":");
 			bool isFirst = true;
 			for (;cookieIter != m_responseCookies.end(); ++cookieIter)
 			{
@@ -232,7 +235,9 @@ bool KWebIO::printResponseHeader()
 				}
 				if (!isFirst)
 				{
-					std::cout << ";";
+					//std::cout << ";";
+					KString semi(";");
+					m_outStream.Write(semi);
 				}
 				KString sFirst = cookieIter->second.first;
 				KString sSecond = "";
@@ -241,13 +246,15 @@ bool KWebIO::printResponseHeader()
 					sSecond = "=" ;
 					sSecond += cookieIter->second.second;
 				}
-				std::cout << sFirst << sSecond;
+				//std::cout << sFirst << sSecond;
+				m_outStream.Write(sFirst + sSecond);
 				isFirst = false;
 			}
 		}
 		else
 		{
-			std::cout << iter.second.first << ":" << iter.second.second;// << std::endl;
+			//std::cout << iter.second.first << ":" << iter.second.second;// << std::endl;
+			m_outStream.Write(iter.second.first + ":" + iter.second.second);
 		}
 	}
 	return true;

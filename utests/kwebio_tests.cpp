@@ -11,7 +11,7 @@ using namespace dekaf2;
 #include <functional>
 #include <iterator>
 
-#define kwebdebug 1
+#define kwebdebug 0
 
 TEST_CASE("KWebIO")
 {

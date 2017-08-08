@@ -63,6 +63,11 @@ Cookie: foo=bar; yummy_cookie=choco; tasty_cookie=strawberry
 #include "kstring.h"
 #include "kprops.h"
 #include "kinshell.h"
+
+#include "kfile.h"
+#include "kreader.h"
+
+#include <iostream>
 //#include "kpipe.h"
 
 namespace dekaf2
@@ -135,6 +140,11 @@ public:
 		return m_requestType;
 	}
 
+	/// Returns the current request type
+	const KString& getPostData(){
+		return m_sPostData;
+	}
+
 	/// Sets whether header will be output from a web response, defaults to true
 	bool         setEchoHeader(bool bEchoHeader = true)
 	{
@@ -155,6 +165,15 @@ public:
 		m_requestType = requestType;
 		return true;
 	}
+
+	/// Sets request data string directly
+	bool         setPostData(const KString& postData)
+	{
+		m_sPostData = postData;
+		return true;
+	}
+	/// Sets request data via a file, reads in file and puts KString into m_sPostData
+	bool         setPostDataWithFile(const KString& sFileName);
 
 	/// Gets the case-sensitive request header value set for the given header name, case-insensitive
 	bool         getRequestHeader(const KString& sHeaderName, KString& sHeaderValue) const;
@@ -184,16 +203,20 @@ public:
 //--------
 protected:
 //--------
+
 	bool         m_bHeaderComplete{false}; // Whether to interpret response chunk as header or body
-	bool         m_bEchoHeader{false}; // Whether to output header
-	bool         m_bEchoBody{false}; // Whether to output body
-	RequestType m_requestType{GET};
+	bool         m_bEchoHeader{false};     // Whether to output header
+	bool         m_bEchoBody{false};       // Whether to output body
+	RequestType  m_requestType{GET};       // HTTP Request type, GET or POST
+	KString      m_sPostData;              // Post data for post request
+	KInStream    m_inStream{std::cin};     // Input Reader
 
 //--------
 private:
 //--------
-	KInShell     m_kpipe; // pipe to read response data from
-	KString      m_sRequestURL; // request url, must be set
+
+	KInShell     m_kpipe;          // pipe to read response data from
+	KString      m_sRequestURL;    // request url, must be set
 	KHeader      m_requestHeaders; // headers to add to requests
 	KHeader      m_requestCookies; // cookies to add to request
 

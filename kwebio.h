@@ -105,7 +105,7 @@ private:
 	KString        m_sResponseStatus; // HTTP response status
 	uint16_t       m_iResponseStatusCode{0}; // HTTP response code
 
-	KOutStream     m_outStream{std::cout}; // TODO Add KOutStream
+	KOutStream     m_outStream{std::cout}; // Writer Stream
 
 	// method that takes care of case-insentive header add logic and cookie add logic
 	bool           addResponseHeader(const KString&& sHeaderName, const KString&& sHeaderValue);

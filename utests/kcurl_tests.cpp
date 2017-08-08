@@ -69,7 +69,7 @@ TEST_CASE("KCurl")
 		//KString url = "www.acme.com";
 		KString url = "www.google.com";
 		//KWebIO webIO(url);//, true, true);
-		KCurlTest webIO(url, false, true);
+		KCurlTest webIO(url, KCurl::GET, false, true);
 		CHECK_FALSE(webIO.getEchoHeader());
 		//CHECK(webIO.getEchoHeader());
 		//CHECK_FALSE(webIO.getEchoBody());
@@ -180,7 +180,7 @@ TEST_CASE("KCurl")
 	{
 
 		KString url = "www.google.com";
-		KWebIO webIO(url, true, true);
+		KWebIO webIO(url, KCurl::GET, true, true);
 		CHECK(webIO.getEchoHeader());
 		CHECK(webIO.getEchoBody());
 
@@ -210,7 +210,7 @@ TEST_CASE("KCurl")
 	{
 
 		KString url = "www.google.com";
-		KWebIO webIO(url, true);//, true);
+		KWebIO webIO(url, KCurl::GET, true);//, true);
 		CHECK(webIO.getEchoHeader());
 		CHECK_FALSE(webIO.getEchoBody());
 
@@ -241,7 +241,7 @@ TEST_CASE("KCurl")
 	{
 
 		KString url = "www.acme.com";
-		KWebIO webIO(url, false, true);
+		KWebIO webIO(url, KCurl::GET, false, true);
 		CHECK_FALSE(webIO.getEchoHeader());
 		CHECK(webIO.getEchoBody());
 

@@ -38,7 +38,14 @@ bool KCurl::initiateRequest()
 		return false;
 	}
 	KString sFlags = "-i"; // by default assume we want both
-	if (m_bEchoHeader && !m_bEchoBody) // just header
+	if (m_requestType == POST)
+	{
+		sFlags += " -X POST";
+		sFlags += " -d '";
+		sFlags += m_sPostData;
+		sFlags += "'";
+	}
+	else if (m_bEchoHeader && !m_bEchoBody) // just header
 	{
 		sFlags = "-I";
 	}
@@ -89,6 +96,21 @@ bool KCurl::getStreamChunk()
 	return bSuccess;
 
 } // getStreamChunk
+
+//-----------------------------------------------------------------------------
+bool KCurl::setPostDataWithFile(const KString& sFileName)
+//-----------------------------------------------------------------------------
+{
+	bool bExists = kExists(sFileName);
+	if (bExists)
+	{
+		return kReadAll(sFileName, m_sPostData);
+	}
+	else
+	{
+		return bExists;
+	}
+}
 
 //-----------------------------------------------------------------------------
 bool KCurl::getRequestHeader(const KString& sHeaderName, KString& sHeaderValue) const

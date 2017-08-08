@@ -195,8 +195,7 @@ bool KWebIO::addToResponseBody(KString& sBodyPart)
 	// m_sResponseBody.push_back(KString(sBodyPart)); // if we wanted to save body for processing
 	if (m_bEchoBody)
 	{
-		std::cout << sBodyPart;
-		//outStream.Write(sBodyPart); // TODO Add KOutStream
+		m_outStream.Write(sBodyPart);
 	}
 	return true;
 
@@ -240,7 +239,7 @@ bool KWebIO::printResponseHeader()
 					m_outStream.Write(semi);
 				}
 				KString sFirst = cookieIter->second.first;
-				KString sSecond = "";
+				KString sSecond;// = "";
 				if (!cookieIter->second.second.empty())
 				{
 					sSecond = "=" ;

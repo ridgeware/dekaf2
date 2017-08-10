@@ -43,6 +43,7 @@ set (HEADERS
     kbaseshell.h
     kinshell.h
     koutshell.h
+    kstack.h
 )
 
 set (SOURCES
@@ -72,6 +73,7 @@ set (SOURCES
     kbaseshell.cpp
     kinshell.cpp
     koutshell.cpp
+    kstack.cpp
 )
 
 # make sure we have the necessary version of cmake installed

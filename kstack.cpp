@@ -42,6 +42,8 @@
 
 #include "kstack.h"
 
+
+/*
 namespace dekaf2
 {
 
@@ -213,7 +215,10 @@ Stack_Type& KStack<Stack_Type>::operator[] (int n)
 	{
 		return m_Storage.at(n) ;
 	}
-	return emptyValue;
+	return m_EmptyValue;
 }
 
 } // END NAMESPACE DEKAF2
+
+*/
+

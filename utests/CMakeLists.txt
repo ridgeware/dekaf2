@@ -22,6 +22,7 @@ set (USOURCES
     kbaseshell_tests.cpp
     kinshell_tests.cpp
     koutshell_tests.cpp
+    kstack_tests.cpp
 )
 
 add_executable(dekaf-utests ${UHEADERS} ${USOURCES})

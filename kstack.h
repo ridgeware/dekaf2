@@ -105,11 +105,34 @@ public:
 		return m_Storage.clear();
 	}
 
+	// Operators overloads
+	/// Assigns one KStack to Another (old data is destroyed)
+	KStack& operator=(KStack&& other) { m_Storage = std::move(other.m_Storage); return *this; }
+	KStack& operator=(const KStack& other) { m_Storage = other.m_Storage; return *this; }
+	/// Gets Item at position, returns nullptr if out of bounds.
+	Stack_Type& operator[] (int n);
+
+	// Iterators
+	typedef typename std::deque<Stack_Type>::iterator iterator;
+	typedef typename std::deque<Stack_Type>::const_iterator const_iterator;
+
+	// Forward Iterators
+	iterator        begin() { return m_Storage.begin(); }
+	const_iterator cbegin() { return m_Storage.cbegin(); }
+	iterator          end() { return m_Storage.end(); }
+	const_iterator   cend() { return m_Storage.cend(); }
+	// Reverse Iterators
+	iterator        rbegin() { return m_Storage.rbegin(); }
+	const_iterator crbegin() { return m_Storage.crbegin(); }
+	iterator          rend() { return m_Storage.rend(); }
+	const_iterator   crend() { return m_Storage.crend(); }
+
 //----------
 private:
 //----------
 
 	std::deque<Stack_Type> m_Storage;
+	static Stack_Type emptyValue{nullptr};
 };
 
 

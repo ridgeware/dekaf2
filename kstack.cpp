@@ -124,7 +124,7 @@ bool KStack<Stack_Type>::pop_bottom(Stack_Type& retrievedItem)
 	}
 
 	// If not empty guaranteed no except
-	retrievedItem = std::move(m_Storage.front());
+	retrievedItem = std::move(m_Storage.back());
 	m_Storage.pop_back();
 	return true;
 }
@@ -204,5 +204,16 @@ bool KStack<Stack_Type>::setItem (unsigned int index, Stack_Type& item)
 	return true;
 }
 
+//-----------------------------------------------------------------------------
+template<class Stack_Type>
+Stack_Type& KStack<Stack_Type>::operator[] (int n)
+//-----------------------------------------------------------------------------
+{
+	if (n < m_Storage.size())
+	{
+		return m_Storage.at(n) ;
+	}
+	return emptyValue;
+}
 
 } // END NAMESPACE DEKAF2

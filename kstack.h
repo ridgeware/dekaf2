@@ -64,7 +64,6 @@ public:
 	// For methods that return Stack_Type& they can either be (or compiler bawks)
 	// 1. const qualified, return const and use std::move on return values
 	// 2. not be const and not use std::move on return values
-	// 2.1 returning Stack_Type&& allows std::move() of return val when not const
 	// http://www.cplusplus.com/reference/deque/deque/front/
 
 	/// Put a new item onto the top of the stack
@@ -72,41 +71,41 @@ public:
 	/// Take the item from the top of the stack (removes item)
 	bool        pop         (Stack_Type& retrievedItem);
 	/// Take the item from the top of the stack (removes item)
-	Stack_Type&& pop        ();
+	Stack_Type& pop         ();
 	/// Gets the item at the top of the stack (item still on stack)
 	bool        peek        (Stack_Type& topItem)    const;
 	/// Gets the item at the top of the stack (const) (item still on stack)
 	const Stack_Type& peek  ()                       const;
 	/// Gets the item at the top of the stack (item still on stack)
-	Stack_Type&& peek       ()                       ;
+	Stack_Type& peek        ()                       ;
 
 	/// Put a new item on the bottom of the stack
 	bool        push_bottom (Stack_Type& newItem); // TODO add const ref version?
 	/// Take the item from the bottom of the stack (removes item)
 	bool        pop_bottom  (Stack_Type& retrievedItem);
 	/// Take the item from the bottom of the stack (removes item)
-	Stack_Type&& pop_bottom ();
+	Stack_Type& pop_bottom ();
 	/// Gets the item at the bottom of the stack (item still on bottom of stack)
 	bool        peek_bottom (Stack_Type& bottomItem) const;
 	/// Gets the item at the bottom of the stack (item still on bottom of stack)
-	Stack_Type&& peek_bottom()                       ;
+	Stack_Type& peek_bottom()                       ;
 	/// Gets the item at the bottom of the stack (const) (item still on bottom of stack)
 	const Stack_Type& peek_bottom ()                 const;
 
 	/// Gets and item via Zero based index from the top of the stack
-	bool        getItem     (unsigned int index, Stack_Type& item)       const;
+	bool        getItem     (unsigned int index, Stack_Type& item)       ;
 	/// Gets and item via Zero based index from the top of the stack
-	Stack_Type&& getItem    (unsigned int index)                         ;
+	Stack_Type& getItem    (unsigned int index)                         ;
 	/// Gets and item (const) via Zero based index from the top of the stack
-	bool        getItem     (unsigned int index, const Stack_Type& item) const;
-	/// Gets and item (const) via Zero based index from the top of the stack
-	const Stack_Type& getItem(unsigned int index)                        const;
+	const Stack_Type& getItem(unsigned int index)    const;
 	/// Sets the item via Zero based index from the top of the stack
 	bool        setItem     (unsigned int index, Stack_Type& item);
 	// TODO insert anywhere?
 
 	/// Gets the empty value returned when the requested value doesn't exist
 	const Stack_Type& getEmptyValue() { return m_EmptyValue; }
+	/// Checks if given value is the empty value
+	bool isEmptyValue(const Stack_Type& value) const { return value == m_EmptyValue; }
 
 	/// Returns the number of elements on the stack
 	int size         () const { return m_Storage.size(); }
@@ -114,6 +113,8 @@ public:
 	bool empty       () const { return m_Storage.empty(); }
 	/// Clears all elements off of the stack
 	void clear       ()       { return m_Storage.clear(); }
+
+	//typedef typename std::deque<Stack_Type>::self_type Inner_Type;
 
 	// Operators overloads
 	/// Assigns one KStack to Another (old data is destroyed)
@@ -125,17 +126,19 @@ public:
 	// Iterators
 	typedef typename std::deque<Stack_Type>::iterator iterator;
 	typedef typename std::deque<Stack_Type>::const_iterator const_iterator;
+	typedef typename std::deque<Stack_Type>::reverse_iterator reverse_iterator;
+	typedef typename std::deque<Stack_Type>::const_reverse_iterator const_reverse_iterator;
 
 	// Forward Iterators
-	iterator         begin() { return m_Storage.begin(); }
-	const_iterator  cbegin() { return m_Storage.cbegin(); }
-	iterator           end() { return m_Storage.end(); }
-	const_iterator    cend() { return m_Storage.cend(); }
+	iterator                 begin() { return m_Storage.begin(); }
+	const_iterator          cbegin() { return m_Storage.cbegin(); }
+	iterator                   end() { return m_Storage.end(); }
+	const_iterator            cend() { return m_Storage.cend(); }
 	// Reverse Iterators
-	iterator        rbegin() { return m_Storage.rbegin(); }
-	const_iterator crbegin() { return m_Storage.crbegin(); }
-	iterator          rend() { return m_Storage.rend(); }
-	const_iterator   crend() { return m_Storage.crend(); }
+	reverse_iterator        rbegin() { return m_Storage.rbegin(); }
+	const_reverse_iterator crbegin() { return m_Storage.crbegin(); }
+	reverse_iterator          rend() { return m_Storage.rend(); }
+	const_reverse_iterator   crend() { return m_Storage.crend(); }
 
 //----------
 private:
@@ -143,7 +146,7 @@ private:
 
 	std::deque<Stack_Type>  m_Storage;
 	// Making static causes undefined reference error
-	Stack_Type m_EmptyValue{}; // TODO GETTER for empty value
+	Stack_Type m_EmptyValue{};  // TODO GETTER for empty value
 
 };
 
@@ -186,19 +189,19 @@ bool KStack<Stack_Type>::pop(Stack_Type& retrievedItem)
 
 //-----------------------------------------------------------------------------
 template<class Stack_Type>
-Stack_Type&& KStack<Stack_Type>::pop()
+Stack_Type& KStack<Stack_Type>::pop()
 //-----------------------------------------------------------------------------
 {
 	// Make sure not empty
 	if (m_Storage.empty())
 	{
-		return std::move(m_EmptyValue);
+		return m_EmptyValue;
 	}
 
 	// If not empty, there is a no throw guarantee
 	Stack_Type& retrievedItem = m_Storage.front();
 	m_Storage.pop_front();
-	return std::move(retrievedItem);
+	return retrievedItem;
 }
 
 //-----------------------------------------------------------------------------
@@ -232,16 +235,16 @@ const Stack_Type& KStack<Stack_Type>::peek() const
 
 //-----------------------------------------------------------------------------
 template<class Stack_Type>
-Stack_Type&& KStack<Stack_Type>::peek()
+Stack_Type& KStack<Stack_Type>::peek()
 //-----------------------------------------------------------------------------
 {
 	// Make sure not empty
 	if (m_Storage.empty())
 	{
-		return std::move(m_EmptyValue);
+		return m_EmptyValue;
 	}
 	// If not empty, there is a no throw guarantee
-	return std::move(m_Storage.front());
+	return m_Storage.front();
 }
 
 //-----------------------------------------------------------------------------
@@ -273,19 +276,19 @@ bool KStack<Stack_Type>::pop_bottom(Stack_Type& retrievedItem)
 
 //-----------------------------------------------------------------------------
 template<class Stack_Type>
-Stack_Type&& KStack<Stack_Type>::pop_bottom()
+Stack_Type& KStack<Stack_Type>::pop_bottom()
 //-----------------------------------------------------------------------------
 {
 	// Make sure not empty
 	if (m_Storage.empty())
 	{
-		return std::move(m_EmptyValue);
+		return m_EmptyValue;
 	}
 
 	// If not empty, there is a no throw guarantee
 	Stack_Type& retrievedItem = m_Storage.back();
 	m_Storage.pop_back();
-	return std::move(retrievedItem);
+	return retrievedItem;
 }
 
 //-----------------------------------------------------------------------------
@@ -305,16 +308,16 @@ bool KStack<Stack_Type>::peek_bottom(Stack_Type& topItem) const
 
 //-----------------------------------------------------------------------------
 template<class Stack_Type>
-Stack_Type&& KStack<Stack_Type>::peek_bottom()
+Stack_Type& KStack<Stack_Type>::peek_bottom()
 //-----------------------------------------------------------------------------
 {
 	// Make sure not empty
 	if (m_Storage.empty())
 	{
-		return std::move(m_EmptyValue);
+		return m_EmptyValue;
 	}
 	// If not empty, there is a no throw guarantee
-	return std::move(m_Storage.back());
+	return m_Storage.back();
 
 }
 
@@ -333,9 +336,11 @@ const Stack_Type& KStack<Stack_Type>::peek_bottom() const
 
 }
 
+// ===== RANDOM ACCESS TO STACK =====
+
 //-----------------------------------------------------------------------------
 template<class Stack_Type>
-bool KStack<Stack_Type>::getItem (unsigned int index, Stack_Type& item) const
+bool KStack<Stack_Type>::getItem (unsigned int index, Stack_Type& item)
 //-----------------------------------------------------------------------------
 {
 	// Make sure element exists
@@ -348,20 +353,19 @@ bool KStack<Stack_Type>::getItem (unsigned int index, Stack_Type& item) const
 	return true;
 }
 
-// ===== RANDOM ACCESS TO STACK =====
-
 //-----------------------------------------------------------------------------
 template<class Stack_Type>
-Stack_Type&& KStack<Stack_Type>::getItem (unsigned int index)
+Stack_Type& KStack<Stack_Type>::getItem (unsigned int index)
 //-----------------------------------------------------------------------------
 {
 	// Make sure element exists
 	if (index >= m_Storage.size())
 	{
-		return std::move(m_EmptyValue);
+		//return std::move(m_EmptyValue);
+		return m_EmptyValue;
 	}
 	// Compiler complains about std::move() if used on next line
-	return std::move(m_Storage.at(index));
+	return m_Storage.at(index);
 }
 
 //-----------------------------------------------------------------------------
@@ -376,21 +380,6 @@ const Stack_Type& KStack<Stack_Type>::getItem (unsigned int index) const
 	}
 	// Compiler complains about std::move() if used on next line
 	return std::move(m_Storage.at(index));
-}
-
-//-----------------------------------------------------------------------------
-template<class Stack_Type>
-bool KStack<Stack_Type>::getItem (unsigned int index, const Stack_Type& item) const
-//-----------------------------------------------------------------------------
-{
-	// Make sure element exists
-	if (index >= m_Storage.size())
-	{
-		return false;
-	}
-
-	item = std::move(m_Storage.at(index));
-	return true;
 }
 
 //-----------------------------------------------------------------------------

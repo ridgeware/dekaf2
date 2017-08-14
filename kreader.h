@@ -46,6 +46,7 @@
 #include <istream>
 #include <fstream>
 #include <sstream>
+#include <iterator>
 #include <type_traits>
 #include "kstring.h"
 
@@ -259,6 +260,7 @@ public:
 
 	using const_iterator = const_kreader_line_iterator;
 	using iterator = const_iterator;
+	using char_iterator = std::istreambuf_iterator<char>;
 
 	//-----------------------------------------------------------------------------
 	/// value constructor
@@ -471,6 +473,23 @@ public:
 	//-----------------------------------------------------------------------------
 	{
 		return cend();
+	}
+
+	//-----------------------------------------------------------------------------
+	/// Returns a char iterator to the current read position in a stream
+	inline char_iterator char_begin()
+	//-----------------------------------------------------------------------------
+	{
+		return char_iterator(InStream());
+	}
+
+	//-----------------------------------------------------------------------------
+	/// Returns a char iterator that is equal to an iterator that has reached the
+	/// end of a stream
+	inline char_iterator char_end()
+	//-----------------------------------------------------------------------------
+	{
+		return char_iterator();
 	}
 
 	//-----------------------------------------------------------------------------

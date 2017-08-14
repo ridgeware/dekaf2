@@ -214,6 +214,26 @@ TEST_CASE("KReader") {
 		CHECK( iCount == 9 );
 	}
 
+	SECTION("KFileReader char read iterator 1")
+	{
+		KInFile File(sFile, std::ios_base::in);
+		auto it = File.char_begin();
+		for (int iCount = 0; iCount < 9; ++iCount)
+		{
+			CHECK( *it++ == 'l' );
+			CHECK( *it   == 'i' );
+			CHECK( *++it == 'n' );
+			++it;
+			CHECK( *it   == 'e' );
+			it++;
+			CHECK( *it++ == ' ' );
+			CHECK( *it++ == ('1' + iCount) );
+			CHECK( *it++ == '\n' );
+		}
+		CHECK( it == File.char_end() );
+
+	}
+
 	SECTION("KFDReader test 1")
 	{
 		int fd = ::open(sFile.c_str(), O_RDONLY);

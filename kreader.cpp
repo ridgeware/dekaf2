@@ -71,40 +71,46 @@ KInStreamBuf::~KInStreamBuf()
 std::streamsize KInStreamBuf::xsgetn(char_type* s, std::streamsize n)
 //-----------------------------------------------------------------------------
 {
-	return m_Callback(s, n, m_CustomPointer);
+	std::streamsize iExtracted = 0;
+
+	{
+		// read as many chars as possible directly from the stream buffer
+		std::streamsize iReadInStreamBuf = std::min(n, in_avail());
+		if (iReadInStreamBuf > 0)
+		{
+			std::memcpy(s, gptr(), static_cast<size_t>(iReadInStreamBuf));
+			s += iReadInStreamBuf;
+			n -= iReadInStreamBuf;
+			iExtracted = iReadInStreamBuf;
+			// adjust stream buffer pointers
+			setg(eback(), gptr()+iReadInStreamBuf, egptr());
+		}
+	}
+
+	if (n > 0)
+	{
+		// read remaining chars directly from the callbacḱ function
+		iExtracted += m_Callback(s, n, m_CustomPointer);
+	}
+
+	return iExtracted;
 }
 
-/*
 //-----------------------------------------------------------------------------
 KInStreamBuf::int_type KInStreamBuf::underflow()
 //-----------------------------------------------------------------------------
 {
-	char ch;
-	m_Callback(&ch, 1, m_CustomPointer);
-	return static_cast<int_type>(ch);
-}
-*/
-
-//-----------------------------------------------------------------------------
-KInStreamBuf::int_type KInStreamBuf::uflow()
-//-----------------------------------------------------------------------------
-{
-	char ch;
-	if (m_Callback(&ch, 1, m_CustomPointer) == 1)
+	std::streamsize rb = m_Callback(m_buf, STREAMBUFSIZE, m_CustomPointer);
+	if (rb > 0)
 	{
-		return static_cast<int_type>(ch);
+		setg(m_buf, m_buf, m_buf+rb);
+		return traits_type::to_int_type(m_buf[0]);
 	}
 	else
 	{
 		return traits_type::eof();
 	}
 }
-
-/*
-std::streamsize KInStreamBuf::showmanyc()
-{
-}
-*/
 
 //-----------------------------------------------------------------------------
 bool kRewind(std::istream& Stream)
@@ -281,48 +287,23 @@ bool kReadAll(KStringView sFileName, KString& sContent)
 bool kReadLine(std::istream& Stream, KString& sLine, KStringView sTrimRight, KString::value_type delimiter)
 //-----------------------------------------------------------------------------
 {
-	sLine.clear();
+	// std::getline is simply the best..
+	std::getline(Stream, sLine, delimiter);
 
-	std::streambuf* sb = Stream.rdbuf();
-
-	if (!sb)
+	if (Stream.fail())
 	{
-		Stream.setstate(std::ios_base::badbit);
-
 		return false;
 	}
 
-	for (;;)
+	// std::getline does not store the EOL character, but we want to
+	sLine += delimiter;
+
+	if (!sTrimRight.empty())
 	{
-		std::streambuf::int_type iCh = sb->sbumpc();
-		if (std::streambuf::traits_type::eq_int_type(iCh, std::streambuf::traits_type::eof()))
-		{
-			// the EOF case
-			Stream.setstate(std::ios_base::eofbit);
-
-			bool bSuccess = !sLine.empty();
-
-			if (!sTrimRight.empty())
-			{
-				sLine.TrimRight(sTrimRight);
-			}
-
-			return bSuccess;
-		}
-
-		KString::value_type Ch = static_cast<KString::value_type>(iCh);
-
-		sLine += Ch;
-
-		if (Ch == delimiter)
-		{
-			if (!sTrimRight.empty())
-			{
-				sLine.TrimRight(sTrimRight);
-			}
-			return true;
-		}
+		sLine.TrimRight(sTrimRight);
 	}
+
+	return true;
 
 } // kReadLine
 

@@ -862,3 +862,10 @@ std::istream& std::getline(std::istream& stream, dekaf2::KString& str)
 	return std::getline(stream, str.s());
 }
 
+//----------------------------------------------------------------------
+std::istream& std::getline(std::istream& stream, dekaf2::KString& str, dekaf2::KString::value_type delimiter)
+//----------------------------------------------------------------------
+{
+	return std::getline(stream, str.s(), delimiter);
+}
+

@@ -551,6 +551,7 @@ inline bool operator>=(KStringView left, KStringView right)
 namespace std
 {
 	std::istream& getline(std::istream& stream, dekaf2::KString& str);
+	std::istream& getline(std::istream& stream, dekaf2::KString& str, dekaf2::KString::value_type delimiter);
 
 	template<> struct hash<dekaf2::KString>
 	{

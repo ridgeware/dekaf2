@@ -119,7 +119,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	/// copy constructor is deleted, as with std::ostream
+	/// copy construction is deleted (to avoid ambiguities with the value constructor)
 	KOutStream(const self_type& other) = delete;
 	//-----------------------------------------------------------------------------
 
@@ -132,7 +132,7 @@ public:
 	{}
 
 	//-----------------------------------------------------------------------------
-	/// copy assignment is deleted, as with std::ostream
+	/// copy assignment is deleted
 	self_type& operator=(const self_type& other) = delete;
 	//-----------------------------------------------------------------------------
 

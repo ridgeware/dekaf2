@@ -284,7 +284,11 @@ bool kReadAll(KStringView sFileName, KString& sContent)
 } // kReadAll
 
 //-----------------------------------------------------------------------------
-bool kReadLine(std::istream& Stream, KString& sLine, KStringView sTrimRight, KString::value_type delimiter)
+bool kReadLine(std::istream& Stream,
+               KString& sLine,
+               KStringView sTrimRight,
+               KStringView sTrimLeft,
+               KString::value_type delimiter)
 //-----------------------------------------------------------------------------
 {
 	// std::getline is simply the best..
@@ -303,6 +307,11 @@ bool kReadLine(std::istream& Stream, KString& sLine, KStringView sTrimRight, KSt
 		sLine.TrimRight(sTrimRight);
 	}
 
+	if (!sTrimLeft.empty())
+	{
+		sLine.TrimLeft(sTrimLeft);
+	}
+
 	return true;
 
 } // kReadLine
@@ -315,7 +324,11 @@ KInStream::const_kreader_line_iterator::const_kreader_line_iterator(base_iterato
 {
 	if (m_it != nullptr)
 	{
-		if (!kReadLine(*(m_it->m_sRef), m_sBuffer, m_it->m_sTrimRight, m_it->m_chDelimiter))
+		if (!kReadLine(m_it->InStream(),
+		               m_sBuffer,
+		               m_it->m_sTrimRight,
+		               m_it->m_sTrimLeft,
+		               m_it->m_chDelimiter))
 		{
 			m_it = nullptr;
 		}
@@ -328,7 +341,11 @@ KInStream::const_kreader_line_iterator::self_type& KInStream::const_kreader_line
 {
 	if (m_it != nullptr)
 	{
-		if (!kReadLine(*(m_it->m_sRef), m_sBuffer, m_it->m_sTrimRight, m_it->m_chDelimiter))
+		if (!kReadLine(m_it->InStream(),
+		               m_sBuffer,
+		               m_it->m_sTrimRight,
+		               m_it->m_sTrimLeft,
+		               m_it->m_chDelimiter))
 		{
 			m_it = nullptr;
 		}
@@ -345,7 +362,11 @@ KInStream::const_kreader_line_iterator::self_type KInStream::const_kreader_line_
 
 	if (m_it != nullptr)
 	{
-		if (!kReadLine(*(m_it->m_sRef), m_sBuffer, m_it->m_sTrimRight, m_it->m_chDelimiter))
+		if (!kReadLine(m_it->InStream(),
+		               m_sBuffer,
+		               m_it->m_sTrimRight,
+		               m_it->m_sTrimLeft,
+		               m_it->m_chDelimiter))
 		{
 			m_it = nullptr;
 		}
@@ -366,13 +387,13 @@ KInStream::~KInStream()
 typename std::istream::int_type KInStream::Read()
 //-----------------------------------------------------------------------------
 {
-	std::streambuf* sb = m_sRef->rdbuf();
+	std::streambuf* sb = InStream().rdbuf();
 	if (sb)
 	{
 		typename std::istream::int_type iCh = sb->sbumpc();
 		if (std::istream::traits_type::eq_int_type(iCh, std::istream::traits_type::eof()))
 		{
-			m_sRef->setstate(std::ios::eofbit);
+			InStream().setstate(std::ios::eofbit);
 		}
 		return iCh;
 	}
@@ -384,13 +405,13 @@ typename std::istream::int_type KInStream::Read()
 size_t KInStream::Read(typename std::istream::char_type* pAddress, size_t iCount)
 //-----------------------------------------------------------------------------
 {
-	std::streambuf* sb = m_sRef->rdbuf();
+	std::streambuf* sb = InStream().rdbuf();
 	if (sb)
 	{
 		size_t iRead = static_cast<size_t>(sb->sgetn(pAddress, static_cast<std::streamsize>(iCount)));
 		if (iRead != iCount)
 		{
-			m_sRef->setstate(std::ios::eofbit);
+			InStream().setstate(std::ios::eofbit);
 		}
 		return iRead;
 	}

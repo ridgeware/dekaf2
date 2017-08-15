@@ -723,20 +723,11 @@ KString& KString::ClipAtReverse(KStringView sClipAtReverse)
 void KString::RemoveIllegalChars(const KString& sIllegalChars)
 //----------------------------------------------------------------------
 {
-	if (sIllegalChars.empty())
+	size_type pos;
+	for (size_type lastpos = size(); (pos = find_last_of(sIllegalChars, lastpos)) != npos; )
 	{
-		erase();
-	}
-	else
-	{
-		size_type pos;
-		for(size_type lastpos = size();
-			(pos = find_last_of(sIllegalChars, lastpos)) != npos;
-			)
-		{
-			erase(pos, 1);
-			lastpos = pos;
-		}
+		erase(pos, 1);
+		lastpos = pos;
 	}
 }
 

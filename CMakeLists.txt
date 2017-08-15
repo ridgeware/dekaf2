@@ -63,6 +63,7 @@ set (HEADERS
     ktcpclient.h
     ktcpserver.h
     khash.h
+    kmake_unique.h
 )
 
 set (SOURCES

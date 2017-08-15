@@ -123,6 +123,9 @@ namespace std
 // It does not matter if they had been declared by other code already. The compiler
 // simply picks the first one that matches.
 #ifndef DEKAF2_HAS_CPP_14
+
+#include "kmake_unique.h"
+
 namespace std
 {
 

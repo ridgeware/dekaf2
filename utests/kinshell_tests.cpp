@@ -25,30 +25,8 @@ void kpipereader_testKillDelayTask()
 
 } // kpipe_testKillDelayTask
 
-TEST_CASE("KPipeReader")
+TEST_CASE("KInShell")
 {
-
-	SECTION("KPipeReader Curl Test")
-	{
-		KInShell pipe;
-		KString sCurlCMD = "curl -i www.google.com 2> /dev/null";
-		CHECK(pipe.Open(sCurlCMD));
-
-		KString sCurrentLine;
-		bool output = pipe.ReadLine(sCurrentLine);
-		CHECK(output);
-		//std::cout << "output is:\n" << std::endl;
-		while (output)
-		{
-			//std::cout << sCurrentLine;
-			output = pipe.ReadLine(sCurrentLine);
-			//CHECK(output);
-
-		}
-		CHECK_FALSE(output);
-		CHECK(pipe.Close() == 0);
-	} // curl test
-
 	SECTION("KPipeReader normal Open and Close")
 	{
 		INFO("normal_open_close_test::Start:");

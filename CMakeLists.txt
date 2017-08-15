@@ -111,3 +111,4 @@ set_target_properties(dekaf2 PROPERTIES INTERFACE_INCLUDE_DIRECTORIES ${DEKAF2_I
 target_compile_definitions(dekaf2 PRIVATE DEKAF2_LIBRARY_BUILD)
 
 add_subdirectory(utests)
+add_subdirectory(smoketests)

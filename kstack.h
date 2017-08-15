@@ -174,7 +174,7 @@ bool KStack<Stack_Type>::push(Stack_Type& newItem)
 	{
 		KString logString("Failed to push onto KStack, bad_alloc Exception: ");
 		logString += e.what();
-		KLog().debug(0, logString);
+		KLog().debug(0, logString.c_str());
 	}
 	catch (...)
 	{
@@ -275,7 +275,7 @@ bool KStack<Stack_Type>::push_bottom(Stack_Type& newItem)
 	{
 		KString logString("Failed to push onto KStack, bad_alloc Exception: ");
 		logString += e.what();
-		KLog().debug(0, logString);
+		KLog().debug(0, logString.c_str());
 	}
 
 	catch (...)

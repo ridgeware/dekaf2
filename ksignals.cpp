@@ -118,7 +118,7 @@ void KSignals::LookupFunc(int signal)
 
 	if (callable.bAsThread)
 	{
-		m_Threads.create_one([&]()
+		m_Threads.CreateOne([&]()
 		{
 			callable.func(signal);
 		});
@@ -210,13 +210,13 @@ void KSignals::SetAllSignalHandlers(std_func_t func, bool bAsThread)
 KSignals::KSignals(bool bStartHandlerThread)
 //-----------------------------------------------------------------------------
 {
-	m_Threads.start_detached();
+	m_Threads.StartDetached();
 
 	IgnoreAllSignals();
 
 	if (bStartHandlerThread)
 	{
-		m_Threads.create_one(&KSignals::WaitForSignals, this);
+		m_Threads.CreateOne(&KSignals::WaitForSignals, this);
 	}
 }
 

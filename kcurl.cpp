@@ -30,8 +30,6 @@ bool KCurl::initiateRequest()
 {
 	KLog().debug(3, "KCurl::initiateRequest() start.");
 	m_bHeaderComplete = false;
-	// open kpipe with curl command
-	// start simple, just curl site
 	// TODO check if is url
 	if (m_sRequestURL.empty())
 	{
@@ -57,9 +55,7 @@ bool KCurl::initiateRequest()
 	*/
 	KString headers("");
 	serializeRequestHeader(headers);
-	// We never want just body, must read header to know size of body in many cases
 	KString sCurlCMD = "curl " + sFlags + " " + m_sRequestURL + " " + headers +" 2> /dev/null";// + " | cat";
-	//std::cout << "curl cmd: " << sCurlCMD << std::endl;
 	KLog().debug(3, "KCurl::initiateRequest() end. Command: {}", sCurlCMD);
 	return m_kpipe.Open(sCurlCMD);
 

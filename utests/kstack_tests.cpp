@@ -11,14 +11,11 @@ TEST_CASE("KStack")
 	SECTION("Basic KStack Test (Bool Version)")
 	{
 		KStack<int> kStack;
-		kStack.isEmptyValue(kStack.getEmptyValue());
+		CHECK(kStack.isEmptyValue(kStack.getEmptyValue()));
 
 		int my1Int = 5, my2Int = 7, my3Int = 9, my4Int = 11, my5Int = 13, my6Int = 15;
 		int subInt = 10;
-		// Push tests data onto stack
-		//CHECK(kStack.push(my1Int));
-		//CHECK(kStack.push(my2Int));
-		//CHECK(kStack.push(my3Int));
+		// Push test data onto stack
 		CHECK(kStack.push(my4Int));
 		CHECK(kStack.push(my5Int));
 		CHECK(kStack.push(my6Int));
@@ -77,10 +74,7 @@ TEST_CASE("KStack")
 
 		int my1Int = 5, my2Int = 7, my3Int = 9, my4Int = 11, my5Int = 13, my6Int = 15;
 		int subInt = 10;
-		// Push tests data onto stack
-		//CHECK(kStack.push(my1Int));
-		//CHECK(kStack.push(my2Int));
-		//CHECK(kStack.push(my3Int));
+		// Push test data onto stack
 		CHECK(kStack.push(my4Int));
 		CHECK(kStack.push(my5Int));
 		CHECK(kStack.push(my6Int));
@@ -193,14 +187,9 @@ TEST_CASE("KStack")
 	SECTION("Basic KStack Iterative For Loop Test ")
 	{
 		KStack<int> kStack;
-		kStack.isEmptyValue(kStack.getEmptyValue());
 
 		int my6Ints[6] = {5, 7, 9, 11, 13, 15};
-		int subInt = 10;
-		// Push tests data onto stack
-		//CHECK(kStack.push(my1Int));
-		//CHECK(kStack.push(my2Int));
-		//CHECK(kStack.push(my3Int));
+		// Push test data onto stack
 		CHECK(kStack.push(my6Ints[3]));
 		CHECK(kStack.push(my6Ints[4]));
 		CHECK(kStack.push(my6Ints[5]));
@@ -208,14 +197,12 @@ TEST_CASE("KStack")
 		CHECK(kStack.push_bottom(my6Ints[1]));
 		CHECK(kStack.push_bottom(my6Ints[0]));
 
-		// We're not empty yet
 		CHECK_FALSE(kStack.empty());
 		CHECK(6 == kStack.size());
 
-		//int i = 5;
 		for (int i = 0; i < kStack.size(); ++i)
 		{
-			CHECK(kStack.getItem(i) == my6Ints[5-i]);
+			CHECK(kStack[i] == my6Ints[5-i]);
 		}
 
 	}
@@ -223,11 +210,11 @@ TEST_CASE("KStack")
 	SECTION("Basic KStack Forward Iterator Test ")
 	{
 		KStack<int> kStack;
-		kStack.isEmptyValue(kStack.getEmptyValue());
+		CHECK(kStack.isEmptyValue(kStack.getEmptyValue()));
 
 		int my6Ints[6] = {5, 7, 9, 11, 13, 15};
 		int subInt = 10;
-		// Push tests data onto stack
+		// Push test data onto stack
 		//CHECK(kStack.push(my1Int));
 		//CHECK(kStack.push(my2Int));
 		//CHECK(kStack.push(my3Int));
@@ -254,14 +241,11 @@ TEST_CASE("KStack")
 	SECTION("Basic KStack Forward Const Iterator Test ")
 	{
 		KStack<int> kStack;
-		kStack.isEmptyValue(kStack.getEmptyValue());
+		CHECK(kStack.isEmptyValue(kStack.getEmptyValue()));
 
 		int my6Ints[6] = {5, 7, 9, 11, 13, 15};
 		int subInt = 10;
-		// Push tests data onto stack
-		//CHECK(kStack.push(my1Int));
-		//CHECK(kStack.push(my2Int));
-		//CHECK(kStack.push(my3Int));
+		// Push test data onto stack
 		CHECK(kStack.push(my6Ints[3]));
 		CHECK(kStack.push(my6Ints[4]));
 		CHECK(kStack.push(my6Ints[5]));
@@ -285,14 +269,11 @@ TEST_CASE("KStack")
 	SECTION("Basic KStack Reverse Iterator Test ")
 	{
 		KStack<int> kStack;
-		kStack.isEmptyValue(kStack.getEmptyValue());
+		CHECK(kStack.isEmptyValue(kStack.getEmptyValue()));
 
 		int my6Ints[6] = {5, 7, 9, 11, 13, 15};
 		int subInt = 10;
-		// Push tests data onto stack
-		//CHECK(kStack.push(my1Int));
-		//CHECK(kStack.push(my2Int));
-		//CHECK(kStack.push(my3Int));
+		// Push test data onto stack
 		CHECK(kStack.push(my6Ints[3]));
 		CHECK(kStack.push(my6Ints[4]));
 		CHECK(kStack.push(my6Ints[5]));
@@ -316,14 +297,11 @@ TEST_CASE("KStack")
 	SECTION("Basic KStack Reverse Const Iterator Test ")
 	{
 		KStack<int> kStack;
-		kStack.isEmptyValue(kStack.getEmptyValue());
+		CHECK(kStack.isEmptyValue(kStack.getEmptyValue()));
 
 		int my6Ints[6] = {5, 7, 9, 11, 13, 15};
 		int subInt = 10;
-		// Push tests data onto stack
-		//CHECK(kStack.push(my1Int));
-		//CHECK(kStack.push(my2Int));
-		//CHECK(kStack.push(my3Int));
+		// Push test data onto stack
 		CHECK(kStack.push(my6Ints[3]));
 		CHECK(kStack.push(my6Ints[4]));
 		CHECK(kStack.push(my6Ints[5]));

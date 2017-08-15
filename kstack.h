@@ -44,6 +44,8 @@
 
 #include <deque>
 
+#include "klog.h"
+
 namespace  dekaf2
 {
 
@@ -114,8 +116,6 @@ public:
 	/// Clears all elements off of the stack
 	void clear       ()       { return m_Storage.clear(); }
 
-	//typedef typename std::deque<Stack_Type>::self_type Inner_Type;
-
 	// Operators overloads
 	/// Assigns one KStack to Another (old data is destroyed)
 	KStack&     operator=  (KStack&& other)      { m_Storage = std::move(other.m_Storage); return *this; }
@@ -165,10 +165,23 @@ template<class Stack_Type>
 bool KStack<Stack_Type>::push(Stack_Type& newItem)
 //-----------------------------------------------------------------------------
 {
-	// TODO May throw when allocating, bad_alloc usually
-	m_Storage.push_front(std::move(newItem));
-	return true;
-}
+	// May throw bad_alloc if can't allocate space for new stack item
+	try {
+		m_Storage.push_front(std::move(newItem));
+		return true;
+	}
+	catch (const std::bad_alloc& e)
+	{
+		KString logString("Failed to push onto KStack, bad_alloc Exception: ");
+		logString += e.what();
+		KLog().debug(0, logString);
+	}
+	catch (...)
+	{
+		KLog().debug(0, "Failed to push onto KStack, unkown exception.");
+	}
+	return false;
+} // push
 
 //-----------------------------------------------------------------------------
 template<class Stack_Type>
@@ -252,9 +265,25 @@ template<class Stack_Type>
 bool KStack<Stack_Type>::push_bottom(Stack_Type& newItem)
 //-----------------------------------------------------------------------------
 {
-	// TODO May throw when allocating, bad_alloc usually
-	m_Storage.push_back(std::move(newItem));
-	return true;
+	// May throw bad_alloc if can't allocate space for new stack item
+	try {
+		m_Storage.push_back(std::move(newItem));
+		return true;
+	}
+
+	catch (const std::bad_alloc& e)
+	{
+		KString logString("Failed to push onto KStack, bad_alloc Exception: ");
+		logString += e.what();
+		KLog().debug(0, logString);
+	}
+
+	catch (...)
+	{
+		KLog().debug(0, "Failed to push onto KStack, unkown exception.");
+	}
+
+	return false;
 }
 
 //-----------------------------------------------------------------------------

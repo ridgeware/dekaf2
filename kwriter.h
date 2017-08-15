@@ -110,11 +110,9 @@ public:
 //-------
 	//-----------------------------------------------------------------------------
 	/// value constructor
-	KOutStream(std::ostream& sRef,
-	             KStringView sDelimiter = "\n")
+	KOutStream(std::ostream& OutStream)
 	//-----------------------------------------------------------------------------
-	    : m_sRef(&sRef)
-	    , m_sDelimiter(sDelimiter)
+	    : m_OutStream(&OutStream)
 	{
 	}
 
@@ -127,7 +125,7 @@ public:
 	/// move construct a KOutStream
 	KOutStream(self_type&& other) noexcept
 	//-----------------------------------------------------------------------------
-	    : m_sRef(std::move(other.m_sRef))
+	    : m_OutStream(std::move(other.m_OutStream))
 	    , m_sDelimiter(std::move(other.m_sDelimiter))
 	{}
 
@@ -141,7 +139,7 @@ public:
 	self_type& operator=(self_type&& other) noexcept
 	//-----------------------------------------------------------------------------
 	{
-		m_sRef = std::move(other.m_sRef);
+		m_OutStream = std::move(other.m_OutStream);
 		m_sDelimiter = std::move(other.m_sDelimiter);
 		return *this;
 	}
@@ -231,7 +229,7 @@ public:
 	const std::ostream& OutStream() const
 	//-----------------------------------------------------------------------------
 	{
-		return *m_sRef;
+		return *m_OutStream;
 	}
 
 	//-----------------------------------------------------------------------------
@@ -239,7 +237,7 @@ public:
 	std::ostream& OutStream()
 	//-----------------------------------------------------------------------------
 	{
-		return *m_sRef;
+		return *m_OutStream;
 	}
 
 	//-----------------------------------------------------------------------------
@@ -263,8 +261,8 @@ protected:
 //-------
 	// m_sRef always has to be valid after construction
 	// - do not assign a nullptr per default
-	std::ostream* m_sRef;
-	KString m_sDelimiter;
+	std::ostream* m_OutStream;
+	KString m_sDelimiter{"\n"};
 
 };
 
@@ -288,19 +286,6 @@ public:
 //-------
 
 	//-----------------------------------------------------------------------------
-	/// move construct a KWriter
-	KWriter(self_type&& other) noexcept
-	//-----------------------------------------------------------------------------
-	    : base_type(std::move(other))
-	    , KOutStream(std::move(other))
-	{}
-
-	//-----------------------------------------------------------------------------
-	/// copy constructor is deleted, as with std::ostream
-	KWriter(self_type& other) = delete;
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
 	// semi-perfect forwarding - currently needed as std::ostream does not yet
 	// support string_views as arguments
 	template<class... Args>
@@ -316,10 +301,23 @@ public:
 	template<class... Args>
 	KWriter(Args&&... args)
 	    : base_type(std::forward<Args>(args)...)
-	    , KOutStream(static_cast<std::ostream&>(*this))
+	    , KOutStream(static_cast<base_type&>(*this))
 	//-----------------------------------------------------------------------------
 	{
 	}
+
+	//-----------------------------------------------------------------------------
+	/// move construct a KWriter
+	KWriter(self_type&& other) noexcept
+	//-----------------------------------------------------------------------------
+	    : base_type(std::move(other))
+	    , KOutStream(std::move(other))
+	{}
+
+	//-----------------------------------------------------------------------------
+	/// copy constructor is deleted, as with std::ostream
+	KWriter(self_type& other) = delete;
+	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// copy assignment is deleted, as with std::ostream

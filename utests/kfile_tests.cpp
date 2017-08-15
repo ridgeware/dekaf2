@@ -55,22 +55,22 @@ TEST_CASE("KFile") {
 		auto it = File.begin();
 		KString s1;
 		s1 = *it;
-		CHECK( s1 == "line 1\n" );
+		CHECK( s1 == "line 1" );
 		s1 = *it;
-		CHECK( s1 == "line 1\n" );
+		CHECK( s1 == "line 1" );
 		++it;
 		s1 = std::move(*it);
-		CHECK( s1 == "line 2\n" );
+		CHECK( s1 == "line 2" );
 		s1 = *it;
-		CHECK( s1 != "line 2\n" );
+		CHECK( s1 != "line 2" );
 		s1 = *++it;
-		CHECK( s1 == "line 3\n" );
+		CHECK( s1 == "line 3" );
 		s1 = *it++;
-		CHECK( s1 == "line 3\n" );
+		CHECK( s1 == "line 3" );
 		s1 = *it++;
-		CHECK( s1 == "line 4\n" );
+		CHECK( s1 == "line 4" );
 		s1 = *it;
-		CHECK( s1 == "line 5\n" );
+		CHECK( s1 == "line 5" );
 
 	}
 

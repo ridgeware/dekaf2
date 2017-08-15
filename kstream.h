@@ -64,6 +64,14 @@ public:
 //-------
 
 	//-----------------------------------------------------------------------------
+	/// value construct a KStream
+	KStream(std::iostream& Stream)
+	//-----------------------------------------------------------------------------
+	    : reader_type(Stream)
+	    , writer_type(Stream)
+	{}
+
+	//-----------------------------------------------------------------------------
 	/// move construct a KStream
 	KStream(self_type&& other) noexcept
 	//-----------------------------------------------------------------------------
@@ -75,14 +83,6 @@ public:
 	/// copy construction is deleted, as with std::iostream
 	KStream(self_type& other) = delete;
 	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// value construct a KStream
-	KStream(std::iostream& Stream)
-	//-----------------------------------------------------------------------------
-	    : reader_type(Stream)
-	    , writer_type(Stream)
-	{}
 
 	//-----------------------------------------------------------------------------
 	/// dtor
@@ -127,6 +127,27 @@ public:
 //-------
 
 	//-----------------------------------------------------------------------------
+	// semi-perfect forwarding - currently needed as std::iostream does not yet
+	// support string_views as arguments
+	template<class... Args>
+	KReaderWriter(KStringView sv, Args&&... args)
+	    : base_type(std::string(sv), std::forward<Args>(args)...)
+	    , k_rw_type(static_cast<base_type&>(*this))
+	//-----------------------------------------------------------------------------
+	{
+	}
+
+	//-----------------------------------------------------------------------------
+	// perfect forwarding
+	template<class... Args>
+	KReaderWriter(Args&&... args)
+	    : base_type(std::forward<Args>(args)...)
+	    , k_rw_type(static_cast<base_type&>(*this))
+	//-----------------------------------------------------------------------------
+	{
+	}
+
+	//-----------------------------------------------------------------------------
 	/// move construct a KReaderWriter
 	KReaderWriter(self_type&& other) noexcept
 	//-----------------------------------------------------------------------------
@@ -135,32 +156,9 @@ public:
 	{}
 
 	//-----------------------------------------------------------------------------
-	/// copy constructor is deleted - std::iostreams is, too
+	/// copy constructor is deleted - std::iostream's is, too
 	KReaderWriter(self_type& other) = delete;
 	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	// semi-perfect forwarding - currently needed as std::iostream does not yet
-	// support string_views as arguments
-	template<class... Args>
-	KReaderWriter(KStringView sv, Args&&... args)
-	    : base_type(std::string(sv), std::forward<Args>(args)...)
-	    , k_rw_type(*this)
-	//-----------------------------------------------------------------------------
-	{
-		static_assert(std::is_base_of<std::iostream, IOStream>::value,
-		              "KReaderWriter cannot be derived from a non-std::iostream class");
-	}
-
-	//-----------------------------------------------------------------------------
-	// perfect forwarding
-	template<class... Args>
-	KReaderWriter(Args&&... args)
-	    : base_type(std::forward<Args>(args)...)
-	    , k_rw_type(static_cast<std::iostream&>(*this))
-	//-----------------------------------------------------------------------------
-	{
-	}
 
 	//-----------------------------------------------------------------------------
 	/// copy assignment is deleted - std::iostring's is, too

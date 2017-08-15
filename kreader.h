@@ -98,7 +98,7 @@ private:
 /// Reads directly in the underlying streambuf
 bool kReadLine(std::istream& Stream,
                KString& sLine,
-               KStringView sTrimRight = "",
+               KStringView sTrimRight = "\n",
                KStringView sTrimLeft = "",
                KString::value_type delimiter = '\n');
 
@@ -149,13 +149,14 @@ public:
 	//-------
 	public:
 	//-------
-		typedef const_kreader_line_iterator self_type;
-		typedef KString value_type;
-		typedef value_type& reference;
-		typedef value_type* pointer;
-		typedef KInStream base_iterator;
-		typedef std::input_iterator_tag iterator_category;
-		typedef std::ptrdiff_t difference_type;
+		using iterator_category = std::input_iterator_tag;
+		using value_type = KString;
+
+		using reference = value_type&;
+		using pointer = value_type*;
+		using difference_type = std::ptrdiff_t;
+		using self_type = const_kreader_line_iterator;
+		using base_iterator = KInStream;
 
 		//-----------------------------------------------------------------------------
 		/// standalone ctor
@@ -264,15 +265,9 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// value constructor
-	KInStream(std::istream& sRef,
-	          KStringView sTrimRight = "",
-	          KStringView sTrimLeft = "",
-	          KString::value_type chDelimiter = '\n')
+	KInStream(std::istream& InStream)
 	//-----------------------------------------------------------------------------
-	    : m_sRef(&sRef)
-	    , m_sTrimRight(sTrimRight)
-	    , m_sTrimLeft(sTrimLeft)
-	    , m_chDelimiter(chDelimiter)
+	    : m_InStream(&InStream)
 	{
 	}
 
@@ -285,7 +280,7 @@ public:
 	/// move construct a KInStream
 	KInStream(self_type&& other) noexcept
 	//-----------------------------------------------------------------------------
-	    : m_sRef(std::move(other.m_sRef))
+	    : m_InStream(std::move(other.m_InStream))
 	    , m_sTrimRight(std::move(other.m_sTrimRight))
 	    , m_sTrimLeft(std::move(other.m_sTrimLeft))
 	    , m_chDelimiter(other.m_chDelimiter)
@@ -301,7 +296,7 @@ public:
 	self_type& operator=(self_type&& other) noexcept
 	//-----------------------------------------------------------------------------
 	{
-		m_sRef = std::move(other.m_sRef);
+		m_InStream = std::move(other.m_InStream);
 		m_sTrimRight = std::move(other.m_sTrimRight);
 		m_sTrimLeft = std::move(other.m_sTrimLeft);
 		m_chDelimiter = other.m_chDelimiter;
@@ -509,16 +504,16 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	/// Set the right trim characters for line based reading (default to none)
-	inline void SetReaderRightTrim(KStringView sTrimRight = "")
+	/// Set the right trim characters for line based reading (default to LF)
+	inline void SetReaderRightTrim(KStringView sTrimRight = "\n")
 	//-----------------------------------------------------------------------------
 	{
 		m_sTrimRight = sTrimRight;
 	}
 
 	//-----------------------------------------------------------------------------
-	/// Set the right and left trim characters for line based reading (default to none)
-	inline void SetReaderTrim(KStringView sTrimRight = "", KStringView sTrimLeft = "")
+	/// Set the right and left trim characters for line based reading (default to LF for right, none for left)
+	inline void SetReaderTrim(KStringView sTrimRight = "\n", KStringView sTrimLeft = "")
 	//-----------------------------------------------------------------------------
 	{
 		SetReaderRightTrim(sTrimRight);
@@ -530,7 +525,7 @@ public:
 	inline const std::istream& InStream() const
 	//-----------------------------------------------------------------------------
 	{
-		return *m_sRef;
+		return *m_InStream;
 	}
 
 	//-----------------------------------------------------------------------------
@@ -538,7 +533,7 @@ public:
 	inline std::istream& InStream()
 	//-----------------------------------------------------------------------------
 	{
-		return *m_sRef;
+		return *m_InStream;
 	}
 
 	//-----------------------------------------------------------------------------
@@ -562,8 +557,8 @@ protected:
 //-------
 	// m_sRef always has to be valid after construction
 	// - do not assign a nullptr per default
-	std::istream* m_sRef;
-	KString m_sTrimRight;
+	std::istream* m_InStream;
+	KString m_sTrimRight{"\n"};
 	KString m_sTrimLeft;
 	KString::value_type m_chDelimiter{'\n'};
 
@@ -590,19 +585,6 @@ public:
 //-------
 
 	//-----------------------------------------------------------------------------
-	/// move construct a KReader
-	KReader(self_type&& other) noexcept
-	//-----------------------------------------------------------------------------
-	    : base_type(std::move(other))
-	    , KInStream(std::move(other))
-	{}
-
-	//-----------------------------------------------------------------------------
-	/// copy constructor is deleted, as with std::istream
-	KReader(self_type& other) = delete;
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
 	// semi-perfect forwarding - currently needed as std::istream does not yet
 	// support string_views as arguments
 	template<class... Args>
@@ -618,10 +600,23 @@ public:
 	template<class... Args>
 	KReader(Args&&... args)
 	    : base_type(std::forward<Args>(args)...)
-	    , KInStream(static_cast<std::istream&>(*this))
+	    , KInStream(static_cast<base_type&>(*this))
 	//-----------------------------------------------------------------------------
 	{
 	}
+
+	//-----------------------------------------------------------------------------
+	/// move construct a KReader
+	KReader(self_type&& other) noexcept
+	//-----------------------------------------------------------------------------
+	    : base_type(std::move(other))
+	    , KInStream(std::move(other))
+	{}
+
+	//-----------------------------------------------------------------------------
+	/// copy constructor is deleted, as with std::istream
+	KReader(self_type& other) = delete;
+	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// copy assignment is deleted, as with std::istream
@@ -650,7 +645,7 @@ public:
 /// File reader based on std::ifstream
 using KInFile          = KReader<std::ifstream>;
 
-/// String reader based on std::istreamstream
+/// String reader based on std::istringstream
 using KInStringStream  = KReader<std::istringstream>;
 
 } // end of namespace dekaf2

@@ -291,7 +291,7 @@ bool kReadLine(std::istream& Stream,
                KString::value_type delimiter)
 //-----------------------------------------------------------------------------
 {
-	// std::getline is simply the best..
+	// do not implement your own version of std::getline without performance checks ..
 	std::getline(Stream, sLine, delimiter);
 
 	if (Stream.fail())
@@ -299,12 +299,29 @@ bool kReadLine(std::istream& Stream,
 		return false;
 	}
 
-	// std::getline does not store the EOL character, but we want to
-	sLine += delimiter;
+	// to avoid unnecessary reallocations do not add the delimiter to sLine
+	// if it is part of sTrimRight and would thus be removed right afterwards..
 
-	if (!sTrimRight.empty())
+	if (sTrimRight.empty())
 	{
-		sLine.TrimRight(sTrimRight);
+		// std::getline does not store the EOL character, but we want to
+		sLine += delimiter;
+	}
+	else
+	{
+		// add the delimiter char only if it is not a member of sTrimRight
+		if (sTrimRight.find(delimiter) == KString::npos)
+		{
+			// std::getline does not store the EOL character, but we want to
+			sLine += delimiter;
+
+			sLine.TrimRight(sTrimRight);
+		}
+		else if (sTrimRight.size() > 1)
+		{
+			// only trim if sTrimRight is > 1, as otherwise it only contains the delimiter
+			sLine.TrimRight(sTrimRight);
+		}
 	}
 
 	if (!sTrimLeft.empty())

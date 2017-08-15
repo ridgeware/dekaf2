@@ -25,17 +25,26 @@ public:
 	//-----------------------------------------------------------------------------
 	KCurlTest(const KString& sRequestURL, KCurl::RequestType requestType, bool bEchoHeader = false, bool bEchoBody = false)
 	    : KWebIO(sRequestURL,requestType, bEchoHeader, bEchoBody)
+	//-----------------------------------------------------------------------------
 	{
 	}
+
+	//-----------------------------------------------------------------------------
 	~KCurlTest(){}
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
 	virtual bool addToResponseBody(KString sBodyPart)
+	//-----------------------------------------------------------------------------
 	{
 		bool retVal = KCurl::addToResponseBody(sBodyPart);
 		m_sBody.push_back(sBodyPart);
 		return retVal;
 	}
 
+	//-----------------------------------------------------------------------------
 	bool printResponseBody()
+	//-----------------------------------------------------------------------------
 	{
 		bool retVal = KCurl::printResponseHeader();
 		for (const auto& bodyPart : m_sBody)
@@ -66,13 +75,10 @@ TEST_CASE("KCurl")
 	SECTION("KCurl Stream Test")
 	{
 
-		//KString url = "www.acme.com";
 		KString url = "www.google.com";
 		//KWebIO webIO(url);//, true, true);
 		KCurlTest webIO(url, KCurl::GET, false, true);
 		CHECK_FALSE(webIO.getEchoHeader());
-		//CHECK(webIO.getEchoHeader());
-		//CHECK_FALSE(webIO.getEchoBody());
 		CHECK(webIO.getEchoBody());
 
 		webIO.addRequestHeader("Agent", "foo=bar");
@@ -126,8 +132,6 @@ TEST_CASE("KCurl")
 		webIO.setEchoBody(true);
 		webIO.setRequestURL("");
 		CHECK_FALSE(webIO.getEchoHeader());
-		//CHECK(webIO.getEchoHeader());
-		//CHECK_FALSE(webIO.getEchoBody());
 		CHECK(webIO.getEchoBody());
 
 		bool bSuccess = webIO.initiateRequest();
@@ -152,9 +156,7 @@ TEST_CASE("KCurl")
 		webIO.setEchoHeader(true);
 		webIO.setEchoBody(true);
 		webIO.setRequestURL("");
-		//CHECK_FALSE(webIO.getEchoHeader());
 		CHECK(webIO.getEchoHeader());
-		//CHECK_FALSE(webIO.getEchoBody());
 		CHECK(webIO.getEchoBody());
 
 		bool bSuccess = webIO.initiateRequest();
@@ -174,7 +176,7 @@ TEST_CASE("KCurl")
 		webIO.addToResponseHeader(randHeader);
 		webIO.printResponseHeader();
 	}
-	// TODO Make KCurl Grandchild which stores body so tests can selectively print
+
 #if kcurlBoth
 	SECTION("KCurl Stream Test With Headers, output header and body")
 	{
@@ -191,7 +193,6 @@ TEST_CASE("KCurl")
 
 		KString cookies;
 		webIO.getRequestHeader(CookieHeader, cookies);
-		//KCurl::KHeader cookies = webIO.getr
 		CHECK(cookies.length() == 0);
 
 		bool bSuccess = webIO.initiateRequest();
@@ -240,7 +241,6 @@ TEST_CASE("KCurl")
 	SECTION("KCurl Stream Test With Headers, output Body Only")
 	{
 
-		//KString url = "www.acme.com";
 		KString url = "www.google.com";
 		KWebIO webIO(url, KCurl::GET, false, true);
 		CHECK_FALSE(webIO.getEchoHeader());

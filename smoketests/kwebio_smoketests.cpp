@@ -18,12 +18,10 @@ TEST_CASE("KWebIO")
 	SECTION("KWebIO setTest")
 	{
 
-		//KString url("www.acme.com");
 		KString url("www.google.com");
 		//KString url("http://www.bikespot.biz");
 		//KWebIO webIO(url);//, true, true);
 		KWebIO webIO(url);
-		//KCurl webIO(url);
 		CHECK_FALSE(webIO.getEchoHeader());
 		CHECK_FALSE(webIO.getEchoBody());
 
@@ -49,7 +47,6 @@ TEST_CASE("KWebIO")
 	SECTION("KWebIO delayedSetDest")
 	{
 
-		//KString url = "www.acme.com";
 		KString url = "www.google.com";
 		//KString url("http://www.bikespot.biz");
 		//KWebIO webIO(url);//, true, true);

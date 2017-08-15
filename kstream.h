@@ -45,10 +45,12 @@
 #include "kreader.h"
 #include "kwriter.h"
 
+#include <boost/asio/ip/tcp.hpp>
 
 namespace dekaf2
 {
 
+namespace asio = boost::asio;
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// The generalized bidirectional stream abstraction for dekaf2
@@ -180,8 +182,11 @@ public:
 /// File stream based on std::fstream
 using KFile           = KReaderWriter<std::fstream>;
 
-/// String writer based on std::stringstream
+/// String stream based on std::stringstream
 using KStringStream   = KReaderWriter<std::stringstream>;
+
+/// TCP stream based on asio::ip::tcp::iostream
+using KTCPStream      = KReaderWriter<asio::ip::tcp::iostream>;
 
 } // end of namespace dekaf2
 

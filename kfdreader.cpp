@@ -121,10 +121,13 @@ std::streamsize KInputFDStream::FileDescReader(void* sBuffer, std::streamsize iC
 		// it is more difficult than one would expect to convert a void* into an int..
 		int fd = static_cast<int>(*static_cast<long*>(filedesc));
 		iRead = ::read(fd, sBuffer, static_cast<size_t>(iCount));
-		if (iRead != iCount)
+		if (iRead < 0)
 		{
 			// do some logging
-			KLog().warning("KInputFDStream: cannot write to file: {}", strerror(errno));
+			KLog().warning("KInputFDStream: cannot read from file: {} - requested {}, got {} bytes",
+			               strerror(errno),
+			               iCount,
+			               iRead);
 		}
 	}
 
@@ -203,10 +206,13 @@ std::streamsize KInputFPStream::FilePtrReader(void* sBuffer, std::streamsize iCo
 		if (fp && *fp)
 		{
 			iRead = static_cast<std::streamsize>(std::fread(sBuffer, 1, static_cast<size_t>(iCount), *fp));
-			if (iRead != iCount)
+			if (iRead < 0)
 			{
 				// do some logging
-				KLog().warning("KInputFPStream: cannot write to file: {}", strerror(errno));
+				KLog().warning("KInputFPStream: cannot read from file: {} - requested {}, got {} bytes",
+				               strerror(errno),
+				               iCount,
+				               iRead);
 			}
 		}
 	}

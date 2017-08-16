@@ -59,24 +59,27 @@ class basic_fnv1a final
 
 	static_assert(std::is_unsigned<ResultT>::value, "need unsigned integer");
 
+//----------
 public:
-
+//----------
 	using result_type = ResultT;
 
+//----------
 private:
+//----------
+	result_type m_State {};
 
-	//---------------------------------------------------------------------------
-	result_type state_ {};
-	//---------------------------------------------------------------------------
-
+//----------
 public:
+//----------
 
 	//---------------------------------------------------------------------------
 #ifdef DEKAF2_HAS_CPP_14
 	constexpr
 #endif
-	basic_fnv1a() noexcept : state_ {OffsetBasis}
+	basic_fnv1a() noexcept
 	//---------------------------------------------------------------------------
+	    : m_State {OffsetBasis}
 	{
 	}
 
@@ -84,42 +87,40 @@ public:
 #ifdef DEKAF2_HAS_CPP_14
 	constexpr
 #endif
-	void
-	update(const void *const data, const std::size_t size) noexcept
+	void update(const void* const data, const std::size_t size) noexcept
 	//---------------------------------------------------------------------------
 	{
-		const auto cdata = static_cast<const unsigned char *>(data);
-		auto acc = this->state_;
+		const auto cdata = static_cast<const unsigned char*>(data);
+		auto acc = this->m_State;
 		for (auto i = std::size_t {}; i < size; ++i)
 		{
 			const auto next = std::size_t {cdata[i]};
 			acc = (acc ^ next) * Prime;
 		}
-		this->state_ = acc;
+		this->m_State = acc;
 	}
 
 	//---------------------------------------------------------------------------
 #ifdef DEKAF2_HAS_CPP_14
 	constexpr
 #endif
-	result_type
-	digest() const noexcept
+	result_type digest() const noexcept
 	//---------------------------------------------------------------------------
 	{
-		return this->state_;
+		return this->m_State;
 	}
 
 };
 
 /// the 32 bit instance
 using fnv1a_32 = basic_fnv1a<std::uint32_t,
-UINT32_C(2166136261),
-UINT32_C(16777619)>;
+                             UINT32_C(2166136261),
+                             UINT32_C(16777619)>;
 
 /// the 64 bit instance
 using fnv1a_64 = basic_fnv1a<std::uint64_t,
-UINT64_C(14695981039346656037),
-UINT64_C(1099511628211)>;
+                             UINT64_C(14695981039346656037),
+                             UINT64_C(1099511628211)>;
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 template <std::size_t Bits>
@@ -150,11 +151,8 @@ using fnv1a_t = typename fnv1a<Bits>::type;
 //---------------------------------------------------------------------------
 #ifdef DEKAF2_HAS_CPP_14
 constexpr
-#else
-inline
 #endif
-std::size_t
-hash_bytes_FNV(const void* const data, const std::size_t size) noexcept
+std::size_t hash_bytes_FNV(const void* const data, const std::size_t size) noexcept
 //---------------------------------------------------------------------------
 {
 	auto hashfn = fnv1a_t<CHAR_BIT * sizeof(std::size_t)> {};

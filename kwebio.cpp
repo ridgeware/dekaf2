@@ -183,7 +183,7 @@ bool KWebIO::addToResponseHeader(KString& sHeaderPart)
 		}
 	} while (iCurrentPos < sHeaderPart.size()); // until end of given content is reached
 
-	KLog().debug(3, "KWebIO::addToResponseHeader(%s) end", sHeaderPart.c_str());
+	KLog().debug(3, "KWebIO::addToResponseHeader({}}) end", sHeaderPart.c_str());
 	return true;
 
 } // addToResponseHeader

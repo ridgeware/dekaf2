@@ -6,6 +6,7 @@
 #include <string>
 #include <iostream>
 
+//## remove this test here.. we only need to execute it once in the utests
 bool stdstring_supports_cow()
 {
 	// make sure the string is longer than the size of potential

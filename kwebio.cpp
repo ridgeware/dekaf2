@@ -53,7 +53,7 @@ namespace dekaf2 {
 bool KWebIO::addToResponseHeader(KString& sHeaderPart)
 //-----------------------------------------------------------------------------
 {
-	KLog().debug(3, "KWebIO::addToResponseHeader(%s) start", sHeaderPart.c_str());
+	KLog().debug(3, "KWebIO::addToResponseHeader({}) start", sHeaderPart.s());
 	// Garbage in garbage out!
 	size_t iCurrentPos = 0;
 	// Check if we're holding onto an incomplete header

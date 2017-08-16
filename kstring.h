@@ -403,7 +403,8 @@ public:
 	/// otherwise do not alter the string
 	KString& ClipAtReverse(KStringView sClipAtReverse);
 
-	void RemoveIllegalChars(const KString& sIllegalChars);
+	/// remove any occurence of the characters in sIllegalChars
+	void RemoveIllegalChars(KStringView sIllegalChars);
 
 	/// return a pointer of value type
 	const value_type* c() const { return c_str(); }
@@ -416,6 +417,7 @@ public:
 	const string_type& s() const { return operator const string_type&(); }
 	string_type& s() { return operator string_type&(); }
 
+	/// return a KStringView on the representation type
 	KStringView sv() { return m_rep; }
 	operator KStringView() const { return m_rep; }
 
@@ -431,8 +433,6 @@ protected:
 	string_type m_rep;
 
 }; // KString
-
-// typedef std::basic_stringstream<KString::value_type> KStringStream;
 
 inline std::ostream& operator <<(std::ostream& stream, const KString& str)
 {

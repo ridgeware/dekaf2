@@ -720,7 +720,7 @@ KString& KString::ClipAtReverse(KStringView sClipAtReverse)
 } // ClipAtReverse
 
 //----------------------------------------------------------------------
-void KString::RemoveIllegalChars(const KString& sIllegalChars)
+void KString::RemoveIllegalChars(KStringView sIllegalChars)
 //----------------------------------------------------------------------
 {
 	size_type pos;

@@ -13,7 +13,7 @@ TEST_CASE("KProp") {
 
 		SECTION("test perfect forwarding edge cases")
 		{
-			typedef KPropsTemplate<KString, KString, false, true> CMyKProps;
+			typedef KProps<KString, KString, false, true> CMyKProps;
 			CMyKProps data;
 
 			data.Add("key 1", "value 1");
@@ -32,9 +32,12 @@ TEST_CASE("KProp") {
 
 			CHECK ( data.size()   == 2 );
 			CHECK ( data["key 10"]  == "value 20" );
+
+#ifdef DO_MOVE_TESTS
 #if (DEKAF2_GCC_VERSION > 600) && defined(DEKAF2_HAS_CPP_17)
 			CHECK ( k1 == KString{} );
 			CHECK ( v1 == KString{} );
+#endif
 #endif
 
 			KString k100("key 100");
@@ -43,8 +46,10 @@ TEST_CASE("KProp") {
 
 			CHECK ( data.size()   == 3 );
 			CHECK ( data["key 100"]  == "value 100" );
+#ifdef DO_MOVE_TESTS
 #if (DEKAF2_GCC_VERSION > 600) && defined(DEKAF2_HAS_CPP_17)
 			CHECK ( k100 == KString{} );
+#endif
 #endif
 			CHECK ( v100 == KString{"value 100"} );
 
@@ -55,14 +60,16 @@ TEST_CASE("KProp") {
 			CHECK ( data.size()   == 4 );
 			CHECK ( data["key 200"]  == "value 200" );
 			CHECK ( k200 == KString{"key 200"} );
+#ifdef DO_MOVE_TESTS
 #if (DEKAF2_GCC_VERSION > 600) && defined(DEKAF2_HAS_CPP_17)
 			CHECK ( v200 == KString{} );
+#endif
 #endif
 		}
 
 		SECTION("Sequential non-unique KProps, bulk generation")
 		{
-			typedef KPropsTemplate<KString, KString, true, false> CMyKProps;
+			typedef KProps<KString, KString, true, false> CMyKProps;
 			CMyKProps data;
 
 			for (size_t ct = 0; ct < 10000; ++ct)
@@ -79,7 +86,7 @@ TEST_CASE("KProp") {
 
 		SECTION("Sequential unique KProps, bulk generation")
 		{
-			typedef KPropsTemplate<KString, KString, true, true> CMyKProps;
+			typedef KProps<KString, KString, true, true> CMyKProps;
 			CMyKProps data;
 
 			for (size_t ct = 0; ct < 10000; ++ct)
@@ -96,7 +103,7 @@ TEST_CASE("KProp") {
 
 		SECTION("non-sequential non-unique KProps, bulk generation")
 		{
-			typedef KPropsTemplate<KString, KString, false, false> CMyKProps;
+			typedef KProps<KString, KString, false, false> CMyKProps;
 			CMyKProps data;
 
 			for (size_t ct = 0; ct < 10000; ++ct)
@@ -111,7 +118,7 @@ TEST_CASE("KProp") {
 
 		SECTION("Non-sequential unique KProps, bulk generation")
 		{
-			typedef KPropsTemplate<KString, KString, false, true> CMyKProps;
+			typedef KProps<KString, KString, false, true> CMyKProps;
 			CMyKProps data;
 
 			for (size_t ct = 0; ct < 10000; ++ct)
@@ -126,7 +133,7 @@ TEST_CASE("KProp") {
 
 		SECTION("Sequential non-unique KProps with <KString, KString>")
 		{
-			typedef KPropsTemplate<KString, KString, true, false> CMyKProps;
+			typedef KProps<KString, KString, true, false> CMyKProps;
 			CMyKProps data;
 
 			data.Add("key 1", "value 1");
@@ -148,7 +155,7 @@ TEST_CASE("KProp") {
 
 		SECTION("removal in sequential non-unique KProps with <KString, KString>")
 		{
-			typedef KPropsTemplate<std::string, std::string, true, false> CMyKProps;
+			typedef KProps<std::string, std::string, true, false> CMyKProps;
 			CMyKProps data;
 
 			data.Add("key 1", "value 1");
@@ -169,7 +176,7 @@ TEST_CASE("KProp") {
 
 		SECTION("non-sequential non-unique KProps with <KString, KString>")
 		{
-			typedef KPropsTemplate<KString, KString, false, false> CMyKProps;
+			typedef KProps<KString, KString, false, false> CMyKProps;
 			CMyKProps data;
 
 			data.Add("key 1", "value 1");
@@ -209,7 +216,7 @@ TEST_CASE("KProp") {
 
 		SECTION("Sequential unique KProps with <KString, KString>")
 		{
-			typedef KPropsTemplate<KString, KString, true, true> CMyKProps;
+			typedef KProps<KString, KString, true, true> CMyKProps;
 			CMyKProps data;
 
 			data.Add("key 1", "value 1");
@@ -228,7 +235,7 @@ TEST_CASE("KProp") {
 
 		SECTION("non-sequential unique KProps with <KString, KString>")
 		{
-			typedef KPropsTemplate<KString, KString, false, true> CMyKProps;
+			typedef KProps<KString, KString, false, true> CMyKProps;
 			CMyKProps data;
 
 			data.Add("key 1", "value 1");
@@ -268,7 +275,7 @@ TEST_CASE("KProp") {
 
 	SECTION("Sequential non-unique KProps with <size_t, size_t>")
 	{
-		KPropsTemplate<size_t, size_t> data;
+		KProps<size_t, size_t> data;
 
 		data.Add(1, 2);
 		data.Add(5, 6);
@@ -298,7 +305,7 @@ TEST_CASE("KProp") {
 
 	SECTION("Sequential KProps with <KString, KString>")
 	{
-		typedef KPropsTemplate<KString, KString> CMyKProps;
+		typedef KProps<KString, KString> CMyKProps;
 		CMyKProps data;
 
 		KString s1("hello");
@@ -331,7 +338,7 @@ TEST_CASE("KProp") {
 			CHECK( data[4].second == KString("")          );
 		}
 
-		KPropsTemplate<KString, KString> data2;
+		KProps<KString, KString> data2;
 		data2.Add("color", "black");
 		data2.Add("color", "blue");
 		data2.Add("color", "red");
@@ -412,7 +419,7 @@ TEST_CASE("KProp") {
 
 	SECTION("Non-Sequential KProps with <KString, KString>")
 	{
-		KPropsTemplate<KString, KString, false> data;
+		KProps<KString, KString, false> data;
 
 		KString s1("hello");
 		KString s2("bonjour");
@@ -420,7 +427,7 @@ TEST_CASE("KProp") {
 		data.Add("test", "toast");
 		data.Add(s1, std::move(s2));
 
-		KPropsTemplate<KString, KString, false> data2;
+		KProps<KString, KString, false> data2;
 		data2.Add("color", "black");
 		data2.Add("color", "blue");
 		data2.Add("color", "red");
@@ -448,7 +455,7 @@ TEST_CASE("KProp") {
 
 	SECTION("Sequential Unique KProps with <KString, KString>")
 	{
-		typedef KPropsTemplate<KString, KString, true, true> CMyKProps;
+		typedef KProps<KString, KString, true, true> CMyKProps;
 		CMyKProps data;
 
 		KString s1("hello");
@@ -542,7 +549,7 @@ TEST_CASE("KProp") {
 
 	SECTION("order through replaces on non-unique")
 	{
-		typedef KPropsTemplate<KString, KString, true, false> CMyKProps;
+		typedef KProps<KString, KString, true, false> CMyKProps;
 		CMyKProps data;
 
 		data.Add("key 1", "value 1");
@@ -583,7 +590,7 @@ TEST_CASE("KProp") {
 
 	SECTION("order through replaces on unique")
 	{
-		typedef KPropsTemplate<KString, KString, true, true> CMyKProps;
+		typedef KProps<KString, KString, true, true> CMyKProps;
 		CMyKProps data;
 
 		data.Add("key 1", "value 1");
@@ -619,7 +626,7 @@ TEST_CASE("KProp") {
 
 	SECTION("assignments")
 	{
-		typedef KPropsTemplate<KString, KString, true, true> CMyKProps;
+		typedef KProps<KString, KString, true, true> CMyKProps;
 		CMyKProps data1;
 		CMyKProps data2;
 

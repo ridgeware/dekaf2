@@ -565,3 +565,20 @@ namespace std
 
 } // end of namespace std
 
+
+// provide a hash for boost, too..
+
+#include <boost/functional/hash.hpp>
+
+namespace boost
+{
+	template<> struct hash<dekaf2::KString> : public std::unary_function<dekaf2::KString, std::size_t>
+	{
+		typedef dekaf2::KString argument_type;
+		std::size_t operator()(argument_type const& s) const
+		{
+			return boost::hash<std::string>{}(s);
+		}
+};
+
+}

@@ -82,7 +82,7 @@ class KCurl
 public:
 	//typedef KPropsTemplate<KString, KString> KHeader; // map for header info
 	typedef std::pair<KString,KString> KHeaderPair;
-	typedef KPropsTemplate<KString, KHeaderPair> KHeader; // case insensitive map for header info
+	typedef KProps<KString, KHeaderPair> KHeader; // case insensitive map for header info
 
 	KCurl();
 	KCurl(const KString& sRequestURL, bool bEchoHeader = false, bool bEchoBody = false);

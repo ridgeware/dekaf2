@@ -108,15 +108,15 @@ void KTCPServer::Session(KTCPStream& stream, const endpoint_type& remote_endpoin
 	{
 		param_t parameters = CreateParameters();
 
-		stream.expires_from_now(boost::posix_time::seconds(m_timeout));
+		stream.expires_from_now(boost::posix_time::seconds(m_iTimeout));
 		stream << Init(*parameters);
 
 		KString line;
 
-		while (!parameters->terminate && !stream.bad() && !m_quit)
+		while (!parameters->terminate && !stream.bad() && !m_bQuit)
 		{
 
-			stream.expires_from_now(boost::posix_time::seconds(m_timeout));
+			stream.expires_from_now(boost::posix_time::seconds(m_iTimeout));
 
 			if (!stream.ReadLine(line))
 			{
@@ -139,7 +139,7 @@ void KTCPServer::RunSession(KTCPStream& stream, const endpoint_type& remote_endp
 {
 	KLog().debug(3, "KTCPServer: accepting new connection from {} on port {}",
 	             to_string(remote_endpoint),
-	             m_port);
+	             m_iPort);
 
 	try
 	{
@@ -162,7 +162,7 @@ void KTCPServer::RunSession(KTCPStream& stream, const endpoint_type& remote_endp
 
 	KLog().debug(3, "KTCPServer: closing connection with {} on port {}",
 	             to_string(remote_endpoint),
-	             m_port);
+	             m_iPort);
 
 }
 
@@ -174,8 +174,8 @@ void KTCPServer::Server(bool ipv6)
 	{
 		asio::ip::v6_only v6_only(false);
 
-		tcp::endpoint endpoint((ipv6) ? tcp::v6() : tcp::v4(), m_port);
-		tcp::acceptor acceptor(m_asio, endpoint, true); // true means reuse_addr
+		tcp::endpoint local_endpoint((ipv6) ? tcp::v6() : tcp::v4(), m_iPort);
+		tcp::acceptor acceptor(m_asio, local_endpoint, true); // true means reuse_addr
 
 		if (ipv6)
 		{
@@ -185,26 +185,32 @@ void KTCPServer::Server(bool ipv6)
 			// if v6_only then this computer does not use a dual stack
 			if (!acceptor.is_open() || v6_only)
 			{
-				// check if we can stay in this thread (because the v6 acceptor
-				// is not working, and blocking construction is requested)
-				if (!acceptor.is_open() && m_block)
+				if (m_bStartIPv4)
 				{
-					Server(false);
+					// check if we can stay in this thread (because the v6 acceptor
+					// is not working, and blocking construction is requested)
+					if (!acceptor.is_open() && m_bBlock)
+					{
+						Server(false);
+					}
+					else
+					{
+						// else open v4 explicitly in another thread
+						m_ipv4_server = std::make_unique<std::thread>(&KTCPServer::Server, this, false);
+					}
 				}
-				// else open v4 explicitly in another thread
-				m_ipv4_server = std::make_unique<std::thread>(&KTCPServer::Server, this, false);
 			}
 		}
 
 		if (!acceptor.is_open())
 		{
-			KLog().warning("KTCPServer::Server(): IPv{} acceptor for port {} could not open",
+			KLog().warning("KTCPServer::Server(): IPv{} listener for port {} could not open",
 			               (ipv6) ? '6' : '4',
-			               m_port);
+			               m_iPort);
 		}
 		else
 		{
-			while (acceptor.is_open() && !m_quit)
+			while (acceptor.is_open() && !m_bQuit)
 			{
 				KTCPStream stream;
 				endpoint_type remote_endpoint;
@@ -214,9 +220,9 @@ void KTCPServer::Server(bool ipv6)
 
 			if (!acceptor.is_open())
 			{
-				KLog().warning("KTCPServer::Server(): IPv{} acceptor for port {} has closed",
+				KLog().warning("KTCPServer::Server(): IPv{} listener for port {} has closed",
 				               (ipv6) ? '6' : '4',
-				               m_port);
+				               m_iPort);
 			}
 		}
 	}
@@ -235,25 +241,26 @@ void KTCPServer::Server(bool ipv6)
 }
 
 //-----------------------------------------------------------------------------
-bool KTCPServer::start(uint16_t timeout_seconds, bool block)
+bool KTCPServer::Start(uint16_t iTimeoutInSeconds, bool bBlock)
 //-----------------------------------------------------------------------------
 {
-	if (is_running())
+	if (IsRunning())
 	{
-		KLog().warning("KTCPServer::start(): Server is already running on port {}", m_port);
+		KLog().warning("KTCPServer::start(): Server is already running on port {}", m_iPort);
 		return false;
 	}
-	m_timeout = timeout_seconds;
-	m_block = block;
-	if (m_block)
+	m_iTimeout = iTimeoutInSeconds;
+	m_bBlock = bBlock;
+	m_bQuit = false;
+	if (m_bBlock)
 	{
-		Server(true);
+		Server(m_bStartIPv6);
 	}
 	else
 	{
-		m_ipv6_server = std::make_unique<std::thread>(&KTCPServer::Server, this, true);
+		m_ipv6_server = std::make_unique<std::thread>(&KTCPServer::Server, this, m_bStartIPv6);
 	}
-	return is_running();
+	return IsRunning();
 }
 
 
@@ -264,7 +271,7 @@ KTCPServer::~KTCPServer()
 	// needed to send some signal to stop the running threads.
 	// currently they only quit after an accept on the listen sockets.
 
-	m_quit = true;
+	m_bQuit = true;
 
 	// now wait for completion
 	if (m_ipv4_server)

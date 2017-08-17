@@ -88,9 +88,9 @@ class KTCPServer
 public:
 //-------
 	//-----------------------------------------------------------------------------
-	KTCPServer(uint16_t port)
+	KTCPServer(uint16_t iPort)
 	//-----------------------------------------------------------------------------
-	    : m_port(port)
+	    : m_iPort(iPort)
 	{
 	}
 
@@ -115,18 +115,42 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	bool start(uint16_t timeout_seconds = 5 * 60, bool block = true);
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	void stop()
+	void v4_Only()
 	//-----------------------------------------------------------------------------
 	{
-		m_quit = true;
+		m_bStartIPv4 = true;
+		m_bStartIPv6 = false;
 	}
 
 	//-----------------------------------------------------------------------------
-	bool is_running() const
+	void v6_Only()
+	//-----------------------------------------------------------------------------
+	{
+		m_bStartIPv4 = false;
+		m_bStartIPv6 = true;
+	}
+
+	//-----------------------------------------------------------------------------
+	void v4_And_6()
+	//-----------------------------------------------------------------------------
+	{
+		m_bStartIPv4 = true;
+		m_bStartIPv6 = true;
+	}
+
+	//-----------------------------------------------------------------------------
+	bool Start(uint16_t iTimeoutInSeconds = 5 * 60, bool bBlock = true);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	void Stop()
+	//-----------------------------------------------------------------------------
+	{
+		m_bQuit = true;
+	}
+
+	//-----------------------------------------------------------------------------
+	bool IsRunning() const
 	//-----------------------------------------------------------------------------
 	{
 		return m_ipv6_server || m_ipv4_server;
@@ -162,6 +186,13 @@ protected:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	/// virtual hook that is called immediately after accepting a new stream.
+	/// Default does nothing. Could be used to set stream parameters. If
+	/// return value is false connection is terminated.
+	virtual bool Accepted(KTCPStream& stream, const endpoint_type& remote_endpoint);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
 	/// virtual hook to send a init message to the client, directly after
 	/// accepting the incoming connection. Default sends nothing.
 	virtual KString Init(Parameters& parameters);
@@ -173,25 +204,18 @@ protected:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// virtual hook that is called immediately after accepting a new stream.
-	/// Default does nothing. Could be used to set stream parameters. If
-	/// return value is false connection is terminated.
-	virtual bool Accepted(KTCPStream& stream, const endpoint_type& remote_endpoint);
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
 	/// request the stream timeout requested for this instance (set it in own
 	/// session handlers for reading and writing on the stream)
 	inline uint16_t GetTimeout() const
 	//-----------------------------------------------------------------------------
 	{
-		return m_timeout;
+		return m_iTimeout;
 	}
 
 	//-----------------------------------------------------------------------------
 	/// if the derived class needs addtional per-thread control parameters,
 	/// define a Parameters class to accomodate those, and return an instance
-	/// of this class from CreateParameters()
+	/// of this class (wrapped in a unique_ptr) from CreateParameters()
 	virtual param_t CreateParameters();
 	//-----------------------------------------------------------------------------
 
@@ -209,10 +233,12 @@ private:
 	asio::io_service m_asio;
 	std::unique_ptr<std::thread> m_ipv4_server;
 	std::unique_ptr<std::thread> m_ipv6_server;
-	uint16_t m_port;
-	uint16_t m_timeout = 5*60;
-	bool m_block;
-	bool m_quit = false;
+	uint16_t m_iPort{0};
+	uint16_t m_iTimeout{5*60};
+	bool m_bBlock{true};
+	bool m_bQuit{false};
+	bool m_bStartIPv4{true};
+	bool m_bStartIPv6{true};
 
 }; // KTCPServer
 

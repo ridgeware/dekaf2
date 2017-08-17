@@ -51,9 +51,6 @@
 #include <boost/multi_index/member.hpp>
 #include <boost/multi_index/hashed_index.hpp>
 #include <boost/multi_index/random_access_index.hpp>
-#include <algorithm>
-#include <iostream>
-#include <iterator>
 #include "kcppcompat.h"
 #include "klog.h"
 
@@ -200,7 +197,7 @@ protected:
 template <class Key, class Value, bool Sequential = true, bool Unique = false>
 class KProps : protected KProps_base<Key, Value, Sequential, Unique>
 {
-private:
+protected:
 	using self_type      = KProps<Key, Value, Sequential, Unique>;
 	using base_type      = KProps_base<Key, Value, Sequential, Unique>;
 
@@ -732,7 +729,6 @@ public:
 template<class Key, class Value, bool Sequential, bool Unique>
 typename KProps<Key, Value, Sequential, Unique>::Element
 KProps<Key, Value, Sequential, Unique>::s_EmptyElement;
-
 
 } // end of namespace dekaf2
 

@@ -43,11 +43,14 @@
 #pragma once
 
 #include <functional>
-#include "kstring.h"
 #include <cwctype>
 #include <type_traits>
+#include "../kstring.h"
 
 namespace dekaf2
+{
+
+namespace detail
 {
 
 template<class T>
@@ -123,6 +126,8 @@ struct is_str
       is_cpp_str<T>::value ||
       is_c_str<T>::value
 > {};
+
+} // of namespace detail
 
 } // of namespace dekaf2
 

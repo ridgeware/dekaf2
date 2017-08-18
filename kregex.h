@@ -42,12 +42,14 @@
 
 #pragma once
 
-#include "bits/kcppcompat.h"
 #include <re2/re2.h>
 #include <vector>
+#include "bits/kcppcompat.h"
 #include "kcache.h"
 #include "kstring.h"
+#ifndef DEKAF2_HAS_CPP_17
 #include "khash.h"
+#endif
 
 namespace std
 {
@@ -107,7 +109,7 @@ class KRegex
 //----------
 private:
 //----------
-	using cache_t = KSharedCacheTemplate<re2::StringPiece, re2::RE2>;
+	using cache_t = KSharedCache<re2::StringPiece, re2::RE2>;
 	using regex_t = cache_t::value_type;
 
 //----------

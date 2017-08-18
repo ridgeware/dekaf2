@@ -86,7 +86,7 @@ bool kEndsWith(KStringView sInput, KStringView sPattern);
 bool kStrIn (const char* sNeedle, const char* sHaystack, char iDelim=',');
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// dekaf's own string class - a wrapper around std::string
+/// dekaf2's own string class - a wrapper around std::string
 /// which handles most error cases in a benign way
 class KString 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -96,6 +96,7 @@ class KString
 //----------
 public:
 //----------
+
 	typedef string_type::traits_type            traits_type;
 	typedef string_type::value_type             value_type;
 	typedef string_type::allocator_type         allocator_type;
@@ -112,7 +113,7 @@ public:
 
 	static const size_type npos = string_type::npos;
 
-	//Iterators
+	// Iterators
 	inline iterator begin() { return m_rep.begin(); }
 	inline const_iterator begin() const { return m_rep.begin(); }
 	inline iterator end() { return m_rep.end(); }
@@ -146,7 +147,7 @@ public:
 	inline const_reference front() const { return m_rep.front(); }
 	inline reference front() { return m_rep.front(); }
 
-	//Constructors
+	// Constructors
 	KString () {}
 	KString (const KString& str) : m_rep(str.m_rep){}
 	KString (const KString& str, size_type pos, size_type len = npos) : m_rep(str.m_rep, (pos > str.size()) ? str.size() : pos, len){}
@@ -162,7 +163,7 @@ public:
 	KString (std::initializer_list<value_type> il) : m_rep(il) {}
 	KString (KStringView sv) : m_rep(sv.data(), sv.size()) {}
 
-	//operator+=
+	// operator+=
 	KString& operator+= (const KString& str){ m_rep += str.m_rep; return *this; }
 	KString& operator+= (const string_type& str){ m_rep += str; return *this; }
 	KString& operator+= (const value_type ch){ m_rep += ch; return *this; }
@@ -170,7 +171,7 @@ public:
 	KString& operator+= (std::initializer_list<value_type> il) { m_rep += il; return *this; }
 	KString& operator+= (KStringView sv) { m_rep.append(sv.data(), sv.size()); return *this; }
 
-	//operator=
+	// operator=
 	KString& operator= (const KString& str) { m_rep = str.m_rep; return *this; }
 	KString& operator= (const string_type& sStr) { m_rep = sStr; return *this; }
 	KString& operator= (const value_type* pszStr) { if (pszStr) m_rep = pszStr; return *this; }
@@ -180,7 +181,7 @@ public:
 	KString& operator= (std::initializer_list<value_type> il) { m_rep = il; return *this; }
 	KString& operator= (KStringView sv) { m_rep.assign(sv.data(), sv.size()); return *this; }
 
-	//std methods
+	// std methods
 	KString& append(const KString& str){ m_rep.append(str.m_rep); return *this; }
 	KString& append(const KString& str, size_type pos, size_type n = npos) { return append(str.m_rep, pos, n); }
 	KString& append(const string_type& str){ m_rep.append(str); return *this; }
@@ -424,27 +425,33 @@ public:
 	/// is string one of the values in sHaystack, delimited by iDelim?
 	bool In (KStringView sHaystack, value_type iDelim=',');
 
-
 //----------
 protected:
 //----------
+
 	static void log_exception(std::exception& e, KStringView sWhere);
 
 	string_type m_rep;
 
 }; // KString
 
+//-----------------------------------------------------------------------------
 inline std::ostream& operator <<(std::ostream& stream, const KString& str)
+//-----------------------------------------------------------------------------
 {
 	return stream << str.s();
 }
 
+//-----------------------------------------------------------------------------
 inline std::istream& operator >>(std::istream& stream, KString& str)
+//-----------------------------------------------------------------------------
 {
 	return stream >> str.s();
 }
 
+//-----------------------------------------------------------------------------
 inline KString operator+(KStringView left, KStringView right)
+//-----------------------------------------------------------------------------
 {
 	KString temp;
 	temp.reserve(left.size() + right.size());
@@ -453,13 +460,17 @@ inline KString operator+(KStringView left, KStringView right)
 	return temp;
 }
 
+//-----------------------------------------------------------------------------
 inline KString operator+(const KString::value_type* left, KStringView right)
+//-----------------------------------------------------------------------------
 {
 	KStringView sv(left);
 	return sv + right;
 }
 
+//-----------------------------------------------------------------------------
 inline KString operator+(KStringView left, KString::value_type right)
+//-----------------------------------------------------------------------------
 {
 	KString temp(left);
 	temp.reserve(left.size() + 1);
@@ -467,7 +478,9 @@ inline KString operator+(KStringView left, KString::value_type right)
 	return temp;
 }
 
+//-----------------------------------------------------------------------------
 inline KString operator+(KString::value_type left, KStringView right)
+//-----------------------------------------------------------------------------
 {
 	KString temp;
 	temp.reserve(right.size() + 1);
@@ -477,14 +490,19 @@ inline KString operator+(KString::value_type left, KStringView right)
 }
 
 // now all operator+() with rvalues (only make sense for the rvalue as the left param)
+
+//-----------------------------------------------------------------------------
 inline KString operator+(KString&& left, KStringView right)
+//-----------------------------------------------------------------------------
 {
 	KString temp(std::move(left));
 	temp += right;
 	return temp;
 }
 
+//-----------------------------------------------------------------------------
 inline KString operator+(KString&& left, KString::value_type right)
+//-----------------------------------------------------------------------------
 {
 	KString temp(std::move(left));
 	temp += right;
@@ -492,7 +510,10 @@ inline KString operator+(KString&& left, KString::value_type right)
 }
 
 // KStringView includes comparison for KString
+
+//-----------------------------------------------------------------------------
 inline bool operator==(KStringView left, KStringView right)
+//-----------------------------------------------------------------------------
 {
 #ifdef DEKAF2_HAS_CPP_17
 	return std::experimental::operator==(left, right);
@@ -501,7 +522,9 @@ inline bool operator==(KStringView left, KStringView right)
 #endif
 }
 
+//-----------------------------------------------------------------------------
 inline bool operator!=(KStringView left, KStringView right)
+//-----------------------------------------------------------------------------
 {
 #ifdef DEKAF2_HAS_CPP_17
 	return std::experimental::operator!=(left, right);
@@ -510,7 +533,9 @@ inline bool operator!=(KStringView left, KStringView right)
 #endif
 }
 
+//-----------------------------------------------------------------------------
 inline bool operator<(KStringView left, KStringView right)
+//-----------------------------------------------------------------------------
 {
 #ifdef DEKAF2_HAS_CPP_17
 	return std::experimental::operator<(left, right);
@@ -519,7 +544,9 @@ inline bool operator<(KStringView left, KStringView right)
 #endif
 }
 
+//-----------------------------------------------------------------------------
 inline bool operator<=(KStringView left, KStringView right)
+//-----------------------------------------------------------------------------
 {
 #ifdef DEKAF2_HAS_CPP_17
 	return std::experimental::operator<=(left, right);
@@ -528,7 +555,9 @@ inline bool operator<=(KStringView left, KStringView right)
 #endif
 }
 
+//-----------------------------------------------------------------------------
 inline bool operator>(KStringView left, KStringView right)
+//-----------------------------------------------------------------------------
 {
 #ifdef DEKAF2_HAS_CPP_17
 	return std::experimental::operator>(left, right);
@@ -537,7 +566,9 @@ inline bool operator>(KStringView left, KStringView right)
 #endif
 }
 
+//-----------------------------------------------------------------------------
 inline bool operator>=(KStringView left, KStringView right)
+//-----------------------------------------------------------------------------
 {
 #ifdef DEKAF2_HAS_CPP_17
 	return std::experimental::operator>=(left, right);

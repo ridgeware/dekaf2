@@ -58,6 +58,11 @@ namespace dekaf2
 struct KInStreamBuf : public std::streambuf
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
+
+//-------
+public:
+//-------
+
 	//-----------------------------------------------------------------------------
 	/// the Reader's function's signature:
 	/// std::streamsize Reader(void* sBuffer, std::streamsize iCount, void* CustomPointer)
@@ -77,7 +82,10 @@ struct KInStreamBuf : public std::streambuf
 	virtual ~KInStreamBuf();
 	//-----------------------------------------------------------------------------
 
+//-------
 protected:
+//-------
+
 	//-----------------------------------------------------------------------------
 	virtual std::streamsize xsgetn(char_type* s, std::streamsize n) override;
 	//-----------------------------------------------------------------------------
@@ -86,12 +94,16 @@ protected:
 	virtual int_type underflow() override;
 	//-----------------------------------------------------------------------------
 
+//-------
 private:
+//-------
+
 	Reader m_Callback{nullptr};
 	void* m_CustomPointer{nullptr};
 	enum { STREAMBUFSIZE = 256 };
 	char_type m_buf[STREAMBUFSIZE];
-};
+
+}; // KInStreamBuf
 
 
 /// Read a line of text until EOF or delimiter from a std::istream. Right trim values of sTrimRight.
@@ -254,6 +266,7 @@ public:
 	//-------
 	protected:
 	//-------
+
 		base_iterator* m_it{nullptr};
 		KString m_sBuffer;
 
@@ -555,6 +568,7 @@ public:
 //-------
 protected:
 //-------
+
 	// m_sRef always has to be valid after construction
 	// - do not assign a nullptr per default
 	std::istream* m_InStream;
@@ -640,7 +654,7 @@ public:
 		return KInStream::end();
 	 }
 
-};
+}; // KReader
 
 /// File reader based on std::ifstream
 using KInFile          = KReader<std::ifstream>;

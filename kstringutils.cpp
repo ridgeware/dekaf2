@@ -351,7 +351,7 @@ bool kIsDecimal(KStringView str) noexcept
 	const char* buf   = start;
 	size_t size       = str.size();
 
-	for (;size > 0; --size)
+	while (size--)
 	{
 		if (!kIsDigit(*buf++))
 		{

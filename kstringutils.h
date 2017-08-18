@@ -47,8 +47,8 @@
 #include <functional>
 #include <cwchar>
 #include "bits/kcppcompat.h"
+#include "bits/ktemplate.h"
 #include "kstring.h"
-#include "ktemplate.h"
 
 namespace dekaf2
 {
@@ -315,27 +315,27 @@ inline unsigned long long kToULongLong(const char* s) noexcept
 	else return std::strtoull(s, nullptr, 10);
 }
 
-template<class String, typename = std::enable_if_t<dekaf2::is_narrow_cpp_str<String>::value> >
+template<class String, typename = std::enable_if_t<detail::is_narrow_cpp_str<String>::value> >
 inline float kToFloat(const String& s) noexcept { return kToFloat(s.data()); }
-template<class String, typename = std::enable_if_t<dekaf2::is_narrow_cpp_str<String>::value> >
+template<class String, typename = std::enable_if_t<detail::is_narrow_cpp_str<String>::value> >
 inline double kToDouble(const String& s) noexcept { return kToDouble(s.data()); }
-template<class String, typename = std::enable_if_t<dekaf2::is_narrow_cpp_str<String>::value> >
+template<class String, typename = std::enable_if_t<detail::is_narrow_cpp_str<String>::value> >
 inline long double kToLongDouble(const String& s) noexcept { return kToLongDouble(s.data); }
-template<class String, typename = std::enable_if_t<dekaf2::is_narrow_cpp_str<String>::value> >
+template<class String, typename = std::enable_if_t<detail::is_narrow_cpp_str<String>::value> >
 inline int kToShort(const String& s) noexcept { return kToShort(s.data()); }
-template<class String, typename = std::enable_if_t<dekaf2::is_narrow_cpp_str<String>::value> >
+template<class String, typename = std::enable_if_t<detail::is_narrow_cpp_str<String>::value> >
 inline int kToInt(const String& s) noexcept { return kToInt(s.data()); }
-template<class String, typename = std::enable_if_t<dekaf2::is_narrow_cpp_str<String>::value> >
+template<class String, typename = std::enable_if_t<detail::is_narrow_cpp_str<String>::value> >
 inline long kToLong(const String& s) noexcept { return kToLong(s.data()); }
-template<class String, typename = std::enable_if_t<dekaf2::is_narrow_cpp_str<String>::value> >
+template<class String, typename = std::enable_if_t<detail::is_narrow_cpp_str<String>::value> >
 inline long long kToLongLong(const String& s) noexcept { return kToLongLong(s.data()); }
-template<class String, typename = std::enable_if_t<dekaf2::is_narrow_cpp_str<String>::value> >
+template<class String, typename = std::enable_if_t<detail::is_narrow_cpp_str<String>::value> >
 inline unsigned int kToUShort(const String& s) noexcept { return kToUShort(s.data()); }
-template<class String, typename = std::enable_if_t<dekaf2::is_narrow_cpp_str<String>::value> >
+template<class String, typename = std::enable_if_t<detail::is_narrow_cpp_str<String>::value> >
 inline unsigned int kToUInt(const String& s) noexcept { return kToUInt(s.data()); }
-template<class String, typename = std::enable_if_t<dekaf2::is_narrow_cpp_str<String>::value> >
+template<class String, typename = std::enable_if_t<detail::is_narrow_cpp_str<String>::value> >
 inline unsigned long kToULong(const String& s) noexcept { return kToULong(s.data()); }
-template<class String, typename = std::enable_if_t<dekaf2::is_narrow_cpp_str<String>::value> >
+template<class String, typename = std::enable_if_t<detail::is_narrow_cpp_str<String>::value> >
 inline unsigned long long kToULongLong(const String& s) noexcept { return kToULongLong(s.data()); }
 
 namespace // hide kx2c in an anonymous namespace

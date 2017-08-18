@@ -60,6 +60,11 @@ namespace dekaf2
 struct KOutStreamBuf : public std::streambuf
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
+
+//-------
+public:
+//-------
+
 	//-----------------------------------------------------------------------------
 	/// the Writer function's signature:
 	/// std::streamsize Writer(const void* sBuffer, std::streamsize iCount, void* CustomPointer)
@@ -79,7 +84,10 @@ struct KOutStreamBuf : public std::streambuf
 	virtual ~KOutStreamBuf();
 	//-----------------------------------------------------------------------------
 
+//-------
 protected:
+//-------
+
 	//-----------------------------------------------------------------------------
 	virtual std::streamsize xsputn(const char_type* s, std::streamsize n) override;
 	//-----------------------------------------------------------------------------
@@ -88,10 +96,14 @@ protected:
 	virtual int_type overflow(int_type ch) override;
 	//-----------------------------------------------------------------------------
 
+//-------
 private:
+//-------
+
 	Writer m_Callback{nullptr};
 	void* m_CustomPointer{nullptr};
-};
+
+}; // KOutStreamBuf
 
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -108,6 +120,7 @@ class KOutStream
 //-------
 public:
 //-------
+
 	//-----------------------------------------------------------------------------
 	/// value constructor
 	KOutStream(std::ostream& OutStream)
@@ -259,12 +272,13 @@ public:
 //-------
 protected:
 //-------
+
 	// m_sRef always has to be valid after construction
 	// - do not assign a nullptr per default
 	std::ostream* m_OutStream;
 	KString m_sDelimiter{"\n"};
 
-};
+}; // KOutStream
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// The general Writer abstraction for dekaf2. Can be constructed around any
@@ -333,7 +347,7 @@ public:
 		KOutStream::operator=(std::move(other));
 	}
 
-};
+}; // KWriter
 
 
 /// File writer based on std::ofstream

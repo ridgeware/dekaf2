@@ -252,9 +252,12 @@ private:
 
 	Storage_Type  m_Storage;
 	Stack_Type m_EmptyValue{}; // for operator[] only
-	const Stack_Type m_cEmptyValue{};
+	static const Stack_Type m_cEmptyValue{};
 
 };
+
+/// Defines the Templates static const
+template<typename Stack_Type> const Stack_Type KStack<Stack_Type>::m_cEmptyValue;
 
 // ===== STANDARD STACK INTERACTIONS =====
 

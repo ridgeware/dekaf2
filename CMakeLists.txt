@@ -34,7 +34,6 @@ set (HEADERS
     ksignals.h
     kcrashexit.h
     kgetruntimestack.h
-    kstreamrw.h
     kreader.h
     kfdreader.h
     kwriter.h
@@ -63,7 +62,6 @@ set (SOURCES
     ksignals.cpp
     kcrashexit.cpp
     kgetruntimestack.cpp
-    kstreamrw.cpp
     kreader.cpp
     kwriter.cpp
     kfdreader.cpp
@@ -73,7 +71,6 @@ set (SOURCES
     kbaseshell.cpp
     kinshell.cpp
     koutshell.cpp
-    kstack.cpp
 )
 
 # make sure we have the necessary version of cmake installed

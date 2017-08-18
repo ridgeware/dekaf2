@@ -5,9 +5,9 @@
 #include "catch.hpp"
 using namespace dekaf2;
 
-#define kcurlDump 1
-#define kcurlHead 1
-#define kcurlBoth 1
+#define kcurlDump 0
+#define kcurlHead 0
+#define kcurlBoth 0
 
 
 
@@ -34,12 +34,30 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	virtual bool addToResponseBody(KString sBodyPart)
+	virtual bool addToResponseBody(KString& sBodyPart)
 	//-----------------------------------------------------------------------------
 	{
 		bool retVal = KCurl::addToResponseBody(sBodyPart);
 		m_sBody.push_back(sBodyPart);
 		return retVal;
+	}
+
+	//-----------------------------------------------------------------------------
+	virtual bool addToResponseHeader(KString& sHeaderPart)
+	//-----------------------------------------------------------------------------
+	{
+		if (printHeader || !getEchoHeader())
+		{
+			KWebIO::addToResponseHeader(sHeaderPart);
+		}
+		else // getEchoHeader() == true && printHeader == false;
+		{
+			setEchoHeader(false);
+			KWebIO::addToResponseHeader(sHeaderPart);
+			setEchoHeader(true);
+		}
+
+		return true;
 	}
 
 	//-----------------------------------------------------------------------------
@@ -55,6 +73,11 @@ public:
 	}
 
 	StreamedBody m_sBody{nullptr};
+#if kcurlHead
+	bool printHeader{true};
+#else
+	bool printHeader{false};
+#endif
 };
 
 TEST_CASE("KCurl")
@@ -148,11 +171,13 @@ TEST_CASE("KCurl")
 		CHECK_FALSE(bSuccess);
 	}
 #endif
+
+#if 1
 	SECTION("KCurl Dummy Stream Test")
 	{
 		KString url = "www.google.com";
 		//KWebIO webIO(url);//, true, true);
-		KCurl webIO;
+		KCurlTest webIO;
 		webIO.setEchoHeader(true);
 		webIO.setEchoBody(true);
 		webIO.setRequestURL("");
@@ -174,9 +199,11 @@ TEST_CASE("KCurl")
 
 		KString randHeader("something");
 		webIO.addToResponseHeader(randHeader);
-		webIO.printResponseHeader();
+		if (webIO.printHeader) {
+			webIO.printResponseHeader();
+		}
 	}
-
+#endif
 #if kcurlBoth
 	SECTION("KCurl Stream Test With Headers, output header and body")
 	{

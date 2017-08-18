@@ -77,8 +77,10 @@ public:
 	/// Overriden virtual method that prints out parsed response header
 	virtual bool   printResponseHeader(); // prints response header from m_responseHeaderss
 
+	//-----------------------------------------------------------------------------
 	/// Get all response headers except Cookies as a KHeader
 	const KHeader& getResponseHeaders() const
+	//-----------------------------------------------------------------------------
 	{
 		return m_responseHeaders;
 	}

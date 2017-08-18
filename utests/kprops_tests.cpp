@@ -2,7 +2,7 @@
 
 #include <dekaf2/kprops.h>
 #include <dekaf2/kstring.h>
-#include <dekaf2/kcppcompat.h>
+#include <dekaf2/bits/kcppcompat.h>
 
 using namespace dekaf2;
 

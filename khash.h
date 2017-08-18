@@ -44,7 +44,7 @@
 
 #include <cinttypes>
 #include <climits>
-#include "kcppcompat.h"
+#include "bits/kcppcompat.h"
 
 namespace dekaf2
 {

@@ -40,26 +40,60 @@
 //
 */
 
-#pragma once
+#include <utility>
 
 namespace dekaf2
 {
 
-enum
+namespace detail
 {
-	CRASHCODE_MEMORY      = -100,   // <-- parameter for kCrashExit() for malloc failures
-	CRASHCODE_TODO        = -101,   // <-- feature not implmented yet
-	CRASHCODE_DEKAFUSAGE  = -102,   // <-- invalid DEKAF framework usage
-	CRASHCODE_CORRUPT     = -103,   // <-- self-detected memory corruption
-	CRASHCODE_DBERROR     = -104,   // <-- self-detected fatal database error
-	CRASHCODE_DBINTEGRITY = -105    // <-- self-detected database integrity problem
+
+// this is a helper type to map a std::map into boost::multi_index,
+// as the latter is const on all elements (and does not have the
+// distinction between key and value)
+template<class Key, class Value>
+struct KMutablePair
+{
+	using self_type = KMutablePair<Key, Value>;
+
+	KMutablePair()
+	    : first(Key())
+	    , second(Value())
+	{}
+
+	KMutablePair(const Key& f, const Value& s)
+	    : first(f)
+	    , second(s)
+	{}
+
+	KMutablePair(Key&& f, Value&& s)
+	    : first(std::move(f))
+	    , second(std::move(s))
+	{}
+
+	KMutablePair(const self_type& p)
+	    : first(p.first)
+	    , second(p.second)
+	{}
+
+	KMutablePair(self_type&& p)
+	    : first(std::move(p.first))
+	    , second(std::move(p.second))
+	{}
+
+	KMutablePair(const std::pair<Key, Value>& p)
+	    : first(p.first)
+	    , second(p.second)
+	{}
+
+	KMutablePair(std::pair<Key, Value>&& p)
+	    : first(std::move(p.first))
+	    , second(std::move(p.second))
+	{}
+
+	Key           first;
+	mutable Value second;
 };
 
-extern "C" {
-
-void kCrashExit (int iSignalNum=0);
-
 }
-
-} // end of namespace dekaf2
-
+}

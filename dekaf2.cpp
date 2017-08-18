@@ -43,7 +43,7 @@
 #include <clocale>
 #include "dekaf2.h"
 #include "klog.h"
-#include "kcppcompat.h"
+#include "bits/kcppcompat.h"
 
 
 namespace dekaf2

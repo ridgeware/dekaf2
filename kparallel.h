@@ -49,7 +49,7 @@
 #include <map>
 #include <atomic>
 #include "klog.h"
-#include "kcppcompat.h"
+#include "bits/kcppcompat.h"
 
 namespace dekaf2
 {

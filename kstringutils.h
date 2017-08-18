@@ -46,7 +46,7 @@
 #include <algorithm>
 #include <functional>
 #include <cwchar>
-#include "kcppcompat.h"
+#include "bits/kcppcompat.h"
 #include "kstring.h"
 #include "ktemplate.h"
 

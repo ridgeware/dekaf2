@@ -42,7 +42,7 @@
 
 #pragma once
 
-#include "kcppcompat.h"
+#include "bits/kcppcompat.h"
 #include <re2/re2.h>
 #include <vector>
 #include "kcache.h"
@@ -50,6 +50,28 @@
 #include "khash.h"
 
 namespace std
+{
+	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	// add a hash function for re2::StringPiece
+	template<>
+	struct hash<re2::StringPiece>
+	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	{
+		typedef re2::StringPiece argument_type;
+		typedef std::size_t result_type;
+		result_type operator()(const argument_type& s) const
+		{
+#ifdef DEKAF2_HAS_CPP_17
+			return std::hash<dekaf2::KStringView>{}({s.data(), s.size()});
+#else
+			return dekaf2::hash_bytes_FNV(s.data(), s.size());
+#endif
+		}
+	};
+
+}
+
+namespace boost
 {
 	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	// add a hash function for re2::StringPiece

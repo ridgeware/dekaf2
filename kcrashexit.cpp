@@ -40,8 +40,8 @@
 //
 */
 
+#include "bits/kcppcompat.h"
 #include "klog.h"
-#include "kcppcompat.h"
 #include "kgetruntimestack.h"
 #include "ksignals.h"
 #include "kcrashexit.h"

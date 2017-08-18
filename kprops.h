@@ -51,7 +51,8 @@
 #include <boost/multi_index/member.hpp>
 #include <boost/multi_index/hashed_index.hpp>
 #include <boost/multi_index/random_access_index.hpp>
-#include "kcppcompat.h"
+#include "bits/kcppcompat.h"
+#include "bits/kmutable_pair.h"
 #include "klog.h"
 
 namespace dekaf2
@@ -60,62 +61,18 @@ namespace dekaf2
 using boost::multi_index_container;
 using namespace boost::multi_index;
 
-namespace KProps_detail
-{
 
-// this is a helper type to map a std::map into boost::multi_index,
-// as the latter is const on all elements (and does not have the
-// distinction between key and value)
-template<class Key, class Value>
-struct mutable_pair
-{
-	using self_type = mutable_pair<Key, Value>;
-
-	mutable_pair()
-	    : first(Key())
-	    , second(Value())
-	{}
-
-	mutable_pair(const Key& f, const Value& s)
-	    : first(f)
-	    , second(s)
-	{}
-
-	mutable_pair(Key&& f, Value&& s)
-	    : first(std::move(f))
-	    , second(std::move(s))
-	{}
-
-	mutable_pair(const self_type& p)
-	    : first(p.first)
-	    , second(p.second)
-	{}
-
-	mutable_pair(self_type&& p)
-	    : first(std::move(p.first))
-	    , second(std::move(p.second))
-	{}
-
-	mutable_pair(const std::pair<Key, Value>& p)
-	    : first(p.first)
-	    , second(p.second)
-	{}
-
-	mutable_pair(std::pair<Key, Value>&& p)
-	    : first(std::move(p.first))
-	    , second(std::move(p.second))
-	{}
-
-	Key           first;
-	mutable Value second;
-};
-
-}
-
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// definition of the multi index storage type for non-sequential KProps types
 template <class Key, class Value, bool Sequential, bool Unique>
-class KProps_base
+class KPropsBase
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
+
+//----------
 protected:
+//----------
+
 	// non-sequential
 
 	// our index tags (they are just names)
@@ -123,7 +80,7 @@ protected:
 	// make this an alias - there is no sequential index..
 	using  IndexBySeq = IndexByKey;
 
-	using Element = KProps_detail::mutable_pair<Key, Value>;
+	using Element = detail::KMutablePair<Key, Value>;
 
 	// the multi_index definition. Looks a bit convoluted because
 	// it adapts to Unique and Sequential template arguments..
@@ -144,21 +101,28 @@ protected:
 						>
 					>
 				>
-		>;
+			>;
 
 };
 
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// definition of the multi index storage type for sequential KProps types
 template<class Key, class Value, bool Unique>
-class KProps_base<Key, Value, true, Unique>
+class KPropsBase<Key, Value, true, Unique>
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
+
+//----------
 protected:
+//----------
+
 	// sequential
 
 	// our index tags (they are just names)
 	struct IndexByKey{};
 	struct IndexBySeq{};
 
-	using Element = KProps_detail::mutable_pair<Key, Value>;
+	using Element = detail::KMutablePair<Key, Value>;
 
 	// the multi_index definition. Looks a bit convoluted because
 	// it adapts to Unique and Sequential template arguments..
@@ -184,8 +148,9 @@ protected:
 				>
 			>;
 
-};
+}; // KPropsBase
 
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// The KProps template class is a generic key value store that allows
 /// for optimized associative and random (index) access at the same time.
 ///
@@ -195,11 +160,16 @@ protected:
 /// Also, per default, multiple keys (or key/value pairs) with different or
 /// the same value may exist. To switch to unique keys, set Unique to true.
 template <class Key, class Value, bool Sequential = true, bool Unique = false>
-class KProps : protected KProps_base<Key, Value, Sequential, Unique>
+class KProps : protected KPropsBase<Key, Value, Sequential, Unique>
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
+
+//----------
 protected:
+//----------
+
 	using self_type      = KProps<Key, Value, Sequential, Unique>;
-	using base_type      = KProps_base<Key, Value, Sequential, Unique>;
+	using base_type      = KPropsBase<Key, Value, Sequential, Unique>;
 
 	using Element        = typename base_type::Element;
 	using storage_type   = typename base_type::storage_type;
@@ -217,7 +187,9 @@ protected:
 
 	static Element s_EmptyElement;
 
+//----------
 public:
+//----------
 
 	// iterators automatically flip to IndexByKey if no sequence, see base class alias
 	using iterator           = typename IndexBySeq_t::iterator;
@@ -227,44 +199,86 @@ public:
 	using range              = std::pair<map_iterator, map_iterator>;
 	using const_range        = std::pair<const_map_iterator, const_map_iterator>;
 
+	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	class Parser
+	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	{
+
+	//----------
 	public:
+	//----------
+
+		//-----------------------------------------------------------------------------
 		Parser() {}
+		//-----------------------------------------------------------------------------
+
+		//-----------------------------------------------------------------------------
 		virtual ~Parser() {}
+		//-----------------------------------------------------------------------------
+
+		//-----------------------------------------------------------------------------
 		virtual bool Get(Key& key, Value& value) = 0;
-	};
+		//-----------------------------------------------------------------------------
 
+	}; // Parser
+
+	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	class Serializer
+	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	{
+
+	//----------
 	public:
+	//----------
+
+		//-----------------------------------------------------------------------------
 		Serializer() {}
+		//-----------------------------------------------------------------------------
+
+		//-----------------------------------------------------------------------------
 		virtual ~Serializer() {}
+		//-----------------------------------------------------------------------------
+
+		//-----------------------------------------------------------------------------
 		virtual bool Set(const Key& key, const Value& value) = 0;
-	};
+		//-----------------------------------------------------------------------------
+
+	}; // Serializer
 
 
+	//-----------------------------------------------------------------------------
+	/// default ctor
 	KProps()
+	//-----------------------------------------------------------------------------
 	    : m_KeyIndex(m_Storage.template get<IndexByKey>())
 	    , m_SeqIndex(m_Storage.template get<IndexBySeq>())
 	{
 	}
 
+	//-----------------------------------------------------------------------------
+	/// copy ctor
 	KProps(const self_type& other)
+	//-----------------------------------------------------------------------------
 	    : m_Storage(other.m_Storage)
 	    , m_KeyIndex(m_Storage.template get<IndexByKey>())
 	    , m_SeqIndex(m_Storage.template get<IndexBySeq>())
 	{
 	}
 
+	//-----------------------------------------------------------------------------
+	/// move ctor
 	KProps(self_type&& other)
+	//-----------------------------------------------------------------------------
 	    : m_Storage(std::move(other.m_Storage))
 	    , m_KeyIndex(m_Storage.template get<IndexByKey>())
 	    , m_SeqIndex(m_Storage.template get<IndexBySeq>())
 	{
 	}
 
+	//-----------------------------------------------------------------------------
+	/// copy assignment
 	self_type& operator=(const self_type& other)
+	//-----------------------------------------------------------------------------
 	{
 		m_Storage  = other.m_Storage;
 		m_KeyIndex = m_Storage.template get<IndexByKey>();
@@ -272,7 +286,10 @@ public:
 		return *this;
 	}
 
+	//-----------------------------------------------------------------------------
+	/// move assignment
 	self_type& operator=(self_type&& other)
+	//-----------------------------------------------------------------------------
 	{
 		m_Storage  = std::move(other.m_Storage);
 		m_KeyIndex = m_Storage.template get<IndexByKey>();
@@ -280,73 +297,106 @@ public:
 		return *this;
 	}
 
+	//-----------------------------------------------------------------------------
+	/// sequential iterator
 	template<bool Seq = Sequential,
 	         typename std::enable_if_t<Seq == true>* = nullptr>
 	iterator begin()
+	//-----------------------------------------------------------------------------
 	{
 		return m_SeqIndex.begin();
 	}
 
+	//-----------------------------------------------------------------------------
+	/// non-sequential (map) iterator
 	template<bool Seq = Sequential,
 	         typename std::enable_if_t<Seq == false>* = nullptr>
 	iterator begin()
+	//-----------------------------------------------------------------------------
 	{
 		return m_KeyIndex.begin();
 	}
 
+	//-----------------------------------------------------------------------------
+	/// sequential iterator
 	template<bool Seq = Sequential,
 	         typename std::enable_if_t<Seq == true>* = nullptr>
 	iterator end()
+	//-----------------------------------------------------------------------------
 	{
 		return m_SeqIndex.end();
 	}
 
+	//-----------------------------------------------------------------------------
+	/// non-sequential (map) iterator
 	template<bool Seq = Sequential,
 	         typename std::enable_if_t<Seq == false>* = nullptr>
 	iterator end()
+	//-----------------------------------------------------------------------------
 	{
 		return m_KeyIndex.end();
 	}
 
+	//-----------------------------------------------------------------------------
+	/// sequential iterator
 	template<bool Seq = Sequential,
 	         typename std::enable_if_t<Seq == true>* = nullptr>
 	const_iterator cbegin() const
+	//-----------------------------------------------------------------------------
 	{
 		return m_SeqIndex.begin();
 	}
 
+	//-----------------------------------------------------------------------------
+	/// non-sequential (map) iterator
 	template<bool Seq = Sequential,
 	         typename std::enable_if_t<Seq == false>* = nullptr>
 	const_iterator cbegin() const
+	//-----------------------------------------------------------------------------
 	{
 		return m_KeyIndex.begin();
 	}
 
+	//-----------------------------------------------------------------------------
+	/// sequential iterator
 	template<bool Seq = Sequential,
 	         typename std::enable_if_t<Seq == true>* = nullptr>
 	const_iterator cend() const
+	//-----------------------------------------------------------------------------
 	{
 		return m_SeqIndex.end();
 	}
 
+	//-----------------------------------------------------------------------------
+	/// non-sequential (map) iterator
 	template<bool Seq = Sequential,
 	         typename std::enable_if_t<Seq == false>* = nullptr>
 	const_iterator cend() const
+	//-----------------------------------------------------------------------------
 	{
 		return m_KeyIndex.end();
 	}
 
+	//-----------------------------------------------------------------------------
+	/// const_iterator
 	const_iterator begin() const
+	//-----------------------------------------------------------------------------
 	{
 		return cbegin();
 	}
 
+	//-----------------------------------------------------------------------------
+	/// const_iterator
 	const_iterator end() const
+	//-----------------------------------------------------------------------------
 	{
 		return cend();
 	}
 
+	//-----------------------------------------------------------------------------
+	/// append a KProps struct to another one
 	self_type& operator+=(const self_type& other)
+	//-----------------------------------------------------------------------------
 	{
 		for (auto it = other.begin(); it != other.end(); ++it)
 		{
@@ -355,7 +405,10 @@ public:
 		return *this;
 	}
 
+	//-----------------------------------------------------------------------------
+	/// move a Kprops struct to the end of another one
 	self_type& operator+=(self_type&& other)
+	//-----------------------------------------------------------------------------
 	{
 		for (auto it = other.begin(); it != other.end(); ++it)
 		{
@@ -364,7 +417,10 @@ public:
 		return *this;
 	}
 
+	//-----------------------------------------------------------------------------
+	/// Parse input and add to the KProps struct
 	size_t Parse(Parser& parser)
+	//-----------------------------------------------------------------------------
 	{
 		size_t iCount{0};
 		for (;;)
@@ -385,7 +441,10 @@ public:
 		return iCount;
 	}
 
+	//-----------------------------------------------------------------------------
+	/// serialize a KProps struct
 	bool Serialize(Serializer& serializer) const
+	//-----------------------------------------------------------------------------
 	{
 		for (auto it = begin(); it != end(); ++it)
 		{
@@ -394,10 +453,13 @@ public:
 		return !empty();
 	}
 
+	//-----------------------------------------------------------------------------
 	// perfect forwarding and SFINAE for unique instances
+	/// Set a new value for an existing key. If the key is not existing it is created.
 	template <class K, class V = Value, bool Uq = Unique,
 	          typename std::enable_if<Uq == true>::type* = nullptr>
 	iterator Set(K&& key, V&& newValue = V{})
+	//-----------------------------------------------------------------------------
 	{
 		auto it = m_KeyIndex.find(key);
 		if (it != m_KeyIndex.end())
@@ -412,10 +474,13 @@ public:
 		}
 	}
 
+	//-----------------------------------------------------------------------------
 	// perfect forwarding and SFINAE for non-unique instances
+	/// Set a new value for an existing key. If the key is not existing it is created.
 	template <class K, class V = Value, bool Uq = Unique,
 	          typename std::enable_if<Uq == false>::type* = nullptr>
 	iterator Set(K&& key, V&& newValue = V{})
+	//-----------------------------------------------------------------------------
 	{
 		auto range = m_KeyIndex.equal_range(key);
 		if (range.first != range.second)
@@ -434,20 +499,26 @@ public:
 		}
 	}
 
+	//-----------------------------------------------------------------------------
 	// perfect forwarding and SFINAE for unique instances
+	/// Set a new value for an existing key. If the key is not existing it is created.
 	template <class K, class V1, class V2, bool Uq = Unique,
 	          typename std::enable_if<Uq == true>::type* = nullptr>
 	iterator Set(K&& key, V1&& value, V2&& newValue)
+	//-----------------------------------------------------------------------------
 	{
 		// this is actually the same as a Set(key, newValue) as we can only have one
 		// record with this key
 		return Set(std::forward<K>(key), std::forward<V2>(newValue));
 	}
 
+	//-----------------------------------------------------------------------------
 	// perfect forwarding and SFINAE for non-unique instances
+	/// Set a new value for existing key/value pairs. If the key/value pair is not existing it is created.
 	template <class K, class V1, class V2, bool Uq = Unique,
 	          typename std::enable_if<Uq == false>::type* = nullptr>
 	iterator Set(K&& key, V1&& value, V2&& newValue)
+	//-----------------------------------------------------------------------------
 	{
 		bool replaced{false};
 
@@ -483,18 +554,25 @@ public:
 //----------
 protected:
 //----------
+
+	//-----------------------------------------------------------------------------
 	// SFINAE && perfect forwarding for Sequential or non-unique instances
+	/// Replace the value of an existing key
 	template<class K, class V, bool Sq = Sequential, bool Uq = Unique,
 			 typename std::enable_if_t<Sq == true || Uq == false>* = nullptr>
 	iterator Replace(K&& key, V&& value)
+	//-----------------------------------------------------------------------------
 	{
 		return Set(std::forward<K>(key), std::forward<V>(value));
 	}
 
+	//-----------------------------------------------------------------------------
 	// SFINAE && perfect forwarding for Unique non-Sequential instances
+	/// Replace the value of an existing key
 	template<class V, bool Sq = Sequential, bool Uq = Unique,
 			 typename std::enable_if_t<Sq == false && Uq == true>* = nullptr>
 	iterator Replace(iterator it, V&& value)
+	//-----------------------------------------------------------------------------
 	{
 		it->second = std::forward<V>(value);
 		return it;
@@ -503,10 +581,14 @@ protected:
 //----------
 public:
 //----------
+
+	//-----------------------------------------------------------------------------
 	// perfect forwarding and SFINAE for unique sequential instances
+	/// Add a new Key/Value pair. If the key is already existing, its value is replaced.
 	template<class K, class V = Value, bool Uq = Unique, bool Sq = Sequential,
 	         typename std::enable_if_t<Uq == true && Sq == true>* = nullptr >
 	iterator Add(K&& key, V&& value = V{})
+	//-----------------------------------------------------------------------------
 	{
 		// boost::multi_index does not know try_emplace, so we have to do value
 		// copies for the emplace anyway, as we could not call Replace() otherwise
@@ -521,10 +603,13 @@ public:
 		}
 	}
 
+	//-----------------------------------------------------------------------------
 	// perfect forwarding and SFINAE for unique non-sequential instances
+	/// Add a new Key/Value pair. If the key is already existing, its value is replaced.
 	template<class K, class V = Value, bool Uq = Unique, bool Sq = Sequential,
 	         typename std::enable_if_t<Uq == true && Sq == false>* = nullptr >
 	iterator Add(K&& key, V&& value = V{})
+	//-----------------------------------------------------------------------------
 	{
 		// boost::multi_index does not know try_emplace, so we have to do value
 		// copies for the emplace anyway, as we could not call Replace() otherwise
@@ -539,10 +624,13 @@ public:
 		}
 	}
 
+	//-----------------------------------------------------------------------------
 	// perfect forwarding and SFINAE for non-unique sequential instances
+	/// Add a new Key/Value pair.
 	template<class K, class V = Value, bool Uq = Unique, bool Sq = Sequential,
 	         typename std::enable_if_t<Uq == false && Sq == true>* = nullptr >
 	iterator Add(K&& key, V&& value = V{})
+	//-----------------------------------------------------------------------------
 	{
 		// boost::multi_index does not know try_emplace, so we have to do value
 		// copies for the emplace anyway, as we could not call Replace() otherwise
@@ -550,10 +638,13 @@ public:
 		return m_Storage.template project<IndexBySeq>(pair.first);
 	}
 
+	//-----------------------------------------------------------------------------
 	// perfect forwarding and SFINAE for non-unique non-sequential instances
+	/// Add a new Key/Value pair.
 	template<class K, class V = Value, bool Uq = Unique, bool Sq = Sequential,
 	         typename std::enable_if_t<Uq == false && Sq == false>* = nullptr >
 	iterator Add(K&& key, V&& value = V{})
+	//-----------------------------------------------------------------------------
 	{
 		// boost::multi_index does not know try_emplace, so we have to do value
 		// copies for the emplace anyway, as we could not call Replace() otherwise
@@ -561,10 +652,13 @@ public:
 		return pair.first;
 	}
 
+	//-----------------------------------------------------------------------------
 	// SFINAE for Unique instances
+	/// remove a Key/Value pair with a given key. Returns count of removed elements.
 	template<bool Uq = Unique,
 	         typename std::enable_if<Uq == true>::type* = nullptr>
 	size_t Remove(const Key& key)
+	//-----------------------------------------------------------------------------
 	{
 		auto it = m_KeyIndex.find(key);
 		if (it == m_KeyIndex.end())
@@ -577,10 +671,13 @@ public:
 		return 1;
 	}
 
+	//-----------------------------------------------------------------------------
 	// SFINAE for non Unique instances
+	/// remove Key/Value pairs with a given key. Returns count of removed elements.
 	template<bool Uq = Unique,
 	         typename std::enable_if<Uq == false>::type* = nullptr>
 	size_t Remove(const Key& key)
+	//-----------------------------------------------------------------------------
 	{
 		auto range = m_KeyIndex.equal_range(key);
 		auto iErased = std::distance(range.first, range.second);
@@ -593,23 +690,33 @@ public:
 		return iErased;
 	}
 
+	//-----------------------------------------------------------------------------
 	// perfect forwarding
+	/// returns iterator on the element with the given key.
 	template<class K>
 	typename IndexByKey_t::iterator find(K&& key)
+	//-----------------------------------------------------------------------------
 	{
 		return m_KeyIndex.find(std::forward<K>(key));
 	}
 
+	//-----------------------------------------------------------------------------
 	// perfect forwarding, SFINAE for non-sequential case
+	/// returns const_iterator on the element with the given key.
 	template<class K>
 	typename IndexByKey_t::const_iterator find(K&& key) const
+	//-----------------------------------------------------------------------------
 	{
 		return m_KeyIndex.find(std::forward<K>(key));
 	}
 
+	//-----------------------------------------------------------------------------
 	// perfect forwarding
+	/// Returns value of the element with the given key. Returns default constructed
+	/// value if not found.
 	template<class K>
 	Value& Get(K&& key)
+	//-----------------------------------------------------------------------------
 	{
 		auto it = m_KeyIndex.find(std::forward<K>(key));
 		if (it != m_KeyIndex.end())
@@ -620,9 +727,13 @@ public:
 		return s_EmptyElement.second;
 	}
 
+	//-----------------------------------------------------------------------------
 	// perfect forwarding
+	/// Returns value of the element with the given key. Returns default constructed
+	/// value if not found.
 	template<class K>
 	const Value& Get(K&& key) const
+	//-----------------------------------------------------------------------------
 	{
 		auto it = m_KeyIndex.find(std::forward<K>(key));
 		if (it != m_KeyIndex.end())
@@ -633,38 +744,53 @@ public:
 		return s_EmptyElement.second;
 	}
 
+	//-----------------------------------------------------------------------------
 	// perfect forwarding
+	/// Returns iterator range of the elements with the given key.
 	template<class K>
 	const_range GetMulti(K&& key) const
+	//-----------------------------------------------------------------------------
 	{
 		return m_KeyIndex.equal_range(std::forward<K>(key));
 	}
 
+	//-----------------------------------------------------------------------------
 	// perfect forwarding
+	/// Returns iterator range of the elements with the given key.
 	template<class K>
 	range GetMulti(K&& key)
+	//-----------------------------------------------------------------------------
 	{
 		return m_KeyIndex.equal_range(std::forward<K>(key));
 	}
 
+	//-----------------------------------------------------------------------------
 	// perfect forwarding
+	/// Returns count of elements with the given key.
 	template<class K>
 	size_t Count(K&& key) const
+	//-----------------------------------------------------------------------------
 	{
 		return m_KeyIndex.count(std::forward<K>(key));
 	}
 
+	//-----------------------------------------------------------------------------
 	// perfect forwarding
+	/// Returns if a key appears multiple times.
 	template<class K>
 	bool IsMulti(K&& key) const
+	//-----------------------------------------------------------------------------
 	{
 		return Count(std::forward<K>(key)) > 1;
 	}
 
+	//-----------------------------------------------------------------------------
 	// SFINAE, only active for Sequential instances
+	/// Gets the element at index position. Returns empty element if out of range.
 	template<bool Seq = Sequential,
 	         typename std::enable_if<Seq == true>::type* = nullptr>
 	const Element& at(size_t index) const
+	//-----------------------------------------------------------------------------
 	{
 		if (index < size())
 		{
@@ -677,26 +803,35 @@ public:
 		}
 	}
 
+	//-----------------------------------------------------------------------------
 	// SFINAE, only active for non-integral Sequential instances
+	/// Gets the element at index position. Returns empty element if out of range.
 	template<class T = Key, bool Seq = Sequential,
 	         typename = std::enable_if_t<!std::is_integral<T>::value && Seq == true> >
 	const Element& operator[](size_t index) const
+	//-----------------------------------------------------------------------------
 	{
 		return at(index);
 	}
 
+	//-----------------------------------------------------------------------------
 	// SFINAE && perfect forwarding, only active for non-integral K, or if the Key is integral
+	/// Gets the element with the given key. Returns empty element if not found.
 	template<class K, class T = Key,
 	         typename = std::enable_if_t<std::is_integral<T>::value || !std::is_integral<K>::value> >
 	const Value& operator[](K&& key) const
+	//-----------------------------------------------------------------------------
 	{
 		return Get(std::forward<K>(key));
 	}
 
+	//-----------------------------------------------------------------------------
 	// SFINAE && perfect forwarding, only active for non-integral K, or if the Key is integral
+	/// Gets the element with the given key. Returns empty element if not found.
 	template<class K, class T = Key,
 	         typename = std::enable_if_t<std::is_integral<T>::value || !std::is_integral<K>::value> >
 	Value& operator[](K&& key)
+	//-----------------------------------------------------------------------------
 	{
 		auto it = m_KeyIndex.find(key);
 		if (it != m_KeyIndex.end())
@@ -710,21 +845,47 @@ public:
 		}
 	}
 
+	//-----------------------------------------------------------------------------
+	/// Deletes all elements.
 	void clear()
+	//-----------------------------------------------------------------------------
 	{
 		m_Storage.clear();
 	}
 
+	//-----------------------------------------------------------------------------
+	/// Returns count of all stored elements.
 	size_t size() const
+	//-----------------------------------------------------------------------------
 	{
 		return m_Storage.size();
 	}
 
+	//-----------------------------------------------------------------------------
+	/// Returns true if no elements are stored.
 	bool empty() const
+	//-----------------------------------------------------------------------------
 	{
 		return m_Storage.empty();
 	}
-};
+
+	//-----------------------------------------------------------------------------
+	/// Inserts one element at the end. (InsertIterator interface)
+	void push_back(const Element& element)
+	//-----------------------------------------------------------------------------
+	{
+		m_Storage.push_back(element);
+	}
+
+	//-----------------------------------------------------------------------------
+	/// Move-inserts one element at the end. (InsertIterator interface)
+	void push_back(Element&& element)
+	//-----------------------------------------------------------------------------
+	{
+		m_Storage.push_back(std::move(element));
+	}
+
+}; // KProps
 
 template<class Key, class Value, bool Sequential, bool Unique>
 typename KProps<Key, Value, Sequential, Unique>::Element

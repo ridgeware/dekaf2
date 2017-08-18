@@ -37,7 +37,7 @@ set (HEADERS
     kstring.h
     kcache.h
     kregex.h
-    kcppcompat.h
+    bits/kcppcompat.h
     klog.h
     kfile.h
     kprof.h
@@ -63,7 +63,9 @@ set (HEADERS
     ktcpclient.h
     ktcpserver.h
     khash.h
-    kmake_unique.h
+    bits/kmake_unique.h
+    kmru.h
+    bits/kmutable_pair.h
 )
 
 set (SOURCES

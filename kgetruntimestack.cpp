@@ -41,8 +41,8 @@
 */
 
 
+#include "bits/kcppcompat.h"
 #include "kstring.h"
-#include "kcppcompat.h"
 #include "kpipe.h"
 #include "kgetruntimestack.h"
 

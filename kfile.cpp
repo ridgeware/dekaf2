@@ -40,7 +40,7 @@
 //
 */
 
-#include "kcppcompat.h"
+#include "bits/kcppcompat.h"
 
 #ifdef DEKAF2_HAS_CPP_17
  #include <experimental/filesystem>

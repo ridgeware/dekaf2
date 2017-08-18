@@ -42,7 +42,7 @@
 
 #pragma once
 
-#include "kcppcompat.h"
+#include "bits/kcppcompat.h"
 #include <string>
 #ifdef DEKAF2_HAS_CPP_17
 #include <experimental/string_view>

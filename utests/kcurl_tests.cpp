@@ -129,6 +129,7 @@ TEST_CASE("KCurl")
 		CHECK(gotCookie);
 		CHECK(cookieVal.compare("fubar") == 0);
 		gotCookie = webIO.getRequestCookie("foo2", cookieVal);
+		//std::cout << "bar2 cookVal: " << cookieVal << std::endl;
 		CHECK(cookieVal.compare("bar2") == 0);
 		CHECK(gotCookie);
 		webIO.delRequestCookie("foo2");

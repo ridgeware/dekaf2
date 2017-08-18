@@ -253,8 +253,8 @@ bool KWebIO::printResponseHeader()
 const KString& KWebIO::getResponseHeader(const KString& sHeaderName) const
 //-----------------------------------------------------------------------------
 {
-	KString sHeaderKey(sHeaderName);
-	sHeaderKey.MakeLower().Trim();
+	KString sHeaderKey(sHeaderName.ToLower());
+	sHeaderKey.Trim();
 	const KHeaderPair& header(m_responseHeaders.Get(sHeaderKey));
 	const KString& sHeaderVal = header.second;
 	return sHeaderVal;
@@ -265,8 +265,8 @@ const KString& KWebIO::getResponseHeader(const KString& sHeaderName) const
 const KString& KWebIO::getResponseCookie(const KString& sCookieName) //const
 //-----------------------------------------------------------------------------
 {
-	KString sCookieKey(sCookieName);
-	sCookieKey.MakeLower().Trim();
+	KString sCookieKey(sCookieName.ToLower());
+	sCookieKey.Trim();
 	return m_responseCookies.Get(sCookieKey).second;
 
 } // getResponseCookie

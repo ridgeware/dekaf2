@@ -103,7 +103,7 @@ public:
 
 	/// Default KURL Constructor, must be initialized after construction
 	KCurl() {}
-	// TODO Change pair of bools to one uint16_t and an enum to set/check flags
+
 	/// KURL Constructor that allows full initialization on construction.
 	KCurl(const KString& sRequestURL, RequestType requestType, bool bEchoHeader = false, bool bEchoBody = false)
 	    : m_bEchoHeader{bEchoHeader}, m_bEchoBody{bEchoBody},  m_requestType{requestType}, m_sRequestURL{sRequestURL}{}

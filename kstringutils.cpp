@@ -46,10 +46,114 @@
 namespace dekaf2
 {
 
+//------------------------------------------------------------------------------
+std::string::size_type kReplace(std::string& string,
+                                KStringView sSearch,
+                                KStringView sReplaceWith,
+                                bool bReplaceAll)
+//------------------------------------------------------------------------------
+{
+	if (sSearch.empty() || string.size() < sSearch.size())
+	{
+		return 0;
+	}
+
+	typedef std::string::size_type size_type;
+	typedef std::string::value_type value_type;
+
+	size_type iNumReplacement = 0;
+	// use a non-const ref to the first element, as .data() is const with C++ < 17
+	value_type* haystack = &string[0];
+	size_type haystackSize = string.size();
+
+	value_type* pszFound = static_cast<value_type*>(memmem(haystack, haystackSize, sSearch.data(), sSearch.size()));
+
+	if (pszFound)
+	{
+
+		if (sReplaceWith.size() <= sSearch.size())
+		{
+			// execute an in-place substitution (C++17 actually has a non-const string.data())
+			value_type* pszTarget = const_cast<value_type*>(haystack);
+
+			while (pszFound)
+			{
+				auto untouchedSize = static_cast<size_type>(pszFound - haystack);
+				if (pszTarget < haystack)
+				{
+					memmove(pszTarget, haystack, untouchedSize);
+				}
+				pszTarget += untouchedSize;
+
+				if (!sReplaceWith.empty())
+				{
+					memmove(pszTarget, sReplaceWith.data(), sReplaceWith.size());
+					pszTarget += sReplaceWith.size();
+				}
+
+				haystack = pszFound + sSearch.size();
+				haystackSize -= (sSearch.size() + untouchedSize);
+
+				pszFound = static_cast<value_type*>(memmem(haystack, haystackSize, sSearch.data(), sSearch.size()));
+
+				++iNumReplacement;
+
+				if (!bReplaceAll)
+				{
+					break;
+				}
+			}
+
+			if (haystackSize)
+			{
+				memmove(pszTarget, haystack, haystackSize);
+				pszTarget += haystackSize;
+			}
+
+			auto iResultSize = static_cast<size_type>(pszTarget - string.data());
+			string.resize(iResultSize);
+
+		}
+		else
+		{
+			// execute a copy substitution
+			std::string sResult;
+			sResult.reserve(string.size());
+
+			while (pszFound)
+			{
+				auto untouchedSize = static_cast<size_type>(pszFound - haystack);
+				sResult.append(haystack, untouchedSize);
+				sResult.append(sReplaceWith.data(), sReplaceWith.size());
+
+				haystack = pszFound + sSearch.size();
+				haystackSize -= (sSearch.size() + untouchedSize);
+
+				pszFound = static_cast<value_type*>(memmem(haystack, haystackSize, sSearch.data(), sSearch.size()));
+
+				++iNumReplacement;
+
+				if (!bReplaceAll)
+				{
+					break;
+				}
+			}
+
+			sResult.append(haystack, haystackSize);
+			string.swap(sResult);
+		}
+	}
+
+	return iNumReplacement;
+}
+
 //-----------------------------------------------------------------------------
-const char* KFormTimestamp (char* szBuffer, size_t iMaxBuf, time_t tTime, const char* pszFormat)
+std::string kFormTimestamp (time_t tTime, const char* pszFormat)
 //-----------------------------------------------------------------------------
 {
+	enum { iMaxBuf = 100 };
+	char szBuffer[iMaxBuf+1];
+
 	struct tm ptmStruct;
 
 	if (!tTime)
@@ -66,34 +170,20 @@ const char* KFormTimestamp (char* szBuffer, size_t iMaxBuf, time_t tTime, const 
 } // FormTimestamp
 
 //-----------------------------------------------------------------------------
-const char* KFormTimestamp (time_t tTime, const char* pszFormat)
+std::string kTranslateSeconds(int64_t iNumSeconds, bool bLongForm)
 //-----------------------------------------------------------------------------
 {
-	enum { MAX_FT_BUF = 100 };
-	static thread_local char tls_buf[MAX_FT_BUF+1];
+	enum { MAX = 100 };
+	char szBuf[MAX+1];
 
-	return KFormTimestamp(tls_buf, MAX_FT_BUF, tTime, pszFormat);
-}
-
-//-----------------------------------------------------------------------------
-const char* KTranslateSeconds(char* s_szBuf, size_t MAX, int64_t iNumSeconds, bool bLongForm)
-//-----------------------------------------------------------------------------
-{
 	int64_t iOrigSeconds{iNumSeconds};
 
-	if (MAX)
-	{
-		*s_szBuf = 0;
-	}
-	else
-	{
-		return ">> error: buffer of size 0 passed to KTranslateSeconds";
-	}
+	*szBuf = 0;
 
 	if (!iNumSeconds)
 	{
-		strncpy (s_szBuf, "less than a second", MAX - strlen(s_szBuf) - 1);
-		return (s_szBuf);
+		strncpy (szBuf, "less than a second", MAX - strlen(szBuf) - 1);
+		return (szBuf);
 	}
 
 	enum {
@@ -123,51 +213,51 @@ const char* KTranslateSeconds(char* s_szBuf, size_t MAX, int64_t iNumSeconds, bo
 	{
 		if (iYears)
 		{
-			if (*s_szBuf)
+			if (*szBuf)
 			{
-				strncat (s_szBuf, ", ", MAX);
+				strncat (szBuf, ", ", MAX);
 			}
-			snprintf (s_szBuf+strlen(s_szBuf), MAX, "%d yr%s", iYears, (iYears >  1) ? "s" : "");
+			snprintf (szBuf+strlen(szBuf), MAX, "%d yr%s", iYears, (iYears >  1) ? "s" : "");
 		}
 		if (iWeeks)
 		{
-			if (*s_szBuf)
+			if (*szBuf)
 			{
-				strncat (s_szBuf, ", ", MAX);
+				strncat (szBuf, ", ", MAX);
 			}
-			snprintf (s_szBuf+strlen(s_szBuf), MAX, "%d wk%s", iWeeks, (iWeeks >  1) ? "s" : "");
+			snprintf (szBuf+strlen(szBuf), MAX, "%d wk%s", iWeeks, (iWeeks >  1) ? "s" : "");
 		}
 		if (iDays)
 		{
-			if (*s_szBuf)
+			if (*szBuf)
 			{
-				strncat (s_szBuf, ", ", MAX);
+				strncat (szBuf, ", ", MAX);
 			}
-			snprintf (s_szBuf+strlen(s_szBuf), MAX, "%d day%s", iDays, (iDays >  1) ? "s" : "");
+			snprintf (szBuf+strlen(szBuf), MAX, "%d day%s", iDays, (iDays >  1) ? "s" : "");
 		}
 		if (iHours)
 		{
-			if (*s_szBuf)
+			if (*szBuf)
 			{
-				strncat (s_szBuf, ", ", MAX);
+				strncat (szBuf, ", ", MAX);
 			}
-			snprintf (s_szBuf+strlen(s_szBuf), MAX, "%d hr%s", iHours, (iHours >  1) ? "s" : "");
+			snprintf (szBuf+strlen(szBuf), MAX, "%d hr%s", iHours, (iHours >  1) ? "s" : "");
 		}
 		if (iMins)
 		{
-			if (*s_szBuf)
+			if (*szBuf)
 			{
-				strncat (s_szBuf, ", ", MAX);
+				strncat (szBuf, ", ", MAX);
 			}
-			snprintf (s_szBuf+strlen(s_szBuf), MAX, "%d min%s", iMins, (iMins >  1) ? "s" : "");
+			snprintf (szBuf+strlen(szBuf), MAX, "%d min%s", iMins, (iMins >  1) ? "s" : "");
 		}
 		if (iNumSeconds)
 		{
-			if (*s_szBuf)
+			if (*szBuf)
 			{
-				strncat (s_szBuf, ", ", MAX);
+				strncat (szBuf, ", ", MAX);
 			}
-			snprintf (s_szBuf+strlen(s_szBuf), MAX, "%d sec%s", (int)iNumSeconds, (iNumSeconds >  1) ? "s" : "");
+			snprintf (szBuf+strlen(szBuf), MAX, "%d sec%s", (int)iNumSeconds, (iNumSeconds >  1) ? "s" : "");
 		}
 
 	}
@@ -175,99 +265,95 @@ const char* KTranslateSeconds(char* s_szBuf, size_t MAX, int64_t iNumSeconds, bo
 	{
 		if (iOrigSeconds == SECS_PER_YEAR)
 		{
-			strncat (s_szBuf, "1 yr", MAX);
+			strncat (szBuf, "1 yr", MAX);
 		}
 		else if (iYears)
 		{
 			double nFraction = (double)iOrigSeconds / (double)SECS_PER_YEAR;
-			snprintf (s_szBuf, MAX, "%.1f yrs", nFraction);
+			snprintf (szBuf, MAX, "%.1f yrs", nFraction);
 		}
 		else if (iOrigSeconds == SECS_PER_WEEK)
 		{
-			strncat (s_szBuf, "1 wk", MAX);
+			strncat (szBuf, "1 wk", MAX);
 		}
 		else if (iWeeks)
 		{
 			double nFraction = (double)iOrigSeconds / (double)SECS_PER_WEEK;
-			snprintf (s_szBuf, MAX, "%.1f wks", nFraction);
+			snprintf (szBuf, MAX, "%.1f wks", nFraction);
 		}
 		else if (iOrigSeconds == SECS_PER_DAY)
 		{
-			strncat (s_szBuf, "1 day", MAX);
+			strncat (szBuf, "1 day", MAX);
 		}
 		else if (iDays)
 		{
 			double nFraction = (double)iOrigSeconds / (double)SECS_PER_DAY;
-			snprintf (s_szBuf, MAX, "%.1f days", nFraction);
+			snprintf (szBuf, MAX, "%.1f days", nFraction);
 		}
 		else if (iHours)
 		{
 			// show hours and minutes, but not seconds:
-			snprintf (s_szBuf, MAX, "%d hr%s", iHours, (iHours >  1) ? "s" : "");
+			snprintf (szBuf, MAX, "%d hr%s", iHours, (iHours >  1) ? "s" : "");
 			if (iMins)
 			{
-				strncat (s_szBuf, ", ", MAX);
-				snprintf (s_szBuf+strlen(s_szBuf), MAX, "%d min%s", iMins, (iMins >  1) ? "s" : "");
+				strncat (szBuf, ", ", MAX);
+				snprintf (szBuf+strlen(szBuf), MAX, "%d min%s", iMins, (iMins >  1) ? "s" : "");
 			}
 		}
 		else if (iMins)
 		{
 			// show minutes and seconds:
-			snprintf (s_szBuf, MAX, "%d min%s", iMins, (iMins >  1) ? "s" : "");
+			snprintf (szBuf, MAX, "%d min%s", iMins, (iMins >  1) ? "s" : "");
 			if (iNumSeconds)
 			{
-				strncat (s_szBuf, ", ", MAX);
-				snprintf (s_szBuf+strlen(s_szBuf), MAX, "%d sec%s", (int)iNumSeconds, (iNumSeconds >  1) ? "s" : "");
+				strncat (szBuf, ", ", MAX);
+				snprintf (szBuf+strlen(szBuf), MAX, "%d sec%s", (int)iNumSeconds, (iNumSeconds >  1) ? "s" : "");
 			}
 		}
 		else if (iNumSeconds)
 		{
-			snprintf (s_szBuf, MAX, "%d sec%s", (int)iNumSeconds, (iNumSeconds >  1) ? "s" : "");
+			snprintf (szBuf, MAX, "%d sec%s", (int)iNumSeconds, (iNumSeconds >  1) ? "s" : "");
 		}
 
 	}
 
-	return (s_szBuf);
+	return (szBuf);
 
 }
 
 //-----------------------------------------------------------------------------
-const char* KTranslateSeconds(int64_t iNumSeconds, bool bLongForm)
-//-----------------------------------------------------------------------------
-{
-	enum { MAX_BUF = 100 };
-	static thread_local char tls_buf[MAX_BUF+1];
-
-	return KTranslateSeconds(tls_buf, MAX_BUF, iNumSeconds, bLongForm);
-}
-
-//-----------------------------------------------------------------------------
-size_t KCountChar(const char* string, const char ch) noexcept
+size_t kCountChar(KStringView str, const char ch) noexcept
 //-----------------------------------------------------------------------------
 {
 	size_t ret{0};
-	char v;
-	while ((v = *string++))
+	const char* buf = str.data();
+	size_t size = str.size();
+	while (size--)
 	{
-		if (v == ch) ++ret;
+		if (*buf++ == ch)
+		{
+			++ret;
+		}
 	}
 	return ret;
 }
 
 //-----------------------------------------------------------------------------
-bool KIsDecimal(const char* buf, size_t size) noexcept
+bool kIsDecimal(KStringView str) noexcept
 //-----------------------------------------------------------------------------
 {
-	if (!size)
+	if (str.empty())
 	{
 		return false;
 	}
 
-	const char* start = buf;
+	const char* start = str.data();
+	const char* buf   = start;
+	size_t size       = str.size();
 
 	for (;size > 0; --size)
 	{
-		if (!KIsDigit(*buf++))
+		if (!kIsDigit(*buf++))
 		{
 			if (buf != start + 1 || (*start != '-' && *start != '+'))
 			{
@@ -276,34 +362,6 @@ bool KIsDecimal(const char* buf, size_t size) noexcept
 		}
 	}
 	return true;
-}
-
-//-----------------------------------------------------------------------------
-bool KIsDecimal(const char* string) noexcept
-//-----------------------------------------------------------------------------
-{
-	if (!*string)
-	{
-		return false;
-	}
-
-	const char* start = string;
-
-	for (;;)
-	{
-		char ch = *string++;
-		if (!ch)
-		{
-			return true;
-		}
-		if (!KIsDigit(ch))
-		{
-			if (string != start + 1 || (ch != '-' && ch != '+'))
-			{
-				return false;
-			}
-		}
-	}
 }
 
 } // end of namespace dekaf2

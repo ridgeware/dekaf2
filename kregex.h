@@ -158,15 +158,6 @@ public:
 	size_t Replace(std::string& sStr, const KStringView& sReplaceWith, bool bReplaceAll = true);
 	//-----------------------------------------------------------------------------
 
-	// member function interface
-	//-----------------------------------------------------------------------------
-	/// replace a regular expression with new text. Sub groups can be addressed with \1 \2 etc. in the replacement text
-	inline size_t Replace(KString& sStr, const KStringView& sReplaceWith, bool bReplaceAll = true)
-	//-----------------------------------------------------------------------------
-	{
-		return Replace(sStr.s(), sReplaceWith, bReplaceAll);
-	}
-
 	// static interface
 	//-----------------------------------------------------------------------------
 	/// match a regular expression in sStr
@@ -190,15 +181,6 @@ public:
 	/// replace a regular expression with new text. Sub groups can be addressed with \1 \2 etc. in the replacement text
 	static size_t Replace(std::string& sStr, const KStringView& sRegex, const KStringView& sReplaceWith, bool bReplaceAll = true);
 	//-----------------------------------------------------------------------------
-
-	// static interface
-	//-----------------------------------------------------------------------------
-	/// replace a regular expression with new text. Sub groups can be addressed with \1 \2 etc. in the replacement text
-	inline static size_t Replace(KString& sStr, const KStringView& sRegex, const KStringView& sReplaceWith, bool bReplaceAll = true)
-	//-----------------------------------------------------------------------------
-	{
-		return Replace(sStr.s(), sRegex, sReplaceWith, bReplaceAll);
-	}
 
 	//-----------------------------------------------------------------------------
 	/// returns regular expression string

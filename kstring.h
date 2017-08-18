@@ -575,10 +575,12 @@ namespace boost
 	template<> struct hash<dekaf2::KString> : public std::unary_function<dekaf2::KString, std::size_t>
 	{
 		typedef dekaf2::KString argument_type;
-		std::size_t operator()(argument_type const& s) const
+		typedef std::size_t result_type;
+		result_type operator()(argument_type const& s) const noexcept
 		{
 			return boost::hash<std::string>{}(s);
 		}
-};
+	};
 
-}
+} // end of namespace boost
+

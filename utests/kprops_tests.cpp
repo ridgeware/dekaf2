@@ -72,15 +72,15 @@ TEST_CASE("KProp") {
 			typedef KProps<KString, KString, true, false> CMyKProps;
 			CMyKProps data;
 
-			for (size_t ct = 0; ct < 10000; ++ct)
+			for (size_t ct = 0; ct < 1000; ++ct)
 			{
 				data.Add(std::to_string(ct), std::to_string(ct));
 			}
 
-			CHECK ( data.size()   == 10000  );
-			CHECK ( data["9034"]  == "9034" );
-			CHECK ( data[28].second   == "28"   );
-			CHECK ( data[5728].second == "5728" );
+			CHECK ( data.size()      == 1000  );
+			CHECK ( data["934"]      == "934" );
+			CHECK ( data[28].second  == "28"  );
+			CHECK ( data[528].second == "528" );
 
 		}
 
@@ -89,15 +89,15 @@ TEST_CASE("KProp") {
 			typedef KProps<KString, KString, true, true> CMyKProps;
 			CMyKProps data;
 
-			for (size_t ct = 0; ct < 10000; ++ct)
+			for (size_t ct = 0; ct < 1000; ++ct)
 			{
 				data.Add(std::to_string(ct), std::to_string(ct));
 			}
 
-			CHECK ( data.size()   == 10000  );
-			CHECK ( data["9034"]  == "9034" );
-			CHECK ( data[28].second   == "28"   );
-			CHECK ( data[5728].second == "5728" );
+			CHECK ( data.size()      == 1000  );
+			CHECK ( data["934"]      == "934" );
+			CHECK ( data[28].second  == "28"  );
+			CHECK ( data[528].second == "528" );
 
 		}
 
@@ -106,13 +106,13 @@ TEST_CASE("KProp") {
 			typedef KProps<KString, KString, false, false> CMyKProps;
 			CMyKProps data;
 
-			for (size_t ct = 0; ct < 10000; ++ct)
+			for (size_t ct = 0; ct < 1000; ++ct)
 			{
 				data.Add(std::to_string(ct), std::to_string(ct));
 			}
 
-			CHECK ( data.size()   == 10000  );
-			CHECK ( data["9034"]  == "9034" );
+			CHECK ( data.size()      == 1000  );
+			CHECK ( data["934"]      == "934" );
 
 		}
 
@@ -121,13 +121,13 @@ TEST_CASE("KProp") {
 			typedef KProps<KString, KString, false, true> CMyKProps;
 			CMyKProps data;
 
-			for (size_t ct = 0; ct < 10000; ++ct)
+			for (size_t ct = 0; ct < 1000; ++ct)
 			{
 				data.Add(std::to_string(ct), std::to_string(ct));
 			}
 
-			CHECK ( data.size()   == 10000  );
-			CHECK ( data["9034"]  == "9034" );
+			CHECK ( data.size()      == 1000  );
+			CHECK ( data["934"]      == "934" );
 
 		}
 

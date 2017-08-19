@@ -42,6 +42,9 @@
 
 #include "bits/kcppcompat.h"
 
+#include "kreader.h"
+#include "klog.h"
+
 #ifdef DEKAF2_HAS_CPP_17
  #include <experimental/filesystem>
 #else
@@ -50,9 +53,6 @@
  #include <unistd.h>
  #include <cstdio>
 #endif
-
-#include "kreader.h"
-#include "klog.h"
 
 namespace dekaf2
 {
@@ -304,16 +304,22 @@ bool kReadLine(std::istream& Stream,
 
 	if (sTrimRight.empty())
 	{
-		// std::getline does not store the EOL character, but we want to
-		sLine += delimiter;
+		if (!Stream.eof())
+		{
+			// std::getline does not store the EOL character, but we want to
+			sLine += delimiter;
+		}
 	}
 	else
 	{
 		// add the delimiter char only if it is not a member of sTrimRight
 		if (sTrimRight.find(delimiter) == KString::npos)
 		{
-			// std::getline does not store the EOL character, but we want to
-			sLine += delimiter;
+			if (!Stream.eof())
+			{
+				// std::getline does not store the EOL character, but we want to
+				sLine += delimiter;
+			}
 
 			sLine.TrimRight(sTrimRight);
 		}

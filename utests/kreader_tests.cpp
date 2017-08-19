@@ -85,8 +85,10 @@ TEST_CASE("KReader") {
 		"line 6\n"
 		"line 7\n"
 		"line 8\n"
-		"line 9\n"
+		"line 9"
 	};
+
+	size_t iSize = sOut.size();
 
 	SECTION("create test file")
 	{
@@ -158,6 +160,14 @@ TEST_CASE("KReader") {
 		CHECK( s1 == "line 4\n" );
 		s1 = *it;
 		CHECK( s1 == "line 5\n" );
+		s1 = *++it;
+		CHECK( s1 == "line 6\n" );
+		s1 = *++it;
+		CHECK( s1 == "line 7\n" );
+		s1 = *++it;
+		CHECK( s1 == "line 8\n" );
+		s1 = *++it;
+		CHECK( s1 == "line 9" );
 		File.close();
 		CHECK( File.is_open() == false );
 	}
@@ -185,6 +195,14 @@ TEST_CASE("KReader") {
 		CHECK( s1 == "line" );
 		s1 = *it;
 		CHECK( s1 == "line 5" );
+		s1 = *++it;
+		CHECK( s1 == "line 6" );
+		s1 = *++it;
+		CHECK( s1 == "line 7" );
+		s1 = *++it;
+		CHECK( s1 == "line 8" );
+		s1 = *++it;
+		CHECK( s1 == "line 9" );
 		File.close();
 		CHECK( File.is_open() == false );
 	}
@@ -207,14 +225,14 @@ TEST_CASE("KReader") {
 	{
 		KInFile File(sFile, std::ios_base::in);
 		CHECK( File.eof() == false);
-		CHECK( File.GetSize() == 63 );
-		CHECK( File.GetRemainingSize() == 63 );
-		CHECK( File.GetRemainingSize() == 63 );
+		CHECK( File.GetSize() == iSize );
+		CHECK( File.GetRemainingSize() == iSize );
+		CHECK( File.GetRemainingSize() == iSize );
 		int iCount = 0;
 		for (const auto& it : File)
 		{
 			++iCount;
-			CHECK( File.eof() == false             );
+			CHECK( File.eof() == (iCount == 9)     );
 			CHECK( it.StartsWith("line ") == true  );
 			CHECK( it.EndsWith  ("\n")    == false );
 		}
@@ -238,7 +256,10 @@ TEST_CASE("KReader") {
 			it++;
 			CHECK( *it++ == ' ' );
 			CHECK( *it++ == ('1' + iCount) );
-			CHECK( *it++ == '\n' );
+			if (iCount < 8)
+			{
+				CHECK( *it++ == '\n' );
+			}
 		}
 		CHECK( it == File.char_end() );
 		File.close();
@@ -296,7 +317,7 @@ TEST_CASE("KReader") {
 		for (const auto& it : File)
 		{
 			++iCount;
-			CHECK( File.eof() == false             );
+			CHECK( File.eof() == (iCount == 9)     );
 			CHECK( it.StartsWith("line ") == true  );
 			CHECK( it.EndsWith  ("\n")    == false );
 		}
@@ -359,7 +380,7 @@ TEST_CASE("KReader") {
 		for (const auto& it : File)
 		{
 			++iCount;
-			CHECK( File.eof() == false             );
+			CHECK( File.eof() == (iCount == 9)     );
 			CHECK( it.StartsWith("line ") == true  );
 			CHECK( it.EndsWith  ("\n")    == false );
 		}

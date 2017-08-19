@@ -107,7 +107,7 @@ protected:
 };
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// a generalized Most/Least Recently Used cache. Once it has reached
+/// a generalized Most/Least Recently Used container. Once it has reached
 /// its max capacity it will start deleting the least recently used elements.
 template <typename Element, typename Key = Element, bool IsMap = false>
 class KMRUBase : KMRUBaseType<Element, Key, IsMap>
@@ -178,10 +178,11 @@ public:
 	bool erase(const Key& key)
 	//-----------------------------------------------------------------------------
 	{
-		iterator it = m_Elements.template get<KeyIdx>().find(key);
-		if (it != end())
+		auto& KeyView = m_Elements.template get<KeyIdx>();
+		auto it = KeyView.find(key);
+		if (it != KeyView.end())
 		{
-			m_Elements.erase(it);
+			KeyView.erase(it);
 			return true;
 		}
 		else
@@ -215,9 +216,13 @@ public:
 		if (it != end())
 		{
 			// a find is equivalent to a "touch". Bring the element to the front of the list..
-			m_Elements.relocate(m_Elements.begin(), it);
+			touch(it);
+			return begin();
 		}
-		return it;
+		else
+		{
+			return end();
+		}
 	}
 
 	//-----------------------------------------------------------------------------
@@ -246,13 +251,24 @@ protected:
 //----------
 
 	//-----------------------------------------------------------------------------
+	void touch(iterator it)
+	//-----------------------------------------------------------------------------
+	{
+		if (it != begin())
+		{
+			// Bring element to front.
+			m_Elements.relocate(m_Elements.begin(), it);
+		}
+	}
+
+	//-----------------------------------------------------------------------------
 	void post_insert(pair_ib& pair)
 	//-----------------------------------------------------------------------------
 	{
 		if (!pair.second)
 		{
-			// Element was already known. Bring to front.
-			m_Elements.relocate(m_Elements.begin(), pair.first);
+			// element was already known. Bring to front.
+			touch(pair.first);
 		}
 		else if (m_Elements.size() > m_iMaxElements)
 		{
@@ -266,7 +282,7 @@ protected:
 };
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// a Most/Least Recently Used cache for elements which themselves
+/// a Most/Least Recently Used container for elements which themselves
 /// are the key
 template <typename Element>
 class KMRUList : public KMRUBase<Element>
@@ -286,7 +302,7 @@ public:
 };
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// a Most/Least Recently Used cache for map-like elements formed out of a
+/// a Most/Least Recently Used container for map-like elements formed out of a
 /// Key and a Value, where only the Key is indexed
 template <typename Key, typename Value>
 class KMRUMap : public KMRUBase<detail::KMutablePair<Key, Value>, Key, true>

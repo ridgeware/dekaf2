@@ -33,11 +33,14 @@ find_package(Boost QUIET COMPONENTS system REQUIRED)
 include_directories(SYSTEM ${Boost_INCLUDE_DIR})
 
 set (HEADERS
+    bits/ktemplate.h
+    bits/kcppcompat.h
+    bits/kmake_unique.h
+    bits/kmutable_pair.h
     dekaf2.h
     kstring.h
     kcache.h
     kregex.h
-    bits/kcppcompat.h
     klog.h
     kfile.h
     kprof.h
@@ -49,7 +52,6 @@ set (HEADERS
     kwebio.h
     kstringutils.h
     kparallel.h
-    ktemplate.h
     kformat.h
     ksharedref.h
     ksignals.h
@@ -63,9 +65,7 @@ set (HEADERS
     ktcpclient.h
     ktcpserver.h
     khash.h
-    bits/kmake_unique.h
     kmru.h
-    bits/kmutable_pair.h
 )
 
 set (SOURCES
@@ -100,6 +100,7 @@ if (DEKAF2_INSTALL_HEADERS)
     set (DEKAF2_INSTALL_DIR "${DEKAF2_INCLUDE_DIR}/dekaf2")
     file(MAKE_DIRECTORY "${DEKAF2_INCLUDE_DIR}")
     file(MAKE_DIRECTORY "${DEKAF2_INSTALL_DIR}")
+    file(MAKE_DIRECTORY "${DEKAF2_INSTALL_DIR}/bits")
 
     foreach(HEADER ${HEADERS})
         add_custom_command(

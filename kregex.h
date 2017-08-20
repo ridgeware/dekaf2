@@ -44,8 +44,12 @@
 
 #include <re2/re2.h>
 #include <vector>
+#include "bits/kcppcompat.h"
 #include "kcache.h"
 #include "kstring.h"
+#ifndef DEKAF2_HAS_CPP_17
+#include "khash.h"
+#endif
 
 namespace std
 {
@@ -59,7 +63,33 @@ namespace std
 		typedef std::size_t result_type;
 		result_type operator()(const argument_type& s) const
 		{
+#ifdef DEKAF2_HAS_CPP_17
 			return std::hash<dekaf2::KStringView>{}({s.data(), s.size()});
+#else
+			return dekaf2::hash_bytes_FNV(s.data(), s.size());
+#endif
+		}
+	};
+
+}
+
+namespace boost
+{
+	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	// add a hash function for re2::StringPiece
+	template<>
+	struct hash<re2::StringPiece>
+	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	{
+		typedef re2::StringPiece argument_type;
+		typedef std::size_t result_type;
+		result_type operator()(const argument_type& s) const
+		{
+#ifdef DEKAF2_HAS_CPP_17
+			return std::hash<dekaf2::KStringView>{}({s.data(), s.size()});
+#else
+			return dekaf2::hash_bytes_FNV(s.data(), s.size());
+#endif
 		}
 	};
 
@@ -79,7 +109,7 @@ class KRegex
 //----------
 private:
 //----------
-	using cache_t = KSharedCacheTemplate<re2::StringPiece, re2::RE2>;
+	using cache_t = KSharedCache<re2::StringPiece, re2::RE2>;
 	using regex_t = cache_t::value_type;
 
 //----------
@@ -152,15 +182,6 @@ public:
 	size_t Replace(std::string& sStr, const KStringView& sReplaceWith, bool bReplaceAll = true);
 	//-----------------------------------------------------------------------------
 
-	// member function interface
-	//-----------------------------------------------------------------------------
-	/// replace a regular expression with new text. Sub groups can be addressed with \1 \2 etc. in the replacement text
-	inline size_t Replace(KString& sStr, const KStringView& sReplaceWith, bool bReplaceAll = true)
-	//-----------------------------------------------------------------------------
-	{
-		return Replace(sStr.s(), sReplaceWith, bReplaceAll);
-	}
-
 	// static interface
 	//-----------------------------------------------------------------------------
 	/// match a regular expression in sStr
@@ -184,15 +205,6 @@ public:
 	/// replace a regular expression with new text. Sub groups can be addressed with \1 \2 etc. in the replacement text
 	static size_t Replace(std::string& sStr, const KStringView& sRegex, const KStringView& sReplaceWith, bool bReplaceAll = true);
 	//-----------------------------------------------------------------------------
-
-	// static interface
-	//-----------------------------------------------------------------------------
-	/// replace a regular expression with new text. Sub groups can be addressed with \1 \2 etc. in the replacement text
-	inline static size_t Replace(KString& sStr, const KStringView& sRegex, const KStringView& sReplaceWith, bool bReplaceAll = true)
-	//-----------------------------------------------------------------------------
-	{
-		return Replace(sStr.s(), sRegex, sReplaceWith, bReplaceAll);
-	}
 
 	//-----------------------------------------------------------------------------
 	/// returns regular expression string

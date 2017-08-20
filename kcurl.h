@@ -99,7 +99,7 @@ public:
 	/// The data structure for original case-sensitive data
 	typedef std::pair<KString,KString> KHeaderPair;
 	/// The key for this is trimmed and lower cased, value is original key-value pair.
-	typedef KPropsTemplate<KString, KHeaderPair> KHeader; // case insensitive map for header info
+	typedef KProps<KString, KHeaderPair> KHeader; // case insensitive map for header info
 
 	/// Default KURL Constructor, must be initialized after construction
 	KCurl() {}

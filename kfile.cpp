@@ -40,7 +40,7 @@
 //
 */
 
-#include "kcppcompat.h"
+#include "bits/kcppcompat.h"
 
 #ifdef DEKAF2_HAS_CPP_17
  #include <experimental/filesystem>
@@ -58,12 +58,15 @@
 namespace dekaf2
 {
 
+#ifdef DEKAF2_HAS_CPP_17
 namespace fs = std::experimental::filesystem;
+#endif
 
 //-----------------------------------------------------------------------------
 bool kExists (const KString& sPath, bool bTestForEmptyFile /* = false */ )
 //-----------------------------------------------------------------------------
 {
+#ifdef DEKAF2_HAS_CPP_17
 	std::error_code ec;
 
 	fs::file_status status = fs::status(sPath.s(), ec);
@@ -101,6 +104,26 @@ bool kExists (const KString& sPath, bool bTestForEmptyFile /* = false */ )
 
 	return true;
 
+#else
+	struct stat StatStruct;
+	if (stat (sPath.c_str(), &StatStruct) < 0)
+	{
+		return false;  // <-- file doesn't exist
+	}
+	if (StatStruct.st_mode & S_IFDIR)
+	{
+		return false;   // <-- exists, but is a directory
+	}
+	if (!bTestForEmptyFile)
+	{
+		return true;    // <-- exists and is a file
+	}
+	if (StatStruct.st_size <= 0)
+	{
+		return false;    // <-- exists, is a file but is zero length
+	}
+	return true;     // <-- exists, is a file and is non-zero length
+#endif
 } // Exists
 
 
@@ -108,8 +131,23 @@ bool kExists (const KString& sPath, bool bTestForEmptyFile /* = false */ )
 KString kGetCWD ()
 //-----------------------------------------------------------------------------
 {
+#ifdef DEKAF2_HAS_CPP_17
 	return fs::current_path().string();
-
+#else
+	enum { MAX_PATH = 1024 };
+	KString str(MAX_PATH, '\0');
+	if (::getcwd(&str[0], str.size()-1))
+	{
+		size_t iPathLen = ::strlen(str.c_str());
+		str.erase(iPathLen);
+	}
+	else
+	{
+		KLog().warning("cannot get current working directory: {}", ::strerror(errno));
+		str.erase();
+	}
+	return str;
+#endif
 } // kGetCWD
 
 } // end of namespace dekaf2

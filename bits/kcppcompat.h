@@ -38,90 +38,106 @@
 // |/+---------------------------------------------------------------------+/|
 // |\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/ |
 // +-------------------------------------------------------------------------+
+//
+// For documentation, try: http://www.ridgeware.com/home/dekaf/
+//
 */
 
 #pragma once
 
-#include <functional>
-#include "kstring.h"
-#include <cwctype>
+#if defined __GNUC__
+ #define DEKAF2_GCC_VERSION 100 * __GNUC__ + __GNUC_MINOR__ * 10 + __GNUC_PATCHLEVEL__
+#endif
 
-namespace dekaf2
+#if defined __GNUC__
+	#define DEKAF2_FUNCTION_NAME __PRETTY_FUNCTION__
+#else
+	#define DEKAF2_FUNCTION_NAME __FUNCTION__
+#endif
+
+#if !defined(DEKAF2_IS_OSX) && defined(__APPLE__) && defined(__MACH__)
+	#define DEKAF2_IS_OSX 1
+#endif
+
+#if !defined(UNIX) && (defined(unix) || defined(__unix__) || defined(DEKAF2_IS_OSX))
+	#define UNIX 1
+#endif
+
+#if !defined(DEKAF2_IS_UNIX) && defined(UNIX)
+	#define DEKAF2_IS_UNIX
+#endif
+
+#if (__cplusplus < 201103L && !DEKAF2_HAS_CPP_11)
+	#error "this version of dekaf needs at least a C++11 compiler"
+#endif
+
+#ifndef DEKAF2_HAS_CPP_11
+	#define DEKAF2_HAS_CPP_11
+#endif
+
+#if (__cplusplus >= 201402L && !defined(DEKAF2_HAS_CPP_14))
+	#define DEKAF2_HAS_CPP_14
+#endif
+
+// this test is a bit bogus (by just testing if the cpp date
+// is younger than that of C++14), but it should probably even
+// be kept after C++17 defines an official date, as older
+// compilers would not know it (but support C++17)
+#if (__cplusplus > 201402L && !defined(DEKAF2_HAS_CPP_17))
+	#define DEKAF2_HAS_CPP_17
+#endif
+
+// prepare for the shared_mutex enabler below - this has to go into
+// the base namespace
+#ifdef DEKAF2_HAS_CPP_14
+ #include <shared_mutex>
+ #include <mutex> // to be balanced with the C++11 case below
+#else
+ #include <mutex>
+#endif
+
+namespace std
 {
 
-template<class T>
-struct is_narrow_c_str
-  : std::integral_constant<
-      bool,
-      std::is_same<char const *, typename std::decay_t<T>::type>::value ||
-      std::is_same<char *,       typename std::decay_t<T>::type>::value
-> {};
+// make sure we have a shared_mutex and a shared_lock by injecting
+// matching types into the std:: namespace
+#ifdef DEKAF2_HAS_CPP_14
+ // C++17 has both already
+ #ifndef DEKAF2_HAS_CPP_17
+	// for C++14 that's easy - just alias a shared_timed_mutex - it's a superset
+	using shared_mutex = shared_timed_mutex;
+ #endif
+#else
+ #ifdef DEKAF2_HAS_CPP_11
+	// for C++11 we alias a non-shared mutex - it can be costly on lock contention
+	// TODO implement a platform native shared mutex..
+	using shared_mutex = mutex;
+	template<class T>
+	using shared_lock = unique_lock<T>;
+ #endif
+#endif
 
-template<class T>
-struct is_wide_c_str
-  : std::integral_constant<
-      bool,
-      std::is_same<wchar_t const *, typename std::decay_t<T>::type>::value ||
-      std::is_same<wchar_t *,       typename std::decay_t<T>::type>::value
-> {};
+}
 
-template<class T>
-struct is_c_str
-  : std::integral_constant<
-      bool,
-        is_narrow_c_str<T>::value ||
-        is_wide_c_str<T>::value
-> {};
+// Make sure we have standard helper templates from C++14 available in namespace std::
+// It does not matter if they had been declared by other code already. The compiler
+// simply picks the first one that matches.
+#ifndef DEKAF2_HAS_CPP_14
 
-template<class T>
-struct is_narrow_cpp_str
-  : std::integral_constant<
-      bool,
-      std::is_same<const KString,     typename std::decay<T>::type>::value ||
-      std::is_same<KString,           typename std::decay<T>::type>::value ||
-      std::is_same<const std::string, typename std::decay<T>::type>::value ||
-      std::is_same<std::string,       typename std::decay<T>::type>::value
-> {};
+#include "kmake_unique.h"
 
-template<class T>
-struct is_wide_cpp_str
-  : std::integral_constant<
-      bool,
-      std::is_same<const std::wstring, typename std::decay<T>::type>::value ||
-      std::is_same<std::wstring,       typename std::decay<T>::type>::value
-> {};
+namespace std
+{
 
-template<class T>
-struct is_cpp_str
-  : std::integral_constant<
-      bool,
-      is_narrow_cpp_str<T>::value ||
-      is_wide_cpp_str<T>::value
-> {};
+template<bool B, class T, class F>
+using conditional_t = typename conditional<B,T,F>::type;
 
-template<class T>
-struct is_narrow_str
-  : std::integral_constant<
-      bool,
-      is_narrow_cpp_str<T>::value ||
-      is_narrow_c_str<T>::value
-> {};
+template <bool B, typename T = void>
+using enable_if_t = typename enable_if<B,T>::type;
 
-template<class T>
-struct is_wide_str
-  : std::integral_constant<
-      bool,
-      is_wide_cpp_str<T>::value ||
-      is_wide_c_str<T>::value
-> {};
+template< class T >
+using decay_t = typename decay<T>::type;
 
-template<class T>
-struct is_str
-  : std::integral_constant<
-      bool,
-      is_cpp_str<T>::value ||
-      is_c_str<T>::value
-> {};
-
-} // of namespace dekaf2
+}
+#endif
 

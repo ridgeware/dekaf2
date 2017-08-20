@@ -1,4 +1,4 @@
-#include <kwebio.h>
+#include <dekaf2/kwebio.h>
 
 #include <iostream>
 
@@ -82,17 +82,6 @@ public:
 
 TEST_CASE("KCurl")
 {
-	SECTION("KCurl Init Destroy Test")
-	{
-		KCurl myCurl;
-		myCurl.setRequestURL("www.google.com");
-
-		CHECK_FALSE(myCurl.getEchoBody());
-		CHECK_FALSE(myCurl.getEchoHeader());
-
-		myCurl.~KCurl();
-	}
-
 #if kcurlDump
 //#if 1
 	SECTION("KCurl Stream Test")

@@ -42,7 +42,7 @@
 
 #pragma once
 
-#include "kcppcompat.h"
+#include "bits/kcppcompat.h"
 #include <string>
 #ifdef DEKAF2_HAS_CPP_17
 #include <experimental/string_view>
@@ -63,7 +63,21 @@ namespace dekaf2
 #ifdef DEKAF2_HAS_CPP_17
 using KStringView = std::experimental::string_view;
 #else
-using KStringView = re2::StringPiece;
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// an extended StringPiece with the methods of
+/// C++17's std::string_view
+class KStringView : public re2::StringPiece
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+public:
+	KStringView() {}
+	KStringView(const std::string& str) : StringPiece(str) {}
+	KStringView(const char* str) : StringPiece(str) {}
+	KStringView(const char* str, size_type len) : StringPiece(str, len) {}
+
+// TODO implement find_first_of, find_last_of family of methods
+};
+
 #endif
 
 bool kStartsWith(KStringView sInput, KStringView sPattern);
@@ -72,7 +86,7 @@ bool kEndsWith(KStringView sInput, KStringView sPattern);
 bool kStrIn (const char* sNeedle, const char* sHaystack, char iDelim=',');
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// dekaf's own string class - a wrapper around std::string
+/// dekaf2's own string class - a wrapper around std::string
 /// which handles most error cases in a benign way
 class KString 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -82,6 +96,7 @@ class KString
 //----------
 public:
 //----------
+
 	typedef string_type::traits_type            traits_type;
 	typedef string_type::value_type             value_type;
 	typedef string_type::allocator_type         allocator_type;
@@ -98,7 +113,7 @@ public:
 
 	static const size_type npos = string_type::npos;
 
-	//Iterators
+	// Iterators
 	inline iterator begin() { return m_rep.begin(); }
 	inline const_iterator begin() const { return m_rep.begin(); }
 	inline iterator end() { return m_rep.end(); }
@@ -132,7 +147,7 @@ public:
 	inline const_reference front() const { return m_rep.front(); }
 	inline reference front() { return m_rep.front(); }
 
-	//Constructors
+	// Constructors
 	KString () {}
 	KString (const KString& str) : m_rep(str.m_rep){}
 	KString (const KString& str, size_type pos, size_type len = npos) : m_rep(str.m_rep, (pos > str.size()) ? str.size() : pos, len){}
@@ -148,7 +163,7 @@ public:
 	KString (std::initializer_list<value_type> il) : m_rep(il) {}
 	KString (KStringView sv) : m_rep(sv.data(), sv.size()) {}
 
-	//operator+=
+	// operator+=
 	KString& operator+= (const KString& str){ m_rep += str.m_rep; return *this; }
 	KString& operator+= (const string_type& str){ m_rep += str; return *this; }
 	KString& operator+= (const value_type ch){ m_rep += ch; return *this; }
@@ -156,7 +171,7 @@ public:
 	KString& operator+= (std::initializer_list<value_type> il) { m_rep += il; return *this; }
 	KString& operator+= (KStringView sv) { m_rep.append(sv.data(), sv.size()); return *this; }
 
-	//operator=
+	// operator=
 	KString& operator= (const KString& str) { m_rep = str.m_rep; return *this; }
 	KString& operator= (const string_type& sStr) { m_rep = sStr; return *this; }
 	KString& operator= (const value_type* pszStr) { if (pszStr) m_rep = pszStr; return *this; }
@@ -166,7 +181,7 @@ public:
 	KString& operator= (std::initializer_list<value_type> il) { m_rep = il; return *this; }
 	KString& operator= (KStringView sv) { m_rep.assign(sv.data(), sv.size()); return *this; }
 
-	//std methods
+	// std methods
 	KString& append(const KString& str){ m_rep.append(str.m_rep); return *this; }
 	KString& append(const KString& str, size_type pos, size_type n = npos) { return append(str.m_rep, pos, n); }
 	KString& append(const string_type& str){ m_rep.append(str); return *this; }
@@ -389,7 +404,8 @@ public:
 	/// otherwise do not alter the string
 	KString& ClipAtReverse(KStringView sClipAtReverse);
 
-	void RemoveIllegalChars(const KString& sIllegalChars);
+	/// remove any occurence of the characters in sIllegalChars
+	void RemoveIllegalChars(KStringView sIllegalChars);
 
 	/// return a pointer of value type
 	const value_type* c() const { return c_str(); }
@@ -402,35 +418,40 @@ public:
 	const string_type& s() const { return operator const string_type&(); }
 	string_type& s() { return operator string_type&(); }
 
+	/// return a KStringView on the representation type
 	KStringView sv() { return m_rep; }
 	operator KStringView() const { return m_rep; }
 
 	/// is string one of the values in sHaystack, delimited by iDelim?
 	bool In (KStringView sHaystack, value_type iDelim=',');
 
-
 //----------
 protected:
 //----------
+
 	static void log_exception(std::exception& e, KStringView sWhere);
 
 	string_type m_rep;
 
 }; // KString
 
-// typedef std::basic_stringstream<KString::value_type> KStringStream;
-
+//-----------------------------------------------------------------------------
 inline std::ostream& operator <<(std::ostream& stream, const KString& str)
+//-----------------------------------------------------------------------------
 {
 	return stream << str.s();
 }
 
+//-----------------------------------------------------------------------------
 inline std::istream& operator >>(std::istream& stream, KString& str)
+//-----------------------------------------------------------------------------
 {
 	return stream >> str.s();
 }
 
+//-----------------------------------------------------------------------------
 inline KString operator+(KStringView left, KStringView right)
+//-----------------------------------------------------------------------------
 {
 	KString temp;
 	temp.reserve(left.size() + right.size());
@@ -439,13 +460,17 @@ inline KString operator+(KStringView left, KStringView right)
 	return temp;
 }
 
+//-----------------------------------------------------------------------------
 inline KString operator+(const KString::value_type* left, KStringView right)
+//-----------------------------------------------------------------------------
 {
 	KStringView sv(left);
 	return sv + right;
 }
 
+//-----------------------------------------------------------------------------
 inline KString operator+(KStringView left, KString::value_type right)
+//-----------------------------------------------------------------------------
 {
 	KString temp(left);
 	temp.reserve(left.size() + 1);
@@ -453,7 +478,9 @@ inline KString operator+(KStringView left, KString::value_type right)
 	return temp;
 }
 
+//-----------------------------------------------------------------------------
 inline KString operator+(KString::value_type left, KStringView right)
+//-----------------------------------------------------------------------------
 {
 	KString temp;
 	temp.reserve(right.size() + 1);
@@ -463,14 +490,19 @@ inline KString operator+(KString::value_type left, KStringView right)
 }
 
 // now all operator+() with rvalues (only make sense for the rvalue as the left param)
+
+//-----------------------------------------------------------------------------
 inline KString operator+(KString&& left, KStringView right)
+//-----------------------------------------------------------------------------
 {
 	KString temp(std::move(left));
 	temp += right;
 	return temp;
 }
 
+//-----------------------------------------------------------------------------
 inline KString operator+(KString&& left, KString::value_type right)
+//-----------------------------------------------------------------------------
 {
 	KString temp(std::move(left));
 	temp += right;
@@ -478,7 +510,10 @@ inline KString operator+(KString&& left, KString::value_type right)
 }
 
 // KStringView includes comparison for KString
+
+//-----------------------------------------------------------------------------
 inline bool operator==(KStringView left, KStringView right)
+//-----------------------------------------------------------------------------
 {
 #ifdef DEKAF2_HAS_CPP_17
 	return std::experimental::operator==(left, right);
@@ -487,7 +522,9 @@ inline bool operator==(KStringView left, KStringView right)
 #endif
 }
 
+//-----------------------------------------------------------------------------
 inline bool operator!=(KStringView left, KStringView right)
+//-----------------------------------------------------------------------------
 {
 #ifdef DEKAF2_HAS_CPP_17
 	return std::experimental::operator!=(left, right);
@@ -496,7 +533,9 @@ inline bool operator!=(KStringView left, KStringView right)
 #endif
 }
 
+//-----------------------------------------------------------------------------
 inline bool operator<(KStringView left, KStringView right)
+//-----------------------------------------------------------------------------
 {
 #ifdef DEKAF2_HAS_CPP_17
 	return std::experimental::operator<(left, right);
@@ -505,7 +544,9 @@ inline bool operator<(KStringView left, KStringView right)
 #endif
 }
 
+//-----------------------------------------------------------------------------
 inline bool operator<=(KStringView left, KStringView right)
+//-----------------------------------------------------------------------------
 {
 #ifdef DEKAF2_HAS_CPP_17
 	return std::experimental::operator<=(left, right);
@@ -514,7 +555,9 @@ inline bool operator<=(KStringView left, KStringView right)
 #endif
 }
 
+//-----------------------------------------------------------------------------
 inline bool operator>(KStringView left, KStringView right)
+//-----------------------------------------------------------------------------
 {
 #ifdef DEKAF2_HAS_CPP_17
 	return std::experimental::operator>(left, right);
@@ -523,7 +566,9 @@ inline bool operator>(KStringView left, KStringView right)
 #endif
 }
 
+//-----------------------------------------------------------------------------
 inline bool operator>=(KStringView left, KStringView right)
+//-----------------------------------------------------------------------------
 {
 #ifdef DEKAF2_HAS_CPP_17
 	return std::experimental::operator>=(left, right);
@@ -537,6 +582,7 @@ inline bool operator>=(KStringView left, KStringView right)
 namespace std
 {
 	std::istream& getline(std::istream& stream, dekaf2::KString& str);
+	std::istream& getline(std::istream& stream, dekaf2::KString& str, dekaf2::KString::value_type delimiter);
 
 	template<> struct hash<dekaf2::KString>
 	{
@@ -549,4 +595,23 @@ namespace std
 	};
 
 } // end of namespace std
+
+
+// provide a hash for boost, too..
+
+#include <boost/functional/hash.hpp>
+
+namespace boost
+{
+	template<> struct hash<dekaf2::KString> : public std::unary_function<dekaf2::KString, std::size_t>
+	{
+		typedef dekaf2::KString argument_type;
+		typedef std::size_t result_type;
+		result_type operator()(argument_type const& s) const noexcept
+		{
+			return boost::hash<std::string>{}(s);
+		}
+	};
+
+} // end of namespace boost
 

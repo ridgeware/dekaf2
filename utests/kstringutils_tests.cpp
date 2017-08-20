@@ -1,7 +1,7 @@
 #include "catch.hpp"
 
-#include <kstring.h>
-#include <kstringutils.h>
+#include <dekaf2/kstring.h>
+#include <dekaf2/kstringutils.h>
 
 using namespace dekaf2;
 
@@ -45,7 +45,7 @@ TEST_CASE("KStringUtils") {
 
 		for (auto& it : stest)
 		{
-			dekaf2::Replace(it[0], it[1].data(), it[1].length(), it[2].data(), it[2].length(), true);
+			dekaf2::kReplace(it[0], it[1], it[2], true);
 			CHECK( it[0] == it[3] );
 		}
 
@@ -155,7 +155,7 @@ TEST_CASE("KStringUtils") {
 				CHECK( sexpect.size() == stest.size() );
 				for (size_t iCount = 0; iCount < stest.size(); ++iCount)
 				{
-					dekaf2::TrimLeft(stest[iCount]);
+					dekaf2::kTrimLeft(stest[iCount]);
 					CHECK( stest[iCount] == sexpect[iCount] );
 				}
 
@@ -194,7 +194,7 @@ TEST_CASE("KStringUtils") {
 				CHECK( sexpect.size() == stest.size() );
 				for (size_t iCount = 0; iCount < stest.size(); ++iCount)
 				{
-					dekaf2::TrimRight(stest[iCount]);
+					dekaf2::kTrimRight(stest[iCount]);
 					CHECK( stest[iCount] == sexpect[iCount] );
 				}
 
@@ -233,7 +233,7 @@ TEST_CASE("KStringUtils") {
 				CHECK( sexpect.size() == stest.size() );
 				for (size_t iCount = 0; iCount < stest.size(); ++iCount)
 				{
-					dekaf2::Trim(stest[iCount]);
+					dekaf2::kTrim(stest[iCount]);
 					CHECK( stest[iCount] == sexpect[iCount] );
 				}
 
@@ -300,7 +300,7 @@ TEST_CASE("KStringUtils") {
 				CHECK( sexpect.size() == stest.size() );
 				for (size_t iCount = 0; iCount < stest.size(); ++iCount)
 				{
-					dekaf2::TrimLeft(stest[iCount]);
+					dekaf2::kTrimLeft(stest[iCount]);
 					CHECK( stest[iCount] == sexpect[iCount] );
 				}
 
@@ -339,7 +339,7 @@ TEST_CASE("KStringUtils") {
 				CHECK( sexpect.size() == stest.size() );
 				for (size_t iCount = 0; iCount < stest.size(); ++iCount)
 				{
-					dekaf2::TrimRight(stest[iCount]);
+					dekaf2::kTrimRight(stest[iCount]);
 					CHECK( stest[iCount] == sexpect[iCount] );
 				}
 
@@ -378,7 +378,7 @@ TEST_CASE("KStringUtils") {
 				CHECK( sexpect.size() == stest.size() );
 				for (size_t iCount = 0; iCount < stest.size(); ++iCount)
 				{
-					dekaf2::Trim(stest[iCount]);
+					dekaf2::kTrim(stest[iCount]);
 					CHECK( stest[iCount] == sexpect[iCount] );
 				}
 
@@ -392,175 +392,158 @@ TEST_CASE("KStringUtils") {
 	{
 		KString s;
 		s = "1234567";
-		CHECK( KToInt(s)       == 1234567 );
-		CHECK( KToLong(s)      == 1234567 );
-		CHECK( KToLongLong(s)  == 1234567 );
-		CHECK( KToUInt(s)      == 1234567 );
-		CHECK( KToULong(s)     == 1234567 );
-		CHECK( KToULongLong(s) == 1234567 );
+		CHECK( kToInt(s)       == 1234567 );
+		CHECK( kToLong(s)      == 1234567 );
+		CHECK( kToLongLong(s)  == 1234567 );
+		CHECK( kToUInt(s)      == 1234567 );
+		CHECK( kToULong(s)     == 1234567 );
+		CHECK( kToULongLong(s) == 1234567 );
 		s = "-1234567";
-		CHECK( KToInt(s)       == -1234567 );
-		CHECK( KToLong(s)      == -1234567 );
-		CHECK( KToLongLong(s)  == -1234567 );
-		CHECK( KToUInt(s)      == -1234567U );
-		CHECK( KToULong(s)     == -1234567UL );
-		CHECK( KToULongLong(s) == -1234567ULL );
+		CHECK( kToInt(s)       == -1234567 );
+		CHECK( kToLong(s)      == -1234567 );
+		CHECK( kToLongLong(s)  == -1234567 );
+		CHECK( kToUInt(s)      == -1234567U );
+		CHECK( kToULong(s)     == -1234567UL );
+		CHECK( kToULongLong(s) == -1234567ULL );
 		s = "123456789012345";
-		CHECK( KToLong(s)      == 123456789012345 );
-		CHECK( KToLongLong(s)  == 123456789012345 );
-		CHECK( KToULong(s)     == 123456789012345 );
-		CHECK( KToULongLong(s) == 123456789012345 );
+		CHECK( kToLong(s)      == 123456789012345 );
+		CHECK( kToLongLong(s)  == 123456789012345 );
+		CHECK( kToULong(s)     == 123456789012345 );
+		CHECK( kToULongLong(s) == 123456789012345 );
 		s = "-123456789012345";
-		CHECK( KToLong(s)      == -123456789012345 );
-		CHECK( KToLongLong(s)  == -123456789012345 );
-		CHECK( KToULong(s)     == -123456789012345UL );
-		CHECK( KToULongLong(s) == -123456789012345ULL );
+		CHECK( kToLong(s)      == -123456789012345 );
+		CHECK( kToLongLong(s)  == -123456789012345 );
+		CHECK( kToULong(s)     == -123456789012345UL );
+		CHECK( kToULongLong(s) == -123456789012345ULL );
 	}
 
 	SECTION("conversion functions for char*")
 	{
 		const char* p = "1234567";
-		CHECK( KToInt(p)       == 1234567 );
-		CHECK( KToLong(p)      == 1234567 );
-		CHECK( KToLongLong(p)  == 1234567 );
-		CHECK( KToUInt(p)      == 1234567 );
-		CHECK( KToULong(p)     == 1234567 );
-		CHECK( KToULongLong(p) == 1234567 );
+		CHECK( kToInt(p)       == 1234567 );
+		CHECK( kToLong(p)      == 1234567 );
+		CHECK( kToLongLong(p)  == 1234567 );
+		CHECK( kToUInt(p)      == 1234567 );
+		CHECK( kToULong(p)     == 1234567 );
+		CHECK( kToULongLong(p) == 1234567 );
 		p = "-1234567";
-		CHECK( KToInt(p)       == -1234567 );
-		CHECK( KToLong(p)      == -1234567 );
-		CHECK( KToLongLong(p)  == -1234567 );
-		CHECK( KToUInt(p)      == -1234567U );
-		CHECK( KToULong(p)     == -1234567UL );
-		CHECK( KToULongLong(p) == -1234567ULL );
+		CHECK( kToInt(p)       == -1234567 );
+		CHECK( kToLong(p)      == -1234567 );
+		CHECK( kToLongLong(p)  == -1234567 );
+		CHECK( kToUInt(p)      == -1234567U );
+		CHECK( kToULong(p)     == -1234567UL );
+		CHECK( kToULongLong(p) == -1234567ULL );
 		p = "123456789012345";
-		CHECK( KToLong(p)      == 123456789012345 );
-		CHECK( KToLongLong(p)  == 123456789012345 );
-		CHECK( KToULong(p)     == 123456789012345 );
-		CHECK( KToULongLong(p) == 123456789012345 );
+		CHECK( kToLong(p)      == 123456789012345 );
+		CHECK( kToLongLong(p)  == 123456789012345 );
+		CHECK( kToULong(p)     == 123456789012345 );
+		CHECK( kToULongLong(p) == 123456789012345 );
 		p = "-123456789012345";
-		CHECK( KToLong(p)      == -123456789012345 );
-		CHECK( KToLongLong(p)  == -123456789012345 );
-		CHECK( KToULong(p)     == -123456789012345UL );
-		CHECK( KToULongLong(p) == -123456789012345ULL );
+		CHECK( kToLong(p)      == -123456789012345 );
+		CHECK( kToLongLong(p)  == -123456789012345 );
+		CHECK( kToULong(p)     == -123456789012345UL );
+		CHECK( kToULongLong(p) == -123456789012345ULL );
 	}
 
 	SECTION("IsDecimal on strings")
 	{
 		KString s;
 		s = "1";
-		CHECK( KIsDecimal(s) );
+		CHECK( kIsDecimal(s) );
 		s = "123456";
-		CHECK( KIsDecimal(s) );
+		CHECK( kIsDecimal(s) );
 		s = "-123456";
-		CHECK( KIsDecimal(s) );
+		CHECK( kIsDecimal(s) );
 		s = "+123456";
-		CHECK( KIsDecimal(s) );
+		CHECK( kIsDecimal(s) );
 		s = "123a456";
-		CHECK( !KIsDecimal(s) );
+		CHECK( !kIsDecimal(s) );
 		s = "aa";
-		CHECK( !KIsDecimal(s) );
+		CHECK( !kIsDecimal(s) );
 		s = "";
-		CHECK( !KIsDecimal(s) );
+		CHECK( !kIsDecimal(s) );
 	}
 
 	SECTION("IsDecimal on char*")
 	{
 		const char* s;
 		s = "1";
-		CHECK( KIsDecimal(s) );
+		CHECK( kIsDecimal(s) );
 		s = "123456";
-		CHECK( KIsDecimal(s) );
+		CHECK( kIsDecimal(s) );
 		s = "-123456";
-		CHECK( KIsDecimal(s) );
+		CHECK( kIsDecimal(s) );
 		s = "+123456";
-		CHECK( KIsDecimal(s) );
+		CHECK( kIsDecimal(s) );
 		s = "123a456";
-		CHECK( !KIsDecimal(s) );
+		CHECK( !kIsDecimal(s) );
 		s = "aa";
-		CHECK( !KIsDecimal(s) );
+		CHECK( !kIsDecimal(s) );
 		s = "";
-		CHECK( !KIsDecimal(s) );
-	}
-
-	SECTION("IsDecimal on char* + len")
-	{
-		const char* s;
-		s = "123456";
-		CHECK( KIsDecimal(s, strlen(s)) );
-		s = "-123456";
-		CHECK( KIsDecimal(s, strlen(s)) );
-		s = "+123456";
-		CHECK( KIsDecimal(s, strlen(s)) );
-		s = "123a456";
-		CHECK( !KIsDecimal(s, strlen(s)) );
-		s = "aa";
-		CHECK( !KIsDecimal(s, strlen(s)) );
-		s = "";
-		CHECK( !KIsDecimal(s, strlen(s)) );
+		CHECK( !kIsDecimal(s) );
 	}
 
 	SECTION("KCountChar on strings")
 	{
 		KString s;
 		s = "abcdeahgzaldkaakf";
-		CHECK( KCountChar(s, 'a') == 5 );
-		CHECK( KCountChar(s, 'x') == 0 );
+		CHECK( kCountChar(s, 'a') == 5 );
+		CHECK( kCountChar(s, 'x') == 0 );
 		s = "a";
-		CHECK( KCountChar(s, 'a') == 1 );
+		CHECK( kCountChar(s, 'a') == 1 );
 		s = "aaaaa";
-		CHECK( KCountChar(s, 'a') == 5 );
+		CHECK( kCountChar(s, 'a') == 5 );
 		s = "";
-		CHECK( KCountChar(s, 'a') == 0 );
+		CHECK( kCountChar(s, 'a') == 0 );
 	}
 
 	SECTION("KCountChar on char*")
 	{
 		const char* s;
 		s = "abcdeahgzaldkaakf";
-		CHECK( KCountChar(s, 'a') == 5 );
-		CHECK( KCountChar(s, 'x') == 0 );
+		CHECK( kCountChar(s, 'a') == 5 );
+		CHECK( kCountChar(s, 'x') == 0 );
 		s = "a";
-		CHECK( KCountChar(s, 'a') == 1 );
+		CHECK( kCountChar(s, 'a') == 1 );
 		s = "aaaaa";
-		CHECK( KCountChar(s, 'a') == 5 );
+		CHECK( kCountChar(s, 'a') == 5 );
 		s = "";
-		CHECK( KCountChar(s, 'a') == 0 );
-		CHECK( KCountChar(s,  0 ) == 0 );
+		CHECK( kCountChar(s, 'a') == 0 );
+		CHECK( kCountChar(s,  0 ) == 0 );
 	}
 
 	SECTION("KFormNumber")
 	{
 		KString s;
-		s = KFormNumber(1);
+		s = kFormNumber(1);
 		CHECK( s == "1");
-		s = KFormNumber(12);
+		s = kFormNumber(12);
 		CHECK( s == "12");
-		s = KFormNumber(123);
+		s = kFormNumber(123);
 		CHECK( s == "123");
-		s = KFormNumber(1234);
+		s = kFormNumber(1234);
 		CHECK( s == "1,234");
-		s = KFormNumber(123456789);
+		s = kFormNumber(123456789);
 		CHECK( s == "123,456,789");
-		s = KFormNumber(123456789, '.');
+		s = kFormNumber(123456789, '.');
 		CHECK( s == "123.456.789");
-		s = KFormNumber(123456789, '-', 1);
+		s = kFormNumber(123456789, '-', 1);
 		CHECK( s == "1-2-3-4-5-6-7-8-9");
-		s = KFormNumber(123456789, '-', 3);
+		s = kFormNumber(123456789, '-', 3);
 		CHECK( s == "123-456-789");
-		s = KFormNumber(123456789, '-', 76);
+		s = kFormNumber(123456789, '-', 76);
 		CHECK( s == "123456789");
-		s = KFormNumber(123456789, '-', 0);
+		s = kFormNumber(123456789, '-', 0);
 		CHECK( s == "123456789");
-		s = KFormNumber(0, '-', 0);
+		s = kFormNumber(0, '-', 0);
 		CHECK( s == "0");
-		s = KFormNumber(-1234, ',', 3);
+		s = kFormNumber(-1234, ',', 3);
 		CHECK( s == "-1,234");
-		s = KFormNumber(-123, ',', 3);
+		s = kFormNumber(-123, ',', 3);
 		CHECK( s == "-123");
-		s = KFormNumber(-12, ',', 3);
+		s = kFormNumber(-12, ',', 3);
 		CHECK( s == "-12");
-		s = KFormNumber(-1, ',', 3);
+		s = kFormNumber(-1, ',', 3);
 		CHECK( s == "-1");
 	}
 

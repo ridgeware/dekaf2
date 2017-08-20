@@ -1,6 +1,7 @@
 /*
+//-----------------------------------------------------------------------------//
 //
-// DEKAF(tm): Lighter, Faster, Smarter(tm)
+// DEKAF(tm): Lighter, Faster, Smarter (tm)
 //
 // Copyright (c) 2017, Ridgeware, Inc.
 //
@@ -37,84 +38,17 @@
 // |/+---------------------------------------------------------------------+/|
 // |\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/ |
 // +-------------------------------------------------------------------------+
-//
 */
 
-#include <clocale>
-#include "dekaf.h"
-#include "klog.h"
-#include "kcppcompat.h"
+#pragma once
 
+#include "kstream.h"
 
 namespace dekaf2
 {
 
-const char DefaultLocale[] = "en_US.UTF-8";
+// there is nothing special with a tcp client
+using KTCPClient = KTCPStream;
 
-//---------------------------------------------------------------------------
-Dekaf::Dekaf()
-//---------------------------------------------------------------------------
-{
-	SetUnicodeLocale();
 }
-
-//---------------------------------------------------------------------------
-bool Dekaf::SetUnicodeLocale(KString sName)
-//---------------------------------------------------------------------------
-{
-	try
-	{
-#ifdef DEKAF2_IS_OSX
-		// no way to get the user's locale in OSX with C++. So simply set to en_US if not given as a parameter.
-		if (sName.empty() || sName == "C" || sName == "C.UTF-8")
-		{
-			sName = DefaultLocale;
-		}
-		std::setlocale(LC_ALL, sName.c_str());
-		// OSX does not use the .UTF-8 suffix (as all is UTF8)
-		if (sName.EndsWith(".UTF-8"))
-		{
-			sName.erase(sName.end() - 6, sName.end());
-		}
-		std::locale::global(std::locale(sName.c_str()));
-		// make the name compatible to the rest of the world
-		sName += ".UTF-8";
-#else
-		// on other platforms, query the user's locale
-		if (sName.empty())
-		{
-			sName = std::locale("").name();
-		}
-		// set to a fully defined locale if only the C locale is setup. This is also needed for C.UTF-8, as
-		// that one does not permit character conversions outside the ASCII range.
-		if (sName.empty() || sName == "C" || sName == "C.UTF-8")
-		{
-			sName = DefaultLocale;
-		}
-		std::setlocale(LC_ALL, sName.c_str());
-		std::locale::global(std::locale(sName.c_str()));
-#endif
-	}
-	catch (std::exception& e) {
-		KLog().Exception(e, DEKAF2_FUNCTION_NAME);
-		sName.erase();
-	}
-	catch (...) {
-		KLog().Exception(DEKAF2_FUNCTION_NAME);
-		sName.erase();
-	}
-	m_sLocale = sName;
-	return !m_sLocale.empty();
-}
-
-
-//---------------------------------------------------------------------------
-class Dekaf& Dekaf()
-//---------------------------------------------------------------------------
-{
-	static class Dekaf myDekaf;
-	return myDekaf;
-}
-
-} // end of namespace dekaf2
 

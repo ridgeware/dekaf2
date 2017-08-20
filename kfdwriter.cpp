@@ -47,6 +47,7 @@
 namespace dekaf2
 {
 
+#if !defined(__GNUC__) || (DEKAF2_GCC_VERSION >= 500)
 //-----------------------------------------------------------------------------
 KOutputFDStream::KOutputFDStream(KOutputFDStream&& other)
     : m_FileDesc{other.m_FileDesc}
@@ -56,6 +57,7 @@ KOutputFDStream::KOutputFDStream(KOutputFDStream&& other)
 	other.m_FileDesc = -1;
 
 } // move ctor
+#endif
 
 //-----------------------------------------------------------------------------
 KOutputFDStream::~KOutputFDStream()
@@ -65,6 +67,7 @@ KOutputFDStream::~KOutputFDStream()
 	// but just received a handle for it
 }
 
+#if !defined(__GNUC__) || (DEKAF2_GCC_VERSION >= 500)
 //-----------------------------------------------------------------------------
 KOutputFDStream& KOutputFDStream::operator=(KOutputFDStream&& other)
 //-----------------------------------------------------------------------------
@@ -74,6 +77,7 @@ KOutputFDStream& KOutputFDStream::operator=(KOutputFDStream&& other)
 	other.m_FileDesc = -1;
 	return *this;
 }
+#endif
 
 //-----------------------------------------------------------------------------
 void KOutputFDStream::open(int iFileDesc)
@@ -125,6 +129,7 @@ std::streamsize KOutputFDStream::FileDescWriter(const void* sBuffer, std::stream
 }
 
 
+#if !defined(__GNUC__) || (DEKAF2_GCC_VERSION >= 500)
 //-----------------------------------------------------------------------------
 KOutputFPStream::KOutputFPStream(KOutputFPStream&& other)
     : m_FilePtr{other.m_FilePtr}
@@ -134,6 +139,7 @@ KOutputFPStream::KOutputFPStream(KOutputFPStream&& other)
 	other.m_FilePtr = nullptr;
 
 } // move ctor
+#endif
 
 //-----------------------------------------------------------------------------
 KOutputFPStream::~KOutputFPStream()
@@ -143,6 +149,7 @@ KOutputFPStream::~KOutputFPStream()
 	// but just received a handle for it
 }
 
+#if !defined(__GNUC__) || (DEKAF2_GCC_VERSION >= 500)
 //-----------------------------------------------------------------------------
 KOutputFPStream& KOutputFPStream::operator=(KOutputFPStream&& other)
 //-----------------------------------------------------------------------------
@@ -152,6 +159,7 @@ KOutputFPStream& KOutputFPStream::operator=(KOutputFPStream&& other)
 	other.m_FilePtr = nullptr;
 	return *this;
 }
+#endif
 
 //-----------------------------------------------------------------------------
 void KOutputFPStream::open(FILE* iFilePtr)

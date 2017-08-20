@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.2)
 
-project(dekaf-smoketests)
+project(dekaf2-smoketests)
 
 set(CMAKE_CXX_STANDARD 17)
 # do not require cpp17
@@ -17,6 +17,6 @@ set (USOURCES
     kinshell_smoketests.cpp
 )
 
-add_executable(dekaf-smoketests ${UHEADERS} ${USOURCES})
-target_link_libraries(dekaf-smoketests dekaf2)
+add_executable(dekaf2-smoketests ${UHEADERS} ${USOURCES})
+target_link_libraries(dekaf2-smoketests dekaf2)
 

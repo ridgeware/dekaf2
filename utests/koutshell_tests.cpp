@@ -1,6 +1,6 @@
 #include "catch.hpp"
-#include "koutshell.h"
-#include "kinshell.h"
+#include <dekaf2/koutshell.h>
+#include <dekaf2/kinshell.h>
 
 #include <iostream>
 

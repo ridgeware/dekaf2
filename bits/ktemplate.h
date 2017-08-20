@@ -38,48 +38,96 @@
 // |/+---------------------------------------------------------------------+/|
 // |\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/ |
 // +-------------------------------------------------------------------------+
-//
-// For documentation, try: http://www.ridgeware.com/home/dekaf/
-//
 */
 
 #pragma once
 
-#if defined __GNUC__
-	#define DEKAF2_FUNCTION_NAME __PRETTY_FUNCTION__
-#else
-	#define DEKAF2_FUNCTION_NAME __FUNCTION__
-#endif
+#include <functional>
+#include <cwctype>
+#include <type_traits>
+#include "../kstring.h"
 
-#if !defined(DEKAF2_IS_OSX) && defined(__APPLE__) && defined(__MACH__)
-	#define DEKAF2_IS_OSX 1
-#endif
+namespace dekaf2
+{
 
-#if !defined(UNIX) && (defined(unix) || defined(__unix__) || defined(DEKAF2_IS_OSX))
-	#define UNIX 1
-#endif
+namespace detail
+{
 
-#if !defined(DEKAF2_IS_UNIX) && defined(UNIX)
-	#define DEKAF2_IS_UNIX
-#endif
+template<class T>
+struct is_narrow_c_str
+  : std::integral_constant<
+      bool,
+      std::is_same<char const *, typename std::decay_t<T>::type>::value ||
+      std::is_same<char *,       typename std::decay_t<T>::type>::value
+> {};
 
-#if (__cplusplus < 201103L && !DEKAF2_HAS_CPP_11)
-	#error "this version of dekaf needs at least a C++11 compiler"
-#endif
+template<class T>
+struct is_wide_c_str
+  : std::integral_constant<
+      bool,
+      std::is_same<wchar_t const *, typename std::decay_t<T>::type>::value ||
+      std::is_same<wchar_t *,       typename std::decay_t<T>::type>::value
+> {};
 
-#ifndef DEKAF2_HAS_CPP_11
-	#define DEKAF2_HAS_CPP_11
-#endif
+template<class T>
+struct is_c_str
+  : std::integral_constant<
+      bool,
+        is_narrow_c_str<T>::value ||
+        is_wide_c_str<T>::value
+> {};
 
-#if (__cplusplus >= 201402L && !defined(DEKAF2_HAS_CPP_14))
-	#define DEKAF2_HAS_CPP_14
-#endif
+template<class T>
+struct is_narrow_cpp_str
+  : std::integral_constant<
+      bool,
+      std::is_same<const KString,     typename std::decay<T>::type>::value ||
+      std::is_same<KString,           typename std::decay<T>::type>::value ||
+      std::is_same<const std::string, typename std::decay<T>::type>::value ||
+      std::is_same<std::string,       typename std::decay<T>::type>::value
+> {};
 
-// this test is a bit bogus (by just testing if the cpp date
-// is younger than that of C++14), but it should probably even
-// be kept after C++17 defines an official date, as older
-// compilers would not know it (but support C++17)
-#if (__cplusplus > 201402L && !defined(DEKAF2_HAS_CPP_17))
-	#define DEKAF2_HAS_CPP_17
-#endif
+template<class T>
+struct is_wide_cpp_str
+  : std::integral_constant<
+      bool,
+      std::is_same<const std::wstring, typename std::decay<T>::type>::value ||
+      std::is_same<std::wstring,       typename std::decay<T>::type>::value
+> {};
+
+template<class T>
+struct is_cpp_str
+  : std::integral_constant<
+      bool,
+      is_narrow_cpp_str<T>::value ||
+      is_wide_cpp_str<T>::value
+> {};
+
+template<class T>
+struct is_narrow_str
+  : std::integral_constant<
+      bool,
+      is_narrow_cpp_str<T>::value ||
+      is_narrow_c_str<T>::value
+> {};
+
+template<class T>
+struct is_wide_str
+  : std::integral_constant<
+      bool,
+      is_wide_cpp_str<T>::value ||
+      is_wide_c_str<T>::value
+> {};
+
+template<class T>
+struct is_str
+  : std::integral_constant<
+      bool,
+      is_cpp_str<T>::value ||
+      is_c_str<T>::value
+> {};
+
+} // of namespace detail
+
+} // of namespace dekaf2
 

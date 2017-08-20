@@ -40,25 +40,80 @@
 //
 */
 
-#pragma once
+#include <clocale>
+#include "dekaf2.h"
+#include "klog.h"
+#include "bits/kcppcompat.h"
+
 
 namespace dekaf2
 {
 
-enum
+const char DefaultLocale[] = "en_US.UTF-8";
+
+//---------------------------------------------------------------------------
+Dekaf::Dekaf()
+//---------------------------------------------------------------------------
 {
-	CRASHCODE_MEMORY      = -100,   // <-- parameter for kCrashExit() for malloc failures
-	CRASHCODE_TODO        = -101,   // <-- feature not implmented yet
-	CRASHCODE_DEKAFUSAGE  = -102,   // <-- invalid DEKAF framework usage
-	CRASHCODE_CORRUPT     = -103,   // <-- self-detected memory corruption
-	CRASHCODE_DBERROR     = -104,   // <-- self-detected fatal database error
-	CRASHCODE_DBINTEGRITY = -105    // <-- self-detected database integrity problem
-};
+	SetUnicodeLocale();
+}
 
-extern "C" {
+//---------------------------------------------------------------------------
+bool Dekaf::SetUnicodeLocale(KString sName)
+//---------------------------------------------------------------------------
+{
+	try
+	{
+#ifdef DEKAF2_IS_OSX
+		// no way to get the user's locale in OSX with C++. So simply set to en_US if not given as a parameter.
+		if (sName.empty() || sName == "C" || sName == "C.UTF-8")
+		{
+			sName = DefaultLocale;
+		}
+		std::setlocale(LC_ALL, sName.c_str());
+		// OSX does not use the .UTF-8 suffix (as all is UTF8)
+		if (sName.EndsWith(".UTF-8"))
+		{
+			sName.erase(sName.end() - 6, sName.end());
+		}
+		std::locale::global(std::locale(sName.c_str()));
+		// make the name compatible to the rest of the world
+		sName += ".UTF-8";
+#else
+		// on other platforms, query the user's locale
+		if (sName.empty())
+		{
+			sName = std::locale("").name();
+		}
+		// set to a fully defined locale if only the C locale is setup. This is also needed for C.UTF-8, as
+		// that one does not permit character conversions outside the ASCII range.
+		if (sName.empty() || sName == "C" || sName == "C.UTF-8")
+		{
+			sName = DefaultLocale;
+		}
+		std::setlocale(LC_ALL, sName.c_str());
+		std::locale::global(std::locale(sName.c_str()));
+#endif
+	}
+	catch (std::exception& e) {
+		KLog().Exception(e, DEKAF2_FUNCTION_NAME);
+		sName.erase();
+	}
+	catch (...) {
+		KLog().Exception(DEKAF2_FUNCTION_NAME);
+		sName.erase();
+	}
+	m_sLocale = sName;
+	return !m_sLocale.empty();
+}
 
-void kCrashExit (int iSignalNum=0);
 
+//---------------------------------------------------------------------------
+class Dekaf& Dekaf()
+//---------------------------------------------------------------------------
+{
+	static class Dekaf myDekaf;
+	return myDekaf;
 }
 
 } // end of namespace dekaf2

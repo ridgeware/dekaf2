@@ -50,15 +50,18 @@ namespace dekaf2
 {
 
 
+#if !defined(__GNUC__) || (DEKAF2_GCC_VERSION >= 500)
+// gcc 4.8.5 has troubles with moves..
 //-----------------------------------------------------------------------------
 KInputFDStream::KInputFDStream(KInputFDStream&& other)
-    : m_FileDesc{other.m_FileDesc}
-    , m_FPStreamBuf{std::move(other.m_FPStreamBuf)}
+	: m_FileDesc{other.m_FileDesc}
+	, m_FPStreamBuf{std::move(other.m_FPStreamBuf)}
 //-----------------------------------------------------------------------------
 {
 	other.m_FileDesc = -1;
 
 } // move ctor
+#endif
 
 //-----------------------------------------------------------------------------
 KInputFDStream::~KInputFDStream()
@@ -68,6 +71,7 @@ KInputFDStream::~KInputFDStream()
 	// but just received a handle for it
 }
 
+#if !defined(__GNUC__) || (DEKAF2_GCC_VERSION >= 500)
 //-----------------------------------------------------------------------------
 KInputFDStream& KInputFDStream::operator=(KInputFDStream&& other)
 //-----------------------------------------------------------------------------
@@ -77,6 +81,7 @@ KInputFDStream& KInputFDStream::operator=(KInputFDStream&& other)
 	other.m_FileDesc = -1;
 	return *this;
 }
+#endif
 
 //-----------------------------------------------------------------------------
 void KInputFDStream::open(int iFileDesc)
@@ -116,10 +121,13 @@ std::streamsize KInputFDStream::FileDescReader(void* sBuffer, std::streamsize iC
 		// it is more difficult than one would expect to convert a void* into an int..
 		int fd = static_cast<int>(*static_cast<long*>(filedesc));
 		iRead = ::read(fd, sBuffer, static_cast<size_t>(iCount));
-		if (iRead != iCount)
+		if (iRead < 0)
 		{
 			// do some logging
-			KLog().warning("KInputFDStream: cannot write to file: {}", strerror(errno));
+			KLog().warning("KInputFDStream: cannot read from file: {} - requested {}, got {} bytes",
+			               strerror(errno),
+			               iCount,
+			               iRead);
 		}
 	}
 
@@ -127,6 +135,7 @@ std::streamsize KInputFDStream::FileDescReader(void* sBuffer, std::streamsize iC
 }
 
 
+#if !defined(__GNUC__) || (DEKAF2_GCC_VERSION >= 500)
 //-----------------------------------------------------------------------------
 KInputFPStream::KInputFPStream(KInputFPStream&& other)
     : m_FilePtr{other.m_FilePtr}
@@ -136,6 +145,7 @@ KInputFPStream::KInputFPStream(KInputFPStream&& other)
 	other.m_FilePtr = nullptr;
 
 } // move ctor
+#endif
 
 //-----------------------------------------------------------------------------
 KInputFPStream::~KInputFPStream()
@@ -145,6 +155,7 @@ KInputFPStream::~KInputFPStream()
 	// but just received a handle for it
 }
 
+#if !defined(__GNUC__) || (DEKAF2_GCC_VERSION >= 500)
 //-----------------------------------------------------------------------------
 KInputFPStream& KInputFPStream::operator=(KInputFPStream&& other)
 //-----------------------------------------------------------------------------
@@ -154,6 +165,7 @@ KInputFPStream& KInputFPStream::operator=(KInputFPStream&& other)
 	other.m_FilePtr = nullptr;
 	return *this;
 }
+#endif
 
 //-----------------------------------------------------------------------------
 void KInputFPStream::open(FILE* iFilePtr)
@@ -194,10 +206,13 @@ std::streamsize KInputFPStream::FilePtrReader(void* sBuffer, std::streamsize iCo
 		if (fp && *fp)
 		{
 			iRead = static_cast<std::streamsize>(std::fread(sBuffer, 1, static_cast<size_t>(iCount), *fp));
-			if (iRead != iCount)
+			if (iRead < 0)
 			{
 				// do some logging
-				KLog().warning("KInputFPStream: cannot write to file: {}", strerror(errno));
+				KLog().warning("KInputFPStream: cannot read from file: {} - requested {}, got {} bytes",
+				               strerror(errno),
+				               iCount,
+				               iRead);
 			}
 		}
 	}

@@ -1,7 +1,7 @@
 #include "catch.hpp"
 
-#include <kinshell.h>
-#include <kstring.h>
+#include <dekaf2/kinshell.h>
+#include <dekaf2/kstring.h>
 
 #include <iostream>
 #include <unistd.h>

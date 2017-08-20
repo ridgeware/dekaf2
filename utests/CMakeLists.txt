@@ -1,9 +1,9 @@
 cmake_minimum_required(VERSION 3.2)
 
-project(dekaf-utests)
+project(dekaf2-utests)
 
 set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
+#set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set (UHEADERS
     catch.hpp
@@ -23,8 +23,9 @@ set (USOURCES
     kinshell_tests.cpp
     koutshell_tests.cpp
     kstack_tests.cpp
+    ktcpserver_tests.cpp
 )
 
-add_executable(dekaf-utests ${UHEADERS} ${USOURCES})
-target_link_libraries(dekaf-utests dekaf2)
+add_executable(dekaf2-utests ${UHEADERS} ${USOURCES})
+target_link_libraries(dekaf2-utests dekaf2)
 

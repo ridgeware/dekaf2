@@ -42,21 +42,27 @@
 
 #pragma once
 
-#include "bits/kcppcompat.h"
-#include "dekaf2.h"
-#include "ksharedref.h"
-#include "kmru.h"
+#if !defined(NDEBUG)
+#define BOOST_MULTI_INDEX_ENABLE_INVARIANT_CHECKING
+#define BOOST_MULTI_INDEX_ENABLE_SAFE_MODE
+#endif
 
+#include <boost/multi_index_container.hpp>
+#include <boost/multi_index/hashed_index.hpp>
+#include <boost/multi_index/identity.hpp>
+#include <boost/multi_index/member.hpp>
+#include <boost/multi_index/sequenced_index.hpp>
+#include <iterator>
+#include "bits/kmutable_pair.h"
 
 namespace dekaf2
 {
 
+using namespace boost::multi_index;
+
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// KCache implements a generic cache.
-/// For cache size management it uses a Least Recently Used removal strategy.
-/// To load a new value it calls the constructor of Value() with the new Key.
-template<class Key, class Value>
-class KCache
+template <typename Element, typename Key = Element, bool IsMap = false>
+class KMRUBaseType
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -64,221 +70,256 @@ class KCache
 protected:
 //----------
 
-	enum { DEFAULT_MAX_CACHE_SIZE = 1000 };
-	using map_type = KMRUMap<Key, Value>;
-	map_type m_map;
-	size_t m_iMaxSize;
+	struct SeqIdx {};
+	struct KeyIdx {};
 
-	//-----------------------------------------------------------------------------
-	template<class K, class V>
-	Value& Create(K&& key, V&& value)
-	//-----------------------------------------------------------------------------
-	{
-		auto it = m_map.insert(std::make_pair(std::forward<K>(key), std::forward<V>(value)));
-		return it->second;
-	}
+	using MRU_t = multi_index_container<
+		Element,
+		indexed_by<
+			sequenced<tag<SeqIdx> >,
+			hashed_unique<tag<KeyIdx>, identity<Element> >
+		>
+	>;
 
-//----------
-public:
-//----------
-
-	//-----------------------------------------------------------------------------
-	KCache(size_t iMaxSize = DEFAULT_MAX_CACHE_SIZE)
-	//-----------------------------------------------------------------------------
-	    : m_map(iMaxSize)
-	{
-	}
-
-	KCache(const KCache&) = delete;
-	KCache& operator=(const KCache&) = delete;
-	KCache(const KCache&&) = delete;
-	KCache& operator=(const KCache&&) = delete;
-
-	//-----------------------------------------------------------------------------
-	template<class K, class V>
-	Value& Set(K&& key, V&& value)
-	//-----------------------------------------------------------------------------
-	{
-		return Create(std::forward<K>(key), std::forward<V>(value));
-	}
-
-	//-----------------------------------------------------------------------------
-	Value& Get(const Key& key)
-	//-----------------------------------------------------------------------------
-	{
-		auto it = m_map.find(key);
-		if (it != m_map.end())
-		{
-			return it->second;
-		}
-
-		return Create(key, Value(key));
-	}
-
-	//-----------------------------------------------------------------------------
-	bool Erase(const Key& key)
-	//-----------------------------------------------------------------------------
-	{
-		return m_map.erase(key);
-	}
-
-	//-----------------------------------------------------------------------------
-	void SetMaxSize(size_t iMaxSize)
-	//-----------------------------------------------------------------------------
-	{
-		m_map.SetMaxSize(iMaxSize);
-	}
-
-	//-----------------------------------------------------------------------------
-	size_t GetMaxSize() const
-	//-----------------------------------------------------------------------------
-	{
-		return m_map.GetMaxSize();
-	}
-
-	//-----------------------------------------------------------------------------
-	void clear()
-	//-----------------------------------------------------------------------------
-	{
-		m_map.clear();
-	}
-
-	//-----------------------------------------------------------------------------
-	size_t size() const
-	//-----------------------------------------------------------------------------
-	{
-		return m_map.size();
-	}
-
-}; // KCache
-
-
+};
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// KSharedCache wraps the Value type into a shared pointer (KSharedRef)
-/// and enables shared locking when Dekaf is set into multithreading mode
-template<class Key, class Value>
-class KSharedCache : public KCache<Key, KSharedRef<Value, true>>
+template <typename Element, typename Key>
+class KMRUBaseType<Element, Key, true>
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
 //----------
+protected:
+//----------
+
+	struct SeqIdx {};
+	struct KeyIdx {};
+
+	using MRU_t = multi_index_container<
+		Element,
+		indexed_by<
+			sequenced<tag<SeqIdx> >,
+			hashed_unique<tag<KeyIdx>, member<Element, Key, &Element::first> >
+		>
+	>;
+
+};
+
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// a generalized Most/Least Recently Used container. Once it has reached
+/// its max capacity it will start deleting the least recently used elements.
+template <typename Element, typename Key = Element, bool IsMap = false>
+class KMRUBase : KMRUBaseType<Element, Key, IsMap>
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+//----------
+protected:
+//----------
+
+	using base_type    = KMRUBaseType<Element, Key, IsMap>;
+	using MRU_t        = typename base_type::MRU_t;
+	using SeqIdx       = typename base_type::SeqIdx;
+	using KeyIdx       = typename base_type::KeyIdx;
+
+//----------
 public:
 //----------
 
-	using value_type = KSharedRef<Value, true>;
-	using base_type  = KCache<Key, value_type>;
+	using element_type = Element;
+	using iterator     = typename MRU_t::iterator;
+	using pair_ib      = std::pair<iterator, bool>;
 
 	//-----------------------------------------------------------------------------
-	template<class K, class V>
-	value_type& Set(K&& key, V&& value)
+	KMRUBase(size_t iMaxElements)
 	//-----------------------------------------------------------------------------
+	    : m_iMaxElements(iMaxElements)
 	{
-		std::unique_lock<std::shared_mutex> Lock(m_Mutex, std::defer_lock);
-		if (Dekaf().GetMultiThreading())
-		{
-			Lock.lock();
-		}
-		return base_type::Set(std::forward<K>(key), std::forward<V>(value));
 	}
 
 	//-----------------------------------------------------------------------------
-	// need to reimplement Get() from scratch to accomodate the share logic
-	value_type& Get(const Key& key)
+	void SetMaxSize(size_t iMaxElements)
 	//-----------------------------------------------------------------------------
 	{
-		if (!Dekaf().GetMultiThreading())
+		m_iMaxElements = iMaxElements;
+
+		while (m_Elements.size() > m_iMaxElements)
 		{
-			// we can use the lock free version
-			return base_type::Get(key);
+			m_Elements.pop_back();
 		}
-		// we will use shared and unique locks
-		{
-			// check in a readlock if key is existing
-			std::shared_lock<std::shared_mutex> Lock(m_Mutex);
-
-			auto it = base_type::m_map.find(key);
-			if (it != base_type::m_map.end())
-			{
-				return it->second;
-			}
-		}
-
-		// acquire a write lock
-		std::unique_lock<std::shared_mutex> Lock(m_Mutex);
-
-		// we call the base_type to search again exclusively,
-		// and to create if still not found
-		return base_type::Get(key);
-	}
-
-	//-----------------------------------------------------------------------------
-	bool Erase(const Key& key)
-	//-----------------------------------------------------------------------------
-	{
-		std::unique_lock<std::shared_mutex> Lock(m_Mutex, std::defer_lock);
-		if (Dekaf().GetMultiThreading())
-		{
-			Lock.lock();
-		}
-		return base_type::Erase(key);
-	}
-
-	//-----------------------------------------------------------------------------
-	void SetMaxSize(size_t iMaxSize)
-	//-----------------------------------------------------------------------------
-	{
-		std::unique_lock<std::shared_mutex> Lock(m_Mutex, std::defer_lock);
-		if (Dekaf().GetMultiThreading())
-		{
-			Lock.lock();
-		}
-		return base_type::SetMaxSize(iMaxSize);
 	}
 
 	//-----------------------------------------------------------------------------
 	size_t GetMaxSize() const
 	//-----------------------------------------------------------------------------
 	{
-		std::shared_lock<std::shared_mutex> Lock(m_Mutex, std::defer_lock);
-		if (Dekaf().GetMultiThreading())
-		{
-			Lock.lock();
-		}
-		return base_type::GetMaxSize();
+		return m_iMaxElements;
 	}
 
 	//-----------------------------------------------------------------------------
-	void clear()
+	iterator insert(const element_type& element)
 	//-----------------------------------------------------------------------------
 	{
-		std::unique_lock<std::shared_mutex> Lock(m_Mutex, std::defer_lock);
-		if (Dekaf().GetMultiThreading())
+		post_insert(m_Elements.push_front(element));
+		return begin();
+	}
+
+	//-----------------------------------------------------------------------------
+	iterator insert(element_type&& element)
+	//-----------------------------------------------------------------------------
+	{
+		auto pair = m_Elements.push_front(std::move(element));
+		post_insert(pair);
+		return begin();
+	}
+
+	//-----------------------------------------------------------------------------
+	bool erase(const Key& key)
+	//-----------------------------------------------------------------------------
+	{
+		auto& KeyView = m_Elements.template get<KeyIdx>();
+		auto it = KeyView.find(key);
+		if (it != KeyView.end())
 		{
-			Lock.lock();
+			KeyView.erase(it);
+			return true;
 		}
-		base_type::clear();
+		else
+		{
+			return false;
+		}
+	}
+
+	//-----------------------------------------------------------------------------
+	iterator begin()
+	//-----------------------------------------------------------------------------
+	{
+		return m_Elements.begin();
+	}
+
+	//-----------------------------------------------------------------------------
+	iterator end()
+	//-----------------------------------------------------------------------------
+	{
+		return m_Elements.end();
+	}
+
+	//-----------------------------------------------------------------------------
+	iterator find(const Key& key)
+	//-----------------------------------------------------------------------------
+	{
+		auto& KeyView = m_Elements.template get<KeyIdx>();
+		auto kit = KeyView.find(key);
+		// convert into base iterator
+		iterator it = m_Elements.template project<SeqIdx>(kit);
+		if (it != end())
+		{
+			// a find is equivalent to a "touch". Bring the element to the front of the list..
+			touch(it);
+			return begin();
+		}
+		else
+		{
+			return end();
+		}
 	}
 
 	//-----------------------------------------------------------------------------
 	size_t size() const
 	//-----------------------------------------------------------------------------
 	{
-		std::shared_lock<std::shared_mutex> Lock(m_Mutex, std::defer_lock);
-		if (Dekaf().GetMultiThreading())
-		{
-			Lock.lock();
-		}
-		return base_type::size();
+		return m_Elements.size();
+	}
+
+	//-----------------------------------------------------------------------------
+	bool empty() const
+	//-----------------------------------------------------------------------------
+	{
+		return m_Elements.empty();
+	}
+
+	//-----------------------------------------------------------------------------
+	void clear()
+	//-----------------------------------------------------------------------------
+	{
+		m_Elements.clear();
 	}
 
 //----------
-private:
+protected:
 //----------
 
-	std::shared_mutex m_Mutex;
+	//-----------------------------------------------------------------------------
+	void touch(iterator it)
+	//-----------------------------------------------------------------------------
+	{
+		if (it != begin())
+		{
+			// Bring element to front.
+			m_Elements.relocate(m_Elements.begin(), it);
+		}
+	}
 
-}; // KSharedCache
+	//-----------------------------------------------------------------------------
+	void post_insert(pair_ib& pair)
+	//-----------------------------------------------------------------------------
+	{
+		if (!pair.second)
+		{
+			// element was already known. Bring to front.
+			touch(pair.first);
+		}
+		else if (m_Elements.size() > m_iMaxElements)
+		{
+			// new Element - remove oldest
+			m_Elements.pop_back();
+		}
+	}
 
-} // of namespace dekaf2
+	size_t m_iMaxElements;
+	MRU_t m_Elements;
+};
+
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// a Most/Least Recently Used container for elements which themselves
+/// are the key
+template <typename Element>
+class KMRUList : public KMRUBase<Element>
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+	using base_type = KMRUBase<Element>;
+
+//----------
+public:
+//----------
+
+	//-----------------------------------------------------------------------------
+	KMRUList(size_t iMaxElements)
+	//-----------------------------------------------------------------------------
+	    : base_type(iMaxElements)
+	{}
+};
+
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// a Most/Least Recently Used container for map-like elements formed out of a
+/// Key and a Value, where only the Key is indexed
+template <typename Key, typename Value>
+class KMRUMap : public KMRUBase<detail::KMutablePair<Key, Value>, Key, true>
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+	using base_type = KMRUBase<detail::KMutablePair<Key, Value>, Key, true>;
+
+//----------
+public:
+//----------
+
+	//-----------------------------------------------------------------------------
+	KMRUMap(size_t iMaxElements)
+	//-----------------------------------------------------------------------------
+	    : base_type(iMaxElements)
+	{}
+};
+
+} // end of namespace dekaf2
 

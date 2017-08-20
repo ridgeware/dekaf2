@@ -38,225 +38,212 @@
 // |/+---------------------------------------------------------------------+/|
 // |\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/ |
 // +-------------------------------------------------------------------------+
+
+// large portions of this code are taken from
+// https://github.com/JoachimSchurig/CppCDDB/blob/master/asioserver.hpp
+// which is under a BSD style open source license
+
+//  Copyright © 2016 Joachim Schurig. All rights reserved.
+//
+//  Redistribution and use in source and binary forms, with or without
+//  modification, are permitted provided that the following conditions are met:
+//
+//  1. Redistributions of source code must retain the above copyright notice, this
+//  list of conditions and the following disclaimer.
+//  2. Redistributions in binary form must reproduce the above copyright notice,
+//  this list of conditions and the following disclaimer in the documentation
+//  and/or other materials provided with the distribution.
+//
+//  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+//  ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+//  WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+//  DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
+//  ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+//  (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+//  LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+//  ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+//  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+//  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
 */
 
 #pragma once
 
 #include <cinttypes>
-#include <streambuf>
-#include <ostream>
-#include <unistd.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#include "kwriter.h"
+#include <thread>
+#include "kstream.h"
+#include "kstring.h"
 
 namespace dekaf2
 {
 
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// an unbuffered std::ostream that is constructed around a unix file descriptor
-/// (mainly to allow its usage with pipes, for general file I/O use std::ofstream)
-/// (really, do it - this one is really slow on small writes to files, on purpose,
-/// because pipes should not be buffered!)
-class KOutputFDStream : public std::ostream
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+class KTCPServer
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
-//----------
-protected:
-//----------
 
-	using base_type = std::ostream;
+	using endpoint_type = asio::ip::tcp::acceptor::endpoint_type;
 
-	//-----------------------------------------------------------------------------
-	/// this is the custom streambuf writer
-	static std::streamsize FileDescWriter(const void* sBuffer, std::streamsize iCount, void* filedesc);
-	//-----------------------------------------------------------------------------
-
-//----------
+//-------
 public:
-//----------
+//-------
 
 	//-----------------------------------------------------------------------------
-	KOutputFDStream()
+	KTCPServer(uint16_t iPort)
 	//-----------------------------------------------------------------------------
+	    : m_iPort(iPort)
 	{
 	}
 
-	KOutputFDStream(const KOutputFDStream&) = delete;
-
-#if !defined(__GNUC__) || (DEKAF2_GCC_VERSION >= 500)
 	//-----------------------------------------------------------------------------
-	KOutputFDStream(KOutputFDStream&& other);
+	virtual ~KTCPServer();
 	//-----------------------------------------------------------------------------
-#endif
 
 	//-----------------------------------------------------------------------------
-	/// the main purpose of this class: allow construction from a standard unix
-	/// file descriptor
-	KOutputFDStream(int iFileDesc)
+	KTCPServer(const KTCPServer&) = delete;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	KTCPServer(KTCPServer&&) = default;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	KTCPServer& operator=(const KTCPServer&) = delete;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	KTCPServer& operator=(KTCPServer&&) = default;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	void v4_Only()
 	//-----------------------------------------------------------------------------
 	{
-		open(iFileDesc);
+		m_bStartIPv4 = true;
+		m_bStartIPv6 = false;
 	}
 
 	//-----------------------------------------------------------------------------
-	virtual ~KOutputFDStream();
-	//-----------------------------------------------------------------------------
-
-#if !defined(__GNUC__) || (DEKAF2_GCC_VERSION >= 500)
-	//-----------------------------------------------------------------------------
-	KOutputFDStream& operator=(KOutputFDStream&& other);
-	//-----------------------------------------------------------------------------
-#endif
-
-	KOutputFDStream& operator=(const KOutputFDStream&) = delete;
-
-	//-----------------------------------------------------------------------------
-	/// the main purpose of this class: open from a standard unix
-	/// file descriptor
-	void open(int iFileDesc);
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// test if a file is associated to this output stream
-	inline bool is_open() const
+	void v6_Only()
 	//-----------------------------------------------------------------------------
 	{
-		return m_FileDesc >= 0;
+		m_bStartIPv4 = false;
+		m_bStartIPv6 = true;
 	}
 
 	//-----------------------------------------------------------------------------
-	/// close the output stream
-	void close();
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// get the file descriptor
-	int GetDescriptor() const
+	void v4_And_6()
 	//-----------------------------------------------------------------------------
 	{
-		return m_FileDesc;
+		m_bStartIPv4 = true;
+		m_bStartIPv6 = true;
 	}
 
-//----------
+	//-----------------------------------------------------------------------------
+	bool Start(uint16_t iTimeoutInSeconds = 5 * 60, bool bBlock = true);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	void Stop()
+	//-----------------------------------------------------------------------------
+	{
+		m_bQuit = true;
+	}
+
+	//-----------------------------------------------------------------------------
+	bool IsRunning() const
+	//-----------------------------------------------------------------------------
+	{
+		return m_ipv6_server || m_ipv4_server;
+	}
+
+	//-----------------------------------------------------------------------------
+	static KString to_string(const endpoint_type& endpoint);
+	//-----------------------------------------------------------------------------
+
+//-------
 protected:
-//----------
-	int m_FileDesc{-1};
+//-------
 
-	// jschurig: The standard guarantees that the streambuf is neither used by
-	// constructors nor by destructors of base classes of a streambuf, nor by
-	// base classes that do not declare the streambuf themselves.
-	// Therefore it is safe to only construct it here, but use it in the
-	// constructor above. Angelika Langer had pointed out in 1995 that otherwise a
-	// private virtual inheritance would have guaranteed a protection against side
-	// effects of constructors accessing incomplete data types, but we do not need
-	// this anymore after C++98. I mention this because I was wondering about the
-	// constructor order when declaring this class, and did not know that this was
-	// solved by the standard before reading her article:
-	// http://www.angelikalanger.com/Articles/C++Report/IOStreamsDerivation/IOStreamsDerivation.html
-	KOutStreamBuf m_FPStreamBuf{&FileDescWriter, &m_FileDesc};
-};
+	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	struct Parameters
+	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	{
+		//-----------------------------------------------------------------------------
+		virtual ~Parameters();
+		//-----------------------------------------------------------------------------
 
+		//-----------------------------------------------------------------------------
+		bool terminate{false};
+		//-----------------------------------------------------------------------------
+	};
 
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// a buffered std::ostream that is constructed around a FILE ptr
-/// (mainly to allow its usage with pipes, for general file I/O use std::ofstream)
-/// (really, do it - this one does not implement the full ostream interface)
-class KOutputFPStream : public std::ostream
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-{
-//----------
-protected:
-//----------
-
-	using base_type = std::ostream;
+	typedef std::unique_ptr<Parameters> param_t;
 
 	//-----------------------------------------------------------------------------
-	/// this is the custom streambuf writer
-	static std::streamsize FilePtrWriter(const void* sBuffer, std::streamsize iCount, void* fileptr);
+	/// virtual hook to override with a completely new session management logic
+	/// (either calling Accept(), CreateParameters(), Init() and Request() below,
+	/// or anything else)
+	virtual void Session(KTCPStream& stream, const endpoint_type& remote_endpoint);
 	//-----------------------------------------------------------------------------
 
-//----------
-public:
-//----------
+	//-----------------------------------------------------------------------------
+	/// virtual hook that is called immediately after accepting a new stream.
+	/// Default does nothing. Could be used to set stream parameters. If
+	/// return value is false connection is terminated.
+	virtual bool Accepted(KTCPStream& stream, const endpoint_type& remote_endpoint);
+	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	KOutputFPStream()
+	/// virtual hook to send a init message to the client, directly after
+	/// accepting the incoming connection. Default sends nothing.
+	virtual KString Init(Parameters& parameters);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// virtual hook to process one line of client requests
+	virtual KString Request(const KString& qstr, Parameters& parameters);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// request the stream timeout requested for this instance (set it in own
+	/// session handlers for reading and writing on the stream)
+	inline uint16_t GetTimeout() const
 	//-----------------------------------------------------------------------------
 	{
-	}
-
-	KOutputFPStream(const KOutputFPStream&) = delete;
-
-#if !defined(__GNUC__) || (DEKAF2_GCC_VERSION >= 500)
-	//-----------------------------------------------------------------------------
-	KOutputFPStream(KOutputFPStream&& other);
-	//-----------------------------------------------------------------------------
-#endif
-
-	//-----------------------------------------------------------------------------
-	/// the main purpose of this class: allow construction from a standard unix
-	/// file descriptor
-	KOutputFPStream(FILE* iFilePtr)
-	//-----------------------------------------------------------------------------
-	{
-		open(iFilePtr);
+		return m_iTimeout;
 	}
 
 	//-----------------------------------------------------------------------------
-	virtual ~KOutputFPStream();
+	/// if the derived class needs addtional per-thread control parameters,
+	/// define a Parameters class to accomodate those, and return an instance
+	/// of this class (wrapped in a unique_ptr) from CreateParameters()
+	virtual param_t CreateParameters();
 	//-----------------------------------------------------------------------------
 
-#if !defined(__GNUC__) || (DEKAF2_GCC_VERSION >= 500)
-	//-----------------------------------------------------------------------------
-	KOutputFPStream& operator=(KOutputFPStream&& other);
-	//-----------------------------------------------------------------------------
-#endif
-
-	KOutputFPStream& operator=(const KOutputFPStream&) = delete;
+//-------
+private:
+//-------
 
 	//-----------------------------------------------------------------------------
-	/// the main purpose of this class: open from a standard unix
-	/// file descriptor
-	void open(FILE* iFilePtr);
+	void Server(bool ipv6);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// test if a file is associated to this output stream
-	inline bool is_open() const
-	//-----------------------------------------------------------------------------
-	{
-		return m_FilePtr;
-	}
-
-	//-----------------------------------------------------------------------------
-	/// close the output stream
-	void close();
+	void RunSession(KTCPStream& stream, const endpoint_type& remote_endpoint);
 	//-----------------------------------------------------------------------------
 
-	//-----------------------------------------------------------------------------
-	/// get the file ptr
-	FILE* GetPtr() const
-	//-----------------------------------------------------------------------------
-	{
-		return m_FilePtr;
-	}
+	asio::io_service m_asio;
+	std::unique_ptr<std::thread> m_ipv4_server;
+	std::unique_ptr<std::thread> m_ipv6_server;
+	uint16_t m_iPort{0};
+	uint16_t m_iTimeout{5*60};
+	bool m_bBlock{true};
+	bool m_bQuit{false};
+	bool m_bStartIPv4{true};
+	bool m_bStartIPv6{true};
 
-//----------
-protected:
-//----------
-	FILE* m_FilePtr{nullptr};
+}; // KTCPServer
 
-	KOutStreamBuf m_FPStreamBuf{&FilePtrWriter, &m_FilePtr};
-};
-
-
-/// FOR PIPES AND SPECIAL DEVICES ONLY! File descriptor writer based on KOutputFDStream>
-using KFDWriter = KWriter<KOutputFDStream>;
-
-/// FOR PIPES AND SPECIAL DEVICES ONLY! FILE ptr writer based on KOutputFPStream>
-using KFPWriter = KWriter<KOutputFPStream>;
-
-} // end of namespace dekaf2
+}
 

@@ -98,6 +98,8 @@ bool KLog::SetDebugFlag(KStringView sFlagfile)
 	}
 
 	m_sFlagfile = sFlagfile;
+
+	return true;
 }
 
 //---------------------------------------------------------------------------

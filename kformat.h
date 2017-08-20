@@ -41,10 +41,10 @@
 #pragma once
 
 #include <ostream>
-#include "fmt/format.h"
-#include "fmt/ostream.h"
-#include "fmt/printf.h"
-#include "kcppcompat.h"
+#include <fmt/format.h>
+#include <fmt/ostream.h>
+#include <fmt/printf.h>
+#include "bits/kcppcompat.h"
 
 namespace dekaf2
 {

@@ -1,10 +1,10 @@
 #include "catch.hpp"
 
-#include <kfile.h>
+#include <dekaf2/kfile.h>
 #include <vector>
 #include <fstream>
-#include "kreader.h"
-#include "kwriter.h"
+#include <dekaf2/kreader.h>
+#include <dekaf2/kwriter.h>
 
 using namespace dekaf2;
 
@@ -55,22 +55,22 @@ TEST_CASE("KFile") {
 		auto it = File.begin();
 		KString s1;
 		s1 = *it;
-		CHECK( s1 == "line 1\n" );
+		CHECK( s1 == "line 1" );
 		s1 = *it;
-		CHECK( s1 == "line 1\n" );
+		CHECK( s1 == "line 1" );
 		++it;
 		s1 = std::move(*it);
-		CHECK( s1 == "line 2\n" );
+		CHECK( s1 == "line 2" );
 		s1 = *it;
-		CHECK( s1 != "line 2\n" );
+		CHECK( s1 != "line 2" );
 		s1 = *++it;
-		CHECK( s1 == "line 3\n" );
+		CHECK( s1 == "line 3" );
 		s1 = *it++;
-		CHECK( s1 == "line 3\n" );
+		CHECK( s1 == "line 3" );
 		s1 = *it++;
-		CHECK( s1 == "line 4\n" );
+		CHECK( s1 == "line 4" );
 		s1 = *it;
-		CHECK( s1 == "line 5\n" );
+		CHECK( s1 == "line 5" );
 
 	}
 

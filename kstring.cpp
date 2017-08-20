@@ -483,7 +483,7 @@ int KString::compare(size_type pos, size_type n1, KStringView sv) const
 KString::size_type KString::Replace (KStringView sSearch, KStringView sReplace, bool bReplaceAll)
 //------------------------------------------------------------------------------
 {
-	return dekaf2::Replace(m_rep, sSearch.data(), sSearch.size(), sReplace.data(), sReplace.size(), bReplaceAll);
+	return dekaf2::kReplace(m_rep, sSearch, sReplace, bReplaceAll);
 }
 
 //----------------------------------------------------------------------
@@ -601,13 +601,13 @@ KStringView KString::Right(size_type iCount)
 
 KString& KString::PadLeft(size_t iWidth, value_type chPad)
 {
-	dekaf2::PadLeft(m_rep, iWidth, chPad);
+	dekaf2::kPadLeft(m_rep, iWidth, chPad);
 	return *this;
 }
 
 KString& KString::PadRight(size_t iWidth, value_type chPad)
 {
-	dekaf2::PadRight(m_rep, iWidth, chPad);
+	dekaf2::kPadRight(m_rep, iWidth, chPad);
 	return *this;
 }
 
@@ -615,7 +615,7 @@ KString& KString::PadRight(size_t iWidth, value_type chPad)
 KString& KString::TrimLeft()
 //----------------------------------------------------------------------
 {
-	dekaf2::TrimLeft(m_rep, [](value_type ch){ return std::isspace(ch) != 0; } );
+	dekaf2::kTrimLeft(m_rep, [](value_type ch){ return std::isspace(ch) != 0; } );
 	return *this;
 }
 
@@ -623,7 +623,7 @@ KString& KString::TrimLeft()
 KString& KString::TrimLeft(value_type chTarget)
 //----------------------------------------------------------------------
 {
-	dekaf2::TrimLeft(m_rep, [chTarget](value_type ch){ return ch == chTarget; } );
+	dekaf2::kTrimLeft(m_rep, [chTarget](value_type ch){ return ch == chTarget; } );
 	return *this;
 }
 
@@ -635,7 +635,7 @@ KString& KString::TrimLeft(KStringView sTarget)
 	{
 		return TrimLeft(sTarget[0]);
 	}
-	dekaf2::TrimLeft(m_rep, [sTarget](value_type ch){ return memchr(sTarget.data(), ch, sTarget.size()) != nullptr; } );
+	dekaf2::kTrimLeft(m_rep, [sTarget](value_type ch){ return memchr(sTarget.data(), ch, sTarget.size()) != nullptr; } );
 	return *this;
 }
 
@@ -643,7 +643,7 @@ KString& KString::TrimLeft(KStringView sTarget)
 KString& KString::TrimRight()
 //----------------------------------------------------------------------
 {
-	dekaf2::TrimRight(m_rep, [](value_type ch){ return std::isspace(ch) != 0; } );
+	dekaf2::kTrimRight(m_rep, [](value_type ch){ return std::isspace(ch) != 0; } );
 	return *this;
 }
 
@@ -651,7 +651,7 @@ KString& KString::TrimRight()
 KString& KString::TrimRight(value_type chTarget)
 //----------------------------------------------------------------------
 {
-	dekaf2::TrimRight(m_rep, [chTarget](value_type ch){ return ch == chTarget; } );
+	dekaf2::kTrimRight(m_rep, [chTarget](value_type ch){ return ch == chTarget; } );
 	return *this;
 }
 
@@ -663,7 +663,7 @@ KString& KString::TrimRight(KStringView sTarget)
 	{
 		return TrimRight(sTarget[0]);
 	}
-	dekaf2::TrimRight(m_rep, [sTarget](value_type ch){ return memchr(sTarget.data(), ch, sTarget.size()) != nullptr; } );
+	dekaf2::kTrimRight(m_rep, [sTarget](value_type ch){ return memchr(sTarget.data(), ch, sTarget.size()) != nullptr; } );
 	return *this;
 }
 
@@ -671,14 +671,16 @@ KString& KString::TrimRight(KStringView sTarget)
 KString& KString::Trim()
 //----------------------------------------------------------------------
 {
-	dekaf2::Trim(m_rep, [](value_type ch){ return std::isspace(ch) != 0; } );
+	dekaf2::kTrim(m_rep, [](value_type ch){ return std::isspace(ch) != 0; } );
+	return *this;
 }
 
 //----------------------------------------------------------------------
 KString& KString::Trim(value_type chTarget)
 //----------------------------------------------------------------------
 {
-	dekaf2::Trim(m_rep, [chTarget](value_type ch){ return ch == chTarget; } );
+	dekaf2::kTrim(m_rep, [chTarget](value_type ch){ return ch == chTarget; } );
+	return *this;
 }
 
 //----------------------------------------------------------------------
@@ -689,7 +691,8 @@ KString& KString::Trim(KStringView sTarget)
 	{
 		return Trim(sTarget[0]);
 	}
-	dekaf2::Trim(m_rep, [sTarget](value_type ch){ return memchr(sTarget.data(), ch, sTarget.size()) != nullptr; } );
+	dekaf2::kTrim(m_rep, [sTarget](value_type ch){ return memchr(sTarget.data(), ch, sTarget.size()) != nullptr; } );
+	return *this;
 }
 
 //----------------------------------------------------------------------
@@ -717,23 +720,14 @@ KString& KString::ClipAtReverse(KStringView sClipAtReverse)
 } // ClipAtReverse
 
 //----------------------------------------------------------------------
-void KString::RemoveIllegalChars(const KString& sIllegalChars)
+void KString::RemoveIllegalChars(KStringView sIllegalChars)
 //----------------------------------------------------------------------
 {
-	if (sIllegalChars.empty())
+	size_type pos;
+	for (size_type lastpos = size(); (pos = find_last_of(sIllegalChars, lastpos)) != npos; )
 	{
-		erase();
-	}
-	else
-	{
-		size_type pos;
-		for(size_type lastpos = size();
-			(pos = find_last_of(sIllegalChars, lastpos)) != npos;
-			)
-		{
-			erase(pos, 1);
-			lastpos = pos;
-		}
+		erase(pos, 1);
+		lastpos = pos;
 	}
 }
 
@@ -767,10 +761,12 @@ bool kEndsWith(KStringView sInput, KStringView sPattern)
 bool KString::In (KStringView sHaystack, value_type iDelim/*=','*/)
 //-----------------------------------------------------------------------------
 {
-	auto& sNeedle{m_rep};
+	// gcc 4.8.5 needs the non-brace initialization here..
+	auto& sNeedle(m_rep);
 
 	size_t iNeedle = 0, iHaystack = 0; // Beginning indices
-	size_t iNsize = sNeedle.size (), iHsize = sHaystack.size (); // Ending
+	size_t iNsize = sNeedle.size ();
+	size_t iHsize = sHaystack.size (); // Ending
 
 	while (iHaystack < iHsize)
 	{
@@ -855,5 +851,12 @@ std::istream& std::getline(std::istream& stream, dekaf2::KString& str)
 //----------------------------------------------------------------------
 {
 	return std::getline(stream, str.s());
+}
+
+//----------------------------------------------------------------------
+std::istream& std::getline(std::istream& stream, dekaf2::KString& str, dekaf2::KString::value_type delimiter)
+//----------------------------------------------------------------------
+{
+	return std::getline(stream, str.s(), delimiter);
 }
 

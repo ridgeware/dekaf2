@@ -1,7 +1,7 @@
 
 #define CATCH_CONFIG_RUNNER
 #include "catch.hpp"
-#include "dekaf.h"
+#include <dekaf2/dekaf2.h>
 
 #include <string>
 #include <iostream>

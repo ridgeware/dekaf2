@@ -117,7 +117,7 @@ bool KWebIO::addToResponseHeader(KString& sHeaderPart)
 				m_sResponseVersion = sHeaderPart.substr(versionPos, 3);
 				KString responseCode = sHeaderPart.substr(statusCodePos, 3);
 				m_sResponseStatus = sHeaderPart.substr(statusPos, lineEndPos-statusPos);
-				m_iResponseStatusCode = KToUShort(responseCode);
+				m_iResponseStatusCode = kToUShort(responseCode);
 				//update beginning of line to process next line
 				iCurrentPos = lineEndPos+1;
 				continue;

@@ -45,13 +45,17 @@
 #include "kreader.h"
 #include "kwriter.h"
 
+#include <boost/asio/ip/tcp.hpp>
 
 namespace dekaf2
 {
 
+namespace asio = boost::asio;
 
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// The generalized bidirectional stream abstraction for dekaf2
 class KStream : public KInStream, public KOutStream
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 	using self_type   = KStream;
 	using reader_type = KInStream;
@@ -62,7 +66,15 @@ public:
 //-------
 
 	//-----------------------------------------------------------------------------
-	/// move construct a KReaderWriter
+	/// value construct a KStream
+	KStream(std::iostream& Stream)
+	//-----------------------------------------------------------------------------
+	    : reader_type(Stream)
+	    , writer_type(Stream)
+	{}
+
+	//-----------------------------------------------------------------------------
+	/// move construct a KStream
 	KStream(self_type&& other) noexcept
 	//-----------------------------------------------------------------------------
 		: reader_type(std::move(other))
@@ -73,14 +85,6 @@ public:
 	/// copy construction is deleted, as with std::iostream
 	KStream(self_type& other) = delete;
 	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// value construct a KStream
-	KStream(std::iostream& Stream)
-	//-----------------------------------------------------------------------------
-	    : reader_type(Stream)
-	    , writer_type(Stream)
-	{}
 
 	//-----------------------------------------------------------------------------
 	/// dtor
@@ -117,9 +121,33 @@ class KReaderWriter
 	using self_type = KReaderWriter<IOStream>;
 	using k_rw_type = KStream;
 
+	static_assert(std::is_base_of<std::iostream, IOStream>::value,
+	              "KReaderWriter cannot be derived from a non-std::iostream class");
+
 //-------
 public:
 //-------
+
+	//-----------------------------------------------------------------------------
+	// semi-perfect forwarding - currently needed as std::iostream does not yet
+	// support string_views as arguments
+	template<class... Args>
+	KReaderWriter(KStringView sv, Args&&... args)
+	    : base_type(std::string(sv), std::forward<Args>(args)...)
+	    , k_rw_type(static_cast<base_type&>(*this))
+	//-----------------------------------------------------------------------------
+	{
+	}
+
+	//-----------------------------------------------------------------------------
+	// perfect forwarding
+	template<class... Args>
+	KReaderWriter(Args&&... args)
+	    : base_type(std::forward<Args>(args)...)
+	    , k_rw_type(static_cast<base_type&>(*this))
+	//-----------------------------------------------------------------------------
+	{
+	}
 
 	//-----------------------------------------------------------------------------
 	/// move construct a KReaderWriter
@@ -130,34 +158,9 @@ public:
 	{}
 
 	//-----------------------------------------------------------------------------
-	/// copy constructor is deleted - std::iostreams is, too
+	/// copy constructor is deleted - std::iostream's is, too
 	KReaderWriter(self_type& other) = delete;
 	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	// semi-perfect forwarding - currently needed as std::iostream does not yet
-	// support string_views as arguments
-	template<class... Args>
-	KReaderWriter(KStringView sv, Args&&... args)
-	    : base_type(std::string(sv), std::forward<Args>(args)...)
-	    , k_rw_type(*this)
-	//-----------------------------------------------------------------------------
-	{
-		static_assert(std::is_base_of<std::iostream, IOStream>::value,
-		              "KReaderWriter cannot be derived from a non-std::iostream class");
-	}
-
-	//-----------------------------------------------------------------------------
-	// perfect forwarding
-	template<class... Args>
-	KReaderWriter(Args&&... args)
-	    : base_type(std::forward<Args>(args)...)
-	    , k_rw_type(static_cast<std::iostream&>(*this))
-	//-----------------------------------------------------------------------------
-	{
-		static_assert(std::is_base_of<std::iostream, IOStream>::value,
-		              "KReaderWriter cannot be derived from a non-std::iostream class");
-	}
 
 	//-----------------------------------------------------------------------------
 	/// copy assignment is deleted - std::iostring's is, too
@@ -179,8 +182,11 @@ public:
 /// File stream based on std::fstream
 using KFile           = KReaderWriter<std::fstream>;
 
-/// String writer based on std::stringstream
+/// String stream based on std::stringstream
 using KStringStream   = KReaderWriter<std::stringstream>;
+
+/// TCP stream based on asio::ip::tcp::iostream
+using KTCPStream      = KReaderWriter<asio::ip::tcp::iostream>;
 
 } // end of namespace dekaf2
 

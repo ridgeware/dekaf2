@@ -80,13 +80,13 @@ KOutStream::~KOutStream()
 KOutStream::self_type& KOutStream::Write(KString::value_type& ch)
 //-----------------------------------------------------------------------------
 {
-	std::streambuf* sb = m_sRef->rdbuf();
+	std::streambuf* sb = OutStream().rdbuf();
 	if (sb != nullptr)
 	{
 		typename std::ostream::int_type iCh = sb->sputc(ch);
 		if (std::ostream::traits_type::eq_int_type(iCh, std::ostream::traits_type::eof()))
 		{
-			m_sRef->setstate(std::ios_base::badbit);
+			OutStream().setstate(std::ios_base::badbit);
 		}
 	}
 	return *this;
@@ -99,13 +99,13 @@ KOutStream::self_type& KOutStream::Write(const typename std::ostream::char_type*
 {
 	if (iCount)
 	{
-		std::streambuf* sb = m_sRef->rdbuf();
+		std::streambuf* sb = OutStream().rdbuf();
 		if (sb != nullptr)
 		{
 			size_t iWrote = static_cast<size_t>(sb->sputn(pAddress, iCount));
 			if (iWrote != iCount)
 			{
-				m_sRef->setstate(std::ios_base::badbit);
+				OutStream().setstate(std::ios_base::badbit);
 			}
 		}
 	}

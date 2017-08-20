@@ -44,41 +44,16 @@
 
 #include "bits/kcppcompat.h"
 #include <string>
-#ifdef DEKAF2_HAS_CPP_17
-#include <experimental/string_view>
-#else // prepare to use re2's StringPiece as string_view
-#include <re2/re2.h>
-#endif
 #include <vector>
 #include <cstdarg>
 #include <cstring>
 #include <cctype>
 #include <istream>
 #include "kformat.h"
-
+#include "kstringview.h"
 
 namespace dekaf2
 {
-
-#ifdef DEKAF2_HAS_CPP_17
-using KStringView = std::experimental::string_view;
-#else
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// an extended StringPiece with the methods of
-/// C++17's std::string_view
-class KStringView : public re2::StringPiece
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-{
-public:
-	KStringView() {}
-	KStringView(const std::string& str) : StringPiece(str) {}
-	KStringView(const char* str) : StringPiece(str) {}
-	KStringView(const char* str, size_type len) : StringPiece(str, len) {}
-
-// TODO implement find_first_of, find_last_of family of methods
-};
-
-#endif
 
 bool kStartsWith(KStringView sInput, KStringView sPattern);
 bool kEndsWith(KStringView sInput, KStringView sPattern);
@@ -450,7 +425,7 @@ inline std::istream& operator >>(std::istream& stream, KString& str)
 }
 
 //-----------------------------------------------------------------------------
-inline KString operator+(KStringView left, KStringView right)
+inline KString operator+(const KStringView& left, const KStringView& right)
 //-----------------------------------------------------------------------------
 {
 	KString temp;
@@ -461,7 +436,7 @@ inline KString operator+(KStringView left, KStringView right)
 }
 
 //-----------------------------------------------------------------------------
-inline KString operator+(const KString::value_type* left, KStringView right)
+inline KString operator+(const KString::value_type* left, const KStringView& right)
 //-----------------------------------------------------------------------------
 {
 	KStringView sv(left);
@@ -469,7 +444,7 @@ inline KString operator+(const KString::value_type* left, KStringView right)
 }
 
 //-----------------------------------------------------------------------------
-inline KString operator+(KStringView left, KString::value_type right)
+inline KString operator+(const KStringView& left, KString::value_type right)
 //-----------------------------------------------------------------------------
 {
 	KString temp(left);
@@ -479,7 +454,7 @@ inline KString operator+(KStringView left, KString::value_type right)
 }
 
 //-----------------------------------------------------------------------------
-inline KString operator+(KString::value_type left, KStringView right)
+inline KString operator+(KString::value_type left, const KStringView& right)
 //-----------------------------------------------------------------------------
 {
 	KString temp;
@@ -492,7 +467,7 @@ inline KString operator+(KString::value_type left, KStringView right)
 // now all operator+() with rvalues (only make sense for the rvalue as the left param)
 
 //-----------------------------------------------------------------------------
-inline KString operator+(KString&& left, KStringView right)
+inline KString operator+(KString&& left, const KStringView& right)
 //-----------------------------------------------------------------------------
 {
 	KString temp(std::move(left));
@@ -509,75 +484,9 @@ inline KString operator+(KString&& left, KString::value_type right)
 	return temp;
 }
 
-// KStringView includes comparison for KString
-
-//-----------------------------------------------------------------------------
-inline bool operator==(KStringView left, KStringView right)
-//-----------------------------------------------------------------------------
-{
-#ifdef DEKAF2_HAS_CPP_17
-	return std::experimental::operator==(left, right);
-#else
-	return re2::operator==(left, right);
-#endif
-}
-
-//-----------------------------------------------------------------------------
-inline bool operator!=(KStringView left, KStringView right)
-//-----------------------------------------------------------------------------
-{
-#ifdef DEKAF2_HAS_CPP_17
-	return std::experimental::operator!=(left, right);
-#else
-	return re2::operator!=(left, right);
-#endif
-}
-
-//-----------------------------------------------------------------------------
-inline bool operator<(KStringView left, KStringView right)
-//-----------------------------------------------------------------------------
-{
-#ifdef DEKAF2_HAS_CPP_17
-	return std::experimental::operator<(left, right);
-#else
-	return re2::operator<(left, right);
-#endif
-}
-
-//-----------------------------------------------------------------------------
-inline bool operator<=(KStringView left, KStringView right)
-//-----------------------------------------------------------------------------
-{
-#ifdef DEKAF2_HAS_CPP_17
-	return std::experimental::operator<=(left, right);
-#else
-	return re2::operator<=(left, right);
-#endif
-}
-
-//-----------------------------------------------------------------------------
-inline bool operator>(KStringView left, KStringView right)
-//-----------------------------------------------------------------------------
-{
-#ifdef DEKAF2_HAS_CPP_17
-	return std::experimental::operator>(left, right);
-#else
-	return re2::operator>(left, right);
-#endif
-}
-
-//-----------------------------------------------------------------------------
-inline bool operator>=(KStringView left, KStringView right)
-//-----------------------------------------------------------------------------
-{
-#ifdef DEKAF2_HAS_CPP_17
-	return std::experimental::operator>=(left, right);
-#else
-	return re2::operator>=(left, right);
-#endif
-}
-
 } // end of namespace dekaf2
+
+// provide a std::hash for KString
 
 namespace std
 {

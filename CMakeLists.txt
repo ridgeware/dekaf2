@@ -38,6 +38,7 @@ set (HEADERS
     bits/kmake_unique.h
     bits/kmutable_pair.h
     dekaf2.h
+    kstringview.h
     kstring.h
     kcache.h
     kregex.h
@@ -78,6 +79,7 @@ set (SOURCES
     kurl.cpp
     kurl2.cpp
     kpipe.cpp
+    kstringview.cpp
     kstringutils.cpp
     kparallel.cpp
     kcurl.cpp

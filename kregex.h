@@ -44,6 +44,7 @@
 
 #include <re2/re2.h>
 #include <vector>
+#include <boost/functional/hash.hpp>
 #include "bits/kcppcompat.h"
 #include "kcache.h"
 #include "kstring.h"

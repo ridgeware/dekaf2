@@ -107,6 +107,34 @@ public:
 		return rfind(ch, pos);
 	}
 
+	size_type find_first_not_of(self_type sv, size_type pos = 0) const noexcept;
+
+	inline size_type find_first_not_of(const value_type* s, size_type pos) const noexcept
+	{
+		return find_first_not_of(KStringView(s), pos);
+	}
+
+	inline size_type find_first_not_of(const value_type* s, size_type pos, size_type count) const noexcept
+	{
+		return find_first_not_of(KStringView(s, count), pos);
+	}
+
+	size_type find_first_not_of(value_type ch, size_type pos = 0) const noexcept;
+
+	size_type find_last_not_of(self_type sv, size_type pos = 0) const noexcept;
+
+	inline size_type find_last_not_of(const value_type* s, size_type pos) const noexcept
+	{
+		return find_last_not_of(KStringView(s), pos);
+	}
+
+	inline size_type find_last_not_of(const value_type* s, size_type pos, size_type count) const noexcept
+	{
+		return find_last_not_of(KStringView(s, count), pos);
+	}
+
+	size_type find_last_not_of(value_type ch, size_type pos = 0) const noexcept;
+
 	void swap(KStringView& other) noexcept
 	{
 		// StringPiece has no swap(), and the data members are private,
@@ -116,8 +144,6 @@ public:
 		other.set(this->data(), this->size());
 		this->set(data, size);
 	}
-
-	// TODO implement find_first_not_of, find_last_not_of methods
 
 //----------
 private:

@@ -11,6 +11,7 @@ set (UHEADERS
 
 set (USOURCES
     main.cpp
+    kstringview_tests.cpp
     kstring_tests.cpp
     kstringutils_tests.cpp
     kprops_tests.cpp

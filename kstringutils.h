@@ -45,7 +45,6 @@
 #include <cinttypes>
 #include <algorithm>
 #include <functional>
-#include <cwchar>
 #include "bits/kcppcompat.h"
 #include "bits/ktemplate.h"
 #include "kstring.h"

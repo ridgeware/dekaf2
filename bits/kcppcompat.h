@@ -43,6 +43,8 @@
 //
 */
 
+#include "kconfiguration.h"
+
 #pragma once
 
 #if defined __GNUC__
@@ -64,7 +66,7 @@
 #endif
 
 #if !defined(DEKAF2_IS_UNIX) && defined(UNIX)
-	#define DEKAF2_IS_UNIX
+	#define DEKAF2_IS_UNIX 1
 #endif
 
 #if (__cplusplus < 201103L && !DEKAF2_HAS_CPP_11)
@@ -72,11 +74,11 @@
 #endif
 
 #ifndef DEKAF2_HAS_CPP_11
-	#define DEKAF2_HAS_CPP_11
+	#define DEKAF2_HAS_CPP_11 1
 #endif
 
 #if (__cplusplus >= 201402L && !defined(DEKAF2_HAS_CPP_14))
-	#define DEKAF2_HAS_CPP_14
+	#define DEKAF2_HAS_CPP_14 1
 #endif
 
 // this test is a bit bogus (by just testing if the cpp date
@@ -84,7 +86,7 @@
 // be kept after C++17 defines an official date, as older
 // compilers would not know it (but support C++17)
 #if (__cplusplus > 201402L && !defined(DEKAF2_HAS_CPP_17))
-	#define DEKAF2_HAS_CPP_17
+	#define DEKAF2_HAS_CPP_17 1
 #endif
 
 // prepare for the shared_mutex enabler below - this has to go into

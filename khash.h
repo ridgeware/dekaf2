@@ -151,7 +151,6 @@ using fnv1a_t = typename fnv1a<Bits>::type;
 //---------------------------------------------------------------------------
 #ifdef DEKAF2_HAS_CPP_14
 constexpr
-#endif
 std::size_t hash_bytes_FNV(const void* const data, const std::size_t size) noexcept
 //---------------------------------------------------------------------------
 {
@@ -159,6 +158,8 @@ std::size_t hash_bytes_FNV(const void* const data, const std::size_t size) noexc
 	hashfn.update(data, size);
 	return hashfn.digest();
 }
-
+#else
+std::size_t hash_bytes_FNV(const void* const data, const std::size_t size) noexcept;
+#endif
 } // end of namespace dekaf2
 

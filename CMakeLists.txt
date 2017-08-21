@@ -38,6 +38,7 @@ set (HEADERS
     bits/kmake_unique.h
     bits/kmutable_pair.h
     dekaf2.h
+    kstringview.h
     kstring.h
     kcache.h
     kregex.h
@@ -80,6 +81,7 @@ set (SOURCES
     kprof.cpp
     kurl.cpp
     kurl2.cpp
+    kstringview.cpp
     kstringutils.cpp
     kparallel.cpp
     kcurl.cpp
@@ -98,6 +100,7 @@ set (SOURCES
     kinshell.cpp
     koutshell.cpp
     ktcpserver.cpp
+    khash.cpp
 )
 
 if (DEKAF2_INSTALL_HEADERS)
@@ -142,7 +145,7 @@ target_link_libraries(dekaf2
     fmt
     re2
     "${FSLIB}"
-    "${Boost_LIBRARIES}"
+    ${Boost_LIBRARIES}
     Threads::Threads
 )
 

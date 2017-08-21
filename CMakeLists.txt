@@ -94,6 +94,7 @@ set (SOURCES
     kfdwriter.cpp
     kstream.cpp
     ktcpserver.cpp
+    khash.cpp
 )
 
 if (DEKAF2_INSTALL_HEADERS)
@@ -138,7 +139,7 @@ target_link_libraries(dekaf2
     fmt
     re2
     "${FSLIB}"
-    "${Boost_LIBRARIES}"
+    ${Boost_LIBRARIES}
     Threads::Threads
 )
 

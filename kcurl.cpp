@@ -45,8 +45,6 @@
 
 #include <iostream>
 
-//#define btoa(b) ((b)?"true":"false")
-
 namespace dekaf2
 {
 
@@ -60,7 +58,8 @@ bool KCurl::setRequestURL(const KString& sRequestURL)
 		m_sRequestURL = sRequestURL;
 		return true;
 	}
-	else {
+	else
+	{
 		return false;
 	}
 
@@ -77,6 +76,9 @@ bool KCurl::initiateRequest()
 	{
 		return false;
 	}
+	// Even if we only want to echo the body, header contains useful metadata.
+	// We will still want this data in the request even if the end user
+	// So either we get either header and body or just header.
 	KString sFlags = "-i"; // by default assume we want both
 	if (m_requestType == POST)
 	{
@@ -89,15 +91,15 @@ bool KCurl::initiateRequest()
 	{
 		sFlags = "-I";
 	}
-	/* Even if we only want to echo the body, header contains useful metadata
-	else if (!m_bEchoHeader && m_bEchoBody)
-	{
-		sFlags = "";
-	}
-	*/
 	KString headers("");
 	serializeRequestHeader(headers);
-	KString sCurlCMD = "curl " + sFlags + " " + m_sRequestURL + " " + headers +" 2> /dev/null";// + " | cat";
+	KString sCurlCMD = "curl ";
+	sCurlCMD += sFlags;
+	sCurlCMD += " ";
+	sCurlCMD += m_sRequestURL;
+	sCurlCMD += " ";
+	sCurlCMD += headers;
+	sCurlCMD += " 2> /dev/null";
 	KLog().debug(3, "KCurl::initiateRequest() end. Command: {}", sCurlCMD);
 	return m_kpipe.Open(sCurlCMD);
 
@@ -255,16 +257,25 @@ bool KCurl::delRequestCookie(const KString& sCookieName, const KString& sCookieV
 } // delCookie
 
 //-----------------------------------------------------------------------------
-bool KCurl::addToResponseHeader(KString& sHeaderPart){ return true; }
+bool KCurl::addToResponseHeader(KString& sHeaderPart)
 //-----------------------------------------------------------------------------
+{
+	return true;
+}
 
 //-----------------------------------------------------------------------------
-bool KCurl::addToResponseBody  (KString& sBodyPart){ return true; }
+bool KCurl::addToResponseBody  (KString& sBodyPart)
 //-----------------------------------------------------------------------------
+{
+	return true;
+}
 
 //-----------------------------------------------------------------------------
-bool KCurl::printResponseHeader  (){ return true; }
+bool KCurl::printResponseHeader  ()
 //-----------------------------------------------------------------------------
+{
+	return true;
+}
 
 //-----------------------------------------------------------------------------
 bool KCurl::serializeRequestHeader(KString& sCurlHeaders)
@@ -272,11 +283,17 @@ bool KCurl::serializeRequestHeader(KString& sCurlHeaders)
 {
 	for (auto iter = m_requestHeaders.begin(); iter != m_requestHeaders.end(); iter++)
 	{
-		sCurlHeaders += "-H '" + iter->second.first + ": " + iter->second.second + "' ";
+		sCurlHeaders += "-H '";
+		sCurlHeaders += iter->second.first;
+		sCurlHeaders += ": ";
+		sCurlHeaders += iter->second.second;
+		sCurlHeaders += "' ";
 	}
 	if (!m_requestCookies.empty())
 	{
-		sCurlHeaders += "-H '" + CookieHeader + ": ";
+		sCurlHeaders += "-H '";
+		sCurlHeaders += CookieHeader;
+		sCurlHeaders += ": ";
 	}
 	for (auto iter = m_requestCookies.begin(); iter != m_requestCookies.end(); iter++)
 	{
@@ -284,7 +301,9 @@ bool KCurl::serializeRequestHeader(KString& sCurlHeaders)
 		{
 			sCurlHeaders += ";";
 		}
-		sCurlHeaders += iter->second.first + "=" + iter->second.second;
+		sCurlHeaders += iter->second.first;
+		sCurlHeaders += "=";
+		sCurlHeaders += iter->second.second;
 	}
 	if (!m_requestCookies.empty())
 	{

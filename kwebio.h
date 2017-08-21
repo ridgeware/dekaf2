@@ -56,26 +56,46 @@ namespace dekaf2
 
 //-----------------------------------------------------------------------------
 class KWebIO : public KCurl
-//-----------------------------------------------------------------------------
+
 {
 
 //------
 public:
 //------
+
+	//-----------------------------------------------------------------------------
 	/// KWebIO default constructor, must be initialized after construction.
-	KWebIO() {}
+	KWebIO()
+	//-----------------------------------------------------------------------------
+	{}
+
+	//-----------------------------------------------------------------------------
 	/// KWebIO Constructor that allows full initialization on construction.
 	KWebIO(const KString& requestURL, RequestType requestType = GET, bool bEchoHeader = false, bool bEchoBody = false)
-	    : KCurl(requestURL, requestType, bEchoHeader, bEchoBody) {}
-	/// Default virutal destructor
-	virtual ~KWebIO() {}
+	//-----------------------------------------------------------------------------
+	    : KCurl(requestURL, requestType, bEchoHeader, bEchoBody)
+	{}
 
+	//-----------------------------------------------------------------------------
+	/// Default virutal destructor
+	virtual ~KWebIO()
+	//-----------------------------------------------------------------------------
+	{}
+
+	//-----------------------------------------------------------------------------
 	/// Overriden virtual method that parses response header
 	virtual bool   addToResponseHeader(KString& sHeaderPart);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
 	/// Overriden virtual method that parses response body
 	virtual bool   addToResponseBody  (KString& sBodyPart);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
 	/// Overriden virtual method that prints out parsed response header
-	virtual bool   printResponseHeader(); // prints response header from m_responseHeaderss
+	virtual bool   printResponseHeader(); // prints response header from m_responseHeaders
+	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// Get all response headers except Cookies as a KHeader
@@ -85,16 +105,23 @@ public:
 		return m_responseHeaders;
 	}
 
+	//-----------------------------------------------------------------------------
 	/// Get response header value from given header name (case insensitive)
 	const KString& getResponseHeader(const KString& sHeaderName) const;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
 	/// Get all response cookies as a KHeader
 	const KHeader& getResponseCookies() const
+	//-----------------------------------------------------------------------------
 	{
 		return m_responseCookies;
 	}
 
+	//-----------------------------------------------------------------------------
 	/// Get response cookie value from given cookie name (case insensitive)
-	const KString& getResponseCookie(const KString& sCookieName);// const; // gets first cookie with name
+	const KString& getResponseCookie(const KString& sCookieName) const; // gets first cookie with name
+	//-----------------------------------------------------------------------------
 
 //------
 private:

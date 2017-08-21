@@ -8,6 +8,7 @@ namespace dekaf2
 KInShell::KInShell(const KString& sCommand)
 //-----------------------------------------------------------------------------
 {
+	SetReaderTrim("");
 	Open(sCommand);
 
 } // Immediate Open Constructor
@@ -24,7 +25,7 @@ KInShell::~KInShell()
 bool KInShell::Open(const KString& sCommand)
 //-----------------------------------------------------------------------------
 {
-	KLog().debug(3, "KPIPE::Open(): {0}", sCommand.c_str());
+	KLog().debug(3, "KPIPE::Open(): {}", sCommand);
 
 	Close(); // ensure a previous pipe is closed
 	errno = 0;
@@ -50,7 +51,8 @@ bool KInShell::Open(const KString& sCommand)
 	{
 		KLog().debug(3, "KPIPE::Open(): POPEN: ok...");
 		KFPReader::open(m_pipe);
-		SetReaderTrim("");
+		// TODO MOVE TO CONSTRUCTOR
+		//SetReaderTrim("");
 		return KFPReader::good();
 	}
 

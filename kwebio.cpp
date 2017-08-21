@@ -262,7 +262,7 @@ const KString& KWebIO::getResponseHeader(const KString& sHeaderName) const
 } // getResponseHeader
 
 //-----------------------------------------------------------------------------
-const KString& KWebIO::getResponseCookie(const KString& sCookieName) //const
+const KString& KWebIO::getResponseCookie(const KString& sCookieName) const
 //-----------------------------------------------------------------------------
 {
 	KString sCookieKey(sCookieName.ToLower());

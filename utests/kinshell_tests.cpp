@@ -7,15 +7,16 @@
 #include <unistd.h>
 #include <sys/resource.h>
 
-#define kprPRINT 0
+#define kprPRINT 1
 
 using namespace dekaf2;
 
-#define KPIPE_DELAY (1)
+static size_t KPIPE_DELAY (1);
+
 KString KPipeReaderDelayCommand(unsigned int depth, unsigned int second, const KString sMessage1 = "", const KString sMessage2 = "")
 {
 	return fmt::format("$dekaf/utests/kpipe_delay_test.sh {} {} '{}' '{}' 2>&1",
-	            depth, second/40, sMessage1.c_str(), sMessage2.c_str());
+	            depth, second/40, sMessage1, sMessage2);
 }
 
 void kpipereader_testKillDelayTask()
@@ -27,23 +28,20 @@ void kpipereader_testKillDelayTask()
 
 TEST_CASE("KInShell")
 {
-	SECTION("KPipeReader normal Open and Close")
+	SECTION("KInShell normal Open and Close")
 	{
 		INFO("normal_open_close_test::Start:");
 
 		KInShell pipe;
 
 		// open the pipe
-		CHECK(pipe.Open("ls -al $dekaf/kpipe.cpp | grep kpipe.cpp | wc -l 2>&1"));
+		CHECK(pipe.Open("cat some random data > /tmp/kinshelltest.file 2>&1"));
+		CHECK(pipe.Open("ls -al /tmp/kinshelltest.file | grep kinshelltest | wc -l 2>&1"));
 
 		KString sCurrentLine;
 
 		bool output = pipe.ReadLine(sCurrentLine);
 		CHECK(output);
-		//pipe.ReadLine(sCurrentLine);
-#if kprPRINT
-		std::cout << "output is: " << sCurrentLine << std::endl;
-#endif
 		CHECK("1\n" == sCurrentLine);
 
 		CHECK(pipe.is_open());
@@ -52,7 +50,7 @@ TEST_CASE("KInShell")
 		INFO("normal_open_close_test::Done:");
 	} // normal open close
 
-	SECTION("KPipeReader  get_errno_should_return_zero")
+	SECTION("KInShell  get_errno_should_return_zero")
 	{
 		INFO("get_pid_should_not_return_zero::Start:");
 
@@ -65,13 +63,13 @@ TEST_CASE("KInShell")
 
 		kpipereader_testKillDelayTask();
 
-		INFO("KPipeReader get_pid_should_not_return_zero::Done:");
+		INFO("KInShell get_pid_should_not_return_zero::Done:");
 
 	} // get_pid_should_not_return_zero
 
-	SECTION("KPipeReader  check_is_running")
+	SECTION("KInShell  check_is_running")
 	{
-		INFO("KPipeReader check_is_running::Start:");
+		INFO("KInShell check_is_running::Start:");
 
 		KInShell pipe;
 
@@ -91,43 +89,41 @@ TEST_CASE("KInShell")
 		CHECK(0 == pipe.Close());
 		CHECK(-1 == pipe.Close());
 
-		INFO("KPipeReader check_is_running::Done:");
+		INFO("KInShell check_is_running::Done:");
 
 	} // check_is_running
 
-	SECTION("KPipeReader  is_open_return_false_if_pipe_was_never_open")
+	SECTION("KInShell  is_open_return_false_if_pipe_was_never_open")
 	{
-		INFO("KPipeReader is_open_return_false_if_pipe_is_not_open::Start:");
+		INFO("KInShell is_open_return_false_if_pipe_is_not_open::Start:");
 
 		KInShell pipe;
 		CHECK_FALSE(pipe.is_open());
 
-		INFO("KPipeReader is_open_return_false_if_pipe_is_not_open::Done:");
+		INFO("KInShell is_open_return_false_if_pipe_is_not_open::Done:");
 
 	} // is_running_return_false_if_pipe_is_not_open
 
-	SECTION("KPipeReader  cannot_readline_of_bad_pipe")
+	SECTION("KInShell  cannot_readline_of_bad_pipe")
 	{
-		INFO("KPipeReader cannot_readline_of_bad_pipe::Start:");
+		INFO("KInShell cannot_readline_of_bad_pipe::Start:");
 
 		KInShell pipe;
-		//CHECK_FALSE(pipe.Open("echo rdoanm txet > /tmp/tmp.file"));
 		CHECK_FALSE(pipe.is_open());
 		KString outBuff;
 		CHECK_FALSE(pipe.ReadLine(outBuff));
 
-		INFO("KPipe cannot_readline_of_bad_pipe::Done:");
+		INFO("KInShell cannot_readline_of_bad_pipe::Done:");
 
 	} // cannot_readline_of_bad_pipe
 
-	SECTION("KPipeReader  using_file_star_operator")
+	SECTION("KInShell  using_file_star_operator")
 	{
-		INFO("KPipeReader  using_file_star_operator::Start:");
+		INFO("KInShell  using_file_star_operator::Start:");
 
 		KInShell pipe;
 
-		CHECK(pipe.Open("echo rdoanm txet > /tmp/tmp.file && cat /tmp/tmp.file > /dev/null"));
-		//CHECK(pipe.Open("echo rdoanm txet > /tmp/tmp.file", "w"));
+		CHECK(pipe.Open("echo rdoanm txet > /tmp/tmp.file && cat /tmp/KInShelltest.file > /dev/null"));
 
 		FILE* fileDesc(pipe);
 
@@ -137,71 +133,41 @@ TEST_CASE("KInShell")
 
 		CHECK(0 == pipe.Close());
 
-		INFO("KPipeReader  using_file_star_operator::Done:");
+		INFO("KInShell  using_file_star_operator::Done:");
 
 	} // using_file_star_operator
 
-	SECTION("KPipeReader Iterator Test")
+	SECTION("KInShell Iterator Test")
 	{
 		KInShell   pipe;
-		//KString sCurlCMD = "echo 'random text asdfjkl;asdfjkl;\nqwerty\nuoip\nzxcvbnm,zxcvbnm,\n\n' > /tmp/tmp.file && cat /tmp/tmp.file 2> /dev/null";
-		KString sCurlCMD = "echo 'random text asdfjkl;asdfjkl; qwerty uoip zxcvbnm,zxcvbnm,  ' > /tmp/tmp.file && cat /tmp/tmp.file 2> /dev/null";
+		KString sCurlCMD = "echo 'random text asdfjkl;asdfjkl; qwerty uoip zxcvbnm,zxcvbnm,  ' > /tmp/KInShelltest.file && cat /tmp/KInShelltest.file 2> /dev/null";
 		CHECK(pipe.Open(sCurlCMD));
 
 		KString sCurrentLine;
 		KString output;
-		//for (auto iter : pipe.begin())
 		for (auto iter = pipe.begin(); iter != pipe.end(); iter++)
 		{
 			output = output + *iter;
-			//std::cout << *iter ;
 		}
-#if kprPRINT
-		std::cout << output << std::endl;
-#endif
+
 		CHECK_FALSE(output.empty());
 		CHECK(output.length() == 60);
 
 		CHECK(pipe.Close() == 0);
 	} // Iterator Test
 
-	SECTION("KPipe Curl Iterator Test")
+
+
+	SECTION("KInShell fail to open test")
 	{
-		KInShell   pipe;
-		KString sCurlCMD = "curl -i www.google.com 2> /dev/null";
-		CHECK(pipe.Open(sCurlCMD));
-
-		KString sCurrentLine;
-		KString output;
-
-		for (auto iter = pipe.begin(); iter != pipe.end(); iter++)
-		{
-			output = output + *iter;
-			//std::cout << *iter ;
-		}
-#if kprPRINT
-		std::cout << output << std::endl;
-#endif
-
-		CHECK_FALSE(output.empty());
-		CHECK(pipe.Close() == 0);
-	} // Curl Iterator Test
-
-	SECTION("KPipeReader fail to open test")
-	{
-		INFO("normal_open_close_test::Start:");
+		INFO("KInShell normal_open_close_test::Start:");
 
 		KInShell pipe;
 
-		// fail open the pipe with empty string
 		CHECK_FALSE(pipe.Open(""));
-
-#if kprPRINT
-		std::cout << "output is: " << sCurrentLine << std::endl;
-#endif
 
 		CHECK(pipe.Close() == -1);
 
-		INFO("normal_open_close_test::Done:");
+		INFO("KInShell normal_open_close_test::Done:");
 	} // normal open close
 }

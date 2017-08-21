@@ -4,8 +4,6 @@
 
 #include <iostream>
 
-#define kpwPRINT 0
-
 using namespace dekaf2;
 TEST_CASE("KPipeWriter")
 {
@@ -16,9 +14,8 @@ TEST_CASE("KPipeWriter")
 
 		KOutShell pipe;
 
-		//CHECK(pipe.Open("echo rdoanm txet 1 > /tmp/tmp.file"));
-		CHECK(pipe.Open("cat > /tmp/tmp.file"));
-		// Write more to pipe
+		CHECK(pipe.Open("cat > /tmp/KOutShelltest.file"));
+
 		KString str("echo rdoanm txet over 9000 \n line 2 \n line 3 \n line 4 \n SS level 3! \n line 6 \n line 7");
 		pipe.Write(str);
 		CHECK(pipe.is_open());
@@ -34,8 +31,7 @@ TEST_CASE("KPipeWriter")
 
 		KOutShell pipe;
 
-		//CHECK(pipe.Open("echo rdoanm txet 1 > /tmp/tmp.file"));
-		CHECK(pipe.Open("cat > /tmp/tmp.file"));
+		CHECK(pipe.Open("cat > /tmp/KOutShelltest.file"));
 		// Write more to pipe
 		KString str("echo rdoanm txet over 9000 \n line 2 \n line 3 \n line 4 \n SS level 3! \n line 6 \n line 7");
 		pipe.Write(str);
@@ -43,15 +39,12 @@ TEST_CASE("KPipeWriter")
 		CHECK(0 == pipe.Close());
 
 		KInShell readPipe;
-		CHECK(readPipe.Open("cat /tmp/tmp.file"));
+		CHECK(readPipe.Open("cat /tmp/KOutShelltest.file"));
 		KString output;
 		for (auto iter = readPipe.begin(); iter != readPipe.end(); iter++)
 		{
 			output = output + *iter;
 		}
-#if kpwPRINT
-		std::cout << output << std::endl;
-#endif
 		CHECK(output.compare(str) == 0);
 
 		INFO("KPipe  write_pipe::Done:");
@@ -66,10 +59,6 @@ TEST_CASE("KPipeWriter")
 
 		// fail open the pipe with empty string
 		CHECK_FALSE(pipe.Open(""));
-
-#if kpwPRINT
-		std::cout << "output is: " << sCurrentLine << std::endl;
-#endif
 
 		CHECK(pipe.Close() == -1);
 

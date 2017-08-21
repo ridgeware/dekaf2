@@ -5,11 +5,11 @@
 #include "catch.hpp"
 using namespace dekaf2;
 
-#define kcurlDump 0
+
+// Smoketests are silent, if something fails these will help debugging
+// In appropriate tests head or body will be printed if these are turned on
 #define kcurlHead 0
-#define kcurlBoth 0
-
-
+#define kcurlBody 0
 
 //-----------------------------------------------------------------------------
 class KCurlTest : public KWebIO
@@ -83,13 +83,10 @@ public:
 TEST_CASE("KCurl")
 {
 
-#if kcurlDump
-	//#if 1
 	SECTION("KCurl Stream Test")
 	{
 
 		KString url = "www.google.com";
-		//KWebIO webIO(url);//, true, true);
 		KCurlTest webIO(url, KCurl::GET, false, true);
 		CHECK_FALSE(webIO.getEchoHeader());
 		CHECK(webIO.getEchoBody());
@@ -133,14 +130,17 @@ TEST_CASE("KCurl")
 
 		CHECK_FALSE(bSuccess);
 
-	}
+#if kcurlBody
+		std::cout << std::endl;
+		webIO.printResponseBody();
+		std::cout << std::endl;
 #endif
 
-#if kcurlDump
+	}
+
 	SECTION("KCurl Delayed Set Stream Test")
 	{
 		KString url = "www.google.com";
-		//KWebIO webIO(url);//, true, true);
 		KCurlTest webIO;
 		webIO.setEchoBody(true);
 		webIO.setRequestURL("");
@@ -159,14 +159,18 @@ TEST_CASE("KCurl")
 		}
 
 		CHECK_FALSE(bSuccess);
-	}
+
+#if kcurlBody
+		std::cout << std::endl;
+		webIO.printResponseBody();
+		std::cout << std::endl;
 #endif
 
-#if 1
+	}
+
 	SECTION("KCurl Dummy Stream Test")
 	{
 		KString url = "www.google.com";
-		//KWebIO webIO(url);//, true, true);
 		KCurlTest webIO;
 		webIO.setEchoHeader(true);
 		webIO.setEchoBody(true);
@@ -192,14 +196,20 @@ TEST_CASE("KCurl")
 		if (webIO.printHeader) {
 			webIO.printResponseHeader();
 		}
-	}
+
+#if kcurlBody
+		std::cout << std::endl;
+		webIO.printResponseBody();
+		std::cout << std::endl;
 #endif
-#if kcurlBoth
+
+	}
+
 	SECTION("KCurl Stream Test With Headers, output header and body")
 	{
 
 		KString url = "www.google.com";
-		KWebIO webIO(url, KCurl::GET, true, true);
+		KCurlTest webIO(url, KCurl::GET, true, true);
 		CHECK(webIO.getEchoHeader());
 		CHECK(webIO.getEchoBody());
 
@@ -213,8 +223,6 @@ TEST_CASE("KCurl")
 		CHECK(cookies.length() == 0);
 
 		KString requestHeader;
-		//webIO.serializeRequestHeader(requestHeader);
-		//std::cout << "Request Headers:" << std::endl << requestHeader;
 		bool bSuccess = webIO.initiateRequest();
 		CHECK(bSuccess);
 		CHECK(webIO.requestInProgress());
@@ -225,13 +233,12 @@ TEST_CASE("KCurl")
 
 		CHECK_FALSE(bSuccess);
 	}
-#endif
-#if kcurlHead
+
 	SECTION("KCurl Stream Test With Headers, output Header Only")
 	{
 
 		KString url = "www.google.com";
-		KWebIO webIO(url, KCurl::GET, true);//, true);
+		KCurlTest webIO(url, KCurl::GET, true);
 		CHECK(webIO.getEchoHeader());
 		CHECK_FALSE(webIO.getEchoBody());
 
@@ -255,14 +262,12 @@ TEST_CASE("KCurl")
 
 		CHECK_FALSE(bSuccess);
 	}
-#endif
 
-#if kcurlDump
 	SECTION("KCurl Stream Test With Headers, output Body Only")
 	{
 
 		KString url = "www.google.com";
-		KWebIO webIO(url, KCurl::GET, false, true);
+		KCurlTest webIO(url, KCurl::GET, false, true);
 		CHECK_FALSE(webIO.getEchoHeader());
 		CHECK(webIO.getEchoBody());
 
@@ -285,6 +290,12 @@ TEST_CASE("KCurl")
 		}
 
 		CHECK_FALSE(bSuccess);
-	}
+
+#if kcurlBody
+		std::cout << std::endl;
+		webIO.printResponseBody();
+		std::cout << std::endl;
 #endif
+	}
+
 }

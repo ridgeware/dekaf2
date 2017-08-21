@@ -68,22 +68,21 @@ Cookie: foo=bar; yummy_cookie=choco; tasty_cookie=strawberry
 #include "kreader.h"
 
 #include <iostream>
-//#include "kpipe.h"
 
 namespace dekaf2
 {
 
 // Common headers in KString form (to not be harcoded in the codee
-static const KString xForwardedForHeader ("x-forwarded-for");
-static const KString ForwardedHeader     ("forwarded");
-static const KString HostHeader          ("host");
-static const KString CookieHeader        ("cookie");
-static const KString UserAgentHeader     ("user-agent");
-static const KString sGarbageHeader      ("garbage");
+//static const KString xForwardedForHeader ("x-forwarded-for");
+static const char* xForwardedForHeader ("x-forwarded-for");
+static const char* HostHeader          ("host");
+static const char* CookieHeader        ("cookie");
+static const char* UserAgentHeader     ("user-agent");
+static const char* sGarbageHeader      ("garbage");
 
-//-----------------------------------------------------------------------------
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class KCurl
-//-----------------------------------------------------------------------------
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
 //------
@@ -101,104 +100,178 @@ public:
 	/// The key for this is trimmed and lower cased, value is original key-value pair.
 	typedef KProps<KString, KHeaderPair> KHeader; // case insensitive map for header info
 
+	//-----------------------------------------------------------------------------
 	/// Default KURL Constructor, must be initialized after construction
-	KCurl() {}
+	KCurl()
+	//-----------------------------------------------------------------------------
+	{}
 
+	//-----------------------------------------------------------------------------
 	/// KURL Constructor that allows full initialization on construction.
 	KCurl(const KString& sRequestURL, RequestType requestType, bool bEchoHeader = false, bool bEchoBody = false)
-	    : m_bEchoHeader{bEchoHeader}, m_bEchoBody{bEchoBody},  m_requestType{requestType}, m_sRequestURL{sRequestURL}{}
-	/// Default virtual constructor
-	virtual ~KCurl(){}
+	//-----------------------------------------------------------------------------
+	    : m_bEchoHeader{bEchoHeader}
+	    , m_bEchoBody{bEchoBody}
+	    , m_requestType{requestType}
+	    , m_sRequestURL{sRequestURL}
+	{}
 
+	//-----------------------------------------------------------------------------
+	/// Default virtual constructor
+	virtual ~KCurl()
+	//-----------------------------------------------------------------------------
+	{}
+
+	//-----------------------------------------------------------------------------
 	/// Sets the URL that web requests will go to
-	bool         setRequestURL (const KString& sRequestURL);
+	bool setRequestURL (const KString& sRequestURL);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
 	/// After request URL is set, this will open a pipe that the response will be streamed into
-	bool         initiateRequest(); // set header complete false
+	bool initiateRequest(); // set header complete false
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
 	/// After a request has been initiated this will read in the next sreaming chunk of the response
 	/// Returns false when there stream is done
-	bool         getStreamChunk(); // get next chunk
+	bool getStreamChunk(); // get next chunk
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
 	/// Returns true if request is still active
-	bool         requestInProgress() {
+	bool requestInProgress() {
 		return m_kpipe.is_open();
 	}
+	//-----------------------------------------------------------------------------
 
+	//-----------------------------------------------------------------------------
 	/// Returns true if header will be output from a web response
-	bool         getEchoHeader()
+	bool getEchoHeader()
+	//-----------------------------------------------------------------------------
 	{
 		return m_bEchoHeader;
 	}
 
+	//-----------------------------------------------------------------------------
 	/// Returns true if body will be output from a web response
-	bool         getEchoBody()
+	bool getEchoBody()
+	//-----------------------------------------------------------------------------
 	{
 		return m_bEchoBody;
 	}
 
+	//-----------------------------------------------------------------------------
 	/// Returns the current request type
 	const RequestType& getRequestType()
+	//-----------------------------------------------------------------------------
 	{
 		return m_requestType;
 	}
 
+	//-----------------------------------------------------------------------------
 	/// Returns the current request type
-	const KString& getPostData(){
+	const KString& getPostData()
+	//-----------------------------------------------------------------------------
+	{
 		return m_sPostData;
 	}
 
+	//-----------------------------------------------------------------------------
 	/// Sets whether header will be output from a web response, defaults to true
-	bool         setEchoHeader(bool bEchoHeader = true)
+	bool setEchoHeader(bool bEchoHeader = true)
+	//-----------------------------------------------------------------------------
 	{
 		m_bEchoHeader = bEchoHeader;
 		return true;
 	}
 
+	//-----------------------------------------------------------------------------
 	/// Sets whether body will be output from a web response, defaults to true
-	bool         setEchoBody  (bool bEchoBody = true)
+	bool setEchoBody  (bool bEchoBody = true)
+	//-----------------------------------------------------------------------------
 	{
 		m_bEchoBody = bEchoBody;
 		return true;
 	}
 
+	//-----------------------------------------------------------------------------
 	/// Sets the Request Type
-	bool         setRequestType(RequestType requestType)
+	bool setRequestType(RequestType requestType)
+	//-----------------------------------------------------------------------------
 	{
 		m_requestType = requestType;
 		return true;
 	}
 
+	//-----------------------------------------------------------------------------
 	/// Sets request data string directly
-	bool         setPostData(const KString& postData)
+	bool setPostData(const KString& postData)
+	//-----------------------------------------------------------------------------
 	{
 		m_sPostData = postData;
 		return true;
 	}
+
+	//-----------------------------------------------------------------------------
 	/// Sets request data via a file, reads in file and puts KString into m_sPostData
-	bool         setPostDataWithFile(const KString& sFileName);
+	bool setPostDataWithFile(const KString& sFileName);
+	//-----------------------------------------------------------------------------
 
+	//-----------------------------------------------------------------------------
 	/// Gets the case-sensitive request header value set for the given header name, case-insensitive
-	bool         getRequestHeader(const KString& sHeaderName, KString& sHeaderValue) const;
+	bool getRequestHeader(const KString& sHeaderName, KString& sHeaderValue) const;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
 	/// Sets a request header by case-insenstive header name, adds a new one if it doesn't exist
-	bool         setRequestHeader(const KString& sHeaderName, const KString& sHeaderValue);
+	bool setRequestHeader(const KString& sHeaderName, const KString& sHeaderValue);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
 	/// Adds a new request header, can be used to add repeat headers
-	bool         addRequestHeader(const KString& sHeaderName, const KString& sHeaderValue);
+	bool addRequestHeader(const KString& sHeaderName, const KString& sHeaderValue);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
 	/// Removes the request header by header name, case-insensitive
-	bool         delRequestHeader(const KString& sHeaderName);
+	bool delRequestHeader(const KString& sHeaderName);
+	//-----------------------------------------------------------------------------
 
+	//-----------------------------------------------------------------------------
 	/// Gets the case-sensitive request cookie value set for the given cookie name, case-insensitive
-	bool         getRequestCookie       (const KString& sCookieName, KString& sCookieValue) const;
-	/// Sets a request cookie by case-insenstive cookie name, adds a new one if it doesn't exist
-	bool         setRequestCookie       (const KString& sCookieName, const KString& sCookieValue);
-	/// Adds a new request cookie, can be used to add repeat cookies
-	bool         addRequestCookie       (const KString& sCookieName, const KString& sCookieValue);
-	/// Removes the request cookie by cookie name, case-insensitive
-	bool         delRequestCookie       (const KString& sCookieName, const KString& sCookieValue = "");
+	bool getRequestCookie(const KString& sCookieName, KString& sCookieValue) const;
+	//-----------------------------------------------------------------------------
 
+	//-----------------------------------------------------------------------------
+	/// Sets a request cookie by case-insenstive cookie name, adds a new one if it doesn't exist
+	bool setRequestCookie(const KString& sCookieName, const KString& sCookieValue);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// Adds a new request cookie, can be used to add repeat cookies
+	bool addRequestCookie(const KString& sCookieName, const KString& sCookieValue);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// Removes the request cookie by cookie name, case-insensitive
+	bool delRequestCookie(const KString& sCookieName, const KString& sCookieValue = "");
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
 	/// Method children must override to receive and process response header
 	virtual bool addToResponseHeader(KString& sHeaderPart);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
 	/// Method children must override to receive and process response body
-	virtual bool addToResponseBody  (KString& sBodyPart);
+	virtual bool addToResponseBody(KString& sBodyPart);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
 	/// A method to print reponse header as currently read in
 	virtual bool printResponseHeader();
+	//-----------------------------------------------------------------------------
 
 //--------
 protected:
@@ -220,7 +293,10 @@ private:
 	KHeader      m_requestHeaders; // headers to add to requests
 	KHeader      m_requestCookies; // cookies to add to request
 
+	//-----------------------------------------------------------------------------
 	bool         serializeRequestHeader(KString& sCurlHeaders); // false means no headers
+	//-----------------------------------------------------------------------------
+
 };
 
 } // END NAMESPACE dekaf2

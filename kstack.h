@@ -49,30 +49,41 @@
 namespace  dekaf2
 {
 
-//-----------------------------------------------------------------------------
+
 template<class Stack_Type>
 class KStack
-//-----------------------------------------------------------------------------
+
 {
 
 //----------
 public:
 //----------
+
+	//-----------------------------------------------------------------------------
 	/// Default Constructor
-	KStack() {}
+	KStack()
+	//-----------------------------------------------------------------------------
+	{}
+
+	//-----------------------------------------------------------------------------
 	/// Default Constructor
-	~KStack() {}
+	~KStack()
+	//-----------------------------------------------------------------------------
+	{}
+
+	//-----------------------------------------------------------------------------
 	/// Copy Constructor
 	KStack(const KStack& other)
-	    :m_Storage(other.m_Storage) {}
+	//-----------------------------------------------------------------------------
+	    :m_Storage(other.m_Storage)
+	{}
+
+	//-----------------------------------------------------------------------------
 	/// Move Constructor
 	KStack (KStack&& other)
-	    : m_Storage(std::move(other.m_Storage)) {}
-
-	// For methods that return Stack_Type& they can either be (or compiler bawks)
-	// 1. const qualified, return const and use std::move on return values
-	// 2. not be const and not use std::move on return values
-	// http://www.cplusplus.com/reference/deque/deque/front/
+	//-----------------------------------------------------------------------------
+	    : m_Storage(std::move(other.m_Storage))
+	{}
 
 	// ===== STANDARD STACK INTERACTIONS =====
 
@@ -98,7 +109,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Take the item from the top of the stack (removes item)
-	bool Pop (Stack_Type& retrievedItem); //## do a move only for the pop type of functions
+	bool Pop (Stack_Type& retrievedItem);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -159,36 +170,45 @@ public:
 	// ===== RANDOM ACCESS TO STACK =====
 
 	//-----------------------------------------------------------------------------
-	/// Gets and item via Zero based index from the top of the stack
-	bool GetItem (unsigned int index, Stack_Type& item) const;
+	/// Gets an item via Zero based index from the top of the stack
+	bool GetItem (size_t index, Stack_Type& item) const;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// Gets and item (const) via Zero based index from the top of the stack
-	const Stack_Type& GetItem(unsigned int index) const;
+	const Stack_Type& GetItem(size_t index) const;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// Sets the item via Zero based index from the top of the stack
-	bool SetItem (unsigned int index, Stack_Type& item);
+	bool SetItem (size_t index, Stack_Type& item);
 	//-----------------------------------------------------------------------------
 
 	// ===== STACK STATS =====
 
 	//-----------------------------------------------------------------------------
 	/// Returns the number of elements on the stack
-	inline int size   () const { return m_Storage.size(); }
+	inline int size() const
 	//-----------------------------------------------------------------------------
+	{
+		return m_Storage.size();
+	}
 
 	//-----------------------------------------------------------------------------
 	/// Checks if the stack is empty
-	inline bool empty () const { return m_Storage.empty(); }
+	inline bool empty() const
 	//-----------------------------------------------------------------------------
+	{
+		return m_Storage.empty();
+	}
 
 	//-----------------------------------------------------------------------------
 	/// Clears all elements off of the stack
-	inline void clear ()       { return m_Storage.clear(); }
+	inline void clear()
 	//-----------------------------------------------------------------------------
+	{
+		return m_Storage.clear();
+	}
 
 	// Operators overloads
 	/// Assigns one KStack to Another (old data is destroyed)
@@ -214,36 +234,36 @@ public:
 
 	// Forward Iterators
 	//-----------------------------------------------------------------------------
-	iterator                 begin() { return m_Storage.begin(); }
+	iterator                       begin() { return m_Storage.begin(); }
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	const_iterator          cbegin() { return m_Storage.cbegin(); }
+	const const_iterator          cbegin() { return m_Storage.cbegin(); }
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	iterator                   end() { return m_Storage.end(); }
+	iterator                         end() { return m_Storage.end(); }
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	const_iterator            cend() { return m_Storage.cend(); }
+	const const_iterator            cend() { return m_Storage.cend(); }
 	//-----------------------------------------------------------------------------
 
 	// Reverse Iterators
 	//-----------------------------------------------------------------------------
-	reverse_iterator        rbegin() { return m_Storage.rbegin(); }
+	reverse_iterator              rbegin() { return m_Storage.rbegin(); }
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	const_reverse_iterator crbegin() { return m_Storage.crbegin(); }
+	const const_reverse_iterator crbegin() { return m_Storage.crbegin(); }
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	reverse_iterator          rend() { return m_Storage.rend(); }
+	reverse_iterator                rend() { return m_Storage.rend(); }
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	const_reverse_iterator   crend() { return m_Storage.crend(); }
+	const const_reverse_iterator   crend() { return m_Storage.crend(); }
 	//-----------------------------------------------------------------------------
 
 //----------
@@ -252,12 +272,12 @@ private:
 
 	Storage_Type  m_Storage;
 	Stack_Type m_EmptyValue{}; // for operator[] only
-	static const Stack_Type m_cEmptyValue{};
+	static const Stack_Type s_cEmptyValue{};
 
 };
 
 /// Defines the Templates static const
-template<typename Stack_Type> const Stack_Type KStack<Stack_Type>::m_cEmptyValue;
+template<typename Stack_Type> const Stack_Type KStack<Stack_Type>::s_cEmptyValue;
 
 // ===== STANDARD STACK INTERACTIONS =====
 
@@ -286,7 +306,7 @@ Stack_Type KStack<Stack_Type>::Pop()
 	// Make sure not empty
 	if (m_Storage.empty())
 	{
-		return m_cEmptyValue;
+		return s_cEmptyValue;
 	}
 
 	// If not empty, there is a no throw guarantee
@@ -318,7 +338,7 @@ const Stack_Type& KStack<Stack_Type>::Peek() const
 	// Make sure not empty
 	if (m_Storage.empty())
 	{
-		return m_cEmptyValue;
+		return s_cEmptyValue;
 	}
 	// If not empty, there is a no throw guarantee
 	return m_Storage.front();
@@ -349,7 +369,7 @@ Stack_Type KStack<Stack_Type>::PopBottom()
 	// Make sure not empty
 	if (m_Storage.empty())
 	{
-		return m_cEmptyValue;
+		return s_cEmptyValue;
 	}
 
 	// If not empty, there is a no throw guarantee
@@ -381,7 +401,7 @@ const Stack_Type& KStack<Stack_Type>::PeekBottom() const
 	// Make sure not empty
 	if (m_Storage.empty())
 	{
-		return m_cEmptyValue;
+		return s_cEmptyValue;
 	}
 	// If not empty, there is a no throw guarantee
 	return m_Storage.back();
@@ -392,7 +412,7 @@ const Stack_Type& KStack<Stack_Type>::PeekBottom() const
 
 //-----------------------------------------------------------------------------
 template<class Stack_Type>
-bool KStack<Stack_Type>::GetItem (unsigned int index, Stack_Type& item) const
+bool KStack<Stack_Type>::GetItem (size_t index, Stack_Type& item) const
 //-----------------------------------------------------------------------------
 {
 	// Make sure element exists
@@ -407,13 +427,13 @@ bool KStack<Stack_Type>::GetItem (unsigned int index, Stack_Type& item) const
 
 //-----------------------------------------------------------------------------
 template<class Stack_Type>
-const Stack_Type& KStack<Stack_Type>::GetItem (unsigned int index) const
+const Stack_Type& KStack<Stack_Type>::GetItem (size_t index) const
 //-----------------------------------------------------------------------------
 {
 	// Make sure element exists
 	if (index >= m_Storage.size())
 	{
-		return m_cEmptyValue;
+		return s_cEmptyValue;
 	}
 	// Compiler complains about std::move() if used on next line
 	return m_Storage.at(index);
@@ -421,7 +441,7 @@ const Stack_Type& KStack<Stack_Type>::GetItem (unsigned int index) const
 
 //-----------------------------------------------------------------------------
 template<class Stack_Type>
-bool KStack<Stack_Type>::SetItem (unsigned int index, Stack_Type& item)
+bool KStack<Stack_Type>::SetItem (size_t index, Stack_Type& item)
 //-----------------------------------------------------------------------------
 {
 	// Make sure element exists

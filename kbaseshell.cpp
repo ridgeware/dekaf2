@@ -66,7 +66,7 @@ int KBaseShell::Close()
 		return -1; //attempting to close a pipe that is not open
 	}
 
-	KLog().debug(3, "KPIPE::Close::Done:: Exit Code = %u", m_iExitCode);
+	KLog().debug(3, "KPIPE::Close::Done:: Exit Code = {}", m_iExitCode);
 
 	return (m_iExitCode);
 } // Close

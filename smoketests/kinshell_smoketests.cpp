@@ -49,4 +49,22 @@ TEST_CASE("KInShell")
 		CHECK(pipe.Close() == 0);
 	} // curl test
 
+	SECTION("KInShell Curl Iterator Test")
+	{
+		KInShell   pipe;
+		KString sCurlCMD = "curl -i www.google.com 2> /dev/null";
+		CHECK(pipe.Open(sCurlCMD));
+
+		KString sCurrentLine;
+		KString output;
+
+		for (auto iter = pipe.begin(); iter != pipe.end(); iter++)
+		{
+			output = output + *iter;
+		}
+
+		CHECK_FALSE(output.empty());
+		CHECK(pipe.Close() == 0);
+	} // Curl Iterator Test
+
 } // end test case KPipeReader

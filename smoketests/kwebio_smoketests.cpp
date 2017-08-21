@@ -19,8 +19,6 @@ TEST_CASE("KWebIO")
 	{
 
 		KString url("www.google.com");
-		//KString url("http://www.bikespot.biz");
-		//KWebIO webIO(url);//, true, true);
 		KWebIO webIO(url);
 		CHECK_FALSE(webIO.getEchoHeader());
 		CHECK_FALSE(webIO.getEchoBody());
@@ -48,8 +46,6 @@ TEST_CASE("KWebIO")
 	{
 
 		KString url = "www.google.com";
-		//KString url("http://www.bikespot.biz");
-		//KWebIO webIO(url);//, true, true);
 		KWebIO webIO;
 		const KString& dummyCookie3 = webIO.getResponseCookie("asdfs");
 		CHECK(dummyCookie3 == "");

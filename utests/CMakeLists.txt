@@ -22,6 +22,7 @@ set (USOURCES
     kfile_tests.cpp
     kreader_tests.cpp
     ktcpserver_tests.cpp
+    ksslstream_tests.cpp
 )
 
 add_executable(dekaf2-utests ${UHEADERS} ${USOURCES})

@@ -71,6 +71,7 @@
 
 #include <cinttypes>
 #include <thread>
+#include <boost/asio/ip/tcp.hpp>
 #include "kstream.h"
 #include "kstring.h"
 
@@ -81,17 +82,18 @@ namespace dekaf2
 class KTCPServer
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
-
-	using endpoint_type = asio::ip::tcp::acceptor::endpoint_type;
+	using self_type     = KTCPServer;
+	using endpoint_type = boost::asio::ip::tcp::acceptor::endpoint_type;
 
 //-------
 public:
 //-------
 
 	//-----------------------------------------------------------------------------
-	KTCPServer(uint16_t iPort)
+	KTCPServer(uint16_t iPort, bool bSSL)
 	//-----------------------------------------------------------------------------
 	    : m_iPort(iPort)
+	    , m_bIsSSL(bSSL)
 	{
 	}
 
@@ -100,19 +102,19 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	KTCPServer(const KTCPServer&) = delete;
+	KTCPServer(const self_type&) = delete;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	KTCPServer(KTCPServer&&) = default;
+	KTCPServer(self_type&&) = default;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	KTCPServer& operator=(const KTCPServer&) = delete;
+	self_type& operator=(const self_type&) = delete;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	KTCPServer& operator=(KTCPServer&&) = default;
+	self_type& operator=(self_type&&) = default;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -138,6 +140,10 @@ public:
 		m_bStartIPv4 = true;
 		m_bStartIPv6 = true;
 	}
+
+	//-----------------------------------------------------------------------------
+	bool SetSSLCertificate(KStringView sCert, KStringView sPem);
+	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	bool Start(uint16_t iTimeoutInSeconds = 5 * 60, bool bBlock = true);
@@ -184,14 +190,14 @@ protected:
 	/// virtual hook to override with a completely new session management logic
 	/// (either calling Accept(), CreateParameters(), Init() and Request() below,
 	/// or anything else)
-	virtual void Session(KTCPStream& stream, const endpoint_type& remote_endpoint);
+	virtual void Session(KStream& stream, const endpoint_type& remote_endpoint);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// virtual hook that is called immediately after accepting a new stream.
 	/// Default does nothing. Could be used to set stream parameters. If
 	/// return value is false connection is terminated.
-	virtual bool Accepted(KTCPStream& stream, const endpoint_type& remote_endpoint);
+	virtual bool Accepted(KStream& stream, const endpoint_type& remote_endpoint);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -221,6 +227,17 @@ protected:
 	virtual param_t CreateParameters();
 	//-----------------------------------------------------------------------------
 
+	//-----------------------------------------------------------------------------
+	void ExpiresFromNow(KStream& stream, long iSeconds);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	inline bool IsSSL() const
+	//-----------------------------------------------------------------------------
+	{
+		return m_bIsSSL;
+	}
+
 //-------
 private:
 //-------
@@ -230,18 +247,21 @@ private:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	void RunSession(KTCPStream& stream, const endpoint_type& remote_endpoint);
+	void RunSession(KStream& stream, const endpoint_type& remote_endpoint);
 	//-----------------------------------------------------------------------------
 
 	asio::io_service m_asio;
 	std::unique_ptr<std::thread> m_ipv4_server;
 	std::unique_ptr<std::thread> m_ipv6_server;
+	KString m_sCert;
+	KString m_sPem;
 	uint16_t m_iPort{0};
 	uint16_t m_iTimeout{5*60};
 	bool m_bBlock{true};
 	bool m_bQuit{false};
 	bool m_bStartIPv4{true};
 	bool m_bStartIPv6{true};
+	bool m_bIsSSL{false};
 
 }; // KTCPServer
 

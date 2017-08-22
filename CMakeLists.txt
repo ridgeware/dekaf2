@@ -67,6 +67,8 @@ set (HEADERS
     ktcpserver.h
     khash.h
     kmru.h
+    ksslstream.h
+    ksslclient.h
 )
 
 set (SOURCES
@@ -95,6 +97,7 @@ set (SOURCES
     kstream.cpp
     ktcpserver.cpp
     khash.cpp
+    ksslstream.cpp
 )
 
 if (DEKAF2_INSTALL_HEADERS)
@@ -140,6 +143,7 @@ target_link_libraries(dekaf2
     re2
     "${FSLIB}"
     ${Boost_LIBRARIES}
+    ${OPENSSL_LIBRARIES}
     Threads::Threads
 )
 

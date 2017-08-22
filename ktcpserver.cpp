@@ -72,6 +72,7 @@
 #include <boost/system/system_error.hpp>
 
 #include "ktcpserver.h"
+#include "ksslstream.h"
 #include "klog.h"
 
 namespace dekaf2
@@ -80,7 +81,7 @@ namespace dekaf2
 using asio::ip::tcp;
 
 //-----------------------------------------------------------------------------
-bool KTCPServer::Accepted(KTCPStream& stream, const endpoint_type& remote_endpoint)
+bool KTCPServer::Accepted(KStream& stream, const endpoint_type& remote_endpoint)
 //-----------------------------------------------------------------------------
 {
 	return true;
@@ -101,22 +102,22 @@ KString KTCPServer::Request(const KString& qstr, Parameters& parameters)
 }
 
 //-----------------------------------------------------------------------------
-void KTCPServer::Session(KTCPStream& stream, const endpoint_type& remote_endpoint)
+void KTCPServer::Session(KStream& stream, const endpoint_type& remote_endpoint)
 //-----------------------------------------------------------------------------
 {
 	if (Accepted(stream, remote_endpoint))
 	{
 		param_t parameters = CreateParameters();
 
-		stream.expires_from_now(boost::posix_time::seconds(m_iTimeout));
+		ExpiresFromNow(stream, m_iTimeout);
 		stream << Init(*parameters);
 
 		KString line;
 
-		while (!parameters->terminate && !stream.bad() && !m_bQuit)
+		while (!parameters->terminate && !stream.InStream().bad() && !m_bQuit)
 		{
 
-			stream.expires_from_now(boost::posix_time::seconds(m_iTimeout));
+			ExpiresFromNow(stream, m_iTimeout);
 
 			if (!stream.ReadLine(line))
 			{
@@ -134,7 +135,7 @@ void KTCPServer::Session(KTCPStream& stream, const endpoint_type& remote_endpoin
 }
 
 //-----------------------------------------------------------------------------
-void KTCPServer::RunSession(KTCPStream& stream, const endpoint_type& remote_endpoint)
+void KTCPServer::RunSession(KStream& stream, const endpoint_type& remote_endpoint)
 //-----------------------------------------------------------------------------
 {
 	KLog().debug(3, "KTCPServer: accepting new connection from {} on port {}",
@@ -164,6 +165,22 @@ void KTCPServer::RunSession(KTCPStream& stream, const endpoint_type& remote_endp
 	             to_string(remote_endpoint),
 	             m_iPort);
 
+}
+
+//-----------------------------------------------------------------------------
+void KTCPServer::ExpiresFromNow(KStream& stream, long iSeconds)
+//-----------------------------------------------------------------------------
+{
+	if (IsSSL())
+	{
+		KSSLStream& s = static_cast<KSSLStream&>(stream);
+		// TODO
+	}
+	else
+	{
+		KTCPStream& s = static_cast<KTCPStream&>(stream);
+		s.expires_from_now(boost::posix_time::seconds(iSeconds));
+	}
 }
 
 //-----------------------------------------------------------------------------
@@ -212,10 +229,21 @@ void KTCPServer::Server(bool ipv6)
 		{
 			while (acceptor.is_open() && !m_bQuit)
 			{
-				KTCPStream stream;
-				endpoint_type remote_endpoint;
-				acceptor.accept(*(stream.rdbuf()), remote_endpoint);
-				std::thread(&KTCPServer::RunSession, this, std::ref(stream), std::ref(remote_endpoint)).detach();
+				if (IsSSL())
+				{
+					KSSLStream stream;
+					stream.SetSSLCertificate(m_sCert.c_str(), m_sPem.c_str());
+					endpoint_type remote_endpoint;
+					acceptor.accept(stream.GetTCPSocket(), remote_endpoint);
+					std::thread(&KTCPServer::RunSession, this, std::ref(stream), std::ref(remote_endpoint)).detach();
+				}
+				else
+				{
+					KTCPStream stream;
+					endpoint_type remote_endpoint;
+					acceptor.accept(*(stream.rdbuf()), remote_endpoint);
+					std::thread(&KTCPServer::RunSession, this, std::ref(stream), std::ref(remote_endpoint)).detach();
+				}
 			}
 
 			if (!acceptor.is_open())
@@ -241,6 +269,14 @@ void KTCPServer::Server(bool ipv6)
 }
 
 //-----------------------------------------------------------------------------
+bool KTCPServer::SetSSLCertificate(KStringView sCert, KStringView sPem)
+//-----------------------------------------------------------------------------
+{
+	m_sCert = sCert;
+	m_sPem = sPem;
+}
+
+//-----------------------------------------------------------------------------
 bool KTCPServer::Start(uint16_t iTimeoutInSeconds, bool bBlock)
 //-----------------------------------------------------------------------------
 {
@@ -252,6 +288,16 @@ bool KTCPServer::Start(uint16_t iTimeoutInSeconds, bool bBlock)
 	m_iTimeout = iTimeoutInSeconds;
 	m_bBlock = bBlock;
 	m_bQuit = false;
+
+	if (IsSSL())
+	{
+		if (m_sCert.empty() || m_sPem.empty())
+		{
+			KLog().warning("KTCPServer::start(): cannot start SSL server on port {}, have no certificates", m_iPort);
+			return false;
+		}
+	}
+
 	if (m_bBlock)
 	{
 		Server(m_bStartIPv6);

@@ -39,15 +39,18 @@
 // |\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/ |
 // +-------------------------------------------------------------------------+
 */
+
 #pragma once
 
 #include "kstring.h"
+#include "kfdreader.h"
 
 namespace dekaf2
+
 {
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class KBaseShell
+class KInPipe : public KFPReader
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -57,49 +60,42 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Default Constructor
-	KBaseShell ()
+	KInPipe();
 	//-----------------------------------------------------------------------------
-	{}
+
+	//-----------------------------------------------------------------------------
+	/// Open Constructor
+	KInPipe(const KString& sCommand);
+	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// Default Virtual Destructor
-	virtual ~KBaseShell ();
+	virtual ~KInPipe();
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// Executes given command via a shell pipe saving FILE* pipe in class member
-	virtual bool Open (const KString& sCommand) = 0;
+	/// Opens A ReadPipe
+	virtual bool Open(const KString& sCommand);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// Closes pipe saving exit code.
-	virtual int  Close();
+	/// Closes A ReadPipe
+	virtual bool Close();
 	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// Get error code, 0 indicates no errors
-	int GetErrno()
-	//-----------------------------------------------------------------------------
-	{
-		return m_iExitCode;
-	}
-
-	//-----------------------------------------------------------------------------
-	/// Allows KPipeReader to be passed where File* can be.
-	operator FILE*()
-	//-----------------------------------------------------------------------------
-	{
-		return m_pipe;
-	}
 
 //--------
 protected:
 //--------
 
-	FILE*        m_pipe{nullptr};
-	int          m_iExitCode{0};
+	bool OpenReadPipe(const KString& sCommand);
 
+	FILE* m_readPipe{nullptr};
+	pid_t m_readPid{-2};
+	int   m_iReadExitCode{0};
+	int   m_readPdes[2]{-2,-2};
+	int   m_iReadChildStatus{-2};
+	bool  m_bReadChildStatusValid{false};
 
-}; // class KPIPE
+};
 
-} // end of namespace DEKAF2
+} // end namespace dekaf2

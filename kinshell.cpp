@@ -51,8 +51,6 @@ bool KInShell::Open(const KString& sCommand)
 	{
 		KLog().debug(3, "KPIPE::Open(): POPEN: ok...");
 		KFPReader::open(m_pipe);
-		// TODO MOVE TO CONSTRUCTOR
-		//SetReaderTrim("");
 		return KFPReader::good();
 	}
 

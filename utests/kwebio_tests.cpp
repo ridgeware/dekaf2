@@ -11,6 +11,9 @@ using namespace dekaf2;
 #include <functional>
 #include <iterator>
 
+
+// Optional debug printing. Turn this on if tests fail.
+// This will print the headers giving an idea how they were parsed.
 #define kwebdebug 0
 
 TEST_CASE("KWebIO")
@@ -205,7 +208,6 @@ TEST_CASE("KWebIO")
 		CHECK(pBadCookie == "");
 		//CHECK(pBadCookie.empty());
 #if kwebdebug
-		//#if 1
 		KCurl::KHeader allCookies = webIO.getResponseCookies();
 		std::cout << "    == Cookies ==" << std::endl;
 		for (const auto& iter : allCookies)
@@ -288,10 +290,6 @@ TEST_CASE("KWebIO")
 		webIO.addToResponseHeader(sHeaderPart8);
 		webIO.addToResponseHeader(sHeaderPart9);
 
-		// print response header for debugging:
-		//for (auto header : webIO.getResponseHeaders().begin())
-		//auto iter = webIO.getResponseHeaders().begin();
-		//for (auto iter = webIO.getResponseHeaders().begin(); iter == webIO.getResponseBody().end(); iter = iter)
 		KCurl::KHeader  sResponseHeaders = webIO.getResponseHeaders();
 		CHECK_FALSE(sResponseHeaders.empty());
 		CHECK(sResponseHeaders.size() == 6);
@@ -338,10 +336,6 @@ TEST_CASE("KWebIO")
 		webIO.addToResponseHeader(sHeaderPart8);
 		webIO.addToResponseHeader(sHeaderPart9);
 
-		// print response header for debugging:
-		//for (auto header : webIO.getResponseHeaders().begin())
-		//auto iter = webIO.getResponseHeaders().begin();
-		//for (auto iter = webIO.getResponseHeaders().begin(); iter == webIO.getResponseBody().end(); iter = iter)
 		KCurl::KHeader  sResponseHeaders = webIO.getResponseHeaders();
 		CHECK_FALSE(sResponseHeaders.empty());
 		CHECK(sResponseHeaders.size() == 6);
@@ -390,10 +384,6 @@ TEST_CASE("KWebIO")
 		webIO.addToResponseHeader(sHeaderPart9);
 		webIO.addToResponseHeader(sHeaderPart10);
 
-		// print response header for debugging:
-		//for (auto header : webIO.getResponseHeaders().begin())
-		//auto iter = webIO.getResponseHeaders().begin();
-		//for (auto iter = webIO.getResponseHeaders().begin(); iter == webIO.getResponseBody().end(); iter = iter)
 		KCurl::KHeader  sResponseHeaders = webIO.getResponseHeaders();
 		CHECK_FALSE(sResponseHeaders.empty());
 		CHECK(sResponseHeaders.size() == 6);
@@ -442,10 +432,6 @@ TEST_CASE("KWebIO")
 		webIO.addToResponseHeader(sHeaderPart9);
 		webIO.addToResponseHeader(sHeaderPart10);
 
-		// print response header for debugging:
-		//for (auto header : webIO.getResponseHeaders().begin())
-		//auto iter = webIO.getResponseHeaders().begin();
-		//for (auto iter = webIO.getResponseHeaders().begin(); iter == webIO.getResponseBody().end(); iter = iter)
 		KCurl::KHeader  sResponseHeaders = webIO.getResponseHeaders();
 		CHECK_FALSE(sResponseHeaders.empty());
 		CHECK(sResponseHeaders.size() == 6);
@@ -460,7 +446,6 @@ TEST_CASE("KWebIO")
 		CHECK(sResponseHeaders.Count("forwarded") == 1);
 		CHECK(sResponseHeaders.Count("x-forwarded-for") == 1);
 #if kwebdebug
-		//#if 1
 		// Verifying how header was parsed by printing
 		std::cout << "    == Windows Parse Test Header ==" << std::endl;
 		webIO.printResponseHeader();
@@ -500,10 +485,6 @@ TEST_CASE("KWebIO")
 		webIO.addToResponseHeader(sHeaderPart9);
 		webIO.addToResponseHeader(sHeaderPart10);
 
-		// print response header for debugging:
-		//for (auto header : webIO.getResponseHeaders().begin())
-		//auto iter = webIO.getResponseHeaders().begin();
-		//for (auto iter = webIO.getResponseHeaders().begin(); iter == webIO.getResponseBody().end(); iter = iter)
 		KCurl::KHeader  sResponseHeaders = webIO.getResponseHeaders();
 		CHECK_FALSE(sResponseHeaders.empty());
 		CHECK(sResponseHeaders.size() == 6);
@@ -555,10 +536,6 @@ TEST_CASE("KWebIO")
 		webIO.addToResponseHeader(sHeaderPart9);
 		webIO.addToResponseHeader(sHeaderPart10);
 
-		// print response header for debugging:
-		//for (auto header : webIO.getResponseHeaders().begin())
-		//auto iter = webIO.getResponseHeaders().begin();
-		//for (auto iter = webIO.getResponseHeaders().begin(); iter == webIO.getResponseBody().end(); iter = iter)
 		KCurl::KHeader  sResponseHeaders = webIO.getResponseHeaders();
 		CHECK_FALSE(sResponseHeaders.empty());
 		CHECK(sResponseHeaders.size() == 6);
@@ -612,10 +589,6 @@ TEST_CASE("KWebIO")
 		webIO.addToResponseHeader(sHeaderPart9);
 		webIO.addToResponseHeader(sHeaderPart10);
 
-		// print response header for debugging:
-		//for (auto header : webIO.getResponseHeaders().begin())
-		//auto iter = webIO.getResponseHeaders().begin();
-		//for (auto iter = webIO.getResponseHeaders().begin(); iter == webIO.getResponseBody().end(); iter = iter)
 		KCurl::KHeader  sResponseHeaders = webIO.getResponseHeaders();
 		CHECK_FALSE(sResponseHeaders.empty());
 		CHECK(sResponseHeaders.size() == 6);
@@ -669,10 +642,6 @@ TEST_CASE("KWebIO")
 		webIO.addToResponseHeader(sHeaderPart9);
 		webIO.addToResponseHeader(sHeaderPart10);
 
-		// print response header for debugging:
-		//for (auto header : webIO.getResponseHeaders().begin())
-		//auto iter = webIO.getResponseHeaders().begin();
-		//for (auto iter = webIO.getResponseHeaders().begin(); iter == webIO.getResponseBody().end(); iter = iter)
 		KCurl::KHeader  sResponseHeaders = webIO.getResponseHeaders();
 		CHECK_FALSE(sResponseHeaders.empty());
 		CHECK(sResponseHeaders.size() == 6);
@@ -726,10 +695,6 @@ TEST_CASE("KWebIO")
 		webIO.addToResponseHeader(sHeaderPart9);
 		webIO.addToResponseHeader(sHeaderPart10);
 
-		// print response header for debugging:
-		//for (auto header : webIO.getResponseHeaders().begin())
-		//auto iter = webIO.getResponseHeaders().begin();
-		//for (auto iter = webIO.getResponseHeaders().begin(); iter == webIO.getResponseBody().end(); iter = iter)
 		KCurl::KHeader  sResponseHeaders = webIO.getResponseHeaders();
 		CHECK_FALSE(sResponseHeaders.empty());
 		CHECK(sResponseHeaders.size() == 6);
@@ -744,7 +709,6 @@ TEST_CASE("KWebIO")
 		CHECK(sResponseHeaders.Count("forwarded") == 1);
 		CHECK(sResponseHeaders.Count("x-forwarded-for") == 1);
 #if kwebdebug
-		//#if 1
 		// Verifying how header was parsed by printing
 		std::cout << "    == Continuation Line Test (windows  newlines) ==" << std::endl;
 		webIO.printResponseHeader();
@@ -783,10 +747,6 @@ TEST_CASE("KWebIO")
 		webIO.addToResponseHeader(sHeaderPart9);
 		webIO.addToResponseHeader(sHeaderPart10);
 
-		// print response header for debugging:
-		//for (auto header : webIO.getResponseHeaders().begin())
-		//auto iter = webIO.getResponseHeaders().begin();
-		//for (auto iter = webIO.getResponseHeaders().begin(); iter == webIO.getResponseBody().end(); iter = iter)
 		KCurl::KHeader  sResponseHeaders = webIO.getResponseHeaders();
 		CHECK_FALSE(sResponseHeaders.empty());
 		CHECK(sResponseHeaders.size() == 6);
@@ -802,7 +762,6 @@ TEST_CASE("KWebIO")
 		CHECK(sResponseHeaders.Count("forwarded") == 1);
 		CHECK(sResponseHeaders.Count("x-forwarded-for") == 1);
 #if kwebdebug
-		//#if 1
 		// Verifying how header was parsed by printing
 		std::cout << "    == Invalid Cookie Line Test (windows  newlines) ==" << std::endl;
 		webIO.printResponseHeader();
@@ -841,10 +800,6 @@ TEST_CASE("KWebIO")
 		webIO.addToResponseHeader(sHeaderPart9);
 		webIO.addToResponseHeader(sHeaderPart10);
 
-		// print response header for debugging:
-		//for (auto header : webIO.getResponseHeaders().begin())
-		//auto iter = webIO.getResponseHeaders().begin();
-		//for (auto iter = webIO.getResponseHeaders().begin(); iter == webIO.getResponseBody().end(); iter = iter)
 		KCurl::KHeader  sResponseHeaders = webIO.getResponseHeaders();
 		CHECK_FALSE(sResponseHeaders.empty());
 		CHECK(sResponseHeaders.size() == 6);
@@ -860,7 +815,6 @@ TEST_CASE("KWebIO")
 		CHECK(sResponseHeaders.Count("forwarded") == 1);
 		CHECK(sResponseHeaders.Count("x-forwarded-for") == 1);
 #if kwebdebug
-		//#if 1
 		// Verifying how header was parsed by printing
 		std::cout << "    == Invalid Cookie Line Test 2 (windows  newlines) ==" << std::endl;
 		webIO.printResponseHeader();
@@ -899,10 +853,6 @@ TEST_CASE("KWebIO")
 		webIO.addToResponseHeader(sHeaderPart9);
 		webIO.addToResponseHeader(sHeaderPart10);
 
-		// print response header for debugging:
-		//for (auto header : webIO.getResponseHeaders().begin())
-		//auto iter = webIO.getResponseHeaders().begin();
-		//for (auto iter = webIO.getResponseHeaders().begin(); iter == webIO.getResponseBody().end(); iter = iter)
 		KCurl::KHeader  sResponseHeaders = webIO.getResponseHeaders();
 		CHECK_FALSE(sResponseHeaders.empty());
 		CHECK(sResponseHeaders.size() == 6);
@@ -918,7 +868,6 @@ TEST_CASE("KWebIO")
 		CHECK(sResponseHeaders.Count("forwarded") == 1);
 		CHECK(sResponseHeaders.Count("x-forwarded-for") == 1);
 #if kwebdebug
-		//#if 1
 		// Verifying how header was parsed by printing
 		std::cout << "    == Invalid Cookie Line Test 3 (windows  newlines) ==" << std::endl;
 		webIO.printResponseHeader();
@@ -957,10 +906,6 @@ TEST_CASE("KWebIO")
 		webIO.addToResponseHeader(sHeaderPart9);
 		webIO.addToResponseHeader(sHeaderPart10);
 
-		// print response header for debugging:
-		//for (auto header : webIO.getResponseHeaders().begin())
-		//auto iter = webIO.getResponseHeaders().begin();
-		//for (auto iter = webIO.getResponseHeaders().begin(); iter == webIO.getResponseBody().end(); iter = iter)
 		KCurl::KHeader  sResponseHeaders = webIO.getResponseHeaders();
 		CHECK_FALSE(sResponseHeaders.empty());
 		CHECK(sResponseHeaders.size() == 6);
@@ -1015,10 +960,6 @@ TEST_CASE("KWebIO")
 		webIO.addToResponseHeader(sHeaderPart9);
 		webIO.addToResponseHeader(sHeaderPart10);
 
-		// print response header for debugging:
-		//for (auto header : webIO.getResponseHeaders().begin())
-		//auto iter = webIO.getResponseHeaders().begin();
-		//for (auto iter = webIO.getResponseHeaders().begin(); iter == webIO.getResponseBody().end(); iter = iter)
 		KCurl::KHeader  sResponseHeaders = webIO.getResponseHeaders();
 		CHECK_FALSE(sResponseHeaders.empty());
 		CHECK(sResponseHeaders.size() == 6);
@@ -1073,10 +1014,6 @@ TEST_CASE("KWebIO")
 		webIO.addToResponseHeader(sHeaderPart9);
 		webIO.addToResponseHeader(sHeaderPart10);
 
-		// print response header for debugging:
-		//for (auto header : webIO.getResponseHeaders().begin())
-		//auto iter = webIO.getResponseHeaders().begin();
-		//for (auto iter = webIO.getResponseHeaders().begin(); iter == webIO.getResponseBody().end(); iter = iter)
 		KCurl::KHeader  sResponseHeaders = webIO.getResponseHeaders();
 		CHECK_FALSE(sResponseHeaders.empty());
 		CHECK(sResponseHeaders.size() == 6);
@@ -1092,7 +1029,6 @@ TEST_CASE("KWebIO")
 		CHECK(sResponseHeaders.Count("forwarded") == 1);
 		CHECK(sResponseHeaders.Count("x-forwarded-for") == 1);
 #if kwebdebug
-		//#if 1
 		// Verifying how header was parsed by printing
 		std::cout << "    == Invalid Cookie Line Test 6 (windows  newlines) ==" << std::endl;
 		webIO.printResponseHeader();
@@ -1131,10 +1067,6 @@ TEST_CASE("KWebIO")
 		webIO.addToResponseHeader(sHeaderPart9);
 		webIO.addToResponseHeader(sHeaderPart10);
 
-		// print response header for debugging:
-		//for (auto header : webIO.getResponseHeaders().begin())
-		//auto iter = webIO.getResponseHeaders().begin();
-		//for (auto iter = webIO.getResponseHeaders().begin(); iter == webIO.getResponseBody().end(); iter = iter)
 		KCurl::KHeader  sResponseHeaders = webIO.getResponseHeaders();
 		CHECK_FALSE(sResponseHeaders.empty());
 		CHECK(sResponseHeaders.size() == 6);
@@ -1150,7 +1082,6 @@ TEST_CASE("KWebIO")
 		CHECK(sResponseHeaders.Count("forwarded") == 1);
 		CHECK(sResponseHeaders.Count("x-forwarded-for") == 1);
 #if kwebdebug
-//#if 1
 		// Verifying how header was parsed by printing
 		std::cout << "    == Invalid Cookie Line Test 7 (windows  newlines) ==" << std::endl;
 		webIO.printResponseHeader();
@@ -1189,10 +1120,6 @@ TEST_CASE("KWebIO")
 		webIO.addToResponseHeader(sHeaderPart9);
 		webIO.addToResponseHeader(sHeaderPart10);
 
-		// print response header for debugging:
-		//for (auto header : webIO.getResponseHeaders().begin())
-		//auto iter = webIO.getResponseHeaders().begin();
-		//for (auto iter = webIO.getResponseHeaders().begin(); iter == webIO.getResponseBody().end(); iter = iter)
 		KCurl::KHeader  sResponseHeaders = webIO.getResponseHeaders();
 		CHECK_FALSE(sResponseHeaders.empty());
 		CHECK(sResponseHeaders.size() == 6);
@@ -1208,7 +1135,6 @@ TEST_CASE("KWebIO")
 		CHECK(sResponseHeaders.Count("forwarded") == 1);
 		CHECK(sResponseHeaders.Count("x-forwarded-for") == 1);
 #if kwebdebug
-//#if 1
 		// Verifying how header was parsed by printing
 		std::cout << "    == Invalid Cookie Line Test 8 (windows  newlines) ==" << std::endl;
 		webIO.printResponseHeader();
@@ -1247,10 +1173,6 @@ TEST_CASE("KWebIO")
 		webIO.addToResponseHeader(sHeaderPart9);
 		webIO.addToResponseHeader(sHeaderPart10);
 
-		// print response header for debugging:
-		//for (auto header : webIO.getResponseHeaders().begin())
-		//auto iter = webIO.getResponseHeaders().begin();
-		//for (auto iter = webIO.getResponseHeaders().begin(); iter == webIO.getResponseBody().end(); iter = iter)
 		KCurl::KHeader  sResponseHeaders = webIO.getResponseHeaders();
 		CHECK_FALSE(sResponseHeaders.empty());
 		CHECK(sResponseHeaders.size() == 6);
@@ -1266,7 +1188,6 @@ TEST_CASE("KWebIO")
 		CHECK(sResponseHeaders.Count("forwarded") == 1);
 		CHECK(sResponseHeaders.Count("x-forwarded-for") == 1);
 #if kwebdebug
-		//#if 1
 		// Verifying how header was parsed by printing
 		std::cout << "    == Invalid Cookie Line Test (unix  newlines) ==" << std::endl;
 		webIO.printResponseHeader();
@@ -1305,10 +1226,6 @@ TEST_CASE("KWebIO")
 		webIO.addToResponseHeader(sHeaderPart9);
 		webIO.addToResponseHeader(sHeaderPart10);
 
-		// print response header for debugging:
-		//for (auto header : webIO.getResponseHeaders().begin())
-		//auto iter = webIO.getResponseHeaders().begin();
-		//for (auto iter = webIO.getResponseHeaders().begin(); iter == webIO.getResponseBody().end(); iter = iter)
 		KCurl::KHeader  sResponseHeaders = webIO.getResponseHeaders();
 		CHECK_FALSE(sResponseHeaders.empty());
 		CHECK(sResponseHeaders.size() == 6);
@@ -1324,7 +1241,6 @@ TEST_CASE("KWebIO")
 		CHECK(sResponseHeaders.Count("forwarded") == 1);
 		CHECK(sResponseHeaders.Count("x-forwarded-for") == 1);
 #if kwebdebug
-		//#if 1
 		// Verifying how header was parsed by printing
 		std::cout << "    == Invalid Cookie Line Test 2 (unix  newlines) ==" << std::endl;
 		webIO.printResponseHeader();
@@ -1363,10 +1279,6 @@ TEST_CASE("KWebIO")
 		webIO.addToResponseHeader(sHeaderPart9);
 		webIO.addToResponseHeader(sHeaderPart10);
 
-		// print response header for debugging:
-		//for (auto header : webIO.getResponseHeaders().begin())
-		//auto iter = webIO.getResponseHeaders().begin();
-		//for (auto iter = webIO.getResponseHeaders().begin(); iter == webIO.getResponseBody().end(); iter = iter)
 		KCurl::KHeader  sResponseHeaders = webIO.getResponseHeaders();
 		CHECK_FALSE(sResponseHeaders.empty());
 		CHECK(sResponseHeaders.size() == 6);
@@ -1382,7 +1294,6 @@ TEST_CASE("KWebIO")
 		CHECK(sResponseHeaders.Count("forwarded") == 1);
 		CHECK(sResponseHeaders.Count("x-forwarded-for") == 1);
 #if kwebdebug
-		//#if 1
 		// Verifying how header was parsed by printing
 		std::cout << "    == Invalid Cookie Line Test 3 (unix  newlines) ==" << std::endl;
 		webIO.printResponseHeader();
@@ -1421,10 +1332,6 @@ TEST_CASE("KWebIO")
 		webIO.addToResponseHeader(sHeaderPart9);
 		webIO.addToResponseHeader(sHeaderPart10);
 
-		// print response header for debugging:
-		//for (auto header : webIO.getResponseHeaders().begin())
-		//auto iter = webIO.getResponseHeaders().begin();
-		//for (auto iter = webIO.getResponseHeaders().begin(); iter == webIO.getResponseBody().end(); iter = iter)
 		KCurl::KHeader  sResponseHeaders = webIO.getResponseHeaders();
 		CHECK_FALSE(sResponseHeaders.empty());
 		CHECK(sResponseHeaders.size() == 6);
@@ -1440,7 +1347,6 @@ TEST_CASE("KWebIO")
 		CHECK(sResponseHeaders.Count("forwarded") == 1);
 		CHECK(sResponseHeaders.Count("x-forwarded-for") == 1);
 #if kwebdebug
-		//#if 1
 		// Verifying how header was parsed by printing
 		std::cout << "    == Invalid Cookie Line Test 4 (unix  newlines) ==" << std::endl;
 		webIO.printResponseHeader();
@@ -1479,10 +1385,6 @@ TEST_CASE("KWebIO")
 		webIO.addToResponseHeader(sHeaderPart9);
 		webIO.addToResponseHeader(sHeaderPart10);
 
-		// print response header for debugging:
-		//for (auto header : webIO.getResponseHeaders().begin())
-		//auto iter = webIO.getResponseHeaders().begin();
-		//for (auto iter = webIO.getResponseHeaders().begin(); iter == webIO.getResponseBody().end(); iter = iter)
 		KCurl::KHeader  sResponseHeaders = webIO.getResponseHeaders();
 		CHECK_FALSE(sResponseHeaders.empty());
 		CHECK(sResponseHeaders.size() == 6);
@@ -1498,7 +1400,6 @@ TEST_CASE("KWebIO")
 		CHECK(sResponseHeaders.Count("forwarded") == 1);
 		CHECK(sResponseHeaders.Count("x-forwarded-for") == 1);
 #if kwebdebug
-		//#if 1
 		// Verifying how header was parsed by printing
 		std::cout << "    == Invalid Cookie Line Test 5 (unix  newlines) ==" << std::endl;
 		webIO.printResponseHeader();
@@ -1537,10 +1438,6 @@ TEST_CASE("KWebIO")
 		webIO.addToResponseHeader(sHeaderPart9);
 		webIO.addToResponseHeader(sHeaderPart10);
 
-		// print response header for debugging:
-		//for (auto header : webIO.getResponseHeaders().begin())
-		//auto iter = webIO.getResponseHeaders().begin();
-		//for (auto iter = webIO.getResponseHeaders().begin(); iter == webIO.getResponseBody().end(); iter = iter)
 		KCurl::KHeader  sResponseHeaders = webIO.getResponseHeaders();
 		CHECK_FALSE(sResponseHeaders.empty());
 		CHECK(sResponseHeaders.size() == 6);
@@ -1556,7 +1453,6 @@ TEST_CASE("KWebIO")
 		CHECK(sResponseHeaders.Count("forwarded") == 1);
 		CHECK(sResponseHeaders.Count("x-forwarded-for") == 1);
 #if kwebdebug
-		//#if 1
 		// Verifying how header was parsed by printing
 		std::cout << "    == Invalid Cookie Line Test 6 (unix  newlines) ==" << std::endl;
 		webIO.printResponseHeader();
@@ -1595,10 +1491,6 @@ TEST_CASE("KWebIO")
 		webIO.addToResponseHeader(sHeaderPart9);
 		webIO.addToResponseHeader(sHeaderPart10);
 
-		// print response header for debugging:
-		//for (auto header : webIO.getResponseHeaders().begin())
-		//auto iter = webIO.getResponseHeaders().begin();
-		//for (auto iter = webIO.getResponseHeaders().begin(); iter == webIO.getResponseBody().end(); iter = iter)
 		KCurl::KHeader  sResponseHeaders = webIO.getResponseHeaders();
 		CHECK_FALSE(sResponseHeaders.empty());
 		CHECK(sResponseHeaders.size() == 6);
@@ -1614,7 +1506,6 @@ TEST_CASE("KWebIO")
 		CHECK(sResponseHeaders.Count("forwarded") == 1);
 		CHECK(sResponseHeaders.Count("x-forwarded-for") == 1);
 #if kwebdebug
-//#if 1
 		// Verifying how header was parsed by printing
 		std::cout << "    == Invalid Cookie Line Test 7 (unix  newlines) ==" << std::endl;
 		webIO.printResponseHeader();
@@ -1653,10 +1544,6 @@ TEST_CASE("KWebIO")
 		webIO.addToResponseHeader(sHeaderPart9);
 		webIO.addToResponseHeader(sHeaderPart10);
 
-		// print response header for debugging:
-		//for (auto header : webIO.getResponseHeaders().begin())
-		//auto iter = webIO.getResponseHeaders().begin();
-		//for (auto iter = webIO.getResponseHeaders().begin(); iter == webIO.getResponseBody().end(); iter = iter)
 		KCurl::KHeader  sResponseHeaders = webIO.getResponseHeaders();
 		CHECK_FALSE(sResponseHeaders.empty());
 		CHECK(sResponseHeaders.size() == 6);
@@ -1672,7 +1559,6 @@ TEST_CASE("KWebIO")
 		CHECK(sResponseHeaders.Count("forwarded") == 1);
 		CHECK(sResponseHeaders.Count("x-forwarded-for") == 1);
 #if kwebdebug
-//#if 1
 		// Verifying how header was parsed by printing
 		std::cout << "    == Invalid Cookie Line Test 8 (unix  newlines) ==" << std::endl;
 		webIO.printResponseHeader();
@@ -1711,10 +1597,6 @@ TEST_CASE("KWebIO")
 		webIO.addToResponseHeader(sHeaderPart9);
 		webIO.addToResponseHeader(sHeaderPart10);
 
-		// print response header for debugging:
-		//for (auto header : webIO.getResponseHeaders().begin())
-		//auto iter = webIO.getResponseHeaders().begin();
-		//for (auto iter = webIO.getResponseHeaders().begin(); iter == webIO.getResponseBody().end(); iter = iter)
 		KCurl::KHeader  sResponseHeaders = webIO.getResponseHeaders();
 		CHECK_FALSE(sResponseHeaders.empty());
 		CHECK(sResponseHeaders.size() == 7);
@@ -1731,7 +1613,6 @@ TEST_CASE("KWebIO")
 		CHECK(sResponseHeaders.Count("forwarded") == 1);
 		CHECK(sResponseHeaders.Count("x-forwarded-for") == 1);
 #if kwebdebug
-		//#if 1
 		// Verifying how header was parsed by printing
 		std::cout << "    == Invalid Header Line Test (windows  newlines) ==" << std::endl;
 		webIO.printResponseHeader();
@@ -1770,10 +1651,6 @@ TEST_CASE("KWebIO")
 		webIO.addToResponseHeader(sHeaderPart9);
 		webIO.addToResponseHeader(sHeaderPart10);
 
-		// print response header for debugging:
-		//for (auto header : webIO.getResponseHeaders().begin())
-		//auto iter = webIO.getResponseHeaders().begin();
-		//for (auto iter = webIO.getResponseHeaders().begin(); iter == webIO.getResponseBody().end(); iter = iter)
 		KCurl::KHeader  sResponseHeaders = webIO.getResponseHeaders();
 		CHECK_FALSE(sResponseHeaders.empty());
 		CHECK(sResponseHeaders.size() == 7);
@@ -1790,7 +1667,6 @@ TEST_CASE("KWebIO")
 		CHECK(sResponseHeaders.Count("forwarded") == 1);
 		CHECK(sResponseHeaders.Count("x-forwarded-for") == 1);
 #if kwebdebug
-		//#if 1
 		// Verifying how header was parsed by printing
 		std::cout << "    == Invalid Header Line Test (unix  newlines) ==" << std::endl;
 		webIO.printResponseHeader();
@@ -1829,10 +1705,6 @@ TEST_CASE("KWebIO")
 		webIO.addToResponseHeader(sHeaderPart9);
 		//webIO.addToResponseHeader(sHeaderPart10);
 
-		// print response header for debugging:
-		//for (auto header : webIO.getResponseHeaders().begin())
-		//auto iter = webIO.getResponseHeaders().begin();
-		//for (auto iter = webIO.getResponseHeaders().begin(); iter == webIO.getResponseBody().end(); iter = iter)
 		KCurl::KHeader  sResponseHeaders = webIO.getResponseHeaders();
 		CHECK_FALSE(sResponseHeaders.empty());
 		CHECK(sResponseHeaders.size() == 7);
@@ -1849,7 +1721,6 @@ TEST_CASE("KWebIO")
 		CHECK(sResponseHeaders.Count("forwarded") == 1);
 		CHECK(sResponseHeaders.Count("x-forwarded-for") == 1);
 #if kwebdebug
-		//#if 1
 		// Verifying how header was parsed by printing
 		std::cout << "    == Valid Last Header Line Test (windows  newlines) ==" << std::endl;
 		webIO.printResponseHeader();
@@ -1888,10 +1759,6 @@ TEST_CASE("KWebIO")
 		webIO.addToResponseHeader(sHeaderPart9);
 		//webIO.addToResponseHeader(sHeaderPart10);
 
-		// print response header for debugging:
-		//for (auto header : webIO.getResponseHeaders().begin())
-		//auto iter = webIO.getResponseHeaders().begin();
-		//for (auto iter = webIO.getResponseHeaders().begin(); iter == webIO.getResponseBody().end(); iter = iter)
 		KCurl::KHeader  sResponseHeaders = webIO.getResponseHeaders();
 		CHECK_FALSE(sResponseHeaders.empty());
 		CHECK(sResponseHeaders.size() == 7);
@@ -1908,7 +1775,6 @@ TEST_CASE("KWebIO")
 		CHECK(sResponseHeaders.Count("forwarded") == 1);
 		CHECK(sResponseHeaders.Count("x-forwarded-for") == 1);
 #if kwebdebug
-		//#if 1
 		// Verifying how header was parsed by printing
 		std::cout << "    == Invalid Last Header Line Test (unix  newlines) ==" << std::endl;
 		webIO.printResponseHeader();
@@ -1947,10 +1813,6 @@ TEST_CASE("KWebIO")
 		webIO.addToResponseHeader(sHeaderPart9);
 		webIO.addToResponseHeader(sHeaderPart10);
 
-		// print response header for debugging:
-		//for (auto header : webIO.getResponseHeaders().begin())
-		//auto iter = webIO.getResponseHeaders().begin();
-		//for (auto iter = webIO.getResponseHeaders().begin(); iter == webIO.getResponseBody().end(); iter = iter)
 		KCurl::KHeader  sResponseHeaders = webIO.getResponseHeaders();
 		CHECK_FALSE(sResponseHeaders.empty());
 		CHECK(sResponseHeaders.size() == 7);
@@ -1967,7 +1829,6 @@ TEST_CASE("KWebIO")
 		CHECK(sResponseHeaders.Count("forwarded") == 1);
 		CHECK(sResponseHeaders.Count("x-forwarded-for") == 1);
 #if kwebdebug
-		//#if 1
 		// Verifying how header was parsed by printing
 		std::cout << "    == Invalid Last Header Line Test (windows  newlines) ==" << std::endl;
 		webIO.printResponseHeader();
@@ -2006,10 +1867,6 @@ TEST_CASE("KWebIO")
 		webIO.addToResponseHeader(sHeaderPart9);
 		webIO.addToResponseHeader(sHeaderPart10);
 
-		// print response header for debugging:
-		//for (auto header : webIO.getResponseHeaders().begin())
-		//auto iter = webIO.getResponseHeaders().begin();
-		//for (auto iter = webIO.getResponseHeaders().begin(); iter == webIO.getResponseBody().end(); iter = iter)
 		KCurl::KHeader  sResponseHeaders = webIO.getResponseHeaders();
 		CHECK_FALSE(sResponseHeaders.empty());
 		CHECK(sResponseHeaders.size() == 7);
@@ -2026,7 +1883,6 @@ TEST_CASE("KWebIO")
 		CHECK(sResponseHeaders.Count("forwarded") == 1);
 		CHECK(sResponseHeaders.Count("x-forwarded-for") == 1);
 #if kwebdebug
-		//#if 1
 		// Verifying how header was parsed by printing
 		std::cout << "    == Invalid Last Header Line Test (unix  newlines) ==" << std::endl;
 		webIO.printResponseHeader();
@@ -2065,10 +1921,6 @@ TEST_CASE("KWebIO")
 		webIO.addToResponseHeader(sHeaderPart9);
 		webIO.addToResponseHeader(sHeaderPart10);
 
-		// print response header for debugging:
-		//for (auto header : webIO.getResponseHeaders().begin())
-		//auto iter = webIO.getResponseHeaders().begin();
-		//for (auto iter = webIO.getResponseHeaders().begin(); iter == webIO.getResponseBody().end(); iter = iter)
 		KCurl::KHeader  sResponseHeaders = webIO.getResponseHeaders();
 		CHECK_FALSE(sResponseHeaders.empty());
 		CHECK(sResponseHeaders.size() == 8);
@@ -2084,7 +1936,6 @@ TEST_CASE("KWebIO")
 		CHECK(sResponseHeaders.Count("forwarded") == 1);
 		CHECK(sResponseHeaders.Count("x-forwarded-for") == 1);
 #if kwebdebug
-		//#if 1
 		// Verifying how header was parsed by printing
 		std::cout << "    == Multiple Cookie Line Test (windows  newlines) ==" << std::endl;
 		webIO.printResponseHeader();
@@ -2123,10 +1974,6 @@ TEST_CASE("KWebIO")
 		webIO.addToResponseHeader(sHeaderPart9);
 		webIO.addToResponseHeader(sHeaderPart10);
 
-		// print response header for debugging:
-		//for (auto header : webIO.getResponseHeaders().begin())
-		//auto iter = webIO.getResponseHeaders().begin();
-		//for (auto iter = webIO.getResponseHeaders().begin(); iter == webIO.getResponseBody().end(); iter = iter)
 		KCurl::KHeader  sResponseHeaders = webIO.getResponseHeaders();
 		CHECK_FALSE(sResponseHeaders.empty());
 		CHECK(sResponseHeaders.size() == 8);
@@ -2142,7 +1989,6 @@ TEST_CASE("KWebIO")
 		CHECK(sResponseHeaders.Count("forwarded") == 1);
 		CHECK(sResponseHeaders.Count("x-forwarded-for") == 1);
 #if kwebdebug
-		//#if 1
 		// Verifying how header was parsed by printing
 		std::cout << "    == Multiple Cookie Line Test (unix  newlines) ==" << std::endl;
 		webIO.printResponseHeader();
@@ -2181,10 +2027,6 @@ TEST_CASE("KWebIO")
 		webIO.addToResponseHeader(sHeaderPart9);
 		webIO.addToResponseHeader(sHeaderPart10);
 
-		// print response header for debugging:
-		//for (auto header : webIO.getResponseHeaders().begin())
-		//auto iter = webIO.getResponseHeaders().begin();
-		//for (auto iter = webIO.getResponseHeaders().begin(); iter == webIO.getResponseBody().end(); iter = iter)
 		KCurl::KHeader  sResponseHeaders = webIO.getResponseHeaders();
 		CHECK_FALSE(sResponseHeaders.empty());
 		CHECK(sResponseHeaders.size() == 8);
@@ -2200,7 +2042,6 @@ TEST_CASE("KWebIO")
 		CHECK(sResponseHeaders.Count("forwarded") == 1);
 		CHECK(sResponseHeaders.Count("x-forwarded-for") == 1);
 #if kwebdebug
-		//#if 1
 		// Verifying how header was parsed by printing
 		std::cout << "    == Stuff After header test (windows  newlines) ==" << std::endl;
 		webIO.printResponseHeader();
@@ -2239,10 +2080,6 @@ TEST_CASE("KWebIO")
 		webIO.addToResponseHeader(sHeaderPart9);
 		webIO.addToResponseHeader(sHeaderPart10);
 
-		// print response header for debugging:
-		//for (auto header : webIO.getResponseHeaders().begin())
-		//auto iter = webIO.getResponseHeaders().begin();
-		//for (auto iter = webIO.getResponseHeaders().begin(); iter == webIO.getResponseBody().end(); iter = iter)
 		KCurl::KHeader  sResponseHeaders = webIO.getResponseHeaders();
 		CHECK_FALSE(sResponseHeaders.empty());
 		CHECK(sResponseHeaders.size() == 8);
@@ -2258,7 +2095,6 @@ TEST_CASE("KWebIO")
 		CHECK(sResponseHeaders.Count("forwarded") == 1);
 		CHECK(sResponseHeaders.Count("x-forwarded-for") == 1);
 #if kwebdebug
-		//#if 1
 		// Verifying how header was parsed by printing
 		std::cout << "    == Stuff After header test 2 (windows  newlines) ==" << std::endl;
 		webIO.printResponseHeader();
@@ -2297,10 +2133,6 @@ TEST_CASE("KWebIO")
 		webIO.addToResponseHeader(sHeaderPart9);
 		webIO.addToResponseHeader(sHeaderPart10);
 
-		// print response header for debugging:
-		//for (auto header : webIO.getResponseHeaders().begin())
-		//auto iter = webIO.getResponseHeaders().begin();
-		//for (auto iter = webIO.getResponseHeaders().begin(); iter == webIO.getResponseBody().end(); iter = iter)
 		KCurl::KHeader  sResponseHeaders = webIO.getResponseHeaders();
 		CHECK_FALSE(sResponseHeaders.empty());
 		CHECK(sResponseHeaders.size() == 8);
@@ -2316,7 +2148,6 @@ TEST_CASE("KWebIO")
 		CHECK(sResponseHeaders.Count("forwarded") == 1);
 		CHECK(sResponseHeaders.Count("x-forwarded-for") == 1);
 #if kwebdebug
-		//#if 1
 		// Verifying how header was parsed by printing
 		std::cout << "    == Stuff After header test 3 (windows  newlines) ==" << std::endl;
 		webIO.printResponseHeader();
@@ -2355,10 +2186,6 @@ TEST_CASE("KWebIO")
 		webIO.addToResponseHeader(sHeaderPart9);
 		webIO.addToResponseHeader(sHeaderPart10);
 
-		// print response header for debugging:
-		//for (auto header : webIO.getResponseHeaders().begin())
-		//auto iter = webIO.getResponseHeaders().begin();
-		//for (auto iter = webIO.getResponseHeaders().begin(); iter == webIO.getResponseBody().end(); iter = iter)
 		KCurl::KHeader  sResponseHeaders = webIO.getResponseHeaders();
 		CHECK_FALSE(sResponseHeaders.empty());
 		CHECK(sResponseHeaders.size() == 8);
@@ -2374,7 +2201,6 @@ TEST_CASE("KWebIO")
 		CHECK(sResponseHeaders.Count("forwarded") == 1);
 		CHECK(sResponseHeaders.Count("x-forwarded-for") == 1);
 #if kwebdebug
-		//#if 1
 		// Verifying how header was parsed by printing
 		std::cout << "    == Stuff After header test (unix  newlines) ==" << std::endl;
 		webIO.printResponseHeader();
@@ -2413,10 +2239,6 @@ TEST_CASE("KWebIO")
 		webIO.addToResponseHeader(sHeaderPart9);
 		webIO.addToResponseHeader(sHeaderPart10);
 
-		// print response header for debugging:
-		//for (auto header : webIO.getResponseHeaders().begin())
-		//auto iter = webIO.getResponseHeaders().begin();
-		//for (auto iter = webIO.getResponseHeaders().begin(); iter == webIO.getResponseBody().end(); iter = iter)
 		KCurl::KHeader  sResponseHeaders = webIO.getResponseHeaders();
 		CHECK_FALSE(sResponseHeaders.empty());
 		CHECK(sResponseHeaders.size() == 8);
@@ -2432,7 +2254,6 @@ TEST_CASE("KWebIO")
 		CHECK(sResponseHeaders.Count("forwarded") == 1);
 		CHECK(sResponseHeaders.Count("x-forwarded-for") == 1);
 #if kwebdebug
-//#if 1
 		// Verifying how header was parsed by printing
 		std::cout << "    == Stuff After header test 2 (unix  newlines) ==" << std::endl;
 		webIO.printResponseHeader();
@@ -2471,10 +2292,6 @@ TEST_CASE("KWebIO")
 		webIO.addToResponseHeader(sHeaderPart9);
 		webIO.addToResponseHeader(sHeaderPart10);
 
-		// print response header for debugging:
-		//for (auto header : webIO.getResponseHeaders().begin())
-		//auto iter = webIO.getResponseHeaders().begin();
-		//for (auto iter = webIO.getResponseHeaders().begin(); iter == webIO.getResponseBody().end(); iter = iter)
 		KCurl::KHeader  sResponseHeaders = webIO.getResponseHeaders();
 		CHECK_FALSE(sResponseHeaders.empty());
 		CHECK(sResponseHeaders.size() == 8);
@@ -2490,7 +2307,6 @@ TEST_CASE("KWebIO")
 		CHECK(sResponseHeaders.Count("forwarded") == 1);
 		CHECK(sResponseHeaders.Count("x-forwarded-for") == 1);
 #if kwebdebug
-//#if 1
 		// Verifying how header was parsed by printing
 		std::cout << "    == Stuff After header test 3 (unix  newlines) ==" << std::endl;
 		webIO.printResponseHeader();

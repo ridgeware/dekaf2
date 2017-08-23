@@ -1,21 +1,23 @@
 #include "kinpipe.h"
 #include "klog.h"
 
+//#include <unistd.h>
+#include <sys/wait.h>
+#include <fcntl.h>
+#include <poll.h>
+
 namespace dekaf2
 {
 
 //-----------------------------------------------------------------------------
 KInPipe::KInPipe()
 //-----------------------------------------------------------------------------
-{
-	SetReaderTrim("");
-}
+{}
 
 //-----------------------------------------------------------------------------
 KInPipe::KInPipe(const KString& sCommand)
 //-----------------------------------------------------------------------------
 {
-	SetReaderTrim("");
 	Open(sCommand);
 
 } // Immediate Open Constructor
@@ -62,6 +64,91 @@ bool KInPipe::Open(const KString& sCommand)
 	}
 
 } // Open
+
+
+//-----------------------------------------------------------------------------
+int KInPipe::Close ()
+//-----------------------------------------------------------------------------
+{
+	int iExitCode = -1;
+	int fdes = 0;
+
+	// is the pipe still valid?
+	if (NULL == m_readPipe)
+	{
+		return iExitCode;
+	} // not open
+
+	/*
+	 * pclose returns -1 if stream is not associated with a
+	 * `popened' command, if already `pclosed', or waitpid
+	 * returns an error.
+	 */
+	if ((fdes = fileno(m_readPipe)) == 0)
+	{
+		return iExitCode;
+	} // could not convert the FILE to fd
+
+	(void)fclose(m_readPipe);
+	m_readPipe = NULL;
+
+
+	// is the child still running?
+	if (false == IsRunning())
+	{
+		iExitCode = m_iReadExitCode;
+
+		return (iExitCode);
+	} // child not running
+
+	// the child process has been giving us trouble. Kill it
+	if (-2 != m_readPid)
+	{
+		kill(m_readPid, SIGKILL);
+	}
+
+	m_readPid = -2;
+
+	return (iExitCode);
+
+} // Close
+
+//-----------------------------------------------------------------------------
+bool KInPipe::IsRunning()
+//-----------------------------------------------------------------------------
+{
+
+	bool bResponse = false;
+
+	// sets m_iReadChildStatus if iPid is not zero
+	wait(WNOHANG);
+
+	// Did we fail to get a status?
+	if (-1 == m_iReadChildStatus)
+	{
+		m_iReadExitCode = -1;
+		return bResponse;
+	}
+
+	// Do we have an exit status code to interpret?
+	if (false == m_bReadChildStatusValid)
+	{
+		bResponse = true;
+		return bResponse;
+	}
+
+	// did the called function "exit" normally?
+	if (WIFEXITED(m_iReadChildStatus))
+	{
+		m_iReadExitCode = WEXITSTATUS(m_iReadChildStatus);
+		return bResponse;
+	}
+
+	m_iReadExitCode = -1;
+
+	return bResponse;
+
+} // IsRunning
 
 //-----------------------------------------------------------------------------
 bool KInPipe::OpenReadPipe(const KString& sCommand)
@@ -114,5 +201,47 @@ bool KInPipe::OpenReadPipe(const KString& sCommand)
 	(void)::close(m_readPdes[1]);
 
 	return true;
-}
+} // OpenReadPipe
+
+//-----------------------------------------------------------------------------
+pid_t KInPipe::wait(int options)
+//-----------------------------------------------------------------------------
+{
+	int iStatus = 0;
+
+	pid_t iPid;
+	do
+	{
+		// status can only be read ONCE
+		if (true == m_bReadChildStatusValid)
+		{
+			// status has already been set. do not read it again, you might get an invalid status.
+			iPid = m_readPid;
+			break;
+		} // end status is already set
+
+		iPid = waitpid(m_readPid, &iStatus, options);
+
+		// is the status valid?
+		if (0 < iPid)
+		{
+			// save the status
+			m_iReadChildStatus = iStatus;
+			m_bReadChildStatusValid = true;
+			break;
+		}
+
+		if ((iPid == -1) && (errno != EINTR))
+		{
+			// TODO log
+			m_iReadChildStatus = -2;
+			m_bReadChildStatusValid = true;
+			break;
+		}
+	}
+	while (iPid == -1 && errno == EINTR);
+
+	return iPid;
+} // wait
+
 } // end namespace dekaf2

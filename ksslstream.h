@@ -1,5 +1,4 @@
 /*
-//-----------------------------------------------------------------------------//
 //
 // DEKAF(tm): Lighter, Faster, Smarter (tm)
 //
@@ -42,159 +41,154 @@
 
 #pragma once
 
-#include "kreader.h"
-#include "kwriter.h"
+#include <boost/asio.hpp>
+#include <boost/asio/ssl.hpp>
+#include <boost/iostreams/concepts.hpp>
+#include <boost/iostreams/stream.hpp>
+#include "kstring.h"
+#include "kstream.h"
 
-#include <boost/asio/ip/tcp.hpp>
+using namespace boost::asio;
 
 namespace dekaf2
 {
 
-namespace asio = boost::asio;
-
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// The generalized bidirectional stream abstraction for dekaf2
-class KStream : public KInStream, public KOutStream
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+namespace KSSL_detail
 {
-	using self_type   = KStream;
-	using reader_type = KInStream;
-	using writer_type = KOutStream;
 
-//-------
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+// IOStream device that speaks SSL but can also speak non-SSL
+class KSSLInOutStreamDevice : public boost::iostreams::device<boost::iostreams::bidirectional>
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+	using base_type = boost::iostreams::device<boost::iostreams::bidirectional>;
+
+//----------
 public:
-//-------
+//----------
 
 	//-----------------------------------------------------------------------------
-	/// value construct a KStream
-	KStream(std::iostream& Stream)
-	//-----------------------------------------------------------------------------
-	    : reader_type(Stream)
-	    , writer_type(Stream)
-	{}
-
-	//-----------------------------------------------------------------------------
-	/// move construct a KStream
-	KStream(self_type&& other) noexcept
-	//-----------------------------------------------------------------------------
-		: reader_type(std::move(other))
-		, writer_type(std::move(other))
-	{}
-
-	//-----------------------------------------------------------------------------
-	/// copy construction is deleted, as with std::iostream
-	KStream(self_type& other) = delete;
+	KSSLInOutStreamDevice(ssl::stream<ip::tcp::socket>& Stream, bool bUseSSL, const int& iTimeoutMilliseconds) noexcept;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// dtor
-	virtual ~KStream();
+	void handshake(ssl::stream_base::handshake_type role);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// assignment operator is deleted, as with std::iostream
-	self_type& operator=(const self_type& other) = delete;
+	std::streamsize read(char* s, std::streamsize n) noexcept;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// move operator
-	self_type& operator=(self_type&& other)
+	std::streamsize write(const char* s, std::streamsize n) noexcept;
+	//-----------------------------------------------------------------------------
+
+//----------
+protected:
+//----------
+
+	//-----------------------------------------------------------------------------
+	bool timeout(bool bForReading);
+	//-----------------------------------------------------------------------------
+
+//----------
+private:
+//----------
+
+	ssl::stream<ip::tcp::socket>& m_Stream;
+	const int& m_iTimeoutMilliseconds;
+	bool m_bUseSSL;
+	bool m_bNeedHandshake;
+
+};  // KSSLIOStreamDevice
+
+
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+class KSSLIOStream : public boost::iostreams::stream<KSSLInOutStreamDevice>
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+	using base_type = boost::iostreams::stream<KSSLInOutStreamDevice>;
+
+	enum { DEFAULT_TIMEOUT = 1 * 60 };
+
+//----------
+public:
+//----------
+
+	//-----------------------------------------------------------------------------
+	KSSLIOStream();
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	KSSLIOStream(const char* sServer,
+	             const char* sPort,
+	             bool bVerifyCerts,
+	             bool bAllowSSLv2v3 = false,
+	             int iSecondsTimeout = DEFAULT_TIMEOUT);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	KSSLIOStream(const KString& sServer,
+	             const KString& sPort,
+	             bool bVerifyCerts,
+	             bool bAllowSSLv2v3 = false,
+	             int iSecondsTimeout = DEFAULT_TIMEOUT);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	~KSSLIOStream();
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	void SetSSLCertificate(const char* sCert, const char* sPem);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	inline void SetSSLCertificate(const KString& sCert, const KString& sPem)
 	//-----------------------------------------------------------------------------
 	{
-		reader_type::operator=(std::move(other));
-		writer_type::operator=(std::move(other));
-		return *this;
+		SetSSLCertificate(sCert.c_str(), sPem.c_str());
 	}
+
+	//-----------------------------------------------------------------------------
+	bool Timeout(int iSeconds);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	bool connect(const char* sServer, const char* sPort, bool bVerifyCerts, bool bAllowSSLv2v3 = false);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	inline bool connect(const KString& sServer, const KString& sPort, bool bVerifyCerts, bool bAllowSSLv2v3 = false)
+	//-----------------------------------------------------------------------------
+	{
+		return connect(sServer.c_str(), sPort.c_str(), bVerifyCerts, bAllowSSLv2v3);
+	}
+
+	//-----------------------------------------------------------------------------
+	boost::asio::basic_socket<ip::tcp, stream_socket_service<ip::tcp> >& GetTCPSocket()
+	//-----------------------------------------------------------------------------
+	{
+		return m_Socket.lowest_layer();
+	}
+
+//----------
+private:
+//----------
+
+	io_service m_IO_Service;
+	ssl::context m_Context;
+	ssl::stream<ip::tcp::socket> m_Socket;
+	ip::tcp::resolver::iterator m_ConnectedHost;
+	int m_iTimeoutMilliseconds;
 
 };
 
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// The templatized bidirectional stream abstraction for dekaf2. Can be constructed around any
-/// std::iostream.
-template<class IOStream>
-class KReaderWriter
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-        : public IOStream
-        , public KStream
-{
-	using base_type = IOStream;
-	using self_type = KReaderWriter<IOStream>;
-	using k_rw_type = KStream;
+} // end of namespace KSSL_detail
 
-	static_assert(std::is_base_of<std::iostream, IOStream>::value,
-	              "KReaderWriter cannot be derived from a non-std::iostream class");
+/// SSL stream based on boost::iostreams and asio::ssl
+using KSSLStream = KReaderWriter<KSSL_detail::KSSLIOStream>;
 
-//-------
-public:
-//-------
-
-	//-----------------------------------------------------------------------------
-	// semi-perfect forwarding - currently needed as std::iostream does not yet
-	// support string_views as arguments
-	template<class... Args>
-	KReaderWriter(KStringView sv, Args&&... args)
-	    : base_type(std::string(sv.data(), sv.size()), std::forward<Args>(args)...)
-	    , k_rw_type(static_cast<base_type&>(*this))
-	//-----------------------------------------------------------------------------
-	{
-	}
-
-	//-----------------------------------------------------------------------------
-	// perfect forwarding
-	template<class... Args>
-	KReaderWriter(Args&&... args)
-	    : base_type(std::forward<Args>(args)...)
-	    , k_rw_type(static_cast<base_type&>(*this))
-	//-----------------------------------------------------------------------------
-	{
-	}
-
-	//-----------------------------------------------------------------------------
-	/// move construct a KReaderWriter
-	KReaderWriter(self_type&& other) noexcept
-	//-----------------------------------------------------------------------------
-	    : base_type(std::move(other))
-	    , k_rw_type(std::move(other))
-	{}
-
-	//-----------------------------------------------------------------------------
-	/// copy constructor is deleted - std::iostream's is, too
-	KReaderWriter(self_type& other) = delete;
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// copy assignment is deleted - std::iostring's is, too
-	self_type& operator=(const self_type& other) = delete;
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// move assignment
-	self_type& operator=(self_type&& other)
-	//-----------------------------------------------------------------------------
-	{
-		base_type::operator=(std::move(other));
-		k_rw_type::operator=(std::move(other));
-	}
-
-	//-----------------------------------------------------------------------------
-	// this one is necessary because ios_base has a symbol named end .. (for seeking)
-	const_iterator end()
-	//-----------------------------------------------------------------------------
-	 {
-		return KInStream::end();
-	 }
-
-};
-
-
-/// File stream based on std::fstream
-using KFile           = KReaderWriter<std::fstream>;
-
-/// String stream based on std::stringstream
-using KStringStream   = KReaderWriter<std::stringstream>;
-
-/// TCP stream based on asio::ip::tcp::iostream
-using KTCPStream      = KReaderWriter<asio::ip::tcp::iostream>;
-
-} // end of namespace dekaf2
+}
 

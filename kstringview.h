@@ -250,8 +250,8 @@ public:
 	{
 		// StringPiece has no swap(), and the data members are private,
 		// but we can access them at no additional cost through member functions.
-		StringPiece::const_pointer data = other.data();
-		StringPiece::size_type size = other.size();
+		const_pointer data = other.data();
+		size_type size = other.size();
 		other.set(this->data(), this->size());
 		this->set(data, size);
 	}

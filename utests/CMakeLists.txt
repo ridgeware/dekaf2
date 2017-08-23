@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.2)
+cmake_minimum_required(VERSION 3.8)
 
 project(dekaf2-utests)
 
@@ -20,7 +20,6 @@ set (USOURCES
     kcurl_tests.cpp
     kfile_tests.cpp
     kreader_tests.cpp
-    kbaseshell_tests.cpp
     kinshell_tests.cpp
     koutshell_tests.cpp
     kstack_tests.cpp

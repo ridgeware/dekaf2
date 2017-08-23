@@ -29,18 +29,10 @@ TEST_CASE("KWebIO")
 		 * Forwarded: for=192.0.2.43, for="[2001:db8:cafe::17]
 		 */
 
-		//apparently Get(key) on this KProps returns std::pair<KString,KString> where .empty() is true for them.
-		//typedef std::pair<KString,KString> KCurl::KHeaderPair;
-		//typedef KPropsTemplate<KString, KCurl::KHeaderPair> KNoCaseHeader; // map for header info
-
 		KWebIO webIO;
 		KString sHeaderPart = "Content-type: text/html\nCookie: foo=bar\nSet-Cookie: yummy_cookie=choco\nSet-Cookie: tasty_cookie=strawberry\nX-Forwarded-For: 192.0.2.43, 2001:db8:cafe::17\nForwarded: for=192.0.2.43, for='[2001:db8:cafe::17]'\n\n";
 		webIO.addToResponseHeader(sHeaderPart);
 
-		// print response header for debugging:
-		//for (auto header : webIO.getResponseHeaders().begin())
-		//auto iter = webIO.getResponseHeaders().begin();
-		//for (auto iter = webIO.getResponseHeaders().begin(); iter == webIO.getResponseBody().end(); iter = iter)
 		KCurl::KHeader sResponseHeaders = webIO.getResponseHeaders();
 		CHECK_FALSE(sResponseHeaders.empty());
 		CHECK(sResponseHeaders.size() == 6);

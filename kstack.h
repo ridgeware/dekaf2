@@ -213,12 +213,20 @@ public:
 	// Operators overloads
 	/// Assigns one KStack to Another (old data is destroyed)
 	//-----------------------------------------------------------------------------
-	KStack&     operator=  (KStack&& other)      { m_Storage = std::move(other.m_Storage); return *this; }
+	KStack& operator= (KStack&& other)
 	//-----------------------------------------------------------------------------
+	{
+		m_Storage = std::move(other.m_Storage);
+		return *this;
+	}
 
 	//-----------------------------------------------------------------------------
-	KStack&     operator=  (const KStack& other) { m_Storage = other.m_Storage; return *this; }
+	KStack& operator= (const KStack& other)
 	//-----------------------------------------------------------------------------
+	{
+		m_Storage = other.m_Storage;
+		return *this;
+	}
 
 	//-----------------------------------------------------------------------------
 	/// Gets Item at position, returns empty value if out of bounds.
@@ -234,36 +242,36 @@ public:
 
 	// Forward Iterators
 	//-----------------------------------------------------------------------------
-	iterator                       begin() { return m_Storage.begin(); }
+	iterator                       begin()       { return m_Storage.begin(); }
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	const const_iterator          cbegin() { return m_Storage.cbegin(); }
+	const const_iterator          cbegin() const { return m_Storage.cbegin(); }
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	iterator                         end() { return m_Storage.end(); }
+	iterator                         end()       { return m_Storage.end(); }
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	const const_iterator            cend() { return m_Storage.cend(); }
+	const const_iterator            cend() const { return m_Storage.cend(); }
 	//-----------------------------------------------------------------------------
 
 	// Reverse Iterators
 	//-----------------------------------------------------------------------------
-	reverse_iterator              rbegin() { return m_Storage.rbegin(); }
+	reverse_iterator              rbegin()       { return m_Storage.rbegin(); }
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	const const_reverse_iterator crbegin() { return m_Storage.crbegin(); }
+	const const_reverse_iterator crbegin() const { return m_Storage.crbegin(); }
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	reverse_iterator                rend() { return m_Storage.rend(); }
+	reverse_iterator                rend()       { return m_Storage.rend(); }
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	const const_reverse_iterator   crend() { return m_Storage.crend(); }
+	const const_reverse_iterator   crend() const { return m_Storage.crend(); }
 	//-----------------------------------------------------------------------------
 
 //----------

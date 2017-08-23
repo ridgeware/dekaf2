@@ -104,7 +104,9 @@ public:
 	/// Default KURL Constructor, must be initialized after construction
 	KCurl()
 	//-----------------------------------------------------------------------------
-	{}
+	{
+		m_kpipe.SetReaderTrim("");
+	}
 
 	//-----------------------------------------------------------------------------
 	/// KURL Constructor that allows full initialization on construction.
@@ -114,7 +116,9 @@ public:
 	    , m_bEchoBody{bEchoBody}
 	    , m_requestType{requestType}
 	    , m_sRequestURL{sRequestURL}
-	{}
+	{
+		m_kpipe.SetReaderTrim("");
+	}
 
 	//-----------------------------------------------------------------------------
 	/// Default virtual constructor

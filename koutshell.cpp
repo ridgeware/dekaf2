@@ -24,7 +24,7 @@ KOutShell::~KOutShell()
 bool KOutShell::Open(const KString& sCommand)
 //-----------------------------------------------------------------------------
 {
-	KLog().debug(3, "KPIPE::Open(): {}", sCommand);
+	KLog().debug(3, "KOutShell::Open(): {}", sCommand);
 
 	Close(); // ensure a previous pipe is closed
 	errno = 0;
@@ -42,13 +42,13 @@ bool KOutShell::Open(const KString& sCommand)
 	// - - - - - - - - - - - - - - - - - - - - - - - -
 	if (!m_pipe)
 	{
-		KLog().debug (0, "KPIPE::Open(): POPEN CMD FAILED: {} ERROR: {}", sCommand, strerror(errno));
+		KLog().debug (0, "KOutShell::Open(): POPEN CMD FAILED: {} ERROR: {}", sCommand, strerror(errno));
 		m_iExitCode = errno;
 		return false;
 	}
 	else
 	{
-		KLog().debug(3, "KPIPE::Open(): POPEN: ok...");
+		KLog().debug(3, "KOutShell::Open(): POPEN: ok...");
 		KFPWriter::open(m_pipe);
 		return KFPWriter::good();
 	}

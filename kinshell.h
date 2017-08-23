@@ -61,9 +61,7 @@ public:
 	/// Default KInShell Constructor
 	KInShell()
 	//-----------------------------------------------------------------------------
-	{
-		SetReaderTrim("");
-	}
+	{}
 
 	//-----------------------------------------------------------------------------
 	/// Constructor which takes and executes command immediately

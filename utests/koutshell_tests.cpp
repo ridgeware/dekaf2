@@ -39,9 +39,10 @@ TEST_CASE("KPipeWriter")
 		CHECK(0 == pipe.Close());
 
 		KInShell readPipe;
+		readPipe.SetReaderTrim("");
 		CHECK(readPipe.Open("cat /tmp/KOutShelltest.file"));
 		KString output;
-		for (auto iter = readPipe.begin(); iter != readPipe.end(); iter++)
+		for (auto iter = readPipe.begin(); iter != readPipe.end(); ++iter)
 		{
 			output = output + *iter;
 		}

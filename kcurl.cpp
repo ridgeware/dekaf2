@@ -299,15 +299,15 @@ bool KCurl::serializeRequestHeader(KString& sCurlHeaders)
 	{
 		if (iter != m_requestCookies.begin())
 		{
-			sCurlHeaders += ";";
+			sCurlHeaders += ';';
 		}
 		sCurlHeaders += iter->second.first;
-		sCurlHeaders += "=";
+		sCurlHeaders += '=';
 		sCurlHeaders += iter->second.second;
 	}
 	if (!m_requestCookies.empty())
 	{
-		sCurlHeaders += "'";
+		sCurlHeaders +='\'';
 	}
 	return !sCurlHeaders.empty();
 

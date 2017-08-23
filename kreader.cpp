@@ -116,7 +116,17 @@ KInStreamBuf::int_type KInStreamBuf::underflow()
 bool kRewind(std::istream& Stream)
 //-----------------------------------------------------------------------------
 {
-	return Stream.rdbuf() && Stream.rdbuf()->pubseekoff(0, std::ios_base::beg) != std::streambuf::pos_type(std::streambuf::off_type(-1));
+	try {
+
+		return Stream.rdbuf() && Stream.rdbuf()->pubseekoff(0, std::ios_base::beg) != std::streambuf::pos_type(std::streambuf::off_type(-1));
+	}
+
+	catch (std::exception& e)
+	{
+		kException(e, "kRewind");
+	}
+
+	return false;
 
 } // kRewind
 
@@ -124,38 +134,51 @@ bool kRewind(std::istream& Stream)
 ssize_t kGetSize(std::istream& Stream, bool bFromStart)
 //-----------------------------------------------------------------------------
 {
-	std::streambuf* sb = Stream.rdbuf();
+	try {
 
-	if (!sb)
-	{
-		return std::streambuf::pos_type(std::streambuf::off_type(-1));
+		std::streambuf* sb = Stream.rdbuf();
+
+		if (!sb)
+		{
+			kDebug(1, "kGetSize: no streambuf");
+			return -1;
+		}
+
+		std::streambuf::pos_type curPos = sb->pubseekoff(0, std::ios_base::cur);
+		if (curPos == std::streambuf::pos_type(std::streambuf::off_type(-1)))
+		{
+			kDebug(3, "kGetSize: istream is not seekable ({})", 1);
+			return curPos;
+		}
+
+		std::streambuf::pos_type endPos = sb->pubseekoff(0, std::ios_base::end);
+		if (endPos == std::streambuf::pos_type(std::streambuf::off_type(-1)))
+		{
+			kDebug(3, "kGetSize: istream is not seekable ({})", 2);
+			return endPos;
+		}
+
+		if (endPos != curPos)
+		{
+			sb->pubseekoff(curPos, std::ios_base::beg);
+		}
+
+		if (bFromStart)
+		{
+			return endPos;
+		}
+		else
+		{
+			return endPos - curPos;
+		}
 	}
 
-	std::streambuf::pos_type curPos = sb->pubseekoff(0, std::ios_base::cur);
-	if (curPos == std::streambuf::pos_type(std::streambuf::off_type(-1)))
+	catch (std::exception& e)
 	{
-		return curPos;
+		kException(e, "kGetSize");
 	}
 
-	std::streambuf::pos_type endPos = sb->pubseekoff(0, std::ios_base::end);
-	if (endPos == std::streambuf::pos_type(std::streambuf::off_type(-1)))
-	{
-		return endPos;
-	}
-
-	if (endPos != curPos)
-	{
-		sb->pubseekoff(curPos, std::ios_base::beg);
-	}
-
-	if (bFromStart)
-	{
-		return endPos;
-	}
-	else
-	{
-		return endPos - curPos;
-	}
+	return -1;
 
 } // kGetSize
 
@@ -195,6 +218,7 @@ bool kReadAll(std::istream& Stream, KString& sContent, bool bFromStart)
 
 	if (!sb)
 	{
+		kDebug(1, "kReadAll: no streambuf");
 		return false;
 	}
 
@@ -209,6 +233,7 @@ bool kReadAll(std::istream& Stream, KString& sContent, bool bFromStart)
 	// position stream to the beginning
 	if (bFromStart && !kRewind(Stream))
 	{
+		kDebug(1, "kReadAll: cannot rewind stream");
 		return false;
 	}
 
@@ -237,10 +262,11 @@ bool kReadAll(std::istream& Stream, KString& sContent, bool bFromStart)
 				}
 			}
 		}
+
 		catch (std::exception& e)
 		{
 			sContent.clear();
-			KLog().Exception(e, "kReadAll");
+			kException(e, "kReadAll");
 		}
 
 		Stream.setstate(std::ios_base::eofbit);
@@ -262,12 +288,12 @@ bool kReadAll(std::istream& Stream, KString& sContent, bool bFromStart)
 	}
 	else
 	{
-		KLog().debug (1, "kReadAll: stream grew during read, did not read all new content");
+		kDebug (1, "kReadAll: stream grew during read, did not read all new content");
 	}
 
 	if (iRead != uiSize)
 	{
-		KLog().warning ("KReader: Unable to read full file, requested {0} bytes, got {1}", iSize, iRead);
+		kWarning ("KReader: Unable to read full file, requested {0} bytes, got {1}", iSize, iRead);
 		return false;
 	}
 

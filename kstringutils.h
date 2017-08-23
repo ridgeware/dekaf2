@@ -394,4 +394,33 @@ void kUrlDecode (String& sDecode)
 
 } // kUrlDecode
 
+template<class String>
+void kUrlEncode (String sSource, KString& sTarget) // KString ref needed
+//-----------------------------------------------------------------------------
+{
+		static const char* sxDigit{"0123456789ABCDEF"};
+		size_t iSize = sSource.size();
+		//String::const_iterator csIter;
+		//for (csIter = sSource.begin (); csIter != sSource.end (); ++csIter)
+		for (size_t iIndex = 0; iIndex < iSize; ++iIndex)
+		{
+				char c = sSource[iIndex];
+				if (isalnum (c))
+				{
+						sTarget += c;
+				}
+				else if (c == ' ')
+				{
+						sTarget += '+';
+				}
+				else
+				{
+						sTarget += '%';
+						sTarget += static_cast<char> (sxDigit[(c>>4)&0xf]);
+						sTarget += static_cast<char> (sxDigit[(c   )&0xf]);
+				}
+		}
+}
+
+
 } // end of namespace dekaf2

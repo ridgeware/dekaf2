@@ -37,6 +37,7 @@ TEST_CASE("KSSLClient")
 
 	KSSLClient stream;
 	CHECK ( stream.connect("www.google.com", "https", true) == true );
+	stream.Timeout(2);
 
 	stream.SetReaderRightTrim("\r\n");
 	stream.SetWriterEndOfLine("\r\n");
@@ -51,7 +52,7 @@ TEST_CASE("KSSLClient")
 	CHECK ( stream.good() );
 
 	KString str;
-	CHECK ( stream.ReadLine(str) == true );
+	CHECK ( stream.ReadRemaining(str) == true );
 	CHECK ( stream.good() );
 
 }

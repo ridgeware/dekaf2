@@ -69,7 +69,7 @@ public:
 //----------
 
 	//-----------------------------------------------------------------------------
-	KSSLInOutStreamDevice(ssl::stream<ip::tcp::socket>& Stream, bool bUseSSL = true);
+	KSSLInOutStreamDevice(ssl::stream<ip::tcp::socket>& Stream, bool bUseSSL, const int& iTimeoutMilliseconds) noexcept;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -77,11 +77,19 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	std::streamsize read(char* s, std::streamsize n);
+	std::streamsize read(char* s, std::streamsize n) noexcept;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	std::streamsize write(const char* s, std::streamsize n);
+	std::streamsize write(const char* s, std::streamsize n) noexcept;
+	//-----------------------------------------------------------------------------
+
+//----------
+protected:
+//----------
+
+	//-----------------------------------------------------------------------------
+	bool timeout(bool bForReading);
 	//-----------------------------------------------------------------------------
 
 //----------
@@ -89,6 +97,7 @@ private:
 //----------
 
 	ssl::stream<ip::tcp::socket>& m_Stream;
+	const int& m_iTimeoutMilliseconds;
 	bool m_bUseSSL;
 	bool m_bNeedHandshake;
 
@@ -101,6 +110,8 @@ class KSSLIOStream : public boost::iostreams::stream<KSSLInOutStreamDevice>
 {
 	using base_type = boost::iostreams::stream<KSSLInOutStreamDevice>;
 
+	enum { DEFAULT_TIMEOUT = 1 * 60 };
+
 //----------
 public:
 //----------
@@ -110,11 +121,19 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	KSSLIOStream(const char* sServer, const char* sPort, bool bVerifyCerts);
+	KSSLIOStream(const char* sServer,
+	             const char* sPort,
+	             bool bVerifyCerts,
+	             bool bAllowSSLv2v3 = false,
+	             int iSecondsTimeout = DEFAULT_TIMEOUT);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	KSSLIOStream(const KString& sServer, const KString& sPort, bool bVerifyCerts);
+	KSSLIOStream(const KString& sServer,
+	             const KString& sPort,
+	             bool bVerifyCerts,
+	             bool bAllowSSLv2v3 = false,
+	             int iSecondsTimeout = DEFAULT_TIMEOUT);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -126,21 +145,25 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	inline void SetSSLCertificate(const KString& sCert, const KString sPem)
+	inline void SetSSLCertificate(const KString& sCert, const KString& sPem)
 	//-----------------------------------------------------------------------------
 	{
 		SetSSLCertificate(sCert.c_str(), sPem.c_str());
 	}
 
 	//-----------------------------------------------------------------------------
-	bool connect(const char* sServer, const char* sPort, bool bVerifyCerts);
+	bool Timeout(int iSeconds);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	inline bool connect(const KString& sServer, const KString& sPort, bool bVerifyCerts)
+	bool connect(const char* sServer, const char* sPort, bool bVerifyCerts, bool bAllowSSLv2v3 = false);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	inline bool connect(const KString& sServer, const KString& sPort, bool bVerifyCerts, bool bAllowSSLv2v3 = false)
 	//-----------------------------------------------------------------------------
 	{
-		return connect(sServer.c_str(), sPort.c_str(), bVerifyCerts);
+		return connect(sServer.c_str(), sPort.c_str(), bVerifyCerts, bAllowSSLv2v3);
 	}
 
 	//-----------------------------------------------------------------------------
@@ -158,6 +181,7 @@ private:
 	ssl::context m_Context;
 	ssl::stream<ip::tcp::socket> m_Socket;
 	ip::tcp::resolver::iterator m_ConnectedHost;
+	int m_iTimeoutMilliseconds;
 
 };
 

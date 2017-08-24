@@ -226,8 +226,7 @@ bool KWebIO::printResponseHeader()
 				}
 				if (!isFirst)
 				{
-					KString semi(";");
-					m_outStream.Write(semi);
+					m_outStream.Write(';');
 				}
 				KString sFirst = cookieIter->second.first;
 				KString sSecond;

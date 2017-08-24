@@ -163,7 +163,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Write a character. Returns stream reference that resolves to false on failure
-	self_type& Write(KString::value_type& ch);
+	self_type& Write(KString::value_type ch);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------

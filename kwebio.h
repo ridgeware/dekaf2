@@ -139,6 +139,7 @@ private:
 	//-----------------------------------------------------------------------------
 	/// method that takes care of case-insentive header add logic and cookie add logic
 	bool           addResponseHeader(const KString&& sHeaderName, const KString&& sHeaderValue);
+	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// method to determine if header ends with \n\n or \r\n\r\n indicating end of header

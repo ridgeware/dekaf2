@@ -124,7 +124,7 @@ TEST_CASE("KInShell")
 
 		KInShell pipe;
 
-		CHECK(pipe.Open("echo rdoanm txet > /tmp/tmp.file && cat /tmp/KInShelltest.file > /dev/null"));
+		CHECK(pipe.Open("echo rdoanm txet > /tmp/KInShelltest.file && cat /tmp/KInShelltest.file > /dev/null"));
 
 		FILE* fileDesc(pipe);
 

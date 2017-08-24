@@ -24,7 +24,6 @@ set (USOURCES
     koutshell_tests.cpp
     kstack_tests.cpp
     ktcpserver_tests.cpp
-    ksslstream_tests.cpp
     klog_tests.cpp
 )
 

@@ -54,6 +54,12 @@ namespace dekaf2
 // template<template approach to containers was discovered from here:
 // https://stackoverflow.com/questions/16596422/
 //  template-class-with-template-container
+//## please remove the class definition. Create a function template instead
+//## BTW, I do not see why you need the complex template template construct,
+//## a simple template<typename Container> kSpit(Container& container, ..)
+//## should suffice here. And when you change this to a function template
+//## it will actually automatically deduce the type, so that you can
+//## simply use it like vector<string> vec; kSplit(vec, ...).
 template<template <typename... Args> class Container,typename... Types>
 class KSplit
 {
@@ -62,6 +68,10 @@ class KSplit
 public:
 //------
 
+	//## please make the description consistent with the current implementation,
+	//## and consider making it shorter. As you have many sentences, use
+	//## capitalization as usual in English, and put punctuation. All this
+	//## text gets collapsed into one line in an IDE..
 	//---------------------------------------------------------------------
 	/// parse (container, buffer, maximum, delimiters, trim, escape) where
 	/// container is typical of std iterable containers like deque | vector
@@ -72,6 +82,7 @@ public:
 	/// trim is a boolean which, when true, make " a " become "a"
 	/// escape defaults to '\0', but if it is '\\' is used to parse past
 	///  escaped characters.
+	//## simply name this function kSplit
 	static size_t parse (
 			Container<Types...>& ctContainer,       // target
 			KStringView     svBuffer,               // source
@@ -87,6 +98,12 @@ private:
 
 	//---------------------------------------------------------------------
 	/// tcschrEsc implements industry standard _tcschr with escape detection.
+	//## make this a standalone function in namespace dekaf2, and name it
+	//## less Windowsy.. I mean, we are not using LPCTSTR, why should we
+	//## use its function names? Why not simply kFindEscaped() ?
+	//## And consider a second function which takes a KStringView as "target"
+	//## (I would actually rename that parameter to chSearched to be more
+	//## explicit..). BTW, this function does not need to be a template.
 	static size_t tcschrEsc (
 			KStringView svBuffer,
 			char        iTarget,

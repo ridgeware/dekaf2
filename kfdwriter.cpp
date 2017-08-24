@@ -47,7 +47,7 @@
 namespace dekaf2
 {
 
-#if !defined(__GNUC__) || (DEKAF2_GCC_VERSION >= 500)
+#if !defined(__GNUC__) || (DEKAF2_GCC_VERSION >= 50000)
 //-----------------------------------------------------------------------------
 KOutputFDStream::KOutputFDStream(KOutputFDStream&& other)
     : m_FileDesc{other.m_FileDesc}
@@ -67,7 +67,7 @@ KOutputFDStream::~KOutputFDStream()
 	// but just received a handle for it
 }
 
-#if !defined(__GNUC__) || (DEKAF2_GCC_VERSION >= 500)
+#if !defined(__GNUC__) || (DEKAF2_GCC_VERSION >= 50000)
 //-----------------------------------------------------------------------------
 KOutputFDStream& KOutputFDStream::operator=(KOutputFDStream&& other)
 //-----------------------------------------------------------------------------
@@ -129,7 +129,7 @@ std::streamsize KOutputFDStream::FileDescWriter(const void* sBuffer, std::stream
 }
 
 
-#if !defined(__GNUC__) || (DEKAF2_GCC_VERSION >= 500)
+#if !defined(__GNUC__) || (DEKAF2_GCC_VERSION >= 50000)
 //-----------------------------------------------------------------------------
 KOutputFPStream::KOutputFPStream(KOutputFPStream&& other)
     : m_FilePtr{other.m_FilePtr}
@@ -149,7 +149,7 @@ KOutputFPStream::~KOutputFPStream()
 	// but just received a handle for it
 }
 
-#if !defined(__GNUC__) || (DEKAF2_GCC_VERSION >= 500)
+#if !defined(__GNUC__) || (DEKAF2_GCC_VERSION >= 50000)
 //-----------------------------------------------------------------------------
 KOutputFPStream& KOutputFPStream::operator=(KOutputFPStream&& other)
 //-----------------------------------------------------------------------------

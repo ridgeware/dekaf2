@@ -85,7 +85,7 @@ public:
 
 	KOutputFDStream(const KOutputFDStream&) = delete;
 
-#if !defined(__GNUC__) || (DEKAF2_GCC_VERSION >= 500)
+#if !defined(__GNUC__) || (DEKAF2_GCC_VERSION >= 50000)
 	//-----------------------------------------------------------------------------
 	KOutputFDStream(KOutputFDStream&& other);
 	//-----------------------------------------------------------------------------
@@ -104,7 +104,7 @@ public:
 	virtual ~KOutputFDStream();
 	//-----------------------------------------------------------------------------
 
-#if !defined(__GNUC__) || (DEKAF2_GCC_VERSION >= 500)
+#if !defined(__GNUC__) || (DEKAF2_GCC_VERSION >= 50000)
 	//-----------------------------------------------------------------------------
 	KOutputFDStream& operator=(KOutputFDStream&& other);
 	//-----------------------------------------------------------------------------
@@ -189,7 +189,7 @@ public:
 
 	KOutputFPStream(const KOutputFPStream&) = delete;
 
-#if !defined(__GNUC__) || (DEKAF2_GCC_VERSION >= 500)
+#if !defined(__GNUC__) || (DEKAF2_GCC_VERSION >= 50000)
 	//-----------------------------------------------------------------------------
 	KOutputFPStream(KOutputFPStream&& other);
 	//-----------------------------------------------------------------------------
@@ -208,7 +208,7 @@ public:
 	virtual ~KOutputFPStream();
 	//-----------------------------------------------------------------------------
 
-#if !defined(__GNUC__) || (DEKAF2_GCC_VERSION >= 500)
+#if !defined(__GNUC__) || (DEKAF2_GCC_VERSION >= 50000)
 	//-----------------------------------------------------------------------------
 	KOutputFPStream& operator=(KOutputFPStream&& other);
 	//-----------------------------------------------------------------------------

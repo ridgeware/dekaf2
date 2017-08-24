@@ -48,7 +48,7 @@
 #pragma once
 
 #if defined __GNUC__
- #define DEKAF2_GCC_VERSION 100 * __GNUC__ + __GNUC_MINOR__ * 10 + __GNUC_PATCHLEVEL__
+ #define DEKAF2_GCC_VERSION __GNUC__ * 10000 + __GNUC_MINOR__ * 100 + __GNUC_PATCHLEVEL__
 #else
  #define DEKAF2_GCC_VERSION 0
 #endif

@@ -50,7 +50,7 @@ namespace dekaf2
 {
 
 
-#if !defined(__GNUC__) || (DEKAF2_GCC_VERSION >= 500)
+#if !defined(__GNUC__) || (DEKAF2_GCC_VERSION >= 50000)
 // gcc 4.8.5 has troubles with moves..
 //-----------------------------------------------------------------------------
 KInputFDStream::KInputFDStream(KInputFDStream&& other)
@@ -71,7 +71,7 @@ KInputFDStream::~KInputFDStream()
 	// but just received a handle for it
 }
 
-#if !defined(__GNUC__) || (DEKAF2_GCC_VERSION >= 500)
+#if !defined(__GNUC__) || (DEKAF2_GCC_VERSION >= 50000)
 //-----------------------------------------------------------------------------
 KInputFDStream& KInputFDStream::operator=(KInputFDStream&& other)
 //-----------------------------------------------------------------------------
@@ -135,7 +135,7 @@ std::streamsize KInputFDStream::FileDescReader(void* sBuffer, std::streamsize iC
 }
 
 
-#if !defined(__GNUC__) || (DEKAF2_GCC_VERSION >= 500)
+#if !defined(__GNUC__) || (DEKAF2_GCC_VERSION >= 50000)
 //-----------------------------------------------------------------------------
 KInputFPStream::KInputFPStream(KInputFPStream&& other)
     : m_FilePtr{other.m_FilePtr}
@@ -155,7 +155,7 @@ KInputFPStream::~KInputFPStream()
 	// but just received a handle for it
 }
 
-#if !defined(__GNUC__) || (DEKAF2_GCC_VERSION >= 500)
+#if !defined(__GNUC__) || (DEKAF2_GCC_VERSION >= 50000)
 //-----------------------------------------------------------------------------
 KInputFPStream& KInputFPStream::operator=(KInputFPStream&& other)
 //-----------------------------------------------------------------------------

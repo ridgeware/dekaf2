@@ -13,7 +13,7 @@ KStringView::size_type KStringView::rfind(value_type ch, size_type pos) const no
 {
 	if (size() > 0)
 	{
-#if (DEKAF2_GCC_VERSION > 460)
+#if (DEKAF2_GCC_VERSION > 40600)
 		// memrchr is supported since glibc v2.2. gcc 4.6 should satisfy that.
 		if (pos != npos)
 		{

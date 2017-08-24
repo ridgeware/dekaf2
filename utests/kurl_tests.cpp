@@ -103,7 +103,7 @@ TEST_CASE ("KURL")
 				CHECK (hint == 8);
 		}
 
-#if !defined(__GNUC__) || (DEKAF2_GCC_VERSION >= 500)
+#if !defined(__GNUC__) || (DEKAF2_GCC_VERSION >= 50000)
 		SECTION ("KProto/KUserInfo/KDomain simple test")
 		{
 			    KString target;
@@ -123,7 +123,7 @@ TEST_CASE ("KURL")
 		}
 #endif
 
-#if !defined(__GNUC__) || (DEKAF2_GCC_VERSION >= 500)
+#if !defined(__GNUC__) || (DEKAF2_GCC_VERSION >= 50000)
 		SECTION ("KProto/KDomain hint offset")
 		{
 			    KString target;

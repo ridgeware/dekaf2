@@ -83,7 +83,7 @@ public:
 
 	KInputFDStream(const KInputFDStream&) = delete;
 
-#if !defined(__GNUC__) || (DEKAF2_GCC_VERSION >= 500)
+#if !defined(__GNUC__) || (DEKAF2_GCC_VERSION >= 50000)
 	//-----------------------------------------------------------------------------
 	KInputFDStream(KInputFDStream&& other);
 	//-----------------------------------------------------------------------------
@@ -102,7 +102,7 @@ public:
 	virtual ~KInputFDStream();
 	//-----------------------------------------------------------------------------
 
-#if !defined(__GNUC__) || (DEKAF2_GCC_VERSION >= 500)
+#if !defined(__GNUC__) || (DEKAF2_GCC_VERSION >= 50000)
 	//-----------------------------------------------------------------------------
 	KInputFDStream& operator=(KInputFDStream&& other);
 	//-----------------------------------------------------------------------------

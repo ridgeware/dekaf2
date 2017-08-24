@@ -33,6 +33,7 @@ find_package(Boost QUIET COMPONENTS system REQUIRED)
 include_directories(SYSTEM ${Boost_INCLUDE_DIR})
 
 set (HEADERS
+    bits/kconfiguration.h
     bits/ktemplate.h
     bits/kcppcompat.h
     bits/kmake_unique.h

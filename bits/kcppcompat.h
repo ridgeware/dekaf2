@@ -49,6 +49,8 @@
 
 #if defined __GNUC__
  #define DEKAF2_GCC_VERSION 100 * __GNUC__ + __GNUC_MINOR__ * 10 + __GNUC_PATCHLEVEL__
+#else
+ #define DEKAF2_GCC_VERSION 0
 #endif
 
 #if defined __GNUC__

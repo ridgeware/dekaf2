@@ -43,17 +43,16 @@
 #pragma once
 
 #include <deque>
-
 #include "klog.h"
 
 namespace  dekaf2
 {
 
-
 template<class Stack_Type>
 class KStack
-
 {
+
+	using self_type = KStack<Stack_Type>;
 
 //----------
 public:
@@ -63,27 +62,31 @@ public:
 	/// Default Constructor
 	KStack()
 	//-----------------------------------------------------------------------------
-	{}
+	{
+	}
 
 	//-----------------------------------------------------------------------------
 	/// Default Constructor
 	~KStack()
 	//-----------------------------------------------------------------------------
-	{}
+	{
+	}
 
 	//-----------------------------------------------------------------------------
 	/// Copy Constructor
-	KStack(const KStack& other)
+	KStack(const self_type& other)
 	//-----------------------------------------------------------------------------
 	    :m_Storage(other.m_Storage)
-	{}
+	{
+	}
 
 	//-----------------------------------------------------------------------------
 	/// Move Constructor
-	KStack (KStack&& other)
+	KStack(self_type&& other)
 	//-----------------------------------------------------------------------------
 	    : m_Storage(std::move(other.m_Storage))
-	{}
+	{
+	}
 
 	// ===== STANDARD STACK INTERACTIONS =====
 
@@ -210,10 +213,10 @@ public:
 		return m_Storage.clear();
 	}
 
-	// Operators overloads
+	// Operator overloads
 	/// Assigns one KStack to Another (old data is destroyed)
 	//-----------------------------------------------------------------------------
-	KStack& operator= (KStack&& other)
+	self_type& operator= (self_type&& other)
 	//-----------------------------------------------------------------------------
 	{
 		m_Storage = std::move(other.m_Storage);
@@ -221,7 +224,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	KStack& operator= (const KStack& other)
+	self_type& operator= (const self_type& other)
 	//-----------------------------------------------------------------------------
 	{
 		m_Storage = other.m_Storage;
@@ -278,14 +281,15 @@ public:
 private:
 //----------
 
-	Storage_Type  m_Storage;
+	Storage_Type m_Storage;
 	Stack_Type m_EmptyValue{}; // for operator[] only
 	static const Stack_Type s_cEmptyValue{};
 
 };
 
 /// Defines the Templates static const
-template<typename Stack_Type> const Stack_Type KStack<Stack_Type>::s_cEmptyValue;
+template<typename Stack_Type>
+const Stack_Type KStack<Stack_Type>::s_cEmptyValue;
 
 // ===== STANDARD STACK INTERACTIONS =====
 

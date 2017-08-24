@@ -190,7 +190,7 @@ public:
 
 		}
 
-		KLog().debug(2, "KRunThreads: started {} additional threads", iCount);
+		kDebug(2, "started {} additional threads", iCount);
 
 		return iCount;
 	}

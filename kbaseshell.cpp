@@ -40,78 +40,35 @@
 // +-------------------------------------------------------------------------+
 */
 
-#include <fstream>
-#include "kwriter.h"
 #include "klog.h"
+#include "kbaseshell.h"
 
 namespace dekaf2
 {
 
+//-----------------------------------------------------------------------------
+KBaseShell::~KBaseShell() {}
+//-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
-KOutStreamBuf::~KOutStreamBuf()
+int KBaseShell::Close()
 //-----------------------------------------------------------------------------
 {
-}
+	KLog().debug(3, "KBaseShell::Close");
 
-//-----------------------------------------------------------------------------
-std::streamsize KOutStreamBuf::xsputn(const char_type* s, std::streamsize n)
-//-----------------------------------------------------------------------------
-{
-	return m_Callback(s, n, m_CustomPointer);
-}
-
-//-----------------------------------------------------------------------------
-KOutStreamBuf::int_type KOutStreamBuf::overflow(int_type ch)
-//-----------------------------------------------------------------------------
-{
-	return static_cast<int_type>(m_Callback(&ch, 1, m_CustomPointer));
-}
-
-
-//-----------------------------------------------------------------------------
-KOutStream::~KOutStream()
-//-----------------------------------------------------------------------------
-{
-}
-
-//-----------------------------------------------------------------------------
-/// Write a character. Returns stream reference that resolves to false on failure
-KOutStream::self_type& KOutStream::Write(KString::value_type ch)
-//-----------------------------------------------------------------------------
-{
-	std::streambuf* sb = OutStream().rdbuf();
-	if (sb != nullptr)
+	if (m_pipe)
 	{
-		typename std::ostream::int_type iCh = sb->sputc(ch);
-		if (std::ostream::traits_type::eq_int_type(iCh, std::ostream::traits_type::eof()))
-		{
-			OutStream().setstate(std::ios_base::badbit);
-		}
+		m_iExitCode = pclose (m_pipe);
+		m_pipe = nullptr;
 	}
-	return *this;
-}
-
-//-----------------------------------------------------------------------------
-/// Write a range of characters. Returns stream reference that resolves to false on failure
-KOutStream::self_type& KOutStream::Write(const typename std::ostream::char_type* pAddress, size_t iCount)
-//-----------------------------------------------------------------------------
-{
-	if (iCount)
+	else
 	{
-		std::streambuf* sb = OutStream().rdbuf();
-		if (sb != nullptr)
-		{
-			size_t iWrote = static_cast<size_t>(sb->sputn(pAddress, iCount));
-			if (iWrote != iCount)
-			{
-				OutStream().setstate(std::ios_base::badbit);
-			}
-		}
+		return -1; //attempting to close a pipe that is not open
 	}
-	return *this;
-}
 
+	KLog().debug(3, "KBaseShell::Close::Done:: Exit Code = {}", m_iExitCode);
+
+	return (m_iExitCode);
+} // Close
 
 } // end of namespace dekaf2
-

@@ -143,7 +143,7 @@ KString kGetCWD ()
 	}
 	else
 	{
-		KLog().warning("cannot get current working directory: {}", ::strerror(errno));
+		kWarning("cannot get current working directory: {}", ::strerror(errno));
 		str.erase();
 	}
 	return str;

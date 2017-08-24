@@ -433,7 +433,7 @@ public:
 			}
 			if (!Add(std::move(key), std::move(value)))
 			{
-				KLog().warning("KProps: cannot add new pair");
+				kWarning("cannot add new pair");
 				continue;
 			}
 			++iCount;
@@ -723,7 +723,7 @@ public:
 		{
 			return it->second;
 		}
-		KLog().debug(2, "KProps::Get() called for non-existing key");
+		kDebug(2, "called for non-existing key");
 		return s_EmptyElement.second;
 	}
 
@@ -740,7 +740,7 @@ public:
 		{
 			return it->second;
 		}
-		KLog().debug(2, "KProps::Get() const called for non-existing key");
+		kDebug(2, "called for non-existing key");
 		return s_EmptyElement.second;
 	}
 
@@ -798,7 +798,7 @@ public:
 		}
 		else
 		{
-			KLog().warning("KProps::at() const called for index {}, which is out of range [0,{})", index, size());
+			kWarning("called for index {}, which is out of range [0,{})", index, size());
 			return s_EmptyElement;
 		}
 	}

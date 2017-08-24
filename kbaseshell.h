@@ -39,79 +39,67 @@
 // |\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/ |
 // +-------------------------------------------------------------------------+
 */
+#pragma once
 
-#include <fstream>
-#include "kwriter.h"
-#include "klog.h"
+#include "kstring.h"
 
 namespace dekaf2
 {
 
-
-//-----------------------------------------------------------------------------
-KOutStreamBuf::~KOutStreamBuf()
-//-----------------------------------------------------------------------------
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+class KBaseShell
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
-}
 
-//-----------------------------------------------------------------------------
-std::streamsize KOutStreamBuf::xsputn(const char_type* s, std::streamsize n)
-//-----------------------------------------------------------------------------
-{
-	return m_Callback(s, n, m_CustomPointer);
-}
+//------
+public:
+//------
 
-//-----------------------------------------------------------------------------
-KOutStreamBuf::int_type KOutStreamBuf::overflow(int_type ch)
-//-----------------------------------------------------------------------------
-{
-	return static_cast<int_type>(m_Callback(&ch, 1, m_CustomPointer));
-}
+	//-----------------------------------------------------------------------------
+	/// Default Constructor
+	KBaseShell ()
+	//-----------------------------------------------------------------------------
+	{}
 
+	//-----------------------------------------------------------------------------
+	/// Default Virtual Destructor
+	virtual ~KBaseShell ();
+	//-----------------------------------------------------------------------------
 
-//-----------------------------------------------------------------------------
-KOutStream::~KOutStream()
-//-----------------------------------------------------------------------------
-{
-}
+	//-----------------------------------------------------------------------------
+	/// Executes given command via a shell pipe saving FILE* pipe in class member
+	virtual bool Open (const KString& sCommand) = 0;
+	//-----------------------------------------------------------------------------
 
-//-----------------------------------------------------------------------------
-/// Write a character. Returns stream reference that resolves to false on failure
-KOutStream::self_type& KOutStream::Write(KString::value_type ch)
-//-----------------------------------------------------------------------------
-{
-	std::streambuf* sb = OutStream().rdbuf();
-	if (sb != nullptr)
+	//-----------------------------------------------------------------------------
+	/// Closes pipe saving exit code.
+	virtual int  Close();
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// Get error code, 0 indicates no errors
+	int GetErrno()
+	//-----------------------------------------------------------------------------
 	{
-		typename std::ostream::int_type iCh = sb->sputc(ch);
-		if (std::ostream::traits_type::eq_int_type(iCh, std::ostream::traits_type::eof()))
-		{
-			OutStream().setstate(std::ios_base::badbit);
-		}
+		return m_iExitCode;
 	}
-	return *this;
-}
 
-//-----------------------------------------------------------------------------
-/// Write a range of characters. Returns stream reference that resolves to false on failure
-KOutStream::self_type& KOutStream::Write(const typename std::ostream::char_type* pAddress, size_t iCount)
-//-----------------------------------------------------------------------------
-{
-	if (iCount)
+	//-----------------------------------------------------------------------------
+	/// Allows KPipeReader to be passed where File* can be.
+	operator FILE*()
+	//-----------------------------------------------------------------------------
 	{
-		std::streambuf* sb = OutStream().rdbuf();
-		if (sb != nullptr)
-		{
-			size_t iWrote = static_cast<size_t>(sb->sputn(pAddress, iCount));
-			if (iWrote != iCount)
-			{
-				OutStream().setstate(std::ios_base::badbit);
-			}
-		}
+		return m_pipe;
 	}
-	return *this;
-}
+
+//--------
+public:
+//--------
+
+	FILE*        m_pipe{nullptr};
+	int          m_iExitCode{0};
 
 
-} // end of namespace dekaf2
+}; // class KPIPE
 
+} // end of namespace DEKAF2

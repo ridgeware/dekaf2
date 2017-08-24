@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.2)
+cmake_minimum_required(VERSION 3.8)
 
 project(dekaf2-utests)
 
@@ -15,14 +15,16 @@ set (USOURCES
     kstring_tests.cpp
     kstringutils_tests.cpp
     kprops_tests.cpp
-    kpipe_tests.cpp
     kurl_tests.cpp
     kwebio_tests.cpp
     kcurl_tests.cpp
     kfile_tests.cpp
     kreader_tests.cpp
+    kinshell_tests.cpp
+    koutshell_tests.cpp
+    kstack_tests.cpp
     ktcpserver_tests.cpp
-    ksslstream_tests.cpp
+    klog_tests.cpp
 )
 
 add_executable(dekaf2-utests ${UHEADERS} ${USOURCES})

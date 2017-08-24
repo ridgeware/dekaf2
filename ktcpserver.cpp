@@ -138,7 +138,7 @@ void KTCPServer::Session(KStream& stream, const endpoint_type& remote_endpoint)
 void KTCPServer::RunSession(KStream& stream, const endpoint_type& remote_endpoint)
 //-----------------------------------------------------------------------------
 {
-	KLog().debug(3, "KTCPServer: accepting new connection from {} on port {}",
+	kDebug(3, "accepting new connection from {} on port {}",
 	             to_string(remote_endpoint),
 	             m_iPort);
 
@@ -153,15 +153,15 @@ void KTCPServer::RunSession(KStream& stream, const endpoint_type& remote_endpoin
 	catch (std::exception& e)
 	{
 		// we cannot log the .what() string as boost is built with COW strings..
-		KLog().Exception(e, "RunSession", "KTCPServer");
+		kException(e);
 	}
 */
 	catch (...)
 	{
-		KLog().Exception("RunSession", "KTCPServer");
+		kUnknownException();
 	}
 
-	KLog().debug(3, "KTCPServer: closing connection with {} on port {}",
+	kDebug(3, "closing connection with {} on port {}",
 	             to_string(remote_endpoint),
 	             m_iPort);
 
@@ -221,7 +221,7 @@ void KTCPServer::Server(bool ipv6)
 
 		if (!acceptor.is_open())
 		{
-			KLog().warning("KTCPServer::Server(): IPv{} listener for port {} could not open",
+			kWarning("IPv{} listener for port {} could not open",
 			               (ipv6) ? '6' : '4',
 			               m_iPort);
 		}
@@ -248,7 +248,7 @@ void KTCPServer::Server(bool ipv6)
 
 			if (!acceptor.is_open())
 			{
-				KLog().warning("KTCPServer::Server(): IPv{} listener for port {} has closed",
+				kWarning("IPv{} listener for port {} has closed",
 				               (ipv6) ? '6' : '4',
 				               m_iPort);
 			}
@@ -259,12 +259,12 @@ void KTCPServer::Server(bool ipv6)
 	catch (const std::exception& e)
 	{
 		// we cannot log the .what() string as boost is built with COW strings..
-		KLog().Exception(e, "Server", "KTCPServer");
+		kException(e);
 	}
 */
 	catch (...)
 	{
-		KLog().Exception("Server", "KTCPServer");
+		kUnknownException();
 	}
 }
 
@@ -282,7 +282,7 @@ bool KTCPServer::Start(uint16_t iTimeoutInSeconds, bool bBlock)
 {
 	if (IsRunning())
 	{
-		KLog().warning("KTCPServer::start(): Server is already running on port {}", m_iPort);
+		kWarning("Server is already running on port {}", m_iPort);
 		return false;
 	}
 	m_iTimeout = iTimeoutInSeconds;
@@ -293,7 +293,7 @@ bool KTCPServer::Start(uint16_t iTimeoutInSeconds, bool bBlock)
 	{
 		if (m_sCert.empty() || m_sPem.empty())
 		{
-			KLog().warning("KTCPServer::start(): cannot start SSL server on port {}, have no certificates", m_iPort);
+			kWarning("cannot start SSL server on port {}, have no certificates", m_iPort);
 			return false;
 		}
 	}

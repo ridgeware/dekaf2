@@ -52,10 +52,10 @@ KRegex::cache_t KRegex::s_Cache;
 void KRegex::LogExpError()
 //-----------------------------------------------------------------------------
 {
-	KLog().warning("KRegex: {} regex '{}', here: '{}'",
-	               m_Regex->error(),
-	               m_Regex->pattern(),
-	               m_Regex->error_arg());
+	kWarning("{} regex '{}', here: '{}'",
+	         m_Regex->error(),
+	         m_Regex->pattern(),
+	         m_Regex->error_arg());
 }
 
 //-----------------------------------------------------------------------------

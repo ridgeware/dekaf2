@@ -123,7 +123,7 @@ bool kRewind(std::istream& Stream)
 
 	catch (std::exception& e)
 	{
-		kException(e, "kRewind");
+		kException(e);
 	}
 
 	return false;
@@ -175,7 +175,7 @@ ssize_t kGetSize(std::istream& Stream, bool bFromStart)
 
 	catch (std::exception& e)
 	{
-		kException(e, "kGetSize");
+		kException(e);
 	}
 
 	return -1;
@@ -266,7 +266,7 @@ bool kReadAll(std::istream& Stream, KString& sContent, bool bFromStart)
 		catch (std::exception& e)
 		{
 			sContent.clear();
-			kException(e, "kReadAll");
+			kException(e);
 		}
 
 		Stream.setstate(std::ios_base::eofbit);

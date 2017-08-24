@@ -103,7 +103,7 @@ void KInputFDStream::close()
 	{
 		if (::close(m_FileDesc))
 		{
-			KLog().warning("KInputFDStream: Cannot close file: {}", strerror(errno));
+			kWarning("Cannot close file: {}", strerror(errno));
 		}
 		m_FileDesc = -1;
 	}
@@ -124,7 +124,7 @@ std::streamsize KInputFDStream::FileDescReader(void* sBuffer, std::streamsize iC
 		if (iRead < 0)
 		{
 			// do some logging
-			KLog().warning("KInputFDStream: cannot read from file: {} - requested {}, got {} bytes",
+			kWarning("cannot read from file: {} - requested {}, got {} bytes",
 			               strerror(errno),
 			               iCount,
 			               iRead);
@@ -187,7 +187,7 @@ void KInputFPStream::close()
 	{
 		if (std::fclose(m_FilePtr))
 		{
-			KLog().warning("KInputFPStream: Cannot close file: {}", strerror(errno));
+			kWarning("Cannot close file: {}", strerror(errno));
 		}
 		m_FilePtr = nullptr;
 	}
@@ -209,7 +209,7 @@ std::streamsize KInputFPStream::FilePtrReader(void* sBuffer, std::streamsize iCo
 			if (iRead < 0)
 			{
 				// do some logging
-				KLog().warning("KInputFPStream: cannot read from file: {} - requested {}, got {} bytes",
+				kWarning("KInputFPStream: cannot read from file: {} - requested {}, got {} bytes",
 				               strerror(errno),
 				               iCount,
 				               iRead);

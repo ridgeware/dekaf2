@@ -47,6 +47,7 @@
 #include "kstring.h"
 #include "kwriter.h"
 #include "kformat.h"
+#include "bits/kcppcompat.h"
 
 namespace dekaf2
 {
@@ -121,7 +122,16 @@ public:
 	inline bool debug(int level, Args&&... args)
 	//---------------------------------------------------------------------------
 	{
-		return (level > s_kLogLevel) || IntDebug(level, kFormat(std::forward<Args>(args)...));
+		return (level > s_kLogLevel) || IntDebug(level, KStringView(), kFormat(std::forward<Args>(args)...));
+	}
+
+	//---------------------------------------------------------------------------
+	/// this function is deprecated - use kDebug() instead!
+	template<class... Args>
+	inline bool debug_fun(int level, KStringView sFunction, Args&&... args)
+	//---------------------------------------------------------------------------
+	{
+		return (level > s_kLogLevel) || IntDebug(level, sFunction, kFormat(std::forward<Args>(args)...));
 	}
 
 	//---------------------------------------------------------------------------
@@ -129,7 +139,7 @@ public:
 	inline bool warning(Args&&... args)
 	//---------------------------------------------------------------------------
 	{
-		return IntDebug(-1, kFormat(std::forward<Args>(args)...));
+		return IntDebug(-1, KStringView(), kFormat(std::forward<Args>(args)...));
 	}
 
 	//---------------------------------------------------------------------------
@@ -139,7 +149,6 @@ public:
 	{
 		IntException(e.what(), sFunction, sClass);
 	}
-
 
 	//---------------------------------------------------------------------------
 	/// report an unknown exception
@@ -160,7 +169,7 @@ private:
 //----------
 
 	//---------------------------------------------------------------------------
-	bool IntDebug(int level, KStringView sMessage);
+	bool IntDebug(int level, KStringView sFunction, KStringView sMessage);
 	//---------------------------------------------------------------------------
 
 	//---------------------------------------------------------------------------
@@ -205,26 +214,40 @@ KLog& KLog();
 { \
 	if (level <= KLog::s_kLogLevel) \
 	{ \
-		KLog().debug(level, __VA_ARGS__); \
+		KLog().debug_fun(level, DEKAF2_FUNCTION_NAME, __VA_ARGS__); \
 	} \
 }
 //---------------------------------------------------------------------------
 
+#ifdef kWarning
+	#undef kWarning
+#endif
 //---------------------------------------------------------------------------
-template<class... Args>
-inline bool kWarning(Args&&... args)
-//---------------------------------------------------------------------------
-{
-	KLog().warning(std::forward<Args>(args)...);
+#define kWarning(...) \
+{ \
+	KLog().debug_fun(-1, DEKAF2_FUNCTION_NAME, __VA_ARGS__); \
 }
+//---------------------------------------------------------------------------
 
+#ifdef kException
+	#undef kException
+#endif
 //---------------------------------------------------------------------------
-template<class... Args>
-void kException(Args&&... args)
-//---------------------------------------------------------------------------
-{
-	KLog().Exception(std::forward<Args>(args)...);
+#define kException(except) \
+{ \
+	KLog().Exception(except, DEKAF2_FUNCTION_NAME); \
 }
+//---------------------------------------------------------------------------
+
+#ifdef kUnknownException
+	#undef kUnknownException
+#endif
+//---------------------------------------------------------------------------
+#define kUnknownException() \
+{ \
+	KLog().Exception(DEKAF2_FUNCTION_NAME); \
+}
+//---------------------------------------------------------------------------
 
 
 } // end of namespace dekaf2

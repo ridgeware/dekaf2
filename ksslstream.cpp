@@ -146,12 +146,12 @@ std::streamsize KSSLInOutStreamDevice::read(char* s, std::streamsize n) noexcept
 	catch (const std::exception& e)
 	{
 		// we cannot log the .what() string as boost is built with COW strings..
-		kException(e, "read", "KSSLInOutStreamDevice");
+		kException(e);
 	}
 */
 	catch (...)
 	{
-		kException("read", "KSSLInOutStreamDevice");
+		kUnknownException();
 	}
 
 	return 0;
@@ -193,12 +193,12 @@ std::streamsize KSSLInOutStreamDevice::write(const char* s, std::streamsize n) n
 	catch (const std::exception& e)
 	{
 		// we cannot log the .what() string as boost is built with COW strings..
-		kException(e, "read", "KSSLInOutStreamDevice");
+		kException(e);
 	}
 */
 	catch (...)
 	{
-		kException("write", "KSSLInOutStreamDevice");
+		kUnknownException();
 	}
 
 	return 0;
@@ -298,12 +298,12 @@ bool KSSLIOStream::connect(const char* sServer, const char* sPort, bool bVerifyC
 	catch (const std::exception& e)
 	{
 		// we cannot log the .what() string as boost is built with COW strings..
-		kException(e, "Server", "KSSLIOStream");
+		kException(e);
 	}
 */
 	catch (...)
 	{
-		kException("Connect", "KSSLIOStream");
+		kUnknownException();
 	}
 
 	return false;

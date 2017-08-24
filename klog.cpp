@@ -122,9 +122,32 @@ bool KLog::IntBacktrace()
 }
 
 //---------------------------------------------------------------------------
-bool KLog::IntDebug(int level, KStringView sMessage)
+bool KLog::IntDebug(int level, KStringView sFunction, KStringView sMessage)
 //---------------------------------------------------------------------------
 {
+	if (!sFunction.empty())
+	{
+		if (*sFunction.rbegin() == ']')
+		{
+			// try to remove template arguments from function name
+			auto pos = sFunction.rfind('[');
+			if (pos != KStringView::npos)
+			{
+				if (pos > 0 && sFunction[pos-1] == ' ')
+				{
+					--pos;
+				}
+				sFunction.remove_suffix(sFunction.size() - pos);
+			}
+		}
+
+		if (!sFunction.empty())
+		{
+			m_Log.Write(sFunction);
+			m_Log.Write(": ");
+		}
+	}
+
 	m_Log.WriteLine(sMessage);
 	m_Log.flush();
 

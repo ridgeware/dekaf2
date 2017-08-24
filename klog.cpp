@@ -68,7 +68,11 @@ KLog::KLog()
     , m_sFlagfile("/tmp/dekaf.dbg")
     , m_Log(m_sLogfile, std::ios::ate)
 {
+#if NDEBUG
+	s_kLogLevel = -1;
+#else
 	s_kLogLevel = 0;
+#endif
 }
 
 //---------------------------------------------------------------------------

@@ -65,18 +65,17 @@ public:
 	KLog& operator=(KLog&&) = delete;
 
 	//---------------------------------------------------------------------------
-	inline int GetLevel() const
+	static inline int GetLevel()
 	//---------------------------------------------------------------------------
 	{
-		return m_iLevel;
+		return s_kLogLevel;
 	}
 
 	//---------------------------------------------------------------------------
-	inline int SetLevel(int iLevel)
+	inline void SetLevel(int iLevel)
 	//---------------------------------------------------------------------------
 	{
-		m_iLevel = iLevel;
-		return m_iLevel;
+		s_kLogLevel = iLevel;
 	}
 
 	//---------------------------------------------------------------------------
@@ -117,11 +116,12 @@ public:
 	}
 
 	//---------------------------------------------------------------------------
+	/// this function is deprecated - use kDebug() instead!
 	template<class... Args>
 	inline bool debug(int level, Args&&... args)
 	//---------------------------------------------------------------------------
 	{
-		return (level > m_iLevel) || IntDebug(level, kFormat(std::forward<Args>(args)...));
+		return (level > s_kLogLevel) || IntDebug(level, kFormat(std::forward<Args>(args)...));
 	}
 
 	//---------------------------------------------------------------------------
@@ -129,7 +129,7 @@ public:
 	inline bool warning(Args&&... args)
 	//---------------------------------------------------------------------------
 	{
-		return debug(-1, std::forward<Args>(args)...);
+		return IntDebug(-1, kFormat(std::forward<Args>(args)...));
 	}
 
 	//---------------------------------------------------------------------------
@@ -149,9 +149,16 @@ public:
 		IntException("unknown", sFunction, sClass);
 	}
 
+	// do _not_ initialize s_kLoglevel - see implementation note. Also, it needs
+	// to be publicly visible as gcc does _not_ optimize a static inline GetLevel()
+	// into an inline. We have to test the static var directly from kDebug to
+	// have it inlined
+	static int s_kLogLevel;
+
 //----------
 private:
 //----------
+
 	//---------------------------------------------------------------------------
 	bool IntDebug(int level, KStringView sMessage);
 	//---------------------------------------------------------------------------
@@ -164,25 +171,44 @@ private:
 	void IntException(KStringView sWhat, KStringView sFunction, KStringView sClass);
 	//---------------------------------------------------------------------------
 
-	int m_iLevel{0};
 	int m_iBackTrace{0};
 	KString m_sLogfile;
 	KString m_sFlagfile;
 	KOutFile m_Log;
-};
 
+};
 
 //---------------------------------------------------------------------------
 KLog& KLog();
 //---------------------------------------------------------------------------
 
+// there is no way to convince gcc to inline a variadic template function
+// (and as "inline" is not imperative it may happen on other compilers as well)
+// - so just fall back to using a macro. Remind that this creates problems
+// with namespaces, as preprocessor macros are namespace agnostic.
+//
+// The problem is introduced for kDebug() (and KLog().debug(), which is deprecated)
+// as we do not want to evaluate all input parameters before calling the function.
+// Therefore we resort to a macro here, and _only_ here (remember, macros are evil)
+//
+// From inside the macro we call .debug() and not .warning() as we evaluate only the
+// global static KLog::s_kLogLevel, which is not guaranteed to be initialized before KLog()
+// has been called for the first time. .debug() then re-evaluates the level and
+// outputs appropriately. The only bad thing that can happen is that we miss
+// a debug output in the initialization phase of the program
+
+#ifdef kDebug
+	#undef kDebug
+#endif
 //---------------------------------------------------------------------------
-template<class... Args>
-inline bool kDebug(int level, Args&&... args)
-//---------------------------------------------------------------------------
-{
-	KLog().debug(level, std::forward<Args>(args)...);
+#define kDebug(level, ...) \
+{ \
+	if (level <= KLog::s_kLogLevel) \
+	{ \
+		KLog().debug(level, __VA_ARGS__); \
+	} \
 }
+//---------------------------------------------------------------------------
 
 //---------------------------------------------------------------------------
 template<class... Args>

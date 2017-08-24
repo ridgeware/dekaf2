@@ -56,6 +56,10 @@ class KLog& KLog()
 	return myKLog;
 }
 
+// do not initialize this static var - it risks to override a value set by KLog()'s
+// initialization before..
+int KLog::s_kLogLevel;
+
 // Ctor
 //---------------------------------------------------------------------------
 KLog::KLog()
@@ -64,10 +68,10 @@ KLog::KLog()
     , m_sFlagfile("/tmp/dekaf.dbg")
     , m_Log(m_sLogfile, std::ios::ate)
 {
+	s_kLogLevel = 0;
 }
 
 //---------------------------------------------------------------------------
-//	filename set/get debuglog("stderr/stdout/syslog" special files) /tmp/dekaf.log
 bool KLog::SetDebugLog(KStringView sLogfile)
 //---------------------------------------------------------------------------
 {
@@ -88,7 +92,6 @@ bool KLog::SetDebugLog(KStringView sLogfile)
 }
 
 //---------------------------------------------------------------------------
-//	set/get debugflag() /tmp/dekaf.dbg
 bool KLog::SetDebugFlag(KStringView sFlagfile)
 //---------------------------------------------------------------------------
 {
@@ -122,15 +125,12 @@ bool KLog::IntBacktrace()
 bool KLog::IntDebug(int level, KStringView sMessage)
 //---------------------------------------------------------------------------
 {
-	if (level <= m_iLevel)
-	{
-		m_Log.WriteLine(sMessage);
-		m_Log.flush();
+	m_Log.WriteLine(sMessage);
+	m_Log.flush();
 
-		if (level <= m_iBackTrace)
-		{
-			IntBacktrace();
-		}
+	if (level <= m_iBackTrace)
+	{
+		IntBacktrace();
 	}
 	return m_Log.good();
 }
@@ -152,5 +152,7 @@ void KLog::IntException(KStringView sWhat, KStringView sFunction, KStringView sC
 		warning("{0} caught exception: '{1}'", sFunction, sWhat);
 	}
 }
+
+// TODO add a mechanism to check periodically for the flag file's set level
 
 } // of namespace dekaf2

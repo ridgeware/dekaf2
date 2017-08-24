@@ -121,7 +121,11 @@ bool KInPipe::IsRunning()
 	bool bResponse = false;
 
 	// sets m_iReadChildStatus if iPid is not zero
-	wait(WNOHANG);
+	pid_t iPid;
+	if (!wait(iPid))
+	{
+		return true;
+	}
 
 	// Did we fail to get a status?
 	if (-1 == m_iReadChildStatus)
@@ -144,7 +148,7 @@ bool KInPipe::IsRunning()
 		return bResponse;
 	}
 
-	m_iReadExitCode = -1;
+	//m_iReadExitCode = -1;
 
 	return bResponse;
 
@@ -174,19 +178,19 @@ bool KInPipe::OpenReadPipe(const KString& sCommand)
 		case -1: /* error */
 		{
 			// could not create the child
-			(void)::close(m_readPdes[0]);
-			(void)::close(m_readPdes[1]);
+			::close(m_readPdes[0]);
+			::close(m_readPdes[1]);
 			m_readPid = -2;
 			break;
 		}
 
 		case 0: /* child */
 		{
-			(void)::close(m_readPdes[0]);
+			::close(m_readPdes[0]);
 			if (m_readPdes[1] != fileno(stdout))
 			{
-				(void)dup2(m_readPdes[1], fileno(stdout));
-				(void)::close(m_readPdes[1]);
+				::dup2(m_readPdes[1], fileno(stdout));
+				::close(m_readPdes[1]);
 			}
 
 			// execute the command
@@ -204,44 +208,39 @@ bool KInPipe::OpenReadPipe(const KString& sCommand)
 } // OpenReadPipe
 
 //-----------------------------------------------------------------------------
-pid_t KInPipe::wait(int options)
+bool KInPipe::wait(pid_t iPid)
 //-----------------------------------------------------------------------------
 {
 	int iStatus = 0;
 
-	pid_t iPid;
-	do
+	// status can only be read ONCE
+	if (true == m_bReadChildStatusValid)
 	{
-		// status can only be read ONCE
-		if (true == m_bReadChildStatusValid)
-		{
-			// status has already been set. do not read it again, you might get an invalid status.
-			iPid = m_readPid;
-			break;
-		} // end status is already set
+		// status has already been set. do not read it again, you might get an invalid status.
+		iPid = m_readPid;
+		return true;
+	} // end status is already set
 
-		iPid = waitpid(m_readPid, &iStatus, options);
+	iPid = waitpid(m_readPid, &iStatus, WNOHANG);
 
-		// is the status valid?
-		if (0 < iPid)
-		{
-			// save the status
-			m_iReadChildStatus = iStatus;
-			m_bReadChildStatusValid = true;
-			break;
-		}
-
-		if ((iPid == -1) && (errno != EINTR))
-		{
-			// TODO log
-			m_iReadChildStatus = -2;
-			m_bReadChildStatusValid = true;
-			break;
-		}
+	// is the status valid?
+	if (0 < iPid)
+	{
+		// save the status
+		m_iReadChildStatus = iStatus;
+		m_bReadChildStatusValid = true;
+		return true;
 	}
-	while (iPid == -1 && errno == EINTR);
 
-	return iPid;
+	if ((iPid == -1) && (errno != EINTR))
+	{
+		// TODO log
+		m_iReadChildStatus = -1;
+		m_bReadChildStatusValid = true;
+		return true;
+	}
+
+	return false;
 } // wait
 
 } // end namespace dekaf2

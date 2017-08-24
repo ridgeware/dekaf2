@@ -12,6 +12,7 @@ TEST_CASE("KInPipe")
 		INFO("normal_open_close_test::Start:");
 
 		KInPipe pipe;
+		pipe.SetReaderTrim("");
 
 		// open the pipe
 		CHECK(pipe.Open("cat some random data > /tmp/kinshelltest.file 2>&1"));
@@ -19,10 +20,11 @@ TEST_CASE("KInPipe")
 
 		KString sCurrentLine;
 
+		CHECK(pipe.IsRunning());
 		bool output = pipe.ReadLine(sCurrentLine);
 		CHECK(output);
-		CHECK("1" == sCurrentLine);
-
+		CHECK("1\n" == sCurrentLine);
+		CHECK_FALSE(pipe.IsRunning());
 		CHECK(pipe.is_open());
 		CHECK(0 == pipe.Close());
 

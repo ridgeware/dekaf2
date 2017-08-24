@@ -181,21 +181,6 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	/// Write a type. Returns stream reference that resolves to false on failure.
-	/// Type must be trivially copyable.
-#if !defined(__GNUC__) || (DEKAF2_GCC_VERSION >= 500)
-	template<typename T, typename std::enable_if<std::is_trivially_copyable<T>::value>::type* = nullptr>
-#else
-	template<typename T, typename std::enable_if<std::is_integral<T>::value>::type* = nullptr>
-#endif
-	inline self_type& Write(T& value)
-	//-----------------------------------------------------------------------------
-	{
-		Write(&value, sizeof(T));
-		return *this;
-	}
-
-	//-----------------------------------------------------------------------------
 	/// Write a string and a line delimiter. Returns stream reference that resolves
 	/// to false on failure.
 	inline self_type& WriteLine(KStringView line)

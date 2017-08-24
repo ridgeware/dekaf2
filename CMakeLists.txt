@@ -48,7 +48,6 @@ set (HEADERS
     kurl.h
     kurl2.h
     kprops.h
-    kpipe.h
     kcurl.h
     kwebio.h
     kstringutils.h
@@ -63,6 +62,10 @@ set (HEADERS
     kwriter.h
     kfdwriter.h
     kstream.h
+    kbaseshell.h
+    kinshell.h
+    koutshell.h
+    kstack.h
     ktcpclient.h
     ktcpserver.h
     khash.h
@@ -80,7 +83,6 @@ set (SOURCES
     kprof.cpp
     kurl.cpp
     kurl2.cpp
-    kpipe.cpp
     kstringview.cpp
     kstringutils.cpp
     kparallel.cpp
@@ -91,10 +93,14 @@ set (SOURCES
     kcrashexit.cpp
     kgetruntimestack.cpp
     kreader.cpp
+    kwriter.cpp
     kfdreader.cpp
     kwriter.cpp
     kfdwriter.cpp
     kstream.cpp
+    kbaseshell.cpp
+    kinshell.cpp
+    koutshell.cpp
     ktcpserver.cpp
     khash.cpp
     ksslstream.cpp
@@ -152,3 +158,4 @@ set_target_properties(dekaf2 PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${DEKAF2_
 target_compile_definitions(dekaf2 PRIVATE DEKAF2_LIBRARY_BUILD)
 
 add_subdirectory(utests)
+add_subdirectory(smoketests)

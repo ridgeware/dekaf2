@@ -43,7 +43,7 @@
 
 #include "bits/kcppcompat.h"
 #include "kstring.h"
-#include "kpipe.h"
+#include "kinshell.h"
 #include "kgetruntimestack.h"
 
 #ifdef UNIX
@@ -139,20 +139,19 @@ KString Addr2LineMsg_ (const KString& sAddress)
 		sCmdLine += sMyExeName;
 		sCmdLine += "\" ";
 		sCmdLine += sAddress;
-		KPIPE pipe;
-		if (pipe.Open (sCmdLine, "r"))
+		KInShell pipe;
+		if (pipe.Open (sCmdLine))
 		{
 			KString	sLineBuf;
 			KString sResult;
-			enum {MAX = 1024};
 
-			if (pipe.getline (sLineBuf, MAX))
+			if (pipe.ReadLine (sLineBuf))
 			{
 				sLineBuf.TrimRight();
 				sResult += sLineBuf;
 			}
 
-			if (pipe.getline (sLineBuf, MAX))
+			if (pipe.ReadLine (sLineBuf))
 			{
 				sLineBuf.TrimRight();
 				if (!sLineBuf.StartsWith("??:")) {
@@ -227,15 +226,14 @@ KString GetGDBAttachBased_Callstack_ ()
 		sCmdLine += "\" ";
 		sCmdLine += std::to_string(getpid());
 		sCmdLine += " 2>&1";
-		KPIPE pipe;
+		KInShell pipe;
 
-		if (pipe.Open (sCmdLine, "r"))
+		if (pipe.Open (sCmdLine))
 		{
-			enum {MAX=1024};
-			enum {TIMEOUT_SEC=10};
+			//enum {TIMEOUT_SEC=10};
 
 			KString	sLineBuf;
-			while (pipe.getline (sLineBuf, MAX))
+			while (pipe.ReadLine(sLineBuf))
 			{
 				sLineBuf.TrimRight();
 				if (0 == sLineBuf.length())

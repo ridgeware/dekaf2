@@ -181,14 +181,23 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// Write a line delimiter. Returns stream reference that resolves
+	/// to false on failure.
+	inline self_type& WriteLine()
+	//-----------------------------------------------------------------------------
+	{
+		Write(m_sDelimiter.data(), m_sDelimiter.size());
+		return *this;
+	}
+
+	//-----------------------------------------------------------------------------
 	/// Write a string and a line delimiter. Returns stream reference that resolves
 	/// to false on failure.
 	inline self_type& WriteLine(KStringView line)
 	//-----------------------------------------------------------------------------
 	{
 		Write(line.data(), line.size());
-		Write(m_sDelimiter.data(), m_sDelimiter.size());
-		return *this;
+		return WriteLine();
 	}
 
 	//-----------------------------------------------------------------------------

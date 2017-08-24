@@ -39,24 +39,16 @@
 // |\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/ |
 // +-------------------------------------------------------------------------+
 */
-
 #pragma once
-#include "kstring.h"
-#include "kstringutils.h"
-#include "kprops.h"
-#include "kcurl.h"
-#include "kwriter.h"
 
-//include <locale>
-#include <ctype.h>
-#include <iostream>
+#include "kstring.h"
 
 namespace dekaf2
 {
 
-//-----------------------------------------------------------------------------
-class KWebIO : public KCurl
-//-----------------------------------------------------------------------------
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+class KBaseShell
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
 //------
@@ -64,91 +56,50 @@ public:
 //------
 
 	//-----------------------------------------------------------------------------
-	/// KWebIO default constructor, must be initialized after construction.
-	KWebIO()
+	/// Default Constructor
+	KBaseShell ()
 	//-----------------------------------------------------------------------------
 	{}
 
 	//-----------------------------------------------------------------------------
-	/// KWebIO Constructor that allows full initialization on construction.
-	KWebIO(const KString& requestURL, RequestType requestType = GET, bool bEchoHeader = false, bool bEchoBody = false)
-	//-----------------------------------------------------------------------------
-	    : KCurl(requestURL, requestType, bEchoHeader, bEchoBody)
-	{}
-
-	//-----------------------------------------------------------------------------
-	/// Default virutal destructor
-	virtual ~KWebIO()
-	//-----------------------------------------------------------------------------
-	{}
-
-	//-----------------------------------------------------------------------------
-	/// Overriden virtual method that parses response header
-	virtual bool   addToResponseHeader(KString& sHeaderPart);
+	/// Default Virtual Destructor
+	virtual ~KBaseShell ();
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// Overriden virtual method that parses response body
-	virtual bool   addToResponseBody  (KString& sBodyPart);
+	/// Executes given command via a shell pipe saving FILE* pipe in class member
+	virtual bool Open (const KString& sCommand) = 0;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// Overriden virtual method that prints out parsed response header
-	virtual bool   printResponseHeader(); // prints response header from m_responseHeaders
+	/// Closes pipe saving exit code.
+	virtual int  Close();
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// Get all response headers except Cookies as a KHeader
-	const KHeader& getResponseHeaders() const
+	/// Get error code, 0 indicates no errors
+	int GetErrno()
 	//-----------------------------------------------------------------------------
 	{
-		return m_responseHeaders;
+		return m_iExitCode;
 	}
 
 	//-----------------------------------------------------------------------------
-	/// Get response header value from given header name (case insensitive)
-	const KString& getResponseHeader(const KString& sHeaderName) const;
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// Get all response cookies as a KHeader
-	const KHeader& getResponseCookies() const
+	/// Allows KPipeReader to be passed where File* can be.
+	operator FILE*()
 	//-----------------------------------------------------------------------------
 	{
-		return m_responseCookies;
+		return m_pipe;
 	}
 
-	//-----------------------------------------------------------------------------
-	/// Get response cookie value from given cookie name (case insensitive)
-	const KString& getResponseCookie(const KString& sCookieName) const; // gets first cookie with name
-	//-----------------------------------------------------------------------------
+//--------
+public:
+//--------
 
-//------
-private:
-//------
+	FILE*        m_pipe{nullptr};
+	int          m_iExitCode{0};
 
-	KHeader        m_responseHeaders; // response headers read in
-	KHeader        m_responseCookies; // response cookies read in
-	KString        m_sPartialHeader; // when streaming can't guarantee always have full header.
-	KString        m_sResponseVersion; // HTTP resonse version
-	KString        m_sResponseStatus; // HTTP response status
-	uint16_t       m_iResponseStatusCode{0}; // HTTP response code
 
-	KOutStream     m_outStream{std::cout}; // Writer Stream
+}; // class KPIPE
 
-	//-----------------------------------------------------------------------------
-	/// method that takes care of case-insentive header add logic and cookie add logic
-	bool           addResponseHeader(const KString&& sHeaderName, const KString&& sHeaderValue);
-
-	//-----------------------------------------------------------------------------
-	/// method to determine if header ends with \n\n or \r\n\r\n indicating end of header
-	bool           isLastHeader(const KString& sHeaderPart, size_t lineEndPos);
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// if parsing multi line header, this gets to the end of it
-	size_t         findEndOfHeader(const KString& sHeaderPart, size_t lineEndPos);
-	//-----------------------------------------------------------------------------
-};
-
-} // end namespace dekaf2
+} // end of namespace DEKAF2

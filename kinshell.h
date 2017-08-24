@@ -1,8 +1,9 @@
-///////////////////////////////////////////////////////////////////////////////
+/*
+//-----------------------------------------------------------------------------//
 //
-// DEKAF(tm): Lighter, Faster, Smarter(tm)
+// DEKAF(tm): Lighter, Faster, Smarter (tm)
 //
-// Copyright (c) 2000-2017, Ridgeware, Inc.
+// Copyright (c) 2017, Ridgeware, Inc.
 //
 // +-------------------------------------------------------------------------+
 // | /\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\|
@@ -37,55 +38,46 @@
 // |/+---------------------------------------------------------------------+/|
 // |\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/ |
 // +-------------------------------------------------------------------------+
-//
-///////////////////////////////////////////////////////////////////////////////
+*/
 
 #pragma once
 
-#include "kstring.h"
+#include "kbaseshell.h"
+#include "kfdreader.h"
 
 namespace dekaf2
 {
-/*
-KPIPE pipe;
-pipe.Open ("ls -l", "r");
-KString sOutput;
 
-for (auto it = pipe.begin(); it != pipe.END(); ++it) {
-	sOutput += *it;
-
-}
-*/
-
-
-
-//-----------------------------------------------------------------------------
-class KPIPE
-//-----------------------------------------------------------------------------
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+class KInShell : public KBaseShell, public KFPReader
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
+
+//------
 public:
-	KPIPE ();
-	~KPIPE ();
+//------
 
-	bool Open        (const KString& sCommand, const char* pszMode="r");
-	int  Close       ();
-	bool isOpen      ()       { return (m_pipe != NULL); }
+	//-----------------------------------------------------------------------------
+	/// Default KInShell Constructor
+	KInShell()
+	//-----------------------------------------------------------------------------
+	{}
 
-	bool getline     (KString& sTheLine, size_t iMaxLen=0, bool bTextOnly = false);
-	bool appendline  (KString& sBufferToAppend, size_t iMaxLen=0);
+	//-----------------------------------------------------------------------------
+	/// Constructor which takes and executes command immediately
+	KInShell(const KString& sCommand);
+	//-----------------------------------------------------------------------------
 
-	int  getErrno() const { return m_iExitcode; } //0 = success
+	//-----------------------------------------------------------------------------
+	/// Virtual Default KInShell Destructor
+	virtual ~KInShell();
+	//-----------------------------------------------------------------------------
 
-	operator FILE*    ();
-	operator const KString&    ();
-	operator KString     ();
-/*
-	const_iterator begin();
-	const_iterator end();   // help from theo guys
-*/
-private:
-	FILE* m_pipe{nullptr};
-	int   m_iExitcode{0};
-}; // class KPIPE
+	//-----------------------------------------------------------------------------
+	/// Executes given command via a shell pipe from which output can be read
+	virtual bool Open (const KString& sCommand);
+	//-----------------------------------------------------------------------------
 
-} // end of namespace DEKAF
+}; // END KInShell
+
+} // END NAMESPACE DEKAF2

@@ -394,6 +394,38 @@ void kUrlDecode (String& sDecode)
 
 } // kUrlDecode
 
+//-----------------------------------------------------------------------------
+/// kUrlDecode copy
+/// Copies always go to end of string so (insert < end) test unnecessary.
+template<class String>
+void kUrlDecode (String& sSource, String& sTarget)
+//-----------------------------------------------------------------------------
+{
+	auto current = &sSource[0];
+	auto end     = current + sSource.size();
+	while (current != end)
+	{
+		if (*current == '%'
+			&& end - current > 2
+			&& std::isxdigit(*(current + 1))
+			&& std::isxdigit(*(current + 2)))
+		{
+			sTarget += kx2c(current + 1);
+			current += 3;
+		}
+		else if (*current == '+')
+		{
+			sTarget += ' ';
+			++current;
+		}
+		else
+		{
+			sTarget += *current++;
+		}
+	}
+} // kUrlDecode copy
+
+
 template<class String>
 void kUrlEncode (String sSource, KString& sTarget) // KString ref needed
 //-----------------------------------------------------------------------------

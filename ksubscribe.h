@@ -97,7 +97,7 @@ public:
 	/// copy assignment is possible, but does not get the subscribers
 	KSubscription& operator=(const KSubscription& other)
 	{
-		release_subscribers();
+		release_subscriber();
 		T::operator=(other);
 		return *this;
 	}
@@ -105,7 +105,7 @@ public:
 	/// move assignment is possible, and gets the subscribers, too
 	KSubscription& operator=(KSubscription&& other)
 	{
-		release_subscribers();
+		release_subscriber();
 		T::operator=(std::move(other));
 		m_Subscriber = std::move(other.m_Subscriber);
 		return *this;
@@ -136,12 +136,12 @@ public:
 
 	bool Subscribe(UnsubscribeCB cb)
 	{
-		m_Subscribers.emplace_back(cb);
+//		m_Subscribers.emplace_back(cb);
 	}
 
 	bool Unsubscribe(UnsubscribeCB cb)
 	{
-		auto it = std::find_if(m_Subscribers.rbegin(), m_Subscribers.rend(),
+/*		auto it = std::find_if(m_Subscribers.rbegin(), m_Subscribers.rend(),
 		                       [&cb](const UnsubscribeCB& val)->bool
 		{
 			return !memcmp(&cb, &val, sizeof(UnsubscribeCB));
@@ -151,7 +151,7 @@ public:
 		{
 			m_Subscribers.erase(it.base());
 		}
-	}
+*/	}
 
 	size_t Subscriptions() const
 	{

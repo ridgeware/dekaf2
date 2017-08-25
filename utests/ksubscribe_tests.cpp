@@ -1,7 +1,7 @@
 #include "catch.hpp"
 
-#include <ksubscribe.h>
-#include <kstring.h>
+#include <dekaf2/ksubscribe.h>
+#include <dekaf2/kstring.h>
 
 using namespace dekaf2;
 

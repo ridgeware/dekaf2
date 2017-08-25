@@ -200,11 +200,11 @@ KLog& KLog();
 // as we do not want to evaluate all input parameters before calling the function.
 // Therefore we resort to a macro here, and _only_ here (remember, macros are evil)
 //
-// From inside the macro we call .debug() and not .warning() as we evaluate only the
+// From inside the macro we call .debug_fun() and not .warning() as we evaluate only the
 // global static KLog::s_kLogLevel, which is not guaranteed to be initialized before KLog()
-// has been called for the first time. .debug() then re-evaluates the level and
+// has been called for the first time. .debug_fun() then re-evaluates the level and
 // outputs appropriately. The only bad thing that can happen is that we miss
-// a debug output in the initialization phase of the program
+// a debug output in the initialization phase of the program or have one too many.
 
 #ifdef kDebug
 	#undef kDebug

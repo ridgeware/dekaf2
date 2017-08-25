@@ -51,74 +51,13 @@
 namespace dekaf2
 {
 
-// template<template approach to containers was discovered from here:
-// https://stackoverflow.com/questions/16596422/
-//  template-class-with-template-container
-//## please remove the class definition. Create a function template instead
-//## BTW, I do not see why you need the complex template template construct,
-//## a simple template<typename Container> kSpit(Container& container, ..)
-//## should suffice here. And when you change this to a function template
-//## it will actually automatically deduce the type, so that you can
-//## simply use it like vector<string> vec; kSplit(vec, ...).
-template<template <typename... Args> class Container,typename... Types>
-class KSplit
-{
-
-//------
-public:
-//------
-
-	//## please make the description consistent with the current implementation,
-	//## and consider making it shorter. As you have many sentences, use
-	//## capitalization as usual in English, and put punctuation. All this
-	//## text gets collapsed into one line in an IDE..
-	//---------------------------------------------------------------------
-	/// parse (container, buffer, maximum, delimiters, trim, escape) where
-	/// container is typical of std iterable containers like deque | vector
-	/// buffer is typical of std strings | string_views
-	/// maximum is the largest permitted tokens to parse
-	/// delimiters is a string any of which characters separate tokens
-	///  (possible delimiters may be ",|;:" but may be any viable one)
-	/// trim is a boolean which, when true, make " a " become "a"
-	/// escape defaults to '\0', but if it is '\\' is used to parse past
-	///  escaped characters.
-	//## simply name this function kSplit
-	static size_t parse (
-			Container<Types...>& ctContainer,       // target
-			KStringView     svBuffer,               // source
-			KStringView     sDelim  = ",",          // variety of delimiters
-			KStringView     sTrim   = " \t\r\n\b",  // trim token whitespace
-			char            iEscape = '\\'          // recognize escapes
-	);
-
-
-//------
-private:
-//------
-
-	//---------------------------------------------------------------------
-	/// tcschrEsc implements industry standard _tcschr with escape detection.
-	//## make this a standalone function in namespace dekaf2, and name it
-	//## less Windowsy.. I mean, we are not using LPCTSTR, why should we
-	//## use its function names? Why not simply kFindEscaped() ?
-	//## And consider a second function which takes a KStringView as "target"
-	//## (I would actually rename that parameter to chSearched to be more
-	//## explicit..). BTW, this function does not need to be a template.
-	static size_t tcschrEsc (
-			KStringView svBuffer,
-			char        iTarget,
-			char        iEscape);
-
-};
-
-//-----------------------------------------------------------------------------
-/// Find delimiter char prefixed by even number of escape characters (0, 2, ...)
-template<template <typename... Args> class Container,typename... Types>
-size_t KSplit<Container, Types...>::tcschrEsc (
-		KStringView svBuffer, char iTarget, char iEscape)
+/// Find delimiter char prefixed by even number of escape characters (0, 2, ...).
+/// Ignore delimiter chars prefixed by odd number of escapes.
+template<typename Tsearch>
+size_t kFindUnescaped(KStringView svBuffer, Tsearch tSearch, char iEscape)
 //-----------------------------------------------------------------------------
 {
-	size_t iFound = svBuffer.find_first_of (iTarget);
+	size_t iFound = svBuffer.find_first_of (tSearch);
 
 	if (!iEscape || iFound == 0)
 	{
@@ -148,20 +87,27 @@ size_t KSplit<Container, Types...>::tcschrEsc (
 			break;
 		}
 
-		iFound = svBuffer.find_first_of (iTarget, iFound + 1);
+		iFound = svBuffer.find_first_of (tSearch, iFound + 1);
 	} // while iFound
 	return iFound;
-} // tcschrEsc
+} // kFindUnescaped
+
 
 //-----------------------------------------------------------------------------
-/// parse Delimited List with string of delimiters
-template<template <typename... Args> class Container,typename... Types>
-size_t KSplit<Container, Types...>::parse (
-		Container<Types...>& ctContainer,
-		KStringView     svBuffer,
-		KStringView     sDelim,  // default to comma delimiter
-		KStringView     sTrim,   // default to trimming whitespace
-		char            iEscape  // default to recognizing escapes
+/// kSplit converts string into token container using delimiters and escape
+/// kSplit (Container, Buffer, Delimiters, Trim, Escape)
+/// Container is target iterable container like deque | vector.
+/// Buffer is a source char sequence.
+/// Delimiters is a string of delimiter characters.
+/// Trim is a string containing chars to remove from token ends.
+/// Escape (default '\0'). If '\\' parse ignores escaped delimiters.
+template<typename Tcnt>
+inline size_t kSplit (
+		Tcnt& ctContainer,
+		KStringView  svBuffer,
+		KStringView  sDelim = ",",          // default: comma delimiter
+		KStringView sTrim   = " \t\r\n\b",  // default: trim all whitespace
+		char        iEscape = '\0'          // default: ignore escapes
 )
 //-----------------------------------------------------------------------------
 {
@@ -228,7 +174,7 @@ size_t KSplit<Container, Types...>::parse (
 				iNext = KStringView::npos;
 				for (size_t ii = 0; ii < sDelim.size(); ++ii)
 				{
-					size_t iTemp = tcschrEsc (svBuffer, sDelim[ii], iEscape);
+					size_t iTemp = kFindUnescaped (svBuffer, sDelim[ii], iEscape);
 					iNext = (iTemp < iNext) ? iTemp : iNext;
 				}
 			} // if (iEscape == '\0')
@@ -268,6 +214,6 @@ size_t KSplit<Container, Types...>::parse (
 		} // while (svBuffer.size())
 	}
 	return ctContainer.size ();
-} // parse with string of delimiters
+} // kSplit with string of delimiters
 
 } // namedpace dekaf2

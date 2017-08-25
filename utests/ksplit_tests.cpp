@@ -16,10 +16,13 @@ using std::tuple;
 using std::stringstream;
 using std::hex;
 
-typedef KSplit<vector, KStringView> delim_t;
+//typedef KSplit<vector, KStringView> delim_t;
 
 SCENARIO ( "ksplit unit tests on valid data" )
 {
+	static std::string sEmpty("");
+	static std::string sComma(",");
+
 	GIVEN ( "a valid simple comma-delimited string" )
 	{
 		WHEN ( "parse into a delimited list" )
@@ -27,12 +30,12 @@ SCENARIO ( "ksplit unit tests on valid data" )
 			KString abcde_normal{"a,b,c,d,e"};
 			KStringView abcde = abcde_normal;
 			vector<KStringView> vsContainer;
-			size_t iCount = delim_t::parse(
-					vsContainer,        // where to put the parsed tokens
-					abcde,              // the original string to parse
-					",",                // the preferred delimiter
-					"",                 // don't trim whitespace
-					'\0');              // don't recognize escape character
+			size_t iCount = kSplit(
+					vsContainer,    // where to put the parsed tokens
+					abcde,          // the original string to parse
+					sComma,         // the preferred delimiter
+					sEmpty          // don't trim whitespace
+			);                      // don't recognize escape character (default)
 			THEN ( "examine the list for defects" )
 			{
 				KStringView a = vsContainer[0];
@@ -54,11 +57,13 @@ SCENARIO ( "ksplit unit tests on valid data" )
 			KString abcde_escape{R"test(a,b,c,d\,e)test"};
 			KStringView abcde = abcde_escape;
 			vector<KStringView> vsContainer;
-			size_t iCount = delim_t::parse(
+			size_t iCount = kSplit(
 					vsContainer,
 					abcde,
 					",",
-					"");    // don't trim whitespace do use default escape char
+					"",     // don't trim whitespace
+					'\\'    // use escape character
+			);
 			THEN ( "examine the escaped delimited list for defects" )
 			{
 				KStringView a = vsContainer[0];
@@ -79,11 +84,13 @@ SCENARIO ( "ksplit unit tests on valid data" )
 			KString abcde_escape{R"test(a\,b\\,c\\\,d\\\\,e)test"};
 			KStringView abcde = abcde_escape;
 			vector<KStringView> vsContainer;
-			size_t iCount = delim_t::parse(
+			size_t iCount = kSplit(
 					vsContainer,
 					abcde,
 					",",
-					"");
+					"",
+					'\\'
+			);
 			THEN ( "examine multiple escape results for defects" )
 			{
 				KStringView a = vsContainer[0];
@@ -101,12 +108,12 @@ SCENARIO ( "ksplit unit tests on valid data" )
 			KString abcde_normal{" a , b , c , d , e "};
 			KStringView abcde = abcde_normal;
 			vector<KStringView> vsContainer;
-			size_t iCount = delim_t::parse(
+			size_t iCount = kSplit(
 					vsContainer,        // where to put the parsed tokens
 					abcde,              // the original string to parse
 					",",                // the preferred delimiter
-					"",                 // trim whitespace
-					'\0');              // no escape character
+					""                  // trim whitespace
+			);                          // no escape character (default)
 			THEN ( "examine count limited parse results for defects" )
 			{
 				KStringView a = vsContainer[0];
@@ -128,12 +135,12 @@ SCENARIO ( "ksplit unit tests on valid data" )
 			KString abcde_normal{" a , b\t,\t\tc\r,\r\rd\n,\n\ne\n\n\n"};
 			KStringView abcde = abcde_normal;
 			vector<KStringView> vsContainer;
-			size_t iCount = delim_t::parse(
+			size_t iCount = kSplit(
 					vsContainer,        // where to put the parsed tokens
 					abcde,              // the original string to parse
 					",",                // the preferred delimiter
-					" \t\r\n",          // trim whitespace
-					'\0');              // no escape character
+					" \t\r\n"           // trim whitespace
+			);                          // no escape character (default)
 			THEN ( "examine results for defects" )
 			{
 				KStringView a = vsContainer[0];
@@ -155,12 +162,12 @@ SCENARIO ( "ksplit unit tests on valid data" )
 			KString abcde_normal{"a,bb;ccc:dddd|eeeee"};
 			KStringView abcde = abcde_normal;
 			vector<KStringView> vsContainer;
-			size_t iCount = delim_t::parse(
+			size_t iCount = kSplit(
 					vsContainer,        // where to put the parsed tokens
 					abcde,              // the original string to parse
 					",|:;",             // the delimiters to use
-					" \t\r\n",          // trim whitespace
-					'\0');              // no escape character
+					" \t\r\n"           // trim whitespace
+			);                          // no escape character (default)
 			THEN ( "examine results for defects" )
 			{
 				KStringView a = vsContainer[0];

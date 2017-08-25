@@ -1,8 +1,9 @@
-///////////////////////////////////////////////////////////////////////////////
+/*
+//-----------------------------------------------------------------------------//
 //
-// DEKAF(tm): Lighter, Faster, Smarter(tm)
+// DEKAF(tm): Lighter, Faster, Smarter (tm)
 //
-// Copyright (c) 2000-2017, Ridgeware, Inc.
+// Copyright (c) 2017, Ridgeware, Inc.
 //
 // +-------------------------------------------------------------------------+
 // | /\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\|
@@ -37,13 +38,14 @@
 // |/+---------------------------------------------------------------------+/|
 // |\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/ |
 // +-------------------------------------------------------------------------+
-//
-///////////////////////////////////////////////////////////////////////////////
+*/
 
 #pragma once
 #include "kstring.h"
+#include "kstringutils.h"
 #include "kprops.h"
 #include "kcurl.h"
+#include "kwriter.h"
 
 //include <locale>
 #include <ctype.h>
@@ -52,33 +54,102 @@
 namespace dekaf2
 {
 
+//-----------------------------------------------------------------------------
 class KWebIO : public KCurl
+//-----------------------------------------------------------------------------
 {
+
+//------
 public:
-	KWebIO();
-	KWebIO(const KString& requestURL, bool bEchoHeader = false, bool bEchoBody = false);
-	~KWebIO();
+//------
 
+	//-----------------------------------------------------------------------------
+	/// KWebIO default constructor, must be initialized after construction.
+	KWebIO()
+	//-----------------------------------------------------------------------------
+	{}
+
+	//-----------------------------------------------------------------------------
+	/// KWebIO Constructor that allows full initialization on construction.
+	KWebIO(const KString& requestURL, RequestType requestType = GET, bool bEchoHeader = false, bool bEchoBody = false)
+	//-----------------------------------------------------------------------------
+	    : KCurl(requestURL, requestType, bEchoHeader, bEchoBody)
+	{}
+
+	//-----------------------------------------------------------------------------
+	/// Default virutal destructor
+	virtual ~KWebIO()
+	//-----------------------------------------------------------------------------
+	{}
+
+	//-----------------------------------------------------------------------------
+	/// Overriden virtual method that parses response header
 	virtual bool   addToResponseHeader(KString& sHeaderPart);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// Overriden virtual method that parses response body
 	virtual bool   addToResponseBody  (KString& sBodyPart);
-	virtual bool   printResponseHeader(); // prints response header from m_responseHeaderss
+	//-----------------------------------------------------------------------------
 
-	const KHeader& getResponseHeaders() const;
+	//-----------------------------------------------------------------------------
+	/// Overriden virtual method that prints out parsed response header
+	virtual bool   printResponseHeader(); // prints response header from m_responseHeaders
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// Get all response headers except Cookies as a KHeader
+	const KHeader& getResponseHeaders() const
+	//-----------------------------------------------------------------------------
+	{
+		return m_responseHeaders;
+	}
+
+	//-----------------------------------------------------------------------------
+	/// Get response header value from given header name (case insensitive)
 	const KString& getResponseHeader(const KString& sHeaderName) const;
-	const KHeader& getResponseCookies() const;
-	const KString&  getResponseCookie(const KString& sCookieName);// const; // gets first cookie with name
+	//-----------------------------------------------------------------------------
 
+	//-----------------------------------------------------------------------------
+	/// Get all response cookies as a KHeader
+	const KHeader& getResponseCookies() const
+	//-----------------------------------------------------------------------------
+	{
+		return m_responseCookies;
+	}
+
+	//-----------------------------------------------------------------------------
+	/// Get response cookie value from given cookie name (case insensitive)
+	const KString& getResponseCookie(const KString& sCookieName) const; // gets first cookie with name
+	//-----------------------------------------------------------------------------
+
+//------
 private:
-	KHeader        m_responseHeaders;
-	KHeader        m_responseCookies;
-	KString        m_sPartialHeader; // when streaming can't guarantee always have full header.
-	KString        m_sResponseVersion;
-	KString        m_sResponseStatus;
-	uint16_t        m_iResponseStatusCode{0};
+//------
 
-	bool           addResponseHeader(const KString& sHeaderName, const KString& sHeaderValue);
-	bool           isLastHeader(KString& sHeaderPart, size_t lineEndPos);
-	size_t         findEndOfHeader(KString& sHeaderPart, size_t lineEndPos);
+	KHeader        m_responseHeaders; // response headers read in
+	KHeader        m_responseCookies; // response cookies read in
+	KString        m_sPartialHeader; // when streaming can't guarantee always have full header.
+	KString        m_sResponseVersion; // HTTP resonse version
+	KString        m_sResponseStatus; // HTTP response status
+	uint16_t       m_iResponseStatusCode{0}; // HTTP response code
+
+	KOutStream     m_outStream{std::cout}; // Writer Stream
+
+	//-----------------------------------------------------------------------------
+	/// method that takes care of case-insentive header add logic and cookie add logic
+	bool           addResponseHeader(const KString&& sHeaderName, const KString&& sHeaderValue);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// method to determine if header ends with \n\n or \r\n\r\n indicating end of header
+	bool           isLastHeader(const KString& sHeaderPart, size_t lineEndPos);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// if parsing multi line header, this gets to the end of it
+	size_t         findEndOfHeader(const KString& sHeaderPart, size_t lineEndPos);
+	//-----------------------------------------------------------------------------
 };
 
 } // end namespace dekaf2

@@ -1,8 +1,10 @@
 #include "catch.hpp"
 
-#include <kfile.h>
+#include <dekaf2/kfile.h>
 #include <vector>
 #include <fstream>
+#include <dekaf2/kreader.h>
+#include <dekaf2/kwriter.h>
 
 using namespace dekaf2;
 
@@ -22,11 +24,12 @@ TEST_CASE("KFile") {
 		"line 9\n"
 	};
 
+	SECTION("setup test file")
 	{
-		KFile fWriter(sFile, KFile::WRITE);
-		CHECK( fWriter.IsOpen() == true );
+		KOutFile fWriter(sFile, std::ios_base::trunc);
+		CHECK( fWriter.is_open() == true );
 
-		if (fWriter.IsOpen())
+		if (fWriter.is_open())
 		{
 			fWriter.Write(sOut);
 		}
@@ -34,13 +37,13 @@ TEST_CASE("KFile") {
 
 	SECTION("KFile stats")
 	{
-		CHECK( KFile::Exists(sFile, KFile::TEST0) == true );
-		CHECK( KFile::GetSize(sFile) == 63 );
+		CHECK( kExists(sFile, true) == true );
+		CHECK( kGetSize(sFile) == 63 );
 	}
 
 	SECTION("KFile read all")
 	{
-		KFile File(sFile, KFile::READ | KFile::TEXT);
+		KInFile File(sFile);
 		KString sRead;
 		CHECK( File.GetContent(sRead) == true );
 		CHECK( sRead == sOut );
@@ -48,7 +51,7 @@ TEST_CASE("KFile") {
 
 	SECTION("KFile read iterator 1")
 	{
-		KFile File(sFile, KFile::READ | KFile::TEXT);
+		KInFile File(sFile);
 		auto it = File.begin();
 		KString s1;
 		s1 = *it;
@@ -73,7 +76,7 @@ TEST_CASE("KFile") {
 
 	SECTION("KFile read iterator 2")
 	{
-		KFile File(sFile, KFile::READ | KFile::TEXT);
+		KInFile File(sFile);
 		for (const auto& it : File)
 		{
 			CHECK( it.StartsWith("line ") == true );

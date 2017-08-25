@@ -42,7 +42,7 @@
 
 #include "kprof.h"
 
-#if defined(ENABLE_PROFILING) || defined(DEKAF_LIBRARY_BUILD)
+#if defined(ENABLE_PROFILING) || defined(DEKAF2_LIBRARY_BUILD)
 
 #include <algorithm>
 #include <set>
@@ -141,10 +141,10 @@ void KSharedProfiler::print()
 				 "|  %-*.*s : %12s usecs : %5.1f%% : %10s calls : %16s nsecs\n",
 				 imaxlen, imaxlen,
 				 dispname.c_str(),
-				 KFormNumber(std::chrono::duration_cast<std::chrono::microseconds>(it.second.duration).count()).c_str(),
+				 kFormNumber(std::chrono::duration_cast<std::chrono::microseconds>(it.second.duration).count()).c_str(),
 				 nPercent,
-				 KFormNumber(it.second.count).c_str(),
-				 KFormNumber(static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(it.second.duration).count()) / it.second.count).c_str()); // it.second.count is always non-zero..
+				 kFormNumber(it.second.count).c_str(),
+				 kFormNumber(static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(it.second.duration).count()) / it.second.count).c_str()); // it.second.count is always non-zero..
 	}
 
 	fprintf (stdout, "\n");
@@ -152,12 +152,12 @@ void KSharedProfiler::print()
 	fprintf (stdout,
 			 "|  %-*.*s : %12s usecs : 100.0%%\n",
 			 imaxlen, imaxlen, "accumulated runtime",
-			 KFormNumber(std::chrono::duration_cast<std::chrono::microseconds>(m_profiled_runtime).count()).c_str());
+			 kFormNumber(std::chrono::duration_cast<std::chrono::microseconds>(m_profiled_runtime).count()).c_str());
 
 	fprintf (stdout,
 			 "|  %-*.*s : %12s usecs\n",
 			 imaxlen, imaxlen, "wall clock",
-			 KFormNumber(std::chrono::duration_cast<std::chrono::microseconds>(clock_t::now()-m_start).count()).c_str());
+			 kFormNumber(std::chrono::duration_cast<std::chrono::microseconds>(clock_t::now()-m_start).count()).c_str());
 
 	fprintf (stdout, "\n");
 

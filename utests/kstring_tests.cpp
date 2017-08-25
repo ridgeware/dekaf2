@@ -1,7 +1,7 @@
 #include "catch.hpp"
 
-#include <kstring.h>
-#include <kstringutils.h>
+#include <dekaf2/kstring.h>
+#include <dekaf2/kstringutils.h>
 #include <vector>
 #include <iostream>
 
@@ -57,7 +57,7 @@ TEST_CASE("KString") {
 
 		for (auto& it : stest)
 		{
-			it[0].Replace(it[1].data(), it[1].length(), it[2].data(), it[2].length(), true);
+			it[0].Replace(it[1], it[2], true);
 			CHECK( it[0] == it[3] );
 		}
 

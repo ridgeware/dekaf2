@@ -43,9 +43,11 @@
 #pragma once
 
 #include <exception>
+#include <fstream>
 #include "kstring.h"
-#include "kfile.h"
+#include "kwriter.h"
 #include "kformat.h"
+#include "bits/kcppcompat.h"
 
 namespace dekaf2
 {
@@ -64,99 +66,187 @@ public:
 	KLog& operator=(KLog&&) = delete;
 
 	//---------------------------------------------------------------------------
-	int get_level() const
+	static inline int GetLevel()
 	//---------------------------------------------------------------------------
 	{
-		return m_iLevel;
+		return s_kLogLevel;
 	}
 
 	//---------------------------------------------------------------------------
-	int set_level(int iLevel)
+	inline void SetLevel(int iLevel)
 	//---------------------------------------------------------------------------
 	{
-		m_iLevel = iLevel;
-		return m_iLevel;
+		s_kLogLevel = iLevel;
 	}
 
 	//---------------------------------------------------------------------------
-	bool set_debuglog(const KString& sLogfile);
+	inline int GetBackTrace() const
+	//---------------------------------------------------------------------------
+	{
+		return m_iBackTrace;
+	}
+
+	//---------------------------------------------------------------------------
+	inline int SetBackTrace(int iLevel)
+	//---------------------------------------------------------------------------
+	{
+		m_iBackTrace = iLevel;
+		return m_iBackTrace;
+	}
+
+	//---------------------------------------------------------------------------
+	bool SetDebugLog(KStringView sLogfile);
 	//---------------------------------------------------------------------------
 
 	//---------------------------------------------------------------------------
-	const KString& get_debuglog() const
+	inline KStringView GetDebugLog() const
 	//---------------------------------------------------------------------------
 	{
 		return m_sLogfile;
 	}
 
 	//---------------------------------------------------------------------------
-	bool set_debugflag(const KString& sFlagfile);
+	bool SetDebugFlag(KStringView sFlagfile);
 	//---------------------------------------------------------------------------
 
 	//---------------------------------------------------------------------------
-	const KString& get_debugflag() const
+	inline KStringView GetDebugFlag() const
 	//---------------------------------------------------------------------------
 	{
 		return m_sFlagfile;
 	}
 
 	//---------------------------------------------------------------------------
+	/// this function is deprecated - use kDebug() instead!
 	template<class... Args>
-	bool debug(int level, Args&&... args)
+	inline bool debug(int level, Args&&... args)
 	//---------------------------------------------------------------------------
 	{
-		if (level > m_iLevel)
-		{
-			return true;
-		}
-		return int_debug(level, kFormat(std::forward<Args>(args)...));
+		return (level > s_kLogLevel) || IntDebug(level, KStringView(), kFormat(std::forward<Args>(args)...));
+	}
+
+	//---------------------------------------------------------------------------
+	/// this function is deprecated - use kDebug() instead!
+	template<class... Args>
+	inline bool debug_fun(int level, KStringView sFunction, Args&&... args)
+	//---------------------------------------------------------------------------
+	{
+		return (level > s_kLogLevel) || IntDebug(level, sFunction, kFormat(std::forward<Args>(args)...));
 	}
 
 	//---------------------------------------------------------------------------
 	template<class... Args>
-	bool warning(Args&&... args)
+	inline bool warning(Args&&... args)
 	//---------------------------------------------------------------------------
 	{
-		return debug(-1, std::forward<Args>(args)...);
+		return IntDebug(-1, KStringView(), kFormat(std::forward<Args>(args)...));
 	}
 
 	//---------------------------------------------------------------------------
 	/// report a known exception
-	void exception(const std::exception& e, const char* sFunction, const char* sClass = "")
+	void Exception(const std::exception& e, KStringView sFunction, KStringView sClass = "")
 	//---------------------------------------------------------------------------
 	{
-		int_exception(e.what(), sFunction, sClass);
+		IntException(e.what(), sFunction, sClass);
 	}
-
 
 	//---------------------------------------------------------------------------
 	/// report an unknown exception
-	void exception(const char* sFunction, const char* sClass = "")
+	void Exception(KStringView sFunction, KStringView sClass = "")
 	//---------------------------------------------------------------------------
 	{
-		int_exception("unknown", sFunction, sClass);
+		IntException("unknown", sFunction, sClass);
 	}
+
+	// do _not_ initialize s_kLoglevel - see implementation note. Also, it needs
+	// to be publicly visible as gcc does _not_ optimize a static inline GetLevel()
+	// into an inline. We have to test the static var directly from kDebug to
+	// have it inlined
+	static int s_kLogLevel;
 
 //----------
 private:
 //----------
+
 	//---------------------------------------------------------------------------
-	bool int_debug(int level, const KString& sMessage);
+	bool IntDebug(int level, KStringView sFunction, KStringView sMessage);
 	//---------------------------------------------------------------------------
 
 	//---------------------------------------------------------------------------
-	void int_exception(const char* sWhat, const char* sFunction, const char* sClass);
+	bool IntBacktrace();
 	//---------------------------------------------------------------------------
 
-	int m_iLevel{0};
+	//---------------------------------------------------------------------------
+	void IntException(KStringView sWhat, KStringView sFunction, KStringView sClass);
+	//---------------------------------------------------------------------------
+
+	int m_iBackTrace{0};
 	KString m_sLogfile;
 	KString m_sFlagfile;
-	KFile m_Log;
-};
+	KOutFile m_Log;
 
+};
 
 //---------------------------------------------------------------------------
 KLog& KLog();
+//---------------------------------------------------------------------------
+
+// there is no way to convince gcc to inline a variadic template function
+// (and as "inline" is not imperative it may happen on other compilers as well)
+// - so just fall back to using a macro. Remind that this creates problems
+// with namespaces, as preprocessor macros are namespace agnostic.
+//
+// The problem is introduced for kDebug() (and KLog().debug(), which is deprecated)
+// as we do not want to evaluate all input parameters before calling the function.
+// Therefore we resort to a macro here, and _only_ here (remember, macros are evil)
+//
+// From inside the macro we call .debug() and not .warning() as we evaluate only the
+// global static KLog::s_kLogLevel, which is not guaranteed to be initialized before KLog()
+// has been called for the first time. .debug() then re-evaluates the level and
+// outputs appropriately. The only bad thing that can happen is that we miss
+// a debug output in the initialization phase of the program
+
+#ifdef kDebug
+	#undef kDebug
+#endif
+//---------------------------------------------------------------------------
+#define kDebug(level, ...) \
+{ \
+	if (level <= KLog::s_kLogLevel) \
+	{ \
+		KLog().debug_fun(level, DEKAF2_FUNCTION_NAME, __VA_ARGS__); \
+	} \
+}
+//---------------------------------------------------------------------------
+
+#ifdef kWarning
+	#undef kWarning
+#endif
+//---------------------------------------------------------------------------
+#define kWarning(...) \
+{ \
+	KLog().debug_fun(-1, DEKAF2_FUNCTION_NAME, __VA_ARGS__); \
+}
+//---------------------------------------------------------------------------
+
+#ifdef kException
+	#undef kException
+#endif
+//---------------------------------------------------------------------------
+#define kException(except) \
+{ \
+	KLog().Exception(except, DEKAF2_FUNCTION_NAME); \
+}
+//---------------------------------------------------------------------------
+
+#ifdef kUnknownException
+	#undef kUnknownException
+#endif
+//---------------------------------------------------------------------------
+#define kUnknownException() \
+{ \
+	KLog().Exception(DEKAF2_FUNCTION_NAME); \
+}
 //---------------------------------------------------------------------------
 
 

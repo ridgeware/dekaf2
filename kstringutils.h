@@ -45,122 +45,47 @@
 #include <cinttypes>
 #include <algorithm>
 #include <functional>
-#include <cwchar>
+#include "bits/kcppcompat.h"
+#include "bits/ktemplate.h"
 #include "kstring.h"
-#include "ktemplate.h"
 
 namespace dekaf2
 {
 
 //------------------------------------------------------------------------------
-// SFINAE enabled for narrow cpp strings only..
-template<class String, typename = std::enable_if_t<dekaf2::is_narrow_cpp_str<String>::value> >
-typename String::size_type Replace(String& string,
-                                   const typename String::value_type* pszSearch,
-                                   typename String::size_type iSearchLen,
-                                   const typename String::value_type* pszReplaceWith,
-                                   typename String::size_type iReplaceWithLen,
-                                   bool bReplaceAll = true)
+std::string::size_type kReplace(std::string& string,
+                                KStringView sSearch,
+                                KStringView sReplaceWith,
+                                bool bReplaceAll = true);
 //------------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
+template<class String>
+String& kPadLeft(String& string, size_t iWidth, typename String::value_type chPad = ' ')
+//-----------------------------------------------------------------------------
 {
-	if (!iSearchLen || string.size() < iSearchLen || !pszSearch || !pszReplaceWith)
+	if (string.size() < iWidth)
 	{
-		return 0;
+		string.insert(0, iWidth - string.size(), chPad);
 	}
-
-	typedef typename String::size_type size_type;
-	typedef typename String::value_type value_type;
-
-	size_type iNumReplacement = 0;
-	size_type needleSize = iSearchLen;
-	auto haystack = string.data();
-	size_type haystackSize = string.size();
-
-	auto pszFound = static_cast<const value_type*>(memmem(haystack, haystackSize, pszSearch, needleSize));
-
-	if (pszFound)
-	{
-
-		if (iReplaceWithLen <= iSearchLen)
-		{
-			// execute an in-place substitution (C++17 actually has a non-const string.data())
-			value_type* pszTarget = const_cast<value_type*>(haystack);
-
-			while (pszFound)
-			{
-				auto untouchedSize = static_cast<size_type>(pszFound - haystack);
-				if (pszTarget < haystack)
-				{
-					memmove(pszTarget, haystack, untouchedSize);
-				}
-				pszTarget += untouchedSize;
-
-				if (iReplaceWithLen)
-				{
-					memmove(pszTarget, pszReplaceWith, iReplaceWithLen);
-					pszTarget += iReplaceWithLen;
-				}
-
-				haystack = pszFound + needleSize;
-				haystackSize -= (needleSize + untouchedSize);
-
-				pszFound = static_cast<const value_type*>(memmem(haystack, haystackSize, pszSearch, needleSize));
-
-				++iNumReplacement;
-
-				if (!bReplaceAll)
-				{
-					break;
-				}
-			}
-
-			if (haystackSize)
-			{
-				memmove(pszTarget, haystack, haystackSize);
-				pszTarget += haystackSize;
-			}
-
-			auto iResultSize = static_cast<size_type>(pszTarget - string.data());
-			string.resize(iResultSize);
-
-		}
-		else
-		{
-			// execute a copy substitution
-			String sResult;
-			sResult.reserve(string.size());
-
-			while (pszFound)
-			{
-				auto untouchedSize = static_cast<size_type>(pszFound - haystack);
-				sResult.append(haystack, untouchedSize);
-				sResult.append(pszReplaceWith, iReplaceWithLen);
-
-				haystack = pszFound + needleSize;
-				haystackSize -= (needleSize + untouchedSize);
-
-				pszFound = static_cast<const value_type*>(memmem(haystack, haystackSize, pszSearch, needleSize));
-
-				++iNumReplacement;
-
-				if (!bReplaceAll)
-				{
-					break;
-				}
-			}
-
-			sResult.append(haystack, haystackSize);
-			string.swap(sResult);
-		}
-	}
-
-	return iNumReplacement;
+	return string;
 }
 
+//-----------------------------------------------------------------------------
+template<class String>
+String& kPadRight(String& string, size_t iWidth, typename String::value_type chPad = ' ')
+//-----------------------------------------------------------------------------
+{
+	if (string.size() < iWidth)
+	{
+		string.append(iWidth - string.size(), chPad);
+	}
+	return string;
+}
 
 //-----------------------------------------------------------------------------
 template<class String, class Compare>
-String& TrimLeft(String& string, Compare cmp)
+String& kTrimLeft(String& string, Compare cmp)
 //-----------------------------------------------------------------------------
 {
 	auto it = std::find_if_not(string.begin(), string.end(), cmp);
@@ -174,15 +99,15 @@ String& TrimLeft(String& string, Compare cmp)
 
 //-----------------------------------------------------------------------------
 template<class String>
-String& TrimLeft(String& string)
+String& kTrimLeft(String& string)
 //-----------------------------------------------------------------------------
 {
-	return TrimLeft(string, [](typename String::value_type ch){ return std::isspace(ch) != 0; });
+	return kTrimLeft(string, [](typename String::value_type ch){ return std::isspace(ch) != 0; });
 }
 
 //-----------------------------------------------------------------------------
 template<class String, class Compare>
-String& TrimRight(String& string, Compare cmp)
+String& kTrimRight(String& string, Compare cmp)
 //-----------------------------------------------------------------------------
 {
 	auto it = std::find_if_not(string.rbegin(), string.rend(), cmp);
@@ -196,48 +121,40 @@ String& TrimRight(String& string, Compare cmp)
 
 //-----------------------------------------------------------------------------
 template<class String>
-String& TrimRight(String& string)
+String& kTrimRight(String& string)
 //-----------------------------------------------------------------------------
 {
-	return TrimRight(string, [](typename String::value_type ch){ return std::isspace(ch) != 0; });
+	return kTrimRight(string, [](typename String::value_type ch){ return std::isspace(ch) != 0; });
 }
 
 //-----------------------------------------------------------------------------
 template<class String, class Compare>
-String& Trim(String& string, Compare cmp)
+String& kTrim(String& string, Compare cmp)
 //-----------------------------------------------------------------------------
 {
-	TrimRight(string, cmp);
-	return TrimLeft(string, cmp);
+	kTrimRight(string, cmp);
+	return kTrimLeft(string, cmp);
 }
 
 //-----------------------------------------------------------------------------
 template<class String>
-String& Trim(String& string)
+String& kTrim(String& string)
 //-----------------------------------------------------------------------------
 {
-	return Trim(string, [](typename String::value_type ch){ return std::isspace(ch) != 0; });
+	return kTrim(string, [](typename String::value_type ch){ return std::isspace(ch) != 0; });
 }
 
 //-----------------------------------------------------------------------------
-const char* KFormTimestamp (char* szBuffer, size_t iMaxBuf, time_t tTime, const char* pszFormat);
+std::string kFormTimestamp (time_t tTime = 0, const char* pszFormat = "%Y-%m-%d %H:%M:%S");
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
-const char* KFormTimestamp (time_t tTime = 0, const char* pszFormat = "%Y-%m-%d %H:%M:%S");
-//-----------------------------------------------------------------------------
-
-//-----------------------------------------------------------------------------
-const char* KTranslateSeconds(char* szBuffer, size_t iMaxBuf, int64_t iNumSeconds, bool bLongForm = false);
-//-----------------------------------------------------------------------------
-
-//-----------------------------------------------------------------------------
-const char* KTranslateSeconds(int64_t iNumSeconds, bool bLongForm = false);
+std::string kTranslateSeconds(int64_t iNumSeconds, bool bLongForm = false);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
 template <class Arithmetic, class String = KString>
-String KFormNumber(Arithmetic i, typename String::value_type separator = ',', typename String::size_type every = 3)
+String kFormNumber(Arithmetic i, typename String::value_type separator = ',', typename String::size_type every = 3)
 //-----------------------------------------------------------------------------
 {
 	static_assert(std::is_arithmetic<Arithmetic>::value, "arithmetic type required");
@@ -274,8 +191,12 @@ String KFormNumber(Arithmetic i, typename String::value_type separator = ',', ty
 }
 
 //-----------------------------------------------------------------------------
+size_t kCountChar(KStringView str, const char ch) noexcept;
+//-----------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
 template<class Container>
-size_t KCountChar(const Container& container, const typename Container::value_type ch) noexcept
+size_t kCountChar(const Container& container, const typename Container::value_type ch) noexcept
 //-----------------------------------------------------------------------------
 {
 	size_t ret{0};
@@ -293,54 +214,21 @@ size_t KCountChar(const Container& container, const typename Container::value_ty
 }
 
 //-----------------------------------------------------------------------------
-size_t KCountChar(const char* string, const char ch) noexcept;
-//-----------------------------------------------------------------------------
-
-//-----------------------------------------------------------------------------
 template<class Char>
-inline bool KIsDigit(Char ch) noexcept
+inline bool kIsDigit(Char ch) noexcept
 //-----------------------------------------------------------------------------
 {
-	return (ch <= '9' && ch >= '0');
+	return std::isdigit(ch);
 }
 
 //-----------------------------------------------------------------------------
-template<class Container>
-bool KIsDecimal(const Container& container) noexcept
-//-----------------------------------------------------------------------------
-{
-	size_t len = container.size();
-	if (!len)
-	{
-		return false;
-	}
-
-	for (auto it = container.data(); len--;)
-	{
-		if (!KIsDigit(*it++))
-		{
-			if (it != container.data()+1 || (*(it-1) != '-' && *(it-1) != '+'))
-			{
-				return false;
-			}
-		}
-	}
-
-	return true;
-}
-
-//-----------------------------------------------------------------------------
-bool KIsDecimal(const char* buf, size_t size) noexcept;
-//-----------------------------------------------------------------------------
-
-//-----------------------------------------------------------------------------
-bool KIsDecimal(const char* string) noexcept;
+bool kIsDecimal(KStringView str) noexcept;
 //-----------------------------------------------------------------------------
 
 // exception free conversions
 
 //-----------------------------------------------------------------------------
-inline long double KToLongDouble(const char* s) noexcept
+inline long double kToLongDouble(const char* s) noexcept
 //-----------------------------------------------------------------------------
 {
 	if (!s || !*s) return 0;
@@ -348,7 +236,7 @@ inline long double KToLongDouble(const char* s) noexcept
 }
 
 //-----------------------------------------------------------------------------
-inline double KToDouble(const char* s) noexcept
+inline double kToDouble(const char* s) noexcept
 //-----------------------------------------------------------------------------
 {
 	if (!s || !*s) return 0;
@@ -356,14 +244,30 @@ inline double KToDouble(const char* s) noexcept
 }
 
 //-----------------------------------------------------------------------------
-inline float KToFloat(const char* s) noexcept
+inline float kToFloat(const char* s) noexcept
 //-----------------------------------------------------------------------------
 {
-	return static_cast<float>(KToDouble(s));
+	return static_cast<float>(kToDouble(s));
 }
 
 //-----------------------------------------------------------------------------
-inline int KToInt(const char* s) noexcept
+inline short int kToShort(const char* s) noexcept
+//-----------------------------------------------------------------------------
+{
+	if (!s || !*s) return 0;
+	else return static_cast<short int>(std::atoi(s));
+}
+
+//-----------------------------------------------------------------------------
+inline unsigned short int kToUShort(const char* s) noexcept
+//-----------------------------------------------------------------------------
+{
+	if (!s || !*s) return 0;
+	else return static_cast<unsigned short int>(std::strtoul(s, nullptr, 10));
+}
+
+//-----------------------------------------------------------------------------
+inline int kToInt(const char* s) noexcept
 //-----------------------------------------------------------------------------
 {
 	if (!s || !*s) return 0;
@@ -371,7 +275,7 @@ inline int KToInt(const char* s) noexcept
 }
 
 //-----------------------------------------------------------------------------
-inline unsigned int KToUInt(const char* s) noexcept
+inline unsigned int kToUInt(const char* s) noexcept
 //-----------------------------------------------------------------------------
 {
 	if (!s || !*s) return 0;
@@ -379,7 +283,7 @@ inline unsigned int KToUInt(const char* s) noexcept
 }
 
 //-----------------------------------------------------------------------------
-inline long KToLong(const char* s) noexcept
+inline long kToLong(const char* s) noexcept
 //-----------------------------------------------------------------------------
 {
 	if (!s || !*s) return 0;
@@ -387,7 +291,7 @@ inline long KToLong(const char* s) noexcept
 }
 
 //-----------------------------------------------------------------------------
-inline unsigned long KToULong(const char* s) noexcept
+inline unsigned long kToULong(const char* s) noexcept
 //-----------------------------------------------------------------------------
 {
 	if (!s || !*s) return 0;
@@ -395,7 +299,7 @@ inline unsigned long KToULong(const char* s) noexcept
 }
 
 //-----------------------------------------------------------------------------
-inline long long KToLongLong(const char* s) noexcept
+inline long long kToLongLong(const char* s) noexcept
 //-----------------------------------------------------------------------------
 {
 	if (!s || !*s) return 0;
@@ -403,46 +307,52 @@ inline long long KToLongLong(const char* s) noexcept
 }
 
 //-----------------------------------------------------------------------------
-inline unsigned long long KToULongLong(const char* s) noexcept
+inline unsigned long long kToULongLong(const char* s) noexcept
 //-----------------------------------------------------------------------------
 {
 	if (!s || !*s) return 0;
 	else return std::strtoull(s, nullptr, 10);
 }
 
-template<class String, typename = std::enable_if_t<dekaf2::is_narrow_cpp_str<String>::value> >
-inline float KToFloat(const String& s) noexcept { return KToFloat(s.data()); }
-template<class String, typename = std::enable_if_t<dekaf2::is_narrow_cpp_str<String>::value> >
-inline double KToDouble(const String& s) noexcept { return KToDouble(s.data()); }
-template<class String, typename = std::enable_if_t<dekaf2::is_narrow_cpp_str<String>::value> >
-inline long double KToLongDouble(const String& s) noexcept { return KToLongDouble(s.data); }
-template<class String, typename = std::enable_if_t<dekaf2::is_narrow_cpp_str<String>::value> >
-inline int KToInt(const String& s) noexcept { return KToInt(s.data()); }
-template<class String, typename = std::enable_if_t<dekaf2::is_narrow_cpp_str<String>::value> >
-inline long KToLong(const String& s) noexcept { return KToLong(s.data()); }
-template<class String, typename = std::enable_if_t<dekaf2::is_narrow_cpp_str<String>::value> >
-inline long long KToLongLong(const String& s) noexcept { return KToLongLong(s.data()); }
-template<class String, typename = std::enable_if_t<dekaf2::is_narrow_cpp_str<String>::value> >
-inline unsigned int KToUInt(const String& s) noexcept { return KToUInt(s.data()); }
-template<class String, typename = std::enable_if_t<dekaf2::is_narrow_cpp_str<String>::value> >
-inline unsigned long KToULong(const String& s) noexcept { return KToULong(s.data()); }
-template<class String, typename = std::enable_if_t<dekaf2::is_narrow_cpp_str<String>::value> >
-inline unsigned long long KToULongLong(const String& s) noexcept { return KToULongLong(s.data()); }
+template<class String, typename = std::enable_if_t<detail::is_narrow_cpp_str<String>::value> >
+inline float kToFloat(const String& s) noexcept { return kToFloat(s.data()); }
+template<class String, typename = std::enable_if_t<detail::is_narrow_cpp_str<String>::value> >
+inline double kToDouble(const String& s) noexcept { return kToDouble(s.data()); }
+template<class String, typename = std::enable_if_t<detail::is_narrow_cpp_str<String>::value> >
+inline long double kToLongDouble(const String& s) noexcept { return kToLongDouble(s.data); }
+template<class String, typename = std::enable_if_t<detail::is_narrow_cpp_str<String>::value> >
+inline int kToShort(const String& s) noexcept { return kToShort(s.data()); }
+template<class String, typename = std::enable_if_t<detail::is_narrow_cpp_str<String>::value> >
+inline int kToInt(const String& s) noexcept { return kToInt(s.data()); }
+template<class String, typename = std::enable_if_t<detail::is_narrow_cpp_str<String>::value> >
+inline long kToLong(const String& s) noexcept { return kToLong(s.data()); }
+template<class String, typename = std::enable_if_t<detail::is_narrow_cpp_str<String>::value> >
+inline long long kToLongLong(const String& s) noexcept { return kToLongLong(s.data()); }
+template<class String, typename = std::enable_if_t<detail::is_narrow_cpp_str<String>::value> >
+inline unsigned int kToUShort(const String& s) noexcept { return kToUShort(s.data()); }
+template<class String, typename = std::enable_if_t<detail::is_narrow_cpp_str<String>::value> >
+inline unsigned int kToUInt(const String& s) noexcept { return kToUInt(s.data()); }
+template<class String, typename = std::enable_if_t<detail::is_narrow_cpp_str<String>::value> >
+inline unsigned long kToULong(const String& s) noexcept { return kToULong(s.data()); }
+template<class String, typename = std::enable_if_t<detail::is_narrow_cpp_str<String>::value> >
+inline unsigned long long kToULongLong(const String& s) noexcept { return kToULongLong(s.data()); }
 
 namespace // hide kx2c in an anonymous namespace
 {
 
 //-----------------------------------------------------------------------------
-inline char kx2c (const char *pszGoop)
+template<class Ch>
+inline Ch kx2c (Ch* pszGoop)
 //-----------------------------------------------------------------------------
 {
-	char digit;
+	Ch digit;
 
 	digit = (pszGoop[0] >= 'A' ? ((pszGoop[0] & 0xdf) - 'A')+10 : (pszGoop[0] - '0'));
 	digit *= 16;
 	digit += (pszGoop[1] >= 'A' ? ((pszGoop[1] & 0xdf) - 'A')+10 : (pszGoop[1] - '0'));
 
 	return digit;
+
 } // kx2c
 
 } // anonymous until here
@@ -457,7 +367,12 @@ void kUrlDecode (String& sDecode)
 	auto end     = current + sDecode.size();
 	while (current != end)
 	{
-		if (*current == '%'
+		if (*current == '+')
+		{
+			*insert++ = ' ';
+			++current;
+		}
+		else if (*current == '%'
 			&& end - current > 2
 			&& std::isxdigit(*(current + 1))
 			&& std::isxdigit(*(current + 2)))
@@ -476,6 +391,7 @@ void kUrlDecode (String& sDecode)
 		size_t nsz = insert - &sDecode[0];
 		sDecode.erase(nsz);
 	}
+
 } // kUrlDecode
 
 } // end of namespace dekaf2

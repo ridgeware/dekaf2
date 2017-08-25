@@ -1,121 +1,106 @@
-#include <kwebio.h>
+#include <dekaf2/kwebio.h>
+
+#include <iostream>
 
 #include "catch.hpp"
 using namespace dekaf2;
 
-#define kcurlDump 0
-#define kcurlHead 0
-#define kcurlBoth 0
+//-----------------------------------------------------------------------------
+class KCurlTest : public KWebIO
+//-----------------------------------------------------------------------------
+{
+public:
+	typedef std::vector<KString> StreamedBody;
+
+	//-----------------------------------------------------------------------------
+	KCurlTest(){}
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	KCurlTest(const KString& sRequestURL, KCurl::RequestType requestType, bool bEchoHeader = false, bool bEchoBody = false)
+	    : KWebIO(sRequestURL,requestType, bEchoHeader, bEchoBody)
+	//-----------------------------------------------------------------------------
+	{
+	}
+
+	//-----------------------------------------------------------------------------
+	~KCurlTest(){}
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	virtual bool addToResponseBody(KString& sBodyPart)
+	//-----------------------------------------------------------------------------
+	{
+		bool retVal = KCurl::addToResponseBody(sBodyPart);
+		m_sBody.push_back(sBodyPart);
+		return retVal;
+	}
+
+	//-----------------------------------------------------------------------------
+	virtual bool addToResponseHeader(KString& sHeaderPart)
+	//-----------------------------------------------------------------------------
+	{
+		if (printHeader || !getEchoHeader())
+		{
+			KWebIO::addToResponseHeader(sHeaderPart);
+		}
+		else // getEchoHeader() == true && printHeader == false;
+		{
+			setEchoHeader(false);
+			KWebIO::addToResponseHeader(sHeaderPart);
+			setEchoHeader(true);
+		}
+
+		return true;
+	}
+
+	//-----------------------------------------------------------------------------
+	bool printResponseBody()
+	//-----------------------------------------------------------------------------
+	{
+		bool retVal = KCurl::printResponseHeader();
+		for (const auto& bodyPart : m_sBody)
+		{
+			std::cout << bodyPart;
+		}
+		return retVal;
+	}
+
+	StreamedBody m_sBody{nullptr};
+	bool printHeader{true};
+};
 
 TEST_CASE("KCurl")
 {
-	SECTION("KCurl Stream Test")
+
+	SECTION("KCurl Delayed Set Stream Test")
 	{
-
-		KString url = "www.acme.com";
-		KWebIO webIO(url);//, true, true);
-		CHECK_FALSE(webIO.getEchoHeader());
-		CHECK_FALSE(webIO.getEchoBody());
-
-		bool bSuccess = webIO.initiateRequest();
-		CHECK(bSuccess);
-		CHECK(webIO.requestInProgress());
-		while (bSuccess)
-		{
-			bSuccess = webIO.getStreamChunk();
-		}
-
-		CHECK_FALSE(bSuccess);
-	}
-// TODO Make KCurl Grandchild which stores body so tests can selectively print
-#if kcurlBoth
-	SECTION("KCurl Stream Test With Headers, output header and body")
-	{
-
-		KString url = "www.acme.com";
-		KWebIO webIO(url, true, true);
-		CHECK(webIO.getEchoHeader());
-		CHECK(webIO.getEchoBody());
-
-		webIO.addRequestHeader(xForwardedForHeader, "onelink-translations.com");
-		webIO.addRequestHeader("Cust Header", "muh header...");
-		webIO.addCookie("yummy_cookie","chocolate chip");
-		webIO.addCookie("best cookie","mint chocolate chip");
-
-		KString cookies;
-		webIO.getRequestHeader(CookieHeader, cookies);
-		CHECK(cookies.length() == 64);
-
-		bool bSuccess = webIO.initiateRequest();
-		CHECK(bSuccess);
-		CHECK(webIO.requestInProgress());
-		while (bSuccess)
-		{
-			bSuccess = webIO.getStreamChunk();
-		}
-
-		CHECK_FALSE(bSuccess);
-	}
-#endif
-#if kcurlHead
-	SECTION("KCurl Stream Test With Headers, output Header Only")
-	{
-
-		KString url = "www.acme.com";
-		KWebIO webIO(url, true);//, true);
-		CHECK(webIO.getEchoHeader());
-		CHECK_FALSE(webIO.getEchoBody());
-
-		webIO.addRequestHeader(xForwardedForHeader, "onelink-translations.com");
-		webIO.addRequestHeader("Cust Header", "muh header...");
-		webIO.addCookie("yummy_cookie","chocolate chip");
-		webIO.addCookie("best_cookie","mint chocolate chip");
-		webIO.addCookie("muh_cookie","muh cookie is best");
-
-		KString cookies;
-		webIO.getRequestHeader(CookieHeader, cookies);
-		CHECK(cookies.length() == 94);
-
-		bool bSuccess = webIO.initiateRequest();
-		CHECK(bSuccess);
-		CHECK(webIO.requestInProgress());
-		while (bSuccess)
-		{
-			bSuccess = webIO.getStreamChunk();
-		}
-
-		CHECK_FALSE(bSuccess);
-	}
-#endif
-
-#if kcurlDump
-	SECTION("KCurl Stream Test With Headers, output Body Only")
-	{
-
-		KString url = "www.acme.com";
-		KWebIO webIO(url, false, true);
+		KString url = "www.google.com";
+		KCurlTest webIO;
+		webIO.setEchoBody(true);
+		webIO.setRequestURL("");
 		CHECK_FALSE(webIO.getEchoHeader());
 		CHECK(webIO.getEchoBody());
 
-		webIO.addRequestHeader(xForwardedForHeader, "onelink-translations.com");
-		webIO.addRequestHeader("Cust Header", "muh header...");
-		webIO.addCookie("yummy_cookie","chocolate chip");
-		webIO.addCookie("best_cookie","mint chocolate chip");
-		webIO.addCookie("muh_cookie","muh cookie is best");
-
-		KString cookies;
-		webIO.getRequestHeader(CookieHeader, cookies);
-		CHECK(cookies.length() == 94);
-
 		bool bSuccess = webIO.initiateRequest();
-		CHECK(bSuccess);
-		CHECK(webIO.requestInProgress());
-		while (bSuccess)
-		{
-			bSuccess = webIO.getStreamChunk();
-		}
-
 		CHECK_FALSE(bSuccess);
 	}
-#endif
+
+	SECTION("KCurl Dummy Stream Test")
+	{
+		KCurl webIO;
+		webIO.setEchoHeader(true);
+		webIO.setEchoBody(true);
+		webIO.setRequestURL("");
+		CHECK(webIO.getEchoHeader());
+		CHECK(webIO.getEchoBody());
+
+		bool bSuccess = webIO.initiateRequest();
+
+		CHECK_FALSE(bSuccess);
+
+		KString randHeader("something");
+		webIO.addToResponseHeader(randHeader);
+		webIO.printResponseHeader();
+	}
 }

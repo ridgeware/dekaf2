@@ -42,71 +42,57 @@
 
 #pragma once
 
-#include <unordered_map>
-#include <functional>
-#include <shared_mutex>
-#include "dekaf.h"
+#include "bits/kcppcompat.h"
+#include "dekaf2.h"
 #include "ksharedref.h"
+#include "kmru.h"
 
 
 namespace dekaf2
 {
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// KCacheTemplate implements a generic cache.
-/// For cache size management it uses a random
-/// replacement strategy. To load a new value
-/// it calls the constructor of Value() with the
-/// new Key.
+/// KCache implements a generic cache.
+/// For cache size management it uses a Least Recently Used removal strategy.
+/// To load a new value it calls the constructor of Value() with the new Key.
 template<class Key, class Value>
-class KCacheTemplate
+class KCache
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
+
 //----------
 protected:
 //----------
+
 	enum { DEFAULT_MAX_CACHE_SIZE = 1000 };
-	using map_type = std::unordered_map<Key, Value>;
+	using map_type = KMRUMap<Key, Value>;
 	map_type m_map;
 	size_t m_iMaxSize;
-
-	//-----------------------------------------------------------------------------
-	// TODO fix to either apply a real random replacement strategy using a vector or
-	// a LRU strategy with a queue
-	void ApplySizePolicy()
-	//-----------------------------------------------------------------------------
-	{
-		while (m_map.size() >= m_iMaxSize)
-		{
-			m_map.erase(m_map.begin());
-		}
-	}
 
 	//-----------------------------------------------------------------------------
 	template<class K, class V>
 	Value& Create(K&& key, V&& value)
 	//-----------------------------------------------------------------------------
 	{
-		ApplySizePolicy();
-
-		auto pair = m_map.emplace(std::forward<K>(key), std::forward<V>(value));
-
-		return pair.first->second;
+		auto it = m_map.insert(std::make_pair(std::forward<K>(key), std::forward<V>(value)));
+		return it->second;
 	}
 
 //----------
 public:
 //----------
-	//-----------------------------------------------------------------------------
-	KCacheTemplate(size_t iMaxSize = DEFAULT_MAX_CACHE_SIZE)
-	//-----------------------------------------------------------------------------
-	    : m_iMaxSize(iMaxSize)
-	{}
 
-	KCacheTemplate(const KCacheTemplate&) = delete;
-	KCacheTemplate& operator=(const KCacheTemplate&) = delete;
-	KCacheTemplate(const KCacheTemplate&&) = delete;
-	KCacheTemplate& operator=(const KCacheTemplate&&) = delete;
+	//-----------------------------------------------------------------------------
+	KCache(size_t iMaxSize = DEFAULT_MAX_CACHE_SIZE)
+	//-----------------------------------------------------------------------------
+	    : m_map(iMaxSize)
+	{
+	}
+
+	KCache(const KCache&) = delete;
+	KCache& operator=(const KCache&) = delete;
+	KCache(const KCache&&) = delete;
+	KCache& operator=(const KCache&&) = delete;
 
 	//-----------------------------------------------------------------------------
 	template<class K, class V>
@@ -133,28 +119,21 @@ public:
 	bool Erase(const Key& key)
 	//-----------------------------------------------------------------------------
 	{
-		auto it = m_map.find(key);
-		if (it != m_map.end())
-		{
-			m_map.erase(it);
-			return true;
-		}
-		return false;
+		return m_map.erase(key);
 	}
 
 	//-----------------------------------------------------------------------------
 	void SetMaxSize(size_t iMaxSize)
 	//-----------------------------------------------------------------------------
 	{
-		m_iMaxSize = iMaxSize;
-		ApplySizePolicy();
+		m_map.SetMaxSize(iMaxSize);
 	}
 
 	//-----------------------------------------------------------------------------
 	size_t GetMaxSize() const
 	//-----------------------------------------------------------------------------
 	{
-		return m_iMaxSize;
+		return m_map.GetMaxSize();
 	}
 
 	//-----------------------------------------------------------------------------
@@ -171,22 +150,24 @@ public:
 		return m_map.size();
 	}
 
-}; // KCacheTemplate
+}; // KCache
 
 
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// KSharedCacheTemplate wraps the Value type into a shared pointer (KSharedRef)
+/// KSharedCache wraps the Value type into a shared pointer (KSharedRef)
 /// and enables shared locking when Dekaf is set into multithreading mode
 template<class Key, class Value>
-class KSharedCacheTemplate : public KCacheTemplate<Key, KSharedRef<Value, true>>
+class KSharedCache : public KCache<Key, KSharedRef<Value, true>>
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
+
 //----------
 public:
 //----------
+
 	using value_type = KSharedRef<Value, true>;
-	using base_type  = KCacheTemplate<Key, value_type>;
+	using base_type  = KCache<Key, value_type>;
 
 	//-----------------------------------------------------------------------------
 	template<class K, class V>
@@ -294,9 +275,10 @@ public:
 //----------
 private:
 //----------
+
 	std::shared_mutex m_Mutex;
 
-}; // KSharedCacheTemplate
+}; // KSharedCache
 
 } // of namespace dekaf2
 

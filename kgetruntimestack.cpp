@@ -41,9 +41,9 @@
 */
 
 
+#include "bits/kcppcompat.h"
 #include "kstring.h"
-#include "kcppcompat.h"
-#include "kpipe.h"
+#include "kinshell.h"
 #include "kgetruntimestack.h"
 
 #ifdef UNIX
@@ -59,47 +59,54 @@
 namespace dekaf2
 {
 
-namespace detail
+namespace kgetruntimestack_detail
 {
-	KString DemangleCPlusPlusName_ (const KString& sName)
-	{
-		KString sResult;
-#ifdef UNIX
-		int status = 0;
-		char* realName = abi::__cxa_demangle (sName.c_str (), 0, 0, &status);
-		if (status == 0)
-		{
-			sResult = realName;
-		}
-		else
-		{
-			// if demangling fails just return the original string
-			sResult = sName;
-		}
-		if (realName != nullptr)
-		{
-			free (realName);
-		}
-#endif
-		return sResult;
-	}
 
-	KString DemangleBacktraceDumpLine_ (const KString& sName)
+KString DemangleCPlusPlusName_ (const KString& sName)
+{
+	KString sResult;
+#ifdef UNIX
+	int status = 0;
+	char* realName = abi::__cxa_demangle (sName.c_str (), 0, 0, &status);
+	if (status == 0)
 	{
-		// It appears empirically that the C++ symbol name appears between the ( and + characters, so find that, substitute, and return the rest
-		size_t i = sName.find ('(');
-		if (i == KString::npos)
-		{
-			return sName;
-		}
-		size_t e = sName.find ('+', i);
-		if (e == KString::npos)
-		{
-			return sName;
-		}
-		return sName.substr(0, i+1) + DemangleCPlusPlusName_ (sName.substr(i + 1, e - i - 1)) + sName.substr (e);
+		sResult = realName;
 	}
-} // namespace detail
+	else
+	{
+		// if demangling fails just return the original string
+		sResult = sName;
+	}
+	if (realName != nullptr)
+	{
+		free (realName);
+	}
+#else
+	sResult = sName;
+#endif
+	return sResult;
+}
+
+KString DemangleBacktraceDumpLine_ (const KString& sName)
+{
+	// It appears empirically that the C++ symbol name appears between the ( and + characters, so find that, substitute, and return the rest
+	size_t i = sName.find ('(');
+	if (i == KString::npos)
+	{
+		return sName;
+	}
+	size_t e = sName.find ('+', i);
+	if (e == KString::npos)
+	{
+		return sName;
+	}
+	KString sRet = sName.substr(0, i+1);
+	sRet += DemangleCPlusPlusName_ (sName.substr(i + 1, e - i - 1));
+	sRet += sName.substr (e);
+	return sRet;
+}
+
+} // namespace kgetruntimestack_detail
 
 
 #ifndef USE_ADDR2LINE
@@ -108,81 +115,82 @@ namespace detail
 
 #define NUM_ELEMENTS(X) (sizeof(X)/sizeof((X)[0]))
 
-namespace detail
+namespace kgetruntimestack_detail
 {
-	// This function will try and invoke the external addr2line code to map a hex process address to a source file/line number. It will
-	// return an empty string upon failure
-	KString Addr2LineMsg_ (const KString& sAddress)
-	{
+
+// This function will try and invoke the external addr2line code to map a
+// hex process address to a source file/line number. It will return an empty
+// string upon failure
+KString Addr2LineMsg_ (const KString& sAddress)
+{
 #ifdef UNIX
-	#if USE_ADDR2LINE
-		try {
-			char sMyExeName[512];
-			ssize_t n;
-			if ( (n = readlink ("/proc/self/exe", sMyExeName, NUM_ELEMENTS (sMyExeName)-1)) < 0)
+#if USE_ADDR2LINE
+	try {
+		char sMyExeName[512];
+		ssize_t n;
+		if ( (n = readlink ("/proc/self/exe", sMyExeName, NUM_ELEMENTS (sMyExeName)-1)) < 0)
+		{
+			// if this fails - we are already crashing - don't worry about this...
+			return KString();
+		}
+		sMyExeName[n] = '\0';
+
+		KString sCmdLine = "addr2line -f -C -e \"";
+		sCmdLine += sMyExeName;
+		sCmdLine += "\" ";
+		sCmdLine += sAddress;
+		KInShell pipe;
+		if (pipe.Open (sCmdLine))
+		{
+			KString	sLineBuf;
+			KString sResult;
+
+			if (pipe.ReadLine (sLineBuf))
 			{
-				// if this fails - we are already crashing - don't worry about this...
-				return KString();
+				sLineBuf.TrimRight();
+				sResult += sLineBuf;
 			}
-			sMyExeName[n] = '\0';
 
-			KString sCmdLine;
-			sCmdLine.Format("addr2line -f -C -e \"{0}\" {1}", sMyExeName, sAddress.s());
-			KPIPE pipe;
-			if (pipe.Open (sCmdLine, "r"))
+			if (pipe.ReadLine (sLineBuf))
 			{
-				KString	sLineBuf;
-				KString sResult;
-				enum {MAX = 1024};
-
-				if (pipe.getline (sLineBuf, MAX))
-				{
-					sLineBuf.TrimRight();
+				sLineBuf.TrimRight();
+				if (!sLineBuf.StartsWith("??:")) {
+					sResult += " at ";
 					sResult += sLineBuf;
 				}
-
-				if (pipe.getline (sLineBuf, MAX))
-				{
-					sLineBuf.TrimRight();
-					if (sLineBuf != "??:0") {
-						sResult += " at ";
-						sResult += sLineBuf;
-					}
-				}
-
-				return sResult;
 			}
+
+			return sResult;
 		}
-		catch (...) {
-			// ignore - just do default - returning empty string
-		}
-	#endif
+	}
+
+	catch (...) {
+		// ignore - just do default - returning empty string
+	}
 #endif
-		return KString();
-	}
+#endif
+
+	return KString();
+}
 
 
-	KString ComputeSrcLinesAppendageForBacktraceDumpLine_ (const KString& sBacktraceLine)
+KString ComputeSrcLinesAppendageForBacktraceDumpLine_ (const KString& sBacktraceLine)
+{
+	// It appears empirically that the C++ symbol name appears between the ( and + characters, so find that, substitute, and return the rest
+	size_t i = sBacktraceLine.find ("[0x");
+	if (i == KString::npos)
 	{
-		// It appears empirically that the C++ symbol name appears between the ( and + characters, so find that, substitute, and return the rest
-		size_t i = sBacktraceLine.find ("[0x");
-		if (i == KString::npos)
-		{
-			return KString();
-		}
-		size_t e = sBacktraceLine.find (']', i);
-		if (e == KString::npos)
-		{
-			return KString();
-		}
-		KString tmp = Addr2LineMsg_ (sBacktraceLine.substr(i + 1, e - i - 1));
-		if (!tmp.empty ())
-		{
-			return " " + tmp;
-		}
 		return KString();
 	}
-} // namespace detail
+	size_t e = sBacktraceLine.find (']', i);
+	if (e == KString::npos)
+	{
+		return KString();
+	}
+	return Addr2LineMsg_ (sBacktraceLine.substr(i + 1, e - i - 1));
+}
+
+} // namespace kgetruntimestack_detail
 
 #ifndef SUPPORT_GDBATTACH_PRINTCALLSTACK
 #define SUPPORT_GDBATTACH_PRINTCALLSTACK 1
@@ -195,71 +203,77 @@ namespace detail
 
 #if SUPPORT_GDBATTACH_PRINTCALLSTACK
 
-namespace detail
+namespace kgetruntimestack_detail
 {
-	KString GetGDBAttachBased_Callstack_ ()
+
+KString GetGDBAttachBased_Callstack_ ()
+{
+	KString sStack;
+
+	try
 	{
-		KString sStack;
-
-		try
+		bool seenPrintGDBAttachedxxx = false;
+		char name_buf[512];
+		ssize_t iRead = readlink("/proc/self/exe", name_buf, NUM_ELEMENTS(name_buf)-1);
+		if (iRead < 0)
 		{
-			bool seenPrintGDBAttachedxxx = false;
-			char name_buf[512];
-			ssize_t iRead = readlink("/proc/self/exe", name_buf, NUM_ELEMENTS(name_buf)-1);
-			if (iRead < 0)
-			{
-				return sStack;
-			}
-			name_buf[iRead] = 0;
-			KString sCmdLine;
-			sCmdLine.Format("gdb --batch -n -ex thread -ex bt \"{0}\" {1} 2>&1", name_buf, getpid ());
-			KPIPE pipe;
+			return sStack;
+		}
+		name_buf[iRead] = 0;
+		// don't use Format() inside the stacktrace
+		KString sCmdLine = "gdb --batch -n -ex thread -ex bt \"";
+		sCmdLine += name_buf;
+		sCmdLine += "\" ";
+		sCmdLine += std::to_string(getpid());
+		sCmdLine += " 2>&1";
+		KInShell pipe;
 
-			if (pipe.Open (sCmdLine, "r"))
-			{
-				enum {MAX=1024};
-				enum {TIMEOUT_SEC=10};
+		if (pipe.Open (sCmdLine))
+		{
+			//enum {TIMEOUT_SEC=10};
 
-				KString	sLineBuf;
-				while (pipe.getline (sLineBuf, MAX))
+			KString	sLineBuf;
+			while (pipe.ReadLine(sLineBuf))
+			{
+				sLineBuf.TrimRight();
+				if (0 == sLineBuf.length())
 				{
-					sLineBuf.TrimRight();
-					if (0 == sLineBuf.length())
-					{
-						continue;			// skip blank lines
-					}
-
-					// Joe says to just skip these
-					if (sLineBuf.StartsWith ("warning: (Internal error:"))
-					{
-						continue;			// skip blank lines
-					}
-
-					if (!seenPrintGDBAttachedxxx) 
-					{
-						if (sLineBuf.find(__FUNCTION__) != KString::npos) 
-						{
-							seenPrintGDBAttachedxxx = true;
-						}
-					}
-					if (!seenPrintGDBAttachedxxx) 
-					{
-						continue;			// skip prefixing lines (from our call to gdb)
-					}
-
-					sStack += sLineBuf;
-					sStack += '\n';
+					continue;			// skip blank lines
 				}
+
+				// Joe says to just skip these
+				if (sLineBuf.StartsWith ("warning: (Internal error:"))
+				{
+					continue;			// skip blank lines
+				}
+
+				if (!seenPrintGDBAttachedxxx)
+				{
+					if (sLineBuf.find(__FUNCTION__) != KString::npos)
+					{
+						seenPrintGDBAttachedxxx = true;
+					}
+				}
+				if (!seenPrintGDBAttachedxxx)
+				{
+					continue;			// skip prefixing lines (from our call to gdb)
+				}
+
+				sStack += sLineBuf;
+				sStack += '\n';
 			}
 		}
-		catch (...)
-		{
-			sStack.clear();
-		}
-
-		return sStack;
 	}
-} // namespace detail
+
+	catch (...)
+	{
+		sStack.clear();
+	}
+
+	return sStack;
+}
+
+} // namespace kgetruntimestack_detail
 #endif
 
 
@@ -268,36 +282,37 @@ namespace detail
 #endif
 
 #if SUPPORT_BACKTRACE_PRINTCALLSTACK
-namespace detail
+namespace kgetruntimestack_detail
 {
-	KString GetBacktraceBased_Callstack_ ()
+
+KString GetBacktraceBased_Callstack_ (size_t iSkipStackLines)
+{
+	KString sStack;
+
+	enum   {MAXSTACK = 500};
+	void*  Stack[MAXSTACK+1];
+	size_t iStackSize = 0;
+
+	iStackSize = backtrace (Stack, MAXSTACK);
+	char** Names = backtrace_symbols (Stack, iStackSize);
+
+	for (size_t ii = iSkipStackLines; ii < iStackSize; ++ii)
 	{
-		KString sStack;
-
-		enum   {MAXSTACK = 500};
-		void*  Stack[MAXSTACK+1];
-		size_t iStackSize = 0;
-	 
-		iStackSize = backtrace (Stack, MAXSTACK);
-		char** Names = backtrace_symbols (Stack, iStackSize);
-	 
-		for (size_t ii = 0; ii < iStackSize; ++ii) 
-		{
-			KString sFrame;
-			
-			sFrame.Format("%3lu. %s%s\n", 
-				iStackSize-ii, 
-				detail::DemangleBacktraceDumpLine_(Names[ii]).c_str (),
-				detail::ComputeSrcLinesAppendageForBacktraceDumpLine_(Names[ii]).c_str ());
-
-			sStack.append(sFrame);
-		}
-	 
-		free (Names);
-
-		return sStack;
+		KString sFrame;
+		sFrame = std::to_string(iStackSize-ii);
+		sFrame.PadLeft(3);
+		sFrame += ' ';
+		sFrame += kgetruntimestack_detail::ComputeSrcLinesAppendageForBacktraceDumpLine_(Names[ii]);
+		sFrame += '\n';
+		sStack.append(sFrame);
 	}
-} // namespace detail
+
+	free (Names);
+
+	return sStack;
+}
+
+} // namespace kgetruntimestack_detail
 #endif
 
 //-----------------------------------------------------------------------------
@@ -308,15 +323,31 @@ KString kGetRuntimeStack ()
 
 #if SUPPORT_GDBATTACH_PRINTCALLSTACK
 	// Joe only wants one of these, but do old-style if gdb-style fails
-	sStack = detail::GetGDBAttachBased_Callstack_();
+	sStack = kgetruntimestack_detail::GetGDBAttachBased_Callstack_();
 
 #endif
 #if SUPPORT_BACKTRACE_PRINTCALLSTACK
 
 	if (sStack.empty())
 	{
-		sStack = detail::GetBacktraceBased_Callstack_();
+		sStack = kgetruntimestack_detail::GetBacktraceBased_Callstack_(0);
 	}
+
+#endif
+
+	return sStack;
+
+} // kGetRuntimeStack
+
+//-----------------------------------------------------------------------------
+KString kGetBacktrace (size_t iSkipStackLines)
+//-----------------------------------------------------------------------------
+{
+	KString sStack;
+
+#if SUPPORT_BACKTRACE_PRINTCALLSTACK
+
+	sStack = kgetruntimestack_detail::GetBacktraceBased_Callstack_(iSkipStackLines);
 
 #endif
 

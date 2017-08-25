@@ -40,6 +40,8 @@
 //
 */
 
+#pragma once
+
 namespace dekaf2
 {
 

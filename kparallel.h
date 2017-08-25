@@ -48,6 +48,8 @@
 #include <vector>
 #include <map>
 #include <atomic>
+#include "klog.h"
+#include "bits/kcppcompat.h"
 
 namespace dekaf2
 {
@@ -74,49 +76,27 @@ public:
 //----------
 	//-----------------------------------------------------------------------------
 	/// Destructor waits for all threads to join
-	~KThreadWait()
+	virtual ~KThreadWait();
 	//-----------------------------------------------------------------------------
-	{
-		join();
-	}
 
 	//-----------------------------------------------------------------------------
 	/// add a new thread to the list of started threads
-	void add(UPThread newThread)
+	void Add(UPThread newThread);
 	//-----------------------------------------------------------------------------
-	{
-		threads.emplace_back(std::move(newThread));
-	}
 
 	//-----------------------------------------------------------------------------
 	/// add a new thread to the list of started threads
-	void add(std::thread* newThread)
+	void Add(std::thread* newThread);
 	//-----------------------------------------------------------------------------
-	{
-		// create unique pointer
-		KThreadWait::UPThread uniqueThread(newThread);
-		// add it
-		add(std::move(uniqueThread));
-	}
 
 	//-----------------------------------------------------------------------------
 	/// wait for all threads to join
-	void join()
+	void Join();
 	//-----------------------------------------------------------------------------
-	{
-		if (!threads.empty())
-		{
-			for (auto& it : threads)
-			{
-				it->join();
-			}
-			threads.clear();
-		}
-	}
 
 	//-----------------------------------------------------------------------------
 	/// return count of started threads
-	size_t size() const
+	inline size_t size() const
 	//-----------------------------------------------------------------------------
 	{
 		return threads.size();
@@ -142,33 +122,25 @@ public:
 	//-----------------------------------------------------------------------------
 	/// Constructor. Sets number of threads to #cpu if numThreads == 0, but
 	/// not higher than maxThreads if maxThreads > 0.
-	KRunThreads(size_t numThreads = 0, size_t maxThreads = 0)
+	KRunThreads(size_t iNumThreads = 0, size_t iMaxThreads = 0)
 	//-----------------------------------------------------------------------------
 	{
-		set_size(numThreads, maxThreads);
+		SetSize(iNumThreads, iMaxThreads);
 	}
+
+	//-----------------------------------------------------------------------------
+	virtual ~KRunThreads();
+	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// sets number of threads to #cpu if numThreads == 0, but
 	/// not higher than maxThreads if maxThreads > 0.
-	size_t set_size(size_t numThreads, size_t maxThreads = 0)
+	size_t SetSize(size_t iNumThreads, size_t iMaxThreads = 0);
 	//-----------------------------------------------------------------------------
-	{
-		m_numThreads = numThreads;
-		if (!m_numThreads) {
-			// calculate number of threads if auto value (0) given:
-			m_numThreads = std::thread::hardware_concurrency();
-		}
-		if (maxThreads && m_numThreads > maxThreads)
-		{
-			m_numThreads = maxThreads;
-		}
-		return m_numThreads;
-	}
 
 	//-----------------------------------------------------------------------------
 	/// request max number of threads to be started
-	size_t max_size() const
+	inline size_t MaxSize() const
 	//-----------------------------------------------------------------------------
 	{
 		return m_numThreads;
@@ -176,7 +148,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// request a delay after starting each thread
-	void start_with_pause(std::chrono::microseconds pause)
+	inline void StartWithPause(std::chrono::microseconds pause)
 	//-----------------------------------------------------------------------------
 	{
 		m_pause = pause;
@@ -184,7 +156,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// create new threads in detached mode?
-	void start_detached(bool yesno = true)
+	inline void StartDetached(bool yesno = true)
 	//-----------------------------------------------------------------------------
 	{
 		m_start_detached = yesno;
@@ -193,11 +165,11 @@ public:
 	//-----------------------------------------------------------------------------
 	/// create one thread, calling function f with arguments args
 	template<class Function, class... Args>
-	void create_one(Function&& f, Args&&... args)
+	void CreateOne(Function&& f, Args&&... args)
 	{
 		s_bHasThreadsStarted = true;
 		// create the thread and start it
-		store(new std::thread(&KRunThreads::run_thread<Function, Args...>, this,
+		Store(std::make_unique<std::thread>(&KRunThreads::RunThread<Function, Args...>, this,
 		                      std::forward<Function>(f), std::forward<Args>(args)...));
 	}
 	//-----------------------------------------------------------------------------
@@ -206,30 +178,33 @@ public:
 	/// create N threads (as determined by the constructor)
 	/// calling function f with arguments args
 	template<class Function, class... Args>
-	size_t create(Function&& f, Args&&... args)
+	size_t Create(Function&& f, Args&&... args)
 	//-----------------------------------------------------------------------------
 	{
 		size_t iCount{0};
 
 		for (size_t ct=size(); ct < m_numThreads; ++ct) {
 
-			create_one(std::forward<Function>(f), std::forward<Args>(args)...);
+			CreateOne(std::forward<Function>(f), std::forward<Args>(args)...);
 			++iCount;
 
 		}
 
-		// TODO add output
-//		cVerboseOut(2, "%s KRunThreads: started %lu additional threads\n", OK(), iCount);
+		kDebug(2, "started {} additional threads", iCount);
 
 		return iCount;
 	}
 
-	static bool HasThreadsStarted()
+	//-----------------------------------------------------------------------------
+	inline static bool HasThreadsStarted()
+	//-----------------------------------------------------------------------------
 	{
 		return s_bHasThreadsStarted;
 	}
 
-	static size_t get_ThreadNum()
+	//-----------------------------------------------------------------------------
+	inline static size_t GetThreadNum()
+	//-----------------------------------------------------------------------------
 	{
 		return s_iThreadNum;
 	}
@@ -239,38 +214,17 @@ protected:
 //----------
 	//-----------------------------------------------------------------------------
 	template<class Function, class... Args>
-	void run_thread(Function&& f, Args&&... args)
+	void RunThread(Function&& f, Args&&... args)
 	//-----------------------------------------------------------------------------
 	{
 		s_iThreadNum = ++s_iThreadIdCount;
-		std::bind(f, args...)();
+		std::bind(std::forward<Function>(f), std::forward<Args>(args)...)();
 	}
 
 	//-----------------------------------------------------------------------------
 	/// store (or detach) the new thread object
-	void store(std::thread* thread)
+	void Store(UPThread&& thread);
 	//-----------------------------------------------------------------------------
-	{
-		if (m_start_detached)
-		{
-			// detach
-			thread->detach();
-			// delete the thread object (thread will continue)
-			delete thread;
-		}
-		else
-		{
-			// add it to the KThreadWait object
-			add(thread);
-		}
-
-
-		// shall we pause?
-		if (m_pause.count())
-		{
-			std::this_thread::sleep_for(m_pause);
-		}
-	}
 
 //----------
 private:
@@ -282,10 +236,11 @@ private:
 	static bool                s_bHasThreadsStarted;
 	static thread_local size_t s_iThreadNum;
 	static std::atomic_size_t  s_iThreadIdCount;
-};
+
+}; // KRunThreads
 
 //-----------------------------------------------------------------------------
-void KParallelForEachPrintProgress(size_t iMax, size_t iDone, size_t iRunning);
+void kParallelForEachPrintProgress(size_t iMax, size_t iDone, size_t iRunning);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
@@ -293,15 +248,14 @@ void KParallelForEachPrintProgress(size_t iMax, size_t iDone, size_t iRunning);
 /// of the range as the first element.
 template<typename InputIterator,
          typename Func,
-         typename Progress = decltype(KParallelForEachPrintProgress)>
+         typename Progress = decltype(kParallelForEachPrintProgress)>
 void parallel_for_each(size_t size,
                        InputIterator first, InputIterator last,
                        const Func& f,
                        size_t max_threads = std::thread::hardware_concurrency(),
-                       const Progress& fProgress = KParallelForEachPrintProgress)
+                       const Progress& fProgress = kParallelForEachPrintProgress)
 //-----------------------------------------------------------------------------
 {
-
 	switch (size)
 	{
 		case 0:
@@ -344,14 +298,13 @@ void parallel_for_each(size_t size,
 					fProgress(size, m_iDone, m_iRunning);
 
 					f(it);
-
 				}
 			};
 
 			KRunThreads threads((max_threads == 0) ? 0 : max_threads-1, size-1);
 
 			// create the additional threads
-			threads.create(std::ref(loop));
+			threads.Create(std::ref(loop));
 
 			// and finally run the loop in the initial thread as well
 			loop();
@@ -369,11 +322,11 @@ void parallel_for_each(size_t size,
 /// parameter.
 template<typename InputIterator,
          typename Func,
-         typename Progress = decltype(KParallelForEachPrintProgress)>
-void parallel_for_each(InputIterator first, InputIterator last,
-                       const Func& f,
-                       size_t max_threads = std::thread::hardware_concurrency(),
-                       const Progress& fProgress = KParallelForEachPrintProgress)
+         typename Progress = decltype(kParallelForEachPrintProgress)>
+void kParallelForEach(InputIterator first, InputIterator last,
+                      const Func& f,
+                      size_t max_threads = std::thread::hardware_concurrency(),
+                      const Progress& fProgress = kParallelForEachPrintProgress)
 //-----------------------------------------------------------------------------
 {
 	parallel_for_each(std::distance(first, last), first, last, f, max_threads, fProgress);
@@ -385,14 +338,14 @@ void parallel_for_each(InputIterator first, InputIterator last,
 /// implemented.
 template<typename Container,
          typename Func,
-         typename Progress = decltype(KParallelForEachPrintProgress)>
-void parallel_for_each(Container c,
-                       const Func& f,
-                       size_t max_threads = std::thread::hardware_concurrency(),
-                       const Progress& fProgress = KParallelForEachPrintProgress)
+         typename Progress = decltype(kParallelForEachPrintProgress)>
+void kParallelForEach(Container c,
+                      const Func& f,
+                      size_t max_threads = std::thread::hardware_concurrency(),
+                      const Progress& fProgress = kParallelForEachPrintProgress)
 //-----------------------------------------------------------------------------
 {
-	parallel_for_each(c.size(), c.begin(), c.end(), f, max_threads, fProgress);
+	kParallelForEach(c.size(), c.begin(), c.end(), f, max_threads, fProgress);
 }
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -412,17 +365,26 @@ public:
 	//----------
 	public:
 	//----------
+		//-----------------------------------------------------------------------------
 		Data()
+		//-----------------------------------------------------------------------------
 		{
 		}
 
+		//-----------------------------------------------------------------------------
 		bool WouldBlock(size_t ID);
+		//-----------------------------------------------------------------------------
 
 	//----------
 	protected:
 	//----------
-		void lock(size_t ID);
-		bool unlock(size_t ID);
+		//-----------------------------------------------------------------------------
+		void Lock(size_t ID);
+		//-----------------------------------------------------------------------------
+
+		//-----------------------------------------------------------------------------
+		bool Unlock(size_t ID);
+		//-----------------------------------------------------------------------------
 
 	//----------
 	private:
@@ -434,23 +396,27 @@ public:
 
 	};
 
+	//-----------------------------------------------------------------------------
 	KBlockOnID(Data& data, size_t ID)
+	//-----------------------------------------------------------------------------
 	    : m_data(data)
 	    , m_MyID(ID)
 	{
-		m_data.lock(ID);
+		m_data.Lock(ID);
 	}
 
+	//-----------------------------------------------------------------------------
 	~KBlockOnID()
+	//-----------------------------------------------------------------------------
 	{
-		m_data.unlock(m_MyID);
+		m_data.Unlock(m_MyID);
 	}
 
 //----------
 private:
 //----------
-	Data&                 m_data;
-	size_t                m_MyID;
+	Data&  m_data;
+	size_t m_MyID;
 };
 
 

@@ -42,8 +42,8 @@
 
 #include <stdio.h>
 #include <assert.h>
-#include "kstringutils.h"
 #include "kstring.h"
+#include "kstringutils.h"
 #include "klog.h"
 #include "kregex.h"
 
@@ -53,29 +53,56 @@ namespace dekaf2
 const KString::size_type KString::npos;
 
 //------------------------------------------------------------------------------
-KString& KString::replace(size_type pos, size_type n, const KString& str)
+void KString::log_exception(std::exception& e, KStringView sWhere)
+//------------------------------------------------------------------------------
+{
+	kException(e);
+}
+
+//------------------------------------------------------------------------------
+KString& KString::append(const string_type& str, size_type pos, size_type n)
 //------------------------------------------------------------------------------
 {
 	try {
-		m_rep.replace(pos, n, str.m_rep);
+		m_rep.append(str, pos, n);
 	} catch (std::exception& e) {
-		KLog().exception(e, "replace", "KString");
-	} catch (...) {
-		KLog().exception("replace", "KString");
+		kException(e);
 	}
 	return *this;
 }
 
 //------------------------------------------------------------------------------
-KString& KString::replace(size_type pos1, size_type n1, const KString& str, size_type pos2, size_type n2)
+KString& KString::assign(const string_type& str, size_type pos, size_type n)
 //------------------------------------------------------------------------------
 {
 	try {
-		m_rep.replace(pos1, n1, str.m_rep, pos2, n2);
+		m_rep.assign(str, pos, n);
 	} catch (std::exception& e) {
-		KLog().exception(e, "replace", "KString");
-	} catch (...) {
-		KLog().exception("replace", "KString");
+		kException(e);
+	}
+	return *this;
+}
+
+//------------------------------------------------------------------------------
+KString& KString::replace(size_type pos, size_type n, const string_type& str)
+//------------------------------------------------------------------------------
+{
+	try {
+		m_rep.replace(pos, n, str);
+	} catch (std::exception& e) {
+		kException(e);
+	}
+	return *this;
+}
+
+//------------------------------------------------------------------------------
+KString& KString::replace(size_type pos1, size_type n1, const string_type& str, size_type pos2, size_type n2)
+//------------------------------------------------------------------------------
+{
+	try {
+		m_rep.replace(pos1, n1, str, pos2, n2);
+	} catch (std::exception& e) {
+		kException(e);
 	}
 	return *this;
 }
@@ -87,9 +114,7 @@ KString& KString::replace(size_type pos, size_type n1, const value_type* s, size
 	try {
 		m_rep.replace(pos, n1, s ? s : "", n2);
 	} catch (std::exception& e) {
-		KLog().exception(e, "replace", "KString");
-	} catch (...) {
-		KLog().exception("replace", "KString");
+		kException(e);
 	}
 	return *this;
 }
@@ -101,9 +126,7 @@ KString& KString::replace(size_type pos, size_type n1, const value_type* s)
 	try {
 		m_rep.replace(pos, n1, s ? s : "");
 	} catch (std::exception& e) {
-		KLog().exception(e, "replace", "KString");
-	} catch (...) {
-		KLog().exception("replace", "KString");
+		kException(e);
 	}
 	return *this;
 }
@@ -115,23 +138,19 @@ KString& KString::replace(size_type pos, size_type n1, size_type n2, value_type 
 	try {
 		m_rep.replace(pos, n1, n2, c);
 	} catch (std::exception& e) {
-		KLog().exception(e, "replace", "KString");
-	} catch (...) {
-		KLog().exception("replace", "KString");
+		kException(e);
 	}
 	return *this;
 }
 
 //------------------------------------------------------------------------------
-KString& KString::replace(iterator i1, iterator i2, const KString& str)
+KString& KString::replace(iterator i1, iterator i2, const string_type& str)
 //------------------------------------------------------------------------------
 {
 	try {
-		m_rep.replace(i1, i2, str.m_rep);
+		m_rep.replace(i1, i2, str);
 	} catch (std::exception& e) {
-		KLog().exception(e, "replace", "KString");
-	} catch (...) {
-		KLog().exception("replace", "KString");
+		kException(e);
 	}
 	return *this;
 }
@@ -143,9 +162,7 @@ KString& KString::replace(iterator i1, iterator i2, const value_type* s, size_ty
 	try {
 		m_rep.replace(i1, i2, s ? s : "", n);
 	} catch (std::exception& e) {
-		KLog().exception(e, "replace", "KString");
-	} catch (...) {
-		KLog().exception("replace", "KString");
+		kException(e);
 	}
 	return *this;
 }
@@ -157,9 +174,7 @@ KString& KString::replace(iterator i1, iterator i2, std::initializer_list<value_
 	try {
 		m_rep.replace(i1, i2, il);
 	} catch (std::exception& e) {
-		KLog().exception(e, "replace", "KString");
-	} catch (...) {
-		KLog().exception("replace", "KString");
+		kException(e);
 	}
 	return *this;
 }
@@ -171,9 +186,7 @@ KString& KString::replace(size_type pos, size_type n, KStringView sv)
 	try {
 		m_rep.replace(pos, n, sv.data(), sv.size());
 	} catch (std::exception& e) {
-		KLog().exception(e, "replace", "KString");
-	} catch (...) {
-		KLog().exception("replace", "KString");
+		kException(e);
 	}
 	return *this;
 }
@@ -185,9 +198,7 @@ KString& KString::replace(iterator i1, iterator i2, KStringView sv)
 	try {
 		m_rep.replace(i1, i2, sv.data(), sv.size());
 	} catch (std::exception& e) {
-		KLog().exception(e, "replace", "KString");
-	} catch (...) {
-		KLog().exception("replace", "KString");
+		kException(e);
 	}
 	return *this;
 }
@@ -199,9 +210,7 @@ KString KString::substr(size_type pos, size_type n) const
 	try {
 		return m_rep.substr(pos, n);
 	} catch (std::exception& e) {
-		KLog().exception(e, "substr", "KString");
-	} catch (...) {
-		KLog().exception("substr", "KString");
+		kException(e);
 	}
 	return KString();
 }
@@ -213,37 +222,31 @@ KString::size_type KString::copy(value_type* s, size_type n, size_type pos) cons
 	try {
 		return m_rep.copy(s, n, pos);
 	} catch (std::exception& e) {
-		KLog().exception(e, "copy", "KString");
-	} catch (...) {
-		KLog().exception("copy", "KString");
+		kException(e);
 	}
 	return 0;
 }
 
 //------------------------------------------------------------------------------
-KString& KString::insert(size_type pos1, const KString& str)
+KString& KString::insert(size_type pos, const string_type& str)
 //------------------------------------------------------------------------------
 {
 	try {
-		m_rep.insert(pos1, str.m_rep);
+		m_rep.insert(pos, str);
 	} catch (std::exception& e) {
-		KLog().exception(e, "insert", "KString");
-	} catch (...) {
-		KLog().exception("insert", "KString");
+		kException(e);
 	}
 	return *this;
 }
 
 //------------------------------------------------------------------------------
-KString& KString::insert(size_type pos1, const KString& str, size_type pos2, size_type n)
+KString& KString::insert(size_type pos1, const string_type& str, size_type pos2, size_type n)
 //------------------------------------------------------------------------------
 {
 	try {
-		m_rep.insert(pos1, str.m_rep, pos2, n);
+		m_rep.insert(pos1, str, pos2, n);
 	} catch (std::exception& e) {
-		KLog().exception(e, "insert", "KString");
-	} catch (...) {
-		KLog().exception("insert", "KString");
+		kException(e);
 	}
 	return *this;
 }
@@ -255,9 +258,7 @@ KString& KString::insert(size_type pos, const value_type* s, size_type n)
 	try {
 		m_rep.insert(pos, s ? s : "", n);
 	} catch (std::exception& e) {
-		KLog().exception(e, "insert", "KString");
-	} catch (...) {
-		KLog().exception("insert", "KString");
+		kException(e);
 	}
 	return *this;
 }
@@ -269,9 +270,7 @@ KString& KString::insert(size_type pos, const value_type* s)
 	try {
 		m_rep.insert(pos, s ? s : "");
 	} catch (std::exception& e) {
-		KLog().exception(e, "insert", "KString");
-	} catch (...) {
-		KLog().exception("insert", "KString");
+		kException(e);
 	}
 	return *this;
 }
@@ -283,9 +282,7 @@ KString& KString::insert(size_type pos, size_type n, value_type c)
 	try {
 		m_rep.insert(pos, n, c);
 	} catch (std::exception& e) {
-		KLog().exception(e, "insert", "KString");
-	} catch (...) {
-		KLog().exception("insert", "KString");
+		kException(e);
 	}
 	return *this;
 }
@@ -297,9 +294,7 @@ KString::iterator KString::insert(iterator it, value_type c)
 	try {
 		return m_rep.insert(it, c);
 	} catch (std::exception& e) {
-		KLog().exception(e, "insert", "KString");
-	} catch (...) {
-		KLog().exception("insert", "KString");
+		kException(e);
 	}
 	return end();
 }
@@ -311,9 +306,7 @@ KString& KString::insert (iterator it, std::initializer_list<value_type> il)
 	try {
 		m_rep.insert(it, il);
 	} catch (std::exception& e) {
-		KLog().exception(e, "insert", "KString");
-	} catch (...) {
-		KLog().exception("insert", "KString");
+		kException(e);
 	}
 	return *this;
 }
@@ -325,9 +318,7 @@ KString& KString::insert(size_type pos, KStringView sv)
 	try {
 		m_rep.insert(pos, sv.data(), sv.size());
 	} catch (std::exception& e) {
-		KLog().exception(e, "insert", "KString");
-	} catch (...) {
-		KLog().exception("insert", "KString");
+		kException(e);
 	}
 	return *this;
 }
@@ -339,9 +330,7 @@ KString& KString::erase(size_type pos, size_type n)
 	try {
 		m_rep.erase(pos, n);
 	} catch (std::exception& e) {
-		KLog().exception(e, "erase", "KString");
-	} catch (...) {
-		KLog().exception("erase", "KString");
+		kException(e);
 	}
 	return *this;
 }
@@ -353,9 +342,7 @@ KString::iterator KString::erase(iterator position)
 	try {
 		return m_rep.erase(position);
 	} catch (std::exception& e) {
-		KLog().exception(e, "erase", "KString");
-	} catch (...) {
-		KLog().exception("erase", "KString");
+		kException(e);
 	}
 	return end();
 }
@@ -367,37 +354,31 @@ KString::iterator KString::erase(iterator first, iterator last)
 	try {
 		return m_rep.erase(first, last);
 	} catch (std::exception& e) {
-		KLog().exception(e, "erase", "KString");
-	} catch (...) {
-		KLog().exception("erase", "KString");
+		kException(e);
 	}
 	return end();
 }
 
 //----------------------------------------------------------------------
-int KString::compare(size_type pos, size_type n, const KString& str) const
+int KString::compare(size_type pos, size_type n, const string_type& str) const
 //----------------------------------------------------------------------
 {
 	try {
-		return m_rep.compare(pos, n, str.m_rep);
+		return m_rep.compare(pos, n, str);
 	} catch (std::exception& e) {
-		KLog().exception(e, "compare", "KString");
-	} catch (...) {
-		KLog().exception("compare", "KString");
+		kException(e);
 	}
 	return 1;
 }
 
 //----------------------------------------------------------------------
-int KString::compare(size_type pos1, size_type n1, const KString& str,  size_type pos2, size_type n2) const
+int KString::compare(size_type pos1, size_type n1, const string_type& str,  size_type pos2, size_type n2) const
 //----------------------------------------------------------------------
 {
 	try {
-		return m_rep.compare(pos1, n1, str.m_rep, pos2, n2);
+		return m_rep.compare(pos1, n1, str, pos2, n2);
 	} catch (std::exception& e) {
-		KLog().exception(e, "compare", "KString");
-	} catch (...) {
-		KLog().exception("compare", "KString");
+		kException(e);
 	}
 	return 1;
 }
@@ -409,9 +390,7 @@ int KString::compare(size_type pos, size_type n1, const value_type* s) const
 	try {
 		return m_rep.compare(pos, n1, s ? s : "");
 	} catch (std::exception& e) {
-		KLog().exception(e, "compare", "KString");
-	} catch (...) {
-		KLog().exception("compare", "KString");
+		kException(e);
 	}
 	return 1;
 }
@@ -423,9 +402,7 @@ int KString::compare(size_type pos, size_type n1, const value_type* s, size_type
 	try {
 		return m_rep.compare(pos, n1, s ? s : "", n2);
 	} catch (std::exception& e) {
-		KLog().exception(e, "compare", "KString");
-	} catch (...) {
-		KLog().exception("compare", "KString");
+		kException(e);
 	}
 	return 1;
 }
@@ -437,130 +414,24 @@ int KString::compare(size_type pos, size_type n1, KStringView sv) const
 	try {
 		return m_rep.compare(pos, n1, sv.data(), sv.size());
 	} catch (std::exception& e) {
-		KLog().exception(e, "compare", "KString");
-	} catch (...) {
-		KLog().exception("compare", "KString");
+		kException(e);
 	}
 	return 1;
 }
 
 //------------------------------------------------------------------------------
-KString::size_type KString::Replace (const value_type* pszSearch, size_type iSearchLen, const value_type* pszReplaceWith, size_type iReplaceWithLen, bool bReplaceAll)
+KString::size_type KString::Replace (KStringView sSearch, KStringView sReplace, bool bReplaceAll)
 //------------------------------------------------------------------------------
 {
-	return dekaf2::Replace(m_rep, pszSearch, iSearchLen, pszReplaceWith, iReplaceWithLen, bReplaceAll);
+	return dekaf2::kReplace(m_rep, sSearch, sReplace, bReplaceAll);
 }
 
 //----------------------------------------------------------------------
-KString::size_type KString::ReplaceRegex(const KStringView& sRegEx, const KStringView& sReplaceWith, bool bReplaceAll)
+KString::size_type KString::ReplaceRegex(KStringView sRegEx, KStringView sReplaceWith, bool bReplaceAll)
 //----------------------------------------------------------------------
 {
 	return dekaf2::KRegex::Replace(m_rep, sRegEx, sReplaceWith, bReplaceAll);
 }
-
-//----------------------------------------------------------------------
-KString::size_type KString::InnerReplace(size_type iIdxStartMatch, size_type iIdxEndMatch, const char* pszReplaceWith)
-//----------------------------------------------------------------------
-{
-	size_type iRepalaceLen = strlen(pszReplaceWith);
-	replace(iIdxStartMatch, (iIdxEndMatch - iIdxStartMatch), pszReplaceWith, iRepalaceLen);
-
-	return iIdxStartMatch + iRepalaceLen; // Index after a last replaced character
-} // InnerReplace
-
-//----------------------------------------------------------------------
-inline int strmatchN(const char* S1, const char* S2)
-//----------------------------------------------------------------------
-{
-	return !strncmp(S1, S2, strlen(S2));
-}
-
-//----------------------------------------------------------------------
-bool KString::StartsWith(const char* pszStr) const
-//----------------------------------------------------------------------
-{
-	return strmatchN(m_rep.c_str(), pszStr);
-} // StartsWith
-
-//----------------------------------------------------------------------
-bool KString::EndsWith(const char* pszStr) const
-//----------------------------------------------------------------------
-{
-	size_type len = strlen(pszStr);
-	if (m_rep.size() < len)
-	{
-		return false;
-	}
-
-	return strmatchN(m_rep.c_str() + m_rep.size() - len, pszStr);
-} // EndsWith
-
-//----------------------------------------------------------------------
-bool KString::StartsWith(const KString& input, const KString& pattern)
-//----------------------------------------------------------------------
-{
-	return StartsWith(input.c_str(), input.size(), pattern.c_str(), pattern.size());
-} // StartsWith
-
-//----------------------------------------------------------------------
-bool KString::StartsWith(const char* pszInput, size_t iInputSize, const char* pszPattern, size_t iPatternSize)
-//----------------------------------------------------------------------
-{
-	if (iInputSize >= iPatternSize)
-	{
-		return !memcmp(pszInput, pszPattern, iPatternSize);
-	}
-	
-	return false;
-
-} // StartsWith
-
-//----------------------------------------------------------------------
-bool KString::EndsWith(const char* pszInput, size_t iInputSize, const char* pszPattern, size_t iPatternSize)
-//----------------------------------------------------------------------
-{
-	if (iInputSize < iPatternSize)
-	{
-		return false;
-	}
-	
-	// TODO switch to memcmp to allow for null chars
-	return !strcmp(pszInput + iInputSize - iPatternSize, pszPattern);
-}
-
-//----------------------------------------------------------------------
-bool KString::StartsWith(const KString& sPattern, size_type iOffset, size_type iBackOffset) const
-//----------------------------------------------------------------------
-{
-	if (iOffset + iBackOffset >= sPattern.size())
-	{
-		return false;
-	}
-
-	const size_type iPurePatternSize = sPattern.length() - iOffset - iBackOffset;
-
-	const char* lhs = m_rep.c_str();
-	size_type lhsSize = m_rep.size();
-
-	const char* rhs = sPattern.c_str() + iOffset;
-	size_type rhsSize = iPurePatternSize;
-
-	return StartsWith(lhs, lhsSize, rhs, rhsSize);
-} // StartsWith
-
-//----------------------------------------------------------------------
-bool KString::EndsWith(const KString& sPattern, size_type iOffset, size_type iBackOffset) const
-//----------------------------------------------------------------------
-{
-	size_type iPurePatternSize = sPattern.length() - iOffset - iBackOffset;
-	if (m_rep.size() < iPurePatternSize)
-	{
-		return false;
-	}
-
-	// TODO switch to memcmp to allow for null chars
-	return !strncmp(m_rep.c_str() + m_rep.size() - iPurePatternSize, sPattern.c_str() + iOffset, iPurePatternSize);
-} // EndsWith
 
 //----------------------------------------------------------------------
 bool KString::IsEmail() const
@@ -639,48 +510,72 @@ KString& KString::MakeUpper()
 } // MakeUpper
 
 //----------------------------------------------------------------------
-KString KString::Left(size_type iCount)
+KStringView KString::Left(size_type iCount)
 //----------------------------------------------------------------------
 {
 	if (iCount >= size())
 	{
 		return *this;
 	}
-	return substr(0, iCount);
+	return KStringView(m_rep.data(), iCount);
 } // Left
 
 //----------------------------------------------------------------------
-KString KString::Right(size_type iCount)
+KStringView KString::Right(size_type iCount)
 //----------------------------------------------------------------------
 {
 	if (iCount >= size())
 	{
 		return *this;
 	}
-	return substr(size() - iCount, iCount);
+	else if (!iCount || !size())
+	{
+		// return an empty string
+		return KStringView("");
+	}
+	else
+	{
+		return KStringView(m_rep.data() + size() - iCount, iCount);
+	}
 } // Right
+
+KString& KString::PadLeft(size_t iWidth, value_type chPad)
+{
+	dekaf2::kPadLeft(m_rep, iWidth, chPad);
+	return *this;
+}
+
+KString& KString::PadRight(size_t iWidth, value_type chPad)
+{
+	dekaf2::kPadRight(m_rep, iWidth, chPad);
+	return *this;
+}
 
 //----------------------------------------------------------------------
 KString& KString::TrimLeft()
 //----------------------------------------------------------------------
 {
-	dekaf2::TrimLeft(m_rep, [](value_type ch){ return std::isspace(ch) != 0; } );
+	dekaf2::kTrimLeft(m_rep, [](value_type ch){ return std::isspace(ch) != 0; } );
 	return *this;
 }
 
 //----------------------------------------------------------------------
-KString& KString::TrimLeft(const value_type chTarget)
+KString& KString::TrimLeft(value_type chTarget)
 //----------------------------------------------------------------------
 {
-	dekaf2::TrimLeft(m_rep, [chTarget](value_type ch){ return ch == chTarget; } );
+	dekaf2::kTrimLeft(m_rep, [chTarget](value_type ch){ return ch == chTarget; } );
 	return *this;
 }
 
 //----------------------------------------------------------------------
-KString& KString::TrimLeft(const value_type* pszTarget)
+KString& KString::TrimLeft(KStringView sTarget)
 //----------------------------------------------------------------------
 {
-	dekaf2::TrimLeft(m_rep, [pszTarget](value_type ch){ return strchr(pszTarget, ch) != nullptr; } );
+	if (sTarget.size() == 1)
+	{
+		return TrimLeft(sTarget[0]);
+	}
+	dekaf2::kTrimLeft(m_rep, [sTarget](value_type ch){ return memchr(sTarget.data(), ch, sTarget.size()) != nullptr; } );
 	return *this;
 }
 
@@ -688,23 +583,27 @@ KString& KString::TrimLeft(const value_type* pszTarget)
 KString& KString::TrimRight()
 //----------------------------------------------------------------------
 {
-	dekaf2::TrimRight(m_rep, [](value_type ch){ return std::isspace(ch) != 0; } );
+	dekaf2::kTrimRight(m_rep, [](value_type ch){ return std::isspace(ch) != 0; } );
 	return *this;
 }
 
 //----------------------------------------------------------------------
-KString& KString::TrimRight(const value_type chTarget)
+KString& KString::TrimRight(value_type chTarget)
 //----------------------------------------------------------------------
 {
-	dekaf2::TrimRight(m_rep, [chTarget](value_type ch){ return ch == chTarget; } );
+	dekaf2::kTrimRight(m_rep, [chTarget](value_type ch){ return ch == chTarget; } );
 	return *this;
 }
 
 //----------------------------------------------------------------------
-KString& KString::TrimRight(const value_type* pszTarget)
+KString& KString::TrimRight(KStringView sTarget)
 //----------------------------------------------------------------------
 {
-	dekaf2::TrimRight(m_rep, [pszTarget](value_type ch){ return strchr(pszTarget, ch) != nullptr; } );
+	if (sTarget.size() == 1)
+	{
+		return TrimRight(sTarget[0]);
+	}
+	dekaf2::kTrimRight(m_rep, [sTarget](value_type ch){ return memchr(sTarget.data(), ch, sTarget.size()) != nullptr; } );
 	return *this;
 }
 
@@ -712,132 +611,102 @@ KString& KString::TrimRight(const value_type* pszTarget)
 KString& KString::Trim()
 //----------------------------------------------------------------------
 {
-	dekaf2::Trim(m_rep, [](value_type ch){ return std::isspace(ch) != 0; } );
+	dekaf2::kTrim(m_rep, [](value_type ch){ return std::isspace(ch) != 0; } );
+	return *this;
 }
 
 //----------------------------------------------------------------------
-KString& KString::Trim(const value_type chTarget)
+KString& KString::Trim(value_type chTarget)
 //----------------------------------------------------------------------
 {
-	dekaf2::Trim(m_rep, [chTarget](value_type ch){ return ch == chTarget; } );
+	dekaf2::kTrim(m_rep, [chTarget](value_type ch){ return ch == chTarget; } );
+	return *this;
 }
 
 //----------------------------------------------------------------------
-KString& KString::Trim(const value_type* pszTarget)
+KString& KString::Trim(KStringView sTarget)
 //----------------------------------------------------------------------
 {
-	dekaf2::Trim(m_rep, [pszTarget](value_type ch){ return strchr(pszTarget, ch) != nullptr; } );
+	if (sTarget.size() == 1)
+	{
+		return Trim(sTarget[0]);
+	}
+	dekaf2::kTrim(m_rep, [sTarget](value_type ch){ return memchr(sTarget.data(), ch, sTarget.size()) != nullptr; } );
+	return *this;
 }
 
 //----------------------------------------------------------------------
-KString& KString::ClipAt(const value_type* pszClipAt)
+KString& KString::ClipAt(KStringView sClipAt)
 //----------------------------------------------------------------------
 {
-	size_type pos = m_rep.find(pszClipAt);
+	size_type pos = find(sClipAt);
 	if (pos != npos)
 	{
-		m_rep.erase(pos);
+		erase(pos);
 	}
 	return *this;
 } // ClipAt
 
 //----------------------------------------------------------------------
-KString& KString::ClipAtReverse(const value_type* pszClipAtReverse)
+KString& KString::ClipAtReverse(KStringView sClipAtReverse)
 //----------------------------------------------------------------------
 {
-	size_type pos = m_rep.find(pszClipAtReverse);
+	size_type pos = find(sClipAtReverse);
 	if (pos != npos)
 	{
-		m_rep.erase(0, pos);
+		erase(0, pos);
 	}
 	return *this;
 } // ClipAtReverse
 
 //----------------------------------------------------------------------
-class KStringBuffer::SimpleReplacer
+void KString::RemoveIllegalChars(KStringView sIllegalChars)
 //----------------------------------------------------------------------
 {
-public:
-	explicit SimpleReplacer(const KString& replacer)
-		: m_pReplacer(&replacer)
+	size_type pos;
+	for (size_type lastpos = size(); (pos = find_last_of(sIllegalChars, lastpos)) != npos; )
 	{
-	}
-
-	CB_NEXT_OP operator()(const KString&, std::size_t, std::size_t, KString& sReplacer)
-	{
-		sReplacer = *m_pReplacer;
-		return RET_REPLACE;
-	}
-
-private:
-	const KString* m_pReplacer;
-}; // KStringBuffer::SimpleReplacer
-
-//----------------------------------------------------------------------
-KString::size_type KStringBuffer::Replace(const KString& sSearchPattern, const SearchHandler& foundHandler)
-//----------------------------------------------------------------------
-{
-	KString::size_type iNumReplacement = 0;
-	KString::size_type iOffset = 0;
-	KString::size_type iFoundIndex = m_sWorkBuffer.npos;
-
-	KString sReplaceWith;
-
-	for(;(iFoundIndex = m_sWorkBuffer.find(sSearchPattern, iOffset)) != KString::npos;)
-	{
-		CB_NEXT_OP next_op = foundHandler(
-			m_sWorkBuffer, iFoundIndex, sSearchPattern.length(), sReplaceWith);
-
-		if (next_op==RET_REPLACE)
-		{
-			iOffset = m_sWorkBuffer.InnerReplace(iFoundIndex, iFoundIndex + sSearchPattern.length(), sReplaceWith.c_str());
-			++iNumReplacement;
-		}
-		else
-		{
-			iOffset = iFoundIndex + sSearchPattern.length();
-		}
-	}
-
-	return iNumReplacement;
-} // Replace
-
-//----------------------------------------------------------------------
-KString::size_type KStringBuffer::Replace(const KString& sSearchPattern, const KString& sWith)
-//----------------------------------------------------------------------
-{
-	return Replace(sSearchPattern, SimpleReplacer(sWith));
-} // Replace
-
-//----------------------------------------------------------------------
-void KString::RemoveIllegalChars(const KString& sIllegalChars)
-//----------------------------------------------------------------------
-{
-	if (sIllegalChars.empty())
-	{
-		erase();
-	}
-	else
-	{
-		size_type pos;
-		for(size_type lastpos = size();
-			(pos = find_last_of(sIllegalChars, lastpos)) != npos;
-			)
-		{
-			erase(pos, 1);
-			lastpos = pos;
-		}
+		erase(pos, 1);
+		lastpos = pos;
 	}
 }
 
+//----------------------------------------------------------------------
+bool kStartsWith(KStringView sInput, KStringView sPattern)
+//----------------------------------------------------------------------
+{
+	if (sInput.size() < sPattern.size())
+	{
+		return false;
+	}
+
+	return !memcmp(sInput.data(), sPattern.data(), sPattern.size());
+
+} // kStartsWith
+
+//----------------------------------------------------------------------
+bool kEndsWith(KStringView sInput, KStringView sPattern)
+//----------------------------------------------------------------------
+{
+	if (sInput.size() < sPattern.size())
+	{
+		return false;
+	}
+
+	return !memcmp(sInput.data() + sInput.size() - sPattern.size(), sPattern.data(), sPattern.size());
+
+} // kEndsWith
+
 //-----------------------------------------------------------------------------
-bool KString::In (const KString& sHaystack, value_type iDelim/*=','*/)
+bool KString::In (KStringView sHaystack, value_type iDelim/*=','*/)
 //-----------------------------------------------------------------------------
 {
-	auto& sNeedle{m_rep};
+	// gcc 4.8.5 needs the non-brace initialization here..
+	auto& sNeedle(m_rep);
 
 	size_t iNeedle = 0, iHaystack = 0; // Beginning indices
-	size_t iNsize = sNeedle.size (), iHsize = sHaystack.size (); // Ending
+	size_t iNsize = sNeedle.size ();
+	size_t iHsize = sHaystack.size (); // Ending
 
 	while (iHaystack < iHsize)
 	{
@@ -872,7 +741,7 @@ bool KString::In (const KString& sHaystack, value_type iDelim/*=','*/)
 } // kstrin
 
 //-----------------------------------------------------------------------------
-bool KString::kstrin (const char* sNeedle, const char* sHaystack, char iDelim/*=','*/)
+bool kStrIn (const char* sNeedle, const char* sHaystack, char iDelim/*=','*/)
 //-----------------------------------------------------------------------------
 {
 	if (!sHaystack || !sNeedle)
@@ -921,6 +790,13 @@ bool KString::kstrin (const char* sNeedle, const char* sHaystack, char iDelim/*=
 std::istream& std::getline(std::istream& stream, dekaf2::KString& str)
 //----------------------------------------------------------------------
 {
-	return std::getline(stream, str.m_rep);
+	return std::getline(stream, str.s());
+}
+
+//----------------------------------------------------------------------
+std::istream& std::getline(std::istream& stream, dekaf2::KString& str, dekaf2::KString::value_type delimiter)
+//----------------------------------------------------------------------
+{
+	return std::getline(stream, str.s(), delimiter);
 }
 

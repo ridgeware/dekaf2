@@ -42,6 +42,7 @@
 
 #include "klog.h"
 #include "kstring.h"
+#include "kgetruntimestack.h"
 
 namespace dekaf2
 {
@@ -55,19 +56,27 @@ class KLog& KLog()
 	return myKLog;
 }
 
+// do not initialize this static var - it risks to override a value set by KLog()'s
+// initialization before..
+int KLog::s_kLogLevel;
+
 // Ctor
 //---------------------------------------------------------------------------
 KLog::KLog()
 //---------------------------------------------------------------------------
     : m_sLogfile("/tmp/dekaf.log")
     , m_sFlagfile("/tmp/dekaf.dbg")
-    , m_Log(m_sLogfile, KFile::APPEND)
+    , m_Log(m_sLogfile, std::ios::ate)
 {
+#if NDEBUG
+	s_kLogLevel = -1;
+#else
+	s_kLogLevel = 0;
+#endif
 }
 
 //---------------------------------------------------------------------------
-//	filename set/get debuglog("stderr/stdout/syslog" special files) /tmp/dekaf.log
-bool KLog::set_debuglog(const KString& sLogfile)
+bool KLog::SetDebugLog(KStringView sLogfile)
 //---------------------------------------------------------------------------
 {
 	if (sLogfile.empty())
@@ -77,7 +86,8 @@ bool KLog::set_debuglog(const KString& sLogfile)
 
 	m_sLogfile = sLogfile;
 
-	if (!m_Log.Open(m_sLogfile))
+	m_Log.open(m_sLogfile, std::ios::ate);
+	if (!m_Log.is_open())
 	{
 		return false;
 	}
@@ -86,8 +96,7 @@ bool KLog::set_debuglog(const KString& sLogfile)
 }
 
 //---------------------------------------------------------------------------
-//	set/get debugflag() /tmp/dekaf.dbg
-bool KLog::set_debugflag(const KString& sFlagfile)
+bool KLog::SetDebugFlag(KStringView sFlagfile)
 //---------------------------------------------------------------------------
 {
 	if (sFlagfile.empty())
@@ -96,39 +105,81 @@ bool KLog::set_debugflag(const KString& sFlagfile)
 	}
 
 	m_sFlagfile = sFlagfile;
+
+	return true;
 }
 
 //---------------------------------------------------------------------------
-bool KLog::int_debug(int level, const KString& sMessage)
+bool KLog::IntBacktrace()
 //---------------------------------------------------------------------------
 {
-	if (level > m_iLevel)
+	KString sStack = kGetBacktrace();
+
+	if (!sStack.empty())
 	{
-		return true;
+		m_Log.WriteLine("====== Backtrace follows:   ======");
+		m_Log.Write(sStack);
+		m_Log.WriteLine("====== Backtrace until here ======");
+		m_Log.flush();
 	}
-	else
-	{
-		return m_Log.WriteLine(sMessage) && m_Log.Flush();
-	}
+	return m_Log.good();
 }
 
 //---------------------------------------------------------------------------
-void KLog::int_exception(const char* sWhat, const char* sFunction, const char* sClass)
+bool KLog::IntDebug(int level, KStringView sFunction, KStringView sMessage)
 //---------------------------------------------------------------------------
 {
-	const char* sF(sFunction);
-	if (!sF || !*sF)
+	if (!sFunction.empty())
 	{
-		sF = "(unknown)";
+		if (*sFunction.rbegin() == ']')
+		{
+			// try to remove template arguments from function name
+			auto pos = sFunction.rfind('[');
+			if (pos != KStringView::npos)
+			{
+				if (pos > 0 && sFunction[pos-1] == ' ')
+				{
+					--pos;
+				}
+				sFunction.remove_suffix(sFunction.size() - pos);
+			}
+		}
+
+		if (!sFunction.empty())
+		{
+			m_Log.Write(sFunction);
+			m_Log.Write(": ");
+		}
 	}
-	if (sClass && *sClass)
+
+	m_Log.WriteLine(sMessage);
+	m_Log.flush();
+
+	if (level <= m_iBackTrace)
 	{
-		warning("{0}::{1}() caught exception: '{2}'", sClass, sF, sWhat);
+		IntBacktrace();
+	}
+	return m_Log.good();
+}
+
+//---------------------------------------------------------------------------
+void KLog::IntException(KStringView sWhat, KStringView sFunction, KStringView sClass)
+//---------------------------------------------------------------------------
+{
+	if (sFunction.empty())
+	{
+		sFunction = "(unknown)";
+	}
+	if (!sClass.empty())
+	{
+		warning("{0}::{1}() caught exception: '{2}'", sClass, sFunction, sWhat);
 	}
 	else
 	{
-		warning("{0} caught exception: '{1}'", sF, sWhat);
+		warning("{0} caught exception: '{1}'", sFunction, sWhat);
 	}
 }
+
+// TODO add a mechanism to check periodically for the flag file's set level
 
 } // of namespace dekaf2

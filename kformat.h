@@ -40,10 +40,22 @@
 
 #pragma once
 
-#include "fmt/format.h"
+#include <ostream>
+#include <fmt/format.h>
+#include <fmt/ostream.h>
+#include <fmt/printf.h>
+#include "bits/kcppcompat.h"
 
 namespace dekaf2
 {
+
+namespace kFormat_internal
+{
+
+void report_format_exception(const char* where);
+void report_format_exception(std::exception& e, const char* where);
+
+} // end of namespace kFormat_internal
 
 //-----------------------------------------------------------------------------
 template<class... Args>
@@ -52,25 +64,27 @@ std::string kFormat(Args&&... args)
 {
 	try {
 		return fmt::format(std::forward<Args>(args)...);
-	}
-	catch (...)
-	{
+	} catch (std::exception& e) {
+		kFormat_internal::report_format_exception(e, DEKAF2_FUNCTION_NAME);
+	} catch (...) {
+		kFormat_internal::report_format_exception(DEKAF2_FUNCTION_NAME);
 	}
 	return std::string();
 }
 
 //-----------------------------------------------------------------------------
 template<class... Args>
-std::wstring kWFormat(Args&&... args)
+std::ostream& kfFormat(std::ostream& os, Args&&... args)
 //-----------------------------------------------------------------------------
 {
 	try {
-		return fmt::format<std::wstring>(std::forward<Args>(args)...);
+		fmt::print(os, std::forward<Args>(args)...);
+	} catch (std::exception& e) {
+		kFormat_internal::report_format_exception(e, DEKAF2_FUNCTION_NAME);
+	} catch (...) {
+		kFormat_internal::report_format_exception(DEKAF2_FUNCTION_NAME);
 	}
-	catch (...)
-	{
-	}
-	return std::wstring();
+	return os;
 }
 
 //-----------------------------------------------------------------------------
@@ -80,25 +94,27 @@ std::string kPrintf(Args&&... args)
 {
 	try {
 		return fmt::sprintf(std::forward<Args>(args)...);
-	}
-	catch (...)
-	{
+	} catch (std::exception& e) {
+		kFormat_internal::report_format_exception(e, DEKAF2_FUNCTION_NAME);
+	} catch (...) {
+		kFormat_internal::report_format_exception(DEKAF2_FUNCTION_NAME);
 	}
 	return std::string();
 }
 
 //-----------------------------------------------------------------------------
 template<class... Args>
-std::wstring kWPrintf(Args&&... args)
+std::ostream& kfPrintf(std::ostream& os, Args&&... args)
 //-----------------------------------------------------------------------------
 {
 	try {
-		return fmt::sprintf<std::wstring>(std::forward<Args>(args)...);
+		fmt::printf(os, std::forward<Args>(args)...);
+	} catch (std::exception& e) {
+		kFormat_internal::report_format_exception(e, DEKAF2_FUNCTION_NAME);
+	} catch (...) {
+		kFormat_internal::report_format_exception(DEKAF2_FUNCTION_NAME);
 	}
-	catch (...)
-	{
-	}
-	return std::wstring();
+	return os;
 }
 
 } // end of namespace dekaf2

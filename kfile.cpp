@@ -40,11 +40,16 @@
 //
 */
 
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <unistd.h>
-#include <cstdio>
-#include <experimental/filesystem>
+#include "bits/kcppcompat.h"
+
+#ifdef DEKAF2_HAS_CPP_17
+ #include <experimental/filesystem>
+#else
+ #include <sys/types.h>
+ #include <sys/stat.h>
+ #include <unistd.h>
+ #include <cstdio>
+#endif
 
 #include "kfile.h"
 #include "kstring.h"
@@ -53,224 +58,18 @@
 namespace dekaf2
 {
 
+#ifdef DEKAF2_HAS_CPP_17
 namespace fs = std::experimental::filesystem;
+#endif
 
 //-----------------------------------------------------------------------------
-KFile::KFile(KFile&& other) noexcept
-//-----------------------------------------------------------------------------
-	: m_FilePath(std::move(other.m_FilePath))
-	, m_eFlags(std::move(other.m_eFlags))
-	, m_File(std::move(other.m_File))
-{
-}
-
-//-----------------------------------------------------------------------------
-KFile& KFile::operator=(KFile&& other) noexcept
+bool kExists (const KString& sPath, bool bTestForEmptyFile /* = false */ )
 //-----------------------------------------------------------------------------
 {
-	m_FilePath = std::move(other.m_FilePath);
-	m_eFlags = std::move(other.m_eFlags);
-	m_File = std::move(other.m_File);
-	return *this;
-}
-
-//-----------------------------------------------------------------------------
-KString KFile::CalcFOpenModeString(KFileFlags eFlags)
-//-----------------------------------------------------------------------------
-{
-	KString sMode;
-
-	// we have READ, WRITE, APPEND
-	// fopen() has r, r+, w, w+, a, a+
-
-	if (eFlags & APPEND)
-	{
-		// append mode always includes creation if not existing
-		if (eFlags & READ)
-		{
-			sMode = "a+";
-		}
-		else
-		{
-			sMode = "a";
-		}
-	}
-	else if (eFlags & WRITE)
-	{
-		// these modes always truncate the file if existing
-		if (eFlags & READ)
-		{
-			sMode = "w+";
-		}
-		else
-		{
-			sMode = "w";
-		}
-	}
-	else if (eFlags & READ)
-	{
-		sMode = "r";
-	}
-
-	// RVO
-	return sMode;
-}
-
-//-----------------------------------------------------------------------------
-bool KFile::Open(const KString& sPathName, KFileFlags eFlags)
-//-----------------------------------------------------------------------------
-{
-	Close();
-
-	m_FilePath = fs::u8path(sPathName.s());
-	m_eFlags = eFlags;
-
-	if ((eFlags & (READ | WRITE | APPEND)) == 0)
-	{
-		return true;
-	}
-
-	m_File = fopen(m_FilePath.c_str(), CalcFOpenModeString(eFlags).c_str());
-
-	if (!m_File)
-	{
-		KLog().warning ("KFile: Unable to open file '{0}': {1}", m_FilePath.string(), strerror(errno));
-		return false;
-	}
-
-	return true;
-}
-
-//-----------------------------------------------------------------------------
-bool KFile::Open(FILE* fileptr, KFileFlags eFlags)
-//-----------------------------------------------------------------------------
-{
-	Close();
-
-	m_File = fileptr;
-}
-
-//-----------------------------------------------------------------------------
-bool KFile::Open(int filedesc, KFileFlags eFlags)
-//-----------------------------------------------------------------------------
-{
-	return Open(fdopen(filedesc, CalcFOpenModeString(eFlags).c_str()));
-}
-
-//-----------------------------------------------------------------------------
-void KFile::Close()
-//-----------------------------------------------------------------------------
-{
-	if (m_File)
-	{
-		fclose(m_File);
-		m_File = nullptr;
-	}
-}
-
-//-----------------------------------------------------------------------------
-bool KFile::GetLine(KString& sLine)
-//-----------------------------------------------------------------------------
-{
-	sLine.clear();
-
-	if (!m_File)
-	{
-		return false;
-	}
-
-
-	for (;;)
-	{
-		int iCh = fgetc(m_File);
-
-		switch (iCh)
-		{
-			case EOF:
-				{
-					bool bReturn = !sLine.empty();
-					if (m_eFlags & TRIM)
-					{
-						sLine.TrimRight();
-					}
-					return bReturn;
-				}
-
-			case '\r':
-				break;
-
-			case '\n':
-				if (m_eFlags & TRIM)
-				{
-					sLine.TrimRight();
-				}
-				return true;
-
-			default:
-				sLine += static_cast<KString::value_type>(iCh);
-				break;
-		}
-
-	}
-}
-
-//-----------------------------------------------------------------------------
-bool KFile::Write(const KString& sLine)
-//-----------------------------------------------------------------------------
-{
-	if (sLine.empty())
-	{
-		return true;
-	}
-
-	if (fwrite(sLine.data(), 1, sLine.size(), m_File) != sLine.size())
-	{
-		KLog().warning("KFile: cannot write to file '{0}': {1}", m_FilePath.string(), strerror(errno));
-		return false;
-	}
-
-	return true;
-}
-
-//-----------------------------------------------------------------------------
-bool KFile::WriteLine(const KString& sLine)
-//-----------------------------------------------------------------------------
-{
-	if (!Write(sLine))
-	{
-		return false;
-	}
-
-	if (fputc('\n', m_File) == EOF)
-	{
-		KLog().warning("KFile: cannot write to file '{0}': {1}", m_FilePath.string(), strerror(errno));
-		return false;
-	}
-
-	return true;
-}
-
-//-----------------------------------------------------------------------------
-bool KFile::Flush()
-//-----------------------------------------------------------------------------
-{
-	if (fflush(m_File) == EOF)
-	{
-		KLog().warning("KFile: cannot flush file '{0}': {1}", m_FilePath.string(), strerror(errno));
-		return false;
-	}
-
-	return true;
-}
-
-
-//-----------------------------------------------------------------------------
-bool KFile::Exists(KFileFlags eFlags) const
-//-----------------------------------------------------------------------------
-{
+#ifdef DEKAF2_HAS_CPP_17
 	std::error_code ec;
 
-	fs::file_status status = fs::status(m_FilePath, ec);
+	fs::file_status status = fs::status(sPath.s(), ec);
 
 	if (ec)
 	{
@@ -287,13 +86,13 @@ bool KFile::Exists(KFileFlags eFlags) const
 		return false;
 	}
 
-	if ((eFlags & TEST0) == 0)
+	if (!bTestForEmptyFile)
 	{
 		// exists and is a file
 		return true;
 	}
 
-	if (fs::is_empty(m_FilePath, ec))
+	if (fs::is_empty(sPath.s(), ec))
 	{
 		return false;
 	}
@@ -304,206 +103,52 @@ bool KFile::Exists(KFileFlags eFlags) const
 	}
 
 	return true;
+
+#else
+	struct stat StatStruct;
+	if (stat (sPath.c_str(), &StatStruct) < 0)
+	{
+		return false;  // <-- file doesn't exist
+	}
+	if (StatStruct.st_mode & S_IFDIR)
+	{
+		return false;   // <-- exists, but is a directory
+	}
+	if (!bTestForEmptyFile)
+	{
+		return true;    // <-- exists and is a file
+	}
+	if (StatStruct.st_size <= 0)
+	{
+		return false;    // <-- exists, is a file but is zero length
+	}
+	return true;     // <-- exists, is a file and is non-zero length
+#endif
 } // Exists
 
+
 //-----------------------------------------------------------------------------
-size_t KFile::GetSize() const
+KString kGetCWD ()
 //-----------------------------------------------------------------------------
 {
-	std::error_code ec;
-	size_t sz = fs::file_size(m_FilePath, ec);
-	if (ec)
+#ifdef DEKAF2_HAS_CPP_17
+	return fs::current_path().string();
+#else
+	enum { MAX_PATH = 1024 };
+	KString str(MAX_PATH, '\0');
+	if (::getcwd(&str[0], str.size()-1))
 	{
-		return (0);
-	}
-	return sz;
-
-} // GetSize
-
-//-----------------------------------------------------------------------------
-bool KFile::GetContent(KString& sContent) const
-//-----------------------------------------------------------------------------
-{
-	sContent.clear();
-
-	if (!m_File)
-	{
-		return false;
-	}
-
-	// get size of the file.
-	const auto iSize = GetSize();
-
-	// create the read buffer
-	sContent.resize(iSize);
-
-	if (fread(sContent.data(), 1, iSize, m_File) != iSize)
-	{
-		KLog().warning ("KFile: Unable to read file '{0}': {1}", m_FilePath.string(), strerror(errno));
-		return false;
-	}
-
-	if (m_eFlags & TEXT) // dos2unix
-	{
-		sContent.Replace("\r\n", "\n", true);
-	}
-
-	if (m_eFlags & TRIM)
-	{
-		sContent.TrimRight();
-	}
-
-	return true;
-
-} // GetContent
-
-
-// static versions
-
-//-----------------------------------------------------------------------------
-bool KFile::Exists (const KString& sPath, KFileFlags iFlags/*=NONE*/)
-//-----------------------------------------------------------------------------
-{
-	KFile File(sPath);
-	return File.Exists(iFlags);
-
-} // Exists
-
-//-----------------------------------------------------------------------------
-bool KFile::GetContent (KString& sContent, const KString& sPath, KFileFlags eFlags/*=TEXT*/)
-//-----------------------------------------------------------------------------
-{
-	KFile File(sPath, eFlags | READ);
-	return File.GetContent(sContent);
-
-} // GetContent
-
-//-----------------------------------------------------------------------------
-size_t KFile::GetSize (const KString& sPath)
-//-----------------------------------------------------------------------------
-{
-	KFile File(sPath);
-	return File.GetSize();
-
-} // GetSize
-
-
-
-// KFile::const_iterator
-
-//-----------------------------------------------------------------------------
-KFile::const_iterator::const_iterator(KFile* it, bool bToEnd)
-//-----------------------------------------------------------------------------
-	: m_it(it)
-{
-	if (!bToEnd)
-	{
-		if (m_it->GetLine(m_sBuffer))
-		{
-			++m_iCount;
-		}
-	}
-}
-
-//-----------------------------------------------------------------------------
-KFile::const_iterator::const_iterator(const self_type& other)
-//-----------------------------------------------------------------------------
-	: m_it(other.m_it)
-	, m_iCount(other.m_iCount)
-	, m_sBuffer(other.m_sBuffer)
-{
-}
-
-//-----------------------------------------------------------------------------
-KFile::const_iterator::const_iterator(self_type&& other)
-//-----------------------------------------------------------------------------
-	: m_it(std::move(other.m_it))
-	, m_iCount(std::move(other.m_iCount))
-	, m_sBuffer(std::move(other.m_sBuffer))
-{
-}
-
-//-----------------------------------------------------------------------------
-KFile::const_iterator::self_type& KFile::const_iterator::operator=(const self_type& other)
-//-----------------------------------------------------------------------------
-{
-	m_it = other.m_it;
-	m_iCount = other.m_iCount;
-	m_sBuffer = other.m_sBuffer;
-	return *this;
-}
-
-//-----------------------------------------------------------------------------
-KFile::const_iterator::self_type& KFile::const_iterator::operator=(self_type&& other)
-//-----------------------------------------------------------------------------
-{
-	m_it = std::move(other.m_it);
-	m_iCount = std::move(other.m_iCount);
-	m_sBuffer = std::move(other.m_sBuffer);
-	return *this;
-}
-
-//-----------------------------------------------------------------------------
-KFile::const_iterator::self_type& KFile::const_iterator::operator++()
-//-----------------------------------------------------------------------------
-{
-	if (m_it->GetLine(m_sBuffer))
-	{
-		++m_iCount;
+		size_t iPathLen = ::strlen(str.c_str());
+		str.erase(iPathLen);
 	}
 	else
 	{
-		m_iCount = 0;
+		kWarning("cannot get current working directory: {}", ::strerror(errno));
+		str.erase();
 	}
-
-	return *this;
-} // prefix
-
-//-----------------------------------------------------------------------------
-KFile::const_iterator::self_type KFile::const_iterator::operator++(int dummy)
-//-----------------------------------------------------------------------------
-{
-	self_type i = *this;
-
-	if (m_it->GetLine(m_sBuffer))
-	{
-		++m_iCount;
-	}
-	else
-	{
-		m_iCount = 0;
-	}
-
-	return i;
-} // postfix
-
-//-----------------------------------------------------------------------------
-KFile::const_iterator::reference KFile::const_iterator::operator*()
-//-----------------------------------------------------------------------------
-{
-	return m_sBuffer;
-}
-
-//-----------------------------------------------------------------------------
-KFile::const_iterator::pointer KFile::const_iterator::operator->()
-//-----------------------------------------------------------------------------
-{
-	return &m_sBuffer;
-}
-
-//-----------------------------------------------------------------------------
-bool KFile::const_iterator::operator==(const self_type& rhs)
-//-----------------------------------------------------------------------------
-{
-	return m_it == rhs.m_it && m_iCount == rhs.m_iCount;
-}
-
-//-----------------------------------------------------------------------------
-bool KFile::const_iterator::operator!=(const self_type& rhs)
-//-----------------------------------------------------------------------------
-{
-	return m_it != rhs.m_it || m_iCount != rhs.m_iCount;
-}
+	return str;
+#endif
+} // kGetCWD
 
 } // end of namespace dekaf2
 

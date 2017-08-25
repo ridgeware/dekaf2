@@ -50,6 +50,24 @@
 namespace dekaf2
 {
 
+class SubscriberBase
+{
+public:
+	virtual ~SubscriberBase() {}
+	virtual void ReleaseSubscription() = 0;
+	void CountSubscriptions(size_t& iCount)
+	{
+		++iCount;
+		if (m_NextSubscriber)
+		{
+			m_NextSubscriber->CountSubscriptions(iCount);
+		}
+	}
+
+protected:
+	SubscriberBase* m_NextSubscriber;
+};
+
 template<class T>
 class KSubscription : public T
 {
@@ -65,7 +83,7 @@ public:
 	/// move construction is possible, and gets the subscribers, too
 	KSubscription(KSubscription&& other)
 	    : T(std::move(other))
-	    , m_Subscribers(std::move(other.m_Subscribers))
+	    , m_Subscriber(std::move(other.m_Subscriber))
 	{
 	}
 
@@ -89,7 +107,7 @@ public:
 	{
 		release_subscribers();
 		T::operator=(std::move(other));
-		m_Subscribers = std::move(other);
+		m_Subscriber = std::move(other.m_Subscriber);
 		return *this;
 	}
 
@@ -103,7 +121,7 @@ public:
 
 	~KSubscription()
 	{
-		release_subscribers();
+		release_subscriber();
 	}
 
 	const T& get() const
@@ -137,25 +155,26 @@ public:
 
 	size_t Subscriptions() const
 	{
-		return m_Subscribers.size();
+		if (!m_Subscriber)
+		{
+			return 0;
+		}
+		size_t iCount{0};
+		m_Subscriber->CountSubscriptions(iCount);
+		return iCount;
 	}
 
 protected:
-	using Subscribers_t = std::vector<UnsubscribeCB>;
-
-	void release_subscribers()
+	void release_subscriber()
 	{
-		if (!m_Subscribers.empty())
+		if (m_Subscriber)
 		{
-			for (auto& callback : m_Subscribers)
-			{
-				callback();
-			}
-			m_Subscribers.clear();
+			m_Subscriber->ReleaseSubscription();
+			m_Subscriber = nullptr;
 		}
 	}
 
-	Subscribers_t m_Subscribers;
+	SubscriberBase* m_Subscriber{nullptr};
 
 }; // KSubscription
 

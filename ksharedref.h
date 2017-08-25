@@ -51,18 +51,20 @@ namespace dekaf2
 template<class T, bool bMultiThreaded = false>
 class KSharedRef
 {
+	using self_type = KSharedRef;
+
 public:
-	KSharedRef(const KSharedRef& other) noexcept
+	KSharedRef(const self_type& other) noexcept
 	{
 		m_ref = other.m_ref;
 		inc();
 	}
-	KSharedRef(KSharedRef& other) noexcept
+	KSharedRef(self_type& other) noexcept
 	{
 		m_ref = other.m_ref;
 		inc();
 	}
-	KSharedRef(KSharedRef&& other) noexcept
+	KSharedRef(self_type&& other) noexcept
 	{
 		m_ref = std::move(other.m_ref);
 		other.m_ref = nullptr;
@@ -76,14 +78,14 @@ public:
 	{
 		dec();
 	}
-	KSharedRef& operator=(const KSharedRef& other) noexcept
+	self_type& operator=(const self_type& other) noexcept
 	{
 		dec();
 		m_ref = other.m_ref;
 		inc();
 		return *this;
 	}
-	KSharedRef& operator=(KSharedRef&& other) noexcept
+	self_type& operator=(self_type&& other) noexcept
 	{
 		dec();
 		m_ref = std::move(other.m_ref);

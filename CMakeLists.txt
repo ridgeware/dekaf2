@@ -46,7 +46,6 @@ set (HEADERS
     kfile.h
     kprof.h
     kurl.h
-    kurl2.h
     kprops.h
     kpipe.h
     kcurl.h
@@ -80,7 +79,6 @@ set (SOURCES
     kfile.cpp
     kprof.cpp
     kurl.cpp
-    kurl2.cpp
     kpipe.cpp
     kstringview.cpp
     kstringutils.cpp

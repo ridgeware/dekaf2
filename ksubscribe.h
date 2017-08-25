@@ -50,290 +50,355 @@
 namespace dekaf2
 {
 
-class SubscriberBase
+template<typename parent_type>
+class KSubscriberBase
 {
+	using self_type = KSubscriberBase;
+
 public:
-	virtual ~SubscriberBase() {}
-	virtual void ReleaseSubscription() = 0;
-	void CountSubscriptions(size_t& iCount)
+
+	virtual ~KSubscriberBase()
 	{
-		++iCount;
+	}
+
+	size_t CountSubscriptions() const
+	{
+		size_t iResult{0};
+
+		self_type* p = m_PrevSubscriber;
+		while (p)
+		{
+			++iResult;
+			p = p->m_PrevSubscriber;
+		}
+
+		p = m_NextSubscriber;
+		while (p)
+		{
+			++iResult;
+			p = p->m_NextSubscriber;
+		}
+
+		return iResult;
+	}
+
+protected:
+
+	/// do whatever has to be done to release the subscription
+	/// - base version is abstract to force a template specialization
+	/// for subscriber types
+	virtual void ReleaseSubscription(const parent_type& parent) = 0;
+
+	void Subscribe(const self_type* Subscription) const
+	{
+		m_NextSubscriber = Subscription->m_NextSubscriber;
+		Subscription->m_NextSubscriber = const_cast<self_type*>(this);
+	}
+
+	void Unsubscribe() const
+	{
+		if (m_PrevSubscriber)
+		{
+			m_PrevSubscriber->m_NextSubscriber = m_NextSubscriber;
+		}
+
 		if (m_NextSubscriber)
 		{
-			m_NextSubscriber->CountSubscriptions(iCount);
+			m_NextSubscriber->m_PrevSubscriber = m_PrevSubscriber;
+		}
+
+		m_NextSubscriber = nullptr;
+		m_PrevSubscriber = nullptr;
+	}
+
+	/// to be called from subscription class only..
+	/// (would not harm if done by subscribers, but
+	/// is not a design goal)
+	void ReleaseSubscribers(const parent_type& parent)
+	{
+		if (m_NextSubscriber)
+		{
+			ReleaseSubscription(parent);
+
+			m_NextSubscriber->ReleaseSubscribers(parent);
+			m_NextSubscriber = nullptr;
+			m_PrevSubscriber = nullptr;
 		}
 	}
 
 protected:
-	SubscriberBase* m_NextSubscriber;
+
+	mutable self_type* m_NextSubscriber{nullptr};
+	mutable self_type* m_PrevSubscriber{nullptr};
+
 };
 
-template<class T>
-class KSubscription : public T
+template<typename parent_type>
+class KSubscription : public KSubscriberBase<parent_type>
 {
+	using base_type = KSubscriberBase<parent_type>;
+	using self_type = KSubscription;
+
 public:
-	using UnsubscribeCB = std::function<void()>;
 
 	/// copy construction is possible, but does not get the subscribers
-	KSubscription(const KSubscription& other)
-	    : T(other)
+	KSubscription(const self_type& other)
+	    : m_Rep(other.m_Rep)
 	{
 	}
 
 	/// move construction is possible, and gets the subscribers, too
-	KSubscription(KSubscription&& other)
-	    : T(std::move(other))
-	    , m_Subscriber(std::move(other.m_Subscriber))
+	KSubscription(self_type&& other)
+	    : base_type(std::move(other))
+	    , m_Rep(std::move(other.m_Rep))
 	{
 	}
 
 	/// default constructor and any other
 	template<class... Args>
 	KSubscription(Args&&... args)
-	    : T(std::forward<Args>(args)...)
+	    : m_Rep(std::forward<Args>(args)...)
 	{
 	}
 
 	/// copy assignment is possible, but does not get the subscribers
-	KSubscription& operator=(const KSubscription& other)
+	/// and we release our own subscribers..
+	KSubscription& operator=(const self_type& other)
 	{
-		release_subscriber();
-		T::operator=(other);
+		base_type::ReleaseSubscribers();
+		m_Rep = other.m_Rep;
 		return *this;
 	}
 
 	/// move assignment is possible, and gets the subscribers, too
-	KSubscription& operator=(KSubscription&& other)
+	KSubscription& operator=(self_type&& other)
 	{
-		release_subscriber();
-		T::operator=(std::move(other));
-		m_Subscriber = std::move(other.m_Subscriber);
+		base_type::ReleaseSubscribers();
+		m_Rep = std::move(other.m_Rep);
+		base_type::operator=(std::move(other));
 		return *this;
 	}
 
-	/// any assignment that the base class allows is allowed, too - but this does not remove the subscribers
-	template<class... Args>
-	KSubscription& operator=(Args&&... args)
+	/// any assignment that the base class allows is allowed, too
+	/// - but this removes the subscribers
+	template<class Arg>
+	KSubscription& operator=(Arg&& args)
 	{
-		T::operator=(std::forward<Args>(args)...);
+		base_type::ReleaseSubscribers();
+		m_Rep = std::forward<Arg>(args);
 		return *this;
 	}
 
 	~KSubscription()
 	{
-		release_subscriber();
+		base_type::ReleaseSubscribers(*this);
 	}
 
-	const T& get() const
+	const parent_type& get() const
 	{
-		return *this;
+		return m_Rep;
 	}
 
-	T& get()
+	parent_type& get()
 	{
-		return *this;
+		return m_Rep;
 	}
 
-	bool Subscribe(UnsubscribeCB cb)
+	inline operator const parent_type&() const
 	{
-//		m_Subscribers.emplace_back(cb);
+		return get();
 	}
 
-	bool Unsubscribe(UnsubscribeCB cb)
+	inline operator parent_type&()
 	{
-/*		auto it = std::find_if(m_Subscribers.rbegin(), m_Subscribers.rend(),
-		                       [&cb](const UnsubscribeCB& val)->bool
-		{
-			return !memcmp(&cb, &val, sizeof(UnsubscribeCB));
-		});
+		return get();
+	}
 
-		if (it != m_Subscribers.rend())
-		{
-			m_Subscribers.erase(it.base());
-		}
-*/	}
-
-	size_t Subscriptions() const
+	inline const parent_type& operator*() const
 	{
-		if (!m_Subscriber)
-		{
-			return 0;
-		}
-		size_t iCount{0};
-		m_Subscriber->CountSubscriptions(iCount);
-		return iCount;
+		return get();
+	}
+
+	inline parent_type& operator*()
+	{
+		return get();
+	}
+
+	inline const parent_type* operator->() const
+	{
+		return &get();
+	}
+
+	inline parent_type* operator->()
+	{
+		return &get();
 	}
 
 protected:
-	void release_subscriber()
+
+	// does nothing, needed to make this class non-abstract
+	virtual void ReleaseSubscription(const parent_type& parent) override
 	{
-		if (m_Subscriber)
-		{
-			m_Subscriber->ReleaseSubscription();
-			m_Subscriber = nullptr;
-		}
 	}
 
-	SubscriberBase* m_Subscriber{nullptr};
+	parent_type m_Rep;
 
 }; // KSubscription
 
 
-template<class T, class S>
-class KSubscriber : public T
+template<typename subscriber_type, typename parent_type>
+class KSubscriber : public KSubscriberBase<parent_type>
 {
+	using base_type      = KSubscriberBase<parent_type>;
+	using self_type      = KSubscriber;
+	using subscript_type = KSubscription<parent_type>;
+
 public:
-	using Subscription = KSubscription<S>;
 
-	/// default constructor and any other
+	KSubscriber()
+	{
+	}
+
+	/// ctor. constructs m_Rep with args and binds to subscription
 	template<class... Args>
-	KSubscriber(Args&&... args)
-	    : T(std::forward<Args>(args)...)
+	KSubscriber(const subscript_type& subscription, Args&&... args)
+	    : m_Rep(std::forward<Args>(args)...)
+	    , m_Parent(&subscription.get())
 	{
+		base_type::Subscribe(&subscription);
 	}
 
-	KSubscriber(const Subscription& subscription)
-	    : T(subscription.get())
-	    , m_Parent(&subscription)
+	template<class... Args>
+	self_type& SetSubscription(const subscript_type& subscription, Args&&... args)
 	{
-		subscribe_parent(m_Parent);
+		base_type::Unsubscribe();
+		m_Parent = &subscription.get();
+		base_type::Subscribe(&subscription);
+		m_OwnParent = false;
+		m_Rep = subscriber_type(std::forward<Args>(args)...);
 	}
 
-	KSubscriber& operator=(const Subscription& subscription)
+	/// Assignment. Only works if m_Rep can be constructed
+	/// by assigning subscription
+	self_type& operator=(const subscript_type& subscription)
 	{
-		release_parent();
-		T::operator=(subscription.get());
-		m_Parent = &subscription;
-		subscribe_parent(m_Parent);
+		base_type::Unsubscribe();
+		m_Parent = &subscription.get();
+		base_type::Subscribe(&subscription);
+		m_OwnParent = false;
+		// assignment from parent to rep must be possible
+		m_Rep = *m_Parent;
 		return *this;
 	}
 
 	// the catchall below would take a non-const value with priority
 	// about the const operator= above.. The downside of perfect forwarding
 	// and variadic templates
-	KSubscriber& operator=(Subscription& subscription)
+	self_type& operator=(subscript_type& subscription)
 	{
-		release_parent();
-		T::operator=(subscription.get());
-		m_Parent = &subscription;
-		subscribe_parent(m_Parent);
+		base_type::Unsubscribe();
+		m_Parent = &subscription.get();
+		base_type::Subscribe(&subscription);
+		m_OwnParent = false;
+		// assignment from parent to rep must be possible
+		m_Rep = *m_Parent;
 		return *this;
 	}
 
-	/// any assignment that the base class allows is allowed, too, but it does not change the subscription..
+	/* not sure I want this..
+	/// any assignment that the base class allows is allowed,
+	/// but it removes the subscription and does not add a new one
 	template<class... Args>
 	KSubscriber& operator=(Args&&... args)
 	{
+		Unsubscribe();
 		T::operator=(std::forward<Args>(args)...);
 		return *this;
 	}
+	*/
 
 	~KSubscriber()
 	{
-		if (m_Parent)
+		if (m_OwnParent)
 		{
-			if (m_bParentIsOwn)
-			{
-				delete m_Parent;
-			}
-			else
-			{
-				m_Parent->Unsubscribe(std::bind(&KSubscriber::unsubscribe_parent, this));
-			}
+			delete m_Parent;
+		}
+		else
+		{
+			base_type::Unsubscribe();
 		}
 	}
 
-	inline const T& get() const
+	inline const subscriber_type& get() const
 	{
 		return *this;
 	}
 
-	inline T& get()
+	inline subscriber_type& get()
 	{
 		return *this;
 	}
 
-	size_t Siblings() const
+	inline operator const subscriber_type&() const
 	{
-		if (!m_Parent)
-		{
-			return 0;
-		}
-		return m_Parent->Subscriptions();
+		return get();
 	}
 
-	void Clone()
+	inline operator subscriber_type&()
 	{
-		if (m_Parent && !m_bParentIsOwn)
-		{
-			Subscription* Parent(m_Parent);
-			clone();
-			Parent->Unsubscribe(std::bind(&KSubscriber::unsubscribe_parent, this));
-		}
+		return get();
 	}
 
-	bool HasSubscription() const
+	inline const subscriber_type& operator*() const
 	{
-		return (m_Parent && !m_bParentIsOwn);
+		return get();
 	}
 
-	bool HasClone() const
+	inline subscriber_type& operator*()
 	{
-		return (m_Parent && m_bParentIsOwn);
+		return get();
 	}
+
+	inline const subscriber_type* operator->() const
+	{
+		return &get();
+	}
+
+	inline subscriber_type* operator->()
+	{
+		return &get();
+	}
+
+/*
+ * 	/// default clone function - must be overwritten by a template specialisation
+	/// for each type this design should work for
+	virtual void ReleaseSubscription()
+	{
+	}
+*/
 
 protected:
 
-	void release_parent()
+	virtual void ReleaseSubscription(const parent_type& parent) override
 	{
-		if (m_Parent)
-		{
-			if (m_bParentIsOwn)
-			{
-				delete m_Parent;
-				m_bParentIsOwn = false;
-			}
-			else
-			{
-				m_Parent->Unsubscribe(std::bind(&KSubscriber::unsubscribe_parent, this));
-			}
-			m_Parent = nullptr;
-		}
 	}
 
-	void unsubscribe_parent()
-	{
-		if (m_Parent)
-		{
-			if (m_bParentIsOwn)
-			{
-				// this is an error - log it
-				KLog().warning("KSubscriber has a request to unsubscribe, but is not subscribed");
-			}
-			else
-			{
-				clone();
-			}
-			m_Parent = nullptr;
-		}
-	}
+	subscriber_type    m_Rep;
+	const parent_type* m_Parent{nullptr};
+	bool               m_OwnParent{false};
 
-	inline void subscribe_parent(Subscription* Parent)
-	{
-		Parent->Subscribe(std::bind(&KSubscriber::unsubscribe_parent, this));
-	}
-
-	/// default clone function - should be overwritten by a template specialisation
-	/// if smarter copies are possible
-	inline void clone()
-	{
-		m_Parent = new Subscription(m_Parent->get());
-		m_bParentIsOwn = true;
-	}
-
-	Subscription* m_Parent{nullptr};
-	bool          m_bParentIsOwn{false};
 };
+
+
+
+inline void testfun()
+{
+	using subscript_t = KSubscription<KString>;
+	subscript_t buffer("hallo");
+
+	using sub_t = KSubscriber<KStringView, KString>;
+	sub_t view(buffer);
+}
 
 
 } // of namespace dekaf2

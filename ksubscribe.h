@@ -42,9 +42,9 @@
 
 #pragma once
 
-#include <functional>
-#include <vector>
-#include <algorithm>
+#include <utility>
+#include <memory>
+#include "bits/kmake_unique.h"
 #include "klog.h"
 
 namespace dekaf2
@@ -78,7 +78,7 @@ public:
 	{
 		size_t iResult{0};
 
-		self_type* p = m_PrevSubscriber;
+		auto p = m_PrevSubscriber;
 		while (p)
 		{
 			++iResult;
@@ -107,11 +107,16 @@ protected:
 
 	//-----------------------------------------------------------------------------
 	/// Subscribe a new KSubscriber to a KSubscription instance
-	void Subscribe(const self_type* Subscription) const
+	void Subscribe(const self_type* subscription) const
 	//-----------------------------------------------------------------------------
 	{
-		m_NextSubscriber = Subscription->m_NextSubscriber;
-		Subscription->m_NextSubscriber = const_cast<self_type*>(this);
+		m_PrevSubscriber = const_cast<self_type*>(subscription);
+		m_NextSubscriber = subscription->m_NextSubscriber;
+		if (m_NextSubscriber)
+		{
+			m_NextSubscriber->m_PrevSubscriber = const_cast<self_type*>(this);
+		}
+		subscription->m_NextSubscriber = const_cast<self_type*>(this);
 	}
 
 	//-----------------------------------------------------------------------------
@@ -122,31 +127,35 @@ protected:
 		if (m_PrevSubscriber)
 		{
 			m_PrevSubscriber->m_NextSubscriber = m_NextSubscriber;
+			m_PrevSubscriber = nullptr;
 		}
 
 		if (m_NextSubscriber)
 		{
 			m_NextSubscriber->m_PrevSubscriber = m_PrevSubscriber;
+			m_NextSubscriber = nullptr;
 		}
-
-		m_NextSubscriber = nullptr;
-		m_PrevSubscriber = nullptr;
 	}
 
 	//-----------------------------------------------------------------------------
 	/// to be called from subscription class only..
-	/// (would not harm if done by subscribers, but
-	/// is not the design goal)
 	void ReleaseSubscribers(const parent_type& parent)
 	//-----------------------------------------------------------------------------
 	{
-		if (m_NextSubscriber)
+		auto p = m_NextSubscriber;
+		while (p)
 		{
-			ReleaseSubscription(parent);
-
-			m_NextSubscriber->ReleaseSubscribers(parent);
-			m_NextSubscriber = nullptr;
+			p->ReleaseSubscription(parent);
+			auto hp = p->m_NextSubscriber;
+			p->m_NextSubscriber = nullptr;
+			p->m_PrevSubscriber = nullptr;
+			p = hp;
+		}
+		m_NextSubscriber = nullptr;
+		if (m_PrevSubscriber)
+		{
 			m_PrevSubscriber = nullptr;
+			kWarning("error: called from subscriber, not subscription");
 		}
 	}
 
@@ -165,6 +174,8 @@ protected:
 /// transform an existing subscriber when its subscription signals end of life.
 /// Base template version simply tries to create a new subscription object from
 /// the subscriber.
+/// There is also a version of the function operator that explains how to
+/// construct a subscriber out of a parent.
 template <typename subscriber_type, typename parent_type>
 class KSubscriberReleaser
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -177,12 +188,26 @@ public:
 	//-----------------------------------------------------------------------------
 	// specialize this class for types where parent cannot be constructed from the actual subscriber,
 	// or add an operator parent_type() to the subscriber..
-	parent_type* operator()(subscriber_type& subscriber, const parent_type& parent) const noexcept
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// operator that is used when "cloning" a parent that is about to go out of scope.
+	/// Transfers ownership of parent_type* to the caller.
+	std::unique_ptr<parent_type> operator()(subscriber_type& subscriber, const parent_type& parent) const noexcept
 	//-----------------------------------------------------------------------------
 	{
-		parent_type* newParent = new parent_type(subscriber);
+		auto newParent = std::make_unique<parent_type>(subscriber);
 		subscriber = *newParent;
 		return newParent;
+	}
+
+	//-----------------------------------------------------------------------------
+	/// operator that is used to construct a subscriber when the parent is the
+	/// only argument to the subscriber constructor
+	subscriber_type operator()(const parent_type& parent) const noexcept
+	//-----------------------------------------------------------------------------
+	{
+		return parent;
 	}
 
 };
@@ -367,12 +392,24 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	// For some reason it does not work to use a ternary operator testing the
+	// size of the parameter pack, therefore we have to "specialize" here and
+	// create the constructor that builds from subsciption. Otherwise we could
+	// have reused the variadic constructor below alone.
+	/// value ctor. constructs m_Rep with subscription and binds to subscription
+	KSubscriber(const subscript_type& subscription)
+	//-----------------------------------------------------------------------------
+	    : m_Rep(detail::KSubscriberReleaser<subscriber_type, parent_type>()(subscription))
+	{
+		base_type::Subscribe(&subscription);
+	}
+
+	//-----------------------------------------------------------------------------
 	/// value ctor. constructs m_Rep with args and binds to subscription
 	template<class... Args>
 	KSubscriber(const subscript_type& subscription, Args&&... args)
 	//-----------------------------------------------------------------------------
 	    : m_Rep(std::forward<Args>(args)...)
-	    , m_Parent(&subscription.get())
 	{
 		base_type::Subscribe(&subscription);
 	}
@@ -384,10 +421,11 @@ public:
 	//-----------------------------------------------------------------------------
 	{
 		base_type::Unsubscribe();
-		m_Parent = &subscription.get();
+		m_Parent.reset();
 		base_type::Subscribe(&subscription);
-		m_OwnParent = false;
-		m_Rep = subscriber_type(std::forward<Args>(args)...);
+		m_Rep = (sizeof...(args)==0)
+			            ? detail::KSubscriberReleaser<subscriber_type, parent_type>()(subscription)
+			            : subscriber_type(std::forward<Args>(args)...) ;
 	}
 
 	//-----------------------------------------------------------------------------
@@ -397,11 +435,10 @@ public:
 	//-----------------------------------------------------------------------------
 	{
 		base_type::Unsubscribe();
-		m_Parent = &subscription.get();
+		m_Parent.reset();
 		base_type::Subscribe(&subscription);
-		m_OwnParent = false;
 		// assignment from parent to rep must be possible
-		m_Rep = *m_Parent;
+		m_Rep = detail::KSubscriberReleaser<subscriber_type, parent_type>()(subscription);
 		return *this;
 	}
 
@@ -409,14 +446,7 @@ public:
 	~KSubscriber()
 	//-----------------------------------------------------------------------------
 	{
-		if (m_OwnParent)
-		{
-			delete m_Parent;
-		}
-		else
-		{
-			base_type::Unsubscribe();
-		}
+		base_type::Unsubscribe();
 	}
 
 	//-----------------------------------------------------------------------------
@@ -483,20 +513,12 @@ protected:
 	virtual void ReleaseSubscription(const parent_type& parent) override
 	//-----------------------------------------------------------------------------
 	{
-		if (m_OwnParent)
-		{
-			delete m_Parent;
-			kWarning("error: have own parent, but am released by subscription parent");
-		}
-
 		// call the function operator of (a spezialized) KSubscriberReleaser..
 		m_Parent = detail::KSubscriberReleaser<subscriber_type, parent_type>()(m_Rep, parent);
-		m_OwnParent = true;
 	}
 
 	subscriber_type    m_Rep;
-	const parent_type* m_Parent{nullptr};
-	bool               m_OwnParent{false};
+	std::unique_ptr<parent_type> m_Parent{nullptr};
 
 };
 

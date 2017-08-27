@@ -192,7 +192,6 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// operator that is used when "cloning" a parent that is about to go out of scope.
-	/// Transfers ownership of parent_type* to the caller.
 	std::unique_ptr<parent_type> operator()(subscriber_type& subscriber, const parent_type& parent) const noexcept
 	//-----------------------------------------------------------------------------
 	{
@@ -392,6 +391,21 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	// copy ctor is deleted
+	KSubscriber(const self_type& other) = delete;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	// move ctor
+	KSubscriber(self_type&& other)
+	//-----------------------------------------------------------------------------
+	    : base_type(std::move(other))
+	    , m_Rep(std::move(other.m_Rep))
+	    , m_Parent(std::move(other.m_Parent))
+	{
+	}
+
+	//-----------------------------------------------------------------------------
 	// For some reason it does not work to use a ternary operator testing the
 	// size of the parameter pack, therefore we have to "specialize" here and
 	// create the constructor that builds from subsciption. Otherwise we could
@@ -426,6 +440,22 @@ public:
 		m_Rep = (sizeof...(args)==0)
 			            ? detail::KSubscriberReleaser<subscriber_type, parent_type>()(subscription)
 			            : subscriber_type(std::forward<Args>(args)...) ;
+	}
+
+	//-----------------------------------------------------------------------------
+	/// copy assignment is deleted
+	self_type& operator=(const self_type& other) = delete;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// move assignment
+	self_type& operator=(self_type&& other)
+	//-----------------------------------------------------------------------------
+	{
+		base_type::operator=(std::move(other));
+	    m_Rep = std::move(other.m_Rep);
+	    m_Parent = std::move(other.m_Parent);
+		return *this;
 	}
 
 	//-----------------------------------------------------------------------------
@@ -517,7 +547,7 @@ protected:
 		m_Parent = detail::KSubscriberReleaser<subscriber_type, parent_type>()(m_Rep, parent);
 	}
 
-	subscriber_type    m_Rep;
+	subscriber_type              m_Rep;
 	std::unique_ptr<parent_type> m_Parent{nullptr};
 
 };

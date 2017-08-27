@@ -223,7 +223,7 @@ protected:
 	//-----------------------------------------------------------------------------
 	/// if the derived class needs addtional per-thread control parameters,
 	/// define a Parameters class to accomodate those, and return an instance
-	/// of this class (wrapped in a unique_ptr) from CreateParameters()
+	/// of this class from CreateParameters()
 	virtual param_t CreateParameters();
 	//-----------------------------------------------------------------------------
 

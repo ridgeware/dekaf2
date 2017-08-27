@@ -38,6 +38,7 @@ set (HEADERS
     bits/kcppcompat.h
     bits/kmake_unique.h
     bits/kmutable_pair.h
+    bits/kunique_deleter.h
     dekaf2.h
     kstringview.h
     kstring.h

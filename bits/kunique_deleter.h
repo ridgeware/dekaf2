@@ -42,7 +42,7 @@
 
 #pragma once
 
-#include <utility>
+#include <memory>
 
 namespace dekaf2
 {
@@ -51,69 +51,29 @@ namespace detail
 {
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// A helper type to map a std::map into boost::multi_index,
-/// as the latter is const on all elements (and does not have the
-/// distinction between key and value)
-template<class Key, class Value>
-struct KMutablePair
+/// This struct enables empty base class optimization for a deleter
+/// function instantiated with a unique pointer, which otherwise would
+/// add one to four words to the pointer type (depending on the callable
+/// used). Use it for custom deleters, e.g. for an fclose, like
+/// std::unique_ptr<FILE, KUniqueDeleter<FILE, std::fclose>>
+template <typename T, void (*deleter)(T*)>
+struct KUniqueDeleter
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
-
-	using self_type = KMutablePair<Key, Value>;
-
 	//-----------------------------------------------------------------------------
-	KMutablePair()
+	void operator()(T* pointer) const
 	//-----------------------------------------------------------------------------
-	    : first(Key())
-	    , second(Value())
-	{}
-
-	//-----------------------------------------------------------------------------
-	KMutablePair(const Key& f, const Value& s)
-	//-----------------------------------------------------------------------------
-	    : first(f)
-	    , second(s)
-	{}
-
-	//-----------------------------------------------------------------------------
-	KMutablePair(Key&& f, Value&& s)
-	//-----------------------------------------------------------------------------
-	    : first(std::move(f))
-	    , second(std::move(s))
-	{}
-
-	//-----------------------------------------------------------------------------
-	KMutablePair(const self_type& p)
-	//-----------------------------------------------------------------------------
-	    : first(p.first)
-	    , second(p.second)
-	{}
-
-	//-----------------------------------------------------------------------------
-	KMutablePair(self_type&& p)
-	//-----------------------------------------------------------------------------
-	    : first(std::move(p.first))
-	    , second(std::move(p.second))
-	{}
-
-	//-----------------------------------------------------------------------------
-	KMutablePair(const std::pair<Key, Value>& p)
-	//-----------------------------------------------------------------------------
-	    : first(p.first)
-	    , second(p.second)
-	{}
-
-	//-----------------------------------------------------------------------------
-	KMutablePair(std::pair<Key, Value>&& p)
-	//-----------------------------------------------------------------------------
-	    : first(std::move(p.first))
-	    , second(std::move(p.second))
-	{}
-
-	Key           first;
-	mutable Value second;
-
+	{
+		deleter(pointer);
+	}
 };
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// This alias allows a shortcut for the unique pointer definition, like
+/// KUniquePtr<FILE, std::fclose>
+template <typename T, void (*deleter)(T*)>
+using KUniquePtr = std::unique_ptr<T, KUniqueDeleter<T, deleter>>;
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
 } // end of namespace detail
 

@@ -9,9 +9,9 @@ cmake_minimum_required(VERSION 2.8)
 project(dekaf2)
 
 # The project version number.
-set(VERSION_MAJOR   0   STRING "Project major version number.")
-set(VERSION_MINOR   0   STRING "Project minor version number.")
-set(VERSION_PATCH   1   STRING "Project patch version number.")
+set(VERSION_MAJOR   0)
+set(VERSION_MINOR   0)
+set(VERSION_PATCH   1)
 mark_as_advanced(VERSION_MAJOR VERSION_MINOR VERSION_PATCH)
 
 # make sure we have the necessary version of cmake installed
@@ -39,6 +39,7 @@ find_package(Boost QUIET COMPONENTS system REQUIRED)
 include_directories(SYSTEM ${Boost_INCLUDE_DIR})
 
 # add a target to generate API documentation with Doxygen
+# please make sure the graphviz package is installed, too, not only doxygen
 find_package(Doxygen)
 if(DOXYGEN_FOUND)
     configure_file(${CMAKE_CURRENT_SOURCE_DIR}/bits/doxyfile.in

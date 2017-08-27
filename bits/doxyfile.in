@@ -1,13 +1,54 @@
 PROJECT_NAME           = "@CMAKE_PROJECT_NAME@"
-# PROJECT_NUMBER         = @VERSION_MAJOR@.@VERSION_MINOR@.@VERSION_PATCH@
+PROJECT_NUMBER         = @VERSION_MAJOR@.@VERSION_MINOR@.@VERSION_PATCH@
 STRIP_FROM_PATH        = @PROJECT_SOURCE_DIR@ \
                          @PROJECT_BINARY_DIR@
-INPUT                  = @doxy_main_page@ \
-                         @PROJECT_SOURCE_DIR@ \
-                         @PROJECT_BINARY_DIR@
+INPUT                  = @PROJECT_SOURCE_DIR@ \
+                         @PROJECT_SOURCE_DIR@/libs/re2/re2/stringpiece.h \
+                         @PROJECT_SOURCE_DIR@/libs/re2/re2/stringpiece.cc
 FILE_PATTERNS          = *.h \
                          *.cpp
-EXCLUDE_PATTERNS       = */libs/*
+EXCLUDE_PATTERNS       = @PROJECT_SOURCE_DIR@/libs/* \
+                         @PROJECT_SOURCE_DIR@/smoketests/* \
+                         @PROJECT_SOURCE_DIR@/utests/*
 RECURSIVE              = YES
 HAVE_DOT               = @DOXYGEN_DOT_FOUND@
 # USE_MDFILE_AS_MAINPAGE = @doxy_main_page@
+OUTPUT_LANGUAGE        = English
+BUILTIN_STL_SUPPORT    = YES
+BRIEF_MEMBER_DESC      = YES
+# repeat brief in detail section
+REPEAT_BRIEF           = YES
+# create details if only brief?
+ALWAYS_DETAILED_SEC    = YES
+# show inherited members in child class?
+INLINE_INHERITED_MEMB  = YES
+# is multiline /// allowed for brief?
+MULTILINE_CPP_IS_BRIEF = NO
+JAVADOC_AUTOBRIEF      = YES
+INLINE_SIMPLE_STRUCTS  = YES
+EXTRACT_ALL            = NO
+EXTRACT_PRIVATE        = NO
+EXTRACT_STATIC         = NO
+SORT_MEMBER_DOCS       = YES
+SORT_BRIEF_DOCS        = YES
+SORT_MEMBERS_CTORS_1ST = YES
+SORT_GROUP_NAMES       = YES
+COLS_IN_ALPHA_INDEX    = 3
+SOURCE_BROWSER         = NO
+STRIP_CODE_COMMENTS    = NO
+REFERENCED_BY_RELATION = YES
+REFERENCES_RELATION    = YES
+HTML_TIMESTAMP         = YES
+HTML_DYNAMIC_SECTIONS  = NO
+GENERATE_HTML          = YES
+GENERATE_LATEX         = NO
+GENERATE_RTF           = NO
+GENERATE_MAN           = NO
+GENERATE_XML           = NO
+GENERATE_DOCBOOK       = NO
+ENABLE_PREPROCESSING   = YES
+UML_LOOK               = NO
+TEMPLATE_RELATIONS     = NO
+CALL_GRAPH             = YES
+CALLER_GRAPH           = YES
+INTERACTIVE_SVG        = YES

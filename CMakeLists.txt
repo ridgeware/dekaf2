@@ -8,8 +8,14 @@ cmake_minimum_required(VERSION 2.8)
 
 project(dekaf2)
 
+# The project version number.
+set(VERSION_MAJOR   0   STRING "Project major version number.")
+set(VERSION_MINOR   0   STRING "Project minor version number.")
+set(VERSION_PATCH   1   STRING "Project patch version number.")
+mark_as_advanced(VERSION_MAJOR VERSION_MINOR VERSION_PATCH)
+
 # make sure we have the necessary version of cmake installed
-execute_process(COMMAND "./cmakeinstall -go")
+execute_process(COMMAND "${CMAKE_CURRENT_SOURCE_DIR}/bits/cmakeinstall -go")
 
 set(CMAKE_CXX_STANDARD 17)
 # we do not force C++17 if not available
@@ -31,6 +37,23 @@ find_package(OpenSSL QUIET REQUIRED)
 # boost asio (header only) needs system
 find_package(Boost QUIET COMPONENTS system REQUIRED)
 include_directories(SYSTEM ${Boost_INCLUDE_DIR})
+
+# add a target to generate API documentation with Doxygen
+find_package(Doxygen)
+if(DOXYGEN_FOUND)
+    configure_file(${CMAKE_CURRENT_SOURCE_DIR}/bits/doxyfile.in
+                   ${CMAKE_CURRENT_BINARY_DIR}/doxyfile @ONLY)
+
+    add_custom_target(doc
+        ${DOXYGEN_EXECUTABLE} ${CMAKE_CURRENT_BINARY_DIR}/doxyfile
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+        COMMENT "Generating API documentation with Doxygen" VERBATIM
+    )
+else()
+    add_custom_target(doc
+        COMMENT "Doxygen was not found on this machine. Documentation can not be generated." VERBATIM
+    )
+endif(DOXYGEN_FOUND)
 
 set (HEADERS
     bits/kconfiguration.h

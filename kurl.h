@@ -262,6 +262,7 @@ private:
 };
 
 //-----------------------------------------------------------------------------
+//## make this a member function
 /// compares other instance with this, member-by-member
 inline bool operator== (const Protocol& lhs, const Protocol& rhs)
 {
@@ -277,6 +278,9 @@ inline bool operator!= (const Protocol& lhs, const Protocol& rhs)
 
 
 
+//## use the @brief for the first sentence of your comment, not for the complex
+//## detail. BTW, with doxygen, the first sentence of a multiline doc comment
+//## is automatically used as the @brief, if you want to save some typing
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Class to parse and maintain "user" and "password" portion of w3 URL.
 /// @brief RFC3986 3.2: authority   = [ userinfo "@" ] host [ ":" port ]
@@ -284,6 +288,8 @@ inline bool operator!= (const Protocol& lhs, const Protocol& rhs)
 /// scheme:[//[user[:password]@]host[:port]][/path][?query][#fragment]
 ///            ----  --------
 /// User extracts and stores a KStringView of URL "user" and "password".
+//## This colon comment should come directly after the class declaration, so
+//## one line further down. Please correct at all occurences.
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class User
 {
@@ -295,6 +301,7 @@ public:
 	//---------------------------------------------------------------------
 	/// constructs empty instance.
 	inline User ()
+	//## put a closing //----- comment exactly here.. please correct all occurences.
 	{
 	}
 
@@ -318,6 +325,7 @@ public:
 		m_iEndOffset =  other.m_iEndOffset;
 		m_sUser      =  other.m_sUser;
 		m_sPass      =  other.m_sPass;
+		//## what about m_bDecode ?
 	}
 
 	//---------------------------------------------------------------------
@@ -328,6 +336,7 @@ public:
 		m_iEndOffset =  other.m_iEndOffset;
 		m_sUser      = std::move (other.m_sUser);
 		m_sPass      = std::move (other.m_sPass);
+		//## what about m_bDecode ?
 	}
 
 	//---------------------------------------------------------------------
@@ -338,6 +347,7 @@ public:
 		m_iEndOffset =  other.m_iEndOffset;
 		m_sUser      =  other.m_sUser;
 		m_sPass      =  other.m_sPass;
+		//## what about m_bDecode ?
 		return *this;
 	}
 
@@ -349,6 +359,7 @@ public:
 		m_iEndOffset =  other.m_iEndOffset;
 		m_sUser      = std::move (other.m_sUser);
 		m_sPass      = std::move (other.m_sPass);
+		//## what about m_bDecode ?
 		return *this;
 	}
 
@@ -374,12 +385,15 @@ public:
 	inline void clear ()
 	{
 		m_bError = false;
+		//## use string.clear() (in both cases)
 		m_sUser = KString{};
 		m_sPass = KString{};
 	}
 
 	//---------------------------------------------------------------------
 	/// return a view of the member
+	//## why do you encode the value? how do I get access to the username
+	//## without encoding?
 	inline KStringView getUser () const
 	{
 		KString sEncoded;
@@ -396,6 +410,8 @@ public:
 
 	//---------------------------------------------------------------------
 	/// return a view of the member
+	//## why do you encode the value? how do I get access to the password
+	//## without encoding?
 	inline KStringView getPass () const
 	{
 		KString sEncoded;
@@ -421,7 +437,11 @@ public:
 private:
 //------
 
+	//## why is m_bError a member variable? there is no
+	//## function to query it. Wouldn't it suffice to
+	//## use it internally in parse() ?
 	bool            m_bError    {false};
+	//## same question for m_bDecode
 	bool            m_bDecode   {false};
 	KString         m_sUser     {};
 	KString         m_sPass     {};
@@ -429,6 +449,7 @@ private:
 };
 
 //-----------------------------------------------------------------------------
+//## make this a member function
 /// compares other instance with this, member-by-member
 inline bool operator== (const User& lhs, const User& rhs)
 {
@@ -438,6 +459,7 @@ inline bool operator== (const User& lhs, const User& rhs)
 }
 
 //-----------------------------------------------------------------------------
+//## make this a member function
 /// compares other instance with this, member-by-member
 inline bool operator!= (const User& lhs, const User& rhs)
 {
@@ -447,7 +469,8 @@ inline bool operator!= (const User& lhs, const User& rhs)
 }
 
 
-
+//## see my comments about briefs and doc comments above, and about the
+//## position of the closing //:::::
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Class to parse and maintain "host" and "port" portion of w3 URL.
 /// @brief RFC3986 3.2: authority = [ userinfo "@" ] host [ ":" port ]
@@ -476,6 +499,7 @@ class Domain
 	/// constructs instance and parses source into members
 	inline Domain  (const KStringView& svSource, size_t iOffset=0)
 	{
+		//## see questions about this var in the User class.
 		m_bDecode = true;
 		parse (svSource, iOffset);
 	}
@@ -488,6 +512,7 @@ class Domain
 	/// construct new instance and copy members from old instance
 	inline Domain            (const Domain &  other)
 	{
+		//## misses the encoding flag
 		m_bError     =  other.m_bError;
 		m_iEndOffset =  other.m_iEndOffset;
 		m_iPortNum   =  other.m_iPortNum;
@@ -499,6 +524,7 @@ class Domain
 	/// construct new instance and move members from old instance
 	inline Domain            (      Domain && other)
 	{
+		//## misses the encoding flag
 		m_bError     =  other.m_bError;
 		m_iEndOffset =  other.m_iEndOffset;
 		m_iPortNum   =  other.m_iPortNum;
@@ -510,6 +536,7 @@ class Domain
 	/// copies members from other instance into this
 	inline Domain& operator= (const Domain &  other) noexcept
 	{
+		//## misses the encoding flag
 		m_bError     =  other.m_bError;
 		m_iEndOffset =  other.m_iEndOffset;
 		m_iPortNum   =  other.m_iPortNum;
@@ -522,6 +549,7 @@ class Domain
 	/// moves members from other instance into this
 	inline Domain& operator= (      Domain && other) noexcept
 	{
+		//## misses the encoding flag
 		m_bError     =  other.m_bError;
 		m_iEndOffset =  other.m_iEndOffset;
 		m_iPortNum   =  other.m_iPortNum;
@@ -551,6 +579,7 @@ class Domain
 	/// restore instance to unpopulated state
 	inline void clear ()
 	{
+		//## misses the encoding flag, and what about the offset?
 		m_bError       = false;
 		m_iPortNum     = 0;
 		m_sHostName   = KString{};
@@ -561,6 +590,7 @@ class Domain
 	/// return a view of the member
 	inline KStringView   getHostName ()   const
 	{
+		//## why should this return encoded
 		KString sEncoded;
 		kUrlEncode (m_sHostName, sEncoded);
 		return sEncoded;
@@ -577,6 +607,7 @@ class Domain
 	/// Convert member and return it as uppercased string
 	inline KString       getBaseDomain () const // No set function
 	{
+		//## why should this return encoded
 		KString sEncoded;
 		kUrlEncode (m_sBaseName, sEncoded);
 		return KString (sEncoded).MakeUpper ();
@@ -619,6 +650,7 @@ private:
 };
 
 //-----------------------------------------------------------------------------
+//## make this a member function
 /// compares other instance with this, member-by-member
 inline bool operator== (const Domain& lhs, const Domain& rhs)
 {
@@ -628,6 +660,7 @@ inline bool operator== (const Domain& lhs, const Domain& rhs)
 }
 
 //-----------------------------------------------------------------------------
+//## make this a member function
 /// compares other instance with this, member-by-member
 inline bool operator!= (const Domain& lhs, const Domain& rhs)
 {
@@ -637,7 +670,7 @@ inline bool operator!= (const Domain& lhs, const Domain& rhs)
 }
 
 
-
+//## see my earlier comments
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Class to parse and maintain "path" portion of w3 URL.
 /// @brief RFC3986 3.3: (See RFC)
@@ -667,6 +700,7 @@ public:
 	/// constructs instance and parses source into members
 	inline Path        (const KStringView& svSource, size_t iOffset=0)
 	{
+		//## same question about decode as a member variable for ths class as well
 		m_bDecode = true;
 		parse (svSource, iOffset);
 	}
@@ -679,6 +713,7 @@ public:
 	/// construct new instance and copy members from old instance
 	inline Path              (const Path &  other)
 	{
+		//## encode is missing
 		m_bError     =  other.m_bError;
 		m_iEndOffset =  other.m_iEndOffset;
 		m_sPath      =  other.m_sPath  ;
@@ -688,6 +723,7 @@ public:
 	/// construct new instance and move members from old instance
 	inline Path              (      Path && other)
 	{
+		//## encode is missing
 		m_bError     =  other.m_bError;
 		m_iEndOffset =  other.m_iEndOffset;
 		m_sPath      = std::move (other.m_sPath);
@@ -697,6 +733,7 @@ public:
 	/// copies members from other instance into this
 	inline Path  & operator= (const Path &  other) noexcept
 	{
+		//## encode is missing
 		m_bError     =  other.m_bError;
 		m_iEndOffset =  other.m_iEndOffset;
 		m_sPath      =  other.m_sPath  ;
@@ -707,6 +744,7 @@ public:
 	/// moves members from other instance into this
 	inline Path  & operator= (      Path && other) noexcept
 	{
+		//## encode is missing
 		m_bError     =  other.m_bError;
 		m_iEndOffset =  other.m_iEndOffset;
 		m_sPath      = std::move (other.m_sPath);
@@ -730,6 +768,7 @@ public:
 	/// restore instance to unpopulated state
 	inline void clear ()
 	{
+		//## use string.clear(), and what about m_iEndOffset
 		m_sPath   = KString{};
 	}
 
@@ -737,6 +776,7 @@ public:
 	/// return a view of the member
 	inline KStringView   getPath ()        const
 	{
+		//## why encoded return
 		KString sEncoded;
 		kUrlEncode (m_sPath, sEncoded);
 		return sEncoded;
@@ -767,6 +807,7 @@ private:
 };
 
 //-----------------------------------------------------------------------------
+//## make this a member function
 /// compares other instance with this, member-by-member
 inline bool operator== (const Path& lhs, const Path& rhs)
 {
@@ -774,6 +815,7 @@ inline bool operator== (const Path& lhs, const Path& rhs)
 }
 
 //-----------------------------------------------------------------------------
+//## make this a member function
 /// compares other instance with this, member-by-member
 inline bool operator!= (const Path& lhs, const Path& rhs)
 {
@@ -781,7 +823,7 @@ inline bool operator!= (const Path& lhs, const Path& rhs)
 }
 
 
-
+//## see above
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Class to parse and maintain "query" portion of w3 URL.
 /// It is also responsible for parsing the query into a private property map.
@@ -812,6 +854,7 @@ public:
 	/// constructs instance and parses source into members
 	inline Query   (const KStringView& svSource, size_t iOffset=0)
 	{
+		//## same as above
 		m_bDecode = true;
 		parse (svSource, iOffset);
 	}
@@ -827,6 +870,7 @@ public:
 		m_bError     =  other.m_bError;
 		m_iEndOffset =  other.m_iEndOffset;
 		m_sQuery     =  other.m_sQuery;
+		//## KProps has operator=() since some time
 		//m_kpQuery    =  other.m_kpQuery;      // Missing kprops::operator=
 	}
 
@@ -837,6 +881,7 @@ public:
 		m_bError     =  other.m_bError;
 		m_iEndOffset =  other.m_iEndOffset;
 		m_sQuery     =  std::move (other.m_sQuery);
+		//## KProps has operator=(&&) since some time (use move!)
 		//m_kpQuery    =  other.m_kpQuery;      // Missing kprops::operator=
 	}
 
@@ -870,6 +915,7 @@ public:
 	/// restore instance to unpopulated state
 	inline void clear ()
 	{
+		//# use string.clear(), also clear KProps, what about iEndOffset?
 		m_bError = false;
 		m_sQuery = KString{};
 	}
@@ -878,6 +924,7 @@ public:
 	/// return a view of the member
 	inline KStringView  getQuery () const
 	{
+		//## why encoded, and should this not get the KProps serialization?
 		KString sEncoded;
 		kUrlEncode (m_sQuery, sEncoded);
 		return sEncoded;
@@ -908,9 +955,12 @@ public:
 private:
 //------
 
+	//## why is error a member var?
 	bool        m_bError        {false};
+	//## what about decode?
 	bool        m_bDecode       {false};
 	KString     m_sQuery        {};
+	//## why both, sQuery and kpQuery
 	KProp_t     m_kpQuery       {};
 	size_t      m_iEndOffset    {0};
 
@@ -923,6 +973,7 @@ private:
 };
 
 //-----------------------------------------------------------------------------
+//## make this a member function
 /// compares other instance with this, member-by-member
 inline bool operator== (const Query& lhs, const Query& rhs)
 {
@@ -931,6 +982,7 @@ inline bool operator== (const Query& lhs, const Query& rhs)
 }
 
 //-----------------------------------------------------------------------------
+//## make this a member function
 /// compares other instance with this, member-by-member
 inline bool operator!= (const Query& lhs, const Query& rhs)
 {
@@ -977,6 +1029,7 @@ public:
 	/// construct new instance and copy members from old instance
 	inline Fragment             (const Fragment &  other)
 	{
+		//## misses decode
 		m_bError     =  other.m_bError;
 		m_iEndOffset =  other.m_iEndOffset;
 		m_sFragment  =  other.m_sFragment;
@@ -986,6 +1039,7 @@ public:
 	/// construct new instance and move members from old instance
 	inline Fragment             (      Fragment && other)
 	{
+		//## misses decode
 		m_bError     =  other.m_bError;
 		m_iEndOffset =  other.m_iEndOffset;
 		m_sFragment  = std::move (other.m_sFragment);
@@ -995,6 +1049,7 @@ public:
 	/// copies members from other instance into this
 	inline Fragment & operator= (const Fragment &  other) noexcept
 	{
+		//## misses decode
 		m_bError     =  other.m_bError;
 		m_iEndOffset =  other.m_iEndOffset;
 		m_sFragment  =  other.m_sFragment;
@@ -1005,6 +1060,7 @@ public:
 	/// moves members from other instance into this
 	inline Fragment & operator= (      Fragment && other) noexcept
 	{
+		//## misses decode
 		m_bError     =  other.m_bError;
 		m_iEndOffset =  other.m_iEndOffset;
 		m_sFragment  =  std::move (other.m_sFragment);
@@ -1027,7 +1083,9 @@ public:
 	/// restore instance to unpopulated state
 	inline void clear ()
 	{
+		//## misses decode, iEndOffset
 		m_bError = false;
+		//## use string.clear()
 		m_sFragment = KString{};
 	}
 
@@ -1035,6 +1093,7 @@ public:
 	/// return a view of the member
 	inline KStringView getFragment () const
 	{
+		//## why encoded, why with leading #
 		KString sEncoded;
 		kUrlEncode (m_sFragment, sEncoded);
 		return sEncoded;
@@ -1059,6 +1118,7 @@ private:
 };
 
 //-----------------------------------------------------------------------------
+//## make this a member function
 /// compares other instance with this, member-by-member
 inline bool operator== (const Fragment& lhs, const Fragment& rhs)
 {
@@ -1066,6 +1126,7 @@ inline bool operator== (const Fragment& lhs, const Fragment& rhs)
 }
 
 //-----------------------------------------------------------------------------
+//## make this a member function
 /// compares other instance with this, member-by-member
 inline bool operator!= (const Fragment& lhs, const Fragment& rhs)
 {
@@ -1114,6 +1175,10 @@ public:
 	//---------------------------------------------------------------------
 	/// construct new instance and copy members from old instance
 	inline URI                     (const URI &  other)
+//##	Please use code like below instead of your convoluted type casting
+//##	    : Path(other)
+//##	    , Query(other)
+//##	    , Fragment(other)
 	{
 		Path     & lPath     = *this; const Path     & rPath     = other;
 		Query    & lQuery    = *this; const Query    & rQuery    = other;
@@ -1126,6 +1191,7 @@ public:
 	//---------------------------------------------------------------------
 	/// construct new instance and move members from old instance
 	inline URI                     (      URI && other)
+//## please see above, but additionally use std::move() (the below code is incorrect)
 	{
 		Path     & lPath     = *this; const Path     & rPath     = other;
 		Query    & lQuery    = *this; const Query    & rQuery    = other;
@@ -1139,6 +1205,10 @@ public:
 	/// copies members from other instance into this
 	inline URI &         operator= (const URI &  other) noexcept
 	{
+//## please see above, except that here the pattern is
+//##	Path::operator=(other);
+//##	Query::operator=(other);
+//##	Fragment::operator=(other);
 		Path     & lPath     = *this; const Path     & rPath     = other;
 		Query    & lQuery    = *this; const Query    & rQuery    = other;
 		Fragment & lFragment = *this; const Fragment & rFragment = other;
@@ -1152,6 +1222,10 @@ public:
 	/// moves members from other instance into this
 	inline URI &         operator= (      URI && other) noexcept
 	{
+//## please see above, except that here the pattern is
+//##	Path::operator=(std::move(other));
+//##	Query::operator=(std::move(other));
+//##	Fragment::operator=(std::move(other));
 		Path     & lPath     = *this; const Path     & rPath     = other;
 		Query    & lQuery    = *this; const Query    & rQuery    = other;
 		Fragment & lFragment = *this; const Fragment & rFragment = other;
@@ -1181,6 +1255,8 @@ public:
 	/// restore instance to unpopulated state
 	inline void clear ()
 	{
+		//## use m_sPath.clear();
+		//## and what about the other member variables?
 		m_sPath   = KString{};
 		Path        ::clear ();
 		Query       ::clear ();
@@ -1205,9 +1281,12 @@ private:
 };
 
 //-----------------------------------------------------------------------------
+//## make this a member function, and then use the pattern
+//## return Path::operator==(other) && Query::operator==(other) && Fragment::operator==(other);
 /// compares other instance with this, member-by-member
 inline bool operator== (const URI& lhs, const URI& rhs)
 {
+	return Path(lhs) == Path(rhs);
 	const Path     & lPath       = lhs, & rPath        = rhs;
 	const Query    & lQuery      = lhs, & rQuery       = rhs;
 	const Fragment & lFragment   = lhs, & rFragment    = rhs;
@@ -1218,6 +1297,7 @@ inline bool operator== (const URI& lhs, const URI& rhs)
 }
 
 //-----------------------------------------------------------------------------
+//## see before
 /// compares other instance with this, member-by-member
 inline bool operator!= (const URI& lhs, const URI& rhs)
 {
@@ -1269,6 +1349,7 @@ public:
 	/// construct new instance and copy members from old instance
 	inline URL                     (const URL &  other)
 	{
+		//## see before
 		Protocol& lProtocol   = *this; const Protocol& rProtocol   = other;
 		User    & lUser       = *this; const User    & rUser       = other;
 		Domain  & lDomain     = *this; const Domain  & rDomain     = other;
@@ -1284,6 +1365,7 @@ public:
 	/// construct new instance and move members from old instance
 	inline URL                     (      URL && other)
 	{
+		//## see before
 		Protocol& lProtocol   = *this; const Protocol& rProtocol   = other;
 		User    & lUser       = *this; const User    & rUser       = other;
 		Domain  & lDomain     = *this; const Domain  & rDomain     = other;
@@ -1299,6 +1381,7 @@ public:
 	/// copies members from other instance into this
 	inline URL &         operator= (const URL &  other) noexcept
 	{
+		//## see before
 		Protocol& lProtocol   = *this; const Protocol& rProtocol   = other;
 		User    & lUser       = *this; const User    & rUser       = other;
 		Domain  & lDomain     = *this; const Domain  & rDomain     = other;
@@ -1315,6 +1398,7 @@ public:
 	/// moves members from other instance into this
 	inline URL &         operator= (      URL && other) noexcept
 	{
+		//## see before
 		Protocol& lProtocol   = *this; const Protocol& rProtocol   = other;
 		User    & lUser       = *this; const User    & rUser       = other;
 		Domain  & lDomain     = *this; const Domain  & rDomain     = other;
@@ -1329,6 +1413,7 @@ public:
 
 	//---------------------------------------------------------------------
 	/// Operator form of serialize
+	//## why only for this class, and not for all preceeding as well?
 	inline operator KString ()
 	{
 		const Protocol& lProtocol   = *this;
@@ -1347,6 +1432,7 @@ public:
 
 	//---------------------------------------------------------------------
 	/// Serialize a URL
+	//## why don't the others then have this operator? and what is the syntax to use this?
 	const URL& operator>> (KString& target)
 	{
 		const URL      & source     = *this;
@@ -1364,6 +1450,7 @@ public:
 	}
 
 	//---------------------------------------------------------------------
+	//## see above
 	/// parse a URL
 	URL& operator<< (KString& source)
 	{
@@ -1394,6 +1481,7 @@ public:
 		User        ::clear ();
 		Domain      ::clear ();
 		URI         ::clear ();
+		//## you forget to clear self
 	}
 
 	//---------------------------------------------------------------------
@@ -1427,9 +1515,11 @@ private:
 };
 
 //-----------------------------------------------------------------------------
+//## make this a member function
 /// compares other instance with this, member-by-member
 inline bool operator== (const URL& lhs, const URL& rhs)
 {
+	//## use the upcast pattern shown before
 	const Protocol& lProtocol   = lhs, & rProtocol   = rhs;
 	const User&     lUser       = lhs, & rUser       = rhs;
 	const Domain&   lDomain     = lhs, & rDomain     = rhs;
@@ -1443,9 +1533,11 @@ inline bool operator== (const URL& lhs, const URL& rhs)
 }
 
 //-----------------------------------------------------------------------------
+//## make this a member function
 /// compares other instance with this, member-by-member
 inline bool operator!= (const URL& lhs, const URL& rhs)
 {
+	//## use the upcast pattern shown before
 	const Protocol& lProtocol   = lhs, & rProtocol   = rhs;
 	const User&     lUser       = lhs, & rUser       = rhs;
 	const Domain&   lDomain     = lhs, & rDomain     = rhs;

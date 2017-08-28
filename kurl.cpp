@@ -157,22 +157,34 @@ bool User::parse (const KStringView& svSource, size_t iOffset)
 	m_iEndOffset = iOffset;  // Stored for use by next ctor (if any).
 
 	size_t iFound = svSource.find_first_of ("@/?#", iOffset);
+	//## it would be more correct to compare against KStringView::npos here and
+	//## in the lines below
 	if (iFound != KString::npos && svSource[iFound] == '@')
 	{
 		size_t iColon = svSource.find (':', iOffset);
 		if (iColon != KString::npos && iColon < iFound)
 		{
+			//## did you consider for a second what you do here, performance wise?
+			//## svSource may have 1 billion chars. You then construct a temporary
+			//## KString, only to create a anoter one (with .substr()) that you
+			//## then assign to a third string.
+			//## Why not simply like this:
+			//## m_sUser.assign(svSource.data() + iOffset, iColon - iOffset);
 			m_sUser = KString(svSource).substr (iOffset, iColon - iOffset);
+			//## same here
 			m_sPass = KString(svSource).substr (iColon + 1, iFound - iColon - 1);
 		}
 		else
 		{
+			//## same here
 			m_sUser = KString(svSource).substr (iOffset, iFound - iOffset);
 		}
 
 		m_bError = false;
 		m_iEndOffset = iFound + 1;
 
+		//## in what case should this string not be decoded? And why does
+		//## m_bDecode need to be a member var and not a par to this function?
 		if (m_bDecode)
 		{
 			kUrlDecode (m_sUser);
@@ -203,6 +215,7 @@ bool Domain::parseHostName (const KStringView& svSource, size_t iOffset)
 
 	iFound = (iFound == KString::npos) ? iSize : iFound;
 	m_iEndOffset = iFound;
+	//## see my comments above about performance issues here and how to fix it
 	m_sHostName  = KString(svSource).substr (iOffset, iFound - iOffset);
 
 	if (m_bDecode)
@@ -373,6 +386,9 @@ bool Query::parse (const KStringView& svSource, size_t iOffset)
 	size_t iFound = svSource.find ('#', iOffset);
 	iFound = (iFound == KString::npos) ? iSize : iFound;
 	m_iEndOffset = iFound;
+	//## why is there a need to keep a copy of the verbatim query string
+	//## in a member variable - can't it at any time be reconstructed
+	//## from the KProps struct?
 	m_sQuery = KString(svSource).substr (iOffset, iFound - iOffset);
 
 	if (m_bDecode)
@@ -413,9 +429,11 @@ bool Query::decode ()
 
 			if (svKey.size () && svVal.size ())
 			{
+				//## key and val are already decoded, look at parse()...
 				KString sKey, sVal;
 				kUrlDecode (svKey, sKey);
 				kUrlDecode (svVal, sVal);
+				//## and not using a std::move() here is not good.
 				m_kpQuery.Add (sKey, sVal);
 			}
 
@@ -438,6 +456,21 @@ bool Query::serialize (KString& sTarget) const
 		sTarget += '?';
 
 		bool bAmpersand = false;
+		//## change the below loop to
+		//## for (const auto& it : m_kpQuery)
+		//## {
+		//## 	if (bAmpersand)
+		//## 	{
+		//## 		sTarget += '&';
+		//## 	}
+		//## 	else
+		//## 	{
+		//## 		bAmpersand = true;
+		//## 	}
+		//## 	kUrlEncode(it.first, sTarget);
+		//## 	sTarget += '=';
+		//## 	kUrlEncode(it.second, sTarget);
+		//## }
 		KProp_t::const_iterator cmIter;
 		for (cmIter = m_kpQuery.begin (); cmIter != m_kpQuery.end (); ++cmIter)
 		{
@@ -470,6 +503,7 @@ bool Fragment::parse (const KStringView& svSource, size_t iOffset)
 
 	m_iEndOffset = iOffset;  // Stored for use by next ctor (if any).
 
+	//## see above..
 	m_sFragment  = KString(svSource).substr (iOffset, svSource.size () - iOffset);
 	if (m_bDecode)
 	{

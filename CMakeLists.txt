@@ -8,8 +8,14 @@ cmake_minimum_required(VERSION 2.8)
 
 project(dekaf2)
 
+# The project version number.
+set(VERSION_MAJOR   0)
+set(VERSION_MINOR   0)
+set(VERSION_PATCH   1)
+mark_as_advanced(VERSION_MAJOR VERSION_MINOR VERSION_PATCH)
+
 # make sure we have the necessary version of cmake installed
-execute_process(COMMAND "./cmakeinstall -go")
+execute_process(COMMAND "${CMAKE_CURRENT_SOURCE_DIR}/bits/cmakeinstall -go")
 
 set(CMAKE_CXX_STANDARD 17)
 # we do not force C++17 if not available
@@ -32,12 +38,31 @@ find_package(OpenSSL QUIET REQUIRED)
 find_package(Boost QUIET COMPONENTS system REQUIRED)
 include_directories(SYSTEM ${Boost_INCLUDE_DIR})
 
+# add a target to generate API documentation with Doxygen
+# please make sure the graphviz package is installed, too, not only doxygen
+find_package(Doxygen)
+if(DOXYGEN_FOUND)
+    configure_file(${CMAKE_CURRENT_SOURCE_DIR}/bits/doxyfile.in
+                   ${CMAKE_CURRENT_BINARY_DIR}/doxyfile @ONLY)
+
+    add_custom_target(doc
+        ${DOXYGEN_EXECUTABLE} ${CMAKE_CURRENT_BINARY_DIR}/doxyfile
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+        COMMENT "Generating API documentation with Doxygen" VERBATIM
+    )
+else()
+    add_custom_target(doc
+        COMMENT "Doxygen was not found on this machine. Documentation can not be generated." VERBATIM
+    )
+endif(DOXYGEN_FOUND)
+
 set (HEADERS
     bits/kconfiguration.h
     bits/ktemplate.h
     bits/kcppcompat.h
     bits/kmake_unique.h
     bits/kmutable_pair.h
+    bits/kunique_deleter.h
     dekaf2.h
     kstringview.h
     kstring.h
@@ -58,6 +83,7 @@ set (HEADERS
     ksignals.h
     kcrashexit.h
     kgetruntimestack.h
+    ksubscribe.h
     kreader.h
     kfdreader.h
     kwriter.h

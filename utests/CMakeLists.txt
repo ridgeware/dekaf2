@@ -19,6 +19,7 @@ set (USOURCES
     kwebio_tests.cpp
     kcurl_tests.cpp
     kfile_tests.cpp
+    ksubscribe_tests.cpp
     kreader_tests.cpp
     kinshell_tests.cpp
     koutshell_tests.cpp

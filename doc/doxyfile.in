@@ -9,7 +9,8 @@ FILE_PATTERNS          = *.h \
                          *.cpp
 EXCLUDE_PATTERNS       = @PROJECT_SOURCE_DIR@/libs/* \
                          @PROJECT_SOURCE_DIR@/smoketests/* \
-                         @PROJECT_SOURCE_DIR@/utests/*
+                         @PROJECT_SOURCE_DIR@/utests/* \
+                         @PROJECT_SOURCE_DIR@/doc/*
 RECURSIVE              = YES
 HAVE_DOT               = @DOXYGEN_DOT_FOUND@
 # USE_MDFILE_AS_MAINPAGE = @doxy_main_page@
@@ -40,6 +41,10 @@ REFERENCED_BY_RELATION = YES
 REFERENCES_RELATION    = YES
 HTML_TIMESTAMP         = YES
 HTML_DYNAMIC_SECTIONS  = NO
+HTML_HEADER            = html/header.html
+HTML_FOOTER            = html/footer.html
+HTML_EXTRA_STYLESHEET  = html/customdoxygen.css
+HTML_EXTRA_FILES       = html/doxy-boot.js
 GENERATE_HTML          = YES
 GENERATE_LATEX         = NO
 GENERATE_RTF           = NO

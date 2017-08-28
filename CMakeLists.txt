@@ -42,7 +42,7 @@ include_directories(SYSTEM ${Boost_INCLUDE_DIR})
 # please make sure the graphviz package is installed, too, not only doxygen
 find_package(Doxygen)
 if(DOXYGEN_FOUND)
-    configure_file(${CMAKE_CURRENT_SOURCE_DIR}/bits/doxyfile.in
+    configure_file(${CMAKE_CURRENT_SOURCE_DIR}/doc/doxyfile.in
                    ${CMAKE_CURRENT_BINARY_DIR}/doxyfile @ONLY)
 
     add_custom_target(doc

@@ -94,7 +94,7 @@ namespace KURL
 
 // TODO there is much common code between classes.  virtual might work well.
 // Specifically, getEndOffset is always the same.
-// All classes have members m_iOffset and m_bError.
+// All classes have members m_iOffset
 // All classes have a parse, serialize, and clear.
 // Only these last methods require specialization.
 //-----------------------------------------------------------------------------
@@ -102,8 +102,8 @@ namespace KURL
 // Class::parse stores iOffset and updates it on successful parse.
 // This parse length is stored in m_iEndOffset which value is
 // returned by the method size_t iOffset = getEndOffset ();
-// If successful m_bError is set false and iOffset will have a larger value.
-// Otherwise m_bError is set true and this value is zero.
+// If successful bError is set false and iOffset will have a larger value.
+// Otherwise bError is set true and this value is zero.
 // For typical calls, scheme is at the beginning, so iOffset should begin 0.
 // parse methods shall return false on error, true on success.
 
@@ -111,13 +111,13 @@ namespace KURL
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Class to parse and maintain "scheme" portion of w3 URL.
-/// @brief RFC3986 3.1: scheme = ALPHA *( ALPHA / DIGIT / "+" / "-" / "." )
+/// RFC3986 3.1: scheme = ALPHA *( ALPHA / DIGIT / "+" / "-" / "." )
 /// Implementation: We take all characters until ':'.
 /// scheme:[//[user[:password]@]host[:port]][/path][?query][#fragment]
 /// ------
 /// Protocol extracts and stores a KStringView of a URL "scheme".
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class Protocol
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
 //------
@@ -142,7 +142,6 @@ public:
 	/// constructs instance and parses source into members
 	inline Protocol    (const KStringView& svSource, size_t iOffset=0)
 	{
-		m_bDecode = true;
 		parse (svSource, iOffset);
 	}
 
@@ -154,7 +153,6 @@ public:
 	/// construct new instance and copy members from old instance
 	inline Protocol    (const Protocol &  other)
 	{
-		m_bError     =  other.m_bError;
 		m_bMailto    =  other.m_bMailto;
 		m_iEndOffset =  other.m_iEndOffset;
 		m_sProto     =  other.m_sProto;
@@ -164,7 +162,6 @@ public:
 	/// construct new instance and move members from old instance
 	inline Protocol    (      Protocol && other)
 	{
-		m_bError     =  other.m_bError;
 		m_bMailto    =  other.m_bMailto;
 		m_iEndOffset =  other.m_iEndOffset;
 		m_sProto     =  std::move (other.m_sProto);
@@ -174,7 +171,6 @@ public:
 	/// copies members from other instance into this
 	inline Protocol&   operator= (const Protocol &  other) noexcept
 	{
-		m_bError     =  other.m_bError;
 		m_bMailto    =  other.m_bMailto;
 		m_iEndOffset =  other.m_iEndOffset;
 		m_sProto     =  other.m_sProto;
@@ -185,7 +181,6 @@ public:
 	/// moves members from other instance into this
 	inline Protocol&   operator= (      Protocol && other) noexcept
 	{
-		m_bError     =  other.m_bError;
 		m_bMailto    =  other.m_bMailto;
 		m_iEndOffset =  other.m_iEndOffset;
 		m_sProto     = std::move (other.m_sProto);
@@ -196,7 +191,7 @@ public:
 	/// generate content into string from members
 	inline bool serialize (KString& sTarget) const
 	{
-		if (!m_bError && m_sProto.size () != 0)
+		if (m_sProto.size () != 0)
 		{
 			sTarget += m_sProto;
 			sTarget += m_bMailto ? ":" : "://";
@@ -209,7 +204,6 @@ public:
 	/// restore instance to unpopulated state
 	inline void clear ()
 	{
-		m_bError  = false;
 		m_bMailto = false;
 		m_sProto  = KString {};
 	}
@@ -248,12 +242,25 @@ public:
 		return m_iEndOffset;
 	}
 
+    //-------------------------------------------------------------------------
+    /// compares other instance with this, member-by-member
+	inline bool operator== (const Protocol& rhs) const
+    {
+		return getProtocol () == rhs.getProtocol ();
+    }
+
+    //-------------------------------------------------------------------------
+    /// compares other instance with this, member-by-member
+	inline bool operator!= (const Protocol& rhs) const
+    {
+		return getProtocol () != rhs.getProtocol ();
+    }
+
+
 //------
 private:
 //------
 
-	bool            m_bError     {false};
-	bool            m_bDecode    {false};
 	bool            m_bMailto    {false};
 	KString         m_sProto     {};
 	eProto          m_eProto     {UNDEFINED};
@@ -261,111 +268,88 @@ private:
 
 };
 
-//-----------------------------------------------------------------------------
-//## make this a member function
-/// compares other instance with this, member-by-member
-inline bool operator== (const Protocol& lhs, const Protocol& rhs)
-{
-	return lhs.getProtocol () == rhs.getProtocol ();
-}
 
-//-----------------------------------------------------------------------------
-/// compares other instance with this, member-by-member
-inline bool operator!= (const Protocol& lhs, const Protocol& rhs)
-{
-	return lhs.getProtocol () != rhs.getProtocol ();
-}
-
-
-
-//## use the @brief for the first sentence of your comment, not for the complex
-//## detail. BTW, with doxygen, the first sentence of a multiline doc comment
-//## is automatically used as the @brief, if you want to save some typing
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Class to parse and maintain "user" and "password" portion of w3 URL.
-/// @brief RFC3986 3.2: authority   = [ userinfo "@" ] host [ ":" port ]
+/// RFC3986 3.2: authority   = [ userinfo "@" ] host [ ":" port ]
 /// Implementation: We take all characters until '@'.
 /// scheme:[//[user[:password]@]host[:port]][/path][?query][#fragment]
 ///            ----  --------
 /// User extracts and stores a KStringView of URL "user" and "password".
-//## This colon comment should come directly after the class declaration, so
-//## one line further down. Please correct at all occurences.
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class User
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
 //------
 public:
 //------
 
-	//---------------------------------------------------------------------
+	//-------------------------------------------------------------------------
 	/// constructs empty instance.
 	inline User ()
-	//## put a closing //----- comment exactly here.. please correct all occurences.
+	//-------------------------------------------------------------------------
 	{
 	}
 
-	//---------------------------------------------------------------------
+	//-------------------------------------------------------------------------
 	/// constructs instance and parses source into members
 	inline User    (const KStringView& svSource, size_t iOffset=0)
+	//-------------------------------------------------------------------------
 	{
-		m_bDecode = true;
 		parse (svSource, iOffset);
 	}
 
-	//---------------------------------------------------------------------
+	//-------------------------------------------------------------------------
 	/// parses source into members of instance
 	bool parse  (const KStringView& sSource, size_t iOffset=0);
+	//-------------------------------------------------------------------------
 
-	//---------------------------------------------------------------------
+	//-------------------------------------------------------------------------
 	/// construct new instance and copy members from old instance
 	inline User              (const User &  other)
+	//-------------------------------------------------------------------------
 	{
-		m_bError     =  other.m_bError;
 		m_iEndOffset =  other.m_iEndOffset;
 		m_sUser      =  other.m_sUser;
 		m_sPass      =  other.m_sPass;
-		//## what about m_bDecode ?
 	}
 
-	//---------------------------------------------------------------------
+	//-------------------------------------------------------------------------
 	/// construct new instance and move members from old instance
 	inline User              (      User && other)
+	//-------------------------------------------------------------------------
 	{
-		m_bError     =  other.m_bError;
 		m_iEndOffset =  other.m_iEndOffset;
 		m_sUser      = std::move (other.m_sUser);
 		m_sPass      = std::move (other.m_sPass);
-		//## what about m_bDecode ?
 	}
 
-	//---------------------------------------------------------------------
+	//-------------------------------------------------------------------------
 	/// copies members from other instance into this
 	inline User&   operator= (const User &  other) noexcept
+	//-------------------------------------------------------------------------
 	{
-		m_bError     =  other.m_bError;
 		m_iEndOffset =  other.m_iEndOffset;
 		m_sUser      =  other.m_sUser;
 		m_sPass      =  other.m_sPass;
-		//## what about m_bDecode ?
 		return *this;
 	}
 
-	//---------------------------------------------------------------------
+	//-------------------------------------------------------------------------
 	/// moves members from other instance into this
 	inline User&   operator= (      User && other) noexcept
+	//-------------------------------------------------------------------------
 	{
-		m_bError     =  other.m_bError;
 		m_iEndOffset =  other.m_iEndOffset;
 		m_sUser      = std::move (other.m_sUser);
 		m_sPass      = std::move (other.m_sPass);
-		//## what about m_bDecode ?
 		return *this;
 	}
 
-	//---------------------------------------------------------------------
+	//-------------------------------------------------------------------------
 	/// generate content into string from members
 	inline bool serialize (KString& sTarget) const
+	//-------------------------------------------------------------------------
 	{
 		if (m_sUser.size ())
 		{
@@ -377,112 +361,98 @@ public:
 			}
 			sTarget += '@';
 		}
-		return !m_bError;
+		return true;
 	}
 
-	//---------------------------------------------------------------------
+	//-------------------------------------------------------------------------
 	/// restore instance to unpopulated state
 	inline void clear ()
+	//-------------------------------------------------------------------------
 	{
-		m_bError = false;
-		//## use string.clear() (in both cases)
-		m_sUser = KString{};
-		m_sPass = KString{};
+		m_sUser.clear();
+		m_sPass.clear();
 	}
 
-	//---------------------------------------------------------------------
+	//-------------------------------------------------------------------------
 	/// return a view of the member
-	//## why do you encode the value? how do I get access to the username
-	//## without encoding?
 	inline KStringView getUser () const
+	//-------------------------------------------------------------------------
 	{
 		KString sEncoded;
-		kUrlEncode (m_sUser, sEncoded);
-		return sEncoded;
+		return m_sUser;
 	}
 
-	//---------------------------------------------------------------------
+	//-------------------------------------------------------------------------
 	/// modify member by parsing argument
 	inline void setUser (const KStringView& svUser)
+	//-------------------------------------------------------------------------
 	{
 		m_sUser = svUser;
 	}
 
-	//---------------------------------------------------------------------
+	//-------------------------------------------------------------------------
 	/// return a view of the member
-	//## why do you encode the value? how do I get access to the password
-	//## without encoding?
 	inline KStringView getPass () const
+	//-------------------------------------------------------------------------
 	{
 		KString sEncoded;
-		kUrlEncode (m_sPass, sEncoded);
-		return sEncoded;
+		return m_sPass;
 	}
 
-	//---------------------------------------------------------------------
+	//-------------------------------------------------------------------------
 	/// modify member by parsing argument
 	inline void setPass (const KStringView& svPass)
+	//-------------------------------------------------------------------------
 	{
 		m_sPass = svPass;
 	}
 
-	//---------------------------------------------------------------------
+	//-------------------------------------------------------------------------
 	/// return offset to end of parse in last parsed string
 	inline size_t getEndOffset () const
+	//-------------------------------------------------------------------------
 	{
 		return m_iEndOffset;
 	}
 
+    /// compares other instance with this, member-by-member
+    inline bool operator== (const User& rhs) const
+    {
+	    return
+		    (getUser () == rhs.getUser ()) &&
+		    (getPass () == rhs.getPass ()) ;
+    }
+
+    //-----------------------------------------------------------------------------
+    /// compares other instance with this, member-by-member
+    inline bool operator!= (const User& rhs) const
+    {
+	    return
+		    (getUser () != rhs.getUser ()) ||
+		    (getPass () != rhs.getPass ()) ;
+    }
 //------
 private:
 //------
 
-	//## why is m_bError a member variable? there is no
-	//## function to query it. Wouldn't it suffice to
-	//## use it internally in parse() ?
-	bool            m_bError    {false};
-	//## same question for m_bDecode
-	bool            m_bDecode   {false};
 	KString         m_sUser     {};
 	KString         m_sPass     {};
 	size_t          m_iEndOffset{0};
 };
 
-//-----------------------------------------------------------------------------
-//## make this a member function
-/// compares other instance with this, member-by-member
-inline bool operator== (const User& lhs, const User& rhs)
-{
-	return
-		(lhs.getUser () == rhs.getUser ()) &&
-		(lhs.getPass () == rhs.getPass ()) ;
-}
 
-//-----------------------------------------------------------------------------
-//## make this a member function
-/// compares other instance with this, member-by-member
-inline bool operator!= (const User& lhs, const User& rhs)
-{
-	return
-		(lhs.getUser () != rhs.getUser ()) ||
-		(lhs.getPass () != rhs.getPass ()) ;
-}
-
-
-//## see my comments about briefs and doc comments above, and about the
-//## position of the closing //:::::
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Class to parse and maintain "host" and "port" portion of w3 URL.
-/// @brief RFC3986 3.2: authority = [ userinfo "@" ] host [ ":" port ]
-/// @brief RFC3986 3.2.2: host = IP-literal / IPv4address / reg-name
-/// @brief RFC3986 3.2.3: port = *DIGIT
+/// RFC3986 3.2: authority = [ userinfo "@" ] host [ ":" port ]
+/// RFC3986 3.2.2: host = IP-literal / IPv4address / reg-name
+/// RFC3986 3.2.3: port = *DIGIT
 /// Implementation: We take domain from '@'+1 to first of "/:?#\0".
 /// Implementation: We take port from ':'+1 to first of "/?#\0".
 /// scheme:[//[user[:password]@]host[:port]][/path][?query][#fragment]
 ///                             ----  ----
 /// Domain extracts and stores a KStringView of URL "host" and "port"
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class Domain
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
 	//------
@@ -500,7 +470,6 @@ class Domain
 	inline Domain  (const KStringView& svSource, size_t iOffset=0)
 	{
 		//## see questions about this var in the User class.
-		m_bDecode = true;
 		parse (svSource, iOffset);
 	}
 
@@ -513,7 +482,6 @@ class Domain
 	inline Domain            (const Domain &  other)
 	{
 		//## misses the encoding flag
-		m_bError     =  other.m_bError;
 		m_iEndOffset =  other.m_iEndOffset;
 		m_iPortNum   =  other.m_iPortNum;
 		m_sHostName  =  other.m_sHostName;
@@ -525,7 +493,6 @@ class Domain
 	inline Domain            (      Domain && other)
 	{
 		//## misses the encoding flag
-		m_bError     =  other.m_bError;
 		m_iEndOffset =  other.m_iEndOffset;
 		m_iPortNum   =  other.m_iPortNum;
 		m_sHostName  = std::move (other.m_sHostName);
@@ -537,7 +504,6 @@ class Domain
 	inline Domain& operator= (const Domain &  other) noexcept
 	{
 		//## misses the encoding flag
-		m_bError     =  other.m_bError;
 		m_iEndOffset =  other.m_iEndOffset;
 		m_iPortNum   =  other.m_iPortNum;
 		m_sHostName  =  other.m_sHostName;
@@ -550,7 +516,6 @@ class Domain
 	inline Domain& operator= (      Domain && other) noexcept
 	{
 		//## misses the encoding flag
-		m_bError     =  other.m_bError;
 		m_iEndOffset =  other.m_iEndOffset;
 		m_iPortNum   =  other.m_iPortNum;
 		m_sHostName  = std::move (other.m_sHostName);
@@ -580,7 +545,6 @@ class Domain
 	inline void clear ()
 	{
 		//## misses the encoding flag, and what about the offset?
-		m_bError       = false;
 		m_iPortNum     = 0;
 		m_sHostName   = KString{};
 		m_sBaseName   = KString{};
@@ -590,10 +554,7 @@ class Domain
 	/// return a view of the member
 	inline KStringView   getHostName ()   const
 	{
-		//## why should this return encoded
-		KString sEncoded;
-		kUrlEncode (m_sHostName, sEncoded);
-		return sEncoded;
+		return m_sHostName;
 	}
 
 	//---------------------------------------------------------------------
@@ -607,10 +568,7 @@ class Domain
 	/// Convert member and return it as uppercased string
 	inline KString       getBaseDomain () const // No set function
 	{
-		//## why should this return encoded
-		KString sEncoded;
-		kUrlEncode (m_sBaseName, sEncoded);
-		return KString (sEncoded).MakeUpper ();
+		return KString (m_sBaseName).MakeUpper ();
 	}
 
 	//---------------------------------------------------------------------
@@ -634,12 +592,28 @@ class Domain
 		return m_iEndOffset;
 	}
 
+    //-----------------------------------------------------------------------------
+    /// compares other instance with this, member-by-member
+    inline bool operator== (const Domain& rhs) const
+    {
+	    return
+		    (getHostName () == rhs.getHostName ()) &&
+		    (getPortNum  () == rhs.getPortNum  ()) ;
+    }
+
+    //-----------------------------------------------------------------------------
+    /// compares other instance with this, member-by-member
+    inline bool operator!= (const Domain& rhs) const
+    {
+	    return
+		    (getHostName () != rhs.getHostName ()) ||
+		    (getPortNum ()  != rhs.getPortNum ()) ;
+    }
+
 //------
 private:
 //------
 
-	bool             m_bError      {false};
-	bool             m_bDecode     {false};
 	uint16_t         m_iPortNum    {0};
 	KString          m_sHostName   {};
 	KString          m_sBaseName   {};
@@ -649,31 +623,10 @@ private:
 	bool parseHostName (const KStringView& svSource, size_t iOffset);
 };
 
-//-----------------------------------------------------------------------------
-//## make this a member function
-/// compares other instance with this, member-by-member
-inline bool operator== (const Domain& lhs, const Domain& rhs)
-{
-	return
-		(lhs.getHostName () == rhs.getHostName ()) &&
-		(lhs.getPortNum  () == rhs.getPortNum  ()) ;
-}
 
-//-----------------------------------------------------------------------------
-//## make this a member function
-/// compares other instance with this, member-by-member
-inline bool operator!= (const Domain& lhs, const Domain& rhs)
-{
-	return
-		(lhs.getHostName () != rhs.getHostName ()) ||
-		(lhs.getPortNum ()  != rhs.getPortNum ()) ;
-}
-
-
-//## see my earlier comments
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Class to parse and maintain "path" portion of w3 URL.
-/// @brief RFC3986 3.3: (See RFC)
+/// RFC3986 3.3: (See RFC)
 /// Implementation: All characters after domain from '/' to 1st of "?#\0".
 /// scheme:[//[user[:password]@]host[:port]][/path][?query][#fragment]
 ///                                          -----   -----   --------
@@ -682,8 +635,8 @@ inline bool operator!= (const Domain& lhs, const Domain& rhs)
 ///
 /// The aggregation of /path?query#fragment without individual path
 /// is a design decision; not arbitrary.
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class Path
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
 //------
@@ -701,7 +654,6 @@ public:
 	inline Path        (const KStringView& svSource, size_t iOffset=0)
 	{
 		//## same question about decode as a member variable for ths class as well
-		m_bDecode = true;
 		parse (svSource, iOffset);
 	}
 
@@ -714,7 +666,6 @@ public:
 	inline Path              (const Path &  other)
 	{
 		//## encode is missing
-		m_bError     =  other.m_bError;
 		m_iEndOffset =  other.m_iEndOffset;
 		m_sPath      =  other.m_sPath  ;
 	}
@@ -724,7 +675,6 @@ public:
 	inline Path              (      Path && other)
 	{
 		//## encode is missing
-		m_bError     =  other.m_bError;
 		m_iEndOffset =  other.m_iEndOffset;
 		m_sPath      = std::move (other.m_sPath);
 	}
@@ -734,7 +684,6 @@ public:
 	inline Path  & operator= (const Path &  other) noexcept
 	{
 		//## encode is missing
-		m_bError     =  other.m_bError;
 		m_iEndOffset =  other.m_iEndOffset;
 		m_sPath      =  other.m_sPath  ;
 		return *this;
@@ -745,7 +694,6 @@ public:
 	inline Path  & operator= (      Path && other) noexcept
 	{
 		//## encode is missing
-		m_bError     =  other.m_bError;
 		m_iEndOffset =  other.m_iEndOffset;
 		m_sPath      = std::move (other.m_sPath);
 		return *this;
@@ -768,18 +716,15 @@ public:
 	/// restore instance to unpopulated state
 	inline void clear ()
 	{
-		//## use string.clear(), and what about m_iEndOffset
-		m_sPath   = KString{};
+		//## what about m_iEndOffset
+		m_sPath.clear();
 	}
 
 	//---------------------------------------------------------------------
 	/// return a view of the member
 	inline KStringView   getPath ()        const
 	{
-		//## why encoded return
-		KString sEncoded;
-		kUrlEncode (m_sPath, sEncoded);
-		return sEncoded;
+		return m_sPath;
 	}
 
 	//---------------------------------------------------------------------
@@ -796,44 +741,39 @@ public:
 		return m_iEndOffset;
 	}
 
+    //-----------------------------------------------------------------------------
+    /// compares other instance with this, member-by-member
+    inline bool operator== (const Path& rhs) const
+    {
+	    return getPath () == rhs.getPath ();
+    }
+
+    //-----------------------------------------------------------------------------
+    /// compares other instance with this, member-by-member
+    inline bool operator!= (const Path& rhs) const
+    {
+	    return getPath () != rhs.getPath ();
+    }
+
 //------
 private:
 //------
 
-	bool        m_bError     {false};
-	bool        m_bDecode    {false};
 	KString     m_sPath      {};
 	size_t      m_iEndOffset {0};
 };
 
-//-----------------------------------------------------------------------------
-//## make this a member function
-/// compares other instance with this, member-by-member
-inline bool operator== (const Path& lhs, const Path& rhs)
-{
-	return lhs.getPath () == rhs.getPath ();
-}
 
-//-----------------------------------------------------------------------------
-//## make this a member function
-/// compares other instance with this, member-by-member
-inline bool operator!= (const Path& lhs, const Path& rhs)
-{
-	return lhs.getPath () != rhs.getPath ();
-}
-
-
-//## see above
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Class to parse and maintain "query" portion of w3 URL.
 /// It is also responsible for parsing the query into a private property map.
-/// @brief RFC3986 3.3: (See RFC)
+/// RFC3986 3.3: (See RFC)
 /// Implementation: All characters after domain from '/' to 1st of "?#\0".
 /// scheme:[//[user[:password]@]host[:port]][/path][?query][#fragment]
 ///                                                  -----
 /// Query extracts and stores a KStringView of URL "query"
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class Query
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
 //------
@@ -855,7 +795,6 @@ public:
 	inline Query   (const KStringView& svSource, size_t iOffset=0)
 	{
 		//## same as above
-		m_bDecode = true;
 		parse (svSource, iOffset);
 	}
 
@@ -867,32 +806,27 @@ public:
 	/// construct new instance and copy members from old instance
 	inline Query             (const Query &  other)
 	{
-		m_bError     =  other.m_bError;
 		m_iEndOffset =  other.m_iEndOffset;
 		m_sQuery     =  other.m_sQuery;
-		//## KProps has operator=() since some time
-		//m_kpQuery    =  other.m_kpQuery;      // Missing kprops::operator=
+		m_kpQuery    =  other.m_kpQuery;
 	}
 
 	//---------------------------------------------------------------------
 	/// construct new instance and move members from old instance
 	inline Query             (      Query && other)
 	{
-		m_bError     =  other.m_bError;
 		m_iEndOffset =  other.m_iEndOffset;
 		m_sQuery     =  std::move (other.m_sQuery);
-		//## KProps has operator=(&&) since some time (use move!)
-		//m_kpQuery    =  other.m_kpQuery;      // Missing kprops::operator=
+		m_kpQuery    =  other.m_kpQuery;
 	}
 
 	//---------------------------------------------------------------------
 	/// copies members from other instance into this
 	inline Query & operator= (const Query &  other) noexcept
 	{
-		m_bError     =  other.m_bError;
 		m_iEndOffset =  other.m_iEndOffset;
 		m_sQuery     =  other.m_sQuery;
-		//m_kpQuery    =  other.m_kpQuery;      // Missing kprops::operator=
+		m_kpQuery    =  other.m_kpQuery;
 		return *this;
 	}
 
@@ -900,10 +834,9 @@ public:
 	/// moves members from other instance into this
 	inline Query & operator= (      Query && other) noexcept
 	{
-		m_bError     =  other.m_bError;
 		m_iEndOffset =  other.m_iEndOffset;
 		m_sQuery     =  std::move (other.m_sQuery);
-		//m_kpQuery    =  other.m_kpQuery;      // Missing kprops::operator=
+		m_kpQuery    =  other.m_kpQuery;
 		return *this;
 	}
 
@@ -915,19 +848,16 @@ public:
 	/// restore instance to unpopulated state
 	inline void clear ()
 	{
-		//# use string.clear(), also clear KProps, what about iEndOffset?
-		m_bError = false;
-		m_sQuery = KString{};
+		//# clear KProps, what about iEndOffset?
+		m_sQuery.clear();
 	}
 
 	//---------------------------------------------------------------------
 	/// return a view of the member
 	inline KStringView  getQuery () const
 	{
-		//## why encoded, and should this not get the KProps serialization?
-		KString sEncoded;
-		kUrlEncode (m_sQuery, sEncoded);
-		return sEncoded;
+		//## should this not get the KProps serialization?
+		return m_sQuery;
 	}
 
 	//---------------------------------------------------------------------
@@ -951,14 +881,27 @@ public:
 		return m_iEndOffset;
 	}
 
+    //-----------------------------------------------------------------------------
+    /// compares other instance with this, member-by-member
+    inline bool operator== (const Query& rhs) const
+    {
+	    return getQuery () == rhs.getQuery ();
+	    // TODO compare kprops when operator== is ready
+    }
+
+    //-----------------------------------------------------------------------------
+    /// compares other instance with this, member-by-member
+    inline bool operator!= (const Query& rhs) const
+    {
+	    return getQuery () != rhs.getQuery ();
+	    // TODO compare kprops when operator== is ready
+    }
+
 //------
 private:
 //------
 
-	//## why is error a member var?
-	bool        m_bError        {false};
 	//## what about decode?
-	bool        m_bDecode       {false};
 	KString     m_sQuery        {};
 	//## why both, sQuery and kpQuery
 	KProp_t     m_kpQuery       {};
@@ -968,39 +911,21 @@ private:
 	// "+"     translates to " "
 	// "%FF"   translates to "\xFF"
 	// other   remains untranslated
-	bool    decode ();
+	bool    decode (KStringView);
 
 };
-
-//-----------------------------------------------------------------------------
-//## make this a member function
-/// compares other instance with this, member-by-member
-inline bool operator== (const Query& lhs, const Query& rhs)
-{
-	return lhs.getQuery () == rhs.getQuery ();
-	// TODO compare kprops when operator== is ready
-}
-
-//-----------------------------------------------------------------------------
-//## make this a member function
-/// compares other instance with this, member-by-member
-inline bool operator!= (const Query& lhs, const Query& rhs)
-{
-	return lhs.getQuery () != rhs.getQuery ();
-	// TODO compare kprops when operator== is ready
-}
 
 
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Class to parse and maintain "fragment" portion of w3 URL.
-// @brief RFC3986 3.3: (See RFC)
+// RFC3986 3.3: (See RFC)
 /// Implementation: All characters after domain from '/' to 1st of "?#\0".
 /// scheme:[//[user[:password]@]host[:port]][/path][?query][#fragment]
 ///                                                          --------
 /// Fragment extracts and stores a KStringView of URL "fragment"
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class Fragment
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
 //------
@@ -1017,7 +942,6 @@ public:
 	/// constructs instance and parses source into members
 	inline Fragment  (const KStringView& svSource, size_t iOffset=0)
 	{
-		m_bDecode = true;
 		parse (svSource, iOffset);
 	}
 
@@ -1086,7 +1010,7 @@ public:
 		//## misses decode, iEndOffset
 		m_bError = false;
 		//## use string.clear()
-		m_sFragment = KString{};
+		m_sFragment.clear();
 	}
 
 	//---------------------------------------------------------------------
@@ -1094,9 +1018,7 @@ public:
 	inline KStringView getFragment () const
 	{
 		//## why encoded, why with leading #
-		KString sEncoded;
-		kUrlEncode (m_sFragment, sEncoded);
-		return sEncoded;
+		return m_sFragment;
 	}
 
 	//---------------------------------------------------------------------
@@ -1106,32 +1028,29 @@ public:
 		return m_iEndOffset;
 	}
 
+    //-----------------------------------------------------------------------------
+    /// compares other instance with this, member-by-member
+    inline bool operator== (const Fragment& rhs) const
+    {
+	    return getFragment () == rhs.getFragment ();
+    }
+
+    //-----------------------------------------------------------------------------
+    /// compares other instance with this, member-by-member
+    inline bool operator!= (const Fragment& rhs) const
+    {
+	    return getFragment () != rhs.getFragment ();
+    }
+
 //------
 private:
 //------
 
 	bool            m_bError    {false};
-	bool            m_bDecode   {false};
 	KString         m_sFragment {};
 	size_t          m_iEndOffset{0};
 
 };
-
-//-----------------------------------------------------------------------------
-//## make this a member function
-/// compares other instance with this, member-by-member
-inline bool operator== (const Fragment& lhs, const Fragment& rhs)
-{
-	return lhs.getFragment () == rhs.getFragment ();
-}
-
-//-----------------------------------------------------------------------------
-//## make this a member function
-/// compares other instance with this, member-by-member
-inline bool operator!= (const Fragment& lhs, const Fragment& rhs)
-{
-	return lhs.getFragment () != rhs.getFragment ();
-}
 
 
 
@@ -1140,14 +1059,14 @@ inline bool operator!= (const Fragment& lhs, const Fragment& rhs)
 /// It includes the "path", "query", and "fragment" portions.
 /// The aggregation of /path?query#fragment without individual path
 /// is a TransPerfect design decision; not arbitrary.
-/// @brief RFC3986 3.3: (See RFC)
+/// RFC3986 3.3: (See RFC)
 /// Implementation: All characters after domain from '/' to 1st of "?#\0".
 /// scheme:[//[user[:password]@]host[:port]][/path][?query][#fragment]
 ///                                          -----   -----   --------
 /// URI extracts and stores a KStringView of URL "path"
 /// URI also encapsulates Query and Fragment
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class URI : public Path, public Query, public Fragment
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
 //------
@@ -1164,7 +1083,6 @@ public:
 	/// constructs instance and parses source into members
 	inline URI        (const KStringView& svSource, size_t iOffset=0)
 	{
-		m_bDecode = true;
 		parse (svSource, iOffset);
 	}
 
@@ -1255,9 +1173,9 @@ public:
 	/// restore instance to unpopulated state
 	inline void clear ()
 	{
-		//## use m_sPath.clear();
+		//## use m_sPath.clear(); DONE
 		//## and what about the other member variables?
-		m_sPath   = KString{};
+		m_sPath.clear();
 		Path        ::clear ();
 		Query       ::clear ();
 		Fragment    ::clear ();
@@ -1270,45 +1188,43 @@ public:
 		return m_iEndOffset;
 	}
 
+    //-----------------------------------------------------------------------------
+    //## use the pattern
+    //## return Path::operator==(other) && Query::operator==(other) && Fragment::operator==(other);
+    /// compares other instance with this, member-by-member
+    inline bool operator== (const URI& rhs) const
+    {
+	    const Path     & lPath       = *this, & rPath        = rhs;
+	    const Query    & lQuery      = *this, & rQuery       = rhs;
+	    const Fragment & lFragment   = *this, & rFragment    = rhs;
+	    return
+		    lPath       == rPath    &&
+		    lQuery      == rQuery   &&
+		    lFragment   == rFragment;
+    }
+
+    //-----------------------------------------------------------------------------
+    //## see before
+    /// compares other instance with this, member-by-member
+    inline bool operator!= (const URI& rhs) const
+    {
+	    const Path     & lPath       = *this, & rPath        = rhs;
+	    const Query    & lQuery      = *this, & rQuery       = rhs;
+	    const Fragment & lFragment   = *this, & rFragment    = rhs;
+	    return
+		    lPath       != rPath    ||
+		    lQuery      != rQuery   ||
+		    lFragment   != rFragment;
+    }
+
 //------
 private:
 //------
 
 	bool        m_bError     {false};
-	bool        m_bDecode    {false};
 	KString     m_sPath      {};
 	size_t      m_iEndOffset {0};
 };
-
-//-----------------------------------------------------------------------------
-//## make this a member function, and then use the pattern
-//## return Path::operator==(other) && Query::operator==(other) && Fragment::operator==(other);
-/// compares other instance with this, member-by-member
-inline bool operator== (const URI& lhs, const URI& rhs)
-{
-	return Path(lhs) == Path(rhs);
-	const Path     & lPath       = lhs, & rPath        = rhs;
-	const Query    & lQuery      = lhs, & rQuery       = rhs;
-	const Fragment & lFragment   = lhs, & rFragment    = rhs;
-	return
-		lPath       == rPath    &&
-		lQuery      == rQuery   &&
-		lFragment   == rFragment;
-}
-
-//-----------------------------------------------------------------------------
-//## see before
-/// compares other instance with this, member-by-member
-inline bool operator!= (const URI& lhs, const URI& rhs)
-{
-	const Path     & lPath       = lhs, & rPath        = rhs;
-	const Query    & lQuery      = lhs, & rQuery       = rhs;
-	const Fragment & lFragment   = lhs, & rFragment    = rhs;
-	return
-		lPath       != rPath    ||
-		lQuery      != rQuery   ||
-		lFragment   != rFragment;
-}
 
 
 
@@ -1319,8 +1235,8 @@ inline bool operator!= (const URI& lhs, const URI& rhs)
 /// scheme:[//[user[:password]@]host[:port]][/path][?query][#fragment]
 /// ------     ----  --------   ----  ----   -----   -----   --------
 /// URL extracts and stores all elements of a URL.
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class URL : public Protocol, public User, public Domain, public URI
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
 //------
@@ -1337,7 +1253,6 @@ public:
 	/// constructs instance and parses source into members
 	inline URL        (const KStringView& svSource, size_t iOffset=0)
 	{
-		m_bDecode = true;
 		parse (svSource, iOffset);
 	}
 
@@ -1505,50 +1420,47 @@ public:
 		return (Protocol::isEmail ());
 	}
 
+    //-----------------------------------------------------------------------------
+    /// compares other instance with this, member-by-member
+    inline bool operator== (const URL& rhs) const
+    {
+	    //## use the upcast pattern shown before
+	    const Protocol& lProtocol   = *this, & rProtocol   = rhs;
+	    const User&     lUser       = *this, & rUser       = rhs;
+	    const Domain&   lDomain     = *this, & rDomain     = rhs;
+	    const URI&      lURI        = *this, & rURI        = rhs;
+	    return
+		    lProtocol.getProtocolEnum () == rProtocol.getProtocolEnum () &&
+		    lProtocol                    == rProtocol &&
+		    lUser                        == rUser     &&
+		    lDomain                      == rDomain   &&
+		    lURI                         == rURI      ;
+    }
+
+    //-----------------------------------------------------------------------------
+    /// compares other instance with this, member-by-member
+    inline bool operator!= (const URL& rhs) const
+    {
+	    //## use the upcast pattern shown before
+	    const Protocol& lProtocol   = *this, & rProtocol   = rhs;
+	    const User&     lUser       = *this, & rUser       = rhs;
+	    const Domain&   lDomain     = *this, & rDomain     = rhs;
+	    const URI&      lURI        = *this, & rURI        = rhs;
+	    return
+		    lProtocol.getProtocolEnum () != rProtocol.getProtocolEnum () ||
+		    lProtocol                    != rProtocol ||
+		    lUser                        != rUser     ||
+		    lDomain                      != rDomain   ||
+		    lURI                         != rURI      ;
+    }
+
 //------
 private:
 //------
 
 	bool    m_bError    {false};
-	bool    m_bDecode   {false};
 	size_t  m_iEndOffset{0};
 };
-
-//-----------------------------------------------------------------------------
-//## make this a member function
-/// compares other instance with this, member-by-member
-inline bool operator== (const URL& lhs, const URL& rhs)
-{
-	//## use the upcast pattern shown before
-	const Protocol& lProtocol   = lhs, & rProtocol   = rhs;
-	const User&     lUser       = lhs, & rUser       = rhs;
-	const Domain&   lDomain     = lhs, & rDomain     = rhs;
-	const URI&      lURI        = lhs, & rURI        = rhs;
-	return
-		lProtocol.getProtocolEnum () == rProtocol.getProtocolEnum () &&
-		lProtocol                    == rProtocol &&
-		lUser                        == rUser     &&
-		lDomain                      == rDomain   &&
-		lURI                         == rURI      ;
-}
-
-//-----------------------------------------------------------------------------
-//## make this a member function
-/// compares other instance with this, member-by-member
-inline bool operator!= (const URL& lhs, const URL& rhs)
-{
-	//## use the upcast pattern shown before
-	const Protocol& lProtocol   = lhs, & rProtocol   = rhs;
-	const User&     lUser       = lhs, & rUser       = rhs;
-	const Domain&   lDomain     = lhs, & rDomain     = rhs;
-	const URI&      lURI        = lhs, & rURI        = rhs;
-	return
-		lProtocol.getProtocolEnum () != rProtocol.getProtocolEnum () ||
-		lProtocol                    != rProtocol ||
-		lUser                        != rUser     ||
-		lDomain                      != rDomain   ||
-		lURI                         != rURI      ;
-}
 
 
 } // of namespace KURL

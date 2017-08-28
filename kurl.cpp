@@ -78,29 +78,27 @@ bool Protocol::parse (const KStringView& svSource, size_t iOffset)
 {
 	// TODO handle "file:///{path}" ?
 
+    bool bError{false};
+
 	clear ();
 
 	m_iEndOffset = iOffset;  // Stored for use by next ctor (if any).
 
 	size_t iFound = svSource.find (':', iOffset);
-	if ((iFound == KString::npos) || (iFound <= (iOffset+1)))
+	if ((iFound == KStringView::npos) || (iFound <= iOffset))
 	{
-		m_bError = true;
+		bError = true;
 	}
 	else
 	{
-		m_sProto = KString(svSource).substr (iOffset, iFound - iOffset);
+		m_sProto.assign(svSource.data() + iOffset, iFound - iOffset);
 
-		if (m_bDecode)
-		{
-			// Pathological case if ":" is encoded as "%3A"
-			kUrlDecode (m_sProto);
-			m_bDecode = false;
-		}
+		// Pathological case if ":" is encoded as "%3A"
+		kUrlDecode (m_sProto);
 
 		if (m_sProto == "file")
 		{
-			m_bError = true;
+			bError = true;
 		}
 		else if (m_sProto == "mailto")
 		{
@@ -120,10 +118,11 @@ bool Protocol::parse (const KStringView& svSource, size_t iOffset)
 		}
 		else
 		{
-			m_bError = true;
+			bError = true;
+			m_sProto.clear();
 		}
 	}
-	return !m_bError;
+	return !bError;
 }
 
 /* TODO Do we need these friend operators?
@@ -152,48 +151,32 @@ inline bool operator!= (const Protocol& left, const Protocol& right)
 bool User::parse (const KStringView& svSource, size_t iOffset)
 //..............................................................................
 {
+    bool bError{false}; // Never set true for User
 	clear ();
 
 	m_iEndOffset = iOffset;  // Stored for use by next ctor (if any).
 
 	size_t iFound = svSource.find_first_of ("@/?#", iOffset);
-	//## it would be more correct to compare against KStringView::npos here and
-	//## in the lines below
-	if (iFound != KString::npos && svSource[iFound] == '@')
+	if (iFound != KStringView::npos && svSource[iFound] == '@')
 	{
 		size_t iColon = svSource.find (':', iOffset);
-		if (iColon != KString::npos && iColon < iFound)
+		if (iColon != KStringView::npos && iColon < iFound)
 		{
-			//## did you consider for a second what you do here, performance wise?
-			//## svSource may have 1 billion chars. You then construct a temporary
-			//## KString, only to create a anoter one (with .substr()) that you
-			//## then assign to a third string.
-			//## Why not simply like this:
-			//## m_sUser.assign(svSource.data() + iOffset, iColon - iOffset);
-			m_sUser = KString(svSource).substr (iOffset, iColon - iOffset);
-			//## same here
-			m_sPass = KString(svSource).substr (iColon + 1, iFound - iColon - 1);
+			m_sUser.assign(svSource.data() + iOffset, iColon - iOffset);
+			m_sPass.assign(svSource.data() + iColon + 1, iFound - iColon - 1);
 		}
 		else
 		{
-			//## same here
-			m_sUser = KString(svSource).substr (iOffset, iFound - iOffset);
+			m_sUser.assign(svSource.data() + iOffset, iFound - iOffset);
 		}
 
-		m_bError = false;
 		m_iEndOffset = iFound + 1;
 
-		//## in what case should this string not be decoded? And why does
-		//## m_bDecode need to be a member var and not a par to this function?
-		if (m_bDecode)
-		{
-			kUrlDecode (m_sUser);
-			kUrlDecode (m_sPass);
-			m_bDecode = false;
-		}
+		kUrlDecode (m_sUser);
+		kUrlDecode (m_sPass);
 
 	}
-	return !m_bError;
+	return !bError;
 }
 
 
@@ -207,22 +190,19 @@ bool Domain::parseHostName (const KStringView& svSource, size_t iOffset)
 {
 	static const KString sDotCo (".co.");
 
+    bool bError{false};
 	m_iEndOffset = iOffset;  // Stored for use by next ctor (if any).
 
 	size_t iInitial = iOffset + ((svSource[iOffset] == '/') ? 1 : 0);
 	size_t iSize = svSource.size ();
 	size_t iFound = svSource.find_first_of (":/?#", iInitial);
 
-	iFound = (iFound == KString::npos) ? iSize : iFound;
+	iFound = (iFound == KStringView::npos) ? iSize : iFound;
 	m_iEndOffset = iFound;
-	//## see my comments above about performance issues here and how to fix it
-	m_sHostName  = KString(svSource).substr (iOffset, iFound - iOffset);
+	m_sHostName.assign(svSource.data() + iOffset, iFound - iOffset);
 
-	if (m_bDecode)
-	{
-		// Pathological case if ":" is encoded as "%3A"
-		kUrlDecode (m_sHostName);
-	}
+	// Pathological case if ":" is encoded as "%3A"
+	kUrlDecode (m_sHostName);
 
 	// m_sBaseName   is special-cased
 	//
@@ -242,7 +222,7 @@ bool Domain::parseHostName (const KStringView& svSource, size_t iOffset)
 	size_t i1Back = m_sHostName.find_last_of ('.');
 	if (i1Back == KString::npos)
 	{
-		m_bError = true;
+		bError = true;
 	}
 	else
 	{
@@ -258,25 +238,36 @@ bool Domain::parseHostName (const KStringView& svSource, size_t iOffset)
 			{
 				size_t i3Back = m_sHostName.find_last_of ('.', i2Back - 1);
 				i3Back = (i3Back == KString::npos) ? iOffset : i3Back;
-				m_sBaseName   = m_sHostName.substr (i3Back + 1, i2Back - i3Back);
+				m_sBaseName.assign(m_sHostName.data() + i3Back + 1, i2Back - i3Back);
 			}
 			else
 			{
-				m_sBaseName   = m_sHostName.substr (i2Back + 1, i1Back - i2Back);
+				m_sBaseName.assign(m_sHostName.data() + i2Back + 1, i1Back - i2Back);
 			}
 		}
-		else
+		else if (iOffset < m_sHostName.size() && iOffset < i1Back)
 		{
-			m_sBaseName   = m_sHostName.substr (iOffset, i1Back - iOffset + 1);
+			m_sBaseName.assign(m_sHostName.data() + iOffset, i1Back - iOffset + 1);
+			m_sBaseName.size();
 		}
+		else if (i1Back)
+		{
+			m_sBaseName.assign(m_sHostName.data(), i1Back);
+		}
+        else
+        {
+            // Uncertain about this.  Hostname without a '.'?
+			m_sBaseName.assign(m_sHostName.data());
+        }
 	}
-	return !m_bError;
+	return !bError;
 }
 
 //..............................................................................
 bool Domain::parse (const KStringView& svSource, size_t iOffset)
 //..............................................................................
 {
+    bool bError{false};
 	clear ();
 
 	if (!parseHostName (svSource, iOffset) || m_iEndOffset == svSource.size ())
@@ -290,16 +281,11 @@ bool Domain::parse (const KStringView& svSource, size_t iOffset)
 		{
 			++iColon;
 			size_t iNext = svSource.find_first_of ("/?#", iColon);
-			iNext = (iNext == KString::npos) ? svSource.size () : iNext;
+			iNext = (iNext == KStringView::npos) ? svSource.size () : iNext;
 			// Get port as string
-			// Something is wrong with substr on KStringView.
-			KString sPortName{KString(svSource).substr (iColon, iNext - iColon)};
-			//KStringView svPortName = sPortName;
-			//KString sPortName{svPortName};
-			if (m_bDecode)
-			{
-				kUrlDecode (sPortName);
-			}
+			KString sPortName;
+            sPortName.assign(svSource.data() + iColon, iNext - iColon);
+			kUrlDecode (sPortName);
 
 			const char* sPort = sPortName.c_str ();
 			// Parse port as number
@@ -308,8 +294,7 @@ bool Domain::parse (const KStringView& svSource, size_t iOffset)
 		}
 	}
 
-	m_bDecode = false;
-	return !m_bError;
+	return !bError;
 }
 
 
@@ -324,43 +309,39 @@ bool Path::parse (const KStringView& svSource, size_t iOffset)
 {
 	clear ();
 
+    bool bError{false};
 	m_iEndOffset = iOffset;                     // Stored for use by next ctor
 
 	size_t iIndex{iOffset};
-	m_bError = false;
 
 	size_t iStart = svSource.find_first_of ("/?#", iOffset);
 
 	// Remaining string MUST begin with Path, Query, or Fragment prefix.
-	m_bError = (svSource.size () && iStart == KString::npos);
+	bError = (svSource.size () > iOffset && iStart == KStringView::npos);
 
-	if (!m_bError && svSource[iStart] == '/')
+	if (!bError && svSource[iStart] == '/')
 	{
 		++iOffset;
 
 		size_t iSize = svSource.size ();
 		size_t iFound = svSource.find_first_of ("?#", iOffset);
 
-		iFound  = (iFound == KString::npos) ? iSize : iFound;
-		m_sPath = KString(svSource).substr (iOffset-1, iFound - iOffset + 1);
+		iFound  = (iFound == KStringView::npos) ? iSize : iFound;
+		m_sPath.assign(svSource.data() + iOffset-1, iFound - iOffset + 1);
 		iIndex  = iOffset = m_iEndOffset = iFound;
-		if (m_bDecode)
-		{
-			kUrlDecode (m_sPath);
-			m_bDecode = false;
-		}
+		kUrlDecode (m_sPath);
 	}
 
-	if (!m_bError)
+	if (!bError)
 	{
 		m_iEndOffset = iIndex;
 	}
 	else
 	{
 		clear ();
-		m_bError = true;
+		bError = true;
 	}
-	return !m_bError;
+	return !bError;
 }
 
 
@@ -373,6 +354,7 @@ bool Path::parse (const KStringView& svSource, size_t iOffset)
 bool Query::parse (const KStringView& svSource, size_t iOffset)
 //..............................................................................
 {
+    bool bError{false};
 	clear ();
 
 	m_iEndOffset = iOffset;  // Stored for use by next ctor (if any).
@@ -384,64 +366,59 @@ bool Query::parse (const KStringView& svSource, size_t iOffset)
 	}
 	size_t iSize = svSource.size ();
 	size_t iFound = svSource.find ('#', iOffset);
-	iFound = (iFound == KString::npos) ? iSize : iFound;
+	iFound = (iFound == KStringView::npos) ? iSize : iFound;
 	m_iEndOffset = iFound;
-	//## why is there a need to keep a copy of the verbatim query string
-	//## in a member variable - can't it at any time be reconstructed
-	//## from the KProps struct?
-	m_sQuery = KString(svSource).substr (iOffset, iFound - iOffset);
+    KStringView svQuery;
+    svQuery = svSource.substr(iOffset, iFound - iOffset);
 
-	if (m_bDecode)
-	{
-		kUrlDecode (m_sQuery);
-		m_bDecode = false;
-	}
+	//bError =
+	decode (svQuery);
 
-	decode ();
-
-	return !m_bError;
+	return !bError;
 }
 
 //..............................................................................
-bool Query::decode ()
+bool Query::decode (KStringView svQuery)
 //..............................................................................
 {
-	size_t iAnchor = 0, iEnd, iEquals, iTerminal = m_sQuery.size ();
+    bool bError{false};
+	size_t iAnchor = 0, iEnd, iEquals, iTerminal = svQuery.size ();
 
 	if (iTerminal)
 	{
 		do
 		{
 			// Get bounds of query pair
-			iEnd = m_sQuery.find ('&', iAnchor); // Find division
+			iEnd = svQuery.find ('&', iAnchor); // Find division
 
 			iEnd = (iEnd == KString::npos) ? iTerminal : iEnd;
-			KStringView svEncoded(m_sQuery.substr (iAnchor, iEnd - iAnchor));
 
-			iEquals = svEncoded.find ('=');
-			if (iEquals == KString::npos)
+			KString sEncoded;
+            sEncoded.assign (svQuery.data() + iAnchor, iEnd - iAnchor);
+
+			iEquals = sEncoded.find ('=');
+			if (iEquals == KStringView::npos)
 			{
-				m_bError = true;
-				return !m_bError;
+				bError = (iTerminal != iEnd);
+				return !bError;
 			}
-			KString svKey (KString(svEncoded).substr (0          , iEquals));
-			KString svVal (KString(svEncoded).substr (iEquals + 1         ));
+			KString sKeyEncoded (sEncoded.substr (0          , iEquals));
+			KString sValEncoded (sEncoded.substr (iEquals + 1         ));
 
-			if (svKey.size () && svVal.size ())
+			if (sKeyEncoded.size () && sValEncoded.size ())
 			{
-				//## key and val are already decoded, look at parse()...
+                // decoding may only happen AFTER '=' '&' detections
 				KString sKey, sVal;
-				kUrlDecode (svKey, sKey);
-				kUrlDecode (svVal, sVal);
-				//## and not using a std::move() here is not good.
-				m_kpQuery.Add (sKey, sVal);
+				kUrlDecode (sKeyEncoded, sKey);
+				kUrlDecode (sValEncoded, sVal);
+				m_kpQuery.Add (std::move(sKey), std::move(sVal));
 			}
 
 			iAnchor = iEnd + 1;  // Move anchor forward
 
 		} while (iEnd < iTerminal);
 	}
-	return true;
+	return !bError;
 }
 
 
@@ -456,33 +433,19 @@ bool Query::serialize (KString& sTarget) const
 		sTarget += '?';
 
 		bool bAmpersand = false;
-		//## change the below loop to
-		//## for (const auto& it : m_kpQuery)
-		//## {
-		//## 	if (bAmpersand)
-		//## 	{
-		//## 		sTarget += '&';
-		//## 	}
-		//## 	else
-		//## 	{
-		//## 		bAmpersand = true;
-		//## 	}
-		//## 	kUrlEncode(it.first, sTarget);
-		//## 	sTarget += '=';
-		//## 	kUrlEncode(it.second, sTarget);
-		//## }
-		KProp_t::const_iterator cmIter;
-		for (cmIter = m_kpQuery.begin (); cmIter != m_kpQuery.end (); ++cmIter)
+		for (const auto& it : m_kpQuery)
 		{
 			if (bAmpersand)
 			{
 				sTarget += '&';
 			}
-			bAmpersand = true;
-
-			kUrlEncode (cmIter->first , sTarget);
+			else
+			{
+				bAmpersand = true;
+			}
+			kUrlEncode(it.first, sTarget);
 			sTarget += '=';
-			kUrlEncode (cmIter->second, sTarget);
+			kUrlEncode(it.second, sTarget);
 		}
 	}
 	return true;
@@ -503,14 +466,8 @@ bool Fragment::parse (const KStringView& svSource, size_t iOffset)
 
 	m_iEndOffset = iOffset;  // Stored for use by next ctor (if any).
 
-	//## see above..
-	m_sFragment  = KString(svSource).substr (iOffset, svSource.size () - iOffset);
-	if (m_bDecode)
-	{
-		kUrlDecode (m_sFragment);
-		m_bDecode = false;
-	}
-
+    m_sFragment.assign (svSource.data () + iOffset, svSource.size () - iOffset);
+	kUrlDecode (m_sFragment);
 
 	m_iEndOffset = svSource.size ();
 	return !m_bError;

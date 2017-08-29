@@ -42,6 +42,9 @@
 
 #pragma once
 
+/// @file kprops.h
+/// provides a multi-indexed container used for property sheets
+
 #if !defined(NDEBUG)
 #define BOOST_MULTI_INDEX_ENABLE_INVARIANT_CHECKING
 #define BOOST_MULTI_INDEX_ENABLE_SAFE_MODE
@@ -151,8 +154,8 @@ protected:
 }; // KPropsBase
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// The KProps template class is a generic key value store that allows
-/// for optimized associative and random (index) access at the same time.
+/// Generic key value store with optimized associative and sequentially
+/// indexed access at the same time.
 ///
 /// If sequential access is not needed, it can be switched off by
 /// instantiating with the template parameter Sequential set to false.

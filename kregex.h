@@ -42,6 +42,9 @@
 
 #pragma once
 
+/// @file kregex.h
+/// The Regular Expression encapsulation
+
 #include <re2/re2.h>
 #include <vector>
 #include <boost/functional/hash.hpp>
@@ -55,7 +58,7 @@
 namespace std
 {
     //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-	// add a hash function for re2::StringPiece
+	/// provide a std::hash for re2::StringPiece
 	template<>
 	struct hash<re2::StringPiece>
 	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -77,7 +80,7 @@ namespace std
 namespace boost
 {
 	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-	// add a hash function for re2::StringPiece
+	/// provide a boost::hash for re2::StringPiece
 	template<>
 	struct hash<re2::StringPiece>
 	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::

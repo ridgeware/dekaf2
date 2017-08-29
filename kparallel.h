@@ -42,6 +42,9 @@
 
 #pragma once
 
+/// @file kparallel.h
+/// collection of classes and functions for parallelization support
+
 #include <memory>
 #include <thread>
 #include <mutex>
@@ -104,12 +107,13 @@ public:
 };
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// Run a number of threads that call a given function. The number of threads
+/// Runs a number of threads that call a given function. The number of threads
 /// is automatically set to the number of processor cores if no count is given.
 /// All threads have to join at destruction of the class, except those started
 /// in detached mode. The thread launch mechanism maintains a thread counter
 /// which can be accessed in a running thread via CRunThread's static method
 /// get_ThreadNum(). The logging facilities use this.
+///
 /// This class also allows for an arbitrary number of different threads in
 /// different modes to be started. The common denominator is that all joinable
 /// threads have to join when the destructor of the class instance is called.
@@ -196,6 +200,8 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// Checks if threads have already been started since startup.
+	/// @return true if at least one thread has already been started, otherwise false.
 	inline static bool HasThreadsStarted()
 	//-----------------------------------------------------------------------------
 	{
@@ -203,6 +209,8 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// Gets the internal number of this thread. Each started thread gets an
+	/// incrementing number.
 	inline static size_t GetThreadNum()
 	//-----------------------------------------------------------------------------
 	{
@@ -212,7 +220,10 @@ public:
 //----------
 protected:
 //----------
+
 	//-----------------------------------------------------------------------------
+	/// The internal thread start function. This redirection is needed to assign
+	/// each thread an incrementing thread number.
 	template<class Function, class... Args>
 	void RunThread(Function&& f, Args&&... args)
 	//-----------------------------------------------------------------------------
@@ -229,6 +240,7 @@ protected:
 //----------
 private:
 //----------
+
 	size_t                     m_numThreads;
 	std::chrono::microseconds  m_pause{0};
 	bool                       m_start_detached{false};
@@ -240,6 +252,7 @@ private:
 }; // KRunThreads
 
 //-----------------------------------------------------------------------------
+/// Default implementation of the progress printer for parallel_for_each()
 void kParallelForEachPrintProgress(size_t iMax, size_t iDone, size_t iRunning);
 //-----------------------------------------------------------------------------
 
@@ -349,14 +362,20 @@ void kParallelForEach(Container c,
 }
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// Provides an execution barrier that only lets one of multiple equal ID
+/// values execute. All other instances with the same value have to wait until
+/// the first one finishes, then the next, and so on.
 class KBlockOnID
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
+
 //----------
 public:
 //----------
 
 	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	/// Holds the actual locks for the KBlockOnID instance. Should be a static
+	/// var at a given call site.
 	class Data
 	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	{
@@ -365,30 +384,37 @@ public:
 	//----------
 	public:
 	//----------
+
 		//-----------------------------------------------------------------------------
+		/// ctor. Initializes locks.
 		Data()
 		//-----------------------------------------------------------------------------
 		{
 		}
 
 		//-----------------------------------------------------------------------------
+		/// Tests if an actual ID would block right now.
 		bool WouldBlock(size_t ID);
 		//-----------------------------------------------------------------------------
 
 	//----------
 	protected:
 	//----------
+
 		//-----------------------------------------------------------------------------
+		/// Lock an ID.
 		void Lock(size_t ID);
 		//-----------------------------------------------------------------------------
 
 		//-----------------------------------------------------------------------------
+		/// Unlock an ID.
 		bool Unlock(size_t ID);
 		//-----------------------------------------------------------------------------
 
 	//----------
 	private:
 	//----------
+
 		typedef std::unique_ptr<std::mutex> unique_mutex_t;
 		typedef std::map<size_t, unique_mutex_t> lockmap_t;
 		lockmap_t   m_id_mutexes;
@@ -397,6 +423,9 @@ public:
 	};
 
 	//-----------------------------------------------------------------------------
+	/// Constructor.
+	/// @param data The lock instance, typically a static var at the call site.
+	/// @param ID The ID to lock for.
 	KBlockOnID(Data& data, size_t ID)
 	//-----------------------------------------------------------------------------
 	    : m_data(data)
@@ -406,6 +435,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// Destructor unlocks the ID.
 	~KBlockOnID()
 	//-----------------------------------------------------------------------------
 	{
@@ -415,6 +445,7 @@ public:
 //----------
 private:
 //----------
+
 	Data&  m_data;
 	size_t m_MyID;
 };

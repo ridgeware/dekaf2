@@ -46,6 +46,9 @@
 
 #pragma once
 
+/// @file ksignals.h
+/// Provides a threaded signal handler framework. Other threads will not receive signals.
+
 #include <mutex>
 #include <vector>
 #include <condition_variable>
@@ -57,42 +60,133 @@ namespace dekaf2
 {
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// Provides a threaded signal handler framework. Other threads will not receive signals.
+/// Permits to set callbacks for any signal that shall not be ignored. Can
+/// start these callbacks in threads of its own, to return as fast as possible
+/// from the signal handler.
 class KSignals
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
+
 //----------
 public:
 //----------
+
+	/// the type of a handler callback function using std::function
 	typedef std::function<void(int)> std_func_t;
+
+	/// the type of a handler callback function using a function pointer
 	typedef void (*signal_func_t)(int);
 
+	//-----------------------------------------------------------------------------
+	/// Constructs the signal handler framework.
+	/// @param bStartHandlerThread
+	/// If false this effectively only blocks signals on the calling
+	/// thread (as far as possible), and does nothing else.
+	/// If true, in addition to blocking signals on the calling
+	/// thread it starts a separate signal handler thread which then
+	/// will receive signals and call installed callbacks.
 	KSignals(bool bStartHandlerThread = true);
-	~KSignals();
+	//-----------------------------------------------------------------------------
 
+	//-----------------------------------------------------------------------------
+	/// dtor. Does not stop the running signal handler.
+	~KSignals();
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// Explicitly sets all signals to be ignored. This basically resets
+	/// the signal handling to its state after construction.
 	void IgnoreAllSignals();
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// Sets all signals (that can be set) to call the signal handler in
+	/// @a func.
+	/// @param func
+	/// The signal handler to be called
+	/// @param bAsThread
+	/// Whether the signal handler will be called in its own thread (true)
+	/// or whether the signal's slot shall be used (false)
 	void SetAllSignalHandlers(std_func_t func, bool bAsThread = false);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// Sets a signal handler for one specific signal.
+	/// @param iSignal
+	/// The signal for which a signal handler shall be installer
+	/// @param func
+	/// The signal handler to be called
+	/// @param bAsThread
+	/// Whether the signal handler will be called in its own thread (true)
+	/// or whether the signal's slot shall be used (false)
 	void SetSignalHandler(int iSignal, signal_func_t func, bool bAsThread = false);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// Sets a signal handler for one specific signal.
+	/// @param iSignal
+	/// The signal for which a signal handler shall be installer
+	/// @param func
+	/// The signal handler to be called
+	/// @param bAsThread
+	/// Whether the signal handler will be called in its own thread (true)
+	/// or whether the signal's slot shall be used (false)
 	void SetSignalHandler(int iSignal, std_func_t func, bool bAsThread = false);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// Sets one specific signal to be ignored from now on.
+	/// @param iSignal
+	/// The signal that shall be ignored
 	void IgnoreSignalHandler(int iSignal)
+	//-----------------------------------------------------------------------------
 	{
 		IntDelSignalHandler(iSignal, SIG_IGN);
 	}
+
+	//-----------------------------------------------------------------------------
+	/// Sets one specific signal to use its default signal handler from now on.
+	/// @param iSignal
+	/// The signal that shall use its default signal handler
 	void DefaultSignalHandler(int iSignal)
+	//-----------------------------------------------------------------------------
 	{
 		IntDelSignalHandler(iSignal, SIG_DFL);
 	}
+
+	//-----------------------------------------------------------------------------
+	/// Waits until all requested handlers are set. As the signal handling
+	/// happens in a separate thread, the request to install or reset a
+	/// signal handler is executed asynchronously. This function waits until
+	/// all such requests are executed.
 	void WaitForSignalHandlersSet();
+	//-----------------------------------------------------------------------------
 
 //----------
 private:
 //----------
+
+	//-----------------------------------------------------------------------------
 	void PushSigsToSet(int iSignal, signal_func_t func);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
 	/// only call with func == SIG_IGN or SIG_DFL
 	void IntDelSignalHandler(int iSignal, signal_func_t func);
-	void IntSetSignalHandler(int iSignal, signal_func_t func);
-	void WaitForSignals();
+	//-----------------------------------------------------------------------------
 
+	//-----------------------------------------------------------------------------
+	void IntSetSignalHandler(int iSignal, signal_func_t func);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	void WaitForSignals();
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
 	static void LookupFunc(int signal);
+	//-----------------------------------------------------------------------------
 
 	struct sigset_t
 	{
@@ -117,9 +211,18 @@ private:
 	std::mutex m_CondVarMutex;
 	std::condition_variable m_CondVar;
 	std::vector<sigset_t> m_SigsToSet;
+
 };
 
+//-----------------------------------------------------------------------------
+/// Translate a signal number into a descriptive string.
+/// @param iSignalNum
+/// The signal number
+/// @param bConcise
+/// true (default) returns signal name only. false returns a short description
+/// of the signal as well.
 const char* kTranslateSignal (int iSignalNum, bool bConcise = true);
+//-----------------------------------------------------------------------------
 
 
 } // end of namespace dekaf2

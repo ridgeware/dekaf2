@@ -42,6 +42,9 @@
 
 #pragma once
 
+/// @file dekaf2.h
+/// basic initialization of the library
+
 #include <atomic>
 #include "kstring.h"
 
@@ -62,8 +65,10 @@ public:
 	Dekaf& operator=(Dekaf&&) = delete;
 
 	//---------------------------------------------------------------------------
-	/// set directly after program start if run in multithreading,
-	/// otherwise libs risk to be wrongly initialized
+	/// Switch library to multi threaded mode.
+	/// Set directly after program start if run in multithreading,
+	/// otherwise libs risk to be wrongly initialized when functionality is used
+	/// that relies on this setting.
 	void SetMultiThreading()
 	//---------------------------------------------------------------------------
 	{
@@ -71,7 +76,7 @@ public:
 	}
 
 	//---------------------------------------------------------------------------
-	/// shall we be prepared for multithrading?
+	/// Shall we be prepared for multithrading?
 	inline bool GetMultiThreading() const
 	//---------------------------------------------------------------------------
 	{
@@ -79,7 +84,7 @@ public:
 	}
 
 	//---------------------------------------------------------------------------
-	/// set application name, used for logging
+	/// Set application name. Used for logging.
 	void SetName(const KString& sName)
 	//---------------------------------------------------------------------------
 	{
@@ -87,7 +92,7 @@ public:
 	}
 
 	//---------------------------------------------------------------------------
-	/// get application name (user provided)
+	/// Get application name as provided by user.
 	const KString& GetName() const
 	//---------------------------------------------------------------------------
 	{
@@ -95,12 +100,12 @@ public:
 	}
 
 	//---------------------------------------------------------------------------
-	/// set the unicode locale (if empty defaults to the locale set by the current user)
+	/// Set the unicode locale. If empty defaults to the locale set by the current user.
 	bool SetUnicodeLocale(KString name = KString{});
 	//---------------------------------------------------------------------------
 
 	//---------------------------------------------------------------------------
-	/// get the unicode locale
+	/// Get the unicode locale.
 	const KString& GetUnicodeLocale()
 	//---------------------------------------------------------------------------
 	{
@@ -110,6 +115,7 @@ public:
 //----------
 private:
 //----------
+
 	std::atomic_bool m_bIsMultiThreading{false};
 	KString m_sName;
 	KString m_sLocale;
@@ -117,7 +123,7 @@ private:
 }; // Dekaf
 
 //---------------------------------------------------------------------------
-/// get unique instance of class Dekaf()
+/// Get unique instance of class Dekaf()
 class Dekaf& Dekaf();
 //---------------------------------------------------------------------------
 

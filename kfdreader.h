@@ -42,6 +42,9 @@
 
 #pragma once
 
+/// @file kfdreader.h
+/// provides std::istreams that can be constructed from open file descriptors and FILE*
+
 #include <cstdio>
 #include <streambuf>
 #include <istream>
@@ -53,13 +56,14 @@ namespace dekaf2
 {
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// an unbuffered std::istream that is constructed around a unix file descriptor
-/// (mainly to allow its usage with pipes, for general file I/O use std::ofstream)
-/// (really, do it - this one is really slow on small writes to files, on purpose,
-/// because pipes should not be buffered!)
+/// Unbuffered std::istream that is constructed around a unix file descriptor.
+/// Mainly to allow its usage with pipes, for general file I/O use std::ifstream.
+/// This one is really slow on small reads on files, on purpose, because pipes
+/// should not be buffered. Therefore do _not_ use it for ordinary file I/O.
 class KInputFDStream : public std::istream
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
+
 //----------
 protected:
 //----------
@@ -81,7 +85,9 @@ public:
 	{
 	}
 
+	//-----------------------------------------------------------------------------
 	KInputFDStream(const KInputFDStream&) = delete;
+	//-----------------------------------------------------------------------------
 
 #if !defined(__GNUC__) || (DEKAF2_GCC_VERSION >= 50000)
 	//-----------------------------------------------------------------------------
@@ -140,19 +146,22 @@ public:
 //----------
 protected:
 //----------
+
 	int m_FileDesc{-1};
 
 	// see comment in KWriter's KOStreamBuf about the legality
 	// to only construct the KIStreamBuf here, but to use it in
 	// the constructor before
 	KInStreamBuf m_FPStreamBuf{&FileDescReader, &m_FileDesc};
+
 };
 
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// a buffered std::istream that is constructed around a FILE ptr
-/// (mainly to allow its usage with pipes, for general file I/O use std::ofstream)
-/// (really, do it - this one does not implement the full istream interface)
+/// Buffered std::istream that is constructed around a FILE*.
+/// Mainly to allow its usage with pipes, for general file I/O use std::ifstream.
+/// Do _not_ use it for ordinary file I/O, it does not implement the full
+/// std::istream interface.
 class KInputFPStream : public std::istream
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -177,9 +186,13 @@ public:
 	{
 	}
 
+	//-----------------------------------------------------------------------------
+	/// copy constructor is deleted
 	KInputFPStream(const KInputFPStream&) = delete;
+	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	/// move constructor
 	KInputFPStream(KInputFPStream&& other);
 	//-----------------------------------------------------------------------------
 
@@ -192,14 +205,19 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// destructor
 	virtual ~KInputFPStream();
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	/// move assignment
 	KInputFPStream& operator=(KInputFPStream&& other);
 	//-----------------------------------------------------------------------------
 
+	//-----------------------------------------------------------------------------
+	/// copy assignment is deleted
 	KInputFPStream& operator=(const KInputFPStream&) = delete;
+	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// the main purpose of this class: open from a FILE ptr
@@ -230,12 +248,14 @@ public:
 //----------
 protected:
 //----------
+
 	FILE* m_FilePtr{nullptr};
 
 	// see comment in KWriter's KOStreamBuf about the legality
 	// to only construct the KIStreamBuf here, but to use it in
 	// the constructor before
 	KInStreamBuf m_FPStreamBuf{&FilePtrReader, &m_FilePtr};
+
 };
 
 

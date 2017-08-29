@@ -42,6 +42,9 @@
 
 #pragma once
 
+/// @file ksslclient.h
+/// typedefs a KSSLClient type
+
 #include "ksslstream.h"
 
 namespace dekaf2

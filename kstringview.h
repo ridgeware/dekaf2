@@ -42,6 +42,9 @@
 
 #pragma once
 
+/// @file kstringview.h
+/// string view implementation
+
 #include <functional>
 #include <boost/functional/hash.hpp>
 #include "bits/kcppcompat.h"
@@ -366,7 +369,7 @@ inline bool operator>=(KStringView left, KStringView right)
 namespace std
 {
 	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-	// add a hash function for KStringView
+	/// provide a std::hash for KStringView
 	template<>
 	struct hash<dekaf2::KStringView>
 	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -385,7 +388,7 @@ namespace std
 namespace boost
 {
 	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-	// add a hash function for KStringView
+	/// provide a boost::hash for KStringView
 	template<>
 	struct hash<dekaf2::KStringView>
 	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::

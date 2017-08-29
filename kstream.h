@@ -42,6 +42,9 @@
 
 #pragma once
 
+/// @file kstream.h
+/// bidirectional streams
+
 #include "kreader.h"
 #include "kwriter.h"
 
@@ -140,7 +143,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	// perfect forwarding
+	/// perfect forwarding ctor (forwards all arguments to the iostream)
 	template<class... Args>
 	KReaderWriter(Args&&... args)
 	    : base_type(std::forward<Args>(args)...)

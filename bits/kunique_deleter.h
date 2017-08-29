@@ -42,6 +42,10 @@
 
 #pragma once
 
+/// @file kunique_deleter.h
+/// provides a deleter template to enable Empty Base Optimization for
+/// non-default deleters of std::unique_ptr
+
 #include <memory>
 
 namespace dekaf2

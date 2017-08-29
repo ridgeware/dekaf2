@@ -42,6 +42,9 @@
 
 #pragma once
 
+/// @file kreader.h
+/// holds the basic reader abstraction
+
 #include <streambuf>
 #include <istream>
 #include <fstream>

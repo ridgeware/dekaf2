@@ -42,6 +42,9 @@
 
 #pragma once
 
+/// @file ktemplate.h
+/// helper templates for template meta programming
+
 #include <functional>
 #include <cwctype>
 #include <type_traits>

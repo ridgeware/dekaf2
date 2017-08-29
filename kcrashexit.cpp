@@ -59,7 +59,7 @@ void kCrashExit (int iSignalNum)
 //-----------------------------------------------------------------------------
 {
 	// switch automatic backtracing off
-	KLog().SetBackTrace(100);
+	KLog().SetBackTraceLevel(100);
 
 	// and start our own stackdump
 

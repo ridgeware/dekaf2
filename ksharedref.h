@@ -42,6 +42,17 @@
 
 #pragma once
 
+/// @file ksharedref.h
+/// A shared pointer implementation that adapts per template instance for
+/// multi/single threading case.
+/// Other than a standard shared pointer it allows the user to select between
+/// multi or single threading safe operation. This is important because the
+/// required atomic synchronization for the multi threading safe implementation
+/// costs around 50% of performance for construction / destruction.
+///
+/// Also provides a template to generate a
+/// class of any type that will hold a reference to the shared pointer.
+
 #include <atomic>
 #include <functional>
 
@@ -49,6 +60,14 @@ namespace dekaf2
 {
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// A shared pointer implementation that adapts per template instance for
+/// multi/single threading case. Uses perfect forwarding and variadic
+/// templates to simplify construction of an instance (no manual
+/// object generation is needed).
+/// Other than a standard shared pointer it allows the user to select between
+/// multi or single threading safe operation. This is important because the
+/// required atomic synchronization for the multi threading safe implementation
+/// costs around 50% of performance for construction / destruction.
 template<class T, bool bMultiThreaded = false>
 class KSharedRef
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -60,6 +79,7 @@ public:
 //----------
 
 	//-----------------------------------------------------------------------------
+	/// copy construction is allowed
 	KSharedRef(const self_type& other) noexcept
 	//-----------------------------------------------------------------------------
 	{
@@ -68,6 +88,8 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// copy construction is allowed (need to repeat the non-const case because
+	/// of perfect forwarding in another constructor)
 	KSharedRef(self_type& other) noexcept
 	//-----------------------------------------------------------------------------
 	{
@@ -76,6 +98,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// move construction is allowed
 	KSharedRef(self_type&& other) noexcept
 	//-----------------------------------------------------------------------------
 	{
@@ -84,6 +107,8 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// Construction with any arguments the shared type permits.
+	/// Uses perfect forwarding.
 	template<class... Args>
 	KSharedRef(Args&&... args)
 	//-----------------------------------------------------------------------------
@@ -92,6 +117,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// destructor
 	~KSharedRef()
 	//-----------------------------------------------------------------------------
 	{
@@ -99,6 +125,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// copy assignment is allowed
 	self_type& operator=(const self_type& other) noexcept
 	//-----------------------------------------------------------------------------
 	{
@@ -109,6 +136,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// move assignment is allowed
 	self_type& operator=(self_type&& other) noexcept
 	//-----------------------------------------------------------------------------
 	{
@@ -119,6 +147,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// returns the use count of the shared type
 	inline size_t UseCount() const
 	//-----------------------------------------------------------------------------
 	{
@@ -126,6 +155,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// gets a const reference to the shared type
 	inline const T& get() const
 	//-----------------------------------------------------------------------------
 	{
@@ -133,6 +163,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// gets a reference to the shared type
 	inline T& get()
 	//-----------------------------------------------------------------------------
 	{
@@ -140,6 +171,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// gets a const reference to the shared type
 	inline operator const T&() const
 	//-----------------------------------------------------------------------------
 	{
@@ -147,6 +179,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// gets a reference to the shared type
 	inline operator T&()
 	//-----------------------------------------------------------------------------
 	{
@@ -154,6 +187,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// gets a const reference to the shared type
 	inline const T& operator*() const
 	//-----------------------------------------------------------------------------
 	{
@@ -161,6 +195,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// gets a reference to the shared type
 	inline T& operator*()
 	//-----------------------------------------------------------------------------
 	{
@@ -168,6 +203,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// gets a const pointer to the shared type
 	inline const T* operator->() const
 	//-----------------------------------------------------------------------------
 	{
@@ -175,6 +211,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// gets a pointer to the shared type
 	inline T* operator->()
 	//-----------------------------------------------------------------------------
 	{
@@ -186,6 +223,7 @@ protected:
 //----------
 
 	//-----------------------------------------------------------------------------
+	/// increase the reference count
 	inline void inc()
 	//-----------------------------------------------------------------------------
 	{
@@ -196,6 +234,7 @@ protected:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// decrease the reference count
 	inline void dec()
 	//-----------------------------------------------------------------------------
 	{
@@ -206,6 +245,11 @@ protected:
 	}
 
 	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	/// A struct that holds shared type and reference count in one instance.
+	/// Other than a standard shared pointer it allows the user to select between
+	/// multi or single threading safe operation. This is important because the
+	/// required atomic synchronization for the multi threading safe implementation
+	/// costs around 50% of performance for construction / destruction.
 	struct Reference
 	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	{
@@ -217,14 +261,17 @@ protected:
 		using RefCount_t = std::conditional_t<bMultiThreaded, std::atomic_size_t, size_t>;
 
 		//-----------------------------------------------------------------------------
+		/// perfect-forwarding constructor. Allows any parameter that is accepted by the
+		/// shared type.
 		template<class... Args>
 		Reference(Args&&... args)
 		    : m_Reference(std::forward<Args>(args)...)
-		    //-----------------------------------------------------------------------------
+		//-----------------------------------------------------------------------------
 		{
 		}
 
 		//-----------------------------------------------------------------------------
+		/// increase reference count for the multi threaded case
 		template<bool bMT = bMultiThreaded, typename std::enable_if<bMT == true>::type* = nullptr>
 		inline void inc()
 		//-----------------------------------------------------------------------------
@@ -233,6 +280,7 @@ protected:
 		}
 
 		//-----------------------------------------------------------------------------
+		/// increase reference count for the single threaded case
 		template<bool bMT = bMultiThreaded, typename std::enable_if<bMT == false>::type* = nullptr>
 		inline void inc()
 		//-----------------------------------------------------------------------------
@@ -241,6 +289,7 @@ protected:
 		}
 
 		//-----------------------------------------------------------------------------
+		/// decrease reference count for the multi threaded case
 		template<bool bMT = bMultiThreaded, typename std::enable_if<bMT == true>::type* = nullptr>
 		inline size_t dec()
 		//-----------------------------------------------------------------------------
@@ -249,6 +298,7 @@ protected:
 		}
 
 		//-----------------------------------------------------------------------------
+		/// decrease reference count for the single threaded case
 		template<bool bMT = bMultiThreaded, typename std::enable_if<bMT == false>::type* = nullptr>
 		inline size_t dec()
 		//-----------------------------------------------------------------------------
@@ -257,6 +307,7 @@ protected:
 		}
 
 		//-----------------------------------------------------------------------------
+		/// gets a const reference on the shared type
 		inline const T& get() const
 		//-----------------------------------------------------------------------------
 		{
@@ -264,6 +315,7 @@ protected:
 		}
 
 		//-----------------------------------------------------------------------------
+		/// gets a reference on the shared type
 		inline T& get()
 		//-----------------------------------------------------------------------------
 		{
@@ -281,6 +333,9 @@ protected:
 
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// Implements the concept of a "dependant" type on a shared type.
+/// The shared type is automatically released when the dependant
+/// type goes out of scope. Both types do not have to be of same origin.
 template<class BaseT, class DependantT, bool bMultiThreaded = false>
 class KDependant
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -295,12 +350,15 @@ public:
 	using dependant_type = DependantT;
 
 	//-----------------------------------------------------------------------------
+	/// default constructor. Constructs an empty instance with no reference to a
+	/// shared type.
 	KDependant()
 	//-----------------------------------------------------------------------------
 	{
 	}
 
 	//-----------------------------------------------------------------------------
+	/// copy construction is allowed
 	KDependant(const KDependant& other)
 	//-----------------------------------------------------------------------------
 	    : m_rep(other.m_rep)
@@ -309,6 +367,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// move construction is allowed
 	KDependant(KDependant&& other) noexcept
 	//-----------------------------------------------------------------------------
 	    : m_rep(std::move(other.m_rep))
@@ -317,6 +376,8 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// constructs the internal object from the shared object it depends on (if
+	/// possible)
 	KDependant(shared_type& shared)
 	//-----------------------------------------------------------------------------
 	    : m_rep(shared)
@@ -325,6 +386,8 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// constructs the internal object from a list of arguments. Prefixed by the
+	/// shared object it depends on
 	template<class Base, class... Dep>
 	KDependant(Base&& shared, Dep&&... dep)
 	//-----------------------------------------------------------------------------
@@ -334,6 +397,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// copy assignment is allowed
 	KDependant& operator=(const KDependant& other)
 	//-----------------------------------------------------------------------------
 	{
@@ -343,6 +407,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// move assignment is allowed
 	KDependant& operator=(KDependant&& other) noexcept
 	//-----------------------------------------------------------------------------
 	{
@@ -352,6 +417,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// gets a const reference on the internal type
 	operator const dependant_type&() const
 	//-----------------------------------------------------------------------------
 	{
@@ -359,6 +425,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// gets a reference on the internal type
 	operator dependant_type&()
 	//-----------------------------------------------------------------------------
 	{

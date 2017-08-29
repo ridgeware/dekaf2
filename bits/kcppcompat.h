@@ -45,6 +45,9 @@
 
 #pragma once
 
+/// @file kcppcompat.h
+/// compatibility layer to provide same interfaces for C++11 to 17
+
 #include "kconfiguration.h"
 
 #if defined __GNUC__

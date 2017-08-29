@@ -42,6 +42,9 @@
 
 #pragma once
 
+/// @file kmutable_pair.h
+/// provides a helper for boost multi_index
+
 #include <utility>
 
 namespace dekaf2

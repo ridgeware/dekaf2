@@ -42,6 +42,9 @@
 
 #pragma once
 
+/// @file kstringutils.h
+/// standalone string utility functions
+
 #include <cinttypes>
 #include <algorithm>
 #include <functional>

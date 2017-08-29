@@ -42,13 +42,14 @@
 
 #pragma once
 
+/// @file kstring.h
+/// dekaf2's own string class - a wrapper around std::string
+/// that handles most error cases in a benign way
+
 #include "bits/kcppcompat.h"
 #include <string>
-#include <vector>
-#include <cstdarg>
-#include <cstring>
-#include <cctype>
 #include <istream>
+#include <ostream>
 #include "kformat.h"
 #include "kstringview.h"
 
@@ -62,10 +63,11 @@ bool kStrIn (const char* sNeedle, const char* sHaystack, char iDelim=',');
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// dekaf2's own string class - a wrapper around std::string
-/// which handles most error cases in a benign way
+/// that handles most error cases in a benign way
 class KString 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
+
 	typedef std::string string_type;
 
 //----------
@@ -486,13 +488,12 @@ inline KString operator+(KString&& left, KString::value_type right)
 
 } // end of namespace dekaf2
 
-// provide a std::hash for KString
-
 namespace std
 {
 	std::istream& getline(std::istream& stream, dekaf2::KString& str);
 	std::istream& getline(std::istream& stream, dekaf2::KString& str, dekaf2::KString::value_type delimiter);
 
+	/// provide a std::hash for KString
 	template<> struct hash<dekaf2::KString>
 	{
 		typedef dekaf2::KString argument_type;
@@ -505,13 +506,11 @@ namespace std
 
 } // end of namespace std
 
-
-// provide a hash for boost, too..
-
 #include <boost/functional/hash.hpp>
 
 namespace boost
 {
+	/// provide a boost::hash for KString
 	template<> struct hash<dekaf2::KString> : public std::unary_function<dekaf2::KString, std::size_t>
 	{
 		typedef dekaf2::KString argument_type;

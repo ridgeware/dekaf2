@@ -42,6 +42,9 @@
 
 #pragma once
 
+/// @file klog.h
+/// Logging framework
+
 #include <exception>
 #include <fstream>
 #include "kstring.h"
@@ -53,6 +56,28 @@ namespace dekaf2
 {
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// Primary logging facility for dekaf2.
+/// The logging logics in dekaf historically follows the idea that the log
+/// level will be set at program start, probably by a command line argument.
+///
+/// It can also be changed during runtime of the application by
+/// changing a "flagfile" in the file system. This setting change will be
+/// picked up by the running application within a second.
+/// log messages that have a "level" equal or lower than the value of the
+/// set "debug level" will be output.
+///
+/// In addition to this, the present logging implementation provides automated
+/// stack traces for caught exceptions and for logged messages lower than a
+/// configurable level.
+///
+/// This implementation has taken great care that only one instruction is
+/// executed at logging call places if the level is too low for the message
+/// to be logged - the comparison of the log level with the importance of
+/// the message.
+///
+/// KLog is implemented as sort of a singleton. It is guaranteed to be
+/// instantiated whenever it is called, also in the early initialization
+/// phase of the program for e.g. static types.
 class KLog
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -66,6 +91,8 @@ public:
 	KLog& operator=(KLog&&) = delete;
 
 	//---------------------------------------------------------------------------
+	/// Gets the current log level. Any log message that has a higher level than
+	/// this value is not output.
 	static inline int GetLevel()
 	//---------------------------------------------------------------------------
 	{
@@ -73,6 +100,7 @@ public:
 	}
 
 	//---------------------------------------------------------------------------
+	/// Sets a new log level.
 	inline void SetLevel(int iLevel)
 	//---------------------------------------------------------------------------
 	{
@@ -80,14 +108,16 @@ public:
 	}
 
 	//---------------------------------------------------------------------------
-	inline int GetBackTrace() const
+	/// Get level at which back traces are automatically generated.
+	inline int GetBackTraceLevel() const
 	//---------------------------------------------------------------------------
 	{
 		return m_iBackTrace;
 	}
 
 	//---------------------------------------------------------------------------
-	inline int SetBackTrace(int iLevel)
+	/// Set level at which back traces are automatically generated.
+	inline int SetBackTraceLevel(int iLevel)
 	//---------------------------------------------------------------------------
 	{
 		m_iBackTrace = iLevel;
@@ -95,10 +125,12 @@ public:
 	}
 
 	//---------------------------------------------------------------------------
+	/// Set the output file for the log.
 	bool SetDebugLog(KStringView sLogfile);
 	//---------------------------------------------------------------------------
 
 	//---------------------------------------------------------------------------
+	/// Gets the file name of the output file for the log.
 	inline KStringView GetDebugLog() const
 	//---------------------------------------------------------------------------
 	{
@@ -106,10 +138,14 @@ public:
 	}
 
 	//---------------------------------------------------------------------------
+	/// Sets the file name of the flag file. The flag file is monitored in
+	/// regular intervals, and if changed its content is read and interpreted
+	/// as the new log level.
 	bool SetDebugFlag(KStringView sFlagfile);
 	//---------------------------------------------------------------------------
 
 	//---------------------------------------------------------------------------
+	/// Gets the file name of the flag file.
 	inline KStringView GetDebugFlag() const
 	//---------------------------------------------------------------------------
 	{
@@ -135,6 +171,9 @@ public:
 	}
 
 	//---------------------------------------------------------------------------
+	/// Logs a warning. Takes any arguments that can be formatted through the
+	/// standard formatter of the library. A warning is a debug message with
+	/// level -1.
 	template<class... Args>
 	inline bool warning(Args&&... args)
 	//---------------------------------------------------------------------------
@@ -143,7 +182,7 @@ public:
 	}
 
 	//---------------------------------------------------------------------------
-	/// report a known exception
+	/// report a known exception - better use kException().
 	void Exception(const std::exception& e, KStringView sFunction, KStringView sClass = "")
 	//---------------------------------------------------------------------------
 	{
@@ -151,7 +190,7 @@ public:
 	}
 
 	//---------------------------------------------------------------------------
-	/// report an unknown exception
+	/// report an unknown exception - better use kUnknownException().
 	void Exception(KStringView sFunction, KStringView sClass = "")
 	//---------------------------------------------------------------------------
 	{
@@ -210,6 +249,7 @@ KLog& KLog();
 	#undef kDebug
 #endif
 //---------------------------------------------------------------------------
+/// log a debug message, automatically provide function name.
 #define kDebug(level, ...) \
 { \
 	if (level <= KLog::s_kLogLevel) \
@@ -223,6 +263,7 @@ KLog& KLog();
 	#undef kWarning
 #endif
 //---------------------------------------------------------------------------
+/// log a warning message, automatically provide function name.
 #define kWarning(...) \
 { \
 	KLog().debug_fun(-1, DEKAF2_FUNCTION_NAME, __VA_ARGS__); \
@@ -233,6 +274,7 @@ KLog& KLog();
 	#undef kException
 #endif
 //---------------------------------------------------------------------------
+/// log an exception, automatically provide function name.
 #define kException(except) \
 { \
 	KLog().Exception(except, DEKAF2_FUNCTION_NAME); \
@@ -243,6 +285,7 @@ KLog& KLog();
 	#undef kUnknownException
 #endif
 //---------------------------------------------------------------------------
+/// log an unknown exception, automatically provide function name.
 #define kUnknownException() \
 { \
 	KLog().Exception(DEKAF2_FUNCTION_NAME); \

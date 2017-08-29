@@ -43,26 +43,13 @@ include_directories(SYSTEM ${Boost_INCLUDE_DIR})
 find_package(Doxygen)
 if(DOXYGEN_FOUND)
 
+    # configure doxygen config file
     configure_file(${CMAKE_CURRENT_SOURCE_DIR}/doc/doxyfile.in
                    ${CMAKE_CURRENT_BINARY_DIR}/doxyfile @ONLY)
 
-    # prepare copying files for bootstrap support into the html/ output dir
-    set(BOOTSTRAP ${CMAKE_CURRENT_SOURCE_DIR}/doc/doxygen-bootstrapped)
-
-    set(DOXYFILES
-        "${BOOTSTRAP}/example-site/header.html"
-        "${BOOTSTRAP}/example-site/footer.html"
-        "${BOOTSTRAP}/customdoxygen.css"
-        "${BOOTSTRAP}/doxy-boot.js"
-    )
-
-    # copy files for bootstrap support, and execute doxygen
+    # execute doxygen
     add_custom_target(doc
-        ${CMAKE_COMMAND} -E make_directory "${CMAKE_CURRENT_BINARY_DIR}/html/"
-            && ${CMAKE_COMMAND} -E copy_if_different ${DOXYFILES} "${CMAKE_CURRENT_BINARY_DIR}/html/"
-            && ${DOXYGEN_EXECUTABLE} ${CMAKE_CURRENT_BINARY_DIR}/doxyfile
-            && ${CMAKE_COMMAND} -E copy_if_different ${DOXYFILES} "${CMAKE_CURRENT_BINARY_DIR}/html/"
-            # we need to copy the files before and after doxygen generation as otherwise the .js may be empty
+        ${DOXYGEN_EXECUTABLE} ${CMAKE_CURRENT_BINARY_DIR}/doxyfile
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
         COMMENT "Generating API documentation with Doxygen" VERBATIM
     )

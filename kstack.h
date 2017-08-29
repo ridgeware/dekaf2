@@ -42,14 +42,20 @@
 
 #pragma once
 
+/// @file kstack.h
+/// provides a stack-like container with range protection and random index access
+
 #include <deque>
 #include "klog.h"
 
 namespace  dekaf2
 {
 
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// A stack-like container with range protection and random index access.
 template<class Stack_Type>
 class KStack
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
 	using self_type = KStack<Stack_Type>;

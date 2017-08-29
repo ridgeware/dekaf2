@@ -27,6 +27,8 @@ INLINE_INHERITED_MEMB  = YES
 MULTILINE_CPP_IS_BRIEF = NO
 JAVADOC_AUTOBRIEF      = YES
 INLINE_SIMPLE_STRUCTS  = YES
+# the inline keyword is useless nowadays, do not highlight it
+INLINE_INFO            = NO
 EXTRACT_ALL            = NO
 EXTRACT_PRIVATE        = NO
 EXTRACT_STATIC         = NO
@@ -37,14 +39,20 @@ SORT_GROUP_NAMES       = YES
 COLS_IN_ALPHA_INDEX    = 3
 SOURCE_BROWSER         = NO
 STRIP_CODE_COMMENTS    = NO
-REFERENCED_BY_RELATION = YES
-REFERENCES_RELATION    = YES
+REFERENCED_BY_RELATION = NO
+REFERENCES_RELATION    = NO
+HIDE_UNDOC_RELATIONS   = NO
+CLASS_GRAPH            = YES
+COLLABORATION_GRAPH    = NO
 HTML_TIMESTAMP         = YES
 HTML_DYNAMIC_SECTIONS  = NO
-HTML_HEADER            = html/header.html
-HTML_FOOTER            = html/footer.html
-HTML_EXTRA_STYLESHEET  = html/customdoxygen.css
-HTML_EXTRA_FILES       = html/doxy-boot.js
+# these locations point to the source, but doxygen takes care that they are copied into
+# the generated html/ directory (or included into the main html files)
+HTML_HEADER            = @PROJECT_SOURCE_DIR@/doc/doxygen-bootstrapped/example-site/header.html
+HTML_FOOTER            = @PROJECT_SOURCE_DIR@/doc/doxygen-bootstrapped/example-site/footer.html
+HTML_EXTRA_STYLESHEET  = @PROJECT_SOURCE_DIR@/doc/doxygen-bootstrapped/customdoxygen.css
+HTML_EXTRA_FILES       = @PROJECT_SOURCE_DIR@/doc/doxygen-bootstrapped/doxy-boot.js
+# locations until here
 GENERATE_HTML          = YES
 GENERATE_LATEX         = NO
 GENERATE_RTF           = NO
@@ -54,6 +62,6 @@ GENERATE_DOCBOOK       = NO
 ENABLE_PREPROCESSING   = YES
 UML_LOOK               = NO
 TEMPLATE_RELATIONS     = NO
-CALL_GRAPH             = YES
-CALLER_GRAPH           = YES
+CALL_GRAPH             = NO
+CALLER_GRAPH           = NO
 INTERACTIVE_SVG        = YES

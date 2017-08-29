@@ -42,6 +42,11 @@
 
 #pragma once
 
+/// @file ksubscribe.h
+/// subscriber / subscription scheme. The subscriber is forced to build
+/// an own instance (or subset) of subscription when subscription goes out of
+/// scope.
+
 #include <utility>
 #include <memory>
 #include "bits/kmake_unique.h"

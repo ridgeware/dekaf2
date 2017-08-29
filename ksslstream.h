@@ -41,6 +41,9 @@
 
 #pragma once
 
+/// @file ksslstream.h
+/// provides an implementation of std::iostreams supporting SSL/TLS
+
 #include <boost/asio.hpp>
 #include <boost/asio/ssl.hpp>
 #include <boost/iostreams/concepts.hpp>
@@ -57,7 +60,8 @@ namespace KSSL_detail
 {
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-// IOStream device that speaks SSL but can also speak non-SSL
+/// IOStream device that speaks SSL but can also speak non-SSL. Equivalent to
+/// a std::streambuf, but not derived.
 class KSSLInOutStreamDevice : public boost::iostreams::device<boost::iostreams::bidirectional>
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -105,6 +109,7 @@ private:
 
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// std::iostream implementation with SSL/TLS encryption and timeout.
 class KSSLIOStream : public boost::iostreams::stream<KSSLInOutStreamDevice>
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -117,10 +122,23 @@ public:
 //----------
 
 	//-----------------------------------------------------------------------------
+	/// Construcs an unconnected stream
 	KSSLIOStream();
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	/// Constructs a connected stream.
+	/// @param sServer
+	/// Server name or IP address in v4 or v6 notation to connect to, as a string
+	/// @param sPort
+	/// Port to connect to, as a string
+	/// @param bVerifyCerts
+	/// If true server certificate will verified
+	/// @param bAllowSSLv2v3
+	/// If true also connections with SSL versions 2 and 3 will be allowed.
+	/// Default is false, only TLS connections will be allowed.
+	/// @param iSecondsTimeout
+	/// Timeout in seconds for any I/O. Defaults to 60.
 	KSSLIOStream(const char* sServer,
 	             const char* sPort,
 	             bool bVerifyCerts,
@@ -129,6 +147,18 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	/// Constructs a connected stream as a client.
+	/// @param sServer
+	/// Server name or IP address in v4 or v6 notation to connect to, as a string
+	/// @param sPort
+	/// Port to connect to, as a string
+	/// @param bVerifyCerts
+	/// If true server certificate will verified
+	/// @param bAllowSSLv2v3
+	/// If true also connections with SSL versions 2 and 3 will be allowed.
+	/// Default is false, only TLS connections will be allowed.
+	/// @param iSecondsTimeout
+	/// Timeout in seconds for any I/O. Defaults to 60.
 	KSSLIOStream(const KString& sServer,
 	             const KString& sPort,
 	             bool bVerifyCerts,
@@ -137,14 +167,17 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	/// Destructs and closes a stream
 	~KSSLIOStream();
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	/// When using this stream object as a server, set it's SSL certificate here
 	void SetSSLCertificate(const char* sCert, const char* sPem);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	/// When using this stream object as a server, set it's SSL certificate here
 	inline void SetSSLCertificate(const KString& sCert, const KString& sPem)
 	//-----------------------------------------------------------------------------
 	{
@@ -152,14 +185,35 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// Set I/O timeout in seconds.
 	bool Timeout(int iSeconds);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	/// Connects a given server as a client.
+	/// @param sServer
+	/// Server name or IP address in v4 or v6 notation to connect to, as a string
+	/// @param sPort
+	/// Port to connect to, as a string
+	/// @param bVerifyCerts
+	/// If true server certificate will verified
+	/// @param bAllowSSLv2v3
+	/// If true also connections with SSL versions 2 and 3 will be allowed.
+	/// Default is false, only TLS connections will be allowed.
 	bool connect(const char* sServer, const char* sPort, bool bVerifyCerts, bool bAllowSSLv2v3 = false);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	/// Connects a given server as a client.
+	/// @param sServer
+	/// Server name or IP address in v4 or v6 notation to connect to, as a string
+	/// @param sPort
+	/// Port to connect to, as a string
+	/// @param bVerifyCerts
+	/// If true server certificate will verified
+	/// @param bAllowSSLv2v3
+	/// If true also connections with SSL versions 2 and 3 will be allowed.
+	/// Default is false, only TLS connections will be allowed.
 	inline bool connect(const KString& sServer, const KString& sPort, bool bVerifyCerts, bool bAllowSSLv2v3 = false)
 	//-----------------------------------------------------------------------------
 	{
@@ -167,6 +221,9 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// Gets the underlying TCP socket of the stream
+	/// @return
+	/// The TCP socket of the stream (wrapped into ASIO's basic_socket<> template)
 	boost::asio::basic_socket<ip::tcp, stream_socket_service<ip::tcp> >& GetTCPSocket()
 	//-----------------------------------------------------------------------------
 	{

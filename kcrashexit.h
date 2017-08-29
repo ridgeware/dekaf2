@@ -42,9 +42,14 @@
 
 #pragma once
 
+/// @file kcrashexit.h
+/// show reason for a program crash
+
 namespace dekaf2
 {
 
+/// special "signal" numbers to be sent to kCrashExit() to indicate
+/// crash reason
 enum
 {
 	CRASHCODE_MEMORY      = -100,   // <-- parameter for kCrashExit() for malloc failures
@@ -57,6 +62,7 @@ enum
 
 extern "C" {
 
+/// display signal that lead to crash (if any) and force a stackdump
 void kCrashExit (int iSignalNum=0);
 
 }

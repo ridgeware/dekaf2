@@ -42,6 +42,9 @@
 
 #pragma once
 
+/// @file kwriter.h
+/// holds the basic writer abstraction
+
 #include <cinttypes>
 #include <streambuf>
 #include <ostream>
@@ -298,7 +301,7 @@ public:
 	// support string_views as arguments
 	template<class... Args>
 	KWriter(KStringView sv, Args&&... args)
-	    : base_type(std::string(sv), std::forward<Args>(args)...)
+	    : base_type(std::string(sv.data(), sv.size()), std::forward<Args>(args)...)
 	    , KOutStream(static_cast<std::ostream&>(*this))
 	//-----------------------------------------------------------------------------
 	{

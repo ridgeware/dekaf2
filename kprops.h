@@ -298,6 +298,36 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	template<bool Seq = Sequential,
+	         typename std::enable_if_t<Seq == true>* = nullptr>
+    bool operator==(const self_type& other) const
+	//-----------------------------------------------------------------------------
+    {
+        bool bEquals{size() == other.size()};
+		for (auto rit = other.begin(); bEquals && (rit != other.end()); ++rit)
+		{
+            auto& rhs{*rit};
+            auto lit{m_KeyIndex.find(rhs.first)};
+            bEquals &= (lit != m_KeyIndex.end());
+            if (bEquals)
+            {
+                auto& lhs{*lit};
+                bEquals &= (lhs.second == rhs.second);
+            }
+		}
+        return bEquals;
+    }
+
+	//-----------------------------------------------------------------------------
+	template<bool Seq = Sequential,
+	         typename std::enable_if_t<Seq == true>* = nullptr>
+    bool operator!=(const self_type& other) const
+	//-----------------------------------------------------------------------------
+    {
+        return !((*this) == other);
+    }
+
+	//-----------------------------------------------------------------------------
 	/// sequential iterator
 	template<bool Seq = Sequential,
 	         typename std::enable_if_t<Seq == true>* = nullptr>

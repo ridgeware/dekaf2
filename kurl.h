@@ -152,28 +152,31 @@ public:
 	//---------------------------------------------------------------------
 	/// construct new instance and copy members from old instance
 	inline Protocol    (const Protocol &  other)
+        : m_bMailto     (other.m_bMailto)
+        , m_sProto      (other.m_sProto)
+        , m_eProto      (other.m_eProto)
+        , m_iEndOffset  (other.m_iEndOffset)
 	{
-		m_bMailto    =  other.m_bMailto;
-		m_iEndOffset =  other.m_iEndOffset;
-		m_sProto     =  other.m_sProto;
 	}
 
 	//---------------------------------------------------------------------
 	/// construct new instance and move members from old instance
 	inline Protocol    (      Protocol && other)
+        : m_bMailto     (std::move(other.m_bMailto))
+        , m_sProto      (std::move(other.m_sProto))
+        , m_eProto      (std::move(other.m_eProto))
+        , m_iEndOffset  (std::move(other.m_iEndOffset))
 	{
-		m_bMailto    =  other.m_bMailto;
-		m_iEndOffset =  other.m_iEndOffset;
-		m_sProto     =  std::move (other.m_sProto);
 	}
 
 	//---------------------------------------------------------------------
 	/// copies members from other instance into this
 	inline Protocol&   operator= (const Protocol &  other) noexcept
 	{
-		m_bMailto    =  other.m_bMailto;
-		m_iEndOffset =  other.m_iEndOffset;
-		m_sProto     =  other.m_sProto;
+        m_bMailto   = other.m_bMailto;
+        m_sProto    = other.m_sProto;
+        m_eProto    = other.m_eProto;
+        m_iEndOffset= other.m_iEndOffset;
 		return *this;
 	}
 
@@ -181,9 +184,10 @@ public:
 	/// moves members from other instance into this
 	inline Protocol&   operator= (      Protocol && other) noexcept
 	{
-		m_bMailto    =  other.m_bMailto;
-		m_iEndOffset =  other.m_iEndOffset;
-		m_sProto     = std::move (other.m_sProto);
+        m_bMailto   = std::move(other.m_bMailto);
+        m_sProto    = std::move(other.m_sProto);
+        m_eProto    = std::move(other.m_eProto);
+        m_iEndOffset= std::move(other.m_iEndOffset);
 		return *this;
 	}
 
@@ -193,7 +197,9 @@ public:
 	{
 		if (m_sProto.size () != 0)
 		{
-			sTarget += m_sProto;
+            KString sEncoded;
+            kUrlEncode (m_sProto, sEncoded);
+			sTarget += sEncoded;
 			sTarget += m_bMailto ? ":" : "://";
 			return true;
 		}
@@ -204,8 +210,10 @@ public:
 	/// restore instance to unpopulated state
 	inline void clear ()
 	{
-		m_bMailto = false;
-		m_sProto  = KString {};
+		m_bMailto       = false;
+		m_sProto        .clear ();
+        m_eProto        = UNDEFINED;
+        m_iEndOffset    = 0;
 	}
 
 	//---------------------------------------------------------------------
@@ -307,21 +315,21 @@ public:
 	//-------------------------------------------------------------------------
 	/// construct new instance and copy members from old instance
 	inline User              (const User &  other)
+        : m_sUser       (other.m_sUser)
+        , m_sPass       (other.m_sPass)
+        , m_iEndOffset  (other.m_iEndOffset)
 	//-------------------------------------------------------------------------
 	{
-		m_iEndOffset =  other.m_iEndOffset;
-		m_sUser      =  other.m_sUser;
-		m_sPass      =  other.m_sPass;
 	}
 
 	//-------------------------------------------------------------------------
 	/// construct new instance and move members from old instance
 	inline User              (      User && other)
+		: m_sUser       (std::move (other.m_sUser))
+		, m_sPass       (std::move (other.m_sPass))
+		, m_iEndOffset  (std::move (other.m_iEndOffset))
 	//-------------------------------------------------------------------------
 	{
-		m_iEndOffset =  other.m_iEndOffset;
-		m_sUser      = std::move (other.m_sUser);
-		m_sPass      = std::move (other.m_sPass);
 	}
 
 	//-------------------------------------------------------------------------
@@ -329,9 +337,9 @@ public:
 	inline User&   operator= (const User &  other) noexcept
 	//-------------------------------------------------------------------------
 	{
-		m_iEndOffset =  other.m_iEndOffset;
-		m_sUser      =  other.m_sUser;
-		m_sPass      =  other.m_sPass;
+        m_sUser     = other.m_sUser;
+        m_sPass     = other.m_sPass;
+        m_iEndOffset= other.m_iEndOffset;
 		return *this;
 	}
 
@@ -340,9 +348,9 @@ public:
 	inline User&   operator= (      User && other) noexcept
 	//-------------------------------------------------------------------------
 	{
-		m_iEndOffset =  other.m_iEndOffset;
-		m_sUser      = std::move (other.m_sUser);
-		m_sPass      = std::move (other.m_sPass);
+        m_sUser     = std::move(other.m_sUser);
+        m_sPass     = std::move(other.m_sPass);
+        m_iEndOffset= std::move(other.m_iEndOffset);
 		return *this;
 	}
 
@@ -351,13 +359,21 @@ public:
 	inline bool serialize (KString& sTarget) const
 	//-------------------------------------------------------------------------
 	{
+        // TODO Should username/password be url encoded?
 		if (m_sUser.size ())
 		{
-			sTarget += m_sUser;
+            //KString sUser{};
+            //kUrlEncode(m_sUser, sUser);
+			//sTarget += sUser;
+            sTarget += m_sUser;
+
 			if (m_sPass.size ())
 			{
 				sTarget += ':';
-				sTarget += m_sPass;
+                //KString sPass{};
+                //kUrlEncode(m_sPass, sPass);
+				//sTarget += sPass;
+                sTarget += m_sPass;
 			}
 			sTarget += '@';
 		}
@@ -369,8 +385,9 @@ public:
 	inline void clear ()
 	//-------------------------------------------------------------------------
 	{
-		m_sUser.clear();
-		m_sPass.clear();
+		m_sUser         .clear();
+		m_sPass         .clear();
+        m_iEndOffset    = 0;
 	}
 
 	//-------------------------------------------------------------------------
@@ -378,7 +395,6 @@ public:
 	inline KStringView getUser () const
 	//-------------------------------------------------------------------------
 	{
-		KString sEncoded;
 		return m_sUser;
 	}
 
@@ -395,7 +411,6 @@ public:
 	inline KStringView getPass () const
 	//-------------------------------------------------------------------------
 	{
-		KString sEncoded;
 		return m_sPass;
 	}
 
@@ -469,7 +484,6 @@ class Domain
 	/// constructs instance and parses source into members
 	inline Domain  (const KStringView& svSource, size_t iOffset=0)
 	{
-		//## see questions about this var in the User class.
 		parse (svSource, iOffset);
 	}
 
@@ -481,7 +495,6 @@ class Domain
 	/// construct new instance and copy members from old instance
 	inline Domain            (const Domain &  other)
 	{
-		//## misses the encoding flag
 		m_iEndOffset =  other.m_iEndOffset;
 		m_iPortNum   =  other.m_iPortNum;
 		m_sHostName  =  other.m_sHostName;
@@ -492,7 +505,6 @@ class Domain
 	/// construct new instance and move members from old instance
 	inline Domain            (      Domain && other)
 	{
-		//## misses the encoding flag
 		m_iEndOffset =  other.m_iEndOffset;
 		m_iPortNum   =  other.m_iPortNum;
 		m_sHostName  = std::move (other.m_sHostName);
@@ -503,7 +515,6 @@ class Domain
 	/// copies members from other instance into this
 	inline Domain& operator= (const Domain &  other) noexcept
 	{
-		//## misses the encoding flag
 		m_iEndOffset =  other.m_iEndOffset;
 		m_iPortNum   =  other.m_iPortNum;
 		m_sHostName  =  other.m_sHostName;
@@ -515,7 +526,6 @@ class Domain
 	/// moves members from other instance into this
 	inline Domain& operator= (      Domain && other) noexcept
 	{
-		//## misses the encoding flag
 		m_iEndOffset =  other.m_iEndOffset;
 		m_iPortNum   =  other.m_iPortNum;
 		m_sHostName  = std::move (other.m_sHostName);
@@ -544,10 +554,10 @@ class Domain
 	/// restore instance to unpopulated state
 	inline void clear ()
 	{
-		//## misses the encoding flag, and what about the offset?
 		m_iPortNum     = 0;
-		m_sHostName   = KString{};
-		m_sBaseName   = KString{};
+		m_sHostName.clear();
+		m_sBaseName.clear();
+        m_iEndOffset   = 0;
 	}
 
 	//---------------------------------------------------------------------
@@ -653,7 +663,6 @@ public:
 	/// constructs instance and parses source into members
 	inline Path        (const KStringView& svSource, size_t iOffset=0)
 	{
-		//## same question about decode as a member variable for ths class as well
 		parse (svSource, iOffset);
 	}
 
@@ -665,7 +674,6 @@ public:
 	/// construct new instance and copy members from old instance
 	inline Path              (const Path &  other)
 	{
-		//## encode is missing
 		m_iEndOffset =  other.m_iEndOffset;
 		m_sPath      =  other.m_sPath  ;
 	}
@@ -674,7 +682,6 @@ public:
 	/// construct new instance and move members from old instance
 	inline Path              (      Path && other)
 	{
-		//## encode is missing
 		m_iEndOffset =  other.m_iEndOffset;
 		m_sPath      = std::move (other.m_sPath);
 	}
@@ -683,7 +690,6 @@ public:
 	/// copies members from other instance into this
 	inline Path  & operator= (const Path &  other) noexcept
 	{
-		//## encode is missing
 		m_iEndOffset =  other.m_iEndOffset;
 		m_sPath      =  other.m_sPath  ;
 		return *this;
@@ -693,7 +699,6 @@ public:
 	/// moves members from other instance into this
 	inline Path  & operator= (      Path && other) noexcept
 	{
-		//## encode is missing
 		m_iEndOffset =  other.m_iEndOffset;
 		m_sPath      = std::move (other.m_sPath);
 		return *this;
@@ -716,8 +721,8 @@ public:
 	/// restore instance to unpopulated state
 	inline void clear ()
 	{
-		//## what about m_iEndOffset
 		m_sPath.clear();
+        m_iEndOffset = 0;
 	}
 
 	//---------------------------------------------------------------------
@@ -794,7 +799,6 @@ public:
 	/// constructs instance and parses source into members
 	inline Query   (const KStringView& svSource, size_t iOffset=0)
 	{
-		//## same as above
 		parse (svSource, iOffset);
 	}
 
@@ -807,7 +811,6 @@ public:
 	inline Query             (const Query &  other)
 	{
 		m_iEndOffset =  other.m_iEndOffset;
-		m_sQuery     =  other.m_sQuery;
 		m_kpQuery    =  other.m_kpQuery;
 	}
 
@@ -816,7 +819,6 @@ public:
 	inline Query             (      Query && other)
 	{
 		m_iEndOffset =  other.m_iEndOffset;
-		m_sQuery     =  std::move (other.m_sQuery);
 		m_kpQuery    =  other.m_kpQuery;
 	}
 
@@ -825,7 +827,6 @@ public:
 	inline Query & operator= (const Query &  other) noexcept
 	{
 		m_iEndOffset =  other.m_iEndOffset;
-		m_sQuery     =  other.m_sQuery;
 		m_kpQuery    =  other.m_kpQuery;
 		return *this;
 	}
@@ -835,7 +836,6 @@ public:
 	inline Query & operator= (      Query && other) noexcept
 	{
 		m_iEndOffset =  other.m_iEndOffset;
-		m_sQuery     =  std::move (other.m_sQuery);
 		m_kpQuery    =  other.m_kpQuery;
 		return *this;
 	}
@@ -848,16 +848,17 @@ public:
 	/// restore instance to unpopulated state
 	inline void clear ()
 	{
-		//# clear KProps, what about iEndOffset?
-		m_sQuery.clear();
+        m_kpQuery.clear();
+        m_iEndOffset = 0;
 	}
 
 	//---------------------------------------------------------------------
 	/// return a view of the member
-	inline KStringView  getQuery () const
+	inline KString  getQuery () const
 	{
-		//## should this not get the KProps serialization?
-		return m_sQuery;
+        KString sSerialized;
+        serialize (sSerialized);
+		return sSerialized;
 	}
 
 	//---------------------------------------------------------------------
@@ -885,25 +886,20 @@ public:
     /// compares other instance with this, member-by-member
     inline bool operator== (const Query& rhs) const
     {
-	    return getQuery () == rhs.getQuery ();
-	    // TODO compare kprops when operator== is ready
+        return m_kpQuery == rhs.m_kpQuery;
     }
 
     //-----------------------------------------------------------------------------
     /// compares other instance with this, member-by-member
     inline bool operator!= (const Query& rhs) const
     {
-	    return getQuery () != rhs.getQuery ();
-	    // TODO compare kprops when operator== is ready
+        return m_kpQuery != rhs.m_kpQuery;
     }
 
 //------
 private:
 //------
 
-	//## what about decode?
-	KString     m_sQuery        {};
-	//## why both, sQuery and kpQuery
 	KProp_t     m_kpQuery       {};
 	size_t      m_iEndOffset    {0};
 
@@ -953,8 +949,6 @@ public:
 	/// construct new instance and copy members from old instance
 	inline Fragment             (const Fragment &  other)
 	{
-		//## misses decode
-		m_bError     =  other.m_bError;
 		m_iEndOffset =  other.m_iEndOffset;
 		m_sFragment  =  other.m_sFragment;
 	}
@@ -963,8 +957,6 @@ public:
 	/// construct new instance and move members from old instance
 	inline Fragment             (      Fragment && other)
 	{
-		//## misses decode
-		m_bError     =  other.m_bError;
 		m_iEndOffset =  other.m_iEndOffset;
 		m_sFragment  = std::move (other.m_sFragment);
 	}
@@ -973,8 +965,6 @@ public:
 	/// copies members from other instance into this
 	inline Fragment & operator= (const Fragment &  other) noexcept
 	{
-		//## misses decode
-		m_bError     =  other.m_bError;
 		m_iEndOffset =  other.m_iEndOffset;
 		m_sFragment  =  other.m_sFragment;
 		return *this;
@@ -984,8 +974,6 @@ public:
 	/// moves members from other instance into this
 	inline Fragment & operator= (      Fragment && other) noexcept
 	{
-		//## misses decode
-		m_bError     =  other.m_bError;
 		m_iEndOffset =  other.m_iEndOffset;
 		m_sFragment  =  std::move (other.m_sFragment);
 		return *this;
@@ -1007,17 +995,14 @@ public:
 	/// restore instance to unpopulated state
 	inline void clear ()
 	{
-		//## misses decode, iEndOffset
-		m_bError = false;
-		//## use string.clear()
 		m_sFragment.clear();
+        m_iEndOffset = 0;
 	}
 
 	//---------------------------------------------------------------------
 	/// return a view of the member
 	inline KStringView getFragment () const
 	{
-		//## why encoded, why with leading #
 		return m_sFragment;
 	}
 
@@ -1046,7 +1031,6 @@ public:
 private:
 //------
 
-	bool            m_bError    {false};
 	KString         m_sFragment {};
 	size_t          m_iEndOffset{0};
 
@@ -1093,46 +1077,28 @@ public:
 	//---------------------------------------------------------------------
 	/// construct new instance and copy members from old instance
 	inline URI                     (const URI &  other)
-//##	Please use code like below instead of your convoluted type casting
-//##	    : Path(other)
-//##	    , Query(other)
-//##	    , Fragment(other)
+        : Path      (other)
+        , Query     (other)
+        , Fragment  (other)
 	{
-		Path     & lPath     = *this; const Path     & rPath     = other;
-		Query    & lQuery    = *this; const Query    & rQuery    = other;
-		Fragment & lFragment = *this; const Fragment & rFragment = other;
-		lPath     = rPath;
-		lQuery    = rQuery;
-		lFragment = rFragment;
 	}
 
 	//---------------------------------------------------------------------
 	/// construct new instance and move members from old instance
 	inline URI                     (      URI && other)
-//## please see above, but additionally use std::move() (the below code is incorrect)
+        : Path      (std::move(other))
+        , Query     (std::move(other))
+        , Fragment  (std::move(other))
 	{
-		Path     & lPath     = *this; const Path     & rPath     = other;
-		Query    & lQuery    = *this; const Query    & rQuery    = other;
-		Fragment & lFragment = *this; const Fragment & rFragment = other;
-		lPath     = rPath;
-		lQuery    = rQuery;
-		lFragment = rFragment;
 	}
 
 	//---------------------------------------------------------------------
 	/// copies members from other instance into this
 	inline URI &         operator= (const URI &  other) noexcept
 	{
-//## please see above, except that here the pattern is
-//##	Path::operator=(other);
-//##	Query::operator=(other);
-//##	Fragment::operator=(other);
-		Path     & lPath     = *this; const Path     & rPath     = other;
-		Query    & lQuery    = *this; const Query    & rQuery    = other;
-		Fragment & lFragment = *this; const Fragment & rFragment = other;
-		lPath     = rPath;
-		lQuery    = rQuery;
-		lFragment = rFragment;
+    	Path    ::operator=(other);
+    	Query   ::operator=(other);
+    	Fragment::operator=(other);
 		return *this;
 	}
 
@@ -1140,16 +1106,9 @@ public:
 	/// moves members from other instance into this
 	inline URI &         operator= (      URI && other) noexcept
 	{
-//## please see above, except that here the pattern is
-//##	Path::operator=(std::move(other));
-//##	Query::operator=(std::move(other));
-//##	Fragment::operator=(std::move(other));
-		Path     & lPath     = *this; const Path     & rPath     = other;
-		Query    & lQuery    = *this; const Query    & rQuery    = other;
-		Fragment & lFragment = *this; const Fragment & rFragment = other;
-		lPath     = rPath;
-		lQuery    = rQuery;
-		lFragment = rFragment;
+    	Path    ::operator=(std::move(other));
+    	Query   ::operator=(std::move(other));
+    	Fragment::operator=(std::move(other));
 		return *this;
 	}
 
@@ -1159,10 +1118,6 @@ public:
 	{
 		bool bResult = true;
 
-		if (m_sPath.size ())
-		{
-			sTarget += m_sPath;
-		}
 		bResult = Path                  ::serialize (sTarget);
 		bResult = bResult && Query      ::serialize (sTarget);
 		bResult = bResult && Fragment   ::serialize (sTarget);
@@ -1173,12 +1128,10 @@ public:
 	/// restore instance to unpopulated state
 	inline void clear ()
 	{
-		//## use m_sPath.clear(); DONE
-		//## and what about the other member variables?
-		m_sPath.clear();
 		Path        ::clear ();
 		Query       ::clear ();
 		Fragment    ::clear ();
+        m_iEndOffset = 0;
 	}
 
 	//---------------------------------------------------------------------
@@ -1189,40 +1142,29 @@ public:
 	}
 
     //-----------------------------------------------------------------------------
-    //## use the pattern
-    //## return Path::operator==(other) && Query::operator==(other) && Fragment::operator==(other);
     /// compares other instance with this, member-by-member
     inline bool operator== (const URI& rhs) const
     {
-	    const Path     & lPath       = *this, & rPath        = rhs;
-	    const Query    & lQuery      = *this, & rQuery       = rhs;
-	    const Fragment & lFragment   = *this, & rFragment    = rhs;
-	    return
-		    lPath       == rPath    &&
-		    lQuery      == rQuery   &&
-		    lFragment   == rFragment;
+        return
+            Path    ::operator==(rhs) &&
+            Query   ::operator==(rhs) &&
+            Fragment::operator==(rhs) ;
     }
 
     //-----------------------------------------------------------------------------
-    //## see before
     /// compares other instance with this, member-by-member
     inline bool operator!= (const URI& rhs) const
     {
-	    const Path     & lPath       = *this, & rPath        = rhs;
-	    const Query    & lQuery      = *this, & rQuery       = rhs;
-	    const Fragment & lFragment   = *this, & rFragment    = rhs;
-	    return
-		    lPath       != rPath    ||
-		    lQuery      != rQuery   ||
-		    lFragment   != rFragment;
+        return
+            Path    ::operator!=(rhs) &&
+            Query   ::operator!=(rhs) &&
+            Fragment::operator!=(rhs) ;
     }
 
 //------
 private:
 //------
 
-	bool        m_bError     {false};
-	KString     m_sPath      {};
 	size_t      m_iEndOffset {0};
 };
 
@@ -1263,49 +1205,31 @@ public:
 	//---------------------------------------------------------------------
 	/// construct new instance and copy members from old instance
 	inline URL                     (const URL &  other)
+        : Protocol  (other)
+        , User      (other)
+        , Domain    (other)
+        , URI       (other)
 	{
-		//## see before
-		Protocol& lProtocol   = *this; const Protocol& rProtocol   = other;
-		User    & lUser       = *this; const User    & rUser       = other;
-		Domain  & lDomain     = *this; const Domain  & rDomain     = other;
-		URI     & lURI        = *this; const URI     & rURI        = other;
-
-		lProtocol   = rProtocol;
-		lUser       = rUser;
-		lDomain     = rDomain;
-		lURI        = rURI;
 	}
 
 	//---------------------------------------------------------------------
 	/// construct new instance and move members from old instance
 	inline URL                     (      URL && other)
+        : Protocol  (std::move(other))
+        , User      (std::move(other))
+        , Domain    (std::move(other))
+        , URI       (std::move(other))
 	{
-		//## see before
-		Protocol& lProtocol   = *this; const Protocol& rProtocol   = other;
-		User    & lUser       = *this; const User    & rUser       = other;
-		Domain  & lDomain     = *this; const Domain  & rDomain     = other;
-		URI     & lURI        = *this; const URI     & rURI        = other;
-
-		lProtocol   = rProtocol;
-		lUser       = rUser;
-		lDomain     = rDomain;
-		lURI        = rURI;
 	}
 
 	//---------------------------------------------------------------------
 	/// copies members from other instance into this
 	inline URL &         operator= (const URL &  other) noexcept
 	{
-		//## see before
-		Protocol& lProtocol   = *this; const Protocol& rProtocol   = other;
-		User    & lUser       = *this; const User    & rUser       = other;
-		Domain  & lDomain     = *this; const Domain  & rDomain     = other;
-		URI     & lURI        = *this; const URI     & rURI        = other;
-
-		lProtocol   = rProtocol;
-		lUser       = rUser;
-		lDomain     = rDomain;
-		lURI        = rURI;
+        Path    ::operator=(other);
+        User    ::operator=(other);
+        Domain  ::operator=(other);
+        URI     ::operator=(other);
 		return *this;
 	}
 
@@ -1313,16 +1237,10 @@ public:
 	/// moves members from other instance into this
 	inline URL &         operator= (      URL && other) noexcept
 	{
-		//## see before
-		Protocol& lProtocol   = *this; const Protocol& rProtocol   = other;
-		User    & lUser       = *this; const User    & rUser       = other;
-		Domain  & lDomain     = *this; const Domain  & rDomain     = other;
-		URI     & lURI        = *this; const URI     & rURI        = other;
-
-		lProtocol   = rProtocol;
-		lUser       = rUser;
-		lDomain     = rDomain;
-		lURI        = rURI;
+        Path    ::operator=(std::move(other));
+        User    ::operator=(std::move(other));
+        Domain  ::operator=(std::move(other));
+        URI     ::operator=(std::move(other));
 		return *this;
 	}
 
@@ -1396,7 +1314,7 @@ public:
 		User        ::clear ();
 		Domain      ::clear ();
 		URI         ::clear ();
-		//## you forget to clear self
+        m_iEndOffset = 0;
 	}
 
 	//---------------------------------------------------------------------
@@ -1424,41 +1342,30 @@ public:
     /// compares other instance with this, member-by-member
     inline bool operator== (const URL& rhs) const
     {
-	    //## use the upcast pattern shown before
-	    const Protocol& lProtocol   = *this, & rProtocol   = rhs;
-	    const User&     lUser       = *this, & rUser       = rhs;
-	    const Domain&   lDomain     = *this, & rDomain     = rhs;
-	    const URI&      lURI        = *this, & rURI        = rhs;
-	    return
-		    lProtocol.getProtocolEnum () == rProtocol.getProtocolEnum () &&
-		    lProtocol                    == rProtocol &&
-		    lUser                        == rUser     &&
-		    lDomain                      == rDomain   &&
-		    lURI                         == rURI      ;
+        return
+            Protocol    ::getProtocolEnum () == rhs.getProtocolEnum () &&
+            Protocol    ::operator==(rhs) &&
+            User        ::operator==(rhs) &&
+            Domain      ::operator==(rhs) &&
+            URI         ::operator==(rhs);
     }
 
     //-----------------------------------------------------------------------------
     /// compares other instance with this, member-by-member
     inline bool operator!= (const URL& rhs) const
     {
-	    //## use the upcast pattern shown before
-	    const Protocol& lProtocol   = *this, & rProtocol   = rhs;
-	    const User&     lUser       = *this, & rUser       = rhs;
-	    const Domain&   lDomain     = *this, & rDomain     = rhs;
-	    const URI&      lURI        = *this, & rURI        = rhs;
-	    return
-		    lProtocol.getProtocolEnum () != rProtocol.getProtocolEnum () ||
-		    lProtocol                    != rProtocol ||
-		    lUser                        != rUser     ||
-		    lDomain                      != rDomain   ||
-		    lURI                         != rURI      ;
+        return
+            Protocol    ::getProtocolEnum () != rhs.getProtocolEnum () ||
+            Protocol    ::operator!=(rhs) ||
+            User        ::operator!=(rhs) ||
+            Domain      ::operator!=(rhs) ||
+            URI         ::operator!=(rhs);
     }
 
 //------
 private:
 //------
 
-	bool    m_bError    {false};
 	size_t  m_iEndOffset{0};
 };
 

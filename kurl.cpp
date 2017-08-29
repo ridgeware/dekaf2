@@ -125,22 +125,6 @@ bool Protocol::parse (const KStringView& svSource, size_t iOffset)
 	return !bError;
 }
 
-/* TODO Do we need these friend operators?
-//..............................................................................
-inline bool operator== (const Protocol& left, const Protocol& right)
-//..............................................................................
-{
-	return left.m_sProto == right.m_sProto;
-}
-
-//..............................................................................
-inline bool operator!= (const Protocol& left, const Protocol& right)
-//..............................................................................
-{
-	return left.m_sProto != right.m_sProto;
-}
-*/
-
 
 
 //||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
@@ -371,8 +355,7 @@ bool Query::parse (const KStringView& svSource, size_t iOffset)
     KStringView svQuery;
     svQuery = svSource.substr(iOffset, iFound - iOffset);
 
-	//bError =
-	decode (svQuery);
+	decode (svQuery);   // KurlDecode must be done on key=val separately.
 
 	return !bError;
 }
@@ -462,6 +445,7 @@ bool Query::serialize (KString& sTarget) const
 bool Fragment::parse (const KStringView& svSource, size_t iOffset)
 //..............................................................................
 {
+    bool bError{false};
 	clear ();
 
 	m_iEndOffset = iOffset;  // Stored for use by next ctor (if any).
@@ -470,7 +454,7 @@ bool Fragment::parse (const KStringView& svSource, size_t iOffset)
 	kUrlDecode (m_sFragment);
 
 	m_iEndOffset = svSource.size ();
-	return !m_bError;
+	return !bError;
 }
 
 
@@ -483,6 +467,7 @@ bool Fragment::parse (const KStringView& svSource, size_t iOffset)
 bool URI::parse (const KStringView& svSource, size_t iOffset)
 //..............................................................................
 {
+    bool bError{false};
 	clear ();
 
 	m_iEndOffset = iOffset;                     // Stored for use by next ctor
@@ -490,39 +475,39 @@ bool URI::parse (const KStringView& svSource, size_t iOffset)
 	size_t iIndex{iOffset};
 	size_t iSize{svSource.size ()};
 
-	m_bError = !Path::parse (svSource, iIndex);
+	bError = !Path::parse (svSource, iIndex);
 	iIndex   = Path::getEndOffset ();
 
-	if (!m_bError)
+	if (!bError)
 	{
 		if (iIndex < iSize && svSource[iIndex] == '?')
 		{
-			m_bError = !Query::parse (svSource, iIndex);  // optional
+			bError = !Query::parse (svSource, iIndex);  // optional
 			iIndex   = Query::getEndOffset ();
 		}
 	}
 
-	if (!m_bError)
+	if (!bError)
 	{
 		if (iIndex < iSize && svSource[iIndex] == '#')
 		{
-			m_bError = !Fragment::parse (svSource, iIndex);
+			bError = !Fragment::parse (svSource, iIndex);
 			iIndex   = Fragment::getEndOffset ();
 		}
 	}
 
-	m_bError = (iIndex != svSource.size ());
+	bError = (iIndex != svSource.size ());
 
-	if (!m_bError)
+	if (!bError)
 	{
 		m_iEndOffset = iIndex;
 	}
 	else
 	{
 		clear ();
-		m_bError = true;
+		bError = true;
 	}
-	return !m_bError;
+	return !bError;
 }
 
 
@@ -535,7 +520,8 @@ bool URI::parse (const KStringView& svSource, size_t iOffset)
 bool URL::parse (const KStringView& svSource, size_t iOffset)
 //..............................................................................
 {
-	bool bResult = true;
+	bool bResult{true};
+    bool bError{false};
 
 	m_iEndOffset = iOffset;  // Stored for use by next ctor (if any).
 
@@ -555,19 +541,19 @@ bool URL::parse (const KStringView& svSource, size_t iOffset)
 		iOffset  = URI::getEndOffset ();
 	}
 
-	m_bError = !bResult;
+	bError = !bResult;
 
-	if (m_bError)
+	if (bError)
 	{
 		clear ();
-		m_bError = true;
+		bError = true;
 	}
-	if (!m_bError)
+	if (!bError)
 	{
 		m_iEndOffset = iOffset;
 	}
 
-	return !m_bError;
+	return !bError;
 }
 
 } // namespace KURL

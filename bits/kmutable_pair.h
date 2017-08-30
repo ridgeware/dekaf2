@@ -57,49 +57,49 @@ struct KMutablePair
 	using self_type = KMutablePair<Key, Value>;
 
 	KMutablePair()
-	    : first(Key())
-	    , second(Value())
+		: first(Key())
+		, second(Value())
 	{}
 
 	KMutablePair(const Key& f, const Value& s)
-	    : first(f)
-	    , second(s)
+		: first(f)
+		, second(s)
 	{}
 
 	KMutablePair(Key&& f, Value&& s)
-	    : first(std::move(f))
-	    , second(std::move(s))
+		: first(std::move(f))
+		, second(std::move(s))
 	{}
 
 	KMutablePair(const self_type& p)
-	    : first(p.first)
-	    , second(p.second)
+		: first(p.first)
+		, second(p.second)
 	{}
 
 	KMutablePair(self_type&& p)
-	    : first(std::move(p.first))
-	    , second(std::move(p.second))
+		: first(std::move(p.first))
+		, second(std::move(p.second))
 	{}
 
 	KMutablePair(const std::pair<Key, Value>& p)
-	    : first(p.first)
-	    , second(p.second)
+		: first(p.first)
+		, second(p.second)
 	{}
 
 	KMutablePair(std::pair<Key, Value>&& p)
-	    : first(std::move(p.first))
-	    , second(std::move(p.second))
+		: first(std::move(p.first))
+		, second(std::move(p.second))
 	{}
 
-    bool operator==(const KMutablePair& other) const
-    {
-        return (other.first == first) && (other.second == second);
-    }
+	bool operator==(const KMutablePair& other) const
+	{
+		return (other.first == first) && (other.second == second);
+	}
 
-    bool operator!=(const KMutablePair& other) const
-    {
-        return (other.first != first) || (other.second != second);
-    }
+	bool operator!=(const KMutablePair& other) const
+	{
+		return (other.first != first) || (other.second != second);
+	}
 
 	Key           first;
 	mutable Value second;

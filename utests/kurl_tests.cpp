@@ -156,28 +156,28 @@ SCENARIO ( "KURL unit tests on operators")
 	URL_valid["https://user:password@what.ever.com:8080/home/guest/noop.php?please=stop#now"] =
 		parm_t (0, 76, true, "all URL elements in use", "");
 
-    GIVEN ( "valid data")
-    {
-        WHEN ( "operating on an entire complex URL")
-        {
-            dekaf2::KURL::URL url;
-            THEN ( "Check results for validity")
-            {
-			    test_t::iterator it;
-			    for (it = URL_valid.begin(); it != URL_valid.end(); ++it)
-			    {
-				    KString sSource = it->first;
-                    KString sTarget;
+	GIVEN ( "valid data")
+	{
+		WHEN ( "operating on an entire complex URL")
+		{
+			dekaf2::KURL::URL url;
+			THEN ( "Check results for validity")
+			{
+				test_t::iterator it;
+				for (it = URL_valid.begin(); it != URL_valid.end(); ++it)
+				{
+					KString sSource = it->first;
+					KString sTarget;
 
-                    url << sSource;
-                    url >> sTarget;
+					url << sSource;
+					url >> sTarget;
 
-                    CHECK(sSource == sTarget);
-                }
-            }
-        }
-        WHEN ( "operating on individual fields of URL")
-        {
+					CHECK(sSource == sTarget);
+				}
+			}
+		}
+		WHEN ( "operating on individual fields of URL")
+		{
 			dekaf2::KURL::Protocol  protocol;
 			dekaf2::KURL::User      user;
 			dekaf2::KURL::Domain    domain;
@@ -185,55 +185,55 @@ SCENARIO ( "KURL unit tests on operators")
 			dekaf2::KURL::Query     query;
 			dekaf2::KURL::Fragment  fragment;
 			dekaf2::KURL::URI       uri;
-            THEN ( "Check results for validity")
-            {
-                KString sProtocol   {"unknown://"};
-                KString sUser       {"some.body.is.a:Secretive1.@"};
-                KString sDomain     {"East.Podunk.nj"};
-                KString sPath       {"/too/many/subdirectories/for/comfort"};
-                KString sQuery      {"?team=hermes&language=c++"};
-                KString sFragment   {"#partwayDown"};
-                KString sURI        {sPath + sQuery + sFragment};
+			THEN ( "Check results for validity")
+			{
+				KString sProtocol   {"unknown://"};
+				KString sUser       {"some.body.is.a:Secretive1.@"};
+				KString sDomain     {"East.Podunk.nj"};
+				KString sPath       {"/too/many/subdirectories/for/comfort"};
+				KString sQuery      {"?team=hermes&language=c++"};
+				KString sFragment   {"#partwayDown"};
+				KString sURI        {sPath + sQuery + sFragment};
 
-                KString sResult;
+				KString sResult;
 
-                sResult.clear ();
-                protocol << sProtocol;
-                protocol >> sResult;
-                CHECK ( sProtocol == sResult);
+				sResult.clear ();
+				protocol << sProtocol;
+				protocol >> sResult;
+				CHECK ( sProtocol == sResult);
 
-                sResult.clear ();
-                user << sUser;
-                user >> sResult;
-                CHECK ( sUser == sResult);
+				sResult.clear ();
+				user << sUser;
+				user >> sResult;
+				CHECK ( sUser == sResult);
 
-                sResult.clear ();
-                domain << sDomain;
-                domain >> sResult;
-                CHECK ( sDomain == sResult);
+				sResult.clear ();
+				domain << sDomain;
+				domain >> sResult;
+				CHECK ( sDomain == sResult);
 
-                sResult.clear ();
-                path << sPath;
-                path >> sResult;
-                CHECK ( sPath == sResult);
+				sResult.clear ();
+				path << sPath;
+				path >> sResult;
+				CHECK ( sPath == sResult);
 
-                sResult.clear ();
-                query << sQuery;
-                query >> sResult;
-                CHECK ( sQuery == sResult);
+				sResult.clear ();
+				query << sQuery;
+				query >> sResult;
+				CHECK ( sQuery == sResult);
 
-                sResult.clear ();
-                fragment << sFragment;
-                fragment >> sResult;
-                CHECK ( sFragment == sResult);
+				sResult.clear ();
+				fragment << sFragment;
+				fragment >> sResult;
+				CHECK ( sFragment == sResult);
 
-                sResult.clear ();
-                uri << sURI;
-                uri >> sResult;
-                CHECK ( sURI == sResult);
-            }
-        }
-    }
+				sResult.clear ();
+				uri << sURI;
+				uri >> sResult;
+				CHECK ( sURI == sResult);
+			}
+		}
+	}
 }
 
 //SSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS

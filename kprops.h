@@ -51,6 +51,7 @@
 #include <boost/multi_index/member.hpp>
 #include <boost/multi_index/hashed_index.hpp>
 #include <boost/multi_index/random_access_index.hpp>
+#include <algorithm>
 #include "bits/kcppcompat.h"
 #include "bits/kmutable_pair.h"
 #include "klog.h"
@@ -250,8 +251,8 @@ public:
 	/// default ctor
 	KProps()
 	//-----------------------------------------------------------------------------
-	    : m_KeyIndex(m_Storage.template get<IndexByKey>())
-	    , m_SeqIndex(m_Storage.template get<IndexBySeq>())
+		: m_KeyIndex(m_Storage.template get<IndexByKey>())
+		, m_SeqIndex(m_Storage.template get<IndexBySeq>())
 	{
 	}
 
@@ -259,9 +260,9 @@ public:
 	/// copy ctor
 	KProps(const self_type& other)
 	//-----------------------------------------------------------------------------
-	    : m_Storage(other.m_Storage)
-	    , m_KeyIndex(m_Storage.template get<IndexByKey>())
-	    , m_SeqIndex(m_Storage.template get<IndexBySeq>())
+		: m_Storage(other.m_Storage)
+		, m_KeyIndex(m_Storage.template get<IndexByKey>())
+		, m_SeqIndex(m_Storage.template get<IndexBySeq>())
 	{
 	}
 
@@ -269,9 +270,9 @@ public:
 	/// move ctor
 	KProps(self_type&& other)
 	//-----------------------------------------------------------------------------
-	    : m_Storage(std::move(other.m_Storage))
-	    , m_KeyIndex(m_Storage.template get<IndexByKey>())
-	    , m_SeqIndex(m_Storage.template get<IndexBySeq>())
+		: m_Storage(std::move(other.m_Storage))
+		, m_KeyIndex(m_Storage.template get<IndexByKey>())
+		, m_SeqIndex(m_Storage.template get<IndexBySeq>())
 	{
 	}
 
@@ -299,34 +300,29 @@ public:
 
 	//-----------------------------------------------------------------------------
 	template<bool Seq = Sequential,
-	         typename std::enable_if_t<Seq == true>* = nullptr>
-    bool operator==(const self_type& other) const
+			typename std::enable_if_t<Seq == true>* = nullptr>
+	bool operator==(const self_type& other) const
 	//-----------------------------------------------------------------------------
-    {
-        size_t iCount = size();
-        bool bEquals{iCount == other.size()};
-        for (size_t iIndex = 0; bEquals && (iIndex < iCount); ++iIndex)
-        {
-            const auto& lhs = (*this)[iIndex];
-            const auto& rhs = other[iIndex];
-            bEquals &= (lhs == rhs);
-        }
-        return bEquals;
-    }
+	{
+		auto liter = this->begin();
+		auto lends = this->end();
+		auto riter = other.begin();
+		return std::equal(liter, lends, riter);
+	}
 
 	//-----------------------------------------------------------------------------
 	template<bool Seq = Sequential,
-	         typename std::enable_if_t<Seq == true>* = nullptr>
-    bool operator!=(const self_type& other) const
+			typename std::enable_if_t<Seq == true>* = nullptr>
+	bool operator!=(const self_type& other) const
 	//-----------------------------------------------------------------------------
-    {
-        return !((*this) == other);
-    }
+	{
+		return !((*this) == other);
+	}
 
 	//-----------------------------------------------------------------------------
 	/// sequential iterator
 	template<bool Seq = Sequential,
-	         typename std::enable_if_t<Seq == true>* = nullptr>
+			typename std::enable_if_t<Seq == true>* = nullptr>
 	iterator begin()
 	//-----------------------------------------------------------------------------
 	{
@@ -336,7 +332,7 @@ public:
 	//-----------------------------------------------------------------------------
 	/// non-sequential (map) iterator
 	template<bool Seq = Sequential,
-	         typename std::enable_if_t<Seq == false>* = nullptr>
+			typename std::enable_if_t<Seq == false>* = nullptr>
 	iterator begin()
 	//-----------------------------------------------------------------------------
 	{
@@ -346,7 +342,7 @@ public:
 	//-----------------------------------------------------------------------------
 	/// sequential iterator
 	template<bool Seq = Sequential,
-	         typename std::enable_if_t<Seq == true>* = nullptr>
+			typename std::enable_if_t<Seq == true>* = nullptr>
 	iterator end()
 	//-----------------------------------------------------------------------------
 	{
@@ -356,7 +352,7 @@ public:
 	//-----------------------------------------------------------------------------
 	/// non-sequential (map) iterator
 	template<bool Seq = Sequential,
-	         typename std::enable_if_t<Seq == false>* = nullptr>
+			typename std::enable_if_t<Seq == false>* = nullptr>
 	iterator end()
 	//-----------------------------------------------------------------------------
 	{
@@ -366,7 +362,7 @@ public:
 	//-----------------------------------------------------------------------------
 	/// sequential iterator
 	template<bool Seq = Sequential,
-	         typename std::enable_if_t<Seq == true>* = nullptr>
+			typename std::enable_if_t<Seq == true>* = nullptr>
 	const_iterator cbegin() const
 	//-----------------------------------------------------------------------------
 	{
@@ -376,7 +372,7 @@ public:
 	//-----------------------------------------------------------------------------
 	/// non-sequential (map) iterator
 	template<bool Seq = Sequential,
-	         typename std::enable_if_t<Seq == false>* = nullptr>
+			typename std::enable_if_t<Seq == false>* = nullptr>
 	const_iterator cbegin() const
 	//-----------------------------------------------------------------------------
 	{
@@ -386,7 +382,7 @@ public:
 	//-----------------------------------------------------------------------------
 	/// sequential iterator
 	template<bool Seq = Sequential,
-	         typename std::enable_if_t<Seq == true>* = nullptr>
+			typename std::enable_if_t<Seq == true>* = nullptr>
 	const_iterator cend() const
 	//-----------------------------------------------------------------------------
 	{
@@ -396,7 +392,7 @@ public:
 	//-----------------------------------------------------------------------------
 	/// non-sequential (map) iterator
 	template<bool Seq = Sequential,
-	         typename std::enable_if_t<Seq == false>* = nullptr>
+			typename std::enable_if_t<Seq == false>* = nullptr>
 	const_iterator cend() const
 	//-----------------------------------------------------------------------------
 	{
@@ -483,7 +479,7 @@ public:
 	// perfect forwarding and SFINAE for unique instances
 	/// Set a new value for an existing key. If the key is not existing it is created.
 	template <class K, class V = Value, bool Uq = Unique,
-	          typename std::enable_if<Uq == true>::type* = nullptr>
+			typename std::enable_if<Uq == true>::type* = nullptr>
 	iterator Set(K&& key, V&& newValue = V{})
 	//-----------------------------------------------------------------------------
 	{
@@ -504,7 +500,7 @@ public:
 	// perfect forwarding and SFINAE for non-unique instances
 	/// Set a new value for an existing key. If the key is not existing it is created.
 	template <class K, class V = Value, bool Uq = Unique,
-	          typename std::enable_if<Uq == false>::type* = nullptr>
+			typename std::enable_if<Uq == false>::type* = nullptr>
 	iterator Set(K&& key, V&& newValue = V{})
 	//-----------------------------------------------------------------------------
 	{
@@ -529,7 +525,7 @@ public:
 	// perfect forwarding and SFINAE for unique instances
 	/// Set a new value for an existing key. If the key is not existing it is created.
 	template <class K, class V1, class V2, bool Uq = Unique,
-	          typename std::enable_if<Uq == true>::type* = nullptr>
+			typename std::enable_if<Uq == true>::type* = nullptr>
 	iterator Set(K&& key, V1&& value, V2&& newValue)
 	//-----------------------------------------------------------------------------
 	{
@@ -542,7 +538,7 @@ public:
 	// perfect forwarding and SFINAE for non-unique instances
 	/// Set a new value for existing key/value pairs. If the key/value pair is not existing it is created.
 	template <class K, class V1, class V2, bool Uq = Unique,
-	          typename std::enable_if<Uq == false>::type* = nullptr>
+			typename std::enable_if<Uq == false>::type* = nullptr>
 	iterator Set(K&& key, V1&& value, V2&& newValue)
 	//-----------------------------------------------------------------------------
 	{
@@ -585,7 +581,7 @@ protected:
 	// SFINAE && perfect forwarding for Sequential or non-unique instances
 	/// Replace the value of an existing key
 	template<class K, class V, bool Sq = Sequential, bool Uq = Unique,
-			 typename std::enable_if_t<Sq == true || Uq == false>* = nullptr>
+			typename std::enable_if_t<Sq == true || Uq == false>* = nullptr>
 	iterator Replace(K&& key, V&& value)
 	//-----------------------------------------------------------------------------
 	{
@@ -596,7 +592,7 @@ protected:
 	// SFINAE && perfect forwarding for Unique non-Sequential instances
 	/// Replace the value of an existing key
 	template<class V, bool Sq = Sequential, bool Uq = Unique,
-			 typename std::enable_if_t<Sq == false && Uq == true>* = nullptr>
+			typename std::enable_if_t<Sq == false && Uq == true>* = nullptr>
 	iterator Replace(iterator it, V&& value)
 	//-----------------------------------------------------------------------------
 	{
@@ -612,7 +608,7 @@ public:
 	// perfect forwarding and SFINAE for unique sequential instances
 	/// Add a new Key/Value pair. If the key is already existing, its value is replaced.
 	template<class K, class V = Value, bool Uq = Unique, bool Sq = Sequential,
-	         typename std::enable_if_t<Uq == true && Sq == true>* = nullptr >
+			typename std::enable_if_t<Uq == true && Sq == true>* = nullptr >
 	iterator Add(K&& key, V&& value = V{})
 	//-----------------------------------------------------------------------------
 	{
@@ -633,7 +629,7 @@ public:
 	// perfect forwarding and SFINAE for unique non-sequential instances
 	/// Add a new Key/Value pair. If the key is already existing, its value is replaced.
 	template<class K, class V = Value, bool Uq = Unique, bool Sq = Sequential,
-	         typename std::enable_if_t<Uq == true && Sq == false>* = nullptr >
+			typename std::enable_if_t<Uq == true && Sq == false>* = nullptr >
 	iterator Add(K&& key, V&& value = V{})
 	//-----------------------------------------------------------------------------
 	{
@@ -654,7 +650,7 @@ public:
 	// perfect forwarding and SFINAE for non-unique sequential instances
 	/// Add a new Key/Value pair.
 	template<class K, class V = Value, bool Uq = Unique, bool Sq = Sequential,
-	         typename std::enable_if_t<Uq == false && Sq == true>* = nullptr >
+			typename std::enable_if_t<Uq == false && Sq == true>* = nullptr >
 	iterator Add(K&& key, V&& value = V{})
 	//-----------------------------------------------------------------------------
 	{
@@ -668,7 +664,7 @@ public:
 	// perfect forwarding and SFINAE for non-unique non-sequential instances
 	/// Add a new Key/Value pair.
 	template<class K, class V = Value, bool Uq = Unique, bool Sq = Sequential,
-	         typename std::enable_if_t<Uq == false && Sq == false>* = nullptr >
+			typename std::enable_if_t<Uq == false && Sq == false>* = nullptr >
 	iterator Add(K&& key, V&& value = V{})
 	//-----------------------------------------------------------------------------
 	{
@@ -682,7 +678,7 @@ public:
 	// SFINAE for Unique instances
 	/// remove a Key/Value pair with a given key. Returns count of removed elements.
 	template<bool Uq = Unique,
-	         typename std::enable_if<Uq == true>::type* = nullptr>
+			typename std::enable_if<Uq == true>::type* = nullptr>
 	size_t Remove(const Key& key)
 	//-----------------------------------------------------------------------------
 	{
@@ -701,7 +697,7 @@ public:
 	// SFINAE for non Unique instances
 	/// remove Key/Value pairs with a given key. Returns count of removed elements.
 	template<bool Uq = Unique,
-	         typename std::enable_if<Uq == false>::type* = nullptr>
+			typename std::enable_if<Uq == false>::type* = nullptr>
 	size_t Remove(const Key& key)
 	//-----------------------------------------------------------------------------
 	{
@@ -814,7 +810,7 @@ public:
 	// SFINAE, only active for Sequential instances
 	/// Gets the element at index position. Returns empty element if out of range.
 	template<bool Seq = Sequential,
-	         typename std::enable_if<Seq == true>::type* = nullptr>
+			typename std::enable_if<Seq == true>::type* = nullptr>
 	const Element& at(size_t index) const
 	//-----------------------------------------------------------------------------
 	{
@@ -833,7 +829,7 @@ public:
 	// SFINAE, only active for non-integral Sequential instances
 	/// Gets the element at index position. Returns empty element if out of range.
 	template<class T = Key, bool Seq = Sequential,
-	         typename = std::enable_if_t<!std::is_integral<T>::value && Seq == true> >
+			typename = std::enable_if_t<!std::is_integral<T>::value && Seq == true> >
 	const Element& operator[](size_t index) const
 	//-----------------------------------------------------------------------------
 	{
@@ -844,7 +840,7 @@ public:
 	// SFINAE && perfect forwarding, only active for non-integral K, or if the Key is integral
 	/// Gets the element with the given key. Returns empty element if not found.
 	template<class K, class T = Key,
-	         typename = std::enable_if_t<std::is_integral<T>::value || !std::is_integral<K>::value> >
+			typename = std::enable_if_t<std::is_integral<T>::value || !std::is_integral<K>::value> >
 	const Value& operator[](K&& key) const
 	//-----------------------------------------------------------------------------
 	{
@@ -855,7 +851,7 @@ public:
 	// SFINAE && perfect forwarding, only active for non-integral K, or if the Key is integral
 	/// Gets the element with the given key. Returns empty element if not found.
 	template<class K, class T = Key,
-	         typename = std::enable_if_t<std::is_integral<T>::value || !std::is_integral<K>::value> >
+			typename = std::enable_if_t<std::is_integral<T>::value || !std::is_integral<K>::value> >
 	Value& operator[](K&& key)
 	//-----------------------------------------------------------------------------
 	{
@@ -918,4 +914,3 @@ typename KProps<Key, Value, Sequential, Unique>::Element
 KProps<Key, Value, Sequential, Unique>::s_EmptyElement;
 
 } // end of namespace dekaf2
-

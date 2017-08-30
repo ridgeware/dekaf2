@@ -78,7 +78,7 @@ bool Protocol::parse (const KStringView& svSource, size_t iOffset)
 {
 	// TODO handle "file:///{path}" ?
 
-    bool bError{false};
+	bool bError{false};
 
 	clear ();
 
@@ -135,15 +135,15 @@ bool Protocol::parse (const KStringView& svSource, size_t iOffset)
 bool User::parse (const KStringView& svSource, size_t iOffset)
 //..............................................................................
 {
-    bool bError{false}; // Never set true for User
+	bool bError{false}; // Never set true for User
 	clear ();
 
 	m_iEndOffset = iOffset;  // Stored for use by next ctor (if any).
 
 	size_t iFound  = svSource.find_first_of ("@/?#", iOffset);
-    bool   bEnded  = (iFound != KStringView::npos);
-    bool   bAtSign = (bEnded && svSource[iFound] == '@');
-    iFound = bEnded ? iFound : svSource.size();
+	bool   bEnded  = (iFound != KStringView::npos);
+	bool   bAtSign = (bEnded && svSource[iFound] == '@');
+	iFound = bEnded ? iFound : svSource.size();
 	if (bAtSign)
 	{
 		size_t iColon = svSource.find (':', iOffset);
@@ -177,7 +177,7 @@ bool Domain::parseHostName (const KStringView& svSource, size_t iOffset)
 {
 	static const KString sDotCo (".co.");
 
-    bool bError{false};
+	bool bError{false};
 	m_iEndOffset = iOffset;  // Stored for use by next ctor (if any).
 
 	size_t iInitial = iOffset + ((svSource[iOffset] == '/') ? 1 : 0);
@@ -226,32 +226,32 @@ bool Domain::parseHostName (const KStringView& svSource, size_t iOffset)
 				size_t i3Back = m_sHostName.find_last_of ('.', i2Back - 1);
 				i3Back = (i3Back == KString::npos) ? iOffset : i3Back;
 				m_sBaseName.assign (
-                        m_sHostName.data () + i3Back + 1,
-                        i2Back - i3Back);
+						m_sHostName.data () + i3Back + 1,
+						i2Back - i3Back);
 			}
 			else
 			{
 				m_sBaseName.assign (
-                        m_sHostName.data () + i2Back + 1,
-                        i1Back - i2Back);
+						m_sHostName.data () + i2Back + 1,
+						i1Back - i2Back);
 			}
 		}
 		else if (iOffset < m_sHostName.size () && iOffset < i1Back)
 		{
 			m_sBaseName.assign (
-                    m_sHostName.data () + iOffset,
-                    i1Back - iOffset + 1);
+					m_sHostName.data () + iOffset,
+					i1Back - iOffset + 1);
 			m_sBaseName.size ();
 		}
 		else if (i1Back)
 		{
 			m_sBaseName.assign (m_sHostName.data (), i1Back);
 		}
-        else
-        {
-            // Uncertain about this.  Hostname without a '.'?
+		else
+		{
+			// Uncertain about this.  Hostname without a '.'?
 			m_sBaseName.assign (m_sHostName.data ());
-        }
+		}
 	}
 	return !bError;
 }
@@ -260,7 +260,7 @@ bool Domain::parseHostName (const KStringView& svSource, size_t iOffset)
 bool Domain::parse (const KStringView& svSource, size_t iOffset)
 //..............................................................................
 {
-    bool bError{false};
+	bool bError{false};
 	clear ();
 
 	if (!parseHostName (svSource, iOffset) || m_iEndOffset == svSource.size ())
@@ -277,7 +277,7 @@ bool Domain::parse (const KStringView& svSource, size_t iOffset)
 			iNext = (iNext == KStringView::npos) ? svSource.size () : iNext;
 			// Get port as string
 			KString sPortName;
-            sPortName.assign (svSource.data () + iColon, iNext - iColon);
+			sPortName.assign (svSource.data () + iColon, iNext - iColon);
 			kUrlDecode (sPortName);
 
 			const char* sPort = sPortName.c_str ();
@@ -302,7 +302,7 @@ bool Path::parse (const KStringView& svSource, size_t iOffset)
 {
 	clear ();
 
-    bool bError{false};
+	bool bError{false};
 	m_iEndOffset = iOffset;                     // Stored for use by next ctor
 
 	size_t iIndex{iOffset};
@@ -347,7 +347,7 @@ bool Path::parse (const KStringView& svSource, size_t iOffset)
 bool Query::parse (const KStringView& svSource, size_t iOffset)
 //..............................................................................
 {
-    bool bError{false};
+	bool bError{false};
 	clear ();
 
 	m_iEndOffset = iOffset;  // Stored for use by next ctor (if any).
@@ -361,8 +361,8 @@ bool Query::parse (const KStringView& svSource, size_t iOffset)
 	size_t iFound = svSource.find ('#', iOffset);
 	iFound = (iFound == KStringView::npos) ? iSize : iFound;
 	m_iEndOffset = iFound;
-    KStringView svQuery;
-    svQuery = svSource.substr (iOffset, iFound - iOffset);
+	KStringView svQuery;
+	svQuery = svSource.substr (iOffset, iFound - iOffset);
 
 	decode (svQuery);   // KurlDecode must be done on key=val separately.
 
@@ -373,7 +373,7 @@ bool Query::parse (const KStringView& svSource, size_t iOffset)
 bool Query::decode (KStringView svQuery)
 //..............................................................................
 {
-    bool bError{false};
+	bool bError{false};
 	size_t iAnchor = 0, iEnd, iEquals, iTerminal = svQuery.size ();
 
 	if (iTerminal)
@@ -386,7 +386,7 @@ bool Query::decode (KStringView svQuery)
 			iEnd = (iEnd == KString::npos) ? iTerminal : iEnd;
 
 			KString sEncoded;
-            sEncoded.assign (svQuery.data () + iAnchor, iEnd - iAnchor);
+			sEncoded.assign (svQuery.data () + iAnchor, iEnd - iAnchor);
 
 			iEquals = sEncoded.find ('=');
 			if (iEquals == KStringView::npos)
@@ -399,7 +399,7 @@ bool Query::decode (KStringView svQuery)
 
 			if (sKeyEncoded.size () && sValEncoded.size ())
 			{
-                // decoding may only happen AFTER '=' '&' detections
+				// decoding may only happen AFTER '=' '&' detections
 				KString sKey, sVal;
 				kUrlDecode (sKeyEncoded, sKey);
 				kUrlDecode (sValEncoded, sVal);
@@ -454,12 +454,12 @@ bool Query::serialize (KString& sTarget) const
 bool Fragment::parse (const KStringView& svSource, size_t iOffset)
 //..............................................................................
 {
-    bool bError{false};
+	bool bError{false};
 	clear ();
 
 	m_iEndOffset = iOffset;  // Stored for use by next ctor (if any).
 
-    m_sFragment.assign (svSource.data () + iOffset, svSource.size () - iOffset);
+	m_sFragment.assign (svSource.data () + iOffset, svSource.size () - iOffset);
 	kUrlDecode (m_sFragment);
 
 	m_iEndOffset = svSource.size ();
@@ -476,7 +476,7 @@ bool Fragment::parse (const KStringView& svSource, size_t iOffset)
 bool URI::parse (const KStringView& svSource, size_t iOffset)
 //..............................................................................
 {
-    bool bError{false};
+	bool bError{false};
 	clear ();
 
 	m_iEndOffset = iOffset;                     // Stored for use by next ctor
@@ -530,7 +530,7 @@ bool URL::parse (const KStringView& svSource, size_t iOffset)
 //..............................................................................
 {
 	bool bResult{true};
-    bool bError{false};
+	bool bError{false};
 
 	m_iEndOffset = iOffset;  // Stored for use by next ctor (if any).
 

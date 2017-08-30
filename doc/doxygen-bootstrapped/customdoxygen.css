@@ -13,13 +13,25 @@ font-size: 1.15em !important;
 .navbar{
  border: 0px solid #222 !important;
 }
+/* the following creates huge padding on functions with labels - so we disable it
 table{
     white-space:pre-wrap !important;
 }
+*/
 /*
  ===========================
  */
 
+/*
+   to emphasize the start of the detailed description we
+   manuipulate the css a bit..
+ */
+
+#details + h2.groupheader {
+    color:white!important;
+    background-color:#337ab7!important;
+    font-size:200%;
+}
 
 /* Sticky footer styles
 -------------------------------------------------- */

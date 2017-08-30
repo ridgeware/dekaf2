@@ -91,7 +91,7 @@ bool Protocol::parse (const KStringView& svSource, size_t iOffset)
 	}
 	else
 	{
-		m_sProto.assign(svSource.data() + iOffset, iFound - iOffset);
+		m_sProto.assign (svSource.data () + iOffset, iFound - iOffset);
 
 		// Pathological case if ":" is encoded as "%3A"
 		kUrlDecode (m_sProto);
@@ -119,7 +119,7 @@ bool Protocol::parse (const KStringView& svSource, size_t iOffset)
 		else
 		{
 			bError = true;
-			m_sProto.clear();
+			m_sProto.clear ();
 		}
 	}
 	return !bError;
@@ -140,18 +140,21 @@ bool User::parse (const KStringView& svSource, size_t iOffset)
 
 	m_iEndOffset = iOffset;  // Stored for use by next ctor (if any).
 
-	size_t iFound = svSource.find_first_of ("@/?#", iOffset);
-	if (iFound != KStringView::npos && svSource[iFound] == '@')
+	size_t iFound  = svSource.find_first_of ("@/?#", iOffset);
+    bool   bEnded  = (iFound != KStringView::npos);
+    bool   bAtSign = (bEnded && svSource[iFound] == '@');
+    iFound = bEnded ? iFound : svSource.size();
+	if (bAtSign)
 	{
 		size_t iColon = svSource.find (':', iOffset);
 		if (iColon != KStringView::npos && iColon < iFound)
 		{
-			m_sUser.assign(svSource.data() + iOffset, iColon - iOffset);
-			m_sPass.assign(svSource.data() + iColon + 1, iFound - iColon - 1);
+			m_sUser.assign (svSource.data () + iOffset, iColon - iOffset);
+			m_sPass.assign (svSource.data () + iColon + 1, iFound - iColon - 1);
 		}
 		else
 		{
-			m_sUser.assign(svSource.data() + iOffset, iFound - iOffset);
+			m_sUser.assign (svSource.data () + iOffset, iFound - iOffset);
 		}
 
 		m_iEndOffset = iFound + 1;
@@ -183,7 +186,7 @@ bool Domain::parseHostName (const KStringView& svSource, size_t iOffset)
 
 	iFound = (iFound == KStringView::npos) ? iSize : iFound;
 	m_iEndOffset = iFound;
-	m_sHostName.assign(svSource.data() + iOffset, iFound - iOffset);
+	m_sHostName.assign (svSource.data () + iOffset, iFound - iOffset);
 
 	// Pathological case if ":" is encoded as "%3A"
 	kUrlDecode (m_sHostName);
@@ -222,26 +225,32 @@ bool Domain::parseHostName (const KStringView& svSource, size_t iOffset)
 			{
 				size_t i3Back = m_sHostName.find_last_of ('.', i2Back - 1);
 				i3Back = (i3Back == KString::npos) ? iOffset : i3Back;
-				m_sBaseName.assign(m_sHostName.data() + i3Back + 1, i2Back - i3Back);
+				m_sBaseName.assign (
+                        m_sHostName.data () + i3Back + 1,
+                        i2Back - i3Back);
 			}
 			else
 			{
-				m_sBaseName.assign(m_sHostName.data() + i2Back + 1, i1Back - i2Back);
+				m_sBaseName.assign (
+                        m_sHostName.data () + i2Back + 1,
+                        i1Back - i2Back);
 			}
 		}
-		else if (iOffset < m_sHostName.size() && iOffset < i1Back)
+		else if (iOffset < m_sHostName.size () && iOffset < i1Back)
 		{
-			m_sBaseName.assign(m_sHostName.data() + iOffset, i1Back - iOffset + 1);
-			m_sBaseName.size();
+			m_sBaseName.assign (
+                    m_sHostName.data () + iOffset,
+                    i1Back - iOffset + 1);
+			m_sBaseName.size ();
 		}
 		else if (i1Back)
 		{
-			m_sBaseName.assign(m_sHostName.data(), i1Back);
+			m_sBaseName.assign (m_sHostName.data (), i1Back);
 		}
         else
         {
             // Uncertain about this.  Hostname without a '.'?
-			m_sBaseName.assign(m_sHostName.data());
+			m_sBaseName.assign (m_sHostName.data ());
         }
 	}
 	return !bError;
@@ -268,7 +277,7 @@ bool Domain::parse (const KStringView& svSource, size_t iOffset)
 			iNext = (iNext == KStringView::npos) ? svSource.size () : iNext;
 			// Get port as string
 			KString sPortName;
-            sPortName.assign(svSource.data() + iColon, iNext - iColon);
+            sPortName.assign (svSource.data () + iColon, iNext - iColon);
 			kUrlDecode (sPortName);
 
 			const char* sPort = sPortName.c_str ();
@@ -311,7 +320,7 @@ bool Path::parse (const KStringView& svSource, size_t iOffset)
 		size_t iFound = svSource.find_first_of ("?#", iOffset);
 
 		iFound  = (iFound == KStringView::npos) ? iSize : iFound;
-		m_sPath.assign(svSource.data() + iOffset-1, iFound - iOffset + 1);
+		m_sPath.assign (svSource.data () + iOffset-1, iFound - iOffset + 1);
 		iIndex  = iOffset = m_iEndOffset = iFound;
 		kUrlDecode (m_sPath);
 	}
@@ -353,7 +362,7 @@ bool Query::parse (const KStringView& svSource, size_t iOffset)
 	iFound = (iFound == KStringView::npos) ? iSize : iFound;
 	m_iEndOffset = iFound;
     KStringView svQuery;
-    svQuery = svSource.substr(iOffset, iFound - iOffset);
+    svQuery = svSource.substr (iOffset, iFound - iOffset);
 
 	decode (svQuery);   // KurlDecode must be done on key=val separately.
 
@@ -377,7 +386,7 @@ bool Query::decode (KStringView svQuery)
 			iEnd = (iEnd == KString::npos) ? iTerminal : iEnd;
 
 			KString sEncoded;
-            sEncoded.assign (svQuery.data() + iAnchor, iEnd - iAnchor);
+            sEncoded.assign (svQuery.data () + iAnchor, iEnd - iAnchor);
 
 			iEquals = sEncoded.find ('=');
 			if (iEquals == KStringView::npos)
@@ -394,7 +403,7 @@ bool Query::decode (KStringView svQuery)
 				KString sKey, sVal;
 				kUrlDecode (sKeyEncoded, sKey);
 				kUrlDecode (sValEncoded, sVal);
-				m_kpQuery.Add (std::move(sKey), std::move(sVal));
+				m_kpQuery.Add (std::move (sKey), std::move (sVal));
 			}
 
 			iAnchor = iEnd + 1;  // Move anchor forward
@@ -426,9 +435,9 @@ bool Query::serialize (KString& sTarget) const
 			{
 				bAmpersand = true;
 			}
-			kUrlEncode(it.first, sTarget);
+			kUrlEncode (it.first, sTarget);
 			sTarget += '=';
-			kUrlEncode(it.second, sTarget);
+			kUrlEncode (it.second, sTarget);
 		}
 	}
 	return true;

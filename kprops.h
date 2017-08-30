@@ -303,18 +303,14 @@ public:
     bool operator==(const self_type& other) const
 	//-----------------------------------------------------------------------------
     {
-        bool bEquals{size() == other.size()};
-		for (auto rit = other.begin(); bEquals && (rit != other.end()); ++rit)
-		{
-            auto& rhs{*rit};
-            auto lit{m_KeyIndex.find(rhs.first)};
-            bEquals &= (lit != m_KeyIndex.end());
-            if (bEquals)
-            {
-                auto& lhs{*lit};
-                bEquals &= (lhs.second == rhs.second);
-            }
-		}
+        size_t iCount = size();
+        bool bEquals{iCount == other.size()};
+        for (size_t iIndex = 0; bEquals && (iIndex < iCount); ++iIndex)
+        {
+            const auto& lhs = (*this)[iIndex];
+            const auto& rhs = other[iIndex];
+            bEquals &= (lhs == rhs);
+        }
         return bEquals;
     }
 

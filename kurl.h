@@ -30,8 +30,8 @@
 // |/|   WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR           |/|
 // |\|   PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS        |\|
 // |/|   OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR          |/|
-// |\|  other LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR        |\|
-// |/|  otherWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE         |/|
+// |\|   OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR        |\|
+// |/|   OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE         |/|
 // |\|   SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.            |\|
 // |/|                                                                     |/|
 // |/+---------------------------------------------------------------------+/|
@@ -84,8 +84,8 @@ namespace KURL
 // A full URL is divided and parsed by running a sequence:
 //     offset = 0;
 //     URL="https://jlettvin@github.com:8080/experiment/UTF8?page=home#title";
-//     Protocol::Protocol(URL, offset);    // update offset to  8 using getEndOffset()
-//     Domain::Domain(URL, offset);  // update offset to 32 using getEndOffset()
+//     Protocol::Protocol(URL,off);  // update offset to  8 using getEndOffset()
+//     Domain::Domain(URL, off);     // update offset to 32 using getEndOffset()
 //     URI::URI(URL, offset);        // update offset to 64 using getEndOffset()
 // URL[offset] == '\0';  // End of string
 
@@ -162,10 +162,10 @@ public:
 	//---------------------------------------------------------------------
 	/// construct new instance and move members from old instance
 	inline Protocol    (      Protocol && other)
-        : m_bMailto     (std::move(other.m_bMailto))
-        , m_sProto      (std::move(other.m_sProto))
-        , m_eProto      (std::move(other.m_eProto))
-        , m_iEndOffset  (std::move(other.m_iEndOffset))
+        : m_bMailto     (std::move (other.m_bMailto))
+        , m_sProto      (std::move (other.m_sProto))
+        , m_eProto      (std::move (other.m_eProto))
+        , m_iEndOffset  (std::move (other.m_iEndOffset))
 	{
 	}
 
@@ -184,12 +184,37 @@ public:
 	/// moves members from other instance into this
 	inline Protocol&   operator= (      Protocol && other) noexcept
 	{
-        m_bMailto   = std::move(other.m_bMailto);
-        m_sProto    = std::move(other.m_sProto);
-        m_eProto    = std::move(other.m_eProto);
-        m_iEndOffset= std::move(other.m_iEndOffset);
+        m_bMailto   = std::move (other.m_bMailto);
+        m_sProto    = std::move (other.m_sProto);
+        m_eProto    = std::move (other.m_eProto);
+        m_iEndOffset= std::move (other.m_iEndOffset);
 		return *this;
 	}
+
+	//---------------------------------------------------------------------
+    inline operator KString () const
+	//---------------------------------------------------------------------
+    {
+        KString sResult;
+        serialize (sResult);
+        return sResult;
+    }
+
+	//---------------------------------------------------------------------
+    const Protocol& operator>> (KString& sTarget)
+	//---------------------------------------------------------------------
+    {
+        serialize (sTarget);
+        return *this;
+    }
+
+	//---------------------------------------------------------------------
+    Protocol& operator<< (KString& sSource)
+	//---------------------------------------------------------------------
+    {
+        parse (sSource);
+        return *this;
+    }
 
 	//---------------------------------------------------------------------
 	/// generate content into string from members
@@ -348,11 +373,36 @@ public:
 	inline User&   operator= (      User && other) noexcept
 	//-------------------------------------------------------------------------
 	{
-        m_sUser     = std::move(other.m_sUser);
-        m_sPass     = std::move(other.m_sPass);
-        m_iEndOffset= std::move(other.m_iEndOffset);
+        m_sUser     = std::move (other.m_sUser);
+        m_sPass     = std::move (other.m_sPass);
+        m_iEndOffset= std::move (other.m_iEndOffset);
 		return *this;
 	}
+
+	//---------------------------------------------------------------------
+    inline operator KString () const
+	//---------------------------------------------------------------------
+    {
+        KString sResult;
+        serialize (sResult);
+        return sResult;
+    }
+
+	//---------------------------------------------------------------------
+    const User& operator>> (KString& sTarget)
+	//---------------------------------------------------------------------
+    {
+        serialize (sTarget);
+        return *this;
+    }
+
+	//---------------------------------------------------------------------
+    User& operator<< (KString& sSource)
+	//---------------------------------------------------------------------
+    {
+        parse (sSource);
+        return *this;
+    }
 
 	//-------------------------------------------------------------------------
 	/// generate content into string from members
@@ -385,8 +435,8 @@ public:
 	inline void clear ()
 	//-------------------------------------------------------------------------
 	{
-		m_sUser         .clear();
-		m_sPass         .clear();
+		m_sUser         .clear ();
+		m_sPass         .clear ();
         m_iEndOffset    = 0;
 	}
 
@@ -534,6 +584,31 @@ class Domain
 	}
 
 	//---------------------------------------------------------------------
+    inline operator KString () const
+	//---------------------------------------------------------------------
+    {
+        KString sResult;
+        serialize (sResult);
+        return sResult;
+    }
+
+	//---------------------------------------------------------------------
+    const Domain& operator>> (KString& sTarget)
+	//---------------------------------------------------------------------
+    {
+        serialize (sTarget);
+        return *this;
+    }
+
+	//---------------------------------------------------------------------
+    Domain& operator<< (KString& sSource)
+	//---------------------------------------------------------------------
+    {
+        parse (sSource);
+        return *this;
+    }
+
+	//---------------------------------------------------------------------
 	/// generate content into string from members
 	inline bool serialize (KString& sTarget) const
 	{
@@ -555,8 +630,8 @@ class Domain
 	inline void clear ()
 	{
 		m_iPortNum     = 0;
-		m_sHostName.clear();
-		m_sBaseName.clear();
+		m_sHostName.clear ();
+		m_sBaseName.clear ();
         m_iEndOffset   = 0;
 	}
 
@@ -705,6 +780,31 @@ public:
 	}
 
 	//---------------------------------------------------------------------
+    inline operator KString () const
+	//---------------------------------------------------------------------
+    {
+        KString sResult;
+        serialize (sResult);
+        return sResult;
+    }
+
+	//---------------------------------------------------------------------
+    const Path& operator>> (KString& sTarget)
+	//---------------------------------------------------------------------
+    {
+        serialize (sTarget);
+        return *this;
+    }
+
+	//---------------------------------------------------------------------
+    Path& operator<< (KString& sSource)
+	//---------------------------------------------------------------------
+    {
+        parse (sSource);
+        return *this;
+    }
+
+	//---------------------------------------------------------------------
 	/// generate content into string from members
 	inline bool serialize (KString& sTarget) const
 	{
@@ -721,7 +821,7 @@ public:
 	/// restore instance to unpopulated state
 	inline void clear ()
 	{
-		m_sPath.clear();
+		m_sPath.clear ();
         m_iEndOffset = 0;
 	}
 
@@ -841,6 +941,31 @@ public:
 	}
 
 	//---------------------------------------------------------------------
+    inline operator KString () const
+	//---------------------------------------------------------------------
+    {
+        KString sResult;
+        serialize (sResult);
+        return sResult;
+    }
+
+	//---------------------------------------------------------------------
+    const Query& operator>> (KString& sTarget)
+	//---------------------------------------------------------------------
+    {
+        serialize (sTarget);
+        return *this;
+    }
+
+	//---------------------------------------------------------------------
+    Query& operator<< (KString& sSource)
+	//---------------------------------------------------------------------
+    {
+        parse (sSource);
+        return *this;
+    }
+
+	//---------------------------------------------------------------------
 	/// generate content into string from members
 	bool serialize (KString& sTarget) const;
 
@@ -848,7 +973,7 @@ public:
 	/// restore instance to unpopulated state
 	inline void clear ()
 	{
-        m_kpQuery.clear();
+        m_kpQuery.clear ();
         m_iEndOffset = 0;
 	}
 
@@ -980,6 +1105,31 @@ public:
 	}
 
 	//---------------------------------------------------------------------
+    inline operator KString () const
+	//---------------------------------------------------------------------
+    {
+        KString sResult;
+        serialize (sResult);
+        return sResult;
+    }
+
+	//---------------------------------------------------------------------
+    const Fragment& operator>> (KString& sTarget)
+	//---------------------------------------------------------------------
+    {
+        serialize (sTarget);
+        return *this;
+    }
+
+	//---------------------------------------------------------------------
+    Fragment& operator<< (KString& sSource)
+	//---------------------------------------------------------------------
+    {
+        parse (sSource);
+        return *this;
+    }
+
+	//---------------------------------------------------------------------
 	/// generate content into string from members
 	inline bool serialize (KString& sTarget) const
 	{
@@ -995,7 +1145,7 @@ public:
 	/// restore instance to unpopulated state
 	inline void clear ()
 	{
-		m_sFragment.clear();
+		m_sFragment.clear ();
         m_iEndOffset = 0;
 	}
 
@@ -1086,9 +1236,9 @@ public:
 	//---------------------------------------------------------------------
 	/// construct new instance and move members from old instance
 	inline URI                     (      URI && other)
-        : Path      (std::move(other))
-        , Query     (std::move(other))
-        , Fragment  (std::move(other))
+        : Path      (std::move (other))
+        , Query     (std::move (other))
+        , Fragment  (std::move (other))
 	{
 	}
 
@@ -1096,9 +1246,9 @@ public:
 	/// copies members from other instance into this
 	inline URI &         operator= (const URI &  other) noexcept
 	{
-    	Path    ::operator=(other);
-    	Query   ::operator=(other);
-    	Fragment::operator=(other);
+    	Path    ::operator= (other);
+    	Query   ::operator= (other);
+    	Fragment::operator= (other);
 		return *this;
 	}
 
@@ -1106,11 +1256,36 @@ public:
 	/// moves members from other instance into this
 	inline URI &         operator= (      URI && other) noexcept
 	{
-    	Path    ::operator=(std::move(other));
-    	Query   ::operator=(std::move(other));
-    	Fragment::operator=(std::move(other));
+    	Path    ::operator= (std::move (other));
+    	Query   ::operator= (std::move (other));
+    	Fragment::operator= (std::move (other));
 		return *this;
 	}
+
+	//---------------------------------------------------------------------
+    inline operator KString () const
+	//---------------------------------------------------------------------
+    {
+        KString sResult;
+        serialize (sResult);
+        return sResult;
+    }
+
+	//---------------------------------------------------------------------
+    const Fragment& operator>> (KString& sTarget)
+	//---------------------------------------------------------------------
+    {
+        serialize (sTarget);
+        return *this;
+    }
+
+	//---------------------------------------------------------------------
+    Fragment& operator<< (KString& sSource)
+	//---------------------------------------------------------------------
+    {
+        parse (sSource);
+        return *this;
+    }
 
 	//---------------------------------------------------------------------
 	/// generate content into string from members
@@ -1146,9 +1321,9 @@ public:
     inline bool operator== (const URI& rhs) const
     {
         return
-            Path    ::operator==(rhs) &&
-            Query   ::operator==(rhs) &&
-            Fragment::operator==(rhs) ;
+            Path    ::operator== (rhs) &&
+            Query   ::operator== (rhs) &&
+            Fragment::operator== (rhs) ;
     }
 
     //-----------------------------------------------------------------------------
@@ -1156,9 +1331,9 @@ public:
     inline bool operator!= (const URI& rhs) const
     {
         return
-            Path    ::operator!=(rhs) &&
-            Query   ::operator!=(rhs) &&
-            Fragment::operator!=(rhs) ;
+            Path    ::operator!= (rhs) ||
+            Query   ::operator!= (rhs) ||
+            Fragment::operator!= (rhs) ;
     }
 
 //------
@@ -1215,10 +1390,10 @@ public:
 	//---------------------------------------------------------------------
 	/// construct new instance and move members from old instance
 	inline URL                     (      URL && other)
-        : Protocol  (std::move(other))
-        , User      (std::move(other))
-        , Domain    (std::move(other))
-        , URI       (std::move(other))
+        : Protocol  (std::move (other))
+        , User      (std::move (other))
+        , Domain    (std::move (other))
+        , URI       (std::move (other))
 	{
 	}
 
@@ -1226,10 +1401,10 @@ public:
 	/// copies members from other instance into this
 	inline URL &         operator= (const URL &  other) noexcept
 	{
-        Path    ::operator=(other);
-        User    ::operator=(other);
-        Domain  ::operator=(other);
-        URI     ::operator=(other);
+        Path    ::operator= (other);
+        User    ::operator= (other);
+        Domain  ::operator= (other);
+        URI     ::operator= (other);
 		return *this;
 	}
 
@@ -1237,53 +1412,33 @@ public:
 	/// moves members from other instance into this
 	inline URL &         operator= (      URL && other) noexcept
 	{
-        Path    ::operator=(std::move(other));
-        User    ::operator=(std::move(other));
-        Domain  ::operator=(std::move(other));
-        URI     ::operator=(std::move(other));
+        Path    ::operator= (std::move (other));
+        User    ::operator= (std::move (other));
+        Domain  ::operator= (std::move (other));
+        URI     ::operator= (std::move (other));
 		return *this;
 	}
 
 	//---------------------------------------------------------------------
 	/// Operator form of serialize
-	//## why only for this class, and not for all preceeding as well?
 	inline operator KString ()
 	{
-		const Protocol& lProtocol   = *this;
-		const User&     lUser       = *this;
-		const Domain&   lDomain     = *this;
-		const URI&      lURI        = *this;
-
-		KString result;
-
-		lProtocol.serialize (result);
-		lUser    .serialize (result);
-		lDomain  .serialize (result);
-		lURI     .serialize (result);
-		return result;
+		KString sResult;
+        serialize (sResult);
+		return sResult;
 	}
 
 	//---------------------------------------------------------------------
 	/// Serialize a URL
 	//## why don't the others then have this operator? and what is the syntax to use this?
-	const URL& operator>> (KString& target)
+	const URL& operator>> (KString& sTarget)
 	{
-		const URL      & source     = *this;
-		const Protocol& lProtocol   = source;
-		const User&     lUser       = source;
-		const Domain&   lDomain     = source;
-		const URI&      lURI        = source;
-
-		lProtocol.serialize (target);
-		lUser    .serialize (target);
-		lDomain  .serialize (target);
-		lURI     .serialize (target);
-
+		const URL      & source = *this;
+        serialize (sTarget);
 		return *this;
 	}
 
 	//---------------------------------------------------------------------
-	//## see above
 	/// parse a URL
 	URL& operator<< (KString& source)
 	{
@@ -1344,10 +1499,10 @@ public:
     {
         return
             Protocol    ::getProtocolEnum () == rhs.getProtocolEnum () &&
-            Protocol    ::operator==(rhs) &&
-            User        ::operator==(rhs) &&
-            Domain      ::operator==(rhs) &&
-            URI         ::operator==(rhs);
+            Protocol    ::operator== (rhs) &&
+            User        ::operator== (rhs) &&
+            Domain      ::operator== (rhs) &&
+            URI         ::operator== (rhs);
     }
 
     //-----------------------------------------------------------------------------
@@ -1356,10 +1511,10 @@ public:
     {
         return
             Protocol    ::getProtocolEnum () != rhs.getProtocolEnum () ||
-            Protocol    ::operator!=(rhs) ||
-            User        ::operator!=(rhs) ||
-            Domain      ::operator!=(rhs) ||
-            URI         ::operator!=(rhs);
+            Protocol    ::operator!= (rhs) ||
+            User        ::operator!= (rhs) ||
+            Domain      ::operator!= (rhs) ||
+            URI         ::operator!= (rhs);
     }
 
 //------

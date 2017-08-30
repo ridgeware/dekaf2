@@ -91,6 +91,16 @@ struct KMutablePair
 	    , second(std::move(p.second))
 	{}
 
+    bool operator==(const KMutablePair& other) const
+    {
+        return (other.first == first) && (other.second == second);
+    }
+
+    bool operator!=(const KMutablePair& other) const
+    {
+        return (other.first != first) || (other.second != second);
+    }
+
 	Key           first;
 	mutable Value second;
 };

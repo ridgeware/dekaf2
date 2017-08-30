@@ -62,7 +62,9 @@ enum
 
 extern "C" {
 
-/// display signal that lead to crash (if any) and force a stackdump
+/// display signal that led to crash (if any) and force a stackdump
+/// @param iSignalNum The caught signal or one of the special signal
+/// numbers to indicate library internal failures.
 void kCrashExit (int iSignalNum=0);
 
 }

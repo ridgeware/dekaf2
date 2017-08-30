@@ -2,6 +2,7 @@ PROJECT_NAME           = "@CMAKE_PROJECT_NAME@"
 PROJECT_NUMBER         = @VERSION_MAJOR@.@VERSION_MINOR@.@VERSION_PATCH@
 STRIP_FROM_PATH        = @PROJECT_SOURCE_DIR@ \
                          @PROJECT_BINARY_DIR@
+# STRIP_FROM_INC_PATH    = @@
 INPUT                  = @PROJECT_SOURCE_DIR@ \
                          @PROJECT_SOURCE_DIR@/libs/re2/re2/stringpiece.h \
                          @PROJECT_SOURCE_DIR@/libs/re2/re2/stringpiece.cc
@@ -16,7 +17,7 @@ HAVE_DOT               = @DOXYGEN_DOT_FOUND@
 # USE_MDFILE_AS_MAINPAGE = @doxy_main_page@
 OUTPUT_LANGUAGE        = English
 BUILTIN_STL_SUPPORT    = YES
-BRIEF_MEMBER_DESC      = YES
+BRIEF_MEMBER_DESC      = NO
 # repeat brief in detail section
 REPEAT_BRIEF           = YES
 # create details if only brief?
@@ -29,7 +30,7 @@ JAVADOC_AUTOBRIEF      = YES
 INLINE_SIMPLE_STRUCTS  = YES
 # the inline keyword is useless nowadays, do not highlight it
 INLINE_INFO            = NO
-EXTRACT_ALL            = NO
+EXTRACT_ALL            = YES
 EXTRACT_PRIVATE        = NO
 EXTRACT_STATIC         = NO
 SORT_MEMBER_DOCS       = YES
@@ -37,6 +38,7 @@ SORT_BRIEF_DOCS        = YES
 SORT_MEMBERS_CTORS_1ST = YES
 SORT_GROUP_NAMES       = YES
 COLS_IN_ALPHA_INDEX    = 3
+IGNORE_PREFIX          = K
 SOURCE_BROWSER         = NO
 STRIP_CODE_COMMENTS    = NO
 REFERENCED_BY_RELATION = NO

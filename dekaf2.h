@@ -48,6 +48,8 @@
 #include <atomic>
 #include "kstring.h"
 
+/// @namespace dekaf2 The basic dekaf2 library namespace. All functions,
+/// variables and classes are prefixed with this namespace.
 namespace dekaf2
 {
 

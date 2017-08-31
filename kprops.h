@@ -304,10 +304,9 @@ public:
 	bool operator==(const self_type& other) const
 	//-----------------------------------------------------------------------------
 	{
-		auto liter = this->begin();
-		auto lends = this->end();
-		auto riter = other.begin();
-		return std::equal(liter, lends, riter);
+		return (
+			size() == other.size()) &&
+			std::equal(begin(), end(), other.begin());
 	}
 
 	//-----------------------------------------------------------------------------

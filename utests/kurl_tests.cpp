@@ -34,6 +34,7 @@ typedef KProps<KString, KString, true, false> KProp_t;
 	)
 
 
+//## please do not use your own decoration here
 //SSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS
 SCENARIO ( "KURL unit tests on valid data" )
 {
@@ -79,6 +80,7 @@ SCENARIO ( "KURL unit tests on valid data" )
 		{
 			THEN ( "collect and test each" )
 			{
+//## this is not necessary - remove it
 #define KSVIEW(name) KStringView(name.c_str(), name.size())
 			test_t::iterator it;
 			for (it = URL_valid.begin(); it != URL_valid.end(); ++it)

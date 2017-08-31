@@ -398,9 +398,11 @@ void kUrlDecode (String& sDecode)
 /// kUrlDecode copy
 /// Copies always go to end of string so (insert < end) test unnecessary.
 template<class String>
+//## change to make the input param a KStringView
 void kUrlDecode (String& sSource, String& sTarget)
 //-----------------------------------------------------------------------------
 {
+	//## you should reserve sTarget like sTarget.reserve(sTarget.size()+sSource.size());
 	auto current = &sSource[0];
 	auto end     = current + sSource.size();
 	while (current != end)
@@ -427,9 +429,11 @@ void kUrlDecode (String& sSource, String& sTarget)
 
 
 template<class String>
-void kUrlEncode (String sSource, KString& sTarget) // KString ref needed
+//## change to make the input param a KStringView
+void kUrlEncode (String sSource, KString& sTarget) // KString ref needed //## why? if you force the output to a certain string type you do not need a template on the input side.
 //-----------------------------------------------------------------------------
 {
+	//## this function uses double tabs as indents. please correct.
 		static const char* sxDigit{"0123456789ABCDEF"};
 		size_t iSize = sSource.size();
 		//String::const_iterator csIter;

@@ -53,62 +53,6 @@ namespace dekaf2
 namespace KURL
 {
 
-// https://en.wikipedia.org/wiki/URL
-// scheme:[//[user[:password]@]host[:port]][/path][?query][#fragment]
-
-// Suppose you want to parse fields from:
-//     URL="https://jlettvin@github.com:8080/experiment/UTF8?page=home#title";
-//     Protocol::Protocol kproto1(URL, 0);
-// The 0 is the offset at which to start parsing.
-// All these classes store the initial offset internally.
-// On successful parse, the offset of the next character past what was parsed
-// is stored instead.  This offset is to be retrieved from the class
-// in order to provide the next class constructor/parse with a valid offset.
-// This design allows independent parsing for an autonomous field or
-// sequenced dependent parsing for multi-field strings.
-// To see an example, review the parse method for KURL (last in file kurl.cpp).
-
-// For Protocol:
-// When Protocol is done with a successful parse, it stores a new offset
-// internally at m_iEndOffset (8 for "https://" starting from iOffset==0).
-// This is the offset immediately following the protocol or scheme.
-// We can now parse UserInfo starting at the stored offset.
-// Using the offset from UserInfo, we can now parse the domain.
-//     Domain::Domain kdomain1(URL, offset);
-// Other ctors and parse functions work similarly.
-// Suppose we have a scrap of URL from which we wish to parse a domain.
-//     scrap="jlettvin@github.com"; // strlen(scrap) == 19
-//     here = 0;
-//     Domain::Domain kdomain2(scrap, here);
-// here will have the value 19 after this.
-// A full URL is divided and parsed by running a sequence:
-//     offset = 0;
-//     URL="https://jlettvin@github.com:8080/experiment/UTF8?page=home#title";
-//     Protocol::Protocol(URL,off);  // update offset to  8 using getEndOffset()
-//     Domain::Domain(URL, off);     // update offset to 32 using getEndOffset()
-//     URI::URI(URL, offset);        // update offset to 64 using getEndOffset()
-// URL[offset] == '\0';  // End of string
-
-// I think I am turning Hungarian.
-// Members m_aHungarian, Statics s_bHungarian, all else is unprefixed Hungarian.
-
-// TODO there is much common code between classes.  virtual might work well.
-// Specifically, getEndOffset is always the same.
-// All classes have members m_iOffset
-// All classes have a parse, serialize, and clear.
-// Only these last methods require specialization.
-//-----------------------------------------------------------------------------
-// iOffset is the starting offset for parsing.
-// Class::parse stores iOffset and updates it on successful parse.
-// This parse length is stored in m_iEndOffset which value is
-// returned by the method size_t iOffset = getEndOffset ();
-// If successful bError is set false and iOffset will have a larger value.
-// Otherwise bError is set true and this value is zero.
-// For typical calls, scheme is at the beginning, so iOffset should begin 0.
-// parse methods shall return false on error, true on success.
-
-
-
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Class to parse and maintain "scheme" portion of w3 URL.
 /// RFC3986 3.1: scheme = ALPHA *( ALPHA / DIGIT / "+" / "-" / "." )
@@ -124,7 +68,7 @@ class Protocol
 public:
 //------
 
-	enum eProto : uint16_t  // unused at the moment.
+	enum eProto : uint16_t  // unused at the moment. //## that is not true
 	{
 		UNDEFINED,
 		FTP,
@@ -137,10 +81,19 @@ public:
 	//---------------------------------------------------------------------
 	/// constructs empty instance.
 	inline Protocol () {}
+	//---------------------------------------------------------------------
+
+	//## add a constructor that takes a eProto. That allows you to do a comparison
+	//## like if (Protocol == KURL::Protocol::HTTP) {}
+	//## Also you then do not need to store the m_sProto string for the
+	//## known protocols.. that saves a lot of copies and allocations.
+	//## Only store the m_sProto string for the UNKNOWN case...
+	//## (BTW, we discussed that weeks ago)
 
 	//---------------------------------------------------------------------
 	/// constructs instance and parses source into members
 	inline Protocol    (KStringView svSource)
+	//---------------------------------------------------------------------
 	{
 		parse (svSource);
 	}
@@ -148,10 +101,17 @@ public:
 	//---------------------------------------------------------------------
 	/// parses source into members of instance
 	KStringView parse  (KStringView sSource);
+	//---------------------------------------------------------------------
+	//## please change to Parse() - we have the convention to have PascalStyleFunctionNames()
+	//## please do this with all function names except std:: ones like size(), end(), empty() etc.
 
 	//---------------------------------------------------------------------
 	/// construct new instance and copy members from old instance
+	//## please use a consistent style for spaces around & and &&. Best use
+	//## what the rest of us does: glue the ref to the var, and have one space after it.
+	//## please correct that throughout the file.
 	inline Protocol    (const Protocol &  other)
+	//---------------------------------------------------------------------
 		: m_bMailto     (other.m_bMailto)
 		, m_sProto      (other.m_sProto)
 		, m_eProto      (other.m_eProto)
@@ -160,16 +120,22 @@ public:
 
 	//---------------------------------------------------------------------
 	/// construct new instance and move members from old instance
+	//## same like above, and why those random spaces.. do not try to
+	//## balance whitespaces if you do not do it consistently (and I am
+	//## actually of the opinion that it is much harder to read when
+	//## there's so much white space)
 	inline Protocol    (      Protocol && other)
 		: m_bMailto     (std::move (other.m_bMailto))
 		, m_sProto      (std::move (other.m_sProto))
 		, m_eProto      (std::move (other.m_eProto))
+	//---------------------------------------------------------------------
 	{
 	}
 
 	//---------------------------------------------------------------------
 	/// copies members from other instance into this
 	inline Protocol&   operator= (const Protocol &  other) noexcept
+	//## there's a //----- comment missing here.
 	{
 		m_bMailto   = other.m_bMailto;
 		m_sProto    = other.m_sProto;
@@ -180,6 +146,7 @@ public:
 	//---------------------------------------------------------------------
 	/// moves members from other instance into this
 	inline Protocol&   operator= (      Protocol && other) noexcept
+	//## there's a //----- comment missing here.
 	{
 		m_bMailto   = std::move (other.m_bMailto);
 		m_sProto    = std::move (other.m_sProto);
@@ -205,6 +172,7 @@ public:
 	}
 
 	//---------------------------------------------------------------------
+	//## shouldn't the parameter here better be a KStringView ? Or at least a const KString&
 	Protocol& operator<< (KString& sSource)
 	//---------------------------------------------------------------------
 	{
@@ -215,6 +183,9 @@ public:
 	//---------------------------------------------------------------------
 	/// generate content into string from members
 	inline bool serialize (KString& sTarget) const
+	//---------------------------------------------------------------------
+	//## there's a //----- comment missing here.
+	//## I would actually move this one into the .cpp
 	{
 		if (m_sProto.size () != 0)
 		{
@@ -222,7 +193,8 @@ public:
 			//kUrlEncode (m_sProto, sEncoded);
 			sTarget += m_sProto; //sEncoded;
 			sTarget += m_sPost;
-			//sTarget += m_bMailto ? ":" : "://";
+			//## as the basis of the serialization use m_eProto. Only if it
+			//## is UNDEFINED use m_sProto.
 			return true;
 		}
 		return false;
@@ -231,8 +203,12 @@ public:
 	//---------------------------------------------------------------------
 	/// restore instance to unpopulated state
 	inline void clear ()
+	//---------------------------------------------------------------------
+	//## I would actually move this one into the .cpp
 	{
 		m_bMailto       = false;
+		//## please do not do those artistics with spaces. it confuses the reader.
+		//## I initially thought you would call clear() recursively..
 		m_sProto        .clear ();
 		m_eProto        = UNDEFINED;
 	}
@@ -242,9 +218,11 @@ public:
 	inline KString getProtocol () const
 	{
 		KString sEncoded;
+		//## call serialize() instead
 		kUrlEncode (m_sProto, sEncoded);
 		return sEncoded;
 	}
+
 	inline eProto getProtocolEnum () const
 	{
 		return m_eProto;
@@ -265,16 +243,19 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
-	/// compares other instance with this, member-by-member
+	/// compares other instance with this, member-by-member //## comment is incorrect
 	inline bool operator== (const Protocol& rhs) const
 	{
+		//## compare emums first, and only if both equal and == UNKNOWN
+		//## compare strings
 		return getProtocol () == rhs.getProtocol ();
 	}
 
 	//-------------------------------------------------------------------------
-	/// compares other instance with this, member-by-member
+	/// compares other instance with this, member-by-member //## comment is incorrect
 	inline bool operator!= (const Protocol& rhs) const
 	{
+		//## see above
 		return getProtocol () != rhs.getProtocol ();
 	}
 
@@ -294,6 +275,8 @@ private:
 	KString         m_sProto    {};
 	KString         m_sPost     {};
 	eProto          m_eProto    {UNDEFINED};
+	//## why do you need a member variable and a special method for
+	//## mailto? Why not using enum MAILTO ?
 
 };
 
@@ -389,6 +372,7 @@ public:
 	}
 
 	//---------------------------------------------------------------------
+	//## make parameter a KStringView
 	User& operator<< (KString& sSource)
 	//---------------------------------------------------------------------
 	{
@@ -398,10 +382,13 @@ public:
 
 	//-------------------------------------------------------------------------
 	/// generate content into string from members
+	///## move the body into the cpp
 	inline bool serialize (KString& sTarget) const
 	//-------------------------------------------------------------------------
 	{
 		// TODO Should username/password be url encoded?
+		//## well, I would say so. How would you otherwise represent accented chars
+		//## (and you urldecode at parsing actually)
 		if (m_sUser.size ())
 		{
 			sTarget += m_sUser;
@@ -421,6 +408,7 @@ public:
 	inline void clear ()
 	//-------------------------------------------------------------------------
 	{
+		//## don't separate the method operator from its type.
 		m_sUser         .clear ();
 		m_sPass         .clear ();
 	}
@@ -591,6 +579,7 @@ class Domain
 	}
 
 	//---------------------------------------------------------------------
+	//## KStringView
 	Domain& operator<< (KString& sSource)
 	//---------------------------------------------------------------------
 	{
@@ -609,6 +598,8 @@ class Domain
 			if (m_iPortNum)
 			{
 				sTarget += ':';
+				//## no need to construct another string. to_string returns one, and
+				//## KString::operator+= accepts std:strings.
 				sTarget += KString (std::to_string (m_iPortNum));
 			}
 		}
@@ -643,6 +634,7 @@ class Domain
 	/// Convert member and return it as uppercased string
 	inline KString       getBaseDomain () const // No set function
 	{
+		//## use return m_sBaseName.ToUpper();
 		return KString (m_sBaseName).MakeUpper ();
 	}
 
@@ -706,6 +698,7 @@ private:
 /// scheme:[//[user[:password]@]host[:port]][/path][?query][#fragment]
 ///                                          -----   -----   --------
 /// Path extracts and stores a KStringView of URL "path"
+//## this description is wrong. Please correct.
 /// Path also encapsulates Query and Fragment
 ///
 /// The aggregation of /path?query#fragment without individual path
@@ -787,6 +780,7 @@ public:
 	}
 
 	//---------------------------------------------------------------------
+	//## KStringView
 	Path& operator<< (KString& sSource)
 	//---------------------------------------------------------------------
 	{
@@ -798,10 +792,12 @@ public:
 	/// generate content into string from members
 	inline bool serialize (KString& sTarget) const
 	{
+		//## no need to have a variable for the return as it is always true..
 		bool bResult = true;
 
 		if (m_sPath.size ())
 		{
+			//## but you have to urlencode the path..
 			sTarget += m_sPath;
 		}
 		return bResult;
@@ -863,10 +859,16 @@ private:
 /// Class to parse and maintain "query" portion of w3 URL.
 /// It is also responsible for parsing the query into a private property map.
 /// RFC3986 3.3: (See RFC)
-/// Implementation: All characters after domain from '/' to 1st of "?#\0".
+/// Implementation: All characters after domain from '/' to 1st of "?#\0". //## this description is wrong. please correct.
 /// scheme:[//[user[:password]@]host[:port]][/path][?query][#fragment]
 ///                                                  -----
 /// Query extracts and stores a KStringView of URL "query"
+//## Your implementation
+//## does not give the user a search interface for parameters etc.
+//## Please have GetQuery() return the kprops member (actually have
+//## two GetQuery(), one const the other non-const, and returning
+//## const and non-const kprops.
+//## That way the user can always use all accessors of the kprops template.
 class Query
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -969,6 +971,7 @@ public:
 
 	//---------------------------------------------------------------------
 	/// return a view of the member
+	//## replace this as explained above
 	inline KString  getQuery () const
 	{
 		KString sSerialized;
@@ -978,6 +981,7 @@ public:
 
 	//---------------------------------------------------------------------
 	/// modify member by parsing argument
+	//## remove this - user can call parse().
 	inline void setQuery (const KStringView& svQuery)
 	{
 		parse (svQuery, 0);
@@ -985,6 +989,7 @@ public:
 
 	//---------------------------------------------------------------------
 	/// return the property map
+	//## remove this
 	inline const KProp_t& getProperties () const
 	{
 		return m_kpQuery;
@@ -1143,6 +1148,7 @@ public:
 	/// return a view of the member
 	inline KStringView getFragment () const
 	{
+		//## I still think it is incorrect to return the fragment including the leading #
 		return m_sFragment;
 	}
 
@@ -1485,6 +1491,7 @@ public:
 
 	//---------------------------------------------------------------------
 	/// identify that "mailto:" was parsed
+	//## remove
 	bool isEmailinline () const
 	{
 		return (Protocol::isEmail ());
@@ -1495,6 +1502,7 @@ public:
 	inline bool operator== (const URL& rhs) const
 	{
 		return
+			//## move that functionality into Protocol's operator==()..
 			Protocol    ::getProtocolEnum () == rhs.getProtocolEnum () &&
 			Protocol    ::operator== (rhs) &&
 			User        ::operator== (rhs) &&
@@ -1507,6 +1515,7 @@ public:
 	inline bool operator!= (const URL& rhs) const
 	{
 		return
+			//## move that functionality into Protocol's operator==()..
 			Protocol    ::getProtocolEnum () != rhs.getProtocolEnum () ||
 			Protocol    ::operator!= (rhs) ||
 			User        ::operator!= (rhs) ||

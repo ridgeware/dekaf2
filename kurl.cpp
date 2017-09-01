@@ -46,6 +46,77 @@
 //  are NOT URL encoded and can be lexed without decoding.
 //=============================================================================
 
+//## format this appropriately so it will be detailed descriptions in doxygen
+
+// https://en.wikipedia.org/wiki/URL
+// scheme:[//[user[:password]@]host[:port]][/path][?query][#fragment]
+
+// Suppose you want to parse fields from:
+//     URL="https://jlettvin@github.com:8080/experiment/UTF8?page=home#title";
+//     Protocol::Protocol kproto1(URL, 0);
+// The 0 is the offset at which to start parsing.
+// All these classes store the initial offset internally.
+// On successful parse, the offset of the next character past what was parsed
+// is stored instead.  This offset is to be retrieved from the class
+// in order to provide the next class constructor/parse with a valid offset.
+// This design allows independent parsing for an autonomous field or
+// sequenced dependent parsing for multi-field strings.
+// To see an example, review the parse method for KURL (last in file kurl.cpp).
+
+// For Protocol:
+// When Protocol is done with a successful parse, it stores a new offset
+// internally at m_iEndOffset (8 for "https://" starting from iOffset==0).
+// This is the offset immediately following the protocol or scheme.
+// We can now parse UserInfo starting at the stored offset.
+// Using the offset from UserInfo, we can now parse the domain.
+//     Domain::Domain kdomain1(URL, offset);
+// Other ctors and parse functions work similarly.
+// Suppose we have a scrap of URL from which we wish to parse a domain.
+//     scrap="jlettvin@github.com"; // strlen(scrap) == 19
+//     here = 0;
+//     Domain::Domain kdomain2(scrap, here);
+// here will have the value 19 after this.
+// A full URL is divided and parsed by running a sequence:
+//     offset = 0;
+//     URL="https://jlettvin@github.com:8080/experiment/UTF8?page=home#title";
+//     Protocol::Protocol(URL,off);  // update offset to  8 using getEndOffset()
+//     Domain::Domain(URL, off);     // update offset to 32 using getEndOffset()
+//     URI::URI(URL, offset);        // update offset to 64 using getEndOffset()
+// URL[offset] == '\0';  // End of string
+
+// I think I am turning Hungarian.
+// Members m_aHungarian, Statics s_bHungarian, all else is unprefixed Hungarian.
+
+// TODO there is much common code between classes.  virtual might work well.
+// Specifically, getEndOffset is always the same.
+// All classes have members m_iOffset
+// All classes have a parse, serialize, and clear.
+// Only these last methods require specialization.
+//-----------------------------------------------------------------------------
+// iOffset is the starting offset for parsing.
+// Class::parse stores iOffset and updates it on successful parse.
+// This parse length is stored in m_iEndOffset which value is
+// returned by the method size_t iOffset = getEndOffset ();
+// If successful bError is set false and iOffset will have a larger value.
+// Otherwise bError is set true and this value is zero.
+// For typical calls, scheme is at the beginning, so iOffset should begin 0.
+// parse methods shall return false on error, true on success.
+
+//## I want you to do one general layout change:
+//## Remove _all_ m_iEndoffset members
+//## Remove the iOffset parameter from the constructor and from all parse() functions.
+//## Change all parse() functions to return a KStringView instead of
+//## a bool. This KStringView is the remaining string that has not
+//## been parsed by the parser. In the error case, the returned string view
+//## is set to a nullptr. That distinguishes it from the successfully parsed
+//## string, which is a "". One can test that on a KStringView with .data() == nullptr
+//## Now for sequential parsing, the logic looks like:
+//##
+//## KStringView parse(KStringView sSource)
+//## {
+//## 	return Query::parse(Path::parse(Domain::parse(Protocol::parse(sSource))));
+//## }
+
 #include <cstdio>
 #include <cstdlib>
 #include <cmath>
@@ -85,6 +156,7 @@ KStringView Protocol::parse (KStringView svSource)
 	size_t iFound = svSource.find_first_of (':');
 
 	if (iFound == KStringView::npos)
+	//## how can iFound be < iOffset? don't you mean iFound == iOffset ?
 	{
 		bError = true;
 	}
@@ -104,6 +176,7 @@ KStringView Protocol::parse (KStringView svSource)
 		svSource.remove_prefix (iFound);
 
 		// Pathological case if ":" is encoded as "%3A"
+		//## how can this help here? iFound IS the ':', and it is not part of the assignment to m_sProto
 		kUrlDecode (m_sProto);
 
 		if (m_sProto == "file" && iSlash == 3)
@@ -115,6 +188,7 @@ KStringView Protocol::parse (KStringView svSource)
 			m_eProto = MAILTO;
 		}
 		else if (iSlash == 2)
+		//## how are you protected against string underflows here?
 		{
 			m_bMailto = false;
 
@@ -145,11 +219,21 @@ KStringView Protocol::parse (KStringView svSource)
 KStringView User::parse (KStringView svSource)
 //..............................................................................
 {
-	bool bError{false}; // Never set true for User
+	bool bError{false}; // Never set true for User //## then why carrying that variable around. Delete it, it distracts.
 	clear ();
 
 	size_t iSize   = svSource.size ();
 	size_t iFound  = svSource.find_first_of ("@/?#");
+	//## please rewrite without the use of the variable bEnded. It only complicates readability:
+	//## if (iFound != KStringView::npos)
+	//## {
+	//##	..
+	//## }
+	//## else
+	//## {
+	//##	m_iEndOffset = ??
+	//## }
+	//## return true;
 	bool   bEnded  = (iFound != KStringView::npos);
 	bool   bAtSign = (bEnded && svSource[iFound] == '@');
 
@@ -217,6 +301,8 @@ bool Domain::parseHostName (const KStringView& svSource, size_t iOffset)
 	m_sHostName.assign (svSource.data () + iOffset, iFound - iOffset);
 
 	// Pathological case if ":" is encoded as "%3A"
+	//## but how would that help? the %3A would not be in m_sHostName?
+	//## And you do not search for : anymore in m_sHostName?
 	kUrlDecode (m_sHostName);
 
 	// m_sBaseName   is special-cased
@@ -234,13 +320,18 @@ bool Domain::parseHostName (const KStringView& svSource, size_t iOffset)
 	// If not even 2Back then base domain is between beginning and 1Back
 	//
 	// getBaseDomain () converts KStringView to KString then uses MakeUpper.
+	//## use .rfind() if you only search one element
 	size_t i1Back = m_sHostName.find_last_of ('.');
 	if (i1Back == KString::npos)
 	{
+		//## actually I do not think that this is an error..
+		//## In private networks it is perfectly normal
+		//## to just use a name without domain part.
 		bError = true;
 	}
 	else
 	{
+		//## use .rfind() if you only search one element
 		size_t i2Back = m_sHostName.find_last_of ('.', i1Back - 1);
 		if (i2Back != KString::npos)
 		{
@@ -251,9 +342,12 @@ bool Domain::parseHostName (const KStringView& svSource, size_t iOffset)
 			}
 			if (bDotCo)
 			{
+				//## use .rfind() if you only search one element
 				size_t i3Back = m_sHostName.find_last_of ('.', i2Back - 1);
 				i3Back = (i3Back == KString::npos) ? iOffset : i3Back;
 				m_sBaseName.assign (
+							//## your python script does no use spaces for the indentation here.
+							//## Our coding standard does. Just highlight the block and press CTRL-I
 						m_sHostName.data () + i3Back + 1,
 						i2Back - i3Back);
 			}
@@ -278,6 +372,8 @@ bool Domain::parseHostName (const KStringView& svSource, size_t iOffset)
 		else
 		{
 			// Uncertain about this.  Hostname without a '.'?
+			//## as stated above, that's perfectly fine. But you
+			//## won't arrive here as you err out earlier.
 			m_sBaseName.assign (m_sHostName.data ());
 		}
 	}
@@ -338,6 +434,11 @@ bool Path::parse (const KStringView& svSource, size_t iOffset)
 	size_t iStart = svSource.find_first_of ("/?#", iOffset);
 
 	// Remaining string MUST begin with Path, Query, or Fragment prefix.
+	//## why do you only test here for svSource.size() ? Shouldn't that
+	//## be the first thing you do?
+	//## Also, please remove bError variable from the source, and use
+	//## if/then/else and early returns. That makes the code much easier
+	//## to read.
 	bError = (svSource.size () > iOffset && iStart == KStringView::npos);
 
 	if (!bError && svSource[iStart] == '/')
@@ -401,6 +502,7 @@ bool Query::parse (const KStringView& svSource, size_t iOffset)
 bool Query::decode (KStringView svQuery)
 //..............................................................................
 {
+	//## remove bError
 	bool bError{false};
 	size_t iAnchor = 0, iEnd, iEquals, iTerminal = svQuery.size ();
 
@@ -413,6 +515,7 @@ bool Query::decode (KStringView svQuery)
 
 			iEnd = (iEnd == KString::npos) ? iTerminal : iEnd;
 
+			//## this should be a string view
 			KString sEncoded;
 			sEncoded.assign (svQuery.data () + iAnchor, iEnd - iAnchor);
 
@@ -422,6 +525,7 @@ bool Query::decode (KStringView svQuery)
 				bError = (iTerminal != iEnd);
 				return !bError;
 			}
+			//## these should be string views
 			KString sKeyEncoded (sEncoded.substr (0          , iEquals));
 			KString sValEncoded (sEncoded.substr (iEquals + 1         ));
 
@@ -429,6 +533,8 @@ bool Query::decode (KStringView svQuery)
 			{
 				// decoding may only happen AFTER '=' '&' detections
 				KString sKey, sVal;
+				//## kUrlDecode should probably be changed to take as first
+				//## param a KStringView instead of a template String
 				kUrlDecode (sKeyEncoded, sKey);
 				kUrlDecode (sValEncoded, sVal);
 				m_kpQuery.Add (std::move (sKey), std::move (sVal));
@@ -482,9 +588,11 @@ bool Query::serialize (KString& sTarget) const
 bool Fragment::parse (const KStringView& svSource, size_t iOffset)
 //..............................................................................
 {
+	//## remove bError
 	bool bError{false};
 	clear ();
 
+	//## remove this assigment
 	m_iEndOffset = iOffset;  // Stored for use by next ctor (if any).
 
 	m_sFragment.assign (svSource.data () + iOffset, svSource.size () - iOffset);

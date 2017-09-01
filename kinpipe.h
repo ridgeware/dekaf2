@@ -45,6 +45,9 @@
 #include "kstring.h"
 #include "kfdreader.h"
 
+// TODO REMOVE
+#include <iostream>
+
 namespace dekaf2
 
 {
@@ -58,6 +61,14 @@ class KInPipe : public KFPReader
 public:
 //------
 
+	/*
+	 * The sProgram is a KString of this format:
+	 * path_to_program arg1 arg2 arg3...
+	 * where path_to_program will also be handed in as argv[0]
+	 * If spaces are needed within an arg, use " :
+	 * path_to_program arg1 "arg2 with spaces" arg3
+	 */
+
 	//-----------------------------------------------------------------------------
 	/// Default Constructor
 	KInPipe();
@@ -65,7 +76,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Open Constructor
-	KInPipe(const KString& sCommand);
+	KInPipe(const KString& sProgram);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -75,7 +86,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Opens A ReadPipe
-	virtual bool Open(const KString& sCommand);
+	virtual bool Open(const KString& sProgram);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -88,17 +99,28 @@ public:
 	bool IsRunning();
 	//-----------------------------------------------------------------------------
 
+	//-----------------------------------------------------------------------------
+	bool WaitForFinished(int msecs);
+	//-----------------------------------------------------------------------------
+
 //--------
-protected:
+public:
 //--------
 
 	//-----------------------------------------------------------------------------
 	/// Opens a pipe for reading
-	bool OpenReadPipe(const KString& sCommand);
+	bool OpenReadPipe(const KString& sProgram);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	bool wait(pid_t iPid);
+	bool wait();
+	//-----------------------------------------------------------------------------
+
+	typedef std::vector<char*> CharVec;
+
+	//-----------------------------------------------------------------------------
+	/// Splits args into char*[] terminated with NULL
+	bool splitArgs(KString& argString, CharVec& vector );
 	//-----------------------------------------------------------------------------
 
 	FILE* m_readPipe{nullptr};

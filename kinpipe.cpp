@@ -1,10 +1,56 @@
+/*
+//-----------------------------------------------------------------------------//
+//
+// DEKAF(tm): Lighter, Faster, Smarter (tm)
+//
+// Copyright (c) 2017, Ridgeware, Inc.
+//
+// +-------------------------------------------------------------------------+
+// | /\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\|
+// |/+---------------------------------------------------------------------+/|
+// |/|                                                                     |/|
+// |\|  ** THIS NOTICE MUST NOT BE REMOVED FROM THE SOURCE CODE MODULE **  |\|
+// |/|                                                                     |/|
+// |\|   OPEN SOURCE LICENSE                                               |\|
+// |/|                                                                     |/|
+// |\|   Permission is hereby granted, free of charge, to any person       |\|
+// |/|   obtaining a copy of this software and associated                  |/|
+// |\|   documentation files (the "Software"), to deal in the              |\|
+// |/|   Software without restriction, including without limitation        |/|
+// |\|   the rights to use, copy, modify, merge, publish,                  |\|
+// |/|   distribute, sublicense, and/or sell copies of the Software,       |/|
+// |\|   and to permit persons to whom the Software is furnished to        |\|
+// |/|   do so, subject to the following conditions:                       |/|
+// |\|                                                                     |\|
+// |/|   The above copyright notice and this permission notice shall       |/|
+// |\|   be included in all copies or substantial portions of the          |\|
+// |/|   Software.                                                         |/|
+// |\|                                                                     |\|
+// |/|   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY         |/|
+// |\|   KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE        |\|
+// |/|   WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR           |/|
+// |\|   PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS        |\|
+// |/|   OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR          |/|
+// |\|   OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR        |\|
+// |/|   OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE         |/|
+// |\|   SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.            |\|
+// |/|                                                                     |/|
+// |/+---------------------------------------------------------------------+/|
+// |\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/ |
+// +-------------------------------------------------------------------------+
+*/
+
+
 #include "kinpipe.h"
 #include "klog.h"
 
-//#include <unistd.h>
+#include <string.h>
+
+#include <unistd.h>
 #include <sys/wait.h>
-#include <fcntl.h>
-#include <poll.h>
+
+//#include <fcntl.h>
+//#include <poll.h>
 
 namespace dekaf2
 {
@@ -15,10 +61,10 @@ KInPipe::KInPipe()
 {}
 
 //-----------------------------------------------------------------------------
-KInPipe::KInPipe(const KString& sCommand)
+KInPipe::KInPipe(const KString& sProgram)
 //-----------------------------------------------------------------------------
 {
-	Open(sCommand);
+	Open(sProgram);
 
 } // Immediate Open Constructor
 
@@ -28,23 +74,25 @@ KInPipe::~KInPipe()
 {
 	Close();
 
+	//m_argVector;
+
 } // Default Destructor
 
 //-----------------------------------------------------------------------------
-bool KInPipe::Open(const KString& sCommand)
+bool KInPipe::Open(const KString& sProgram)
 //-----------------------------------------------------------------------------
 {
-	KLog().debug(3, "KInPipe::Open(): {}", sCommand);
+	KLog().debug(3, "KInPipe::Open(): {}", sProgram);
 
 	Close(); // ensure a previous pipe is closed
 	errno = 0;
 
 	// - - - - - - - - - - - - - - - - - - - - - - - -
-	// shell out to run the command:
+	// Use vfork()/execvp() to run the program:
 	// - - - - - - - - - - - - - - - - - - - - - - - -
-	if (!sCommand.empty())
+	if (!sProgram.empty())
 	{
-		OpenReadPipe(sCommand);
+		OpenReadPipe(sProgram);
 	}
 
 	// - - - - - - - - - - - - - - - - - - - - - - - -
@@ -52,7 +100,7 @@ bool KInPipe::Open(const KString& sCommand)
 	// - - - - - - - - - - - - - - - - - - - - - - - -
 	if (!m_readPipe)
 	{
-		KLog().debug (0, "KInPipe::Open(): OpenReadPipe CMD FAILED: {} ERROR: {}", sCommand, strerror(errno));
+		KLog().debug (0, "KInPipe::Open(): OpenReadPipe CMD FAILED: {} ERROR: {}", sProgram, strerror(errno));
 		m_iReadExitCode = errno;
 		return false;
 	}
@@ -121,11 +169,7 @@ bool KInPipe::IsRunning()
 	bool bResponse = false;
 
 	// sets m_iReadChildStatus if iPid is not zero
-	pid_t iPid;
-	if (!wait(iPid))
-	{
-		return true;
-	}
+	wait();
 
 	// Did we fail to get a status?
 	if (-1 == m_iReadChildStatus)
@@ -154,8 +198,29 @@ bool KInPipe::IsRunning()
 
 } // IsRunning
 
+
 //-----------------------------------------------------------------------------
-bool KInPipe::OpenReadPipe(const KString& sCommand)
+bool KInPipe::WaitForFinished(int msecs)
+//-----------------------------------------------------------------------------
+{
+	if (msecs >= 0)
+	{
+		int counter = 0;
+		while (IsRunning())
+		{
+			usleep(1000);
+			++counter;
+
+			if (counter == msecs)
+				return false;
+		}
+		return true;
+	}
+	return false;
+}
+
+//-----------------------------------------------------------------------------
+bool KInPipe::OpenReadPipe(const KString& sProgram)
 //-----------------------------------------------------------------------------
 {
 	// Reset status vars and pipes.
@@ -168,7 +233,6 @@ bool KInPipe::OpenReadPipe(const KString& sCommand)
 	// try to open a pipe
 	if (pipe(m_readPdes) < 0)
 	{
-		// no pipe
 		return false;
 	} // could not create pipe
 
@@ -194,7 +258,12 @@ bool KInPipe::OpenReadPipe(const KString& sCommand)
 			}
 
 			// execute the command
-			execl("/bin/sh", "sh", "-c", sCommand.c_str(), NULL);
+			KString sCmd(sProgram); // need non const for split
+			std::vector<char*> argV;
+			splitArgs(sCmd, argV);
+
+			execvp(argV[0], const_cast<char* const*>(argV.data()));
+
 			_exit(127);
 		} // end case 0
 
@@ -208,10 +277,12 @@ bool KInPipe::OpenReadPipe(const KString& sCommand)
 } // OpenReadPipe
 
 //-----------------------------------------------------------------------------
-bool KInPipe::wait(pid_t iPid)
+bool KInPipe::wait()
 //-----------------------------------------------------------------------------
 {
 	int iStatus = 0;
+
+	pid_t iPid;
 
 	// status can only be read ONCE
 	if (true == m_bReadChildStatusValid)
@@ -242,5 +313,35 @@ bool KInPipe::wait(pid_t iPid)
 
 	return false;
 } // wait
+
+//-----------------------------------------------------------------------------
+bool KInPipe::splitArgs(KString& argString, CharVec& argVector)
+//-----------------------------------------------------------------------------
+{
+	argVector.push_back(&argString[0]);
+	for (size_t i = 0; i < argString.size(); ++i)
+	{
+		if (argString[i] == ' ')
+		{
+			argString[i] = '\0';
+			if ((argString.size() > i + 1) && (argString[i+1] == '"'))
+			{
+				argString[i+1] = '\0';
+				argVector.push_back(&argString[i+2]);
+				do
+				{
+					++i;
+				} while (argString[i] != '"');
+				argString[i] = '\0'; // null terminate spaced region
+			}
+			else
+			{
+				argVector.push_back(&argString[i + 1]);
+			}
+		}
+	}
+	argVector.push_back(NULL); // null terminate
+	return !argVector.empty();
+}
 
 } // end namespace dekaf2

@@ -72,7 +72,7 @@ namespace KURL
 //||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
 
 //..............................................................................
-bool Protocol::parse (const KStringView& svSource, size_t iOffset)
+KStringView Protocol::parse (KStringView svSource)
 // Protocol::parse identifies and stores accessors to protocol elements.
 //..............................................................................
 {
@@ -82,33 +82,40 @@ bool Protocol::parse (const KStringView& svSource, size_t iOffset)
 
 	clear ();
 
-	m_iEndOffset = iOffset;  // Stored for use by next ctor (if any).
+	size_t iFound = svSource.find_first_of (':');
 
-	size_t iFound = svSource.find (':', iOffset);
-	if ((iFound == KStringView::npos) || (iFound <= iOffset))
+	if (iFound == KStringView::npos)
 	{
 		bError = true;
 	}
 	else
 	{
-		m_sProto.assign (svSource.data () + iOffset, iFound - iOffset);
+		size_t iSlash = 0;
+		m_sProto.assign (svSource.data (), iFound);
+		svSource.remove_prefix (iFound);
+		iFound = 0;
+		size_t iSize  = svSource.size();
+		while (iFound < iSize && svSource[++iFound] == '/')
+		{
+			++iSlash;
+			m_sPost += "/";
+		}
+		m_sPost.assign (svSource.data (), iFound);
+		svSource.remove_prefix (iFound);
 
 		// Pathological case if ":" is encoded as "%3A"
 		kUrlDecode (m_sProto);
 
-		if (m_sProto == "file")
+		if (m_sProto == "file" && iSlash == 3)
 		{
-			bError = true;
 		}
-		else if (m_sProto == "mailto")
+		else if (m_sProto == "mailto" && iSlash == 0)
 		{
-			m_iEndOffset = iFound + 1;
 			m_bMailto = true;
 			m_eProto = MAILTO;
 		}
-		else if (svSource[iFound+1] == '/' && svSource[iFound+2] == '/')
+		else if (iSlash == 2)
 		{
-			m_iEndOffset = iFound + 3;
 			m_bMailto = false;
 
 			if      (m_sProto == "ftp"  ) m_eProto = FTP;
@@ -119,10 +126,13 @@ bool Protocol::parse (const KStringView& svSource, size_t iOffset)
 		else
 		{
 			bError = true;
-			m_sProto.clear ();
+		}
+		if (bError)
+		{
+			clear();
 		}
 	}
-	return !bError;
+	return svSource;
 }
 
 
@@ -132,38 +142,54 @@ bool Protocol::parse (const KStringView& svSource, size_t iOffset)
 //||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
 
 //..............................................................................
-bool User::parse (const KStringView& svSource, size_t iOffset)
+KStringView User::parse (KStringView svSource)
 //..............................................................................
 {
 	bool bError{false}; // Never set true for User
 	clear ();
 
-	m_iEndOffset = iOffset;  // Stored for use by next ctor (if any).
-
-	size_t iFound  = svSource.find_first_of ("@/?#", iOffset);
+	size_t iSize   = svSource.size ();
+	size_t iFound  = svSource.find_first_of ("@/?#");
 	bool   bEnded  = (iFound != KStringView::npos);
 	bool   bAtSign = (bEnded && svSource[iFound] == '@');
-	iFound = bEnded ? iFound : svSource.size();
+
 	if (bAtSign)
 	{
-		size_t iColon = svSource.find (':', iOffset);
+		m_sPost = "@";
+	}
+
+	iFound = bEnded ? iFound : iSize;
+
+	if (!bAtSign)
+	{
+		bError = true;
+	}
+	else
+	{
+		size_t iColon = svSource.find (':');
 		if (iColon != KStringView::npos && iColon < iFound)
 		{
-			m_sUser.assign (svSource.data () + iOffset, iColon - iOffset);
+			m_sUser.assign (svSource.data (), iColon);
 			m_sPass.assign (svSource.data () + iColon + 1, iFound - iColon - 1);
 		}
 		else
 		{
-			m_sUser.assign (svSource.data () + iOffset, iFound - iOffset);
+			m_sUser.assign (svSource.data (), iFound);
 		}
-
-		m_iEndOffset = iFound + 1;
+		//iFound += (iFound == iSize);
+		iFound += bAtSign;
 
 		kUrlDecode (m_sUser);
 		kUrlDecode (m_sPass);
 
+
+
 	}
-	return !bError;
+	if (!bError)
+	{
+		svSource.remove_prefix (iFound);
+	}
+	return svSource;
 }
 
 
@@ -177,7 +203,9 @@ bool Domain::parseHostName (const KStringView& svSource, size_t iOffset)
 {
 	static const KString sDotCo (".co.");
 
+	if (!svSource.size()) return false;
 	bool bError{false};
+
 	m_iEndOffset = iOffset;  // Stored for use by next ctor (if any).
 
 	size_t iInitial = iOffset + ((svSource[iOffset] == '/') ? 1 : 0);
@@ -526,7 +554,7 @@ bool URI::parse (const KStringView& svSource, size_t iOffset)
 //||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
 
 //..............................................................................
-bool URL::parse (const KStringView& svSource, size_t iOffset)
+bool URL::parse (KStringView svSource, size_t iOffset)
 //..............................................................................
 {
 	bool bResult{true};
@@ -534,12 +562,11 @@ bool URL::parse (const KStringView& svSource, size_t iOffset)
 
 	m_iEndOffset = iOffset;  // Stored for use by next ctor (if any).
 
-	bResult &= Protocol::parse (svSource, m_iEndOffset);  // mandatory
-	iOffset  = Protocol::getEndOffset ();
+	svSource = Protocol::parse (svSource);  // mandatory
+	bResult = (svSource.size() != 0);
 	if (bResult)
 	{
-		User::parse (svSource, iOffset);                  // optional
-		iOffset  = User::getEndOffset ();
+		svSource = User::parse (svSource);                  // optional
 
 		bResult &= Domain::parse (svSource, iOffset);     // mandatory
 		iOffset  = Domain::getEndOffset ();

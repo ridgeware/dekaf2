@@ -140,14 +140,14 @@ public:
 
 	//---------------------------------------------------------------------
 	/// constructs instance and parses source into members
-	inline Protocol    (const KStringView& svSource, size_t iOffset=0)
+	inline Protocol    (KStringView svSource)
 	{
-		parse (svSource, iOffset);
+		parse (svSource);
 	}
 
 	//---------------------------------------------------------------------
 	/// parses source into members of instance
-	bool parse         (const KStringView& sSource, size_t iOffset=0);
+	KStringView parse  (KStringView sSource);
 
 	//---------------------------------------------------------------------
 	/// construct new instance and copy members from old instance
@@ -155,7 +155,6 @@ public:
 		: m_bMailto     (other.m_bMailto)
 		, m_sProto      (other.m_sProto)
 		, m_eProto      (other.m_eProto)
-		, m_iEndOffset  (other.m_iEndOffset)
 	{
 	}
 
@@ -165,7 +164,6 @@ public:
 		: m_bMailto     (std::move (other.m_bMailto))
 		, m_sProto      (std::move (other.m_sProto))
 		, m_eProto      (std::move (other.m_eProto))
-		, m_iEndOffset  (std::move (other.m_iEndOffset))
 	{
 	}
 
@@ -176,7 +174,6 @@ public:
 		m_bMailto   = other.m_bMailto;
 		m_sProto    = other.m_sProto;
 		m_eProto    = other.m_eProto;
-		m_iEndOffset= other.m_iEndOffset;
 		return *this;
 	}
 
@@ -187,7 +184,6 @@ public:
 		m_bMailto   = std::move (other.m_bMailto);
 		m_sProto    = std::move (other.m_sProto);
 		m_eProto    = std::move (other.m_eProto);
-		m_iEndOffset= std::move (other.m_iEndOffset);
 		return *this;
 	}
 
@@ -222,10 +218,11 @@ public:
 	{
 		if (m_sProto.size () != 0)
 		{
-			KString sEncoded;
-			kUrlEncode (m_sProto, sEncoded);
-			sTarget += sEncoded;
-			sTarget += m_bMailto ? ":" : "://";
+			//KString sEncoded;
+			//kUrlEncode (m_sProto, sEncoded);
+			sTarget += m_sProto; //sEncoded;
+			sTarget += m_sPost;
+			//sTarget += m_bMailto ? ":" : "://";
 			return true;
 		}
 		return false;
@@ -238,7 +235,6 @@ public:
 		m_bMailto       = false;
 		m_sProto        .clear ();
 		m_eProto        = UNDEFINED;
-		m_iEndOffset    = 0;
 	}
 
 	//---------------------------------------------------------------------
@@ -258,7 +254,7 @@ public:
 	/// modify member by parsing argument
 	inline void setProtocol (const KStringView& svProto)
 	{
-		parse (svProto, 0);
+		parse (svProto);
 	}
 
 	//---------------------------------------------------------------------
@@ -266,13 +262,6 @@ public:
 	inline bool isEmail () const
 	{
 		return m_bMailto;
-	}
-
-	//---------------------------------------------------------------------
-	/// return offset to end of parse in last parsed string
-	inline size_t getEndOffset () const
-	{
-		return m_iEndOffset;
 	}
 
 	//-------------------------------------------------------------------------
@@ -289,15 +278,22 @@ public:
 		return getProtocol () != rhs.getProtocol ();
 	}
 
+	//-------------------------------------------------------------------------
+	/// Size of stored parse results.
+	inline size_t size() const
+	//-------------------------------------------------------------------------
+	{
+		return m_sProto.size () + m_sPost.size ();
+	}
 
 //------
 private:
 //------
 
-	bool            m_bMailto    {false};
-	KString         m_sProto     {};
-	eProto          m_eProto     {UNDEFINED};
-	size_t          m_iEndOffset {0};
+	bool            m_bMailto   {false};
+	KString         m_sProto    {};
+	KString         m_sPost     {};
+	eProto          m_eProto    {UNDEFINED};
 
 };
 
@@ -326,15 +322,15 @@ public:
 
 	//-------------------------------------------------------------------------
 	/// constructs instance and parses source into members
-	inline User    (const KStringView& svSource, size_t iOffset=0)
+	inline User    (const KStringView& svSource)
 	//-------------------------------------------------------------------------
 	{
-		parse (svSource, iOffset);
+		parse (svSource);
 	}
 
 	//-------------------------------------------------------------------------
 	/// parses source into members of instance
-	bool parse  (const KStringView& sSource, size_t iOffset=0);
+	KStringView parse  (KStringView sSource);
 	//-------------------------------------------------------------------------
 
 	//-------------------------------------------------------------------------
@@ -342,7 +338,6 @@ public:
 	inline User              (const User &  other)
 		: m_sUser       (other.m_sUser)
 		, m_sPass       (other.m_sPass)
-		, m_iEndOffset  (other.m_iEndOffset)
 	//-------------------------------------------------------------------------
 	{
 	}
@@ -352,7 +347,6 @@ public:
 	inline User              (      User && other)
 		: m_sUser       (std::move (other.m_sUser))
 		, m_sPass       (std::move (other.m_sPass))
-		, m_iEndOffset  (std::move (other.m_iEndOffset))
 	//-------------------------------------------------------------------------
 	{
 	}
@@ -364,7 +358,6 @@ public:
 	{
 		m_sUser     = other.m_sUser;
 		m_sPass     = other.m_sPass;
-		m_iEndOffset= other.m_iEndOffset;
 		return *this;
 	}
 
@@ -375,7 +368,6 @@ public:
 	{
 		m_sUser     = std::move (other.m_sUser);
 		m_sPass     = std::move (other.m_sPass);
-		m_iEndOffset= std::move (other.m_iEndOffset);
 		return *this;
 	}
 
@@ -412,20 +404,14 @@ public:
 		// TODO Should username/password be url encoded?
 		if (m_sUser.size ())
 		{
-			//KString sUser{};
-			//kUrlEncode(m_sUser, sUser);
-			//sTarget += sUser;
 			sTarget += m_sUser;
 
 			if (m_sPass.size ())
 			{
 				sTarget += ':';
-				//KString sPass{};
-				//kUrlEncode(m_sPass, sPass);
-				//sTarget += sPass;
 				sTarget += m_sPass;
 			}
-			sTarget += '@';
+			sTarget += m_sPost;
 		}
 		return true;
 	}
@@ -437,7 +423,6 @@ public:
 	{
 		m_sUser         .clear ();
 		m_sPass         .clear ();
-		m_iEndOffset    = 0;
 	}
 
 	//-------------------------------------------------------------------------
@@ -472,14 +457,6 @@ public:
 		m_sPass = svPass;
 	}
 
-	//-------------------------------------------------------------------------
-	/// return offset to end of parse in last parsed string
-	inline size_t getEndOffset () const
-	//-------------------------------------------------------------------------
-	{
-		return m_iEndOffset;
-	}
-
 	/// compares other instance with this, member-by-member
 	inline bool operator== (const User& rhs) const
 	{
@@ -496,13 +473,26 @@ public:
 			(getUser () != rhs.getUser ()) ||
 			(getPass () != rhs.getPass ()) ;
 	}
+
+	//-------------------------------------------------------------------------
+	/// Size of stored parse results.
+	inline size_t size() const
+	//-------------------------------------------------------------------------
+	{
+		return
+			m_sUser.size () +
+			m_sPass.size () +
+			(m_sPass.size() != 0) + // account for ':' if any
+			m_sPost.size () ;       // account for '@' if any
+	}
+
 //------
 private:
 //------
 
 	KString         m_sUser     {};
 	KString         m_sPass     {};
-	size_t          m_iEndOffset{0};
+	KString         m_sPost     {};
 };
 
 
@@ -1375,7 +1365,7 @@ public:
 
 	//---------------------------------------------------------------------
 	/// parses source into members of instance
-	bool parse  (const KStringView& sSource, size_t iOffset=0);
+	bool parse  (KStringView sSource, size_t iOffset=0);
 
 	//---------------------------------------------------------------------
 	/// construct new instance and copy members from old instance
@@ -1484,6 +1474,13 @@ public:
 	bool inline sURL () const
 	{
 		return (getProtocol ().size () > 0);
+	}
+
+	//---------------------------------------------------------------------
+	size_t size() const
+	//---------------------------------------------------------------------
+	{
+		return m_iEndOffset + Protocol::size();
 	}
 
 	//---------------------------------------------------------------------

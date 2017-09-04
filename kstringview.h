@@ -289,6 +289,39 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	/// non-standard: emulate erase if range is at begin or end
+	self_type& erase(size_type pos = 0, size_type n = npos);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// non-standard: emulate erase if position is at begin or end
+	iterator erase(const_iterator position)
+	//-----------------------------------------------------------------------------
+	{
+		bool bToStart = position == begin();
+		erase(static_cast<size_type>(position - begin()), 1);
+		return bToStart ? begin() : end();
+	}
+
+	//-----------------------------------------------------------------------------
+	/// non-standard: emulate erase if range is at begin or end
+	iterator erase(const_iterator first, const_iterator last)
+	//-----------------------------------------------------------------------------
+	{
+		bool bToStart = first == begin();
+		erase(static_cast<size_type>(first - begin()), static_cast<size_type>(last - first));
+		return bToStart ? begin() : end();
+	}
+
+	//-----------------------------------------------------------------------------
+	/// non-standard: create an empty view, as if default constructed
+	void clear()
+	//-----------------------------------------------------------------------------
+	{
+		set(nullptr, 0);
+	}
+
+	//-----------------------------------------------------------------------------
 	void swap(KStringView& other) noexcept
 	//-----------------------------------------------------------------------------
 	{

@@ -1,6 +1,7 @@
 
 #include <algorithm>
 #include "kstringview.h"
+#include "klog.h"
 
 namespace dekaf2
 {
@@ -186,6 +187,52 @@ KStringView::size_type KStringView::find_last_not_of(value_type ch_p, size_type 
 		return static_cast<size_type>(it - rbegin());
 	}
 }
+
+//-----------------------------------------------------------------------------
+// non-standard: emulate erase if range is at begin or end
+KStringView::self_type& KStringView::erase(size_type pos, size_type n)
+//-----------------------------------------------------------------------------
+{
+	if (pos >= size())
+	{
+		kWarning("attempt to erase past end of string view of size {}: pos {}, n {}",
+		         size(), pos, n);
+	}
+	else {
+
+		if (n == npos)
+		{
+			n = size() - pos;
+		}
+		else if (n > size())
+		{
+			kWarning("impossible to remove {} chars at pos {} in a string view of size {}",
+					 n, pos, size());
+
+			// manipulate arguments such that the result is empty
+			pos = 0;
+			n = size();
+		}
+
+		if (pos == 0)
+		{
+			remove_prefix(n);
+		}
+		else if (pos + n == size())
+		{
+			remove_suffix(n);
+		}
+		else
+		{
+			kWarning("impossible to remove {} chars at pos {} in a string view of size {}",
+					 n, pos, size());
+		}
+
+	}
+
+	return *this;
+}
+
 #endif
 
 } // end of namespace dekaf2

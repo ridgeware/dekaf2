@@ -121,5 +121,98 @@ TEST_CASE("KStringView") {
 		CHECK( sv.find_first_not_of("0123456789abcdefgh ") == npos );
 	}
 
+	SECTION("erase by index")
+	{
+		KStringView sv("0123456789abcdefgh");
+		KStringView svd = sv;
+		KStringView sve;
+		svd.erase(2);
+		sve = "01";
+		CHECK( svd == sve );
+		svd = sv;
+		svd.erase(0, 2);
+		sve = "23456789abcdefgh";
+		CHECK( svd == sve );
+		svd = sv;
+		svd.erase(4, 2);
+		sve = "0123456789abcdefgh";
+		CHECK( svd == sve );
+		svd = sv;
+		svd.erase(16, 2);
+		sve = "0123456789abcdef";
+		CHECK( svd == sve );
+	}
+
+	SECTION("erase by iterator")
+	{
+		KStringView sv("0123456789abcdefgh");
+		KStringView svd = sv;
+		KStringView sve;
+		auto it = svd.erase(svd.begin());
+		sve = "123456789abcdefgh";
+		CHECK( svd == sve );
+		CHECK( it == svd.begin() );
+		svd = sv;
+		it = svd.erase(svd.begin()+2);
+		sve = "0123456789abcdefgh";
+		CHECK( svd == sve );
+		CHECK( it == svd.end() );
+		svd = sv;
+		it = svd.erase(svd.end()-1);
+		sve = "0123456789abcdefg";
+		CHECK( svd == sve );
+		CHECK( it == svd.end() );
+		svd = sv;
+		it = svd.erase(svd.end()-2);
+		sve = "0123456789abcdefgh";
+		CHECK( svd == sve );
+		CHECK( it == svd.end() );
+		svd = sv;
+		it = svd.erase(svd.end());
+		sve = "0123456789abcdefgh";
+		CHECK( svd == sve );
+		CHECK( it == svd.end() );
+	}
+
+	SECTION("erase by iterator range")
+	{
+		KStringView sv("0123456789abcdefgh");
+		KStringView svd = sv;
+		KStringView sve;
+		auto it = svd.erase(svd.begin(), svd.begin() + 3);
+		sve = "3456789abcdefgh";
+		CHECK( svd == sve );
+		CHECK( it == svd.begin() );
+		svd = sv;
+		it = svd.erase(svd.begin()+2, svd.begin() + 4);
+		sve = "0123456789abcdefgh";
+		CHECK( svd == sve );
+		CHECK( it == svd.end() );
+		svd = sv;
+		it = svd.erase(svd.end()-1, svd.end());
+		sve = "0123456789abcdefg";
+		CHECK( svd == sve );
+		CHECK( it == svd.end() );
+		svd = sv;
+		it = svd.erase(svd.end()-2, svd.end());
+		sve = "0123456789abcdef";
+		CHECK( svd == sve );
+		CHECK( it == svd.end() );
+		svd = sv;
+		it = svd.erase(svd.end(), svd.end());
+		sve = "0123456789abcdefgh";
+		CHECK( svd == sve );
+		CHECK( it == svd.end() );
+	}
+
+	SECTION("fmt::format")
+	{
+		KString s;
+		KStringView sv = "a string view";
+		s.Printf("This is %s", sv);
+		CHECK( s == "This is a string view" );
+		s.Format("This is {}", sv);
+		CHECK( s == "This is a string view" );
+	}
 }
 

@@ -148,3 +148,15 @@ using decay_t = typename decay<T>::type;
 }
 #endif
 
+// define macros to teach the compiler which branch is more likely
+// to be taken
+#undef DEKAF2_LIKELY
+#undef DEKAF2_UNLIKELY
+
+#if defined(__GNUC__) && __GNUC__ >= 4
+ #define DEKAF2_LIKELY(expression)   (__builtin_expect((expression), 1))
+ #define DEKAF2_UNLIKELY(expression) (__builtin_expect((expression), 0))
+#else
+ #define DEKAF2_LIKELY(expression)   (expression)
+ #define DEKAF2_UNLIKELY(expression) (expression)
+#endif

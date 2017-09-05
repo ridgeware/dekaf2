@@ -25,6 +25,7 @@ set (USOURCES
     kstack_tests.cpp
     ktcpserver_tests.cpp
     kinpipe_tests.cpp
+    koutpipe_tests.cpp
 )
 
 add_executable(dekaf2-utests ${UHEADERS} ${USOURCES})

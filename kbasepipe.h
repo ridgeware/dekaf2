@@ -41,20 +41,20 @@
 */
 
 #pragma once
-
 // Dekaf Includes
-#include "kbasepipe.h"
-#include "kfdreader.h"
+#include "kstring.h"
+#include "klog.h"
 
-// TODO REMOVE
-#include <iostream>
+// Generic Includes
+//#include <unistd.h>
+#include <sys/wait.h>
 
 namespace dekaf2
 
 {
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class KInPipe : public KFPReader, public KBasePipe
+class KBasePipe
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -62,68 +62,23 @@ class KInPipe : public KFPReader, public KBasePipe
 public:
 //------
 
-	/*
-	 * The sProgram is a KString of this format:
-	 * path_to_program arg1 arg2 arg3...
-	 * where path_to_program will also be handed in as argv[0]
-	 * If spaces are needed within an arg, use " :
-	 * path_to_program arg1 "arg2 with spaces" arg3
-	 */
-
 	//-----------------------------------------------------------------------------
 	/// Default Constructor
-	KInPipe();
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// Open Constructor
-	KInPipe(const KString& sProgram);
+	KBasePipe();
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// Default Virtual Destructor
-	virtual ~KInPipe();
+	virtual ~KBasePipe();
 	//-----------------------------------------------------------------------------
 
-	//-----------------------------------------------------------------------------
-	/// Opens A ReadPipe
-	virtual bool Open(const KString& sProgram);
-	//-----------------------------------------------------------------------------
+	typedef std::vector<char*> CharVec;
 
 	//-----------------------------------------------------------------------------
-	/// Closes A ReadPipe
-	virtual int Close();
+	/// Splits args into char*[] terminated with NULL
+	bool splitArgs(KString& argString, CharVec& vector );
 	//-----------------------------------------------------------------------------
 
-	//-----------------------------------------------------------------------------
-	/// Checks if child on other side of pipe is still running
-	bool IsRunning();
-	//-----------------------------------------------------------------------------
+}; // KBasePipe
 
-	//-----------------------------------------------------------------------------
-	bool WaitForFinished(int msecs);
-	//-----------------------------------------------------------------------------
-
-//--------
-public:
-//--------
-
-	//-----------------------------------------------------------------------------
-	/// Opens a pipe for reading
-	bool OpenReadPipe(const KString& sProgram);
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	bool wait();
-	//-----------------------------------------------------------------------------
-
-	FILE* m_readPipe{nullptr};
-	pid_t m_readPid{-2};
-	int   m_iReadExitCode{0};
-	int   m_readPdes[2]{-2,-2};
-	int   m_iReadChildStatus{-2};
-	bool  m_bReadChildStatusValid{false};
-
-}; // class KInPipe
-
-} // end namespace dekaf2
+}

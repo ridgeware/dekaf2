@@ -1,4 +1,4 @@
-/*
+﻿/*
 //-----------------------------------------------------------------------------//
 //
 // DEKAF(tm): Lighter, Faster, Smarter (tm)
@@ -40,17 +40,7 @@
 // +-------------------------------------------------------------------------+
 */
 
-
 #include "kinpipe.h"
-#include "klog.h"
-
-#include <string.h>
-
-#include <unistd.h>
-#include <sys/wait.h>
-
-//#include <fcntl.h>
-//#include <poll.h>
 
 namespace dekaf2
 {
@@ -58,7 +48,7 @@ namespace dekaf2
 //-----------------------------------------------------------------------------
 KInPipe::KInPipe()
 //-----------------------------------------------------------------------------
-{}
+{} // Default Constructor
 
 //-----------------------------------------------------------------------------
 KInPipe::KInPipe(const KString& sProgram)
@@ -73,8 +63,6 @@ KInPipe::~KInPipe()
 //-----------------------------------------------------------------------------
 {
 	Close();
-
-	//m_argVector;
 
 } // Default Destructor
 
@@ -112,7 +100,6 @@ bool KInPipe::Open(const KString& sProgram)
 	}
 
 } // Open
-
 
 //-----------------------------------------------------------------------------
 int KInPipe::Close ()
@@ -198,7 +185,6 @@ bool KInPipe::IsRunning()
 
 } // IsRunning
 
-
 //-----------------------------------------------------------------------------
 bool KInPipe::WaitForFinished(int msecs)
 //-----------------------------------------------------------------------------
@@ -217,7 +203,7 @@ bool KInPipe::WaitForFinished(int msecs)
 		return true;
 	}
 	return false;
-}
+} // WaitForFinished
 
 //-----------------------------------------------------------------------------
 bool KInPipe::OpenReadPipe(const KString& sProgram)
@@ -271,7 +257,7 @@ bool KInPipe::OpenReadPipe(const KString& sProgram)
 
 	/* only parent gets here; assume fdopen can't fail...  */
 	m_readPipe = ::fdopen(m_readPdes[0], "r");
-	(void)::close(m_readPdes[1]);
+	::close(m_readPdes[1]);
 
 	return true;
 } // OpenReadPipe
@@ -313,35 +299,5 @@ bool KInPipe::wait()
 
 	return false;
 } // wait
-
-//-----------------------------------------------------------------------------
-bool KInPipe::splitArgs(KString& argString, CharVec& argVector)
-//-----------------------------------------------------------------------------
-{
-	argVector.push_back(&argString[0]);
-	for (size_t i = 0; i < argString.size(); ++i)
-	{
-		if (argString[i] == ' ')
-		{
-			argString[i] = '\0';
-			if ((argString.size() > i + 1) && (argString[i+1] == '"'))
-			{
-				argString[i+1] = '\0';
-				argVector.push_back(&argString[i+2]);
-				do
-				{
-					++i;
-				} while (argString[i] != '"');
-				argString[i] = '\0'; // null terminate spaced region
-			}
-			else
-			{
-				argVector.push_back(&argString[i + 1]);
-			}
-		}
-	}
-	argVector.push_back(NULL); // null terminate
-	return !argVector.empty();
-}
 
 } // end namespace dekaf2

@@ -5,12 +5,12 @@
 #include <iostream>
 
 using namespace dekaf2;
-TEST_CASE("KPipeWriter")
+TEST_CASE("KOutShell")
 {
 
-	SECTION("KPipe  write_pipe")
+	SECTION("KOutShell  write_pipe")
 	{
-		INFO("KPipe  write_pipe::Start:");
+		INFO("KOutShell  write_pipe::Start:");
 
 		KOutShell pipe;
 
@@ -21,13 +21,13 @@ TEST_CASE("KPipeWriter")
 		CHECK(pipe.is_open());
 		CHECK(0 == pipe.Close());
 
-		INFO("KPipe  write_pipe::Done:");
+		INFO("KOutShell  write_pipe::Done:");
 
 	} // write_pipe
 
-	SECTION("KPipe  write_pipe")
+	SECTION("KOutShell  write_pipe")
 	{
-		INFO("KPipe  write_pipe then read to confirm");
+		INFO("KOutShell  write_pipe then read to confirm");
 
 		KOutShell pipe;
 
@@ -47,13 +47,13 @@ TEST_CASE("KPipeWriter")
 		}
 		CHECK(output.compare(str) == 0);
 
-		INFO("KPipe  write_pipe::Done:");
+		INFO("KOutShell  write_pipe::Done:");
 
 	} // write_pipe
 
-	SECTION("KPipeReader fail to open test")
+	SECTION("KOutShell fail to open test")
 	{
-		INFO("KPipeReader fail to open test::Start:");
+		INFO("KOutShell fail to open test::Start:");
 
 		KOutShell pipe;
 
@@ -62,6 +62,6 @@ TEST_CASE("KPipeWriter")
 
 		CHECK(pipe.Close() == -1);
 
-		INFO("KPipeReader fail to open test::Done:");
+		INFO("KOutShell fail to open test::Done:");
 	} // normal open close
 }

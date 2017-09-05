@@ -42,7 +42,7 @@
 
 #pragma once
 
-#include "kstring.h"
+#include "kbasepipe.h"
 #include "kfdwriter.h"
 
 // TODO REMOVE
@@ -53,7 +53,7 @@ namespace dekaf2
 {
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class KOutPipe : public KFPWriter
+class KOutPipe : public KFPWriter, public KBasePipe
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -114,13 +114,6 @@ public:
 
 	//-----------------------------------------------------------------------------
 	bool wait();
-	//-----------------------------------------------------------------------------
-
-	typedef std::vector<char*> CharVec;
-
-	//-----------------------------------------------------------------------------
-	/// Splits args into char*[] terminated with NULL
-	bool splitArgs(KString& argString, CharVec& vector );
 	//-----------------------------------------------------------------------------
 
 	FILE* m_writePipe{nullptr};

@@ -71,6 +71,7 @@ set (HEADERS
     khash.h
     kmru.h
     kinpipe.h
+    koutpipe.h
 )
 
 set (SOURCES
@@ -103,6 +104,7 @@ set (SOURCES
     ktcpserver.cpp
     khash.cpp
     kinpipe.cpp
+    koutpipe.cpp
 )
 
 if (DEKAF2_INSTALL_HEADERS)

@@ -34,8 +34,6 @@ typedef KProps<KString, KString, true, false> KProp_t;
 	)
 
 
-//## please do not use your own decoration here
-//SSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS
 SCENARIO ( "KURL unit tests on valid data" )
 {
 	test_t URL_valid;
@@ -80,39 +78,35 @@ SCENARIO ( "KURL unit tests on valid data" )
 		{
 			THEN ( "collect and test each" )
 			{
-//## this is not necessary - remove it
-#define KSVIEW(name) KStringView(name.c_str(), name.size())
-			test_t::iterator it;
-			for (it = URL_valid.begin(); it != URL_valid.end(); ++it)
-			{
-				const KString& source = it->first;
-				//INFO(source << "---" << source.c_str() << "---" << source.size());
-				const KStringView svSource = KSVIEW(source);
-				parm_t&  parameter = it->second;
-				KString  target{};
-				size_t   hint   {get<0>(parameter)};
-				size_t   done   {get<1>(parameter)};
-				bool     want   {get<2>(parameter)};
-				KString  expect {get<4>(parameter)};
-				if (expect.size() == 0)
+				test_t::iterator it;
+				for (it = URL_valid.begin(); it != URL_valid.end(); ++it)
 				{
-					expect = source;
-				}
+					const KString& source = it->first;
+					const KStringView svSource =
+						KStringView (source.c_str(), source.size ());
+					parm_t&  parameter = it->second;
+					KString  target{};
+					size_t   hint   {get<0>(parameter)};
+					size_t   done   {get<1>(parameter)};
+					bool     want   {get<2>(parameter)};
+					KString  expect {get<4>(parameter)};
+					if (expect.size() == 0)
+					{
+						expect = source;
+					}
 
-				dekaf2::KURL::URL kurl  (svSource, hint);
-				hint = kurl.getEndOffset();
-				bool have{kurl.serialize (target)};
+					dekaf2::KURL::URL kurl  (svSource);
+					bool have{kurl.serialize (target)};
 
-				INFO (svSource);
-				if (want != have || target != expect || done != hint)
-				{
+					INFO (svSource);
+					if (want != have || target != expect || done != hint)
+					{
+						CHECK (target == expect);
+						dekaf2::KURL::URL kurl  (svSource);
+					}
+					CHECK (want   == have  );
 					CHECK (target == expect);
-					dekaf2::KURL::URL kurl  (svSource, hint);
 				}
-				CHECK (want   == have  );
-				CHECK (target == expect);
-			}
-#undef KSVIEW
 			}
 		}
 		WHEN ( "Try all valid hex decodings" )
@@ -130,15 +124,14 @@ SCENARIO ( "KURL unit tests on valid data" )
 						KString sBefore{sBase};
 						sBefore += iDigit[iHi];
 						sBefore += iDigit[iLo];
-						KStringView svConvert = sBefore;
-						size_t hint{0};
+						KStringView svConvert{sBefore};
 						dekaf2::KURL::Query query;
-						bool bReturn = query.parse (svConvert, hint);
+						svConvert = query.parse (svConvert);
 						const KProp_t& kprops = query.getProperties();
 						KString sAfter = kprops[sKey];
 						INFO ("Before:" + sBefore);
 						INFO (" After:" + sAfter);
-						CHECK (bReturn == true);
+						CHECK (svConvert == "");
 						CHECK (kprops[sKey].size() == 1);
 					}
 				}
@@ -258,22 +251,18 @@ SCENARIO ( "KURL unit tests on invalid data")
 			{
 				KStringView svProto     {protocol.parse( svEmptyString)};
 				KStringView svUser      {user    .parse( svProto)};
-				bool bDomain    {domain  .parse( svUser)};
-				bool bPath      {path    .parse( svUser)};
-				bool bQuery     {query   .parse( svUser)};
-				bool bFragment  {fragment.parse( svUser)};
-				bool bURI       {uri     .parse( svUser)};
-				bool bURL       {url     .parse( svUser)};
+				KStringView svDomain    {domain  .parse( svUser)};
+				KStringView svPath      {path    .parse( svDomain)};
+				KStringView svQuery     {query   .parse( svPath)};
+				KStringView svFragment  {fragment.parse( svQuery)};
+				KStringView svURI       {uri     .parse( svFragment)};
+				KStringView svURL       {url     .parse( svURI)};
 
 				// Mandatory: Protocol, Domain, and URL cannot parse empty
 				CHECK( protocol.size () == 0 );  // Fail on empty
 				CHECK(     user.size () == 0 );
-				//CHECK( false == bDomain     );  // Fail on empty TODO
-				CHECK(  true == bPath       );
-				CHECK(  true == bQuery      );
-				CHECK(  true == bFragment   );
-				CHECK(  true == bURI        );
-				CHECK( false == bURL        );  // Fail on empty
+				CHECK(    query.size () == 0 );
+				CHECK( fragment.size () == 0 );
 			}
 		}
 		WHEN ( "parsing an invalid path" )
@@ -282,10 +271,9 @@ SCENARIO ( "KURL unit tests on invalid data")
 			{
 				KString sBadPath{"fubar"};
 				KStringView svBadPath = sBadPath;
-				size_t hint{0};
 				dekaf2::KURL::Path path;
-				bool bReturn = path.parse (svBadPath, hint);
-				CHECK (bReturn == false);
+				svBadPath = path.parse (svBadPath);
+				CHECK (svBadPath == sBadPath);
 			}
 		}
 		WHEN ( "parsing an invalid query" )
@@ -306,22 +294,20 @@ SCENARIO ( "KURL unit tests on invalid data")
 			{
 				KString sBadQuery{"hello=world%2"}; // missing %21
 				KStringView svBadQuery = sBadQuery;
-				size_t hint{0};
 				dekaf2::KURL::Query query;
-				bool bReturn = query.parse (svBadQuery, hint);
+				svBadQuery = query.parse (svBadQuery);
 				const KProp_t& kprops = query.getProperties();
-				CHECK (bReturn == true);
+				CHECK (svBadQuery != sBadQuery);
 				CHECK (kprops["hello"] == "world%2");
 			}
 			THEN ( "check for bad hex digits" )
 			{
 				KString sBadQuery{"hello=world%gg"}; // bad %gg
 				KStringView svBadQuery = sBadQuery;
-				size_t hint{0};
 				dekaf2::KURL::Query query;
-				bool bReturn = query.parse (svBadQuery, hint);
+				svBadQuery = query.parse (svBadQuery);
 				const KProp_t& kprops = query.getProperties();
-				CHECK (bReturn == true);
+				CHECK (svBadQuery != sBadQuery);
 				CHECK (kprops["hello"] == "world%gg");
 			}
 		}
@@ -371,23 +357,21 @@ SCENARIO ( "KURL unit tests on invalid data")
 						sBefore += "=" + sValue;
 
 						KStringView svConvert(sBefore.c_str(), iLength);
-						size_t hint{0};
 						dekaf2::KURL::Query query;
-						bool bReturn = query.parse (svConvert, hint);
+						svConvert = query.parse (svConvert);
 						const KProp_t& kprops = query.getProperties();
 						KString sResult = kprops[sKey];
 						size_t size = sResult.size();
 						if (size == 2 || sValue != sResult)
 						{
 							dekaf2::KURL::Query bad;
-							bad.parse(svConvert, hint);
+							bad.parse(svConvert);
 							sResult.size();
 						}
-						if (bReturn == false || sResult.size() != 3 || sResult != sValue) {
+						if (sResult.size() != 3 || sResult != sValue) {
 							dekaf2::KURL::Query bad;
-							bad.parse(svConvert, hint);
+							bad.parse(svConvert);
 						}
-						CHECK (bReturn == true);
 						CHECK (sResult.size() == 3);
 						CHECK (sResult == sValue);
 					}
@@ -486,8 +470,8 @@ TEST_CASE ("KURL")
 
 		SECTION ("kurl simple test")
 		{
-			KString source1{sProto1+sUser+sDomain}; //+sPath+sQuery+sFragment};
-			KString source2{sProto2+sUser+sDomain}; //+sPath+sQuery+sFragment};
+			KString source1{sProto1+sUser+sDomain};
+			KString source2{sProto2+sUser+sDomain};
 
 			KString target;
 			KString expect1 ("https://");
@@ -531,12 +515,11 @@ TEST_CASE ("KURL")
 
 		SECTION ("Protocol User Domain simple test")
 		{
-			KString source1{sProto1+sUser+sDomain}; //+sPath+sQuery+sFragment};
-			KString source2{sProto2+sUser+sDomain}; //+sPath+sQuery+sFragment};
+			KString source1{sProto1+sUser+sDomain};
+			KString source2{sProto2+sUser+sDomain};
 
 			KString target;
 			KString expect{source1};
-			size_t iOffset{0};
 
 			dekaf2::KURL::Protocol kproto (source1);
 			source1 = source1.substr (kproto.size ());
@@ -544,7 +527,7 @@ TEST_CASE ("KURL")
 			dekaf2::KURL::User kuser (source1);
 			source1 = source1.substr (kuser.size ());
 
-			dekaf2::KURL::Domain kdomain (source1, iOffset);
+			dekaf2::KURL::Domain kdomain (source1);
 
 			kproto .serialize (target);
 			kuser  .serialize (target);
@@ -559,14 +542,12 @@ TEST_CASE ("KURL")
 		{
 				KString target;
 				KString& expect{sDomain};
-				size_t hint{0};
 
-				dekaf2::KURL::Domain kdomain  (sDomain, hint);
+				dekaf2::KURL::Domain kdomain  (sDomain);
 
 				kdomain.serialize (target);
 
 				CHECK (target == expect);
-				//CHECK (hint == 41);
 		}
 
 		//||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
@@ -676,11 +657,10 @@ TEST_CASE ("KURL")
 				size_t   done{get<1>(parameter)};
 				bool     want{get<2>(parameter)};
 
-				dekaf2::KURL::URL kurl  (source, hint);
-				hint = kurl.size ();
+				dekaf2::KURL::URL kurl  (source);
 				bool have{kurl.serialize (target)};
 
-				if (want != have || target != expect || done != hint)
+				if (want != have || target != expect)
 				{
 					CHECK (source == expect);
 				}
@@ -694,13 +674,13 @@ TEST_CASE ("KURL")
 
 		SECTION ("KURL bulk KStringView valid tests")
 		{
-#define KSVIEW(name) KStringView(name.c_str(), name.size())
 			test_t::iterator it;
 			for (it = URL_valid.begin(); it != URL_valid.end(); ++it)
 			{
 				const KString& source = it->first;
 				INFO(source << "---" << source.c_str() << "---" << source.size());
-				const KStringView svSource = KSVIEW(source);
+				const KStringView svSource =
+					KStringView (source.c_str (), source.size ());
 				parm_t&  parameter = it->second;
 				KString  expect{source};
 				KString  target{};
@@ -708,11 +688,10 @@ TEST_CASE ("KURL")
 				size_t   done{get<1>(parameter)};
 				bool     want{get<2>(parameter)};
 
-				dekaf2::KURL::URL kurl  (svSource, hint);
-				hint = kurl.size ();
+				dekaf2::KURL::URL kurl  (svSource);
 				bool have{kurl.serialize (target)};
 
-				if (want != have || target != expect || done != hint)
+				if (want != have || target != expect)
 				{
 					CHECK (source == expect);
 				}
@@ -720,7 +699,6 @@ TEST_CASE ("KURL")
 				CHECK (target == expect);
 				CHECK (done   == target.size () );
 			}
-#undef KSVIEW
 		}
 
 		SECTION ("KURL bulk invalid tests")
@@ -730,28 +708,23 @@ TEST_CASE ("KURL")
 			{
 				const KString& source = it->first;
 				parm_t&  parameter = it->second;
-				KString  expect{};
 				KString  target{};
 				size_t   hint		{get<0>(parameter)};
 				size_t   done		{get<1>(parameter)};
 				bool     want		{get<2>(parameter)};
 				KString  feature	{get<3>(parameter)};
-				if (!expect.size())
-				{
-					expect = source;
-				}
+				KString  expect     {get<4>(parameter)};
 
-				dekaf2::KURL::URL kurl  (source, hint);
+				dekaf2::KURL::URL kurl  (source);
 				bool have{kurl.serialize (target)};
 
-				if (want != have || target != expect || done != hint)
+				if (want != have || target != expect)
 				{
-					CHECK (source == expect);
-					dekaf2::KURL::URL kurl  (source, hint);
+					CHECK (target == expect);
+					dekaf2::KURL::URL kurl  (source);
 				}
 				CHECK (want   == have  );
 				CHECK (target == expect);
-				CHECK (done   == hint  );
 			}
 		}
 

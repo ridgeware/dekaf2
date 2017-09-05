@@ -407,13 +407,20 @@ void kUrlDecode (String& sSource, String& sTarget)
 	auto end     = current + sSource.size();
 	while (current != end)
 	{
-		if (*current == '%'
-			&& end - current > 2
-			&& std::isxdigit(*(current + 1))
-			&& std::isxdigit(*(current + 2)))
+		if (*current == '%')
 		{
-			sTarget += kx2c(current + 1);
-			current += 3;
+			if ( end - current > 2
+				&& std::isxdigit(*(current + 1))
+				&& std::isxdigit(*(current + 2)))
+			{
+				sTarget += kx2c(current + 1);
+				current += 3;
+			}
+			else
+			{
+				sTarget="";
+				return;
+			}
 		}
 		else if (*current == '+')
 		{

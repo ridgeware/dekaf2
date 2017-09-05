@@ -70,12 +70,13 @@ public:
 
 	enum eProto : uint16_t  // unused at the moment. //## that is not true
 	{
-		UNDEFINED,
-		FTP,
-		HTTP,
-		HTTPS,
-		MAILTO,
-		UNKNOWN
+		eUNDEFINED,
+		eFILE,
+		eFTP,
+		eHTTP,
+		eHTTPS,
+		eMAILTO,
+		eUNKNOWN
 	};
 
 	//---------------------------------------------------------------------
@@ -187,6 +188,24 @@ public:
 	//## there's a //----- comment missing here.
 	//## I would actually move this one into the .cpp
 	{
+		/*
+		switch (m_eProto)
+		{
+			case eFILE:
+				sTarget += "file" + (m_eProto == eUNDEFINED) ? "" : "://";
+				break;
+			case eFTP:
+				sTarget += "ftp" + (m_eProto == eUNDEFINED) ? "" : "://";
+				break;
+
+		eFILE,
+		eFTP,
+		eHTTP,
+		eHTTPS,
+		eMAILTO,
+		eUNKNOWN
+		}
+		*/
 		if (m_sProto.size () != 0)
 		{
 			//KString sEncoded;
@@ -210,7 +229,7 @@ public:
 		//## please do not do those artistics with spaces. it confuses the reader.
 		//## I initially thought you would call clear() recursively..
 		m_sProto        .clear ();
-		m_eProto        = UNDEFINED;
+		m_eProto        = eUNDEFINED;
 	}
 
 	//---------------------------------------------------------------------
@@ -274,9 +293,9 @@ private:
 	bool            m_bMailto   {false};
 	KString         m_sProto    {};
 	KString         m_sPost     {};
-	eProto          m_eProto    {UNDEFINED};
+	eProto          m_eProto    {eUNDEFINED};
 	//## why do you need a member variable and a special method for
-	//## mailto? Why not using enum MAILTO ?
+	//## mailto? Why not using enum eMAILTO ?
 
 };
 
@@ -305,7 +324,7 @@ public:
 
 	//-------------------------------------------------------------------------
 	/// constructs instance and parses source into members
-	inline User    (const KStringView& svSource)
+	inline User    (KStringView svSource)
 	//-------------------------------------------------------------------------
 	{
 		parse (svSource);
@@ -510,20 +529,19 @@ class Domain
 
 	//---------------------------------------------------------------------
 	/// constructs instance and parses source into members
-	inline Domain  (const KStringView& svSource, size_t iOffset=0)
+	inline Domain  (KStringView svSource)
 	{
-		parse (svSource, iOffset);
+		parse (svSource);
 	}
 
 	//---------------------------------------------------------------------
 	/// parses source into members of instance
-	bool parse  (const KStringView& sSource, size_t iOffset=0);
+	KStringView parse  (KStringView sSource);
 
 	//---------------------------------------------------------------------
 	/// construct new instance and copy members from old instance
 	inline Domain            (const Domain &  other)
 	{
-		m_iEndOffset =  other.m_iEndOffset;
 		m_iPortNum   =  other.m_iPortNum;
 		m_sHostName  =  other.m_sHostName;
 		m_sBaseName  =  other.m_sBaseName;
@@ -533,7 +551,6 @@ class Domain
 	/// construct new instance and move members from old instance
 	inline Domain            (      Domain && other)
 	{
-		m_iEndOffset =  other.m_iEndOffset;
 		m_iPortNum   =  other.m_iPortNum;
 		m_sHostName  = std::move (other.m_sHostName);
 		m_sBaseName  = std::move (other.m_sBaseName);
@@ -543,7 +560,6 @@ class Domain
 	/// copies members from other instance into this
 	inline Domain& operator= (const Domain &  other) noexcept
 	{
-		m_iEndOffset =  other.m_iEndOffset;
 		m_iPortNum   =  other.m_iPortNum;
 		m_sHostName  =  other.m_sHostName;
 		m_sBaseName  =  other.m_sBaseName;
@@ -554,7 +570,6 @@ class Domain
 	/// moves members from other instance into this
 	inline Domain& operator= (      Domain && other) noexcept
 	{
-		m_iEndOffset =  other.m_iEndOffset;
 		m_iPortNum   =  other.m_iPortNum;
 		m_sHostName  = std::move (other.m_sHostName);
 		m_sBaseName  = std::move (other.m_sBaseName);
@@ -613,7 +628,6 @@ class Domain
 		m_iPortNum     = 0;
 		m_sHostName.clear ();
 		m_sBaseName.clear ();
-		m_iEndOffset   = 0;
 	}
 
 	//---------------------------------------------------------------------
@@ -627,7 +641,7 @@ class Domain
 	/// modify member by parsing argument
 	inline void           setHostName (const KStringView& svHostName)
 	{
-		parseHostName (svHostName, 0);  // data extraction
+		parseHostName (svHostName);  // data extraction
 	}
 
 	//---------------------------------------------------------------------
@@ -650,13 +664,6 @@ class Domain
 	inline void           setPortNum (const uint16_t iPortNum)
 	{
 		m_iPortNum = iPortNum;
-	}
-
-	//---------------------------------------------------------------------
-	/// return offset to end of parse in last parsed string
-	inline size_t getEndOffset () const
-	{
-		return m_iEndOffset;
 	}
 
 	//-----------------------------------------------------------------------------
@@ -684,10 +691,9 @@ private:
 	uint16_t         m_iPortNum    {0};
 	KString          m_sHostName   {};
 	KString          m_sBaseName   {};
-	size_t           m_iEndOffset  {0};
 
 	//---------------------------------------------------------------------
-	bool parseHostName (const KStringView& svSource, size_t iOffset);
+	KStringView parseHostName (KStringView svSource);
 };
 
 
@@ -719,20 +725,19 @@ public:
 
 	//---------------------------------------------------------------------
 	/// constructs instance and parses source into members
-	inline Path        (const KStringView& svSource, size_t iOffset=0)
+	inline Path        (KStringView svSource)
 	{
-		parse (svSource, iOffset);
+		parse (svSource);
 	}
 
 	//---------------------------------------------------------------------
 	/// parses source into members of instance
-	bool parse      (const KStringView& sSource, size_t iOffset=0);
+	KStringView parse      (KStringView sSource);
 
 	//---------------------------------------------------------------------
 	/// construct new instance and copy members from old instance
 	inline Path              (const Path &  other)
 	{
-		m_iEndOffset =  other.m_iEndOffset;
 		m_sPath      =  other.m_sPath  ;
 	}
 
@@ -740,7 +745,6 @@ public:
 	/// construct new instance and move members from old instance
 	inline Path              (      Path && other)
 	{
-		m_iEndOffset =  other.m_iEndOffset;
 		m_sPath      = std::move (other.m_sPath);
 	}
 
@@ -748,7 +752,6 @@ public:
 	/// copies members from other instance into this
 	inline Path  & operator= (const Path &  other) noexcept
 	{
-		m_iEndOffset =  other.m_iEndOffset;
 		m_sPath      =  other.m_sPath  ;
 		return *this;
 	}
@@ -757,7 +760,6 @@ public:
 	/// moves members from other instance into this
 	inline Path  & operator= (      Path && other) noexcept
 	{
-		m_iEndOffset =  other.m_iEndOffset;
 		m_sPath      = std::move (other.m_sPath);
 		return *this;
 	}
@@ -808,7 +810,6 @@ public:
 	inline void clear ()
 	{
 		m_sPath.clear ();
-		m_iEndOffset = 0;
 	}
 
 	//---------------------------------------------------------------------
@@ -820,16 +821,9 @@ public:
 
 	//---------------------------------------------------------------------
 	/// modify member by parsing argument
-	inline void setPath (const KStringView& svPath)
+	inline void setPath (KStringView svPath)
 	{
-		parse (svPath, 0);
-	}
-
-	//---------------------------------------------------------------------
-	/// return offset to end of parse in last parsed string
-	inline size_t getEndOffset () const
-	{
-		return m_iEndOffset;
+		parse (svPath);
 	}
 
 	//-----------------------------------------------------------------------------
@@ -851,7 +845,6 @@ private:
 //------
 
 	KString     m_sPath      {};
-	size_t      m_iEndOffset {0};
 };
 
 
@@ -889,20 +882,19 @@ public:
 
 	//---------------------------------------------------------------------
 	/// constructs instance and parses source into members
-	inline Query   (const KStringView& svSource, size_t iOffset=0)
+	inline Query   (KStringView svSource)
 	{
-		parse (svSource, iOffset);
+		parse (svSource);
 	}
 
 	//---------------------------------------------------------------------
 	/// parses source into members of instance
-	bool parse  (const KStringView& sSource, size_t iOffset=0);
+	KStringView parse  (KStringView sSource);
 
 	//---------------------------------------------------------------------
 	/// construct new instance and copy members from old instance
 	inline Query             (const Query &  other)
 	{
-		m_iEndOffset =  other.m_iEndOffset;
 		m_kpQuery    =  other.m_kpQuery;
 	}
 
@@ -910,7 +902,6 @@ public:
 	/// construct new instance and move members from old instance
 	inline Query             (      Query && other)
 	{
-		m_iEndOffset =  other.m_iEndOffset;
 		m_kpQuery    =  other.m_kpQuery;
 	}
 
@@ -918,7 +909,6 @@ public:
 	/// copies members from other instance into this
 	inline Query & operator= (const Query &  other) noexcept
 	{
-		m_iEndOffset =  other.m_iEndOffset;
 		m_kpQuery    =  other.m_kpQuery;
 		return *this;
 	}
@@ -927,7 +917,6 @@ public:
 	/// moves members from other instance into this
 	inline Query & operator= (      Query && other) noexcept
 	{
-		m_iEndOffset =  other.m_iEndOffset;
 		m_kpQuery    =  other.m_kpQuery;
 		return *this;
 	}
@@ -966,7 +955,6 @@ public:
 	inline void clear ()
 	{
 		m_kpQuery.clear ();
-		m_iEndOffset = 0;
 	}
 
 	//---------------------------------------------------------------------
@@ -984,7 +972,7 @@ public:
 	//## remove this - user can call parse().
 	inline void setQuery (const KStringView& svQuery)
 	{
-		parse (svQuery, 0);
+		parse (svQuery);
 	}
 
 	//---------------------------------------------------------------------
@@ -993,13 +981,6 @@ public:
 	inline const KProp_t& getProperties () const
 	{
 		return m_kpQuery;
-	}
-
-	//---------------------------------------------------------------------
-	/// return offset to end of parse in last parsed string
-	inline size_t getEndOffset () const
-	{
-		return m_iEndOffset;
 	}
 
 	//-----------------------------------------------------------------------------
@@ -1016,12 +997,19 @@ public:
 		return m_kpQuery != rhs.m_kpQuery;
 	}
 
+	//-------------------------------------------------------------------------
+	/// Size of stored parse results.
+	inline size_t size() const
+	//-------------------------------------------------------------------------
+	{
+		return m_kpQuery.size();
+	}
+
 //------
 private:
 //------
 
 	KProp_t     m_kpQuery       {};
-	size_t      m_iEndOffset    {0};
 
 	// make and use JIT translator for URL coded strings.
 	// "+"     translates to " "
@@ -1056,20 +1044,19 @@ public:
 
 	//---------------------------------------------------------------------
 	/// constructs instance and parses source into members
-	inline Fragment  (const KStringView& svSource, size_t iOffset=0)
+	inline Fragment  (KStringView svSource)
 	{
-		parse (svSource, iOffset);
+		svSource = parse (svSource);
 	}
 
 	//---------------------------------------------------------------------
 	/// parses source into members of instance
-	bool parse (const KStringView& sSource, size_t iOffset=0);
+	KStringView parse (KStringView sSource);
 
 	//---------------------------------------------------------------------
 	/// construct new instance and copy members from old instance
 	inline Fragment             (const Fragment &  other)
 	{
-		m_iEndOffset =  other.m_iEndOffset;
 		m_sFragment  =  other.m_sFragment;
 	}
 
@@ -1077,7 +1064,6 @@ public:
 	/// construct new instance and move members from old instance
 	inline Fragment             (      Fragment && other)
 	{
-		m_iEndOffset =  other.m_iEndOffset;
 		m_sFragment  = std::move (other.m_sFragment);
 	}
 
@@ -1085,7 +1071,6 @@ public:
 	/// copies members from other instance into this
 	inline Fragment & operator= (const Fragment &  other) noexcept
 	{
-		m_iEndOffset =  other.m_iEndOffset;
 		m_sFragment  =  other.m_sFragment;
 		return *this;
 	}
@@ -1094,7 +1079,6 @@ public:
 	/// moves members from other instance into this
 	inline Fragment & operator= (      Fragment && other) noexcept
 	{
-		m_iEndOffset =  other.m_iEndOffset;
 		m_sFragment  =  std::move (other.m_sFragment);
 		return *this;
 	}
@@ -1141,7 +1125,6 @@ public:
 	inline void clear ()
 	{
 		m_sFragment.clear ();
-		m_iEndOffset = 0;
 	}
 
 	//---------------------------------------------------------------------
@@ -1150,13 +1133,6 @@ public:
 	{
 		//## I still think it is incorrect to return the fragment including the leading #
 		return m_sFragment;
-	}
-
-	//---------------------------------------------------------------------
-	/// return offset to end of parse in last parsed string
-	inline size_t getEndOffset () const
-	{
-		return m_iEndOffset;
 	}
 
 	//-----------------------------------------------------------------------------
@@ -1173,12 +1149,19 @@ public:
 		return getFragment () != rhs.getFragment ();
 	}
 
+	//-------------------------------------------------------------------------
+	/// Size of stored parse results.
+	inline size_t size() const
+	//-------------------------------------------------------------------------
+	{
+		return m_sFragment.size();
+	}
+
 //------
 private:
 //------
 
 	KString         m_sFragment {};
-	size_t          m_iEndOffset{0};
 
 };
 
@@ -1211,14 +1194,14 @@ public:
 
 	//---------------------------------------------------------------------
 	/// constructs instance and parses source into members
-	inline URI        (const KStringView& svSource, size_t iOffset=0)
+	inline URI        (KStringView svSource)
 	{
-		parse (svSource, iOffset);
+		svSource = parse (svSource);
 	}
 
 	//---------------------------------------------------------------------
 	/// parses source into members of instance
-	bool parse  (const KStringView& sSource, size_t iOffset=0);
+	KStringView parse  (KStringView sSource);
 
 	//---------------------------------------------------------------------
 	/// construct new instance and copy members from old instance
@@ -1302,14 +1285,6 @@ public:
 		Path        ::clear ();
 		Query       ::clear ();
 		Fragment    ::clear ();
-		m_iEndOffset = 0;
-	}
-
-	//---------------------------------------------------------------------
-	/// return offset to end of parse in last parsed string
-	inline size_t getEndOffset () const
-	{
-		return m_iEndOffset;
 	}
 
 	//-----------------------------------------------------------------------------
@@ -1336,7 +1311,6 @@ public:
 private:
 //------
 
-	size_t      m_iEndOffset {0};
 };
 
 
@@ -1364,14 +1338,14 @@ public:
 
 	//---------------------------------------------------------------------
 	/// constructs instance and parses source into members
-	inline URL        (const KStringView& svSource, size_t iOffset=0)
+	inline URL        (KStringView svSource)
 	{
-		parse (svSource, iOffset);
+		svSource = parse (svSource);
 	}
 
 	//---------------------------------------------------------------------
 	/// parses source into members of instance
-	bool parse  (KStringView sSource, size_t iOffset=0);
+	KStringView parse  (KStringView sSource);
 
 	//---------------------------------------------------------------------
 	/// construct new instance and copy members from old instance

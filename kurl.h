@@ -61,16 +61,6 @@ namespace KURL
 {
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// @brief class Protocol in group KURL
-/// Protocol parses and maintains "scheme" portion of w3 URL.
-/// RFC3986 3.1: scheme = ALPHA *( ALPHA / DIGIT / "+" / "-" / "." )
-/// scheme:[//[user[:password]@]host[:port]][/path][?query][#fragment]
-/// ------
-/// Protocol extracts, stores, and reproduces URL "scheme".
-/// Implementation: identify all characters until ':'.
-/// For [file, ftp, http, https, mailto] store only the eProto.
-/// For others, store the characters.
-/// getters/setters and reserialization are available.
 class Protocol
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -312,12 +302,6 @@ private:
 
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// Class to parse and maintain "user" and "password" portion of w3 URL.
-/// RFC3986 3.2: authority   = [ userinfo "@" ] host [ ":" port ]
-/// Implementation: We take all characters until '@'.
-/// scheme:[//[user[:password]@]host[:port]][/path][?query][#fragment]
-///            ----  --------
-/// User extracts and stores a KStringView of URL "user" and "password".
 class User
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -515,15 +499,6 @@ private:
 
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// Class to parse and maintain "host" and "port" portion of w3 URL.
-/// RFC3986 3.2: authority = [ userinfo "@" ] host [ ":" port ]
-/// RFC3986 3.2.2: host = IP-literal / IPv4address / reg-name
-/// RFC3986 3.2.3: port = *DIGIT
-/// Implementation: We take domain from '@'+1 to first of "/:?#\0".
-/// Implementation: We take port from ':'+1 to first of "/?#\0".
-/// scheme:[//[user[:password]@]host[:port]][/path][?query][#fragment]
-///                             ----  ----
-/// Domain extracts and stores a KStringView of URL "host" and "port"
 class Domain
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -709,17 +684,6 @@ private:
 
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// Class to parse and maintain "path" portion of w3 URL.
-/// RFC3986 3.3: (See RFC)
-/// Implementation: All characters after domain from '/' to 1st of "?#\0".
-/// scheme:[//[user[:password]@]host[:port]][/path][?query][#fragment]
-///                                          -----   -----   --------
-/// Path extracts and stores a KStringView of URL "path"
-//## this description is wrong. Please correct.
-/// Path also encapsulates Query and Fragment
-///
-/// The aggregation of /path?query#fragment without individual path
-/// is a design decision; not arbitrary.
 class Path
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -860,19 +824,6 @@ private:
 
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// Class to parse and maintain "query" portion of w3 URL.
-/// It is also responsible for parsing the query into a private property map.
-/// RFC3986 3.3: (See RFC)
-/// Implementation: All characters after domain from '/' to 1st of "?#\0". //## this description is wrong. please correct.
-/// scheme:[//[user[:password]@]host[:port]][/path][?query][#fragment]
-///                                                  -----
-/// Query extracts and stores a KStringView of URL "query"
-//## Your implementation
-//## does not give the user a search interface for parameters etc.
-//## Please have GetQuery() return the kprops member (actually have
-//## two GetQuery(), one const the other non-const, and returning
-//## const and non-const kprops.
-//## That way the user can always use all accessors of the kprops template.
 class Query
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -1033,12 +984,6 @@ private:
 
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// Class to parse and maintain "fragment" portion of w3 URL.
-// RFC3986 3.3: (See RFC)
-/// Implementation: All characters after domain from '/' to 1st of "?#\0".
-/// scheme:[//[user[:password]@]host[:port]][/path][?query][#fragment]
-///                                                          --------
-/// Fragment extracts and stores a KStringView of URL "fragment"
 class Fragment
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -1179,16 +1124,6 @@ private:
 
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// Class to parse and maintain aggregate TransPerfect URI portion of w3 URL.
-/// It includes the "path", "query", and "fragment" portions.
-/// The aggregation of /path?query#fragment without individual path
-/// is a TransPerfect design decision; not arbitrary.
-/// RFC3986 3.3: (See RFC)
-/// Implementation: All characters after domain from '/' to 1st of "?#\0".
-/// scheme:[//[user[:password]@]host[:port]][/path][?query][#fragment]
-///                                          -----   -----   --------
-/// URI extracts and stores a KStringView of URL "path"
-/// URI also encapsulates Query and Fragment
 class URI : public Path, public Query, public Fragment
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -1327,12 +1262,6 @@ private:
 
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// Class to parse and maintain aggregate w3 URL.
-/// URL contains the "scheme", "user", "password", "host", "port" and URI.
-/// This is a complete accounting for all fields of the w3 URL.
-/// scheme:[//[user[:password]@]host[:port]][/path][?query][#fragment]
-/// ------     ----  --------   ----  ----   -----   -----   --------
-/// URL extracts and stores all elements of a URL.
 class URL : public Protocol, public User, public Domain, public URI
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {

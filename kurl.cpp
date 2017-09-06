@@ -41,70 +41,70 @@
 //=============================================================================
 
 /** @brief KURL class Architecture
- *=============================================================================
- * https://en.wikipedia.org/wiki/URL
- * All URL parsing is related to RFC3986 version 3.1 for this regex:
- *      scheme:[//[user[:password]@]host[:port]][/path][?query][#fragment]
- *=============================================================================
- * Example minimal abstract URL:
- *       a://b:c@d.e:f/g/h?i=j#k
- *        ^^^ ^ ^   ^ ^   ^ ^ ^
- * Characters identified by a ^ above are expected to NOT be URL encoded.
- *=============================================================================
- * Relationship between RFC3986 and class structure:
- *  a://b:c@d.e:f/g/h?i=j#k
- *  ----------------------------------------------------------------------------
- *  RFC3986            |class   |identifies             |parse/serialize
- *  ----------------------------------------------------------------------------
- *  scheme             |Protocol|a                      |a://
- *  user:password      |User    |b.c                    |b.c@
- *  host:port          |Domain  |d.e:f                  |d.e:f
- *  path?query#fragment|URI     |/g/h, i=j, k           |/g/h?i=j#k
- *  all the above      |URL     |a://b:c@d.e:f/g/h?i=j#k|a://b:c@d.e:f/g/h?i=j#k
- *  ----------------------------------------------------------------------------
- *=============================================================================
- * Class fine structure:
- *  Protocol stores enum for known schemes and KString for unknown schemes.
- *  User     stores KStrings for user and password.
- *  Domain   stores host and port as KStrings, and DOMAIN as uppercase KString.
- *  URI      is multiple-inherited from classes Path, Query, and Fragment.
- *  URL      is multiple-inherited from classes Protocol, User, Domain, and URI.
- *=============================================================================
- * Hidden classes/fields:
- *  Path     stores the like-named RFC field.
- *  Query    stores the like-named RFC field.
- *  Fragment stores the like-named RFC field.
- *  Port     part of Domain is not a class but stores the like-named RFC field.
- *=============================================================================
- * Use of KStringView for parsing decreases string copying.
- * Parse methods shall return false on error, true on success.
- * The main pattern of use during parsing is as follows.
- * Start with a KStringView svURL: "a://b:c@d.e:f/g/h?i=j#k".
- * Within KURL::URL constructor:
- *  KStringView svA = Protocol::parse (svURL);  // svA is "b:c@d.e:f/g/h?i=j#k"
- *  KStringView svB = User::parse (svA);        // svB is "d.e:f/g/h?i=j#k"
- *  KStringView svC = Domain::parse (svB);      // svC is "/g/h?i=j#k"
- *  KStringView svD = URI::parse (svC);         // svD is ""
- * So that:
- *  KString sTarget;
- *  Protocol::serialize (sTarget);      // sTarget is "a://"
- *  User::serialize (sTarget);          // sTarget is "a://b:c@"
- *  Domain::serialize (sTarget);        // sTarget is "a://b:c@d.e:f"
- *  URI::serialize (sTarget);           // sTarget is "a://b:c@d.e:f/g/h?i=j#k"
- *-----------------------------------------------------------------------------
- * Other methods:
- *  T ();                               // default ctor
- *  T (KStringView);                    // normal ctor
- *  T (const T&);                       // copy ctor
- *  operator=(const T& rhs);            // copy
- *  operator=(T&& rhs);                 // move
- *  operator>>(KString& sTarget);       // same as serialize
- *  operator<<(KString& sSource);       // same as parse (but returns instance)
- *  operator==(const T& rhs);           // compare lhs with rhs
- *  operator!=(const T& rhs);           // compare lhs with rhs
- *  clear();                            // Restore to original empty state
- *  KString();                          // same as serialize
- */
+*=============================================================================
+* https://en.wikipedia.org/wiki/URL
+* All URL parsing is related to RFC3986 version 3.1 for this regex:
+*      scheme:[//[user[:password]@]host[:port]][/path][?query][#fragment]
+*=============================================================================
+* Example minimal abstract URL:
+*       a://b:c@d.e:f/g/h?i=j#k
+*        ^^^ ^ ^   ^ ^   ^ ^ ^
+* Characters identified by a ^ above are expected to NOT be URL encoded.
+*=============================================================================
+* Relationship between RFC3986 and class structure:
+*  a://b:c@d.e:f/g/h?i=j#k
+*  ----------------------------------------------------------------------------
+*  RFC3986            |class   |identifies             |parse/serialize
+*  ----------------------------------------------------------------------------
+*  scheme             |Protocol|a                      |a://
+*  user:password      |User    |b.c                    |b.c@
+*  host:port          |Domain  |d.e:f                  |d.e:f
+*  path?query#fragment|URI     |/g/h, i=j, k           |/g/h?i=j#k
+*  all the above      |URL     |a://b:c@d.e:f/g/h?i=j#k|a://b:c@d.e:f/g/h?i=j#k
+*  ----------------------------------------------------------------------------
+*=============================================================================
+* Class fine structure:
+*  Protocol stores enum for known schemes and KString for unknown schemes.
+*  User     stores KStrings for user and password.
+*  Domain   stores host and port as KStrings, and DOMAIN as uppercase KString.
+*  URI      is multiple-inherited from classes Path, Query, and Fragment.
+*  URL      is multiple-inherited from classes Protocol, User, Domain, and URI.
+*=============================================================================
+* Hidden classes/fields:
+*  Path     stores the like-named RFC field.
+*  Query    stores the like-named RFC field.
+*  Fragment stores the like-named RFC field.
+*  Port     part of Domain is not a class but stores the like-named RFC field.
+*=============================================================================
+* Use of KStringView for parsing decreases string copying.
+* Parse methods shall return false on error, true on success.
+* The main pattern of use during parsing is as follows.
+* Start with a KStringView svURL: "a://b:c@d.e:f/g/h?i=j#k".
+* Within KURL::URL constructor:
+*  KStringView svA = Protocol::parse (svURL);  // svA is "b:c@d.e:f/g/h?i=j#k"
+*  KStringView svB = User::parse (svA);        // svB is "d.e:f/g/h?i=j#k"
+*  KStringView svC = Domain::parse (svB);      // svC is "/g/h?i=j#k"
+*  KStringView svD = URI::parse (svC);         // svD is ""
+* So that:
+*  KString sTarget;
+*  Protocol::serialize (sTarget);      // sTarget is "a://"
+*  User::serialize (sTarget);          // sTarget is "a://b:c@"
+*  Domain::serialize (sTarget);        // sTarget is "a://b:c@d.e:f"
+*  URI::serialize (sTarget);           // sTarget is "a://b:c@d.e:f/g/h?i=j#k"
+*-----------------------------------------------------------------------------
+* Other methods:
+*  T ();                               // default ctor
+*  T (KStringView);                    // normal ctor
+*  T (const T&);                       // copy ctor
+*  operator=(const T& rhs);            // copy
+*  operator=(T&& rhs);                 // move
+*  operator>>(KString& sTarget);       // same as serialize
+*  operator<<(KString& sSource);       // same as parse (but returns instance)
+*  operator==(const T& rhs);           // compare lhs with rhs
+*  operator!=(const T& rhs);           // compare lhs with rhs
+*  clear();                            // Restore to original empty state
+*  KString();                          // same as serialize
+*/
 
 #include <cstdio>
 #include <cstdlib>

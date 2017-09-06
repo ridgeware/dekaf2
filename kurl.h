@@ -50,16 +50,27 @@
 namespace dekaf2
 {
 
+/// @defgroup KURL
+/// KURL implements all classes for parsing, maintaining, and serializing URLs.
+/// Example URL:
+///     "https://jlettvin@github.com:8080/experiment/UTF8?page=home#title";
+///           ^^^        ^          ^    ^               ^         ^
+/// Characters identified by ^ above are expected to NOT be URL encoded.
+/// @{
 namespace KURL
 {
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// Class to parse and maintain "scheme" portion of w3 URL.
+/// @brief class Protocol in group KURL
+/// Protocol parses and maintains "scheme" portion of w3 URL.
 /// RFC3986 3.1: scheme = ALPHA *( ALPHA / DIGIT / "+" / "-" / "." )
-/// Implementation: We take all characters until ':'.
 /// scheme:[//[user[:password]@]host[:port]][/path][?query][#fragment]
 /// ------
-/// Protocol extracts and stores a KStringView of a URL "scheme".
+/// Protocol extracts, stores, and reproduces URL "scheme".
+/// Implementation: identify all characters until ':'.
+/// For [file, ftp, http, https, mailto] store only the eProto.
+/// For others, store the characters.
+/// getters/setters and reserialization are available.
 class Protocol
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -68,15 +79,15 @@ class Protocol
 public:
 //------
 
-	enum eProto : uint16_t  // unused at the moment. //## that is not true
+	enum eProto : uint16_t
 	{
-		eUNDEFINED,
-		eFILE,
-		eFTP,
-		eHTTP,
-		eHTTPS,
-		eMAILTO,
-		eUNKNOWN
+		UNDEFINED,
+		FILE,
+		FTP,
+		HTTP,
+		HTTPS,
+		MAILTO,
+		UNKNOWN
 	};
 
 	//---------------------------------------------------------------------
@@ -96,12 +107,12 @@ public:
 	inline Protocol    (KStringView svSource)
 	//---------------------------------------------------------------------
 	{
-		parse (svSource);
+		Parse (svSource);
 	}
 
 	//---------------------------------------------------------------------
 	/// parses source into members of instance
-	KStringView parse  (KStringView sSource);
+	KStringView Parse  (KStringView sSource);
 	//---------------------------------------------------------------------
 	//## please change to Parse() - we have the convention to have PascalStyleFunctionNames()
 	//## please do this with all function names except std:: ones like size(), end(), empty() etc.
@@ -160,7 +171,7 @@ public:
 	//---------------------------------------------------------------------
 	{
 		KString sResult;
-		serialize (sResult);
+		Serialize (sResult);
 		return sResult;
 	}
 
@@ -168,7 +179,7 @@ public:
 	const Protocol& operator>> (KString& sTarget)
 	//---------------------------------------------------------------------
 	{
-		serialize (sTarget);
+		Serialize (sTarget);
 		return *this;
 	}
 
@@ -177,13 +188,13 @@ public:
 	Protocol& operator<< (KString& sSource)
 	//---------------------------------------------------------------------
 	{
-		parse (sSource);
+		Parse (sSource);
 		return *this;
 	}
 
 	//---------------------------------------------------------------------
 	/// generate content into string from members
-	inline bool serialize (KString& sTarget) const
+	inline bool Serialize (KString& sTarget) const
 	//---------------------------------------------------------------------
 	//## there's a //----- comment missing here.
 	//## I would actually move this one into the .cpp
@@ -191,19 +202,19 @@ public:
 		/*
 		switch (m_eProto)
 		{
-			case eFILE:
-				sTarget += "file" + (m_eProto == eUNDEFINED) ? "" : "://";
+			case FILE:
+				sTarget += "file" + (m_eProto == UNDEFINED) ? "" : "://";
 				break;
-			case eFTP:
-				sTarget += "ftp" + (m_eProto == eUNDEFINED) ? "" : "://";
+			case FTP:
+				sTarget += "ftp" + (m_eProto == UNDEFINED) ? "" : "://";
 				break;
 
-		eFILE,
-		eFTP,
-		eHTTP,
-		eHTTPS,
-		eMAILTO,
-		eUNKNOWN
+		FILE,
+		FTP,
+		HTTP,
+		HTTPS,
+		MAILTO,
+		UNKNOWN
 		}
 		*/
 		if (m_sProto.size () != 0)
@@ -229,7 +240,7 @@ public:
 		//## please do not do those artistics with spaces. it confuses the reader.
 		//## I initially thought you would call clear() recursively..
 		m_sProto        .clear ();
-		m_eProto        = eUNDEFINED;
+		m_eProto        = UNDEFINED;
 	}
 
 	//---------------------------------------------------------------------
@@ -237,7 +248,7 @@ public:
 	inline KString getProtocol () const
 	{
 		KString sEncoded;
-		//## call serialize() instead
+		//## call Serialize() instead
 		kUrlEncode (m_sProto, sEncoded);
 		return sEncoded;
 	}
@@ -251,7 +262,7 @@ public:
 	/// modify member by parsing argument
 	inline void setProtocol (const KStringView& svProto)
 	{
-		parse (svProto);
+		Parse (svProto);
 	}
 
 	//---------------------------------------------------------------------
@@ -293,9 +304,9 @@ private:
 	bool            m_bMailto   {false};
 	KString         m_sProto    {};
 	KString         m_sPost     {};
-	eProto          m_eProto    {eUNDEFINED};
+	eProto          m_eProto    {UNDEFINED};
 	//## why do you need a member variable and a special method for
-	//## mailto? Why not using enum eMAILTO ?
+	//## mailto? Why not using enum MAILTO ?
 
 };
 
@@ -327,12 +338,12 @@ public:
 	inline User    (KStringView svSource)
 	//-------------------------------------------------------------------------
 	{
-		parse (svSource);
+		Parse (svSource);
 	}
 
 	//-------------------------------------------------------------------------
 	/// parses source into members of instance
-	KStringView parse  (KStringView sSource);
+	KStringView Parse  (KStringView sSource);
 	//-------------------------------------------------------------------------
 
 	//-------------------------------------------------------------------------
@@ -378,7 +389,7 @@ public:
 	//---------------------------------------------------------------------
 	{
 		KString sResult;
-		serialize (sResult);
+		Serialize (sResult);
 		return sResult;
 	}
 
@@ -386,7 +397,7 @@ public:
 	const User& operator>> (KString& sTarget)
 	//---------------------------------------------------------------------
 	{
-		serialize (sTarget);
+		Serialize (sTarget);
 		return *this;
 	}
 
@@ -395,14 +406,14 @@ public:
 	User& operator<< (KString& sSource)
 	//---------------------------------------------------------------------
 	{
-		parse (sSource);
+		Parse (sSource);
 		return *this;
 	}
 
 	//-------------------------------------------------------------------------
 	/// generate content into string from members
 	///## move the body into the cpp
-	inline bool serialize (KString& sTarget) const
+	inline bool Serialize (KString& sTarget) const
 	//-------------------------------------------------------------------------
 	{
 		// TODO Should username/password be url encoded?
@@ -531,12 +542,12 @@ class Domain
 	/// constructs instance and parses source into members
 	inline Domain  (KStringView svSource)
 	{
-		parse (svSource);
+		Parse (svSource);
 	}
 
 	//---------------------------------------------------------------------
 	/// parses source into members of instance
-	KStringView parse  (KStringView sSource);
+	KStringView Parse  (KStringView sSource);
 
 	//---------------------------------------------------------------------
 	/// construct new instance and copy members from old instance
@@ -581,7 +592,7 @@ class Domain
 	//---------------------------------------------------------------------
 	{
 		KString sResult;
-		serialize (sResult);
+		Serialize (sResult);
 		return sResult;
 	}
 
@@ -589,7 +600,7 @@ class Domain
 	const Domain& operator>> (KString& sTarget)
 	//---------------------------------------------------------------------
 	{
-		serialize (sTarget);
+		Serialize (sTarget);
 		return *this;
 	}
 
@@ -598,13 +609,13 @@ class Domain
 	Domain& operator<< (KString& sSource)
 	//---------------------------------------------------------------------
 	{
-		parse (sSource);
+		Parse (sSource);
 		return *this;
 	}
 
 	//---------------------------------------------------------------------
 	/// generate content into string from members
-	inline bool serialize (KString& sTarget) const
+	inline bool Serialize (KString& sTarget) const
 	{
 		bool bSome = true;
 		if (m_sHostName.size ())
@@ -641,7 +652,7 @@ class Domain
 	/// modify member by parsing argument
 	inline void           setHostName (const KStringView& svHostName)
 	{
-		parseHostName (svHostName);  // data extraction
+		ParseHostName (svHostName);  // data extraction
 	}
 
 	//---------------------------------------------------------------------
@@ -693,7 +704,7 @@ private:
 	KString          m_sBaseName   {};
 
 	//---------------------------------------------------------------------
-	KStringView parseHostName (KStringView svSource);
+	KStringView ParseHostName (KStringView svSource);
 };
 
 
@@ -727,12 +738,12 @@ public:
 	/// constructs instance and parses source into members
 	inline Path        (KStringView svSource)
 	{
-		parse (svSource);
+		Parse (svSource);
 	}
 
 	//---------------------------------------------------------------------
 	/// parses source into members of instance
-	KStringView parse      (KStringView sSource);
+	KStringView Parse      (KStringView sSource);
 
 	//---------------------------------------------------------------------
 	/// construct new instance and copy members from old instance
@@ -769,7 +780,7 @@ public:
 	//---------------------------------------------------------------------
 	{
 		KString sResult;
-		serialize (sResult);
+		Serialize (sResult);
 		return sResult;
 	}
 
@@ -777,7 +788,7 @@ public:
 	const Path& operator>> (KString& sTarget)
 	//---------------------------------------------------------------------
 	{
-		serialize (sTarget);
+		Serialize (sTarget);
 		return *this;
 	}
 
@@ -786,13 +797,13 @@ public:
 	Path& operator<< (KString& sSource)
 	//---------------------------------------------------------------------
 	{
-		parse (sSource);
+		Parse (sSource);
 		return *this;
 	}
 
 	//---------------------------------------------------------------------
 	/// generate content into string from members
-	inline bool serialize (KString& sTarget) const
+	inline bool Serialize (KString& sTarget) const
 	{
 		//## no need to have a variable for the return as it is always true..
 		bool bResult = true;
@@ -823,7 +834,7 @@ public:
 	/// modify member by parsing argument
 	inline void setPath (KStringView svPath)
 	{
-		parse (svPath);
+		Parse (svPath);
 	}
 
 	//-----------------------------------------------------------------------------
@@ -884,12 +895,12 @@ public:
 	/// constructs instance and parses source into members
 	inline Query   (KStringView svSource)
 	{
-		parse (svSource);
+		Parse (svSource);
 	}
 
 	//---------------------------------------------------------------------
 	/// parses source into members of instance
-	KStringView parse  (KStringView sSource);
+	KStringView Parse  (KStringView sSource);
 
 	//---------------------------------------------------------------------
 	/// construct new instance and copy members from old instance
@@ -926,7 +937,7 @@ public:
 	//---------------------------------------------------------------------
 	{
 		KString sResult;
-		serialize (sResult);
+		Serialize (sResult);
 		return sResult;
 	}
 
@@ -934,7 +945,7 @@ public:
 	const Query& operator>> (KString& sTarget)
 	//---------------------------------------------------------------------
 	{
-		serialize (sTarget);
+		Serialize (sTarget);
 		return *this;
 	}
 
@@ -942,13 +953,13 @@ public:
 	Query& operator<< (KString& sSource)
 	//---------------------------------------------------------------------
 	{
-		parse (sSource);
+		Parse (sSource);
 		return *this;
 	}
 
 	//---------------------------------------------------------------------
 	/// generate content into string from members
-	bool serialize (KString& sTarget) const;
+	bool Serialize (KString& sTarget) const;
 
 	//---------------------------------------------------------------------
 	/// restore instance to unpopulated state
@@ -963,16 +974,16 @@ public:
 	inline KString  getQuery () const
 	{
 		KString sSerialized;
-		serialize (sSerialized);
+		Serialize (sSerialized);
 		return sSerialized;
 	}
 
 	//---------------------------------------------------------------------
 	/// modify member by parsing argument
-	//## remove this - user can call parse().
+	//## remove this - user can call Parse().
 	inline void setQuery (const KStringView& svQuery)
 	{
-		parse (svQuery);
+		Parse (svQuery);
 	}
 
 	//---------------------------------------------------------------------
@@ -1046,12 +1057,12 @@ public:
 	/// constructs instance and parses source into members
 	inline Fragment  (KStringView svSource)
 	{
-		svSource = parse (svSource);
+		svSource = Parse (svSource);
 	}
 
 	//---------------------------------------------------------------------
 	/// parses source into members of instance
-	KStringView parse (KStringView sSource);
+	KStringView Parse (KStringView sSource);
 
 	//---------------------------------------------------------------------
 	/// construct new instance and copy members from old instance
@@ -1088,7 +1099,7 @@ public:
 	//---------------------------------------------------------------------
 	{
 		KString sResult;
-		serialize (sResult);
+		Serialize (sResult);
 		return sResult;
 	}
 
@@ -1096,7 +1107,7 @@ public:
 	const Fragment& operator>> (KString& sTarget)
 	//---------------------------------------------------------------------
 	{
-		serialize (sTarget);
+		Serialize (sTarget);
 		return *this;
 	}
 
@@ -1104,13 +1115,13 @@ public:
 	Fragment& operator<< (KString& sSource)
 	//---------------------------------------------------------------------
 	{
-		parse (sSource);
+		Parse (sSource);
 		return *this;
 	}
 
 	//---------------------------------------------------------------------
 	/// generate content into string from members
-	inline bool serialize (KString& sTarget) const
+	inline bool Serialize (KString& sTarget) const
 	{
 		if (m_sFragment.size ())
 		{
@@ -1196,12 +1207,12 @@ public:
 	/// constructs instance and parses source into members
 	inline URI        (KStringView svSource)
 	{
-		svSource = parse (svSource);
+		svSource = Parse (svSource);
 	}
 
 	//---------------------------------------------------------------------
 	/// parses source into members of instance
-	KStringView parse  (KStringView sSource);
+	KStringView Parse  (KStringView sSource);
 
 	//---------------------------------------------------------------------
 	/// construct new instance and copy members from old instance
@@ -1246,7 +1257,7 @@ public:
 	//---------------------------------------------------------------------
 	{
 		KString sResult;
-		serialize (sResult);
+		Serialize (sResult);
 		return sResult;
 	}
 
@@ -1254,7 +1265,7 @@ public:
 	const Fragment& operator>> (KString& sTarget)
 	//---------------------------------------------------------------------
 	{
-		serialize (sTarget);
+		Serialize (sTarget);
 		return *this;
 	}
 
@@ -1262,19 +1273,19 @@ public:
 	Fragment& operator<< (KString& sSource)
 	//---------------------------------------------------------------------
 	{
-		parse (sSource);
+		Parse (sSource);
 		return *this;
 	}
 
 	//---------------------------------------------------------------------
 	/// generate content into string from members
-	inline bool serialize (KString& sTarget) const
+	inline bool Serialize (KString& sTarget) const
 	{
 		bool bResult = true;
 
-		bResult = Path                  ::serialize (sTarget);
-		bResult = bResult && Query      ::serialize (sTarget);
-		bResult = bResult && Fragment   ::serialize (sTarget);
+		bResult = Path                  ::Serialize (sTarget);
+		bResult = bResult && Query      ::Serialize (sTarget);
+		bResult = bResult && Fragment   ::Serialize (sTarget);
 		return bResult;
 	}
 
@@ -1340,12 +1351,12 @@ public:
 	/// constructs instance and parses source into members
 	inline URL        (KStringView svSource)
 	{
-		svSource = parse (svSource);
+		svSource = Parse (svSource);
 	}
 
 	//---------------------------------------------------------------------
 	/// parses source into members of instance
-	KStringView parse  (KStringView sSource);
+	KStringView Parse  (KStringView sSource);
 
 	//---------------------------------------------------------------------
 	/// construct new instance and copy members from old instance
@@ -1394,7 +1405,7 @@ public:
 	inline operator KString ()
 	{
 		KString sResult;
-		serialize (sResult);
+		Serialize (sResult);
 		return sResult;
 	}
 
@@ -1404,7 +1415,7 @@ public:
 	const URL& operator>> (KString& sTarget)
 	{
 		const URL      & source = *this;
-		serialize (sTarget);
+		Serialize (sTarget);
 		return *this;
 	}
 
@@ -1412,21 +1423,21 @@ public:
 	/// parse a URL
 	URL& operator<< (KString& source)
 	{
-		parse (source);
+		Parse (source);
 		return *this;
 	}
 
 
 	//---------------------------------------------------------------------
 	/// generate content into string from members
-	inline bool serialize (KString& sTarget) const
+	inline bool Serialize (KString& sTarget) const
 	{
 		bool bResult = true;
 
-		bResult &= Protocol ::serialize (sTarget);
-		bResult &= User     ::serialize (sTarget);
-		bResult &= Domain   ::serialize (sTarget);
-		bResult &= URI      ::serialize (sTarget);
+		bResult &= Protocol ::Serialize (sTarget);
+		bResult &= User     ::Serialize (sTarget);
+		bResult &= Domain   ::Serialize (sTarget);
+		bResult &= URI      ::Serialize (sTarget);
 
 		return bResult;
 	}
@@ -1506,5 +1517,6 @@ private:
 
 
 } // of namespace KURL
+/** @} */ // End of group KURL
 
 } // of namespace dekaf2

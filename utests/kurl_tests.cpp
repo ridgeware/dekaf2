@@ -96,7 +96,7 @@ SCENARIO ( "KURL unit tests on valid data" )
 					}
 
 					dekaf2::KURL::URL kurl  (svSource);
-					bool have{kurl.serialize (target)};
+					bool have{kurl.Serialize (target)};
 
 					INFO (svSource);
 					if (want != have || target != expect || done != hint)
@@ -126,7 +126,7 @@ SCENARIO ( "KURL unit tests on valid data" )
 						sBefore += iDigit[iLo];
 						KStringView svConvert{sBefore};
 						dekaf2::KURL::Query query;
-						svConvert = query.parse (svConvert);
+						svConvert = query.Parse (svConvert);
 						const KProp_t& kprops = query.getProperties();
 						KString sAfter = kprops[sKey];
 						INFO ("Before:" + sBefore);
@@ -249,14 +249,14 @@ SCENARIO ( "KURL unit tests on invalid data")
 
 			THEN ( "check responses to empty string" )
 			{
-				KStringView svProto     {protocol.parse( svEmptyString)};
-				KStringView svUser      {user    .parse( svProto)};
-				KStringView svDomain    {domain  .parse( svUser)};
-				KStringView svPath      {path    .parse( svDomain)};
-				KStringView svQuery     {query   .parse( svPath)};
-				KStringView svFragment  {fragment.parse( svQuery)};
-				KStringView svURI       {uri     .parse( svFragment)};
-				KStringView svURL       {url     .parse( svURI)};
+				KStringView svProto     {protocol.Parse( svEmptyString)};
+				KStringView svUser      {user    .Parse( svProto)};
+				KStringView svDomain    {domain  .Parse( svUser)};
+				KStringView svPath      {path    .Parse( svDomain)};
+				KStringView svQuery     {query   .Parse( svPath)};
+				KStringView svFragment  {fragment.Parse( svQuery)};
+				KStringView svURI       {uri     .Parse( svFragment)};
+				KStringView svURL       {url     .Parse( svURI)};
 
 				// Mandatory: Protocol, Domain, and URL cannot parse empty
 				CHECK( protocol.size () == 0 );  // Fail on empty
@@ -272,7 +272,7 @@ SCENARIO ( "KURL unit tests on invalid data")
 				KString sBadPath{"fubar"};
 				KStringView svBadPath = sBadPath;
 				dekaf2::KURL::Path path;
-				svBadPath = path.parse (svBadPath);
+				svBadPath = path.Parse (svBadPath);
 				CHECK (svBadPath == sBadPath);
 			}
 		}
@@ -285,7 +285,7 @@ SCENARIO ( "KURL unit tests on invalid data")
 				KStringView svBadQuery = sBadQuery;
 				size_t hint{0};
 				dekaf2::KURL::Query query;
-				bool bReturn = query.parse (svBadQuery, hint);
+				bool bReturn = query.Parse (svBadQuery, hint);
 				CHECK (bReturn == false);
 			}
 #endif
@@ -295,7 +295,7 @@ SCENARIO ( "KURL unit tests on invalid data")
 				KString sBadQuery{"hello=world%2"}; // missing %21
 				KStringView svBadQuery = sBadQuery;
 				dekaf2::KURL::Query query;
-				svBadQuery = query.parse (svBadQuery);
+				svBadQuery = query.Parse (svBadQuery);
 				const KProp_t& kprops = query.getProperties();
 				CHECK (svBadQuery != sBadQuery);
 				CHECK (kprops["hello"] == "world%2");
@@ -305,7 +305,7 @@ SCENARIO ( "KURL unit tests on invalid data")
 				KString sBadQuery{"hello=world%gg"}; // bad %gg
 				KStringView svBadQuery = sBadQuery;
 				dekaf2::KURL::Query query;
-				svBadQuery = query.parse (svBadQuery);
+				svBadQuery = query.Parse (svBadQuery);
 				const KProp_t& kprops = query.getProperties();
 				CHECK (svBadQuery != sBadQuery);
 				CHECK (kprops["hello"] == "world%gg");
@@ -358,19 +358,19 @@ SCENARIO ( "KURL unit tests on invalid data")
 
 						KStringView svConvert(sBefore.c_str(), iLength);
 						dekaf2::KURL::Query query;
-						svConvert = query.parse (svConvert);
+						svConvert = query.Parse (svConvert);
 						const KProp_t& kprops = query.getProperties();
 						KString sResult = kprops[sKey];
 						size_t size = sResult.size();
 						if (size == 2 || sValue != sResult)
 						{
 							dekaf2::KURL::Query bad;
-							bad.parse(svConvert);
+							bad.Parse(svConvert);
 							sResult.size();
 						}
 						if (sResult.size() != 3 || sResult != sValue) {
 							dekaf2::KURL::Query bad;
-							bad.parse(svConvert);
+							bad.Parse(svConvert);
 						}
 						CHECK (sResult.size() == 3);
 						CHECK (sResult == sValue);
@@ -491,9 +491,9 @@ TEST_CASE ("KURL")
 			dekaf2::KURL::URL kurl;
 
 			KString kurlOut{};
-			INFO(kurl.serialize(kurlOut));
+			INFO(kurl.Serialize(kurlOut));
 
-			kproto1.serialize (target);
+			kproto1.Serialize (target);
 
 			int how =  target.compare(expect1);
 			size_t size = kproto1.size ();
@@ -529,9 +529,9 @@ TEST_CASE ("KURL")
 
 			dekaf2::KURL::Domain kdomain (source1);
 
-			kproto .serialize (target);
-			kuser  .serialize (target);
-			kdomain.serialize (target);
+			kproto .Serialize (target);
+			kuser  .Serialize (target);
+			kdomain.Serialize (target);
 
 			int iDiff = target.compare(expect);
 
@@ -545,7 +545,7 @@ TEST_CASE ("KURL")
 
 				dekaf2::KURL::Domain kdomain  (sDomain);
 
-				kdomain.serialize (target);
+				kdomain.Serialize (target);
 
 				CHECK (target == expect);
 		}
@@ -574,7 +574,7 @@ TEST_CASE ("KURL")
 			dekaf2::KURL::Protocol kproto  (solo);
 			hint = kproto.size ();
 
-			bool ret = kproto.serialize (target);
+			bool ret = kproto.Serialize (target);
 
 			CHECK (ret == true);
 			CHECK (target == expect);
@@ -588,7 +588,7 @@ TEST_CASE ("KURL")
 
 			dekaf2::KURL::Protocol kproto  (solo);
 
-			bool ret = kproto.serialize (target);
+			bool ret = kproto.Serialize (target);
 
 			if (target != expect)
 			{
@@ -607,7 +607,7 @@ TEST_CASE ("KURL")
 
 			dekaf2::KURL::Protocol kproto  (solo);
 
-			bool ret = kproto.serialize (target);
+			bool ret = kproto.Serialize (target);
 
 			CHECK (ret == false);
 			CHECK (target == expect);
@@ -621,7 +621,7 @@ TEST_CASE ("KURL")
 
 			dekaf2::KURL::Protocol kproto  (solo);
 
-			bool ret = kproto.serialize (target);
+			bool ret = kproto.Serialize (target);
 
 			CHECK (ret == true);
 			CHECK (target == expect);
@@ -637,7 +637,7 @@ TEST_CASE ("KURL")
 
 			dekaf2::KURL::User kuserinfo  (solo);
 
-			bool ret = kuserinfo.serialize (target);
+			bool ret = kuserinfo.Serialize (target);
 
 			CHECK (ret == true);
 			CHECK (target == expect);
@@ -658,7 +658,7 @@ TEST_CASE ("KURL")
 				bool     want{get<2>(parameter)};
 
 				dekaf2::KURL::URL kurl  (source);
-				bool have{kurl.serialize (target)};
+				bool have{kurl.Serialize (target)};
 
 				if (want != have || target != expect)
 				{
@@ -689,7 +689,7 @@ TEST_CASE ("KURL")
 				bool     want{get<2>(parameter)};
 
 				dekaf2::KURL::URL kurl  (svSource);
-				bool have{kurl.serialize (target)};
+				bool have{kurl.Serialize (target)};
 
 				if (want != have || target != expect)
 				{
@@ -716,7 +716,7 @@ TEST_CASE ("KURL")
 				KString  expect     {get<4>(parameter)};
 
 				dekaf2::KURL::URL kurl  (source);
-				bool have{kurl.serialize (target)};
+				bool have{kurl.Serialize (target)};
 
 				if (want != have || target != expect)
 				{

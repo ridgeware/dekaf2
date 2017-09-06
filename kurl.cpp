@@ -39,68 +39,72 @@
 // +-------------------------------------------------------------------------+
 //
 //=============================================================================
-//     URL="https://jlettvin@github.com:8080/experiment/UTF8?page=home#title";
-//
-// Special rules:
-//  We assume that all characters used for delimiting URL parts
-//  are NOT URL encoded and can be lexed without decoding.
-//=============================================================================
 
-//## format this appropriately so it will be detailed descriptions in doxygen
-
-// https://en.wikipedia.org/wiki/URL
-// scheme:[//[user[:password]@]host[:port]][/path][?query][#fragment]
-
-// Suppose you want to parse fields from:
-//     URL="https://jlettvin@github.com:8080/experiment/UTF8?page=home#title";
-//     Protocol::Protocol kproto1(URL, 0);
-// The 0 is the offset at which to start parsing.
-// All these classes store the initial offset internally.
-// On successful parse, the offset of the next character past what was parsed
-// is stored instead.  This offset is to be retrieved from the class
-// in order to provide the next class constructor/parse with a valid offset.
-// This design allows independent parsing for an autonomous field or
-// sequenced dependent parsing for multi-field strings.
-// To see an example, review the parse method for KURL (last in file kurl.cpp).
-
-// For Protocol:
-// When Protocol is done with a successful parse, it stores a new offset
-// internally at m_iEndOffset (8 for "https://" starting from iOffset==0).
-// This is the offset immediately following the protocol or scheme.
-// We can now parse UserInfo starting at the stored offset.
-// Using the offset from UserInfo, we can now parse the domain.
-//     Domain::Domain kdomain1(URL, offset);
-// Other ctors and parse functions work similarly.
-// Suppose we have a scrap of URL from which we wish to parse a domain.
-//     scrap="jlettvin@github.com"; // strlen(scrap) == 19
-//     here = 0;
-//     Domain::Domain kdomain2(scrap, here);
-// here will have the value 19 after this.
-// A full URL is divided and parsed by running a sequence:
-//     offset = 0;
-//     URL="https://jlettvin@github.com:8080/experiment/UTF8?page=home#title";
-//     Protocol::Protocol(URL,off);  // update offset to  8 using getEndOffset()
-//     Domain::Domain(URL, off);     // update offset to 32 using getEndOffset()
-//     URI::URI(URL, offset);        // update offset to 64 using getEndOffset()
-// URL[offset] == '\0';  // End of string
-
-// I think I am turning Hungarian.
-// Members m_aHungarian, Statics s_bHungarian, all else is unprefixed Hungarian.
-
-// TODO there is much common code between classes.  virtual might work well.
-// Specifically, getEndOffset is always the same.
-// All classes have members m_iOffset
-// All classes have a parse, serialize, and clear.
-// Only these last methods require specialization.
-//-----------------------------------------------------------------------------
-// iOffset is the starting offset for parsing.
-// Class::parse stores iOffset and updates it on successful parse.
-// This parse length is stored in m_iEndOffset which value is
-// returned by the method size_t iOffset = getEndOffset ();
-// If successful bError is set false and iOffset will have a larger value.
-// Otherwise bError is set true and this value is zero.
-// For typical calls, scheme is at the beginning, so iOffset should begin 0.
-// parse methods shall return false on error, true on success.
+/** @brief KURL class Architecture
+ *=============================================================================
+ * https://en.wikipedia.org/wiki/URL
+ * All URL parsing is related to RFC3986 version 3.1 for this regex:
+ *      scheme:[//[user[:password]@]host[:port]][/path][?query][#fragment]
+ *=============================================================================
+ * Example minimal abstract URL:
+ *       a://b:c@d.e:f/g/h?i=j#k
+ *        ^^^ ^ ^   ^ ^   ^ ^ ^
+ * Characters identified by a ^ above are expected to NOT be URL encoded.
+ *=============================================================================
+ * Relationship between RFC3986 and class structure:
+ *  a://b:c@d.e:f/g/h?i=j#k
+ *  ----------------------------------------------------------------------------
+ *  RFC3986            |class   |identifies             |parse/serialize
+ *  ----------------------------------------------------------------------------
+ *  scheme             |Protocol|a                      |a://
+ *  user:password      |User    |b.c                    |b.c@
+ *  host:port          |Domain  |d.e:f                  |d.e:f
+ *  path?query#fragment|URI     |/g/h, i=j, k           |/g/h?i=j#k
+ *  all the above      |URL     |a://b:c@d.e:f/g/h?i=j#k|a://b:c@d.e:f/g/h?i=j#k
+ *  ----------------------------------------------------------------------------
+ *=============================================================================
+ * Class fine structure:
+ *  Protocol stores enum for known schemes and KString for unknown schemes.
+ *  User     stores KStrings for user and password.
+ *  Domain   stores host and port as KStrings, and DOMAIN as uppercase KString.
+ *  URI      is multiple-inherited from classes Path, Query, and Fragment.
+ *  URL      is multiple-inherited from classes Protocol, User, Domain, and URI.
+ *=============================================================================
+ * Hidden classes/fields:
+ *  Path     stores the like-named RFC field.
+ *  Query    stores the like-named RFC field.
+ *  Fragment stores the like-named RFC field.
+ *  Port     part of Domain is not a class but stores the like-named RFC field.
+ *=============================================================================
+ * Use of KStringView for parsing decreases string copying.
+ * Parse methods shall return false on error, true on success.
+ * The main pattern of use during parsing is as follows.
+ * Start with a KStringView svURL: "a://b:c@d.e:f/g/h?i=j#k".
+ * Within KURL::URL constructor:
+ *  KStringView svA = Protocol::parse (svURL);  // svA is "b:c@d.e:f/g/h?i=j#k"
+ *  KStringView svB = User::parse (svA);        // svB is "d.e:f/g/h?i=j#k"
+ *  KStringView svC = Domain::parse (svB);      // svC is "/g/h?i=j#k"
+ *  KStringView svD = URI::parse (svC);         // svD is ""
+ * So that:
+ *  KString sTarget;
+ *  Protocol::serialize (sTarget);      // sTarget is "a://"
+ *  User::serialize (sTarget);          // sTarget is "a://b:c@"
+ *  Domain::serialize (sTarget);        // sTarget is "a://b:c@d.e:f"
+ *  URI::serialize (sTarget);           // sTarget is "a://b:c@d.e:f/g/h?i=j#k"
+ *-----------------------------------------------------------------------------
+ * Other methods:
+ *  T ();                               // default ctor
+ *  T (KStringView);                    // normal ctor
+ *  T (const T&);                       // copy ctor
+ *  operator=(const T& rhs);            // copy
+ *  operator=(T&& rhs);                 // move
+ *  operator>>(KString& sTarget);       // same as serialize
+ *  operator<<(KString& sSource);       // same as parse (but returns instance)
+ *  operator==(const T& rhs);           // compare lhs with rhs
+ *  operator!=(const T& rhs);           // compare lhs with rhs
+ *  clear();                            // Restore to original empty state
+ *  KString();                          // same as serialize
+ */
 
 #include <cstdio>
 #include <cstdlib>
@@ -123,13 +127,18 @@ namespace dekaf2
 namespace KURL
 {
 
-//||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
-// Protocol
-//||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
-
 //..............................................................................
-KStringView Protocol::parse (KStringView svSource)
-// Protocol::parse identifies and stores accessors to protocol elements.
+/// @brief class Protocol in group KURL
+/// Protocol parses and maintains "scheme" portion of w3 URL.
+/// RFC3986 3.1: scheme = ALPHA *( ALPHA / DIGIT / "+" / "-" / "." )
+/// scheme:[//[user[:password]@]host[:port]][/path][?query][#fragment]
+/// ------
+/// Protocol extracts, stores, and reproduces URL "scheme".
+/// Implementation: identify all characters until ':'.
+/// For [file, ftp, http, https, mailto] store only the eProto.
+/// For others, store the characters.
+/// getters/setters and reserialization are available.
+KStringView Protocol::Parse (KStringView svSource)
 //..............................................................................
 {
 	clear ();
@@ -161,23 +170,23 @@ KStringView Protocol::parse (KStringView svSource)
 
 		if (m_sProto == "file" && iSlash == 3)
 		{
-			m_eProto = eFILE;
+			m_eProto = FILE;
 			iFound--;           // Leave trailing slash of file:///
 			m_sPost.assign (svSource.data (), iFound);
 		}
 		else if (m_sProto == "mailto" && iSlash == 0)
 		{
 			m_bMailto = true;
-			m_eProto = eMAILTO;
+			m_eProto = MAILTO;
 			m_sPost = ":";
 		}
 		else if (iSlash == 2)
 		//## how are you protected against string underflows here?
 		{
-			if      (m_sProto == "ftp"  ) m_eProto = eFTP;
-			else if (m_sProto == "http" ) m_eProto = eHTTP;
-			else if (m_sProto == "https") m_eProto = eHTTPS;
-			else                          m_eProto = eUNDEFINED;
+			if      (m_sProto == "ftp"  ) m_eProto = FTP;
+			else if (m_sProto == "http" ) m_eProto = HTTP;
+			else if (m_sProto == "https") m_eProto = HTTPS;
+			else                          m_eProto = UNDEFINED;
 			m_sPost.assign (svSource.data (), iFound);
 		}
 		else
@@ -198,12 +207,15 @@ KStringView Protocol::parse (KStringView svSource)
 
 
 
-//||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
-// User
-//||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
-
 //..............................................................................
-KStringView User::parse (KStringView svSource)
+/// @brief class User in group KURL
+/// Class User parses and maintains "user" and "password" portion of w3 URL.
+/// RFC3986 3.2: authority   = [ userinfo "@" ] host [ ":" port ]
+/// Implementation: We take all characters until '@'.
+/// scheme:[//[user[:password]@]host[:port]][/path][?query][#fragment]
+///            ----  --------
+/// User extracts and stores a KStringView of URL "user" and "password".
+KStringView User::Parse (KStringView svSource)
 //..............................................................................
 {
 	clear ();
@@ -269,12 +281,18 @@ KStringView User::parse (KStringView svSource)
 }
 
 
-//||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
-// Domain
-//||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
-
 //..............................................................................
-KStringView Domain::parseHostName (KStringView svSource)
+/// @brief class Domain in group KURL
+/// Class Domain parses and maintains "host" and "port" portion of w3 URL.
+/// RFC3986 3.2: authority = [ userinfo "@" ] host [ ":" port ]
+/// RFC3986 3.2.2: host = IP-literal / IPv4address / reg-name
+/// RFC3986 3.2.3: port = *DIGIT
+/// Implementation: We take domain from '@'+1 to first of "/:?#\0".
+/// Implementation: We take port from ':'+1 to first of "/?#\0".
+/// scheme:[//[user[:password]@]host[:port]][/path][?query][#fragment]
+///                             ----  ----
+/// Domain extracts and stores a KStringView of URL "host" and "port"
+KStringView Domain::ParseHostName (KStringView svSource)
 //..............................................................................
 {
 	static const KString sDotCo (".co.");
@@ -352,7 +370,7 @@ KStringView Domain::parseHostName (KStringView svSource)
 }
 
 //..............................................................................
-KStringView Domain::parse (KStringView svSource)
+KStringView Domain::Parse (KStringView svSource)
 //..............................................................................
 {
 	clear ();
@@ -363,7 +381,7 @@ KStringView Domain::parse (KStringView svSource)
 
 	size_t iBefore = svSource.size ();
 
-	svSource = parseHostName (svSource);
+	svSource = ParseHostName (svSource);
 	size_t iAfter = svSource.size ();
 
 	if (iBefore && iAfter == iBefore)
@@ -396,12 +414,20 @@ KStringView Domain::parse (KStringView svSource)
 
 
 
-//||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
-// Path
-//||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
-
 //..............................................................................
-KStringView Path::parse (KStringView svSource)
+/// @brief class Path in group KURL
+/// Class Path parses and maintains "path" portion of w3 URL.
+/// RFC3986 3.3: (See RFC)
+/// Implementation: All characters after domain from '/' to 1st of "?#\0".
+/// scheme:[//[user[:password]@]host[:port]][/path][?query][#fragment]
+///                                          -----   -----   --------
+/// Path extracts and stores a KStringView of URL "path"
+//## this description is wrong. Please correct.
+/// Path also encapsulates Query and Fragment
+///
+/// The aggregation of /path?query#fragment without individual path
+/// is a design decision; not arbitrary.
+KStringView Path::Parse (KStringView svSource)
 //..............................................................................
 {
 	clear ();
@@ -437,12 +463,22 @@ KStringView Path::parse (KStringView svSource)
 
 
 
-//||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
-// Query
-//||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
-
 //..............................................................................
-KStringView Query::parse (KStringView svSource)
+/// @brief class Query in group KURL
+/// Class Query parses and maintains "query" portion of w3 URL.
+/// It is also responsible for parsing the query into a private property map.
+/// RFC3986 3.3: (See RFC)
+/// Implementation: All characters after domain from '/' to 1st of "?#\0". //## this description is wrong. please correct.
+/// scheme:[//[user[:password]@]host[:port]][/path][?query][#fragment]
+///                                                  -----
+/// Query extracts and stores a KStringView of URL "query"
+//## Your implementation
+//## does not give the user a search interface for parameters etc.
+//## Please have GetQuery() return the kprops member (actually have
+//## two GetQuery(), one const the other non-const, and returning
+//## const and non-const kprops.
+//## That way the user can always use all accessors of the kprops template.
+KStringView Query::Parse (KStringView svSource)
 //..............................................................................
 {
 	clear ();
@@ -535,13 +571,11 @@ bool Query::decode (KStringView svQuery)
 
 
 //..............................................................................
-bool Query::serialize (KString& sTarget) const
+bool Query::Serialize (KString& sTarget) const
 //..............................................................................
 {
 	if (m_kpQuery.size () != 0)
 	{
-		typedef KProps<KString, KString, true, false> KProp_t;
-
 		sTarget += '?';
 
 		bool bAmpersand = false;
@@ -565,13 +599,15 @@ bool Query::serialize (KString& sTarget) const
 
 
 
-//||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
-// Fragment
-//||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
-
-
 //..............................................................................
-KStringView Fragment::parse (KStringView svSource)
+/// @brief class Fragment in group KURL
+/// Class Fragment parses and maintains "fragment" portion of w3 URL.
+/// RFC3986 3.3: (See RFC)
+/// Implementation: All characters after domain from '/' to 1st of "?#\0".
+/// scheme:[//[user[:password]@]host[:port]][/path][?query][#fragment]
+///                                                          --------
+/// Fragment extracts and stores a KStringView of URL "fragment"
+KStringView Fragment::Parse (KStringView svSource)
 //..............................................................................
 {
 	clear ();
@@ -589,12 +625,19 @@ KStringView Fragment::parse (KStringView svSource)
 
 
 
-//||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
-// KURI
-//||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
-
 //..............................................................................
-KStringView URI::parse (KStringView svSource)
+/// @brief class URI in group KURL
+/// Class URI parses and maintains aggregate TransPerfect URI portion of w3 URL.
+/// It includes the "path", "query", and "fragment" portions.
+/// The aggregation of /path?query#fragment without individual path
+/// is a TransPerfect design decision; not arbitrary.
+/// RFC3986 3.3: (See RFC)
+/// Implementation: All characters after domain from '/' to 1st of "?#\0".
+/// scheme:[//[user[:password]@]host[:port]][/path][?query][#fragment]
+///                                          -----   -----   --------
+/// URI extracts and stores a KStringView of URL "path"
+/// URI also encapsulates Query and Fragment
+KStringView URI::Parse (KStringView svSource)
 //..............................................................................
 {
 	clear ();
@@ -607,13 +650,13 @@ KStringView URI::parse (KStringView svSource)
 
 	bool bError{false};
 
-	svSource = Path::parse (svSource);
+	svSource = Path::Parse (svSource);
 
 	if (!bError)
 	{
 		if (iSize > 0 && svSource[0] == '?')
 		{
-			svSource = Query::parse (svSource);  // optional
+			svSource = Query::Parse (svSource);  // optional
 			iSize = svSource.size ();
 		}
 	}
@@ -622,7 +665,7 @@ KStringView URI::parse (KStringView svSource)
 	{
 		if (iSize > 0 && svSource[0] == '#')
 		{
-			svSource = Fragment::parse (svSource);
+			svSource = Fragment::Parse (svSource);
 		}
 	}
 
@@ -641,12 +684,15 @@ KStringView URI::parse (KStringView svSource)
 
 
 
-//||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
-// URL
-//||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
-
 //..............................................................................
-KStringView URL::parse (KStringView svSource)
+/// @brief class URL in group KURL
+/// Class to parse and maintain aggregate w3 URL.
+/// URL contains the "scheme", "user", "password", "host", "port" and URI.
+/// This is a complete accounting for all fields of the w3 URL.
+/// scheme:[//[user[:password]@]host[:port]][/path][?query][#fragment]
+/// ------     ----  --------   ----  ----   -----   -----   --------
+/// URL extracts and stores all elements of a URL.
+KStringView URL::Parse (KStringView svSource)
 //..............................................................................
 {
 	clear ();
@@ -660,24 +706,24 @@ KStringView URL::parse (KStringView svSource)
 	size_t iBefore, iAfter;
 
 	iBefore = svSource.size ();
-	svSource = Protocol::parse (svSource);                  // mandatory
+	svSource = Protocol::Parse (svSource);                  // mandatory
 	iAfter  = svSource.size ();
 	bResult = (iBefore != iAfter);
 	if (bResult)
 	{
-		svSource = User::parse (svSource);                  // optional
+		svSource = User::Parse (svSource);                  // optional
 
-		if (getProtocolEnum () != eFILE)
+		if (getProtocolEnum () != FILE)
 		{
 			iBefore = svSource.size ();
-			svSource = Domain::parse (svSource);            // mandatory
+			svSource = Domain::Parse (svSource);            // mandatory
 			iAfter  = svSource.size ();
 			bResult = (iBefore != iAfter);
 		}
 	}
 	if (bResult)
 	{
-		svSource = URI::parse (svSource);                   // mandatory
+		svSource = URI::Parse (svSource);                   // mandatory
 	}
 
 	bError = !bResult;

@@ -103,6 +103,11 @@ public:
 	bool WaitForFinished(int msecs);
 	//-----------------------------------------------------------------------------
 
+	void SendEOF()
+	{
+		::close(m_writePdes[1]); // calls close on output pipe from parent to child's input, should trigger EOF.
+	}
+
 //--------
 public:
 //--------
@@ -113,6 +118,7 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	// waitpid wrapper to ensure it is called only once after child exits
 	bool wait();
 	//-----------------------------------------------------------------------------
 

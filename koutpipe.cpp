@@ -107,10 +107,12 @@ int KOutPipe::Close()
 {
 	int iExitCode = -1;
 	int fdes = 0;
+	std::ofstream file("/tmp/dekaf2/waitTestFile.txt", std::ios::app);
 
 	// is the pipe still valid?
 	if (NULL == m_writePipe)
 	{
+		file << "invalid pipe" << std::endl;
 		return iExitCode;
 	} // not open
 
@@ -121,6 +123,7 @@ int KOutPipe::Close()
 	 */
 	if ((fdes = fileno(m_writePipe)) == 0)
 	{
+		file << "already closed" << std::endl;
 		return iExitCode;
 	} // could not convert the FILE to fd
 
@@ -132,14 +135,18 @@ int KOutPipe::Close()
 	if (false == IsRunning())
 	{
 		iExitCode = m_iWriteExitCode;
-
+		file << "normal exit" << std::endl;
 		return (iExitCode);
 	} // child not running
 
 	// the child process has been giving us trouble. Kill it
 	if (-2 != m_writePid)
 	{
+		file << "killing process" << std::endl;
 		kill(m_writePid, SIGKILL);
+		//IsRunning();
+		//wait();
+		//iExitCode = m_iWriteExitCode;
 	}
 
 	m_writePid = -2;
@@ -154,6 +161,7 @@ bool KOutPipe::IsRunning()
 {
 
 	bool bResponse = false;
+	std::ofstream file("/tmp/dekaf2/waitTestFile.txt", std::ios::app);
 
 	// sets m_iReadChildStatus if iPid is not zero
 	wait();
@@ -162,6 +170,7 @@ bool KOutPipe::IsRunning()
 	if (-1 == m_iWriteChildStatus)
 	{
 		m_iWriteExitCode = -1;
+		file << "Failed to get status exit -1" << std::endl;
 		return bResponse;
 	}
 
@@ -169,12 +178,14 @@ bool KOutPipe::IsRunning()
 	if (false == m_bWriteChildStatusValid)
 	{
 		bResponse = true;
+		file << "Child status not yet valid" << std::endl;
 		return bResponse;
 	}
 
 	// did the called function "exit" normally?
 	if (WIFEXITED(m_iWriteChildStatus))
 	{
+		file << "normal exit? is running" << std::endl;
 		m_iWriteExitCode = WEXITSTATUS(m_iWriteChildStatus);
 		return bResponse;
 	}
@@ -263,12 +274,14 @@ bool KOutPipe::OpenWritePipe(const KString& sProgram)
 } // OpenReadPipe
 
 //-----------------------------------------------------------------------------
+// waitpid wrapper to ensure it is called only once after child exits
 bool KOutPipe::wait()
 //-----------------------------------------------------------------------------
 {
 	int iStatus = 0;
 
 	pid_t iPid;
+	std::ofstream file("/tmp/dekaf2/waitTestFile.txt", std::ios::app);
 
 	// status can only be read ONCE
 	if (true == m_bWriteChildStatusValid)
@@ -292,10 +305,18 @@ bool KOutPipe::wait()
 	if ((iPid == -1) && (errno != EINTR))
 	{
 		// TODO log
+
+		file << "Errno#: " << errno << " | " << strerror(errno) << std::endl;
 		m_iWriteChildStatus = -1;
 		m_bWriteChildStatusValid = true;
+
 		return true;
 	}
+	else
+	{
+		file << "iPid: " << iPid << " | Errno#: " << errno << " | " << strerror(errno) << std::endl;
+	}
+	file.close();
 
 	return false;
 } // wait

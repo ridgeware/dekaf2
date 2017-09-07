@@ -58,6 +58,8 @@
 
 #if defined __GNUC__
 	#define DEKAF2_FUNCTION_NAME __PRETTY_FUNCTION__
+#elif defined _MSC_VER
+	#define DEKAF2_FUNCTION_NAME __FUNCSIG__
 #else
 	#define DEKAF2_FUNCTION_NAME __FUNCTION__
 #endif

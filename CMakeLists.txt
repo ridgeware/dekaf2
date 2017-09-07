@@ -28,12 +28,15 @@ find_package(Threads REQUIRED)
 # add third party libraries included in source control
 add_subdirectory(libs)
 
+# add partial third party libraries included in source control
+add_subdirectory(from)
+
 # add externally installed third party libraries:
 
 # openssl (needed for boost asio)
 find_package(OpenSSL QUIET REQUIRED)
 
-#set(Boost_USE_STATIC_LIBS ON)
+set(Boost_USE_STATIC_LIBS ON)
 # boost asio (header only) needs system
 find_package(Boost QUIET COMPONENTS system REQUIRED)
 include_directories(SYSTEM ${Boost_INCLUDE_DIR})
@@ -180,6 +183,7 @@ endif()
 target_link_libraries(dekaf2
     fmt
     re2
+    minifolly
     "${FSLIB}"
     ${Boost_LIBRARIES}
     ${OPENSSL_LIBRARIES}

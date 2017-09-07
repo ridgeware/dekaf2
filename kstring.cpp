@@ -71,6 +71,20 @@ KString& KString::append(const string_type& str, size_type pos, size_type n)
 	return *this;
 }
 
+#ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
+//------------------------------------------------------------------------------
+KString& KString::append(const std::string& str, size_type pos, size_type n)
+//------------------------------------------------------------------------------
+{
+	try {
+		m_rep.append(str, pos, n);
+	} catch (std::exception& e) {
+		kException(e);
+	}
+	return *this;
+}
+#endif
+
 //------------------------------------------------------------------------------
 KString& KString::assign(const string_type& str, size_type pos, size_type n)
 //------------------------------------------------------------------------------
@@ -82,6 +96,20 @@ KString& KString::assign(const string_type& str, size_type pos, size_type n)
 	}
 	return *this;
 }
+
+#ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
+//------------------------------------------------------------------------------
+KString& KString::assign(const std::string& str, size_type pos, size_type n)
+//------------------------------------------------------------------------------
+{
+	try {
+		m_rep.assign(str, pos, n);
+	} catch (std::exception& e) {
+		kException(e);
+	}
+	return *this;
+}
+#endif
 
 //------------------------------------------------------------------------------
 KString& KString::replace(size_type pos, size_type n, const string_type& str)
@@ -106,6 +134,32 @@ KString& KString::replace(size_type pos1, size_type n1, const string_type& str, 
 	}
 	return *this;
 }
+
+#ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
+//------------------------------------------------------------------------------
+KString& KString::replace(size_type pos1, size_type n1, const std::string& str, size_type pos2, size_type n2)
+//------------------------------------------------------------------------------
+{
+	try {
+		// avoid segfaults
+		if (pos2 > str.size())
+		{
+			kWarning("pos2 ({}) exceeds size ({})", pos2, str.size());
+			pos2 = str.size();
+		}
+		if (pos2 + n2 > str.size())
+		{
+			kWarning("pos2 ({}) + n ({}) exceeds size ({})", pos2, n2, str.size());
+			n2 = str.size() - pos2;
+		}
+		m_rep.replace(pos1, n1, str.data()+pos2, n2);
+	} catch (std::exception& e) {
+		kException(e);
+	}
+	return *this;
+}
+
+#endif
 
 //------------------------------------------------------------------------------
 KString& KString::replace(size_type pos, size_type n1, const value_type* s, size_type n2)
@@ -251,6 +305,31 @@ KString& KString::insert(size_type pos1, const string_type& str, size_type pos2,
 	return *this;
 }
 
+#ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
+//------------------------------------------------------------------------------
+KString& KString::insert(size_type pos1, const std::string& str, size_type pos2, size_type n)
+//------------------------------------------------------------------------------
+{
+	try {
+		// avoid segfaults
+		if (pos2 > str.size())
+		{
+			kWarning("pos2 ({}) exceeds size ({})", pos2, str.size());
+			pos2 = str.size();
+		}
+		if (pos2 + n > str.size())
+		{
+			kWarning("pos2 ({}) + n ({}) exceeds size ({})", pos2, n, str.size());
+			n = str.size() - pos2;
+		}
+		m_rep.insert(pos1, str.data()+pos2, n);
+	} catch (std::exception& e) {
+		kException(e);
+	}
+	return *this;
+}
+#endif
+
 //------------------------------------------------------------------------------
 KString& KString::insert(size_type pos, const value_type* s, size_type n)
 //------------------------------------------------------------------------------
@@ -371,8 +450,22 @@ int KString::compare(size_type pos, size_type n, const string_type& str) const
 	return 1;
 }
 
+#ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
 //----------------------------------------------------------------------
-int KString::compare(size_type pos1, size_type n1, const string_type& str,  size_type pos2, size_type n2) const
+int KString::compare(size_type pos, size_type n, const std::string& str) const
+//----------------------------------------------------------------------
+{
+	try {
+		return m_rep.compare(pos, n, str);
+	} catch (std::exception& e) {
+		kException(e);
+	}
+	return 1;
+}
+#endif
+
+//----------------------------------------------------------------------
+int KString::compare(size_type pos1, size_type n1, const string_type& str, size_type pos2, size_type n2) const
 //----------------------------------------------------------------------
 {
 	try {
@@ -382,6 +475,20 @@ int KString::compare(size_type pos1, size_type n1, const string_type& str,  size
 	}
 	return 1;
 }
+
+#ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
+//----------------------------------------------------------------------
+int KString::compare(size_type pos1, size_type n1, const std::string& str, size_type pos2, size_type n2) const
+//----------------------------------------------------------------------
+{
+	try {
+		return m_rep.compare(pos1, n1, str, pos2, n2);
+	} catch (std::exception& e) {
+		kException(e);
+	}
+	return 1;
+}
+#endif
 
 //----------------------------------------------------------------------
 int KString::compare(size_type pos, size_type n1, const value_type* s) const
@@ -420,42 +527,64 @@ int KString::compare(size_type pos, size_type n1, KStringView sv) const
 }
 
 //------------------------------------------------------------------------------
+KString::size_type KString::find(const value_type* s, size_type pos, size_type n) const
+//------------------------------------------------------------------------------
+{
+#ifdef __GNUC__
+	// GLIBC has a performant Boyer-Moore implementation for memmem, it
+	// probably even outperforms fbstring's simplyfied Boyer-Moore (to be tested)
+	if (DEKAF2_UNLIKELY(pos >= size()))
+	{
+		return npos;
+	}
+	auto found = static_cast<const value_type*>(memmem(data() + pos, size() - pos, s, n));
+	if (!found)
+	{
+		return npos;
+	}
+	else
+	{
+		return static_cast<size_type>(found - data());
+	}
+#else
+	return m_rep.find(s, pos, n);
+#endif
+}
+
+//------------------------------------------------------------------------------
 KString::size_type KString::Replace (KStringView sSearch, KStringView sReplace, bool bReplaceAll)
 //------------------------------------------------------------------------------
 {
-	return dekaf2::kReplace(m_rep, sSearch, sReplace, bReplaceAll);
+	return dekaf2::kReplace(*this, sSearch, sReplace, bReplaceAll);
 }
 
 //----------------------------------------------------------------------
 KString::size_type KString::ReplaceRegex(KStringView sRegEx, KStringView sReplaceWith, bool bReplaceAll)
 //----------------------------------------------------------------------
 {
-	return dekaf2::KRegex::Replace(m_rep, sRegEx, sReplaceWith, bReplaceAll);
+	return dekaf2::KRegex::Replace(*this, sRegEx, sReplaceWith, bReplaceAll);
 }
 
 //----------------------------------------------------------------------
-bool KString::IsEmail() const
+KStringView KString::ToView(size_type pos, size_type n) const
 //----------------------------------------------------------------------
 {
-	return false;
-//	return kIsEmail(m_rep.c_str());
-} // IsEmail
-
-//----------------------------------------------------------------------
-bool KString::IsURL() const
-//----------------------------------------------------------------------
-{
-	return false;
-//	return kIsURL(m_rep.c_str());
-} // IsURL
-
-//----------------------------------------------------------------------
-bool KString::IsFilePath() const
-//----------------------------------------------------------------------
-{
-	return false;
-//	return kIsFilePath(m_rep.c_str());
-} // IsFilePath
+	if (pos > size())
+	{
+		kWarning("pos ({}) exceeds size ({})", pos, size());
+		pos = size();
+	}
+	if (n == npos)
+	{
+		n = size() - pos;
+	}
+	else if (pos + n > size())
+	{
+		kWarning("pos ({}) + n ({}) exceeds size ({})", pos, n, size());
+		n = size() - pos;
+	}
+	return KStringView(data() + pos, n);
+}
 
 //----------------------------------------------------------------------
 KString KString::ToLower() const
@@ -539,13 +668,17 @@ KStringView KString::Right(size_type iCount)
 	}
 } // Right
 
+//----------------------------------------------------------------------
 KString& KString::PadLeft(size_t iWidth, value_type chPad)
+//----------------------------------------------------------------------
 {
 	dekaf2::kPadLeft(m_rep, iWidth, chPad);
 	return *this;
 }
 
+//----------------------------------------------------------------------
 KString& KString::PadRight(size_t iWidth, value_type chPad)
+//----------------------------------------------------------------------
 {
 	dekaf2::kPadRight(m_rep, iWidth, chPad);
 	return *this;
@@ -560,22 +693,22 @@ KString& KString::TrimLeft()
 }
 
 //----------------------------------------------------------------------
-KString& KString::TrimLeft(value_type chTarget)
+KString& KString::TrimLeft(value_type chTrim)
 //----------------------------------------------------------------------
 {
-	dekaf2::kTrimLeft(m_rep, [chTarget](value_type ch){ return ch == chTarget; } );
+	dekaf2::kTrimLeft(m_rep, [chTrim](value_type ch){ return ch == chTrim; } );
 	return *this;
 }
 
 //----------------------------------------------------------------------
-KString& KString::TrimLeft(KStringView sTarget)
+KString& KString::TrimLeft(KStringView sTrim)
 //----------------------------------------------------------------------
 {
-	if (sTarget.size() == 1)
+	if (sTrim.size() == 1)
 	{
-		return TrimLeft(sTarget[0]);
+		return TrimLeft(sTrim[0]);
 	}
-	dekaf2::kTrimLeft(m_rep, [sTarget](value_type ch){ return memchr(sTarget.data(), ch, sTarget.size()) != nullptr; } );
+	dekaf2::kTrimLeft(m_rep, [sTrim](value_type ch){ return memchr(sTrim.data(), ch, sTrim.size()) != nullptr; } );
 	return *this;
 }
 
@@ -588,22 +721,22 @@ KString& KString::TrimRight()
 }
 
 //----------------------------------------------------------------------
-KString& KString::TrimRight(value_type chTarget)
+KString& KString::TrimRight(value_type chTrim)
 //----------------------------------------------------------------------
 {
-	dekaf2::kTrimRight(m_rep, [chTarget](value_type ch){ return ch == chTarget; } );
+	dekaf2::kTrimRight(m_rep, [chTrim](value_type ch){ return ch == chTrim; } );
 	return *this;
 }
 
 //----------------------------------------------------------------------
-KString& KString::TrimRight(KStringView sTarget)
+KString& KString::TrimRight(KStringView sTrim)
 //----------------------------------------------------------------------
 {
-	if (sTarget.size() == 1)
+	if (sTrim.size() == 1)
 	{
-		return TrimRight(sTarget[0]);
+		return TrimRight(sTrim[0]);
 	}
-	dekaf2::kTrimRight(m_rep, [sTarget](value_type ch){ return memchr(sTarget.data(), ch, sTarget.size()) != nullptr; } );
+	dekaf2::kTrimRight(m_rep, [sTrim](value_type ch){ return memchr(sTrim.data(), ch, sTrim.size()) != nullptr; } );
 	return *this;
 }
 
@@ -616,22 +749,22 @@ KString& KString::Trim()
 }
 
 //----------------------------------------------------------------------
-KString& KString::Trim(value_type chTarget)
+KString& KString::Trim(value_type chTrim)
 //----------------------------------------------------------------------
 {
-	dekaf2::kTrim(m_rep, [chTarget](value_type ch){ return ch == chTarget; } );
+	dekaf2::kTrim(m_rep, [chTrim](value_type ch){ return ch == chTrim; } );
 	return *this;
 }
 
 //----------------------------------------------------------------------
-KString& KString::Trim(KStringView sTarget)
+KString& KString::Trim(KStringView sTrim)
 //----------------------------------------------------------------------
 {
-	if (sTarget.size() == 1)
+	if (sTrim.size() == 1)
 	{
-		return Trim(sTarget[0]);
+		return Trim(sTrim[0]);
 	}
-	dekaf2::kTrim(m_rep, [sTarget](value_type ch){ return memchr(sTarget.data(), ch, sTarget.size()) != nullptr; } );
+	dekaf2::kTrim(m_rep, [sTrim](value_type ch){ return memchr(sTrim.data(), ch, sTrim.size()) != nullptr; } );
 	return *this;
 }
 
@@ -790,13 +923,23 @@ bool kStrIn (const char* sNeedle, const char* sHaystack, char iDelim/*=','*/)
 std::istream& std::getline(std::istream& stream, dekaf2::KString& str)
 //----------------------------------------------------------------------
 {
-	return std::getline(stream, str.s());
+#ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
+	dekaf2::KString::string_type& sref = str.str();
+	return getline(stream, sref);
+#else
+	return std::getline(stream, str.str());
+#endif
 }
 
 //----------------------------------------------------------------------
 std::istream& std::getline(std::istream& stream, dekaf2::KString& str, dekaf2::KString::value_type delimiter)
 //----------------------------------------------------------------------
 {
-	return std::getline(stream, str.s(), delimiter);
+#ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
+	dekaf2::KString::string_type& sref = str.str();
+	return getline(stream, sref, delimiter);
+#else
+	return std::getline(stream, str.str(), delimiter);
+#endif
 }
 

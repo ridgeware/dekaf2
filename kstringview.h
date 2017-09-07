@@ -50,7 +50,7 @@
 #include "bits/kcppcompat.h"
 
 
-#if defined(DEKAF2_HAS_CPP_17) and !defined(DEKAF2_FORCE_STRINGPIECE_AS_STRINGVIEW)
+#if defined(DEKAF2_HAS_CPP_17) and !defined(DEKAF2_USE_RE2_STRINGPIECE_AS_KSTRINGVIEW)
  #define DEKAF2_USE_STD_STRING_VIEW_AS_KSTRINGVIEW
 #endif
 

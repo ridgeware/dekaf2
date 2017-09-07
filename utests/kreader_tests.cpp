@@ -92,7 +92,7 @@ TEST_CASE("KReader") {
 
 	SECTION("create test file")
 	{
-		KOutFile fWriter(sFile, std::ios_base::trunc);
+		KOutFile fWriter(sFile.c_str(), std::ios_base::trunc);
 		CHECK( fWriter.is_open() == true );
 
 		if (fWriter.is_open())
@@ -107,7 +107,7 @@ TEST_CASE("KReader") {
 
 	SECTION("KFileReader read all 1")
 	{
-		KInFile File(sFile);
+		KInFile File(sFile.c_str());
 		KString sRead;
 		CHECK( File.eof() == false);
 		CHECK( File.GetContent(sRead) == true );
@@ -119,7 +119,7 @@ TEST_CASE("KReader") {
 
 	SECTION("KFileReader read all 2")
 	{
-		KInFile File(sFile);
+		KInFile File(sFile.c_str());
 		CHECK( File.eof() == false);
 		KString sRead;
 		for (;;)
@@ -139,7 +139,7 @@ TEST_CASE("KReader") {
 
 	SECTION("KFileReader read iterator 1")
 	{
-		KInFile File(sFile);
+		KInFile File(sFile.c_str());
 		File.SetReaderRightTrim("");
 		auto it = File.begin();
 		KString s1;
@@ -174,7 +174,7 @@ TEST_CASE("KReader") {
 
 	SECTION("KFileReader read iterator 2")
 	{
-		KInFile File(sFile, std::ios_base::in);
+		KInFile File(sFile.c_str(), std::ios_base::in);
 		File.SetReaderRightTrim("\r\n4 ");
 		auto it = File.begin();
 		KString s1;
@@ -209,7 +209,7 @@ TEST_CASE("KReader") {
 
 	SECTION("KFileReader read iterator 3")
 	{
-		KInFile File(sFile);
+		KInFile File(sFile.c_str());
 		CHECK( File.eof() == false);
 		auto it = File.begin();
 		for (int iCount = 0; iCount < 9; ++iCount)
@@ -223,7 +223,7 @@ TEST_CASE("KReader") {
 
 	SECTION("KFileReader read iterator 4")
 	{
-		KInFile File(sFile, std::ios_base::in);
+		KInFile File(sFile.c_str(), std::ios_base::in);
 		CHECK( File.eof() == false);
 		CHECK( File.GetSize() == iSize );
 		CHECK( File.GetRemainingSize() == iSize );
@@ -244,7 +244,7 @@ TEST_CASE("KReader") {
 
 	SECTION("KFileReader char read iterator 1")
 	{
-		KInFile File(sFile, std::ios_base::in);
+		KInFile File(sFile.c_str(), std::ios_base::in);
 		auto it = File.char_begin();
 		for (int iCount = 0; iCount < 9; ++iCount)
 		{

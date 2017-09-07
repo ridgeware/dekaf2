@@ -56,10 +56,10 @@ namespace dekaf2
 {
 
 //------------------------------------------------------------------------------
-std::string::size_type kReplace(std::string& string,
-                                KStringView sSearch,
-                                KStringView sReplaceWith,
-                                bool bReplaceAll = true);
+KString::size_type kReplace(KString& string,
+                            KStringView sSearch,
+                            KStringView sReplaceWith,
+                            bool bReplaceAll = true);
 //------------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
@@ -226,6 +226,14 @@ inline bool kIsDigit(Char ch) noexcept
 
 //-----------------------------------------------------------------------------
 bool kIsDecimal(KStringView str) noexcept;
+//-----------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
+bool kIsEmail(KStringView str) noexcept;
+//-----------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
+bool kIsURL(KStringView str) noexcept;
 //-----------------------------------------------------------------------------
 
 // exception free conversions

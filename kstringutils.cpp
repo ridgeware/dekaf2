@@ -47,10 +47,10 @@ namespace dekaf2
 {
 
 //------------------------------------------------------------------------------
-std::string::size_type kReplace(std::string& string,
-                                KStringView sSearch,
-                                KStringView sReplaceWith,
-                                bool bReplaceAll)
+KString::size_type kReplace(KString& string,
+                            KStringView sSearch,
+                            KStringView sReplaceWith,
+                            bool bReplaceAll)
 //------------------------------------------------------------------------------
 {
 	if (sSearch.empty() || string.size() < sSearch.size())
@@ -58,8 +58,8 @@ std::string::size_type kReplace(std::string& string,
 		return 0;
 	}
 
-	typedef std::string::size_type size_type;
-	typedef std::string::value_type value_type;
+	typedef KString::size_type size_type;
+	typedef KString::value_type value_type;
 
 	size_type iNumReplacement = 0;
 	// use a non-const ref to the first element, as .data() is const with C++ < 17
@@ -117,7 +117,7 @@ std::string::size_type kReplace(std::string& string,
 		else
 		{
 			// execute a copy substitution
-			std::string sResult;
+			KString sResult;
 			sResult.reserve(string.size());
 
 			while (pszFound)
@@ -362,6 +362,20 @@ bool kIsDecimal(KStringView str) noexcept
 		}
 	}
 	return true;
+}
+
+//-----------------------------------------------------------------------------
+bool kIsEmail(KStringView str) noexcept
+//-----------------------------------------------------------------------------
+{
+	return false;
+}
+
+//-----------------------------------------------------------------------------
+bool kIsURL(KStringView str) noexcept
+//-----------------------------------------------------------------------------
+{
+	return false;
 }
 
 } // end of namespace dekaf2

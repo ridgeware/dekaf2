@@ -45,7 +45,7 @@
 /// @file kprops.h
 /// provides a multi-indexed container used for property sheets
 
-#if !defined(NDEBUG)
+#if !defined(NDEBUG) && 0
 #define BOOST_MULTI_INDEX_ENABLE_INVARIANT_CHECKING
 #define BOOST_MULTI_INDEX_ENABLE_SAFE_MODE
 #endif

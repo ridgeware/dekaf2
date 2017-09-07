@@ -45,7 +45,7 @@
 /// @file kmru.h
 /// provides a least / most recently used container
 
-#if !defined(NDEBUG)
+#if !defined(NDEBUG) && 0
 #define BOOST_MULTI_INDEX_ENABLE_INVARIANT_CHECKING
 #define BOOST_MULTI_INDEX_ENABLE_SAFE_MODE
 #endif

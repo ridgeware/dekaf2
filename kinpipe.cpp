@@ -163,31 +163,9 @@ bool KInPipe::IsRunning()
 		return bResponse;
 	}
 
-	//m_iReadExitCode = -1;
-
 	return bResponse;
 
 } // IsRunning
-
-//-----------------------------------------------------------------------------
-bool KInPipe::WaitForFinished(int msecs)
-//-----------------------------------------------------------------------------
-{
-	if (msecs >= 0)
-	{
-		int counter = 0;
-		while (IsRunning())
-		{
-			usleep(1000);
-			++counter;
-
-			if (counter == msecs)
-				return false;
-		}
-		return true;
-	}
-	return false;
-} // WaitForFinished
 
 //-----------------------------------------------------------------------------
 bool KInPipe::OpenReadPipe(const KString& sProgram)
@@ -238,7 +216,7 @@ bool KInPipe::OpenReadPipe(const KString& sProgram)
 
 	} // end switch
 
-	/* only parent gets here; assume fdopen can't fail...  */
+	/* only parent gets here */
 	::close(m_readPdes[1]);
 
 	return true;
@@ -256,7 +234,6 @@ bool KInPipe::wait()
 	if (true == m_bReadChildStatusValid)
 	{
 		// status has already been set. do not read it again, you might get an invalid status.
-		iPid = m_readPid;
 		return true;
 	} // end status is already set
 

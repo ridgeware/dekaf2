@@ -46,9 +46,6 @@
 #include "kbasepipe.h"
 #include "kfdreader.h"
 
-// TODO REMOVE
-#include <iostream>
-
 namespace dekaf2
 
 {
@@ -97,17 +94,11 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Checks if child on other side of pipe is still running
-	bool IsRunning();
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// Waits up to the number of given milliseconds for the child to terminate
-	/// Will return early if child terminates
-	bool WaitForFinished(int msecs);
+	virtual bool IsRunning();
 	//-----------------------------------------------------------------------------
 
 //--------
-public:
+protected:
 //--------
 
 	//-----------------------------------------------------------------------------

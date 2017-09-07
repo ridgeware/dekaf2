@@ -42,15 +42,14 @@
 
 #pragma once
 
-#include "kbasepipe.h"
-#include "kfdwriter.h"
+#include "kinpipe.h"
+#include "koutpipe.h"
 
 namespace dekaf2
-
 {
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class KOutPipe : public KFDWriter, public KBasePipe
+class KPipe : public KInPipe, public KOutPipe
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -68,17 +67,17 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Default Constructor
-	KOutPipe();
+	KPipe();
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// Open Constructor
-	KOutPipe(const KString& sProgram);
+	KPipe(const KString& sProgram);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// Default Virtual Destructor
-	virtual ~KOutPipe();
+	virtual ~KPipe();
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -97,12 +96,12 @@ public:
 	//-----------------------------------------------------------------------------
 
 //--------
-protected:
+private:
 //--------
 
 	//-----------------------------------------------------------------------------
 	/// Opens a pipe for writing
-	bool OpenWritePipe(const KString& sProgram);
+	bool OpenPipeRW(const KString& sProgram);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -110,12 +109,6 @@ protected:
 	bool wait();
 	//-----------------------------------------------------------------------------
 
-	pid_t m_writePid{-2};
-	int   m_iWriteExitCode{0};
-	int   m_writePdes[2]{-2,-2};
-	int   m_iWriteChildStatus{-2};
-	bool  m_bWriteChildStatusValid{false};
-
-}; // class KOutPipe
+}; // class KPipe
 
 } // end namespace dekaf2

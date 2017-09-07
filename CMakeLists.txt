@@ -73,6 +73,7 @@ set (HEADERS
     kinpipe.h
     koutpipe.h
     kbasepipe.h
+    kpipe.h
 )
 
 set (SOURCES
@@ -107,6 +108,7 @@ set (SOURCES
     kinpipe.cpp
     koutpipe.cpp
     kbasepipe.cpp
+    kpipe.cpp
 )
 
 if (DEKAF2_INSTALL_HEADERS)

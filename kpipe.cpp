@@ -1,57 +1,15 @@
-/*
-//-----------------------------------------------------------------------------//
-//
-// DEKAF(tm): Lighter, Faster, Smarter (tm)
-//
-// Copyright (c) 2017, Ridgeware, Inc.
-//
-// +-------------------------------------------------------------------------+
-// | /\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\|
-// |/+---------------------------------------------------------------------+/|
-// |/|                                                                     |/|
-// |\|  ** THIS NOTICE MUST NOT BE REMOVED FROM THE SOURCE CODE MODULE **  |\|
-// |/|                                                                     |/|
-// |\|   OPEN SOURCE LICENSE                                               |\|
-// |/|                                                                     |/|
-// |\|   Permission is hereby granted, free of charge, to any person       |\|
-// |/|   obtaining a copy of this software and associated                  |/|
-// |\|   documentation files (the "Software"), to deal in the              |\|
-// |/|   Software without restriction, including without limitation        |/|
-// |\|   the rights to use, copy, modify, merge, publish,                  |\|
-// |/|   distribute, sublicense, and/or sell copies of the Software,       |/|
-// |\|   and to permit persons to whom the Software is furnished to        |\|
-// |/|   do so, subject to the following conditions:                       |/|
-// |\|                                                                     |\|
-// |/|   The above copyright notice and this permission notice shall       |/|
-// |\|   be included in all copies or substantial portions of the          |\|
-// |/|   Software.                                                         |/|
-// |\|                                                                     |\|
-// |/|   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY         |/|
-// |\|   KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE        |\|
-// |/|   WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR           |/|
-// |\|   PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS        |\|
-// |/|   OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR          |/|
-// |\|   OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR        |\|
-// |/|   OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE         |/|
-// |\|   SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.            |\|
-// |/|                                                                     |/|
-// |/+---------------------------------------------------------------------+/|
-// |\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/ |
-// +-------------------------------------------------------------------------+
-*/
-
-#include "koutpipe.h"
+#include "kpipe.h"
 
 namespace dekaf2
 {
 
 //-----------------------------------------------------------------------------
-KOutPipe::KOutPipe()
+KPipe::KPipe()
 //-----------------------------------------------------------------------------
 {} // Default Constructor
 
 //-----------------------------------------------------------------------------
-KOutPipe::KOutPipe(const KString& sProgram)
+KPipe::KPipe(const KString& sProgram)
 //-----------------------------------------------------------------------------
 {
 	Open(sProgram);
@@ -59,7 +17,7 @@ KOutPipe::KOutPipe(const KString& sProgram)
 } // Immediate Open Constructor
 
 //-----------------------------------------------------------------------------
-KOutPipe::~KOutPipe()
+KPipe::~KPipe()
 //-----------------------------------------------------------------------------
 {
 	Close();
@@ -67,10 +25,10 @@ KOutPipe::~KOutPipe()
 } // Default Destructor
 
 //-----------------------------------------------------------------------------
-bool KOutPipe::Open(const KString& sProgram)
+bool KPipe::Open(const KString& sProgram)
 //-----------------------------------------------------------------------------
 {
-	KLog().debug(3, "KOutPipe::Open(): {}", sProgram);
+	KLog().debug(3, "KPipe::Open(): {}", sProgram);
 
 	Close(); // ensure a previous pipe is closed
 	errno = 0;
@@ -80,7 +38,7 @@ bool KOutPipe::Open(const KString& sProgram)
 	// - - - - - - - - - - - - - - - - - - - - - - - -
 	if (!sProgram.empty())
 	{
-		OpenWritePipe(sProgram);
+		OpenPipeRW(sProgram);
 	}
 
 	// - - - - - - - - - - - - - - - - - - - - - - - -
@@ -88,13 +46,13 @@ bool KOutPipe::Open(const KString& sProgram)
 	// - - - - - - - - - - - - - - - - - - - - - - - -
 	if (m_writePdes[0] == -2)
 	{
-		KLog().debug (0, "KOutPipe::Open(): OpenReadPipe CMD FAILED: {} ERROR: {}", sProgram, strerror(errno));
+		KLog().debug (0, "KPipe::Open(): OpenPipeRW CMD FAILED: {} ERROR: {}", sProgram, strerror(errno));
 		m_iWriteExitCode = errno;
 		return false;
 	}
 	else
 	{
-		KLog().debug(3, "KOutPipe::Open(): OpenReadPipe: ok...");
+		KLog().debug(3, "KPipe::Open(): OpenPipeRW: ok...");
 		KFDWriter::open(m_writePdes[1]);
 		return KFDWriter::good();
 	}
@@ -102,16 +60,17 @@ bool KOutPipe::Open(const KString& sProgram)
 } // Open
 
 //-----------------------------------------------------------------------------
-int KOutPipe::Close()
+int KPipe::Close()
 //-----------------------------------------------------------------------------
 {
 	int iExitCode = -1;
 
+	// Close read on of stdout pipe
+	::close(m_readPdes[0]);
 	// Send EOF by closing write end of pipe
 	::close(m_writePdes[1]);
 	// Child has been cut off from parent, let it terminate
-	WaitForFinished(60000);
-
+	KOutPipe::WaitForFinished(60000);
 
 	// Did the child terminate properly?
 	if (false == IsRunning())
@@ -130,12 +89,16 @@ int KOutPipe::Close()
 	m_writePdes[0] = -2;
 	m_writePdes[1] = -2;
 
+	m_readPid = -2;
+	m_readPdes[0] = -2;
+	m_readPdes[1] = -2;
+
 	return (iExitCode);
 
 } // Close
 
 //-----------------------------------------------------------------------------
-bool KOutPipe::IsRunning()
+bool KPipe::IsRunning()
 //-----------------------------------------------------------------------------
 {
 
@@ -145,23 +108,25 @@ bool KOutPipe::IsRunning()
 	wait();
 
 	// Did we fail to get a status?
-	if (-1 == m_iWriteChildStatus)
+	if ((-1 == m_iWriteChildStatus) || (-1 == m_iReadChildStatus))
 	{
 		m_iWriteExitCode = -1;
+		m_iReadExitCode = -1;
 		return bResponse;
 	}
 
 	// Do we have an exit status code to interpret?
-	if (false == m_bWriteChildStatusValid)
+	if ((false == m_bWriteChildStatusValid) || (false == m_bReadChildStatusValid))
 	{
 		bResponse = true;
 		return bResponse;
 	}
 
 	// did the called function "exit" normally?
-	if (WIFEXITED(m_iWriteChildStatus))
+	if ((WIFEXITED(m_iWriteChildStatus)) || (WIFEXITED(m_iReadChildStatus)))
 	{
 		m_iWriteExitCode = WEXITSTATUS(m_iWriteChildStatus);
+		m_iReadExitCode = WEXITSTATUS(m_iReadChildStatus);
 		return bResponse;
 	}
 
@@ -170,35 +135,46 @@ bool KOutPipe::IsRunning()
 } // IsRunning
 
 //-----------------------------------------------------------------------------
-bool KOutPipe::OpenWritePipe(const KString& sProgram)
+bool KPipe::OpenPipeRW(const KString& sProgram)
 //-----------------------------------------------------------------------------
 {
 	// Reset status vars and pipes.
-	m_writePid               = -2;
-	m_bWriteChildStatusValid = false;
-	m_iWriteChildStatus      = -2;
-	m_iWriteExitCode         = -2;
+	m_readPid               = -2;
+	m_bReadChildStatusValid = false;
+	m_iReadChildStatus      = -2;
+	m_iReadExitCode         = -2;
 
-	// try to open a pipe
-	if (pipe(m_writePdes) < 0)
+	// try to open read and write pipes
+	if ((pipe(m_readPdes) < 0) || (pipe(m_writePdes) < 0))
 	{
 		return false;
 	} // could not create pipe
 
 	// create a child
-	switch (m_writePid = vfork())
+	switch (m_readPid = vfork())
 	{
 		case -1: /* error */
 		{
 			// could not create the child
-			::close(m_writePdes[0]);
-			::close(m_writePdes[1]);
-			m_writePid = -2;
+			::close(m_readPdes[0]);
+			::close(m_readPdes[1]);
+			m_readPid = -2;
 			break;
 		}
 
 		case 0: /* child */
 		{
+			m_writePid = m_readPid;
+
+			// Bind Child's stdout
+			::close(m_readPdes[0]);
+			if (m_readPdes[1] != fileno(stdout))
+			{
+				::dup2(m_readPdes[1], fileno(stdout));
+				::close(m_readPdes[1]);
+			}
+
+			// Bind to Child's stdin
 			::close(m_writePdes[1]);
 			if (m_writePdes[0] != fileno(stdin))
 			{
@@ -209,7 +185,7 @@ bool KOutPipe::OpenWritePipe(const KString& sProgram)
 			// execute the command
 			KString sCmd(sProgram); // need non const for split
 			std::vector<char*> argV;
-			splitArgs(sCmd, argV);
+			KOutPipe::splitArgs(sCmd, argV);
 
 			execvp(argV[0], const_cast<char* const*>(argV.data()));
 
@@ -218,15 +194,16 @@ bool KOutPipe::OpenWritePipe(const KString& sProgram)
 
 	} // end switch
 
-	/* only parent gets here */
-	::close(m_writePdes[0]);
+	/* only parent gets here; */
+	::close(m_readPdes[1]); // close write end of read pipe (for child use)
+	::close(m_writePdes[0]); // close read end of write pipe (for child use)
 
 	return true;
-} // OpenReadPipe
+} // OpenPipeRW
 
 //-----------------------------------------------------------------------------
 // waitpid wrapper to ensure it is called only once after child exits
-bool KOutPipe::wait()
+bool KPipe::wait()
 //-----------------------------------------------------------------------------
 {
 	int iStatus = 0;
@@ -234,10 +211,9 @@ bool KOutPipe::wait()
 	pid_t iPid;
 
 	// status can only be read ONCE
-	if (true == m_bWriteChildStatusValid)
+	if ((true == m_bWriteChildStatusValid) || (true == m_bReadChildStatusValid))
 	{
 		// status has already been set. do not read it again, you might get an invalid status.
-		iPid = m_writePid;
 		return true;
 	} // end status is already set
 
@@ -249,6 +225,8 @@ bool KOutPipe::wait()
 		// save the status
 		m_iWriteChildStatus = iStatus;
 		m_bWriteChildStatusValid = true;
+		m_iReadChildStatus = iStatus;
+		m_bReadChildStatusValid = true;
 		return true;
 	}
 
@@ -257,6 +235,8 @@ bool KOutPipe::wait()
 		// TODO log
 		m_iWriteChildStatus = -1;
 		m_bWriteChildStatusValid = true;
+		m_iReadChildStatus = -1;
+		m_bReadChildStatusValid = true;
 
 		return true;
 	}

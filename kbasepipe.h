@@ -46,7 +46,6 @@
 #include "klog.h"
 
 // Generic Includes
-//#include <unistd.h>
 #include <sys/wait.h>
 
 namespace dekaf2
@@ -78,6 +77,23 @@ public:
 	/// Splits args into char*[] terminated with NULL
 	bool splitArgs(KString& argString, CharVec& vector );
 	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// Checks if child on other side of pipe is still running
+	virtual bool IsRunning() = 0;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// Waits up to the number of given milliseconds for the child to terminate
+	/// Will return early if child terminates
+	bool WaitForFinished(int msecs);
+	//-----------------------------------------------------------------------------
+
+//--------
+protected:
+//--------
+
+	//pid_t m_pid{-2};
 
 }; // KBasePipe
 

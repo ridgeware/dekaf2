@@ -44,4 +44,24 @@ bool KBasePipe::splitArgs(KString& argString, CharVec& argVector)
 	return !argVector.empty();
 } // splitArgs
 
+//-----------------------------------------------------------------------------
+bool KBasePipe::WaitForFinished(int msecs)
+//-----------------------------------------------------------------------------
+{
+	if (msecs >= 0)
+	{
+		int counter = 0;
+		while (IsRunning())
+		{
+			usleep(1000);
+			++counter;
+
+			if (counter == msecs)
+				return false;
+		}
+		return true;
+	}
+	return false;
+} // WaitForFinished
+
 } // end namespace dekaf2

@@ -86,7 +86,7 @@ bool KInPipe::Open(const KString& sProgram)
 	// - - - - - - - - - - - - - - - - - - - - - - - -
 	// interpret success:
 	// - - - - - - - - - - - - - - - - - - - - - - - -
-	if (!m_readPipe)
+	if (m_readPdes[0] == -2)
 	{
 		KLog().debug (0, "KInPipe::Open(): OpenReadPipe CMD FAILED: {} ERROR: {}", sProgram, strerror(errno));
 		m_iReadExitCode = errno;
@@ -95,8 +95,8 @@ bool KInPipe::Open(const KString& sProgram)
 	else
 	{
 		KLog().debug(3, "KInPipe::Open(): OpenReadPipe: ok...");
-		KFPReader::open(m_readPipe);
-		return KFPReader::good();
+		KFDReader::open(m_readPdes[0]);
+		return KFDReader::good();
 	}
 
 } // Open
@@ -106,27 +106,11 @@ int KInPipe::Close ()
 //-----------------------------------------------------------------------------
 {
 	int iExitCode = -1;
-	int fdes = 0;
 
-	// is the pipe still valid?
-	if (NULL == m_readPipe)
-	{
-		return iExitCode;
-	} // not open
-
-	/*
-	 * pclose returns -1 if stream is not associated with a
-	 * `popened' command, if already `pclosed', or waitpid
-	 * returns an error.
-	 */
-	if ((fdes = fileno(m_readPipe)) == 0)
-	{
-		return iExitCode;
-	} // could not convert the FILE to fd
-
-	(void)fclose(m_readPipe);
-	m_readPipe = NULL;
-
+	// Close the pipe
+	::close(m_readPdes[1]);
+	// Child has been cut off from parent, let it terminate
+	WaitForFinished(60000);
 
 	// is the child still running?
 	if (false == IsRunning())
@@ -210,7 +194,6 @@ bool KInPipe::OpenReadPipe(const KString& sProgram)
 //-----------------------------------------------------------------------------
 {
 	// Reset status vars and pipes.
-	m_readPipe              = nullptr;
 	m_readPid               = -2;
 	m_bReadChildStatusValid = false;
 	m_iReadChildStatus      = -2;
@@ -256,7 +239,6 @@ bool KInPipe::OpenReadPipe(const KString& sProgram)
 	} // end switch
 
 	/* only parent gets here; assume fdopen can't fail...  */
-	m_readPipe = ::fdopen(m_readPdes[0], "r");
 	::close(m_readPdes[1]);
 
 	return true;

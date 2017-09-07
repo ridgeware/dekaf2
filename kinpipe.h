@@ -54,7 +54,7 @@ namespace dekaf2
 {
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class KInPipe : public KFPReader, public KBasePipe
+class KInPipe : public KFDReader, public KBasePipe
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -101,6 +101,8 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	/// Waits up to the number of given milliseconds for the child to terminate
+	/// Will return early if child terminates
 	bool WaitForFinished(int msecs);
 	//-----------------------------------------------------------------------------
 
@@ -114,10 +116,10 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	// waitpid wrapper to ensure it is called only once after child exits
 	bool wait();
 	//-----------------------------------------------------------------------------
 
-	FILE* m_readPipe{nullptr};
 	pid_t m_readPid{-2};
 	int   m_iReadExitCode{0};
 	int   m_readPdes[2]{-2,-2};

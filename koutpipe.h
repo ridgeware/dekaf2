@@ -45,9 +45,6 @@
 #include "kbasepipe.h"
 #include "kfdwriter.h"
 
-// TODO REMOVE
-#include <iostream>
-
 namespace dekaf2
 
 {
@@ -100,11 +97,13 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	/// Waits up to the number of given milliseconds for the child to terminate
+	/// Will return early if child terminates
 	bool WaitForFinished(int msecs);
 	//-----------------------------------------------------------------------------
 
 //--------
-public:
+protected:
 //--------
 
 	//-----------------------------------------------------------------------------

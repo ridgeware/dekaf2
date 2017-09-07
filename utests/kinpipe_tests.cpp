@@ -32,7 +32,7 @@ TEST_CASE("KInPipe")
 		bool output = pipe.ReadLine(sCurrentLine);
 		CHECK(output);
 		CHECK("1\n" == sCurrentLine);
-		CHECK_FALSE(pipe.IsRunning());
+		CHECK(pipe.IsRunning());
 		CHECK(pipe.is_open());
 		CHECK(0 == pipe.Close());
 

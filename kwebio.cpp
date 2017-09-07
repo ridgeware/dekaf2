@@ -51,7 +51,7 @@ namespace dekaf2 {
 bool KWebIO::addToResponseHeader(KString& sHeaderPart)
 //-----------------------------------------------------------------------------
 {
-	KLog().debug(3, "KWebIO::addToResponseHeader({}) start", sHeaderPart);
+	kDebug(3, "KWebIO::addToResponseHeader({}) start", sHeaderPart);
 	// Garbage in garbage out!
 	size_t iCurrentPos = 0;
 	// Check if we're holding onto an incomplete header
@@ -179,7 +179,7 @@ bool KWebIO::addToResponseHeader(KString& sHeaderPart)
 		}
 	} while (iCurrentPos < sHeaderPart.size()); // until end of given content is reached
 
-	KLog().debug(3, "KWebIO::addToResponseHeader({}}) end", sHeaderPart);
+	kDebug(3, "KWebIO::addToResponseHeader({}}) end", sHeaderPart);
 	return true;
 
 } // addToResponseHeader
@@ -204,7 +204,13 @@ bool KWebIO::printResponseHeader()
 	if (m_iResponseStatusCode > 0)
 	{
 		//HTTP/1.1 200 OK
-		m_outStream.WriteLine("HTTP/" + m_sResponseVersion + ' ' + std::to_string(m_iResponseStatusCode) + ' ' + m_sResponseStatus);
+		m_outStream.Write("HTTP/");
+		m_outStream.Write(m_sResponseVersion);
+		m_outStream.Write(' ');
+		m_outStream.Write(std::to_string(m_iResponseStatusCode));
+		m_outStream.Write(' ');
+		m_outStream.Write(m_sResponseStatus);
+		m_outStream.WriteLine();
 	}
 	auto cookieIter = m_responseCookies.begin();
 	for (const auto& iter : m_responseHeaders)
@@ -215,7 +221,8 @@ bool KWebIO::printResponseHeader()
 		}
 		else if (iter.first == CookieHeader)
 		{
-			m_outStream.Write(iter.second.first + ':');
+			m_outStream.Write(iter.second.first);
+			m_outStream.Write(':');
 			bool isFirst = true;
 			for (;cookieIter != m_responseCookies.end(); ++cookieIter)
 			{
@@ -228,20 +235,20 @@ bool KWebIO::printResponseHeader()
 				{
 					m_outStream.Write(';');
 				}
-				KString sFirst = cookieIter->second.first;
-				KString sSecond;
+				m_outStream.Write(cookieIter->second.first);
 				if (!cookieIter->second.second.empty())
 				{
-					sSecond = '=' ;
-					sSecond += cookieIter->second.second;
+					m_outStream.Write('=');
+					m_outStream.Write(cookieIter->second.second);
 				}
-				m_outStream.Write(sFirst + sSecond);
 				isFirst = false;
 			}
 		}
 		else
 		{
-			m_outStream.Write(iter.second.first + ':' + iter.second.second);
+			m_outStream.Write(iter.second.first);
+			m_outStream.Write(':');
+			m_outStream.Write(iter.second.second);
 		}
 	}
 	return true;
@@ -276,7 +283,7 @@ const KString& KWebIO::getResponseCookie(const KString& sCookieName) const
 bool KWebIO::addResponseHeader(const KString&& sHeaderName, const KString&& sHeaderValue)
 //-----------------------------------------------------------------------------
 {
-	KLog().debug(3, "KWebIO::addResponseHeader({},{}}) start", sHeaderName, sHeaderValue);
+	kDebug(3, "KWebIO::addResponseHeader({},{}}) start", sHeaderName, sHeaderValue);
 	KString sHeaderKey(sHeaderName.ToLower());
 	sHeaderKey.Trim();
 	if (sHeaderKey == CookieHeader)

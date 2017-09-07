@@ -17,16 +17,12 @@ TEST_CASE("KOutPipe")
 		//CHECK(pipe.Open("/bin/sh -c \"echo 'asdf asdf' > /tmp/dekaf2/KOutPipetest3.file\""));
 		//CHECK(pipe.Open("/bin/sh -c \"echo 'some random datum' > /tmp/koutpipetest.file\""));
 		CHECK(pipe.Open("/bin/sh -c \"cat > /tmp/dekaf2/koutpipetest1.file\""));
-		CHECK(pipe.m_writePipe != NULL);
 		KString str("rdoanm txet over 9000 \n line 2 \n line 3 \n line 4 \n SS level 3! \n line 6 \n line 7\n\n");
-		//str = str + EOF;
 		//KString str("echo rdoanm txet over 9000\n");//n line 2 \n line 3 \n line 4 \n SS level 3! \n line 6 \n line 7\"");
 		pipe.Write(str);
-		CHECK(pipe.m_writePipe != NULL);
 		CHECK(pipe.is_open());
 		CHECK(pipe.IsRunning());
 
-		CHECK(pipe.m_writePipe != NULL);
 		CHECK(0 == pipe.Close());
 		CHECK_FALSE(pipe.IsRunning());
 

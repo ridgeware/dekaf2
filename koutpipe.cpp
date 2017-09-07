@@ -86,7 +86,7 @@ bool KOutPipe::Open(const KString& sProgram)
 	// - - - - - - - - - - - - - - - - - - - - - - - -
 	// interpret success:
 	// - - - - - - - - - - - - - - - - - - - - - - - -
-	if (m_writePdes[0] != -2)
+	if (m_writePdes[0] == -2)
 	{
 		KLog().debug (0, "KOutPipe::Open(): OpenReadPipe CMD FAILED: {} ERROR: {}", sProgram, strerror(errno));
 		m_iWriteExitCode = errno;
@@ -113,7 +113,7 @@ int KOutPipe::Close()
 	WaitForFinished(60000);
 
 
-	// is the child still running?
+	// Did the child terminate properly?
 	if (false == IsRunning())
 	{
 		iExitCode = m_iWriteExitCode;
@@ -121,12 +121,14 @@ int KOutPipe::Close()
 	} // child not running
 
 	// the child process has been giving us trouble. Kill it
-	if (-2 != m_writePid)
+	else
 	{
 		kill(m_writePid, SIGKILL);
 	}
 
 	m_writePid = -2;
+	m_writePdes[0] = -2;
+	m_writePdes[1] = -2;
 
 	return (iExitCode);
 
@@ -138,7 +140,6 @@ bool KOutPipe::IsRunning()
 {
 
 	bool bResponse = false;
-	std::ofstream file("/tmp/dekaf2/waitTestFile.txt", std::ios::app);
 
 	// sets m_iReadChildStatus if iPid is not zero
 	wait();
@@ -147,7 +148,6 @@ bool KOutPipe::IsRunning()
 	if (-1 == m_iWriteChildStatus)
 	{
 		m_iWriteExitCode = -1;
-		file << "Failed to get status exit -1" << std::endl;
 		return bResponse;
 	}
 
@@ -155,19 +155,15 @@ bool KOutPipe::IsRunning()
 	if (false == m_bWriteChildStatusValid)
 	{
 		bResponse = true;
-		file << "Child status not yet valid" << std::endl;
 		return bResponse;
 	}
 
 	// did the called function "exit" normally?
 	if (WIFEXITED(m_iWriteChildStatus))
 	{
-		file << "normal exit? is running" << std::endl;
 		m_iWriteExitCode = WEXITSTATUS(m_iWriteChildStatus);
 		return bResponse;
 	}
-
-	//m_iReadExitCode = -1;
 
 	return bResponse;
 
@@ -257,7 +253,6 @@ bool KOutPipe::wait()
 	int iStatus = 0;
 
 	pid_t iPid;
-	std::ofstream file("/tmp/dekaf2/waitTestFile.txt", std::ios::app);
 
 	// status can only be read ONCE
 	if (true == m_bWriteChildStatusValid)
@@ -281,18 +276,11 @@ bool KOutPipe::wait()
 	if ((iPid == -1) && (errno != EINTR))
 	{
 		// TODO log
-
-		file << "Errno#: " << errno << " | " << strerror(errno) << std::endl;
 		m_iWriteChildStatus = -1;
 		m_bWriteChildStatusValid = true;
 
 		return true;
 	}
-	else
-	{
-		file << "iPid: " << iPid << " | Errno#: " << errno << " | " << strerror(errno) << std::endl;
-	}
-	file.close();
 
 	return false;
 } // wait

@@ -117,7 +117,6 @@ public:
 	bool wait();
 	//-----------------------------------------------------------------------------
 
-	//FILE* m_writePipe{nullptr};
 	pid_t m_writePid{-2};
 	int   m_iWriteExitCode{0};
 	int   m_writePdes[2]{-2,-2};

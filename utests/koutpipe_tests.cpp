@@ -21,18 +21,14 @@ TEST_CASE("KOutPipe")
 		KString str("rdoanm txet over 9000 \n line 2 \n line 3 \n line 4 \n SS level 3! \n line 6 \n line 7\n\n");
 		//str = str + EOF;
 		//KString str("echo rdoanm txet over 9000\n");//n line 2 \n line 3 \n line 4 \n SS level 3! \n line 6 \n line 7\"");
-		char endFile = 0x04;
-		//char endFile = '^d';
 		pipe.Write(str);
 		CHECK(pipe.m_writePipe != NULL);
 		CHECK(pipe.is_open());
-		//pipe.Write(endFile);
-		//pipe.WaitForFinished(10000);
 		CHECK(pipe.IsRunning());
-		pipe.SendEOF();
-		//CHECK_FALSE(pipe.IsRunning());
+
 		CHECK(pipe.m_writePipe != NULL);
 		CHECK(0 == pipe.Close());
+		CHECK_FALSE(pipe.IsRunning());
 
 		INFO("KOutPipe  write_pipe::Done:");
 

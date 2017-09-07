@@ -86,7 +86,7 @@ bool KOutPipe::Open(const KString& sProgram)
 	// - - - - - - - - - - - - - - - - - - - - - - - -
 	// interpret success:
 	// - - - - - - - - - - - - - - - - - - - - - - - -
-	if (!m_writePipe)
+	if (m_writePdes[0] != -2)
 	{
 		KLog().debug (0, "KOutPipe::Open(): OpenReadPipe CMD FAILED: {} ERROR: {}", sProgram, strerror(errno));
 		m_iWriteExitCode = errno;
@@ -95,8 +95,8 @@ bool KOutPipe::Open(const KString& sProgram)
 	else
 	{
 		KLog().debug(3, "KOutPipe::Open(): OpenReadPipe: ok...");
-		KFPWriter::open(m_writePipe);
-		return KFPWriter::good();
+		KFDWriter::open(m_writePdes[1]);
+		return KFDWriter::good();
 	}
 
 } // Open
@@ -106,47 +106,24 @@ int KOutPipe::Close()
 //-----------------------------------------------------------------------------
 {
 	int iExitCode = -1;
-	int fdes = 0;
-	std::ofstream file("/tmp/dekaf2/waitTestFile.txt", std::ios::app);
 
-	// is the pipe still valid?
-	if (NULL == m_writePipe)
-	{
-		file << "invalid pipe" << std::endl;
-		return iExitCode;
-	} // not open
-
-	/*
-	 * pclose returns -1 if stream is not associated with a
-	 * `popened' command, if already `pclosed', or waitpid
-	 * returns an error.
-	 */
-	if ((fdes = fileno(m_writePipe)) == 0)
-	{
-		file << "already closed" << std::endl;
-		return iExitCode;
-	} // could not convert the FILE to fd
-
-	(void)fclose(m_writePipe);
-	m_writePipe = NULL;
+	// Send EOF by closing write end of pipe
+	::close(m_writePdes[1]);
+	// Child has been cut off from parent, let it terminate
+	WaitForFinished(60000);
 
 
 	// is the child still running?
 	if (false == IsRunning())
 	{
 		iExitCode = m_iWriteExitCode;
-		file << "normal exit" << std::endl;
 		return (iExitCode);
 	} // child not running
 
 	// the child process has been giving us trouble. Kill it
 	if (-2 != m_writePid)
 	{
-		file << "killing process" << std::endl;
 		kill(m_writePid, SIGKILL);
-		//IsRunning();
-		//wait();
-		//iExitCode = m_iWriteExitCode;
 	}
 
 	m_writePid = -2;
@@ -221,7 +198,7 @@ bool KOutPipe::OpenWritePipe(const KString& sProgram)
 //-----------------------------------------------------------------------------
 {
 	// Reset status vars and pipes.
-	m_writePipe              = nullptr;
+	//m_writePipe              = nullptr;
 	m_writePid               = -2;
 	m_bWriteChildStatusValid = false;
 	m_iWriteChildStatus      = -2;
@@ -266,8 +243,7 @@ bool KOutPipe::OpenWritePipe(const KString& sProgram)
 
 	} // end switch
 
-	/* only parent gets here; assume fdopen can't fail...  */
-	m_writePipe = ::fdopen(m_writePdes[1], "w");
+	/* only parent gets here; */
 	::close(m_writePdes[0]);
 
 	return true;

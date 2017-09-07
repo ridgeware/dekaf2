@@ -60,7 +60,7 @@ namespace detail
 /// add one to four words to the pointer type (depending on the callable
 /// used). Use it for custom deleters, e.g. for an fclose, like
 /// std::unique_ptr<FILE, KUniqueDeleter<FILE, std::fclose>>
-template <typename T, void (*deleter)(T*)>
+template <typename T, void (*deleter)(T*) = std::default_delete<T>()>
 struct KUniqueDeleter
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -75,7 +75,7 @@ struct KUniqueDeleter
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// This alias allows a shortcut for the unique pointer definition, like
 /// KUniquePtr<FILE, std::fclose>
-template <typename T, void (*deleter)(T*)>
+template <typename T, void (*deleter)(T*) = std::default_delete<T>() >
 using KUniquePtr = std::unique_ptr<T, KUniqueDeleter<T, deleter>>;
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 

@@ -12,6 +12,7 @@ EXCLUDE_PATTERNS       = @PROJECT_SOURCE_DIR@/libs/* \
                          @PROJECT_SOURCE_DIR@/smoketests/* \
                          @PROJECT_SOURCE_DIR@/utests/* \
                          @PROJECT_SOURCE_DIR@/doc/*
+                         @PROJECT_SOURCE_DIR@/from/*
 RECURSIVE              = YES
 HAVE_DOT               = @DOXYGEN_DOT_FOUND@
 # USE_MDFILE_AS_MAINPAGE = @doxy_main_page@

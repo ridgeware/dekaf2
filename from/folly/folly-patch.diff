@@ -1,0 +1,78 @@
+diff -ur /home/onelink/hermes/dekaf2/from/../../../libs/folly/folly/Assume.cpp ./Assume.cpp
+--- /home/onelink/hermes/dekaf2/from/../../../libs/folly/folly/Assume.cpp	2017-09-05 13:58:46.406910865 +0200
++++ ./Assume.cpp	2017-09-05 17:06:13.984143480 +0200
+@@ -16,14 +16,14 @@
+ 
+ #include <folly/Assume.h>
+ 
+-#include <glog/logging.h>
++//#include <glog/logging.h>
+ 
+ namespace folly {
+ 
+ namespace detail {
+ 
+ void assume_check(bool cond) {
+-  CHECK(cond) << "compiler-hint assumption fails at runtime";
++//  CHECK(cond) << "compiler-hint assumption fails at runtime";
+ }
+ 
+ }
+diff -ur /home/onelink/hermes/dekaf2/from/../../../libs/folly/folly/concurrency/CacheLocality.cpp ./concurrency/CacheLocality.cpp
+--- /home/onelink/hermes/dekaf2/from/../../../libs/folly/folly/concurrency/CacheLocality.cpp	2017-09-05 13:58:46.433909725 +0200
++++ ./concurrency/CacheLocality.cpp	2017-09-05 17:29:48.759351741 +0200
+@@ -22,11 +22,11 @@
+ #endif
+ #include <fstream>
+ 
+-#include <folly/Conv.h>
+-#include <folly/Exception.h>
+-#include <folly/FileUtil.h>
+-#include <folly/Format.h>
+-#include <folly/ScopeGuard.h>
++//#include <folly/Conv.h>
++//#include <folly/Exception.h>
++//#include <folly/FileUtil.h>
++//#include <folly/Format.h>
++//#include <folly/ScopeGuard.h>
+ 
+ namespace folly {
+ 
+@@ -87,8 +87,10 @@
+   char* end;
+   unsigned long val = strtoul(raw, &end, 10);
+   if (end == raw || (*end != ',' && *end != '-' && *end != '\n' && *end != 0)) {
+-    throw std::runtime_error(
+-        to<std::string>("error parsing list '", line, "'").c_str());
++	  std::string sErr = "error parsing list '";
++	  sErr += line;
++	  sErr += '\'';
++    throw std::runtime_error(sErr.c_str());
+   }
+   return val;
+ }
+@@ -108,8 +110,10 @@
+     auto cpu = cpus.size();
+     std::vector<size_t> levels;
+     for (size_t index = 0;; ++index) {
+-      auto dir =
+-          sformat("/sys/devices/system/cpu/cpu{}/cache/index{}/", cpu, index);
++      std::string dir = "/sys/devices/system/cpu/cpu";
++	  dir += std::to_string(cpu);
++	  dir += "/cache/index";
++	  dir += std::to_string(index);
+       auto cacheType = mapping(dir + "type");
+       auto equivStr = mapping(dir + "shared_cpu_list");
+       if (cacheType.size() == 0 || equivStr.size() == 0) {
+diff -ur /home/onelink/hermes/dekaf2/from/../../../libs/folly/folly/detail/Futex.cpp ./detail/Futex.cpp
+--- /home/onelink/hermes/dekaf2/from/../../../libs/folly/folly/detail/Futex.cpp	2017-09-05 13:58:46.437909557 +0200
++++ ./detail/Futex.cpp	2017-09-05 17:24:42.011336462 +0200
+@@ -17,7 +17,7 @@
+ #include <folly/detail/Futex.h>
+ #include <boost/intrusive/list.hpp>
+ #include <folly/Hash.h>
+-#include <folly/ScopeGuard.h>
++//#include <folly/ScopeGuard.h>
+ #include <folly/portability/SysSyscall.h>
+ #include <stdint.h>
+ #include <string.h>

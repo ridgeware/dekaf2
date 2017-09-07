@@ -43,20 +43,16 @@
 #pragma once
 
 #include <cinttypes>
+
 #include "kstring.h"
 #include "kstringutils.h"
 #include "kprops.h"
+#include "kurl.h"
+
 
 namespace dekaf2
 {
 
-/// @defgroup KURL
-/// KURL implements all classes for parsing, maintaining, and serializing URLs.
-/// Example URL:
-///     "https://jlettvin@github.com:8080/experiment/UTF8?page=home#title";
-///           ^^^        ^          ^    ^               ^         ^
-/// Characters identified by ^ above are expected to NOT be URL encoded.
-/// @{
 namespace KURL
 {
 
@@ -71,13 +67,14 @@ public:
 
 	enum eProto : uint16_t
 	{
-		UNDEFINED,
-		FILE,
-		FTP,
-		HTTP,
-		HTTPS,
-		MAILTO,
-		UNKNOWN
+		// Explicit values to guarantee map to m_sCanonical.
+		UNDEFINED = 0,
+		FILE      = 1,
+		FTP       = 2,
+		HTTP      = 3,
+		HTTPS     = 4,
+		MAILTO    = 5,
+		UNKNOWN   = 6
 	};
 
 	//---------------------------------------------------------------------
@@ -85,16 +82,18 @@ public:
 	inline Protocol () {}
 	//---------------------------------------------------------------------
 
-	//## add a constructor that takes a eProto. That allows you to do a comparison
-	//## like if (Protocol == KURL::Protocol::HTTP) {}
-	//## Also you then do not need to store the m_sProto string for the
-	//## known protocols.. that saves a lot of copies and allocations.
-	//## Only store the m_sProto string for the UNKNOWN case...
-	//## (BTW, we discussed that weeks ago)
+	//---------------------------------------------------------------------
+	/// Allow instance by enumeration including
+	/// Protocol proto (Protocol::UNKNOWN, "opaquelocktoken");
+	inline Protocol (eProto iProto, KStringView svProto = "")
+		: m_sProto {svProto}
+		, m_eProto {iProto}
+	//---------------------------------------------------------------------
+	{}
 
 	//---------------------------------------------------------------------
 	/// constructs instance and parses source into members
-	inline Protocol    (KStringView svSource)
+	inline Protocol (KStringView svSource)
 	//---------------------------------------------------------------------
 	{
 		Parse (svSource);
@@ -102,61 +101,49 @@ public:
 
 	//---------------------------------------------------------------------
 	/// parses source into members of instance
-	KStringView Parse  (KStringView sSource);
+	KStringView Parse (KStringView sSource);
 	//---------------------------------------------------------------------
-	//## please change to Parse() - we have the convention to have PascalStyleFunctionNames()
-	//## please do this with all function names except std:: ones like size(), end(), empty() etc.
 
 	//---------------------------------------------------------------------
 	/// construct new instance and copy members from old instance
-	//## please use a consistent style for spaces around & and &&. Best use
-	//## what the rest of us does: glue the ref to the var, and have one space after it.
-	//## please correct that throughout the file.
-	inline Protocol    (const Protocol &  other)
+	inline Protocol (const Protocol& other)
 	//---------------------------------------------------------------------
-		: m_bMailto     (other.m_bMailto)
-		, m_sProto      (other.m_sProto)
-		, m_eProto      (other.m_eProto)
+		: m_sProto (other.m_sProto)
+		, m_eProto (other.m_eProto)
 	{
 	}
 
 	//---------------------------------------------------------------------
 	/// construct new instance and move members from old instance
-	//## same like above, and why those random spaces.. do not try to
-	//## balance whitespaces if you do not do it consistently (and I am
-	//## actually of the opinion that it is much harder to read when
-	//## there's so much white space)
-	inline Protocol    (      Protocol && other)
-		: m_bMailto     (std::move (other.m_bMailto))
-		, m_sProto      (std::move (other.m_sProto))
-		, m_eProto      (std::move (other.m_eProto))
+	inline Protocol (Protocol&& other)
+		: m_sProto (std::move (other.m_sProto))
+		, m_eProto (std::move (other.m_eProto))
 	//---------------------------------------------------------------------
 	{
 	}
 
 	//---------------------------------------------------------------------
 	/// copies members from other instance into this
-	inline Protocol&   operator= (const Protocol &  other) noexcept
-	//## there's a //----- comment missing here.
+	inline Protocol& operator= (const Protocol& other) noexcept
+	//---------------------------------------------------------------------
 	{
-		m_bMailto   = other.m_bMailto;
-		m_sProto    = other.m_sProto;
-		m_eProto    = other.m_eProto;
+		m_sProto = other.m_sProto;
+		m_eProto = other.m_eProto;
 		return *this;
 	}
 
 	//---------------------------------------------------------------------
 	/// moves members from other instance into this
-	inline Protocol&   operator= (      Protocol && other) noexcept
-	//## there's a //----- comment missing here.
+	inline Protocol& operator= (Protocol&& other) noexcept
+	//---------------------------------------------------------------------
 	{
-		m_bMailto   = std::move (other.m_bMailto);
-		m_sProto    = std::move (other.m_sProto);
-		m_eProto    = std::move (other.m_eProto);
+		m_sProto = std::move (other.m_sProto);
+		m_eProto = std::move (other.m_eProto);
 		return *this;
 	}
 
 	//---------------------------------------------------------------------
+	/// Convert internal rep to KString
 	inline operator KString () const
 	//---------------------------------------------------------------------
 	{
@@ -166,6 +153,7 @@ public:
 	}
 
 	//---------------------------------------------------------------------
+	/// Serialize internal rep into arg KString
 	const Protocol& operator>> (KString& sTarget)
 	//---------------------------------------------------------------------
 	{
@@ -174,8 +162,8 @@ public:
 	}
 
 	//---------------------------------------------------------------------
-	//## shouldn't the parameter here better be a KStringView ? Or at least a const KString&
-	Protocol& operator<< (KString& sSource)
+	/// Parse arg into internal rep
+	Protocol& operator<< (KStringView sSource)
 	//---------------------------------------------------------------------
 	{
 		Parse (sSource);
@@ -184,62 +172,19 @@ public:
 
 	//---------------------------------------------------------------------
 	/// generate content into string from members
-	inline bool Serialize (KString& sTarget) const
-	//---------------------------------------------------------------------
-	//## there's a //----- comment missing here.
-	//## I would actually move this one into the .cpp
-	{
-		/*
-		switch (m_eProto)
-		{
-			case FILE:
-				sTarget += "file" + (m_eProto == UNDEFINED) ? "" : "://";
-				break;
-			case FTP:
-				sTarget += "ftp" + (m_eProto == UNDEFINED) ? "" : "://";
-				break;
-
-		FILE,
-		FTP,
-		HTTP,
-		HTTPS,
-		MAILTO,
-		UNKNOWN
-		}
-		*/
-		if (m_sProto.size () != 0)
-		{
-			//KString sEncoded;
-			//kUrlEncode (m_sProto, sEncoded);
-			sTarget += m_sProto; //sEncoded;
-			sTarget += m_sPost;
-			//## as the basis of the serialization use m_eProto. Only if it
-			//## is UNDEFINED use m_sProto.
-			return true;
-		}
-		return false;
-	}
+	bool Serialize (KString& sTarget) const;
 
 	//---------------------------------------------------------------------
 	/// restore instance to unpopulated state
-	inline void clear ()
+	void Clear ();
 	//---------------------------------------------------------------------
-	//## I would actually move this one into the .cpp
-	{
-		m_bMailto       = false;
-		//## please do not do those artistics with spaces. it confuses the reader.
-		//## I initially thought you would call clear() recursively..
-		m_sProto        .clear ();
-		m_eProto        = UNDEFINED;
-	}
 
 	//---------------------------------------------------------------------
 	/// return a view of the member
 	inline KString getProtocol () const
 	{
 		KString sEncoded;
-		//## call Serialize() instead
-		kUrlEncode (m_sProto, sEncoded);
+		Serialize (sEncoded);
 		return sEncoded;
 	}
 
@@ -251,6 +196,7 @@ public:
 	//---------------------------------------------------------------------
 	/// modify member by parsing argument
 	inline void setProtocol (const KStringView& svProto)
+	//-------------------------------------------------------------------------
 	{
 		Parse (svProto);
 	}
@@ -258,25 +204,42 @@ public:
 	//---------------------------------------------------------------------
 	/// identify that "mailto:" was parsed
 	inline bool isEmail () const
+	//-------------------------------------------------------------------------
 	{
-		return m_bMailto;
+		return (m_eProto == MAILTO);
 	}
 
 	//-------------------------------------------------------------------------
-	/// compares other instance with this, member-by-member //## comment is incorrect
+	inline bool operator== (eProto iProto)
+	//-------------------------------------------------------------------------
+	{
+		return (iProto == m_eProto);
+	}
+
+	//-------------------------------------------------------------------------
+	/// compares other instance with this
 	inline bool operator== (const Protocol& rhs) const
+	//-------------------------------------------------------------------------
 	{
-		//## compare emums first, and only if both equal and == UNKNOWN
-		//## compare strings
-		return getProtocol () == rhs.getProtocol ();
+		bool bEqual = (m_eProto == rhs.m_eProto);
+		if (bEqual && m_eProto == UNKNOWN)
+		{
+			bEqual = (m_sProto == rhs.m_sProto);
+		}
+		return bEqual;
 	}
 
 	//-------------------------------------------------------------------------
-	/// compares other instance with this, member-by-member //## comment is incorrect
+	/// compares other instance with this
+	//-------------------------------------------------------------------------
 	inline bool operator!= (const Protocol& rhs) const
 	{
-		//## see above
-		return getProtocol () != rhs.getProtocol ();
+		bool bEqual = (m_eProto == rhs.m_eProto);
+		if (bEqual && m_eProto == UNKNOWN)
+		{
+			bEqual = (m_sProto == rhs.m_sProto);
+		}
+		return !bEqual;
 	}
 
 	//-------------------------------------------------------------------------
@@ -284,19 +247,25 @@ public:
 	inline size_t size() const
 	//-------------------------------------------------------------------------
 	{
-		return m_sProto.size () + m_sPost.size ();
+		size_t iRet{0};
+		if (m_eProto >= UNKNOWN)
+		{
+			iRet = m_sProto.size () + 3; // 3 for the "://"
+		}
+		else if (m_eProto)
+		{
+			iRet = m_sKnown[m_eProto].size ();
+		}
+		return iRet;
 	}
 
 //------
 private:
 //------
 
-	bool            m_bMailto   {false};
-	KString         m_sProto    {};
-	KString         m_sPost     {};
-	eProto          m_eProto    {UNDEFINED};
-	//## why do you need a member variable and a special method for
-	//## mailto? Why not using enum MAILTO ?
+	KString m_sProto {};
+	eProto  m_eProto {UNDEFINED};
+	static KString m_sKnown [UNKNOWN+1];
 
 };
 
@@ -319,7 +288,7 @@ public:
 
 	//-------------------------------------------------------------------------
 	/// constructs instance and parses source into members
-	inline User    (KStringView svSource)
+	inline User (KStringView svSource)
 	//-------------------------------------------------------------------------
 	{
 		Parse (svSource);
@@ -327,48 +296,49 @@ public:
 
 	//-------------------------------------------------------------------------
 	/// parses source into members of instance
-	KStringView Parse  (KStringView sSource);
+	KStringView Parse (KStringView sSource);
 	//-------------------------------------------------------------------------
 
 	//-------------------------------------------------------------------------
 	/// construct new instance and copy members from old instance
-	inline User              (const User &  other)
-		: m_sUser       (other.m_sUser)
-		, m_sPass       (other.m_sPass)
+	inline User (const User& other)
+		: m_sUser (other.m_sUser)
+		, m_sPass (other.m_sPass)
 	//-------------------------------------------------------------------------
 	{
 	}
 
 	//-------------------------------------------------------------------------
 	/// construct new instance and move members from old instance
-	inline User              (      User && other)
-		: m_sUser       (std::move (other.m_sUser))
-		, m_sPass       (std::move (other.m_sPass))
+	inline User (User&& other)
+		: m_sUser (std::move (other.m_sUser))
+		, m_sPass (std::move (other.m_sPass))
 	//-------------------------------------------------------------------------
 	{
 	}
 
 	//-------------------------------------------------------------------------
 	/// copies members from other instance into this
-	inline User&   operator= (const User &  other) noexcept
+	inline User& operator= (const User& other) noexcept
 	//-------------------------------------------------------------------------
 	{
-		m_sUser     = other.m_sUser;
-		m_sPass     = other.m_sPass;
+		m_sUser = other.m_sUser;
+		m_sPass = other.m_sPass;
 		return *this;
 	}
 
 	//-------------------------------------------------------------------------
 	/// moves members from other instance into this
-	inline User&   operator= (      User && other) noexcept
+	inline User& operator= (User&& other) noexcept
 	//-------------------------------------------------------------------------
 	{
-		m_sUser     = std::move (other.m_sUser);
-		m_sPass     = std::move (other.m_sPass);
+		m_sUser = std::move (other.m_sUser);
+		m_sPass = std::move (other.m_sPass);
 		return *this;
 	}
 
 	//---------------------------------------------------------------------
+	/// Serialize and return as KString
 	inline operator KString () const
 	//---------------------------------------------------------------------
 	{
@@ -378,6 +348,7 @@ public:
 	}
 
 	//---------------------------------------------------------------------
+	/// Serialize stream style
 	const User& operator>> (KString& sTarget)
 	//---------------------------------------------------------------------
 	{
@@ -386,8 +357,8 @@ public:
 	}
 
 	//---------------------------------------------------------------------
-	//## make parameter a KStringView
-	User& operator<< (KString& sSource)
+	/// Parse stream style
+	User& operator<< (KStringView sSource)
 	//---------------------------------------------------------------------
 	{
 		Parse (sSource);
@@ -396,35 +367,16 @@ public:
 
 	//-------------------------------------------------------------------------
 	/// generate content into string from members
-	///## move the body into the cpp
-	inline bool Serialize (KString& sTarget) const
+	bool Serialize (KString& sTarget) const;
 	//-------------------------------------------------------------------------
-	{
-		// TODO Should username/password be url encoded?
-		//## well, I would say so. How would you otherwise represent accented chars
-		//## (and you urldecode at parsing actually)
-		if (m_sUser.size ())
-		{
-			sTarget += m_sUser;
-
-			if (m_sPass.size ())
-			{
-				sTarget += ':';
-				sTarget += m_sPass;
-			}
-			sTarget += m_sPost;
-		}
-		return true;
-	}
 
 	//-------------------------------------------------------------------------
 	/// restore instance to unpopulated state
-	inline void clear ()
+	inline void Clear ()
 	//-------------------------------------------------------------------------
 	{
-		//## don't separate the method operator from its type.
-		m_sUser         .clear ();
-		m_sPass         .clear ();
+		m_sUser.clear ();
+		m_sPass.clear ();
 	}
 
 	//-------------------------------------------------------------------------
@@ -482,19 +434,22 @@ public:
 	//-------------------------------------------------------------------------
 	{
 		return
-			m_sUser.size () +
-			m_sPass.size () +
-			(m_sPass.size() != 0) + // account for ':' if any
-			m_sPost.size () ;       // account for '@' if any
+			m_sUser.size()
+			? (
+				m_sUser.size () +
+				m_sPass.size () +
+				(m_sPass.size() != 0) + // account for ':' if any
+				1                       // account for '@'
+			)
+			: 0;
 	}
 
 //------
 private:
 //------
 
-	KString         m_sUser     {};
-	KString         m_sPass     {};
-	KString         m_sPost     {};
+	KString m_sUser {};
+	KString m_sPass {};
 };
 
 
@@ -515,50 +470,50 @@ class Domain
 
 	//---------------------------------------------------------------------
 	/// constructs instance and parses source into members
-	inline Domain  (KStringView svSource)
+	inline Domain (KStringView svSource)
 	{
 		Parse (svSource);
 	}
 
 	//---------------------------------------------------------------------
 	/// parses source into members of instance
-	KStringView Parse  (KStringView sSource);
+	KStringView Parse (KStringView sSource);
 
 	//---------------------------------------------------------------------
 	/// construct new instance and copy members from old instance
-	inline Domain            (const Domain &  other)
+	inline Domain (const Domain& other)
 	{
-		m_iPortNum   =  other.m_iPortNum;
-		m_sHostName  =  other.m_sHostName;
-		m_sBaseName  =  other.m_sBaseName;
+		m_iPortNum  = other.m_iPortNum;
+		m_sHostName = other.m_sHostName;
+		m_sBaseName = other.m_sBaseName;
 	}
 
 	//---------------------------------------------------------------------
 	/// construct new instance and move members from old instance
-	inline Domain            (      Domain && other)
+	inline Domain (Domain&& other)
 	{
-		m_iPortNum   =  other.m_iPortNum;
-		m_sHostName  = std::move (other.m_sHostName);
-		m_sBaseName  = std::move (other.m_sBaseName);
+		m_iPortNum  = other.m_iPortNum;
+		m_sHostName = std::move (other.m_sHostName);
+		m_sBaseName = std::move (other.m_sBaseName);
 	}
 
 	//---------------------------------------------------------------------
 	/// copies members from other instance into this
-	inline Domain& operator= (const Domain &  other) noexcept
+	inline Domain& operator= (const Domain& other) noexcept
 	{
-		m_iPortNum   =  other.m_iPortNum;
-		m_sHostName  =  other.m_sHostName;
-		m_sBaseName  =  other.m_sBaseName;
+		m_iPortNum  = other.m_iPortNum;
+		m_sHostName = other.m_sHostName;
+		m_sBaseName = other.m_sBaseName;
 		return *this;
 	}
 
 	//---------------------------------------------------------------------
 	/// moves members from other instance into this
-	inline Domain& operator= (      Domain && other) noexcept
+	inline Domain& operator= (Domain&& other) noexcept
 	{
-		m_iPortNum   =  other.m_iPortNum;
-		m_sHostName  = std::move (other.m_sHostName);
-		m_sBaseName  = std::move (other.m_sBaseName);
+		m_iPortNum  = other.m_iPortNum;
+		m_sHostName = std::move (other.m_sHostName);
+		m_sBaseName = std::move (other.m_sBaseName);
 		return *this;
 	}
 
@@ -580,8 +535,7 @@ class Domain
 	}
 
 	//---------------------------------------------------------------------
-	//## KStringView
-	Domain& operator<< (KString& sSource)
+	Domain& operator<< (KStringView sSource)
 	//---------------------------------------------------------------------
 	{
 		Parse (sSource);
@@ -599,9 +553,7 @@ class Domain
 			if (m_iPortNum)
 			{
 				sTarget += ':';
-				//## no need to construct another string. to_string returns one, and
-				//## KString::operator+= accepts std:strings.
-				sTarget += KString (std::to_string (m_iPortNum));
+				sTarget += std::to_string (m_iPortNum);
 			}
 		}
 		return bSome;
@@ -609,45 +561,44 @@ class Domain
 
 	//---------------------------------------------------------------------
 	/// restore instance to unpopulated state
-	inline void clear ()
+	inline void Clear ()
 	{
-		m_iPortNum     = 0;
+		m_iPortNum = 0;
 		m_sHostName.clear ();
 		m_sBaseName.clear ();
 	}
 
 	//---------------------------------------------------------------------
 	/// return a view of the member
-	inline KStringView   getHostName ()   const
+	inline KStringView getHostName () const
 	{
 		return m_sHostName;
 	}
 
 	//---------------------------------------------------------------------
 	/// modify member by parsing argument
-	inline void           setHostName (const KStringView& svHostName)
+	inline void setHostName (const KStringView& svHostName)
 	{
 		ParseHostName (svHostName);  // data extraction
 	}
 
 	//---------------------------------------------------------------------
 	/// Convert member and return it as uppercased string
-	inline KString       getBaseDomain () const // No set function
+	inline KString getBaseDomain () const // No set function
 	{
-		//## use return m_sBaseName.ToUpper();
-		return KString (m_sBaseName).MakeUpper ();
+		return m_sBaseName.ToUpper ();
 	}
 
 	//---------------------------------------------------------------------
 	/// return member by value
-	inline uint16_t             getPortNum ()    const
+	inline uint16_t getPortNum () const
 	{
 		return m_iPortNum;
 	}
 
 	//---------------------------------------------------------------------
 	/// set member by value
-	inline void           setPortNum (const uint16_t iPortNum)
+	inline void setPortNum (const uint16_t iPortNum)
 	{
 		m_iPortNum = iPortNum;
 	}
@@ -674,9 +625,9 @@ class Domain
 private:
 //------
 
-	uint16_t         m_iPortNum    {0};
-	KString          m_sHostName   {};
-	KString          m_sBaseName   {};
+	uint16_t m_iPortNum  {0};
+	KString  m_sHostName {};
+	KString  m_sBaseName {};
 
 	//---------------------------------------------------------------------
 	KStringView ParseHostName (KStringView svSource);
@@ -694,48 +645,48 @@ public:
 
 	//---------------------------------------------------------------------
 	/// constructs empty instance.
-	inline Path        ()
+	inline Path ()
 	{
 	}
 
 	//---------------------------------------------------------------------
 	/// constructs instance and parses source into members
-	inline Path        (KStringView svSource)
+	inline Path (KStringView svSource)
 	{
 		Parse (svSource);
 	}
 
 	//---------------------------------------------------------------------
 	/// parses source into members of instance
-	KStringView Parse      (KStringView sSource);
+	KStringView Parse (KStringView sSource);
 
 	//---------------------------------------------------------------------
 	/// construct new instance and copy members from old instance
-	inline Path              (const Path &  other)
+	inline Path (const Path& other)
 	{
-		m_sPath      =  other.m_sPath  ;
+		m_sPath = other.m_sPath ;
 	}
 
 	//---------------------------------------------------------------------
 	/// construct new instance and move members from old instance
-	inline Path              (      Path && other)
+	inline Path (Path&& other)
 	{
-		m_sPath      = std::move (other.m_sPath);
+		m_sPath = std::move (other.m_sPath);
 	}
 
 	//---------------------------------------------------------------------
 	/// copies members from other instance into this
-	inline Path  & operator= (const Path &  other) noexcept
+	inline Path& operator= (const Path& other) noexcept
 	{
-		m_sPath      =  other.m_sPath  ;
+		m_sPath = other.m_sPath ;
 		return *this;
 	}
 
 	//---------------------------------------------------------------------
 	/// moves members from other instance into this
-	inline Path  & operator= (      Path && other) noexcept
+	inline Path& operator= (Path&& other) noexcept
 	{
-		m_sPath      = std::move (other.m_sPath);
+		m_sPath = std::move (other.m_sPath);
 		return *this;
 	}
 
@@ -757,8 +708,7 @@ public:
 	}
 
 	//---------------------------------------------------------------------
-	//## KStringView
-	Path& operator<< (KString& sSource)
+	Path& operator<< (KStringView sSource)
 	//---------------------------------------------------------------------
 	{
 		Parse (sSource);
@@ -769,27 +719,28 @@ public:
 	/// generate content into string from members
 	inline bool Serialize (KString& sTarget) const
 	{
-		//## no need to have a variable for the return as it is always true..
-		bool bResult = true;
-
 		if (m_sPath.size ())
 		{
+			//KString sPath;
+			//kUrlEncode (m_sPath, sPath);
 			//## but you have to urlencode the path..
+			//?? kUrlEncode requires 2nd arg target.  Local KString mandatory.
+			//?? Also "/" is urlencoded to "%2F".  We want less encoding.
 			sTarget += m_sPath;
 		}
-		return bResult;
+		return true;
 	}
 
 	//---------------------------------------------------------------------
 	/// restore instance to unpopulated state
-	inline void clear ()
+	inline void Clear ()
 	{
 		m_sPath.clear ();
 	}
 
 	//---------------------------------------------------------------------
 	/// return a view of the member
-	inline KStringView   getPath ()        const
+	inline KStringView getPath () const
 	{
 		return m_sPath;
 	}
@@ -819,7 +770,7 @@ public:
 private:
 //------
 
-	KString     m_sPath      {};
+	KString m_sPath {};
 };
 
 
@@ -844,42 +795,42 @@ public:
 
 	//---------------------------------------------------------------------
 	/// constructs instance and parses source into members
-	inline Query   (KStringView svSource)
+	inline Query (KStringView svSource)
 	{
 		Parse (svSource);
 	}
 
 	//---------------------------------------------------------------------
 	/// parses source into members of instance
-	KStringView Parse  (KStringView sSource);
+	KStringView Parse (KStringView sSource);
 
 	//---------------------------------------------------------------------
 	/// construct new instance and copy members from old instance
-	inline Query             (const Query &  other)
+	inline Query (const Query& other)
 	{
-		m_kpQuery    =  other.m_kpQuery;
+		m_kpQuery = other.m_kpQuery;
 	}
 
 	//---------------------------------------------------------------------
 	/// construct new instance and move members from old instance
-	inline Query             (      Query && other)
+	inline Query (Query&& other)
 	{
-		m_kpQuery    =  other.m_kpQuery;
+		m_kpQuery = other.m_kpQuery;
 	}
 
 	//---------------------------------------------------------------------
 	/// copies members from other instance into this
-	inline Query & operator= (const Query &  other) noexcept
+	inline Query& operator= (const Query& other) noexcept
 	{
-		m_kpQuery    =  other.m_kpQuery;
+		m_kpQuery = other.m_kpQuery;
 		return *this;
 	}
 
 	//---------------------------------------------------------------------
 	/// moves members from other instance into this
-	inline Query & operator= (      Query && other) noexcept
+	inline Query& operator= (Query&& other) noexcept
 	{
-		m_kpQuery    =  other.m_kpQuery;
+		m_kpQuery = other.m_kpQuery;
 		return *this;
 	}
 
@@ -914,7 +865,7 @@ public:
 
 	//---------------------------------------------------------------------
 	/// restore instance to unpopulated state
-	inline void clear ()
+	inline void Clear ()
 	{
 		m_kpQuery.clear ();
 	}
@@ -922,37 +873,29 @@ public:
 	//---------------------------------------------------------------------
 	/// return a view of the member
 	//## replace this as explained above
-	inline KString  getQuery () const
+	//?? Must wait for decision on urlencoding.
+	inline KString getQuery () const
 	{
 		KString sSerialized;
 		Serialize (sSerialized);
 		return sSerialized;
 	}
 
-	//---------------------------------------------------------------------
-	/// modify member by parsing argument
-	//## remove this - user can call Parse().
-	inline void setQuery (const KStringView& svQuery)
+	//-------------------------------------------------------------------------
+	inline KStringView operator[](KStringView svKey)
+	//-------------------------------------------------------------------------
 	{
-		Parse (svQuery);
+		return m_kpQuery[svKey];
 	}
 
-	//---------------------------------------------------------------------
-	/// return the property map
-	//## remove this
-	inline const KProp_t& getProperties () const
-	{
-		return m_kpQuery;
-	}
-
-	//-----------------------------------------------------------------------------
+	//-------------------------------------------------------------------------
 	/// compares other instance with this, member-by-member
 	inline bool operator== (const Query& rhs) const
 	{
 		return m_kpQuery == rhs.m_kpQuery;
 	}
 
-	//-----------------------------------------------------------------------------
+	//-------------------------------------------------------------------------
 	/// compares other instance with this, member-by-member
 	inline bool operator!= (const Query& rhs) const
 	{
@@ -971,13 +914,13 @@ public:
 private:
 //------
 
-	KProp_t     m_kpQuery       {};
+	KProp_t m_kpQuery {};
 
 	// make and use JIT translator for URL coded strings.
-	// "+"     translates to " "
-	// "%FF"   translates to "\xFF"
-	// other   remains untranslated
-	bool    decode (KStringView);
+	// "+"   translates to " "
+	// "%FF" translates to "\xFF"
+	// other remains untranslated
+	bool decode (KStringView);
 
 };
 
@@ -1000,7 +943,7 @@ public:
 
 	//---------------------------------------------------------------------
 	/// constructs instance and parses source into members
-	inline Fragment  (KStringView svSource)
+	inline Fragment (KStringView svSource)
 	{
 		svSource = Parse (svSource);
 	}
@@ -1011,31 +954,31 @@ public:
 
 	//---------------------------------------------------------------------
 	/// construct new instance and copy members from old instance
-	inline Fragment             (const Fragment &  other)
+	inline Fragment (const Fragment& other)
 	{
-		m_sFragment  =  other.m_sFragment;
+		m_sFragment = other.m_sFragment;
 	}
 
 	//---------------------------------------------------------------------
 	/// construct new instance and move members from old instance
-	inline Fragment             (      Fragment && other)
+	inline Fragment (Fragment&& other)
 	{
-		m_sFragment  = std::move (other.m_sFragment);
+		m_sFragment = std::move (other.m_sFragment);
 	}
 
 	//---------------------------------------------------------------------
 	/// copies members from other instance into this
-	inline Fragment & operator= (const Fragment &  other) noexcept
+	inline Fragment& operator= (const Fragment& other) noexcept
 	{
-		m_sFragment  =  other.m_sFragment;
+		m_sFragment = other.m_sFragment;
 		return *this;
 	}
 
 	//---------------------------------------------------------------------
 	/// moves members from other instance into this
-	inline Fragment & operator= (      Fragment && other) noexcept
+	inline Fragment& operator= (Fragment&& other) noexcept
 	{
-		m_sFragment  =  std::move (other.m_sFragment);
+		m_sFragment = std::move (other.m_sFragment);
 		return *this;
 	}
 
@@ -1070,7 +1013,6 @@ public:
 	{
 		if (m_sFragment.size ())
 		{
-			//sTarget += '#';
 			sTarget += m_sFragment;
 		}
 		return true;
@@ -1078,7 +1020,7 @@ public:
 
 	//---------------------------------------------------------------------
 	/// restore instance to unpopulated state
-	inline void clear ()
+	inline void Clear ()
 	{
 		m_sFragment.clear ();
 	}
@@ -1117,7 +1059,7 @@ public:
 private:
 //------
 
-	KString         m_sFragment {};
+	KString m_sFragment {};
 
 };
 
@@ -1134,42 +1076,42 @@ public:
 
 	//---------------------------------------------------------------------
 	/// constructs empty instance.
-	inline URI        ()
+	inline URI ()
 	{
 	}
 
 	//---------------------------------------------------------------------
 	/// constructs instance and parses source into members
-	inline URI        (KStringView svSource)
+	inline URI (KStringView svSource)
 	{
 		svSource = Parse (svSource);
 	}
 
 	//---------------------------------------------------------------------
 	/// parses source into members of instance
-	KStringView Parse  (KStringView sSource);
+	KStringView Parse (KStringView sSource);
 
 	//---------------------------------------------------------------------
 	/// construct new instance and copy members from old instance
-	inline URI                     (const URI &  other)
-		: Path      (other)
-		, Query     (other)
-		, Fragment  (other)
+	inline URI (const URI& other)
+		: Path     (other)
+		, Query    (other)
+		, Fragment (other)
 	{
 	}
 
 	//---------------------------------------------------------------------
 	/// construct new instance and move members from old instance
-	inline URI                     (      URI && other)
-		: Path      (std::move (other))
-		, Query     (std::move (other))
-		, Fragment  (std::move (other))
+	inline URI (URI&& other)
+		: Path     (std::move (other))
+		, Query    (std::move (other))
+		, Fragment (std::move (other))
 	{
 	}
 
 	//---------------------------------------------------------------------
 	/// copies members from other instance into this
-	inline URI &         operator= (const URI &  other) noexcept
+	inline URI& operator= (const URI& other) noexcept
 	{
 		Path    ::operator= (other);
 		Query   ::operator= (other);
@@ -1179,7 +1121,7 @@ public:
 
 	//---------------------------------------------------------------------
 	/// moves members from other instance into this
-	inline URI &         operator= (      URI && other) noexcept
+	inline URI& operator= (URI&& other) noexcept
 	{
 		Path    ::operator= (std::move (other));
 		Query   ::operator= (std::move (other));
@@ -1218,19 +1160,19 @@ public:
 	{
 		bool bResult = true;
 
-		bResult = Path                  ::Serialize (sTarget);
-		bResult = bResult && Query      ::Serialize (sTarget);
-		bResult = bResult && Fragment   ::Serialize (sTarget);
+		bResult = Path               ::Serialize (sTarget);
+		bResult = bResult && Query   ::Serialize (sTarget);
+		bResult = bResult && Fragment::Serialize (sTarget);
 		return bResult;
 	}
 
 	//---------------------------------------------------------------------
 	/// restore instance to unpopulated state
-	inline void clear ()
+	inline void Clear ()
 	{
-		Path        ::clear ();
-		Query       ::clear ();
-		Fragment    ::clear ();
+		Path    ::Clear ();
+		Query   ::Clear ();
+		Fragment::Clear ();
 	}
 
 	//-----------------------------------------------------------------------------
@@ -1272,60 +1214,60 @@ public:
 
 	//---------------------------------------------------------------------
 	/// constructs empty instance.
-	inline URL        ()
+	inline URL ()
 	{
 	}
 
 	//---------------------------------------------------------------------
 	/// constructs instance and parses source into members
-	inline URL        (KStringView svSource)
+	inline URL (KStringView svSource)
 	{
 		svSource = Parse (svSource);
 	}
 
 	//---------------------------------------------------------------------
 	/// parses source into members of instance
-	KStringView Parse  (KStringView sSource);
+	KStringView Parse (KStringView sSource);
 
 	//---------------------------------------------------------------------
 	/// construct new instance and copy members from old instance
-	inline URL                     (const URL &  other)
-		: Protocol  (other)
-		, User      (other)
-		, Domain    (other)
-		, URI       (other)
+	inline URL (const URL& other)
+		: Protocol (other)
+		, User   (other)
+		, Domain (other)
+		, URI    (other)
 	{
 	}
 
 	//---------------------------------------------------------------------
 	/// construct new instance and move members from old instance
-	inline URL                     (      URL && other)
-		: Protocol  (std::move (other))
-		, User      (std::move (other))
-		, Domain    (std::move (other))
-		, URI       (std::move (other))
+	inline URL (URL&& other)
+		: Protocol (std::move (other))
+		, User     (std::move (other))
+		, Domain   (std::move (other))
+		, URI      (std::move (other))
 	{
 	}
 
 	//---------------------------------------------------------------------
 	/// copies members from other instance into this
-	inline URL &         operator= (const URL &  other) noexcept
+	inline URL& operator= (const URL& other) noexcept
 	{
-		Path    ::operator= (other);
-		User    ::operator= (other);
-		Domain  ::operator= (other);
-		URI     ::operator= (other);
+		Path  ::operator= (other);
+		User  ::operator= (other);
+		Domain::operator= (other);
+		URI   ::operator= (other);
 		return *this;
 	}
 
 	//---------------------------------------------------------------------
 	/// moves members from other instance into this
-	inline URL &         operator= (      URL && other) noexcept
+	inline URL& operator= (URL&& other) noexcept
 	{
-		Path    ::operator= (std::move (other));
-		User    ::operator= (std::move (other));
-		Domain  ::operator= (std::move (other));
-		URI     ::operator= (std::move (other));
+		Path  ::operator= (std::move (other));
+		User  ::operator= (std::move (other));
+		Domain::operator= (std::move (other));
+		URI   ::operator= (std::move (other));
 		return *this;
 	}
 
@@ -1340,10 +1282,9 @@ public:
 
 	//---------------------------------------------------------------------
 	/// Serialize a URL
-	//## why don't the others then have this operator? and what is the syntax to use this?
 	const URL& operator>> (KString& sTarget)
 	{
-		const URL      & source = *this;
+		const URL& source = *this;
 		Serialize (sTarget);
 		return *this;
 	}
@@ -1363,22 +1304,22 @@ public:
 	{
 		bool bResult = true;
 
-		bResult &= Protocol ::Serialize (sTarget);
-		bResult &= User     ::Serialize (sTarget);
-		bResult &= Domain   ::Serialize (sTarget);
-		bResult &= URI      ::Serialize (sTarget);
+		bResult &= Protocol::Serialize (sTarget);
+		bResult &= User    ::Serialize (sTarget);
+		bResult &= Domain  ::Serialize (sTarget);
+		bResult &= URI     ::Serialize (sTarget);
 
 		return bResult;
 	}
 
 	//---------------------------------------------------------------------
 	/// restore instance to unpopulated state
-	inline void clear ()
+	inline void Clear ()
 	{
-		Protocol    ::clear ();
-		User        ::clear ();
-		Domain      ::clear ();
-		URI         ::clear ();
+		Protocol::Clear ();
+		User    ::Clear ();
+		Domain  ::Clear ();
+		URI     ::Clear ();
 		m_iEndOffset = 0;
 	}
 
@@ -1403,25 +1344,15 @@ public:
 		return m_iEndOffset + Protocol::size();
 	}
 
-	//---------------------------------------------------------------------
-	/// identify that "mailto:" was parsed
-	//## remove
-	bool isEmailinline () const
-	{
-		return (Protocol::isEmail ());
-	}
-
 	//-----------------------------------------------------------------------------
 	/// compares other instance with this, member-by-member
 	inline bool operator== (const URL& rhs) const
 	{
 		return
-			//## move that functionality into Protocol's operator==()..
-			Protocol    ::getProtocolEnum () == rhs.getProtocolEnum () &&
-			Protocol    ::operator== (rhs) &&
-			User        ::operator== (rhs) &&
-			Domain      ::operator== (rhs) &&
-			URI         ::operator== (rhs);
+			Protocol::operator== (rhs) &&
+			User    ::operator== (rhs) &&
+			Domain  ::operator== (rhs) &&
+			URI     ::operator== (rhs);
 	}
 
 	//-----------------------------------------------------------------------------
@@ -1429,23 +1360,20 @@ public:
 	inline bool operator!= (const URL& rhs) const
 	{
 		return
-			//## move that functionality into Protocol's operator==()..
-			Protocol    ::getProtocolEnum () != rhs.getProtocolEnum () ||
-			Protocol    ::operator!= (rhs) ||
-			User        ::operator!= (rhs) ||
-			Domain      ::operator!= (rhs) ||
-			URI         ::operator!= (rhs);
+			Protocol::operator!= (rhs) ||
+			User    ::operator!= (rhs) ||
+			Domain  ::operator!= (rhs) ||
+			URI     ::operator!= (rhs);
 	}
 
 //------
 private:
 //------
 
-	size_t  m_iEndOffset{0};
+	size_t m_iEndOffset{0};
 };
 
 
 } // of namespace KURL
-/** @} */ // End of group KURL
 
 } // of namespace dekaf2

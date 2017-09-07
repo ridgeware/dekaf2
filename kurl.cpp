@@ -102,7 +102,7 @@
 *  operator<<(KString& sSource);       // same as parse (but returns instance)
 *  operator==(const T& rhs);           // compare lhs with rhs
 *  operator!=(const T& rhs);           // compare lhs with rhs
-*  clear();                            // Restore to original empty state
+*  Clear();                            // Restore to original empty state
 *  KString();                          // same as serialize
 */
 
@@ -113,10 +113,9 @@
 
 #include "kstring.h"
 #include "kstringutils.h"
+#include "kurl.h"
 
 #include <fmt/format.h>
-
-#include "kurl.h"
 
 using fmt::format;
 using std::vector;
@@ -124,6 +123,14 @@ using std::to_string;
 
 namespace dekaf2
 {
+
+/// @defgroup KURL
+/// KURL implements all classes for parsing, maintaining, and serializing URLs.
+/// Example URL:
+///     "https://jlettvin@github.com:8080/experiment/UTF8?page=home#title";
+///           ^^^        ^          ^    ^               ^         ^
+/// Characters identified by ^ above are expected to NOT be URL encoded.
+/// @{
 namespace KURL
 {
 
@@ -141,7 +148,7 @@ namespace KURL
 KStringView Protocol::Parse (KStringView svSource)
 //..............................................................................
 {
-	clear ();
+	Clear ();
 	if (nullptr == svSource)
 	{
 		return svSource;
@@ -157,37 +164,31 @@ KStringView Protocol::Parse (KStringView svSource)
 		m_sProto.assign (svSource.data (), iFound);
 		svSource.remove_prefix (iFound);
 		iFound = 0;
-		size_t iSize  = svSource.size();
+		size_t iSize = svSource.size();
 		while (iFound < iSize && svSource[++iFound] == '/')
 		{
 			++iSlash;
 		}
 
-		// Pathological case if ":" is encoded as "%3A"
-		//## how can this help here? iFound IS the ':', and it is not part of the assignment to m_sProto
-		//?? I expect ':' to be explicit.  The remainder may be encoded.
 		kUrlDecode (m_sProto);
 
 		if (m_sProto == "file" && iSlash == 3)
 		{
 			m_eProto = FILE;
-			iFound--;           // Leave trailing slash of file:///
-			m_sPost.assign (svSource.data (), iFound);
+			iFound--;           // Leave trailing slash of file:/// for Path
 		}
 		else if (m_sProto == "mailto" && iSlash == 0)
 		{
-			m_bMailto = true;
 			m_eProto = MAILTO;
-			m_sPost = ":";
 		}
 		else if (iSlash == 2)
 		//## how are you protected against string underflows here?
+		//?? I don't see the underflow problem.
 		{
 			if      (m_sProto == "ftp"  ) m_eProto = FTP;
 			else if (m_sProto == "http" ) m_eProto = HTTP;
 			else if (m_sProto == "https") m_eProto = HTTPS;
-			else                          m_eProto = UNDEFINED;
-			m_sPost.assign (svSource.data (), iFound);
+			else                          m_eProto = UNKNOWN;
 		}
 		else
 		{
@@ -195,7 +196,7 @@ KStringView Protocol::Parse (KStringView svSource)
 		}
 		if (bError)
 		{
-			clear();
+			Clear();
 		}
 		else
 		{
@@ -205,9 +206,43 @@ KStringView Protocol::Parse (KStringView svSource)
 	return svSource;
 }
 
+//-----------------------------------------------------------------------------
+bool Protocol::Serialize (KString& sTarget) const
+//-----------------------------------------------------------------------------
+{
+	// m_eProto is NEVER UNDEFINED except on clear or default ctor.
+	// m_eProto is UNKNOWN for protocols like "opaquelocktoken://"
+	// TODO should anything else happen for UNDEFINED or UNKNOWN?
+	bool bProduce = (m_eProto != UNDEFINED);;
+	if (bProduce)
+	{
+		sTarget += (m_eProto < UNKNOWN)
+			? m_sKnown[m_eProto]
+			: m_sProto + "://";
+	}
+	return bProduce;
+}
 
+//-----------------------------------------------------------------------------
+void Protocol::Clear()
+//-----------------------------------------------------------------------------
+{
+	m_sProto.clear ();
+	m_eProto = UNDEFINED;
+}
 
-//..............................................................................
+KString Protocol::m_sKnown [UNKNOWN+1]
+{
+	"UNDEFINED",    // Parse has not been run yet.
+	"file://",
+	"ftp://",
+	"http://",
+	"https://",
+	"mailto:",
+	"UNKNOWN"       // Use m_sProto.
+};
+
+//-----------------------------------------------------------------------------
 /// @brief class User in group KURL
 /// Class User parses and maintains "user" and "password" portion of w3 URL.
 /// RFC3986 3.2: authority   = [ userinfo "@" ] host [ ":" port ]
@@ -215,45 +250,23 @@ KStringView Protocol::Parse (KStringView svSource)
 /// scheme:[//[user[:password]@]host[:port]][/path][?query][#fragment]
 ///            ----  --------
 /// User extracts and stores a KStringView of URL "user" and "password".
+//
+// TODO Parse cannot do both partial parsing of URL and
+// complete parsing on user[:password] without a trailing '@'.
+// Chose to require '@'.
 KStringView User::Parse (KStringView svSource)
-//..............................................................................
+//-----------------------------------------------------------------------------
 {
-	clear ();
-	if (nullptr == svSource)
+	Clear ();
+	if (nullptr != svSource)
 	{
-		return nullptr;
-	}
+		size_t iSize  = svSource.size ();
+		size_t iFound = svSource.find ("@");
+		if (iFound == KStringView::npos)
+		{
+			return svSource;
+		}
 
-	bool bError{false}; // Never set true for User //## then why carrying that variable around. Delete it, it distracts.
-
-	size_t iSize   = svSource.size ();
-	size_t iFound  = svSource.find_first_of ("@/?#");
-	//## please rewrite without the use of the variable bEnded. It only complicates readability:
-	//## if (iFound != KStringView::npos)
-	//## {
-	//##	..
-	//## }
-	//## else
-	//## {
-	//##	m_iEndOffset = ??
-	//## }
-	//## return true;
-	bool   bEnded  = (iFound != KStringView::npos);
-	bool   bAtSign = (bEnded && svSource[iFound] == '@');
-
-	if (bAtSign)
-	{
-		m_sPost = "@";
-	}
-
-	iFound = bEnded ? iFound : iSize;
-
-	if (!bAtSign)
-	{
-		bError = true;
-	}
-	else
-	{
 		size_t iColon = svSource.find (':');
 		if (iColon != KStringView::npos && iColon < iFound)
 		{
@@ -264,20 +277,35 @@ KStringView User::Parse (KStringView svSource)
 		{
 			m_sUser.assign (svSource.data (), iFound);
 		}
-		//iFound += (iFound == iSize);
-		iFound += bAtSign;
 
 		kUrlDecode (m_sUser);
 		kUrlDecode (m_sPass);
-
-
-
-	}
-	if (!bError)
-	{
-		svSource.remove_prefix (iFound);
+		svSource.remove_prefix (iFound + 1);
 	}
 	return svSource;
+}
+
+//-----------------------------------------------------------------------------
+/// generate content into string from members
+bool User::Serialize (KString& sTarget) const
+//-----------------------------------------------------------------------------
+{
+	// TODO Should username/password be url encoded?
+	//## well, I would say so. How would you otherwise represent accented chars
+	//## (and you urldecode at parsing actually)
+	//?? We have a generic problem with urlencoding.  It encodes too much.
+	if (m_sUser.size ())
+	{
+		sTarget += m_sUser;
+
+		if (m_sPass.size ())
+		{
+			sTarget += ':';
+			sTarget += m_sPass;
+		}
+		sTarget += '@';
+	}
+	return true;
 }
 
 
@@ -373,7 +401,7 @@ KStringView Domain::ParseHostName (KStringView svSource)
 KStringView Domain::Parse (KStringView svSource)
 //..............................................................................
 {
-	clear ();
+	Clear ();
 	if (nullptr == svSource)
 	{
 		return nullptr;
@@ -422,22 +450,15 @@ KStringView Domain::Parse (KStringView svSource)
 /// scheme:[//[user[:password]@]host[:port]][/path][?query][#fragment]
 ///                                          -----   -----   --------
 /// Path extracts and stores a KStringView of URL "path"
-//## this description is wrong. Please correct.
-/// Path also encapsulates Query and Fragment
-///
-/// The aggregation of /path?query#fragment without individual path
-/// is a design decision; not arbitrary.
 KStringView Path::Parse (KStringView svSource)
 //..............................................................................
 {
-	clear ();
+	Clear ();
 	if (nullptr == svSource)
 	{
 		//return nullptr;
 		return svSource;
 	}
-
-	bool bError{false};
 
 	size_t iStart = svSource.find_first_of ("/?#");
 
@@ -453,7 +474,7 @@ KStringView Path::Parse (KStringView svSource)
 		size_t iSize = svSource.size ();
 		size_t iFound = svSource.find_first_of ("?#", 1);
 
-		iFound  = (iFound == KStringView::npos) ? iSize : iFound;
+		iFound = (iFound == KStringView::npos) ? iSize : iFound;
 		m_sPath.assign (svSource.data (), iFound);
 		svSource.remove_prefix (iFound);
 		kUrlDecode (m_sPath);
@@ -481,7 +502,7 @@ KStringView Path::Parse (KStringView svSource)
 KStringView Query::Parse (KStringView svSource)
 //..............................................................................
 {
-	clear ();
+	Clear ();
 	if (nullptr == svSource)
 	{
 		return svSource;
@@ -506,7 +527,7 @@ KStringView Query::Parse (KStringView svSource)
 	}
 	else
 	{
-		clear ();
+		Clear ();
 	}
 
 	return svSource;
@@ -610,7 +631,7 @@ bool Query::Serialize (KString& sTarget) const
 KStringView Fragment::Parse (KStringView svSource)
 //..............................................................................
 {
-	clear ();
+	Clear ();
 	if (nullptr == svSource)
 	{
 		return svSource;
@@ -640,7 +661,7 @@ KStringView Fragment::Parse (KStringView svSource)
 KStringView URI::Parse (KStringView svSource)
 //..............................................................................
 {
-	clear ();
+	Clear ();
 	if (nullptr == svSource)
 	{
 		return svSource;    // Empty svSource compares to nullptr.  SURPRISE!
@@ -677,7 +698,7 @@ KStringView URI::Parse (KStringView svSource)
 	}
 	else
 	{
-		clear ();
+		Clear ();
 	}
 	return svSource;
 }
@@ -695,7 +716,7 @@ KStringView URI::Parse (KStringView svSource)
 KStringView URL::Parse (KStringView svSource)
 //..............................................................................
 {
-	clear ();
+	Clear ();
 	if (nullptr == svSource)
 	{
 		return svSource;
@@ -705,20 +726,20 @@ KStringView URL::Parse (KStringView svSource)
 	bool bError{false};
 	size_t iBefore, iAfter;
 
-	iBefore = svSource.size ();
+	iBefore  = svSource.size ();
 	svSource = Protocol::Parse (svSource);                  // mandatory
-	iAfter  = svSource.size ();
-	bResult = (iBefore != iAfter);
+	iAfter   = svSource.size ();
+	bResult  = (iBefore != iAfter);
 	if (bResult)
 	{
 		svSource = User::Parse (svSource);                  // optional
 
 		if (getProtocolEnum () != FILE)
 		{
-			iBefore = svSource.size ();
+			iBefore  = svSource.size ();
 			svSource = Domain::Parse (svSource);            // mandatory
-			iAfter  = svSource.size ();
-			bResult = (iBefore != iAfter);
+			iAfter   = svSource.size ();
+			bResult  = (iBefore != iAfter);
 		}
 	}
 	if (bResult)
@@ -730,7 +751,7 @@ KStringView URL::Parse (KStringView svSource)
 
 	if (bError)
 	{
-		clear ();
+		Clear ();
 		bError = true;
 	}
 	if (!bError)
@@ -742,5 +763,7 @@ KStringView URL::Parse (KStringView svSource)
 }
 
 } // namespace KURL
+
+/** @} */ // End of group KURL
 
 } // namespace dekaf2

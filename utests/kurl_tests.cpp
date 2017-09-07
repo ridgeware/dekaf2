@@ -67,7 +67,8 @@ SCENARIO ( "KURL unit tests on valid data" )
 
 	// TODO This next one fails.  Fix it.
 	URL_valid["a://b.c:1/d?e=f#g"] =
-		parm_t (0, 17, true, "minimum valid fully populated URL", "");
+		parm_t (0, 17, true, "minimum valid fully populated URL",
+				""); //"a://b.c:1%2Fd?e=f#g");
 
 	URL_valid["https://user:password@what.ever.com:8080/home/guest/noop.php?please=stop#now"] =
 		parm_t (0, 76, true, "all URL elements in use", "");
@@ -127,12 +128,12 @@ SCENARIO ( "KURL unit tests on valid data" )
 						KStringView svConvert{sBefore};
 						dekaf2::KURL::Query query;
 						svConvert = query.Parse (svConvert);
-						const KProp_t& kprops = query.getProperties();
-						KString sAfter = kprops[sKey];
+						//const KProp_t& kprops = query.getProperties();
+						KString sAfter = query[sKey];
 						INFO ("Before:" + sBefore);
 						INFO (" After:" + sAfter);
 						CHECK (svConvert == "");
-						CHECK (kprops[sKey].size() == 1);
+						CHECK (query[sKey].size() == 1);
 					}
 				}
 			}
@@ -296,9 +297,9 @@ SCENARIO ( "KURL unit tests on invalid data")
 				KStringView svBadQuery = sBadQuery;
 				dekaf2::KURL::Query query;
 				svBadQuery = query.Parse (svBadQuery);
-				const KProp_t& kprops = query.getProperties();
+				//const KProp_t& kprops = query.getProperties();
 				CHECK (svBadQuery != sBadQuery);
-				CHECK (kprops["hello"] == "world%2");
+				CHECK (query["hello"] == "world%2");
 			}
 			THEN ( "check for bad hex digits" )
 			{
@@ -306,9 +307,9 @@ SCENARIO ( "KURL unit tests on invalid data")
 				KStringView svBadQuery = sBadQuery;
 				dekaf2::KURL::Query query;
 				svBadQuery = query.Parse (svBadQuery);
-				const KProp_t& kprops = query.getProperties();
+				//const KProp_t& kprops = query.getProperties();
 				CHECK (svBadQuery != sBadQuery);
-				CHECK (kprops["hello"] == "world%gg");
+				CHECK (query["hello"] == "world%gg");
 			}
 		}
 		WHEN ( "Try all invalid 2 byte hex decodings" )
@@ -359,8 +360,8 @@ SCENARIO ( "KURL unit tests on invalid data")
 						KStringView svConvert(sBefore.c_str(), iLength);
 						dekaf2::KURL::Query query;
 						svConvert = query.Parse (svConvert);
-						const KProp_t& kprops = query.getProperties();
-						KString sResult = kprops[sKey];
+						//const KProp_t& kprops = query.getProperties();
+						KString sResult = query[sKey];
 						size_t size = sResult.size();
 						if (size == 2 || sValue != sResult)
 						{
@@ -732,10 +733,10 @@ TEST_CASE ("KURL")
 		{
 			KString ksQueryParms {"?hello=world&hola=mundo&space=%20"};
 			dekaf2::KURL::Query query (ksQueryParms);
-			const KProp_t& kprops = query.getProperties();
-			CHECK (kprops["hello"] == "world");
-			CHECK (kprops["hola"] == "mundo");
-			CHECK (kprops["space"] == " ");
+			//const KProp_t& kprops = query.getProperties();
+			CHECK (query["hello"] == "world");
+			CHECK (query["hola"] == "mundo");
+			CHECK (query["space"] == " ");
 		}
 
 }

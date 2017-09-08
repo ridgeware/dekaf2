@@ -50,7 +50,7 @@ namespace dekaf2
 {
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// Execute another process and attach pipes to it's std::in and std::out
+/// Execute another process and attach pipes to its std::in and std::out
 class KPipe : public KBasePipe, public KFDReader, public KFDWriter
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {

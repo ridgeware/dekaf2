@@ -4,6 +4,8 @@
 
 #include <iostream>
 
+#define KOutPipeCleanup 1
+
 using namespace dekaf2;
 TEST_CASE("KOutPipe")
 {
@@ -13,12 +15,11 @@ TEST_CASE("KOutPipe")
 		INFO("KOutPipe  write_pipe::Start:");
 
 		KOutPipe pipe;
+		KString str("rdoanm txet over 9000 \n line 2 \n line 3 \n line 4 \n SS level 3! \n line 6 \n line 7\n\n");
 
 		//CHECK(pipe.Open("/bin/sh -c \"echo 'asdf asdf' > /tmp/dekaf2/KOutPipetest3.file\""));
-		//CHECK(pipe.Open("/bin/sh -c \"echo 'some random datum' > /tmp/koutpipetest.file\""));
-		CHECK(pipe.Open("/bin/sh -c \"cat > /tmp/dekaf2/koutpipetest1.file\""));
-		KString str("rdoanm txet over 9000 \n line 2 \n line 3 \n line 4 \n SS level 3! \n line 6 \n line 7\n\n");
-		//KString str("echo rdoanm txet over 9000\n");//n line 2 \n line 3 \n line 4 \n SS level 3! \n line 6 \n line 7\"");
+		CHECK(pipe.Open("/bin/sh -c \"mkdir /tmp/koutpipetests\""));
+		CHECK(pipe.Open("/bin/sh -c \"cat > /tmp/koutpipetests/koutpipetest1.file\""));
 		pipe.Write(str);
 		CHECK(pipe.is_open());
 		CHECK(pipe.IsRunning());
@@ -29,4 +30,82 @@ TEST_CASE("KOutPipe")
 		INFO("KOutPipe  write_pipe::Done:");
 
 	} // write_pipe
+
+	SECTION("KOutPipe  write_pipe and confirm by reading")
+	{
+		INFO("KOutPipe  write_pipe and confirm by reading::Start:");
+
+		KOutPipe pipe;
+		KInPipe readPipe;
+		KString sCurrentLine;
+		KString str("rdoanm txet over 9000 \n line 2 \n line 3 \n line 4 \n SS level 3! \n line 6 \n line 7\n\n");
+		readPipe.SetReaderTrim("");
+
+		// Generate test file
+		CHECK(pipe.Open("/bin/sh -c \"cat > /tmp/koutpipetests/koutpipetest2.file\""));
+		pipe.Write(str);
+		CHECK(pipe.is_open());
+		CHECK(pipe.IsRunning());
+		CHECK(0 == pipe.Close());
+		CHECK_FALSE(pipe.IsRunning());
+
+		// Verify contents of test file
+		CHECK(readPipe.Open("/bin/sh -c \"cat /tmp/koutpipetests/koutpipetest2.file\""));
+		CHECK(readPipe.is_open());
+		CHECK(readPipe.IsRunning());
+		bool output = readPipe.ReadLine(sCurrentLine);
+		CHECK(output);
+		CHECK("rdoanm txet over 9000 \n" == sCurrentLine);
+		CHECK(0 == readPipe.Close());
+		CHECK_FALSE(readPipe.IsRunning());
+
+		INFO("KOutPipe  write_pipe and confirm by reading::Done:");
+
+	} // write_pipe
+
+#if KOutPipeCleanup
+	SECTION("KOutPipe  cleanup test")
+	{
+		INFO("KOutPipe  write_pipe and confirm by reading::Start:");
+		// This really doesn't test KOutPipe, it kinda tests kinpipe, but the purpose is to remove test files after testing
+
+		KOutPipe pipe;
+		KInPipe readPipe;
+		readPipe.SetReaderTrim("");
+		KString sCurrentLine;
+
+		// Double check test files are there
+		CHECK(readPipe.Open("/bin/sh -c \"ls /tmp/koutpipetests/ | wc -l\""));
+		CHECK(readPipe.is_open());
+		CHECK(readPipe.IsRunning());
+		bool output = readPipe.ReadLine(sCurrentLine);
+		CHECK(output);
+		CHECK("2\n" == sCurrentLine);
+		CHECK(0 == readPipe.Close());
+		CHECK_FALSE(readPipe.IsRunning());
+
+		// Remove test files
+		CHECK(pipe.Open("/bin/sh -c \"rm -rf /tmp/koutpipetests/\""));
+		CHECK(pipe.is_open());
+		CHECK(pipe.IsRunning());
+		CHECK(0 == pipe.Close());
+		CHECK_FALSE(pipe.IsRunning());
+
+
+		// Double check they're gone
+		CHECK(readPipe.Open("/bin/sh -c \"ls /tmp/koutpipetests/ 2>&1\""));
+		CHECK(readPipe.is_open());
+		CHECK(readPipe.IsRunning());
+		output = readPipe.ReadLine(sCurrentLine);
+		CHECK(output);
+		CHECK("ls: cannot access /tmp/koutpipetests/: No such file or directory\n" == sCurrentLine);
+		CHECK(2 == readPipe.Close()); // when ls can't find returns code 2
+		CHECK_FALSE(readPipe.IsRunning());
+
+
+		INFO("KOutPipe  write_pipe and confirm by reading::Done:");
+
+	} // cleanup test
+#endif
+
 }

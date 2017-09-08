@@ -455,7 +455,7 @@ bool Domain::Serialize (KString& sTarget) const
 	if (m_sHostName.size ())
 	{
 		// TODO These exclusions are speculative.  Should they change?
-		KString sExlude{"-_."};
+		KString sExclude{"-_."};
 		KString sTemp;
 		kUrlEncode (m_sHostName, sTemp, sExclude);
 		sTarget += sTemp;

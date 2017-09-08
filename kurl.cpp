@@ -294,17 +294,22 @@ bool User::Serialize (KString& sTarget) const
 //-----------------------------------------------------------------------------
 {
 	// TODO Should username/password be url encoded?
-	//## well, I would say so. How would you otherwise represent accented chars
-	//## (and you urldecode at parsing actually)
-	//?? We have a generic problem with urlencoding.  It encodes too much.
 	if (m_sUser.size ())
 	{
-		sTarget += m_sUser;
+		// TODO These exclusions are speculative.  Should they change?
+		KString sExclude{".-+_"};
+		KString sTemp;
+		kUrlEncode (m_sUser, sTemp, sExclude);
+		sTarget += sTemp;
 
 		if (m_sPass.size ())
 		{
+			sTemp.clear ();
 			sTarget += ':';
-			sTarget += m_sPass;
+			// TODO These exclusions are speculative.  Should they change?
+			KString sExclude{".-+_!@#$%^&*()={}[]|;:<>,/?"};
+			kUrlEncode (m_sPass, sTemp, sExclude);
+			sTarget += sTemp;
 		}
 		sTarget += '@';
 	}
@@ -449,7 +454,11 @@ bool Domain::Serialize (KString& sTarget) const
 	bool bSome = true;
 	if (m_sHostName.size ())
 	{
-		sTarget += m_sHostName;
+		// TODO These exclusions are speculative.  Should they change?
+		KString sExlude{"-_."};
+		KString sTemp;
+		kUrlEncode (m_sHostName, sTemp, sExclude);
+		sTarget += sTemp;
 		if (m_iPortNum)
 		{
 			sTarget += ':';
@@ -497,13 +506,10 @@ bool Path::Serialize (KString& sTarget) const
 {
 	if (m_sPath.size ())
 	{
-		//KString sPath;
-		//kUrlEncode (m_sPath, sPath);
-		//## but you have to urlencode the path..
-		//?? kUrlEncode requires 2nd arg target.  Local KString mandatory.
-		//?? Also "/" is urlencoded to "%2F".  We want less encoding.
-		// TODO resolve the encoding issue
-		sTarget += m_sPath;
+		KString sPath;
+		KString sExclude{"_-./"};
+		kUrlEncode (m_sPath, sPath, sExclude);
+		sTarget += sPath;
 	}
 	return true;
 }

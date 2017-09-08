@@ -451,29 +451,36 @@ void kUrlDecode (KStringView& sSource, String& sTarget)
 
 
 template<class String>
-void kUrlEncode (KStringView sSource, String& sTarget)
+void kUrlEncode (KStringView sSource, String& sTarget, String sExclude="")
 //-----------------------------------------------------------------------------
 {
+	// Implementation of exclusion does a quick JIT compile so that
+	// searching for exclusion is just an index, not a find.
 	static const char* sxDigit{"0123456789ABCDEF"};
+	// to exclude encoding of special characters, make a table of exclusions.
+	bool aExclude[256] = {false};
+	// Identify the exclusions by setting them true.
+	for (auto iC: sExclude) aExclude[iC] = true;
 	size_t iSize = sSource.size();
-	//String::const_iterator csIter;
-	//for (csIter = sSource.begin (); csIter != sSource.end (); ++csIter)
 	for (size_t iIndex = 0; iIndex < iSize; ++iIndex)
 	{
-		char c = sSource[iIndex];
-		if (isalnum (c))
+		char iC = sSource[iIndex];
+		// Handle sign on cast to size_t.
+		size_t iS = static_cast<size_t>(static_cast<unsigned char>(iC));
+		// Do not encode either alnum or encoding excluded characters.
+		if (isalnum (iC) || aExclude[iS])
 		{
-			sTarget += c;
+			sTarget += iC;
 		}
-		else if (c == ' ')
+		else if (iC == ' ')
 		{
 			sTarget += '+';
 		}
 		else
 		{
 			sTarget += '%';
-			sTarget += static_cast<char> (sxDigit[(c>>4)&0xf]);
-			sTarget += static_cast<char> (sxDigit[(c   )&0xf]);
+			sTarget += static_cast<char> (sxDigit[(iC>>4)&0xf]);
+			sTarget += static_cast<char> (sxDigit[(iC   )&0xf]);
 		}
 	}
 }

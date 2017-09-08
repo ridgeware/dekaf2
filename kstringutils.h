@@ -345,14 +345,30 @@ template<class Ch>
 inline Ch kx2c (Ch* pszGoop)
 //-----------------------------------------------------------------------------
 {
-	Ch digit;
+	int iValue{0};
 
-	digit = (pszGoop[0] >= 'A' ? ((pszGoop[0] & 0xdf) - 'A')+10 : (pszGoop[0] - '0'));
-	digit *= 16;
-	digit += (pszGoop[1] >= 'A' ? ((pszGoop[1] & 0xdf) - 'A')+10 : (pszGoop[1] - '0'));
+	switch (pszGoop[0])
+	{
+		case '0': case '1': case '2': case '3': case '4':
+		case '5': case '6': case '7': case '8': case '9':
+			iValue += ((pszGoop[0] - '0') << 4);
+			break;
+		case 'A': case 'B': case 'C': case 'D': case 'E': case 'F':
+			iValue += ((pszGoop[0] - 'A' + 10) << 4);
+			break;
+	}
+	switch (pszGoop[1])
+	{
+		case '0': case '1': case '2': case '3': case '4':
+		case '5': case '6': case '7': case '8': case '9':
+			iValue += ((pszGoop[1] - '0'));
+			break;
+		case 'A': case 'B': case 'C': case 'D': case 'E': case 'F':
+			iValue += ((pszGoop[1] - 'A' + 10));
+			break;
+	}
 
-	return digit;
-
+	return static_cast<Ch>(iValue);
 } // kx2c
 
 } // anonymous until here
@@ -398,11 +414,10 @@ void kUrlDecode (String& sDecode)
 /// kUrlDecode copy
 /// Copies always go to end of string so (insert < end) test unnecessary.
 template<class String>
-//## change to make the input param a KStringView
-void kUrlDecode (String& sSource, String& sTarget)
+void kUrlDecode (KStringView& sSource, String& sTarget)
 //-----------------------------------------------------------------------------
 {
-	//## you should reserve sTarget like sTarget.reserve(sTarget.size()+sSource.size());
+	sTarget.reserve (sTarget.size ()+sSource.size ());
 	auto current = &sSource[0];
 	auto end     = current + sSource.size();
 	while (current != end)
@@ -436,33 +451,31 @@ void kUrlDecode (String& sSource, String& sTarget)
 
 
 template<class String>
-//## change to make the input param a KStringView
-void kUrlEncode (String sSource, KString& sTarget) // KString ref needed //## why? if you force the output to a certain string type you do not need a template on the input side.
+void kUrlEncode (KStringView sSource, String& sTarget)
 //-----------------------------------------------------------------------------
 {
-	//## this function uses double tabs as indents. please correct.
-		static const char* sxDigit{"0123456789ABCDEF"};
-		size_t iSize = sSource.size();
-		//String::const_iterator csIter;
-		//for (csIter = sSource.begin (); csIter != sSource.end (); ++csIter)
-		for (size_t iIndex = 0; iIndex < iSize; ++iIndex)
+	static const char* sxDigit{"0123456789ABCDEF"};
+	size_t iSize = sSource.size();
+	//String::const_iterator csIter;
+	//for (csIter = sSource.begin (); csIter != sSource.end (); ++csIter)
+	for (size_t iIndex = 0; iIndex < iSize; ++iIndex)
+	{
+		char c = sSource[iIndex];
+		if (isalnum (c))
 		{
-				char c = sSource[iIndex];
-				if (isalnum (c))
-				{
-						sTarget += c;
-				}
-				else if (c == ' ')
-				{
-						sTarget += '+';
-				}
-				else
-				{
-						sTarget += '%';
-						sTarget += static_cast<char> (sxDigit[(c>>4)&0xf]);
-						sTarget += static_cast<char> (sxDigit[(c   )&0xf]);
-				}
+			sTarget += c;
 		}
+		else if (c == ' ')
+		{
+			sTarget += '+';
+		}
+		else
+		{
+			sTarget += '%';
+			sTarget += static_cast<char> (sxDigit[(c>>4)&0xf]);
+			sTarget += static_cast<char> (sxDigit[(c   )&0xf]);
+		}
+	}
 }
 
 

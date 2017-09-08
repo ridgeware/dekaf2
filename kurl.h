@@ -909,26 +909,6 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
-	/// return a view of the member
-	//## replace this as explained above
-	//?? Must wait for decision on urlencoding.
-	inline KString getQuery () const
-	//-------------------------------------------------------------------------
-	{
-		KString sSerialized;
-		Serialize (sSerialized);
-		return sSerialized;
-	}
-
-	//-------------------------------------------------------------------------
-	/// Fetch value of key:value pair
-	inline KStringView operator[](KStringView svKey) const
-	//-------------------------------------------------------------------------
-	{
-		return m_kpQuery[svKey];
-	}
-
-	//-------------------------------------------------------------------------
 	/// compares other instance with this, member-by-member
 	inline bool operator== (const Query& rhs) const
 	//-------------------------------------------------------------------------
@@ -950,7 +930,32 @@ public:
 	//-------------------------------------------------------------------------
 	{
 		//?? Should this calculate the size of the encoded query string?
+		//?? Or should it return the number of key:value pairs?
 		return m_kpQuery.size();
+	}
+
+	//-------------------------------------------------------------------------
+	/// Returns entire KProp member const style
+	inline const KProp_t& GetQuery() const
+	//-------------------------------------------------------------------------
+	{
+		return m_kpQuery;
+	}
+
+	//-------------------------------------------------------------------------
+	/// Returns entire KProp member non-const style
+	inline KProp_t& GetQuery()
+	//-------------------------------------------------------------------------
+	{
+		return m_kpQuery;
+	}
+
+	//-------------------------------------------------------------------------
+	/// Fetch value of key:value pair
+	inline KStringView operator[](KStringView svKey) const
+	//-------------------------------------------------------------------------
+	{
+		return m_kpQuery[svKey];
 	}
 
 //------
@@ -1080,7 +1085,6 @@ public:
 	inline KStringView getFragment () const
 	//-------------------------------------------------------------------------
 	{
-		//## I still think it is incorrect to return the fragment including the leading #
 		return m_sFragment;
 	}
 

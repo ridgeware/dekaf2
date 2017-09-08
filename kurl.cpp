@@ -156,9 +156,7 @@ KStringView Protocol::Parse (KStringView svSource)
 
 	size_t iFound = svSource.find_first_of (':');
 
-	bool bError{iFound == KStringView::npos};
-
-	if (!bError)
+	if (iFound != KStringView::npos)
 	{
 		size_t iSlash = 0;
 		m_sProto.assign (svSource.data (), iFound);
@@ -172,18 +170,26 @@ KStringView Protocol::Parse (KStringView svSource)
 
 		kUrlDecode (m_sProto);
 
-		if (m_sProto == "file" && iSlash == 3)
+		// TODO should we be generous, parsing past wrong count slashes?
+		// We always serialize it back to correct form.
+		// Being strict violates our "accept everything we can" rule.
+		// Example strict alternatives are shown below in comments.
+
+		//if (m_sProto == "file" && iSlash == 3)
+		if (m_sProto == "file" && iSlash > 0)
 		{
 			m_eProto = FILE;
 			iFound--;           // Leave trailing slash of file:/// for Path
 		}
-		else if (m_sProto == "mailto" && iSlash == 0)
+		//else if (m_sProto == "mailto" && iSlash == 0)
+		else if (m_sProto == "mailto")
 		{
 			m_eProto = MAILTO;
 		}
-		else if (iSlash == 2)
+		//else if (iSlash == 2)
+		else if (iSlash > 0)
 		//## how are you protected against string underflows here?
-		//?? I don't see the underflow problem.
+		//?? I don't see the underflow problem.  Please explain.
 		{
 			if      (m_sProto == "ftp"  ) m_eProto = FTP;
 			else if (m_sProto == "http" ) m_eProto = HTTP;
@@ -192,16 +198,10 @@ KStringView Protocol::Parse (KStringView svSource)
 		}
 		else
 		{
-			bError = true;
+			Clear ();
+			return svSource;
 		}
-		if (bError)
-		{
-			Clear();
-		}
-		else
-		{
-			svSource.remove_prefix (iFound);
-		}
+		svSource.remove_prefix (iFound);
 	}
 	return svSource;
 }
@@ -338,9 +338,6 @@ KStringView Domain::ParseHostName (KStringView svSource)
 	iFound = (iFound == KStringView::npos) ? iSize : iFound;
 	m_sHostName.assign (svSource.data (), iFound);
 
-	// Pathological case if ":" is encoded as "%3A"
-	//## but how would that help? the %3A would not be in m_sHostName?
-	//## And you do not search for : anymore in m_sHostName?
 	kUrlDecode (m_sHostName);
 
 	// m_sBaseName   is special-cased
@@ -477,25 +474,15 @@ KStringView Path::Parse (KStringView svSource)
 	Clear ();
 	if (nullptr == svSource)
 	{
-		//return nullptr;
 		return svSource;
 	}
 
-	size_t iStart = svSource.find_first_of ("/?#");
-
-	// Remaining string MUST begin with Path, Query, or Fragment prefix.
-	//## why do you only test here for svSource.size() ? Shouldn't that
-	//## be the first thing you do?
-	//## Also, please remove bError variable from the source, and use
-	//## if/then/else and early returns. That makes the code much easier
-	//## to read.
-
-	if (iStart != KStringView::npos && svSource[iStart] == '/')
+	if (svSource[0] == '/')
 	{
-		size_t iSize = svSource.size ();
+		// Remainder after path may be query or fragment.
 		size_t iFound = svSource.find_first_of ("?#", 1);
+		iFound = (iFound == KStringView::npos) ? svSource.size () : iFound;
 
-		iFound = (iFound == KStringView::npos) ? iSize : iFound;
 		m_sPath.assign (svSource.data (), iFound);
 		svSource.remove_prefix (iFound);
 		kUrlDecode (m_sPath);
@@ -527,16 +514,10 @@ bool Path::Serialize (KString& sTarget) const
 /// @brief class Query in group KURL.  Parses "query" portion of w3 URL.
 /// It is also responsible for parsing the query into a private property map.
 /// RFC3986 3.3: (See RFC)
-/// Implementation: All characters after domain from '/' to 1st of "?#\0". //## this description is wrong. please correct.
+/// Implementation: All characters after domain from '?' to "#" or EOL.
 /// scheme:[//[user[:password]@]host[:port]][/path][?query][#fragment]
 ///                                                  -----
 /// Query extracts and stores a KStringView of URL "query"
-//## Your implementation
-//## does not give the user a search interface for parameters etc.
-//## Please have GetQuery() return the kprops member (actually have
-//## two GetQuery(), one const the other non-const, and returning
-//## const and non-const kprops.
-//## That way the user can always use all accessors of the kprops template.
 KStringView Query::Parse (KStringView svSource)
 //-----------------------------------------------------------------------------
 {
@@ -546,18 +527,15 @@ KStringView Query::Parse (KStringView svSource)
 		return svSource;
 	}
 
-	size_t iOffset{0};
-
-	if (0 < svSource.size () && svSource[iOffset] == '?')
+	if (svSource[0] == '?')
 	{
-		// Enable use of either '?' prefix or not.
-		++iOffset;
+		svSource.remove_prefix (1);
 	}
+
 	size_t iSize = svSource.size ();
-	size_t iFound = svSource.find ('#', iOffset);
+	size_t iFound = svSource.find ('#');
 	iFound = (iFound == KStringView::npos) ? iSize : iFound;
-	KStringView svQuery;
-	svQuery = svSource.substr (iOffset, iFound - iOffset);
+	KStringView svQuery{svSource.substr (0, iFound)};
 
 	if (decode (svQuery))   // KurlDecode must be done on key=val separately.
 	{
@@ -577,8 +555,6 @@ KStringView Query::Parse (KStringView svSource)
 bool Query::decode (KStringView svQuery)
 //-----------------------------------------------------------------------------
 {
-	//## remove bError
-	bool bError{false};
 	size_t iAnchor = 0, iEnd, iEquals, iTerminal = svQuery.size ();
 
 	if (iTerminal)
@@ -586,39 +562,32 @@ bool Query::decode (KStringView svQuery)
 		do
 		{
 			// Get bounds of query pair
-			iEnd = svQuery.find ('&', iAnchor); // Find division
+			iEnd = svQuery.find ('&', iAnchor); // Find separator
+			iEnd = (iEnd == KString::npos) ? iTerminal : iEnd;  // handle none
 
-			iEnd = (iEnd == KString::npos) ? iTerminal : iEnd;
+			KStringView svEncoded{svQuery.substr (iAnchor, iEnd - iAnchor)};
 
-			//## this should be a string view
-			KString sEncoded;
-			sEncoded.assign (svQuery.data () + iAnchor, iEnd - iAnchor);
-
-			iEquals = sEncoded.find ('=');
+			iEquals = svEncoded.find ('=');
 			if (iEquals == KStringView::npos)
 			{
-				bError = (iTerminal != iEnd);
-				return !bError;
+				return (iTerminal == iEnd);
 			}
-			//## these should be string views
-			KString sKeyEncoded (sEncoded.substr (0          , iEquals));
-			KString sValEncoded (sEncoded.substr (iEquals + 1         ));
+			KStringView svKeyEncoded (svEncoded.substr (0          , iEquals));
+			KStringView svValEncoded (svEncoded.substr (iEquals + 1         ));
 
-			if (sKeyEncoded.size () && sValEncoded.size ())
+			if (svKeyEncoded.size () && svValEncoded.size ())
 			{
 				// decoding may only happen AFTER '=' '&' detections
 				KString sKey, sVal;
-				//## kUrlDecode should probably be changed to take as first
-				//## param a KStringView instead of a template String
-				kUrlDecode (sKeyEncoded, sKey);
-				kUrlDecode (sValEncoded, sVal);
-				if (sKeyEncoded.size () && !sKey.size ())
+				kUrlDecode (svKeyEncoded, sKey);
+				kUrlDecode (svValEncoded, sVal);
+				if (svKeyEncoded.size () && !sKey.size ())
 				{
-					sKey = sKeyEncoded; // painful pass-thru of invalid key
+					sKey = svKeyEncoded; // painful pass-thru of invalid key
 				}
-				if (sValEncoded.size () && !sVal.size ())
+				if (svValEncoded.size () && !sVal.size ())
 				{
-					sVal = sValEncoded; // painful pass-thru of invalid value
+					sVal = svValEncoded; // painful pass-thru of invalid value
 				}
 				m_kpQuery.Add (std::move (sKey), std::move (sVal));
 			}
@@ -627,7 +596,7 @@ bool Query::decode (KStringView svQuery)
 
 		} while (iEnd < iTerminal);
 	}
-	return !bError;
+	return true;
 }
 
 
@@ -677,6 +646,10 @@ KStringView Fragment::Parse (KStringView svSource)
 		return svSource;
 	}
 
+	if (svSource[0] == '#')
+	{
+		svSource.remove_prefix (1);
+	}
 	m_sFragment.assign (svSource.data (), svSource.size ());
 	kUrlDecode (m_sFragment);
 	svSource.remove_prefix (svSource.size ());
@@ -691,7 +664,7 @@ bool Fragment::Serialize (KString& sTarget) const
 {
 	if (m_sFragment.size ())
 	{
-		sTarget += m_sFragment;
+		sTarget += "#" + m_sFragment;
 	}
 	return true;
 }

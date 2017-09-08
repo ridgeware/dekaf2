@@ -581,10 +581,10 @@ TEST_CASE ("KURL")
 			CHECK (target == expect);
 		}
 
-		SECTION ("Protocol solo unit (fail missing slash)")
+		SECTION ("Protocol solo unit (pass even with missing slash)")
 		{
 			KString solo ("https:/");
-			KString expect{};
+			KString expect{"https://"};
 			KString target{};
 
 			dekaf2::KURL::Protocol kproto  (solo);
@@ -596,7 +596,7 @@ TEST_CASE ("KURL")
 				dekaf2::KURL::Protocol kproto  (solo);
 			}
 
-			CHECK (ret == false);
+			CHECK (ret == true);
 			CHECK (target == expect);
 		}
 

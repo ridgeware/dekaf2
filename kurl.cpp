@@ -372,8 +372,20 @@ KStringView Domain::ParseHostName (KStringView svSource)
 		if (i2Back != KString::npos)
 		{
 			// When there are at least 2 dots, look for ".co.".
-			size_t iCompare = static_cast<size_t> (
-				sDotCo.compare (0, sDotCo.size (), m_sHostName.data () + i2Back));
+
+			// This code fails.
+			//size_t iCompare = static_cast<size_t> (
+				//sDotCo.compare (0, sDotCo.size (), m_sHostName.data () + i2Back));
+			size_t iCompare{0};
+			for (size_t ii=0; ii < sDotCo.size (); ++ii)
+			{
+				if (sDotCo[ii] != m_sHostName[i2Back + ii])
+				{
+					break;
+				}
+				++iCompare;
+			}
+
 			bool bDotCo = (iCompare == sDotCo.size () );
 			if (bDotCo)
 			{
@@ -574,9 +586,9 @@ bool Query::decode (KStringView svQuery)
 			KStringView svEncoded{svQuery.substr (iAnchor, iEnd - iAnchor)};
 
 			iEquals = svEncoded.find ('=');
-			if (iEquals == KStringView::npos)
+			if (iEquals > iEnd)
 			{
-				return (iTerminal == iEnd);
+				return false;
 			}
 			KStringView svKeyEncoded (svEncoded.substr (0          , iEquals));
 			KStringView svValEncoded (svEncoded.substr (iEquals + 1         ));

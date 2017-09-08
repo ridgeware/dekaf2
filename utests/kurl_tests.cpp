@@ -739,4 +739,25 @@ TEST_CASE ("KURL")
 			CHECK (query["space"] == " ");
 		}
 
+		SECTION ("One-off coverage items")
+		{
+			KString ksHttpSlashless{"http:"};
+			KString ksTarget;
+			dekaf2::KURL::Protocol protocol (ksHttpSlashless);
+			protocol.Serialize (ksTarget);
+			CHECK (ksTarget.size () == 0);
+
+			ksTarget.clear();
+			KString ksQueryNoEqual{"?a=b&fubar"};
+			KStringView svQueryNoEqual{ksQueryNoEqual};
+			dekaf2::KURL::Query queryNoEqual (svQueryNoEqual);
+			CHECK (queryNoEqual.size() == 0);
+
+			ksTarget.clear();
+			KString ksQueryBadKey{"?fu%2=bar"};
+			KStringView svQueryBadKey{ksQueryBadKey};
+			dekaf2::KURL::Query queryBadKey (svQueryBadKey);
+			CHECK (queryBadKey.size() == 1);
+		}
+
 }

@@ -531,14 +531,19 @@ KString::size_type KString::find(const value_type* s, size_type pos, size_type n
 //------------------------------------------------------------------------------
 {
 #ifdef __GNUC__
-	// GLIBC has a performant Boyer-Moore implementation for memmem, it
-	// probably even outperforms fbstring's simplyfied Boyer-Moore (to be tested)
+	// GLIBC has a performant Boyer-Moore implementation for ::memmem, it
+	// outperforms fbstring's simplyfied Boyer-Moore by one magnitude
+	// (which means facebook uses it internaly as well, as they mention a
+	// search performance improvement by a factor of 30, but their code
+	// in reality only improves search performance by a factor of 2
+	// compared to std::string::find() - it is ::memmem() which brings it
+	// to 30)
 	if (DEKAF2_UNLIKELY(pos >= size()))
 	{
 		return npos;
 	}
-	auto found = static_cast<const value_type*>(memmem(data() + pos, size() - pos, s, n));
-	if (!found)
+	auto found = static_cast<const value_type*>(::memmem(data() + pos, size() - pos, s, n));
+	if (DEKAF2_UNLIKELY(!found))
 	{
 		return npos;
 	}

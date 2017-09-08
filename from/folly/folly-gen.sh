@@ -7,7 +7,7 @@
 #% usage: folly-gen.sh install target-directory patchfile
 #%
 #% where target-directory is the directory in which our minifolly
-#% library sources will be installed (normally dekaf2/from/folly)
+#% library sources will be installed (normally dekaf2/from/folly/folly)
 #% and patchfile is a diff to adapt the sources to our build system
 #%
 #% The diff command generates the patchfile to be used for the install,

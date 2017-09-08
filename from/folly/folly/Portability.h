@@ -49,7 +49,9 @@ template <typename... Ts>
 using max_alignment = integral_sequence_max<size_t, alignof(Ts)...>;
 
 using max_basic_alignment = max_alignment<
+#if !defined(__GNUC__) || (__GNUC__ >= 5)
     std::max_align_t,
+#endif
     long double,
     double,
     float,

@@ -51,6 +51,7 @@ namespace dekaf2
 {
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// Execute another process and attach read pipe to it's std::out
 class KInPipe : public KFDReader, public KBasePipe
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -92,11 +93,6 @@ public:
 	virtual int Close();
 	//-----------------------------------------------------------------------------
 
-	//-----------------------------------------------------------------------------
-	/// Checks if child on other side of pipe is still running
-	virtual bool IsRunning();
-	//-----------------------------------------------------------------------------
-
 //--------
 protected:
 //--------
@@ -106,16 +102,7 @@ protected:
 	bool OpenReadPipe(const KString& sProgram);
 	//-----------------------------------------------------------------------------
 
-	//-----------------------------------------------------------------------------
-	// waitpid wrapper to ensure it is called only once after child exits
-	bool wait();
-	//-----------------------------------------------------------------------------
-
-	pid_t m_readPid{-2};
-	int   m_iReadExitCode{0};
 	int   m_readPdes[2]{-2,-2};
-	int   m_iReadChildStatus{-2};
-	bool  m_bReadChildStatusValid{false};
 
 }; // class KInPipe
 

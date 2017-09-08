@@ -89,7 +89,7 @@ bool KOutPipe::Open(const KString& sProgram)
 	if (m_writePdes[0] == -2)
 	{
 		KLog().debug (0, "KOutPipe::Open(): OpenReadPipe CMD FAILED: {} ERROR: {}", sProgram, strerror(errno));
-		m_iWriteExitCode = errno;
+		m_iExitCode = errno;
 		return false;
 	}
 	else
@@ -116,17 +116,17 @@ int KOutPipe::Close()
 	// Did the child terminate properly?
 	if (false == IsRunning())
 	{
-		iExitCode = m_iWriteExitCode;
+		iExitCode = m_iExitCode;
 		return (iExitCode);
 	} // child not running
 
 	// the child process has been giving us trouble. Kill it
 	else
 	{
-		kill(m_writePid, SIGKILL);
+		kill(m_pid, SIGKILL);
 	}
 
-	m_writePid = -2;
+	m_pid = -2;
 	m_writePdes[0] = -2;
 	m_writePdes[1] = -2;
 
@@ -135,49 +135,14 @@ int KOutPipe::Close()
 } // Close
 
 //-----------------------------------------------------------------------------
-bool KOutPipe::IsRunning()
-//-----------------------------------------------------------------------------
-{
-
-	bool bResponse = false;
-
-	// sets m_iReadChildStatus if iPid is not zero
-	wait();
-
-	// Did we fail to get a status?
-	if (-1 == m_iWriteChildStatus)
-	{
-		m_iWriteExitCode = -1;
-		return bResponse;
-	}
-
-	// Do we have an exit status code to interpret?
-	if (false == m_bWriteChildStatusValid)
-	{
-		bResponse = true;
-		return bResponse;
-	}
-
-	// did the called function "exit" normally?
-	if (WIFEXITED(m_iWriteChildStatus))
-	{
-		m_iWriteExitCode = WEXITSTATUS(m_iWriteChildStatus);
-		return bResponse;
-	}
-
-	return bResponse;
-
-} // IsRunning
-
-//-----------------------------------------------------------------------------
 bool KOutPipe::OpenWritePipe(const KString& sProgram)
 //-----------------------------------------------------------------------------
 {
 	// Reset status vars and pipes.
-	m_writePid               = -2;
-	m_bWriteChildStatusValid = false;
-	m_iWriteChildStatus      = -2;
-	m_iWriteExitCode         = -2;
+	m_pid               = -2;
+	m_bChildStatusValid = false;
+	m_iChildStatus      = -2;
+	m_iExitCode         = -2;
 
 	// try to open a pipe
 	if (pipe(m_writePdes) < 0)
@@ -186,14 +151,14 @@ bool KOutPipe::OpenWritePipe(const KString& sProgram)
 	} // could not create pipe
 
 	// create a child
-	switch (m_writePid = vfork())
+	switch (m_pid = vfork())
 	{
 		case -1: /* error */
 		{
 			// could not create the child
 			::close(m_writePdes[0]);
 			::close(m_writePdes[1]);
-			m_writePid = -2;
+			m_pid = -2;
 			break;
 		}
 
@@ -223,45 +188,5 @@ bool KOutPipe::OpenWritePipe(const KString& sProgram)
 
 	return true;
 } // OpenReadPipe
-
-//-----------------------------------------------------------------------------
-// waitpid wrapper to ensure it is called only once after child exits
-bool KOutPipe::wait()
-//-----------------------------------------------------------------------------
-{
-	int iStatus = 0;
-
-	pid_t iPid;
-
-	// status can only be read ONCE
-	if (true == m_bWriteChildStatusValid)
-	{
-		// status has already been set. do not read it again, you might get an invalid status.
-		iPid = m_writePid;
-		return true;
-	} // end status is already set
-
-	iPid = waitpid(m_writePid, &iStatus, WNOHANG);
-
-	// is the status valid?
-	if (0 < iPid)
-	{
-		// save the status
-		m_iWriteChildStatus = iStatus;
-		m_bWriteChildStatusValid = true;
-		return true;
-	}
-
-	if ((iPid == -1) && (errno != EINTR))
-	{
-		// TODO log
-		m_iWriteChildStatus = -1;
-		m_bWriteChildStatusValid = true;
-
-		return true;
-	}
-
-	return false;
-} // wait
 
 } // end namespace dekaf2

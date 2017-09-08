@@ -89,7 +89,7 @@ bool KInPipe::Open(const KString& sProgram)
 	if (m_readPdes[0] == -2)
 	{
 		KLog().debug (0, "KInPipe::Open(): OpenReadPipe CMD FAILED: {} ERROR: {}", sProgram, strerror(errno));
-		m_iReadExitCode = errno;
+		m_iExitCode = errno;
 		return false;
 	}
 	else
@@ -115,67 +115,32 @@ int KInPipe::Close ()
 	// is the child still running?
 	if (false == IsRunning())
 	{
-		iExitCode = m_iReadExitCode;
+		iExitCode = m_iExitCode;
 
 		return (iExitCode);
 	} // child not running
 
 	// the child process has been giving us trouble. Kill it
-	if (-2 != m_readPid)
+	if (-2 != m_pid)
 	{
-		kill(m_readPid, SIGKILL);
+		kill(m_pid, SIGKILL);
 	}
 
-	m_readPid = -2;
+	m_pid = -2;
 
 	return (iExitCode);
 
 } // Close
 
 //-----------------------------------------------------------------------------
-bool KInPipe::IsRunning()
-//-----------------------------------------------------------------------------
-{
-
-	bool bResponse = false;
-
-	// sets m_iReadChildStatus if iPid is not zero
-	wait();
-
-	// Did we fail to get a status?
-	if (-1 == m_iReadChildStatus)
-	{
-		m_iReadExitCode = -1;
-		return bResponse;
-	}
-
-	// Do we have an exit status code to interpret?
-	if (false == m_bReadChildStatusValid)
-	{
-		bResponse = true;
-		return bResponse;
-	}
-
-	// did the called function "exit" normally?
-	if (WIFEXITED(m_iReadChildStatus))
-	{
-		m_iReadExitCode = WEXITSTATUS(m_iReadChildStatus);
-		return bResponse;
-	}
-
-	return bResponse;
-
-} // IsRunning
-
-//-----------------------------------------------------------------------------
 bool KInPipe::OpenReadPipe(const KString& sProgram)
 //-----------------------------------------------------------------------------
 {
 	// Reset status vars and pipes.
-	m_readPid               = -2;
-	m_bReadChildStatusValid = false;
-	m_iReadChildStatus      = -2;
-	m_iReadExitCode         = -2;
+	m_pid               = -2;
+	m_bChildStatusValid = false;
+	m_iChildStatus      = -2;
+	m_iExitCode         = -2;
 
 	// try to open a pipe
 	if (pipe(m_readPdes) < 0)
@@ -184,14 +149,14 @@ bool KInPipe::OpenReadPipe(const KString& sProgram)
 	} // could not create pipe
 
 	// create a child
-	switch (m_readPid = vfork())
+	switch (m_pid = vfork())
 	{
 		case -1: /* error */
 		{
 			// could not create the child
 			::close(m_readPdes[0]);
 			::close(m_readPdes[1]);
-			m_readPid = -2;
+			m_pid = -2;
 			break;
 		}
 
@@ -221,42 +186,5 @@ bool KInPipe::OpenReadPipe(const KString& sProgram)
 
 	return true;
 } // OpenReadPipe
-
-//-----------------------------------------------------------------------------
-bool KInPipe::wait()
-//-----------------------------------------------------------------------------
-{
-	int iStatus = 0;
-
-	pid_t iPid;
-
-	// status can only be read ONCE
-	if (true == m_bReadChildStatusValid)
-	{
-		// status has already been set. do not read it again, you might get an invalid status.
-		return true;
-	} // end status is already set
-
-	iPid = waitpid(m_readPid, &iStatus, WNOHANG);
-
-	// is the status valid?
-	if (0 < iPid)
-	{
-		// save the status
-		m_iReadChildStatus = iStatus;
-		m_bReadChildStatusValid = true;
-		return true;
-	}
-
-	if ((iPid == -1) && (errno != EINTR))
-	{
-		// TODO log
-		m_iReadChildStatus = -1;
-		m_bReadChildStatusValid = true;
-		return true;
-	}
-
-	return false;
-} // wait
 
 } // end namespace dekaf2

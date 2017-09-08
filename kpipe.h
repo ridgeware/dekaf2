@@ -42,14 +42,16 @@
 
 #pragma once
 
-#include "kinpipe.h"
-#include "koutpipe.h"
+#include "kbasepipe.h"
+#include "kfdwriter.h"
+#include "kfdreader.h"
 
 namespace dekaf2
 {
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class KPipe : public KInPipe, public KOutPipe
+/// Execute another process and attach pipes to it's std::in and std::out
+class KPipe : public KBasePipe, public KFDReader, public KFDWriter
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -90,11 +92,6 @@ public:
 	virtual int Close();
 	//-----------------------------------------------------------------------------
 
-	//-----------------------------------------------------------------------------
-	/// Checks if child on other side of pipe is still running
-	virtual bool IsRunning();
-	//-----------------------------------------------------------------------------
-
 //--------
 private:
 //--------
@@ -104,10 +101,8 @@ private:
 	bool OpenPipeRW(const KString& sProgram);
 	//-----------------------------------------------------------------------------
 
-	//-----------------------------------------------------------------------------
-	// waitpid wrapper to ensure it is called only once after child exits
-	bool wait();
-	//-----------------------------------------------------------------------------
+	int m_readPdes[2]{-2,-2};
+	int m_writePdes[2]{-2,-2};
 
 }; // class KPipe
 

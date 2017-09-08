@@ -8,11 +8,65 @@ KBasePipe::KBasePipe()
 //-----------------------------------------------------------------------------
 {} // Default Constructor
 
-
 //-----------------------------------------------------------------------------
 KBasePipe::~KBasePipe()
 //-----------------------------------------------------------------------------
 {} // Default Destructor
+
+//-----------------------------------------------------------------------------
+bool KBasePipe::IsRunning()
+//-----------------------------------------------------------------------------
+{
+
+	bool bResponse = false;
+
+	// sets m_iReadChildStatus if iPid is not zero
+	wait();
+
+	// Did we fail to get a status?
+	if (-1 == m_iChildStatus)
+	{
+		m_iExitCode = -1;
+		return bResponse;
+	}
+
+	// Do we have an exit status code to interpret?
+	if (false == m_bChildStatusValid)
+	{
+		bResponse = true;
+		return bResponse;
+	}
+
+	// did the called function "exit" normally?
+	if (WIFEXITED(m_iChildStatus))
+	{
+		m_iExitCode = WEXITSTATUS(m_iChildStatus);
+		return bResponse;
+	}
+
+	return bResponse;
+
+} // IsRunning
+
+//-----------------------------------------------------------------------------
+bool KBasePipe::WaitForFinished(int msecs)
+//-----------------------------------------------------------------------------
+{
+	if (msecs >= 0)
+	{
+		int counter = 0;
+		while (IsRunning())
+		{
+			usleep(1000);
+			++counter;
+
+			if (counter == msecs)
+				return false;
+		}
+		return true;
+	}
+	return false;
+} // WaitForFinished
 
 //-----------------------------------------------------------------------------
 bool KBasePipe::splitArgs(KString& argString, CharVec& argVector)
@@ -45,23 +99,40 @@ bool KBasePipe::splitArgs(KString& argString, CharVec& argVector)
 } // splitArgs
 
 //-----------------------------------------------------------------------------
-bool KBasePipe::WaitForFinished(int msecs)
+bool KBasePipe::wait()
 //-----------------------------------------------------------------------------
 {
-	if (msecs >= 0)
-	{
-		int counter = 0;
-		while (IsRunning())
-		{
-			usleep(1000);
-			++counter;
+	int iStatus = 0;
 
-			if (counter == msecs)
-				return false;
-		}
+	pid_t iPid;
+
+	// status can only be read ONCE
+	if (true == m_bChildStatusValid)
+	{
+		// status has already been set. do not read it again, you might get an invalid status.
+		return true;
+	} // end status is already set
+
+	iPid = waitpid(m_pid, &iStatus, WNOHANG);
+
+	// is the status valid?
+	if (0 < iPid)
+	{
+		// save the status
+		m_iChildStatus = iStatus;
+		m_bChildStatusValid = true;
 		return true;
 	}
+
+	if ((iPid == -1) && (errno != EINTR))
+	{
+		// TODO log
+		m_iChildStatus = -1;
+		m_bChildStatusValid = true;
+		return true;
+	}
+
 	return false;
-} // WaitForFinished
+} // wait
 
 } // end namespace dekaf2

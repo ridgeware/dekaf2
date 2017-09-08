@@ -50,6 +50,7 @@ namespace dekaf2
 {
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// Execute another process and attach write pipe to it's std::in
 class KOutPipe : public KFDWriter, public KBasePipe
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -91,13 +92,8 @@ public:
 	virtual int Close();
 	//-----------------------------------------------------------------------------
 
-	//-----------------------------------------------------------------------------
-	/// Checks if child on other side of pipe is still running
-	virtual bool IsRunning();
-	//-----------------------------------------------------------------------------
-
 //--------
-protected:
+private:
 //--------
 
 	//-----------------------------------------------------------------------------
@@ -105,16 +101,7 @@ protected:
 	bool OpenWritePipe(const KString& sProgram);
 	//-----------------------------------------------------------------------------
 
-	//-----------------------------------------------------------------------------
-	// waitpid wrapper to ensure it is called only once after child exits
-	bool wait();
-	//-----------------------------------------------------------------------------
-
-	pid_t m_writePid{-2};
-	int   m_iWriteExitCode{0};
 	int   m_writePdes[2]{-2,-2};
-	int   m_iWriteChildStatus{-2};
-	bool  m_bWriteChildStatusValid{false};
 
 }; // class KOutPipe
 

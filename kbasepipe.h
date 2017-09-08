@@ -71,16 +71,19 @@ public:
 	virtual ~KBasePipe();
 	//-----------------------------------------------------------------------------
 
-	typedef std::vector<char*> CharVec;
+	//-----------------------------------------------------------------------------
+	/// Opens A Pipe
+	virtual bool Open(const KString& sProgram) = 0;
+	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// Splits args into char*[] terminated with NULL
-	bool splitArgs(KString& argString, CharVec& vector );
+	/// Closes A Pipe
+	virtual int Close() = 0;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// Checks if child on other side of pipe is still running
-	virtual bool IsRunning() = 0;
+	virtual bool IsRunning();
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -89,11 +92,25 @@ public:
 	bool WaitForFinished(int msecs);
 	//-----------------------------------------------------------------------------
 
+	//-----------------------------------------------------------------------------
+	/// Splits args into char*[] terminated with NULL
+	typedef std::vector<char*> CharVec;
+	bool splitArgs(KString& argString, CharVec& vector );
+	//-----------------------------------------------------------------------------
+
 //--------
 protected:
 //--------
 
-	//pid_t m_pid{-2};
+	pid_t m_pid{-2};
+	int   m_iExitCode{0};
+	int   m_iChildStatus{-2};
+	bool  m_bChildStatusValid{false};
+
+	//-----------------------------------------------------------------------------
+	// waitpid wrapper to ensure it is called only once after child exits
+	bool wait();
+	//-----------------------------------------------------------------------------
 
 }; // KBasePipe
 

@@ -191,7 +191,7 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
-    /// return the numeric scheme identifier
+	/// return the numeric scheme identifier
 	inline eProto getProtocolEnum () const
 	//-------------------------------------------------------------------------
 	{
@@ -540,7 +540,7 @@ class Domain
 	}
 
 	//-------------------------------------------------------------------------
-    /// Serialize in KString style
+	/// Serialize in KString style
 	inline operator KString () const
 	//-------------------------------------------------------------------------
 	{
@@ -550,7 +550,7 @@ class Domain
 	}
 
 	//-------------------------------------------------------------------------
-    /// Serialize in stream style
+	/// Serialize in stream style
 	const Domain& operator>> (KString& sTarget) const
 	//-------------------------------------------------------------------------
 	{
@@ -559,7 +559,7 @@ class Domain
 	}
 
 	//-------------------------------------------------------------------------
-    /// Parse in stream style
+	/// Parse in stream style
 	Domain& operator<< (KStringView sSource)
 	//-------------------------------------------------------------------------
 	{
@@ -720,7 +720,7 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
-    /// Serialize KString style
+	/// Serialize KString style
 	inline operator KString () const
 	//-------------------------------------------------------------------------
 	{
@@ -730,7 +730,7 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
-    /// Serialize stream style
+	/// Serialize stream style
 	const Path& operator>> (KString& sTarget) const
 	//-------------------------------------------------------------------------
 	{
@@ -739,7 +739,7 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
-    /// Parse stream style
+	/// Parse stream style
 	Path& operator<< (KStringView sSource)
 	//-------------------------------------------------------------------------
 	{
@@ -868,7 +868,7 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
-    /// Serialize into KString
+	/// Serialize into KString
 	inline operator KString () const
 	//-------------------------------------------------------------------------
 	{
@@ -878,7 +878,7 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
-    /// Serialize stream style
+	/// Serialize stream style
 	const Query& operator>> (KString& sTarget) const
 	//-------------------------------------------------------------------------
 	{
@@ -887,7 +887,7 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
-    /// Parse stream style
+	/// Parse stream style
 	Query& operator<< (KStringView sSource)
 	//-------------------------------------------------------------------------
 	{
@@ -921,7 +921,7 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
-    /// Fetch value of key:value pair
+	/// Fetch value of key:value pair
 	inline KStringView operator[](KStringView svKey) const
 	//-------------------------------------------------------------------------
 	{
@@ -949,7 +949,7 @@ public:
 	inline size_t size() const
 	//-------------------------------------------------------------------------
 	{
-        //?? Should this calculate the size of the encoded query string?
+		//?? Should this calculate the size of the encoded query string?
 		return m_kpQuery.size();
 	}
 
@@ -1035,7 +1035,7 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
-    /// Serialize KString style
+	/// Serialize KString style
 	inline operator KString () const
 	//-------------------------------------------------------------------------
 	{
@@ -1045,7 +1045,7 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
-    /// Serialize stream style
+	/// Serialize stream style
 	const Fragment& operator>> (KString& sTarget) const
 	//-------------------------------------------------------------------------
 	{
@@ -1054,7 +1054,7 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
-    /// Parse stream style
+	/// Parse stream style
 	Fragment& operator<< (KStringView sSource)
 	//-------------------------------------------------------------------------
 	{
@@ -1190,7 +1190,7 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
-    /// Serialize into KString
+	/// Serialize into KString
 	inline operator KString () const
 	//-------------------------------------------------------------------------
 	{
@@ -1200,7 +1200,7 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
-    /// Serialize stream style
+	/// Serialize stream style
 	const Fragment& operator>> (KString& sTarget) const
 	//-------------------------------------------------------------------------
 	{
@@ -1209,7 +1209,7 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
-    /// Parse stream style
+	/// Parse stream style
 	Fragment& operator<< (KStringView sSource)
 	//-------------------------------------------------------------------------
 	{

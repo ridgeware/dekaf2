@@ -449,17 +449,17 @@ KStringView Domain::Parse (KStringView svSource)
 bool Domain::Serialize (KString& sTarget) const
 //-----------------------------------------------------------------------------
 {
-    bool bSome = true;
-    if (m_sHostName.size ())
-    {
-        sTarget += m_sHostName;
-        if (m_iPortNum)
-        {
-            sTarget += ':';
-            sTarget += std::to_string (m_iPortNum);
-        }
-    }
-    return bSome;
+	bool bSome = true;
+	if (m_sHostName.size ())
+	{
+		sTarget += m_sHostName;
+		if (m_iPortNum)
+		{
+			sTarget += ':';
+			sTarget += std::to_string (m_iPortNum);
+		}
+	}
+	return bSome;
 }
 
 
@@ -508,17 +508,17 @@ KStringView Path::Parse (KStringView svSource)
 bool Path::Serialize (KString& sTarget) const
 //-----------------------------------------------------------------------------
 {
-    if (m_sPath.size ())
-    {
-        //KString sPath;
-        //kUrlEncode (m_sPath, sPath);
-        //## but you have to urlencode the path..
-        //?? kUrlEncode requires 2nd arg target.  Local KString mandatory.
-        //?? Also "/" is urlencoded to "%2F".  We want less encoding.
-        // TODO resolve the encoding issue
-        sTarget += m_sPath;
-    }
-    return true;
+	if (m_sPath.size ())
+	{
+		//KString sPath;
+		//kUrlEncode (m_sPath, sPath);
+		//## but you have to urlencode the path..
+		//?? kUrlEncode requires 2nd arg target.  Local KString mandatory.
+		//?? Also "/" is urlencoded to "%2F".  We want less encoding.
+		// TODO resolve the encoding issue
+		sTarget += m_sPath;
+	}
+	return true;
 }
 
 
@@ -689,11 +689,11 @@ KStringView Fragment::Parse (KStringView svSource)
 bool Fragment::Serialize (KString& sTarget) const
 //-----------------------------------------------------------------------------
 {
-    if (m_sFragment.size ())
-    {
-        sTarget += m_sFragment;
-    }
-    return true;
+	if (m_sFragment.size ())
+	{
+		sTarget += m_sFragment;
+	}
+	return true;
 }
 
 
@@ -759,12 +759,12 @@ KStringView URI::Parse (KStringView svSource)
 bool URI::Serialize (KString& sTarget) const
 //-----------------------------------------------------------------------------
 {
-    bool bResult = true;
+	bool bResult = true;
 
-    bResult = Path               ::Serialize (sTarget);
-    bResult = bResult && Query   ::Serialize (sTarget);
-    bResult = bResult && Fragment::Serialize (sTarget);
-    return bResult;
+	bResult = Path               ::Serialize (sTarget);
+	bResult = bResult && Query   ::Serialize (sTarget);
+	bResult = bResult && Fragment::Serialize (sTarget);
+	return bResult;
 }
 
 
@@ -830,14 +830,14 @@ KStringView URL::Parse (KStringView svSource)
 bool URL::Serialize (KString& sTarget) const
 //-----------------------------------------------------------------------------
 {
-    bool bResult = true;
+	bool bResult = true;
 
-    bResult &= Protocol::Serialize (sTarget);
-    bResult &= User    ::Serialize (sTarget);
-    bResult &= Domain  ::Serialize (sTarget);
-    bResult &= URI     ::Serialize (sTarget);
+	bResult &= Protocol::Serialize (sTarget);
+	bResult &= User    ::Serialize (sTarget);
+	bResult &= Domain  ::Serialize (sTarget);
+	bResult &= URI     ::Serialize (sTarget);
 
-    return bResult;
+	return bResult;
 }
 
 } // namespace KURL

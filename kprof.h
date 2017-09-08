@@ -272,6 +272,13 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	void SetMultiplier(size_t iMultiplier)
+	//-----------------------------------------------------------------------------
+	{
+		m_callct_multiplier = iMultiplier;
+	}
+
+	//-----------------------------------------------------------------------------
 	void start();
 	//-----------------------------------------------------------------------------
 
@@ -288,6 +295,7 @@ private:
 	KSharedProfiler::clock_t::time_point m_start;
 	KSharedProfiler::duration_t          m_slept_before;
 	KSharedProfiler::data_t              m_data;
+	size_t                               m_callct_multiplier{1};
 	bool                                 m_stopped{false};
 	bool                                 m_increment_level{true};
 

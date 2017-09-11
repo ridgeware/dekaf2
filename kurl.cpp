@@ -1,3 +1,4 @@
+/*
 //=============================================================================
 //
 // DEKAF(tm): Lighter, Faster, Smarter(tm)
@@ -39,6 +40,7 @@
 // +-------------------------------------------------------------------------+
 //
 //=============================================================================
+*/
 
 /** @brief KURL class Architecture
 *=============================================================================
@@ -258,7 +260,7 @@ KStringView User::Parse (KStringView svSource)
 	Clear ();
 	if (nullptr != svSource)
 	{
-		size_t iFound = svSource.find ("@");
+		size_t iFound = svSource.find ("@"); //## make this a '@' (believe me, it is a huge difference)
 		if (iFound == KStringView::npos)
 		{
 			return svSource;
@@ -291,6 +293,8 @@ bool User::Serialize (KString& sTarget) const
 	if (m_sUser.size ())
 	{
 		// TODO These exclusions are speculative.  Should they change?
+		//## aren't there fixed rules for what to encode and what not in the
+		//## W3C standards?
 		KString sExclude{".-+_"};
 		KString sTemp;
 		kUrlEncode (m_sUser, sTemp, sExclude);
@@ -301,6 +305,8 @@ bool User::Serialize (KString& sTarget) const
 			sTemp.clear ();
 			sTarget += ':';
 			// TODO These exclusions are speculative.  Should they change?
+			//## aren't there fixed rules for what to encode and what not in the
+			//## W3C standards?
 			KString sExclude{".-+_!@#$%^&*()={}[]|;:<>,/?"};
 			kUrlEncode (m_sPass, sTemp, sExclude);
 			sTarget += sTemp;
@@ -440,6 +446,8 @@ KStringView Domain::Parse (KStringView svSource)
 			// Get port as string
 			KString sPortName;
 			sPortName.assign (svSource.data () + iColon, iNext - iColon);
+			//## why don't you use the KStringView -> KString version of kUrlDecode here?
+			//## It would save one copy
 			kUrlDecode (sPortName);
 
 			const char* sPort = sPortName.c_str ();
@@ -461,6 +469,7 @@ bool Domain::Serialize (KString& sTarget) const
 	if (m_sHostName.size ())
 	{
 		// TODO These exclusions are speculative.  Should they change?
+		//## there must be standards. why does this have to be speculative?
 		KString sExclude{"-_."};
 		KString sTemp;
 		kUrlEncode (m_sHostName, sTemp, sExclude);
@@ -653,6 +662,7 @@ KStringView Fragment::Parse (KStringView svSource)
 //-----------------------------------------------------------------------------
 {
 	Clear ();
+	//## please check for !empty(), not a nullptr
 	if (nullptr == svSource)
 	{
 		return svSource;
@@ -674,6 +684,7 @@ KStringView Fragment::Parse (KStringView svSource)
 bool Fragment::Serialize (KString& sTarget) const
 //-----------------------------------------------------------------------------
 {
+	//## this actually does not reconstruct a simple "#" at the end of the URL
 	if (m_sFragment.size ())
 	{
 		sTarget += "#" + m_sFragment;
@@ -701,6 +712,9 @@ KStringView URI::Parse (KStringView svSource)
 	if (nullptr == svSource)
 	{
 		return svSource;    // Empty svSource compares to nullptr.  SURPRISE!
+		//## no, an empty svSource (when default constructed) is a nullptr.
+		//## But I would really test for .empty() or .size(), as I doubt
+		//## nullptr would compare equal to ""
 	}
 
 	size_t iSize{svSource.size ()};

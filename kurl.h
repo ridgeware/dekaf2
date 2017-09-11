@@ -85,6 +85,12 @@ public:
 	//-------------------------------------------------------------------------
 	/// Allow instance by enumeration including
 	/// Protocol proto (Protocol::UNKNOWN, "opaquelocktoken");
+	//## why should you want to have that form with the enum and the string view?
+	//## the string view constructor below would be all you need. Please remove
+	//## the string view parameter here (or convince me that it makes sense). One
+	//## problem with your interface is that a user could insert a unknown
+	//## protocol that in reality is known (UNKNOWN, "http"). Then an equality
+	//## comparison would fail.
 	inline Protocol (eProto iProto, KStringView svProto = "")
 		: m_sProto {svProto}
 		, m_eProto {iProto}
@@ -268,6 +274,7 @@ private:
 
 	KString m_sProto {};
 	eProto  m_eProto {UNDEFINED};
+	//## please make this a static const
 	static KString m_sKnown [UNKNOWN+1];
 
 };
@@ -578,6 +585,10 @@ class Domain
 	inline void setHostName (KStringView svHostName)
 	//-------------------------------------------------------------------------
 	{
+		//## please explain why setHostName() is not symmetric to getHostName()
+		//## and simply sets m_sHostName (my actual issue is with the decodeURL()
+		//## that's involved through the parsing.., you parse probably to fill the
+		//## basename as well)
 		ParseHostName (svHostName);  // data extraction
 	}
 
@@ -630,6 +641,8 @@ class Domain
 	inline bool empty () const
 	//-------------------------------------------------------------------------
 	{
+		//## please use empty(), not size() (there is actually a reason - fbstring
+		//## needs to compute size() through a pointerdiff, but not empty())
 		return (m_sHostName.size () == 0);
 	}
 
@@ -686,6 +699,9 @@ public:
 
 	//-------------------------------------------------------------------------
 	/// construct new instance and move members from old instance
+	//## please make move constructors "noexcept" (if they are), then they will be
+	//## evaluated for vector moves. Please check the other move
+	//## constructors in this file.
 	inline Path (Path&& other)
 	//-------------------------------------------------------------------------
 	{
@@ -764,6 +780,7 @@ public:
 	inline void setPath (KStringView svPath)
 	//-------------------------------------------------------------------------
 	{
+		//## why is this not symmetrical to getPath() ?
 		Parse (svPath);
 	}
 
@@ -1085,6 +1102,8 @@ public:
 		return m_sFragment;
 	}
 
+	//## shouldn't there be a setFragment() as well?
+
 	//-------------------------------------------------------------------------
 	/// compares other instance with this, member-by-member
 	inline bool operator== (const Fragment& rhs) const
@@ -1106,6 +1125,7 @@ public:
 	inline bool empty () const
 	//-------------------------------------------------------------------------
 	{
+		//## see above, please use empty()
 		return (m_sFragment.size () == 0);
 	}
 

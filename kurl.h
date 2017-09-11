@@ -962,10 +962,10 @@ private:
 	KProp_t m_kpQuery {};
 
 	//-------------------------------------------------------------------------
-	// make and use JIT translator for URL coded strings.
 	// "+"   translates to " "
 	// "%FF" translates to "\xFF"
-	// other remains untranslated
+	// "%xx" where x is a hex digit translates likewise
+	// others remain untranslated
 	bool decode (KStringView);
 	//-------------------------------------------------------------------------
 
@@ -1361,7 +1361,6 @@ public:
 	const URL& operator>> (KString& sTarget) const
 	//-------------------------------------------------------------------------
 	{
-		const URL& source = *this;
 		Serialize (sTarget);
 		return *this;
 	}

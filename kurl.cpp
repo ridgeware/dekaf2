@@ -175,21 +175,16 @@ KStringView Protocol::Parse (KStringView svSource)
 		// Being strict violates our "accept everything we can" rule.
 		// Example strict alternatives are shown below in comments.
 
-		//if (m_sProto == "file" && iSlash == 3)
 		if (m_sProto == "file" && iSlash > 0)
 		{
 			m_eProto = FILE;
 			iFound--;           // Leave trailing slash of file:/// for Path
 		}
-		//else if (m_sProto == "mailto" && iSlash == 0)
 		else if (m_sProto == "mailto")
 		{
 			m_eProto = MAILTO;
 		}
-		//else if (iSlash == 2)
 		else if (iSlash > 0)
-		//## how are you protected against string underflows here?
-		//?? I don't see the underflow problem.  Please explain.
 		{
 			if      (m_sProto == "ftp"  ) m_eProto = FTP;
 			else if (m_sProto == "http" ) m_eProto = HTTP;
@@ -263,7 +258,6 @@ KStringView User::Parse (KStringView svSource)
 	Clear ();
 	if (nullptr != svSource)
 	{
-		size_t iSize  = svSource.size ();
 		size_t iFound = svSource.find ("@");
 		if (iFound == KStringView::npos)
 		{
@@ -373,7 +367,7 @@ KStringView Domain::ParseHostName (KStringView svSource)
 		{
 			// When there are at least 2 dots, look for ".co.".
 
-			// This code fails.
+			// This commented code fails, so it is implemented in a short loop.
 			//size_t iCompare = static_cast<size_t> (
 				//sDotCo.compare (0, sDotCo.size (), m_sHostName.data () + i2Back));
 			size_t iCompare{0};

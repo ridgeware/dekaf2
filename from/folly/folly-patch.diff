@@ -1,6 +1,6 @@
-diff -ur /home/onelink/hermes/dekaf2/from/../../../libs/folly/folly/Assume.cpp ./Assume.cpp
---- /home/onelink/hermes/dekaf2/from/../../../libs/folly/folly/Assume.cpp	2017-09-05 13:58:46.406910865 +0200
-+++ ./Assume.cpp	2017-09-05 17:06:13.984143480 +0200
+diff -ur /home/onelink/hermes/dekaf2/from/folly/../../../../libs/folly/folly/Assume.cpp ./Assume.cpp
+--- /home/onelink/hermes/dekaf2/from/folly/../../../../libs/folly/folly/Assume.cpp	2017-09-05 13:58:46.406910865 +0200
++++ ./Assume.cpp	2017-09-07 17:56:29.070127925 +0200
 @@ -16,14 +16,14 @@
  
  #include <folly/Assume.h>
@@ -18,9 +18,9 @@ diff -ur /home/onelink/hermes/dekaf2/from/../../../libs/folly/folly/Assume.cpp .
  }
  
  }
-diff -ur /home/onelink/hermes/dekaf2/from/../../../libs/folly/folly/concurrency/CacheLocality.cpp ./concurrency/CacheLocality.cpp
---- /home/onelink/hermes/dekaf2/from/../../../libs/folly/folly/concurrency/CacheLocality.cpp	2017-09-05 13:58:46.433909725 +0200
-+++ ./concurrency/CacheLocality.cpp	2017-09-05 17:29:48.759351741 +0200
+diff -ur /home/onelink/hermes/dekaf2/from/folly/../../../../libs/folly/folly/concurrency/CacheLocality.cpp ./concurrency/CacheLocality.cpp
+--- /home/onelink/hermes/dekaf2/from/folly/../../../../libs/folly/folly/concurrency/CacheLocality.cpp	2017-09-05 13:58:46.433909725 +0200
++++ ./concurrency/CacheLocality.cpp	2017-09-07 17:56:29.074127756 +0200
 @@ -22,11 +22,11 @@
  #endif
  #include <fstream>
@@ -64,9 +64,9 @@ diff -ur /home/onelink/hermes/dekaf2/from/../../../libs/folly/folly/concurrency/
        auto cacheType = mapping(dir + "type");
        auto equivStr = mapping(dir + "shared_cpu_list");
        if (cacheType.size() == 0 || equivStr.size() == 0) {
-diff -ur /home/onelink/hermes/dekaf2/from/../../../libs/folly/folly/detail/Futex.cpp ./detail/Futex.cpp
---- /home/onelink/hermes/dekaf2/from/../../../libs/folly/folly/detail/Futex.cpp	2017-09-05 13:58:46.437909557 +0200
-+++ ./detail/Futex.cpp	2017-09-05 17:24:42.011336462 +0200
+diff -ur /home/onelink/hermes/dekaf2/from/folly/../../../../libs/folly/folly/detail/Futex.cpp ./detail/Futex.cpp
+--- /home/onelink/hermes/dekaf2/from/folly/../../../../libs/folly/folly/detail/Futex.cpp	2017-09-05 13:58:46.437909557 +0200
++++ ./detail/Futex.cpp	2017-09-07 17:56:29.075127714 +0200
 @@ -17,7 +17,7 @@
  #include <folly/detail/Futex.h>
  #include <boost/intrusive/list.hpp>
@@ -76,3 +76,66 @@ diff -ur /home/onelink/hermes/dekaf2/from/../../../libs/folly/folly/detail/Futex
  #include <folly/portability/SysSyscall.h>
  #include <stdint.h>
  #include <string.h>
+diff -ur /home/onelink/hermes/dekaf2/from/folly/../../../../libs/folly/folly/Malloc.h ./Malloc.h
+--- /home/onelink/hermes/dekaf2/from/folly/../../../../libs/folly/folly/Malloc.h	2017-09-05 13:58:46.421910232 +0200
++++ ./Malloc.h	2017-09-11 14:18:30.639008999 +0200
+@@ -198,14 +198,46 @@
+   return result;
+ }
+ 
++#ifdef FOLLY_PROVIDE_EXPONENTIAL_MALLOC_FALLBACK
++inline size_t portableCLZ(size_t value)
++{
++	if (!value) return 8 * sizeof(value);
++#ifdef __GNUC__
++	return static_cast<size_t>(__builtin_clzl(value));
++#elif _MSVC
++	DWORD clzl = 0;
++	if (_BitScanForward(&clzl, value))
++	{
++		return (8 * sizeof(value) - 1) - static_cast<size_t>(clzl);
++	}
++	else
++	{
++		return 8 * sizeof(value);
++	}
++#else
++	abort();
++#endif
++}
++#endif
++
+ inline size_t goodMallocSize(size_t minSize) noexcept {
+   if (minSize == 0) {
+     return 0;
+   }
+ 
+   if (!usingJEMalloc()) {
++#ifdef FOLLY_PROVIDE_EXPONENTIAL_MALLOC_FALLBACK
++	  size_t result = 1 << ((sizeof(size_t) * 8 - portableCLZ(minSize)));
++	  const size_t pageSize = 4098;
++	  const size_t mallocHeader = 4 * sizeof(void*);
++	  if (result >= pageSize && result - mallocHeader >= minSize) {
++		  // check if we can make a bit room for the malloc implementation
++		  result -= mallocHeader;
++	  }
++#else
+     // Not using jemalloc - no smarts
+     return minSize;
++#endif
+   }
+ 
+   return nallocx(minSize, 0);
+diff -ur /home/onelink/hermes/dekaf2/from/folly/../../../../libs/folly/folly/Portability.h ./Portability.h
+--- /home/onelink/hermes/dekaf2/from/folly/../../../../libs/folly/folly/Portability.h	2017-09-05 13:58:46.424910105 +0200
++++ ./Portability.h	2017-09-08 13:36:41.799064315 +0200
+@@ -49,7 +49,9 @@
+ using max_alignment = integral_sequence_max<size_t, alignof(Ts)...>;
+ 
+ using max_basic_alignment = max_alignment<
++#if !defined(__GNUC__) || (__GNUC__ >= 5)
+     std::max_align_t,
++#endif
+     long double,
+     double,
+     float,

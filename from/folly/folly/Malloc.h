@@ -198,14 +198,46 @@ FOLLY_MALLOC_NOINLINE inline bool usingJEMalloc() noexcept {
   return result;
 }
 
+#ifdef FOLLY_PROVIDE_EXPONENTIAL_MALLOC_FALLBACK
+inline size_t portableCLZ(size_t value)
+{
+	if (!value) return 8 * sizeof(value);
+#ifdef __GNUC__
+	return static_cast<size_t>(__builtin_clzl(value));
+#elif _MSVC
+	DWORD clzl = 0;
+	if (_BitScanForward(&clzl, value))
+	{
+		return (8 * sizeof(value) - 1) - static_cast<size_t>(clzl);
+	}
+	else
+	{
+		return 8 * sizeof(value);
+	}
+#else
+	abort();
+#endif
+}
+#endif
+
 inline size_t goodMallocSize(size_t minSize) noexcept {
   if (minSize == 0) {
     return 0;
   }
 
   if (!usingJEMalloc()) {
+#ifdef FOLLY_PROVIDE_EXPONENTIAL_MALLOC_FALLBACK
+	  size_t result = 1 << ((sizeof(size_t) * 8 - portableCLZ(minSize)));
+	  const size_t pageSize = 4098;
+	  const size_t mallocHeader = 4 * sizeof(void*);
+	  if (result >= pageSize && result - mallocHeader >= minSize) {
+		  // check if we can make a bit room for the malloc implementation
+		  result -= mallocHeader;
+	  }
+#else
     // Not using jemalloc - no smarts
     return minSize;
+#endif
   }
 
   return nallocx(minSize, 0);

@@ -260,10 +260,10 @@ SCENARIO ( "KURL unit tests on invalid data")
 				KStringView svURL       {url     .Parse( svURI)};
 
 				// Mandatory: Protocol, Domain, and URL cannot parse empty
-				CHECK( protocol.size () == 0 );  // Fail on empty
-				CHECK(     user.size () == 0 );
-				CHECK(    query.size () == 0 );
-				CHECK( fragment.size () == 0 );
+				CHECK( protocol.empty () == true );  // Fail on empty
+				CHECK(     user.empty () == true );
+				CHECK(    query.empty () == true );
+				CHECK( fragment.empty () == true );
 			}
 		}
 		WHEN ( "parsing an invalid path" )
@@ -497,7 +497,8 @@ TEST_CASE ("KURL")
 			kproto1.Serialize (target);
 
 			int how =  target.compare(expect1);
-			size_t size = kproto1.size ();
+			bool empty = kproto1.empty ();
+			//size_t size = kproto1.size ();
 
 			dekaf2::KURL::URL soperator;
 			KString toperator;
@@ -508,7 +509,8 @@ TEST_CASE ("KURL")
 			CHECK (toperator == source1);
 
 			CHECK (how == 0);
-			CHECK (size == 8);
+			CHECK (empty == false);
+			//CHECK (size == 8);
 
 			CHECK (kproto1 == kproto3);
 			CHECK (kproto3 != kproto2);
@@ -522,11 +524,11 @@ TEST_CASE ("KURL")
 			KString target;
 			KString expect{source1};
 
-			dekaf2::KURL::Protocol kproto (source1);
-			source1 = source1.substr (kproto.size ());
+			dekaf2::KURL::Protocol kproto;
+			source1 = kproto.Parse (source1);
 
-			dekaf2::KURL::User kuser (source1);
-			source1 = source1.substr (kuser.size ());
+			dekaf2::KURL::User kuser;
+			source1 = kuser.Parse (source1);
 
 			dekaf2::KURL::Domain kdomain (source1);
 
@@ -570,10 +572,9 @@ TEST_CASE ("KURL")
 			KString solo ("https://");
 			KString expect{solo};
 			KString target;
-			size_t hint{0};
 
-			dekaf2::KURL::Protocol kproto  (solo);
-			hint = kproto.size ();
+			dekaf2::KURL::Protocol kproto;
+			kproto.Parse(solo);
 
 			bool ret = kproto.Serialize (target);
 
@@ -626,7 +627,6 @@ TEST_CASE ("KURL")
 
 			CHECK (ret == true);
 			CHECK (target == expect);
-			CHECK (kproto.size () == expect.size());
 		}
 
 		SECTION ("User solo unit (pass foo:bar@)")
@@ -642,7 +642,6 @@ TEST_CASE ("KURL")
 
 			CHECK (ret == true);
 			CHECK (target == expect);
-			CHECK (kuserinfo.size() == expect.size());
 		}
 
 		SECTION ("KURL bulk valid tests")
@@ -751,13 +750,13 @@ TEST_CASE ("KURL")
 			KString ksQueryNoEqual{"?a=b&fubar"};
 			KStringView svQueryNoEqual{ksQueryNoEqual};
 			dekaf2::KURL::Query queryNoEqual (svQueryNoEqual);
-			CHECK (queryNoEqual.size() == 0);
+			CHECK (queryNoEqual.empty () == true);
 
 			ksTarget.clear();
 			KString ksQueryBadKey{"?fu%2=bar"};
 			KStringView svQueryBadKey{ksQueryBadKey};
 			dekaf2::KURL::Query queryBadKey (svQueryBadKey);
-			CHECK (queryBadKey.size() == 1);
+			CHECK (queryBadKey.empty () == false);
 		}
 
 }

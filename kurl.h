@@ -255,20 +255,11 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
-	/// Size of stored parse results.
-	inline size_t size() const
+	/// Predicate: Are there contents?
+	inline bool empty () const
 	//-------------------------------------------------------------------------
 	{
-		size_t iRet{0};
-		if (m_eProto >= UNKNOWN)
-		{
-			iRet = m_sProto.size () + 3; // 3 for the "://"
-		}
-		else if (m_eProto)
-		{
-			iRet = m_sKnown[m_eProto].size ();
-		}
-		return iRet;
+		return (m_eProto == UNDEFINED);
 	}
 
 //------
@@ -444,19 +435,11 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
-	/// Size of stored parse results.
-	inline size_t size() const
+	/// Predicate: Are there contents?
+	inline bool empty () const
 	//-------------------------------------------------------------------------
 	{
-		return
-			m_sUser.size()
-			? (
-				m_sUser.size () +
-				m_sPass.size () +
-				(m_sPass.size() != 0) + // account for ':' if any
-				1                       // account for '@'
-			)
-			: 0;
+		return (m_sUser.size () == 0 && m_sPass.size () == 0);
 	}
 
 //------
@@ -642,6 +625,14 @@ class Domain
 			(getPortNum ()  != rhs.getPortNum ()) ;
 	}
 
+	//-------------------------------------------------------------------------
+	/// Predicate: Are there contents?
+	inline bool empty () const
+	//-------------------------------------------------------------------------
+	{
+		return (m_sHostName.size () == 0);
+	}
+
 //------
 private:
 //------
@@ -792,6 +783,14 @@ public:
 		return getPath () != rhs.getPath ();
 	}
 
+	//-------------------------------------------------------------------------
+	/// Predicate: Are there contents?
+	inline bool empty () const
+	//-------------------------------------------------------------------------
+	{
+		return (m_sPath.size () == 0);
+	}
+
 //------
 private:
 //------
@@ -925,13 +924,11 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
-	/// Size of stored parse results.
-	inline size_t size() const
+	/// Predicate: Are there contents?
+	inline bool empty () const
 	//-------------------------------------------------------------------------
 	{
-		//?? Should this calculate the size of the encoded query string?
-		//?? Or should it return the number of key:value pairs?
-		return m_kpQuery.size();
+		return (m_kpQuery.size() == 0);
 	}
 
 	//-------------------------------------------------------------------------
@@ -1105,11 +1102,11 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
-	/// Size of stored parse results.
-	inline size_t size() const
+	/// Predicate: Are there contents?
+	inline bool empty () const
 	//-------------------------------------------------------------------------
 	{
-		return m_sFragment.size();
+		return (m_sFragment.size () == 0);
 	}
 
 //------
@@ -1258,6 +1255,14 @@ public:
 			Fragment::operator!= (rhs) ;
 	}
 
+	//-------------------------------------------------------------------------
+	/// Predicate: Are there contents?
+	inline bool empty () const
+	//-------------------------------------------------------------------------
+	{
+		return (Path::empty () && Query::empty () && Fragment::empty ());
+	}
+
 //------
 private:
 //------
@@ -1396,10 +1401,16 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
-	size_t size() const
+	/// Predicate: Are there contents?
+	inline bool empty () const
 	//-------------------------------------------------------------------------
 	{
-		return Protocol::size();
+		return (
+			Protocol::empty () &&
+			User    ::empty () &&
+			Domain  ::empty () &&
+			URI     ::empty ()
+		);
 	}
 
 	//-------------------------------------------------------------------------

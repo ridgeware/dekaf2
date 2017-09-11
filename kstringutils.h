@@ -50,17 +50,9 @@
 #include <functional>
 #include "bits/kcppcompat.h"
 #include "bits/ktemplate.h"
-#include "kstring.h"
 
 namespace dekaf2
 {
-
-//------------------------------------------------------------------------------
-KString::size_type kReplace(KString& string,
-                            KStringView sSearch,
-                            KStringView sReplaceWith,
-                            bool bReplaceAll = true);
-//------------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
 template<class String>

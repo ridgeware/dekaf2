@@ -76,8 +76,6 @@ namespace dekaf2
 //     KURI::KURI(URL, hint);        // Updates hint to 64
 // URL[hint] == '\0';  // End of string
 
-const size_t npos = (size_t)~0ULL;  // otherwise include std::string.
-
 bool unimplemented(const KString& name, const char* __file__, size_t __line__);
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::

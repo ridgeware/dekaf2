@@ -526,43 +526,6 @@ int KString::compare(size_type pos, size_type n1, KStringView sv) const
 	return 1;
 }
 
-//------------------------------------------------------------------------------
-KString::size_type KString::find(const value_type* s, size_type pos, size_type n) const
-//------------------------------------------------------------------------------
-{
-#if (DEKAF2_GCC_VERSION >= 40805) && (DEKAF2_USE_GLIBC_FOR_KSTRING_FIND)
-	// GLIBC has a performant Boyer-Moore implementation for ::memmem, it
-	// outperforms fbstring's simplyfied Boyer-Moore by one magnitude
-	// (which means facebook uses it internally as well, as they mention a
-	// search performance improvement by a factor of 30, but their code
-	// in reality only improves search performance by a factor of 2
-	// compared to std::string::find() - it is ::memmem() which brings it
-	// to 30)
-	if (DEKAF2_UNLIKELY(pos >= size()))
-	{
-		return npos;
-	}
-	auto found = static_cast<const value_type*>(::memmem(data() + pos, size() - pos, s, n));
-	if (DEKAF2_UNLIKELY(!found))
-	{
-		return npos;
-	}
-	else
-	{
-		return static_cast<size_type>(found - data());
-	}
-#else
-	return m_rep.find(s, pos, n);
-#endif
-}
-
-//------------------------------------------------------------------------------
-KString::size_type KString::Replace (KStringView sSearch, KStringView sReplace, bool bReplaceAll)
-//------------------------------------------------------------------------------
-{
-	return dekaf2::kReplace(*this, sSearch, sReplace, bReplaceAll);
-}
-
 //----------------------------------------------------------------------
 KString::size_type KString::ReplaceRegex(KStringView sRegEx, KStringView sReplaceWith, bool bReplaceAll)
 //----------------------------------------------------------------------
@@ -813,7 +776,7 @@ void KString::RemoveIllegalChars(KStringView sIllegalChars)
 bool kStartsWith(KStringView sInput, KStringView sPattern)
 //----------------------------------------------------------------------
 {
-	if (sInput.size() < sPattern.size())
+	if (DEKAF2_UNLIKELY(sInput.size() < sPattern.size()))
 	{
 		return false;
 	}
@@ -826,7 +789,7 @@ bool kStartsWith(KStringView sInput, KStringView sPattern)
 bool kEndsWith(KStringView sInput, KStringView sPattern)
 //----------------------------------------------------------------------
 {
-	if (sInput.size() < sPattern.size())
+	if (DEKAF2_UNLIKELY(sInput.size() < sPattern.size()))
 	{
 		return false;
 	}

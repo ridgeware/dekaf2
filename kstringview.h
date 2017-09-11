@@ -48,6 +48,7 @@
 #include <functional>
 #include <boost/functional/hash.hpp>
 #include "bits/kcppcompat.h"
+#include "bits/kfind.h"
 
 
 #if defined(DEKAF2_HAS_CPP_17) and !defined(DEKAF2_USE_RE2_STRINGPIECE_AS_KSTRINGVIEW)
@@ -182,10 +183,31 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	// the find(self_type, size_type) implementation of StringPiece is slow
+	// - therefore we implement our own
+	size_type find(self_type str, size_type pos = 0) const noexcept
+	//-----------------------------------------------------------------------------
+	{
+		return kFind(*this, str.data(), pos, str.size());
+	}
+
+	//-----------------------------------------------------------------------------
+	// the find(value_type, size_type) implementation of StringPiece is slow
+	// - therefore we implement our own
+	size_type find(value_type ch, size_type pos = 0) const noexcept
+	//-----------------------------------------------------------------------------
+	{
+		return kFind(data(), size(), ch, pos);
+	}
+
+	//-----------------------------------------------------------------------------
 	// the rfind(value_type, size_type) implementation of StringPiece is erroneous
 	// - if given npos for pos it does not search - therefore we implement our own
-	size_type rfind(value_type ch, size_type pos = npos) const noexcept;
+	size_type rfind(value_type ch, size_type pos = npos) const noexcept
 	//-----------------------------------------------------------------------------
+	{
+		return kRFind(data(), size(), ch, pos);
+	}
 
 	//-----------------------------------------------------------------------------
 	inline size_type rfind(self_type sv, size_type pos = npos) const noexcept
@@ -356,7 +378,7 @@ inline bool operator==(KStringView left, KStringView right)
 	}
 	return left.data() == right.data()
 	        || len == 0
-	        || memcmp(left.data(), right.data(), len) == 0;
+	        || std::memcmp(left.data(), right.data(), len) == 0;
 }
 
 //-----------------------------------------------------------------------------
@@ -371,7 +393,7 @@ inline bool operator<(KStringView left, KStringView right)
 //-----------------------------------------------------------------------------
 {
 	KStringView::size_type min_size = std::min(left.size(), right.size());
-	int r = min_size == 0 ? 0 : memcmp(left.data(), right.data(), min_size);
+	int r = min_size == 0 ? 0 : std::memcmp(left.data(), right.data(), min_size);
 	return (r < 0) || (r == 0 && left.size() < right.size());
 }
 

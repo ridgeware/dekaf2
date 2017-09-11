@@ -258,5 +258,202 @@ TEST_CASE("KString") {
 		CHECK( s == "ab-de-ghi" );
 	}
 
+	SECTION("find")
+	{
+		KString str("0123456  9abcdef h");
+		CHECK( str.find(' ') == 7 );
+		CHECK( str.find(" ") == 7 );
+		CHECK( str.find(" 9") == 8 );
+		CHECK( str.find(' ', 3) == 7 );
+		CHECK( str.find(" 9", 3) == 8 );
+		CHECK( str.find('0') == 0 );
+		CHECK( str.find("0") == 0 );
+		CHECK( str.find("01") == 0 );
+		CHECK( str.find('h') == 17 );
+		CHECK( str.find("h") == 17 );
+		CHECK( str.find(" h") == 16 );
+		CHECK( str.find('-') == npos );
+		CHECK( str.find("-") == npos );
+		CHECK( str.find("!-") == npos );
+		CHECK( str.find('1', 1) == 1 );
+		CHECK( str.find("1", 1) == 1 );
+		CHECK( str.find("12", 1) == 1 );
+		CHECK( str.find('1', 2) == npos );
+		CHECK( str.find("1", 2) == npos );
+		CHECK( str.find("12", 2) == npos );
+	}
+
+	SECTION("rfind")
+	{
+		KString str("0123456  9abcdef");
+		CHECK( str.rfind(' ') == 8 );
+		CHECK( str.rfind(" ") == 8 );
+		CHECK( str.rfind(" 9") == 8 );
+		CHECK( str.rfind('0') == 0 );
+		CHECK( str.rfind("0") == 0 );
+		CHECK( str.rfind("01") == 0 );
+		CHECK( str.rfind('f') == 15 );
+		CHECK( str.rfind("f") == 15 );
+		CHECK( str.rfind("ef") == 14 );
+		CHECK( str.rfind('f', 15) == 15 );
+		CHECK( str.rfind("f", 15) == 15 );
+		CHECK( str.rfind("ef", 15) == 14 );
+		CHECK( str.rfind(' ', 12) == 8 );
+		CHECK( str.rfind(" 9", 12) == 8 );
+		CHECK( str.rfind(' ', 20) == 8 );
+		CHECK( str.rfind(" 9", 20) == 8 );
+		CHECK( str.rfind('-') == npos );
+		CHECK( str.rfind("-") == npos );
+		CHECK( str.rfind("!-") == npos );
+		CHECK( str.rfind('f', 14) == npos );
+		CHECK( str.rfind("f", 14) == npos );
+		CHECK( str.rfind("ef", 13) == npos );
+		CHECK( str.rfind('f', 15) == 15 );
+		CHECK( str.rfind("f", 15) == 15 );
+		CHECK( str.rfind("ef", 15) == 14 );
+	}
+
+	SECTION("find_first_of")
+	{
+		KString str("0123456  9abcdef h");
+		CHECK( str.find_first_of(' ') == 7 );
+		CHECK( str.find_first_of(" ") == 7 );
+		CHECK( str.find_first_of(" d") == 7 );
+		CHECK( str.find_first_of('0') == 0 );
+		CHECK( str.find_first_of("0") == 0 );
+		CHECK( str.find_first_of("02") == 0 );
+		CHECK( str.find_first_of('h') == 17 );
+		CHECK( str.find_first_of("h") == 17 );
+		CHECK( str.find_first_of("h-") == 17 );
+		CHECK( str.find_first_of("ab f") == 7 );
+		CHECK( str.find_first_of("abf ") == 7 );
+		CHECK( str.find_first_of('-') == npos );
+		CHECK( str.find_first_of("-") == npos );
+		CHECK( str.find_first_of("!-") == npos );
+	}
+
+	SECTION("find_last_of")
+	{
+		KString str("0123456  9abcdef");
+		CHECK( str.find_last_of(' ') == 8 );
+		CHECK( str.find_last_of(" ") == 8 );
+		CHECK( str.find_last_of(" 1") == 8 );
+		CHECK( str.find_last_of('0') == 0 );
+		CHECK( str.find_last_of("0") == 0 );
+		CHECK( str.find_last_of("0-") == 0 );
+		CHECK( str.find_last_of('f') == 15 );
+		CHECK( str.find_last_of("f") == 15 );
+		CHECK( str.find_last_of("fe") == 15 );
+		CHECK( str.find_last_of("12 3") == 8 );
+		CHECK( str.find_last_of("123 ") == 8 );
+		CHECK( str.find_last_of('-') == npos );
+		CHECK( str.find_last_of("-") == npos );
+		CHECK( str.find_last_of("!-") == npos );
+	}
+
+	SECTION("find_first_not_of")
+	{
+		KString str("0123456  9abcdef h");
+		CHECK( str.find_first_not_of(' ') == 0 );
+		CHECK( str.find_first_not_of(" ") == 0 );
+		CHECK( str.find_first_not_of(" d") == 0 );
+		CHECK( str.find_first_not_of('0') == 1 );
+		CHECK( str.find_first_not_of("0") == 1 );
+		CHECK( str.find_first_not_of("02") == 1 );
+		CHECK( str.find_first_not_of("0123456789abcdef ") == 17 );
+		CHECK( str.find_first_not_of("0123456789abcdefgh ") == npos );
+	}
+
+	SECTION("erase by index")
+	{
+		KString str("0123456789abcdefgh");
+		KString strd = str;
+		KString stre;
+		strd.erase(2);
+		stre = "01";
+		CHECK( strd == stre );
+		strd = str;
+		strd.erase(0, 2);
+		stre = "23456789abcdefgh";
+		CHECK( strd == stre );
+		strd = str;
+		strd.erase(4, 2);
+		stre = "01236789abcdefgh";
+		CHECK( strd == stre );
+		strd = str;
+		strd.erase(16, 2);
+		stre = "0123456789abcdef";
+		CHECK( strd == stre );
+	}
+
+	SECTION("erase by iterator")
+	{
+		KString str("0123456789abcdefgh");
+		KString strd = str;
+		KString stre;
+		auto it = strd.erase(strd.begin());
+		stre = "123456789abcdefgh";
+		CHECK( strd == stre );
+		CHECK( it == strd.begin() );
+		strd = str;
+		it = strd.erase(strd.begin()+2);
+		stre = "013456789abcdefgh";
+		CHECK( strd == stre );
+		strd = str;
+		it = strd.erase(strd.end()-1);
+		stre = "0123456789abcdefg";
+		CHECK( strd == stre );
+		CHECK( it == strd.end() );
+		strd = str;
+		it = strd.erase(strd.end()-2);
+		stre = "0123456789abcdefh";
+		CHECK( strd == stre );
+		strd = str;
+		it = strd.erase(strd.end());
+		stre = "0123456789abcdefgh";
+		CHECK( strd == stre );
+		CHECK( it == strd.end() );
+	}
+
+	SECTION("erase by iterator range")
+	{
+		KString str("0123456789abcdefgh");
+		KString strd = str;
+		KString stre;
+		auto it = strd.erase(strd.begin(), strd.begin() + 3);
+		stre = "3456789abcdefgh";
+		CHECK( strd == stre );
+		CHECK( it == strd.begin() );
+		strd = str;
+		it = strd.erase(strd.begin()+2, strd.begin() + 4);
+		stre = "01456789abcdefgh";
+		CHECK( strd == stre );
+		strd = str;
+		it = strd.erase(strd.end()-1, strd.end());
+		stre = "0123456789abcdefg";
+		CHECK( strd == stre );
+		CHECK( it == strd.end() );
+		strd = str;
+		it = strd.erase(strd.end()-2, strd.end());
+		stre = "0123456789abcdef";
+		CHECK( strd == stre );
+		CHECK( it == strd.end() );
+		strd = str;
+		it = strd.erase(strd.end(), strd.end());
+		stre = "0123456789abcdefgh";
+		CHECK( strd == stre );
+		CHECK( it == strd.end() );
+	}
+
+	SECTION("fmt::format")
+	{
+		KString s;
+		KString str = "a string";
+		s.Printf("This is %s", str);
+		CHECK( s == "This is a string" );
+		s.Format("This is {}", str);
+		CHECK( s == "This is a string" );
+	}
+
 }
 

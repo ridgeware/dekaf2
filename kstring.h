@@ -43,13 +43,14 @@
 #pragma once
 
 /// @file kstring.h
-/// dekaf2's own string class - a wrapper around std::string
-/// that handles most error cases in a benign way
+/// dekaf2's own string class - a wrapper around std::string or folly::fbstring
+/// that handles most error cases in a benign way and has rapid fast searches
 
-#include "bits/kcppcompat.h"
 #include <string>
 #include <istream>
 #include <ostream>
+#include "bits/kcppcompat.h"
+#include "bits/kfind.h"
 #include "kformat.h"
 #include "kstringview.h"
 #ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
@@ -231,8 +232,13 @@ public:
 
 	size_type copy(value_type* s, size_type n, size_type pos = 0) const;
 
+#if (DEKAF2_GCC_VERSION >= 40600) && (DEKAF2_USE_GLIBC_FOR_KSTRING_FIND)
+	size_type find(value_type c, size_type pos = 0) const { return kFind(m_rep.data(), m_rep.size(), c, pos); }
+	size_type find(const value_type* s, size_type pos, size_type n) const { return kFind(*this, s, pos, n); }
+#else
 	size_type find(value_type c, size_type pos = 0) const { return m_rep.find(c, pos); }
-	size_type find(const value_type* s, size_type pos, size_type n) const;
+	size_type find(const value_type* s, size_type pos, size_type n) const { return m_rep.find(s, pos, n); }
+#endif
 	size_type find(const KString& str, size_type pos = 0) const { return find(str.data(), pos, str.size()); }
 	size_type find(const string_type& str, size_type pos = 0) const { return find(str.data(), pos, str.size()); }
 	size_type find(const value_type* s, size_type pos = 0) const { return find(s, pos, strlen(s)); }
@@ -241,7 +247,11 @@ public:
 	size_type find(const std::string& str, size_type pos = 0) const { return find(str.data(), pos, str.size()); }
 #endif
 
+#if (DEKAF2_GCC_VERSION >= 40600) && (DEKAF2_USE_GLIBC_FOR_KSTRING_FIND)
+	size_type rfind(value_type c, size_type pos = npos) const { return kRFind(m_rep.data(), m_rep.size(), c, pos); }
+#else
 	size_type rfind(value_type c, size_type pos = npos) const { return m_rep.rfind(c, pos); }
+#endif
 	size_type rfind(const value_type* s, size_type pos, size_type n) const { return m_rep.rfind(s, pos, n); }
 	size_type rfind(const KString& str, size_type pos = npos) const { return rfind(str.data(), pos, str.size()); }
 	size_type rfind(const string_type& str, size_type pos = npos) const { return rfind(str.data(), pos, str.size()); }
@@ -251,8 +261,8 @@ public:
 	size_type rfind(const std::string& str, size_type pos = npos) const { return rfind(str.data(), pos, str.size()); }
 #endif
 
-	size_type find_first_of(value_type c, size_type pos = 0) const { return m_rep.find_first_of(c, pos); }
-	size_type find_first_of(const value_type* s, size_type pos, size_type n) const { return m_rep.find_first_of(s, pos, n); }
+	size_type find_first_of(value_type c, size_type pos = 0) const { return find(c, pos); }
+	size_type find_first_of(const value_type* s, size_type pos, size_type n) const { return (DEKAF2_UNLIKELY(n == 1)) ? find(*s, pos) : m_rep.find_first_of(s, pos, n); }
 	size_type find_first_of(const KString& str, size_type pos = 0) const { return find_first_of(str.data(), pos, str.size()); }
 	size_type find_first_of(const string_type& str, size_type pos = 0) const { return find_first_of(str.data(), pos, str.size()); }
 	size_type find_first_of(const value_type* s, size_type pos = 0) const { return find_first_of(s, pos, strlen(s)); }
@@ -261,8 +271,8 @@ public:
 	size_type find_first_of(const std::string& str, size_type pos = 0) const { return find_first_of(str.data(), pos, str.size()); }
 #endif
 
-	size_type find_last_of(value_type c, size_type pos = npos) const { return m_rep.find_last_of(c, pos); }
-	size_type find_last_of(const value_type* s, size_type pos, size_type n) const { return m_rep.find_last_of(s, pos, n); }
+	size_type find_last_of(value_type c, size_type pos = npos) const { return rfind(c, pos); }
+	size_type find_last_of(const value_type* s, size_type pos, size_type n) const { return (DEKAF2_UNLIKELY(n == 1)) ? rfind(*s, pos) : m_rep.find_last_of(s, pos, n); }
 	size_type find_last_of(const KString& str, size_type pos = npos) const { return find_last_of(str.data(), pos, str.size()); }
 	size_type find_last_of(const string_type& str, size_type pos = npos) const { return find_last_of(str.data(), pos, str.size()); }
 	size_type find_last_of(const value_type* s, size_type pos = npos) const { return find_last_of(s, pos, strlen(s)); }
@@ -382,7 +392,7 @@ public:
 	size_type ReplaceRegex(KStringView sRegEx, KStringView sReplaceWith, bool bReplaceAll = true);
 
 	/// replace one part of the string with another string
-	size_type Replace(KStringView sSearch, KStringView sReplace, bool bReplaceAll = false);
+	size_type Replace(KStringView sSearch, KStringView sReplace, bool bReplaceAll = false) { return kReplace(*this, sSearch, sReplace, bReplaceAll); }
 
 	/// does the string start with sPattern?
 	bool StartsWith(KStringView sPattern) const { return kStartsWith(*this, sPattern); }

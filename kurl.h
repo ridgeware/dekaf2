@@ -85,15 +85,8 @@ public:
 	//-------------------------------------------------------------------------
 	/// Allow instance by enumeration including
 	/// Protocol proto (Protocol::UNKNOWN, "opaquelocktoken");
-	//## why should you want to have that form with the enum and the string view?
-	//## the string view constructor below would be all you need. Please remove
-	//## the string view parameter here (or convince me that it makes sense). One
-	//## problem with your interface is that a user could insert a unknown
-	//## protocol that in reality is known (UNKNOWN, "http"). Then an equality
-	//## comparison would fail.
-	inline Protocol (eProto iProto, KStringView svProto = "")
-		: m_sProto {svProto}
-		, m_eProto {iProto}
+	inline Protocol (eProto iProto)
+		: m_eProto {iProto}
 	//-------------------------------------------------------------------------
 	{}
 
@@ -121,7 +114,7 @@ public:
 
 	//-------------------------------------------------------------------------
 	/// construct new instance and move members from old instance
-	inline Protocol (Protocol&& other)
+	inline Protocol (Protocol&& other) noexcept
 		: m_sProto (std::move (other.m_sProto))
 		, m_eProto (std::move (other.m_eProto))
 	//-------------------------------------------------------------------------
@@ -274,8 +267,7 @@ private:
 
 	KString m_sProto {};
 	eProto  m_eProto {UNDEFINED};
-	//## please make this a static const
-	static KString m_sKnown [UNKNOWN+1];
+	static const KString m_sKnown [UNKNOWN+1];
 
 };
 
@@ -320,7 +312,7 @@ public:
 
 	//-------------------------------------------------------------------------
 	/// construct new instance and move members from old instance
-	inline User (User&& other)
+	inline User (User&& other) noexcept
 		: m_sUser (std::move (other.m_sUser))
 		, m_sPass (std::move (other.m_sPass))
 	//-------------------------------------------------------------------------
@@ -499,7 +491,7 @@ class Domain
 
 	//-------------------------------------------------------------------------
 	/// construct new instance and move members from old instance
-	inline Domain (Domain&& other)
+	inline Domain (Domain&& other) noexcept
 	//-------------------------------------------------------------------------
 	{
 		m_iPortNum  = other.m_iPortNum;
@@ -589,7 +581,11 @@ class Domain
 		//## and simply sets m_sHostName (my actual issue is with the decodeURL()
 		//## that's involved through the parsing.., you parse probably to fill the
 		//## basename as well)
-		ParseHostName (svHostName);  // data extraction
+		//?? You are correct about asymmetry and m_sBaseName.
+		//?? Parse code is complex enough that I wanted to avoid DRY violations.
+		//?? to handle your decodeURL concerns, I introduced a bDecode flag
+		//?? which defaults true, but is set false here to prevent decoding.
+		ParseHostName (svHostName, false);  // data extraction
 	}
 
 	//-------------------------------------------------------------------------
@@ -641,9 +637,7 @@ class Domain
 	inline bool empty () const
 	//-------------------------------------------------------------------------
 	{
-		//## please use empty(), not size() (there is actually a reason - fbstring
-		//## needs to compute size() through a pointerdiff, but not empty())
-		return (m_sHostName.size () == 0);
+		return (m_sHostName.empty ());
 	}
 
 //------
@@ -655,7 +649,7 @@ private:
 	KString  m_sBaseName {};
 
 	//-------------------------------------------------------------------------
-	KStringView ParseHostName (KStringView svSource);
+	KStringView ParseHostName (KStringView svSource, bool bDecode = true);
 	//-------------------------------------------------------------------------
 };
 
@@ -699,10 +693,7 @@ public:
 
 	//-------------------------------------------------------------------------
 	/// construct new instance and move members from old instance
-	//## please make move constructors "noexcept" (if they are), then they will be
-	//## evaluated for vector moves. Please check the other move
-	//## constructors in this file.
-	inline Path (Path&& other)
+	inline Path (Path&& other) noexcept
 	//-------------------------------------------------------------------------
 	{
 		m_sPath = std::move (other.m_sPath);
@@ -780,8 +771,7 @@ public:
 	inline void setPath (KStringView svPath)
 	//-------------------------------------------------------------------------
 	{
-		//## why is this not symmetrical to getPath() ?
-		Parse (svPath);
+		m_sPath = svPath;
 	}
 
 	//-------------------------------------------------------------------------
@@ -1102,7 +1092,13 @@ public:
 		return m_sFragment;
 	}
 
-	//## shouldn't there be a setFragment() as well?
+	//-------------------------------------------------------------------------
+	/// set a new value for Fragment
+	inline void setFragment (KStringView& svFragment)
+	//-------------------------------------------------------------------------
+	{
+		m_sFragment = svFragment;
+	}
 
 	//-------------------------------------------------------------------------
 	/// compares other instance with this, member-by-member
@@ -1125,8 +1121,7 @@ public:
 	inline bool empty () const
 	//-------------------------------------------------------------------------
 	{
-		//## see above, please use empty()
-		return (m_sFragment.size () == 0);
+		return (m_sFragment.empty ());
 	}
 
 //------
@@ -1134,6 +1129,7 @@ private:
 //------
 
 	KString m_sFragment {};
+	bool    m_bHash{false};
 
 };
 

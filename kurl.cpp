@@ -151,7 +151,7 @@ KStringView Protocol::Parse (KStringView svSource)
 //-----------------------------------------------------------------------------
 {
 	Clear ();
-	if (nullptr == svSource)
+	if (svSource.empty ())
 	{
 		return svSource;
 	}
@@ -231,7 +231,7 @@ void Protocol::Clear()
 	m_eProto = UNDEFINED;
 }
 
-KString Protocol::m_sKnown [UNKNOWN+1]
+const KString Protocol::m_sKnown [UNKNOWN+1]
 {
 	"UNDEFINED",    // Parse has not been run yet.
 	"file://",
@@ -258,9 +258,9 @@ KStringView User::Parse (KStringView svSource)
 //-----------------------------------------------------------------------------
 {
 	Clear ();
-	if (nullptr != svSource)
+	if (!svSource.empty ())
 	{
-		size_t iFound = svSource.find ("@"); //## make this a '@' (believe me, it is a huge difference)
+		size_t iFound = svSource.find ('@');
 		if (iFound == KStringView::npos)
 		{
 			return svSource;
@@ -293,9 +293,12 @@ bool User::Serialize (KString& sTarget) const
 	if (m_sUser.size ())
 	{
 		// TODO These exclusions are speculative.  Should they change?
-		//## aren't there fixed rules for what to encode and what not in the
-		//## W3C standards?
-		KString sExclude{".-+_"};
+		// RFC3986 rules apply to exclusions.
+		// RFC3986 2.2. reserved    = gen(":/?#[]@") + sub("!$&'()*+,;=")
+		// RFC3986 2.3. unreserved  = ALPHA + DIGIT + "-._~"
+		// RFC3986 7.5. password field is deprecated
+
+		KString sExclude{"-._~@/"};  // RFC3986 2.3 supplemented with "@/"
 		KString sTemp;
 		kUrlEncode (m_sUser, sTemp, sExclude);
 		sTarget += sTemp;
@@ -305,9 +308,10 @@ bool User::Serialize (KString& sTarget) const
 			sTemp.clear ();
 			sTarget += ':';
 			// TODO These exclusions are speculative.  Should they change?
-			//## aren't there fixed rules for what to encode and what not in the
-			//## W3C standards?
-			KString sExclude{".-+_!@#$%^&*()={}[]|;:<>,/?"};
+			// Rules for encoding passwords are not explicit.
+			// Human-centric passwords are likely to include difficult chars.
+			// Password field is deprecated as insecure.  This is legacy support.
+			// utests all pass, but password field is not stress-tested.
 			kUrlEncode (m_sPass, sTemp, sExclude);
 			sTarget += sTemp;
 		}
@@ -328,7 +332,7 @@ bool User::Serialize (KString& sTarget) const
 /// scheme:[//[user[:password]@]host[:port]][/path][?query][#fragment]
 ///                             ----  ----
 /// Domain extracts and stores a KStringView of URL "host" and "port"
-KStringView Domain::ParseHostName (KStringView svSource)
+KStringView Domain::ParseHostName (KStringView svSource, bool bDecode)
 //-----------------------------------------------------------------------------
 {
 	static const KString sDotCo (".co.");
@@ -343,7 +347,10 @@ KStringView Domain::ParseHostName (KStringView svSource)
 	iFound = (iFound == KStringView::npos) ? iSize : iFound;
 	m_sHostName.assign (svSource.data (), iFound);
 
-	kUrlDecode (m_sHostName);
+	if (bDecode)
+	{
+		kUrlDecode (m_sHostName);
+	}
 
 	// m_sBaseName   is special-cased
 	//
@@ -420,9 +427,9 @@ KStringView Domain::Parse (KStringView svSource)
 //-----------------------------------------------------------------------------
 {
 	Clear ();
-	if (nullptr == svSource)
+	if (svSource.empty ())
 	{
-		return nullptr;
+		return svSource;
 	}
 
 	size_t iBefore = svSource.size ();
@@ -445,10 +452,8 @@ KStringView Domain::Parse (KStringView svSource)
 			iNext = (iNext == KStringView::npos) ? svSource.size () : iNext;
 			// Get port as string
 			KString sPortName;
-			sPortName.assign (svSource.data () + iColon, iNext - iColon);
-			//## why don't you use the KStringView -> KString version of kUrlDecode here?
-			//## It would save one copy
-			kUrlDecode (sPortName);
+			KStringView svPortName{svSource.data () + iColon, iNext - iColon};
+			kUrlDecode (svPortName, sPortName);
 
 			const char* sPort = sPortName.c_str ();
 			// Parse port as number
@@ -469,8 +474,7 @@ bool Domain::Serialize (KString& sTarget) const
 	if (m_sHostName.size ())
 	{
 		// TODO These exclusions are speculative.  Should they change?
-		//## there must be standards. why does this have to be speculative?
-		KString sExclude{"-_."};
+		KString sExclude{"-._~@/"};  // RFC3986 2.3 supplemented with "@/"
 		KString sTemp;
 		kUrlEncode (m_sHostName, sTemp, sExclude);
 		sTarget += sTemp;
@@ -496,7 +500,7 @@ KStringView Path::Parse (KStringView svSource)
 //-----------------------------------------------------------------------------
 {
 	Clear ();
-	if (nullptr == svSource)
+	if (svSource.empty ())
 	{
 		return svSource;
 	}
@@ -522,7 +526,7 @@ bool Path::Serialize (KString& sTarget) const
 	if (m_sPath.size ())
 	{
 		KString sPath;
-		KString sExclude{"_-./"};
+		KString sExclude{"-._~@/"};  // RFC3986 2.3 supplemented with "@/"
 		kUrlEncode (m_sPath, sPath, sExclude);
 		sTarget += sPath;
 	}
@@ -543,7 +547,7 @@ KStringView Query::Parse (KStringView svSource)
 //-----------------------------------------------------------------------------
 {
 	Clear ();
-	if (nullptr == svSource)
+	if (svSource.empty ())
 	{
 		return svSource;
 	}
@@ -662,8 +666,7 @@ KStringView Fragment::Parse (KStringView svSource)
 //-----------------------------------------------------------------------------
 {
 	Clear ();
-	//## please check for !empty(), not a nullptr
-	if (nullptr == svSource)
+	if (svSource.empty ())
 	{
 		return svSource;
 	}
@@ -671,6 +674,7 @@ KStringView Fragment::Parse (KStringView svSource)
 	if (svSource[0] == '#')
 	{
 		svSource.remove_prefix (1);
+		m_bHash = true;
 	}
 	m_sFragment.assign (svSource.data (), svSource.size ());
 	kUrlDecode (m_sFragment);
@@ -684,10 +688,15 @@ KStringView Fragment::Parse (KStringView svSource)
 bool Fragment::Serialize (KString& sTarget) const
 //-----------------------------------------------------------------------------
 {
-	//## this actually does not reconstruct a simple "#" at the end of the URL
+	// Potential over-serialization of '#' when absent.  introduced m_bHash.
+	bool bContent = (m_sFragment.size () != 0);
+	if (m_bHash || bContent)
+	{
+		sTarget += "#";
+	}
 	if (m_sFragment.size ())
 	{
-		sTarget += "#" + m_sFragment;
+		sTarget += m_sFragment;
 	}
 	return true;
 }
@@ -709,12 +718,9 @@ KStringView URI::Parse (KStringView svSource)
 //-----------------------------------------------------------------------------
 {
 	Clear ();
-	if (nullptr == svSource)
+	if (svSource.empty ())
 	{
-		return svSource;    // Empty svSource compares to nullptr.  SURPRISE!
-		//## no, an empty svSource (when default constructed) is a nullptr.
-		//## But I would really test for .empty() or .size(), as I doubt
-		//## nullptr would compare equal to ""
+		return svSource;
 	}
 
 	size_t iSize{svSource.size ()};
@@ -779,7 +785,7 @@ KStringView URL::Parse (KStringView svSource)
 //-----------------------------------------------------------------------------
 {
 	Clear ();
-	if (nullptr == svSource)
+	if (svSource.empty ())
 	{
 		return svSource;
 	}

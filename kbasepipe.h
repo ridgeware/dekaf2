@@ -103,7 +103,7 @@ protected:
 //--------
 
 	pid_t m_pid{-2};
-	int   m_iExitCode{0};
+	int   m_iExitCode{-2};
 	int   m_iChildStatus{-2};
 	bool  m_bChildStatusValid{false};
 

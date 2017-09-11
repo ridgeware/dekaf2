@@ -53,9 +53,10 @@ bool KPipe::Open(const KString& sProgram)
 	else
 	{
 		KLog().debug(3, "KPipe::Open(): OpenPipeRW: ok...");
-		KFDWriter::open(m_writePdes[1]);
-		KFDReader::open(m_readPdes[0]);
-		return (KFDWriter::good() && KFDReader::good());
+
+		m_reader.open(m_readPdes[0]);
+		m_writer.open(m_writePdes[1]);
+		return (m_reader.good() && m_writer.good());
 	}
 
 } // Open
@@ -68,8 +69,11 @@ int KPipe::Close()
 
 	// Close read on of stdout pipe
 	::close(m_readPdes[0]);
+	m_reader.close();
 	// Send EOF by closing write end of pipe
 	::close(m_writePdes[1]);
+	m_writer.close();
+
 	// Child has been cut off from parent, let it terminate
 	WaitForFinished(60000);
 
@@ -107,7 +111,7 @@ bool KPipe::OpenPipeRW(const KString& sProgram)
 	m_iExitCode         = -2;
 
 	// try to open read and write pipes
-	if (pipe(m_readPdes) < 0)
+	if ((pipe(m_readPdes) < 0) || (pipe(m_writePdes) < 0))
 	{
 		return false;
 	} // could not create pipe
@@ -120,26 +124,28 @@ bool KPipe::OpenPipeRW(const KString& sProgram)
 			// could not create the child
 			::close(m_readPdes[0]);
 			::close(m_readPdes[1]);
-				m_pid = -2;
+			::close(m_writePdes[0]);
+			::close(m_writePdes[1]);
+			m_pid = -2;
 			break;
 		}
 
 		case 0: /* child */
 		{
-			// Bind Child's stdout
-			::close(m_readPdes[0]);
-			if (m_readPdes[1] != fileno(stdout))
-			{
-				::dup2(m_readPdes[1], fileno(stdout));
-				::close(m_readPdes[1]);
-			}
-
 			// Bind to Child's stdin
 			::close(m_writePdes[1]);
 			if (m_writePdes[0] != fileno(stdin))
 			{
 				::dup2(m_writePdes[0], fileno(stdin));
 				::close(m_writePdes[0]);
+			}
+
+			// Bind Child's stdout
+			::close(m_readPdes[0]);
+			if (m_readPdes[1] != fileno(stdout))
+			{
+				::dup2(m_readPdes[1], fileno(stdout));
+				::close(m_readPdes[1]);
 			}
 
 			// execute the command

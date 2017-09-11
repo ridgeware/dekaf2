@@ -31,6 +31,18 @@ TEST_CASE("KOutPipe")
 
 	} // write_pipe
 
+	SECTION("KOutPipe fail_to_open")
+	{
+		INFO("KOutPipe fail_to_open::Start:");
+
+		KOutPipe pipe;
+		CHECK_FALSE(pipe.Open(""));
+		CHECK_FALSE(pipe.IsRunning());
+		CHECK(-1 == pipe.Close());
+
+		INFO("KOutPipe fail_to_open::Done:");
+	} // fail_to_open
+
 	SECTION("KOutPipe  write_pipe and confirm by reading")
 	{
 		INFO("KOutPipe  write_pipe and confirm by reading::Start:");
@@ -61,7 +73,7 @@ TEST_CASE("KOutPipe")
 
 		INFO("KOutPipe  write_pipe and confirm by reading::Done:");
 
-	} // write_pipe
+	} // read and write pipe
 
 #if KOutPipeCleanup
 	SECTION("KOutPipe  cleanup test")

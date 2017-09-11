@@ -46,12 +46,15 @@
 #include "kfdwriter.h"
 #include "kfdreader.h"
 
+#include "fstream"
+#include <stdio.h>
+
 namespace dekaf2
 {
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Execute another process and attach pipes to its std::in and std::out
-class KPipe : public KBasePipe, public KFDReader, public KFDWriter
+class KPipe : public KBasePipe
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -91,6 +94,9 @@ public:
 	/// Closes A WritePipe
 	virtual int Close();
 	//-----------------------------------------------------------------------------
+
+	KFDReader m_reader{};
+	KFDWriter m_writer{};
 
 //--------
 private:

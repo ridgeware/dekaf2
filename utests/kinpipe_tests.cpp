@@ -41,6 +41,18 @@ TEST_CASE("KInPipe")
 		INFO("KInPipe normal_open_close_test::Done:");
 	} // normal open close
 
+	SECTION("KInPipe fail_to_open")
+	{
+		INFO("KInPipe fail_to_open::Start:");
+
+		KInPipe pipe;
+		CHECK_FALSE(pipe.Open(""));
+		CHECK_FALSE(pipe.IsRunning());
+		CHECK(-1 == pipe.Close());
+
+		INFO("KInPipe fail_to_open::Done:");
+	} // fail_to_open
+
 	SECTION("KInPipe split arg test")
 	{
 		INFO("KInPipe split arg test::Start:");

@@ -116,12 +116,10 @@ int KInPipe::Close ()
 	if (false == IsRunning())
 	{
 		iExitCode = m_iExitCode;
-
-		return (iExitCode);
 	} // child not running
 
 	// the child process has been giving us trouble. Kill it
-	if (-2 != m_pid)
+	else
 	{
 		kill(m_pid, SIGKILL);
 	}

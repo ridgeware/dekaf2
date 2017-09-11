@@ -81,7 +81,6 @@ int KPipe::Close()
 	if (false == IsRunning())
 	{
 		iExitCode = m_iExitCode;
-		return (iExitCode);
 	} // child not running
 
 	// the child process has been giving us trouble. Kill it

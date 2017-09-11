@@ -14,13 +14,12 @@ TEST_CASE("KPipe")
 	{
 		INFO("KOutPipe  write_pipe and confirm by reading::Start:");
 
-		KPipe pipe;
+		KPipe pipe("/bin/sh -c \"mkdir /tmp/kpipetests\"");
 		KString sCurrentLine;
 		KString str("rdoanm txet over 9000 \n line 2 \n line 3 \n line 4 \n SS level 3! \n line 6 \n line 7\n\n");
 		pipe.m_reader.SetReaderTrim("");
 
 		// Generate test file
-		CHECK(pipe.Open("/bin/sh -c \"mkdir /tmp/kpipetests\""));
 		CHECK(pipe.IsRunning());
 		CHECK(0 == pipe.Close());
 		CHECK_FALSE(pipe.IsRunning());

@@ -14,11 +14,9 @@ TEST_CASE("KOutPipe")
 	{
 		INFO("KOutPipe  write_pipe::Start:");
 
-		KOutPipe pipe;
+		KOutPipe pipe("/bin/sh -c \"mkdir /tmp/koutpipetests\"");
 		KString str("rdoanm txet over 9000 \n line 2 \n line 3 \n line 4 \n SS level 3! \n line 6 \n line 7\n\n");
 
-		//CHECK(pipe.Open("/bin/sh -c \"echo 'asdf asdf' > /tmp/dekaf2/KOutPipetest3.file\""));
-		CHECK(pipe.Open("/bin/sh -c \"mkdir /tmp/koutpipetests\""));
 		CHECK(pipe.Open("/bin/sh -c \"cat > /tmp/koutpipetests/koutpipetest1.file\""));
 		pipe.Write(str);
 		CHECK(pipe.is_open());

@@ -18,10 +18,9 @@ TEST_CASE("KInPipe")
 	{
 		INFO("normal_open_close_test::Start:");
 
-		KInPipe pipe;
+		KInPipe pipe("/bin/sh -c \"mkdir /tmp/kinpipetests\"");
 		pipe.SetReaderTrim("");
 
-		CHECK(pipe.Open("/bin/sh -c \"mkdir /tmp/kinpipetests\""));
 		CHECK(pipe.Open("/bin/sh -c \"echo 'some random datum' > /tmp/kinpipetests/kinpipetest.file\""));
 		pipe.WaitForFinished(10);
 		CHECK_FALSE(pipe.IsRunning());

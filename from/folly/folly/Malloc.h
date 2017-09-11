@@ -234,6 +234,7 @@ inline size_t goodMallocSize(size_t minSize) noexcept {
 		  // check if we can make a bit room for the malloc implementation
 		  result -= mallocHeader;
 	  }
+	  return result;
 #else
     // Not using jemalloc - no smarts
     return minSize;

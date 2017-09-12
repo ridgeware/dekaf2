@@ -9,12 +9,6 @@ using namespace dekaf2;
 
 TEST_CASE("KStringView") {
 
-#ifdef DEKAF2_USE_STD_STRING_VIEW_AS_KSTRINGVIEW
-	KStringView::size_type npos = KStringView::npos;
-#else
-	KStringView::size_type npos = KString::npos;
-#endif
-
 	SECTION("find")
 	{
 		KStringView sv("0123456  9abcdef h");
@@ -29,15 +23,15 @@ TEST_CASE("KStringView") {
 		CHECK( sv.find('h') == 17 );
 		CHECK( sv.find("h") == 17 );
 		CHECK( sv.find(" h") == 16 );
-		CHECK( sv.find('-') == npos );
-		CHECK( sv.find("-") == npos );
-		CHECK( sv.find("!-") == npos );
+		CHECK( sv.find('-') == KStringView::npos );
+		CHECK( sv.find("-") == KStringView::npos );
+		CHECK( sv.find("!-") == KStringView::npos );
 		CHECK( sv.find('1', 1) == 1 );
 		CHECK( sv.find("1", 1) == 1 );
 		CHECK( sv.find("12", 1) == 1 );
-		CHECK( sv.find('1', 2) == npos );
-		CHECK( sv.find("1", 2) == npos );
-		CHECK( sv.find("12", 2) == npos );
+		CHECK( sv.find('1', 2) == KStringView::npos );
+		CHECK( sv.find("1", 2) == KStringView::npos );
+		CHECK( sv.find("12", 2) == KStringView::npos );
 	}
 
 	SECTION("rfind")
@@ -59,12 +53,12 @@ TEST_CASE("KStringView") {
 		CHECK( sv.rfind(" 9", 12) == 8 );
 		CHECK( sv.rfind(' ', 20) == 8 );
 		CHECK( sv.rfind(" 9", 20) == 8 );
-		CHECK( sv.rfind('-') == npos );
-		CHECK( sv.rfind("-") == npos );
-		CHECK( sv.rfind("!-") == npos );
-		CHECK( sv.rfind('f', 14) == npos );
-		CHECK( sv.rfind("f", 14) == npos );
-		CHECK( sv.rfind("ef", 13) == npos );
+		CHECK( sv.rfind('-') == KStringView::npos );
+		CHECK( sv.rfind("-") == KStringView::npos );
+		CHECK( sv.rfind("!-") == KStringView::npos );
+		CHECK( sv.rfind('f', 14) == KStringView::npos );
+		CHECK( sv.rfind("f", 14) == KStringView::npos );
+		CHECK( sv.rfind("ef", 13) == KStringView::npos );
 		CHECK( sv.rfind('f', 15) == 15 );
 		CHECK( sv.rfind("f", 15) == 15 );
 		CHECK( sv.rfind("ef", 15) == 14 );
@@ -84,9 +78,9 @@ TEST_CASE("KStringView") {
 		CHECK( sv.find_first_of("h-") == 17 );
 		CHECK( sv.find_first_of("ab f") == 7 );
 		CHECK( sv.find_first_of("abf ") == 7 );
-		CHECK( sv.find_first_of('-') == npos );
-		CHECK( sv.find_first_of("-") == npos );
-		CHECK( sv.find_first_of("!-") == npos );
+		CHECK( sv.find_first_of('-') == KStringView::npos );
+		CHECK( sv.find_first_of("-") == KStringView::npos );
+		CHECK( sv.find_first_of("!-") == KStringView::npos );
 	}
 
 	SECTION("find_last_of")
@@ -103,9 +97,9 @@ TEST_CASE("KStringView") {
 		CHECK( sv.find_last_of("fe") == 15 );
 		CHECK( sv.find_last_of("12 3") == 8 );
 		CHECK( sv.find_last_of("123 ") == 8 );
-		CHECK( sv.find_last_of('-') == npos );
-		CHECK( sv.find_last_of("-") == npos );
-		CHECK( sv.find_last_of("!-") == npos );
+		CHECK( sv.find_last_of('-') == KStringView::npos );
+		CHECK( sv.find_last_of("-") == KStringView::npos );
+		CHECK( sv.find_last_of("!-") == KStringView::npos );
 	}
 
 	SECTION("find_first_not_of")
@@ -118,7 +112,7 @@ TEST_CASE("KStringView") {
 		CHECK( sv.find_first_not_of("0") == 1 );
 		CHECK( sv.find_first_not_of("02") == 1 );
 		CHECK( sv.find_first_not_of("0123456789abcdef ") == 17 );
-		CHECK( sv.find_first_not_of("0123456789abcdefgh ") == npos );
+		CHECK( sv.find_first_not_of("0123456789abcdefgh ") == KStringView::npos );
 	}
 
 	SECTION("erase by index")

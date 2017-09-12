@@ -69,7 +69,6 @@ set (HEADERS
     bits/kconfiguration.h
     bits/ktemplate.h
     bits/kcppcompat.h
-    bits/kfind.h
     bits/kmake_unique.h
     bits/kmutable_pair.h
     bits/kunique_deleter.h
@@ -112,7 +111,6 @@ set (HEADERS
 )
 
 set (SOURCES
-    bits/kfind.cpp
     dekaf2.cpp
     kstring.cpp
     kregex.cpp

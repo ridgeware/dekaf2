@@ -8,30 +8,88 @@ namespace dekaf2
 
 #ifndef DEKAF2_USE_STD_STRING_VIEW_AS_KSTRINGVIEW
 
-//-----------------------------------------------------------------------------
-KStringView::size_type KStringView::find_first_of(self_type sv, size_type pos) const noexcept
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+KStringView::size_type KStringView::find(self_type search,
+                              std::size_t pos) const noexcept
+//------------------------------------------------------------------------------
 {
-	if (DEKAF2_UNLIKELY(sv.size() == 1))
+	// GLIBC has a performant Boyer-Moore implementation for ::memmem, it
+	// outperforms fbstring's simplyfied Boyer-Moore by one magnitude
+	// (which means facebook uses it internally as well, as they mention a
+	// search performance improvement by a factor of 30, but their code
+	// in reality only improves search performance by a factor of 2
+	// compared to std::string::find() - it is ::memmem() which brings it
+	// to 30)
+	if (DEKAF2_UNLIKELY(search.size() == 1))
 	{
-		return find(sv[0], pos);
+		// flip to single char search if only one char is in the search argument
+		return find(search[0], pos);
+	}
+	if (DEKAF2_UNLIKELY(pos > size()))
+	{
+		return npos;
+	}
+	auto found = static_cast<const char*>(::memmem(data() + pos, size() - pos,
+	                                               search.data(), search.size()));
+	if (DEKAF2_UNLIKELY(!found))
+	{
+		return npos;
 	}
 	else
 	{
-		auto it = std::find_first_of(begin() + pos, end(), sv.begin(), sv.end());
-		if (it == end())
-		{
-			return KStringView::npos;
-		}
-		else
-		{
-			return static_cast<size_type>(it - begin());
-		}
+		return static_cast<KStringView::size_type>(found - data());
 	}
 }
 
 //-----------------------------------------------------------------------------
-KStringView::size_type KStringView::find_last_of(self_type sv, size_type pos) const noexcept
+KStringView::size_type KStringView::int_find_first_of(self_type sv, size_type pos, bool bNot) const noexcept
+//-----------------------------------------------------------------------------
+{
+	if (pos >= size())
+	{
+		return npos;
+	}
+
+#ifdef DEKAF2_USE_OPTIMIZED_STRING_FIND
+	bool table[256];
+	std::memset(table, 0, 256);
+
+	for (auto c : sv)
+	{
+		table[static_cast<unsigned char>(c)] = true;
+	}
+
+	auto it = std::find_if(begin() + pos, end(), [&table, bNot](const char c)
+	{
+		return table[static_cast<unsigned char>(c)] != bNot;
+	});
+#else
+	iterator it;
+	if (!bNot)
+	{
+		it = std::find_first_of(begin() + pos, end(), sv.begin(), sv.end());
+	}
+	else
+	{
+	it = std::find_if_not(begin() + pos, end(),
+	                      [&sv](KStringView::value_type ch)
+	{
+	     return memchr(sv.data(), ch, sv.size()) != nullptr;
+	});
+	}
+#endif
+	if (it == end())
+	{
+		return KStringView::npos;
+	}
+	else
+	{
+		return static_cast<size_type>(it - begin());
+	}
+}
+
+//-----------------------------------------------------------------------------
+KStringView::size_type KStringView::int_find_last_of(self_type sv, size_type pos, bool bNot) const noexcept
 //-----------------------------------------------------------------------------
 {
 	if (DEKAF2_UNLIKELY(sv.size() == 1))
@@ -41,8 +99,37 @@ KStringView::size_type KStringView::find_last_of(self_type sv, size_type pos) co
 	else
 	{
 		pos = (size() - 1) - std::min(pos, size()-1);
-		auto it = std::find_first_of(rbegin() + static_cast<difference_type>(pos), rend(),
-		                             sv.begin(), sv.end());
+
+#ifdef DEKAF2_USE_OPTIMIZED_STRING_FIND
+		bool table[256];
+		std::memset(table, 0, 256);
+
+		for (auto c : sv)
+		{
+			table[static_cast<unsigned char>(c)] = true;
+		}
+
+		auto it = std::find_if(rbegin() + static_cast<difference_type>(pos), rend(),
+		                       [&table, bNot](const char c)
+		{
+			return table[static_cast<unsigned char>(c)] == !bNot;
+		});
+#else
+		reverse_iterator it;
+		if (!bNot)
+		{
+			it = std::find_first_of(rbegin() + static_cast<difference_type>(pos), rend(),
+		                            sv.begin(), sv.end());
+		}
+		else
+		{
+			it = std::find_if_not(rbegin() + static_cast<difference_type>(pos), rend(),
+			                      [&sv](KStringView::value_type ch)
+			{
+			     return memchr(sv.data(), ch, sv.size()) != nullptr;
+			});
+		}
+#endif
 		if (it == rend())
 		{
 			return KStringView::npos;
@@ -55,65 +142,14 @@ KStringView::size_type KStringView::find_last_of(self_type sv, size_type pos) co
 }
 
 //-----------------------------------------------------------------------------
-KStringView::size_type KStringView::find_first_not_of(self_type sv, size_type pos) const noexcept
-//-----------------------------------------------------------------------------
-{
-	if (DEKAF2_UNLIKELY(sv.size() == 1))
-	{
-		return find_first_not_of(sv[0], pos);
-	}
-	else
-	{
-		auto it = std::find_if_not(begin() + pos, end(),
-								   [&sv](KStringView::value_type ch)
-								   { return memchr(sv.data(), ch, sv.size()) != nullptr; });
-		if (it == end())
-		{
-			return KStringView::npos;
-		}
-		else
-		{
-			return static_cast<size_type>(it - begin());
-		}
-	}
-}
-
-//-----------------------------------------------------------------------------
-KStringView::size_type KStringView::find_last_not_of(self_type sv, size_type pos) const noexcept
-//-----------------------------------------------------------------------------
-{
-	if (DEKAF2_UNLIKELY(sv.size() == 1))
-	{
-		return find_last_not_of(sv[0], pos);
-	}
-	else
-	{
-		if (pos >= size()) // this includes npos
-		{
-			pos = 0;
-		}
-		else
-		{
-			pos = size() - pos;
-		}
-		auto it = std::find_if_not(rbegin() + pos, rend(),
-								   [&sv](KStringView::value_type ch)
-								   { return memchr(sv.data(), ch, sv.size()) != nullptr; });
-		if (it == rend())
-		{
-			return KStringView::npos;
-		}
-		else
-		{
-			return static_cast<size_type>(it.base() - begin());
-		}
-	}
-}
-
-//-----------------------------------------------------------------------------
 KStringView::size_type KStringView::find_first_not_of(value_type ch_p, size_type pos) const noexcept
 //-----------------------------------------------------------------------------
 {
+	if (pos > size())
+	{
+		pos = size();
+	}
+
 	auto it = std::find_if_not(begin() + pos, end(),
 	                           [ch_p](KStringView::value_type ch)
 	                           { return ch_p == ch; });

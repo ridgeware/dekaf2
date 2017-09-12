@@ -272,15 +272,15 @@ TEST_CASE("KString") {
 		CHECK( str.find('h') == 17 );
 		CHECK( str.find("h") == 17 );
 		CHECK( str.find(" h") == 16 );
-		CHECK( str.find('-') == npos );
-		CHECK( str.find("-") == npos );
-		CHECK( str.find("!-") == npos );
+		CHECK( str.find('-') == KString::npos );
+		CHECK( str.find("-") == KString::npos );
+		CHECK( str.find("!-") == KString::npos );
 		CHECK( str.find('1', 1) == 1 );
 		CHECK( str.find("1", 1) == 1 );
 		CHECK( str.find("12", 1) == 1 );
-		CHECK( str.find('1', 2) == npos );
-		CHECK( str.find("1", 2) == npos );
-		CHECK( str.find("12", 2) == npos );
+		CHECK( str.find('1', 2) == KString::npos );
+		CHECK( str.find("1", 2) == KString::npos );
+		CHECK( str.find("12", 2) == KString::npos );
 	}
 
 	SECTION("rfind")
@@ -302,12 +302,12 @@ TEST_CASE("KString") {
 		CHECK( str.rfind(" 9", 12) == 8 );
 		CHECK( str.rfind(' ', 20) == 8 );
 		CHECK( str.rfind(" 9", 20) == 8 );
-		CHECK( str.rfind('-') == npos );
-		CHECK( str.rfind("-") == npos );
-		CHECK( str.rfind("!-") == npos );
-		CHECK( str.rfind('f', 14) == npos );
-		CHECK( str.rfind("f", 14) == npos );
-		CHECK( str.rfind("ef", 13) == npos );
+		CHECK( str.rfind('-') == KString::npos );
+		CHECK( str.rfind("-") == KString::npos );
+		CHECK( str.rfind("!-") == KString::npos );
+		CHECK( str.rfind('f', 14) == KString::npos );
+		CHECK( str.rfind("f", 14) == KString::npos );
+		CHECK( str.rfind("ef", 13) == KString::npos );
 		CHECK( str.rfind('f', 15) == 15 );
 		CHECK( str.rfind("f", 15) == 15 );
 		CHECK( str.rfind("ef", 15) == 14 );
@@ -327,9 +327,9 @@ TEST_CASE("KString") {
 		CHECK( str.find_first_of("h-") == 17 );
 		CHECK( str.find_first_of("ab f") == 7 );
 		CHECK( str.find_first_of("abf ") == 7 );
-		CHECK( str.find_first_of('-') == npos );
-		CHECK( str.find_first_of("-") == npos );
-		CHECK( str.find_first_of("!-") == npos );
+		CHECK( str.find_first_of('-') == KString::npos );
+		CHECK( str.find_first_of("-") == KString::npos );
+		CHECK( str.find_first_of("!-") == KString::npos );
 	}
 
 	SECTION("find_last_of")
@@ -346,9 +346,9 @@ TEST_CASE("KString") {
 		CHECK( str.find_last_of("fe") == 15 );
 		CHECK( str.find_last_of("12 3") == 8 );
 		CHECK( str.find_last_of("123 ") == 8 );
-		CHECK( str.find_last_of('-') == npos );
-		CHECK( str.find_last_of("-") == npos );
-		CHECK( str.find_last_of("!-") == npos );
+		CHECK( str.find_last_of('-') == KString::npos );
+		CHECK( str.find_last_of("-") == KString::npos );
+		CHECK( str.find_last_of("!-") == KString::npos );
 	}
 
 	SECTION("find_first_not_of")
@@ -361,7 +361,7 @@ TEST_CASE("KString") {
 		CHECK( str.find_first_not_of("0") == 1 );
 		CHECK( str.find_first_not_of("02") == 1 );
 		CHECK( str.find_first_not_of("0123456789abcdef ") == 17 );
-		CHECK( str.find_first_not_of("0123456789abcdefgh ") == npos );
+		CHECK( str.find_first_not_of("0123456789abcdefgh ") == KString::npos );
 	}
 
 	SECTION("erase by index")

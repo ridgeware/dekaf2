@@ -48,7 +48,6 @@
 #include <functional>
 #include <boost/functional/hash.hpp>
 #include "bits/kcppcompat.h"
-#include "bits/kfind.h"
 
 
 #if defined(DEKAF2_HAS_CPP_17) and !defined(DEKAF2_USE_RE2_STRINGPIECE_AS_KSTRINGVIEW)
@@ -185,19 +184,30 @@ public:
 	//-----------------------------------------------------------------------------
 	// the find(self_type, size_type) implementation of StringPiece is slow
 	// - therefore we implement our own
-	size_type find(self_type str, size_type pos = 0) const noexcept
+	size_type find(self_type str, size_type pos = 0) const noexcept;
 	//-----------------------------------------------------------------------------
-	{
-		return kFind(*this, str.data(), pos, str.size());
-	}
 
 	//-----------------------------------------------------------------------------
 	// the find(value_type, size_type) implementation of StringPiece is slow
 	// - therefore we implement our own
-	size_type find(value_type ch, size_type pos = 0) const noexcept
+	inline size_type find(value_type ch, size_type pos = 0) const noexcept
 	//-----------------------------------------------------------------------------
 	{
-		return kFind(data(), size(), ch, pos);
+		// we keep this inlined as then the compiler can evaluate const expressions
+		// (memchr() is actually a compiler-builtin with gcc)
+		if (DEKAF2_UNLIKELY(pos > size()))
+		{
+			return npos;
+		}
+		auto ret = static_cast<const char*>(std::memchr(data()+pos, ch, size()-pos));
+		if (DEKAF2_UNLIKELY(ret == nullptr))
+		{
+			return npos;
+		}
+		else
+		{
+			return static_cast<size_type>(ret - data());
+		}
 	}
 
 	//-----------------------------------------------------------------------------
@@ -206,7 +216,40 @@ public:
 	size_type rfind(value_type ch, size_type pos = npos) const noexcept
 	//-----------------------------------------------------------------------------
 	{
-		return kRFind(data(), size(), ch, pos);
+	#if (DEKAF2_GCC_VERSION > 40600)
+		// we keep this inlined as then the compiler can evaluate const expressions
+		// (memrchr() is actually a compiler-builtin with gcc)
+		if (DEKAF2_UNLIKELY(pos >= size()))
+		{
+			pos = size();
+		}
+		else
+		{
+			++pos;
+		}
+		auto ret = static_cast<const char*>(::memrchr(data(), ch, pos));
+		if (DEKAF2_UNLIKELY(ret == nullptr))
+		{
+			return npos;
+		}
+		else
+		{
+			return static_cast<size_type>(ret - data());
+		}
+	#else
+		// windows has no memrchr()
+		pos = std::min(pos, size()-1);
+		const value_type* base  = data();
+		const value_type* found = base + pos;
+		for (; found >= base; --found)
+		{
+			if (*found == ch)
+			{
+				return static_cast<size_type>(found - base);
+			}
+		}
+		return npos;
+	#endif
 	}
 
 	//-----------------------------------------------------------------------------
@@ -217,8 +260,18 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	size_type find_first_of(self_type sv, size_type pos = 0) const noexcept;
+	size_type find_first_of(self_type sv, size_type pos = 0) const noexcept
 	//-----------------------------------------------------------------------------
+	{
+		if (DEKAF2_UNLIKELY(sv.size() == 1))
+		{
+			return find(sv[0], pos);
+		}
+		else
+		{
+			return int_find_first_of(sv, pos, false);
+		}
+	}
 
 	//-----------------------------------------------------------------------------
 	inline size_type find_first_of(const value_type* s, size_type pos) const noexcept
@@ -242,8 +295,18 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	size_type find_last_of(self_type sv, size_type pos = npos) const noexcept;
+	size_type find_last_of(self_type sv, size_type pos = npos) const noexcept
 	//-----------------------------------------------------------------------------
+	{
+		if (DEKAF2_UNLIKELY(sv.size() == 1))
+		{
+			return rfind(sv[0], pos);
+		}
+		else
+		{
+			return int_find_last_of(sv, pos, false);
+		}
+	}
 
 	//-----------------------------------------------------------------------------
 	inline size_type find_last_of(const value_type* s, size_type pos) const noexcept
@@ -267,8 +330,18 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	size_type find_first_not_of(self_type sv, size_type pos = 0) const noexcept;
+	size_type find_first_not_of(self_type sv, size_type pos = 0) const noexcept
 	//-----------------------------------------------------------------------------
+	{
+		if (DEKAF2_UNLIKELY(sv.size() == 1))
+		{
+			return find_first_not_of(sv[0], pos);
+		}
+		else
+		{
+			return int_find_first_of(sv, pos, true); // no typo!
+		}
+	}
 
 	//-----------------------------------------------------------------------------
 	inline size_type find_first_not_of(const value_type* s, size_type pos) const noexcept
@@ -289,8 +362,18 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	size_type find_last_not_of(self_type sv, size_type pos = npos) const noexcept;
+	size_type find_last_not_of(self_type sv, size_type pos = npos) const noexcept
 	//-----------------------------------------------------------------------------
+	{
+		if (DEKAF2_UNLIKELY(sv.size() == 1))
+		{
+			return find_last_not_of(sv[0], pos);
+		}
+		else
+		{
+			return int_find_last_of(sv, pos, true);
+		}
+	}
 
 	//-----------------------------------------------------------------------------
 	inline size_type find_last_not_of(const value_type* s, size_type pos) const noexcept
@@ -356,6 +439,19 @@ public:
 	}
 
 //----------
+protected:
+//----------
+
+	//-----------------------------------------------------------------------------
+	size_type int_find_first_of(self_type sv, size_type pos, bool bNot) const noexcept;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	size_type int_find_last_of(self_type sv, size_type pos, bool bNot) const noexcept;
+	//-----------------------------------------------------------------------------
+
+
+//----------
 private:
 //----------
 
@@ -416,6 +512,24 @@ inline bool operator>=(KStringView left, KStringView right)
 //-----------------------------------------------------------------------------
 {
 	return !(left < right);
+}
+
+//------------------------------------------------------------------------------
+inline std::size_t kFind(KStringView str,
+                         KStringView search,
+                         std::size_t pos = 0)
+//------------------------------------------------------------------------------
+{
+	return  str.find(search, pos);
+}
+
+//------------------------------------------------------------------------------
+inline std::size_t kFind(KStringView str,
+                         KStringView::value_type ch,
+                         std::size_t pos = 0)
+//------------------------------------------------------------------------------
+{
+	return  str.find(ch, pos);
 }
 
 } // end of namespace dekaf2

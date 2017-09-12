@@ -9,11 +9,20 @@ TEST_CASE("KOStringStream")
 
 	SECTION("KOStringStream test 1")
 	{
-		//OKStringStream kstringWriter;
+		KString str("test.");
+		OKStringStream kstringWriter(str);
 
 		//KString sRead;
+		KString sMy("my");
+		KString sFormat("format_string");
 
-		//kstringWriter.
+		kstringWriter.addFormatted("This is {} {}", sMy, sFormat);
+
+		KString& retVal = kstringWriter.GetConstructedKString();
+
+		KString testVal("test.This is my format_string");
+
+		CHECK(testVal.compare(retVal) == 0);
 
 		/*
 		CHECK( File.eof() == false);

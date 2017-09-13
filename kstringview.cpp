@@ -8,6 +8,7 @@ namespace dekaf2
 
 #ifndef DEKAF2_USE_STD_STRING_VIEW_AS_KSTRINGVIEW
 
+#if defined(DEKAF2_USE_OPTIMIZED_STRING_FIND)
 //------------------------------------------------------------------------------
 KStringView::size_type KStringView::find(self_type search,
                               std::size_t pos) const noexcept
@@ -40,7 +41,9 @@ KStringView::size_type KStringView::find(self_type search,
 		return static_cast<KStringView::size_type>(found - data());
 	}
 }
+#endif
 
+#if defined(DEKAF2_USE_OPTIMIZED_STRING_FIND) || defined(DEKAF2_USE_RE2_STRINGPIECE_AS_KSTRINGVIEW)
 //-----------------------------------------------------------------------------
 KStringView::size_type KStringView::int_find_first_of(self_type sv, size_type pos, bool bNot) const noexcept
 //-----------------------------------------------------------------------------
@@ -50,9 +53,8 @@ KStringView::size_type KStringView::int_find_first_of(self_type sv, size_type po
 		return npos;
 	}
 
-#ifdef DEKAF2_USE_OPTIMIZED_STRING_FIND
-	bool table[256];
-	std::memset(table, 0, 256);
+ 	bool table[256];
+	std::memset(table, false, 256);
 
 	for (auto c : sv)
 	{
@@ -63,21 +65,7 @@ KStringView::size_type KStringView::int_find_first_of(self_type sv, size_type po
 	{
 		return table[static_cast<unsigned char>(c)] != bNot;
 	});
-#else
-	iterator it;
-	if (!bNot)
-	{
-		it = std::find_first_of(begin() + pos, end(), sv.begin(), sv.end());
-	}
-	else
-	{
-	it = std::find_if_not(begin() + pos, end(),
-	                      [&sv](KStringView::value_type ch)
-	{
-	     return memchr(sv.data(), ch, sv.size()) != nullptr;
-	});
-	}
-#endif
+
 	if (it == end())
 	{
 		return KStringView::npos;
@@ -100,9 +88,8 @@ KStringView::size_type KStringView::int_find_last_of(self_type sv, size_type pos
 	{
 		pos = (size() - 1) - std::min(pos, size()-1);
 
-#ifdef DEKAF2_USE_OPTIMIZED_STRING_FIND
 		bool table[256];
-		std::memset(table, 0, 256);
+		std::memset(table, false, 256);
 
 		for (auto c : sv)
 		{
@@ -114,22 +101,7 @@ KStringView::size_type KStringView::int_find_last_of(self_type sv, size_type pos
 		{
 			return table[static_cast<unsigned char>(c)] == !bNot;
 		});
-#else
-		reverse_iterator it;
-		if (!bNot)
-		{
-			it = std::find_first_of(rbegin() + static_cast<difference_type>(pos), rend(),
-		                            sv.begin(), sv.end());
-		}
-		else
-		{
-			it = std::find_if_not(rbegin() + static_cast<difference_type>(pos), rend(),
-			                      [&sv](KStringView::value_type ch)
-			{
-			     return memchr(sv.data(), ch, sv.size()) != nullptr;
-			});
-		}
-#endif
+
 		if (it == rend())
 		{
 			return KStringView::npos;
@@ -150,9 +122,9 @@ KStringView::size_type KStringView::find_first_not_of(value_type ch_p, size_type
 		pos = size();
 	}
 
-	auto it = std::find_if_not(begin() + pos, end(),
+	auto it = std::find_if(begin() + pos, end(),
 	                           [ch_p](KStringView::value_type ch)
-	                           { return ch_p == ch; });
+	                           { return ch_p != ch; });
 	if (it == end())
 	{
 		return KStringView::npos;
@@ -175,9 +147,9 @@ KStringView::size_type KStringView::find_last_not_of(value_type ch_p, size_type 
 	{
 		pos = size() - pos;
 	}
-	auto it = std::find_if_not(rbegin() + pos, rend(),
+	auto it = std::find_if(rbegin() + pos, rend(),
 	                           [ch_p](KStringView::value_type ch)
-	                           { return ch_p == ch; });
+	                           { return ch_p != ch; });
 	if (it == rend())
 	{
 		return KStringView::npos;
@@ -187,6 +159,7 @@ KStringView::size_type KStringView::find_last_not_of(value_type ch_p, size_type 
 		return static_cast<size_type>(it - rbegin());
 	}
 }
+#endif // of if defined(DEKAF2_USE_OPTIMIZED_STRING_FIND) || defined(DEKAF2_USE_RE2_STRINGPIECE_AS_KSTRINGVIEW)
 
 //-----------------------------------------------------------------------------
 // non-standard: emulate erase if range is at begin or end

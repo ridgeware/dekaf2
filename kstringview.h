@@ -181,12 +181,15 @@ public:
 		return std::string().max_size();
 	}
 
+#if defined(DEKAF2_USE_OPTIMIZED_STRING_FIND)
 	//-----------------------------------------------------------------------------
 	// the find(self_type, size_type) implementation of StringPiece is slow
 	// - therefore we implement our own
 	size_type find(self_type str, size_type pos = 0) const noexcept;
 	//-----------------------------------------------------------------------------
+#endif
 
+#if defined(DEKAF2_USE_OPTIMIZED_STRING_FIND)
 	//-----------------------------------------------------------------------------
 	// the find(value_type, size_type) implementation of StringPiece is slow
 	// - therefore we implement our own
@@ -209,7 +212,9 @@ public:
 			return static_cast<size_type>(ret - data());
 		}
 	}
+#endif
 
+#if defined(DEKAF2_USE_OPTIMIZED_STRING_FIND) || defined(DEKAF2_USE_RE2_STRINGPIECE_AS_KSTRINGVIEW)
 	//-----------------------------------------------------------------------------
 	// the rfind(value_type, size_type) implementation of StringPiece is erroneous
 	// - if given npos for pos it does not search - therefore we implement our own
@@ -251,6 +256,7 @@ public:
 		return npos;
 	#endif
 	}
+#endif
 
 	//-----------------------------------------------------------------------------
 	inline size_type rfind(self_type sv, size_type pos = npos) const noexcept
@@ -273,6 +279,7 @@ public:
 		}
 	}
 
+#if defined(DEKAF2_USE_OPTIMIZED_STRING_FIND) || defined(DEKAF2_USE_RE2_STRINGPIECE_AS_KSTRINGVIEW)
 	//-----------------------------------------------------------------------------
 	inline size_type find_first_of(const value_type* s, size_type pos) const noexcept
 	//-----------------------------------------------------------------------------
@@ -392,6 +399,7 @@ public:
 	//-----------------------------------------------------------------------------
 	size_type find_last_not_of(value_type ch, size_type pos = npos) const noexcept;
 	//-----------------------------------------------------------------------------
+#endif
 
 	//-----------------------------------------------------------------------------
 	/// non-standard: emulate erase if range is at begin or end
@@ -442,6 +450,7 @@ public:
 protected:
 //----------
 
+#if defined(DEKAF2_USE_OPTIMIZED_STRING_FIND) || defined(DEKAF2_USE_RE2_STRINGPIECE_AS_KSTRINGVIEW)
 	//-----------------------------------------------------------------------------
 	size_type int_find_first_of(self_type sv, size_type pos, bool bNot) const noexcept;
 	//-----------------------------------------------------------------------------
@@ -449,7 +458,7 @@ protected:
 	//-----------------------------------------------------------------------------
 	size_type int_find_last_of(self_type sv, size_type pos, bool bNot) const noexcept;
 	//-----------------------------------------------------------------------------
-
+#endif
 
 //----------
 private:

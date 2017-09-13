@@ -332,6 +332,37 @@ TEST_CASE("KString") {
 		CHECK( str.find_first_of("!-") == KString::npos );
 	}
 
+	SECTION("find_first_of with 0")
+	{
+		KString str("0123456 9abcdef h");
+		str.insert(7, 1, '\0');
+		CHECK( str.find_first_of(' ') == 8 );
+		CHECK( str.find_first_of(" ") == 8 );
+		CHECK( str.find_first_of(" d") == 8 );
+		CHECK( str.find_first_of('0') == 0 );
+		CHECK( str.find_first_of("0") == 0 );
+		CHECK( str.find_first_of("02") == 0 );
+		CHECK( str.find_first_of('h') == 17 );
+		CHECK( str.find_first_of("h") == 17 );
+		CHECK( str.find_first_of("h-", 3) == 17 );
+		CHECK( str.find_first_of("ab f") == 8 );
+		CHECK( str.find_first_of("abf ") == 8 );
+		KString set("abf");
+		set.insert(1, 1, '\0');
+		set.erase(0, 1);
+		set.insert(1, 1, 'a');
+		CHECK( str.find_first_of(set) == 7 );
+		set = "abf";
+		set.insert(3, 1, '\0');
+		CHECK( str.find_first_of(set) == 7 );
+		set = "ef1";
+		set.insert(2, 1, '\0');
+		CHECK( str.find_first_of(set) == 1);
+		CHECK( str.find_first_of('-') == KString::npos );
+		CHECK( str.find_first_of("-") == KString::npos );
+		CHECK( str.find_first_of("!-") == KString::npos );
+	}
+
 	SECTION("find_last_of")
 	{
 		KString str("0123456  9abcdef");
@@ -344,6 +375,8 @@ TEST_CASE("KString") {
 		CHECK( str.find_last_of('f') == 15 );
 		CHECK( str.find_last_of("f") == 15 );
 		CHECK( str.find_last_of("fe") == 15 );
+		CHECK( str.find_last_of("fe", 6) == KString::npos );
+		CHECK( str.find_last_of("123", 9) == 3 );
 		CHECK( str.find_last_of("12 3") == 8 );
 		CHECK( str.find_last_of("123 ") == 8 );
 		CHECK( str.find_last_of('-') == KString::npos );
@@ -353,15 +386,31 @@ TEST_CASE("KString") {
 
 	SECTION("find_first_not_of")
 	{
+		KString str("0123456 9abcdef h");
+		CHECK( str.find_first_not_of(' ') == 0 );
+		CHECK( str.find_first_not_of(" ") == 0 );
+		CHECK( str.find_first_not_of(" d") == 0 );
+		CHECK( str.find_first_not_of('0') == 1 );
+		CHECK( str.find_first_not_of("0") == 1 );
+		CHECK( str.find_first_not_of("02", 2) == 3 );
+		CHECK( str.find_first_not_of("0123456789abcdef ") == 16 );
+		CHECK( str.find_first_not_of("0123456789abcdefgh ") == KString::npos );
+	}
+
+	SECTION("find_first_not_of with 0")
+	{
 		KString str("0123456  9abcdef h");
+		str.insert(7, 1, '\0');
 		CHECK( str.find_first_not_of(' ') == 0 );
 		CHECK( str.find_first_not_of(" ") == 0 );
 		CHECK( str.find_first_not_of(" d") == 0 );
 		CHECK( str.find_first_not_of('0') == 1 );
 		CHECK( str.find_first_not_of("0") == 1 );
 		CHECK( str.find_first_not_of("02") == 1 );
-		CHECK( str.find_first_not_of("0123456789abcdef ") == 17 );
-		CHECK( str.find_first_not_of("0123456789abcdefgh ") == KString::npos );
+		CHECK( str.find_first_not_of("0123456789abcdef ") == 7 );
+		KString set = "0123456789abcdefgh ";
+		set.insert(3, 1, '\0');
+		CHECK( str.find_first_not_of(set) == KString::npos );
 	}
 
 	SECTION("erase by index")

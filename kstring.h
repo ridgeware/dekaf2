@@ -292,7 +292,7 @@ public:
 #endif
 
 #if (DEKAF2_GCC_VERSION >= 40600) && (DEKAF2_USE_OPTIMIZED_STRING_FIND)
-	size_type find_first_not_of(value_type c, size_type pos = 0) const { find_first_not_of(KStringView(&c, 1), pos); }
+	size_type find_first_not_of(value_type c, size_type pos = 0) const { return find_first_not_of(KStringView(&c, 1), pos); }
 	size_type find_first_not_of(KStringView sv, size_type pos = 0) const;
 	size_type find_first_not_of(const value_type* s, size_type pos, size_type n) const { return find_first_not_of(KStringView(s, n), pos); }
 #else

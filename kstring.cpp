@@ -553,7 +553,7 @@ KString::size_type KString::find_first_of(KStringView sv, size_type pos) const
 		iHasZero = search.find('\0', iHasZero);
 		if (iHasZero != npos)
 		{
-			search.erase(iHasZero);
+			search.erase(iHasZero, 1);
 			bHasZero = true;
 		}
 		else
@@ -591,8 +591,6 @@ KString::size_type KString::find_first_not_of(KStringView sv, size_type pos) con
 		return npos;
 	}
 
-	// there is no faster method for the single character search
-
 	// This is not as costly as it looks due to SSO. And there is no
 	// way around it if we want to use strspn() and its enormous performance.
 	KString search(sv);
@@ -605,7 +603,7 @@ KString::size_type KString::find_first_not_of(KStringView sv, size_type pos) con
 		iHasZero = search.find('\0', iHasZero);
 		if (iHasZero != npos)
 		{
-			search.erase(iHasZero);
+			search.erase(iHasZero, 1);
 			bHasZero = true;
 		}
 		else

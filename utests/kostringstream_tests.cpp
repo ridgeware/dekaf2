@@ -12,6 +12,34 @@ TEST_CASE("KOStringStream")
 		KString str("test.");
 		OKStringStream kstringWriter(str);
 
+		KString& retVal = kstringWriter.GetConstructedKString();
+
+		CHECK(str.compare(retVal) == 0);
+
+	}
+
+	SECTION("KOStringStream test 2")
+	{
+		KString str("test. ");
+		OKStringStream kstringWriter(str);
+
+		KString addStr("This is my added string.");
+		kstringWriter.addMore(addStr);
+
+		KString& retVal = kstringWriter.GetConstructedKString();
+
+		KString testVal("test. This is my added string.");
+
+		CHECK(testVal == retVal);
+		CHECK(testVal.compare(retVal) == 0);
+	}
+
+#if 0
+	SECTION("KOStringStream test 3")
+	{
+		KString str("test.");
+		OKStringStream kstringWriter(str);
+
 		//KString sRead;
 		KString sMy("my");
 		KString sFormat("format_string");
@@ -33,5 +61,5 @@ TEST_CASE("KOStringStream")
 		CHECK( File.is_open() == false );
 		*/
 	}
-
+#endif
 }

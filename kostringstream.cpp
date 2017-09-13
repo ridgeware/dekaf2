@@ -53,7 +53,6 @@ bool KOStringStream::addFormatted(Args&&... args)
 //-----------------------------------------------------------------------------
 {
 	return m_sBuf.get().append(kfFormat(this, std::forward<Args>(args)...));
-
 }
 
 //-----------------------------------------------------------------------------

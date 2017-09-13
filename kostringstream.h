@@ -47,7 +47,7 @@
 
 //#include <cinttypes>
 //#include <streambuf>
-//#include <ostream>
+#include <ostream>
 //#include <unistd.h>
 #include <sys/types.h>
 //#include <sys/stat.h>
@@ -56,6 +56,8 @@
 
 #include "kwriter.h"
 
+
+#include <iostream>
 
 namespace dekaf2
 {
@@ -135,8 +137,12 @@ public:
 	//-----------------------------------------------------------------------------
 	/// the main purpose of this class: construct a formatted KString
 	template<class... Args>
-	bool addFormatted(Args&&... args);
+	bool addFormatted(Args&&... args)
 	//-----------------------------------------------------------------------------
+	{
+		m_sBuf.get().append(kFormat(std::forward<Args>(args)...));
+		return true;
+	}
 
 	//-----------------------------------------------------------------------------
 	/// test if a there is data stored in constructed KString

@@ -2,12 +2,14 @@
 
 #include <dekaf2/kostringstream.h>
 
+#include <dekaf2/kformat.h>
+
 using namespace dekaf2;
 
 TEST_CASE("KOStringStream")
 {
 
-	SECTION("KOStringStream test 1")
+	SECTION("KOStringStream test 1: construction")
 	{
 		KString str("test.");
 		OKStringStream kstringWriter(str);
@@ -18,7 +20,7 @@ TEST_CASE("KOStringStream")
 
 	}
 
-	SECTION("KOStringStream test 2")
+	SECTION("KOStringStream test 2: add string")
 	{
 		KString str("test. ");
 		OKStringStream kstringWriter(str);
@@ -34,32 +36,43 @@ TEST_CASE("KOStringStream")
 		CHECK(testVal.compare(retVal) == 0);
 	}
 
-#if 0
-	SECTION("KOStringStream test 3")
+	SECTION("KOStringStream test 3: add format string")
 	{
-		KString str("test.");
+		KString str("test. ");
 		OKStringStream kstringWriter(str);
 
-		//KString sRead;
 		KString sMy("my");
 		KString sFormat("format_string");
 
-		kstringWriter.addFormatted("This is {} {}", sMy, sFormat);
+		KString formStr("This is {} {}");
+		kstringWriter.addFormatted(formStr, sMy, sFormat);
+		kFormat(formStr, sMy, sFormat);
 
 		KString& retVal = kstringWriter.GetConstructedKString();
 
-		KString testVal("test.This is my format_string");
+		KString testVal("test. This is my format_string");
 
 		CHECK(testVal.compare(retVal) == 0);
-
-		/*
-		CHECK( File.eof() == false);
-		CHECK( File.ReadRemaining(sRead) == true );
-		CHECK( sRead == sOut );
-		CHECK( File.eof() == true);
-		File.close();
-		CHECK( File.is_open() == false );
-		*/
+		CHECK(testVal == retVal);
 	}
-#endif
+
+	SECTION("KOStringStream test 4: add out of order format string")
+	{
+		KString str("test. ");
+		OKStringStream kstringWriter(str);
+
+		KString sMy("my");
+		KString sFormat("format_string");
+
+		KString formStr("This is {1} {0}");
+		kstringWriter.addFormatted(formStr, sFormat, sMy);
+		kFormat(formStr, sMy, sFormat);
+
+		KString& retVal = kstringWriter.GetConstructedKString();
+
+		KString testVal("test. This is my format_string");
+
+		CHECK(testVal.compare(retVal) == 0);
+		CHECK(testVal == retVal);
+	}
 }

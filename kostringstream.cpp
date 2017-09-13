@@ -46,14 +46,18 @@ bool KOStringStream::addMore(KString& str)
 	m_sBuf.get().append(str);
 }
 
-//-----------------------------------------------------------------------------
-/// Adds a formatted string to the internal buffer
-template<class... Args>
-bool KOStringStream::addFormatted(Args&&... args)
-//-----------------------------------------------------------------------------
-{
-	return m_sBuf.get().append(kfFormat(this, std::forward<Args>(args)...));
-}
+////-----------------------------------------------------------------------------
+///// Adds a formatted string to the internal buffer
+//template<class... Args>
+//bool KOStringStream::addFormatted(KString& formatStr, Args&&... args)
+////-----------------------------------------------------------------------------
+//{
+//	//return m_sBuf.get().append(kfFormat(this, std::forward<Args>(args)...));
+//	return m_sBuf.get().append(kfFormat(this, formatStr, std::forward<Args>(args)...));
+
+
+//	//return m_sBuf.get().append(kfFormat(this, formatStr, (args)...));
+//}
 
 //-----------------------------------------------------------------------------
 /// this is the custom KString writer

@@ -21,6 +21,23 @@ set(CMAKE_CXX_STANDARD 17)
 # we do not force C++17 if not available
 # set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# configure cpu architecture dependant optimization
+if(CMAKE_COMPILER_IS_GNUCC AND "${CMAKE_SYSTEM_PROCESSOR}" STREQUAL "x86_64")
+
+	if (CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 6.0)
+		set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mavx2 -mfpmath=sse -maes")
+		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mavx2 -mfpmath=sse -maes")
+	elseif (CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 4.5)
+		set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -msse4.2")
+		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse4.2")
+	else ()
+		set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -msse3")
+		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse3")
+	endif()
+
+endif()
+message(STATUS "dekaf2 C++ compile flags for Release build: ${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_RELEASE}")
+
 set(CMAKE_THREAD_PREFER_PTHREAD TRUE)
 set(THREADS_PREFER_PTHREAD_FLAG TRUE)
 find_package(Threads REQUIRED)

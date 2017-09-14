@@ -50,6 +50,8 @@ portability/PThread.cpp
 portability/PThread.h
 portability/Builtins.cpp
 portability/Builtins.h
+portability/Constexpr.h
+portability/String.h
 CPortability.h
 CppAttributes.h
 Bits.h
@@ -58,6 +60,10 @@ detail/Futex.h
 detail/Futex.cpp
 detail/MallocImpl.cpp
 detail/MallocImpl.h
+detail/RangeCommon.h
+detail/RangeCommon.cpp
+detail/RangeSse42.h
+detail/RangeSse42.cpp
 FBString.h
 Malloc.h
 FormatTraits.h
@@ -76,6 +82,16 @@ Assume.h
 Assume.cpp
 Memory.h
 Traits.h
+SparseByteSet.h
+Range.h
+CpuId.h
+"
+
+sAdditionalPackages="
+gflags-devel
+glog-devel
+double-conversion-devel
+libevent-devel
 "
 
 setx=Synopsis

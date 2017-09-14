@@ -50,7 +50,9 @@
 #include "bits/kcppcompat.h"
 
 
-#if defined(DEKAF2_HAS_CPP_17) and !defined(DEKAF2_USE_RE2_STRINGPIECE_AS_KSTRINGVIEW)
+#if defined(DEKAF2_HAS_CPP_17) \
+	and !defined(DEKAF2_USE_RE2_STRINGPIECE_AS_KSTRINGVIEW) \
+	and !defined(DEKAF2_USE_FOLLY_STRINGPIECE_AS_KSTRINGVIEW)
  #define DEKAF2_USE_STD_STRING_VIEW_AS_KSTRINGVIEW
 #endif
 
@@ -63,17 +65,23 @@
 
  #include <experimental/string_view>
 
-#else
+#elif defined(DEKAF2_USE_RE2_STRINGPIECE_AS_KSTRINGVIEW)
 
  // prepare to use re2's StringPiece as string_view
 
  #include <re2/stringpiece.h>
  #include "khash.h"
 
+#elif defined(DEKAF2_USE_FOLLY_STRINGPIECE_AS_KSTRINGVIEW)
+
+ // prepare to use folly's StringPiece as string_view
+
+ #include <folly/Range.h>
+ #include "khash.h"
+
 #endif
 
-namespace dekaf2
-{
+namespace dekaf2 {
 
 #ifdef DEKAF2_USE_STD_STRING_VIEW_AS_KSTRINGVIEW
 
@@ -81,15 +89,433 @@ using KStringView = std::experimental::string_view;
 
 #else
 
+namespace detail { namespace kstringview {
+
+#if defined(DEKAF2_USE_FOLLY_STRINGPIECE_AS_KSTRINGVIEW)
+ using KStringViewBase = folly::StringPiece;
+#elif defined(DEKAF2_USE_RE2_STRINGPIECE_AS_KSTRINGVIEW)
+ using KStringViewBase = re2::StringPiece;
+#else
+ #error "library misconfigured. No valid base for KStringView"
+#endif
+
+} } // of namespace detail::kstringview
+
+#endif
+
+#ifdef DEKAF2_USE_FOLLY_STRINGPIECE_AS_KSTRINGVIEW
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// an extended StringPiece with the methods of
 /// C++17's std::string_view
-class KStringView : public re2::StringPiece
+class KStringView : public detail::kstringview::KStringViewBase
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
 	using self_type = KStringView;
-	using base_type = re2::StringPiece;
+	using base_type = detail::kstringview::KStringViewBase;
+
+//----------
+public:
+//----------
+
+	using reverse_iterator = std::reverse_iterator<iterator>;
+	using const_reverse_iterator = std::reverse_iterator<const_iterator>;
+
+	//-----------------------------------------------------------------------------
+	KStringView()
+	//-----------------------------------------------------------------------------
+	{
+	}
+
+	//-----------------------------------------------------------------------------
+	KStringView(const std::string& str)
+	//-----------------------------------------------------------------------------
+		: base_type(str)
+	{
+	}
+
+	//-----------------------------------------------------------------------------
+	KStringView(const char* str)
+	//-----------------------------------------------------------------------------
+		: base_type(str)
+	{
+	}
+
+	//-----------------------------------------------------------------------------
+	KStringView(const char* str, size_type len)
+	//-----------------------------------------------------------------------------
+		 : base_type(str, len)
+	{
+	}
+
+	//-----------------------------------------------------------------------------
+	inline const_iterator cbegin() const
+	//-----------------------------------------------------------------------------
+	{
+		return cbegin();
+	}
+
+	//-----------------------------------------------------------------------------
+	inline const_iterator cend() const
+	//-----------------------------------------------------------------------------
+	{
+		return cend();
+	}
+
+	//-----------------------------------------------------------------------------
+	inline reverse_iterator rbegin() const
+	//-----------------------------------------------------------------------------
+	{
+		return reverse_iterator(end());
+	}
+
+	//-----------------------------------------------------------------------------
+	inline reverse_iterator rend() const
+	//-----------------------------------------------------------------------------
+	{
+		return reverse_iterator(begin());
+	}
+
+	//-----------------------------------------------------------------------------
+	inline const_reverse_iterator crbegin() const
+	//-----------------------------------------------------------------------------
+	{
+		return reverse_iterator(cend());
+	}
+
+	//-----------------------------------------------------------------------------
+	inline const_reverse_iterator crend() const
+	//-----------------------------------------------------------------------------
+	{
+		return reverse_iterator(cbegin());
+	}
+
+	//-----------------------------------------------------------------------------
+	inline const value_type& at(size_type index) const
+	//-----------------------------------------------------------------------------
+	{
+		if (index < size()) return base_type::at(index);
+		else return s_0ch;
+	}
+
+	//-----------------------------------------------------------------------------
+	inline const value_type& front() const
+	//-----------------------------------------------------------------------------
+	{
+		if (empty()) return s_0ch;
+		else return base_type::front();
+	}
+
+	//-----------------------------------------------------------------------------
+	inline const value_type& back() const
+	//-----------------------------------------------------------------------------
+	{
+		if (empty()) return s_0ch;
+		else return base_type::back();
+	}
+
+	//-----------------------------------------------------------------------------
+	static size_type max_size() noexcept
+	//-----------------------------------------------------------------------------
+	{
+		return std::string().max_size();
+	}
+
+#if defined(DEKAF2_USE_OPTIMIZED_STRING_FIND)
+	//-----------------------------------------------------------------------------
+	// the find(self_type, size_type) implementation of StringPiece is slow
+	// - therefore we implement our own
+	size_type find(self_type str, size_type pos = 0) const noexcept;
+	//-----------------------------------------------------------------------------
+#endif
+
+#if defined(DEKAF2_USE_OPTIMIZED_STRING_FIND)
+	//-----------------------------------------------------------------------------
+	// the find(value_type, size_type) implementation of StringPiece is slow
+	// - therefore we implement our own
+	inline size_type find(value_type ch, size_type pos = 0) const noexcept
+	//-----------------------------------------------------------------------------
+	{
+		// we keep this inlined as then the compiler can evaluate const expressions
+		// (memchr() is actually a compiler-builtin with gcc)
+		if (DEKAF2_UNLIKELY(pos > size()))
+		{
+			return npos;
+		}
+		auto ret = static_cast<const char*>(std::memchr(data()+pos, ch, size()-pos));
+		if (DEKAF2_UNLIKELY(ret == nullptr))
+		{
+			return npos;
+		}
+		else
+		{
+			return static_cast<size_type>(ret - data());
+		}
+	}
+
+#endif
+
+	//-----------------------------------------------------------------------------
+	// the rfind(value_type, size_type) implementation of StringPiece does not support
+	// the pos param - therefore we implement our own wrapper
+	size_type rfind(value_type ch, size_type pos = npos) const noexcept
+	//-----------------------------------------------------------------------------
+	{
+#if !defined(DEKAF2_USE_OPTIMIZED_STRING_FIND) || !(DEKAF2_GCC_VERSION > 40600)
+		pos = std::min(pos, size());
+		base_type tmp(data(), pos);
+		return tmp.rfind(ch);
+#else
+		// we keep this inlined as then the compiler can evaluate const expressions
+		// (memrchr() is actually a compiler-builtin with gcc)
+		if (DEKAF2_UNLIKELY(pos >= size()))
+		{
+			pos = size();
+		}
+		else
+		{
+			++pos;
+		}
+		auto ret = static_cast<const char*>(::memrchr(data(), ch, pos));
+		if (DEKAF2_UNLIKELY(ret == nullptr))
+		{
+			return npos;
+		}
+		else
+		{
+			return static_cast<size_type>(ret - data());
+		}
+#endif
+	}
+
+	//-----------------------------------------------------------------------------
+	inline size_type rfind(self_type sv, size_type pos = npos) const noexcept
+	//-----------------------------------------------------------------------------
+	{
+		// not supported by folly::range
+		// TODO implement workaround
+		return npos;
+	}
+
+	//-----------------------------------------------------------------------------
+	size_type find_first_of(self_type sv, size_type pos = 0) const noexcept
+	//-----------------------------------------------------------------------------
+	{
+#if !defined(DEKAF2_USE_OPTIMIZED_STRING_FINDxx)
+		// this one is actually faster than all other find_first_of's
+		return base_type::find_first_of(sv.data(), pos, sv.size());
+#else
+		if (DEKAF2_UNLIKELY(sv.size() == 1))
+		{
+			return find(sv[0], pos);
+		}
+		else
+		{
+			return int_find_first_of(sv, pos, false);
+		}
+#endif
+	}
+
+	//-----------------------------------------------------------------------------
+	inline size_type find_first_of(const value_type* s, size_type pos) const noexcept
+	//-----------------------------------------------------------------------------
+	{
+		return base_type::find_first_of(KStringView(s), pos);
+	}
+
+	//-----------------------------------------------------------------------------
+	inline size_type find_first_of(const value_type* s, size_type pos, size_type count) const noexcept
+	//-----------------------------------------------------------------------------
+	{
+		return base_type::find_first_of(KStringView(s, count), pos);
+	}
+
+	//-----------------------------------------------------------------------------
+	inline size_type find_first_of(value_type ch, size_type pos = 0) const noexcept
+	//-----------------------------------------------------------------------------
+	{
+		return find(ch, pos);
+	}
+
+	//-----------------------------------------------------------------------------
+	size_type find_last_of(self_type sv, size_type pos = npos) const noexcept
+	//-----------------------------------------------------------------------------
+	{
+		if (DEKAF2_UNLIKELY(sv.size() == 1))
+		{
+			return rfind(sv[0], pos);
+		}
+		else
+		{
+			return int_find_last_of(sv, pos, false);
+		}
+	}
+
+	//-----------------------------------------------------------------------------
+	inline size_type find_last_of(const value_type* s, size_type pos) const noexcept
+	//-----------------------------------------------------------------------------
+	{
+		return find_last_of(KStringView(s), pos);
+	}
+
+	//-----------------------------------------------------------------------------
+	inline size_type find_last_of(const value_type* s, size_type pos, size_type count) const noexcept
+	//-----------------------------------------------------------------------------
+	{
+		return find_last_of(KStringView(s, count), pos);
+	}
+
+	//-----------------------------------------------------------------------------
+	inline size_type find_last_of(value_type ch, size_type pos = npos) const noexcept
+	//-----------------------------------------------------------------------------
+	{
+		return rfind(ch, pos);
+	}
+
+	//-----------------------------------------------------------------------------
+	size_type find_first_not_of(self_type sv, size_type pos = 0) const noexcept
+	//-----------------------------------------------------------------------------
+	{
+		if (DEKAF2_UNLIKELY(sv.size() == 1))
+		{
+			return find_first_not_of(sv[0], pos);
+		}
+		else
+		{
+			return int_find_first_of(sv, pos, true); // no typo!
+		}
+	}
+
+	//-----------------------------------------------------------------------------
+	inline size_type find_first_not_of(const value_type* s, size_type pos) const noexcept
+	//-----------------------------------------------------------------------------
+	{
+		return find_first_not_of(KStringView(s), pos);
+	}
+
+	//-----------------------------------------------------------------------------
+	inline size_type find_first_not_of(const value_type* s, size_type pos, size_type count) const noexcept
+	//-----------------------------------------------------------------------------
+	{
+		return find_first_not_of(KStringView(s, count), pos);
+	}
+
+	//-----------------------------------------------------------------------------
+	size_type find_first_not_of(value_type ch, size_type pos = 0) const noexcept;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	size_type find_last_not_of(self_type sv, size_type pos = npos) const noexcept
+	//-----------------------------------------------------------------------------
+	{
+		if (DEKAF2_UNLIKELY(sv.size() == 1))
+		{
+			return find_last_not_of(sv[0], pos);
+		}
+		else
+		{
+			return int_find_last_of(sv, pos, true);
+		}
+	}
+
+	//-----------------------------------------------------------------------------
+	inline size_type find_last_not_of(const value_type* s, size_type pos) const noexcept
+	//-----------------------------------------------------------------------------
+	{
+		return find_last_not_of(KStringView(s), pos);
+	}
+
+	//-----------------------------------------------------------------------------
+	inline size_type find_last_not_of(const value_type* s, size_type pos, size_type count) const noexcept
+	//-----------------------------------------------------------------------------
+	{
+		return find_last_not_of(KStringView(s, count), pos);
+	}
+
+	//-----------------------------------------------------------------------------
+	size_type find_last_not_of(value_type ch, size_type pos = npos) const noexcept;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// non-standard: emulate erase if range is at begin or end
+	self_type& erase(size_type pos = 0, size_type n = npos);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// non-standard: emulate erase if position is at begin or end
+	iterator erase(const_iterator position)
+	//-----------------------------------------------------------------------------
+	{
+		bool bToStart = position == begin();
+		erase(static_cast<size_type>(position - begin()), 1);
+		return bToStart ? begin() : end();
+	}
+
+	//-----------------------------------------------------------------------------
+	/// non-standard: emulate erase if range is at begin or end
+	iterator erase(const_iterator first, const_iterator last)
+	//-----------------------------------------------------------------------------
+	{
+		bool bToStart = first == begin();
+		erase(static_cast<size_type>(first - begin()), static_cast<size_type>(last - first));
+		return bToStart ? begin() : end();
+	}
+
+	//-----------------------------------------------------------------------------
+	void swap(KStringView& other) noexcept
+	//-----------------------------------------------------------------------------
+	{
+		base_type::swap(other);
+	}
+
+	//-----------------------------------------------------------------------------
+	void remove_suffix(size_type n)
+	//-----------------------------------------------------------------------------
+	{
+		n = std::min(size(), n);
+		erase(size() - n);
+	}
+
+	//-----------------------------------------------------------------------------
+	void remove_prefix(size_type n)
+	//-----------------------------------------------------------------------------
+	{
+		erase(0, n);
+	}
+
+//----------
+protected:
+//----------
+
+	//-----------------------------------------------------------------------------
+	size_type int_find_first_of(self_type sv, size_type pos, bool bNot) const noexcept;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	size_type int_find_last_of(self_type sv, size_type pos, bool bNot) const noexcept;
+	//-----------------------------------------------------------------------------
+
+//----------
+private:
+//----------
+
+	static const value_type s_0ch = '\0';
+
+}; // KStringView
+
+#endif
+
+#ifdef DEKAF2_USE_RE2_STRINGPIECE_AS_KSTRINGVIEW
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// an extended StringPiece with the methods of
+/// C++17's std::string_view
+class KStringView : public detail::kstringview::KStringViewBase
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+	using self_type = KStringView;
+	using base_type = detail::kstringview::KStringViewBase;
 
 //----------
 public:
@@ -104,21 +530,21 @@ public:
 	//-----------------------------------------------------------------------------
 	KStringView(const std::string& str)
 	//-----------------------------------------------------------------------------
-		: StringPiece(str)
+		: base_type(str)
 	{
 	}
 
 	//-----------------------------------------------------------------------------
 	KStringView(const char* str)
 	//-----------------------------------------------------------------------------
-		: StringPiece(str)
+		: base_type(str)
 	{
 	}
 
 	//-----------------------------------------------------------------------------
 	KStringView(const char* str, size_type len)
 	//-----------------------------------------------------------------------------
-		 : StringPiece(str, len)
+		 : base_type(str, len)
 	{
 	}
 

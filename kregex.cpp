@@ -129,7 +129,9 @@ bool Replace(KString& str,
 	{
 		return false;
 	}
-	if (!re.Match(str, 0, str.size(), re2::RE2::UNANCHORED, vec, nvec))
+	if (!re.Match(re2::StringPiece(str.data(), str.size()),
+	              0, str.size(),
+	              re2::RE2::UNANCHORED, vec, nvec))
 	{
 		return false;
 	}
@@ -167,11 +169,13 @@ int GlobalReplace(KString& str,
 	const char* lastend = nullptr;
 	KString out;
 	int count = 0;
+	re2::StringPiece sv(str.data(), str.size());
 
 	while (p <= ep)
 	{
-		if (!re.Match(str, static_cast<size_t>(p - str.data()),
-		              str.size(), re2::RE2::UNANCHORED, vec, nvec))
+		if (!re.Match(sv,
+		              static_cast<size_t>(p - sv.data()),
+		              sv.size(), re2::RE2::UNANCHORED, vec, nvec))
 		{
 			break;
 		}

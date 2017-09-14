@@ -527,6 +527,12 @@ int KString::compare(size_type pos, size_type n1, KStringView sv) const
 }
 
 #if (DEKAF2_GCC_VERSION >= 40600) && (DEKAF2_USE_OPTIMIZED_STRING_FIND)
+// In contrast to most of the other optimized find functions we do not
+// delegate this one to KStringView. The reason is that for find_first_of()
+// we can use the ultra fast glibc strcspn() function, it even outrivals
+// by a factor of two the sse 4.2 vector search implemented for folly::Range.
+// We can however not use strcspn() for ranges (including KStringView),
+// as there is no trailing zero byte.
 //----------------------------------------------------------------------
 KString::size_type KString::find_first_of(KStringView sv, size_type pos) const
 //----------------------------------------------------------------------
@@ -566,7 +572,7 @@ KString::size_type KString::find_first_of(KStringView sv, size_type pos) const
 	for (;;)
 	{
 		auto retval = std::strcspn(c_str() + pos, search.c_str()) + pos;
-		if (retval == size())
+		if (retval >= size())
 		{
 			return npos;
 		}
@@ -582,6 +588,12 @@ KString::size_type KString::find_first_of(KStringView sv, size_type pos) const
 #endif
 
 #if (DEKAF2_GCC_VERSION >= 40600) && (DEKAF2_USE_OPTIMIZED_STRING_FIND)
+// In contrast to most of the other optimized find functions we do not
+// delegate this one to KStringView. The reason is that for find_first_not_of()
+// we can use the ultra fast glibc strspn() function, it even outrivals
+// by a factor of two the sse 4.2 vector search implemented for folly::Range.
+// We can however not use strspn() for ranges (including KStringView),
+// as there is no trailing zero byte.
 //----------------------------------------------------------------------
 KString::size_type KString::find_first_not_of(KStringView sv, size_type pos) const
 //----------------------------------------------------------------------
@@ -616,7 +628,7 @@ KString::size_type KString::find_first_not_of(KStringView sv, size_type pos) con
 	for (;;)
 	{
 		auto retval = std::strspn(c_str() + pos, search.c_str()) + pos;
-		if (retval == size())
+		if (retval >= size())
 		{
 			return npos;
 		}

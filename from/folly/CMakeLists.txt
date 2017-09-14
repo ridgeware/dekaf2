@@ -20,14 +20,17 @@ find_package(Boost QUIET COMPONENTS system REQUIRED)
 include_directories(SYSTEM ${Boost_INCLUDE_DIR})
 
 set (HEADERS
-	folly/portability/Asm.h
+    glog/logging.h
+    folly/portability/Asm.h
     folly/portability/BitsFunctexcept.h
     folly/portability/Builtins.h
     folly/portability/Config.h
+    folly/portability/Constexpr.h
     folly/portability/IOVec.h
     folly/portability/Malloc.h
     folly/portability/Memory.h
     folly/portability/PThread.h
+    folly/portability/String.h
     folly/portability/SysResource.h
     folly/portability/SysSyscall.h
     folly/portability/SysTime.h
@@ -37,6 +40,8 @@ set (HEADERS
     folly/detail/BitIteratorDetail.h
     folly/detail/Futex.h
     folly/detail/MallocImpl.h
+    folly/detail/RangeCommon.h
+    folly/detail/RangeSse42.h
     folly/concurrency/CacheLocality.h
     folly/hash/SpookyHashV1.h
     folly/hash/SpookyHashV2.h
@@ -45,6 +50,7 @@ set (HEADERS
     folly/Bits.h
     folly/CPortability.h
     folly/CppAttributes.h
+    folly/CpuId.h
     folly/FBString.h
     folly/FBVector.h
     folly/folly-config.h
@@ -55,7 +61,9 @@ set (HEADERS
     folly/Malloc.h
     folly/Memory.h
     folly/Portability.h
+    folly/Range.h
     folly/SharedMutex.h
+    folly/SparseByteSet.h
     folly/ThreadId.h
     folly/Traits.h
     folly/Utility.h
@@ -75,6 +83,8 @@ set (SOURCES
     folly/hash/SpookyHashV2.cpp
     folly/detail/Futex.cpp
     folly/detail/MallocImpl.cpp
+    folly/detail/RangeCommon.cpp
+    folly/detail/RangeSse42.cpp
     folly/Assume.cpp
     folly/SharedMutex.cpp
 )

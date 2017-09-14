@@ -183,7 +183,7 @@ void KInputFPStream::open(FILE* iFilePtr)
 void KInputFPStream::close()
 //-----------------------------------------------------------------------------
 {
-	if (m_FilePtr >= 0)
+	if (m_FilePtr)
 	{
 		if (std::fclose(m_FilePtr))
 		{

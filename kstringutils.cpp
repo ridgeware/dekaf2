@@ -267,6 +267,10 @@ bool kIsDecimal(KStringView str) noexcept
 bool kIsEmail(KStringView str) noexcept
 //-----------------------------------------------------------------------------
 {
+	if (str.empty())
+	{
+		return false;
+	}
 	return false;
 }
 
@@ -274,6 +278,10 @@ bool kIsEmail(KStringView str) noexcept
 bool kIsURL(KStringView str) noexcept
 //-----------------------------------------------------------------------------
 {
+	if (str.empty())
+	{
+		return false;
+	}
 	return false;
 }
 

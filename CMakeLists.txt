@@ -24,7 +24,7 @@ set(CMAKE_CXX_STANDARD 17)
 # configure cpu architecture dependant optimization
 if(CMAKE_COMPILER_IS_GNUCC AND "${CMAKE_SYSTEM_PROCESSOR}" STREQUAL "x86_64")
 
-	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Werror")
+	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wno-unused-parameter -Werror")
 	set(CMAKE_CXX_FLAGS_RELEASE "-O2 -DNDEBUG")
 	if (CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 6.0)
 		set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mavx2 -mfpmath=sse -maes")

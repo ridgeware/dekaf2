@@ -42,7 +42,7 @@
 
 #pragma once
 
-/// @file OKStringStream.h
+/// @file KOStringStream.h
 /// provides kstrings that can be constructed from strings (multiple kinds) passed in
 
 //#include <cinttypes>
@@ -55,7 +55,9 @@
 
 
 #include "kwriter.h"
-
+#include "kformat.h"
+#include <fstream>
+#include <fmt/ostream.h>
 
 #include <iostream>
 
@@ -63,10 +65,7 @@ namespace dekaf2
 {
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// Unbuffered std::ostream that is constructed around a unix file descriptor.
-/// Mainly to allow its usage with pipes, for general file I/O use std::ofstream.
-/// This one is really slow on small writes to files, on purpose, because pipes
-/// should not be buffered. Therefore do _not_ use it for ordinary file I/O.
+/// This output stream class stores into a KString which can be retrieved.
 class KOStringStream : public std::ostream
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -122,12 +121,8 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// this "restarts" the buffer, like a call to the constructor
-	bool open(KString& str)
+	bool open(KString& str);
 	//-----------------------------------------------------------------------------
-	{
-		clear();
-		addMore(str);
-	}
 
 	//-----------------------------------------------------------------------------
 	/// the main purpose of this class: construct a formatted KString
@@ -140,7 +135,7 @@ public:
 	bool addFormatted(Args&&... args)
 	//-----------------------------------------------------------------------------
 	{
-		m_sBuf.get().append(kFormat(std::forward<Args>(args)...));
+		m_sBuf.get().append(fmt::format(std::forward<Args>(args)...)); // works
 		return true;
 	}
 
@@ -149,7 +144,7 @@ public:
 	inline bool is_open() const
 	//-----------------------------------------------------------------------------
 	{
-		return m_sBuf.get().empty();
+		return !m_sBuf.get().empty();
 	}
 
 	//-----------------------------------------------------------------------------
@@ -173,7 +168,7 @@ public:
 	KString& GetConstructedKString()
 	//-----------------------------------------------------------------------------
 	{
-		return m_sBuf;
+		return m_sBuf.get();
 	}
 
 //----------
@@ -184,10 +179,9 @@ protected:
 	KStringRef m_sBuf;
 
 	KOutStreamBuf m_KOStreamBuf{&KStringWriter, &m_sBuf};
-
 };
 
-/// FOR PIPES AND SPECIAL DEVICES ONLY! File descriptor writer based on KOStringStream>
+/// KString writer based on KOStringStream>
 using OKStringStream = KWriter<KOStringStream>;
 
 } // end of namespace dekaf2

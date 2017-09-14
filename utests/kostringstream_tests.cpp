@@ -75,4 +75,21 @@ TEST_CASE("KOStringStream")
 		CHECK(testVal.compare(retVal) == 0);
 		CHECK(testVal == retVal);
 	}
+
+//	SECTION("KOStringStream test 5: using kstringwriter")
+//	{
+//		KString str("test. ");
+//		OKStringStream kstringWriter(str);
+
+//		KString addStr("This is my added string.");
+//		//kstringWriter.addMore(addStr);
+//		//kstringWriter.KStringWriter();
+
+//		KString& retVal = kstringWriter.GetConstructedKString();
+
+//		KString testVal("test. This is my added string.");
+
+//		CHECK(testVal == retVal);
+//		CHECK(testVal.compare(retVal) == 0);
+//	}
 }

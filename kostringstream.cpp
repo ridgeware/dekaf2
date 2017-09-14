@@ -18,10 +18,7 @@ KOStringStream::KOStringStream(KOStringStream&& other)
 //-----------------------------------------------------------------------------
 KOStringStream::~KOStringStream()
 //-----------------------------------------------------------------------------
-{
-	// do not call close on destruction. This class did not open the file
-	// but just received a handle for it
-}
+{}
 
 #if !defined(__GNUC__) || (DEKAF2_GCC_VERSION >= 50000)
 //-----------------------------------------------------------------------------
@@ -34,6 +31,15 @@ KOStringStream& KOStringStream::operator=(KOStringStream&& other)
 	return *this;
 }
 #endif
+
+//-----------------------------------------------------------------------------
+/// this "restarts" the buffer, like a call to the constructor
+bool KOStringStream::open(KString& str)
+//-----------------------------------------------------------------------------
+{
+	clear();
+	addMore(str);
+}
 
 //-----------------------------------------------------------------------------
 /// adds more to the KString buffer
@@ -50,19 +56,14 @@ std::streamsize KOStringStream::KStringWriter(const void* sBuffer, std::streamsi
 {
 	std::streamsize iWrote{0};
 
-	if (sTargetBuf)
+	if (sTargetBuf != nullptr && sBuffer != nullptr)
 	{
 		const KString* pInBuf = reinterpret_cast<const KString *>(sBuffer);
 		KStringRef* pOutBuf = reinterpret_cast<KStringRef *>(sTargetBuf);
-		pOutBuf->get().append(*pInBuf);
-
+		pOutBuf->get().append(*pInBuf, pInBuf->size());
 		iWrote = pInBuf->size();
 	}
-
-
-
 	return iWrote;
-
 }
 
 } // end namespace dekaf2

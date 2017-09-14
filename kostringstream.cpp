@@ -3,9 +3,6 @@
 namespace dekaf2
 {
 
-//KOStringStream::KOStringStream()
-//{}
-
 #if !defined(__GNUC__) || (DEKAF2_GCC_VERSION >= 50000)
 //-----------------------------------------------------------------------------
 KOStringStream::KOStringStream(KOStringStream&& other)
@@ -43,21 +40,8 @@ KOStringStream& KOStringStream::operator=(KOStringStream&& other)
 bool KOStringStream::addMore(KString& str)
 //-----------------------------------------------------------------------------
 {
-	m_sBuf.get().append(str);
+	m_sBuf.get().append(std::move(str));
 }
-
-////-----------------------------------------------------------------------------
-///// Adds a formatted string to the internal buffer
-//template<class... Args>
-//bool KOStringStream::addFormatted(KString& formatStr, Args&&... args)
-////-----------------------------------------------------------------------------
-//{
-//	//return m_sBuf.get().append(kfFormat(this, std::forward<Args>(args)...));
-//	return m_sBuf.get().append(kfFormat(this, formatStr, std::forward<Args>(args)...));
-
-
-//	//return m_sBuf.get().append(kfFormat(this, formatStr, (args)...));
-//}
 
 //-----------------------------------------------------------------------------
 /// this is the custom KString writer
@@ -71,8 +55,11 @@ std::streamsize KOStringStream::KStringWriter(const void* sBuffer, std::streamsi
 		const KString* pInBuf = reinterpret_cast<const KString *>(sBuffer);
 		KStringRef* pOutBuf = reinterpret_cast<KStringRef *>(sTargetBuf);
 		pOutBuf->get().append(*pInBuf);
-		//sTargetBuf.get().append(*sBuffer);
+
+		iWrote = pInBuf->size();
 	}
+
+
 
 	return iWrote;
 

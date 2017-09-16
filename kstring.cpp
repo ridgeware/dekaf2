@@ -990,32 +990,6 @@ void KString::RemoveIllegalChars(KStringView sIllegalChars)
 	}
 }
 
-//----------------------------------------------------------------------
-bool kStartsWith(KStringView sInput, KStringView sPattern)
-//----------------------------------------------------------------------
-{
-	if (DEKAF2_UNLIKELY(sInput.size() < sPattern.size()))
-	{
-		return false;
-	}
-
-	return !memcmp(sInput.data(), sPattern.data(), sPattern.size());
-
-} // kStartsWith
-
-//----------------------------------------------------------------------
-bool kEndsWith(KStringView sInput, KStringView sPattern)
-//----------------------------------------------------------------------
-{
-	if (DEKAF2_UNLIKELY(sInput.size() < sPattern.size()))
-	{
-		return false;
-	}
-
-	return !memcmp(sInput.data() + sInput.size() - sPattern.size(), sPattern.data(), sPattern.size());
-
-} // kEndsWith
-
 //-----------------------------------------------------------------------------
 bool KString::In (KStringView sHaystack, value_type iDelim/*=','*/)
 //-----------------------------------------------------------------------------

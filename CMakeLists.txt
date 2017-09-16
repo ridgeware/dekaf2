@@ -131,6 +131,7 @@ set (HEADERS
 
 set (SOURCES
     dekaf2.cpp
+    kstringview.cpp
     kstring.cpp
     kregex.cpp
     klog.cpp
@@ -138,7 +139,6 @@ set (SOURCES
     kprof.cpp
     kurl.cpp
     kurl2.cpp
-    kstringview.cpp
     kstringutils.cpp
     kparallel.cpp
     kcurl.cpp

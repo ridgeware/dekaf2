@@ -56,10 +56,6 @@
 
 #include "kwriter.h"
 #include "kformat.h"
-//## remove include of fstream
-#include <fstream>
-//## remove include of fmt
-#include <fmt/ostream.h>
 
 #include <iostream>
 
@@ -87,8 +83,7 @@ public:
 //----------
 
 	//-----------------------------------------------------------------------------
-	//## allow default construction with a nullptr for the string.
-	//KOStringStream() {}
+	KOStringStream() {}
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -104,9 +99,10 @@ public:
 	//-----------------------------------------------------------------------------
 	/// this class can be started from KString preferably
 	KOStringStream(KString& str)
-	    : m_sBuf(str)
 	//-----------------------------------------------------------------------------
-	{}
+	{
+		m_sBuf = &str;
+	}
 
 	//-----------------------------------------------------------------------------
 	virtual ~KOStringStream();
@@ -127,67 +123,36 @@ public:
 	bool open(KString& str);
 	//-----------------------------------------------------------------------------
 
-	//## remove method
-	//-----------------------------------------------------------------------------
-	/// the main purpose of this class: construct a formatted KString
-	bool addMore(KString& str);
-	//-----------------------------------------------------------------------------
-
-	//## remove method
-	//-----------------------------------------------------------------------------
-	/// the main purpose of this class: construct a formatted KString
-	template<class... Args>
-	bool addFormatted(Args&&... args)
-	//-----------------------------------------------------------------------------
-	{
-		m_sBuf.get().append(fmt::format(std::forward<Args>(args)...)); // works
-		return true;
-	}
-
-	//## you want to test if you have a valid string pointer, not if there is already
-	//## data in the string
 	//-----------------------------------------------------------------------------
 	/// test if a there is data stored in constructed KString
 	inline bool is_open() const
 	//-----------------------------------------------------------------------------
 	{
-		return !m_sBuf.get().empty();
+		return m_sBuf != nullptr;
 	}
 
-	//## remove method. You mean empty() BTW..
 	//-----------------------------------------------------------------------------
-	/// test if a there is data stored
-	inline void clear()
+	/// get the constructed kstring
+	KString& str()
 	//-----------------------------------------------------------------------------
 	{
-		return m_sBuf.get().clear();
+		return *m_sBuf;
 	}
 
-	//## remove method
 	//-----------------------------------------------------------------------------
-	/// returns current size of constructed string
-	inline unsigned long size() const
-	//-----------------------------------------------------------------------------
-	{
-		return m_sBuf.get().size();
-	}
-
-	//## remove method, or rename it to str() (but then as getter and setter, as in std::ostringstream)
-	//-----------------------------------------------------------------------------
-	/// get the constructed string
-	KString& GetConstructedKString()
+	/// set kstring
+	bool str(KString& newBuffer)
 	//-----------------------------------------------------------------------------
 	{
-		return m_sBuf.get();
+		*m_sBuf = newBuffer;
+		return (newBuffer == *m_sBuf);
 	}
 
 //----------
-protected:
+public:
 //----------
 
-	//## better use a plain pointer here, the ref wrapper is not necessary
-	typedef std::reference_wrapper<KString> KStringRef;
-	KStringRef m_sBuf;
+	KString* m_sBuf{nullptr};
 
 	KOutStreamBuf m_KOStreamBuf{&KStringWriter, &m_sBuf};
 };

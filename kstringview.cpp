@@ -140,7 +140,7 @@ size_t kFindLastOfBool(
         bool bNot)
 //-----------------------------------------------------------------------------
 {
-	if (DEKAF2_UNLIKELY(needle.size() == 1))
+	if (DEKAF2_UNLIKELY(!bNot && needle.size() == 1))
 	{
 		return kRFind(haystack, needle[0], pos);
 	}

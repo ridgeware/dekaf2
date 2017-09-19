@@ -91,6 +91,7 @@ set (HEADERS
     bits/kmake_unique.h
     bits/kmutable_pair.h
     bits/kunique_deleter.h
+    bits/simd/kfindfirstof.h
     dekaf2.h
     kstringview.h
     kstring.h
@@ -130,6 +131,7 @@ set (HEADERS
 )
 
 set (SOURCES
+	bits/simd/kfindfirstof.cpp
     dekaf2.cpp
     kstringview.cpp
     kstring.cpp

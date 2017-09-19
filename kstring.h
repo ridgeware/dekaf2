@@ -502,8 +502,10 @@ public:
 	void RemoveIllegalChars(KStringView sIllegalChars);
 
 	/// convert to representation type
+#ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
 	inline operator const string_type&() const { return m_rep; }
 	inline operator string_type&() { return m_rep; }
+#endif
 
 #ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
 	/// convert to std::string
@@ -514,8 +516,8 @@ public:
 #endif
 
 	/// return the representation type
-	const string_type& str() const { return operator const string_type&(); }
-	string_type& str() { return operator string_type&(); }
+	const string_type& str() const { return m_rep; }
+	string_type& str() { return m_rep; }
 
 	/// convert to BasicStringView<const char*>
 //	operator BasicStringView<const char*>() const { return BasicStringView<const char*>(data(), size()); }
@@ -643,7 +645,11 @@ namespace std
 		typedef std::size_t result_type;
 		result_type operator()(argument_type const& s) const noexcept
 		{
+#ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
 			return std::hash<dekaf2::KString::string_type>{}(s);
+#else
+			return std::hash<dekaf2::KString::string_type>{}(s.ToStdString());
+#endif
 		}
 	};
 
@@ -661,7 +667,11 @@ namespace boost
 		result_type operator()(argument_type const& s) const noexcept
 		{
 			// reuse the std::hash, as it knows fbstring already
+#ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
 			return std::hash<dekaf2::KString::string_type>{}(s);
+#else
+			return std::hash<dekaf2::KString::string_type>{}(s.ToStdString());
+#endif
 		}
 	};
 

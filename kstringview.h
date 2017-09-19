@@ -181,7 +181,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	constexpr
-	KStringView(const KStringView& other) noexcept = default;
+	KStringView(const self_type& other) noexcept = default;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -268,7 +268,7 @@ public:
 #ifdef DEKAF2_USE_FOLLY_STRINGPIECE_AS_KSTRINGVIEW
 		m_rep.assign(start, end);
 #else
-		m_rep = KStringView(start, static_cast<size_type>(end - start));
+		m_rep = self_type(start, static_cast<size_type>(end - start));
 #endif
 	}
 
@@ -826,6 +826,7 @@ size_t kFind(
         size_t pos)
 //-----------------------------------------------------------------------------
 {
+#if defined(DEKAF2_USE_OPTIMIZED_STRING_FIND)
 	// we keep this inlined as then the compiler can evaluate const expressions
 	// (memchr() is actually a compiler-builtin with gcc)
 	if (DEKAF2_UNLIKELY(pos > haystack.size()))
@@ -841,6 +842,9 @@ size_t kFind(
 	{
 		return static_cast<size_t>(ret - haystack.data());
 	}
+#else
+	return static_cast<KStringView::rep_type>(haystack).find(needle, pos);
+#endif
 }
 
 //-----------------------------------------------------------------------------
@@ -851,10 +855,14 @@ size_t kRFind(
         size_t pos)
 //-----------------------------------------------------------------------------
 {
-#if !defined(DEKAF2_USE_OPTIMIZED_STRING_FIND) || !(DEKAF2_GCC_VERSION > 40600)
+#if DEKAF2_USE_FOLLY_STRINGPIECE_AS_KSTRINGVIEW \
+	&& !defined(DEKAF2_USE_OPTIMIZED_STRING_FIND) \
+	|| !(DEKAF2_GCC_VERSION > 40600)
 	pos = std::min(pos, haystack.size());
 	haystack.remove_suffix(haystack.size() - pos);
 	return haystack.rfind(needle);
+#elif !defined(DEKAF2_USE_OPTIMIZED_STRING_FIND)
+	return static_cast<KStringView::rep_type>(haystack).rfind(needle, pos);
 #else
 	// we keep this inlined as then the compiler can evaluate const expressions
 	// (memrchr() is actually a compiler-builtin with gcc)
@@ -886,7 +894,11 @@ size_t kFindFirstOf(
         size_t pos)
 //-----------------------------------------------------------------------------
 {
+#if defined(DEKAF2_USE_OPTIMIZED_STRING_FIND)
 	return detail::stringview::kFindFirstOfBool(haystack, needle, pos, false);
+#else
+	return static_cast<KStringView::rep_type>(haystack).find_first_of(needle, pos);
+#endif
 }
 
 //-----------------------------------------------------------------------------
@@ -897,7 +909,11 @@ size_t kFindFirstNotOf(
         size_t pos)
 //-----------------------------------------------------------------------------
 {
+#if defined(DEKAF2_USE_OPTIMIZED_STRING_FIND) || defined(DEKAF2_USE_FOLLY_STRINGPIECE_AS_KSTRINGVIEW)
 	return detail::stringview::kFindFirstOfBool(haystack, needle, pos, true);
+#else
+	return static_cast<KStringView::rep_type>(haystack).find_first_not_of(needle, pos);
+#endif
 }
 
 //-----------------------------------------------------------------------------
@@ -908,7 +924,11 @@ size_t kFindLastOf(
         size_t pos)
 //-----------------------------------------------------------------------------
 {
+#if defined(DEKAF2_USE_OPTIMIZED_STRING_FIND) || defined(DEKAF2_USE_FOLLY_STRINGPIECE_AS_KSTRINGVIEW)
 	return detail::stringview::kFindLastOfBool(haystack, needle, pos, false);
+#else
+	return static_cast<KStringView::rep_type>(haystack).find_last_of(needle, pos);
+#endif
 }
 
 //-----------------------------------------------------------------------------
@@ -919,7 +939,11 @@ size_t kFindLastNotOf(
         size_t pos)
 //-----------------------------------------------------------------------------
 {
+#if defined(DEKAF2_USE_OPTIMIZED_STRING_FIND) || defined(DEKAF2_USE_FOLLY_STRINGPIECE_AS_KSTRINGVIEW)
 	return detail::stringview::kFindLastOfBool(haystack, needle, pos, true);
+#else
+	return static_cast<KStringView::rep_type>(haystack).find_last_not_of(needle, pos);
+#endif
 }
 
 //----------------------------------------------------------------------

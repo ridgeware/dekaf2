@@ -748,7 +748,11 @@ KString::size_type KString::Replace(KStringView sSearch, KStringView sReplace, b
 KString::size_type KString::ReplaceRegex(KStringView sRegEx, KStringView sReplaceWith, bool bReplaceAll)
 //----------------------------------------------------------------------
 {
+#ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
 	return dekaf2::KRegex::Replace(*this, sRegEx, sReplaceWith, bReplaceAll);
+#else
+	return dekaf2::KRegex::Replace(m_rep, sRegEx, sReplaceWith, bReplaceAll);
+#endif
 }
 
 //----------------------------------------------------------------------

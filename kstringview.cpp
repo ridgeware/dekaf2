@@ -3,6 +3,7 @@
 #include "kstringview.h"
 #include "klog.h"
 #include "dekaf2.h"
+#include "bits/simd/kfindfirstof.h"
 
 
 namespace dekaf2 {
@@ -96,10 +97,9 @@ size_t kFindFirstOfBool(
         bool bNot)
 //-----------------------------------------------------------------------------
 {
-	if (DEKAF2_UNLIKELY(needle.size() == 1))
+	if (DEKAF2_UNLIKELY(!bNot && needle.size() == 1))
 	{
-		return bNot ? kRFind(haystack, needle[0], pos)
-		            : kFind(haystack, needle[0], pos);
+		return kFind(haystack, needle[0], pos);
 	}
 
 	if (DEKAF2_UNLIKELY(pos >= haystack.size()))
@@ -107,51 +107,29 @@ size_t kFindFirstOfBool(
 		return KStringView::npos;
 	}
 
-#ifdef __x86_64__xx
+	if (DEKAF2_UNLIKELY(pos > 0))
+	{
+		haystack.remove_prefix(pos);
+	}
+
+#ifdef __x86_64__
 	static bool has_sse42 = Dekaf().GetCpuId().sse42();
+
 	if (DEKAF2_LIKELY(has_sse42))
 	{
-
-	}
-#endif
-
-#ifdef DEKAF2_USE_FOLLY_STRINGPIECE_AS_KSTRINGVIEW
-	if (!bNot)
-	{
-		if (DEKAF2_UNLIKELY(pos > 0))
+		if (DEKAF2_UNLIKELY(bNot))
 		{
-			haystack.remove_prefix(pos);
+			return detail::kFindFirstNotOfSSE(haystack, needle) + pos;
 		}
-
-		return folly::qfind_first_of(haystack.ToRange(),
-		                             needle.ToRange())
-		        + pos;
+		else
+		{
+			return detail::kFindFirstOfSSE(haystack, needle) + pos;
+		}
 	}
 #endif
 
- 	bool table[256];
-	std::memset(table, false, 256);
+	return detail::kFindFirstOfNoSSE(haystack, needle, bNot) + pos;
 
-	for (auto c : needle)
-	{
-		table[static_cast<unsigned char>(c)] = true;
-	}
-
-	auto it = std::find_if(haystack.begin() + pos,
-	                       haystack.end(),
-	                       [&table, bNot](const char c)
-	{
-		return table[static_cast<unsigned char>(c)] != bNot;
-	});
-
-	if (it == haystack.end())
-	{
-		return KStringView::npos;
-	}
-	else
-	{
-		return static_cast<size_t>(it - haystack.begin());
-	}
 }
 
 //-----------------------------------------------------------------------------

@@ -149,7 +149,7 @@ public:
 	}
 
 //----------
-public:
+protected:
 //----------
 
 	KString* m_sBuf{nullptr};

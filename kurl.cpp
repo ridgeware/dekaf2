@@ -298,10 +298,9 @@ bool User::Serialize (KString& sTarget) const
 		// RFC3986 2.3. unreserved  = ALPHA + DIGIT + "-._~"
 		// RFC3986 7.5. password field is deprecated
 
-		//## make sExclude a KStringView, see also same comment for kUrlEncode implementation
-		KString sExclude{"-._~@/"};  // RFC3986 2.3 supplemented with "@/"
+		KStringView svExclude{"-._~@/"};  // RFC3986 2.3 supplemented with "@/"
 		KString sTemp;
-		kUrlEncode (m_sUser, sTemp, sExclude);
+		kUrlEncode (m_sUser, sTemp, svExclude);
 		sTarget += sTemp;
 
 		if (m_sPass.size ())
@@ -313,7 +312,7 @@ bool User::Serialize (KString& sTarget) const
 			// Human-centric passwords are likely to include difficult chars.
 			// Password field is deprecated as insecure.  This is legacy support.
 			// utests all pass, but password field is not stress-tested.
-			kUrlEncode (m_sPass, sTemp, sExclude);
+			kUrlEncode (m_sPass, sTemp, svExclude);
 			sTarget += sTemp;
 		}
 		sTarget += '@';
@@ -475,10 +474,9 @@ bool Domain::Serialize (KString& sTarget) const
 	if (m_sHostName.size ())
 	{
 		// TODO These exclusions are speculative.  Should they change?
-		//## sExclude should become a KStringView
-		KString sExclude{"-._~@/"};  // RFC3986 2.3 supplemented with "@/"
+		KStringView svExclude{"-._~@/"};  // RFC3986 2.3 supplemented with "@/"
 		KString sTemp;
-		kUrlEncode (m_sHostName, sTemp, sExclude);
+		kUrlEncode (m_sHostName, sTemp, svExclude);
 		sTarget += sTemp;
 		if (m_iPortNum)
 		{
@@ -528,9 +526,8 @@ bool Path::Serialize (KString& sTarget) const
 	if (m_sPath.size ())
 	{
 		KString sPath;
-		//## sExclude should become a KStringView
-		KString sExclude{"-._~@/"};  // RFC3986 2.3 supplemented with "@/"
-		kUrlEncode (m_sPath, sPath, sExclude);
+		KStringView svExclude{"-._~@/"};  // RFC3986 2.3 supplemented with "@/"
+		kUrlEncode (m_sPath, sPath, svExclude);
 		sTarget += sPath;
 	}
 	return true;
@@ -695,8 +692,7 @@ bool Fragment::Serialize (KString& sTarget) const
 	bool bContent = (m_sFragment.size () != 0);
 	if (m_bHash || bContent)
 	{
-		//## add as a char, not as a string literal
-		sTarget += "#";
+		sTarget += '#';
 	}
 	if (m_sFragment.size ())
 	{

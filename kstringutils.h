@@ -451,22 +451,26 @@ void kUrlDecode (KStringView& sSource, String& sTarget)
 
 
 template<class String>
-//## make sExclude a KStringView, too
-void kUrlEncode (KStringView sSource, String& sTarget, String sExclude="")
+void kUrlEncode (KStringView sSource, String& sTarget, KStringView svExclude="")
 //-----------------------------------------------------------------------------
 {
 	// Implementation of exclusion does a quick JIT compile so that
 	// searching for exclusion is just an index, not a find.
-	static const char* sxDigit{"0123456789ABCDEF"};
+	static const unsigned char* sxDigit{
+		reinterpret_cast<const unsigned char*>("0123456789ABCDEF")};
 	// to exclude encoding of special characters, make a table of exclusions.
-	//## just to double check: this really sets all values of aExclude to false?
-	//## (simply delete the comment if you are sure)
-	bool aExclude[256] = {false};
-	// Identify the exclusions by setting them true.
-	//## please use curly braces and place each part of the loop in a line on its own
-	for (auto iC: sExclude) aExclude[iC] = true;
+	static bool aExclude[256] = {false};
+	// Identify the exclusions by setting them true, but only the first time.
+	if (!aExclude[static_cast<size_t>('0')])
+	{
+		for (auto iC: svExclude)
+		{
+			aExclude[static_cast<size_t>(iC)] = true;
+		}
+	}
 	size_t iSize = sSource.size();
-	//## you should reserve on sTarget like sTarget.reserve (sTarget.size () + sSource.size ());
+	// Pre-allocate to prevent potential multiple re-allocations.
+	sTarget.reserve (sTarget.size () + sSource.size ());
 	for (size_t iIndex = 0; iIndex < iSize; ++iIndex)
 	{
 		char iC = sSource[iIndex];

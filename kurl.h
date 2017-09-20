@@ -83,9 +83,8 @@ public:
 	//-------------------------------------------------------------------------
 
 	//-------------------------------------------------------------------------
-	/// Allow instance by enumeration including
-	/// Protocol proto (Protocol::UNKNOWN, "opaquelocktoken");
-	//## please fix the explanation above
+	/// construct an empty instance with specialization for enumerated protocol.
+	/// Protocol proto (Protocol::UNKNOWN);
 	inline Protocol (eProto iProto)
 		: m_eProto {iProto}
 	//-------------------------------------------------------------------------
@@ -575,18 +574,11 @@ class Domain
 
 	//-------------------------------------------------------------------------
 	/// modify member by parsing argument
+	/// This method runs ParseHostName rather than directly setting it.
+	/// This enables DRY special handling of decodeURL.
 	inline void setHostName (KStringView svHostName)
 	//-------------------------------------------------------------------------
 	{
-		//## please explain why setHostName() is not symmetric to getHostName()
-		//## and simply sets m_sHostName (my actual issue is with the decodeURL()
-		//## that's involved through the parsing.., you parse probably to fill the
-		//## basename as well)
-		//?? You are correct about asymmetry and m_sBaseName.
-		//?? Parse code is complex enough that I wanted to avoid DRY violations.
-		//?? to handle your decodeURL concerns, I introduced a bDecode flag
-		//?? which defaults true, but is set false here to prevent decoding.
-		//## please remove these comments
 		ParseHostName (svHostName, false);  // data extraction
 	}
 

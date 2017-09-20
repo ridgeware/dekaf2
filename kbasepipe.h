@@ -76,7 +76,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Opens A Pipe
-	virtual bool Open(const KString& sProgram) = 0;
+	virtual bool Open(KStringView sProgram) = 0;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -98,19 +98,16 @@ public:
 	//-----------------------------------------------------------------------------
 	/// Splits args into char*[] terminated with NULL
 	typedef std::vector<char*> CharVec;
-	//## you should probably mention in the method name the the input string will be
-	//## modified, such like "SplitArgsInPlace"
-	bool splitArgs(KString& argString, CharVec& vector );
+	bool splitArgsInPlace(KString& argString, CharVec& vector );
 	//-----------------------------------------------------------------------------
 
 //--------
 protected:
 //--------
 
-	//## why are all these -2 and not  -1 ?
-	pid_t m_pid{-2};
-	int   m_iExitCode{-2};
-	int   m_iChildStatus{-2};
+	pid_t m_pid{-1};
+	int   m_iExitCode{-1};
+	int   m_iChildStatus{-1};
 	bool  m_bChildStatusValid{false};
 
 	//-----------------------------------------------------------------------------

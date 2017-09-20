@@ -63,7 +63,7 @@ TEST_CASE("KInPipe")
 		size_t len;
 		std::vector<char*> argVector;
 		KString sCommand("/bin/sh -c \"echo 'some random data' > /tmp/kinpipetests/kinpipetest.file 2>&1\"");//
-		CHECK(pipe.splitArgs(sCommand, argVector));
+		CHECK(pipe.splitArgsInPlace(sCommand, argVector));
 
 		std::ofstream outFile;
 		outFile.open("/tmp/hermes/utestLog.txt");

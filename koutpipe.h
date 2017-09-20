@@ -74,8 +74,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Open Constructor
-	//## make argument a KStringView (by var, no ref)
-	KOutPipe(const KString& sProgram);
+	KOutPipe(KStringView sProgram);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -85,8 +84,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Opens A WritePipe
-	//## make argument a KStringView (by var, no ref)
-	virtual bool Open(const KString& sProgram);
+	virtual bool Open(KStringView sProgram);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -100,12 +98,10 @@ private:
 
 	//-----------------------------------------------------------------------------
 	/// Opens a pipe for writing
-	//## make argument a KStringView (by var, no ref)
-	bool OpenWritePipe(const KString& sProgram);
+	bool OpenWritePipe(KStringView sProgram);
 	//-----------------------------------------------------------------------------
 
-	//## see my comment about -2 in kinpipe.h
-	int   m_writePdes[2]{-2,-2};
+	int   m_writePdes[2]{-1,-1};
 
 }; // class KOutPipe
 

@@ -51,7 +51,7 @@ KOutPipe::KOutPipe()
 {} // Default Constructor
 
 //-----------------------------------------------------------------------------
-KOutPipe::KOutPipe(const KString& sProgram)
+KOutPipe::KOutPipe(KStringView sProgram)
 //-----------------------------------------------------------------------------
 {
 	Open(sProgram);
@@ -67,7 +67,7 @@ KOutPipe::~KOutPipe()
 } // Default Destructor
 
 //-----------------------------------------------------------------------------
-bool KOutPipe::Open(const KString& sProgram)
+bool KOutPipe::Open(KStringView sProgram)
 //-----------------------------------------------------------------------------
 {
 	//## use kDebug - it prints automatically the function name
@@ -87,7 +87,7 @@ bool KOutPipe::Open(const KString& sProgram)
 	// - - - - - - - - - - - - - - - - - - - - - - - -
 	// interpret success:
 	// - - - - - - - - - - - - - - - - - - - - - - - -
-	if (m_writePdes[0] == -2)
+	if (m_writePdes[0] == -1)
 	{
 		//## use kWarning - it prints automatically the function name
 		KLog().debug (0, "KOutPipe::Open(): OpenReadPipe CMD FAILED: {} ERROR: {}", sProgram, strerror(errno));
@@ -121,30 +121,28 @@ int KOutPipe::Close()
 	{
 		iExitCode = m_iExitCode;
 	} // child not running
-
-	// the child process has been giving us trouble. Kill it
-	else
+	else // the child process has been giving us trouble. Kill it
 	{
 		kill(m_pid, SIGKILL);
 	}
 
-	m_pid = -2;
-	m_writePdes[0] = -2;
-	m_writePdes[1] = -2;
+	m_pid = -1;
+	m_writePdes[0] = -1;
+	m_writePdes[1] = -1;
 
 	return (iExitCode);
 
 } // Close
 
 //-----------------------------------------------------------------------------
-bool KOutPipe::OpenWritePipe(const KString& sProgram)
+bool KOutPipe::OpenWritePipe(KStringView sProgram)
 //-----------------------------------------------------------------------------
 {
 	// Reset status vars and pipes.
-	m_pid               = -2;
+	m_pid               = -1;
 	m_bChildStatusValid = false;
-	m_iChildStatus      = -2;
-	m_iExitCode         = -2;
+	m_iChildStatus      = -1;
+	m_iExitCode         = -1;
 
 	// try to open a pipe
 	if (pipe(m_writePdes) < 0)
@@ -160,7 +158,7 @@ bool KOutPipe::OpenWritePipe(const KString& sProgram)
 			// could not create the child
 			::close(m_writePdes[0]);
 			::close(m_writePdes[1]);
-			m_pid = -2;
+			m_pid = -1;
 			break;
 		}
 
@@ -176,7 +174,7 @@ bool KOutPipe::OpenWritePipe(const KString& sProgram)
 			// execute the command
 			KString sCmd(sProgram); // need non const for split
 			std::vector<char*> argV;
-			splitArgs(sCmd, argV);
+			splitArgsInPlace(sCmd, argV);
 
 			execvp(argV[0], const_cast<char* const*>(argV.data()));
 

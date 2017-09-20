@@ -24,7 +24,7 @@ bool KBasePipe::IsRunning()
 	wait();
 
 	// Did we fail to get a status?
-	if (-1 == m_iChildStatus)
+	if (-2 == m_iChildStatus)
 	{
 		m_iExitCode = -1;
 		return bResponse;
@@ -69,7 +69,7 @@ bool KBasePipe::WaitForFinished(int msecs)
 } // WaitForFinished
 
 //-----------------------------------------------------------------------------
-bool KBasePipe::splitArgs(KString& argString, CharVec& argVector)
+bool KBasePipe::splitArgsInPlace(KString& argString, CharVec& argVector)
 //-----------------------------------------------------------------------------
 {
 	argVector.push_back(&argString[0]);
@@ -94,8 +94,7 @@ bool KBasePipe::splitArgs(KString& argString, CharVec& argVector)
 			}
 		}
 	}
-	//## please use nullptr
-	argVector.push_back(NULL); // null terminate
+	argVector.push_back(nullptr); // null terminate
 	return !argVector.empty();
 } // splitArgs
 
@@ -127,8 +126,8 @@ bool KBasePipe::wait()
 
 	if ((iPid == -1) && (errno != EINTR))
 	{
-		// TODO log
-		m_iChildStatus = -1;
+		KLog().debug(0, "KBasePipe::wait got an invalid status iPid = -1. Errno {} : {}", errno, strerror(errno));
+		m_iChildStatus = -2;
 		m_bChildStatusValid = true;
 		return true;
 	}

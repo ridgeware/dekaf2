@@ -45,15 +45,12 @@
 #include "kbasepipe.h"
 #include "kfdstream.h"
 
-#include "fstream"
-#include <stdio.h>
-
 namespace dekaf2
 {
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Execute another process and attach pipes to its std::in and std::out
-class KPipe : public KBasePipe
+class KPipe : public KBasePipe, public KFDStream
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -76,7 +73,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Open Constructor
-	KPipe(const KString& sProgram);
+	KPipe(KStringView sProgram);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -86,7 +83,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Opens A WritePipe
-	virtual bool Open(const KString& sProgram);
+	virtual bool Open(KStringView sProgram);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -94,20 +91,17 @@ public:
 	virtual int Close();
 	//-----------------------------------------------------------------------------
 
-	KFDReader m_reader{};
-	KFDWriter m_writer{};
-
 //--------
 private:
 //--------
 
 	//-----------------------------------------------------------------------------
 	/// Opens a pipe for writing
-	bool OpenPipeRW(const KString& sProgram);
+	bool OpenPipeRW(KStringView sProgram);
 	//-----------------------------------------------------------------------------
 
-	int m_readPdes[2]{-2,-2};
-	int m_writePdes[2]{-2,-2};
+	int m_readPdes[2]{-1,-1};
+	int m_writePdes[2]{-1,-1};
 
 }; // class KPipe
 

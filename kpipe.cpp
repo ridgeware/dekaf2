@@ -9,7 +9,7 @@ KPipe::KPipe()
 {} // Default Constructor
 
 //-----------------------------------------------------------------------------
-KPipe::KPipe(const KString& sProgram)
+KPipe::KPipe(KStringView sProgram)
 //-----------------------------------------------------------------------------
 {
 	Open(sProgram);
@@ -25,7 +25,7 @@ KPipe::~KPipe()
 } // Default Destructor
 
 //-----------------------------------------------------------------------------
-bool KPipe::Open(const KString& sProgram)
+bool KPipe::Open(KStringView sProgram)
 //-----------------------------------------------------------------------------
 {
 	//## use kDebug - it prints automatically the function name
@@ -45,7 +45,7 @@ bool KPipe::Open(const KString& sProgram)
 	// - - - - - - - - - - - - - - - - - - - - - - - -
 	// interpret success:
 	// - - - - - - - - - - - - - - - - - - - - - - - -
-	if (m_writePdes[0] == -2)
+	if (m_writePdes[0] == -1)
 	{
 		//## use kWarning - it prints automatically the function name
 		KLog().debug (0, "KPipe::Open(): OpenPipeRW CMD FAILED: {} ERROR: {}", sProgram, strerror(errno));
@@ -56,10 +56,8 @@ bool KPipe::Open(const KString& sProgram)
 	{
 		//## use kDebug - it prints automatically the function name
 		KLog().debug(3, "KPipe::Open(): OpenPipeRW: ok...");
-
-		m_reader.open(m_readPdes[0]);
-		m_writer.open(m_writePdes[1]);
-		return (m_reader.good() && m_writer.good());
+		KFDStream::open(m_readPdes[0], m_writePdes[1]);
+		return KFDStream::good();
 	}
 
 } // Open
@@ -72,10 +70,10 @@ int KPipe::Close()
 
 	// Close read on of stdout pipe
 	::close(m_readPdes[0]);
-	m_reader.close();
 	// Send EOF by closing write end of pipe
 	::close(m_writePdes[1]);
-	m_writer.close();
+	// Close reader/writer
+	KFDStream::close();
 
 	// Child has been cut off from parent, let it terminate
 	WaitForFinished(60000);
@@ -85,32 +83,30 @@ int KPipe::Close()
 	{
 		iExitCode = m_iExitCode;
 	} // child not running
-
-	// the child process has been giving us trouble. Kill it
-	else
+	else 	// the child process has been giving us trouble. Kill it
 	{
 		kill(m_pid, SIGKILL);
 	}
 
-	m_pid = -2;
-	m_writePdes[0] = -2;
-	m_writePdes[1] = -2;
-	m_readPdes[0] = -2;
-	m_readPdes[1] = -2;
+	m_pid = -1;
+	m_writePdes[0] = -1;
+	m_writePdes[1] = -1;
+	m_readPdes[0] = -1;
+	m_readPdes[1] = -1;
 
 	return (iExitCode);
 
 } // Close
 
 //-----------------------------------------------------------------------------
-bool KPipe::OpenPipeRW(const KString& sProgram)
+bool KPipe::OpenPipeRW(KStringView sProgram)
 //-----------------------------------------------------------------------------
 {
 	// Reset status vars and pipes.
-	m_pid               = -2;
+	m_pid               = -1;
 	m_bChildStatusValid = false;
-	m_iChildStatus      = -2;
-	m_iExitCode         = -2;
+	m_iChildStatus      = -1;
+	m_iExitCode         = -1;
 
 	// try to open read and write pipes
 	if ((pipe(m_readPdes) < 0) || (pipe(m_writePdes) < 0))
@@ -153,7 +149,7 @@ bool KPipe::OpenPipeRW(const KString& sProgram)
 			// execute the command
 			KString sCmd(sProgram); // need non const for split
 			std::vector<char*> argV;
-			splitArgs(sCmd, argV);
+			splitArgsInPlace(sCmd, argV);
 
 			execvp(argV[0], const_cast<char* const*>(argV.data()));
 

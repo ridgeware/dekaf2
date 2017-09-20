@@ -51,7 +51,7 @@ KInPipe::KInPipe()
 {} // Default Constructor
 
 //-----------------------------------------------------------------------------
-KInPipe::KInPipe(const KString& sProgram)
+KInPipe::KInPipe(KStringView sProgram)
 //-----------------------------------------------------------------------------
 {
 	Open(sProgram);
@@ -67,7 +67,7 @@ KInPipe::~KInPipe()
 } // Default Destructor
 
 //-----------------------------------------------------------------------------
-bool KInPipe::Open(const KString& sProgram)
+bool KInPipe::Open(KStringView sProgram)
 //-----------------------------------------------------------------------------
 {
 	//## use kDebug - it prints automatically the function name
@@ -87,17 +87,17 @@ bool KInPipe::Open(const KString& sProgram)
 	// - - - - - - - - - - - - - - - - - - - - - - - -
 	// interpret success:
 	// - - - - - - - - - - - - - - - - - - - - - - - -
-	if (m_readPdes[0] == -2)
+	if (m_readPdes[0] == -1)
 	{
 		//## use kWarning - it prints automatically the function name
-		KLog().debug (0, "KInPipe::Open(): OpenReadPipe CMD FAILED: {} ERROR: {}", sProgram, strerror(errno));
+		KLog().warning("KInPipe::OpenReadPipe CMD FAILED: {} ERROR: {}", sProgram, strerror(errno));
 		m_iExitCode = errno;
 		return false;
 	}
 	else
 	{
 		//## use kDebug - it prints automatically the function name
-		KLog().debug(3, "KInPipe::Open(): OpenReadPipe: ok...");
+		KLog().debug(3, "KInPipe::OpenReadPipe: ok...");
 		KFDReader::open(m_readPdes[0]);
 		return KFDReader::good();
 	}
@@ -120,31 +120,28 @@ int KInPipe::Close ()
 	{
 		iExitCode = m_iExitCode;
 	} // child not running
-
-	//## never separate if/else branches by empty lines, and better also not by
-	//## comments - instead put the comment into the branch (reason: edit
-	//## accidents waiting to happen)
-	// the child process has been giving us trouble. Kill it
-	else
+	else	// the child process has been giving us trouble. Kill it
 	{
 		kill(m_pid, SIGKILL);
 	}
 
-	m_pid = -2;
+	m_pid = -1;
+	m_readPdes[0] = -1;
+	m_readPdes[1] = -1;
 
 	return (iExitCode);
 
 } // Close
 
 //-----------------------------------------------------------------------------
-bool KInPipe::OpenReadPipe(const KString& sProgram)
+bool KInPipe::OpenReadPipe(KStringView sProgram)
 //-----------------------------------------------------------------------------
 {
 	// Reset status vars and pipes.
-	m_pid               = -2;
+	m_pid               = -1;
 	m_bChildStatusValid = false;
-	m_iChildStatus      = -2;
-	m_iExitCode         = -2;
+	m_iChildStatus      = -1;
+	m_iExitCode         = -1;
 
 	// try to open a pipe
 	if (pipe(m_readPdes) < 0)
@@ -160,7 +157,7 @@ bool KInPipe::OpenReadPipe(const KString& sProgram)
 			// could not create the child
 			::close(m_readPdes[0]);
 			::close(m_readPdes[1]);
-			m_pid = -2;
+			m_pid = -1;
 			break;
 		}
 
@@ -176,7 +173,7 @@ bool KInPipe::OpenReadPipe(const KString& sProgram)
 			// execute the command
 			KString sCmd(sProgram); // need non const for split
 			std::vector<char*> argV;
-			splitArgs(sCmd, argV);
+			splitArgsInPlace(sCmd, argV);
 
 			execvp(argV[0], const_cast<char* const*>(argV.data()));
 

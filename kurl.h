@@ -85,6 +85,7 @@ public:
 	//-------------------------------------------------------------------------
 	/// Allow instance by enumeration including
 	/// Protocol proto (Protocol::UNKNOWN, "opaquelocktoken");
+	//## please fix the explanation above
 	inline Protocol (eProto iProto)
 		: m_eProto {iProto}
 	//-------------------------------------------------------------------------
@@ -585,6 +586,7 @@ class Domain
 		//?? Parse code is complex enough that I wanted to avoid DRY violations.
 		//?? to handle your decodeURL concerns, I introduced a bDecode flag
 		//?? which defaults true, but is set false here to prevent decoding.
+		//## please remove these comments
 		ParseHostName (svHostName, false);  // data extraction
 	}
 

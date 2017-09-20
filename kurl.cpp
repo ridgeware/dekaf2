@@ -298,6 +298,7 @@ bool User::Serialize (KString& sTarget) const
 		// RFC3986 2.3. unreserved  = ALPHA + DIGIT + "-._~"
 		// RFC3986 7.5. password field is deprecated
 
+		//## make sExclude a KStringView, see also same comment for kUrlEncode implementation
 		KString sExclude{"-._~@/"};  // RFC3986 2.3 supplemented with "@/"
 		KString sTemp;
 		kUrlEncode (m_sUser, sTemp, sExclude);
@@ -474,6 +475,7 @@ bool Domain::Serialize (KString& sTarget) const
 	if (m_sHostName.size ())
 	{
 		// TODO These exclusions are speculative.  Should they change?
+		//## sExclude should become a KStringView
 		KString sExclude{"-._~@/"};  // RFC3986 2.3 supplemented with "@/"
 		KString sTemp;
 		kUrlEncode (m_sHostName, sTemp, sExclude);
@@ -526,6 +528,7 @@ bool Path::Serialize (KString& sTarget) const
 	if (m_sPath.size ())
 	{
 		KString sPath;
+		//## sExclude should become a KStringView
 		KString sExclude{"-._~@/"};  // RFC3986 2.3 supplemented with "@/"
 		kUrlEncode (m_sPath, sPath, sExclude);
 		sTarget += sPath;
@@ -692,6 +695,7 @@ bool Fragment::Serialize (KString& sTarget) const
 	bool bContent = (m_sFragment.size () != 0);
 	if (m_bHash || bContent)
 	{
+		//## add as a char, not as a string literal
 		sTarget += "#";
 	}
 	if (m_sFragment.size ())

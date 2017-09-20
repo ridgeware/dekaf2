@@ -48,6 +48,9 @@
 // Generic Includes
 #include <sys/wait.h>
 
+//## this file, as well as the cpp and kbaseshell.cpp/.h should go into
+//## the bits/ subdirectory as they are never meant to be included directy
+//## by a library user
 namespace dekaf2
 
 {
@@ -95,6 +98,8 @@ public:
 	//-----------------------------------------------------------------------------
 	/// Splits args into char*[] terminated with NULL
 	typedef std::vector<char*> CharVec;
+	//## you should probably mention in the method name the the input string will be
+	//## modified, such like "SplitArgsInPlace"
 	bool splitArgs(KString& argString, CharVec& vector );
 	//-----------------------------------------------------------------------------
 
@@ -102,6 +107,7 @@ public:
 protected:
 //--------
 
+	//## why are all these -2 and not  -1 ?
 	pid_t m_pid{-2};
 	int   m_iExitCode{-2};
 	int   m_iChildStatus{-2};

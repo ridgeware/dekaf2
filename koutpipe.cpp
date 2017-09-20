@@ -70,6 +70,7 @@ KOutPipe::~KOutPipe()
 bool KOutPipe::Open(const KString& sProgram)
 //-----------------------------------------------------------------------------
 {
+	//## use kDebug - it prints automatically the function name
 	KLog().debug(3, "KOutPipe::Open(): {}", sProgram);
 
 	Close(); // ensure a previous pipe is closed
@@ -88,12 +89,14 @@ bool KOutPipe::Open(const KString& sProgram)
 	// - - - - - - - - - - - - - - - - - - - - - - - -
 	if (m_writePdes[0] == -2)
 	{
+		//## use kWarning - it prints automatically the function name
 		KLog().debug (0, "KOutPipe::Open(): OpenReadPipe CMD FAILED: {} ERROR: {}", sProgram, strerror(errno));
 		m_iExitCode = errno;
 		return false;
 	}
 	else
 	{
+		//## use kDebug - it prints automatically the function name
 		KLog().debug(3, "KOutPipe::Open(): OpenReadPipe: ok...");
 		KFDWriter::open(m_writePdes[1]);
 		return KFDWriter::good();

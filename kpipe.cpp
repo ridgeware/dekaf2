@@ -28,6 +28,7 @@ KPipe::~KPipe()
 bool KPipe::Open(const KString& sProgram)
 //-----------------------------------------------------------------------------
 {
+	//## use kDebug - it prints automatically the function name
 	KLog().debug(3, "KPipe::Open(): {}", sProgram);
 
 	Close(); // ensure a previous pipe is closed
@@ -46,12 +47,14 @@ bool KPipe::Open(const KString& sProgram)
 	// - - - - - - - - - - - - - - - - - - - - - - - -
 	if (m_writePdes[0] == -2)
 	{
+		//## use kWarning - it prints automatically the function name
 		KLog().debug (0, "KPipe::Open(): OpenPipeRW CMD FAILED: {} ERROR: {}", sProgram, strerror(errno));
 		m_iExitCode = errno;
 		return false;
 	}
 	else
 	{
+		//## use kDebug - it prints automatically the function name
 		KLog().debug(3, "KPipe::Open(): OpenPipeRW: ok...");
 
 		m_reader.open(m_readPdes[0]);

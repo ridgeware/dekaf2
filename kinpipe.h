@@ -44,7 +44,7 @@
 
 // Dekaf Includes
 #include "kbasepipe.h"
-#include "kfdreader.h"
+#include "kfdstream.h"
 
 namespace dekaf2
 
@@ -75,6 +75,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Open Constructor
+	//## make argument a KStringView (by var, no ref)
 	KInPipe(const KString& sProgram);
 	//-----------------------------------------------------------------------------
 
@@ -85,6 +86,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Opens A ReadPipe
+	//## make argument a KStringView (by var, no ref)
 	virtual bool Open(const KString& sProgram);
 	//-----------------------------------------------------------------------------
 
@@ -99,9 +101,13 @@ protected:
 
 	//-----------------------------------------------------------------------------
 	/// Opens a pipe for reading
+	//## make argument a KStringView (by var, no ref)
 	bool OpenReadPipe(const KString& sProgram);
 	//-----------------------------------------------------------------------------
 
+	//## as in kbasepipe I am astonished to see the -2 here as default. Is there
+	//## a reason why it is not the standard -1? Using -2 tells me there has to
+	//## be but I cannot find it
 	int   m_readPdes[2]{-2,-2};
 
 }; // class KInPipe

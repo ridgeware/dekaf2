@@ -43,7 +43,6 @@
 #pragma once
 
 #include <cinttypes>
-#include <streambuf>
 #include <ostream>
 #include <fstream>
 #include <sstream>
@@ -54,57 +53,6 @@
 
 namespace dekaf2
 {
-
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// a customized output stream buffer
-struct KOutStreamBuf : public std::streambuf
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-{
-
-//-------
-public:
-//-------
-
-	//-----------------------------------------------------------------------------
-	/// the Writer function's signature:
-	/// std::streamsize Writer(const void* sBuffer, std::streamsize iCount, void* CustomPointer)
-	///  - returns written bytes. CustomPointer can be used for anything, to the discretion of the
-	/// Writer.
-	typedef std::streamsize (*Writer)(const void*, std::streamsize, void*);
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// provide a Writer function, it will be called by std::streambuf on buffer flushes
-	KOutStreamBuf(Writer cb, void* CustomPointer = nullptr)
-	//-----------------------------------------------------------------------------
-	    : m_Callback(cb), m_CustomPointer(CustomPointer)
-	{
-	}
-	//-----------------------------------------------------------------------------
-	virtual ~KOutStreamBuf();
-	//-----------------------------------------------------------------------------
-
-//-------
-protected:
-//-------
-
-	//-----------------------------------------------------------------------------
-	virtual std::streamsize xsputn(const char_type* s, std::streamsize n) override;
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	virtual int_type overflow(int_type ch) override;
-	//-----------------------------------------------------------------------------
-
-//-------
-private:
-//-------
-
-	Writer m_Callback{nullptr};
-	void* m_CustomPointer{nullptr};
-
-}; // KOutStreamBuf
-
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// The standalone writer abstraction for dekaf2. Can be constructed around any

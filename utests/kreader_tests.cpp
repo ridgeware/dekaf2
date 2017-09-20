@@ -1,7 +1,7 @@
 #include "catch.hpp"
 
 #include <dekaf2/kstream.h>
-#include <dekaf2/kfdreader.h>
+#include <dekaf2/kfdstream.h>
 #include <vector>
 #include <unistd.h>
 #include <sys/types.h>

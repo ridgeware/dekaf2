@@ -62,57 +62,6 @@ namespace dekaf2
 #endif
 
 //-----------------------------------------------------------------------------
-KInStreamBuf::~KInStreamBuf()
-//-----------------------------------------------------------------------------
-{
-}
-
-//-----------------------------------------------------------------------------
-std::streamsize KInStreamBuf::xsgetn(char_type* s, std::streamsize n)
-//-----------------------------------------------------------------------------
-{
-	std::streamsize iExtracted = 0;
-
-	{
-		// read as many chars as possible directly from the stream buffer
-		std::streamsize iReadInStreamBuf = std::min(n, in_avail());
-		if (iReadInStreamBuf > 0)
-		{
-			std::memcpy(s, gptr(), static_cast<size_t>(iReadInStreamBuf));
-			s += iReadInStreamBuf;
-			n -= iReadInStreamBuf;
-			iExtracted = iReadInStreamBuf;
-			// adjust stream buffer pointers
-			setg(eback(), gptr()+iReadInStreamBuf, egptr());
-		}
-	}
-
-	if (n > 0)
-	{
-		// read remaining chars directly from the callbacḱ function
-		iExtracted += m_Callback(s, n, m_CustomPointer);
-	}
-
-	return iExtracted;
-}
-
-//-----------------------------------------------------------------------------
-KInStreamBuf::int_type KInStreamBuf::underflow()
-//-----------------------------------------------------------------------------
-{
-	std::streamsize rb = m_Callback(m_buf, STREAMBUFSIZE, m_CustomPointer);
-	if (rb > 0)
-	{
-		setg(m_buf, m_buf, m_buf+rb);
-		return traits_type::to_int_type(m_buf[0]);
-	}
-	else
-	{
-		return traits_type::eof();
-	}
-}
-
-//-----------------------------------------------------------------------------
 bool kRewind(std::istream& Stream)
 //-----------------------------------------------------------------------------
 {

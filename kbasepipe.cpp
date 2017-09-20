@@ -94,6 +94,7 @@ bool KBasePipe::splitArgs(KString& argString, CharVec& argVector)
 			}
 		}
 	}
+	//## please use nullptr
 	argVector.push_back(NULL); // null terminate
 	return !argVector.empty();
 } // splitArgs

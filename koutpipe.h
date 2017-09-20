@@ -43,7 +43,7 @@
 #pragma once
 
 #include "kbasepipe.h"
-#include "kfdwriter.h"
+#include "kfdstream.h"
 
 namespace dekaf2
 
@@ -74,6 +74,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Open Constructor
+	//## make argument a KStringView (by var, no ref)
 	KOutPipe(const KString& sProgram);
 	//-----------------------------------------------------------------------------
 
@@ -84,6 +85,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Opens A WritePipe
+	//## make argument a KStringView (by var, no ref)
 	virtual bool Open(const KString& sProgram);
 	//-----------------------------------------------------------------------------
 
@@ -98,9 +100,11 @@ private:
 
 	//-----------------------------------------------------------------------------
 	/// Opens a pipe for writing
+	//## make argument a KStringView (by var, no ref)
 	bool OpenWritePipe(const KString& sProgram);
 	//-----------------------------------------------------------------------------
 
+	//## see my comment about -2 in kinpipe.h
 	int   m_writePdes[2]{-2,-2};
 
 }; // class KOutPipe

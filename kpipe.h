@@ -43,8 +43,7 @@
 #pragma once
 
 #include "kbasepipe.h"
-#include "kfdwriter.h"
-#include "kfdreader.h"
+#include "kfdstream.h"
 
 #include "fstream"
 #include <stdio.h>

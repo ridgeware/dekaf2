@@ -58,10 +58,10 @@ set (HEADERS
     kcrashexit.h
     kgetruntimestack.h
     kreader.h
-    kfdreader.h
     kwriter.h
-    kfdwriter.h
     kstream.h
+    kfdstream.h
+    kstreambuf.h
     kbaseshell.h
     kinshell.h
     koutshell.h
@@ -96,10 +96,10 @@ set (SOURCES
     kgetruntimestack.cpp
     kreader.cpp
     kwriter.cpp
-    kfdreader.cpp
     kwriter.cpp
-    kfdwriter.cpp
     kstream.cpp
+    kfdstream.cpp
+    kstreambuf.cpp
     kbaseshell.cpp
     kinshell.cpp
     koutshell.cpp

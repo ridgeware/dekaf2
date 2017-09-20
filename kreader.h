@@ -42,7 +42,6 @@
 
 #pragma once
 
-#include <streambuf>
 #include <istream>
 #include <fstream>
 #include <sstream>
@@ -52,59 +51,6 @@
 
 namespace dekaf2
 {
-
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// a customizable input stream buffer
-struct KInStreamBuf : public std::streambuf
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-{
-
-//-------
-public:
-//-------
-
-	//-----------------------------------------------------------------------------
-	/// the Reader's function's signature:
-	/// std::streamsize Reader(void* sBuffer, std::streamsize iCount, void* CustomPointer)
-	///  - returns read bytes. CustomPointer can be used for anything, to the discretion of the
-	/// Reader.
-	typedef std::streamsize (*Reader)(void*, std::streamsize, void*);
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// provide a Reader function, it will be called by std::streambuf on buffer reads
-	KInStreamBuf(Reader cb, void* CustomPointer = nullptr)
-	//-----------------------------------------------------------------------------
-	    : m_Callback(cb), m_CustomPointer(CustomPointer)
-	{
-	}
-	//-----------------------------------------------------------------------------
-	virtual ~KInStreamBuf();
-	//-----------------------------------------------------------------------------
-
-//-------
-protected:
-//-------
-
-	//-----------------------------------------------------------------------------
-	virtual std::streamsize xsgetn(char_type* s, std::streamsize n) override;
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	virtual int_type underflow() override;
-	//-----------------------------------------------------------------------------
-
-//-------
-private:
-//-------
-
-	Reader m_Callback{nullptr};
-	void* m_CustomPointer{nullptr};
-	enum { STREAMBUFSIZE = 256 };
-	char_type m_buf[STREAMBUFSIZE];
-
-}; // KInStreamBuf
-
 
 /// Read a line of text until EOF or delimiter from a std::istream. Right trim values of sTrimRight.
 /// Reads directly in the underlying streambuf

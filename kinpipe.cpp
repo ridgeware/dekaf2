@@ -70,6 +70,7 @@ KInPipe::~KInPipe()
 bool KInPipe::Open(const KString& sProgram)
 //-----------------------------------------------------------------------------
 {
+	//## use kDebug - it prints automatically the function name
 	KLog().debug(3, "KInPipe::Open(): {}", sProgram);
 
 	Close(); // ensure a previous pipe is closed
@@ -88,12 +89,14 @@ bool KInPipe::Open(const KString& sProgram)
 	// - - - - - - - - - - - - - - - - - - - - - - - -
 	if (m_readPdes[0] == -2)
 	{
+		//## use kWarning - it prints automatically the function name
 		KLog().debug (0, "KInPipe::Open(): OpenReadPipe CMD FAILED: {} ERROR: {}", sProgram, strerror(errno));
 		m_iExitCode = errno;
 		return false;
 	}
 	else
 	{
+		//## use kDebug - it prints automatically the function name
 		KLog().debug(3, "KInPipe::Open(): OpenReadPipe: ok...");
 		KFDReader::open(m_readPdes[0]);
 		return KFDReader::good();
@@ -118,6 +121,9 @@ int KInPipe::Close ()
 		iExitCode = m_iExitCode;
 	} // child not running
 
+	//## never separate if/else branches by empty lines, and better also not by
+	//## comments - instead put the comment into the branch (reason: edit
+	//## accidents waiting to happen)
 	// the child process has been giving us trouble. Kill it
 	else
 	{

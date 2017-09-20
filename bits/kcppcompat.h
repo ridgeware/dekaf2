@@ -43,16 +43,23 @@
 //
 */
 
-#include "kconfiguration.h"
-
 #pragma once
 
+/// @file kcppcompat.h
+/// compatibility layer to provide same interfaces for C++11 to 17
+
+#include "kconfiguration.h"
+
 #if defined __GNUC__
- #define DEKAF2_GCC_VERSION 100 * __GNUC__ + __GNUC_MINOR__ * 10 + __GNUC_PATCHLEVEL__
+ #define DEKAF2_GCC_VERSION __GNUC__ * 10000 + __GNUC_MINOR__ * 100 + __GNUC_PATCHLEVEL__
+#else
+ #define DEKAF2_GCC_VERSION 0
 #endif
 
 #if defined __GNUC__
 	#define DEKAF2_FUNCTION_NAME __PRETTY_FUNCTION__
+#elif defined _MSC_VER
+	#define DEKAF2_FUNCTION_NAME __FUNCSIG__
 #else
 	#define DEKAF2_FUNCTION_NAME __FUNCTION__
 #endif
@@ -142,4 +149,112 @@ using decay_t = typename decay<T>::type;
 
 }
 #endif
+
+// define macros to teach the compiler which branch is more likely
+// to be taken - the effects are actually minimal to nonexisting,
+// so do not bother for code that is not really core
+#if defined(__GNUC__) && __GNUC__ >= 4
+ #define DEKAF2_LIKELY(expression)   (__builtin_expect((expression), 1))
+ #define DEKAF2_UNLIKELY(expression) (__builtin_expect((expression), 0))
+#else
+ #define DEKAF2_LIKELY(expression)   (expression)
+ #define DEKAF2_UNLIKELY(expression) (expression)
+#endif
+
+// force the compiler to respect the inline - better do not use it, the
+// compiler is smarter than us in almost all cases
+#if defined(__GNUC__)
+ #define DEKAF2_ALWAYS_INLINE inline __attribute__((__always_inline__))
+#elif defined(_MSC_VER)
+ #define DEKAF2_ALWAYS_INLINE __forceinline
+#else
+ #define DEKAF2_ALWAYS_INLINE inline
+#endif
+
+#if (!defined __GNUC__ || DEKAF2_GCC_VERSION >= 50000) && DEKAF2_HAS_CPP_11
+ // this causes an error message in clang syntax analysis, but it compiles
+ // in both gcc >= 5 and clang!
+ #define DEKAF2_LE_BE_CONSTEXPR constexpr
+#else
+ // older gcc versions do not compile the constexpr
+ #define DEKAF2_LE_BE_CONSTEXPR inline
+#endif
+
+namespace dekaf2
+{
+
+DEKAF2_LE_BE_CONSTEXPR bool kIsBigEndian()
+{
+	union endian_t
+	{
+		const uint32_t i;
+		const unsigned char ch[4];
+	};
+	const endian_t endian{0x01020304};
+	return endian.ch[0] == 1;
+}
+
+DEKAF2_LE_BE_CONSTEXPR bool kIsLittleEndian()
+{
+	return !kIsBigEndian();
+}
+
+template <class VALUE>
+DEKAF2_LE_BE_CONSTEXPR void kSwapBytes(VALUE& value)
+{
+	static_assert(std::is_scalar<VALUE>::value, "operation only supported for scalar type");
+	std::size_t len = sizeof(VALUE);
+	if (DEKAF2_LIKELY(len > 1))
+	{
+		uint8_t* cp = (uint8_t*)&value;
+		for (std::size_t i = 0, e = len-1; i < len/2; ++i, --e)
+		{
+			std::swap(cp[i], cp[e]);
+		}
+	}
+}
+
+template <class VALUE>
+DEKAF2_LE_BE_CONSTEXPR void kToBigEndian(VALUE& value)
+{
+	static_assert(std::is_scalar<VALUE>::value, "operation only supported for scalar type");
+	if (!kIsBigEndian())
+	{
+		swap_bytes(value);
+	}
+}
+
+template <class VALUE>
+DEKAF2_LE_BE_CONSTEXPR void kToLittleEndian(VALUE& value)
+{
+	static_assert(std::is_scalar<VALUE>::value, "operation only supported for scalar type");
+	if (kIsBigEndian())
+	{
+		swap_bytes(value);
+	}
+}
+
+template <class VALUE>
+DEKAF2_LE_BE_CONSTEXPR void kFromBigEndian(VALUE& value)
+{
+	static_assert(std::is_scalar<VALUE>::value, "operation only supported for scalar type");
+	if (!kIsBigEndian())
+	{
+		swap_bytes(value);
+	}
+}
+
+template <class VALUE>
+DEKAF2_LE_BE_CONSTEXPR void kFromLittleEndian(VALUE& value)
+{
+	static_assert(std::is_scalar<VALUE>::value, "operation only supported for scalar type");
+	if (kIsBigEndian())
+	{
+		swap_bytes(value);
+	}
+}
+
+} // end of namespace dekaf2
+
+#undef DEKAF2_LE_BE_CONSTEXPR
 

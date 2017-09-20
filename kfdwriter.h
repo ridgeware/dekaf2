@@ -42,6 +42,9 @@
 
 #pragma once
 
+/// @file kfdwriter.h
+/// provides std::ostreams that can be constructed from open file descriptors and FILE*
+
 #include <cinttypes>
 #include <streambuf>
 #include <ostream>
@@ -55,10 +58,10 @@ namespace dekaf2
 {
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// an unbuffered std::ostream that is constructed around a unix file descriptor
-/// (mainly to allow its usage with pipes, for general file I/O use std::ofstream)
-/// (really, do it - this one is really slow on small writes to files, on purpose,
-/// because pipes should not be buffered!)
+/// Unbuffered std::ostream that is constructed around a unix file descriptor.
+/// Mainly to allow its usage with pipes, for general file I/O use std::ofstream.
+/// This one is really slow on small writes to files, on purpose, because pipes
+/// should not be buffered. Therefore do _not_ use it for ordinary file I/O.
 class KOutputFDStream : public std::ostream
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -83,9 +86,11 @@ public:
 	{
 	}
 
+	//-----------------------------------------------------------------------------
 	KOutputFDStream(const KOutputFDStream&) = delete;
+	//-----------------------------------------------------------------------------
 
-#if !defined(__GNUC__) || (DEKAF2_GCC_VERSION >= 500)
+#if !defined(__GNUC__) || (DEKAF2_GCC_VERSION >= 50000)
 	//-----------------------------------------------------------------------------
 	KOutputFDStream(KOutputFDStream&& other);
 	//-----------------------------------------------------------------------------
@@ -104,13 +109,15 @@ public:
 	virtual ~KOutputFDStream();
 	//-----------------------------------------------------------------------------
 
-#if !defined(__GNUC__) || (DEKAF2_GCC_VERSION >= 500)
+#if !defined(__GNUC__) || (DEKAF2_GCC_VERSION >= 50000)
 	//-----------------------------------------------------------------------------
 	KOutputFDStream& operator=(KOutputFDStream&& other);
 	//-----------------------------------------------------------------------------
 #endif
 
+	//-----------------------------------------------------------------------------
 	KOutputFDStream& operator=(const KOutputFDStream&) = delete;
+	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// the main purpose of this class: open from a standard unix
@@ -142,6 +149,7 @@ public:
 //----------
 protected:
 //----------
+
 	int m_FileDesc{-1};
 
 	// jschurig: The standard guarantees that the streambuf is neither used by
@@ -156,13 +164,15 @@ protected:
 	// solved by the standard before reading her article:
 	// http://www.angelikalanger.com/Articles/C++Report/IOStreamsDerivation/IOStreamsDerivation.html
 	KOutStreamBuf m_FPStreamBuf{&FileDescWriter, &m_FileDesc};
+
 };
 
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// a buffered std::ostream that is constructed around a FILE ptr
-/// (mainly to allow its usage with pipes, for general file I/O use std::ofstream)
-/// (really, do it - this one does not implement the full ostream interface)
+/// Buffered std::ostream that is constructed around a unix file descriptor.
+/// Mainly to allow its usage with pipes, for general file I/O use std::ofstream.
+/// Do _not_ use it for ordinary file I/O, it does not implement the full
+/// std::ostream interface.
 class KOutputFPStream : public std::ostream
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -189,7 +199,7 @@ public:
 
 	KOutputFPStream(const KOutputFPStream&) = delete;
 
-#if !defined(__GNUC__) || (DEKAF2_GCC_VERSION >= 500)
+#if !defined(__GNUC__) || (DEKAF2_GCC_VERSION >= 50000)
 	//-----------------------------------------------------------------------------
 	KOutputFPStream(KOutputFPStream&& other);
 	//-----------------------------------------------------------------------------
@@ -208,7 +218,7 @@ public:
 	virtual ~KOutputFPStream();
 	//-----------------------------------------------------------------------------
 
-#if !defined(__GNUC__) || (DEKAF2_GCC_VERSION >= 500)
+#if !defined(__GNUC__) || (DEKAF2_GCC_VERSION >= 50000)
 	//-----------------------------------------------------------------------------
 	KOutputFPStream& operator=(KOutputFPStream&& other);
 	//-----------------------------------------------------------------------------

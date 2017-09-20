@@ -8,12 +8,37 @@ cmake_minimum_required(VERSION 2.8)
 
 project(dekaf2)
 
+# The project version number.
+set(VERSION_MAJOR   0)
+set(VERSION_MINOR   0)
+set(VERSION_PATCH   1)
+mark_as_advanced(VERSION_MAJOR VERSION_MINOR VERSION_PATCH)
+
 # make sure we have the necessary version of cmake installed
-execute_process(COMMAND "./cmakeinstall -go")
+execute_process(COMMAND "${CMAKE_CURRENT_SOURCE_DIR}/bits/cmakeinstall -go")
 
 set(CMAKE_CXX_STANDARD 17)
 # we do not force C++17 if not available
 # set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+# configure cpu architecture dependant optimization
+if(CMAKE_COMPILER_IS_GNUCC AND "${CMAKE_SYSTEM_PROCESSOR}" STREQUAL "x86_64")
+
+	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wno-unused-parameter -Werror")
+	set(CMAKE_CXX_FLAGS_RELEASE "-O2 -DNDEBUG")
+	if (CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 6.0)
+		set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mavx2 -mfpmath=sse -maes")
+		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mavx2 -mfpmath=sse -maes")
+	elseif (CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 4.5)
+		set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -msse4.2")
+		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse4.2")
+	else ()
+		set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -msse3")
+		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse3")
+	endif()
+
+endif()
+message(STATUS "dekaf2 C++ compile flags for Release build: ${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_RELEASE}")
 
 set(CMAKE_THREAD_PREFER_PTHREAD TRUE)
 set(THREADS_PREFER_PTHREAD_FLAG TRUE)
@@ -22,21 +47,51 @@ find_package(Threads REQUIRED)
 # add third party libraries included in source control
 add_subdirectory(libs)
 
+# add partial third party libraries included in source control
+add_subdirectory(from)
+
 # add externally installed third party libraries:
 
 # openssl (needed for boost asio)
 find_package(OpenSSL QUIET REQUIRED)
 
-#set(Boost_USE_STATIC_LIBS ON)
+set(Boost_USE_STATIC_LIBS ON)
 # boost asio (header only) needs system
 find_package(Boost QUIET COMPONENTS system REQUIRED)
 include_directories(SYSTEM ${Boost_INCLUDE_DIR})
 
+# add a target to generate API documentation with Doxygen
+# please make sure the graphviz package is installed, too, not only doxygen
+find_package(Doxygen)
+if(DOXYGEN_FOUND)
+
+    # configure doxygen config file
+    configure_file(${CMAKE_CURRENT_SOURCE_DIR}/doc/doxyfile.in
+                   ${CMAKE_CURRENT_BINARY_DIR}/doxyfile @ONLY)
+
+    # execute doxygen
+    add_custom_target(doc
+        ${DOXYGEN_EXECUTABLE} ${CMAKE_CURRENT_BINARY_DIR}/doxyfile
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+        COMMENT "Generating API documentation with Doxygen" VERBATIM
+    )
+
+else()
+
+    add_custom_target(doc
+        COMMENT "Doxygen was not found on this machine. Documentation can not be generated." VERBATIM
+    )
+
+endif(DOXYGEN_FOUND)
+
 set (HEADERS
+    bits/kconfiguration.h
     bits/ktemplate.h
     bits/kcppcompat.h
     bits/kmake_unique.h
     bits/kmutable_pair.h
+    bits/kunique_deleter.h
+    bits/simd/kfindfirstof.h
     dekaf2.h
     kstringview.h
     kstring.h
@@ -56,6 +111,7 @@ set (HEADERS
     ksignals.h
     kcrashexit.h
     kgetruntimestack.h
+    ksubscribe.h
     kreader.h
     kfdreader.h
     kwriter.h
@@ -74,7 +130,9 @@ set (HEADERS
 )
 
 set (SOURCES
+	bits/simd/kfindfirstof.cpp
     dekaf2.cpp
+    kstringview.cpp
     kstring.cpp
     kregex.cpp
     klog.cpp
@@ -145,6 +203,7 @@ endif()
 target_link_libraries(dekaf2
     fmt
     re2
+    minifolly
     "${FSLIB}"
     ${Boost_LIBRARIES}
     ${OPENSSL_LIBRARIES}

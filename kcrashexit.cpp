@@ -59,7 +59,7 @@ void kCrashExit (int iSignalNum)
 //-----------------------------------------------------------------------------
 {
 	// switch automatic backtracing off
-	KLog().SetBackTrace(100);
+	KLog().SetBackTraceLevel(100);
 
 	// and start our own stackdump
 
@@ -136,7 +136,7 @@ void kCrashExit (int iSignalNum)
 	{
 		KLog().warning ("attempting to print a backtrace:");
 
-		KLog().warning(kGetRuntimeStack().s());
+		KLog().warning(kGetRuntimeStack());
 
 		#if 0
 		KLog().warning ("enabling core dumps...");

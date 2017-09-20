@@ -42,6 +42,9 @@
 
 #pragma once
 
+/// @file kinshell.h
+/// provides reading pipe access to a shell instance.
+
 #include "kbaseshell.h"
 #include "kfdreader.h"
 
@@ -49,6 +52,7 @@ namespace dekaf2
 {
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// Read on a shell instance
 class KInShell : public KBaseShell, public KFPReader
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {

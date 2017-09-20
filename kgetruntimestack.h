@@ -42,12 +42,23 @@
 
 #pragma once
 
+/// @file kgetruntimestack.h
+/// provides a stack tracer
+
 #include "kstring.h"
 
 namespace dekaf2
 {
 
+/// get a full runtime stack trace (uses gdb if possible). The output
+/// of this function is as detailed as possible, and intended for crash
+/// situations.
 KString kGetRuntimeStack ();
+
+/// get a stack trace (uses gdb if possible). The output of this one is
+/// shorter than the one of kGetRuntimeStack, and intended for logging
+/// purposes during the runtime of the application.
+/// @param iSkipStackLines Number of top stack lines to drop. Defaults to 0.
 KString kGetBacktrace (size_t iSkipStackLines = 0);
 
 }

@@ -256,7 +256,7 @@ void KProf::stop()
 		KSharedProfiler::duration_t slept_for = m_parent.m_slept_for - m_slept_before;
 		interval -= slept_for;
 		m_data.duration = interval;
-		m_data.count = 1;
+		m_data.count = m_callct_multiplier;
 		m_stopped = true;
 		m_perfcounter->second += m_data;
 

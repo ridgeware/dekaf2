@@ -1,0 +1,70 @@
+PROJECT_NAME           = "@CMAKE_PROJECT_NAME@"
+PROJECT_NUMBER         = @VERSION_MAJOR@.@VERSION_MINOR@.@VERSION_PATCH@
+STRIP_FROM_PATH        = @PROJECT_SOURCE_DIR@ \
+                         @PROJECT_BINARY_DIR@
+# STRIP_FROM_INC_PATH    = @@
+INPUT                  = @PROJECT_SOURCE_DIR@ \
+                         @PROJECT_SOURCE_DIR@/libs/re2/re2/stringpiece.h \
+                         @PROJECT_SOURCE_DIR@/libs/re2/re2/stringpiece.cc
+FILE_PATTERNS          = *.h \
+                         *.cpp
+EXCLUDE_PATTERNS       = @PROJECT_SOURCE_DIR@/libs/* \
+                         @PROJECT_SOURCE_DIR@/smoketests/* \
+                         @PROJECT_SOURCE_DIR@/utests/* \
+                         @PROJECT_SOURCE_DIR@/doc/* \
+                         @PROJECT_SOURCE_DIR@/from/*
+RECURSIVE              = YES
+HAVE_DOT               = @DOXYGEN_DOT_FOUND@
+# USE_MDFILE_AS_MAINPAGE = @doxy_main_page@
+OUTPUT_LANGUAGE        = English
+BUILTIN_STL_SUPPORT    = YES
+BRIEF_MEMBER_DESC      = NO
+# repeat brief in detail section
+REPEAT_BRIEF           = YES
+# create details if only brief?
+ALWAYS_DETAILED_SEC    = YES
+# show inherited members in child class?
+INLINE_INHERITED_MEMB  = YES
+# is multiline /// allowed for brief?
+MULTILINE_CPP_IS_BRIEF = NO
+JAVADOC_AUTOBRIEF      = YES
+INLINE_SIMPLE_STRUCTS  = YES
+# the inline keyword is useless nowadays, do not highlight it
+INLINE_INFO            = NO
+EXTRACT_ALL            = YES
+EXTRACT_PRIVATE        = NO
+EXTRACT_STATIC         = NO
+SORT_MEMBER_DOCS       = YES
+SORT_BRIEF_DOCS        = YES
+SORT_MEMBERS_CTORS_1ST = YES
+SORT_GROUP_NAMES       = YES
+COLS_IN_ALPHA_INDEX    = 3
+IGNORE_PREFIX          = K
+SOURCE_BROWSER         = NO
+STRIP_CODE_COMMENTS    = NO
+REFERENCED_BY_RELATION = NO
+REFERENCES_RELATION    = NO
+HIDE_UNDOC_RELATIONS   = NO
+CLASS_GRAPH            = YES
+COLLABORATION_GRAPH    = NO
+HTML_TIMESTAMP         = YES
+HTML_DYNAMIC_SECTIONS  = NO
+# these locations point to the source, but doxygen takes care that they are copied into
+# the generated html/ directory (or included into the main html files)
+HTML_HEADER            = @PROJECT_SOURCE_DIR@/doc/doxygen-bootstrapped/example-site/header.html
+HTML_FOOTER            = @PROJECT_SOURCE_DIR@/doc/doxygen-bootstrapped/example-site/footer.html
+HTML_EXTRA_STYLESHEET  = @PROJECT_SOURCE_DIR@/doc/doxygen-bootstrapped/customdoxygen.css
+HTML_EXTRA_FILES       = @PROJECT_SOURCE_DIR@/doc/doxygen-bootstrapped/doxy-boot.js
+# locations until here
+GENERATE_HTML          = YES
+GENERATE_LATEX         = NO
+GENERATE_RTF           = NO
+GENERATE_MAN           = NO
+GENERATE_XML           = NO
+GENERATE_DOCBOOK       = NO
+ENABLE_PREPROCESSING   = YES
+UML_LOOK               = NO
+TEMPLATE_RELATIONS     = NO
+CALL_GRAPH             = NO
+CALLER_GRAPH           = NO
+INTERACTIVE_SVG        = YES

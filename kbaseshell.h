@@ -41,6 +41,9 @@
 */
 #pragma once
 
+/// @file kbaseshell.h
+/// basic shell I/O class
+
 #include "kstring.h"
 
 namespace dekaf2
@@ -93,7 +96,7 @@ public:
 	}
 
 //--------
-public:
+protected:
 //--------
 
 	FILE*        m_pipe{nullptr};

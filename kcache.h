@@ -42,6 +42,9 @@
 
 #pragma once
 
+/// @file kcache.h
+/// a generic cache with LRU removal
+
 #include "bits/kcppcompat.h"
 #include "dekaf2.h"
 #include "ksharedref.h"
@@ -52,7 +55,7 @@ namespace dekaf2
 {
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// KCache implements a generic cache.
+/// Implements a generic cache.
 /// For cache size management it uses a Least Recently Used removal strategy.
 /// To load a new value it calls the constructor of Value() with the new Key.
 template<class Key, class Value>
@@ -70,6 +73,7 @@ protected:
 	size_t m_iMaxSize;
 
 	//-----------------------------------------------------------------------------
+	/// Creates a new cache entry.
 	template<class K, class V>
 	Value& Create(K&& key, V&& value)
 	//-----------------------------------------------------------------------------
@@ -95,6 +99,7 @@ public:
 	KCache& operator=(const KCache&&) = delete;
 
 	//-----------------------------------------------------------------------------
+	/// Add a new key value pair to the cache.
 	template<class K, class V>
 	Value& Set(K&& key, V&& value)
 	//-----------------------------------------------------------------------------
@@ -103,6 +108,10 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// Get a value for a key from the cache. If the key does not exist, a new
+	/// value will be created and the key value pair will be inserted into the
+	/// cache. For this to be possible, the Value type needs to be constructible
+	/// from the Key type (so, have a constructor Value(Key) ).
 	Value& Get(const Key& key)
 	//-----------------------------------------------------------------------------
 	{
@@ -116,6 +125,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// Erase a key and its corresponding value from the cache.
 	bool Erase(const Key& key)
 	//-----------------------------------------------------------------------------
 	{
@@ -123,6 +133,9 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// Set a new maximum cache size. When the cache was filled with more elements,
+	/// it is reduced by the amount of excess elements that were the least recently
+	/// used.
 	void SetMaxSize(size_t iMaxSize)
 	//-----------------------------------------------------------------------------
 	{
@@ -130,6 +143,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// Returns the maximum cache size.
 	size_t GetMaxSize() const
 	//-----------------------------------------------------------------------------
 	{
@@ -137,6 +151,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// Clears the cache.
 	void clear()
 	//-----------------------------------------------------------------------------
 	{
@@ -144,10 +159,22 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// Returns count of cached elements.
 	size_t size() const
 	//-----------------------------------------------------------------------------
 	{
 		return m_map.size();
+	}
+
+	//-----------------------------------------------------------------------------
+	/// Get a value for a key from the cache. If the key does not exist, a new
+	/// value will be created and the key value pair will be inserted into the
+	/// cache. For this to be possible, the Value type needs to be constructible
+	/// from the Key type (so, have a constructor Value(Key) ).
+	Value& operator[](const Key& key)
+	//-----------------------------------------------------------------------------
+	{
+		return Get(key);
 	}
 
 }; // KCache
@@ -170,6 +197,7 @@ public:
 	using base_type  = KCache<Key, value_type>;
 
 	//-----------------------------------------------------------------------------
+	/// Add a new key value pair to the cache.
 	template<class K, class V>
 	value_type& Set(K&& key, V&& value)
 	//-----------------------------------------------------------------------------
@@ -184,6 +212,10 @@ public:
 
 	//-----------------------------------------------------------------------------
 	// need to reimplement Get() from scratch to accomodate the share logic
+	/// Get a value for a key from the cache. If the key does not exist, a new
+	/// value will be created and the key value pair will be inserted into the
+	/// cache. For this to be possible, the Value type needs to be constructible
+	/// from the Key type (so, have a constructor Value(Key) ).
 	value_type& Get(const Key& key)
 	//-----------------------------------------------------------------------------
 	{
@@ -213,6 +245,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// Erase a key and its corresponding value from the cache.
 	bool Erase(const Key& key)
 	//-----------------------------------------------------------------------------
 	{
@@ -225,6 +258,9 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// Set a new maximum cache size. When the cache was filled with more elements,
+	/// it is reduced by the amount of excess elements that were the least recently
+	/// used.
 	void SetMaxSize(size_t iMaxSize)
 	//-----------------------------------------------------------------------------
 	{
@@ -237,6 +273,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// Returns the maximum cache size.
 	size_t GetMaxSize() const
 	//-----------------------------------------------------------------------------
 	{
@@ -249,6 +286,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// Clears the cache.
 	void clear()
 	//-----------------------------------------------------------------------------
 	{
@@ -261,6 +299,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// Returns count of cached elements.
 	size_t size() const
 	//-----------------------------------------------------------------------------
 	{
@@ -270,6 +309,17 @@ public:
 			Lock.lock();
 		}
 		return base_type::size();
+	}
+
+	//-----------------------------------------------------------------------------
+	/// Get a value for a key from the cache. If the key does not exist, a new
+	/// value will be created and the key value pair will be inserted into the
+	/// cache. For this to be possible, the Value type needs to be constructible
+	/// from the Key type (so, have a constructor Value(Key) ).
+	value_type& operator[](const Key& key)
+	//-----------------------------------------------------------------------------
+	{
+		return Get(key);
 	}
 
 //----------

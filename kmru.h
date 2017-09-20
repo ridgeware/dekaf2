@@ -42,7 +42,10 @@
 
 #pragma once
 
-#if !defined(NDEBUG)
+/// @file kmru.h
+/// provides a least / most recently used container
+
+#if !defined(NDEBUG) && 0
 #define BOOST_MULTI_INDEX_ENABLE_INVARIANT_CHECKING
 #define BOOST_MULTI_INDEX_ENABLE_SAFE_MODE
 #endif
@@ -61,6 +64,7 @@ namespace dekaf2
 using namespace boost::multi_index;
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// KMRU base type for non-maps
 template <typename Element, typename Key = Element, bool IsMap = false>
 class KMRUBaseType
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -84,6 +88,7 @@ protected:
 };
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// KMRU base type for maps
 template <typename Element, typename Key>
 class KMRUBaseType<Element, Key, true>
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -132,6 +137,8 @@ public:
 	using pair_ib      = std::pair<iterator, bool>;
 
 	//-----------------------------------------------------------------------------
+	/// Constructor.
+	/// @param iMaxElements Maximum size of the container.
 	KMRUBase(size_t iMaxElements)
 	//-----------------------------------------------------------------------------
 	    : m_iMaxElements(iMaxElements)
@@ -139,6 +146,8 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// Sets a new maximum size for the container
+	/// @param iMaxElements The new value for the maximum size.
 	void SetMaxSize(size_t iMaxElements)
 	//-----------------------------------------------------------------------------
 	{
@@ -151,6 +160,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// Gets the maximum size of the container.
 	size_t GetMaxSize() const
 	//-----------------------------------------------------------------------------
 	{
@@ -158,6 +168,8 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// Insert a const elememt into the container, new or known. The element will be
+	/// placed at the top of the most recently used list.
 	iterator insert(const element_type& element)
 	//-----------------------------------------------------------------------------
 	{
@@ -166,6 +178,9 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// Insert a consumable elememt into the container, new or known. The element will be
+	/// placed at the top of the most recently used list. The element's value will be
+	/// transfered by a move operation if possible.
 	iterator insert(element_type&& element)
 	//-----------------------------------------------------------------------------
 	{
@@ -175,6 +190,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// Erase the element with the given key from the container.
 	bool erase(const Key& key)
 	//-----------------------------------------------------------------------------
 	{
@@ -192,6 +208,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// Return an iterator on the first element in the MRU sequence.
 	iterator begin()
 	//-----------------------------------------------------------------------------
 	{
@@ -199,6 +216,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// Return an end iterator.
 	iterator end()
 	//-----------------------------------------------------------------------------
 	{
@@ -206,6 +224,8 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// Finds the element with the given key. Returns end() if not found. Moves
+	/// the element to the top of the MRU list if found.
 	iterator find(const Key& key)
 	//-----------------------------------------------------------------------------
 	{
@@ -226,6 +246,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// Returns the size of the container.
 	size_t size() const
 	//-----------------------------------------------------------------------------
 	{
@@ -233,6 +254,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// Checks if the container is empty.
 	bool empty() const
 	//-----------------------------------------------------------------------------
 	{
@@ -240,6 +262,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// Removes all content from the container.
 	void clear()
 	//-----------------------------------------------------------------------------
 	{
@@ -251,6 +274,7 @@ protected:
 //----------
 
 	//-----------------------------------------------------------------------------
+	/// Brings the element pointed at with @p it to the front.
 	void touch(iterator it)
 	//-----------------------------------------------------------------------------
 	{
@@ -262,6 +286,8 @@ protected:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// Depending on whether the inserted element was new or known this function
+	/// brings it to the front or checks if old elements have to be deleted.
 	void post_insert(pair_ib& pair)
 	//-----------------------------------------------------------------------------
 	{
@@ -283,7 +309,7 @@ protected:
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// a Most/Least Recently Used container for elements which themselves
-/// are the key
+/// are the key, like lists.
 template <typename Element>
 class KMRUList : public KMRUBase<Element>
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::

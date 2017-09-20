@@ -66,7 +66,7 @@ KLog::KLog()
 //---------------------------------------------------------------------------
     : m_sLogfile("/tmp/dekaf.log")
     , m_sFlagfile("/tmp/dekaf.dbg")
-    , m_Log(m_sLogfile, std::ios::ate)
+    , m_Log(m_sLogfile.c_str(), std::ios::ate)
 {
 #if NDEBUG
 	s_kLogLevel = -1;
@@ -86,7 +86,7 @@ bool KLog::SetDebugLog(KStringView sLogfile)
 
 	m_sLogfile = sLogfile;
 
-	m_Log.open(m_sLogfile, std::ios::ate);
+	m_Log.open(m_sLogfile.c_str(), std::ios::ate);
 	if (!m_Log.is_open())
 	{
 		return false;

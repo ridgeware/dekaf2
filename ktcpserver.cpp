@@ -173,7 +173,7 @@ void KTCPServer::ExpiresFromNow(KStream& stream, long iSeconds)
 {
 	if (IsSSL())
 	{
-		KSSLStream& s = static_cast<KSSLStream&>(stream);
+//		KSSLStream& s = static_cast<KSSLStream&>(stream);
 		// TODO
 	}
 	else
@@ -274,6 +274,7 @@ bool KTCPServer::SetSSLCertificate(KStringView sCert, KStringView sPem)
 {
 	m_sCert = sCert;
 	m_sPem = sPem;
+	return true; // TODO add validity check
 }
 
 //-----------------------------------------------------------------------------

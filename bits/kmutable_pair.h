@@ -40,6 +40,11 @@
 //
 */
 
+#pragma once
+
+/// @file kmutable_pair.h
+/// provides a helper for boost multi_index
+
 #include <utility>
 
 namespace dekaf2
@@ -48,47 +53,64 @@ namespace dekaf2
 namespace detail
 {
 
-// this is a helper type to map a std::map into boost::multi_index,
-// as the latter is const on all elements (and does not have the
-// distinction between key and value)
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// A helper type to map a std::map into boost::multi_index,
+/// as the latter is const on all elements (and does not have the
+/// distinction between key and value)
 template<class Key, class Value>
 struct KMutablePair
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
+
 	using self_type = KMutablePair<Key, Value>;
 
+	//-----------------------------------------------------------------------------
 	KMutablePair()
-		: first(Key())
-		, second(Value())
+	//-----------------------------------------------------------------------------
+	    : first(Key())
+	    , second(Value())
 	{}
 
+	//-----------------------------------------------------------------------------
 	KMutablePair(const Key& f, const Value& s)
-		: first(f)
-		, second(s)
+	//-----------------------------------------------------------------------------
+	    : first(f)
+	    , second(s)
 	{}
 
+	//-----------------------------------------------------------------------------
 	KMutablePair(Key&& f, Value&& s)
-		: first(std::move(f))
-		, second(std::move(s))
+	//-----------------------------------------------------------------------------
+	    : first(std::move(f))
+	    , second(std::move(s))
 	{}
 
+	//-----------------------------------------------------------------------------
 	KMutablePair(const self_type& p)
-		: first(p.first)
-		, second(p.second)
+	//-----------------------------------------------------------------------------
+	    : first(p.first)
+	    , second(p.second)
 	{}
 
+	//-----------------------------------------------------------------------------
 	KMutablePair(self_type&& p)
-		: first(std::move(p.first))
-		, second(std::move(p.second))
+	//-----------------------------------------------------------------------------
+	    : first(std::move(p.first))
+	    , second(std::move(p.second))
 	{}
 
+	//-----------------------------------------------------------------------------
 	KMutablePair(const std::pair<Key, Value>& p)
-		: first(p.first)
-		, second(p.second)
+	//-----------------------------------------------------------------------------
+	    : first(p.first)
+	    , second(p.second)
 	{}
 
+	//-----------------------------------------------------------------------------
 	KMutablePair(std::pair<Key, Value>&& p)
-		: first(std::move(p.first))
-		, second(std::move(p.second))
+	//-----------------------------------------------------------------------------
+	    : first(std::move(p.first))
+	    , second(std::move(p.second))
 	{}
 
 	bool operator==(const KMutablePair& other) const
@@ -103,7 +125,10 @@ struct KMutablePair
 
 	Key           first;
 	mutable Value second;
+
 };
 
-}
-}
+} // end of namespace detail
+
+} // end of namespace dekaf2
+

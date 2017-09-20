@@ -42,6 +42,9 @@
 
 #pragma once
 
+/// @file kfile.h
+/// remaining standalone functions around files and the file system
+
 #include <cinttypes>
 #include "kstring.h"
 #include "kstream.h"
@@ -51,6 +54,8 @@ namespace dekaf2
 
 typedef uint16_t KFileFlags;
 
+/// Checks if a file exists.
+/// @param bTestForEmptyFile If true reats a file as non-existing if its size is 0
 bool kExists (const KString& sPath, bool bTestForEmptyFile = false);
 KString kGetCWD ();
 

@@ -42,6 +42,9 @@
 
 #pragma once
 
+/// @file khash.h
+/// provides a Fowler-Noll-Vo hash
+
 #include <cinttypes>
 #include <climits>
 #include "bits/kcppcompat.h"
@@ -122,11 +125,13 @@ using fnv1a_64 = basic_fnv1a<std::uint64_t,
                              UINT64_C(14695981039346656037),
                              UINT64_C(1099511628211)>;
 
+/// generic FNV hash template
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 template <std::size_t Bits>
 struct fnv1a;
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
+/// 32 bit FNV hash template specialization
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 template <>
 struct fnv1a<32>
@@ -135,6 +140,7 @@ struct fnv1a<32>
 	using type = fnv1a_32;
 };
 
+/// 64 bit FNV hash template specialization
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 template <>
 struct fnv1a<64>
@@ -149,6 +155,7 @@ using fnv1a_t = typename fnv1a<Bits>::type;
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
 //---------------------------------------------------------------------------
+/// Fowler-Noll-Vo hash function for arbitrary data
 #ifdef DEKAF2_HAS_CPP_14
 constexpr
 std::size_t hash_bytes_FNV(const void* const data, const std::size_t size) noexcept

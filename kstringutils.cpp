@@ -46,107 +46,6 @@
 namespace dekaf2
 {
 
-//------------------------------------------------------------------------------
-std::string::size_type kReplace(std::string& string,
-                                KStringView sSearch,
-                                KStringView sReplaceWith,
-                                bool bReplaceAll)
-//------------------------------------------------------------------------------
-{
-	if (sSearch.empty() || string.size() < sSearch.size())
-	{
-		return 0;
-	}
-
-	typedef std::string::size_type size_type;
-	typedef std::string::value_type value_type;
-
-	size_type iNumReplacement = 0;
-	// use a non-const ref to the first element, as .data() is const with C++ < 17
-	value_type* haystack = &string[0];
-	size_type haystackSize = string.size();
-
-	value_type* pszFound = static_cast<value_type*>(memmem(haystack, haystackSize, sSearch.data(), sSearch.size()));
-
-	if (pszFound)
-	{
-
-		if (sReplaceWith.size() <= sSearch.size())
-		{
-			// execute an in-place substitution (C++17 actually has a non-const string.data())
-			value_type* pszTarget = const_cast<value_type*>(haystack);
-
-			while (pszFound)
-			{
-				auto untouchedSize = static_cast<size_type>(pszFound - haystack);
-				if (pszTarget < haystack)
-				{
-					memmove(pszTarget, haystack, untouchedSize);
-				}
-				pszTarget += untouchedSize;
-
-				if (!sReplaceWith.empty())
-				{
-					memmove(pszTarget, sReplaceWith.data(), sReplaceWith.size());
-					pszTarget += sReplaceWith.size();
-				}
-
-				haystack = pszFound + sSearch.size();
-				haystackSize -= (sSearch.size() + untouchedSize);
-
-				pszFound = static_cast<value_type*>(memmem(haystack, haystackSize, sSearch.data(), sSearch.size()));
-
-				++iNumReplacement;
-
-				if (!bReplaceAll)
-				{
-					break;
-				}
-			}
-
-			if (haystackSize)
-			{
-				memmove(pszTarget, haystack, haystackSize);
-				pszTarget += haystackSize;
-			}
-
-			auto iResultSize = static_cast<size_type>(pszTarget - string.data());
-			string.resize(iResultSize);
-
-		}
-		else
-		{
-			// execute a copy substitution
-			std::string sResult;
-			sResult.reserve(string.size());
-
-			while (pszFound)
-			{
-				auto untouchedSize = static_cast<size_type>(pszFound - haystack);
-				sResult.append(haystack, untouchedSize);
-				sResult.append(sReplaceWith.data(), sReplaceWith.size());
-
-				haystack = pszFound + sSearch.size();
-				haystackSize -= (sSearch.size() + untouchedSize);
-
-				pszFound = static_cast<value_type*>(memmem(haystack, haystackSize, sSearch.data(), sSearch.size()));
-
-				++iNumReplacement;
-
-				if (!bReplaceAll)
-				{
-					break;
-				}
-			}
-
-			sResult.append(haystack, haystackSize);
-			string.swap(sResult);
-		}
-	}
-
-	return iNumReplacement;
-}
-
 //-----------------------------------------------------------------------------
 std::string kFormTimestamp (time_t tTime, const char* pszFormat)
 //-----------------------------------------------------------------------------
@@ -362,6 +261,28 @@ bool kIsDecimal(KStringView str) noexcept
 		}
 	}
 	return true;
+}
+
+//-----------------------------------------------------------------------------
+bool kIsEmail(KStringView str) noexcept
+//-----------------------------------------------------------------------------
+{
+	if (str.empty())
+	{
+		return false;
+	}
+	return false;
+}
+
+//-----------------------------------------------------------------------------
+bool kIsURL(KStringView str) noexcept
+//-----------------------------------------------------------------------------
+{
+	if (str.empty())
+	{
+		return false;
+	}
+	return false;
 }
 
 } // end of namespace dekaf2

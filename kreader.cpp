@@ -317,6 +317,12 @@ bool kReadLine(std::istream& Stream,
                KString::value_type delimiter)
 //-----------------------------------------------------------------------------
 {
+	if (!Stream.good())
+	{
+		sLine.clear();
+		return false;
+	}
+
 	// do not implement your own version of std::getline without performance checks ..
 	std::getline(Stream, sLine, delimiter);
 

@@ -69,7 +69,7 @@ bool kExists (const KString& sPath, bool bTestForEmptyFile /* = false */ )
 #ifdef DEKAF2_HAS_CPP_17
 	std::error_code ec;
 
-	fs::file_status status = fs::status(sPath.s(), ec);
+	fs::file_status status = fs::status(sPath.c_str(), ec);
 
 	if (ec)
 	{
@@ -92,7 +92,7 @@ bool kExists (const KString& sPath, bool bTestForEmptyFile /* = false */ )
 		return true;
 	}
 
-	if (fs::is_empty(sPath.s(), ec))
+	if (fs::is_empty(sPath.c_str(), ec))
 	{
 		return false;
 	}

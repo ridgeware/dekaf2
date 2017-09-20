@@ -40,6 +40,9 @@
 
 #pragma once
 
+/// @file kformat.h
+/// provides basic string formatter functionality
+
 #include <ostream>
 #include <fmt/format.h>
 #include <fmt/ostream.h>
@@ -58,6 +61,7 @@ void report_format_exception(std::exception& e, const char* where);
 } // end of namespace kFormat_internal
 
 //-----------------------------------------------------------------------------
+/// formats a string using Python syntax
 template<class... Args>
 std::string kFormat(Args&&... args)
 //-----------------------------------------------------------------------------
@@ -73,6 +77,7 @@ std::string kFormat(Args&&... args)
 }
 
 //-----------------------------------------------------------------------------
+/// formats a std::ostream using Python syntax
 template<class... Args>
 std::ostream& kfFormat(std::ostream& os, Args&&... args)
 //-----------------------------------------------------------------------------
@@ -88,6 +93,7 @@ std::ostream& kfFormat(std::ostream& os, Args&&... args)
 }
 
 //-----------------------------------------------------------------------------
+/// formats a string using POSIX printf syntax
 template<class... Args>
 std::string kPrintf(Args&&... args)
 //-----------------------------------------------------------------------------
@@ -103,6 +109,7 @@ std::string kPrintf(Args&&... args)
 }
 
 //-----------------------------------------------------------------------------
+/// formats a file using POSIX printf syntax
 template<class... Args>
 std::ostream& kfPrintf(std::ostream& os, Args&&... args)
 //-----------------------------------------------------------------------------

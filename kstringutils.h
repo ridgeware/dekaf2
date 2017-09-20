@@ -42,22 +42,17 @@
 
 #pragma once
 
+/// @file kstringutils.h
+/// standalone string utility functions
+
 #include <cinttypes>
 #include <algorithm>
 #include <functional>
 #include "bits/kcppcompat.h"
 #include "bits/ktemplate.h"
-#include "kstring.h"
 
 namespace dekaf2
 {
-
-//------------------------------------------------------------------------------
-std::string::size_type kReplace(std::string& string,
-                                KStringView sSearch,
-                                KStringView sReplaceWith,
-                                bool bReplaceAll = true);
-//------------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
 template<class String>
@@ -223,6 +218,14 @@ inline bool kIsDigit(Char ch) noexcept
 
 //-----------------------------------------------------------------------------
 bool kIsDecimal(KStringView str) noexcept;
+//-----------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
+bool kIsEmail(KStringView str) noexcept;
+//-----------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
+bool kIsURL(KStringView str) noexcept;
 //-----------------------------------------------------------------------------
 
 // exception free conversions

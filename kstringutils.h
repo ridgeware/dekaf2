@@ -454,7 +454,7 @@ void kUrlDecode (KStringView& sSource, String& sTarget)
 
 
 template<class String>
-void kUrlEncode (KStringView sSource, String& sTarget, KStringView svExclude="")
+void kUrlEncode (KStringView sSource, String& sTarget, KStringView svExclude=KStringView{})
 //-----------------------------------------------------------------------------
 {
 	// Implementation of exclusion does a quick JIT compile so that
@@ -462,14 +462,10 @@ void kUrlEncode (KStringView sSource, String& sTarget, KStringView svExclude="")
 	static const unsigned char* sxDigit{
 		reinterpret_cast<const unsigned char*>("0123456789ABCDEF")};
 	// to exclude encoding of special characters, make a table of exclusions.
-	static bool aExclude[256] = {false};
-	// Identify the exclusions by setting them true, but only the first time.
-	if (!aExclude[static_cast<size_t>('0')])
+	bool aExclude[256] = {false};
+	for (auto iC: svExclude)
 	{
-		for (auto iC: svExclude)
-		{
-			aExclude[static_cast<size_t>(iC)] = true;
-		}
+		aExclude[static_cast<size_t>(iC)] = true;
 	}
 	size_t iSize = sSource.size();
 	// Pre-allocate to prevent potential multiple re-allocations.

@@ -1,4 +1,4 @@
-///////////////////////////////////////////////////////////////////////////////
+//=============================================================================
 //
 // DEKAF(tm): Lighter, Faster, Smarter(tm)
 //
@@ -38,18 +38,24 @@
 // |\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/ |
 // +-------------------------------------------------------------------------+
 //
-///////////////////////////////////////////////////////////////////////////////
+//=============================================================================
 
 #pragma once
 
 #include <cinttypes>
-#include "kstring.h"
 
-using string_view = dekaf2::KStringView;
+#include "kstring.h"
+#include "kstringutils.h"
+#include "kprops.h"
+#include "kurl.h"
+
 
 namespace dekaf2
 {
 
+    /*
+<<<<<<< HEAD
+=======
     // https://en.wikipedia.org/wiki/URL
     // scheme:[//[user[:password]@]host[:port]][/path][?query][#fragment]
 
@@ -87,243 +93,1408 @@ bool unimplemented(const KString& name, const char* __file__, size_t __line__);
 /// parse methods shall return false on error, true on success.
 class KProto
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-{
-    public:
-	    KProto ();
-		KProto (const KString& source);
-		KProto (const KString& source, size_t& hint);
-		bool parse     (const KString& source, size_t& hint);
-		bool serialize (      KString& target) const;
-
-		bool getProtocol     (string_view& target) const;
-
-		void clear ();
-
-		enum eProto : uint16_t
-		{
-			UNKNOWN = 0,
-			HTTP    = 80,
-			HTTPS   = 443,
-			FTP     = 23
-		};
-
-    private:
-		// bool parse (); // do we need this?
-
-		bool m_error{false};
-		bool m_mailto{false};
-		KString m_proto{""};
-};
-
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class KUserInfo
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-{
-    public:
-	    KUserInfo ();
-	    KUserInfo (const KString& source);
-		KUserInfo (const KString& source, size_t& hint);
-		bool parse     (const KString& source, size_t& hint);
-		bool serialize (      KString& target) const;
-
-		void clear ();
-
-    private:
-		bool m_error{false};
-		KString m_user{""};
-		KString m_pass{""};
-};
-
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class KDomain
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-{
-    public:
-	    KDomain ();
-	    KDomain (const KString& source);
-		KDomain (const KString& source, size_t& hint);
-		//KDomain (KString&& source);
-		//KDomain (const KDomain& other);
-		//KDomain (const string_view& sv);
-
-		bool parse     (const KString& source, size_t& hint);
-		bool serialize (      KString& target) const;
-
-		const KString&   getHostname ()   const
-		{
-			return m_sHostName;
-		}
-		const KString&   getDomain ()     const
-		{
-			return m_sDomainName;
-		}
-		const KString&   getTLD ()        const
-		{
-			return m_sDomainName;
-		} // aka getDomain
-
-		const KString&   getBaseDomain () const
-		{
-			return m_sBaseDomain;
-		}
-		int              getPortNum ()    const
-		{
-			return m_iPortNum;
-		}
-
-		void             clear ();
-
-    private:
-		bool     m_error;
-		uint16_t m_iPortNum;
-		KString  m_sPortName;
-		KString  m_sHostName;
-		KString  m_sDomainName;
-		KString  m_sBaseDomain;
-};
-
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class KURIPath
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-{
-    public:
-	    KURIPath ();
-		KURIPath (const KString& source);
-		KURIPath (const KString& source, size_t& hint);
-
-		bool parse     (const KString& source, size_t& hint);
-		bool serialize (      KString& target) const;
-
-		void clear ();
-    private:
-		bool m_error{false};
-		KString m_path{""};
-
-};
-
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class KQueryParms
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-{
-    public:
-	    KQueryParms    ();
-		KQueryParms    (const KString& source);
-		KQueryParms    (const KString& source, size_t& hint);
-
-		bool parse     (const KString& source, size_t& hint);
-		bool serialize (      KString& target) const;
-
-		bool querystring  (string_view& target) const;
-
-		void clear ();
-    private:
-		bool m_error{false};
-		KString m_query{""};
-
-};
-
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class KFragment
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-{
-    public:
-	    KFragment    ();
-	    KFragment    (const KString& source);
-		KFragment    (const KString& source, size_t& hint);
-
-		bool parse     (const KString& source, size_t& hint);
-		bool serialize (      KString& target) const;
-
-		bool fragment  (string_view& target) const;
-
-		void clear ();
-    private:
-		bool m_error{false};
-		KString m_fragment{""};
-
-};
-
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class KURI : public KURIPath, KQueryParms
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-{
-    public:
-	    KURI    ();
-		KURI    (const KString& source);
-		KURI    (const KString& source, size_t& hint);
-
-		bool parse     (const KString& source, size_t& hint);
-		bool serialize (      KString& target) const;
-
-		bool getURI    (string_view& target) const;
-
-		void clear ();
-
-};
-
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class KURL : public KProto, KUserInfo, KDomain, KURI, KFragment
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-{
-    public:
-	    KURL    ();
-		KURL    (const KString& source);
-		KURL    (const KString& source, size_t& hint);
-
-		bool parse     (const KString& source, size_t& hint);
-		bool serialize (      KString& target) const;
-		void clear ();
-    private:
-		bool m_error{false};
-};
-
-/*
-/////////////////////////////////////////////////////////////////////////////
-class KURL
-/////////////////////////////////////////////////////////////////////////////
-{
-public:
-		KURL ();
-		KURL (const KString& sURL);
-
-		bool      Parse       (const KString& sURL);
-		KString   FormURL     () const;
-
-		KString   GetURL ()           { return m_sURL; } const;
-		KString   GetProtocol ()      { return m_sProtocol; };
-		KString   GetFullPath ()      { return m_sFullPath; };
-		KString   GetPath2File ()     { return m_sPath2File; };
-		KString   GetFilename ()      { return m_sFilename; };
-		KString   GetFileExt ()       { return m_sFileExt; };
-		KString   GetQueryString ()   { return m_sQueryString; };
-
-		bool      SetProtocol      (const KString& sProtocol);
-		bool      SetProtocol      (KProto& iProtocol);
-		bool      SetHostname      (const KString& sHostname);
-		bool      SetPortNum       (int iPortNum)   { m_iPortNum = iPortNum; };
-		bool      SetQueryString   (const KString& sQueryString);
-
-		static bool IsURL         (const KString& sString);
-		static bool IsEmail       (const KString& sString);
-		static bool ParseProtocol (const KString& sString, KString& sProtocol, KProto& iProtocol, int& iDefaultPort);
-		static bool ParseHostname (const KString& sString, KString& sHostname, KString& sDomainName);
-
-private:
-		KString   m_sURL;
-		KString   m_sProtocol;
-		KProto    m_iProtocol;
-		KString   m_sHostname;
-		KString   m_sDomainName;
-		KString   m_sMailTo;
-		int       m_iPortNum;
-		KString   m_sFullPath;
-		KString   m_sPath2File;
-		KString   m_sFilename;
-		KString   m_sFileExt;
-		KString   m_sQueryString;
-		std::map  m_QueryParms;
-};
-
+>>>>>>> master
 */
+namespace KURL
+{
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+class Protocol
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+//------
+public:
+//------
+
+	enum eProto : uint16_t
+	{
+		// Explicit values to guarantee map to m_sCanonical.
+		UNDEFINED = 0,
+		FILE      = 1,
+		FTP       = 2,
+		HTTP      = 3,
+		HTTPS     = 4,
+		MAILTO    = 5,
+		UNKNOWN   = 6
+	};
+
+	//-------------------------------------------------------------------------
+	/// constructs empty instance.
+	inline Protocol () {}
+	//-------------------------------------------------------------------------
+
+	//-------------------------------------------------------------------------
+	/// construct an empty instance with specialization for enumerated protocol.
+	/// Protocol proto (Protocol::UNKNOWN);
+	inline Protocol (eProto iProto)
+		: m_eProto {iProto}
+	//-------------------------------------------------------------------------
+	{}
+
+	//-------------------------------------------------------------------------
+	/// constructs instance and parses source into members
+	inline Protocol (KStringView svSource)
+	//-------------------------------------------------------------------------
+	{
+		Parse (svSource);
+	}
+
+	//-------------------------------------------------------------------------
+	/// parses source into members of instance
+	KStringView Parse (KStringView svSource);
+	//-------------------------------------------------------------------------
+
+	//-------------------------------------------------------------------------
+	/// construct new instance and copy members from old instance
+	inline Protocol (const Protocol& other)
+	//-------------------------------------------------------------------------
+		: m_sProto (other.m_sProto)
+		, m_eProto (other.m_eProto)
+	{
+	}
+
+	//-------------------------------------------------------------------------
+	/// construct new instance and move members from old instance
+	inline Protocol (Protocol&& other) noexcept
+		: m_sProto (std::move (other.m_sProto))
+		, m_eProto (std::move (other.m_eProto))
+	//-------------------------------------------------------------------------
+	{
+	}
+
+	//-------------------------------------------------------------------------
+	/// copies members from other instance into this
+	inline Protocol& operator= (const Protocol& other) noexcept
+	//-------------------------------------------------------------------------
+	{
+		m_sProto = other.m_sProto;
+		m_eProto = other.m_eProto;
+		return *this;
+	}
+
+	//-------------------------------------------------------------------------
+	/// moves members from other instance into this
+	inline Protocol& operator= (Protocol&& other) noexcept
+	//-------------------------------------------------------------------------
+	{
+		m_sProto = std::move (other.m_sProto);
+		m_eProto = std::move (other.m_eProto);
+		return *this;
+	}
+
+	//-------------------------------------------------------------------------
+	/// Convert internal rep to KString
+	inline operator KString () const
+	//-------------------------------------------------------------------------
+	{
+		KString sResult;
+		Serialize (sResult);
+		return sResult;
+	}
+
+	//-------------------------------------------------------------------------
+	/// Serialize internal rep into arg KString
+	const Protocol& operator>> (KString& sTarget) const
+	//-------------------------------------------------------------------------
+	{
+		Serialize (sTarget);
+		return *this;
+	}
+
+	//-------------------------------------------------------------------------
+	/// Parse arg into internal rep
+	Protocol& operator<< (KStringView sSource)
+	//-------------------------------------------------------------------------
+	{
+		Parse (sSource);
+		return *this;
+	}
+
+	//-------------------------------------------------------------------------
+	/// generate content into string from members
+	bool Serialize (KString& sTarget) const;
+	//-------------------------------------------------------------------------
+
+	//-------------------------------------------------------------------------
+	/// restore instance to unpopulated state
+	void Clear ();
+	//-------------------------------------------------------------------------
+
+	//-------------------------------------------------------------------------
+	/// return a view of the member
+	inline KString getProtocol () const
+	//-------------------------------------------------------------------------
+	{
+		KString sEncoded;
+		Serialize (sEncoded);
+		return sEncoded;
+	}
+
+	//-------------------------------------------------------------------------
+	/// return the numeric scheme identifier
+	inline eProto getProtocolEnum () const
+	//-------------------------------------------------------------------------
+	{
+		return m_eProto;
+	}
+
+	//-------------------------------------------------------------------------
+	/// modify member by parsing argument
+	inline void setProtocol (KStringView svProto)
+	//-------------------------------------------------------------------------
+	{
+		Parse (svProto);
+	}
+
+	//-------------------------------------------------------------------------
+	/// identify that "mailto:" was parsed
+	inline bool isEmail () const
+	//-------------------------------------------------------------------------
+	{
+		return (m_eProto == MAILTO);
+	}
+
+	//-------------------------------------------------------------------------
+	inline bool operator== (eProto iProto) const
+	//-------------------------------------------------------------------------
+	{
+		return (iProto == m_eProto);
+	}
+
+	//-------------------------------------------------------------------------
+	inline bool operator!= (eProto iProto) const
+	//-------------------------------------------------------------------------
+	{
+		return (iProto != m_eProto);
+	}
+
+	//-------------------------------------------------------------------------
+	/// compares other instance with this
+	inline bool operator== (const Protocol& rhs) const
+	//-------------------------------------------------------------------------
+	{
+		bool bEqual = (m_eProto == rhs.m_eProto);
+		if (bEqual && m_eProto == UNKNOWN)
+		{
+			bEqual = (m_sProto == rhs.m_sProto);
+		}
+		return bEqual;
+	}
+
+	//-------------------------------------------------------------------------
+	/// compares other instance with this
+	//-------------------------------------------------------------------------
+	inline bool operator!= (const Protocol& rhs) const
+	{
+		bool bEqual = (m_eProto == rhs.m_eProto);
+		if (bEqual && m_eProto == UNKNOWN)
+		{
+			bEqual = (m_sProto == rhs.m_sProto);
+		}
+		return !bEqual;
+	}
+
+	//-------------------------------------------------------------------------
+	/// Predicate: Are there contents?
+	inline bool empty () const
+	//-------------------------------------------------------------------------
+	{
+		return (m_eProto == UNDEFINED);
+	}
+
+//------
+private:
+//------
+
+	KString m_sProto {};
+	eProto  m_eProto {UNDEFINED};
+	static const KString m_sKnown [UNKNOWN+1];
+
+};
+
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+class User
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+//------
+public:
+//------
+
+	//-------------------------------------------------------------------------
+	/// constructs empty instance.
+	inline User ()
+	//-------------------------------------------------------------------------
+	{
+	}
+
+	//-------------------------------------------------------------------------
+	/// constructs instance and parses source into members
+	inline User (KStringView svSource)
+	//-------------------------------------------------------------------------
+	{
+		Parse (svSource);
+	}
+
+	//-------------------------------------------------------------------------
+	/// parses source into members of instance
+	KStringView Parse (KStringView sSource);
+	//-------------------------------------------------------------------------
+
+	//-------------------------------------------------------------------------
+	/// construct new instance and copy members from old instance
+	inline User (const User& other)
+		: m_sUser (other.m_sUser)
+		, m_sPass (other.m_sPass)
+	//-------------------------------------------------------------------------
+	{
+	}
+
+	//-------------------------------------------------------------------------
+	/// construct new instance and move members from old instance
+	inline User (User&& other) noexcept
+		: m_sUser (std::move (other.m_sUser))
+		, m_sPass (std::move (other.m_sPass))
+	//-------------------------------------------------------------------------
+	{
+	}
+
+	//-------------------------------------------------------------------------
+	/// copies members from other instance into this
+	inline User& operator= (const User& other) noexcept
+	//-------------------------------------------------------------------------
+	{
+		m_sUser = other.m_sUser;
+		m_sPass = other.m_sPass;
+		return *this;
+	}
+
+	//-------------------------------------------------------------------------
+	/// moves members from other instance into this
+	inline User& operator= (User&& other) noexcept
+	//-------------------------------------------------------------------------
+	{
+		m_sUser = std::move (other.m_sUser);
+		m_sPass = std::move (other.m_sPass);
+		return *this;
+	}
+
+	//-------------------------------------------------------------------------
+	/// Serialize and return as KString
+	inline operator KString () const
+	//-------------------------------------------------------------------------
+	{
+		KString sResult;
+		Serialize (sResult);
+		return sResult;
+	}
+
+	//-------------------------------------------------------------------------
+	/// Serialize stream style
+	const User& operator>> (KString& sTarget) const
+	//-------------------------------------------------------------------------
+	{
+		Serialize (sTarget);
+		return *this;
+	}
+
+	//-------------------------------------------------------------------------
+	/// Parse stream style
+	User& operator<< (KStringView sSource)
+	//-------------------------------------------------------------------------
+	{
+		Parse (sSource);
+		return *this;
+	}
+
+	//-------------------------------------------------------------------------
+	/// generate content into string from members
+	bool Serialize (KString& sTarget) const;
+	//-------------------------------------------------------------------------
+
+	//-------------------------------------------------------------------------
+	/// restore instance to unpopulated state
+	inline void Clear ()
+	//-------------------------------------------------------------------------
+	{
+		m_sUser.clear ();
+		m_sPass.clear ();
+	}
+
+	//-------------------------------------------------------------------------
+	/// return a view of the member
+	inline KStringView getUser () const
+	//-------------------------------------------------------------------------
+	{
+		return m_sUser;
+	}
+
+	//-------------------------------------------------------------------------
+	/// modify member by parsing argument
+	inline void setUser (KStringView svUser)
+	//-------------------------------------------------------------------------
+	{
+		m_sUser = svUser;
+	}
+
+	//-------------------------------------------------------------------------
+	/// return a view of the member
+	inline KStringView getPass () const
+	//-------------------------------------------------------------------------
+	{
+		return m_sPass;
+	}
+
+	//-------------------------------------------------------------------------
+	/// modify member by parsing argument
+	inline void setPass (KStringView svPass)
+	//-------------------------------------------------------------------------
+	{
+		m_sPass = svPass;
+	}
+
+	//-------------------------------------------------------------------------
+	/// compares other instance with this, member-by-member
+	inline bool operator== (const User& rhs) const
+	//-------------------------------------------------------------------------
+	{
+		return
+			(getUser () == rhs.getUser ()) &&
+			(getPass () == rhs.getPass ()) ;
+	}
+
+	//-------------------------------------------------------------------------
+	/// compares other instance with this, member-by-member
+	inline bool operator!= (const User& rhs) const
+	//-------------------------------------------------------------------------
+	{
+		return
+			(getUser () != rhs.getUser ()) ||
+			(getPass () != rhs.getPass ()) ;
+	}
+
+	//-------------------------------------------------------------------------
+	/// Predicate: Are there contents?
+	inline bool empty () const
+	//-------------------------------------------------------------------------
+	{
+		return (m_sUser.size () == 0 && m_sPass.size () == 0);
+	}
+
+//------
+private:
+//------
+
+	KString m_sUser {};
+	KString m_sPass {};
+};
+
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+class Domain
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+	//------
+	public:
+	//------
+
+	//-------------------------------------------------------------------------
+	/// constructs empty instance.
+	inline Domain ()
+	//-------------------------------------------------------------------------
+	{
+	}
+
+	//-------------------------------------------------------------------------
+	/// constructs instance and parses source into members
+	inline Domain (KStringView svSource)
+	//-------------------------------------------------------------------------
+	{
+		Parse (svSource);
+	}
+
+	//-------------------------------------------------------------------------
+	/// parses source into members of instance
+	KStringView Parse (KStringView sSource);
+	//-------------------------------------------------------------------------
+
+	//-------------------------------------------------------------------------
+	/// construct new instance and copy members from old instance
+	inline Domain (const Domain& other)
+	//-------------------------------------------------------------------------
+	{
+		m_iPortNum  = other.m_iPortNum;
+		m_sHostName = other.m_sHostName;
+		m_sBaseName = other.m_sBaseName;
+	}
+
+	//-------------------------------------------------------------------------
+	/// construct new instance and move members from old instance
+	inline Domain (Domain&& other) noexcept
+	//-------------------------------------------------------------------------
+	{
+		m_iPortNum  = other.m_iPortNum;
+		m_sHostName = std::move (other.m_sHostName);
+		m_sBaseName = std::move (other.m_sBaseName);
+	}
+
+	//-------------------------------------------------------------------------
+	/// copies members from other instance into this
+	inline Domain& operator= (const Domain& other) noexcept
+	//-------------------------------------------------------------------------
+	{
+		m_iPortNum  = other.m_iPortNum;
+		m_sHostName = other.m_sHostName;
+		m_sBaseName = other.m_sBaseName;
+		return *this;
+	}
+
+	//-------------------------------------------------------------------------
+	/// moves members from other instance into this
+	inline Domain& operator= (Domain&& other) noexcept
+	//-------------------------------------------------------------------------
+	{
+		m_iPortNum  = other.m_iPortNum;
+		m_sHostName = std::move (other.m_sHostName);
+		m_sBaseName = std::move (other.m_sBaseName);
+		return *this;
+	}
+
+	//-------------------------------------------------------------------------
+	/// Serialize in KString style
+	inline operator KString () const
+	//-------------------------------------------------------------------------
+	{
+		KString sResult;
+		Serialize (sResult);
+		return sResult;
+	}
+
+	//-------------------------------------------------------------------------
+	/// Serialize in stream style
+	const Domain& operator>> (KString& sTarget) const
+	//-------------------------------------------------------------------------
+	{
+		Serialize (sTarget);
+		return *this;
+	}
+
+	//-------------------------------------------------------------------------
+	/// Parse in stream style
+	Domain& operator<< (KStringView sSource)
+	//-------------------------------------------------------------------------
+	{
+		Parse (sSource);
+		return *this;
+	}
+
+	//-------------------------------------------------------------------------
+	/// generate content into string from members
+	bool Serialize (KString& sTarget) const;
+	//-------------------------------------------------------------------------
+
+	//-------------------------------------------------------------------------
+	/// restore instance to unpopulated state
+	inline void Clear ()
+	//-------------------------------------------------------------------------
+	{
+		m_iPortNum = 0;
+		m_sHostName.clear ();
+		m_sBaseName.clear ();
+	}
+
+	//-------------------------------------------------------------------------
+	/// return a view of the member
+	inline KStringView getHostName () const
+	//-------------------------------------------------------------------------
+	{
+		return m_sHostName;
+	}
+
+	//-------------------------------------------------------------------------
+	/// modify member by parsing argument
+	/// This method runs ParseHostName rather than directly setting it.
+	/// This enables DRY special handling of decodeURL.
+	inline void setHostName (KStringView svHostName)
+	//-------------------------------------------------------------------------
+	{
+		ParseHostName (svHostName, false);  // data extraction
+	}
+
+	//-------------------------------------------------------------------------
+	/// Convert member and return it as uppercased string
+	inline KString getBaseDomain () const // No set function because derived
+	//-------------------------------------------------------------------------
+	{
+		return m_sBaseName.ToUpper ();
+	}
+
+	//-------------------------------------------------------------------------
+	/// return member by value
+	inline uint16_t getPortNum () const
+	//-------------------------------------------------------------------------
+	{
+		return m_iPortNum;
+	}
+
+	//-------------------------------------------------------------------------
+	/// set member by value
+	inline void setPortNum (uint16_t iPortNum)
+	//-------------------------------------------------------------------------
+	{
+		m_iPortNum = iPortNum;
+	}
+
+	//-------------------------------------------------------------------------
+	/// compares other instance with this, member-by-member
+	inline bool operator== (const Domain& rhs) const
+	//-------------------------------------------------------------------------
+	{
+		return
+			(getHostName () == rhs.getHostName ()) &&
+			(getPortNum  () == rhs.getPortNum  ()) ;
+	}
+
+	//-------------------------------------------------------------------------
+	/// compares other instance with this, member-by-member
+	inline bool operator!= (const Domain& rhs) const
+	//-------------------------------------------------------------------------
+	{
+		return
+			(getHostName () != rhs.getHostName ()) ||
+			(getPortNum ()  != rhs.getPortNum ()) ;
+	}
+
+	//-------------------------------------------------------------------------
+	/// Predicate: Are there contents?
+	inline bool empty () const
+	//-------------------------------------------------------------------------
+	{
+		return (m_sHostName.empty ());
+	}
+
+//------
+private:
+//------
+
+	uint16_t m_iPortNum  {0};
+	KString  m_sHostName {};
+	KString  m_sBaseName {};
+
+	//-------------------------------------------------------------------------
+	KStringView ParseHostName (KStringView svSource, bool bDecode = true);
+	//-------------------------------------------------------------------------
+};
+
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+class Path
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+//------
+public:
+//------
+
+	//-------------------------------------------------------------------------
+	/// constructs empty instance.
+	inline Path ()
+	//-------------------------------------------------------------------------
+	{
+	}
+
+	//-------------------------------------------------------------------------
+	/// constructs instance and parses source into members
+	inline Path (KStringView svSource)
+	//-------------------------------------------------------------------------
+	{
+		Parse (svSource);
+	}
+
+	//-------------------------------------------------------------------------
+	/// parses source into members of instance
+	KStringView Parse (KStringView sSource);
+	//-------------------------------------------------------------------------
+
+	//-------------------------------------------------------------------------
+	/// construct new instance and copy members from old instance
+	inline Path (const Path& other)
+	//-------------------------------------------------------------------------
+	{
+		m_sPath = other.m_sPath ;
+	}
+
+	//-------------------------------------------------------------------------
+	/// construct new instance and move members from old instance
+	inline Path (Path&& other) noexcept
+	//-------------------------------------------------------------------------
+	{
+		m_sPath = std::move (other.m_sPath);
+	}
+
+	//-------------------------------------------------------------------------
+	/// copies members from other instance into this
+	inline Path& operator= (const Path& other) noexcept
+	//-------------------------------------------------------------------------
+	{
+		m_sPath = other.m_sPath ;
+		return *this;
+	}
+
+	//-------------------------------------------------------------------------
+	/// moves members from other instance into this
+	inline Path& operator= (Path&& other) noexcept
+	//-------------------------------------------------------------------------
+	{
+		m_sPath = std::move (other.m_sPath);
+		return *this;
+	}
+
+	//-------------------------------------------------------------------------
+	/// Serialize KString style
+	inline operator KString () const
+	//-------------------------------------------------------------------------
+	{
+		KString sResult;
+		Serialize (sResult);
+		return sResult;
+	}
+
+	//-------------------------------------------------------------------------
+	/// Serialize stream style
+	const Path& operator>> (KString& sTarget) const
+	//-------------------------------------------------------------------------
+	{
+		Serialize (sTarget);
+		return *this;
+	}
+
+	//-------------------------------------------------------------------------
+	/// Parse stream style
+	Path& operator<< (KStringView sSource)
+	//-------------------------------------------------------------------------
+	{
+		Parse (sSource);
+		return *this;
+	}
+
+	//-------------------------------------------------------------------------
+	/// generate content into string from members
+	bool Serialize (KString& sTarget) const;
+	//-------------------------------------------------------------------------
+
+	//-------------------------------------------------------------------------
+	/// restore instance to unpopulated state
+	inline void Clear ()
+	//-------------------------------------------------------------------------
+	{
+		m_sPath.clear ();
+	}
+
+	//-------------------------------------------------------------------------
+	/// return a view of the member
+	inline KStringView getPath () const
+	//-------------------------------------------------------------------------
+	{
+		return m_sPath;
+	}
+
+	//-------------------------------------------------------------------------
+	/// modify member by parsing argument
+	inline void setPath (KStringView svPath)
+	//-------------------------------------------------------------------------
+	{
+		m_sPath = svPath;
+	}
+
+	//-------------------------------------------------------------------------
+	/// compares other instance with this, member-by-member
+	inline bool operator== (const Path& rhs) const
+	//-------------------------------------------------------------------------
+	{
+		return getPath () == rhs.getPath ();
+	}
+
+	//-------------------------------------------------------------------------
+	/// compares other instance with this, member-by-member
+	inline bool operator!= (const Path& rhs) const
+	//-------------------------------------------------------------------------
+	{
+		return getPath () != rhs.getPath ();
+	}
+
+	//-------------------------------------------------------------------------
+	/// Predicate: Are there contents?
+	inline bool empty () const
+	//-------------------------------------------------------------------------
+	{
+		return (m_sPath.size () == 0);
+	}
+
+//------
+private:
+//------
+
+	KString m_sPath {};
+};
+
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+class Query
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+//------
+public:
+//------
+
+	//-------------------------------------------------------------------------
+	/// Simplify local declaration of property map
+	typedef KProps<KString, KString, true, false> KProp_t;
+
+	//-------------------------------------------------------------------------
+	/// constructs empty instance.
+	inline Query ()
+	//-------------------------------------------------------------------------
+	{
+	}
+
+	//-------------------------------------------------------------------------
+	/// constructs instance and parses source into members
+	inline Query (KStringView svSource)
+	//-------------------------------------------------------------------------
+	{
+		Parse (svSource);
+	}
+
+	//-------------------------------------------------------------------------
+	/// parses source into members of instance
+	KStringView Parse (KStringView sSource);
+	//-------------------------------------------------------------------------
+
+	//-------------------------------------------------------------------------
+	/// construct new instance and copy members from old instance
+	inline Query (const Query& other)
+	//-------------------------------------------------------------------------
+	{
+		m_kpQuery = other.m_kpQuery;
+	}
+
+	//-------------------------------------------------------------------------
+	/// construct new instance and move members from old instance
+	inline Query (Query&& other)
+	//-------------------------------------------------------------------------
+	{
+		m_kpQuery = other.m_kpQuery;
+	}
+
+	//-------------------------------------------------------------------------
+	/// copies members from other instance into this
+	inline Query& operator= (const Query& other) noexcept
+	//-------------------------------------------------------------------------
+	{
+		m_kpQuery = other.m_kpQuery;
+		return *this;
+	}
+
+	//-------------------------------------------------------------------------
+	/// moves members from other instance into this
+	inline Query& operator= (Query&& other) noexcept
+	//-------------------------------------------------------------------------
+	{
+		m_kpQuery = other.m_kpQuery;
+		return *this;
+	}
+
+	//-------------------------------------------------------------------------
+	/// Serialize into KString
+	inline operator KString () const
+	//-------------------------------------------------------------------------
+	{
+		KString sResult;
+		Serialize (sResult);
+		return sResult;
+	}
+
+	//-------------------------------------------------------------------------
+	/// Serialize stream style
+	const Query& operator>> (KString& sTarget) const
+	//-------------------------------------------------------------------------
+	{
+		Serialize (sTarget);
+		return *this;
+	}
+
+	//-------------------------------------------------------------------------
+	/// Parse stream style
+	Query& operator<< (KStringView sSource)
+	//-------------------------------------------------------------------------
+	{
+		Parse (sSource);
+		return *this;
+	}
+
+	//-------------------------------------------------------------------------
+	/// generate content into string from members
+	bool Serialize (KString& sTarget) const;
+	//-------------------------------------------------------------------------
+
+	//-------------------------------------------------------------------------
+	/// restore instance to unpopulated state
+	inline void Clear ()
+	//-------------------------------------------------------------------------
+	{
+		m_kpQuery.clear ();
+	}
+
+	//-------------------------------------------------------------------------
+	/// compares other instance with this, member-by-member
+	inline bool operator== (const Query& rhs) const
+	//-------------------------------------------------------------------------
+	{
+		return m_kpQuery == rhs.m_kpQuery;
+	}
+
+	//-------------------------------------------------------------------------
+	/// compares other instance with this, member-by-member
+	inline bool operator!= (const Query& rhs) const
+	//-------------------------------------------------------------------------
+	{
+		return m_kpQuery != rhs.m_kpQuery;
+	}
+
+	//-------------------------------------------------------------------------
+	/// Predicate: Are there contents?
+	inline bool empty () const
+	//-------------------------------------------------------------------------
+	{
+		return (m_kpQuery.size() == 0);
+	}
+
+	//-------------------------------------------------------------------------
+	/// Returns entire KProp member const style
+	inline const KProp_t& GetQuery() const
+	//-------------------------------------------------------------------------
+	{
+		return m_kpQuery;
+	}
+
+	//-------------------------------------------------------------------------
+	/// Returns entire KProp member non-const style
+	inline KProp_t& GetQuery()
+	//-------------------------------------------------------------------------
+	{
+		return m_kpQuery;
+	}
+
+	//-------------------------------------------------------------------------
+	/// Fetch value of key:value pair
+	inline KStringView operator[](KStringView svKey) const
+	//-------------------------------------------------------------------------
+	{
+		return m_kpQuery[svKey];
+	}
+
+//------
+private:
+//------
+
+	KProp_t m_kpQuery {};
+
+	//-------------------------------------------------------------------------
+	// "+"   translates to " "
+	// "%FF" translates to "\xFF"
+	// "%xx" where x is a hex digit translates likewise
+	// others remain untranslated
+	bool decode (KStringView);
+	//-------------------------------------------------------------------------
+
+};
+
+
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+class Fragment
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+//------
+public:
+//------
+
+	//-------------------------------------------------------------------------
+	/// constructs empty instance.
+	inline Fragment ()
+	//-------------------------------------------------------------------------
+	{
+	}
+
+	//-------------------------------------------------------------------------
+	/// constructs instance and parses source into members
+	inline Fragment (KStringView svSource)
+	//-------------------------------------------------------------------------
+	{
+		svSource = Parse (svSource);
+	}
+
+	//-------------------------------------------------------------------------
+	/// parses source into members of instance
+	KStringView Parse (KStringView sSource);
+	//-------------------------------------------------------------------------
+
+	//-------------------------------------------------------------------------
+	/// construct new instance and copy members from old instance
+	inline Fragment (const Fragment& other)
+	//-------------------------------------------------------------------------
+	{
+		m_sFragment = other.m_sFragment;
+	}
+
+	//-------------------------------------------------------------------------
+	/// construct new instance and move members from old instance
+	inline Fragment (Fragment&& other)
+	//-------------------------------------------------------------------------
+	{
+		m_sFragment = std::move (other.m_sFragment);
+	}
+
+	//-------------------------------------------------------------------------
+	/// copies members from other instance into this
+	inline Fragment& operator= (const Fragment& other) noexcept
+	//-------------------------------------------------------------------------
+	{
+		m_sFragment = other.m_sFragment;
+		return *this;
+	}
+
+	//-------------------------------------------------------------------------
+	/// moves members from other instance into this
+	inline Fragment& operator= (Fragment&& other) noexcept
+	//-------------------------------------------------------------------------
+	{
+		m_sFragment = std::move (other.m_sFragment);
+		return *this;
+	}
+
+	//-------------------------------------------------------------------------
+	/// Serialize KString style
+	inline operator KString () const
+	//-------------------------------------------------------------------------
+	{
+		KString sResult;
+		Serialize (sResult);
+		return sResult;
+	}
+
+	//-------------------------------------------------------------------------
+	/// Serialize stream style
+	const Fragment& operator>> (KString& sTarget) const
+	//-------------------------------------------------------------------------
+	{
+		Serialize (sTarget);
+		return *this;
+	}
+
+	//-------------------------------------------------------------------------
+	/// Parse stream style
+	Fragment& operator<< (KStringView sSource)
+	//-------------------------------------------------------------------------
+	{
+		Parse (sSource);
+		return *this;
+	}
+
+	//-------------------------------------------------------------------------
+	/// generate content into string from members
+	bool Serialize (KString& sTarget) const;
+	//-------------------------------------------------------------------------
+
+	//-------------------------------------------------------------------------
+	/// restore instance to unpopulated state
+	inline void Clear ()
+	//-------------------------------------------------------------------------
+	{
+		m_sFragment.clear ();
+	}
+
+	//-------------------------------------------------------------------------
+	/// return a view of the member
+	inline KStringView getFragment () const
+	//-------------------------------------------------------------------------
+	{
+		return m_sFragment;
+	}
+
+	//-------------------------------------------------------------------------
+	/// set a new value for Fragment
+	inline void setFragment (KStringView& svFragment)
+	//-------------------------------------------------------------------------
+	{
+		m_sFragment = svFragment;
+	}
+
+	//-------------------------------------------------------------------------
+	/// compares other instance with this, member-by-member
+	inline bool operator== (const Fragment& rhs) const
+	//-------------------------------------------------------------------------
+	{
+		return getFragment () == rhs.getFragment ();
+	}
+
+	//-------------------------------------------------------------------------
+	/// compares other instance with this, member-by-member
+	inline bool operator!= (const Fragment& rhs) const
+	//-------------------------------------------------------------------------
+	{
+		return getFragment () != rhs.getFragment ();
+	}
+
+	//-------------------------------------------------------------------------
+	/// Predicate: Are there contents?
+	inline bool empty () const
+	//-------------------------------------------------------------------------
+	{
+		return (m_sFragment.empty ());
+	}
+
+//------
+private:
+//------
+
+	KString m_sFragment {};
+	bool    m_bHash{false};
+
+};
+
+
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+class URI : public Path, public Query, public Fragment
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+//------
+public:
+//------
+
+	//-------------------------------------------------------------------------
+	/// constructs empty instance.
+	inline URI ()
+	//-------------------------------------------------------------------------
+	{
+	}
+
+	//-------------------------------------------------------------------------
+	/// constructs instance and parses source into members
+	inline URI (KStringView svSource)
+	//-------------------------------------------------------------------------
+	{
+		svSource = Parse (svSource);
+	}
+
+	//-------------------------------------------------------------------------
+	/// parses source into members of instance
+	KStringView Parse (KStringView sSource);
+	//-------------------------------------------------------------------------
+
+	//-------------------------------------------------------------------------
+	/// construct new instance and copy members from old instance
+	inline URI (const URI& other)
+		: Path     (other)
+		, Query    (other)
+		, Fragment (other)
+	//-------------------------------------------------------------------------
+	{
+	}
+
+	//-------------------------------------------------------------------------
+	/// construct new instance and move members from old instance
+	inline URI (URI&& other)
+		: Path     (std::move (other))
+		, Query    (std::move (other))
+		, Fragment (std::move (other))
+	//-------------------------------------------------------------------------
+	{
+	}
+
+	//-------------------------------------------------------------------------
+	/// copies members from other instance into this
+	inline URI& operator= (const URI& other) noexcept
+	//-------------------------------------------------------------------------
+	{
+		Path    ::operator= (other);
+		Query   ::operator= (other);
+		Fragment::operator= (other);
+		return *this;
+	}
+
+	//-------------------------------------------------------------------------
+	/// moves members from other instance into this
+	inline URI& operator= (URI&& other) noexcept
+	//-------------------------------------------------------------------------
+	{
+		Path    ::operator= (std::move (other));
+		Query   ::operator= (std::move (other));
+		Fragment::operator= (std::move (other));
+		return *this;
+	}
+
+	//-------------------------------------------------------------------------
+	/// Serialize into KString
+	inline operator KString () const
+	//-------------------------------------------------------------------------
+	{
+		KString sResult;
+		Serialize (sResult);
+		return sResult;
+	}
+
+	//-------------------------------------------------------------------------
+	/// Serialize stream style
+	const Fragment& operator>> (KString& sTarget) const
+	//-------------------------------------------------------------------------
+	{
+		Serialize (sTarget);
+		return *this;
+	}
+
+	//-------------------------------------------------------------------------
+	/// Parse stream style
+	Fragment& operator<< (KStringView sSource)
+	//-------------------------------------------------------------------------
+	{
+		Parse (sSource);
+		return *this;
+	}
+
+	//-------------------------------------------------------------------------
+	/// generate content into string from members
+	bool Serialize (KString& sTarget) const;
+	//-------------------------------------------------------------------------
+
+	//-------------------------------------------------------------------------
+	/// restore instance to unpopulated state
+	inline void Clear ()
+	//-------------------------------------------------------------------------
+	{
+		Path    ::Clear ();
+		Query   ::Clear ();
+		Fragment::Clear ();
+	}
+
+	//-------------------------------------------------------------------------
+	/// compares other instance with this, member-by-member
+	inline bool operator== (const URI& rhs) const
+	//-------------------------------------------------------------------------
+	{
+		return
+			Path    ::operator== (rhs) &&
+			Query   ::operator== (rhs) &&
+			Fragment::operator== (rhs) ;
+	}
+
+	//-------------------------------------------------------------------------
+	/// compares other instance with this, member-by-member
+	inline bool operator!= (const URI& rhs) const
+	//-------------------------------------------------------------------------
+	{
+		return
+			Path    ::operator!= (rhs) ||
+			Query   ::operator!= (rhs) ||
+			Fragment::operator!= (rhs) ;
+	}
+
+	//-------------------------------------------------------------------------
+	/// Predicate: Are there contents?
+	inline bool empty () const
+	//-------------------------------------------------------------------------
+	{
+		return (Path::empty () && Query::empty () && Fragment::empty ());
+	}
+
+//------
+private:
+//------
+
+};
+
+
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+class URL : public Protocol, public User, public Domain, public URI
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+//------
+public:
+//------
+
+	//-------------------------------------------------------------------------
+	/// constructs empty instance.
+	inline URL ()
+	//-------------------------------------------------------------------------
+	{
+	}
+
+	//-------------------------------------------------------------------------
+	/// constructs instance and parses source into members
+	inline URL (KStringView svSource)
+	//-------------------------------------------------------------------------
+	{
+		svSource = Parse (svSource);
+	}
+
+	//-------------------------------------------------------------------------
+	/// parses source into members of instance
+	KStringView Parse (KStringView sSource);
+	//-------------------------------------------------------------------------
+
+	//-------------------------------------------------------------------------
+	/// construct new instance and copy members from old instance
+	inline URL (const URL& other)
+	//-------------------------------------------------------------------------
+		: Protocol (other)
+		, User   (other)
+		, Domain (other)
+		, URI    (other)
+	{
+	}
+
+	//-------------------------------------------------------------------------
+	/// construct new instance and move members from old instance
+	inline URL (URL&& other)
+	//-------------------------------------------------------------------------
+		: Protocol (std::move (other))
+		, User     (std::move (other))
+		, Domain   (std::move (other))
+		, URI      (std::move (other))
+	{
+	}
+
+	//-------------------------------------------------------------------------
+	/// copies members from other instance into this
+	inline URL& operator= (const URL& other) noexcept
+	//-------------------------------------------------------------------------
+	{
+		Path  ::operator= (other);
+		User  ::operator= (other);
+		Domain::operator= (other);
+		URI   ::operator= (other);
+		return *this;
+	}
+
+	//-------------------------------------------------------------------------
+	/// moves members from other instance into this
+	inline URL& operator= (URL&& other) noexcept
+	//-------------------------------------------------------------------------
+	{
+		Path  ::operator= (std::move (other));
+		User  ::operator= (std::move (other));
+		Domain::operator= (std::move (other));
+		URI   ::operator= (std::move (other));
+		return *this;
+	}
+
+	//-------------------------------------------------------------------------
+	/// Serialize into KString
+	inline operator KString () const
+	//-------------------------------------------------------------------------
+	{
+		KString sResult;
+		Serialize (sResult);
+		return sResult;
+	}
+
+	//-------------------------------------------------------------------------
+	/// Serialize stream style
+	const URL& operator>> (KString& sTarget) const
+	//-------------------------------------------------------------------------
+	{
+		Serialize (sTarget);
+		return *this;
+	}
+
+	//-------------------------------------------------------------------------
+	/// parse stream style
+	URL& operator<< (KStringView source)
+	//-------------------------------------------------------------------------
+	{
+		Parse (source);
+		return *this;
+	}
+
+
+	//-------------------------------------------------------------------------
+	/// generate content into string from members
+	bool Serialize (KString& sTarget) const;
+	//-------------------------------------------------------------------------
+
+	//-------------------------------------------------------------------------
+	/// restore instance to unpopulated state
+	inline void Clear ()
+	//-------------------------------------------------------------------------
+	{
+		Protocol::Clear ();
+		User    ::Clear ();
+		Domain  ::Clear ();
+		URI     ::Clear ();
+	}
+
+	//-------------------------------------------------------------------------
+	/// identify that parse found mandatory elements of URL
+	bool inline sURL () const
+	//-------------------------------------------------------------------------
+	{
+		return (getProtocol ().size () > 0);
+	}
+
+	//-------------------------------------------------------------------------
+	/// Predicate: Are there contents?
+	inline bool empty () const
+	//-------------------------------------------------------------------------
+	{
+		return (
+			Protocol::empty () &&
+			User    ::empty () &&
+			Domain  ::empty () &&
+			URI     ::empty ()
+		);
+	}
+
+	//-------------------------------------------------------------------------
+	/// compares other instance with this, member-by-member
+	inline bool operator== (const URL& rhs) const
+	//-------------------------------------------------------------------------
+	{
+		return
+			Protocol::operator== (rhs) &&
+			User    ::operator== (rhs) &&
+			Domain  ::operator== (rhs) &&
+			URI     ::operator== (rhs);
+	}
+
+	//-------------------------------------------------------------------------
+	/// compares other instance with this, member-by-member
+	inline bool operator!= (const URL& rhs) const
+	//-------------------------------------------------------------------------
+	{
+		return
+			Protocol::operator!= (rhs) ||
+			User    ::operator!= (rhs) ||
+			Domain  ::operator!= (rhs) ||
+			URI     ::operator!= (rhs);
+	}
+
+//------
+private:
+//------
+
+};
+
+
+} // of namespace KURL
 
 } // of namespace dekaf2

@@ -526,11 +526,233 @@ int KString::compare(size_type pos, size_type n1, KStringView sv) const
 	return 1;
 }
 
+#if (DEKAF2_GCC_VERSION >= 40600) && (DEKAF2_USE_OPTIMIZED_STRING_FIND)
+// In contrast to most of the other optimized find functions we do not
+// delegate this one to KStringView. The reason is that for find_first_of()
+// we can use the ultra fast glibc strcspn() function, it even outrivals
+// by a factor of two the sse 4.2 vector search implemented for folly::Range.
+// We can however not use strcspn() for ranges (including KStringView),
+// as there is no trailing zero byte.
+//----------------------------------------------------------------------
+KString::size_type KString::find_first_of(KStringView sv, size_type pos) const
+//----------------------------------------------------------------------
+{
+	if (DEKAF2_UNLIKELY(pos >= size()))
+	{
+		return npos;
+	}
+
+	if (DEKAF2_UNLIKELY(sv.size() == 1))
+	{
+		return find(sv[0], pos);
+	}
+
+	// This is not as costly as it looks due to SSO. And there is no
+	// way around it if we want to use strcspn() and its enormous performance.
+	KString search(sv);
+
+	// now we need to filter out the possible 0 chars in the search string
+	bool bHasZero(false);
+	size_type iHasZero(0);
+	for (;;)
+	{
+		iHasZero = search.find('\0', iHasZero);
+		if (iHasZero != npos)
+		{
+			search.erase(iHasZero, 1);
+			bHasZero = true;
+		}
+		else
+		{
+			break;
+		}
+	}
+
+	// we now can safely use strcspn(), as all strings are 0 terminated.
+	for (;;)
+	{
+		auto retval = std::strcspn(c_str() + pos, search.c_str()) + pos;
+		if (retval >= size())
+		{
+			return npos;
+		}
+		else if (m_rep[retval] != '\0' || bHasZero)
+		{
+			return retval;
+		}
+		// we stopped on a zero char in the middle of the string and
+		// had no zero in the search - restart the search
+		pos += retval + 1;
+	}
+}
+#endif
+
+#if (DEKAF2_GCC_VERSION >= 40600) && (DEKAF2_USE_OPTIMIZED_STRING_FIND)
+// In contrast to most of the other optimized find functions we do not
+// delegate this one to KStringView. The reason is that for find_first_not_of()
+// we can use the ultra fast glibc strspn() function, it even outrivals
+// by a factor of two the sse 4.2 vector search implemented for folly::Range.
+// We can however not use strspn() for ranges (including KStringView),
+// as there is no trailing zero byte.
+//----------------------------------------------------------------------
+KString::size_type KString::find_first_not_of(KStringView sv, size_type pos) const
+//----------------------------------------------------------------------
+{
+	if (DEKAF2_UNLIKELY(pos >= size()))
+	{
+		return npos;
+	}
+
+	// This is not as costly as it looks due to SSO. And there is no
+	// way around it if we want to use strspn() and its enormous performance.
+	KString search(sv);
+
+	// now we need to filter out the possible 0 chars in the search string
+	bool bHasZero(false);
+	size_type iHasZero(0);
+	for (;;)
+	{
+		iHasZero = search.find('\0', iHasZero);
+		if (iHasZero != npos)
+		{
+			search.erase(iHasZero, 1);
+			bHasZero = true;
+		}
+		else
+		{
+			break;
+		}
+	}
+
+	// we now can safely use strspn(), as all strings are 0 terminated.
+	for (;;)
+	{
+		auto retval = std::strspn(c_str() + pos, search.c_str()) + pos;
+		if (retval >= size())
+		{
+			return npos;
+		}
+		else if (m_rep[retval] == '\0' && bHasZero)
+		{
+			// we stopped on a zero char in the middle of the string and
+			// had no zero in the search - restart the search
+			pos += retval + 1;
+		}
+		else
+		{
+			return retval;
+		}
+	}
+}
+#endif
+
+//----------------------------------------------------------------------
+KString::size_type KString::Replace(KStringView sSearch, KStringView sReplace, bool bReplaceAll)
+//----------------------------------------------------------------------
+{
+	if (DEKAF2_UNLIKELY(sSearch.empty() || size() < sSearch.size()))
+	{
+		return 0;
+	}
+
+	typedef KString::size_type size_type;
+	typedef KString::value_type value_type;
+
+	size_type iNumReplacement = 0;
+	// use a non-const ref to the first element, as .data() is const with C++ < 17
+	value_type* haystack = &m_rep[0];
+	size_type haystackSize = size();
+
+	value_type* pszFound = static_cast<value_type*>(memmem(haystack, haystackSize, sSearch.data(), sSearch.size()));
+
+	if (DEKAF2_LIKELY(pszFound != nullptr))
+	{
+
+		if (sReplace.size() <= sSearch.size())
+		{
+			// execute an in-place substitution (C++17 actually has a non-const string.data())
+			value_type* pszTarget = const_cast<value_type*>(haystack);
+
+			while (pszFound)
+			{
+				auto untouchedSize = static_cast<size_type>(pszFound - haystack);
+				if (pszTarget < haystack)
+				{
+					std::memmove(pszTarget, haystack, untouchedSize);
+				}
+				pszTarget += untouchedSize;
+
+				if (DEKAF2_LIKELY(sReplace.empty() == false))
+				{
+					std::memmove(pszTarget, sReplace.data(), sReplace.size());
+					pszTarget += sReplace.size();
+				}
+
+				haystack = pszFound + sSearch.size();
+				haystackSize -= (sSearch.size() + untouchedSize);
+
+				pszFound = static_cast<value_type*>(memmem(haystack, haystackSize, sSearch.data(), sSearch.size()));
+
+				++iNumReplacement;
+
+				if (DEKAF2_UNLIKELY(bReplaceAll == false))
+				{
+					break;
+				}
+			}
+
+			if (DEKAF2_LIKELY(haystackSize > 0))
+			{
+				std::memmove(pszTarget, haystack, haystackSize);
+				pszTarget += haystackSize;
+			}
+
+			auto iResultSize = static_cast<size_type>(pszTarget - data());
+			resize(iResultSize);
+
+		}
+		else
+		{
+			// execute a copy substitution
+			KString sResult;
+			sResult.reserve(size());
+
+			while (pszFound)
+			{
+				auto untouchedSize = static_cast<size_type>(pszFound - haystack);
+				sResult.append(haystack, untouchedSize);
+				sResult.append(sReplace.data(), sReplace.size());
+
+				haystack = pszFound + sSearch.size();
+				haystackSize -= (sSearch.size() + untouchedSize);
+
+				pszFound = static_cast<value_type*>(memmem(haystack, haystackSize, sSearch.data(), sSearch.size()));
+
+				++iNumReplacement;
+
+				if (DEKAF2_UNLIKELY(bReplaceAll == false))
+				{
+					break;
+				}
+			}
+
+			sResult.append(haystack, haystackSize);
+			swap(sResult);
+		}
+	}
+
+	return iNumReplacement;
+}
+
 //----------------------------------------------------------------------
 KString::size_type KString::ReplaceRegex(KStringView sRegEx, KStringView sReplaceWith, bool bReplaceAll)
 //----------------------------------------------------------------------
 {
+#ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
 	return dekaf2::KRegex::Replace(*this, sRegEx, sReplaceWith, bReplaceAll);
+#else
+	return dekaf2::KRegex::Replace(m_rep, sRegEx, sReplaceWith, bReplaceAll);
+#endif
 }
 
 //----------------------------------------------------------------------
@@ -771,32 +993,6 @@ void KString::RemoveIllegalChars(KStringView sIllegalChars)
 		lastpos = pos;
 	}
 }
-
-//----------------------------------------------------------------------
-bool kStartsWith(KStringView sInput, KStringView sPattern)
-//----------------------------------------------------------------------
-{
-	if (DEKAF2_UNLIKELY(sInput.size() < sPattern.size()))
-	{
-		return false;
-	}
-
-	return !memcmp(sInput.data(), sPattern.data(), sPattern.size());
-
-} // kStartsWith
-
-//----------------------------------------------------------------------
-bool kEndsWith(KStringView sInput, KStringView sPattern)
-//----------------------------------------------------------------------
-{
-	if (DEKAF2_UNLIKELY(sInput.size() < sPattern.size()))
-	{
-		return false;
-	}
-
-	return !memcmp(sInput.data() + sInput.size() - sPattern.size(), sPattern.data(), sPattern.size());
-
-} // kEndsWith
 
 //-----------------------------------------------------------------------------
 bool KString::In (KStringView sHaystack, value_type iDelim/*=','*/)

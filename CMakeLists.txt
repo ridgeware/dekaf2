@@ -21,6 +21,25 @@ set(CMAKE_CXX_STANDARD 17)
 # we do not force C++17 if not available
 # set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# configure cpu architecture dependant optimization
+if(CMAKE_COMPILER_IS_GNUCC AND "${CMAKE_SYSTEM_PROCESSOR}" STREQUAL "x86_64")
+
+	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wno-unused-parameter -Werror")
+	set(CMAKE_CXX_FLAGS_RELEASE "-O2 -DNDEBUG")
+	if (CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 6.0)
+		set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mavx2 -mfpmath=sse -maes")
+		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mavx2 -mfpmath=sse -maes")
+	elseif (CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 4.5)
+		set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -msse4.2")
+		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse4.2")
+	else ()
+		set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -msse3")
+		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse3")
+	endif()
+
+endif()
+message(STATUS "dekaf2 C++ compile flags for Release build: ${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_RELEASE}")
+
 set(CMAKE_THREAD_PREFER_PTHREAD TRUE)
 set(THREADS_PREFER_PTHREAD_FLAG TRUE)
 find_package(Threads REQUIRED)
@@ -69,10 +88,10 @@ set (HEADERS
     bits/kconfiguration.h
     bits/ktemplate.h
     bits/kcppcompat.h
-    bits/kfind.h
     bits/kmake_unique.h
     bits/kmutable_pair.h
     bits/kunique_deleter.h
+    bits/simd/kfindfirstof.h
     dekaf2.h
     kstringview.h
     kstring.h
@@ -82,7 +101,6 @@ set (HEADERS
     kfile.h
     kprof.h
     kurl.h
-    kurl2.h
     kprops.h
     kcurl.h
     kwebio.h
@@ -113,15 +131,15 @@ set (HEADERS
 )
 
 set (SOURCES
-    bits/kfind.cpp
+	bits/simd/kfindfirstof.cpp
     dekaf2.cpp
+    kstringview.cpp
     kstring.cpp
     kregex.cpp
     klog.cpp
     kfile.cpp
     kprof.cpp
     kurl.cpp
-    kurl2.cpp
     kstringview.cpp
     kstringutils.cpp
     kparallel.cpp

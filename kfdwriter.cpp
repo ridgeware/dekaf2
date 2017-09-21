@@ -177,7 +177,7 @@ void KOutputFPStream::open(FILE* iFilePtr)
 void KOutputFPStream::close()
 //-----------------------------------------------------------------------------
 {
-	if (m_FilePtr >= 0)
+	if (m_FilePtr)
 	{
 		base_type::flush();
 		if (::fclose(m_FilePtr))

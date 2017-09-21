@@ -1,203 +1,284 @@
 
-#include <algorithm>
+
 #include "kstringview.h"
 #include "klog.h"
+#include "dekaf2.h"
+#include "bits/simd/kfindfirstof.h"
 
-namespace dekaf2
-{
 
-#ifndef DEKAF2_USE_STD_STRING_VIEW_AS_KSTRINGVIEW
+namespace dekaf2 {
 
-//-----------------------------------------------------------------------------
-KStringView::size_type KStringView::find_first_of(self_type sv, size_type pos) const noexcept
-//-----------------------------------------------------------------------------
-{
-	if (DEKAF2_UNLIKELY(sv.size() == 1))
-	{
-		return find(sv[0], pos);
-	}
-	else
-	{
-		auto it = std::find_first_of(begin() + pos, end(), sv.begin(), sv.end());
-		if (it == end())
-		{
-			return KStringView::npos;
-		}
-		else
-		{
-			return static_cast<size_type>(it - begin());
-		}
-	}
-}
+const KStringView::size_type KStringView::npos;
+const KStringView::value_type KStringView::s_0ch = '\0';
 
 //-----------------------------------------------------------------------------
-KStringView::size_type KStringView::find_last_of(self_type sv, size_type pos) const noexcept
+size_t kFind(
+        KStringView haystack,
+        KStringView needle,
+        size_t pos)
 //-----------------------------------------------------------------------------
 {
-	if (DEKAF2_UNLIKELY(sv.size() == 1))
+#if defined(DEKAF2_USE_OPTIMIZED_STRING_FIND)
+	if (DEKAF2_UNLIKELY(needle.size() == 1))
 	{
-		return rfind(sv[0], pos);
+		// flip to single char search if only one char is in the search argument
+		return kFind(haystack, needle[0], pos);
 	}
-	else
-	{
-		pos = (size() - 1) - std::min(pos, size()-1);
-		auto it = std::find_first_of(rbegin() + static_cast<difference_type>(pos), rend(),
-		                             sv.begin(), sv.end());
-		if (it == rend())
-		{
-			return KStringView::npos;
-		}
-		else
-		{
-			return static_cast<size_type>((it.base() - 1) - begin());
-		}
-	}
-}
 
-//-----------------------------------------------------------------------------
-KStringView::size_type KStringView::find_first_not_of(self_type sv, size_type pos) const noexcept
-//-----------------------------------------------------------------------------
-{
-	if (DEKAF2_UNLIKELY(sv.size() == 1))
+	if (DEKAF2_UNLIKELY(pos > haystack.size()))
 	{
-		return find_first_not_of(sv[0], pos);
+		return KStringView::npos;
 	}
-	else
-	{
-		auto it = std::find_if_not(begin() + pos, end(),
-								   [&sv](KStringView::value_type ch)
-								   { return memchr(sv.data(), ch, sv.size()) != nullptr; });
-		if (it == end())
-		{
-			return KStringView::npos;
-		}
-		else
-		{
-			return static_cast<size_type>(it - begin());
-		}
-	}
-}
 
-//-----------------------------------------------------------------------------
-KStringView::size_type KStringView::find_last_not_of(self_type sv, size_type pos) const noexcept
-//-----------------------------------------------------------------------------
-{
-	if (DEKAF2_UNLIKELY(sv.size() == 1))
-	{
-		return find_last_not_of(sv[0], pos);
-	}
-	else
-	{
-		if (pos >= size()) // this includes npos
-		{
-			pos = 0;
-		}
-		else
-		{
-			pos = size() - pos;
-		}
-		auto it = std::find_if_not(rbegin() + pos, rend(),
-								   [&sv](KStringView::value_type ch)
-								   { return memchr(sv.data(), ch, sv.size()) != nullptr; });
-		if (it == rend())
-		{
-			return KStringView::npos;
-		}
-		else
-		{
-			return static_cast<size_type>(it.base() - begin());
-		}
-	}
-}
+	auto found = static_cast<const char*>(::memmem(haystack.data() + pos,
+	                                               haystack.size() - pos,
+	                                               needle.data(),
+	                                               needle.size()));
 
-//-----------------------------------------------------------------------------
-KStringView::size_type KStringView::find_first_not_of(value_type ch_p, size_type pos) const noexcept
-//-----------------------------------------------------------------------------
-{
-	auto it = std::find_if_not(begin() + pos, end(),
-	                           [ch_p](KStringView::value_type ch)
-	                           { return ch_p == ch; });
-	if (it == end())
+	if (DEKAF2_UNLIKELY(!found))
 	{
 		return KStringView::npos;
 	}
 	else
 	{
-		return static_cast<size_type>(it - begin());
+		return static_cast<size_t>(found - haystack.data());
 	}
+
+#else
+
+	return static_cast<KStringView::rep_type>(haystack).find(needle, pos);
+
+#endif
+
 }
 
 //-----------------------------------------------------------------------------
-KStringView::size_type KStringView::find_last_not_of(value_type ch_p, size_type pos) const noexcept
+size_t kRFind(
+        KStringView haystack,
+        KStringView needle,
+        size_t pos)
 //-----------------------------------------------------------------------------
 {
-	if (pos >= size()) // this includes npos
+#if defined(DEKAF2_USE_OPTIMIZED_STRING_FIND) || defined(DEKAF2_USE_FOLLY_STRINGPIECE_AS_KSTRINGVIEW)
+	if (DEKAF2_UNLIKELY(needle.size() == 1))
 	{
-		pos = 0;
+		return kRFind(haystack, needle[0], pos);
 	}
-	else
+
+	if (DEKAF2_LIKELY(needle.size() <= haystack.size()))
 	{
-		pos = size() - pos;
+		pos = std::min(haystack.size() - needle.size(), pos);
+
+		for(;;)
+		{
+			auto found = static_cast<const char*>(::memrchr(haystack.data(),
+			                                                needle[0],
+			                                                pos+1));
+			if (!found)
+			{
+				break;
+			}
+
+			pos = static_cast<size_t>(found - haystack.data());
+
+			if (std::memcmp(haystack.data() + pos + 1,
+			                needle.data() + 1,
+			                needle.size() - 1) == 0)
+			{
+				return pos;
+			}
+
+			--pos;
+		}
 	}
-	auto it = std::find_if_not(rbegin() + pos, rend(),
-	                           [ch_p](KStringView::value_type ch)
-	                           { return ch_p == ch; });
-	if (it == rend())
+
+	return KStringView::npos;
+
+#else
+
+	return static_cast<KStringView::rep_type>(haystack).rfind(needle, pos);
+
+#endif
+
+}
+
+namespace detail { namespace stringview {
+
+//-----------------------------------------------------------------------------
+size_t kFindFirstOfBool(
+        KStringView haystack,
+        KStringView needle,
+        size_t pos,
+        bool bNot)
+//-----------------------------------------------------------------------------
+{
+	if (DEKAF2_UNLIKELY(!bNot && needle.size() == 1))
+	{
+		return kFind(haystack, needle[0], pos);
+	}
+
+	if (DEKAF2_UNLIKELY(pos >= haystack.size()))
+	{
+		return KStringView::npos;
+	}
+
+	if (DEKAF2_UNLIKELY(pos > 0))
+	{
+		haystack.remove_prefix(pos);
+	}
+
+#ifdef __x86_64__
+	static bool has_sse42 = Dekaf().GetCpuId().sse42();
+
+	if (DEKAF2_LIKELY(has_sse42))
+	{
+		if (DEKAF2_UNLIKELY(bNot))
+		{
+			auto result = detail::kFindFirstNotOfSSE(haystack, needle);
+			if (DEKAF2_LIKELY(result == KStringView::npos || pos == 0))
+			{
+				return result;
+			}
+			else
+			{
+				return result + pos;
+			}
+		}
+		else
+		{
+			auto result = detail::kFindFirstOfSSE(haystack, needle);
+			if (DEKAF2_LIKELY(result == KStringView::npos || pos == 0))
+			{
+				return result;
+			}
+			else
+			{
+				return result + pos;
+			}
+		}
+	}
+#endif
+
+	return detail::kFindFirstOfNoSSE(haystack, needle, bNot) + pos;
+
+}
+
+//-----------------------------------------------------------------------------
+size_t kFindLastOfBool(
+        KStringView haystack,
+        KStringView needle,
+        size_t pos,
+        bool bNot)
+//-----------------------------------------------------------------------------
+{
+	if (DEKAF2_UNLIKELY(!bNot && needle.size() == 1))
+	{
+		return kRFind(haystack, needle[0], pos);
+	}
+
+	if (DEKAF2_UNLIKELY(haystack.empty()))
+	{
+		return KStringView::npos;
+	}
+
+	pos = (haystack.size() - 1) - std::min(pos, haystack.size()-1);
+
+	bool table[256];
+	std::memset(table, false, 256);
+
+	for (auto c : needle)
+	{
+		table[static_cast<unsigned char>(c)] = true;
+	}
+
+	auto it = std::find_if(haystack.rbegin() +
+						   static_cast<typename KStringView::difference_type>(pos),
+						   haystack.rend(),
+						   [&table, bNot](const char c)
+	{
+		return table[static_cast<unsigned char>(c)] != bNot;
+	});
+
+	if (it == haystack.rend())
 	{
 		return KStringView::npos;
 	}
 	else
 	{
-		return static_cast<size_type>(it - rbegin());
+		return static_cast<size_t>((it.base() - 1) - haystack.begin());
 	}
 }
 
+} } // end of namespace detail::stringview
+
 //-----------------------------------------------------------------------------
-// non-standard: emulate erase if range is at begin or end
+KStringView::size_type KStringView::copy(iterator dest, size_type count, size_type pos) const
+//-----------------------------------------------------------------------------
+{
+	if (DEKAF2_UNLIKELY(pos > size()))
+	{
+		kWarning("attempt to copy from past the end of string view of size {}: pos {}",
+		         size(), pos);
+
+		pos = size();
+	}
+
+	count = std::min(size() - pos, count);
+
+	return static_cast<size_type>(std::copy(const_cast<char*>(begin() + pos),
+	                                        const_cast<char*>(begin() + pos + count),
+	                                        const_cast<char*>(dest))
+	                              - dest);
+}
+
+//-----------------------------------------------------------------------------
+/// nonstandard: emulate erase if range is at begin or end
 KStringView::self_type& KStringView::erase(size_type pos, size_type n)
 //-----------------------------------------------------------------------------
 {
 	if (DEKAF2_UNLIKELY(pos >= size()))
 	{
-		kWarning("attempt to erase past end of string view of size {}: pos {}, n {}",
-		         size(), pos, n);
+			kWarning("attempt to erase past end of string view of size {}: pos {}, n {}",
+			         size(), pos, n);
+			pos = size();
 	}
-	else {
 
-		if (n == npos)
-		{
-			n = size() - pos;
-		}
-		else if (DEKAF2_UNLIKELY(n > size()))
-		{
-			kWarning("impossible to remove {} chars at pos {} in a string view of size {}",
-					 n, pos, size());
+	n = std::min(n, size() - pos);
 
-			// manipulate arguments such that the result is empty
-			pos = 0;
-			n = size();
-		}
+#ifdef DEKAF2_USE_FOLLY_STRINGPIECE_AS_KSTRINGVIEW
 
-		if (pos == 0)
-		{
-			remove_prefix(n);
-		}
-		else if (pos + n == size())
-		{
-			remove_suffix(n);
-		}
-		else
-		{
-			kWarning("impossible to remove {} chars at pos {} in a string view of size {}",
-					 n, pos, size());
-		}
+	try {
+
+		m_rep.erase(begin()+pos, begin()+pos+n);
+
+	} catch (const std::exception& ex) {
+
+			kException(ex);
 
 	}
 
-	return *this;
-}
+#else
+
+	if (pos == 0)
+	{
+		remove_prefix(n);
+	}
+	else if (pos + n == size())
+	{
+		remove_suffix(n);
+	}
+	else
+	{
+		kWarning("impossible to remove {} chars at pos {} in a string view of size {}",
+				 n, pos, size());
+	}
 
 #endif
+
+	return *this;
+
+}
+
 
 } // end of namespace dekaf2
 

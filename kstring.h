@@ -50,7 +50,6 @@
 #include <istream>
 #include <ostream>
 #include "bits/kcppcompat.h"
-#include "bits/kfind.h"
 #include "kformat.h"
 #include "kstringview.h"
 #ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
@@ -60,9 +59,6 @@
 
 namespace dekaf2
 {
-
-bool kStartsWith(KStringView sInput, KStringView sPattern);
-bool kEndsWith(KStringView sInput, KStringView sPattern);
 
 bool kStrIn (const char* sNeedle, const char* sHaystack, char iDelim=',');
 
@@ -232,71 +228,96 @@ public:
 
 	size_type copy(value_type* s, size_type n, size_type pos = 0) const;
 
-#if (DEKAF2_GCC_VERSION >= 40600) && (DEKAF2_USE_GLIBC_FOR_KSTRING_FIND)
-	size_type find(value_type c, size_type pos = 0) const { return kFind(m_rep.data(), m_rep.size(), c, pos); }
-	size_type find(const value_type* s, size_type pos, size_type n) const { return kFind(*this, s, pos, n); }
+#if (DEKAF2_GCC_VERSION >= 40600) && (DEKAF2_USE_OPTIMIZED_STRING_FIND)
+	size_type find(value_type c, size_type pos = 0) const { return kFind(*this, c, pos); }
+	size_type find(KStringView sv, size_type pos = 0) const { return kFind(*this, sv, pos); }
+	size_type find(const value_type* s, size_type pos, size_type n) const { return find(KStringView(s, n), pos); }
 #else
 	size_type find(value_type c, size_type pos = 0) const { return m_rep.find(c, pos); }
 	size_type find(const value_type* s, size_type pos, size_type n) const { return m_rep.find(s, pos, n); }
+	size_type find(KStringView sv, size_type pos = 0) const { return find(sv.data(), pos, sv.size()); }
 #endif
 	size_type find(const KString& str, size_type pos = 0) const { return find(str.data(), pos, str.size()); }
 	size_type find(const string_type& str, size_type pos = 0) const { return find(str.data(), pos, str.size()); }
 	size_type find(const value_type* s, size_type pos = 0) const { return find(s, pos, strlen(s)); }
-	size_type find(KStringView sv, size_type pos = 0) const { return find(sv.data(), pos, sv.size()); }
 #ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
 	size_type find(const std::string& str, size_type pos = 0) const { return find(str.data(), pos, str.size()); }
 #endif
 
-#if (DEKAF2_GCC_VERSION >= 40600) && (DEKAF2_USE_GLIBC_FOR_KSTRING_FIND)
-	size_type rfind(value_type c, size_type pos = npos) const { return kRFind(m_rep.data(), m_rep.size(), c, pos); }
+#if (DEKAF2_GCC_VERSION >= 40600) && (DEKAF2_USE_OPTIMIZED_STRING_FIND)
+	size_type rfind(value_type c, size_type pos = npos) const { return kRFind(*this, c, pos); }
+	size_type rfind(KStringView sv, size_type pos = npos) const { return kRFind(*this, sv, pos); }
+	size_type rfind(const value_type* s, size_type pos, size_type n) const { return rfind(KStringView(s, n), pos); }
 #else
 	size_type rfind(value_type c, size_type pos = npos) const { return m_rep.rfind(c, pos); }
-#endif
 	size_type rfind(const value_type* s, size_type pos, size_type n) const { return m_rep.rfind(s, pos, n); }
+	size_type rfind(KStringView sv, size_type pos = npos) const { return rfind(sv.data(), pos, sv.size()); }
+#endif
 	size_type rfind(const KString& str, size_type pos = npos) const { return rfind(str.data(), pos, str.size()); }
 	size_type rfind(const string_type& str, size_type pos = npos) const { return rfind(str.data(), pos, str.size()); }
 	size_type rfind(const value_type* s, size_type pos = npos) const { return rfind(s, pos, strlen(s)); }
-	size_type rfind(KStringView sv, size_type pos = npos) const { return rfind(sv.data(), pos, sv.size()); }
 #ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
 	size_type rfind(const std::string& str, size_type pos = npos) const { return rfind(str.data(), pos, str.size()); }
 #endif
 
 	size_type find_first_of(value_type c, size_type pos = 0) const { return find(c, pos); }
+#if (DEKAF2_GCC_VERSION >= 40600) && (DEKAF2_USE_OPTIMIZED_STRING_FIND)
+	size_type find_first_of(KStringView sv, size_type pos = 0) const;
+	size_type find_first_of(const value_type* s, size_type pos, size_type n) const { return find_first_of(KStringView(s, n), pos); }
+#else
 	size_type find_first_of(const value_type* s, size_type pos, size_type n) const { return (DEKAF2_UNLIKELY(n == 1)) ? find(*s, pos) : m_rep.find_first_of(s, pos, n); }
+	size_type find_first_of(KStringView sv, size_type pos = 0) const { return find_first_of(sv.data(), pos, sv.size()); }
+#endif
 	size_type find_first_of(const KString& str, size_type pos = 0) const { return find_first_of(str.data(), pos, str.size()); }
 	size_type find_first_of(const string_type& str, size_type pos = 0) const { return find_first_of(str.data(), pos, str.size()); }
 	size_type find_first_of(const value_type* s, size_type pos = 0) const { return find_first_of(s, pos, strlen(s)); }
-	size_type find_first_of(KStringView sv, size_type pos = 0) const { return find_first_of(sv.data(), pos, sv.size()); }
 #ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
 	size_type find_first_of(const std::string& str, size_type pos = 0) const { return find_first_of(str.data(), pos, str.size()); }
 #endif
 
 	size_type find_last_of(value_type c, size_type pos = npos) const { return rfind(c, pos); }
+#if (DEKAF2_GCC_VERSION >= 40600) && (DEKAF2_USE_OPTIMIZED_STRING_FIND)
+	size_type find_last_of(KStringView sv, size_type pos = npos) const { return kFindLastOf(*this, sv, pos); }
+	size_type find_last_of(const value_type* s, size_type pos, size_type n) const { return find_last_of(KStringView(s, n), pos); }
+#else
 	size_type find_last_of(const value_type* s, size_type pos, size_type n) const { return (DEKAF2_UNLIKELY(n == 1)) ? rfind(*s, pos) : m_rep.find_last_of(s, pos, n); }
+	size_type find_last_of(KStringView sv, size_type pos = npos) const { return find_last_of(sv.data(), pos, sv.size()); }
+#endif
 	size_type find_last_of(const KString& str, size_type pos = npos) const { return find_last_of(str.data(), pos, str.size()); }
 	size_type find_last_of(const string_type& str, size_type pos = npos) const { return find_last_of(str.data(), pos, str.size()); }
 	size_type find_last_of(const value_type* s, size_type pos = npos) const { return find_last_of(s, pos, strlen(s)); }
-	size_type find_last_of(KStringView sv, size_type pos = npos) const { return find_last_of(sv.data(), pos, sv.size()); }
 #ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
 	size_type find_last_of(const std::string& str, size_type pos = npos) const { return find_last_of(str.data(), pos, str.size()); }
 #endif
 
+#if (DEKAF2_GCC_VERSION >= 40600) && (DEKAF2_USE_OPTIMIZED_STRING_FIND)
+	size_type find_first_not_of(value_type c, size_type pos = 0) const { return find_first_not_of(&c, pos, 1); }
+	size_type find_first_not_of(KStringView sv, size_type pos = 0) const;
+	size_type find_first_not_of(const value_type* s, size_type pos, size_type n) const { return find_first_not_of(KStringView(s, n), pos); }
+#else
 	size_type find_first_not_of(value_type c, size_type pos = 0) const { return m_rep.find_first_not_of(c, pos); }
 	size_type find_first_not_of(const value_type* s, size_type pos, size_type n) const { return m_rep.find_first_not_of(s, pos, n); }
+	size_type find_first_not_of(KStringView sv, size_type pos = 0) const { return find_first_not_of(sv.data(), pos, sv.size()); }
+#endif
 	size_type find_first_not_of(const KString& str, size_type pos = 0) const { return find_first_not_of(str.data(), pos, str.size()); }
 	size_type find_first_not_of(const string_type& str, size_type pos = 0) const { return find_first_not_of(str.data(), pos, str.size()); }
 	size_type find_first_not_of(const value_type* s, size_type pos = 0) const { return find_first_not_of(s, pos, strlen(s)); }
-	size_type find_first_not_of(KStringView sv, size_type pos = 0) const { return find_first_not_of(sv.data(), pos, sv.size()); }
 #ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
 	size_type find_first_not_of(const std::string& str, size_type pos = 0) const { return find_first_not_of(str.data(), pos, str.size()); }
 #endif
 
+#if (DEKAF2_GCC_VERSION >= 40600) && (DEKAF2_USE_OPTIMIZED_STRING_FIND)
+	size_type find_last_not_of(value_type c, size_type pos = npos) const { return find_last_not_of(&c, pos, 1); }
+	size_type find_last_not_of(KStringView sv, size_type pos = npos) const { return kFindLastNotOf(*this, sv, pos); }
+	size_type find_last_not_of(const value_type* s, size_type pos, size_type n) const { return find_last_not_of(KStringView(s, n), pos); }
+#else
 	size_type find_last_not_of(value_type c, size_type pos = npos) const { return m_rep.find_last_not_of(c, pos); }
 	size_type find_last_not_of(const value_type* s, size_type pos, size_type n) const { return m_rep.find_last_not_of(s, pos, n); }
+	size_type find_last_not_of(KStringView sv, size_type pos = npos) const { return find_last_not_of(sv.data(), pos, sv.size()); }
+#endif
 	size_type find_last_not_of(const KString& str, size_type pos = npos) const { return find_last_not_of(str.data(), pos, str.size()); }
 	size_type find_last_not_of(const string_type& str, size_type pos = npos) const { return find_last_not_of(str.data(), pos, str.size()); }
 	size_type find_last_not_of(const value_type* s, size_type pos = npos) const { return find_last_not_of(s, pos, strlen(s)); }
-	size_type find_last_not_of(KStringView sv, size_type pos = npos) const { return find_last_not_of(sv.data(), pos, sv.size()); }
 #ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
 	size_type find_last_not_of(const std::string& str, size_type pos = npos) const { return find_last_not_of(str.data(), pos, str.size()); }
 #endif
@@ -331,7 +352,32 @@ public:
 	iterator erase(iterator position);
 	// C++17 wants a const_iterator here, but the COW string implementation in libstdc++ does not have it
 	iterator erase(iterator first, iterator last);
-	
+
+	// borrowed from string_view
+	void remove_suffix(size_type n) { if (n > size()) { n = size(); } erase(size()-n, n); }
+	// borrowed from string_view
+	void remove_prefix(size_type n) { erase(0, n); }
+	// extension from string_view
+	bool remove_suffix(KStringView suffix)
+	{
+		if (EndsWith(suffix))
+		{
+			remove_suffix(suffix.size());
+			return true;
+		}
+		return false;
+	}
+	// extension from string_view
+	bool remove_prefix(KStringView prefix)
+	{
+		if (StartsWith(prefix))
+		{
+			remove_prefix(prefix.size());
+			return true;
+		}
+		return false;
+	}
+
 	KString& replace(size_type pos, size_type n, const KString& str) { return replace(pos, n, str.m_rep); }
 	KString& replace(size_type pos1, size_type n1, const KString& str, size_type pos2, size_type n2 = npos) { return replace(pos1, n1, str.m_rep, pos2, n2); }
 	KString& replace(size_type pos, size_type n, const string_type& str);
@@ -392,7 +438,7 @@ public:
 	size_type ReplaceRegex(KStringView sRegEx, KStringView sReplaceWith, bool bReplaceAll = true);
 
 	/// replace one part of the string with another string
-	size_type Replace(KStringView sSearch, KStringView sReplace, bool bReplaceAll = false) { return kReplace(*this, sSearch, sReplace, bReplaceAll); }
+	size_type Replace(KStringView sSearch, KStringView sReplace, bool bReplaceAll = false);
 
 	/// does the string start with sPattern?
 	bool StartsWith(KStringView sPattern) const { return kStartsWith(*this, sPattern); }
@@ -456,8 +502,10 @@ public:
 	void RemoveIllegalChars(KStringView sIllegalChars);
 
 	/// convert to representation type
+#ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
 	inline operator const string_type&() const { return m_rep; }
 	inline operator string_type&() { return m_rep; }
+#endif
 
 #ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
 	/// convert to std::string
@@ -468,14 +516,20 @@ public:
 #endif
 
 	/// return the representation type
-	const string_type& str() const { return operator const string_type&(); }
-	string_type& str() { return operator string_type&(); }
+	const string_type& str() const { return m_rep; }
+	string_type& str() { return m_rep; }
+
+	/// convert to BasicStringView<const char*>
+//	operator BasicStringView<const char*>() const { return BasicStringView<const char*>(data(), size()); }
 
 	/// convert to KStringView
 	operator KStringView() const { return KStringView(data(), size()); }
 
+	/// return a KStringView
+	KStringView ToView() const { return operator KStringView(); }
+
 	/// return a KStringView much like a substr(), but without the cost
-	KStringView ToView(size_type pos = 0, size_type n = npos) const;
+	KStringView ToView(size_type pos, size_type n = npos) const;
 
 	/// helper operator to allow KString as formatting arg of fmt::format
 	operator fmt::BasicCStringRef<char>() const { return fmt::BasicCStringRef<char>(c_str()); }
@@ -567,6 +621,16 @@ inline KString operator+(KString&& left, KString::value_type right)
 	return temp;
 }
 
+//------------------------------------------------------------------------------
+inline std::size_t kReplace(KString& string,
+                            KStringView sSearch,
+                            KStringView sReplaceWith,
+                            bool bReplaceAll = true)
+//------------------------------------------------------------------------------
+{
+	return string.Replace(sSearch, sReplaceWith, bReplaceAll);
+}
+
 } // end of namespace dekaf2
 
 namespace std
@@ -581,7 +645,11 @@ namespace std
 		typedef std::size_t result_type;
 		result_type operator()(argument_type const& s) const noexcept
 		{
+#ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
 			return std::hash<dekaf2::KString::string_type>{}(s);
+#else
+			return std::hash<dekaf2::KString::string_type>{}(s.ToStdString());
+#endif
 		}
 	};
 
@@ -599,7 +667,11 @@ namespace boost
 		result_type operator()(argument_type const& s) const noexcept
 		{
 			// reuse the std::hash, as it knows fbstring already
+#ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
 			return std::hash<dekaf2::KString::string_type>{}(s);
+#else
+			return std::hash<dekaf2::KString::string_type>{}(s.ToStdString());
+#endif
 		}
 	};
 

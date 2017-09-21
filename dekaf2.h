@@ -46,6 +46,7 @@
 /// basic initialization of the library
 
 #include <atomic>
+#include <folly/CpuId.h>
 #include "kstring.h"
 
 /// @namespace dekaf2 The basic dekaf2 library namespace. All functions,
@@ -58,9 +59,11 @@ namespace dekaf2
 class Dekaf
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
+
 //----------
 public:
 //----------
+
 	Dekaf();
 	Dekaf(const Dekaf&) = delete;
 	Dekaf(Dekaf&&) = delete;
@@ -115,6 +118,14 @@ public:
 		return m_sLocale;
 	}
 
+	//---------------------------------------------------------------------------
+	/// Get the CPU ID and extensions
+	const folly::CpuId& GetCpuId() const
+	//---------------------------------------------------------------------------
+	{
+		return m_CPUID;
+	}
+
 //----------
 private:
 //----------
@@ -122,6 +133,7 @@ private:
 	std::atomic_bool m_bIsMultiThreading{false};
 	KString m_sName;
 	KString m_sLocale;
+	folly::CpuId m_CPUID;
 
 }; // Dekaf
 

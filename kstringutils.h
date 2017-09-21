@@ -348,14 +348,30 @@ template<class Ch>
 inline Ch kx2c (Ch* pszGoop)
 //-----------------------------------------------------------------------------
 {
-	Ch digit;
+	int iValue{0};
 
-	digit = (pszGoop[0] >= 'A' ? ((pszGoop[0] & 0xdf) - 'A')+10 : (pszGoop[0] - '0'));
-	digit *= 16;
-	digit += (pszGoop[1] >= 'A' ? ((pszGoop[1] & 0xdf) - 'A')+10 : (pszGoop[1] - '0'));
+	switch (pszGoop[0])
+	{
+		case '0': case '1': case '2': case '3': case '4':
+		case '5': case '6': case '7': case '8': case '9':
+			iValue += ((pszGoop[0] - '0') << 4);
+			break;
+		case 'A': case 'B': case 'C': case 'D': case 'E': case 'F':
+			iValue += ((pszGoop[0] - 'A' + 10) << 4);
+			break;
+	}
+	switch (pszGoop[1])
+	{
+		case '0': case '1': case '2': case '3': case '4':
+		case '5': case '6': case '7': case '8': case '9':
+			iValue += ((pszGoop[1] - '0'));
+			break;
+		case 'A': case 'B': case 'C': case 'D': case 'E': case 'F':
+			iValue += ((pszGoop[1] - 'A' + 10));
+			break;
+	}
 
-	return digit;
-
+	return static_cast<Ch>(iValue);
 } // kx2c
 
 } // anonymous until here
@@ -396,5 +412,86 @@ void kUrlDecode (String& sDecode)
 	}
 
 } // kUrlDecode
+
+//-----------------------------------------------------------------------------
+/// kUrlDecode copy
+/// Copies always go to end of string so (insert < end) test unnecessary.
+template<class String>
+void kUrlDecode (KStringView& sSource, String& sTarget)
+//-----------------------------------------------------------------------------
+{
+	sTarget.reserve (sTarget.size ()+sSource.size ());
+	auto current = &sSource[0];
+	auto end     = current + sSource.size();
+	while (current != end)
+	{
+		if (*current == '%')
+		{
+			if ( end - current > 2
+				&& std::isxdigit(*(current + 1))
+				&& std::isxdigit(*(current + 2)))
+			{
+				sTarget += kx2c(current + 1);
+				current += 3;
+			}
+			else
+			{
+				sTarget="";
+				return;
+			}
+		}
+		else if (*current == '+')
+		{
+			sTarget += ' ';
+			++current;
+		}
+		else
+		{
+			sTarget += *current++;
+		}
+	}
+} // kUrlDecode copy
+
+
+template<class String>
+void kUrlEncode (KStringView sSource, String& sTarget, KStringView svExclude=KStringView{})
+//-----------------------------------------------------------------------------
+{
+	// Implementation of exclusion does a quick JIT compile so that
+	// searching for exclusion is just an index, not a find.
+	static const unsigned char* sxDigit{
+		reinterpret_cast<const unsigned char*>("0123456789ABCDEF")};
+	// to exclude encoding of special characters, make a table of exclusions.
+	bool aExclude[256] = {false};
+	for (auto iC: svExclude)
+	{
+		aExclude[static_cast<size_t>(iC)] = true;
+	}
+	size_t iSize = sSource.size();
+	// Pre-allocate to prevent potential multiple re-allocations.
+	sTarget.reserve (sTarget.size () + sSource.size ());
+	for (size_t iIndex = 0; iIndex < iSize; ++iIndex)
+	{
+		char iC = sSource[iIndex];
+		// Handle sign on cast to size_t.
+		size_t iS = static_cast<size_t>(static_cast<unsigned char>(iC));
+		// Do not encode either alnum or encoding excluded characters.
+		if (isalnum (iC) || aExclude[iS])
+		{
+			sTarget += iC;
+		}
+		else if (iC == ' ')
+		{
+			sTarget += '+';
+		}
+		else
+		{
+			sTarget += '%';
+			sTarget += static_cast<char> (sxDigit[(iC>>4)&0xf]);
+			sTarget += static_cast<char> (sxDigit[(iC   )&0xf]);
+		}
+	}
+}
+
 
 } // end of namespace dekaf2

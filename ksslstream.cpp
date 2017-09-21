@@ -261,6 +261,7 @@ bool KSSLIOStream::Timeout(int iSeconds)
 		iSeconds = std::numeric_limits<int>::max() / 1000;
 	}
 	m_iTimeoutMilliseconds = iSeconds * 1000;
+	return true;
 }
 
 //-----------------------------------------------------------------------------

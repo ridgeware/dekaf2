@@ -445,6 +445,7 @@ public:
 		m_Rep = (sizeof...(args)==0)
 			            ? detail::KSubscriberReleaser<subscriber_type, parent_type>()(subscription)
 			            : subscriber_type(std::forward<Args>(args)...) ;
+		return *this;
 	}
 
 	//-----------------------------------------------------------------------------

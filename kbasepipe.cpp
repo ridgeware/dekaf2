@@ -126,7 +126,7 @@ bool KBasePipe::wait()
 
 	if ((iPid == -1) && (errno != EINTR))
 	{
-		KLog().debug(0, "KBasePipe::wait got an invalid status iPid = -1. Errno {} : {}", errno, strerror(errno));
+		kDebug(0, "KBasePipe::wait got an invalid status iPid = -1. Errno {} : {}", errno, strerror(errno));
 		m_iChildStatus = -2;
 		m_bChildStatusValid = true;
 		return true;

@@ -70,8 +70,7 @@ KInPipe::~KInPipe()
 bool KInPipe::Open(KStringView sProgram)
 //-----------------------------------------------------------------------------
 {
-	//## use kDebug - it prints automatically the function name
-	KLog().debug(3, "KInPipe::Open(): {}", sProgram);
+	kDebug(3, "KInPipe open program {}", sProgram);
 
 	Close(); // ensure a previous pipe is closed
 	errno = 0;
@@ -89,15 +88,13 @@ bool KInPipe::Open(KStringView sProgram)
 	// - - - - - - - - - - - - - - - - - - - - - - - -
 	if (m_readPdes[0] == -1)
 	{
-		//## use kWarning - it prints automatically the function name
-		KLog().warning("KInPipe::OpenReadPipe CMD FAILED: {} ERROR: {}", sProgram, strerror(errno));
+		kWarning("KInPipe::OpenReadPipe CMD FAILED: {} ERROR: {}", sProgram, strerror(errno));
 		m_iExitCode = errno;
 		return false;
 	}
 	else
 	{
-		//## use kDebug - it prints automatically the function name
-		KLog().debug(3, "KInPipe::OpenReadPipe: ok...");
+		kDebug(3, "KInPipe::OpenReadPipe: ok...");
 		KFDReader::open(m_readPdes[0]);
 		return KFDReader::good();
 	}

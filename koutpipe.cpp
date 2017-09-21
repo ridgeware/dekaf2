@@ -70,8 +70,7 @@ KOutPipe::~KOutPipe()
 bool KOutPipe::Open(KStringView sProgram)
 //-----------------------------------------------------------------------------
 {
-	//## use kDebug - it prints automatically the function name
-	KLog().debug(3, "KOutPipe::Open(): {}", sProgram);
+	kDebug(3, "KOutPipe open program: {}", sProgram);
 
 	Close(); // ensure a previous pipe is closed
 	errno = 0;
@@ -89,15 +88,13 @@ bool KOutPipe::Open(KStringView sProgram)
 	// - - - - - - - - - - - - - - - - - - - - - - - -
 	if (m_writePdes[0] == -1)
 	{
-		//## use kWarning - it prints automatically the function name
-		KLog().debug (0, "KOutPipe::Open(): OpenReadPipe CMD FAILED: {} ERROR: {}", sProgram, strerror(errno));
+		kWarning(0, "KOutPipe OpenReadPipe CMD FAILED: {} ERROR: {}", sProgram, strerror(errno));
 		m_iExitCode = errno;
 		return false;
 	}
 	else
 	{
-		//## use kDebug - it prints automatically the function name
-		KLog().debug(3, "KOutPipe::Open(): OpenReadPipe: ok...");
+		kDebug(3, "KOutPipe: OpenReadPipe: ok...");
 		KFDWriter::open(m_writePdes[1]);
 		return KFDWriter::good();
 	}

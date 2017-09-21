@@ -18,6 +18,7 @@ size_t kFind(
         size_t pos)
 //-----------------------------------------------------------------------------
 {
+#if defined(DEKAF2_USE_OPTIMIZED_STRING_FIND)
 	if (DEKAF2_UNLIKELY(needle.size() == 1))
 	{
 		// flip to single char search if only one char is in the search argument
@@ -43,6 +44,12 @@ size_t kFind(
 		return static_cast<size_t>(found - haystack.data());
 	}
 
+#else
+
+	return static_cast<KStringView::rep_type>(haystack).find(needle, pos);
+
+#endif
+
 }
 
 //-----------------------------------------------------------------------------
@@ -52,6 +59,7 @@ size_t kRFind(
         size_t pos)
 //-----------------------------------------------------------------------------
 {
+#if defined(DEKAF2_USE_OPTIMIZED_STRING_FIND) || defined(DEKAF2_USE_FOLLY_STRINGPIECE_AS_KSTRINGVIEW)
 	if (DEKAF2_UNLIKELY(needle.size() == 1))
 	{
 		return kRFind(haystack, needle[0], pos);
@@ -85,6 +93,13 @@ size_t kRFind(
 	}
 
 	return KStringView::npos;
+
+#else
+
+	return static_cast<KStringView::rep_type>(haystack).rfind(needle, pos);
+
+#endif
+
 }
 
 namespace detail { namespace stringview {

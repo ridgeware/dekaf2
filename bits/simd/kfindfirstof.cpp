@@ -4,6 +4,7 @@
  *  All code for the three siblings of find_first_of() is new.
  */
 
+#include <algorithm>
 #include "kfindfirstof.h"
 #include "../kcppcompat.h"
 
@@ -302,7 +303,7 @@ size_t kFindFirstOfSSE(
         const KStringView haystack,
         const KStringView needles)
 {
-	if (UNLIKELY(needles.empty() || haystack.empty()))
+	if (DEKAF2_UNLIKELY(needles.empty() || haystack.empty()))
 	{
 		return std::string::npos;
 	}
@@ -343,7 +344,7 @@ size_t kFindFirstNotOfSSE(
         const KStringView haystack,
         const KStringView needles)
 {
-	if (UNLIKELY(needles.empty() || haystack.empty()))
+	if (DEKAF2_UNLIKELY(needles.empty() || haystack.empty()))
 	{
 		return std::string::npos;
 	}

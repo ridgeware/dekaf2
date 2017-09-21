@@ -860,7 +860,7 @@ size_t kRFind(
 	|| !(DEKAF2_GCC_VERSION > 40600)
 	pos = std::min(pos, haystack.size());
 	haystack.remove_suffix(haystack.size() - pos);
-	return haystack.rfind(needle);
+	return static_cast<KStringView::rep_type>(haystack).rfind(needle);
 #elif !defined(DEKAF2_USE_OPTIMIZED_STRING_FIND)
 	return static_cast<KStringView::rep_type>(haystack).rfind(needle, pos);
 #else

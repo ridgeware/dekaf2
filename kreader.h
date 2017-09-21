@@ -42,6 +42,10 @@
 
 #pragma once
 
+/// @file kreader.h
+/// holds the basic reader abstraction
+
+#include <streambuf>
 #include <istream>
 #include <fstream>
 #include <sstream>
@@ -284,21 +288,6 @@ public:
 	/// Read a range of characters. Returns count of successfully read charcters.
 	size_t Read(typename std::istream::char_type* pAddress, size_t iCount);
 	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// Read a type. Returns stream reference that resolves to false if no input available.
-	/// Type must be trivially copyable.
-#if !defined(__GNUC__) || (DEKAF2_GCC_VERSION >= 500)
-	template<typename T, typename std::enable_if<std::is_trivially_copyable<T>::value>::type* = nullptr>
-#else
-	template<typename T, typename std::enable_if<std::is_integral<T>::value>::type* = nullptr>
-#endif
-	inline self_type& Read(T& value)
-	//-----------------------------------------------------------------------------
-	{
-		Read(&value, sizeof(T));
-		return *this;
-	}
 
 	//-----------------------------------------------------------------------------
 	/// Read a line of text. Returns false if no input available. Stops at delimiter

@@ -7,10 +7,10 @@ using namespace dekaf2;
 
 TEST_CASE("KStringUtils") {
 
-	SECTION("Freestanding Replace on std::string")
+	SECTION("Freestanding Replace on KString")
 	{
 		// source, search, replace, target
-		std::vector<std::vector<std::string>> stest
+		std::vector<std::vector<KString>> stest
 		{
 			{ "", "abc", "def", "" },
 			{ " ", "abc", "def", " " },

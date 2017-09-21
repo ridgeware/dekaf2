@@ -33,6 +33,7 @@ TEST_CASE("KInShell")
 		INFO("normal_open_close_test::Start:");
 
 		KInShell pipe;
+		pipe.SetReaderTrim("");
 
 		// open the pipe
 		CHECK(pipe.Open("cat some random data > /tmp/kinshelltest.file 2>&1"));
@@ -123,7 +124,7 @@ TEST_CASE("KInShell")
 
 		KInShell pipe;
 
-		CHECK(pipe.Open("echo rdoanm txet > /tmp/tmp.file && cat /tmp/KInShelltest.file > /dev/null"));
+		CHECK(pipe.Open("echo rdoanm txet > /tmp/KInShelltest.file && cat /tmp/KInShelltest.file > /dev/null"));
 
 		FILE* fileDesc(pipe);
 
@@ -140,6 +141,7 @@ TEST_CASE("KInShell")
 	SECTION("KInShell Iterator Test")
 	{
 		KInShell   pipe;
+		pipe.SetReaderTrim("");
 		KString sCurlCMD = "echo 'random text asdfjkl;asdfjkl; qwerty uoip zxcvbnm,zxcvbnm,  ' > /tmp/KInShelltest.file && cat /tmp/KInShelltest.file 2> /dev/null";
 		CHECK(pipe.Open(sCurlCMD));
 

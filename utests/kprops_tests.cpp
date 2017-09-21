@@ -34,7 +34,7 @@ TEST_CASE("KProp") {
 			CHECK ( data["key 10"]  == "value 20" );
 
 #ifdef DO_MOVE_TESTS
-#if (DEKAF2_GCC_VERSION > 600) && defined(DEKAF2_HAS_CPP_17)
+#if (DEKAF2_GCC_VERSION > 60000) && defined(DEKAF2_HAS_CPP_17)
 			CHECK ( k1 == KString{} );
 			CHECK ( v1 == KString{} );
 #endif
@@ -47,7 +47,7 @@ TEST_CASE("KProp") {
 			CHECK ( data.size()   == 3 );
 			CHECK ( data["key 100"]  == "value 100" );
 #ifdef DO_MOVE_TESTS
-#if (DEKAF2_GCC_VERSION > 600) && defined(DEKAF2_HAS_CPP_17)
+#if (DEKAF2_GCC_VERSION > 60000) && defined(DEKAF2_HAS_CPP_17)
 			CHECK ( k100 == KString{} );
 #endif
 #endif
@@ -61,7 +61,7 @@ TEST_CASE("KProp") {
 			CHECK ( data["key 200"]  == "value 200" );
 			CHECK ( k200 == KString{"key 200"} );
 #ifdef DO_MOVE_TESTS
-#if (DEKAF2_GCC_VERSION > 600) && defined(DEKAF2_HAS_CPP_17)
+#if (DEKAF2_GCC_VERSION > 60000) && defined(DEKAF2_HAS_CPP_17)
 			CHECK ( v200 == KString{} );
 #endif
 #endif

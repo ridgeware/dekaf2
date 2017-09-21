@@ -42,6 +42,10 @@
 
 #pragma once
 
+/// @file koutshell.h
+/// provides writing pipe access to a shell instance.
+
+
 #include "kbaseshell.h"
 #include "kfdstream.h"
 
@@ -49,8 +53,10 @@ namespace dekaf2
 {
 
 
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// Write to a shell instance
 class KOutShell : public KBaseShell, public KFPWriter
-
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
 //------

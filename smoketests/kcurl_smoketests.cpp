@@ -213,13 +213,13 @@ TEST_CASE("KCurl")
 		CHECK(webIO.getEchoHeader());
 		CHECK(webIO.getEchoBody());
 
-		webIO.addRequestHeader(xForwardedForHeader, "onelink-translations.com");
+		webIO.addRequestHeader(KCurl::xForwardedForHeader, "onelink-translations.com");
 		webIO.addRequestHeader("Cust Header", "muh header...");
 		webIO.addRequestCookie("yummy_cookie","chocolate chip");
 		webIO.addRequestCookie("best cookie","mint chocolate chip");
 
 		KString cookies;
-		webIO.getRequestHeader(CookieHeader, cookies);
+		webIO.getRequestHeader(KCurl::CookieHeader, cookies);
 		CHECK(cookies.length() == 0);
 
 		KString requestHeader;
@@ -242,14 +242,14 @@ TEST_CASE("KCurl")
 		CHECK(webIO.getEchoHeader());
 		CHECK_FALSE(webIO.getEchoBody());
 
-		webIO.addRequestHeader(xForwardedForHeader, "onelink-translations.com");
+		webIO.addRequestHeader(KCurl::xForwardedForHeader, "onelink-translations.com");
 		webIO.addRequestHeader("Cust Header", "muh header...");
 		webIO.addRequestCookie("yummy_cookie","chocolate chip");
 		webIO.addRequestCookie("best_cookie","mint chocolate chip");
 		webIO.addRequestCookie("muh_cookie","muh cookie is best");
 
 		KString cookies;
-		webIO.getRequestHeader(CookieHeader, cookies);
+		webIO.getRequestHeader(KCurl::CookieHeader, cookies);
 		CHECK(cookies.length() == 0);
 
 		bool bSuccess = webIO.initiateRequest();
@@ -271,14 +271,14 @@ TEST_CASE("KCurl")
 		CHECK_FALSE(webIO.getEchoHeader());
 		CHECK(webIO.getEchoBody());
 
-		webIO.addRequestHeader(xForwardedForHeader, "onelink-translations.com");
+		webIO.addRequestHeader(KCurl::xForwardedForHeader, "onelink-translations.com");
 		webIO.addRequestHeader("Cust Header", "muh header...");
 		webIO.addRequestCookie("yummy_cookie","chocolate chip");
 		webIO.addRequestCookie("best_cookie","mint chocolate chip");
 		webIO.addRequestCookie("muh_cookie","muh cookie is best");
 
 		KString cookies;
-		webIO.getRequestHeader(CookieHeader, cookies);
+		webIO.getRequestHeader(KCurl::CookieHeader, cookies);
 		CHECK(cookies.length() == 0);
 
 		bool bSuccess = webIO.initiateRequest();

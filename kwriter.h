@@ -42,6 +42,9 @@
 
 #pragma once
 
+/// @file kwriter.h
+/// holds the basic writer abstraction
+
 #include <cinttypes>
 #include <ostream>
 #include <fstream>
@@ -111,7 +114,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Write a character. Returns stream reference that resolves to false on failure
-	self_type& Write(KString::value_type& ch);
+	self_type& Write(KString::value_type ch);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -129,17 +132,12 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	/// Write a type. Returns stream reference that resolves to false on failure.
-	/// Type must be trivially copyable.
-#if !defined(__GNUC__) || (DEKAF2_GCC_VERSION >= 500)
-	template<typename T, typename std::enable_if<std::is_trivially_copyable<T>::value>::type* = nullptr>
-#else
-	template<typename T, typename std::enable_if<std::is_integral<T>::value>::type* = nullptr>
-#endif
-	inline self_type& Write(T& value)
+	/// Write a line delimiter. Returns stream reference that resolves
+	/// to false on failure.
+	inline self_type& WriteLine()
 	//-----------------------------------------------------------------------------
 	{
-		Write(&value, sizeof(T));
+		Write(m_sDelimiter.data(), m_sDelimiter.size());
 		return *this;
 	}
 
@@ -150,8 +148,7 @@ public:
 	//-----------------------------------------------------------------------------
 	{
 		Write(line.data(), line.size());
-		Write(m_sDelimiter.data(), m_sDelimiter.size());
-		return *this;
+		return WriteLine();
 	}
 
 	//-----------------------------------------------------------------------------
@@ -252,7 +249,7 @@ public:
 	// support string_views as arguments
 	template<class... Args>
 	KWriter(KStringView sv, Args&&... args)
-	    : base_type(std::string(sv), std::forward<Args>(args)...)
+	    : base_type(std::string(sv.data(), sv.size()), std::forward<Args>(args)...)
 	    , KOutStream(static_cast<std::ostream&>(*this))
 	//-----------------------------------------------------------------------------
 	{

@@ -56,18 +56,26 @@ class KLog& KLog()
 	return myKLog;
 }
 
+// do not initialize this static var - it risks to override a value set by KLog()'s
+// initialization before..
+int KLog::s_kLogLevel;
+
 // Ctor
 //---------------------------------------------------------------------------
 KLog::KLog()
 //---------------------------------------------------------------------------
     : m_sLogfile("/tmp/dekaf.log")
     , m_sFlagfile("/tmp/dekaf.dbg")
-    , m_Log(m_sLogfile, std::ios::ate)
+    , m_Log(m_sLogfile.c_str(), std::ios::ate)
 {
+#if NDEBUG
+	s_kLogLevel = -1;
+#else
+	s_kLogLevel = 0;
+#endif
 }
 
 //---------------------------------------------------------------------------
-//	filename set/get debuglog("stderr/stdout/syslog" special files) /tmp/dekaf.log
 bool KLog::SetDebugLog(KStringView sLogfile)
 //---------------------------------------------------------------------------
 {
@@ -78,7 +86,7 @@ bool KLog::SetDebugLog(KStringView sLogfile)
 
 	m_sLogfile = sLogfile;
 
-	m_Log.open(m_sLogfile, std::ios::ate);
+	m_Log.open(m_sLogfile.c_str(), std::ios::ate);
 	if (!m_Log.is_open())
 	{
 		return false;
@@ -88,7 +96,6 @@ bool KLog::SetDebugLog(KStringView sLogfile)
 }
 
 //---------------------------------------------------------------------------
-//	set/get debugflag() /tmp/dekaf.dbg
 bool KLog::SetDebugFlag(KStringView sFlagfile)
 //---------------------------------------------------------------------------
 {
@@ -119,18 +126,38 @@ bool KLog::IntBacktrace()
 }
 
 //---------------------------------------------------------------------------
-bool KLog::IntDebug(int level, KStringView sMessage)
+bool KLog::IntDebug(int level, KStringView sFunction, KStringView sMessage)
 //---------------------------------------------------------------------------
 {
-	if (level <= m_iLevel)
+	if (!sFunction.empty())
 	{
-		m_Log.WriteLine(sMessage);
-		m_Log.flush();
-
-		if (level <= m_iBackTrace)
+		if (*sFunction.rbegin() == ']')
 		{
-			IntBacktrace();
+			// try to remove template arguments from function name
+			auto pos = sFunction.rfind('[');
+			if (pos != KStringView::npos)
+			{
+				if (pos > 0 && sFunction[pos-1] == ' ')
+				{
+					--pos;
+				}
+				sFunction.remove_suffix(sFunction.size() - pos);
+			}
 		}
+
+		if (!sFunction.empty())
+		{
+			m_Log.Write(sFunction);
+			m_Log.Write(": ");
+		}
+	}
+
+	m_Log.WriteLine(sMessage);
+	m_Log.flush();
+
+	if (level <= m_iBackTrace)
+	{
+		IntBacktrace();
 	}
 	return m_Log.good();
 }
@@ -152,5 +179,7 @@ void KLog::IntException(KStringView sWhat, KStringView sFunction, KStringView sC
 		warning("{0} caught exception: '{1}'", sFunction, sWhat);
 	}
 }
+
+// TODO add a mechanism to check periodically for the flag file's set level
 
 } // of namespace dekaf2

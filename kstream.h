@@ -42,6 +42,9 @@
 
 #pragma once
 
+/// @file kstream.h
+/// bidirectional streams
+
 #include "kreader.h"
 #include "kwriter.h"
 
@@ -133,14 +136,14 @@ public:
 	// support string_views as arguments
 	template<class... Args>
 	KReaderWriter(KStringView sv, Args&&... args)
-	    : base_type(std::string(sv), std::forward<Args>(args)...)
+	    : base_type(std::string(sv.data(), sv.size()), std::forward<Args>(args)...)
 	    , k_rw_type(static_cast<base_type&>(*this))
 	//-----------------------------------------------------------------------------
 	{
 	}
 
 	//-----------------------------------------------------------------------------
-	// perfect forwarding
+	/// perfect forwarding ctor (forwards all arguments to the iostream)
 	template<class... Args>
 	KReaderWriter(Args&&... args)
 	    : base_type(std::forward<Args>(args)...)
@@ -175,6 +178,14 @@ public:
 		base_type::operator=(std::move(other));
 		k_rw_type::operator=(std::move(other));
 	}
+
+	//-----------------------------------------------------------------------------
+	// this one is necessary because ios_base has a symbol named end .. (for seeking)
+	const_iterator end()
+	//-----------------------------------------------------------------------------
+	 {
+		return KInStream::end();
+	 }
 
 };
 

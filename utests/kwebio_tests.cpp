@@ -29,18 +29,10 @@ TEST_CASE("KWebIO")
 		 * Forwarded: for=192.0.2.43, for="[2001:db8:cafe::17]
 		 */
 
-		//apparently Get(key) on this KProps returns std::pair<KString,KString> where .empty() is true for them.
-		//typedef std::pair<KString,KString> KCurl::KHeaderPair;
-		//typedef KPropsTemplate<KString, KCurl::KHeaderPair> KNoCaseHeader; // map for header info
-
 		KWebIO webIO;
 		KString sHeaderPart = "Content-type: text/html\nCookie: foo=bar\nSet-Cookie: yummy_cookie=choco\nSet-Cookie: tasty_cookie=strawberry\nX-Forwarded-For: 192.0.2.43, 2001:db8:cafe::17\nForwarded: for=192.0.2.43, for='[2001:db8:cafe::17]'\n\n";
 		webIO.addToResponseHeader(sHeaderPart);
 
-		// print response header for debugging:
-		//for (auto header : webIO.getResponseHeaders().begin())
-		//auto iter = webIO.getResponseHeaders().begin();
-		//for (auto iter = webIO.getResponseHeaders().begin(); iter == webIO.getResponseBody().end(); iter = iter)
 		KCurl::KHeader sResponseHeaders = webIO.getResponseHeaders();
 		CHECK_FALSE(sResponseHeaders.empty());
 		CHECK(sResponseHeaders.size() == 6);
@@ -197,7 +189,7 @@ TEST_CASE("KWebIO")
 		CHECK(sResponseHeaders.Count("forwarded") == 1);
 		CHECK(sResponseHeaders.Count("x-forwarded-for") == 1);
 
-		KString xForwarded = sResponseHeaders.Get(xForwardedForHeader).second;
+		KString xForwarded = sResponseHeaders.Get(KCurl::xForwardedForHeader).second;
 		CHECK(xForwarded.compare(" 192.0.2.43, 2001:db8:cafe::17\n") == 0);
 		CHECK(xForwarded == " 192.0.2.43, 2001:db8:cafe::17\n");
 		//const KString* pFooCookie = webIO.getResponseCookie("foo");
@@ -1601,7 +1593,7 @@ TEST_CASE("KWebIO")
 		CHECK_FALSE(sResponseHeaders.empty());
 		CHECK(sResponseHeaders.size() == 7);
 		CHECK(webIO.getResponseCookies().size() == 1);
-		CHECK(sResponseHeaders.Count(sGarbageHeader) == 1);
+		CHECK(sResponseHeaders.Count(KCurl::sGarbageHeader) == 1);
 		CHECK(sResponseHeaders.IsMulti("set-cookie"));
 		CHECK(sResponseHeaders.Count("cookie") == 1);
 		const KString& sCookieVal = webIO.getResponseCookie("muh");
@@ -1655,7 +1647,7 @@ TEST_CASE("KWebIO")
 		CHECK_FALSE(sResponseHeaders.empty());
 		CHECK(sResponseHeaders.size() == 7);
 		CHECK(webIO.getResponseCookies().size() == 1);
-		CHECK(sResponseHeaders.Count(sGarbageHeader) == 1);
+		CHECK(sResponseHeaders.Count(KCurl::sGarbageHeader) == 1);
 		CHECK(sResponseHeaders.IsMulti("set-cookie"));
 		CHECK(sResponseHeaders.Count("cookie") == 1);
 		const KString& sCookieVal = webIO.getResponseCookie("muh");
@@ -1709,7 +1701,7 @@ TEST_CASE("KWebIO")
 		CHECK_FALSE(sResponseHeaders.empty());
 		CHECK(sResponseHeaders.size() == 7);
 		CHECK(webIO.getResponseCookies().size() == 1);
-		CHECK(sResponseHeaders.Count(sGarbageHeader) == 1);
+		CHECK(sResponseHeaders.Count(KCurl::sGarbageHeader) == 1);
 		CHECK(sResponseHeaders.IsMulti("set-cookie"));
 		CHECK(sResponseHeaders.Count("cookie") == 1);
 		const KString& sCookieVal = webIO.getResponseCookie("muh");
@@ -1763,7 +1755,7 @@ TEST_CASE("KWebIO")
 		CHECK_FALSE(sResponseHeaders.empty());
 		CHECK(sResponseHeaders.size() == 7);
 		CHECK(webIO.getResponseCookies().size() == 1);
-		CHECK(sResponseHeaders.Count(sGarbageHeader) == 1);
+		CHECK(sResponseHeaders.Count(KCurl::sGarbageHeader) == 1);
 		CHECK(sResponseHeaders.IsMulti("set-cookie"));
 		CHECK(sResponseHeaders.Count("cookie") == 1);
 		const KString& sCookieVal = webIO.getResponseCookie("muh");
@@ -1817,7 +1809,7 @@ TEST_CASE("KWebIO")
 		CHECK_FALSE(sResponseHeaders.empty());
 		CHECK(sResponseHeaders.size() == 7);
 		CHECK(webIO.getResponseCookies().size() == 1);
-		CHECK(sResponseHeaders.Count(sGarbageHeader) == 1);
+		CHECK(sResponseHeaders.Count(KCurl::sGarbageHeader) == 1);
 		CHECK(sResponseHeaders.IsMulti("set-cookie"));
 		CHECK(sResponseHeaders.Count("cookie") == 1);
 		const KString& sCookieVal = webIO.getResponseCookie("muh");
@@ -1871,7 +1863,7 @@ TEST_CASE("KWebIO")
 		CHECK_FALSE(sResponseHeaders.empty());
 		CHECK(sResponseHeaders.size() == 7);
 		CHECK(webIO.getResponseCookies().size() == 1);
-		CHECK(sResponseHeaders.Count(sGarbageHeader) == 1);
+		CHECK(sResponseHeaders.Count(KCurl::sGarbageHeader) == 1);
 		CHECK(sResponseHeaders.IsMulti("set-cookie"));
 		CHECK(sResponseHeaders.Count("cookie") == 1);
 		const KString& sCookieVal = webIO.getResponseCookie("muh");

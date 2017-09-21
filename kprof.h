@@ -42,6 +42,9 @@
 
 #pragma once
 
+/// @file kprof.h
+/// provides a code profiler
+
 #if defined(ENABLE_PROFILING) || defined(DEKAF2_LIBRARY_BUILD)
 
 #include <map>
@@ -65,9 +68,11 @@ extern const char* g_empty_label;
 class KQDProf
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
+
 //----------
 public:
 //----------
+
 	typedef std::chrono::steady_clock clock_t;
 
 	//-----------------------------------------------------------------------------
@@ -248,9 +253,11 @@ private:
 class KProf
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
+
 //----------
 public:
 //----------
+
 #ifdef DISABLE_AUTOMATIC_PROFILER
 	//-----------------------------------------------------------------------------
 	explicit KProf(SharedProfiler& parent, const char* label, bool increment_level = true);
@@ -265,6 +272,13 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	void SetMultiplier(size_t iMultiplier)
+	//-----------------------------------------------------------------------------
+	{
+		m_callct_multiplier = iMultiplier;
+	}
+
+	//-----------------------------------------------------------------------------
 	void start();
 	//-----------------------------------------------------------------------------
 
@@ -275,11 +289,13 @@ public:
 //----------
 private:
 //----------
+
 	KSharedProfiler&                     m_parent;
 	KSharedProfiler::map_t::iterator     m_perfcounter;
 	KSharedProfiler::clock_t::time_point m_start;
 	KSharedProfiler::duration_t          m_slept_before;
 	KSharedProfiler::data_t              m_data;
+	size_t                               m_callct_multiplier{1};
 	bool                                 m_stopped{false};
 	bool                                 m_increment_level{true};
 
@@ -295,12 +311,15 @@ private:
 namespace dekaf2 {
 namespace disabled {
 
-class KQDProf
-{
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+class KQDProf
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
 //----------
 public:
 //----------
+
 	//-----------------------------------------------------------------------------
 	explicit KQDProf(const char* label = "")
 	//-----------------------------------------------------------------------------
@@ -327,10 +346,16 @@ public:
 
 };
 
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// the nil version that generates no code at all
 class KSharedProfiler
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
+
+//----------
 public:
+//----------
+
 	//-----------------------------------------------------------------------------
 	KSharedProfiler()
 	//-----------------------------------------------------------------------------
@@ -369,18 +394,27 @@ public:
 
 };
 
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// the nil version that generates no code at all
 class KProf
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
+
+//----------
 public:
+//----------
+
 #ifdef DISABLE_AUTOMATIC_PROFILER
 	//-----------------------------------------------------------------------------
 	KProf(KSharedProfiler& parent, const char* label, bool increment_level = true) {}
 	//-----------------------------------------------------------------------------
 #else
 	//-----------------------------------------------------------------------------
-	KProf(const char* label, bool increment_level = true) {}
+	KProf(const char* label, bool increment_level = true)
 	//-----------------------------------------------------------------------------
+	{
+	}
+
 #endif
 
 	//-----------------------------------------------------------------------------

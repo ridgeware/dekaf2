@@ -1,862 +1,852 @@
+/*
+//=============================================================================
+//
+// DEKAF(tm): Lighter, Faster, Smarter(tm)
+//
+// Copyright (c) 2000-2017, Ridgeware, Inc.
+//
+// +-------------------------------------------------------------------------+
+// | /\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\|
+// |/+---------------------------------------------------------------------+/|
+// |/|                                                                     |/|
+// |\|  ** THIS NOTICE MUST NOT BE REMOVED FROM THE SOURCE CODE MODULE **  |\|
+// |/|                                                                     |/|
+// |\|   OPEN SOURCE LICENSE                                               |\|
+// |/|                                                                     |/|
+// |\|   Permission is hereby granted, free of charge, to any person       |\|
+// |/|   obtaining a copy of this software and associated                  |/|
+// |\|   documentation files (the "Software"), to deal in the              |\|
+// |/|   Software without restriction, including without limitation        |/|
+// |\|   the rights to use, copy, modify, merge, publish,                  |\|
+// |/|   distribute, sublicense, and/or sell copies of the Software,       |/|
+// |\|   and to permit persons to whom the Software is furnished to        |\|
+// |/|   do so, subject to the following conditions:                       |/|
+// |\|                                                                     |\|
+// |/|   The above copyright notice and this permission notice shall       |/|
+// |\|   be included in all copies or substantial portions of the          |\|
+// |/|   Software.                                                         |/|
+// |\|                                                                     |\|
+// |/|   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY         |/|
+// |\|   KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE        |\|
+// |/|   WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR           |/|
+// |\|   PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS        |\|
+// |/|   OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR          |/|
+// |\|   OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR        |\|
+// |/|   OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE         |/|
+// |\|   SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.            |\|
+// |/|                                                                     |/|
+// |/+---------------------------------------------------------------------+/|
+// |\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/ |
+// +-------------------------------------------------------------------------+
+//
+//=============================================================================
+*/
+
+/** @brief KURL class Architecture
+*=============================================================================
+* https://en.wikipedia.org/wiki/URL
+* All URL parsing is related to RFC3986 version 3.1 for this regex:
+*      scheme:[//[user[:password]@]host[:port]][/path][?query][#fragment]
+*=============================================================================
+* Example minimal abstract URL:
+*       a://b:c@d.e:f/g/h?i=j#k
+*        ^^^ ^ ^   ^ ^   ^ ^ ^
+* Characters identified by a ^ above are expected to NOT be URL encoded.
+*=============================================================================
+* Relationship between RFC3986 and class structure:
+*  a://b:c@d.e:f/g/h?i=j#k
+*  ----------------------------------------------------------------------------
+*  RFC3986            |class   |identifies             |parse/serialize
+*  ----------------------------------------------------------------------------
+*  scheme             |Protocol|a                      |a://
+*  user:password      |User    |b.c                    |b.c@
+*  host:port          |Domain  |d.e:f                  |d.e:f
+*  path?query#fragment|URI     |/g/h, i=j, k           |/g/h?i=j#k
+*  all the above      |URL     |a://b:c@d.e:f/g/h?i=j#k|a://b:c@d.e:f/g/h?i=j#k
+*  ----------------------------------------------------------------------------
+*=============================================================================
+* Class fine structure:
+*  Protocol stores enum for known schemes and KString for unknown schemes.
+*  User     stores KStrings for user and password.
+*  Domain   stores host and port as KStrings, and DOMAIN as uppercase KString.
+*  URI      is multiple-inherited from classes Path, Query, and Fragment.
+*  URL      is multiple-inherited from classes Protocol, User, Domain, and URI.
+*=============================================================================
+* Hidden classes/fields:
+*  Path     stores the like-named RFC field.
+*  Query    stores the like-named RFC field.
+*  Fragment stores the like-named RFC field.
+*  Port     part of Domain is not a class but stores the like-named RFC field.
+*=============================================================================
+* Use of KStringView for parsing decreases string copying.
+* Parse methods shall return false on error, true on success.
+* The main pattern of use during parsing is as follows.
+* Start with a KStringView svURL: "a://b:c@d.e:f/g/h?i=j#k".
+* Within KURL::URL constructor:
+*  KStringView svA = Protocol::parse (svURL);  // svA is "b:c@d.e:f/g/h?i=j#k"
+*  KStringView svB = User::parse (svA);        // svB is "d.e:f/g/h?i=j#k"
+*  KStringView svC = Domain::parse (svB);      // svC is "/g/h?i=j#k"
+*  KStringView svD = URI::parse (svC);         // svD is ""
+* So that:
+*  KString sTarget;
+*  Protocol::serialize (sTarget);      // sTarget is "a://"
+*  User::serialize (sTarget);          // sTarget is "a://b:c@"
+*  Domain::serialize (sTarget);        // sTarget is "a://b:c@d.e:f"
+*  URI::serialize (sTarget);           // sTarget is "a://b:c@d.e:f/g/h?i=j#k"
+*-----------------------------------------------------------------------------
+* Other methods:
+*  T ();                               // default ctor
+*  T (KStringView);                    // normal ctor
+*  T (const T&);                       // copy ctor
+*  operator=(const T& rhs);            // copy
+*  operator=(T&& rhs);                 // move
+*  operator>>(KString& sTarget);       // same as serialize
+*  operator<<(KString& sSource);       // same as parse (but returns instance)
+*  operator==(const T& rhs);           // compare lhs with rhs
+*  operator!=(const T& rhs);           // compare lhs with rhs
+*  Clear();                            // Restore to original empty state
+*  KString();                          // same as serialize
+*/
+
+#include <cstdio>
 #include <cstdlib>
 #include <cmath>
 #include <vector>
 
-#include <fmt/format.h>
-
+#include "kstring.h"
+#include "kstringutils.h"
 #include "kurl.h"
 
-using dekaf2::KString;
+#include <fmt/format.h>
+
 using fmt::format;
 using std::vector;
+using std::to_string;
 
-bool unimplemented(const KString& name, const char* __file__, size_t __line__)
+namespace dekaf2
 {
-	static const char* how{"{}[{}]: {} (unimplemented)"};
-	puts (format(how, __file__, __line__, name.c_str()).c_str());
-	return false;
-}
 
-//||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
-// KProto
-//||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
-
-//..............................................................................
-dekaf2::KProto::KProto ()
-    : m_error{false}, m_mailto{false}, m_proto{""}
-//..............................................................................
+/// @defgroup KURL
+/// KURL implements all classes for parsing, maintaining, and serializing URLs.
+/// Example URL:
+///     "https://jlettvin@github.com:8080/experiment/UTF8?page=home#title";
+///           ^^^        ^          ^    ^               ^         ^
+/// Characters identified by ^ above are expected to NOT be URL encoded.
+/// @{
+namespace KURL
 {
-}
 
-//..............................................................................
-dekaf2::KProto::KProto (const KString& source)
-    : m_error{false}, m_mailto{false}, m_proto{""}
-//..............................................................................
+//-----------------------------------------------------------------------------
+/// @brief class Protocol in group KURL.  Parse into members.
+/// Protocol parses and maintains "scheme" portion of w3 URL.
+/// RFC3986 3.1: scheme = ALPHA *( ALPHA / DIGIT / "+" / "-" / "." )
+/// scheme:[//[user[:password]@]host[:port]][/path][?query][#fragment]
+/// ------
+/// Protocol extracts, stores, and reproduces URL "scheme".
+/// Implementation: identify all characters until ':'.
+/// For [file, ftp, http, https, mailto] store only the eProto.
+/// For others, store the characters.
+/// getters/setters and reserialization are available.
+KStringView Protocol::Parse (KStringView svSource)
+//-----------------------------------------------------------------------------
 {
-	// Inefficient CTOR compared with the one having hint as a formal arg.
-	size_t hint{0};
-	parse(source, hint);
-}
-
-//..............................................................................
-//..............................................................................
-dekaf2::KProto::KProto (const KString& source, size_t& hint)
-    : m_error{false}, m_mailto{false}, m_proto{""}
-//..............................................................................
-{
-	parse(source, hint);
-}
-
-//..............................................................................
-/// @brief RFC3986 3.1: scheme = ALPHA *( ALPHA / DIGIT / "+" / "-" / "." )
-/// Implementation: We take all characters until ':'.
-bool dekaf2::KProto::parse(const KString& source, size_t& hint)
-//..............................................................................
-{
-	clear();
-
-	size_t index{hint};
-	size_t colon{0};
-	size_t limit{source.size()};
-
-	char ic{source[index]};
-
-	do
+	Clear ();
+	if (svSource.empty ())
 	{
-		switch (ic)
+		return svSource;
+	}
+
+	size_t iFound = svSource.find_first_of (':');
+
+	if (iFound != KStringView::npos)
+	{
+		size_t iSlash = 0;
+		m_sProto.assign (svSource.data (), iFound);
+		svSource.remove_prefix (iFound);
+		iFound = 0;
+		size_t iSize = svSource.size();
+		while (iFound < iSize && svSource[++iFound] == '/')
 		{
-			case '\0':
-				m_error = true;
-				break;
-			case ':':
-				colon = index;
-				break;
-			default:
-				ic = source[++index];
+			++iSlash;
 		}
-	} while (!m_error && !colon);
-	if (colon)
-	{
-		m_proto = KString(source, hint, colon - hint);
-		if (m_proto == "mailto")
+
+		kUrlDecode (m_sProto);
+
+		// TODO should we be generous, parsing past wrong count slashes?
+		// We always serialize it back to correct form.
+		// Being strict violates our "accept everything we can" rule.
+		// Example strict alternatives are shown below in comments.
+
+		if (m_sProto == "file" && iSlash > 0)
 		{
-			hint = colon + 1;
-			m_mailto = true;
+			m_eProto = FILE;
+			iFound--;           // Leave trailing slash of file:/// for Path
+		}
+		else if (m_sProto == "mailto")
+		{
+			m_eProto = MAILTO;
+		}
+		else if (iSlash > 0)
+		{
+			if      (m_sProto == "ftp"  ) m_eProto = FTP;
+			else if (m_sProto == "http" ) m_eProto = HTTP;
+			else if (m_sProto == "https") m_eProto = HTTPS;
+			else                          m_eProto = UNKNOWN;
 		}
 		else
 		{
-			if (colon >= (limit - 2))
-			{
-				m_error = true;
-			}
-			if (source[colon + 1] == '/' && source[colon + 2] == '/')
-			{
-				hint = colon + 3;
-			}
-			else
-			{
-				m_error = true;
-			}
+			Clear ();
+			return svSource;
 		}
+		svSource.remove_prefix (iFound);
 	}
-	return !m_error;
+	return svSource;
 }
 
-//..............................................................................
-bool dekaf2::KProto::serialize (KString& target) const
-//..............................................................................
+//-----------------------------------------------------------------------------
+/// @brief class Protocol in group KURL.  Generate Protocol portion of URL.
+/// Class Protocol parses and maintains "scheme" portion of w3 URL.
+bool Protocol::Serialize (KString& sTarget) const
+//-----------------------------------------------------------------------------
 {
-	if (!m_error && m_proto.size())
+	// m_eProto is NEVER UNDEFINED except on clear or default ctor.
+	// m_eProto is UNKNOWN for protocols like "opaquelocktoken://"
+	// TODO should anything else happen for UNDEFINED or UNKNOWN?
+	bool bProduce = (m_eProto != UNDEFINED);;
+	if (bProduce)
 	{
-		target += m_proto;
-		target += ':';
-		if (!m_mailto)
-		{
-			target += "//";
-		}
+		sTarget += (m_eProto < UNKNOWN)
+			? m_sKnown[m_eProto]
+			: m_sProto + "://";
 	}
-	return !m_error;
+	return bProduce;
 }
 
-//..............................................................................
-bool dekaf2::KProto::getProtocol (string_view& target) const
-//..............................................................................
+//-----------------------------------------------------------------------------
+/// @brief class Protocol in group KURL.  Restores instance to empty state
+void Protocol::Clear()
+//-----------------------------------------------------------------------------
 {
-	//unimplemented("dekaf2::KProto::getProtocol", __FILE__, __LINE__);
-	return !m_error;
+	m_sProto.clear ();
+	m_eProto = UNDEFINED;
 }
 
-//..............................................................................
-void dekaf2::KProto::clear ()
-//..............................................................................
+const KString Protocol::m_sKnown [UNKNOWN+1]
 {
-	m_error = false;
-	m_mailto = false;
-	m_proto = "";
-}
+	"UNDEFINED",    // Parse has not been run yet.
+	"file://",
+	"ftp://",
+	"http://",
+	"https://",
+	"mailto:",
+	"UNKNOWN"       // Use m_sProto.
+};
 
-
-//||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
-// KUserInfo
-//||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
-
-//..............................................................................
-dekaf2::KUserInfo::KUserInfo ()
-    : m_error{false}, m_user{""}, m_pass{""}
-//..............................................................................
-{
-}
-
-//..............................................................................
-dekaf2::KUserInfo::KUserInfo (const KString& source)
-    : m_error{false}, m_user{""}, m_pass{""}
-//..............................................................................
-{
-	// Inefficient CTOR compared with the one having hint as a formal arg.
-	size_t hint{0};
-	parse(source, hint);
-}
-
-//..............................................................................
-/// @brief RFC3986 3.2: authority   = [ userinfo "@" ] host [ ":" port ]
+//-----------------------------------------------------------------------------
+/// @brief class User in group KURL.  Parse into members.
+/// Class User parses and maintains "user" and "password" portion of w3 URL.
+/// RFC3986 3.2: authority   = [ userinfo "@" ] host [ ":" port ]
 /// Implementation: We take all characters until '@'.
-dekaf2::KUserInfo::KUserInfo (const KString& source, size_t& hint)
-    : m_error{false}, m_user{""}, m_pass{""}
-//..............................................................................
+/// scheme:[//[user[:password]@]host[:port]][/path][?query][#fragment]
+///            ----  --------
+/// User extracts and stores a KStringView of URL "user" and "password".
+//
+// TODO Parse cannot do both partial parsing of URL and
+// complete parsing on user[:password] without a trailing '@'.
+// Chose to require '@'.
+KStringView User::Parse (KStringView svSource)
+//-----------------------------------------------------------------------------
 {
-	parse(source, hint);
-}
-
-//..............................................................................
-bool dekaf2::KUserInfo::parse(const KString& source, size_t& hint)
-//..............................................................................
-{
-	clear();
-
-	size_t index{hint};
-	size_t limit{source.size()};
-	size_t colon{0};
-	size_t atsign{0};
-	bool none{false};
-
-	char ic{source[index]};
-	while (index < limit && !none && !atsign)
+	Clear ();
+	if (!svSource.empty ())
 	{
-		switch (ic)
+		size_t iFound = svSource.find ('@');
+		if (iFound == KStringView::npos)
 		{
-			case '@':
-				atsign = index;
-				break;
-			case ':':
-				colon = index;
-				break;
-			case '\0':
-			case '/':
-			case '?':
-			case '#':
-				none = true;
-				break;
-			default:
-				break;
+			return svSource;
 		}
-		if (atsign)
+
+		size_t iColon = svSource.find (':');
+		if (iColon != KStringView::npos && iColon < iFound)
 		{
-			if (colon)
-			{
-				m_user = KString (source, hint, colon - hint);
-				m_pass = KString (source, colon+1, atsign - colon - 1);
-			}
-			else
-			{
-				m_user = KString (source, hint, atsign - hint);
-			}
-			hint = atsign + 1;
-			break;
+			m_sUser.assign (svSource.data (), iColon);
+			m_sPass.assign (svSource.data () + iColon + 1, iFound - iColon - 1);
 		}
-		ic = source[++index];
+		else
+		{
+			m_sUser.assign (svSource.data (), iFound);
+		}
+
+		kUrlDecode (m_sUser);
+		kUrlDecode (m_sPass);
+		svSource.remove_prefix (iFound + 1);
 	}
-	return !m_error;
+	return svSource;
 }
 
-
-//..............................................................................
-bool dekaf2::KUserInfo::serialize (KString& target) const
-//..............................................................................
+//-----------------------------------------------------------------------------
+/// @brief class User in group KURL.  Generate User portion of URL.
+bool User::Serialize (KString& sTarget) const
+//-----------------------------------------------------------------------------
 {
-	if (m_user.size())
+	// TODO Should username/password be url encoded?
+	if (m_sUser.size ())
 	{
-		target += m_user;
-		if (m_pass.size())
+		// TODO These exclusions are speculative.  Should they change?
+		// RFC3986 rules apply to exclusions.
+		// RFC3986 2.2. reserved    = gen(":/?#[]@") + sub("!$&'()*+,;=")
+		// RFC3986 2.3. unreserved  = ALPHA + DIGIT + "-._~"
+		// RFC3986 7.5. password field is deprecated
+
+		KStringView svExclude{"-._~@/"};  // RFC3986 2.3 supplemented with "@/"
+		KString sTemp;
+		kUrlEncode (m_sUser, sTemp, svExclude);
+		sTarget += sTemp;
+
+		if (m_sPass.size ())
 		{
-			target += ":";
-			target += m_pass;
+			sTemp.clear ();
+			sTarget += ':';
+			// TODO These exclusions are speculative.  Should they change?
+			// Rules for encoding passwords are not explicit.
+			// Human-centric passwords are likely to include difficult chars.
+			// Password field is deprecated as insecure.  This is legacy support.
+			// utests all pass, but password field is not stress-tested.
+			kUrlEncode (m_sPass, sTemp, svExclude);
+			sTarget += sTemp;
 		}
-		target += "@";
+		sTarget += '@';
 	}
-	return !m_error;
+	return true;
 }
 
-//..............................................................................
-void dekaf2::KUserInfo::clear ()
-//..............................................................................
-{
-	m_error = false;
-	m_user = "";
-	m_pass = "";
-}
 
-//||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
-// KDomain
-//||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
-
-//..............................................................................
-dekaf2::KDomain::KDomain ()
-    : m_error{false}
-    , m_iPortNum{0}
-    , m_sHostName{""}
-    , m_sDomainName{""}
-    , m_sBaseDomain{""}
-//..............................................................................
-{
-}
-
-//..............................................................................
-dekaf2::KDomain::KDomain (const KString& source)
-    : m_error{false}
-    , m_iPortNum{0}
-    , m_sHostName{""}
-    , m_sDomainName{""}
-    , m_sBaseDomain{""}
-//..............................................................................
-{
-	// Inefficient CTOR compared with the one having hint as a formal arg.
-	size_t hint{0};
-	parse(source, hint);
-}
-
-//..............................................................................
-/// @brief RFC3986 3.2: authority = [ userinfo "@" ] host [ ":" port ]
-/// @brief RFC3986 3.2.2: host = IP-literal / IPv4address / reg-name
-/// @brief RFC3986 3.2.3: port = *DIGIT
+//-----------------------------------------------------------------------------
+/// @brief class Domain in group KURL.  Special detailed parse of hostname.
+/// Class Domain parses and maintains "host" and "port" portion of w3 URL.
+/// RFC3986 3.2: authority = [ userinfo "@" ] host [ ":" port ]
+/// RFC3986 3.2.2: host = IP-literal / IPv4address / reg-name
+/// RFC3986 3.2.3: port = *DIGIT
 /// Implementation: We take domain from '@'+1 to first of "/:?#\0".
 /// Implementation: We take port from ':'+1 to first of "/?#\0".
-dekaf2::KDomain::KDomain (const KString& source, size_t& hint)
-    : m_error{false}
-    , m_iPortNum{0}
-    , m_sHostName{""}
-    , m_sDomainName{""}
-    , m_sBaseDomain{""}
-//..............................................................................
+/// scheme:[//[user[:password]@]host[:port]][/path][?query][#fragment]
+///                             ----  ----
+/// Domain extracts and stores a KStringView of URL "host" and "port"
+KStringView Domain::ParseHostName (KStringView svSource, bool bDecode)
+//-----------------------------------------------------------------------------
 {
-	parse(source, hint);
-}
+	static const KString sDotCo (".co.");
 
+	if (!svSource.size()) return svSource;
+	bool bError{false};
 
-//..............................................................................
-bool dekaf2::KDomain::serialize (KString& target) const
-//..............................................................................
-{
-	bool some = false;
-	if (m_sHostName.size())
+	size_t iInitial = ((svSource[0] == '/') ? 1 : 0);
+	size_t iSize = svSource.size ();
+	size_t iFound = svSource.find_first_of (":/?#", iInitial);
+
+	iFound = (iFound == KStringView::npos) ? iSize : iFound;
+	m_sHostName.assign (svSource.data (), iFound);
+
+	if (bDecode)
 	{
-		some = true;
-		target += m_sHostName;
-		if (m_sPortName.size())
-		{
-			target += ':';
-			target += m_sPortName;
-		}
-	}
-	return some;
-}
-
-
-//..............................................................................
-bool dekaf2::KDomain::parse (const KString& source, size_t& hint)
-//..............................................................................
-{
-	clear();
-
-	size_t index{hint};
-	size_t limit{source.size()};
-	bool terminate{false};
-
-	char ic{source[index]};
-	vector <size_t> dots;
-
-	switch (ic)
-	{
-		case '/':
-		case ':':
-		case '?':
-		case '#':
-		case '\0':
-			terminate = true;
-			m_error = true;
-			return !m_error;
+		kUrlDecode (m_sHostName);
 	}
 
-	while (ic && index < limit && !terminate)
+	// m_sBaseName   is special-cased
+	//
+	//         google.com       1Back but no 2Back     GOOGLE
+	//
+	//        www.ibm.com       2Back but no ".co."    IBM
+	//
+	// foo.bar.baz.co.jp        3Back and is ".co."    BAZ
+	//    ^   ^   ^  ^
+	//    |   |   |  |
+	//    4   3   2  1 Back
+	// If ".co." between 2Back & 1Back : base domain is between 3Back & 2Back
+	// If not, and 2Back exists: base domain is between 2Back & 1Back
+	// If not even 2Back then base domain is between beginning and 1Back
+	//
+	// getBaseDomain () converts KStringView to KString then uses MakeUpper.
+	size_t i1Back = m_sHostName.rfind ('.');
+	if (i1Back == KString::npos)
 	{
-		switch (ic)
+		// Ignore simple non-dot hostname (localhost).
+	}
+	else
+	{
+		// When there is at least 1 dot, look for domain name features
+		size_t i2Back = m_sHostName.rfind ('.', i1Back - 1);
+		if (i2Back != KString::npos)
 		{
-			case '/':
-			case ':':
-			case '?':
-			case '#':
-			case '\0':
-				terminate = true;
-				break;
-			case '.':
-				dots.push_back(index);
-				ic = source[++index];
-				break;
-			default:
-				ic = source[++index];
-				break;
-		}
-		if (terminate || !ic)
-		{
-			size_t co = 0;
-			m_sHostName = KString(source, hint, index - hint);
-			switch (dots.size())
+			// When there are at least 2 dots, look for ".co.".
+
+			// This commented code fails, so it is implemented in a short loop.
+			//size_t iCompare = static_cast<size_t> (
+				//sDotCo.compare (0, sDotCo.size (), m_sHostName.data () + i2Back));
+			size_t iCompare{0};
+			for (size_t ii=0; ii < sDotCo.size (); ++ii)
 			{
-				case 0:
-					m_error = true;
-					clear();
+				if (sDotCo[ii] != m_sHostName[i2Back + ii])
+				{
 					break;
-				case 1:
-					m_sBaseDomain = KString(source, hint, dots[0] - hint).MakeUpper();
-					break;
-				default:
-					co = dots.size() - 1;
-					if (3 == (dots[co] - dots[co-1]))
-					{
-						if (source[dots[co]+1] == 'c' && source[dots[co]+2] == 'o')
-						{
-							--co;
-						}
-					}
-					m_sBaseDomain = KString(source, dots[co-1], dots[co]).MakeUpper();
-					break;
+				}
+				++iCompare;
+			}
 
+			bool bDotCo = (iCompare == sDotCo.size () );
+			if (bDotCo)
+			{
+				size_t i3Back = m_sHostName.rfind ('.', i2Back - 1);
+				i3Back = (i3Back == KString::npos) ? 0 : i3Back;
+				m_sBaseName.assign (
+				m_sHostName.data () + i3Back + 1,
+				i2Back - i3Back);
+			}
+			else
+			{
+				m_sBaseName.assign (
+						m_sHostName.data () + i2Back + 1,
+						i1Back - i2Back);
 			}
 		}
-	}
-	if (m_error)
-	{
-		clear();
-		return !m_error;
-	}
-	if (0 == dots.size())
-	{
-		m_error = true;
-		clear();
-		return !m_error;
-	}
-	if (source[index] != ':')
-	{
-		hint = index;
-		return !m_error;
-	}
-
-	terminate = false;
-	size_t iPortIndex = ++index;
-	size_t digits = 0;
-	ic = source[index];
-	while (ic && index < limit && !terminate)
-	{
-		switch (ic)
+		else
 		{
-			case '/':
-			case '?':
-			case '#':
-			case '\0':
-				terminate = true;
-				break;
-			case '0':
-			case '1':
-			case '2':
-			case '3':
-			case '4':
-			case '5':
-			case '6':
-			case '7':
-			case '8':
-			case '9':
-				++digits;
-				ic = source[++index];
-				break;
-			default:
-				m_error = true;
-				clear();
-				return !m_error;
-				break;
+			m_sBaseName.assign (m_sHostName.data (), i1Back);
 		}
 	}
-	if (0 == digits)
+	if (!bError)
 	{
-		clear();
-		m_error = true;
-		return !m_error;
+		svSource.remove_prefix(iFound);
 	}
-	m_sPortName = KString(source, iPortIndex, index);
-	hint = index;
-	return !m_error;
+	return svSource;
 }
 
-//..............................................................................
-void dekaf2::KDomain::clear ()
-//..............................................................................
+//-----------------------------------------------------------------------------
+/// @brief class Domain in group KURL.  parses "host:port" portion of w3 URL.
+KStringView Domain::Parse (KStringView svSource)
+//-----------------------------------------------------------------------------
 {
-	m_error = false;
-	m_iPortNum = 0;
-	m_sHostName = "";
-	m_sDomainName = "";
-	m_sBaseDomain = "";
-}
-
-
-//||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
-// KURIPath
-//||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
-
-//..............................................................................
-dekaf2::KURIPath::KURIPath ()
-//..............................................................................
-{
-}
-
-//..............................................................................
-dekaf2::KURIPath::KURIPath (const KString& source)
-//..............................................................................
-{
-	size_t hint{0};
-	parse(source, hint);
-}
-
-//..............................................................................
-/// @brief RFC3986 3.3: (See RFC)
-/// Implementation: All characters after domain from '/' to 1st of "?#\0".
-dekaf2::KURIPath::KURIPath (const KString& source, size_t& hint)
-//..............................................................................
-{
-	parse(source, hint);
-}
-
-//..............................................................................
-bool dekaf2::KURIPath::parse (const KString& source, size_t& hint)
-//..............................................................................
-{
-	clear ();
-
-	size_t index{hint};
-	bool terminal{false};
-
-	if (source[hint] != '/')
+	Clear ();
+	if (svSource.empty ())
 	{
-		return true;
+		return svSource;
 	}
-	char ic = source[++index];
-	size_t start = index;
 
-	while (ic && !terminal)
+	size_t iBefore = svSource.size ();
+
+	svSource = ParseHostName (svSource);
+	size_t iAfter = svSource.size ();
+
+	if (iBefore && iAfter == iBefore)
 	{
-		switch (ic)
-		{
-			case '?': case '#': case '\0':
-				terminal = true;
-				break;
-			default:
-				ic = source[++index];
-				break;
-		}
-	}
-	m_path = KString (source, start, index - start);
-	hint = index;
-	return true;
-}
-
-//..............................................................................
-void dekaf2::KURIPath::clear ()
-//..............................................................................
-{
-	m_error = false;
-	m_path = "";
-}
-
-//..............................................................................
-bool dekaf2::KURIPath::serialize (KString& target) const
-//..............................................................................
-{
-	if (m_path.size())
-	{
-		target += '/';
-		target += m_path;
-	}
-	return true;
-}
-
-
-//||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
-// KQueryParms
-//||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
-
-//..............................................................................
-dekaf2::KQueryParms::KQueryParms ()
-    : m_error{false}, m_query{""}
-//..............................................................................
-{
-}
-
-//..............................................................................
-dekaf2::KQueryParms::KQueryParms (const KString& source)
-    : m_error{false}, m_query{""}
-//..............................................................................
-{
-	size_t hint{0};
-	parse(source, hint);
-}
-
-//..............................................................................
-/// @brief RFC3986 3.3: (See RFC)
-/// Implementation: All characters after domain from '/' to 1st of "?#\0".
-dekaf2::KQueryParms::KQueryParms (const KString& source, size_t& hint)
-    : m_error{false}, m_query{""}
-//..............................................................................
-{
-	parse(source, hint);
-}
-
-//..............................................................................
-bool dekaf2::KQueryParms::parse (const KString& source, size_t& hint)
-//..............................................................................
-{
-	clear ();
-
-	size_t index{hint};
-	bool terminal{false};
-
-	if (source[hint] != '?')
-	{
-		return true;
-	}
-	char ic = source[++index];
-	size_t start = index;
-
-	while (ic && !terminal)
-	{
-		switch (ic)
-		{
-			case '#': case '\0':
-				terminal = true;
-				break;
-			default:
-				ic = source[++index];
-				break;
-		}
-	}
-	m_query = KString (source, start, index - start);
-	hint = index;
-	return true;
-}
-
-//..............................................................................
-void dekaf2::KQueryParms::clear ()
-//..............................................................................
-{
-	m_error = false;
-	m_query = "";
-}
-
-//..............................................................................
-bool dekaf2::KQueryParms::serialize (KString& target) const
-//..............................................................................
-{
-	if (m_query.size())
-	{
-		target += '?';
-		target += m_query;
-	}
-	return true;
-}
-
-
-//||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
-// KFragment
-//||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
-
-//..............................................................................
-dekaf2::KFragment::KFragment ()
-    : m_error{false}, m_fragment{""}
-//..............................................................................
-{
-}
-
-//..............................................................................
-dekaf2::KFragment::KFragment (const KString& source)
-    : m_error{false}, m_fragment{""}
-//..............................................................................
-{
-	size_t hint{0};
-	parse(source, hint);
-}
-
-//..............................................................................
-/// @brief RFC3986 3.3: (See RFC)
-/// Implementation: All characters after domain from '/' to 1st of "?#\0".
-dekaf2::KFragment::KFragment (const KString& source, size_t& hint)
-    : m_error{false}, m_fragment{""}
-//..............................................................................
-{
-	parse(source, hint);
-}
-
-//..............................................................................
-bool dekaf2::KFragment::parse (const KString& source, size_t& hint)
-//..............................................................................
-{
-	clear ();
-
-	size_t index{hint};
-	bool terminal{false};
-
-	if (source[hint] != '#')
-	{
-		return true;
-	}
-	char ic = source[++index];
-	size_t start = index;
-	while (ic && !terminal)
-	{
-		switch (ic)
-		{
-			case '\0':
-				terminal = false;
-				break;
-			default:
-				ic = source[++index];
-				break;
-		}
-	}
-	m_fragment = KString (source, start, index - start);
-	hint = index;
-	return true;
-}
-
-//..............................................................................
-void dekaf2::KFragment::clear ()
-//..............................................................................
-{
-	m_error = false;
-	m_fragment = "";
-}
-
-//..............................................................................
-bool dekaf2::KFragment::serialize (KString& target) const
-//..............................................................................
-{
-	if (m_fragment.size())
-	{
-		target += '#';
-		target += m_fragment;
-	}
-	return true;
-}
-
-
-
-//||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
-// KURI
-//||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
-
-//..............................................................................
-dekaf2::KURI::KURI()
-    : KURIPath(), KQueryParms()
-//..............................................................................
-{
-}
-
-//..............................................................................
-dekaf2::KURI::KURI(const KString& source)
-    : KURIPath(), KQueryParms()
-//..............................................................................
-{
-	size_t hint{0};
-	parse(source, hint);
-}
-
-//..............................................................................
-/// @brief RFC3986 3.3: (See RFC)
-/// Implementation: All characters after domain from '/' to 1st of "?#\0".
-dekaf2::KURI::KURI(const KString& source, size_t& hint)
-    : KURIPath(), KQueryParms()
-//..............................................................................
-{
-	parse(source, hint);
-}
-
-//..............................................................................
-bool dekaf2::KURI::parse (const KString& source, size_t& hint)
-//..............................................................................
-{
-	clear ();
-
-	size_t index{hint};
-	bool result{true};
-
-	result = KURIPath::parse(source, index);
-	result = result && KQueryParms::parse(source, index);
-
-	if (result)
-	{
-		hint = index;
+		// No host name
 	}
 	else
 	{
-		clear();
+
+		size_t iColon = 0;
+		if (svSource[iColon] == ':')
+		{
+			++iColon;
+			size_t iNext = svSource.find_first_of ("/?#", iColon);
+			iNext = (iNext == KStringView::npos) ? svSource.size () : iNext;
+			// Get port as string
+			KString sPortName;
+			KStringView svPortName{svSource.data () + iColon, iNext - iColon};
+			kUrlDecode (svPortName, sPortName);
+
+			const char* sPort = sPortName.c_str ();
+			// Parse port as number
+			m_iPortNum = static_cast<uint16_t> (kToUInt (sPort));
+			svSource.remove_prefix (iNext);
+		}
 	}
-	return result;
+
+	return svSource;
 }
 
-//..............................................................................
-void dekaf2::KURI::clear ()
-//..............................................................................
+//-----------------------------------------------------------------------------
+/// @brief class Domain in group KURL.  Generate Domain portion of URL.
+bool Domain::Serialize (KString& sTarget) const
+//-----------------------------------------------------------------------------
 {
-	KURIPath	::clear();
-	KQueryParms	::clear();
-}
-
-//..............................................................................
-bool dekaf2::KURI::serialize (KString& target) const
-//..............................................................................
-{
-	bool result;
-	result = KURIPath::serialize(target);
-	result = result && KQueryParms::serialize(target);
-	return result;
-}
-
-
-//||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
-// KURL
-//||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
-
-//..............................................................................
-dekaf2::KURL::KURL ()
-    : KProto(), KUserInfo(), KDomain(), KURI(), KFragment()
-//..............................................................................
-{
-}
-
-//..............................................................................
-dekaf2::KURL::KURL (const KString& source)
-    : KProto(), KUserInfo(), KDomain(), KURI(), KFragment()
-//..............................................................................
-{
-	size_t hint{0};
-	parse(source, hint);
-}
-
-//..............................................................................
-/// @brief RFC3986 3.3: (See RFC)
-/// Implementation: All characters after domain from '/' to 1st of "?#\0".
-dekaf2::KURL::KURL (const KString& source, size_t& hint)
-    : KProto(), KUserInfo(), KDomain(), KURI(), KFragment()
-//..............................................................................
-{
-	parse(source, hint);
-}
-
-//..............................................................................
-bool dekaf2::KURL::parse (const KString& source, size_t& hint)
-//..............................................................................
-{
-	size_t index{hint};
-	bool result = true;
-
-	result &= KProto	::parse (source, index);
-	result &= KUserInfo	::parse (source, index);
-	result &= KDomain	::parse (source, index);
-	result &= KURI		::parse (source, index);
-	result &= KFragment	::parse (source, index);
-
-	m_error = !result;
-
-	if (m_error)
+	bool bSome = true;
+	if (m_sHostName.size ())
 	{
-		clear();
+		// TODO These exclusions are speculative.  Should they change?
+		KStringView svExclude{"-._~@/"};  // RFC3986 2.3 supplemented with "@/"
+		KString sTemp;
+		kUrlEncode (m_sHostName, sTemp, svExclude);
+		sTarget += sTemp;
+		if (m_iPortNum)
+		{
+			sTarget += ':';
+			sTarget += std::to_string (m_iPortNum);
+		}
+	}
+	return bSome;
+}
+
+
+
+//-----------------------------------------------------------------------------
+/// @brief class Path in group KURL.  Parses "path" portion of w3 URL.
+/// RFC3986 3.3: (See RFC)
+/// Implementation: All characters after domain from '/' to 1st of "?#\0".
+/// scheme:[//[user[:password]@]host[:port]][/path][?query][#fragment]
+///                                          -----   -----   --------
+/// Path extracts and stores a KStringView of URL "path"
+KStringView Path::Parse (KStringView svSource)
+//-----------------------------------------------------------------------------
+{
+	Clear ();
+	if (svSource.empty ())
+	{
+		return svSource;
+	}
+
+	if (svSource[0] == '/')
+	{
+		// Remainder after path may be query or fragment.
+		size_t iFound = svSource.find_first_of ("?#", 1);
+		iFound = (iFound == KStringView::npos) ? svSource.size () : iFound;
+
+		m_sPath.assign (svSource.data (), iFound);
+		svSource.remove_prefix (iFound);
+		kUrlDecode (m_sPath);
+	}
+	return svSource;
+}
+
+//-----------------------------------------------------------------------------
+/// @brief class Path in group KURL.  Generate Path portion of URL.
+bool Path::Serialize (KString& sTarget) const
+//-----------------------------------------------------------------------------
+{
+	if (m_sPath.size ())
+	{
+		KString sPath;
+		KStringView svExclude{"-._~@/"};  // RFC3986 2.3 supplemented with "@/"
+		kUrlEncode (m_sPath, sPath, svExclude);
+		sTarget += sPath;
+	}
+	return true;
+}
+
+
+
+//-----------------------------------------------------------------------------
+/// @brief class Query in group KURL.  Parses "query" portion of w3 URL.
+/// It is also responsible for parsing the query into a private property map.
+/// RFC3986 3.3: (See RFC)
+/// Implementation: All characters after domain from '?' to "#" or EOL.
+/// scheme:[//[user[:password]@]host[:port]][/path][?query][#fragment]
+///                                                  -----
+/// Query extracts and stores a KStringView of URL "query"
+KStringView Query::Parse (KStringView svSource)
+//-----------------------------------------------------------------------------
+{
+	Clear ();
+	if (svSource.empty ())
+	{
+		return svSource;
+	}
+
+	if (svSource[0] == '?')
+	{
+		svSource.remove_prefix (1);
+	}
+
+	size_t iSize = svSource.size ();
+	size_t iFound = svSource.find ('#');
+	iFound = (iFound == KStringView::npos) ? iSize : iFound;
+	KStringView svQuery{svSource.substr (0, iFound)};
+
+	if (decode (svQuery))   // KurlDecode must be done on key=val separately.
+	{
+		svSource.remove_prefix (iFound);
 	}
 	else
 	{
-		hint = index;
+		Clear ();
 	}
 
-	return !m_error;
+	return svSource;
 }
 
-//..............................................................................
-bool dekaf2::KURL::serialize (KString& target) const
-//..............................................................................
+//-----------------------------------------------------------------------------
+/// @brief class Query in group KURL.  Split/decode.
+/// Split query string into key:value pairs, then decode keys and values.
+bool Query::decode (KStringView svQuery)
+//-----------------------------------------------------------------------------
 {
-	bool result = true;
+	size_t iAnchor = 0, iEnd, iEquals, iTerminal = svQuery.size ();
 
-	result &= KProto	::serialize(target);
-	result &= KUserInfo	::serialize(target);
-	result &= KDomain	::serialize(target);
-	result &= KURI		::serialize(target);
-	result &= KFragment	::serialize(target);
+	if (iTerminal)
+	{
+		do
+		{
+			// Get bounds of query pair
+			iEnd = svQuery.find ('&', iAnchor); // Find separator
+			iEnd = (iEnd == KString::npos) ? iTerminal : iEnd;  // handle none
 
-	return result;
+			KStringView svEncoded{svQuery.substr (iAnchor, iEnd - iAnchor)};
+
+			iEquals = svEncoded.find ('=');
+			if (iEquals > iEnd)
+			{
+				return false;
+			}
+			KStringView svKeyEncoded (svEncoded.substr (0          , iEquals));
+			KStringView svValEncoded (svEncoded.substr (iEquals + 1         ));
+
+			if (svKeyEncoded.size () && svValEncoded.size ())
+			{
+				// decoding may only happen AFTER '=' '&' detections
+				KString sKey, sVal;
+				kUrlDecode (svKeyEncoded, sKey);
+				kUrlDecode (svValEncoded, sVal);
+				if (svKeyEncoded.size () && !sKey.size ())
+				{
+					sKey = svKeyEncoded; // painful pass-thru of invalid key
+				}
+				if (svValEncoded.size () && !sVal.size ())
+				{
+					sVal = svValEncoded; // painful pass-thru of invalid value
+				}
+				m_kpQuery.Add (std::move (sKey), std::move (sVal));
+			}
+
+			iAnchor = iEnd + 1;  // Move anchor forward
+
+		} while (iEnd < iTerminal);
+	}
+	return true;
 }
 
-//..............................................................................
-void dekaf2::KURL::clear ()
-//..............................................................................
+
+//-----------------------------------------------------------------------------
+/// @brief class Query in group KURL.  Generate Query portion of URL.
+bool Query::Serialize (KString& sTarget) const
+//-----------------------------------------------------------------------------
 {
-	KProto		::clear();
-	KUserInfo	::clear();
-	KDomain		::clear();
-	KURI		::clear();
-	KFragment	::clear();
+	if (m_kpQuery.size () != 0)
+	{
+		sTarget += '?';
+
+		bool bAmpersand = false;
+		for (const auto& it : m_kpQuery)
+		{
+			if (bAmpersand)
+			{
+				sTarget += '&';
+			}
+			else
+			{
+				bAmpersand = true;
+			}
+			kUrlEncode (it.first, sTarget);
+			sTarget += '=';
+			kUrlEncode (it.second, sTarget);
+		}
+	}
+	return true;
 }
+
+
+
+//-----------------------------------------------------------------------------
+/// @brief class Fragment in group KURL.  Parses "fragment" portion of w3 URL.
+/// RFC3986 3.3: (See RFC)
+/// Implementation: All characters after domain from '/' to 1st of "?#\0".
+/// scheme:[//[user[:password]@]host[:port]][/path][?query][#fragment]
+///                                                          --------
+/// Fragment extracts and stores a KStringView of URL "fragment"
+KStringView Fragment::Parse (KStringView svSource)
+//-----------------------------------------------------------------------------
+{
+	Clear ();
+	if (svSource.empty ())
+	{
+		return svSource;
+	}
+
+	if (svSource[0] == '#')
+	{
+		svSource.remove_prefix (1);
+		m_bHash = true;
+	}
+	m_sFragment.assign (svSource.data (), svSource.size ());
+	kUrlDecode (m_sFragment);
+	svSource.remove_prefix (svSource.size ());
+
+	return svSource;
+}
+
+//-----------------------------------------------------------------------------
+/// @brief class Fragment in group KURL.  Generate fragment portion of URL.
+bool Fragment::Serialize (KString& sTarget) const
+//-----------------------------------------------------------------------------
+{
+	// Potential over-serialization of '#' when absent.  introduced m_bHash.
+	bool bContent = (m_sFragment.size () != 0);
+	if (m_bHash || bContent)
+	{
+		sTarget += '#';
+	}
+	if (m_sFragment.size ())
+	{
+		sTarget += m_sFragment;
+	}
+	return true;
+}
+
+
+
+//-----------------------------------------------------------------------------
+/// @brief class URI in group KURL.  Parses TransPerfect URI portion of w3 URL.
+/// It includes the "path", "query", and "fragment" portions.
+/// The aggregation of /path?query#fragment without individual path
+/// is a TransPerfect design decision; not arbitrary.
+/// RFC3986 3.3: (See RFC)
+/// Implementation: All characters after domain from '/' to 1st of "?#\0".
+/// scheme:[//[user[:password]@]host[:port]][/path][?query][#fragment]
+///                                          -----   -----   --------
+/// URI extracts and stores a KStringView of URL "path"
+/// URI also encapsulates Query and Fragment
+KStringView URI::Parse (KStringView svSource)
+//-----------------------------------------------------------------------------
+{
+	Clear ();
+	if (svSource.empty ())
+	{
+		return svSource;
+	}
+
+	size_t iSize{svSource.size ()};
+
+	bool bError{false};
+
+	svSource = Path::Parse (svSource);
+
+	if (!bError)
+	{
+		if (iSize > 0 && svSource[0] == '?')
+		{
+			svSource = Query::Parse (svSource);  // optional
+			iSize = svSource.size ();
+		}
+	}
+
+	if (!bError)
+	{
+		if (iSize > 0 && svSource[0] == '#')
+		{
+			svSource = Fragment::Parse (svSource);
+		}
+	}
+
+	bError = (0 != svSource.size ());
+
+	if (!bError)
+	{
+		svSource.remove_prefix (svSource.size ());
+	}
+	else
+	{
+		Clear ();
+	}
+	return svSource;
+}
+
+//-----------------------------------------------------------------------------
+/// @brief class URI in group KURL.  Generate URI from members.
+bool URI::Serialize (KString& sTarget) const
+//-----------------------------------------------------------------------------
+{
+	bool bResult = true;
+
+	bResult = Path               ::Serialize (sTarget);
+	bResult = bResult && Query   ::Serialize (sTarget);
+	bResult = bResult && Fragment::Serialize (sTarget);
+	return bResult;
+}
+
+
+
+//-----------------------------------------------------------------------------
+/// @brief class URL in group KURL.  parses w3 URL into needed parts.
+/// URL contains the "scheme", "user", "password", "host", "port" and URI.
+/// This is a complete accounting for all fields of the w3 URL.
+/// scheme:[//[user[:password]@]host[:port]][/path][?query][#fragment]
+/// ------     ----  --------   ----  ----   -----   -----   --------
+/// URL extracts and stores all elements of a URL.
+KStringView URL::Parse (KStringView svSource)
+//-----------------------------------------------------------------------------
+{
+	Clear ();
+	if (svSource.empty ())
+	{
+		return svSource;
+	}
+
+	bool bResult{true};
+	bool bError{false};
+	size_t iBefore, iAfter;
+
+	iBefore  = svSource.size ();
+	svSource = Protocol::Parse (svSource);                  // mandatory
+	iAfter   = svSource.size ();
+	bResult  = (iBefore != iAfter);
+	if (bResult)
+	{
+		svSource = User::Parse (svSource);                  // optional
+
+		if (getProtocolEnum () != FILE)
+		{
+			iBefore  = svSource.size ();
+			svSource = Domain::Parse (svSource);            // mandatory
+			iAfter   = svSource.size ();
+			bResult  = (iBefore != iAfter);
+		}
+	}
+	if (bResult)
+	{
+		svSource = URI::Parse (svSource);                   // mandatory
+	}
+
+	bError = !bResult;
+
+	if (bError)
+	{
+		Clear ();
+		bError = true;
+	}
+	if (!bError)
+	{
+		svSource.remove_prefix (svSource.size ());
+	}
+
+	return svSource;
+}
+
+//-----------------------------------------------------------------------------
+/// @brief class URL in group KURL.  Generate URL from members.
+bool URL::Serialize (KString& sTarget) const
+//-----------------------------------------------------------------------------
+{
+	bool bResult = true;
+
+	bResult &= Protocol::Serialize (sTarget);
+	bResult &= User    ::Serialize (sTarget);
+	bResult &= Domain  ::Serialize (sTarget);
+	bResult &= URI     ::Serialize (sTarget);
+
+	return bResult;
+}
+
+} // namespace KURL
+
+/** @} */ // End of group KURL
+
+} // namespace dekaf2

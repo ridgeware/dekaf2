@@ -1,285 +1,783 @@
+/*
+//-----------------------------------------------------------------------------//
+//
+// DEKAF(tm): Lighter, Faster, Smarter (tm)
+//
+// Copyright (c) 2017, Ridgeware, Inc.
+//
+// +-------------------------------------------------------------------------+
+// | /\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\|
+// |/+---------------------------------------------------------------------+/|
+// |/|                                                                     |/|
+// |\|  ** THIS NOTICE MUST NOT BE REMOVED FROM THE SOURCE CODE MODULE **  |\|
+// |/|                                                                     |/|
+// |\|   OPEN SOURCE LICENSE                                               |\|
+// |/|                                                                     |/|
+// |\|   Permission is hereby granted, free of charge, to any person       |\|
+// |/|   obtaining a copy of this software and associated                  |/|
+// |\|   documentation files (the "Software"), to deal in the              |\|
+// |/|   Software without restriction, including without limitation        |/|
+// |\|   the rights to use, copy, modify, merge, publish,                  |\|
+// |/|   distribute, sublicense, and/or sell copies of the Software,       |/|
+// |\|   and to permit persons to whom the Software is furnished to        |\|
+// |/|   do so, subject to the following conditions:                       |/|
+// |\|                                                                     |\|
+// |/|   The above copyright notice and this permission notice shall       |/|
+// |\|   be included in all copies or substantial portions of the          |\|
+// |/|   Software.                                                         |/|
+// |\|                                                                     |\|
+// |/|   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY         |/|
+// |\|   KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE        |\|
+// |/|   WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR           |/|
+// |\|   PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS        |\|
+// |/|   OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR          |/|
+// |\|   OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR        |\|
+// |/|   OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE         |/|
+// |\|   SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.            |\|
+// |/|                                                                     |/|
+// |/+---------------------------------------------------------------------+/|
+// |\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/ |
+// +-------------------------------------------------------------------------+
+*/
 
 #pragma once
 
+/// @file kstringview.h
+/// string view implementation
+
 #include <functional>
 #include <boost/functional/hash.hpp>
+#include <string>
 #include "bits/kcppcompat.h"
-
-
-#if defined(DEKAF2_HAS_CPP_17) and !defined(DEKAF2_FORCE_STRINGPIECE_AS_STRINGVIEW)
- #define DEKAF2_USE_STD_STRING_VIEW_AS_KSTRINGVIEW
+#include "khash.h"
+#ifdef DEKAF2_USE_FOLLY_STRINGPIECE_AS_KSTRINGVIEW
+#include <folly/Range.h>
+#else
+#include <experimental/string_view>
 #endif
 
-#ifdef DEKAF2_USE_STD_STRING_VIEW_AS_KSTRINGVIEW
+namespace dekaf2 {
 
- // experimental/string_view is missing a declaration of string_view::npos ..
- // therefore we currently prefer the re2/stringpiece implementation
- // which additionally adds more protection against range overflows as it
- // does not throw
 
- #include <experimental/string_view>
+class KStringView;
 
-#else
+//-----------------------------------------------------------------------------
+size_t kFind(
+        KStringView haystack,
+        KStringView needle,
+        size_t pos = 0);
+//-----------------------------------------------------------------------------
 
- // prepare to use re2's StringPiece as string_view
+//-----------------------------------------------------------------------------
+size_t kRFind(
+        KStringView haystack,
+        KStringView needle,
+        size_t pos = std::string::npos);
+//-----------------------------------------------------------------------------
 
- #include <re2/stringpiece.h>
- #include "khash.h"
+//-----------------------------------------------------------------------------
+size_t kFind(
+        KStringView haystack,
+        const char needle,
+        size_t pos = 0);
+//-----------------------------------------------------------------------------
 
-#endif
+//-----------------------------------------------------------------------------
+size_t kRFind(
+        KStringView haystack,
+        const char needle,
+        size_t pos = std::string::npos);
+//-----------------------------------------------------------------------------
 
-namespace dekaf2
-{
+namespace detail { namespace stringview {
 
-#ifdef DEKAF2_USE_STD_STRING_VIEW_AS_KSTRINGVIEW
+//-----------------------------------------------------------------------------
+size_t kFindFirstOfBool(
+        KStringView haystack,
+        KStringView needle,
+        size_t pos,
+        bool bNot);
+//-----------------------------------------------------------------------------
 
-using KStringView = std::experimental::string_view;
+//-----------------------------------------------------------------------------
+size_t kFindLastOfBool(
+        KStringView haystack,
+        KStringView needle,
+        size_t pos,
+        bool bNot);
+//-----------------------------------------------------------------------------
 
-#else
+} } // end of namespace detail::stringview
+
+//-----------------------------------------------------------------------------
+size_t kFindFirstOf(
+        KStringView haystack,
+        KStringView needle,
+        size_t pos = 0);
+//-----------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
+size_t kFindFirstNotOf(
+        KStringView haystack,
+        KStringView needle,
+        size_t pos = 0);
+//-----------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
+size_t kFindLastOf(
+        KStringView haystack,
+        KStringView needle,
+        size_t pos = std::string::npos);
+//-----------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
+size_t kFindLastNotOf(
+        KStringView haystack,
+        KStringView needle,
+        size_t pos = std::string::npos);
+//-----------------------------------------------------------------------------
+
+//----------------------------------------------------------------------
+bool kStartsWith(KStringView sInput, KStringView sPattern);
+//----------------------------------------------------------------------
+
+//----------------------------------------------------------------------
+bool kEndsWith(KStringView sInput, KStringView sPattern);
+//----------------------------------------------------------------------
+
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// an extended StringPiece with the methods of
-/// C++17's std::string_view
-class KStringView : public re2::StringPiece
+class KStringView {
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-{
-
-	using self_type = KStringView;
-	using base_type = re2::StringPiece;
 
 //----------
 public:
 //----------
 
+#ifdef DEKAF2_USE_FOLLY_STRINGPIECE_AS_KSTRINGVIEW
+	using rep_type               = folly::StringPiece;
+#else
+	using rep_type               = std::experimental::string_view;
+#endif
+	using self_type              = KStringView;
+	using size_type              = std::size_t;
+	using iterator               = rep_type::iterator;
+	using const_iterator         = rep_type::iterator;
+	using reverse_iterator       = std::reverse_iterator<iterator>;
+	using const_reverse_iterator = reverse_iterator;
+	using value_type             = rep_type::value_type;
+	using difference_type        = rep_type::difference_type;
+	using reference              = rep_type::reference;
+	using traits_type            = rep_type::traits_type;
+
+	static const size_type npos = std::string::npos;
+
 	//-----------------------------------------------------------------------------
-	KStringView()
+	constexpr
+	KStringView() noexcept
 	//-----------------------------------------------------------------------------
 	{
 	}
 
 	//-----------------------------------------------------------------------------
-	KStringView(const std::string& str)
+	constexpr
+	KStringView(const self_type& other) noexcept = default;
 	//-----------------------------------------------------------------------------
-		: StringPiece(str)
+
+	//-----------------------------------------------------------------------------
+	KStringView(const std::string& str) noexcept
+	//-----------------------------------------------------------------------------
+	    : m_rep(str.data(), str.size())
 	{
 	}
 
 	//-----------------------------------------------------------------------------
-	KStringView(const char* str)
+	constexpr
+	KStringView(const value_type* s, size_type count) noexcept
 	//-----------------------------------------------------------------------------
-		: StringPiece(str)
+	    : m_rep(s, count)
 	{
 	}
 
 	//-----------------------------------------------------------------------------
-	KStringView(const char* str, size_type len)
+	constexpr
+	KStringView(const value_type* s) noexcept
 	//-----------------------------------------------------------------------------
-		 : StringPiece(str, len)
+	    : m_rep(s)
 	{
 	}
 
 	//-----------------------------------------------------------------------------
-	inline const_iterator cbegin() const
+	constexpr
+	self_type& operator=(const self_type& other) noexcept = default;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	const rep_type& ToRange() const
 	//-----------------------------------------------------------------------------
 	{
-		return begin();
+		return m_rep;
 	}
 
 	//-----------------------------------------------------------------------------
-	inline const_iterator cend() const
+	rep_type& ToRange()
 	//-----------------------------------------------------------------------------
 	{
-		return end();
+		return m_rep;
 	}
 
 	//-----------------------------------------------------------------------------
-	inline const_reverse_iterator crbegin() const
+	operator const rep_type&() const
 	//-----------------------------------------------------------------------------
 	{
-		return rbegin();
+		return ToRange();
 	}
 
 	//-----------------------------------------------------------------------------
-	inline const_reverse_iterator crend() const
+	operator rep_type&()
 	//-----------------------------------------------------------------------------
 	{
-		return rend();
+		return ToRange();
 	}
 
 	//-----------------------------------------------------------------------------
-	inline const_reference at(size_type index) const
+	// nonstandard
+	void clear()
 	//-----------------------------------------------------------------------------
 	{
-		if (index < size()) return operator[](index);
-		else return s_0ch;
+#ifdef DEKAF2_USE_FOLLY_STRINGPIECE_AS_KSTRINGVIEW
+		m_rep.clear();
+#else
+		m_rep.remove_prefix(size());
+#endif
 	}
 
 	//-----------------------------------------------------------------------------
-	inline const_reference front() const
+	// nonstandard
+	void assign(const_iterator start, size_type size)
 	//-----------------------------------------------------------------------------
 	{
-		if (empty()) return s_0ch;
-		else return operator[](0);
+		assign(start, start + size);
 	}
 
 	//-----------------------------------------------------------------------------
-	inline const_reference back() const
+	// nonstandard
+	void assign(const_iterator start, const_iterator end)
 	//-----------------------------------------------------------------------------
 	{
-		if (empty()) return s_0ch;
-		else return operator[](size() - 1);
+#ifdef DEKAF2_USE_FOLLY_STRINGPIECE_AS_KSTRINGVIEW
+		m_rep.assign(start, end);
+#else
+		m_rep = self_type(start, static_cast<size_type>(end - start));
+#endif
 	}
 
 	//-----------------------------------------------------------------------------
-	static size_type max_size() noexcept
+	// nonstandard
+	void reset(const_iterator start, size_type size)
 	//-----------------------------------------------------------------------------
 	{
-		return std::string().max_size();
+		assign(start, size);
 	}
 
 	//-----------------------------------------------------------------------------
-	// the rfind(value_type, size_type) implementation of StringPiece is erroneous
-	// - if given npos for pos it does not search - therefore we implement our own
-	size_type rfind(value_type ch, size_type pos = npos) const noexcept;
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	inline size_type rfind(self_type sv, size_type pos = npos) const noexcept
+	constexpr
+	size_type max_size() const
 	//-----------------------------------------------------------------------------
 	{
-		return base_type::rfind(sv, pos);
+		return npos - 1;
 	}
 
 	//-----------------------------------------------------------------------------
-	size_type find_first_of(self_type sv, size_type pos = 0) const noexcept;
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	inline size_type find_first_of(const value_type* s, size_type pos) const noexcept
+	constexpr
+	size_type size() const
 	//-----------------------------------------------------------------------------
 	{
-		return find_first_of(KStringView(s), pos);
+		return m_rep.size();
 	}
 
 	//-----------------------------------------------------------------------------
-	inline size_type find_first_of(const value_type* s, size_type pos, size_type count) const noexcept
+	constexpr
+	size_type length() const
 	//-----------------------------------------------------------------------------
 	{
-		return find_first_of(KStringView(s, count), pos);
+		return size();
 	}
 
 	//-----------------------------------------------------------------------------
-	inline size_type find_first_of(value_type ch, size_type pos = 0) const noexcept
+	constexpr
+	bool empty() const
+	//-----------------------------------------------------------------------------
+	{
+		return m_rep.empty();
+	}
+
+	//-----------------------------------------------------------------------------
+	constexpr
+	const_iterator data() const
+	//-----------------------------------------------------------------------------
+	{
+		return m_rep.data();
+	}
+
+	//-----------------------------------------------------------------------------
+	constexpr
+	iterator begin() const
+	//-----------------------------------------------------------------------------
+	{
+		return m_rep.begin();
+	}
+
+	//-----------------------------------------------------------------------------
+	constexpr
+	iterator end() const
+	//-----------------------------------------------------------------------------
+	{
+		return m_rep.end();
+	}
+
+	//-----------------------------------------------------------------------------
+	reverse_iterator rbegin() const
+	//-----------------------------------------------------------------------------
+	{
+		return reverse_iterator(end());
+	}
+
+	//-----------------------------------------------------------------------------
+	reverse_iterator rend() const
+	//-----------------------------------------------------------------------------
+	{
+		return reverse_iterator(begin());
+	}
+
+	//-----------------------------------------------------------------------------
+	constexpr
+	const_iterator cbegin() const
+	//-----------------------------------------------------------------------------
+	{
+		return m_rep.cbegin();
+	}
+
+	//-----------------------------------------------------------------------------
+	constexpr
+	const_iterator cend() const
+	//-----------------------------------------------------------------------------
+	{
+		return m_rep.cend();
+	}
+
+	//-----------------------------------------------------------------------------
+	const_reverse_iterator crbegin() const
+	//-----------------------------------------------------------------------------
+	{
+		return const_reverse_iterator(cend());
+	}
+
+	//-----------------------------------------------------------------------------
+	const_reverse_iterator crend() const
+	//-----------------------------------------------------------------------------
+	{
+		return const_reverse_iterator(cbegin());
+	}
+
+	//-----------------------------------------------------------------------------
+	const value_type& front() const
+	//-----------------------------------------------------------------------------
+	{
+		if (empty())
+		{
+			// warn
+			return s_0ch;
+		}
+		return m_rep.front();
+	}
+
+	//-----------------------------------------------------------------------------
+	const value_type& back() const
+	//-----------------------------------------------------------------------------
+	{
+		if (empty())
+		{
+			// warn
+			return s_0ch;
+		}
+		return m_rep.back();
+	}
+
+	//-----------------------------------------------------------------------------
+	int compare(const self_type& other) const
+	//-----------------------------------------------------------------------------
+	{
+		// uses __builtin_memcmp(), OK
+		return m_rep.compare(other);
+	}
+
+	//-----------------------------------------------------------------------------
+	int compare(size_type pos1, size_type count1,
+	            self_type other) const
+	//-----------------------------------------------------------------------------
+	{
+		return substr(pos1, count1).compare(other);
+	}
+
+	//-----------------------------------------------------------------------------
+	int compare(size_type pos1, size_type count1,
+	            self_type other,
+	            size_type pos2, size_type count2) const
+	//-----------------------------------------------------------------------------
+	{
+		return substr(pos1, count1).compare(other.substr(pos2, count2));
+	}
+
+	//-----------------------------------------------------------------------------
+	int compare(const const_iterator str) const
+	//-----------------------------------------------------------------------------
+	{
+		return compare(self_type(str));
+	}
+
+	//-----------------------------------------------------------------------------
+	int compare(size_type pos1, size_type count1,
+	            const const_iterator str) const
+	//-----------------------------------------------------------------------------
+	{
+		return substr(pos1, count1).compare(self_type(str));
+	}
+
+	//-----------------------------------------------------------------------------
+	int compare(size_type pos1, size_type count1,
+	            const const_iterator str, size_type count2) const
+	//-----------------------------------------------------------------------------
+	{
+		return substr(pos1, count1).compare(self_type(str, count2));
+	}
+
+	//-----------------------------------------------------------------------------
+	size_type copy(iterator dest, size_type count, size_type pos = 0) const;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	const value_type& operator[](size_t index) const
+	//-----------------------------------------------------------------------------
+	{
+		if (index >= size())
+		{
+			// warn
+			return s_0ch;
+		}
+		return m_rep[index];
+	}
+
+	//-----------------------------------------------------------------------------
+	const value_type& at(size_t index) const
+	//-----------------------------------------------------------------------------
+	{
+		if (index >= size())
+		{
+			// warn
+			return s_0ch;
+		}
+		return m_rep[index];
+	}
+
+	//-----------------------------------------------------------------------------
+	constexpr
+	self_type substr(size_type pos = 0, size_type count = npos) const
+	//-----------------------------------------------------------------------------
+	{
+		if (pos > size())
+		{
+			// warn
+			pos = size();
+		}
+		return self_type(begin() + pos, std::min(count, size() - pos));
+	}
+
+	//-----------------------------------------------------------------------------
+	void remove_prefix(size_type n)
+	//-----------------------------------------------------------------------------
+	{
+		if (n > size())
+		{
+			// warn
+			n = size();
+		}
+		unchecked_remove_prefix(n);
+	}
+
+	//-----------------------------------------------------------------------------
+	void remove_suffix(size_type n)
+	//-----------------------------------------------------------------------------
+	{
+		if (n > size())
+		{
+			// warn
+			n = size();
+		}
+		unchecked_remove_suffix(n);
+	}
+
+	//-----------------------------------------------------------------------------
+	// nonstandard
+	bool remove_prefix(self_type other)
+	//-----------------------------------------------------------------------------
+	{
+		if (StartsWith(other))
+		{
+			unchecked_remove_prefix(other.size());
+			return true;
+		}
+		return false;
+	}
+
+	//-----------------------------------------------------------------------------
+	// nonstandard
+	bool remove_suffix(self_type other)
+	//-----------------------------------------------------------------------------
+	{
+		if (EndsWith(other))
+		{
+			unchecked_remove_suffix(other.size());
+			return true;
+		}
+		return false;
+	}
+
+	//-----------------------------------------------------------------------------
+	// nonstandard
+	bool StartsWith(self_type other)
+	//-----------------------------------------------------------------------------
+	{
+		return kStartsWith(*this, other);
+	}
+
+	//-----------------------------------------------------------------------------
+	// nonstandard
+	bool EndsWith(self_type other)
+	//-----------------------------------------------------------------------------
+	{
+		return kEndsWith(*this, other);
+	}
+
+	//-----------------------------------------------------------------------------
+	void swap(self_type& other)
+	//-----------------------------------------------------------------------------
+	{
+		std::swap(m_rep, other.m_rep);
+	}
+
+	//-----------------------------------------------------------------------------
+	/// nonstandard: emulate erase if range is at begin or end
+	self_type& erase(size_type pos = 0, size_type n = npos);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// nonstandard: emulate erase if position is at begin or end
+	iterator erase(const_iterator position)
+	//-----------------------------------------------------------------------------
+	{
+		bool bToStart = position == begin();
+		erase(static_cast<size_type>(position - begin()), 1);
+		return bToStart ? begin() : end();
+	}
+
+	//-----------------------------------------------------------------------------
+	/// nonstandard: emulate erase if range is at begin or end
+	iterator erase(const_iterator first, const_iterator last)
+	//-----------------------------------------------------------------------------
+	{
+		bool bToStart = first == begin();
+		erase(static_cast<size_type>(first - begin()), static_cast<size_type>(last - first));
+		return bToStart ? begin() : end();
+	}
+
+	//-----------------------------------------------------------------------------
+	size_type find(const self_type str, size_type pos = 0) const noexcept
+	//-----------------------------------------------------------------------------
+	{
+		return kFind(*this, str, pos);
+	}
+
+	//-----------------------------------------------------------------------------
+	size_type find(value_type ch, size_type pos = 0) const noexcept
+	//-----------------------------------------------------------------------------
+	{
+		return kFind(*this, ch, pos);
+	}
+
+	//-----------------------------------------------------------------------------
+	size_type rfind(value_type ch, size_type pos = npos) const noexcept
+	//-----------------------------------------------------------------------------
+	{
+		return kRFind(*this, ch, pos);
+	}
+
+	//-----------------------------------------------------------------------------
+	size_type rfind(self_type sv, size_type pos = npos) const noexcept
+	//-----------------------------------------------------------------------------
+	{
+		return kRFind(*this, sv, pos);
+	}
+
+	//-----------------------------------------------------------------------------
+	size_type find_first_of(self_type sv, size_type pos = 0) const noexcept
+	//-----------------------------------------------------------------------------
+	{
+		return kFindFirstOf(*this, sv, pos);
+	}
+
+	//-----------------------------------------------------------------------------
+	size_type find_first_of(const value_type* s, size_type pos) const noexcept
+	//-----------------------------------------------------------------------------
+	{
+		return find_first_of(self_type(s), pos);
+	}
+
+	//-----------------------------------------------------------------------------
+	size_type find_first_of(const value_type* s, size_type pos, size_type count) const noexcept
+	//-----------------------------------------------------------------------------
+	{
+		return find_first_of(self_type(s, count), pos);
+	}
+
+	//-----------------------------------------------------------------------------
+	size_type find_first_of(value_type ch, size_type pos = 0) const noexcept
 	//-----------------------------------------------------------------------------
 	{
 		return find(ch, pos);
 	}
 
 	//-----------------------------------------------------------------------------
-	size_type find_last_of(self_type sv, size_type pos = npos) const noexcept;
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	inline size_type find_last_of(const value_type* s, size_type pos) const noexcept
+	size_type find_last_of(self_type sv, size_type pos = npos) const noexcept
 	//-----------------------------------------------------------------------------
 	{
-		return find_first_of(KStringView(s), pos);
+		return kFindLastOf(*this, sv, pos);
 	}
 
 	//-----------------------------------------------------------------------------
-	inline size_type find_last_of(const value_type* s, size_type pos, size_type count) const noexcept
+	size_type find_last_of(const value_type* s, size_type pos) const noexcept
 	//-----------------------------------------------------------------------------
 	{
-		return find_last_of(KStringView(s, count), pos);
+		return find_last_of(self_type(s), pos);
 	}
 
 	//-----------------------------------------------------------------------------
-	inline size_type find_last_of(value_type ch, size_type pos = npos) const noexcept
+	size_type find_last_of(const value_type* s, size_type pos, size_type count) const noexcept
+	//-----------------------------------------------------------------------------
+	{
+		return find_last_of(self_type(s, count), pos);
+	}
+
+	//-----------------------------------------------------------------------------
+	size_type find_last_of(value_type ch, size_type pos = npos) const noexcept
 	//-----------------------------------------------------------------------------
 	{
 		return rfind(ch, pos);
 	}
 
 	//-----------------------------------------------------------------------------
-	size_type find_first_not_of(self_type sv, size_type pos = 0) const noexcept;
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	inline size_type find_first_not_of(const value_type* s, size_type pos) const noexcept
+	size_type find_first_not_of(self_type sv, size_type pos = 0) const noexcept
 	//-----------------------------------------------------------------------------
 	{
-		return find_first_not_of(KStringView(s), pos);
+		return kFindFirstNotOf(*this, sv, pos);
 	}
 
 	//-----------------------------------------------------------------------------
-	inline size_type find_first_not_of(const value_type* s, size_type pos, size_type count) const noexcept
+	size_type find_first_not_of(const value_type* s, size_type pos) const noexcept
 	//-----------------------------------------------------------------------------
 	{
-		return find_first_not_of(KStringView(s, count), pos);
+		return find_first_not_of(self_type(s), pos);
 	}
 
 	//-----------------------------------------------------------------------------
-	size_type find_first_not_of(value_type ch, size_type pos = 0) const noexcept;
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	size_type find_last_not_of(self_type sv, size_type pos = npos) const noexcept;
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	inline size_type find_last_not_of(const value_type* s, size_type pos) const noexcept
+	size_type find_first_not_of(const value_type* s, size_type pos, size_type count) const noexcept
 	//-----------------------------------------------------------------------------
 	{
-		return find_last_not_of(KStringView(s), pos);
+		return find_first_not_of(self_type(s, count), pos);
 	}
 
 	//-----------------------------------------------------------------------------
-	inline size_type find_last_not_of(const value_type* s, size_type pos, size_type count) const noexcept
+	size_type find_first_not_of(value_type ch, size_type pos = 0) const noexcept
 	//-----------------------------------------------------------------------------
 	{
-		return find_last_not_of(KStringView(s, count), pos);
+		return find_first_not_of(self_type(&ch, 1), pos);
 	}
 
 	//-----------------------------------------------------------------------------
-	size_type find_last_not_of(value_type ch, size_type pos = npos) const noexcept;
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	void swap(KStringView& other) noexcept
+	size_type find_last_not_of(self_type sv, size_type pos = npos) const noexcept
 	//-----------------------------------------------------------------------------
 	{
-		// StringPiece has no swap(), and the data members are private,
-		// but we can access them at no additional cost through member functions.
-		StringPiece::const_pointer data = other.data();
-		StringPiece::size_type size = other.size();
-		other.set(this->data(), this->size());
-		this->set(data, size);
+		return kFindLastNotOf(*this, sv, pos);
+	}
+
+	//-----------------------------------------------------------------------------
+	size_type find_last_not_of(const value_type* s, size_type pos) const noexcept
+	//-----------------------------------------------------------------------------
+	{
+		return find_last_not_of(self_type(s), pos);
+	}
+
+	//-----------------------------------------------------------------------------
+	size_type find_last_not_of(const value_type* s, size_type pos, size_type count) const noexcept
+	//-----------------------------------------------------------------------------
+	{
+		return find_last_not_of(self_type(s, count), pos);
+	}
+
+	//-----------------------------------------------------------------------------
+	size_type find_last_not_of(value_type ch, size_type pos = npos) const noexcept
+	//-----------------------------------------------------------------------------
+	{
+		return find_last_not_of(self_type(&ch, 1), pos);
 	}
 
 //----------
-private:
+protected:
 //----------
 
-	static const value_type s_0ch = '\0';
-
-}; // KStringView
-
+	//-----------------------------------------------------------------------------
+	DEKAF2_ALWAYS_INLINE
+	void unchecked_remove_prefix(size_type n)
+	//-----------------------------------------------------------------------------
+	{
+#ifdef DEKAF2_USE_FOLLY_STRINGPIECE_AS_KSTRINGVIEW
+		m_rep.uncheckedAdvance(n);
+#else
+		m_rep.remove_prefix(n);
 #endif
+	}
 
-// KStringView includes comparison for KString
+	//-----------------------------------------------------------------------------
+	DEKAF2_ALWAYS_INLINE
+	void unchecked_remove_suffix(size_type n)
+	//-----------------------------------------------------------------------------
+	{
+#ifdef DEKAF2_USE_FOLLY_STRINGPIECE_AS_KSTRINGVIEW
+		m_rep.uncheckedSubtract(n);
+#else
+		m_rep.remove_suffix(n);
+#endif
+	}
+
+	rep_type m_rep;
+
+	static const value_type s_0ch;
+
+};
+
 
 //-----------------------------------------------------------------------------
 inline bool operator==(KStringView left, KStringView right)
 //-----------------------------------------------------------------------------
 {
-	KStringView::size_type len = left.size();
+	typename KStringView::size_type len = left.size();
 	if (len != right.size())
 	{
 		return false;
 	}
 	return left.data() == right.data()
 	        || len == 0
-	        || memcmp(left.data(), right.data(), len) == 0;
+	        || left.compare(right) == 0;
 }
 
 //-----------------------------------------------------------------------------
@@ -293,8 +791,8 @@ inline bool operator!=(KStringView left, KStringView right)
 inline bool operator<(KStringView left, KStringView right)
 //-----------------------------------------------------------------------------
 {
-	KStringView::size_type min_size = std::min(left.size(), right.size());
-	int r = min_size == 0 ? 0 : memcmp(left.data(), right.data(), min_size);
+	typename KStringView::size_type min_size = std::min(left.size(), right.size());
+	int r = min_size == 0 ? 0 : left.compare(right);
 	return (r < 0) || (r == 0 && left.size() < right.size());
 }
 
@@ -319,13 +817,170 @@ inline bool operator>=(KStringView left, KStringView right)
 	return !(left < right);
 }
 
+
+//-----------------------------------------------------------------------------
+inline
+size_t kFind(
+        KStringView haystack,
+        const char needle,
+        size_t pos)
+//-----------------------------------------------------------------------------
+{
+#if defined(DEKAF2_USE_OPTIMIZED_STRING_FIND)
+	// we keep this inlined as then the compiler can evaluate const expressions
+	// (memchr() is actually a compiler-builtin with gcc)
+	if (DEKAF2_UNLIKELY(pos > haystack.size()))
+	{
+		return KStringView::npos;
+	}
+	auto ret = static_cast<const char*>(std::memchr(haystack.data()+pos, needle, haystack.size()-pos));
+	if (DEKAF2_UNLIKELY(ret == nullptr))
+	{
+		return KStringView::npos;
+	}
+	else
+	{
+		return static_cast<size_t>(ret - haystack.data());
+	}
+#else
+	return static_cast<KStringView::rep_type>(haystack).find(needle, pos);
+#endif
+}
+
+//-----------------------------------------------------------------------------
+inline
+size_t kRFind(
+        KStringView haystack,
+        const char needle,
+        size_t pos)
+//-----------------------------------------------------------------------------
+{
+#if DEKAF2_USE_FOLLY_STRINGPIECE_AS_KSTRINGVIEW \
+	&& !defined(DEKAF2_USE_OPTIMIZED_STRING_FIND) \
+	|| !(DEKAF2_GCC_VERSION > 40600)
+	pos = std::min(pos, haystack.size());
+	haystack.remove_suffix(haystack.size() - pos);
+	return static_cast<KStringView::rep_type>(haystack).rfind(needle);
+#elif !defined(DEKAF2_USE_OPTIMIZED_STRING_FIND)
+	return static_cast<KStringView::rep_type>(haystack).rfind(needle, pos);
+#else
+	// we keep this inlined as then the compiler can evaluate const expressions
+	// (memrchr() is actually a compiler-builtin with gcc)
+	if (DEKAF2_UNLIKELY(pos >= haystack.size()))
+	{
+		pos = haystack.size();
+	}
+	else
+	{
+		++pos;
+	}
+	auto found = static_cast<const char*>(::memrchr(haystack.data(), needle, pos));
+	if (DEKAF2_UNLIKELY(!found))
+	{
+		return KStringView::npos;
+	}
+	else
+	{
+		return static_cast<size_t>(found - haystack.data());
+	}
+#endif
+}
+
+//-----------------------------------------------------------------------------
+inline
+size_t kFindFirstOf(
+        KStringView haystack,
+        KStringView needle,
+        size_t pos)
+//-----------------------------------------------------------------------------
+{
+#if defined(DEKAF2_USE_OPTIMIZED_STRING_FIND)
+	return detail::stringview::kFindFirstOfBool(haystack, needle, pos, false);
+#else
+	return static_cast<KStringView::rep_type>(haystack).find_first_of(needle, pos);
+#endif
+}
+
+//-----------------------------------------------------------------------------
+inline
+size_t kFindFirstNotOf(
+        KStringView haystack,
+        KStringView needle,
+        size_t pos)
+//-----------------------------------------------------------------------------
+{
+#if defined(DEKAF2_USE_OPTIMIZED_STRING_FIND) || defined(DEKAF2_USE_FOLLY_STRINGPIECE_AS_KSTRINGVIEW)
+	return detail::stringview::kFindFirstOfBool(haystack, needle, pos, true);
+#else
+	return static_cast<KStringView::rep_type>(haystack).find_first_not_of(needle, pos);
+#endif
+}
+
+//-----------------------------------------------------------------------------
+inline
+size_t kFindLastOf(
+        KStringView haystack,
+        KStringView needle,
+        size_t pos)
+//-----------------------------------------------------------------------------
+{
+#if defined(DEKAF2_USE_OPTIMIZED_STRING_FIND) || defined(DEKAF2_USE_FOLLY_STRINGPIECE_AS_KSTRINGVIEW)
+	return detail::stringview::kFindLastOfBool(haystack, needle, pos, false);
+#else
+	return static_cast<KStringView::rep_type>(haystack).find_last_of(needle, pos);
+#endif
+}
+
+//-----------------------------------------------------------------------------
+inline
+size_t kFindLastNotOf(
+        KStringView haystack,
+        KStringView needle,
+        size_t pos)
+//-----------------------------------------------------------------------------
+{
+#if defined(DEKAF2_USE_OPTIMIZED_STRING_FIND) || defined(DEKAF2_USE_FOLLY_STRINGPIECE_AS_KSTRINGVIEW)
+	return detail::stringview::kFindLastOfBool(haystack, needle, pos, true);
+#else
+	return static_cast<KStringView::rep_type>(haystack).find_last_not_of(needle, pos);
+#endif
+}
+
+//----------------------------------------------------------------------
+inline
+bool kStartsWith(KStringView sInput, KStringView sPattern)
+//----------------------------------------------------------------------
+{
+	if (DEKAF2_UNLIKELY(sInput.size() < sPattern.size()))
+	{
+		return false;
+	}
+
+	return !std::memcmp(sInput.data(), sPattern.data(), sPattern.size());
+
+} // kStartsWith
+
+//----------------------------------------------------------------------
+inline
+bool kEndsWith(KStringView sInput, KStringView sPattern)
+//----------------------------------------------------------------------
+{
+	if (DEKAF2_UNLIKELY(sInput.size() < sPattern.size()))
+	{
+		return false;
+	}
+
+	return !std::memcmp(sInput.data() + sInput.size() - sPattern.size(), sPattern.data(), sPattern.size());
+
+} // kEndsWith
+
+
 } // end of namespace dekaf2
 
-#ifndef DEKAF2_USE_STD_STRING_VIEW_AS_KSTRINGVIEW
 namespace std
 {
 	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-	// add a hash function for KStringView
+	/// provide a std::hash for KStringView
 	template<>
 	struct hash<dekaf2::KStringView>
 	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -339,12 +994,11 @@ namespace std
 	};
 
 }
-#endif
 
 namespace boost
 {
 	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-	// add a hash function for KStringView
+	/// provide a boost::hash for KStringView
 	template<>
 	struct hash<dekaf2::KStringView>
 	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -353,11 +1007,7 @@ namespace boost
 		typedef std::size_t result_type;
 		result_type operator()(argument_type s) const
 		{
-#if defined(DEKAF2_USE_STD_STRING_VIEW_AS_KSTRINGVIEW)
-			return std::hash<dekaf2::KStringView>{}({s.data(), s.size()});
-#else
 			return dekaf2::hash_bytes_FNV(s.data(), s.size());
-#endif
 		}
 	};
 

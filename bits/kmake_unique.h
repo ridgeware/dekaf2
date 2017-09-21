@@ -1,5 +1,8 @@
 #pragma once
 
+/// @file kmake_unique.h
+/// provides a std::make_unique for C++11
+
 #if __cplusplus <= 201103L
 
 /*

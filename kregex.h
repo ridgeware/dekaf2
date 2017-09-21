@@ -42,6 +42,9 @@
 
 #pragma once
 
+/// @file kregex.h
+/// The Regular Expression encapsulation
+
 #include <re2/re2.h>
 #include <vector>
 #include <boost/functional/hash.hpp>
@@ -55,7 +58,7 @@
 namespace std
 {
     //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-	// add a hash function for re2::StringPiece
+	/// provide a std::hash for re2::StringPiece
 	template<>
 	struct hash<re2::StringPiece>
 	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -77,7 +80,7 @@ namespace std
 namespace boost
 {
 	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-	// add a hash function for re2::StringPiece
+	/// provide a boost::hash for re2::StringPiece
 	template<>
 	struct hash<re2::StringPiece>
 	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -183,6 +186,14 @@ public:
 	size_t Replace(std::string& sStr, const KStringView& sReplaceWith, bool bReplaceAll = true);
 	//-----------------------------------------------------------------------------
 
+#ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
+	// member function interface
+	//-----------------------------------------------------------------------------
+	/// replace a regular expression with new text. Sub groups can be addressed with \1 \2 etc. in the replacement text
+	size_t Replace(KString& sStr, const KStringView& sReplaceWith, bool bReplaceAll = true);
+	//-----------------------------------------------------------------------------
+#endif
+
 	// static interface
 	//-----------------------------------------------------------------------------
 	/// match a regular expression in sStr
@@ -206,6 +217,14 @@ public:
 	/// replace a regular expression with new text. Sub groups can be addressed with \1 \2 etc. in the replacement text
 	static size_t Replace(std::string& sStr, const KStringView& sRegex, const KStringView& sReplaceWith, bool bReplaceAll = true);
 	//-----------------------------------------------------------------------------
+
+#ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
+	// static interface
+	//-----------------------------------------------------------------------------
+	/// replace a regular expression with new text. Sub groups can be addressed with \1 \2 etc. in the replacement text
+	static size_t Replace(KString& sStr, const KStringView& sRegex, const KStringView& sReplaceWith, bool bReplaceAll = true);
+	//-----------------------------------------------------------------------------
+#endif
 
 	//-----------------------------------------------------------------------------
 	/// returns regular expression string

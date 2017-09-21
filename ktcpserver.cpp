@@ -72,6 +72,7 @@
 #include <boost/system/system_error.hpp>
 
 #include "ktcpserver.h"
+#include "ksslstream.h"
 #include "klog.h"
 
 namespace dekaf2
@@ -80,7 +81,7 @@ namespace dekaf2
 using asio::ip::tcp;
 
 //-----------------------------------------------------------------------------
-bool KTCPServer::Accepted(KTCPStream& stream, const endpoint_type& remote_endpoint)
+bool KTCPServer::Accepted(KStream& stream, const endpoint_type& remote_endpoint)
 //-----------------------------------------------------------------------------
 {
 	return true;
@@ -101,22 +102,22 @@ KString KTCPServer::Request(const KString& qstr, Parameters& parameters)
 }
 
 //-----------------------------------------------------------------------------
-void KTCPServer::Session(KTCPStream& stream, const endpoint_type& remote_endpoint)
+void KTCPServer::Session(KStream& stream, const endpoint_type& remote_endpoint)
 //-----------------------------------------------------------------------------
 {
 	if (Accepted(stream, remote_endpoint))
 	{
 		param_t parameters = CreateParameters();
 
-		stream.expires_from_now(boost::posix_time::seconds(m_iTimeout));
+		ExpiresFromNow(stream, m_iTimeout);
 		stream << Init(*parameters);
 
 		KString line;
 
-		while (!parameters->terminate && !stream.bad() && !m_bQuit)
+		while (!parameters->terminate && !stream.InStream().bad() && !m_bQuit)
 		{
 
-			stream.expires_from_now(boost::posix_time::seconds(m_iTimeout));
+			ExpiresFromNow(stream, m_iTimeout);
 
 			if (!stream.ReadLine(line))
 			{
@@ -134,10 +135,10 @@ void KTCPServer::Session(KTCPStream& stream, const endpoint_type& remote_endpoin
 }
 
 //-----------------------------------------------------------------------------
-void KTCPServer::RunSession(KTCPStream& stream, const endpoint_type& remote_endpoint)
+void KTCPServer::RunSession(KStream& stream, const endpoint_type& remote_endpoint)
 //-----------------------------------------------------------------------------
 {
-	KLog().debug(3, "KTCPServer: accepting new connection from {} on port {}",
+	kDebug(3, "accepting new connection from {} on port {}",
 	             to_string(remote_endpoint),
 	             m_iPort);
 
@@ -152,18 +153,34 @@ void KTCPServer::RunSession(KTCPStream& stream, const endpoint_type& remote_endp
 	catch (std::exception& e)
 	{
 		// we cannot log the .what() string as boost is built with COW strings..
-		KLog().Exception(e, "RunSession", "KTCPServer");
+		kException(e);
 	}
 */
 	catch (...)
 	{
-		KLog().Exception("RunSession", "KTCPServer");
+		kUnknownException();
 	}
 
-	KLog().debug(3, "KTCPServer: closing connection with {} on port {}",
+	kDebug(3, "closing connection with {} on port {}",
 	             to_string(remote_endpoint),
 	             m_iPort);
 
+}
+
+//-----------------------------------------------------------------------------
+void KTCPServer::ExpiresFromNow(KStream& stream, long iSeconds)
+//-----------------------------------------------------------------------------
+{
+	if (IsSSL())
+	{
+//		KSSLStream& s = static_cast<KSSLStream&>(stream);
+		// TODO
+	}
+	else
+	{
+		KTCPStream& s = static_cast<KTCPStream&>(stream);
+		s.expires_from_now(boost::posix_time::seconds(iSeconds));
+	}
 }
 
 //-----------------------------------------------------------------------------
@@ -204,7 +221,7 @@ void KTCPServer::Server(bool ipv6)
 
 		if (!acceptor.is_open())
 		{
-			KLog().warning("KTCPServer::Server(): IPv{} listener for port {} could not open",
+			kWarning("IPv{} listener for port {} could not open",
 			               (ipv6) ? '6' : '4',
 			               m_iPort);
 		}
@@ -212,15 +229,26 @@ void KTCPServer::Server(bool ipv6)
 		{
 			while (acceptor.is_open() && !m_bQuit)
 			{
-				KTCPStream stream;
-				endpoint_type remote_endpoint;
-				acceptor.accept(*(stream.rdbuf()), remote_endpoint);
-				std::thread(&KTCPServer::RunSession, this, std::ref(stream), std::ref(remote_endpoint)).detach();
+				if (IsSSL())
+				{
+					KSSLStream stream;
+					stream.SetSSLCertificate(m_sCert.c_str(), m_sPem.c_str());
+					endpoint_type remote_endpoint;
+					acceptor.accept(stream.GetTCPSocket(), remote_endpoint);
+					std::thread(&KTCPServer::RunSession, this, std::ref(stream), std::ref(remote_endpoint)).detach();
+				}
+				else
+				{
+					KTCPStream stream;
+					endpoint_type remote_endpoint;
+					acceptor.accept(*(stream.rdbuf()), remote_endpoint);
+					std::thread(&KTCPServer::RunSession, this, std::ref(stream), std::ref(remote_endpoint)).detach();
+				}
 			}
 
 			if (!acceptor.is_open())
 			{
-				KLog().warning("KTCPServer::Server(): IPv{} listener for port {} has closed",
+				kWarning("IPv{} listener for port {} has closed",
 				               (ipv6) ? '6' : '4',
 				               m_iPort);
 			}
@@ -231,13 +259,22 @@ void KTCPServer::Server(bool ipv6)
 	catch (const std::exception& e)
 	{
 		// we cannot log the .what() string as boost is built with COW strings..
-		KLog().Exception(e, "Server", "KTCPServer");
+		kException(e);
 	}
 */
 	catch (...)
 	{
-		KLog().Exception("Server", "KTCPServer");
+		kUnknownException();
 	}
+}
+
+//-----------------------------------------------------------------------------
+bool KTCPServer::SetSSLCertificate(KStringView sCert, KStringView sPem)
+//-----------------------------------------------------------------------------
+{
+	m_sCert = sCert;
+	m_sPem = sPem;
+	return true; // TODO add validity check
 }
 
 //-----------------------------------------------------------------------------
@@ -246,12 +283,22 @@ bool KTCPServer::Start(uint16_t iTimeoutInSeconds, bool bBlock)
 {
 	if (IsRunning())
 	{
-		KLog().warning("KTCPServer::start(): Server is already running on port {}", m_iPort);
+		kWarning("Server is already running on port {}", m_iPort);
 		return false;
 	}
 	m_iTimeout = iTimeoutInSeconds;
 	m_bBlock = bBlock;
 	m_bQuit = false;
+
+	if (IsSSL())
+	{
+		if (m_sCert.empty() || m_sPem.empty())
+		{
+			kWarning("cannot start SSL server on port {}, have no certificates", m_iPort);
+			return false;
+		}
+	}
+
 	if (m_bBlock)
 	{
 		Server(m_bStartIPv6);

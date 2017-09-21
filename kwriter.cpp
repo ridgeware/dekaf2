@@ -55,7 +55,7 @@ KOutStream::~KOutStream()
 
 //-----------------------------------------------------------------------------
 /// Write a character. Returns stream reference that resolves to false on failure
-KOutStream::self_type& KOutStream::Write(KString::value_type& ch)
+KOutStream::self_type& KOutStream::Write(KString::value_type ch)
 //-----------------------------------------------------------------------------
 {
 	std::streambuf* sb = OutStream().rdbuf();

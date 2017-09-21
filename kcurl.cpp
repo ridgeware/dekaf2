@@ -45,8 +45,34 @@
 
 #include <iostream>
 
+/*
+Relevent data:
+Server gives response:
+HTTP/1.0 200 OK
+Content-type: text/html
+Cookie: foo=bar
+Set-Cookie: yummy_cookie=choco
+Set-Cookie: tasty_cookie=strawberry
+X-Forwarded-For: 192.0.2.43, 2001:db8:cafe::17
+Forwarded: for=192.0.2.43, for="[2001:db8:cafe::17]
+
+[page content]
+
+Later requests to server:
+GET /sample_page.html HTTP/1.1
+Host: www.example.org
+Cookie: foo=bar; yummy_cookie=choco; tasty_cookie=strawberry
+*/
+
+
 namespace dekaf2
 {
+
+const char* KCurl::xForwardedForHeader = "x-forwarded-for";
+const char* KCurl::HostHeader          = "host";
+const char* KCurl::CookieHeader        = "cookie";
+const char* KCurl::UserAgentHeader     = "user-agent";
+const char* KCurl::sGarbageHeader      = "garbage";
 
 //-----------------------------------------------------------------------------
 bool KCurl::setRequestURL(const KString& sRequestURL)
@@ -299,15 +325,15 @@ bool KCurl::serializeRequestHeader(KString& sCurlHeaders)
 	{
 		if (iter != m_requestCookies.begin())
 		{
-			sCurlHeaders += ";";
+			sCurlHeaders += ';';
 		}
 		sCurlHeaders += iter->second.first;
-		sCurlHeaders += "=";
+		sCurlHeaders += '=';
 		sCurlHeaders += iter->second.second;
 	}
 	if (!m_requestCookies.empty())
 	{
-		sCurlHeaders += "'";
+		sCurlHeaders +='\'';
 	}
 	return !sCurlHeaders.empty();
 

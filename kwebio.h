@@ -56,7 +56,7 @@ namespace dekaf2
 
 //-----------------------------------------------------------------------------
 class KWebIO : public KCurl
-
+//-----------------------------------------------------------------------------
 {
 
 //------
@@ -136,12 +136,20 @@ private:
 
 	KOutStream     m_outStream{std::cout}; // Writer Stream
 
-	// method that takes care of case-insentive header add logic and cookie add logic
+	//-----------------------------------------------------------------------------
+	/// method that takes care of case-insentive header add logic and cookie add logic
 	bool           addResponseHeader(const KString&& sHeaderName, const KString&& sHeaderValue);
-	// method to determine if header ends with \n\n or \r\n\r\n indicating end of header
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// method to determine if header ends with \n\n or \r\n\r\n indicating end of header
 	bool           isLastHeader(const KString& sHeaderPart, size_t lineEndPos);
-	// if parsing multi line header, this gets to the end of it
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// if parsing multi line header, this gets to the end of it
 	size_t         findEndOfHeader(const KString& sHeaderPart, size_t lineEndPos);
+	//-----------------------------------------------------------------------------
 };
 
 } // end namespace dekaf2

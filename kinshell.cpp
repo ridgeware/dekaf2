@@ -8,7 +8,6 @@ namespace dekaf2
 KInShell::KInShell(const KString& sCommand)
 //-----------------------------------------------------------------------------
 {
-	SetReaderTrim("");
 	Open(sCommand);
 
 } // Immediate Open Constructor

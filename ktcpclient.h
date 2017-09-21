@@ -42,6 +42,9 @@
 
 #pragma once
 
+/// @file ktcpclient.h
+/// provides a typedef for KTCPClient
+
 #include "kstream.h"
 
 namespace dekaf2

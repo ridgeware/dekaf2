@@ -40,30 +40,14 @@
 // +-------------------------------------------------------------------------+
 */
 
-/*
-Relevent data:
-Server gives response:
-HTTP/1.0 200 OK
-Content-type: text/html
-Cookie: foo=bar
-Set-Cookie: yummy_cookie=choco
-Set-Cookie: tasty_cookie=strawberry
-X-Forwarded-For: 192.0.2.43, 2001:db8:cafe::17
-Forwarded: for=192.0.2.43, for="[2001:db8:cafe::17]
-
-[page content]
-
-Later requests to server:
-GET /sample_page.html HTTP/1.1
-Host: www.example.org
-Cookie: foo=bar; yummy_cookie=choco; tasty_cookie=strawberry
-*/
-
 #pragma once
+
+/// @file kcurl.h
+/// wrapper around curl command
+
 #include "kstring.h"
 #include "kprops.h"
 #include "kinshell.h"
-
 #include "kfile.h"
 #include "kreader.h"
 
@@ -72,15 +56,8 @@ Cookie: foo=bar; yummy_cookie=choco; tasty_cookie=strawberry
 namespace dekaf2
 {
 
-// Common headers in KString form (to not be harcoded in the codee
-//static const KString xForwardedForHeader ("x-forwarded-for");
-static const char* xForwardedForHeader ("x-forwarded-for");
-static const char* HostHeader          ("host");
-static const char* CookieHeader        ("cookie");
-static const char* UserAgentHeader     ("user-agent");
-static const char* sGarbageHeader      ("garbage");
-
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// Wrapper around curl command
 class KCurl
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -89,10 +66,17 @@ class KCurl
 public:
 //------
 
+	// Common headers (to not be harcoded in the code)
+	static const char* xForwardedForHeader;
+	static const char* HostHeader;
+	static const char* CookieHeader;
+	static const char* UserAgentHeader;
+	static const char* sGarbageHeader;
+
 	/// Request Type Enum GET or POST
 	typedef enum
 	{
-		GET, POST//, PUT, DELETE
+		GET, POST
 	} RequestType;
 
 	/// The data structure for original case-sensitive data
@@ -101,20 +85,24 @@ public:
 	typedef KProps<KString, KHeaderPair> KHeader; // case insensitive map for header info
 
 	//-----------------------------------------------------------------------------
-	/// Default KURL Constructor, must be initialized after construction
+	/// Default KCurl Constructor, must be configured after construction
 	KCurl()
 	//-----------------------------------------------------------------------------
-	{}
+	{
+		m_kpipe.SetReaderTrim("");
+	}
 
 	//-----------------------------------------------------------------------------
-	/// KURL Constructor that allows full initialization on construction.
+	/// KCurl Constructor that allows full initialization on construction.
 	KCurl(const KString& sRequestURL, RequestType requestType, bool bEchoHeader = false, bool bEchoBody = false)
 	//-----------------------------------------------------------------------------
 	    : m_bEchoHeader{bEchoHeader}
 	    , m_bEchoBody{bEchoBody}
 	    , m_requestType{requestType}
 	    , m_sRequestURL{sRequestURL}
-	{}
+	{
+		m_kpipe.SetReaderTrim("");
+	}
 
 	//-----------------------------------------------------------------------------
 	/// Default virtual constructor

@@ -83,6 +83,25 @@ TEST_CASE("KStringView") {
 		CHECK( sv.find_first_of("!-") == KStringView::npos );
 	}
 
+	SECTION("find_first_of with pos")
+	{
+		KStringView sv("0123456  9abcdef h");
+		CHECK( sv.find_first_of(' ', 2) == 7 );
+		CHECK( sv.find_first_of(" ", 2) == 7 );
+		CHECK( sv.find_first_of(" d", 2) == 7 );
+		CHECK( sv.find_first_of('0', 2) == KStringView::npos );
+		CHECK( sv.find_first_of("0", 2) == KStringView::npos );
+		CHECK( sv.find_first_of("02", 2) == 2 );
+		CHECK( sv.find_first_of('h', 2) == 17 );
+		CHECK( sv.find_first_of("h", 2) == 17 );
+		CHECK( sv.find_first_of("h-", 2) == 17 );
+		CHECK( sv.find_first_of("ab f", 2) == 7 );
+		CHECK( sv.find_first_of("abf ", 2) == 7 );
+		CHECK( sv.find_first_of('-', 2) == KStringView::npos );
+		CHECK( sv.find_first_of("-", 2) == KStringView::npos );
+		CHECK( sv.find_first_of("!-", 2) == KStringView::npos );
+	}
+
 	SECTION("find_last_of")
 	{
 		KStringView sv("0123456  9abcdef");
@@ -113,6 +132,19 @@ TEST_CASE("KStringView") {
 		CHECK( sv.find_first_not_of("02") == 1 );
 		CHECK( sv.find_first_not_of("0123456789abcdef ") == 17 );
 		CHECK( sv.find_first_not_of("0123456789abcdefgh ") == KStringView::npos );
+	}
+
+	SECTION("find_first_not_of with pos")
+	{
+		KStringView sv("0123456  9abcdef h");
+		CHECK( sv.find_first_not_of(' ', 2) == 2 );
+		CHECK( sv.find_first_not_of(" ", 2) == 2 );
+		CHECK( sv.find_first_not_of(" d", 2) == 2 );
+		CHECK( sv.find_first_not_of('2', 2) == 3 );
+		CHECK( sv.find_first_not_of("2", 2) == 3 );
+		CHECK( sv.find_first_not_of("02", 2) == 3 );
+		CHECK( sv.find_first_not_of("0123456789abcdef ", 2) == 17 );
+		CHECK( sv.find_first_not_of("0123456789abcdefgh ", 2) == KStringView::npos );
 	}
 
 	SECTION("erase by index")

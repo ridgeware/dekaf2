@@ -134,11 +134,27 @@ size_t kFindFirstOfBool(
 	{
 		if (DEKAF2_UNLIKELY(bNot))
 		{
-			return detail::kFindFirstNotOfSSE(haystack, needle) + pos;
+			auto result = detail::kFindFirstNotOfSSE(haystack, needle);
+			if (DEKAF2_LIKELY(result == KStringView::npos || pos == 0))
+			{
+				return result;
+			}
+			else
+			{
+				return result + pos;
+			}
 		}
 		else
 		{
-			return detail::kFindFirstOfSSE(haystack, needle) + pos;
+			auto result = detail::kFindFirstOfSSE(haystack, needle);
+			if (DEKAF2_LIKELY(result == KStringView::npos || pos == 0))
+			{
+				return result;
+			}
+			else
+			{
+				return result + pos;
+			}
 		}
 	}
 #endif

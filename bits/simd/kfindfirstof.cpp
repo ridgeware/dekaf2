@@ -286,17 +286,16 @@ size_t scanHaystackBlockNot(
 		                 0);
 	}
 
-//	size_t clearBytes = 16 - (j+ 16 - needles.size());
-	arr2 = _mm_loadu_si128(reinterpret_cast<const __m128i*>(needles.data() + (needles.size() -16)));
-
 	j = needles.size() -16;
 
-	        mask |= _mm_cmpestrm(
-			                 arr2,
-			                 static_cast<int>(needles.size() - j),
-			                 arr1,
-			                 static_cast<int>(haystack.size() - blockStartIdx),
-			                 0);
+	arr2 = _mm_loadu_si128(reinterpret_cast<const __m128i*>(needles.data() + j));
+
+	mask |= _mm_cmpestrm(
+	            arr2,
+	            static_cast<int>(needles.size() - j),
+	            arr1,
+	            static_cast<int>(haystack.size() - blockStartIdx),
+	            0);
 
 	uint16_t* val = reinterpret_cast<uint16_t*>(&mask);
 	if (val)

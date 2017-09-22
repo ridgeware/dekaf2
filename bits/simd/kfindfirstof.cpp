@@ -270,11 +270,11 @@ size_t scanHaystackBlockNot(
 	}
 
 	// This load is safe because needles.size() >= 16
-	auto arr2 = _mm_loadu_si128(reinterpret_cast<const __m128i*>(needles.data()));
-	auto mask = _mm_cmpestrm(arr2, 16, arr1, static_cast<int>(haystack.size() - blockStartIdx), 0);
+	__m128i arr2 = _mm_loadu_si128(reinterpret_cast<const __m128i*>(needles.data()));
+	__m128i mask = _mm_cmpestrm(arr2, 16, arr1, static_cast<int>(haystack.size() - blockStartIdx), 0);
 
 	size_t j = nextAlignedIndex(needles.data());
-	for (; j < needles.size(); j += 16)
+	for (; j < (needles.size() - 16); j += 16)
 	{
 		arr2 = _mm_load_si128(reinterpret_cast<const __m128i*>(needles.data() + j));
 
@@ -285,6 +285,18 @@ size_t scanHaystackBlockNot(
 		                 static_cast<int>(haystack.size() - blockStartIdx),
 		                 0);
 	}
+
+//	size_t clearBytes = 16 - (j+ 16 - needles.size());
+	arr2 = _mm_loadu_si128(reinterpret_cast<const __m128i*>(needles.data() + (needles.size() -16)));
+
+	j = needles.size() -16;
+
+	        mask |= _mm_cmpestrm(
+			                 arr2,
+			                 static_cast<int>(needles.size() - j),
+			                 arr1,
+			                 static_cast<int>(haystack.size() - blockStartIdx),
+			                 0);
 
 	uint16_t* val = reinterpret_cast<uint16_t*>(&mask);
 	if (val)
@@ -356,7 +368,7 @@ size_t kFindFirstNotOfSSE(
 	}
 	// there is still one unit test failing for the long needle version and SSE,
 	// therefore we fall back to the no-SSE version at the moment
-	return kFindFirstOfNoSSE(haystack, needles, true);
+	//return kFindFirstOfNoSSE(haystack, needles, true);
 
 	if (haystack.size() < 16 &&
 	    page_for(haystack.end() - 1) != page_for(haystack.data() + 16))
@@ -372,13 +384,19 @@ size_t kFindFirstNotOfSSE(
 	}
 
 	size_t i = nextAlignedIndex(haystack.data());
-	for (; i < haystack.size(); i += 16)
+	for (; i < (haystack.size() -16); i += 16)
 	{
 		ret = scanHaystackBlockNot<true>(haystack, needles, i);
 		if (ret != std::string::npos)
 		{
 			return ret;
 		}
+	}
+
+	ret = scanHaystackBlockNot<false>(haystack, needles, haystack.size()-16);
+	if (ret != std::string::npos)
+	{
+		return ret;
 	}
 
 	return KStringView::npos;

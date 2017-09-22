@@ -399,65 +399,6 @@ size_t scanHaystackBlockNot(
 }
 
 //-----------------------------------------------------------------------------
-template <bool HAYSTACK_ALIGNED>
-size_t reverseScanHaystackBlockNot(
-        const KStringView haystack,
-        const KStringView needles,
-        uint64_t blockStartIdx)
-//-----------------------------------------------------------------------------
-{
-	__m128i arr1;
-	if (HAYSTACK_ALIGNED)
-	{
-		arr1 = _mm_load_si128(reinterpret_cast<const __m128i*>(haystack.data() + blockStartIdx - 16));
-	}
-	else
-	{
-		arr1 = _mm_loadu_si128(reinterpret_cast<const __m128i*>(haystack.data() + blockStartIdx - 16));
-	}
-
-	// This load is safe because needles.size() >= 16
-	__m128i arr2 = _mm_loadu_si128(reinterpret_cast<const __m128i*>(needles.data() + needles.size() - 16));
-	__m128i mask = _mm_cmpestrm(arr2, 16, arr1, static_cast<int>(haystack.size() - blockStartIdx-16), 0);
-
-	size_t j = nextAlignedIndex(needles.data() + needles.size() -16);
-	for (; j > 16; j -= 16)
-	{
-		arr2 = _mm_load_si128(reinterpret_cast<const __m128i*>(needles.data() + j));
-
-		mask |= _mm_cmpestrm(
-		                 arr2,
-		                 static_cast<int>(needles.size() - j),
-		                 arr1,
-		                 static_cast<int>(haystack.size() - blockStartIdx - 16),
-		                 0);
-	}
-
-	//j = needles.size() - 16;
-
-	arr2 = _mm_loadu_si128(reinterpret_cast<const __m128i*>(needles.data() + j));
-
-	mask |= _mm_cmpestrm(
-	            arr2,
-	            static_cast<int>(needles.size()),
-	            arr1,
-	            static_cast<int>(haystack.size() - blockStartIdx - 16),
-	            0);
-
-	uint16_t* val = reinterpret_cast<uint16_t*>(&mask);
-	if (val)
-	{
-		auto b = 32 - portableCLZ(*val);
-		if (b < std::min(16UL, haystack.size() - blockStartIdx))
-		{
-			return blockStartIdx + static_cast<size_t>(b);
-		}
-	}
-
-	return KStringView::npos;
-}
-
-//-----------------------------------------------------------------------------
 size_t kFindFirstOfSSE(
         const KStringView haystack,
         const KStringView needles)
@@ -549,7 +490,42 @@ size_t kFindLastOfSSE(
         const KStringView needles)
 //-----------------------------------------------------------------------------
 {	
-	return kFindLastOfNoSSE(haystack, needles, false);
+	//return kFindLastOfNoSSE(haystack, needles, false);
+	if (DEKAF2_UNLIKELY(needles.empty() || haystack.empty()))
+	{
+		return std::string::npos;
+	}
+	else if (needles.size() <= 16)
+	{
+		// For a 16 byte or less needle you don't need to cycle through it
+		//return kFindLastOfNeedles16(haystack, needles);
+		return kFindLastOfNoSSE(haystack, needles, false);
+	}
+
+	if (haystack.size() < 16 &&
+	    page_for(haystack.end() - 1) != page_for(haystack.data() + 16))
+	{
+		// We can't safely SSE-load haystack. Use a different approach.
+		return kFindLastOfNoSSE(haystack, needles, false);
+	}
+
+	auto ret = scanHaystackBlock<false>(haystack, needles, haystack.size());
+	if (ret != KStringView::npos)
+	{
+		return ret;
+	}
+
+	size_t i = nextAlignedIndex(haystack.data() + haystack.size() - 16);
+	for (; i < haystack.size(); i += 16)
+	{
+		ret = scanHaystackBlock<true>(haystack, needles, i);
+		if (ret != std::string::npos)
+		{
+			return ret;
+		}
+	}
+
+	return KStringView::npos;
 }
 
 //-----------------------------------------------------------------------------
@@ -577,16 +553,16 @@ size_t kFindLastNotOfSSE(
 		return kFindLastOfNoSSE(haystack, needles, true);
 	}
 
-	auto ret = reverseScanHaystackBlockNot<false>(haystack, needles, haystack.size());
+	auto ret = scanHaystackBlockNot<false>(haystack, needles, haystack.size());
 	if (ret != KStringView::npos)
 	{
 		return ret;
 	}
 
 	size_t i = nextAlignedIndex(haystack.data() + haystack.size() - 16);
-	for (; i < (haystack.size()); i -= 16)
+	for (; i > 0; i -= 16)
 	{
-		ret = reverseScanHaystackBlockNot<true>(haystack, needles, i);
+		ret = scanHaystackBlockNot<true>(haystack, needles, i);
 		if (ret != std::string::npos)
 		{
 			return ret;

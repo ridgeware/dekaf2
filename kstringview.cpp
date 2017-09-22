@@ -159,7 +159,15 @@ size_t kFindFirstOfBool(
 	}
 #endif
 
-	return detail::kFindFirstOfNoSSE(haystack, needle, bNot) + pos;
+	auto result = detail::kFindFirstOfNoSSE(haystack, needle, bNot);
+	if (DEKAF2_LIKELY(result == KStringView::npos || pos == 0))
+	{
+		return result;
+	}
+	else
+	{
+		return result + pos;
+	}
 
 }
 
@@ -181,32 +189,32 @@ size_t kFindLastOfBool(
 		return KStringView::npos;
 	}
 
-	pos = (haystack.size() - 1) - std::min(pos, haystack.size()-1);
-
-	bool table[256];
-	std::memset(table, false, 256);
-
-	for (auto c : needle)
+	if (DEKAF2_UNLIKELY(pos != KStringView::npos))
 	{
-		table[static_cast<unsigned char>(c)] = true;
+		if (pos < haystack.size() - 1)
+		{
+			haystack.remove_suffix((haystack.size() - 1) - pos);
+		}
 	}
 
-	auto it = std::find_if(haystack.rbegin() +
-						   static_cast<typename KStringView::difference_type>(pos),
-						   haystack.rend(),
-						   [&table, bNot](const char c)
-	{
-		return table[static_cast<unsigned char>(c)] != bNot;
-	});
+#ifdef __x86_64__
+	static bool has_sse42 = Dekaf().GetCpuId().sse42();
 
-	if (it == haystack.rend())
+	if (DEKAF2_LIKELY(has_sse42))
 	{
-		return KStringView::npos;
+		if (DEKAF2_UNLIKELY(bNot))
+		{
+			return detail::kFindLastNotOfSSE(haystack, needle);
+		}
+		else
+		{
+			return detail::kFindLastOfSSE(haystack, needle);
+		}
 	}
-	else
-	{
-		return static_cast<size_t>((it.base() - 1) - haystack.begin());
-	}
+#endif
+
+	return detail::kFindLastOfNoSSE(haystack, needle, bNot);
+
 }
 
 } } // end of namespace detail::stringview

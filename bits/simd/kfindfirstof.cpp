@@ -11,7 +11,9 @@
 namespace dekaf2 {
 namespace detail {
 
+//-----------------------------------------------------------------------------
 size_t kFindFirstOfNoSSE(KStringView haystack, KStringView needles, bool bNot)
+//-----------------------------------------------------------------------------
 {
 	bool table[256];
 	std::memset(table, false, 256);
@@ -35,6 +37,35 @@ size_t kFindFirstOfNoSSE(KStringView haystack, KStringView needles, bool bNot)
 	else
 	{
 		return static_cast<size_t>(it - haystack.begin());
+	}
+}
+
+//-----------------------------------------------------------------------------
+size_t kFindLastOfNoSSE(KStringView haystack, KStringView needles, bool bNot)
+//-----------------------------------------------------------------------------
+{
+	bool table[256];
+	std::memset(table, false, 256);
+
+	for (auto c : needles)
+	{
+		table[static_cast<unsigned char>(c)] = true;
+	}
+
+	auto it = std::find_if(haystack.rbegin(),
+						   haystack.rend(),
+						   [&table, bNot](const char c)
+	{
+		return table[static_cast<unsigned char>(c)] != bNot;
+	});
+
+	if (it == haystack.rend())
+	{
+		return KStringView::npos;
+	}
+	else
+	{
+		return static_cast<size_t>((it.base() - 1) - haystack.begin());
 	}
 }
 
@@ -69,12 +100,45 @@ size_t kFindFirstOfNoSSE(KStringView haystack, KStringView needles, bool bNot)
 
 namespace dekaf2 {
 namespace detail {
+
+//-----------------------------------------------------------------------------
 size_t kFindFirstOfSSE42(
         const KStringView haystack,
         const KStringView needles,
         bool bNot)
+//-----------------------------------------------------------------------------
 {
 	return kFindFirstOfNoSSE(haystack, needles, bNot);
+}
+
+//-----------------------------------------------------------------------------
+size_t kFindFirstNotOfSSE42(
+        const KStringView haystack,
+        const KStringView needles,
+        bool bNot)
+//-----------------------------------------------------------------------------
+{
+	return kFindFirstNotOfNoSSE(haystack, needles, bNot);
+}
+
+//-----------------------------------------------------------------------------
+size_t kFindLastOfSSE42(
+        const KStringView haystack,
+        const KStringView needles,
+        bool bNot)
+//-----------------------------------------------------------------------------
+{
+	return kFindLastOfNoSSE(haystack, needles, bNot);
+}
+
+//-----------------------------------------------------------------------------
+size_t kFindLastNotOfSSE42(
+        const KStringView haystack,
+        const KStringView needles,
+        bool bNot)
+//-----------------------------------------------------------------------------
+{
+	return kFindLastNotOfNoSSE(haystack, needles, bNot);
 }
 
 } // end of namespace detail
@@ -94,7 +158,9 @@ size_t kFindFirstOfSSE42(
 namespace dekaf2 {
 namespace detail {
 
+//-----------------------------------------------------------------------------
 inline size_t portableCLZ(uint32_t value)
+//-----------------------------------------------------------------------------
 {
 	if (!value) return 8 * sizeof(value);
 #ifdef __GNUC__
@@ -119,13 +185,17 @@ inline size_t portableCLZ(uint32_t value)
 static constexpr size_t kMinPageSize = 4096;
 static_assert(kMinPageSize >= 16, "kMinPageSize must be at least SSE register size");
 
+//-----------------------------------------------------------------------------
 template <typename T>
 inline uintptr_t page_for(T* addr)
+//-----------------------------------------------------------------------------
 {
 	return reinterpret_cast<uintptr_t>(addr) / kMinPageSize;
 }
 
+//-----------------------------------------------------------------------------
 inline size_t nextAlignedIndex(const char* arr)
+//-----------------------------------------------------------------------------
 {
 	auto firstPossible = reinterpret_cast<uintptr_t>(arr) + 1;
 	return 1 + // add 1 because the index starts at 'arr'
@@ -133,10 +203,12 @@ inline size_t nextAlignedIndex(const char* arr)
 	        - firstPossible;
 }
 
+//-----------------------------------------------------------------------------
 // helper method for case where needles.size() <= 16
 size_t kFindFirstOfNeedles16(
         const KStringView haystack,
         const KStringView needles)
+//-----------------------------------------------------------------------------
 {
 	if (// must bail if we can't even SSE-load a single segment of haystack
 	    (haystack.size() < 16 &&
@@ -171,10 +243,12 @@ size_t kFindFirstOfNeedles16(
 	return KStringView::npos;
 }
 
+//-----------------------------------------------------------------------------
 // helper method for case where needles.size() <= 16
 size_t kFindFirstNotOfNeedles16(
         const KStringView haystack,
         const KStringView needles)
+//-----------------------------------------------------------------------------
 {
 	if (// must bail if we can't even SSE-load a single segment of haystack
 	    (haystack.size() < 16 &&
@@ -209,6 +283,7 @@ size_t kFindFirstNotOfNeedles16(
 	return KStringView::npos;
 }
 
+//-----------------------------------------------------------------------------
 // Scans a 16-byte block of haystack (starting at blockStartIdx) to find first
 // needle. If HAYSTACK_ALIGNED, then haystack must be 16byte aligned.
 // If !HAYSTACK_ALIGNED, then caller must ensure that it is safe to load the
@@ -218,6 +293,7 @@ size_t scanHaystackBlock(
         const KStringView haystack,
         const KStringView needles,
         uint64_t blockStartIdx)
+//-----------------------------------------------------------------------------
 {
 	__m128i arr1;
 	if (HAYSTACK_ALIGNED)
@@ -253,11 +329,13 @@ size_t scanHaystackBlock(
 	return KStringView::npos;
 }
 
+//-----------------------------------------------------------------------------
 template <bool HAYSTACK_ALIGNED>
 size_t scanHaystackBlockNot(
         const KStringView haystack,
         const KStringView needles,
         uint64_t blockStartIdx)
+//-----------------------------------------------------------------------------
 {
 	__m128i arr1;
 	if (HAYSTACK_ALIGNED)
@@ -310,9 +388,11 @@ size_t scanHaystackBlockNot(
 	return KStringView::npos;
 }
 
+//-----------------------------------------------------------------------------
 size_t kFindFirstOfSSE(
         const KStringView haystack,
         const KStringView needles)
+//-----------------------------------------------------------------------------
 {
 	if (DEKAF2_UNLIKELY(needles.empty() || haystack.empty()))
 	{
@@ -351,9 +431,11 @@ size_t kFindFirstOfSSE(
 	return KStringView::npos;
 }
 
+//-----------------------------------------------------------------------------
 size_t kFindFirstNotOfSSE(
         const KStringView haystack,
         const KStringView needles)
+//-----------------------------------------------------------------------------
 {
 	if (DEKAF2_UNLIKELY(needles.empty() || haystack.empty()))
 	{
@@ -390,6 +472,24 @@ size_t kFindFirstNotOfSSE(
 	}
 
 	return KStringView::npos;
+}
+
+//-----------------------------------------------------------------------------
+size_t kFindLastOfSSE(
+        const KStringView haystack,
+        const KStringView needles)
+//-----------------------------------------------------------------------------
+{
+	return kFindLastOfNoSSE(haystack, needles, false);
+}
+
+//-----------------------------------------------------------------------------
+size_t kFindLastNotOfSSE(
+        const KStringView haystack,
+        const KStringView needles)
+//-----------------------------------------------------------------------------
+{
+	return kFindLastOfNoSSE(haystack, needles, true);
 }
 
 } // end of namespace detail

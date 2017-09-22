@@ -286,7 +286,7 @@ size_t scanHaystackBlockNot(
 		                 0);
 	}
 
-	j = needles.size() -16;
+	j = needles.size() - 16;
 
 	arr2 = _mm_loadu_si128(reinterpret_cast<const __m128i*>(needles.data() + j));
 
@@ -301,7 +301,7 @@ size_t scanHaystackBlockNot(
 	if (val)
 	{
 		auto b = 32 - portableCLZ(*val);
-		if (b < 16)
+		if (b < std::min(16UL, haystack.size() - blockStartIdx))
 		{
 			return blockStartIdx + static_cast<size_t>(b);
 		}
@@ -365,9 +365,6 @@ size_t kFindFirstNotOfSSE(
 		// the common case of needles.size() <= 16
 		return kFindFirstNotOfNeedles16(haystack, needles);
 	}
-	// there is still one unit test failing for the long needle version and SSE,
-	// therefore we fall back to the no-SSE version at the moment
-	//return kFindFirstOfNoSSE(haystack, needles, true);
 
 	if (haystack.size() < 16 &&
 	    page_for(haystack.end() - 1) != page_for(haystack.data() + 16))
@@ -383,19 +380,13 @@ size_t kFindFirstNotOfSSE(
 	}
 
 	size_t i = nextAlignedIndex(haystack.data());
-	for (; i < (haystack.size() -16); i += 16)
+	for (; i < (haystack.size()); i += 16)
 	{
 		ret = scanHaystackBlockNot<true>(haystack, needles, i);
 		if (ret != std::string::npos)
 		{
 			return ret;
 		}
-	}
-
-	ret = scanHaystackBlockNot<false>(haystack, needles, haystack.size()-16);
-	if (ret != std::string::npos)
-	{
-		return ret;
 	}
 
 	return KStringView::npos;

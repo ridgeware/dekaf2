@@ -349,7 +349,6 @@ inline Ch kx2c (Ch* pszGoop)
 //-----------------------------------------------------------------------------
 {
 	int iValue{0};
-
 	switch (pszGoop[0])
 	{
 		case '0': case '1': case '2': case '3': case '4':
@@ -372,6 +371,7 @@ inline Ch kx2c (Ch* pszGoop)
 	}
 
 	return static_cast<Ch>(iValue);
+
 } // kx2c
 
 } // anonymous until here
@@ -417,7 +417,7 @@ void kUrlDecode (String& sDecode)
 /// kUrlDecode copy
 /// Copies always go to end of string so (insert < end) test unnecessary.
 template<class String>
-void kUrlDecode (KStringView& sSource, String& sTarget)
+void kUrlDecode (KStringView sSource, String& sTarget)
 //-----------------------------------------------------------------------------
 {
 	sTarget.reserve (sTarget.size ()+sSource.size ());

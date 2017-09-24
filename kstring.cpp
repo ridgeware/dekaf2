@@ -419,7 +419,11 @@ KString::iterator KString::erase(iterator position)
 //------------------------------------------------------------------------------
 {
 	try {
-		return m_rep.erase(position);
+		// we turn this into a indexed erase, because
+		// the std::string iterator erase does not test for
+		// iterator out of range and segfaults if out of range..
+		m_rep.erase(static_cast<size_type>(position - begin()), 1);
+		return position;
 	} catch (std::exception& e) {
 		kException(e);
 	}
@@ -431,7 +435,12 @@ KString::iterator KString::erase(iterator first, iterator last)
 //------------------------------------------------------------------------------
 {
 	try {
-		return m_rep.erase(first, last);
+		// we turn this into a indexed erase, because
+		// the std::string iterator erase does not test for
+		// iterator out of range and segfaults if out of range..
+		m_rep.erase(static_cast<size_type>(first - begin()),
+		            static_cast<size_type>(last - first));
+		return first;
 	} catch (std::exception& e) {
 		kException(e);
 	}
@@ -993,6 +1002,57 @@ void KString::RemoveIllegalChars(KStringView sIllegalChars)
 		lastpos = pos;
 	}
 }
+
+#ifdef DEKAF2_WITH_DEPRECATED_KSTRING_MEMBER_FUNCTIONS
+
+//----------------------------------------------------------------------
+bool KString::FindRegex(KStringView regex) const
+//----------------------------------------------------------------------
+{
+	return KRegex::Matches(ToView(), regex);
+}
+
+//----------------------------------------------------------------------
+bool KString::FindRegex(KStringView regex, unsigned int* start, unsigned int* end, size_type pos) const
+//----------------------------------------------------------------------
+{
+	KStringView sv(ToView());
+	if (pos > 0)
+	{
+		sv.remove_prefix(pos);
+	}
+	size_t s, e;
+	auto ret = KRegex::Matches(sv, regex, s, e);
+	if (s == e)
+	{
+		if (start) *start = 0;
+		if (end)   *end   = 0;
+	}
+	else
+	{
+		// these casts are obviously bogus as size_t on
+		// 64 bit systems is larger than unsigned int
+		// - but this is what the old dekaf KString expects
+		// as return values.. so better do not use it with
+		// strings larger than 2^31 chars
+		if (start) *start = static_cast<unsigned int>(s + pos);
+		if (end)   *end   = static_cast<unsigned int>(e + pos);
+	}
+	return ret;
+}
+
+//----------------------------------------------------------------------
+KString::size_type KString::SubRegex(KStringView pszRegEx, KStringView pszReplaceWith, bool bReplaceAll, size_type* piIdxOffset)
+//----------------------------------------------------------------------
+{
+#ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
+	return KRegex::Replace(*this, pszRegEx, pszReplaceWith, bReplaceAll);
+#else
+	return KRegex::Replace(m_rep, pszRegEx, pszReplaceWith, bReplaceAll);
+#endif
+}
+
+#endif
 
 //-----------------------------------------------------------------------------
 bool KString::In (KStringView sHaystack, value_type iDelim/*=','*/)

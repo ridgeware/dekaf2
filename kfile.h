@@ -54,10 +54,23 @@ namespace dekaf2
 
 typedef uint16_t KFileFlags;
 
+//-----------------------------------------------------------------------------
 /// Checks if a file exists.
 /// @param bTestForEmptyFile If true reats a file as non-existing if its size is 0
 bool kExists (const KString& sPath, bool bTestForEmptyFile = false);
+//-----------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
 KString kGetCWD ();
+//-----------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
+KStringView kFileBaseName(KStringView sFilePath);
+//-----------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
+KStringView kFileDirName(KStringView sFilePath, bool bWithSlash = true);
+//-----------------------------------------------------------------------------
 
 } // end of namespace dekaf2
 

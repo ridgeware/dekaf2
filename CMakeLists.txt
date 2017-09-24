@@ -95,6 +95,7 @@ set (HEADERS
     dekaf2.h
     kstringview.h
     kstring.h
+    kstring2to1.h
     kcache.h
     kregex.h
     klog.h

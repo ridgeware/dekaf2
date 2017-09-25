@@ -37,6 +37,16 @@ public:
 	{
 	}
 
+	/// print arguments with fmt::printf..
+	// actually we switch the printing format specifier to a sprintf - like
+	// as the previous KString used such
+	template<class... Args>
+	KString& Format(Args&&... args)
+	{
+		m_rep = kPrintf(std::forward<Args>(args)...);
+		return *this;
+	}
+
 #ifdef DEKAF2_ALLOW_CONVERSIONS_WITH_OLD_KSTRING_XXX
  #ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
 	KString2To1& operator= (const ::KString str) { m_rep = str.c_str(); return *this; }

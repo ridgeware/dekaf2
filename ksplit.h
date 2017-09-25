@@ -1,0 +1,162 @@
+/*
+//////////////////////////////////////////////////////////////////////////////
+//
+// DEKAF(tm): Lighter, Faster, Smarter(tm)
+//
+// Copyright (c) 2000-2017, Ridgeware, Inc.
+//
+// +-------------------------------------------------------------------------+
+// | /\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\|
+// |/+---------------------------------------------------------------------+/|
+// |/|                                                                     |/|
+// |\|  ** THIS NOTICE MUST NOT BE REMOVED FROM THE SOURCE CODE MODULE **  |\|
+// |/|                                                                     |/|
+// |\|   OPEN SOURCE LICENSE                                               |\|
+// |/|                                                                     |/|
+// |\|   Permission is hereby granted, free of charge, to any person       |\|
+// |/|   obtaining a copy of this software and associated                  |/|
+// |\|   documentation files (the "Software"), to deal in the              |\|
+// |/|   Software without restriction, including without limitation        |/|
+// |\|   the rights to use, copy, modify, merge, publish,                  |\|
+// |/|   distribute, sublicense, and/or sell copies of the Software,       |/|
+// |\|   and to permit persons to whom the Software is furnished to        |\|
+// |/|   do so, subject to the following conditions:                       |/|
+// |\|                                                                     |\|
+// |/|   The above copyright notice and this permission notice shall       |/|
+// |\|   be included in all copies or substantial portions of the          |\|
+// |/|   Software.                                                         |/|
+// |\|                                                                     |\|
+// |/|   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY         |/|
+// |\|   KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE        |\|
+// |/|   WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR           |/|
+// |\|   PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS        |\|
+// |/|   OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR          |/|
+// |\|   OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR        |\|
+// |/|   OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE         |/|
+// |\|   SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.            |\|
+// |/|                                                                     |/|
+// |/+---------------------------------------------------------------------+/|
+// |\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/ |
+// +-------------------------------------------------------------------------+
+//
+//////////////////////////////////////////////////////////////////////////////
+*/
+
+#pragma once
+
+#include "kstringview.h"
+
+namespace dekaf2
+{
+
+//-----------------------------------------------------------------------------
+/// Find delimiter char prefixed by even number of escape characters (0, 2, ...).
+/// Ignore delimiter chars prefixed by odd number of escapes.
+size_t kFindFirstOfUnescaped(KStringView svBuffer, KStringView svDelimiter, char iEscape);
+//-----------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
+/// kSplit converts string into token container using delimiters and escape.
+/// kSplit (Container, Buffer, Delimiters, Trim, Escape)
+/// Container is target iterable container like deque | vector.
+/// Buffer is a source char sequence.
+/// Delimiters is a string of delimiter characters.
+/// Trim is a string containing chars to remove from token ends.
+/// Escape (default '\0'). If '\\' parse ignores escaped delimiters.
+template<typename Container>
+size_t kSplit (
+		Container&  ctContainer,
+		KStringView svBuffer,
+		KStringView sDelim  = ",",          // default: comma delimiter
+		KStringView sTrim   = " \t\r\n\b",  // default: trim all whitespace
+		char        iEscape = '\0'          // default: ignore escapes
+)
+//-----------------------------------------------------------------------------
+{
+	// consider the string " a , b , c , d , e "
+	// where                    ^              ^   is the operational pair
+	while (svBuffer.size())
+	{
+		// svBuffer " a , b , c , d , e "
+		// head/tail     ^              ^
+		if (sTrim.size())
+		{
+			// Strip prefix space characters.
+			auto iFound = svBuffer.find_first_not_of (sTrim);
+			if (iFound != KStringView::npos)
+			{
+				svBuffer.remove_prefix (iFound);
+			}
+		} // if (sTrim.size())
+
+		// svBuffer " a , b , c , d , e "
+		// head/tail      ^            ^
+		if (svBuffer.empty())
+		{
+			// Stop if input buffer is empty.
+			break;
+		} // if (!iChars)
+
+		// svBuffer " a , b , c , d , e "
+		// head/tail      ^            ^
+		// Whatever is at index 0 is to be stored in the member.
+		ctContainer.push_back (svBuffer);
+		KStringView& last = ctContainer.back();
+
+		// Look for delimiter character.
+		// NOTE no attempt in old code to handle escape characters.
+		size_t iNext;
+
+		// svBuffer " a , b , c , d , e "
+		// head/tail      ^            ^
+		// back           ^            ^
+		if (iEscape == '\0')
+		{
+			// If no escape character is specified, do not look for escapes
+			iNext = svBuffer.find_first_of(sDelim);
+		}
+		else
+		{
+			// Find earliest instance of odd-count escape characters.
+			iNext = kFindFirstOfUnescaped (svBuffer, sDelim, iEscape);
+		} // if (iEscape == '\0')
+
+		// A delimiter or end-of-string was found.
+		// Terminate the last stored member entry
+		if (iNext != KStringView::npos)
+		{
+			last.remove_suffix (svBuffer.size () - iNext);
+
+			// Carve off what was stored, and its delimiter.
+			svBuffer.remove_prefix (iNext + 1);
+		}
+		else
+		{
+			svBuffer.remove_prefix (svBuffer.size());
+		} // if (iNext != npos)
+
+		// svBuffer " a , b , c , d , e "
+		// head/tail         ^         ^
+		// back           ^ ^
+		if (sTrim.size())
+		{
+			//  Strip suffix space characters.
+			size_t iFound = last.find_last_not_of (sTrim);
+			if (iFound != KStringView::npos)
+			{
+				size_t iRemove = last.size() - 1 - iFound;
+				last.remove_suffix(iRemove);
+			}
+		}
+		// svBuffer " a , b , c , d , e "
+		// head/tail         ^         ^
+		// back           ^^
+
+		// What remains is ready for the next parse round.
+	} // while (svBuffer.size())
+
+	return ctContainer.size ();
+
+} // kSplit with string of delimiters
+
+} // namespace dekaf2

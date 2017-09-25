@@ -128,6 +128,7 @@ set (HEADERS
     kmru.h
     ksslstream.h
     ksslclient.h
+    ksplit.h
 )
 
 set (SOURCES
@@ -161,6 +162,7 @@ set (SOURCES
     ktcpserver.cpp
     khash.cpp
     ksslstream.cpp
+    ksplit.cpp
 )
 
 if (DEKAF2_INSTALL_HEADERS)

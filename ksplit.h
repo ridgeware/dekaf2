@@ -75,102 +75,88 @@ size_t kSplit (
 {
 	// consider the string " a , b , c , d , e "
 	// where                    ^              ^   is the operational pair
-	if (svBuffer.size () != 0)
+	while (svBuffer.size())
 	{
+		// svBuffer " a , b , c , d , e "
+		// head/tail     ^              ^
 		if (sTrim.size())
 		{
-			// Strip suffix space characters.
-			size_t iLeading  = svBuffer.find_first_not_of (sTrim);
-			size_t iTrailing = svBuffer.find_last_not_of  (sTrim);
-			if (iTrailing != KStringView::npos)
+			// Strip prefix space characters.
+			auto iFound = svBuffer.find_first_not_of (sTrim);
+			if (iFound != KStringView::npos)
 			{
-				svBuffer.remove_suffix (svBuffer.size () - iTrailing);
+				svBuffer.remove_prefix (iFound);
 			}
-			if (iLeading != KStringView::npos)
+		} // if (sTrim.size())
+
+		// svBuffer " a , b , c , d , e "
+		// head/tail      ^            ^
+		if (svBuffer.empty())
+		{
+			// Stop if input buffer is empty.
+			break;
+		} // if (!iChars)
+
+		// svBuffer " a , b , c , d , e "
+		// head/tail      ^            ^
+		// Whatever is at index 0 is to be stored in the member.
+		ctContainer.push_back (svBuffer);
+		KStringView& last = ctContainer.back();
+
+		// Look for delimiter character.
+		// NOTE no attempt in old code to handle escape characters.
+		size_t iNext;
+
+		// svBuffer " a , b , c , d , e "
+		// head/tail      ^            ^
+		// back           ^            ^
+		if (iEscape == '\0')
+		{
+			// If no escape character is specified, do not look for escapes
+			iNext = svBuffer.find_first_of(sDelim);
+		}
+		else
+		{
+			// Find earliest instance of odd-count escape characters.
+			iNext = kFindFirstOfUnescaped (svBuffer, sDelim, iEscape);
+		} // if (iEscape == '\0')
+
+		// A delimiter or end-of-string was found.
+		// Terminate the last stored member entry
+		if (iNext != KStringView::npos)
+		{
+			last.remove_suffix (svBuffer.size () - iNext);
+
+			// Carve off what was stored, and its delimiter.
+			svBuffer.remove_prefix (iNext + 1);
+		}
+		else
+		{
+			svBuffer.remove_prefix (svBuffer.size());
+		} // if (iNext != npos)
+
+		// svBuffer " a , b , c , d , e "
+		// head/tail         ^         ^
+		// back           ^ ^
+		if (sTrim.size())
+		{
+			//  Strip suffix space characters.
+			size_t iFound = last.find_last_not_of (sTrim);
+			if (iFound != KStringView::npos)
 			{
-				svBuffer.remove_prefix (iLeading);
+				size_t iRemove = last.size() - 1 - iFound;
+				last.remove_suffix(iRemove);
 			}
 		}
+		// svBuffer " a , b , c , d , e "
+		// head/tail         ^         ^
+		// back           ^^
 
-		while (svBuffer.size())
-		{
-			// svBuffer " a , b , c , d , e "
-			// head/tail     ^              ^
-			if (sTrim.size())
-			{
-				// Strip prefix space characters.
-				size_t iFound = svBuffer.find_first_not_of (sTrim);
-				svBuffer.remove_prefix (iFound);
-			} // if (sTrim.size())
+		// What remains is ready for the next parse round.
+	} // while (svBuffer.size())
 
-			// svBuffer " a , b , c , d , e "
-			// head/tail      ^            ^
-			size_t iChars = svBuffer.size ();
-			if (!iChars)
-			{
-				// Stop if input buffer is empty.
-				break;
-			} // if (!iChars)
-
-			// svBuffer " a , b , c , d , e "
-			// head/tail      ^            ^
-			// Whatever is at index 0 is to be stored in the member.
-			ctContainer.push_back (svBuffer);
-			KStringView& last = ctContainer.back();
-
-			// Look for delimiter character.
-			// NOTE no attempt in old code to handle escape characters.
-			size_t iNext;
-
-			// svBuffer " a , b , c , d , e "
-			// head/tail      ^            ^
-			// back           ^            ^
-			if (iEscape == '\0')
-			{
-				// If no escape character is specified, do not look for escapes
-				iNext = svBuffer.find_first_of(sDelim);
-			}
-			else
-			{
-				// Find earliest instance of odd-count escape characters.
-				iNext = kFindFirstOfUnescaped (svBuffer, sDelim, iEscape);
-			} // if (iEscape == '\0')
-
-			// A delimiter or end-of-string was found.
-			// Terminate the last stored member entry
-			if (iNext != KStringView::npos)
-			{
-				last.remove_suffix (svBuffer.size () - iNext);
-
-				// Carve off what was stored, and its delimiter.
-				svBuffer.remove_prefix (iNext + 1);
-			}
-			else
-			{
-				svBuffer.remove_prefix (svBuffer.size());
-			} // if (iNext != npos)
-
-			// svBuffer " a , b , c , d , e "
-			// head/tail         ^         ^
-			// back           ^ ^
-			if (sTrim.size())
-			{
-				//  Strip suffix space characters.
-				size_t iFound = last.find_last_not_of (sTrim);
-				if (iFound != KStringView::npos)
-				{
-					size_t iRemove = last.size() - iFound;
-					last.remove_suffix(iRemove);
-				}
-			}
-			// svBuffer " a , b , c , d , e "
-			// head/tail         ^         ^
-			// back           ^^
-
-			// What remains is ready for the next parse round.
-		} // while (svBuffer.size())
-	}
 	return ctContainer.size ();
+
 } // kSplit with string of delimiters
 
 } // namespace dekaf2

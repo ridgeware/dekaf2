@@ -1,4 +1,5 @@
-//*////////////////////////////////////////////////////////////////////////////
+/*
+//////////////////////////////////////////////////////////////////////////////
 //
 // DEKAF(tm): Lighter, Faster, Smarter(tm)
 //
@@ -38,74 +39,35 @@
 // |\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/ |
 // +-------------------------------------------------------------------------+
 //
-//*////////////////////////////////////////////////////////////////////////////
-
+//////////////////////////////////////////////////////////////////////////////
+*/
 
 #pragma once
 
-#include <vector>
-
-#include "kstring.h"
-#include "kstringutils.h"
+#include "kstringview.h"
 
 namespace dekaf2
 {
 
+//-----------------------------------------------------------------------------
 /// Find delimiter char prefixed by even number of escape characters (0, 2, ...).
 /// Ignore delimiter chars prefixed by odd number of escapes.
-template<typename Tsearch>
-size_t kFindUnescaped(KStringView svBuffer, Tsearch tSearch, char iEscape)
+size_t kFindFirstOfUnescaped(KStringView svBuffer, KStringView svDelimiter, char iEscape);
 //-----------------------------------------------------------------------------
-{
-	size_t iFound = svBuffer.find_first_of (tSearch);
-
-	if (!iEscape || iFound == 0)
-	{
-		// If no escape char is given or
-		// the searched character was first on the line...
-		return iFound;
-	}
-
-	while (iFound != KStringView::npos)
-	{
-		size_t iEscapes = 0;
-		size_t iStart = iFound;
-
-		while (iStart)
-		{
-			// count number of escape characters
-			--iStart;
-			if (svBuffer[iStart] != iEscape)
-			{
-				break;
-			}
-			++iEscapes;
-		} // while iStart
-
-		if (!(iEscapes & 1))  // if even number of escapes
-		{
-			break;
-		}
-
-		iFound = svBuffer.find_first_of (tSearch, iFound + 1);
-	} // while iFound
-	return iFound;
-} // kFindUnescaped
-
 
 //-----------------------------------------------------------------------------
-/// kSplit converts string into token container using delimiters and escape
+/// kSplit converts string into token container using delimiters and escape.
 /// kSplit (Container, Buffer, Delimiters, Trim, Escape)
 /// Container is target iterable container like deque | vector.
 /// Buffer is a source char sequence.
 /// Delimiters is a string of delimiter characters.
 /// Trim is a string containing chars to remove from token ends.
 /// Escape (default '\0'). If '\\' parse ignores escaped delimiters.
-template<typename Tcnt>
-inline size_t kSplit (
-		Tcnt& ctContainer,
-		KStringView  svBuffer,
-		KStringView  sDelim = ",",          // default: comma delimiter
+template<typename Container>
+size_t kSplit (
+		Container&  ctContainer,
+		KStringView svBuffer,
+		KStringView sDelim  = ",",          // default: comma delimiter
 		KStringView sTrim   = " \t\r\n\b",  // default: trim all whitespace
 		char        iEscape = '\0'          // default: ignore escapes
 )
@@ -171,12 +133,7 @@ inline size_t kSplit (
 			else
 			{
 				// Find earliest instance of odd-count escape characters.
-				iNext = KStringView::npos;
-				for (size_t ii = 0; ii < sDelim.size(); ++ii)
-				{
-					size_t iTemp = kFindUnescaped (svBuffer, sDelim[ii], iEscape);
-					iNext = (iTemp < iNext) ? iTemp : iNext;
-				}
+				iNext = kFindFirstOfUnescaped (svBuffer, sDelim, iEscape);
 			} // if (iEscape == '\0')
 
 			// A delimiter or end-of-string was found.
@@ -216,4 +173,4 @@ inline size_t kSplit (
 	return ctContainer.size ();
 } // kSplit with string of delimiters
 
-} // namedpace dekaf2
+} // namespace dekaf2

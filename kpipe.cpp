@@ -28,7 +28,7 @@ KPipe::~KPipe()
 bool KPipe::Open(KStringView sProgram)
 //-----------------------------------------------------------------------------
 {
-	kDebug(3, "KPipe open program: {}", sProgram);
+	kDebug(3, "Program to be opened: {}", sProgram);
 
 	Close(); // ensure a previous pipe is closed
 	errno = 0;
@@ -46,13 +46,13 @@ bool KPipe::Open(KStringView sProgram)
 	// - - - - - - - - - - - - - - - - - - - - - - - -
 	if (m_writePdes[0] == -1)
 	{
-		kWarning(0, "KPipe: OpenPipeRW CMD FAILED: {} ERROR: {}", sProgram, strerror(errno));
+		kWarning("OpenPipeRW FAILED to open program: {} | ERROR: {}", sProgram, strerror(errno));
 		m_iExitCode = errno;
 		return false;
 	}
 	else
 	{
-		kDebug(3, "KPipe: OpenPipeRW: ok...");
+		kDebug(3, "OpenPipeRW opened program successfully...");
 		KFDStream::open(m_readPdes[0], m_writePdes[1]);
 		return KFDStream::good();
 	}

@@ -70,7 +70,7 @@ KOutPipe::~KOutPipe()
 bool KOutPipe::Open(KStringView sProgram)
 //-----------------------------------------------------------------------------
 {
-	kDebug(3, "KOutPipe open program: {}", sProgram);
+	kDebug(3, "Program to be opened: {}", sProgram);
 
 	Close(); // ensure a previous pipe is closed
 	errno = 0;
@@ -88,13 +88,13 @@ bool KOutPipe::Open(KStringView sProgram)
 	// - - - - - - - - - - - - - - - - - - - - - - - -
 	if (m_writePdes[0] == -1)
 	{
-		kWarning(0, "KOutPipe OpenReadPipe CMD FAILED: {} ERROR: {}", sProgram, strerror(errno));
+		kWarning("OpenWritePipe FAILED to open program: {} | ERROR: {}", sProgram, strerror(errno));
 		m_iExitCode = errno;
 		return false;
 	}
 	else
 	{
-		kDebug(3, "KOutPipe: OpenReadPipe: ok...");
+		kDebug(3, "OpenWritePipe: opened program {} successfully...", sProgram);
 		KFDWriter::open(m_writePdes[1]);
 		return KFDWriter::good();
 	}

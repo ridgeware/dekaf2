@@ -24,6 +24,7 @@ bool KBasePipe::IsRunning()
 	wait();
 
 	// Did we fail to get a status?
+	// We don't want to call WIFEEXITED if so
 	if (-2 == m_iChildStatus)
 	{
 		m_iExitCode = -1;
@@ -126,7 +127,9 @@ bool KBasePipe::wait()
 
 	if ((iPid == -1) && (errno != EINTR))
 	{
-		kDebug(0, "KBasePipe::wait got an invalid status iPid = -1. Errno {} : {}", errno, strerror(errno));
+		// This returns sets status to -2 so IsRunning knows that we actually failed to get a status
+		// This way we don't call WIFEXITED and WEXITSTATUS in this case
+		kDebug(0, "Got an invalid status iPid = -1. Errno {} : {}", errno, strerror(errno));
 		m_iChildStatus = -2;
 		m_bChildStatusValid = true;
 		return true;

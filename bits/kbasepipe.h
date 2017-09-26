@@ -42,8 +42,8 @@
 
 #pragma once
 // Dekaf Includes
-#include "kstring.h"
-#include "klog.h"
+#include "../kstring.h"
+#include "../klog.h"
 
 // Generic Includes
 #include <sys/wait.h>

@@ -45,7 +45,8 @@
 /// @file kinshell.h
 /// provides reading pipe access to a shell instance.
 
-#include "kbaseshell.h"
+//#include <dekaf2/bits/kbaseshell.h>
+#include "bits/kbaseshell.h"
 #include "kfdstream.h"
 
 namespace dekaf2

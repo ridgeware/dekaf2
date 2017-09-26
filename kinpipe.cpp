@@ -107,9 +107,11 @@ int KInPipe::Close ()
 {
 	int iExitCode = -1;
 
+	// Close Stream
+	KFDReader::close();
 	// Close the pipe
 	::close(m_readPdes[1]);
-	// Child has been cut off from parent, let it terminate
+	// Child has been cut off from parent, let it terminate for up to a minute
 	WaitForFinished(60000);
 
 	// is the child still running?

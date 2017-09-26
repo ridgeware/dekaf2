@@ -117,7 +117,7 @@ set (HEADERS
     kstream.h
     kfdstream.h
     kstreambuf.h
-    kbaseshell.h
+    bits/kbaseshell.h
     kinshell.h
     koutshell.h
     kstack.h
@@ -127,7 +127,7 @@ set (HEADERS
     kmru.h
     kinpipe.h
     koutpipe.h
-    kbasepipe.h
+    bits/kbasepipe.h
     kpipe.h
     ksslstream.h
     ksslclient.h
@@ -158,14 +158,14 @@ set (SOURCES
     kstream.cpp
     kfdstream.cpp
     kstreambuf.cpp
-    kbaseshell.cpp
+    bits/kbaseshell.cpp
     kinshell.cpp
     koutshell.cpp
     ktcpserver.cpp
     khash.cpp
     kinpipe.cpp
     koutpipe.cpp
-    kbasepipe.cpp
+    bits/kbasepipe.cpp
     kpipe.cpp
     ksslstream.cpp
 )

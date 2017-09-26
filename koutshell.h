@@ -46,7 +46,7 @@
 /// provides writing pipe access to a shell instance.
 
 
-#include "kbaseshell.h"
+#include "bits/kbaseshell.h"
 #include "kfdstream.h"
 
 namespace dekaf2

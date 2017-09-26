@@ -44,7 +44,7 @@
 /// @file kbaseshell.h
 /// basic shell I/O class
 
-#include "kstring.h"
+#include "../kstring.h"
 
 namespace dekaf2
 {

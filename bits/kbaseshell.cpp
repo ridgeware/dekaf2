@@ -40,7 +40,7 @@
 // +-------------------------------------------------------------------------+
 */
 
-#include "klog.h"
+#include "../klog.h"
 #include "kbaseshell.h"
 
 namespace dekaf2

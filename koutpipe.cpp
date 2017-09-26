@@ -107,9 +107,11 @@ int KOutPipe::Close()
 {
 	int iExitCode = -1;
 
+	// Close stream
+	KFDWriter::close();
 	// Send EOF by closing write end of pipe
 	::close(m_writePdes[1]);
-	// Child has been cut off from parent, let it terminate
+	// Child has been cut off from parent, let it terminate for up to a minute
 	WaitForFinished(60000);
 
 

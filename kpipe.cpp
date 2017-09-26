@@ -65,13 +65,12 @@ int KPipe::Close()
 {
 	int iExitCode = -1;
 
+	// Close reader/writer
+	KFDStream::close();
 	// Close read on of stdout pipe
 	::close(m_readPdes[0]);
 	// Send EOF by closing write end of pipe
 	::close(m_writePdes[1]);
-	// Close reader/writer
-	KFDStream::close();
-
 	// Child has been cut off from parent, let it terminate
 	WaitForFinished(60000);
 

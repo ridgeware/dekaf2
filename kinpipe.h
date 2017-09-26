@@ -43,7 +43,7 @@
 #pragma once
 
 // Dekaf Includes
-#include "kbasepipe.h"
+#include "bits/kbasepipe.h"
 #include "kfdstream.h"
 
 namespace dekaf2

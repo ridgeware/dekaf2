@@ -290,9 +290,187 @@ size_t kFindLastNotOfNeedles16(
         const KStringView needles)
 //-----------------------------------------------------------------------------
 {
-	return 0;
+	if (// must bail if we can't even SSE-load a single segment of haystack
+	    (haystack.size() < 16 &&
+	     page_for(haystack.end() - 1) != page_for(haystack.data() + 15)) ||
+	    // can't load needles into SSE register if it could cross page boundary
+	    page_for(needles.end() - 1) != page_for(needles.data() + 15))
+	{
+		// Haystack crosses page boundary, SSE is slower across 2 pages
+		return kFindLastOfNoSSE(haystack, needles, true);
+	}
+
+	//===
+	__m128i arr2  = _mm_loadu_si128(reinterpret_cast<const __m128i*>(needles.data()));
+	// do an unaligned load for first block of haystack
+	__m128i arr1  = _mm_loadu_si128(reinterpret_cast<const __m128i*>(haystack.data() + haystack.size() - std::min(16, static_cast<int>(haystack.size()))));
+	//if (haystack.size() < 16)
+	//{
+	    //uint8_t iShiftAmount = 16 - haystack.size();
+	// These shifts needs immediate values, if this ends up in solution
+	// make switch case for efficiency
+	// haystack
+	   //arr1 = _mm_slli_si128(arr1, 2); // left shift out number of chars garbage
+	   //arr1 = _mm_srli_si128(arr1, 2); // right shift back to correct position
+	// remove junk from needles
+	    //arr2 = _mm_slli_si128(arr2, 8); // left shift out number of chars garbage
+	    //arr2 = _mm_srli_si128(arr2, 8); // right shift back to correct position
+	//int iShiftAmount = 16 - needles.size();
+/*
+	switch(iShiftAmount)
+	{
+		case 1:
+		arr2 = _mm_slli_si128(arr2, 1); // left shift out number of chars garbage
+		arr2 = _mm_srli_si128(arr2, 1); // right shift back to correct position
+		break;
+		case 2:
+		arr2 = _mm_slli_si128(arr2, 2); // left shift out number of chars garbage
+		arr2 = _mm_srli_si128(arr2, 2); // right shift back to correct position
+		break;
+		case 3:
+		arr2 = _mm_slli_si128(arr2, 3); // left shift out number of chars garbage
+		arr2 = _mm_srli_si128(arr2, 3); // right shift back to correct position
+		break;
+		case 4:
+		arr2 = _mm_slli_si128(arr2, 4); // left shift out number of chars garbage
+		arr2 = _mm_srli_si128(arr2, 4); // right shift back to correct position
+		break;
+		case 5:
+		arr2 = _mm_slli_si128(arr2, 5); // left shift out number of chars garbage
+		arr2 = _mm_srli_si128(arr2, 5); // right shift back to correct position
+		break;
+		case 6:
+		arr2 = _mm_slli_si128(arr2, 6); // left shift out number of chars garbage
+		arr2 = _mm_srli_si128(arr2, 6); // right shift back to correct position
+		break;
+		case 7:
+		arr2 = _mm_slli_si128(arr2, 7); // left shift out number of chars garbage
+		arr2 = _mm_srli_si128(arr2, 7); // right shift back to correct position
+		break;
+		case 8:
+		arr2 = _mm_slli_si128(arr2, 8); // left shift out number of chars garbage
+		arr2 = _mm_srli_si128(arr2, 8); // right shift back to correct position
+		break;
+		case 9:
+		arr2 = _mm_slli_si128(arr2, 9); // left shift out number of chars garbage
+		arr2 = _mm_srli_si128(arr2, 9); // right shift back to correct position
+		break;
+		case 10:
+		arr2 = _mm_slli_si128(arr2, 10); // left shift out number of chars garbage
+		arr2 = _mm_srli_si128(arr2, 10); // right shift back to correct position
+		break;
+		case 11:
+		arr2 = _mm_slli_si128(arr2, 11); // left shift out number of chars garbage
+		arr2 = _mm_srli_si128(arr2, 11); // right shift back to correct position
+		break;
+		case 12:
+		arr2 = _mm_slli_si128(arr2, 12); // left shift out number of chars garbage
+		arr2 = _mm_srli_si128(arr2, 12); // right shift back to correct position
+		break;
+		case 13:
+		arr2 = _mm_slli_si128(arr2, 13); // left shift out number of chars garbage
+		arr2 = _mm_srli_si128(arr2, 13); // right shift back to correct position
+		break;
+		case 14:
+		arr2 = _mm_slli_si128(arr2, 14); // left shift out number of chars garbage
+		arr2 = _mm_srli_si128(arr2, 14); // right shift back to correct position
+		break;
+		case 15:
+		arr2 = _mm_slli_si128(arr2, 15); // left shift out number of chars garbage
+		arr2 = _mm_srli_si128(arr2, 15); // right shift back to correct position
+		break;
+		default:
+		break;
+	}
+*/
+
+	//-1 is all F, compiler won't let me specify that in hex...
+	    //__m128i arr3 = {-1,0x00FFFFFFFFFFFFFF};
+	    //arr1 = _mm_and_si128(arr1, arr3);
+	//}
+
+	//auto index = _mm_cmpestri(arr2, static_cast<int>(needles.size()), arr1, static_cast<int>(haystack.size()), 0b01010000);
+	auto index = _mm_cmpestri(arr2, static_cast<int>(needles.size()), arr1, std::min(16, static_cast<int>(haystack.size())), 0b01010000);
+	if (index < std::min(16, static_cast<int>(haystack.size())))
+	{
+		return size_t(index + haystack.size() -std::min(16, static_cast<int>(haystack.size())));
+	}
+
+	// Now, we can do aligned loads hereafter...
+	size_t i = nextAlignedIndex(haystack.data() + haystack.size() - 16);
+	for (; i > 16; i -= 16)
+	{
+		arr1  = _mm_load_si128(reinterpret_cast<const __m128i*>(haystack.data() + i));
+		index = _mm_cmpestri(arr2, static_cast<int>(needles.size()), arr1, static_cast<int>(haystack.size() - i) , 0b01010000);
+		if (index < 16)
+		{
+			return i + static_cast<size_t>(index);
+		}
+	}
+
+	arr1  = _mm_loadu_si128(reinterpret_cast<const __m128i*>(haystack.data()));
+	index = _mm_cmpestri(arr2, static_cast<int>(needles.size()), arr1, static_cast<int>(haystack.size()), 0b01010000);
+	if (index < 16)
+	{
+		//return i + static_cast<size_t>(index);
+		return static_cast<size_t>(index);
+	}
+
+	return KStringView::npos;
+
 }
 
+/*
+//-----------------------------------------------------------------------------
+// helper method for case where needles.size() <= 16
+size_t kFindLastNotOfNeedles16(
+		const KStringView haystack,
+		const KStringView needles)
+//-----------------------------------------------------------------------------
+{
+	if (// must bail if we can't even SSE-load a single segment of haystack
+		(haystack.size() < 16 &&
+		 page_for(haystack.end() - 1) != page_for(haystack.data() + 15)) ||
+		// can't load needles into SSE register if it could cross page boundary
+		page_for(needles.end() - 1) != page_for(needles.data() + 15))
+	{
+		// Haystack crosses page boundary, SSE is slower across 2 pages
+		return kFindLastOfNoSSE(haystack, needles, true);
+	}
+
+	//===
+	__m128i arr2  = _mm_loadu_si128(reinterpret_cast<const __m128i*>(needles.data()));
+	// do an unaligned load for first block of haystack
+	//__m128i arr1  = _mm_loadu_si128(reinterpret_cast<const __m128i*>(haystack.data() + haystack.size() - 16));
+	auto index = _mm_cmpestri(arr2, static_cast<int>(needles.size()), arr1, 16, 0b00000000);
+	if (index < 16)
+	{
+		return size_t(index);
+	}
+
+	// Now, we can do aligned loads hereafter...
+	size_t i = nextAlignedIndex(haystack.data() + haystack.size() - 16);
+	for (; i > 15; i -= 16)
+	{
+		arr1  = _mm_load_si128(reinterpret_cast<const __m128i*>(haystack.data() + i));
+		index = _mm_cmpestri(arr2, static_cast<int>(needles.size()), arr1, static_cast<int>(haystack.size() - i) , 0b00000000);
+		if (index < 16)
+		{
+			return i + static_cast<size_t>(index);
+		}
+	}
+
+	arr1  = _mm_loadu_si128(reinterpret_cast<const __m128i*>(haystack.data()));
+	index = _mm_cmpestri(arr2, static_cast<int>(needles.size()), arr1, static_cast<int>(haystack.size()), 0b00000000);
+	if (index < 16)
+	{
+		return i + static_cast<size_t>(index);
+	}
+
+	return KStringView::npos;
+
+}
+*/
 //-----------------------------------------------------------------------------
 // Scans a 16-byte block of haystack (starting at blockStartIdx) to find first
 // needle. If HAYSTACK_ALIGNED, then haystack must be 16byte aligned.
@@ -539,18 +717,20 @@ size_t kFindLastNotOfSSE(
 	{
 		return std::string::npos;
 	}
-	else if (needles.size() <= 16)
-	{
-		// For a 16 byte or less needle you don't need to cycle through it
-		//return kFindLastNotOfNeedles16(haystack, needles);
-		return kFindLastOfNoSSE(haystack, needles, true);
-	}
-
-	if (haystack.size() < 16 &&
-	    page_for(haystack.end() - 1) != page_for(haystack.data() + 16))
+	else if (// must bail if we can't even SSE-load a single segment of haystack
+	    (haystack.size() < 16 &&
+	     page_for(haystack.end() - 1) != page_for(haystack.data() + 16)) ||
+	    // can't load needles into SSE register if it could cross page boundary
+	    page_for(needles.end() - 1) != page_for(needles.data() + 15))
 	{
 		// Haystack crosses page boundary, SSE is slower across 2 pages
 		return kFindLastOfNoSSE(haystack, needles, true);
+	}
+	else if (needles.size() <= 16)
+	{
+		// For a 16 byte or less needle you don't need to cycle through it
+		return kFindLastNotOfNeedles16(haystack, needles);
+		//return kFindLastOfNoSSE(haystack, needles, true);
 	}
 
 	auto ret = scanHaystackBlockNot<false>(haystack, needles, haystack.size());

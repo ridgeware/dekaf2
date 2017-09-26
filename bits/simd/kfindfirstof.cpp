@@ -304,17 +304,7 @@ size_t kFindLastNotOfNeedles16(
 	__m128i arr2  = _mm_loadu_si128(reinterpret_cast<const __m128i*>(needles.data()));
 	// do an unaligned load for first block of haystack
 	__m128i arr1  = _mm_loadu_si128(reinterpret_cast<const __m128i*>(haystack.data() + haystack.size() - std::min(16, static_cast<int>(haystack.size()))));
-	//if (haystack.size() < 16)
-	//{
-	    //uint8_t iShiftAmount = 16 - haystack.size();
-	// These shifts needs immediate values, if this ends up in solution
-	// make switch case for efficiency
-	// haystack
-	   //arr1 = _mm_slli_si128(arr1, 2); // left shift out number of chars garbage
-	   //arr1 = _mm_srli_si128(arr1, 2); // right shift back to correct position
-	// remove junk from needles
-	    //arr2 = _mm_slli_si128(arr2, 8); // left shift out number of chars garbage
-	    //arr2 = _mm_srli_si128(arr2, 8); // right shift back to correct position
+
 	//int iShiftAmount = 16 - needles.size();
 /*
 	switch(iShiftAmount)
@@ -389,7 +379,6 @@ size_t kFindLastNotOfNeedles16(
 	    //arr1 = _mm_and_si128(arr1, arr3);
 	//}
 
-	//auto index = _mm_cmpestri(arr2, static_cast<int>(needles.size()), arr1, static_cast<int>(haystack.size()), 0b01010000);
 	auto index = _mm_cmpestri(arr2, static_cast<int>(needles.size()), arr1, std::min(16, static_cast<int>(haystack.size())), 0b01010000);
 	if (index < std::min(16, static_cast<int>(haystack.size())))
 	{

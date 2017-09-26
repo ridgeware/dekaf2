@@ -1,20 +1,10 @@
-#include <map>
 #include <vector>
-#include <tuple>
-#include <sstream>
-#include <iomanip>
-
-#include "dekaf2/dekaf2.h"
 #include "catch.hpp"
-#include "dekaf2/ksplit.h"
+#include <dekaf2/dekaf2.h>
+#include <dekaf2/ksplit.h>
 
 using namespace dekaf2;
 using std::vector;
-using std::get;
-using std::map;
-using std::tuple;
-using std::stringstream;
-using std::hex;
 
 //typedef KSplit<vector, KStringView> delim_t;
 
@@ -181,6 +171,34 @@ SCENARIO ( "ksplit unit tests on valid data" )
 				CHECK(c == "ccc");
 				CHECK(d == "dddd");
 				CHECK(e == "eeeee");
+			}
+		}
+
+		WHEN ( "parse string containing only trimmable characters" )
+		{
+			KStringView buffer{" \t\n\r "};
+			vector<KStringView> vsContainer;
+			size_t iCount = kSplit(vsContainer, buffer);
+			THEN ( "examine results for defects" )
+			{
+				KStringView a = vsContainer[0];
+				CHECK(iCount == 1);
+				CHECK(a == "");
+			}
+		}
+
+		WHEN ( "parse string containing two fields of trimmable characters" )
+		{
+			KStringView buffer{" \t\n\r,\t\r "};
+			vector<KStringView> vsContainer;
+			size_t iCount = kSplit(vsContainer, buffer);
+			THEN ( "examine results for defects" )
+			{
+				KStringView a = vsContainer[0];
+				KStringView b = vsContainer[1];
+				CHECK(iCount == 2);
+				CHECK(a == "");
+				CHECK(b == "");
 			}
 		}
 

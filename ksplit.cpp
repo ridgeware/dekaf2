@@ -51,7 +51,7 @@ namespace dekaf2
 size_t kFindFirstOfUnescaped(KStringView svBuffer, KStringView svDelimiter, char iEscape)
 //-----------------------------------------------------------------------------
 {
-	size_t iFound = svBuffer.find_first_of (svDelimiter);
+	auto iFound = svBuffer.find_first_of (svDelimiter);
 
 	if (!iEscape || iFound == 0)
 	{

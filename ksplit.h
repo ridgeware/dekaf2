@@ -57,12 +57,11 @@ size_t kFindFirstOfUnescaped(KStringView svBuffer, KStringView svDelimiter, char
 
 //-----------------------------------------------------------------------------
 /// kSplit converts string into token container using delimiters and escape.
-/// kSplit (Container, Buffer, Delimiters, Trim, Escape)
-/// Container is target iterable container like deque | vector.
+/// Container needs to have a push_back() that can take a KStringView.
 /// Buffer is a source char sequence.
 /// Delimiters is a string of delimiter characters.
 /// Trim is a string containing chars to remove from token ends.
-/// Escape (default '\0'). If '\\' parse ignores escaped delimiters.
+/// Escape (default '\0' = inactive) escapes delimiters.
 template<typename Container>
 size_t kSplit (
 		Container&  ctContainer,
@@ -74,42 +73,42 @@ size_t kSplit (
 //-----------------------------------------------------------------------------
 {
 	// consider the string " a , b , c , d , e "
-	// where                    ^              ^   is the operational pair
-	while (svBuffer.size())
+
+	while (!svBuffer.empty())
 	{
-		// svBuffer " a , b , c , d , e "
-		// head/tail     ^              ^
-		if (sTrim.size())
+		if (!sTrim.empty())
 		{
 			// Strip prefix space characters.
 			auto iFound = svBuffer.find_first_not_of (sTrim);
 			if (iFound != KStringView::npos)
 			{
-				svBuffer.remove_prefix (iFound);
+				if (iFound > 0)
+				{
+					svBuffer.remove_prefix (iFound);
+
+					// actually it is a bug in our SSE implementation
+					// that find_first_not_of() returns size()+x
+					// instead of npos if not found. We have to
+					// fix it and then we can remove this check.
+					if (svBuffer.empty())
+					{
+						// Stop if input buffer is empty.
+						ctContainer.push_back(KStringView());
+						break;
+					}
+				}
 			}
-		} // if (sTrim.size())
-
-		// svBuffer " a , b , c , d , e "
-		// head/tail      ^            ^
-		if (svBuffer.empty())
-		{
-			// Stop if input buffer is empty.
-			break;
-		} // if (!iChars)
-
-		// svBuffer " a , b , c , d , e "
-		// head/tail      ^            ^
-		// Whatever is at index 0 is to be stored in the member.
-		ctContainer.push_back (svBuffer);
-		KStringView& last = ctContainer.back();
+			else
+			{
+				// input was all trimmable chars
+				ctContainer.push_back(KStringView());
+				break;
+			}
+		}
 
 		// Look for delimiter character.
-		// NOTE no attempt in old code to handle escape characters.
 		size_t iNext;
 
-		// svBuffer " a , b , c , d , e "
-		// head/tail      ^            ^
-		// back           ^            ^
 		if (iEscape == '\0')
 		{
 			// If no escape character is specified, do not look for escapes
@@ -119,41 +118,40 @@ size_t kSplit (
 		{
 			// Find earliest instance of odd-count escape characters.
 			iNext = kFindFirstOfUnescaped (svBuffer, sDelim, iEscape);
-		} // if (iEscape == '\0')
+		}
 
-		// A delimiter or end-of-string was found.
-		// Terminate the last stored member entry
+		KStringView element;
+
 		if (iNext != KStringView::npos)
 		{
-			last.remove_suffix (svBuffer.size () - iNext);
-
-			// Carve off what was stored, and its delimiter.
-			svBuffer.remove_prefix (iNext + 1);
+			element = svBuffer.substr(0, iNext);
+			svBuffer.remove_prefix(iNext + 1);
 		}
 		else
 		{
-			svBuffer.remove_prefix (svBuffer.size());
-		} // if (iNext != npos)
+			element = svBuffer;
+			svBuffer.clear();
+		}
 
-		// svBuffer " a , b , c , d , e "
-		// head/tail         ^         ^
-		// back           ^ ^
-		if (sTrim.size())
+		if (!sTrim.empty())
 		{
 			//  Strip suffix space characters.
-			size_t iFound = last.find_last_not_of (sTrim);
+			auto iFound = element.find_last_not_of (sTrim);
 			if (iFound != KStringView::npos)
 			{
-				size_t iRemove = last.size() - 1 - iFound;
-				last.remove_suffix(iRemove);
+				auto iRemove = element.size() - 1 - iFound;
+				element.remove_suffix(iRemove);
+			}
+			else
+			{
+				element.clear();
 			}
 		}
-		// svBuffer " a , b , c , d , e "
-		// head/tail         ^         ^
-		// back           ^^
+
+		ctContainer.push_back(element);
 
 		// What remains is ready for the next parse round.
-	} // while (svBuffer.size())
+	}
 
 	return ctContainer.size ();
 

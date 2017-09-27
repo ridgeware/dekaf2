@@ -117,6 +117,15 @@ public:
 	} // Push
 
 	//-----------------------------------------------------------------------------
+	/// insert iterator interface
+	template<typename Input>
+	bool push_back (Input&& newItem)
+	//-----------------------------------------------------------------------------
+	{
+		return Push(std::forward<Input>(newItem));
+	}
+
+	//-----------------------------------------------------------------------------
 	/// Take the item from the top of the stack (removes item)
 	bool Pop (Stack_Type& retrievedItem);
 	//-----------------------------------------------------------------------------
@@ -289,13 +298,13 @@ private:
 
 	Storage_Type m_Storage;
 	Stack_Type m_EmptyValue{}; // for operator[] only
-	static const Stack_Type s_cEmptyValue{};
+	static const Stack_Type s_cEmptyValue;
 
 };
 
 /// Defines the Templates static const
 template<typename Stack_Type>
-const Stack_Type KStack<Stack_Type>::s_cEmptyValue;
+const Stack_Type KStack<Stack_Type>::s_cEmptyValue = Stack_Type{};
 
 // ===== STANDARD STACK INTERACTIONS =====
 

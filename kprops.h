@@ -909,6 +909,22 @@ public:
 		m_Storage.push_back(std::move(element));
 	}
 
+	//-----------------------------------------------------------------------------
+	/// Inserts one key at the end. (InsertIterator interface)
+	void push_back(const Key& key)
+	//-----------------------------------------------------------------------------
+	{
+		Add(key);
+	}
+
+	//-----------------------------------------------------------------------------
+	/// Move-inserts one key at the end. (InsertIterator interface)
+	void push_back(Key&& key)
+	//-----------------------------------------------------------------------------
+	{
+		Add(std::move(key));
+	}
+
 }; // KProps
 
 template<class Key, class Value, bool Sequential, bool Unique>

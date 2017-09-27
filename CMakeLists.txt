@@ -162,7 +162,6 @@ set (SOURCES
     ktcpserver.cpp
     khash.cpp
     ksslstream.cpp
-    ksplit.cpp
 )
 
 if (DEKAF2_INSTALL_HEADERS)

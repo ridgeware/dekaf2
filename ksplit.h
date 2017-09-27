@@ -50,25 +50,29 @@ namespace dekaf2
 {
 
 //-----------------------------------------------------------------------------
-/// Find delimiter char prefixed by even number of escape characters (0, 2, ...).
-/// Ignore delimiter chars prefixed by odd number of escapes.
-size_t kFindFirstOfUnescaped(KStringView svBuffer, KStringView svDelimiter, char iEscape);
-//-----------------------------------------------------------------------------
-
-//-----------------------------------------------------------------------------
-/// kSplit converts string into token container using delimiters and escape.
-/// Container needs to have a push_back() that can take a KStringView.
-/// Buffer is a source char sequence.
-/// Delimiters is a string of delimiter characters.
-/// Trim is a string containing chars to remove from token ends.
-/// Escape (default '\0' = inactive) escapes delimiters.
+/// Splits string into token container using delimiters, trim, and escape.
+/// @param ctContainer needs to have a push_back() that can construct an element from
+/// a KStringView.
+/// @param svBuffer the source char sequence.
+/// @param svDelim a string view of delimiter characters. Defaults to ",".
+/// @param svTrim a string containing chars to remove from token ends. Defaults to " \t\r\n\b".
+/// @param chEscape Escape character for delimiters. Defaults to '\0' (disabled).
+/// @param bCombineDelimiters if true skips consecutive delimiters (an action always
+/// taken for found spaces if defined as delimiter). Defaults to false.
+/// @param bQuotesAreFrames if true, escape characters and delimiters inside
+/// double quotes are treated  as literal chars, and quotes themselves are removed.
+/// No trimming is applied inside the quotes (but outside). The quote has to be the
+/// first character after applied trimming, and trailing content after the closing quote
+/// is not considered part of the token. Defaults to false.
 template<typename Container>
 size_t kSplit (
-		Container&  ctContainer,
-		KStringView svBuffer,
-		KStringView sDelim  = ",",          // default: comma delimiter
-		KStringView sTrim   = " \t\r\n\b",  // default: trim all whitespace
-		char        iEscape = '\0'          // default: ignore escapes
+        Container&  ctContainer,
+        KStringView svBuffer,
+        KStringView svDelim  = ",",             // default: comma delimiter
+        KStringView svTrim   = " \t\r\n\b",     // default: trim all whitespace
+        char        chEscape = '\0',            // default: ignore escapes
+        bool        bCombineDelimiters = false, // default: create an element for each delimiter char found
+        bool        bQuotesAreEscapes  = false  // default: treat double quotes like any other char
 )
 //-----------------------------------------------------------------------------
 {
@@ -76,10 +80,10 @@ size_t kSplit (
 
 	while (!svBuffer.empty())
 	{
-		if (!sTrim.empty())
+		if (!svTrim.empty())
 		{
 			// Strip prefix space characters.
-			auto iFound = svBuffer.find_first_not_of (sTrim);
+			auto iFound = svBuffer.find_first_not_of (svTrim);
 			if (iFound != KStringView::npos)
 			{
 				if (iFound > 0)
@@ -106,37 +110,63 @@ size_t kSplit (
 			}
 		}
 
-		// Look for delimiter character.
-		size_t iNext;
-
-		if (iEscape == '\0')
-		{
-			// If no escape character is specified, do not look for escapes
-			iNext = svBuffer.find_first_of(sDelim);
-		}
-		else
-		{
-			// Find earliest instance of odd-count escape characters.
-			iNext = kFindFirstOfUnescaped (svBuffer, sDelim, iEscape);
-		}
-
 		KStringView element;
+		bool have_quotes{false};
+
+		if (bQuotesAreEscapes && svBuffer.front() == '"')
+		{
+			auto iQuote = kFindUnescaped(svBuffer, '"', chEscape, 1);
+			if (iQuote != KStringView::npos)
+			{
+				// only treat this as a quoted token if we have a closing quote
+				element = svBuffer.substr(1, iQuote - 1);
+				svBuffer.remove_prefix(iQuote + 1);
+				have_quotes = true;
+			}
+		}
+
+		// Look for delimiter character, respect escapes
+		auto iNext = kFindFirstOfUnescaped (svBuffer, svDelim, chEscape);
 
 		if (iNext != KStringView::npos)
 		{
-			element = svBuffer.substr(0, iNext);
-			svBuffer.remove_prefix(iNext + 1);
+			if (!have_quotes)
+			{
+				element = svBuffer.substr(0, iNext);
+			}
+
+			if (svBuffer[iNext] == ' ')
+			{
+				// if space is a delimiter we always treat consecutive spaces as one delimiter
+				iNext = svBuffer.find_first_not_of(' ', iNext + 1);
+			}
+			else
+			{
+				++iNext;
+			}
+
+			if (bCombineDelimiters && !(svDelim.size() == 1 && svDelim.front() == ' '))
+			{
+				// skip all adjacent delimiters
+				iNext = svBuffer.find_first_not_of(svDelim, iNext);
+			}
+
+			svBuffer.remove_prefix(iNext);
 		}
 		else
 		{
-			element = svBuffer;
+			if (!have_quotes)
+			{
+				element = svBuffer;
+			}
+
 			svBuffer.clear();
 		}
 
-		if (!sTrim.empty())
+		if (!svTrim.empty() && !have_quotes)
 		{
 			//  Strip suffix space characters.
-			auto iFound = element.find_last_not_of (sTrim);
+			auto iFound = element.find_last_not_of (svTrim);
 			if (iFound != KStringView::npos)
 			{
 				auto iRemove = element.size() - 1 - iFound;

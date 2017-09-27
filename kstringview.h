@@ -946,6 +946,24 @@ size_t kFindLastNotOf(
 #endif
 }
 
+//-----------------------------------------------------------------------------
+/// Find delimiter chars prefixed by even number of escape characters (0, 2, ...).
+/// Ignore delimiter chars prefixed by odd number of escapes.
+size_t kFindFirstOfUnescaped(KStringView haystack,
+                             KStringView needle,
+                             KStringView::value_type chEscape,
+                             KStringView::size_type pos = 0);
+//-----------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
+/// Find delimiter char prefixed by even number of escape characters (0, 2, ...).
+/// Ignore delimiter charsprefixed by odd number of escapes.
+size_t kFindUnescaped(KStringView haystack,
+                      KStringView::value_type needle,
+                      KStringView::value_type chEscape,
+                      KStringView::size_type pos = 0);
+//-----------------------------------------------------------------------------
+
 //----------------------------------------------------------------------
 inline
 bool kStartsWith(KStringView sInput, KStringView sPattern)

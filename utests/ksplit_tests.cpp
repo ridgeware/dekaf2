@@ -202,6 +202,81 @@ SCENARIO ( "ksplit unit tests on valid data" )
 			}
 		}
 
+		WHEN ( "parse string with spaces as delimiter" )
+		{
+			KStringView buffer{"  word1  word2 word3     \t             word4 "};
+			vector<KStringView> vsContainer;
+			size_t iCount = kSplit(vsContainer,
+			                       buffer,
+			                       " ",
+			                       " \t");
+			THEN ( "examine results for defects" )
+			{
+				KStringView a = vsContainer[0];
+				KStringView b = vsContainer[1];
+				KStringView c = vsContainer[2];
+				KStringView d = vsContainer[3];
+				CHECK(iCount == 4);
+				CHECK(a == "word1");
+				CHECK(b == "word2");
+				CHECK(c == "word3");
+				CHECK(d == "word4");
+			}
+		}
+
+		WHEN ( "parse string with combining delimiters" )
+		{
+			KStringView buffer{".-word1--word2.word3-+.+.-\t.+-.+word4."};
+			vector<KStringView> vsContainer;
+			size_t iCount = kSplit(vsContainer,
+			                       buffer,
+			                       ".-+",
+			                       " \t\r\n.-+",
+			                       0,
+			                       true);
+			THEN ( "examine results for defects" )
+			{
+				KStringView a = vsContainer[0];
+				KStringView b = vsContainer[1];
+				KStringView c = vsContainer[2];
+				KStringView d = vsContainer[3];
+				CHECK(iCount == 4);
+				CHECK(a == "word1");
+				CHECK(b == "word2");
+				CHECK(c == "word3");
+				CHECK(d == "word4");
+			}
+		}
+
+		WHEN ( "parse web log" )
+		{
+			KStringView buffer{"66.249.71.172 - - [28/Mar/2010:04:02:12 -0500] \"GET /Support/SupportForums/tabid/213/view/topic/postid/1251/language/en-US/support.aspx HTTP/1.1\" 200 - \"-\" \"Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)\" pt.ncomputing.com 313 41094"};
+			vector<KStringView> vsContainer;
+			size_t iCount = kSplit(vsContainer,
+			                       buffer,
+			                       " ",
+			                       "",
+			                       0,
+			                       false,
+			                       true);
+			THEN ( "examine results for defects" )
+			{
+				KStringView a = vsContainer[0];
+				KStringView b = vsContainer[3];
+				KStringView c = vsContainer[5];
+				KStringView d = vsContainer[9];
+				KStringView e = vsContainer[12];
+				CHECK(iCount == 13);
+				CHECK(a == "66.249.71.172");
+				CHECK(b == "[28/Mar/2010:04:02:12");
+				CHECK(c.StartsWith("GET /Support") == true);
+				CHECK(c.EndsWith("HTTP/1.1") == true);
+				CHECK(d.StartsWith("Mozilla") == true);
+				CHECK(d.EndsWith("bot.html)") == true);
+				CHECK(e == "41094");
+			}
+		}
+
 	}
 }
 

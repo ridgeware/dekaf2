@@ -212,6 +212,94 @@ size_t kFindLastOfBool(
 } } // end of namespace detail::stringview
 
 //-----------------------------------------------------------------------------
+size_t kFindFirstOfUnescaped(KStringView haystack,
+                             KStringView needle,
+                             KStringView::value_type chEscape,
+                             KStringView::size_type pos)
+//-----------------------------------------------------------------------------
+{
+	auto iFound = haystack.find_first_of (needle, pos);
+
+	if (!chEscape || iFound == 0)
+	{
+		// If no escape char is given or
+		// the searched character was first on the line...
+		return iFound;
+	}
+
+	while (iFound != KStringView::npos)
+	{
+		size_t iEscapes = 0;
+		size_t iStart = iFound;
+
+		while (iStart)
+		{
+			// count number of escape characters
+			--iStart;
+			if (haystack[iStart] != chEscape)
+			{
+				break;
+			}
+			++iEscapes;
+		} // while iStart
+
+		if (!(iEscapes & 1))  // if even number of escapes
+		{
+			break;
+		}
+
+		iFound = haystack.find (needle, iFound + 1);
+	} // while iFound
+
+	return iFound;
+
+} // kFindFirstOfUnescaped
+
+//-----------------------------------------------------------------------------
+size_t kFindUnescaped(KStringView haystack,
+                      KStringView::value_type needle,
+                      KStringView::value_type chEscape,
+                      KStringView::size_type pos)
+//-----------------------------------------------------------------------------
+{
+	auto iFound = haystack.find (needle, pos);
+
+	if (!chEscape || iFound == 0)
+	{
+		// If no escape char is given or
+		// the searched character was first on the line...
+		return iFound;
+	}
+
+	while (iFound != KStringView::npos)
+	{
+		size_t iEscapes = 0;
+		size_t iStart = iFound;
+
+		while (iStart)
+		{
+			// count number of escape characters
+			--iStart;
+			if (haystack[iStart] != chEscape)
+			{
+				break;
+			}
+			++iEscapes;
+		} // while iStart
+
+		if (!(iEscapes & 1))  // if even number of escapes
+		{
+			break;
+		}
+
+		iFound = haystack.find (needle, iFound + 1);
+	} // while iFound
+
+	return iFound;
+
+} // kFindUnescaped
+
+//-----------------------------------------------------------------------------
 KStringView::size_type KStringView::copy(iterator dest, size_type count, size_type pos) const
 //-----------------------------------------------------------------------------
 {

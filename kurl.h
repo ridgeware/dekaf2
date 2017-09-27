@@ -2,7 +2,7 @@
 //
 // DEKAF(tm): Lighter, Faster, Smarter(tm)
 //
-// Copyright (c) 2000-2017, Ridgeware, Inc.
+// Copyright (c) 2017, Ridgeware, Inc.
 //
 // +-------------------------------------------------------------------------+
 // | /\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\|
@@ -44,57 +44,14 @@
 
 #include <cinttypes>
 
+#include "kstringview.h"
 #include "kstring.h"
-#include "kstringutils.h"
 #include "kprops.h"
-#include "kurl.h"
 
 
 namespace dekaf2
 {
 
-    /*
-<<<<<<< HEAD
-=======
-    // https://en.wikipedia.org/wiki/URL
-    // scheme:[//[user[:password]@]host[:port]][/path][?query][#fragment]
-
-// Suppose you want to parse parts from:
-//     hint = 0;
-//     URL="https://jlettvin@github.com:8080/experiment/UTF8?page=home#title";
-//     KProto::KProto kproto1(URL, hint);
-// The zero is a "hint" to start parsing at offset 0.
-// When KProto is done with a successful parse, it update hint (to 8 here).
-// This is the index immediately following the protocol or scheme.
-// Using this hint, we can now ask to parse the domain.
-//     KDomain::KDomain kdomain1(URL, hint);
-// Other ctors and parse functions work similarly.
-// Suppose we have a scrap of URL from which we wish to parse a domain.
-//     scrap="jlettvin@github.com"; // strlen(scrap) == 19
-//     here = 0;
-//     KDomain::KDomain kdomain2(scrap, here);
-// here will have the value 19 after this.
-// A full URL is divided and parsed by running a sequence:
-//     hint = 0;
-//     URL="https://jlettvin@github.com:8080/experiment/UTF8?page=home#title";
-//     KProto::KProto(URL, hint);    // Updates hint to 8
-//     KDomain::KDomain(URL, hint);  // Updates hint to 32
-//     KURI::KURI(URL, hint);        // Updates hint to 64
-// URL[hint] == '\0';  // End of string
-
-bool unimplemented(const KString& name, const char* __file__, size_t __line__);
-
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// this is a description
-/// hint is the starting offset for parsing.
-/// If successful, hint is updated to the first offset after the scheme.
-/// Otherwise m_error is set true.
-/// For typical calls, scheme is at the beginning, so hint should == 0UL.
-/// parse methods shall return false on error, true on success.
-class KProto
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
->>>>>>> master
-*/
 namespace KURL
 {
 

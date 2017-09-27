@@ -108,20 +108,11 @@
 *  KString();                          // same as serialize
 */
 
-#include <cstdio>
-#include <cstdlib>
-#include <cmath>
-#include <vector>
-
+#include "kstringview.h"
 #include "kstring.h"
 #include "kstringutils.h"
 #include "kurl.h"
 
-#include <fmt/format.h>
-
-using fmt::format;
-using std::vector;
-using std::to_string;
 
 namespace dekaf2
 {

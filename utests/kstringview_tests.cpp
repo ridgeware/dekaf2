@@ -121,6 +121,48 @@ TEST_CASE("KStringView") {
 		CHECK( sv.find_last_of("!-") == KStringView::npos );
 	}
 
+	SECTION("find_last_of find_last_not_of with controlled 'noise'")
+	{
+
+#pragma pack(push, 1)
+		char haystack[4][14] = {"ABCDEFGHIJKLM", "NCDEFGHIJKLMN", "NOPQRSOPQRSQQ", "YZNOPQRSTUVWX"};
+#pragma pack(pop)
+
+#pragma pack(push, 1)
+		char haystack2[4][27] = {"ABCDEFGHIJKLMABCDEFGHIJKLM", "NCDEFGHIJKLMNNCDEFGHIJKLMN", "NOPQRSOPQRSQQNOPQRSOPQRSQQ", "YZNOPQRSTUVWXYZNOPQRSTUVWX"};
+#pragma pack(pop)
+
+#pragma pack(push, 1)
+		char needle[3][14] = {"NOPQRSTUVWXYZ", "ABCDEFGHIJKLM", "NOPQRSTUVWXYZ"};
+#pragma pack(pop)
+
+#pragma pack(push, 1)
+		char needle2[7][8] = {"NNOPQRS", "TUVWXYZ", "AABCDEF", "GHIJKLM", "NNOPQRS", "WXYZABC", "FGHIJKL"};
+#pragma pack(pop)
+
+		KStringView sv(haystack[0]);
+		KStringView sv1(haystack[1]);
+		KStringView sv2(haystack[2]);
+
+		KStringView big_sv(haystack2[0]);
+		KStringView big_sv1(haystack2[1]);
+		KStringView big_sv2(haystack2[2]);
+
+		CHECK( sv.find_last_of(needle[0]) == KStringView::npos );
+		CHECK( sv1.find_last_of(needle[0]) == 12 );
+		CHECK( sv.find_last_not_of(needle[0]) == 12);
+		CHECK( sv1.find_last_of(needle[0]) == 12);
+		CHECK( sv1.find_last_not_of(needle2[0]) == 11);
+		CHECK( sv2.find_last_not_of(needle2[4]) == KStringView::npos);
+
+		CHECK( big_sv.find_last_of(needle[0]) == KStringView::npos );
+		CHECK( big_sv1.find_last_of(needle[0]) == 25 );
+		CHECK( big_sv.find_last_not_of(needle[0]) == 25);
+		CHECK( big_sv1.find_last_of(needle[0]) == 25);
+		CHECK( big_sv1.find_last_not_of(needle2[0]) == 24);
+		CHECK( big_sv2.find_last_not_of(needle2[4]) == KStringView::npos);
+	}
+
 	SECTION("find_first_not_of")
 	{
 		KStringView sv("0123456  9abcdef h");

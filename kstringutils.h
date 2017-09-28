@@ -377,6 +377,7 @@ inline Ch kx2c (Ch* pszGoop)
 } // anonymous until here
 
 //-----------------------------------------------------------------------------
+/// decodes string in place
 template<class String>
 void kUrlDecode (String& sDecode)
 //-----------------------------------------------------------------------------
@@ -384,7 +385,7 @@ void kUrlDecode (String& sDecode)
 	auto insert  = &sDecode[0];
 	auto current = insert;
 	auto end     = current + sDecode.size();
-	while (current != end)
+	while (current < end)
 	{
 		if (*current == '+')
 		{
@@ -414,8 +415,7 @@ void kUrlDecode (String& sDecode)
 } // kUrlDecode
 
 //-----------------------------------------------------------------------------
-/// kUrlDecode copy
-/// Copies always go to end of string so (insert < end) test unnecessary.
+/// decodes string on a copy
 template<class String>
 void kUrlDecode (KStringView sSource, String& sTarget)
 //-----------------------------------------------------------------------------
@@ -423,33 +423,27 @@ void kUrlDecode (KStringView sSource, String& sTarget)
 	sTarget.reserve (sTarget.size ()+sSource.size ());
 	auto current = &sSource[0];
 	auto end     = current + sSource.size();
-	while (current != end)
+	while (current < end)
 	{
-		if (*current == '%')
-		{
-			if ( end - current > 2
-				&& std::isxdigit(*(current + 1))
-				&& std::isxdigit(*(current + 2)))
-			{
-				sTarget += kx2c(current + 1);
-				current += 3;
-			}
-			else
-			{
-				sTarget="";
-				return;
-			}
-		}
-		else if (*current == '+')
+		if (*current == '+')
 		{
 			sTarget += ' ';
 			++current;
+		}
+		else if (*current == '%'
+		    && end - current > 2
+			&& std::isxdigit(*(current + 1))
+			&& std::isxdigit(*(current + 2)))
+		{
+			sTarget += kx2c(current + 1);
+			current += 3;
 		}
 		else
 		{
 			sTarget += *current++;
 		}
 	}
+
 } // kUrlDecode copy
 
 

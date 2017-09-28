@@ -60,7 +60,20 @@
 namespace dekaf2
 {
 
+// forward declaration
+class KString;
+
+//----------------------------------------------------------------------
 bool kStrIn (const char* sNeedle, const char* sHaystack, char iDelim=',');
+//----------------------------------------------------------------------
+
+//----------------------------------------------------------------------
+KString kToUpper(KStringView sInput);
+//----------------------------------------------------------------------
+
+//----------------------------------------------------------------------
+KString kToLower(KStringView sInput);
+//----------------------------------------------------------------------
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// dekaf2's own string class - a wrapper around std::string
@@ -453,10 +466,10 @@ public:
 	KString& MakeUpper();
 
 	/// returns a copy of the string in uppercase
-	KString ToUpper() const;
+	KString ToUpper() const { return kToUpper(*this); }
 
 	/// returns a copy of the string in lowercase
-	KString ToLower() const;
+	KString ToLower() const { return kToLower(*this); }
 
 	/// returns leftmost iCount chars of string
 	KStringView Left(size_type iCount);

@@ -786,36 +786,6 @@ KStringView KString::ToView(size_type pos, size_type n) const
 }
 
 //----------------------------------------------------------------------
-KString KString::ToLower() const
-//----------------------------------------------------------------------
-{
-	KString sLower;
-	sLower.reserve(m_rep.size());
-
-	for (const auto& it : m_rep)
-	{
-		sLower += static_cast<value_type>(std::tolower(static_cast<unsigned char>(it)));
-	}
-
-	return sLower;
-} // ToUpper
-
-//----------------------------------------------------------------------
-KString KString::ToUpper() const
-//----------------------------------------------------------------------
-{
-	KString sUpper;
-	sUpper.reserve(m_rep.size());
-
-	for (const auto& it : m_rep)
-	{
-		sUpper += static_cast<value_type>(std::toupper(static_cast<unsigned char>(it)));
-	}
-
-	return sUpper;
-} // ToUpper
-
-//----------------------------------------------------------------------
 KString& KString::MakeLower()
 //----------------------------------------------------------------------
 {
@@ -1139,6 +1109,36 @@ bool kStrIn (const char* sNeedle, const char* sHaystack, char iDelim/*=','*/)
 	return false;
 
 } // kstrin
+
+//----------------------------------------------------------------------
+KString kToUpper(KStringView sInput)
+//----------------------------------------------------------------------
+{
+	KString sTransformed;
+	sTransformed.reserve(sInput.size());
+
+	for (const auto& it : sInput)
+	{
+		sTransformed += static_cast<KString::value_type>(std::toupper(static_cast<unsigned char>(it)));
+	}
+
+	return sTransformed;
+}
+
+//----------------------------------------------------------------------
+KString kToLower(KStringView sInput)
+//----------------------------------------------------------------------
+{
+	KString sTransformed;
+	sTransformed.reserve(sInput.size());
+
+	for (const auto& it : sInput)
+	{
+		sTransformed += static_cast<KString::value_type>(std::tolower(static_cast<unsigned char>(it)));
+	}
+
+	return sTransformed;
+}
 
 } // end of namespace dekaf2
 

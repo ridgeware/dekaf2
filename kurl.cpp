@@ -104,7 +104,7 @@
 *  operator<<(KString& sSource);       // same as parse (but returns instance)
 *  operator==(const T& rhs);           // compare lhs with rhs
 *  operator!=(const T& rhs);           // compare lhs with rhs
-*  Clear();                            // Restore to original empty state
+*  clear();                            // Restore to original empty state
 *  KString();                          // same as serialize
 */
 
@@ -141,56 +141,51 @@ namespace KURL
 KStringView Protocol::Parse (KStringView svSource)
 //-----------------------------------------------------------------------------
 {
-	Clear ();
-	if (svSource.empty ())
+	clear ();
+
+	if (!svSource.empty ())
 	{
-		return svSource;
+		size_t iFound = svSource.find_first_of (':');
+
+		if (iFound != KStringView::npos)
+		{
+			KStringView svProto = svSource.substr (0, iFound);
+
+			// we do accept schemata with only one slash, as that is
+			// a common typo (but we do correct them when serializing)
+			if (svSource.size () >= iFound + 1
+			    && svSource[iFound + 1] == '/')
+			{
+				svSource.remove_prefix (iFound + 2);
+
+				if (!svSource.empty () && svSource.front () == '/')
+				{
+					svSource.remove_prefix (1);
+				}
+
+				kUrlDecode (svProto, m_sProto);
+
+				m_eProto = UNKNOWN;
+				// we do not want to recognize MAILTO in this branch, as it
+				// has the wrong separator. But if we find it we store it as
+				// unknown and then reproduce the same on serialization.
+				for (uint16_t iProto = MAILTO + 1; iProto < UNKNOWN; ++iProto)
+				{
+					if (m_sCanonical[iProto] == m_sProto)
+					{
+						m_eProto = static_cast<eProto>(iProto);
+						break;
+					}
+				}
+			}
+			else if (svProto == "mailto")
+			{
+				m_eProto = MAILTO;
+				svSource.remove_prefix (iFound + 1);
+			}
+		}
 	}
 
-	size_t iFound = svSource.find_first_of (':');
-
-	if (iFound != KStringView::npos)
-	{
-		size_t iSlash = 0;
-		m_sProto.assign (svSource.data (), iFound);
-		svSource.remove_prefix (iFound);
-		iFound = 0;
-		size_t iSize = svSource.size();
-		while (iFound < iSize && svSource[++iFound] == '/')
-		{
-			++iSlash;
-		}
-
-		kUrlDecode (m_sProto);
-
-		// TODO should we be generous, parsing past wrong count slashes?
-		// We always serialize it back to correct form.
-		// Being strict violates our "accept everything we can" rule.
-		// Example strict alternatives are shown below in comments.
-
-		if (m_sProto == "file" && iSlash > 0)
-		{
-			m_eProto = FILE;
-			iFound--;           // Leave trailing slash of file:/// for Path
-		}
-		else if (m_sProto == "mailto")
-		{
-			m_eProto = MAILTO;
-		}
-		else if (iSlash > 0)
-		{
-			if      (m_sProto == "ftp"  ) m_eProto = FTP;
-			else if (m_sProto == "http" ) m_eProto = HTTP;
-			else if (m_sProto == "https") m_eProto = HTTPS;
-			else                          m_eProto = UNKNOWN;
-		}
-		else
-		{
-			Clear ();
-			return svSource;
-		}
-		svSource.remove_prefix (iFound);
-	}
 	return svSource;
 }
 
@@ -200,37 +195,52 @@ KStringView Protocol::Parse (KStringView svSource)
 bool Protocol::Serialize (KString& sTarget) const
 //-----------------------------------------------------------------------------
 {
-	// m_eProto is NEVER UNDEFINED except on clear or default ctor.
 	// m_eProto is UNKNOWN for protocols like "opaquelocktoken://"
-	// TODO should anything else happen for UNDEFINED or UNKNOWN?
-	bool bProduce = (m_eProto != UNDEFINED);;
-	if (bProduce)
+	switch (m_eProto)
 	{
-		sTarget += (m_eProto < UNKNOWN)
-			? m_sKnown[m_eProto]
-			: m_sProto + "://";
+		case UNDEFINED:
+			return false;
+
+		case UNKNOWN:
+			kUrlEncode(m_sProto, sTarget);
+			sTarget += "://";
+			break;
+
+		case MAILTO:
+			sTarget += m_sCanonical[m_eProto];
+			sTarget += ':';
+			break;
+
+		default:
+			sTarget += m_sCanonical[m_eProto];
+			sTarget += "://";
+			break;
 	}
-	return bProduce;
+
+	return true;
 }
 
 //-----------------------------------------------------------------------------
 /// @brief class Protocol in group KURL.  Restores instance to empty state
-void Protocol::Clear()
+void Protocol::clear()
 //-----------------------------------------------------------------------------
 {
 	m_sProto.clear ();
 	m_eProto = UNDEFINED;
 }
 
-const KString Protocol::m_sKnown [UNKNOWN+1]
+// watch out: in Serialize(), we assume that the schemata
+// do not need URL encoding! Therefore, when you add one
+// that does, please use the URL encoded form here, too.
+const KString Protocol::m_sCanonical [UNKNOWN+1]
 {
-	"UNDEFINED",    // Parse has not been run yet.
-	"file://",
-	"ftp://",
-	"http://",
-	"https://",
-	"mailto:",
-	"UNKNOWN"       // Use m_sProto.
+	"",       // Empty placeholder for UNDEFINED, parse has not been run yet.
+	"mailto",
+	"http",
+	"https",
+	"file",
+	"ftp",
+	""        // Empty placeholder for UNKNOWN, use m_sProto.
 };
 
 //-----------------------------------------------------------------------------
@@ -248,30 +258,34 @@ const KString Protocol::m_sKnown [UNKNOWN+1]
 KStringView User::Parse (KStringView svSource)
 //-----------------------------------------------------------------------------
 {
-	Clear ();
+	clear ();
+
 	if (!svSource.empty ())
 	{
 		size_t iFound = svSource.find ('@');
-		if (iFound == KStringView::npos)
+		if (iFound != KStringView::npos)
 		{
-			return svSource;
-		}
+			KStringView svUser;
+			KStringView svPass;
 
-		size_t iColon = svSource.find (':');
-		if (iColon != KStringView::npos && iColon < iFound)
-		{
-			m_sUser.assign (svSource.data (), iColon);
-			m_sPass.assign (svSource.data () + iColon + 1, iFound - iColon - 1);
-		}
-		else
-		{
-			m_sUser.assign (svSource.data (), iFound);
-		}
+			size_t iColon = svSource.find (':');
+			if (iColon < iFound)
+			{
+				svUser = svSource.substr (0, iColon);
+				svPass = svSource.substr (iColon + 1, iFound - iColon - 1);
+			}
+			else
+			{
+				svUser = svSource.substr (0, iFound);
+			}
 
-		kUrlDecode (m_sUser);
-		kUrlDecode (m_sPass);
-		svSource.remove_prefix (iFound + 1);
+			kUrlDecode (svUser, m_sUser);
+			kUrlDecode (svPass, m_sPass);
+
+			svSource.remove_prefix (iFound + 1);
+		}
 	}
+
 	return svSource;
 }
 
@@ -281,7 +295,7 @@ bool User::Serialize (KString& sTarget) const
 //-----------------------------------------------------------------------------
 {
 	// TODO Should username/password be url encoded?
-	if (m_sUser.size ())
+	if (!m_sUser.empty ())
 	{
 		// TODO These exclusions are speculative.  Should they change?
 		// RFC3986 rules apply to exclusions.
@@ -290,27 +304,88 @@ bool User::Serialize (KString& sTarget) const
 		// RFC3986 7.5. password field is deprecated
 
 		KStringView svExclude{"-._~@/"};  // RFC3986 2.3 supplemented with "@/"
-		KString sTemp;
-		kUrlEncode (m_sUser, sTemp, svExclude);
-		sTarget += sTemp;
+		kUrlEncode (m_sUser, sTarget, svExclude);
 
-		if (m_sPass.size ())
+		if (!m_sPass.empty ())
 		{
-			sTemp.clear ();
 			sTarget += ':';
 			// TODO These exclusions are speculative.  Should they change?
 			// Rules for encoding passwords are not explicit.
 			// Human-centric passwords are likely to include difficult chars.
 			// Password field is deprecated as insecure.  This is legacy support.
 			// utests all pass, but password field is not stress-tested.
-			kUrlEncode (m_sPass, sTemp, svExclude);
-			sTarget += sTemp;
+			kUrlEncode (m_sPass, sTarget, svExclude);
 		}
+
 		sTarget += '@';
 	}
+
 	return true;
 }
 
+//-------------------------------------------------------------------------
+KStringView Domain::getBaseDomain () const
+//-------------------------------------------------------------------------
+{
+	// lazy evaluation of base domain - it is a rarely used function,
+	// but has significant costs
+	if (m_sBaseName.empty() && !m_sHostName.empty())
+	{
+		// m_sBaseName   is special-cased
+		//
+		//         google.com       1Back but no 2Back     GOOGLE
+		//
+		//        www.ibm.com       2Back but no ".co."    IBM
+		//
+		// foo.bar.baz.co.jp        3Back and is ".co."    BAZ
+		//    ^   ^   ^  ^
+		//    |   |   |  |
+		//    4   3   2  1 Back
+		// If ".co." between 2Back & 1Back : base domain is between 3Back & 2Back
+		// If not, and 2Back exists: base domain is between 2Back & 1Back
+		// If not even 2Back then base domain is between beginning and 1Back
+		//
+		// getBaseDomain () converts KStringView to KString then uses MakeUpper.
+		auto iDotEnd = m_sHostName.rfind ('.');
+		if (iDotEnd == 0 || iDotEnd == KString::npos)
+		{
+			// Ignore simple non-dot hostname (localhost).
+		}
+		else
+		{
+			// When there is at least 1 dot, look for domain name features
+
+			auto iDotStart = m_sHostName.rfind ('.', iDotEnd - 1);
+
+			if (iDotStart != KString::npos)
+			{
+				// When there are at least 2 dots, look for ".co.".
+
+				KStringView svCheckForDotCo (m_sHostName);
+				svCheckForDotCo.remove_prefix (iDotStart);
+
+				if (svCheckForDotCo.StartsWith (".co."))
+				{
+					iDotEnd = iDotStart;
+					iDotStart = m_sHostName.rfind ('.', iDotStart - 1);
+				}
+			}
+
+			if (iDotStart == KString::npos)
+			{
+				iDotStart = 0;
+			}
+			else
+			{
+				++iDotStart;
+			}
+
+			m_sBaseName = kToUpper(KStringView(m_sHostName.data() + iDotStart, iDotEnd - iDotStart));
+		}
+	}
+
+	return m_sBaseName;
+}
 
 //-----------------------------------------------------------------------------
 /// @brief class Domain in group KURL.  Special detailed parse of hostname.
@@ -326,89 +401,49 @@ bool User::Serialize (KString& sTarget) const
 KStringView Domain::ParseHostName (KStringView svSource, bool bDecode)
 //-----------------------------------------------------------------------------
 {
-	static const KString sDotCo (".co.");
-
-	if (!svSource.size()) return svSource;
-	bool bError{false};
-
-	size_t iInitial = ((svSource[0] == '/') ? 1 : 0);
-	size_t iSize = svSource.size ();
-	size_t iFound = svSource.find_first_of (":/?#", iInitial);
-
-	iFound = (iFound == KStringView::npos) ? iSize : iFound;
-	m_sHostName.assign (svSource.data (), iFound);
-
-	if (bDecode)
+	if (!svSource.empty())
 	{
-		kUrlDecode (m_sHostName);
-	}
+		size_t iFound;
 
-	// m_sBaseName   is special-cased
-	//
-	//         google.com       1Back but no 2Back     GOOGLE
-	//
-	//        www.ibm.com       2Back but no ".co."    IBM
-	//
-	// foo.bar.baz.co.jp        3Back and is ".co."    BAZ
-	//    ^   ^   ^  ^
-	//    |   |   |  |
-	//    4   3   2  1 Back
-	// If ".co." between 2Back & 1Back : base domain is between 3Back & 2Back
-	// If not, and 2Back exists: base domain is between 2Back & 1Back
-	// If not even 2Back then base domain is between beginning and 1Back
-	//
-	// getBaseDomain () converts KStringView to KString then uses MakeUpper.
-	size_t i1Back = m_sHostName.rfind ('.');
-	if (i1Back == KString::npos)
-	{
-		// Ignore simple non-dot hostname (localhost).
-	}
-	else
-	{
-		// When there is at least 1 dot, look for domain name features
-		size_t i2Back = m_sHostName.rfind ('.', i1Back - 1);
-		if (i2Back != KString::npos)
+		if (svSource.front() == '[')
 		{
-			// When there are at least 2 dots, look for ".co.".
-
-			// This commented code fails, so it is implemented in a short loop.
-			//size_t iCompare = static_cast<size_t> (
-				//sDotCo.compare (0, sDotCo.size (), m_sHostName.data () + i2Back));
-			size_t iCompare{0};
-			for (size_t ii=0; ii < sDotCo.size (); ++ii)
+			// an IPv6 address
+			iFound = svSource.find(']');
+			if (iFound == KStringView::npos)
 			{
-				if (sDotCo[ii] != m_sHostName[i2Back + ii])
-				{
-					break;
-				}
-				++iCompare;
+				// unterminated IPv6 address
+				return svSource;
 			}
 
-			bool bDotCo = (iCompare == sDotCo.size () );
-			if (bDotCo)
-			{
-				size_t i3Back = m_sHostName.rfind ('.', i2Back - 1);
-				i3Back = (i3Back == KString::npos) ? 0 : i3Back;
-				m_sBaseName.assign (
-				m_sHostName.data () + i3Back + 1,
-				i2Back - i3Back);
-			}
-			else
-			{
-				m_sBaseName.assign (
-						m_sHostName.data () + i2Back + 1,
-						i1Back - i2Back);
-			}
+			// we want to include the closing ] into the hostname string
+			++iFound;
 		}
 		else
 		{
-			m_sBaseName.assign (m_sHostName.data (), i1Back);
+			// anything else than an IPv6 address
+			iFound = svSource.find_first_of (":/?#");
+			if (iFound == KStringView::npos)
+			{
+				iFound = svSource.size();
+			}
 		}
-	}
-	if (!bError)
-	{
+
+		KStringView svHostName = svSource.substr(0, iFound);
+
+		if (bDecode)
+		{
+			m_sHostName.clear ();
+			// decode while copying
+			kUrlDecode (svHostName, m_sHostName);
+		}
+		else
+		{
+			m_sHostName = svHostName;
+		}
+
 		svSource.remove_prefix(iFound);
 	}
+
 	return svSource;
 }
 
@@ -417,38 +452,43 @@ KStringView Domain::ParseHostName (KStringView svSource, bool bDecode)
 KStringView Domain::Parse (KStringView svSource)
 //-----------------------------------------------------------------------------
 {
-	Clear ();
-	if (svSource.empty ())
-	{
-		return svSource;
-	}
-
-	size_t iBefore = svSource.size ();
+	clear ();
 
 	svSource = ParseHostName (svSource);
-	size_t iAfter = svSource.size ();
 
-	if (iBefore && iAfter == iBefore)
+	if (!svSource.empty() && !m_sHostName.empty())
 	{
-		// No host name
-	}
-	else
-	{
+		// we have extracted a host name
 
-		size_t iColon = 0;
-		if (svSource[iColon] == ':')
+		if (svSource.front() == ':')
 		{
-			++iColon;
-			size_t iNext = svSource.find_first_of ("/?#", iColon);
-			iNext = (iNext == KStringView::npos) ? svSource.size () : iNext;
-			// Get port as string
-			KString sPortName;
-			KStringView svPortName{svSource.data () + iColon, iNext - iColon};
-			kUrlDecode (svPortName, sPortName);
+			auto iNext = svSource.find_first_of ("/?#", 1);
+			if (iNext == KStringView::npos)
+			{
+				iNext = svSource.size ();
+			}
 
-			const char* sPort = sPortName.c_str ();
-			// Parse port as number
-			m_iPortNum = static_cast<uint16_t> (kToUInt (sPort));
+			KStringView svPortName{svSource.data () + 1, iNext - 1};
+
+			// clear() has set m_iPortNum to 0
+			for (auto ch : svPortName)
+			{
+				if (!std::isdigit(ch))
+				{
+					if (ch == '%')
+					{
+						// url decode port
+						KString sPortName;
+						kUrlDecode (svPortName, sPortName);
+						m_iPortNum = static_cast<uint16_t> (kToUInt (sPortName));
+					}
+					// else leave so far decoded port number, it has garbage appended
+					break;
+				}
+				m_iPortNum *= 10;
+				m_iPortNum += ch - '0';
+			}
+
 			svSource.remove_prefix (iNext);
 		}
 	}
@@ -461,21 +501,19 @@ KStringView Domain::Parse (KStringView svSource)
 bool Domain::Serialize (KString& sTarget) const
 //-----------------------------------------------------------------------------
 {
-	bool bSome = true;
-	if (m_sHostName.size ())
+	if (!m_sHostName.empty ())
 	{
 		// TODO These exclusions are speculative.  Should they change?
 		KStringView svExclude{"-._~@/"};  // RFC3986 2.3 supplemented with "@/"
-		KString sTemp;
-		kUrlEncode (m_sHostName, sTemp, svExclude);
-		sTarget += sTemp;
+		kUrlEncode (m_sHostName, sTarget, svExclude);
 		if (m_iPortNum)
 		{
 			sTarget += ':';
 			sTarget += std::to_string (m_iPortNum);
 		}
 	}
-	return bSome;
+
+	return true;
 }
 
 
@@ -487,25 +525,29 @@ bool Domain::Serialize (KString& sTarget) const
 /// scheme:[//[user[:password]@]host[:port]][/path][?query][#fragment]
 ///                                          -----   -----   --------
 /// Path extracts and stores a KStringView of URL "path"
-KStringView Path::Parse (KStringView svSource)
+KStringView Path::Parse (KStringView svSource, bool bRequiresPrefix)
 //-----------------------------------------------------------------------------
 {
-	Clear ();
-	if (svSource.empty ())
+	clear ();
+
+	if (!svSource.empty ())
 	{
-		return svSource;
+		if (!bRequiresPrefix || svSource.front () == '/')
+		{
+			// Remainder after path may be query or fragment.
+			auto iFound = svSource.find_first_of ("?#", 1);
+			if (iFound == KStringView::npos)
+			{
+				iFound = svSource.size ();
+			}
+
+			// m_sPath is cleared by clear() above
+			kUrlDecode(svSource.substr(0, iFound), m_sPath);
+
+			svSource.remove_prefix (iFound);
+		}
 	}
 
-	if (svSource[0] == '/')
-	{
-		// Remainder after path may be query or fragment.
-		size_t iFound = svSource.find_first_of ("?#", 1);
-		iFound = (iFound == KStringView::npos) ? svSource.size () : iFound;
-
-		m_sPath.assign (svSource.data (), iFound);
-		svSource.remove_prefix (iFound);
-		kUrlDecode (m_sPath);
-	}
 	return svSource;
 }
 
@@ -514,13 +556,12 @@ KStringView Path::Parse (KStringView svSource)
 bool Path::Serialize (KString& sTarget) const
 //-----------------------------------------------------------------------------
 {
-	if (m_sPath.size ())
+	if (!m_sPath.empty ())
 	{
-		KString sPath;
 		KStringView svExclude{"-._~@/"};  // RFC3986 2.3 supplemented with "@/"
-		kUrlEncode (m_sPath, sPath, svExclude);
-		sTarget += sPath;
+		kUrlEncode (m_sPath, sTarget, svExclude);
 	}
+
 	return true;
 }
 
@@ -534,32 +575,36 @@ bool Path::Serialize (KString& sTarget) const
 /// scheme:[//[user[:password]@]host[:port]][/path][?query][#fragment]
 ///                                                  -----
 /// Query extracts and stores a KStringView of URL "query"
-KStringView Query::Parse (KStringView svSource)
+KStringView Query::Parse (KStringView svSource, bool bRequiresPrefix)
 //-----------------------------------------------------------------------------
 {
-	Clear ();
-	if (svSource.empty ())
-	{
-		return svSource;
-	}
+	clear ();
 
-	if (svSource[0] == '?')
+	if (!svSource.empty ())
 	{
-		svSource.remove_prefix (1);
-	}
+		if (svSource.front () == '?')
+		{
+			svSource.remove_prefix (1);
+		}
+		else if (bRequiresPrefix)
+		{
+			return svSource;
+		}
 
-	size_t iSize = svSource.size ();
-	size_t iFound = svSource.find ('#');
-	iFound = (iFound == KStringView::npos) ? iSize : iFound;
-	KStringView svQuery{svSource.substr (0, iFound)};
+		if (!svSource.empty())
+		{
+			auto iFound = svSource.find ('#');
+			if (iFound == KStringView::npos)
+			{
+				iFound = svSource.size();
+			}
 
-	if (decode (svQuery))   // KurlDecode must be done on key=val separately.
-	{
-		svSource.remove_prefix (iFound);
-	}
-	else
-	{
-		Clear ();
+			KStringView svQuery{svSource.substr (0, iFound)};
+
+			svQuery = decode (svQuery);  // KurlDecode must be done on key=val separately.
+
+			svSource.remove_prefix (iFound - svQuery.size());
+		}
 	}
 
 	return svSource;
@@ -568,51 +613,43 @@ KStringView Query::Parse (KStringView svSource)
 //-----------------------------------------------------------------------------
 /// @brief class Query in group KURL.  Split/decode.
 /// Split query string into key:value pairs, then decode keys and values.
-bool Query::decode (KStringView svQuery)
+KStringView Query::decode (KStringView svQuery)
 //-----------------------------------------------------------------------------
 {
-	size_t iAnchor = 0, iEnd, iEquals, iTerminal = svQuery.size ();
-
-	if (iTerminal)
+	while (!svQuery.empty())
 	{
-		do
+		// Get bounds of query pair
+		auto iEnd = svQuery.find ('&'); // Find separator
+		if (iEnd == KString::npos)
 		{
-			// Get bounds of query pair
-			iEnd = svQuery.find ('&', iAnchor); // Find separator
-			iEnd = (iEnd == KString::npos) ? iTerminal : iEnd;  // handle none
+			iEnd = svQuery.size();
+		}
 
-			KStringView svEncoded{svQuery.substr (iAnchor, iEnd - iAnchor)};
+		KStringView svEncoded{svQuery.substr (0, iEnd)};
 
-			iEquals = svEncoded.find ('=');
-			if (iEquals > iEnd)
-			{
-				return false;
-			}
-			KStringView svKeyEncoded (svEncoded.substr (0          , iEquals));
-			KStringView svValEncoded (svEncoded.substr (iEquals + 1         ));
+		auto iEquals = svEncoded.find ('=');
+		if (iEquals > iEnd)
+		{
+			iEquals = iEnd;
+		}
 
-			if (svKeyEncoded.size () && svValEncoded.size ())
-			{
-				// decoding may only happen AFTER '=' '&' detections
-				KString sKey, sVal;
-				kUrlDecode (svKeyEncoded, sKey);
-				kUrlDecode (svValEncoded, sVal);
-				if (svKeyEncoded.size () && !sKey.size ())
-				{
-					sKey = svKeyEncoded; // painful pass-thru of invalid key
-				}
-				if (svValEncoded.size () && !sVal.size ())
-				{
-					sVal = svValEncoded; // painful pass-thru of invalid value
-				}
-				m_kpQuery.Add (std::move (sKey), std::move (sVal));
-			}
+		KStringView svKeyEncoded (svEncoded.substr (0          , iEquals));
+		KStringView svValEncoded (svEncoded.substr (iEquals + 1         ));
 
-			iAnchor = iEnd + 1;  // Move anchor forward
+		// we can have empty values
+		if (svKeyEncoded.size () /* && svValEncoded.size () */ )
+		{
+			// decoding may only happen AFTER '=' '&' detections
+			KString sKey, sVal;
+			kUrlDecode (svKeyEncoded, sKey);
+			kUrlDecode (svValEncoded, sVal);
+			m_kpQuery.Add (std::move (sKey), std::move (sVal));
+		}
 
-		} while (iEnd < iTerminal);
+		svQuery.remove_prefix(iEnd + 1);
 	}
-	return true;
+
+	return svQuery;
 }
 
 
@@ -653,23 +690,27 @@ bool Query::Serialize (KString& sTarget) const
 /// scheme:[//[user[:password]@]host[:port]][/path][?query][#fragment]
 ///                                                          --------
 /// Fragment extracts and stores a KStringView of URL "fragment"
-KStringView Fragment::Parse (KStringView svSource)
+KStringView Fragment::Parse (KStringView svSource, bool bRequiresPrefix)
 //-----------------------------------------------------------------------------
 {
-	Clear ();
-	if (svSource.empty ())
-	{
-		return svSource;
-	}
+	clear ();
 
-	if (svSource[0] == '#')
+	if (!svSource.empty ())
 	{
-		svSource.remove_prefix (1);
-		m_bHash = true;
+		if (svSource.front() == '#')
+		{
+			svSource.remove_prefix (1);
+			m_bHash = true;
+		}
+		else if (bRequiresPrefix)
+		{
+			return svSource;
+		}
+
+		kUrlDecode (svSource, m_sFragment);
+
+		svSource.clear();
 	}
-	m_sFragment.assign (svSource.data (), svSource.size ());
-	kUrlDecode (m_sFragment);
-	svSource.remove_prefix (svSource.size ());
 
 	return svSource;
 }
@@ -679,16 +720,16 @@ KStringView Fragment::Parse (KStringView svSource)
 bool Fragment::Serialize (KString& sTarget) const
 //-----------------------------------------------------------------------------
 {
-	// Potential over-serialization of '#' when absent.  introduced m_bHash.
-	bool bContent = (m_sFragment.size () != 0);
-	if (m_bHash || bContent)
+	if (m_bHash || !m_sFragment.empty())
 	{
 		sTarget += '#';
 	}
-	if (m_sFragment.size ())
+
+	if (!m_sFragment.empty ())
 	{
-		sTarget += m_sFragment;
+		kUrlEncode (m_sFragment, sTarget);
 	}
+
 	return true;
 }
 
@@ -708,45 +749,12 @@ bool Fragment::Serialize (KString& sTarget) const
 KStringView URI::Parse (KStringView svSource)
 //-----------------------------------------------------------------------------
 {
-	Clear ();
-	if (svSource.empty ())
-	{
-		return svSource;
-	}
+	clear ();
 
-	size_t iSize{svSource.size ()};
+	svSource = Path    ::Parse (svSource, true);
+	svSource = Query   ::Parse (svSource, true); // optional
+	svSource = Fragment::Parse (svSource, true); // optional
 
-	bool bError{false};
-
-	svSource = Path::Parse (svSource);
-
-	if (!bError)
-	{
-		if (iSize > 0 && svSource[0] == '?')
-		{
-			svSource = Query::Parse (svSource);  // optional
-			iSize = svSource.size ();
-		}
-	}
-
-	if (!bError)
-	{
-		if (iSize > 0 && svSource[0] == '#')
-		{
-			svSource = Fragment::Parse (svSource);
-		}
-	}
-
-	bError = (0 != svSource.size ());
-
-	if (!bError)
-	{
-		svSource.remove_prefix (svSource.size ());
-	}
-	else
-	{
-		Clear ();
-	}
 	return svSource;
 }
 
@@ -755,12 +763,9 @@ KStringView URI::Parse (KStringView svSource)
 bool URI::Serialize (KString& sTarget) const
 //-----------------------------------------------------------------------------
 {
-	bool bResult = true;
-
-	bResult = Path               ::Serialize (sTarget);
-	bResult = bResult && Query   ::Serialize (sTarget);
-	bResult = bResult && Fragment::Serialize (sTarget);
-	return bResult;
+	return Path    ::Serialize (sTarget)
+	    && Query   ::Serialize (sTarget)
+	    && Fragment::Serialize (sTarget);
 }
 
 
@@ -775,48 +780,12 @@ bool URI::Serialize (KString& sTarget) const
 KStringView URL::Parse (KStringView svSource)
 //-----------------------------------------------------------------------------
 {
-	Clear ();
-	if (svSource.empty ())
-	{
-		return svSource;
-	}
+	clear ();
 
-	bool bResult{true};
-	bool bError{false};
-	size_t iBefore, iAfter;
-
-	iBefore  = svSource.size ();
-	svSource = Protocol::Parse (svSource);                  // mandatory
-	iAfter   = svSource.size ();
-	bResult  = (iBefore != iAfter);
-	if (bResult)
-	{
-		svSource = User::Parse (svSource);                  // optional
-
-		if (getProtocolEnum () != FILE)
-		{
-			iBefore  = svSource.size ();
-			svSource = Domain::Parse (svSource);            // mandatory
-			iAfter   = svSource.size ();
-			bResult  = (iBefore != iAfter);
-		}
-	}
-	if (bResult)
-	{
-		svSource = URI::Parse (svSource);                   // mandatory
-	}
-
-	bError = !bResult;
-
-	if (bError)
-	{
-		Clear ();
-		bError = true;
-	}
-	if (!bError)
-	{
-		svSource.remove_prefix (svSource.size ());
-	}
+	svSource = Protocol::Parse (svSource); // mandatory, but we do not enforce
+	svSource = User    ::Parse (svSource); // optional
+	svSource = Domain  ::Parse (svSource); // mandatory for non-files, but we do not enforce
+	svSource = URI     ::Parse (svSource); // optional
 
 	return svSource;
 }
@@ -826,14 +795,10 @@ KStringView URL::Parse (KStringView svSource)
 bool URL::Serialize (KString& sTarget) const
 //-----------------------------------------------------------------------------
 {
-	bool bResult = true;
-
-	bResult &= Protocol::Serialize (sTarget);
-	bResult &= User    ::Serialize (sTarget);
-	bResult &= Domain  ::Serialize (sTarget);
-	bResult &= URI     ::Serialize (sTarget);
-
-	return bResult;
+	return Protocol::Serialize (sTarget)
+	    && User    ::Serialize (sTarget)
+	    && Domain  ::Serialize (sTarget)
+	    && URI     ::Serialize (sTarget);
 }
 
 } // namespace KURL

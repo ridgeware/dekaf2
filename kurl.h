@@ -1,3 +1,4 @@
+/*
 //=============================================================================
 //
 // DEKAF(tm): Lighter, Faster, Smarter(tm)
@@ -39,6 +40,7 @@
 // +-------------------------------------------------------------------------+
 //
 //=============================================================================
+*/
 
 #pragma once
 
@@ -68,18 +70,19 @@ public:
 	{
 		// Explicit values to guarantee map to m_sCanonical.
 		UNDEFINED = 0,
-		FILE      = 1,
-		FTP       = 2,
-		HTTP      = 3,
-		HTTPS     = 4,
-		MAILTO    = 5,
-		UNKNOWN   = 6
+		MAILTO    = 1, // MAILTO _has_ to stay at the second position after UNDEFINED!
+		HTTP      = 2,
+		HTTPS     = 3,
+		FILE      = 4,
+		FTP       = 5,
+		UNKNOWN   = 6  // UNKNOWN _has_ to be the last value
 	};
 
 	//-------------------------------------------------------------------------
 	/// constructs empty instance.
-	inline Protocol () {}
+	inline Protocol ()
 	//-------------------------------------------------------------------------
+	{}
 
 	//-------------------------------------------------------------------------
 	/// construct an empty instance with specialization for enumerated protocol.
@@ -175,7 +178,7 @@ public:
 
 	//-------------------------------------------------------------------------
 	/// restore instance to unpopulated state
-	void Clear ();
+	void clear ();
 	//-------------------------------------------------------------------------
 
 	//-------------------------------------------------------------------------
@@ -202,14 +205,6 @@ public:
 	//-------------------------------------------------------------------------
 	{
 		Parse (svProto);
-	}
-
-	//-------------------------------------------------------------------------
-	/// identify that "mailto:" was parsed
-	inline bool isEmail () const
-	//-------------------------------------------------------------------------
-	{
-		return (m_eProto == MAILTO);
 	}
 
 	//-------------------------------------------------------------------------
@@ -266,7 +261,7 @@ private:
 
 	KString m_sProto {};
 	eProto  m_eProto {UNDEFINED};
-	static const KString m_sKnown [UNKNOWN+1];
+	static const KString m_sCanonical [UNKNOWN+1];
 
 };
 
@@ -373,7 +368,7 @@ public:
 
 	//-------------------------------------------------------------------------
 	/// restore instance to unpopulated state
-	inline void Clear ()
+	inline void clear ()
 	//-------------------------------------------------------------------------
 	{
 		m_sUser.clear ();
@@ -555,7 +550,7 @@ class Domain
 
 	//-------------------------------------------------------------------------
 	/// restore instance to unpopulated state
-	inline void Clear ()
+	inline void clear ()
 	//-------------------------------------------------------------------------
 	{
 		m_iPortNum = 0;
@@ -582,12 +577,9 @@ class Domain
 	}
 
 	//-------------------------------------------------------------------------
-	/// Convert member and return it as uppercased string
-	inline KString getBaseDomain () const // No set function because derived
+	/// Extract significant name from domain and return it uppercase (www.w3c.org -> W3C)
+	KStringView getBaseDomain () const; // No set function because derived
 	//-------------------------------------------------------------------------
-	{
-		return m_sBaseName.ToUpper ();
-	}
 
 	//-------------------------------------------------------------------------
 	/// return member by value
@@ -639,7 +631,7 @@ private:
 
 	uint16_t m_iPortNum  {0};
 	KString  m_sHostName {};
-	KString  m_sBaseName {};
+	mutable KString m_sBaseName {};
 
 	//-------------------------------------------------------------------------
 	KStringView ParseHostName (KStringView svSource, bool bDecode = true);
@@ -673,7 +665,7 @@ public:
 
 	//-------------------------------------------------------------------------
 	/// parses source into members of instance
-	KStringView Parse (KStringView sSource);
+	KStringView Parse (KStringView sSource, bool bRequiresPrefix = true);
 	//-------------------------------------------------------------------------
 
 	//-------------------------------------------------------------------------
@@ -745,7 +737,7 @@ public:
 
 	//-------------------------------------------------------------------------
 	/// restore instance to unpopulated state
-	inline void Clear ()
+	inline void clear ()
 	//-------------------------------------------------------------------------
 	{
 		m_sPath.clear ();
@@ -829,7 +821,7 @@ public:
 
 	//-------------------------------------------------------------------------
 	/// parses source into members of instance
-	KStringView Parse (KStringView sSource);
+	KStringView Parse (KStringView sSource, bool bRequiresPrefix = false);
 	//-------------------------------------------------------------------------
 
 	//-------------------------------------------------------------------------
@@ -901,7 +893,7 @@ public:
 
 	//-------------------------------------------------------------------------
 	/// restore instance to unpopulated state
-	inline void Clear ()
+	inline void clear ()
 	//-------------------------------------------------------------------------
 	{
 		m_kpQuery.clear ();
@@ -966,7 +958,7 @@ private:
 	// "%FF" translates to "\xFF"
 	// "%xx" where x is a hex digit translates likewise
 	// others remain untranslated
-	bool decode (KStringView);
+	KStringView decode (KStringView svQuery);
 	//-------------------------------------------------------------------------
 
 };
@@ -999,7 +991,7 @@ public:
 
 	//-------------------------------------------------------------------------
 	/// parses source into members of instance
-	KStringView Parse (KStringView sSource);
+	KStringView Parse (KStringView sSource, bool bRequiresPrefix = false);
 	//-------------------------------------------------------------------------
 
 	//-------------------------------------------------------------------------
@@ -1071,7 +1063,7 @@ public:
 
 	//-------------------------------------------------------------------------
 	/// restore instance to unpopulated state
-	inline void Clear ()
+	inline void clear ()
 	//-------------------------------------------------------------------------
 	{
 		m_sFragment.clear ();
@@ -1234,12 +1226,12 @@ public:
 
 	//-------------------------------------------------------------------------
 	/// restore instance to unpopulated state
-	inline void Clear ()
+	inline void clear ()
 	//-------------------------------------------------------------------------
 	{
-		Path    ::Clear ();
-		Query   ::Clear ();
-		Fragment::Clear ();
+		Path    ::clear ();
+		Query   ::clear ();
+		Fragment::clear ();
 	}
 
 	//-------------------------------------------------------------------------
@@ -1391,13 +1383,13 @@ public:
 
 	//-------------------------------------------------------------------------
 	/// restore instance to unpopulated state
-	inline void Clear ()
+	inline void clear ()
 	//-------------------------------------------------------------------------
 	{
-		Protocol::Clear ();
-		User    ::Clear ();
-		Domain  ::Clear ();
-		URI     ::Clear ();
+		Protocol::clear ();
+		User    ::clear ();
+		Domain  ::clear ();
+		URI     ::clear ();
 	}
 
 	//-------------------------------------------------------------------------

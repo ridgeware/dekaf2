@@ -750,7 +750,7 @@ TEST_CASE ("KURL")
 			KString ksQueryNoEqual{"?a=b&fubar"};
 			KStringView svQueryNoEqual{ksQueryNoEqual};
 			dekaf2::KURL::Query queryNoEqual (svQueryNoEqual);
-			CHECK (queryNoEqual.empty () == true);
+			CHECK (queryNoEqual.empty () == false); // this is simply an empty value
 
 			ksTarget.clear();
 			KString ksQueryBadKey{"?fu%2=bar"};
@@ -759,4 +759,75 @@ TEST_CASE ("KURL")
 			CHECK (queryBadKey.empty () == false);
 		}
 
+	SECTION ("KURL base domain")
+	{
+		KStringView svDomain("abc.test.com");
+		KURL::Domain Domain(svDomain);
+		KStringView svResult = Domain.getBaseDomain();
+		CHECK (svResult == "TEST");
+
+		svDomain = "test.com";
+		Domain = svDomain;
+		svResult = Domain.getBaseDomain();
+		CHECK (svResult == "TEST");
+
+		svDomain = "test.co.uk";
+		Domain = svDomain;
+		svResult = Domain.getBaseDomain();
+		CHECK (svResult == "TEST");
+
+		svDomain = "www.test.co.uk";
+		Domain = svDomain;
+		svResult = Domain.getBaseDomain();
+		CHECK (svResult == "TEST");
+
+		svDomain = ".test.com";
+		Domain = svDomain;
+		svResult = Domain.getBaseDomain();
+		CHECK (svResult == "TEST");
+
+		svDomain = "lot.of.name.co.fragments.test.de";
+		Domain = svDomain;
+		svResult = Domain.getBaseDomain();
+		CHECK (svResult == "TEST");
+
+		svDomain = "test";
+		Domain = svDomain;
+		svResult = Domain.getBaseDomain();
+		CHECK (svResult == "");
+	}
+
+	SECTION ("KURL ip addresses")
+	{
+		KStringView svURL("http://192.168.178.2:8080/and/a/path?with=cheese&with=onions#salt");
+		KURL::URL URL(svURL);
+		KStringView svResult = URL.getHostName();
+		CHECK (svResult == "192.168.178.2");
+
+		svURL = "http://[FEDC:BA98:7654:3210:FEDC:BA98:7654:3210]:8080/and/a/path?with=cheese&with=onions#salt";
+		URL = svURL;
+		svResult = URL.getHostName();
+		CHECK (svResult == "[FEDC:BA98:7654:3210:FEDC:BA98:7654:3210]");
+		KString ser;
+		KURL::Query Query(URL);
+		Query.Serialize(ser);
+		CHECK(ser == "?with=cheese&with=onions");
+
+		svURL = "http://[::192.9.5.5]:8080/and/a/path?with=cheese&with=onions#salt";
+		URL = svURL;
+		svResult = URL.getHostName();
+		CHECK (svResult == "[::192.9.5.5]");
+
+		svURL = "http://[3ffe:2a00:100:7031::]:8080/and/a/path?with=cheese&with=onions#salt";
+		URL = svURL;
+		svResult = URL.getHostName();
+		CHECK (svResult == "[3ffe:2a00:100:7031::]");
+	}
+
+	SECTION ("KURL no schema")
+	{
+		KStringView svURL("my.domain.name:8080/and/a/path?with=cheese&with=onions#salt");
+		KURL::URL URL(svURL);
+		CHECK (URL.getHostName() == "my.domain.name");
+	}
 }

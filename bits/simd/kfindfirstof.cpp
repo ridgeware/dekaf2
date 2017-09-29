@@ -549,7 +549,7 @@ size_t reverseScanHaystackBlockNot(
 		}
 		if (b < std::min(16UL, haystack.size() - blockStartIdx))
 		{
-			return blockStartIdx + static_cast<size_t>(b);
+			return blockStartIdx + static_cast<size_t>(b) - 1;
 		}
 	}
 

@@ -178,7 +178,7 @@ TEST_CASE("KStringView") {
 
 		CHECK( huge_sv.find_last_of('z') == 91);
 		CHECK( huge_sv.find_last_of('a') == 66);
-		CHECK( huge_sv.find_last_not_of(needle3[2]) == 66);
+		CHECK( huge_sv.find_last_not_of(needle3[2]) == 65);
 
 		// Ensure logic doesn't break down no matter what the start position is
 		for (int i = 0; i < 92; i++)
@@ -188,7 +188,7 @@ TEST_CASE("KStringView") {
 
 			if (i < 66)
 			{
-				CHECK( temp.find_last_not_of(needle3[2]) == 66 - i);
+				CHECK( temp.find_last_not_of(needle3[2]) == 65 - i);
 			}
 			else
 			{

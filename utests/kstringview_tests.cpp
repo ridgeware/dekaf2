@@ -179,12 +179,25 @@ TEST_CASE("KStringView") {
 		CHECK( huge_sv.find_last_of('z') == 91);
 		CHECK( huge_sv.find_last_of('a') == 66);
 		CHECK( huge_sv.find_last_not_of(needle3[2]) == 65);
+		CHECK( huge_sv.find_last_not_of(needle3[1]) == 67);
+
+		KStringView temp0(&haystack3[0][64]);
+		KStringView temp1(&haystack3[0][65]);
+		KStringView temp2(&haystack3[0][82]);
+		CHECK( temp0.find_last_not_of(needle3[1]) == 3);
+		CHECK( temp1.find_last_not_of(needle3[1]) == 2);
+		CHECK( huge_sv.find_last_of(needle3[2]) == 91);
+		CHECK( temp2.find_last_of(needle3[2]) == 9);
+
+
 
 		// Ensure logic doesn't break down no matter what the start position is
+
 		for (int i = 0; i < 92; i++)
 		{
 			KStringView temp(&haystack3[0][i]);
 			CHECK(temp.find_last_of('z') == 91 - i);
+			CHECK(temp.find_last_of(needle3[2]) == 91 - i);
 
 			if (i < 66)
 			{
@@ -194,8 +207,6 @@ TEST_CASE("KStringView") {
 			{
 				CHECK( temp.find_last_not_of(needle3[2]) == KStringView::npos);
 			}
-
-
 			if (i < 67)
 			{
 				CHECK(temp.find_last_of('a') == 66 - i);
@@ -204,11 +215,24 @@ TEST_CASE("KStringView") {
 			{
 				CHECK(temp.find_last_of('a') == KStringView::npos);
 			}
+			if (i < 68)
+			{
+				CHECK( temp.find_last_not_of(needle3[1]) == 67 - i);
+			}
+			else
+			{
+				CHECK( temp.find_last_not_of(needle3[1]) == KStringView::npos);
+			}
 
 			if (i > 90) continue;
 			CHECK(temp.find_last_not_of('z') == 90 - i);
 		}
 
+		for (int i = 0; i < 26; i++)
+		{
+			KStringView tneedle(&needle3[2][i]);
+			CHECK( huge_sv.find_last_not_of(tneedle) == 65 + i);
+		}
 
 	}
 

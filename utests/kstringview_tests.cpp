@@ -125,28 +125,38 @@ TEST_CASE("KStringView") {
 	{
 
 #pragma pack(push, 1)
-		char haystack[4][14] = {"ABCDEFGHIJKLM", "NCDEFGHIJKLMN", "NOPQRSOPQRSQQ", "YZNOPQRSTUVWX"};
-#pragma pack(pop)
+		char haystack[4][14] = {"ABCDEFGHIJKLM", "NCDEFGHIJKLMN", "NOPQRSOPQRSQQ", "NZNOPQRSTUVWX"};
 
-#pragma pack(push, 1)
 		char haystack2[4][27] = {"ABCDEFGHIJKLMABCDEFGHIJKLM", "NCDEFGHIJKLMNNCDEFGHIJKLMN", "NOPQRSOPQRSQQNOPQRSOPQRSQQ", "YZNOPQRSTUVWXYZNOPQRSTUVWX"};
-#pragma pack(pop)
 
-#pragma pack(push, 1)
+		char haystack3[4][93] = {"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ;:'\",<.>/?\\|[{]}!@#$%^&*()-_=+abcdefghijklmnopqrstuvwxyz", "z0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ;:'\",<.>/?\\|[{]}!@#$%^&*()-_=+abcdefghijklmnopqrstuvwxy", "abcdefghijklmnopqrstuvwxyz;:'\",<.>/?\\|[{]}!@#$%^&*()-_=+0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ", "abcdefghijklmnopqrstuvwxyz;:'\",<.>/?\\|[{]}!@#$%^&*()-_=+0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"};
+
 		char needle[3][14] = {"NOPQRSTUVWXYZ", "ABCDEFGHIJKLM", "NOPQRSTUVWXYZ"};
-#pragma pack(pop)
 
-#pragma pack(push, 1)
 		char needle2[7][8] = {"NNOPQRS", "TUVWXYZ", "AABCDEF", "GHIJKLM", "NNOPQRS", "WXYZABC", "FGHIJKL"};
+
+		char needle3[4][27] = {"abcdefghijklmabcdefghijklm", "ncdefghijklmnncdefghijklmn", "abcdefghijklmnopqrstuvwxyz", "yznopqrstuvwxyznopqrstuvwx"};
 #pragma pack(pop)
 
 		KStringView sv(haystack[0]);
 		KStringView sv1(haystack[1]);
 		KStringView sv2(haystack[2]);
+		KStringView svt(&haystack[0][12]);
 
 		KStringView big_sv(haystack2[0]);
 		KStringView big_sv1(haystack2[1]);
 		KStringView big_sv2(haystack2[2]);
+
+
+		KStringView huge_sv(haystack3[0]);
+		KStringView huge_sv_10(&haystack3[0][10]);// No numbers
+		KStringView huge_sv_36(&haystack3[0][36]);// No numbers or cap letters
+		KStringView huge_sv_66(&haystack3[0][66]);// No numbers or cap letters or specials
+		KStringView huge_sv1(haystack3[1]);
+		KStringView huge_sv2(haystack3[2]);
+		KStringView huge_sv2_26(&haystack3[2][26]); // No lowercase
+		KStringView huge_sv2_56(&haystack3[2][56]); // No lowercase or specials
+		KStringView huge_sv2_66(&haystack3[2][66]); // No lowercase or specials or numbers
 
 		CHECK( sv.find_last_of(needle[0]) == KStringView::npos );
 		CHECK( sv1.find_last_of(needle[0]) == 12 );
@@ -154,6 +164,8 @@ TEST_CASE("KStringView") {
 		CHECK( sv1.find_last_of(needle[0]) == 12);
 		CHECK( sv1.find_last_not_of(needle2[0]) == 11);
 		CHECK( sv2.find_last_not_of(needle2[4]) == KStringView::npos);
+		CHECK( sv.find_last_of(needle2[4]) == KStringView::npos);
+		CHECK( sv.find_last_of(needle2[2]) == 5);
 
 		CHECK( big_sv.find_last_of(needle[0]) == KStringView::npos );
 		CHECK( big_sv1.find_last_of(needle[0]) == 25 );
@@ -161,6 +173,43 @@ TEST_CASE("KStringView") {
 		CHECK( big_sv1.find_last_of(needle[0]) == 25);
 		CHECK( big_sv1.find_last_not_of(needle2[0]) == 24);
 		CHECK( big_sv2.find_last_not_of(needle2[4]) == KStringView::npos);
+		CHECK( big_sv.find_last_of(needle2[4]) == KStringView::npos);
+		CHECK( big_sv.find_last_of(needle2[2]) == 18);
+
+		CHECK( huge_sv.find_last_of('z') == 91);
+		CHECK( huge_sv.find_last_of('a') == 66);
+		CHECK( huge_sv.find_last_not_of(needle3[2]) == 66);
+
+		// Ensure logic doesn't break down no matter what the start position is
+		for (int i = 0; i < 92; i++)
+		{
+			KStringView temp(&haystack3[0][i]);
+			CHECK(temp.find_last_of('z') == 91 - i);
+
+			if (i < 66)
+			{
+				CHECK( temp.find_last_not_of(needle3[2]) == 66 - i);
+			}
+			else
+			{
+				CHECK( temp.find_last_not_of(needle3[2]) == KStringView::npos);
+			}
+
+
+			if (i < 67)
+			{
+				CHECK(temp.find_last_of('a') == 66 - i);
+			}
+			else
+			{
+				CHECK(temp.find_last_of('a') == KStringView::npos);
+			}
+
+			if (i > 90) continue;
+			CHECK(temp.find_last_not_of('z') == 90 - i);
+		}
+
+
 	}
 
 	SECTION("find_first_not_of")

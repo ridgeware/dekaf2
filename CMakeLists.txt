@@ -101,6 +101,7 @@ set (HEADERS
     klog.h
     kfile.h
     kprof.h
+    kurlencode.h
     kurl.h
     kprops.h
     kcurl.h
@@ -140,6 +141,7 @@ set (SOURCES
     klog.cpp
     kfile.cpp
     kprof.cpp
+    kurlencode.cpp
     kurl.cpp
     kstringview.cpp
     kstringutils.cpp

@@ -42,6 +42,7 @@
 
 #include <cstring>
 #include "kstringutils.h"
+#include "kurl.h"
 
 namespace dekaf2
 {
@@ -278,11 +279,7 @@ bool kIsEmail(KStringView str) noexcept
 bool kIsURL(KStringView str) noexcept
 //-----------------------------------------------------------------------------
 {
-	if (str.empty())
-	{
-		return false;
-	}
-	return false;
+	return KURL::URL(str).IsURL();
 }
 
 } // end of namespace dekaf2

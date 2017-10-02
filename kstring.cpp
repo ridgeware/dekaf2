@@ -656,10 +656,19 @@ KString::size_type KString::find_first_not_of(KStringView sv, size_type pos) con
 #endif
 
 //----------------------------------------------------------------------
-KString::size_type KString::Replace(KStringView sSearch, KStringView sReplace, bool bReplaceAll)
+KString::size_type KString::Replace(
+        KStringView sSearch,
+        KStringView sReplace,
+        size_type pos,
+        bool bReplaceAll)
 //----------------------------------------------------------------------
 {
-	if (DEKAF2_UNLIKELY(sSearch.empty() || size() < sSearch.size()))
+	if (DEKAF2_UNLIKELY(pos >= size()))
+	{
+		return 0;
+	}
+
+	if (DEKAF2_UNLIKELY(sSearch.empty() || size() - pos < sSearch.size()))
 	{
 		return 0;
 	}
@@ -669,8 +678,8 @@ KString::size_type KString::Replace(KStringView sSearch, KStringView sReplace, b
 
 	size_type iNumReplacement = 0;
 	// use a non-const ref to the first element, as .data() is const with C++ < 17
-	value_type* haystack = &m_rep[0];
-	size_type haystackSize = size();
+	value_type* haystack = &m_rep[pos];
+	size_type haystackSize = size() - pos;
 
 	value_type* pszFound = static_cast<value_type*>(memmem(haystack, haystackSize, sSearch.data(), sSearch.size()));
 
@@ -751,6 +760,56 @@ KString::size_type KString::Replace(KStringView sSearch, KStringView sReplace, b
 	}
 
 	return iNumReplacement;
+}
+
+//----------------------------------------------------------------------
+KString::size_type KString::Replace(
+        value_type chSearch,
+        value_type chReplace,
+        size_type pos,
+        bool bReplaceAll)
+//----------------------------------------------------------------------
+{
+	size_type iReplaced{0};
+
+	while ((pos = find(chSearch, pos)) != npos)
+	{
+		m_rep[pos] = chReplace;
+		++pos;
+		++iReplaced;
+
+		if (!bReplaceAll)
+		{
+			break;
+		}
+	}
+
+	return iReplaced;
+}
+
+//----------------------------------------------------------------------
+KString::size_type KString::Replace(
+        KStringView sSearch,
+        value_type chReplace,
+        size_type pos,
+        bool bReplaceAll)
+//----------------------------------------------------------------------
+{
+	size_type iReplaced{0};
+
+	while ((pos = find_first_of(sSearch, pos)) != npos)
+	{
+		m_rep[pos] = chReplace;
+		++pos;
+		++iReplaced;
+
+		if (!bReplaceAll)
+		{
+			break;
+		}
+	}
+
+	return iReplaced;
 }
 
 //----------------------------------------------------------------------

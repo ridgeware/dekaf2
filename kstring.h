@@ -77,7 +77,8 @@ KString kToLower(KStringView sInput);
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// dekaf2's own string class - a wrapper around std::string
-/// that handles most error cases in a benign way
+/// that handles most error cases in a benign way and speeds up
+/// searching in a spectacular way
 class KString 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -451,7 +452,13 @@ public:
 	size_type ReplaceRegex(KStringView sRegEx, KStringView sReplaceWith, bool bReplaceAll = true);
 
 	/// replace one part of the string with another string
-	size_type Replace(KStringView sSearch, KStringView sReplace, bool bReplaceAll = false);
+	size_type Replace(KStringView sSearch, KStringView sReplace, size_type pos = 0, bool bReplaceAll = true);
+
+	/// replace one char of the string with another char
+	size_type Replace(value_type chSearch, value_type chReplace, size_type pos = 0, bool bReplaceAll = true);
+
+	/// replace any of some chars of the string with another char
+	size_type Replace(KStringView sSearch, value_type sReplace, size_type pos = 0, bool bReplaceAll = true);
 
 	/// does the string start with sPattern?
 	bool StartsWith(KStringView sPattern) const { return kStartsWith(*this, sPattern); }
@@ -560,7 +567,7 @@ public:
 	/// DEPRECATED - only for compatibility with old code
 	bool FindRegex(KStringView regex, unsigned int* start, unsigned int* end, size_type pos = 0) const;
 	/// DEPRECATED - only for compatibility with old code
-	size_type SubString(KStringView sReplaceMe, KStringView sReplaceWith, bool bReplaceAll = false) { return Replace(sReplaceMe, sReplaceWith, bReplaceAll); }
+	size_type SubString(KStringView sReplaceMe, KStringView sReplaceWith, bool bReplaceAll = false) { return Replace(sReplaceMe, sReplaceWith, 0, bReplaceAll); }
 	/// DEPRECATED - only for compatibility with old code
 	size_type SubRegex(KStringView pszRegEx, KStringView pszReplaceWith, bool bReplaceAll = false, size_type* piIdxOffset = nullptr);
 	/// DEPRECATED - only for compatibility with old code
@@ -658,10 +665,11 @@ inline KString operator+(KString&& left, KString::value_type right)
 inline std::size_t kReplace(KString& string,
                             KStringView sSearch,
                             KStringView sReplaceWith,
+                            KString::size_type pos = 0,
                             bool bReplaceAll = true)
 //------------------------------------------------------------------------------
 {
-	return string.Replace(sSearch, sReplaceWith, bReplaceAll);
+	return string.Replace(sSearch, sReplaceWith, pos, bReplaceAll);
 }
 
 } // end of namespace dekaf2

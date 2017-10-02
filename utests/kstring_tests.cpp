@@ -57,7 +57,7 @@ TEST_CASE("KString") {
 
 		for (auto& it : stest)
 		{
-			it[0].Replace(it[1], it[2], true);
+			it[0].Replace(it[1], it[2], 0, true);
 			CHECK( it[0] == it[3] );
 		}
 

@@ -281,11 +281,11 @@ size_t kFindFirstNotOfNeedles16(
 		return kFindFirstOfNoSSE(haystack, needles, true);
 	}
 
-	auto arr2  = _mm_loadu_si128(reinterpret_cast<const __m128i*>(needles.data()));
+	__m128i arr2  = _mm_loadu_si128(reinterpret_cast<const __m128i*>(needles.data()));
 	// do an unaligned load for first block of haystack
-	auto arr1  = _mm_loadu_si128(reinterpret_cast<const __m128i*>(haystack.data()));
+	__m128i arr1  = _mm_loadu_si128(reinterpret_cast<const __m128i*>(haystack.data()));
 	auto index = _mm_cmpestri(arr2, static_cast<int>(needles.size()), arr1, static_cast<int>(haystack.size()), 0b00010000);
-	if (index < 16)
+	if (index < std::min(16, static_cast<int>(haystack.size())))
 	{
 		return size_t(index);
 	}
@@ -296,7 +296,7 @@ size_t kFindFirstNotOfNeedles16(
 	{
 		arr1  = _mm_load_si128(reinterpret_cast<const __m128i*>(haystack.data() + i));
 		index = _mm_cmpestri(arr2, static_cast<int>(needles.size()), arr1, static_cast<int>(haystack.size() - i), 0b00010000);
-		if (index < 16)
+		if (index < std::min(16, static_cast<int>(haystack.size() - i)))
 		{
 			return i + static_cast<size_t>(index);
 		}
@@ -596,10 +596,18 @@ size_t reverseScanHaystackBlockNot(
 	if (val)
 	{
 		auto b = portableCTZ(*val); // reverse search, count trailing zeros
-		// don't count all trailing zeros if haystack isn't full length
-		if ((haystack.size() - blockStartIdx) < 16)
+		// Typically b is the number of "matched" characters.
+		// b-1 is the index of the unmatched char
+		// Unless no matches were found at all, then b is 32
+		if (b == 0)
 		{
-			b = b - (haystack.size() - blockStartIdx);
+			return KStringView::npos;
+		}
+		if (b == 32)
+		{
+			// don't count all trailing zeros if haystack isn't full length
+			uint64_t addSize = std::min(15, static_cast<int>(haystack.size() - blockStartIdx - 1));
+			return blockStartIdx + addSize;
 		}
 		if (b < std::min(16UL, haystack.size() - blockStartIdx))
 		{

@@ -136,6 +136,8 @@ TEST_CASE("KStringView") {
 		char needle2[7][8] = {"NNOPQRS", "TUVWXYZ", "AABCDEF", "GHIJKLM", "NNOPQRS", "WXYZABC", "FGHIJKL"};
 
 		char needle3[4][27] = {"abcdefghijklmabcdefghijklm", "ncdefghijklmnncdefghijklmn", "abcdefghijklmnopqrstuvwxyz", "yznopqrstuvwxyznopqrstuvwx"};
+
+		char needle4[4][27] = {"ABCDEFGHIJKLMABCDEFGHIJKLM", "NCDEFGHIJKLMNNCDEFGHIJKLMN", "ABCDEFGHIJKLMNOPQRSTUVWXYZ", "YZNOPQRSTUVWXYZNOPQRSTUVWX"};
 #pragma pack(pop)
 
 		KStringView sv(haystack[0]);
@@ -179,17 +181,21 @@ TEST_CASE("KStringView") {
 		CHECK( huge_sv.find_last_of('z') == 91);
 		CHECK( huge_sv.find_last_of('a') == 66);
 		CHECK( huge_sv.find_last_not_of(needle3[2]) == 65);
-		CHECK( huge_sv.find_last_not_of(needle3[1]) == 67);
+		//CHECK( huge_sv.find_last_not_of(needle4[1]) == 67); // WRONG THINKING
+		CHECK( huge_sv.find_last_not_of(needle3[1]) == 91);
 
 		KStringView temp0(&haystack3[0][64]);
 		KStringView temp1(&haystack3[0][65]);
 		KStringView temp2(&haystack3[0][82]);
-		CHECK( temp0.find_last_not_of(needle3[1]) == 3);
-		CHECK( temp1.find_last_not_of(needle3[1]) == 2);
+		CHECK( temp0.find_last_not_of(needle3[1]) == 27);
+		CHECK( temp1.find_last_not_of(needle3[1]) == 26);
 		CHECK( huge_sv.find_last_of(needle3[2]) == 91);
 		CHECK( temp2.find_last_of(needle3[2]) == 9);
+		CHECK( huge_sv.find_last_not_of(huge_sv) == KStringView::npos);
+		CHECK( huge_sv1.find_last_not_of(huge_sv) == KStringView::npos);
 
-
+		KStringView ttemp(&haystack3[0][16]);
+		CHECK( huge_sv.find_last_not_of(ttemp) == 15);
 
 		// Ensure logic doesn't break down no matter what the start position is
 
@@ -198,6 +204,15 @@ TEST_CASE("KStringView") {
 			KStringView temp(&haystack3[0][i]);
 			CHECK(temp.find_last_of('z') == 91 - i);
 			CHECK(temp.find_last_of(needle3[2]) == 91 - i);
+
+			if (i == 0)
+			{
+				CHECK( huge_sv.find_last_not_of(temp) == KStringView::npos);
+			}
+			else
+			{
+				CHECK( huge_sv.find_last_not_of(temp) == i - 1);
+			}
 
 			if (i < 66)
 			{
@@ -215,13 +230,13 @@ TEST_CASE("KStringView") {
 			{
 				CHECK(temp.find_last_of('a') == KStringView::npos);
 			}
-			if (i < 68)
+			if (i < 80)
 			{
-				CHECK( temp.find_last_not_of(needle3[1]) == 67 - i);
+				CHECK( temp.find_last_of(needle3[1]) == 79 - i);
 			}
 			else
 			{
-				CHECK( temp.find_last_not_of(needle3[1]) == KStringView::npos);
+				CHECK( temp.find_last_of(needle3[1]) == KStringView::npos);
 			}
 
 			if (i > 90) continue;
@@ -231,9 +246,99 @@ TEST_CASE("KStringView") {
 		for (int i = 0; i < 26; i++)
 		{
 			KStringView tneedle(&needle3[2][i]);
+			KStringView temp(&haystack3[0][i]);
 			CHECK( huge_sv.find_last_not_of(tneedle) == 65 + i);
+			CHECK( temp.find_last_not_of(tneedle) == 65);
+			CHECK( temp.find_last_of(tneedle) == 91 - i);
+			if (i == 0)
+			{
+				CHECK( huge_sv.find_last_not_of(temp) == KStringView::npos);
+			}
+			else
+			{
+				CHECK( huge_sv.find_last_not_of(temp) == i - 1);
+			}
+			CHECK( huge_sv.find_last_of('_') == 63);
+
 		}
 
+	}
+
+	SECTION("find_first_of find_first_not_of with controlled 'noise'")
+	{
+
+#pragma pack(push, 1)
+		char haystack[4][14] = {"ABCDEFGHIJKLM", "NCDEFGHIJKLMN", "NOPQRSOPQRSQQ", "NZNOPQRSTUVWX"};
+
+		char haystack2[4][27] = {"ABCDEFGHIJKLMABCDEFGHIJKLM", "NCDEFGHIJKLMNNCDEFGHIJKLMN", "NOPQRSOPQRSQQNOPQRSOPQRSQQ", "YZNOPQRSTUVWXYZNOPQRSTUVWX"};
+
+		char haystack3[4][93] = {"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ;:'\",<.>/?\\|[{]}!@#$%^&*()-_=+abcdefghijklmnopqrstuvwxyz", "z0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ;:'\",<.>/?\\|[{]}!@#$%^&*()-_=+abcdefghijklmnopqrstuvwxy", "abcdefghijklmnopqrstuvwxyz;:'\",<.>/?\\|[{]}!@#$%^&*()-_=+0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ", "abcdefghijklmnopqrstuvwxyz;:'\",<.>/?\\|[{]}!@#$%^&*()-_=+0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"};
+
+		char needle[3][14] = {"NOPQRSTUVWXYZ", "ABCDEFGHIJKLM", "NOPQRSTUVWXYZ"};
+
+		char needle2[7][8] = {"NNOPQRS", "TUVWXYZ", "AABCDEF", "GHIJKLM", "NNOPQRS", "WXYZABC", "FGHIJKL"};
+
+		char needle3[4][27] = {"abcdefghijklmabcdefghijklm", "ncdefghijklmnncdefghijklmn", "abcdefghijklmnopqrstuvwxyz", "yznopqrstuvwxyznopqrstuvwx"};
+
+		char needle4[4][27] = {"ABCDEFGHIJKLMABCDEFGHIJKLM", "NCDEFGHIJKLMNNCDEFGHIJKLMN", "ABCDEFGHIJKLMNOPQRSTUVWXYZ", "YZNOPQRSTUVWXYZNOPQRSTUVWX"};
+#pragma pack(pop)
+
+		KStringView sv(haystack[0]);
+		KStringView sv1(haystack[1]);
+		KStringView sv2(haystack[2]);
+		KStringView svt(&haystack[0][12]);
+
+		KStringView big_sv(haystack2[0]);
+		KStringView big_sv1(haystack2[1]);
+		KStringView big_sv2(haystack2[2]);
+
+
+		KStringView huge_sv(haystack3[0]);
+		KStringView huge_sv_10(&haystack3[0][10]);// No numbers
+		KStringView huge_sv_36(&haystack3[0][36]);// No numbers or cap letters
+		KStringView huge_sv_66(&haystack3[0][66]);// No numbers or cap letters or specials
+		KStringView huge_sv1(haystack3[1]);
+		KStringView huge_sv2(haystack3[2]);
+		KStringView huge_sv2_26(&haystack3[2][26]); // No lowercase
+		KStringView huge_sv2_56(&haystack3[2][56]); // No lowercase or specials
+		KStringView huge_sv2_66(&haystack3[2][66]); // No lowercase or specials or numbers
+
+		CHECK( sv.find_first_of(needle[0]) == KStringView::npos );
+		CHECK( sv1.find_first_of(needle[0]) == 0 );
+		CHECK( sv.find_first_not_of(needle[0]) == 0);
+		CHECK( sv1.find_first_of(needle[0]) == 0);
+		CHECK( sv1.find_first_not_of(needle2[0]) == 1);
+		CHECK( sv2.find_first_not_of(needle2[4]) == KStringView::npos);
+		CHECK( sv.find_first_of(needle2[4]) == KStringView::npos);
+		CHECK( sv.find_first_of(needle2[2]) == 0);
+/*
+		CHECK( big_sv.find_first_of(needle[0]) == KStringView::npos );
+		CHECK( big_sv1.find_first_of(needle[0]) == 0 );
+		CHECK( big_sv.find_first_not_of(needle[0]) == 0);
+		CHECK( big_sv1.find_first_of(needle[0]) == 0);
+		CHECK( big_sv1.find_first_not_of(needle2[0]) == 1);
+		CHECK( big_sv2.find_first_not_of(needle2[4]) == KStringView::npos);
+		CHECK( big_sv.find_first_of(needle2[4]) == KStringView::npos);
+		CHECK( big_sv.find_first_of(needle2[2]) == 0);
+
+		CHECK( huge_sv.find_first_of('z') == 91);
+		CHECK( huge_sv.find_first_of('a') == 66);
+		CHECK( huge_sv.find_first_not_of(needle3[2]) == 0);
+		CHECK( huge_sv.find_first_not_of(needle3[1]) == 0);
+
+		KStringView temp0(&haystack3[0][64]);
+		KStringView temp1(&haystack3[0][65]);
+		KStringView temp2(&haystack3[0][82]);
+		CHECK( temp0.find_first_not_of(needle3[1]) == 16);
+		CHECK( temp1.find_first_not_of(needle3[1]) == 15);
+		CHECK( huge_sv.find_first_of(needle3[2]) == 66);
+		CHECK( temp2.find_first_of(needle3[2]) == 0);
+		CHECK( huge_sv.find_first_not_of(huge_sv) == KStringView::npos);
+		CHECK( huge_sv1.find_first_not_of(huge_sv) == KStringView::npos);
+
+		KStringView ttemp(&haystack3[0][16]);
+		CHECK( huge_sv.find_first_not_of(ttemp) == 0);
+*/
 	}
 
 	SECTION("find_first_not_of")

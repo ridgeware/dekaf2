@@ -53,11 +53,11 @@
 
 
 namespace dekaf2 {
-namespace KURL {
+namespace url {
 namespace detail {
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-// we have two different storage types for the URI components:
+// we have two different storage types for the KURI components:
 // URLEncodedString
 // KProps
 // For some of the class methods we need specializations
@@ -266,7 +266,7 @@ public:
 					if (Component == URIPart::User || Component == URIPart::Password)
 					{
 						// bail out - we need to find the @ for User or Password
-						// or else this is no User or Password component of a URI
+						// or else this is no User or Password component of a KURI
 						return svSource;
 					}
 					iFound = svSource.size();
@@ -386,6 +386,24 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
+	/// return the key-value member
+	template<typename X = Storage, typename std::enable_if<!std::is_same<X, URLEncodedString>::value, int>::type = 0 >
+	const typename Storage::value_type* operator-> () const
+	//-------------------------------------------------------------------------
+	{
+		return &get();
+	}
+
+	//-------------------------------------------------------------------------
+	/// return the key-value member
+	template<typename X = Storage, typename std::enable_if<!std::is_same<X, URLEncodedString>::value, int>::type = 0 >
+	typename Storage::value_type* operator-> ()
+	//-------------------------------------------------------------------------
+	{
+		return &get();
+	}
+
+	//-------------------------------------------------------------------------
 	/// return the key-value value
 	template<typename X = Storage, typename std::enable_if<!std::is_same<X, URLEncodedString>::value, int>::type = 0 >
 	const KString& operator[] (KStringView sv) const
@@ -476,21 +494,21 @@ private:
 
 };
 
-} // end of namespace dekaf2::KURL::detail
+} // end of namespace dekaf2::url::detail
 
-using User      = detail::URIComponent<URLEncodedString, URIPart::User,     '\0', false, true >;
-using Password  = detail::URIComponent<URLEncodedString, URIPart::Password, '\0', false, true >;
-using Domain    = detail::URIComponent<URLEncodedString, URIPart::Domain,   '\0', false, false>;
-using Port      = detail::URIComponent<URLEncodedString, URIPart::Port,     ':',  true,  false>;
-using Path      = detail::URIComponent<URLEncodedString, URIPart::Path,     '/',  false, false>;
-using PathParam = detail::URIComponent<URLEncodedPathParam, URIPart::PathParameters, ';', true, false>;
-using Query     = detail::URIComponent<URLEncodedQuery,  URIPart::Query,    '?',  true, false>;
-using Fragment  = detail::URIComponent<URLEncodedString, URIPart::Fragment, '#',  true, false>;
+using KUser      = detail::URIComponent<URLEncodedString, URIPart::User,     '\0', false, true >;
+using KPassword  = detail::URIComponent<URLEncodedString, URIPart::Password, '\0', false, true >;
+using KDomain    = detail::URIComponent<URLEncodedString, URIPart::Domain,   '\0', false, false>;
+using KPort      = detail::URIComponent<URLEncodedString, URIPart::Port,     ':',  true,  false>;
+using KPath      = detail::URIComponent<URLEncodedString, URIPart::Path,     '/',  false, false>;
+using KPathParam = detail::URIComponent<URLEncodedPathParam, URIPart::PathParameters, ';', true, false>;
+using KQuery     = detail::URIComponent<URLEncodedQuery,  URIPart::Query,    '?',  true, false>;
+using KFragment  = detail::URIComponent<URLEncodedString, URIPart::Fragment, '#',  true, false>;
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-// The URL Schema is a bit different from the other URI components, therefore
+// The URL Schema is a bit different from the other KURI components, therefore
 // we handle it manually
-class Protocol
+class KProtocol
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -519,19 +537,19 @@ public:
 
 	//-------------------------------------------------------------------------
 	/// default constructor
-	Protocol () = default;
+	KProtocol () = default;
 	//-------------------------------------------------------------------------
 
 	//-------------------------------------------------------------------------
 	/// construct an instance for enumerated protocol.
-	Protocol (eProto iProto)
+	KProtocol (eProto iProto)
 		: m_eProto {iProto}
 	//-------------------------------------------------------------------------
 	{}
 
 	//-------------------------------------------------------------------------
 	/// constructs instance and parses source into members
-	Protocol (KStringView svSource)
+	KProtocol (KStringView svSource)
 	//-------------------------------------------------------------------------
 	{
 		Parse (svSource);
@@ -544,22 +562,22 @@ public:
 
 	//-------------------------------------------------------------------------
 	/// copy constructor
-	Protocol (const Protocol& other) = default;
+	KProtocol (const KProtocol& other) = default;
 	//-------------------------------------------------------------------------
 
 	//-------------------------------------------------------------------------
 	/// move constructor
-	Protocol (Protocol&& other) = default;
+	KProtocol (KProtocol&& other) = default;
 	//-------------------------------------------------------------------------
 
 	//-------------------------------------------------------------------------
 	/// copy assignment
-	Protocol& operator= (const Protocol& other) = default;
+	KProtocol& operator= (const KProtocol& other) = default;
 	//-------------------------------------------------------------------------
 
 	//-------------------------------------------------------------------------
 	/// moves members from other instance into this
-	Protocol& operator= (Protocol&& other) = default;
+	KProtocol& operator= (KProtocol&& other) = default;
 	//-------------------------------------------------------------------------
 
 	//-------------------------------------------------------------------------
@@ -574,7 +592,7 @@ public:
 
 	//-------------------------------------------------------------------------
 	/// Serialize internal rep into arg KString
-	const Protocol& operator>> (KString& sTarget) const
+	const KProtocol& operator>> (KString& sTarget) const
 	//-------------------------------------------------------------------------
 	{
 		Serialize (sTarget);
@@ -583,7 +601,7 @@ public:
 
 	//-------------------------------------------------------------------------
 	/// Parse arg into internal rep
-	Protocol& operator<< (KStringView sSource)
+	KProtocol& operator<< (KStringView sSource)
 	//-------------------------------------------------------------------------
 	{
 		Parse (sSource);
@@ -612,7 +630,7 @@ public:
 
 	//-------------------------------------------------------------------------
 	/// return the numeric scheme identifier
-	eProto getEnum () const
+	eProto getProtocol () const
 	//-------------------------------------------------------------------------
 	{
 		return m_eProto;
@@ -626,6 +644,14 @@ public:
 		Parse (svProto);
 	}
 
+	//-------------------------------------------------------------------------
+	/// operator=(KStringView) parses the argument
+	KProtocol& operator=(KStringView sv)
+	//-------------------------------------------------------------------------
+	{
+		set(sv);
+		return *this;
+	}
 	//-------------------------------------------------------------------------
 	bool operator== (eProto iProto) const
 	//-------------------------------------------------------------------------
@@ -642,7 +668,7 @@ public:
 
 	//-------------------------------------------------------------------------
 	/// compares other instance with this
-	friend bool operator== (const Protocol& left, const Protocol& right)
+	friend bool operator== (const KProtocol& left, const KProtocol& right)
 	//-------------------------------------------------------------------------
 	{
 		if (left.m_eProto != right.m_eProto)
@@ -661,7 +687,7 @@ public:
 	//-------------------------------------------------------------------------
 	/// compares other instance with this
 	//-------------------------------------------------------------------------
-	friend bool operator!= (const Protocol& left, const Protocol& right)
+	friend bool operator!= (const KProtocol& left, const KProtocol& right)
 	{
 		return !(left == right);
 	}
@@ -684,11 +710,15 @@ private:
 
 };
 
+} // end of namespace url
+
+
+
 // forward declaration
-class URL;
+class KURL;
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class URI
+class KURI
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -697,34 +727,34 @@ public:
 //------
 
 	//-------------------------------------------------------------------------
-	URI() = default;
+	KURI() = default;
 	//-------------------------------------------------------------------------
 
 	//-------------------------------------------------------------------------
-	URI(KStringView sv)
+	KURI(KStringView sv)
 	//-------------------------------------------------------------------------
 	{
 		Parse(sv);
 	}
 
 	//-------------------------------------------------------------------------
-	URI(const URI&) = default;
+	KURI(const KURI&) = default;
 	//-------------------------------------------------------------------------
 
 	//-------------------------------------------------------------------------
-	URI(URI&&) = default;
+	KURI(KURI&&) = default;
 	//-------------------------------------------------------------------------
 
 	//-------------------------------------------------------------------------
-	URI& operator=(const URI&) = default;
+	KURI& operator=(const KURI&) = default;
 	//-------------------------------------------------------------------------
 
 	//-------------------------------------------------------------------------
-	URI& operator=(URI&&) = default;
+	KURI& operator=(KURI&&) = default;
 	//-------------------------------------------------------------------------
 
 	//-------------------------------------------------------------------------
-	URI& operator=(KStringView sv)
+	KURI& operator=(KStringView sv)
 	//-------------------------------------------------------------------------
 	{
 		Parse(sv);
@@ -732,7 +762,7 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
-	URI& operator=(const URL& url);
+	KURI& operator=(const KURL& url);
 	//-------------------------------------------------------------------------
 
 	//-------------------------------------------------------------------------
@@ -749,7 +779,7 @@ public:
 
 	//-------------------------------------------------------------------------
 	/// Serialize stream style
-	const URI& operator>> (KString& sTarget) const
+	const KURI& operator>> (KString& sTarget) const
 	//-------------------------------------------------------------------------
 	{
 		Serialize (sTarget);
@@ -758,22 +788,22 @@ public:
 
 	//-------------------------------------------------------------------------
 	/// Parse stream style
-	URI& operator<< (KStringView sSource)
+	KURI& operator<< (KStringView sSource)
 	//-------------------------------------------------------------------------
 	{
 		Parse (sSource);
 		return *this;
 	}
 
-	Path      path;
-	PathParam pathparam;
-	Query     query;
-	Fragment  fragment;
+	url::KPath      Path;
+	url::KPathParam PathParam;
+	url::KQuery     Query;
+	url::KFragment  Fragment;
 
-}; // URI
+}; // KURI
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class URL
+class KURL
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -782,34 +812,34 @@ public:
 //------
 
 	//-------------------------------------------------------------------------
-	URL() = default;
+	KURL() = default;
 	//-------------------------------------------------------------------------
 
 	//-------------------------------------------------------------------------
-	URL(KStringView sv)
+	KURL(KStringView sv)
 	//-------------------------------------------------------------------------
 	{
 		Parse(sv);
 	}
 
 	//-------------------------------------------------------------------------
-	URL(const URL&) = default;
+	KURL(const KURL&) = default;
 	//-------------------------------------------------------------------------
 
 	//-------------------------------------------------------------------------
-	URL(URL&&) = default;
+	KURL(KURL&&) = default;
 	//-------------------------------------------------------------------------
 
 	//-------------------------------------------------------------------------
-	URL& operator=(const URL&) = default;
+	KURL& operator=(const KURL&) = default;
 	//-------------------------------------------------------------------------
 
 	//-------------------------------------------------------------------------
-	URL& operator=(URL&&) = default;
+	KURL& operator=(KURL&&) = default;
 	//-------------------------------------------------------------------------
 
 	//-------------------------------------------------------------------------
-	URL& operator=(KStringView sv)
+	KURL& operator=(KStringView sv)
 	//-------------------------------------------------------------------------
 	{
 		Parse(sv);
@@ -830,7 +860,7 @@ public:
 
 	//-------------------------------------------------------------------------
 	/// Serialize stream style
-	const URL& operator>> (KString& sTarget) const
+	const KURL& operator>> (KString& sTarget) const
 	//-------------------------------------------------------------------------
 	{
 		Serialize (sTarget);
@@ -839,7 +869,7 @@ public:
 
 	//-------------------------------------------------------------------------
 	/// Parse stream style
-	URL& operator<< (KStringView sSource)
+	KURL& operator<< (KStringView sSource)
 	//-------------------------------------------------------------------------
 	{
 		Parse (sSource);
@@ -847,32 +877,29 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
-	/// is this a valid URL?
+	/// is this a valid KURL?
 	bool IsURL () const
 	//-------------------------------------------------------------------------
 	{
-		return !protocol.empty();
+		return !Protocol.empty();
 	}
 
-	friend bool operator==(const URL& left, const URL& right);
-	friend bool operator!=(const URL& left, const URL& right)
+	friend bool operator==(const KURL& left, const KURL& right);
+	friend bool operator!=(const KURL& left, const KURL& right)
 	{
 		return !operator==(left, right);
 	}
 
-	Protocol  protocol;
-	User      user;
-	Password  password;
-	Domain    domain;
-	Port      port;
-	Path      path;
-	PathParam pathparam;
-	Query     query;
-	Fragment  fragment;
+	url::KProtocol  Protocol;
+	url::KUser      User;
+	url::KPassword  Password;
+	url::KDomain    Domain;
+	url::KPort      Port;
+	url::KPath      Path;
+	url::KPathParam PathParam;
+	url::KQuery     Query;
+	url::KFragment  Fragment;
 
-}; // URL
-
-
-} // of namespace KURL
+}; // KURL
 
 } // of namespace dekaf2

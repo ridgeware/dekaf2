@@ -95,14 +95,14 @@ SCENARIO ( "KURL unit tests on valid data" )
 						expect = source;
 					}
 
-					dekaf2::KURL::URL kurl  (svSource);
+					dekaf2::KURL kurl  (svSource);
 					bool have{kurl.Serialize (target)};
 
 					INFO (svSource);
 					if (want != have || target != expect || done != hint)
 					{
 						CHECK (target == expect);
-						dekaf2::KURL::URL kurl  (svSource);
+						dekaf2::KURL kurl  (svSource);
 					}
 					CHECK (want   == have  );
 					CHECK (target == expect);
@@ -125,7 +125,7 @@ SCENARIO ( "KURL unit tests on valid data" )
 						sBefore += iDigit[iHi];
 						sBefore += iDigit[iLo];
 						KStringView svConvert{sBefore};
-						dekaf2::KURL::Query query;
+						dekaf2::url::KQuery query;
 						svConvert = query.Parse (svConvert);
 						//const KProp_t& kprops = query.getProperties();
 						KString sAfter = query[sKey];
@@ -153,7 +153,7 @@ SCENARIO ( "KURL unit tests on operators")
 	{
 		WHEN ( "operating on an entire complex URL")
 		{
-			dekaf2::KURL::URL url;
+			dekaf2::KURL url;
 			THEN ( "Check results for validity")
 			{
 				test_t::iterator it;
@@ -171,14 +171,14 @@ SCENARIO ( "KURL unit tests on operators")
 		}
 		WHEN ( "operating on individual fields of URL")
 		{
-			dekaf2::KURL::Protocol  protocol;
-			dekaf2::KURL::User      user;
-			dekaf2::KURL::Password  password;
-			dekaf2::KURL::Domain    domain;
-			dekaf2::KURL::Path      path;
-			dekaf2::KURL::Query     query;
-			dekaf2::KURL::Fragment  fragment;
-			dekaf2::KURL::URI       uri;
+			dekaf2::url::KProtocol  protocol;
+			dekaf2::url::KUser      user;
+			dekaf2::url::KPassword  password;
+			dekaf2::url::KDomain    domain;
+			dekaf2::url::KPath      path;
+			dekaf2::url::KQuery     query;
+			dekaf2::url::KFragment  fragment;
+			dekaf2::KURI       uri;
 			THEN ( "Check results for validity")
 			{
 				KString sProtocol   {"unknown://"};
@@ -245,14 +245,14 @@ SCENARIO ( "KURL unit tests on invalid data")
 		{
 			KString sEmptyString{};
 			KStringView svEmptyString = sEmptyString;
-			dekaf2::KURL::Protocol  protocol;
-			dekaf2::KURL::User      user;
-			dekaf2::KURL::Domain    domain;
-			dekaf2::KURL::Path      path;
-			dekaf2::KURL::Query     query;
-			dekaf2::KURL::Fragment  fragment;
-			dekaf2::KURL::URI       uri;
-			dekaf2::KURL::URL       url;
+			dekaf2::url::KProtocol  protocol;
+			dekaf2::url::KUser      user;
+			dekaf2::url::KDomain    domain;
+			dekaf2::url::KPath      path;
+			dekaf2::url::KQuery     query;
+			dekaf2::url::KFragment  fragment;
+			dekaf2::KURI       uri;
+			dekaf2::KURL       url;
 
 			THEN ( "check responses to empty string" )
 			{
@@ -278,7 +278,7 @@ SCENARIO ( "KURL unit tests on invalid data")
 			{
 				KString sBadPath{"fubar"};
 				KStringView svBadPath = sBadPath;
-				dekaf2::KURL::Path path;
+				dekaf2::url::KPath path;
 				svBadPath = path.Parse (svBadPath);
 				CHECK (svBadPath == sBadPath);
 			}
@@ -291,7 +291,7 @@ SCENARIO ( "KURL unit tests on invalid data")
 				KString sBadQuery{"hello world"}; // missing ?.*=.*
 				KStringView svBadQuery = sBadQuery;
 				size_t hint{0};
-				dekaf2::KURL::Query query;
+				dekaf2::url::KQuery query;
 				bool bReturn = query.Parse (svBadQuery, hint);
 				CHECK (bReturn == false);
 			}
@@ -301,7 +301,7 @@ SCENARIO ( "KURL unit tests on invalid data")
 			{
 				KString sBadQuery{"hello=world%2"}; // missing %21
 				KStringView svBadQuery = sBadQuery;
-				dekaf2::KURL::Query query;
+				dekaf2::url::KQuery query;
 				svBadQuery = query.Parse (svBadQuery);
 				//const KProp_t& kprops = query.getProperties();
 				CHECK (svBadQuery != sBadQuery);
@@ -311,7 +311,7 @@ SCENARIO ( "KURL unit tests on invalid data")
 			{
 				KString sBadQuery{"hello=world%gg"}; // bad %gg
 				KStringView svBadQuery = sBadQuery;
-				dekaf2::KURL::Query query;
+				dekaf2::url::KQuery query;
 				svBadQuery = query.Parse (svBadQuery);
 				//const KProp_t& kprops = query.getProperties();
 				CHECK (svBadQuery != sBadQuery);
@@ -364,19 +364,19 @@ SCENARIO ( "KURL unit tests on invalid data")
 						sBefore += "=" + sValue;
 
 						KStringView svConvert(sBefore.c_str(), iLength);
-						dekaf2::KURL::Query query;
+						dekaf2::url::KQuery query;
 						svConvert = query.Parse (svConvert);
 						//const KProp_t& kprops = query.getProperties();
 						KString sResult = query[sKey];
 						size_t size = sResult.size();
 						if (size == 2 || sValue != sResult)
 						{
-							dekaf2::KURL::Query bad;
+							dekaf2::url::KQuery bad;
 							bad.Parse(svConvert);
 							sResult.size();
 						}
 						if (sResult.size() != 3 || sResult != sValue) {
-							dekaf2::KURL::Query bad;
+							dekaf2::url::KQuery bad;
 							bad.Parse(svConvert);
 						}
 						CHECK (sResult.size() == 3);
@@ -484,19 +484,19 @@ TEST_CASE ("KURL")
 			KString target;
 			KString expect1 ("https://");
 
-			dekaf2::KURL::Protocol kproto1  (source1);
-			dekaf2::KURL::Protocol kproto2  (source2);
-			dekaf2::KURL::Protocol kproto3  (kproto1);
+			dekaf2::url::KProtocol kproto1  (source1);
+			dekaf2::url::KProtocol kproto2  (source2);
+			dekaf2::url::KProtocol kproto3  (kproto1);
 
-			dekaf2::KURL::Query kqueryparms  (sQuery);
+			dekaf2::url::KQuery kqueryparms  (sQuery);
 
-			dekaf2::KURL::Fragment kfragment  (sFragment);
+			dekaf2::url::KFragment kfragment  (sFragment);
 
-			dekaf2::KURL::URI kuri  (sURI);
+			dekaf2::KURI kuri  (sURI);
 
-			dekaf2::KURL::URI kuriBad ("<b>I'm bold</b>");
+			dekaf2::KURI kuriBad ("<b>I'm bold</b>");
 
-			dekaf2::KURL::URL kurl;
+			dekaf2::KURL kurl;
 
 			KString kurlOut{};
 			INFO(kurl.Serialize(kurlOut));
@@ -507,7 +507,7 @@ TEST_CASE ("KURL")
 			bool empty = kproto1.empty ();
 			//size_t size = kproto1.size ();
 
-			dekaf2::KURL::URL soperator;
+			dekaf2::KURL soperator;
 			KString toperator;
 
 			soperator << source1;
@@ -531,19 +531,19 @@ TEST_CASE ("KURL")
 			KString target;
 			KString expect{source1};
 
-			dekaf2::KURL::Protocol kproto;
+			dekaf2::url::KProtocol kproto;
 			source1 = kproto.Parse (source1);
 
-			dekaf2::KURL::User kuser;
+			dekaf2::url::KUser kuser;
 			source1 = kuser.Parse (source1);
 
-			dekaf2::KURL::Password kpassword;
+			dekaf2::url::KPassword kpassword;
 			source1 = kpassword.Parse (source1);
 
-			dekaf2::KURL::Domain kdomain;
+			dekaf2::url::KDomain kdomain;
 			source1 = kdomain.Parse(source1);
 
-			dekaf2::KURL::Port kport (source1);
+			dekaf2::url::KPort kport (source1);
 
 			kproto   .Serialize (target);
 			kuser    .Serialize (target);
@@ -562,10 +562,10 @@ TEST_CASE ("KURL")
 				KString target;
 				KString expect{sDomain};
 
-				dekaf2::KURL::Domain kdomain;
+				dekaf2::url::KDomain kdomain;
 				sDomain = kdomain.Parse(sDomain);
 
-				dekaf2::KURL::Port kport(sDomain);
+				dekaf2::url::KPort kport(sDomain);
 
 				kdomain.Serialize (target);
 				kport.Serialize (target);
@@ -580,10 +580,10 @@ TEST_CASE ("KURL")
 		SECTION ("Protocol move")
 		{
 			KString protocol("https://");
-			dekaf2::KURL::Protocol k1 (protocol);
-			dekaf2::KURL::Protocol k2;
+			dekaf2::url::KProtocol k1 (protocol);
+			dekaf2::url::KProtocol k2;
 			k1 = std::move(k2);
-			k2 = KURL::Protocol("http://");
+			k2 = url::KProtocol("http://");
 			CHECK (k2 != k1);
 		}
 
@@ -593,7 +593,7 @@ TEST_CASE ("KURL")
 			KString expect{solo};
 			KString target;
 
-			dekaf2::KURL::Protocol kproto;
+			dekaf2::url::KProtocol kproto;
 			kproto.Parse(solo);
 
 			bool ret = kproto.Serialize (target);
@@ -608,13 +608,13 @@ TEST_CASE ("KURL")
 			KString expect{"https://"};
 			KString target{};
 
-			dekaf2::KURL::Protocol kproto  (solo);
+			dekaf2::url::KProtocol kproto  (solo);
 
 			bool ret = kproto.Serialize (target);
 
 			if (target != expect)
 			{
-				dekaf2::KURL::Protocol kproto  (solo);
+				dekaf2::url::KProtocol kproto  (solo);
 			}
 
 			CHECK (ret == true);
@@ -627,7 +627,7 @@ TEST_CASE ("KURL")
 			KString expect{};
 			KString target{};
 
-			dekaf2::KURL::Protocol kproto  (solo);
+			dekaf2::url::KProtocol kproto  (solo);
 
 			bool ret = kproto.Serialize (target);
 
@@ -641,7 +641,7 @@ TEST_CASE ("KURL")
 			KString expect{"mailto:"};
 			KString target{};
 
-			dekaf2::KURL::Protocol kproto  (solo);
+			dekaf2::url::KProtocol kproto  (solo);
 
 			bool ret = kproto.Serialize (target);
 
@@ -656,10 +656,10 @@ TEST_CASE ("KURL")
 			KString target{};
 			size_t hint{0};
 
-			dekaf2::KURL::User kuser;
+			dekaf2::url::KUser kuser;
 			solo = kuser.Parse(solo);
 
-			dekaf2::KURL::Password kpassword;
+			dekaf2::url::KPassword kpassword;
 			solo = kpassword.Parse(solo);
 
 			bool ret = kuser.Serialize (target) && kpassword.Serialize(target);
@@ -681,7 +681,7 @@ TEST_CASE ("KURL")
 				size_t   done{get<1>(parameter)};
 				bool     want{get<2>(parameter)};
 
-				dekaf2::KURL::URL kurl  (source);
+				dekaf2::KURL kurl  (source);
 				bool have{kurl.Serialize (target)};
 
 				if (want != have || target != expect)
@@ -712,7 +712,7 @@ TEST_CASE ("KURL")
 				size_t   done{get<1>(parameter)};
 				bool     want{get<2>(parameter)};
 
-				dekaf2::KURL::URL kurl  (svSource);
+				dekaf2::KURL kurl  (svSource);
 				bool have{kurl.Serialize (target)};
 
 				if (want != have || target != expect)
@@ -739,13 +739,13 @@ TEST_CASE ("KURL")
 				KString  feature	{get<3>(parameter)};
 				KString  expect     {get<4>(parameter)};
 
-				dekaf2::KURL::URL kurl  (source);
+				dekaf2::KURL kurl  (source);
 				bool have{kurl.Serialize (target)};
 
 				if (want != have || target != expect)
 				{
 					CHECK (target == expect);
-					dekaf2::KURL::URL kurl  (source);
+					dekaf2::KURL kurl  (source);
 				}
 				CHECK (want   == have  );
 				CHECK (target == expect);
@@ -755,7 +755,7 @@ TEST_CASE ("KURL")
 		SECTION ("KURL query properties")
 		{
 			KString ksQueryParms {"?hello=world&hola=mundo&space=%20"};
-			dekaf2::KURL::Query query (ksQueryParms);
+			dekaf2::url::KQuery query (ksQueryParms);
 			//const KProp_t& kprops = query.getProperties();
 			CHECK (query["hello"] == "world");
 			CHECK (query["hola"] == "mundo");
@@ -766,20 +766,20 @@ TEST_CASE ("KURL")
 		{
 			KString ksHttpSlashless{"http:"};
 			KString ksTarget;
-			dekaf2::KURL::Protocol protocol (ksHttpSlashless);
+			dekaf2::url::KProtocol protocol (ksHttpSlashless);
 			protocol.Serialize (ksTarget);
 			CHECK (ksTarget.size () == 0);
 
 			ksTarget.clear();
 			KString ksQueryNoEqual{"?a=b&fubar"};
 			KStringView svQueryNoEqual{ksQueryNoEqual};
-			dekaf2::KURL::Query queryNoEqual (svQueryNoEqual);
+			dekaf2::url::KQuery queryNoEqual (svQueryNoEqual);
 			CHECK (queryNoEqual.empty () == false); // this is simply an empty value
 
 			ksTarget.clear();
 			KString ksQueryBadKey{"?fu%2=bar"};
 			KStringView svQueryBadKey{ksQueryBadKey};
-			dekaf2::KURL::Query queryBadKey (svQueryBadKey);
+			dekaf2::url::KQuery queryBadKey (svQueryBadKey);
 			CHECK (queryBadKey.empty () == false);
 		}
 }
@@ -789,7 +789,7 @@ TEST_CASE ("KURL formerly missing")
 	SECTION ("KURL base domain")
 	{
 		KStringView svDomain("abc.test.com");
-		KURL::Domain Domain(svDomain);
+		url::KDomain Domain(svDomain);
 		KStringView svResult = Domain.getBaseDomain();
 		CHECK (svResult == "TEST");
 
@@ -827,42 +827,42 @@ TEST_CASE ("KURL formerly missing")
 	SECTION ("KURL ip addresses")
 	{
 		KStringView svURL("http://192.168.178.2:8080/and/a/path?with=cheese&with=onions#salt");
-		KURL::URL URL(svURL);
-		KStringView svResult = URL.domain;
+		KURL URL(svURL);
+		KStringView svResult = URL.Domain;
 		CHECK (svResult == "192.168.178.2");
 
 		svURL = "http://[FEDC:BA98:7654:3210:FEDC:BA98:7654:3210]:8080/and/a/path?with=cheese&with=onions#salt";
 		URL = svURL;
-		svResult = URL.domain;
+		svResult = URL.Domain;
 		CHECK (svResult == "[FEDC:BA98:7654:3210:FEDC:BA98:7654:3210]");
 		KString ser;
-		KURL::Query Query(URL.query);
+		url::KQuery Query(URL.Query);
 		Query.Serialize(ser);
 		CHECK(ser == "?with=cheese&with=onions");
 
 		svURL = "http://[::192.9.5.5]:8080/and/a/path?with=cheese&with=onions#salt";
 		URL = svURL;
-		svResult = URL.domain;
+		svResult = URL.Domain;
 		CHECK (svResult == "[::192.9.5.5]");
 
 		svURL = "http://[3ffe:2a00:100:7031::]:8080/and/a/path?with=cheese&with=onions#salt";
 		URL = svURL;
-		svResult = URL.domain;
+		svResult = URL.Domain;
 		CHECK (svResult == "[3ffe:2a00:100:7031::]");
 	}
 
 	SECTION ("KURL no schema")
 	{
 		KStringView svURL("my.domain.name:8080/and/a/path?with=cheese&with=onions#salt");
-		KURL::URL URL(svURL);
-		CHECK (URL.domain == "my.domain.name");
+		KURL URL(svURL);
+		CHECK (URL.Domain == "my.domain.name");
 	}
 
 	SECTION ("KURL copy assignment")
 	{
 		KStringView svURL;
-		KURL::URL URL1;
-		KURL::URL URL2;
+		KURL URL1;
+		KURL URL2;
 		KString serialized1, serialized2;
 
 		svURL = "whatever://fred:secret@www.test.com:7654/works.html;param;a=b;multi=a,b,c,d;this=that?foo=bar&you=me#fragment";
@@ -878,8 +878,8 @@ TEST_CASE ("KURL formerly missing")
 	SECTION ("KURL move assignment")
 	{
 		KStringView svURL;
-		KURL::URL URL1;
-		KURL::URL URL2;
+		KURL URL1;
+		KURL URL2;
 		KString serialized1, serialized2;
 
 		svURL = "whatever://fred:secret@www.test.com:7654/works.html;param;a=b;multi=a,b,c,d;this=that?foo=bar&you=me#fragment";
@@ -895,7 +895,7 @@ TEST_CASE ("KURL formerly missing")
 	SECTION ("KURL copy constructor")
 	{
 		KStringView svURL;
-		KURL::URL URL1;
+		KURL URL1;
 		KString serialized1, serialized2;
 
 		svURL = "whatever://fred:secret@www.test.com:7654/works.html;param;a=b;multi=a,b,c,d;this=that?foo=bar&you=me#fragment";
@@ -903,7 +903,7 @@ TEST_CASE ("KURL formerly missing")
 		URL1.Serialize(serialized1);
 		CHECK ( serialized1 == svURL );
 
-		KURL::URL URL2(URL1);
+		KURL URL2(URL1);
 		URL2.Serialize(serialized2);
 		CHECK ( serialized1 == serialized2 );
 	}
@@ -911,7 +911,7 @@ TEST_CASE ("KURL formerly missing")
 	SECTION ("KURL move constructor")
 	{
 		KStringView svURL;
-		KURL::URL URL1;
+		KURL URL1;
 		KString serialized1, serialized2;
 
 		svURL = "whatever://fred:secret@www.test.com:7654/works.html;param;a=b;multi=a,b,c,d;this=that?foo=bar&you=me#fragment";
@@ -919,7 +919,7 @@ TEST_CASE ("KURL formerly missing")
 		URL1.Serialize(serialized1);
 		CHECK ( serialized1 == svURL );
 
-		KURL::URL URL2(std::move(URL1));
+		KURL URL2(std::move(URL1));
 		URL2.Serialize(serialized2);
 		CHECK ( serialized1 == serialized2 );
 	}
@@ -927,7 +927,7 @@ TEST_CASE ("KURL formerly missing")
 	SECTION ("KURL self expressions")
 	{
 		KStringView svURL;
-		KURL::URL URL;
+		KURL URL;
 		KString sSerialized;
 
 		svURL = "whatever://fred:secret@www.test.com:7654/works.html;param;a=b;multi=a,b,c,d;this=that?foo=bar&you=me#fragment";
@@ -971,7 +971,7 @@ TEST_CASE ("KURL formerly missing")
 	SECTION("KURL new design")
 	{
 		KStringView svURL;
-		KURL::URL URL;
+		KURL URL;
 		KString sSerialized;
 
 		svURL = "whatever://fred:secret@www.test.com:7654/works.html;param;a=b;multi=a,b,c,d;this=that?foo=bar&you=me#fragment";
@@ -1012,16 +1012,19 @@ TEST_CASE ("KURL formerly missing")
 
 		svURL = "whatever://fred:secret@www.test.com:7654/works.html;param;a=b;multi=a,b,c,d;this=that?foo=bar&you=me#fragment";
 		URL   = svURL;
-		svURL = URL.password;
+		svURL = URL.Password;
 		CHECK ( svURL == "secret" );
-		KString bar = URL.query.get().find("foo")->second;
+		KString bar = URL.Query.get().find("foo")->second;
 		CHECK ( bar == "bar" );
-		URL.query.get().Set("foo", "rab");
-		URL.path = "/changed.xml";
+		URL.Query.get().Set("foo", "rab");
+		URL.Query->Set("you", "who");
+		URL.Path = "/changed.xml";
+		URL.Protocol = "https://";
 		sSerialized.clear();
 		URL.Serialize(sSerialized);
-		svURL = "whatever://fred:secret@www.test.com:7654/changed.xml;param;a=b;multi=a,b,c,d;this=that?foo=rab&you=me#fragment";
+		svURL = "https://fred:secret@www.test.com:7654/changed.xml;param;a=b;multi=a,b,c,d;this=that?foo=rab&you=who#fragment";
 		CHECK ( sSerialized == svURL );
-
+		CHECK ( URL.Protocol.getProtocol() == dekaf2::url::KProtocol::HTTPS );
+		CHECK ( URL.Protocol == dekaf2::url::KProtocol::HTTPS );
 	}
 }

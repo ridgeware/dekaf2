@@ -51,7 +51,7 @@
 namespace dekaf2
 {
 
-namespace KURL
+namespace url
 {
 
 //-----------------------------------------------------------------------------
@@ -65,7 +65,7 @@ namespace KURL
 /// For [file, ftp, http, https, mailto] store only the eProto.
 /// For others, store the characters.
 /// getters/setters and reserialization are available.
-KStringView Protocol::Parse (KStringView svSource)
+KStringView KProtocol::Parse (KStringView svSource)
 //-----------------------------------------------------------------------------
 {
 	clear ();
@@ -122,9 +122,9 @@ KStringView Protocol::Parse (KStringView svSource)
 }
 
 //-----------------------------------------------------------------------------
-/// @brief Generate Protocol/Scheme portion of URL.
-// Class Protocol parses and maintains "scheme" portion of w3c URL.
-bool Protocol::Serialize (KString& sTarget) const
+/// @brief Generate KProtocol/Scheme portion of URL.
+// Class KProtocol parses and maintains "scheme" portion of w3c URL.
+bool KProtocol::Serialize (KString& sTarget) const
 //-----------------------------------------------------------------------------
 {
 	// m_eProto is UNKNOWN for protocols like "opaquelocktoken://"
@@ -154,7 +154,7 @@ bool Protocol::Serialize (KString& sTarget) const
 
 //-----------------------------------------------------------------------------
 /// Restores instance to empty state
-void Protocol::clear()
+void KProtocol::clear()
 //-----------------------------------------------------------------------------
 {
 	m_sProto.clear ();
@@ -164,7 +164,7 @@ void Protocol::clear()
 // watch out: in Parse() and Serialize(), we assume that the schemata
 // do not need URL encoding! Therefore, when you add one that does,
 // please use the URL encoded form here, too.
-const KStringView::value_type* Protocol::m_sCanonical [UNKNOWN+1] =
+const KStringView::value_type* KProtocol::m_sCanonical [UNKNOWN+1] =
 {
 	"",       // Empty placeholder for UNDEFINED, parse has not been run yet.
 	"mailto",
@@ -182,101 +182,102 @@ const KStringView::value_type* Protocol::m_sCanonical [UNKNOWN+1] =
 	""        // Empty placeholder for UNKNOWN, use m_sProto.
 };
 
+} // end of namespace url
+
+
 //-------------------------------------------------------------------------
-KStringView URI::Parse(KStringView svSource)
+KStringView KURI::Parse(KStringView svSource)
 //-------------------------------------------------------------------------
 {
 	clear ();
 
-	svSource = path.Parse      (svSource, true);
-	svSource = pathparam.Parse (svSource, true);
-	svSource = query.Parse     (svSource, true);
-	svSource = fragment.Parse  (svSource, true);
+	svSource = Path.Parse      (svSource, true);
+	svSource = PathParam.Parse (svSource, true);
+	svSource = Query.Parse     (svSource, true);
+	svSource = Fragment.Parse  (svSource, true);
 
 	return svSource;
 }
 
 //-------------------------------------------------------------------------
-void URI::clear()
+void KURI::clear()
 //-------------------------------------------------------------------------
 {
-	path.clear();
-	pathparam.clear();
-	query.clear();
-	fragment.clear();
+	Path.clear();
+	PathParam.clear();
+	Query.clear();
+	Fragment.clear();
 }
 
 //-------------------------------------------------------------------------
-bool URI::Serialize(KString& sTarget) const
+bool KURI::Serialize(KString& sTarget) const
 //-------------------------------------------------------------------------
 {
-	return path.Serialize          (sTarget)
-	        && pathparam.Serialize (sTarget)
-	        && query.Serialize     (sTarget)
-	        && fragment.Serialize  (sTarget);
+	return Path.Serialize          (sTarget)
+	        && PathParam.Serialize (sTarget)
+	        && Query.Serialize     (sTarget)
+	        && Fragment.Serialize  (sTarget);
 }
 
 //-------------------------------------------------------------------------
-URI& URI::operator=(const URL& url)
+KURI& KURI::operator=(const KURL& url)
 //-------------------------------------------------------------------------
 {
-	path      = url.path;
-	pathparam = url.pathparam;
-	query     = url.query;
-	fragment  = url.fragment;
+	Path      = url.Path;
+	PathParam = url.PathParam;
+	Query     = url.Query;
+	Fragment  = url.Fragment;
 	return *this;
 }
 
 //-------------------------------------------------------------------------
-KStringView URL::Parse(KStringView svSource)
+KStringView KURL::Parse(KStringView svSource)
 //-------------------------------------------------------------------------
 {
 	clear ();
 
-	svSource = protocol.Parse  (svSource); // mandatory, but we do not enforce
-	svSource = user.Parse      (svSource); // optional
-	svSource = password.Parse  (svSource); // optional
-	svSource = domain.Parse    (svSource); // mandatory for non-files, but we do not enforce
-	svSource = port.Parse      (svSource);
-	svSource = path.Parse      (svSource, true);
-	svSource = pathparam.Parse (svSource, true);
-	svSource = query.Parse     (svSource, true);
-	svSource = fragment.Parse  (svSource, true);
+	svSource = Protocol.Parse  (svSource); // mandatory, but we do not enforce
+	svSource = User.Parse      (svSource); // optional
+	svSource = Password.Parse  (svSource); // optional
+	svSource = Domain.Parse    (svSource); // mandatory for non-files, but we do not enforce
+	svSource = Port.Parse      (svSource);
+	svSource = Path.Parse      (svSource, true);
+	svSource = PathParam.Parse (svSource, true);
+	svSource = Query.Parse     (svSource, true);
+	svSource = Fragment.Parse  (svSource, true);
 
 	return svSource;
 }
 
 //-------------------------------------------------------------------------
-void URL::clear()
+void KURL::clear()
 //-------------------------------------------------------------------------
 {
-	protocol.clear();
-	user.clear();
-	password.clear();
-	domain.clear();
-	port.clear();
-	path.clear();
-	pathparam.clear();
-	query.clear();
-	fragment.clear();
+	Protocol.clear();
+	User.clear();
+	Password.clear();
+	Domain.clear();
+	Port.clear();
+	Path.clear();
+	PathParam.clear();
+	Query.clear();
+	Fragment.clear();
 }
 
 //-------------------------------------------------------------------------
-bool URL::Serialize(KString& sTarget) const
+bool KURL::Serialize(KString& sTarget) const
 //-------------------------------------------------------------------------
 {
-	return protocol.Serialize      (sTarget)
-	        && user.Serialize      (sTarget)
-	        && password.Serialize  (sTarget)
-	        && domain.Serialize    (sTarget)
-	        && port.Serialize      (sTarget)
-	        && path.Serialize      (sTarget)
-	        && pathparam.Serialize (sTarget)
-	        && query.Serialize     (sTarget)
-	        && fragment.Serialize  (sTarget);
+	return Protocol.Serialize      (sTarget)
+	        && User.Serialize      (sTarget)
+	        && Password.Serialize  (sTarget)
+	        && Domain.Serialize    (sTarget)
+	        && Port.Serialize      (sTarget)
+	        && Path.Serialize      (sTarget)
+	        && PathParam.Serialize (sTarget)
+	        && Query.Serialize     (sTarget)
+	        && Fragment.Serialize  (sTarget);
 }
-
-} // namespace KURL
 
 /** @} */ // End of group KURL
 

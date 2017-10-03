@@ -279,7 +279,7 @@ bool kIsEmail(KStringView str) noexcept
 bool kIsURL(KStringView str) noexcept
 //-----------------------------------------------------------------------------
 {
-	return KURL::URL(str).IsURL();
+	return KURL(str).IsURL();
 }
 
 } // end of namespace dekaf2

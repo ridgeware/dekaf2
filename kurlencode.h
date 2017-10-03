@@ -56,7 +56,7 @@ protected:
 	//-----------------------------------------------------------------------------
 	{
 		size_t which = std::min(static_cast<size_t>(part), TABLECOUNT - 1UL);
-		return EncodingTable[static_cast<int>(which)];
+		return EncodingTable[which];
 	}
 
 	enum { INT_TABLECOUNT = 4, TABLECOUNT = 9 };

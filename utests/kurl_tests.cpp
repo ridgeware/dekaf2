@@ -1016,13 +1016,13 @@ TEST_CASE ("KURL formerly missing")
 		CHECK ( svURL == "secret" );
 		KString bar = URL.Query.get().find("foo")->second;
 		CHECK ( bar == "bar" );
-		URL.Query.get().Set("foo", "rab");
-		URL.Query->Set("you", "who");
+		URL.Query.get().Set("foo", "röb");
+		URL.Query->Set("you", "whø");
 		URL.Path = "/changed.xml";
 		URL.Protocol = "https://";
 		sSerialized.clear();
 		URL.Serialize(sSerialized);
-		svURL = "https://fred:secret@www.test.com:7654/changed.xml;param;a=b;multi=a,b,c,d;this=that?foo=rab&you=who#fragment";
+		svURL = "https://fred:secret@www.test.com:7654/changed.xml;param;a=b;multi=a,b,c,d;this=that?foo=r%C3%B6b&you=wh%C3%B8#fragment";
 		CHECK ( sSerialized == svURL );
 		CHECK ( URL.Protocol.getProtocol() == dekaf2::url::KProtocol::HTTPS );
 		CHECK ( URL.Protocol == dekaf2::url::KProtocol::HTTPS );

@@ -40,49 +40,35 @@
 // +-------------------------------------------------------------------------+
 */
 
-#pragma once
-
-/// @file kinshell.h
-/// provides reading pipe access to a shell instance.
-
-//#include <dekaf2/bits/kbaseshell.h>
-#include "bits/kbaseshell.h"
-#include "kfdstream.h"
+#include "../klog.h"
+#include "kbaseshell.h"
 
 namespace dekaf2
 {
 
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// Read on a shell instance
-class KInShell : public KBaseShell, public KFPReader
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+//-----------------------------------------------------------------------------
+KBaseShell::~KBaseShell() {}
+//-----------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
+int KBaseShell::Close()
+//-----------------------------------------------------------------------------
 {
+	kDebug(3, "");
 
-//------
-public:
-//------
+	if (m_pipe)
+	{
+		m_iExitCode = pclose (m_pipe);
+		m_pipe = nullptr;
+	}
+	else
+	{
+		return -1; //attempting to close a pipe that is not open
+	}
 
-	//-----------------------------------------------------------------------------
-	/// Default KInShell Constructor
-	KInShell()
-	//-----------------------------------------------------------------------------
-	{}
+	kDebug(3, "Exit Code = {}", m_iExitCode);
 
-	//-----------------------------------------------------------------------------
-	/// Constructor which takes and executes command immediately
-	KInShell(const KString& sCommand);
-	//-----------------------------------------------------------------------------
+	return (m_iExitCode);
+} // Close
 
-	//-----------------------------------------------------------------------------
-	/// Virtual Default KInShell Destructor
-	virtual ~KInShell();
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// Executes given command via a shell pipe from which output can be read
-	virtual bool Open (const KString& sCommand);
-	//-----------------------------------------------------------------------------
-
-}; // END KInShell
-
-} // END NAMESPACE DEKAF2
+} // end of namespace dekaf2

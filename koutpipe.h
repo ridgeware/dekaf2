@@ -40,35 +40,69 @@
 // +-------------------------------------------------------------------------+
 */
 
-#include "klog.h"
-#include "kbaseshell.h"
+#pragma once
+
+#include "bits/kbasepipe.h"
+#include "kfdstream.h"
 
 namespace dekaf2
+
 {
 
-//-----------------------------------------------------------------------------
-KBaseShell::~KBaseShell() {}
-//-----------------------------------------------------------------------------
-
-//-----------------------------------------------------------------------------
-int KBaseShell::Close()
-//-----------------------------------------------------------------------------
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// Execute another process and attach write pipe to its std::in
+class KOutPipe : public KFDWriter, public KBasePipe
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
-	KLog().debug(3, "KBaseShell::Close");
 
-	if (m_pipe)
-	{
-		m_iExitCode = pclose (m_pipe);
-		m_pipe = nullptr;
-	}
-	else
-	{
-		return -1; //attempting to close a pipe that is not open
-	}
+//------
+public:
+//------
 
-	KLog().debug(3, "KBaseShell::Close::Done:: Exit Code = {}", m_iExitCode);
+	/*
+	 * The sProgram is a KString of this format:
+	 * path_to_program arg1 arg2 arg3...
+	 * where path_to_program will also be handed in as argv[0]
+	 * If spaces are needed within an arg, use " :
+	 * path_to_program arg1 "arg2 with spaces" arg3
+	 */
 
-	return (m_iExitCode);
-} // Close
+	//-----------------------------------------------------------------------------
+	/// Default Constructor
+	KOutPipe();
+	//-----------------------------------------------------------------------------
 
-} // end of namespace dekaf2
+	//-----------------------------------------------------------------------------
+	/// Open Constructor
+	KOutPipe(KStringView sProgram);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// Default Virtual Destructor
+	virtual ~KOutPipe();
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// Opens A WritePipe
+	virtual bool Open(KStringView sProgram);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// Closes A WritePipe
+	virtual int Close();
+	//-----------------------------------------------------------------------------
+
+//--------
+private:
+//--------
+
+	//-----------------------------------------------------------------------------
+	/// Opens a pipe for writing
+	bool OpenWritePipe(KStringView sProgram);
+	//-----------------------------------------------------------------------------
+
+	int   m_writePdes[2]{-1,-1};
+
+}; // class KOutPipe
+
+} // end namespace dekaf2

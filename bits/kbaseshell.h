@@ -39,22 +39,18 @@
 // |\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/ |
 // +-------------------------------------------------------------------------+
 */
-
 #pragma once
 
-/// @file kinshell.h
-/// provides reading pipe access to a shell instance.
+/// @file kbaseshell.h
+/// basic shell I/O class
 
-//#include <dekaf2/bits/kbaseshell.h>
-#include "bits/kbaseshell.h"
-#include "kfdstream.h"
+#include "../kstring.h"
 
 namespace dekaf2
 {
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// Read on a shell instance
-class KInShell : public KBaseShell, public KFPReader
+class KBaseShell
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -63,26 +59,50 @@ public:
 //------
 
 	//-----------------------------------------------------------------------------
-	/// Default KInShell Constructor
-	KInShell()
+	/// Default Constructor
+	KBaseShell ()
 	//-----------------------------------------------------------------------------
 	{}
 
 	//-----------------------------------------------------------------------------
-	/// Constructor which takes and executes command immediately
-	KInShell(const KString& sCommand);
+	/// Default Virtual Destructor
+	virtual ~KBaseShell ();
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// Virtual Default KInShell Destructor
-	virtual ~KInShell();
+	/// Executes given command via a shell pipe saving FILE* pipe in class member
+	virtual bool Open (const KString& sCommand) = 0;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// Executes given command via a shell pipe from which output can be read
-	virtual bool Open (const KString& sCommand);
+	/// Closes pipe saving exit code.
+	virtual int  Close();
 	//-----------------------------------------------------------------------------
 
-}; // END KInShell
+	//-----------------------------------------------------------------------------
+	/// Get error code, 0 indicates no errors
+	int GetErrno()
+	//-----------------------------------------------------------------------------
+	{
+		return m_iExitCode;
+	}
 
-} // END NAMESPACE DEKAF2
+	//-----------------------------------------------------------------------------
+	/// Allows KPipeReader to be passed where File* can be.
+	operator FILE*()
+	//-----------------------------------------------------------------------------
+	{
+		return m_pipe;
+	}
+
+//--------
+protected:
+//--------
+
+	FILE*        m_pipe{nullptr};
+	int          m_iExitCode{0};
+
+
+}; // class KPIPE
+
+} // end of namespace DEKAF2

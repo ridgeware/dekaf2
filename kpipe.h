@@ -42,19 +42,15 @@
 
 #pragma once
 
-/// @file kinshell.h
-/// provides reading pipe access to a shell instance.
-
-//#include <dekaf2/bits/kbaseshell.h>
-#include "bits/kbaseshell.h"
+#include "bits/kbasepipe.h"
 #include "kfdstream.h"
 
 namespace dekaf2
 {
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// Read on a shell instance
-class KInShell : public KBaseShell, public KFPReader
+/// Execute another process and attach pipes to its std::in and std::out
+class KPipe : public KBasePipe, public KFDStream
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -62,27 +58,51 @@ class KInShell : public KBaseShell, public KFPReader
 public:
 //------
 
-	//-----------------------------------------------------------------------------
-	/// Default KInShell Constructor
-	KInShell()
-	//-----------------------------------------------------------------------------
-	{}
+	/*
+	 * The sProgram is a KString of this format:
+	 * path_to_program arg1 arg2 arg3...
+	 * where path_to_program will also be handed in as argv[0]
+	 * If spaces are needed within an arg, use " :
+	 * path_to_program arg1 "arg2 with spaces" arg3
+	 */
 
 	//-----------------------------------------------------------------------------
-	/// Constructor which takes and executes command immediately
-	KInShell(const KString& sCommand);
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// Virtual Default KInShell Destructor
-	virtual ~KInShell();
+	/// Default Constructor
+	KPipe();
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// Executes given command via a shell pipe from which output can be read
-	virtual bool Open (const KString& sCommand);
+	/// Open Constructor
+	KPipe(KStringView sProgram);
 	//-----------------------------------------------------------------------------
 
-}; // END KInShell
+	//-----------------------------------------------------------------------------
+	/// Default Virtual Destructor
+	virtual ~KPipe();
+	//-----------------------------------------------------------------------------
 
-} // END NAMESPACE DEKAF2
+	//-----------------------------------------------------------------------------
+	/// Opens A WritePipe
+	virtual bool Open(KStringView sProgram);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// Closes A WritePipe
+	virtual int Close();
+	//-----------------------------------------------------------------------------
+
+//--------
+private:
+//--------
+
+	//-----------------------------------------------------------------------------
+	/// Opens a pipe for writing
+	bool OpenPipeRW(KStringView sProgram);
+	//-----------------------------------------------------------------------------
+
+	int m_readPdes[2]{-1,-1};
+	int m_writePdes[2]{-1,-1};
+
+}; // class KPipe
+
+} // end namespace dekaf2

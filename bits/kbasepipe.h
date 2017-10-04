@@ -39,18 +39,24 @@
 // |\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/ |
 // +-------------------------------------------------------------------------+
 */
+
 #pragma once
+// Dekaf Includes
+#include "../kstring.h"
+#include "../klog.h"
 
-/// @file kbaseshell.h
-/// basic shell I/O class
+// Generic Includes
+#include <sys/wait.h>
 
-#include "kstring.h"
-
+//## this file, as well as the cpp and kbaseshell.cpp/.h should go into
+//## the bits/ subdirectory as they are never meant to be included directy
+//## by a library user
 namespace dekaf2
+
 {
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class KBaseShell
+class KBasePipe
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -60,49 +66,55 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Default Constructor
-	KBaseShell ()
+	KBasePipe();
 	//-----------------------------------------------------------------------------
-	{}
 
 	//-----------------------------------------------------------------------------
 	/// Default Virtual Destructor
-	virtual ~KBaseShell ();
+	virtual ~KBasePipe();
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// Executes given command via a shell pipe saving FILE* pipe in class member
-	virtual bool Open (const KString& sCommand) = 0;
+	/// Opens A Pipe
+	virtual bool Open(KStringView sProgram) = 0;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// Closes pipe saving exit code.
-	virtual int  Close();
+	/// Closes A Pipe
+	virtual int Close() = 0;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// Get error code, 0 indicates no errors
-	int GetErrno()
+	/// Checks if child on other side of pipe is still running
+	virtual bool IsRunning();
 	//-----------------------------------------------------------------------------
-	{
-		return m_iExitCode;
-	}
 
 	//-----------------------------------------------------------------------------
-	/// Allows KPipeReader to be passed where File* can be.
-	operator FILE*()
+	/// Waits up to the number of given milliseconds for the child to terminate
+	/// Will return early if child terminates
+	bool WaitForFinished(int msecs);
 	//-----------------------------------------------------------------------------
-	{
-		return m_pipe;
-	}
+
+	//-----------------------------------------------------------------------------
+	/// Splits args into char*[] terminated with NULL
+	typedef std::vector<char*> CharVec;
+	bool splitArgsInPlace(KString& argString, CharVec& vector );
+	//-----------------------------------------------------------------------------
 
 //--------
 protected:
 //--------
 
-	FILE*        m_pipe{nullptr};
-	int          m_iExitCode{0};
+	pid_t m_pid{-1};
+	int   m_iExitCode{-1};
+	int   m_iChildStatus{-1};
+	bool  m_bChildStatusValid{false};
 
+	//-----------------------------------------------------------------------------
+	// waitpid wrapper to ensure it is called only once after child exits
+	bool wait();
+	//-----------------------------------------------------------------------------
 
-}; // class KPIPE
+}; // KBasePipe
 
-} // end of namespace DEKAF2
+}

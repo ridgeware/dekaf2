@@ -1,4 +1,4 @@
-/*
+﻿/*
 //-----------------------------------------------------------------------------//
 //
 // DEKAF(tm): Lighter, Faster, Smarter (tm)
@@ -40,56 +40,153 @@
 // +-------------------------------------------------------------------------+
 */
 
-#include <fstream>
-#include "kwriter.h"
-#include "klog.h"
+#include "kinpipe.h"
 
 namespace dekaf2
 {
 
 //-----------------------------------------------------------------------------
-KOutStream::~KOutStream()
+KInPipe::KInPipe()
 //-----------------------------------------------------------------------------
-{
-}
+{} // Default Constructor
 
 //-----------------------------------------------------------------------------
-/// Write a character. Returns stream reference that resolves to false on failure
-KOutStream::self_type& KOutStream::Write(KString::value_type ch)
+KInPipe::KInPipe(KStringView sProgram)
 //-----------------------------------------------------------------------------
 {
-	std::streambuf* sb = OutStream().rdbuf();
-	if (sb != nullptr)
+	Open(sProgram);
+
+} // Immediate Open Constructor
+
+//-----------------------------------------------------------------------------
+KInPipe::~KInPipe()
+//-----------------------------------------------------------------------------
+{
+	Close();
+
+} // Default Destructor
+
+//-----------------------------------------------------------------------------
+bool KInPipe::Open(KStringView sProgram)
+//-----------------------------------------------------------------------------
+{
+	kDebug(3, "Program to be opened: {}", sProgram);
+
+	Close(); // ensure a previous pipe is closed
+	errno = 0;
+
+	// - - - - - - - - - - - - - - - - - - - - - - - -
+	// Use vfork()/execvp() to run the program:
+	// - - - - - - - - - - - - - - - - - - - - - - - -
+	if (!sProgram.empty())
 	{
-		typename std::ostream::int_type iCh = sb->sputc(ch);
-		if (std::ostream::traits_type::eq_int_type(iCh, std::ostream::traits_type::eof()))
-		{
-			OutStream().setstate(std::ios_base::badbit);
-		}
+		OpenReadPipe(sProgram);
 	}
-	return *this;
-}
+
+	// - - - - - - - - - - - - - - - - - - - - - - - -
+	// interpret success:
+	// - - - - - - - - - - - - - - - - - - - - - - - -
+	if (m_readPdes[0] == -1)
+	{
+		kWarning("FAILED to open program: {} | ERROR: {}", sProgram, strerror(errno));
+		m_iExitCode = errno;
+		return false;
+	}
+	else
+	{
+		kDebug(3, "opened program {} successfully...", sProgram);
+		KFDReader::open(m_readPdes[0]);
+		return KFDReader::good();
+	}
+
+} // Open
 
 //-----------------------------------------------------------------------------
-/// Write a range of characters. Returns stream reference that resolves to false on failure
-KOutStream::self_type& KOutStream::Write(const typename std::ostream::char_type* pAddress, size_t iCount)
+int KInPipe::Close ()
 //-----------------------------------------------------------------------------
 {
-	if (iCount)
+	int iExitCode = -1;
+
+	// Close Stream
+	KFDReader::close();
+	// Close the pipe
+	::close(m_readPdes[1]);
+	// Child has been cut off from parent, let it terminate for up to a minute
+	WaitForFinished(60000);
+
+	// is the child still running?
+	if (false == IsRunning())
 	{
-		std::streambuf* sb = OutStream().rdbuf();
-		if (sb != nullptr)
+		// child not running
+		iExitCode = m_iExitCode;
+	}
+	else
+	{
+		// the child process has been giving us trouble. Kill it
+		kill(m_pid, SIGKILL);
+	}
+
+	m_pid = -1;
+	m_readPdes[0] = -1;
+	m_readPdes[1] = -1;
+
+	return (iExitCode);
+
+} // Close
+
+//-----------------------------------------------------------------------------
+bool KInPipe::OpenReadPipe(KStringView sProgram)
+//-----------------------------------------------------------------------------
+{
+	// Reset status vars and pipes.
+	m_pid               = -1;
+	m_bChildStatusValid = false;
+	m_iChildStatus      = -1;
+	m_iExitCode         = -1;
+
+	// try to open a pipe
+	if (pipe(m_readPdes) < 0)
+	{
+		return false;
+	} // could not create pipe
+
+	// create a child
+	switch (m_pid = vfork())
+	{
+		case -1: /* error */
 		{
-			size_t iWrote = static_cast<size_t>(sb->sputn(pAddress, iCount));
-			if (iWrote != iCount)
+			// could not create the child
+			::close(m_readPdes[0]);
+			::close(m_readPdes[1]);
+			m_pid = -1;
+			break;
+		}
+
+		case 0: /* child */
+		{
+			::close(m_readPdes[0]);
+			if (m_readPdes[1] != fileno(stdout))
 			{
-				OutStream().setstate(std::ios_base::badbit);
+				::dup2(m_readPdes[1], fileno(stdout));
+				::close(m_readPdes[1]);
 			}
-		}
-	}
-	return *this;
-}
 
+			// execute the command
+			KString sCmd(sProgram); // need non const for split
+			std::vector<char*> argV;
+			splitArgsInPlace(sCmd, argV);
 
-} // end of namespace dekaf2
+			execvp(argV[0], const_cast<char* const*>(argV.data()));
 
+			_exit(127);
+		} // end case 0
+
+	} // end switch
+
+	/* only parent gets here */
+	::close(m_readPdes[1]);
+
+	return true;
+} // OpenReadPipe
+
+} // end namespace dekaf2

@@ -119,11 +119,11 @@ set (HEADERS
     kgetruntimestack.h
     ksubscribe.h
     kreader.h
-    kfdreader.h
     kwriter.h
-    kfdwriter.h
     kstream.h
-    kbaseshell.h
+    kfdstream.h
+    kstreambuf.h
+    bits/kbaseshell.h
     kinshell.h
     koutshell.h
     kstack.h
@@ -131,6 +131,10 @@ set (HEADERS
     ktcpserver.h
     khash.h
     kmru.h
+    kinpipe.h
+    koutpipe.h
+    bits/kbasepipe.h
+    kpipe.h
     ksslstream.h
     ksslclient.h
     ksplit.h
@@ -158,15 +162,19 @@ set (SOURCES
     kgetruntimestack.cpp
     kreader.cpp
     kwriter.cpp
-    kfdreader.cpp
     kwriter.cpp
-    kfdwriter.cpp
     kstream.cpp
-    kbaseshell.cpp
+    kfdstream.cpp
+    kstreambuf.cpp
+    bits/kbaseshell.cpp
     kinshell.cpp
     koutshell.cpp
     ktcpserver.cpp
     khash.cpp
+    kinpipe.cpp
+    koutpipe.cpp
+    bits/kbasepipe.cpp
+    kpipe.cpp
     ksslstream.cpp
     ksplit.cpp
 )

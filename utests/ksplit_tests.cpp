@@ -2,6 +2,9 @@
 #include "catch.hpp"
 #include <dekaf2/dekaf2.h>
 #include <dekaf2/ksplit.h>
+#include <dekaf2/kprops.h>
+#include <map>
+
 
 using namespace dekaf2;
 using std::vector;
@@ -278,6 +281,234 @@ SCENARIO ( "ksplit unit tests on valid data" )
 		}
 
 	}
+}
+
+TEST_CASE("kSplitToPair")
+{
+
+	SECTION("split default")
+	{
+		// source, left target, right target
+		std::vector<std::vector<KStringView>> stest
+		{
+			{ "", "", "" },
+			{ "key1=val1", "key1", "val1" },
+			{ "key1=val1=val2", "key1", "val1=val2" },
+			{ " \t key1    =\t  val1 \n", "key1", "val1" },
+			{ "key 1=val 1", "key 1", "val 1" },
+			{ " \t key 1    =\t  val 1 \n", "key 1", "val 1" },
+		};
+
+		for (auto& it : stest)
+		{
+			INFO(it[0]);
+			KStringViewPair svPair = kSplitToPair(it[0]);
+			CHECK( svPair.first == it[1] );
+			CHECK( svPair.second == it[2] );
+		}
+	}
+
+	SECTION("split no trimming")
+	{
+		// source, left target, right target
+		std::vector<std::vector<KStringView>> stest
+		{
+			{ "", "", "" },
+			{ "key1=val1", "key1", "val1" },
+			{ "key1=val1=val2", "key1", "val1=val2" },
+			{ " \t key1    =\t  val1 \n", " \t key1    ", "\t  val1 \n" },
+			{ "key 1=val 1", "key 1", "val 1" },
+			{ " \t key 1    =\t  val 1 \n", " \t key 1    ", "\t  val 1 \n" },
+		};
+
+		for (auto& it : stest)
+		{
+			INFO(it[0]);
+			KStringViewPair svPair = kSplitToPair(it[0],'=', "");
+			CHECK( svPair.first == it[1] );
+			CHECK( svPair.second == it[2] );
+		}
+	}
+
+	SECTION("split escaped")
+	{
+		// source, left target, right target
+		std::vector<std::vector<KStringView>> stest
+		{
+			{ "", "", "" },
+			{ "key-=1=val1", "key-=1", "val1" },
+			{ "key1-=val1=val2", "key1-=val1", "val2" },
+			{ " \t-= key1    =\t  val1 \n", "-= key1", "val1" },
+			{ "key 1=val 1", "key 1", "val 1" },
+			{ " \t key 1-==\t  val 1 \n", "key 1-=", "val 1" },
+		};
+
+		for (auto& it : stest)
+		{
+			INFO(it[0]);
+			KStringViewPair svPair = kSplitToPair(it[0],'=', " \t\r\n", '-');
+			CHECK( svPair.first == it[1] );
+			CHECK( svPair.second == it[2] );
+		}
+	}
+
+}
+
+TEST_CASE("kSplitPairs")
+{
+
+	SECTION("split default map")
+	{
+		// source, left target, right target
+		std::vector<std::vector<KStringView>> stest
+		{
+			{ "", "", "" },
+			{ "key1=val1", "key1", "val1" },
+			{ "key1=val1=val2", "key1", "val1=val2" },
+			{ " \t key1    =\t  val1 \n", "key1", "val1" },
+			{ "key 1=val 1", "key 1", "val 1" },
+			{ " \t key 1    =\t  val 1 \n", "key 1", "val 1" },
+		};
+
+		int ct = 0;
+		for (auto& it : stest)
+		{
+			INFO(it[0]);
+			std::map<KStringView, KStringView> aMap;
+			auto iCount = kSplitPairs(aMap, it[0]);
+			if (ct == 0) CHECK (iCount == 0);
+			else
+			{
+				CHECK( iCount == 1 );
+				CHECK( aMap.size() == 1 );
+				CHECK( aMap.begin()->first == it[1] );
+				CHECK( aMap.begin()->second == it[2] );
+			}
+			++ct;
+		}
+	}
+
+	SECTION("split default kprops")
+	{
+		// source, left target, right target
+		std::vector<std::vector<KStringView>> stest
+		{
+			{ "", "", "" },
+			{ "key1=val1", "key1", "val1" },
+			{ "key1=val1=val2", "key1", "val1=val2" },
+			{ " \t key1    =\t  val1 \n", "key1", "val1" },
+			{ "key 1=val 1", "key 1", "val 1" },
+			{ " \t key 1    =\t  val 1 \n", "key 1", "val 1" },
+		};
+
+		int ct = 0;
+		for (auto& it : stest)
+		{
+			INFO(it[0]);
+			KProps<KStringView, KStringView> aMap;
+			auto iCount = kSplitPairs(aMap, it[0]);
+			if (ct == 0) CHECK (iCount == 0);
+			else
+			{
+				CHECK( iCount == 1 );
+				CHECK( aMap.size() == 1 );
+				CHECK( aMap.begin()->first == it[1] );
+				CHECK( aMap.begin()->second == it[2] );
+			}
+			++ct;
+		}
+	}
+
+	SECTION("split no trimming")
+	{
+		// source, left target, right target
+		std::vector<std::vector<KStringView>> stest
+		{
+			{ "", "", "" },
+			{ "key1=val1", "key1", "val1" },
+			{ "key1=val1=val2", "key1", "val1=val2" },
+			{ " \t key1    =\t  val1 \n", " \t key1    ", "\t  val1 \n" },
+			{ "key 1=val 1", "key 1", "val 1" },
+			{ " \t key 1    =\t  val 1 \n", " \t key 1    ", "\t  val 1 \n" },
+		};
+
+		int ct = 0;
+		for (auto& it : stest)
+		{
+			INFO(it[0]);
+			KProps<KStringView, KStringView> aMap;
+			auto iCount = kSplitPairs(aMap, it[0],'=', ",", "");
+			if (ct == 0) CHECK (iCount == 0);
+			else
+			{
+				CHECK( iCount == 1 );
+				CHECK( aMap.size() == 1 );
+				CHECK( aMap.begin()->first == it[1] );
+				CHECK( aMap.begin()->second == it[2] );
+			}
+			++ct;
+		}
+	}
+
+	SECTION("split escaped")
+	{
+		// source, left target, right target
+		std::vector<std::vector<KStringView>> stest
+		{
+			{ "", "", "" },
+			{ "key-=1=val1", "key-=1", "val1" },
+			{ "key1-=val1=val2", "key1-=val1", "val2" },
+			{ " \t-= key1    =\t  val1 \n", "-= key1", "val1" },
+			{ "key 1=val 1", "key 1", "val 1" },
+			{ " \t key 1-==\t  val 1 \n", "key 1-=", "val 1" },
+		};
+
+		int ct = 0;
+		for (auto& it : stest)
+		{
+			INFO(it[0]);
+			KProps<KStringView, KStringView> aMap;
+			auto iCount = kSplitPairs(aMap, it[0], '=', ",", " \t\r\n", '-');
+			if (ct == 0) CHECK (iCount == 0);
+			else
+			{
+				CHECK( iCount == 1 );
+				CHECK( aMap.size() == 1 );
+				CHECK( aMap.begin()->first == it[1] );
+				CHECK( aMap.begin()->second == it[2] );
+			}
+			++ct;
+		}
+	}
+
+	SECTION("split default map consecutive")
+	{
+		// source, left target, right target
+		std::vector<std::vector<KStringView>> stest
+		{
+			{ "key1=val1&key2=val2&key3=val3", "key1", "val1" , "key2", "val2" , "key3", "val3" },
+		};
+
+		for (auto& it : stest)
+		{
+			INFO(it[0]);
+			std::map<KStringView, KStringView> aMap;
+			auto iCount = kSplitPairs(aMap, it[0], '=', "&");
+			CHECK( iCount == 3 );
+			CHECK( aMap.size() == 3 );
+			auto i = aMap.begin();
+			CHECK( i->first == it[1] );
+			CHECK( i->second == it[2] );
+			++i;
+			CHECK( i->first == it[3] );
+			CHECK( i->second == it[4] );
+			++i;
+			CHECK( i->first == it[5] );
+			CHECK( i->second == it[6] );
+		}
+	}
+
+
 }
 
 

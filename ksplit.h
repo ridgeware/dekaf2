@@ -46,6 +46,9 @@
 
 #include "kstringview.h"
 
+/// @file ksplit.h
+/// Highly configurable tokenizer template.
+
 namespace dekaf2
 {
 
@@ -60,7 +63,7 @@ namespace dekaf2
 /// @param bCombineDelimiters if true skips consecutive delimiters (an action always
 /// taken for found spaces if defined as delimiter). Defaults to false.
 /// @param bQuotesAreFrames if true, escape characters and delimiters inside
-/// double quotes are treated  as literal chars, and quotes themselves are removed.
+/// double quotes are treated as literal chars, and quotes themselves are removed.
 /// No trimming is applied inside the quotes (but outside). The quote has to be the
 /// first character after applied trimming, and trailing content after the closing quote
 /// is not considered part of the token. Defaults to false.
@@ -70,7 +73,7 @@ size_t kSplit (
         KStringView svBuffer,
         KStringView svDelim  = ",",             // default: comma delimiter
         KStringView svTrim   = " \t\r\n\b",     // default: trim all whitespace
-        char        chEscape = '\0',            // default: ignore escapes
+        const char  chEscape = '\0',            // default: ignore escapes
         bool        bCombineDelimiters = false, // default: create an element for each delimiter char found
         bool        bQuotesAreEscapes  = false  // default: treat double quotes like any other char
 )
@@ -186,5 +189,74 @@ size_t kSplit (
 	return ctContainer.size ();
 
 } // kSplit with string of delimiters
+
+using KStringViewPair = std::pair<KStringView, KStringView>;
+
+KStringViewPair kSplitToPair(
+        KStringView svBuffer,
+		const char chDelim   = '=',             // default: equal delimiter
+        KStringView svTrim   = " \t\r\n\b",     // default: trim all whitespace
+        const char  chEscape = '\0'             // default: ignore escapes
+        );
+
+namespace detail {
+namespace container_adaptor {
+
+template<typename Container>
+class InsertPair
+{
+public:
+	InsertPair(
+	        Container& ctContainer,
+	        KStringView svTrim,
+	        const char chPairDelim,
+	        const char chEscape
+	        )
+	    : m_Container(ctContainer)
+	    , m_svTrim(svTrim)
+	    , m_chPairDelim(chPairDelim)
+	    , m_chEscape(chEscape)
+	{
+	}
+
+	void push_back(KStringView sv)
+	{
+		KStringViewPair svPair = kSplitToPair(sv, m_chPairDelim, m_svTrim, m_chEscape);
+		m_Container.insert(svPair);
+	}
+
+	size_t size() const
+	{
+		return m_Container.size();
+	}
+
+private:
+	Container& m_Container;
+	KStringView m_svTrim;
+	const char m_chPairDelim;
+	const char m_chEscape;
+};
+
+} // end of namespace container_adaptor
+} // end of namespace detail
+
+template<typename Container>
+size_t kSplitPairs(
+        Container&  ctContainer,
+        KStringView svBuffer,
+        const char  chPairDelim = '=',
+        KStringView svDelim  = ",",             // default: comma delimiter
+        KStringView svTrim   = " \t\r\n\b",     // default: trim all whitespace
+        const char  chEscape = '\0',            // default: ignore escapes
+        bool        bCombineDelimiters = false, // default: create an element for each delimiter char found
+        bool        bQuotesAreEscapes  = false  // default: treat double quotes like any other char
+        )
+{
+	detail::container_adaptor::InsertPair<Container>
+	        cAdaptor(ctContainer, svTrim, chPairDelim, chEscape);
+
+	return kSplit(cAdaptor, svBuffer, svDelim, svTrim, chEscape,
+	              bCombineDelimiters, bQuotesAreEscapes);
+}
 
 } // namespace dekaf2

@@ -190,28 +190,39 @@ size_t kSplit (
 
 } // kSplit with string of delimiters
 
-using KStringViewPair = std::pair<KStringView, KStringView>;
-
+//-----------------------------------------------------------------------------
+/// Splits one element into a key value pair separated by chDelim, and trims on request
 KStringViewPair kSplitToPair(
         KStringView svBuffer,
 		const char chDelim   = '=',             // default: equal delimiter
         KStringView svTrim   = " \t\r\n\b",     // default: trim all whitespace
         const char  chEscape = '\0'             // default: ignore escapes
         );
+//-----------------------------------------------------------------------------
 
 namespace detail {
 namespace container_adaptor {
 
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// helper template to use containers with insert() instead of push_back(),
+/// splitting the value given to push_back() into a key value pair for insert()
 template<typename Container>
 class InsertPair
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
+
+//------
 public:
+//------
+
+	//-----------------------------------------------------------------------------
 	InsertPair(
 	        Container& ctContainer,
 	        KStringView svTrim,
 	        const char chPairDelim,
 	        const char chEscape
 	        )
+	//-----------------------------------------------------------------------------
 	    : m_Container(ctContainer)
 	    , m_svTrim(svTrim)
 	    , m_chPairDelim(chPairDelim)
@@ -219,27 +230,51 @@ public:
 	{
 	}
 
+	//-----------------------------------------------------------------------------
 	void push_back(KStringView sv)
+	//-----------------------------------------------------------------------------
 	{
 		KStringViewPair svPair = kSplitToPair(sv, m_chPairDelim, m_svTrim, m_chEscape);
 		m_Container.insert(svPair);
 	}
 
+	//-----------------------------------------------------------------------------
 	size_t size() const
+	//-----------------------------------------------------------------------------
 	{
 		return m_Container.size();
 	}
 
+//------
 private:
+//------
+
 	Container& m_Container;
 	KStringView m_svTrim;
 	const char m_chPairDelim;
 	const char m_chEscape;
-};
+
+}; // InsertPair
 
 } // end of namespace container_adaptor
 } // end of namespace detail
 
+//-----------------------------------------------------------------------------
+/// Splitting strings into a series of key value pairs.
+/// @param ctContainer needs to have a insert() that can construct an element from
+/// a KStringViewPair (std::pair<KStringView, KStringView>).
+/// @param svBuffer the source char sequence.
+/// @param chPairDelim the char that is used to separate keys and values in the sequence. Defaults to "=".
+/// @param svDelim a string view of delimiter characters. Defaults to ",".
+/// @param svTrim a string containing chars to remove from token ends. Defaults to " \t\r\n\b".
+/// @param chEscape Escape character for delimiters. Defaults to '\0' (disabled).
+/// @param bCombineDelimiters if true skips consecutive delimiters (an action always
+/// taken for found spaces if defined as delimiter). Defaults to false.
+/// @param bQuotesAreFrames if true, escape characters and delimiters inside
+/// double quotes are treated as literal chars, and quotes themselves are removed.
+/// No trimming is applied inside the quotes (but outside). The quote has to be the
+/// first character after applied trimming, and trailing content after the closing quote
+/// is not considered part of the token. Defaults to false.
 template<typename Container>
 size_t kSplitPairs(
         Container&  ctContainer,
@@ -251,6 +286,7 @@ size_t kSplitPairs(
         bool        bCombineDelimiters = false, // default: create an element for each delimiter char found
         bool        bQuotesAreEscapes  = false  // default: treat double quotes like any other char
         )
+//-----------------------------------------------------------------------------
 {
 	detail::container_adaptor::InsertPair<Container>
 	        cAdaptor(ctContainer, svTrim, chPairDelim, chEscape);

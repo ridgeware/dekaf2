@@ -765,6 +765,8 @@ protected:
 
 };
 
+using KStringViewPair = std::pair<KStringView, KStringView>;
+
 
 //-----------------------------------------------------------------------------
 inline bool operator==(KStringView left, KStringView right)

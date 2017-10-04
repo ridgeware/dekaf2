@@ -487,6 +487,7 @@ TEST_CASE("kSplitPairs")
 		std::vector<std::vector<KStringView>> stest
 		{
 			{ "key1=val1&key2=val2&key3=val3", "key1", "val1" , "key2", "val2" , "key3", "val3" },
+			{ "   key1 = val1    &   key2 =val2 &\nkey3=\tval3", "key1", "val1" , "key2", "val2" , "key3", "val3" },
 		};
 
 		for (auto& it : stest)

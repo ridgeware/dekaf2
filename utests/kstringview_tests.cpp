@@ -450,6 +450,24 @@ TEST_CASE("KStringView") {
 		CHECK( sv.find_first_not_of("0123456789abcdefgh ", 2) == KStringView::npos );
 	}
 
+	SECTION("find_last_of")
+	{
+		KString s(20, '-');
+		s.insert(0, "abcdefg");
+		KStringView sv(s);
+		auto pos = sv.find_last_of("abcdefghijklmnopqrstuvwxyz");
+		CHECK( pos == 6 );
+	}
+
+	SECTION("find_last_not_of")
+	{
+		KString s(20, '-');
+		s.insert(0, "abcdefg");
+		KStringView sv(s);
+		auto pos = sv.find_last_not_of("&%-!§&/()=?*#1234567890üöä");
+		CHECK( pos == 6 );
+	}
+
 	SECTION("erase by index")
 	{
 		KStringView sv("0123456789abcdefgh");

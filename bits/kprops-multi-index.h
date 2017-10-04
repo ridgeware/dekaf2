@@ -62,10 +62,6 @@
 namespace dekaf2
 {
 
-using boost::multi_index_container;
-using namespace boost::multi_index;
-
-
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// definition of the multi index storage type for non-sequential KProps types
 template <class Key, class Value, bool Sequential, bool Unique>
@@ -90,18 +86,18 @@ protected:
 	// it adapts to Unique and Sequential template arguments..
 	using storage_type =
 			// the non-sequential variant
-			multi_index_container<
+			boost::multi_index::multi_index_container<
 				Element,
-				indexed_by<
+				boost::multi_index::indexed_by<
 					std::conditional_t<
 						Unique,
 						// the non-sequential unique variant
-						hashed_unique<
-							tag<IndexByKey>, member<Element, Key, &Element::first>
+						boost::multi_index::hashed_unique<
+							boost::multi_index::tag<IndexByKey>, boost::multi_index::member<Element, Key, &Element::first>
 						>,
 						// the non-sequential non-unique variant
-						hashed_non_unique<
-							tag<IndexByKey>, member<Element, Key, &Element::first>
+						boost::multi_index::hashed_non_unique<
+							boost::multi_index::tag<IndexByKey>, boost::multi_index::member<Element, Key, &Element::first>
 						>
 					>
 				>
@@ -132,22 +128,22 @@ protected:
 	// it adapts to Unique and Sequential template arguments..
 	using storage_type =
 			// the sequential variant
-			multi_index_container<
+			boost::multi_index::multi_index_container<
 				Element,
-				indexed_by<
+				boost::multi_index::indexed_by<
 					std::conditional_t<
 						Unique,
 						// the sequential unique variant
-						hashed_unique<
-							tag<IndexByKey>, member<Element, Key, &Element::first>
+						boost::multi_index::hashed_unique<
+							boost::multi_index::tag<IndexByKey>, boost::multi_index::member<Element, Key, &Element::first>
 						>,
 						// the sequential non-unique variant
-						hashed_non_unique<
-							tag<IndexByKey>, member<Element, Key, &Element::first>
+						boost::multi_index::hashed_non_unique<
+							boost::multi_index::tag<IndexByKey>, boost::multi_index::member<Element, Key, &Element::first>
 						>
 					>,
-					random_access<
-						tag<IndexBySeq>
+					boost::multi_index::random_access<
+						boost::multi_index::tag<IndexBySeq>
 					>
 				>
 			>;
@@ -181,8 +177,8 @@ protected:
 	using IndexByKey     = typename base_type::IndexByKey;
 	using IndexBySeq     = typename base_type::IndexBySeq;
 
-	using IndexByKey_t   = typename index<storage_type, IndexByKey>::type;
-	using IndexBySeq_t   = typename index<storage_type, IndexBySeq>::type;
+	using IndexByKey_t   = typename boost::multi_index::index<storage_type, IndexByKey>::type;
+	using IndexBySeq_t   = typename boost::multi_index::index<storage_type, IndexBySeq>::type;
 
 	storage_type m_Storage;
 

@@ -93,6 +93,8 @@ set (HEADERS
     bits/kunique_deleter.h
     bits/kprops-multi-index.h
     bits/kprops-std-map.h
+	bits/kmru-std-vector.h
+	bits/kmru-multi-index.h
     bits/simd/kfindfirstof.h
     dekaf2.h
     kstringview.h

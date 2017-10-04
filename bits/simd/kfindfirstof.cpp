@@ -641,6 +641,7 @@ size_t reverseScanHaystackBlockNot(
 	uint16_t* val = reinterpret_cast<uint16_t*>(&mask);
 	if (val)
 	{
+		/*
 	// TODO
 	// This only works when there are no matches starting from the begining of
 	// the 16 char array. This will return number of 0 bytes - 1 from the beginning.
@@ -660,14 +661,27 @@ size_t reverseScanHaystackBlockNot(
 			uint64_t addSize = std::min(15, static_cast<int>(haystack.size() - blockStartIdx - 1));
 			return blockStartIdx + addSize;
 		}
-
-		//int useSize = std::min(16, static_cast<int>(haystack.size() - blockStartIdx));
-
+*/
+		int useSize = std::min(16, static_cast<int>(haystack.size() - blockStartIdx));
+		/*
+		if (*val == 0) // we found no matches
+		{
+			return blockStartIdx + useSize - 1;
+		}
+		*/
+		*val = ~*val; // Invert bits
+		if (useSize != 16)
+		{
+			// If we are NOT looking at a full 16 chars, we have some erroneous leading 1's
+			*val = *val << (16 - useSize);
+			*val = *val >> (16 - useSize);
+		}
+		auto b = 32 - (portableCLZ(*val) + 1); // CLZ + 1 will be the last thing that was a 0
 
 		if (b < std::min(16UL, haystack.size() - blockStartIdx))
 		{
-			return blockStartIdx + static_cast<size_t>(b) - 1;
-			//return blockStartIdx + static_cast<size_t>(b);
+			//return blockStartIdx + static_cast<size_t>(b) - 1;
+			return blockStartIdx + static_cast<size_t>(b);
 			//return static_cast<size_t>(b);
 		}
 	}

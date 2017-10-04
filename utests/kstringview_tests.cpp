@@ -426,6 +426,7 @@ TEST_CASE("KStringView") {
 	SECTION("find_first_not_of")
 	{
 		KStringView sv("0123456  9abcdef h");
+		KStringView sv2("0123456  9abcdefh "); // slight variant for find last not of
 		CHECK( sv.find_first_not_of(' ') == 0 );
 		CHECK( sv.find_first_not_of(" ") == 0 );
 		CHECK( sv.find_first_not_of(" d") == 0 );
@@ -434,6 +435,7 @@ TEST_CASE("KStringView") {
 		CHECK( sv.find_first_not_of("02") == 1 );
 		CHECK( sv.find_first_not_of("0123456789abcdef ") == 17 ); // This test revealed problems
 		CHECK( sv.find_last_not_of("0123456789abcdef ") == 17 ); // In this case, both should be same
+		CHECK( sv2.find_last_not_of("0123456789abcdef ") == 16 ); // Checking for positional bugs
 		CHECK( sv.find_first_not_of("0123456789abcdefgh ") == KStringView::npos );
 	}
 

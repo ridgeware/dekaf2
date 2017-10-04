@@ -864,7 +864,7 @@ public:
 	void push_back(const Element& element)
 	//-----------------------------------------------------------------------------
 	{
-		m_Storage.push_back(element);
+		Add(element.first, element.second);
 	}
 
 	//-----------------------------------------------------------------------------
@@ -872,7 +872,7 @@ public:
 	void push_back(Element&& element)
 	//-----------------------------------------------------------------------------
 	{
-		m_Storage.push_back(std::move(element));
+		Add(std::move(element.first), std::move(element.second));
 	}
 
 	//-----------------------------------------------------------------------------
@@ -889,6 +889,22 @@ public:
 	//-----------------------------------------------------------------------------
 	{
 		Add(std::move(key));
+	}
+
+	//-----------------------------------------------------------------------------
+	/// Inserts one element at the end. (InsertIterator interface)
+	void insert(const Element& element)
+	//-----------------------------------------------------------------------------
+	{
+		push_back(element);
+	}
+
+	//-----------------------------------------------------------------------------
+	/// Move-inserts one element at the end. (InsertIterator interface)
+	void insert(Element&& element)
+	//-----------------------------------------------------------------------------
+	{
+		push_back(std::move(element));
 	}
 
 }; // KProps

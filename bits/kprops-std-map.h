@@ -1148,6 +1148,23 @@ public:
 		Add(std::move(key));
 	}
 
+	//-----------------------------------------------------------------------------
+	/// Inserts one element at the end. (InsertIterator interface)
+	void insert(const map_value_type& element)
+	//-----------------------------------------------------------------------------
+	{
+		push_back(element);
+	}
+
+	//-----------------------------------------------------------------------------
+	/// Move-inserts one element at the end. (InsertIterator interface)
+	void insert(map_value_type&& element)
+	//-----------------------------------------------------------------------------
+	{
+		push_back(std::move(element));
+	}
+
+
 }; // KProps
 
 template<class Key, class Value, bool Unique>

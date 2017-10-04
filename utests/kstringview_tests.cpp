@@ -311,7 +311,7 @@ TEST_CASE("KStringView") {
 		CHECK( sv2.find_first_not_of(needle2[4]) == KStringView::npos);
 		CHECK( sv.find_first_of(needle2[4]) == KStringView::npos);
 		CHECK( sv.find_first_of(needle2[2]) == 0);
-/*
+
 		CHECK( big_sv.find_first_of(needle[0]) == KStringView::npos );
 		CHECK( big_sv1.find_first_of(needle[0]) == 0 );
 		CHECK( big_sv.find_first_not_of(needle[0]) == 0);
@@ -329,8 +329,8 @@ TEST_CASE("KStringView") {
 		KStringView temp0(&haystack3[0][64]);
 		KStringView temp1(&haystack3[0][65]);
 		KStringView temp2(&haystack3[0][82]);
-		CHECK( temp0.find_first_not_of(needle3[1]) == 16);
-		CHECK( temp1.find_first_not_of(needle3[1]) == 15);
+		CHECK( temp0.find_first_not_of(needle3[1]) == 0);
+		CHECK( temp1.find_first_not_of(needle3[1]) == 0);
 		CHECK( huge_sv.find_first_of(needle3[2]) == 66);
 		CHECK( temp2.find_first_of(needle3[2]) == 0);
 		CHECK( huge_sv.find_first_not_of(huge_sv) == KStringView::npos);
@@ -338,7 +338,89 @@ TEST_CASE("KStringView") {
 
 		KStringView ttemp(&haystack3[0][16]);
 		CHECK( huge_sv.find_first_not_of(ttemp) == 0);
-*/
+
+
+
+		// Ensure logic doesn't break down no matter what the start position is
+
+		for (int i = 0; i < 92; i++)
+		{
+			KStringView temp(&haystack3[0][i]);
+			CHECK(temp.find_first_of('z') == 91 - i);
+
+
+			if (i == 0)
+			{
+				INFO("i = " + std::to_string(i));
+				CHECK( huge_sv.find_first_not_of(temp) == KStringView::npos);
+			}
+			else
+			{
+				INFO("i = " + std::to_string(i));
+				CHECK( huge_sv.find_first_not_of(temp) == 0);
+				CHECK( huge_sv.find_first_of(temp) == i);
+			}
+
+			if (i < 66)
+			{
+				CHECK( temp.find_first_not_of(needle3[2]) == 0);
+			}
+			else
+			{
+				INFO("i = " + std::to_string(i));
+				CHECK( temp.find_first_not_of(needle3[2]) == KStringView::npos);
+			}
+			if (i < 67)
+			{
+				CHECK(temp.find_first_of(needle3[2]) == 66 - i);
+				CHECK(temp.find_first_of('a') == 66 - i);
+			}
+			else
+			{
+				CHECK(temp.find_first_of('a') == KStringView::npos);
+				CHECK(temp.find_first_of(needle3[2]) == 0);
+			}
+			if (i < 69) // 80 orig // ends up keying on the 'c' in the haystack
+			{
+				CHECK( temp.find_first_of(needle3[1]) == 68 - i);
+			}
+			else if (i < 80) // 'c' becomes first char, then 'd', needle goes to 'n'
+			{
+				CHECK( temp.find_first_of(needle3[1]) == 0);
+			}
+			else
+			{
+				INFO("i = " + std::to_string(i));
+				CHECK( temp.find_first_of(needle3[1]) == KStringView::npos);
+			}
+
+			if (i > 90) continue;
+			CHECK(temp.find_first_not_of('z') == 0);
+		}
+
+		for (int i = 0; i < 26; i++)
+		{
+			KStringView tneedle(&needle3[2][i]);
+			KStringView temp(&haystack3[0][i]);
+			CHECK( huge_sv.find_last_not_of(tneedle) == 65 + i);
+			CHECK( temp.find_last_not_of(tneedle) == 65);
+			CHECK( temp.find_last_of(tneedle) == 91 - i);
+			if (i == 0)
+			{
+				CHECK( huge_sv.find_last_not_of(temp) == KStringView::npos);
+			}
+			else
+			{
+				CHECK( huge_sv.find_last_not_of(temp) == i - 1);
+			}
+
+
+
+			CHECK( huge_sv.find_last_of('_') == 63);
+
+		}
+
+
 	}
 
 	SECTION("find_first_not_of")
@@ -350,7 +432,8 @@ TEST_CASE("KStringView") {
 		CHECK( sv.find_first_not_of('0') == 1 );
 		CHECK( sv.find_first_not_of("0") == 1 );
 		CHECK( sv.find_first_not_of("02") == 1 );
-		CHECK( sv.find_first_not_of("0123456789abcdef ") == 17 );
+		CHECK( sv.find_first_not_of("0123456789abcdef ") == 17 ); // This test revealed problems
+		CHECK( sv.find_last_not_of("0123456789abcdef ") == 17 ); // In this case, both should be same
 		CHECK( sv.find_first_not_of("0123456789abcdefgh ") == KStringView::npos );
 	}
 

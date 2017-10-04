@@ -88,13 +88,13 @@ bool KInPipe::Open(KStringView sProgram)
 	// - - - - - - - - - - - - - - - - - - - - - - - -
 	if (m_readPdes[0] == -1)
 	{
-		kWarning("OpenReadPipe FAILED to open program: {} | ERROR: {}", sProgram, strerror(errno));
+		kWarning("FAILED to open program: {} | ERROR: {}", sProgram, strerror(errno));
 		m_iExitCode = errno;
 		return false;
 	}
 	else
 	{
-		kDebug(3, "OpenReadPipe: opened program {} successfully...", sProgram);
+		kDebug(3, "opened program {} successfully...", sProgram);
 		KFDReader::open(m_readPdes[0]);
 		return KFDReader::good();
 	}
@@ -117,10 +117,12 @@ int KInPipe::Close ()
 	// is the child still running?
 	if (false == IsRunning())
 	{
+		// child not running
 		iExitCode = m_iExitCode;
-	} // child not running
-	else	// the child process has been giving us trouble. Kill it
+	}
+	else
 	{
+		// the child process has been giving us trouble. Kill it
 		kill(m_pid, SIGKILL);
 	}
 

@@ -88,13 +88,13 @@ bool KOutPipe::Open(KStringView sProgram)
 	// - - - - - - - - - - - - - - - - - - - - - - - -
 	if (m_writePdes[0] == -1)
 	{
-		kWarning("OpenWritePipe FAILED to open program: {} | ERROR: {}", sProgram, strerror(errno));
+		kWarning("FAILED to open program: {} | ERROR: {}", sProgram, strerror(errno));
 		m_iExitCode = errno;
 		return false;
 	}
 	else
 	{
-		kDebug(3, "OpenWritePipe: opened program {} successfully...", sProgram);
+		kDebug(3, "opened program {} successfully...", sProgram);
 		KFDWriter::open(m_writePdes[1]);
 		return KFDWriter::good();
 	}
@@ -118,10 +118,12 @@ int KOutPipe::Close()
 	// Did the child terminate properly?
 	if (false == IsRunning())
 	{
+		// child not running
 		iExitCode = m_iExitCode;
-	} // child not running
-	else // the child process has been giving us trouble. Kill it
+	}
+	else
 	{
+		// the child process has been giving us trouble. Kill it
 		kill(m_pid, SIGKILL);
 	}
 
@@ -146,8 +148,9 @@ bool KOutPipe::OpenWritePipe(KStringView sProgram)
 	// try to open a pipe
 	if (pipe(m_writePdes) < 0)
 	{
+		// could not create pipe
 		return false;
-	} // could not create pipe
+	}
 
 	// create a child
 	switch (m_pid = vfork())

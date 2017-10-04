@@ -505,7 +505,7 @@ size_t scanHaystackBlockNot(
 		                 static_cast<int>(haystack.size() - blockStartIdx),
 		                 0b00000000);
 	}
-
+	// Ensure all bytes loaded into needle are from the intended data
 	j = needles.size() - 16;
 
 	arr2 = _mm_loadu_si128(reinterpret_cast<const __m128i*>(needles.data() + j));
@@ -520,11 +520,13 @@ size_t scanHaystackBlockNot(
 	uint16_t* val = reinterpret_cast<uint16_t*>(&mask);
 	if (val)
 	{
-		//mask = _mm_slli_si128(mask, 14);
-		//auto b = 32 - portableCLZ(*val); // ORIG
-		//auto b = 16 - (portableCLZ(*val) - 16); // We don't control the high 16 bits here.
-		//auto c = portableCTZ(*val);
-		//c = c;
+		// What this does is find the first 0, which means
+		// we need to count trailing 1's
+		// GCC only provides counting trailing (or leading) 0's
+		// The trailing side according to the GCC implementation is before our data
+		// The leading is after , this is because of the Little Endian architechture.
+		// For leading 0's the first 16 aren't even "ours",
+		// we use a uint16_t to look at the mask and clz takes uint32_t.
 
 		*val = ~*val;
 		auto b = portableCTZ(*val);
@@ -627,6 +629,7 @@ size_t reverseScanHaystackBlockNot(
 		                 0);
 	}
 
+	// Ensure all bytes loaded into needle are from the intended data
 	j = needles.size() - 16;
 
 	arr2 = _mm_loadu_si128(reinterpret_cast<const __m128i*>(needles.data() + j));
@@ -641,34 +644,16 @@ size_t reverseScanHaystackBlockNot(
 	uint16_t* val = reinterpret_cast<uint16_t*>(&mask);
 	if (val)
 	{
-		/*
-	// TODO
-	// This only works when there are no matches starting from the begining of
-	// the 16 char array. This will return number of 0 bytes - 1 from the beginning.
-	// What this really needs to do is find the last 0, which means
-	// We need to count leading 1's. How to do this correctly is evading me atm.
-		auto b = portableCTZ(*val); // reverse search, count trailing zeros
-		// Typically b is the number of "matched" characters.
-		// b-1 is the index of the unmatched char
-		// Unless no matches were found at all, then b is 32
-		if (b == 0)
-		{
-			return KStringView::npos;
-		}
-		if (b == 32)
-		{
-			// don't count all trailing zeros if haystack isn't full length
-			uint64_t addSize = std::min(15, static_cast<int>(haystack.size() - blockStartIdx - 1));
-			return blockStartIdx + addSize;
-		}
-*/
+
+		// What this does is find the last 0, which means
+		// we need to count leading 1's
+		// GCC only provides counting leading (or trailing) 0's
+		// The trailing side according to the GCC implementation is before our data
+		// The leading is after , this is because of the Little Endian architechture.
+		// For leading 0's the first 16 aren't even "ours",
+		// we use a uint16_t to look at the mask and clz takes uint_32t.
 		int useSize = std::min(16, static_cast<int>(haystack.size() - blockStartIdx));
-		/*
-		if (*val == 0) // we found no matches
-		{
-			return blockStartIdx + useSize - 1;
-		}
-		*/
+
 		*val = ~*val; // Invert bits
 		if (useSize != 16)
 		{

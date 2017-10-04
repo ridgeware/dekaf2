@@ -423,6 +423,82 @@ TEST_CASE("KStringView") {
 
 	}
 
+	SECTION("find_first... find_last... with controlled 'noise' and and tests designed to get edge cases")
+	{
+
+#pragma pack(push, 1)
+		char haystack[4][185] = {"00112233445566778899AABBCCDDEEFFGGHHIIJJKKLLMMNNOOPPQQRRSSTTUUVVWWXXYYZZ;;::''\"\",,<<..>>//??\\\\||[[{{]]}}!!@@##$$%%^^&&**(())--__==++aabbccddeeffgghhiijjkkllmmnnooppqqrrssttuuvvwwxxyyzz", "zz00112233445566778899AABBCCDDEEFFGGHHIIJJKKLLMMNNOOPPQQRRSSTTUUVVWWXXYYZZ;;::''\"\",,<<..>>//??\\\\||[[{{]]}}!!@@##$$%%^^&&**(())--__==++aabbccddeeffgghhiijjkkllmmnnooppqqrrssttuuvvwwxxyy", "aabbccddeeffgghhiijjkkllmmnnooppqqrrssttuuvvwwxxyyzz00112233445566778899AABBCCDDEEFFGGHHIIJJKKLLMMNNOOPPQQRRSSTTUUVVWWXXYYZZ;;::''\"\",,<<..>>//??\\\\||[[{{]]}}!!@@##$$%%^^&&**(())--__==++"};
+		char needle[4][27] = {"abcdefghijklmabcdefghijklm", "ncdefghijklmnncdefghijklmn", "abcdefghijklmnopqrstuvwxyz", "yznopqrstuvwxyznopqrstuvwx"};
+		char needle2[4][27] = {"ABCDEFGHIJKLMABCDEFGHIJKLM", "NCDEFGHIJKLMNNCDEFGHIJKLMN", "ABCDEFGHIJKLMNOPQRSTUVWXYZ", "YZNOPQRSTUVWXYZNOPQRSTUVWX"};
+#pragma pack(pop)
+
+		KStringView sv(haystack[0]);
+
+		CHECK(sv.find_first_of('z') == 182);
+		CHECK(sv.find_first_of("z") == 182);
+		CHECK(sv.find_last_of('z') == 183);
+		CHECK(sv.find_last_of("z") == 183);
+		CHECK(sv.find_last_not_of('z') == 181);
+		CHECK(sv.find_last_not_of("z") == 181);
+
+		CHECK(sv.find_first_of(needle[0]) == 132);
+
+		for (int i = 0; i < 184; i++)
+		{
+			INFO("i = " + std::to_string(i));
+			KStringView tsv(&haystack[0][i]);
+			if (i < 182)
+			{
+				CHECK(tsv.find_last_not_of('z') == 181 - i);
+				CHECK(tsv.find_last_not_of("z") == 181 - i);
+			}
+			else
+			{
+				CHECK(tsv.find_last_not_of('z') == KStringView::npos);
+				CHECK(tsv.find_last_not_of("z") == KStringView::npos);
+			}
+
+			if (i < 183)
+			{
+				CHECK(tsv.find_first_of('z') == 182 - i);
+				CHECK(tsv.find_first_of("z") == 182 - i);
+			}
+			else
+			{
+				CHECK(tsv.find_first_of('z') == 0); // z is last and second to last
+				CHECK(tsv.find_first_of("z") == 0);
+			}
+
+			if (i < 184)
+			{
+				CHECK(tsv.find_last_of('z') == 183 - i);
+				CHECK(tsv.find_last_of("z") == 183 - i);
+			}
+		}
+		for (int i = 0; i < 26; i++)
+		{
+			INFO("i = " + std::to_string(i));
+			KStringView tsv(&haystack[0][i]);
+			KStringView tneedle(&needle[0][i]);
+			KStringView tneedle2(&needle[2][i]);
+
+			CHECK(sv.find_last_not_of(tneedle2) == 131 + i*2);
+			CHECK(tsv.find_last_not_of(tneedle2) == 131 - i + i*2);
+			CHECK(sv.find_first_of(tneedle2) == 132 + i*2);
+			CHECK(tsv.find_first_of(tneedle2) == 132 - i + i*2);
+			if (i < 14)
+			{
+				CHECK(sv.find_first_of(tneedle) == 132);
+			}
+			else
+			{
+				CHECK(sv.find_first_of(tneedle) == 132 + ((i-13)*2));
+			}
+
+		}
+
+	}
+
 	SECTION("find_first_not_of")
 	{
 		KStringView sv("0123456  9abcdef h");

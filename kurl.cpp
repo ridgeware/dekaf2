@@ -48,11 +48,73 @@
 #include "kurl.h"
 
 
-namespace dekaf2
-{
+namespace dekaf2 {
 
-namespace url
+//-------------------------------------------------------------------------
+KString kGetBaseDomain (KStringView sHostName)
+//-------------------------------------------------------------------------
 {
+	KString sBaseName;
+
+	if (!sHostName.empty())
+	{
+		// sBaseName   is special-cased
+		//
+		//         google.com       1Back but no 2Back     GOOGLE
+		//
+		//        www.ibm.com       2Back but no ".co."    IBM
+		//
+		// foo.bar.baz.co.jp        3Back and is ".co."    BAZ
+		//    ^   ^   ^  ^
+		//    |   |   |  |
+		//    4   3   2  1 Back
+		// If ".co." between 2Back & 1Back : base domain is between 3Back & 2Back
+		// If not, and 2Back exists: base domain is between 2Back & 1Back
+		// If not even 2Back then base domain is between beginning and 1Back
+
+		auto iDotEnd = sHostName.rfind ('.');
+		if (iDotEnd == 0 || iDotEnd == KString::npos)
+		{
+			// Ignore simple non-dot hostname (localhost).
+		}
+		else
+		{
+			// When there is at least 1 dot, look for domain name features
+
+			auto iDotStart = sHostName.rfind ('.', iDotEnd - 1);
+
+			if (iDotStart != KString::npos)
+			{
+				// When there are at least 2 dots, look for ".co.".
+
+				KStringView svCheckForDotCo (sHostName);
+				svCheckForDotCo.remove_prefix (iDotStart);
+
+				if (svCheckForDotCo.StartsWith (".co."))
+				{
+					iDotEnd = iDotStart;
+					iDotStart = sHostName.rfind ('.', iDotStart - 1);
+				}
+			}
+
+			if (iDotStart == KString::npos)
+			{
+				iDotStart = 0;
+			}
+			else
+			{
+				++iDotStart;
+			}
+
+			sBaseName = kToUpper(KStringView(sHostName.data() + iDotStart, iDotEnd - iDotStart));
+		}
+	}
+
+	return sBaseName;
+}
+
+
+namespace url {
 
 //-----------------------------------------------------------------------------
 /// @brief class Protocol in group KURL.  Parse into members.
@@ -192,7 +254,6 @@ KStringView KURI::Parse(KStringView svSource)
 	clear ();
 
 	svSource = Path.Parse      (svSource, true);
-	svSource = PathParam.Parse (svSource, true);
 	svSource = Query.Parse     (svSource, true);
 	svSource = Fragment.Parse  (svSource, true);
 
@@ -204,7 +265,6 @@ void KURI::clear()
 //-------------------------------------------------------------------------
 {
 	Path.clear();
-	PathParam.clear();
 	Query.clear();
 	Fragment.clear();
 }
@@ -214,7 +274,6 @@ bool KURI::Serialize(KString& sTarget) const
 //-------------------------------------------------------------------------
 {
 	return Path.Serialize          (sTarget)
-	        && PathParam.Serialize (sTarget)
 	        && Query.Serialize     (sTarget)
 	        && Fragment.Serialize  (sTarget);
 }
@@ -224,10 +283,20 @@ KURI& KURI::operator=(const KURL& url)
 //-------------------------------------------------------------------------
 {
 	Path      = url.Path;
-	PathParam = url.PathParam;
 	Query     = url.Query;
 	Fragment  = url.Fragment;
 	return *this;
+}
+
+//-------------------------------------------------------------------------
+KStringView KURL::getBaseDomain() const
+//-------------------------------------------------------------------------
+{
+	if (BaseDomain.empty() && !Domain.empty())
+	{
+		BaseDomain = kGetBaseDomain(Domain);
+	}
+	return BaseDomain;
 }
 
 //-------------------------------------------------------------------------
@@ -237,12 +306,11 @@ KStringView KURL::Parse(KStringView svSource)
 	clear ();
 
 	svSource = Protocol.Parse  (svSource); // mandatory, but we do not enforce
-	svSource = User.Parse      (svSource); // optional
-	svSource = Password.Parse  (svSource); // optional
+	svSource = User.Parse      (svSource);
+	svSource = Password.Parse  (svSource);
 	svSource = Domain.Parse    (svSource); // mandatory for non-files, but we do not enforce
 	svSource = Port.Parse      (svSource);
 	svSource = Path.Parse      (svSource, true);
-	svSource = PathParam.Parse (svSource, true);
 	svSource = Query.Parse     (svSource, true);
 	svSource = Fragment.Parse  (svSource, true);
 
@@ -259,9 +327,9 @@ void KURL::clear()
 	Domain.clear();
 	Port.clear();
 	Path.clear();
-	PathParam.clear();
 	Query.clear();
 	Fragment.clear();
+	BaseDomain.clear();
 }
 
 //-------------------------------------------------------------------------
@@ -274,11 +342,22 @@ bool KURL::Serialize(KString& sTarget) const
 	        && Domain.Serialize    (sTarget)
 	        && Port.Serialize      (sTarget)
 	        && Path.Serialize      (sTarget)
-	        && PathParam.Serialize (sTarget)
 	        && Query.Serialize     (sTarget)
 	        && Fragment.Serialize  (sTarget);
 }
 
-/** @} */ // End of group KURL
+//-------------------------------------------------------------------------
+bool operator==(const KURL& left, const KURL& right)
+//-------------------------------------------------------------------------
+{
+	return left.Protocol     == right.Protocol
+	        && left.User     == right.User
+	        && left.Password == right.Password
+	        && left.Domain   == right.Domain
+	        && left.Port     == right.Port
+	        && left.Path     == right.Path
+	        && left.Query    == right.Query
+	        && left.Fragment == right.Fragment;
+}
 
 } // namespace dekaf2

@@ -13,9 +13,8 @@ namespace detail {
 	Domain         = 3,
 	Port           = 4,
 	Path           = 5,
-	PathParameters = 6,
-	Query          = 7,
-	Fragment       = 8
+	Query          = 6,
+	Fragment       = 7
 */
 
 KUrlEncodingTables KUrlEncodingTables::MyInstance {};
@@ -23,9 +22,8 @@ KUrlEncodingTables KUrlEncodingTables::MyInstance {};
 const char* KUrlEncodingTables::s_sExcludes[] =
 {
     "-._~",     // used by Schema .. Port
-    "-._~/",    // used by Path
-    "-._~;,=/", // used by PathParameters
-    ""          // used by Query and Fragment
+    "-._~;,=/", // used by Path
+    ""          // used by Query and Fragment ("/?" would be better for conformity (see RFC3986 3.4)
 };
 
 bool* KUrlEncodingTables::EncodingTable[TABLECOUNT];

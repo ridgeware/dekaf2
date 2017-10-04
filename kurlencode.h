@@ -20,9 +20,8 @@ enum class URIPart : uint8_t
 	Domain         = 3,
 	Port           = 4,
 	Path           = 5,
-	PathParameters = 6,
-	Query          = 7,
-	Fragment       = 8
+	Query          = 6,
+	Fragment       = 7
 };
 
 namespace detail {
@@ -59,7 +58,7 @@ protected:
 		return EncodingTable[which];
 	}
 
-	enum { INT_TABLECOUNT = 4, TABLECOUNT = 9 };
+	enum { INT_TABLECOUNT = 3, TABLECOUNT = 8 };
 	static KUrlEncodingTables MyInstance;
 	static const char* s_sExcludes[];
 	static bool* EncodingTable[TABLECOUNT];
@@ -469,7 +468,6 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
-	template<bool X = chPairSep, typename std::enable_if<X == '\0', int>::type = 0>
 	KURLEncoded& operator=(KStringView sv)
 	//-------------------------------------------------------------------------
 	{
@@ -478,10 +476,20 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
+	template<bool X = chPairSep, typename std::enable_if<X == '\0', int>::type = 0>
 	friend bool operator==(const self_type& left, const self_type& right)
 	//-------------------------------------------------------------------------
 	{
-		return left.get_decoded() == right.get_decoded;
+		return left.getDecoded() == right.getDecoded();
+	}
+
+	//-------------------------------------------------------------------------
+	template<bool X = chPairSep, typename std::enable_if<X != '\0', int>::type = 0>
+	friend bool operator==(const self_type& left, const self_type& right)
+	//-------------------------------------------------------------------------
+	{
+		// this should rather be a comparison on the decoded version
+		return left.getEncoded() == right.getEncoded();
 	}
 
 	//-------------------------------------------------------------------------
@@ -492,10 +500,20 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
+	template<bool X = chPairSep, typename std::enable_if<X == '\0', int>::type = 0>
 	friend bool operator< (const self_type& left, const self_type& right)
 	//-------------------------------------------------------------------------
 	{
-		return left.get_decoded() < right.get_decoded();
+		return left.getDecoded() < right.getDecoded();
+	}
+
+	//-------------------------------------------------------------------------
+	template<bool X = chPairSep, typename std::enable_if<X != '\0', int>::type = 0>
+	friend bool operator< (const self_type& left, const self_type& right)
+	//-------------------------------------------------------------------------
+	{
+		// this should rather be a comparison on the decoded version
+		return left.getEncoded() < right.getEncoded();
 	}
 
 	//-------------------------------------------------------------------------

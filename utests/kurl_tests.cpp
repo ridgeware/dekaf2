@@ -789,7 +789,7 @@ TEST_CASE ("KURL formerly missing")
 	SECTION ("KURL base domain")
 	{
 		KStringView svDomain("abc.test.com");
-		url::KDomain Domain(svDomain);
+		KURL Domain(svDomain);
 		KStringView svResult = Domain.getBaseDomain();
 		CHECK (svResult == "TEST");
 
@@ -1022,7 +1022,7 @@ TEST_CASE ("KURL formerly missing")
 		URL.Protocol = "https://";
 		sSerialized.clear();
 		URL.Serialize(sSerialized);
-		svURL = "https://fred:secret@www.test.com:7654/changed.xml;param;a=b;multi=a,b,c,d;this=that?foo=r%C3%B6b&you=wh%C3%B8#fragment";
+		svURL = "https://fred:secret@www.test.com:7654/changed.xml?foo=r%C3%B6b&you=wh%C3%B8#fragment";
 		CHECK ( sSerialized == svURL );
 		CHECK ( URL.Protocol.getProtocol() == dekaf2::url::KProtocol::HTTPS );
 		CHECK ( URL.Protocol == dekaf2::url::KProtocol::HTTPS );

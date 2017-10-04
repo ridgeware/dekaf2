@@ -53,6 +53,11 @@
 
 
 namespace dekaf2 {
+
+//-------------------------------------------------------------------------
+KString kGetBaseDomain (KStringView m_sStorage);
+//-------------------------------------------------------------------------
+
 namespace url {
 namespace detail {
 
@@ -116,74 +121,6 @@ public:
 	//-------------------------------------------------------------------------
 
 	//-------------------------------------------------------------------------
-	template<URIPart X = Component, typename std::enable_if<X == URIPart::Domain, int>::type = 0 >
-	KString getBaseDomain () const
-	//-------------------------------------------------------------------------
-	{
-		// lazy evaluation of base domain - it is a rarely used function,
-		// but has significant costs
-		KString m_sBaseName;
-
-		if (m_sBaseName.empty() && !m_sStorage.empty())
-		{
-			KStringView m_sHostName = m_sStorage.getDecoded();
-
-			// m_sBaseName   is special-cased
-			//
-			//         google.com       1Back but no 2Back     GOOGLE
-			//
-			//        www.ibm.com       2Back but no ".co."    IBM
-			//
-			// foo.bar.baz.co.jp        3Back and is ".co."    BAZ
-			//    ^   ^   ^  ^
-			//    |   |   |  |
-			//    4   3   2  1 Back
-			// If ".co." between 2Back & 1Back : base domain is between 3Back & 2Back
-			// If not, and 2Back exists: base domain is between 2Back & 1Back
-			// If not even 2Back then base domain is between beginning and 1Back
-
-			auto iDotEnd = m_sHostName.rfind ('.');
-			if (iDotEnd == 0 || iDotEnd == KString::npos)
-			{
-				// Ignore simple non-dot hostname (localhost).
-			}
-			else
-			{
-				// When there is at least 1 dot, look for domain name features
-
-				auto iDotStart = m_sHostName.rfind ('.', iDotEnd - 1);
-
-				if (iDotStart != KString::npos)
-				{
-					// When there are at least 2 dots, look for ".co.".
-
-					KStringView svCheckForDotCo (m_sHostName);
-					svCheckForDotCo.remove_prefix (iDotStart);
-
-					if (svCheckForDotCo.StartsWith (".co."))
-					{
-						iDotEnd = iDotStart;
-						iDotStart = m_sHostName.rfind ('.', iDotStart - 1);
-					}
-				}
-
-				if (iDotStart == KString::npos)
-				{
-					iDotStart = 0;
-				}
-				else
-				{
-					++iDotStart;
-				}
-
-				m_sBaseName = kToUpper(KStringView(m_sHostName.data() + iDotStart, iDotEnd - iDotStart));
-			}
-		}
-
-		return m_sBaseName;
-	}
-
-	//-------------------------------------------------------------------------
 	/// parses source into members of instance
 	KStringView Parse (KStringView svSource, bool bRequiresPrefix = false)
 	//-------------------------------------------------------------------------
@@ -226,9 +163,6 @@ public:
 						NextToken = "/;?#";
 						break;
 					case URIPart::Path:
-						NextToken = ";?#";
-						break;
-					case URIPart::PathParameters:
 						NextToken = "?#";
 						break;
 					case URIPart::Query:
@@ -496,17 +430,16 @@ private:
 
 } // end of namespace dekaf2::url::detail
 
-using KUser      = detail::URIComponent<URLEncodedString, URIPart::User,     '\0', false, true >;
-using KPassword  = detail::URIComponent<URLEncodedString, URIPart::Password, '\0', false, true >;
-using KDomain    = detail::URIComponent<URLEncodedString, URIPart::Domain,   '\0', false, false>;
-using KPort      = detail::URIComponent<URLEncodedString, URIPart::Port,     ':',  true,  false>;
-using KPath      = detail::URIComponent<URLEncodedString, URIPart::Path,     '/',  false, false>;
-using KPathParam = detail::URIComponent<URLEncodedPathParam, URIPart::PathParameters, ';', true, false>;
-using KQuery     = detail::URIComponent<URLEncodedQuery,  URIPart::Query,    '?',  true, false>;
-using KFragment  = detail::URIComponent<URLEncodedString, URIPart::Fragment, '#',  true, false>;
+using KUser     = detail::URIComponent<URLEncodedString, URIPart::User,     '\0', false, true >;
+using KPassword = detail::URIComponent<URLEncodedString, URIPart::Password, '\0', false, true >;
+using KDomain   = detail::URIComponent<URLEncodedString, URIPart::Domain,   '\0', false, false>;
+using KPort     = detail::URIComponent<URLEncodedString, URIPart::Port,     ':',  true,  false>;
+using KPath     = detail::URIComponent<URLEncodedString, URIPart::Path,     '/',  false, false>;
+using KQuery    = detail::URIComponent<URLEncodedQuery,  URIPart::Query,    '?',  true,  false>;
+using KFragment = detail::URIComponent<URLEncodedString, URIPart::Fragment, '#',  true,  false>;
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-// The URL Schema is a bit different from the other KURI components, therefore
+// The URL Schema is a bit different from the other URI components, therefore
 // we handle it manually
 class KProtocol
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -796,7 +729,6 @@ public:
 	}
 
 	url::KPath      Path;
-	url::KPathParam PathParam;
 	url::KQuery     Query;
 	url::KFragment  Fragment;
 
@@ -877,18 +809,30 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
-	/// is this a valid KURL?
+	/// is this a valid URL?
 	bool IsURL () const
 	//-------------------------------------------------------------------------
 	{
-		return !Protocol.empty();
+		return !Protocol.empty()
+		        && (!Domain.empty()
+		            || (Protocol == url::KProtocol::FILE
+		                && !Path.empty()));
 	}
 
+	//-------------------------------------------------------------------------
 	friend bool operator==(const KURL& left, const KURL& right);
+	//-------------------------------------------------------------------------
+
+	//-------------------------------------------------------------------------
 	friend bool operator!=(const KURL& left, const KURL& right)
+	//-------------------------------------------------------------------------
 	{
 		return !operator==(left, right);
 	}
+
+	//-------------------------------------------------------------------------
+	KStringView getBaseDomain() const;
+	//-------------------------------------------------------------------------
 
 	url::KProtocol  Protocol;
 	url::KUser      User;
@@ -896,9 +840,14 @@ public:
 	url::KDomain    Domain;
 	url::KPort      Port;
 	url::KPath      Path;
-	url::KPathParam PathParam;
 	url::KQuery     Query;
 	url::KFragment  Fragment;
+
+//------
+protected:
+//------
+
+	mutable KString BaseDomain;
 
 }; // KURL
 

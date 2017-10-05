@@ -93,8 +93,10 @@ set (HEADERS
     bits/kunique_deleter.h
     bits/kprops-multi-index.h
     bits/kprops-std-map.h
-	bits/kmru-std-vector.h
-	bits/kmru-multi-index.h
+    bits/kmru-std-vector.h
+    bits/kmru-multi-index.h
+    bits/kbaseshell.h
+    bits/kbasepipe.h
     bits/simd/kfindfirstof.h
     dekaf2.h
     kstringview.h
@@ -123,7 +125,6 @@ set (HEADERS
     kstream.h
     kfdstream.h
     kstreambuf.h
-    bits/kbaseshell.h
     kinshell.h
     koutshell.h
     kstack.h
@@ -133,7 +134,6 @@ set (HEADERS
     kmru.h
     kinpipe.h
     koutpipe.h
-    bits/kbasepipe.h
     kpipe.h
     ksslstream.h
     ksslclient.h
@@ -141,7 +141,9 @@ set (HEADERS
 )
 
 set (SOURCES
-	bits/simd/kfindfirstof.cpp
+    bits/kbasepipe.cpp
+    bits/kbaseshell.cpp
+    bits/simd/kfindfirstof.cpp
     dekaf2.cpp
     kstringview.cpp
     kstring.cpp
@@ -166,14 +168,12 @@ set (SOURCES
     kstream.cpp
     kfdstream.cpp
     kstreambuf.cpp
-    bits/kbaseshell.cpp
     kinshell.cpp
     koutshell.cpp
     ktcpserver.cpp
     khash.cpp
     kinpipe.cpp
     koutpipe.cpp
-    bits/kbasepipe.cpp
     kpipe.cpp
     ksslstream.cpp
     ksplit.cpp

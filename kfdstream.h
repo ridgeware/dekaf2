@@ -83,7 +83,9 @@ public:
 	{
 	}
 
+	//-----------------------------------------------------------------------------
 	KInputFDStream(const KInputFDStream&) = delete;
+	//-----------------------------------------------------------------------------
 
 #if !defined(__GNUC__) || (DEKAF2_GCC_VERSION >= 500)
 	//-----------------------------------------------------------------------------
@@ -110,7 +112,9 @@ public:
 	//-----------------------------------------------------------------------------
 #endif
 
+	//-----------------------------------------------------------------------------
 	KInputFDStream& operator=(const KInputFDStream&) = delete;
+	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// the main purpose of this class: open from a standard unix
@@ -144,8 +148,8 @@ protected:
 //----------
 	int m_FileDesc{-1};
 
-	// see comment in KWriter's KOStreamBuf about the legality
-	// to only construct the KIStreamBuf here, but to use it in
+	// see comment in KOutputStream about the legality
+	// to only construct the KInStreamBuf here, but to use it in
 	// the constructor before
 	KInStreamBuf m_FPStreamBuf{&FileDescReader, &m_FileDesc};
 };
@@ -179,7 +183,9 @@ public:
 	{
 	}
 
+	//-----------------------------------------------------------------------------
 	KInputFPStream(const KInputFPStream&) = delete;
+	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	KInputFPStream(KInputFPStream&& other);
@@ -234,8 +240,8 @@ protected:
 //----------
 	FILE* m_FilePtr{nullptr};
 
-	// see comment in KWriter's KOStreamBuf about the legality
-	// to only construct the KIStreamBuf here, but to use it in
+	// see comment in KOutputFDStream about the legality
+	// to only construct the KInStreamBuf here, but to use it in
 	// the constructor before
 	KInStreamBuf m_FPStreamBuf{&FilePtrReader, &m_FilePtr};
 };
@@ -248,6 +254,7 @@ protected:
 class KOutputFDStream : public std::ostream
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
+
 //----------
 protected:
 //----------
@@ -269,7 +276,9 @@ public:
 	{
 	}
 
+	//-----------------------------------------------------------------------------
 	KOutputFDStream(const KOutputFDStream&) = delete;
+	//-----------------------------------------------------------------------------
 
 #if !defined(__GNUC__) || (DEKAF2_GCC_VERSION >= 500)
 	//-----------------------------------------------------------------------------
@@ -296,7 +305,9 @@ public:
 	//-----------------------------------------------------------------------------
 #endif
 
+	//-----------------------------------------------------------------------------
 	KOutputFDStream& operator=(const KOutputFDStream&) = delete;
+	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// the main purpose of this class: open from a standard unix
@@ -328,6 +339,7 @@ public:
 //----------
 protected:
 //----------
+
 	int m_FileDesc{-1};
 
 	// jschurig: The standard guarantees that the streambuf is neither used by
@@ -352,6 +364,7 @@ protected:
 class KOutputFPStream : public std::ostream
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
+
 //----------
 protected:
 //----------
@@ -373,7 +386,9 @@ public:
 	{
 	}
 
+	//-----------------------------------------------------------------------------
 	KOutputFPStream(const KOutputFPStream&) = delete;
+	//-----------------------------------------------------------------------------
 
 #if !defined(__GNUC__) || (DEKAF2_GCC_VERSION >= 500)
 	//-----------------------------------------------------------------------------
@@ -400,7 +415,9 @@ public:
 	//-----------------------------------------------------------------------------
 #endif
 
+	//-----------------------------------------------------------------------------
 	KOutputFPStream& operator=(const KOutputFPStream&) = delete;
+	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// the main purpose of this class: open from a standard unix
@@ -432,6 +449,7 @@ public:
 //----------
 protected:
 //----------
+
 	FILE* m_FilePtr{nullptr};
 
 	KOutStreamBuf m_FPStreamBuf{&FilePtrWriter, &m_FilePtr};
@@ -445,6 +463,7 @@ protected:
 /// (really, do it - this one is really slow on small writes to files, on purpose,
 /// because pipes should not be buffered!)
 class KInOutFDStream : public std::iostream
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
 //----------
@@ -473,7 +492,9 @@ public:
 	{
 	}
 
+	//-----------------------------------------------------------------------------
 	KInOutFDStream(const KInOutFDStream&) = delete;
+	//-----------------------------------------------------------------------------
 
 #if !defined(__GNUC__) || (DEKAF2_GCC_VERSION >= 500)
 	//-----------------------------------------------------------------------------
@@ -500,7 +521,9 @@ public:
 	//-----------------------------------------------------------------------------
 #endif
 
+	//-----------------------------------------------------------------------------
 	KInOutFDStream& operator=(const KInOutFDStream&) = delete;
+	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// the main purpose of this class: open from one or two standard unix
@@ -525,10 +548,11 @@ public:
 //----------
 protected:
 //----------
+
 	int m_FileDescR{-1};
 	int m_FileDescW{-1};
 
-	// see comment in KWriter's KOStreamBuf about the legality
+	// see comment in KOutputFDStream about the legality
 	// to only construct the KIStreamBuf here, but to use it in
 	// the constructor before
 	KStreamBuf m_FPStreamBuf{&FileDescReader, &FileDescWriter, &m_FileDescR, &m_FileDescW};
@@ -547,7 +571,7 @@ using KFDReader = KReader<KInputFDStream>;
 /// FOR PIPES AND SPECIAL DEVICES ONLY! FILE* reader based on KInputFPStream
 using KFPReader = KReader<KInputFPStream>;
 
-/// FOR PIPES AND SPECIAL DEVICES ONLY! File descriptor reader based on KInputFDStream
+/// FOR PIPES AND SPECIAL DEVICES ONLY! File descriptor reader/writer based on KInOutFDStream
 using KFDStream = KReaderWriter<KInOutFDStream>;
 
 } // end of namespace dekaf2

@@ -131,8 +131,7 @@ size_t kFindLastOfNoSSE(KStringView haystack, KStringView needles, bool bNot)
 } // end of namespace dekaf
 
 
-#ifndef __SSE__
-//#ifndef __SSE4_2__
+#ifndef __SSE4_2__
 
 namespace dekaf2 {
 namespace detail {

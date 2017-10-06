@@ -52,43 +52,13 @@ TEST_CASE("KWebIO")
 	SECTION("Complex Header Parse Test")
 	{
 		KCurl::KHeader theHeader;
-		KCurl::KHeaderPair myHeader;
-		myHeader.first = "Content-type";
-		myHeader.second = "text/html";
-		KString headerKey(myHeader.first);
-		headerKey.MakeLower();
-		theHeader.Add(headerKey, KCurl::KHeaderPair(myHeader.first,myHeader.second));
-		KCurl::KHeaderPair myHeader2;
-		myHeader2.first = "Cookies";
-		myHeader2.second = "foo=bar;muh=cookie";
-		KString headerKey2(myHeader2.first);
-		headerKey2.MakeLower();
-		theHeader.Add(headerKey2, myHeader2);
-		KCurl::KHeaderPair myHeader3;
-		myHeader3.first = "Cookies";
-		myHeader3.second = "foo2=bar2;muhs=cookies";
-		KString headerKey3(myHeader3.first);
-		headerKey3.MakeLower();
-		theHeader.Add(headerKey3, myHeader3);
+		theHeader.Add("Content-type", "text/html");
+		theHeader.Add("Cookies", "foo=bar;muh=cookie");
+		theHeader.Add("Cookies", "foo2=bar2;muhs=cookies");
 
-		KCurl::KHeaderPair myHeader4;
-		myHeader4 = theHeader.Get("content-type");
-		CHECK(myHeader4.first == myHeader.first);
-#if kwebdebug
-		std::cout << "headerName: " << myHeader.first << "; headerVal: " << myHeader.second << std::endl;
-		std::cout << "header2Name: " << myHeader2.first << "; header2Val: " << myHeader2.second << std::endl;
-		std::cout << "header3Name: " << myHeader3.first << "; header3Val: " << myHeader3.second << std::endl;
-		std::cout << "header4Name: " << myHeader4.first << "; header4Val: " << myHeader4.second << std::endl;
-#endif
-		myHeader4 = theHeader.Get("Fubar");
-#if kwebdebug
-		std::cout << "header4Name: " << myHeader4.first << "; header4Val: " << myHeader4.second << std::endl;
-		std::cout << "theHeader[0]Name: '" << theHeader[0].first << "'; theHeader[0]Val: '<" << theHeader[0].second.first << ": " << theHeader[0].second.second << ">'" << std::endl;
-		std::cout << "theHeader[1]Name: '" << theHeader[1].first << "'; theHeader[1]Val: '<" << theHeader[1].second.first << ": " << theHeader[1].second.second << ">'" << std::endl;
-		std::cout << "theHeader[2]Name: '" << theHeader[2].first << "'; theHeader[2]Val: '<" << theHeader[2].second.first << ": " << theHeader[2].second.second << ">'" << std::endl;
-#endif
-		CHECK(myHeader4.first.empty());
-		CHECK(myHeader4.second.empty());
+		CHECK(theHeader.find("content-type")->first == "Content-type");
+		KString value = theHeader.Get("Fubar");
+		CHECK(value.empty());
 	}
 
 	SECTION("Windows Header Parse Test")
@@ -189,7 +159,7 @@ TEST_CASE("KWebIO")
 		CHECK(sResponseHeaders.Count("forwarded") == 1);
 		CHECK(sResponseHeaders.Count("x-forwarded-for") == 1);
 
-		KString xForwarded = sResponseHeaders.Get(KCurl::xForwardedForHeader).second;
+		KString xForwarded = sResponseHeaders.Get(KCurl::xForwardedForHeader);
 		CHECK(xForwarded.compare(" 192.0.2.43, 2001:db8:cafe::17\n") == 0);
 		CHECK(xForwarded == " 192.0.2.43, 2001:db8:cafe::17\n");
 		//const KString* pFooCookie = webIO.getResponseCookie("foo");

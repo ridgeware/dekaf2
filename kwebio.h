@@ -138,7 +138,7 @@ private:
 
 	//-----------------------------------------------------------------------------
 	/// method that takes care of case-insentive header add logic and cookie add logic
-	bool           addResponseHeader(const KString&& sHeaderName, const KString&& sHeaderValue);
+	bool           addResponseHeader(KString&& sHeaderName, KString&& sHeaderValue);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------

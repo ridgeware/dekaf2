@@ -103,7 +103,7 @@ TEST_CASE("KCurl")
 		CHECK(gotHeader);
 		webIO.delRequestHeader("Agent2");
 		gotHeader = webIO.getRequestHeader("Agent2", headerVal);
-		CHECK(headerVal.compare("") != 0);
+		CHECK(headerVal.compare("") == 0);
 
 		webIO.addRequestCookie("foo", "bar");
 		webIO.addRequestCookie("foo2", "bar2");
@@ -118,7 +118,7 @@ TEST_CASE("KCurl")
 		webIO.delRequestCookie("foo2");
 		webIO.delRequestCookie("foo");
 		gotHeader = webIO.getRequestCookie("foo2", cookieVal);
-		CHECK(cookieVal.compare("") != 0);
+		CHECK(cookieVal.compare("") == 0);
 
 		bool bSuccess = webIO.initiateRequest();
 		CHECK(bSuccess);

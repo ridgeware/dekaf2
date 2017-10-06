@@ -50,6 +50,7 @@
 #include "kinshell.h"
 #include "kfile.h"
 #include "kreader.h"
+#include "kcasestring.h"
 
 #include <iostream>
 
@@ -79,10 +80,8 @@ public:
 		GET, POST
 	} RequestType;
 
-	/// The data structure for original case-sensitive data
-	typedef std::pair<KString,KString> KHeaderPair;
-	/// The key for this is trimmed and lower cased, value is original key-value pair.
-	typedef KProps<KString, KHeaderPair> KHeader; // case insensitive map for header info
+	// The key for this is trimmed and lower cased on comparisons, but stores the original string
+	typedef KProps<KCaseTrimString, KString> KHeader; // case insensitive map for header info
 
 	//-----------------------------------------------------------------------------
 	/// Default KCurl Constructor, must be configured after construction

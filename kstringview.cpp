@@ -8,8 +8,8 @@
 
 namespace dekaf2 {
 
-const KStringView::size_type KStringView::npos;
-const KStringView::value_type KStringView::s_0ch = '\0';
+constexpr KStringView::size_type KStringView::npos;
+constexpr KStringView::value_type KStringView::s_0ch;
 
 //-----------------------------------------------------------------------------
 size_t kFind(
@@ -332,7 +332,7 @@ KStringView::size_type KStringView::copy(iterator dest, size_type count, size_ty
 KStringView::self_type& KStringView::erase(size_type pos, size_type n)
 //-----------------------------------------------------------------------------
 {
-	if (DEKAF2_UNLIKELY(pos >= size()))
+	if (DEKAF2_UNLIKELY(pos > size()))
 	{
 			kWarning("attempt to erase past end of string view of size {}: pos {}, n {}",
 			         size(), pos, n);

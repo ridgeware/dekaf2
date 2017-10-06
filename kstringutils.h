@@ -79,6 +79,19 @@ String& kPadRight(String& string, size_t iWidth, typename String::value_type chP
 }
 
 //-----------------------------------------------------------------------------
+template<class String>
+String& kTrimLeft(String& string, KStringView svTrim)
+//-----------------------------------------------------------------------------
+{
+	auto iDelete = string.find_first_not_of(svTrim);
+	if (iDelete)
+	{
+		string.erase(0, iDelete);
+	}
+	return string;
+}
+
+//-----------------------------------------------------------------------------
 template<class String, class Compare>
 String& kTrimLeft(String& string, Compare cmp)
 //-----------------------------------------------------------------------------
@@ -101,6 +114,19 @@ String& kTrimLeft(String& string)
 }
 
 //-----------------------------------------------------------------------------
+template<class String>
+String& kTrimRight(String& string, KStringView svTrim)
+//-----------------------------------------------------------------------------
+{
+	auto iDelete = string.find_last_not_of(svTrim);
+	if (iDelete != String::npos)
+	{
+		string.erase(iDelete + 1);
+	}
+	return string;
+}
+
+//-----------------------------------------------------------------------------
 template<class String, class Compare>
 String& kTrimRight(String& string, Compare cmp)
 //-----------------------------------------------------------------------------
@@ -109,7 +135,7 @@ String& kTrimRight(String& string, Compare cmp)
 	auto iDelete = static_cast<typename String::size_type>(it - string.rbegin());
 	if (iDelete)
 	{
-		string.resize(string.size() - iDelete);
+		string.erase(string.size() - iDelete);
 	}
 	return string;
 }
@@ -120,6 +146,15 @@ String& kTrimRight(String& string)
 //-----------------------------------------------------------------------------
 {
 	return kTrimRight(string, [](typename String::value_type ch){ return std::isspace(ch) != 0; });
+}
+
+//-----------------------------------------------------------------------------
+template<class String>
+String& kTrim(String& string, KStringView svTrim)
+//-----------------------------------------------------------------------------
+{
+	kTrimRight(string, svTrim);
+	return kTrimLeft(string, svTrim);
 }
 
 //-----------------------------------------------------------------------------

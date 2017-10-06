@@ -223,21 +223,21 @@ public:
 	KString& assign(const std::string& str, size_type pos, size_type n = npos);
 #endif
 
-	int compare(const KString& str) const { return m_rep.compare(str.m_rep); }
-	int compare(size_type pos, size_type n, const KString& str) const { return compare(pos, n, str.m_rep); }
-	int compare(size_type pos1, size_type n1, const KString& str, size_type pos2, size_type n2 = npos) const { return compare(pos1, n1, str.m_rep, pos2, n2); }
-	int compare(const string_type& str) const { return m_rep.compare(str); }
-	int compare(size_type pos, size_type n, const string_type& str) const;
-	int compare(size_type pos1, size_type n1, const string_type& str, size_type pos2, size_type n2 = npos) const;
-	int compare(const value_type* s) const { return m_rep.compare(s ? s : ""); }
-	int compare(size_type pos, size_type n1, const value_type* s) const;
-	int compare(size_type pos, size_type n1, const value_type* s, size_type n2) const;
-	int compare(KStringView sv) const { return m_rep.compare(0, npos, sv.data(), sv.size()); }
-	int compare(size_type pos, size_type n1, KStringView sv) const;
+	int compare(const KString& str) const { return KStringView(*this).compare(str); }
+	int compare(size_type pos, size_type n, const KString& str) const { return KStringView(*this).compare(pos, n, str); }
+	int compare(size_type pos1, size_type n1, const KString& str, size_type pos2, size_type n2 = npos) const { return KStringView(*this).compare(pos1, n1, str, pos2, n2); }
+	int compare(const string_type& str) const { return KStringView(*this).compare(KStringView(str.data(), str.size())); }
+	int compare(size_type pos, size_type n, const string_type& str) const { return KStringView(*this).compare(pos, n, KStringView(str.data(), str.size())); }
+	int compare(size_type pos1, size_type n1, const string_type& str, size_type pos2, size_type n2 = npos) const { return KStringView(*this).compare(pos1, n1, KStringView(str.data(), str.size()), pos2, n2); }
+	int compare(const value_type* s) const { return KStringView(*this).compare(s); }
+	int compare(size_type pos, size_type n1, const value_type* s) const { return KStringView(*this).compare(pos, n1, s); }
+	int compare(size_type pos, size_type n1, const value_type* s, size_type n2) const { return KStringView(*this).compare(pos, n1, s, n2); }
+	int compare(KStringView sv) const { return KStringView(*this).compare(sv); }
+	int compare(size_type pos, size_type n1, KStringView sv) const { return KStringView(*this).compare(pos, n1, sv); }
 #ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
-	int compare(const std::string& str) const { return m_rep.compare(str); }
-	int compare(size_type pos, size_type n, const std::string& str) const;
-	int compare(size_type pos1, size_type n1, const std::string& str, size_type pos2, size_type n2 = npos) const;
+	int compare(const std::string& str) const { return KStringView(*this).compare(str); }
+	int compare(size_type pos, size_type n, const std::string& str) const { return KStringView(*this).compare(pos, n, str); }
+	int compare(size_type pos1, size_type n1, const std::string& str, size_type pos2, size_type n2 = npos) const { return KStringView(*this).compare(pos1, n1, str, pos2, n2); }
 #endif
 
 	size_type copy(value_type* s, size_type n, size_type pos = 0) const;
@@ -586,6 +586,105 @@ protected:
 	string_type m_rep;
 
 }; // KString
+
+//-----------------------------------------------------------------------------
+inline bool operator==(const KString& left, const KString& right)
+//-----------------------------------------------------------------------------
+{
+	return left.ToView() == right.ToView();
+}
+
+//-----------------------------------------------------------------------------
+inline bool operator==(const KString& left, const std::string& right)
+//-----------------------------------------------------------------------------
+{
+	return left.ToView() == KStringView(right.data(), right.size());
+}
+
+//-----------------------------------------------------------------------------
+inline bool operator==(const std::string& left, const KString& right)
+//-----------------------------------------------------------------------------
+{
+	return right == left;
+}
+
+//-----------------------------------------------------------------------------
+inline bool operator==(const KString& left, KStringView right)
+//-----------------------------------------------------------------------------
+{
+	return left.ToView() == right;
+}
+
+//-----------------------------------------------------------------------------
+inline bool operator==(KStringView left, const KString& right)
+//-----------------------------------------------------------------------------
+{
+	return right == left;
+}
+
+//-----------------------------------------------------------------------------
+inline bool operator==(const KString& left, const KString::value_type* right)
+//-----------------------------------------------------------------------------
+{
+	return left.ToView() == KStringView(right);
+}
+
+//-----------------------------------------------------------------------------
+inline bool operator==(const KString::value_type* left, const KString& right)
+//-----------------------------------------------------------------------------
+{
+	return right == left;
+}
+
+//-----------------------------------------------------------------------------
+inline bool operator!=(const KString& left, const KString& right)
+//-----------------------------------------------------------------------------
+{
+	return !(left == right);
+}
+
+//-----------------------------------------------------------------------------
+inline bool operator!=(const KString& left, const std::string& right)
+//-----------------------------------------------------------------------------
+{
+	return left.ToView() != KStringView(right.data(), right.size());
+}
+
+//-----------------------------------------------------------------------------
+inline bool operator!=(const std::string& left, const KString& right)
+//-----------------------------------------------------------------------------
+{
+	return right != left;
+}
+
+//-----------------------------------------------------------------------------
+inline bool operator!=(const KString& left, KStringView right)
+//-----------------------------------------------------------------------------
+{
+	return left.ToView() != right;
+}
+
+//-----------------------------------------------------------------------------
+inline bool operator!=(KStringView left, const KString& right)
+//-----------------------------------------------------------------------------
+{
+	return right != left;
+}
+
+//-----------------------------------------------------------------------------
+inline bool operator!=(const KString& left, const KString::value_type* right)
+//-----------------------------------------------------------------------------
+{
+	return left.ToView() != KStringView(right);
+}
+
+//-----------------------------------------------------------------------------
+inline bool operator!=(const KString::value_type* left, const KString& right)
+//-----------------------------------------------------------------------------
+{
+	return right != left;
+}
+
 
 //-----------------------------------------------------------------------------
 inline std::ostream& operator <<(std::ostream& stream, const KString& str)

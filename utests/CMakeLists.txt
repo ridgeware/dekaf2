@@ -30,6 +30,7 @@ set (USOURCES
     kpipe_tests.cpp
     klog_tests.cpp
     ksplit_tests.cpp
+    kcasestring_tests.cpp
 )
 
 add_executable(dekaf2-utests ${UHEADERS} ${USOURCES})

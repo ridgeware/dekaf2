@@ -42,10 +42,12 @@
 
 #include "kwebio.h"
 #include "klog.h"
-
+#include "khttp.h"
 #include "kstringutils.h"
 
 namespace dekaf2 {
+
+constexpr KStringView KWebIO::svBrokenHeader;
 
 //-----------------------------------------------------------------------------
 bool KWebIO::addToResponseHeader(KString& sHeaderPart)
@@ -134,7 +136,7 @@ bool KWebIO::addToResponseHeader(KString& sHeaderPart)
 			}
 			else // invalid
 			{
-				sHeaderName = sGarbageHeader;
+				sHeaderName = svBrokenHeader;
 				lineEndPos = (nextEnd != KString::npos) ? nextEnd : sHeaderPart.size() ;
 				sHeaderValue = sHeaderPart.substr(iCurrentPos , lineEndPos-iCurrentPos);
 			}
@@ -173,7 +175,7 @@ bool KWebIO::addToResponseHeader(KString& sHeaderPart)
 		{
 			lineEndPos = (nextEnd != KString::npos) ? nextEnd : sHeaderPart.size();
 			sHeaderValue = sHeaderPart.substr(iCurrentPos, lineEndPos-iCurrentPos);
-			addResponseHeader(std::move(sGarbageHeader), std::move(sHeaderValue));
+			addResponseHeader(std::move(svBrokenHeader), std::move(sHeaderValue));
 			iCurrentPos = lineEndPos+1;//update beginning of line
 			continue;
 		}
@@ -215,11 +217,11 @@ bool KWebIO::printResponseHeader()
 	auto cookieIter = m_responseCookies.begin();
 	for (const auto& iter : m_responseHeaders)
 	{
-		if (iter.first == sGarbageHeader)
+		if (iter.first == svBrokenHeader)
 		{
 			m_outStream.WriteLine(iter.second);
 		}
-		else if (iter.first == CookieHeader)
+		else if (iter.first == KHTTP::KHeader::request_cookie)
 		{
 			m_outStream.Write(iter.first);
 			m_outStream.Write(':');
@@ -279,7 +281,7 @@ bool KWebIO::addResponseHeader(KString&& sHeaderName, KString&& sHeaderValue)
 //-----------------------------------------------------------------------------
 {
 	kDebug(3, "name {}, value {} start", sHeaderName, sHeaderValue);
-	if (kCaseEqualTrimLeft(sHeaderName, CookieHeader))
+	if (kCaseEqualTrimLeft(sHeaderName, KHTTP::KHeader::request_cookie))
 	{
 		// ALWAYS STARTS A NEW COOKIE HEADER, only full headers can end up here.
 		if (!m_responseCookies.empty())

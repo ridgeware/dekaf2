@@ -67,13 +67,6 @@ class KCurl
 public:
 //------
 
-	// Common headers (to not be harcoded in the code)
-	static const char* xForwardedForHeader;
-	static const char* HostHeader;
-	static const char* CookieHeader;
-	static const char* UserAgentHeader;
-	static const char* sGarbageHeader;
-
 	/// Request Type Enum GET or POST
 	typedef enum
 	{

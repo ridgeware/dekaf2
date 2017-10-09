@@ -139,6 +139,7 @@ set (HEADERS
     ksslclient.h
     ksplit.h
     kcasestring.h
+    khttp.h
 )
 
 set (SOURCES
@@ -179,6 +180,7 @@ set (SOURCES
     ksslstream.cpp
     ksplit.cpp
     kcasestring.cpp
+    khttp.cpp
 )
 
 if (DEKAF2_INSTALL_HEADERS)

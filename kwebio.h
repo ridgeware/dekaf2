@@ -63,6 +63,8 @@ class KWebIO : public KCurl
 public:
 //------
 
+	static constexpr KStringView svBrokenHeader = "!?.garbage";
+
 	//-----------------------------------------------------------------------------
 	/// KWebIO default constructor, must be initialized after construction.
 	KWebIO()

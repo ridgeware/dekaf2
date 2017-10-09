@@ -42,6 +42,7 @@
 
 #include "kcurl.h"
 #include "klog.h"
+#include "khttp.h"
 
 #include <iostream>
 
@@ -67,12 +68,6 @@ Cookie: foo=bar; yummy_cookie=choco; tasty_cookie=strawberry
 
 namespace dekaf2
 {
-
-const char* KCurl::xForwardedForHeader = "x-forwarded-for";
-const char* KCurl::HostHeader          = "host";
-const char* KCurl::CookieHeader        = "cookie";
-const char* KCurl::UserAgentHeader     = "user-agent";
-const char* KCurl::sGarbageHeader      = "garbage";
 
 //-----------------------------------------------------------------------------
 bool KCurl::setRequestURL(const KString& sRequestURL)
@@ -301,7 +296,7 @@ bool KCurl::serializeRequestHeader(KString& sCurlHeaders)
 	if (!m_requestCookies.empty())
 	{
 		sCurlHeaders += "-H '";
-		sCurlHeaders += CookieHeader;
+		sCurlHeaders += KHTTP::KHeader::REQUEST_COOKIE;
 		sCurlHeaders += ": ";
 
 		size_t counter = 0;

@@ -47,12 +47,7 @@
 namespace dekaf2 {
 
 namespace KHTTP {
-/*
-// Common headers (to not be harcoded in the code)
-	static constexpr KStringView HostHeader          = "host";
-	static constexpr KStringView CookieHeader        = "cookie";
-	static constexpr KStringView UserAgentHeader     = "user-agent";
-*/
+
 namespace KCharSet {
 
 	static constexpr KStringView ANY_ISO8859         = "ISO-8859"; /*-1...*/
@@ -62,6 +57,7 @@ namespace KCharSet {
 
 namespace KHeader {
 
+	// Header names in "official" Pascal case
 	static constexpr KStringView AUTHORIZATION       = "Authorization";
 	static constexpr KStringView HOST                = "Host";
 	static constexpr KStringView HOST_OVERRIDE       = "HostOverride";
@@ -80,6 +76,7 @@ namespace KHeader {
 	static constexpr KStringView ACCEPT              = "Accept";
 	static constexpr KStringView X_FORWARDED_FOR     = "X-Forwarded-For";
 
+	// Header names in lowercase for normalized compares
 	static constexpr KStringView authorization       = "authorization";
 	static constexpr KStringView host                = "host";
 	static constexpr KStringView host_override       = "hostoverride";
@@ -111,12 +108,59 @@ namespace KMIME {
 
 } // end of namespace KMIME
 
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class KUserAgent
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
+//------
 public:
+//------
 
-	static KStringView Translate (KStringView sUserAgent);
+	//-----------------------------------------------------------------------------
+	KUserAgent() = default;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	constexpr
+	KUserAgent(KStringView svUserAgent)
+	//-----------------------------------------------------------------------------
+	{
+		m_svUserAgent = Translate(svUserAgent);
+	}
+
+	//-----------------------------------------------------------------------------
+	KUserAgent(const KUserAgent&) = default;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	KUserAgent(KUserAgent&&) = default;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	KUserAgent& operator=(const KUserAgent&) = default;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	KUserAgent& operator=(KUserAgent&&) = default;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	constexpr
+	KUserAgent& operator=(KStringView svUserAgent)
+	//-----------------------------------------------------------------------------
+	{
+		m_svUserAgent = Translate(svUserAgent);
+		return *this;
+	}
+
+	//-----------------------------------------------------------------------------
+	constexpr
+	operator KStringView() const
+	//-----------------------------------------------------------------------------
+	{
+		return m_svUserAgent;
+	}
 
 	static constexpr KStringView IE6     = "Mozilla/4.0 (compatible; MSIE 6.01; Windows NT 6.0)";
 	static constexpr KStringView IE7     = "Mozilla/5.0 (Windows; U; MSIE 7.0; Windows NT 6.0; en-US)";
@@ -133,6 +177,67 @@ public:
 	static constexpr KStringView ANDROID = "Mozilla/5.0 (Linux; U; Android 2.3.4; en-us; ADR6300 Build/GRJ22) AppleWebKit/533.1 (KHTML, like Gecko) Version/4.0 Mobile Safari/533.1";
 	static constexpr KStringView IPHONE  = "Mozilla/5.0 (iPhone; U; CPU like Mac OS X; en) AppleWebKit/420+ (KHTML, like Gecko) Version/3.0 Mobile/1A543 Safari/419.3";
 	static constexpr KStringView IPAD    = "Mozilla/5.0 (iPad; U; CPU OS 3_2 like Mac OS X; en-us) AppleWebKit/531.21.10 (KHTML, like Gecko) Version/4.0.4 Mobile/7B334b Safari/531.21.10";
+
+//------
+protected:
+//------
+
+	//-----------------------------------------------------------------------------
+	static constexpr KStringView Translate (KStringView svUserAgent)
+	//------------------------------------------------------------------------------
+	{
+		if (svUserAgent == "google") {
+			svUserAgent = GOOGLE;
+		}
+		else if (svUserAgent == "wget") {
+			svUserAgent = WGET;
+		}
+		else if (svUserAgent == "ie9") {
+			svUserAgent = IE9;
+		}
+		else if (svUserAgent == "ie8") {
+			svUserAgent = IE8;
+		}
+		else if (svUserAgent == "ie" || svUserAgent == "ie7") {
+			svUserAgent = IE7;
+		}
+		else if (svUserAgent == "ie6") {
+			svUserAgent = IE6;
+		}
+		else if (svUserAgent == "ff" || svUserAgent == "ff2") {
+			svUserAgent = FF2;
+		}
+		else if (svUserAgent == "ff3") {
+			svUserAgent = FF3;
+		}
+		else if (svUserAgent == "ff9") {
+			svUserAgent = FF9;
+		}
+		else if (svUserAgent == "safari") {
+			svUserAgent = SAFARI;
+		}
+		else if (svUserAgent == "chrome") {
+			svUserAgent = CHROME;
+		}
+		else if (svUserAgent == "android") {
+			svUserAgent = ANDROID;
+		}
+		else if (svUserAgent == "ipad") {
+			svUserAgent = IPAD;
+		}
+		else if (svUserAgent == "iphone") {
+			svUserAgent = IPHONE;
+		}
+
+		return (svUserAgent);
+
+	} // TranslateUserAgent
+
+//------
+private:
+//------
+
+	KStringView m_svUserAgent{};
 
 };
 

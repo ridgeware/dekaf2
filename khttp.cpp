@@ -44,55 +44,5 @@
 
 namespace dekaf2 {
 
-//-----------------------------------------------------------------------------
-KStringView KUserAgent::Translate (KStringView sUserAgent)
-//-----------------------------------------------------------------------------
-{
-	if (sUserAgent == "google") {
-		sUserAgent = GOOGLE;
-	}
-	else if (sUserAgent == "wget") {
-		sUserAgent = WGET;
-	}
-	else if (sUserAgent == "ie9") {
-		sUserAgent = IE9;
-	}
-	else if (sUserAgent == "ie8") {
-		sUserAgent = IE8;
-	}
-	else if (sUserAgent == "ie" || sUserAgent == "ie7") {
-		sUserAgent = IE7;
-	}
-	else if (sUserAgent == "ie6") {
-		sUserAgent = IE6;
-	}
-	else if (sUserAgent == "ff" || sUserAgent == "ff2") {
-		sUserAgent = FF2;
-	}
-	else if (sUserAgent == "ff3") {
-		sUserAgent = FF3;
-	}
-	else if (sUserAgent == "ff9") {
-		sUserAgent = FF9;
-	}
-	else if (sUserAgent == "safari") {
-		sUserAgent = SAFARI;
-	}
-	else if (sUserAgent == "chrome") {
-		sUserAgent = CHROME;
-	}
-	else if (sUserAgent == "android") {
-		sUserAgent = ANDROID;
-	}
-	else if (sUserAgent == "ipad") {
-		sUserAgent = IPAD;
-	}
-	else if (sUserAgent == "iphone") {
-		sUserAgent = IPHONE;
-	}
-
-	return (sUserAgent);
-
-} // TranslateUserAgent
 
 } // end of namespace dekaf2

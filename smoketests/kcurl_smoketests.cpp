@@ -35,37 +35,35 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	virtual bool addToResponseBody(KString& sBodyPart)
+	virtual KStringView Parse(KStringView svPart, bool bParseCookies = true)
 	//-----------------------------------------------------------------------------
 	{
-		bool retVal = KCurl::addToResponseBody(sBodyPart);
-		m_sBody.push_back(sBodyPart);
-		return retVal;
-	}
-
-	//-----------------------------------------------------------------------------
-	virtual bool addToResponseHeader(KString& sHeaderPart)
-	//-----------------------------------------------------------------------------
-	{
-		if (printHeader || !getEchoHeader())
+		if (HeaderComplete())
 		{
-			KWebIO::addToResponseHeader(sHeaderPart);
+			m_sBody.push_back(svPart);
 		}
-		else // getEchoHeader() == true && printHeader == false;
+		else
 		{
-			setEchoHeader(false);
-			KWebIO::addToResponseHeader(sHeaderPart);
-			setEchoHeader(true);
+			if (printHeader || !getEchoHeader())
+			{
+				svPart = KWebIO::Parse(svPart, bParseCookies);
+			}
+			else // getEchoHeader() == true && printHeader == false;
+			{
+				setEchoHeader(false);
+				svPart = KWebIO::Parse(svPart, bParseCookies);
+				setEchoHeader(true);
+			}
 		}
-
-		return true;
+		return svPart;
 	}
 
 	//-----------------------------------------------------------------------------
 	bool printResponseBody()
 	//-----------------------------------------------------------------------------
 	{
-		bool retVal = KCurl::printResponseHeader();
+		KOutStream of(std::cout);
+		bool retVal = KCurl::Serialize(of);
 		for (const auto& bodyPart : m_sBody)
 		{
 			std::cout << bodyPart;
@@ -193,9 +191,9 @@ TEST_CASE("KCurl")
 		CHECK_FALSE(bSuccess);
 
 		KString randHeader("something");
-		webIO.addToResponseHeader(randHeader);
+		webIO.Parse(randHeader);
 		if (webIO.printHeader) {
-			webIO.printResponseHeader();
+			webIO.Serialize();
 		}
 
 #if kcurlBody

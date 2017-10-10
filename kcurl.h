@@ -239,25 +239,28 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// Method children must override to receive and process response header
-	virtual bool addToResponseHeader(KString& sHeaderPart);
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// Method children must override to receive and process response body
-	virtual bool addToResponseBody(KString& sBodyPart);
+	/// Method children must override to receive and process response data
+	virtual KStringView Parse(KStringView sPart, bool bParseCookies = true);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// A method to print reponse header as currently read in
-	virtual bool printResponseHeader();
+	virtual bool Serialize(KOutStream& outStream);
 	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// Overriden virtual method that prints out parsed response header
+	virtual bool Serialize() // prints response header from m_responseHeaders
+	//-----------------------------------------------------------------------------
+	{
+		KOutStream os(std::cout);
+		return Serialize(os);
+	}
 
 //--------
 protected:
 //--------
 
-	bool         m_bHeaderComplete{false}; // Whether to interpret response chunk as header or body
 	bool         m_bEchoHeader{false};     // Whether to output header
 	bool         m_bEchoBody{false};       // Whether to output body
 	RequestType  m_requestType{GET};       // HTTP Request type, GET or POST

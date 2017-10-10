@@ -90,8 +90,7 @@ bool KCurl::setRequestURL(const KString& sRequestURL)
 bool KCurl::initiateRequest()
 //-----------------------------------------------------------------------------
 {
-	KLog().debug(3, "KCurl::initiateRequest() start.");
-	m_bHeaderComplete = false;
+	kDebug(3, "start.");
 	// TODO check if is url
 	if (m_sRequestURL.empty())
 	{
@@ -121,7 +120,7 @@ bool KCurl::initiateRequest()
 	sCurlCMD += " ";
 	sCurlCMD += headers;
 	sCurlCMD += " 2> /dev/null";
-	KLog().debug(3, "KCurl::initiateRequest() end. Command: {}", sCurlCMD);
+	kDebug(3, "send. Command: {}", sCurlCMD);
 	return m_kpipe.Open(sCurlCMD);
 
 } // initiateRequest
@@ -130,26 +129,18 @@ bool KCurl::initiateRequest()
 bool KCurl::getStreamChunk()
 //-----------------------------------------------------------------------------
 {
-	KLog().debug(3, "KCurl::getStreamChunk() start.");
+	kDebug(3, "start.");
 	KString sCurrentChunk("");
 	bool bSuccess = m_kpipe.ReadLine(sCurrentChunk);
 	if (bSuccess)
 	{
-		if (!m_bHeaderComplete)
-		{
-			addToResponseHeader(sCurrentChunk);
-		}
-
-		else // parsing body
-		{
-			addToResponseBody(sCurrentChunk);
-		}
+		Parse(sCurrentChunk);
 	}
 	else //if (!bSuccess)
 	{
 		m_kpipe.Close();
 	}
-	KLog().debug(3, "KCurl::getStreamChunk() end.");
+	kDebug(3, "end.");
 	return bSuccess;
 
 } // getStreamChunk
@@ -260,21 +251,14 @@ bool KCurl::delRequestCookie(const KString& sCookieName, const KString& sCookieV
 } // delCookie
 
 //-----------------------------------------------------------------------------
-bool KCurl::addToResponseHeader(KString& sHeaderPart)
+KStringView KCurl::Parse(KStringView sPart, bool bParseCookies)
 //-----------------------------------------------------------------------------
 {
-	return true;
+	return sPart;
 }
 
 //-----------------------------------------------------------------------------
-bool KCurl::addToResponseBody  (KString& sBodyPart)
-//-----------------------------------------------------------------------------
-{
-	return true;
-}
-
-//-----------------------------------------------------------------------------
-bool KCurl::printResponseHeader  ()
+bool KCurl::Serialize(KOutStream& outStream)
 //-----------------------------------------------------------------------------
 {
 	return true;

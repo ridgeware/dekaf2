@@ -43,6 +43,8 @@
 #pragma once
 
 #include "kstringview.h"
+#include "kprops.h"
+#include "kcasestring.h"
 
 namespace dekaf2 {
 
@@ -55,7 +57,131 @@ namespace KCharSet {
 
 } // end of namespace KCharSet
 
-namespace KHeader {
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+class KHeader
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+//------
+public:
+//------
+
+	// The key for the Header is trimmed and lower cased on comparisons, but stores the original string
+	using KHeaderMap = KProps<KCaseTrimString, KString>; // case insensitive map for header info
+
+	//-----------------------------------------------------------------------------
+	KStringView Parse(KStringView svBuffer, bool bParseCookies = true);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	bool Serialize(KOutStream& outStream);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	void clear();
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	KHeaderMap::const_iterator begin() const
+	//-----------------------------------------------------------------------------
+	{
+		return m_responseHeaders.begin();
+	}
+
+	//-----------------------------------------------------------------------------
+	KHeaderMap::const_iterator end() const
+	//-----------------------------------------------------------------------------
+	{
+		return m_responseHeaders.end();
+	}
+
+	//-----------------------------------------------------------------------------
+	KHeaderMap::const_iterator cbegin() const
+	//-----------------------------------------------------------------------------
+	{
+		return m_responseHeaders.cbegin();
+	}
+
+	//-----------------------------------------------------------------------------
+	KHeaderMap::const_iterator cend() const
+	//-----------------------------------------------------------------------------
+	{
+		return m_responseHeaders.cend();
+	}
+
+	//-----------------------------------------------------------------------------
+	KHeaderMap::iterator begin()
+	//-----------------------------------------------------------------------------
+	{
+		return m_responseHeaders.begin();
+	}
+
+	//-----------------------------------------------------------------------------
+	KHeaderMap::iterator end()
+	//-----------------------------------------------------------------------------
+	{
+		return m_responseHeaders.end();
+	}
+
+	//-----------------------------------------------------------------------------
+	const KHeaderMap* operator->() const
+	//-----------------------------------------------------------------------------
+	{
+		return &m_responseHeaders;
+	}
+
+	//-----------------------------------------------------------------------------
+	KHeaderMap* operator->()
+	//-----------------------------------------------------------------------------
+	{
+		return &m_responseHeaders;
+	}
+
+	//-----------------------------------------------------------------------------
+	const KString& operator[](KCaseStringView sv) const
+	//-----------------------------------------------------------------------------
+	{
+		return m_responseHeaders[sv];
+	}
+
+	//-----------------------------------------------------------------------------
+	KString& operator[](KCaseStringView sv)
+	//-----------------------------------------------------------------------------
+	{
+		return m_responseHeaders[sv];
+	}
+
+	//-----------------------------------------------------------------------------
+	/// Get all response cookies as a KHeaderMap
+	const KHeaderMap& getResponseCookies() const
+	//-----------------------------------------------------------------------------
+	{
+		return m_responseCookies;
+	}
+
+	//-----------------------------------------------------------------------------
+	/// Get all response cookies as a KHeaderMap
+	KHeaderMap& getResponseCookies()
+	//-----------------------------------------------------------------------------
+	{
+		return m_responseCookies;
+	}
+
+	//-----------------------------------------------------------------------------
+	/// Get response cookie value from given cookie name (case insensitive)
+	const KString& getResponseCookie(KCaseTrimStringView sCookieName) const
+	//-----------------------------------------------------------------------------
+	{
+		return m_responseCookies.Get(sCookieName);
+	}
+
+	//-----------------------------------------------------------------------------
+	/// returns true if all headers have been parsed
+	bool HeaderComplete() const
+	//-----------------------------------------------------------------------------
+	{
+		return m_bHeaderComplete;
+	}
 
 	// Header names in "official" Pascal case
 	static constexpr KStringView AUTHORIZATION       = "Authorization";
@@ -95,7 +221,32 @@ namespace KHeader {
 	static constexpr KStringView accept              = "accept";
 	static constexpr KStringView x_forwarded_for     = "x-forwarded-for";
 
-} // end of namespace KHeader
+//------
+private:
+//------
+
+	//-----------------------------------------------------------------------------
+	/// method that takes care of case-insentive header add logic and cookie add logic
+	bool           addResponseHeader(KStringView sHeaderName, KStringView sHeaderValue, bool bParseCookies);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// if parsing multi line header, this gets to the end of it
+	size_t         findEndOfHeader(KStringView svHeaderPart, size_t lineEndPos);
+	//-----------------------------------------------------------------------------
+
+	static constexpr KStringView svBrokenHeader = "!?.garbage";
+
+	KHeaderMap     m_responseHeaders; // response headers read in
+	KHeaderMap     m_responseCookies; // response cookies read in
+	KString        m_sPartialHeader; // when streaming can't guarantee always have full header.
+	KString        m_sResponseVersion; // HTTP resonse version
+	KString        m_sResponseStatus; // HTTP response status
+	uint16_t       m_iResponseStatusCode{0}; // HTTP response code
+	bool           m_bHeaderComplete{false}; // Whether to interpret response chunk as header or body
+// TODO we need to reset the header complete flag if we want to reuse this class
+
+}; // KHeader
 
 } // end of namespace KHTTP
 

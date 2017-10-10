@@ -130,11 +130,24 @@ bool KCurl::getStreamChunk()
 //-----------------------------------------------------------------------------
 {
 	kDebug(3, "start.");
-	KString sCurrentChunk("");
+	KString sCurrentChunk;
 	bool bSuccess = m_kpipe.ReadLine(sCurrentChunk);
 	if (bSuccess)
 	{
-		Parse(sCurrentChunk);
+		KStringView sv = Parse(sCurrentChunk);
+		if (!m_bHeaderPrinted && m_bEchoHeader)
+		{
+			if (HeaderComplete())
+			{
+				m_bHeaderPrinted = true;
+				Serialize();
+			}
+		}
+		if (!sv.empty() && m_bEchoBody)
+		{
+			// This is the body
+			std::cout << sv;
+		}
 	}
 	else //if (!bSuccess)
 	{
@@ -263,6 +276,14 @@ bool KCurl::Serialize(KOutStream& outStream)
 {
 	return true;
 }
+
+//-----------------------------------------------------------------------------
+bool KCurl::HeaderComplete() const
+//-----------------------------------------------------------------------------
+{
+	return false;
+}
+
 
 //-----------------------------------------------------------------------------
 bool KCurl::serializeRequestHeader(KString& sCurlHeaders)

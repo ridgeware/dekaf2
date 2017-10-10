@@ -257,6 +257,10 @@ public:
 		return Serialize(os);
 	}
 
+	//-----------------------------------------------------------------------------
+	virtual bool HeaderComplete() const;
+	//-----------------------------------------------------------------------------
+
 //--------
 protected:
 //--------
@@ -275,6 +279,7 @@ private:
 	KString      m_sRequestURL;    // request url, must be set
 	KHeader      m_requestHeaders; // headers to add to requests
 	KHeader      m_requestCookies; // cookies to add to request
+	bool         m_bHeaderPrinted{false};
 
 	//-----------------------------------------------------------------------------
 	bool         serializeRequestHeader(KString& sCurlHeaders); // false means no headers

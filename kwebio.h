@@ -134,10 +134,10 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	bool HeaderComplete() const
+	virtual bool HeaderComplete() const
 	//-----------------------------------------------------------------------------
 	{
-		return !m_bHeaderComplete;
+		return m_bHeaderComplete;
 	}
 
 //------

@@ -111,6 +111,13 @@ size_t kFindFirstOfNoSSE(KStringView haystack, KStringView needles, bool bNot)
 }
 
 //-----------------------------------------------------------------------------
+size_t kFindFirstNotOfNoSSE(KStringView haystack, KStringView needles)
+//-----------------------------------------------------------------------------
+{
+	return kFindFirstOfNoSSE(haystack, needles, true);
+}
+
+//-----------------------------------------------------------------------------
 size_t kFindLastOfNoSSE(KStringView haystack, KStringView needles, bool bNot)
 //-----------------------------------------------------------------------------
 {
@@ -139,9 +146,15 @@ size_t kFindLastOfNoSSE(KStringView haystack, KStringView needles, bool bNot)
 	}
 }
 
+//-----------------------------------------------------------------------------
+size_t kFindLastNotOfNoSSE(KStringView haystack, KStringView needles)
+//-----------------------------------------------------------------------------
+{
+	return kFindLastOfNoSSE(haystack, needles, true);
+}
+
 } // end of namespace detail
 } // end of namespace dekaf
-
 
 #ifndef __SSE__
 //#ifndef __SSE4_2__
@@ -166,7 +179,7 @@ size_t kFindFirstNotOfSSE42(
         bool bNot)
 //-----------------------------------------------------------------------------
 {
-	return kFindFirstNotOfNoSSE(haystack, needles, bNot);
+	return kFindFirstNotOfNoSSE(haystack, needles);
 }
 
 //-----------------------------------------------------------------------------
@@ -186,7 +199,44 @@ size_t kFindLastNotOfSSE42(
         bool bNot)
 //-----------------------------------------------------------------------------
 {
-	return kFindLastNotOfNoSSE(haystack, needles, bNot);
+	return kFindLastNotOfNoSSE(haystack, needles);
+}
+
+
+//-----------------------------------------------------------------------------
+size_t kFindFirstOfSSE(
+        const KStringView haystack,
+        const KStringView needles)
+//-----------------------------------------------------------------------------
+{
+	return kFindFirstOfNoSSE(haystack, needles, false);
+}
+
+//-----------------------------------------------------------------------------
+size_t kFindFirstNotOfSSE(
+        const KStringView haystack,
+        const KStringView needles)
+//-----------------------------------------------------------------------------
+{
+	return kFindFirstNotOfNoSSE(haystack, needles);
+}
+
+//-----------------------------------------------------------------------------
+size_t kFindLastOfSSE(
+        const KStringView haystack,
+        const KStringView needles)
+//-----------------------------------------------------------------------------
+{
+	return kFindLastOfNoSSE(haystack, needles, false);
+}
+
+//-----------------------------------------------------------------------------
+size_t kFindLastNotOfSSE(
+        const KStringView haystack,
+        const KStringView needles)
+//-----------------------------------------------------------------------------
+{
+	return kFindLastNotOfNoSSE(haystack, needles);
 }
 
 } // end of namespace detail

@@ -111,13 +111,6 @@ size_t kFindFirstOfNoSSE(KStringView haystack, KStringView needles, bool bNot)
 }
 
 //-----------------------------------------------------------------------------
-size_t kFindFirstNotOfNoSSE(KStringView haystack, KStringView needles)
-//-----------------------------------------------------------------------------
-{
-	return kFindFirstOfNoSSE(haystack, needles, true);
-}
-
-//-----------------------------------------------------------------------------
 size_t kFindLastOfNoSSE(KStringView haystack, KStringView needles, bool bNot)
 //-----------------------------------------------------------------------------
 {
@@ -146,13 +139,6 @@ size_t kFindLastOfNoSSE(KStringView haystack, KStringView needles, bool bNot)
 	}
 }
 
-//-----------------------------------------------------------------------------
-size_t kFindLastNotOfNoSSE(KStringView haystack, KStringView needles)
-//-----------------------------------------------------------------------------
-{
-	return kFindLastOfNoSSE(haystack, needles, true);
-}
-
 } // end of namespace detail
 } // end of namespace dekaf
 
@@ -161,47 +147,6 @@ size_t kFindLastNotOfNoSSE(KStringView haystack, KStringView needles)
 
 namespace dekaf2 {
 namespace detail {
-
-//-----------------------------------------------------------------------------
-size_t kFindFirstOfSSE42(
-        const KStringView haystack,
-        const KStringView needles,
-        bool bNot)
-//-----------------------------------------------------------------------------
-{
-	return kFindFirstOfNoSSE(haystack, needles, bNot);
-}
-
-//-----------------------------------------------------------------------------
-size_t kFindFirstNotOfSSE42(
-        const KStringView haystack,
-        const KStringView needles,
-        bool bNot)
-//-----------------------------------------------------------------------------
-{
-	return kFindFirstNotOfNoSSE(haystack, needles);
-}
-
-//-----------------------------------------------------------------------------
-size_t kFindLastOfSSE42(
-        const KStringView haystack,
-        const KStringView needles,
-        bool bNot)
-//-----------------------------------------------------------------------------
-{
-	return kFindLastOfNoSSE(haystack, needles, bNot);
-}
-
-//-----------------------------------------------------------------------------
-size_t kFindLastNotOfSSE42(
-        const KStringView haystack,
-        const KStringView needles,
-        bool bNot)
-//-----------------------------------------------------------------------------
-{
-	return kFindLastNotOfNoSSE(haystack, needles);
-}
-
 
 //-----------------------------------------------------------------------------
 size_t kFindFirstOfSSE(
@@ -218,7 +163,7 @@ size_t kFindFirstNotOfSSE(
         const KStringView needles)
 //-----------------------------------------------------------------------------
 {
-	return kFindFirstNotOfNoSSE(haystack, needles);
+	return kFindFirstOfNoSSE(haystack, needles, true);
 }
 
 //-----------------------------------------------------------------------------
@@ -236,7 +181,7 @@ size_t kFindLastNotOfSSE(
         const KStringView needles)
 //-----------------------------------------------------------------------------
 {
-	return kFindLastNotOfNoSSE(haystack, needles);
+	return kFindLastOfNoSSE(haystack, needles, true);
 }
 
 } // end of namespace detail
@@ -257,7 +202,8 @@ namespace dekaf2 {
 namespace detail {
 
 //-----------------------------------------------------------------------------
-inline size_t portableCLZ(uint32_t value)
+DEKAF2_ALWAYS_INLINE
+size_t portableCLZ(uint32_t value)
 //-----------------------------------------------------------------------------
 {
 	if (!value) return 8 * sizeof(value);
@@ -279,7 +225,8 @@ inline size_t portableCLZ(uint32_t value)
 }
 
 //-----------------------------------------------------------------------------
-inline size_t portableCTZ(uint32_t value)
+DEKAF2_ALWAYS_INLINE
+size_t portableCTZ(uint32_t value)
 //-----------------------------------------------------------------------------
 {
 	if (!value) return 8 * sizeof(value);
@@ -307,14 +254,16 @@ static_assert(kMinPageSize >= 16, "kMinPageSize must be at least SSE register si
 
 //-----------------------------------------------------------------------------
 template <typename T>
-inline uintptr_t page_for(T* addr)
+DEKAF2_ALWAYS_INLINE
+uintptr_t page_for(T* addr)
 //-----------------------------------------------------------------------------
 {
 	return reinterpret_cast<uintptr_t>(addr) / kMinPageSize;
 }
 
 //-----------------------------------------------------------------------------
-inline size_t nextAlignedIndex(const char* arr, size_t startIndex = 0)
+DEKAF2_ALWAYS_INLINE
+size_t nextAlignedIndex(const char* arr, size_t startIndex = 0)
 //-----------------------------------------------------------------------------
 {
 	auto firstPossible = reinterpret_cast<uintptr_t>(arr) + 1;
@@ -346,6 +295,7 @@ size_t kFindFirstOfNeedles16(
 		auto index = _mm_cmpestri(arr2, needleSize,
 		                     arr1, 16,
 		                     0);
+
 		if (index < 16)
 		{
 			return i + static_cast<size_t>(index);
@@ -356,6 +306,7 @@ size_t kFindFirstOfNeedles16(
 	 auto index = _mm_cmpestri(arr2, needleSize,
 	                           arr1, useSize,
 	                           0);
+
 	if (index < useSize)
 	{
 		return endSize + static_cast<size_t>(index);
@@ -388,6 +339,7 @@ size_t kFindFirstNotOfNeedles16(
 		auto index = _mm_cmpestri(arr2, needleSize,
 		                          arr1, 16,
 		                          0b00010000);
+
 		if (index < 16)
 		{
 			return i + static_cast<size_t>(index);
@@ -437,6 +389,7 @@ size_t kFindLastNotOfNeedles16(
 		index = _mm_cmpestri(arr2, needleSize,
 		                     arr1, 16,
 		                     0b01110000);
+
 		// loop structure guarantees only haystack blocks of 16 get here
 		if (index < 16)
 		{
@@ -449,6 +402,7 @@ size_t kFindLastNotOfNeedles16(
 	index = _mm_cmpestri(arr2, static_cast<int>(needleSize),
 	                     arr1, useSize,
 	                     0b01110000);
+
 	if (index < useSize)
 	{
 		return static_cast<size_t>(index);
@@ -487,6 +441,7 @@ size_t kFindLastOfNeedles16(
 		index = _mm_cmpestri(arr2, needleSize,
 		                     arr1, 16,
 		                     0b01000000);
+
 		// loop structure guarantees only haystack blocks of 16 get here
 		if (index < 16)
 		{
@@ -499,6 +454,7 @@ size_t kFindLastOfNeedles16(
 	index = _mm_cmpestri(arr2, needleSize,
 	                     arr1, useSize,
 	                     0b01000000);
+
 	if (index < useSize)
 	{
 		return static_cast<size_t>(index);
@@ -556,7 +512,9 @@ size_t scanHaystackBlock(
 	if (b < useSize) {
 		return blockStartIdx + static_cast<size_t>(b);
 	}
+
 	return KStringView::npos;
+
 }
 
 //-----------------------------------------------------------------------------
@@ -623,6 +581,7 @@ size_t scanHaystackBlockNot(
 	}
 
 	return KStringView::npos;
+
 }
 
 //-----------------------------------------------------------------------------
@@ -679,20 +638,26 @@ size_t reverseScanHaystackBlock(
 	                 arr2, 16,
 	                 arr1, useSize,
 	                 0b01000000);
-	if (index >= useSize) ;
-	else if (b >= useSize) // if b is initially 16, then I won't get the largest value smaller
+
+	if (index < useSize)
 	{
-		b = index;
-	}
-	else
-	{
-		b = std::max(index, b);
+		if (b >= useSize) // if b is initially 16, then I won't get the largest value smaller
+		{
+			b = index;
+		}
+		else
+		{
+			b = std::max(index, b);
+		}
 	}
 
-	if (b < 16) {
+	if (b < 16)
+	{
 		return blockStartIdx + static_cast<size_t>(b);
 	}
+
 	return KStringView::npos;
+
 }
 
 //-----------------------------------------------------------------------------
@@ -715,7 +680,7 @@ size_t reverseScanHaystackBlockNot(
 	// We need to set the mask with an = before we can do |= safely.
 	// So the first call must not be in the loop to prevent if statement
 	// Testing revealed that whatever junk is in the memory location
-	// before initialization effects the value of the mask.
+	// before initialization affects the value of the mask.
 	__m128i mask = _mm_cmpestrm(arr2, 16,
 	                            arr1, useSize,
 	                            0);
@@ -748,7 +713,7 @@ size_t reverseScanHaystackBlockNot(
 		// we need to count leading 1's
 		// GCC only provides counting leading (or trailing) 0's
 		// The trailing side according to the GCC implementation is before our data
-		// The leading is after , this is because of the Little Endian architechture.
+		// The leading is after , this is because of the Little Endian architecture.
 		// For leading 0's the first 16 aren't even "ours",
 		// we use a uint16_t to look at the mask and clz takes uint_32t.
 		//size_t useSize = static_cast<size_t>(std::min(16, static_cast<int>(haystackSize - blockStartIdx)));
@@ -837,6 +802,7 @@ size_t kFindLastOfSSE(
 //-----------------------------------------------------------------------------
 {	
 	size_t haystackSize = haystack.size();
+
 	if (DEKAF2_UNLIKELY(needles.empty() || haystack.empty()))
 	{
 		return KStringView::npos;

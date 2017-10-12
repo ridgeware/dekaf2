@@ -42,6 +42,7 @@
 
 #include "kcurl.h"
 #include "klog.h"
+#include "khttp.h"
 
 #include <iostream>
 
@@ -68,12 +69,6 @@ Cookie: foo=bar; yummy_cookie=choco; tasty_cookie=strawberry
 namespace dekaf2
 {
 
-const char* KCurl::xForwardedForHeader = "x-forwarded-for";
-const char* KCurl::HostHeader          = "host";
-const char* KCurl::CookieHeader        = "cookie";
-const char* KCurl::UserAgentHeader     = "user-agent";
-const char* KCurl::sGarbageHeader      = "garbage";
-
 //-----------------------------------------------------------------------------
 bool KCurl::setRequestURL(const KString& sRequestURL)
 //-----------------------------------------------------------------------------
@@ -95,8 +90,7 @@ bool KCurl::setRequestURL(const KString& sRequestURL)
 bool KCurl::initiateRequest()
 //-----------------------------------------------------------------------------
 {
-	KLog().debug(3, "KCurl::initiateRequest() start.");
-	m_bHeaderComplete = false;
+	kDebug(3, "start.");
 	// TODO check if is url
 	if (m_sRequestURL.empty())
 	{
@@ -126,7 +120,7 @@ bool KCurl::initiateRequest()
 	sCurlCMD += " ";
 	sCurlCMD += headers;
 	sCurlCMD += " 2> /dev/null";
-	KLog().debug(3, "KCurl::initiateRequest() end. Command: {}", sCurlCMD);
+	kDebug(3, "send. Command: {}", sCurlCMD);
 	return m_kpipe.Open(sCurlCMD);
 
 } // initiateRequest
@@ -135,26 +129,31 @@ bool KCurl::initiateRequest()
 bool KCurl::getStreamChunk()
 //-----------------------------------------------------------------------------
 {
-	KLog().debug(3, "KCurl::getStreamChunk() start.");
-	KString sCurrentChunk("");
+	kDebug(3, "start.");
+	KString sCurrentChunk;
 	bool bSuccess = m_kpipe.ReadLine(sCurrentChunk);
 	if (bSuccess)
 	{
-		if (!m_bHeaderComplete)
+		KStringView sv = Parse(sCurrentChunk);
+		if (!m_bHeaderPrinted && m_bEchoHeader)
 		{
-			addToResponseHeader(sCurrentChunk);
+			if (HeaderComplete())
+			{
+				m_bHeaderPrinted = true;
+				Serialize();
+			}
 		}
-
-		else // parsing body
+		if (!sv.empty() && m_bEchoBody)
 		{
-			addToResponseBody(sCurrentChunk);
+			// This is the body
+			std::cout << sv;
 		}
 	}
 	else //if (!bSuccess)
 	{
 		m_kpipe.Close();
 	}
-	KLog().debug(3, "KCurl::getStreamChunk() end.");
+	kDebug(3, "end.");
 	return bSuccess;
 
 } // getStreamChunk
@@ -178,15 +177,12 @@ bool KCurl::setPostDataWithFile(const KString& sFileName)
 bool KCurl::getRequestHeader(const KString& sHeaderName, KString& sHeaderValue) const
 //-----------------------------------------------------------------------------
 {
-	KString sSearchHeader(sHeaderName.ToLower());
-	sSearchHeader.Trim();
-	KCurl::KHeaderPair header = m_requestHeaders.Get(sSearchHeader);
-	if (header.first.empty() || header.second.empty())
+	sHeaderValue = m_requestHeaders.Get(sHeaderName);
+	if (sHeaderValue.empty())
 	{
-		KLog().debug(3, "KCurl::getRequestHeader({},{}) end failure.", sHeaderName, sHeaderValue);
+		kDebug(3, "({}, {}) failure.", sHeaderName, sHeaderValue);
 		return false;
 	}
-	sHeaderValue = header.second;
 	return true;
 
 } // getRequestHeader
@@ -195,10 +191,8 @@ bool KCurl::getRequestHeader(const KString& sHeaderName, KString& sHeaderValue) 
 bool KCurl::setRequestHeader(const KString& sHeaderName, const KString& sHeaderValue)
 //-----------------------------------------------------------------------------
 {
-	KString sHeaderKey(sHeaderName.ToLower());
-	sHeaderKey.Trim();
-	m_requestHeaders.Set(sHeaderKey, KHeaderPair(sHeaderName, sHeaderValue));
-	KLog().debug(3, "KCurl::setRequestHeader({},{}) header",sHeaderName , sHeaderName);
+	m_requestHeaders.Set(sHeaderName, sHeaderValue);
+	kDebug(3, "({}, {})", sHeaderName , sHeaderValue);
 	return true;
 
 } // setRequestHeader
@@ -207,10 +201,8 @@ bool KCurl::setRequestHeader(const KString& sHeaderName, const KString& sHeaderV
 bool KCurl::addRequestHeader(const KString& sHeaderName, const KString& sHeaderValue)
 //-----------------------------------------------------------------------------
 {
-	KString sHeaderKey(sHeaderName.ToLower());
-	sHeaderKey.Trim();
-	m_requestHeaders.Add(sHeaderKey, KHeaderPair(sHeaderName, sHeaderValue));
-	KLog().debug(3, "KCurl::addRequestHeader({},{}) ", sHeaderName, sHeaderValue);
+	m_requestHeaders.Add(sHeaderName, sHeaderValue);
+	kDebug(3, "(){}, {})", sHeaderName, sHeaderValue);
 	return true;
 
 } // addRequestHeader
@@ -219,9 +211,7 @@ bool KCurl::addRequestHeader(const KString& sHeaderName, const KString& sHeaderV
 bool KCurl::delRequestHeader(const KString& sHeaderName)
 //-----------------------------------------------------------------------------
 {
-	KString sHeaderKey(sHeaderName.ToLower());
-	sHeaderKey.Trim();
-	m_requestHeaders.Remove(sHeaderKey);
+	m_requestHeaders.Remove(sHeaderName);
 	return true;
 
 } // delRequestHeader
@@ -230,15 +220,12 @@ bool KCurl::delRequestHeader(const KString& sHeaderName)
 bool KCurl::getRequestCookie(const KString& sCookieName, KString& sCookieValue) const
 //-----------------------------------------------------------------------------
 {
-	KString sCookieKey(sCookieName.ToLower());
-	sCookieKey.Trim();
-	KCurl::KHeaderPair cookie = m_requestCookies.Get(sCookieKey);
-	if (cookie.first.empty() || cookie.second.empty())
+	sCookieValue = m_requestCookies.Get(sCookieName);
+	if (sCookieValue.empty())
 	{
-		KLog().debug(3, "KCurl::getRequestCookie({},{}) with key '{}' end unsuccessful.", sCookieName, sCookieName, sCookieKey);
+		kDebug(3, "'{}' no cookie value found", sCookieName);
 		return false;
 	}
-	sCookieValue = cookie.second;
 	return true;
 
 } // getCookie
@@ -247,10 +234,8 @@ bool KCurl::getRequestCookie(const KString& sCookieName, KString& sCookieValue) 
 bool KCurl::setRequestCookie(const KString& sCookieName, const KString& sCookieValue)
 //-----------------------------------------------------------------------------
 {
-	KString sCookieKey(sCookieName.ToLower());
-	sCookieKey.Trim();
-	m_requestCookies.Set(sCookieKey, KHeaderPair(sCookieName, sCookieValue));
-	KLog().debug(3, "KCurl::setRequestCookie({},{}) with key '{}' end.", sCookieName, sCookieName, sCookieKey);
+	m_requestCookies.Set(sCookieName, sCookieValue);
+	kDebug(3, "('{}' '{}')", sCookieName, sCookieValue);
 	return true;
 
 } // setCookie
@@ -259,14 +244,12 @@ bool KCurl::setRequestCookie(const KString& sCookieName, const KString& sCookieV
 bool KCurl::addRequestCookie(const KString& sCookieName, const KString& sCookieValue)
 //-----------------------------------------------------------------------------
 {
-	KString sCookieKey(sCookieName.ToLower());
-	sCookieKey.Trim();
-	auto iter = m_requestCookies.Add(sCookieKey, KHeaderPair(sCookieKey, sCookieValue));
+	auto iter = m_requestCookies.Add(sCookieName, sCookieValue);
 	if (iter == m_requestCookies.end())
 	{
-		KLog().debug(3, "KCurl::addRequestCookie({},{}) with key '{}' end. Insert fail", sCookieName, sCookieName, sCookieKey);
+		kDebug(3, "key '{}': Insert fail", sCookieName);
 	}
-	KLog().debug(3, "KCurl::addRequestCookie({},{}) with key '{}' end.", sCookieName, sCookieName, sCookieKey);
+	kDebug(3, "key '{}' end.", sCookieName);
 	return true;
 
 } // addCookie
@@ -275,64 +258,63 @@ bool KCurl::addRequestCookie(const KString& sCookieName, const KString& sCookieV
 bool KCurl::delRequestCookie(const KString& sCookieName, const KString& sCookieValue /*= ""*/)
 //-----------------------------------------------------------------------------
 {
-	KString sCookieKey(sCookieName.ToLower());
-	sCookieKey.Trim();
 	m_requestCookies.Remove(sCookieName);
 	return true;
 
 } // delCookie
 
 //-----------------------------------------------------------------------------
-bool KCurl::addToResponseHeader(KString& sHeaderPart)
+KStringView KCurl::Parse(KStringView sPart, bool bParseCookies)
+//-----------------------------------------------------------------------------
+{
+	return sPart;
+}
+
+//-----------------------------------------------------------------------------
+bool KCurl::Serialize(KOutStream& outStream)
 //-----------------------------------------------------------------------------
 {
 	return true;
 }
 
 //-----------------------------------------------------------------------------
-bool KCurl::addToResponseBody  (KString& sBodyPart)
+bool KCurl::HeaderComplete() const
 //-----------------------------------------------------------------------------
 {
-	return true;
+	return false;
 }
 
-//-----------------------------------------------------------------------------
-bool KCurl::printResponseHeader  ()
-//-----------------------------------------------------------------------------
-{
-	return true;
-}
 
 //-----------------------------------------------------------------------------
 bool KCurl::serializeRequestHeader(KString& sCurlHeaders)
 //-----------------------------------------------------------------------------
 {
-	for (auto iter = m_requestHeaders.begin(); iter != m_requestHeaders.end(); iter++)
+	for (const auto& iter : m_requestHeaders)
 	{
 		sCurlHeaders += "-H '";
-		sCurlHeaders += iter->second.first;
+		sCurlHeaders += iter.first;
 		sCurlHeaders += ": ";
-		sCurlHeaders += iter->second.second;
+		sCurlHeaders += iter.second;
 		sCurlHeaders += "' ";
 	}
+
 	if (!m_requestCookies.empty())
 	{
 		sCurlHeaders += "-H '";
-		sCurlHeaders += CookieHeader;
+		sCurlHeaders += KHTTP::KHeader::REQUEST_COOKIE;
 		sCurlHeaders += ": ";
-	}
-	for (auto iter = m_requestCookies.begin(); iter != m_requestCookies.end(); iter++)
-	{
-		if (iter != m_requestCookies.begin())
+
+		size_t counter = 0;
+		for (const auto& iter : m_requestCookies)
 		{
-			sCurlHeaders += ';';
+			if (counter++)
+			{
+				sCurlHeaders += ';';
+			}
+			sCurlHeaders += iter.first;
+			sCurlHeaders += '=';
+			sCurlHeaders += iter.second;
 		}
-		sCurlHeaders += iter->second.first;
-		sCurlHeaders += '=';
-		sCurlHeaders += iter->second.second;
-	}
-	if (!m_requestCookies.empty())
-	{
 		sCurlHeaders +='\'';
 	}
 	return !sCurlHeaders.empty();

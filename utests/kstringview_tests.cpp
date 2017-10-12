@@ -639,5 +639,47 @@ TEST_CASE("KStringView") {
 		s.Format("This is {}", sv);
 		CHECK( s == "This is a string view" );
 	}
+
+	SECTION("SSE Short Haystack")
+	{
+		KStringView sv = "abcdefabcdef";
+		auto pos = sv.find_first_of("ghijk");
+		CHECK( pos == KStringView::npos );
+		pos = sv.find_first_not_of("abcdef");
+//		CHECK( pos == KStringView::npos );
+		pos = sv.find_last_of("ghijk");
+		CHECK( pos == KStringView::npos );
+		pos = sv.find_last_not_of("abcdef");
+		CHECK( pos == KStringView::npos );
+		pos = sv.find_first_of("ghijklmnopqrstuvwxyz");
+		CHECK( pos == KStringView::npos );
+		pos = sv.find_first_not_of("abcdefghijklmnopqrst");
+		CHECK( pos == KStringView::npos );
+		pos = sv.find_last_of("ghijklmnopqrstuvwxyz");
+		CHECK( pos == KStringView::npos );
+		pos = sv.find_last_not_of("abcdefghijklmnopqrst");
+		CHECK( pos == KStringView::npos );
+	}
+
+	SECTION("SSE Long Haystack")
+	{
+		KStringView sv = "abcdefabcdeffabcdeffabcdeffabcdeffabcdeffabcdeffabcdeffabcdeffabcdef";
+		auto pos = sv.find_first_of("ghijk");
+		CHECK( pos == KStringView::npos );
+		pos = sv.find_first_not_of("abcdef");
+//		CHECK( pos == KStringView::npos );
+		pos = sv.find_last_of("ghijk");
+		CHECK( pos == KStringView::npos );
+		pos = sv.find_last_not_of("abcdef");
+		CHECK( pos == KStringView::npos );
+		pos = sv.find_first_of("ghijklmnopqrstuvwxyz");
+		CHECK( pos == KStringView::npos );
+		pos = sv.find_first_not_of("abcdefghijklmnopqrst");
+		CHECK( pos == KStringView::npos );
+		pos = sv.find_last_of("ghijklmnopqrstuvwxyz");
+		CHECK( pos == KStringView::npos );
+		pos = sv.find_last_not_of("abcdefghijklmnopqrst");
+		CHECK( pos == KStringView::npos );
+	}
 }
 

@@ -379,16 +379,19 @@ class Range : private boost::totally_ordered<Range<Iter>> {
   template <class T = Iter, typename detail::IsCharPointer<T>::const_type = 0>
   Range& operator=(std::string&& rhs) = delete;
 
+  constexpr
   void clear() {
     b_ = Iter();
     e_ = Iter();
   }
 
+  constexpr
   void assign(Iter start, Iter end) {
     b_ = start;
     e_ = end;
   }
 
+  constexpr
   void reset(Iter start, size_type size) {
     b_ = start;
     e_ = start + size;
@@ -432,18 +435,22 @@ class Range : private boost::totally_ordered<Range<Iter>> {
   constexpr Iter cend() const {
     return e_;
   }
+  constexpr
   value_type& front() {
     assert(b_ < e_);
     return *b_;
   }
+  constexpr
   value_type& back() {
     assert(b_ < e_);
     return detail::value_before(e_);
   }
+  constexpr
   const value_type& front() const {
     assert(b_ < e_);
     return *b_;
   }
+  constexpr
   const value_type& back() const {
     assert(b_ < e_);
     return detail::value_before(e_);
@@ -468,7 +475,8 @@ class Range : private boost::totally_ordered<Range<Iter>> {
   }
 
   // Works only for Range<const char*> and Range<char*>
-  int compare(const const_range_type& o) const {
+    constexpr
+    int compare(const const_range_type& o) const {
     const size_type tsize = this->size();
     const size_type osize = o.size();
     const size_type msize = std::min(tsize, osize);
@@ -489,6 +497,7 @@ class Range : private boost::totally_ordered<Range<Iter>> {
     return b_[i];
   }
 
+  constexpr
   const value_type& operator[](size_t i) const {
     DCHECK_GT(size(), i);
     return b_[i];
@@ -501,6 +510,7 @@ class Range : private boost::totally_ordered<Range<Iter>> {
     return b_[i];
   }
 
+  constexpr
   const value_type& at(size_t i) const {
     if (i >= size()) {
       std::__throw_out_of_range("index out of range");
@@ -537,6 +547,7 @@ class Range : private boost::totally_ordered<Range<Iter>> {
     return hash;
   }
 
+  constexpr
   void advance(size_type n) {
     if (UNLIKELY(n > size())) {
       std::__throw_out_of_range("index out of range");
@@ -544,6 +555,7 @@ class Range : private boost::totally_ordered<Range<Iter>> {
     b_ += n;
   }
 
+  constexpr
   void subtract(size_type n) {
     if (UNLIKELY(n > size())) {
       std::__throw_out_of_range("index out of range");
@@ -560,11 +572,13 @@ class Range : private boost::totally_ordered<Range<Iter>> {
   }
 
   // unchecked versions
+  constexpr
   void uncheckedAdvance(size_type n) {
     DCHECK_LE(n, size());
     b_ += n;
   }
 
+  constexpr
   void uncheckedSubtract(size_type n) {
     DCHECK_LE(n, size());
     e_ -= n;

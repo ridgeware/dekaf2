@@ -124,18 +124,18 @@ void KTCPServer::Session(KStream& stream, const endpoint_type& remote_endpoint)
 				return;
 			}
 
-			if (line != "\r")
+			KString sOut(Request(line, *parameters));
+			if (!sOut.empty())
 			{
-				stream << Request(line, *parameters);
+				stream.Write(sOut).Flush();
 			}
-
 		}
 	}
 
 }
 
 //-----------------------------------------------------------------------------
-void KTCPServer::RunSession(KStream& stream, const endpoint_type& remote_endpoint)
+void KTCPServer::RunSession(std::unique_ptr<KStream> stream, const endpoint_type& remote_endpoint)
 //-----------------------------------------------------------------------------
 {
 	kDebug(3, "accepting new connection from {} on port {}",
@@ -146,7 +146,7 @@ void KTCPServer::RunSession(KStream& stream, const endpoint_type& remote_endpoin
 	{
 		// run the actual Session code protected by
 		// an exception handler
-		Session(stream, remote_endpoint);
+		Session(*stream, remote_endpoint);
 	}
 
 /*
@@ -231,22 +231,28 @@ void KTCPServer::Server(bool ipv6)
 			{
 				if (IsSSL())
 				{
-					KSSLStream stream;
-					stream.SetSSLCertificate(m_sCert.c_str(), m_sPem.c_str());
+					auto ustream = std::make_unique<KSSLStream>();
+					ustream->SetSSLCertificate(m_sCert.c_str(), m_sPem.c_str());
 					endpoint_type remote_endpoint;
-					acceptor.accept(stream.GetTCPSocket(), remote_endpoint);
-					std::thread(&KTCPServer::RunSession, this, std::ref(stream), std::ref(remote_endpoint)).detach();
+					acceptor.accept(ustream->GetTCPSocket(), remote_endpoint);
+					if (!m_bQuit)
+					{
+						std::thread(&KTCPServer::RunSession, this, std::move(ustream), std::ref(remote_endpoint)).detach();
+					}
 				}
 				else
 				{
-					KTCPStream stream;
+					auto ustream = std::make_unique<KTCPStream>();
 					endpoint_type remote_endpoint;
-					acceptor.accept(*(stream.rdbuf()), remote_endpoint);
-					std::thread(&KTCPServer::RunSession, this, std::ref(stream), std::ref(remote_endpoint)).detach();
+					acceptor.accept(*(ustream->rdbuf()), remote_endpoint);
+					if (!m_bQuit)
+					{
+						std::thread(&KTCPServer::RunSession, this, std::move(ustream), std::ref(remote_endpoint)).detach();
+					}
 				}
 			}
 
-			if (!acceptor.is_open())
+			if (!acceptor.is_open() && !m_bQuit)
 			{
 				kWarning("IPv{} listener for port {} has closed",
 				               (ipv6) ? '6' : '4',
@@ -307,29 +313,78 @@ bool KTCPServer::Start(uint16_t iTimeoutInSeconds, bool bBlock)
 	{
 		m_ipv6_server = std::make_unique<std::thread>(&KTCPServer::Server, this, m_bStartIPv6);
 	}
+
+	sleep(1);
+
 	return IsRunning();
 }
 
+//-----------------------------------------------------------------------------
+void KTCPServer::StopServerThread(bool ipv6)
+//-----------------------------------------------------------------------------
+{
+	// now connect to localhost on the listen port
+	boost::asio::ip::address localhost;
+	if (ipv6)
+	{
+		localhost.from_string("::1");
+	}
+	else
+	{
+		localhost.from_string("127.0.0.1");
+	}
+	tcp::endpoint remote_endpoint(localhost, m_iPort);
+
+	boost::asio::io_service io_service;
+	boost::asio::ip::tcp::socket socket(io_service);
+
+	socket.connect(remote_endpoint);
+}
+
+//-----------------------------------------------------------------------------
+// The process to stop a running server is a bit convoluted. Because the acceptor
+// can not be interrupted, we simply fire up a client thread per server to trigger
+// the acceptor, and directly afterwards the server thread checks m_bQuit and
+// finishes
+bool KTCPServer::Stop()
+//-----------------------------------------------------------------------------
+{
+	if (IsRunning())
+	{
+		m_bQuit = true;
+
+		if (m_ipv4_server)
+		{
+			std::thread(&KTCPServer::StopServerThread, this, false).detach();
+		}
+
+		if (m_ipv6_server)
+		{
+			std::thread(&KTCPServer::StopServerThread, this, true).detach();
+		}
+
+		// now wait for completion
+		if (m_ipv4_server)
+		{
+			m_ipv4_server->join();
+			m_ipv4_server.reset();
+		}
+
+		if (m_ipv6_server)
+		{
+			m_ipv6_server->join();
+			m_ipv6_server.reset();
+		}
+	}
+
+	return true;
+}
 
 //-----------------------------------------------------------------------------
 KTCPServer::~KTCPServer()
 //-----------------------------------------------------------------------------
 {
-	// needed to send some signal to stop the running threads.
-	// currently they only quit after an accept on the listen sockets.
-
-	m_bQuit = true;
-
-	// now wait for completion
-	if (m_ipv4_server)
-	{
-		m_ipv4_server->join();
-	}
-
-	if (m_ipv6_server)
-	{
-		m_ipv6_server->join();
-	}
+	Stop();
 }
 
 //-----------------------------------------------------------------------------

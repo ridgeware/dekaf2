@@ -1,4 +1,5 @@
 #include <dekaf2/kwebio.h>
+#include <dekaf2/khttp.h>
 
 #include <iostream>
 
@@ -34,37 +35,35 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	virtual bool addToResponseBody(KString& sBodyPart)
+	virtual KStringView Parse(KStringView svPart, bool bParseCookies = true)
 	//-----------------------------------------------------------------------------
 	{
-		bool retVal = KCurl::addToResponseBody(sBodyPart);
-		m_sBody.push_back(sBodyPart);
-		return retVal;
-	}
-
-	//-----------------------------------------------------------------------------
-	virtual bool addToResponseHeader(KString& sHeaderPart)
-	//-----------------------------------------------------------------------------
-	{
-		if (printHeader || !getEchoHeader())
+		if (HeaderComplete())
 		{
-			KWebIO::addToResponseHeader(sHeaderPart);
+			m_sBody.push_back(svPart);
 		}
-		else // getEchoHeader() == true && printHeader == false;
+		else
 		{
-			setEchoHeader(false);
-			KWebIO::addToResponseHeader(sHeaderPart);
-			setEchoHeader(true);
+			if (printHeader || !getEchoHeader())
+			{
+				svPart = KWebIO::Parse(svPart, bParseCookies);
+			}
+			else // getEchoHeader() == true && printHeader == false;
+			{
+				setEchoHeader(false);
+				svPart = KWebIO::Parse(svPart, bParseCookies);
+				setEchoHeader(true);
+			}
 		}
-
-		return true;
+		return svPart;
 	}
 
 	//-----------------------------------------------------------------------------
 	bool printResponseBody()
 	//-----------------------------------------------------------------------------
 	{
-		bool retVal = KCurl::printResponseHeader();
+		KOutStream of(std::cout);
+		bool retVal = KCurl::Serialize(of);
 		for (const auto& bodyPart : m_sBody)
 		{
 			std::cout << bodyPart;
@@ -103,7 +102,7 @@ TEST_CASE("KCurl")
 		CHECK(gotHeader);
 		webIO.delRequestHeader("Agent2");
 		gotHeader = webIO.getRequestHeader("Agent2", headerVal);
-		CHECK(headerVal.compare("") != 0);
+		CHECK(headerVal.compare("") == 0);
 
 		webIO.addRequestCookie("foo", "bar");
 		webIO.addRequestCookie("foo2", "bar2");
@@ -118,7 +117,7 @@ TEST_CASE("KCurl")
 		webIO.delRequestCookie("foo2");
 		webIO.delRequestCookie("foo");
 		gotHeader = webIO.getRequestCookie("foo2", cookieVal);
-		CHECK(cookieVal.compare("") != 0);
+		CHECK(cookieVal.compare("") == 0);
 
 		bool bSuccess = webIO.initiateRequest();
 		CHECK(bSuccess);
@@ -192,9 +191,9 @@ TEST_CASE("KCurl")
 		CHECK_FALSE(bSuccess);
 
 		KString randHeader("something");
-		webIO.addToResponseHeader(randHeader);
+		webIO.Parse(randHeader);
 		if (webIO.printHeader) {
-			webIO.printResponseHeader();
+			webIO.Serialize();
 		}
 
 #if kcurlBody
@@ -213,13 +212,13 @@ TEST_CASE("KCurl")
 		CHECK(webIO.getEchoHeader());
 		CHECK(webIO.getEchoBody());
 
-		webIO.addRequestHeader(KCurl::xForwardedForHeader, "onelink-translations.com");
+		webIO.addRequestHeader(KHTTP::KHeader::X_FORWARDED_FOR, "onelink-translations.com");
 		webIO.addRequestHeader("Cust Header", "muh header...");
 		webIO.addRequestCookie("yummy_cookie","chocolate chip");
 		webIO.addRequestCookie("best cookie","mint chocolate chip");
 
 		KString cookies;
-		webIO.getRequestHeader(KCurl::CookieHeader, cookies);
+		webIO.getRequestHeader(KHTTP::KHeader::request_cookie, cookies);
 		CHECK(cookies.length() == 0);
 
 		KString requestHeader;
@@ -242,14 +241,14 @@ TEST_CASE("KCurl")
 		CHECK(webIO.getEchoHeader());
 		CHECK_FALSE(webIO.getEchoBody());
 
-		webIO.addRequestHeader(KCurl::xForwardedForHeader, "onelink-translations.com");
+		webIO.addRequestHeader(KHTTP::KHeader::X_FORWARDED_FOR, "onelink-translations.com");
 		webIO.addRequestHeader("Cust Header", "muh header...");
 		webIO.addRequestCookie("yummy_cookie","chocolate chip");
 		webIO.addRequestCookie("best_cookie","mint chocolate chip");
 		webIO.addRequestCookie("muh_cookie","muh cookie is best");
 
 		KString cookies;
-		webIO.getRequestHeader(KCurl::CookieHeader, cookies);
+		webIO.getRequestHeader(KHTTP::KHeader::request_cookie, cookies);
 		CHECK(cookies.length() == 0);
 
 		bool bSuccess = webIO.initiateRequest();
@@ -271,14 +270,14 @@ TEST_CASE("KCurl")
 		CHECK_FALSE(webIO.getEchoHeader());
 		CHECK(webIO.getEchoBody());
 
-		webIO.addRequestHeader(KCurl::xForwardedForHeader, "onelink-translations.com");
+		webIO.addRequestHeader(KHTTP::KHeader::X_FORWARDED_FOR, "onelink-translations.com");
 		webIO.addRequestHeader("Cust Header", "muh header...");
 		webIO.addRequestCookie("yummy_cookie","chocolate chip");
 		webIO.addRequestCookie("best_cookie","mint chocolate chip");
 		webIO.addRequestCookie("muh_cookie","muh cookie is best");
 
 		KString cookies;
-		webIO.getRequestHeader(KCurl::CookieHeader, cookies);
+		webIO.getRequestHeader(KHTTP::KHeader::request_cookie, cookies);
 		CHECK(cookies.length() == 0);
 
 		bool bSuccess = webIO.initiateRequest();

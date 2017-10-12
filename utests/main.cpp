@@ -2,10 +2,12 @@
 #define CATCH_CONFIG_RUNNER
 #include "catch.hpp"
 #include <dekaf2/dekaf2.h>
+#include <dekaf2/bits/kconfiguration.h>
 
 #include <string>
 #include <iostream>
 
+#ifndef DEKAF2_DO_NOT_WARN_ABOUT_COW_STRING
 bool stdstring_supports_cow()
 {
 	// make sure the string is longer than the size of potential
@@ -34,12 +36,13 @@ bool stdstring_supports_cow()
 	       result3 && result4 &&
 	       result5;
 }
-
+#endif
 
 int main( int argc, char* const argv[] )
 {
 	dekaf2::Dekaf().SetMultiThreading();
 
+#ifndef DEKAF2_DO_NOT_WARN_ABOUT_COW_STRING
 #if _GLIBCXX_USE_CXX11_ABI
 	bool old_ABI = false;
 #else
@@ -55,6 +58,7 @@ int main( int argc, char* const argv[] )
 		std::cout << "         invoking g++ ! And if RedHat does not let you do so, then\n";
 		std::cout << "         modify the c++config.h that undefs _GLIBCXX_USE_CXX11_ABI\n";
 	}
+#endif
 
     int result = Catch::Session().run( argc, argv );
 

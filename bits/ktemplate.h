@@ -130,6 +130,19 @@ struct is_str
       is_c_str<T>::value
 > {};
 
+template <template <typename> class F>
+struct conversion_tester
+{
+	template <typename T>
+	conversion_tester (const F<T> &);
+};
+
+template <class From, template <typename> class To>
+struct is_instance_of
+{
+	static const bool value = std::is_convertible<From, conversion_tester<To>>::value;
+};
+
 } // of namespace detail
 
 } // of namespace dekaf2

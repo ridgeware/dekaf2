@@ -150,5 +150,60 @@ KString kGetCWD ()
 #endif
 } // kGetCWD
 
+//-----------------------------------------------------------------------------
+KStringView kFileBaseName(KStringView sFilePath)
+//-----------------------------------------------------------------------------
+{
+	// Given a filesystem path, return the "basename":
+	// that is, just the filename itself without any directory elements
+	dekaf2::KStringView sResult;
+
+	if (!sFilePath.empty())
+	{
+#ifdef _WIN32
+		auto pos = sFilePath.find_last_of("/\\:");
+#else
+		auto pos = sFilePath.rfind('/');
+#endif
+
+		if (pos != KStringView::npos)
+		{
+			return sFilePath.substr(pos + 1);
+		}
+	}
+
+	return sFilePath;
+
+} // kFileBaseName
+
+//-----------------------------------------------------------------------------
+KStringView kFileDirName(KStringView sFilePath, bool bWithSlash)
+//-----------------------------------------------------------------------------
+{
+	// Given a filesystem path, return the "dirname":
+	// that is, the directory name component of the file path
+	if (!sFilePath.empty())
+	{
+#ifdef _WIN32
+		auto pos = sFilePath.find_last_of("/\\:");
+#else
+		auto pos = sFilePath.rfind('/');
+#endif
+
+		if (pos != KStringView::npos)
+		{
+			return sFilePath.substr(0, (pos + 1));
+		}
+	}
+
+#ifdef _WIN32
+	return (bWithSlash) ? ".\\" : ".";
+#else
+	return (bWithSlash) ? "./" : ".";
+#endif
+
+}  // kFileDirName()
+
+
 } // end of namespace dekaf2
 

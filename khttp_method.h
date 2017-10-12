@@ -40,35 +40,59 @@
 // +-------------------------------------------------------------------------+
 */
 
-#include "klog.h"
-#include "kbaseshell.h"
+#pragma once
 
-namespace dekaf2
+#include "kstringview.h"
+
+namespace dekaf2 {
+namespace detail {
+namespace http {
+
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+class KMethod
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
-//-----------------------------------------------------------------------------
-KBaseShell::~KBaseShell() {}
-//-----------------------------------------------------------------------------
+//------
+public:
+//------
 
-//-----------------------------------------------------------------------------
-int KBaseShell::Close()
-//-----------------------------------------------------------------------------
-{
-	KLog().debug(3, "KBaseShell::Close");
+	//-----------------------------------------------------------------------------
+	constexpr
+	KMethod()
+	//-----------------------------------------------------------------------------
+	    : m_method(GET)
+	{}
 
-	if (m_pipe)
+	//-----------------------------------------------------------------------------
+	constexpr
+	KMethod(KStringView sv)
+	//-----------------------------------------------------------------------------
+	    : m_method(sv)
+	{}
+
+	//-----------------------------------------------------------------------------
+	constexpr
+	operator KStringView() const
+	//-----------------------------------------------------------------------------
 	{
-		m_iExitCode = pclose (m_pipe);
-		m_pipe = nullptr;
-	}
-	else
-	{
-		return -1; //attempting to close a pipe that is not open
+		return m_method;
 	}
 
-	KLog().debug(3, "KBaseShell::Close::Done:: Exit Code = {}", m_iExitCode);
+	static constexpr KStringView GET    = "GET";
+	static constexpr KStringView HOST   = "HOST";
+	static constexpr KStringView POST   = "POST";
+	static constexpr KStringView PUT    = "PUT";
+	static constexpr KStringView DELETE = "DELETE";
 
-	return (m_iExitCode);
-} // Close
+//------
+private:
+//------
 
+	KStringView m_method{GET};
+
+}; // KMethod
+
+} // end of namespace http
+} // end of namespace detail
 } // end of namespace dekaf2

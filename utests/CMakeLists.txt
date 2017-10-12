@@ -11,6 +11,7 @@ set (UHEADERS
 
 set (USOURCES
     main.cpp
+    khttp_tests.cpp
     kstringview_tests.cpp
     kstring_tests.cpp
     kstringutils_tests.cpp
@@ -25,7 +26,12 @@ set (USOURCES
     koutshell_tests.cpp
     kstack_tests.cpp
     ktcpserver_tests.cpp
+    kinpipe_tests.cpp
+    koutpipe_tests.cpp
+    kpipe_tests.cpp
     klog_tests.cpp
+    ksplit_tests.cpp
+    kcasestring_tests.cpp
 )
 
 add_executable(dekaf2-utests ${UHEADERS} ${USOURCES})

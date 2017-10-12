@@ -40,186 +40,188 @@
 // +-------------------------------------------------------------------------+
 */
 
+#include "khttp.h"
 
-#include "kfdreader.h"
-#include "klog.h"
-#include <sys/stat.h>
-#include <unistd.h>
+namespace dekaf2 {
 
-namespace dekaf2
+constexpr KStringView detail::http::KMIME::JSON_UTF8;
+constexpr KStringView detail::http::KMIME::HTML_UTF8;
+constexpr KStringView detail::http::KMIME::XML_UTF8;
+constexpr KStringView detail::http::KMIME::SWF;
+
+
+//-----------------------------------------------------------------------------
+KHTTP::KHTTP(KConnection& stream, const KURL& url, KMethod method)
+//-----------------------------------------------------------------------------
+    : m_Stream(stream)
+    // we do not know how to properly open the KStream object if it is not
+    // open. Therefore we mark it as CLOSED should it not be good()
+    , m_State(m_Stream->OutStream().good() ? State::CONNECTED : State::CLOSED)
 {
-
-
-#if !defined(__GNUC__) || (DEKAF2_GCC_VERSION >= 50000)
-// gcc 4.8.5 has troubles with moves..
-//-----------------------------------------------------------------------------
-KInputFDStream::KInputFDStream(KInputFDStream&& other)
-	: m_FileDesc{other.m_FileDesc}
-	, m_FPStreamBuf{std::move(other.m_FPStreamBuf)}
-//-----------------------------------------------------------------------------
-{
-	other.m_FileDesc = -1;
-
-} // move ctor
-#endif
-
-//-----------------------------------------------------------------------------
-KInputFDStream::~KInputFDStream()
-//-----------------------------------------------------------------------------
-{
-	// do not call close on destruction. This class did not open the file
-	// but just received a handle for it
+	m_Stream->SetReaderEndOfLine('\n');
+	m_Stream->SetReaderLeftTrim("");
+	m_Stream->SetReaderRightTrim("");
+	m_Stream->SetWriterEndOfLine("\r\n");
+	Resource(url, method);
 }
 
-#if !defined(__GNUC__) || (DEKAF2_GCC_VERSION >= 50000)
 //-----------------------------------------------------------------------------
-KInputFDStream& KInputFDStream::operator=(KInputFDStream&& other)
+KHTTP& KHTTP::Resource(const KURL& url, KMethod method)
 //-----------------------------------------------------------------------------
 {
-	m_FileDesc = other.m_FileDesc;
-	m_FPStreamBuf = std::move(other.m_FPStreamBuf);
-	other.m_FileDesc = -1;
+	if (!url.empty())
+	{
+		if (m_State == State::CONNECTED || m_State == State::REQUEST_SENT)
+		{
+			m_Stream->Write(method);
+			m_Stream->Write(' ');
+			url.Path.Serialize(*m_Stream);
+			url.Query.Serialize(*m_Stream);
+			url.Fragment.Serialize(*m_Stream);
+			m_Stream->WriteLine(" HTTP/1.1");
+			m_State = State::RESOURCE_SET;
+			RequestHeader(KHeader::HOST, url.Domain.Serialize());
+		}
+		else
+		{
+			kWarning("Bad state - cannot set resource {}", url.Path.Serialize());
+		}
+	}
 	return *this;
 }
-#endif
 
 //-----------------------------------------------------------------------------
-void KInputFDStream::open(int iFileDesc)
-//-----------------------------------------------------------------------------
-{
-	// do not close the stream here - this class did not open it
-
-	m_FileDesc = iFileDesc;
-
-	base_type::init(&m_FPStreamBuf);
-
-} // open
-
-//-----------------------------------------------------------------------------
-void KInputFDStream::close()
+KHTTP& KHTTP::RequestHeader(KStringView svName, KStringView svValue)
 //-----------------------------------------------------------------------------
 {
-	if (m_FileDesc >= 0)
+	if (m_State == State::RESOURCE_SET || m_State == State::HEADER_SET)
 	{
-		if (::close(m_FileDesc))
-		{
-			kWarning("Cannot close file: {}", strerror(errno));
-		}
-		m_FileDesc = -1;
+		m_Stream->Write(svName);
+		m_Stream->Write(" : ");
+		m_Stream->WriteLine(svValue);
+		m_State = State::HEADER_SET;
 	}
-
-} // close
-
-//-----------------------------------------------------------------------------
-std::streamsize KInputFDStream::FileDescReader(void* sBuffer, std::streamsize iCount, void* filedesc)
-//-----------------------------------------------------------------------------
-{
-	std::streamsize iRead{0};
-
-	if (filedesc)
+	else
 	{
-		// it is more difficult than one would expect to convert a void* into an int..
-		int fd = static_cast<int>(*static_cast<long*>(filedesc));
-		iRead = ::read(fd, sBuffer, static_cast<size_t>(iCount));
-		if (iRead < 0)
-		{
-			// do some logging
-			kWarning("cannot read from file: {} - requested {}, got {} bytes",
-			               strerror(errno),
-			               iCount,
-			               iRead);
-		}
+		kWarning("Bad state - cannot set header '{} : {}'", svName, svValue);
 	}
-
-	return iRead;
-}
-
-
-#if !defined(__GNUC__) || (DEKAF2_GCC_VERSION >= 50000)
-//-----------------------------------------------------------------------------
-KInputFPStream::KInputFPStream(KInputFPStream&& other)
-    : m_FilePtr{other.m_FilePtr}
-    , m_FPStreamBuf{std::move(other.m_FPStreamBuf)}
-//-----------------------------------------------------------------------------
-{
-	other.m_FilePtr = nullptr;
-
-} // move ctor
-#endif
-
-//-----------------------------------------------------------------------------
-KInputFPStream::~KInputFPStream()
-//-----------------------------------------------------------------------------
-{
-	// do not call close on destruction. This class did not open the file
-	// but just received a handle for it
-}
-
-#if !defined(__GNUC__) || (DEKAF2_GCC_VERSION >= 50000)
-//-----------------------------------------------------------------------------
-KInputFPStream& KInputFPStream::operator=(KInputFPStream&& other)
-//-----------------------------------------------------------------------------
-{
-	m_FilePtr = other.m_FilePtr;
-	m_FPStreamBuf = std::move(other.m_FPStreamBuf);
-	other.m_FilePtr = nullptr;
 	return *this;
 }
-#endif
 
 //-----------------------------------------------------------------------------
-void KInputFPStream::open(FILE* iFilePtr)
-//-----------------------------------------------------------------------------
-{
-	// do not close the stream here - this class did not open it
-
-	m_FilePtr = iFilePtr;
-
-	base_type::init(&m_FPStreamBuf);
-
-} // open
-
-//-----------------------------------------------------------------------------
-void KInputFPStream::close()
+bool KHTTP::Request()
 //-----------------------------------------------------------------------------
 {
-	if (m_FilePtr)
+	if (m_State == State::HEADER_SET)
 	{
-		if (std::fclose(m_FilePtr))
-		{
-			kWarning("Cannot close file: {}", strerror(errno));
-		}
-		m_FilePtr = nullptr;
+		m_Stream->WriteLine();
+		m_Stream->Flush();
+		m_State = State::REQUEST_SENT;
+		return ReadHeader();
 	}
-
-} // close
+	else
+	{
+		kWarning("Bad state - cannot send request");
+	}
+	return false;
+}
 
 //-----------------------------------------------------------------------------
-std::streamsize KInputFPStream::FilePtrReader(void* sBuffer, std::streamsize iCount, void* fileptr)
+/// Stream into outstream
+size_t KHTTP::Read(KOutStream& stream, size_t len)
 //-----------------------------------------------------------------------------
 {
-	std::streamsize iRead{0};
-
-	if (fileptr)
+	if (m_State == State::HEADER_PARSED)
 	{
-		FILE** fp = static_cast<FILE**>(fileptr);
-		if (fp && *fp)
+		len = std::min(len, size());
+		len = m_Stream->Read(stream, len);
+		m_iRemainingContentSize -= len;
+		return len;
+	}
+	else
+	{
+		kWarning("Bad state - cannot read data");
+		return 0;
+	}
+}
+
+//-----------------------------------------------------------------------------
+/// Append to sBuffer
+size_t KHTTP::Read(KString& sBuffer, size_t len)
+//-----------------------------------------------------------------------------
+{
+	if (m_State == State::HEADER_PARSED)
+	{
+		len = std::min(len, size());
+		len = m_Stream->Read(sBuffer, len);
+		m_iRemainingContentSize -= len;
+		return len;
+	}
+	else
+	{
+		kWarning("Bad state - cannot read data");
+		return 0;
+	}
+}
+
+//-----------------------------------------------------------------------------
+/// Read one line into sBuffer, including EOL
+bool KHTTP::ReadLine(KString& sBuffer)
+//-----------------------------------------------------------------------------
+{
+	if (m_State == State::HEADER_PARSED)
+	{
+		bool bGood = false;
+		if (m_iRemainingContentSize)
 		{
-			iRead = static_cast<std::streamsize>(std::fread(sBuffer, 1, static_cast<size_t>(iCount), *fp));
-			if (iRead < 0)
+			bGood = m_Stream->ReadLine(sBuffer);
+			if (bGood)
 			{
-				// do some logging
-				kWarning("KInputFPStream: cannot read from file: {} - requested {}, got {} bytes",
-				               strerror(errno),
-				               iCount,
-				               iRead);
+				auto len = sBuffer.size();
+				m_iRemainingContentSize -= len;
+			}
+			else
+			{
+				m_iRemainingContentSize = 0;
+			}
+		}
+		return bGood;
+	}
+	else
+	{
+		kWarning("Bad state - cannot read data");
+		sBuffer.clear();
+		return false;
+	}
+}
+
+//-----------------------------------------------------------------------------
+bool KHTTP::ReadHeader()
+//-----------------------------------------------------------------------------
+{
+	if (m_State == State::REQUEST_SENT)
+	{
+		KString sLine;
+		while (m_Stream->ReadLine(sLine))
+		{
+			m_ResponseHeader.Parse(sLine);
+			if (m_ResponseHeader.HeaderComplete())
+			{
+				// find the content length
+				KStringView sv = m_ResponseHeader[KHeader::content_length];
+				kTrim(sv);
+				KString s(sv); // TODO create conversions for KStringView
+				m_iRemainingContentSize = kToULong(s);
+				m_State = State::HEADER_PARSED;
+				return true;
 			}
 		}
 	}
-
-	return iRead;
+	else
+	{
+		kWarning("Bad state - cannot read headers");
+	}
+	return false;
 }
 
-
 } // end of namespace dekaf2
-

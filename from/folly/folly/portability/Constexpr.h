@@ -40,7 +40,7 @@ constexpr size_t constexpr_strlen(const Char* s) {
 
 template <>
 constexpr size_t constexpr_strlen(const char* s) {
-#if defined(__clang__)
+#if defined(__clang__) || defined(__GNUC__)
   return __builtin_strlen(s);
 #elif defined(_MSC_VER) || defined(__CUDACC__)
   return detail::constexpr_strlen_internal(s, 0);

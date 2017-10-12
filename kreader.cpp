@@ -43,6 +43,7 @@
 #include "bits/kcppcompat.h"
 
 #include "kreader.h"
+#include "kwriter.h" // we need KOutStream
 #include "klog.h"
 
 #ifdef DEKAF2_HAS_CPP_17
@@ -60,57 +61,6 @@ namespace dekaf2
 #ifdef DEKAF2_HAS_CPP_17
  namespace fs = std::experimental::filesystem;
 #endif
-
-//-----------------------------------------------------------------------------
-KInStreamBuf::~KInStreamBuf()
-//-----------------------------------------------------------------------------
-{
-}
-
-//-----------------------------------------------------------------------------
-std::streamsize KInStreamBuf::xsgetn(char_type* s, std::streamsize n)
-//-----------------------------------------------------------------------------
-{
-	std::streamsize iExtracted = 0;
-
-	{
-		// read as many chars as possible directly from the stream buffer
-		std::streamsize iReadInStreamBuf = std::min(n, in_avail());
-		if (iReadInStreamBuf > 0)
-		{
-			std::memcpy(s, gptr(), static_cast<size_t>(iReadInStreamBuf));
-			s += iReadInStreamBuf;
-			n -= iReadInStreamBuf;
-			iExtracted = iReadInStreamBuf;
-			// adjust stream buffer pointers
-			setg(eback(), gptr()+iReadInStreamBuf, egptr());
-		}
-	}
-
-	if (n > 0)
-	{
-		// read remaining chars directly from the callbacḱ function
-		iExtracted += m_Callback(s, n, m_CustomPointer);
-	}
-
-	return iExtracted;
-}
-
-//-----------------------------------------------------------------------------
-KInStreamBuf::int_type KInStreamBuf::underflow()
-//-----------------------------------------------------------------------------
-{
-	std::streamsize rb = m_Callback(m_buf, STREAMBUFSIZE, m_CustomPointer);
-	if (rb > 0)
-	{
-		setg(m_buf, m_buf, m_buf+rb);
-		return traits_type::to_int_type(m_buf[0]);
-	}
-	else
-	{
-		return traits_type::eof();
-	}
-}
 
 //-----------------------------------------------------------------------------
 bool kRewind(std::istream& Stream)
@@ -471,6 +421,46 @@ size_t KInStream::Read(typename std::istream::char_type* pAddress, size_t iCount
 		return iRead;
 	}
 	return 0;
+}
+
+//-----------------------------------------------------------------------------
+/// Read a range of characters and append to sBuffer. Returns count of successfully read charcters.
+size_t KInStream::Read(KString& sBuffer, size_t iCount)
+//-----------------------------------------------------------------------------
+{
+	KString::size_type iOldLen = sBuffer.size();
+	sBuffer.resize(iOldLen + iCount);
+	KString::size_type iAddedLen = Read(&sBuffer[iOldLen], iCount);
+	if (iAddedLen < iCount)
+	{
+		sBuffer.resize(iOldLen + iAddedLen);
+	}
+	return iAddedLen;
+}
+
+//-----------------------------------------------------------------------------
+/// Read a range of characters and append to Stream. Returns count of successfully read charcters.
+size_t KInStream::Read(KOutStream& Stream, size_t iCount)
+//-----------------------------------------------------------------------------
+{
+	enum { COPY_BUFSIZE = 4096 };
+	char sBuffer[COPY_BUFSIZE];
+	size_t iRead = 0;
+
+	for (;iCount;)
+	{
+		auto iChunk = std::min(4096UL, iCount);
+		auto iReadChunk = Read(sBuffer, iChunk);
+		iRead  += iReadChunk;
+		iCount -= iReadChunk;
+
+		if (!Stream.Write(sBuffer, iReadChunk).OutStream().good() || iReadChunk < iChunk)
+		{
+			break;
+		}
+	}
+
+	return iRead;
 }
 
 

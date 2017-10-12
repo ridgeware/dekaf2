@@ -42,231 +42,207 @@
 
 #pragma once
 
-/// @file kfdwriter.h
-/// provides std::ostreams that can be constructed from open file descriptors and FILE*
+#include "kstringview.h"
+#include "kprops.h"
+#include "kcasestring.h"
+#include "kurl.h"
+#include "kconnection.h"
 
-#include <cinttypes>
-#include <streambuf>
-#include <ostream>
-#include <unistd.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#include "kwriter.h"
+namespace dekaf2 {
 
-namespace dekaf2
-{
+namespace detail {
+namespace http {
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// Unbuffered std::ostream that is constructed around a unix file descriptor.
-/// Mainly to allow its usage with pipes, for general file I/O use std::ofstream.
-/// This one is really slow on small writes to files, on purpose, because pipes
-/// should not be buffered. Therefore do _not_ use it for ordinary file I/O.
-class KOutputFDStream : public std::ostream
+class KHeader
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
-//----------
-protected:
-//----------
 
-	using base_type = std::ostream;
-
-	//-----------------------------------------------------------------------------
-	/// this is the custom streambuf writer
-	static std::streamsize FileDescWriter(const void* sBuffer, std::streamsize iCount, void* filedesc);
-	//-----------------------------------------------------------------------------
-
-//----------
+//------
 public:
-//----------
+//------
+
+	// The key for the Header is trimmed and lower cased on comparisons, but stores the original string
+	using KHeaderMap = KProps<KCaseTrimString, KString>; // case insensitive map for header info
 
 	//-----------------------------------------------------------------------------
-	KOutputFDStream()
+	KStringView Parse(KStringView svBuffer, bool bParseCookies = true);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	bool Serialize(KOutStream& outStream);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	void clear();
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	KHeaderMap::const_iterator begin() const
 	//-----------------------------------------------------------------------------
 	{
+		return m_responseHeaders.begin();
 	}
 
 	//-----------------------------------------------------------------------------
-	KOutputFDStream(const KOutputFDStream&) = delete;
-	//-----------------------------------------------------------------------------
-
-#if !defined(__GNUC__) || (DEKAF2_GCC_VERSION >= 50000)
-	//-----------------------------------------------------------------------------
-	KOutputFDStream(KOutputFDStream&& other);
-	//-----------------------------------------------------------------------------
-#endif
-
-	//-----------------------------------------------------------------------------
-	/// the main purpose of this class: allow construction from a standard unix
-	/// file descriptor
-	KOutputFDStream(int iFileDesc)
+	KHeaderMap::const_iterator end() const
 	//-----------------------------------------------------------------------------
 	{
-		open(iFileDesc);
+		return m_responseHeaders.end();
 	}
 
 	//-----------------------------------------------------------------------------
-	virtual ~KOutputFDStream();
-	//-----------------------------------------------------------------------------
-
-#if !defined(__GNUC__) || (DEKAF2_GCC_VERSION >= 50000)
-	//-----------------------------------------------------------------------------
-	KOutputFDStream& operator=(KOutputFDStream&& other);
-	//-----------------------------------------------------------------------------
-#endif
-
-	//-----------------------------------------------------------------------------
-	KOutputFDStream& operator=(const KOutputFDStream&) = delete;
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// the main purpose of this class: open from a standard unix
-	/// file descriptor
-	void open(int iFileDesc);
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// test if a file is associated to this output stream
-	inline bool is_open() const
+	KHeaderMap::const_iterator cbegin() const
 	//-----------------------------------------------------------------------------
 	{
-		return m_FileDesc >= 0;
+		return m_responseHeaders.cbegin();
 	}
 
 	//-----------------------------------------------------------------------------
-	/// close the output stream
-	void close();
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// get the file descriptor
-	int GetDescriptor() const
+	KHeaderMap::const_iterator cend() const
 	//-----------------------------------------------------------------------------
 	{
-		return m_FileDesc;
-	}
-
-//----------
-protected:
-//----------
-
-	int m_FileDesc{-1};
-
-	// jschurig: The standard guarantees that the streambuf is neither used by
-	// constructors nor by destructors of base classes of a streambuf, nor by
-	// base classes that do not declare the streambuf themselves.
-	// Therefore it is safe to only construct it here, but use it in the
-	// constructor above. Angelika Langer had pointed out in 1995 that otherwise a
-	// private virtual inheritance would have guaranteed a protection against side
-	// effects of constructors accessing incomplete data types, but we do not need
-	// this anymore after C++98. I mention this because I was wondering about the
-	// constructor order when declaring this class, and did not know that this was
-	// solved by the standard before reading her article:
-	// http://www.angelikalanger.com/Articles/C++Report/IOStreamsDerivation/IOStreamsDerivation.html
-	KOutStreamBuf m_FPStreamBuf{&FileDescWriter, &m_FileDesc};
-
-};
-
-
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// Buffered std::ostream that is constructed around a unix file descriptor.
-/// Mainly to allow its usage with pipes, for general file I/O use std::ofstream.
-/// Do _not_ use it for ordinary file I/O, it does not implement the full
-/// std::ostream interface.
-class KOutputFPStream : public std::ostream
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-{
-//----------
-protected:
-//----------
-
-	using base_type = std::ostream;
-
-	//-----------------------------------------------------------------------------
-	/// this is the custom streambuf writer
-	static std::streamsize FilePtrWriter(const void* sBuffer, std::streamsize iCount, void* fileptr);
-	//-----------------------------------------------------------------------------
-
-//----------
-public:
-//----------
-
-	//-----------------------------------------------------------------------------
-	KOutputFPStream()
-	//-----------------------------------------------------------------------------
-	{
-	}
-
-	KOutputFPStream(const KOutputFPStream&) = delete;
-
-#if !defined(__GNUC__) || (DEKAF2_GCC_VERSION >= 50000)
-	//-----------------------------------------------------------------------------
-	KOutputFPStream(KOutputFPStream&& other);
-	//-----------------------------------------------------------------------------
-#endif
-
-	//-----------------------------------------------------------------------------
-	/// the main purpose of this class: allow construction from a standard unix
-	/// file descriptor
-	KOutputFPStream(FILE* iFilePtr)
-	//-----------------------------------------------------------------------------
-	{
-		open(iFilePtr);
+		return m_responseHeaders.cend();
 	}
 
 	//-----------------------------------------------------------------------------
-	virtual ~KOutputFPStream();
-	//-----------------------------------------------------------------------------
-
-#if !defined(__GNUC__) || (DEKAF2_GCC_VERSION >= 50000)
-	//-----------------------------------------------------------------------------
-	KOutputFPStream& operator=(KOutputFPStream&& other);
-	//-----------------------------------------------------------------------------
-#endif
-
-	KOutputFPStream& operator=(const KOutputFPStream&) = delete;
-
-	//-----------------------------------------------------------------------------
-	/// the main purpose of this class: open from a standard unix
-	/// file descriptor
-	void open(FILE* iFilePtr);
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// test if a file is associated to this output stream
-	inline bool is_open() const
+	KHeaderMap::iterator begin()
 	//-----------------------------------------------------------------------------
 	{
-		return m_FilePtr;
+		return m_responseHeaders.begin();
 	}
 
 	//-----------------------------------------------------------------------------
-	/// close the output stream
-	void close();
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// get the file ptr
-	FILE* GetPtr() const
+	KHeaderMap::iterator end()
 	//-----------------------------------------------------------------------------
 	{
-		return m_FilePtr;
+		return m_responseHeaders.end();
 	}
 
-//----------
-protected:
-//----------
-	FILE* m_FilePtr{nullptr};
+	//-----------------------------------------------------------------------------
+	const KHeaderMap* operator->() const
+	//-----------------------------------------------------------------------------
+	{
+		return &m_responseHeaders;
+	}
 
-	KOutStreamBuf m_FPStreamBuf{&FilePtrWriter, &m_FilePtr};
-};
+	//-----------------------------------------------------------------------------
+	KHeaderMap* operator->()
+	//-----------------------------------------------------------------------------
+	{
+		return &m_responseHeaders;
+	}
 
+	//-----------------------------------------------------------------------------
+	const KString& operator[](KCaseStringView sv) const
+	//-----------------------------------------------------------------------------
+	{
+		return m_responseHeaders[sv];
+	}
 
-/// FOR PIPES AND SPECIAL DEVICES ONLY! File descriptor writer based on KOutputFDStream>
-using KFDWriter = KWriter<KOutputFDStream>;
+	//-----------------------------------------------------------------------------
+	KString& operator[](KCaseStringView sv)
+	//-----------------------------------------------------------------------------
+	{
+		return m_responseHeaders[sv];
+	}
 
-/// FOR PIPES AND SPECIAL DEVICES ONLY! FILE ptr writer based on KOutputFPStream>
-using KFPWriter = KWriter<KOutputFPStream>;
+	//-----------------------------------------------------------------------------
+	/// Get all response cookies as a KHeaderMap
+	const KHeaderMap& getResponseCookies() const
+	//-----------------------------------------------------------------------------
+	{
+		return m_responseCookies;
+	}
 
+	//-----------------------------------------------------------------------------
+	/// Get all response cookies as a KHeaderMap
+	KHeaderMap& getResponseCookies()
+	//-----------------------------------------------------------------------------
+	{
+		return m_responseCookies;
+	}
+
+	//-----------------------------------------------------------------------------
+	/// Get response cookie value from given cookie name (case insensitive)
+	const KString& getResponseCookie(KCaseTrimStringView sCookieName) const
+	//-----------------------------------------------------------------------------
+	{
+		return m_responseCookies.Get(sCookieName);
+	}
+
+	//-----------------------------------------------------------------------------
+	/// returns true if all headers have been parsed
+	bool HeaderComplete() const
+	//-----------------------------------------------------------------------------
+	{
+		return m_bHeaderComplete;
+	}
+
+	// Header names in "official" Pascal case
+	static constexpr KStringView AUTHORIZATION       = "Authorization";
+	static constexpr KStringView HOST                = "Host";
+	static constexpr KStringView HOST_OVERRIDE       = "HostOverride";
+	static constexpr KStringView USER_AGENT          = "User-Agent";
+	static constexpr KStringView CONTENT_TYPE        = "Content-Type";
+	static constexpr KStringView CONTENT_LENGTH      = "Content-Length";
+	static constexpr KStringView CONTENT_MD5         = "Content-MD5";
+	static constexpr KStringView CONNECTION          = "Connection";
+	static constexpr KStringView LOCATION            = "Location";
+	static constexpr KStringView REQUEST_COOKIE      = "Cookie";
+	static constexpr KStringView RESPONSE_COOKIE     = "Set-Cookie";
+	static constexpr KStringView ACCEPT_ENCODING     = "Accept-Encoding";
+	static constexpr KStringView TRANSFER_ENCODING   = "Transfer-Encoding";
+	static constexpr KStringView VARY                = "Vary";
+	static constexpr KStringView REFERER             = "Referer";
+	static constexpr KStringView ACCEPT              = "Accept";
+	static constexpr KStringView X_FORWARDED_FOR     = "X-Forwarded-For";
+
+	// Header names in lowercase for normalized compares
+	static constexpr KStringView authorization       = "authorization";
+	static constexpr KStringView host                = "host";
+	static constexpr KStringView host_override       = "hostoverride";
+	static constexpr KStringView user_agent          = "user-agent";
+	static constexpr KStringView content_type        = "content-type";
+	static constexpr KStringView content_length      = "content-length";
+	static constexpr KStringView content_md5         = "content-md5";
+	static constexpr KStringView connection          = "connection";
+	static constexpr KStringView location            = "location";
+	static constexpr KStringView request_cookie      = "cookie";
+	static constexpr KStringView response_cookie     = "set-cookie";
+	static constexpr KStringView accept_encoding     = "accept-encoding";
+	static constexpr KStringView transfer_encoding   = "transfer-encoding";
+	static constexpr KStringView vary                = "vary";
+	static constexpr KStringView referer             = "referer";
+	static constexpr KStringView accept              = "accept";
+	static constexpr KStringView x_forwarded_for     = "x-forwarded-for";
+
+//------
+private:
+//------
+
+	//-----------------------------------------------------------------------------
+	/// method that takes care of case-insentive header add logic and cookie add logic
+	bool addResponseHeader(KStringView sHeaderName, KStringView sHeaderValue, bool bParseCookies);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// if parsing multi line header, this gets to the end of it
+	size_t findEndOfHeader(KStringView svHeaderPart, size_t lineEndPos);
+	//-----------------------------------------------------------------------------
+
+	static constexpr KStringView svBrokenHeader = "!?.garbage";
+
+	KHeaderMap     m_responseHeaders; // response headers read in
+	KHeaderMap     m_responseCookies; // response cookies read in
+	KString        m_sPartialHeader; // when streaming can't guarantee always have full header.
+	KString        m_sResponseVersion; // HTTP resonse version
+	KString        m_sResponseStatus; // HTTP response status
+	uint16_t       m_iResponseStatusCode{0}; // HTTP response code
+	bool           m_bHeaderComplete{false}; // Whether to interpret response chunk as header or body
+
+}; // KHeader
+
+} // end of namespace http
+} // end of namespace detail
 } // end of namespace dekaf2
-

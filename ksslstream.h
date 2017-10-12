@@ -127,7 +127,7 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// Constructs a connected stream.
+	/// Constructs a connected stream as a client.
 	/// @param sServer
 	/// Server name or IP address in v4 or v6 notation to connect to, as a string
 	/// @param sPort

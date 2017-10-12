@@ -86,12 +86,13 @@ namespace dekaf2
 class KTCPServer
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
-	using self_type     = KTCPServer;
-	using endpoint_type = boost::asio::ip::tcp::acceptor::endpoint_type;
 
 //-------
 public:
 //-------
+
+	using self_type     = KTCPServer;
+	using endpoint_type = boost::asio::ip::tcp::acceptor::endpoint_type;
 
 	//-----------------------------------------------------------------------------
 	/// Construct a server, but do not yet start it.
@@ -165,14 +166,11 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// (Tries to) stop the server. Due to the impossibility to stop a running thread
+	/// Stop the server. Due to the impossibility to stop a running thread
 	/// by another thread this only has an effect once the server accepts a new
 	/// connection.
-	void Stop()
+	bool Stop();
 	//-----------------------------------------------------------------------------
-	{
-		m_bQuit = true;
-	}
 
 	//-----------------------------------------------------------------------------
 	/// Tests if the server is already running
@@ -272,7 +270,11 @@ private:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	void RunSession(KStream& stream, const endpoint_type& remote_endpoint);
+	void RunSession(std::unique_ptr<KStream> stream, const endpoint_type& remote_endpoint);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	void StopServerThread(bool ipv6);
 	//-----------------------------------------------------------------------------
 
 	asio::io_service m_asio;

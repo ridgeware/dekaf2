@@ -50,6 +50,7 @@
 #include "kstringview.h"
 #include "kstring.h"
 #include "kprops.h"
+#include "kstream.h"
 
 
 namespace dekaf2 {
@@ -273,14 +274,55 @@ public:
 				}
 			}
 
-			m_sStorage.getEncoded(sTarget);
+			m_sStorage.Serialize(sTarget);
 
 			if (Component == URIPart::User || Component == URIPart::Password)
 			{
 				sTarget += '@';
 			}
 		}
+
 		return true;
+	}
+
+	//-------------------------------------------------------------------------
+	/// generate content into string from members
+	bool Serialize (KOutStream& sTarget) const
+	//-------------------------------------------------------------------------
+	{
+		if (m_bHadStartSeparator)
+		{
+			sTarget += StartToken;
+		}
+
+		if (!m_sStorage.empty())
+		{
+			if (Component == URIPart::Password)
+			{
+				// we should throw here or output an error as we cannot
+				// add a password to an existing stream (because we would
+				// have to rewind by one to remove the @ previously output).
+				kWarning("cannot serialize a password to a stream")
+				return false;
+			}
+
+			m_sStorage.Serialize(sTarget);
+
+			if (Component == URIPart::User)
+			{
+				sTarget += '@';
+			}
+		}
+
+		return true;
+	}
+
+	//-------------------------------------------------------------------------
+	/// return encoded content, without leading separator
+	KStringView Serialize() const
+	//-------------------------------------------------------------------------
+	{
+		return m_sStorage.Serialize();
 	}
 
 	//-------------------------------------------------------------------------
@@ -547,6 +589,17 @@ public:
 	//-------------------------------------------------------------------------
 
 	//-------------------------------------------------------------------------
+	/// generate content into string from members
+	bool Serialize (KOutStream& sTarget) const
+	//-------------------------------------------------------------------------
+	{
+		KString str;
+		Serialize(str);
+		sTarget.Write(str);
+		return true;
+	}
+
+	//-------------------------------------------------------------------------
 	/// restore instance to unpopulated state
 	void clear ();
 	//-------------------------------------------------------------------------
@@ -711,6 +764,10 @@ public:
 	//-------------------------------------------------------------------------
 
 	//-------------------------------------------------------------------------
+	bool Serialize(KOutStream& sTarget) const;
+	//-------------------------------------------------------------------------
+
+	//-------------------------------------------------------------------------
 	/// Serialize stream style
 	const KURI& operator>> (KString& sTarget) const
 	//-------------------------------------------------------------------------
@@ -791,6 +848,11 @@ public:
 	//-------------------------------------------------------------------------
 
 	//-------------------------------------------------------------------------
+	/// generate content into string from members
+	bool Serialize (KOutStream& sTarget) const;
+	//-------------------------------------------------------------------------
+
+	//-------------------------------------------------------------------------
 	/// Serialize stream style
 	const KURL& operator>> (KString& sTarget) const
 	//-------------------------------------------------------------------------
@@ -817,6 +879,23 @@ public:
 		        && (!Domain.empty()
 		            || (Protocol == url::KProtocol::FILE
 		                && !Path.empty()));
+	}
+
+	//-------------------------------------------------------------------------
+	/// is this a valid HTTP / HTTPS URL?
+	bool IsHttpURL () const
+	//-------------------------------------------------------------------------
+	{
+		return (Protocol == url::KProtocol::HTTP || Protocol == url::KProtocol::HTTPS)
+		        && (!Domain.empty())
+;
+	}
+
+	//-------------------------------------------------------------------------
+	bool empty() const
+	//-------------------------------------------------------------------------
+	{
+		return Protocol.empty() && Domain.empty() && Path.empty();
 	}
 
 	//-------------------------------------------------------------------------

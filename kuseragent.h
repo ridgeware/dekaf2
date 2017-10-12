@@ -43,19 +43,13 @@
 #pragma once
 
 #include "kstringview.h"
-#include "kconnection.h"
-#include "khttp_header.h"
-#include "khttp_method.h"
-#include "kuseragent.h"
-
 
 namespace dekaf2 {
-
 namespace detail {
 namespace http {
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class KCharSet
+class KUserAgent
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -63,133 +57,130 @@ class KCharSet
 public:
 //------
 
-	static constexpr KStringView ANY_ISO8859         = "ISO-8859"; /*-1...*/
-	static constexpr KStringView DEFAULT_CHARSET     = "WINDOWS-1252";
-
-}; // end of namespace KCharSet
-
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class KMIME
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-{
-
-//------
-public:
-//------
-
-	static constexpr KStringView JSON_UTF8           = "application/json; charset=UTF-8";
-	static constexpr KStringView HTML_UTF8           = "text/html; charset=UTF-8";
-	static constexpr KStringView XML_UTF8            = "text/xml; charset=UTF-8";
-	static constexpr KStringView SWF                 = "application/x-shockwave-flash";
-
-}; // KMIME
-
-} // end of namespace http
-} // end of namespace detail
-
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class KHTTP
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-{
-
-//------
-public:
-//------
-
-	using KMethod    = detail::http::KMethod;
-	using KHeader    = detail::http::KHeader;
-	using KUserAgent = detail::http::KUserAgent;
-	using KMIME      = detail::http::KMIME;
-	using KCharSet   = detail::http::KCharSet;
-
-	enum class State
-	{
-		CONNECTED,
-		RESOURCE_SET,
-		HEADER_SET,
-		REQUEST_SENT,
-		HEADER_PARSED,
-		CLOSED
-	};
-
 	//-----------------------------------------------------------------------------
-	KHTTP(KConnection& stream, const KURL& url = KURL{}, KMethod method = KMethod::GET);
+	KUserAgent() = default;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	KHTTP& Resource(const KURL& url, KMethod method = KMethod::GET);
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	KHTTP& RequestHeader(KStringView svName, KStringView svValue);
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	bool Request();
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// Stream into outstream
-	size_t Read(KOutStream& stream, size_t len = KString::npos);
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// Append to sBuffer
-	size_t Read(KString& sBuffer, size_t len = KString::npos);
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// Read one line into sBuffer, including EOL
-	bool ReadLine(KString& sBuffer);
-	//-----------------------------------------------------------------------------
-
-
-	//-----------------------------------------------------------------------------
-	size_t size() const
+	constexpr
+	KUserAgent(KStringView svUserAgent)
 	//-----------------------------------------------------------------------------
 	{
-		return m_iRemainingContentSize;
+		m_svUserAgent = Translate(svUserAgent);
 	}
 
 	//-----------------------------------------------------------------------------
-	State GetState() const
+	KUserAgent(const KUserAgent&) = default;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	KUserAgent(KUserAgent&&) = default;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	KUserAgent& operator=(const KUserAgent&) = default;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	KUserAgent& operator=(KUserAgent&&) = default;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	constexpr
+	KUserAgent& operator=(KStringView svUserAgent)
 	//-----------------------------------------------------------------------------
 	{
-		return m_State;
+		m_svUserAgent = Translate(svUserAgent);
+		return *this;
 	}
 
 	//-----------------------------------------------------------------------------
-	const KHeader& GetResponseHeader() const
+	constexpr
+	operator KStringView() const
 	//-----------------------------------------------------------------------------
 	{
-		return m_ResponseHeader;
+		return m_svUserAgent;
 	}
 
-	//-----------------------------------------------------------------------------
-	KHeader& GetResponseHeader()
-	//-----------------------------------------------------------------------------
-	{
-		return m_ResponseHeader;
-	}
+	static constexpr KStringView IE6     = "Mozilla/4.0 (compatible; MSIE 6.01; Windows NT 6.0)";
+	static constexpr KStringView IE7     = "Mozilla/5.0 (Windows; U; MSIE 7.0; Windows NT 6.0; en-US)";
+	static constexpr KStringView IE8     = "Mozilla/4.0 (compatible; MSIE 8.0; Windows NT 5.1; Trident/4.0; GTB6; .NET CLR 2.0.50727; .NET CLR 3.0.04506.648; .NET CLR 3.5.21022; InfoPath.2)";
+	static constexpr KStringView IE9     = "Mozilla/5.0 (compatible; MSIE 9.0; Windows NT 6.1; Trident/5.0)";
+	static constexpr KStringView FF2     = "Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.8.1.13) Gecko/20080311 Firefox/2.0.0.13";
+	static constexpr KStringView FF3     = "Mozilla/5.0 (X11; U; Linux i686; en-US; rv:1.9pre) Gecko/2008040318 Firefox/3.0pre (Swiftfox)";
+	static constexpr KStringView FF9     = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.6; rv:9.0) Gecko/20100101 Firefox/9.0";
+	static constexpr KStringView FF25    = "Mozilla/5.0 (Windows NT 6.1; WOW64; rv:25.0) Gecko/20100101 Firefox/25.0";
+	static constexpr KStringView SAFARI  = "Mozilla/5.0 (Macintosh; U; Intel Mac OS X 10_5_8; en-us) AppleWebKit/530.19.2 (KHTML, like Gecko) Version/4.0.2 Safari/530.19";
+	static constexpr KStringView CHROME  = "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/535.2 (KHTML, like Gecko) Chrome/15.0.874.121 Safari/535.2";
+	static constexpr KStringView WGET    = "Wget/1.10.2 (Red Hat modified)";
+	static constexpr KStringView GOOGLE  = "Googlebot/2.1 (+http://www.google.com/bot.html)";
+	static constexpr KStringView ANDROID = "Mozilla/5.0 (Linux; U; Android 2.3.4; en-us; ADR6300 Build/GRJ22) AppleWebKit/533.1 (KHTML, like Gecko) Version/4.0 Mobile Safari/533.1";
+	static constexpr KStringView IPHONE  = "Mozilla/5.0 (iPhone; U; CPU like Mac OS X; en) AppleWebKit/420+ (KHTML, like Gecko) Version/3.0 Mobile/1A543 Safari/419.3";
+	static constexpr KStringView IPAD    = "Mozilla/5.0 (iPad; U; CPU OS 3_2 like Mac OS X; en-us) AppleWebKit/531.21.10 (KHTML, like Gecko) Version/4.0.4 Mobile/7B334b Safari/531.21.10";
 
 //------
 protected:
 //------
 
 	//-----------------------------------------------------------------------------
-	bool ReadHeader();
-	//-----------------------------------------------------------------------------
+	static constexpr KStringView Translate (KStringView svUserAgent)
+	//------------------------------------------------------------------------------
+	{
+		if (svUserAgent == "google") {
+			svUserAgent = GOOGLE;
+		}
+		else if (svUserAgent == "wget") {
+			svUserAgent = WGET;
+		}
+		else if (svUserAgent == "ie9") {
+			svUserAgent = IE9;
+		}
+		else if (svUserAgent == "ie8") {
+			svUserAgent = IE8;
+		}
+		else if (svUserAgent == "ie" || svUserAgent == "ie7") {
+			svUserAgent = IE7;
+		}
+		else if (svUserAgent == "ie6") {
+			svUserAgent = IE6;
+		}
+		else if (svUserAgent == "ff" || svUserAgent == "ff2") {
+			svUserAgent = FF2;
+		}
+		else if (svUserAgent == "ff3") {
+			svUserAgent = FF3;
+		}
+		else if (svUserAgent == "ff9") {
+			svUserAgent = FF9;
+		}
+		else if (svUserAgent == "safari") {
+			svUserAgent = SAFARI;
+		}
+		else if (svUserAgent == "chrome") {
+			svUserAgent = CHROME;
+		}
+		else if (svUserAgent == "android") {
+			svUserAgent = ANDROID;
+		}
+		else if (svUserAgent == "ipad") {
+			svUserAgent = IPAD;
+		}
+		else if (svUserAgent == "iphone") {
+			svUserAgent = IPHONE;
+		}
+
+		return (svUserAgent);
+
+	} // TranslateUserAgent
 
 //------
 private:
 //------
 
-	KConnection& m_Stream;
-	KHeader  m_ResponseHeader;
-	size_t   m_iRemainingContentSize{0};
-	State    m_State{State::CLOSED};
+	KStringView m_svUserAgent{};
 
-}; // KHTTP
+};
 
-
-} // end of namespace dekaf2
+} // end of namespace http
+} // end of namespace detail
+} // enf of namespace dekaf2

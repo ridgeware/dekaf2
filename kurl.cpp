@@ -279,6 +279,15 @@ bool KURI::Serialize(KString& sTarget) const
 }
 
 //-------------------------------------------------------------------------
+bool KURI::Serialize(KOutStream& sTarget) const
+//-------------------------------------------------------------------------
+{
+	return Path.Serialize          (sTarget)
+	        && Query.Serialize     (sTarget)
+	        && Fragment.Serialize  (sTarget);
+}
+
+//-------------------------------------------------------------------------
 KURI& KURI::operator=(const KURL& url)
 //-------------------------------------------------------------------------
 {
@@ -334,6 +343,20 @@ void KURL::clear()
 
 //-------------------------------------------------------------------------
 bool KURL::Serialize(KString& sTarget) const
+//-------------------------------------------------------------------------
+{
+	return Protocol.Serialize      (sTarget)
+	        && User.Serialize      (sTarget)
+	        && Password.Serialize  (sTarget)
+	        && Domain.Serialize    (sTarget)
+	        && Port.Serialize      (sTarget)
+	        && Path.Serialize      (sTarget)
+	        && Query.Serialize     (sTarget)
+	        && Fragment.Serialize  (sTarget);
+}
+
+//-------------------------------------------------------------------------
+bool KURL::Serialize(KOutStream& sTarget) const
 //-------------------------------------------------------------------------
 {
 	return Protocol.Serialize      (sTarget)

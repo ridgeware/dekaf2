@@ -42,20 +42,14 @@
 
 #pragma once
 
-#include "kstringview.h"
-#include "kconnection.h"
-#include "khttp_header.h"
-#include "khttp_method.h"
-#include "kuseragent.h"
-
+#include "kstream.h"
+#include "ksslstream.h"
+#include "kurl.h"
 
 namespace dekaf2 {
 
-namespace detail {
-namespace http {
-
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class KCharSet
+class KConnection
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -63,133 +57,131 @@ class KCharSet
 public:
 //------
 
-	static constexpr KStringView ANY_ISO8859         = "ISO-8859"; /*-1...*/
-	static constexpr KStringView DEFAULT_CHARSET     = "WINDOWS-1252";
-
-}; // end of namespace KCharSet
-
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class KMIME
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-{
-
-//------
-public:
-//------
-
-	static constexpr KStringView JSON_UTF8           = "application/json; charset=UTF-8";
-	static constexpr KStringView HTML_UTF8           = "text/html; charset=UTF-8";
-	static constexpr KStringView XML_UTF8            = "text/xml; charset=UTF-8";
-	static constexpr KStringView SWF                 = "application/x-shockwave-flash";
-
-}; // KMIME
-
-} // end of namespace http
-} // end of namespace detail
-
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class KHTTP
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-{
-
-//------
-public:
-//------
-
-	using KMethod    = detail::http::KMethod;
-	using KHeader    = detail::http::KHeader;
-	using KUserAgent = detail::http::KUserAgent;
-	using KMIME      = detail::http::KMIME;
-	using KCharSet   = detail::http::KCharSet;
-
-	enum class State
-	{
-		CONNECTED,
-		RESOURCE_SET,
-		HEADER_SET,
-		REQUEST_SENT,
-		HEADER_PARSED,
-		CLOSED
-	};
-
 	//-----------------------------------------------------------------------------
-	KHTTP(KConnection& stream, const KURL& url = KURL{}, KMethod method = KMethod::GET);
+	KConnection() = default;
+	KConnection(const KConnection&) = delete;
+	KConnection(KConnection&&) = default;
+	KConnection& operator=(const KConnection&) = delete;
+	KConnection& operator=(KConnection&&) = default;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	KHTTP& Resource(const KURL& url, KMethod method = KMethod::GET);
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	KHTTP& RequestHeader(KStringView svName, KStringView svValue);
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	bool Request();
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// Stream into outstream
-	size_t Read(KOutStream& stream, size_t len = KString::npos);
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// Append to sBuffer
-	size_t Read(KString& sBuffer, size_t len = KString::npos);
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// Read one line into sBuffer, including EOL
-	bool ReadLine(KString& sBuffer);
-	//-----------------------------------------------------------------------------
-
-
-	//-----------------------------------------------------------------------------
-	size_t size() const
+	KConnection(const url::KDomain& domain, const url::KPort& port)
 	//-----------------------------------------------------------------------------
 	{
-		return m_iRemainingContentSize;
+		Connect(domain, port);
 	}
 
 	//-----------------------------------------------------------------------------
-	State GetState() const
+	KConnection(KStream& Stream) noexcept
 	//-----------------------------------------------------------------------------
+	    : m_Stream(&Stream)
+	    , m_bStreamIsNotOwned(true)
 	{
-		return m_State;
 	}
 
 	//-----------------------------------------------------------------------------
-	const KHeader& GetResponseHeader() const
+	KConnection(KStream&& Stream) noexcept
+	//-----------------------------------------------------------------------------
+	    :  m_Stream(&Stream)
+	    , m_bStreamIsNotOwned(false)
+	{
+	}
+
+
+	//-----------------------------------------------------------------------------
+	~KConnection()
 	//-----------------------------------------------------------------------------
 	{
-		return m_ResponseHeader;
+		if (m_bStreamIsNotOwned)
+		{
+			m_Stream.release();
+		}
 	}
 
 	//-----------------------------------------------------------------------------
-	KHeader& GetResponseHeader()
+	KConnection& operator=(KStream& Stream);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	KStream* get()
 	//-----------------------------------------------------------------------------
 	{
-		return m_ResponseHeader;
+		return m_Stream.get();
 	}
 
-//------
-protected:
-//------
+	//-----------------------------------------------------------------------------
+	KStream* operator->()
+	//-----------------------------------------------------------------------------
+	{
+		return get();
+	}
 
 	//-----------------------------------------------------------------------------
-	bool ReadHeader();
+	KStream& operator*()
+	//-----------------------------------------------------------------------------
+	{
+		return *get();
+	}
+
+	//-----------------------------------------------------------------------------
+	bool Connect(const url::KDomain& domain, const url::KPort& port);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	void Disonnect();
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	void setConnection(std::unique_ptr<KStream>&& Stream);
 	//-----------------------------------------------------------------------------
 
 //------
 private:
 //------
 
-	KConnection& m_Stream;
-	KHeader  m_ResponseHeader;
-	size_t   m_iRemainingContentSize{0};
-	State    m_State{State::CLOSED};
+	std::unique_ptr<KStream> m_Stream;
+	bool m_bStreamIsNotOwned{false};
 
-}; // KHTTP
+};
 
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+class KSSLConnection : public KConnection
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+//------
+public:
+//------
+
+	enum class TLS
+	{
+		SSLv2,
+		SSLv3,
+		TLSv1,
+		TLSv2
+	};
+
+	//-----------------------------------------------------------------------------
+	KSSLConnection() = default;
+	KSSLConnection(const KSSLConnection&) = delete;
+	KSSLConnection(KSSLConnection&&) = default;
+	KSSLConnection& operator=(const KSSLConnection&) = delete;
+	KSSLConnection& operator=(KSSLConnection&&) = default;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	KSSLConnection(const url::KDomain& domain, const url::KPort& port, bool bVerifyCerts)
+	//-----------------------------------------------------------------------------
+	{
+		Connect(domain, port, bVerifyCerts);
+	}
+
+	//-----------------------------------------------------------------------------
+	bool Connect(const url::KDomain& domain, const url::KPort& port, bool bVerifyCerts);
+	//-----------------------------------------------------------------------------
+
+};
 
 } // end of namespace dekaf2
+

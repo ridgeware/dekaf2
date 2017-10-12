@@ -140,6 +140,10 @@ set (HEADERS
     ksplit.h
     kcasestring.h
     khttp.h
+    kconnection.h
+    khttp_header.h
+    kuseragent.h
+    khttp_method.h
 )
 
 set (SOURCES
@@ -181,6 +185,9 @@ set (SOURCES
     ksplit.cpp
     kcasestring.cpp
     khttp.cpp
+    kconnection.cpp
+    khttp_header.cpp
+    khttp_method.cpp
 )
 
 if (DEKAF2_INSTALL_HEADERS)

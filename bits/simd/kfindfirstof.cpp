@@ -62,7 +62,7 @@
  */
 
 /*
- * NOTE ON THE LACK OF ALIGNED LOADS
+ * NOTE ON THE LACK OF ALIGNED LOADS IN THE DEKAF2 CODE
  *
  * Originally we looked for aligned memory locations and did aligned loading
  * whenever possible. However, in performance testing, the same code with all
@@ -245,31 +245,6 @@ size_t portableCTZ(uint32_t value)
 #else
 	abort();
 #endif
-}
-
-// It's okay if pages are bigger than this (as powers of two), but they should
-// not be smaller.
-static constexpr size_t kMinPageSize = 4096;
-static_assert(kMinPageSize >= 16, "kMinPageSize must be at least SSE register size");
-
-//-----------------------------------------------------------------------------
-template <typename T>
-DEKAF2_ALWAYS_INLINE
-uintptr_t page_for(T* addr)
-//-----------------------------------------------------------------------------
-{
-	return reinterpret_cast<uintptr_t>(addr) / kMinPageSize;
-}
-
-//-----------------------------------------------------------------------------
-DEKAF2_ALWAYS_INLINE
-size_t nextAlignedIndex(const char* arr, size_t startIndex = 0)
-//-----------------------------------------------------------------------------
-{
-	auto firstPossible = reinterpret_cast<uintptr_t>(arr) + 1;
-	return 1 + // add 1 because the index starts at 'arr'
-	        ((firstPossible + 15) & ~0xF) // round up to next multiple of 16
-	        - firstPossible + startIndex;
 }
 
 //-----------------------------------------------------------------------------
@@ -467,9 +442,7 @@ size_t kFindLastOfNeedles16(
 
 //-----------------------------------------------------------------------------
 // Scans a 16-byte block of haystack (starting at blockStartIdx) to find first
-// needle. If HAYSTACK_ALIGNED, then haystack must be 16byte aligned.
-// If !HAYSTACK_ALIGNED, then caller must ensure that it is safe to load the
-// block.
+// needle.
 DEKAF2_ALWAYS_INLINE
 size_t scanHaystackBlock(
         const KStringView haystack,
@@ -586,9 +559,7 @@ size_t scanHaystackBlockNot(
 
 //-----------------------------------------------------------------------------
 // Scans a 16-byte block of haystack (starting at blockStartIdx) to find first
-// needle. If HAYSTACK_ALIGNED, then haystack must be 16byte aligned.
-// If !HAYSTACK_ALIGNED, then caller must ensure that it is safe to load the
-// block.
+// needle.
 DEKAF2_ALWAYS_INLINE
 size_t reverseScanHaystackBlock(
         const KStringView haystack,

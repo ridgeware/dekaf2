@@ -87,6 +87,8 @@ inline ssize_t kGetSize(const KString& sFileName)
 /// Reposition the device of a std::istream to the beginning. Fails on non-seekable istreams.
 bool kRewind(std::istream& Stream);
 
+// forward declaration for Read(KOutStream&)
+class KOutStream;
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// The standalone reader abstraction for dekaf2. Can be constructed around any
@@ -241,13 +243,8 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// move construct a KInStream
-	KInStream(self_type&& other) noexcept
+	KInStream(self_type&& other) = default;
 	//-----------------------------------------------------------------------------
-	    : m_InStream(std::move(other.m_InStream))
-	    , m_sTrimRight(std::move(other.m_sTrimRight))
-	    , m_sTrimLeft(std::move(other.m_sTrimLeft))
-	    , m_chDelimiter(other.m_chDelimiter)
-	{}
 
 	//-----------------------------------------------------------------------------
 	/// copy assignment is deleted
@@ -256,15 +253,8 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// move assign a KInStream
-	self_type& operator=(self_type&& other) noexcept
+	self_type& operator=(self_type&& other) = default;
 	//-----------------------------------------------------------------------------
-	{
-		m_InStream = std::move(other.m_InStream);
-		m_sTrimRight = std::move(other.m_sTrimRight);
-		m_sTrimLeft = std::move(other.m_sTrimLeft);
-		m_chDelimiter = other.m_chDelimiter;
-		return *this;
-	}
 
 	//-----------------------------------------------------------------------------
 	virtual ~KInStream();
@@ -290,9 +280,20 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	/// Read a range of characters and append to sBuffer. Returns count of successfully read charcters.
+	size_t Read(KString& sBuffer, size_t iCount);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// Read a range of characters and append to Stream. Returns count of successfully read charcters.
+	size_t Read(KOutStream& Stream, size_t iCount);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
 	/// Read a line of text. Returns false if no input available. Stops at delimiter
 	/// character defined and optionally right trims the string from the trim
-	/// definition. Per default contains the end-of-line character in the returned string.
+	/// definition. Per default does not contain the end-of-line character in the
+	/// returned string.
 	///
 	/// Please note that this method does _not_ return the stream reference,
 	/// but a boolean. std::istreams would not read a file with a missing newline
@@ -556,11 +557,8 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// move construct a KReader
-	KReader(self_type&& other) noexcept
+	KReader(self_type&& other) = default;
 	//-----------------------------------------------------------------------------
-	    : base_type(std::move(other))
-	    , KInStream(std::move(other))
-	{}
 
 	//-----------------------------------------------------------------------------
 	/// copy constructor is deleted, as with std::istream
@@ -574,12 +572,8 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// move assignment
-	self_type& operator=(self_type&& other)
+	self_type& operator=(self_type&& other) = default;
 	//-----------------------------------------------------------------------------
-	{
-		base_type::operator=(std::move(other));
-		KInStream::operator=(std::move(other));
-	}
 
 	//-----------------------------------------------------------------------------
 	// this one is necessary because ios_base has a symbol named end .. (for seeking)

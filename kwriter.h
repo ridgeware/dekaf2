@@ -87,11 +87,8 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// move construct a KOutStream
-	KOutStream(self_type&& other) noexcept
+	KOutStream(self_type&& other) = default;
 	//-----------------------------------------------------------------------------
-	    : m_OutStream(std::move(other.m_OutStream))
-	    , m_sDelimiter(std::move(other.m_sDelimiter))
-	{}
 
 	//-----------------------------------------------------------------------------
 	/// copy assignment is deleted
@@ -100,13 +97,8 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// move assign a KOutStream
-	self_type& operator=(self_type&& other) noexcept
+	self_type& operator=(self_type&& other) = default;
 	//-----------------------------------------------------------------------------
-	{
-		m_OutStream = std::move(other.m_OutStream);
-		m_sDelimiter = std::move(other.m_sDelimiter);
-		return *this;
-	}
 
 	//-----------------------------------------------------------------------------
 	virtual ~KOutStream();
@@ -114,7 +106,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Write a character. Returns stream reference that resolves to false on failure
-	self_type& Write(KString::value_type ch);
+	self_type& Write(KStringView::value_type ch);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -129,6 +121,20 @@ public:
 	{
 		Write(str.data(), str.size());
 		return *this;
+	}
+
+	//-----------------------------------------------------------------------------
+	inline self_type& operator+=(KStringView::value_type ch)
+	//-----------------------------------------------------------------------------
+	{
+		return Write(ch);
+	}
+
+	//-----------------------------------------------------------------------------
+	inline self_type& operator+=(KStringView sv)
+	//-----------------------------------------------------------------------------
+	{
+		return Write(sv);
 	}
 
 	//-----------------------------------------------------------------------------
@@ -214,11 +220,20 @@ public:
 		return OutStream();
 	}
 
+	//-----------------------------------------------------------------------------
+	/// flush the write buffer
+	self_type& Flush()
+	//-----------------------------------------------------------------------------
+	{
+		OutStream().flush();
+		return *this;
+	}
+
 //-------
 protected:
 //-------
 
-	// m_sRef always has to be valid after construction
+	// m_OutStream always has to be valid after construction
 	// - do not assign a nullptr per default
 	std::ostream* m_OutStream;
 	KString m_sDelimiter{"\n"};
@@ -267,11 +282,8 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// move construct a KWriter
-	KWriter(self_type&& other) noexcept
+	KWriter(self_type&& other) = default;
 	//-----------------------------------------------------------------------------
-	    : base_type(std::move(other))
-	    , KOutStream(std::move(other))
-	{}
 
 	//-----------------------------------------------------------------------------
 	/// copy constructor is deleted, as with std::ostream
@@ -285,12 +297,8 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// move assignment
-	self_type& operator=(self_type&& other)
+	self_type& operator=(self_type&& other) = default;
 	//-----------------------------------------------------------------------------
-	{
-		base_type::operator=(std::move(other));
-		KOutStream::operator=(std::move(other));
-	}
 
 }; // KWriter
 

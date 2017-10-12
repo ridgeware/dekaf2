@@ -43,6 +43,7 @@
 #include "bits/kcppcompat.h"
 
 #include "kreader.h"
+#include "kwriter.h" // we need KOutStream
 #include "klog.h"
 
 #ifdef DEKAF2_HAS_CPP_17
@@ -420,6 +421,46 @@ size_t KInStream::Read(typename std::istream::char_type* pAddress, size_t iCount
 		return iRead;
 	}
 	return 0;
+}
+
+//-----------------------------------------------------------------------------
+/// Read a range of characters and append to sBuffer. Returns count of successfully read charcters.
+size_t KInStream::Read(KString& sBuffer, size_t iCount)
+//-----------------------------------------------------------------------------
+{
+	KString::size_type iOldLen = sBuffer.size();
+	sBuffer.resize(iOldLen + iCount);
+	KString::size_type iAddedLen = Read(&sBuffer[iOldLen], iCount);
+	if (iAddedLen < iCount)
+	{
+		sBuffer.resize(iOldLen + iAddedLen);
+	}
+	return iAddedLen;
+}
+
+//-----------------------------------------------------------------------------
+/// Read a range of characters and append to Stream. Returns count of successfully read charcters.
+size_t KInStream::Read(KOutStream& Stream, size_t iCount)
+//-----------------------------------------------------------------------------
+{
+	enum { COPY_BUFSIZE = 4096 };
+	char sBuffer[COPY_BUFSIZE];
+	size_t iRead = 0;
+
+	for (;iCount;)
+	{
+		auto iChunk = std::min(4096UL, iCount);
+		auto iReadChunk = Read(sBuffer, iChunk);
+		iRead  += iReadChunk;
+		iCount -= iReadChunk;
+
+		if (!Stream.Write(sBuffer, iReadChunk).OutStream().good() || iReadChunk < iChunk)
+		{
+			break;
+		}
+	}
+
+	return iRead;
 }
 
 

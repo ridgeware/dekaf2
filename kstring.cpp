@@ -996,7 +996,7 @@ KString::size_type KString::SubRegex(KStringView pszRegEx, KStringView pszReplac
 #endif
 
 //-----------------------------------------------------------------------------
-bool KString::In (KStringView sHaystack, value_type iDelim/*=','*/)
+bool KString::In (KStringView sHaystack, value_type iDelim/*=','*/) const
 //-----------------------------------------------------------------------------
 {
 	// gcc 4.8.5 needs the non-brace initialization here..

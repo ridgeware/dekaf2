@@ -45,11 +45,20 @@
 
 namespace dekaf2 {
 
-constexpr KStringView detail::http::KMIME::JSON_UTF8;
-constexpr KStringView detail::http::KMIME::HTML_UTF8;
-constexpr KStringView detail::http::KMIME::XML_UTF8;
-constexpr KStringView detail::http::KMIME::SWF;
+namespace detail {
+namespace http {
 
+constexpr KStringView KMIME::JSON_UTF8;
+constexpr KStringView KMIME::HTML_UTF8;
+constexpr KStringView KMIME::XML_UTF8;
+constexpr KStringView KMIME::SWF;
+constexpr KStringView KMIME::WWW_FORM_URLENCODED;
+constexpr KStringView KMIME::MULTIPART_FORM_DATA;
+constexpr KStringView KMIME::TEXT_PLAIN;
+constexpr KStringView KMIME::APPLICATION_BINARY;
+
+}
+}
 
 //-----------------------------------------------------------------------------
 KHTTP::KHTTP(KConnection& stream, const KURL& url, KMethod method)
@@ -126,18 +135,23 @@ KHTTP& KHTTP::RequestHeader(KStringView svName, KStringView svValue)
 }
 
 //-----------------------------------------------------------------------------
-bool KHTTP::Request()
+bool KHTTP::Request(KStringView svPostData, KStringView svMime)
 //-----------------------------------------------------------------------------
 {
 	if (m_State == State::HEADER_SET && m_Stream)
 	{
-		m_Stream->WriteLine();
-		m_Stream->Flush();
-		m_State = State::REQUEST_SENT;
 		if (m_Method == KMethod::POST)
 		{
-			Post(m_sPostData);
+			RequestHeader(KHeader::CONTENT_LENGTH, std::to_string(svPostData.size()));
+			RequestHeader(KHeader::CONTENT_TYPE,   svMime.empty() ? KMIME::TEXT_PLAIN : svMime);
 		}
+		m_Stream->WriteLine();
+		if (m_Method == KMethod::POST)
+		{
+			m_Stream->Write(svPostData);
+		}
+		m_Stream->Flush();
+		m_State = State::REQUEST_SENT;
 		return ReadHeader();
 	}
 	else
@@ -251,26 +265,6 @@ bool KHTTP::ReadHeader()
 		kWarning("Bad state - cannot read headers");
 	}
 	return false;
-}
-
-//-----------------------------------------------------------------------------
-size_t KHTTP::PostData(KStringView sv)
-//-----------------------------------------------------------------------------
-{
-	kUrlEncode (sv, m_sPostData, URIPart::Query);
-	RequestHeader(KHeader::CONTENT_LENGTH, std::to_string(m_sPostData.size()));
-	return m_sPostData.size();
-}
-
-//-----------------------------------------------------------------------------
-size_t KHTTP::Post(KStringView sv)
-//-----------------------------------------------------------------------------
-{
-	if (m_Stream)
-	{
-		m_Stream->Write(m_sPostData);
-	}
-	return m_sPostData.size();
 }
 
 } // end of namespace dekaf2

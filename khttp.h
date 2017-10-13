@@ -77,10 +77,42 @@ class KMIME
 public:
 //------
 
+	//-----------------------------------------------------------------------------
+	constexpr
+	KMIME()
+	//-----------------------------------------------------------------------------
+	    : m_mime()
+	{}
+
+	//-----------------------------------------------------------------------------
+	constexpr
+	KMIME(KStringView sv)
+	//-----------------------------------------------------------------------------
+	    : m_mime(sv)
+	{}
+
+	//-----------------------------------------------------------------------------
+	constexpr
+	operator KStringView() const
+	//-----------------------------------------------------------------------------
+	{
+		return m_mime;
+	}
+
 	static constexpr KStringView JSON_UTF8           = "application/json; charset=UTF-8";
 	static constexpr KStringView HTML_UTF8           = "text/html; charset=UTF-8";
 	static constexpr KStringView XML_UTF8            = "text/xml; charset=UTF-8";
 	static constexpr KStringView SWF                 = "application/x-shockwave-flash";
+	static constexpr KStringView WWW_FORM_URLENCODED = "application/x-www-form-urlencoded";
+	static constexpr KStringView MULTIPART_FORM_DATA = "multipart/form-data";
+	static constexpr KStringView TEXT_PLAIN          = "text/plain";
+	static constexpr KStringView APPLICATION_BINARY  = "application/binary";
+
+//------
+private:
+//------
+
+	KStringView m_mime{TEXT_PLAIN};
 
 }; // KMIME
 
@@ -125,7 +157,7 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	bool Request();
+	bool Request(KStringView svPostData = KStringView{}, KStringView svMime = KStringView{});
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -141,10 +173,6 @@ public:
 	//-----------------------------------------------------------------------------
 	/// Read one line into sBuffer, including EOL
 	bool ReadLine(KString& sBuffer);
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	size_t PostData(KStringView sv);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -194,7 +222,6 @@ private:
 	KConnection& m_Stream;
 	KMethod  m_Method;
 	KHeader  m_ResponseHeader;
-	KString  m_sPostData;
 	size_t   m_iRemainingContentSize{0};
 	State    m_State{State::CLOSED};
 	bool     m_bNoContentLength;

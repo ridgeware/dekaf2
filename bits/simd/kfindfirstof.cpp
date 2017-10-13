@@ -687,7 +687,6 @@ size_t reverseScanHaystackBlockNot(
 		// The leading is after , this is because of the Little Endian architecture.
 		// For leading 0's the first 16 aren't even "ours",
 		// we use a uint16_t to look at the mask and clz takes uint_32t.
-		//size_t useSize = static_cast<size_t>(std::min(16, static_cast<int>(haystackSize - blockStartIdx)));
 
 		*val = ~*val; // Invert bits
 		if (useSize != 16)

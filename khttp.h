@@ -106,7 +106,7 @@ public:
 	static constexpr KStringView WWW_FORM_URLENCODED = "application/x-www-form-urlencoded";
 	static constexpr KStringView MULTIPART_FORM_DATA = "multipart/form-data";
 	static constexpr KStringView TEXT_PLAIN          = "text/plain";
-	static constexpr KStringView APPLICATION_BINARY  = "application/binary";
+	static constexpr KStringView APPLICATION_BINARY  = "application/octet-stream";
 
 //------
 private:
@@ -224,7 +224,7 @@ private:
 	KHeader  m_ResponseHeader;
 	size_t   m_iRemainingContentSize{0};
 	State    m_State{State::CLOSED};
-	bool     m_bNoContentLength;
+	bool     m_bTEChunked;
 
 }; // KHTTP
 

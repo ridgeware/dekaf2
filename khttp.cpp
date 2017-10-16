@@ -249,10 +249,19 @@ bool KHTTP::ReadHeader()
 			m_ResponseHeader.Parse(sLine);
 			if (m_ResponseHeader.HeaderComplete())
 			{
+				m_bTEChunked = false;
 				// find the content length
 				KStringView sv(m_ResponseHeader->Get(KHeader::content_length));
 				kTrim(sv);
-				m_bNoContentLength = sv.empty();
+				if (sv.empty())
+				{
+					KStringView svTE = m_ResponseHeader->Get(KHeader::transfer_encoding);
+					kTrim(svTE);
+					if (svTE == "chunked")
+					{
+						m_bTEChunked = true;
+					}
+				}
 				KString s(sv); // TODO create conversions for KStringView
 				m_iRemainingContentSize = kToULong(s);
 				m_State = State::HEADER_PARSED;

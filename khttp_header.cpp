@@ -393,6 +393,15 @@ void KHeader::clear()
 
 } // clear
 
+//-----------------------------------------------------------------------------
+KStringView KHeader::Get(KCaseStringView sv) const
+//-----------------------------------------------------------------------------
+{
+	KStringView svv(m_responseHeaders.Get(sv));
+	kTrim(svv);
+	return svv;
+}
+
 // for some strange reason gcc wants these repeated definitions
 // once one puts a constexpr variable into a class. As long as
 // they stay outside of a class, the linker does not complain about

@@ -47,7 +47,7 @@ namespace detail {
 namespace http {
 
 constexpr KStringView KMethod::GET;
-constexpr KStringView KMethod::HOST;
+constexpr KStringView KMethod::HEAD;
 constexpr KStringView KMethod::POST;
 constexpr KStringView KMethod::PUT;
 constexpr KStringView KMethod::DELETE;

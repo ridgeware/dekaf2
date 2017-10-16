@@ -134,17 +134,15 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	const KString& operator[](KCaseStringView sv) const
+	KStringView Get(KCaseStringView sv) const;
 	//-----------------------------------------------------------------------------
-	{
-		return m_responseHeaders[sv];
-	}
 
 	//-----------------------------------------------------------------------------
-	KString& operator[](KCaseStringView sv)
+	template <class K, class V>
+	KHeaderMap::iterator Set(K&& sv, V&& svv)
 	//-----------------------------------------------------------------------------
 	{
-		return m_responseHeaders[sv];
+		return m_responseHeaders.Set(std::forward<K>(sv), std::forward<V>(svv));
 	}
 
 	//-----------------------------------------------------------------------------
@@ -165,10 +163,11 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Get response cookie value from given cookie name (case insensitive)
-	const KString& getResponseCookie(KCaseTrimStringView sCookieName) const
+	template <class K>
+	const KString& getResponseCookie(K&& sCookieName) const
 	//-----------------------------------------------------------------------------
 	{
-		return m_responseCookies.Get(sCookieName);
+		return m_responseCookies.Get(std::forward<K>(sCookieName));
 	}
 
 	//-----------------------------------------------------------------------------

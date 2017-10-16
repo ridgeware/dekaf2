@@ -80,7 +80,7 @@ public:
 	}
 
 	static constexpr KStringView GET    = "GET";
-	static constexpr KStringView HOST   = "HOST";
+	static constexpr KStringView HEAD   = "HEAD";
 	static constexpr KStringView POST   = "POST";
 	static constexpr KStringView PUT    = "PUT";
 	static constexpr KStringView DELETE = "DELETE";

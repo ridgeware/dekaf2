@@ -75,7 +75,7 @@ TEST_CASE("KHTTP") {
 		if (server.m_rx.size() == 3)
 		{
 			CHECK( server.m_rx[0] == "GET /path?query=val&another=here#fragment HTTP/1.1" );
-			CHECK( server.m_rx[1] == "Host : 127.0.0.1");
+			CHECK( server.m_rx[1] == "Host: 127.0.0.1");
 			CHECK( server.m_rx[2] == "");
 		}
 	}

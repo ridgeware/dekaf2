@@ -162,23 +162,98 @@ bool KHTTP::Request(KStringView svPostData, KStringView svMime)
 }
 
 //-----------------------------------------------------------------------------
+bool KHTTP::ReadHeader()
+//-----------------------------------------------------------------------------
+{
+	if (m_State == State::REQUEST_SENT && m_Stream)
+	{
+		KString sLine;
+		while (m_Stream->ReadLine(sLine))
+		{
+			m_ResponseHeader.Parse(sLine);
+			if (m_ResponseHeader.HeaderComplete())
+			{
+				m_bTEChunked = false;
+				// find the content length
+				KStringView sv(m_ResponseHeader.Get(KHeader::content_length));
+				if (sv.empty())
+				{
+					KStringView svTE = m_ResponseHeader.Get(KHeader::transfer_encoding);
+					if (svTE == "chunked")
+					{
+						m_bTEChunked = true;
+					}
+				}
+				KString s(sv); // TODO create conversions for KStringView
+				m_iRemainingContentSize = kToULong(s);
+				m_State = State::HEADER_PARSED;
+				return true;
+			}
+		}
+	}
+	else
+	{
+		kWarning("Bad state - cannot read headers");
+	}
+	return false;
+}
+
+//-----------------------------------------------------------------------------
+inline bool KHTTP::GetNextChunkSize()
+//-----------------------------------------------------------------------------
+{
+	if (m_bTEChunked && m_iRemainingContentSize == 0)
+	{
+		KString sLine;
+		bool bGood = m_Stream->ReadLine(sLine);
+		if (bGood)
+		{
+			kTrim(sLine);
+			try {
+				if (sLine.empty())
+				{
+					return false;
+				}
+				auto len = std::strtoul(sLine.c_str(), nullptr, 16);
+				m_iRemainingContentSize = len;
+				return true;
+			} catch (const std::exception e) {
+				kException(e);
+				return false;
+			}
+		}
+		return false;
+	}
+	return true;
+}
+
+//-----------------------------------------------------------------------------
 /// Stream into outstream
 size_t KHTTP::Read(KOutStream& stream, size_t len)
 //-----------------------------------------------------------------------------
 {
 	if (m_State == State::HEADER_PARSED && m_Stream)
 	{
-		if (m_bNoContentLength)
+		size_t tlen{0};
+		auto rlen{len};
+		while (len && rlen)
 		{
-			return m_Stream->Read(stream, len);
+			if (GetNextChunkSize())
+			{
+				rlen = std::min(len, size());
+				rlen = m_Stream->Read(stream, rlen);
+				m_iRemainingContentSize -= rlen;
+				len  -= rlen;
+				tlen += rlen;
+				if (m_bTEChunked && m_iRemainingContentSize == 0)
+				{
+					// read the completing CR LF
+					KString sLine;
+					m_Stream->ReadLine(sLine);
+				}
+			}
 		}
-		else
-		{
-			len = std::min(len, size());
-			len = m_Stream->Read(stream, len);
-			m_iRemainingContentSize -= len;
-			return len;
-		}
+		return tlen;
 	}
 	else
 	{
@@ -194,10 +269,26 @@ size_t KHTTP::Read(KString& sBuffer, size_t len)
 {
 	if (m_State == State::HEADER_PARSED && m_Stream)
 	{
-		len = std::min(len, size());
-		len = m_Stream->Read(sBuffer, len);
-		m_iRemainingContentSize -= len;
-		return len;
+		size_t tlen{0};
+		auto rlen{len};
+		while (len && rlen)
+		{
+			if (GetNextChunkSize())
+			{
+				rlen = std::min(len, size());
+				len = m_Stream->Read(sBuffer, rlen);
+				m_iRemainingContentSize -= rlen;
+				len  -= rlen;
+				tlen += rlen;
+				if (m_bTEChunked && m_iRemainingContentSize == 0)
+				{
+					// read the completing CR LF
+					KString sLine;
+					m_Stream->ReadLine(sLine);
+				}
+			}
+		}
+		return tlen;
 	}
 	else
 	{
@@ -214,8 +305,10 @@ bool KHTTP::ReadLine(KString& sBuffer)
 	if (m_State == State::HEADER_PARSED && m_Stream)
 	{
 		bool bGood = false;
+		GetNextChunkSize();
 		if (m_iRemainingContentSize)
 		{
+			// TODO this will fail with chunked transfer if the newline is in a new transfer block..
 			bGood = m_Stream->ReadLine(sBuffer);
 			if (bGood)
 			{
@@ -235,45 +328,6 @@ bool KHTTP::ReadLine(KString& sBuffer)
 		sBuffer.clear();
 		return false;
 	}
-}
-
-//-----------------------------------------------------------------------------
-bool KHTTP::ReadHeader()
-//-----------------------------------------------------------------------------
-{
-	if (m_State == State::REQUEST_SENT && m_Stream)
-	{
-		KString sLine;
-		while (m_Stream->ReadLine(sLine))
-		{
-			m_ResponseHeader.Parse(sLine);
-			if (m_ResponseHeader.HeaderComplete())
-			{
-				m_bTEChunked = false;
-				// find the content length
-				KStringView sv(m_ResponseHeader->Get(KHeader::content_length));
-				kTrim(sv);
-				if (sv.empty())
-				{
-					KStringView svTE = m_ResponseHeader->Get(KHeader::transfer_encoding);
-					kTrim(svTE);
-					if (svTE == "chunked")
-					{
-						m_bTEChunked = true;
-					}
-				}
-				KString s(sv); // TODO create conversions for KStringView
-				m_iRemainingContentSize = kToULong(s);
-				m_State = State::HEADER_PARSED;
-				return true;
-			}
-		}
-	}
-	else
-	{
-		kWarning("Bad state - cannot read headers");
-	}
-	return false;
 }
 
 } // end of namespace dekaf2

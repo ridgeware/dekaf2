@@ -210,7 +210,7 @@ public:
 				if (Component == URIPart::User)
 				{
 					// search backwards to check if there is a password separator
-					auto iPass = svSource.find_last_of(':', iFound);
+					auto iPass = svSource.rfind(':', iFound);
 					if (iPass < iFound)
 					{
 						iFound  = iPass;

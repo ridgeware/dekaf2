@@ -50,6 +50,9 @@
 
 #include "kconfiguration.h"
 
+#define DEKAF2_xstringify(x) #x
+#define DEKAF2_stringify(x) DEKAF2_xstringify(x)
+
 #if defined __GNUC__
  #define DEKAF2_GCC_VERSION __GNUC__ * 10000 + __GNUC_MINOR__ * 100 + __GNUC_PATCHLEVEL__
 #else

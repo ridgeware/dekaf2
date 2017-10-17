@@ -1,7 +1,7 @@
 
 #pragma once
 
-#include "bits/kconfiguration.h"
+#include "kconfiguration.h"
 
 #ifdef DEKAF2_USE_KMRU_MULTI_INDEX
 	#include "bits/kmru-multi-index.h"

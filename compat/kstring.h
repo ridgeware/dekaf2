@@ -2,7 +2,7 @@
 //
 // DEKAF(tm): Lighter, Faster, Smarter(tm)
 //
-// Copyright (c) 2017, Ridgeware, Inc.
+// Copyright (c) 2000-2017, Ridgeware, Inc.
 //
 // +-------------------------------------------------------------------------+
 // | /\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\|
@@ -42,22 +42,18 @@
 
 #pragma once
 
-/// @file dekaf2.h
-/// basic initialization of the library
-
-#include <atomic>
-#include <folly/CpuId.h>
 #include "kconfiguration.h"
-#include "kstring.h"
 
-/// @namespace dekaf2 The basic dekaf2 library namespace. All functions,
-/// variables and classes are prefixed with this namespace.
-namespace dekaf2
-{
+#ifdef DEKAF1_INCLUDE_PATH
+
+#include "../kstring.h"
+#include DEKAF2_stringify(DEKAF1_INCLUDE_PATH/kstring.h)
+
+namespace dekaf2 {
+namespace compat {
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// Basic initialization of the library.
-class Dekaf
+class KString : public dekaf2::KString
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -65,82 +61,93 @@ class Dekaf
 public:
 //----------
 
-	Dekaf();
-	Dekaf(const Dekaf&) = delete;
-	Dekaf(Dekaf&&) = delete;
-	Dekaf& operator=(const Dekaf&) = delete;
-	Dekaf& operator=(Dekaf&&) = delete;
-
-	//---------------------------------------------------------------------------
-	/// Switch library to multi threaded mode.
-	/// Set directly after program start if run in multithreading,
-	/// otherwise libs risk to be wrongly initialized when functionality is used
-	/// that relies on this setting.
-	void SetMultiThreading()
-	//---------------------------------------------------------------------------
+	//----------------------------------------------------------------------
+	KString(const ::KString& old)
+	//----------------------------------------------------------------------
+	    : dekaf2::KString(old.c_str(), old.size())
 	{
-		m_bIsMultiThreading = true;
 	}
 
-	//---------------------------------------------------------------------------
-	/// Shall we be prepared for multithrading?
-	inline bool GetMultiThreading() const
-	//---------------------------------------------------------------------------
+	//----------------------------------------------------------------------
+	KString(::KString& old)
+	//----------------------------------------------------------------------
+	    : dekaf2::KString(old.c_str(), old.size())
 	{
-		return m_bIsMultiThreading.load(std::memory_order_relaxed);
 	}
 
-	//---------------------------------------------------------------------------
-	/// Set application name. Used for logging.
-	void SetName(const KString& sName)
-	//---------------------------------------------------------------------------
+#ifndef DEKAF2_USE_FOLLY_STRING_AS_KSTRING
+	//----------------------------------------------------------------------
+	KString(::KString&& old)
+	//----------------------------------------------------------------------
+	    : dekaf2::KString(std::move(old))
 	{
-		m_sName = sName;
+	}
+#endif
+
+	//----------------------------------------------------------------------
+	template<class...Args>
+	KString(Args&&...args)
+	//----------------------------------------------------------------------
+	    : dekaf2::KString(std::forward<Args>(args)...)
+	{
 	}
 
-	//---------------------------------------------------------------------------
-	/// Get application name as provided by user.
-	const KString& GetName() const
-	//---------------------------------------------------------------------------
+	//----------------------------------------------------------------------
+	/// print arguments with fmt::printf..
+	// actually we switch the printing format specifier to a sprintf - like
+	// as the previous KString used such
+	template<class... Args>
+	KString& Format(Args&&... args)
+	//----------------------------------------------------------------------
 	{
-		return m_sName;
+		m_rep = kPrintf(std::forward<Args>(args)...);
+		return *this;
 	}
 
-	//---------------------------------------------------------------------------
-	/// Set the unicode locale. If empty defaults to the locale set by the current user.
-	bool SetUnicodeLocale(KString name = KString{});
-	//---------------------------------------------------------------------------
+};
 
-	//---------------------------------------------------------------------------
-	/// Get the unicode locale.
-	const KString& GetUnicodeLocale()
-	//---------------------------------------------------------------------------
-	{
-		return m_sLocale;
-	}
-
-	//---------------------------------------------------------------------------
-	/// Get the CPU ID and extensions
-	const folly::CpuId& GetCpuId() const
-	//---------------------------------------------------------------------------
-	{
-		return m_CPUID;
-	}
-
-//----------
-private:
-//----------
-
-	std::atomic_bool m_bIsMultiThreading{false};
-	KString m_sName;
-	KString m_sLocale;
-	folly::CpuId m_CPUID;
-
-}; // Dekaf
-
-//---------------------------------------------------------------------------
-/// Get unique instance of class Dekaf()
-class Dekaf& Dekaf();
-//---------------------------------------------------------------------------
-
+} // end of namespace compat
 } // end of namespace dekaf2
+
+namespace std
+{
+	/// provide a std::hash for dekaf2::compat::KString
+	template<> struct hash<dekaf2::compat::KString>
+	{
+		typedef dekaf2::compat::KString argument_type;
+		typedef std::size_t result_type;
+		result_type operator()(argument_type const& s) const noexcept
+		{
+#ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
+			return std::hash<dekaf2::KString::string_type>{}(s);
+#else
+			return std::hash<dekaf2::KString::string_type>{}(s.ToStdString());
+#endif
+		}
+	};
+
+} // end of namespace std
+
+#include <boost/functional/hash.hpp>
+
+namespace boost
+{
+	/// provide a boost::hash for dekaf2::compat::KString
+	template<> struct hash<dekaf2::compat::KString> : public std::unary_function<dekaf2::compat::KString, std::size_t>
+	{
+		typedef dekaf2::compat::KString argument_type;
+		typedef std::size_t result_type;
+		result_type operator()(argument_type const& s) const noexcept
+		{
+#ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
+			// reuse the std::hash, as it knows fbstring already
+			return std::hash<dekaf2::KString::string_type>{}(s);
+#else
+			return std::hash<dekaf2::KString::string_type>{}(s.ToStdString());
+#endif
+		}
+	};
+
+} // end of namespace boost
+
+#endif // of DEKAF1_INCLUDE_PATH

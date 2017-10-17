@@ -2,7 +2,6 @@
 #define CATCH_CONFIG_RUNNER
 #include "catch.hpp"
 #include <dekaf2/dekaf2.h>
-#include <dekaf2/bits/kconfiguration.h>
 
 #include <string>
 #include <iostream>

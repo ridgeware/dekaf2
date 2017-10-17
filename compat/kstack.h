@@ -2,7 +2,7 @@
 //
 // DEKAF(tm): Lighter, Faster, Smarter(tm)
 //
-// Copyright (c) 2017, Ridgeware, Inc.
+// Copyright (c) 2000-2017, Ridgeware, Inc.
 //
 // +-------------------------------------------------------------------------+
 // | /\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\|
@@ -44,8 +44,59 @@
 
 #include "kconfiguration.h"
 
-#ifdef DEKAF2_USE_KPROPS_MULTI_INDEX
-	#include "bits/kprops-multi-index.h"
-#else
-	#include "bits/kprops-std-map.h"
-#endif
+#ifdef DEKAF1_INCLUDE_PATH
+
+#include "../kstack.h"
+#include "../ksplit.h"
+
+namespace dekaf2 {
+namespace compat {
+
+// adaptors for KStack
+
+template<class Stack_Type>
+class KStack : public dekaf2::KStack<Stack_Type>
+{
+public:
+	using base_type = dekaf2::KStack<Stack_Type>;
+
+	const Stack_Type& Get(size_t index) const
+	{
+		return base_type::GetItem(index);
+	}
+	bool Get(size_t index, Stack_Type& item) const
+	{
+		return base_type::GetItem(index, item);
+	}
+	bool Set(size_t index, Stack_Type& item)
+	{
+		return base_type::SetItem(index, item);
+	}
+	size_t Size() const
+	{
+		return base_type::size();
+	}
+	void TruncateList()
+	{
+		base_type::clear();
+	}
+};
+
+} // of namespace compat
+} // of namespace dekaf2
+
+//-----------------------------------------------------------------------------
+template <class String, class Stack>
+unsigned int kParseDelimedList (const String& sBuffer, Stack& List, int chDelim=',', bool bTrim=true, bool bCombineDelimiters=false, int chEscape='\0')
+//inline unsigned int kParseDelimedList (const dekaf2::compat::KString& sBuffer, MyKStack& List, int chDelim=',', bool bTrim=true, bool bCombineDelimiters=false, int chEscape='\0')
+//-----------------------------------------------------------------------------
+{
+	char delim(chDelim);
+	return dekaf2::kSplit(List,
+	                      sBuffer,
+	                      dekaf2::KStringView(&delim, 1),
+	                      bTrim ? " \t\r\n" : "",
+	                      chEscape);
+}
+
+#endif // of DEKAF1_INCLUDE_PATH

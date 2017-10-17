@@ -2,7 +2,7 @@
 //
 // DEKAF(tm): Lighter, Faster, Smarter(tm)
 //
-// Copyright (c) 2017, Ridgeware, Inc.
+// Copyright (c) 2000-2017, Ridgeware, Inc.
 //
 // +-------------------------------------------------------------------------+
 // | /\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\|
@@ -44,8 +44,29 @@
 
 #include "kconfiguration.h"
 
-#ifdef DEKAF2_USE_KPROPS_MULTI_INDEX
-	#include "bits/kprops-multi-index.h"
-#else
-	#include "bits/kprops-std-map.h"
-#endif
+#ifdef DEKAF1_INCLUDE_PATH
+
+#include "../compat/kstring.h" // to make sure we include the right kstring.h..
+#include "../kstringutils.h"
+#include "../kstringview.h"
+#include "../compat/kprops.h"
+#include "../kfile.h"
+#include "../compat/kstack.h"
+#include <fmt/printf.h>
+
+#include DEKAF2_stringify(DEKAF1_INCLUDE_PATH/dekaf.h)
+
+using dekaf2::kFileBaseName;
+using dekaf2::kFileDirName;
+using dekaf2::KStringView;
+
+using MyKString   = dekaf2::compat::KString;
+// define a KProps version without fixed sequence, but with unique keys
+using MyKPROPS    = dekaf2::compat::KProps<MyKString, MyKString, false, true>;
+// define a KProps version with a fixed sequence, and with unique keys
+using MyKPROPSSeq = dekaf2::compat::KProps<MyKString, MyKString, true,  true>;
+
+using MyKStack    = dekaf2::compat::KStack<dekaf2::compat::KString>;
+
+#endif // of DEKAF1_INCLUDE_PATH
+

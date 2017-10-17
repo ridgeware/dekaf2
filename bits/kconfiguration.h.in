@@ -1,6 +1,7 @@
 /*
+//-----------------------------------------------------------------------------//
 //
-// DEKAF(tm): Lighter, Faster, Smarter(tm)
+// DEKAF(tm): Lighter, Faster, Smarter (tm)
 //
 // Copyright (c) 2017, Ridgeware, Inc.
 //
@@ -37,15 +38,36 @@
 // |/+---------------------------------------------------------------------+/|
 // |\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/ |
 // +-------------------------------------------------------------------------+
-//
 */
 
 #pragma once
 
-#include "kconfiguration.h"
+/// @file kconfiguration.h
+/// library configuration at compile time of dekaf2
 
-#ifdef DEKAF2_USE_KPROPS_MULTI_INDEX
-	#include "bits/kprops-multi-index.h"
-#else
-	#include "bits/kprops-std-map.h"
+#define DEKAF_VERSION "@VERSION_MAJOR@.@VERSION_MINOR@.@VERSION_PATCH@"
+#define DEKAF_MAJOR_VERSION @VERSION_MAJOR@
+#define DEKAF_MINOR_VERSION @VERSION_MINOR@
+#define DEKAF_PATCH_VERSION @VERSION_PATCH@
+#if (DEKAF_MAJOR_VERSION == 2)
+	#define DEKAF2
 #endif
+
+#cmakedefine DEKAF2_USE_BOOST_MULTI_INDEX
+
+#ifdef DEKAF2_USE_BOOST_MULTI_INDEX
+	#define DEKAF2_USE_KPROPS_MULTI_INDEX
+	#define DEKAF2_USE_KMRU_MULTI_INDEX
+#endif
+
+#cmakedefine DEKAF2_USE_FOLLY_STRINGPIECE_AS_KSTRINGVIEW
+#cmakedefine DEKAF2_USE_FBSTRING_AS_KSTRING
+#cmakedefine DEKAF2_USE_OPTIMIZED_STRING_FIND
+
+#cmakedefine DEKAF2_WITH_DEPRECATED_KSTRING_MEMBER_FUNCTIONS
+
+#ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
+	#define DEKAF2_DO_NOT_WARN_ABOUT_COW_STRING
+#endif
+
+#cmakedefine DEKAF1_INCLUDE_PATH @DEKAF1_INCLUDE_PATH@

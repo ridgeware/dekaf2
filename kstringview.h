@@ -912,7 +912,7 @@ size_t kRFind(
         size_t pos)
 //-----------------------------------------------------------------------------
 {
-#if DEKAF2_USE_FOLLY_STRINGPIECE_AS_KSTRINGVIEW \
+#if defined(DEKAF2_USE_FOLLY_STRINGPIECE_AS_KSTRINGVIEW) \
 	&& !defined(DEKAF2_USE_OPTIMIZED_STRING_FIND) \
 	|| !(DEKAF2_GCC_VERSION > 40600)
 	pos = std::min(pos, haystack.size());

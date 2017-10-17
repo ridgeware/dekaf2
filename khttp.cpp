@@ -228,6 +228,19 @@ inline bool KHTTP::GetNextChunkSize()
 }
 
 //-----------------------------------------------------------------------------
+inline void KHTTP::CheckForChunkEnd()
+//-----------------------------------------------------------------------------
+{
+	if (m_bTEChunked && m_iRemainingContentSize == 0)
+	{
+		if (m_Stream->Read() == 13)
+		{
+			m_Stream->Read();
+		}
+	}
+}
+
+//-----------------------------------------------------------------------------
 /// Stream into outstream
 size_t KHTTP::Read(KOutStream& stream, size_t len)
 //-----------------------------------------------------------------------------
@@ -245,12 +258,7 @@ size_t KHTTP::Read(KOutStream& stream, size_t len)
 				m_iRemainingContentSize -= rlen;
 				len  -= rlen;
 				tlen += rlen;
-				if (m_bTEChunked && m_iRemainingContentSize == 0)
-				{
-					// read the completing CR LF
-					KString sLine;
-					m_Stream->ReadLine(sLine);
-				}
+				CheckForChunkEnd();
 			}
 		}
 		return tlen;
@@ -280,12 +288,7 @@ size_t KHTTP::Read(KString& sBuffer, size_t len)
 				m_iRemainingContentSize -= rlen;
 				len  -= rlen;
 				tlen += rlen;
-				if (m_bTEChunked && m_iRemainingContentSize == 0)
-				{
-					// read the completing CR LF
-					KString sLine;
-					m_Stream->ReadLine(sLine);
-				}
+				CheckForChunkEnd();
 			}
 		}
 		return tlen;

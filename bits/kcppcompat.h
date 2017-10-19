@@ -54,9 +54,9 @@
 #define DEKAF2_stringify(x) DEKAF2_xstringify(x)
 
 #if defined __GNUC__
- #define DEKAF2_GCC_VERSION __GNUC__ * 10000 + __GNUC_MINOR__ * 100 + __GNUC_PATCHLEVEL__
+	#define DEKAF2_GCC_VERSION __GNUC__ * 10000 + __GNUC_MINOR__ * 100 + __GNUC_PATCHLEVEL__
 #else
- #define DEKAF2_GCC_VERSION 0
+	#define DEKAF2_GCC_VERSION 0
 #endif
 
 #if defined __GNUC__
@@ -99,13 +99,41 @@
 	#define DEKAF2_HAS_CPP_17 1
 #endif
 
+#ifndef __has_attribute
+	#define DEKAF2_HAS_ATTRIBUTE(x) 0
+#else
+	#define DEKAF2_HAS_ATTRIBUTE(x) __has_attribute(x)
+#endif
+
+#ifndef __has_cpp_attribute
+	#define DEKAF2_HAS_CPP_ATTRIBUTE(x) 0
+#else
+	#define DEKAF2_HAS_CPP_ATTRIBUTE(x) __has_cpp_attribute(x)
+#endif
+
+#ifndef __has_extension
+	#define DEKAF2_HAS_EXTENSION(x) 0
+#else
+	#define DEKAF2_HAS_EXTENSION(x) __has_extension(x)
+#endif
+
+#if DEKAF2_HAS_CPP_ATTRIBUTE(fallthrough)
+	#define DEKAF2_FALLTHROUGH [[fallthrough]]
+#elif DEKAF2_HAS_CPP_ATTRIBUTE(clang::fallthrough)
+	#define DEKAF2_FALLTHROUGH [[clang::fallthrough]]
+#elif DEKAF2_HAS_CPP_ATTRIBUTE(gnu::fallthrough)
+	#define DEKAF2_FALLTHROUGH [[gnu::fallthrough]]
+#elif DEKAF2_HAS_ATTRIBUTE(fallthrough)
+	#define DEKAF2_FALLTHROUGH __attribute__ ((fallthrough))
+#endif
+
 // prepare for the shared_mutex enabler below - this has to go into
 // the base namespace
 #ifdef DEKAF2_HAS_CPP_14
- #include <shared_mutex>
- #include <mutex> // to be balanced with the C++11 case below
+	#include <shared_mutex>
+	#include <mutex> // to be balanced with the C++11 case below
 #else
- #include <mutex>
+	#include <mutex>
 #endif
 
 namespace std
@@ -114,19 +142,19 @@ namespace std
 // make sure we have a shared_mutex and a shared_lock by injecting
 // matching types into the std:: namespace
 #ifdef DEKAF2_HAS_CPP_14
- // C++17 has both already
- #ifndef DEKAF2_HAS_CPP_17
-	// for C++14 that's easy - just alias a shared_timed_mutex - it's a superset
-	using shared_mutex = shared_timed_mutex;
- #endif
+	// C++17 has both already
+	#ifndef DEKAF2_HAS_CPP_17
+		// for C++14 that's easy - just alias a shared_timed_mutex - it's a superset
+		using shared_mutex = shared_timed_mutex;
+	#endif
 #else
- #ifdef DEKAF2_HAS_CPP_11
-	// for C++11 we alias a non-shared mutex - it can be costly on lock contention
-	// TODO implement a platform native shared mutex..
-	using shared_mutex = mutex;
-	template<class T>
-	using shared_lock = unique_lock<T>;
- #endif
+	#ifdef DEKAF2_HAS_CPP_11
+		// for C++11 we alias a non-shared mutex - it can be costly on lock contention
+		// TODO implement a platform native shared mutex..
+		using shared_mutex = mutex;
+		template<class T>
+		using shared_lock = unique_lock<T>;
+	#endif
 #endif
 
 }
@@ -157,30 +185,30 @@ using decay_t = typename decay<T>::type;
 // to be taken - the effects are actually minimal to nonexisting,
 // so do not bother for code that is not really core
 #if defined(__GNUC__) && __GNUC__ >= 4
- #define DEKAF2_LIKELY(expression)   (__builtin_expect((expression), 1))
- #define DEKAF2_UNLIKELY(expression) (__builtin_expect((expression), 0))
+	#define DEKAF2_LIKELY(expression)   (__builtin_expect((expression), 1))
+	#define DEKAF2_UNLIKELY(expression) (__builtin_expect((expression), 0))
 #else
- #define DEKAF2_LIKELY(expression)   (expression)
- #define DEKAF2_UNLIKELY(expression) (expression)
+	#define DEKAF2_LIKELY(expression)   (expression)
+	#define DEKAF2_UNLIKELY(expression) (expression)
 #endif
 
 // force the compiler to respect the inline - better do not use it, the
 // compiler is smarter than us in almost all cases
-#if defined(__GNUC__)
- #define DEKAF2_ALWAYS_INLINE inline __attribute__((__always_inline__))
+#if DEKAF2_HAS_ATTRIBUTE(__always_inline__)
+	#define DEKAF2_ALWAYS_INLINE inline __attribute__((__always_inline__))
 #elif defined(_MSC_VER)
- #define DEKAF2_ALWAYS_INLINE __forceinline
+	#define DEKAF2_ALWAYS_INLINE __forceinline
 #else
- #define DEKAF2_ALWAYS_INLINE inline
+	#define DEKAF2_ALWAYS_INLINE inline
 #endif
 
 #if (!defined __GNUC__ || DEKAF2_GCC_VERSION >= 50000) && DEKAF2_HAS_CPP_11
- // this causes an error message in clang syntax analysis, but it compiles
- // in both gcc >= 5 and clang!
- #define DEKAF2_LE_BE_CONSTEXPR constexpr
+	// this causes an error message in clang syntax analysis, but it compiles
+	// in both gcc >= 5 and clang!
+	#define DEKAF2_LE_BE_CONSTEXPR constexpr
 #else
- // older gcc versions do not compile the constexpr
- #define DEKAF2_LE_BE_CONSTEXPR inline
+	// older gcc versions do not compile the constexpr
+	#define DEKAF2_LE_BE_CONSTEXPR inline
 #endif
 
 namespace dekaf2

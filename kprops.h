@@ -49,3 +49,14 @@
 #else
 	#include "bits/kprops-std-map.h"
 #endif
+
+namespace dekaf2 {
+
+class KString;
+
+extern template class KProps<KString, KString, false, true >;
+extern template class KProps<KString, KString, true,  true >;
+extern template class KProps<KString, KString, false, false>;
+extern template class KProps<KString, KString, true,  false>;
+
+}

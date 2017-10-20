@@ -46,11 +46,15 @@ namespace dekaf2 {
 namespace detail {
 namespace http {
 
+#if defined(__GCC__) && (DEKAF2_GCC_VERSION < 700)
+
 constexpr KStringView KMethod::GET;
 constexpr KStringView KMethod::HEAD;
 constexpr KStringView KMethod::POST;
 constexpr KStringView KMethod::PUT;
 constexpr KStringView KMethod::DELETE;
+
+#endif
 
 } // end of namespace http
 } // end of namespace detail

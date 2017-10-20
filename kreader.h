@@ -585,6 +585,9 @@ public:
 
 }; // KReader
 
+extern template class KReader<std::ifstream>;
+extern template class KReader<std::istringstream>;
+
 /// File reader based on std::ifstream
 using KInFile          = KReader<std::ifstream>;
 

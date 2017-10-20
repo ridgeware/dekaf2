@@ -45,6 +45,8 @@
 
 namespace dekaf2 {
 
+#if defined(__GCC__) && (DEKAF2_GCC_VERSION < 700)
+
 namespace detail {
 namespace http {
 
@@ -59,6 +61,8 @@ constexpr KStringView KMIME::APPLICATION_BINARY;
 
 }
 }
+
+#endif
 
 //-----------------------------------------------------------------------------
 KHTTP::KHTTP(KConnection& stream, const KURL& url, KMethod method)

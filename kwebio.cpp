@@ -47,7 +47,9 @@
 
 namespace dekaf2 {
 
+#if defined(__GCC__) && (DEKAF2_GCC_VERSION < 700)
 constexpr KStringView KWebIO::svBrokenHeader;
+#endif
 
 //-----------------------------------------------------------------------------
 KStringView KWebIO::Parse(KStringView svBuffer, bool bParseCookies)

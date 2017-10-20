@@ -73,7 +73,7 @@ KString kGetBaseDomain (KStringView sHostName)
 		// If not even 2Back then base domain is between beginning and 1Back
 
 		auto iDotEnd = sHostName.rfind ('.');
-		if (iDotEnd == 0 || iDotEnd == KString::npos)
+		if (iDotEnd == 0 || iDotEnd == KStringView::npos)
 		{
 			// Ignore simple non-dot hostname (localhost).
 		}
@@ -83,7 +83,7 @@ KString kGetBaseDomain (KStringView sHostName)
 
 			auto iDotStart = sHostName.rfind ('.', iDotEnd - 1);
 
-			if (iDotStart != KString::npos)
+			if (iDotStart != KStringView::npos)
 			{
 				// When there are at least 2 dots, look for ".co.".
 
@@ -97,7 +97,7 @@ KString kGetBaseDomain (KStringView sHostName)
 				}
 			}
 
-			if (iDotStart == KString::npos)
+			if (iDotStart == KStringView::npos)
 			{
 				iDotStart = 0;
 			}
@@ -115,6 +115,18 @@ KString kGetBaseDomain (KStringView sHostName)
 
 
 namespace url {
+
+namespace detail {
+
+template class URIComponent<URLEncodedString, URIPart::User,     '\0', false, true >;
+template class URIComponent<URLEncodedString, URIPart::Password, '\0', false, true >;
+template class URIComponent<URLEncodedString, URIPart::Domain,   '\0', false, false>;
+template class URIComponent<URLEncodedString, URIPart::Port,     ':',  true,  false>;
+template class URIComponent<URLEncodedString, URIPart::Path,     '/',  false, false>;
+template class URIComponent<URLEncodedQuery,  URIPart::Query,    '?',  true,  false>;
+template class URIComponent<URLEncodedString, URIPart::Fragment, '#',  true,  false>;
+
+}
 
 //-----------------------------------------------------------------------------
 /// @brief class Protocol in group KURL.  Parse into members.

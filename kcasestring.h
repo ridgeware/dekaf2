@@ -142,7 +142,7 @@ KStringView Trim(KStringView sv)
 
 //-----------------------------------------------------------------------------
 /// compares trimmed strings
-template<typename TrimmingLeft, typename TrimmingRight>
+template<typename TrimmingLeft, typename TrimmingRight = detail::casestring::NoTrim>
 int kCaseCompareTrim(KStringView left, KStringView right)
 //-----------------------------------------------------------------------------
 {
@@ -177,7 +177,7 @@ std::size_t kCalcCaseHashTrim(KStringView sv)
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// A string view class that compares and hashes case insensitive and trimmed
-template<typename Trimming>
+template<typename Trimming = detail::casestring::NoTrim>
 class KCaseStringViewBase : public KStringView
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -194,18 +194,12 @@ public:
 	{}
 
 	//-----------------------------------------------------------------------------
-	int compare(KStringView other)
+	int compare(KCaseStringViewBase other) const
 	//-----------------------------------------------------------------------------
 	{
-		return kCaseCompareTrim<Trimming, detail::casestring::NoTrim>(*this, other);
+		return kCaseCompareTrim(*this, other);
 	}
 
-	//-----------------------------------------------------------------------------
-	int compare(KCaseStringViewBase other)
-	//-----------------------------------------------------------------------------
-	{
-		return kCaseCompareTrim<Trimming, decltype(other)::Trimming>(*this, other);
-	}
 };
 
 //-----------------------------------------------------------------------------
@@ -323,7 +317,7 @@ inline bool operator!=(KString left, const KCaseStringViewBase<TrimmingRight> ri
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// A string class that compares and hashes case insensitive and trimmed
-template<typename Trimming>
+template<typename Trimming = detail::casestring::NoTrim>
 class KCaseStringBase : public KString
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -340,14 +334,14 @@ public:
 	{}
 
 	//-----------------------------------------------------------------------------
-	int compare(KString other)
+	int compare(const KCaseStringBase& other) const
 	//-----------------------------------------------------------------------------
 	{
-		return ToView().compare(other);
+		return ToView().compare(other.ToView());
 	}
 
 	//-----------------------------------------------------------------------------
-	KCaseStringViewBase<Trimming> ToView()
+	KCaseStringViewBase<Trimming> ToView() const
 	//-----------------------------------------------------------------------------
 	{
 		return KCaseStringViewBase<Trimming>(this->data(), this->size());
@@ -467,6 +461,10 @@ inline bool operator!=(KString left, const KCaseStringBase<TrimmingRight> right)
 	return right == left;
 }
 
+extern template class KCaseStringViewBase<detail::casestring::NoTrim>;
+extern template class KCaseStringBase<detail::casestring::NoTrim>;
+extern template class KCaseStringViewBase<detail::casestring::TrimWhiteSpaces>;
+extern template class KCaseStringBase<detail::casestring::TrimWhiteSpaces>;
 
 using KCaseStringView     = KCaseStringViewBase<detail::casestring::NoTrim>;
 using KCaseString         = KCaseStringBase<detail::casestring::NoTrim>;

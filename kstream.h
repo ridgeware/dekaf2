@@ -174,6 +174,9 @@ public:
 
 };
 
+extern template class KReaderWriter<std::fstream>;
+extern template class KReaderWriter<std::stringstream>;
+extern template class KReaderWriter<asio::ip::tcp::iostream>;
 
 /// File stream based on std::fstream
 using KFile           = KReaderWriter<std::fstream>;

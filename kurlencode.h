@@ -150,6 +150,8 @@ void kUrlDecode (String& sDecode, bool bPlusAsSpace = false)
 
 } // kUrlDecode
 
+extern template void kUrlDecode(KString& sDecode, bool pPlusAsSpace = false);
+
 //-----------------------------------------------------------------------------
 /// decodes string on a copy
 template<class String>
@@ -189,6 +191,8 @@ void kUrlDecode (KStringView sSource, String& sTarget, bool bPlusAsSpace = false
 
 } // kUrlDecode copy
 
+extern template void kUrlDecode(KStringView sSource, KString& sTarget, bool bPlusAsSpace = false);
+
 //-----------------------------------------------------------------------------
 template<class String>
 String kUrlDecode (KStringView sSource, bool bPlusAsSpace = false)
@@ -198,6 +202,8 @@ String kUrlDecode (KStringView sSource, bool bPlusAsSpace = false)
 	kUrlDecode(sSource, sRet, bPlusAsSpace);
 	return sRet;
 }
+
+extern template KString kUrlDecode(KStringView sSource, bool bPlusAsSpace = false);
 
 //-----------------------------------------------------------------------------
 template<class String>
@@ -232,6 +238,8 @@ void kUrlEncode (KStringView sSource, String& sTarget, const bool excludeTable[2
 		}
 	}
 }
+
+extern template void kUrlEncode (KStringView sSource, KString& sTarget, const bool excludeTable[256], bool bSpaceAsPlus = false);
 
 //-----------------------------------------------------------------------------
 template<class String>
@@ -499,6 +507,7 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
+	template<bool X = chPairSep, typename std::enable_if<X == '\0', int>::type = 0>
 	KURLEncoded& operator=(KStringView sv)
 	//-------------------------------------------------------------------------
 	{
@@ -618,8 +627,10 @@ protected:
 
 }; // KURLEncoded
 
+extern template class KURLEncoded<KString>;
+extern template class KURLEncoded<KProps<KString, KString>, '&', '='>;
+
 using URLEncodedString    = KURLEncoded<KString>;
 using URLEncodedQuery     = KURLEncoded<KProps<KString, KString>, '&', '='>;
-using URLEncodedPathParam = KURLEncoded<KProps<KString, KString>, ';', '='>;
 
 } // end of namespace dekaf2

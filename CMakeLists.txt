@@ -23,9 +23,14 @@ set(VERSION_PATCH   0)
 mark_as_advanced(VERSION_MAJOR VERSION_MINOR VERSION_PATCH)
 
 if(DEKAF2_WITH_COMPATIBILITY_LAYER_TO_DEKAF1)
-	set (DEKAF1_INCLUDE_PATH $ENV{dekaf})
-	if (NOT DEKAF1_INCLUDE_PATH)
-		set(DEKAF1_INCLUDE_PATH $ENV{HOME}/src/dekaf/src)
+	set (DPATH $ENV{dekaf})
+	if (NOT DPATH)
+		set(DPATH $ENV{HOME}/src/dekaf/src)
+	endif()
+	if (EXISTS "${DPATH}/dekaf.h")
+		set(DEKAF1_INCLUDE_PATH ${DPATH})
+	else()
+		message(STATUS "Option to provide compatibility layer to dekaf1 is set, but dekaf1 can't be found. Option disabled.")
 	endif()
 endif()
 
@@ -179,6 +184,7 @@ set (SOURCES
 	kprof.cpp
 	kurlencode.cpp
 	kurl.cpp
+	kprops.cpp
 	kstringview.cpp
 	kstringutils.cpp
 	kparallel.cpp

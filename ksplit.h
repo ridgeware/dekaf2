@@ -92,17 +92,6 @@ size_t kSplit (
 				if (iFound > 0)
 				{
 					svBuffer.remove_prefix (iFound);
-
-					// actually it is a bug in our SSE implementation
-					// that find_first_not_of() returns size()+x
-					// instead of npos if not found. We have to
-					// fix it and then we can remove this check.
-					if (svBuffer.empty())
-					{
-						// Stop if input buffer is empty.
-						ctContainer.push_back(KStringView());
-						break;
-					}
 				}
 			}
 			else
@@ -190,6 +179,7 @@ size_t kSplit (
 
 } // kSplit with string of delimiters
 
+
 //-----------------------------------------------------------------------------
 /// Splits one element into a key value pair separated by chDelim, and trims on request
 KStringViewPair kSplitToPair(
@@ -235,7 +225,7 @@ public:
 	//-----------------------------------------------------------------------------
 	{
 		KStringViewPair svPair = kSplitToPair(sv, m_chPairDelim, m_svTrim, m_chEscape);
-		m_Container.insert(svPair);
+		m_Container.emplace(svPair.first, svPair.second);
 	}
 
 	//-----------------------------------------------------------------------------
@@ -294,5 +284,46 @@ size_t kSplitPairs(
 	return kSplit(cAdaptor, svBuffer, svDelim, svTrim, chEscape,
 	              bCombineDelimiters, bQuotesAreEscapes);
 }
+
+// some explicit template instances
+
+extern template
+size_t kSplit (
+	std::vector<KStringView>&  ctContainer,
+	KStringView svBuffer,
+	KStringView svDelim  = ",",             // default: comma delimiter
+	KStringView svTrim   = " \t\r\n\b",     // default: trim all whitespace
+	const char  chEscape = '\0',            // default: ignore escapes
+	bool        bCombineDelimiters = false, // default: create an element for each delimiter char found
+	bool        bQuotesAreEscapes  = false  // default: treat double quotes like any other char
+	);
+
+template<class Key, class Value, bool seq, bool uniq> class KProps;
+
+extern template
+size_t kSplitPairs(
+        KProps<KStringView, KStringView, true, false>&  ctContainer,
+        KStringView svBuffer,
+        const char  chPairDelim = '=',
+        KStringView svDelim  = ",",             // default: comma delimiter
+        KStringView svTrim   = " \t\r\n\b",     // default: trim all whitespace
+        const char  chEscape = '\0',            // default: ignore escapes
+        bool        bCombineDelimiters = false, // default: create an element for each delimiter char found
+        bool        bQuotesAreEscapes  = false  // default: treat double quotes like any other char
+        );
+
+class KString;
+
+extern template
+size_t kSplitPairs(
+        KProps<KString, KString, true, false>&  ctContainer,
+        KStringView svBuffer,
+        const char  chPairDelim = '=',
+        KStringView svDelim  = ",",             // default: comma delimiter
+        KStringView svTrim   = " \t\r\n\b",     // default: trim all whitespace
+        const char  chEscape = '\0',            // default: ignore escapes
+        bool        bCombineDelimiters = false, // default: create an element for each delimiter char found
+        bool        bQuotesAreEscapes  = false  // default: treat double quotes like any other char
+        );
 
 } // namespace dekaf2

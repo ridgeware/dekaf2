@@ -302,6 +302,8 @@ public:
 
 }; // KWriter
 
+extern template class KWriter<std::ofstream>;
+extern template class KWriter<std::ostringstream>;
 
 /// File writer based on std::ofstream
 using KOutFile         = KWriter<std::ofstream>;

@@ -402,7 +402,9 @@ KStringView KHeader::Get(KCaseStringView sv) const
 	return svv;
 }
 
-// for some strange reason gcc wants these repeated definitions
+#if defined(__GCC__) && (DEKAF2_GCC_VERSION < 700)
+
+// for some strange reason gcc < 7 wants these repeated definitions
 // once one puts a constexpr variable into a class. As long as
 // they stay outside of a class, the linker does not complain about
 // missing references, but once they are inside a class it does.
@@ -445,6 +447,11 @@ constexpr KStringView KHeader::x_forwarded_for;
 
 constexpr KStringView KHeader::svBrokenHeader;
 
+#endif
+
 } // end of namespace http
 } // end of namespace detail
+
+template class KProps<KCaseTrimString, KString>;
+
 } // end of namespace dekaf2

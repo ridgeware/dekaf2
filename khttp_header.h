@@ -43,12 +43,14 @@
 #pragma once
 
 #include "kstringview.h"
-#include "kprops.h"
 #include "kcasestring.h"
+#include "kprops.h"
 #include "kurl.h"
 #include "kconnection.h"
 
 namespace dekaf2 {
+
+extern template class KProps<KCaseTrimString, KString>;
 
 namespace detail {
 namespace http {

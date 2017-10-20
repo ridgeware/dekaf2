@@ -470,6 +470,14 @@ private:
 
 };
 
+extern template class URIComponent<URLEncodedString, URIPart::User,     '\0', false, true >;
+extern template class URIComponent<URLEncodedString, URIPart::Password, '\0', false, true >;
+extern template class URIComponent<URLEncodedString, URIPart::Domain,   '\0', false, false>;
+extern template class URIComponent<URLEncodedString, URIPart::Port,     ':',  true,  false>;
+extern template class URIComponent<URLEncodedString, URIPart::Path,     '/',  false, false>;
+extern template class URIComponent<URLEncodedQuery,  URIPart::Query,    '?',  true,  false>;
+extern template class URIComponent<URLEncodedString, URIPart::Fragment, '#',  true,  false>;
+
 } // end of namespace dekaf2::url::detail
 
 using KUser     = detail::URIComponent<URLEncodedString, URIPart::User,     '\0', false, true >;

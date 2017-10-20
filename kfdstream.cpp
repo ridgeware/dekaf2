@@ -517,7 +517,11 @@ std::streamsize KInOutFDStream::FileDescWriter(const void* sBuffer, std::streams
 	return iWrote;
 }
 
-
+template class KWriter<KOutputFDStream>;
+template class KWriter<KOutputFPStream>;
+template class KReader<KInputFDStream>;
+template class KReader<KInputFPStream>;
+template class KReaderWriter<KInOutFDStream>;
 
 } // end of namespace dekaf2
 

@@ -8,8 +8,12 @@
 
 namespace dekaf2 {
 
+#if defined(__GCC__) && (DEKAF2_GCC_VERSION < 700)
+
 constexpr KStringView::size_type KStringView::npos;
 constexpr KStringView::value_type KStringView::s_0ch;
+
+#endif
 
 //-----------------------------------------------------------------------------
 size_t kFind(

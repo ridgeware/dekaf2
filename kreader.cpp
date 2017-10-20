@@ -463,6 +463,8 @@ size_t KInStream::Read(KOutStream& Stream, size_t iCount)
 	return iRead;
 }
 
+template class KReader<std::ifstream>;
+template class KReader<std::istringstream>;
 
 } // end of namespace dekaf2
 

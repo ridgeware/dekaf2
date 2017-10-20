@@ -417,11 +417,7 @@ public:
 			{
 				break;
 			}
-			if (!Add(std::move(key), std::move(value)))
-			{
-				kWarning("cannot add new pair");
-				continue;
-			}
+			Add(std::move(key), std::move(value));
 			++iCount;
 		}
 		return iCount;
@@ -432,11 +428,11 @@ public:
 	bool Serialize(Serializer& serializer) const
 	//-----------------------------------------------------------------------------
 	{
-		for (auto it = begin(); it != end(); ++it)
+		for (auto& it : *this)
 		{
 			serializer.Set(it.first, it.second);
 		}
-		return !empty();
+		return true;
 	}
 
 	//-----------------------------------------------------------------------------
@@ -902,6 +898,16 @@ public:
 	{
 		push_back(std::move(element));
 	}
+
+	//-----------------------------------------------------------------------------
+	/// Inserts one element at the end. (InsertIterator interface)
+	template<class K, class V>
+	void emplace(K&& key, V&& value)
+	//-----------------------------------------------------------------------------
+	{
+		push_back(std::pair<Key, Value>(std::forward<K>(key), std::forward<V>(value)));
+	}
+
 
 }; // KProps
 

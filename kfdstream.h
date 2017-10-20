@@ -559,6 +559,12 @@ protected:
 
 };
 
+extern template class KWriter<KOutputFDStream>;
+extern template class KWriter<KOutputFPStream>;
+extern template class KReader<KInputFDStream>;
+extern template class KReader<KInputFPStream>;
+extern template class KReaderWriter<KInOutFDStream>;
+
 /// FOR PIPES AND SPECIAL DEVICES ONLY! File descriptor writer based on KOutputFDStream>
 using KFDWriter = KWriter<KOutputFDStream>;
 

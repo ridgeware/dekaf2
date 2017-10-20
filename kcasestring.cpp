@@ -205,11 +205,11 @@ bool kCaseEqualLeft(KStringView left, KStringView right)
 }
 
 //-----------------------------------------------------------------------------
-int kCaseCompareTrim(KStringView left, KStringView right)
+int kCaseCompareTrim(KStringView left, KStringView right, KStringView svTrim)
 //-----------------------------------------------------------------------------
 {
-	kTrim(left);
-	kTrim(right);
+	kTrim(left, svTrim);
+	kTrim(right, svTrim);
 	return kCaseCompare(left, right);
 }
 
@@ -259,10 +259,18 @@ std::size_t kCalcCaseHashTrim(KStringView sv, KStringView svTrim)
 	return kCalcCaseHash(sv);
 }
 
+#if defined(__GCC__) && (DEKAF2_GCC_VERSION < 700)
+
 constexpr KStringView detail::casestring::TrimWhiteSpaces::svTrimLeft;
 constexpr KStringView detail::casestring::TrimWhiteSpaces::svTrimRight;
 constexpr KStringView detail::casestring::NoTrim::svTrimLeft;
 constexpr KStringView detail::casestring::NoTrim::svTrimRight;
 
+#endif
+
+template class KCaseStringViewBase<detail::casestring::NoTrim>;
+template class KCaseStringBase<detail::casestring::NoTrim>;
+template class KCaseStringViewBase<detail::casestring::TrimWhiteSpaces>;
+template class KCaseStringBase<detail::casestring::TrimWhiteSpaces>;
 
 } // end of namespace dekaf2

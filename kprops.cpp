@@ -1,7 +1,6 @@
 /*
-//-----------------------------------------------------------------------------//
 //
-// DEKAF(tm): Lighter, Faster, Smarter (tm)
+// DEKAF(tm): Lighter, Faster, Smarter(tm)
 //
 // Copyright (c) 2017, Ridgeware, Inc.
 //
@@ -38,60 +37,17 @@
 // |/+---------------------------------------------------------------------+/|
 // |\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/ |
 // +-------------------------------------------------------------------------+
+//
 */
 
-#include <fstream>
-#include "kwriter.h"
-#include "klog.h"
+#include "kprops.h"
+#include "kstring.h"
 
-namespace dekaf2
-{
+namespace dekaf2 {
 
-//-----------------------------------------------------------------------------
-KOutStream::~KOutStream()
-//-----------------------------------------------------------------------------
-{
+template class KProps<KString, KString, false, true >;
+template class KProps<KString, KString, true,  true >;
+template class KProps<KString, KString, false, false>;
+template class KProps<KString, KString, true,  false>;
+
 }
-
-//-----------------------------------------------------------------------------
-/// Write a character. Returns stream reference that resolves to false on failure
-KOutStream::self_type& KOutStream::Write(KString::value_type ch)
-//-----------------------------------------------------------------------------
-{
-	std::streambuf* sb = OutStream().rdbuf();
-	if (sb != nullptr)
-	{
-		typename std::ostream::int_type iCh = sb->sputc(ch);
-		if (std::ostream::traits_type::eq_int_type(iCh, std::ostream::traits_type::eof()))
-		{
-			OutStream().setstate(std::ios_base::badbit);
-		}
-	}
-	return *this;
-}
-
-//-----------------------------------------------------------------------------
-/// Write a range of characters. Returns stream reference that resolves to false on failure
-KOutStream::self_type& KOutStream::Write(const typename std::ostream::char_type* pAddress, size_t iCount)
-//-----------------------------------------------------------------------------
-{
-	if (iCount)
-	{
-		std::streambuf* sb = OutStream().rdbuf();
-		if (sb != nullptr)
-		{
-			size_t iWrote = static_cast<size_t>(sb->sputn(pAddress, iCount));
-			if (iWrote != iCount)
-			{
-				OutStream().setstate(std::ios_base::badbit);
-			}
-		}
-	}
-	return *this;
-}
-
-template class KWriter<std::ofstream>;
-template class KWriter<std::ostringstream>;
-
-} // end of namespace dekaf2
-

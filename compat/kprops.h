@@ -49,6 +49,7 @@
 #include "../kprops.h"
 #include "../ksplit.h"
 #include "../kurl.h"
+#include "kstring.h"
 
 #include DEKAF2_stringify(DEKAF1_INCLUDE_PATH/dekaf.h)
 
@@ -93,7 +94,7 @@ public:
 	}
 	inline long long Decrement(const Key& sName, long long iDelta=-1)
 	{
-		return Increment(iDelta);
+		return Increment(sName, iDelta);
 	}
 	bool MemoryLoad(const char* pszBuffer, int chDelim = '=')
 	{

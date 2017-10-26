@@ -694,13 +694,25 @@ public:
 		return (m_eProto == UNDEFINED);
 	}
 
+	//-------------------------------------------------------------------------
+	uint16_t DefaultPort() const
+	//-------------------------------------------------------------------------
+	{
+		return m_sCanonical[m_eProto].port;
+	}
+
 //------
 private:
 //------
 
 	KString m_sProto {};
 	eProto  m_eProto {UNDEFINED};
-	static const KStringView::value_type* m_sCanonical [UNKNOWN+1];
+	struct Protocols
+	{
+		const uint16_t port;
+		const KStringView::value_type* name;
+	};
+	static const Protocols m_sCanonical [UNKNOWN+1];
 
 };
 

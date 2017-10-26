@@ -170,7 +170,7 @@ KStringView KProtocol::Parse (KStringView svSource)
 				// unknown and then reproduce the same on serialization.
 				for (uint16_t iProto = MAILTO + 1; iProto < UNKNOWN; ++iProto)
 				{
-					if (m_sCanonical[iProto] == svProto)
+					if (m_sCanonical[iProto].name == svProto)
 					{
 						m_eProto = static_cast<eProto>(iProto);
 						break;
@@ -213,12 +213,12 @@ bool KProtocol::Serialize (KString& sTarget) const
 			break;
 
 		case MAILTO:
-			sTarget += m_sCanonical[m_eProto];
+			sTarget += m_sCanonical[m_eProto].name;
 			sTarget += ':';
 			break;
 
 		default:
-			sTarget += m_sCanonical[m_eProto];
+			sTarget += m_sCanonical[m_eProto].name;
 			sTarget += "://";
 			break;
 	}
@@ -238,22 +238,22 @@ void KProtocol::clear()
 // watch out: in Parse() and Serialize(), we assume that the schemata
 // do not need URL encoding! Therefore, when you add one that does,
 // please use the URL encoded form here, too.
-const KStringView::value_type* KProtocol::m_sCanonical [UNKNOWN+1] =
+const KProtocol::Protocols KProtocol::m_sCanonical [UNKNOWN+1] =
 {
-	"",       // Empty placeholder for UNDEFINED, parse has not been run yet.
-	"mailto",
-	"http",
-	"https",
-	"file",
-	"ftp",
-	"git",
-	"svn",
-	"irc",
-	"news",
-	"nntp",
-	"telnet",
-	"gopher", // pure nostalgia
-	""        // Empty placeholder for UNKNOWN, use m_sProto.
+	{    0, ""       }, // Empty placeholder for UNDEFINED, parse has not been run yet.
+	{   25, "mailto" },
+	{   80, "http"   },
+	{  443, "https"  },
+	{    0, "file"   },
+	{   21, "ftp"    },
+	{ 9418, "git"    },
+	{    0, "svn"    },
+	{  531, "irc"    },
+	{  119, "news"   },
+	{  119, "nntp"   },
+	{   23, "telnet" },
+	{   70, "gopher" }, // pure nostalgia
+	{    0, ""       }  // Empty placeholder for UNKNOWN, use m_sProto.
 };
 
 } // end of namespace url

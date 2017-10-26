@@ -64,6 +64,7 @@ KStringView KWebIO::Parse(KStringView svBuffer, bool bParseCookies)
 
 
 // Handle \r\n or \n by itself
+	/*
 	auto handleEndCase = [&](KStringView& svBuf)
 	{
 
@@ -96,17 +97,14 @@ KStringView KWebIO::Parse(KStringView svBuffer, bool bParseCookies)
 		}
 		return false;
 	};
+	*/
 	// This way we can know if are looking from the start of svBuffer
 	// Or continuing if looking for EOL
 	bool bFresh = true;
 
-	// Besides a couple look aheads for edge cases,
-	// Every char should be evaluated once in this switch case.
-	// Except for 1 or 2 char look ahead to look for EOL and only when needColon
-	// To Truly look at each char once I would need to copy the input sv and
-	// remove prefix when I do look aheads
-	// Or somehow do evaluations by keeping track of pointers...
-
+	// Look at each character once when parsing. Unless \n is found as second letter
+	// in the svBuffer. Then the char right before it is checked for \r
+	// find... methods use SSE optimizations.
 	while (!svBuffer.empty())
 	{
 		// Calculate this once at the start of every loop, required for logic
@@ -127,7 +125,7 @@ KStringView KWebIO::Parse(KStringView svBuffer, bool bParseCookies)
 					if (svBuffer.StartsWith("HTTP/"))
 					{
 						// Find end of Status Line
-						lineEndPos = svBuffer.find('\n');
+						lineEndPos = svBuffer.find('\n', 5);
 						if (DEKAF2_UNLIKELY(lineEndPos == KStringView::npos))
 						{
 							m_sPartialHeader = svBuffer;
@@ -166,10 +164,35 @@ KStringView KWebIO::Parse(KStringView svBuffer, bool bParseCookies)
 			case KParseState::needColon:
 			//=================================================================
 				// edge case, blank \n or \r\n line comes in by itself
-				if (handleEndCase(svBuffer)) return svBuffer;
+				//if (handleEndCase(svBuffer)) return svBuffer;
 				m_iColonPos = svBuffer.find_first_of(":\n");
 				if (DEKAF2_UNLIKELY(m_iColonPos != KStringView::npos && svBuffer[m_iColonPos] == '\n'))
 				{
+					if (m_iColonPos == 0) // starts with \n
+					{
+						if (leftoverSize == 0)
+						{
+							// add it to the last header
+							KString& lastHeaderValue = m_responseHeaders.at(m_responseHeaders.size()-1).second;
+							lastHeaderValue += '\n';
+							m_parseState = headerFinished;
+							svBuffer.remove_prefix(1);
+							return svBuffer;
+						}
+					}
+					else if (m_iColonPos == 1 && svBuffer[0] == '\r') // starts with \r\n
+					{
+						if (leftoverSize == 0)
+						{
+							// add it to the last header
+							KString& lastHeaderValue = m_responseHeaders.at(m_responseHeaders.size()-1).second;
+							lastHeaderValue += "\r\n";
+							m_parseState = headerFinished;
+							svBuffer.remove_prefix(2);
+							return svBuffer;
+						}
+					}
+
 					//Garbage header, no colon
 					nextEnd = findEndOfHeader(svBuffer, m_iColonPos);
 					if (nextEnd == KStringView::npos)
@@ -179,6 +202,7 @@ KStringView KWebIO::Parse(KStringView svBuffer, bool bParseCookies)
 						m_parseState = needEOL;
 						return svBuffer;
 					}
+
 					lineEndPos = nextEnd += leftoverSize;
 					m_iColonPos = KStringView::npos;
 					addResponseHeader(svBuffer, m_iColonPos, lineEndPos, bParseCookies);
@@ -234,7 +258,7 @@ KStringView KWebIO::Parse(KStringView svBuffer, bool bParseCookies)
 			//=================================================================
 			case KParseState::possibleEOL:
 			//=================================================================
-				if (svBuffer[0] != ' ' || svBuffer[0] == 0x09) // space or HT mean continuation
+				if (svBuffer[0] != ' ' || svBuffer[0] == '\t') // space or HT mean continuation
 				{
 					// Add m_sPartialHeader as a header
 					lineEndPos = leftoverSize - 1;
@@ -349,7 +373,6 @@ bool KWebIO::Serialize(KOutStream& outStream)
 /// This method takes care of the logic for storing case sensitive data so
 /// that it can be looked up in a case insensitive fashion.
 /// It also splits up the cookie header.
-//bool KWebIO::addResponseHeader(KStringView sHeaderName, KStringView sHeaderValue, bool bParseCookies)
 bool KWebIO::addResponseHeader(KStringView svBuffer, size_t colonPos, size_t lineEndPos, bool bParseCookies)
 //-----------------------------------------------------------------------------
 {
@@ -370,7 +393,6 @@ bool KWebIO::addResponseHeader(KStringView svBuffer, size_t colonPos, size_t lin
 
 	KStringView sHeaderName = svBuffer.substr(0, colonPos);
 	KStringView sHeaderValue = svBuffer.substr(colonPos + 1, lineEndPos-colonPos);
-	// TODO REFACTOR COOKIE PARSING ALONG LINES OF HEADER PARSING
 	if (DEKAF2_LIKELY(!bParseCookies || !kCaseEqualTrimLeft(sHeaderName, KHTTP::KHeader::request_cookie)))
 	{
 		// most headers
@@ -580,7 +602,7 @@ size_t KWebIO::findEndOfHeader(KStringView svHeaderPart, size_t lineEndPos)
 	}
 	do
 	{
-		if (svHeaderPart[lineEndPos+1] == ' ' || svHeaderPart[lineEndPos+1] == 0x09) // looking for space or HT indicating continuation line
+		if (svHeaderPart[lineEndPos+1] == ' ' || svHeaderPart[lineEndPos+1] == '\t') // looking for space or HT indicating continuation line
 		{
 			size_t newEnd = svHeaderPart.find('\n', lineEndPos+1);
 			if (newEnd != KStringView::npos)
@@ -605,47 +627,4 @@ size_t KWebIO::findEndOfHeader(KStringView svHeaderPart, size_t lineEndPos)
 
 } // findEndOfHeader
 
-/*
-//-----------------------------------------------------------------------------
-size_t KWebIO::findEndOfHeader(KStringView svHeaderPart, size_t lineEndPos)
-//-----------------------------------------------------------------------------
-{
-	kDebug(3, "({},{}) start", svHeaderPart, lineEndPos);
-
-	if (lineEndPos == KStringView::npos)
-	{
-		return KStringView::npos;
-	}
-	// Check for continuation line starting with whitespace
-	else if (svHeaderPart.size() > lineEndPos)
-	{
-		// If not last line, then keep looking!
-		do
-		{
-			if (svHeaderPart[lineEndPos+1] == ' ') // just looking to find end of continuation line
-			{
-				size_t newEnd = svHeaderPart.find('\n', lineEndPos+1);
-				if (newEnd != KStringView::npos)
-				{
-					lineEndPos = newEnd;
-				}
-				else
-				{
-					//we got junk
-					kDebug(3, "({},{}) end. Found bad header.", svHeaderPart, lineEndPos);
-					return KStringView::npos;
-				}
-			}
-			else
-			{
-				break;
-			}
-		} while (true);
-	}
-
-	kDebug(3, "({},{}) end. No problems.", svHeaderPart, lineEndPos);
-	return lineEndPos;
-
-} // findEndOfHeader
-*/
 } // endnamespace dekaf2

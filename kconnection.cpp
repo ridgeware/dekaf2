@@ -41,8 +41,52 @@
 */
 
 #include "kconnection.h"
+#include "ksystem.h"
+
 
 namespace dekaf2 {
+
+//-----------------------------------------------------------------------------
+KProxy::KProxy(const url::KDomain& domain,
+               const url::KPort& port,
+               KStringView svUser,
+               KStringView svPassword)
+//-----------------------------------------------------------------------------
+    : Domain(domain)
+    , Port(port)
+    , User(svUser)
+    , Password(svPassword)
+{
+}
+
+//-----------------------------------------------------------------------------
+KProxy::KProxy(KStringView svDomainAndPort,
+               KStringView svUser,
+               KStringView svPassword)
+//-----------------------------------------------------------------------------
+    : User(svUser)
+    , Password(svPassword)
+{
+	Port.Parse(Domain.Parse(svDomainAndPort));
+}
+
+//-----------------------------------------------------------------------------
+void KProxy::clear()
+//-----------------------------------------------------------------------------
+{
+	Domain.clear();
+	Port.clear();
+	User.clear();
+	Password.clear();
+}
+
+//-----------------------------------------------------------------------------
+bool KProxy::LoadFromEnv(KStringView svEnvVar)
+//-----------------------------------------------------------------------------
+{
+	Port.Parse(Domain.Parse(kGetEnv(svEnvVar)));
+	return !empty();
+}
 
 //-----------------------------------------------------------------------------
 KConnection& KConnection::operator=(KStream& Stream)
@@ -110,5 +154,66 @@ bool KSSLConnection::Connect(const url::KDomain& domain, const url::KPort& port,
 }
 
 
+//-----------------------------------------------------------------------------
+KConnection KConnection::Create(const KURL& URL)
+//-----------------------------------------------------------------------------
+{
+	KConnection Connection;
+
+	url::KPort Port = URL.Port;
+
+	if (Port.empty())
+	{
+		Port = std::to_string(URL.Protocol.DefaultPort());
+	}
+
+	if (URL.Protocol == url::KProtocol::HTTPS)
+	{
+		Connection = KSSLConnection(URL.Domain, Port, false);
+	}
+	else
+	{
+		Connection = KConnection(URL.Domain, Port);
+	}
+
+	return Connection;
+}
+
+//-----------------------------------------------------------------------------
+KConnection KConnection::Create(const KURL& URL, const KProxy& Proxy)
+//-----------------------------------------------------------------------------
+{
+	KConnection Connection;
+
+	url::KPort Port;
+	url::KDomain Domain;
+
+	if (Proxy.empty())
+	{
+		Port = URL.Port;
+		Domain = URL.Domain;
+	}
+	else
+	{
+		Port = Proxy.Port;
+		Domain = Proxy.Domain;
+	}
+
+	if (Port.empty())
+	{
+		Port = std::to_string(URL.Protocol.DefaultPort());
+	}
+
+	if (URL.Protocol == url::KProtocol::HTTPS)
+	{
+		Connection = KSSLConnection(Domain, Port, false);
+	}
+	else
+	{
+		Connection = KConnection(Domain, Port);
+	}
+
+	return Connection;
+}
 
 } // end of namespace dekaf2

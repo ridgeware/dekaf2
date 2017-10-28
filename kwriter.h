@@ -169,6 +169,17 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// Write a fmt::format() formatted argument list. Returns stream reference that
+	/// resolves to false on failure.
+	template<class... Args>
+	inline self_type& FormatLine(Args&&... args)
+	//-----------------------------------------------------------------------------
+	{
+		kfFormat(*this, std::forward<Args>(args)...);
+		return WriteLine();
+	}
+
+	//-----------------------------------------------------------------------------
 	/// Write a fmt::printf() formatted argument list. Returns stream reference that
 	/// resolves to false on failure.
 	template<class... Args>

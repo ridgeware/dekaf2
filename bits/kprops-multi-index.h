@@ -203,7 +203,8 @@ protected:
 		return m_Storage.template get<IndexBySeq>();
 	}
 
-	static Element s_EmptyElement;
+	static const Element s_EmptyElement;
+	static Element s_EmptyElement_v;
 
 //----------
 public:
@@ -706,7 +707,7 @@ public:
 			return it->second;
 		}
 		kDebug(2, "called for non-existing key");
-		return s_EmptyElement.second;
+		return s_EmptyElement_v.second;
 	}
 
 	//-----------------------------------------------------------------------------
@@ -912,7 +913,11 @@ public:
 }; // KProps
 
 template<class Key, class Value, bool Sequential, bool Unique>
+const typename KProps<Key, Value, Sequential, Unique>::Element
+KProps<Key, Value, Sequential, Unique>::s_EmptyElement = Element();
+
+template<class Key, class Value, bool Sequential, bool Unique>
 typename KProps<Key, Value, Sequential, Unique>::Element
-KProps<Key, Value, Sequential, Unique>::s_EmptyElement;
+KProps<Key, Value, Sequential, Unique>::s_EmptyElement_v = Element();
 
 } // end of namespace dekaf2

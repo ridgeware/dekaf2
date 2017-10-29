@@ -81,7 +81,8 @@ protected:
 	// fallback values for a index range overflow we do not
 	// care. The better solution would be to throw an exception
 	// for the index overflow case.
-	static map_value_type s_EmptyMapValue;
+	static const map_value_type s_EmptyMapValue;
+	static map_value_type s_EmptyMapValue_v;
 
 	map_type m_map;
 
@@ -959,7 +960,7 @@ public:
 			return it->second;
 		}
 		kDebug(2, "non-existing key");
-		return base_type::s_EmptyMapValue.second;
+		return base_type::s_EmptyMapValue_v.second;
 	}
 
 	//-----------------------------------------------------------------------------
@@ -1033,7 +1034,7 @@ public:
 		else
 		{
 			kWarning("called for index {}, which is out of range [0,{})", index, base_type::size());
-			return base_type::s_EmptyMapValue;
+			return base_type::s_EmptyMapValue_v;
 		}
 	}
 
@@ -1172,8 +1173,12 @@ public:
 }; // KProps
 
 template<class Key, class Value, bool Unique>
+const typename KProps_map<Key, Value, Unique>::map_value_type
+KProps_map<Key, Value, Unique>::s_EmptyMapValue = map_value_type();
+
+template<class Key, class Value, bool Unique>
 typename KProps_map<Key, Value, Unique>::map_value_type
-KProps_map<Key, Value, Unique>::s_EmptyMapValue;
+KProps_map<Key, Value, Unique>::s_EmptyMapValue_v = map_value_type();
 
 } // end of namespace dekaf2
 

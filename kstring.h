@@ -368,13 +368,13 @@ public:
 	iterator erase(iterator first, iterator last);
 
 	// borrowed from string_view
-	void remove_suffix(size_type n) { if (n > size()) { n = size(); } erase(size()-n, n); }
+	void remove_suffix(size_type n) { if DEKAF2_UNLIKELY(n > size()) { n = size(); } erase(size()-n, n); }
 	// borrowed from string_view
 	void remove_prefix(size_type n) { erase(0, n); }
 	// extension from string_view
 	bool remove_suffix(KStringView suffix)
 	{
-		if (EndsWith(suffix))
+		if DEKAF2_LIKELY(EndsWith(suffix))
 		{
 			remove_suffix(suffix.size());
 			return true;
@@ -384,7 +384,7 @@ public:
 	// extension from string_view
 	bool remove_prefix(KStringView prefix)
 	{
-		if (StartsWith(prefix))
+		if DEKAF2_LIKELY(StartsWith(prefix))
 		{
 			remove_prefix(prefix.size());
 			return true;

@@ -107,7 +107,7 @@ public:
 	typedef string_type::const_reverse_iterator const_reverse_iterator;
 	typedef string_type::reverse_iterator       reverse_iterator;
 
-	static const size_type npos = string_type::npos;
+	static constexpr size_type npos = string_type::npos;
 
 	// Iterators
 	inline iterator begin() { return m_rep.begin(); }
@@ -134,14 +134,14 @@ public:
 	inline bool empty() const { return m_rep.empty(); }
 	inline void shrink_to_fit() { m_rep.shrink_to_fit(); }
 	
-	inline const_reference operator[] (size_type pos) const { return m_rep[pos]; }
-	inline reference operator[](size_type pos) { return m_rep[pos]; }
-	inline const_reference at(size_type n) const { return m_rep.at(n); }
-	inline reference at(size_type n) { return m_rep.at(n); }
-	inline const_reference back() const { return m_rep.back(); }
-	inline reference back() { return m_rep.back(); }
-	inline const_reference front() const { return m_rep.front(); }
-	inline reference front() { return m_rep.front(); }
+	inline const_reference operator[] (size_type pos) const { return at(pos); }
+	inline reference operator[](size_type pos) { return at(pos); }
+	inline const_reference at(size_type pos) const { if DEKAF2_UNLIKELY(pos >= size()) { return s_0ch; } return m_rep.at(pos); }
+	inline reference at(size_type pos) { if DEKAF2_UNLIKELY(pos >= size()) { *s_0ch_v = '\0'; return *s_0ch_v; } return m_rep.at(pos); }
+	inline const_reference back() const { if DEKAF2_UNLIKELY(empty()) { return s_0ch; } return m_rep.back(); }
+	inline reference back() { if DEKAF2_UNLIKELY(empty()) { *s_0ch_v = '\0'; return *s_0ch_v; } return m_rep.back(); }
+	inline const_reference front() const { if DEKAF2_UNLIKELY(empty()) { return s_0ch; } return m_rep.front(); }
+	inline reference front() { if DEKAF2_UNLIKELY(empty()) { return *s_0ch_v; } return m_rep.front(); }
 
 	// Constructors
 	KString () {}
@@ -581,7 +581,10 @@ public:
 protected:
 //----------
 
-	static void log_exception(std::exception& e, KStringView sWhere);
+	static void log_exception(const std::exception& e, KStringView sWhere);
+
+	static constexpr value_type s_0ch = '\0';
+	static value_type s_0ch_v[2];
 
 	string_type m_rep;
 

@@ -50,13 +50,20 @@
 namespace dekaf2
 {
 
-const KString::size_type KString::npos;
+#if defined(__GCC__) && (DEKAF2_GCC_VERSION < 700)
+
+constexpr KString::size_type KString::npos;
+constexpr KString::value_type KString::s_0ch;
+
+#endif
+
+KString::value_type KString::s_0ch_v[2] = "\0";
 
 //------------------------------------------------------------------------------
-void KString::log_exception(std::exception& e, KStringView sWhere)
+void KString::log_exception(const std::exception& e, KStringView sWhere)
 //------------------------------------------------------------------------------
 {
-	kException(e);
+	KLog().Exception(e, sWhere);
 }
 
 //------------------------------------------------------------------------------

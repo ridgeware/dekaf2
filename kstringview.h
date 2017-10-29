@@ -397,9 +397,9 @@ public:
 	const value_type& front() const
 	//-----------------------------------------------------------------------------
 	{
-		if (empty())
+		if DEKAF2_UNLIKELY(empty())
 		{
-			// warn
+			// TODO warn
 			return s_0ch;
 		}
 		return m_rep.front();
@@ -410,9 +410,9 @@ public:
 	const value_type& back() const
 	//-----------------------------------------------------------------------------
 	{
-		if (empty())
+		if DEKAF2_UNLIKELY(empty())
 		{
-			// warn
+			// TODO warn
 			return s_0ch;
 		}
 		return m_rep.back();
@@ -481,9 +481,9 @@ public:
 	const value_type& operator[](size_t index) const
 	//-----------------------------------------------------------------------------
 	{
-		if (index >= size())
+		if DEKAF2_UNLIKELY(index >= size())
 		{
-			// warn
+			// TODO warn
 			return s_0ch;
 		}
 		return m_rep[index];
@@ -494,9 +494,9 @@ public:
 	const value_type& at(size_t index) const
 	//-----------------------------------------------------------------------------
 	{
-		if (index >= size())
+		if DEKAF2_UNLIKELY(index >= size())
 		{
-			// warn
+			// TODO warn
 			return s_0ch;
 		}
 		return m_rep[index];
@@ -509,7 +509,7 @@ public:
 	{
 		if (pos > size())
 		{
-			// warn
+			// TODO warn
 			pos = size();
 		}
 		return self_type(begin() + pos, std::min(count, size() - pos));
@@ -535,7 +535,7 @@ public:
 	{
 		if (n > size())
 		{
-			// warn
+			// TODO warn
 			n = size();
 		}
 		unchecked_remove_suffix(n);

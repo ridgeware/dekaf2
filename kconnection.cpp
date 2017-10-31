@@ -40,186 +40,180 @@
 // +-------------------------------------------------------------------------+
 */
 
+#include "kconnection.h"
+#include "ksystem.h"
 
-#include "kfdreader.h"
-#include "klog.h"
-#include <sys/stat.h>
-#include <unistd.h>
 
-namespace dekaf2
+namespace dekaf2 {
+
+//-----------------------------------------------------------------------------
+KProxy::KProxy(const url::KDomain& domain,
+               const url::KPort& port,
+               KStringView svUser,
+               KStringView svPassword)
+//-----------------------------------------------------------------------------
+    : Domain(domain)
+    , Port(port)
+    , User(svUser)
+    , Password(svPassword)
 {
-
-
-#if !defined(__GNUC__) || (DEKAF2_GCC_VERSION >= 50000)
-// gcc 4.8.5 has troubles with moves..
-//-----------------------------------------------------------------------------
-KInputFDStream::KInputFDStream(KInputFDStream&& other)
-	: m_FileDesc{other.m_FileDesc}
-	, m_FPStreamBuf{std::move(other.m_FPStreamBuf)}
-//-----------------------------------------------------------------------------
-{
-	other.m_FileDesc = -1;
-
-} // move ctor
-#endif
-
-//-----------------------------------------------------------------------------
-KInputFDStream::~KInputFDStream()
-//-----------------------------------------------------------------------------
-{
-	// do not call close on destruction. This class did not open the file
-	// but just received a handle for it
 }
 
-#if !defined(__GNUC__) || (DEKAF2_GCC_VERSION >= 50000)
 //-----------------------------------------------------------------------------
-KInputFDStream& KInputFDStream::operator=(KInputFDStream&& other)
+KProxy::KProxy(KStringView svDomainAndPort,
+               KStringView svUser,
+               KStringView svPassword)
+//-----------------------------------------------------------------------------
+    : User(svUser)
+    , Password(svPassword)
+{
+	Port.Parse(Domain.Parse(svDomainAndPort));
+}
+
+//-----------------------------------------------------------------------------
+void KProxy::clear()
 //-----------------------------------------------------------------------------
 {
-	m_FileDesc = other.m_FileDesc;
-	m_FPStreamBuf = std::move(other.m_FPStreamBuf);
-	other.m_FileDesc = -1;
+	Domain.clear();
+	Port.clear();
+	User.clear();
+	Password.clear();
+}
+
+//-----------------------------------------------------------------------------
+bool KProxy::LoadFromEnv(KStringView svEnvVar)
+//-----------------------------------------------------------------------------
+{
+	Port.Parse(Domain.Parse(kGetEnv(svEnvVar)));
+	return !empty();
+}
+
+//-----------------------------------------------------------------------------
+KConnection& KConnection::operator=(KStream& Stream)
+//-----------------------------------------------------------------------------
+{
+	if (m_bStreamIsNotOwned)
+	{
+		m_Stream.release();
+	}
+	m_bStreamIsNotOwned = true;
+	m_Stream.reset(&Stream);
 	return *this;
 }
-#endif
 
 //-----------------------------------------------------------------------------
-void KInputFDStream::open(int iFileDesc)
-//-----------------------------------------------------------------------------
-{
-	// do not close the stream here - this class did not open it
-
-	m_FileDesc = iFileDesc;
-
-	base_type::init(&m_FPStreamBuf);
-
-} // open
-
-//-----------------------------------------------------------------------------
-void KInputFDStream::close()
+bool KConnection::Connect(const url::KDomain& domain, const url::KPort& port)
 //-----------------------------------------------------------------------------
 {
-	if (m_FileDesc >= 0)
+	if (m_bStreamIsNotOwned)
 	{
-		if (::close(m_FileDesc))
-		{
-			kWarning("Cannot close file: {}", strerror(errno));
-		}
-		m_FileDesc = -1;
+		m_bStreamIsNotOwned = false;
+		m_Stream.release();
 	}
-
-} // close
+	KStringView sv = domain.Serialize();
+	std::string sd(sv.data(), sv.size());
+	sv = port.Serialize();
+	std::string sp(sv.data(), sv.size());
+	m_Stream = std::make_unique<KTCPStream>(sd, sp);
+	return m_Stream->OutStream().good();
+}
 
 //-----------------------------------------------------------------------------
-std::streamsize KInputFDStream::FileDescReader(void* sBuffer, std::streamsize iCount, void* filedesc)
+void KConnection::Disonnect()
 //-----------------------------------------------------------------------------
 {
-	std::streamsize iRead{0};
-
-	if (filedesc)
+	if (m_bStreamIsNotOwned)
 	{
-		// it is more difficult than one would expect to convert a void* into an int..
-		int fd = static_cast<int>(*static_cast<long*>(filedesc));
-		iRead = ::read(fd, sBuffer, static_cast<size_t>(iCount));
-		if (iRead < 0)
-		{
-			// do some logging
-			kWarning("cannot read from file: {} - requested {}, got {} bytes",
-			               strerror(errno),
-			               iCount,
-			               iRead);
-		}
+		m_bStreamIsNotOwned = false;
+		m_Stream.release();
 	}
+	else
+	{
+		m_Stream.reset();
+	}
+}
 
-	return iRead;
+//-----------------------------------------------------------------------------
+void KConnection::setConnection(std::unique_ptr<KStream>&& Stream)
+//-----------------------------------------------------------------------------
+{
+	if (m_bStreamIsNotOwned)
+	{
+		m_bStreamIsNotOwned = false;
+		m_Stream.release();
+	}
+	m_Stream = std::move(Stream);
+}
+
+//-----------------------------------------------------------------------------
+bool KSSLConnection::Connect(const url::KDomain& domain, const url::KPort& port, bool bVerifyCerts)
+//-----------------------------------------------------------------------------
+{
+	setConnection(std::make_unique<KSSLStream>(domain.Serialize(), port.Serialize(), bVerifyCerts));
+	return get()->OutStream().good();
 }
 
 
-#if !defined(__GNUC__) || (DEKAF2_GCC_VERSION >= 50000)
 //-----------------------------------------------------------------------------
-KInputFPStream::KInputFPStream(KInputFPStream&& other)
-    : m_FilePtr{other.m_FilePtr}
-    , m_FPStreamBuf{std::move(other.m_FPStreamBuf)}
+KConnection KConnection::Create(const KURL& URL)
 //-----------------------------------------------------------------------------
 {
-	other.m_FilePtr = nullptr;
+	KConnection Connection;
 
-} // move ctor
-#endif
+	url::KPort Port = URL.Port;
 
-//-----------------------------------------------------------------------------
-KInputFPStream::~KInputFPStream()
-//-----------------------------------------------------------------------------
-{
-	// do not call close on destruction. This class did not open the file
-	// but just received a handle for it
-}
-
-#if !defined(__GNUC__) || (DEKAF2_GCC_VERSION >= 50000)
-//-----------------------------------------------------------------------------
-KInputFPStream& KInputFPStream::operator=(KInputFPStream&& other)
-//-----------------------------------------------------------------------------
-{
-	m_FilePtr = other.m_FilePtr;
-	m_FPStreamBuf = std::move(other.m_FPStreamBuf);
-	other.m_FilePtr = nullptr;
-	return *this;
-}
-#endif
-
-//-----------------------------------------------------------------------------
-void KInputFPStream::open(FILE* iFilePtr)
-//-----------------------------------------------------------------------------
-{
-	// do not close the stream here - this class did not open it
-
-	m_FilePtr = iFilePtr;
-
-	base_type::init(&m_FPStreamBuf);
-
-} // open
-
-//-----------------------------------------------------------------------------
-void KInputFPStream::close()
-//-----------------------------------------------------------------------------
-{
-	if (m_FilePtr)
+	if (Port.empty())
 	{
-		if (std::fclose(m_FilePtr))
-		{
-			kWarning("Cannot close file: {}", strerror(errno));
-		}
-		m_FilePtr = nullptr;
+		Port = std::to_string(URL.Protocol.DefaultPort());
 	}
 
-} // close
-
-//-----------------------------------------------------------------------------
-std::streamsize KInputFPStream::FilePtrReader(void* sBuffer, std::streamsize iCount, void* fileptr)
-//-----------------------------------------------------------------------------
-{
-	std::streamsize iRead{0};
-
-	if (fileptr)
+	if (URL.Protocol == url::KProtocol::HTTPS)
 	{
-		FILE** fp = static_cast<FILE**>(fileptr);
-		if (fp && *fp)
-		{
-			iRead = static_cast<std::streamsize>(std::fread(sBuffer, 1, static_cast<size_t>(iCount), *fp));
-			if (iRead < 0)
-			{
-				// do some logging
-				kWarning("KInputFPStream: cannot read from file: {} - requested {}, got {} bytes",
-				               strerror(errno),
-				               iCount,
-				               iRead);
-			}
-		}
+		Connection = KSSLConnection(URL.Domain, Port, false);
+	}
+	else
+	{
+		Connection = KConnection(URL.Domain, Port);
 	}
 
-	return iRead;
+	return Connection;
 }
 
+//-----------------------------------------------------------------------------
+KConnection KConnection::Create(const KURL& URL, const KProxy& Proxy)
+//-----------------------------------------------------------------------------
+{
+	KConnection Connection;
+
+	url::KPort Port;
+	url::KDomain Domain;
+
+	if (Proxy.empty())
+	{
+		Port = URL.Port;
+		Domain = URL.Domain;
+	}
+	else
+	{
+		Port = Proxy.Port;
+		Domain = Proxy.Domain;
+	}
+
+	if (Port.empty())
+	{
+		Port = std::to_string(URL.Protocol.DefaultPort());
+	}
+
+	if (URL.Protocol == url::KProtocol::HTTPS)
+	{
+		Connection = KSSLConnection(Domain, Port, false);
+	}
+	else
+	{
+		Connection = KConnection(Domain, Port);
+	}
+
+	return Connection;
+}
 
 } // end of namespace dekaf2
-

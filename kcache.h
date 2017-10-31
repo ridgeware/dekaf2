@@ -326,7 +326,7 @@ public:
 private:
 //----------
 
-	std::shared_mutex m_Mutex;
+	mutable std::shared_mutex m_Mutex;
 
 }; // KSharedCache
 

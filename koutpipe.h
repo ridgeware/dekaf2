@@ -39,18 +39,19 @@
 // |\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/ |
 // +-------------------------------------------------------------------------+
 */
+
 #pragma once
 
-/// @file kbaseshell.h
-/// basic shell I/O class
-
-#include "kstring.h"
+#include "bits/kbasepipe.h"
+#include "kfdstream.h"
 
 namespace dekaf2
+
 {
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class KBaseShell
+/// Execute another process and attach write pipe to its std::in
+class KOutPipe : public KFDWriter, public KBasePipe
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -58,51 +59,50 @@ class KBaseShell
 public:
 //------
 
+	/*
+	 * The sProgram is a KString of this format:
+	 * path_to_program arg1 arg2 arg3...
+	 * where path_to_program will also be handed in as argv[0]
+	 * If spaces are needed within an arg, use " :
+	 * path_to_program arg1 "arg2 with spaces" arg3
+	 */
+
 	//-----------------------------------------------------------------------------
 	/// Default Constructor
-	KBaseShell ()
+	KOutPipe();
 	//-----------------------------------------------------------------------------
-	{}
+
+	//-----------------------------------------------------------------------------
+	/// Open Constructor
+	KOutPipe(KStringView sProgram);
+	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// Default Virtual Destructor
-	virtual ~KBaseShell ();
+	virtual ~KOutPipe();
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// Executes given command via a shell pipe saving FILE* pipe in class member
-	virtual bool Open (const KString& sCommand) = 0;
+	/// Opens A WritePipe
+	virtual bool Open(KStringView sProgram);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// Closes pipe saving exit code.
-	virtual int  Close();
+	/// Closes A WritePipe
+	virtual int Close();
 	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// Get error code, 0 indicates no errors
-	int GetErrno()
-	//-----------------------------------------------------------------------------
-	{
-		return m_iExitCode;
-	}
-
-	//-----------------------------------------------------------------------------
-	/// Allows KPipeReader to be passed where File* can be.
-	operator FILE*()
-	//-----------------------------------------------------------------------------
-	{
-		return m_pipe;
-	}
 
 //--------
-protected:
+private:
 //--------
 
-	FILE*        m_pipe{nullptr};
-	int          m_iExitCode{0};
+	//-----------------------------------------------------------------------------
+	/// Opens a pipe for writing
+	bool OpenWritePipe(KStringView sProgram);
+	//-----------------------------------------------------------------------------
 
+	int   m_writePdes[2]{-1,-1};
 
-}; // class KPIPE
+}; // class KOutPipe
 
-} // end of namespace DEKAF2
+} // end namespace dekaf2

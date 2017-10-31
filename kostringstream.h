@@ -49,6 +49,7 @@
 #include <iostream>
 #include <sys/types.h>
 
+#include "kstreambuf.h"
 #include "kwriter.h"
 #include "kformat.h"
 

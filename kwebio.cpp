@@ -42,408 +42,444 @@
 
 #include "kwebio.h"
 #include "klog.h"
-
+#include "khttp.h"
 #include "kstringutils.h"
 
 namespace dekaf2 {
 
+constexpr KStringView KWebIO::svBrokenHeader;
+
 //-----------------------------------------------------------------------------
-bool KWebIO::addToResponseHeader(KString& sHeaderPart)
+KStringView KWebIO::Parse(KStringView svBuffer, bool bParseCookies)
 //-----------------------------------------------------------------------------
 {
-	kDebug(3, "KWebIO::addToResponseHeader({}) start", sHeaderPart);
-	// Garbage in garbage out!
-	size_t iCurrentPos = 0;
-	// Check if we're holding onto an incomplete header
-	if (!m_sPartialHeader.empty())
+	if (DEKAF2_LIKELY(m_parseState == headerFinished))
 	{
-		sHeaderPart = std::move(m_sPartialHeader) + sHeaderPart; // append new content to previous partial content
-		m_sPartialHeader.clear(); // empty partial header
+		return svBuffer;
 	}
-	// Process up to 1 header at a time
-	do
+
+	kDebug(3, "({}) start", svBuffer);
+	size_t lineEndPos = KStringView::npos;
+	size_t nextEnd = KStringView::npos;
+
+	// This way we can know if are looking from the start of svBuffer
+	// Or continuing if looking for EOL
+	bool bFresh = true;
+
+	// Look at each character once when parsing. Unless \n is found as second letter
+	// in the svBuffer. Then the char right before it is checked for \r
+	// find... methods use SSE optimizations.
+	while (!svBuffer.empty())
 	{
-		size_t colonPos = sHeaderPart.find(':', iCurrentPos);
-		size_t lineEndPos = sHeaderPart.find('\n', iCurrentPos);
-		size_t nextEnd = findEndOfHeader(sHeaderPart, lineEndPos);
-		KString sHeaderName, sHeaderValue;
-
-		// edge case, blank (\r)\n line comes in by itself
-		if (sHeaderPart.StartsWith("\r\n") || sHeaderPart.StartsWith("\n"))
+		// Calculate this once at the start of every loop, required for logic
+		size_t leftoverSize = m_sPartialHeader.size();
+		switch(m_parseState)
 		{
-			// add it to the last header
-			KString& lastHeaderValue = m_responseHeaders.at(m_responseHeaders.size()-1).second.second;
-			lastHeaderValue += (sHeaderPart.StartsWith("\r\n")) ? "\r\n" :"\n";
-			m_bHeaderComplete = true;
-			// Before body stream, output header if desired
-			if (m_bEchoHeader)
-			{
-				printResponseHeader();
-			}
-			// What if we have content beyond header in stream?
-			if (lineEndPos < sHeaderPart.size())
-			{
-				KString leftOvers = sHeaderPart.substr(lineEndPos + 1, sHeaderPart.size() -lineEndPos-1);
-				if (!leftOvers.empty())
+			case KParseState::headerFinished:
+				return svBuffer;
+				break;
+			//=================================================================
+			case KParseState::needStatus:
+			//=================================================================
+				// Handle if first line is not status line
+				if (svBuffer[0] == '\n' || svBuffer.StartsWith("\r\n"))
+				{}
+				else
 				{
-					addToResponseBody(leftOvers);
+					if (svBuffer.StartsWith("HTTP/"))
+					{
+						// Find end of Status Line
+						lineEndPos = svBuffer.find('\n', 5);
+						if (DEKAF2_UNLIKELY(lineEndPos == KStringView::npos))
+						{
+							m_sPartialHeader = svBuffer;
+						}
+
+						// HTTP/1.1 200 OK
+						// Always HTTP/<version> where version is 3 char
+						// Status code always 3 digits
+						// Status variable, but assume to end
+						// Start positions of elements
+						enum {
+							versionPos    = 5,
+							statusCodePos = 9,
+							statusPos     = 13,
+						};
+
+						if (lineEndPos > statusPos)
+						{
+							// Grab status line given assumed positions
+							m_sResponseVersion = svBuffer.substr(versionPos, 3);
+							KStringView responseCode = svBuffer.substr(statusCodePos, 3);
+							m_sResponseStatus = svBuffer.substr(statusPos, lineEndPos-statusPos);
+							// TODO add conversions for string views
+							KString hs(responseCode);
+							m_iResponseStatusCode = kToUShort(hs);
+						}
+						// update beginning of line to process next line
+						svBuffer.remove_prefix(lineEndPos - leftoverSize + 1);
+						m_sPartialHeader.clear();
+
+					}
+					m_parseState = needColon;
 				}
-			}
-			break;
-		}
-
-		// not terminated by newline, save until newline is found
-		if (nextEnd == KString::npos)
-		{
-			lineEndPos = sHeaderPart.size();
-			m_sPartialHeader += sHeaderPart.substr(iCurrentPos , lineEndPos-iCurrentPos);
-			break;
-		}
-
-		// If first header line, try to parse HTTP status header
-		if (m_responseHeaders.empty()) // no headers parsed yet, first full line not reached
-		{
-			// HTTP/1.1 200 OK
-			// Always HTTP/<version> where version is 3 char
-			// Status code always 3 digits
-			// Status variable, but assume to end
-			if (sHeaderPart.StartsWith("HTTP/"))
-			{
-				// Start positions of elements
-				size_t versionPos = 5;
-				size_t statusCodePos = 9;
-				size_t statusPos = 13;
-				// Grab status line given assumed positions
-				m_sResponseVersion = sHeaderPart.substr(versionPos, 3);
-				KString responseCode = sHeaderPart.substr(statusCodePos, 3);
-				m_sResponseStatus = sHeaderPart.substr(statusPos, lineEndPos-statusPos);
-				m_iResponseStatusCode = kToUShort(responseCode);
-				//update beginning of line to process next line
-				iCurrentPos = lineEndPos+1;
-				continue;
-			}
-		}
-		// last header, try to grab extra newline as part of last header
-		if (isLastHeader(sHeaderPart, nextEnd))
-		{
-			nextEnd = (sHeaderPart.find('\r') == KString::npos) ? nextEnd+1 : nextEnd+2;
-			if (colonPos != KString::npos) // valid
-			{
-				sHeaderName = sHeaderPart.substr(iCurrentPos, colonPos-iCurrentPos);
-				sHeaderValue = sHeaderPart.substr(colonPos + 1, nextEnd-colonPos);
-			}
-			else // invalid
-			{
-				sHeaderName = sGarbageHeader;
-				lineEndPos = (nextEnd != KString::npos) ? nextEnd : sHeaderPart.size() ;
-				sHeaderValue = sHeaderPart.substr(iCurrentPos , lineEndPos-iCurrentPos);
-			}
-			// Offload logic of adding so lookup is case insensitve while data is not
-			addResponseHeader(std::move(sHeaderName), std::move(sHeaderValue));
-			m_bHeaderComplete = true;
-			// Before body stream, output header if desired
-			if (m_bEchoHeader)
-			{
-				printResponseHeader();
-			}
-			// What if we have content beyond header in stream?
-			if (lineEndPos < sHeaderPart.size())
-			{
-				KString leftOvers = sHeaderPart.substr(lineEndPos + 1, sHeaderPart.size() -lineEndPos-1);
-				if (!leftOvers.empty())
+				break;
+			//=================================================================
+			case KParseState::needColon:
+			//=================================================================
+				// edge case, blank \n or \r\n line comes in by itself
+				m_iColonPos = svBuffer.find_first_of(":\n");
+				if (DEKAF2_UNLIKELY(m_iColonPos != KStringView::npos && svBuffer[m_iColonPos] == '\n'))
 				{
-					addToResponseBody(leftOvers);
-				}
-			}
-			break;
-		}
-		//not last header, valid
-		else if (colonPos != KString::npos && lineEndPos != KString::npos && colonPos < lineEndPos)
-		{
-			lineEndPos = nextEnd;
-			// iCurrentPos is beginning of line, lineEndPos is end of line, colonPos is end of header name for line
-			sHeaderName = sHeaderPart.substr(iCurrentPos, colonPos-iCurrentPos);
-			sHeaderValue = sHeaderPart.substr(colonPos + 1, lineEndPos-colonPos);
-			addResponseHeader(std::move(sHeaderName), std::move(sHeaderValue));
-			iCurrentPos = lineEndPos+1; //update beginning of line
-			continue;
-		}
-		//not last header, invalid
-		else
-		{
-			lineEndPos = (nextEnd != KString::npos) ? nextEnd : sHeaderPart.size();
-			sHeaderValue = sHeaderPart.substr(iCurrentPos, lineEndPos-iCurrentPos);
-			addResponseHeader(std::move(sGarbageHeader), std::move(sHeaderValue));
-			iCurrentPos = lineEndPos+1;//update beginning of line
-			continue;
-		}
-	} while (iCurrentPos < sHeaderPart.size()); // until end of given content is reached
+					if (m_iColonPos == 0) // starts with \n
+					{
+						if (leftoverSize == 0)
+						{
+							// add it to the last header
+							KString& lastHeaderValue = m_responseHeaders.at(m_responseHeaders.size()-1).second;
+							lastHeaderValue += '\n';
+							m_parseState = headerFinished;
+							svBuffer.remove_prefix(1);
+							return svBuffer;
+						}
+					}
+					else if (m_iColonPos == 1 && svBuffer[0] == '\r') // starts with \r\n
+					{
+						if (leftoverSize == 0)
+						{
+							// add it to the last header
+							KString& lastHeaderValue = m_responseHeaders.at(m_responseHeaders.size()-1).second;
+							lastHeaderValue += "\r\n";
+							m_parseState = headerFinished;
+							svBuffer.remove_prefix(2);
+							return svBuffer;
+						}
+					}
 
-	kDebug(3, "KWebIO::addToResponseHeader({}}) end", sHeaderPart);
-	return true;
+					//Garbage header, no colon
+					nextEnd = findEndOfHeader(svBuffer, m_iColonPos);
+					if (nextEnd == KStringView::npos)
+					{
+						// Continuation line must be in value, not name
+						m_sPartialHeader += svBuffer;
+						m_parseState = needEOL;
+						return svBuffer;
+					}
+
+					lineEndPos = nextEnd += leftoverSize;
+					m_iColonPos = KStringView::npos;
+					addResponseHeader(svBuffer, m_iColonPos, lineEndPos, bParseCookies);
+					svBuffer.remove_prefix(lineEndPos - leftoverSize + 1);
+					m_sPartialHeader.clear();// remove all stored garbage, already saved
+				}
+				else if (DEKAF2_LIKELY(m_iColonPos != KStringView::npos))
+				{
+					m_iColonPos += leftoverSize;
+					m_parseState = needEOL;
+					break;
+				}
+				else
+				{
+					// save for later
+					m_sPartialHeader += svBuffer;
+					return m_sPartialHeader;
+				}
+				break;
+
+			//=================================================================
+			case KParseState::needEOL:
+			//=================================================================
+				if (bFresh)	lineEndPos = svBuffer.find('\n');
+				else lineEndPos = svBuffer.find('\n', m_iColonPos - leftoverSize);
+				if (lineEndPos == (svBuffer.size() - 1))
+				{
+					// Found EOL, can't verify no continuation line because data stops
+					m_parseState = possibleEOL;
+					m_sPartialHeader += svBuffer;
+					return svBuffer;
+				}
+				nextEnd = findEndOfHeader(svBuffer, lineEndPos);
+				if (nextEnd != KStringView::npos)
+				{
+					lineEndPos = nextEnd;
+					lineEndPos += leftoverSize;
+					// Add header
+					addResponseHeader(svBuffer, m_iColonPos, lineEndPos, bParseCookies);
+					// Update state and remove what is processed
+					m_parseState = needColon;
+					svBuffer.remove_prefix(lineEndPos - leftoverSize + 1);
+					m_sPartialHeader.clear();
+					break;
+				}
+				else
+				{
+					m_sPartialHeader += svBuffer;
+					return svBuffer;
+				}
+				break;
+
+			//=================================================================
+			case KParseState::possibleEOL:
+			//=================================================================
+				if (svBuffer[0] != ' ' || svBuffer[0] == '\t') // space or HT mean continuation
+				{
+					// Add m_sPartialHeader as a header
+					lineEndPos = leftoverSize - 1;
+					addResponseHeader(svBuffer, m_iColonPos, lineEndPos, bParseCookies);
+					m_parseState = needColon;
+					svBuffer.remove_prefix(lineEndPos - leftoverSize + 1); // only need to remove from underlying KString
+					m_sPartialHeader.clear();
+					break;
+				}
+				lineEndPos = svBuffer.find('\n');
+				if (lineEndPos == (svBuffer.size() - 1))
+				{
+					// Found EOL, can't verify no continuation line because data stops
+					m_sPartialHeader += svBuffer;
+					return svBuffer;
+				}
+
+				nextEnd = findEndOfHeader(svBuffer, lineEndPos);
+
+				if (nextEnd != KStringView::npos)
+				{
+					lineEndPos = nextEnd;
+					lineEndPos += leftoverSize;
+
+					// Add header
+					addResponseHeader(svBuffer, m_iColonPos, lineEndPos, bParseCookies);
+					// Update state and remove what is processed
+					m_parseState = needColon;
+					svBuffer.remove_prefix(lineEndPos - leftoverSize+ 1);
+					m_sPartialHeader.remove_prefix(lineEndPos + 1);
+					svBuffer = m_sPartialHeader;
+				}
+				else
+				{
+					// save for later
+					m_sPartialHeader += svBuffer;
+					m_parseState = needEOL;
+					return m_sPartialHeader;
+				}
+				break;
+		};
+		bFresh = false; // look for EOL from a continuation point
+	}
+
+	return svBuffer;
 
 } // addToResponseHeader
 
-//-----------------------------------------------------------------------------
-bool KWebIO::addToResponseBody(KString& sBodyPart)
-//-----------------------------------------------------------------------------
-{
-	if (m_bEchoBody)
-	{
-		m_outStream.Write(sBodyPart);
-	}
-	return true;
-
-} // addToResponseBody
 
 //-----------------------------------------------------------------------------
-bool KWebIO::printResponseHeader()
+bool KWebIO::Serialize(KOutStream& outStream)
 //-----------------------------------------------------------------------------
 {
 	// Dont forget status line
 	if (m_iResponseStatusCode > 0)
 	{
 		//HTTP/1.1 200 OK
-		m_outStream.Write("HTTP/");
-		m_outStream.Write(m_sResponseVersion);
-		m_outStream.Write(' ');
-		m_outStream.Write(std::to_string(m_iResponseStatusCode));
-		m_outStream.Write(' ');
-		m_outStream.Write(m_sResponseStatus);
-		m_outStream.WriteLine();
+		outStream.Write("HTTP/");
+		outStream.Write(m_sResponseVersion);
+		outStream.Write(' ');
+		outStream.Write(std::to_string(m_iResponseStatusCode));
+		outStream.Write(' ');
+		outStream.Write(m_sResponseStatus);
+		outStream.WriteLine();
 	}
 	auto cookieIter = m_responseCookies.begin();
 	for (const auto& iter : m_responseHeaders)
 	{
-		if (iter.first == sGarbageHeader)
+		if (iter.first == svBrokenHeader)
 		{
-			m_outStream.WriteLine(iter.second.second);
+			outStream.WriteLine(iter.second);
 		}
-		else if (iter.first == CookieHeader)
+		else if (iter.first == KHTTP::KHeader::request_cookie)
 		{
-			m_outStream.Write(iter.second.first);
-			m_outStream.Write(':');
+			outStream.Write(iter.first);
+			outStream.Write(':');
 			bool isFirst = true;
 			for (;cookieIter != m_responseCookies.end(); ++cookieIter)
 			{
-				if (cookieIter->second.first.empty()) // empty means multiple cookie fields in header, separator
+				if (cookieIter->first.empty()) // empty means multiple cookie fields in header, separator
 				{
 					++cookieIter;
 					break;
 				}
 				if (!isFirst)
 				{
-					m_outStream.Write(';');
+					outStream.Write(';');
 				}
-				m_outStream.Write(cookieIter->second.first);
-				if (!cookieIter->second.second.empty())
+				outStream.Write(cookieIter->first);
+				if (!cookieIter->second.empty())
 				{
-					m_outStream.Write('=');
-					m_outStream.Write(cookieIter->second.second);
+					outStream.Write('=');
+					outStream.Write(cookieIter->second);
 				}
 				isFirst = false;
 			}
 		}
 		else
 		{
-			m_outStream.Write(iter.second.first);
-			m_outStream.Write(':');
-			m_outStream.Write(iter.second.second);
+			outStream.Write(iter.first);
+			outStream.Write(':');
+			outStream.Write(iter.second);
 		}
 	}
+
 	return true;
 
 } // printResponseHeader
 
-//-----------------------------------------------------------------------------
-const KString& KWebIO::getResponseHeader(const KString& sHeaderName) const
-//-----------------------------------------------------------------------------
-{
-	KString sHeaderKey(sHeaderName.ToLower());
-	sHeaderKey.Trim();
-	const KHeaderPair& header(m_responseHeaders.Get(sHeaderKey));
-	const KString& sHeaderVal = header.second;
-	return sHeaderVal;
-
-} // getResponseHeader
-
-//-----------------------------------------------------------------------------
-const KString& KWebIO::getResponseCookie(const KString& sCookieName) const
-//-----------------------------------------------------------------------------
-{
-	KString sCookieKey(sCookieName.ToLower());
-	sCookieKey.Trim();
-	return m_responseCookies.Get(sCookieKey).second;
-
-} // getResponseCookie
 
 //-----------------------------------------------------------------------------
 /// This method takes care of the logic for storing case sensitive data so
 /// that it can be looked up in a case insensitive fashion.
-bool KWebIO::addResponseHeader(const KString&& sHeaderName, const KString&& sHeaderValue)
+/// It also splits up the cookie header.
+bool KWebIO::addResponseHeader(KStringView svBuffer, size_t colonPos, size_t lineEndPos, bool bParseCookies)
 //-----------------------------------------------------------------------------
 {
-	kDebug(3, "KWebIO::addResponseHeader({},{}}) start", sHeaderName, sHeaderValue);
-	KString sHeaderKey(sHeaderName.ToLower());
-	sHeaderKey.Trim();
-	if (sHeaderKey == CookieHeader)
+	//kDebug(3, "name {}, value {} start", sHeaderName, sHeaderValue);
+
+	m_sPartialHeader += svBuffer;
+	svBuffer = m_sPartialHeader;
+
+	// "Garbage" header edge case
+	if (DEKAF2_UNLIKELY(
+	    colonPos == KString::npos || lineEndPos == KString::npos || colonPos >= lineEndPos))
+	{
+		KStringView sHeaderValue = svBuffer.substr(0, lineEndPos);
+		m_responseHeaders.Add(svBrokenHeader, sHeaderValue);
+		kDebug(3, "({},{}) end. Garbage header added.", svBrokenHeader, sHeaderValue);
+		return true;
+	}
+
+	KStringView sHeaderName = svBuffer.substr(0, colonPos);
+	KStringView sHeaderValue = svBuffer.substr(colonPos + 1, lineEndPos-colonPos);
+	if (DEKAF2_LIKELY(!bParseCookies || !kCaseEqualTrimLeft(sHeaderName, KHTTP::KHeader::request_cookie)))
+	{
+		// most headers
+		m_responseHeaders.Add(sHeaderName, sHeaderValue);
+	}
+	else
 	{
 		// ALWAYS STARTS A NEW COOKIE HEADER, only full headers can end up here.
 		if (!m_responseCookies.empty())
 		{
-			m_responseCookies.Add(KString{}, KHeaderPair(KString{},KString{}));
-		}
-		m_responseHeaders.Add(std::move(sHeaderKey), KHeaderPair(std::move(sHeaderName), KString{})); // don't forget cookie header:
-
-		// parse cookies and add them one by one.
-		size_t startPos = 0;
-		size_t equalPos = sHeaderValue.find('=', startPos);
-		size_t semiPos = sHeaderValue.find(';', startPos);
-		size_t endPos = sHeaderValue.find_last_not_of(" ;\r\n"); // account for extra whitespace at end of line
-		endPos = sHeaderValue.find(';', endPos);
-
-		KString sCookieName = sHeaderValue.substr(startPos, equalPos - startPos);
-		KString sCookieKey(sCookieName.ToLower());
-		sCookieKey.Trim();
-		KString sCookieValue = sHeaderValue.substr(equalPos + 1, semiPos - equalPos -1);
-
-		if (equalPos == KString::npos) // not a single '=', no valid cookies
-		{
-			KLog().debug(3, "KWebIO::addResponseHeader({},{}}) end. Invalid cookie found.", sHeaderName, sHeaderValue);
-			m_responseCookies.Add(std::move(sCookieKey), KHeaderPair(std::move(sHeaderValue), KString{}));// for serialization just put on what is there
-			return false; // invalid cookie format
+			m_responseCookies.Add(KString{}, KString{});
 		}
 
-		while (semiPos != KString::npos && equalPos != KString::npos) // account for n cookies
+		m_responseHeaders.Add(std::move(sHeaderName), KString{}); // don't forget cookie header:
+
+		bool needEquals = true;
+		bool bFresh = true; // detect empty cookie value
+		size_t equalPos = KStringView::npos;
+		size_t semiPos = KStringView::npos;
+		while (!sHeaderValue.empty())
 		{
-			sCookieName = sHeaderValue.substr(startPos, equalPos - startPos);
-			sCookieKey = KString(sCookieName.ToLower()); // need a new instance of this KString
-			sCookieKey.Trim();
-			if (semiPos != KString::npos && semiPos == endPos) // If this ends the cookies don't forget to take to EOL.
+			//=================================================================
+			if (needEquals)
+			//=================================================================
 			{
-				sCookieValue = sHeaderValue.substr(equalPos + 1, sHeaderValue.size()-equalPos -1);
-				KLog().debug(3, "KWebIO::addResponseHeader({},{}) end", sHeaderName, sHeaderValue);
-				m_responseCookies.Add(std::move(sCookieKey), KHeaderPair(sCookieName, sCookieValue));
-				return true;
-			}
-			else
-			{
-				sCookieValue = sHeaderValue.substr(equalPos + 1, semiPos - equalPos -1);
-				m_responseCookies.Add(std::move(sCookieKey), KHeaderPair(std::move(sCookieName), std::move(sCookieValue)));
-			}
-			// Update markets for next cookie
-			startPos = semiPos+1;
-			equalPos = sHeaderValue.find('=', startPos);
-			semiPos = sHeaderValue.find(';', startPos);
-		}
-
-		if (equalPos != KString::npos && semiPos == KString::npos) //does not end with ';'
-		{
-			sCookieName = sHeaderValue.substr(startPos, equalPos - startPos);
-			sCookieKey = KString(sCookieName); // need a new instance of this KString
-			sCookieKey.MakeLower().Trim();
-			sCookieValue = sHeaderValue.substr(equalPos + 1, sHeaderValue.size() - equalPos); // don't forget newline
-			m_responseCookies.Add(std::move(sCookieKey), KHeaderPair(std::move(sCookieName), std::move(sCookieValue)));
-		}
-		else if (semiPos == KString::npos && equalPos == KString::npos) //ends with invalid cookie
-		{
-			// TODO add rest of header
-			sCookieName = sHeaderValue.substr(startPos, sHeaderValue.size() - startPos);
-			sCookieKey = KString(sCookieName); // need a new instance of this KString
-			sCookieKey.MakeLower().Trim();
-			KLog().debug(3, "KWebIO::addResponseHeader({},{}) end. Ended with invalid cookie", sHeaderName, sHeaderValue);
-			m_responseCookies.Add(std::move(sCookieKey), KHeaderPair(std::move(sCookieName), KString{}));
-			return true;
-		}
-		else
-		{
-			KLog().debug(3, "KWebIO::addResponseHeader({},{}) end. Found malformed cookie.", sHeaderName, sHeaderValue);
-			return false; // last cookie is malformed
-		}
-	}
-	else
-	{
-		// most headers
-		m_responseHeaders.Add(std::move(sHeaderKey), KHeaderPair(std::move(sHeaderName), std::move(sHeaderValue)));
-	}
-	KLog().debug(3, "KWebIO::addResponseHeader({},{}) end. Non cookie header added.", sHeaderName, sHeaderValue);
-	return true;
-
-} // addResponseHeader
-
-//-----------------------------------------------------------------------------
-bool KWebIO::isLastHeader(const KString& sHeaderPart, size_t lineEndPos)
-//-----------------------------------------------------------------------------
-{
-	KLog().debug(3, "KWebIO::isLastHeader({},{}) start", sHeaderPart, lineEndPos);
-	// Check if there is more to the String
-	if (sHeaderPart.size() > lineEndPos)
-	{
-		// Check if last line
-		char nextChar = sHeaderPart[lineEndPos+1];
-		if (nextChar == '\n')
-		{
-			KLog().debug(3, "KWebIO::isLastHeader{},{}) end. Last UNIX header found.", sHeaderPart, lineEndPos);
-			return true;
-		}
-		//Sometimes the last line is \r\n ... winblows
-		else if (nextChar == '\r')//
-		{
-			if (sHeaderPart.size() > lineEndPos + 1)
-			{
-				if (sHeaderPart[lineEndPos+2] == '\n')
+				equalPos = sHeaderValue.find_first_of("=;");
+				if (equalPos == KStringView::npos)
 				{
-					KLog().debug(3, "KWebIO::isLastHeader({},{}) end. Last Windows Header Found", sHeaderPart, lineEndPos);
+					// If it's just whitespace, add to last cookie,
+					// else there is junk at the end.
+					size_t whitespace = sHeaderValue.find_first_not_of(" \r\n\t");
+					if (whitespace == KStringView::npos && !bFresh)
+					{
+						KString& lastCookieValue = m_responseCookies.at(m_responseCookies.size()-1).second;
+						lastCookieValue += ';'; // can only get here if there are leftovers after ;
+						lastCookieValue += sHeaderValue;
+						return true;
+					}
+					// bad cookie take to eol
+					kDebug(3, "({},{}) end. Ended with invalid cookie", sHeaderName, sHeaderValue);
+					m_responseCookies.Add(sHeaderValue, KString{});
+					return false;
+				}
+				else if (sHeaderValue[equalPos] == ';')
+				{
+					// Invalid cookie, terminated
+					KStringView sCookieName = sHeaderValue.substr(0, equalPos - 1);
+					kDebug(3, "({},{}) Found invalid cookie", sHeaderName, sHeaderValue);
+					m_responseCookies.Add(sCookieName, KString{});
+					sHeaderValue.remove_prefix(equalPos + 1);
+					bFresh = false;
+					continue;
+				}
+
+				needEquals = false;
+				bFresh = false;
+				continue;
+
+			}
+			//=================================================================
+			else // look for semi or take to eol
+			//=================================================================
+			{
+				semiPos  = sHeaderValue.find(';', equalPos);
+				if (semiPos == KStringView::npos)
+				{
+					// last cookie without semi, take to eol
+					KStringView sCookieName  = sHeaderValue.substr(0, equalPos);
+					KStringView sCookieValue = sHeaderValue.substr(equalPos + 1, sHeaderValue.size() - equalPos); // don't forget newline
+					m_responseCookies.Add(sCookieName, sCookieValue);
 					return true;
 				}
+				KStringView sCookieName  = sHeaderValue.substr(0, equalPos);
+				KStringView sCookieValue = sHeaderValue.substr(equalPos + 1, semiPos - equalPos - 1);
+				m_responseCookies.Add(sCookieName, sCookieValue);
+				needEquals = true;
+				sHeaderValue.remove_prefix(semiPos + 1);
+				bFresh = false;
+				continue;
 			}
 		}
 	}
-	KLog().debug(3, "KWebIO::isLastHeader({},{}) end. Last header NOT found.", sHeaderPart, sHeaderPart);
-	return false;
+	return true; // no errors detected
+} // addResponseHeader
 
-} // isLastHeader
 
 // Return current end of header line if not multiline header
 // if multiline header return end pos of multi line header
 // or NPOS if multiline is found that doesn't end in newline, indicating a junk end of stream, but not end of header.
 //-----------------------------------------------------------------------------
-size_t KWebIO::findEndOfHeader(const KString& sHeaderPart, size_t lineEndPos)
+size_t KWebIO::findEndOfHeader(KStringView svHeaderPart, size_t lineEndPos)
 //-----------------------------------------------------------------------------
 {
-	KLog().debug(3, "KWebIO::findEndOfHeader({},{}) start", sHeaderPart, lineEndPos);
-	if (lineEndPos == KString::npos)
+	kDebug(3, "({},{}) start", svHeaderPart, lineEndPos);
+
+	if (lineEndPos == KStringView::npos)
 	{
-		return KString::npos;
+		return KStringView::npos;
 	}
-	// Check for continuation line starting with whitespace
-	else if (sHeaderPart.size() > lineEndPos)
+	do
 	{
-		// If not last line, then keep looking!
-		do
+		if (svHeaderPart[lineEndPos+1] == ' ' || svHeaderPart[lineEndPos+1] == '\t') // looking for space or HT indicating continuation line
 		{
-			if (sHeaderPart[lineEndPos+1] == ' ') // just looking to find end of continuation line
+			size_t newEnd = svHeaderPart.find('\n', lineEndPos+1);
+			if (newEnd != KStringView::npos)
 			{
-				size_t newEnd = sHeaderPart.find('\n', lineEndPos+1);
-				if (newEnd != KString::npos)
-				{
-					lineEndPos = newEnd;
-				}
-				else
-				{
-					//we got junk
-					KLog().debug(3, "KWebIO::findEndOfHeader({},{}) end. Found bad header.", sHeaderPart, lineEndPos);
-					return KString::npos;
-				}
+				lineEndPos = newEnd;
 			}
 			else
 			{
-				break;
+				//we got junk
+				kDebug(3, "({},{}) end. Found bad header.", svHeaderPart, lineEndPos);
+				return KStringView::npos;
 			}
-		} while (true);
-	}
-	KLog().debug(3, "KWebIO::findEndOfHeader({},{}) end. No problems.", sHeaderPart, lineEndPos);
+		}
+		else
+		{
+			break;
+		}
+	} while (true);
+
+	kDebug(3, "({},{}) end. No problems.", svHeaderPart, lineEndPos);
 	return lineEndPos;
+
 } // findEndOfHeader
 
 } // endnamespace dekaf2

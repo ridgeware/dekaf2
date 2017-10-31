@@ -40,35 +40,23 @@
 // +-------------------------------------------------------------------------+
 */
 
-#include "klog.h"
-#include "kbaseshell.h"
+#include "khttp_method.h"
 
-namespace dekaf2
-{
+namespace dekaf2 {
+namespace detail {
+namespace http {
 
-//-----------------------------------------------------------------------------
-KBaseShell::~KBaseShell() {}
-//-----------------------------------------------------------------------------
+#if defined(__GCC__) && (DEKAF2_GCC_VERSION < 700)
 
-//-----------------------------------------------------------------------------
-int KBaseShell::Close()
-//-----------------------------------------------------------------------------
-{
-	KLog().debug(3, "KBaseShell::Close");
+constexpr KStringView KMethod::GET;
+constexpr KStringView KMethod::HEAD;
+constexpr KStringView KMethod::POST;
+constexpr KStringView KMethod::PUT;
+constexpr KStringView KMethod::DELETE;
 
-	if (m_pipe)
-	{
-		m_iExitCode = pclose (m_pipe);
-		m_pipe = nullptr;
-	}
-	else
-	{
-		return -1; //attempting to close a pipe that is not open
-	}
+#endif
 
-	KLog().debug(3, "KBaseShell::Close::Done:: Exit Code = {}", m_iExitCode);
-
-	return (m_iExitCode);
-} // Close
-
+} // end of namespace http
+} // end of namespace detail
 } // end of namespace dekaf2
+

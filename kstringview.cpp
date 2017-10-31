@@ -8,8 +8,12 @@
 
 namespace dekaf2 {
 
-const KStringView::size_type KStringView::npos;
-const KStringView::value_type KStringView::s_0ch = '\0';
+#if defined(__GCC__) && (DEKAF2_GCC_VERSION < 700)
+
+constexpr KStringView::size_type KStringView::npos;
+constexpr KStringView::value_type KStringView::s_0ch;
+
+#endif
 
 //-----------------------------------------------------------------------------
 size_t kFind(
@@ -159,7 +163,15 @@ size_t kFindFirstOfBool(
 	}
 #endif
 
-	return detail::kFindFirstOfNoSSE(haystack, needle, bNot) + pos;
+	auto result = detail::kFindFirstOfNoSSE(haystack, needle, bNot);
+	if (DEKAF2_LIKELY(result == KStringView::npos || pos == 0))
+	{
+		return result;
+	}
+	else
+	{
+		return result + pos;
+	}
 
 }
 
@@ -181,35 +193,123 @@ size_t kFindLastOfBool(
 		return KStringView::npos;
 	}
 
-	pos = (haystack.size() - 1) - std::min(pos, haystack.size()-1);
-
-	bool table[256];
-	std::memset(table, false, 256);
-
-	for (auto c : needle)
+	if (DEKAF2_UNLIKELY(pos != KStringView::npos))
 	{
-		table[static_cast<unsigned char>(c)] = true;
+		if (pos < haystack.size() - 1)
+		{
+			haystack.remove_suffix((haystack.size() - 1) - pos);
+		}
 	}
 
-	auto it = std::find_if(haystack.rbegin() +
-						   static_cast<typename KStringView::difference_type>(pos),
-						   haystack.rend(),
-						   [&table, bNot](const char c)
-	{
-		return table[static_cast<unsigned char>(c)] != bNot;
-	});
+#ifdef __x86_64__
+	static bool has_sse42 = Dekaf().GetCpuId().sse42();
 
-	if (it == haystack.rend())
+	if (DEKAF2_LIKELY(has_sse42))
 	{
-		return KStringView::npos;
+		if (DEKAF2_UNLIKELY(bNot))
+		{
+			return detail::kFindLastNotOfSSE(haystack, needle);
+		}
+		else
+		{
+			return detail::kFindLastOfSSE(haystack, needle);
+		}
 	}
-	else
-	{
-		return static_cast<size_t>((it.base() - 1) - haystack.begin());
-	}
+#endif
+
+	return detail::kFindLastOfNoSSE(haystack, needle, bNot);
+
 }
 
 } } // end of namespace detail::stringview
+
+//-----------------------------------------------------------------------------
+size_t kFindFirstOfUnescaped(KStringView haystack,
+                             KStringView needle,
+                             KStringView::value_type chEscape,
+                             KStringView::size_type pos)
+//-----------------------------------------------------------------------------
+{
+	auto iFound = haystack.find_first_of (needle, pos);
+
+	if (!chEscape || iFound == 0)
+	{
+		// If no escape char is given or
+		// the searched character was first on the line...
+		return iFound;
+	}
+
+	while (iFound != KStringView::npos)
+	{
+		size_t iEscapes = 0;
+		size_t iStart = iFound;
+
+		while (iStart)
+		{
+			// count number of escape characters
+			--iStart;
+			if (haystack[iStart] != chEscape)
+			{
+				break;
+			}
+			++iEscapes;
+		} // while iStart
+
+		if (!(iEscapes & 1))  // if even number of escapes
+		{
+			break;
+		}
+
+		iFound = haystack.find (needle, iFound + 1);
+	} // while iFound
+
+	return iFound;
+
+} // kFindFirstOfUnescaped
+
+//-----------------------------------------------------------------------------
+size_t kFindUnescaped(KStringView haystack,
+                      KStringView::value_type needle,
+                      KStringView::value_type chEscape,
+                      KStringView::size_type pos)
+//-----------------------------------------------------------------------------
+{
+	auto iFound = haystack.find (needle, pos);
+
+	if (!chEscape || iFound == 0)
+	{
+		// If no escape char is given or
+		// the searched character was first on the line...
+		return iFound;
+	}
+
+	while (iFound != KStringView::npos)
+	{
+		size_t iEscapes = 0;
+		size_t iStart = iFound;
+
+		while (iStart)
+		{
+			// count number of escape characters
+			--iStart;
+			if (haystack[iStart] != chEscape)
+			{
+				break;
+			}
+			++iEscapes;
+		} // while iStart
+
+		if (!(iEscapes & 1))  // if even number of escapes
+		{
+			break;
+		}
+
+		iFound = haystack.find (needle, iFound + 1);
+	} // while iFound
+
+	return iFound;
+
+} // kFindUnescaped
 
 //-----------------------------------------------------------------------------
 KStringView::size_type KStringView::copy(iterator dest, size_type count, size_type pos) const
@@ -236,7 +336,7 @@ KStringView::size_type KStringView::copy(iterator dest, size_type count, size_ty
 KStringView::self_type& KStringView::erase(size_type pos, size_type n)
 //-----------------------------------------------------------------------------
 {
-	if (DEKAF2_UNLIKELY(pos >= size()))
+	if (DEKAF2_UNLIKELY(pos > size()))
 	{
 			kWarning("attempt to erase past end of string view of size {}: pos {}, n {}",
 			         size(), pos, n);

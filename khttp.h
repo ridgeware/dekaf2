@@ -42,231 +42,199 @@
 
 #pragma once
 
-/// @file kfdwriter.h
-/// provides std::ostreams that can be constructed from open file descriptors and FILE*
+#include "kstringview.h"
+#include "kconnection.h"
+#include "khttp_header.h"
+#include "khttp_method.h"
+#include "kuseragent.h"
 
-#include <cinttypes>
-#include <streambuf>
-#include <ostream>
-#include <unistd.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#include "kwriter.h"
 
-namespace dekaf2
-{
+namespace dekaf2 {
+
+namespace detail {
+namespace http {
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// Unbuffered std::ostream that is constructed around a unix file descriptor.
-/// Mainly to allow its usage with pipes, for general file I/O use std::ofstream.
-/// This one is really slow on small writes to files, on purpose, because pipes
-/// should not be buffered. Therefore do _not_ use it for ordinary file I/O.
-class KOutputFDStream : public std::ostream
+class KCharSet
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
-//----------
-protected:
-//----------
 
-	using base_type = std::ostream;
-
-	//-----------------------------------------------------------------------------
-	/// this is the custom streambuf writer
-	static std::streamsize FileDescWriter(const void* sBuffer, std::streamsize iCount, void* filedesc);
-	//-----------------------------------------------------------------------------
-
-//----------
+//------
 public:
-//----------
+//------
 
-	//-----------------------------------------------------------------------------
-	KOutputFDStream()
-	//-----------------------------------------------------------------------------
-	{
-	}
+	static constexpr KStringView ANY_ISO8859         = "ISO-8859"; /*-1...*/
+	static constexpr KStringView DEFAULT_CHARSET     = "WINDOWS-1252";
 
-	//-----------------------------------------------------------------------------
-	KOutputFDStream(const KOutputFDStream&) = delete;
-	//-----------------------------------------------------------------------------
-
-#if !defined(__GNUC__) || (DEKAF2_GCC_VERSION >= 50000)
-	//-----------------------------------------------------------------------------
-	KOutputFDStream(KOutputFDStream&& other);
-	//-----------------------------------------------------------------------------
-#endif
-
-	//-----------------------------------------------------------------------------
-	/// the main purpose of this class: allow construction from a standard unix
-	/// file descriptor
-	KOutputFDStream(int iFileDesc)
-	//-----------------------------------------------------------------------------
-	{
-		open(iFileDesc);
-	}
-
-	//-----------------------------------------------------------------------------
-	virtual ~KOutputFDStream();
-	//-----------------------------------------------------------------------------
-
-#if !defined(__GNUC__) || (DEKAF2_GCC_VERSION >= 50000)
-	//-----------------------------------------------------------------------------
-	KOutputFDStream& operator=(KOutputFDStream&& other);
-	//-----------------------------------------------------------------------------
-#endif
-
-	//-----------------------------------------------------------------------------
-	KOutputFDStream& operator=(const KOutputFDStream&) = delete;
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// the main purpose of this class: open from a standard unix
-	/// file descriptor
-	void open(int iFileDesc);
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// test if a file is associated to this output stream
-	inline bool is_open() const
-	//-----------------------------------------------------------------------------
-	{
-		return m_FileDesc >= 0;
-	}
-
-	//-----------------------------------------------------------------------------
-	/// close the output stream
-	void close();
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// get the file descriptor
-	int GetDescriptor() const
-	//-----------------------------------------------------------------------------
-	{
-		return m_FileDesc;
-	}
-
-//----------
-protected:
-//----------
-
-	int m_FileDesc{-1};
-
-	// jschurig: The standard guarantees that the streambuf is neither used by
-	// constructors nor by destructors of base classes of a streambuf, nor by
-	// base classes that do not declare the streambuf themselves.
-	// Therefore it is safe to only construct it here, but use it in the
-	// constructor above. Angelika Langer had pointed out in 1995 that otherwise a
-	// private virtual inheritance would have guaranteed a protection against side
-	// effects of constructors accessing incomplete data types, but we do not need
-	// this anymore after C++98. I mention this because I was wondering about the
-	// constructor order when declaring this class, and did not know that this was
-	// solved by the standard before reading her article:
-	// http://www.angelikalanger.com/Articles/C++Report/IOStreamsDerivation/IOStreamsDerivation.html
-	KOutStreamBuf m_FPStreamBuf{&FileDescWriter, &m_FileDesc};
-
-};
-
+}; // end of namespace KCharSet
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// Buffered std::ostream that is constructed around a unix file descriptor.
-/// Mainly to allow its usage with pipes, for general file I/O use std::ofstream.
-/// Do _not_ use it for ordinary file I/O, it does not implement the full
-/// std::ostream interface.
-class KOutputFPStream : public std::ostream
+class KMIME
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
-//----------
-protected:
-//----------
 
-	using base_type = std::ostream;
-
-	//-----------------------------------------------------------------------------
-	/// this is the custom streambuf writer
-	static std::streamsize FilePtrWriter(const void* sBuffer, std::streamsize iCount, void* fileptr);
-	//-----------------------------------------------------------------------------
-
-//----------
+//------
 public:
-//----------
+//------
 
 	//-----------------------------------------------------------------------------
-	KOutputFPStream()
+	constexpr
+	KMIME()
+	//-----------------------------------------------------------------------------
+	    : m_mime()
+	{}
+
+	//-----------------------------------------------------------------------------
+	constexpr
+	KMIME(KStringView sv)
+	//-----------------------------------------------------------------------------
+	    : m_mime(sv)
+	{}
+
+	//-----------------------------------------------------------------------------
+	constexpr
+	operator KStringView() const
 	//-----------------------------------------------------------------------------
 	{
+		return m_mime;
 	}
 
-	KOutputFPStream(const KOutputFPStream&) = delete;
+	static constexpr KStringView JSON_UTF8           = "application/json; charset=UTF-8";
+	static constexpr KStringView HTML_UTF8           = "text/html; charset=UTF-8";
+	static constexpr KStringView XML_UTF8            = "text/xml; charset=UTF-8";
+	static constexpr KStringView SWF                 = "application/x-shockwave-flash";
+	static constexpr KStringView WWW_FORM_URLENCODED = "application/x-www-form-urlencoded";
+	static constexpr KStringView MULTIPART_FORM_DATA = "multipart/form-data";
+	static constexpr KStringView TEXT_PLAIN          = "text/plain";
+	static constexpr KStringView APPLICATION_BINARY  = "application/octet-stream";
 
-#if !defined(__GNUC__) || (DEKAF2_GCC_VERSION >= 50000)
-	//-----------------------------------------------------------------------------
-	KOutputFPStream(KOutputFPStream&& other);
-	//-----------------------------------------------------------------------------
-#endif
+//------
+private:
+//------
+
+	KStringView m_mime{TEXT_PLAIN};
+
+}; // KMIME
+
+} // end of namespace http
+} // end of namespace detail
+
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+class KHTTP
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+//------
+public:
+//------
+
+	using KMethod    = detail::http::KMethod;
+	using KHeader    = detail::http::KHeader;
+	using KUserAgent = detail::http::KUserAgent;
+	using KMIME      = detail::http::KMIME;
+	using KCharSet   = detail::http::KCharSet;
+
+	enum class State
+	{
+		CONNECTED,
+		RESOURCE_SET,
+		HEADER_SET,
+		REQUEST_SENT,
+		HEADER_PARSED,
+		CLOSED
+	};
 
 	//-----------------------------------------------------------------------------
-	/// the main purpose of this class: allow construction from a standard unix
-	/// file descriptor
-	KOutputFPStream(FILE* iFilePtr)
+	KHTTP(KConnection& stream, const KURL& url = KURL{}, KMethod method = KMethod::GET);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	KHTTP& Resource(const KURL& url, KMethod method = KMethod::GET);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	KHTTP& RequestHeader(KStringView svName, KStringView svValue);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	bool Request(KStringView svPostData = KStringView{}, KStringView svMime = KStringView{});
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// Stream into outstream
+	size_t Read(KOutStream& stream, size_t len = KString::npos);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// Append to sBuffer
+	size_t Read(KString& sBuffer, size_t len = KString::npos);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// Read one line into sBuffer, including EOL
+	bool ReadLine(KString& sBuffer);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	size_t size() const
 	//-----------------------------------------------------------------------------
 	{
-		open(iFilePtr);
+		return m_iRemainingContentSize;
 	}
 
 	//-----------------------------------------------------------------------------
-	virtual ~KOutputFPStream();
-	//-----------------------------------------------------------------------------
-
-#if !defined(__GNUC__) || (DEKAF2_GCC_VERSION >= 50000)
-	//-----------------------------------------------------------------------------
-	KOutputFPStream& operator=(KOutputFPStream&& other);
-	//-----------------------------------------------------------------------------
-#endif
-
-	KOutputFPStream& operator=(const KOutputFPStream&) = delete;
-
-	//-----------------------------------------------------------------------------
-	/// the main purpose of this class: open from a standard unix
-	/// file descriptor
-	void open(FILE* iFilePtr);
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// test if a file is associated to this output stream
-	inline bool is_open() const
+	State GetState() const
 	//-----------------------------------------------------------------------------
 	{
-		return m_FilePtr;
+		return m_State;
 	}
 
 	//-----------------------------------------------------------------------------
-	/// close the output stream
-	void close();
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// get the file ptr
-	FILE* GetPtr() const
+	const KHeader& GetResponseHeader() const
 	//-----------------------------------------------------------------------------
 	{
-		return m_FilePtr;
+		return m_ResponseHeader;
 	}
 
-//----------
+	//-----------------------------------------------------------------------------
+	KHeader& GetResponseHeader()
+	//-----------------------------------------------------------------------------
+	{
+		return m_ResponseHeader;
+	}
+
+//------
 protected:
-//----------
-	FILE* m_FilePtr{nullptr};
+//------
 
-	KOutStreamBuf m_FPStreamBuf{&FilePtrWriter, &m_FilePtr};
-};
+	//-----------------------------------------------------------------------------
+	bool GetNextChunkSize();
+	//-----------------------------------------------------------------------------
 
+	//-----------------------------------------------------------------------------
+	void CheckForChunkEnd();
+	//-----------------------------------------------------------------------------
 
-/// FOR PIPES AND SPECIAL DEVICES ONLY! File descriptor writer based on KOutputFDStream>
-using KFDWriter = KWriter<KOutputFDStream>;
+	//-----------------------------------------------------------------------------
+	bool ReadHeader();
+	//-----------------------------------------------------------------------------
 
-/// FOR PIPES AND SPECIAL DEVICES ONLY! FILE ptr writer based on KOutputFPStream>
-using KFPWriter = KWriter<KOutputFPStream>;
+	//-----------------------------------------------------------------------------
+	size_t Post(KStringView sv);
+	//-----------------------------------------------------------------------------
+
+//------
+private:
+//------
+
+	KConnection& m_Stream;
+	KMethod  m_Method;
+	KHeader  m_ResponseHeader;
+	size_t   m_iRemainingContentSize{0};
+	State    m_State{State::CLOSED};
+	bool     m_bTEChunked;
+
+}; // KHTTP
+
 
 } // end of namespace dekaf2
-

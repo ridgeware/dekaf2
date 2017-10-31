@@ -42,228 +42,213 @@
 
 #pragma once
 
-/// @file kfdreader.h
-/// provides std::istreams that can be constructed from open file descriptors and FILE*
+#include "kstream.h"
+#include "ksslstream.h"
+#include "kurl.h"
 
-#include <cstdio>
-#include <streambuf>
-#include <istream>
-#include <type_traits>
-#include "kreader.h"
-
-
-namespace dekaf2
-{
+namespace dekaf2 {
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// Unbuffered std::istream that is constructed around a unix file descriptor.
-/// Mainly to allow its usage with pipes, for general file I/O use std::ifstream.
-/// This one is really slow on small reads on files, on purpose, because pipes
-/// should not be buffered. Therefore do _not_ use it for ordinary file I/O.
-class KInputFDStream : public std::istream
+class KProxy
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
-//----------
-protected:
-//----------
-
-	using base_type = std::istream;
-
-	//-----------------------------------------------------------------------------
-	/// this is the custom streambuf reader
-	static std::streamsize FileDescReader(void* sBuffer, std::streamsize iCount, void* filedesc);
-	//-----------------------------------------------------------------------------
-
-//----------
+//------
 public:
-//----------
+//------
 
 	//-----------------------------------------------------------------------------
-	KInputFDStream()
+	KProxy() = default;
+	KProxy(const KProxy&) = default;
+	KProxy(KProxy&&) = default;
+	KProxy& operator=(const KProxy&) = default;
+	KProxy& operator=(KProxy&&) = default;
 	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	KProxy(const url::KDomain& domain,
+	       const url::KPort& port,
+	       KStringView svUser = KStringView{},
+	       KStringView svPassword = KStringView{});
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	KProxy(KStringView svDomainAndPort,
+	       KStringView svUser = KStringView{},
+	       KStringView svPassword = KStringView{});
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	bool LoadFromEnv(KStringView svEnvVar = "http_proxy");
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	void clear();
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	bool empty() const
+	//-----------------------------------------------------------------------------
+	{
+		return Domain.empty();
+	}
+
+	url::KDomain Domain;
+	url::KPort Port;
+	KString User;
+	KString Password;
+
+}; // KProxy
+
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+class KConnection
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+//------
+public:
+//------
+
+	//-----------------------------------------------------------------------------
+	KConnection() = default;
+	KConnection(const KConnection&) = delete;
+	KConnection(KConnection&&) = default;
+	KConnection& operator=(const KConnection&) = delete;
+	KConnection& operator=(KConnection&&) = default;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	KConnection(const url::KDomain& domain, const url::KPort& port)
+	//-----------------------------------------------------------------------------
+	{
+		Connect(domain, port);
+	}
+
+	//-----------------------------------------------------------------------------
+	KConnection(KStream& Stream) noexcept
+	//-----------------------------------------------------------------------------
+	    : m_Stream(&Stream)
+	    , m_bStreamIsNotOwned(true)
 	{
 	}
 
 	//-----------------------------------------------------------------------------
-	KInputFDStream(const KInputFDStream&) = delete;
+	KConnection(KStream&& Stream) noexcept
 	//-----------------------------------------------------------------------------
+	    :  m_Stream(&Stream)
+	    , m_bStreamIsNotOwned(false)
+	{
+	}
 
-#if !defined(__GNUC__) || (DEKAF2_GCC_VERSION >= 50000)
-	//-----------------------------------------------------------------------------
-	KInputFDStream(KInputFDStream&& other);
-	//-----------------------------------------------------------------------------
-#endif
 
 	//-----------------------------------------------------------------------------
-	/// the main purpose of this class: allow construction from a standard unix
-	/// file descriptor
-	KInputFDStream(int iFileDesc)
+	~KConnection()
 	//-----------------------------------------------------------------------------
 	{
-		open(iFileDesc);
+		if (m_bStreamIsNotOwned)
+		{
+			m_Stream.release();
+		}
 	}
 
 	//-----------------------------------------------------------------------------
-	virtual ~KInputFDStream();
-	//-----------------------------------------------------------------------------
-
-#if !defined(__GNUC__) || (DEKAF2_GCC_VERSION >= 50000)
-	//-----------------------------------------------------------------------------
-	KInputFDStream& operator=(KInputFDStream&& other);
-	//-----------------------------------------------------------------------------
-#endif
-
-	KInputFDStream& operator=(const KInputFDStream&) = delete;
-
-	//-----------------------------------------------------------------------------
-	/// the main purpose of this class: open from a standard unix
-	/// file descriptor
-	void open(int iFileDesc);
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// test if a file is associated to this output stream
-	inline bool is_open() const
+	operator bool()
 	//-----------------------------------------------------------------------------
 	{
-		return m_FileDesc >= 0;
+		return m_Stream.get() != nullptr;
 	}
 
 	//-----------------------------------------------------------------------------
-	/// close the output stream
-	void close();
+	KConnection& operator=(KStream& Stream);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// get the file descriptor
-	int GetDescriptor() const
+	KStream* get()
 	//-----------------------------------------------------------------------------
 	{
-		return m_FileDesc;
+		return m_Stream.get();
 	}
 
-//----------
-protected:
-//----------
+	//-----------------------------------------------------------------------------
+	KStream* operator->()
+	//-----------------------------------------------------------------------------
+	{
+		return get();
+	}
 
-	int m_FileDesc{-1};
+	//-----------------------------------------------------------------------------
+	KStream& operator*()
+	//-----------------------------------------------------------------------------
+	{
+		return *get();
+	}
 
-	// see comment in KWriter's KOStreamBuf about the legality
-	// to only construct the KIStreamBuf here, but to use it in
-	// the constructor before
-	KInStreamBuf m_FPStreamBuf{&FileDescReader, &m_FileDesc};
+	//-----------------------------------------------------------------------------
+	bool Connect(const url::KDomain& domain, const url::KPort& port);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	void Disonnect();
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	void setConnection(std::unique_ptr<KStream>&& Stream);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	static KConnection Create(const KURL& Url);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	static KConnection Create(const KURL& Url, const KProxy& Proxy);
+	//-----------------------------------------------------------------------------
+
+//------
+private:
+//------
+
+	std::unique_ptr<KStream> m_Stream;
+	bool m_bStreamIsNotOwned{false};
 
 };
 
-
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// Buffered std::istream that is constructed around a FILE*.
-/// Mainly to allow its usage with pipes, for general file I/O use std::ifstream.
-/// Do _not_ use it for ordinary file I/O, it does not implement the full
-/// std::istream interface.
-class KInputFPStream : public std::istream
+class KSSLConnection : public KConnection
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
-//----------
-protected:
-//----------
 
-	using base_type = std::istream;
-
-	//-----------------------------------------------------------------------------
-	/// this is the custom streambuf reader
-	static std::streamsize FilePtrReader(void* sBuffer, std::streamsize iCount, void* filedesc);
-	//-----------------------------------------------------------------------------
-
-//----------
+//------
 public:
-//----------
+//------
+
+	enum class TLS
+	{
+		SSLv2,
+		SSLv3,
+		TLSv1,
+		TLSv2
+	};
 
 	//-----------------------------------------------------------------------------
-	KInputFPStream()
+	KSSLConnection() = default;
+	KSSLConnection(const KSSLConnection&) = delete;
+	KSSLConnection(KSSLConnection&&) = default;
+	KSSLConnection& operator=(const KSSLConnection&) = delete;
+	KSSLConnection& operator=(KSSLConnection&&) = default;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	KSSLConnection(const url::KDomain& domain, const url::KPort& port, bool bVerifyCerts)
 	//-----------------------------------------------------------------------------
 	{
+		Connect(domain, port, bVerifyCerts);
 	}
 
 	//-----------------------------------------------------------------------------
-	/// copy constructor is deleted
-	KInputFPStream(const KInputFPStream&) = delete;
+	bool Connect(const url::KDomain& domain, const url::KPort& port, bool bVerifyCerts);
 	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// move constructor
-	KInputFPStream(KInputFPStream&& other);
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// the main purpose of this class: allow construction from a FILE ptr
-	KInputFPStream(FILE* iFilePtr)
-	//-----------------------------------------------------------------------------
-	{
-		open(iFilePtr);
-	}
-
-	//-----------------------------------------------------------------------------
-	/// destructor
-	virtual ~KInputFPStream();
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// move assignment
-	KInputFPStream& operator=(KInputFPStream&& other);
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// copy assignment is deleted
-	KInputFPStream& operator=(const KInputFPStream&) = delete;
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// the main purpose of this class: open from a FILE ptr
-	void open(FILE* iFilePtr);
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// test if a file is associated to this input stream
-	inline bool is_open() const
-	//-----------------------------------------------------------------------------
-	{
-		return m_FilePtr;
-	}
-
-	//-----------------------------------------------------------------------------
-	/// close the output stream
-	void close();
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// get the file ptr
-	FILE* GetPtr() const
-	//-----------------------------------------------------------------------------
-	{
-		return m_FilePtr;
-	}
-
-//----------
-protected:
-//----------
-
-	FILE* m_FilePtr{nullptr};
-
-	// see comment in KWriter's KOStreamBuf about the legality
-	// to only construct the KIStreamBuf here, but to use it in
-	// the constructor before
-	KInStreamBuf m_FPStreamBuf{&FilePtrReader, &m_FilePtr};
 
 };
-
-
-/// FOR PIPES AND SPECIAL DEVICES ONLY! File descriptor reader based on KInputFDStream
-using KFDReader = KReader<KInputFDStream>;
-
-/// FOR PIPES AND SPECIAL DEVICES ONLY! FILE* reader based on KInputFPStream
-using KFPReader = KReader<KInputFPStream>;
 
 } // end of namespace dekaf2
 

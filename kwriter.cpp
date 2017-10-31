@@ -47,28 +47,6 @@
 namespace dekaf2
 {
 
-
-//-----------------------------------------------------------------------------
-KOutStreamBuf::~KOutStreamBuf()
-//-----------------------------------------------------------------------------
-{
-}
-
-//-----------------------------------------------------------------------------
-std::streamsize KOutStreamBuf::xsputn(const char_type* s, std::streamsize n)
-//-----------------------------------------------------------------------------
-{
-	return m_Callback(s, n, m_CustomPointer);
-}
-
-//-----------------------------------------------------------------------------
-KOutStreamBuf::int_type KOutStreamBuf::overflow(int_type ch)
-//-----------------------------------------------------------------------------
-{
-	return static_cast<int_type>(m_Callback(&ch, 1, m_CustomPointer));
-}
-
-
 //-----------------------------------------------------------------------------
 KOutStream::~KOutStream()
 //-----------------------------------------------------------------------------
@@ -112,6 +90,8 @@ KOutStream::self_type& KOutStream::Write(const typename std::ostream::char_type*
 	return *this;
 }
 
+template class KWriter<std::ofstream>;
+template class KWriter<std::ostringstream>;
 
 } // end of namespace dekaf2
 

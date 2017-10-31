@@ -46,7 +46,6 @@
 /// holds the basic writer abstraction
 
 #include <cinttypes>
-#include <streambuf>
 #include <ostream>
 #include <fstream>
 #include <sstream>
@@ -57,57 +56,6 @@
 
 namespace dekaf2
 {
-
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// a customized output stream buffer
-struct KOutStreamBuf : public std::streambuf
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-{
-
-//-------
-public:
-//-------
-
-	//-----------------------------------------------------------------------------
-	/// the Writer function's signature:
-	/// std::streamsize Writer(const void* sBuffer, std::streamsize iCount, void* CustomPointer)
-	///  - returns written bytes. CustomPointer can be used for anything, to the discretion of the
-	/// Writer.
-	typedef std::streamsize (*Writer)(const void*, std::streamsize, void*);
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// provide a Writer function, it will be called by std::streambuf on buffer flushes
-	KOutStreamBuf(Writer cb, void* CustomPointer = nullptr)
-	//-----------------------------------------------------------------------------
-	    : m_Callback(cb), m_CustomPointer(CustomPointer)
-	{
-	}
-	//-----------------------------------------------------------------------------
-	virtual ~KOutStreamBuf();
-	//-----------------------------------------------------------------------------
-
-//-------
-protected:
-//-------
-
-	//-----------------------------------------------------------------------------
-	virtual std::streamsize xsputn(const char_type* s, std::streamsize n) override;
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	virtual int_type overflow(int_type ch) override;
-	//-----------------------------------------------------------------------------
-
-//-------
-private:
-//-------
-
-	Writer m_Callback{nullptr};
-	void* m_CustomPointer{nullptr};
-
-}; // KOutStreamBuf
-
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// The standalone writer abstraction for dekaf2. Can be constructed around any
@@ -139,11 +87,8 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// move construct a KOutStream
-	KOutStream(self_type&& other) noexcept
+	KOutStream(self_type&& other) = default;
 	//-----------------------------------------------------------------------------
-	    : m_OutStream(std::move(other.m_OutStream))
-	    , m_sDelimiter(std::move(other.m_sDelimiter))
-	{}
 
 	//-----------------------------------------------------------------------------
 	/// copy assignment is deleted
@@ -152,13 +97,8 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// move assign a KOutStream
-	self_type& operator=(self_type&& other) noexcept
+	self_type& operator=(self_type&& other) = default;
 	//-----------------------------------------------------------------------------
-	{
-		m_OutStream = std::move(other.m_OutStream);
-		m_sDelimiter = std::move(other.m_sDelimiter);
-		return *this;
-	}
 
 	//-----------------------------------------------------------------------------
 	virtual ~KOutStream();
@@ -166,7 +106,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Write a character. Returns stream reference that resolves to false on failure
-	self_type& Write(KString::value_type ch);
+	self_type& Write(KStringView::value_type ch);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -181,6 +121,20 @@ public:
 	{
 		Write(str.data(), str.size());
 		return *this;
+	}
+
+	//-----------------------------------------------------------------------------
+	inline self_type& operator+=(KStringView::value_type ch)
+	//-----------------------------------------------------------------------------
+	{
+		return Write(ch);
+	}
+
+	//-----------------------------------------------------------------------------
+	inline self_type& operator+=(KStringView sv)
+	//-----------------------------------------------------------------------------
+	{
+		return Write(sv);
 	}
 
 	//-----------------------------------------------------------------------------
@@ -212,6 +166,17 @@ public:
 	{
 		kfFormat(*this, std::forward<Args>(args)...);
 		return *this;
+	}
+
+	//-----------------------------------------------------------------------------
+	/// Write a fmt::format() formatted argument list. Returns stream reference that
+	/// resolves to false on failure.
+	template<class... Args>
+	inline self_type& FormatLine(Args&&... args)
+	//-----------------------------------------------------------------------------
+	{
+		kfFormat(*this, std::forward<Args>(args)...);
+		return WriteLine();
 	}
 
 	//-----------------------------------------------------------------------------
@@ -266,11 +231,20 @@ public:
 		return OutStream();
 	}
 
+	//-----------------------------------------------------------------------------
+	/// flush the write buffer
+	self_type& Flush()
+	//-----------------------------------------------------------------------------
+	{
+		OutStream().flush();
+		return *this;
+	}
+
 //-------
 protected:
 //-------
 
-	// m_sRef always has to be valid after construction
+	// m_OutStream always has to be valid after construction
 	// - do not assign a nullptr per default
 	std::ostream* m_OutStream;
 	KString m_sDelimiter{"\n"};
@@ -319,11 +293,8 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// move construct a KWriter
-	KWriter(self_type&& other) noexcept
+	KWriter(self_type&& other) = default;
 	//-----------------------------------------------------------------------------
-	    : base_type(std::move(other))
-	    , KOutStream(std::move(other))
-	{}
 
 	//-----------------------------------------------------------------------------
 	/// copy constructor is deleted, as with std::ostream
@@ -337,15 +308,13 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// move assignment
-	self_type& operator=(self_type&& other)
+	self_type& operator=(self_type&& other) = default;
 	//-----------------------------------------------------------------------------
-	{
-		base_type::operator=(std::move(other));
-		KOutStream::operator=(std::move(other));
-	}
 
 }; // KWriter
 
+extern template class KWriter<std::ofstream>;
+extern template class KWriter<std::ostringstream>;
 
 /// File writer based on std::ofstream
 using KOutFile         = KWriter<std::ofstream>;

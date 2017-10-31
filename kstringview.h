@@ -76,6 +76,7 @@ size_t kRFind(
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
+constexpr
 size_t kFind(
         KStringView haystack,
         const char needle,
@@ -138,10 +139,12 @@ size_t kFindLastNotOf(
 //-----------------------------------------------------------------------------
 
 //----------------------------------------------------------------------
+constexpr
 bool kStartsWith(KStringView sInput, KStringView sPattern);
 //----------------------------------------------------------------------
 
 //----------------------------------------------------------------------
+constexpr
 bool kEndsWith(KStringView sInput, KStringView sPattern);
 //----------------------------------------------------------------------
 
@@ -170,7 +173,7 @@ public:
 	using reference              = rep_type::reference;
 	using traits_type            = rep_type::traits_type;
 
-	static const size_type npos = std::string::npos;
+	static constexpr size_type npos = std::string::npos;
 
 	//-----------------------------------------------------------------------------
 	constexpr
@@ -185,6 +188,7 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	// constexpr (currently not constexpr, probably with final c++17
 	KStringView(const std::string& str) noexcept
 	//-----------------------------------------------------------------------------
 	    : m_rep(str.data(), str.size())
@@ -213,6 +217,7 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	constexpr
 	const rep_type& ToRange() const
 	//-----------------------------------------------------------------------------
 	{
@@ -220,6 +225,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	constexpr
 	rep_type& ToRange()
 	//-----------------------------------------------------------------------------
 	{
@@ -227,6 +233,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	constexpr
 	operator const rep_type&() const
 	//-----------------------------------------------------------------------------
 	{
@@ -234,6 +241,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	constexpr
 	operator rep_type&()
 	//-----------------------------------------------------------------------------
 	{
@@ -242,6 +250,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	// nonstandard
+	constexpr
 	void clear()
 	//-----------------------------------------------------------------------------
 	{
@@ -254,6 +263,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	// nonstandard
+	constexpr
 	void assign(const_iterator start, size_type size)
 	//-----------------------------------------------------------------------------
 	{
@@ -262,6 +272,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	// nonstandard
+	constexpr
 	void assign(const_iterator start, const_iterator end)
 	//-----------------------------------------------------------------------------
 	{
@@ -274,6 +285,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	// nonstandard
+	constexpr
 	void reset(const_iterator start, size_type size)
 	//-----------------------------------------------------------------------------
 	{
@@ -381,30 +393,33 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	constexpr
 	const value_type& front() const
 	//-----------------------------------------------------------------------------
 	{
-		if (empty())
+		if DEKAF2_UNLIKELY(empty())
 		{
-			// warn
+			// TODO warn
 			return s_0ch;
 		}
 		return m_rep.front();
 	}
 
 	//-----------------------------------------------------------------------------
+	constexpr
 	const value_type& back() const
 	//-----------------------------------------------------------------------------
 	{
-		if (empty())
+		if DEKAF2_UNLIKELY(empty())
 		{
-			// warn
+			// TODO warn
 			return s_0ch;
 		}
 		return m_rep.back();
 	}
 
 	//-----------------------------------------------------------------------------
+	constexpr
 	int compare(const self_type& other) const
 	//-----------------------------------------------------------------------------
 	{
@@ -413,6 +428,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	constexpr
 	int compare(size_type pos1, size_type count1,
 	            self_type other) const
 	//-----------------------------------------------------------------------------
@@ -421,6 +437,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	constexpr
 	int compare(size_type pos1, size_type count1,
 	            self_type other,
 	            size_type pos2, size_type count2) const
@@ -430,6 +447,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	constexpr
 	int compare(const const_iterator str) const
 	//-----------------------------------------------------------------------------
 	{
@@ -437,6 +455,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	constexpr
 	int compare(size_type pos1, size_type count1,
 	            const const_iterator str) const
 	//-----------------------------------------------------------------------------
@@ -445,6 +464,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	constexpr
 	int compare(size_type pos1, size_type count1,
 	            const const_iterator str, size_type count2) const
 	//-----------------------------------------------------------------------------
@@ -457,24 +477,26 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	constexpr
 	const value_type& operator[](size_t index) const
 	//-----------------------------------------------------------------------------
 	{
-		if (index >= size())
+		if DEKAF2_UNLIKELY(index >= size())
 		{
-			// warn
+			// TODO warn
 			return s_0ch;
 		}
 		return m_rep[index];
 	}
 
 	//-----------------------------------------------------------------------------
+	constexpr
 	const value_type& at(size_t index) const
 	//-----------------------------------------------------------------------------
 	{
-		if (index >= size())
+		if DEKAF2_UNLIKELY(index >= size())
 		{
-			// warn
+			// TODO warn
 			return s_0ch;
 		}
 		return m_rep[index];
@@ -487,13 +509,14 @@ public:
 	{
 		if (pos > size())
 		{
-			// warn
+			// TODO warn
 			pos = size();
 		}
 		return self_type(begin() + pos, std::min(count, size() - pos));
 	}
 
 	//-----------------------------------------------------------------------------
+	constexpr
 	void remove_prefix(size_type n)
 	//-----------------------------------------------------------------------------
 	{
@@ -506,12 +529,13 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	constexpr
 	void remove_suffix(size_type n)
 	//-----------------------------------------------------------------------------
 	{
 		if (n > size())
 		{
-			// warn
+			// TODO warn
 			n = size();
 		}
 		unchecked_remove_suffix(n);
@@ -519,6 +543,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	// nonstandard
+	constexpr
 	bool remove_prefix(self_type other)
 	//-----------------------------------------------------------------------------
 	{
@@ -532,6 +557,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	// nonstandard
+	constexpr
 	bool remove_suffix(self_type other)
 	//-----------------------------------------------------------------------------
 	{
@@ -545,6 +571,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	// nonstandard
+	constexpr
 	bool StartsWith(self_type other)
 	//-----------------------------------------------------------------------------
 	{
@@ -553,6 +580,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	// nonstandard
+	constexpr
 	bool EndsWith(self_type other)
 	//-----------------------------------------------------------------------------
 	{
@@ -599,6 +627,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	constexpr
 	size_type find(value_type ch, size_type pos = 0) const noexcept
 	//-----------------------------------------------------------------------------
 	{
@@ -737,6 +766,7 @@ protected:
 
 	//-----------------------------------------------------------------------------
 	DEKAF2_ALWAYS_INLINE
+	constexpr
 	void unchecked_remove_prefix(size_type n)
 	//-----------------------------------------------------------------------------
 	{
@@ -749,6 +779,7 @@ protected:
 
 	//-----------------------------------------------------------------------------
 	DEKAF2_ALWAYS_INLINE
+	constexpr
 	void unchecked_remove_suffix(size_type n)
 	//-----------------------------------------------------------------------------
 	{
@@ -761,16 +792,19 @@ protected:
 
 	rep_type m_rep;
 
-	static const value_type s_0ch;
+	static constexpr value_type s_0ch = '\0';
 
 };
 
+using KStringViewPair = std::pair<KStringView, KStringView>;
+
 
 //-----------------------------------------------------------------------------
+constexpr
 inline bool operator==(KStringView left, KStringView right)
 //-----------------------------------------------------------------------------
 {
-	typename KStringView::size_type len = left.size();
+	KStringView::size_type len = left.size();
 	if (len != right.size())
 	{
 		return false;
@@ -781,6 +815,23 @@ inline bool operator==(KStringView left, KStringView right)
 }
 
 //-----------------------------------------------------------------------------
+constexpr
+inline bool operator==(KStringView::value_type* left, const KStringView right)
+//-----------------------------------------------------------------------------
+{
+	return KStringView(left) == right;
+}
+
+//-----------------------------------------------------------------------------
+constexpr
+inline bool operator==(KStringView left, const KStringView::value_type* right)
+//-----------------------------------------------------------------------------
+{
+	return right == left;
+}
+
+//-----------------------------------------------------------------------------
+constexpr
 inline bool operator!=(KStringView left, KStringView right)
 //-----------------------------------------------------------------------------
 {
@@ -788,15 +839,17 @@ inline bool operator!=(KStringView left, KStringView right)
 }
 
 //-----------------------------------------------------------------------------
+constexpr
 inline bool operator<(KStringView left, KStringView right)
 //-----------------------------------------------------------------------------
 {
-	typename KStringView::size_type min_size = std::min(left.size(), right.size());
+	KStringView::size_type min_size = std::min(left.size(), right.size());
 	int r = min_size == 0 ? 0 : left.compare(right);
 	return (r < 0) || (r == 0 && left.size() < right.size());
 }
 
 //-----------------------------------------------------------------------------
+constexpr
 inline bool operator>(KStringView left, KStringView right)
 //-----------------------------------------------------------------------------
 {
@@ -804,6 +857,7 @@ inline bool operator>(KStringView left, KStringView right)
 }
 
 //-----------------------------------------------------------------------------
+constexpr
 inline bool operator<=(KStringView left, KStringView right)
 //-----------------------------------------------------------------------------
 {
@@ -811,6 +865,7 @@ inline bool operator<=(KStringView left, KStringView right)
 }
 
 //-----------------------------------------------------------------------------
+constexpr
 inline bool operator>=(KStringView left, KStringView right)
 //-----------------------------------------------------------------------------
 {
@@ -820,6 +875,7 @@ inline bool operator>=(KStringView left, KStringView right)
 
 //-----------------------------------------------------------------------------
 inline
+constexpr
 size_t kFind(
         KStringView haystack,
         const char needle,
@@ -833,7 +889,8 @@ size_t kFind(
 	{
 		return KStringView::npos;
 	}
-	auto ret = static_cast<const char*>(std::memchr(haystack.data()+pos, needle, haystack.size()-pos));
+	// TODO compiler conditionals
+	auto ret = static_cast<const char*>(__builtin_memchr(haystack.data()+pos, needle, haystack.size()-pos));
 	if (DEKAF2_UNLIKELY(ret == nullptr))
 	{
 		return KStringView::npos;
@@ -855,7 +912,7 @@ size_t kRFind(
         size_t pos)
 //-----------------------------------------------------------------------------
 {
-#if DEKAF2_USE_FOLLY_STRINGPIECE_AS_KSTRINGVIEW \
+#if defined(DEKAF2_USE_FOLLY_STRINGPIECE_AS_KSTRINGVIEW) \
 	&& !defined(DEKAF2_USE_OPTIMIZED_STRING_FIND) \
 	|| !(DEKAF2_GCC_VERSION > 40600)
 	pos = std::min(pos, haystack.size());
@@ -946,8 +1003,27 @@ size_t kFindLastNotOf(
 #endif
 }
 
+//-----------------------------------------------------------------------------
+/// Find delimiter chars prefixed by even number of escape characters (0, 2, ...).
+/// Ignore delimiter chars prefixed by odd number of escapes.
+size_t kFindFirstOfUnescaped(KStringView haystack,
+                             KStringView needle,
+                             KStringView::value_type chEscape,
+                             KStringView::size_type pos = 0);
+//-----------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
+/// Find delimiter char prefixed by even number of escape characters (0, 2, ...).
+/// Ignore delimiter charsprefixed by odd number of escapes.
+size_t kFindUnescaped(KStringView haystack,
+                      KStringView::value_type needle,
+                      KStringView::value_type chEscape,
+                      KStringView::size_type pos = 0);
+//-----------------------------------------------------------------------------
+
 //----------------------------------------------------------------------
 inline
+constexpr
 bool kStartsWith(KStringView sInput, KStringView sPattern)
 //----------------------------------------------------------------------
 {
@@ -962,6 +1038,7 @@ bool kStartsWith(KStringView sInput, KStringView sPattern)
 
 //----------------------------------------------------------------------
 inline
+constexpr
 bool kEndsWith(KStringView sInput, KStringView sPattern)
 //----------------------------------------------------------------------
 {

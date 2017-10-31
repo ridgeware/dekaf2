@@ -919,6 +919,11 @@ FOLLY_MALLOC_NOINLINE inline void fbstring_core<Char>::reserveSmall(
   }
 }
 
+#if defined(__GNUC__) && (__GNUC__ >= 7)
+    // to disable warning about "maybe uninitialized" ml_.size_
+    #pragma GCC diagnostic push
+    #pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
+#endif
 template <class Char>
 inline Char* fbstring_core<Char>::expandNoinit(
     const size_t delta,
@@ -953,6 +958,9 @@ inline Char* fbstring_core<Char>::expandNoinit(
   FBSTRING_ASSERT(size() == newSz);
   return ml_.data_ + sz;
 }
+#if defined(__GNUC__) && (__GNUC__ >= 7)
+    #pragma GCC diagnostic pop
+#endif
 
 template <class Char>
 inline void fbstring_core<Char>::shrinkSmall(const size_t delta) {

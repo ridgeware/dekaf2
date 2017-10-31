@@ -47,6 +47,7 @@
 
 #include <atomic>
 #include <folly/CpuId.h>
+#include "kconfiguration.h"
 #include "kstring.h"
 
 /// @namespace dekaf2 The basic dekaf2 library namespace. All functions,

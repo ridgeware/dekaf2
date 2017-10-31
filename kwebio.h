@@ -41,27 +41,27 @@
 */
 
 #pragma once
+
+#include <cinttypes>
 #include "kstring.h"
-#include "kstringutils.h"
 #include "kprops.h"
 #include "kcurl.h"
 #include "kwriter.h"
 
-//include <locale>
-#include <ctype.h>
-#include <iostream>
 
 namespace dekaf2
 {
 
-//-----------------------------------------------------------------------------
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class KWebIO : public KCurl
-//-----------------------------------------------------------------------------
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
 //------
 public:
 //------
+
+	static constexpr KStringView svBrokenHeader = "!?.garbage";
 
 	//-----------------------------------------------------------------------------
 	/// KWebIO default constructor, must be initialized after construction.
@@ -84,18 +84,22 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Overriden virtual method that parses response header
-	virtual bool   addToResponseHeader(KString& sHeaderPart);
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// Overriden virtual method that parses response body
-	virtual bool   addToResponseBody  (KString& sBodyPart);
+	virtual KStringView Parse(KStringView sPart, bool bParseCookies = true);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// Overriden virtual method that prints out parsed response header
-	virtual bool   printResponseHeader(); // prints response header from m_responseHeaders
+	virtual bool Serialize(KOutStream& outStream); // prints response header from m_responseHeaders
 	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// Overriden virtual method that prints out parsed response header
+	virtual bool Serialize() // prints response header from m_responseHeaders
+	//-----------------------------------------------------------------------------
+	{
+		KOutStream os(std::cout);
+		return Serialize(os);
+	}
 
 	//-----------------------------------------------------------------------------
 	/// Get all response headers except Cookies as a KHeader
@@ -107,8 +111,11 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Get response header value from given header name (case insensitive)
-	const KString& getResponseHeader(const KString& sHeaderName) const;
+	const KString& getResponseHeader(KCaseTrimStringView sHeaderName) const
 	//-----------------------------------------------------------------------------
+	{
+		return m_responseHeaders.Get(sHeaderName);
+	}
 
 	//-----------------------------------------------------------------------------
 	/// Get all response cookies as a KHeader
@@ -120,12 +127,31 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Get response cookie value from given cookie name (case insensitive)
-	const KString& getResponseCookie(const KString& sCookieName) const; // gets first cookie with name
+	const KString& getResponseCookie(KCaseTrimStringView sCookieName) const
 	//-----------------------------------------------------------------------------
+	{
+		return m_responseCookies.Get(sCookieName);
+	}
+
+	//-----------------------------------------------------------------------------
+	virtual bool HeaderComplete() const
+	//-----------------------------------------------------------------------------
+	{
+		return m_parseState == headerFinished;
+	}
 
 //------
 private:
 //------
+	enum KParseState {
+		needStatus,
+		needColon,
+		needEOL,
+		possibleEOL,
+		headerFinished
+	};
+	KParseState m_parseState{needStatus};
+	size_t m_iColonPos{KStringView::npos};
 
 	KHeader        m_responseHeaders; // response headers read in
 	KHeader        m_responseCookies; // response cookies read in
@@ -133,22 +159,16 @@ private:
 	KString        m_sResponseVersion; // HTTP resonse version
 	KString        m_sResponseStatus; // HTTP response status
 	uint16_t       m_iResponseStatusCode{0}; // HTTP response code
-
-	KOutStream     m_outStream{std::cout}; // Writer Stream
+// TODO we need to reset the header complete flag if we want to reuse this class
 
 	//-----------------------------------------------------------------------------
 	/// method that takes care of case-insentive header add logic and cookie add logic
-	bool           addResponseHeader(const KString&& sHeaderName, const KString&& sHeaderValue);
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// method to determine if header ends with \n\n or \r\n\r\n indicating end of header
-	bool           isLastHeader(const KString& sHeaderPart, size_t lineEndPos);
+	bool           addResponseHeader(KStringView svBuffer, size_t colonPos, size_t lineEndPos, bool bParseCookies);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// if parsing multi line header, this gets to the end of it
-	size_t         findEndOfHeader(const KString& sHeaderPart, size_t lineEndPos);
+	size_t         findEndOfHeader(KStringView svHeaderPart, size_t lineEndPos);
 	//-----------------------------------------------------------------------------
 };
 

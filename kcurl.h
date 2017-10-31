@@ -50,6 +50,7 @@
 #include "kinshell.h"
 #include "kfile.h"
 #include "kreader.h"
+#include "kcasestring.h"
 
 #include <iostream>
 
@@ -66,23 +67,14 @@ class KCurl
 public:
 //------
 
-	// Common headers (to not be harcoded in the code)
-	static const char* xForwardedForHeader;
-	static const char* HostHeader;
-	static const char* CookieHeader;
-	static const char* UserAgentHeader;
-	static const char* sGarbageHeader;
-
 	/// Request Type Enum GET or POST
 	typedef enum
 	{
 		GET, POST
 	} RequestType;
 
-	/// The data structure for original case-sensitive data
-	typedef std::pair<KString,KString> KHeaderPair;
-	/// The key for this is trimmed and lower cased, value is original key-value pair.
-	typedef KProps<KString, KHeaderPair> KHeader; // case insensitive map for header info
+	// The key for this is trimmed and lower cased on comparisons, but stores the original string
+	typedef KProps<KCaseTrimString, KString> KHeader; // case insensitive map for header info
 
 	//-----------------------------------------------------------------------------
 	/// Default KCurl Constructor, must be configured after construction
@@ -247,25 +239,32 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// Method children must override to receive and process response header
-	virtual bool addToResponseHeader(KString& sHeaderPart);
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// Method children must override to receive and process response body
-	virtual bool addToResponseBody(KString& sBodyPart);
+	/// Method children must override to receive and process response data
+	virtual KStringView Parse(KStringView sPart, bool bParseCookies = true);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// A method to print reponse header as currently read in
-	virtual bool printResponseHeader();
+	virtual bool Serialize(KOutStream& outStream);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// Overriden virtual method that prints out parsed response header
+	virtual bool Serialize() // prints response header from m_responseHeaders
+	//-----------------------------------------------------------------------------
+	{
+		KOutStream os(std::cout);
+		return Serialize(os);
+	}
+
+	//-----------------------------------------------------------------------------
+	virtual bool HeaderComplete() const;
 	//-----------------------------------------------------------------------------
 
 //--------
 protected:
 //--------
 
-	bool         m_bHeaderComplete{false}; // Whether to interpret response chunk as header or body
 	bool         m_bEchoHeader{false};     // Whether to output header
 	bool         m_bEchoBody{false};       // Whether to output body
 	RequestType  m_requestType{GET};       // HTTP Request type, GET or POST
@@ -280,6 +279,7 @@ private:
 	KString      m_sRequestURL;    // request url, must be set
 	KHeader      m_requestHeaders; // headers to add to requests
 	KHeader      m_requestCookies; // cookies to add to request
+	bool         m_bHeaderPrinted{false};
 
 	//-----------------------------------------------------------------------------
 	bool         serializeRequestHeader(KString& sCurlHeaders); // false means no headers

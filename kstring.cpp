@@ -50,13 +50,20 @@
 namespace dekaf2
 {
 
-const KString::size_type KString::npos;
+#if defined(__GCC__) && (DEKAF2_GCC_VERSION < 700)
+
+constexpr KString::size_type KString::npos;
+constexpr KString::value_type KString::s_0ch;
+
+#endif
+
+KString::value_type KString::s_0ch_v[2] = "\0";
 
 //------------------------------------------------------------------------------
-void KString::log_exception(std::exception& e, KStringView sWhere)
+void KString::log_exception(const std::exception& e, KStringView sWhere)
 //------------------------------------------------------------------------------
 {
-	kException(e);
+	KLog().Exception(e, sWhere);
 }
 
 //------------------------------------------------------------------------------
@@ -419,7 +426,11 @@ KString::iterator KString::erase(iterator position)
 //------------------------------------------------------------------------------
 {
 	try {
-		return m_rep.erase(position);
+		// we turn this into a indexed erase, because
+		// the std::string iterator erase does not test for
+		// iterator out of range and segfaults if out of range..
+		m_rep.erase(static_cast<size_type>(position - begin()), 1);
+		return position;
 	} catch (std::exception& e) {
 		kException(e);
 	}
@@ -431,102 +442,19 @@ KString::iterator KString::erase(iterator first, iterator last)
 //------------------------------------------------------------------------------
 {
 	try {
-		return m_rep.erase(first, last);
+		// we turn this into a indexed erase, because
+		// the std::string iterator erase does not test for
+		// iterator out of range and segfaults if out of range..
+		m_rep.erase(static_cast<size_type>(first - begin()),
+		            static_cast<size_type>(last - first));
+		return first;
 	} catch (std::exception& e) {
 		kException(e);
 	}
 	return end();
 }
 
-//----------------------------------------------------------------------
-int KString::compare(size_type pos, size_type n, const string_type& str) const
-//----------------------------------------------------------------------
-{
-	try {
-		return m_rep.compare(pos, n, str);
-	} catch (std::exception& e) {
-		kException(e);
-	}
-	return 1;
-}
-
-#ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
-//----------------------------------------------------------------------
-int KString::compare(size_type pos, size_type n, const std::string& str) const
-//----------------------------------------------------------------------
-{
-	try {
-		return m_rep.compare(pos, n, str);
-	} catch (std::exception& e) {
-		kException(e);
-	}
-	return 1;
-}
-#endif
-
-//----------------------------------------------------------------------
-int KString::compare(size_type pos1, size_type n1, const string_type& str, size_type pos2, size_type n2) const
-//----------------------------------------------------------------------
-{
-	try {
-		return m_rep.compare(pos1, n1, str, pos2, n2);
-	} catch (std::exception& e) {
-		kException(e);
-	}
-	return 1;
-}
-
-#ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
-//----------------------------------------------------------------------
-int KString::compare(size_type pos1, size_type n1, const std::string& str, size_type pos2, size_type n2) const
-//----------------------------------------------------------------------
-{
-	try {
-		return m_rep.compare(pos1, n1, str, pos2, n2);
-	} catch (std::exception& e) {
-		kException(e);
-	}
-	return 1;
-}
-#endif
-
-//----------------------------------------------------------------------
-int KString::compare(size_type pos, size_type n1, const value_type* s) const
-//----------------------------------------------------------------------
-{
-	try {
-		return m_rep.compare(pos, n1, s ? s : "");
-	} catch (std::exception& e) {
-		kException(e);
-	}
-	return 1;
-}
-
-//----------------------------------------------------------------------
-int KString::compare(size_type pos, size_type n1, const value_type* s, size_type n2) const
-//----------------------------------------------------------------------
-{
-	try {
-		return m_rep.compare(pos, n1, s ? s : "", n2);
-	} catch (std::exception& e) {
-		kException(e);
-	}
-	return 1;
-}
-
-//----------------------------------------------------------------------
-int KString::compare(size_type pos, size_type n1, KStringView sv) const
-//----------------------------------------------------------------------
-{
-	try {
-		return m_rep.compare(pos, n1, sv.data(), sv.size());
-	} catch (std::exception& e) {
-		kException(e);
-	}
-	return 1;
-}
-
-#if (DEKAF2_GCC_VERSION >= 40600) && (DEKAF2_USE_OPTIMIZED_STRING_FIND)
+#if (DEKAF2_GCC_VERSION >= 40600) && defined(DEKAF2_USE_OPTIMIZED_STRING_FIND)
 // In contrast to most of the other optimized find functions we do not
 // delegate this one to KStringView. The reason is that for find_first_of()
 // we can use the ultra fast glibc strcspn() function, it even outrivals
@@ -587,7 +515,7 @@ KString::size_type KString::find_first_of(KStringView sv, size_type pos) const
 }
 #endif
 
-#if (DEKAF2_GCC_VERSION >= 40600) && (DEKAF2_USE_OPTIMIZED_STRING_FIND)
+#if (DEKAF2_GCC_VERSION >= 40600) && defined(DEKAF2_USE_OPTIMIZED_STRING_FIND)
 // In contrast to most of the other optimized find functions we do not
 // delegate this one to KStringView. The reason is that for find_first_not_of()
 // we can use the ultra fast glibc strspn() function, it even outrivals
@@ -647,10 +575,19 @@ KString::size_type KString::find_first_not_of(KStringView sv, size_type pos) con
 #endif
 
 //----------------------------------------------------------------------
-KString::size_type KString::Replace(KStringView sSearch, KStringView sReplace, bool bReplaceAll)
+KString::size_type KString::Replace(
+        KStringView sSearch,
+        KStringView sReplace,
+        size_type pos,
+        bool bReplaceAll)
 //----------------------------------------------------------------------
 {
-	if (DEKAF2_UNLIKELY(sSearch.empty() || size() < sSearch.size()))
+	if (DEKAF2_UNLIKELY(pos >= size()))
+	{
+		return 0;
+	}
+
+	if (DEKAF2_UNLIKELY(sSearch.empty() || size() - pos < sSearch.size()))
 	{
 		return 0;
 	}
@@ -660,8 +597,8 @@ KString::size_type KString::Replace(KStringView sSearch, KStringView sReplace, b
 
 	size_type iNumReplacement = 0;
 	// use a non-const ref to the first element, as .data() is const with C++ < 17
-	value_type* haystack = &m_rep[0];
-	size_type haystackSize = size();
+	value_type* haystack = &m_rep[pos];
+	size_type haystackSize = size() - pos;
 
 	value_type* pszFound = static_cast<value_type*>(memmem(haystack, haystackSize, sSearch.data(), sSearch.size()));
 
@@ -745,6 +682,56 @@ KString::size_type KString::Replace(KStringView sSearch, KStringView sReplace, b
 }
 
 //----------------------------------------------------------------------
+KString::size_type KString::Replace(
+        value_type chSearch,
+        value_type chReplace,
+        size_type pos,
+        bool bReplaceAll)
+//----------------------------------------------------------------------
+{
+	size_type iReplaced{0};
+
+	while ((pos = find(chSearch, pos)) != npos)
+	{
+		m_rep[pos] = chReplace;
+		++pos;
+		++iReplaced;
+
+		if (!bReplaceAll)
+		{
+			break;
+		}
+	}
+
+	return iReplaced;
+}
+
+//----------------------------------------------------------------------
+KString::size_type KString::Replace(
+        KStringView sSearch,
+        value_type chReplace,
+        size_type pos,
+        bool bReplaceAll)
+//----------------------------------------------------------------------
+{
+	size_type iReplaced{0};
+
+	while ((pos = find_first_of(sSearch, pos)) != npos)
+	{
+		m_rep[pos] = chReplace;
+		++pos;
+		++iReplaced;
+
+		if (!bReplaceAll)
+		{
+			break;
+		}
+	}
+
+	return iReplaced;
+}
+
+//----------------------------------------------------------------------
 KString::size_type KString::ReplaceRegex(KStringView sRegEx, KStringView sReplaceWith, bool bReplaceAll)
 //----------------------------------------------------------------------
 {
@@ -775,36 +762,6 @@ KStringView KString::ToView(size_type pos, size_type n) const
 	}
 	return KStringView(data() + pos, n);
 }
-
-//----------------------------------------------------------------------
-KString KString::ToLower() const
-//----------------------------------------------------------------------
-{
-	KString sLower;
-	sLower.reserve(m_rep.size());
-
-	for (const auto& it : m_rep)
-	{
-		sLower += static_cast<value_type>(std::tolower(static_cast<unsigned char>(it)));
-	}
-
-	return sLower;
-} // ToUpper
-
-//----------------------------------------------------------------------
-KString KString::ToUpper() const
-//----------------------------------------------------------------------
-{
-	KString sUpper;
-	sUpper.reserve(m_rep.size());
-
-	for (const auto& it : m_rep)
-	{
-		sUpper += static_cast<value_type>(std::toupper(static_cast<unsigned char>(it)));
-	}
-
-	return sUpper;
-} // ToUpper
 
 //----------------------------------------------------------------------
 KString& KString::MakeLower()
@@ -994,8 +951,59 @@ void KString::RemoveIllegalChars(KStringView sIllegalChars)
 	}
 }
 
+#ifdef DEKAF2_WITH_DEPRECATED_KSTRING_MEMBER_FUNCTIONS
+
+//----------------------------------------------------------------------
+bool KString::FindRegex(KStringView regex) const
+//----------------------------------------------------------------------
+{
+	return KRegex::Matches(ToView(), regex);
+}
+
+//----------------------------------------------------------------------
+bool KString::FindRegex(KStringView regex, unsigned int* start, unsigned int* end, size_type pos) const
+//----------------------------------------------------------------------
+{
+	KStringView sv(ToView());
+	if (pos > 0)
+	{
+		sv.remove_prefix(pos);
+	}
+	size_t s, e;
+	auto ret = KRegex::Matches(sv, regex, s, e);
+	if (s == e)
+	{
+		if (start) *start = 0;
+		if (end)   *end   = 0;
+	}
+	else
+	{
+		// these casts are obviously bogus as size_t on
+		// 64 bit systems is larger than unsigned int
+		// - but this is what the old dekaf KString expects
+		// as return values.. so better do not use it with
+		// strings larger than 2^31 chars
+		if (start) *start = static_cast<unsigned int>(s + pos);
+		if (end)   *end   = static_cast<unsigned int>(e + pos);
+	}
+	return ret;
+}
+
+//----------------------------------------------------------------------
+KString::size_type KString::SubRegex(KStringView pszRegEx, KStringView pszReplaceWith, bool bReplaceAll, size_type* piIdxOffset)
+//----------------------------------------------------------------------
+{
+#ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
+	return KRegex::Replace(*this, pszRegEx, pszReplaceWith, bReplaceAll);
+#else
+	return KRegex::Replace(m_rep, pszRegEx, pszReplaceWith, bReplaceAll);
+#endif
+}
+
+#endif
+
 //-----------------------------------------------------------------------------
-bool KString::In (KStringView sHaystack, value_type iDelim/*=','*/)
+bool KString::In (KStringView sHaystack, value_type iDelim/*=','*/) const
 //-----------------------------------------------------------------------------
 {
 	// gcc 4.8.5 needs the non-brace initialization here..
@@ -1079,6 +1087,36 @@ bool kStrIn (const char* sNeedle, const char* sHaystack, char iDelim/*=','*/)
 	return false;
 
 } // kstrin
+
+//----------------------------------------------------------------------
+KString kToUpper(KStringView sInput)
+//----------------------------------------------------------------------
+{
+	KString sTransformed;
+	sTransformed.reserve(sInput.size());
+
+	for (const auto& it : sInput)
+	{
+		sTransformed += static_cast<KString::value_type>(std::toupper(static_cast<unsigned char>(it)));
+	}
+
+	return sTransformed;
+}
+
+//----------------------------------------------------------------------
+KString kToLower(KStringView sInput)
+//----------------------------------------------------------------------
+{
+	KString sTransformed;
+	sTransformed.reserve(sInput.size());
+
+	for (const auto& it : sInput)
+	{
+		sTransformed += static_cast<KString::value_type>(std::tolower(static_cast<unsigned char>(it)));
+	}
+
+	return sTransformed;
+}
 
 } // end of namespace dekaf2
 

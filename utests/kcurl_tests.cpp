@@ -28,37 +28,37 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	virtual bool addToResponseBody(KString& sBodyPart)
+	virtual KStringView Parse(KStringView svPart)
 	//-----------------------------------------------------------------------------
 	{
-		bool retVal = KCurl::addToResponseBody(sBodyPart);
-		m_sBody.push_back(sBodyPart);
-		return retVal;
-	}
-
-	//-----------------------------------------------------------------------------
-	virtual bool addToResponseHeader(KString& sHeaderPart)
-	//-----------------------------------------------------------------------------
-	{
-		if (printHeader || !getEchoHeader())
+		if (HeaderComplete())
 		{
-			KWebIO::addToResponseHeader(sHeaderPart);
+			m_sBody.push_back(svPart);
+			svPart.clear();
 		}
-		else // getEchoHeader() == true && printHeader == false;
+		else
 		{
-			setEchoHeader(false);
-			KWebIO::addToResponseHeader(sHeaderPart);
-			setEchoHeader(true);
+			if (printHeader || !getEchoHeader())
+			{
+				svPart = KWebIO::Parse(svPart);
+			}
+			else // getEchoHeader() == true && printHeader == false;
+			{
+				setEchoHeader(false);
+				svPart = KWebIO::Parse(svPart);
+				setEchoHeader(true);
+			}
 		}
 
-		return true;
+		return svPart;
 	}
 
 	//-----------------------------------------------------------------------------
 	bool printResponseBody()
 	//-----------------------------------------------------------------------------
 	{
-		bool retVal = KCurl::printResponseHeader();
+		KOutStream os(std::cout);
+		bool retVal = KCurl::Serialize(os);
 		for (const auto& bodyPart : m_sBody)
 		{
 			std::cout << bodyPart;
@@ -100,7 +100,7 @@ TEST_CASE("KCurl")
 		CHECK_FALSE(bSuccess);
 
 		KString randHeader("something");
-		webIO.addToResponseHeader(randHeader);
-		webIO.printResponseHeader();
+		webIO.Parse(randHeader);
+		webIO.Serialize();
 	}
 }

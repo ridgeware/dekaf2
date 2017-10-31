@@ -78,11 +78,8 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// move construct a KStream
-	KStream(self_type&& other) noexcept
+	KStream(self_type&& other) = default;
 	//-----------------------------------------------------------------------------
-		: reader_type(std::move(other))
-		, writer_type(std::move(other))
-	{}
 
 	//-----------------------------------------------------------------------------
 	/// copy construction is deleted, as with std::iostream
@@ -101,13 +98,8 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// move operator
-	self_type& operator=(self_type&& other)
+	self_type& operator=(self_type&& other) = default;
 	//-----------------------------------------------------------------------------
-	{
-		reader_type::operator=(std::move(other));
-		writer_type::operator=(std::move(other));
-		return *this;
-	}
 
 };
 
@@ -154,11 +146,8 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// move construct a KReaderWriter
-	KReaderWriter(self_type&& other) noexcept
+	KReaderWriter(self_type&& other) = default;
 	//-----------------------------------------------------------------------------
-	    : base_type(std::move(other))
-	    , k_rw_type(std::move(other))
-	{}
 
 	//-----------------------------------------------------------------------------
 	/// copy constructor is deleted - std::iostream's is, too
@@ -172,12 +161,8 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// move assignment
-	self_type& operator=(self_type&& other)
+	self_type& operator=(self_type&& other) = default;
 	//-----------------------------------------------------------------------------
-	{
-		base_type::operator=(std::move(other));
-		k_rw_type::operator=(std::move(other));
-	}
 
 	//-----------------------------------------------------------------------------
 	// this one is necessary because ios_base has a symbol named end .. (for seeking)
@@ -189,6 +174,9 @@ public:
 
 };
 
+extern template class KReaderWriter<std::fstream>;
+extern template class KReaderWriter<std::stringstream>;
+extern template class KReaderWriter<asio::ip::tcp::iostream>;
 
 /// File stream based on std::fstream
 using KFile           = KReaderWriter<std::fstream>;

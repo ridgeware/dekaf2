@@ -45,7 +45,7 @@ TEST_CASE("KStringUtils") {
 
 		for (auto& it : stest)
 		{
-			dekaf2::kReplace(it[0], it[1], it[2], true);
+			dekaf2::kReplace(it[0], it[1], it[2], 0, true);
 			CHECK( it[0] == it[3] );
 		}
 
@@ -91,7 +91,7 @@ TEST_CASE("KStringUtils") {
 
 		for (auto& it : stest)
 		{
-			dekaf2::Replace(it[0], it[1].data(), it[1].length(), it[2].data(), it[2].length(), true);
+			dekaf2::Replace(it[0], it[1].data(), it[1].length(), it[2].data(), it[2].length(), 0, true);
 			CHECK( it[0] == it[3] );
 		}
 

@@ -45,19 +45,12 @@
 /// @file KOStringStream.h
 /// provides kstrings that can be constructed from strings (multiple kinds) passed in
 
-//#include <cinttypes>
-//#include <streambuf>
 #include <ostream>
-//#include <unistd.h>
+#include <iostream>
 #include <sys/types.h>
-//#include <sys/stat.h>
-//#include <fcntl.h>
-
 
 #include "kwriter.h"
 #include "kformat.h"
-
-#include <iostream>
 
 namespace dekaf2
 {

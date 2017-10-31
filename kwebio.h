@@ -137,12 +137,21 @@ public:
 	virtual bool HeaderComplete() const
 	//-----------------------------------------------------------------------------
 	{
-		return m_bHeaderComplete;
+		return m_parseState == headerFinished;
 	}
 
 //------
 private:
 //------
+	enum KParseState {
+		needStatus,
+		needColon,
+		needEOL,
+		possibleEOL,
+		headerFinished
+	};
+	KParseState m_parseState{needStatus};
+	size_t m_iColonPos{KStringView::npos};
 
 	KHeader        m_responseHeaders; // response headers read in
 	KHeader        m_responseCookies; // response cookies read in
@@ -150,12 +159,11 @@ private:
 	KString        m_sResponseVersion; // HTTP resonse version
 	KString        m_sResponseStatus; // HTTP response status
 	uint16_t       m_iResponseStatusCode{0}; // HTTP response code
-	bool           m_bHeaderComplete{false}; // Whether to interpret response chunk as header or body
 // TODO we need to reset the header complete flag if we want to reuse this class
 
 	//-----------------------------------------------------------------------------
 	/// method that takes care of case-insentive header add logic and cookie add logic
-	bool           addResponseHeader(KStringView sHeaderName, KStringView sHeaderValue, bool bParseCookies);
+	bool           addResponseHeader(KStringView svBuffer, size_t colonPos, size_t lineEndPos, bool bParseCookies);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------

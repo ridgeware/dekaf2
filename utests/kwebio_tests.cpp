@@ -46,7 +46,7 @@ TEST_CASE("KWebIO")
 #if kwebdebug
 		// Verifying how header was parsed by printing
 		std::cout << "    == Normal Parse Test Header ==" << std::endl;
-		webIO.printResponseHeader();
+		webIO.Serialize();
 #endif
 	}
 
@@ -92,7 +92,7 @@ TEST_CASE("KWebIO")
 #if kwebdebug
 		// Verifying how header was parsed by printing
 		std::cout << "    == Windows Parse Test Header ==" << std::endl;
-		webIO.printResponseHeader();
+		webIO.Serialize();
 #endif
 	}
 
@@ -126,7 +126,7 @@ TEST_CASE("KWebIO")
 #if kwebdebug
 		// Verifying how header was parsed by printing
 		std::cout << "    == Garbage Test Header ==" << std::endl;
-		webIO.printResponseHeader();
+		webIO.Serialize();
 #endif
 	}
 
@@ -171,15 +171,15 @@ TEST_CASE("KWebIO")
 		CHECK(pBadCookie == "");
 		//CHECK(pBadCookie.empty());
 #if kwebdebug
-		KCurl::KHeader allCookies = webIO.getResponseCookies();
-		std::cout << "    == Cookies ==" << std::endl;
-		for (const auto& iter : allCookies)
-		{
-			std::cout << iter.second.first << "=" << iter.second.second << std::endl;
-		}
+//		KCurl::KHeader allCookies = webIO.getResponseCookies();
+//		std::cout << "    == Cookies ==" << std::endl;
+//		for (const auto& iter : allCookies)
+//		{
+//			std::cout << iter.second.first << "=" << iter.second.second << std::endl;
+//		}
 		// Verifying how header was parsed by printing
 		std::cout << "    == Streamed Test Header ==" << std::endl;
-		webIO.printResponseHeader();
+		webIO.Serialize();
 #endif
 	}
 
@@ -219,7 +219,7 @@ TEST_CASE("KWebIO")
 #if kwebdebug
 		// Verifying how header was parsed by printing
 		std::cout << "    == Cut Stream Test Header ==" << std::endl;
-		webIO.printResponseHeader();
+		webIO.Serialize();
 #endif
 	}
 
@@ -265,7 +265,7 @@ TEST_CASE("KWebIO")
 #if kwebdebug
 		// Verifying how header was parsed by printing
 		std::cout << "    == Cut Stream Test Header II ==" << std::endl;
-		webIO.printResponseHeader();
+		webIO.Serialize();
 #endif
 	}
 
@@ -311,7 +311,7 @@ TEST_CASE("KWebIO")
 #if kwebdebug
 		// Verifying how header was parsed by printing
 		std::cout << "    == Windows Cut Stream Test Header ==" << std::endl;
-		webIO.printResponseHeader();
+		webIO.Serialize();
 #endif
 	}
 
@@ -359,7 +359,7 @@ TEST_CASE("KWebIO")
 #if kwebdebug
 		// Verifying how header was parsed by printing
 		std::cout << "    == Windows Cut Stream Test Header II==" << std::endl;
-		webIO.printResponseHeader();
+		webIO.Serialize();
 #endif
 	}
 
@@ -411,7 +411,7 @@ TEST_CASE("KWebIO")
 #if kwebdebug
 		// Verifying how header was parsed by printing
 		std::cout << "    == Windows Parse Test Header ==" << std::endl;
-		webIO.printResponseHeader();
+		webIO.Serialize();
 		std::cout << std::endl;
 #endif
 	}
@@ -460,10 +460,9 @@ TEST_CASE("KWebIO")
 		CHECK(sResponseHeaders.Count("forwarded") == 1);
 		CHECK(sResponseHeaders.Count("x-forwarded-for") == 1);
 #if kwebdebug
-		//#if 1
 		// Verifying how header was parsed by printing
 		std::cout << "    == Windows Parse Test Header ==" << std::endl;
-		webIO.printResponseHeader();
+		webIO.Serialize();
 #endif
 	}
 
@@ -516,7 +515,7 @@ TEST_CASE("KWebIO")
 		//#if 1
 		// Verifying how header was parsed by printing
 		std::cout << "    == Windows Parse Test Header ==" << std::endl;
-		webIO.printResponseHeader();
+		webIO.Serialize();
 #endif
 	}
 
@@ -569,7 +568,7 @@ TEST_CASE("KWebIO")
 		//#if 1
 		// Verifying how header was parsed by printing
 		std::cout << "    == Complex Header Real Test 4 (unix newlines) ==" << std::endl;
-		webIO.printResponseHeader();
+		webIO.Serialize();
 #endif
 	}
 
@@ -622,7 +621,7 @@ TEST_CASE("KWebIO")
 		//#if 1
 		// Verifying how header was parsed by printing
 		std::cout << "    == Continuation Line Test (unix newlines) ==" << std::endl;
-		webIO.printResponseHeader();
+		webIO.Serialize();
 #endif
 	}
 
@@ -674,7 +673,7 @@ TEST_CASE("KWebIO")
 #if kwebdebug
 		// Verifying how header was parsed by printing
 		std::cout << "    == Continuation Line Test (windows  newlines) ==" << std::endl;
-		webIO.printResponseHeader();
+		webIO.Serialize();
 #endif
 	}
 
@@ -727,7 +726,7 @@ TEST_CASE("KWebIO")
 #if kwebdebug
 		// Verifying how header was parsed by printing
 		std::cout << "    == Invalid Cookie Line Test (windows  newlines) ==" << std::endl;
-		webIO.printResponseHeader();
+		webIO.Serialize();
 #endif
 	}
 
@@ -780,7 +779,7 @@ TEST_CASE("KWebIO")
 #if kwebdebug
 		// Verifying how header was parsed by printing
 		std::cout << "    == Invalid Cookie Line Test 2 (windows  newlines) ==" << std::endl;
-		webIO.printResponseHeader();
+		webIO.Serialize();
 #endif
 	}
 
@@ -833,7 +832,7 @@ TEST_CASE("KWebIO")
 #if kwebdebug
 		// Verifying how header was parsed by printing
 		std::cout << "    == Invalid Cookie Line Test 3 (windows  newlines) ==" << std::endl;
-		webIO.printResponseHeader();
+		webIO.Serialize();
 #endif
 	}
 
@@ -887,7 +886,7 @@ TEST_CASE("KWebIO")
 		//#if 1
 		// Verifying how header was parsed by printing
 		std::cout << "    == Invalid Cookie Line Test 4 (windows  newlines) ==" << std::endl;
-		webIO.printResponseHeader();
+		webIO.Serialize();
 #endif
 	}
 
@@ -941,7 +940,7 @@ TEST_CASE("KWebIO")
 		//#if 1
 		// Verifying how header was parsed by printing
 		std::cout << "    == Invalid Cookie Line Test 5 (windows  newlines) ==" << std::endl;
-		webIO.printResponseHeader();
+		webIO.Serialize();
 #endif
 	}
 
@@ -994,7 +993,7 @@ TEST_CASE("KWebIO")
 #if kwebdebug
 		// Verifying how header was parsed by printing
 		std::cout << "    == Invalid Cookie Line Test 6 (windows  newlines) ==" << std::endl;
-		webIO.printResponseHeader();
+		webIO.Serialize();
 #endif
 	}
 
@@ -1047,7 +1046,7 @@ TEST_CASE("KWebIO")
 #if kwebdebug
 		// Verifying how header was parsed by printing
 		std::cout << "    == Invalid Cookie Line Test 7 (windows  newlines) ==" << std::endl;
-		webIO.printResponseHeader();
+		webIO.Serialize();
 #endif
 	}
 
@@ -1100,7 +1099,7 @@ TEST_CASE("KWebIO")
 #if kwebdebug
 		// Verifying how header was parsed by printing
 		std::cout << "    == Invalid Cookie Line Test 8 (windows  newlines) ==" << std::endl;
-		webIO.printResponseHeader();
+		webIO.Serialize();
 #endif
 	}
 
@@ -1153,7 +1152,7 @@ TEST_CASE("KWebIO")
 #if kwebdebug
 		// Verifying how header was parsed by printing
 		std::cout << "    == Invalid Cookie Line Test (unix  newlines) ==" << std::endl;
-		webIO.printResponseHeader();
+		webIO.Serialize();
 #endif
 	}
 
@@ -1206,7 +1205,7 @@ TEST_CASE("KWebIO")
 #if kwebdebug
 		// Verifying how header was parsed by printing
 		std::cout << "    == Invalid Cookie Line Test 2 (unix  newlines) ==" << std::endl;
-		webIO.printResponseHeader();
+		webIO.Serialize();
 #endif
 	}
 
@@ -1259,7 +1258,7 @@ TEST_CASE("KWebIO")
 #if kwebdebug
 		// Verifying how header was parsed by printing
 		std::cout << "    == Invalid Cookie Line Test 3 (unix  newlines) ==" << std::endl;
-		webIO.printResponseHeader();
+		webIO.Serialize();
 #endif
 	}
 
@@ -1312,7 +1311,7 @@ TEST_CASE("KWebIO")
 #if kwebdebug
 		// Verifying how header was parsed by printing
 		std::cout << "    == Invalid Cookie Line Test 4 (unix  newlines) ==" << std::endl;
-		webIO.printResponseHeader();
+		webIO.Serialize();
 #endif
 	}
 
@@ -1365,7 +1364,7 @@ TEST_CASE("KWebIO")
 #if kwebdebug
 		// Verifying how header was parsed by printing
 		std::cout << "    == Invalid Cookie Line Test 5 (unix  newlines) ==" << std::endl;
-		webIO.printResponseHeader();
+		webIO.Serialize();
 #endif
 	}
 
@@ -1418,7 +1417,7 @@ TEST_CASE("KWebIO")
 #if kwebdebug
 		// Verifying how header was parsed by printing
 		std::cout << "    == Invalid Cookie Line Test 6 (unix  newlines) ==" << std::endl;
-		webIO.printResponseHeader();
+		webIO.Serialize();
 #endif
 	}
 
@@ -1471,7 +1470,7 @@ TEST_CASE("KWebIO")
 #if kwebdebug
 		// Verifying how header was parsed by printing
 		std::cout << "    == Invalid Cookie Line Test 7 (unix  newlines) ==" << std::endl;
-		webIO.printResponseHeader();
+		webIO.Serialize();
 #endif
 	}
 
@@ -1524,7 +1523,7 @@ TEST_CASE("KWebIO")
 #if kwebdebug
 		// Verifying how header was parsed by printing
 		std::cout << "    == Invalid Cookie Line Test 8 (unix  newlines) ==" << std::endl;
-		webIO.printResponseHeader();
+		webIO.Serialize();
 #endif
 	}
 
@@ -1578,7 +1577,7 @@ TEST_CASE("KWebIO")
 #if kwebdebug
 		// Verifying how header was parsed by printing
 		std::cout << "    == Invalid Header Line Test (windows  newlines) ==" << std::endl;
-		webIO.printResponseHeader();
+		webIO.Serialize();
 #endif
 	}
 
@@ -1632,7 +1631,7 @@ TEST_CASE("KWebIO")
 #if kwebdebug
 		// Verifying how header was parsed by printing
 		std::cout << "    == Invalid Header Line Test (unix  newlines) ==" << std::endl;
-		webIO.printResponseHeader();
+		webIO.Serialize();
 #endif
 	}
 
@@ -1686,7 +1685,7 @@ TEST_CASE("KWebIO")
 #if kwebdebug
 		// Verifying how header was parsed by printing
 		std::cout << "    == Valid Last Header Line Test (windows  newlines) ==" << std::endl;
-		webIO.printResponseHeader();
+		webIO.Serialize();
 #endif
 	}
 
@@ -1740,7 +1739,7 @@ TEST_CASE("KWebIO")
 #if kwebdebug
 		// Verifying how header was parsed by printing
 		std::cout << "    == Invalid Last Header Line Test (unix  newlines) ==" << std::endl;
-		webIO.printResponseHeader();
+		webIO.Serialize();
 #endif
 	}
 
@@ -1794,7 +1793,7 @@ TEST_CASE("KWebIO")
 #if kwebdebug
 		// Verifying how header was parsed by printing
 		std::cout << "    == Invalid Last Header Line Test (windows  newlines) ==" << std::endl;
-		webIO.printResponseHeader();
+		webIO.Serialize();
 #endif
 	}
 
@@ -1848,7 +1847,7 @@ TEST_CASE("KWebIO")
 #if kwebdebug
 		// Verifying how header was parsed by printing
 		std::cout << "    == Invalid Last Header Line Test (unix  newlines) ==" << std::endl;
-		webIO.printResponseHeader();
+		webIO.Serialize();
 #endif
 	}
 
@@ -1901,7 +1900,7 @@ TEST_CASE("KWebIO")
 #if kwebdebug
 		// Verifying how header was parsed by printing
 		std::cout << "    == Multiple Cookie Line Test (windows  newlines) ==" << std::endl;
-		webIO.printResponseHeader();
+		webIO.Serialize();
 #endif
 	}
 
@@ -1954,7 +1953,7 @@ TEST_CASE("KWebIO")
 #if kwebdebug
 		// Verifying how header was parsed by printing
 		std::cout << "    == Multiple Cookie Line Test (unix  newlines) ==" << std::endl;
-		webIO.printResponseHeader();
+		webIO.Serialize();
 #endif
 	}
 
@@ -2007,7 +2006,7 @@ TEST_CASE("KWebIO")
 #if kwebdebug
 		// Verifying how header was parsed by printing
 		std::cout << "    == Stuff After header test (windows  newlines) ==" << std::endl;
-		webIO.printResponseHeader();
+		webIO.Serialize();
 #endif
 	}
 
@@ -2060,7 +2059,7 @@ TEST_CASE("KWebIO")
 #if kwebdebug
 		// Verifying how header was parsed by printing
 		std::cout << "    == Stuff After header test 2 (windows  newlines) ==" << std::endl;
-		webIO.printResponseHeader();
+		webIO.Serialize();
 #endif
 	}
 
@@ -2113,7 +2112,7 @@ TEST_CASE("KWebIO")
 #if kwebdebug
 		// Verifying how header was parsed by printing
 		std::cout << "    == Stuff After header test 3 (windows  newlines) ==" << std::endl;
-		webIO.printResponseHeader();
+		webIO.Serialize();
 #endif
 	}
 
@@ -2166,7 +2165,7 @@ TEST_CASE("KWebIO")
 #if kwebdebug
 		// Verifying how header was parsed by printing
 		std::cout << "    == Stuff After header test (unix  newlines) ==" << std::endl;
-		webIO.printResponseHeader();
+		webIO.Serialize();
 #endif
 	}
 
@@ -2219,7 +2218,7 @@ TEST_CASE("KWebIO")
 #if kwebdebug
 		// Verifying how header was parsed by printing
 		std::cout << "    == Stuff After header test 2 (unix  newlines) ==" << std::endl;
-		webIO.printResponseHeader();
+		webIO.Serialize();
 #endif
 	}
 
@@ -2272,7 +2271,7 @@ TEST_CASE("KWebIO")
 #if kwebdebug
 		// Verifying how header was parsed by printing
 		std::cout << "    == Stuff After header test 3 (unix  newlines) ==" << std::endl;
-		webIO.printResponseHeader();
+		webIO.Serialize();
 #endif
 	}
 

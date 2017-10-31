@@ -62,42 +62,6 @@ KStringView KWebIO::Parse(KStringView svBuffer, bool bParseCookies)
 	size_t lineEndPos = KStringView::npos;
 	size_t nextEnd = KStringView::npos;
 
-
-// Handle \r\n or \n by itself
-	/*
-	auto handleEndCase = [&](KStringView& svBuf)
-	{
-
-		// edge case, blank \n or \r\n line comes in by itself
-		if (svBuffer[0] == '\n')
-		{
-			if (m_sPartialHeader.size() == 0)
-			{
-				// add it to the last header
-				KString& lastHeaderValue = m_responseHeaders.at(m_responseHeaders.size()-1).second;
-				lastHeaderValue += '\n';
-				m_parseState = headerFinished;
-				svBuf.remove_prefix(1);
-				return true; //break;
-			}
-		}
-
-		// edge case, blank \r\n line comes in by itself
-		else if (svBuffer.StartsWith("\r\n"))
-		{
-			if (m_sPartialHeader.size() == 0)
-			{
-				// add it to the last header
-				KString& lastHeaderValue = m_responseHeaders.at(m_responseHeaders.size()-1).second;
-				lastHeaderValue += "\r\n";
-				m_parseState = headerFinished;
-				svBuf.remove_prefix(2);
-				return true; //break;
-			}
-		}
-		return false;
-	};
-	*/
 	// This way we can know if are looking from the start of svBuffer
 	// Or continuing if looking for EOL
 	bool bFresh = true;
@@ -164,7 +128,6 @@ KStringView KWebIO::Parse(KStringView svBuffer, bool bParseCookies)
 			case KParseState::needColon:
 			//=================================================================
 				// edge case, blank \n or \r\n line comes in by itself
-				//if (handleEndCase(svBuffer)) return svBuffer;
 				m_iColonPos = svBuffer.find_first_of(":\n");
 				if (DEKAF2_UNLIKELY(m_iColonPos != KStringView::npos && svBuffer[m_iColonPos] == '\n'))
 				{
@@ -427,13 +390,11 @@ bool KWebIO::addResponseHeader(KStringView svBuffer, size_t colonPos, size_t lin
 					if (whitespace == KStringView::npos && !bFresh)
 					{
 						KString& lastCookieValue = m_responseCookies.at(m_responseCookies.size()-1).second;
-						//KString sAddPart = KString{sHeaderValue};
 						lastCookieValue += ';'; // can only get here if there are leftovers after ;
 						lastCookieValue += sHeaderValue;
 						return true;
 					}
 					// bad cookie take to eol
-					//KStringView sCookieName = sHeaderValue.substr(0, sHeaderValue.size());
 					kDebug(3, "({},{}) end. Ended with invalid cookie", sHeaderName, sHeaderValue);
 					m_responseCookies.Add(sHeaderValue, KString{});
 					return false;
@@ -480,112 +441,6 @@ bool KWebIO::addResponseHeader(KStringView svBuffer, size_t colonPos, size_t lin
 	return true; // no errors detected
 } // addResponseHeader
 
-/*
-bool KWebIO::addResponseHeader(KStringView svBuffer, size_t colonPos, size_t lineEndPos, bool bParseCookies)
-//-----------------------------------------------------------------------------
-{
-	//kDebug(3, "name {}, value {} start", sHeaderName, sHeaderValue);
-
-	m_sPartialHeader += svBuffer;
-	svBuffer = m_sPartialHeader;
-
-	// "Garbage" header edge case
-	if (DEKAF2_UNLIKELY(
-		colonPos == KString::npos || lineEndPos == KString::npos || colonPos >= lineEndPos))
-	{
-		KStringView sHeaderValue = svBuffer.substr(0, lineEndPos);
-		m_responseHeaders.Add(svBrokenHeader, sHeaderValue);
-		kDebug(3, "({},{}) end. Garbage header added.", svBrokenHeader, sHeaderValue);
-		return true;
-	}
-
-	KStringView sHeaderName = svBuffer.substr(0, colonPos);
-	KStringView sHeaderValue = svBuffer.substr(colonPos + 1, lineEndPos-colonPos);
-	// TODO REFACTOR COOKIE PARSING ALONG LINES OF HEADER PARSING
-	if (DEKAF2_LIKELY(!bParseCookies || !kCaseEqualTrimLeft(sHeaderName, KHTTP::KHeader::request_cookie)))
-	{
-		// most headers
-		m_responseHeaders.Add(sHeaderName, sHeaderValue);
-	}
-	else
-	{
-		// ALWAYS STARTS A NEW COOKIE HEADER, only full headers can end up here.
-		if (!m_responseCookies.empty())
-		{
-			m_responseCookies.Add(KString{}, KString{});
-		}
-
-		m_responseHeaders.Add(std::move(sHeaderName), KString{}); // don't forget cookie header:
-
-		// parse cookies and add them one by one.
-		size_t semiPos  = sHeaderValue.find(';');
-		size_t equalPos = sHeaderValue.find('=');
-		size_t endPos   = sHeaderValue.find_last_not_of(" ;\r\n"); // account for extra whitespace at end of line
-		endPos          = sHeaderValue.find(';', endPos);
-		if (endPos == KStringView::npos)
-		{
-			endPos = sHeaderValue.size();
-		}
-
-		if (equalPos == KStringView::npos)
-		{
-			// not a single '=', no valid cookies
-			kDebug(3, "({},{}}) end. Invalid cookie found.", sHeaderName, sHeaderValue);
-			m_responseCookies.Add(sHeaderValue, KString{});// for serialization just put on what is there
-			return false; // invalid cookie format
-		}
-
-		while (semiPos != KStringView::npos && equalPos != KStringView::npos) // account for n cookies
-		{
-			KStringView sCookieName  = sHeaderValue.substr(0, equalPos);
-
-			if (semiPos != KStringView::npos && semiPos == endPos) // If this ends the cookies don't forget to take to EOL.
-			{
-				KStringView sCookieValue = sHeaderValue.substr(equalPos + 1, sHeaderValue.size() - equalPos - 1);
-				kDebug(3, "({},{}) end", sHeaderName, sHeaderValue);
-				m_responseCookies.Add(sCookieName, sCookieValue);
-				return true;
-			}
-			else
-			{
-				KStringView sCookieValue = sHeaderValue.substr(equalPos + 1, semiPos - equalPos - 1);
-				m_responseCookies.Add(sCookieName, sCookieValue);
-			}
-
-			// Update markers for next cookie
-			sHeaderValue.remove_prefix(semiPos + 1);
-			endPos  -= semiPos + 1;
-			equalPos = sHeaderValue.find('=');
-			semiPos  = sHeaderValue.find(';');
-		}
-
-		if (equalPos != KStringView::npos && semiPos == KStringView::npos) //does not end with ';'
-		{
-			KStringView sCookieName  = sHeaderValue.substr(0, equalPos);
-			KStringView sCookieValue = sHeaderValue.substr(equalPos + 1, sHeaderValue.size() - equalPos); // don't forget newline
-			m_responseCookies.Add(sCookieName, sCookieValue);
-		}
-		else if (semiPos == KStringView::npos && equalPos == KStringView::npos) //ends with invalid cookie
-		{
-			// TODO add rest of header
-			KStringView sCookieName = sHeaderValue.substr(0, sHeaderValue.size());
-			kDebug(3, "({},{}) end. Ended with invalid cookie", sHeaderName, sHeaderValue);
-			m_responseCookies.Add(sCookieName, KString{});
-			return true;
-		}
-		else
-		{
-			kDebug(3, "({},{}) end. Found malformed cookie.", sHeaderName, sHeaderValue);
-			return false; // last cookie is malformed
-		}
-	}
-
-	kDebug(3, "({},{}) end. Non cookie header added.", sHeaderName, sHeaderValue);
-	//m_bUseLeftovers = false;
-	return true;
-
-} // addResponseHeader
-*/
 
 // Return current end of header line if not multiline header
 // if multiline header return end pos of multi line header

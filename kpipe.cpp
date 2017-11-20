@@ -1,3 +1,4 @@
+#include <signal.h>
 #include "kpipe.h"
 
 namespace dekaf2

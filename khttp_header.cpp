@@ -402,7 +402,7 @@ KStringView KHeader::Get(KCaseStringView sv) const
 	return svv;
 }
 
-#if defined(__GCC__) && (DEKAF2_GCC_VERSION < 700)
+#if !defined(DEKAF2_NO_GCC) && (DEKAF2_GCC_VERSION < 70000)
 
 // for some strange reason gcc < 7 wants these repeated definitions
 // once one puts a constexpr variable into a class. As long as

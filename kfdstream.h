@@ -80,6 +80,7 @@ public:
 	//-----------------------------------------------------------------------------
 	KInputFDStream()
 	//-----------------------------------------------------------------------------
+		: base_type(&m_FPStreamBuf)
 	{
 	}
 
@@ -87,7 +88,7 @@ public:
 	KInputFDStream(const KInputFDStream&) = delete;
 	//-----------------------------------------------------------------------------
 
-#if !defined(__GNUC__) || (DEKAF2_GCC_VERSION >= 500)
+#if defined(DEKAF2_NO_GCC) || (DEKAF2_GCC_VERSION >= 50000)
 	//-----------------------------------------------------------------------------
 	KInputFDStream(KInputFDStream&& other);
 	//-----------------------------------------------------------------------------
@@ -98,6 +99,7 @@ public:
 	/// file descriptor
 	KInputFDStream(int iFileDesc)
 	//-----------------------------------------------------------------------------
+		: base_type(&m_FPStreamBuf)
 	{
 		open(iFileDesc);
 	}
@@ -106,7 +108,7 @@ public:
 	virtual ~KInputFDStream();
 	//-----------------------------------------------------------------------------
 
-#if !defined(__GNUC__) || (DEKAF2_GCC_VERSION >= 500)
+#if defined(DEKAF2_NO_GCC) || (DEKAF2_GCC_VERSION >= 50000)
 	//-----------------------------------------------------------------------------
 	KInputFDStream& operator=(KInputFDStream&& other);
 	//-----------------------------------------------------------------------------
@@ -180,6 +182,7 @@ public:
 	//-----------------------------------------------------------------------------
 	KInputFPStream()
 	//-----------------------------------------------------------------------------
+		: base_type(&m_FPStreamBuf)
 	{
 	}
 
@@ -187,14 +190,17 @@ public:
 	KInputFPStream(const KInputFPStream&) = delete;
 	//-----------------------------------------------------------------------------
 
+#if defined(DEKAF2_NO_GCC) || (DEKAF2_GCC_VERSION >= 50000)
 	//-----------------------------------------------------------------------------
 	KInputFPStream(KInputFPStream&& other);
 	//-----------------------------------------------------------------------------
+#endif
 
 	//-----------------------------------------------------------------------------
 	/// the main purpose of this class: allow construction from a FILE ptr
 	KInputFPStream(FILE* iFilePtr)
 	//-----------------------------------------------------------------------------
+		: base_type(&m_FPStreamBuf)
 	{
 		open(iFilePtr);
 	}
@@ -203,9 +209,11 @@ public:
 	virtual ~KInputFPStream();
 	//-----------------------------------------------------------------------------
 
+#if defined(DEKAF2_NO_GCC) || (DEKAF2_GCC_VERSION >= 50000)
 	//-----------------------------------------------------------------------------
 	KInputFPStream& operator=(KInputFPStream&& other);
 	//-----------------------------------------------------------------------------
+#endif
 
 	KInputFPStream& operator=(const KInputFPStream&) = delete;
 
@@ -273,6 +281,7 @@ public:
 	//-----------------------------------------------------------------------------
 	KOutputFDStream()
 	//-----------------------------------------------------------------------------
+		: base_type(&m_FPStreamBuf)
 	{
 	}
 
@@ -280,7 +289,7 @@ public:
 	KOutputFDStream(const KOutputFDStream&) = delete;
 	//-----------------------------------------------------------------------------
 
-#if !defined(__GNUC__) || (DEKAF2_GCC_VERSION >= 500)
+#if defined(DEKAF2_NO_GCC) || (DEKAF2_GCC_VERSION >= 50000)
 	//-----------------------------------------------------------------------------
 	KOutputFDStream(KOutputFDStream&& other);
 	//-----------------------------------------------------------------------------
@@ -291,6 +300,7 @@ public:
 	/// file descriptor
 	KOutputFDStream(int iFileDesc)
 	//-----------------------------------------------------------------------------
+		: base_type(&m_FPStreamBuf)
 	{
 		open(iFileDesc);
 	}
@@ -299,7 +309,7 @@ public:
 	virtual ~KOutputFDStream();
 	//-----------------------------------------------------------------------------
 
-#if !defined(__GNUC__) || (DEKAF2_GCC_VERSION >= 500)
+#if defined(DEKAF2_NO_GCC) || (DEKAF2_GCC_VERSION >= 50000)
 	//-----------------------------------------------------------------------------
 	KOutputFDStream& operator=(KOutputFDStream&& other);
 	//-----------------------------------------------------------------------------
@@ -383,6 +393,7 @@ public:
 	//-----------------------------------------------------------------------------
 	KOutputFPStream()
 	//-----------------------------------------------------------------------------
+		: base_type(&m_FPStreamBuf)
 	{
 	}
 
@@ -390,7 +401,7 @@ public:
 	KOutputFPStream(const KOutputFPStream&) = delete;
 	//-----------------------------------------------------------------------------
 
-#if !defined(__GNUC__) || (DEKAF2_GCC_VERSION >= 500)
+#if defined(DEKAF2_NO_GCC) || (DEKAF2_GCC_VERSION >= 50000)
 	//-----------------------------------------------------------------------------
 	KOutputFPStream(KOutputFPStream&& other);
 	//-----------------------------------------------------------------------------
@@ -401,6 +412,7 @@ public:
 	/// file descriptor
 	KOutputFPStream(FILE* iFilePtr)
 	//-----------------------------------------------------------------------------
+		: base_type(&m_FPStreamBuf)
 	{
 		open(iFilePtr);
 	}
@@ -409,7 +421,7 @@ public:
 	virtual ~KOutputFPStream();
 	//-----------------------------------------------------------------------------
 
-#if !defined(__GNUC__) || (DEKAF2_GCC_VERSION >= 500)
+#if defined(DEKAF2_NO_GCC) || (DEKAF2_GCC_VERSION >= 50000)
 	//-----------------------------------------------------------------------------
 	KOutputFPStream& operator=(KOutputFPStream&& other);
 	//-----------------------------------------------------------------------------
@@ -489,6 +501,7 @@ public:
 	//-----------------------------------------------------------------------------
 	KInOutFDStream()
 	//-----------------------------------------------------------------------------
+		: base_type(&m_FPStreamBuf)
 	{
 	}
 
@@ -496,7 +509,7 @@ public:
 	KInOutFDStream(const KInOutFDStream&) = delete;
 	//-----------------------------------------------------------------------------
 
-#if !defined(__GNUC__) || (DEKAF2_GCC_VERSION >= 500)
+#if defined(DEKAF2_NO_GCC) || (DEKAF2_GCC_VERSION >= 50000)
 	//-----------------------------------------------------------------------------
 	KInOutFDStream(KInOutFDStream&& other);
 	//-----------------------------------------------------------------------------
@@ -507,6 +520,7 @@ public:
 	/// unix file descriptors
 	KInOutFDStream(int iFileDescR, int iFileDescW = -1)
 	//-----------------------------------------------------------------------------
+		: base_type(&m_FPStreamBuf)
 	{
 		open(iFileDescR, iFileDescW);
 	}
@@ -515,7 +529,7 @@ public:
 	virtual ~KInOutFDStream();
 	//-----------------------------------------------------------------------------
 
-#if !defined(__GNUC__) || (DEKAF2_GCC_VERSION >= 500)
+#if defined(DEKAF2_NO_GCC) || (DEKAF2_GCC_VERSION >= 50000)
 	//-----------------------------------------------------------------------------
 	KInOutFDStream& operator=(KInOutFDStream&& other);
 	//-----------------------------------------------------------------------------

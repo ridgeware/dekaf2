@@ -53,10 +53,20 @@
 #define DEKAF2_xstringify(x) #x
 #define DEKAF2_stringify(x) DEKAF2_xstringify(x)
 
+#if defined __clang__
+	#define DEKAF2_CLANG_VERSION __clang_major__ * 10000 + __clang_minor__ * 100 + __clang_patchlevel__
+	#define DEKAF2_NO_GCC 1
+#else
+	#define DEKAF2_CLANG_VERSION 0
+#endif
+
 #if defined __GNUC__
 	#define DEKAF2_GCC_VERSION __GNUC__ * 10000 + __GNUC_MINOR__ * 100 + __GNUC_PATCHLEVEL__
 #else
 	#define DEKAF2_GCC_VERSION 0
+	#ifndef DEKAF2_NO_GCC
+		#define DEKAF2_NO_GCC 1
+	#endif
 #endif
 
 #if defined __GNUC__

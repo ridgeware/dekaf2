@@ -16,7 +16,7 @@ KOutShell::KOutShell(const KString& sCommand)
 KOutShell::~KOutShell()
 //-----------------------------------------------------------------------------
 {
-	Close();
+//	Close();
 
 } // Default Destructor
 

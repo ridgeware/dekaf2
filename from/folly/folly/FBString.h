@@ -2053,7 +2053,7 @@ basic_fbstring<E, T, A, S>::getlineImpl(istream_type & is, value_type delim) {
     }
 
     FBSTRING_ASSERT(size == this->size());
-    FBSTRING_ASSERT(size == capacity());
+//    FBSTRING_ASSERT(size == capacity());
     // Start at minimum allocation 63 + terminator = 64.
     reserve(std::max<size_t>(63, 3 * size / 2));
     // Clear the error so we can continue reading.

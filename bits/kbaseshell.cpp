@@ -47,8 +47,17 @@ namespace dekaf2
 {
 
 //-----------------------------------------------------------------------------
-KBaseShell::~KBaseShell() {}
+KBaseShell::~KBaseShell()
 //-----------------------------------------------------------------------------
+{
+	if (m_pipe)
+	{
+		if (!pclose(m_pipe))
+		{
+			kWarning("could not close popen file: {}", strerror(errno));
+		}
+	}
+}
 
 //-----------------------------------------------------------------------------
 int KBaseShell::Close()

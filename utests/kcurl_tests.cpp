@@ -28,7 +28,7 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	virtual KStringView Parse(KStringView svPart)
+	virtual KStringView Parse(KStringView svPart, bool bParseCookies = true)
 	//-----------------------------------------------------------------------------
 	{
 		if (HeaderComplete())
@@ -40,12 +40,12 @@ public:
 		{
 			if (printHeader || !getEchoHeader())
 			{
-				svPart = KWebIO::Parse(svPart);
+				svPart = KWebIO::Parse(svPart, bParseCookies);
 			}
 			else // getEchoHeader() == true && printHeader == false;
 			{
 				setEchoHeader(false);
-				svPart = KWebIO::Parse(svPart);
+				svPart = KWebIO::Parse(svPart, bParseCookies);
 				setEchoHeader(true);
 			}
 		}

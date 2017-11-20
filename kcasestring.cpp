@@ -259,7 +259,7 @@ std::size_t kCalcCaseHashTrim(KStringView sv, KStringView svTrim)
 	return kCalcCaseHash(sv);
 }
 
-#if defined(__GCC__) && (DEKAF2_GCC_VERSION < 700)
+#if !defined(DEKAF2_NO_GCC) && (DEKAF2_GCC_VERSION < 70000)
 
 constexpr KStringView detail::casestring::TrimWhiteSpaces::svTrimLeft;
 constexpr KStringView detail::casestring::TrimWhiteSpaces::svTrimRight;

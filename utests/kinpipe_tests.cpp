@@ -31,6 +31,7 @@ TEST_CASE("KInPipe")
 
 		CHECK(pipe.IsRunning());
 		bool output = pipe.ReadLine(sCurrentLine);
+		sCurrentLine.TrimLeft();
 		CHECK(output);
 		CHECK("1\n" == sCurrentLine);
 		CHECK(pipe.IsRunning());
@@ -92,6 +93,7 @@ TEST_CASE("KInPipe")
 		CHECK(pipe.is_open());
 		CHECK(pipe.IsRunning());
 		bool output = pipe.ReadLine(sCurrentLine);
+		sCurrentLine.TrimLeft();
 		CHECK(output);
 // If having problems on cleanup, just try printing ls output to see what files weren't generated
 //		std::cout << "current line: " << sCurrentLine << std::endl;
@@ -114,13 +116,14 @@ TEST_CASE("KInPipe")
 
 
 		// Double check they're gone
-		CHECK(pipe.Open("/bin/sh -c \"ls /tmp/kinpipetests/ 2>&1\""));
+		CHECK(pipe.Open("/bin/sh -c \"ls /tmp/kinpipetests/ 2>/dev/null | wc -l\""));
 		CHECK(pipe.is_open());
 		CHECK(pipe.IsRunning());
 		output = pipe.ReadLine(sCurrentLine);
+		sCurrentLine.TrimLeft();
 		CHECK(output);
-		CHECK("ls: cannot access /tmp/kinpipetests/: No such file or directory\n" == sCurrentLine);
-		CHECK(2 == pipe.Close()); // when ls can't find returns code 2
+		CHECK("0\n" == sCurrentLine);
+		CHECK(0 == pipe.Close());
 		CHECK_FALSE(pipe.IsRunning());
 
 

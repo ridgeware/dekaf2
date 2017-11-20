@@ -65,4 +65,5 @@ TEST_CASE("KOutShell")
 
 		INFO("KOutShell fail to open test::Done:");
 	} // normal open close
+
 }

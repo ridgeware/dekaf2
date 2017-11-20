@@ -50,13 +50,14 @@ namespace dekaf2
 {
 
 
-#if !defined(__GNUC__) || (DEKAF2_GCC_VERSION >= 500)
+#if defined(DEKAF2_NO_GCC) || (DEKAF2_GCC_VERSION >= 50000)
 // gcc 4.8.5 has troubles with moves..
 //-----------------------------------------------------------------------------
 KInputFDStream::KInputFDStream(KInputFDStream&& other)
-	: m_FileDesc{other.m_FileDesc}
-	, m_FPStreamBuf{std::move(other.m_FPStreamBuf)}
 //-----------------------------------------------------------------------------
+	: base_type(&m_FPStreamBuf)
+	, m_FileDesc{other.m_FileDesc}
+	, m_FPStreamBuf{std::move(other.m_FPStreamBuf)}
 {
 	other.m_FileDesc = -1;
 
@@ -71,7 +72,7 @@ KInputFDStream::~KInputFDStream()
 	// but just received a handle for it
 }
 
-#if !defined(__GNUC__) || (DEKAF2_GCC_VERSION >= 500)
+#if defined(DEKAF2_NO_GCC) || (DEKAF2_GCC_VERSION >= 50000)
 //-----------------------------------------------------------------------------
 KInputFDStream& KInputFDStream::operator=(KInputFDStream&& other)
 //-----------------------------------------------------------------------------
@@ -119,7 +120,7 @@ std::streamsize KInputFDStream::FileDescReader(void* sBuffer, std::streamsize iC
 	if (filedesc)
 	{
 		// it is more difficult than one would expect to convert a void* into an int..
-		int fd = static_cast<int>(*static_cast<long*>(filedesc));
+		int fd = static_cast<int>(*static_cast<int*>(filedesc));
 		iRead = ::read(fd, sBuffer, static_cast<size_t>(iCount));
 		if (iRead < 0)
 		{
@@ -135,12 +136,13 @@ std::streamsize KInputFDStream::FileDescReader(void* sBuffer, std::streamsize iC
 }
 
 
-#if !defined(__GNUC__) || (DEKAF2_GCC_VERSION >= 500)
+#if defined(DEKAF2_NO_GCC) || (DEKAF2_GCC_VERSION >= 50000)
 //-----------------------------------------------------------------------------
 KInputFPStream::KInputFPStream(KInputFPStream&& other)
-    : m_FilePtr{other.m_FilePtr}
-    , m_FPStreamBuf{std::move(other.m_FPStreamBuf)}
 //-----------------------------------------------------------------------------
+	: base_type(&m_FPStreamBuf)
+	, m_FilePtr{other.m_FilePtr}
+	, m_FPStreamBuf{std::move(other.m_FPStreamBuf)}
 {
 	other.m_FilePtr = nullptr;
 
@@ -155,7 +157,7 @@ KInputFPStream::~KInputFPStream()
 	// but just received a handle for it
 }
 
-#if !defined(__GNUC__) || (DEKAF2_GCC_VERSION >= 500)
+#if defined(DEKAF2_NO_GCC) || (DEKAF2_GCC_VERSION >= 50000)
 //-----------------------------------------------------------------------------
 KInputFPStream& KInputFPStream::operator=(KInputFPStream&& other)
 //-----------------------------------------------------------------------------
@@ -220,12 +222,13 @@ std::streamsize KInputFPStream::FilePtrReader(void* sBuffer, std::streamsize iCo
 	return iRead;
 }
 
-#if !defined(__GNUC__) || (DEKAF2_GCC_VERSION >= 500)
+#if defined(DEKAF2_NO_GCC) || (DEKAF2_GCC_VERSION >= 50000)
 //-----------------------------------------------------------------------------
 KOutputFDStream::KOutputFDStream(KOutputFDStream&& other)
-    : m_FileDesc{other.m_FileDesc}
-    , m_FPStreamBuf{std::move(other.m_FPStreamBuf)}
 //-----------------------------------------------------------------------------
+	: base_type(&m_FPStreamBuf)
+	, m_FileDesc{other.m_FileDesc}
+	, m_FPStreamBuf{std::move(other.m_FPStreamBuf)}
 {
 	other.m_FileDesc = -1;
 
@@ -240,7 +243,7 @@ KOutputFDStream::~KOutputFDStream()
 	// but just received a handle for it
 }
 
-#if !defined(__GNUC__) || (DEKAF2_GCC_VERSION >= 500)
+#if defined(DEKAF2_NO_GCC) || (DEKAF2_GCC_VERSION >= 50000)
 //-----------------------------------------------------------------------------
 KOutputFDStream& KOutputFDStream::operator=(KOutputFDStream&& other)
 //-----------------------------------------------------------------------------
@@ -289,7 +292,7 @@ std::streamsize KOutputFDStream::FileDescWriter(const void* sBuffer, std::stream
 	if (filedesc)
 	{
 		// it is more difficult than one would expect to convert a void* into an int..
-		int fd = static_cast<int>(*static_cast<long*>(filedesc));
+		int fd = static_cast<int>(*static_cast<int*>(filedesc));
 		iWrote = ::write(fd, sBuffer, static_cast<size_t>(iCount));
 		if (iWrote != iCount)
 		{
@@ -302,12 +305,13 @@ std::streamsize KOutputFDStream::FileDescWriter(const void* sBuffer, std::stream
 }
 
 
-#if !defined(__GNUC__) || (DEKAF2_GCC_VERSION >= 500)
+#if defined(DEKAF2_NO_GCC) || (DEKAF2_GCC_VERSION >= 50000)
 //-----------------------------------------------------------------------------
 KOutputFPStream::KOutputFPStream(KOutputFPStream&& other)
-    : m_FilePtr{other.m_FilePtr}
-    , m_FPStreamBuf{std::move(other.m_FPStreamBuf)}
 //-----------------------------------------------------------------------------
+	: base_type(&m_FPStreamBuf)
+	, m_FilePtr{other.m_FilePtr}
+	, m_FPStreamBuf{std::move(other.m_FPStreamBuf)}
 {
 	other.m_FilePtr = nullptr;
 
@@ -322,7 +326,7 @@ KOutputFPStream::~KOutputFPStream()
 	// but just received a handle for it
 }
 
-#if !defined(__GNUC__) || (DEKAF2_GCC_VERSION >= 500)
+#if defined(DEKAF2_NO_GCC) || (DEKAF2_GCC_VERSION >= 50000)
 //-----------------------------------------------------------------------------
 KOutputFPStream& KOutputFPStream::operator=(KOutputFPStream&& other)
 //-----------------------------------------------------------------------------
@@ -385,14 +389,15 @@ std::streamsize KOutputFPStream::FilePtrWriter(const void* sBuffer, std::streams
 	return iWrote;
 }
 
-#if !defined(__GNUC__) || (DEKAF2_GCC_VERSION >= 500)
+#if defined(DEKAF2_NO_GCC) || (DEKAF2_GCC_VERSION >= 50000)
 // gcc 4.8.5 has troubles with moves..
 //-----------------------------------------------------------------------------
 KInOutFDStream::KInOutFDStream(KInOutFDStream&& other)
-    : m_FileDescR{other.m_FileDescR}
-    , m_FileDescW{other.m_FileDescW}
-	, m_FPStreamBuf{std::move(other.m_FPStreamBuf)}
 //-----------------------------------------------------------------------------
+	: base_type(&m_FPStreamBuf)
+	, m_FileDescR{other.m_FileDescR}
+	, m_FileDescW{other.m_FileDescW}
+	, m_FPStreamBuf{std::move(other.m_FPStreamBuf)}
 {
 	other.m_FileDescR = -1;
 	other.m_FileDescW = -1;
@@ -408,7 +413,7 @@ KInOutFDStream::~KInOutFDStream()
 	// but just received a handle for it
 }
 
-#if !defined(__GNUC__) || (DEKAF2_GCC_VERSION >= 500)
+#if defined(DEKAF2_NO_GCC) || (DEKAF2_GCC_VERSION >= 50000)
 //-----------------------------------------------------------------------------
 KInOutFDStream& KInOutFDStream::operator=(KInOutFDStream&& other)
 //-----------------------------------------------------------------------------
@@ -481,7 +486,7 @@ std::streamsize KInOutFDStream::FileDescReader(void* sBuffer, std::streamsize iC
 	if (filedesc)
 	{
 		// it is more difficult than one would expect to convert a void* into an int..
-		int fd = static_cast<int>(*static_cast<long*>(filedesc));
+		int fd = static_cast<int>(*static_cast<int*>(filedesc));
 		iRead = ::read(fd, sBuffer, static_cast<size_t>(iCount));
 		if (iRead < 0)
 		{
@@ -505,7 +510,7 @@ std::streamsize KInOutFDStream::FileDescWriter(const void* sBuffer, std::streams
 	if (filedesc)
 	{
 		// it is more difficult than one would expect to convert a void* into an int..
-		int fd = static_cast<int>(*static_cast<long*>(filedesc));
+		int fd = static_cast<int>(*static_cast<int*>(filedesc));
 		iWrote = ::write(fd, sBuffer, static_cast<size_t>(iCount));
 		if (iWrote != iCount)
 		{

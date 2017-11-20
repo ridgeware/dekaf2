@@ -470,6 +470,7 @@ private:
 
 };
 
+#ifndef __clang__
 extern template class URIComponent<URLEncodedString, URIPart::User,     '\0', false, true >;
 extern template class URIComponent<URLEncodedString, URIPart::Password, '\0', false, true >;
 extern template class URIComponent<URLEncodedString, URIPart::Domain,   '\0', false, false>;
@@ -477,6 +478,7 @@ extern template class URIComponent<URLEncodedString, URIPart::Port,     ':',  tr
 extern template class URIComponent<URLEncodedString, URIPart::Path,     '/',  false, false>;
 extern template class URIComponent<URLEncodedQuery,  URIPart::Query,    '?',  true,  false>;
 extern template class URIComponent<URLEncodedString, URIPart::Fragment, '#',  true,  false>;
+#endif
 
 } // end of namespace dekaf2::url::detail
 

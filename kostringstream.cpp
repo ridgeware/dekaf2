@@ -45,7 +45,7 @@
 namespace dekaf2
 {
 
-#if !defined(__GNUC__) || (DEKAF2_GCC_VERSION >= 50000)
+#if defined(DEKAF2_NO_GCC) || (DEKAF2_GCC_VERSION >= 50000)
 //-----------------------------------------------------------------------------
 KOStringStream::KOStringStream(KOStringStream&& other)
     : m_sBuf{other.m_sBuf}
@@ -60,7 +60,7 @@ KOStringStream::~KOStringStream()
 //-----------------------------------------------------------------------------
 {}
 
-#if !defined(__GNUC__) || (DEKAF2_GCC_VERSION >= 50000)
+#if defined(DEKAF2_NO_GCC) || (DEKAF2_GCC_VERSION >= 50000)
 //-----------------------------------------------------------------------------
 KOStringStream& KOStringStream::operator=(KOStringStream&& other)
 //-----------------------------------------------------------------------------

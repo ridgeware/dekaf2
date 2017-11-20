@@ -89,6 +89,7 @@ TEST_CASE("KOutPipe")
 		CHECK(readPipe.is_open());
 		CHECK(readPipe.IsRunning());
 		bool output = readPipe.ReadLine(sCurrentLine);
+		sCurrentLine.TrimLeft();
 		CHECK(output);
 		CHECK("2\n" == sCurrentLine);
 		CHECK(0 == readPipe.Close());
@@ -103,13 +104,14 @@ TEST_CASE("KOutPipe")
 
 
 		// Double check they're gone
-		CHECK(readPipe.Open("/bin/sh -c \"ls /tmp/koutpipetests/ 2>&1\""));
+		CHECK(readPipe.Open("/bin/sh -c \"ls /tmp/koutpipetests/ 2>/dev/null | wc -l\""));
 		CHECK(readPipe.is_open());
 		CHECK(readPipe.IsRunning());
 		output = readPipe.ReadLine(sCurrentLine);
+		sCurrentLine.TrimLeft();
 		CHECK(output);
-		CHECK("ls: cannot access /tmp/koutpipetests/: No such file or directory\n" == sCurrentLine);
-		CHECK(2 == readPipe.Close()); // when ls can't find returns code 2
+		CHECK("0\n" == sCurrentLine);
+		CHECK(0 == readPipe.Close());
 		CHECK_FALSE(readPipe.IsRunning());
 
 

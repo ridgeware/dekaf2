@@ -46,7 +46,11 @@
 #include "kwriter.h" // we need KOutStream
 #include "klog.h"
 
-#ifdef DEKAF2_HAS_CPP_17
+#if defined(DEKAF2_HAS_CPP_17) && !defined(__clang__)
+ #define USE_STD_FILESYSTEM 1
+#endif
+
+#ifdef USE_STD_FILESYSTEM
  #include <experimental/filesystem>
 #else
  #include <sys/types.h>
@@ -58,7 +62,7 @@
 namespace dekaf2
 {
 
-#ifdef DEKAF2_HAS_CPP_17
+#ifdef USE_STD_FILESYSTEM
  namespace fs = std::experimental::filesystem;
 #endif
 
@@ -137,7 +141,7 @@ ssize_t kGetSize(std::istream& Stream, bool bFromStart)
 ssize_t kGetSize(const char* sFileName)
 //-----------------------------------------------------------------------------
 {
-#ifdef DEKAF2_HAS_CPP_17
+#ifdef USE_STD_FILESYSTEM
 	std::error_code ec;
 	ssize_t iSize = static_cast<ssize_t>(fs::file_size(sFileName, ec));
 	if (ec)

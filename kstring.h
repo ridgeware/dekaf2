@@ -242,7 +242,7 @@ public:
 
 	size_type copy(value_type* s, size_type n, size_type pos = 0) const;
 
-#if (DEKAF2_GCC_VERSION >= 40600) && defined(DEKAF2_USE_OPTIMIZED_STRING_FIND)
+#if defined(DEKAF2_USE_OPTIMIZED_STRING_FIND)
 	size_type find(value_type c, size_type pos = 0) const { return kFind(*this, c, pos); }
 	size_type find(KStringView sv, size_type pos = 0) const { return kFind(*this, sv, pos); }
 	size_type find(const value_type* s, size_type pos, size_type n) const { return find(KStringView(s, n), pos); }
@@ -258,7 +258,7 @@ public:
 	size_type find(const std::string& str, size_type pos = 0) const { return find(str.data(), pos, str.size()); }
 #endif
 
-#if (DEKAF2_GCC_VERSION >= 40600) && defined(DEKAF2_USE_OPTIMIZED_STRING_FIND)
+#if defined(DEKAF2_USE_OPTIMIZED_STRING_FIND)
 	size_type rfind(value_type c, size_type pos = npos) const { return kRFind(*this, c, pos); }
 	size_type rfind(KStringView sv, size_type pos = npos) const { return kRFind(*this, sv, pos); }
 	size_type rfind(const value_type* s, size_type pos, size_type n) const { return rfind(KStringView(s, n), pos); }
@@ -275,7 +275,7 @@ public:
 #endif
 
 	size_type find_first_of(value_type c, size_type pos = 0) const { return find(c, pos); }
-#if (DEKAF2_GCC_VERSION >= 40600) && defined(DEKAF2_USE_OPTIMIZED_STRING_FIND)
+#if defined(DEKAF2_USE_OPTIMIZED_STRING_FIND)
 	size_type find_first_of(KStringView sv, size_type pos = 0) const;
 	size_type find_first_of(const value_type* s, size_type pos, size_type n) const { return find_first_of(KStringView(s, n), pos); }
 #else
@@ -290,7 +290,7 @@ public:
 #endif
 
 	size_type find_last_of(value_type c, size_type pos = npos) const { return rfind(c, pos); }
-#if (DEKAF2_GCC_VERSION >= 40600) && defined(DEKAF2_USE_OPTIMIZED_STRING_FIND)
+#if defined(DEKAF2_USE_OPTIMIZED_STRING_FIND)
 	size_type find_last_of(KStringView sv, size_type pos = npos) const { return kFindLastOf(*this, sv, pos); }
 	size_type find_last_of(const value_type* s, size_type pos, size_type n) const { return find_last_of(KStringView(s, n), pos); }
 #else
@@ -304,7 +304,7 @@ public:
 	size_type find_last_of(const std::string& str, size_type pos = npos) const { return find_last_of(str.data(), pos, str.size()); }
 #endif
 
-#if (DEKAF2_GCC_VERSION >= 40600) && defined(DEKAF2_USE_OPTIMIZED_STRING_FIND)
+#if defined(DEKAF2_USE_OPTIMIZED_STRING_FIND)
 	size_type find_first_not_of(value_type c, size_type pos = 0) const { return find_first_not_of(&c, pos, 1); }
 	size_type find_first_not_of(KStringView sv, size_type pos = 0) const;
 	size_type find_first_not_of(const value_type* s, size_type pos, size_type n) const { return find_first_not_of(KStringView(s, n), pos); }
@@ -320,7 +320,7 @@ public:
 	size_type find_first_not_of(const std::string& str, size_type pos = 0) const { return find_first_not_of(str.data(), pos, str.size()); }
 #endif
 
-#if (DEKAF2_GCC_VERSION >= 40600) && defined(DEKAF2_USE_OPTIMIZED_STRING_FIND)
+#if defined(DEKAF2_USE_OPTIMIZED_STRING_FIND)
 	size_type find_last_not_of(value_type c, size_type pos = npos) const { return find_last_not_of(&c, pos, 1); }
 	size_type find_last_not_of(KStringView sv, size_type pos = npos) const { return kFindLastNotOf(*this, sv, pos); }
 	size_type find_last_not_of(const value_type* s, size_type pos, size_type n) const { return find_last_not_of(KStringView(s, n), pos); }

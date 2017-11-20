@@ -50,7 +50,7 @@
 namespace dekaf2
 {
 
-#if defined(__GCC__) && (DEKAF2_GCC_VERSION < 700)
+#if !defined(DEKAF2_NO_GCC) && (DEKAF2_GCC_VERSION < 70000)
 
 constexpr KString::size_type KString::npos;
 constexpr KString::value_type KString::s_0ch;
@@ -454,7 +454,7 @@ KString::iterator KString::erase(iterator first, iterator last)
 	return end();
 }
 
-#if (DEKAF2_GCC_VERSION >= 40600) && defined(DEKAF2_USE_OPTIMIZED_STRING_FIND)
+#if defined(DEKAF2_USE_OPTIMIZED_STRING_FIND)
 // In contrast to most of the other optimized find functions we do not
 // delegate this one to KStringView. The reason is that for find_first_of()
 // we can use the ultra fast glibc strcspn() function, it even outrivals
@@ -515,7 +515,7 @@ KString::size_type KString::find_first_of(KStringView sv, size_type pos) const
 }
 #endif
 
-#if (DEKAF2_GCC_VERSION >= 40600) && defined(DEKAF2_USE_OPTIMIZED_STRING_FIND)
+#if defined(DEKAF2_USE_OPTIMIZED_STRING_FIND)
 // In contrast to most of the other optimized find functions we do not
 // delegate this one to KStringView. The reason is that for find_first_not_of()
 // we can use the ultra fast glibc strspn() function, it even outrivals

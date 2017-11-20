@@ -5,10 +5,43 @@
 #include "dekaf2.h"
 #include "bits/simd/kfindfirstof.h"
 
+#ifndef __linux__
+void* memrchr(const void* s, int c, size_t n)
+{
+#ifdef __x86_64__
+	static bool has_sse42 = dekaf2::Dekaf().GetCpuId().sse42();
+
+	if (DEKAF2_LIKELY(has_sse42))
+	{
+		const char* p = static_cast<const char*>(s);
+		char ch = static_cast<char>(c);
+		size_t pos = dekaf2::detail::kFindLastOfSSE(dekaf2::KStringView(p, n), dekaf2::KStringView(&ch, 1));
+		if (pos != dekaf2::KStringView::npos)
+		{
+			return const_cast<char*>(p + pos);
+		}
+		else
+		{
+			return nullptr;
+		}
+	}
+#endif
+
+	const unsigned char* p = static_cast<const unsigned char*>(s);
+	for (p += n; n > 0; --n)
+	{
+		if (*--p == c)
+		{
+			return const_cast<unsigned char*>(p);
+		}
+	}
+	return nullptr;
+}
+#endif
 
 namespace dekaf2 {
 
-#if defined(__GCC__) && (DEKAF2_GCC_VERSION < 700)
+#if !defined(DEKAF2_NO_GCC) && (DEKAF2_GCC_VERSION < 70000)
 
 constexpr KStringView::size_type KStringView::npos;
 constexpr KStringView::value_type KStringView::s_0ch;
@@ -75,7 +108,7 @@ size_t kRFind(
 
 		for(;;)
 		{
-			auto found = static_cast<const char*>(::memrchr(haystack.data(),
+			auto found = static_cast<const char*>(memrchr(haystack.data(),
 			                                                needle[0],
 			                                                pos+1));
 			if (!found)

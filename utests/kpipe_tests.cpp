@@ -68,6 +68,7 @@ TEST_CASE("KPipe")
 		CHECK(pipe.Open("/bin/sh -c \"ls /tmp/kpipetests/ | wc -l\""));
 		CHECK(pipe.IsRunning());
 		bool output = pipe.ReadLine(sCurrentLine);
+		sCurrentLine.TrimLeft();
 		CHECK(output);
 		CHECK("1\n" == sCurrentLine);
 		CHECK(0 == pipe.Close());
@@ -81,14 +82,14 @@ TEST_CASE("KPipe")
 
 
 		// Double check they're gone
-		CHECK(pipe.Open("/bin/sh -c \"ls /tmp/kpipetests/ 2>&1\""));
+		CHECK(pipe.Open("/bin/sh -c \"ls /tmp/kpipetests/ 2>/dev/null | wc -l\""));
 		CHECK(pipe.IsRunning());
 		output = pipe.ReadLine(sCurrentLine);
+		sCurrentLine.TrimLeft();
 		CHECK(output);
-		CHECK("ls: cannot access /tmp/kpipetests/: No such file or directory\n" == sCurrentLine);
-		CHECK(2 == pipe.Close()); // when ls can't find returns code 2
+		CHECK("0\n" == sCurrentLine);
+		CHECK(0 == pipe.Close());
 		CHECK_FALSE(pipe.IsRunning());
-
 
 		INFO("KOutPipe  write_pipe and confirm by reading::Done:");
 

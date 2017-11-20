@@ -6,7 +6,7 @@ cmake_minimum_required(VERSION 3.2)
 add_subdirectory(fmt-4.0.0)
 
 # add fast regular expressions
-if(CMAKE_COMPILER_IS_GNUCC)
+if(CMAKE_COMPILER_IS_GNUCC OR (CMAKE_CXX_COMPILER_ID MATCHES "[cC][lL][aA][nN][gG]"))
 	# re2 has a number of missing field initializers and unused parameters.
 	# we assume this is on purpose and disable the warning / error.
 	set(CXX_FLAGS_STASHED ${CMAKE_CXX_FLAGS})

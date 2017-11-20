@@ -43,8 +43,8 @@ TEST_CASE("KInShell")
 
 		bool output = pipe.ReadLine(sCurrentLine);
 		CHECK(output);
+		sCurrentLine.TrimLeft();
 		CHECK("1\n" == sCurrentLine);
-
 		CHECK(pipe.is_open());
 		CHECK(0 == pipe.Close());
 
@@ -74,7 +74,11 @@ TEST_CASE("KInShell")
 
 		KInShell pipe;
 
+#ifdef __APPLE__
+		CHECK(pipe.Open("sleep 1"));
+#else
 		CHECK(pipe.Open("usleep 2"));
+#endif
 
 		CHECK(pipe.is_open());
 
@@ -159,7 +163,6 @@ TEST_CASE("KInShell")
 	} // Iterator Test
 
 
-
 	SECTION("KInShell fail to open test")
 	{
 		INFO("KInShell normal_open_close_test::Start:");
@@ -172,4 +175,5 @@ TEST_CASE("KInShell")
 
 		INFO("KInShell normal_open_close_test::Done:");
 	} // normal open close
+
 }

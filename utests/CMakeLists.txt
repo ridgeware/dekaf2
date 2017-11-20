@@ -30,7 +30,7 @@ set (USOURCES
     koutpipe_tests.cpp
     kpipe_tests.cpp
     klog_tests.cpp
-    kostringstream_tests.cpp
+#    kostringstream_tests.cpp
     ksplit_tests.cpp
     kcasestring_tests.cpp
 )

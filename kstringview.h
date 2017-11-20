@@ -56,8 +56,11 @@
 #include <experimental/string_view>
 #endif
 
-namespace dekaf2 {
+#ifndef __linux__
+extern void* memrchr(const void* s, int c, size_t n);
+#endif
 
+namespace dekaf2 {
 
 class KStringView;
 
@@ -913,9 +916,15 @@ size_t kRFind(
 //-----------------------------------------------------------------------------
 {
 #if defined(DEKAF2_USE_FOLLY_STRINGPIECE_AS_KSTRINGVIEW) \
-	&& !defined(DEKAF2_USE_OPTIMIZED_STRING_FIND) \
-	|| !(DEKAF2_GCC_VERSION > 40600)
-	pos = std::min(pos, haystack.size());
+	&& !defined(DEKAF2_USE_OPTIMIZED_STRING_FIND)
+	if (DEKAF2_UNLIKELY(pos >= haystack.size()))
+	{
+		pos = haystack.size();
+	}
+	else
+	{
+		++pos;
+	}
 	haystack.remove_suffix(haystack.size() - pos);
 	return static_cast<KStringView::rep_type>(haystack).rfind(needle);
 #elif !defined(DEKAF2_USE_OPTIMIZED_STRING_FIND)
@@ -931,7 +940,7 @@ size_t kRFind(
 	{
 		++pos;
 	}
-	auto found = static_cast<const char*>(::memrchr(haystack.data(), needle, pos));
+	auto found = static_cast<const char*>(memrchr(haystack.data(), needle, pos));
 	if (DEKAF2_UNLIKELY(!found))
 	{
 		return KStringView::npos;

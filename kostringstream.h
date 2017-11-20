@@ -84,7 +84,7 @@ public:
 	KOStringStream(const KOStringStream&) = delete;
 	//-----------------------------------------------------------------------------
 
-#if !defined(__GNUC__) || (DEKAF2_GCC_VERSION >= 50000)
+#if defined(DEKAF2_NO_GCC) || (DEKAF2_GCC_VERSION >= 50000)
 	//-----------------------------------------------------------------------------
 	KOStringStream(KOStringStream&& other);
 	//-----------------------------------------------------------------------------
@@ -102,7 +102,7 @@ public:
 	virtual ~KOStringStream();
 	//-----------------------------------------------------------------------------
 
-#if !defined(__GNUC__) || (DEKAF2_GCC_VERSION >= 50000)
+#if defined(DEKAF2_NO_GCC) || (DEKAF2_GCC_VERSION >= 50000)
 	//-----------------------------------------------------------------------------
 	KOStringStream& operator=(KOStringStream&& other);
 	//-----------------------------------------------------------------------------

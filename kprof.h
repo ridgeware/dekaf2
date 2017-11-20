@@ -89,7 +89,11 @@ public:
 	{
 		if (m_print)
 		{
+#ifdef __APPLE__
+			fprintf(stdout, "KQDProf::%-25.25s %10lli nsecs\n", m_label, (clock_t::now()-m_start).count());
+#else
 			fprintf(stdout, "KQDProf::%-25.25s %10li nsecs\n", m_label, (clock_t::now()-m_start).count());
+#endif
 		}
 	}
 
@@ -188,7 +192,7 @@ private:
 	struct less_for_c_strings
 	{
 		//-----------------------------------------------------------------------------
-		bool operator()(const char* p1, const char* p2)
+		bool operator()(const char* p1, const char* p2) const
 		//-----------------------------------------------------------------------------
 		{
 			return std::strcmp(p1, p2) < 0;

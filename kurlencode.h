@@ -219,7 +219,7 @@ void kUrlEncode (KStringView sSource, String& sTarget, const bool excludeTable[2
 	{
 		unsigned char ch = static_cast<unsigned char>(sSource[iIndex]);
 		// Do not encode either alnum or encoding excluded characters.
-		if (isalnum (ch) || excludeTable[ch])
+		if ((!(ch & ~0x7f) && std::isalnum (ch)) || excludeTable[ch])
 		{
 			sTarget += ch;
 		}
@@ -319,7 +319,7 @@ public:
 
 	//-------------------------------------------------------------------------
 	// the non-Key-Value decoding
-	template<bool X = chPairSep, typename std::enable_if<X == '\0', int>::type = 0>
+	template<const char X = chPairSep, typename std::enable_if<X == '\0', int>::type = 0>
 	KStringView getDecoded() const
 	//-------------------------------------------------------------------------
 	{
@@ -334,7 +334,7 @@ public:
 
 	//-------------------------------------------------------------------------
 	// the non-Key-Value encoding
-	template<bool X = chPairSep, typename std::enable_if<X == '\0', int>::type = 0>
+	template<const char X = chPairSep, typename std::enable_if<X == '\0', int>::type = 0>
 	KStringView getEncoded() const
 	//-------------------------------------------------------------------------
 	{
@@ -351,7 +351,7 @@ public:
 
 	//-------------------------------------------------------------------------
 	// the Key-Value decoding
-	template<bool X = chPairSep, typename std::enable_if<X != '\0', int>::type = 0>
+	template<const char X = chPairSep, typename std::enable_if<X != '\0', int>::type = 0>
 	value_type& getDecoded()
 	//-------------------------------------------------------------------------
 	{
@@ -366,7 +366,7 @@ public:
 
 	//-------------------------------------------------------------------------
 	// the Key-Value decoding
-	template<bool X = chPairSep, typename std::enable_if<X != '\0', int>::type = 0>
+	template<const char X = chPairSep, typename std::enable_if<X != '\0', int>::type = 0>
 	const value_type& getDecoded() const
 	//-------------------------------------------------------------------------
 	{
@@ -379,7 +379,7 @@ public:
 
 	//-------------------------------------------------------------------------
 	// the Key-Value encoding
-	template<bool X = chPairSep, typename std::enable_if<X != '\0', int>::type = 0>
+	template<const char X = chPairSep, typename std::enable_if<X != '\0', int>::type = 0>
 	KStringView getEncoded() const
 	//-------------------------------------------------------------------------
 	{
@@ -411,7 +411,7 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
-	template<bool X = chPairSep, typename std::enable_if<X == '\0', int>::type = 0>
+	template<const char X = chPairSep, typename std::enable_if<X == '\0', int>::type = 0>
 	void getDecoded(KString& sTarget) const
 	//-------------------------------------------------------------------------
 	{
@@ -472,7 +472,7 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
-	template<bool X = chPairSep, typename std::enable_if<X == '\0', int>::type = 0>
+	template<const char X = chPairSep, typename std::enable_if<X == '\0', int>::type = 0>
 	void setDecoded(KStringView sv)
 	//-------------------------------------------------------------------------
 	{
@@ -507,7 +507,7 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
-	template<bool X = chPairSep, typename std::enable_if<X == '\0', int>::type = 0>
+	template<const char X = chPairSep, typename std::enable_if<X == '\0', int>::type = 0>
 	KURLEncoded& operator=(KStringView sv)
 	//-------------------------------------------------------------------------
 	{
@@ -516,7 +516,7 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
-	template<bool X = chPairSep, typename std::enable_if<X == '\0', int>::type = 0>
+	template<const char X = chPairSep, typename std::enable_if<X == '\0', int>::type = 0>
 	friend bool operator==(const self_type& left, const self_type& right)
 	//-------------------------------------------------------------------------
 	{
@@ -524,7 +524,7 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
-	template<bool X = chPairSep, typename std::enable_if<X != '\0', int>::type = 0>
+	template<const char X = chPairSep, typename std::enable_if<X != '\0', int>::type = 0>
 	friend bool operator==(const self_type& left, const self_type& right)
 	//-------------------------------------------------------------------------
 	{
@@ -540,7 +540,7 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
-	template<bool X = chPairSep, typename std::enable_if<X == '\0', int>::type = 0>
+	template<const char X = chPairSep, typename std::enable_if<X == '\0', int>::type = 0>
 	friend bool operator< (const self_type& left, const self_type& right)
 	//-------------------------------------------------------------------------
 	{
@@ -548,7 +548,7 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
-	template<bool X = chPairSep, typename std::enable_if<X != '\0', int>::type = 0>
+	template<const char X = chPairSep, typename std::enable_if<X != '\0', int>::type = 0>
 	friend bool operator< (const self_type& left, const self_type& right)
 	//-------------------------------------------------------------------------
 	{
@@ -569,7 +569,7 @@ protected:
 
 	//-------------------------------------------------------------------------
 	// the Key-Value decoding
-	template<bool X = chPairSep, typename std::enable_if<X != '\0', int>::type = 0>
+	template<const char X = chPairSep, typename std::enable_if<X != '\0', int>::type = 0>
 	void decode() const
 	//-------------------------------------------------------------------------
 	{
@@ -627,8 +627,10 @@ protected:
 
 }; // KURLEncoded
 
+#ifndef __clang__
 extern template class KURLEncoded<KString>;
 extern template class KURLEncoded<KProps<KString, KString>, '&', '='>;
+#endif
 
 using URLEncodedString    = KURLEncoded<KString>;
 using URLEncodedQuery     = KURLEncoded<KProps<KString, KString>, '&', '='>;

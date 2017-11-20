@@ -42,7 +42,11 @@
 
 #include "bits/kcppcompat.h"
 
-#ifdef DEKAF2_HAS_CPP_17
+#if defined(DEKAF2_HAS_CPP_17) && !defined(__clang__)
+ #define USE_STD_FILESYSTEM 1
+#endif
+
+#ifdef USE_STD_FILESYSTEM
  #include <experimental/filesystem>
 #else
  #include <sys/types.h>
@@ -58,7 +62,7 @@
 namespace dekaf2
 {
 
-#ifdef DEKAF2_HAS_CPP_17
+#ifdef USE_STD_FILESYSTEM
 namespace fs = std::experimental::filesystem;
 #endif
 
@@ -66,7 +70,7 @@ namespace fs = std::experimental::filesystem;
 bool kExists (const KString& sPath, bool bTestForEmptyFile /* = false */ )
 //-----------------------------------------------------------------------------
 {
-#ifdef DEKAF2_HAS_CPP_17
+#ifdef USE_STD_FILESYSTEM
 	std::error_code ec;
 
 	fs::file_status status = fs::status(sPath.c_str(), ec);
@@ -131,7 +135,7 @@ bool kExists (const KString& sPath, bool bTestForEmptyFile /* = false */ )
 KString kGetCWD ()
 //-----------------------------------------------------------------------------
 {
-#ifdef DEKAF2_HAS_CPP_17
+#ifdef USE_STD_FILESYSTEM
 	return fs::current_path().string();
 #else
 	enum { MAX_PATH = 1024 };

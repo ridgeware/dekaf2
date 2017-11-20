@@ -46,7 +46,7 @@ namespace dekaf2 {
 namespace detail {
 namespace http {
 
-#if defined(__GCC__) && (DEKAF2_GCC_VERSION < 700)
+#if !defined(DEKAF2_NO_GCC) && (DEKAF2_GCC_VERSION < 70000)
 
 constexpr KStringView KMethod::GET;
 constexpr KStringView KMethod::HEAD;

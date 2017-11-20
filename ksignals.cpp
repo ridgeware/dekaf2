@@ -328,7 +328,7 @@ const char* kTranslateSignal (int iSignalNum, bool bConcise/*=TRUE*/)
 
 		#ifdef SIGEMT
 		case SIGEMT:
-			return (fConcise ? "SIGEMT" : "SIGEMT: EMT instruction.");
+			return (bConcise ? "SIGEMT" : "SIGEMT: EMT instruction.");
 		#endif
 
 		#ifdef SIGFPE

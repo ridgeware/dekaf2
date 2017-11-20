@@ -102,5 +102,4 @@ target_link_libraries(minifolly
 )
 
 set_target_properties(minifolly PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${MINIFOLLY_INCLUDE_DIR}")
-target_compile_definitions(minifolly PRIVATE FOLLY_HAVE_FEATURES_H=1)
 

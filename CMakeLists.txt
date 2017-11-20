@@ -15,6 +15,7 @@ OPTION(DEKAF2_USE_BOOST_MULTI_INDEX "Use Boost::Multi_Index" ON)
 OPTION(DEKAF2_USE_OPTIMIZED_STRING_FIND "Use optimized string::find" ON)
 OPTION(DEKAF2_WITH_DEPRECATED_KSTRING_MEMBER_FUNCTIONS "With deprecated KString member functions" OFF)
 OPTION(DEKAF2_WITH_COMPATIBILITY_LAYER_TO_DEKAF1 "Provide compatibility layer to dekaf1" ON)
+OPTION(DEKAF2_ENABLE_DEBUG_RUNTIME_CHECKS "debug build with sanitizers and additional runtime checks" ON)
 
 # The project version number.
 set(VERSION_MAJOR   2) # This is DEKAF 2 !
@@ -41,30 +42,56 @@ configure_file("bits/kconfiguration.h.in" "${GENERATED_FILES_DIR}/kconfiguration
 include_directories("${GENERATED_FILES_DIR}")
 
 # make sure we have the necessary version of cmake installed
-execute_process(COMMAND "${CMAKE_CURRENT_SOURCE_DIR}/bits/cmakeinstall -go")
+#execute_process(COMMAND "${CMAKE_CURRENT_SOURCE_DIR}/bits/cmakeinstall -go")
 
 set(CMAKE_CXX_STANDARD 17)
 # we do not force C++17 if not available
 # set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# configure cpu architecture dependant optimization
-if(CMAKE_COMPILER_IS_GNUCC AND "${CMAKE_SYSTEM_PROCESSOR}" STREQUAL "x86_64")
+if (DEKAF2_ENABLE_DEBUG_RUNTIME_CHECKS)
+	set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fsanitize=address -fsanitize=undefined -fsanitize-address-use-after-scope")
+	set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fstack-protector-strong -fstack-check")
+endif()
+
+if(CMAKE_COMPILER_IS_GNUCXX)
 
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wno-unused-parameter -Werror")
 	set(CMAKE_CXX_FLAGS_RELEASE "-O2 -DNDEBUG")
-	if (CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 6.0)
-		set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -msse4.2 -mavx2 -mfpmath=sse -maes")
-		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse4.2 -mavx2 -mfpmath=sse -maes")
-	elseif (CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 4.5)
-		set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -msse4.2")
-		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse4.2")
-	else ()
-		set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -msse3")
-		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse3")
+
+	# configure cpu architecture dependant optimization
+	if("${CMAKE_SYSTEM_PROCESSOR}" STREQUAL "x86_64")
+
+		if (CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 6.0)
+			set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -msse4.2 -mavx2 -mfpmath=sse -maes")
+			set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse4.2 -mavx2 -mfpmath=sse -maes")
+		elseif (CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 4.5)
+			set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -msse4.2")
+			set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse4.2")
+		else ()
+			set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -msse3")
+			set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse3")
+		endif()
+
 	endif()
 
-endif()
-message(STATUS "dekaf2 C++ compile flags for Release build: ${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_RELEASE}")
+elseif(CMAKE_CXX_COMPILER_ID MATCHES "[cC][lL][aA][nN][gG]")
+
+	# clang
+	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wno-unused-parameter -Werror")
+	set(CMAKE_CXX_FLAGS_RELEASE "-O2 -DNDEBUG")
+
+	# configure cpu architecture dependant optimization
+	if("${CMAKE_SYSTEM_PROCESSOR}" STREQUAL "x86_64")
+
+		set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -msse4.2 -mavx2 -mfpmath=sse -maes")
+		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse4.2 -mavx2 -mfpmath=sse -maes")
+
+	endif()
+
+endif ()
+
+message(STATUS "dekaf2 C++ compile flags for Release build : ${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_RELEASE}")
+message(STATUS "dekaf2 C++ compile flags for Debug   build : ${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_DEBUG}")
 
 set(CMAKE_THREAD_PREFER_PTHREAD TRUE)
 set(THREADS_PREFER_PTHREAD_FLAG TRUE)
@@ -79,7 +106,12 @@ add_subdirectory(from)
 # add externally installed third party libraries:
 
 # openssl (needed for boost asio)
+if(${CMAKE_SYSTEM_NAME} STREQUAL "Darwin")
+    # check later if this is still needed to override an insufficient std OpenSSL on OSX
+	set(OPENSSL_ROOT_DIR /opt/local)
+endif()
 find_package(OpenSSL QUIET REQUIRED)
+include_directories(SYSTEM ${OPENSSL_INCLUDE_DIR})
 
 set(Boost_USE_STATIC_LIBS ON)
 # boost asio (header only) needs system

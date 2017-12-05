@@ -19,7 +19,7 @@
 #include <algorithm>
 #include <string>
 
-#include <glog/logging.h>
+#include "../../glog/logging.h"
 
 #include <folly/Likely.h>
 

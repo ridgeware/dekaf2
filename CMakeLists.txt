@@ -49,8 +49,11 @@ set(CMAKE_CXX_STANDARD 17)
 # set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 if (DEKAF2_ENABLE_DEBUG_RUNTIME_CHECKS)
-	set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fsanitize=address -fsanitize=undefined -fsanitize-address-use-after-scope")
-	set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fstack-protector-strong -fstack-check")
+   # did not yet find a way to teach Clang how to link against the asan lib.. so we do not compile with it
+   if(NOT CMAKE_CXX_COMPILER_ID MATCHES "[cC][lL][aA][nN][gG]")
+        set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fsanitize=address -fsanitize=undefined -fsanitize-address-use-after-scope")
+   endif()
+   set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fstack-protector-strong -fstack-check")
 endif()
 
 if(CMAKE_COMPILER_IS_GNUCXX)
@@ -311,7 +314,10 @@ target_link_libraries(dekaf2
 	)
 
 add_dependencies(dekaf2 lib-headers-dekaf2)
-target_include_directories(dekaf2 PUBLIC "${DEKAF2_INCLUDE_DIR}" "${GENERATED_FILES_DIR}")
+target_include_directories(dekaf2
+   PUBLIC "${DEKAF2_INCLUDE_DIR}" "${GENERATED_FILES_DIR}"
+   INTERFACE "${Boost_INCLUDE_DIR}"
+)
 target_compile_definitions(dekaf2 PRIVATE DEKAF2_LIBRARY_BUILD)
 
 add_subdirectory(utests)

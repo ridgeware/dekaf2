@@ -16,7 +16,7 @@
 
 #include <folly/detail/RangeSse42.h>
 
-#include <glog/logging.h>
+#include "../../glog/logging.h"
 
 #include <folly/Portability.h>
 

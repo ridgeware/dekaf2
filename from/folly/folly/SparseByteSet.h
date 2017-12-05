@@ -18,7 +18,7 @@
 
 #include <cstdint>
 
-#include <glog/logging.h>
+#include "../glog/logging.h"
 
 namespace folly {
 

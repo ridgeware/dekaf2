@@ -27,7 +27,7 @@
 #include <folly/portability/String.h>
 
 #include <boost/operators.hpp>
-#include <glog/logging.h>
+#include "../glog/logging.h"
 #include <algorithm>
 #include <array>
 #include <climits>

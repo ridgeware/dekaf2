@@ -54,7 +54,7 @@ namespace dekaf2
 
 //-----------------------------------------------------------------------------
 /// Get environment variable. Return @p sDefault if not found.
-const char* kGetEnv (const char* sEnvVar, const char* sDefault = "")
+inline const char* kGetEnv (const char* sEnvVar, const char* sDefault = "")
 //-----------------------------------------------------------------------------
 {
 	const char* sValue = ::getenv(sEnvVar);
@@ -71,7 +71,7 @@ const char* kGetEnv (const char* sEnvVar, const char* sDefault = "")
 
 //-----------------------------------------------------------------------------
 /// Get environment variable. Return @p sDefault if not found.
-const char* kGetEnv (const KString& sEnvVar, const char* sDefault = "")
+inline const char* kGetEnv (const KString& sEnvVar, const char* sDefault = "")
 //-----------------------------------------------------------------------------
 {
 	return kGetEnv(sEnvVar.c_str(), sDefault);
@@ -79,7 +79,7 @@ const char* kGetEnv (const KString& sEnvVar, const char* sDefault = "")
 
 //-----------------------------------------------------------------------------
 /// Set environment variable.
-void kSetEnv (const char* sEnvVar, const char* sValue)
+inline void kSetEnv (const char* sEnvVar, const char* sValue)
 //-----------------------------------------------------------------------------
 {
 	if (!::setenv(sEnvVar, sValue, true))
@@ -90,7 +90,7 @@ void kSetEnv (const char* sEnvVar, const char* sValue)
 
 //-----------------------------------------------------------------------------
 /// Set environment variable.
-void kSetEnv (const KString& sEnvVar, const KString& sValue)
+inline void kSetEnv (const KString& sEnvVar, const KString& sValue)
 //-----------------------------------------------------------------------------
 {
 	kSetEnv(sEnvVar.c_str(), sValue.c_str());
@@ -98,7 +98,7 @@ void kSetEnv (const KString& sEnvVar, const KString& sValue)
 
 //-----------------------------------------------------------------------------
 /// Unset environment variable.
-void kUnsetEnv (const char* sEnvVar)
+inline void kUnsetEnv (const char* sEnvVar)
 //-----------------------------------------------------------------------------
 {
 	if (!::unsetenv(sEnvVar))
@@ -109,7 +109,7 @@ void kUnsetEnv (const char* sEnvVar)
 
 //-----------------------------------------------------------------------------
 /// Unset environment variable.
-void kUnsetEnv (const KString& sEnvVar)
+inline void kUnsetEnv (const KString& sEnvVar)
 //-----------------------------------------------------------------------------
 {
 	kUnsetEnv(sEnvVar.c_str());

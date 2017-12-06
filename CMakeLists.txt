@@ -201,6 +201,7 @@ set (HEADERS
 	kstringutils.h
 	kstringview.h
 	ksubscribe.h
+	ksystem.h
 	ktcpclient.h
 	ktcpserver.h
 	kurl.h

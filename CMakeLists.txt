@@ -146,6 +146,7 @@ else()
 endif(DOXYGEN_FOUND)
 
 set (HEADERS
+	# KEEP ALPHABETIZED!!
 	bits/kconfiguration.h
 	bits/ktemplate.h
 	bits/kcppcompat.h
@@ -160,97 +161,99 @@ set (HEADERS
 	bits/kbasepipe.h
 	bits/simd/kfindfirstof.h
 	dekaf2.h
-	kstringview.h
-	kstring.h
+	dekaf2all.h
 	kcache.h
-	kregex.h
-	klog.h
-	kfile.h
-	kprof.h
-	kurlencode.h
-	kurl.h
-	kprops.h
+	kcasestring.h
+	kcgi.h
+	kconnection.h
+	kcrashexit.h
 	kcurl.h
-	kwebio.h
-	kstringutils.h
-	kparallel.h
+	kfdstream.h
+	kfile.h
 	kformat.h
+	kgetruntimestack.h
+	khash.h
+	khttp.h
+	khttp_header.h
+	khttp_method.h
+	kinpipe.h
+	kinshell.h
+	klog.h
+	kmru.h
+	kostringstream.h
+	koutpipe.h
+	koutshell.h
+	kparallel.h
+	kpipe.h
+	kprof.h
+	kprops.h
+	kreader.h
+	kregex.h
 	ksharedref.h
 	ksignals.h
-	kcrashexit.h
-	kgetruntimestack.h
-	ksubscribe.h
-	kreader.h
-	kwriter.h
-	kstream.h
-	kfdstream.h
-	kstreambuf.h
-	kinshell.h
-	koutshell.h
+	ksplit.h
+	ksslclient.h
+	ksslstream.h
 	kstack.h
+	kstream.h
+	kstreambuf.h
+	kstring.h
+	kstringutils.h
+	kstringview.h
+	ksubscribe.h
 	ktcpclient.h
 	ktcpserver.h
-	khash.h
-	kmru.h
-	kinpipe.h
-	koutpipe.h
-	kpipe.h
-	ksslstream.h
-	ksslclient.h
-	kostringstream.h
-	ksplit.h
-	kcasestring.h
-	khttp.h
-	kconnection.h
-	khttp_header.h
+	kurl.h
+	kurlencode.h
 	kuseragent.h
-	khttp_method.h
+	kwebio.h
+	kwriter.h
 	)
 
 set (SOURCES
+	# KEEP ALPHABETIZED!!
 	bits/kbasepipe.cpp
 	bits/kbaseshell.cpp
 	bits/simd/kfindfirstof.cpp
 	dekaf2.cpp
-	kstringview.cpp
-	kstring.cpp
-	kregex.cpp
-	klog.cpp
-	kfile.cpp
-	kprof.cpp
-	kurlencode.cpp
-	kurl.cpp
-	kprops.cpp
-	kstringview.cpp
-	kstringutils.cpp
-	kparallel.cpp
-	kcurl.cpp
-	kwebio.cpp
-	kformat.cpp
-	ksignals.cpp
-	kcrashexit.cpp
-	kgetruntimestack.cpp
-	kreader.cpp
-	kwriter.cpp
-	kwriter.cpp
-	kstream.cpp
-	kfdstream.cpp
-	kstreambuf.cpp
-	kinshell.cpp
-	koutshell.cpp
-	ktcpserver.cpp
-	khash.cpp
-	kinpipe.cpp
-	koutpipe.cpp
-	kpipe.cpp
-	ksslstream.cpp
-	kostringstream.cpp
-	ksplit.cpp
 	kcasestring.cpp
-	khttp.cpp
+	kcgi.cpp
 	kconnection.cpp
+	kcrashexit.cpp
+	kcurl.cpp
+	kfdstream.cpp
+	kfile.cpp
+	kformat.cpp
+	kgetruntimestack.cpp
+	khash.cpp
+	khttp.cpp
 	khttp_header.cpp
 	khttp_method.cpp
+	kinpipe.cpp
+	kinshell.cpp
+	klog.cpp
+	kostringstream.cpp
+	koutpipe.cpp
+	koutshell.cpp
+	kparallel.cpp
+	kpipe.cpp
+	kprof.cpp
+	kprops.cpp
+	kreader.cpp
+	kregex.cpp
+	ksignals.cpp
+	ksplit.cpp
+	ksslstream.cpp
+	kstream.cpp
+	kstreambuf.cpp
+	kstring.cpp
+	kstringutils.cpp
+	kstringview.cpp
+	ktcpserver.cpp
+	kurl.cpp
+	kurlencode.cpp
+	kwebio.cpp
+	kwriter.cpp
 	)
 
 if(DEKAF2_WITH_COMPATIBILITY_LAYER_TO_DEKAF1)

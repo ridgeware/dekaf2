@@ -47,8 +47,8 @@ namespace dekaf2 {
 
 #if !defined(DEKAF2_NO_GCC) && (DEKAF2_GCC_VERSION < 70000)
 
-namespace detail {
-namespace http {
+constexpr KStringView KCharSet::ANY_ISO8859;
+constexpr KStringView KCharSet::DEFAULT_CHARSET;
 
 constexpr KStringView KMIME::JSON_UTF8;
 constexpr KStringView KMIME::HTML_UTF8;
@@ -58,9 +58,6 @@ constexpr KStringView KMIME::WWW_FORM_URLENCODED;
 constexpr KStringView KMIME::MULTIPART_FORM_DATA;
 constexpr KStringView KMIME::TEXT_PLAIN;
 constexpr KStringView KMIME::APPLICATION_BINARY;
-
-}
-}
 
 #endif
 

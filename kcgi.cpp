@@ -1,6 +1,7 @@
 /*
+//-----------------------------------------------------------------------------//
 //
-// DEKAF(tm): Lighter, Faster, Smarter(tm)
+// DEKAF(tm): Lighter, Faster, Smarter (tm)
 //
 // Copyright (c) 2017, Ridgeware, Inc.
 //
@@ -37,62 +38,66 @@
 // |/+---------------------------------------------------------------------+/|
 // |\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/ |
 // +-------------------------------------------------------------------------+
-//
 */
 
-#pragma once
+#include "kcgi.h"
 
-/// @file dekaf2all.h
-/// globbed include of all dekaf2 header files
+namespace dekaf2 {
 
-// - - - - - - - - - - - - - - - - - -
-// KEEP ALPHABETIZED!!
-// - - - - - - - - - - - - - - - - - -
-#include <dekaf2/dekaf2.h>
-#include <dekaf2/kcache.h>
-#include <dekaf2/kcasestring.h>
-#include <dekaf2/kcgi.h>
-#include <dekaf2/kconnection.h>
-#include <dekaf2/kcrashexit.h>
-#include <dekaf2/kcurl.h>
-#include <dekaf2/kfdstream.h>
-#include <dekaf2/kfile.h>
-#include <dekaf2/kformat.h>
-#include <dekaf2/kgetruntimestack.h>
-#include <dekaf2/khash.h>
-#include <dekaf2/khttp.h>
-#include <dekaf2/khttp_header.h>
-#include <dekaf2/khttp_method.h>
-#include <dekaf2/kinpipe.h>
-#include <dekaf2/kinshell.h>
-#include <dekaf2/klog.h>
-#include <dekaf2/kmru.h>
-#include <dekaf2/kostringstream.h>
-#include <dekaf2/koutpipe.h>
-#include <dekaf2/koutshell.h>
-#include <dekaf2/kparallel.h>
-#include <dekaf2/kpipe.h>
-#include <dekaf2/kprof.h>
-#include <dekaf2/kprops.h>
-#include <dekaf2/kreader.h>
-#include <dekaf2/kregex.h>
-#include <dekaf2/ksharedref.h>
-#include <dekaf2/ksignals.h>
-#include <dekaf2/ksplit.h>
-#include <dekaf2/ksslclient.h>
-#include <dekaf2/ksslstream.h>
-#include <dekaf2/kstack.h>
-#include <dekaf2/kstream.h>
-#include <dekaf2/kstreambuf.h>
-#include <dekaf2/kstring.h>
-#include <dekaf2/kstringutils.h>
-#include <dekaf2/kstringview.h>
-#include <dekaf2/ksubscribe.h>
-#include <dekaf2/ksystem.h>
-#include <dekaf2/ktcpclient.h>
-#include <dekaf2/ktcpserver.h>
-#include <dekaf2/kurl.h>
-#include <dekaf2/kurlencode.h>
-#include <dekaf2/kuseragent.h>
-#include <dekaf2/kwebio.h>
-#include <dekaf2/kwriter.h>
+#if !defined(DEKAF2_NO_GCC) && (DEKAF2_GCC_VERSION < 70000)
+
+constexpr KStringView KHeader::AUTH_PASSWORD;
+constexpr KStringView KHeader::AUTH_TYPE;
+constexpr KStringView KHeader::AUTH_USER;
+constexpr KStringView KHeader::CERT_COOKIE;
+constexpr KStringView KHeader::CERT_FLAGS;
+constexpr KStringView KHeader::CERT_ISSUER;
+constexpr KStringView KHeader::CERT_KEYSIZE;
+constexpr KStringView KHeader::CERT_SECRETKEYSIZE;
+constexpr KStringView KHeader::CERT_SERIALNUMBER;
+constexpr KStringView KHeader::CERT_SERVER_ISSUER;
+constexpr KStringView KHeader::CERT_SERVER_SUBJECT;
+constexpr KStringView KHeader::CERT_SUBJECT;
+constexpr KStringView KHeader::CF_TEMPLATE_PATH;
+constexpr KStringView KHeader::CONTENT_LENGTH;
+constexpr KStringView KHeader::CONTENT_TYPE;
+constexpr KStringView KHeader::CONTEXT_PATH;
+constexpr KStringView KHeader::GATEWAY_INTERFACE;
+constexpr KStringView KHeader::HTTPS;
+constexpr KStringView KHeader::HTTPS_KEYSIZE;
+constexpr KStringView KHeader::HTTPS_SECRETKEYSIZE;
+constexpr KStringView KHeader::HTTPS_SERVER_ISSUER;
+constexpr KStringView KHeader::HTTPS_SERVER_SUBJECT;
+constexpr KStringView KHeader::HTTP_ACCEPT;
+constexpr KStringView KHeader::HTTP_ACCEPT_ENCODING;
+constexpr KStringView KHeader::HTTP_ACCEPT_LANGUAGE;
+constexpr KStringView KHeader::HTTP_CONNECTION;
+constexpr KStringView KHeader::HTTP_COOKIE;
+constexpr KStringView KHeader::HTTP_HOST;
+constexpr KStringView KHeader::HTTP_REFERER;
+constexpr KStringView KHeader::HTTP_USER_AGENT;
+constexpr KStringView KHeader::QUERY_STRING;
+constexpr KStringView KHeader::REMOTE_ADDR;
+constexpr KStringView KHeader::REMOTE_HOST;
+constexpr KStringView KHeader::REMOTE_USER;
+constexpr KStringView KHeader::REQUEST_METHOD;
+constexpr KStringView KHeader::GET;
+constexpr KStringView KHeader::HEAD;
+constexpr KStringView KHeader::POST;
+constexpr KStringView KHeader::PUT;
+constexpr KStringView KHeader::DELETE;
+constexpr KStringView KHeader::CONNECT;
+constexpr KStringView KHeader::OPTIONS;
+constexpr KStringView KHeader::TRACE;
+constexpr KStringView KHeader::PATCH;
+constexpr KStringView KHeader::SCRIPT_NAME;
+constexpr KStringView KHeader::SERVER_NAME;
+constexpr KStringView KHeader::SERVER_PORT;
+constexpr KStringView KHeader::SERVER_PORT_SECURE;
+constexpr KStringView KHeader::SERVER_PROTOCOL;
+constexpr KStringView KHeader::SERVER_SOFTWARE;
+constexpr KStringView KHeader::WEB_SERVER_API;
+
+#endif
+
+} // dekaf2

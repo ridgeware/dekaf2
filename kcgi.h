@@ -47,8 +47,8 @@
 #include "kprops.h"
 #include "ksplit.h"
 #include <iostream>
-#include "../dekaf/src/3p-source/fcgi-2.4.1/include/fcgiapp.h"
-#include "../dekaf/src/3p-source/fcgi-2.4.1/include/fcgio.h"
+#include <fcgiapp.h>
+#include <fcgio.h>
 
 namespace dekaf2 {
 

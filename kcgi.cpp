@@ -231,7 +231,7 @@ bool KCGI::GetNextRequest ()
 		}
 	}
 
-	return (bOK);
+	return (bOK); // true ==> we got a request
 
 } // GetNextRequest
 

@@ -122,11 +122,11 @@ public:
 	~KCGI();
 	KString     GetVar (KStringView sEnvironmentVariable, const char* sDefaultValue="");
 	bool        GetNextRequest ();
-	bool        IsFCGI()   { return (m_bIsFCGI); };
+	bool        IsFCGI()   { return (m_bIsFCGI); }
 
-    //std::streambuf* CIN()    { IsFCGI() ? m_FcgiRequest.in  : std::cin  };
-    //std::streambuf* COUT()   { IsFCGI() ? m_FcgiRequest.out : std::cout };
-    //std::streambuf* CERR()   { IsFCGI() ? m_FcgiRequest.err : std::cerr };
+    //std::streambuf* CIN()    { IsFCGI() ? m_FcgiRequest.in  : std::cin  }
+    //std::streambuf* COUT()   { IsFCGI() ? m_FcgiRequest.out : std::cout }
+    //std::streambuf* CERR()   { IsFCGI() ? m_FcgiRequest.err : std::cerr }
 
 	void        BackupStreams ();
 	void        RestoreStreams ();

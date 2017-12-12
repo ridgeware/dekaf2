@@ -310,6 +310,8 @@ endif()
 target_link_libraries(dekaf2
 	fmt
 	re2
+	fcgi
+	fcgipp
 	minifolly
 	"${FSLIB}"
 	${Boost_LIBRARIES}

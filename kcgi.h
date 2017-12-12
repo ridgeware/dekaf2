@@ -42,15 +42,21 @@
 
 #pragma once
 
+#include "kstring.h"
 #include "kstringview.h"
+#include "kprops.h"
+#include "ksplit.h"
+#include <iostream>
+#include "../dekaf/src/3p-source/fcgi-2.4.1/include/fcgiapp.h"
+#include "../dekaf/src/3p-source/fcgi-2.4.1/include/fcgio.h"
 
 namespace dekaf2 {
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// A common interface class for both CGI and FCGI requests.
 class KCGI
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
-
 //------
 public:
 //------
@@ -88,7 +94,16 @@ public:
 	static constexpr KStringView REMOTE_ADDR             = "REMOTE_ADDR";
 	static constexpr KStringView REMOTE_HOST             = "REMOTE_HOST";
 	static constexpr KStringView REMOTE_USER             = "REMOTE_USER";
-	static constexpr KStringView REQUEST_METHOD          = "REQUEST_METHOD";
+    static constexpr KStringView REQUEST_METHOD          = "REQUEST_METHOD";
+    static constexpr KStringView REQUEST_URI             = "REQUEST_URI";
+    static constexpr KStringView SCRIPT_NAME             = "SCRIPT_NAME";
+	static constexpr KStringView SERVER_NAME             = "SERVER_NAME";
+	static constexpr KStringView SERVER_PORT             = "SERVER_PORT";
+	static constexpr KStringView SERVER_PORT_SECURE      = "SERVER_PORT_SECURE";
+	static constexpr KStringView SERVER_PROTOCOL         = "SERVER_PROTOCOL";
+	static constexpr KStringView SERVER_SOFTWARE         = "SERVER_SOFTWARE";
+	static constexpr KStringView WEB_SERVER_API          = "WEB_SERVER_API";
+
 	static constexpr KStringView GET                     = "GET";               // legal RHS of REQUEST_METHOD
 	static constexpr KStringView HEAD                    = "HEAD";              // legal RHS of REQUEST_METHOD
 	static constexpr KStringView POST                    = "POST";              // legal RHS of REQUEST_METHOD
@@ -98,14 +113,40 @@ public:
 	static constexpr KStringView OPTIONS                 = "OPTIONS";           // legal RHS of REQUEST_METHOD
 	static constexpr KStringView TRACE                   = "TRACE";             // legal RHS of REQUEST_METHOD
 	static constexpr KStringView PATCH                   = "PATCH";             // legal RHS of REQUEST_METHOD
-	static constexpr KStringView SCRIPT_NAME             = "SCRIPT_NAME";
-	static constexpr KStringView SERVER_NAME             = "SERVER_NAME";
-	static constexpr KStringView SERVER_PORT             = "SERVER_PORT";
-	static constexpr KStringView SERVER_PORT_SECURE      = "SERVER_PORT_SECURE";
-	static constexpr KStringView SERVER_PROTOCOL         = "SERVER_PROTOCOL";
-	static constexpr KStringView SERVER_SOFTWARE         = "SERVER_SOFTWARE";
-	static constexpr KStringView WEB_SERVER_API          = "WEB_SERVER_AP";
+
+	static constexpr KStringView FCGI_WEB_SERVER_ADDRS   = "FCGI_WEB_SERVER_ADDRS";
+
+	//static bool IsWebRequest(); -- not sure this will work
+
+	KCGI();
+	~KCGI();
+	KString     GetVar (KStringView sEnvironmentVariable, const char* sDefaultValue="");
+	bool        GetNextRequest ();
+	bool        IsFCGI()   { return (m_bIsFCGI); };
+
+    //std::streambuf* CIN()    { IsFCGI() ? m_FcgiRequest.in  : std::cin  };
+    //std::streambuf* COUT()   { IsFCGI() ? m_FcgiRequest.out : std::cout };
+    //std::streambuf* CERR()   { IsFCGI() ? m_FcgiRequest.err : std::cerr };
+
+	void        BackupStreams ();
+	void        RestoreStreams ();
+
+	KString      m_sRequestMethod;
+	KString      m_sRequestURI;
+	KString      m_sPostData; // aka body
+	KProps <KString, KString, /*order-matters=*/false, /*unique-keys*/false> m_Headers;
+	KProps <KString, KString, /*order-matters=*/false, /*unique-keys*/false> m_QueryParms;
+
+//----------
+private:
+//----------
+	FCGX_Request      m_FcgiRequest;
+	bool              m_bIsFCGI      = false;
+    std::streambuf*   m_pBackupCIN   = NULL;
+    std::streambuf*   m_pBackupCOUT  = NULL;
+    std::streambuf*   m_pBackupCERR  = NULL;
 
 }; // class KCGI
 
 } // end of namespace dekaf2
+

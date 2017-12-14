@@ -42,58 +42,30 @@
 
 #pragma once
 
-/// @file dekaf2all.h
-/// globbed include of all dekaf2 header files
-
-// - - - - - - - - - - - - - - - - - -
-// KEEP ALPHABETIZED!!
-// - - - - - - - - - - - - - - - - - -
-#include "dekaf2.h"
-#include "kcache.h"
-#include "kcasestring.h"
-#include "kcgi.h"
-#include "kconnection.h"
-#include "kcrashexit.h"
-#include "kcurl.h"
-#include "kfdstream.h"
-#include "kfile.h"
-#include "kformat.h"
-#include "kgetruntimestack.h"
-#include "khash.h"
-#include "khttp.h"
-#include "khttp_header.h"
-#include "khttp_method.h"
-#include "kinpipe.h"
-#include "kinshell.h"
-#include "kjson.h"
-#include "klog.h"
-#include "kmru.h"
-#include "kostringstream.h"
-#include "koutpipe.h"
-#include "koutshell.h"
-#include "kparallel.h"
-#include "kpipe.h"
-#include "kprof.h"
-#include "kprops.h"
-#include "kreader.h"
-#include "kregex.h"
-#include "ksharedref.h"
-#include "ksignals.h"
-#include "ksplit.h"
-#include "ksslclient.h"
-#include "ksslstream.h"
-#include "kstack.h"
-#include "kstream.h"
-#include "kstreambuf.h"
 #include "kstring.h"
-#include "kstringutils.h"
-#include "kstringview.h"
-#include "ksubscribe.h"
-#include "ksystem.h"
-#include "ktcpclient.h"
-#include "ktcpserver.h"
-#include "kurl.h"
-#include "kurlencode.h"
-#include "kuseragent.h"
-#include "kwebio.h"
-#include "kwriter.h"
+#include <boost/property_tree/ptree.hpp>
+#include <boost/property_tree/json_parser.hpp>
+#include <boost/foreach.hpp>
+
+using namespace dekaf2;
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+class KJSON : public boost::property_tree::ptree
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+//----------
+public:
+//----------
+	/*
+	bool parse (const KStringView sJSON);
+	bool parse (const KPROPS& Parms);
+
+	bool ToKPROPS (KPROPS& Parms);
+	*/
+
+	/// wrap the given string with double-quotes and escape it for legal json
+	static KString EscWrap (KString sString);
+	static KString EscWrap (KString sString1, KString sString2, KStringView sPrefix="\n\t", KStringView sSuffix=",");
+	static KString EscWrap (KString sString, int iNumber, KStringView sPrefix="\n\t", KStringView sSuffix=",");
+
+}; // KJSON

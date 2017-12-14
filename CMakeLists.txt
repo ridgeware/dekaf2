@@ -178,6 +178,7 @@ set (HEADERS
 	khttp_method.h
 	kinpipe.h
 	kinshell.h
+	kjson.h
 	klog.h
 	kmru.h
 	kostringstream.h
@@ -232,6 +233,7 @@ set (SOURCES
 	khttp_method.cpp
 	kinpipe.cpp
 	kinshell.cpp
+	kjson.cpp
 	klog.cpp
 	kostringstream.cpp
 	koutpipe.cpp

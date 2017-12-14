@@ -22,6 +22,7 @@ set (USOURCES
     kfile_tests.cpp
     ksubscribe_tests.cpp
     kreader_tests.cpp
+    kwriter_tests.cpp
     kinshell_tests.cpp
     koutshell_tests.cpp
     kstack_tests.cpp

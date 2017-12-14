@@ -1,5 +1,6 @@
 /*
-// DEKAF(tm): Lighter, Faster, Smarter (tm)
+//
+// DEKAF(tm): Lighter, Faster, Smarter(tm)
 //
 // Copyright (c) 2017, Ridgeware, Inc.
 //
@@ -36,94 +37,54 @@
 // |/+---------------------------------------------------------------------+/|
 // |\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/ |
 // +-------------------------------------------------------------------------+
+//
 */
 
-#pragma once
-
-/// @file kformat.h
-/// provides basic string formatter functionality
-
-#include <ostream>
-#include <fmt/format.h>
-#include <fmt/ostream.h>
-#include <fmt/printf.h>
-#include "bits/kcppcompat.h"
-
-namespace dekaf2
-{
-
-namespace kFormat_internal
-{
-
-void report_format_exception(const char* where);
-void report_format_exception(std::exception& e, const char* where);
-
-} // end of namespace kFormat_internal
+#include "kjson.h"
 
 //-----------------------------------------------------------------------------
-/// formats a string using Python syntax
-template<class... Args>
-std::string kFormat(Args&&... args)
+KString KJSON::EscWrap (KString sString)
 //-----------------------------------------------------------------------------
 {
-	try {
-		return fmt::format(std::forward<Args>(args)...);
-	} catch (std::exception& e) {
-		kFormat_internal::report_format_exception(e, DEKAF2_FUNCTION_NAME);
-	} catch (...) {
-		kFormat_internal::report_format_exception(DEKAF2_FUNCTION_NAME);
-	}
-	return std::string();
-}
+    sString.Replace("\r","\\r", /*all=*/true);
+    sString.Replace("\n","\\n", /*all=*/true);
+    sString.Replace("\"","\\\"", /*all=*/true);
+
+	KString sReturnMe;
+    sReturnMe.Format ("\"{}\"", sString);
+    return (sReturnMe);
+
+} // KSJON::EscWrap
 
 //-----------------------------------------------------------------------------
-/// formats a std::ostream using Python syntax
-template<class... Args>
-std::ostream& kfFormat(std::ostream& os, Args&&... args)
+KString KJSON::EscWrap (KString sName, KString sValue, KStringView sPrefix/*="\n\t"*/, KStringView sSuffix/*=","*/)
 //-----------------------------------------------------------------------------
 {
-	try {
-		fmt::print(os, std::forward<Args>(args)...);
-	} catch (std::exception& e) {
-		kFormat_internal::report_format_exception(e, DEKAF2_FUNCTION_NAME);
-	} catch (...) {
-		kFormat_internal::report_format_exception(DEKAF2_FUNCTION_NAME);
-	}
-	return os;
-}
+    sName.Replace("\r","\\r", /*all=*/true);
+    sName.Replace("\n","\\n", /*all=*/true);
+    sName.Replace("\"","\\\"", /*all=*/true);
+
+    sValue.Replace("\r","\\r", /*all=*/true);
+    sValue.Replace("\n","\\n", /*all=*/true);
+    sValue.Replace("\"","\\\"", /*all=*/true);
+
+	KString sReturnMe;
+    sReturnMe.Format ("{}\"{}\": \"{}\"{}", sPrefix, sName, sValue, sSuffix);
+    return (sReturnMe);
+
+} // KSJON::EscWrap
 
 //-----------------------------------------------------------------------------
-/// formats a string using POSIX printf syntax
-template<class... Args>
-std::string kPrintf(Args&&... args)
+KString KJSON::EscWrap (KString sName, int iValue, KStringView sPrefix/*="\n\t"*/, KStringView sSuffix/*=","*/)
 //-----------------------------------------------------------------------------
 {
-	try {
-		return fmt::sprintf(std::forward<Args>(args)...);
-	} catch (std::exception& e) {
-		kFormat_internal::report_format_exception(e, DEKAF2_FUNCTION_NAME);
-	} catch (...) {
-		kFormat_internal::report_format_exception(DEKAF2_FUNCTION_NAME);
-	}
-	return std::string();
-}
+    sName.Replace("\r","\\r", /*all=*/true);
+    sName.Replace("\n","\\n", /*all=*/true);
+    sName.Replace("\"","\\\"", /*all=*/true);
 
-//-----------------------------------------------------------------------------
-/// formats a file using POSIX printf syntax
-template<class... Args>
-std::ostream& kfPrintf(std::ostream& os, Args&&... args)
-//-----------------------------------------------------------------------------
-{
-	try {
-		std::string tmp = kPrintf(std::forward<Args>(args)...);
-		os.write(tmp.data(), static_cast<std::streamsize>(tmp.size()));
-	} catch (std::exception& e) {
-		kFormat_internal::report_format_exception(e, DEKAF2_FUNCTION_NAME);
-	} catch (...) {
-		kFormat_internal::report_format_exception(DEKAF2_FUNCTION_NAME);
-	}
-	return os;
-}
+	KString sReturnMe;
+    sReturnMe.Format ("{}\"{}\": {}{}", sPrefix, sName, iValue, sSuffix);
+    return (sReturnMe);
 
-} // end of namespace dekaf2
+} // KSJON::EscWrap
 

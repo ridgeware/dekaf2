@@ -192,11 +192,13 @@ void KCGI::RestoreStreams ()
 bool KCGI::GetNextRequest ()
 //-----------------------------------------------------------------------------
 {
-	bool bOK = (FCGX_Accept_r(&m_FcgiRequest) == 0);
+	++m_iNumRequests;
+	kDebug (1, "KCGI::request#%03d", m_iNumRequests);
 
-	if (bOK)
+    m_bIsFCGI = (getenv(KString(KCGI::FCGI_WEB_SERVER_ADDRS).c_str()) != nullptr);
+
+	if ((m_iNumRequests == 1) || (m_bIsFCGI && FCGX_Accept_r(&m_FcgiRequest)))
 	{
-		m_bIsFCGI        = (!GetVar(KCGI::FCGI_WEB_SERVER_ADDRS, "").empty());
         m_sRequestMethod = GetVar (KCGI::REQUEST_METHOD);
         m_sRequestURI    = GetVar (KCGI::REQUEST_URI);
 
@@ -229,9 +231,12 @@ bool KCGI::GetNextRequest ()
             std::cout.rdbuf (&cout_fcgi);
             std::cerr.rdbuf (&cerr_fcgi);
 		}
-	}
 
-	return (bOK); // true ==> we got a request
+		return (true);  // true ==> we got a request
+	}
+	else {
+		return (false);
+	}
 
 } // GetNextRequest
 

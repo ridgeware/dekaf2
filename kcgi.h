@@ -140,6 +140,7 @@ public:
 //----------
 private:
 //----------
+	unsigned int      m_iNumRequests = 0;
 	FCGX_Request      m_FcgiRequest;
 	bool              m_bIsFCGI      = false;
     std::streambuf*   m_pBackupCIN   = NULL;

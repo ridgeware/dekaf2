@@ -76,10 +76,10 @@ public:
 	/// Set directly after program start if run in multithreading,
 	/// otherwise libs risk to be wrongly initialized when functionality is used
 	/// that relies on this setting.
-	void SetMultiThreading()
+	void SetMultiThreading(bool bIsMultiThreading = true)
 	//---------------------------------------------------------------------------
 	{
-		m_bIsMultiThreading = true;
+		m_bIsMultiThreading = bIsMultiThreading;
 	}
 
 	//---------------------------------------------------------------------------
@@ -91,24 +91,8 @@ public:
 	}
 
 	//---------------------------------------------------------------------------
-	/// Set application name. Used for logging.
-	void SetName(const KString& sName)
-	//---------------------------------------------------------------------------
-	{
-		m_sName = sName;
-	}
-
-	//---------------------------------------------------------------------------
-	/// Get application name as provided by user.
-	const KString& GetName() const
-	//---------------------------------------------------------------------------
-	{
-		return m_sName;
-	}
-
-	//---------------------------------------------------------------------------
 	/// Set the unicode locale. If empty defaults to the locale set by the current user.
-	bool SetUnicodeLocale(KString name = KString{});
+	bool SetUnicodeLocale(KStringView name = KStringView{});
 	//---------------------------------------------------------------------------
 
 	//---------------------------------------------------------------------------
@@ -120,6 +104,11 @@ public:
 	}
 
 	//---------------------------------------------------------------------------
+	/// Set random seed. If iSeed == 0 (the default), the current time is used as the seed value.
+	void SetRandomSeed(unsigned int iSeed = 0);
+	//---------------------------------------------------------------------------
+
+	//---------------------------------------------------------------------------
 	/// Get the CPU ID and extensions
 	const folly::CpuId& GetCpuId() const
 	//---------------------------------------------------------------------------
@@ -127,13 +116,30 @@ public:
 		return m_CPUID;
 	}
 
+	//---------------------------------------------------------------------------
+	/// Get the true directory in which the current process binary is located
+	const KString& GetProgPath() const
+	//---------------------------------------------------------------------------
+	{
+		return m_sProgPath;
+	}
+
+	//---------------------------------------------------------------------------
+	/// Get the name of the current process binary without path component
+	const KString& GetProgName() const
+	//---------------------------------------------------------------------------
+	{
+		return m_sProgName;
+	}
+
 //----------
 private:
 //----------
 
 	std::atomic_bool m_bIsMultiThreading{false};
-	KString m_sName;
 	KString m_sLocale;
+	KString m_sProgPath;
+	KString m_sProgName;
 	folly::CpuId m_CPUID;
 
 }; // Dekaf
@@ -141,6 +147,16 @@ private:
 //---------------------------------------------------------------------------
 /// Get unique instance of class Dekaf()
 class Dekaf& Dekaf();
+//---------------------------------------------------------------------------
+
+//---------------------------------------------------------------------------
+/// Shortcut to initialize Dekaf and KLog in one call - however, not needed for
+/// default settings as those are automatically set at startup
+void kInit(KStringView sName = KStringView{},
+           KStringView sDebugLog = KStringView{},
+           KStringView sDebugFlag = KStringView{},
+           bool bShouldDumpCore = false,
+           bool bEnableMultiThreading = false);
 //---------------------------------------------------------------------------
 
 } // end of namespace dekaf2

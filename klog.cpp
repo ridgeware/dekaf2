@@ -43,6 +43,7 @@
 #include "klog.h"
 #include "kstring.h"
 #include "kgetruntimestack.h"
+#include "ksystem.h"
 
 namespace dekaf2
 {
@@ -64,15 +65,25 @@ int KLog::s_kLogLevel;
 //---------------------------------------------------------------------------
 KLog::KLog()
 //---------------------------------------------------------------------------
-    : m_sLogfile("/tmp/dekaf.log")
-    , m_sFlagfile("/tmp/dekaf.dbg")
-    , m_Log(m_sLogfile.c_str(), std::ios::ate)
+    : m_sLogfile  (kGetEnv(s_sEnvLog,  s_sDefaultLog))
+    , m_sFlagfile (kGetEnv(s_sEnvFlag, s_sDefaultFlag))
+    , m_Log       (m_sLogfile.c_str(), std::ios::ate)
 {
-#if NDEBUG
+#ifdef NDEBUG
 	s_kLogLevel = -1;
 #else
 	s_kLogLevel = 0;
 #endif
+}
+
+//---------------------------------------------------------------------------
+void KLog::SetName(KStringView sName)
+//---------------------------------------------------------------------------
+{
+	if (!sName.empty())
+	{
+		m_sName = sName;
+	}
 }
 
 //---------------------------------------------------------------------------
@@ -84,7 +95,29 @@ bool KLog::SetDebugLog(KStringView sLogfile)
 		return false;
 	}
 
+	// env values always override programmatic values, and at construction of
+	// KLog() we would have fetched the env value already if it is non-zero
+	const char* sEnv(kGetEnv(s_sEnvLog, nullptr));
+	if (sEnv)
+	{
+		kDebug(0, "prevented setting the debug log file to '{}' because the environment variable '{}' is set to '{}'",
+		       sLogfile,
+		       s_sEnvLog,
+		       sEnv);
+		return false;
+	}
+
+	if (sLogfile == m_sLogfile)
+	{
+		return true;
+	}
+
 	m_sLogfile = sLogfile;
+
+	if (m_Log.is_open())
+	{
+		m_Log.close();
+	}
 
 	m_Log.open(m_sLogfile.c_str(), std::ios::ate);
 	if (!m_Log.is_open())
@@ -102,6 +135,23 @@ bool KLog::SetDebugFlag(KStringView sFlagfile)
 	if (sFlagfile.empty())
 	{
 		return false;
+	}
+
+	// env values always override programmatic values, and at construction of
+	// KLog() we would have fetched the env value already if it is non-zero
+	const char* sEnv(kGetEnv(s_sEnvFlag, nullptr));
+	if (sEnv)
+	{
+		kDebug(0, "prevented setting the debug flag file to '{}' because the environment variable '{}' is set to '{}'",
+		       sFlagfile,
+		       s_sEnvFlag,
+		       sEnv);
+		return false;
+	}
+
+	if (sFlagfile == m_sFlagfile)
+	{
+		return true;
 	}
 
 	m_sFlagfile = sFlagfile;

@@ -125,6 +125,19 @@ public:
 	}
 
 	//---------------------------------------------------------------------------
+	/// Set application name for logging.
+	void SetName(KStringView sName);
+	//---------------------------------------------------------------------------
+
+	//---------------------------------------------------------------------------
+	/// Get application name as provided by user.
+	const KString& GetName() const
+	//---------------------------------------------------------------------------
+	{
+		return m_sName;
+	}
+
+	//---------------------------------------------------------------------------
 	/// Set the output file for the log.
 	bool SetDebugLog(KStringView sLogfile);
 	//---------------------------------------------------------------------------
@@ -220,11 +233,17 @@ private:
 	//---------------------------------------------------------------------------
 
 	int m_iBackTrace{0};
+	KString m_sName;
 	KString m_sLogfile;
 	KString m_sFlagfile;
 	KOutFile m_Log;
 
-};
+	constexpr static const char* const s_sEnvLog      = "DEKAFLOG";
+	constexpr static const char* const s_sEnvFlag     = "DEKAFDBG";
+	constexpr static const char* const s_sDefaultLog  = "/tmp/dekaf.log";
+	constexpr static const char* const s_sDefaultFlag = "/tmp/dekaf.dbg";
+
+}; // KLog
 
 //---------------------------------------------------------------------------
 KLog& KLog();

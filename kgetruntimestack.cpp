@@ -49,7 +49,6 @@
 #ifdef UNIX
 #include <execinfo.h>          // for backtrace
 #include <cxxabi.h>            // for demangling
-#include <sys/resource.h>      // to allow core dumps
 #include <unistd.h>
 #endif
 
@@ -62,7 +61,9 @@ namespace dekaf2
 namespace kgetruntimestack_detail
 {
 
+//-----------------------------------------------------------------------------
 KString DemangleCPlusPlusName_ (const KString& sName)
+//-----------------------------------------------------------------------------
 {
 	KString sResult;
 #ifdef UNIX
@@ -87,7 +88,9 @@ KString DemangleCPlusPlusName_ (const KString& sName)
 	return sResult;
 }
 
+//-----------------------------------------------------------------------------
 KString DemangleBacktraceDumpLine_ (const KString& sName)
+//-----------------------------------------------------------------------------
 {
 	// It appears empirically that the C++ symbol name appears between the ( and + characters, so find that, substitute, and return the rest
 	size_t i = sName.find ('(');
@@ -110,7 +113,11 @@ KString DemangleBacktraceDumpLine_ (const KString& sName)
 
 
 #ifndef USE_ADDR2LINE
-#define USE_ADDR2LINE 1
+ #ifdef DEKAF2_IS_OSX
+  #define USE_ATOS 1
+ #else
+  #define USE_ADDR2LINE 1
+ #endif
 #endif
 
 #define NUM_ELEMENTS(X) (sizeof(X)/sizeof((X)[0]))
@@ -118,10 +125,12 @@ KString DemangleBacktraceDumpLine_ (const KString& sName)
 namespace kgetruntimestack_detail
 {
 
+//-----------------------------------------------------------------------------
 // This function will try and invoke the external addr2line code to map a
 // hex process address to a source file/line number. It will return an empty
 // string upon failure
 KString Addr2LineMsg_ (const KString& sAddress)
+//-----------------------------------------------------------------------------
 {
 #ifdef UNIX
 #if USE_ADDR2LINE
@@ -142,7 +151,7 @@ KString Addr2LineMsg_ (const KString& sAddress)
 		KInShell pipe;
 		if (pipe.Open (sCmdLine))
 		{
-			KString	sLineBuf;
+			KString sLineBuf;
 			KString sResult;
 
 			if (pipe.ReadLine (sLineBuf))
@@ -168,21 +177,54 @@ KString Addr2LineMsg_ (const KString& sAddress)
 		// ignore - just do default - returning empty string
 	}
 #endif
+#ifdef USE_ATOS
+	try {
+		KString sCmdLine = "atos -p ";
+		sCmdLine += std::to_string(getpid());
+		sCmdLine += ' ';
+		sCmdLine += sAddress;
+		KInShell pipe;
+		if (pipe.Open (sCmdLine))
+		{
+			KString sLineBuf;
+			KString sResult;
+
+			if (pipe.ReadLine (sLineBuf))
+			{
+				sLineBuf.TrimRight();
+				sResult += sLineBuf;
+			}
+
+			return sResult;
+		}
+	}
+
+	catch (...) {
+		// ignore - just do default - returning empty string
+	}
+#endif
 #endif
 
 	return KString();
 }
 
 
+//-----------------------------------------------------------------------------
 KString ComputeSrcLinesAppendageForBacktraceDumpLine_ (const KString& sBacktraceLine)
+//-----------------------------------------------------------------------------
 {
-	// It appears empirically that the C++ symbol name appears between the ( and + characters, so find that, substitute, and return the rest
 	size_t i = sBacktraceLine.find ("[0x");
+	char cCloser = ']';
+	if (i == KString::npos)
+	{
+		i = sBacktraceLine.find (" 0x");
+		cCloser = ' ';
+	}
 	if (i == KString::npos)
 	{
 		return KString();
 	}
-	size_t e = sBacktraceLine.find (']', i);
+	size_t e = sBacktraceLine.find(cCloser, i+3);
 	if (e == KString::npos)
 	{
 		return KString();
@@ -206,7 +248,9 @@ KString ComputeSrcLinesAppendageForBacktraceDumpLine_ (const KString& sBacktrace
 namespace kgetruntimestack_detail
 {
 
+//-----------------------------------------------------------------------------
 KString GetGDBAttachBased_Callstack_ ()
+//-----------------------------------------------------------------------------
 {
 	KString sStack;
 
@@ -285,7 +329,9 @@ KString GetGDBAttachBased_Callstack_ ()
 namespace kgetruntimestack_detail
 {
 
+//-----------------------------------------------------------------------------
 KString GetBacktraceBased_Callstack_ (size_t iSkipStackLines)
+//-----------------------------------------------------------------------------
 {
 	KString sStack;
 

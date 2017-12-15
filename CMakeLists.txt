@@ -23,6 +23,15 @@ set(VERSION_MINOR   0)
 set(VERSION_PATCH   0)
 mark_as_advanced(VERSION_MAJOR VERSION_MINOR VERSION_PATCH)
 
+# Add local cmake modules to the module path (used to find libraries which do not have find modules provided by cmake)
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/modules/")
+
+find_package(libproc)
+if(libproc_FOUND)
+	set(DEKAF2_HAS_LIBPROC 1)
+	include_directories(libproc_INCLUDE_DIRS)
+endif()
+
 if(DEKAF2_WITH_COMPATIBILITY_LAYER_TO_DEKAF1)
 	set (DPATH $ENV{dekaf})
 	if (NOT DPATH)
@@ -318,6 +327,7 @@ target_link_libraries(dekaf2
 	"${FSLIB}"
 	${Boost_LIBRARIES}
 	${OPENSSL_LIBRARIES}
+	${libproc_LIBRARIES}
 	Threads::Threads
 	)
 

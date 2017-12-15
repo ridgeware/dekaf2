@@ -40,7 +40,7 @@
 //
 */
 
-
+#include <vector>
 #include "bits/kcppcompat.h"
 #include "kstring.h"
 #include "kinshell.h"
@@ -54,6 +54,8 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+
+#include <iostream>
 
 namespace dekaf2
 {
@@ -112,105 +114,99 @@ KString DemangleBacktraceDumpLine_ (const KString& sName)
 } // namespace kgetruntimestack_detail
 
 
-#ifndef USE_ADDR2LINE
- #ifdef DEKAF2_IS_OSX
-  #define USE_ATOS 1
- #else
-  #define USE_ADDR2LINE 1
- #endif
-#endif
-
 #define NUM_ELEMENTS(X) (sizeof(X)/sizeof((X)[0]))
 
 namespace kgetruntimestack_detail
 {
 
 //-----------------------------------------------------------------------------
-// This function will try and invoke the external addr2line code to map a
-// hex process address to a source file/line number. It will return an empty
-// string upon failure
-KString Addr2LineMsg_ (const KString& sAddress)
+// This function will try and invoke the external addr2line code to map a vector
+//of hex process address to a vector of source file/line number. It will return an empty
+// vector upon failure
+std::vector<KString> Addr2LineMsg_ (const std::vector<KString>& vsAddress)
 //-----------------------------------------------------------------------------
 {
-#ifdef UNIX
-#if USE_ADDR2LINE
-	try {
-		char sMyExeName[512];
-		ssize_t n;
-		if ( (n = readlink ("/proc/self/exe", sMyExeName, NUM_ELEMENTS (sMyExeName)-1)) < 0)
-		{
-			// if this fails - we are already crashing - don't worry about this...
-			return KString();
-		}
-		sMyExeName[n] = '\0';
-
-		KString sCmdLine = "addr2line -f -C -e \"";
-		sCmdLine += sMyExeName;
-		sCmdLine += "\" ";
-		sCmdLine += sAddress;
-		KInShell pipe;
-		if (pipe.Open (sCmdLine))
-		{
-			KString sLineBuf;
-			KString sResult;
-
-			if (pipe.ReadLine (sLineBuf))
+	std::vector<KString> vsResult;
+	if (!vsAddress.empty())
+	{
+#ifdef DEKAF2_IS_OSX
+		try {
+			KString sCmdLine = "atos -p ";
+			sCmdLine += std::to_string(getpid());
+			for (const auto& it : vsAddress)
 			{
-				sLineBuf.TrimRight();
-				sResult += sLineBuf;
+				sCmdLine += ' ';
+				sCmdLine += it;
 			}
-
-			if (pipe.ReadLine (sLineBuf))
+			KInShell pipe;
+			if (pipe.Open (sCmdLine))
 			{
-				sLineBuf.TrimRight();
-				if (!sLineBuf.StartsWith("??:")) {
-					sResult += " at ";
-					sResult += sLineBuf;
+				KString sLineBuf;
+
+				while (pipe.ReadLine (sLineBuf))
+				{
+					sLineBuf.TrimRight();
+					vsResult.emplace_back(std::move(sLineBuf));
 				}
 			}
-
-			return sResult;
 		}
-	}
 
-	catch (...) {
-		// ignore - just do default - returning empty string
-	}
-#endif
-#ifdef USE_ATOS
-	try {
-		KString sCmdLine = "atos -p ";
-		sCmdLine += std::to_string(getpid());
-		sCmdLine += ' ';
-		sCmdLine += sAddress;
-		KInShell pipe;
-		if (pipe.Open (sCmdLine))
-		{
-			KString sLineBuf;
-			KString sResult;
-
-			if (pipe.ReadLine (sLineBuf))
+		catch (...) {
+			// ignore - just do default - returning empty string
+		}
+#elif DEKAF2_IS_UNIX
+		try {
+			char sMyExeName[512];
+			ssize_t n;
+			if ( (n = readlink ("/proc/self/exe", sMyExeName, NUM_ELEMENTS (sMyExeName)-1)) > 0)
 			{
-				sLineBuf.TrimRight();
-				sResult += sLineBuf;
+				sMyExeName[n] = '\0';
+
+				KString sCmdLine = "addr2line -f -C -e \"";
+				sCmdLine += sMyExeName;
+				sCmdLine += '"';
+				for (const auto& it : vsAddress)
+				{
+					sCmdLine += ' ';
+					sCmdLine += it;
+				}
+				KInShell pipe;
+				if (pipe.Open (sCmdLine))
+				{
+					KString sLineBuf;
+					KString sResult;
+
+					while (pipe.ReadLine (sLineBuf))
+					{
+						sLineBuf.TrimRight();
+						sResult += sLineBuf;
+
+						if (pipe.ReadLine (sLineBuf))
+						{
+							sLineBuf.TrimRight();
+							if (!sLineBuf.StartsWith("??:")) {
+								sResult += " at ";
+								sResult += sLineBuf;
+							}
+						}
+
+						vsResult.emplace_back(std::move(sResult));
+					}
+				}
 			}
-
-			return sResult;
 		}
-	}
 
-	catch (...) {
-		// ignore - just do default - returning empty string
+		catch (...) {
+			// ignore - just do default - returning empty string
+		}
+#endif
 	}
-#endif
-#endif
-
-	return KString();
+	return vsResult;
 }
 
 
 //-----------------------------------------------------------------------------
-KString ComputeSrcLinesAppendageForBacktraceDumpLine_ (const KString& sBacktraceLine)
+KString GetStackAddress (const KString& sBacktraceLine)
 //-----------------------------------------------------------------------------
 {
 	size_t i = sBacktraceLine.find ("[0x");
@@ -229,7 +225,7 @@ KString ComputeSrcLinesAppendageForBacktraceDumpLine_ (const KString& sBacktrace
 	{
 		return KString();
 	}
-	return Addr2LineMsg_ (sBacktraceLine.substr(i + 1, e - i - 1));
+	return sBacktraceLine.substr(i + 1, e - i - 1);
 }
 
 } // namespace kgetruntimestack_detail
@@ -330,30 +326,47 @@ namespace kgetruntimestack_detail
 {
 
 //-----------------------------------------------------------------------------
-KString GetBacktraceBased_Callstack_ (size_t iSkipStackLines)
+KString GetBacktraceBased_Callstack_ (int iSkipStackLines)
 //-----------------------------------------------------------------------------
 {
 	KString sStack;
 
 	enum   {MAXSTACK = 500};
 	void*  Stack[MAXSTACK+1];
-	size_t iStackSize = 0;
+	int    iStackSize = 0;
 
 	iStackSize = backtrace (Stack, MAXSTACK);
 	char** Names = backtrace_symbols (Stack, iStackSize);
 
-	for (size_t ii = iSkipStackLines; ii < iStackSize; ++ii)
+	std::vector<KString> vsAddress;
+	for (int ii = iSkipStackLines; ii < iStackSize; ++ii)
 	{
-		KString sFrame;
-		sFrame = std::to_string(iStackSize-ii);
-		sFrame.PadLeft(3);
-		sFrame += ' ';
-		sFrame += kgetruntimestack_detail::ComputeSrcLinesAppendageForBacktraceDumpLine_(Names[ii]);
-		sFrame += '\n';
-		sStack.append(sFrame);
+		vsAddress.emplace_back(kgetruntimestack_detail::GetStackAddress(Names[ii]));
 	}
 
 	free (Names);
+
+	std::vector<KString> vsFrames = Addr2LineMsg_(vsAddress);
+
+	// avoid unnecessary reallocations
+	size_t iFrameMax = 0;
+	for (const auto& it : vsFrames)
+	{
+		iFrameMax += it.size() + 5;
+	}
+	sStack.reserve(iFrameMax);
+
+	size_t ii = vsFrames.size();
+	for (auto& it : vsFrames)
+	{
+		KString sFrame;
+		sFrame = std::to_string(ii--);
+		sFrame.PadLeft(3);
+		sFrame += ' ';
+		sFrame += it;
+		sFrame += '\n';
+		sStack.append(sFrame);
+	}
 
 	return sStack;
 }
@@ -386,7 +399,7 @@ KString kGetRuntimeStack ()
 } // kGetRuntimeStack
 
 //-----------------------------------------------------------------------------
-KString kGetBacktrace (size_t iSkipStackLines)
+KString kGetBacktrace (int iSkipStackLines)
 //-----------------------------------------------------------------------------
 {
 	KString sStack;

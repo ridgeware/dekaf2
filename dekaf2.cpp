@@ -42,17 +42,45 @@
 
 #include <clocale>
 #include <cstdlib>
-#include <libproc.h>
 #include "dekaf2.h"
 #include "klog.h"
 #include "kfile.h"
 #include "bits/kcppcompat.h"
+#ifdef DEKAF2_HAS_LIBPROC
+#include <libproc.h>
+#endif
 
 
 namespace dekaf2
 {
 
 const char DefaultLocale[] = "en_US.UTF-8";
+
+#if defined(DEKAF2_HAS_LIBPROC) || defined(DEKAF2_IS_UNIX)
+DEKAF2_ALWAYS_INLINE
+void local_split_in_path_and_name(const char* sFullPath, KString& sPath, KString& sName)
+{
+	// we have to do the separation of path and name manually here as kFileDirName() and kFileBaseName()
+	// would invoke kRFind(), which on non-Linux platforms would call into Dekaf().GetCpuId() and hence
+	// into a not yet constructed instance
+	size_t pos = strlen(sFullPath);
+	while (pos)
+	{
+		--pos;
+		if (sFullPath[pos] == '/')
+		{
+			++pos;
+			break;
+		}
+	}
+	sName = &sFullPath[pos];
+	while (pos > 0 && sFullPath[pos-1] == '/')
+	{
+		--pos;
+	}
+	sPath.assign(sFullPath, pos);
+}
+#endif
 
 //---------------------------------------------------------------------------
 Dekaf::Dekaf()
@@ -61,35 +89,25 @@ Dekaf::Dekaf()
 	SetUnicodeLocale();
 	SetRandomSeed();
 
-#ifdef DEKAF2_IS_UNIX
-	// get the own executable's path and name
-	char path[PROC_PIDPATHINFO_MAXSIZE];
-	if (proc_pidpath(getpid(), path, sizeof(path)) > 0)
+#ifdef DEKAF2_HAS_LIBPROC
+	// get the own executable's path and name through the libproc abstraction
+	// which has the advantage that it also works on systems without /proc file system
+	char path[PROC_PIDPATHINFO_MAXSIZE+1];
+	if (proc_pidpath(getpid(), path, PROC_PIDPATHINFO_MAXSIZE) > 0)
 	{
-		// we have to do the separation of dir and name manually here as kFileDirName() and kFileBaseName()
-		// would invoke kRFind(), which on non-Linux platforms would call into Dekaf().GetCpuId() and hence
-		// into a not yet constructed instance
-		size_t pos = strlen(path);
-		size_t name = 0;
-		while (pos)
-		{
-			--pos;
-			if (path[pos] == '/')
-			{
-				name = pos + 1;
-				break;
-			}
-		}
-		m_sProgName = &path[name];
-		m_sProgPath = path;
-		m_sProgPath.erase(m_sProgPath.size() - m_sProgName.size());
-		while (m_sProgPath.size() > 1 && m_sProgPath.back() == '/')
-		{
-			m_sProgPath.erase(m_sProgPath.size()-1);
-		}
-		KLog().SetName(m_sProgName);
+		local_split_in_path_and_name(path, m_sProgPath, m_sProgName);
+	}
+#elif DEKAF2_IS_UNIX
+	// get the own executable's path and name through the /proc file system
+	char path[PATH_MAX+1];
+	ssize_t len;
+	if ((len = readlink("/proc/self/exe", path, PATH_MAX)) > 0)
+	{
+		path[len] = 0;
+		local_split_in_path_and_name(path, m_sProgPath, m_sProgName);
 	}
 #endif
+	KLog().SetName(m_sProgName);
 
 }
 

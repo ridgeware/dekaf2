@@ -71,3 +71,5 @@
 #endif
 
 #cmakedefine DEKAF1_INCLUDE_PATH @DEKAF1_INCLUDE_PATH@
+
+#cmakedefine DEKAF2_HAS_LIBPROC

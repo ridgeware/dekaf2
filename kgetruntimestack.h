@@ -59,6 +59,6 @@ KString kGetRuntimeStack ();
 /// shorter than the one of kGetRuntimeStack, and intended for logging
 /// purposes during the runtime of the application.
 /// @param iSkipStackLines Number of top stack lines to drop. Defaults to 0.
-KString kGetBacktrace (size_t iSkipStackLines = 0);
+KString kGetBacktrace (int iSkipStackLines = 0);
 
 }

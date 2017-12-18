@@ -8,6 +8,11 @@ cmake_minimum_required(VERSION 2.8)
 
 project(dekaf2)
 
+set(CMAKE_CXX_STANDARD 17)
+# we do not force C++17 if not available
+# set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+# these are all configurable project options
 OPTION(DEKAF2_INSTALL_HEADERS "Install headers" OFF)
 OPTION(DEKAF2_USE_FBSTRING_AS_KSTRING "Use Folly::FBString for KString" ON)
 OPTION(DEKAF2_USE_FOLLY_STRINGPIECE_AS_KSTRINGVIEW "Use Folly::StringPiece for KStringView" ON)
@@ -23,15 +28,25 @@ set(VERSION_MINOR   0)
 set(VERSION_PATCH   0)
 mark_as_advanced(VERSION_MAJOR VERSION_MINOR VERSION_PATCH)
 
+# suppress linker warnings for empty object files on OS X
+if(${CMAKE_SYSTEM_NAME} STREQUAL "Darwin")
+	SET(CMAKE_C_ARCHIVE_CREATE   "<CMAKE_AR> Scr <TARGET> <LINK_FLAGS> <OBJECTS>")
+	SET(CMAKE_CXX_ARCHIVE_CREATE "<CMAKE_AR> Scr <TARGET> <LINK_FLAGS> <OBJECTS>")
+	SET(CMAKE_C_ARCHIVE_FINISH   "<CMAKE_RANLIB> -no_warning_for_no_symbols -c <TARGET>")
+	SET(CMAKE_CXX_ARCHIVE_FINISH "<CMAKE_RANLIB> -no_warning_for_no_symbols -c <TARGET>")
+endif()
+
 # Add local cmake modules to the module path (used to find libraries which do not have find modules provided by cmake)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/modules/")
 
+# check if we have the libproc library (or at least its headers)
 find_package(libproc)
 if(libproc_FOUND)
 	set(DEKAF2_HAS_LIBPROC 1)
-	include_directories(libproc_INCLUDE_DIRS)
+	include_directories(SYSTEM ${libproc_INCLUDE_DIRS})
 endif()
 
+# if requested to integrate with dekaf1, check if it is available
 if(DEKAF2_WITH_COMPATIBILITY_LAYER_TO_DEKAF1)
 	set (DPATH $ENV{dekaf})
 	if (NOT DPATH)
@@ -44,18 +59,16 @@ if(DEKAF2_WITH_COMPATIBILITY_LAYER_TO_DEKAF1)
 	endif()
 endif()
 
+# create and include the build directory for generated files
 set(GENERATED_FILES_DIR "${CMAKE_CURRENT_BINARY_DIR}/generated")
 file(MAKE_DIRECTORY "${GENERATED_FILES_DIR}")
-
-configure_file("bits/kconfiguration.h.in" "${GENERATED_FILES_DIR}/kconfiguration.h" @ONLY)
 include_directories("${GENERATED_FILES_DIR}")
+
+# create the configuration header file
+configure_file("bits/kconfiguration.h.in" "${GENERATED_FILES_DIR}/kconfiguration.h" @ONLY)
 
 # make sure we have the necessary version of cmake installed
 #execute_process(COMMAND "${CMAKE_CURRENT_SOURCE_DIR}/bits/cmakeinstall -go")
-
-set(CMAKE_CXX_STANDARD 17)
-# we do not force C++17 if not available
-# set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 if (DEKAF2_ENABLE_DEBUG_RUNTIME_CHECKS)
    # did not yet find a way to teach Clang how to link against the asan lib.. so we do not compile with it
@@ -171,6 +184,7 @@ set (HEADERS
 	bits/simd/kfindfirstof.h
 	dekaf2.h
 	dekaf2all.h
+	kbase64.h
 	kcache.h
 	kcasestring.h
 	kcgi.h
@@ -227,6 +241,7 @@ set (SOURCES
 	bits/kbaseshell.cpp
 	bits/simd/kfindfirstof.cpp
 	dekaf2.cpp
+	kbase64.cpp
 	kcasestring.cpp
 	kcgi.cpp
 	kconnection.cpp

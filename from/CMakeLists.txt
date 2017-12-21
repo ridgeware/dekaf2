@@ -13,3 +13,5 @@ add_subdirectory(folly)
 if(CMAKE_COMPILER_IS_GNUCC)
 	set(CMAKE_CXX_FLAGS ${CXX_FLAGS_STASHED})
 endif()
+
+add_subdirectory(nlohmann)

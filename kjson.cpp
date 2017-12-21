@@ -42,49 +42,55 @@
 
 #include "kjson.h"
 
+namespace dekaf2 {
+
 //-----------------------------------------------------------------------------
-KString KJSON::EscWrap (KString sString)
+bool KJSON::parse (KStringView sJSON)
 //-----------------------------------------------------------------------------
 {
-    sString.Replace("\r","\\r", /*all=*/true);
-    sString.Replace("\n","\\n", /*all=*/true);
-    sString.Replace("\"","\\\"", /*all=*/true);
+	try {
+		DOM.clear();
+		DOM.parse(sJSON);
+		return true;
+	}
+	catch (const json::json::exception exc)
+	{
+		return false;
+	}
+}
 
-	KString sReturnMe;
-    sReturnMe.Format ("\"{}\"", sString);
-    return (sReturnMe);
+
+//-----------------------------------------------------------------------------
+KString KJSON::EscWrap (KStringView sString)
+//-----------------------------------------------------------------------------
+{
+	json::json j{sString};
+	return j.dump();
 
 } // KSJON::EscWrap
 
 //-----------------------------------------------------------------------------
-KString KJSON::EscWrap (KString sName, KString sValue, KStringView sPrefix/*="\n\t"*/, KStringView sSuffix/*=","*/)
+KString KJSON::EscWrap (KStringView sName, KStringView sValue, KStringView sPrefix/*="\n\t"*/, KStringView sSuffix/*=","*/)
 //-----------------------------------------------------------------------------
 {
-    sName.Replace("\r","\\r", /*all=*/true);
-    sName.Replace("\n","\\n", /*all=*/true);
-    sName.Replace("\"","\\\"", /*all=*/true);
-
-    sValue.Replace("\r","\\r", /*all=*/true);
-    sValue.Replace("\n","\\n", /*all=*/true);
-    sValue.Replace("\"","\\\"", /*all=*/true);
-
-	KString sReturnMe;
-    sReturnMe.Format ("{}\"{}\": \"{}\"{}", sPrefix, sName, sValue, sSuffix);
-    return (sReturnMe);
+	json::json j{sName, sValue};
+	KString sRet{sPrefix};
+	sRet += j.dump();
+	sRet += sSuffix;
+	return sRet;
 
 } // KSJON::EscWrap
 
 //-----------------------------------------------------------------------------
-KString KJSON::EscWrap (KString sName, int iValue, KStringView sPrefix/*="\n\t"*/, KStringView sSuffix/*=","*/)
+KString KJSON::EscWrap (KStringView sName, int iValue, KStringView sPrefix/*="\n\t"*/, KStringView sSuffix/*=","*/)
 //-----------------------------------------------------------------------------
 {
-    sName.Replace("\r","\\r", /*all=*/true);
-    sName.Replace("\n","\\n", /*all=*/true);
-    sName.Replace("\"","\\\"", /*all=*/true);
-
-	KString sReturnMe;
-    sReturnMe.Format ("{}\"{}\": {}{}", sPrefix, sName, iValue, sSuffix);
-    return (sReturnMe);
+	json::json j{sName, iValue};
+	KString sRet{sPrefix};
+	sRet += j.dump();
+	sRet += sSuffix;
+	return sRet;
 
 } // KSJON::EscWrap
 
+} // end of namespace dekaf2

@@ -343,6 +343,7 @@ target_link_libraries(dekaf2
 	${Boost_LIBRARIES}
 	${OPENSSL_LIBRARIES}
 	${libproc_LIBRARIES}
+	nlohmann-json
 	Threads::Threads
 	)
 

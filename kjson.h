@@ -42,30 +42,31 @@
 
 #pragma once
 
+#include <nlohmann/json.hpp>
 #include "kstring.h"
-#include <boost/property_tree/ptree.hpp>
-#include <boost/property_tree/json_parser.hpp>
-#include <boost/foreach.hpp>
+#include "kstringview.h"
 
-using namespace dekaf2;
+namespace dekaf2 {
+
+namespace json = nlohmann;
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class KJSON : public boost::property_tree::ptree
+class KJSON
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 //----------
 public:
 //----------
-	/*
-	bool parse (const KStringView sJSON);
-	bool parse (const KPROPS& Parms);
 
-	bool ToKPROPS (KPROPS& Parms);
-	*/
+	bool parse (KStringView sJSON);
+
+	json::json DOM;
 
 	/// wrap the given string with double-quotes and escape it for legal json
-	static KString EscWrap (KString sString);
-	static KString EscWrap (KString sString1, KString sString2, KStringView sPrefix="\n\t", KStringView sSuffix=",");
-	static KString EscWrap (KString sString, int iNumber, KStringView sPrefix="\n\t", KStringView sSuffix=",");
+	static KString EscWrap (KStringView sString);
+	static KString EscWrap (KStringView sString1, KStringView sString2, KStringView sPrefix="\n\t", KStringView sSuffix=",");
+	static KString EscWrap (KStringView sString, int iNumber, KStringView sPrefix="\n\t", KStringView sSuffix=",");
 
 }; // KJSON
+
+} // end of namespace dekaf2

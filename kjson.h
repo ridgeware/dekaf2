@@ -57,12 +57,19 @@ public:
 //----------
 	using base_type = nlohmann::json;
 
-	bool parse (KStringView sJSON);
+    bool        parse     (KStringView sJSON);
+    bool        FormError (const base_type::exception exc);
+    KStringView GetLastError ()   { return m_sLastError; }
 
 	/// wrap the given string with double-quotes and escape it for legal json
 	static KString EscWrap (KStringView sString);
 	static KString EscWrap (KStringView sString1, KStringView sString2, KStringView sPrefix="\n\t", KStringView sSuffix=",");
 	static KString EscWrap (KStringView sString, int iNumber, KStringView sPrefix="\n\t", KStringView sSuffix=",");
+
+//----------
+public:
+//----------
+    KString m_sLastError;
 
 }; // KJSON
 

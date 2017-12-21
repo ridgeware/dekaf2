@@ -54,9 +54,9 @@ namespace dekaf2 {
 
 class KString;
 
-extern template class KProps<KString, KString, false, true >;
-extern template class KProps<KString, KString, true,  true >;
-extern template class KProps<KString, KString, false, false>;
-extern template class KProps<KString, KString, true,  false>;
+extern template class KProps<KString, KString, /*order-matters=*/false, /*unique-keys=*/true >;
+extern template class KProps<KString, KString, /*order-matters=*/true,  /*unique-keys=*/true >;
+extern template class KProps<KString, KString, /*order-matters=*/false, /*unique-keys=*/false>;
+extern template class KProps<KString, KString, /*order-matters=*/true,  /*unique-keys=*/false>;
 
 }

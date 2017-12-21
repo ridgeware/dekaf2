@@ -134,8 +134,8 @@ public:
 	KString      m_sRequestMethod;
 	KString      m_sRequestURI;
 	KString      m_sPostData; // aka body
-	KProps <KString, KString, /*order-matters=*/false, /*unique-keys*/false> m_Headers;
-	KProps <KString, KString, /*order-matters=*/false, /*unique-keys*/false> m_QueryParms;
+    KProps <KString, KString, /*order-matters=*/false, /*unique-keys=*/false> m_Headers;
+    KProps <KString, KString, /*order-matters=*/false, /*unique-keys=*/false> m_QueryParms;
 
 //----------
 private:

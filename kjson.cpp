@@ -55,10 +55,21 @@ bool KJSON::parse (KStringView sJSON)
 	}
 	catch (const base_type::exception exc)
 	{
-		return false;
+        return (FormError (exc));
 	}
-}
 
+} // parse
+
+//-----------------------------------------------------------------------------
+bool KJSON::FormError (const base_type::exception exc)
+//-----------------------------------------------------------------------------
+{
+    KString sLastError;
+    sLastError.Printf ("JSON[%03d]: %s", exc.id, exc.what());
+
+    return (false);
+
+} // FormError
 
 //-----------------------------------------------------------------------------
 KString KJSON::EscWrap (KStringView sString)

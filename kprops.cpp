@@ -45,9 +45,9 @@
 
 namespace dekaf2 {
 
-template class KProps<KString, KString, false, true >;
-template class KProps<KString, KString, true,  true >;
-template class KProps<KString, KString, false, false>;
-template class KProps<KString, KString, true,  false>;
+template class KProps<KString, KString, /*order-matters=*/false, /*unique-keys=*/true >;
+template class KProps<KString, KString, /*order-matters=*/true,  /*unique-keys=*/true >;
+template class KProps<KString, KString, /*order-matters=*/false, /*unique-keys=*/false>;
+template class KProps<KString, KString, /*order-matters=*/true,  /*unique-keys=*/false>;
 
 }

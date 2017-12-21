@@ -48,6 +48,22 @@
 
 namespace dekaf2 {
 
+void to_json(nlohmann::json& j, const KString& s) {
+    j = nlohmann::json{s};
+}
+
+void from_json(const nlohmann::json& j, KString& s) {
+	s = j.get<std::string>();
+}
+
+void to_json(nlohmann::json& j, const KStringView& s) {
+    j = nlohmann::json{s};
+}
+
+void from_json(const nlohmann::json& j, KStringView& s) {
+	s = j.get<std::string>();
+}
+
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class KJSON : public nlohmann::json
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -55,7 +71,26 @@ class KJSON : public nlohmann::json
 //----------
 public:
 //----------
+ 	using self_type = KJSON;
 	using base_type = nlohmann::json;
+
+ 	template<typename ...Args>
+ 	KJSON(Args&& ...args)
+ 	    : base_type(std::forward<Args>(args)...)
+ 	{
+ 	}
+ 
+ 	self_type& operator=(const self_type& other)
+ 	{
+ 		base_type::operator=(other);
+ 		return *this;
+ 	}
+ 
+ 	self_type& operator=(self_type&& other)
+ 	{
+ 		base_type::operator=(std::move(other));
+ 		return *this;
+ 	}
 
     bool        parse     (KStringView sJSON);
     bool        FormError (const base_type::exception exc);

@@ -55,7 +55,7 @@ bool KJSON::parse (KStringView sJSON)
 	}
 	catch (const base_type::exception exc)
 	{
-        return (FormError (exc));
+		return (FormError (exc));
 	}
 
 } // parse
@@ -64,43 +64,59 @@ bool KJSON::parse (KStringView sJSON)
 bool KJSON::FormError (const base_type::exception exc)
 //-----------------------------------------------------------------------------
 {
-    KString sLastError;
-    sLastError.Printf ("JSON[%03d]: %s", exc.id, exc.what());
+	KString sLastError;
+	sLastError.Printf ("JSON[%03d]: %s", exc.id, exc.what());
 
-    return (false);
+	return (false);
 
 } // FormError
 
 //-----------------------------------------------------------------------------
-KString KJSON::EscWrap (KStringView sString)
+KString KJSON::EscWrap (KString sString)
 //-----------------------------------------------------------------------------
 {
-	base_type j{sString};
-	return j.dump();
+	sString.Replace("\r","\\r", /*all=*/true);
+	sString.Replace("\n","\\n", /*all=*/true);
+	sString.Replace("\"","\\\"", /*all=*/true);
+
+	KString sReturnMe;
+	sReturnMe.Format ("\"{}\"", sString);
+
+	return (sReturnMe);
 
 } // KSJON::EscWrap
 
 //-----------------------------------------------------------------------------
-KString KJSON::EscWrap (KStringView sName, KStringView sValue, KStringView sPrefix/*="\n\t"*/, KStringView sSuffix/*=","*/)
+KString KJSON::EscWrap (KString sName, KString sValue, KStringView sPrefix/*="\n\t"*/, KStringView sSuffix/*=","*/)
 //-----------------------------------------------------------------------------
 {
-	base_type j{sName, sValue};
-	KString sRet{sPrefix};
-	sRet += j.dump();
-	sRet += sSuffix;
-	return sRet;
+	sName.Replace("\r","\\r", /*all=*/true);
+	sName.Replace("\n","\\n", /*all=*/true);
+	sName.Replace("\"","\\\"", /*all=*/true);
+
+	sValue.Replace("\r","\\r", /*all=*/true);
+	sValue.Replace("\n","\\n", /*all=*/true);
+	sValue.Replace("\"","\\\"", /*all=*/true);
+
+	KString sReturnMe;
+	sReturnMe.Format ("{}\"{}\": \"{}\"{}", sPrefix, sName, sValue, sSuffix);
+
+	return (sReturnMe);
 
 } // KSJON::EscWrap
 
 //-----------------------------------------------------------------------------
-KString KJSON::EscWrap (KStringView sName, int iValue, KStringView sPrefix/*="\n\t"*/, KStringView sSuffix/*=","*/)
+KString KJSON::EscWrap (KString sName, int iValue, KStringView sPrefix/*="\n\t"*/, KStringView sSuffix/*=","*/)
 //-----------------------------------------------------------------------------
 {
-	base_type j{sName, iValue};
-	KString sRet{sPrefix};
-	sRet += j.dump();
-	sRet += sSuffix;
-	return sRet;
+	sName.Replace("\r","\\r", /*all=*/true);
+	sName.Replace("\n","\\n", /*all=*/true);
+	sName.Replace("\"","\\\"", /*all=*/true);
+
+	KString sReturnMe;
+	sReturnMe.Format ("{}\"{}\": {}{}", sPrefix, sName, iValue, sSuffix);
+
+	return (sReturnMe);
 
 } // KSJON::EscWrap
 

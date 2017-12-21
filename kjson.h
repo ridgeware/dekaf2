@@ -48,19 +48,19 @@
 
 namespace dekaf2 {
 
-void to_json(nlohmann::json& j, const KString& s) {
+inline void to_json(nlohmann::json& j, const KString& s) {
     j = nlohmann::json{s};
 }
 
-void from_json(const nlohmann::json& j, KString& s) {
+inline void from_json(const nlohmann::json& j, KString& s) {
 	s = j.get<std::string>();
 }
 
-void to_json(nlohmann::json& j, const KStringView& s) {
+inline void to_json(nlohmann::json& j, const KStringView& s) {
     j = nlohmann::json{s};
 }
 
-void from_json(const nlohmann::json& j, KStringView& s) {
+inline void from_json(const nlohmann::json& j, KStringView& s) {
 	s = j.get<std::string>();
 }
 
@@ -97,12 +97,12 @@ public:
     KStringView GetLastError ()   { return m_sLastError; }
 
 	/// wrap the given string with double-quotes and escape it for legal json
-	static KString EscWrap (KStringView sString);
-	static KString EscWrap (KStringView sString1, KStringView sString2, KStringView sPrefix="\n\t", KStringView sSuffix=",");
-	static KString EscWrap (KStringView sString, int iNumber, KStringView sPrefix="\n\t", KStringView sSuffix=",");
+    static KString EscWrap (KString sString);
+    static KString EscWrap (KString sString1, KString sString2, KStringView sPrefix="\n\t", KStringView sSuffix=",");
+    static KString EscWrap (KString sString, int iNumber, KStringView sPrefix="\n\t", KStringView sSuffix=",");
 
 //----------
-public:
+private:
 //----------
     KString m_sLastError;
 

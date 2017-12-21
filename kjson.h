@@ -48,19 +48,16 @@
 
 namespace dekaf2 {
 
-namespace json = nlohmann;
-
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class KJSON
+class KJSON : public nlohmann::json
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 //----------
 public:
 //----------
+	using base_type = nlohmann::json;
 
 	bool parse (KStringView sJSON);
-
-	json::json DOM;
 
 	/// wrap the given string with double-quotes and escape it for legal json
 	static KString EscWrap (KStringView sString);

@@ -49,11 +49,11 @@ bool KJSON::parse (KStringView sJSON)
 //-----------------------------------------------------------------------------
 {
 	try {
-		DOM.clear();
-		DOM.parse(sJSON);
+		base_type::clear();
+		base_type::parse(sJSON);
 		return true;
 	}
-	catch (const json::json::exception exc)
+	catch (const base_type::exception exc)
 	{
 		return false;
 	}
@@ -64,7 +64,7 @@ bool KJSON::parse (KStringView sJSON)
 KString KJSON::EscWrap (KStringView sString)
 //-----------------------------------------------------------------------------
 {
-	json::json j{sString};
+	base_type j{sString};
 	return j.dump();
 
 } // KSJON::EscWrap
@@ -73,7 +73,7 @@ KString KJSON::EscWrap (KStringView sString)
 KString KJSON::EscWrap (KStringView sName, KStringView sValue, KStringView sPrefix/*="\n\t"*/, KStringView sSuffix/*=","*/)
 //-----------------------------------------------------------------------------
 {
-	json::json j{sName, sValue};
+	base_type j{sName, sValue};
 	KString sRet{sPrefix};
 	sRet += j.dump();
 	sRet += sSuffix;
@@ -85,7 +85,7 @@ KString KJSON::EscWrap (KStringView sName, KStringView sValue, KStringView sPref
 KString KJSON::EscWrap (KStringView sName, int iValue, KStringView sPrefix/*="\n\t"*/, KStringView sSuffix/*=","*/)
 //-----------------------------------------------------------------------------
 {
-	json::json j{sName, iValue};
+	base_type j{sName, iValue};
 	KString sRet{sPrefix};
 	sRet += j.dump();
 	sRet += sSuffix;

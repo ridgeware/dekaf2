@@ -104,16 +104,6 @@ constexpr KStringView KHeader::FCGI_WEB_SERVER_ADDRS;
 
 #endif
 
-#if 0
-//-----------------------------------------------------------------------------
-/*static*/bool KCGI::IsWebRequest ()
-//-----------------------------------------------------------------------------
-{
-	return (!GetVar(KCGI::REQUEST_METHOD, "").empty());
-
-} // IsWebRequest
-#endif
-
 //-----------------------------------------------------------------------------
 KCGI::KCGI()
 //-----------------------------------------------------------------------------
@@ -195,7 +185,7 @@ bool KCGI::GetNextRequest ()
 	++m_iNumRequests;
 	kDebug (1, "KCGI::request#%03d", m_iNumRequests);
 
-    m_bIsFCGI = (getenv(KString(KCGI::FCGI_WEB_SERVER_ADDRS).c_str()) != nullptr);
+    m_bIsFCGI = (getenv(KString(KCGI::FCGI_WEB_SERVER_ADDRS).c_str()) != nullptr); // TODO: I don't think this test works.
 
 	if ((m_iNumRequests == 1) || (m_bIsFCGI && FCGX_Accept_r(&m_FcgiRequest)))
 	{
@@ -215,6 +205,7 @@ bool KCGI::GetNextRequest ()
 		//  - spot Content-Length, default to 0
 		//  - spot end of headers (double newline)
 		//  - read exactly Content-Length bytes of content and store in m_sPostData
+
 
 		// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 		// change "cin", "cout" and "cerr" globally:

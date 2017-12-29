@@ -29,35 +29,35 @@ set(VERSION_PATCH   0)
 mark_as_advanced(VERSION_MAJOR VERSION_MINOR VERSION_PATCH)
 
 # suppress linker warnings for empty object files on OS X
-if(${CMAKE_SYSTEM_NAME} STREQUAL "Darwin")
+if (${CMAKE_SYSTEM_NAME} STREQUAL "Darwin")
 	SET(CMAKE_C_ARCHIVE_CREATE   "<CMAKE_AR> Scr <TARGET> <LINK_FLAGS> <OBJECTS>")
 	SET(CMAKE_CXX_ARCHIVE_CREATE "<CMAKE_AR> Scr <TARGET> <LINK_FLAGS> <OBJECTS>")
 	SET(CMAKE_C_ARCHIVE_FINISH   "<CMAKE_RANLIB> -no_warning_for_no_symbols -c <TARGET>")
 	SET(CMAKE_CXX_ARCHIVE_FINISH "<CMAKE_RANLIB> -no_warning_for_no_symbols -c <TARGET>")
-endif()
+endif ()
 
 # Add local cmake modules to the module path (used to find libraries which do not have find modules provided by cmake)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/modules/")
 
 # check if we have the libproc library (or at least its headers)
 find_package(libproc)
-if(libproc_FOUND)
+if (libproc_FOUND)
 	set(DEKAF2_HAS_LIBPROC 1)
 	include_directories(SYSTEM ${libproc_INCLUDE_DIRS})
-endif()
+endif ()
 
 # if requested to integrate with dekaf1, check if it is available
-if(DEKAF2_WITH_COMPATIBILITY_LAYER_TO_DEKAF1)
+if (DEKAF2_WITH_COMPATIBILITY_LAYER_TO_DEKAF1)
 	set (DPATH $ENV{dekaf})
 	if (NOT DPATH)
 		set(DPATH $ENV{HOME}/src/dekaf/src)
-	endif()
+	endif ()
 	if (EXISTS "${DPATH}/dekaf.h")
 		set(DEKAF1_INCLUDE_PATH ${DPATH})
-	else()
+	else ()
 		message(STATUS "Option to provide compatibility layer to dekaf1 is set, but dekaf1 can't be found. Option disabled.")
-	endif()
-endif()
+	endif ()
+endif ()
 
 # create and include the build directory for generated files
 set(GENERATED_FILES_DIR "${CMAKE_CURRENT_BINARY_DIR}/generated")
@@ -72,19 +72,19 @@ configure_file("bits/kconfiguration.h.in" "${GENERATED_FILES_DIR}/kconfiguration
 
 if (DEKAF2_ENABLE_DEBUG_RUNTIME_CHECKS)
    # did not yet find a way to teach Clang how to link against the asan lib.. so we do not compile with it
-   if(NOT CMAKE_CXX_COMPILER_ID MATCHES "[cC][lL][aA][nN][gG]")
+   if (NOT CMAKE_CXX_COMPILER_ID MATCHES "[cC][lL][aA][nN][gG]")
         set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fsanitize=address -fsanitize=undefined -fsanitize-address-use-after-scope")
-   endif()
+   endif ()
    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fstack-protector-strong -fstack-check")
-endif()
+endif ()
 
-if(CMAKE_COMPILER_IS_GNUCXX)
+if (CMAKE_COMPILER_IS_GNUCXX)
 
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wno-unused-parameter -Werror")
 	set(CMAKE_CXX_FLAGS_RELEASE "-O2 -DNDEBUG")
 
 	# configure cpu architecture dependant optimization
-	if("${CMAKE_SYSTEM_PROCESSOR}" STREQUAL "x86_64")
+	if ("${CMAKE_SYSTEM_PROCESSOR}" STREQUAL "x86_64")
 
 		if (CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 6.0)
 			set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -msse4.2 -mavx2 -mfpmath=sse -maes")
@@ -95,23 +95,23 @@ if(CMAKE_COMPILER_IS_GNUCXX)
 		else ()
 			set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -msse3")
 			set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse3")
-		endif()
+		endif ()
 
-	endif()
+	endif ()
 
-elseif(CMAKE_CXX_COMPILER_ID MATCHES "[cC][lL][aA][nN][gG]")
+elseif (CMAKE_CXX_COMPILER_ID MATCHES "[cC][lL][aA][nN][gG]")
 
 	# clang
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wno-unused-parameter -Werror")
 	set(CMAKE_CXX_FLAGS_RELEASE "-O2 -DNDEBUG")
 
 	# configure cpu architecture dependant optimization
-	if("${CMAKE_SYSTEM_PROCESSOR}" STREQUAL "x86_64")
+	if ("${CMAKE_SYSTEM_PROCESSOR}" STREQUAL "x86_64")
 
 		set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -msse4.2 -mavx2 -mfpmath=sse -maes")
 		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse4.2 -mavx2 -mfpmath=sse -maes")
 
-	endif()
+	endif ()
 
 endif ()
 
@@ -131,10 +131,11 @@ add_subdirectory(from)
 # add externally installed third party libraries:
 
 # openssl (needed for boost asio)
-if(${CMAKE_SYSTEM_NAME} STREQUAL "Darwin")
+if (${CMAKE_SYSTEM_NAME} STREQUAL "Darwin")
     # check later if this is still needed to override an insufficient std OpenSSL on OSX
-	set(OPENSSL_ROOT_DIR /opt/local)
-endif()
+	set(OPENSSL_ROOT_DIR /usr/local/opt)
+	set(OPENSSL_INCLUDE_DIR /usr/local/opt/openssl/include)
+endif ()
 find_package(OpenSSL QUIET REQUIRED)
 include_directories(SYSTEM ${OPENSSL_INCLUDE_DIR})
 
@@ -146,7 +147,7 @@ include_directories(SYSTEM ${Boost_INCLUDE_DIR})
 # add a target to generate API documentation with Doxygen
 # please make sure the graphviz package is installed, too, not only doxygen
 find_package(Doxygen)
-if(DOXYGEN_FOUND)
+if (DOXYGEN_FOUND)
 
 	# configure doxygen config file
 	configure_file(${CMAKE_CURRENT_SOURCE_DIR}/doc/doxyfile.in
@@ -159,13 +160,13 @@ if(DOXYGEN_FOUND)
 		COMMENT "Generating API documentation with Doxygen" VERBATIM
 		)
 
-else()
+else ()
 
 	add_custom_target(doc
 		COMMENT "Doxygen was not found on this machine. Documentation can not be generated." VERBATIM
 		)
 
-endif(DOXYGEN_FOUND)
+endif (DOXYGEN_FOUND)
 
 set (HEADERS
 	# KEEP ALPHABETIZED!!
@@ -283,14 +284,14 @@ set (SOURCES
 	kwriter.cpp
 	)
 
-if(DEKAF2_WITH_COMPATIBILITY_LAYER_TO_DEKAF1)
+if (DEKAF2_WITH_COMPATIBILITY_LAYER_TO_DEKAF1)
 	set(HEADERS ${HEADERS}
 		compat/kstring.h
 		compat/kprops.h
 		compat/kstack.h
 		compat/dekaf.h
 		)
-endif()
+endif ()
 
 if (DEKAF2_INSTALL_HEADERS)
 
@@ -299,9 +300,9 @@ if (DEKAF2_INSTALL_HEADERS)
 	file(MAKE_DIRECTORY "${DEKAF2_INCLUDE_DIR}")
 	file(MAKE_DIRECTORY "${DEKAF2_INSTALL_DIR}")
 	file(MAKE_DIRECTORY "${DEKAF2_INSTALL_DIR}/bits")
-	if(DEKAF2_WITH_COMPATIBILITY_LAYER_TO_DEKAF1)
+	if (DEKAF2_WITH_COMPATIBILITY_LAYER_TO_DEKAF1)
 		file(MAKE_DIRECTORY "${DEKAF2_INSTALL_DIR}/compat")
-	endif()
+	endif ()
 
 	foreach(HEADER ${HEADERS})
 		add_custom_command(
@@ -316,22 +317,22 @@ if (DEKAF2_INSTALL_HEADERS)
 		DEPENDS ${header_deps}
 		)
 
-else()
+else ()
 
 	set (DEKAF2_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/..")
 	add_custom_target(lib-headers-dekaf2)
 
-endif(DEKAF2_INSTALL_HEADERS)
+endif (DEKAF2_INSTALL_HEADERS)
 
 # we add the HEADERS as well, as otherwise qtcreator would not see them
 # as belonging to the project. CMake would not need them here.
 add_library(dekaf2 ${HEADERS} ${SOURCES})
 
-if(CMAKE_COMPILER_IS_GNUCC AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 6.0)
+if (CMAKE_COMPILER_IS_GNUCC AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 6.0)
 	set (FSLIB libstdc++fs.a)
-else()
+else ()
 	set (FSLIB "")
-endif()
+endif ()
 
 target_link_libraries(dekaf2
 	fmt

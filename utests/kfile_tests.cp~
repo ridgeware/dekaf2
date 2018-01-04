@@ -37,7 +37,7 @@ TEST_CASE("KFile") {
 
 	SECTION("KFile stats")
 	{
-		CHECK( kFileExists(sFile, true) == true );
+		CHECK( kExists(sFile, true) == true );
 		CHECK( kGetSize(sFile) == 63 );
 	}
 

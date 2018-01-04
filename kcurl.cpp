@@ -162,7 +162,7 @@ bool KCurl::getStreamChunk()
 bool KCurl::setPostDataWithFile(const KString& sFileName)
 //-----------------------------------------------------------------------------
 {
-	bool bExists = kExists(sFileName);
+	bool bExists = kFileExists(sFileName);
 	if (bExists)
 	{
 		return kReadAll(sFileName, m_sPostData);

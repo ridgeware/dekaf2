@@ -40,9 +40,21 @@
 //
 */
 
+#if 0
+TODO: KLOG OVERHAUL NEEDED
+[x] output format as a single line was completely misunderstood -- partially fixed
+[x] program name was misunderstood -- partially fixed
+[ ] no way to specify "stdout" "stderr" TRACE() "syslog" as log output 
+[ ] with {} style formatting there is no way to format things like %03d, need multiple methods I guess
+[ ] constructor is *removing* the klog when program starts (completely wrong)
+[ ] not sure I like KLog as a classname.  probable KLOG.
+[ ] kDebug() and kWarning() macros should probably be kDebugFormat() and kDebugPrintf()
+#endif
+
 #include "klog.h"
 #include "kstring.h"
 #include "kgetruntimestack.h"
+#include "kstringutils.h"
 #include "ksystem.h"
 
 namespace dekaf2
@@ -80,19 +92,15 @@ KLog::KLog()
 void KLog::SetName(KStringView sName)
 //---------------------------------------------------------------------------
 {
-	if (!sName.empty())
-	{
-		m_sName = sName;
-	}
+	m_sName = sName;
 }
 
 //---------------------------------------------------------------------------
 bool KLog::SetDebugLog(KStringView sLogfile)
 //---------------------------------------------------------------------------
 {
-	if (sLogfile.empty())
-	{
-		return false;
+	if (sLogfile.empty()) {
+		sLogfile = s_sDefaultLog; // restore default
 	}
 
 	// env values always override programmatic values, and at construction of
@@ -126,15 +134,15 @@ bool KLog::SetDebugLog(KStringView sLogfile)
 	}
 
 	return true;
-}
+
+} // SetDebugLog
 
 //---------------------------------------------------------------------------
 bool KLog::SetDebugFlag(KStringView sFlagfile)
 //---------------------------------------------------------------------------
 {
-	if (sFlagfile.empty())
-	{
-		return false;
+	if (sFlagfile.empty()) {
+		sFlagfile = s_sDefaultFlag; // restore default
 	}
 
 	// env values always override programmatic values, and at construction of
@@ -179,6 +187,60 @@ bool KLog::IntBacktrace()
 bool KLog::IntDebug(int level, KStringView sFunction, KStringView sMessage)
 //---------------------------------------------------------------------------
 {
+	// be careful - use basetypes here if possible and try to avoid mallocs
+
+	#if 1
+	// desired format:
+	// | WAR | MYPRO | 17202 | 2001-08-24 10:37:04 | select count(*) from foo
+
+	enum {MAXPREF = 100};
+	char szPrefix[MAXPREF+1];
+	char szLevel[3+1];
+	if (level < 0) {
+		snprintf (szLevel, 3+1, "WAR");
+	}
+	else if (level > 3) {
+		snprintf (szLevel, 3+1, "DB%d", 3);
+	}
+	else {
+		snprintf (szLevel, 3+1, "DB%d", level);
+	}
+
+	snprintf (szPrefix, MAXPREF, "| %3.3s | %5.5s | %5u | %s | ", szLevel, m_sName.c_str(), getpid(), kFormTimestamp().c_str());
+
+	FILE*   fp = NULL;
+	KString sMultiLine(sMessage);
+
+	if (m_sLogfile == STDOUT) {
+		fp = stdout;
+	}
+	else if (m_sLogfile == STDERR) {
+		fp = stderr;
+	}
+
+    if (sMessage.find("\n") == KStringView::npos) // single-line
+	{
+		sMultiLine = sMessage;
+	}
+    else // multi-line
+	{
+		KString sNewPrefix("\n"); sNewPrefix += szPrefix;
+		KString sMultiLine(sMessage);
+		sMultiLine.Replace ("\n", sNewPrefix, /*offset=*/0, /*all=*/true);
+	}
+
+	if (fp) {
+		fprintf (fp, "%s", szPrefix);
+		fprintf (fp, "%s\n", sMultiLine.c_str());
+		fflush (fp);
+	}
+	else {
+		m_Log.Write(szPrefix);
+		m_Log.WriteLine(sMultiLine);
+		m_Log.flush();
+	}
+
+	#else
 	if (!sFunction.empty())
 	{
 		if (*sFunction.rbegin() == ']')
@@ -209,8 +271,10 @@ bool KLog::IntDebug(int level, KStringView sFunction, KStringView sMessage)
 	{
 		IntBacktrace();
 	}
+	#endif
 	return m_Log.good();
-}
+
+} // IntDebug
 
 //---------------------------------------------------------------------------
 void KLog::IntException(KStringView sWhat, KStringView sFunction, KStringView sClass)

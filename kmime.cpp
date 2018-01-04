@@ -1,6 +1,7 @@
 /*
+//-----------------------------------------------------------------------------//
 //
-// DEKAF(tm): Lighter, Faster, Smarter(tm)
+// DEKAF(tm): Lighter, Faster, Smarter (tm)
 //
 // Copyright (c) 2017, Ridgeware, Inc.
 //
@@ -37,79 +38,26 @@
 // |/+---------------------------------------------------------------------+/|
 // |\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/ |
 // +-------------------------------------------------------------------------+
-//
 */
 
-#pragma once
-
-#include <nlohmann/json.hpp>
-#include "kstring.h"
-#include "kstringview.h"
+#include "kmime.h"
 
 namespace dekaf2 {
 
-inline void to_json(nlohmann::json& j, const KString& s) {
-	j = nlohmann::json{s};
-}
+#if !defined(DEKAF2_NO_GCC) && (DEKAF2_GCC_VERSION < 70000)
 
-inline void from_json(const nlohmann::json& j, KString& s) {
-	s = j.get<std::string>();
-}
+constexpr KStringView KCharSet::ANY_ISO8859;
+constexpr KStringView KCharSet::DEFAULT_CHARSET;
 
-inline void to_json(nlohmann::json& j, const KStringView& s) {
-	j = nlohmann::json{s};
-}
+constexpr KStringView KMIME::JSON_UTF8;
+constexpr KStringView KMIME::HTML_UTF8;
+constexpr KStringView KMIME::XML_UTF8;
+constexpr KStringView KMIME::SWF;
+constexpr KStringView KMIME::WWW_FORM_URLENCODED;
+constexpr KStringView KMIME::MULTIPART_FORM_DATA;
+constexpr KStringView KMIME::TEXT_PLAIN;
+constexpr KStringView KMIME::APPLICATION_BINARY;
 
-inline void from_json(const nlohmann::json& j, KStringView& s) {
-	s = j.get<std::string>();
-}
-
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class KJSON : public nlohmann::json
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-{
-//----------
-public:
-//----------
-	using self_type = KJSON;
-	using base_type = nlohmann::json;
-
-	template<typename ...Args>
-	KJSON(Args&& ...args)
-		: base_type(std::forward<Args>(args)...)
-	{
-	}
- 
-	self_type& operator=(const self_type& other)
-	{
-		base_type::operator=(other);
-		return *this;
-	}
- 
-	self_type& operator=(self_type&& other)
-	{
-		base_type::operator=(std::move(other));
-		return *this;
-	}
-
-	bool		parse	  (KStringView sJSON);
-	KString     GetString (KString sKey);
-	self_type   GetObject (KString sKey);
-	bool		FormError (const base_type::exception exc);
-	KStringView GetLastError ()	  { return m_sLastError; }
-
-	/// wrap the given string with double-quotes and escape it for legal json
-	static KString EscWrap (KString sString);
-	static KString EscWrap (KString sString1, KString sString2, KStringView sPrefix="\n\t", KStringView sSuffix=",");
-	static KString EscWrap (KString sString, int iNumber, KStringView sPrefix="\n\t", KStringView sSuffix=",");
-
-	base_type m_obj;
-
-//----------
-private:
-//----------
-	KString   m_sLastError;
-
-}; // KJSON
+#endif
 
 } // end of namespace dekaf2

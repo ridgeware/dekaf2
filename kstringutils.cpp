@@ -48,7 +48,45 @@ namespace dekaf2
 {
 
 //-----------------------------------------------------------------------------
-std::string kFormTimestamp (time_t tTime, const char* pszFormat)
+const char* KASCII::ktrimleft (const char* str)
+//-----------------------------------------------------------------------------
+{
+	if (str && *str)
+	{
+		while (*str <= ' ') {
+			++str;
+		}
+	}
+
+	return (str);
+
+} // ktrimleft
+
+//-----------------------------------------------------------------------------
+char* KASCII::ktrimright (char* str)
+//-----------------------------------------------------------------------------
+{
+	if (str && *str)
+	{
+		int iLen = (int) strlen (str);
+
+		for (int ii=iLen-1; (ii >= 0); --ii)
+		{
+			if (str[ii] <= ' ') {
+				str[ii] = 0;
+			}
+			else {
+				break; // for (when first non-whitespace cahr is found)
+			}
+		}
+	}
+
+	return (str);
+
+} // ktrimright
+
+//-----------------------------------------------------------------------------
+KString kFormTimestamp (time_t tTime, const char* pszFormat)
 //-----------------------------------------------------------------------------
 {
 	enum { iMaxBuf = 100 };
@@ -70,7 +108,7 @@ std::string kFormTimestamp (time_t tTime, const char* pszFormat)
 } // FormTimestamp
 
 //-----------------------------------------------------------------------------
-std::string kTranslateSeconds(int64_t iNumSeconds, bool bLongForm)
+KString kTranslateSeconds(int64_t iNumSeconds, bool bLongForm)
 //-----------------------------------------------------------------------------
 {
 	enum { MAX = 100 };

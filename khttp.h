@@ -51,68 +51,6 @@
 namespace dekaf2 {
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class KCharSet
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-{
-
-//------
-public:
-//------
-
-	static constexpr KStringView ANY_ISO8859         = "ISO-8859"; /*-1...*/
-	static constexpr KStringView DEFAULT_CHARSET     = "WINDOWS-1252";
-
-}; // KCharSet
-
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class KMIME
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-{
-
-//------
-public:
-//------
-
-	//-----------------------------------------------------------------------------
-	constexpr
-	KMIME()
-	//-----------------------------------------------------------------------------
-	    : m_mime()
-	{}
-
-	//-----------------------------------------------------------------------------
-	constexpr
-	KMIME(KStringView sv)
-	//-----------------------------------------------------------------------------
-	    : m_mime(sv)
-	{}
-
-	//-----------------------------------------------------------------------------
-	constexpr
-	operator KStringView() const
-	//-----------------------------------------------------------------------------
-	{
-		return m_mime;
-	}
-
-	static constexpr KStringView JSON_UTF8           = "application/json; charset=UTF-8";
-	static constexpr KStringView HTML_UTF8           = "text/html; charset=UTF-8";
-	static constexpr KStringView XML_UTF8            = "text/xml; charset=UTF-8";
-	static constexpr KStringView SWF                 = "application/x-shockwave-flash";
-	static constexpr KStringView WWW_FORM_URLENCODED = "application/x-www-form-urlencoded";
-	static constexpr KStringView MULTIPART_FORM_DATA = "multipart/form-data";
-	static constexpr KStringView TEXT_PLAIN          = "text/plain";
-	static constexpr KStringView APPLICATION_BINARY  = "application/octet-stream";
-
-//------
-private:
-//------
-
-	KStringView m_mime{TEXT_PLAIN};
-
-}; // KMIME
-
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class KHTTP
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {

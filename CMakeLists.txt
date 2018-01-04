@@ -30,6 +30,7 @@ mark_as_advanced(VERSION_MAJOR VERSION_MINOR VERSION_PATCH)
 
 # suppress linker warnings for empty object files on OS X
 if (${CMAKE_SYSTEM_NAME} STREQUAL "Darwin")
+	SET(BOOST_ROOT "/usr/local/Cellar/boost@1.60")
 	SET(CMAKE_C_ARCHIVE_CREATE   "<CMAKE_AR> Scr <TARGET> <LINK_FLAGS> <OBJECTS>")
 	SET(CMAKE_CXX_ARCHIVE_CREATE "<CMAKE_AR> Scr <TARGET> <LINK_FLAGS> <OBJECTS>")
 	SET(CMAKE_C_ARCHIVE_FINISH   "<CMAKE_RANLIB> -no_warning_for_no_symbols -c <TARGET>")
@@ -40,7 +41,7 @@ endif ()
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/modules/")
 
 # check if we have the libproc library (or at least its headers)
-find_package(libproc)
+find_package(libproc QUIET)
 if (libproc_FOUND)
 	set(DEKAF2_HAS_LIBPROC 1)
 	include_directories(SYSTEM ${libproc_INCLUDE_DIRS})
@@ -141,7 +142,7 @@ include_directories(SYSTEM ${OPENSSL_INCLUDE_DIR})
 
 set(Boost_USE_STATIC_LIBS ON)
 # boost asio (header only) needs system
-find_package(Boost QUIET COMPONENTS system REQUIRED)
+find_package(Boost COMPONENTS system REQUIRED)
 include_directories(SYSTEM ${Boost_INCLUDE_DIR})
 
 # add a target to generate API documentation with Doxygen
@@ -189,21 +190,22 @@ set (HEADERS
 	kcache.h
 	kcasestring.h
 	kcgi.h
-	kconnection.h
+	#KTEMP1#kconnection.h
 	kcrashexit.h
-	kcurl.h
-	kfdstream.h
+	#KTEMP1#kcurl.h
+	#KTEMP1#kfdstream.h
 	kfile.h
 	kformat.h
 	kgetruntimestack.h
 	khash.h
-	khttp.h
+	#KTEMP1#khttp.h
 	khttp_header.h
 	khttp_method.h
 	kinpipe.h
-	kinshell.h
+	#KTEMP1#kinshell.h
 	kjson.h
 	klog.h
+	kmime.h
 	kmru.h
 	kostringstream.h
 	koutpipe.h
@@ -217,22 +219,22 @@ set (HEADERS
 	ksharedref.h
 	ksignals.h
 	ksplit.h
-	ksslclient.h
-	ksslstream.h
+	#KTEMP1#ksslclient.h
+	#KTEMP1#ksslstream.h
 	kstack.h
-	kstream.h
-	kstreambuf.h
+	#KTEMP1#kstream.h
+	#KTEMP1#kstreambuf.h
 	kstring.h
 	kstringutils.h
 	kstringview.h
 	ksubscribe.h
 	ksystem.h
 	ktcpclient.h
-	ktcpserver.h
+	#KTEMP1#ktcpserver.h
 	kurl.h
 	kurlencode.h
 	kuseragent.h
-	kwebio.h
+	#KTEMP1#kwebio.h
 	kwriter.h
 	)
 
@@ -245,21 +247,22 @@ set (SOURCES
 	kbase64.cpp
 	kcasestring.cpp
 	kcgi.cpp
-	kconnection.cpp
+	#KTEMP1#kconnection.cpp
 	kcrashexit.cpp
-	kcurl.cpp
-	kfdstream.cpp
+	#KTEMP1#kcurl.cpp
+	#KTEMP1#kfdstream.cpp
 	kfile.cpp
 	kformat.cpp
 	kgetruntimestack.cpp
 	khash.cpp
-	khttp.cpp
+	#KTEMP1#khttp.cpp
 	khttp_header.cpp
 	khttp_method.cpp
 	kinpipe.cpp
-	kinshell.cpp
+	#KTEMP1#kinshell.cpp
 	kjson.cpp
 	klog.cpp
+	kmime.cpp
 	kostringstream.cpp
 	koutpipe.cpp
 	koutshell.cpp
@@ -271,16 +274,16 @@ set (SOURCES
 	kregex.cpp
 	ksignals.cpp
 	ksplit.cpp
-	ksslstream.cpp
-	kstream.cpp
-	kstreambuf.cpp
+	#KTEMP1#ksslstream.cpp
+	#KTEMP1#kstream.cpp
+	#KTEMP1#kstreambuf.cpp
 	kstring.cpp
 	kstringutils.cpp
 	kstringview.cpp
-	ktcpserver.cpp
+	#KTEMP1#ktcpserver.cpp
 	kurl.cpp
 	kurlencode.cpp
-	kwebio.cpp
+	#KTEMP1#kwebio.cpp
 	kwriter.cpp
 	)
 
@@ -355,5 +358,5 @@ target_include_directories(dekaf2
 )
 target_compile_definitions(dekaf2 PRIVATE DEKAF2_LIBRARY_BUILD)
 
-add_subdirectory(utests)
-add_subdirectory(smoketests)
+#KTEMP1#add_subdirectory(utests)
+#KTEMP1#add_subdirectory(smoketests)

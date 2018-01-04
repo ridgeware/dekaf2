@@ -90,6 +90,10 @@ public:
 	KLog& operator=(const KLog&) = delete;
 	KLog& operator=(KLog&&) = delete;
 
+	static constexpr KStringView STDOUT             = "stdout";
+	static constexpr KStringView STDERR             = "stderr";
+	static constexpr KStringView SYSLOG             = "syslog";
+
 	//---------------------------------------------------------------------------
 	/// Gets the current log level. Any log message that has a higher level than
 	/// this value is not output.

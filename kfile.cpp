@@ -67,7 +67,7 @@ namespace fs = std::experimental::filesystem;
 #endif
 
 //-----------------------------------------------------------------------------
-bool kExists (const KString& sPath, bool bTestForEmptyFile /* = false */ )
+bool kFileExists (const KString& sPath, bool bTestForEmptyFile /* = false */ )
 //-----------------------------------------------------------------------------
 {
 #ifdef USE_STD_FILESYSTEM
@@ -155,7 +155,7 @@ KString kGetCWD ()
 } // kGetCWD
 
 //-----------------------------------------------------------------------------
-KStringView kFileBaseName(KStringView sFilePath)
+KStringView kBasename(KStringView sFilePath)
 //-----------------------------------------------------------------------------
 {
 	// Given a filesystem path, return the "basename":
@@ -178,10 +178,10 @@ KStringView kFileBaseName(KStringView sFilePath)
 
 	return sFilePath;
 
-} // kFileBaseName
+} // kBasename
 
 //-----------------------------------------------------------------------------
-KStringView kFileDirName(KStringView sFilePath, bool bWithSlash)
+KStringView kDirname(KStringView sFilePath, bool bWithSlash)
 //-----------------------------------------------------------------------------
 {
 	// Given a filesystem path, return the "dirname":
@@ -206,7 +206,7 @@ KStringView kFileDirName(KStringView sFilePath, bool bWithSlash)
 	return (bWithSlash) ? "./" : ".";
 #endif
 
-}  // kFileDirName()
+}  // kDirname()
 
 
 } // end of namespace dekaf2

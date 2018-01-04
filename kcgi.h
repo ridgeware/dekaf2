@@ -50,6 +50,8 @@
 #include <fcgiapp.h>
 #include <fcgio.h>
 
+//#define ATTEMPT_FCGI
+
 namespace dekaf2 {
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -122,6 +124,8 @@ public:
 	~KCGI();
 	KString     GetVar (KStringView sEnvironmentVariable, const char* sDefaultValue="");
 	bool        GetNextRequest ();
+	bool        ReadHeaders ();
+	bool        ReadPostData ();
 	bool        IsFCGI()   { return (m_bIsFCGI); }
 
     //std::streambuf* CIN()    { IsFCGI() ? m_FcgiRequest.in  : std::cin  }
@@ -131,11 +135,39 @@ public:
 	void        BackupStreams ();
 	void        RestoreStreams ();
 
+	/// incoming http request method: GET, POST, etc.
 	KString      m_sRequestMethod;
+
+	/// incoming URL including the query string
 	KString      m_sRequestURI;
+
+	/// incoming URL with query string trimmed
+	KString      m_sRequestPath;
+
+	/// incoming http protocol and version as defined in status header
+	KString      m_sHttpProtocol;
+
+	/// query string (name=value&...)
+	KString      m_sQueryString;
+
+	/// raw, unprocessed incomiong POST data
 	KString      m_sPostData; // aka body
+
+	/// incoming request headers
     KProps <KString, KString, /*order-matters=*/false, /*unique-keys=*/false> m_Headers;
+
+	/// incoming query parms off request URI
     KProps <KString, KString, /*order-matters=*/false, /*unique-keys=*/false> m_QueryParms;
+
+	void init () {
+	    m_sRequestMethod.clear();
+	    m_sRequestURI.clear();
+	    m_sRequestPath.clear();
+	    m_sHttpProtocol.clear();
+		m_sPostData.clear();
+		m_Headers.clear();
+		m_QueryParms.clear();
+	}
 
 //----------
 private:
@@ -143,9 +175,11 @@ private:
 	unsigned int      m_iNumRequests = 0;
 	FCGX_Request      m_FcgiRequest;
 	bool              m_bIsFCGI      = false;
+#ifdef ATTEMPT_FCGI
     std::streambuf*   m_pBackupCIN   = NULL;
     std::streambuf*   m_pBackupCOUT  = NULL;
     std::streambuf*   m_pBackupCERR  = NULL;
+#endif
 
 }; // class KCGI
 

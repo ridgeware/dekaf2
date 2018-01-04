@@ -512,7 +512,7 @@ public:
 	KString& Trim(KStringView sTrim);
 
 	/// Clip removing sClipAt and everything to its right if found; otherwise do not alter the string
-	KString& ClipAt(KStringView sClipAt);
+	bool ClipAt(KStringView sClipAt);
 
 	/// Clip removing everything to the left of sClipAtReverse so that sClipAtReverse becomes the beginning of the string;
 	/// otherwise do not alter the string

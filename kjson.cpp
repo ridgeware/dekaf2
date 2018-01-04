@@ -50,7 +50,7 @@ bool KJSON::parse (KStringView sJSON)
 {
 	try {
 		base_type::clear();
-		base_type::parse(sJSON);
+		m_obj = base_type::parse(sJSON);
 		return true;
 	}
 	catch (const base_type::exception exc)
@@ -59,6 +59,45 @@ bool KJSON::parse (KStringView sJSON)
 	}
 
 } // parse
+
+//-----------------------------------------------------------------------------
+KString KJSON::GetString (KString sKey)
+//-----------------------------------------------------------------------------
+{
+    std::string sReturnMe;
+
+    m_sLastError.clear();
+
+    try {
+        sReturnMe = m_obj[sKey.c_str()];
+    }
+    catch (const KJSON::base_type::exception exc) {
+        FormError(exc);
+    }
+
+	return (sReturnMe);
+
+} // KJSON::GetString
+
+//-----------------------------------------------------------------------------
+KJSON KJSON::GetObject (KString sKey)
+//-----------------------------------------------------------------------------
+{
+    base_type oReturnMe;
+
+    m_sLastError.clear();
+
+    try {
+        oReturnMe = m_obj[sKey.c_str()];
+		return (oReturnMe);
+    }
+    catch (const KJSON::base_type::exception exc) {
+        FormError(exc);
+        return (nullptr);
+    }
+
+
+} // KJSON::GetObject
 
 //-----------------------------------------------------------------------------
 bool KJSON::FormError (const base_type::exception exc)

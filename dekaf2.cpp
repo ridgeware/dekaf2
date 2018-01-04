@@ -60,7 +60,7 @@ const char DefaultLocale[] = "en_US.UTF-8";
 DEKAF2_ALWAYS_INLINE
 void local_split_in_path_and_name(const char* sFullPath, KString& sPath, KString& sName)
 {
-	// we have to do the separation of path and name manually here as kFileDirName() and kFileBaseName()
+	// we have to do the separation of path and name manually here as kDirname() and kBasename()
 	// would invoke kRFind(), which on non-Linux platforms would call into Dekaf().GetCpuId() and hence
 	// into a not yet constructed instance
 	size_t pos = strlen(sFullPath);

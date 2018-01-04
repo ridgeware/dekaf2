@@ -46,7 +46,7 @@
 #include "kcasestring.h"
 #include "kprops.h"
 #include "kurl.h"
-#include "kconnection.h"
+//#include "kconnection.h"
 
 namespace dekaf2 {
 

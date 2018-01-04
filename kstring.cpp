@@ -916,15 +916,16 @@ KString& KString::Trim(KStringView sTrim)
 }
 
 //----------------------------------------------------------------------
-KString& KString::ClipAt(KStringView sClipAt)
+bool KString::ClipAt(KStringView sClipAt)
 //----------------------------------------------------------------------
 {
 	size_type pos = find(sClipAt);
 	if (pos != npos)
 	{
 		erase(pos);
+		return (true); // we modified the string
 	}
-	return *this;
+	return (false); // we did not modify the string
 } // ClipAt
 
 //----------------------------------------------------------------------

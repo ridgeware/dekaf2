@@ -54,6 +54,30 @@
 namespace dekaf2
 {
 
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// KASCII - dekaf's char* helper functions, only safe for ASCII c-strings
+class KASCII
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+//----------
+public:
+//----------
+	static inline bool strmatch(const char* S1,const char* S2)   { return (strcmp(S1,S2) == 0);                 }
+	static inline bool strmatchI(const char* S1,const char* S2)  { return (strcasecmp(S1,S2) == 0);             }
+	static inline bool strmatchN(const char* S1,const char* S2)  { return (strncmp(S1,S2,strlen(S2)) == 0);     }
+	static inline bool strmatchNI(const char* S1,const char* S2) { return (strncasecmp(S1,S2,strlen(S2)) == 0); }
+
+	/// operates on and returns a const char* by moving the pointer forward past whitespace.
+	static const char* ktrimleft (const char* str);
+
+	/// modifies the given string by writing zeros into whitespace at the end.
+	static char* ktrimright (char* str);
+
+	/// find a needle in a haystack.
+	static bool kstrin (const char* sNeedle, const char* sHayStack, int chDelim=',');
+
+}; // KASCII
+
 //-----------------------------------------------------------------------------
 template<class String>
 String& kPadLeft(String& string, size_t iWidth, typename String::value_type chPad = ' ')
@@ -175,11 +199,11 @@ String& kTrim(String& string)
 }
 
 //-----------------------------------------------------------------------------
-std::string kFormTimestamp (time_t tTime = 0, const char* pszFormat = "%Y-%m-%d %H:%M:%S");
+KString kFormTimestamp (time_t tTime = 0, const char* pszFormat = "%Y-%m-%d %H:%M:%S");
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
-std::string kTranslateSeconds(int64_t iNumSeconds, bool bLongForm = false);
+KString kTranslateSeconds(int64_t iNumSeconds, bool bLongForm = false);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------

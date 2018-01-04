@@ -1,6 +1,7 @@
 /*
+//-----------------------------------------------------------------------------//
 //
-// DEKAF(tm): Lighter, Faster, Smarter(tm)
+// DEKAF(tm): Lighter, Faster, Smarter (tm)
 //
 // Copyright (c) 2017, Ridgeware, Inc.
 //
@@ -37,79 +38,74 @@
 // |/+---------------------------------------------------------------------+/|
 // |\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/ |
 // +-------------------------------------------------------------------------+
-//
 */
 
 #pragma once
 
-#include <nlohmann/json.hpp>
-#include "kstring.h"
 #include "kstringview.h"
 
 namespace dekaf2 {
 
-inline void to_json(nlohmann::json& j, const KString& s) {
-	j = nlohmann::json{s};
-}
-
-inline void from_json(const nlohmann::json& j, KString& s) {
-	s = j.get<std::string>();
-}
-
-inline void to_json(nlohmann::json& j, const KStringView& s) {
-	j = nlohmann::json{s};
-}
-
-inline void from_json(const nlohmann::json& j, KStringView& s) {
-	s = j.get<std::string>();
-}
-
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class KJSON : public nlohmann::json
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+class KCharSet
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
-//----------
+
+//------
 public:
-//----------
-	using self_type = KJSON;
-	using base_type = nlohmann::json;
+//------
 
-	template<typename ...Args>
-	KJSON(Args&& ...args)
-		: base_type(std::forward<Args>(args)...)
+	static constexpr KStringView ANY_ISO8859         = "ISO-8859"; /*-1...*/
+	static constexpr KStringView DEFAULT_CHARSET     = "WINDOWS-1252";
+
+}; // KCharSet
+
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+class KMIME
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+//------
+public:
+//------
+
+	//-----------------------------------------------------------------------------
+	constexpr
+	KMIME()
+	//-----------------------------------------------------------------------------
+	    : m_mime()
+	{}
+
+	//-----------------------------------------------------------------------------
+	constexpr
+	KMIME(KStringView sv)
+	//-----------------------------------------------------------------------------
+	    : m_mime(sv)
+	{}
+
+	//-----------------------------------------------------------------------------
+	constexpr
+	operator KStringView() const
+	//-----------------------------------------------------------------------------
 	{
-	}
- 
-	self_type& operator=(const self_type& other)
-	{
-		base_type::operator=(other);
-		return *this;
-	}
- 
-	self_type& operator=(self_type&& other)
-	{
-		base_type::operator=(std::move(other));
-		return *this;
+		return m_mime;
 	}
 
-	bool		parse	  (KStringView sJSON);
-	KString     GetString (KString sKey);
-	self_type   GetObject (KString sKey);
-	bool		FormError (const base_type::exception exc);
-	KStringView GetLastError ()	  { return m_sLastError; }
+	static constexpr KStringView JSON_UTF8           = "application/json; charset=UTF-8";
+	static constexpr KStringView HTML_UTF8           = "text/html; charset=UTF-8";
+	static constexpr KStringView XML_UTF8            = "text/xml; charset=UTF-8";
+	static constexpr KStringView SWF                 = "application/x-shockwave-flash";
+	static constexpr KStringView WWW_FORM_URLENCODED = "application/x-www-form-urlencoded";
+	static constexpr KStringView MULTIPART_FORM_DATA = "multipart/form-data";
+	static constexpr KStringView TEXT_PLAIN          = "text/plain";
+	static constexpr KStringView APPLICATION_BINARY  = "application/octet-stream";
 
-	/// wrap the given string with double-quotes and escape it for legal json
-	static KString EscWrap (KString sString);
-	static KString EscWrap (KString sString1, KString sString2, KStringView sPrefix="\n\t", KStringView sSuffix=",");
-	static KString EscWrap (KString sString, int iNumber, KStringView sPrefix="\n\t", KStringView sSuffix=",");
-
-	base_type m_obj;
-
-//----------
+//------
 private:
-//----------
-	KString   m_sLastError;
+//------
 
-}; // KJSON
+	KStringView m_mime{TEXT_PLAIN};
+
+}; // KMIME
 
 } // end of namespace dekaf2

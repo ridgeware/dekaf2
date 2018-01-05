@@ -42,6 +42,7 @@
 
 #include "kcgi.h"
 #include "kstringutils.h"
+#include "kurlencode.h"
 
 namespace dekaf2 {
 
@@ -306,6 +307,16 @@ bool KCGI::GetNextRequest ()
 			/*PairDelim=*/	'=',
 			/*Delim=*/		"&"
 		);
+
+		// handle URL encoded values in query parms:
+		for (auto it = m_QueryParms.cbegin(); it != m_QueryParms.cend(); ++it)
+		{
+			KString sValue (it->second);
+			kUrlDecode (sValue, /*bPlusAsSpace=*/true);
+			if (sValue != it->second) {
+				it->second = sValue;
+			}
+		}
 
 		if (!ReadPostData()) {
 			return (false);

@@ -104,7 +104,7 @@ public:
 	{
 		// May throw bad_alloc if can't allocate space for new stack item
 		try {
-			m_Storage.emplace_front(std::forward<Input>(newItem));
+			m_Storage.emplace_back(std::forward<Input>(newItem));
 			return true;
 		}
 
@@ -153,7 +153,7 @@ public:
 	{
 		// May throw bad_alloc if can't allocate space for new stack item
 		try {
-			m_Storage.emplace_back(std::forward<Input>(newItem));
+			m_Storage.emplace_front(std::forward<Input>(newItem));
 			return true;
 		}
 
@@ -320,69 +320,6 @@ bool KStack<Stack_Type>::Pop(Stack_Type& retrievedItem)
 	}
 
 	// If not empty, there is a no throw guarantee
-	retrievedItem = std::move(m_Storage.front());
-	m_Storage.pop_front();
-	return true;
-}
-
-//-----------------------------------------------------------------------------
-template<class Stack_Type>
-Stack_Type KStack<Stack_Type>::Pop()
-//-----------------------------------------------------------------------------
-{
-	// Make sure not empty
-	if (m_Storage.empty())
-	{
-		return s_cEmptyValue;
-	}
-
-	// If not empty, there is a no throw guarantee
-	Stack_Type retrievedItem = std::move(m_Storage.front());
-	m_Storage.pop_front();
-	return retrievedItem;
-}
-
-//-----------------------------------------------------------------------------
-template<class Stack_Type>
-bool KStack<Stack_Type>::Peek(Stack_Type& topItem) const
-//-----------------------------------------------------------------------------
-{
-	// Make sure not empty
-	if (m_Storage.empty())
-	{
-		return false;
-	}
-	// If not empty, there is a no throw guarantee
-	topItem = m_Storage.front();
-	return true;
-}
-
-//-----------------------------------------------------------------------------
-template<class Stack_Type>
-const Stack_Type& KStack<Stack_Type>::Peek() const
-//-----------------------------------------------------------------------------
-{
-	// Make sure not empty
-	if (m_Storage.empty())
-	{
-		return s_cEmptyValue;
-	}
-	// If not empty, there is a no throw guarantee
-	return m_Storage.front();
-}
-
-//-----------------------------------------------------------------------------
-template<class Stack_Type>
-bool KStack<Stack_Type>::PopBottom(Stack_Type& retrievedItem)
-//-----------------------------------------------------------------------------
-{
-	// Make sure not empty
-	if (m_Storage.empty())
-	{
-		return false;
-	}
-
-	// If not empty, there is a no throw guarantee
 	retrievedItem = std::move(m_Storage.back());
 	m_Storage.pop_back();
 	return true;
@@ -390,7 +327,7 @@ bool KStack<Stack_Type>::PopBottom(Stack_Type& retrievedItem)
 
 //-----------------------------------------------------------------------------
 template<class Stack_Type>
-Stack_Type KStack<Stack_Type>::PopBottom()
+Stack_Type KStack<Stack_Type>::Pop()
 //-----------------------------------------------------------------------------
 {
 	// Make sure not empty
@@ -407,7 +344,7 @@ Stack_Type KStack<Stack_Type>::PopBottom()
 
 //-----------------------------------------------------------------------------
 template<class Stack_Type>
-bool KStack<Stack_Type>::PeekBottom(Stack_Type& topItem) const
+bool KStack<Stack_Type>::Peek(Stack_Type& topItem) const
 //-----------------------------------------------------------------------------
 {
 	// Make sure not empty
@@ -422,7 +359,7 @@ bool KStack<Stack_Type>::PeekBottom(Stack_Type& topItem) const
 
 //-----------------------------------------------------------------------------
 template<class Stack_Type>
-const Stack_Type& KStack<Stack_Type>::PeekBottom() const
+const Stack_Type& KStack<Stack_Type>::Peek() const
 //-----------------------------------------------------------------------------
 {
 	// Make sure not empty
@@ -432,6 +369,69 @@ const Stack_Type& KStack<Stack_Type>::PeekBottom() const
 	}
 	// If not empty, there is a no throw guarantee
 	return m_Storage.back();
+}
+
+//-----------------------------------------------------------------------------
+template<class Stack_Type>
+bool KStack<Stack_Type>::PopBottom(Stack_Type& retrievedItem)
+//-----------------------------------------------------------------------------
+{
+	// Make sure not empty
+	if (m_Storage.empty())
+	{
+		return false;
+	}
+
+	// If not empty, there is a no throw guarantee
+	retrievedItem = std::move(m_Storage.front());
+	m_Storage.pop_front();
+	return true;
+}
+
+//-----------------------------------------------------------------------------
+template<class Stack_Type>
+Stack_Type KStack<Stack_Type>::PopBottom()
+//-----------------------------------------------------------------------------
+{
+	// Make sure not empty
+	if (m_Storage.empty())
+	{
+		return s_cEmptyValue;
+	}
+
+	// If not empty, there is a no throw guarantee
+	Stack_Type retrievedItem = std::move(m_Storage.front());
+	m_Storage.pop_front();
+	return retrievedItem;
+}
+
+//-----------------------------------------------------------------------------
+template<class Stack_Type>
+bool KStack<Stack_Type>::PeekBottom(Stack_Type& topItem) const
+//-----------------------------------------------------------------------------
+{
+	// Make sure not empty
+	if (m_Storage.empty())
+	{
+		return false;
+	}
+	// If not empty, there is a no throw guarantee
+	topItem = m_Storage.front();
+	return true;
+}
+
+//-----------------------------------------------------------------------------
+template<class Stack_Type>
+const Stack_Type& KStack<Stack_Type>::PeekBottom() const
+//-----------------------------------------------------------------------------
+{
+	// Make sure not empty
+	if (m_Storage.empty())
+	{
+		return s_cEmptyValue;
+	}
+	// If not empty, there is a no throw guarantee
+	return m_Storage.front();
 
 }
 

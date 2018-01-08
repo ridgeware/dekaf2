@@ -35,7 +35,7 @@ TEST_CASE("KStack")
 		// Look somewhere in the middle
 		CHECK(kStack.GetItem(3, middle));
 		CHECK_FALSE(kStack.GetItem(100, bottom));
-		CHECK(middle == 9);
+		CHECK(middle == 11);
 		// Set something in the middle
 		CHECK(kStack.SetItem(3, subInt));
 		CHECK_FALSE(kStack.SetItem(100, subInt));
@@ -90,7 +90,7 @@ TEST_CASE("KStack")
 
 		// Look somewhere in the middle
 		const int& rmiddle = kStack.GetItem(3);
-		CHECK(rmiddle == 9);
+		CHECK(rmiddle == 11);
 		// Set something in the middle
 		CHECK(kStack.SetItem(3, subInt));
 		CHECK(6 == kStack.size());
@@ -140,7 +140,7 @@ TEST_CASE("KStack")
 
 		for (int i = 0; i < kStack.size(); ++i)
 		{
-			CHECK(kStack[i] == my6Ints[5-i]);
+			CHECK(kStack[i] == my6Ints[i]);
 		}
 
 	}
@@ -163,11 +163,11 @@ TEST_CASE("KStack")
 		CHECK_FALSE(kStack.empty());
 		CHECK(6 == kStack.size());
 
-		int i = 5;
+		int i = 0;
 		for (auto iter = kStack.begin(); iter != kStack.end(); ++iter)
 		{
 			CHECK(*iter == my6Ints[i]);
-			--i;
+			++i;
 		}
 
 	}
@@ -190,11 +190,11 @@ TEST_CASE("KStack")
 		CHECK_FALSE(kStack.empty());
 		CHECK(6 == kStack.size());
 
-		int i = 5;
+		int i = 0;
 		for (auto iter = kStack.cbegin(); iter != kStack.cend(); ++iter)
 		{
 			CHECK(*iter == my6Ints[i]);
-			--i;
+			++i;
 		}
 
 	}
@@ -217,11 +217,11 @@ TEST_CASE("KStack")
 		CHECK_FALSE(kStack.empty());
 		CHECK(6 == kStack.size());
 
-		int i = 0;
+		int i = 5;
 		for (auto iter = kStack.rbegin(); iter != kStack.rend(); ++iter)
 		{
 			CHECK(*iter == my6Ints[i]);
-			++i;
+			--i;
 		}
 
 	}
@@ -244,11 +244,11 @@ TEST_CASE("KStack")
 		CHECK_FALSE(kStack.empty());
 		CHECK(6 == kStack.size());
 
-		int i = 0;
+		int i = 5;
 		for (auto iter = kStack.crbegin(); iter != kStack.crend(); ++iter)
 		{
 			CHECK(*iter == my6Ints[i]);
-			++i;
+			--i;
 		}
 
 	}

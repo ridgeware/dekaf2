@@ -101,7 +101,7 @@ public:
 	static inline int GetLevel()
 	//---------------------------------------------------------------------------
 	{
-		s_kLogLevel = kFileExists("/tmp/dekaf.dbg") ? 1 : 0; // TODO:KEEF:TEMP
+		s_kLogLevel = kFileExists("/cgi/dekaf.dbg") ? 1 : 0; // TODO:KEEF:TEMP
 		return s_kLogLevel;
 	}
 
@@ -247,8 +247,8 @@ private:
 
 	constexpr static const char* const s_sEnvLog      = "DEKAFLOG";
 	constexpr static const char* const s_sEnvFlag     = "DEKAFDBG";
-	constexpr static const char* const s_sDefaultLog  = "/tmp/dekaf.log";
-	constexpr static const char* const s_sDefaultFlag = "/tmp/dekaf.dbg";
+	constexpr static const char* const s_sDefaultLog  = "/cgi/dekaf.log";
+	constexpr static const char* const s_sDefaultFlag = "/cgi/dekaf.dbg";
 
 }; // KLog
 

@@ -50,6 +50,7 @@
 #include "kstring.h"
 #include "kwriter.h"
 #include "kformat.h"
+#include "kfile.h" // TODO:KEEF:TEMP
 #include "bits/kcppcompat.h"
 
 namespace dekaf2
@@ -100,6 +101,7 @@ public:
 	static inline int GetLevel()
 	//---------------------------------------------------------------------------
 	{
+		s_kLogLevel = kFileExists("/tmp/dekaf.dbg") ? 1 : 0; // TODO:KEEF:TEMP
 		return s_kLogLevel;
 	}
 
@@ -108,6 +110,7 @@ public:
 	inline void SetLevel(int iLevel)
 	//---------------------------------------------------------------------------
 	{
+		// TODO:KEEF:TEMP: 
 		s_kLogLevel = iLevel;
 	}
 

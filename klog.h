@@ -278,7 +278,7 @@ KLog& KLog();
 /// log a debug message, automatically provide function name.
 #define kDebug(level, ...) \
 { \
-	if (level <= KLog::s_kLogLevel) \
+	if (level <= KLog::GetLevel()) \
 	{ \
 		KLog().debug_fun(level, DEKAF2_FUNCTION_NAME, __VA_ARGS__); \
 	} \

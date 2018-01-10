@@ -56,6 +56,7 @@ TODO: KLOG OVERHAUL NEEDED
 #include "kgetruntimestack.h"
 #include "kstringutils.h"
 #include "ksystem.h"
+#include <stdio.h>
 
 namespace dekaf2
 {
@@ -208,6 +209,7 @@ bool KLog::IntDebug(int level, KStringView sFunction, KStringView sMessage)
 
 	snprintf (szPrefix, MAXPREF, "| %3.3s | %5.5s | %5u | %s | ", szLevel, m_sName.c_str(), getpid(), kFormTimestamp().c_str());
 
+	bool    bCloseMe = false;
 	FILE*   fp = NULL;
 	KString sMultiLine(sMessage);
 
@@ -216,6 +218,10 @@ bool KLog::IntDebug(int level, KStringView sFunction, KStringView sMessage)
 	}
 	else if (m_sLogfile == STDERR) {
 		fp = stderr;
+	}
+	else {
+		fp = fopen (m_sLogfile.c_str(), "a");
+		bCloseMe = true;
 	}
 
     if (sMessage.find("\n") == KStringView::npos) // single-line
@@ -232,7 +238,12 @@ bool KLog::IntDebug(int level, KStringView sFunction, KStringView sMessage)
 	if (fp) {
 		fprintf (fp, "%s", szPrefix);
 		fprintf (fp, "%s\n", sMultiLine.c_str());
-		fflush (fp);
+		if (bCloseMe) {
+			fclose (fp);
+		}
+		else {
+			fflush (fp);
+		}
 	}
 	else {
 		m_Log.Write(szPrefix);

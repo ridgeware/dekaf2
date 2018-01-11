@@ -48,6 +48,7 @@
 #include <boost/asio/ssl.hpp>
 #include <boost/iostreams/concepts.hpp>
 #include <boost/iostreams/stream.hpp>
+#include <boost/asio/stream_socket_service.hpp>
 #include "kstring.h"
 #include "kstream.h"
 
@@ -220,6 +221,7 @@ public:
 		return connect(sServer.c_str(), sPort.c_str(), bVerifyCerts, bAllowSSLv2v3);
 	}
 
+	#if 0 // TODO:JSBACH:FIX ME
 	//-----------------------------------------------------------------------------
 	/// Gets the underlying TCP socket of the stream
 	/// @return
@@ -229,6 +231,7 @@ public:
 	{
 		return m_Socket.lowest_layer();
 	}
+	#endif
 
 //----------
 private:

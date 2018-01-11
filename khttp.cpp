@@ -41,6 +41,7 @@
 */
 
 #include "khttp.h"
+#include "kmime.h"
 #include "kurlencode.h"
 
 namespace dekaf2 {

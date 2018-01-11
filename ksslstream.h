@@ -48,7 +48,6 @@
 #include <boost/asio/ssl.hpp>
 #include <boost/iostreams/concepts.hpp>
 #include <boost/iostreams/stream.hpp>
-#include <boost/asio/stream_socket_service.hpp>
 #include "kstring.h"
 #include "kstream.h"
 

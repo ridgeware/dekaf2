@@ -224,11 +224,8 @@ bool KLog::IntDebug(int level, KStringView sFunction, KStringView sMessage)
 		bCloseMe = true;
 	}
 
-    if (sMessage.find("\n") == KStringView::npos) // single-line
-	{
-		sMultiLine = sMessage;
-	}
-    else // multi-line
+    sMultiLine.TrimRight();
+    if (sMultiLine.find("\n") != KStringView::npos)
 	{
 		KString sNewPrefix("\n"); sNewPrefix += szPrefix;
 		KString sMultiLine(sMessage);

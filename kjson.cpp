@@ -41,6 +41,7 @@
 */
 
 #include "kjson.h"
+#include "klog.h"
 
 namespace dekaf2 {
 
@@ -69,6 +70,7 @@ KString KJSON::GetString (KString sKey)
     m_sLastError.clear();
 
     try {
+		kDebug (1, "KJSON: about to access string: {}", sKey.c_str());
         sReturnMe = m_obj[sKey.c_str()];
     }
     catch (const KJSON::base_type::exception exc) {
@@ -88,10 +90,13 @@ KJSON KJSON::GetObject (KString sKey)
     m_sLastError.clear();
 
     try {
+		kDebug (1, "KJSON: about to access object: {}", sKey.c_str());
         oReturnMe = m_obj[sKey.c_str()];
+		kDebug (1, "KJSON: got an object.");
 		return (oReturnMe);
     }
     catch (const KJSON::base_type::exception exc) {
+		kDebug (1, "KJSON: exception was thrown.");
         FormError(exc);
         return (nullptr);
     }

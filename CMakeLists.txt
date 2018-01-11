@@ -134,10 +134,9 @@ add_subdirectory(from)
 # openssl (needed for boost asio)
 if (${CMAKE_SYSTEM_NAME} STREQUAL "Darwin")
     # check later if this is still needed to override an insufficient std OpenSSL on OSX
-	set(OPENSSL_ROOT_DIR /usr/local/opt)
-	set(OPENSSL_INCLUDE_DIR /usr/local/opt/openssl/include)
+	set(OPENSSL_ROOT_DIR /usr/local/opt/openssl)
 endif ()
-find_package(OpenSSL QUIET REQUIRED)
+find_package(OpenSSL REQUIRED)
 include_directories(SYSTEM ${OPENSSL_INCLUDE_DIR})
 
 set(Boost_USE_STATIC_LIBS ON)
@@ -354,7 +353,7 @@ target_link_libraries(dekaf2
 add_dependencies(dekaf2 lib-headers-dekaf2)
 target_include_directories(dekaf2
    PUBLIC "${DEKAF2_INCLUDE_DIR}" "${GENERATED_FILES_DIR}"
-   INTERFACE "${Boost_INCLUDE_DIR}"
+   INTERFACE "${Boost_INCLUDE_DIR}" "${OPENSSL_INCLUDE_DIR}"
 )
 target_compile_definitions(dekaf2 PRIVATE DEKAF2_LIBRARY_BUILD)
 

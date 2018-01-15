@@ -51,8 +51,6 @@
 #include "kstring.h"
 #include "kstream.h"
 
-using namespace boost::asio;
-
 namespace dekaf2
 {
 
@@ -73,11 +71,11 @@ public:
 //----------
 
 	//-----------------------------------------------------------------------------
-	KSSLInOutStreamDevice(ssl::stream<ip::tcp::socket>& Stream, bool bUseSSL, const int& iTimeoutMilliseconds) noexcept;
+	KSSLInOutStreamDevice(boost::asio::ssl::stream<boost::asio::ip::tcp::socket>& Stream, bool bUseSSL, const int& iTimeoutMilliseconds) noexcept;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	void handshake(ssl::stream_base::handshake_type role);
+	void handshake(boost::asio::ssl::stream_base::handshake_type role);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -100,7 +98,7 @@ protected:
 private:
 //----------
 
-	ssl::stream<ip::tcp::socket>& m_Stream;
+	boost::asio::ssl::stream<boost::asio::ip::tcp::socket>& m_Stream;
 	const int& m_iTimeoutMilliseconds;
 	bool m_bUseSSL;
 	bool m_bNeedHandshake;
@@ -220,26 +218,32 @@ public:
 		return connect(sServer.c_str(), sPort.c_str(), bVerifyCerts, bAllowSSLv2v3);
 	}
 
-	#if 0 // TODO:JSBACH:FIX ME
 	//-----------------------------------------------------------------------------
 	/// Gets the underlying TCP socket of the stream
 	/// @return
 	/// The TCP socket of the stream (wrapped into ASIO's basic_socket<> template)
-	boost::asio::basic_socket<ip::tcp, stream_socket_service<ip::tcp> >& GetTCPSocket()
+#if (BOOST_VERSION < 106600)
+	boost::asio::basic_socket<boost::asio::ip::tcp, boost::asio::stream_socket_service<ip::tcp> >& GetTCPSocket()
+#else
+	boost::asio::basic_socket<boost::asio::ip::tcp>& GetTCPSocket()
+#endif
 	//-----------------------------------------------------------------------------
 	{
 		return m_Socket.lowest_layer();
 	}
-	#endif
 
 //----------
 private:
 //----------
 
-	io_service m_IO_Service;
-	ssl::context m_Context;
-	ssl::stream<ip::tcp::socket> m_Socket;
-	ip::tcp::resolver::iterator m_ConnectedHost;
+	boost::asio::io_service m_IO_Service;
+	boost::asio::ssl::context m_Context;
+	boost::asio::ssl::stream<boost::asio::ip::tcp::socket> m_Socket;
+#if (BOOST_VERSION < 106600)
+	boost::asio::ip::tcp::resolver::iterator m_ConnectedHost;
+#else
+	boost::asio::ip::tcp::endpoint m_ConnectedHost;
+#endif
 	int m_iTimeoutMilliseconds;
 
 };

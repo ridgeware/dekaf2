@@ -47,6 +47,8 @@
 #include "ksslstream.h"
 #include "klog.h"
 
+using namespace boost::asio;
+
 namespace dekaf2
 {
 
@@ -209,7 +211,11 @@ std::streamsize KSSLInOutStreamDevice::write(const char* s, std::streamsize n) n
 KSSLIOStream::KSSLIOStream()
 //-----------------------------------------------------------------------------
 	: base_type(m_Socket, true, m_iTimeoutMilliseconds)
+#if (BOOST_VERSION < 106600)
     , m_Context(m_IO_Service, ssl::context::tlsv12_client)
+#else
+    , m_Context(ssl::context::tlsv12_client)
+#endif
     , m_Socket(m_IO_Service, m_Context)
 {
 	Timeout(DEFAULT_TIMEOUT);
@@ -219,7 +225,11 @@ KSSLIOStream::KSSLIOStream()
 KSSLIOStream::KSSLIOStream(const char* sServer, const char* sPort, bool bVerifyCerts, bool bAllowSSLv2v3, int iSecondsTimeout)
 //-----------------------------------------------------------------------------
     : base_type(m_Socket, true, m_iTimeoutMilliseconds)
+#if (BOOST_VERSION < 106600)
     , m_Context(m_IO_Service, ssl::context::tlsv12_client)
+#else
+    , m_Context(ssl::context::tlsv12_client)
+#endif
     , m_Socket(m_IO_Service, m_Context)
 {
 	Timeout(iSecondsTimeout);
@@ -230,7 +240,11 @@ KSSLIOStream::KSSLIOStream(const char* sServer, const char* sPort, bool bVerifyC
 KSSLIOStream::KSSLIOStream(const KString& sServer, const KString& sPort, bool bVerifyCerts, bool bAllowSSLv2v3, int iSecondsTimeout)
 //-----------------------------------------------------------------------------
     : base_type(m_Socket, true, m_iTimeoutMilliseconds)
+#if (BOOST_VERSION < 106600)
     , m_Context(m_IO_Service, ssl::context::tlsv12_client)
+#else
+    , m_Context(ssl::context::tlsv12_client)
+#endif
     , m_Socket(m_IO_Service, m_Context)
 {
 	Timeout(iSecondsTimeout);

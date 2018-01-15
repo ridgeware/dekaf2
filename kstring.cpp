@@ -926,18 +926,21 @@ bool KString::ClipAt(KStringView sClipAt)
 		return (true); // we modified the string
 	}
 	return (false); // we did not modify the string
+
 } // ClipAt
 
 //----------------------------------------------------------------------
-KString& KString::ClipAtReverse(KStringView sClipAtReverse)
+bool KString::ClipAtReverse(KStringView sClipAtReverse)
 //----------------------------------------------------------------------
 {
 	size_type pos = find(sClipAtReverse);
 	if (pos != npos)
 	{
 		erase(0, pos);
+		return true;
 	}
-	return *this;
+	return false;
+
 } // ClipAtReverse
 
 //----------------------------------------------------------------------

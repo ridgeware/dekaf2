@@ -75,6 +75,7 @@
 #include <cinttypes>
 #include <thread>
 #include <boost/asio/ip/tcp.hpp>
+#include <boost/asio/io_service.hpp>
 #include "kstream.h"
 #include "kstring.h"
 

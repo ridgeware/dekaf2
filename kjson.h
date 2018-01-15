@@ -93,8 +93,8 @@ public:
 	}
 
 	bool		parse	  (KStringView sJSON);
-	KString     GetString (KString sKey);
-	self_type   GetObject (KString sKey);
+	KString     GetString (const KString& sKey);
+	self_type   GetObject (const KString& sKey);
 	bool		FormError (const base_type::exception exc);
 	KStringView GetLastError ()	  { return m_sLastError; }
 

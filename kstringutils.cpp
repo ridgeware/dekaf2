@@ -51,9 +51,10 @@ namespace dekaf2
 const char* KASCII::ktrimleft (const char* str)
 //-----------------------------------------------------------------------------
 {
-	if (str && *str)
+	if (str)
 	{
-		while (*str <= ' ') {
+		while (std::isspace(*str))
+		{
 			++str;
 		}
 	}
@@ -68,15 +69,14 @@ char* KASCII::ktrimright (char* str)
 {
 	if (str && *str)
 	{
-		int iLen = (int) strlen (str);
+		auto iLen = static_cast<ssize_t>(strlen (str));
 
-		for (int ii=iLen-1; (ii >= 0); --ii)
+		for (auto ii=iLen-1; (ii >= 0); --ii)
 		{
-			if (str[ii] <= ' ') {
-				str[ii] = 0;
-			}
-			else {
-				break; // for (when first non-whitespace cahr is found)
+			if (!std::isspace(str[ii]))
+			{
+				str[ii+1] = 0;
+				break; // for (when first non-whitespace char is found)
 			}
 		}
 	}

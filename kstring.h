@@ -516,7 +516,7 @@ public:
 
 	/// Clip removing everything to the left of sClipAtReverse so that sClipAtReverse becomes the beginning of the string;
 	/// otherwise do not alter the string
-	KString& ClipAtReverse(KStringView sClipAtReverse);
+	bool ClipAtReverse(KStringView sClipAtReverse);
 
 	/// remove any occurence of the characters in sIllegalChars
 	void RemoveIllegalChars(KStringView sIllegalChars);

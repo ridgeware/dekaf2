@@ -62,7 +62,7 @@ bool KJSON::parse (KStringView sJSON)
 } // parse
 
 //-----------------------------------------------------------------------------
-KString KJSON::GetString (KString sKey)
+KString KJSON::GetString (const KString& sKey)
 //-----------------------------------------------------------------------------
 {
     std::string sReturnMe;
@@ -70,7 +70,7 @@ KString KJSON::GetString (KString sKey)
     m_sLastError.clear();
 
     try {
-		kDebug (1, "KJSON: about to access string: {}", sKey.c_str());
+		kDebug (1, "about to access string: {}", sKey);
         sReturnMe = m_obj[sKey.c_str()];
     }
     catch (const KJSON::base_type::exception exc) {
@@ -82,7 +82,7 @@ KString KJSON::GetString (KString sKey)
 } // KJSON::GetString
 
 //-----------------------------------------------------------------------------
-KJSON KJSON::GetObject (KString sKey)
+KJSON KJSON::GetObject (const KString& sKey)
 //-----------------------------------------------------------------------------
 {
     base_type oReturnMe;
@@ -90,13 +90,13 @@ KJSON KJSON::GetObject (KString sKey)
     m_sLastError.clear();
 
     try {
-		kDebug (1, "KJSON: about to access object: {}", sKey.c_str());
+		kDebug (1, "about to access object: {}", sKey);
         oReturnMe = m_obj[sKey.c_str()];
-		kDebug (1, "KJSON: got an object.");
+		kDebug (1, "got an object.");
 		return (oReturnMe);
     }
     catch (const KJSON::base_type::exception exc) {
-		kDebug (1, "KJSON: exception was thrown.");
+		kDebug (1, "exception was thrown.");
         FormError(exc);
         return (nullptr);
     }

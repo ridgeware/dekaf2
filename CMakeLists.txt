@@ -30,7 +30,6 @@ mark_as_advanced(VERSION_MAJOR VERSION_MINOR VERSION_PATCH)
 
 # suppress linker warnings for empty object files on OS X
 if (${CMAKE_SYSTEM_NAME} STREQUAL "Darwin")
-	SET(BOOST_ROOT "/usr/local/Cellar/boost@1.60")
 	SET(CMAKE_C_ARCHIVE_CREATE   "<CMAKE_AR> Scr <TARGET> <LINK_FLAGS> <OBJECTS>")
 	SET(CMAKE_CXX_ARCHIVE_CREATE "<CMAKE_AR> Scr <TARGET> <LINK_FLAGS> <OBJECTS>")
 	SET(CMAKE_C_ARCHIVE_FINISH   "<CMAKE_RANLIB> -no_warning_for_no_symbols -c <TARGET>")
@@ -136,12 +135,12 @@ if (${CMAKE_SYSTEM_NAME} STREQUAL "Darwin")
     # check later if this is still needed to override an insufficient std OpenSSL on OSX
 	set(OPENSSL_ROOT_DIR /usr/local/opt/openssl)
 endif ()
-find_package(OpenSSL REQUIRED)
+find_package(OpenSSL QUIET REQUIRED)
 include_directories(SYSTEM ${OPENSSL_INCLUDE_DIR})
 
 set(Boost_USE_STATIC_LIBS ON)
 # boost asio (header only) needs system
-find_package(Boost COMPONENTS system REQUIRED)
+find_package(Boost QUIET COMPONENTS system REQUIRED)
 include_directories(SYSTEM ${Boost_INCLUDE_DIR})
 
 # add a target to generate API documentation with Doxygen
@@ -189,19 +188,19 @@ set (HEADERS
 	kcache.h
 	kcasestring.h
 	kcgi.h
-	#KTEMP1#kconnection.h
+	kconnection.h
 	kcrashexit.h
-	#KTEMP1#kcurl.h
-	#KTEMP1#kfdstream.h
+	kcurl.h
+	kfdstream.h
 	kfile.h
 	kformat.h
 	kgetruntimestack.h
 	khash.h
-	#KTEMP1#khttp.h
+	khttp.h
 	khttp_header.h
 	khttp_method.h
 	kinpipe.h
-	#KTEMP1#kinshell.h
+	kinshell.h
 	kjson.h
 	klog.h
 	kmime.h
@@ -218,22 +217,22 @@ set (HEADERS
 	ksharedref.h
 	ksignals.h
 	ksplit.h
-	#KTEMP1#ksslclient.h
-	#KTEMP1#ksslstream.h
+	ksslclient.h
+	ksslstream.h
 	kstack.h
-	#KTEMP1#kstream.h
-	#KTEMP1#kstreambuf.h
+	kstream.h
+	kstreambuf.h
 	kstring.h
 	kstringutils.h
 	kstringview.h
 	ksubscribe.h
 	ksystem.h
 	ktcpclient.h
-	#KTEMP1#ktcpserver.h
+	ktcpserver.h
 	kurl.h
 	kurlencode.h
 	kuseragent.h
-	#KTEMP1#kwebio.h
+	kwebio.h
 	kwriter.h
 	)
 
@@ -246,19 +245,19 @@ set (SOURCES
 	kbase64.cpp
 	kcasestring.cpp
 	kcgi.cpp
-	#KTEMP1#kconnection.cpp
+	kconnection.cpp
 	kcrashexit.cpp
-	#KTEMP1#kcurl.cpp
-	#KTEMP1#kfdstream.cpp
+	kcurl.cpp
+	kfdstream.cpp
 	kfile.cpp
 	kformat.cpp
 	kgetruntimestack.cpp
 	khash.cpp
-	#KTEMP1#khttp.cpp
+	khttp.cpp
 	khttp_header.cpp
 	khttp_method.cpp
 	kinpipe.cpp
-	#KTEMP1#kinshell.cpp
+	kinshell.cpp
 	kjson.cpp
 	klog.cpp
 	kmime.cpp
@@ -273,16 +272,16 @@ set (SOURCES
 	kregex.cpp
 	ksignals.cpp
 	ksplit.cpp
-	#KTEMP1#ksslstream.cpp
-	#KTEMP1#kstream.cpp
-	#KTEMP1#kstreambuf.cpp
+	ksslstream.cpp
+	kstream.cpp
+	kstreambuf.cpp
 	kstring.cpp
 	kstringutils.cpp
 	kstringview.cpp
-	#KTEMP1#ktcpserver.cpp
+	ktcpserver.cpp
 	kurl.cpp
 	kurlencode.cpp
-	#KTEMP1#kwebio.cpp
+	kwebio.cpp
 	kwriter.cpp
 	)
 
@@ -357,5 +356,5 @@ target_include_directories(dekaf2
 )
 target_compile_definitions(dekaf2 PRIVATE DEKAF2_LIBRARY_BUILD)
 
-#KTEMP1#add_subdirectory(utests)
-#KTEMP1#add_subdirectory(smoketests)
+add_subdirectory(utests)
+add_subdirectory(smoketests)

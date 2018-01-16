@@ -48,68 +48,60 @@
 
 namespace dekaf2 {
 
-inline void to_json(nlohmann::json& j, const KString& s) {
+using LJSON = nlohmann::json;
+
+inline void to_json(LJSON& j, const KString& s) {
 	j = nlohmann::json{s};
 }
 
-inline void from_json(const nlohmann::json& j, KString& s) {
+inline void from_json(const LJSON& j, KString& s) {
 	s = j.get<std::string>();
 }
 
-inline void to_json(nlohmann::json& j, const KStringView& s) {
+inline void to_json(LJSON& j, const KStringView& s) {
 	j = nlohmann::json{s};
 }
 
-inline void from_json(const nlohmann::json& j, KStringView& s) {
+inline void from_json(const LJSON& j, KStringView& s) {
 	s = j.get<std::string>();
 }
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class KJSON : public nlohmann::json
+class KJSON
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 //----------
 public:
 //----------
-	using self_type = KJSON;
-	using base_type = nlohmann::json;
-
-	template<typename ...Args>
-	KJSON(Args&& ...args)
-		: base_type(std::forward<Args>(args)...)
-	{
-	}
- 
-	self_type& operator=(const self_type& other)
-	{
-		base_type::operator=(other);
-		return *this;
-	}
- 
-	self_type& operator=(self_type&& other)
-	{
-		base_type::operator=(std::move(other));
-		return *this;
-	}
-
-	bool		parse	  (KStringView sJSON);
+	bool        Parse     (KStringView sJSON);
 	KString     GetString (const KString& sKey);
-	self_type   GetObject (const KString& sKey);
-	bool		FormError (const base_type::exception exc);
-	KStringView GetLastError ()	  { return m_sLastError; }
+	KJSON       GetObject (const KString& sKey);
+	KStringView GetLastError () { return m_sLastError; }
+
+	void        clear     () { m_obj.clear(); }
+	bool        empty     () const { return m_obj.empty(); }
+	auto        begin     () { return m_obj.begin(); }
+	auto        end       () { return m_obj.end(); }
+	auto        cbegin    () const { return m_obj.cbegin(); }
+	auto        cend      () const { return m_obj.cend(); }
+	bool        FormError (const LJSON::exception& exc);
+	const LJSON& Object   () const { return m_obj; }
+	LJSON&      Object    () { return m_obj; }
 
 	/// wrap the given string with double-quotes and escape it for legal json
 	static KString EscWrap (KString sString);
 	static KString EscWrap (KString sString1, KString sString2, KStringView sPrefix="\n\t", KStringView sSuffix=",");
 	static KString EscWrap (KString sString, int iNumber, KStringView sPrefix="\n\t", KStringView sSuffix=",");
 
-	base_type m_obj;
-
 //----------
 private:
 //----------
-	KString   m_sLastError;
+	void        ClearError() { m_sLastError.clear(); }
+
+	LJSON       m_obj;
+	KString     m_sLastError;
 
 }; // KJSON
+
 
 } // end of namespace dekaf2

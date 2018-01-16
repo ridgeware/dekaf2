@@ -9,7 +9,7 @@ TEST_CASE("KJSON")
 {
 	SECTION("Basic construction")
 	{
-		KJSON j1 = R"(
+		LJSON j1 = R"(
 				   {
 				       "key1": "val1",
 				       "key2": "val2",
@@ -30,7 +30,7 @@ TEST_CASE("KJSON")
 		CHECK ( value == "USD" );
 		double d = j1["object"]["value"];
 		CHECK ( d == 42.99 );
-		KJSON j2 = j1["object"];
+		LJSON j2 = j1["object"];
 		value = j2["currency"];
 		CHECK ( value == "USD" );
 		d = j2["value"];
@@ -39,7 +39,7 @@ TEST_CASE("KJSON")
 
 	SECTION("Initializer list construction")
 	{
-		nlohmann::json j1 = {
+		LJSON j1 = {
 		    {"pi", 3.141},
 		    {"happy", true},
 		    {"key1", "val1"},
@@ -64,7 +64,7 @@ TEST_CASE("KJSON")
 		CHECK ( value == "USD" );
 		double d = j1["object"]["value"];
 		CHECK ( d == 42.99 );
-		KJSON j2 = j1["object"];
+		LJSON j2 = j1["object"];
 		value = j2["currency"];
 		CHECK ( value == "USD" );
 		d = j2["value"];

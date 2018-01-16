@@ -46,15 +46,18 @@
 namespace dekaf2 {
 
 //-----------------------------------------------------------------------------
-bool KJSON::parse (KStringView sJSON)
+bool KJSON::Parse (KStringView sJSON)
 //-----------------------------------------------------------------------------
 {
-	try {
-		base_type::clear();
-		m_obj = base_type::parse(sJSON);
+	ClearError();
+
+	try
+	{
+		m_obj.clear();
+		m_obj = LJSON::parse(sJSON);
 		return true;
 	}
-	catch (const base_type::exception exc)
+	catch (const LJSON::exception& exc)
 	{
 		return (FormError (exc));
 	}
@@ -65,17 +68,19 @@ bool KJSON::parse (KStringView sJSON)
 KString KJSON::GetString (const KString& sKey)
 //-----------------------------------------------------------------------------
 {
-    std::string sReturnMe;
+	ClearError();
 
-    m_sLastError.clear();
+	std::string sReturnMe;
 
-    try {
+	try
+	{
 		kDebug (1, "about to access string: {}", sKey);
-        sReturnMe = m_obj[sKey.c_str()];
-    }
-    catch (const KJSON::base_type::exception exc) {
-        FormError(exc);
-    }
+		sReturnMe = m_obj[sKey.c_str()];
+	}
+	catch (const LJSON::exception& exc)
+	{
+		FormError(exc);
+	}
 
 	return (sReturnMe);
 
@@ -85,31 +90,31 @@ KString KJSON::GetString (const KString& sKey)
 KJSON KJSON::GetObject (const KString& sKey)
 //-----------------------------------------------------------------------------
 {
-    base_type oReturnMe;
+	ClearError();
 
-    m_sLastError.clear();
+	KJSON oReturnMe;
 
-    try {
+	try
+	{
 		kDebug (1, "about to access object: {}", sKey);
-        oReturnMe = m_obj[sKey.c_str()];
+		oReturnMe.m_obj = m_obj[sKey.c_str()];
 		kDebug (1, "got an object.");
 		return (oReturnMe);
-    }
-    catch (const KJSON::base_type::exception exc) {
+	}
+	catch (const LJSON::exception& exc)
+	{
 		kDebug (1, "exception was thrown.");
-        FormError(exc);
-        return (nullptr);
-    }
-
+		FormError(exc);
+		return (oReturnMe);
+	}
 
 } // KJSON::GetObject
 
 //-----------------------------------------------------------------------------
-bool KJSON::FormError (const base_type::exception exc)
+bool KJSON::FormError (const LJSON::exception& exc)
 //-----------------------------------------------------------------------------
 {
-	KString sLastError;
-	sLastError.Printf ("JSON[%03d]: %s", exc.id, exc.what());
+	m_sLastError.Printf ("JSON[%03d]: %s", exc.id, exc.what());
 
 	return (false);
 

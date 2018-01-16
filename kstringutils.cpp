@@ -69,16 +69,16 @@ char* KASCII::ktrimright (char* str)
 {
 	if (str && *str)
 	{
-		auto iLen = static_cast<ssize_t>(strlen (str));
-
-		for (auto ii=iLen-1; (ii >= 0); --ii)
+		auto ii = static_cast<ssize_t>(strlen (str)) - 1;
+		for (; (ii >= 0); --ii)
 		{
 			if (!std::isspace(str[ii]))
 			{
 				str[ii+1] = 0;
-				break; // for (when first non-whitespace char is found)
+				return (str);
 			}
 		}
+		*str = 0;
 	}
 
 	return (str);

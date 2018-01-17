@@ -223,7 +223,7 @@ public:
 	/// @return
 	/// The TCP socket of the stream (wrapped into ASIO's basic_socket<> template)
 #if (BOOST_VERSION < 106600)
-	boost::asio::basic_socket<boost::asio::ip::tcp, boost::asio::stream_socket_service<ip::tcp> >& GetTCPSocket()
+	boost::asio::basic_socket<boost::asio::ip::tcp, boost::asio::stream_socket_service<boost::asio::ip::tcp> >& GetTCPSocket()
 #else
 	boost::asio::basic_socket<boost::asio::ip::tcp>& GetTCPSocket()
 #endif

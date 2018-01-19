@@ -20,4 +20,8 @@ TEST_CASE("KLog") {
 		CHECK ( neverBeCalled() == 0 );
 	}
 
+	SECTION("Program name")
+	{
+		CHECK ( KLog().GetName().empty() == false );
+	}
 }

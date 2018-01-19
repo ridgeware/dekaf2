@@ -61,7 +61,7 @@ namespace dekaf2
 /// The standalone writer abstraction for dekaf2. Can be constructed around any
 /// std::ostream. Provides localization friendly formatting methods and a fast
 /// bypass of std::ostream's formatting functions by directly writing to the
-/// std::streambuf. Is used as a component for KReader.
+/// std::streambuf. Is used as a component for KWriter.
 class KOutStream
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {

@@ -50,11 +50,238 @@
 #include "kstring.h"
 #include "kwriter.h"
 #include "kformat.h"
-#include "kfile.h" // TODO:KEEF:TEMP
+#include "kfile.h"
 #include "bits/kcppcompat.h"
 
 namespace dekaf2
 {
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+class KLogData
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+//----------
+public:
+//----------
+	KLogData(int level = 0,
+	         KStringView sShortName = KStringView{},
+	         KStringView sPathName  = KStringView{},
+	         KStringView sFunction  = KStringView{},
+	         KStringView sMessage   = KStringView{})
+	{
+		Set(level, sShortName, sPathName, sFunction, sMessage);
+	}
+
+	void Set(int level, KStringView sShortName, KStringView sPathName, KStringView sFunction, KStringView sMessage);
+	void SetBacktrace(KStringView sBacktrace)
+	{
+		m_sBacktrace = sBacktrace;
+	}
+	int GetLevel() const
+	{
+		return m_Level;
+	}
+
+//----------
+protected:
+//----------
+	static KStringView SanitizeFunctionName(KStringView sFunction);
+
+	int         m_Level;
+	pid_t       m_Pid;
+	time_t      m_Time;
+	KStringView m_sShortName;
+	KStringView m_sPathName;
+	KStringView m_sFunctionName;
+	KStringView m_sMessage;
+	KStringView m_sBacktrace;
+
+}; // KLogData
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+class KLogSerializer : public KLogData
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+//----------
+public:
+//----------
+	KLogSerializer() {}
+	virtual ~KLogSerializer() {}
+	virtual operator const KString&() const;
+	void Set(int level, KStringView sShortName, KStringView sPathName, KStringView sFunction, KStringView sMessage);
+	bool IsMultiline() const { return m_bIsMultiline; }
+
+//----------
+protected:
+//----------
+	virtual void Serialize() const = 0;
+
+	mutable KString m_sBuffer;
+	mutable bool m_bIsMultiline;
+
+}; // KLogSerializer
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+class KLogTTYSerializer : public KLogSerializer
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+//----------
+public:
+//----------
+	KLogTTYSerializer() {}
+	virtual ~KLogTTYSerializer() {}
+
+//----------
+protected:
+//----------
+	void HandleMultiLineMessages() const;
+	virtual void Serialize() const;
+
+}; // KLogTTYSerializer
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+class KLogSyslogSerializer : public KLogTTYSerializer
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+//----------
+public:
+//----------
+	KLogSyslogSerializer() {}
+	virtual ~KLogSyslogSerializer() {}
+
+//----------
+protected:
+//----------
+	virtual void Serialize() const;
+
+}; // KLogSyslogSerializer
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+class KLogJSONSerializer : public KLogSerializer
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+//----------
+public:
+//----------
+	KLogJSONSerializer() {}
+	virtual ~KLogJSONSerializer() {}
+
+//----------
+protected:
+//----------
+	virtual void Serialize() const;
+
+}; // KLogJSONSerializer
+
+
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+class KLogWriter
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+//----------
+public:
+//----------
+	KLogWriter() {}
+	virtual ~KLogWriter();
+	virtual bool Write(const KLogSerializer& Serializer) = 0;
+	virtual bool Good() const = 0;
+
+}; // KLogWriter
+
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+class KLogStdWriter : public KLogWriter
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+//----------
+public:
+//----------
+	KLogStdWriter(std::ostream& iostream)
+	    : m_OutStream(iostream)
+	{}
+	virtual ~KLogStdWriter() {}
+	virtual bool Write(const KLogSerializer& Serializer);
+	virtual bool Good() const { return m_OutStream.good(); }
+
+//----------
+private:
+//----------
+	std::ostream& m_OutStream;
+
+}; // KLogStdWriter
+
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+class KLogFileWriter : public KLogWriter
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+//----------
+public:
+//----------
+	KLogFileWriter(KStringView sFileName)
+	    : m_OutFile(sFileName, std::ios_base::ate)
+	{}
+	virtual ~KLogFileWriter() {}
+	virtual bool Write(const KLogSerializer& Serializer);
+	virtual bool Good() const { return m_OutFile.good(); }
+
+//----------
+private:
+//----------
+	KOutFile m_OutFile;
+
+}; // KLogFileWriter
+
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+class KLogSyslogWriter : public KLogWriter
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+//----------
+public:
+//----------
+	KLogSyslogWriter() {}
+	virtual ~KLogSyslogWriter() {}
+	virtual bool Write(const KLogSerializer& Serializer);
+	virtual bool Good() const { return true; }
+
+}; // KLogSyslogWriter
+
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+class KLogTCPWriter : public KLogWriter
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+//----------
+public:
+//----------
+	KLogTCPWriter(KStringView sURL);
+	virtual ~KLogTCPWriter() {}
+	virtual bool Write(const KLogSerializer& Serializer);
+	virtual bool Good() const { return m_OutStream != nullptr && m_OutStream->good(); }
+
+//----------
+protected:
+//----------
+	std::unique_ptr<KTCPStream> m_OutStream;
+
+}; // KLogTCPWriter
+
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+class KLogHTTPWriter : public KLogTCPWriter
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+//----------
+public:
+//----------
+	KLogHTTPWriter(KStringView sURL) : KLogTCPWriter(sURL) {}
+	virtual ~KLogHTTPWriter() {}
+	virtual bool Write(const KLogSerializer& Serializer);
+
+}; // KLogHTTPWriter
+
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Primary logging facility for dekaf2.
@@ -101,7 +328,6 @@ public:
 	static inline int GetLevel()
 	//---------------------------------------------------------------------------
 	{
-		s_kLogLevel = kFileExists("/cgi/dekaf.dbg") ? 1 : 0; // TODO:KEEF:TEMP
 		return s_kLogLevel;
 	}
 
@@ -110,7 +336,6 @@ public:
 	inline void SetLevel(int iLevel)
 	//---------------------------------------------------------------------------
 	{
-		// TODO:KEEF:TEMP: 
 		s_kLogLevel = iLevel;
 	}
 
@@ -141,12 +366,35 @@ public:
 	const KString& GetName() const
 	//---------------------------------------------------------------------------
 	{
-		return m_sName;
+		return m_sPathName;
 	}
 
 	//---------------------------------------------------------------------------
-	/// Set the output file for the log.
+	/// Set the output file (or tcp stream) for the log.
 	bool SetDebugLog(KStringView sLogfile);
+	//---------------------------------------------------------------------------
+
+	enum class Writer { STDOUT, STDERR, FILE, SYSLOG, TCP, HTTP };
+	//---------------------------------------------------------------------------
+	/// Create a Writer of specific type
+	static std::unique_ptr<KLogWriter> CreateWriter(Writer writer, KStringView sLogname = KStringView{});
+	//---------------------------------------------------------------------------
+
+	enum class Serializer { TTY, SYSLOG, JSON };
+	//---------------------------------------------------------------------------
+	/// Create a Serializer of specific type
+	static std::unique_ptr<KLogSerializer> CreateSerializer(Serializer serializer);
+	//---------------------------------------------------------------------------
+
+
+	//---------------------------------------------------------------------------
+	/// Set the log writer directly instead of opening one implicitly with SetDebugLog()
+	bool SetWriter(std::unique_ptr<KLogWriter> logger);
+	//---------------------------------------------------------------------------
+
+	//---------------------------------------------------------------------------
+	/// Set the log serializer directly instead of opening one implicitly with SetDebugLog()
+	bool SetSerializer(std::unique_ptr<KLogSerializer> serializer);
 	//---------------------------------------------------------------------------
 
 	//---------------------------------------------------------------------------
@@ -154,7 +402,7 @@ public:
 	inline KStringView GetDebugLog() const
 	//---------------------------------------------------------------------------
 	{
-		return m_sLogfile;
+		return m_sLogName;
 	}
 
 	//---------------------------------------------------------------------------
@@ -232,23 +480,25 @@ private:
 	//---------------------------------------------------------------------------
 
 	//---------------------------------------------------------------------------
-	bool IntBacktrace();
-	//---------------------------------------------------------------------------
-
-	//---------------------------------------------------------------------------
 	void IntException(KStringView sWhat, KStringView sFunction, KStringView sClass);
 	//---------------------------------------------------------------------------
 
-	int m_iBackTrace{0};
-	KString m_sName;
-	KString m_sLogfile;
+	//---------------------------------------------------------------------------
+	bool IntOpenLog();
+	//---------------------------------------------------------------------------
+
+	int m_iBackTrace{-1};
+	KString m_sPathName;
+ 	KString m_sShortName;
+	KString m_sLogName;
 	KString m_sFlagfile;
-	KOutFile m_Log;
+	std::unique_ptr<KLogSerializer> m_Serializer;
+	std::unique_ptr<KLogWriter> m_Logger;
 
 	constexpr static const char* const s_sEnvLog      = "DEKAFLOG";
 	constexpr static const char* const s_sEnvFlag     = "DEKAFDBG";
-	constexpr static const char* const s_sDefaultLog  = "/cgi/dekaf.log";
-	constexpr static const char* const s_sDefaultFlag = "/cgi/dekaf.dbg";
+	constexpr static const char* const s_sDefaultLog  = "/tmp/dekaf.log";
+	constexpr static const char* const s_sDefaultFlag = "/tmp/dekaf.dbg";
 
 }; // KLog
 
@@ -278,9 +528,23 @@ KLog& KLog();
 /// log a debug message, automatically provide function name.
 #define kDebug(level, ...) \
 { \
-	if (level <= KLog::GetLevel()) \
+	if (level <= KLog::s_kLogLevel) \
 	{ \
 		KLog().debug_fun(level, DEKAF2_FUNCTION_NAME, __VA_ARGS__); \
+	} \
+}
+//---------------------------------------------------------------------------
+
+#ifdef kDebugLog
+	#undef kDebugLog
+#endif
+//---------------------------------------------------------------------------
+/// log a debug message, do NOT automatically provide function name.
+#define kDebugLog(level, ...) \
+{ \
+	if (level <= KLog::s_kLogLevel) \
+	{ \
+		KLog().debug(level, __VA_ARGS__); \
 	} \
 }
 //---------------------------------------------------------------------------

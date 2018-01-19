@@ -60,11 +60,9 @@ TEST_CASE("KHTTP") {
 		server.Start(300, false);
 		server.clear();
 
-		url::KDomain Domain("127.0.0.1");
-		url::KPort   Port("7654");
-		KConnection  cx(Domain, Port);
-		KHTTP        cHTTP(cx);
 		KURL         URL("http://127.0.0.1:7654/path?query=val&another=here#fragment");
+		KConnection  cx(URL.Domain, URL.Port);
+		KHTTP        cHTTP(cx);
 		cHTTP.Resource(URL);
 		cHTTP.Request();
 		KString shtml;

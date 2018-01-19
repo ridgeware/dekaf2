@@ -107,7 +107,6 @@ Dekaf::Dekaf()
 		local_split_in_path_and_name(path, m_sProgPath, m_sProgName);
 	}
 #endif
-	KLog().SetName(m_sProgName);
 
 }
 
@@ -188,9 +187,21 @@ void kInit(KStringView sName, KStringView sDebugLog, KStringView sDebugFlag, boo
 //---------------------------------------------------------------------------
 {
 	Dekaf().SetMultiThreading(bEnableMultiThreading);
-	KLog().SetDebugLog(sDebugLog);
-	KLog().SetDebugFlag(sDebugFlag);
-	KLog().SetName(sName);
+
+	if (!sDebugLog.empty())
+	{
+		KLog().SetDebugLog(sDebugLog);
+	}
+
+	if (!sDebugFlag.empty())
+	{
+		KLog().SetDebugFlag(sDebugFlag);
+	}
+
+	if (!sName.empty())
+	{
+		KLog().SetName(sName);
+	}
 }
 
 } // end of namespace dekaf2

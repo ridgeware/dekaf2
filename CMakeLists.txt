@@ -37,10 +37,10 @@ if (${CMAKE_SYSTEM_NAME} STREQUAL "Darwin")
 endif ()
 
 # Add local cmake modules to the module path (used to find libraries which do not have find modules provided by cmake)
-set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/modules/")
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules/")
 
 # check if we have the libproc library (or at least its headers)
-find_package(libproc QUIET)
+find_package(libproc)
 if (libproc_FOUND)
 	set(DEKAF2_HAS_LIBPROC 1)
 	include_directories(SYSTEM ${libproc_INCLUDE_DIRS})

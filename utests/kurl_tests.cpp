@@ -1027,4 +1027,26 @@ TEST_CASE ("KURL formerly missing")
 //		CHECK ( URL.Protocol.getProtocol() == dekaf2::url::KProtocol::HTTPS );
 //		CHECK ( URL.Protocol == dekaf2::url::KProtocol::HTTPS );
 	}
+
+	SECTION("KURL various schemes")
+	{
+		KURL URL;
+
+		URL = "http://that.server.name/with_a_path";
+		CHECK ( URL.IsHttpURL() == true );
+		CHECK ( URL.Domain.get() == "that.server.name" );
+		CHECK ( URL.Path.get() == "/with_a_path" );
+
+		URL = "log.server.my.domain:35";
+		CHECK ( URL.IsHttpURL() == false );
+		CHECK ( URL.Domain.get() == "log.server.my.domain" );
+		CHECK ( URL.Path.get() == "" );
+		CHECK ( URL.Port.get() == "35" );
+
+		URL = "/path/to/file";
+		CHECK ( URL.IsHttpURL() == false );
+		CHECK ( URL.Domain.empty() == true );
+		CHECK ( URL.Path.get() == "/path/to/file" );
+
+	}
 }

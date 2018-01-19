@@ -132,6 +132,16 @@ public:
 		return m_sProgName;
 	}
 
+	//---------------------------------------------------------------------------
+	/// Get current time without constantly querying the OS
+	// TODO add updater thread
+	time_t CurrentTime() const
+	//---------------------------------------------------------------------------
+	{
+		return time(nullptr);
+	}
+
+
 //----------
 private:
 //----------

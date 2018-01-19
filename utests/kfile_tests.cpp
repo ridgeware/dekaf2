@@ -24,6 +24,36 @@ TEST_CASE("KFile") {
 		"line 9\n"
 	};
 
+/*
+ * 	SECTION("openmode")
+	{
+		{
+			KOutFile fWriter(sFile.c_str(), std::ios_base::trunc);
+			CHECK( fWriter.is_open() == true );
+
+			if (fWriter.is_open())
+			{
+				fWriter.Write(sOut);
+			}
+		}
+
+		{
+			KOutFile fWriter(sFile.c_str(), std::ios_base::ate);
+			CHECK( fWriter.is_open() == true );
+
+			if (fWriter.is_open())
+			{
+				fWriter.Write(sOut);
+			}
+		}
+
+		{
+			CHECK( kFileExists(sFile, true) == true );
+			CHECK( kGetSize(sFile) == 63 * 2 );
+		}
+	}
+*/
+
 	SECTION("setup test file")
 	{
 		KOutFile fWriter(sFile.c_str(), std::ios_base::trunc);

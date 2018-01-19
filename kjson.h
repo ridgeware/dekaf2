@@ -50,19 +50,24 @@ namespace dekaf2 {
 
 using LJSON = nlohmann::json;
 
-inline void to_json(LJSON& j, const KString& s) {
-	j = nlohmann::json{s};
+inline void to_json(LJSON& j, const KString& s)
+{
+	j = nlohmann::json{s.ToStdString()};
 }
 
-inline void from_json(const LJSON& j, KString& s) {
+inline void from_json(const LJSON& j, KString& s)
+{
 	s = j.get<std::string>();
 }
 
-inline void to_json(LJSON& j, const KStringView& s) {
-	j = nlohmann::json{s};
+inline void to_json(LJSON& j, const KStringView& s)
+{
+	std::string s1(s.data(), s.size());
+	j = nlohmann::json{s1};
 }
 
-inline void from_json(const LJSON& j, KStringView& s) {
+inline void from_json(const LJSON& j, KStringView& s)
+{
 	s = j.get<std::string>();
 }
 

@@ -220,7 +220,7 @@ class KLogFileWriter : public KLogWriter
 public:
 //----------
 	KLogFileWriter(KStringView sFileName)
-	    : m_OutFile(sFileName, std::ios_base::ate)
+	    : m_OutFile(sFileName, std::ios_base::app)
 	{}
 	virtual ~KLogFileWriter() {}
 	virtual bool Write(const KLogSerializer& Serializer);
@@ -385,7 +385,6 @@ public:
 	/// Create a Serializer of specific type
 	static std::unique_ptr<KLogSerializer> CreateSerializer(Serializer serializer);
 	//---------------------------------------------------------------------------
-
 
 	//---------------------------------------------------------------------------
 	/// Set the log writer directly instead of opening one implicitly with SetDebugLog()

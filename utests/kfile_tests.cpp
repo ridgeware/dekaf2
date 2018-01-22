@@ -24,8 +24,7 @@ TEST_CASE("KFile") {
 		"line 9\n"
 	};
 
-/*
- * 	SECTION("openmode")
+ 	SECTION("openmode")
 	{
 		{
 			KOutFile fWriter(sFile.c_str(), std::ios_base::trunc);
@@ -38,7 +37,7 @@ TEST_CASE("KFile") {
 		}
 
 		{
-			KOutFile fWriter(sFile.c_str(), std::ios_base::ate);
+			KOutFile fWriter(sFile.c_str(), std::ios_base::app);
 			CHECK( fWriter.is_open() == true );
 
 			if (fWriter.is_open())
@@ -52,7 +51,6 @@ TEST_CASE("KFile") {
 			CHECK( kGetSize(sFile) == 63 * 2 );
 		}
 	}
-*/
 
 	SECTION("setup test file")
 	{

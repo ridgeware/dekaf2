@@ -392,6 +392,33 @@ KLog::KLog()
 } // ctor
 
 //---------------------------------------------------------------------------
+void KLog::SetLevel(int iLevel)
+//---------------------------------------------------------------------------
+{
+	if (iLevel <= 0)
+	{
+		iLevel = 0;
+	}
+	else if (iLevel > 3)
+	{
+		iLevel = 3;
+	}
+
+	s_kLogLevel = iLevel;
+
+	if (iLevel)
+	{
+		KOutFile file (GetDebugFlag());
+		file.FormatLine("{}", iLevel);
+	}
+	else
+	{
+		kRemoveFile (GetDebugFlag());
+	}
+
+} // SetLevel
+
+//---------------------------------------------------------------------------
 void KLog::SetName(KStringView sName)
 //---------------------------------------------------------------------------
 {

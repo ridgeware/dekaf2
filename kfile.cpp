@@ -225,6 +225,81 @@ KStringView kDirname(KStringView sFilePath, bool bWithSlash)
 
 }  // kDirname()
 
+//-----------------------------------------------------------------------------
+bool kRemoveFile (const KString& sPath)
+//-----------------------------------------------------------------------------
+{
+	if (!kFileExists (sPath))
+	{
+		return true;
+	}
+
+#ifdef USE_STD_FILESYSTEM
+	std::error_code ec;
+	fs::permissions (sPath.c_str(), fs::all, ec); // chmod (ignore failures)
+	ec.clear();
+	fs::remove (sPath.c_str(), ec);
+	if (ec != 0) {
+		kDebugLog (1, "remove failed: {}: {}", sPath, strerror (ec));
+	}
+#else
+	if (unlink (sPath.c_str()) != 0)
+	{
+		chmod (sPath.c_str(), S_IRUSR|S_IWUSR|S_IXUSR | S_IRGRP|S_IWGRP|S_IXGRP | S_IROTH|S_IWOTH|S_IXOTH);
+		if (unlink (sPath.c_str()) != 0)
+		{
+			if (unlink (sPath.c_str()) != 0) {
+				kDebugLog (1, "remove failed: {}: {}", sPath, strerror (errno));
+			}
+		}
+	}
+#endif
+
+	return (true);
+
+} // kRemoveFile
+
+//-----------------------------------------------------------------------------
+bool kRemoveDir (const KString& sPath)
+//-----------------------------------------------------------------------------
+{
+	if (kFileExists (sPath))
+	{
+		kDebugLog (1, "cannot remove file with kRemoveDir: {}", sPath);
+		return false;
+	}
+
+	if (!kDirExists (sPath))
+	{
+		return true;
+	}
+
+#ifdef USE_STD_FILESYSTEM
+	std::error_code ec;
+	fs::permissions (sPath.c_str(), fs::all, ec); // chmod (ignore failures)
+	ec.clear();
+	fs::remove_all (sPath.c_str(), ec);
+	if (ec != 0) {
+		kDebugLog (1, "remove failed: {}: {}", sPath, strerror (ec));
+	}
+#else
+	if (unlink (sPath.c_str()) != 0)
+	{
+		chmod (sPath.c_str(), S_IRUSR|S_IWUSR|S_IXUSR | S_IRGRP|S_IWGRP|S_IXGRP | S_IROTH|S_IWOTH|S_IXOTH);
+		if ((unlink (sPath.c_str()) != 0) && (rmdir (sPath.c_str()) != 0))
+		{
+			KString sCmd;
+			sCmd.Format ("rm -rf \"{}\"", sPath);
+			if (system (sCmd.c_str()) != 0) {
+				kDebugLog (1, "remove failed: {}: {}", sPath, strerror (errno));
+			}
+		}
+	}
+#endif
+
+	return (true);
+
+} // kRemoveDir
 
 } // end of namespace dekaf2
 

@@ -333,11 +333,8 @@ public:
 
 	//---------------------------------------------------------------------------
 	/// Sets a new log level.
-	inline void SetLevel(int iLevel)
+    void SetLevel(int iLevel);
 	//---------------------------------------------------------------------------
-	{
-		s_kLogLevel = iLevel;
-	}
 
 	//---------------------------------------------------------------------------
 	/// Get level at which back traces are automatically generated.

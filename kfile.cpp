@@ -130,6 +130,23 @@ bool kFileExists (const KString& sPath, bool bTestForEmptyFile /* = false */ )
 #endif
 } // Exists
 
+//-----------------------------------------------------------------------------
+bool kDirExists (const KString& sPath)
+//-----------------------------------------------------------------------------
+{
+	struct stat StatStruct;
+
+	if (stat (sPath.c_str(), &StatStruct) < 0)
+		return (false);  // <-- file/dir doesn't exist
+	else
+	{
+		if (StatStruct.st_mode & S_IFDIR)
+			return (true);    // <-- directory exists
+		else
+			return (false);   // <-- something exists, but is not a directory
+	}
+
+} // kDirExists
 
 //-----------------------------------------------------------------------------
 KString kGetCWD ()

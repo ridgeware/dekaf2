@@ -61,14 +61,22 @@ bool kFileExists (const KString& sPath, bool bTestForEmptyFile = false);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
+/// Checks if a directory exists.
+bool kDirExists (const KString& sPath);
+//-----------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
+/// Get current working directory.
 KString kGetCWD ();
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
+/// Isolate the basename of a path (filename without directory).
 KStringView kBasename(KStringView sFilePath);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
+/// Isolate the dirname of a path (directory name without the fileame).
 KStringView kDirname(KStringView sFilePath, bool bWithSlash = true);
 //-----------------------------------------------------------------------------
 

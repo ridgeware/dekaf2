@@ -40,98 +40,122 @@
 //
 */
 
-#pragma once
-
-/// @file ksystem.h
-/// general system utilities for dekaf2
-
-#include <cstdlib>
+#include "ksystem.h"
 #include "kstring.h"
 #include "klog.h"
+
+#include <sys/types.h>    // for getpwuid()
+#include <pwd.h>          // for getpwuid()
+#include <uuid/uuid.h>    // for getpwuid()
 
 namespace dekaf2
 {
 
 //-----------------------------------------------------------------------------
-/// Get environment variable. Return @p szDefault if not found.
-inline const char* kGetEnv (const char* szEnvVar, const char* szDefault = "")
+KString kGetCWD ()
 //-----------------------------------------------------------------------------
 {
-	const char* sValue = ::getenv(szEnvVar);
-	if (sValue)
+#ifdef USE_STD_FILESYSTEM
+	return fs::current_path().string();
+#else
+	enum { MAX_PATH = 1024 };
+	KString str(MAX_PATH, '\0');
+	if (::getcwd(&str[0], str.size()-1))
 	{
-		return (sValue);
+		size_t iPathLen = ::strlen(str.c_str());
+		str.erase(iPathLen);
 	}
 	else
 	{
-		return (szDefault);
+		kWarning("cannot get current working directory: {}", ::strerror(errno));
+		str.erase();
 	}
+	return str;
+#endif
 
-} // kGetEnv
+} // kGetCWD
 
 //-----------------------------------------------------------------------------
-/// Get environment variable. Return @p szDefault if not found.
-inline const char* kGetEnv (const KString& sEnvVar, const char* szDefault = "")
+KString kGetWhoami ()
 //-----------------------------------------------------------------------------
 {
-	return kGetEnv(sEnvVar.c_str(), szDefault);
-}
+	KString sWhoami;
 
-//-----------------------------------------------------------------------------
-/// Set environment variable.
-inline void kSetEnv (const char* szEnvVar, const char* sValue)
-//-----------------------------------------------------------------------------
-{
-	if (!::setenv(szEnvVar, sValue, true))
+	#ifdef WIN32
+	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+	// WINDOWS:
+	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+	enum { MAX = 100 };
+	char szWhoami[MAX + 1] = { 0 };
+	DWORD nSize = MAX;
+	if (!GetUserName (szWhoami, &nSize)) {
+		sWhoami = "ERROR";
+	}
+	else {
+		sWhoami.Format ("{}", szWhoami);
+	}
+	
+	#else
+	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+	// on UNIX, we do *not* cache the kGetWhoami() result, to allow
+	// identity changes through setuid():
+	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+	int iUID = getuid();
+	struct passwd* pPassStruct = getpwuid (iUID);
+	if (pPassStruct)
 	{
-		kWarning("cannot set {} = {}", szEnvVar, sValue);
+		kDebugLog (2, "kGetWhoami(): used new method");
+		sWhoami.Format ("{}", pPassStruct->pw_name);
 	}
-}
+	#endif
+
+	kDebugLog (2, "kGetWhoami(): {}", sWhoami);
+
+	return (sWhoami);
+
+} // kGetWhoami
 
 //-----------------------------------------------------------------------------
-/// Set environment variable.
-inline void kSetEnv (const KString& sEnvVar, const KString& sValue)
+KString kGetHostname (KString& sHostname)
 //-----------------------------------------------------------------------------
 {
-	kSetEnv(sEnvVar.c_str(), sValue.c_str());
-}
+	KString sHostName;
 
-//-----------------------------------------------------------------------------
-/// Unset environment variable.
-inline void kUnsetEnv (const char* szEnvVar)
-//-----------------------------------------------------------------------------
-{
-	if (!::unsetenv(szEnvVar))
-	{
-		kWarning("cannot unset {}", szEnvVar);
+	enum {MAX = 50};
+	char szHostname[MAX+1];
+	bool bStatus = true;
+
+	#ifdef WIN32
+	*szHostname = 0;
+
+	DWORD nSize = MAX;
+	GetComputerName (
+		szHostname,         // name buffer
+		&nSize              // address of size of name buffer
+	);
+
+	sHostname = szHostname;
+
+	if (sHostname.empty()) {
+		sHostname = "hostname-error";
 	}
-}
 
-//-----------------------------------------------------------------------------
-/// Unset environment variable.
-inline void kUnsetEnv (const KString& sEnvVar)
-//-----------------------------------------------------------------------------
-{
-	kUnsetEnv(sEnvVar.c_str());
-}
+	#else
+	if (gethostname (szHostname, sizeof (szHostname)) != 0) {
+		kDebugLog (1, "CMD ERROR: hostname");
+		sHostname = "hostname-error";
+		bStatus = false;
+	}
+	else {
+		sHostname = szHostname;
+	}
+	#endif
 
-/// Return operating system current working directory as a string.
-KString kGetCWD ();
+	kDebugLog (2, "kGetHostname(): %s", sHostname);
 
-/// alias to kGetCWD(): return operating system current working directory as a string.
-inline KString kcwd () { return kGetCWD(); }
+	return (sHostname);
 
-/// Return current operating system user as a string.
-KString kGetWhoami ();
-
-/// alias to kGetWhoami(): return current operating system user as a string.
-inline KString kwhoami () { return kGetWhoami(); }
-
-/// Return operating system hostname as a string.
-KString kGetHostname ();
-
-/// Alias to kGetHostname(): return operating system hostname as a string.
-inline KString khostname () { return kGetHostname(); }
+} // kGetHostname
 
 } // end of namespace dekaf2
 

@@ -462,11 +462,11 @@ typedef enabled::KSharedProfiler SharedProfiler;
 typedef enabled::KProf KProf;
 
 #ifndef DISABLE_AUTOMATIC_PROFILER
-inline void sleep()
+inline void kProfSleep()
 {
 	g_Prof.sleep();
 }
-inline void wake()
+inline void kProfWake()
 {
 	g_Prof.wake();
 }
@@ -479,9 +479,9 @@ typedef disabled::KSharedProfiler KSharedProfiler;
 typedef disabled::KProf KProf;
 
 #ifndef DISABLE_AUTOMATIC_PROFILER
-inline void sleep()
+inline void kProfSleep()
 {}
-inline void wake()
+inline void kProfWake()
 {}
 #endif
 

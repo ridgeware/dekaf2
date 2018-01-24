@@ -48,7 +48,7 @@ namespace dekaf2
 {
 
 //-----------------------------------------------------------------------------
-const char* KASCII::ktrimleft (const char* str)
+char* KASCII::ktrimleft (const char* str)
 //-----------------------------------------------------------------------------
 {
 	if (str)
@@ -59,7 +59,7 @@ const char* KASCII::ktrimleft (const char* str)
 		}
 	}
 
-	return (str);
+	return (const_cast<char*>(str));
 
 } // ktrimleft
 
@@ -86,7 +86,52 @@ char* KASCII::ktrimright (char* str)
 } // ktrimright
 
 //-----------------------------------------------------------------------------
-KString kFormTimestamp (time_t tTime, const char* pszFormat)
+char* KASCII::ktoupper (char* szString)
+//-----------------------------------------------------------------------------
+{
+	char* szOrig = szString;
+	while (szString && *szString)
+	{
+		if ((*szString >= 'a') && (*szString <= 'z'))
+			*szString -= ('a'-'A');
+		++szString;
+	}
+
+	return (szOrig ? szOrig : (char*) "");
+
+} // ktoupper
+
+//-----------------------------------------------------------------------------
+char* KASCII::ktolower (char* szString)
+//-----------------------------------------------------------------------------
+{
+	char* szOrig = szString;
+	while (szString && *szString)
+	{
+		if ((*szString >= 'A') && (*szString <= 'Z'))
+			*szString += ('a'-'A');
+		++szString;
+	}
+
+	return (szOrig ? szOrig : (char*) "");
+
+} // ktolower
+
+//-----------------------------------------------------------------------------
+char* kstrncpy (char* szTarget, const char* szSource, size_t iMaxAllocTarget)
+//-----------------------------------------------------------------------------
+{
+	char* rtn = strncpy (szTarget, szSource, iMaxAllocTarget);
+
+	if (iMaxAllocTarget > 1)
+		szTarget[iMaxAllocTarget-1] = 0;
+
+	return (rtn);
+
+} // kstrncpy
+
+//-----------------------------------------------------------------------------
+KString kFormTimestamp (time_t tTime, const char* szFormat)
 //-----------------------------------------------------------------------------
 {
 	enum { iMaxBuf = 100 };
@@ -101,7 +146,7 @@ KString kFormTimestamp (time_t tTime, const char* pszFormat)
 
 	gmtime_r (&tTime, &ptmStruct);
 
-	strftime (szBuffer, iMaxBuf, pszFormat, &ptmStruct);
+	strftime (szBuffer, iMaxBuf, szFormat, &ptmStruct);
 
 	return (szBuffer);
 

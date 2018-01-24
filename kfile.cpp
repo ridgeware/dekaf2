@@ -149,29 +149,6 @@ bool kDirExists (const KString& sPath)
 } // kDirExists
 
 //-----------------------------------------------------------------------------
-KString kGetCWD ()
-//-----------------------------------------------------------------------------
-{
-#ifdef USE_STD_FILESYSTEM
-	return fs::current_path().string();
-#else
-	enum { MAX_PATH = 1024 };
-	KString str(MAX_PATH, '\0');
-	if (::getcwd(&str[0], str.size()-1))
-	{
-		size_t iPathLen = ::strlen(str.c_str());
-		str.erase(iPathLen);
-	}
-	else
-	{
-		kWarning("cannot get current working directory: {}", ::strerror(errno));
-		str.erase();
-	}
-	return str;
-#endif
-} // kGetCWD
-
-//-----------------------------------------------------------------------------
 KStringView kBasename(KStringView sFilePath)
 //-----------------------------------------------------------------------------
 {

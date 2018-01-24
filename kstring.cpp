@@ -1047,7 +1047,7 @@ bool KString::In (KStringView sHaystack, value_type iDelim/*=','*/) const
 	}
 	return false;
 
-} // kstrin
+} // In
 
 //-----------------------------------------------------------------------------
 bool kStrIn (const char* sNeedle, const char* sHaystack, char iDelim/*=','*/)
@@ -1090,7 +1090,7 @@ bool kStrIn (const char* sNeedle, const char* sHaystack, char iDelim/*=','*/)
 	}
 	return false;
 
-} // kstrin
+} // kStrIn
 
 //----------------------------------------------------------------------
 KString kToUpper(KStringView sInput)

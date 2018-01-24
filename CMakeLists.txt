@@ -278,6 +278,7 @@ set (SOURCES
 	kstring.cpp
 	kstringutils.cpp
 	kstringview.cpp
+	ksystem.cpp
 	ktcpserver.cpp
 	kurl.cpp
 	kurlencode.cpp

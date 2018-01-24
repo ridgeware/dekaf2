@@ -62,21 +62,44 @@ class KASCII
 //----------
 public:
 //----------
+	/// test if strings are an exact match (case sensitive)
 	static inline bool strmatch(const char* S1,const char* S2)   { return (strcmp(S1,S2) == 0);                 }
+
+	/// test if strings are an exact match (case INsensitive)
 	static inline bool strmatchI(const char* S1,const char* S2)  { return (strcasecmp(S1,S2) == 0);             }
+
+	/// test to see if string S1 starts with S2 (case sensitive)
 	static inline bool strmatchN(const char* S1,const char* S2)  { return (strncmp(S1,S2,strlen(S2)) == 0);     }
+
+	/// test to see if string S1 starts with S2 (case INsensitive)
 	static inline bool strmatchNI(const char* S1,const char* S2) { return (strncasecmp(S1,S2,strlen(S2)) == 0); }
 
-	/// operates on and returns a const char* by moving the pointer forward past whitespace.
-	static const char* ktrimleft (const char* str);
+	/// trims whitespace from left of given string by moving the char* pointer (no change to original string buffer)
+	static char* ktrimleft (const char* str);
 
-	/// modifies the given string by writing zeros into whitespace at the end.
+	/// modifies the given string by writing zeros into whitespace at the end, returns pointer to string for convenience
 	static char* ktrimright (char* str);
 
-	/// find a needle in a haystack.
-	static bool kstrin (const char* sNeedle, const char* sHayStack, int chDelim=',');
+	/// find a needle in a haystack with haystack delimited by commas or whatever delimeter is given.
+	static bool kstrin (const char* sNeedle, const char* sHayStack, int chDelim=',')
+	{
+		return (kStrIn (sNeedle, sHayStack, chDelim));
+	}
+
+	/// make A-Z to lower case by modifying the original string.  skips over any characters that are not A-Z.
+	static char* ktolower (char* str);
+
+	/// make a-z to upper case by modifying the original string.  skips over any characters that are not a-z.
+	static char* ktoupper (char* str);
 
 }; // KASCII
+
+/// kstrncpy() ensures that the new string is null terminated
+///  whereas the original strncpy() does not assure this (see
+///  man page entry below).  Note however that the strlen() of
+///  target will be AT MOST iMaxAllocTarget-1, since room for
+///  the NIL terminator must be allowed.
+char* kstrncpy (char* szTarget, const char* szSource, size_t iMaxAllocTarget);
 
 //-----------------------------------------------------------------------------
 template<class String>

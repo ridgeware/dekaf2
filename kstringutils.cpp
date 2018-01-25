@@ -43,6 +43,7 @@
 #include <cstring>
 #include "kstringutils.h"
 #include "kurl.h"
+#include "dekaf2.h"
 
 namespace dekaf2
 {
@@ -141,7 +142,7 @@ KString kFormTimestamp (time_t tTime, const char* szFormat)
 
 	if (!tTime)
 	{
-		tTime = time (nullptr);
+		tTime = Dekaf().GetCurrentTime();
 	}
 
 	gmtime_r (&tTime, &ptmStruct);

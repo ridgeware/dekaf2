@@ -62,6 +62,8 @@ TODO: KLOG OVERHAUL NEEDED
 #include "kurl.h"
 #include "khttp.h"
 #include "kjson.h"
+#include "ksplit.h"
+#include "kstringutils.h"
 
 namespace dekaf2
 {
@@ -73,7 +75,7 @@ void KLogData::Set(int level, KStringView sShortName, KStringView sPathName, KSt
 {
 	m_Level = level;
 	m_Pid = getpid();
-	m_Time = Dekaf().CurrentTime();
+	m_Time = Dekaf().GetCurrentTime();
 	m_sFunctionName = SanitizeFunctionName(sFunction);
 	m_sShortName = sShortName;
 	m_sPathName = sPathName;
@@ -389,6 +391,10 @@ KLog::KLog()
 
 	IntOpenLog();
 
+	Dekaf().AddToOneSecTimer([this]() {
+		this->CheckDebugFlag();
+	});
+
 } // ctor
 
 //---------------------------------------------------------------------------
@@ -592,6 +598,71 @@ bool KLog::SetDebugFlag(KStringView sFlagfile)
 	m_sFlagfile = sFlagfile;
 
 	return true;
+}
+
+//---------------------------------------------------------------------------
+void KLog::CheckDebugFlag()
+//---------------------------------------------------------------------------
+{
+	// file format of the debug "flag" file:
+	// "level, target" where level is numeric (-1 .. 3) and target can be
+	// anything like a pathname or a domain:host or syslog, stderr, stdout
+
+	time_t TouchTime = kGetLastMod(GetDebugFlag());
+
+	if (TouchTime == -1)
+	{
+		// no flagfile (anymore)
+		if (GetLevel() > 0)
+		{
+			SetLevel(0);
+		}
+	}
+	else if (TouchTime > m_sTimestampFlagfile)
+	{
+		m_sTimestampFlagfile = TouchTime;
+
+		KInFile file(GetDebugFlag());
+		if (file.is_open())
+		{
+			KString sLine;
+			if (file.ReadLine(sLine))
+			{
+				std::vector<KStringView> parts;
+				kSplit(parts, sLine, ", ");
+				size_t pos = 0;
+				for (auto it : parts)
+				{
+					switch (pos)
+					{
+						case 0:
+							{
+								int iLvl = it.Int32();
+								if (iLvl < 1)
+								{
+									iLvl = 1;
+								}
+								else if (iLvl > 3)
+								{
+									iLvl = 3;
+								}
+								SetLevel(iLvl);
+							}
+							break;
+						case 1:
+							SetDebugLog(it);
+							break;
+					}
+					++pos;
+				}
+			}
+			else
+			{
+				// empty file, set level to 1
+				SetLevel(1);
+			}
+		}
+	}
 }
 
 //---------------------------------------------------------------------------

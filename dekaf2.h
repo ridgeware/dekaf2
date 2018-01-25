@@ -49,6 +49,9 @@
 #include <folly/CpuId.h>
 #include "kconfiguration.h"
 #include "kstring.h"
+#include "ktimer.h"
+#include <vector>
+#include <thread>
 
 /// @namespace dekaf2 The basic dekaf2 library namespace. All functions,
 /// variables and classes are prefixed with this namespace.
@@ -134,23 +137,61 @@ public:
 
 	//---------------------------------------------------------------------------
 	/// Get current time without constantly querying the OS
-	// TODO add updater thread
-	time_t CurrentTime() const
+	time_t GetCurrentTime() const
 	//---------------------------------------------------------------------------
 	{
-		return time(nullptr);
+		return m_iCurrentTime;
 	}
 
+	//---------------------------------------------------------------------------
+	/// Get current time without constantly querying the OS
+	// TODO add updater thread
+	KTimer::Timepoint GetCurrentTimepoint() const
+	//---------------------------------------------------------------------------
+	{
+		return m_iCurrentTimepoint;
+	}
+
+	//---------------------------------------------------------------------------
+	/// Returns Dekaf's main timing object so you can add more callbacks
+	/// without having to maintain another timer object
+	KTimer& GetTimer()
+	//---------------------------------------------------------------------------
+	{
+		return m_Timer;
+	}
+
+	using OneSecCallback = std::function<void(void)>;
+	//---------------------------------------------------------------------------
+	/// Add a (fast executing) callback to the general timing loop of
+	/// Dekaf. Cannot be removed later.
+	bool AddToOneSecTimer(OneSecCallback CB);
+	//---------------------------------------------------------------------------
 
 //----------
 private:
 //----------
+
+	//---------------------------------------------------------------------------
+	/// The core timer for dekaf, called every second
+	void OneSecTimer(KTimer::Timepoint tp);
+	//---------------------------------------------------------------------------
 
 	std::atomic_bool m_bIsMultiThreading{false};
 	KString m_sLocale;
 	KString m_sProgPath;
 	KString m_sProgName;
 	folly::CpuId m_CPUID;
+	KTimer m_Timer;
+	KTimer::ID_t m_OneSecTimerID;
+	std::mutex m_OneSecTimerMutex;
+	std::vector<OneSecCallback> m_OneSecTimers;
+	// we do not make this an atomic, although it rather should be
+	// because we do not want the fence around it and because we
+	// trust that the compiler eventually loads a new value in
+	// readers
+	time_t m_iCurrentTime;
+	KTimer::Timepoint m_iCurrentTimepoint;
 
 }; // Dekaf
 

@@ -229,6 +229,7 @@ set (HEADERS
 	ksystem.h
 	ktcpclient.h
 	ktcpserver.h
+	ktimer.h
 	kurl.h
 	kurlencode.h
 	kuseragent.h
@@ -280,6 +281,7 @@ set (SOURCES
 	kstringview.cpp
 	ksystem.cpp
 	ktcpserver.cpp
+	ktimer.cpp
 	kurl.cpp
 	kurlencode.cpp
 	kwebio.cpp

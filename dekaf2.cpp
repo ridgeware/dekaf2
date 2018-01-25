@@ -108,6 +108,17 @@ Dekaf::Dekaf()
 	}
 #endif
 
+	// make sure we have an initial value set for
+	// the time keepers
+	m_iCurrentTimepoint = KTimer::Clock::now();
+	m_iCurrentTime = KTimer::ToTimeT(m_iCurrentTimepoint);
+
+	// and start the timer that updates them
+	m_OneSecTimerID = m_Timer.CallEvery(
+	            std::chrono::seconds(1),
+	            [this](KTimer::Timepoint tp) {
+	                this->OneSecTimer(tp);
+                });
 }
 
 //---------------------------------------------------------------------------
@@ -173,6 +184,35 @@ void Dekaf::SetRandomSeed(unsigned int iSeed)
 	srand48(iSeed);
 }
 
+//---------------------------------------------------------------------------
+void Dekaf::OneSecTimer(KTimer::Timepoint tp)
+//---------------------------------------------------------------------------
+{
+	m_iCurrentTime = KTimer::Clock::to_time_t(tp);
+	m_iCurrentTimepoint = tp;
+
+	if (m_OneSecTimerMutex.try_lock())
+	{
+
+		for (const auto& it : m_OneSecTimers)
+		{
+			it();
+		}
+
+		m_OneSecTimerMutex.unlock();
+	}
+}
+
+//---------------------------------------------------------------------------
+bool Dekaf::AddToOneSecTimer(OneSecCallback CB)
+//---------------------------------------------------------------------------
+{
+	std::lock_guard<std::mutex> Lock(m_OneSecTimerMutex);
+
+	m_OneSecTimers.push_back(CB);
+
+	return true;
+}
 
 //---------------------------------------------------------------------------
 class Dekaf& Dekaf()

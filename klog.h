@@ -57,6 +57,7 @@ namespace dekaf2
 {
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// Base class for KLog serialization. Takes the data to be written someplace.
 class KLogData
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -99,6 +100,8 @@ protected:
 }; // KLogData
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// Extension of the data base class. Adds the generic serialization methods
+/// as virtual functions.
 class KLogSerializer : public KLogData
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -122,6 +125,8 @@ protected:
 }; // KLogSerializer
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// Specialization of the serializer for TTY like output devices: creates
+/// simple text lines of output
 class KLogTTYSerializer : public KLogSerializer
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -140,6 +145,8 @@ protected:
 }; // KLogTTYSerializer
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// Specialization of the serializer for the Syslog: creates simple text lines
+/// of output, but without the prefix like timestamp and warning level
 class KLogSyslogSerializer : public KLogTTYSerializer
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -157,6 +164,8 @@ protected:
 }; // KLogSyslogSerializer
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// Specialization of the serializer for JSON output: creates a serialized
+/// JSON object
 class KLogJSONSerializer : public KLogSerializer
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -176,6 +185,7 @@ protected:
 
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// ABC for the LogWriter object
 class KLogWriter
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -191,6 +201,7 @@ public:
 
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// Logwriter that instantiates around any std::ostream
 class KLogStdWriter : public KLogWriter
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -213,6 +224,7 @@ private:
 
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// Logwriter that opens a file
 class KLogFileWriter : public KLogWriter
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -235,6 +247,7 @@ private:
 
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// Logwriter for the syslog
 class KLogSyslogWriter : public KLogWriter
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -250,6 +263,7 @@ public:
 
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// Logwriter that writes to any TCP endpoint
 class KLogTCPWriter : public KLogWriter
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -270,6 +284,7 @@ protected:
 
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// Logwriter that writes to any TCP endpoint using the HTTP(s) protocol
 class KLogHTTPWriter : public KLogTCPWriter
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -333,7 +348,7 @@ public:
 
 	//---------------------------------------------------------------------------
 	/// Sets a new log level.
-    void SetLevel(int iLevel);
+	void SetLevel(int iLevel);
 	//---------------------------------------------------------------------------
 
 	//---------------------------------------------------------------------------
@@ -472,6 +487,13 @@ private:
 //----------
 
 	//---------------------------------------------------------------------------
+	/// Registered with Dekaf::AddToOneSecTimer() at construction, gets
+	/// called every second and reconfigures debug level, output, and format
+	/// if changed
+	void CheckDebugFlag();
+	//---------------------------------------------------------------------------
+
+	//---------------------------------------------------------------------------
 	bool IntDebug(int level, KStringView sFunction, KStringView sMessage);
 	//---------------------------------------------------------------------------
 
@@ -488,6 +510,7 @@ private:
  	KString m_sShortName;
 	KString m_sLogName;
 	KString m_sFlagfile;
+	time_t m_sTimestampFlagfile{0};
 	std::unique_ptr<KLogSerializer> m_Serializer;
 	std::unique_ptr<KLogWriter> m_Logger;
 

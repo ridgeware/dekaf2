@@ -62,8 +62,8 @@ KTimer::~KTimer()
 
 	if (m_tTiming)
 	{
-		// wait until it has joined
-		m_tTiming->join();
+		// detach the thread, we do not want to wait until it has joined
+		m_tTiming->detach();
 	}
 
 } // dtor

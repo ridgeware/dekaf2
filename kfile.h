@@ -56,7 +56,7 @@ typedef uint16_t KFileFlags;
 
 //-----------------------------------------------------------------------------
 /// Checks if a file exists.
-/// @param bTestForEmptyFile If true reats a file as non-existing if its size is 0
+/// @param bTestForEmptyFile If true treats a file as non-existing if its size is 0
 bool kFileExists (const KString& sPath, bool bTestForEmptyFile = false);
 //-----------------------------------------------------------------------------
 
@@ -83,6 +83,16 @@ KStringView kBasename(KStringView sFilePath);
 //-----------------------------------------------------------------------------
 /// Isolate the dirname of a path (directory name without the fileame).
 KStringView kDirname(KStringView sFilePath, bool bWithSlash = true);
+//-----------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
+/// Get last modification time of a file, returns -1 if file not found
+time_t kGetLastMod(const KString& sFilePath);
+//-----------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
+/// Get size in bytes of a file, returns npos if file not found
+size_t kGetNumBytes(const KString& sFilePath);
 //-----------------------------------------------------------------------------
 
 } // end of namespace dekaf2

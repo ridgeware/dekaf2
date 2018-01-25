@@ -278,5 +278,51 @@ bool kRemoveDir (const KString& sPath)
 
 } // kRemoveDir
 
+//-----------------------------------------------------------------------------
+time_t kGetLastMod(const KString& sFilePath)
+//-----------------------------------------------------------------------------
+{
+#ifdef USE_STD_FILESYSTEM
+	std::error_code ec;
+
+	auto ftime = fs::last_write_time(sFilePath.c_str(), ec);
+	if (ec)
+	{
+		return -1;
+	}
+	return decltype(ftime)::clock::to_time_t(ftime);
+#else
+	struct stat StatStruct;
+	if (stat (sFilePath.c_str(), &StatStruct) < 0)
+	{
+		return -1;  // <-- file doesn't exist
+	}
+	return StatStruct.st_mtimespec.tv_sec;
+#endif
+}
+
+//-----------------------------------------------------------------------------
+size_t kGetNumBytes(const KString& sFilePath)
+//-----------------------------------------------------------------------------
+{
+#ifdef USE_STD_FILESYSTEM
+	std::error_code ec;
+
+	auto size = fs::file_size(sFilePath.c_str(), ec);
+	if (ec)
+	{
+		return npos;
+	}
+	return size;
+#else
+	struct stat StatStruct;
+	if (stat (sFilePath.c_str(), &StatStruct) < 0)
+	{
+		return npos;  // <-- file doesn't exist
+	}
+	return StatStruct.st_size;
+#endif
+}
+
 } // end of namespace dekaf2
 

@@ -71,11 +71,8 @@ configure_file("bits/kconfiguration.h.in" "${GENERATED_FILES_DIR}/kconfiguration
 #execute_process(COMMAND "${CMAKE_CURRENT_SOURCE_DIR}/bits/cmakeinstall -go")
 
 if (DEKAF2_ENABLE_DEBUG_RUNTIME_CHECKS)
-   # did not yet find a way to teach Clang how to link against the asan lib.. so we do not compile with it
-   if (NOT CMAKE_CXX_COMPILER_ID MATCHES "[cC][lL][aA][nN][gG]")
-        set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fsanitize=address -fsanitize=undefined -fsanitize-address-use-after-scope")
-   endif ()
-   set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fstack-protector-strong -fstack-check")
+	set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fsanitize=address -fsanitize=undefined -fsanitize-address-use-after-scope")
+	set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fstack-protector-strong -fstack-check")
 endif ()
 
 if (CMAKE_COMPILER_IS_GNUCXX)
@@ -344,7 +341,7 @@ target_link_libraries(dekaf2
 	fcgi
 	fcgipp
 	minifolly
-	"${FSLIB}"
+	${FSLIB}
 	${Boost_LIBRARIES}
 	${OPENSSL_LIBRARIES}
 	${libproc_LIBRARIES}

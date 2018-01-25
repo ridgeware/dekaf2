@@ -46,7 +46,6 @@
 
 #include <sys/types.h>    // for getpwuid()
 #include <pwd.h>          // for getpwuid()
-#include <uuid/uuid.h>    // for getpwuid()
 
 namespace dekaf2
 {

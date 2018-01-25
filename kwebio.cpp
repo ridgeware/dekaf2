@@ -114,7 +114,7 @@ KStringView KWebIO::Parse(KStringView svBuffer, bool bParseCookies)
 							m_sResponseStatus = svBuffer.substr(statusPos, lineEndPos-statusPos);
 							// TODO add conversions for string views
 							KString hs(responseCode);
-							m_iResponseStatusCode = kToUShort(hs);
+							m_iResponseStatusCode = hs.UInt32();
 						}
 						// update beginning of line to process next line
 						svBuffer.remove_prefix(lineEndPos - leftoverSize + 1);

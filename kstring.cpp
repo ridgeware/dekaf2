@@ -955,6 +955,20 @@ void KString::RemoveIllegalChars(KStringView sIllegalChars)
 	}
 }
 
+//-----------------------------------------------------------------------------
+float KString::Float() const noexcept
+//-----------------------------------------------------------------------------
+{
+	return std::strtof(c_str(), nullptr);
+}
+
+//-----------------------------------------------------------------------------
+double KString::Double() const noexcept
+//-----------------------------------------------------------------------------
+{
+	return std::strtod(c_str(), nullptr);
+}
+
 #ifdef DEKAF2_WITH_DEPRECATED_KSTRING_MEMBER_FUNCTIONS
 
 //----------------------------------------------------------------------

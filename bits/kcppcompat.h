@@ -295,6 +295,19 @@ DEKAF2_LE_BE_CONSTEXPR void kFromLittleEndian(VALUE& value)
 	}
 }
 
+#ifndef int128_t
+    using int128_t = __int128;
+#endif
+
+#ifndef uint128_t
+    using uint128_t = unsigned __int128;
+#endif
+
+#ifndef npos
+    // npos is used in dekaf2 as error return for unsigned return types
+    static constexpr size_t npos = static_cast<size_t>(-1);
+#endif
+
 } // end of namespace dekaf2
 
 #undef DEKAF2_LE_BE_CONSTEXPR

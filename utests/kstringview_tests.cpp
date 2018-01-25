@@ -681,5 +681,49 @@ TEST_CASE("KStringView") {
 		pos = sv.find_last_not_of("abcdefghijklmnopqrst");
 		CHECK( pos == KStringView::npos );
 	}
+
+	SECTION("conversion functions for KStringView")
+	{
+		KStringView s;
+		s = "1234567";
+		CHECK( s.Int32()     == 1234567 );
+		CHECK( s.Int64()     == 1234567 );
+		// CHECK has issues with 128 bit integers, so we cast them down
+		int64_t ii = s.Int128();
+		CHECK( ii            == 1234567 );
+		CHECK( s.UInt32()    == 1234567 );
+		CHECK( s.UInt64()    == 1234567 );
+		uint64_t uii = s.Int128();
+		CHECK( uii           == 1234567 );
+		s = "-1234567";
+		CHECK( s.Int32()     == -1234567 );
+		CHECK( s.Int64()     == -1234567 );
+		ii = s.Int128();
+		CHECK( ii            == -1234567 );
+		CHECK( s.UInt32()    == -1234567U );
+		CHECK( s.UInt64()    == -1234567UL );
+		uii = s.UInt128();
+		CHECK( uii           == -1234567UL );
+		s = "123456789012345";
+		CHECK( s.Int64()     == 123456789012345 );
+		ii = s.Int128();
+		CHECK( ii            == 123456789012345 );
+		CHECK( s.UInt64()    == 123456789012345 );
+		uii = s.UInt128();
+		CHECK( uii           == 123456789012345 );
+		s = "-123456789012345";
+		CHECK( s.Int64()     == -123456789012345 );
+		ii = s.Int128();
+		CHECK( ii            == -123456789012345 );
+		CHECK( s.UInt64()    == -123456789012345UL );
+		uii = s.UInt128();
+		CHECK( uii           == -123456789012345UL );
+
+		s = "-12.34567";
+		CHECK ( s.Float()    == -12.34567f );
+		CHECK ( s.Double()   == -12.34567 );
+	}
+
+
 }
 

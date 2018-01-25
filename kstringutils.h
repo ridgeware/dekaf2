@@ -313,113 +313,45 @@ bool kIsURL(KStringView str) noexcept;
 // exception free conversions
 
 //-----------------------------------------------------------------------------
-inline long double kToLongDouble(const char* s) noexcept
+template<class Integer>
+Integer kToInt(const char* data, size_t size) noexcept
 //-----------------------------------------------------------------------------
 {
-	if (!s || !*s) return 0;
-	else return std::strtold(s, nullptr);
-}
+	Integer iVal{0};
+	bool bNeg{false};
 
-//-----------------------------------------------------------------------------
-inline double kToDouble(const char* s) noexcept
-//-----------------------------------------------------------------------------
-{
-	if (!s || !*s) return 0;
-	else return std::atof(s);
-}
+	while (size && std::isspace(*data))
+	{
+		++data;
+		--size;
+	}
 
-//-----------------------------------------------------------------------------
-inline float kToFloat(const char* s) noexcept
-//-----------------------------------------------------------------------------
-{
-	return static_cast<float>(kToDouble(s));
-}
+	if (size && *data == '-')
+	{
+		bNeg = true;
+		++data;
+		--size;
+	}
 
-//-----------------------------------------------------------------------------
-inline short int kToShort(const char* s) noexcept
-//-----------------------------------------------------------------------------
-{
-	if (!s || !*s) return 0;
-	else return static_cast<short int>(std::atoi(s));
-}
+	for (; size > 0; --size)
+	{
+		auto ch = *data++;
 
-//-----------------------------------------------------------------------------
-inline unsigned short int kToUShort(const char* s) noexcept
-//-----------------------------------------------------------------------------
-{
-	if (!s || !*s) return 0;
-	else return static_cast<unsigned short int>(std::strtoul(s, nullptr, 10));
-}
+		if (ch > '9' || ch < '0')
+		{
+			break;
+		}
 
-//-----------------------------------------------------------------------------
-inline int kToInt(const char* s) noexcept
-//-----------------------------------------------------------------------------
-{
-	if (!s || !*s) return 0;
-	else return std::atoi(s);
-}
+		iVal *= 10;
+		iVal += ch - '0';
+	}
 
-//-----------------------------------------------------------------------------
-inline unsigned int kToUInt(const char* s) noexcept
-//-----------------------------------------------------------------------------
-{
-	if (!s || !*s) return 0;
-	else return static_cast<unsigned int>(std::strtoul(s, nullptr, 10));
-}
+	if (bNeg)
+	{
+		iVal *= -1;
+	}
 
-//-----------------------------------------------------------------------------
-inline long kToLong(const char* s) noexcept
-//-----------------------------------------------------------------------------
-{
-	if (!s || !*s) return 0;
-	else return std::strtol(s, nullptr, 10);
+	return iVal;
 }
-
-//-----------------------------------------------------------------------------
-inline unsigned long kToULong(const char* s) noexcept
-//-----------------------------------------------------------------------------
-{
-	if (!s || !*s) return 0;
-	else return std::strtoul(s, nullptr, 10);
-}
-
-//-----------------------------------------------------------------------------
-inline long long kToLongLong(const char* s) noexcept
-//-----------------------------------------------------------------------------
-{
-	if (!s || !*s) return 0;
-	else return std::strtoll(s, nullptr, 10);
-}
-
-//-----------------------------------------------------------------------------
-inline unsigned long long kToULongLong(const char* s) noexcept
-//-----------------------------------------------------------------------------
-{
-	if (!s || !*s) return 0;
-	else return std::strtoull(s, nullptr, 10);
-}
-
-template<class String, typename = std::enable_if_t<detail::is_narrow_cpp_str<String>::value> >
-inline float kToFloat(const String& s) noexcept { return kToFloat(s.data()); }
-template<class String, typename = std::enable_if_t<detail::is_narrow_cpp_str<String>::value> >
-inline double kToDouble(const String& s) noexcept { return kToDouble(s.data()); }
-template<class String, typename = std::enable_if_t<detail::is_narrow_cpp_str<String>::value> >
-inline long double kToLongDouble(const String& s) noexcept { return kToLongDouble(s.data); }
-template<class String, typename = std::enable_if_t<detail::is_narrow_cpp_str<String>::value> >
-inline int kToShort(const String& s) noexcept { return kToShort(s.data()); }
-template<class String, typename = std::enable_if_t<detail::is_narrow_cpp_str<String>::value> >
-inline int kToInt(const String& s) noexcept { return kToInt(s.data()); }
-template<class String, typename = std::enable_if_t<detail::is_narrow_cpp_str<String>::value> >
-inline long kToLong(const String& s) noexcept { return kToLong(s.data()); }
-template<class String, typename = std::enable_if_t<detail::is_narrow_cpp_str<String>::value> >
-inline long long kToLongLong(const String& s) noexcept { return kToLongLong(s.data()); }
-template<class String, typename = std::enable_if_t<detail::is_narrow_cpp_str<String>::value> >
-inline unsigned int kToUShort(const String& s) noexcept { return kToUShort(s.data()); }
-template<class String, typename = std::enable_if_t<detail::is_narrow_cpp_str<String>::value> >
-inline unsigned int kToUInt(const String& s) noexcept { return kToUInt(s.data()); }
-template<class String, typename = std::enable_if_t<detail::is_narrow_cpp_str<String>::value> >
-inline unsigned long kToULong(const String& s) noexcept { return kToULong(s.data()); }
-template<class String, typename = std::enable_if_t<detail::is_narrow_cpp_str<String>::value> >
-inline unsigned long long kToULongLong(const String& s) noexcept { return kToULongLong(s.data()); }
 
 } // end of namespace dekaf2

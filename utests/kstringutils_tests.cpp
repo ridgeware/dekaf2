@@ -494,63 +494,6 @@ TEST_CASE("KStringUtils") {
 		}
 	}
 
-	SECTION("conversion functions for strings")
-	{
-		KString s;
-		s = "1234567";
-		CHECK( kToInt(s)       == 1234567 );
-		CHECK( kToLong(s)      == 1234567 );
-		CHECK( kToLongLong(s)  == 1234567 );
-		CHECK( kToUInt(s)      == 1234567 );
-		CHECK( kToULong(s)     == 1234567 );
-		CHECK( kToULongLong(s) == 1234567 );
-		s = "-1234567";
-		CHECK( kToInt(s)       == -1234567 );
-		CHECK( kToLong(s)      == -1234567 );
-		CHECK( kToLongLong(s)  == -1234567 );
-		CHECK( kToUInt(s)      == -1234567U );
-		CHECK( kToULong(s)     == -1234567UL );
-		CHECK( kToULongLong(s) == -1234567ULL );
-		s = "123456789012345";
-		CHECK( kToLong(s)      == 123456789012345 );
-		CHECK( kToLongLong(s)  == 123456789012345 );
-		CHECK( kToULong(s)     == 123456789012345 );
-		CHECK( kToULongLong(s) == 123456789012345 );
-		s = "-123456789012345";
-		CHECK( kToLong(s)      == -123456789012345 );
-		CHECK( kToLongLong(s)  == -123456789012345 );
-		CHECK( kToULong(s)     == -123456789012345UL );
-		CHECK( kToULongLong(s) == -123456789012345ULL );
-	}
-
-	SECTION("conversion functions for char*")
-	{
-		const char* p = "1234567";
-		CHECK( kToInt(p)       == 1234567 );
-		CHECK( kToLong(p)      == 1234567 );
-		CHECK( kToLongLong(p)  == 1234567 );
-		CHECK( kToUInt(p)      == 1234567 );
-		CHECK( kToULong(p)     == 1234567 );
-		CHECK( kToULongLong(p) == 1234567 );
-		p = "-1234567";
-		CHECK( kToInt(p)       == -1234567 );
-		CHECK( kToLong(p)      == -1234567 );
-		CHECK( kToLongLong(p)  == -1234567 );
-		CHECK( kToUInt(p)      == -1234567U );
-		CHECK( kToULong(p)     == -1234567UL );
-		CHECK( kToULongLong(p) == -1234567ULL );
-		p = "123456789012345";
-		CHECK( kToLong(p)      == 123456789012345 );
-		CHECK( kToLongLong(p)  == 123456789012345 );
-		CHECK( kToULong(p)     == 123456789012345 );
-		CHECK( kToULongLong(p) == 123456789012345 );
-		p = "-123456789012345";
-		CHECK( kToLong(p)      == -123456789012345 );
-		CHECK( kToLongLong(p)  == -123456789012345 );
-		CHECK( kToULong(p)     == -123456789012345UL );
-		CHECK( kToULongLong(p) == -123456789012345ULL );
-	}
-
 	SECTION("IsDecimal on strings")
 	{
 		KString s;

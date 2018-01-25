@@ -253,7 +253,7 @@ bool kRemoveDir (const KString& sPath)
 
 #ifdef USE_STD_FILESYSTEM
 	std::error_code ec;
-	fs::permissions (sPath.c_str(), fs::all, ec); // chmod (ignore failures)
+	fs::permissions (sPath.c_str(), fs::perms::all, ec); // chmod (ignore failures)
 	ec.clear();
 	fs::remove_all (sPath.c_str(), ec);
 	if (ec) {

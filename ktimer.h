@@ -47,6 +47,7 @@
 #include <functional>
 #include <atomic>
 #include <unordered_map>
+#include <mutex>
 
 /// @file ktimer.h
 /// general timing facilities

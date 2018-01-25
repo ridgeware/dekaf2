@@ -122,7 +122,6 @@ KString kGetHostname (KString& sHostname)
 
 	enum {MAX = 50};
 	char szHostname[MAX+1];
-	bool bStatus = true;
 
 	#ifdef WIN32
 	*szHostname = 0;
@@ -143,7 +142,6 @@ KString kGetHostname (KString& sHostname)
 	if (gethostname (szHostname, sizeof (szHostname)) != 0) {
 		kDebugLog (1, "CMD ERROR: hostname");
 		sHostname = "hostname-error";
-		bStatus = false;
 	}
 	else {
 		sHostname = szHostname;

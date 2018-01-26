@@ -70,17 +70,15 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Constructor which takes and executes command immediately
-	KInShell(const KString& sCommand);
+	KInShell(const KString& sCommand)
 	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// Virtual Default KInShell Destructor
-	virtual ~KInShell();
-	//-----------------------------------------------------------------------------
+	{
+		Open(sCommand);
+	}
 
 	//-----------------------------------------------------------------------------
 	/// Executes given command via a shell pipe from which output can be read
-	virtual bool Open (const KString& sCommand);
+	bool Open(const KString& sCommand);
 	//-----------------------------------------------------------------------------
 
 }; // END KInShell

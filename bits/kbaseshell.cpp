@@ -50,34 +50,60 @@ namespace dekaf2
 KBaseShell::~KBaseShell()
 //-----------------------------------------------------------------------------
 {
-	if (m_pipe)
-	{
-		if (!pclose(m_pipe))
-		{
-			kWarning("could not close popen file: {}", strerror(errno));
-		}
-	}
+	Close();
 }
+
+//-----------------------------------------------------------------------------
+bool KBaseShell::IntOpen (const KString& sCommand, bool bWrite)
+//-----------------------------------------------------------------------------
+{
+	kDebug(3, "{}", sCommand);
+
+	Close(); // ensure a previous pipe is closed
+
+	if (sCommand.empty())
+	{
+		return false;
+	}
+
+	// - - - - - - - - - - - - - - - - - - - - - - - -
+	// shell out to run the command:
+	// - - - - - - - - - - - - - - - - - - - - - - - -
+	m_pipe = popen(sCommand.c_str(), bWrite ? "w" : "r");
+
+	if (!m_pipe)
+	{
+		kDebug (0, "POPEN CMD FAILED: {} ERROR: {}", sCommand, strerror(errno));
+		m_iExitCode = errno;
+		return false;
+	}
+
+	kDebug(3, "POPEN: ok...");
+	return true;
+
+} // IntOpen
 
 //-----------------------------------------------------------------------------
 int KBaseShell::Close()
 //-----------------------------------------------------------------------------
 {
-	kDebug(3, "");
-
 	if (m_pipe)
 	{
-		m_iExitCode = pclose (m_pipe);
+		int ret = pclose(m_pipe);
+
+		if (ret)
+		{
+			// we see spurious errors here, but errno cannot reliably
+			// be used for pclose (see man pages). So we assume it's
+			// just noise, and log at a reduced level
+			kDebug(1, "could probably not close popen file");
+		}
+
 		m_pipe = nullptr;
 	}
-	else
-	{
-		return -1; //attempting to close a pipe that is not open
-	}
 
-	kDebug(3, "Exit Code = {}", m_iExitCode);
+	return 0;
 
-	return (m_iExitCode);
 } // Close
 
 } // end of namespace dekaf2

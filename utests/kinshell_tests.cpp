@@ -36,8 +36,7 @@ TEST_CASE("KInShell")
 		pipe.SetReaderTrim("");
 
 		// open the pipe
-		CHECK(pipe.Open("cat some random data > /tmp/kinshelltest.file 2>&1"));
-		CHECK(pipe.Open("ls -al /tmp/kinshelltest.file | grep kinshelltest | wc -l 2>&1"));
+		CHECK(pipe.Open("echo some random data > /tmp/kinshelltest.file && ls -al /tmp/kinshelltest.file | grep kinshelltest | wc -l 2>&1"));
 
 		KString sCurrentLine;
 
@@ -92,7 +91,7 @@ TEST_CASE("KInShell")
 		CHECK(pipe.is_open());
 
 		CHECK(0 == pipe.Close());
-		CHECK(-1 == pipe.Close());
+		CHECK(0 == pipe.Close());
 
 		INFO("KInShell check_is_running::Done:");
 
@@ -128,7 +127,7 @@ TEST_CASE("KInShell")
 
 		KInShell pipe;
 
-		CHECK(pipe.Open("echo rdoanm txet > /tmp/KInShelltest.file && cat /tmp/KInShelltest.file > /dev/null"));
+		CHECK(pipe.Open("echo random txet > /tmp/KInShelltest.file && cat /tmp/KInShelltest.file > /dev/null"));
 
 		FILE* fileDesc(pipe);
 
@@ -171,9 +170,31 @@ TEST_CASE("KInShell")
 
 		CHECK_FALSE(pipe.Open(""));
 
-		CHECK(pipe.Close() == -1);
+		CHECK(pipe.Close() == 0);
 
 		INFO("KInShell normal_open_close_test::Done:");
+	} // normal open close
+
+	SECTION("KInShell ReadAll")
+	{
+		INFO("ReadAll::Start:");
+
+		KInShell pipe;
+		pipe.SetReaderTrim("");
+
+		// open the pipe
+		CHECK(pipe.Open("echo some random data > /tmp/kinshelltest.file && ls -al /tmp/kinshelltest.file | grep kinshelltest | wc -l 2>&1"));
+
+		KString sCurrentLine;
+
+		bool output = pipe.ReadAll(sCurrentLine);
+		CHECK(output);
+		sCurrentLine.TrimLeft();
+		CHECK("1\n" == sCurrentLine);
+		CHECK(pipe.is_open());
+		CHECK(0 == pipe.Close());
+
+		INFO("normal_open_close_test::Done:");
 	} // normal open close
 
 }

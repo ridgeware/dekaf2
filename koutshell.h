@@ -71,17 +71,15 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Constructor which takes and executes command immediately
-	KOutShell(const KString& sCommand);
+	KOutShell(const KString& sCommand)
 	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// Default KOutShell Destructor
-	virtual ~KOutShell();
-	//-----------------------------------------------------------------------------
+	{
+		Open(sCommand);
+	}
 
 	//-----------------------------------------------------------------------------
 	/// Executes given command via a shell pipe which input can be written to
-	virtual bool Open (const KString& sCommand);
+	bool Open(const KString& sCommand);
 	//-----------------------------------------------------------------------------
 
 }; // END KOutShell

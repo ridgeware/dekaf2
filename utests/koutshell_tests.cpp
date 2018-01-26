@@ -61,7 +61,7 @@ TEST_CASE("KOutShell")
 		// fail open the pipe with empty string
 		CHECK_FALSE(pipe.Open(""));
 
-		CHECK(pipe.Close() == -1);
+		CHECK(pipe.Close() == 0);
 
 		INFO("KOutShell fail to open test::Done:");
 	} // normal open close

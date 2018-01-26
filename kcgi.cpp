@@ -43,6 +43,7 @@
 #include "kcgi.h"
 #include "kstringutils.h"
 #include "kurlencode.h"
+#include "ksystem.h"
 
 namespace dekaf2 {
 
@@ -133,21 +134,20 @@ KCGI::~KCGI()
 KString KCGI::GetVar (KStringView sEnvironmentVariable, const char* sDefaultValue/*=""*/)
 //-----------------------------------------------------------------------------
 {
-    KString sEnvVar (sEnvironmentVariable); // TODO:KEEF: figure out how to cast a KStringView to a const char*, without doing this!
-    KString sReturnMe = NULL;
-
-	if (IsFCGI()) {
-        sReturnMe = FCGX_GetParam (sEnvVar.c_str(), m_FcgiRequest.envp);
+	if (IsFCGI())
+	{
+		KString sEnvVar (sEnvironmentVariable);
+		auto szRet = FCGX_GetParam (sEnvVar.c_str(), m_FcgiRequest.envp);
+		if (szRet == nullptr)
+		{
+			return sDefaultValue;
+		}
+		return szRet;
 	}
-	else {
-        sReturnMe = getenv (sEnvVar.c_str());
+	else
+	{
+		return kGetEnv(sEnvironmentVariable, sDefaultValue);
 	}
-
-    if (sReturnMe == NULL) {
-        sReturnMe = sDefaultValue;
-	}
-
-	return (sReturnMe);  // <-- creates KString on return
 
 } // KCGI::GetVar
 
@@ -157,13 +157,16 @@ void KCGI::BackupStreams ()
 {
 #ifdef ATTEMPT_FCGI
 	// save standard streams:
-	if (!m_pBackupCIN) {
+	if (!m_pBackupCIN)
+	{
         m_pBackupCIN   = std::cin.rdbuf();
 	}
-	if (!m_pBackupCOUT) {
+	if (!m_pBackupCOUT)
+	{
         m_pBackupCOUT  = std::cout.rdbuf();
 	}
-	if (!m_pBackupCERR) {
+	if (!m_pBackupCERR)
+	{
         m_pBackupCERR  = std::cerr.rdbuf();
 	}
 #endif
@@ -175,13 +178,16 @@ void KCGI::RestoreStreams ()
 //-----------------------------------------------------------------------------
 {
 #ifdef ATTEMPT_FCGI
-	if (m_pBackupCIN) {
+	if (m_pBackupCIN)
+	{
         std::cin.rdbuf(m_pBackupCIN);
 	}
-	if (m_pBackupCOUT) {
+	if (m_pBackupCOUT)
+	{
         std::cin.rdbuf(m_pBackupCOUT);
 	}
-	if (m_pBackupCERR) {
+	if (m_pBackupCERR)
+	{
         std::cin.rdbuf(m_pBackupCERR);
 	}
 #endif
@@ -196,37 +202,44 @@ bool KCGI::ReadHeaders ()
 
 	kDebug (1, "KCGI: reading headers and post data...");
 
+	KInStream Reader(std::cin);
 	int  iLineNo = 0;
 	bool bHeaders = true;
-	enum { MAXLINE = 10000 }; // maxlen of any particular header
-	char szLine[MAXLINE+1];
-	while (fgets (szLine, MAXLINE, stdin)) // CGI only
+	KString sLine;
+	while (Reader.ReadLine(sLine))
 	{
-		if (++iLineNo == 1) {
+		if (++iLineNo == 1)
+		{
 			// GET /ApiTranslate?foo=bar HTTP/1.0
-			KASCII::ktrimright(szLine);
-			kDebug (1, "KCGI: status line: {}", szLine);
-			char* b1 = strchr(szLine,' ');
-			if (!b1) {
-				kDebug (1, "KCGI: malformed status line: {}", szLine);
-				return (false);
-			}
-			*b1 = 0;
-			m_sRequestMethod = KASCII::ktrimleft(KASCII::ktrimright(szLine));
-			m_sRequestMethod.ToUpper();
-			char* uri = (char*) KASCII::ktrimleft(b1+1);
-			char* b2  = strchr(uri,' ');
-			if (!b2) {
-				kDebug (1, "KCGI: malformed status line: {}", szLine);
-				return (false);
-			}
-			*b2 = 0;
-			m_sRequestURI   = KASCII::ktrimleft(KASCII::ktrimright(uri));
-			m_sHttpProtocol = KASCII::ktrimleft(KASCII::ktrimright(b2+1));
+			sLine.TrimRight();
+			kDebug (1, "KCGI: status line: {}", sLine);
 
-			char* hook = strchr(uri,'?');
-			if (hook) {
-				m_sQueryString = hook+1;
+			auto pos = sLine.find(' ');
+			if (!pos || pos == KString::npos)
+			{
+				kDebug (1, "KCGI: malformed status line: {}", sLine);
+				return (false);
+			}
+
+			m_sRequestMethod = sLine.substr(0, pos).Trim().ToUpper();
+
+			KStringView sURI = sLine.ToView(pos+1);
+			pos = sURI.find(' ');
+			if (!pos || pos == KString::npos)
+			{
+				kDebug (1, "KCGI: malformed status line: {}", sLine);
+				return (false);
+			}
+
+			m_sRequestURI = sURI.substr(0, pos);
+			m_sRequestURI.Trim();
+			m_sHttpProtocol = sURI.substr(pos+1);
+			m_sHttpProtocol.Trim();
+
+			pos = m_sRequestURI.find('?');
+			if (pos && pos != KString::npos)
+			{
+				m_sQueryString = m_sRequestURI.substr(pos+1);
 			}
 
 			kDebug (1, "KCGI: method = {}", m_sRequestMethod);
@@ -236,23 +249,30 @@ bool KCGI::ReadHeaders ()
 		}
 		else if (bHeaders)
 		{
-			KASCII::ktrimright(szLine);
+			sLine.TrimRight();
 
 			// User-Agent: whatever
-			if (!*szLine) {
+			if (sLine.empty())
+			{
 				return (true); // newline at end of headers
 			}
 			else
 			{
-				char* szColon = strchr(szLine,':');
-				if (!szColon) {
-					kDebug (1, "KCGI: malformed header: no colon: {}", szLine);
+				auto pos = sLine.find(':');
+				if (!pos || pos == KString::npos)
+				{
+					kDebug (1, "KCGI: malformed header: no colon: {}", sLine);
 					return (false); // malformed headers
 				}
-				*szColon = 0;
-				const char* szRHS = KASCII::ktrimleft(KASCII::ktrimright(szColon + 1));
-				kDebug (1, "KCGI: header: {}={}", szLine, szRHS);
-				m_Headers.Add (szLine, szRHS);
+
+				KStringView sLHS = sLine.ToView(0, pos);
+				KStringView sRHS = sLine.ToView(pos + 1);
+				kTrim(sLHS);
+				kTrim(sRHS);
+
+				kDebug (1, "KCGI: header: {}={}", sLHS, sRHS);
+
+				m_Headers.Add (sLHS, sRHS);
 			}
 		}
 	}
@@ -267,11 +287,9 @@ bool KCGI::ReadPostData ()
 {
 	// TODO: not coded for chunking (ignores Content-Length and reads to end of stdin right now)
 
-	enum { MAXCHUNK = 10000 }; // maxlen of any particular header
-	char szChunk[MAXCHUNK+1];
-	while (fgets (szChunk, MAXCHUNK, stdin)) // CGI only
+	KInStream Reader(std::cin);
+	while (Reader.Read(m_sPostData, 10000))
 	{
-		m_sPostData += szChunk; // could be binary data: do not trim
 	}
 
 	return (true);
@@ -294,7 +312,8 @@ bool KCGI::GetNextRequest ()
 		m_sQueryString	 = GetVar (KCGI::QUERY_STRING);
 
 		// if environment vars not set, expect them in the input stream:
-		if (m_sRequestMethod.empty() && !ReadHeaders()) {
+		if (m_sRequestMethod.empty() && !ReadHeaders())
+		{
 			return (false);
 		}
 
@@ -313,12 +332,14 @@ bool KCGI::GetNextRequest ()
 		{
 			KString sValue (it->second);
 			kUrlDecode (sValue, /*bPlusAsSpace=*/true);
-			if (sValue != it->second) {
+			if (sValue != it->second)
+			{
 				it->second = sValue;
 			}
 		}
 
-		if (!ReadPostData()) {
+		if (!ReadPostData())
+		{
 			return (false);
 		}
 

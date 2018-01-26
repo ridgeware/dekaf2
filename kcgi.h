@@ -169,6 +169,12 @@ public:
 		m_QueryParms.clear();
 	}
 
+
+
+//----------
+protected:
+//----------
+
 //----------
 private:
 //----------
@@ -176,9 +182,9 @@ private:
 	FCGX_Request      m_FcgiRequest;
 	bool              m_bIsFCGI      = false;
 #ifdef ATTEMPT_FCGI
-    std::streambuf*   m_pBackupCIN   = NULL;
-    std::streambuf*   m_pBackupCOUT  = NULL;
-    std::streambuf*   m_pBackupCERR  = NULL;
+	std::streambuf*   m_pBackupCIN   = nullptr;
+	std::streambuf*   m_pBackupCOUT  = nullptr;
+	std::streambuf*   m_pBackupCERR  = nullptr;
 #endif
 
 }; // class KCGI

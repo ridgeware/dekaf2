@@ -184,13 +184,6 @@ bool kReadAll(std::istream& Stream, KString& sContent, bool bFromStart)
 		return true;
 	}
 
-	// position stream to the beginning
-	if (bFromStart && !kRewind(Stream))
-	{
-		kDebug(1, "kReadAll: cannot rewind stream");
-		return false;
-	}
-
 	if (iSize < 0)
 	{
 		// We could not determine the input size - this might be a
@@ -226,6 +219,13 @@ bool kReadAll(std::istream& Stream, KString& sContent, bool bFromStart)
 		Stream.setstate(std::ios_base::eofbit);
 
 		return sContent.size();
+	}
+
+	// position stream to the beginning
+	if (bFromStart && !kRewind(Stream))
+	{
+		kDebug(1, "kReadAll: cannot rewind stream");
+		return false;
 	}
 
 	size_t uiSize = static_cast<size_t>(iSize);

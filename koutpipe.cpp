@@ -74,15 +74,16 @@ bool KOutPipe::Open(KStringView sProgram)
 	kDebug(3, "Program to be opened: {}", sProgram);
 
 	Close(); // ensure a previous pipe is closed
-	errno = 0;
+
+	if (sProgram.empty())
+	{
+		return false;
+	}
 
 	// - - - - - - - - - - - - - - - - - - - - - - - -
 	// Use vfork()/execvp() to run the program:
 	// - - - - - - - - - - - - - - - - - - - - - - - -
-	if (!sProgram.empty())
-	{
-		OpenWritePipe(sProgram);
-	}
+	OpenWritePipe(sProgram);
 
 	// - - - - - - - - - - - - - - - - - - - - - - - -
 	// interpret success:

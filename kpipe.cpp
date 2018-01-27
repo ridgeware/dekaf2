@@ -74,28 +74,29 @@ bool KPipe::Open(KStringView sProgram)
 	kDebug(3, "Program to be opened: {}", sProgram);
 
 	Close(); // ensure a previous pipe is closed
-	errno = 0;
+
+	if (sProgram.empty())
+	{
+		return false;
+	}
 
 	// - - - - - - - - - - - - - - - - - - - - - - - -
 	// Use vfork()/execvp() to run the program:
 	// - - - - - - - - - - - - - - - - - - - - - - - -
-	if (!sProgram.empty())
-	{
-		OpenPipeRW(sProgram);
-	}
+	OpenPipeRW(sProgram);
 
 	// - - - - - - - - - - - - - - - - - - - - - - - -
 	// interpret success:
 	// - - - - - - - - - - - - - - - - - - - - - - - -
 	if (m_writePdes[0] == -1)
 	{
-		kWarning("OpenPipeRW FAILED to open program: {} | ERROR: {}", sProgram, strerror(errno));
+		kWarning("FAILED to open program: {} | ERROR: {}", sProgram, strerror(errno));
 		m_iExitCode = errno;
 		return false;
 	}
 	else
 	{
-		kDebug(3, "OpenPipeRW opened program successfully...");
+		kDebug(3, "opened program successfully...");
 		KFDStream::open(m_readPdes[0], m_writePdes[1]);
 		return KFDStream::good();
 	}
@@ -108,30 +109,34 @@ int KPipe::Close()
 {
 	int iExitCode = -1;
 
-	// Close reader/writer
-	KFDStream::close();
-	// Close read on of stdout pipe
-	::close(m_readPdes[0]);
-	// Send EOF by closing write end of pipe
-	::close(m_writePdes[1]);
-	// Child has been cut off from parent, let it terminate
-	WaitForFinished(60000);
+	if (m_bIsOpen)
+	{
+		// Close reader/writer
+		KFDStream::close();
+		// Close read on of stdout pipe
+		::close(m_readPdes[0]);
+		// Send EOF by closing write end of pipe
+		::close(m_writePdes[1]);
+		// Child has been cut off from parent, let it terminate
+		WaitForFinished(60000);
 
-	// Did the child terminate properly?
-	if (false == IsRunning())
-	{
-		iExitCode = m_iExitCode;
-	} // child not running
-	else 	// the child process has been giving us trouble. Kill it
-	{
-		kill(m_pid, SIGKILL);
+		// Did the child terminate properly?
+		if (false == IsRunning())
+		{
+			iExitCode = m_iExitCode;
+		} // child not running
+		else 	// the child process has been giving us trouble. Kill it
+		{
+			kill(m_pid, SIGKILL);
+		}
+
+		m_pid = -1;
+		m_writePdes[0] = -1;
+		m_writePdes[1] = -1;
+		m_readPdes[0] = -1;
+		m_readPdes[1] = -1;
+		m_bIsOpen = false;
 	}
-
-	m_pid = -1;
-	m_writePdes[0] = -1;
-	m_writePdes[1] = -1;
-	m_readPdes[0] = -1;
-	m_readPdes[1] = -1;
 
 	return (iExitCode);
 
@@ -200,6 +205,8 @@ bool KPipe::OpenPipeRW(KStringView sProgram)
 	/* only parent gets here; */
 	::close(m_readPdes[1]); // close write end of read pipe (for child use)
 	::close(m_writePdes[0]); // close read end of write pipe (for child use)
+
+	m_bIsOpen = true;
 
 	return true;
 } // OpenPipeRW

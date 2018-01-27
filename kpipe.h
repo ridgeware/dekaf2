@@ -102,6 +102,7 @@ private:
 
 	int m_readPdes[2]{-1,-1};
 	int m_writePdes[2]{-1,-1};
+	bool m_bIsOpen{false};
 
 }; // class KPipe
 

@@ -17,6 +17,10 @@ KBasePipe::~KBasePipe()
 bool KBasePipe::IsRunning()
 //-----------------------------------------------------------------------------
 {
+	if (m_pid <= 0)
+	{
+		return false;
+	}
 
 	bool bResponse = false;
 

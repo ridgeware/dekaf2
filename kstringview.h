@@ -862,7 +862,7 @@ inline bool operator==(KStringView left, KStringView right)
 
 //-----------------------------------------------------------------------------
 constexpr
-inline bool operator==(KStringView::value_type* left, const KStringView right)
+inline bool operator==(const KStringView::value_type* left, KStringView right)
 //-----------------------------------------------------------------------------
 {
 	return KStringView(left) == right;

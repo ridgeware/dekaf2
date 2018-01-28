@@ -1136,6 +1136,54 @@ KString kToLower(KStringView sInput)
 	return sTransformed;
 }
 
+//-----------------------------------------------------------------------------
+KString KString::to_string(int64_t i)
+//-----------------------------------------------------------------------------
+{
+#ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
+	KString sResult;
+	bool bIsNeg{false};
+	if (i < 0)
+	{
+		bIsNeg = true;
+		i *= -1;
+	}
+	while (i)
+	{
+		sResult += static_cast<value_type>(i % 10) + '0';
+		i /= 10;
+	}
+	if (bIsNeg)
+	{
+		sResult += '-';
+	}
+	// revert the string
+	std::reverse(sResult.begin(), sResult.end());
+	return sResult;
+#else
+	return std::to_string(i);
+#endif
+}
+
+//-----------------------------------------------------------------------------
+KString KString::to_string(uint64_t i)
+//-----------------------------------------------------------------------------
+{
+#ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
+	KString sResult;
+	while (i)
+	{
+		sResult += static_cast<value_type>(i % 10) + '0';
+		i /= 10;
+	}
+	// revert the string
+	std::reverse(sResult.begin(), sResult.end());
+	return sResult;
+#else
+	return std::to_string(i);
+#endif
+}
+
 } // end of namespace dekaf2
 
 

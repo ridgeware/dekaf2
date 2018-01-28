@@ -317,8 +317,7 @@ bool KCGI::GetNextRequest ()
 			return (false);
 		}
 
-		m_sRequestPath   = m_sRequestURI;
-		m_sRequestPath.ClipAt("?");
+		m_sRequestPath = m_sRequestURI.substr(0, m_sRequestURI.find('?'));
 
 		kSplitPairs (
 			/*Container= */ m_QueryParms,
@@ -328,13 +327,13 @@ bool KCGI::GetNextRequest ()
 		);
 
 		// handle URL encoded values in query parms:
-		for (auto it = m_QueryParms.cbegin(); it != m_QueryParms.cend(); ++it)
+		for (const auto& it : m_QueryParms)
 		{
-			KString sValue (it->second);
+			KString sValue (it.second);
 			kUrlDecode (sValue, /*bPlusAsSpace=*/true);
-			if (sValue != it->second)
+			if (sValue != it.second)
 			{
-				it->second = sValue;
+				it.second = sValue;
 			}
 		}
 

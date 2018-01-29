@@ -57,6 +57,120 @@ namespace dekaf2
 {
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// ABC for the LogWriter object
+class KLogWriter
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+//----------
+public:
+//----------
+	KLogWriter() {}
+	virtual ~KLogWriter();
+	virtual bool Write(int iLevel, bool bIsMultiline, const KString& sOut) = 0;
+	virtual bool Good() const = 0;
+
+}; // KLogWriter
+
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// Logwriter that instantiates around any std::ostream
+class KLogStdWriter : public KLogWriter
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+//----------
+public:
+//----------
+	KLogStdWriter(std::ostream& iostream)
+	    : m_OutStream(iostream)
+	{}
+	virtual ~KLogStdWriter() {}
+	virtual bool Write(int iLevel, bool bIsMultiline, const KString& sOut) override;
+	virtual bool Good() const override { return m_OutStream.good(); }
+
+//----------
+private:
+//----------
+	std::ostream& m_OutStream;
+
+}; // KLogStdWriter
+
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// Logwriter that opens a file
+class KLogFileWriter : public KLogWriter
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+//----------
+public:
+//----------
+	KLogFileWriter(KStringView sFileName)
+	    : m_OutFile(sFileName, std::ios_base::app)
+	{}
+	virtual ~KLogFileWriter() {}
+	virtual bool Write(int iLevel, bool bIsMultiline, const KString& sOut) override;
+	virtual bool Good() const override { return m_OutFile.good(); }
+
+//----------
+private:
+//----------
+	KOutFile m_OutFile;
+
+}; // KLogFileWriter
+
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// Logwriter for the syslog
+class KLogSyslogWriter : public KLogWriter
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+//----------
+public:
+//----------
+	KLogSyslogWriter() {}
+	virtual ~KLogSyslogWriter() {}
+	virtual bool Write(int iLevel, bool bIsMultiline, const KString& sOut) override;
+	virtual bool Good() const override { return true; }
+
+}; // KLogSyslogWriter
+
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// Logwriter that writes to any TCP endpoint
+class KLogTCPWriter : public KLogWriter
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+//----------
+public:
+//----------
+	KLogTCPWriter(KStringView sURL);
+	virtual ~KLogTCPWriter() {}
+	virtual bool Write(int iLevel, bool bIsMultiline, const KString& sOut) override;
+	virtual bool Good() const override { return m_OutStream != nullptr && m_OutStream->good(); }
+
+//----------
+protected:
+//----------
+	std::unique_ptr<KTCPStream> m_OutStream;
+
+}; // KLogTCPWriter
+
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// Logwriter that writes to any TCP endpoint using the HTTP(s) protocol
+class KLogHTTPWriter : public KLogTCPWriter
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+//----------
+public:
+//----------
+	KLogHTTPWriter(KStringView sURL) : KLogTCPWriter(sURL) {}
+	virtual ~KLogHTTPWriter() {}
+	virtual bool Write(int iLevel, bool bIsMultiline, const KString& sOut) override;
+
+}; // KLogHTTPWriter
+
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Base class for KLog serialization. Takes the data to be written someplace.
 class KLogData
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -110,7 +224,8 @@ public:
 //----------
 	KLogSerializer() {}
 	virtual ~KLogSerializer() {}
-	virtual operator const KString&() const;
+	const KString& Get() const;
+	virtual operator KStringView() const;
 	void Set(int level, KStringView sShortName, KStringView sPathName, KStringView sFunction, KStringView sMessage);
 	bool IsMultiline() const { return m_bIsMultiline; }
 
@@ -139,7 +254,7 @@ public:
 //----------
 protected:
 //----------
-	void HandleMultiLineMessages() const;
+	void AddMultiLineMessage(KStringView sPrefix, KStringView sMessage) const;
 	virtual void Serialize() const;
 
 }; // KLogTTYSerializer
@@ -182,120 +297,6 @@ protected:
 
 }; // KLogJSONSerializer
 
-
-
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// ABC for the LogWriter object
-class KLogWriter
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-{
-//----------
-public:
-//----------
-	KLogWriter() {}
-	virtual ~KLogWriter();
-	virtual bool Write(const KLogSerializer& Serializer) = 0;
-	virtual bool Good() const = 0;
-
-}; // KLogWriter
-
-
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// Logwriter that instantiates around any std::ostream
-class KLogStdWriter : public KLogWriter
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-{
-//----------
-public:
-//----------
-	KLogStdWriter(std::ostream& iostream)
-	    : m_OutStream(iostream)
-	{}
-	virtual ~KLogStdWriter() {}
-	virtual bool Write(const KLogSerializer& Serializer);
-	virtual bool Good() const { return m_OutStream.good(); }
-
-//----------
-private:
-//----------
-	std::ostream& m_OutStream;
-
-}; // KLogStdWriter
-
-
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// Logwriter that opens a file
-class KLogFileWriter : public KLogWriter
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-{
-//----------
-public:
-//----------
-	KLogFileWriter(KStringView sFileName)
-	    : m_OutFile(sFileName, std::ios_base::app)
-	{}
-	virtual ~KLogFileWriter() {}
-	virtual bool Write(const KLogSerializer& Serializer);
-	virtual bool Good() const { return m_OutFile.good(); }
-
-//----------
-private:
-//----------
-	KOutFile m_OutFile;
-
-}; // KLogFileWriter
-
-
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// Logwriter for the syslog
-class KLogSyslogWriter : public KLogWriter
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-{
-//----------
-public:
-//----------
-	KLogSyslogWriter() {}
-	virtual ~KLogSyslogWriter() {}
-	virtual bool Write(const KLogSerializer& Serializer);
-	virtual bool Good() const { return true; }
-
-}; // KLogSyslogWriter
-
-
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// Logwriter that writes to any TCP endpoint
-class KLogTCPWriter : public KLogWriter
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-{
-//----------
-public:
-//----------
-	KLogTCPWriter(KStringView sURL);
-	virtual ~KLogTCPWriter() {}
-	virtual bool Write(const KLogSerializer& Serializer);
-	virtual bool Good() const { return m_OutStream != nullptr && m_OutStream->good(); }
-
-//----------
-protected:
-//----------
-	std::unique_ptr<KTCPStream> m_OutStream;
-
-}; // KLogTCPWriter
-
-
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// Logwriter that writes to any TCP endpoint using the HTTP(s) protocol
-class KLogHTTPWriter : public KLogTCPWriter
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-{
-//----------
-public:
-//----------
-	KLogHTTPWriter(KStringView sURL) : KLogTCPWriter(sURL) {}
-	virtual ~KLogHTTPWriter() {}
-	virtual bool Write(const KLogSerializer& Serializer);
-
-}; // KLogHTTPWriter
 
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -505,7 +506,11 @@ private:
 	bool IntOpenLog();
 	//---------------------------------------------------------------------------
 
+#ifdef NDEBUG
+	int m_iBackTrace{-2};
+#else
 	int m_iBackTrace{-1};
+#endif
 	KString m_sPathName;
  	KString m_sShortName;
 	KString m_sLogName;

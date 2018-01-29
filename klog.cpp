@@ -68,6 +68,114 @@ TODO: KLOG OVERHAUL NEEDED
 namespace dekaf2
 {
 
+//---------------------------------------------------------------------------
+KLogWriter::~KLogWriter()
+//---------------------------------------------------------------------------
+{
+}
+
+//---------------------------------------------------------------------------
+bool KLogStdWriter::Write(int iLevel, bool bIsMultiline, const KString& sOut)
+//---------------------------------------------------------------------------
+{
+	return m_OutStream.write(sOut.data(), static_cast<std::streamsize>(sOut.size())).flush().good();
+
+} // Write
+
+//---------------------------------------------------------------------------
+bool KLogFileWriter::Write(int iLevel, bool bIsMultiline, const KString& sOut)
+//---------------------------------------------------------------------------
+{
+	return m_OutFile.Write(sOut).Flush().Good();
+
+} // Write
+
+//---------------------------------------------------------------------------
+bool KLogSyslogWriter::Write(int iLevel, bool bIsMultiline, const KString& sOut)
+//---------------------------------------------------------------------------
+{
+	int priority;
+	switch (iLevel)
+	{
+		case -1:
+			priority = LOG_ERR;
+			break;
+		case 0:
+			priority = LOG_WARNING;
+			break;
+		case 1:
+			priority = LOG_NOTICE;
+			break;
+		case 2:
+			priority = LOG_INFO;
+			break;
+		default:
+			priority = LOG_DEBUG;
+			break;
+	}
+
+	if (!bIsMultiline)
+	{
+		syslog(priority, "%s", sOut.c_str());
+	}
+	else
+	{
+		KStringView svMessage = sOut;
+		KString sPart;
+
+		while (!svMessage.empty())
+		{
+			auto pos = svMessage.find('\n');
+			sPart = svMessage.substr(0, pos);
+			if (!sPart.empty())
+			{
+				syslog(priority, "%s", sPart.c_str());
+			}
+			svMessage.remove_prefix(pos);
+			if (pos != KStringView::npos)
+			{
+				svMessage.remove_prefix(1);
+			}
+		}
+	}
+
+	return true;
+
+} // Write
+
+//---------------------------------------------------------------------------
+KLogTCPWriter::KLogTCPWriter(KStringView sURL)
+//---------------------------------------------------------------------------
+{
+	KURL url(sURL);
+	KStringView sv = url.Domain.Serialize();
+	std::string sd(sv.data(), sv.size());
+	sv = url.Port.Serialize();
+	std::string sp(sv.data(), sv.size());
+	m_OutStream = std::make_unique<KTCPStream>(sd, sp);
+
+} // ctor
+
+//---------------------------------------------------------------------------
+bool KLogTCPWriter::Write(int iLevel, bool bIsMultiline, const KString& sOut)
+//---------------------------------------------------------------------------
+{
+	return m_OutStream != nullptr
+	    && m_OutStream->Write(sOut).Flush().Good();
+
+} // Write
+
+//---------------------------------------------------------------------------
+bool KLogHTTPWriter::Write(int iLevel, bool bIsMultiline, const KString& sOut)
+//---------------------------------------------------------------------------
+{
+	// TODO add HTTP protocol handler
+	return m_OutStream != nullptr
+	    && m_OutStream->Write(sOut).Flush().Good();
+
+} // Write
+
+
 
 //---------------------------------------------------------------------------
 void KLogData::Set(int level, KStringView sShortName, KStringView sPathName, KStringView sFunction, KStringView sMessage)
@@ -111,7 +219,7 @@ KStringView KLogData::SanitizeFunctionName(KStringView sFunction)
 } // SanitizeFunctionName
 
 //---------------------------------------------------------------------------
-KLogSerializer::operator const KString&() const
+const KString& KLogSerializer::Get() const
 //---------------------------------------------------------------------------
 {
 	if (m_sBuffer.empty())
@@ -120,7 +228,15 @@ KLogSerializer::operator const KString&() const
 	}
 	return m_sBuffer;
 
-} // operator KString
+} // Get
+
+//---------------------------------------------------------------------------
+KLogSerializer::operator KStringView() const
+//---------------------------------------------------------------------------
+{
+	return Get();
+
+} // operator KStringView
 
 //---------------------------------------------------------------------------
 void KLogSerializer::Set(int level, KStringView sShortName, KStringView sPathName, KStringView sFunction, KStringView sMessage)
@@ -133,48 +249,41 @@ void KLogSerializer::Set(int level, KStringView sShortName, KStringView sPathNam
 } // Set
 
 //---------------------------------------------------------------------------
-void KLogTTYSerializer::HandleMultiLineMessages() const
+void KLogTTYSerializer::AddMultiLineMessage(KStringView sPrefix, KStringView sMessage) const
 //---------------------------------------------------------------------------
 {
-	// keep the prefix range in a string view if we have to repeat it
-	// for multi line messages
-	KStringView sPrefix = m_sBuffer;
-	KStringView sMessage = m_sMessage;
-
-	auto pos = sMessage.find('\n');
-	while (pos != KStringView::npos)
+	if (sMessage.empty())
 	{
+		return;
+	}
+
+	int iFragments{0};
+
+	if (!m_sBuffer.empty())
+	{
+		++iFragments;
+	}
+
+	while (!sMessage.empty())
+	{
+		auto pos = sMessage.find('\n');
 		KStringView sLine = sMessage.substr(0, pos);
 		kTrimRight(sLine);
 		if (!sLine.empty())
 		{
-			// repeat the prefix for subsequent lines
-			if (sPrefix.size() < m_sBuffer.size())
-			{
-				m_bIsMultiline = true;
-				m_sBuffer += '\n';
-				m_sBuffer += sPrefix;
-			}
-			// and append the new line
+			++iFragments;
+			m_sBuffer += sPrefix;
 			m_sBuffer += sLine;
+			m_sBuffer += '\n';
 		}
-		sMessage.remove_prefix(pos + 1);
-		pos = sMessage.find('\n');
+		sMessage.remove_prefix(pos);
+		if (pos != KStringView::npos)
+		{
+			sMessage.remove_prefix(1);
+		}
 	}
 
-	if (!sMessage.empty())
-	{
-		// repeat the prefix for subsequent lines
-		if (sPrefix.size() < m_sBuffer.size())
-		{
-			m_bIsMultiline = true;
-			m_sBuffer += '\n';
-			m_sBuffer += sPrefix;
-		}
-		// and append the last line
-		m_sBuffer += sMessage;
-	}
-	m_sBuffer += '\n';
+	m_bIsMultiline = iFragments > 1;
 
 } // HandleMultiLineMessages
 
@@ -196,15 +305,23 @@ void KLogTTYSerializer::Serialize() const
 		sLevel.Format("DB{}", m_Level > 3 ? 3 : m_Level);
 	}
 
-	m_sBuffer.Printf("| %3.3s | %5.5s | %5u | %s | ", sLevel, m_sShortName, getpid(), kFormTimestamp());
+	KString sPrefix;
+
+	sPrefix.Printf("| %3.3s | %5.5s | %5u | %s | ", sLevel, m_sShortName, getpid(), kFormTimestamp());
 
 	if (!m_sFunctionName.empty())
 	{
-		m_sBuffer += m_sFunctionName;
-		m_sBuffer += ": ";
+		sPrefix += m_sFunctionName;
+		sPrefix += ": ";
 	}
 
-	HandleMultiLineMessages();
+	AddMultiLineMessage(sPrefix, m_sMessage);
+
+	if (!m_sBacktrace.empty())
+	{
+		sPrefix = ">> ";
+		AddMultiLineMessage(sPrefix, m_sBacktrace);
+	}
 
 } // Serialize
 
@@ -233,129 +350,21 @@ void KLogJSONSerializer::Serialize() const
 void KLogSyslogSerializer::Serialize() const
 //---------------------------------------------------------------------------
 {
-	m_sBuffer = m_sFunctionName;
-	if (!m_sBuffer.empty())
+	KString sPrefix(m_sFunctionName);
+	if (!sPrefix.empty())
 	{
-		m_sBuffer += ": ";
+		sPrefix += ": ";
 	}
 
-	HandleMultiLineMessages();
+	AddMultiLineMessage(sPrefix, m_sMessage);
+
+	if (!m_sBacktrace.empty())
+	{
+		sPrefix = ">> ";
+		AddMultiLineMessage(sPrefix, m_sBacktrace);
+	}
 
 } // Serialize
-
-//---------------------------------------------------------------------------
-KLogWriter::~KLogWriter()
-//---------------------------------------------------------------------------
-{
-}
-
-//---------------------------------------------------------------------------
-bool KLogStdWriter::Write(const KLogSerializer& Serializer)
-//---------------------------------------------------------------------------
-{
-	const KString& sMessage = Serializer;
-	return m_OutStream.write(sMessage.data(), static_cast<std::streamsize>(sMessage.size())).flush().good();
-
-} // Write
-
-//---------------------------------------------------------------------------
-bool KLogFileWriter::Write(const KLogSerializer& Serializer)
-//---------------------------------------------------------------------------
-{
-	const KString& sMessage = Serializer;
-	return m_OutFile.write(sMessage.data(), static_cast<std::streamsize>(sMessage.size())).flush().good();
-
-} // Write
-
-//---------------------------------------------------------------------------
-bool KLogSyslogWriter::Write(const KLogSerializer& Serializer)
-//---------------------------------------------------------------------------
-{
-	int priority;
-	switch (Serializer.GetLevel())
-	{
-		case -1:
-			priority = LOG_ERR;
-			break;
-		case 0:
-			priority = LOG_WARNING;
-			break;
-		case 1:
-			priority = LOG_NOTICE;
-			break;
-		case 2:
-			priority = LOG_INFO;
-			break;
-		default:
-			priority = LOG_DEBUG;
-			break;
-	}
-
-	const KString& sMessage = Serializer;
-
-	if (!Serializer.IsMultiline())
-	{
-		syslog(priority, "%s", sMessage.c_str());
-	}
-	else
-	{
-		KStringView svMessage = sMessage;
-		KString sPart;
-
-		// the static_cast<void> is necessary to silence a warning for the use
-		// of the sequence operator here
-		for (KString::size_type pos;
-		     static_cast<void>(pos = sMessage.find('\n')), pos != KString::npos;)
-		{
-			sPart = svMessage.substr(0, pos);
-			syslog(priority, "%s", sPart.c_str());
-			svMessage.remove_prefix(pos + 1);
-		}
-
-		if (!svMessage.empty())
-		{
-			sPart = svMessage;
-			syslog(priority, "%s", sPart.c_str());
-		}
-	}
-
-	return true;
-
-} // Write
-
-//---------------------------------------------------------------------------
-KLogTCPWriter::KLogTCPWriter(KStringView sURL)
-//---------------------------------------------------------------------------
-{
-	KURL url(sURL);
-	KStringView sv = url.Domain.Serialize();
-	std::string sd(sv.data(), sv.size());
-	sv = url.Port.Serialize();
-	std::string sp(sv.data(), sv.size());
-	m_OutStream = std::make_unique<KTCPStream>(sd, sp);
-
-} // ctor
-
-//---------------------------------------------------------------------------
-bool KLogTCPWriter::Write(const KLogSerializer& Serializer)
-//---------------------------------------------------------------------------
-{
-	const KString& sMessage = Serializer;
-	return m_OutStream != nullptr
-	    && m_OutStream->write(sMessage.data(), static_cast<std::streamsize>(sMessage.size())).flush().good();
-
-} // Write
-
-//---------------------------------------------------------------------------
-bool KLogHTTPWriter::Write(const KLogSerializer& Serializer)
-//---------------------------------------------------------------------------
-{
-	// TODO add HTTP protocol handler
-	const KString& sMessage = Serializer;
-	return m_OutStream != nullptr
-	    && m_OutStream->write(sMessage.data(), static_cast<std::streamsize>(sMessage.size())).flush().good();
-
-} // Write
 
 
 
@@ -604,6 +613,12 @@ bool KLog::SetDebugFlag(KStringView sFlagfile)
 void KLog::CheckDebugFlag()
 //---------------------------------------------------------------------------
 {
+#ifdef NDEBUG
+	m_iBackTrace = std::atoi(kGetEnv("KLogBacktrace", "-2"));
+#else
+	m_iBackTrace = std::atoi(kGetEnv("KLogBacktrace", "-1"));
+#endif
+
 	// file format of the debug "flag" file:
 	// "level, target" where level is numeric (-1 .. 3) and target can be
 	// anything like a pathname or a domain:host or syslog, stderr, stdout
@@ -680,14 +695,12 @@ bool KLog::IntDebug(int level, KStringView sFunction, KStringView sMessage)
 	{
 		KString sStack = kGetBacktrace();
 		m_Serializer->SetBacktrace(sStack);
-		m_Logger->Write(*m_Serializer);
+		return m_Logger->Write(level, m_Serializer->IsMultiline(), m_Serializer->Get());
 	}
 	else
 	{
-		m_Logger->Write(*m_Serializer);
+		return m_Logger->Write(level, m_Serializer->IsMultiline(), m_Serializer->Get());
 	}
-
-	return m_Logger->Good();
 
 } // IntDebug
 

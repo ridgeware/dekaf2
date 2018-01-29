@@ -60,60 +60,6 @@
 namespace dekaf2
 {
 
-namespace kgetruntimestack_detail
-{
-
-//-----------------------------------------------------------------------------
-KString DemangleCPlusPlusName_ (const KString& sName)
-//-----------------------------------------------------------------------------
-{
-	KString sResult;
-#ifdef UNIX
-	int status = 0;
-	char* realName = abi::__cxa_demangle (sName.c_str (), 0, 0, &status);
-	if (status == 0)
-	{
-		sResult = realName;
-	}
-	else
-	{
-		// if demangling fails just return the original string
-		sResult = sName;
-	}
-	if (realName != nullptr)
-	{
-		free (realName);
-	}
-#else
-	sResult = sName;
-#endif
-	return sResult;
-}
-
-//-----------------------------------------------------------------------------
-KString DemangleBacktraceDumpLine_ (const KString& sName)
-//-----------------------------------------------------------------------------
-{
-	// It appears empirically that the C++ symbol name appears between the ( and + characters, so find that, substitute, and return the rest
-	size_t i = sName.find ('(');
-	if (i == KString::npos)
-	{
-		return sName;
-	}
-	size_t e = sName.find ('+', i);
-	if (e == KString::npos)
-	{
-		return sName;
-	}
-	KString sRet = sName.substr(0, i+1);
-	sRet += DemangleCPlusPlusName_ (sName.substr(i + 1, e - i - 1));
-	sRet += sName.substr (e);
-	return sRet;
-}
-
-} // namespace kgetruntimestack_detail
-
-
 #define NUM_ELEMENTS(X) (sizeof(X)/sizeof((X)[0]))
 
 namespace kgetruntimestack_detail
@@ -121,8 +67,9 @@ namespace kgetruntimestack_detail
 
 //-----------------------------------------------------------------------------
 // This function will try and invoke the external addr2line code to map a vector
-//of hex process address to a vector of source file/line number. It will return an empty
-// vector upon failure
+// of hex process addresses to a vector of source file/line numbers. On Mac OS X
+// it will use atos instead of addr2line. It will return an empty vector upon
+// failure.
 std::vector<KString> Addr2LineMsg_ (const std::vector<KString>& vsAddress)
 //-----------------------------------------------------------------------------
 {
@@ -146,6 +93,17 @@ std::vector<KString> Addr2LineMsg_ (const std::vector<KString>& vsAddress)
 				while (pipe.ReadLine (sLineBuf))
 				{
 					sLineBuf.TrimRight();
+					// remove part of string "(in PROGRAM)"
+					auto pos = sLineBuf.find(") (in ");
+					if (pos != KString::npos)
+					{
+						auto iend = sLineBuf.find(')', pos + 4);
+						if (iend != KString::npos)
+						{
+							sLineBuf.erase(pos, iend - pos);
+						}
+					}
+					// and report
 					vsResult.emplace_back(std::move(sLineBuf));
 				}
 			}
@@ -381,17 +339,15 @@ KString kGetRuntimeStack ()
 	KString sStack;
 
 #if SUPPORT_GDBATTACH_PRINTCALLSTACK
-	// Joe only wants one of these, but do old-style if gdb-style fails
 	sStack = kgetruntimestack_detail::GetGDBAttachBased_Callstack_();
-
 #endif
-#if SUPPORT_BACKTRACE_PRINTCALLSTACK
 
+#if SUPPORT_BACKTRACE_PRINTCALLSTACK
+	// fall back to libc based backtrace if GDB is not available
 	if (sStack.empty())
 	{
 		sStack = kgetruntimestack_detail::GetBacktraceBased_Callstack_(0);
 	}
-
 #endif
 
 	return sStack;

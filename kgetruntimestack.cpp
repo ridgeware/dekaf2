@@ -94,18 +94,22 @@ std::vector<KString> Addr2LineMsg_ (const std::vector<KString>& vsAddress)
 				{
 					sLineBuf.TrimRight();
 					// remove part of string "(in PROGRAM)"
-					auto pos = sLineBuf.find(") (in ");
+					auto pos = sLineBuf.find(" (in ");
 					if (pos != KString::npos)
 					{
 						auto iend = sLineBuf.find(')', pos + 4);
 						if (iend != KString::npos)
 						{
-							sLineBuf.erase(pos, iend - pos);
+							sLineBuf.erase(pos, (iend - pos) + 1);
 						}
 					}
 					// and report
 					vsResult.emplace_back(std::move(sLineBuf));
 				}
+
+				// add an empty line at the end of the stack trace
+				vsResult.push_back("");
+
 			}
 		}
 
@@ -150,6 +154,10 @@ std::vector<KString> Addr2LineMsg_ (const std::vector<KString>& vsAddress)
 
 						vsResult.emplace_back(std::move(sResult));
 					}
+
+					// add an empty line at the end of the stack trace
+					vsResult.push_back("");
+
 				}
 			}
 		}
@@ -159,6 +167,7 @@ std::vector<KString> Addr2LineMsg_ (const std::vector<KString>& vsAddress)
 		}
 #endif
 	}
+
 	return vsResult;
 }
 

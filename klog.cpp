@@ -693,7 +693,7 @@ bool KLog::IntDebug(int level, KStringView sFunction, KStringView sMessage)
 
 	if (level <= m_iBackTrace)
 	{
-		KString sStack = kGetBacktrace();
+		KString sStack = kGetBacktrace(4);
 		m_Serializer->SetBacktrace(sStack);
 		return m_Logger->Write(level, m_Serializer->IsMultiline(), m_Serializer->Get());
 	}

@@ -1,0 +1,374 @@
+//////////////////////////////////////////////////////////////////////////////
+//
+// KSQL: "Kommon" (Keef's) SQL Interface
+//
+// Copyright (c) 2001, Ridgeware, Inc.
+//
+// +----------------------------------------------------+
+// | THIS FILE IS CONSIDERED PRIVATE SOURCE CODE AND IS |
+// | NOT FOR DISTRIBUTION WITH THE PUBLIC FILES         |
+// +----------------------------------------------------+
+//
+///////////////////////////////////////////////////////////////////////////////
+
+#include "ksql.h"
+
+using namespace dekaf2;
+
+//-----------------------------------------------------------------------------
+void KROW::EscapeChars (KStringView sString, KString& sEscaped,  int iDBType)
+//-----------------------------------------------------------------------------
+{
+	const char* szCharsToEscape = "";
+
+	switch (iDBType)
+	{
+	case KSQL::DBT_SQLSERVER:
+	case KSQL::DBT_SYBASE:
+		szCharsToEscape = ESCAPE_MSSQL;
+		break;
+	case KSQL::DBT_MYSQL:
+	default:
+		szCharsToEscape = ESCAPE_MYSQL;
+		break;
+	}
+
+	EscapeChars (sString, sEscaped, szCharsToEscape);
+
+} // EscapeChars - v1
+
+//-----------------------------------------------------------------------------
+void KROW::EscapeChars (KStringView sString, KString& sEscaped, const char* szCharsToEscape, int iEscapeChar/*=0*/)
+//-----------------------------------------------------------------------------
+{
+	// Note: if iEscapeChar is ZERO, then the char is used as it's own escape char (i.e. it gets doubled up).
+	size_t iLen = sString.length();
+	KString sEscapeChar;
+	sEscapeChar.Printf("%i", iEscapeChar);
+
+	std::ostringstream ssBuffer;
+
+	for (size_t ii=0; ii < iLen; ++ii)
+	{
+		if (strchr (szCharsToEscape, sString[ii]))
+		{
+			if (iEscapeChar)
+				ssBuffer << sEscapeChar;
+			else
+				ssBuffer << sString[ii];
+		}
+		ssBuffer << sString[ii];
+	}
+	sEscaped = ssBuffer.str();
+
+} // EscapeChars
+
+//-----------------------------------------------------------------------------
+void KROW::SmartClip (KStringView sColName, KString& sValue, size_t iMaxLen)
+//-----------------------------------------------------------------------------
+{
+	if (iMaxLen)
+	{
+		size_t iLen = sValue.length();
+		if (iLen > iMaxLen)
+		{
+			kDebugLog (1, "KSQL: clipping {}='{:.10}...' to {} chars", sColName, sValue, iMaxLen);
+
+			char cClipped = sValue[iMaxLen];
+			// watch out for a trailing escape:
+			if ((cClipped == '\'') || (cClipped == '\"')) {
+				sValue.resize(iMaxLen-1);
+			}
+			else {
+				sValue.resize(iMaxLen);
+			}
+		}
+	}
+} // SmartClip
+
+//-----------------------------------------------------------------------------
+bool KROW::FormInsert (KString& sSQL, int iDBType, bool fUnicode/*=false*/, bool fIdentityInsert/*=false*/)
+//-----------------------------------------------------------------------------
+{
+	m_sLastError = ""; // reset
+
+	kDebugLog (2, "KROW:FormInsert: before: {}", sSQL);
+	
+	if (!size()) {
+		m_sLastError.Format("KROW::FormInsert(): no columns defined.");
+		kDebugLog (1, "{}", m_sLastError);
+		return (false);
+	}
+
+	if (m_sTablename.empty()) {
+		m_sLastError.Format("KROW::FormInsert(): no tablename defined.");
+
+		kDebugLog (1, "{}", m_sLastError);
+		return (false);
+	}
+
+	uint32_t ii;
+
+	KString sAdd;
+	sAdd.Format("insert into {} (\n", GetTablename());
+	sSQL += sAdd;
+
+	kDebugLog (2, "KROW:FormInsert: {}", m_sLastError);
+
+	for (ii=0; ii < size(); ++ii)
+	{
+		kDebugLog (2, "  {:<25} {}{}{}{}", 
+			GetName(ii),
+			!IsFlag (ii, PKEY)       ? "" : " [PKEY]",
+			!IsFlag (ii, NONCOLUMN)  ? "" : " [NONCOLUMN]",
+			!IsFlag (ii, EXPRESSION) ? "" : " [EXPRESSION]",
+			!IsFlag (ii, NUMERIC)    ? "" : " [NUMERIC]");
+
+		if (IsFlag (ii, NONCOLUMN)) {
+			continue;
+		}
+		
+		sAdd.Format ("\t{}{}\n", (ii) ? "," : "", GetName(ii));
+		sSQL += sAdd;
+	}
+
+	sSQL += ") values (\n";
+
+	for (ii=0; ii < size(); ++ii)
+	{
+		if (IsFlag (ii, NONCOLUMN)) {
+			continue;
+		}
+
+		KStringView sValue   = GetValue(ii);  // note: GetValue() never returns NULL, it might return '' (which Joe calls NIL)
+
+		if (!sValue.empty() && !IsFlag (ii, NULL_IS_NOT_NIL)) {
+			// Note: this is the default handling for NIL values: to place them in SQL as SQL null
+			sAdd.Format ("\t{}null\n", (ii) ? "," : "");
+			sSQL += sAdd;
+		}
+		else if (IsFlag (ii, NUMERIC) || IsFlag (ii, EXPRESSION))
+		{
+			sAdd.Format ("\t{}{}\n", (ii) ? "," : "", sValue); // raw value, no quotes and no processing
+			sSQL += sAdd;
+		}
+		else
+		{
+			// catch-all logic for all string values
+			// Note: if the value is actually NIL ('') and NULL_IS_NOT_NIL is set, then the value will
+			// be placed into SQL as '' instead of SQL null.
+			KString sEscaped;
+			EscapeChars (sValue, sEscaped, iDBType);
+			SmartClip   (GetName(ii), sEscaped, MaxLength(ii));
+			sAdd.Format ("\t{}{}'{}'\n", (ii) ? "," : "", 
+				fUnicode ? " N" : "", sEscaped);
+			sSQL += sAdd;
+		}
+
+	}
+
+	sSQL += ")";
+	
+	if(fIdentityInsert) {
+		sAdd = sSQL;
+		sSQL.Format("SET IDENTITY_INSERT {} ON \n"
+					"{} \n"
+					"SET IDENTITY_INSERT {} OFF"
+					, GetTablename(), sAdd, GetTablename());
+	}
+	
+	kDebugLog (2, "KROW:FormInsert: after: {}", sSQL);
+	
+	return (true);
+
+} // FormInsert
+
+//-----------------------------------------------------------------------------
+bool KROW::FormUpdate (KString& sSQL, int iDBType, bool fUnicode/*=false*/)
+//-----------------------------------------------------------------------------
+{
+	m_sLastError = ""; // reset
+	
+	if (!size()) {
+		m_sLastError.Format("KROW::FormUpdate(): no columns defined.");
+		kDebugLog (1, "{}", m_sLastError);
+		return (false);
+	}
+
+	if (m_sTablename.empty()) {
+		m_sLastError.Format("KROW::FormUpdate(): no tablename defined.");
+		kDebugLog (1, "{}", m_sLastError);
+		return (false);
+	}
+
+	KROW Keys;
+
+	KString sAdd;
+	sAdd.Format ("update {} set\n", GetTablename());
+	sSQL += sAdd;
+
+	kDebugLog (2, "KROW:FormUpdate: {}", m_sTablename);
+
+	for (uint32_t ii=0, jj=0; ii < size(); ++ii)
+	{
+		kDebugLog (2, "  {:<25} {}{}{}", 
+			GetName(ii),
+			!IsFlag (ii, PKEY)       ? "" : " [PKEY]",
+			!IsFlag (ii, NONCOLUMN)  ? "" : " [NONCOLUMN]",
+			!IsFlag (ii, EXPRESSION) ? "" : " [EXPRESSION]",
+			!IsFlag (ii, NUMERIC)    ? "" : " [NUMERIC]");
+
+		if (IsFlag (ii, NONCOLUMN)) {
+			continue;
+		}
+		else if (IsFlag (ii, PKEY)) {
+			KCOL col (GetValue(ii), GetFlags(ii), MaxLength(ii));
+			Keys.Add (GetName(ii), col);
+		}
+		else if (IsFlag (ii, EXPRESSION)) {
+			sAdd.Format ("\t{}{}={}\n", (jj++) ? "," : "", GetName(ii), GetValue(ii));
+			sSQL += sAdd;
+		}
+		else
+		{
+			KStringView sValue   = GetValue(ii);
+
+			if (sValue.empty()) {
+				sAdd.Format ("\t{}{}=null\n", (jj++) ? "," : "", GetName(ii));
+				sSQL += sAdd;
+			}
+			else {
+				KString sEscaped;
+				EscapeChars (sValue, sEscaped, iDBType);
+				SmartClip   (GetName(ii), sEscaped, MaxLength(ii));
+
+				if (IsFlag (ii, NUMERIC) || IsFlag (ii, EXPRESSION))
+				{
+					sAdd.Format ("\t{}{}={}\n", (jj++) ? "," : "",
+						GetName(ii), sEscaped);
+				}
+				else {
+					sAdd.Format ("\t{}{}={}'{}'\n", (jj++) ? "," : "",
+						GetName(ii), fUnicode ? " N" : "", sEscaped);
+				}
+				sSQL += sAdd;
+			}
+		}
+	}
+
+	kDebugLog (KSQL::GetDebugLevel()+1, "KROW::FormUpdate: update will rely on {} keys", Keys.size());
+	//Keys.DebugPairs (0, "FormUpdate: primary keys:");
+
+	if (Keys.size() == 0) {
+		m_sLastError.Format("KROW::FormUpdate({}): no primary key[s] defined in column list", GetTablename());
+		kDebugLog (1, "{}", m_sLastError);
+		//DebugPairs (1);
+		return (false);
+	}
+
+	for (uint32_t kk=0; kk < Keys.size(); ++kk)
+	{
+		KStringView sValue = Keys.GetValue(kk);
+		KString sEscaped;
+		EscapeChars (sValue, sEscaped, iDBType);
+		
+		KString sPrefix;
+		if (!kk) {
+			sPrefix = " where ";
+		}
+		else {
+			sPrefix = "   and ";
+		}
+		
+		if (Keys.IsFlag(kk, NUMERIC) || Keys.IsFlag(kk, EXPRESSION)) {
+			sAdd.Format("{}{}={}\n", sPrefix, Keys.GetName(kk),
+				sEscaped);
+		}
+		else {
+			sAdd.Format("{}{}={}'{}'\n", sPrefix, Keys.GetName(kk),
+				fUnicode ? "N" : "", sEscaped);
+		}
+		sSQL += sAdd;
+	}
+
+	return (true);
+
+} // FormUpdate
+
+//-----------------------------------------------------------------------------
+bool KROW::FormDelete (KString& sSQL, int iDBType, bool fUnicode/*=false*/)
+//-----------------------------------------------------------------------------
+{
+	m_sLastError = ""; // reset
+
+	kDebugLog (2, "KROW:FormDelete: before: {}", sSQL);
+
+	if (!size()) {
+		m_sLastError.Format("KROW::FormDelete(): no columns defined.");
+		kDebugLog (1, "{}", m_sLastError);
+		return (false);
+	}
+
+	if (m_sTablename.empty()) {
+		m_sLastError.Format("KROW::FormDelete(): no tablename defined.");
+		kDebugLog (1, "{}", m_sLastError);
+		return (false);
+	}
+
+	uint32_t   kk   = 0;
+
+	KString sAdd;
+	sAdd.Format("delete from {}\n", GetTablename());
+	sSQL += sAdd;
+
+	kDebugLog (2, "KROW:FormDelete: {}", m_sTablename);
+
+	for (uint32_t ii=0; ii < size(); ++ii)
+	{
+		kDebugLog (2, "  {:<25} {}{}{}{}", 
+			GetName(ii),
+			!IsFlag (ii, PKEY)       ? "" : " [PKEY]",
+			!IsFlag (ii, NONCOLUMN)  ? "" : " [NONCOLUMN]",
+			!IsFlag (ii, EXPRESSION) ? "" : " [EXPRESSION]",
+			!IsFlag (ii, NUMERIC)    ? "" : " [NUMERIC]");
+
+		if (!IsFlag (ii, PKEY)) {
+			continue;
+		}
+
+		KStringView sValue = GetValue(ii);
+		KString     sEscaped;
+		EscapeChars (sValue, sEscaped, iDBType);
+
+		KString sAdd;
+			SmartClip(GetName(ii),sEscaped,MaxLength(ii));
+		if (sValue.empty()) {
+			sAdd.Format(" {} {} is null\n",(!kk) ? "where" : "  and", GetName(ii));
+		}
+		else if (IsFlag(ii, NUMERIC) || IsFlag(ii, EXPRESSION)) {
+			sAdd.Format(" {} {}={}\n",     (!kk) ? "where" : "  and", GetName(ii),
+				sEscaped);
+		} else {
+			sAdd.Format(" {} {}={}'{}'\n", (!kk) ? "where" : "  and", GetName(ii),
+				fUnicode ? " N" : "", sEscaped);
+		}
+		sSQL += sAdd;
+		
+
+		++kk;
+	}
+
+	if (!kk) {
+		m_sLastError.Format("KROW::FormDelete({}): no primary key[s] defined in column list", GetTablename());
+		kDebugLog (1, "{}", m_sLastError);
+		//DebugPairs (1);
+		return (false);
+	}
+	
+	kDebugLog (2, "KROW:FormDelete: after: {}", sSQL);
+
+	return (true);
+
+} // FormDelete
+
+

@@ -55,16 +55,16 @@
 //  header files and want access to extra database features which
 //  the KSQL class does not provide.
 //
-//  By putting "#define ORACLECOMPILE" before the "#include ksql.h"
+//  By putting "#define DEKAF2_HAS_ORACLE" before the "#include ksql.h"
 //  you will need to satisfy the compiler for the oracle header files 
 //  below (they are in various directories under ORACLE_HOME).
 //
-//  By putting "#define MYSQLCOMPILE" before the "#include ksql.h"
+//  By putting "#define DEKAF2_HAS_MYSQL" before the "#include ksql.h"
 //  you will need to satisfy the compiler for the mysql header files 
 //  below (they come with libmysqlclient.a).
 //
 
-#ifdef ORACLECOMPILE
+#ifdef DEKAF2_HAS_ORACLE
   #if 0 // for gnu attempts, not msdev
   #ifdef WIN32
     #undef _WIN64
@@ -88,7 +88,7 @@
 
   extern "C"
   {
-#ifdef ORACLECOMPILE
+#ifdef DEKAF2_HAS_ORACLE
     #include <oratypes.h>   // OCI6
     #include <ociapr.h>     // OCI6
     #include <oci.h>        // OCI8
@@ -106,11 +106,11 @@ enum {
 	NO_DATA_FOUND    = 1403   // 
 };
 
-#ifdef ODBC
-  #include <sqlext.h>         // <-- Microsoft ODBC API's
+#ifdef DEKAF2_HAS_ODBC
+  #include <sqlext.h>         // <-- Microsoft DEKAF2_HAS_ODBC API's
 #endif
 
-#ifdef MYSQLCOMPILE
+#ifdef DEKAF2_HAS_MYSQL
   #ifdef WIN32
     #define NO_CLIENT_LONG_LONG // <-- for mysql header file
   #endif
@@ -240,7 +240,7 @@ public:
 		API_DBLIB             = 40000,      // connect to SQLServer or Sybase using DBLIB
 		API_CTLIB             = 50000,      // connect to SQLServer or Sybase using CTLIB
 		API_INFORMIX          = 80000,      // connect to Informix using their API
-		API_ODBC              = 90000,      // connect to something using ODBC APIs
+		API_DEKAF2_HAS_ODBC              = 90000,      // connect to something using DEKAF2_HAS_ODBC APIs
 
 		// blob encoding schemes:
 		BT_ASCII              = 'A',        // ASCII:  only replace newlines and single quotes
@@ -334,7 +334,7 @@ public:
 	uint64_t       GetNumBuffered ()         { return (m_iNumRowsBuffered); }
 	bool           ResetBuffer    ();
 
-	#ifdef ORACLECOMPILE
+    #ifdef DEKAF2_HAS_ORACLE
 	// Oracle/OCI variable binding support:
 	bool   ParseSQL        (KStringView sFormat, ...);
 	bool   ParseRawSQL     (KStringView sSQL, uint64_t iFlags=0, KStringView sAPI="ParseRawSQL");
@@ -527,7 +527,7 @@ protected:
 	FILE*      m_bpWarnIfOverNumSeconds;
 	KString    m_sTempDir;
 
-	#ifdef ORACLECOMPILE
+    #ifdef DEKAF2_HAS_ORACLE
 	enum       {MAXBINDVARS = 100};
 	bool       m_bStatementParsed;
 	uint32_t   m_iMaxBindVars;
@@ -535,15 +535,15 @@ protected:
 	OCIBind*   m_OCIBindArray[MAXBINDVARS+1];
 	#endif
 
-	#ifdef ODBC
-	enum       {MAX_ODBCSTR = 300};
+    #ifdef DEKAF2_HAS_ODBC
+	enum       {MAX_DEKAF2_HAS_ODBCSTR = 300};
 	HENV       m_Environment;
 	HDBC       m_hdbc;
 	HSTMT      m_hstmt;
 	KString    m_sConnectString;
 	KString    m_sConnectOutput;
 
-	bool  CheckODBC (RETCODE iRetCode);
+	bool  CheckDEKAF2_HAS_ODBC (RETCODE iRetCode);
 	#endif
 
 	bool  SQLError (bool fForceError=false);
@@ -554,7 +554,7 @@ protected:
 	void  FormatConnectSummary ();
 	bool  PreparedToRetry ();
 
-	#ifdef ORACLECOMPILE
+    #ifdef DEKAF2_HAS_ORACLE
 	bool _BindByName      (KStringView sPlaceholder, dvoid* pValue, sb4 iValueSize, ub2 iDataType);
 	bool _BindByPos       (uint32_t iPosition, dvoid* pValue, sb4 iValueSize, ub2 iDataType);
 	//OL _ArrayBindByName (KStringView sPlaceholder, dvoid* pValue, sb4 iValueSize, ub2 iDataType); - TODO

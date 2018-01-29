@@ -40,8 +40,10 @@
 //
 */
 
-//#define ORACLECOMPILE  <-- conditionally defined by makefile
-//#define MYSQLCOMPILE   <-- conditionally defined by makefile
+// #define DEKAF2_HAS_ORACLE  <-- conditionally defined by makefile
+// #define DEKAF2_HAS_MYSQL   <-- conditionally defined by makefile
+// #define DEKAF2_HAS_DBLIB   <-- conditionally defined by makefile
+// #define DEKAF2_HAS_ODBC    <-- conditionally defined by makefile
 
 #include "ksql.h"   // <-- public header (should have no dependent headers other than DEKAF header)
 #include "kcrashexit.h"
@@ -58,7 +60,7 @@
 #endif
 
 
-#ifdef DBLIBCOMPILE
+#ifdef DEKAF2_HAS_DBLIB
   // dependent headers when building DBLIB (these are *not* part of our distribution):
   #include <config_freetds.h>  // will be taken from: ksql/src/3p-XXXXX, produced by gnu "configure" on each platform
   #include <sqlfront.h>        // dblib top level include
@@ -477,13 +479,13 @@ void KSQL::_init (int iDebugID)
 	m_iWarnIfOverNumSeconds  = 0;
 	m_bpWarnIfOverNumSeconds = NULL;
 
-	#ifdef ORACLECOMPILE
+    #ifdef DEKAF2_HAS_ORACLE
 	m_bStatementParsed  = false;
 	m_iMaxBindVars      = 0;
 	m_idxBindVar        = 0;
 	#endif
 
-	#ifdef ODBC
+    #ifdef DEKAF2_HAS_ODBC
 	m_Environment       = NULL;
 	m_hdbc              = SQL_NULL_HSTMT;
 	m_hstmt             = NULL;
@@ -557,7 +559,7 @@ void KSQL::FreeAll ()
 #endif
 
 	// de-allocate these in reverse order of their allocation in OpenConnection():
-#ifdef ORACLECOMPILE
+#ifdef DEKAF2_HAS_ORACLE
 	if (m_dOCI8Statement)
 	{
 		OCIHandleFree (m_dOCI8Statement,     OCI_HTYPE_STMT);
@@ -1078,7 +1080,7 @@ void KSQL::EnableRetries()
 bool KSQL::OpenConnection ()
 //-----------------------------------------------------------------------------
 {
-	#ifdef ORACLECOMPILE
+    #ifdef DEKAF2_HAS_ORACLE
 	static bool s_fOCI8Initialized = false;
 	#endif
 
@@ -1113,19 +1115,19 @@ bool KSQL::OpenConnection ()
 
 	kDebugLog (GetDebugLevel(), "[{}] connecting to {}...", m_iDebugID, m_sConnectSummary);
 
-	#ifdef ORACLECOMPILE
+    #ifdef DEKAF2_HAS_ORACLE
 	char*  sOraHome = kGetEnv("ORACLE_HOME","");
 	#endif
 
-	#ifdef ODBC
+    #ifdef DEKAF2_HAS_ODBC
 	SWORD nResult;
 	#endif
 
-	#ifdef DBLIBCOMPILE
+    #ifdef DEKAF2_HAS_DBLIB
 	LOGINREC* pLogin = NULL;
 	#endif
 	
-	#ifdef MYSQLCOMPILE
+    #ifdef DEKAF2_HAS_MYSQL
 	int iPortNum = 0;
 	iPortNum = GetDBPort();
 	#endif
@@ -1140,7 +1142,7 @@ bool KSQL::OpenConnection ()
 		m_sLastError.Format ("{}CANNOT CONNECT (no connect info!)", m_sErrorPrefix);
 		return (SQLError ());
 
-    #ifdef MYSQLCOMPILE
+    #ifdef DEKAF2_HAS_MYSQL
 	// - - - - - - - - - - - - - - - - -
 	case API_MYSQL:
 	// - - - - - - - - - - - - - - - - -
@@ -1173,7 +1175,7 @@ bool KSQL::OpenConnection ()
 
 		kDebugLog (3, "mysql_real_connect()...");
 
-		if (!mysql_real_connect ((MYSQL*)m_dMYSQL, m_sHostname, m_sUsername, m_sPassword, m_sDatabase, /*port*/ iPortNum, /*sock*/NULL, 
+		if (!mysql_real_connect ((MYSQL*)m_dMYSQL, m_sHostname.c_str(), m_sUsername.c_str(), m_sPassword.c_str(), m_sDatabase.c_str(), /*port*/ iPortNum, /*sock*/NULL,
 			/*flag*/CLIENT_FOUND_ROWS)) // <-- this flag corrects the behavior of GetNumRowsAffected()
 		{
 			m_iErrorNum = mysql_errno ((MYSQL*)m_dMYSQL);
@@ -1187,11 +1189,11 @@ bool KSQL::OpenConnection ()
 		break;
 	#endif
 
-	#ifdef ODBC
+    #ifdef DEKAF2_HAS_ODBC
 	// - - - - - - - - - - - - - - - - -
-	case API_ODBC:
+	case API_DEKAF2_HAS_ODBC:
 	// - - - - - - - - - - - - - - - - -
-		// ODBC initialization:
+		// DEKAF2_HAS_ODBC initialization:
 		if (SQLAllocEnv (&m_Environment) != SQL_SUCCESS)
 		{
 			m_sLastError.Format ("{}SQLAllocEnv() failed", m_sErrorPrefix);
@@ -1207,7 +1209,7 @@ bool KSQL::OpenConnection ()
 
 		m_sConnectOutput.clear();
 
-		snprintf ((char* )m_sConnectString, MAX_ODBCSTR, "DSN={};UID={};PWD={}", m_sDatabase, m_sUsername, m_sPassword);
+		snprintf ((char* )m_sConnectString, MAX_DEKAF2_HAS_ODBCSTR, "DSN={};UID={};PWD={}", m_sDatabase, m_sUsername, m_sPassword);
 		if (!m_sHostname.empty()) {
 			KString sAdd;
 			sAdd.Format (";HOST={}", m_sHostname);
@@ -1221,7 +1223,7 @@ bool KSQL::OpenConnection ()
 		//   SQL_DRIVER_COMPLETE_REQUIRED
 		// }
 
-		if (!CheckODBC (SQLDriverConnect ( // level 1 api
+		if (!CheckDEKAF2_HAS_ODBC (SQLDriverConnect ( // level 1 api
 			m_hdbc,
 			NULL,    // hwnd
 			m_sConnectString,
@@ -1246,7 +1248,7 @@ bool KSQL::OpenConnection ()
 		break;
 	#endif
 
-	#ifdef ORACLECOMPILE
+    #ifdef DEKAF2_HAS_ORACLE
 	// - - - - - - - - - - - - - - - - -
 	case API_OCI8:
 	// - - - - - - - - - - - - - - - - -
@@ -1396,7 +1398,7 @@ bool KSQL::OpenConnection ()
 		break;
 	#endif
 
-	#ifdef DBLIBCOMPILE
+    #ifdef DEKAF2_HAS_DBLIB
 	// - - - - - - - - - - - - - - - - -
 	case API_DBLIB:
 	// - - - - - - - - - - - - - - - - -
@@ -1454,7 +1456,7 @@ bool KSQL::OpenConnection ()
 	if (!IsFlag(F_NoTranslations))
 		BuildTranslationList (&m_TxList);
 
-	#ifdef DBLIBCOMPILE
+    #ifdef DEKAF2_HAS_DBLIB
 	if (pLogin) {
 		dbloginfree (pLogin);
 		pLogin = NULL;
@@ -1480,7 +1482,7 @@ void KSQL::CloseConnection ()
 
 		switch (m_iAPISet)
 		{
-		#ifdef MYSQLCOMPILE
+        #ifdef DEKAF2_HAS_MYSQL
 		// - - - - - - - - - - - - - - - - -
 		case API_MYSQL:
 		// - - - - - - - - - - - - - - - - -
@@ -1489,7 +1491,7 @@ void KSQL::CloseConnection ()
 			break;
 		#endif
 
-		#ifdef ORACLECOMPILE
+        #ifdef DEKAF2_HAS_ORACLE
 		// - - - - - - - - - - - - - - - - -
 		case API_OCI8:
 		// - - - - - - - - - - - - - - - - -
@@ -1509,7 +1511,7 @@ void KSQL::CloseConnection ()
 			break;
 		#endif
 
-		#ifdef DBLIBCOMPILE
+        #ifdef DEKAF2_HAS_DBLIB
 		// - - - - - - - - - - - - - - - - -
 		case API_DBLIB:
 		// - - - - - - - - - - - - - - - - -
@@ -1527,7 +1529,7 @@ void KSQL::CloseConnection ()
 
 		// - - - - - - - - - - - - - - - - -
 		case API_INFORMIX:
-		case API_ODBC:
+		case API_DEKAF2_HAS_ODBC:
 		default:
 		// - - - - - - - - - - - - - - - - -
 			kWarning ("[{}] KSQL::CloseConnection(): unsupported API Set ({}={})", m_iDebugID, m_iAPISet, TxAPISet(m_iAPISet));
@@ -1601,14 +1603,14 @@ bool KSQL::ExecRawSQL (KStringView sSQL, uint64_t iFlags/*=0*/, KStringView sAPI
 
 		switch (m_iAPISet)
 		{
-		#ifdef MYSQLCOMPILE
+        #ifdef DEKAF2_HAS_MYSQL
 		// - - - - - - - - - - - - - - - - -
 		case API_MYSQL:
 		// - - - - - - - - - - - - - - - - -
 			do // once
 			{
 				kDebugLog (3, "mysql_query()...");
-				if (mysql_query ((MYSQL*)m_dMYSQL, sSQL))
+				if (mysql_query ((MYSQL*)m_dMYSQL, m_sLastSQL.c_str()))
 				{
 					m_iErrorNum = mysql_errno ((MYSQL*)m_dMYSQL);
 					m_sLastError.Format ("{}MSQL-{}: {}", m_sErrorPrefix, GetLastErrorNum(), mysql_error((MYSQL*)m_dMYSQL));
@@ -1636,7 +1638,7 @@ bool KSQL::ExecRawSQL (KStringView sSQL, uint64_t iFlags/*=0*/, KStringView sAPI
 			break;
 		#endif
 
-		#ifdef ORACLECOMPILE
+        #ifdef DEKAF2_HAS_ORACLE
 		// - - - - - - - - - - - - - - - - -
 		case API_OCI8:
 		// - - - - - - - - - - - - - - - - -
@@ -1725,7 +1727,7 @@ bool KSQL::ExecRawSQL (KStringView sSQL, uint64_t iFlags/*=0*/, KStringView sAPI
 		// - - - - - - - - - - - - - - - - -
 		case API_DBLIB:
 		case API_INFORMIX:
-		case API_ODBC:
+		case API_DEKAF2_HAS_ODBC:
 		default:
 		// - - - - - - - - - - - - - - - - -
 			kWarning ("[{}] KSQL::ExecSQL(): unsupported API Set ({}={})", m_iDebugID, m_iAPISet, TxAPISet(m_iAPISet));
@@ -1878,7 +1880,7 @@ bool KSQL::PreparedToRetry ()
 		return (true); // <-- we are now prepare for automatic retry
 	}
 	else {
-		#ifdef MYSQLCOMPILE
+        #ifdef DEKAF2_HAS_MYSQL
 		kDebugLog (3, "FYI: cannot retry: {} [{},{}]: {}", GetLastErrorNum(), 2006, 2013, GetLastError());
 		#endif
 		return (false); // <-- no not retry
@@ -1886,7 +1888,7 @@ bool KSQL::PreparedToRetry ()
 
 } // PreparedToRetry
 
-#ifdef ORACLECOMPILE
+#ifdef DEKAF2_HAS_ORACLE
 //-----------------------------------------------------------------------------
 bool KSQL::ParseSQL (KStringView sFormat, ...)
 //-----------------------------------------------------------------------------
@@ -1953,7 +1955,7 @@ bool KSQL::ParseRawSQL (KStringView sSQL, int64_t iFlags/*=0*/, KStringView sAPI
 } // ParseRawSQL
 #endif
 
-#ifdef ORACLECOMPILE
+#ifdef DEKAF2_HAS_ORACLE
 //-----------------------------------------------------------------------------
 bool KSQL::ExecParsedSQL ()
 //-----------------------------------------------------------------------------
@@ -2355,7 +2357,7 @@ bool KSQL::ExecRawQuery (KStringView sSQL, uint64_t iFlags/*=0*/, KStringView sA
 
 	switch (m_iAPISet)
 	{
-	#ifdef MYSQLCOMPILE
+    #ifdef DEKAF2_HAS_MYSQL
 	// - - - - - - - - - - - - - - - - -
 	case API_MYSQL:
 	// - - - - - - - - - - - - - - - - -
@@ -2378,7 +2380,7 @@ bool KSQL::ExecRawQuery (KStringView sSQL, uint64_t iFlags/*=0*/, KStringView sA
 			}
 
 			kDebugLog (3, "[{}] getting col info from mysql...", m_iDebugID);
-			kDebugLog (if, "mysql_field_count()...");
+			kDebugLog (3, "mysql_field_count()...");
 
 			m_iNumColumns = mysql_field_count ((MYSQL*)m_dMYSQL);
 
@@ -2405,7 +2407,7 @@ bool KSQL::ExecRawQuery (KStringView sSQL, uint64_t iFlags/*=0*/, KStringView sA
 		break;
 	#endif
 
-	#ifdef ORACLECOMPILE
+    #ifdef DEKAF2_HAS_ORACLE
 	// - - - - - - - - - - - - - - - - -
 	case API_OCI8:
 	// - - - - - - - - - - - - - - - - -
@@ -2752,7 +2754,7 @@ bool KSQL::ExecRawQuery (KStringView sSQL, uint64_t iFlags/*=0*/, KStringView sA
 	// - - - - - - - - - - - - - - - - -
 	case API_DBLIB:
 	case API_INFORMIX:
-	case API_ODBC:
+	case API_DEKAF2_HAS_ODBC:
 	default:
 	// - - - - - - - - - - - - - - - - -
 		kWarning ("[{}] KSQL::ExecQuery(): unsupported API Set ({}={})", m_iDebugID, m_iAPISet, TxAPISet(m_iAPISet));
@@ -2817,7 +2819,7 @@ bool KSQL::ExecRawQuery (KStringView sSQL, uint64_t iFlags/*=0*/, KStringView sA
 
 } // KSQL::ExecRawQuery
 
-#ifdef ORACLECOMPILE
+#ifdef DEKAF2_HAS_ORACLE
 //-----------------------------------------------------------------------------
 bool KSQL::ParseQuery (KStringView sFormat, ...)
 //-----------------------------------------------------------------------------
@@ -2847,7 +2849,7 @@ bool KSQL::ParseQuery (KStringView sFormat, ...)
 } // ParseQuery
 #endif
 
-#ifdef ORACLECOMPILE
+#ifdef DEKAF2_HAS_ORACLE
 //-----------------------------------------------------------------------------
 bool KSQL::ParseRawQuery (KStringView sSQL, int64_t iFlags/*=0*/, KStringView sAPI/*="ParseRawQuery"*/)
 //-----------------------------------------------------------------------------
@@ -2895,7 +2897,7 @@ bool KSQL::ParseRawQuery (KStringView sSQL, int64_t iFlags/*=0*/, KStringView sA
 } // ParseRawQuery
 #endif
 
-#ifdef ORACLECOMPILE
+#ifdef DEKAF2_HAS_ORACLE
 //-----------------------------------------------------------------------------
 bool KSQL::ExecParsedQuery ()
 //-----------------------------------------------------------------------------
@@ -3078,10 +3080,12 @@ bool KSQL::BufferResults ()
 	}
 
 	if (kFileExists (m_sTmpResultsFile))
+	{
 		kRemoveFile (m_sTmpResultsFile);
+	}
 
-	FILE* fp = fopen (m_sTmpResultsFile.c_str(), "w");
-	if (!fp)
+	KOutFile file(m_sTmpResultsFile.c_str());
+	if (!file.Good())
 	{
 		m_sLastError.Format ("{}BufferResults(): could not buffer results b/c {} could not write to '{}'", m_sErrorPrefix,
 			kwhoami(), m_sTmpResultsFile);
@@ -3095,7 +3099,7 @@ bool KSQL::BufferResults ()
 
 	switch (m_iAPISet)
 	{
-	#ifdef MYSQLCOMPILE
+    #ifdef DEKAF2_HAS_MYSQL
 	// - - - - - - - - - - - - - - - - -
 	case API_MYSQL:
 	// - - - - - - - - - - - - - - - - -
@@ -3118,18 +3122,22 @@ bool KSQL::BufferResults ()
 					spot = strchr (spot+1, '\n');
 				}
 				if (strlen(colval) > 50)
+				{
 					kDebugLog (3, "  buffered: row[{}]col[{}]: strlen()={}", m_iNumRowsBuffered, ii+1, strlen(colval));
+				}
 				else
+				{
 					kDebugLog (3, "  buffered: row[{}]col[{}]: '{}'", m_iNumRowsBuffered, ii+1, colval);
+				}
 
-				fprintf (fp, "{}|{}|{}\n", m_iNumRowsBuffered, ii+1, (uint32_t)strlen(colval));
-				fprintf (fp, "{}\n", colval ? colval : "");
+				file.FormatLine ("{}|{}|{}", m_iNumRowsBuffered, ii+1, strlen(colval));
+				file.FormatLine ("{}\n", colval ? colval : "");
 			}
 		}
 		break;
 	#endif
 
-	#ifdef ORACLECOMPILE
+    #ifdef DEKAF2_HAS_ORACLE
 	// - - - - - - - - - - - - - - - - -
 	case API_OCI8:
 	// - - - - - - - - - - - - - - - - -
@@ -3233,15 +3241,13 @@ bool KSQL::BufferResults ()
 	case API_CTLIB:
 	case API_DBLIB:
 	case API_INFORMIX:
-	case API_ODBC:
+	case API_DEKAF2_HAS_ODBC:
 	default:
 	// - - - - - - - - - - - - - - - - -
 		kWarning ("[{}] KSQL:BufferResults(): unsupported API Set ({}={})", m_iDebugID, m_iAPISet, TxAPISet(m_iAPISet));
 		kCrashExit (CRASHCODE_DEKAFUSAGE);
 	}
 	
-	fclose (fp);
-
 	m_bpBufferedResults = fopen (m_sTmpResultsFile.c_str(), "r");
 	if (!m_bpBufferedResults)
 	{
@@ -3253,7 +3259,7 @@ bool KSQL::BufferResults ()
 
 	m_bFileIsOpen = true;
 
-	#ifdef MYSQLCOMPILE
+    #ifdef DEKAF2_HAS_MYSQL
 	if (m_dMYSQLResult)
 	{
 		//kDebugMemory ((const char*)m_dMYSQLResult, 0);
@@ -3412,7 +3418,7 @@ bool KSQL::NextRow ()
 
 		switch (m_iAPISet)
 		{
-		#ifdef MYSQLCOMPILE
+        #ifdef DEKAF2_HAS_MYSQL
 		// - - - - - - - - - - - - - - - - -
 		case API_MYSQL:
 		// - - - - - - - - - - - - - - - - -
@@ -3434,7 +3440,7 @@ bool KSQL::NextRow ()
 			return (m_MYSQLRow != NULL);
 		#endif
 
-		#ifdef ORACLECOMPILE
+        #ifdef DEKAF2_HAS_ORACLE
 		// - - - - - - - - - - - - - - - - -
 		case API_OCI8:
 		// - - - - - - - - - - - - - - - - -
@@ -3518,7 +3524,7 @@ bool KSQL::NextRow ()
 		// - - - - - - - - - - - - - - - - -
 		case API_DBLIB:
 		case API_INFORMIX:
-		case API_ODBC:
+		case API_DEKAF2_HAS_ODBC:
 		default:
 		// - - - - - - - - - - - - - - - - -
 			kWarning ("[{}] KSQL:NextRow(): unsupported API Set ({}={})", m_iDebugID, m_iAPISet, TxAPISet(m_iAPISet));
@@ -3702,7 +3708,7 @@ void KSQL::EndQuery ()
 		kDebugLog (GetDebugLevel()+1, "  [{}]EndQuery: {} row{} fetched.", m_iDebugID, m_iRowNum, (m_iRowNum==1) ? " was" : "s were");
 	}
 
-	#ifdef MYSQLCOMPILE
+    #ifdef DEKAF2_HAS_MYSQL
 	// - - - - - - - - - - - - - - - - - - - - - - - -
 	// MYSQL end of query cleanup:
 	// - - - - - - - - - - - - - - - - - - - - - - - -
@@ -3721,7 +3727,7 @@ void KSQL::EndQuery ()
 		}
 		kfree (m_dColInfo, "KSQL:EndQuery:m_dColInfo");
 		m_dColInfo = NULL;
-		#ifdef ORACLECOMPILE
+        #ifdef DEKAF2_HAS_ORACLE
 		if (m_dOCI6ConnectionDataArea)
 			ocan ((Cda_Def*)m_dOCI6ConnectionDataArea);  // <-- let OIC6 cursor free it's resources
 		#endif
@@ -3834,7 +3840,7 @@ KStringView KSQL::Get (uint32_t iOneBasedColNum, bool fTrimRight/*=true*/)
 
 		switch (m_iAPISet)
 		{
-		#ifdef MYSQLCOMPILE
+        #ifdef DEKAF2_HAS_MYSQL
 		// - - - - - - - - - - - - - - - - -
 		case API_MYSQL:
 		// - - - - - - - - - - - - - - - - -
@@ -3853,7 +3859,7 @@ KStringView KSQL::Get (uint32_t iOneBasedColNum, bool fTrimRight/*=true*/)
 	
 		// - - - - - - - - - - - - - - - - -
 		case API_INFORMIX:
-		case API_ODBC:
+		case API_DEKAF2_HAS_ODBC:
 		default:
 		// - - - - - - - - - - - - - - - - -
 			kWarning ("[{}] KSQL: unsupported API Set ({}={})", m_iDebugID, m_iAPISet, TxAPISet(m_iAPISet));
@@ -3998,7 +4004,7 @@ bool KSQL::WasOCICallOK (KStringView sContext)
 //-----------------------------------------------------------------------------
 {
 	m_sLastError = "";
-	#ifdef ORACLECOMPILE
+    #ifdef DEKAF2_HAS_ORACLE
 	switch (m_iErrorNum)
 	{
 	case OCI_SUCCESS: // 0
@@ -4229,7 +4235,7 @@ bool KSQL::SetFlags (uint64_t iFlags)
 KString KSQL::GetLastInfo()
 //-----------------------------------------------------------------------------
 {
-#if defined(MYSQLCOMPILE)
+#if defined(DEKAF2_HAS_MYSQL)
 	return mysql_info(static_cast<MYSQL*>(m_dMYSQL));
 #else
 	return "";
@@ -5216,9 +5222,9 @@ unsigned char* KSQL::GetBlob (KStringView sBlobTable, KStringView sBlobKey, uint
 } // GetBlob
 #endif
 
-#ifdef ODBC
+#ifdef DEKAF2_HAS_ODBC
 //------------------------------------------------------------------------------
-bool KSQL::CheckODBC (RETCODE iRetCode)
+bool KSQL::CheckDEKAF2_HAS_ODBC (RETCODE iRetCode)
 //------------------------------------------------------------------------------
 {
 	switch (iRetCode)
@@ -5245,17 +5251,17 @@ bool KSQL::CheckODBC (RETCODE iRetCode)
 					  szErrorMsg, sizeof(szErrorMsg), NULL);
 			m_sLastError.Format ("{}{}: {}", m_sErrorPrefix, szSQLState, szErrorMsg);
 			#else
-			m_sLastError.Format ("{}ODBC Error: Code={}", m_sErrorPrefix, iRetCode);
+			m_sLastError.Format ("{}DEKAF2_HAS_ODBC Error: Code={}", m_sErrorPrefix, iRetCode);
 			#endif
 		}
 		return (false);
 	}
 
-} // CheckODBC
+} // CheckDEKAF2_HAS_ODBC
 
 #endif
 
-#ifdef ORACLECOMPILE
+#ifdef DEKAF2_HAS_ORACLE
 
 //-----------------------------------------------------------------------------
 bool KSQL::_BindByName (KStringView sPlaceholder, dvoid* pValue, sb4 iValueSize, ub2 iDataType)

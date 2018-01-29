@@ -59,14 +59,6 @@ if (DEKAF2_WITH_COMPATIBILITY_LAYER_TO_DEKAF1)
 	endif ()
 endif ()
 
-# create and include the build directory for generated files
-set(GENERATED_FILES_DIR "${CMAKE_CURRENT_BINARY_DIR}/generated")
-file(MAKE_DIRECTORY "${GENERATED_FILES_DIR}")
-include_directories("${GENERATED_FILES_DIR}")
-
-# create the configuration header file
-configure_file("bits/kconfiguration.h.in" "${GENERATED_FILES_DIR}/kconfiguration.h" @ONLY)
-
 # make sure we have the necessary version of cmake installed
 #execute_process(COMMAND "${CMAKE_CURRENT_SOURCE_DIR}/bits/cmakeinstall -go")
 
@@ -127,6 +119,15 @@ add_subdirectory(from)
 
 # add externally installed third party libraries:
 
+# MySQL (for KSQL) - if not available, KSQL will not build something meaningful
+find_package(MYSQL)
+if(MYSQL_FOUND)
+	message(STATUS "configuring with MySQL ${MYSQL_VERSION_STRING}")
+	set(DEKAF2_HAS_MYSQL "${MYSQL_VERSION_STRING}")
+else()
+	message(STATUS "MySQL not found - will build without. Please install MySQL if you want to use KSQL.")
+endif()
+
 # openssl (needed for boost asio)
 if (${CMAKE_SYSTEM_NAME} STREQUAL "Darwin")
     # check later if this is still needed to override an insufficient std OpenSSL on OSX
@@ -163,6 +164,14 @@ else ()
 		)
 
 endif (DOXYGEN_FOUND)
+
+# create and include the build directory for generated files
+set(GENERATED_FILES_DIR "${CMAKE_CURRENT_BINARY_DIR}/generated")
+file(MAKE_DIRECTORY "${GENERATED_FILES_DIR}")
+include_directories("${GENERATED_FILES_DIR}")
+
+# create the configuration header file
+configure_file("bits/kconfiguration.h.in" "${GENERATED_FILES_DIR}/kconfiguration.h" @ONLY)
 
 set (HEADERS
 	# KEEP ALPHABETIZED!!
@@ -348,6 +357,7 @@ target_link_libraries(dekaf2
 	${FSLIB}
 	${Boost_LIBRARIES}
 	${OPENSSL_LIBRARIES}
+	${MYSQL_LIBRARIES}
 	${libproc_LIBRARIES}
 	nlohmann-json
 	Threads::Threads
@@ -356,6 +366,7 @@ target_link_libraries(dekaf2
 add_dependencies(dekaf2 lib-headers-dekaf2)
 target_include_directories(dekaf2
    PUBLIC "${DEKAF2_INCLUDE_DIR}" "${GENERATED_FILES_DIR}"
+   PRIVATE "${MYSQL_INCLUDE_DIRS}"
    INTERFACE "${Boost_INCLUDE_DIR}" "${OPENSSL_INCLUDE_DIR}"
 )
 target_compile_definitions(dekaf2 PRIVATE DEKAF2_LIBRARY_BUILD)

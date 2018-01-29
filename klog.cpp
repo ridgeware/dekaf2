@@ -309,6 +309,8 @@ void KLogTTYSerializer::Serialize() const
 
 	sPrefix.Printf("| %3.3s | %5.5s | %5u | %s | ", sLevel, m_sShortName, getpid(), kFormTimestamp());
 
+	KString sPrefixWOFunction(sPrefix);
+
 	if (!m_sFunctionName.empty())
 	{
 		sPrefix += m_sFunctionName;
@@ -319,8 +321,8 @@ void KLogTTYSerializer::Serialize() const
 
 	if (!m_sBacktrace.empty())
 	{
-		sPrefix = ">> ";
-		AddMultiLineMessage(sPrefix, m_sBacktrace);
+		AddMultiLineMessage(sPrefixWOFunction, m_sBacktrace);
+		AddMultiLineMessage(sPrefixWOFunction, KLog::DASH);
 	}
 
 } // Serialize
@@ -360,8 +362,8 @@ void KLogSyslogSerializer::Serialize() const
 
 	if (!m_sBacktrace.empty())
 	{
-		sPrefix = ">> ";
 		AddMultiLineMessage(sPrefix, m_sBacktrace);
+		AddMultiLineMessage(sPrefix, KLog::DASH);
 	}
 
 } // Serialize

@@ -337,6 +337,9 @@ public:
 	static constexpr KStringView STDOUT             = "stdout";
 	static constexpr KStringView STDERR             = "stderr";
 	static constexpr KStringView SYSLOG             = "syslog";
+	static constexpr KStringView DBAR               = "================================================================================";
+	static constexpr KStringView BAR                = "--------------------------------------------------------------------------------";
+	static constexpr KStringView DASH               = "- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - ";
 
 	//---------------------------------------------------------------------------
 	/// Gets the current log level. Any log message that has a higher level than

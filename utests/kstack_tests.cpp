@@ -138,7 +138,7 @@ TEST_CASE("KStack")
 		CHECK_FALSE(kStack.empty());
 		CHECK(6 == kStack.size());
 
-		for (int i = 0; i < kStack.size(); ++i)
+		for (size_t i = 0; i < kStack.size(); ++i)
 		{
 			CHECK(kStack[i] == my6Ints[i]);
 		}

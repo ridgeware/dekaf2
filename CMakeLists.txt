@@ -211,9 +211,11 @@ set (HEADERS
 	kprops.h
 	kreader.h
 	kregex.h
+	krow.h
 	ksharedref.h
 	ksignals.h
 	ksplit.h
+	ksql.h
 	ksslclient.h
 	ksslstream.h
 	kstack.h
@@ -268,8 +270,10 @@ set (SOURCES
 	kprops.cpp
 	kreader.cpp
 	kregex.cpp
+	krow.cpp
 	ksignals.cpp
 	ksplit.cpp
+	ksql.cpp
 	ksslstream.cpp
 	kstream.cpp
 	kstreambuf.cpp

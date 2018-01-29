@@ -1,33 +1,63 @@
-//////////////////////////////////////////////////////////////////////////////
+/*
 //
-// KSQL: "Kommon" (Keef's) SQL Interface
+// DEKAF(tm): Lighter, Faster, Smarter(tm)
 //
-// Copyright (c) 2001, Ridgeware, Inc.
+// Copyright (c) 2018, Ridgeware, Inc.
 //
-// +----------------------------------------------------+
-// | THIS FILE IS CONSIDERED PRIVATE SOURCE CODE AND IS |
-// | NOT FOR DISTRIBUTION WITH THE PUBLIC FILES         |
-// +----------------------------------------------------+
+// +-------------------------------------------------------------------------+
+// | /\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\|
+// |/+---------------------------------------------------------------------+/|
+// |/|                                                                     |/|
+// |\|  ** THIS NOTICE MUST NOT BE REMOVED FROM THE SOURCE CODE MODULE **  |\|
+// |/|                                                                     |/|
+// |\|   OPEN SOURCE LICENSE                                               |\|
+// |/|                                                                     |/|
+// |\|   Permission is hereby granted, free of charge, to any person       |\|
+// |/|   obtaining a copy of this software and associated                  |/|
+// |\|   documentation files (the "Software"), to deal in the              |\|
+// |/|   Software without restriction, including without limitation        |/|
+// |\|   the rights to use, copy, modify, merge, publish,                  |\|
+// |/|   distribute, sublicense, and/or sell copies of the Software,       |/|
+// |\|   and to permit persons to whom the Software is furnished to        |\|
+// |/|   do so, subject to the following conditions:                       |/|
+// |\|                                                                     |\|
+// |/|   The above copyright notice and this permission notice shall       |/|
+// |\|   be included in all copies or substantial portions of the          |\|
+// |/|   Software.                                                         |/|
+// |\|                                                                     |\|
+// |/|   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY         |/|
+// |\|   KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE        |\|
+// |/|   WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR           |/|
+// |\|   PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS        |\|
+// |/|   OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR          |/|
+// |\|   OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR        |\|
+// |/|   OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE         |/|
+// |\|   SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.            |\|
+// |/|                                                                     |/|
+// |/+---------------------------------------------------------------------+/|
+// |\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/ |
+// +-------------------------------------------------------------------------+
 //
-///////////////////////////////////////////////////////////////////////////////
+*/
 
-#include "ksql.h"
+#include "krow.h"
+#include "klog.h"
 
 using namespace dekaf2;
 
 //-----------------------------------------------------------------------------
-void KROW::EscapeChars (KStringView sString, KString& sEscaped,  int iDBType)
+void KROW::EscapeChars (KStringView sString, KString& sEscaped, SQLTYPE iDBType)
 //-----------------------------------------------------------------------------
 {
 	const char* szCharsToEscape = "";
 
 	switch (iDBType)
 	{
-	case KSQL::DBT_SQLSERVER:
-	case KSQL::DBT_SYBASE:
+	case DBT_SQLSERVER:
+	case DBT_SYBASE:
 		szCharsToEscape = ESCAPE_MSSQL;
 		break;
-	case KSQL::DBT_MYSQL:
+	case DBT_MYSQL:
 	default:
 		szCharsToEscape = ESCAPE_MYSQL;
 		break;
@@ -38,28 +68,26 @@ void KROW::EscapeChars (KStringView sString, KString& sEscaped,  int iDBType)
 } // EscapeChars - v1
 
 //-----------------------------------------------------------------------------
-void KROW::EscapeChars (KStringView sString, KString& sEscaped, const char* szCharsToEscape, int iEscapeChar/*=0*/)
+void KROW::EscapeChars (KStringView sString, KString& sEscaped,
+                        KStringView sCharsToEscape, KString::value_type iEscapeChar/*=0*/)
 //-----------------------------------------------------------------------------
 {
 	// Note: if iEscapeChar is ZERO, then the char is used as it's own escape char (i.e. it gets doubled up).
-	size_t iLen = sString.length();
-	KString sEscapeChar;
-	sEscapeChar.Printf("%i", iEscapeChar);
-
-	std::ostringstream ssBuffer;
-
-	for (size_t ii=0; ii < iLen; ++ii)
+	for (auto ch : sString)
 	{
-		if (strchr (szCharsToEscape, sString[ii]))
+		if (sCharsToEscape.find(ch))
 		{
 			if (iEscapeChar)
-				ssBuffer << sEscapeChar;
+			{
+				sEscaped += iEscapeChar;
+			}
 			else
-				ssBuffer << sString[ii];
+			{
+				sEscaped += ch;
+			}
 		}
-		ssBuffer << sString[ii];
+		sEscaped += ch;
 	}
-	sEscaped = ssBuffer.str();
 
 } // EscapeChars
 
@@ -87,7 +115,7 @@ void KROW::SmartClip (KStringView sColName, KString& sValue, size_t iMaxLen)
 } // SmartClip
 
 //-----------------------------------------------------------------------------
-bool KROW::FormInsert (KString& sSQL, int iDBType, bool fUnicode/*=false*/, bool fIdentityInsert/*=false*/)
+bool KROW::FormInsert (KString& sSQL, SQLTYPE iDBType, bool fUnicode/*=false*/, bool fIdentityInsert/*=false*/)
 //-----------------------------------------------------------------------------
 {
 	m_sLastError = ""; // reset
@@ -184,7 +212,7 @@ bool KROW::FormInsert (KString& sSQL, int iDBType, bool fUnicode/*=false*/, bool
 } // FormInsert
 
 //-----------------------------------------------------------------------------
-bool KROW::FormUpdate (KString& sSQL, int iDBType, bool fUnicode/*=false*/)
+bool KROW::FormUpdate (KString& sSQL, SQLTYPE iDBType, bool fUnicode/*=false*/)
 //-----------------------------------------------------------------------------
 {
 	m_sLastError = ""; // reset
@@ -256,7 +284,7 @@ bool KROW::FormUpdate (KString& sSQL, int iDBType, bool fUnicode/*=false*/)
 		}
 	}
 
-	kDebugLog (KSQL::GetDebugLevel()+1, "KROW::FormUpdate: update will rely on {} keys", Keys.size());
+	kDebugLog (GetDebugLevel()+1, "KROW::FormUpdate: update will rely on {} keys", Keys.size());
 	//Keys.DebugPairs (0, "FormUpdate: primary keys:");
 
 	if (Keys.size() == 0) {
@@ -296,7 +324,7 @@ bool KROW::FormUpdate (KString& sSQL, int iDBType, bool fUnicode/*=false*/)
 } // FormUpdate
 
 //-----------------------------------------------------------------------------
-bool KROW::FormDelete (KString& sSQL, int iDBType, bool fUnicode/*=false*/)
+bool KROW::FormDelete (KString& sSQL, SQLTYPE iDBType, bool fUnicode/*=false*/)
 //-----------------------------------------------------------------------------
 {
 	m_sLastError = ""; // reset

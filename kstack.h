@@ -206,7 +206,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Returns the number of elements on the stack
-	inline int size() const
+	inline size_t size() const
 	//-----------------------------------------------------------------------------
 	{
 		return m_Storage.size();

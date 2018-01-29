@@ -2,7 +2,7 @@
 //
 // DEKAF(tm): Lighter, Faster, Smarter(tm)
 //
-// Copyright (c) 2017, Ridgeware, Inc.
+// Copyright (c) 2018, Ridgeware, Inc.
 //
 // +-------------------------------------------------------------------------+
 // | /\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\|
@@ -41,9 +41,15 @@
 */
 
 //#define ORACLECOMPILE  <-- conditionally defined by makefile
-#define MYSQLCOMPILE   <-- conditionally defined by makefile
+//#define MYSQLCOMPILE   <-- conditionally defined by makefile
 
 #include "ksql.h"   // <-- public header (should have no dependent headers other than DEKAF header)
+#include "kcrashexit.h"
+#include "ksystem.h"
+#include "kregex.h"
+#include "kstack.h"
+#include "ksplit.h"
+#include "kstringutils.h"
 #include <string.h> // for strncpy()
 #include <unistd.h> // for sleep()
 
@@ -154,6 +160,8 @@ SQLTX g_Translations[] = {
 	// ----------------  -----------  --------------   --------------   --------------  ----------------------------
 };
 
+typedef unsigned char uint8_t;
+
 int ToINT(const uint8_t (&iSourceArray)[4])
 {
 	return ((iSourceArray[3]<<24) + (iSourceArray[2]<<16) + (iSourceArray[1]<<8) + iSourceArray[0]);
@@ -224,30 +232,6 @@ void* kmalloc (uint32_t iNumBytes, const char* pszContext, bool bClearMemory/*=T
 	return ((void*)pszRawMemory);
 
 } // kmalloc 
-
-//-----------------------------------------------------------------------------
-static int64_t katoh (const char* sHugeInt)
-//-----------------------------------------------------------------------------
-{
-	#if defined(hpux64) || defined(ux11)
-
-	int64_t iHugeInt = (SHUGE) strtoimax (sHugeInt, (char **)NULL, 10);
-
-	#elif defined(WIN32)
-
-	int64_t iHugeInt = 0;
-	if (sHugeInt && *sHugeInt)
-		_stscanf (sHugeInt, "%" PHUGE, &iHugeInt);
-
-	#else
-
-	int64_t iHugeInt = strtoll (sHugeInt, (char **)NULL, 10);
-
-	#endif
- 
-	return (iHugeInt);
-
-} // katoh
 
 //-----------------------------------------------------------------------------
 KString kExpandVariable (KStringView sName, KPROPS* pVarList/*=NULL*/)
@@ -355,7 +339,7 @@ inline size_t kParseDelimedList (KStringView sString, KSTACK& Parts, int chDelim
 }
 
 //-----------------------------------------------------------------------------
-KSQL::KSQL (uint32_t iFlags/*=0*/, int iDebugID/*=0*/, int iDBType/*=DBT_MYSQL*/, KStringView sUsername/*=NULL*/, KStringView sPassword/*=NULL*/, KStringView sDatabase/*=NULL*/, KStringView sHostname/*=NULL*/, uint32_t iDBPortNum/*=0*/)
+KSQL::KSQL (uint32_t iFlags/*=0*/, int iDebugID/*=0*/, SQLTYPE iDBType/*=DBT_MYSQL*/, KStringView sUsername/*=NULL*/, KStringView sPassword/*=NULL*/, KStringView sDatabase/*=NULL*/, KStringView sHostname/*=NULL*/, uint32_t iDBPortNum/*=0*/)
 //-----------------------------------------------------------------------------
 {
 	_init (iDebugID);
@@ -537,10 +521,10 @@ void KSQL::FreeAll ()
 	kDebugLog (3, "    m_dOCI8EnvHandle           = {}{}", m_dOCI8EnvHandle, (m_dOCI8EnvHandle) ? " (needs to be freed)" : "");
 	kDebugLog (3, "    m_dOCI8ErrorHandle         = {}{}", m_dOCI8ErrorHandle, (m_dOCI8ErrorHandle) ? " (needs to be freed)" : "");
 	kDebugLog (3, "    m_dOCI8ServerContext       = {}{}", m_dOCI8ServerContext, (m_dOCI8ServerContext) ? " (needs to be freed)" : "");
-	#if USE_SERVER_ATTACH
+#if USE_SERVER_ATTACH
 	kDebugLog (3, "    m_dOCI8ServerHandle        = {}{}", m_dOCI8ServerHandle, (m_dOCI8ServerHandle) ? " (needs to be freed)" : "");
 	kDebugLog (3, "    m_dOCI8Session             = {}{}", m_dOCI8Session, (m_dOCI8Session) ? " (needs to be freed)" : "");
-	#endif
+#endif
 	kDebugLog (3, "    m_dOCI8Statement           = {}{}", m_dOCI8Statement, (m_dOCI8Statement) ? " (needs to be freed)" : "");
 //	kDebugLog (3, "    m_dColInfo                 = {}{}", m_dColInfo, (m_dColInfo) ? " (needs to be freed)" : "");
 //	kDebugLog (3, "    m_dBufferedColArray        = {}{}", m_dBufferedColArray, (m_dBufferedColArray) ? " (needs to be freed)" : "");
@@ -563,17 +547,17 @@ void KSQL::FreeAll ()
 		m_dOCI6ConnectionDataArea = NULL;
 	}
 
-	#if 0
+#if 0
 	An OCI application should perform the following three steps before it terminates: 
 	1. Delete the user session by calling OCISessionEnd() for each session. 
 	2. Delete access to the data source(s) by calling OCIServerDetach() for each source. 
 	3. Explicitly deallocate all handles by calling OCIHandleFree() for each handle 
 	4. Delete the environment handle, which deallocates all other handles associated with it. 
 	Note: When a parent OCI handle is freed, any child handles associated with it are freed automatically. 
-	#endif
+#endif
 
 	// de-allocate these in reverse order of their allocation in OpenConnection():
-	#ifdef ORACLECOMPILE
+#ifdef ORACLECOMPILE
 	if (m_dOCI8Statement)
 	{
 		OCIHandleFree (m_dOCI8Statement,     OCI_HTYPE_STMT);
@@ -608,7 +592,7 @@ void KSQL::FreeAll ()
 	}
 
 	//OCITerminate (OCI_DEFAULT); // <-- don't do it: it might affect other KSQL instances
-	#endif
+#endif
 
 } // FreeAll
 
@@ -621,7 +605,7 @@ void KSQL::FreeAll ()
 
 
 //-----------------------------------------------------------------------------
-bool KSQL::SetConnect (int iDBType, KStringView sUsername, KStringView sPassword, KStringView sDatabase, KStringView sHostname/*=NULL*/, uint32_t iDBPortNum/*=0*/)
+bool KSQL::SetConnect (SQLTYPE iDBType, KStringView sUsername, KStringView sPassword, KStringView sDatabase, KStringView sHostname/*=NULL*/, uint32_t iDBPortNum/*=0*/)
 //-----------------------------------------------------------------------------
 {
 	NOT_IF_ALREADY_OPEN("SetConnect");
@@ -641,7 +625,7 @@ bool KSQL::SetConnect (int iDBType, KStringView sUsername, KStringView sPassword
 } // SetConnect
 
 //-----------------------------------------------------------------------------
-bool KSQL::SetDBType (int iDBType)
+bool KSQL::SetDBType (SQLTYPE iDBType)
 //-----------------------------------------------------------------------------
 {
 	NOT_IF_ALREADY_OPEN ("SetDBType");
@@ -701,7 +685,7 @@ bool KSQL::SetDBPort (int iDBPortNum)
 //-----------------------------------------------------------------------------
 {
 	NOT_IF_ALREADY_OPEN ("SetDBPort");
-	m_iDBPortNum = iDBPortNum;
+	m_iDBPortNum = static_cast<uint32_t>(iDBPortNum);
 	FormatConnectSummary();
 	return (true);
 
@@ -874,9 +858,9 @@ bool KSQL::DecodeDBCData (unsigned char* sBuffer, long iNumRead, KStringView sDB
 		DBCFILEv1 dbc;
 		memcpy (&dbc, sBuffer, sizeof(DBCFILEv1));
 
-		m_iDBType    = dbc.iDBType;
+		m_iDBType    = static_cast<SQLTYPE>(dbc.iDBType);
 		m_iAPISet    = dbc.iAPISet;
-		m_iDBPortNum = dbc.iDBPortNum;
+		m_iDBPortNum = static_cast<uint32_t>(dbc.iDBPortNum);
 
 		// crude decryption:
 		decrypt (dbc.szHostname);
@@ -904,7 +888,7 @@ bool KSQL::DecodeDBCData (unsigned char* sBuffer, long iNumRead, KStringView sDB
 		DBCFILEv2 dbc;
 		memcpy (&dbc, sBuffer, sizeof(DBCFILEv2));
 
-		m_iDBType    = ToINT(dbc.iDBType);
+		m_iDBType    = static_cast<SQLTYPE>(ToINT(dbc.iDBType));
 		m_iAPISet    = ToINT(dbc.iAPISet);
 		m_iDBPortNum = ToINT(dbc.iDBPortNum);
 
@@ -935,7 +919,7 @@ bool KSQL::DecodeDBCData (unsigned char* sBuffer, long iNumRead, KStringView sDB
 			DBCFILEv3 dbc;
 			memcpy(&dbc, sBuffer, sizeof(dbc));
 
-			m_iDBType    = ToINT(dbc.iDBType);
+			m_iDBType    = static_cast<SQLTYPE>(ToINT(dbc.iDBType));
 			m_iAPISet    = ToINT(dbc.iAPISet);
 			m_iDBPortNum = ToINT(dbc.iDBPortNum);
 
@@ -996,7 +980,7 @@ bool KSQL::LoadConnect (KString sDBCFile)
 {
 	kDebugLog (3, "[{}]KSQL::LoadConnect()...", m_iDebugID);
 
-	m_iDBType           = 0;
+	m_iDBType           = DBT_NONE;
 	m_iAPISet           = 0;
 	m_iDBPortNum        = 0;
 	m_sUsername.clear();
@@ -1055,7 +1039,7 @@ bool KSQL::OpenConnection (KStringView sListOfHosts, KStringView sDelimeter/* = 
 	KStack <KString> stackOfHosts;
 	kSplit (stackOfHosts, sListOfHosts, sDelimeter);
 
-	for (uint32_t ii=0; ii < stackOfHosts.size(); ++ii)
+	for (size_t ii=0; ii < stackOfHosts.size(); ++ii)
 	{
 		KStringView sDBHost = stackOfHosts.GetItem(ii);
 		SetDBHost (sDBHost);
@@ -1156,12 +1140,14 @@ bool KSQL::OpenConnection ()
 		m_sLastError.Format ("{}CANNOT CONNECT (no connect info!)", m_sErrorPrefix);
 		return (SQLError ());
 
-	#ifdef MYSQLCOMPILE
+    #ifdef MYSQLCOMPILE
 	// - - - - - - - - - - - - - - - - -
 	case API_MYSQL:
 	// - - - - - - - - - - - - - - - - -
-		if (!m_sHostname.empty())
-			kstrncpy (m_sHostname, "localhost", MAXLEN_CONNECTPARM);
+		if (m_sHostname.empty())
+		{
+			m_sHostname = "localhost";
+		}
 
 		//kDebugLog (GetDebugLevel(), "[{}]: connecting to mysql, Username='{}', Hostname='{}', Database='{}'...",
 		//	m_iDebugID, m_sUsername, m_sHostname, m_sDatabase);
@@ -1169,11 +1155,11 @@ bool KSQL::OpenConnection ()
 		//m_dMYSQL = (MYSQL*) kmalloc (sizeof(MYSQL),"KSQL:m_dMYSQL"); // <-- will gracefully crash on malloc failure
 		//mysql_init ((MYSQL*)m_dMYSQL);
 
-		static tthread::mutex s_OnceInitMutex;
+		static std::mutex s_OnceInitMutex;
 		static bool s_fOnceInitFlag = false;
 		if (!s_fOnceInitFlag)
 		{
-			tthread::lock_guard<tthread::mutex> Lock(s_OnceInitMutex);
+			std::lock_guard<std::mutex> Lock(s_OnceInitMutex);
 			if (!s_fOnceInitFlag)
 			{
 				kDebugLog (3, "mysql_library_init()...");
@@ -1463,7 +1449,7 @@ bool KSQL::OpenConnection ()
 
 	m_bConnectionIsOpen = true;
 		
-	kDebugLog (3, "[{}] connection is now open...", m_iDebugID);
+	kDebug (3, "[{}] connection is now open...", m_iDebugID);
 
 	if (!IsFlag(F_NoTranslations))
 		BuildTranslationList (&m_TxList);
@@ -1757,7 +1743,7 @@ bool KSQL::ExecRawSQL (KStringView sSQL, uint64_t iFlags/*=0*/, KStringView sAPI
 				// the first retry should have no delay:
 				if (iSleepFor) {
 					kDebugLog (GetDebugLevel(), "sleeping {} seconds...", iSleepFor);
-					sleep (iSleepFor);
+					std::this_thread::sleep_for(std::chrono::seconds(iSleepFor));
 				}
 
 				// increase iSleepFor in case we end up here again:
@@ -1849,6 +1835,8 @@ bool KSQL::PreparedToRetry ()
 		case 20006:
 			fConnectionLost = true;
 		}
+		break;
+	default:
 		break;
 	}
 
@@ -3435,9 +3423,13 @@ bool KSQL::NextRow ()
 				++m_iRowNum;
 	
 			if (!m_MYSQLRow)
+			{
 				kDebugLog (3, "[{}]NextRow(): {} row{} fetched (end was hit)", m_iDebugID, m_iRowNum, (m_iRowNum==1) ? " was" : "s were");
-			else 
+			}
+			else
+			{
 				kDebugLog (3, "[{}]NextRow(): mysql_getch_row gave us row {}", m_iDebugID, m_iRowNum);
+			}
 
 			return (m_MYSQLRow != NULL);
 		#endif
@@ -3546,10 +3538,12 @@ bool KSQL::NextRow (KROW& Row, bool fTrimRight)
 
 	Row.clear();
 
-	if (bGotOne) {
+	if (bGotOne)
+	{
 		kDebugLog (3, "[{}]   data: got row {}, now loading property sheet with {} column values...", m_iDebugID, m_iRowNum, GetNumCols());
 	}
-	else {
+	else
+	{
 		kDebugLog (3, "  data: no more rows.");
 	}
 
@@ -3760,7 +3754,7 @@ void KSQL::EndQuery ()
 } // KSQL::EndQuery
 
 //-----------------------------------------------------------------------------
-COLINFO* KSQL::GetColProps (uint32_t iOneBasedColNum)
+KSQL::COLINFO* KSQL::GetColProps (uint32_t iOneBasedColNum)
 //-----------------------------------------------------------------------------
 {
 	static bool    s_fOnce = false;
@@ -4232,7 +4226,7 @@ bool KSQL::SetFlags (uint64_t iFlags)
 } // KSQL::SetFlags
 
 //-----------------------------------------------------------------------------
-KStringView KSQL::GetLastInfo()
+KString KSQL::GetLastInfo()
 //-----------------------------------------------------------------------------
 {
 #if defined(MYSQLCOMPILE)
@@ -4255,7 +4249,7 @@ void KSQL::BuildTranslationList (KPROPS* pList, int iDBType/*=0*/)
 	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 	// build the translation array:
 	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-	for (int jj=0; jj < std::extent<decltype(g_Translations)>::value; ++jj)
+	for (size_t jj=0; jj < std::extent<decltype(g_Translations)>::value; ++jj)
 	{
 		KStringView sName = g_Translations[jj].sOriginal;
 

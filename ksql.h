@@ -2,7 +2,7 @@
 //
 // DEKAF(tm): Lighter, Faster, Smarter(tm)
 //
-// Copyright (c) 2017, Ridgeware, Inc.
+// Copyright (c) 2018, Ridgeware, Inc.
 //
 // +-------------------------------------------------------------------------+
 // | /\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\|
@@ -42,6 +42,11 @@
 
 #pragma once
 
+#include <cinttypes>
+#include "kstring.h"
+#include "kstringview.h"
+#include "krow.h"
+
 //
 // Note:
 //  To use the KSQL class for ORACLE and MYSQL you do *NOT* need to
@@ -79,21 +84,19 @@
   #ifdef min
     #undef min
   #endif
+#endif
 
   extern "C"
   {
+#ifdef ORACLECOMPILE
     #include <oratypes.h>   // OCI6
     #include <ociapr.h>     // OCI6
     #include <oci.h>        // OCI8
     #ifndef NOSQLCA
       #include <sqlca.h>      // for global sqlca struct
     #endif
-  }
-
-  #ifdef boolean
-    #undef boolean
-  #endif
 #endif
+  }
 
 enum {
 	PARSE_NO_DEFER   = 0,     // 
@@ -102,8 +105,6 @@ enum {
 	STRING_TYPE      = 5,     // 
 	NO_DATA_FOUND    = 1403   // 
 };
-
-#include <dekaf2/dekaf2all.h>         // <-- KSQL requires DEKAF2 framework
 
 #ifdef ODBC
   #include <sqlext.h>         // <-- Microsoft ODBC API's
@@ -136,22 +137,7 @@ struct _cs_blk_row;          typedef struct _cs_blk_row CS_BLK_ROW;
 // KSQL: DATABASE CONNECTION CLASS
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-namespace dekaf2
-{
-
-enum { MAXCOLNAME = 100};
-
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-typedef struct
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-{
-	char*   dszValue;
-	char    szColName[MAXCOLNAME+1];
-	int     iDataType;
-	int     iMaxDataLen;
-	short   indp;   // oratypes.h:typedef   signed short    sb2;
-
-} COLINFO;
+namespace dekaf2 {
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 // Normalizing date/time columns into format like "20010723211321"...
@@ -160,9 +146,6 @@ typedef struct
 //   ORACLE: select to_char(colname,'YYYYMMDDHH24MISS')
 //
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
-#define ESCAPE_MYSQL "\'\\"
-#define ESCAPE_MSSQL "\'"
 
 /* DBC file format structures:
    These structures, once established, CAN NOT CHANGE.
@@ -227,202 +210,29 @@ struct DBCFILEv3
 	uint8_t       iDBPortNum[4];
 };
 
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class KCOL
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-{
-//----------
-public:
-//----------
-	KCOL () = default;
-
-	KCOL (KStringView _sValue, uint64_t _iFlags=0, uint32_t _iMaxLen=0)
-	{
-		sValue  = _sValue;
-		iFlags  = _iFlags;
-		iMaxLen = _iMaxLen;
-	}
-
-	KCOL (KCOL&&)                  = default;
-	KCOL (const KCOL&)             = default;
-	KCOL& operator = (KCOL&&)      = default;
-	KCOL& operator = (const KCOL&) = default;
-
-	KString  sValue;  // aka "second"
-	uint64_t iFlags;
-	uint32_t iMaxLen;
-};
-
-typedef KProps <KString, KCOL,    /*order-matters=*/true, /*unique-keys*/true> KCOLS;
-typedef KProps <KString, KString, /*order-matters=*/true, /*unique-keys*/true> KPROPS;
-
 //-----------------------------------------------------------------------------
-class KROW : public KCOLS
+class KSQL : public detail::KCommonSQLBase
 //-----------------------------------------------------------------------------
 {
 //----------
 public:
 //----------
-	template<class... Args>
-	KROW(Args&&... args)
-	    : KCOLS(std::forward<Args>(args)...)
+
+	enum { MAXCOLNAME = 100};
+
+	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	typedef struct
+	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	{
-	}
+		char*   dszValue;
+		char    szColName[MAXCOLNAME+1];
+		int     iDataType;
+		int     iMaxDataLen;
+		short   indp;   // oratypes.h:typedef   signed short    sb2;
 
-	KROW (KROW&&)                  = default;
-	KROW (const KROW&)             = default;
-	KROW& operator = (KROW&&)      = default;
-	KROW& operator = (const KROW&) = default;
+	} COLINFO;
 
-	KROW (KStringView sTablename) {
-		m_sTablename =  sTablename;
-	}
-
-	void SetTablename (KStringView sTablename) {
-		m_sTablename =  sTablename;
-	}
-
-	bool AddCol (KStringView sColName, KStringView sValue=nullptr, uint64_t iFlags=0, uint32_t iMaxLen=0) {
-		KCOL col (sValue, iFlags, iMaxLen);
-		return (KCOLS::Add (sColName, col) != KCOLS::end());
-	}
-
-	bool AddCol (KStringView sColName, int64_t iValue, uint64_t iFlags=0, uint32_t iMaxLen=0) {
-		KString sValue; sValue.Format ("{}", iValue);
-		KCOL col (sValue, iFlags, iMaxLen);
-		return (KCOLS::Add (sColName, col) != KCOLS::end());
-	}
-
-	bool AddCol (KStringView sColName, uint64_t iValue, uint64_t iFlags=0, uint32_t iMaxLen=0) {
-		KString sValue; sValue.Format ("{}", iValue);
-		KCOL col (sValue, iFlags, iMaxLen);
-		return (KCOLS::Add (sColName, col) != KCOLS::end());
-	}
-
-	bool AddCol (KStringView sColName, double nValue, uint64_t iFlags=0, uint32_t iMaxLen=0)
-	{
-		KString sValue; sValue.Format ("{}", nValue);
-		KCOL col (sValue, iFlags, iMaxLen);
-		return (KCOLS::Add (sColName, col) != KCOLS::end());
-	}
-
-	bool SetValue (KStringView sColName, KStringView sValue)
-	{
-		auto it = KCOLS::find (sColName);
-		if (it == KCOLS::KeyIndex().end()) {
-			KCOL col(sValue);
-			return (KCOLS::Add (sColName, col) != KCOLS::end());
-		}
-		else {
-			it->second.sValue = sValue;
-			return (true);
-		}
-	}
-
-	bool SetValue (KStringView sColName, int64_t iValue)
-	{
-		KString sValue; sValue.Format ("{}", iValue);
-		auto it = KCOLS::find (sColName);
-		if (it == KCOLS::KeyIndex().end()) {
-			KCOL col(sValue);
-			return (KCOLS::Add (sColName, col) != KCOLS::end());
-		}
-		else {
-			it->second.sValue = sValue;
-			return (true);
-		}
-	}
-
-	/// Returns the Nth column's name (note: column index starts at 0).
-	KStringView GetName (size_t iZeroBasedIndex)
-	{
-		return (at (iZeroBasedIndex).first);
-	}
-
-	/// Returns the Nth column's value as a string (note: column index starts at 0).  Note that you can map this to literally any data type by using KStringView member functions like .Int32().
-	KStringView GetValue (size_t iZeroBasedIndex)
-	{
-		return (at (iZeroBasedIndex).second.sValue);
-	}
-
-	/// Returns the Nth column's flags (note: column index starts at 0).
-	bool GetFlags (size_t iZeroBasedIndex)
-	{
-		return (at (iZeroBasedIndex).second.iFlags);
-	}
-
-	/// Returns whether or not a particular flag is set on the Nth column (note: column index starts at 0).
-	bool IsFlag (size_t iZeroBasedIndex, uint64_t iFlag)
-	{
-		return (GetFlags(iZeroBasedIndex) & iFlag);
-	}
-
-	/// Returns the maximum character length of the Nth column if it was set (note: column index starts at 0).
-	uint32_t MaxLength (uint32_t iZeroBasedIndex) {
-		return (at (iZeroBasedIndex).second.iMaxLen);
-	}
-
-	/// Formats the proper RDBMS DDL statement for inserting one row into the database for the given table and column structure.
-	bool FormInsert (KString& sSQL, int iDBType, bool fUnicode=false, bool fIdentityInsert=false);
-
-	/// Formats the proper RDBMS DDL statement for updating one row in the database for the given table and column structure.
-	/// Note that at least one column must have the PKEY flag set (so that the framework knows what to put in the WHERE clause).
-	bool FormUpdate (KString& sSQL, int iDBType, bool fUnicode=false);
-
-	/// Formats the proper RDBMS DDL statement for deleting one row in the database for the given table and column structure.
-	/// Note that at least one column must have the PKEY flag set (so that the framework knows what to put in the WHERE clause).
-	bool FormDelete (KString& sSQL, int iDBType, bool fUnicode=false);
-
-	/// Returns the last RDBMS error message.
-	KStringView GetLastError() { return (m_sLastError); }
-
-	/// Returns the tablename of this KROW object (if set).
-	KStringView GetTablename() { return (m_sTablename); }
-
-	enum
-	{
-		PKEY             = 0x0000001,   ///< Indicates given column is part of the primary key.  At least one column must have the PKEY flag to use KROW to do UPDATE and DELETE.
-		NONCOLUMN        = 0x0000010,   ///< Indicates given column is not a column and should be included in DDL statements.
-		EXPRESSION       = 0x0000100,   ///< Indicates given column is not a column and should be included in DDL statements.
-		INSERTONLY       = 0x0001000,   ///< Indicates given column is only to be used in INSERT statements (not UPDATE or DELETE).
-		NUMERIC          = 0x0010000,   ///< Indicates given column should not be quoted when forming DDL statements.
-		NULL_IS_NOT_NIL  = 0x0100000    ///< Indicates given column is ???
-	};
-
-	// - - - - - - - - - - - - - - - -
-	// helper functions:
-	// - - - - - - - - - - - - - - - -
-	static void EscapeChars (KStringView sString, KString& sEscaped, int iDBType);
-	static void EscapeChars (KStringView sString, KString& sEscaped, const char* szCharsToEscape, int iEscapeChar=0);
-
-//----------
-private:
-//----------
-	void SmartClip (KStringView sColName, KString& sValue, size_t iMaxLen);
-
-	KString m_sTablename;
-	KString m_sLastError;
-};
-
-//-----------------------------------------------------------------------------
-class KSQL
-//-----------------------------------------------------------------------------
-{
-//----------
-public:
-//----------
-	enum
-	{
-		// the DBT constant is used to govern certain SQL statments:
-		DBT_MYSQL             = 100,        // assume we're connecting to MySQL
-		DBT_ORACLE6           = 206,        // assume we're connecting to an Oracle6 rdbms
-		DBT_ORACLE7           = 207,        // assume we're connecting to an Oracle7 rdbms
-		DBT_ORACLE8           = 208,        // assume we're connecting to an Oracle8 rdbms
-		DBT_ORACLE            = 200,        // use the latest assumptions about Oracle
-		DBT_SQLSERVER         = 300,
-		DBT_SYBASE            = 400,
-		DBT_INFORMIX          = 500,
-
+	enum {
 		// the API constant determines how to connect to the database
 		API_MYSQL             = 10000,      // connect to MYSQL using their custom APIs
 		API_OCI6              = 26000,      // connect to Oracle using the v6 OCI (older set)
@@ -435,9 +245,9 @@ public:
 		// blob encoding schemes:
 		BT_ASCII              = 'A',        // ASCII:  only replace newlines and single quotes
 		BT_BINARY             = 'B',        // BINARY: encode every char into base 256 (2 digit hex)
-		MAXLEN_CONNECTPARM    = DBCFILEv3::MAXLEN_CONNECTPARM,
+//		MAXLEN_CONNECTPARM    = DBCFILEv3::MAXLEN_CONNECTPARM,
 		MAX_BLOBCHUNKSIZE     =  2000,      // LCD between Oracle, Sybase, MySQL, and Informix
-		MAXLEN_CURSORNAME     =    50,
+//		MAXLEN_CURSORNAME     =    50,
 		NUM_RETRIES           =     5,      // <-- when db connection is lost
 		MAX_CHARS_CTLIB       = 8000,       //varchar columns hold at most 8000 characters.
 
@@ -456,15 +266,15 @@ public:
 
 	const char* BAR = "--------------------------------------------------------------------------------"; // for printf() so keep this const char*
 
-	KSQL (uint32_t iFlags=0, int iDebugID=0, int iDBType=DBT_MYSQL, KStringView sUsername=NULL, KStringView sPassword=NULL, KStringView sDatabase=NULL, KStringView sHostname=NULL, uint32_t iDBPortNum=0);
+	KSQL (uint32_t iFlags=0, int iDebugID=0, SQLTYPE iDBType=DBT_MYSQL, KStringView sUsername=NULL, KStringView sPassword=NULL, KStringView sDatabase=NULL, KStringView sHostname=NULL, uint32_t iDBPortNum=0);
 	KSQL (KSQL& Another,  int iDebugID=0);
 	KSQL (KSQL* pAnother, int iDebugID=0);
 
 	virtual ~KSQL ();
 
 	bool   CopyConnection (KSQL* pAnother);
-	bool   SetConnect (int iDBType, KStringView sUsername, KStringView sPassword, KStringView sDatabase, KStringView sHostname=NULL, uint32_t iDBPortNum=0);
-	bool   SetDBType (int iDBType);
+	bool   SetConnect (SQLTYPE iDBType, KStringView sUsername, KStringView sPassword, KStringView sDatabase, KStringView sHostname=NULL, uint32_t iDBPortNum=0);
+	bool   SetDBType (SQLTYPE iDBType);
 	bool   SetDBUser (KStringView sUsername);
 	bool   SetDBPass (KStringView sPassword);
 	bool   SetDBHost (KStringView sHostname);
@@ -498,9 +308,6 @@ public:
 	void   SetWarningThreshold  (uint32_t iWarnIfOverNumSeconds, FILE* fpAlternativeToKlog=NULL)
 					{ m_iWarnIfOverNumSeconds = iWarnIfOverNumSeconds;
 					  m_bpWarnIfOverNumSeconds = fpAlternativeToKlog; }
-
-	static void     SetDebugLevel (uint32_t iNewLevel) { m_iDebugLevel=iNewLevel; }
-	static int32_t  GetDebugLevel () {return m_iDebugLevel;}
 
 	/// After establishing a database connection, this is how you sent DDL (create table, etc.) statements to the RDBMS.
 	template<class... Args>
@@ -593,25 +400,25 @@ public:
 	}
 	#endif
 
-	int         GetDBType ()             { return (m_iDBType);         }
-	KStringView GetDBUser ()             { return (m_sUsername);       }
-	KStringView GetDBPass ()             { return (m_sPassword);       }
-	KStringView GetDBHost ()             { return (m_sHostname);       }
-	KStringView GetDBName ()             { return (m_sDatabase);       }
+	SQLTYPE     GetDBType ()             { return (m_iDBType);         }
+	const KString& GetDBUser ()          { return (m_sUsername);       }
+	const KString& GetDBPass ()          { return (m_sPassword);       }
+	const KString& GetDBHost ()          { return (m_sHostname);       }
+	const KString& GetDBName ()          { return (m_sDatabase);       }
 	uint32_t    GetDBPort ()             { return (m_iDBPortNum);      }
-	KStringView ConnectSummary ()        { return (m_sConnectSummary); }
-	KStringView GetTempDir()             { return (m_sTempDir);        }
+	const KString& ConnectSummary ()     { return (m_sConnectSummary); }
+	const KString& GetTempDir()          { return (m_sTempDir);        }
 
-	KStringView GetLastError ()          { return (m_sLastError);      }
+	const KString& GetLastError ()       { return (m_sLastError);      }
 	int         GetLastErrorNum ()       { return (m_iErrorNum);       }
 	int         GetLastOCIError ()       { return (GetLastErrorNum()); }
-	KStringView GetLastSQL ()            { return (m_sLastSQL);        }
+	const KString& GetLastSQL ()         { return (m_sLastSQL);        }
 	bool        SetFlags (uint64_t iFlags);
 	uint64_t     GetFlags ()             { return (m_iFlags);          }
 	bool        IsFlag (uint64_t iBit)   { return ((m_iFlags & iBit) == iBit); }
 	uint64_t    GetNumRowsAffected ()    { return (m_iNumRowsAffected); }
 	uint64_t    GetLastInsertID ();
-	KStringView GetLastInfo ();
+	KString     GetLastInfo ();
 
 	void        SetTempDir (KStringView sTempDir)  { m_sTempDir = sTempDir; }
 
@@ -660,7 +467,7 @@ protected:
 	int64_t    m_iDebugID;                // useful for tracing multiple instances of KSQL in debug log
 	uint64_t   m_iFlags;                  // set by calling SetFlags()
 	int        m_iErrorNum;               // db error number (e.g. ORA code)
-	int        m_iDBType;
+	SQLTYPE    m_iDBType;
 	int        m_iAPISet;
 	uint32_t   m_iDBPortNum;
 	KString    m_sUsername;

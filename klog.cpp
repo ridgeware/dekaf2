@@ -42,12 +42,6 @@
 
 /*
 TODO: KLOG OVERHAUL NEEDED
-[x] output format as a single line was completely misunderstood -- partially fixed
-[x] program name was misunderstood -- partially fixed
-[ ] no way to specify "stdout" "stderr" TRACE() "syslog" as log output 
-[ ] with {} style formatting there is no way to format things like %03d, need multiple methods I guess
-[ ] constructor is *removing* the klog when program starts (completely wrong)
-[ ] not sure I like KLog as a classname.  probable KLOG.
 [ ] kDebug() and kWarning() macros should probably be kDebugFormat() and kDebugPrintf()
 */
 
@@ -63,7 +57,6 @@ TODO: KLOG OVERHAUL NEEDED
 #include "khttp.h"
 #include "kjson.h"
 #include "ksplit.h"
-#include "kstringutils.h"
 
 namespace dekaf2
 {

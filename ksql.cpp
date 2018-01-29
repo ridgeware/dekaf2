@@ -59,6 +59,17 @@
 #include <sys/time.h>
 #endif
 
+#ifdef DEKAF2_HAS_MYSQL
+  #ifdef WIN32
+    #define NO_CLIENT_LONG_LONG // <-- for mysql header file
+  #endif
+  #ifdef cygwin
+    #undef STDCALL
+  #endif
+  #include <mysql.h>          // mysql top include
+  //nclude <mysql_com.h>      // included by mysql.h
+  //nclude <mysql_version.h>  // included by mysql.h
+#endif
 
 #ifdef DEKAF2_HAS_DBLIB
   // dependent headers when building DBLIB (these are *not* part of our distribution):

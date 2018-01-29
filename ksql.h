@@ -110,18 +110,6 @@ enum {
   #include <sqlext.h>         // <-- Microsoft DEKAF2_HAS_ODBC API's
 #endif
 
-#ifdef DEKAF2_HAS_MYSQL
-  #ifdef WIN32
-    #define NO_CLIENT_LONG_LONG // <-- for mysql header file
-  #endif
-  #ifdef cygwin
-    #undef STDCALL
-  #endif
-  #include <mysql.h>          // mysql top include
-  //nclude <mysql_com.h>      // included by mysql.h
-  //nclude <mysql_version.h>  // included by mysql.h
-#endif
-
 // to get DBLIB member vars to compile:
 struct tds_dblib_dbprocess;  typedef struct tds_dblib_dbprocess DBPROCESS;
 

@@ -42,12 +42,6 @@
 
 /*
 TODO: KLOG OVERHAUL NEEDED
-[x] output format as a single line was completely misunderstood -- partially fixed
-[x] program name was misunderstood -- partially fixed
-[ ] no way to specify "stdout" "stderr" TRACE() "syslog" as log output 
-[ ] with {} style formatting there is no way to format things like %03d, need multiple methods I guess
-[ ] constructor is *removing* the klog when program starts (completely wrong)
-[ ] not sure I like KLog as a classname.  probable KLOG.
 [ ] kDebug() and kWarning() macros should probably be kDebugFormat() and kDebugPrintf()
 */
 
@@ -63,7 +57,6 @@ TODO: KLOG OVERHAUL NEEDED
 #include "khttp.h"
 #include "kjson.h"
 #include "ksplit.h"
-#include "kstringutils.h"
 
 namespace dekaf2
 {
@@ -309,6 +302,8 @@ void KLogTTYSerializer::Serialize() const
 
 	sPrefix.Printf("| %3.3s | %5.5s | %5u | %s | ", sLevel, m_sShortName, getpid(), kFormTimestamp());
 
+	KString sPrefixWOFunction(sPrefix);
+
 	if (!m_sFunctionName.empty())
 	{
 		sPrefix += m_sFunctionName;
@@ -319,8 +314,8 @@ void KLogTTYSerializer::Serialize() const
 
 	if (!m_sBacktrace.empty())
 	{
-		sPrefix = ">> ";
-		AddMultiLineMessage(sPrefix, m_sBacktrace);
+		AddMultiLineMessage(sPrefixWOFunction, m_sBacktrace);
+		AddMultiLineMessage(sPrefixWOFunction, KLog::DASH);
 	}
 
 } // Serialize
@@ -360,8 +355,8 @@ void KLogSyslogSerializer::Serialize() const
 
 	if (!m_sBacktrace.empty())
 	{
-		sPrefix = ">> ";
 		AddMultiLineMessage(sPrefix, m_sBacktrace);
+		AddMultiLineMessage(sPrefix, KLog::DASH);
 	}
 
 } // Serialize
@@ -386,6 +381,11 @@ KLog::KLog()
 //---------------------------------------------------------------------------
     : m_sLogName     (kGetEnv(s_sEnvLog,  s_sDefaultLog))
     , m_sFlagfile    (kGetEnv(s_sEnvFlag, s_sDefaultFlag))
+#ifdef NDEBUG
+    ,.m_iBackTrace   (std::atoi(kGetEnv(s_sEnvTrace, "-2")))
+#else
+    , m_iBackTrace   (std::atoi(kGetEnv(s_sEnvTrace, "-1")))
+#endif
 {
 #ifdef NDEBUG
 	s_kLogLevel = -1;
@@ -614,9 +614,9 @@ void KLog::CheckDebugFlag()
 //---------------------------------------------------------------------------
 {
 #ifdef NDEBUG
-	m_iBackTrace = std::atoi(kGetEnv("KLogBacktrace", "-2"));
+	m_iBackTrace = std::atoi(kGetEnv(s_sEnvTrace, "-2"));
 #else
-	m_iBackTrace = std::atoi(kGetEnv("KLogBacktrace", "-1"));
+	m_iBackTrace = std::atoi(kGetEnv(s_sEnvTrace, "-1"));
 #endif
 
 	// file format of the debug "flag" file:

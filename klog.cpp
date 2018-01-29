@@ -381,6 +381,11 @@ KLog::KLog()
 //---------------------------------------------------------------------------
     : m_sLogName     (kGetEnv(s_sEnvLog,  s_sDefaultLog))
     , m_sFlagfile    (kGetEnv(s_sEnvFlag, s_sDefaultFlag))
+#ifdef NDEBUG
+    ,.m_iBackTrace   (std::atoi(kGetEnv(s_sEnvTrace, "-2")))
+#else
+    , m_iBackTrace   (std::atoi(kGetEnv(s_sEnvTrace, "-1")))
+#endif
 {
 #ifdef NDEBUG
 	s_kLogLevel = -1;
@@ -609,9 +614,9 @@ void KLog::CheckDebugFlag()
 //---------------------------------------------------------------------------
 {
 #ifdef NDEBUG
-	m_iBackTrace = std::atoi(kGetEnv("KLogBacktrace", "-2"));
+	m_iBackTrace = std::atoi(kGetEnv(s_sEnvTrace, "-2"));
 #else
-	m_iBackTrace = std::atoi(kGetEnv("KLogBacktrace", "-1"));
+	m_iBackTrace = std::atoi(kGetEnv(s_sEnvTrace, "-1"));
 #endif
 
 	// file format of the debug "flag" file:

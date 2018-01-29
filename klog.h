@@ -509,21 +509,18 @@ private:
 	bool IntOpenLog();
 	//---------------------------------------------------------------------------
 
-#ifdef NDEBUG
-	int m_iBackTrace{-2};
-#else
-	int m_iBackTrace{-1};
-#endif
 	KString m_sPathName;
  	KString m_sShortName;
 	KString m_sLogName;
 	KString m_sFlagfile;
+	int m_iBackTrace;
 	time_t m_sTimestampFlagfile{0};
 	std::unique_ptr<KLogSerializer> m_Serializer;
 	std::unique_ptr<KLogWriter> m_Logger;
 
 	constexpr static const char* const s_sEnvLog      = "DEKAFLOG";
 	constexpr static const char* const s_sEnvFlag     = "DEKAFDBG";
+	constexpr static const char* const s_sEnvTrace    = "DEKAFTRC";
 	constexpr static const char* const s_sDefaultLog  = "/tmp/dekaf.log";
 	constexpr static const char* const s_sDefaultFlag = "/tmp/dekaf.dbg";
 

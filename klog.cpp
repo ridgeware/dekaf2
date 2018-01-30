@@ -382,7 +382,7 @@ KLog::KLog()
     : m_sLogName     (kGetEnv(s_sEnvLog,  s_sDefaultLog))
     , m_sFlagfile    (kGetEnv(s_sEnvFlag, s_sDefaultFlag))
 #ifdef NDEBUG
-    ,.m_iBackTrace   (std::atoi(kGetEnv(s_sEnvTrace, "-3")))
+    , m_iBackTrace   (std::atoi(kGetEnv(s_sEnvTrace, "-3")))
 #else
     , m_iBackTrace   (std::atoi(kGetEnv(s_sEnvTrace, "-2")))
 #endif
@@ -696,7 +696,7 @@ bool KLog::IntDebug(int level, KStringView sFunction, KStringView sMessage)
 		int iSkipFromStack{4};
 		if (level == -2)
 		{
-			// for exceptions we have to peel off four more stack frames
+			// for exceptions we have to peel off one more stack frame
 			// (it is of course a brittle expectation of level == -2 == exception,
 			// but for now it is true)
 			iSkipFromStack += 1;

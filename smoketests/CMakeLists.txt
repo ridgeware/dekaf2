@@ -12,7 +12,6 @@ set (UHEADERS
 
 set (USOURCES
     main.cpp
-    kcurl_smoketests.cpp
     kwebio_smoketests.cpp
     kinshell_smoketests.cpp
     ksslstream_smoketests.cpp

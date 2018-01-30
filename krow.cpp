@@ -45,6 +45,8 @@
 
 using namespace dekaf2;
 
+int32_t  detail::KCommonSQLBase::m_iDebugLevel{0};
+
 //-----------------------------------------------------------------------------
 void KROW::EscapeChars (KStringView sString, KString& sEscaped, SQLTYPE iDBType)
 //-----------------------------------------------------------------------------

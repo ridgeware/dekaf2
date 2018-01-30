@@ -299,18 +299,63 @@ public:
 
 	/// After establishing a database connection, this is how you sent DDL (create table, etc.) statements to the RDBMS.
 	template<class... Args>
-	bool ExecSQL (Args&&... args);
+	bool ExecSQL (Args&&... args)
+	{
+		m_sLastSQL = kFormat(std::forward<Args>(args)...);
+
+		if (!IsFlag(F_NoTranslations)) {
+			DoTranslations (m_sLastSQL, m_iDBType);
+		}
+
+		return (ExecRawSQL (m_sLastSQL, 0, "ExecSQL"));
+
+	} // KSQL::ExecSQL
 
 	bool           ExecRawSQL     (KStringView sSQL, uint64_t iFlags=0, KStringView sAPI="ExecRawSQL");
 	bool           ExecSQLFile    (KString sFilename);
 
 	/// After establishing a database connection, this is how you issue a SQL query and get results.
 	template<class... Args>
-	bool ExecQuery (Args&&... args);
+	bool ExecQuery (Args&&... args)
+	{
+		kDebugLog (3, "[{}]bool KSQL::ExecQuery()...", m_iDebugID);
+
+		EndQuery ();
+		if (!OpenConnection())
+			return (false);
+
+		m_sLastSQL = kFormat(std::forward<Args>(args)...);
+
+		if (!IsFlag(F_NoTranslations)) {
+			DoTranslations (m_sLastSQL, m_iDBType);
+		}
+
+		if (!IsFlag(F_IgnoreSelectKeyword) && !m_sLastSQL.StartsWith ("select") && !m_sLastSQL.StartsWith("SELECT"))
+		{
+			m_sLastError.Format ("{}ExecQuery: query does not start with keyword 'select' [see F_IgnoreSelectKeyword]", m_sErrorPrefix);
+			return (SQLError());
+		}
+
+		return (ExecRawQuery (m_sLastSQL, 0, "ExecQuery"));
+
+	} // ExecQuery
+
 
 	/// This is a special type of version of ExecQuery() in which only one row is fetched and cast to a integer.
 	template<class... Args>
-	int64_t SingleIntQuery (Args&&... args);
+	int64_t SingleIntQuery (Args&&... args)
+	{
+		kDebugLog (3, "[{}]long KSQL::SingleIntQuery()...", m_iDebugID);
+
+		m_sLastSQL = kFormat(std::forward<Args>(args)...);
+
+		if (!IsFlag(F_NoTranslations)) {
+			DoTranslations (m_sLastSQL, m_iDBType);
+		}
+
+		return (SingleIntRawQuery (m_sLastSQL, 0, "SingleIntQuery"));
+
+	} // KSQL::SingleIntQuery
 
 	int64_t        SingleIntRawQuery (KStringView sSQL, uint64_t iFlags=0, KStringView sAPI="ExecRawQuery");
 

@@ -886,6 +886,22 @@ inline bool operator!=(KStringView left, KStringView right)
 
 //-----------------------------------------------------------------------------
 constexpr
+inline bool operator!=(const KStringView::value_type* left, KStringView right)
+//-----------------------------------------------------------------------------
+{
+	return !(left == right);
+}
+
+//-----------------------------------------------------------------------------
+constexpr
+inline bool operator!=(KStringView left, const KStringView::value_type* right)
+//-----------------------------------------------------------------------------
+{
+	return !(left == right);
+}
+
+//-----------------------------------------------------------------------------
+constexpr
 inline bool operator<(KStringView left, KStringView right)
 //-----------------------------------------------------------------------------
 {

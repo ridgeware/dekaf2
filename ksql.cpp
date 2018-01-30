@@ -1571,21 +1571,6 @@ void KSQL::SetErrorPrefix (KStringView sPrefix, uint32_t iLineNum/*=0*/)
 } // SetErrorPrefix
 
 //-----------------------------------------------------------------------------
-template<class... Args>
-bool KSQL::ExecSQL (Args&&... args)
-//-----------------------------------------------------------------------------
-{
-	m_sLastSQL = kFormat(std::forward<Args>(args)...);
-
-	if (!IsFlag(F_NoTranslations)) {
-		DoTranslations (m_sLastSQL, m_iDBType);
-	}
-
-	return (ExecRawSQL (m_sLastSQL, 0, "ExecSQL"));
-
-} // KSQL::ExecSQL
-
-//-----------------------------------------------------------------------------
 bool KSQL::ExecRawSQL (KStringView sSQL, uint64_t iFlags/*=0*/, KStringView sAPI/*="ExecRawSQL"*/)
 //-----------------------------------------------------------------------------
 {
@@ -2309,33 +2294,6 @@ void KSQL::ExecSQLFileGo (KStringView sFilename, uint32_t& iLineNumStart, uint32
 	fDropStatement = false; // reset flags
 
 } // ExecSQLFileGo
-
-//-----------------------------------------------------------------------------
-template<class... Args>
-bool KSQL::ExecQuery (Args&&... args)
-//-----------------------------------------------------------------------------
-{
-	kDebugLog (3, "[{}]bool KSQL::ExecQuery()...", m_iDebugID);
-
-	EndQuery ();
-	if (!OpenConnection())
-		return (false);
-
-	m_sLastSQL = kFormat(std::forward<Args>(args)...);
-
-	if (!IsFlag(F_NoTranslations)) {
-		DoTranslations (m_sLastSQL, m_iDBType);
-	}
-
-	if (!IsFlag(F_IgnoreSelectKeyword) && !KASCII::strmatchN (m_sLastSQL.c_str(), "select") && !KASCII::strmatchN (m_sLastSQL.c_str(), "SELECT"))
-	{
-		m_sLastError.Format ("{}ExecQuery: query does not start with keyword 'select' [see F_IgnoreSelectKeyword]", m_sErrorPrefix);
-		return (SQLError());
-	}
-
-	return (ExecRawQuery (m_sLastSQL, 0, "ExecQuery"));
-
-} // ExecQuery
 
 //-----------------------------------------------------------------------------
 bool KSQL::ExecRawQuery (KStringView sSQL, uint64_t iFlags/*=0*/, KStringView sAPI/*="ExecRawQuery"*/)
@@ -3608,23 +3566,6 @@ void KSQL::FreeBufferedColArray (bool fValuesOnly/*=false*/)
 	m_dBufferedColArray = NULL;
 
 } // FreeBufferedColArray
-
-//-----------------------------------------------------------------------------
-template<class... Args>
-int64_t KSQL::SingleIntQuery (Args&&... args)
-//-----------------------------------------------------------------------------
-{
-	kDebugLog (3, "[{}]long KSQL::SingleIntQuery()...", m_iDebugID);
-
-	m_sLastSQL = kFormat(std::forward<Args>(args)...);
-
-	if (!IsFlag(F_NoTranslations)) {
-		DoTranslations (m_sLastSQL, m_iDBType);
-	}
-
-	return (SingleIntRawQuery (m_sLastSQL, 0, "SingleIntQuery"));
-
-} // KSQL::SingleIntQuery
 
 //-----------------------------------------------------------------------------
 int64_t KSQL::SingleIntRawQuery (KStringView sSQL, uint64_t iFlags/*=0*/, KStringView sAPI/*="SingleIntRawQuery"*/)

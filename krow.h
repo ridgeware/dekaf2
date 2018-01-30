@@ -124,10 +124,12 @@ class KROW : public KCOLS, public detail::KCommonSQLBase
 //----------
 public:
 //----------
-	template<class... Args>
-	KROW(Args&&... args)
-	    : KCOLS(std::forward<Args>(args)...)
-	{
+	KROW (const char* szTablename) {
+		m_sTablename =  szTablename;
+	}
+
+	KROW (KStringView sTablename) {
+		m_sTablename =  sTablename;
 	}
 
 	KROW (KROW&&)                  = default;
@@ -135,8 +137,10 @@ public:
 	KROW& operator = (KROW&&)      = default;
 	KROW& operator = (const KROW&) = default;
 
-	KROW (KStringView sTablename) {
-		m_sTablename =  sTablename;
+	template<class... Args>
+	KROW(Args&&... args)
+	    : KCOLS(std::forward<Args>(args)...)
+	{
 	}
 
 	void SetTablename (KStringView sTablename) {

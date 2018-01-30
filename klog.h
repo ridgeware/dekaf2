@@ -588,7 +588,8 @@ KLog& KLog();
 	#undef kException
 #endif
 //---------------------------------------------------------------------------
-/// log an exception, automatically provide function name.
+/// log an exception, automatically provide function name and generate a
+/// stacktrace at level -2
 #define kException(except) \
 { \
 	KLog().Exception(except, DEKAF2_FUNCTION_NAME); \
@@ -596,13 +597,24 @@ KLog& KLog();
 //---------------------------------------------------------------------------
 
 #ifdef kUnknownException
-	#undef kUnknownException
+    #undef kUnknownException
 #endif
 //---------------------------------------------------------------------------
 /// log an unknown exception, automatically provide function name.
 #define kUnknownException() \
 { \
 	KLog().Exception(DEKAF2_FUNCTION_NAME); \
+}
+//---------------------------------------------------------------------------
+
+#ifdef kDebugTrace
+    #undef kDebugTrace
+#endif
+//---------------------------------------------------------------------------
+/// log an unknown exception, automatically provide function name.
+#define kDebugTrace(level, ...) \
+{ \
+	KLog().debug_fun(-2, DEKAF2_FUNCTION_NAME, __VA_ARGS__); \
 }
 //---------------------------------------------------------------------------
 

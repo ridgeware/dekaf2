@@ -327,14 +327,14 @@ void KLogJSONSerializer::Serialize() const
 	LJSON json;
 	json["level"]         = m_Level;
 	json["pid"]           = m_Pid;
-	json["time"]          = m_Time;
-	json["short_name"]    = m_sShortName;
-	json["exe_name"]      = m_sPathName;
-	json["function_name"] = m_sFunctionName;
-	json["message"]       = m_sMessage;
+	json["time_t"]        = m_Time;
+	json["short_name"]    = KString(m_sShortName).c_str();
+	json["exe_name"]      = KString(m_sPathName).c_str();
+	json["function_name"] = KString(m_sFunctionName).c_str();
+	json["message"]       = KString(m_sMessage).c_str();
 	if (!m_sBacktrace.empty())
 	{
-		json["stack"]     = m_sBacktrace;
+		json["stack"]     = KString(m_sBacktrace).c_str();
 	}
 	// pretty print the json into our string buffer
 	m_sBuffer = json.dump(1, '\t');
@@ -693,7 +693,15 @@ bool KLog::IntDebug(int level, KStringView sFunction, KStringView sMessage)
 
 	if (level <= m_iBackTrace)
 	{
-		KString sStack = kGetBacktrace(4);
+		int iSkipFromStack{4};
+		if (level == -2)
+		{
+			// for exceptions we have to peel off four more stack frames
+			// (it is of course a brittle expectation of level == -2 == exception,
+			// but for now it is true)
+			iSkipFromStack += 1;
+		}
+		KString sStack = kGetBacktrace(iSkipFromStack);
 		m_Serializer->SetBacktrace(sStack);
 		return m_Logger->Write(level, m_Serializer->IsMultiline(), m_Serializer->Get());
 	}
@@ -721,7 +729,5 @@ void KLog::IntException(KStringView sWhat, KStringView sFunction, KStringView sC
 		IntDebug(-2, sFunction, kFormat("caught exception: '{0}'", sWhat));
 	}
 }
-
-// TODO add a mechanism to check periodically for the flag file's set level
 
 } // of namespace dekaf2

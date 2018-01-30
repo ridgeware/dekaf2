@@ -178,6 +178,7 @@ TEST_CASE("KSQL")
 	{
 		if (!db.OpenConnection())
 		{
+			kWarning("{}", db.ConnectSummary());
 			FAIL (db.GetLastError().c_str());
 		}
 

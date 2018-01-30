@@ -77,7 +77,7 @@ void KROW::EscapeChars (KStringView sString, KString& sEscaped,
 	// Note: if iEscapeChar is ZERO, then the char is used as it's own escape char (i.e. it gets doubled up).
 	for (auto ch : sString)
 	{
-		if (sCharsToEscape.find(ch))
+		if (sCharsToEscape.find(ch) != KStringView::npos)
 		{
 			if (iEscapeChar)
 			{

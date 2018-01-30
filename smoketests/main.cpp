@@ -43,21 +43,26 @@
 #define CATCH_CONFIG_RUNNER
 #include "catch.hpp"
 #include <dekaf2/dekaf2.h>
+#include <dekaf2/klog.h>
 
 #include <string>
 #include <iostream>
 
 using namespace dekaf2;
 
-static KStringView g_sDbcFile;
+extern KStringView g_sDbcFile;
 
 //-----------------------------------------------------------------------------
 int main( int argc, char* const argv[] )
 //-----------------------------------------------------------------------------
 {
 	dekaf2::Dekaf().SetMultiThreading();
+	KLog().SetDebugFlag(".smoketest.dbg");
+	KLog().SetLevel(1);
+	KLog().SetDebugLog(KLog::STDOUT);
+// TODO parse -ddd, dbc
 
-	g_sDbcFile = "flubbernutter.dbc";
+	g_sDbcFile = "ksql.dbc";
 
 	int result = Catch::Session().run( argc, argv );
 

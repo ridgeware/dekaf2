@@ -358,7 +358,7 @@ KSQL::KSQL (uint32_t iFlags/*=0*/, int iDebugID/*=0*/, SQLTYPE iDBType/*=DBT_MYS
 	_init (iDebugID);
 
 	// this tmp file is used to hold buffered results (if flag F_BufferResults is set):
-	m_sTmpResultsFile.Format ("{}{}{}ksql-{}.res", GetTempDir(), "/"/*SLASH*/, getpid()*100 + m_iDebugID);
+	m_sTmpResultsFile.Format ("{}/ksql-{}.res", GetTempDir(), getpid()*100 + m_iDebugID);
 
 	m_iFlags = iFlags;
 
@@ -377,7 +377,7 @@ KSQL::KSQL (KSQL& Another, int iDebugID/*=0*/)
 	_init (iDebugID);
 
 	// this tmp file is used to hold buffered results (if flag F_BufferResults is set):
-	m_sTmpResultsFile.Format ("{}{}{}ksql-{}.res", GetTempDir(), "/"/*SLASH*/, getpid()*100 + m_iDebugID);
+	m_sTmpResultsFile.Format ("{}/ksql-{}.res", GetTempDir(), getpid()*100 + m_iDebugID);
 
 	CopyConnection (&Another);
 
@@ -394,7 +394,7 @@ KSQL::KSQL (KSQL* pAnother, int iDebugID/*=0*/)
 	_init (iDebugID);
 
 	// this tmp file is used to hold buffered results (if flag F_BufferResults is set):
-	m_sTmpResultsFile.Format ("{}{}ksql-{}.res", GetTempDir(), "/"/*SLASH*/, getpid()*100 + m_iDebugID);
+	m_sTmpResultsFile.Format ("{}/ksql-{}.res", GetTempDir(), getpid()*100 + m_iDebugID);
 
 	CopyConnection (pAnother);
 
@@ -632,6 +632,7 @@ bool KSQL::SetConnect (SQLTYPE iDBType, KStringView sUsername, KStringView sPass
 
 	SetAPISet (0); // <-- pick the default APIs for this DBType
 	FormatConnectSummary();
+	kDebug(1, "{}", ConnectSummary());
 
 	return (true);
 
@@ -1035,7 +1036,9 @@ bool KSQL::LoadConnect (KString sDBCFile)
 		return (false);
 	}
 	if (!DecodeDBCData(szBuf, iNumRead, sDBCFile))
+	{
 		return false;
+	}
 
 	FormatConnectSummary();
 

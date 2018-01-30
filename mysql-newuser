@@ -1,0 +1,161 @@
+#! /bin/bash
+
+#%
+#% mysql-newuser - add a new MYSQL user (and possibly a database, too)
+#%
+#% usage: mysql-newuser [-h<dbhost>] -p<mysqlrootpass> <newuser> <newpass> <usertype> [-new] <dbname> 
+#%
+#% where:
+#%    -h<dbhost>         :: warning: most mysql hosts will not allow remote connections as root
+#%    -p<mysqlrootpass>  :: the mysql root password
+#%    <usertype>         :: choose one of these:
+#%         dbo            : database owner (can alter schema and indexing)
+#%         user           : insert, update, delete and select (data alteration only)
+#%         select         : only select permission
+#%    -new               :: will create the database, too
+#%   <dbname>            :: database name
+#%
+#% history:
+#%   Apr 2001 : keef created
+#%   Feb 2011 : added select permission
+#%   May 2016 : aligned number of inserts and deletes (we were missing localhost on deletes)
+#%   Jul 2016 : added -h<dbhost> argument
+#%   Aug 2016 : Rewritten to use "create user" "grant", etc rather than direct access to the user database.
+#%
+
+# Produce an error if an attempt is made to read an uninitialized variable:
+set -u
+
+# Produce an execution trace in the program's output, if requested
+if [[ $# -gt 0 ]] && [[ "$1" = '-x' ]]; then
+	set -x
+	shift
+fi
+
+
+ME=$(basename "$0")
+
+
+setx=PrintUsage
+#----------------------------------------------------------------------
+function PrintUsage
+#----------------------------------------------------------------------
+{
+	awk '/^#%/ {print substr($0,3)}' "$0"
+}
+
+setx=Join
+#----------------------------------------------------------------------
+function Join
+#----------------------------------------------------------------------
+{
+	# Join <delimiter> [arg] [arg...]
+	# Join the specified arguments together into a single string with the provided delimiter
+	# For instance:
+	#     Join ", " "a" "b" "c"       # yields "a, b, c"
+	local IFS="$1"
+	shift
+	echo "$*"
+} # Join
+
+
+setx=main
+#----------------------------------------------------------------------
+# MAIN SHELL BODY
+#----------------------------------------------------------------------
+PATH="${PATH}:/usr/local/bin:/usr/local/mysql/bin"; export PATH
+
+DBHostArg=""
+case "${1-}" in
+	-h*)
+		DBHostArg="$1"
+		shift
+		;;
+	*)
+		# keep going
+		;;
+esac
+
+if [[ $# -lt 5 ]]; then
+	PrintUsage
+	exit 0
+fi
+
+RootPassArg="$1"
+NewUser="$2"
+NewPass="$3"
+UserType="$4"
+DBName="$5"
+
+CreateDB="no"
+if [[ "$DBName" = "-new" ]]; then
+	CreateDB="yes"
+	DBName="${6-}"
+fi
+
+case "$UserType" in
+	dbo)
+		Privileges=(ALL)
+		GrantOption="with grant option"
+		;;
+	user)
+		Privileges=(SELECT INSERT UPDATE DELETE)
+		GrantOption=""
+		;;
+	select)
+		Privileges=(SELECT)
+		GrantOption=""
+		;;
+	*)
+		PrintUsage
+		exit 1
+		;;
+esac
+
+if [[ "$CreateDB" = "yes" ]]; then
+	bDBExists=0
+	mysql -uroot $RootPassArg $DBHostArg --execute="use $DBName;" 2>/dev/null && bDBExists=1
+
+	if [[ "$bDBExists" -ne 0 ]]; then
+		echo "${ME}: Warning: Database '$DBName' already exists. Ignoring -new directive."
+	else
+		echo "creating new database '$DBName'..."
+		mysqladmin -uroot $RootPassArg $DBHostArg create $DBName
+		[[ $? -ne 0 ]] && exit 1
+	fi
+fi
+
+HOSTNAME=`hostname`
+
+echo "creating new user '$NewUser'..."
+mysql -uroot $RootPassArg $DBHostArg <<-EOF
+	# MySQL doesn't provide "drop user if exists" until 5.7.8.
+	# MySQL docs indicate "grant usage" can be used to "create a user that has no privileges"
+	# But unlike "create user" it doesn't fail if the user already exists.
+	grant usage on *.* to \`$NewUser\`@'$HOSTNAME' identified by '$NewPass';
+	grant usage on *.* to \`$NewUser\`@'localhost' identified by '$NewPass';
+	grant usage on *.* to \`$NewUser\`@'%'         identified by '$NewPass';
+EOF
+
+# Error out if we were unable to create the user
+if [[ $? -ne 0 ]]; then
+	echo "${ME}: Error: Unable to create MySQL user account with user name '$NewUser'"
+	exit 1
+fi
+
+mysql -uroot $RootPassArg $DBHostArg <<-EOF
+	drop user \`$NewUser\`@'$HOSTNAME';
+	drop user \`$NewUser\`@'localhost';
+	drop user \`$NewUser\`@'%';
+
+	create user \`$NewUser\`@'$HOSTNAME' identified by '$NewPass';
+	create user \`$NewUser\`@'localhost' identified by '$NewPass';
+	create user \`$NewUser\`@'%'         identified by '$NewPass';
+
+	grant $(Join ', ' "${Privileges[@]}") on \`$DBName\`.* to \`$NewUser\`@'$HOSTNAME' $GrantOption;
+	grant $(Join ', ' "${Privileges[@]}") on \`$DBName\`.* to \`$NewUser\`@'localhost' $GrantOption;
+	grant $(Join ', ' "${Privileges[@]}") on \`$DBName\`.* to \`$NewUser\`@'%'         $GrantOption;
+
+    flush privileges;
+EOF
+

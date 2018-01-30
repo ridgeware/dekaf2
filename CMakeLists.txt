@@ -371,9 +371,13 @@ target_include_directories(dekaf2
 )
 target_compile_definitions(dekaf2 PRIVATE DEKAF2_LIBRARY_BUILD)
 
+add_executable(klog klog_main.cpp)
+target_link_libraries(klog dekaf2)
+
+add_executable(createdbc createdbc.cpp)
+target_link_libraries(createdbc dekaf2)
+
 add_subdirectory(utests)
 add_subdirectory(smoketests)
 
-add_executable(klog klog_main.cpp)
-target_link_libraries(klog dekaf2)
 

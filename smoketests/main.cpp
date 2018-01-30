@@ -49,7 +49,7 @@
 
 using namespace dekaf2;
 
-extern KStringView g_sDbcFile;
+static KStringView g_sDbcFile;
 
 //-----------------------------------------------------------------------------
 int main( int argc, char* const argv[] )
@@ -59,10 +59,10 @@ int main( int argc, char* const argv[] )
 
 	g_sDbcFile = "flubbernutter.dbc";
 
-    int result = Catch::Session().run( argc, argv );
+	int result = Catch::Session().run( argc, argv );
 
-    // global clean-up...
+	// global clean-up...
 
-    return result;
+	return result;
 
 } // main

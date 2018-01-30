@@ -13,10 +13,17 @@
 ///////////////////////////////////////////////////////////////////////////////
 
 
-#include "dekaf.h"
-#include "ksql.h"
+#include <dekaf2/dekaf2.h>
+#include <dekaf2/ksql.h>
+#include <dekaf2/kstring.h>
+#include <dekaf2/klog.h>
+#include <dekaf2/kwriter.h>
+#include <iostream>
+#include <cinttypes>
 
-LPCTSTR g_Synopsis[] = {
+using namespace dekaf2;
+
+static const char* g_Synopsis[] = {
 "",
 "createdbc - create a KSQL database connection file",
 "",
@@ -40,72 +47,75 @@ NULL
 };
 
 //-----------------------------------------------------------------------------
-int main_dekaf (ULONG /*iKID*/, int argc, char* argv[])
+int main (int argc, char* argv[])
 //-----------------------------------------------------------------------------
 {
-	kInit ("CDBC","stdout",".createdbc.dbg");
+	kInit ("CDBC", ".createdbc.dbg");
 
-	bool  fTestConnection = TRUE;
-	char* pszTarget       = NULL;
-	char* pszDBType       = NULL;
-	char* pszDBUser       = NULL;
-	char* pszDBPass       = NULL;
-	char* pszDBName       = NULL;
-	char* pszDBHost       = NULL;
-	char* pszDBPort       = NULL;
+	bool  fTestConnection{true};
+	KString sTarget;
+	KString sDBType;
+	KString sDBUser;
+	KString sDBPass;
+	KString sDBName;
+	KString sDBHost;
+	KString sDBPort;
+
+	KOutStream COut(std::cout);
 
 	for (int ii=1; ii < argc; ++ii)
 	{
-		if (kstrin (argv[ii], "-d,-dd,-ddd")) {
-			kSetDebug (strlen(argv[ii]) - 1, "stdout");
-			kDebugLog ("%s: debug now set to %u", argv[ii], kIsDebug());
+		if (kStrIn (argv[ii], "-d,-dd,-ddd")) {
+			KLog().SetLevel( strlen(argv[ii]) - 1 );
+			KLog().SetDebugLog("stdout");
+			kDebugLog (0, "{}: debug now set to {}", argv[ii], KLog().GetLevel());
 		}
-		else if (strmatch (argv[ii], "-n"))
+		else if (!strcmp (argv[ii], "-n"))
 		{
-			fTestConnection = FALSE;
+			fTestConnection = false;
 		}
 
 		// undocumented feature (reads the DBC file and prints summary):
-		else if (strmatch (argv[ii], "-r"))
+		else if (!strcmp (argv[ii], "-r"))
 		{
 			KSQL tmpdb;
 			if (!tmpdb.LoadConnect (argv[2]))
 			{
-				printf ("createdbc(ERR): %s\n", tmpdb.GetLastError());
+				COut.FormatLine ("createdbc(ERR): {}", tmpdb.GetLastError());
 				return (1);
 			}
 			else
 			{
-				printf ("createdbc: %s\n", tmpdb.ConnectSummary());
+				COut.FormatLine ("createdbc: {}", tmpdb.ConnectSummary());
 				return (0);
 			}
 		}
 
 		// <file> <dbtype> <user> <pass> <dbname> <server>
-		else if (!pszTarget) {
-			pszTarget = argv[ii];
+		else if (sTarget.empty()) {
+			sTarget = argv[ii];
 		}
-		else if (!pszDBType) {
-			pszDBType = argv[ii];
+		else if (sDBType.empty()) {
+			sDBType = argv[ii];
 		}
-		else if (!pszDBUser) {
-			pszDBUser = argv[ii];
+		else if (sDBUser.empty()) {
+			sDBUser = argv[ii];
 		}
-		else if (!pszDBPass) {
-			pszDBPass = argv[ii];
+		else if (sDBPass.empty()) {
+			sDBPass = argv[ii];
 		}
-		else if (!pszDBName) {
-			pszDBName = argv[ii];
+		else if (sDBName.empty()) {
+			sDBName = argv[ii];
 		}
-		else if (!pszDBHost) {
-			pszDBHost = argv[ii];
+		else if (sDBHost.empty()) {
+			sDBHost = argv[ii];
 		}
-		else if (!pszDBPort) {
-			pszDBPort = argv[ii];
+		else if (sDBPort.empty()) {
+			sDBPort = argv[ii];
 		}
 	}
 
-	if (!pszDBHost)
+	if (sDBHost.empty())
 	{
 		for (int ii=0; g_Synopsis[ii]; ++ii) {
 			printf (" %s\n", g_Synopsis[ii]);
@@ -113,60 +123,60 @@ int main_dekaf (ULONG /*iKID*/, int argc, char* argv[])
 		return (1);
 	}
 
-	ULONG iDBType   = atol(pszDBType);
-	UINT  iDBPort   = 0;
+	KSQL::SQLTYPE iDBType = static_cast<KSQL::SQLTYPE>(sDBType.UInt32());
+	uint16_t iDBPort = 0;
 
-	if (strmatch (pszDBType, "oracle"))
+	if (sDBType == "oracle")
 	{
 		iDBType = KSQL::DBT_ORACLE;
 	}
-	else if (strmatch (pszDBType, "mysql"))
+	else if (sDBType == "mysql")
 	{
 		iDBType = KSQL::DBT_MYSQL;
 	}
-	else if (strmatch (pszDBType, "sqlserver"))
+	else if (sDBType == "sqlserver")
 	{
 		iDBType = KSQL::DBT_SQLSERVER;
 	}
-	else if (strmatch (pszDBType, "sybase"))
+	else if (sDBType == "sybase")
 	{
 		iDBType = KSQL::DBT_SYBASE;
 	}
 
-	if (pszDBPort && *pszDBPort) {
-	   iDBPort = atoi(pszDBPort);
+	if (!sDBPort.empty()) {
+	   iDBPort = sDBPort.UInt16();
 	}
 
 	KSQL tmpdb;
-	if (!tmpdb.SetConnect(iDBType, pszDBUser, pszDBPass, pszDBName, pszDBHost, iDBPort))
+	if (!tmpdb.SetConnect(iDBType, sDBUser, sDBPass, sDBName, sDBHost, iDBPort))
 	{
-		printf ("FAILED.\n%s\n", tmpdb.GetLastError());
+		COut.FormatLine ("FAILED.\n{}", tmpdb.GetLastError());
 		return (1);
 	}
 
 	if (fTestConnection)
 	{
-		printf ("testing connection to '%s' ... ", tmpdb.ConnectSummary());
-		fflush (stdout);
+		COut.Format ("testing connection to '{}' ... ", tmpdb.ConnectSummary());
+		COut.Flush();
 
 		if (!tmpdb.OpenConnection())
 		{
-			printf ("FAILED.\n%s\n", tmpdb.GetLastError());
+			COut.FormatLine ("FAILED.\n{}", tmpdb.GetLastError());
 			return (1);
 		}
 
-		printf ("ok.\n");
+		COut.WriteLine ("ok.");
 	}
 
-	printf ("generating file '%s' ... ", pszTarget);
-	fflush (stdout);
-	if (!tmpdb.SaveConnect (pszTarget))
+	COut.Format ("generating file '{}' ... ", sTarget);
+	COut.Flush();
+	if (!tmpdb.SaveConnect (sTarget))
 	{
-		printf ("FAILED.\n%s\n", tmpdb.GetLastError());
+		COut.FormatLine ("FAILED.\n{}", tmpdb.GetLastError());
 		return (1);
 	}
 
-	printf ("done.\n");
+	COut.WriteLine("done.");
 
 	return (0);
 

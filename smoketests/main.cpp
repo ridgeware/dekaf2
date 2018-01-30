@@ -60,11 +60,31 @@ int main( int argc, char* const argv[] )
 	KLog().SetDebugFlag(".smoketest.dbg");
 	KLog().SetLevel(1);
 	KLog().SetDebugLog(KLog::STDOUT);
-// TODO parse -ddd, dbc
 
-	g_sDbcFile = "ksql.dbc";
+	int iLast{0};
+	for (int ii=1; ii < argc; ++ii)
+	{
+		if (kStrIn (argv[ii], "-d,-dd,-ddd"))
+		{
+			iLast = ii;
+			KLog().SetLevel( static_cast<int>(strlen(argv[ii]) - 1));
+			kDebugLog (0, "{}: debug now set to {}", argv[ii], KLog().GetLevel());
+		}
+		else if (!strcmp(argv[ii], "-dbc"))
+		{
+			if (++ii < argc)
+			{
+				iLast = ii;
+				g_sDbcFile = argv[ii];
+			}
+			else
+			{
+				kWarning("missing file name argument to -dbc");
+			}
+		}
+	}
 
-	int result = Catch::Session().run( argc, argv );
+	int result = Catch::Session().run( argc - iLast, &argv[iLast] );
 
 	// global clean-up...
 

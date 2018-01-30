@@ -382,9 +382,9 @@ KLog::KLog()
     : m_sLogName     (kGetEnv(s_sEnvLog,  s_sDefaultLog))
     , m_sFlagfile    (kGetEnv(s_sEnvFlag, s_sDefaultFlag))
 #ifdef NDEBUG
-    ,.m_iBackTrace   (std::atoi(kGetEnv(s_sEnvTrace, "-2")))
+    ,.m_iBackTrace   (std::atoi(kGetEnv(s_sEnvTrace, "-3")))
 #else
-    , m_iBackTrace   (std::atoi(kGetEnv(s_sEnvTrace, "-1")))
+    , m_iBackTrace   (std::atoi(kGetEnv(s_sEnvTrace, "-2")))
 #endif
 {
 #ifdef NDEBUG
@@ -614,9 +614,9 @@ void KLog::CheckDebugFlag()
 //---------------------------------------------------------------------------
 {
 #ifdef NDEBUG
-	m_iBackTrace = std::atoi(kGetEnv(s_sEnvTrace, "-2"));
+	m_iBackTrace = std::atoi(kGetEnv(s_sEnvTrace, "-3"));
 #else
-	m_iBackTrace = std::atoi(kGetEnv(s_sEnvTrace, "-1"));
+	m_iBackTrace = std::atoi(kGetEnv(s_sEnvTrace, "-2"));
 #endif
 
 	// file format of the debug "flag" file:
@@ -714,11 +714,11 @@ void KLog::IntException(KStringView sWhat, KStringView sFunction, KStringView sC
 	}
 	if (!sClass.empty())
 	{
-		warning("{0}::{1}() caught exception: '{2}'", sClass, sFunction, sWhat);
+		IntDebug(-2, kFormat("{0}::{1}()", sClass, sFunction), kFormat("caught exception: '{}'", sWhat));
 	}
 	else
 	{
-		warning("{0} caught exception: '{1}'", sFunction, sWhat);
+		IntDebug(-2, sFunction, kFormat("caught exception: '{0}'", sWhat));
 	}
 }
 

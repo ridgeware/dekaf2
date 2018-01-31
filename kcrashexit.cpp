@@ -63,15 +63,15 @@ void kCrashExit (int iSignalNum)
 
 	// and start our own stackdump
 
-	KLog().warning ("                 *      \n");
-	KLog().warning ("            *    *    * \n");
-	KLog().warning ("              *  *  *   \n");
+	KLog().warning ("|                 *      \n");
+	KLog().warning ("|            *    *    * \n");
+	KLog().warning ("|              *  *  *   \n");
 
 	switch (iSignalNum)
 	{
 #ifdef UNIX
 	case SIGTERM:  // <-- [STOP] in browser causes apache to send SIGTERM to CGIs
-		KLog().warning ("         * * * KILLED * * *%s\n",
+		KLog().warning ("|         * * * KILLED * * *%s\n",
 			(getenv("REQUEST_METHOD")) ? "    -- web user hit [STOP] in browser" : "");
 		break;
 
@@ -80,23 +80,23 @@ void kCrashExit (int iSignalNum)
 	case SIGHUP:   // <-- sent from command line?
 	case SIGUSR1:  // <-- sent from command line?
 	case SIGUSR2:  // <-- sent from command line?
-		KLog().warning ("       * * * CANCELLED * * *\n");
+		KLog().warning ("|       * * * CANCELLED * * *\n");
 		break;
 
 	case SIGPIPE:
-		KLog().warning ("       * * *  SIGPIPE  * * *\n");
+		KLog().warning ("|       * * *  SIGPIPE  * * *\n");
 		break;
 
 #endif
 	case 0:
 	default:
-		KLog().warning ("        * * * CRASHED * * *\n");
+		KLog().warning ("|        * * * CRASHED * * *\n");
 		break;
 	}
 
-	KLog().warning ("              *  *  *   \n");
-	KLog().warning ("            *    *    * \n");
-	KLog().warning ("                 *      \n");
+	KLog().warning ("|              *  *  *   \n");
+	KLog().warning ("|            *    *    * \n");
+	KLog().warning ("|                 *      \n");
 
 	switch (iSignalNum)
 	{

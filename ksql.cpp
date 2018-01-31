@@ -1581,6 +1581,8 @@ bool KSQL::ExecRawSQL (KStringView sSQL, uint64_t iFlags/*=0*/, KStringView sAPI
 		kDebugLog (GetDebugLevel(), "[{}]{}: {}\n", m_iDebugID, sAPI, m_sLastSQL);
 	}
 
+	m_iNumRowsAffected = 0;
+
 	//if (sSQL != m_sLastSQL) { // be careful, we might have called ExecRawSQL() with m_sLastSQL already
 		m_sLastSQL = sSQL;
 	//}
@@ -1608,7 +1610,16 @@ bool KSQL::ExecRawSQL (KStringView sSQL, uint64_t iFlags/*=0*/, KStringView sAPI
 		// - - - - - - - - - - - - - - - - -
 			do // once
 			{
-				kDebugLog (3, "mysql_query()...");
+				if (!m_dMYSQL) {
+					kDebug (1, "KSQL::ExecRawSQL: lost m_dMYSQL pointer.  Reopening connection ...");
+					CloseConnection();
+					OpenConnection();
+				}
+				if (!m_dMYSQL) {
+					kDebug (1, "KSQL::ExecRawSQL: failed.  aborting query or SQL:\n{}", m_sLastSQL);
+					break; // once
+				}
+				kDebugLog (3, "mysql_query(): m_dMYSQL is {}, m_sLastSQL is {} bytes long", m_dMYSQL ? "not null" : "NULL", m_sLastSQL.size());
 				if (mysql_query ((MYSQL*)m_dMYSQL, m_sLastSQL.c_str()))
 				{
 					m_iErrorNum = mysql_errno ((MYSQL*)m_dMYSQL);
@@ -1763,9 +1774,6 @@ bool KSQL::ExecRawSQL (KStringView sSQL, uint64_t iFlags/*=0*/, KStringView sAPI
 
 	if (!fOK) {
 		return (SQLError());
-	}
-	else if (sAPI.find("Query") != KStringView::npos) {
-		kDebugLog (GetDebugLevel(), "[{}]ExecSQL: {} rows affected.\n", m_iDebugID, m_iNumRowsAffected);
 	}
 
 	if (m_iWarnIfOverNumSeconds)
@@ -2181,11 +2189,8 @@ bool KSQL::ExecSQLFile (KString sFilename)
 		size_t iLenPiece       = strlen(szStart);
 		bool   fFoundDelimiter = false;
 		while ((iLenPiece >= iLenDelim) &&
-			(  (szStart[iLenPiece-1] == '\n') 
-			|| (szStart[iLenPiece-1] == '\t') 
-			|| (szStart[iLenPiece-1] == ' ') 
-			|| (szStart[iLenPiece-1] == 13/*^M*/) 
-			|| (KASCII::strmatch (szStart+iLenPiece-iLenDelim, szDelimiter))))
+		    (  (szStart[iLenPiece-1] <= ' ')
+		    || (KASCII::strmatch (szStart+iLenPiece-iLenDelim, szDelimiter))))
 		{
 			if (KASCII::strmatch (szStart+iLenPiece-iLenDelim, szDelimiter)) {
 				fFoundDelimiter = true;
@@ -5406,12 +5411,12 @@ bool KSQL::BindByPos (uint32_t iPosition, uint64_t* piValue)
 #endif
 
 //-----------------------------------------------------------------------------
-bool KSQL::Insert (KROW& Row, bool fUnicode/*=false*/)
+bool KSQL::Insert (KROW& Row)
 //-----------------------------------------------------------------------------
 {
 	m_sLastSQL = "";
 	
-	if (!Row.FormInsert (m_sLastSQL, m_iDBType, fUnicode)) {
+	if (!Row.FormInsert (m_sLastSQL, m_iDBType)) {
 		m_sLastError = Row.GetLastError();
 		return (false);
 	}
@@ -5424,12 +5429,12 @@ bool KSQL::Insert (KROW& Row, bool fUnicode/*=false*/)
 } // Insert
 
 //-----------------------------------------------------------------------------
-bool KSQL::Update (KROW& Row, bool fUnicode/*=false*/)
+bool KSQL::Update (KROW& Row)
 //-----------------------------------------------------------------------------
 {
 	m_sLastSQL = "";
 
-	if (!Row.FormUpdate (m_sLastSQL, m_iDBType, fUnicode)) {
+	if (!Row.FormUpdate (m_sLastSQL, m_iDBType)) {
 		m_sLastError = Row.GetLastError();
 		return (false);
 	}
@@ -5442,12 +5447,12 @@ bool KSQL::Update (KROW& Row, bool fUnicode/*=false*/)
 } // Update
 
 //-----------------------------------------------------------------------------
-bool KSQL::Delete (KROW& Row, bool fUnicode/*=false*/)
+bool KSQL::Delete (KROW& Row)
 //-----------------------------------------------------------------------------
 {
 	m_sLastSQL = "";
 
-	if (!Row.FormDelete (m_sLastSQL, m_iDBType, fUnicode)) {
+	if (!Row.FormDelete (m_sLastSQL, m_iDBType)) {
 		m_sLastError.Format("{}", Row.GetLastError());
 		return (false);
 	}
@@ -5460,7 +5465,7 @@ bool KSQL::Delete (KROW& Row, bool fUnicode/*=false*/)
 } // Delete
 
 //-----------------------------------------------------------------------------
-bool KSQL::InsertOrUpdate (KROW& Row, bool* pbInserted/*=NULL*/, bool fUnicode/*=false*/)
+bool KSQL::InsertOrUpdate (KROW& Row, bool* pbInserted/*=NULL*/)
 //-----------------------------------------------------------------------------
 {
 	if (pbInserted) {
@@ -5468,7 +5473,7 @@ bool KSQL::InsertOrUpdate (KROW& Row, bool* pbInserted/*=NULL*/, bool fUnicode/*
 	}
 
 	kDebugLog (GetDebugLevel()+1, "InsertOrUpdate: trying update first...");
-	if (!Update (Row, fUnicode)) {
+	if (!Update (Row)) {
 		return (false); // syntax error in SQL
 	}
 
@@ -5484,7 +5489,7 @@ bool KSQL::InsertOrUpdate (KROW& Row, bool* pbInserted/*=NULL*/, bool fUnicode/*
 	}
 
 	kDebugLog (GetDebugLevel()+1, "InsertOrUpdate: attempting insert...");
-	bool fOK = Insert (Row, fUnicode);
+	bool fOK = Insert (Row);
 
 	return (fOK);
 

@@ -45,7 +45,7 @@
 
 using namespace dekaf2;
 
-int32_t  detail::KCommonSQLBase::m_iDebugLevel{0};
+int32_t  detail::KCommonSQLBase::m_iDebugLevel{2};
 
 //-----------------------------------------------------------------------------
 void KROW::EscapeChars (KStringView sString, KString& sEscaped, SQLTYPE iDBType)
@@ -117,7 +117,7 @@ void KROW::SmartClip (KStringView sColName, KString& sValue, size_t iMaxLen)
 } // SmartClip
 
 //-----------------------------------------------------------------------------
-bool KROW::FormInsert (KString& sSQL, SQLTYPE iDBType, bool fUnicode/*=false*/, bool fIdentityInsert/*=false*/)
+bool KROW::FormInsert (KString& sSQL, SQLTYPE iDBType, bool fIdentityInsert/*=false*/)
 //-----------------------------------------------------------------------------
 {
 	m_sLastError = ""; // reset
@@ -143,16 +143,17 @@ bool KROW::FormInsert (KString& sSQL, SQLTYPE iDBType, bool fUnicode/*=false*/, 
 	sAdd.Format("insert into {} (\n", GetTablename());
 	sSQL += sAdd;
 
-	kDebugLog (2, "KROW:FormInsert: {}", m_sLastError);
+	kDebugLog (2, "KROW:FormInsert: {}", GetTablename());
 
 	for (ii=0; ii < size(); ++ii)
 	{
-		kDebugLog (2, "  {:<25} {}{}{}{}", 
-			GetName(ii),
-			!IsFlag (ii, PKEY)       ? "" : " [PKEY]",
-			!IsFlag (ii, NONCOLUMN)  ? "" : " [NONCOLUMN]",
-			!IsFlag (ii, EXPRESSION) ? "" : " [EXPRESSION]",
-			!IsFlag (ii, NUMERIC)    ? "" : " [NUMERIC]");
+		kDebugLog (2, "  col[{:>02}]: {:<25} {}{}{}{}",
+		    ii,
+		    GetName(ii),
+		    !IsFlag (ii, PKEY)       ? "" : " [PKEY]",
+		    !IsFlag (ii, NONCOLUMN)  ? "" : " [NONCOLUMN]",
+		    !IsFlag (ii, EXPRESSION) ? "" : " [EXPRESSION]",
+		    !IsFlag (ii, NUMERIC)    ? "" : " [NUMERIC]");
 
 		if (IsFlag (ii, NONCOLUMN)) {
 			continue;
@@ -172,7 +173,7 @@ bool KROW::FormInsert (KString& sSQL, SQLTYPE iDBType, bool fUnicode/*=false*/, 
 
 		KStringView sValue   = GetValue(ii);  // note: GetValue() never returns NULL, it might return '' (which Joe calls NIL)
 
-		if (!sValue.empty() && !IsFlag (ii, NULL_IS_NOT_NIL)) {
+		if (sValue.empty() && !IsFlag (ii, NULL_IS_NOT_NIL)) {
 			// Note: this is the default handling for NIL values: to place them in SQL as SQL null
 			sAdd.Format ("\t{}null\n", (ii) ? "," : "");
 			sSQL += sAdd;
@@ -190,8 +191,7 @@ bool KROW::FormInsert (KString& sSQL, SQLTYPE iDBType, bool fUnicode/*=false*/, 
 			KString sEscaped;
 			EscapeChars (sValue, sEscaped, iDBType);
 			SmartClip   (GetName(ii), sEscaped, MaxLength(ii));
-			sAdd.Format ("\t{}{}'{}'\n", (ii) ? "," : "", 
-				fUnicode ? " N" : "", sEscaped);
+			sAdd.Format ("\t{}'{}'\n", (ii) ? "," : "", sEscaped);
 			sSQL += sAdd;
 		}
 
@@ -214,7 +214,7 @@ bool KROW::FormInsert (KString& sSQL, SQLTYPE iDBType, bool fUnicode/*=false*/, 
 } // FormInsert
 
 //-----------------------------------------------------------------------------
-bool KROW::FormUpdate (KString& sSQL, SQLTYPE iDBType, bool fUnicode/*=false*/)
+bool KROW::FormUpdate (KString& sSQL, SQLTYPE iDBType)
 //-----------------------------------------------------------------------------
 {
 	m_sLastError = ""; // reset
@@ -241,12 +241,13 @@ bool KROW::FormUpdate (KString& sSQL, SQLTYPE iDBType, bool fUnicode/*=false*/)
 
 	for (uint32_t ii=0, jj=0; ii < size(); ++ii)
 	{
-		kDebugLog (2, "  {:<25} {}{}{}", 
-			GetName(ii),
-			!IsFlag (ii, PKEY)       ? "" : " [PKEY]",
-			!IsFlag (ii, NONCOLUMN)  ? "" : " [NONCOLUMN]",
-			!IsFlag (ii, EXPRESSION) ? "" : " [EXPRESSION]",
-			!IsFlag (ii, NUMERIC)    ? "" : " [NUMERIC]");
+		kDebugLog (2, "  col[{:>02}]: {:<25} {}{}{}{}",
+		    ii,
+		    GetName(ii),
+		    !IsFlag (ii, PKEY)       ? "" : " [PKEY]",
+		    !IsFlag (ii, NONCOLUMN)  ? "" : " [NONCOLUMN]",
+		    !IsFlag (ii, EXPRESSION) ? "" : " [EXPRESSION]",
+		    !IsFlag (ii, NUMERIC)    ? "" : " [NUMERIC]");
 
 		if (IsFlag (ii, NONCOLUMN)) {
 			continue;
@@ -278,8 +279,7 @@ bool KROW::FormUpdate (KString& sSQL, SQLTYPE iDBType, bool fUnicode/*=false*/)
 						GetName(ii), sEscaped);
 				}
 				else {
-					sAdd.Format ("\t{}{}={}'{}'\n", (jj++) ? "," : "",
-						GetName(ii), fUnicode ? " N" : "", sEscaped);
+					sAdd.Format ("\t{}{}='{}'\n", (jj++) ? "," : "", GetName(ii), sEscaped);
 				}
 				sSQL += sAdd;
 			}
@@ -315,8 +315,7 @@ bool KROW::FormUpdate (KString& sSQL, SQLTYPE iDBType, bool fUnicode/*=false*/)
 				sEscaped);
 		}
 		else {
-			sAdd.Format("{}{}={}'{}'\n", sPrefix, Keys.GetName(kk),
-				fUnicode ? "N" : "", sEscaped);
+			sAdd.Format("{}{}='{}'\n", sPrefix, Keys.GetName(kk), sEscaped);
 		}
 		sSQL += sAdd;
 	}
@@ -326,7 +325,7 @@ bool KROW::FormUpdate (KString& sSQL, SQLTYPE iDBType, bool fUnicode/*=false*/)
 } // FormUpdate
 
 //-----------------------------------------------------------------------------
-bool KROW::FormDelete (KString& sSQL, SQLTYPE iDBType, bool fUnicode/*=false*/)
+bool KROW::FormDelete (KString& sSQL, SQLTYPE iDBType)
 //-----------------------------------------------------------------------------
 {
 	m_sLastError = ""; // reset
@@ -355,12 +354,13 @@ bool KROW::FormDelete (KString& sSQL, SQLTYPE iDBType, bool fUnicode/*=false*/)
 
 	for (uint32_t ii=0; ii < size(); ++ii)
 	{
-		kDebugLog (2, "  {:<25} {}{}{}{}", 
-			GetName(ii),
-			!IsFlag (ii, PKEY)       ? "" : " [PKEY]",
-			!IsFlag (ii, NONCOLUMN)  ? "" : " [NONCOLUMN]",
-			!IsFlag (ii, EXPRESSION) ? "" : " [EXPRESSION]",
-			!IsFlag (ii, NUMERIC)    ? "" : " [NUMERIC]");
+		kDebugLog (2, "  col[{:>02}]: {:<25} {}{}{}{}",
+		    ii,
+		    GetName(ii),
+		    !IsFlag (ii, PKEY)       ? "" : " [PKEY]",
+		    !IsFlag (ii, NONCOLUMN)  ? "" : " [NONCOLUMN]",
+		    !IsFlag (ii, EXPRESSION) ? "" : " [EXPRESSION]",
+		    !IsFlag (ii, NUMERIC)    ? "" : " [NUMERIC]");
 
 		if (!IsFlag (ii, PKEY)) {
 			continue;
@@ -371,7 +371,7 @@ bool KROW::FormDelete (KString& sSQL, SQLTYPE iDBType, bool fUnicode/*=false*/)
 		EscapeChars (sValue, sEscaped, iDBType);
 
 		KString sAdd;
-			SmartClip(GetName(ii),sEscaped,MaxLength(ii));
+		SmartClip(GetName(ii),sEscaped,MaxLength(ii));
 		if (sValue.empty()) {
 			sAdd.Format(" {} {} is null\n",(!kk) ? "where" : "  and", GetName(ii));
 		}
@@ -379,8 +379,7 @@ bool KROW::FormDelete (KString& sSQL, SQLTYPE iDBType, bool fUnicode/*=false*/)
 			sAdd.Format(" {} {}={}\n",     (!kk) ? "where" : "  and", GetName(ii),
 				sEscaped);
 		} else {
-			sAdd.Format(" {} {}={}'{}'\n", (!kk) ? "where" : "  and", GetName(ii),
-				fUnicode ? " N" : "", sEscaped);
+			sAdd.Format(" {} {}='{}'\n", (!kk) ? "where" : "  and", GetName(ii), sEscaped);
 		}
 		sSQL += sAdd;
 		

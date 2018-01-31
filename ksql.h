@@ -278,17 +278,17 @@ public:
 	void           CloseConnection  ();
 	bool           IsConnectionOpen ()      { return (m_bConnectionIsOpen); }
 
-	virtual bool   Insert         (KROW& Row, bool fUnicode=false);
-	virtual bool   Update         (KROW& Row, bool fUnicode=false);
-	bool           Delete         (KROW& Row, bool fUnicode=false);
-	bool           InsertOrUpdate (KROW& Row, bool* pbInserted=NULL, bool fUnicode=false);
+	virtual bool   Insert         (KROW& Row);
+	virtual bool   Update         (KROW& Row);
+	bool           Delete         (KROW& Row);
+	bool           InsertOrUpdate (KROW& Row, bool* pbInserted=NULL);
 
-	bool   FormInsert     (KROW& Row, KString& sSQL, bool fUnicode=false, bool fIdentityInsert=false)
-			{ bool fOK = Row.FormInsert (m_sLastSQL, m_iDBType, fUnicode, fIdentityInsert); sSQL=m_sLastSQL; return (fOK); }
-	bool   FormUpdate     (KROW& Row, KString& sSQL, bool fUnicode=false)
-			{ bool fOK = Row.FormUpdate (m_sLastSQL, m_iDBType, fUnicode); sSQL=m_sLastSQL; return (fOK); }
-	bool   FormDelete     (KROW& Row, KString& sSQL, bool fUnicode=false)
-			{ bool fOK = Row.FormDelete (m_sLastSQL, m_iDBType, fUnicode); sSQL=m_sLastSQL; return (fOK); }
+	bool   FormInsert     (KROW& Row, KString& sSQL, bool fIdentityInsert=false)
+			{ bool fOK = Row.FormInsert (m_sLastSQL, m_iDBType, fIdentityInsert); sSQL=m_sLastSQL; return (fOK); }
+	bool   FormUpdate     (KROW& Row, KString& sSQL)
+			{ bool fOK = Row.FormUpdate (m_sLastSQL, m_iDBType); sSQL=m_sLastSQL; return (fOK); }
+	bool   FormDelete     (KROW& Row, KString& sSQL)
+			{ bool fOK = Row.FormDelete (m_sLastSQL, m_iDBType); sSQL=m_sLastSQL; return (fOK); }
 
 	void   SetErrorPrefix   (KStringView sPrefix, uint32_t iLineNum=0);
 	void   ClearErrorPrefix ()        { m_sErrorPrefix = "KSQL: "; }
@@ -301,13 +301,15 @@ public:
 	template<class... Args>
 	bool ExecSQL (Args&&... args)
 	{
-		m_sLastSQL = kFormat(std::forward<Args>(args)...);
+		m_sLastSQL = kPrintf(std::forward<Args>(args)...);
 
 		if (!IsFlag(F_NoTranslations)) {
 			DoTranslations (m_sLastSQL, m_iDBType);
 		}
 
-		return (ExecRawSQL (m_sLastSQL, 0, "ExecSQL"));
+		bool bOK = ExecRawSQL (m_sLastSQL, 0, "ExecSQL");
+		kDebugLog (GetDebugLevel(), "[{}] {} rows affected.", m_iDebugID, m_iNumRowsAffected);
+		return (bOK);
 
 	} // KSQL::ExecSQL
 
@@ -324,7 +326,7 @@ public:
 		if (!OpenConnection())
 			return (false);
 
-		m_sLastSQL = kFormat(std::forward<Args>(args)...);
+		m_sLastSQL = kPrintf(std::forward<Args>(args)...);
 
 		if (!IsFlag(F_NoTranslations)) {
 			DoTranslations (m_sLastSQL, m_iDBType);
@@ -347,7 +349,7 @@ public:
 	{
 		kDebugLog (3, "[{}]long KSQL::SingleIntQuery()...", m_iDebugID);
 
-		m_sLastSQL = kFormat(std::forward<Args>(args)...);
+		m_sLastSQL = kPrintf(std::forward<Args>(args)...);
 
 		if (!IsFlag(F_NoTranslations)) {
 			DoTranslations (m_sLastSQL, m_iDBType);

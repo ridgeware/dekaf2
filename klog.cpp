@@ -181,7 +181,7 @@ void KLogData::Set(int level, KStringView sShortName, KStringView sPathName, KSt
 	m_sShortName = sShortName;
 	m_sPathName = sPathName;
 	m_sMessage = sMessage;
-	kTrim(m_sMessage);
+	kTrimRight(m_sMessage);
 	m_sBacktrace.clear();
 
 } // Set

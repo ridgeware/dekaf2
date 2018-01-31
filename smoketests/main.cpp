@@ -44,6 +44,8 @@
 #include "catch.hpp"
 #include <dekaf2/dekaf2.h>
 #include <dekaf2/klog.h>
+#include <dekaf2/kstringutils.h>
+#include <dekaf2/kcrashexit.h>
 
 #include <string>
 #include <iostream>
@@ -52,16 +54,34 @@ using namespace dekaf2;
 
 extern KStringView g_sDbcFile;
 
+KStringView g_Synopsis[] = {
+"",
+"dekaf2-smoketests - slight less trivial tests for DEKAF2 frameworks (unit tests are instant)",
+"",
+"usage: dekaf2-smoketests [-d[d[d]]] [-dbc <dbcfile>] ...see standard args below...",
+"",
+"where:",
+"  -d[d[d]]        : debug levels (to stdout)",
+"  -dbc <dbcfile>  : trigger KSQL smoketests on given database"
+};
+
 //-----------------------------------------------------------------------------
 int main( int argc, char* const argv[] )
 //-----------------------------------------------------------------------------
 {
 	dekaf2::Dekaf().SetMultiThreading();
 	KLog().SetDebugFlag(".smoketest.dbg");
-	KLog().SetLevel(1);
+	KLog().SetLevel(0);
 	KLog().SetDebugLog(KLog::STDOUT);
 
-	int iLast{0};
+	signal (SIGILL,  &kCrashExit);
+	signal (SIGFPE,  &kCrashExit);
+	signal (SIGBUS,  &kCrashExit);
+	signal (SIGSEGV, &kCrashExit);
+
+	bool bSynopsis{false};
+	int  iLast{0};
+
 	for (int ii=1; ii < argc; ++ii)
 	{
 		if (kStrIn (argv[ii], "-d,-dd,-ddd"))
@@ -82,12 +102,30 @@ int main( int argc, char* const argv[] )
 				kWarning("missing file name argument to -dbc");
 			}
 		}
+
+		// part of the generic CATCH framework:
+		//   -?, -h, --help                display usage information
+		//   -l, --list-tests              list all/matching test cases
+		//   -t, --list-tags               list all/matching tags
+		else if (KASCII::kstrin (argv[ii], "-?,-h,--help"))
+		{
+			bSynopsis = true;
+		}
 	}
 
-	int result = Catch::Session().run( argc - iLast, &argv[iLast] );
+	if (bSynopsis)
+	{
+		KOutStream out(std::cout);
+		for (unsigned long jj=0; jj < std::extent<decltype(g_Synopsis)>::value; ++jj)
+		{
+			out.WriteLine (g_Synopsis[jj]);
+		}
+	}
+
+	auto iResult = Catch::Session().run( argc - iLast, &argv[iLast] );
 
 	// global clean-up...
 
-	return result;
+	return iResult;
 
 } // main

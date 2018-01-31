@@ -228,15 +228,15 @@ public:
 	}
 
 	/// Formats the proper RDBMS DDL statement for inserting one row into the database for the given table and column structure.
-	bool FormInsert (KString& sSQL, SQLTYPE iDBType, bool fUnicode=false, bool fIdentityInsert=false);
+	bool FormInsert (KString& sSQL, SQLTYPE iDBType, bool fIdentityInsert=false);
 
 	/// Formats the proper RDBMS DDL statement for updating one row in the database for the given table and column structure.
 	/// Note that at least one column must have the PKEY flag set (so that the framework knows what to put in the WHERE clause).
-	bool FormUpdate (KString& sSQL, SQLTYPE iDBType, bool fUnicode=false);
+	bool FormUpdate (KString& sSQL, SQLTYPE iDBType);
 
 	/// Formats the proper RDBMS DDL statement for deleting one row in the database for the given table and column structure.
 	/// Note that at least one column must have the PKEY flag set (so that the framework knows what to put in the WHERE clause).
-	bool FormDelete (KString& sSQL, SQLTYPE iDBType, bool fUnicode=false);
+	bool FormDelete (KString& sSQL, SQLTYPE iDBType);
 
 	/// Returns the last RDBMS error message.
 	KStringView GetLastError() { return (m_sLastError); }

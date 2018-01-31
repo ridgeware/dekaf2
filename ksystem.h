@@ -79,40 +79,44 @@ inline const char* kGetEnv (const KString& sEnvVar, const char* szDefault = "")
 
 //-----------------------------------------------------------------------------
 /// Set environment variable.
-inline void kSetEnv (const char* szEnvVar, const char* sValue)
+inline bool kSetEnv (const char* szEnvVar, const char* sValue)
 //-----------------------------------------------------------------------------
 {
-	if (!::setenv(szEnvVar, sValue, true))
+	bool bOK = (::setenv(szEnvVar, sValue, true) == 0);
+	if (!bOK)
 	{
-		kWarning("cannot set {} = {}", szEnvVar, sValue);
+		kWarning("cannot set {} = {}, {}", szEnvVar, sValue, strerror(errno));
 	}
+	return (bOK);
 }
 
 //-----------------------------------------------------------------------------
 /// Set environment variable.
-inline void kSetEnv (const KString& sEnvVar, const KString& sValue)
+inline bool kSetEnv (const KString& sEnvVar, const KString& sValue)
 //-----------------------------------------------------------------------------
 {
-	kSetEnv(sEnvVar.c_str(), sValue.c_str());
+	return (kSetEnv(sEnvVar.c_str(), sValue.c_str()));
 }
 
 //-----------------------------------------------------------------------------
 /// Unset environment variable.
-inline void kUnsetEnv (const char* szEnvVar)
+inline bool kUnsetEnv (const char* szEnvVar)
 //-----------------------------------------------------------------------------
 {
-	if (!::unsetenv(szEnvVar))
+	bool bOK = (::unsetenv(szEnvVar) == 0);
+	if (!bOK)
 	{
-		kWarning("cannot unset {}", szEnvVar);
+		kWarning("cannot unset {}, {}", szEnvVar, strerror(errno));
 	}
+	return (bOK);
 }
 
 //-----------------------------------------------------------------------------
 /// Unset environment variable.
-inline void kUnsetEnv (const KString& sEnvVar)
+inline bool kUnsetEnv (const KString& sEnvVar)
 //-----------------------------------------------------------------------------
 {
-	kUnsetEnv(sEnvVar.c_str());
+	return (kUnsetEnv(sEnvVar.c_str()));
 }
 
 /// Return operating system current working directory as a string.

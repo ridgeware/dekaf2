@@ -45,16 +45,19 @@
 /// @file dekaf2all.h
 /// globbed include of all dekaf2 header files
 
-// - - - - - - - - - - - - - - - - - -
-// KEEP ALPHABETIZED!!
-// - - - - - - - - - - - - - - - - - -
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+// refresh by running (and capturing):
+//   ls -1 *.h | awk 'BEGIN {print "#include \"dekaf2.h\""} ($0 !~ /^dekaf2/) {printf ("#include \"%s\"\n", $0)}'
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 #include "dekaf2.h"
+#include "kbase64.h"
 #include "kcache.h"
 #include "kcasestring.h"
 #include "kcgi.h"
 #include "kconnection.h"
 #include "kcrashexit.h"
 #include "kcurl.h"
+#include "kencode.h"
 #include "kfdstream.h"
 #include "kfile.h"
 #include "kformat.h"
@@ -78,9 +81,11 @@
 #include "kprops.h"
 #include "kreader.h"
 #include "kregex.h"
+#include "krow.h"
 #include "ksharedref.h"
 #include "ksignals.h"
 #include "ksplit.h"
+#include "ksql.h"
 #include "ksslclient.h"
 #include "ksslstream.h"
 #include "kstack.h"
@@ -93,6 +98,7 @@
 #include "ksystem.h"
 #include "ktcpclient.h"
 #include "ktcpserver.h"
+#include "ktimer.h"
 #include "kurl.h"
 #include "kurlencode.h"
 #include "kuseragent.h"

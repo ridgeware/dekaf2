@@ -242,6 +242,7 @@ set (HEADERS
 	kurl.h
 	kurlencode.h
 	kuseragent.h
+	kutf8.h
 	kwebio.h
 	kwriter.h
 	)

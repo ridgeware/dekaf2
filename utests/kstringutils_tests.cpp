@@ -494,7 +494,7 @@ TEST_CASE("KStringUtils") {
 		}
 	}
 
-	SECTION("IsDecimal on strings")
+	SECTION("kIsDecimal on strings")
 	{
 		KString s;
 		s = "1";
@@ -513,7 +513,7 @@ TEST_CASE("KStringUtils") {
 		CHECK( !kIsDecimal(s) );
 	}
 
-	SECTION("IsDecimal on char*")
+	SECTION("kIsDecimal on char*")
 	{
 		const char* s;
 		s = "1";
@@ -532,7 +532,7 @@ TEST_CASE("KStringUtils") {
 		CHECK( !kIsDecimal(s) );
 	}
 
-	SECTION("KCountChar on strings")
+	SECTION("kCountChar on strings")
 	{
 		KString s;
 		s = "abcdeahgzaldkaakf";
@@ -546,7 +546,7 @@ TEST_CASE("KStringUtils") {
 		CHECK( kCountChar(s, 'a') == 0 );
 	}
 
-	SECTION("KCountChar on char*")
+	SECTION("kCountChar on char*")
 	{
 		const char* s;
 		s = "abcdeahgzaldkaakf";
@@ -561,7 +561,7 @@ TEST_CASE("KStringUtils") {
 		CHECK( kCountChar(s,  0 ) == 0 );
 	}
 
-	SECTION("KFormNumber")
+	SECTION("kFormNumber")
 	{
 		KString s;
 		s = kFormNumber(1);
@@ -594,6 +594,90 @@ TEST_CASE("KStringUtils") {
 		CHECK( s == "-12");
 		s = kFormNumber(-1, ',', 3);
 		CHECK( s == "-1");
+	}
+
+	SECTION("kToInt")
+	{
+		SECTION("std::string")
+		{
+			using stype = std::string;
+			std::vector<std::pair<stype, int64_t>> svector = {
+			    {  "123456789",  123456789 },
+			    { "-123456789", -123456789 },
+			    { "12345abcd2",  12345     },
+			    {   "abcde123",  0         }
+			};
+
+			for (const auto& it : svector)
+			{
+				CHECK ( kToInt<int64_t>(it.first.data(), it.first.size()) == it.second );
+			}
+		}
+
+		SECTION("KString")
+		{
+			using stype = KString;
+			std::vector<std::pair<stype, int64_t>> svector = {
+			    {  "123456789",  123456789 },
+			    { "-123456789", -123456789 },
+			    { "12345abcd2",  12345     },
+			    {   "abcde123",  0         }
+			};
+
+			for (const auto& it : svector)
+			{
+				CHECK ( kToInt<int64_t>(it.first.data(), it.first.size()) == it.second );
+			}
+		}
+	}
+
+	SECTION("kToInt Hex")
+	{
+		SECTION("std::string")
+		{
+			using stype = std::string;
+			std::vector<std::pair<stype, int64_t>> svector = {
+			    {         "ff",  255         },
+			    {   "    ff  ",  255         },
+			    {       "- ff",  0           },
+			    {         "Ff",  255         },
+			    {         "FF",  255         },
+			    {        "0FF",  255         },
+			    {       "00FF",  255         },
+			    {  "123456789",  4886718345  },
+			    { "-123456789", -4886718345  },
+			    { "12345abcd2",  78187773138 },
+			    {   "abcde123",  2882396451  }
+			};
+
+			for (const auto& it : svector)
+			{
+				CHECK ( kToInt<int64_t>(it.first.data(), it.first.size(), true) == it.second );
+			}
+		}
+
+		SECTION("KString")
+		{
+			using stype = KString;
+			std::vector<std::pair<stype, int64_t>> svector = {
+			    {         "ff",  255         },
+			    {   "    ff  ",  255         },
+			    {       "- ff",  0           },
+			    {         "Ff",  255         },
+			    {         "FF",  255         },
+			    {        "0FF",  255         },
+			    {       "00FF",  255         },
+			    {  "123456789",  4886718345  },
+			    { "-123456789", -4886718345  },
+			    { "12345abcd2",  78187773138 },
+			    {   "abcde123",  2882396451  }
+			};
+
+			for (const auto& it : svector)
+			{
+				CHECK ( kToInt<int64_t>(it.first.data(), it.first.size(), true) == it.second );
+			}
+		}
 	}
 
 }

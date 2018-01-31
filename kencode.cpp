@@ -39,22 +39,58 @@
 */
 
 #include "kencode.h"
+#include "kutf8.h"
+#include "kstringutils.h"
 
 
 namespace dekaf2 {
 
 
 
+//-----------------------------------------------------------------------------
+KString KEnc::HTML(KStringView sIn)
+//-----------------------------------------------------------------------------
+{
+	KString sRet;
+	sRet.reserve(sIn.size()*2);
+
+	Unicode::FromUTF8(sIn, [&sRet](uint32_t ch)
+	{
+		if (std::iswalnum(ch) || std::iswpunct(ch) || std::iswspace(ch))
+		{
+			Unicode::ToUTF8(ch, sRet);
+		}
+		else
+		{
+			sRet += "&#x";
+			sRet += KString::to_hexstring(ch, true, false);
+			sRet += ';';
+		}
+	});
+
+	return sRet;
+}
+
+//-----------------------------------------------------------------------------
+void KEnc::HTMLInPlace(KString& sBuffer)
+//-----------------------------------------------------------------------------
+{
+	KString sRet = HTML(sBuffer);
+	sBuffer.swap(sRet);
+}
+
+//-----------------------------------------------------------------------------
 KString KDec::HTML(KStringView sIn)
+//-----------------------------------------------------------------------------
 {
 	KString sRet;
 	sRet.reserve(sIn.size());
 
-	for (KStringView::const_iterator it = sIn.cbegin(), ie = sIn.cend(); it != ie; ++it)
+	for (KStringView::const_iterator it = sIn.cbegin(), ie = sIn.cend(); it != ie; )
 	{
 		if (*it != '&')
 		{
-			sRet += *it;
+			sRet += *it++;
 		}
 		else
 		{
@@ -70,23 +106,16 @@ KString KDec::HTML(KStringView sIn)
 						if (*it == 'x' || *it == 'X')
 						{
 							// hex
-							while (std::isxdigit(*it))
+							for (;;)
 							{
-								iChar *= 16;
-
-								switch (*it)
+								auto iCh = kFromHexChar(*it);
+								if (iCh > 15)
 								{
-									case '0': case '1': case '2': case '3': case '4':
-									case '5': case '6': case '7': case '8': case '9':
-										iChar += *it - '0';
-										break;
-									case 'A': case 'B': case 'C': case 'D': case 'E': case 'F':
-										iChar += *it - 'A';
-										break;
-									case 'a': case 'b': case 'c': case 'd': case 'e': case 'f':
-										iChar += *it - 'a';
-										break;
+									break;
 								}
+
+								iChar *= 16;
+								iChar += iCh;
 
 								if (++it == ie)
 								{
@@ -108,16 +137,24 @@ KString KDec::HTML(KStringView sIn)
 								}
 							}
 						}
-						// TODO write UTF8 converter
-						sRet += iChar & 0x0ff;
-//						sRet += ToUTF8(iChar);
 
-						if (it != ie && *++it  == static_cast<KStringView::value_type>(';'))
+						Unicode::ToUTF8(iChar, sRet);
+
+						if (it != ie && *it  == static_cast<KStringView::value_type>(';'))
 						{
 							++it;
 						}
 					}
 				}
+				else
+				{
+					sRet += '&';
+					sRet += *it++;
+				}
+			}
+			else
+			{
+				sRet += '&';
 			}
 		}
 	}
@@ -125,7 +162,9 @@ KString KDec::HTML(KStringView sIn)
 	return sRet;
 }
 
+//-----------------------------------------------------------------------------
 void KDec::HTMLInPlace(KString& sBuffer)
+//-----------------------------------------------------------------------------
 {
 	KString sRet = HTML(sBuffer);
 	sBuffer.swap(sRet);

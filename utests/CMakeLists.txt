@@ -15,6 +15,7 @@ set (USOURCES
 	kbase64_tests.cpp
 	kcasestring_tests.cpp
 	kcurl_tests.cpp
+	kencode_tests.cpp
 	kfile_tests.cpp
 	khttp_tests.cpp
 	kinpipe_tests.cpp
@@ -35,6 +36,7 @@ set (USOURCES
 	ksubscribe_tests.cpp
 	ktcpserver_tests.cpp
 	kurl_tests.cpp
+	kutf8_tests.cpp
 	kwebio_tests.cpp
 	kwriter_tests.cpp
 )

@@ -42,6 +42,7 @@
 
 #pragma once
 
+#include "kstringutils.h"
 #include "kstringview.h"
 #include "kstring.h"
 #include "kprops.h"
@@ -118,27 +119,8 @@ template<class Ch>
 inline Ch kx2c (Ch* pszGoop)
 //-----------------------------------------------------------------------------
 {
-	int iValue{0};
-	switch (pszGoop[0])
-	{
-		case '0': case '1': case '2': case '3': case '4':
-		case '5': case '6': case '7': case '8': case '9':
-			iValue += ((pszGoop[0] - '0') << 4);
-			break;
-		case 'A': case 'B': case 'C': case 'D': case 'E': case 'F':
-			iValue += ((pszGoop[0] - 'A' + 10) << 4);
-			break;
-	}
-	switch (pszGoop[1])
-	{
-		case '0': case '1': case '2': case '3': case '4':
-		case '5': case '6': case '7': case '8': case '9':
-			iValue += ((pszGoop[1] - '0'));
-			break;
-		case 'A': case 'B': case 'C': case 'D': case 'E': case 'F':
-			iValue += ((pszGoop[1] - 'A' + 10));
-			break;
-	}
+	auto iValue = kFromHexChar(pszGoop[0]) << 4;
+	iValue += kFromHexChar(pszGoop[1]);
 
 	return static_cast<Ch>(iValue);
 

@@ -121,15 +121,15 @@ public:
 	}
 
 	/// Wrapper around kUrlDecode. Does the same.
-	static KString URL(KStringView sIn, bool bPlusAsSpace = false)
+	static KString URL(KStringView sIn, URIPart URIpart = URIPart::Query)
 	{
-		return kUrlDecode<KString>(sIn, bPlusAsSpace);
+		return kUrlDecode<KString>(sIn, URIpart == URIPart::Query);
 	}
 
 	/// Wrapper around kUrlDecode. Does the same.
-	static void URLInPlace(KString& sBuffer, bool bPlusAsSpace = false)
+	static void URLInPlace(KString& sBuffer, URIPart URIpart = URIPart::Query)
 	{
-		kUrlDecode(sBuffer, bPlusAsSpace);
+		kUrlDecode(sBuffer, URIpart == URIPart::Query);
 	}
 
 	static KString HTML(KStringView sIn);

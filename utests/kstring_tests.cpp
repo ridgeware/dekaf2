@@ -546,5 +546,77 @@ TEST_CASE("KString") {
 		CHECK ( s.Double()   == -12.34567 );
 	}
 
+	SECTION("to_string()")
+	{
+		using stype = KString;
+		std::vector<std::pair<stype, int64_t>> svector = {
+		    {          "0",  0         },
+		    {  "123456789",  123456789 },
+		    { "-123456789", -123456789 },
+		};
+
+		for (const auto& it : svector)
+		{
+			CHECK ( KString::to_string(it.second) == it.first );
+		}
+	}
+
+	SECTION("to_hexstring()")
+	{
+		using stype = KString;
+		std::vector<std::pair<stype, int64_t>> svector = {
+		    {         "FF",  255         },
+		    {         "00",  0           },
+		    {         "08",  8           },
+		    {         "0F",  15          },
+		    { "0123456789",  4886718345  },
+		    { "12345ABCD2",  78187773138 },
+		    {   "ABCDE123",  2882396451  }
+		};
+
+		for (const auto& it : svector)
+		{
+			CHECK ( KString::to_hexstring(it.second) == it.first );
+		}
+	}
+
+	SECTION("to_hexstring() lowercase")
+	{
+		using stype = KString;
+		std::vector<std::pair<stype, int64_t>> svector = {
+		    {         "ff",  255         },
+		    {         "00",  0           },
+		    {         "08",  8           },
+		    {         "0f",  15          },
+		    { "0123456789",  4886718345  },
+		    { "12345abcd2",  78187773138 },
+		    {   "abcde123",  2882396451  }
+		};
+
+		for (const auto& it : svector)
+		{
+			CHECK ( KString::to_hexstring(it.second, true, false) == it.first );
+		}
+	}
+
+	SECTION("to_hexstring() lowercase zeropad")
+	{
+		using stype = KString;
+		std::vector<std::pair<stype, int64_t>> svector = {
+		    {         "ff",  255         },
+		    {          "0",  0           },
+		    {          "8",  8           },
+		    {          "f",  15          },
+		    {  "123456789",  4886718345  },
+		    { "12345abcd2",  78187773138 },
+		    {   "abcde123",  2882396451  }
+		};
+
+		for (const auto& it : svector)
+		{
+			CHECK ( KString::to_hexstring(it.second, false, false) == it.first );
+		}
+	}
+
 }
 

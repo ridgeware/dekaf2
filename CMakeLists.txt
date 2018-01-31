@@ -197,6 +197,7 @@ set (HEADERS
 	kconnection.h
 	kcrashexit.h
 	kcurl.h
+	kencode.h
 	kfdstream.h
 	kfile.h
 	kformat.h
@@ -257,6 +258,7 @@ set (SOURCES
 	kconnection.cpp
 	kcrashexit.cpp
 	kcurl.cpp
+	kencode.cpp
 	kfdstream.cpp
 	kfile.cpp
 	kformat.cpp

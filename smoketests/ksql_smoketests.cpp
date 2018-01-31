@@ -69,17 +69,17 @@ KString HereDoc (KStringView sString)
 	KString sReturnMe;
 	bool    bTrim = true;
 
-	for (size_t ii=0; ii < sString.size(); ++ii)
+	for (auto& ch : sString)
 	{
-		if (bTrim && ((sString[ii] <= ' ') || (sString[ii] == '|'))) {
+		if (bTrim && ((ch <= ' ') || (ch == '|'))) {
 			/* skip it */
 		}
-		else if (sString[ii] == '\n') {
-			sReturnMe += sString[ii];
+		else if (ch == '\n') {
+			sReturnMe += ch;
 			bTrim = true;
 		}
 		else {
-			sReturnMe += sString[ii];
+			sReturnMe += ch;
 			bTrim = false;
 		}
 	}
@@ -194,8 +194,8 @@ TEST_CASE("KSQL")
 
 		if (!db.OpenConnection())
 		{
-			kWarning("{}", db.ConnectSummary());
-			FAIL_CHECK (db.GetLastError());
+			INFO ("FAILED TO CONNECT TO: " << db.ConnectSummary());
+			FAIL (db.GetLastError());  // <-- all other tests will be useless so ABORT
 		}
 
 		// establish BASE STATE by dropping tables from possibl prior runs
@@ -245,7 +245,7 @@ TEST_CASE("KSQL")
 				"    dtmnow    {{DATETIME}}  null\n"
 				")"))
 			{
-				kWarning ("{}", db.GetLastSQL());
+				INFO (db.GetLastSQL());
 				FAIL_CHECK (db.GetLastError());
 			}
 		}
@@ -259,7 +259,7 @@ TEST_CASE("KSQL")
 				"    dtmnow    {{DATETIME}}  null\n"
 				")"))
 			{
-				kWarning ("{}", db.GetLastSQL());
+				INFO (db.GetLastSQL());
 				FAIL_CHECK (db.GetLastError());
 			}
 		}
@@ -276,7 +276,7 @@ TEST_CASE("KSQL")
 				SqlServerIdentityInsert (db, "TEST_KSQL", "ON");
 
 				if (!db.ExecSQL ("insert into TEST_KSQL (anum,astring,bigstring,dtmnow) values (%u,'row-%u','',{{NOW}})", PRESEED+ii, ii)) {
-					kWarning ("{}", db.GetLastSQL());
+					INFO (db.GetLastSQL());
 					FAIL_CHECK (db.GetLastError());
 				}
 			}
@@ -287,7 +287,7 @@ TEST_CASE("KSQL")
 				}
 				// do NOT specify the 'anum' column:
 				if (!db.ExecSQL ("insert into TEST_KSQL (astring,bigstring,dtmnow) values ('row-%u','',{{NOW}})", ii)) {
-					kWarning ("{}", db.GetLastError());
+					INFO (db.GetLastError());
 					FAIL_CHECK (db.GetLastError());
 				}
 			}
@@ -322,7 +322,7 @@ TEST_CASE("KSQL")
 	     || (Cols.GetName(2) != "bigstring")
 	     || (Cols.GetName(3) != "dtmnow"))
 		{
-			kWarning ("{}", db.GetLastError());
+			INFO (db.GetLastError());
 			//Cols.DebugPairs (1);
 			FAIL_CHECK ("query did *NOT* return the column headers");
 		}
@@ -344,7 +344,7 @@ TEST_CASE("KSQL")
 		if (iCount != 0)
 		{
 			kWarning ("did not get 0 rows back (got {})", iCount);
-			kWarning ("{}", db.GetLastError());
+			INFO (db.GetLastError());
 			FAIL_CHECK (db.GetLastError());
 		}
 	
@@ -354,7 +354,7 @@ TEST_CASE("KSQL")
 		if (iCount != 9)
 		{
 			kWarning ("did not get count(*) of 9, but got {}", iCount);
-			kWarning ("{}", db.GetLastError());
+			INFO (db.GetLastError());
 			FAIL_CHECK (db.GetLastError());
 		}
 	
@@ -363,7 +363,7 @@ TEST_CASE("KSQL")
 		iCount = db.SingleIntQuery ("select count(*) from TEST_KSQL where 1=0");
 		if (iCount != 0) {
 			kWarning ("did not get count(*) of 0, but got {}", iCount);
-			kWarning ("{}", db.GetLastError());
+			INFO (db.GetLastError());
 			FAIL_CHECK (db.GetLastError());
 		}
 
@@ -373,7 +373,7 @@ TEST_CASE("KSQL")
 		iCount = db.SingleIntQuery ("select count(*) from FLUBBERNUTTER");
 		if (iCount != -1) {
 			kWarning ("did not get -1 back from a bad single-int query");
-			kWarning ("{}", db.GetLastError());
+			INFO (db.GetLastError());
 			FAIL_CHECK (db.GetLastError());
 		}
 		db.SetFlags (0);
@@ -385,7 +385,7 @@ TEST_CASE("KSQL")
 		if (iCount != 9)
 		{
 			kWarning ("did not get 9 rows back (got {}) after inserts", iCount);
-			kWarning ("{}", db.GetLastError());
+			INFO (db.GetLastError());
 			FAIL_CHECK (db.GetLastError());
 		}
 	
@@ -465,7 +465,7 @@ TEST_CASE("KSQL")
 
 			if (db.GetNumRowsAffected() != 9) {
 				kWarning ("GetNumRowsAffected() = {}, but should be 9", db.GetNumRowsAffected());
-				kWarning ("{}", db.GetLastError());
+				INFO (db.GetLastError());
 				FAIL_CHECK (db.GetLastError());
 			}
 		} // MYSQL only
@@ -515,7 +515,7 @@ TEST_CASE("KSQL")
 		}
 		if (!db.ExecSQLFile (sTmp1))
 		{
-			kWarning ("{}", db.GetLastError());
+			INFO (db.GetLastError());
 			FAIL_CHECK (db.GetLastError());
 		}
 
@@ -526,7 +526,7 @@ TEST_CASE("KSQL")
 
 		if (!db.NextRow()) {
 			kWarning ("embedded query in sql file failed to return a row");
-			kWarning ("{}", db.GetLastError());
+			INFO (db.GetLastError());
 			FAIL_CHECK (db.GetLastError());
 		}
 
@@ -536,7 +536,7 @@ TEST_CASE("KSQL")
 		if (iCount != 4)
 		{
 			kWarning ("count(*) after inserts = {}, but should be 4", iCount);
-			kWarning ("{}", db.GetLastError());
+			INFO (db.GetLastError());
 			FAIL_CHECK (db.GetLastError());
 		}
 
@@ -548,7 +548,7 @@ TEST_CASE("KSQL")
 		if (iCount != 4)
 		{
 			kWarning ("did not get 4 rows back (got {}) after sql batch", iCount);
-			kWarning ("{}", db.GetLastError());
+			INFO (db.GetLastError());
 			FAIL_CHECK (db.GetLastError());
 		}
 
@@ -556,7 +556,7 @@ TEST_CASE("KSQL")
 
 		kDebugLog (1, "support for alternate SQL batch delimeters");
 
-		KString sTmp;  sTmp.Format ("testksql{}b.sql", getpid());
+		KString sTmp;  sTmp.Format ("testksql{}c.sql", getpid());
 
 		KFile fp (sTmp.c_str(), std::ios::out);
 		fp.Write (HereDoc(R"(
@@ -569,7 +569,7 @@ TEST_CASE("KSQL")
 			fp.Write (HereDoc(R"(
 				|IF OBJECT_ID('FRED', 'U') IS NOT NULL DROP TABLE FRED;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 				|create table FRED (a char(10) not null);	;	;	;	;;;	; ;
-				|insert into FRED values (';'); ; ;;; ;	;	;	 ;
+				|insert into FRED values (';'); ; ;;; ;	;	;
 				|insert into FRED values (';');
 				|
 				|delimiter @@@
@@ -589,7 +589,7 @@ TEST_CASE("KSQL")
 			fp.Write (HereDoc(R"(
 				|drop table if exists FRED;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 				|create table FRED (a char(10) not null);	;	;	;	;;;	; ;
-				|insert into FRED values (';'); ; ;;; ;	;	;	 ;
+				|insert into FRED values (';'); ; ;;; ;	;	;
 				|insert into FRED values (";");
 				|
 				|delimiter @@@
@@ -607,7 +607,7 @@ TEST_CASE("KSQL")
 		fp.close();
 
 		if (!db.ExecSQLFile (sTmp)) {
-			kWarning ("{}", db.GetLastError());
+			INFO (db.GetLastError());
 			FAIL_CHECK (db.GetLastError());
 		}
 
@@ -635,7 +635,7 @@ TEST_CASE("KSQL")
 
 		Row.AddCol ("astring", "krow update");
 		if (!db.Update (Row)) {
-			kWarning ("{}", db.GetLastError());
+			INFO (db.GetLastError());
 			FAIL_CHECK (db.GetLastError());
 		}
 
@@ -643,7 +643,7 @@ TEST_CASE("KSQL")
 
 		Row.AddCol ("astring", "krow update");
 		if (!db.Delete (Row)) {
-			kWarning ("{}", db.GetLastError());
+			INFO (db.GetLastError());
 			FAIL_CHECK (db.GetLastError());
 		}
 		
@@ -659,7 +659,7 @@ TEST_CASE("KSQL")
 			|    astring   varchar(500)   null
 			|))")))
 		{	
-			kWarning ("{}", db.GetLastSQL());
+			INFO (db.GetLastSQL());
 			FAIL_CHECK (db.GetLastError());
 		}
 
@@ -667,11 +667,11 @@ TEST_CASE("KSQL")
 		URow.AddCol ("anum", 100ull, KROW::PKEY|KROW::NUMERIC);
 		URow.AddCol ("astring", ASIAN1);
 		if (!db.Insert(URow)) {
-			kWarning ("{}", db.GetLastError());
+			INFO (db.GetLastError());
 			FAIL_CHECK (db.GetLastError());
 		}
 		if (!db.ExecQuery ("select * from TEST_ASIAN")) {
-			kWarning ("{}", db.GetLastSQL());
+			INFO (db.GetLastSQL());
 			FAIL_CHECK (db.GetLastError());
 		}
 		if (!db.NextRow (Cols)) {
@@ -687,11 +687,11 @@ TEST_CASE("KSQL")
 
 		URow.AddCol ("astring", ASIAN2);
 		if (!db.Update(URow)) {
-			kWarning ("{}", db.GetLastError());
+			INFO (db.GetLastError());
 			FAIL_CHECK (db.GetLastError());
 		}
 		if (!db.ExecQuery ("select * from TEST_ASIAN")) {
-			kWarning ("{}", db.GetLastSQL());
+			INFO (db.GetLastSQL());
 			FAIL_CHECK (db.GetLastError());
 		}
 		if (!db.NextRow (Cols)) {
@@ -716,7 +716,7 @@ TEST_CASE("KSQL")
 		if (db.Get(1) != "clip me here")
 		{
 			kWarning ("string not clipped properly: '{}'", db.Get(1));
-			kWarning ("{}", db.GetLastError());
+			INFO (db.GetLastError());
 			FAIL_CHECK (db.GetLastError());
 		}
 
@@ -742,7 +742,7 @@ TEST_CASE("KSQL")
 		SimulateLostConnection (&db);
 
 		if (!db.ExecSQL ("insert into TEST_KSQL (astring) values ('retry2')")) {
-			kWarning ("{}", db.GetLastSQL());
+			INFO (db.GetLastSQL());
 			FAIL_CHECK (db.GetLastError());
 		}
 
@@ -765,7 +765,7 @@ TEST_CASE("KSQL")
 		Row.AddCol ("astring", QUOTES1);
 
 		if (!db.Insert (Row)) {
-			kWarning ("{}", db.GetLastError());
+			INFO (db.GetLastError());
 			FAIL_CHECK (db.GetLastError());
 		}
 
@@ -776,7 +776,7 @@ TEST_CASE("KSQL")
 		Row.AddCol ("astring", QUOTES2, 0, 0);
 
 		if (!db.Update (Row)) {
-			kWarning ("{}", db.GetLastError());
+			INFO (db.GetLastError());
 			FAIL_CHECK (db.GetLastError());
 		}
 
@@ -784,18 +784,18 @@ TEST_CASE("KSQL")
 
 		if (!db.ExecQuery ("select * from TEST_KSQL where anum=%d", Row.Get("anum").sValue.Int32()))
 		{
-			kWarning ("{}", db.GetLastError());
+			INFO (db.GetLastError());
 			FAIL_CHECK (db.GetLastError());
 		}
 		else if (!db.NextRow (Row)) {
 			kWarning ("did not get back a row");
-			kWarning ("{}", db.GetLastError());
+			INFO (db.GetLastError());
 			FAIL_CHECK (db.GetLastError());
 		}
 		else if (Row.Get("astring").sValue != QUOTES2) {
 			kWarning ("expected: {}", QUOTES2);
 			kWarning ("     got: {}", Row.Get ("astring").sValue);
-			kWarning ("{}", db.GetLastError());
+			INFO (db.GetLastError());
 			FAIL_CHECK (db.GetLastError());
 		}
 
@@ -805,12 +805,12 @@ TEST_CASE("KSQL")
 		Row.AddCol ("astring", QUOTES2, KROW::PKEY);
 
 		if (!db.Delete (Row)) {
-			kWarning ("{}", db.GetLastError());
+			INFO (db.GetLastError());
 			FAIL_CHECK (db.GetLastError());
 		}
 		else if (db.GetNumRowsAffected() != 1) {
 			kWarning ("row not found");
-			kWarning ("{}", db.GetLastError());
+			INFO (db.GetLastError());
 			FAIL_CHECK (db.GetLastError());
 		}
 
@@ -825,7 +825,7 @@ TEST_CASE("KSQL")
 
 		SqlServerIdentityInsert (db, "TEST_KSQL", "ON");
 		if (!db.Insert (Row)) {
-			kWarning ("{}", db.GetLastError());
+			INFO (db.GetLastError());
 			FAIL_CHECK (db.GetLastError());
 		}
 
@@ -834,25 +834,25 @@ TEST_CASE("KSQL")
 		Row.AddCol ("astring", SLASHES2);
 
 		if (!db.Update (Row)) {
-			kWarning ("{}", db.GetLastError());
+			INFO (db.GetLastError());
 			FAIL_CHECK (db.GetLastError());
 		}
 
 		kDebugLog (1, "KROW slash test select");
 
 		if (!db.ExecQuery ("select * from TEST_KSQL where anum=98")) {
-			kWarning ("{}", db.GetLastError());
+			INFO (db.GetLastError());
 			FAIL_CHECK (db.GetLastError());
 		}
 		else if (!db.NextRow (Row)) {
-			kWarning ("did not get back a row");
-			kWarning ("{}", db.GetLastError());
+			INFO ("did not get back a row");
+			INFO (db.GetLastError());
 			FAIL_CHECK (db.GetLastError());
 		}
 		else if (Row.Get("astring").sValue != SLASHES2) {
 			kWarning ("expected: {}", SLASHES2);
 			kWarning ("     got: {}", Row.Get ("astring").sValue);
-			kWarning ("{}", db.GetLastError());
+			INFO (db.GetLastError());
 			FAIL_CHECK (db.GetLastError());
 		}
 
@@ -863,22 +863,20 @@ TEST_CASE("KSQL")
 
 		// { LPTSTR dszSANITY = (char*)malloc(75); kstrncpy (dszSANITY, "SANITY", 75); free (dszSANITY); }
 
-		#if 1
 		if (!db.Delete (Row)) {
-			kWarning ("{}", db.GetLastError());
+			INFO (db.GetLastError());
 			FAIL_CHECK (db.GetLastError());
 		}
 		else if (db.GetNumRowsAffected() != 1) {
-			kWarning ("row not found");
-			kWarning ("{}", db.GetLastError());
+			INFO ("row not found");
+			INFO (db.GetLastError());
 			FAIL_CHECK (db.GetLastError());
 		}
-		#endif
 
 		kDebugLog (1, "cleanup");
 
 		if (!db.ExecSQL ("drop table TEST_KSQL")) {
-			kWarning ("{}", db.GetLastError());
+			INFO (db.GetLastError());
 			FAIL_CHECK (db.GetLastError());
 		}
 

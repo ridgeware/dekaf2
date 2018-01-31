@@ -1153,6 +1153,10 @@ KString KString::to_string(int64_t i)
 		sResult += static_cast<value_type>(i % 10) + '0';
 		i /= 10;
 	}
+	if (sResult.empty())
+	{
+		sResult += '0';
+	}
 	if (bIsNeg)
 	{
 		sResult += '-';
@@ -1176,12 +1180,47 @@ KString KString::to_string(uint64_t i)
 		sResult += static_cast<value_type>(i % 10) + '0';
 		i /= 10;
 	}
+	if (sResult.empty())
+	{
+		sResult += '0';
+	}
 	// revert the string
 	std::reverse(sResult.begin(), sResult.end());
 	return sResult;
 #else
 	return std::to_string(i);
 #endif
+}
+
+//-----------------------------------------------------------------------------
+KString KString::to_hexstring(uint64_t i, bool bZeroPad, bool bUpperCase)
+//-----------------------------------------------------------------------------
+{
+	KString sResult;
+	while (i)
+	{
+		auto ch = i % 16;
+		if (ch <= 9)
+		{
+			sResult += static_cast<value_type>(ch + '0');
+		}
+		else
+		{
+			sResult += static_cast<value_type>(ch + 'a' - 10 - (bUpperCase * ('a' - 'A')));
+		}
+		i /= 16;
+	}
+	if (sResult.empty())
+	{
+		sResult = "0";
+	}
+	if (bZeroPad && (sResult.size() & 1) == 1)
+	{
+		sResult += '0';
+	}
+	// revert the string
+	std::reverse(sResult.begin(), sResult.end());
+	return sResult;
 }
 
 } // end of namespace dekaf2

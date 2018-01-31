@@ -313,8 +313,14 @@ bool kIsURL(KStringView str) noexcept;
 // exception free conversions
 
 //-----------------------------------------------------------------------------
+/// Converts a hex digit into the corresponding integer value. Returns -1 if not
+/// a valid digit
+uint16_t kFromHexChar(char ch);
+//-----------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
 template<class Integer>
-Integer kToInt(const char* data, size_t size) noexcept
+Integer kToInt(const char* data, size_t size, bool bIsHex = false) noexcept
 //-----------------------------------------------------------------------------
 {
 	Integer iVal{0};
@@ -333,17 +339,35 @@ Integer kToInt(const char* data, size_t size) noexcept
 		--size;
 	}
 
-	for (; size > 0; --size)
+	if (!bIsHex)
 	{
-		auto ch = *data++;
-
-		if (ch > '9' || ch < '0')
+		for (; size > 0; --size)
 		{
-			break;
+			auto ch = *data++;
+
+			if (!std::isdigit(ch))
+			{
+				break;
+			}
+
+			iVal *= 10;
+			iVal += ch - '0';
+		}
+	}
+	else
+	{
+		for (; size > 0; --size)
+		{
+			auto iCh = kFromHexChar(*data++);
+			if (iCh > 15)
+			{
+				break;
+			}
+
+			iVal *= 16;
+			iVal += iCh;
 		}
 
-		iVal *= 10;
-		iVal += ch - '0';
 	}
 
 	if (bNeg)

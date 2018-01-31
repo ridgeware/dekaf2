@@ -454,59 +454,59 @@ KStringView::self_type& KStringView::erase(size_type pos, size_type n)
 }
 
 //-----------------------------------------------------------------------------
-int16_t KStringView::Int16() const noexcept
+int16_t KStringView::Int16(bool bIsHex) const noexcept
 //-----------------------------------------------------------------------------
 {
-	return kToInt<int16_t>(data(), size());
+	return kToInt<int16_t>(data(), size(), bIsHex);
 }
 
 //-----------------------------------------------------------------------------
-uint16_t KStringView::UInt16() const noexcept
+uint16_t KStringView::UInt16(bool bIsHex) const noexcept
 //-----------------------------------------------------------------------------
 {
-	return kToInt<uint16_t>(data(), size());
+	return kToInt<uint16_t>(data(), size(), bIsHex);
 }
 
 //-----------------------------------------------------------------------------
-int32_t KStringView::Int32() const noexcept
+int32_t KStringView::Int32(bool bIsHex) const noexcept
 //-----------------------------------------------------------------------------
 {
-	return kToInt<int32_t>(data(), size());
+	return kToInt<int32_t>(data(), size(), bIsHex);
 }
 
 //-----------------------------------------------------------------------------
-uint32_t KStringView::UInt32() const noexcept
+uint32_t KStringView::UInt32(bool bIsHex) const noexcept
 //-----------------------------------------------------------------------------
 {
-	return kToInt<uint32_t>(data(), size());
+	return kToInt<uint32_t>(data(), size(), bIsHex);
 }
 
 //-----------------------------------------------------------------------------
-int64_t KStringView::Int64() const noexcept
+int64_t KStringView::Int64(bool bIsHex) const noexcept
 //-----------------------------------------------------------------------------
 {
-	return kToInt<int64_t>(data(), size());
+	return kToInt<int64_t>(data(), size(), bIsHex);
 }
 
 //-----------------------------------------------------------------------------
-uint64_t KStringView::UInt64() const noexcept
+uint64_t KStringView::UInt64(bool bIsHex) const noexcept
 //-----------------------------------------------------------------------------
 {
-	return kToInt<uint64_t>(data(), size());
+	return kToInt<uint64_t>(data(), size(), bIsHex);
 }
 
 //-----------------------------------------------------------------------------
-int128_t KStringView::Int128() const noexcept
+int128_t KStringView::Int128(bool bIsHex) const noexcept
 //-----------------------------------------------------------------------------
 {
-	return kToInt<int128_t>(data(), size());
+	return kToInt<int128_t>(data(), size(), bIsHex);
 }
 
 //-----------------------------------------------------------------------------
-uint128_t KStringView::UInt128() const noexcept
+uint128_t KStringView::UInt128(bool bIsHex) const noexcept
 //-----------------------------------------------------------------------------
 {
-	return kToInt<uint128_t>(data(), size());
+	return kToInt<uint128_t>(data(), size(), bIsHex);
 }
 
 //-----------------------------------------------------------------------------

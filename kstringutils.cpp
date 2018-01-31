@@ -132,6 +132,25 @@ char* kstrncpy (char* szTarget, const char* szSource, size_t iMaxAllocTarget)
 } // kstrncpy
 
 //-----------------------------------------------------------------------------
+uint16_t kFromHexChar(char ch)
+//-----------------------------------------------------------------------------
+{
+	switch (ch)
+	{
+		case '0': case '1': case '2': case '3': case '4':
+		case '5': case '6': case '7': case '8': case '9':
+			return ch - '0';
+		case 'A': case 'B': case 'C': case 'D': case 'E': case 'F':
+			return ch - ('A' - 10);
+		case 'a': case 'b': case 'c': case 'd': case 'e': case 'f':
+			return ch - ('a' - 10);
+		default:
+			kDebug(1, "invalid input: {}", ch);
+			return static_cast<uint16_t>(-1);
+	}
+}
+
+//-----------------------------------------------------------------------------
 KString kFormTimestamp (time_t tTime, const char* szFormat)
 //-----------------------------------------------------------------------------
 {

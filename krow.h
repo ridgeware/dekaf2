@@ -115,7 +115,6 @@ public:
 };
 
 typedef KProps <KString, KCOL,    /*order-matters=*/true, /*unique-keys*/true> KCOLS;
-typedef KProps <KString, KString, /*order-matters=*/true, /*unique-keys*/true> KPROPS;
 
 //-----------------------------------------------------------------------------
 class KROW : public KCOLS, public detail::KCommonSQLBase

@@ -48,7 +48,9 @@
 #include <functional>
 #include <iterator>
 #include "kcppcompat.h"
+#include "../ksplit.h"
 #include "../klog.h"
+#include "../kstream.h"
 
 namespace dekaf2
 {
@@ -671,6 +673,81 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	template<class K=int>
+	size_t Load(KInStream& Input, const char chPairDelim = '=', KStringView svDelim = "\n")
+	//-----------------------------------------------------------------------------
+	{
+		size_t iNewElements{0};
+
+		if (Input.InStream().good())
+		{
+			if (!svDelim.empty())
+			{
+				Input.SetReaderEndOfLine(svDelim.front());
+			}
+			KString sLine;
+			while (Input.ReadLine(sLine))
+			{
+				sLine.Trim();
+				if (svDelim != "\n" || (!sLine.empty() && sLine.front() != '#'))
+				{
+					iNewElements += kSplitPairs(*this, sLine, chPairDelim, svDelim);
+				}
+			}
+
+		}
+
+		return size();
+
+	} // Load
+
+	//-----------------------------------------------------------------------------
+	size_t Load(KStringView sInput, const char chPairDelim = '=', KStringView svDelim = "\n")
+	//-----------------------------------------------------------------------------
+	{
+		KInFile fin(sInput);
+		return Load(fin, chPairDelim, svDelim);
+
+	} // Load
+
+	//-----------------------------------------------------------------------------
+	size_t Store(KOutStream& Output, const char chPairDelim = '=', KStringView svDelim = "\n")
+	//-----------------------------------------------------------------------------
+	{
+		size_t iNewElements{0};
+
+		if (Output.OutStream().good())
+		{
+			if (svDelim == "\n")
+			{
+				Output.Write("#! KPROPS");
+				Output.Write(svDelim);
+			}
+
+			for (const auto& it : *this)
+			{
+				Output.Write(it.first);
+				Output.Write(chPairDelim);
+				Output.Write(it.second);
+				Output.Write(svDelim);
+				++iNewElements;
+			}
+		}
+
+		return iNewElements;
+
+	} // Store
+
+	//-----------------------------------------------------------------------------
+	size_t Store(KStringView sOutput, const char chPairDelim = '=', KStringView svDelim = "\n")
+	//-----------------------------------------------------------------------------
+	{
+		KOutFile fout(sOutput);
+		return Store(fout, chPairDelim, svDelim);
+
+	} // Store
+
+	//-----------------------------------------------------------------------------
 	/// Parse input and add to the KProps struct
 	size_t Parse(Parser& parser)
 	//-----------------------------------------------------------------------------
@@ -1011,6 +1088,17 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// Returns true if at least one element with the given key exists.
+	template<class K>
+	bool Exists(K&& key) const
+	//-----------------------------------------------------------------------------
+	{
+		// TODO switch to find() once we have unified the end() for sequential
+		// and non sequential KProps
+		return Count(std::forward<K>(key)) > 0;
+	}
+
+	//-----------------------------------------------------------------------------
 	// perfect forwarding
 	/// Returns true if a key appears multiple times.
 	template<class K>
@@ -1114,6 +1202,22 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// Returns count of all stored elements.
+	size_t size() const
+	//-----------------------------------------------------------------------------
+	{
+		return base_type::size();
+	}
+
+	//-----------------------------------------------------------------------------
+	/// Returns true if no elements are stored.
+	bool empty() const
+	//-----------------------------------------------------------------------------
+	{
+		return base_type::empty();
+	}
+
+	//-----------------------------------------------------------------------------
 	/// Inserts one element at the end. (InsertIterator interface)
 	void push_back(const map_value_type& element)
 	//-----------------------------------------------------------------------------
@@ -1167,7 +1271,7 @@ public:
 	void emplace(K&& key, V&& value)
 	//-----------------------------------------------------------------------------
 	{
-		push_back(std::pair<Key, Value>(std::forward<K>(key), std::forward<V>(value)));
+		push_back(map_value_type(std::forward<K>(key), std::forward<V>(value)));
 	}
 
 }; // KProps

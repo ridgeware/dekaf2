@@ -327,7 +327,7 @@ bool KCGI::GetNextRequest ()
 		);
 
 		// handle URL encoded values in query parms:
-		for (const auto& it : m_QueryParms)
+		for (auto& it : m_QueryParms)
 		{
 			KString sValue (it.second);
 			kUrlDecode (sValue, /*bPlusAsSpace=*/true);

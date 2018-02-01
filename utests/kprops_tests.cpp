@@ -6,7 +6,20 @@
 
 using namespace dekaf2;
 
+
+bool test(KOutFile& of)
+{
+	return of.good();
+}
+
 TEST_CASE("KProp") {
+
+	KOutFile fout;
+	fout.open("/tmp/test.txt");
+	if (test(fout))
+	{
+		fout << "great!" << std::endl;
+	}
 
 	SECTION("basic instantiation tests for KProps")
 	{
@@ -647,6 +660,20 @@ TEST_CASE("KProp") {
 			CHECK ( data2.size() == 2                   );
 			CHECK ( data1.size() == 0                   );
 		}
-
 	}
+
+	SECTION("store and load")
+	{
+		// prepare the data for the operation
+		KProps<KString, KString> MyProps, NewProps;
+		MyProps.emplace("row1-col1", "row1-col2");
+		MyProps.emplace("row2-col1", "row2-col2");
+		MyProps.emplace("row3-col1", "row3-col2");
+		MyProps.emplace("row4-col1", "row4-col2");
+
+		CHECK( MyProps.Store("/tmp/kprops-stored.txt") == 4 );
+		CHECK( NewProps.Load("/tmp/kprops-stored.txt") == 4 );
+		CHECK( MyProps == NewProps );
+	}
+
 }

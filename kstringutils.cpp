@@ -151,6 +151,27 @@ uint16_t kFromHexChar(char ch)
 }
 
 //-----------------------------------------------------------------------------
+KString kFormString(KStringView sInp, typename KString::value_type separator, typename KString::size_type every)
+//-----------------------------------------------------------------------------
+{
+	KString result{sInp};
+
+	if (every > 0)
+	{
+		// now insert the separator every N digits
+		auto last = every;
+		auto pos = result.length();
+		while (pos > last)
+		{
+			result.insert(pos-every, 1, separator);
+			pos -= every;
+		}
+	}
+	return result;
+}
+
+
+//-----------------------------------------------------------------------------
 KString kFormTimestamp (time_t tTime, const char* szFormat)
 //-----------------------------------------------------------------------------
 {

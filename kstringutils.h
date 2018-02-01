@@ -268,6 +268,10 @@ String kFormNumber(Arithmetic i, typename String::value_type separator = ',', ty
 }
 
 //-----------------------------------------------------------------------------
+KString kFormString(KStringView sInp, typename KString::value_type separator = ',', typename KString::size_type every = 3);
+//-----------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
 size_t kCountChar(KStringView str, const char ch) noexcept;
 //-----------------------------------------------------------------------------
 

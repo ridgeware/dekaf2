@@ -263,6 +263,7 @@ public:
 	bool   CopyConnection (KSQL* pAnother);
 	bool   SetConnect (SQLTYPE iDBType, KStringView sUsername, KStringView sPassword, KStringView sDatabase, KStringView sHostname=NULL, uint32_t iDBPortNum=0);
 	bool   SetDBType (SQLTYPE iDBType);
+	bool   SetDBType (KStringView sDBType);
 	bool   SetDBUser (KStringView sUsername);
 	bool   SetDBPass (KStringView sPassword);
 	bool   SetDBHost (KStringView sHostname);

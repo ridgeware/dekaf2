@@ -123,32 +123,14 @@ int main (int argc, char* argv[])
 		return (1);
 	}
 
-	KSQL::SQLTYPE iDBType = static_cast<KSQL::SQLTYPE>(sDBType.UInt32());
-	uint16_t iDBPort = 0;
-
-	if (sDBType == "oracle")
-	{
-		iDBType = KSQL::DBT_ORACLE;
-	}
-	else if (sDBType == "mysql")
-	{
-		iDBType = KSQL::DBT_MYSQL;
-	}
-	else if (sDBType == "sqlserver")
-	{
-		iDBType = KSQL::DBT_SQLSERVER;
-	}
-	else if (sDBType == "sybase")
-	{
-		iDBType = KSQL::DBT_SYBASE;
-	}
-
-	if (!sDBPort.empty()) {
-	   iDBPort = sDBPort.UInt16();
-	}
-
 	KSQL tmpdb;
-	if (!tmpdb.SetConnect(iDBType, sDBUser, sDBPass, sDBName, sDBHost, iDBPort))
+
+	if (!tmpdb.SetDBType (sDBType)) {
+		fprintf (stderr, "createdbc: %s\n", tmpdb.GetLastError().c_str());
+		return (1);
+	}
+
+	if (!tmpdb.SetConnect(tmpdb.GetDBType(), sDBUser, sDBPass, sDBName, sDBHost, sDBPort.UInt16()))
 	{
 		COut.FormatLine ("FAILED.\n{}", tmpdb.GetLastError());
 		return (1);

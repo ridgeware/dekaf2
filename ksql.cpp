@@ -651,6 +651,36 @@ bool KSQL::SetDBType (SQLTYPE iDBType)
 } // SetDBType
 
 //-----------------------------------------------------------------------------
+bool KSQL::SetDBType (KStringView sDBType)
+//-----------------------------------------------------------------------------
+{
+	NOT_IF_ALREADY_OPEN ("SetDBType");
+
+	if (sDBType == "oracle")
+	{
+		return (SetDBType (DBT_ORACLE));
+	}
+	else if (sDBType == "mysql")
+	{
+		return (SetDBType (DBT_MYSQL));
+	}
+	else if (sDBType == "sqlserver")
+	{
+		return (SetDBType (DBT_SQLSERVER));
+	}
+	else if (sDBType == "sybase")
+	{
+		return (SetDBType (DBT_SYBASE));
+	}
+	else
+	{
+		m_sLastError.Format ("unsupported dbtype: {}", sDBType);
+		return (false);
+	}
+
+} // SetDBType
+
+//-----------------------------------------------------------------------------
 bool KSQL::SetDBUser (KStringView sUsername)
 //-----------------------------------------------------------------------------
 {

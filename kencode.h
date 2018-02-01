@@ -47,6 +47,7 @@
 #include "kstring.h"
 #include "kbase64.h"
 #include "kurlencode.h"
+#include "khtmlentities.h"
 
 
 namespace dekaf2 {
@@ -55,6 +56,7 @@ namespace dekaf2 {
 class KEnc
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
+
 //----------
 public:
 //----------
@@ -89,20 +91,27 @@ public:
 		sBuffer.swap(sRet);
 	}
 
-	static KString HTML(KStringView sIn);
+	/// Wrapper around kHTMLEntityEncode. Does the same.
+	static KString HTML(KStringView sIn)
+	{
+		return kHTMLEntityEncode(sIn);
+	}
 
-	static void HTMLInPlace(KString& sBuffer);
+	/// Wrapper around kHTMLEntityEncode. Does the same with a different interface.
+	static void HTMLInPlace(KString& sBuffer)
+	{
+		KString sRet;
+		sRet = kHTMLEntityEncode(sBuffer);
+		sBuffer.swap(sRet);
+	}
 
-//----------
-protected:
-//----------
-
-};
+}; // KEnc
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class KDec
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
+
 //----------
 public:
 //----------
@@ -132,16 +141,21 @@ public:
 		kUrlDecode(sBuffer, URIpart == URIPart::Query);
 	}
 
-	static KString HTML(KStringView sIn);
+	/// Wrapper around kHTMLEntityDecode. Does the same.
+	static KString HTML(KStringView sIn)
+	{
+		return kHTMLEntityDecode(sIn);
+	}
 
-	static void HTMLInPlace(KString& sBuffer);
+	/// Wrapper around kHTMLEntityDecode. Does the same with a different interface.
+	static void HTMLInPlace(KString& sBuffer)
+	{
+		KString sRet;
+		sRet = kHTMLEntityDecode(sBuffer);
+		sBuffer.swap(sRet);
+	}
 
-
-//----------
-protected:
-//----------
-
-};
+}; // KDec
 
 } // of namespace dekaf2
 

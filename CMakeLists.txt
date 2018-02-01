@@ -203,6 +203,7 @@ set (HEADERS
 	kformat.h
 	kgetruntimestack.h
 	khash.h
+	khtmlentities.h
 	khttp.h
 	khttp_header.h
 	khttp_method.h
@@ -259,12 +260,12 @@ set (SOURCES
 	kconnection.cpp
 	kcrashexit.cpp
 	kcurl.cpp
-	kencode.cpp
 	kfdstream.cpp
 	kfile.cpp
 	kformat.cpp
 	kgetruntimestack.cpp
 	khash.cpp
+	khtmlentities.cpp
 	khttp.cpp
 	khttp_header.cpp
 	khttp_method.cpp

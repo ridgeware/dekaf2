@@ -38,138 +38,34 @@
 // +-------------------------------------------------------------------------+
 */
 
-#include "kencode.h"
-#include "kutf8.h"
-#include "kstringutils.h"
+#pragma once
+
+#include "kstring.h"
+#include "kstringview.h"
+
+
+/// @file khtmlentities.h
+/// provides support for html entity encoding
 
 
 namespace dekaf2 {
 
+/// Returns the numerical entity for the input character
+void kEntity(uint32_t ch, KString& sOut);
 
+/// Adds the named entity for the input character to sOut,
+/// otherwise appends input char to output
+void kNamedEntity(uint32_t ch, KString& sOut);
 
-//-----------------------------------------------------------------------------
-KString KEnc::HTML(KStringView sIn)
-//-----------------------------------------------------------------------------
-{
-	KString sRet;
-	sRet.reserve(sIn.size()*2);
+/// Adds the mandatory entity for the input character (<>&"'),
+/// otherwise appends input char to output
+void kMandatoryEntity(uint32_t ch, KString& sOut);
 
-	Unicode::FromUTF8(sIn, [&sRet](uint32_t ch)
-	{
-		if (std::iswalnum(ch) || std::iswpunct(ch) || std::iswspace(ch))
-		{
-			Unicode::ToUTF8(ch, sRet);
-		}
-		else
-		{
-			sRet += "&#x";
-			sRet += KString::to_hexstring(ch, true, false);
-			sRet += ';';
-		}
-	});
+/// Converts HTML entities into utf8
+KString kHTMLEntityEncode(KStringView sIn);
 
-	return sRet;
-}
-
-//-----------------------------------------------------------------------------
-void KEnc::HTMLInPlace(KString& sBuffer)
-//-----------------------------------------------------------------------------
-{
-	KString sRet = HTML(sBuffer);
-	sBuffer.swap(sRet);
-}
-
-//-----------------------------------------------------------------------------
-KString KDec::HTML(KStringView sIn)
-//-----------------------------------------------------------------------------
-{
-	KString sRet;
-	sRet.reserve(sIn.size());
-
-	for (KStringView::const_iterator it = sIn.cbegin(), ie = sIn.cend(); it != ie; )
-	{
-		if (*it != '&')
-		{
-			sRet += *it++;
-		}
-		else
-		{
-			// decode one char
-			if (++it != ie)
-			{
-				if (*it == '#')
-				{
-					if (++it != ie)
-					{
-						uint32_t iChar{0};
-
-						if (*it == 'x' || *it == 'X')
-						{
-							// hex
-							for (;;)
-							{
-								auto iCh = kFromHexChar(*it);
-								if (iCh > 15)
-								{
-									break;
-								}
-
-								iChar *= 16;
-								iChar += iCh;
-
-								if (++it == ie)
-								{
-									break;
-								}
-							}
-						}
-						else
-						{
-							// decimal
-							while (std::isdigit(*it))
-							{
-								iChar *= 10;
-								iChar += *it - '0';
-
-								if (++it == ie)
-								{
-									break;
-								}
-							}
-						}
-
-						Unicode::ToUTF8(iChar, sRet);
-
-						if (it != ie && *it  == static_cast<KStringView::value_type>(';'))
-						{
-							++it;
-						}
-					}
-				}
-				else
-				{
-					sRet += '&';
-					sRet += *it++;
-				}
-			}
-			else
-			{
-				sRet += '&';
-			}
-		}
-	}
-
-	return sRet;
-}
-
-//-----------------------------------------------------------------------------
-void KDec::HTMLInPlace(KString& sBuffer)
-//-----------------------------------------------------------------------------
-{
-	KString sRet = HTML(sBuffer);
-	sBuffer.swap(sRet);
-}
-
+/// Converts utf8 input into HTML entities for non-alnum/space/punct
+KString kHTMLEntityDecode(KStringView sIn);
 
 } // of namespace dekaf2
 

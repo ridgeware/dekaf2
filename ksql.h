@@ -208,6 +208,8 @@ public:
 
 	enum { MAXCOLNAME = 100};
 
+	typedef KProps <KString, KString, /*order-matters=*/true, /*unique-keys*/true> KPROPS;
+
 	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	typedef struct
 	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::

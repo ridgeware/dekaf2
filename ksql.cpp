@@ -198,8 +198,8 @@ static uint64_t s_ulDebugID = 0;
 
 uint32_t KSQL::m_iDebugLevel = 1;
 
-KString  kExpandVariable  (KStringView sName, KPROPS* pVarList=NULL);
-uint32_t kExpandVariables (KString& sAnyString, KPROPS *pVarList=NULL);
+KString  kExpandVariable  (KStringView sName, KSQL::KPROPS* pVarList=NULL);
+uint32_t kExpandVariables (KString& sAnyString, KSQL::KPROPS *pVarList=NULL);
 void*    kmalloc          (uint32_t iNumBytes, const char* pszContext, bool fClearMemory=true);
 
 //-----------------------------------------------------------------------------
@@ -247,7 +247,7 @@ void* kmalloc (uint32_t iNumBytes, const char* pszContext, bool bClearMemory/*=T
 } // kmalloc 
 
 //-----------------------------------------------------------------------------
-KString kExpandVariable (KStringView sName, KPROPS* pVarList/*=NULL*/)
+KString kExpandVariable (KStringView sName, KSQL::KPROPS* pVarList/*=NULL*/)
 //-----------------------------------------------------------------------------
 {
 	KString sValue;
@@ -265,7 +265,7 @@ KString kExpandVariable (KStringView sName, KPROPS* pVarList/*=NULL*/)
 } // kExpandVariable
 
 //-----------------------------------------------------------------------------
-uint32_t kExpandVariables (KString& sAnyString, KPROPS *pVarList/*=NULL*/)
+uint32_t kExpandVariables (KString& sAnyString, KSQL::KPROPS *pVarList/*=NULL*/)
 //-----------------------------------------------------------------------------
 {
 	uint32_t iNumReplacements = 0;
@@ -4290,7 +4290,7 @@ void KSQL::BuildTranslationList (KPROPS* pList, int iDBType/*=0*/)
 } // BuildTranslationList
 
 //-----------------------------------------------------------------------------
-uint32_t ktx (KString& sTarget, KPROPS& List)
+uint32_t ktx (KString& sTarget, KSQL::KPROPS& List)
 //-----------------------------------------------------------------------------
 {
 	uint32_t iNumReplacements = 0;

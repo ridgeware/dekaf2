@@ -196,11 +196,11 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	static KConnection Create(const KURL& Url);
+	static std::unique_ptr<KConnection> Create(const KURL& Url, bool bVerifyCerts = false);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	static KConnection Create(const KURL& Url, const KProxy& Proxy);
+	static std::unique_ptr<KConnection> Create(const KURL& Url, const KProxy& Proxy, bool bVerifyCerts = false);
 	//-----------------------------------------------------------------------------
 
 //------
@@ -238,14 +238,14 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	KSSLConnection(const url::KDomain& domain, const url::KPort& port, bool bVerifyCerts)
+	KSSLConnection(const url::KDomain& domain, const url::KPort& port, bool bVerifyCerts = false)
 	//-----------------------------------------------------------------------------
 	{
 		Connect(domain, port, bVerifyCerts);
 	}
 
 	//-----------------------------------------------------------------------------
-	bool Connect(const url::KDomain& domain, const url::KPort& port, bool bVerifyCerts);
+	bool Connect(const url::KDomain& domain, const url::KPort& port, bool bVerifyCerts = false);
 	//-----------------------------------------------------------------------------
 
 };

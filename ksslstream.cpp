@@ -128,17 +128,17 @@ std::streamsize KSSLInOutStreamDevice::read(char* s, std::streamsize n) noexcept
 		if (m_bUseSSL)
 		{
 			return static_cast<std::streamsize>(
-				m_Stream.read_some(
-					boost::asio::buffer(s, static_cast<std::size_t>(n))
-				)
+			    m_Stream.read_some(
+			        boost::asio::buffer(s, static_cast<std::size_t>(n))
+			    )
 			);
 		}
 		else
 		{
 			return static_cast<std::streamsize>(
-				m_Stream.next_layer().read_some(
-					boost::asio::buffer(s, static_cast<std::size_t>(n))
-				)
+			    m_Stream.next_layer().read_some(
+			        boost::asio::buffer(s, static_cast<std::size_t>(n))
+			    )
 			);
 		}
 

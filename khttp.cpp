@@ -269,11 +269,11 @@ size_t KHTTP::Read(KString& sBuffer, size_t len)
 		{
 			if (GetNextChunkSize())
 			{
-				rlen = std::min(len, size());
+				rlen = std::min(rlen, size());
 				len = m_Stream->Read(sBuffer, rlen);
-				m_iRemainingContentSize -= rlen;
-				len  -= rlen;
-				tlen += rlen;
+				m_iRemainingContentSize -= len;
+				rlen -= len;
+				tlen += len;
 				CheckForChunkEnd();
 			}
 		}

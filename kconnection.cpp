@@ -155,7 +155,7 @@ bool KSSLConnection::Connect(const url::KDomain& domain, const url::KPort& port,
 
 
 //-----------------------------------------------------------------------------
-KConnection KConnection::Create(const KURL& URL)
+std::unique_ptr<KConnection> KConnection::Create(const KURL& URL, bool bVerifyCerts)
 //-----------------------------------------------------------------------------
 {
 	KConnection Connection;
@@ -169,18 +169,17 @@ KConnection KConnection::Create(const KURL& URL)
 
 	if (URL.Protocol == url::KProtocol::HTTPS)
 	{
-		Connection = KSSLConnection(URL.Domain, Port, false);
+		return std::make_unique<KSSLConnection>(URL.Domain, Port, bVerifyCerts);
 	}
 	else
 	{
-		Connection = KConnection(URL.Domain, Port);
+		return std::make_unique<KConnection>(URL.Domain, Port);
 	}
 
-	return Connection;
-}
+} // Create
 
 //-----------------------------------------------------------------------------
-KConnection KConnection::Create(const KURL& URL, const KProxy& Proxy)
+std::unique_ptr<KConnection> KConnection::Create(const KURL& URL, const KProxy& Proxy, bool bVerifyCerts)
 //-----------------------------------------------------------------------------
 {
 	KConnection Connection;
@@ -206,14 +205,13 @@ KConnection KConnection::Create(const KURL& URL, const KProxy& Proxy)
 
 	if (URL.Protocol == url::KProtocol::HTTPS)
 	{
-		Connection = KSSLConnection(Domain, Port, false);
+		return std::make_unique<KSSLConnection>(Domain, Port, bVerifyCerts);
 	}
 	else
 	{
-		Connection = KConnection(Domain, Port);
+		return std::make_unique<KConnection>(Domain, Port);
 	}
 
-	return Connection;
-}
+} // Create
 
 } // end of namespace dekaf2

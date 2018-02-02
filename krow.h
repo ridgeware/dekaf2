@@ -173,7 +173,7 @@ public:
 	bool SetValue (KStringView sColName, KStringView sValue)
 	{
 		auto it = KCOLS::find (sColName);
-		if (it == KCOLS::KeyIndex().end()) {
+		if (it == KCOLS::end()) {
 			KCOL col(sValue);
 			return (KCOLS::Add (sColName, col) != KCOLS::end());
 		}
@@ -187,7 +187,7 @@ public:
 	{
 		KString sValue; sValue.Format ("{}", iValue);
 		auto it = KCOLS::find (sColName);
-		if (it == KCOLS::KeyIndex().end()) {
+		if (it == KCOLS::end()) {
 			KCOL col(sValue);
 			return (KCOLS::Add (sColName, col) != KCOLS::end());
 		}

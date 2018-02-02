@@ -407,7 +407,6 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	template<class K=int>
 	size_t Load(KInStream& Input, const char chPairDelim = '=', KStringView svDelim = "\n")
 	//-----------------------------------------------------------------------------
 	{
@@ -754,20 +753,22 @@ public:
 	// perfect forwarding
 	/// returns iterator on the element with the given key.
 	template<class K>
-	typename IndexByKey_t::iterator find(K&& key)
+	iterator find(K&& key)
 	//-----------------------------------------------------------------------------
 	{
-		return KeyIndex().find(std::forward<K>(key));
+		auto it = KeyIndex().find(std::forward<K>(key));
+		return m_Storage.template project<IndexBySeq>(it);
 	}
 
 	//-----------------------------------------------------------------------------
-	// perfect forwarding, SFINAE for non-sequential case
+	// perfect forwarding
 	/// returns const_iterator on the element with the given key.
 	template<class K>
-	typename IndexByKey_t::const_iterator find(K&& key) const
+	const_iterator find(K&& key) const
 	//-----------------------------------------------------------------------------
 	{
-		return KeyIndex().find(std::forward<K>(key));
+		auto it = KeyIndex().find(std::forward<K>(key));
+		return m_Storage.template project<IndexBySeq>(it);
 	}
 
 	//-----------------------------------------------------------------------------

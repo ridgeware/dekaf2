@@ -57,8 +57,6 @@ KBaseShell::~KBaseShell()
 bool KBaseShell::IntOpen (const KString& sCommand, bool bWrite)
 //-----------------------------------------------------------------------------
 {
-	kDebug(3, "{}", sCommand);
-
 	Close(); // ensure a previous pipe is closed
 
 	if (sCommand.empty())
@@ -78,7 +76,6 @@ bool KBaseShell::IntOpen (const KString& sCommand, bool bWrite)
 		return false;
 	}
 
-	kDebug(3, "POPEN: ok...");
 	return true;
 
 } // IntOpen
@@ -89,15 +86,15 @@ int KBaseShell::Close()
 {
 	if (m_pipe)
 	{
-		int ret = pclose(m_pipe);
+		/*int ret =*/ pclose(m_pipe);
 
-		if (ret)
+		/*if (ret)
 		{
 			// we see spurious errors here, but errno cannot reliably
 			// be used for pclose (see man pages). So we assume it's
 			// just noise, and log at a reduced level
 			kDebug(1, "could probably not close popen file");
-		}
+		}*/
 
 		m_pipe = nullptr;
 	}

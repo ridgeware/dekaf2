@@ -210,7 +210,7 @@ public:
 	}
 
 	/// Returns the Nth column's flags (note: column index starts at 0).
-	bool GetFlags (size_t iZeroBasedIndex)
+	uint64_t GetFlags (size_t iZeroBasedIndex)
 	{
 		return (at (iZeroBasedIndex).second.iFlags);
 	}
@@ -218,7 +218,8 @@ public:
 	/// Returns whether or not a particular flag is set on the Nth column (note: column index starts at 0).
 	bool IsFlag (size_t iZeroBasedIndex, uint64_t iFlag)
 	{
-		return (GetFlags(iZeroBasedIndex) & iFlag);
+		kDebug (1, "KEEF: {}", (GetFlags(iZeroBasedIndex)));
+		return ((GetFlags(iZeroBasedIndex) & iFlag) == iFlag);
 	}
 
 	/// Returns the maximum character length of the Nth column if it was set (note: column index starts at 0).

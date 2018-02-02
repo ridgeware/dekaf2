@@ -81,6 +81,8 @@ size_t kSplit (
 {
 	// consider the string " a , b , c , d , e "
 
+	size_t iStartSize = ctContainer.size();
+
 	while (!svBuffer.empty())
 	{
 		if (!svTrim.empty())
@@ -175,7 +177,7 @@ size_t kSplit (
 		// What remains is ready for the next parse round.
 	}
 
-	return ctContainer.size ();
+	return ctContainer.size () - iStartSize;
 
 } // kSplit with string of delimiters
 

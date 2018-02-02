@@ -7,19 +7,7 @@
 using namespace dekaf2;
 
 
-bool test(KOutFile& of)
-{
-	return of.good();
-}
-
 TEST_CASE("KProp") {
-
-	KOutFile fout;
-	fout.open("/tmp/test.txt");
-	if (test(fout))
-	{
-		fout << "great!" << std::endl;
-	}
 
 	SECTION("basic instantiation tests for KProps")
 	{

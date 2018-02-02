@@ -431,7 +431,7 @@ public:
 
 		}
 
-		return size();
+		return iNewElements;
 
 	} // Load
 

@@ -47,10 +47,10 @@
 #include "kprops.h"
 #include "ksplit.h"
 #include <iostream>
+#ifdef DEKAF2_WITH_FCGI
 #include <fcgiapp.h>
 #include <fcgio.h>
-
-//#define ATTEMPT_FCGI
+#endif
 
 namespace dekaf2 {
 
@@ -179,9 +179,9 @@ protected:
 private:
 //----------
 	unsigned int      m_iNumRequests = 0;
-	FCGX_Request      m_FcgiRequest;
 	bool              m_bIsFCGI      = false;
-#ifdef ATTEMPT_FCGI
+#ifdef DEKAF2_WITH_FCGI
+	FCGX_Request      m_FcgiRequest;
 	std::streambuf*   m_pBackupCIN   = nullptr;
 	std::streambuf*   m_pBackupCOUT  = nullptr;
 	std::streambuf*   m_pBackupCERR  = nullptr;

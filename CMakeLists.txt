@@ -21,6 +21,7 @@ OPTION(DEKAF2_USE_OPTIMIZED_STRING_FIND "Use optimized string::find" ON)
 OPTION(DEKAF2_WITH_DEPRECATED_KSTRING_MEMBER_FUNCTIONS "With deprecated KString member functions" OFF)
 OPTION(DEKAF2_WITH_COMPATIBILITY_LAYER_TO_DEKAF1 "Provide compatibility layer to dekaf1" ON)
 OPTION(DEKAF2_ENABLE_DEBUG_RUNTIME_CHECKS "debug build with sanitizers and additional runtime checks" ON)
+OPTION(DEKAF2_WITH_FCGI "build with FCGI" OFF)
 
 # The project version number.
 set(VERSION_MAJOR   2) # This is DEKAF 2 !
@@ -62,9 +63,12 @@ endif ()
 # make sure we have the necessary version of cmake installed
 #execute_process(COMMAND "${CMAKE_CURRENT_SOURCE_DIR}/bits/cmakeinstall -go")
 
+message(STATUS ${CMAKE_GENERATOR})
 if (DEKAF2_ENABLE_DEBUG_RUNTIME_CHECKS)
-	set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fsanitize=address -fsanitize=undefined -fsanitize-address-use-after-scope")
-	set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fstack-protector-strong -fstack-check")
+	if (NOT CMAKE_GENERATOR STREQUAL "Xcode")
+		set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fsanitize=address -fsanitize=undefined -fsanitize-address-use-after-scope")
+		set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fstack-protector-strong -fstack-check")
+	endif ()
 endif ()
 
 if (CMAKE_COMPILER_IS_GNUCXX)
@@ -352,12 +356,20 @@ else ()
 	set (FSLIB "")
 endif ()
 
+if (DEKAF2_WITH_FCGI)
+	set (FCGILIBS
+		fcgi
+		fcgilib
+	)
+else ()
+	set (FCGILIBS "")
+endif ()
+
 target_link_libraries(dekaf2
 	fmt
 	re2
-	fcgi
-	fcgipp
 	minifolly
+	${FCGILIBS}
 	${FSLIB}
 	${Boost_LIBRARIES}
 	${OPENSSL_LIBRARIES}

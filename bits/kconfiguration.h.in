@@ -76,4 +76,6 @@
 
 #cmakedefine DEKAF2_HAS_MYSQL
 
+#cmakedefine DEKAF2_WITH_FCGI
+
 

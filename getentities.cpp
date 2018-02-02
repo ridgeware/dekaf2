@@ -10,26 +10,25 @@ using namespace dekaf2;
 int main(int argc, char** argv)
 {
 	KURL URL("http://www.w3.org/TR/html5/entities.json");
-//	KURL URL("https://w3c.github.io/i18n-drafts/articles/inline-bidi-markup/index.en");
+//    KURL URL("https://w3c.github.io/i18n-drafts/articles/inline-bidi-markup/index.en");
 	std::unique_ptr<KConnection> cx = KConnection::Create(URL, false);
 	KHTTP cHTTP(*cx);
 	cHTTP.Resource(URL);
 	cHTTP.Request();
 	KString sHTML;
 	cHTTP.Read(sHTML);
-	std::cout << sHTML << std::endl;
-	std::cout.flush();
-	std::cout << sHTML.size() << std::endl;
-/*
+
 	KOutStream COut(std::cout);
 
-	KJSON json;
-	json.Parse(sHTML);
-	for (const auto& it : json.Object())
+	LJSON json = LJSON::parse(sHTML);
+
+	for (const auto& it : json)
 	{
 		std::cout << it << std::endl;
 //		COut.FormatLine("{} : {}", it.key(), it.value());
 	}
-*/
+
+	std::cout << json.dump(1, '\t');
+
 	return 0;
 }

@@ -111,10 +111,10 @@ constexpr KStringView KHeader::FCGI_WEB_SERVER_ADDRS;
 KCGI::KCGI()
 //-----------------------------------------------------------------------------
 {
+#ifdef DEKAF2_WITH_FCGI
 	FCGX_Init();
-	FCGX_InitRequest (&m_FcgiRequest, 0, 0);	
+	FCGX_InitRequest (&m_FcgiRequest, 0, 0);
 
-#ifdef ATTEMPT_FCGI
 	BackupStreams ();
 #endif
 
@@ -124,7 +124,7 @@ KCGI::KCGI()
 KCGI::~KCGI()
 //-----------------------------------------------------------------------------
 {
-#ifdef ATTEMPT_FCGI
+#ifdef DEKAF2_WITH_FCGI
 	RestoreStreams ();
 #endif
 
@@ -134,6 +134,7 @@ KCGI::~KCGI()
 KString KCGI::GetVar (KStringView sEnvironmentVariable, const char* sDefaultValue/*=""*/)
 //-----------------------------------------------------------------------------
 {
+#ifdef DEKAF2_WITH_FCGI
 	if (IsFCGI())
 	{
 		KString sEnvVar (sEnvironmentVariable);
@@ -145,6 +146,7 @@ KString KCGI::GetVar (KStringView sEnvironmentVariable, const char* sDefaultValu
 		return szRet;
 	}
 	else
+#endif
 	{
 		return kGetEnv(sEnvironmentVariable, sDefaultValue);
 	}
@@ -155,19 +157,19 @@ KString KCGI::GetVar (KStringView sEnvironmentVariable, const char* sDefaultValu
 void KCGI::BackupStreams ()
 //-----------------------------------------------------------------------------
 {
-#ifdef ATTEMPT_FCGI
+#ifdef DEKAF2_WITH_FCGI
 	// save standard streams:
 	if (!m_pBackupCIN)
 	{
-        m_pBackupCIN   = std::cin.rdbuf();
+		m_pBackupCIN   = std::cin.rdbuf();
 	}
 	if (!m_pBackupCOUT)
 	{
-        m_pBackupCOUT  = std::cout.rdbuf();
+		m_pBackupCOUT  = std::cout.rdbuf();
 	}
 	if (!m_pBackupCERR)
 	{
-        m_pBackupCERR  = std::cerr.rdbuf();
+		m_pBackupCERR  = std::cerr.rdbuf();
 	}
 #endif
 
@@ -177,18 +179,18 @@ void KCGI::BackupStreams ()
 void KCGI::RestoreStreams ()
 //-----------------------------------------------------------------------------
 {
-#ifdef ATTEMPT_FCGI
+#ifdef DEKAF2_WITH_FCGI
 	if (m_pBackupCIN)
 	{
-        std::cin.rdbuf(m_pBackupCIN);
+		std::cin.rdbuf(m_pBackupCIN);
 	}
 	if (m_pBackupCOUT)
 	{
-        std::cin.rdbuf(m_pBackupCOUT);
+		std::cin.rdbuf(m_pBackupCOUT);
 	}
 	if (m_pBackupCERR)
 	{
-        std::cin.rdbuf(m_pBackupCERR);
+		std::cin.rdbuf(m_pBackupCERR);
 	}
 #endif
 
@@ -302,9 +304,13 @@ bool KCGI::GetNextRequest ()
 {
 	++m_iNumRequests;
 
-	m_bIsFCGI = false; //ATTEMPT_FCGI (getenv(KString(KCGI::FCGI_WEB_SERVER_ADDRS).c_str()) != nullptr); // TODO: I don't think this test works.
+	m_bIsFCGI = false; //DEKAF2_WITH_FCGI (getenv(KString(KCGI::FCGI_WEB_SERVER_ADDRS).c_str()) != nullptr); // TODO: I don't think this test works.
 
-	if ((m_iNumRequests == 1) || (m_bIsFCGI && FCGX_Accept_r(&m_FcgiRequest)))
+	if (m_iNumRequests == 1
+#ifdef DEKAF2_WITH_FCGI
+	    || (m_bIsFCGI && FCGX_Accept_r(&m_FcgiRequest))
+#endif
+	    )
 	{
 		// in case we are running within a web server that sets these:
 		m_sRequestMethod = GetVar (KCGI::REQUEST_METHOD);

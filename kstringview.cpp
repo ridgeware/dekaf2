@@ -334,7 +334,7 @@ size_t kFindFirstOfUnescaped(KStringView haystack,
 			break;
 		}
 
-		iFound = haystack.find (needle, iFound + 1);
+		iFound = haystack.find_first_of (needle, iFound + 1);
 	} // while iFound
 
 	return iFound;

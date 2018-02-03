@@ -1137,7 +1137,7 @@ KString kToLower(KStringView sInput)
 }
 
 //-----------------------------------------------------------------------------
-KString KString::to_string(int64_t i)
+KString KString::signed_to_string(int64_t i)
 //-----------------------------------------------------------------------------
 {
 #ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
@@ -1170,7 +1170,7 @@ KString KString::to_string(int64_t i)
 }
 
 //-----------------------------------------------------------------------------
-KString KString::to_string(uint64_t i)
+KString KString::unsigned_to_string(uint64_t i)
 //-----------------------------------------------------------------------------
 {
 #ifdef DEKAF2_USE_FBSTRING_AS_KSTRING

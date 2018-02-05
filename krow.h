@@ -218,7 +218,6 @@ public:
 	/// Returns whether or not a particular flag is set on the Nth column (note: column index starts at 0).
 	bool IsFlag (size_t iZeroBasedIndex, uint64_t iFlag)
 	{
-		kDebug (1, "KEEF: {}", (GetFlags(iZeroBasedIndex)));
 		return ((GetFlags(iZeroBasedIndex) & iFlag) == iFlag);
 	}
 

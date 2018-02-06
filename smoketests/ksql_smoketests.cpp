@@ -752,7 +752,7 @@ TEST_CASE("KSQL")
 		SimulateLostConnection (&db);
 		iCount = db.SingleIntQuery ("select count(*) from TEST_KSQL where astring like 'retry{{PCT}}'");
 		if (iCount != 3) {
-			kWarning ("got: {} instead of 3", iCount);
+			kWarning ("got: {} rows from TEST_KSQL and expected 3", iCount);
 			FAIL_CHECK (db.GetLastSQL());
 		}
 

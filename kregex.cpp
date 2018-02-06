@@ -284,7 +284,7 @@ bool KRegex::Matches(const KStringView& sStr, Groups& sGroups, size_t iMaxGroups
 
 	if (OK())
 	{
-		sGroups.resize(std::min(static_cast<size_t>(m_Regex->NumberOfCapturingGroups()+1), iMaxGroups));
+		sGroups.resize(std::min(static_cast<size_t>(m_Regex->NumberOfCapturingGroups()+1), (iMaxGroups <= 0 ? 1 : iMaxGroups)));
 		return m_Regex->Match(re2::StringPiece(sStr.data(), sStr.size()), 0, sStr.size(), re2::RE2::UNANCHORED, &sGroups[0], static_cast<int>(sGroups.size()));
 	}
 

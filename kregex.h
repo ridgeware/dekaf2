@@ -171,7 +171,7 @@ public:
 	// member function interface
 	//-----------------------------------------------------------------------------
 	/// match a regular expression in sStr and return all match groups, including the overall match in group 0.
-	bool Matches(const KStringView& sStr, Groups& sGroups, size_t iMaxGroups = static_cast<size_t>(~0L));
+	bool Matches(const KStringView& sStr, Groups& sGroups);
 	//-----------------------------------------------------------------------------
 
 	// member function interface
@@ -203,7 +203,7 @@ public:
 	// static interface
 	//-----------------------------------------------------------------------------
 	/// match a regular expression in sStr and return all match groups, including the overall match in group 0.
-	static bool Matches(const KStringView& sStr, const KStringView& sRegex, Groups& sGroups, size_t iMaxGroups = static_cast<size_t>(~0L));
+	static bool Matches(const KStringView& sStr, const KStringView& sRegex, Groups& sGroups);
 	//-----------------------------------------------------------------------------
 
 	// static interface

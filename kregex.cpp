@@ -277,14 +277,14 @@ KRegex::KRegex(const KStringView& expression)
 }
 
 //-----------------------------------------------------------------------------
-bool KRegex::Matches(const KStringView& sStr, Groups& sGroups, size_t iMaxGroups)
+bool KRegex::Matches(const KStringView& sStr, Groups& sGroups)
 //-----------------------------------------------------------------------------
 {
 	sGroups.clear();
 
-	if (OK())
+	if DEKAF2_LIKELY((OK()))
 	{
-		sGroups.resize(std::min(static_cast<size_t>(m_Regex->NumberOfCapturingGroups()+1), (iMaxGroups <= 0 ? 1 : iMaxGroups)));
+		sGroups.resize(static_cast<size_t>(m_Regex->NumberOfCapturingGroups()+1));
 		return m_Regex->Match(re2::StringPiece(sStr.data(), sStr.size()), 0, sStr.size(), re2::RE2::UNANCHORED, &sGroups[0], static_cast<int>(sGroups.size()));
 	}
 
@@ -297,7 +297,7 @@ bool KRegex::Matches(const KStringView& sStr, size_t& iStart, size_t& iSize)
 {
 	Groups sGroups;
 
-	if (Matches(sStr, sGroups, 1) && !sGroups.empty() && sGroups[0].data() != nullptr)
+	if (Matches(sStr, sGroups) &x& !sGroups.empty() && sGroups[0].data() != nullptr)
 	{
 		iStart = static_cast<size_t>(sGroups[0].data() - sStr.data());
 		iSize  = static_cast<size_t>(sGroups[0].size());
@@ -316,7 +316,7 @@ bool KRegex::Matches(const KStringView& sStr)
 //-----------------------------------------------------------------------------
 {
 	Groups sGroups;
-	return Matches(sStr, sGroups, 0);
+	return Matches(sStr, sGroups);
 }
 
 //-----------------------------------------------------------------------------
@@ -371,11 +371,11 @@ size_t KRegex::Replace(KString& sStr, const KStringView& sReplaceWith, bool bRep
 // the static calls to the member functions:
 
 //-----------------------------------------------------------------------------
-bool KRegex::Matches(const KStringView& sStr, const KStringView& sRegex, Groups& sGroups, size_t iMaxGroups)
+bool KRegex::Matches(const KStringView& sStr, const KStringView& sRegex, Groups& sGroups)
 //-----------------------------------------------------------------------------
 {
 	KRegex regex(sRegex);
-	return regex.Matches(sStr, sGroups, iMaxGroups);
+	return regex.Matches(sStr, sGroups);
 }
 
 //-----------------------------------------------------------------------------

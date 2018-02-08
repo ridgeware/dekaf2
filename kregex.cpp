@@ -297,7 +297,7 @@ bool KRegex::Matches(const KStringView& sStr, size_t& iStart, size_t& iSize)
 {
 	Groups sGroups;
 
-	if (Matches(sStr, sGroups) &x& !sGroups.empty() && sGroups[0].data() != nullptr)
+	if (Matches(sStr, sGroups) && !sGroups.empty() && sGroups[0].data() != nullptr)
 	{
 		iStart = static_cast<size_t>(sGroups[0].data() - sStr.data());
 		iSize  = static_cast<size_t>(sGroups[0].size());

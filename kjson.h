@@ -95,8 +95,12 @@ public:
 
 	/// wrap the given string with double-quotes and escape it for legal json
 	static KString EscWrap (KString sString);
-	static KString EscWrap (KString sString1, KString sString2, KStringView sPrefix="\n\t", KStringView sSuffix=",");
-	static KString EscWrap (KString sString, int iNumber, KStringView sPrefix="\n\t", KStringView sSuffix=",");
+	static KString EscWrap (KString sName, KString sValue, KStringView sPrefix="\n\t", KStringView sSuffix=",");
+
+	/// do not wrap the given string with double-quotes if it is explicitly known to be Numeric
+	static KString EscWrap (KString sName, int iNumber, KStringView sPrefix="\n\t", KStringView sSuffix=",");
+	static KString EscWrapNumeric (KString sString, int iNumber, KStringView sPrefix="\n\t", KStringView sSuffix=",");
+	static KString EscWrapNumeric (KString sName, KString sValue, KStringView sPrefix="\n\t", KStringView sSuffix=",");
 
 //----------
 private:

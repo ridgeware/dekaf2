@@ -79,7 +79,8 @@ protected:
 		Element,
 		boost::multi_index::indexed_by<
 			boost::multi_index::sequenced<boost::multi_index::tag<SeqIdx> >,
-			boost::multi_index::hashed_unique<boost::multi_index::tag<KeyIdx>, boost::multi_index::identity<Element> >
+			boost::multi_index::hashed_unique<boost::multi_index::tag<KeyIdx>,
+			boost::multi_index::identity<Element> >
 		>
 	>;
 
@@ -167,7 +168,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	/// Insert a const elememt into the container, new or known. The element will be
+	/// Insert a const element into the container, new or known. The element will be
 	/// placed at the top of the most recently used list.
 	iterator insert(const element_type& element)
 	//-----------------------------------------------------------------------------
@@ -177,7 +178,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	/// Insert a consumable elememt into the container, new or known. The element will be
+	/// Insert a consumable element into the container, new or known. The element will be
 	/// placed at the top of the most recently used list. The element's value will be
 	/// transfered by a move operation if possible.
 	iterator insert(element_type&& element)

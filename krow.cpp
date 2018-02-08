@@ -42,6 +42,7 @@
 
 #include "krow.h"
 #include "klog.h"
+#include "kjson.h"
 
 using namespace dekaf2;
 
@@ -401,3 +402,98 @@ bool KROW::FormDelete (KString& sSQL, SQLTYPE iDBType)
 } // FormDelete
 
 
+//-----------------------------------------------------------------------------
+KString KROW::ToJSON (bool bWrapInCurlies, KStringView sLineLeader, KStringView sLineTrailer)
+//-----------------------------------------------------------------------------
+{
+	KString sJSON;
+
+	m_sLastError = ""; // reset
+
+	kDebugLog (2, "KROW:ToJSON: before: {}", sJSON);
+	
+	if (!size())
+	{
+		m_sLastError.Format("KROW::ToJSON(): no columns defined.");
+		kDebugLog (1, "{}", m_sLastError);
+		return sJSON;
+	}
+
+	if (m_sTablename.empty())
+	{
+		m_sLastError.Format("KROW::ToJSON(): no tablename defined.");
+
+		kDebugLog (1, "{}", m_sLastError);
+		return sJSON;
+	}
+
+	if (bWrapInCurlies)
+	{
+		sJSON += "{";
+		sJSON += sLineTrailer;
+	}
+
+	kDebugLog (2, "KROW:ToJSON: {}", GetTablename());
+
+	// variables used within the loop
+	KStringView sName;
+	KStringView sValue;
+	bool        bFirst = true;
+
+	for (uint32_t ii=0; ii < size(); ++ii)
+	{
+		kDebugLog (2, "  col[{:>02}]: {:<25} {}{}{}{}",
+		    ii,
+		    GetName(ii),
+		    !IsFlag (ii, PKEY)       ? "" : " [PKEY]",
+		    !IsFlag (ii, NONCOLUMN)  ? "" : " [NONCOLUMN]",
+		    !IsFlag (ii, EXPRESSION) ? "" : " [EXPRESSION]",
+		    !IsFlag (ii, NUMERIC)    ? "" : " [NUMERIC]");
+
+		if (IsFlag (ii, NONCOLUMN)) {
+			continue;
+		}
+
+		sName    = GetName(ii);
+		sValue   = GetValue(ii);  // note: GetValue() never returns NULL, it might return '' (which Joe calls NIL)
+
+		if (sName.empty()) {
+			continue;
+		}
+
+		if (!bFirst) {
+			sJSON += ",";
+			sJSON += sLineTrailer;
+		}
+
+		if (sValue.empty() && !IsFlag (ii, NULL_IS_NOT_NIL))
+		{
+			sJSON += KJSON::EscWrapNumeric (sName, "null", sLineLeader, "");
+		}
+		else if (IsFlag (ii, NUMERIC) || IsFlag (ii, EXPRESSION))
+		{
+			// NOTE: Boolean values should be output as the word true and false without quotes around them.
+			//       To do this properly, we probably have to add a new iFlag type of BOOLEAN.
+			sJSON += KJSON::EscWrapNumeric (sName, sValue, sLineLeader, "");
+		}
+		else // catch-all logic for all string values
+		{
+			sJSON += KJSON::EscWrap (sName, sValue, sLineLeader, "");
+		}
+		bFirst = false;
+	}
+
+	// NOTE: If we are not wrapping the entire JSON object in curlies, we leave off the sLineTrailer
+	//       because the caller may need to append this object with another krow JSON object, or add
+	//       more fields like array fields, so the caller may need to add a comma before sLineTrailer.
+	if (bWrapInCurlies)
+	{
+		sJSON += sLineTrailer;
+		sJSON += "}";
+	}
+	
+	kDebugLog (2, "KROW:ToJSON: after: {}", sJSON);
+	
+	return sJSON;
+
+} // ToJSON

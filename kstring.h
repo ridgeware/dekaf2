@@ -481,6 +481,9 @@ public:
 	/// returns leftmost iCount chars of string
 	KStringView Left(size_type iCount);
 
+	/// returns substring starting at iStart for iCount chars
+	KStringView Mid(size_type iStart, size_type iCount);
+
 	/// returns rightmost iCount chars of string
 	KStringView Right(size_type iCount);
 

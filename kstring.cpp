@@ -783,6 +783,7 @@ KString& KString::MakeUpper()
 		it = static_cast<value_type>(std::toupper(static_cast<unsigned char>(it)));
 	}
 	return *this;
+
 } // MakeUpper
 
 //----------------------------------------------------------------------
@@ -794,7 +795,28 @@ KStringView KString::Left(size_type iCount)
 		return *this;
 	}
 	return KStringView(m_rep.data(), iCount);
+
 } // Left
+
+//----------------------------------------------------------------------
+KStringView KString::Mid(size_type iStart, size_type iCount)
+//----------------------------------------------------------------------
+{
+	if ((iStart+iCount) >= size())
+	{
+		return *this;
+	}
+	else if (!iCount || !size())
+	{
+		// return an empty string
+		return KStringView("");
+	}
+	else
+	{
+		return KStringView(m_rep.data() + iStart, iCount);
+	}
+
+} // Mid
 
 //----------------------------------------------------------------------
 KStringView KString::Right(size_type iCount)
@@ -813,6 +835,7 @@ KStringView KString::Right(size_type iCount)
 	{
 		return KStringView(m_rep.data() + size() - iCount, iCount);
 	}
+
 } // Right
 
 //----------------------------------------------------------------------

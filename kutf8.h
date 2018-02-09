@@ -41,7 +41,7 @@
 #pragma once
 
 /// @file kutf8.h
-/// provides support for UTF8 encoding
+/// provides support for UTF8, UTF16 and UCS4 encoding
 
 #include <cstdint>
 #include <string>
@@ -49,8 +49,52 @@
 namespace dekaf2 {
 namespace Unicode {
 
+using codepoint_t = uint32_t;
+using utf16_t     = uint16_t;
+using utf8_t      = uint8_t;
+
+inline
+bool IsLeadSurrogate(utf16_t ch)
+{
+	return (ch & 0xfc00) == 0xd800;
+}
+
+inline
+bool IsTrailSurrogate(utf16_t ch)
+{
+	return (ch & 0xfc00) == 0xdc00;
+}
+
+inline
+bool IsSurrogate(utf16_t ch)
+{
+	return (ch & 0xd800) == 0xdfff;
+}
+
+inline
+bool NeedsSurrogates(codepoint_t ch)
+{
+	return (ch >= 0x010000 && ch <= 0x010ffff);
+}
+
+/// check before calling that the input needs surrogate separation
+inline
+void CodepointToSurrogates(codepoint_t ch, utf16_t& surrogate1, utf16_t& surrogate2)
+{
+	ch -= 0x10000;
+	surrogate2 = 0xdc00 + (ch & 0x03ff);
+	surrogate1 = 0xd800 + ((ch >> 10) & 0x03ff);
+}
+
+/// check before calling that the surrogates are valid for composition
+inline
+codepoint_t SurrogatesToCodepoint(utf16_t surrogate1, utf16_t surrogate2)
+{
+	return (surrogate1 << 10) + surrogate2 - ((0xd800 << 10) + 0xdc00 - 0x10000);
+}
+
 template<typename Ch>
-uint32_t CodepointCast(Ch sch)
+codepoint_t CodepointCast(Ch sch)
 {
 	// All this code gets completely eliminated during
 	// compilation. All it does is to make sure we can
@@ -73,11 +117,11 @@ uint32_t CodepointCast(Ch sch)
 
 template<typename Ch, typename NarrowString,
          typename = std::enable_if_t<std::is_integral<Ch>::value> >
-void ToUTF8(Ch sch, NarrowString& sNarrow)
+bool ToUTF8(Ch sch, NarrowString& sNarrow)
 {
 	using N=typename NarrowString::value_type;
 
-	uint32_t ch = CodepointCast(sch);
+	codepoint_t ch = CodepointCast(sch);
 
 	if (ch < 0x0080)
 	{
@@ -104,17 +148,66 @@ void ToUTF8(Ch sch, NarrowString& sNarrow)
 	else
 	{
 		sNarrow += '?';
+		return false;
 	}
+	return true;
 }
 
 template<typename WideString, typename NarrowString,
          typename = std::enable_if_t<!std::is_integral<WideString>::value> >
-void ToUTF8(const WideString& sWide, NarrowString& sNarrow)
+bool ToUTF8(const WideString& sWide, NarrowString& sNarrow)
 {
-	for (auto ch : sWide)
+	typename WideString::const_iterator it = sWide.cbegin();
+	typename WideString::const_iterator ie = sWide.cend();
+
+	for (; it != ie; ++it)
 	{
-		ToUTF8(ch, sNarrow);
+		// make sure all surrogate logic is only compiled in for 16 bit strings
+		if (sizeof(typename WideString::value_type) == 2 && IsLeadSurrogate(*it))
+		{
+			utf16_t s1 = CodepointCast(*it++);
+			if (it == ie)
+			{
+				// we treat incomplete surrogates as simple ucs2
+				if (!ToUTF8(s1, sNarrow))
+				{
+					return false;
+				}
+			}
+			else
+			{
+				utf16_t s2 = CodepointCast(*it++);
+				if (!IsTrailSurrogate(s2))
+				{
+					// the second surrogate is not valid - simply treat them both as usc2
+					if (!ToUTF8(s1, sNarrow))
+					{
+						return false;
+					}
+					if (!ToUTF8(s2, sNarrow))
+					{
+						return false;
+					}
+				}
+				else
+				{
+					if (!ToUTF8(SurrogatesToCodepoint(s1, s2), sNarrow))
+					{
+						return false;
+					}
+				}
+			}
+		}
+		else
+		{
+			// default case
+			if (!ToUTF8(*it, sNarrow))
+			{
+				return false;
+			}
+		}
 	}
+	return true;
 }
 
 template<typename NarrowString>
@@ -123,13 +216,13 @@ bool ValidUTF8(const NarrowString& sNarrow)
 	using N=typename NarrowString::value_type;
 
 	uint16_t remaining { 0 };
-	uint32_t codepoint { 0 };
-	uint32_t lower_limit { 0 };
+	codepoint_t codepoint { 0 };
+	codepoint_t lower_limit { 0 };
 
 	for (const auto sch : sNarrow)
 	{
 
-		uint32_t ch = CodepointCast(sch);
+		codepoint_t ch = CodepointCast(sch);
 
 		if (sizeof(N) > 1 && ch > 0x0ff)
 		{
@@ -209,13 +302,13 @@ bool FromUTF8(const NarrowString& sNarrow, Functor func)
 	using N=typename NarrowString::value_type;
 
 	uint16_t remaining { 0 };
-	uint32_t codepoint { 0 };
-	uint32_t lower_limit { 0 };
+	codepoint_t codepoint { 0 };
+	codepoint_t lower_limit { 0 };
 
 	for (const auto sch : sNarrow)
 	{
 
-		uint32_t ch = CodepointCast(sch);
+		codepoint_t ch = CodepointCast(sch);
 
 		if (sizeof(N) > 1 && ch > 0x0ff)
 		{
@@ -279,12 +372,6 @@ bool FromUTF8(const NarrowString& sNarrow, Functor func)
 							return false;
 						}
 
-						// take care - this code is written for platforms with 32 bit sWide chars -
-						// if you compile this code on Windows, or want to explicitly support 16
-						// bit sWide chars on other platforms, you need to supply surrogate pair
-						// replacements for characters > 0x0ffffffff at exactly this point before
-						// adding a new codepoint to 'sWide'
-
 						func(codepoint);
 					}
 					break;
@@ -302,11 +389,21 @@ template<typename NarrowString, typename WideString,
                                      && !std::is_class<WideString>::value> >
 bool FromUTF8(const NarrowString& sNarrow, WideString& sWide)
 {
-	using W=typename WideString::value_type;
+	using W = typename WideString::value_type;
 
-	return FromUTF8(sNarrow, [&sWide](uint32_t uch)
+	return FromUTF8(sNarrow, [&sWide](codepoint_t uch)
 	{
-		sWide += static_cast<W>(uch);
+		if (sizeof(W) == 2 && NeedsSurrogates(uch))
+		{
+			utf16_t s1, s2;
+			CodepointToSurrogates(uch, s1, s2);
+			sWide += static_cast<W>(s1);
+			sWide += static_cast<W>(s2);
+		}
+		else
+		{
+			sWide += static_cast<W>(uch);
+		}
 	});
 
 }

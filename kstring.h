@@ -479,13 +479,13 @@ public:
 	KString ToLower() const { return kToLower(*this); }
 
 	/// returns leftmost iCount chars of string
-	KStringView Left(size_type iCount);
+	KStringView Left(size_type iCount) const;
 
 	/// returns substring starting at iStart for iCount chars
-	KStringView Mid(size_type iStart, size_type iCount);
+	KStringView Mid(size_type iStart, size_type iCount) const { return ToView(iStart, iCount); }
 
 	/// returns rightmost iCount chars of string
-	KStringView Right(size_type iCount);
+	KStringView Right(size_type iCount) const;
 
 	/// pads string at the left up to iWidth size with chPad
 	KString& PadLeft(size_t iWidth, value_type chPad = ' ');
@@ -583,7 +583,7 @@ public:
 	// conversions
 
 	//-----------------------------------------------------------------------------
-	bool Boolean() const noexcept
+	bool Bool() const noexcept
 	//-----------------------------------------------------------------------------
 	{
 		return (KStringView(*this).Int16() != 0);

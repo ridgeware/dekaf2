@@ -787,7 +787,7 @@ KString& KString::MakeUpper()
 } // MakeUpper
 
 //----------------------------------------------------------------------
-KStringView KString::Left(size_type iCount)
+KStringView KString::Left(size_type iCount) const
 //----------------------------------------------------------------------
 {
 	if (iCount >= size())
@@ -799,27 +799,7 @@ KStringView KString::Left(size_type iCount)
 } // Left
 
 //----------------------------------------------------------------------
-KStringView KString::Mid(size_type iStart, size_type iCount)
-//----------------------------------------------------------------------
-{
-	if ((iStart+iCount) >= size())
-	{
-		return *this;
-	}
-	else if (!iCount || !size())
-	{
-		// return an empty string
-		return KStringView("");
-	}
-	else
-	{
-		return KStringView(m_rep.data() + iStart, iCount);
-	}
-
-} // Mid
-
-//----------------------------------------------------------------------
-KStringView KString::Right(size_type iCount)
+KStringView KString::Right(size_type iCount) const
 //----------------------------------------------------------------------
 {
 	if (iCount >= size())
@@ -829,7 +809,7 @@ KStringView KString::Right(size_type iCount)
 	else if (!iCount || !size())
 	{
 		// return an empty string
-		return KStringView("");
+		return KStringView{};
 	}
 	else
 	{

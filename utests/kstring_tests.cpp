@@ -599,7 +599,7 @@ TEST_CASE("KString") {
 		}
 	}
 
-	SECTION("to_hexstring() lowercase zeropad")
+	SECTION("to_hexstring() lowercase no zeropad")
 	{
 		using stype = KString;
 		std::vector<std::pair<stype, int64_t>> svector = {
@@ -615,6 +615,107 @@ TEST_CASE("KString") {
 		for (const auto& it : svector)
 		{
 			CHECK ( KString::to_hexstring(it.second, false, false) == it.first );
+		}
+	}
+
+	SECTION("Left")
+	{
+		struct parms_t
+		{
+			KString input;
+			KString output;
+			size_t  count;
+		};
+
+		std::vector<parms_t> pvector = {
+			{ "1234567890",        "123" ,  3 },
+			{ "1234567890",          "1" ,  1 },
+			{ "1234567890",           "" ,  0 },
+			{ "1234567890", "1234567890" , 13 },
+			{           "",           "" ,  3 },
+			{           "",           "" ,  1 },
+			{           "",           "" ,  0 },
+			{           "",           "" , 13 },
+		};
+
+		for (const auto& it : pvector)
+		{
+			KString s(it.input);
+			KStringView sv = s.Left(it.count);
+			CHECK ( sv == it.output );
+		}
+	}
+
+	SECTION("Right")
+	{
+		struct parms_t
+		{
+			KString input;
+			KString output;
+			size_t  count;
+		};
+
+		std::vector<parms_t> pvector = {
+			{ "1234567890",        "890" ,  3 },
+			{ "1234567890",          "0" ,  1 },
+			{ "1234567890",           "" ,  0 },
+			{ "1234567890", "1234567890" , 13 },
+			{           "",           "" ,  3 },
+			{           "",           "" ,  1 },
+			{           "",           "" ,  0 },
+			{           "",           "" , 13 },
+		};
+
+		for (const auto& it : pvector)
+		{
+			KString s(it.input);
+			KStringView sv = s.Right(it.count);
+			CHECK ( sv == it.output );
+		}
+	}
+
+	SECTION("Mid")
+	{
+		struct parms_t
+		{
+			KString input;
+			KString output;
+			size_t  start;
+			size_t  count;
+		};
+
+		std::vector<parms_t> pvector = {
+			{ "1234567890",        "123" ,  0,  3 },
+			{ "1234567890",          "1" ,  0,  1 },
+			{ "1234567890",           "" ,  0,  0 },
+			{ "1234567890", "1234567890" ,  0, 13 },
+			{ "1234567890",        "890" ,  7,  3 },
+			{ "1234567890",          "0" ,  9,  1 },
+			{ "1234567890",           "" , 10,  0 },
+			{ "1234567890",           "" , 13, 13 },
+			{ "1234567890",        "456" ,  3,  3 },
+			{ "1234567890",          "4" ,  3,  1 },
+			{ "1234567890",           "" ,  3,  0 },
+			{ "1234567890",    "4567890" ,  3, 13 },
+			{           "",           "" ,  0,  3 },
+			{           "",           "" ,  0,  1 },
+			{           "",           "" ,  0,  0 },
+			{           "",           "" ,  0, 13 },
+			{           "",           "" ,  7,  3 },
+			{           "",           "" ,  9,  1 },
+			{           "",           "" , 10,  0 },
+			{           "",           "" , 13, 13 },
+			{           "",           "" ,  3,  3 },
+			{           "",           "" ,  3,  1 },
+			{           "",           "" ,  3,  0 },
+			{           "",           "" ,  3, 13 },
+		};
+
+		for (const auto& it : pvector)
+		{
+			KString s(it.input);
+			KStringView sv = s.Mid(it.start, it.count);
+			CHECK ( sv == it.output );
 		}
 	}
 

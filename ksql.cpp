@@ -4281,8 +4281,8 @@ void KSQL::BuildTranslationList (KPROPS* pList, int iDBType/*=0*/)
 	}
 
 	// non-database specific pairs:
-	char szPID[10+1];  snprintf (szPID, 10, "%lld", (uint64_t)getpid());
-	char szDID[10+1];  snprintf (szDID, 10, "%lld", (uint64_t)m_iDebugID);
+	char szPID[10+1];  snprintf (szPID, 10, "%" PRIu64, (uint64_t)getpid());
+	char szDID[10+1];  snprintf (szDID, 10, "%" PRIu64, (uint64_t)m_iDebugID);
 	
 	pList->Add ("PID",        szPID);
 	pList->Add ("$$",         szPID);

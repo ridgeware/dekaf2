@@ -624,7 +624,7 @@ TEST_CASE("KSQL")
 		// KROW Operations
 		// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-		Row.AddCol ("anum",      100ull,            KROW::PKEY);
+		Row.AddCol ("anum",      UINT64_C(100),            KROW::PKEY);
 		Row.AddCol ("astring",   "krow insert");
 
 		if (!db.Insert (Row)) {
@@ -664,7 +664,7 @@ TEST_CASE("KSQL")
 		}
 
 		KROW URow ("TEST_ASIAN");
-		URow.AddCol ("anum", 100ull, KROW::PKEY|KROW::NUMERIC);
+		URow.AddCol ("anum", UINT64_C(100), KROW::PKEY|KROW::NUMERIC);
 		URow.AddCol ("astring", ASIAN1);
 		if (!db.Insert(URow)) {
 			INFO (db.GetLastError());
@@ -820,7 +820,7 @@ TEST_CASE("KSQL")
 		kDebugLog (1, "KROW slash test insert");
 
 		Row.clear();
-		Row.AddCol ("anum",    98ull, KROW::PKEY);
+		Row.AddCol ("anum",    UINT64_C(98), KROW::PKEY);
 		Row.AddCol ("astring", SLASHES1);
 
 		SqlServerIdentityInsert (db, "TEST_KSQL", "ON");

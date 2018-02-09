@@ -519,6 +519,7 @@ std::unique_ptr<KLogWriter> KLog::CreateWriter(Writer writer, KStringView sLogna
 		case Writer::HTTP:
 			return std::make_unique<KLogHTTPWriter>(sLogname);
 	}
+	return NULL;
 }
 
 //---------------------------------------------------------------------------
@@ -534,6 +535,7 @@ std::unique_ptr<KLogSerializer> KLog::CreateSerializer(Serializer serializer)
 		case Serializer::JSON:
 			return std::make_unique<KLogJSONSerializer>();
 	}
+	return NULL;
 }
 
 //---------------------------------------------------------------------------

@@ -169,4 +169,27 @@ KString KJSON::EscWrap (KString sName, int iValue, KStringView sPrefix/*="\n\t"*
 
 } // KSJON::EscWrap
 
+//-----------------------------------------------------------------------------
+KString KJSON::EscWrapNumeric (KString sName, int iValue, KStringView sPrefix/*="\n\t"*/, KStringView sSuffix/*=","*/)
+//-----------------------------------------------------------------------------
+{
+	return KJSON::EscWrap(sName, iValue, sPrefix, sSuffix);
+
+} // KSJON::EscWrapNumeric
+
+//-----------------------------------------------------------------------------
+KString KJSON::EscWrapNumeric (KString sName, KString sValue, KStringView sPrefix/*="\n\t"*/, KStringView sSuffix/*=","*/)
+//-----------------------------------------------------------------------------
+{
+	sName.Replace("\r","\\r", /*all=*/true);
+	sName.Replace("\n","\\n", /*all=*/true);
+	sName.Replace("\"","\\\"", /*all=*/true);
+
+	KString sReturnMe;
+	sReturnMe.Format ("{}\"{}\": {}{}", sPrefix, sName, sValue, sSuffix);
+
+	return (sReturnMe);
+
+} // KSJON::EscWrapNumeric
+
 } // end of namespace dekaf2

@@ -107,7 +107,7 @@ enum {
 };
 
 #ifdef DEKAF2_HAS_ODBC
-  #include <sqlext.h>         // <-- Microsoft DEKAF2_HAS_ODBC API's
+  #include <sqlext.h>         // <-- Microsoft ODBC API's
 #endif
 
 // to get DBLIB member vars to compile:
@@ -230,7 +230,7 @@ public:
 		API_DBLIB             = 40000,      // connect to SQLServer or Sybase using DBLIB
 		API_CTLIB             = 50000,      // connect to SQLServer or Sybase using CTLIB
 		API_INFORMIX          = 80000,      // connect to Informix using their API
-		API_DEKAF2_HAS_ODBC              = 90000,      // connect to something using DEKAF2_HAS_ODBC APIs
+		API_ODBC              = 90000,      // connect to something using ODBC APIs
 
 		// blob encoding schemes:
 		BT_ASCII              = 'A',        // ASCII:  only replace newlines and single quotes
@@ -574,14 +574,14 @@ protected:
 	#endif
 
     #ifdef DEKAF2_HAS_ODBC
-	enum       {MAX_DEKAF2_HAS_ODBCSTR = 300};
+	enum       {MAX_ODBCSTR = 300};
 	HENV       m_Environment;
 	HDBC       m_hdbc;
 	HSTMT      m_hstmt;
 	KString    m_sConnectString;
 	KString    m_sConnectOutput;
 
-	bool  CheckDEKAF2_HAS_ODBC (RETCODE iRetCode);
+	bool  CheckODBC (RETCODE iRetCode);
 	#endif
 
 	bool  SQLError (bool fForceError=false);

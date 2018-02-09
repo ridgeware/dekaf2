@@ -611,11 +611,19 @@ KLog& KLog();
     #undef kDebugTrace
 #endif
 //---------------------------------------------------------------------------
-/// log an unknown exception, automatically provide function name.
-#define kDebugTrace(level, ...) \
+/// force a stack trace, automatically provide function name.
+#define kDebugTrace(...) \
 { \
 	KLog().debug_fun(-2, DEKAF2_FUNCTION_NAME, __VA_ARGS__); \
 }
+//---------------------------------------------------------------------------
+
+#ifdef kWouldLog
+    #undef kWouldLog
+#endif
+	//---------------------------------------------------------------------------
+	/// test if a given log level would create output
+#define kWouldLog(level) (level <= KLog::s_kLogLevel)
 //---------------------------------------------------------------------------
 
 

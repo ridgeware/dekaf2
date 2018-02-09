@@ -154,5 +154,18 @@ void kCrashExit (int iSignalNum)
 
 } // kCrashExit
 
+namespace detail {
+
+//-----------------------------------------------------------------------------
+void kFailedAssert (KStringView sCrashMessage)
+//-----------------------------------------------------------------------------
+{
+	KLog().warning ("ASSERT FAILURE: {}", sCrashMessage);
+	kCrashExit (0);
+
+} // kFailedAssert
+
+} // of namespace detail
+
 } // of namespace dekaf2
 

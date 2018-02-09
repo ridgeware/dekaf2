@@ -511,28 +511,31 @@ KSQL::~KSQL ()
 void KSQL::FreeAll ()
 //-----------------------------------------------------------------------------
 {
-	kDebugLog (3, "[{}]FreeAll()...", m_iDebugID);
-	kDebugLog (3, "[{}]  instance cleanup:", m_iDebugID);
-	kDebugLog (3, "    m_bConnectionIsOpen        = {}", (m_bConnectionIsOpen) ? "true" : "false");
-	kDebugLog (3, "    m_bFileIsOpen              = {}", (m_bFileIsOpen) ? "true" : "false");
-	kDebugLog (3, "    m_bQueryStarted            = {}", (m_bQueryStarted) ? "true" : "false");
+	if (kWouldLog(3))
+	{
+		kDebugLog (3, "[{}]FreeAll()...", m_iDebugID);
+		kDebugLog (3, "[{}]  instance cleanup:", m_iDebugID);
+		kDebugLog (3, "    m_bConnectionIsOpen        = {}", (m_bConnectionIsOpen) ? "true" : "false");
+		kDebugLog (3, "    m_bFileIsOpen              = {}", (m_bFileIsOpen) ? "true" : "false");
+		kDebugLog (3, "    m_bQueryStarted            = {}", (m_bQueryStarted) ? "true" : "false");
 
-	kDebugLog (3, "  dynamic memory outlook:");
-	kDebugLog (3, "    m_dMYSQL                   = {}{}", m_dMYSQL, (m_dMYSQL) ? " (needs to be freed)" : "");
-	kDebugLog (3, "    m_MYSQLRow                 = {}{}", m_MYSQLRow, (m_MYSQLRow) ? " (needs to be freed)" : "");
-	kDebugLog (3, "    m_dMYSQLResult             = {}{}", m_dMYSQLResult, (m_dMYSQLResult) ? " (needs to be freed)" : "");
-	kDebugLog (3, "    m_dOCI6LoginDataArea       = {}{}", m_dOCI6LoginDataArea, (m_dOCI6LoginDataArea) ? " (needs to be freed)" : "");
-	kDebugLog (3, "    m_dOCI6ConnectionDataArea  = {}{}", m_dOCI6ConnectionDataArea, (m_dOCI6ConnectionDataArea) ? " (needs to be freed)" : "");
-	kDebugLog (3, "    m_dOCI8EnvHandle           = {}{}", m_dOCI8EnvHandle, (m_dOCI8EnvHandle) ? " (needs to be freed)" : "");
-	kDebugLog (3, "    m_dOCI8ErrorHandle         = {}{}", m_dOCI8ErrorHandle, (m_dOCI8ErrorHandle) ? " (needs to be freed)" : "");
-	kDebugLog (3, "    m_dOCI8ServerContext       = {}{}", m_dOCI8ServerContext, (m_dOCI8ServerContext) ? " (needs to be freed)" : "");
+		kDebugLog (3, "  dynamic memory outlook:");
+		kDebugLog (3, "    m_dMYSQL                   = {}{}", m_dMYSQL, (m_dMYSQL) ? " (needs to be freed)" : "");
+		kDebugLog (3, "    m_MYSQLRow                 = {}{}", m_MYSQLRow, (m_MYSQLRow) ? " (needs to be freed)" : "");
+		kDebugLog (3, "    m_dMYSQLResult             = {}{}", m_dMYSQLResult, (m_dMYSQLResult) ? " (needs to be freed)" : "");
+		kDebugLog (3, "    m_dOCI6LoginDataArea       = {}{}", m_dOCI6LoginDataArea, (m_dOCI6LoginDataArea) ? " (needs to be freed)" : "");
+		kDebugLog (3, "    m_dOCI6ConnectionDataArea  = {}{}", m_dOCI6ConnectionDataArea, (m_dOCI6ConnectionDataArea) ? " (needs to be freed)" : "");
+		kDebugLog (3, "    m_dOCI8EnvHandle           = {}{}", m_dOCI8EnvHandle, (m_dOCI8EnvHandle) ? " (needs to be freed)" : "");
+		kDebugLog (3, "    m_dOCI8ErrorHandle         = {}{}", m_dOCI8ErrorHandle, (m_dOCI8ErrorHandle) ? " (needs to be freed)" : "");
+		kDebugLog (3, "    m_dOCI8ServerContext       = {}{}", m_dOCI8ServerContext, (m_dOCI8ServerContext) ? " (needs to be freed)" : "");
 #if USE_SERVER_ATTACH
-	kDebugLog (3, "    m_dOCI8ServerHandle        = {}{}", m_dOCI8ServerHandle, (m_dOCI8ServerHandle) ? " (needs to be freed)" : "");
-	kDebugLog (3, "    m_dOCI8Session             = {}{}", m_dOCI8Session, (m_dOCI8Session) ? " (needs to be freed)" : "");
+		kDebugLog (3, "    m_dOCI8ServerHandle        = {}{}", m_dOCI8ServerHandle, (m_dOCI8ServerHandle) ? " (needs to be freed)" : "");
+		kDebugLog (3, "    m_dOCI8Session             = {}{}", m_dOCI8Session, (m_dOCI8Session) ? " (needs to be freed)" : "");
 #endif
-	kDebugLog (3, "    m_dOCI8Statement           = {}{}", m_dOCI8Statement, (m_dOCI8Statement) ? " (needs to be freed)" : "");
-//	kDebugLog (3, "    m_dColInfo                 = {}{}", m_dColInfo, (m_dColInfo) ? " (needs to be freed)" : "");
-//	kDebugLog (3, "    m_dBufferedColArray        = {}{}", m_dBufferedColArray, (m_dBufferedColArray) ? " (needs to be freed)" : "");
+		kDebugLog (3, "    m_dOCI8Statement           = {}{}", m_dOCI8Statement, (m_dOCI8Statement) ? " (needs to be freed)" : "");
+//		kDebugLog (3, "    m_dColInfo                 = {}{}", m_dColInfo, (m_dColInfo) ? " (needs to be freed)" : "");
+//		kDebugLog (3, "    m_dBufferedColArray        = {}{}", m_dBufferedColArray, (m_dBufferedColArray) ? " (needs to be freed)" : "");
+	}
 
 	if (m_dMYSQL)
 	{
@@ -1134,20 +1137,23 @@ bool KSQL::OpenConnection ()
 	KStringView dbt = TxDBType(m_iDBType);
 	KStringView api = TxAPISet(m_iAPISet);
 
-	kDebugLog (GetDebugLevel() + 1, "[{}]connect info:", m_iDebugID);
-	kDebugLog (GetDebugLevel() + 1, "  Summary  = {}", m_sConnectSummary);
-	kDebugLog (GetDebugLevel() + 1, "  DBType   = {} ( {} )", m_iDBType, dbt);
-	kDebugLog (GetDebugLevel() + 1, "  APISet   = {} ( {} )", m_iAPISet, api);
-	kDebugLog (GetDebugLevel() + 1, "  DBUser   = {}", m_sUsername);
-	kDebugLog (GetDebugLevel() + 1, "  DBHost   = {}", m_sHostname);
-	kDebugLog (GetDebugLevel() + 1, "  DBPort   = {}", m_iDBPortNum);
-	kDebugLog (GetDebugLevel() + 1, "  DBName   = {}", m_sDatabase);
-	kDebugLog (GetDebugLevel() + 1, "  Flags    = {} ( {}{}{}{})", 
-		m_iFlags, 
-		IsFlag(F_IgnoreSQLErrors)  ? "IgnoreSQLErrors "  : "",
-		IsFlag(F_BufferResults)    ? "BufferResults "    : "",
-		IsFlag(F_NoAutoCommit)     ? "NoAutoCommit "     : "",
-		IsFlag(F_NoTranslations)   ? "NoTranslations "   : "");
+	if (kWouldLog(GetDebugLevel() + 1))
+	{
+		kDebugLog (GetDebugLevel() + 1, "[{}]connect info:", m_iDebugID);
+		kDebugLog (GetDebugLevel() + 1, "  Summary  = {}", m_sConnectSummary);
+		kDebugLog (GetDebugLevel() + 1, "  DBType   = {} ( {} )", m_iDBType, dbt);
+		kDebugLog (GetDebugLevel() + 1, "  APISet   = {} ( {} )", m_iAPISet, api);
+		kDebugLog (GetDebugLevel() + 1, "  DBUser   = {}", m_sUsername);
+		kDebugLog (GetDebugLevel() + 1, "  DBHost   = {}", m_sHostname);
+		kDebugLog (GetDebugLevel() + 1, "  DBPort   = {}", m_iDBPortNum);
+		kDebugLog (GetDebugLevel() + 1, "  DBName   = {}", m_sDatabase);
+		kDebugLog (GetDebugLevel() + 1, "  Flags    = {} ( {}{}{}{})",
+			m_iFlags,
+			IsFlag(F_IgnoreSQLErrors)  ? "IgnoreSQLErrors "  : "",
+			IsFlag(F_BufferResults)    ? "BufferResults "    : "",
+			IsFlag(F_NoAutoCommit)     ? "NoAutoCommit "     : "",
+			IsFlag(F_NoTranslations)   ? "NoTranslations "   : "");
+	}
 
 	kDebugLog (GetDebugLevel(), "[{}] connecting to {}...", m_iDebugID, m_sConnectSummary);
 
@@ -1227,9 +1233,9 @@ bool KSQL::OpenConnection ()
 
     #ifdef DEKAF2_HAS_ODBC
 	// - - - - - - - - - - - - - - - - -
-	case API_DEKAF2_HAS_ODBC:
+	case API_ODBC:
 	// - - - - - - - - - - - - - - - - -
-		// DEKAF2_HAS_ODBC initialization:
+		// ODBC initialization:
 		if (SQLAllocEnv (&m_Environment) != SQL_SUCCESS)
 		{
 			m_sLastError.Format ("{}SQLAllocEnv() failed", m_sErrorPrefix);
@@ -1245,7 +1251,7 @@ bool KSQL::OpenConnection ()
 
 		m_sConnectOutput.clear();
 
-		snprintf ((char* )m_sConnectString, MAX_DEKAF2_HAS_ODBCSTR, "DSN={};UID={};PWD={}", m_sDatabase, m_sUsername, m_sPassword);
+		snprintf ((char* )m_sConnectString, MAX_ODBCSTR, "DSN={};UID={};PWD={}", m_sDatabase, m_sUsername, m_sPassword);
 		if (!m_sHostname.empty()) {
 			KString sAdd;
 			sAdd.Format (";HOST={}", m_sHostname);
@@ -1259,7 +1265,7 @@ bool KSQL::OpenConnection ()
 		//   SQL_DRIVER_COMPLETE_REQUIRED
 		// }
 
-		if (!CheckDEKAF2_HAS_ODBC (SQLDriverConnect ( // level 1 api
+		if (!CheckODBC (SQLDriverConnect ( // level 1 api
 			m_hdbc,
 			NULL,    // hwnd
 			m_sConnectString,
@@ -1565,7 +1571,7 @@ void KSQL::CloseConnection ()
 
 		// - - - - - - - - - - - - - - - - -
 		case API_INFORMIX:
-		case API_DEKAF2_HAS_ODBC:
+		case API_ODBC:
 		default:
 		// - - - - - - - - - - - - - - - - -
 			kWarning ("[{}] KSQL::CloseConnection(): unsupported API Set ({}={})", m_iDebugID, m_iAPISet, TxAPISet(m_iAPISet));
@@ -1765,7 +1771,7 @@ bool KSQL::ExecRawSQL (KStringView sSQL, uint64_t iFlags/*=0*/, KStringView sAPI
 		// - - - - - - - - - - - - - - - - -
 		case API_DBLIB:
 		case API_INFORMIX:
-		case API_DEKAF2_HAS_ODBC:
+		case API_ODBC:
 		default:
 		// - - - - - - - - - - - - - - - - -
 			kWarning ("[{}] KSQL::ExecSQL(): unsupported API Set ({}={})", m_iDebugID, m_iAPISet, TxAPISet(m_iAPISet));
@@ -2759,7 +2765,7 @@ bool KSQL::ExecRawQuery (KStringView sSQL, uint64_t iFlags/*=0*/, KStringView sA
 	// - - - - - - - - - - - - - - - - -
 	case API_DBLIB:
 	case API_INFORMIX:
-	case API_DEKAF2_HAS_ODBC:
+	case API_ODBC:
 	default:
 	// - - - - - - - - - - - - - - - - -
 		kWarning ("[{}] KSQL::ExecQuery(): unsupported API Set ({}={})", m_iDebugID, m_iAPISet, TxAPISet(m_iAPISet));
@@ -3246,7 +3252,7 @@ bool KSQL::BufferResults ()
 	case API_CTLIB:
 	case API_DBLIB:
 	case API_INFORMIX:
-	case API_DEKAF2_HAS_ODBC:
+	case API_ODBC:
 	default:
 	// - - - - - - - - - - - - - - - - -
 		kWarning ("[{}] KSQL:BufferResults(): unsupported API Set ({}={})", m_iDebugID, m_iAPISet, TxAPISet(m_iAPISet));
@@ -3529,7 +3535,7 @@ bool KSQL::NextRow ()
 		// - - - - - - - - - - - - - - - - -
 		case API_DBLIB:
 		case API_INFORMIX:
-		case API_DEKAF2_HAS_ODBC:
+		case API_ODBC:
 		default:
 		// - - - - - - - - - - - - - - - - -
 			kWarning ("[{}] KSQL:NextRow(): unsupported API Set ({}={})", m_iDebugID, m_iAPISet, TxAPISet(m_iAPISet));
@@ -3847,7 +3853,7 @@ KStringView KSQL::Get (uint32_t iOneBasedColNum, bool fTrimRight/*=true*/)
 	
 		// - - - - - - - - - - - - - - - - -
 		case API_INFORMIX:
-		case API_DEKAF2_HAS_ODBC:
+		case API_ODBC:
 		default:
 		// - - - - - - - - - - - - - - - - -
 			kWarning ("[{}] KSQL: unsupported API Set ({}={})", m_iDebugID, m_iAPISet, TxAPISet(m_iAPISet));
@@ -4308,10 +4314,13 @@ uint32_t ktx (KString& sTarget, KSQL::KPROPS& List)
 void KSQL::DoTranslations (KString& sSQL, int iDBType/*=0*/)
 //-----------------------------------------------------------------------------
 {
-	kDebugLog (3, "[{}]KSQL::DoTranslations()...", m_iDebugID);
-	kDebugLog (3, "KSQL:DoTranslations():");
-	kDebugLog (3, "BEFORE:");
-	kDebugLog (3, "{}", sSQL);
+	kDebugLog (3,
+			   "[{}]KSQL::DoTranslations()...\n"
+			   "KSQL:DoTranslations():\n"
+			   "BEFORE:\n"
+			   "{}",
+			   m_iDebugID,
+			   sSQL);
 
 	if (!iDBType)
 		iDBType = m_iDBType;
@@ -4328,8 +4337,7 @@ void KSQL::DoTranslations (KString& sSQL, int iDBType/*=0*/)
 	//m_TxList.DebugPairs (2, "m_TxList:"); -- TODO
 	ktx (sSQL, m_TxList);
 
-	kDebugLog (3, "AFTER:");
-	kDebugLog (3, "{}", sSQL);
+	kDebugLog (3, "AFTER:\n{}", sSQL);
 
 } // DoTranslations
 
@@ -4993,14 +5001,17 @@ unsigned char* KSQL::DecodeData (unsigned char* sBlobData, int iBlobType, uint64
 
 			if (!fOK1 || !fOK2)
 			{
-				kDebugLog (GetDebugLevel(), "[{}] KSQL:DecodeData(): corrupted hex pair in encoded data:", m_iDebugID);
-				kDebugLog (GetDebugLevel(), "  szHexPair[{}+{}] = %3d ({})", ii, 0, szHexPair[0], fOK1 ? "valid hex digit" : "INVALID HEX DIGIT");
-				kDebugLog (GetDebugLevel(), "  szHexPair[{}+{}] = %3d ({})", ii, 1, szHexPair[1], fOK2 ? "valid hex digit" : "INVALID HEX DIGIT");
-				kDebugLog (GetDebugLevel(), "  EncodedLen={}", iEncodedLen);
-				kDebugLog (GetDebugLevel(), "  sBlobData     = {} (memory dump to follow)...", sBlobData);
-				kDebugLog (GetDebugLevel(), "  sBlobData+Len = {}", sBlobData+iEncodedLen);
+				if (kWouldLog(GetDebugLevel())
+				{
+					kDebugLog (GetDebugLevel(), "[{}] KSQL:DecodeData(): corrupted hex pair in encoded data:", m_iDebugID);
+					kDebugLog (GetDebugLevel(), "  szHexPair[{}+{}] = %3d ({})", ii, 0, szHexPair[0], fOK1 ? "valid hex digit" : "INVALID HEX DIGIT");
+					kDebugLog (GetDebugLevel(), "  szHexPair[{}+{}] = %3d ({})", ii, 1, szHexPair[1], fOK2 ? "valid hex digit" : "INVALID HEX DIGIT");
+					kDebugLog (GetDebugLevel(), "  EncodedLen={}", iEncodedLen);
+					kDebugLog (GetDebugLevel(), "  sBlobData     = {} (memory dump to follow)...", sBlobData);
+					kDebugLog (GetDebugLevel(), "  sBlobData+Len = {}", sBlobData+iEncodedLen);
+				}
 
-				kDebugMemory ((const char*) sBlobData, 0, /*iLinesBefore=*/0, /*iLinesAfter=*/iEncodedLen/8);
+				//kDebugMemory ((const char*) sBlobData, 0, /*iLinesBefore=*/0, /*iLinesAfter=*/iEncodedLen/8);
 
 				m_sLastError.Format ("{}DecodeData(): corrupted blob (details in klog)", m_sErrorPrefix);
 				SQLError();
@@ -5212,7 +5223,7 @@ unsigned char* KSQL::GetBlob (KStringView sBlobTable, KStringView sBlobKey, uint
 
 #ifdef DEKAF2_HAS_ODBC
 //------------------------------------------------------------------------------
-bool KSQL::CheckDEKAF2_HAS_ODBC (RETCODE iRetCode)
+bool KSQL::CheckODBC (RETCODE iRetCode)
 //------------------------------------------------------------------------------
 {
 	switch (iRetCode)
@@ -5239,13 +5250,13 @@ bool KSQL::CheckDEKAF2_HAS_ODBC (RETCODE iRetCode)
 					  szErrorMsg, sizeof(szErrorMsg), NULL);
 			m_sLastError.Format ("{}{}: {}", m_sErrorPrefix, szSQLState, szErrorMsg);
 			#else
-			m_sLastError.Format ("{}DEKAF2_HAS_ODBC Error: Code={}", m_sErrorPrefix, iRetCode);
+			m_sLastError.Format ("{}ODBC Error: Code={}", m_sErrorPrefix, iRetCode);
 			#endif
 		}
 		return (false);
 	}
 
-} // CheckDEKAF2_HAS_ODBC
+} // CheckODBC
 
 #endif
 

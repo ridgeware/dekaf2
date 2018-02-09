@@ -43,6 +43,7 @@
 // #define DEKAF2_HAS_ORACLE  <-- conditionally defined by makefile
 // #define DEKAF2_HAS_MYSQL   <-- conditionally defined by makefile
 // #define DEKAF2_HAS_DBLIB   <-- conditionally defined by makefile
+// #define DEKAF2_HAS_CTLIB   <-- conditionally defined by makefile
 // #define DEKAF2_HAS_ODBC    <-- conditionally defined by makefile
 
 #include "ksql.h"   // <-- public header (should have no dependent headers other than DEKAF header)
@@ -54,6 +55,7 @@
 #include "kstringutils.h"
 #include <string.h> // for strncpy()
 #include <unistd.h> // for sleep()
+#include <time.h>   // for strptime()
 
 #ifndef _WIN32
 #include <sys/time.h>
@@ -81,7 +83,7 @@
   int dblib_err_handler(DBPROCESS * dbproc, int severity, int dberr, int oserr, char *dberrstr, char *oserrstr);
 #endif
 
-#ifdef CTLIBCOMPILE
+#ifdef DEKAF2_HAS_CTLIB
   #include <config_freetds.h>  // will be taken from: ksql/src/3p-XXXXX, produced by gnu "configure" on each platform
   #include <ctpublic.h>        // CTLIB, alternative to DBLIB for Sybase and SQLServer
   #define CTDEBUG 2
@@ -136,18 +138,7 @@
 namespace dekaf2
 {
 
-#ifndef max
- #define max(X,Y) (((X)>(Y)) ? (X) : (Y))
-#endif
-#ifndef min
- #define min(X,Y) (((X)<(Y)) ? (X) : (Y))
-#endif
-
-#ifdef linux
- #define DO_NOT_HAVE_STRPTIME
-#endif
-
-typedef struct
+struct SQLTX
 {
 	KStringView sOriginal;
 	KStringView sMySQL;
@@ -155,10 +146,9 @@ typedef struct
 	KStringView sOracle;
 	KStringView sSybase;
 	KStringView sInformix;
-}
-SQLTX;
+};
 
-SQLTX g_Translations[] = {
+constexpr SQLTX g_Translations[] = {
 	// ----------------  -----------  --------------   --------------   --------------  ----------------------------
 	// ORIGINAL          MYSQL        ORACLEpre8       ORACLE8.x...     SQLSERVER       INFORMIX
 	// ----------------  -----------  --------------   --------------   --------------  ----------------------------
@@ -173,7 +163,7 @@ SQLTX g_Translations[] = {
 	// ----------------  -----------  --------------   --------------   --------------  ----------------------------
 };
 
-typedef unsigned char uint8_t;
+namespace DBC {
 
 int ToINT(const uint8_t (&iSourceArray)[4])
 {
@@ -193,6 +183,8 @@ void FromINT(uint8_t (&cTargetArray)[4], int iSourceValue)
 		iRemainingSourceBits >>= 8;
 	}
 }
+
+} // end of namespace DBC
 
 static uint64_t s_ulDebugID = 0;
 
@@ -775,14 +767,14 @@ bool KSQL::EncodeDBCData(DBCFILEv2& dbc)
 
 	kstrncpy (dbc.szLeader, "KSQLDBC2", sizeof(dbc.szLeader));
 
-	FromINT(dbc.iDBType, m_iDBType);
-	FromINT(dbc.iAPISet, m_iAPISet);
+	DBC::FromINT(dbc.iDBType, m_iDBType);
+	DBC::FromINT(dbc.iAPISet, m_iAPISet);
 
 	kstrncpy ((char* )dbc.szUsername, m_sUsername.c_str(), sizeof(dbc.szUsername)); // order: UPDH
 	kstrncpy ((char* )dbc.szPassword, m_sPassword.c_str(), sizeof(dbc.szPassword));
 	kstrncpy ((char* )dbc.szDatabase, m_sDatabase.c_str(), sizeof(dbc.szDatabase));
 	kstrncpy ((char* )dbc.szHostname, m_sHostname.c_str(), sizeof(dbc.szHostname));
-	FromINT(dbc.iDBPortNum, m_iDBPortNum);
+	DBC::FromINT(dbc.iDBPortNum, m_iDBPortNum);
 
 	// crude encryption:
 	encrypt (dbc.szHostname);
@@ -808,14 +800,14 @@ bool KSQL::EncodeDBCData(DBCFILEv3& dbc)
 
 	kstrncpy (dbc.szLeader, "KSQLDBC3", sizeof(dbc.szLeader));
 
-	FromINT(dbc.iDBType, m_iDBType);
-	FromINT(dbc.iAPISet, m_iAPISet);
+	DBC::FromINT(dbc.iDBType, m_iDBType);
+	DBC::FromINT(dbc.iAPISet, m_iAPISet);
 
 	kstrncpy ((char* )dbc.szUsername, m_sUsername.c_str(), sizeof(dbc.szUsername)); // order: UPDH
 	kstrncpy ((char* )dbc.szPassword, m_sPassword.c_str(), sizeof(dbc.szPassword));
 	kstrncpy ((char* )dbc.szDatabase, m_sDatabase.c_str(), sizeof(dbc.szDatabase));
 	kstrncpy ((char* )dbc.szHostname, m_sHostname.c_str(), sizeof(dbc.szHostname));
-	FromINT(dbc.iDBPortNum, m_iDBPortNum);
+	DBC::FromINT(dbc.iDBPortNum, m_iDBPortNum);
 
 	// crude encryption:
 	encrypt (dbc.szHostname);
@@ -932,9 +924,9 @@ bool KSQL::DecodeDBCData (unsigned char* sBuffer, long iNumRead, KStringView sDB
 		DBCFILEv2 dbc;
 		memcpy (&dbc, sBuffer, sizeof(DBCFILEv2));
 
-		m_iDBType    = static_cast<SQLTYPE>(ToINT(dbc.iDBType));
-		m_iAPISet    = ToINT(dbc.iAPISet);
-		m_iDBPortNum = ToINT(dbc.iDBPortNum);
+		m_iDBType    = static_cast<SQLTYPE>(DBC::ToINT(dbc.iDBType));
+		m_iAPISet    = DBC::ToINT(dbc.iAPISet);
+		m_iDBPortNum = DBC::ToINT(dbc.iDBPortNum);
 
 		// crude decryption:
 		decrypt (dbc.szHostname);
@@ -963,9 +955,9 @@ bool KSQL::DecodeDBCData (unsigned char* sBuffer, long iNumRead, KStringView sDB
 			DBCFILEv3 dbc;
 			memcpy(&dbc, sBuffer, sizeof(dbc));
 
-			m_iDBType    = static_cast<SQLTYPE>(ToINT(dbc.iDBType));
-			m_iAPISet    = ToINT(dbc.iAPISet);
-			m_iDBPortNum = ToINT(dbc.iDBPortNum);
+			m_iDBType    = static_cast<SQLTYPE>(DBC::ToINT(dbc.iDBType));
+			m_iAPISet    = DBC::ToINT(dbc.iAPISet);
+			m_iDBPortNum = DBC::ToINT(dbc.iDBPortNum);
 
 			// Verify that all name fields include a null terminator
 			if ((strnlen((const char*)dbc.szUsername, sizeof(dbc.szUsername)) >= sizeof(dbc.szUsername)) ||
@@ -1472,7 +1464,7 @@ bool KSQL::OpenConnection ()
 		break;
 	#endif
 
-	#ifdef CTLIBCOMPILE
+	#ifdef DEKAF2_HAS_CTLIB
 	// - - - - - - - - - - - - - - - - -
 	case API_CTLIB:
 	// - - - - - - - - - - - - - - - - -
@@ -1563,7 +1555,7 @@ void KSQL::CloseConnection ()
 			break;
 		#endif
 
-		#ifdef CTLIBCOMPILE
+		#ifdef DEKAF2_HAS_CTLIB
 		// - - - - - - - - - - - - - - - - -
 		case API_CTLIB:
 		// - - - - - - - - - - - - - - - - -
@@ -1759,7 +1751,7 @@ bool KSQL::ExecRawSQL (KStringView sSQL, uint64_t iFlags/*=0*/, KStringView sAPI
 			break;
 		#endif
 
-		#ifdef CTLIBCOMPILE
+		#ifdef DEKAF2_HAS_CTLIB
 		// - - - - - - - - - - - - - - - - -
 		case API_CTLIB:
 		// - - - - - - - - - - - - - - - - -
@@ -2357,7 +2349,7 @@ bool KSQL::ExecRawQuery (KStringView sSQL, uint64_t iFlags/*=0*/, KStringView sA
 		tStarted = time(NULL);
 	}
 
-	#if defined(CTLIBCOMPILE)
+	#if defined(DEKAF2_HAS_CTLIB)
 	uint32_t iRetriesLeft = NUM_RETRIES;
 	#endif
 	
@@ -2502,7 +2494,7 @@ bool KSQL::ExecRawQuery (KStringView sSQL, uint64_t iFlags/*=0*/, KStringView sA
 					return (SQLError());
 
 				m_dColInfo[ii-1].iDataType   = iDataType;
-				m_dColInfo[ii-1].iMaxDataLen = max(iMaxDataSize+2,22+2); // <-- always malloc at least 24 bytes
+				m_dColInfo[ii-1].iMaxDataLen = std::max(iMaxDataSize+2, 22+2); // <-- always malloc at least 24 bytes
 
 				kDebugLog (GetDebugLevel()+1, "  oci8:column[{}]={}, namelen={}, datatype={}, maxwidth={}, willuse={}", 
 					(int)ii, (char* )dszColName, (uint32_t)iLenColName, (int)iDataType, (int)iMaxDataSize, m_dColInfo[ii-1].iMaxDataLen);
@@ -2666,14 +2658,14 @@ bool KSQL::ExecRawQuery (KStringView sSQL, uint64_t iFlags/*=0*/, KStringView sA
 				}
 
 				m_dColInfo[ii-1].iDataType   = iDataType;
-				m_dColInfo[ii-1].iMaxDataLen = max(iMaxDataSize+2,22+2); // <-- always malloc at least 24 bytes
+				m_dColInfo[ii-1].iMaxDataLen = std::max(iMaxDataSize+2, 22+2); // <-- always malloc at least 24 bytes
 
 				kDebugLog (GetDebugLevel(), "  oci6:column[{}]={}, namelen={}, datatype={}, maxwidth={}, dsize={}, using={} -- OCI6 BUG [TODO]", 
 						ii, m_dColInfo[ii-1].szColName, (uint32_t)iColNameLen, (int)iDataType, 
 						(int)iMaxWidth, (int)iMaxDataSize, m_dColInfo[ii-1].iMaxDataLen);
 
 				// allocate at least 20 bytes, which will cover datetimes and numerics:
-				m_dColInfo[ii-1].iMaxDataLen = min (m_dColInfo[ii-1].iMaxDataLen+2, 20);
+				m_dColInfo[ii-1].iMaxDataLen = std::max (m_dColInfo[ii-1].iMaxDataLen+2, 20);
 
 				m_dColInfo[ii-1].dszValue = (char *) kmalloc ((int)(m_dColInfo[ii-1].iMaxDataLen + 1), "    KSQL::ExecQuery");
 				// bind some memory to each column to hold the results which will be coming back:
@@ -2715,7 +2707,7 @@ bool KSQL::ExecRawQuery (KStringView sSQL, uint64_t iFlags/*=0*/, KStringView sA
 		break;
 	#endif
 
-	#ifdef CTLIBCOMPILE
+	#ifdef DEKAF2_HAS_CTLIB
 	// - - - - - - - - - - - - - - - - -
 	case API_CTLIB:
 	// - - - - - - - - - - - - - - - - -
@@ -2997,7 +2989,7 @@ bool KSQL::ExecParsedQuery ()
 					return (SQLError());
 
 				m_dColInfo[ii-1].iDataType   = iDataType;
-				m_dColInfo[ii-1].iMaxDataLen = max(iMaxDataSize+2,22+2); // <-- always malloc at least 24 bytes
+				m_dColInfo[ii-1].iMaxDataLen = std::max(iMaxDataSize+2, 22+2); // <-- always malloc at least 24 bytes
 
 				kDebugLog (GetDebugLevel()+1, "  oci8:column[{}]={}, namelen={}, datatype={}, maxwidth={}, willuse={}", 
 						(int)ii, (char*)dszColName, (uint32_t)iLenColName, (int)iDataType, (int)iMaxDataSize, m_dColInfo[ii-1].iMaxDataLen);
@@ -3526,7 +3518,7 @@ bool KSQL::NextRow ()
 		}
 		#endif
 	
-		#ifdef CTLIBCOMPILE
+		#ifdef DEKAF2_HAS_CTLIB
 		// - - - - - - - - - - - - - - - - -
 		case API_CTLIB:
 		// - - - - - - - - - - - - - - - - -
@@ -3909,7 +3901,7 @@ time_t KSQL::GetUnixTime (uint32_t iOneBasedColNum)
 		return (0);
 	}
  
-	#ifndef DO_NOT_HAVE_STRPTIME
+	#ifndef DEKAF2_DO_NOT_HAVE_STRPTIME
 
 	int iSecs;
 	if (sscanf (val, "%*04d-%*02d-%*02d %*02d:%*02d:%02d", &iSecs) == 1) // e.g. "1965-03-31 12:00:00"
@@ -5548,7 +5540,7 @@ uint64_t KSQL::GetLastInsertID ()
 
 } // GetLastInsertID
 
-#ifdef CTLIBCOMPILE
+#ifdef DEKAF2_HAS_CTLIB
 //-----------------------------------------------------------------------------
 bool KSQL::ctlib_login ()
 //-----------------------------------------------------------------------------
@@ -6059,7 +6051,7 @@ bool KSQL::ctlib_prepare_results ()
 		kstrncpy (m_dColInfo[ii].szColName, (colinfo.namelen) ? colinfo.name : "", MAXCOLNAME+1);
 
 		m_dColInfo[ii].iDataType   = colinfo.datatype;
-		m_dColInfo[ii].iMaxDataLen = max(colinfo.maxlength+2, 8000); //<- allocate at least the max-varchar length to avoid overflows
+		m_dColInfo[ii].iMaxDataLen = std::max(colinfo.maxlength+2, 8000); //<- allocate at least the max-varchar length to avoid overflows
 		m_dColInfo[ii].indp        = 0;
 
 		enum {SANITY_MAX = 50*1024};

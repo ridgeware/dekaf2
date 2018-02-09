@@ -53,9 +53,8 @@ namespace dekaf2 {
 /// Returns the numerical entity for the input character
 void kEntity(uint32_t ch, KString& sOut);
 
-/// Adds the named entity for the input character to sOut,
-/// otherwise appends input char to output
-void kNamedEntity(uint32_t ch, KString& sOut);
+/// Returns the codepoints for the named entity in cp1, cp2, false if not found
+bool kNamedEntity(KStringView sEntity, uint32_t& cp1, uint32_t& cp2);
 
 /// Adds the mandatory entity for the input character (<>&"'),
 /// otherwise appends input char to output

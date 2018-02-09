@@ -53,25 +53,35 @@ using codepoint_t = uint32_t;
 using utf16_t     = uint16_t;
 using utf8_t      = uint8_t;
 
+struct SurrogatePair
+{
+	utf16_t	first;
+	utf16_t second;
+};
+
 inline
+constexpr
 bool IsLeadSurrogate(utf16_t ch)
 {
 	return (ch & 0xfc00) == 0xd800;
 }
 
 inline
+constexpr
 bool IsTrailSurrogate(utf16_t ch)
 {
 	return (ch & 0xfc00) == 0xdc00;
 }
 
 inline
+constexpr
 bool IsSurrogate(utf16_t ch)
 {
 	return (ch & 0xd800) == 0xdfff;
 }
 
 inline
+constexpr
 bool NeedsSurrogates(codepoint_t ch)
 {
 	return (ch >= 0x010000 && ch <= 0x010ffff);
@@ -79,21 +89,25 @@ bool NeedsSurrogates(codepoint_t ch)
 
 /// check before calling that the input needs surrogate separation
 inline
-void CodepointToSurrogates(codepoint_t ch, utf16_t& surrogate1, utf16_t& surrogate2)
+ SurrogatePair CodepointToSurrogates(codepoint_t ch)
 {
+	SurrogatePair sp;
 	ch -= 0x10000;
-	surrogate2 = 0xdc00 + (ch & 0x03ff);
-	surrogate1 = 0xd800 + ((ch >> 10) & 0x03ff);
+	sp.second = 0xdc00 + (ch & 0x03ff);
+	sp.first  = 0xd800 + ((ch >> 10) & 0x03ff);
+	return sp;
 }
 
 /// check before calling that the surrogates are valid for composition
 inline
-codepoint_t SurrogatesToCodepoint(utf16_t surrogate1, utf16_t surrogate2)
+constexpr
+codepoint_t SurrogatesToCodepoint(SurrogatePair sp)
 {
-	return (surrogate1 << 10) + surrogate2 - ((0xd800 << 10) + 0xdc00 - 0x10000);
+	return (sp.first << 10) + sp.second - ((0xd800 << 10) + 0xdc00 - 0x10000);
 }
 
 template<typename Ch>
+constexpr
 codepoint_t CodepointCast(Ch sch)
 {
 	// All this code gets completely eliminated during
@@ -117,6 +131,7 @@ codepoint_t CodepointCast(Ch sch)
 
 template<typename Ch, typename NarrowString,
          typename = std::enable_if_t<std::is_integral<Ch>::value> >
+constexpr
 bool ToUTF8(Ch sch, NarrowString& sNarrow)
 {
 	using N=typename NarrowString::value_type;
@@ -155,6 +170,7 @@ bool ToUTF8(Ch sch, NarrowString& sNarrow)
 
 template<typename WideString, typename NarrowString,
          typename = std::enable_if_t<!std::is_integral<WideString>::value> >
+constexpr
 bool ToUTF8(const WideString& sWide, NarrowString& sNarrow)
 {
 	typename WideString::const_iterator it = sWide.cbegin();
@@ -165,33 +181,34 @@ bool ToUTF8(const WideString& sWide, NarrowString& sNarrow)
 		// make sure all surrogate logic is only compiled in for 16 bit strings
 		if (sizeof(typename WideString::value_type) == 2 && IsLeadSurrogate(*it))
 		{
-			utf16_t s1 = CodepointCast(*it++);
+			SurrogatePair sp;
+			sp.first = CodepointCast(*it++);
 			if (it == ie)
 			{
 				// we treat incomplete surrogates as simple ucs2
-				if (!ToUTF8(s1, sNarrow))
+				if (!ToUTF8(sp.first, sNarrow))
 				{
 					return false;
 				}
 			}
 			else
 			{
-				utf16_t s2 = CodepointCast(*it++);
-				if (!IsTrailSurrogate(s2))
+				sp.second = CodepointCast(*it++);
+				if (!IsTrailSurrogate(sp.second))
 				{
-					// the second surrogate is not valid - simply treat them both as usc2
-					if (!ToUTF8(s1, sNarrow))
+					// the second surrogate is not valid - simply treat them both as ucs2
+					if (!ToUTF8(sp.first, sNarrow))
 					{
 						return false;
 					}
-					if (!ToUTF8(s2, sNarrow))
+					if (!ToUTF8(sp.second, sNarrow))
 					{
 						return false;
 					}
 				}
 				else
 				{
-					if (!ToUTF8(SurrogatesToCodepoint(s1, s2), sNarrow))
+					if (!ToUTF8(SurrogatesToCodepoint(sp), sNarrow))
 					{
 						return false;
 					}
@@ -211,6 +228,7 @@ bool ToUTF8(const WideString& sWide, NarrowString& sNarrow)
 }
 
 template<typename NarrowString>
+constexpr
 bool ValidUTF8(const NarrowString& sNarrow)
 {
 	using N=typename NarrowString::value_type;
@@ -395,10 +413,9 @@ bool FromUTF8(const NarrowString& sNarrow, WideString& sWide)
 	{
 		if (sizeof(W) == 2 && NeedsSurrogates(uch))
 		{
-			utf16_t s1, s2;
-			CodepointToSurrogates(uch, s1, s2);
-			sWide += static_cast<W>(s1);
-			sWide += static_cast<W>(s2);
+			SurrogatePair sp = CodepointToSurrogates(uch);
+			sWide += static_cast<W>(sp.first);
+			sWide += static_cast<W>(sp.second);
 		}
 		else
 		{

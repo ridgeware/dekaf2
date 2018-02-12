@@ -170,8 +170,7 @@ bool KHTTP::ReadHeader()
 						m_bTEChunked = true;
 					}
 				}
-				KString s(sv); // TODO create conversions for KStringView
-				m_iRemainingContentSize = s.UInt64();
+				m_iRemainingContentSize = sv.UInt64();
 				m_State = State::HEADER_PARSED;
 				return true;
 			}

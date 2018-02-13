@@ -110,7 +110,7 @@ TEST_CASE("KSubscribe") {
 		}
 		KString s2(sv);
 		CHECK ( s2 ==  "is is a longer string into which we will point with string vie" );
-		s2 = sv2;
+		s2 = KString(sv2);
 		CHECK ( s2 ==  "this is a longer string into which we will point with string views" );
 		CHECK ( sv.CountSubscriptions() == 0);
 	}

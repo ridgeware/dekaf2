@@ -127,11 +127,6 @@ public:
 	bool        ReadHeaders ();
 	bool        ReadPostData ();
 	bool        IsFCGI()   { return (m_bIsFCGI); }
-
-    //std::streambuf* CIN()    { IsFCGI() ? m_FcgiRequest.in  : std::cin  }
-    //std::streambuf* COUT()   { IsFCGI() ? m_FcgiRequest.out : std::cout }
-    //std::streambuf* CERR()   { IsFCGI() ? m_FcgiRequest.err : std::cerr }
-
 	void        BackupStreams ();
 	void        RestoreStreams ();
 
@@ -169,8 +164,6 @@ public:
 		m_QueryParms.clear();
 	}
 
-
-
 //----------
 protected:
 //----------
@@ -182,9 +175,6 @@ private:
 	bool              m_bIsFCGI      = false;
 #ifdef DEKAF2_WITH_FCGI
 	FCGX_Request      m_FcgiRequest;
-	std::streambuf*   m_pBackupCIN   = nullptr;
-	std::streambuf*   m_pBackupCOUT  = nullptr;
-	std::streambuf*   m_pBackupCERR  = nullptr;
 #endif
 
 }; // class KCGI

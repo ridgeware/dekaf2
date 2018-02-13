@@ -154,49 +154,6 @@ KString KCGI::GetVar (KStringView sEnvironmentVariable, const char* sDefaultValu
 } // KCGI::GetVar
 
 //-----------------------------------------------------------------------------
-void KCGI::BackupStreams ()
-//-----------------------------------------------------------------------------
-{
-#ifdef DEKAF2_WITH_FCGI
-	// save standard streams:
-	if (!m_pBackupCIN)
-	{
-		m_pBackupCIN   = std::cin.rdbuf();
-	}
-	if (!m_pBackupCOUT)
-	{
-		m_pBackupCOUT  = std::cout.rdbuf();
-	}
-	if (!m_pBackupCERR)
-	{
-		m_pBackupCERR  = std::cerr.rdbuf();
-	}
-#endif
-
-} // BackupStreams
-
-//-----------------------------------------------------------------------------
-void KCGI::RestoreStreams ()
-//-----------------------------------------------------------------------------
-{
-#ifdef DEKAF2_WITH_FCGI
-	if (m_pBackupCIN)
-	{
-		std::cin.rdbuf(m_pBackupCIN);
-	}
-	if (m_pBackupCOUT)
-	{
-		std::cin.rdbuf(m_pBackupCOUT);
-	}
-	if (m_pBackupCERR)
-	{
-		std::cin.rdbuf(m_pBackupCERR);
-	}
-#endif
-
-} // RestoreStreams
-
-//-----------------------------------------------------------------------------
 bool KCGI::ReadHeaders ()
 //-----------------------------------------------------------------------------
 {
@@ -204,10 +161,11 @@ bool KCGI::ReadHeaders ()
 
 	kDebug (1, "KCGI: reading headers and post data...");
 
-	KInStream Reader(std::cin);
-	int  iLineNo = 0;
-	bool bHeaders = true;
-	KString sLine;
+	KInStream Reader(std::cin);  // TODO:KEEF: I really want to be able to (optionally) read a file here but I the compiler cannot convert an std::ifstream to our KInStream
+	int       iLineNo = 0;
+	bool      bHeaders = true;
+	KString   sLine;
+
 	while (Reader.ReadLine(sLine))
 	{
 		if (++iLineNo == 1)

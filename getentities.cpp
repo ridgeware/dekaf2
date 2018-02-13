@@ -19,8 +19,9 @@ int main(int argc, char** argv)
 
 	KOutStream COut(std::cout);
 
-	LJSON json = LJSON::parse(sHTML);
-
+	KJSON json;
+	json.Parse(sHTML);
+	
 	COut << "\nconstexpr entity_t s_NamedEntitiesHTML4[] =\n{\n";
 
 	auto it = json.cbegin();

@@ -144,8 +144,9 @@ public:
 	inline reference front() { if DEKAF2_UNLIKELY(empty()) { return *s_0ch_v; } return m_rep.front(); }
 
 	// Constructors
-	KString () {}
-	KString (const KString& str) : m_rep(str.m_rep){}
+	KString () = default;
+	KString (const KString& str) = default;
+	KString (KString&& str) noexcept = default;
 	KString (const KString& str, size_type pos, size_type len = npos) : m_rep(str.m_rep, (pos > str.size()) ? str.size() : pos, len){}
 	KString (const string_type& sStr) : m_rep(sStr){}
 	KString (size_type iCount, value_type ch) : m_rep(iCount, ch){}
@@ -154,7 +155,6 @@ public:
 	KString (const value_type* pszString, size_type iRoff, size_type iCount) : m_rep(pszString?pszString:"", pszString?iRoff:0, pszString?iCount:0){}
 	template<class _InputIterator>
 		KString (_InputIterator first, _InputIterator last) : m_rep(first, last) {}
-	KString (KString&& str) noexcept : m_rep(std::move(str.m_rep)){}
 	KString (string_type&& sStr) noexcept : m_rep(std::move(sStr)){}
 	KString (std::initializer_list<value_type> il) : m_rep(il) {}
 	KString (KStringView sv) : m_rep(sv.data(), sv.size()) {}
@@ -174,17 +174,8 @@ public:
 #endif
 
 	// operator=
-	KString& operator= (const KString& str) { m_rep = str.m_rep; return *this; }
-	KString& operator= (const string_type& sStr) { m_rep = sStr; return *this; }
-	KString& operator= (const value_type* pszStr) { if (pszStr) m_rep = pszStr; return *this; }
-	KString& operator= (const value_type c) { m_rep = c; return *this; }
-	KString& operator= (KString&& str) noexcept { m_rep = std::move(str.m_rep); return *this; }
-	KString& operator= (string_type&& sStr) noexcept { m_rep = std::move(sStr); return *this; }
-	KString& operator= (std::initializer_list<value_type> il) { m_rep = il; return *this; }
-	KString& operator= (KStringView sv) { m_rep.assign(sv.data(), sv.size()); return *this; }
-#ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
-	KString& operator= (const std::string& sStr) { m_rep = sStr; return *this; }
-#endif
+	KString& operator= (const KString& str) = default;
+	KString& operator= (KString&& str) noexcept = default;
 
 	// std methods
 	KString& append(const KString& str){ m_rep.append(str.m_rep); return *this; }

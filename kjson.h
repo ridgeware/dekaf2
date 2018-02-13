@@ -120,7 +120,7 @@ public:
 	}
 */
 	bool        Parse     (KStringView sJSON);
-	string_t    GetString (const char* sKey);
+	string_t    GetString (const KString& sKey);
 	KJSON       GetObject (const KString& sKey);
 	const KString& GetLastError () { return m_sLastError; }
 

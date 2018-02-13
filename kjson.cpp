@@ -65,7 +65,7 @@ bool KJSON::Parse (KStringView sJSON)
 } // parse
 
 //-----------------------------------------------------------------------------
-KJSON::string_t KJSON::GetString (const char* sKey)
+KJSON::string_t KJSON::GetString (const KString& sKey)
 //-----------------------------------------------------------------------------
 {
 	ClearError();
@@ -73,7 +73,7 @@ KJSON::string_t KJSON::GetString (const char* sKey)
 	try
 	{
 		kDebug (1, "about to access string: {}", sKey);
-		return this->value(sKey, "");
+		return this->value(sKey.c_str(), "");
 	}
 	catch (const LJSON::exception& exc)
 	{

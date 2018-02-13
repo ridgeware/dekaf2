@@ -46,52 +46,173 @@
 #include "kstring.h"
 #include "kstringview.h"
 
-namespace dekaf2 {
+namespace nlohmann {
 
-using LJSON = nlohmann::json;
-
-inline void to_json(LJSON& j, const KString& s)
+inline void to_json(json& j, const ::dekaf2::KString& s)
 {
 	j = nlohmann::json{s.ToStdString()};
 }
 
-inline void from_json(const LJSON& j, KString& s)
+inline void from_json(const json& j, ::dekaf2::KString& s)
 {
 	s = j.get<std::string>();
 }
 
-inline void to_json(LJSON& j, const KStringView& s)
+inline void to_json(json& j, const ::dekaf2::KStringView& s)
 {
 	std::string s1(s.data(), s.size());
 	j = nlohmann::json{s1};
 }
 
-inline void from_json(const LJSON& j, KStringView& s)
+inline void from_json(const json& j, ::dekaf2::KStringView& s)
 {
 	s = j.get<std::string>();
 }
 
+}
+
+namespace dekaf2 {
+
+using LJSON = nlohmann::json;
+
+//using LJSON = nlohmann::basic_json<std::map, std::vector, KString >;
+
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class KJSON
+class KJSON : public LJSON
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 //----------
 public:
 //----------
-	bool        Parse     (KStringView sJSON);
-	KString     GetString (const KString& sKey);
-	KJSON       GetObject (const KString& sKey);
-	KStringView GetLastError () { return m_sLastError; }
 
-	void        clear     () { m_obj.clear(); }
-	bool        empty     () const { return m_obj.empty(); }
-	auto        begin     () { return m_obj.begin(); }
-	auto        end       () { return m_obj.end(); }
-	auto        cbegin    () const { return m_obj.cbegin(); }
-	auto        cend      () const { return m_obj.cend(); }
-	bool        FormError (const LJSON::exception& exc);
+	using string_t        = LJSON::string_t;
+	using value_type      = LJSON::value_type;
+	using reference       = LJSON::reference;
+	using const_reference = LJSON::const_reference;
+
+	template<class T>
+	KJSON(initializer_list_t init,
+			bool type_deduction = true,
+			value_t manual_type = value_t::array
+)
+	: LJSON(init, type_deduction, manual_type)
+	{
+	}
+
+	template<class...Args>
+	KJSON(Args&&...args)
+	: LJSON(std::forward<Args>(args)...)
+	{
+	}
+/*
+	KJSON& operator=(const KJSON& other)
+	{
+		LJSON::operator=(other);
+		m_sLastError = other.m_sLastError;
+		return *this;
+	}
+
+	KJSON& operator=(KJSON&& other)
+	{
+		LJSON::operator=(std::move(other));
+		m_sLastError = std::move(other.m_sLastError);
+		return *this;
+	}
+*/
+	bool        Parse     (KStringView sJSON);
+	string_t    GetString (const char* sKey);
+	KJSON       GetObject (const KString& sKey);
+	const KString& GetLastError () { return m_sLastError; }
+
+	bool Exists(const KString& Key) const
+	{
+		return LJSON::find(Key) != LJSON::end();
+	}
+
+	bool IsObject(const KString& Key) const
+	{
+		auto it = LJSON::find(Key);
+		return (it != LJSON::end() && it->is_object());
+	}
+
+	bool IsArray(const KString& Key) const
+	{
+		auto it = LJSON::find(Key);
+		return (it != LJSON::end() && it->is_array());
+	}
+
+	bool IsString(const KString& Key) const
+	{
+		auto it = LJSON::find(Key);
+		return (it != LJSON::end() && it->is_string());
+	}
+
+	bool IsInteger(const KString& Key) const
+	{
+		auto it = LJSON::find(Key);
+		return (it != LJSON::end() && it->is_number_integer());
+	}
+
+	bool IsFloat(const KString& Key) const
+	{
+		auto it = LJSON::find(Key);
+		return (it != LJSON::end() && it->is_number_float());
+	}
+
+	bool IsNull(const KString& Key) const
+	{
+		auto it = LJSON::find(Key);
+		return (it != LJSON::end() && it->is_null());
+	}
+
+	bool IsBoolean(const KString& Key) const
+	{
+		auto it = LJSON::find(Key);
+		return (it != LJSON::end() && it->is_boolean());
+	}
+
+	/// This overload of the operator[] simply calls the existing operator[] of LJSON.
+	/// The only additional protection it gives is to not throw when being called on
+	/// non-objects.
+	template<typename T>
+	reference operator[](T* Key)
+	{
+		ClearError();
+
+		try
+		{
+			return LJSON::operator[](Key);
+		}
+		catch (const LJSON::exception& exc)
+		{
+			FormError(exc);
+		}
+
+		static value_type s_empty;
+
+		return s_empty;
+	}
+
+	/// We do not want this overload of the operator[] as it would abort on nonexisting keys
+	template<typename T>
+	const_reference operator[](T* Key) const
+	{
+		static_assert(sizeof(Key) == 0, "this version of operator[] is intentionally blocked");
+		static value_type s_empty;
+		return s_empty;
+	}
+
+	reference operator[](const KString& Key)
+	{
+		return operator[](Key.c_str());
+	}
+
+/*
 	const LJSON& Object   () const { return m_obj; }
 	LJSON&      Object    () { return m_obj; }
+*/
+
+	bool        FormError (const LJSON::exception& exc) const;
 
 	/// wrap the given string with double-quotes and escape it for legal json
 	static KString EscWrap (KString sString);
@@ -105,12 +226,10 @@ public:
 //----------
 private:
 //----------
-	void        ClearError() { m_sLastError.clear(); }
+	void        ClearError() const { m_sLastError.clear(); }
 
-	LJSON       m_obj;
-	KString     m_sLastError;
+	mutable KString m_sLastError;
 
 }; // KJSON
-
 
 } // end of namespace dekaf2

@@ -53,8 +53,8 @@ bool KJSON::Parse (KStringView sJSON)
 
 	try
 	{
-		m_obj.clear();
-		m_obj = LJSON::parse(sJSON);
+		this->clear();
+		*this = LJSON::parse(sJSON.cbegin(), sJSON.cend());
 		return true;
 	}
 	catch (const LJSON::exception& exc)
@@ -65,24 +65,22 @@ bool KJSON::Parse (KStringView sJSON)
 } // parse
 
 //-----------------------------------------------------------------------------
-KString KJSON::GetString (const KString& sKey)
+KJSON::string_t KJSON::GetString (const char* sKey)
 //-----------------------------------------------------------------------------
 {
 	ClearError();
 
-	std::string sReturnMe;
-
 	try
 	{
 		kDebug (1, "about to access string: {}", sKey);
-		sReturnMe = m_obj[sKey.c_str()];
+		return this->value(sKey, "");
 	}
 	catch (const LJSON::exception& exc)
 	{
 		FormError(exc);
 	}
 
-	return (sReturnMe);
+	return "";
 
 } // KJSON::GetString
 
@@ -97,7 +95,7 @@ KJSON KJSON::GetObject (const KString& sKey)
 	try
 	{
 		kDebug (1, "about to access object: {}", sKey);
-		oReturnMe.m_obj = m_obj[sKey.c_str()];
+		oReturnMe = LJSON::operator[](sKey.c_str());
 		kDebug (1, "got an object.");
 		return (oReturnMe);
 	}
@@ -111,7 +109,7 @@ KJSON KJSON::GetObject (const KString& sKey)
 } // KJSON::GetObject
 
 //-----------------------------------------------------------------------------
-bool KJSON::FormError (const LJSON::exception& exc)
+bool KJSON::FormError (const LJSON::exception& exc) const
 //-----------------------------------------------------------------------------
 {
 	m_sLastError.Printf ("JSON[%03d]: %s", exc.id, exc.what());

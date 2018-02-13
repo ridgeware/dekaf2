@@ -150,6 +150,7 @@ public:
 	KString (const KString& str, size_type pos, size_type len = npos) : m_rep(str.m_rep, (pos > str.size()) ? str.size() : pos, len){}
 	KString (const string_type& sStr) : m_rep(sStr){}
 	KString (size_type iCount, value_type ch) : m_rep(iCount, ch){}
+	KString (value_type ch) : m_rep(1, ch){}
 	KString (const value_type* s) : m_rep(s?s:""){}
 	KString (const value_type* pszString, size_type iCount) : m_rep(pszString?pszString:"", pszString?iCount:0){}
 	KString (const value_type* pszString, size_type iRoff, size_type iCount) : m_rep(pszString?pszString:"", pszString?iRoff:0, pszString?iCount:0){}

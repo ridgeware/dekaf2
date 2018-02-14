@@ -55,8 +55,6 @@
 namespace dekaf2
 {
 
-// create some helpers for older C++ versions than C++14
-
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 template<class Key, class Value, bool Unique>
 class KProps_map

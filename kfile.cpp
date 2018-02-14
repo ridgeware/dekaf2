@@ -297,7 +297,7 @@ time_t kGetLastMod(const KString& sFilePath)
 	{
 		return -1;  // <-- file doesn't exist
 	}
-#ifdef __APPLE__
+#ifdef DEKAF2_IS_OSX
         return StatStruct.st_mtimespec.tv_sec;
 #else
         return StatStruct.st_mtim.tv_sec;

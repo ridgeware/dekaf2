@@ -97,11 +97,26 @@ public:
 //----------
 	KCOL () = default;
 
-	KCOL (KStringView _sValue, uint64_t _iFlags=0, uint32_t _iMaxLen=0)
+	KCOL (KString&& _sValue, uint64_t _iFlags=0, uint32_t _iMaxLen=0)
+		: sValue(std::move(_sValue))
+		, iFlags(_iFlags)
+		, iMaxLen(_iMaxLen)
 	{
-		sValue  = _sValue;
-		iFlags  = _iFlags;
-		iMaxLen = _iMaxLen;
+	}
+
+	KCOL (KStringView _sValue, uint64_t _iFlags=0, uint32_t _iMaxLen=0)
+		: KCOL(KString(_sValue), _iFlags, _iMaxLen)
+	{
+	}
+
+	KCOL (const std::string& _sValue, uint64_t _iFlags=0, uint32_t _iMaxLen=0)
+		: KCOL(KString(_sValue), _iFlags, _iMaxLen)
+	{
+	}
+
+	KCOL (const char* _sValue, uint64_t _iFlags=0, uint32_t _iMaxLen=0)
+		: KCOL(KString(_sValue), _iFlags, _iMaxLen)
+	{
 	}
 
 	KCOL (KCOL&&)                  = default;
@@ -110,9 +125,10 @@ public:
 	KCOL& operator = (const KCOL&) = default;
 
 	KString  sValue;  // aka "second"
-	uint64_t iFlags;
-	uint32_t iMaxLen;
-};
+	uint64_t iFlags{0};
+	uint32_t iMaxLen{0};
+
+}; // KCOL
 
 typedef KProps <KString, KCOL,    /*order-matters=*/true, /*unique-keys*/true> KCOLS;
 
@@ -123,11 +139,13 @@ class KROW : public KCOLS, public detail::KCommonSQLBase
 //----------
 public:
 //----------
-	KROW (const char* szTablename) {
+	KROW (const char* szTablename)
+	{
 		m_sTablename =  szTablename;
 	}
 
-	KROW (KStringView sTablename) {
+	KROW (KStringView sTablename)
+	{
 		m_sTablename =  sTablename;
 	}
 
@@ -142,42 +160,44 @@ public:
 	{
 	}
 
-	void SetTablename (KStringView sTablename) {
+	void SetTablename (KStringView sTablename)
+	{
 		m_sTablename =  sTablename;
 	}
 
-	bool AddCol (KStringView sColName, KStringView sValue=nullptr, uint64_t iFlags=0, uint32_t iMaxLen=0) {
+	bool AddCol (KStringView sColName, KStringView sValue, uint64_t iFlags=0, uint32_t iMaxLen=0)
+	{
 		KCOL col (sValue, iFlags, iMaxLen);
-		return (KCOLS::Add (sColName, col) != KCOLS::end());
+		return (KCOLS::Add (sColName, std::move(col)) != KCOLS::end());
 	}
 
-	bool AddCol (KStringView sColName, int64_t iValue, uint64_t iFlags=0, uint32_t iMaxLen=0) {
-		KString sValue; sValue.Format ("{}", iValue);
-		KCOL col (sValue, iFlags, iMaxLen);
-		return (KCOLS::Add (sColName, col) != KCOLS::end());
+	bool AddCol (KStringView sColName, int64_t iValue, uint64_t iFlags=0, uint32_t iMaxLen=0)
+	{
+		KCOL col (kFormat("{}", iValue), iFlags, iMaxLen);
+		return (KCOLS::Add (sColName, std::move(col)) != KCOLS::end());
 	}
 
-	bool AddCol (KStringView sColName, uint64_t iValue, uint64_t iFlags=0, uint32_t iMaxLen=0) {
-		KString sValue; sValue.Format ("{}", iValue);
-		KCOL col (sValue, iFlags, iMaxLen);
-		return (KCOLS::Add (sColName, col) != KCOLS::end());
+	bool AddCol (KStringView sColName, uint64_t iValue, uint64_t iFlags=0, uint32_t iMaxLen=0)
+	{
+		KCOL col (kFormat("{}", iValue), iFlags, iMaxLen);
+		return (KCOLS::Add (sColName, std::move(col)) != KCOLS::end());
 	}
 
 	bool AddCol (KStringView sColName, double nValue, uint64_t iFlags=0, uint32_t iMaxLen=0)
 	{
-		KString sValue; sValue.Format ("{}", nValue);
-		KCOL col (sValue, iFlags, iMaxLen);
-		return (KCOLS::Add (sColName, col) != KCOLS::end());
+		KCOL col (kFormat("{}", nValue), iFlags, iMaxLen);
+		return (KCOLS::Add (sColName, std::move(col)) != KCOLS::end());
 	}
 
 	bool SetValue (KStringView sColName, KStringView sValue)
 	{
 		auto it = KCOLS::find (sColName);
-		if (it == KCOLS::end()) {
-			KCOL col(sValue);
-			return (KCOLS::Add (sColName, col) != KCOLS::end());
+		if (it == KCOLS::end())
+		{
+			return (KCOLS::Add (sColName, KCOL(sValue)) != KCOLS::end());
 		}
-		else {
+		else
+		{
 			it->second.sValue = sValue;
 			return (true);
 		}
@@ -187,12 +207,13 @@ public:
 	{
 		KString sValue; sValue.Format ("{}", iValue);
 		auto it = KCOLS::find (sColName);
-		if (it == KCOLS::end()) {
-			KCOL col(sValue);
-			return (KCOLS::Add (sColName, col) != KCOLS::end());
+		if (it == KCOLS::end())
+		{
+			return (KCOLS::Add (sColName, KCOL(std::move(sValue))) != KCOLS::end());
 		}
-		else {
-			it->second.sValue = sValue;
+		else
+		{
+			it->second.sValue = std::move(sValue);
 			return (true);
 		}
 	}
@@ -222,7 +243,8 @@ public:
 	}
 
 	/// Returns the maximum character length of the Nth column if it was set (note: column index starts at 0).
-	uint32_t MaxLength (uint32_t iZeroBasedIndex) {
+	uint32_t MaxLength (uint32_t iZeroBasedIndex)
+	{
 		return (at (iZeroBasedIndex).second.iMaxLen);
 	}
 

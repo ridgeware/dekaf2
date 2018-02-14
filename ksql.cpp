@@ -6217,7 +6217,7 @@ size_t KSQL::OutputQuery (KStringView sSQL, int iFormat/*=FORM_ASCII*/, FILE* fp
 					size_t    iLen   = sValue.length();
 					size_t    iMax   = Widths.Get (sName).UInt32();
 					if ((iLen > iMax) && (iLen <= MAXCOLWIDTH))  {
-						Widths.Add (sName, std::to_string(iLen));
+						Widths.Add (sName, KString::to_string(iLen));
 					}
 				}
 			}
@@ -6229,7 +6229,7 @@ size_t KSQL::OutputQuery (KStringView sSQL, int iFormat/*=FORM_ASCII*/, FILE* fp
 				size_t  iLen  = sValue.length();
 				size_t  iMax  = Widths.Get (sName).UInt32();
 				if ((iLen > iMax) && (iLen <= MAXCOLWIDTH))  {
-					Widths.Add (sName, std::to_string(iLen));
+					Widths.Add (sName, KString::to_string(iLen));
 				}
 			}
 		}

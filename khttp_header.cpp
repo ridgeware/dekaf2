@@ -198,7 +198,7 @@ bool KHeader::Serialize(KOutStream& outStream)
 		outStream.Write("HTTP/");
 		outStream.Write(m_sResponseVersion);
 		outStream.Write(' ');
-		outStream.Write(std::to_string(m_iResponseStatusCode));
+		outStream.Write(KString::to_string(m_iResponseStatusCode));
 		outStream.Write(' ');
 		outStream.Write(m_sResponseStatus);
 		outStream.WriteLine();

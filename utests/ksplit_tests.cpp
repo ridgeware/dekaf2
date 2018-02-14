@@ -13,8 +13,8 @@ using std::vector;
 
 SCENARIO ( "ksplit unit tests on valid data" )
 {
-	static std::string sEmpty("");
-	static std::string sComma(",");
+	static KString sEmpty("");
+	static KString sComma(",");
 
 	GIVEN ( "a valid simple comma-delimited string" )
 	{

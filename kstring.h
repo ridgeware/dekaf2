@@ -150,7 +150,6 @@ public:
 	KString (const KString& str, size_type pos, size_type len = npos) : m_rep(str.m_rep, (pos > str.size()) ? str.size() : pos, len){}
 	KString (const string_type& sStr) : m_rep(sStr){}
 	KString (size_type iCount, value_type ch) : m_rep(iCount, ch){}
-	KString (value_type ch) : m_rep(1, ch){}
 	KString (const value_type* s) : m_rep(s?s:""){}
 	KString (const value_type* pszString, size_type iCount) : m_rep(pszString?pszString:"", pszString?iCount:0){}
 	KString (const value_type* pszString, size_type iRoff, size_type iCount) : m_rep(pszString?pszString:"", pszString?iRoff:0, pszString?iCount:0){}
@@ -177,6 +176,7 @@ public:
 	// operator=
 	KString& operator= (const KString& str) = default;
 	KString& operator= (KString&& str) noexcept = default;
+	KString& operator= (value_type ch) { append(1, ch); return *this; }
 
 	// std methods
 	KString& append(const KString& str){ m_rep.append(str.m_rep); return *this; }
@@ -215,17 +215,17 @@ public:
 	KString& assign(const std::string& str, size_type pos, size_type n = npos);
 #endif
 
-	int compare(const KString& str) const { return KStringView(*this).compare(str); }
-	int compare(size_type pos, size_type n, const KString& str) const { return KStringView(*this).compare(pos, n, str); }
-	int compare(size_type pos1, size_type n1, const KString& str, size_type pos2, size_type n2 = npos) const { return KStringView(*this).compare(pos1, n1, str, pos2, n2); }
-	int compare(const string_type& str) const { return KStringView(*this).compare(KStringView(str.data(), str.size())); }
-	int compare(size_type pos, size_type n, const string_type& str) const { return KStringView(*this).compare(pos, n, KStringView(str.data(), str.size())); }
-	int compare(size_type pos1, size_type n1, const string_type& str, size_type pos2, size_type n2 = npos) const { return KStringView(*this).compare(pos1, n1, KStringView(str.data(), str.size()), pos2, n2); }
-	int compare(const value_type* s) const { return KStringView(*this).compare(s); }
-	int compare(size_type pos, size_type n1, const value_type* s) const { return KStringView(*this).compare(pos, n1, s); }
-	int compare(size_type pos, size_type n1, const value_type* s, size_type n2) const { return KStringView(*this).compare(pos, n1, s, n2); }
-	int compare(KStringView sv) const { return KStringView(*this).compare(sv); }
-	int compare(size_type pos, size_type n1, KStringView sv) const { return KStringView(*this).compare(pos, n1, sv); }
+	int compare(const KString& str) const { return ToView().compare(str.ToView()); }
+	int compare(size_type pos, size_type n, const KString& str) const { return ToView().compare(pos, n, str.ToView()); }
+	int compare(size_type pos1, size_type n1, const KString& str, size_type pos2, size_type n2 = npos) const { return ToView().compare(pos1, n1, str.ToView(), pos2, n2); }
+	int compare(const string_type& str) const { return ToView().compare(KStringView(str.data(), str.size())); }
+	int compare(size_type pos, size_type n, const string_type& str) const { return ToView().compare(pos, n, KStringView(str.data(), str.size())); }
+	int compare(size_type pos1, size_type n1, const string_type& str, size_type pos2, size_type n2 = npos) const { return ToView().compare(pos1, n1, KStringView(str.data(), str.size()), pos2, n2); }
+	int compare(const value_type* s) const { return ToView().compare(s); }
+	int compare(size_type pos, size_type n1, const value_type* s) const { return ToView().compare(pos, n1, s); }
+	int compare(size_type pos, size_type n1, const value_type* s, size_type n2) const { return ToView().compare(pos, n1, s, n2); }
+	int compare(KStringView sv) const { return ToView().compare(sv); }
+	int compare(size_type pos, size_type n1, KStringView sv) const { return ToView().compare(pos, n1, sv); }
 #ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
 	int compare(const std::string& str) const { return KStringView(*this).compare(str); }
 	int compare(size_type pos, size_type n, const std::string& str) const { return KStringView(*this).compare(pos, n, str); }
@@ -235,8 +235,8 @@ public:
 	size_type copy(value_type* s, size_type n, size_type pos = 0) const;
 
 #if defined(DEKAF2_USE_OPTIMIZED_STRING_FIND)
-	size_type find(value_type c, size_type pos = 0) const { return kFind(*this, c, pos); }
-	size_type find(KStringView sv, size_type pos = 0) const { return kFind(*this, sv, pos); }
+	size_type find(value_type c, size_type pos = 0) const { return kFind(ToView(), c, pos); }
+	size_type find(KStringView sv, size_type pos = 0) const { return kFind(ToView(), sv, pos); }
 	size_type find(const value_type* s, size_type pos, size_type n) const { return find(KStringView(s, n), pos); }
 #else
 	size_type find(value_type c, size_type pos = 0) const { return m_rep.find(c, pos); }
@@ -251,8 +251,8 @@ public:
 #endif
 
 #if defined(DEKAF2_USE_OPTIMIZED_STRING_FIND)
-	size_type rfind(value_type c, size_type pos = npos) const { return kRFind(*this, c, pos); }
-	size_type rfind(KStringView sv, size_type pos = npos) const { return kRFind(*this, sv, pos); }
+	size_type rfind(value_type c, size_type pos = npos) const { return kRFind(ToView(), c, pos); }
+	size_type rfind(KStringView sv, size_type pos = npos) const { return kRFind(ToView(), sv, pos); }
 	size_type rfind(const value_type* s, size_type pos, size_type n) const { return rfind(KStringView(s, n), pos); }
 #else
 	size_type rfind(value_type c, size_type pos = npos) const { return m_rep.rfind(c, pos); }
@@ -283,7 +283,7 @@ public:
 
 	size_type find_last_of(value_type c, size_type pos = npos) const { return rfind(c, pos); }
 #if defined(DEKAF2_USE_OPTIMIZED_STRING_FIND)
-	size_type find_last_of(KStringView sv, size_type pos = npos) const { return kFindLastOf(*this, sv, pos); }
+	size_type find_last_of(KStringView sv, size_type pos = npos) const { return kFindLastOf(ToView(), sv, pos); }
 	size_type find_last_of(const value_type* s, size_type pos, size_type n) const { return find_last_of(KStringView(s, n), pos); }
 #else
 	size_type find_last_of(const value_type* s, size_type pos, size_type n) const { return (DEKAF2_UNLIKELY(n == 1)) ? rfind(*s, pos) : m_rep.find_last_of(s, pos, n); }
@@ -314,7 +314,7 @@ public:
 
 #if defined(DEKAF2_USE_OPTIMIZED_STRING_FIND)
 	size_type find_last_not_of(value_type c, size_type pos = npos) const { return find_last_not_of(&c, pos, 1); }
-	size_type find_last_not_of(KStringView sv, size_type pos = npos) const { return kFindLastNotOf(*this, sv, pos); }
+	size_type find_last_not_of(KStringView sv, size_type pos = npos) const { return kFindLastNotOf(ToView(), sv, pos); }
 	size_type find_last_not_of(const value_type* s, size_type pos, size_type n) const { return find_last_not_of(KStringView(s, n), pos); }
 #else
 	size_type find_last_not_of(value_type c, size_type pos = npos) const { return m_rep.find_last_not_of(c, pos); }
@@ -453,10 +453,10 @@ public:
 	size_type Replace(KStringView sSearch, value_type sReplace, size_type pos = 0, bool bReplaceAll = true);
 
 	/// does the string start with sPattern?
-	bool StartsWith(KStringView sPattern) const { return kStartsWith(*this, sPattern); }
+	bool StartsWith(KStringView sPattern) const { return kStartsWith(ToView(), sPattern); }
 
 	/// does the string end with sPattern?
-	bool EndsWith(KStringView sPattern) const { return kEndsWith(*this, sPattern); }
+	bool EndsWith(KStringView sPattern) const { return kEndsWith(ToView(), sPattern); }
 
 	/// changes the string to lowercase
 	KString& MakeLower();
@@ -465,10 +465,10 @@ public:
 	KString& MakeUpper();
 
 	/// returns a copy of the string in uppercase
-	KString ToUpper() const { return kToUpper(*this); }
+	KString ToUpper() const { return kToUpper(ToView()); }
 
 	/// returns a copy of the string in lowercase
-	KString ToLower() const { return kToLower(*this); }
+	KString ToLower() const { return kToLower(ToView()); }
 
 	/// returns leftmost iCount chars of string
 	KStringView Left(size_type iCount) const;
@@ -535,10 +535,10 @@ public:
 	string_type& str() { return m_rep; }
 
 	/// convert to KStringView
-	operator KStringView() const { return KStringView(data(), size()); }
+	operator KStringView() const { return ToView(); }
 
 	/// return a KStringView
-	KStringView ToView() const { return operator KStringView(); }
+	KStringView ToView() const { return KStringView(data(), size()); }
 
 	/// return a KStringView much like a substr(), but without the cost
 	KStringView ToView(size_type pos, size_type n = npos) const;
@@ -578,57 +578,57 @@ public:
 	bool Bool() const noexcept
 	//-----------------------------------------------------------------------------
 	{
-		return (KStringView(*this).Int16() != 0);
+		return (ToView().Int16() != 0);
 	}
 	//-----------------------------------------------------------------------------
 	int16_t Int16(bool bIsHex = false) const noexcept
 	//-----------------------------------------------------------------------------
 	{
-		return KStringView(*this).Int16(bIsHex);
+		return ToView().Int16(bIsHex);
 	}
 	//-----------------------------------------------------------------------------
 	uint16_t UInt16(bool bIsHex = false) const noexcept
 	//-----------------------------------------------------------------------------
 	{
-		return KStringView(*this).UInt16(bIsHex);
+		return ToView().UInt16(bIsHex);
 	}
 
 	//-----------------------------------------------------------------------------
 	int32_t Int32(bool bIsHex = false) const noexcept
 	//-----------------------------------------------------------------------------
 	{
-		return KStringView(*this).Int32(bIsHex);
+		return ToView().Int32(bIsHex);
 	}
 	//-----------------------------------------------------------------------------
 	uint32_t UInt32(bool bIsHex = false) const noexcept
 	//-----------------------------------------------------------------------------
 	{
-		return KStringView(*this).UInt32(bIsHex);
+		return ToView().UInt32(bIsHex);
 	}
 
 	//-----------------------------------------------------------------------------
-	int64_t Int64(bool bIsHex = false) const noexcept { return KStringView(*this).Int64(bIsHex); }
+	int64_t Int64(bool bIsHex = false) const noexcept { return ToView().Int64(bIsHex); }
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	uint64_t UInt64(bool bIsHex = false) const noexcept
 	//-----------------------------------------------------------------------------
 	{
-		return KStringView(*this).UInt64(bIsHex);
+		return ToView().UInt64(bIsHex);
 	}
 
 	//-----------------------------------------------------------------------------
 	int128_t Int128(bool bIsHex = false) const noexcept
 	//-----------------------------------------------------------------------------
 	{
-		return KStringView(*this).Int128(bIsHex);
+		return ToView().Int128(bIsHex);
 	}
 
 	//-----------------------------------------------------------------------------
 	uint128_t UInt128(bool bIsHex = false) const noexcept
 	//-----------------------------------------------------------------------------
 	{
-		return KStringView(*this).UInt128(bIsHex);
+		return ToView().UInt128(bIsHex);
 	}
 
 	//-----------------------------------------------------------------------------

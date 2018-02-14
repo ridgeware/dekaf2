@@ -128,7 +128,7 @@ bool KHTTP::Request(KStringView svPostData, KStringView svMime)
 	{
 		if (m_Method == KMethod::POST)
 		{
-			RequestHeader(KHeader::CONTENT_LENGTH, std::to_string(svPostData.size()));
+			RequestHeader(KHeader::CONTENT_LENGTH, KString::to_string(svPostData.size()));
 			RequestHeader(KHeader::CONTENT_TYPE,   svMime.empty() ? KMIME::TEXT_PLAIN : svMime);
 		}
 		m_Stream->WriteLine();

@@ -164,7 +164,7 @@ std::unique_ptr<KConnection> KConnection::Create(const KURL& URL, bool bVerifyCe
 
 	if (Port.empty())
 	{
-		Port = std::to_string(URL.Protocol.DefaultPort());
+		Port = KString::to_string(URL.Protocol.DefaultPort());
 	}
 
 	if (URL.Protocol == url::KProtocol::HTTPS)
@@ -200,7 +200,7 @@ std::unique_ptr<KConnection> KConnection::Create(const KURL& URL, const KProxy& 
 
 	if (Port.empty())
 	{
-		Port = std::to_string(URL.Protocol.DefaultPort());
+		Port = KString::to_string(URL.Protocol.DefaultPort());
 	}
 
 	if (URL.Protocol == url::KProtocol::HTTPS)

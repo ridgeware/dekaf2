@@ -324,7 +324,7 @@ void KLogTTYSerializer::Serialize() const
 void KLogJSONSerializer::Serialize() const
 //---------------------------------------------------------------------------
 {
-	LJSON json;
+	KJSON json;
 	json["level"]         = m_Level;
 	json["pid"]           = m_Pid;
 	json["time_t"]        = m_Time;
@@ -722,7 +722,7 @@ void KLog::IntException(KStringView sWhat, KStringView sFunction, KStringView sC
 	}
 	if (!sClass.empty())
 	{
-		IntDebug(-2, kFormat("{0}::{1}()", sClass, sFunction), kFormat("caught exception: '{}'", sWhat));
+		IntDebug(-2, kFormat("{0}::{1}()", sClass, sFunction), kFormat("caught exception: '{0}'", sWhat));
 	}
 	else
 	{

@@ -9,7 +9,8 @@ TEST_CASE("KJSON")
 {
 	SECTION("Basic construction")
 	{
-		KJSON j1 = R"(
+		KJSON j1;
+		j1.Parse(R"(
 				   {
 				       "key1": "val1",
 				       "key2": "val2",
@@ -19,7 +20,7 @@ TEST_CASE("KJSON")
 		                   "value": 42.99
 				       }
 				   }
-				   )"_json;
+				   )");
 
 		KString value;
 		value = j1["key1"];
@@ -64,9 +65,6 @@ TEST_CASE("KJSON")
 
 		value = j1.GetString("not existing");
 		CHECK ( value == "" );
-
-		KJSON obj = j1.GetObject("none");
-		value = obj;
 	}
 /*
 	SECTION("Initializer list construction")

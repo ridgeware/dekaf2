@@ -46,36 +46,19 @@
 #include "kstring.h"
 #include "kstringview.h"
 
-namespace nlohmann {
-
-inline void to_json(json& j, const ::dekaf2::KString& s)
-{
-	j = nlohmann::json{s.ToStdString()};
-}
-
-inline void from_json(const json& j, ::dekaf2::KString& s)
-{
-	s = j.get<std::string>();
-}
-
-inline void to_json(json& j, const ::dekaf2::KStringView& s)
-{
-	std::string s1(s.data(), s.size());
-	j = nlohmann::json{s1};
-}
-
-inline void from_json(const json& j, ::dekaf2::KStringView& s)
-{
-	s = j.get<std::string>();
-}
-
-}
+using LJSON = nlohmann::basic_json<std::map, std::vector, dekaf2::KString >;
 
 namespace dekaf2 {
 
-using LJSON = nlohmann::json;
+inline void to_json(LJSON& j, const dekaf2::KStringView& s)
+{
+	j = LJSON{s.begin(), s.end()};
+}
 
-//using LJSON = nlohmann::basic_json<std::map, std::vector, KString >;
+inline void from_json(const LJSON& j, dekaf2::KStringView& s)
+{
+	s = j.get<LJSON::string_t>();
+}
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class KJSON : public LJSON

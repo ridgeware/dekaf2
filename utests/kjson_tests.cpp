@@ -59,11 +59,14 @@ TEST_CASE("KJSON")
 			CHECK ( false );
 		}
 
-		KString ks;
-		std::basic_string<char> std("abcde");
-		ks = std;
+		value = j1.GetString("key2");
+		CHECK ( value == "val2" );
 
-		CHECK( ks == "abcde" );
+		value = j1.GetString("not existing");
+		CHECK ( value == "" );
+
+		KJSON obj = j1.GetObject("none");
+		value = obj;
 	}
 /*
 	SECTION("Initializer list construction")

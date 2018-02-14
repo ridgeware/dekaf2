@@ -120,55 +120,98 @@ public:
 	}
 */
 	bool        Parse     (KStringView sJSON);
-	string_t    GetString (const KString& sKey);
+
 	KJSON       GetObject (const KString& sKey);
+
+	KString     GetString (const KString& sKey);
+
 	const KString& GetLastError () { return m_sLastError; }
 
-	bool Exists(const KString& Key) const
+	bool Exists(const char* Key) const
 	{
 		return LJSON::find(Key) != LJSON::end();
 	}
 
-	bool IsObject(const KString& Key) const
+	bool IsObject(const char* Key) const
 	{
 		auto it = LJSON::find(Key);
 		return (it != LJSON::end() && it->is_object());
 	}
 
-	bool IsArray(const KString& Key) const
+	bool IsArray(const char* Key) const
 	{
 		auto it = LJSON::find(Key);
 		return (it != LJSON::end() && it->is_array());
 	}
 
-	bool IsString(const KString& Key) const
+	bool IsString(const char* Key) const
 	{
 		auto it = LJSON::find(Key);
 		return (it != LJSON::end() && it->is_string());
 	}
 
-	bool IsInteger(const KString& Key) const
+	bool IsInteger(const char* Key) const
 	{
 		auto it = LJSON::find(Key);
 		return (it != LJSON::end() && it->is_number_integer());
 	}
 
-	bool IsFloat(const KString& Key) const
+	bool IsFloat(const char* Key) const
 	{
 		auto it = LJSON::find(Key);
 		return (it != LJSON::end() && it->is_number_float());
 	}
 
-	bool IsNull(const KString& Key) const
+	bool IsNull(const char* Key) const
 	{
 		auto it = LJSON::find(Key);
 		return (it != LJSON::end() && it->is_null());
 	}
 
-	bool IsBoolean(const KString& Key) const
+	bool IsBoolean(const char* Key) const
 	{
 		auto it = LJSON::find(Key);
 		return (it != LJSON::end() && it->is_boolean());
+	}
+
+	bool Exists(const KString& Key) const
+	{
+		return Exists(Key.c_str());
+	}
+
+	bool IsObject(const KString& Key) const
+	{
+		return IsObject(Key.c_str());
+	}
+
+	bool IsArray(const KString& Key) const
+	{
+		return IsArray(Key.c_str());
+	}
+
+	bool IsString(const KString& Key) const
+	{
+		return IsString(Key.c_str());
+	}
+
+	bool IsInteger(const KString& Key) const
+	{
+		return IsInteger(Key.c_str());
+	}
+
+	bool IsFloat(const KString& Key) const
+	{
+		return IsFloat(Key.c_str());
+	}
+
+	bool IsNull(const KString& Key) const
+	{
+		return IsNull(Key.c_str());
+	}
+
+	bool IsBoolean(const KString& Key) const
+	{
+		return IsBoolean(Key.c_str());
 	}
 
 	/// This overload of the operator[] simply calls the existing operator[] of LJSON.
@@ -188,8 +231,6 @@ public:
 			FormError(exc);
 		}
 
-		static value_type s_empty;
-
 		return s_empty;
 	}
 
@@ -198,7 +239,6 @@ public:
 	const_reference operator[](T* Key) const
 	{
 		static_assert(sizeof(Key) == 0, "this version of operator[] is intentionally blocked");
-		static value_type s_empty;
 		return s_empty;
 	}
 
@@ -206,11 +246,6 @@ public:
 	{
 		return operator[](Key.c_str());
 	}
-
-/*
-	const LJSON& Object   () const { return m_obj; }
-	LJSON&      Object    () { return m_obj; }
-*/
 
 	bool        FormError (const LJSON::exception& exc) const;
 
@@ -227,6 +262,8 @@ public:
 private:
 //----------
 	void        ClearError() const { m_sLastError.clear(); }
+
+	static value_type s_empty;
 
 	mutable KString m_sLastError;
 

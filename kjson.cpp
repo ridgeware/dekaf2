@@ -53,34 +53,41 @@ bool KJSON::Parse (KStringView sJSON)
 
 	try
 	{
-		this->clear();
+		clear();
 		*this = LJSON::parse(sJSON.cbegin(), sJSON.cend());
 		return true;
 	}
 	catch (const LJSON::exception& exc)
 	{
+		kDebug (1, "exception was thrown.");
 		return (FormError (exc));
 	}
 
 } // parse
 
 //-----------------------------------------------------------------------------
-KJSON::string_t KJSON::GetString (const KString& sKey)
+KString KJSON::GetString(const KString& sKey)
 //-----------------------------------------------------------------------------
 {
 	ClearError();
 
+	KString oReturnMe;
+
 	try
 	{
-		kDebug (1, "about to access string: {}", sKey);
-		return this->value(sKey.c_str(), "");
+		auto it = find(sKey.c_str());
+		if (it != end() && it->is_string())
+		{
+			oReturnMe = it.value();
+		}
+		return (oReturnMe);
 	}
 	catch (const LJSON::exception& exc)
 	{
+		kDebug (1, "exception was thrown.");
 		FormError(exc);
+		return (oReturnMe);
 	}
-
-	return "";
 
 } // KJSON::GetString
 
@@ -94,9 +101,11 @@ KJSON KJSON::GetObject (const KString& sKey)
 
 	try
 	{
-		kDebug (1, "about to access object: {}", sKey);
-		oReturnMe = LJSON::operator[](sKey.c_str());
-		kDebug (1, "got an object.");
+		auto it = find(sKey.c_str());
+		if (it != end())
+		{
+			oReturnMe = it.value();
+		}
 		return (oReturnMe);
 	}
 	catch (const LJSON::exception& exc)
@@ -189,5 +198,8 @@ KString KJSON::EscWrapNumeric (KString sName, KString sValue, KStringView sPrefi
 	return (sReturnMe);
 
 } // KSJON::EscWrapNumeric
+
+
+KJSON::value_type KJSON::s_empty;
 
 } // end of namespace dekaf2

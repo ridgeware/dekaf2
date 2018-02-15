@@ -52,7 +52,7 @@ namespace dekaf2 {
 
 inline void to_json(LJSON& j, const dekaf2::KStringView& s)
 {
-	j = LJSON{s.begin(), s.end()};
+	j = LJSON::string_t(s);
 }
 
 inline void from_json(const LJSON& j, dekaf2::KStringView& s)
@@ -159,42 +159,50 @@ public:
 
 	bool Exists(const KString& Key) const
 	{
-		return Exists(Key.c_str());
+		auto it = LJSON::find(Key);
+		return (it != LJSON::end());
 	}
 
 	bool IsObject(const KString& Key) const
 	{
-		return IsObject(Key.c_str());
+		auto it = LJSON::find(Key);
+		return (it != LJSON::end() && it->is_object());
 	}
 
 	bool IsArray(const KString& Key) const
 	{
-		return IsArray(Key.c_str());
+		auto it = LJSON::find(Key);
+		return (it != LJSON::end() && it->is_array());
 	}
 
 	bool IsString(const KString& Key) const
 	{
-		return IsString(Key.c_str());
+		auto it = LJSON::find(Key);
+		return (it != LJSON::end() && it->is_string());
 	}
 
 	bool IsInteger(const KString& Key) const
 	{
-		return IsInteger(Key.c_str());
+		auto it = LJSON::find(Key);
+		return (it != LJSON::end() && it->is_number_integer());
 	}
 
 	bool IsFloat(const KString& Key) const
 	{
-		return IsFloat(Key.c_str());
+		auto it = LJSON::find(Key);
+		return (it != LJSON::end() && it->is_number_float());
 	}
 
 	bool IsNull(const KString& Key) const
 	{
-		return IsNull(Key.c_str());
+		auto it = LJSON::find(Key);
+		return (it != LJSON::end() && it->is_null());
 	}
 
 	bool IsBoolean(const KString& Key) const
 	{
-		return IsBoolean(Key.c_str());
+		auto it = LJSON::find(Key);
+		return (it != LJSON::end() && it->is_boolean());
 	}
 
 	/// This overload of the operator[] simply calls the existing operator[] of LJSON.

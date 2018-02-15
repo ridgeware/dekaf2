@@ -328,13 +328,13 @@ void KLogJSONSerializer::Serialize() const
 	json["level"]         = m_Level;
 	json["pid"]           = m_Pid;
 	json["time_t"]        = m_Time;
-	json["short_name"]    = KString(m_sShortName).c_str();
-	json["exe_name"]      = KString(m_sPathName).c_str();
-	json["function_name"] = KString(m_sFunctionName).c_str();
-	json["message"]       = KString(m_sMessage).c_str();
+	json["short_name"]    = KString(m_sShortName);
+	json["exe_name"]      = KString(m_sPathName);
+	json["function_name"] = KString(m_sFunctionName);
+	json["message"]       = KString(m_sMessage);
 	if (!m_sBacktrace.empty())
 	{
-		json["stack"]     = KString(m_sBacktrace).c_str();
+		json["stack"]     = KString(m_sBacktrace);
 	}
 	// pretty print the json into our string buffer
 	m_sBuffer = json.dump(1, '\t');
@@ -399,6 +399,8 @@ KLog::KLog()
 	SetName(Dekaf().GetProgName());
 
 	IntOpenLog();
+	
+	CheckDebugFlag();
 
 	Dekaf().AddToOneSecTimer([this]() {
 		this->CheckDebugFlag();

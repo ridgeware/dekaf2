@@ -260,7 +260,7 @@ public:
 	KSQL (KSQL& Another,  int iDebugID=0);
 	KSQL (KSQL* pAnother, int iDebugID=0);
 
-	virtual ~KSQL ();
+	~KSQL ();
 
 	bool   CopyConnection (KSQL* pAnother);
 	bool   SetConnect (SQLTYPE iDBType, KStringView sUsername, KStringView sPassword, KStringView sDatabase, KStringView sHostname=NULL, uint32_t iDBPortNum=0);
@@ -272,19 +272,19 @@ public:
 	bool   SetDBName (KStringView sDatabase);
 	bool   SetDBPort (int iDBPortNum);
 
-	virtual bool   LoadConnect      (KString sDBCFile);
-	bool           SaveConnect      (KString sDBCFile);
-	int            GetAPISet        ()      { return (m_iAPISet); }
-	bool           SetAPISet        (int iAPISet);
-	virtual bool   OpenConnection   ();
-	virtual bool   OpenConnection   (KStringView sListOfHosts, KStringView sDelimeter = ",");
-	void           CloseConnection  ();
-	bool           IsConnectionOpen ()      { return (m_bConnectionIsOpen); }
+	bool   LoadConnect      (KString sDBCFile);
+	bool   SaveConnect      (KString sDBCFile);
+	int    GetAPISet        ()      { return (m_iAPISet); }
+	bool   SetAPISet        (int iAPISet);
+	bool   OpenConnection   ();
+	bool   OpenConnection   (KStringView sListOfHosts, KStringView sDelimeter = ",");
+	void   CloseConnection  ();
+	bool   IsConnectionOpen ()      { return (m_bConnectionIsOpen); }
 
-	virtual bool   Insert         (KROW& Row);
-	virtual bool   Update         (KROW& Row);
-	bool           Delete         (KROW& Row);
-	bool           InsertOrUpdate (KROW& Row, bool* pbInserted=NULL);
+	bool   Insert         (KROW& Row);
+	bool   Update         (KROW& Row);
+	bool   Delete         (KROW& Row);
+	bool   InsertOrUpdate (KROW& Row, bool* pbInserted=NULL);
 
 	bool   FormInsert     (KROW& Row, KString& sSQL, bool fIdentityInsert=false)
 			{ bool fOK = Row.FormInsert (m_sLastSQL, m_iDBType, fIdentityInsert); sSQL=m_sLastSQL; return (fOK); }

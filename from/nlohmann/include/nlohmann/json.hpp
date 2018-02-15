@@ -4536,7 +4536,7 @@ template<typename IteratorType> class iteration_proxy
         }
 
         /// return key of the iterator
-        std::string key() const
+        typename IteratorType::string_t key() const
         {
             assert(anchor.m_object != nullptr);
 
@@ -8941,6 +8941,8 @@ class json_pointer
     NLOHMANN_BASIC_JSON_TPL_DECLARATION
     friend class basic_json;
 
+    using string_t = typename BasicJsonType::string_t;
+
   public:
     /*!
     @brief create JSON pointer
@@ -8963,7 +8965,7 @@ class json_pointer
 
     @since version 2.0.0
     */
-    explicit json_pointer(const std::string& s = "")
+    explicit json_pointer(const string_t& s = "")
         : reference_tokens(split(s))
     {}
 
@@ -8982,18 +8984,18 @@ class json_pointer
 
     @since version 2.0.0
     */
-    std::string to_string() const noexcept
+    string_t to_string() const noexcept
     {
         return std::accumulate(reference_tokens.begin(), reference_tokens.end(),
-                               std::string{},
-                               [](const std::string & a, const std::string & b)
+                               string_t{},
+                               [](const string_t & a, const string_t & b)
         {
             return a + "/" + escape(b);
         });
     }
 
     /// @copydoc to_string()
-    operator std::string() const
+    operator string_t() const
     {
         return to_string();
     }
@@ -9005,7 +9007,7 @@ class json_pointer
 
     @throw out_of_range.404 if string @a s could not be converted to an integer
     */
-    static int array_index(const std::string& s)
+    static int array_index(const string_t& s)
     {
         std::size_t processed_chars = 0;
         const int res = std::stoi(s, &processed_chars);
@@ -9024,7 +9026,7 @@ class json_pointer
     @brief remove and return last reference pointer
     @throw out_of_range.405 if JSON pointer has no parent
     */
-    std::string pop_back()
+    string_t pop_back()
     {
         if (JSON_UNLIKELY(is_root()))
         {
@@ -9403,9 +9405,9 @@ class json_pointer
     @throw parse_error.107  if the pointer is not empty or begins with '/'
     @throw parse_error.108  if character '~' is not followed by '0' or '1'
     */
-    static std::vector<std::string> split(const std::string& reference_string)
+    static std::vector<string_t> split(const string_t& reference_string)
     {
-        std::vector<std::string> result;
+        std::vector<string_t> result;
 
         // special case: empty reference string -> no reference tokens
         if (reference_string.empty())
@@ -9432,7 +9434,7 @@ class json_pointer
             // we can stop if start == string::npos+1 = 0
             start != 0;
             // set the beginning of the next reference token
-            // (will eventually be 0 if slash == std::string::npos)
+            // (will eventually be 0 if slash == string_t::npos)
             start = slash + 1,
             // find next slash
             slash = reference_string.find_first_of('/', start))
@@ -9443,7 +9445,7 @@ class json_pointer
 
             // check reference tokens are properly escaped
             for (std::size_t pos = reference_token.find_first_of('~');
-                    pos != std::string::npos;
+                    pos != string_t::npos;
                     pos = reference_token.find_first_of('~', pos + 1))
             {
                 assert(reference_token[pos] == '~');
@@ -9478,19 +9480,19 @@ class json_pointer
 
     @since version 2.0.0
     */
-    static void replace_substring(std::string& s, const std::string& f,
-                                  const std::string& t)
+    static void replace_substring(string_t& s, const string_t& f,
+                                  const string_t& t)
     {
         assert(not f.empty());
         for (auto pos = s.find(f);                // find first occurrence of f
-                pos != std::string::npos;         // make sure f was found
+                pos != string_t::npos;         // make sure f was found
                 s.replace(pos, f.size(), t),      // replace with t, and
                 pos = s.find(f, pos + t.size()))  // find next occurrence of f
         {}
     }
 
     /// escape "~"" to "~0" and "/" to "~1"
-    static std::string escape(std::string s)
+    static string_t escape(string_t s)
     {
         replace_substring(s, "~", "~0");
         replace_substring(s, "/", "~1");
@@ -9498,7 +9500,7 @@ class json_pointer
     }
 
     /// unescape "~1" to tilde and "~0" to slash (order is important!)
-    static void unescape(std::string& s)
+    static void unescape(string_t& s)
     {
         replace_substring(s, "~1", "/");
         replace_substring(s, "~0", "~");
@@ -9511,7 +9513,7 @@ class json_pointer
 
     @note Empty objects or arrays are flattened to `null`.
     */
-    static void flatten(const std::string& reference_string,
+    static void flatten(const string_t& reference_string,
                         const BasicJsonType& value,
                         BasicJsonType& result)
     {
@@ -9614,7 +9616,7 @@ class json_pointer
     }
 
     /// the reference tokens
-    std::vector<std::string> reference_tokens;
+    std::vector<string_t> reference_tokens;
 };
 }
 
@@ -16574,7 +16576,7 @@ class basic_json
         // the valid JSON Patch operations
         enum class patch_operations {add, remove, replace, move, copy, test, invalid};
 
-        const auto get_op = [](const std::string & op)
+        const auto get_op = [](const string_t & op)
         {
             if (op == "add")
             {
@@ -16706,8 +16708,8 @@ class basic_json
         for (const auto& val : json_patch)
         {
             // wrapper to get a value for an operation
-            const auto get_value = [&val](const std::string & op,
-                                          const std::string & member,
+            const auto get_value = [&val](const string_t & op,
+                                          const string_t & member,
                                           bool string_type) -> basic_json &
             {
                 // find value
@@ -16739,8 +16741,8 @@ class basic_json
             }
 
             // collect mandatory members
-            const std::string op = get_value("op", "op", true);
-            const std::string path = get_value(op, "path", true);
+            const string_t op = get_value("op", "op", true);
+            const string_t path = get_value(op, "path", true);
             json_pointer ptr(path);
 
             switch (get_op(op))
@@ -16766,7 +16768,7 @@ class basic_json
 
                 case patch_operations::move:
                 {
-                    const std::string from_path = get_value("move", "from", true);
+                    const string_t from_path = get_value("move", "from", true);
                     json_pointer from_ptr(from_path);
 
                     // the "from" location must exist - use at()
@@ -16783,7 +16785,7 @@ class basic_json
 
                 case patch_operations::copy:
                 {
-                    const std::string from_path = get_value("copy", "from", true);
+                    const string_t from_path = get_value("copy", "from", true);
                     const json_pointer from_ptr(from_path);
 
                     // the "from" location must exist - use at()
@@ -16865,7 +16867,7 @@ class basic_json
     @since version 2.0.0
     */
     static basic_json diff(const basic_json& source, const basic_json& target,
-                           const std::string& path = "")
+                           const string_t& path = "")
     {
         // the patch
         basic_json result(value_t::array);

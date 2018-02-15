@@ -266,6 +266,39 @@ TEST_CASE("KReader") {
 		CHECK( File.is_open() == false );
 	}
 
+	SECTION("KInFile via KInStream")
+	{
+		std::unique_ptr<KInStream> File = std::make_unique<KInFile>(sFile.c_str());
+		File->SetReaderRightTrim("");
+		auto it = File->begin();
+		KString s1;
+		s1 = *it;
+		CHECK( s1 == "line 1\n" );
+		s1 = *it;
+		CHECK( s1 == "line 1\n" );
+		++it;
+		s1 = std::move(*it);
+		CHECK( s1 == "line 2\n" );
+		s1 = *it;
+		CHECK( s1 != "line 2\n" );
+		s1 = *++it;
+		CHECK( s1 == "line 3\n" );
+		s1 = *it++;
+		CHECK( s1 == "line 3\n" );
+		s1 = *it++;
+		CHECK( s1 == "line 4\n" );
+		s1 = *it;
+		CHECK( s1 == "line 5\n" );
+		s1 = *++it;
+		CHECK( s1 == "line 6\n" );
+		s1 = *++it;
+		CHECK( s1 == "line 7\n" );
+		s1 = *++it;
+		CHECK( s1 == "line 8\n" );
+		s1 = *++it;
+		CHECK( s1 == "line 9" );
+	}
+
 	SECTION("KFDReader test 1")
 	{
 		int fd = ::open(sFile.c_str(), O_RDONLY);

@@ -108,9 +108,18 @@ constexpr KStringView KHeader::FCGI_WEB_SERVER_ADDRS;
 #endif
 
 //-----------------------------------------------------------------------------
-KCGI::KCGI()
+KCGI::KCGI(KStringView sFilename)
 //-----------------------------------------------------------------------------
 {
+	if (sFilename.empty())
+	{
+		m_Reader = std::make_unique<KInStream>(std::cin);
+	}
+	else
+	{
+		m_Reader = std::make_unique<KInFile>(sFilename);
+	}
+
 #ifdef DEKAF2_WITH_FCGI
 	FCGX_Init();
 	FCGX_InitRequest (&m_FcgiRequest, 0, 0);
@@ -161,12 +170,11 @@ bool KCGI::ReadHeaders ()
 
 	kDebug (1, "KCGI: reading headers and post data...");
 
-	KInStream Reader(std::cin);  // TODO:KEEF: I really want to be able to (optionally) read a file here but I the compiler cannot convert an std::ifstream to our KInStream
 	int       iLineNo = 0;
 	bool      bHeaders = true;
 	KString   sLine;
 
-	while (Reader.ReadLine(sLine))
+	while (m_Reader->ReadLine(sLine))
 	{
 		if (++iLineNo == 1)
 		{
@@ -247,8 +255,7 @@ bool KCGI::ReadPostData ()
 {
 	// TODO: not coded for chunking (ignores Content-Length and reads to end of stdin right now)
 
-	KInStream Reader(std::cin);
-	while (Reader.Read(m_sPostData, 10000))
+	while (m_Reader->Read(m_sPostData, 10000))
 	{
 	}
 

@@ -120,7 +120,7 @@ public:
 
 	//static bool IsWebRequest(); -- not sure this will work
 
-	KCGI();
+	KCGI(KStringView sFilename = KStringView{});
 	~KCGI();
 	KString     GetVar (KStringView sEnvironmentVariable, const char* sDefaultValue="");
 	bool        GetNextRequest ();
@@ -173,6 +173,7 @@ private:
 //----------
 	unsigned int      m_iNumRequests = 0;
 	bool              m_bIsFCGI      = false;
+	std::unique_ptr<KInStream> m_Reader;
 #ifdef DEKAF2_WITH_FCGI
 	FCGX_Request      m_FcgiRequest;
 #endif

@@ -508,6 +508,7 @@ std::unique_ptr<KLogWriter> KLog::CreateWriter(Writer writer, KStringView sLogna
 {
 	switch (writer)
 	{
+		default:
 		case Writer::STDOUT:
 			return std::make_unique<KLogStdWriter>(std::cout);
 		case Writer::STDERR:
@@ -529,6 +530,7 @@ std::unique_ptr<KLogSerializer> KLog::CreateSerializer(Serializer serializer)
 {
 	switch (serializer)
 	{
+		default:
 		case Serializer::TTY:
 			return std::make_unique<KLogTTYSerializer>();
 		case Serializer::SYSLOG:

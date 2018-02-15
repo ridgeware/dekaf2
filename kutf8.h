@@ -55,8 +55,8 @@ using utf8_t      = uint8_t;
 
 struct SurrogatePair
 {
-	utf16_t	first;
-	utf16_t second;
+	utf16_t	first{0};
+	utf16_t second{0};
 };
 
 inline

@@ -62,6 +62,14 @@ public:
 //----------
 
 
+	static KString Hex(KStringView sIn);
+
+	static void HexInPlace(KString& sBuffer)
+	{
+		KString sRet = Hex(sBuffer);
+		sBuffer.swap(sRet);
+	}
+
 	/// Wrapper around KBase64::Encode. Does the same.
 	static KString Base64(KStringView sIn)
 	{
@@ -115,6 +123,14 @@ class KDec
 //----------
 public:
 //----------
+
+	static KString Hex(KStringView sIn);
+
+	static void HexInPlace(KString& sBuffer)
+	{
+		KString sRet = Hex(sBuffer);
+		sBuffer.swap(sRet);
+	}
 
 	/// Wrapper around KBase64::Decode. Does the same.
 	static KString Base64(KStringView sIn)

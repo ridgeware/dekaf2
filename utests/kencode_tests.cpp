@@ -10,6 +10,15 @@ TEST_CASE("KEncoding") {
 
 	SECTION("KEnc / KDec")
 	{
+
+		SECTION("Hex")
+		{
+			KString s = "This is a test";
+			KString sEncoded = KEnc::Hex(s);
+			KString sDecoded = KDec::Hex(sEncoded);
+			CHECK ( sDecoded == s );
+		}
+
 		SECTION("Base64")
 		{
 			std::vector<std::vector<KString>> tests = {

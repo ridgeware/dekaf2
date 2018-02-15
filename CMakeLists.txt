@@ -276,6 +276,7 @@ set (SOURCES
 	kconnection.cpp
 	kcrashexit.cpp
 	kcurl.cpp
+	kencode.cpp
 	kfdstream.cpp
 	kfile.cpp
 	kformat.cpp

@@ -110,10 +110,10 @@ constexpr KStringView KHeader::FCGI_WEB_SERVER_ADDRS;
 //-----------------------------------------------------------------------------
 KCGI::KCGI()
 //-----------------------------------------------------------------------------
-{
-	m_Reader = std::make_unique<KInStream>(std::cin);
-	m_Writer = std::make_unique<KOutStream>(std::cout);
+	: m_Reader(std::make_unique<KInStream>(std::cin))
+	, m_Writer(std::make_unique<KOutStream>(std::cout))
 
+{
 #ifdef DEKAF2_WITH_FCGI
 	FCGX_Init();
 	FCGX_InitRequest (&m_FcgiRequest, 0, 0);
@@ -144,7 +144,6 @@ void KCGI::init (bool bResetStreams)
 	if (bResetStreams)
 	{
 		m_Reader = std::make_unique<KInStream>(std::cin);
-		m_Writer = std::make_unique<KOutStream>(std::cout);
 	}
 
 } // init

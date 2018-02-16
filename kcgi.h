@@ -120,15 +120,15 @@ public:
 
 	//static bool IsWebRequest(); -- not sure this will work
 
-	KCGI(KStringView sFilename = KStringView{});
+	KCGI();
 	~KCGI();
 	KString     GetVar (KStringView sEnvironmentVariable, const char* sDefaultValue="");
-	bool        GetNextRequest ();
+
+	/// Get next CGI (or FCGI) reqeuest.  Defaults to STDIN for CGI.  Supplying a filename is useful for test harnesses that are not running inside a web server.
+	bool        GetNextRequest (KStringView sFilename = KStringView{}, KStringView sCommentDelim = KStringView{});
 	bool        ReadHeaders ();
 	bool        ReadPostData ();
 	bool        IsFCGI()   { return (m_bIsFCGI); }
-	void        BackupStreams ();
-	void        RestoreStreams ();
 
 	/// incoming http request method: GET, POST, etc.
 	KString      m_sRequestMethod;
@@ -154,7 +154,12 @@ public:
 	/// incoming query parms off request URI
     KProps <KString, KString, /*order-matters=*/false, /*unique-keys=*/false> m_QueryParms;
 
-	void init () {
+	KStringView  GetLastError()  { return m_sError; }
+
+	void init ()
+	{
+		m_sError.clear();
+		m_sCommentDelim.clear();
 	    m_sRequestMethod.clear();
 	    m_sRequestURI.clear();
 	    m_sRequestPath.clear();
@@ -162,20 +167,19 @@ public:
 		m_sPostData.clear();
 		m_Headers.clear();
 		m_QueryParms.clear();
+		m_Reader= std::make_unique<KInStream>(std::cin);
 	}
-
-//----------
-protected:
-//----------
 
 //----------
 private:
 //----------
-	unsigned int      m_iNumRequests = 0;
-	bool              m_bIsFCGI      = false;
+	KString                    m_sError;
+	KString                    m_sCommentDelim;
+	unsigned int               m_iNumRequests{0};
+	bool                       m_bIsFCGI{false};
 	std::unique_ptr<KInStream> m_Reader;
 #ifdef DEKAF2_WITH_FCGI
-	FCGX_Request      m_FcgiRequest;
+	FCGX_Request               m_FcgiRequest;
 #endif
 
 }; // class KCGI

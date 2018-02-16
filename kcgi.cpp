@@ -1,4 +1,4 @@
-/*
+	/*
 //-----------------------------------------------------------------------------//
 //
 // DEKAF(tm): Lighter, Faster, Smarter (tm)
@@ -108,23 +108,14 @@ constexpr KStringView KHeader::FCGI_WEB_SERVER_ADDRS;
 #endif
 
 //-----------------------------------------------------------------------------
-KCGI::KCGI(KStringView sFilename)
+KCGI::KCGI()
 //-----------------------------------------------------------------------------
 {
-	if (sFilename.empty())
-	{
-		m_Reader = std::make_unique<KInStream>(std::cin);
-	}
-	else
-	{
-		m_Reader = std::make_unique<KInFile>(sFilename);
-	}
+	m_Reader = std::make_unique<KInStream>(std::cin);
 
 #ifdef DEKAF2_WITH_FCGI
 	FCGX_Init();
 	FCGX_InitRequest (&m_FcgiRequest, 0, 0);
-
-	BackupStreams ();
 #endif
 
 } // constructor
@@ -133,10 +124,6 @@ KCGI::KCGI(KStringView sFilename)
 KCGI::~KCGI()
 //-----------------------------------------------------------------------------
 {
-#ifdef DEKAF2_WITH_FCGI
-	RestoreStreams ();
-#endif
-
 } // destructor
 
 //-----------------------------------------------------------------------------
@@ -170,13 +157,18 @@ bool KCGI::ReadHeaders ()
 
 	kDebug (1, "KCGI: reading headers and post data...");
 
-	int       iLineNo = 0;
+	int       iRealLines = 0;
 	bool      bHeaders = true;
 	KString   sLine;
 
 	while (m_Reader->ReadLine(sLine))
 	{
-		if (++iLineNo == 1)
+		if (!m_sCommentDelim.empty() && sLine.StartsWith(m_sCommentDelim)) {
+			kDebug (2, "KCGI: skipping comment line: {}");
+			continue;
+		}
+		
+		if (++iRealLines == 1)
 		{
 			// GET /ApiTranslate?foo=bar HTTP/1.0
 			sLine.TrimRight();
@@ -185,7 +177,7 @@ bool KCGI::ReadHeaders ()
 			auto pos = sLine.find(' ');
 			if (!pos || pos == KString::npos)
 			{
-				kDebug (1, "KCGI: malformed status line: {}", sLine);
+				m_sError.Format ("KCGI: malformed status line: {}", sLine);
 				return (false);
 			}
 
@@ -195,7 +187,7 @@ bool KCGI::ReadHeaders ()
 			pos = sURI.find(' ');
 			if (!pos || pos == KString::npos)
 			{
-				kDebug (1, "KCGI: malformed status line: {}", sLine);
+				m_sError.Format ("KCGI: malformed status line: {}", sLine);
 				return (false);
 			}
 
@@ -229,7 +221,7 @@ bool KCGI::ReadHeaders ()
 				auto pos = sLine.find(':');
 				if (!pos || pos == KString::npos)
 				{
-					kDebug (1, "KCGI: malformed header: no colon: {}", sLine);
+					m_sError.Format ("KCGI: malformed header: no colon: {}", sLine);
 					return (false); // malformed headers
 				}
 
@@ -255,8 +247,14 @@ bool KCGI::ReadPostData ()
 {
 	// TODO: not coded for chunking (ignores Content-Length and reads to end of stdin right now)
 
-	while (m_Reader->Read(m_sPostData, 10000))
+	KString   sLine;
+	while (m_Reader->ReadLine(sLine))
 	{
+		if (!m_sCommentDelim.empty() && sLine.StartsWith(m_sCommentDelim)) {
+			kDebug (2, "KCGI: skipping comment line: {}");
+			continue;
+		}
+		m_sPostData += sLine;
 	}
 
 	return (true);
@@ -264,9 +262,22 @@ bool KCGI::ReadPostData ()
 } // ReadPostData
 
 //-----------------------------------------------------------------------------
-bool KCGI::GetNextRequest ()
+bool KCGI::GetNextRequest (KStringView sFilename /*= KStringView{}*/, KStringView sCommentDelim /*= KStringView{}*/)
 //-----------------------------------------------------------------------------
 {
+	init ();
+
+	if (!sFilename.empty())
+	{
+		if (!kFileExists (sFilename)) {
+			m_sError.Format ("KCGI: cannot open input file: {}", sFilename);
+			return (false);
+		}
+		m_Reader = std::make_unique<KInFile>(sFilename);
+		m_sCommentDelim = sCommentDelim;
+		// TODO: test success and return (false) if failed to read file
+	}
+
 	++m_iNumRequests;
 
 	m_bIsFCGI = false; //DEKAF2_WITH_FCGI (getenv(KString(KCGI::FCGI_WEB_SERVER_ADDRS).c_str()) != nullptr); // TODO: I don't think this test works.
@@ -285,6 +296,7 @@ bool KCGI::GetNextRequest ()
 		// if environment vars not set, expect them in the input stream:
 		if (m_sRequestMethod.empty() && !ReadHeaders())
 		{
+			// error message already set in ReadHeaders()
 			return (false);
 		}
 
@@ -310,6 +322,7 @@ bool KCGI::GetNextRequest ()
 
 		if (!ReadPostData())
 		{
+			// error message already set in ReadPostData()
 			return (false);
 		}
 
@@ -324,7 +337,7 @@ bool KCGI::GetNextRequest ()
 		return (true);	// true ==> we got a request
 	}
 
-	return (false);
+	return (false); // no more requests
 
 } // GetNextRequest
 

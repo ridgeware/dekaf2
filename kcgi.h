@@ -62,6 +62,7 @@ class KCGI
 //------
 public:
 //------
+
 	static constexpr KStringView AUTH_PASSWORD           = "AUTH_PASSWORD";
 	static constexpr KStringView AUTH_TYPE               = "AUTH_TYPE";
 	static constexpr KStringView AUTH_USER               = "AUTH_USER";
@@ -118,68 +119,150 @@ public:
 
 	static constexpr KStringView FCGI_WEB_SERVER_ADDRS   = "FCGI_WEB_SERVER_ADDRS";
 
-	//static bool IsWebRequest(); -- not sure this will work
+	using HeadersT    = KProps <KString, KString, /*order-matters=*/false, /*unique-keys=*/false>;
+
+	using QueryParmsT = KProps <KString, KString, /*order-matters=*/false, /*unique-keys=*/false>;
+
+	// static bool IsWebRequest(); -- not sure this will work
 
 	KCGI();
-	~KCGI();
-	KString     GetVar (KStringView sEnvironmentVariable, const char* sDefaultValue="");
 
-	/// Get next CGI (or FCGI) reqeuest.  Defaults to STDIN for CGI.  Supplying a filename is useful for test harnesses that are not running inside a web server.
-	bool        GetNextRequest (KStringView sFilename = KStringView{}, KStringView sCommentDelim = KStringView{});
-	bool        ReadHeaders ();
-	bool        ReadPostData ();
-	bool        IsFCGI()   { return (m_bIsFCGI); }
+	~KCGI();
+
+	KString GetVar (KStringView sEnvironmentVariable, const char* sDefaultValue="");
+
+	/// Get next CGI (or FCGI) reqeuest.  Defaults to STDIN for CGI.
+	/// Supplying a filename is useful for test harnesses that are not
+	/// running inside a web server.
+	bool GetNextRequest (KStringView sFilename = KStringView{}, KStringView sCommentDelim = KStringView{});
+
+	/// read request headers
+	bool ReadHeaders ();
+
+	/// read request body
+	bool ReadPostData ();
+
+	/// returns a reference to the output writer
+	KOutStream& Writer() { return *m_Writer; }
 
 	/// incoming http request method: GET, POST, etc.
-	KString      m_sRequestMethod;
+	const KString& RequestMethod() const
+	{
+		return m_sRequestMethod;
+	}
 
 	/// incoming URL including the query string
-	KString      m_sRequestURI;
+	const KString& RequestURI() const
+	{
+		return m_sRequestURI;
+	}
 
 	/// incoming URL with query string trimmed
-	KString      m_sRequestPath;
+	const KString& RequestPath() const
+	{
+		return m_sRequestPath;
+	}
 
 	/// incoming http protocol and version as defined in status header
-	KString      m_sHttpProtocol;
+	const KString& HTTPProtocol() const
+	{
+		return m_sHttpProtocol;
+	}
 
 	/// query string (name=value&...)
-	KString      m_sQueryString;
+	const KString& QueryString() const
+	{
+		return m_sQueryString;
+	}
 
 	/// raw, unprocessed incomiong POST data
-	KString      m_sPostData; // aka body
+	const KString& PostData() const
+	{
+		return m_sPostData;
+	}
 
 	/// incoming request headers
-    KProps <KString, KString, /*order-matters=*/false, /*unique-keys=*/false> m_Headers;
+	const HeadersT& RequestHeaders() const
+	{
+		return m_Headers;
+	}
 
 	/// incoming query parms off request URI
-    KProps <KString, KString, /*order-matters=*/false, /*unique-keys=*/false> m_QueryParms;
-
-	KStringView  GetLastError()  { return m_sError; }
-
-	void init ()
+	const QueryParmsT& QueryParms() const
 	{
-		m_sError.clear();
-		m_sCommentDelim.clear();
-	    m_sRequestMethod.clear();
-	    m_sRequestURI.clear();
-	    m_sRequestPath.clear();
-	    m_sHttpProtocol.clear();
-		m_sPostData.clear();
-		m_Headers.clear();
-		m_QueryParms.clear();
-		m_Reader= std::make_unique<KInStream>(std::cin);
+		return m_QueryParms;
 	}
+
+	/// returns last error message
+	const KString& GetLastError() const
+	{
+		return m_sError;
+	}
+
+//----------
+protected:
+//----------
+
+	/// incoming http request method: GET, POST, etc., non-const version for children
+	KString& SetRequestMethod()
+	{
+		return m_sRequestMethod;
+	}
+
+	/// incoming URL including the query string, non-const version for children
+	KString& SetRequestURI()
+	{
+		return m_sRequestURI;
+	}
+
+	/// raw, unprocessed incomiong POST data, non-const version for children
+	KString& SetPostData()
+	{
+		return m_sPostData;
+	}
+
+	/// incoming request headers, non-const version for children
+	HeadersT& SetRequestHeaders()
+	{
+		return m_Headers;
+	}
+
+	/// incoming query parms off request URI, non-const version for children
+	QueryParmsT& SetQueryParms()
+	{
+		return m_QueryParms;
+	}
+
+	/// reset all class members for next request
+	void init (bool bResetStreams = true);
 
 //----------
 private:
 //----------
-	KString                    m_sError;
-	KString                    m_sCommentDelim;
-	unsigned int               m_iNumRequests{0};
-	bool                       m_bIsFCGI{false};
-	std::unique_ptr<KInStream> m_Reader;
+
+	/// returns true if this is an FCGI connection
+	bool IsFCGI() const
+	{
+		return (m_bIsFCGI);
+	}
+
+	KString      m_sRequestMethod;
+	KString      m_sRequestURI;
+	KString      m_sRequestPath;
+	KString      m_sHttpProtocol;
+	KString      m_sQueryString;
+	KString      m_sPostData; // aka body
+    HeadersT     m_Headers;
+    QueryParmsT  m_QueryParms;
+
+	KString                     m_sError;
+	KString                     m_sCommentDelim;
+	unsigned int                m_iNumRequests{0};
+	bool                        m_bIsFCGI{false};
+	std::unique_ptr<KInStream>  m_Reader;
+	std::unique_ptr<KOutStream> m_Writer;
 #ifdef DEKAF2_WITH_FCGI
-	FCGX_Request               m_FcgiRequest;
+	FCGX_Request                m_FcgiRequest;
 #endif
 
 }; // class KCGI

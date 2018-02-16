@@ -112,6 +112,7 @@ KCGI::KCGI()
 //-----------------------------------------------------------------------------
 {
 	m_Reader = std::make_unique<KInStream>(std::cin);
+	m_Writer = std::make_unique<KOutStream>(std::cout);
 
 #ifdef DEKAF2_WITH_FCGI
 	FCGX_Init();
@@ -125,6 +126,28 @@ KCGI::~KCGI()
 //-----------------------------------------------------------------------------
 {
 } // destructor
+
+//-----------------------------------------------------------------------------
+void KCGI::init (bool bResetStreams)
+//-----------------------------------------------------------------------------
+{
+	m_sError.clear();
+	m_sCommentDelim.clear();
+	m_sRequestMethod.clear();
+	m_sRequestURI.clear();
+	m_sRequestPath.clear();
+	m_sHttpProtocol.clear();
+	m_sPostData.clear();
+	m_Headers.clear();
+	m_QueryParms.clear();
+
+	if (bResetStreams)
+	{
+		m_Reader = std::make_unique<KInStream>(std::cin);
+		m_Writer = std::make_unique<KOutStream>(std::cout);
+	}
+
+} // init
 
 //-----------------------------------------------------------------------------
 KString KCGI::GetVar (KStringView sEnvironmentVariable, const char* sDefaultValue/*=""*/)
@@ -265,17 +288,24 @@ bool KCGI::ReadPostData ()
 bool KCGI::GetNextRequest (KStringView sFilename /*= KStringView{}*/, KStringView sCommentDelim /*= KStringView{}*/)
 //-----------------------------------------------------------------------------
 {
-	init ();
-
 	if (!sFilename.empty())
 	{
-		if (!kFileExists (sFilename)) {
+		init (false);
+
+		m_Reader = std::make_unique<KInFile>(sFilename);
+
+		if (!m_Reader->InStream().good())
+		{
 			m_sError.Format ("KCGI: cannot open input file: {}", sFilename);
 			return (false);
 		}
-		m_Reader = std::make_unique<KInFile>(sFilename);
+
 		m_sCommentDelim = sCommentDelim;
 		// TODO: test success and return (false) if failed to read file
+	}
+	else
+	{
+		init (true);
 	}
 
 	++m_iNumRequests;

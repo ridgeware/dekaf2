@@ -49,6 +49,24 @@ using namespace dekaf2;
 int32_t  detail::KCommonSQLBase::m_iDebugLevel{2};
 
 //-----------------------------------------------------------------------------
+KString KROW::ColumnInfoForLogOutput (uint32_t ii)
+//-----------------------------------------------------------------------------
+{
+	KString sLogMessage;
+
+	sLogMessage.Format("  col[{:>02}]: {:<25} {}{}{}{}{}",
+		    ii,
+		    GetName(ii),
+		    !IsFlag (ii, PKEY)       ? "" : " [PKEY]",
+		    !IsFlag (ii, NONCOLUMN)  ? "" : " [NONCOLUMN]",
+		    !IsFlag (ii, EXPRESSION) ? "" : " [EXPRESSION]",
+		    !IsFlag (ii, NUMERIC)    ? "" : " [NUMERIC]",
+		    !IsFlag (ii, BOOLEAN)    ? "" : " [BOOLEAN]");
+
+	return sLogMessage;
+}
+
+//-----------------------------------------------------------------------------
 void KROW::EscapeChars (KStringView sString, KString& sEscaped, SQLTYPE iDBType)
 //-----------------------------------------------------------------------------
 {
@@ -148,13 +166,7 @@ bool KROW::FormInsert (KString& sSQL, SQLTYPE iDBType, bool fIdentityInsert/*=fa
 
 	for (ii=0; ii < size(); ++ii)
 	{
-		kDebugLog (2, "  col[{:>02}]: {:<25} {}{}{}{}",
-		    ii,
-		    GetName(ii),
-		    !IsFlag (ii, PKEY)       ? "" : " [PKEY]",
-		    !IsFlag (ii, NONCOLUMN)  ? "" : " [NONCOLUMN]",
-		    !IsFlag (ii, EXPRESSION) ? "" : " [EXPRESSION]",
-		    !IsFlag (ii, NUMERIC)    ? "" : " [NUMERIC]");
+		kDebugLog (2, ColumnInfoForLogOutput(ii));
 
 		if (IsFlag (ii, NONCOLUMN)) {
 			continue;
@@ -179,7 +191,7 @@ bool KROW::FormInsert (KString& sSQL, SQLTYPE iDBType, bool fIdentityInsert/*=fa
 			sAdd.Format ("\t{}null\n", (ii) ? "," : "");
 			sSQL += sAdd;
 		}
-		else if (IsFlag (ii, NUMERIC) || IsFlag (ii, EXPRESSION))
+		else if (IsFlag (ii, NUMERIC) || IsFlag (ii, EXPRESSION) || IsFlag (ii, BOOLEAN))
 		{
 			sAdd.Format ("\t{}{}\n", (ii) ? "," : "", sValue); // raw value, no quotes and no processing
 			sSQL += sAdd;
@@ -242,13 +254,7 @@ bool KROW::FormUpdate (KString& sSQL, SQLTYPE iDBType)
 
 	for (uint32_t ii=0, jj=0; ii < size(); ++ii)
 	{
-		kDebugLog (2, "  col[{:>02}]: {:<25} {}{}{}{}",
-		    ii,
-		    GetName(ii),
-		    !IsFlag (ii, PKEY)       ? "" : " [PKEY]",
-		    !IsFlag (ii, NONCOLUMN)  ? "" : " [NONCOLUMN]",
-		    !IsFlag (ii, EXPRESSION) ? "" : " [EXPRESSION]",
-		    !IsFlag (ii, NUMERIC)    ? "" : " [NUMERIC]");
+		kDebugLog (2, ColumnInfoForLogOutput(ii));
 
 		if (IsFlag (ii, NONCOLUMN)) {
 			continue;
@@ -257,7 +263,7 @@ bool KROW::FormUpdate (KString& sSQL, SQLTYPE iDBType)
 			KCOL col (GetValue(ii), GetFlags(ii), MaxLength(ii));
 			Keys.Add (GetName(ii), col);
 		}
-		else if (IsFlag (ii, EXPRESSION)) {
+		else if (IsFlag (ii, EXPRESSION) || IsFlag (ii, BOOLEAN)) {
 			sAdd.Format ("\t{}{}={}\n", (jj++) ? "," : "", GetName(ii), GetValue(ii));
 			sSQL += sAdd;
 		}
@@ -274,7 +280,7 @@ bool KROW::FormUpdate (KString& sSQL, SQLTYPE iDBType)
 				EscapeChars (sValue, sEscaped, iDBType);
 				SmartClip   (GetName(ii), sEscaped, MaxLength(ii));
 
-				if (IsFlag (ii, NUMERIC) || IsFlag (ii, EXPRESSION))
+				if (IsFlag (ii, NUMERIC) || IsFlag (ii, EXPRESSION) || IsFlag (ii, BOOLEAN))
 				{
 					sAdd.Format ("\t{}{}={}\n", (jj++) ? "," : "",
 						GetName(ii), sEscaped);
@@ -311,7 +317,7 @@ bool KROW::FormUpdate (KString& sSQL, SQLTYPE iDBType)
 			sPrefix = "   and ";
 		}
 		
-		if (Keys.IsFlag(kk, NUMERIC) || Keys.IsFlag(kk, EXPRESSION)) {
+		if (Keys.IsFlag(kk, NUMERIC) || Keys.IsFlag(kk, EXPRESSION) || Keys.IsFlag(kk, BOOLEAN)) {
 			sAdd.Format("{}{}={}\n", sPrefix, Keys.GetName(kk),
 				sEscaped);
 		}
@@ -355,13 +361,7 @@ bool KROW::FormDelete (KString& sSQL, SQLTYPE iDBType)
 
 	for (uint32_t ii=0; ii < size(); ++ii)
 	{
-		kDebugLog (2, "  col[{:>02}]: {:<25} {}{}{}{}",
-		    ii,
-		    GetName(ii),
-		    !IsFlag (ii, PKEY)       ? "" : " [PKEY]",
-		    !IsFlag (ii, NONCOLUMN)  ? "" : " [NONCOLUMN]",
-		    !IsFlag (ii, EXPRESSION) ? "" : " [EXPRESSION]",
-		    !IsFlag (ii, NUMERIC)    ? "" : " [NUMERIC]");
+		kDebugLog (2, ColumnInfoForLogOutput(ii));
 
 		if (!IsFlag (ii, PKEY)) {
 			continue;
@@ -373,13 +373,17 @@ bool KROW::FormDelete (KString& sSQL, SQLTYPE iDBType)
 
 		KString sAdd;
 		SmartClip(GetName(ii),sEscaped,MaxLength(ii));
-		if (sValue.empty()) {
+		if (sValue.empty())
+		{
 			sAdd.Format(" {} {} is null\n",(!kk) ? "where" : "  and", GetName(ii));
 		}
-		else if (IsFlag(ii, NUMERIC) || IsFlag(ii, EXPRESSION)) {
+		else if (IsFlag(ii, NUMERIC) || IsFlag(ii, EXPRESSION) || IsFlag(ii, BOOLEAN))
+		{
 			sAdd.Format(" {} {}={}\n",     (!kk) ? "where" : "  and", GetName(ii),
 				sEscaped);
-		} else {
+		}
+		else
+		{
 			sAdd.Format(" {} {}='{}'\n", (!kk) ? "where" : "  and", GetName(ii), sEscaped);
 		}
 		sSQL += sAdd;
@@ -442,13 +446,7 @@ KString KROW::ToJSON (bool bWrapInCurlies, KStringView sLineLeader, KStringView 
 
 	for (uint32_t ii=0; ii < size(); ++ii)
 	{
-		kDebugLog (2, "  col[{:>02}]: {:<25} {}{}{}{}",
-		    ii,
-		    GetName(ii),
-		    !IsFlag (ii, PKEY)       ? "" : " [PKEY]",
-		    !IsFlag (ii, NONCOLUMN)  ? "" : " [NONCOLUMN]",
-		    !IsFlag (ii, EXPRESSION) ? "" : " [EXPRESSION]",
-		    !IsFlag (ii, NUMERIC)    ? "" : " [NUMERIC]");
+		kDebugLog (2, ColumnInfoForLogOutput(ii));
 
 		if (IsFlag (ii, NONCOLUMN)) {
 			continue;
@@ -470,10 +468,14 @@ KString KROW::ToJSON (bool bWrapInCurlies, KStringView sLineLeader, KStringView 
 		{
 			sJSON += KJSON::EscWrapNumeric (sName, "null", sLineLeader, "");
 		}
-		else if (IsFlag (ii, NUMERIC) || IsFlag (ii, EXPRESSION))
+		else if (IsFlag (ii, BOOLEAN))
 		{
 			// NOTE: Boolean values should be output as the word true and false without quotes around them.
-			//       To do this properly, we probably have to add a new iFlag type of BOOLEAN.
+			KStringView sTrueFalse = ((sValue == "0") || (sValue == "false") || (sValue == "FALSE")) ? "false" : "true";
+			sJSON += KJSON::EscWrapNumeric (sName, sTrueFalse, sLineLeader, "");
+		}
+		else if (IsFlag (ii, NUMERIC) || IsFlag (ii, EXPRESSION) || IsFlag(ii, BOOLEAN))
+		{
 			sJSON += KJSON::EscWrapNumeric (sName, sValue, sLineLeader, "");
 		}
 		else // catch-all logic for all string values

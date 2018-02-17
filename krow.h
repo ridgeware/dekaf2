@@ -218,6 +218,20 @@ public:
 		}
 	}
 
+	bool SetFlags (KStringView sColName, uint64_t iFlags)
+	{
+		auto it = KCOLS::find (sColName);
+		if (it == KCOLS::end())
+		{
+			return (false);
+		}
+		else
+		{
+			it->second.iFlags = iFlags;
+			return (true);
+		}
+	}
+
 	/// Returns the Nth column's name (note: column index starts at 0).
 	KStringView GetName (size_t iZeroBasedIndex)
 	{
@@ -275,7 +289,8 @@ public:
 		EXPRESSION       = 0x0000100,   ///< Indicates given column is not a column and should be included in DDL statements.
 		INSERTONLY       = 0x0001000,   ///< Indicates given column is only to be used in INSERT statements (not UPDATE or DELETE).
 		NUMERIC          = 0x0010000,   ///< Indicates given column should not be quoted when forming DDL statements.
-		NULL_IS_NOT_NIL  = 0x0100000    ///< Indicates given column is ???
+		NULL_IS_NOT_NIL  = 0x0100000,   ///< Indicates given column is ???
+		BOOLEAN          = 0x1000000    ///< Indicates given column is a boolean (true/false)
 	};
 
 	// - - - - - - - - - - - - - - - -
@@ -288,7 +303,8 @@ public:
 //----------
 private:
 //----------
-	void SmartClip (KStringView sColName, KString& sValue, size_t iMaxLen);
+	void    SmartClip (KStringView sColName, KString& sValue, size_t iMaxLen);
+	KString ColumnInfoForLogOutput (uint32_t ii);
 
 	KString m_sTablename;
 	KString m_sLastError;

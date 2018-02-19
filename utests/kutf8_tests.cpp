@@ -27,6 +27,7 @@ TEST_CASE("UTF8") {
 			Unicode::FromUTF8(sTest, [&sOut](uint32_t ch)
 			{
 				sOut += static_cast<std::string::value_type>(ch);
+				return true;
 			});
 			CHECK ( sOut == it[0] );
 		}
@@ -51,6 +52,7 @@ TEST_CASE("UTF8") {
 			Unicode::FromUTF8(sTest, [&sOut](uint32_t ch)
 			{
 				sOut += static_cast<std::string::value_type>(ch);
+				return true;
 			});
 			CHECK ( sOut == it[0] );
 		}

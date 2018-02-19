@@ -261,6 +261,7 @@ set (HEADERS
 	kuseragent.h
 	kutf8.h
 	kwebio.h
+	kwords.h
 	kwriter.h
 	)
 
@@ -316,6 +317,7 @@ set (SOURCES
 	kurl.cpp
 	kurlencode.cpp
 	kwebio.cpp
+	kwords.cpp
 	kwriter.cpp
 	)
 

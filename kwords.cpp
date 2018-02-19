@@ -62,7 +62,7 @@ KStringViewPair SimpleText::NextPair()
 		{
 			if (iSizeWord)
 			{
-				// abort scanning here
+				// abort scanning here, this is the trailing skeleton
 				return false;
 			}
 			iSizeSkel += Unicode::UTF8Bytes(ch);
@@ -81,7 +81,59 @@ KStringViewPair SimpleText::NextPair()
 	m_sInput.remove_prefix(iSizeWord);
 
 	return sPair;
-}
+
+} // SimpleText::NextPair
+
+//-----------------------------------------------------------------------------
+KStringViewPair SimpleHTML::NextPair()
+//-----------------------------------------------------------------------------
+{
+	size_t iSizeSkel { 0 };
+	size_t iSizeWord { 0 };
+	bool bOpenTag { false };
+
+	Unicode::FromUTF8(m_sInput, [&](uint32_t ch)
+	{
+		if (bOpenTag)
+		{
+			if (ch == '>')
+			{
+				bOpenTag = false;
+			}
+			iSizeSkel += Unicode::UTF8Bytes(ch);
+		}
+		else
+		{
+			if (!std::iswalnum(ch))
+			{
+				if (iSizeWord)
+				{
+					// abort scanning here, this is the trailing skeleton
+					return false;
+				}
+				if (ch == '<')
+				{
+					bOpenTag = true;
+				}
+				iSizeSkel += Unicode::UTF8Bytes(ch);
+			}
+			else
+			{
+				iSizeWord += Unicode::UTF8Bytes(ch);
+			}
+		}
+		return true;
+	});
+
+	KStringViewPair sPair;
+	sPair.second.assign(m_sInput.data(), iSizeSkel);
+	m_sInput.remove_prefix(iSizeSkel);
+	sPair.first.assign(m_sInput.data(), iSizeWord);
+	m_sInput.remove_prefix(iSizeWord);
+
+	return sPair;
+
+} // SimpleHTML::NextPair
 
 } // of namespace splitting_parser
 } // of namespace detail

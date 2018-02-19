@@ -83,6 +83,34 @@ private:
 
 }; // SimpleText
 
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+class SimpleHTML
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+//------
+public:
+//------
+
+	SimpleHTML(KStringView sInput)
+		: m_sInput(sInput)
+	{}
+
+	bool empty()
+	{
+		return m_sInput.empty();
+	}
+
+	KStringViewPair NextPair();
+
+//------
+private:
+//------
+
+	KStringView m_sInput;
+
+}; // SimpleHTML
+
 } // of namespace splitting_parser
 } // of namespace detail
 
@@ -129,7 +157,11 @@ kSplitWords (
 
 	while (!parser.empty())
 	{
-		cContainer.push_back(parser.NextPair().first);
+		KStringView sWord = parser.NextPair().first;
+		if (!sWord.empty())
+		{
+			cContainer.push_back(sWord);
+		}
 	}
 
 	return cContainer.size() - iStartSize;
@@ -182,5 +214,7 @@ private:
 
 using KSimpleWords = KWords<std::vector<KStringView>, detail::splitting_parser::SimpleText>;
 using KSimpleSkeletonWords = KWords<std::vector<KStringViewPair>, detail::splitting_parser::SimpleText>;
+using KSimpleHTMLWords = KWords<std::vector<KStringView>, detail::splitting_parser::SimpleHTML>;
+using KSimpleHTMLSkeletonWords = KWords<std::vector<KStringViewPair>, detail::splitting_parser::SimpleHTML>;
 
 } // namespace dekaf2

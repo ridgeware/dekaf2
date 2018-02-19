@@ -45,6 +45,8 @@
 #pragma once
 
 #include "kstringview.h"
+#include "kprops.h"
+#include <vector>
 
 /// @file ksplit.h
 /// Highly configurable tokenizer template.

@@ -129,6 +129,34 @@ codepoint_t CodepointCast(Ch sch)
 	}
 }
 
+template<typename Ch>
+constexpr
+size_t UTF8Bytes(Ch sch)
+{
+	codepoint_t ch = CodepointCast(sch);
+
+	if (ch < 0x0080)
+	{
+		return 1;
+	}
+	else if (ch < 0x0800)
+	{
+		return 2;
+	}
+	else if (ch < 0x010000)
+	{
+		return 3;
+	}
+	else if (ch < 0x0110000)
+	{
+		return 4;
+	}
+	else
+	{
+		return 0;
+	}
+}
+
 template<typename Ch, typename NarrowString,
          typename = std::enable_if_t<std::is_integral<Ch>::value> >
 constexpr
@@ -342,7 +370,10 @@ bool FromUTF8(const NarrowString& sNarrow, Functor func)
 					codepoint = 0;
 					if (ch < 128)
 					{
-						func(ch);
+						if (!func(ch))
+						{
+							return false;
+						}
 						break;
 					}
 					else if ((ch & 0x0e0) == 0x0c0)
@@ -390,7 +421,10 @@ bool FromUTF8(const NarrowString& sNarrow, Functor func)
 							return false;
 						}
 
-						func(codepoint);
+						if (!func(codepoint))
+						{
+							return false;
+						}
 					}
 					break;
 				}
@@ -421,6 +455,7 @@ bool FromUTF8(const NarrowString& sNarrow, WideString& sWide)
 		{
 			sWide += static_cast<W>(uch);
 		}
+		return true;
 	});
 
 }

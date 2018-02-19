@@ -131,9 +131,9 @@ bool KJSON::FormError (const LJSON::exception& exc) const
 KString KJSON::EscWrap (KString sString)
 //-----------------------------------------------------------------------------
 {
-	sString.Replace("\r","\\r", /*all=*/true);
-	sString.Replace("\n","\\n", /*all=*/true);
-	sString.Replace("\"","\\\"", /*all=*/true);
+	sString.Replace("\r","\\r");
+	sString.Replace("\n","\\n");
+	sString.Replace("\"","\\\"");
 
 	KString sReturnMe;
 	sReturnMe.Format ("\"{}\"", sString);
@@ -146,13 +146,13 @@ KString KJSON::EscWrap (KString sString)
 KString KJSON::EscWrap (KString sName, KString sValue, KStringView sPrefix/*="\n\t"*/, KStringView sSuffix/*=","*/)
 //-----------------------------------------------------------------------------
 {
-	sName.Replace("\r","\\r", /*all=*/true);
-	sName.Replace("\n","\\n", /*all=*/true);
-	sName.Replace("\"","\\\"", /*all=*/true);
+	sName.Replace("\r","\\r");
+	sName.Replace("\n","\\n");
+	sName.Replace("\"","\\\"");
 
-	sValue.Replace("\r","\\r", /*all=*/true);
-	sValue.Replace("\n","\\n", /*all=*/true);
-	sValue.Replace("\"","\\\"", /*all=*/true);
+	sValue.Replace("\r","\\r");
+	sValue.Replace("\n","\\n");
+	sValue.Replace("\"","\\\"");
 
 	KString sReturnMe;
 	sReturnMe.Format ("{}\"{}\": \"{}\"{}", sPrefix, sName, sValue, sSuffix);
@@ -165,9 +165,9 @@ KString KJSON::EscWrap (KString sName, KString sValue, KStringView sPrefix/*="\n
 KString KJSON::EscWrap (KString sName, int iValue, KStringView sPrefix/*="\n\t"*/, KStringView sSuffix/*=","*/)
 //-----------------------------------------------------------------------------
 {
-	sName.Replace("\r","\\r", /*all=*/true);
-	sName.Replace("\n","\\n", /*all=*/true);
-	sName.Replace("\"","\\\"", /*all=*/true);
+	sName.Replace("\r","\\r");
+	sName.Replace("\n","\\n");
+	sName.Replace("\"","\\\"");
 
 	KString sReturnMe;
 	sReturnMe.Format ("{}\"{}\": {}{}", sPrefix, sName, iValue, sSuffix);
@@ -188,9 +188,9 @@ KString KJSON::EscWrapNumeric (KString sName, int iValue, KStringView sPrefix/*=
 KString KJSON::EscWrapNumeric (KString sName, KString sValue, KStringView sPrefix/*="\n\t"*/, KStringView sSuffix/*=","*/)
 //-----------------------------------------------------------------------------
 {
-	sName.Replace("\r","\\r", /*all=*/true);
-	sName.Replace("\n","\\n", /*all=*/true);
-	sName.Replace("\"","\\\"", /*all=*/true);
+	sName.Replace("\r","\\r");
+	sName.Replace("\n","\\n");
+	sName.Replace("\"","\\\"");
 
 	KString sReturnMe;
 	sReturnMe.Format ("{}\"{}\": {}{}", sPrefix, sName, sValue, sSuffix);

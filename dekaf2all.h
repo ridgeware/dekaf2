@@ -102,6 +102,7 @@
 #include "kurl.h"
 #include "kurlencode.h"
 #include "kuseragent.h"
+#include "kutf8.h"
 #include "kwebio.h"
 #include "kwords.h"
 #include "kwriter.h"

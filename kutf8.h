@@ -45,6 +45,7 @@
 
 #include <cstdint>
 #include <string>
+#include "kstring.h"
 
 namespace dekaf2 {
 namespace Unicode {
@@ -194,6 +195,16 @@ bool ToUTF8(Ch sch, NarrowString& sNarrow)
 		return false;
 	}
 	return true;
+}
+
+template<typename Ch, typename NarrowString = KString,
+         typename = std::enable_if_t<std::is_integral<Ch>::value> >
+constexpr
+NarrowString ToUTF8(Ch sch)
+{
+	NarrowString sRet;
+	ToUTF8(sch, sRet);
+	return sRet;
 }
 
 template<typename WideString, typename NarrowString,

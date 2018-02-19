@@ -41,7 +41,6 @@
 */
 
 #include "ksplit.h"
-#include "kprops.h"
 
 namespace dekaf2 {
 

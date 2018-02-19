@@ -2290,6 +2290,7 @@ KString kHTMLEntityEncode(KStringView sIn)
 			sRet += KString::to_hexstring(ch, true, false);
 			sRet += ';';
 		}
+		return true;
 	});
 
 	return sRet;

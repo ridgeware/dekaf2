@@ -186,7 +186,7 @@ bool KCGI::ReadHeaders ()
 	while (m_Reader->ReadLine(sLine))
 	{
 		if (!m_sCommentDelim.empty() && sLine.StartsWith(m_sCommentDelim)) {
-			kDebug (2, "KCGI: skipping comment line: {}");
+			kDebug (2, "KCGI: skipping comment line: {}", sLine);
 			continue;
 		}
 		
@@ -273,7 +273,7 @@ bool KCGI::ReadPostData ()
 	while (m_Reader->ReadLine(sLine))
 	{
 		if (!m_sCommentDelim.empty() && sLine.StartsWith(m_sCommentDelim)) {
-			kDebug (2, "KCGI: skipping comment line: {}");
+			kDebug (2, "KCGI: skipping comment line: {}", sLine);
 			continue;
 		}
 		m_sPostData += sLine;

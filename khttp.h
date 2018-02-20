@@ -51,7 +51,7 @@
 namespace dekaf2 {
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class KHTTP
+class KHTTPClient
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -74,15 +74,15 @@ public:
 	};
 
 	//-----------------------------------------------------------------------------
-	KHTTP(KConnection& stream, const KURL& url = KURL{}, KMethod method = KMethod::GET);
+	KHTTPClient(KConnection& stream, const KURL& url = KURL{}, KMethod method = KMethod::GET);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	KHTTP& Resource(const KURL& url, KMethod method = KMethod::GET);
+	KHTTPClient& Resource(const KURL& url, KMethod method = KMethod::GET);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	KHTTP& RequestHeader(KStringView svName, KStringView svValue);
+	KHTTPClient& RequestHeader(KStringView svName, KStringView svValue);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -163,7 +163,7 @@ private:
 	State    m_State{State::CLOSED};
 	bool     m_bTEChunked;
 
-}; // KHTTP
+}; // KHTTPClient
 
 
 } // end of namespace dekaf2

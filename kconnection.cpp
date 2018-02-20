@@ -179,6 +179,14 @@ std::unique_ptr<KConnection> KConnection::Create(const KURL& URL, bool bVerifyCe
 } // Create
 
 //-----------------------------------------------------------------------------
+std::unique_ptr<KConnection> KConnection::Create(KStringView URL, bool bVerifyCerts)
+//-----------------------------------------------------------------------------
+{
+	return Create(KURL(URL));
+
+} // Create
+
+//-----------------------------------------------------------------------------
 std::unique_ptr<KConnection> KConnection::Create(const KURL& URL, const KProxy& Proxy, bool bVerifyCerts)
 //-----------------------------------------------------------------------------
 {

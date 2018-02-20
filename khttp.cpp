@@ -47,7 +47,7 @@
 namespace dekaf2 {
 
 //-----------------------------------------------------------------------------
-KHTTP::KHTTP(KConnection& stream, const KURL& url, KMethod method)
+KHTTPClient::KHTTPClient(KConnection& stream, const KURL& url, KMethod method)
 //-----------------------------------------------------------------------------
     : m_Stream(stream)
     // we do not know how to properly open the KStream object if it is not
@@ -69,7 +69,7 @@ KHTTP::KHTTP(KConnection& stream, const KURL& url, KMethod method)
 }
 
 //-----------------------------------------------------------------------------
-KHTTP& KHTTP::Resource(const KURL& url, KMethod method)
+KHTTPClient& KHTTPClient::Resource(const KURL& url, KMethod method)
 //-----------------------------------------------------------------------------
 {
 	m_Method = method;
@@ -103,7 +103,7 @@ KHTTP& KHTTP::Resource(const KURL& url, KMethod method)
 }
 
 //-----------------------------------------------------------------------------
-KHTTP& KHTTP::RequestHeader(KStringView svName, KStringView svValue)
+KHTTPClient& KHTTPClient::RequestHeader(KStringView svName, KStringView svValue)
 //-----------------------------------------------------------------------------
 {
 	if ((m_State == State::RESOURCE_SET || m_State == State::HEADER_SET) && m_Stream)
@@ -121,7 +121,7 @@ KHTTP& KHTTP::RequestHeader(KStringView svName, KStringView svValue)
 }
 
 //-----------------------------------------------------------------------------
-bool KHTTP::Request(KStringView svPostData, KStringView svMime)
+bool KHTTPClient::Request(KStringView svPostData, KStringView svMime)
 //-----------------------------------------------------------------------------
 {
 	if (m_State == State::HEADER_SET && m_Stream)
@@ -148,7 +148,7 @@ bool KHTTP::Request(KStringView svPostData, KStringView svMime)
 }
 
 //-----------------------------------------------------------------------------
-bool KHTTP::ReadHeader()
+bool KHTTPClient::ReadHeader()
 //-----------------------------------------------------------------------------
 {
 	if (m_State == State::REQUEST_SENT && m_Stream)
@@ -184,7 +184,7 @@ bool KHTTP::ReadHeader()
 }
 
 //-----------------------------------------------------------------------------
-inline bool KHTTP::GetNextChunkSize()
+inline bool KHTTPClient::GetNextChunkSize()
 //-----------------------------------------------------------------------------
 {
 	if (m_bTEChunked && m_iRemainingContentSize == 0)
@@ -213,7 +213,7 @@ inline bool KHTTP::GetNextChunkSize()
 }
 
 //-----------------------------------------------------------------------------
-inline void KHTTP::CheckForChunkEnd()
+inline void KHTTPClient::CheckForChunkEnd()
 //-----------------------------------------------------------------------------
 {
 	if (m_bTEChunked && m_iRemainingContentSize == 0)
@@ -227,7 +227,7 @@ inline void KHTTP::CheckForChunkEnd()
 
 //-----------------------------------------------------------------------------
 /// Stream into outstream
-size_t KHTTP::Read(KOutStream& stream, size_t len)
+size_t KHTTPClient::Read(KOutStream& stream, size_t len)
 //-----------------------------------------------------------------------------
 {
 	if (m_State == State::HEADER_PARSED && m_Stream)
@@ -257,7 +257,7 @@ size_t KHTTP::Read(KOutStream& stream, size_t len)
 
 //-----------------------------------------------------------------------------
 /// Append to sBuffer
-size_t KHTTP::Read(KString& sBuffer, size_t len)
+size_t KHTTPClient::Read(KString& sBuffer, size_t len)
 //-----------------------------------------------------------------------------
 {
 	if (m_State == State::HEADER_PARSED && m_Stream)
@@ -287,7 +287,7 @@ size_t KHTTP::Read(KString& sBuffer, size_t len)
 
 //-----------------------------------------------------------------------------
 /// Read one line into sBuffer, including EOL
-bool KHTTP::ReadLine(KString& sBuffer)
+bool KHTTPClient::ReadLine(KString& sBuffer)
 //-----------------------------------------------------------------------------
 {
 	if (m_State == State::HEADER_PARSED && m_Stream)

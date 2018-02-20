@@ -301,7 +301,7 @@ bool KCurl::serializeRequestHeader(KString& sCurlHeaders)
 	if (!m_requestCookies.empty())
 	{
 		sCurlHeaders += "-H '";
-		sCurlHeaders += KHTTP::KHeader::REQUEST_COOKIE;
+		sCurlHeaders += KHTTPClient::KHeader::REQUEST_COOKIE;
 		sCurlHeaders += ": ";
 
 		size_t counter = 0;

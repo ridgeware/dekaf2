@@ -61,10 +61,15 @@ TEST_CASE("KHTTP") {
 		server.clear();
 
 		KURL         URL("http://127.0.0.1:7654/path?query=val&another=here#fragment");
-		KConnection  cx(URL.Domain, URL.Port);
-		KHTTP        cHTTP(cx);
+		KConnection  cx(URL);
+		CHECK( cx == true );
+		if (cx == true)
+		{
+			CHECK( cx->OutStream().good() == true );
+		}
+		KHTTPClient        cHTTP(cx);
 		cHTTP.Resource(URL);
-		cHTTP.Request();
+		CHECK( cHTTP.Request() == true );
 		KString shtml;
 		CHECK( cHTTP.size() == 10 );
 		cHTTP.Read(shtml);

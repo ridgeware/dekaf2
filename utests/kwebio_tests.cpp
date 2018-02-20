@@ -160,7 +160,7 @@ TEST_CASE("KWebIO")
 		CHECK(sResponseHeaders.Count("forwarded") == 1);
 		CHECK(sResponseHeaders.Count("x-forwarded-for") == 1);
 
-		KString xForwarded = sResponseHeaders.Get(KHTTP::KHeader::x_forwarded_for);
+		KString xForwarded = sResponseHeaders.Get(KHTTPClient::KHeader::x_forwarded_for);
 		CHECK(xForwarded.compare(" 192.0.2.43, 2001:db8:cafe::17\n") == 0);
 		CHECK(xForwarded == " 192.0.2.43, 2001:db8:cafe::17\n");
 		//const KString* pFooCookie = webIO.getResponseCookie("foo");

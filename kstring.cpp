@@ -652,7 +652,14 @@ KString::size_type KString::Replace(
 		{
 			// execute a copy substitution
 			KString sResult;
-			sResult.reserve(size());
+			// make room for at least one replace without realloc
+			sResult.reserve(size() + sReplace.size() - sSearch.size());
+			
+			if (DEKAF2_UNLIKELY(pos))
+			{
+				// copy the skipped part of the source string
+				sResult.append(m_rep, 0, pos);
+			}
 
 			while (pszFound)
 			{

@@ -75,7 +75,7 @@ KString KJSON::GetString(const KString& sKey)
 
 	try
 	{
-		auto it = find(sKey.c_str());
+		auto it = find(sKey);
 		if (it != end() && it->is_string())
 		{
 			oReturnMe = it.value();
@@ -101,7 +101,7 @@ KJSON KJSON::GetObject (const KString& sKey)
 
 	try
 	{
-		auto it = find(sKey.c_str());
+		auto it = find(sKey);
 		if (it != end())
 		{
 			oReturnMe = it.value();
@@ -128,56 +128,145 @@ bool KJSON::FormError (const LJSON::exception& exc) const
 } // FormError
 
 //-----------------------------------------------------------------------------
-KString KJSON::EscWrap (KString sString)
+void KJSON::Escape (KStringView sInput, KString& sOutput)
 //-----------------------------------------------------------------------------
 {
-	sString.Replace("\r","\\r");
-	sString.Replace("\n","\\n");
-	sString.Replace("\"","\\\"");
+	// reserve at least the bare size of sInput in sOutput
+	sOutput.reserve(sOutput.size() + sInput.size());
 
+	for (auto ch : sInput)
+	{
+		switch (ch)
+		{
+			case 0x08: // backspace
+			{
+				sOutput += '\\';
+				sOutput += 'b';
+				break;
+			}
+
+			case 0x09: // horizontal tab
+			{
+				sOutput += '\\';
+				sOutput += 't';
+				break;
+			}
+
+			case 0x0A: // newline
+			{
+				sOutput += '\\';
+				sOutput += 'n';
+				break;
+			}
+
+			case 0x0C: // formfeed
+			{
+				sOutput += '\\';
+				sOutput += 'f';
+				break;
+			}
+
+			case 0x0D: // carriage return
+			{
+				sOutput += '\\';
+				sOutput += 'r';
+				break;
+			}
+
+			case 0x22: // quotation mark
+			{
+				sOutput += '\\';
+				sOutput += '\"';
+				break;
+			}
+
+			case 0x5C: // reverse solidus
+			{
+				sOutput += '\\';
+				sOutput += '\\';
+				break;
+			}
+
+			default:
+			{
+				// escape control characters (0x00..0x1F) or, if
+				// ensure_ascii parameter is used, non-ASCII characters
+				if ((ch >= 0) && (ch <= 0x1F))
+				{
+					sOutput += "\\u00";
+					sOutput += KString::to_hexstring(static_cast<uint32_t>(ch));
+				}
+				else
+				{
+					// copy byte to buffer (all previous bytes
+					// been copied have in default case above)
+					sOutput += ch;
+				}
+				break;
+			}
+		}
+	}
+
+} // Escape
+
+//-----------------------------------------------------------------------------
+KString KJSON::Escape (KStringView sInput)
+//-----------------------------------------------------------------------------
+{
+	KString sReturn;
+	Escape(sInput, sReturn);
+	return sReturn;
+
+} // Escape
+
+//-----------------------------------------------------------------------------
+KString KJSON::EscWrap (KStringView sString)
+//-----------------------------------------------------------------------------
+{
 	KString sReturnMe;
-	sReturnMe.Format ("\"{}\"", sString);
+	sReturnMe.reserve(sString.size() + 2 + 10);
+
+	sReturnMe += '"';
+	Escape(sString, sReturnMe);
+	sReturnMe += '"';
 
 	return (sReturnMe);
 
 } // KSJON::EscWrap
 
 //-----------------------------------------------------------------------------
-KString KJSON::EscWrap (KString sName, KString sValue, KStringView sPrefix/*="\n\t"*/, KStringView sSuffix/*=","*/)
+KString KJSON::EscWrap (KStringView sName, KStringView sValue, KStringView sPrefix/*="\n\t"*/, KStringView sSuffix/*=","*/)
 //-----------------------------------------------------------------------------
 {
-	sName.Replace("\r","\\r");
-	sName.Replace("\n","\\n");
-	sName.Replace("\"","\\\"");
-
-	sValue.Replace("\r","\\r");
-	sValue.Replace("\n","\\n");
-	sValue.Replace("\"","\\\"");
-
 	KString sReturnMe;
-	sReturnMe.Format ("{}\"{}\": \"{}\"{}", sPrefix, sName, sValue, sSuffix);
+	sReturnMe.reserve(sPrefix.size()
+	                + sName.size()
+	                + sValue.size()
+	                + sSuffix.size()
+	                + 6 + 10);
+
+	sReturnMe += sPrefix;
+	sReturnMe += '"';
+	Escape(sName, sReturnMe);
+	sReturnMe += "\": \"";
+	Escape(sValue, sReturnMe);
+	sReturnMe += '"';
+	sReturnMe += sSuffix;
 
 	return (sReturnMe);
 
 } // KSJON::EscWrap
 
 //-----------------------------------------------------------------------------
-KString KJSON::EscWrap (KString sName, int iValue, KStringView sPrefix/*="\n\t"*/, KStringView sSuffix/*=","*/)
+KString KJSON::EscWrap (KStringView sName, int iValue, KStringView sPrefix/*="\n\t"*/, KStringView sSuffix/*=","*/)
 //-----------------------------------------------------------------------------
 {
-	sName.Replace("\r","\\r");
-	sName.Replace("\n","\\n");
-	sName.Replace("\"","\\\"");
-
-	KString sReturnMe;
-	sReturnMe.Format ("{}\"{}\": {}{}", sPrefix, sName, iValue, sSuffix);
-
-	return (sReturnMe);
+	return EscWrapNumeric(sName, KString::to_string(iValue), sPrefix, sSuffix);
 
 } // KSJON::EscWrap
 
 //-----------------------------------------------------------------------------
-KString KJSON::EscWrapNumeric (KString sName, int iValue, KStringView sPrefix/*="\n\t"*/, KStringView sSuffix/*=","*/)
+KString KJSON::EscWrapNumeric (KStringView sName, int iValue, KStringView sPrefix/*="\n\t"*/, KStringView sSuffix/*=","*/)
 //-----------------------------------------------------------------------------
 {
 	return KJSON::EscWrap(sName, iValue, sPrefix, sSuffix);
@@ -185,15 +274,22 @@ KString KJSON::EscWrapNumeric (KString sName, int iValue, KStringView sPrefix/*=
 } // KSJON::EscWrapNumeric
 
 //-----------------------------------------------------------------------------
-KString KJSON::EscWrapNumeric (KString sName, KString sValue, KStringView sPrefix/*="\n\t"*/, KStringView sSuffix/*=","*/)
+KString KJSON::EscWrapNumeric (KStringView sName, KStringView sValue, KStringView sPrefix/*="\n\t"*/, KStringView sSuffix/*=","*/)
 //-----------------------------------------------------------------------------
 {
-	sName.Replace("\r","\\r");
-	sName.Replace("\n","\\n");
-	sName.Replace("\"","\\\"");
-
 	KString sReturnMe;
-	sReturnMe.Format ("{}\"{}\": {}{}", sPrefix, sName, sValue, sSuffix);
+	sReturnMe.reserve(sPrefix.size()
+	                + sName.size()
+	                + sValue.size()
+	                + sSuffix.size()
+	                + 4 + 10);
+
+	sReturnMe += sPrefix;
+	sReturnMe += '"';
+	Escape(sName, sReturnMe);
+	sReturnMe += "\": ";
+	Escape(sValue, sReturnMe);
+	sReturnMe += sSuffix;
 
 	return (sReturnMe);
 

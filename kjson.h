@@ -76,8 +76,7 @@ public:
 	template<class T>
 	KJSON(initializer_list_t init,
 			bool type_deduction = true,
-			value_t manual_type = value_t::array
-)
+			value_t manual_type = value_t::array)
 	: LJSON(init, type_deduction, manual_type)
 	{
 	}
@@ -238,21 +237,25 @@ public:
 		return operator[](Key.c_str());
 	}
 
-	bool        FormError (const LJSON::exception& exc) const;
+	bool FormError (const LJSON::exception& exc) const;
+
+	/// proper json string escaping
+	static void Escape (KStringView sInput, KString& sOutput);
+	static KString Escape (KStringView sInput);
 
 	/// wrap the given string with double-quotes and escape it for legal json
-	static KString EscWrap (KString sString);
-	static KString EscWrap (KString sName, KString sValue, KStringView sPrefix="\n\t", KStringView sSuffix=",");
+	static KString EscWrap (KStringView sString);
+	static KString EscWrap (KStringView sName, KStringView sValue, KStringView sPrefix="\n\t", KStringView sSuffix=",");
 
 	/// do not wrap the given string with double-quotes if it is explicitly known to be Numeric
-	static KString EscWrap (KString sName, int iNumber, KStringView sPrefix="\n\t", KStringView sSuffix=",");
-	static KString EscWrapNumeric (KString sString, int iNumber, KStringView sPrefix="\n\t", KStringView sSuffix=",");
-	static KString EscWrapNumeric (KString sName, KString sValue, KStringView sPrefix="\n\t", KStringView sSuffix=",");
+	static KString EscWrap (KStringView sName, int iNumber, KStringView sPrefix="\n\t", KStringView sSuffix=",");
+	static KString EscWrapNumeric (KStringView sString, int iNumber, KStringView sPrefix="\n\t", KStringView sSuffix=",");
+	static KString EscWrapNumeric (KStringView sName, KStringView sValue, KStringView sPrefix="\n\t", KStringView sSuffix=",");
 
 //----------
 private:
 //----------
-	void        ClearError() const { m_sLastError.clear(); }
+	void ClearError() const { m_sLastError.clear(); }
 
 	static value_type s_empty;
 

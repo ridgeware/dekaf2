@@ -182,6 +182,222 @@ TEST_CASE("KWords") {
 		}
 	}
 
+	SECTION("KSimpleHTMLSkeletonWords, operator=()")
+	{
+		struct test_t
+		{
+			KStringView sInput;
+			std::vector<KStringViewPair> sOutput;
+		};
+
+		// source, target
+		std::vector<test_t> stest
+		{
+			{ "a few words",
+				{
+					{ "a", ""},
+					{"few", " "},
+					{"words", " "}
+				}
+			},
+			{ "a<a href = \"test\">tad<b>.@more</b>?7ee1",
+				{
+					{ "a", "" },
+					{ "tad", "<a href = \"test\">" },
+					{ "more", "<b>.@" },
+					{ "7ee1", "</b>?" }
+				}
+			},
+			{ "Hello <span attr=\"something\">World.</span>  It is 'cold' outside.",
+				{
+					{ "Hello", "" },
+					{ "World", " <span attr=\"something\">" },
+					{ "It", ".</span>  " },
+					{ "is", " " },
+					{ "cold", " '" },
+					{ "outside", "' "},
+					{ "", "." }
+				}
+			},
+			{ "   , ",
+				{
+					{ "", "   , "}
+				}
+			},
+			{ "",
+				{
+				}
+			}
+		};
+
+		for (auto& it : stest)
+		{
+			KSimpleHTMLSkeletonWords Words;
+			Words = it.sInput;
+			// repeat the assignment - should remove the first set of results
+			Words = it.sInput;
+
+			CHECK ( it.sOutput.size() == Words->size() );
+
+			auto sit = it.sOutput.begin();
+
+			for (auto& wit : *Words)
+			{
+				CHECK ( wit.first  == sit->first  );
+				CHECK ( wit.second == sit->second );
+				++sit;
+			}
+
+		}
+	}
+
+	SECTION("KSimpleHTMLSkeletonWords, operator=+(KStringView)")
+	{
+		struct test_t
+		{
+			KStringView sInput;
+			std::vector<KStringViewPair> sOutput;
+		};
+
+		// source, target
+		std::vector<test_t> stest
+		{
+			{ "a few words",
+				{
+					{ "a", ""},
+					{"few", " "},
+					{"words", " "}
+				}
+			},
+			{ "a<a href = \"test\">tad<b>.@more</b>?7ee1",
+				{
+					{ "a", "" },
+					{ "tad", "<a href = \"test\">" },
+					{ "more", "<b>.@" },
+					{ "7ee1", "</b>?" }
+				}
+			},
+			{ "Hello <span attr=\"something\">World.</span>  It is 'cold' outside.",
+				{
+					{ "Hello", "" },
+					{ "World", " <span attr=\"something\">" },
+					{ "It", ".</span>  " },
+					{ "is", " " },
+					{ "cold", " '" },
+					{ "outside", "' "},
+					{ "", "." }
+				}
+			},
+			{ "   , ",
+				{
+					{ "", "   , "}
+				}
+			},
+			{ "",
+				{
+				}
+			}
+		};
+
+		for (auto& it : stest)
+		{
+			KSimpleHTMLSkeletonWords Words;
+			Words = it.sInput;
+			// add again - should duplicate the first set of results
+			Words += it.sInput;
+
+			CHECK ( it.sOutput.size() * 2 == Words->size() );
+
+			auto sit = it.sOutput.begin();
+
+			for (auto& wit : *Words)
+			{
+				CHECK ( wit.first  == sit->first  );
+				CHECK ( wit.second == sit->second );
+				++sit;
+				if (sit == it.sOutput.end())
+				{
+					sit = it.sOutput.begin();
+				}
+			}
+
+		}
+	}
+
+	SECTION("KSimpleHTMLSkeletonWords, operator=+(KWords)")
+	{
+		struct test_t
+		{
+			KStringView sInput;
+			std::vector<KStringViewPair> sOutput;
+		};
+
+		// source, target
+		std::vector<test_t> stest
+		{
+			{ "a few words",
+				{
+					{ "a", ""},
+					{"few", " "},
+					{"words", " "}
+				}
+			},
+			{ "a<a href = \"test\">tad<b>.@more</b>?7ee1",
+				{
+					{ "a", "" },
+					{ "tad", "<a href = \"test\">" },
+					{ "more", "<b>.@" },
+					{ "7ee1", "</b>?" }
+				}
+			},
+			{ "Hello <span attr=\"something\">World.</span>  It is 'cold' outside.",
+				{
+					{ "Hello", "" },
+					{ "World", " <span attr=\"something\">" },
+					{ "It", ".</span>  " },
+					{ "is", " " },
+					{ "cold", " '" },
+					{ "outside", "' "},
+					{ "", "." }
+				}
+			},
+			{ "   , ",
+				{
+					{ "", "   , "}
+				}
+			},
+			{ "",
+				{
+				}
+			}
+		};
+
+		for (auto& it : stest)
+		{
+			KSimpleHTMLSkeletonWords Words1;
+			Words1 += it.sInput;
+			KSimpleHTMLSkeletonWords Words = Words1;
+			// add again - should duplicate the first set of results
+			Words += Words1;
+
+			CHECK ( it.sOutput.size() * 2 == Words->size() );
+
+			auto sit = it.sOutput.begin();
+
+			for (auto& wit : *Words)
+			{
+				CHECK ( wit.first  == sit->first  );
+				CHECK ( wit.second == sit->second );
+				++sit;
+				if (sit == it.sOutput.end())
+				{
+					sit = it.sOutput.begin();
+				}
+			}
+
+		}
+	}
+
 
 }
 

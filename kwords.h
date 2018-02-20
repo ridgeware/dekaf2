@@ -179,26 +179,75 @@ class KWords
 public:
 //------
 
+	KWords() = default;
+	KWords(const KWords&) = default;
+	KWords(KWords&&) = default;
+	KWords& operator=(const KWords&) = default;
+	KWords& operator=(KWords&&) = default;
+
+	/// Constructs from a buffer
 	KWords(KStringView sBuffer)
 	{
-		kSplitWords<Container, Parser>(m_Container, sBuffer);
+		Add(sBuffer);
 	}
 
+	/// Adding a new buffer. This adds to the existing content of the internal
+	/// container. If you want to start a new round, clear() the container
+	/// first or use Parse().
+	size_t Add(KStringView sBuffer)
+	{
+		return kSplitWords<Container, Parser>(m_Container, sBuffer);
+	}
+
+	/// Parsing a new buffer. Clears the existing content and adds new content.
+	size_t Parse(KStringView sBuffer)
+	{
+		m_Container.clear();
+		return Add(sBuffer);
+	}
+
+	/// Parsing a new buffer. Clears the existing content and adds new content.
+	KWords& operator=(KStringView sBuffer)
+	{
+		Parse(sBuffer);
+		return *this;
+	}
+
+	/// Adding a new buffer. This adds to the existing content of the internal
+	/// container.
+	KWords& operator+=(KStringView sBuffer)
+	{
+		Add(sBuffer);
+		return *this;
+	}
+
+	/// Adding another KWords instance. This adds to the existing content of the
+	/// internal container.
+	KWords& operator+=(const KWords& other)
+	{
+		m_Container.insert(m_Container.end(), other.m_Container.begin(), other.m_Container.end());
+		return *this;
+	}
+
+	/// Returns a const pointer to the underlying container
 	const Container* operator->() const
 	{
 		return &m_Container;
 	}
 
+	/// Returns a pointer to the underlying container
 	Container* operator->()
 	{
 		return &m_Container;
 	}
 
+	/// Returns a const reference to the underlying container
 	const Container& operator*() const
 	{
 		return m_Container;
 	}
 
+	/// Returns a reference to the underlying container
 	Container& operator*()
 	{
 		return m_Container;

@@ -1605,12 +1605,6 @@ void KSQL::SetErrorPrefix (KStringView sPrefix, uint32_t iLineNum/*=0*/)
 bool KSQL::ExecRawSQL (KStringView sSQL, uint64_t iFlags/*=0*/, KStringView sAPI/*="ExecRawSQL"*/)
 //-----------------------------------------------------------------------------
 {
-	if (!IsConnectionOpen())
-	{
-		m_sLastError = "database connection is not open";
-		return (false);
-	}
-
 	if (!(iFlags & F_NoKlogDebug) && !(m_iFlags & F_NoKlogDebug)) {
 		kDebugLog (GetDebugLevel(), "[{}]{}: {}\n", m_iDebugID, sAPI, m_sLastSQL);
 	}

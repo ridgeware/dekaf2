@@ -318,11 +318,8 @@ public:
 	using value_type = Decoded;
 
 	//-------------------------------------------------------------------------
-	KURLEncoded(URIPart encoding)
+	KURLEncoded() = default;
 	//-------------------------------------------------------------------------
-	    : m_Encoding(encoding)
-	{
-	}
 
 	//-------------------------------------------------------------------------
 	KURLEncoded(const KURLEncoded&) = default;
@@ -343,271 +340,110 @@ public:
 	//-------------------------------------------------------------------------
 	// the non-Key-Value decoding
 	template<const char X = chPairSep, typename std::enable_if<X == '\0', int>::type = 0>
-	KStringView getDecoded() const
+	const KString& get() const
 	//-------------------------------------------------------------------------
 	{
-		if ((m_eState & (VALID | DECODED)) == VALID)
-		{
-			// have to decode..
-			kUrlDecode(m_sEncoded, m_sDecoded);
-			m_eState |= DECODED;
-		}
+		return m_sDecoded;
+	}
+
+	//-------------------------------------------------------------------------
+	template<const char X = chPairSep, typename std::enable_if<X == '\0', int>::type = 0>
+	void get(KString& sTarget) const
+	//-------------------------------------------------------------------------
+	{
+		sTarget += m_sDecoded;
+	}
+
+	//-------------------------------------------------------------------------
+	// the Key-Value decoding
+	template<const char X = chPairSep, typename std::enable_if<X != '\0', int>::type = 0>
+	value_type& get()
+	//-------------------------------------------------------------------------
+	{
+		return m_sDecoded;
+	}
+
+	//-------------------------------------------------------------------------
+	// the Key-Value decoding
+	template<const char X = chPairSep, typename std::enable_if<X != '\0', int>::type = 0>
+	const value_type& get() const
+	//-------------------------------------------------------------------------
+	{
 		return m_sDecoded;
 	}
 
 	//-------------------------------------------------------------------------
 	// the non-Key-Value encoding
 	template<const char X = chPairSep, typename std::enable_if<X == '\0', int>::type = 0>
-	KStringView getEncoded() const
+	void Serialize(KString& sEncoded, URIPart Component) const
 	//-------------------------------------------------------------------------
 	{
-		if ((m_eState & MODIFIED) == MODIFIED)
-		{
-			m_sEncoded.clear();
-			kUrlEncode (m_sDecoded, m_sEncoded, m_Encoding);
-			m_eState |= ENCODED;
-			m_eState &= ~MODIFIED;
-		}
-
-		return m_sEncoded;
-	}
-
-	//-------------------------------------------------------------------------
-	// the Key-Value decoding
-	template<const char X = chPairSep, typename std::enable_if<X != '\0', int>::type = 0>
-	value_type& getDecoded()
-	//-------------------------------------------------------------------------
-	{
-		if ((m_eState & (VALID | DECODED)) == VALID)
-		{
-			decode();
-		}
-		// need to set modified flag, as we handed out a non-const ref
-		m_eState |= MODIFIED;
-		return m_sDecoded;
-	}
-
-	//-------------------------------------------------------------------------
-	// the Key-Value decoding
-	template<const char X = chPairSep, typename std::enable_if<X != '\0', int>::type = 0>
-	const value_type& getDecoded() const
-	//-------------------------------------------------------------------------
-	{
-		if ((m_eState & (VALID | DECODED)) == VALID)
-		{
-			decode();
-		}
-		return m_sDecoded;
+		kUrlEncode (m_sDecoded, sEncoded, Component);
 	}
 
 	//-------------------------------------------------------------------------
 	// the Key-Value encoding
 	template<const char X = chPairSep, typename std::enable_if<X != '\0', int>::type = 0>
-	KStringView getEncoded() const
+	void Serialize(KString& sEncoded, URIPart Component) const
 	//-------------------------------------------------------------------------
 	{
-		if ((m_eState & MODIFIED) == MODIFIED)
+		bool bSeparator = false;
+		for (const auto& it : m_sDecoded)
 		{
-			m_sEncoded.clear();
-
-			bool bSeparator = false;
-			for (const auto& it : m_sDecoded)
+			if (bSeparator)
 			{
-				if (bSeparator)
-				{
-					m_sEncoded += chPairSep;
-				}
-				else
-				{
-					bSeparator = true;
-				}
-				kUrlEncode (it.first, m_sEncoded, m_Encoding);
-				m_sEncoded += chKeyValSep;
-				kUrlEncode (it.second, m_sEncoded, m_Encoding);
-			}
-
-			m_eState |= ENCODED;
-			m_eState &= ~MODIFIED;
-		}
-
-		return m_sEncoded;
-	}
-
-	//-------------------------------------------------------------------------
-	template<const char X = chPairSep, typename std::enable_if<X == '\0', int>::type = 0>
-	void getDecoded(KString& sTarget) const
-	//-------------------------------------------------------------------------
-	{
-		sTarget += getDecoded();
-	}
-
-	//-------------------------------------------------------------------------
-	void getEncoded(KString& sTarget) const
-	//-------------------------------------------------------------------------
-	{
-		sTarget += getEncoded();
-	}
-
-	//-------------------------------------------------------------------------
-	bool Serialize(KString& sTarget) const
-	//-------------------------------------------------------------------------
-	{
-		sTarget += getEncoded();
-		return true;
-	}
-
-	//-------------------------------------------------------------------------
-	bool Serialize(KOutStream& sTarget) const
-	//-------------------------------------------------------------------------
-	{
-		sTarget += getEncoded();
-		return true;
-	}
-
-	//-------------------------------------------------------------------------
-	KStringView Serialize() const
-	//-------------------------------------------------------------------------
-	{
-		return getEncoded();
-	}
-
-	//-------------------------------------------------------------------------
-	void setEncoded(KStringView sv)
-	//-------------------------------------------------------------------------
-	{
-		// store original encoding
-		if (sv.empty())
-		{
-			clear();
-		}
-		else
-		{
-			m_sEncoded = sv;
-			m_eState = VALID;
-		}
-	}
-
-	//-------------------------------------------------------------------------
-	void Parse(KStringView sv)
-	//-------------------------------------------------------------------------
-	{
-		setEncoded(sv);
-	}
-
-	//-------------------------------------------------------------------------
-	template<const char X = chPairSep, typename std::enable_if<X == '\0', int>::type = 0>
-	void setDecoded(KStringView sv)
-	//-------------------------------------------------------------------------
-	{
-		if (sv != m_sDecoded || sv.empty())
-		{
-			if (sv.empty())
-			{
-				clear();
+				sEncoded += chPairSep;
 			}
 			else
 			{
-				m_sDecoded = sv;
-				m_eState = VALID | MODIFIED | DECODED;
+				bSeparator = true;
 			}
+			kUrlEncode (it.first, sEncoded, Component);
+			sEncoded += chKeyValSep;
+			kUrlEncode (it.second, sEncoded, Component);
 		}
 	}
 
 	//-------------------------------------------------------------------------
-	bool empty() const
+	KString Serialize(URIPart Component) const
 	//-------------------------------------------------------------------------
 	{
-		return m_eState == EMPTY;
+		KString sEncoded;
+		Serialize(sEncoded, Component);
+		return sEncoded;
 	}
 
 	//-------------------------------------------------------------------------
-	void clear()
+	void Serialize(KOutStream& sTarget, URIPart Component) const
 	//-------------------------------------------------------------------------
 	{
-		m_sDecoded.clear ();
-		m_sEncoded.clear ();
-		m_eState = EMPTY;
-	}
-
-	//-------------------------------------------------------------------------
-	template<const char X = chPairSep, typename std::enable_if<X == '\0', int>::type = 0>
-	KURLEncoded& operator=(KStringView sv)
-	//-------------------------------------------------------------------------
-	{
-		setDecoded(sv);
-		return *this;
+		sTarget += Serialize(Component);
 	}
 
 	//-------------------------------------------------------------------------
 	template<const char X = chPairSep, typename std::enable_if<X == '\0', int>::type = 0>
-	friend bool operator==(const self_type& left, const self_type& right)
+	void Parse(KStringView sv, URIPart Component)
 	//-------------------------------------------------------------------------
 	{
-		return left.getDecoded() == right.getDecoded();
+		kUrlDecode(sv, m_sDecoded);
 	}
-
-	//-------------------------------------------------------------------------
-	template<const char X = chPairSep, typename std::enable_if<X != '\0', int>::type = 0>
-	friend bool operator==(const self_type& left, const self_type& right)
-	//-------------------------------------------------------------------------
-	{
-		// this should rather be a comparison on the decoded version
-		return left.getEncoded() == right.getEncoded();
-	}
-
-	//-------------------------------------------------------------------------
-	friend bool operator!=(const self_type& left, const self_type& right)
-	//-------------------------------------------------------------------------
-	{
-		return !operator==(left, right);
-	}
-
-	//-------------------------------------------------------------------------
-	template<const char X = chPairSep, typename std::enable_if<X == '\0', int>::type = 0>
-	friend bool operator< (const self_type& left, const self_type& right)
-	//-------------------------------------------------------------------------
-	{
-		return left.getDecoded() < right.getDecoded();
-	}
-
-	//-------------------------------------------------------------------------
-	template<const char X = chPairSep, typename std::enable_if<X != '\0', int>::type = 0>
-	friend bool operator< (const self_type& left, const self_type& right)
-	//-------------------------------------------------------------------------
-	{
-		// this should rather be a comparison on the decoded version
-		return left.getEncoded() < right.getEncoded();
-	}
-
-	//-------------------------------------------------------------------------
-	friend bool operator> (const self_type& left, const self_type& right)
-	//-------------------------------------------------------------------------
-	{
-		return operator>(right, left);
-	}
-
-//------
-protected:
-//------
 
 	//-------------------------------------------------------------------------
 	// the Key-Value decoding
 	template<const char X = chPairSep, typename std::enable_if<X != '\0', int>::type = 0>
-	void decode() const
+	void Parse(KStringView sv, URIPart Component) const
 	//-------------------------------------------------------------------------
 	{
-		KStringView svQuery(m_sEncoded);
-
-		while (!svQuery.empty())
+		while (!sv.empty())
 		{
 			// Get bounds of query pair
-			auto iEnd = svQuery.find (chPairSep); // Find separator
+			auto iEnd = sv.find (chPairSep); // Find separator
 			if (iEnd == KString::npos)
 			{
-				iEnd = svQuery.size();
+				iEnd = sv.size();
 			}
 
-			KStringView svEncoded{svQuery.substr (0, iEnd)};
+			KStringView svEncoded{sv.substr (0, iEnd)};
 
 			auto iEquals = svEncoded.find (chKeyValSep);
 			if (iEquals > iEnd)
@@ -623,30 +459,89 @@ protected:
 			{
 				// decoding may only happen AFTER '=' '&' detections
 				KString sKey, sVal;
-				kUrlDecode (svKeyEncoded, sKey, m_Encoding);
-				kUrlDecode (svValEncoded, sVal, m_Encoding);
+				kUrlDecode (svKeyEncoded, sKey, Component);
+				kUrlDecode (svValEncoded, sVal, Component);
 				m_sDecoded.Add (std::move (sKey), std::move (sVal));
 			}
 
-			svQuery.remove_prefix(iEnd + 1);
+			sv.remove_prefix(iEnd + 1);
 		}
-
-		m_eState |= DECODED;
 	}
 
-	enum eState : uint8_t
+	//-------------------------------------------------------------------------
+	template<const char X = chPairSep, typename std::enable_if<X == '\0', int>::type = 0>
+	void set(KStringView sv)
+	//-------------------------------------------------------------------------
 	{
-		EMPTY    = 0,
-		VALID    = 1 << 0,
-		MODIFIED = 1 << 1,
-		DECODED  = 1 << 2,
-		ENCODED  = 1 << 3
-	};
+		m_sDecoded = sv;
+	}
+
+	//-------------------------------------------------------------------------
+	bool empty() const
+	//-------------------------------------------------------------------------
+	{
+		return m_sDecoded.empty();
+	}
+
+	//-------------------------------------------------------------------------
+	void clear()
+	//-------------------------------------------------------------------------
+	{
+		m_sDecoded.clear ();
+	}
+
+	//-------------------------------------------------------------------------
+	template<const char X = chPairSep, typename std::enable_if<X == '\0', int>::type = 0>
+	KURLEncoded& operator=(KStringView sv)
+	//-------------------------------------------------------------------------
+	{
+		set(sv);
+		return *this;
+	}
+
+	//-------------------------------------------------------------------------
+	friend bool operator==(const self_type& left, const self_type& right)
+	//-------------------------------------------------------------------------
+	{
+		return left.get() == right.get();
+	}
+
+	//-------------------------------------------------------------------------
+	friend bool operator!=(const self_type& left, const self_type& right)
+	//-------------------------------------------------------------------------
+	{
+		return !operator==(left, right);
+	}
+
+	//-------------------------------------------------------------------------
+	template<const char X = chPairSep, typename std::enable_if<X == '\0', int>::type = 0>
+	friend bool operator< (const self_type& left, const self_type& right)
+	//-------------------------------------------------------------------------
+	{
+		return left.get() < right.get();
+	}
+
+	//-------------------------------------------------------------------------
+	template<const char X = chPairSep, typename std::enable_if<X != '\0', int>::type = 0>
+	friend bool operator< (const self_type& left, const self_type& right)
+	//-------------------------------------------------------------------------
+	{
+		// this should rather be a comparison on the decoded version
+		return left.Serialize() < right.Serialize();
+	}
+
+	//-------------------------------------------------------------------------
+	friend bool operator> (const self_type& left, const self_type& right)
+	//-------------------------------------------------------------------------
+	{
+		return operator<(right, left);
+	}
+
+//------
+protected:
+//------
 
 	mutable Decoded m_sDecoded {};
-	mutable KString m_sEncoded {};
-	mutable uint8_t m_eState { EMPTY };
-	URIPart m_Encoding;
 
 }; // KURLEncoded
 
@@ -655,7 +550,7 @@ extern template class KURLEncoded<KString>;
 extern template class KURLEncoded<KProps<KString, KString>, '&', '='>;
 #endif
 
-using URLEncodedString    = KURLEncoded<KString>;
-using URLEncodedQuery     = KURLEncoded<KProps<KString, KString>, '&', '='>;
+using URLEncodedString = KURLEncoded<KString>;
+using URLEncodedQuery  = KURLEncoded<KProps<KString, KString>, '&', '='>;
 
 } // end of namespace dekaf2

@@ -86,13 +86,17 @@ public:
 
 	//-------------------------------------------------------------------------
 	/// constructs empty instance.
-	URIComponent () = default;
+	URIComponent ()
 	//-------------------------------------------------------------------------
+	    : m_sStorage(Component)
+	{
+	}
 
 	//-------------------------------------------------------------------------
 	/// constructs instance and parses source into members
 	URIComponent (KStringView svSource)
 	//-------------------------------------------------------------------------
+	    : m_sStorage(Component)
 	{
 		Parse (svSource);
 	}
@@ -213,7 +217,7 @@ public:
 					}
 				}
 
-				m_sStorage.Parse(svSource.substr(0, iFound), Component);
+				m_sStorage.setEncoded(svSource.substr(0, iFound));
 
 				svSource.remove_prefix(iFound);
 
@@ -270,7 +274,7 @@ public:
 				}
 			}
 
-			m_sStorage.Serialize(sTarget, Component);
+			m_sStorage.Serialize(sTarget);
 
 			if (Component == URIPart::User || Component == URIPart::Password)
 			{
@@ -302,7 +306,7 @@ public:
 				return false;
 			}
 
-			m_sStorage.Serialize(sTarget, Component);
+			m_sStorage.Serialize(sTarget);
 
 			if (Component == URIPart::User)
 			{
@@ -318,7 +322,7 @@ public:
 	KStringView Serialize() const
 	//-------------------------------------------------------------------------
 	{
-		return m_sStorage.Serialize(Component);
+		return m_sStorage.Serialize();
 	}
 
 	//-------------------------------------------------------------------------
@@ -331,34 +335,34 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
-	/// return a const reference of the member
+	/// return a view of the member
 	template<typename X = Storage, typename std::enable_if<std::is_same<X, URLEncodedString>::value, int>::type = 0 >
-	const KString& get () const
+	KStringView get () const
 	//-------------------------------------------------------------------------
 	{
-		return m_sStorage.get();
+		return m_sStorage.getDecoded();
 	}
 
 	//-------------------------------------------------------------------------
-	/// return a const reference of the key-value member
+	/// return the key-value member
 	template<typename X = Storage, typename std::enable_if<!std::is_same<X, URLEncodedString>::value, int>::type = 0 >
 	const typename Storage::value_type& get () const
 	//-------------------------------------------------------------------------
 	{
-		return m_sStorage.get();
+		return m_sStorage.getDecoded();
 	}
 
 	//-------------------------------------------------------------------------
-	/// return a reference of the key-value member
+	/// return the key-value member
 	template<typename X = Storage, typename std::enable_if<!std::is_same<X, URLEncodedString>::value, int>::type = 0 >
 	typename Storage::value_type& get ()
 	//-------------------------------------------------------------------------
 	{
-		return m_sStorage.get();
+		return m_sStorage.getDecoded();
 	}
 
 	//-------------------------------------------------------------------------
-	/// return a const pointer of the key-value member
+	/// return the key-value member
 	template<typename X = Storage, typename std::enable_if<!std::is_same<X, URLEncodedString>::value, int>::type = 0 >
 	const typename Storage::value_type* operator-> () const
 	//-------------------------------------------------------------------------
@@ -367,7 +371,7 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
-	/// return a pointer of the key-value member
+	/// return the key-value member
 	template<typename X = Storage, typename std::enable_if<!std::is_same<X, URLEncodedString>::value, int>::type = 0 >
 	typename Storage::value_type* operator-> ()
 	//-------------------------------------------------------------------------
@@ -399,7 +403,7 @@ public:
 	void set (KStringView sv)
 	//-------------------------------------------------------------------------
 	{
-		m_sStorage.set(sv);
+		m_sStorage.setDecoded(sv);
 	}
 
 	//-------------------------------------------------------------------------

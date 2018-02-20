@@ -105,7 +105,6 @@ template void kUrlEncode (KStringView sSource, KString& sTarget, const bool excl
 #ifndef __clang__
 template class KURLEncoded<KString>;
 template class KURLEncoded<KProps<KString, KString>, '&', '='>;
-//template class KURLEncoded<KProps<KString, KString>, ';', '='>;
 #endif
 
 }// end of namespace dekaf2

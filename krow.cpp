@@ -423,14 +423,6 @@ KString KROW::ToJSON (bool bWrapInCurlies, KStringView sLineLeader, KStringView 
 		return sJSON;
 	}
 
-	if (m_sTablename.empty())
-	{
-		m_sLastError.Format("KROW::ToJSON(): no tablename defined.");
-
-		kDebugLog (1, "{}", m_sLastError);
-		return sJSON;
-	}
-
 	if (bWrapInCurlies)
 	{
 		sJSON += "{";

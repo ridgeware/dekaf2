@@ -182,7 +182,7 @@ TEST_CASE("KSQL")
 		if (!kFileExists (g_sDbcFile))
 		{
 			KString sErr;
-			sErr.Format ("failed to file dbc file: {}", g_sDbcFile);
+			sErr.Format ("failed to find dbc file: {}", g_sDbcFile);
 			FAIL_CHECK (sErr);
 			return;  // <--- other other tests are useless
 		}

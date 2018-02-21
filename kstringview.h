@@ -152,6 +152,11 @@ constexpr
 bool kEndsWith(KStringView sInput, KStringView sPattern);
 //----------------------------------------------------------------------
 
+//----------------------------------------------------------------------
+constexpr
+bool kContains(KStringView sInput, KStringView sPattern);
+//----------------------------------------------------------------------
+
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class KStringView {
@@ -589,6 +594,15 @@ public:
 	//-----------------------------------------------------------------------------
 	{
 		return kEndsWith(*this, other);
+	}
+
+	//-----------------------------------------------------------------------------
+	// nonstandard
+	constexpr
+	bool Contains(self_type other)
+	//-----------------------------------------------------------------------------
+	{
+		return kContains(*this, other);
 	}
 
 	//-----------------------------------------------------------------------------
@@ -1118,6 +1132,21 @@ bool kEndsWith(KStringView sInput, KStringView sPattern)
 	return !std::memcmp(sInput.data() + sInput.size() - sPattern.size(), sPattern.data(), sPattern.size());
 
 } // kEndsWith
+
+//----------------------------------------------------------------------
+inline
+constexpr
+bool kContains(KStringView sInput, KStringView sPattern)
+//----------------------------------------------------------------------
+{
+	if (DEKAF2_UNLIKELY(sInput.size() < sPattern.size()))
+	{
+		return false;
+	}
+
+	return kFind(sInput, sPattern) != KStringView::npos;
+
+} // kContains
 
 
 } // end of namespace dekaf2

@@ -61,7 +61,7 @@ SCENARIO ( "KURL unit tests on valid data" )
 	// scheme/user/pass/domain/query/fragment
 	URL_valid["https://user:password@what.ever.com?please=stop%20the test%90&a=b#now"] =
 		parm_t (0, 69, true, "all URL elements in use",
-				"https://user:password@what.ever.com?please=stop%20the test%90&a=b#now"
+				"https://user:password@what.ever.com?please=stop+the+test%90&a=b#now"
 				);
 
 	// TODO This next one fails.  Fix it.
@@ -940,31 +940,31 @@ TEST_CASE ("KURL formerly missing")
 		URL   = svURL;
 		sSerialized.clear();
 		URL.Serialize(sSerialized);
-		CHECK ( sSerialized == svURL );
+		CHECK ( sSerialized == "http://news.example.com/money/%245.2-billion-merger" );
 
 		svURL = "http://blog.example.com/wutchoo-talkin'-bout-willis!?";
 		URL   = svURL;
 		sSerialized.clear();
 		URL.Serialize(sSerialized);
-		CHECK ( sSerialized == svURL );
+		CHECK ( sSerialized == "http://blog.example.com/wutchoo-talkin%27-bout-willis%21?" );
 
 		svURL = "https://spam.example.com/viagra-only-$2-per-pill*";
 		URL   = svURL;
 		sSerialized.clear();
 		URL.Serialize(sSerialized);
-		CHECK ( sSerialized == svURL );
+		CHECK ( sSerialized == "https://spam.example.com/viagra-only-%242-per-pill%2A" );
 
 		svURL = "http://example.com/path/foo:bogus";
 		URL   = svURL;
 		sSerialized.clear();
 		URL.Serialize(sSerialized);
-		CHECK ( sSerialized == svURL );
+		CHECK ( sSerialized == "http://example.com/path/foo%3Abogus" );
 
 		svURL = "http://example.com/path+test/foo%20bogus?foo+bogus%2Btest#foo%20bogus+test";
 		URL   = svURL;
 		sSerialized.clear();
 		URL.Serialize(sSerialized);
-		CHECK ( sSerialized == svURL );
+		CHECK ( sSerialized == "http://example.com/path%2Btest/foo%20bogus?foo+bogus%2Btest=#foo%20bogus%2Btest" );
 
 	}
 
@@ -984,31 +984,31 @@ TEST_CASE ("KURL formerly missing")
 		URL   = svURL;
 		sSerialized.clear();
 		URL.Serialize(sSerialized);
-		CHECK ( sSerialized == svURL );
+		CHECK ( sSerialized == "http://news.example.com/money/%245.2-billion-merger" );
 
 		svURL = "http://blog.example.com/wutchoo-talkin'-bout-willis!?";
 		URL   = svURL;
 		sSerialized.clear();
 		URL.Serialize(sSerialized);
-		CHECK ( sSerialized == svURL );
+		CHECK ( sSerialized == "http://blog.example.com/wutchoo-talkin%27-bout-willis%21?" );
 
 		svURL = "https://spam.example.com/viagra-only-$2-per-pill*";
 		URL   = svURL;
 		sSerialized.clear();
 		URL.Serialize(sSerialized);
-		CHECK ( sSerialized == svURL );
+		CHECK ( sSerialized == "https://spam.example.com/viagra-only-%242-per-pill%2A" );
 
 		svURL = "http://example.com/path/foo:bogus";
 		URL   = svURL;
 		sSerialized.clear();
 		URL.Serialize(sSerialized);
-		CHECK ( sSerialized == svURL );
+		CHECK ( sSerialized == "http://example.com/path/foo%3Abogus" );
 
 		svURL = "http://example.com/path+test/foo%20bogus?foo+bogus%2Btest#foo%20bogus+test";
 		URL   = svURL;
 		sSerialized.clear();
 		URL.Serialize(sSerialized);
-		CHECK ( sSerialized == svURL );
+		CHECK ( sSerialized == "http://example.com/path%2Btest/foo%20bogus?foo+bogus%2Btest=#foo%20bogus%2Btest" );
 
 		svURL = "whatever://fred:secret@www.test.com:7654/works.html;param;a=b;multi=a,b,c,d;this=that?foo=bar&you=me#fragment";
 		URL   = svURL;

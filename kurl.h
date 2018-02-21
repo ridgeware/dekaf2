@@ -454,7 +454,7 @@ public:
 	friend bool operator> (const self_type& left, const self_type& right)
 	//-------------------------------------------------------------------------
 	{
-		return operator>(right, left);
+		return operator<(right, left);
 	}
 
 //------

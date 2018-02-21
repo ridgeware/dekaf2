@@ -60,12 +60,13 @@ TEST_CASE("KHTTP") {
 		server.Start(300, false);
 		server.clear();
 
-		KURL         URL("http://127.0.0.1:7654/path?query=val&another=here#fragment");
+		KURL URL("http://127.0.0.1:7654/path?query=val&another=here#fragment");
 		KConnection  cx(URL);
 		CHECK( cx == true );
 		if (cx == true)
 		{
 			CHECK( cx->OutStream().good() == true );
+			CHECK( cx->InStream().good()  == true );
 		}
 		KHTTPClient        cHTTP(cx);
 		cHTTP.Resource(URL);

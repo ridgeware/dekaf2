@@ -315,7 +315,7 @@ public:
 
 	//-------------------------------------------------------------------------
 	/// return encoded content, without leading separator
-	KStringView Serialize() const
+	KString Serialize() const
 	//-------------------------------------------------------------------------
 	{
 		return m_sStorage.Serialize(Component);

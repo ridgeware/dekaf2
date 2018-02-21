@@ -129,7 +129,14 @@ ssize_t kGetSize(std::istream& Stream, bool bFromStart)
 
 	catch (std::exception& e)
 	{
-		kException(e);
+		if (kContains(e.what(), "random"))
+		{
+			kDebug(3, e.what());
+		}
+		else
+		{
+			kException(e);
+		}
 	}
 
 	return -1;

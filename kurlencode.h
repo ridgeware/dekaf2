@@ -431,7 +431,7 @@ public:
 	//-------------------------------------------------------------------------
 	// the Key-Value decoding
 	template<const char X = chPairSep, typename std::enable_if<X != '\0', int>::type = 0>
-	void Parse(KStringView sv, URIPart Component) const
+	void Parse(KStringView sv, URIPart Component)
 	//-------------------------------------------------------------------------
 	{
 		while (!sv.empty())
@@ -541,7 +541,7 @@ public:
 protected:
 //------
 
-	mutable Decoded m_sDecoded {};
+	Decoded m_sDecoded {};
 
 }; // KURLEncoded
 

@@ -56,7 +56,7 @@
 namespace dekaf2 {
 
 //-------------------------------------------------------------------------
-KString kGetBaseDomain (KStringView m_sStorage);
+KString kGetBaseDomain (KStringView sHostName);
 //-------------------------------------------------------------------------
 
 namespace url {
@@ -72,7 +72,8 @@ template<
          URIPart Component,
          const char StartToken,
          bool RemoveStartSeparator,
-         bool RemoveEndSeparator
+         bool RemoveEndSeparator,
+         bool IsString
          >
 class URIComponent
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -82,7 +83,7 @@ class URIComponent
 public:
 //------
 
-	using self_type = URIComponent<Storage, Component, StartToken, RemoveStartSeparator, RemoveEndSeparator>;
+	using self_type = URIComponent<Storage, Component, StartToken, RemoveStartSeparator, RemoveEndSeparator, IsString>;
 
 	//-------------------------------------------------------------------------
 	/// constructs empty instance.
@@ -332,7 +333,7 @@ public:
 
 	//-------------------------------------------------------------------------
 	/// return a const reference of the member
-	template<typename X = Storage, typename std::enable_if<std::is_same<X, URLEncodedString>::value, int>::type = 0 >
+	template<bool X = IsString, typename std::enable_if<X, int>::type = 0 >
 	const KString& get () const
 	//-------------------------------------------------------------------------
 	{
@@ -341,7 +342,7 @@ public:
 
 	//-------------------------------------------------------------------------
 	/// return a const reference of the key-value member
-	template<typename X = Storage, typename std::enable_if<!std::is_same<X, URLEncodedString>::value, int>::type = 0 >
+	template<bool X = IsString, typename std::enable_if<!X, int>::type = 0 >
 	const typename Storage::value_type& get () const
 	//-------------------------------------------------------------------------
 	{
@@ -350,7 +351,7 @@ public:
 
 	//-------------------------------------------------------------------------
 	/// return a reference of the key-value member
-	template<typename X = Storage, typename std::enable_if<!std::is_same<X, URLEncodedString>::value, int>::type = 0 >
+	template<bool X = IsString, typename std::enable_if<!X, int>::type = 0 >
 	typename Storage::value_type& get ()
 	//-------------------------------------------------------------------------
 	{
@@ -359,7 +360,7 @@ public:
 
 	//-------------------------------------------------------------------------
 	/// return a const pointer of the key-value member
-	template<typename X = Storage, typename std::enable_if<!std::is_same<X, URLEncodedString>::value, int>::type = 0 >
+	template<bool X = IsString, typename std::enable_if<!X, int>::type = 0 >
 	const typename Storage::value_type* operator-> () const
 	//-------------------------------------------------------------------------
 	{
@@ -368,7 +369,7 @@ public:
 
 	//-------------------------------------------------------------------------
 	/// return a pointer of the key-value member
-	template<typename X = Storage, typename std::enable_if<!std::is_same<X, URLEncodedString>::value, int>::type = 0 >
+	template<bool X = IsString, typename std::enable_if<!X, int>::type = 0 >
 	typename Storage::value_type* operator-> ()
 	//-------------------------------------------------------------------------
 	{
@@ -377,7 +378,7 @@ public:
 
 	//-------------------------------------------------------------------------
 	/// return the key-value value
-	template<typename X = Storage, typename std::enable_if<!std::is_same<X, URLEncodedString>::value, int>::type = 0 >
+	template<bool X = IsString, typename std::enable_if<!X, int>::type = 0 >
 	const KString& operator[] (KStringView sv) const
 	//-------------------------------------------------------------------------
 	{
@@ -386,7 +387,7 @@ public:
 
 	//-------------------------------------------------------------------------
 	/// return the key-value value
-	template<typename X = Storage, typename std::enable_if<!std::is_same<X, URLEncodedString>::value, int>::type = 0 >
+	template<bool X = IsString, typename std::enable_if<!X, int>::type = 0 >
 	KString& operator[] (KStringView sv)
 	//-------------------------------------------------------------------------
 	{
@@ -395,7 +396,7 @@ public:
 
 	//-------------------------------------------------------------------------
 	/// modify member by parsing argument
-	template<typename X = Storage, typename std::enable_if<std::is_same<X, URLEncodedString>::value, int>::type = 0 >
+	template<bool X = IsString, typename std::enable_if<X, int>::type = 0 >
 	void set (KStringView sv)
 	//-------------------------------------------------------------------------
 	{
@@ -404,7 +405,7 @@ public:
 
 	//-------------------------------------------------------------------------
 	/// operator KStringView () returns the decoded string
-	template<typename X = Storage, typename std::enable_if<std::is_same<X, URLEncodedString>::value, int>::type = 0 >
+	template<bool X = IsString, typename std::enable_if<X, int>::type = 0 >
 	operator KStringView () const
 	//-------------------------------------------------------------------------
 	{
@@ -412,12 +413,11 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
-	/// operator=(KStringView) sets the decoded string
-	template<typename X = Storage, typename std::enable_if<std::is_same<X, URLEncodedString>::value, int>::type = 0 >
+	/// operator=(KStringView) parses the decoded string
 	URIComponent& operator=(KStringView sv)
 	//-------------------------------------------------------------------------
 	{
-		set(sv);
+		Parse(sv);
 		return *this;
 	}
 
@@ -467,24 +467,24 @@ private:
 };
 
 #ifndef __clang__
-extern template class URIComponent<URLEncodedString, URIPart::User,     '\0', false, true >;
-extern template class URIComponent<URLEncodedString, URIPart::Password, '\0', false, true >;
-extern template class URIComponent<URLEncodedString, URIPart::Domain,   '\0', false, false>;
-extern template class URIComponent<URLEncodedString, URIPart::Port,     ':',  true,  false>;
-extern template class URIComponent<URLEncodedString, URIPart::Path,     '/',  false, false>;
-extern template class URIComponent<URLEncodedQuery,  URIPart::Query,    '?',  true,  false>;
-extern template class URIComponent<URLEncodedString, URIPart::Fragment, '#',  true,  false>;
+extern template class URIComponent<URLEncodedString, URIPart::User,     '\0', false, true,  true >;
+extern template class URIComponent<URLEncodedString, URIPart::Password, '\0', false, true,  true >;
+extern template class URIComponent<URLEncodedString, URIPart::Domain,   '\0', false, false, true >;
+extern template class URIComponent<URLEncodedString, URIPart::Port,     ':',  true,  false, true >;
+extern template class URIComponent<URLEncodedString, URIPart::Path,     '/',  false, false, true >;
+extern template class URIComponent<URLEncodedQuery,  URIPart::Query,    '?',  true,  false, false>;
+extern template class URIComponent<URLEncodedString, URIPart::Fragment, '#',  true,  false, true >;
 #endif
 
 } // end of namespace dekaf2::url::detail
 
-using KUser     = detail::URIComponent<URLEncodedString, URIPart::User,     '\0', false, true >;
-using KPassword = detail::URIComponent<URLEncodedString, URIPart::Password, '\0', false, true >;
-using KDomain   = detail::URIComponent<URLEncodedString, URIPart::Domain,   '\0', false, false>;
-using KPort     = detail::URIComponent<URLEncodedString, URIPart::Port,     ':',  true,  false>;
-using KPath     = detail::URIComponent<URLEncodedString, URIPart::Path,     '/',  false, false>;
-using KQuery    = detail::URIComponent<URLEncodedQuery,  URIPart::Query,    '?',  true,  false>;
-using KFragment = detail::URIComponent<URLEncodedString, URIPart::Fragment, '#',  true,  false>;
+using KUser     = detail::URIComponent<URLEncodedString, URIPart::User,     '\0', false, true,  true >;
+using KPassword = detail::URIComponent<URLEncodedString, URIPart::Password, '\0', false, true,  true >;
+using KDomain   = detail::URIComponent<URLEncodedString, URIPart::Domain,   '\0', false, false, true >;
+using KPort     = detail::URIComponent<URLEncodedString, URIPart::Port,     ':',  true,  false, true >;
+using KPath     = detail::URIComponent<URLEncodedString, URIPart::Path,     '/',  false, false, true >;
+using KQuery    = detail::URIComponent<URLEncodedQuery,  URIPart::Query,    '?',  true,  false, false>;
+using KFragment = detail::URIComponent<URLEncodedString, URIPart::Fragment, '#',  true,  false, true >;
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 // The URL Schema is a bit different from the other URI components, therefore

@@ -119,13 +119,13 @@ namespace url {
 namespace detail {
 
 #ifndef __clang__
-template class URIComponent<URLEncodedString, URIPart::User,     '\0', false, true >;
-template class URIComponent<URLEncodedString, URIPart::Password, '\0', false, true >;
-template class URIComponent<URLEncodedString, URIPart::Domain,   '\0', false, false>;
-template class URIComponent<URLEncodedString, URIPart::Port,     ':',  true,  false>;
-template class URIComponent<URLEncodedString, URIPart::Path,     '/',  false, false>;
-template class URIComponent<URLEncodedQuery,  URIPart::Query,    '?',  true,  false>;
-template class URIComponent<URLEncodedString, URIPart::Fragment, '#',  true,  false>;
+template class URIComponent<URLEncodedString, URIPart::User,     '\0', false, true,  true >;
+template class URIComponent<URLEncodedString, URIPart::Password, '\0', false, true,  true >;
+template class URIComponent<URLEncodedString, URIPart::Domain,   '\0', false, false, true >;
+template class URIComponent<URLEncodedString, URIPart::Port,     ':',  true,  false, true >;
+template class URIComponent<URLEncodedString, URIPart::Path,     '/',  false, false, true >;
+template class URIComponent<URLEncodedQuery,  URIPart::Query,    '?',  true,  false, false>;
+template class URIComponent<URLEncodedString, URIPart::Fragment, '#',  true,  false, true >;
 #endif
 
 }
@@ -317,7 +317,7 @@ KStringView KURL::getBaseDomain() const
 {
 	if (BaseDomain.empty() && !Domain.empty())
 	{
-		BaseDomain = kGetBaseDomain(Domain);
+		BaseDomain = kGetBaseDomain(Domain.get());
 	}
 	return BaseDomain;
 }

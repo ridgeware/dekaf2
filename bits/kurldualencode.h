@@ -110,13 +110,14 @@ public:
 	//-------------------------------------------------------------------------
 	// the non-Key-Value encoding
 	template<const char X = chPairSep, typename std::enable_if<X == '\0', int>::type = 0>
-	const KString& Serialize() const
+	const KString& Serialize(URIPart Component) const
 	//-------------------------------------------------------------------------
 	{
+		m_Component = Component;
 		if ((m_eState & MODIFIED) == MODIFIED)
 		{
 			m_sEncoded.clear();
-			kUrlEncode (m_sDecoded, m_sEncoded, m_Encoding);
+			kUrlEncode (m_sDecoded, m_sEncoded, m_Component);
 			m_eState |= ENCODED;
 			m_eState &= ~MODIFIED;
 		}
@@ -155,9 +156,10 @@ public:
 	//-------------------------------------------------------------------------
 	// the Key-Value encoding
 	template<const char X = chPairSep, typename std::enable_if<X != '\0', int>::type = 0>
-	const KString& Serialize() const
+	const KString& Serialize(URIPart Component) const
 	//-------------------------------------------------------------------------
 	{
+		m_Component = Component;
 		if ((m_eState & MODIFIED) == MODIFIED)
 		{
 			m_sEncoded.clear();
@@ -173,9 +175,9 @@ public:
 				{
 					bSeparator = true;
 				}
-				kUrlEncode (it.first, m_sEncoded, m_Encoding);
+				kUrlEncode (it.first, m_sEncoded, m_Component);
 				m_sEncoded += chKeyValSep;
-				kUrlEncode (it.second, m_sEncoded, m_Encoding);
+				kUrlEncode (it.second, m_sEncoded, m_Component);
 			}
 
 			m_eState |= ENCODED;
@@ -194,31 +196,24 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
-	void Serialize(KString& sTarget) const
+	void Serialize(KString& sTarget, URIPart Component) const
 	//-------------------------------------------------------------------------
 	{
-		sTarget += Serialize();
+		sTarget += Serialize(Component);
 	}
 
 	//-------------------------------------------------------------------------
-	bool Serialize(KOutStream& sTarget) const
+	void Serialize(KOutStream& sTarget, URIPart Component) const
 	//-------------------------------------------------------------------------
 	{
-		sTarget += Serialize();
-		return true;
+		sTarget += Serialize(Component);
 	}
 
 	//-------------------------------------------------------------------------
-	const KString& Serialize() const
+	void Parse(KStringView sv, URIPart Component)
 	//-------------------------------------------------------------------------
 	{
-		return Serialize();
-	}
-
-	//-------------------------------------------------------------------------
-	void Parse(KStringView sv)
-	//-------------------------------------------------------------------------
-	{
+		m_Component = Component;
 		// store original encoding
 		if (sv.empty())
 		{
@@ -264,6 +259,7 @@ public:
 		m_sDecoded.clear ();
 		m_sEncoded.clear ();
 		m_eState = EMPTY;
+		m_Component = URIPart::Path;
 	}
 
 	//-------------------------------------------------------------------------
@@ -279,7 +275,7 @@ public:
 	friend bool operator==(const self_type& left, const self_type& right)
 	//-------------------------------------------------------------------------
 	{
-		return left() == right.get();
+		return left.get() == right.get();
 	}
 
 	//-------------------------------------------------------------------------
@@ -350,8 +346,8 @@ protected:
 			{
 				// decoding may only happen AFTER '=' '&' detections
 				KString sKey, sVal;
-				kUrlDecode (svKeyEncoded, sKey, m_Encoding);
-				kUrlDecode (svValEncoded, sVal, m_Encoding);
+				kUrlDecode (svKeyEncoded, sKey, m_Component);
+				kUrlDecode (svValEncoded, sVal, m_Component);
 				m_sDecoded.Add (std::move (sKey), std::move (sVal));
 			}
 
@@ -373,7 +369,7 @@ protected:
 	mutable Decoded m_sDecoded {};
 	mutable KString m_sEncoded {};
 	mutable uint8_t m_eState { EMPTY };
-	URIPart m_Encoding;
+	mutable URIPart m_Component { URIPart::Path };
 
 }; // KURLDualEncoded
 

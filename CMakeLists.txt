@@ -191,18 +191,19 @@ configure_file("bits/kconfiguration.h.in" "${GENERATED_FILES_DIR}/kconfiguration
 
 set (HEADERS
 	# KEEP ALPHABETIZED!!
-	bits/kconfiguration.h
-	bits/ktemplate.h
-	bits/kcppcompat.h
-	bits/kmake_unique.h
-	bits/kmutable_pair.h
-	bits/kunique_deleter.h
-	bits/kprops-multi-index.h
-	bits/kprops-std-map.h
-	bits/kmru-std-vector.h
-	bits/kmru-multi-index.h
 	bits/kbaseshell.h
 	bits/kbasepipe.h
+	bits/kconfiguration.h
+	bits/kcppcompat.h
+	bits/kmake_unique.h
+	bits/kmru-std-vector.h
+	bits/kmru-multi-index.h
+	bits/kmutable_pair.h
+	bits/kprops-multi-index.h
+	bits/kprops-std-map.h
+	bits/ktemplate.h
+	bits/kunique_deleter.h
+	bits/kurldualencode.h
 	bits/simd/kfindfirstof.h
 	dekaf2.h
 	dekaf2all.h

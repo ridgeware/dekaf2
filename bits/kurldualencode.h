@@ -73,11 +73,8 @@ public:
 	using value_type = Decoded;
 
 	//-------------------------------------------------------------------------
-	KURLDualEncoded(URIPart encoding)
+	KURLDualEncoded() = default;
 	//-------------------------------------------------------------------------
-	    : m_Encoding(encoding)
-	{
-	}
 
 	//-------------------------------------------------------------------------
 	KURLDualEncoded(const KURLDualEncoded&) = default;
@@ -98,7 +95,7 @@ public:
 	//-------------------------------------------------------------------------
 	// the non-Key-Value decoding
 	template<const char X = chPairSep, typename std::enable_if<X == '\0', int>::type = 0>
-	KStringView getDecoded() const
+	const KString& get() const
 	//-------------------------------------------------------------------------
 	{
 		if ((m_eState & (VALID | DECODED)) == VALID)
@@ -113,7 +110,7 @@ public:
 	//-------------------------------------------------------------------------
 	// the non-Key-Value encoding
 	template<const char X = chPairSep, typename std::enable_if<X == '\0', int>::type = 0>
-	KStringView getEncoded() const
+	const KString& Serialize() const
 	//-------------------------------------------------------------------------
 	{
 		if ((m_eState & MODIFIED) == MODIFIED)
@@ -130,7 +127,7 @@ public:
 	//-------------------------------------------------------------------------
 	// the Key-Value decoding
 	template<const char X = chPairSep, typename std::enable_if<X != '\0', int>::type = 0>
-	value_type& getDecoded()
+	value_type& get()
 	//-------------------------------------------------------------------------
 	{
 		if ((m_eState & (VALID | DECODED)) == VALID)
@@ -145,7 +142,7 @@ public:
 	//-------------------------------------------------------------------------
 	// the Key-Value decoding
 	template<const char X = chPairSep, typename std::enable_if<X != '\0', int>::type = 0>
-	const value_type& getDecoded() const
+	const value_type& get() const
 	//-------------------------------------------------------------------------
 	{
 		if ((m_eState & (VALID | DECODED)) == VALID)
@@ -158,7 +155,7 @@ public:
 	//-------------------------------------------------------------------------
 	// the Key-Value encoding
 	template<const char X = chPairSep, typename std::enable_if<X != '\0', int>::type = 0>
-	KStringView getEncoded() const
+	const KString& Serialize() const
 	//-------------------------------------------------------------------------
 	{
 		if ((m_eState & MODIFIED) == MODIFIED)
@@ -190,44 +187,36 @@ public:
 
 	//-------------------------------------------------------------------------
 	template<const char X = chPairSep, typename std::enable_if<X == '\0', int>::type = 0>
-	void getDecoded(KString& sTarget) const
+	void get(KString& sTarget) const
 	//-------------------------------------------------------------------------
 	{
-		sTarget += getDecoded();
+		sTarget += get();
 	}
 
 	//-------------------------------------------------------------------------
-	void getEncoded(KString& sTarget) const
+	void Serialize(KString& sTarget) const
 	//-------------------------------------------------------------------------
 	{
-		sTarget += getEncoded();
-	}
-
-	//-------------------------------------------------------------------------
-	bool Serialize(KString& sTarget) const
-	//-------------------------------------------------------------------------
-	{
-		sTarget += getEncoded();
-		return true;
+		sTarget += Serialize();
 	}
 
 	//-------------------------------------------------------------------------
 	bool Serialize(KOutStream& sTarget) const
 	//-------------------------------------------------------------------------
 	{
-		sTarget += getEncoded();
+		sTarget += Serialize();
 		return true;
 	}
 
 	//-------------------------------------------------------------------------
-	KStringView Serialize() const
+	const KString& Serialize() const
 	//-------------------------------------------------------------------------
 	{
-		return getEncoded();
+		return Serialize();
 	}
 
 	//-------------------------------------------------------------------------
-	void setEncoded(KStringView sv)
+	void Parse(KStringView sv)
 	//-------------------------------------------------------------------------
 	{
 		// store original encoding
@@ -243,15 +232,8 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
-	void Parse(KStringView sv)
-	//-------------------------------------------------------------------------
-	{
-		setEncoded(sv);
-	}
-
-	//-------------------------------------------------------------------------
 	template<const char X = chPairSep, typename std::enable_if<X == '\0', int>::type = 0>
-	void setDecoded(KStringView sv)
+	void set(KStringView sv)
 	//-------------------------------------------------------------------------
 	{
 		if (sv != m_sDecoded || sv.empty())
@@ -289,25 +271,15 @@ public:
 	KURLDualEncoded& operator=(KStringView sv)
 	//-------------------------------------------------------------------------
 	{
-		setDecoded(sv);
+		set(sv);
 		return *this;
 	}
 
 	//-------------------------------------------------------------------------
-	template<const char X = chPairSep, typename std::enable_if<X == '\0', int>::type = 0>
 	friend bool operator==(const self_type& left, const self_type& right)
 	//-------------------------------------------------------------------------
 	{
-		return left.getDecoded() == right.getDecoded();
-	}
-
-	//-------------------------------------------------------------------------
-	template<const char X = chPairSep, typename std::enable_if<X != '\0', int>::type = 0>
-	friend bool operator==(const self_type& left, const self_type& right)
-	//-------------------------------------------------------------------------
-	{
-		// this should rather be a comparison on the decoded version
-		return left.getEncoded() == right.getEncoded();
+		return left() == right.get();
 	}
 
 	//-------------------------------------------------------------------------
@@ -322,7 +294,7 @@ public:
 	friend bool operator< (const self_type& left, const self_type& right)
 	//-------------------------------------------------------------------------
 	{
-		return left.getDecoded() < right.getDecoded();
+		return left.get() < right.get();
 	}
 
 	//-------------------------------------------------------------------------
@@ -331,7 +303,7 @@ public:
 	//-------------------------------------------------------------------------
 	{
 		// this should rather be a comparison on the decoded version
-		return left.getEncoded() < right.getEncoded();
+		return left.Serialize() < right.Serialize();
 	}
 
 	//-------------------------------------------------------------------------

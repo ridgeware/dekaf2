@@ -75,7 +75,7 @@ TEST_CASE("KProp") {
 
 			for (size_t ct = 0; ct < 1000; ++ct)
 			{
-				data.Add(std::to_string(ct), std::to_string(ct));
+				data.Add(KString::to_string(ct), KString::to_string(ct));
 			}
 
 			CHECK ( data.size()      == 1000  );
@@ -92,7 +92,7 @@ TEST_CASE("KProp") {
 
 			for (size_t ct = 0; ct < 1000; ++ct)
 			{
-				data.Add(std::to_string(ct), std::to_string(ct));
+				data.Add(KString::to_string(ct), KString::to_string(ct));
 			}
 
 			CHECK ( data.size()      == 1000  );
@@ -109,7 +109,7 @@ TEST_CASE("KProp") {
 
 			for (size_t ct = 0; ct < 1000; ++ct)
 			{
-				data.Add(std::to_string(ct), std::to_string(ct));
+				data.Add(KString::to_string(ct), KString::to_string(ct));
 			}
 
 			CHECK ( data.size()      == 1000  );
@@ -124,7 +124,7 @@ TEST_CASE("KProp") {
 
 			for (size_t ct = 0; ct < 1000; ++ct)
 			{
-				data.Add(std::to_string(ct), std::to_string(ct));
+				data.Add(KString::to_string(ct), KString::to_string(ct));
 			}
 
 			CHECK ( data.size()      == 1000  );

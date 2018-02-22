@@ -149,13 +149,11 @@ void KTCPServer::RunSession(std::unique_ptr<KStream> stream, const endpoint_type
 		Session(*stream, remote_endpoint);
 	}
 
-/*
 	catch (std::exception& e)
 	{
-		// we cannot log the .what() string as boost is built with COW strings..
 		kException(e);
 	}
-*/
+
 	catch (...)
 	{
 		kUnknownException();
@@ -261,13 +259,11 @@ void KTCPServer::Server(bool ipv6)
 		}
 	}
 
-/*
 	catch (const std::exception& e)
 	{
-		// we cannot log the .what() string as boost is built with COW strings..
 		kException(e);
 	}
-*/
+
 	catch (...)
 	{
 		kUnknownException();

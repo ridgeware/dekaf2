@@ -54,7 +54,7 @@ protected:
 
 TEST_CASE("KHTTP") {
 
-	SECTION("check conection setup")
+	SECTION("check connection setup")
 	{
 		KTinyHTTPServer server(7654, false);
 		server.Start(300, false);

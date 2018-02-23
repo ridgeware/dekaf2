@@ -1829,6 +1829,8 @@ bool KSQL::ExecRawSQL (KStringView sSQL, uint64_t iFlags/*=0*/, KStringView sAPI
 		}
 	}
 
+	kDebugLog (GetDebugLevel(), "[{}]{}: {} rows affected.\n", m_iDebugID, sAPI, m_iNumRowsAffected);
+
 	return (fOK);
 
 } // ExecRawSQL

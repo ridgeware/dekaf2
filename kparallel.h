@@ -262,9 +262,9 @@ void kParallelForEachPrintProgress(size_t iMax, size_t iDone, size_t iRunning);
 template<typename InputIterator,
          typename Func,
          typename Progress = decltype(kParallelForEachPrintProgress)>
-void parallel_for_each(size_t size,
+void kParallelForEach(size_t size,
                        InputIterator first, InputIterator last,
-                       const Func& f,
+                       Func&& f,
                        size_t max_threads = std::thread::hardware_concurrency(),
                        const Progress& fProgress = kParallelForEachPrintProgress)
 //-----------------------------------------------------------------------------
@@ -275,7 +275,7 @@ void parallel_for_each(size_t size,
 			break;
 
 		case 1:
-			f(first);
+			f(*first);
 			break;
 
 		default:
@@ -310,7 +310,7 @@ void parallel_for_each(size_t size,
 
 					fProgress(size, m_iDone, m_iRunning);
 
-					f(it);
+					f(*it);
 				}
 			};
 
@@ -337,7 +337,7 @@ template<typename InputIterator,
          typename Func,
          typename Progress = decltype(kParallelForEachPrintProgress)>
 void kParallelForEach(InputIterator first, InputIterator last,
-                      const Func& f,
+                      Func&& f,
                       size_t max_threads = std::thread::hardware_concurrency(),
                       const Progress& fProgress = kParallelForEachPrintProgress)
 //-----------------------------------------------------------------------------
@@ -353,7 +353,7 @@ template<typename Container,
          typename Func,
          typename Progress = decltype(kParallelForEachPrintProgress)>
 void kParallelForEach(Container c,
-                      const Func& f,
+                      Func&& f,
                       size_t max_threads = std::thread::hardware_concurrency(),
                       const Progress& fProgress = kParallelForEachPrintProgress)
 //-----------------------------------------------------------------------------

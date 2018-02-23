@@ -342,7 +342,7 @@ void kParallelForEach(InputIterator first, InputIterator last,
                       const Progress& fProgress = kParallelForEachPrintProgress)
 //-----------------------------------------------------------------------------
 {
-	parallel_for_each(std::distance(first, last), first, last, f, max_threads, fProgress);
+	kParallelForEach(std::distance(first, last), first, last, f, max_threads, fProgress);
 }
 
 //-----------------------------------------------------------------------------

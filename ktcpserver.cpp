@@ -182,6 +182,29 @@ void KTCPServer::ExpiresFromNow(KStream& stream, long iSeconds)
 }
 
 //-----------------------------------------------------------------------------
+// static
+bool KTCPServer::IsPortAvailable(uint16_t iPort)
+//-----------------------------------------------------------------------------
+{
+	try
+	{
+		asio::io_service io_service;
+		tcp::endpoint local_endpoint(tcp::v4(), iPort);
+		tcp::acceptor acceptor(io_service, local_endpoint, true); // true means reuse_addr
+		acceptor.close();
+		return true;
+	}
+
+	catch (const std::exception& e)
+	{
+		kException(e);
+	}
+
+	return false;
+
+} // IsPortAvailable
+
+//-----------------------------------------------------------------------------
 void KTCPServer::Server(bool ipv6)
 //-----------------------------------------------------------------------------
 {

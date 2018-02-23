@@ -154,5 +154,46 @@ KString kGetHostname (KString& sHostname)
 
 } // kGetHostname
 
+//-----------------------------------------------------------------------------
+void kDaemonize()
+//-----------------------------------------------------------------------------
+{
+	pid_t pid;
+	if ((pid = fork()))
+	{
+		if (pid < 0)
+		{
+			kWarning("cannot fork: {}", std::strerror(errno));
+			exit(0);
+		}
+
+		for (int fd = 0; fd <= 255; ++fd)
+		{
+			close(fd);
+		}
+
+		pid_t sid = setsid();
+		if (sid < 0)
+		{
+			kWarning("setsid failed: {}", std::strerror(errno));
+		}
+
+		umask(0);
+
+		int fd = dup(0);
+		if (fd < 0)
+		{
+			kWarning("fdup failed {}", std::strerror(errno));
+		}
+
+		fd = dup(0);
+		if (fd < 0)
+		{
+			kWarning("fdup failed {}", std::strerror(errno));
+		}
+	}
+
+} // kDaemonize
+
 } // end of namespace dekaf2
 

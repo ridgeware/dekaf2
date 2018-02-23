@@ -187,6 +187,11 @@ public:
 	static KString to_string(const endpoint_type& endpoint);
 	//-----------------------------------------------------------------------------
 
+	//-----------------------------------------------------------------------------
+	/// Checks if the given port can be bound to
+	static bool IsPortAvailable(uint16_t iPort);
+	//-----------------------------------------------------------------------------
+
 //-------
 protected:
 //-------

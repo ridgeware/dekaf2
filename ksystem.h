@@ -137,5 +137,8 @@ KString kGetHostname ();
 /// Alias to kGetHostname(): return operating system hostname as a string.
 inline KString khostname () { return kGetHostname(); }
 
+/// Send this process into the background and detach from terminals
+void kDaemonize();
+
 } // end of namespace dekaf2
 

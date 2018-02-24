@@ -1,4 +1,4 @@
-	/*
+/*
 //-----------------------------------------------------------------------------//
 //
 // DEKAF(tm): Lighter, Faster, Smarter (tm)
@@ -215,6 +215,8 @@ bool KCGI::ReadHeaders ()
 
 			m_sRequestURI = sURI.substr(0, pos);
 			m_sRequestURI.Trim();
+			kUrlDecode(m_sRequestURI, /*bPlusAsSpace=*/true);
+
 			m_sHttpProtocol = sURI.substr(pos+1);
 			m_sHttpProtocol.Trim();
 
@@ -329,6 +331,10 @@ bool KCGI::GetNextRequest (KStringView sFilename /*= KStringView{}*/, KStringVie
 			return (false);
 		}
 
+		// We need to perform UrlDecode on the RequestURI and the QueryString.
+		kUrlDecode (m_sRequestURI,  /*bPlusAsSpace=*/true);
+		kUrlDecode (m_sQueryString, /*bPlusAsSpace=*/true);
+
 		m_sRequestPath = m_sRequestURI.substr(0, m_sRequestURI.find('?'));
 
 		kSplitPairs (
@@ -337,17 +343,6 @@ bool KCGI::GetNextRequest (KStringView sFilename /*= KStringView{}*/, KStringVie
 			/*PairDelim=*/	'=',
 			/*Delim=*/		"&"
 		);
-
-		// handle URL encoded values in query parms:
-		for (auto& it : m_QueryParms)
-		{
-			KString sValue (it.second);
-			kUrlDecode (sValue, /*bPlusAsSpace=*/true);
-			if (sValue != it.second)
-			{
-				it.second = sValue;
-			}
-		}
 
 		if (!ReadPostData())
 		{

@@ -1829,8 +1829,6 @@ bool KSQL::ExecRawSQL (KStringView sSQL, uint64_t iFlags/*=0*/, KStringView sAPI
 		}
 	}
 
-	kDebugLog (GetDebugLevel(), "[{}]{}: {} rows affected.\n", m_iDebugID, sAPI, m_iNumRowsAffected);
-
 	return (fOK);
 
 } // ExecRawSQL
@@ -5459,7 +5457,11 @@ bool KSQL::Insert (KROW& Row)
 	if (!IsFlag(F_NoTranslations))
 		DoTranslations (m_sLastSQL, m_iDBType);
 
-	return (ExecRawSQL (m_sLastSQL, 0, "Insert"));
+	bool bOK = ExecRawSQL (m_sLastSQL, 0, "Insert");
+
+	kDebugLog (GetDebugLevel(), "[{}] {} rows affected.", m_iDebugID, m_iNumRowsAffected);
+
+	return (bOK);
 
 } // Insert
 
@@ -5477,7 +5479,11 @@ bool KSQL::Update (KROW& Row)
 	if (!IsFlag(F_NoTranslations))
 		DoTranslations (m_sLastSQL, m_iDBType);
 
-	return (ExecRawSQL (m_sLastSQL, 0, "Update"));
+	bool bOK = ExecRawSQL (m_sLastSQL, 0, "Update");
+
+	kDebugLog (GetDebugLevel(), "[{}] {} rows affected.", m_iDebugID, m_iNumRowsAffected);
+
+	return (bOK);
 
 } // Update
 
@@ -5495,7 +5501,11 @@ bool KSQL::Delete (KROW& Row)
 	if (!IsFlag(F_NoTranslations))
 		DoTranslations (m_sLastSQL, m_iDBType);
 
-	return (ExecRawSQL (m_sLastSQL, 0, "Delete"));
+	bool bOK = ExecRawSQL (m_sLastSQL, 0, "Delete");
+
+	kDebugLog (GetDebugLevel(), "[{}] {} rows affected.", m_iDebugID, m_iNumRowsAffected);
+
+	return (bOK);
 
 } // Delete
 
@@ -5524,9 +5534,9 @@ bool KSQL::InsertOrUpdate (KROW& Row, bool* pbInserted/*=NULL*/)
 	}
 
 	kDebugLog (GetDebugLevel()+1, "InsertOrUpdate: attempting insert...");
-	bool fOK = Insert (Row);
+	bool bOK = Insert (Row);
 
-	return (fOK);
+	return (bOK);
 
 } // DbInsertOrUpdate 
 

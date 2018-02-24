@@ -146,49 +146,49 @@ public:
 	KOutStream& Writer() { return *m_Writer; }
 
 	/// incoming http request method: GET, POST, etc.
-	const KString& RequestMethod() const
+	const KString& GetRequestMethod() const
 	{
 		return m_sRequestMethod;
 	}
 
 	/// incoming URL including the query string
-	const KString& RequestURI() const
+	const KString& GetRequestURI() const
 	{
 		return m_sRequestURI;
 	}
 
 	/// incoming URL with query string trimmed
-	const KString& RequestPath() const
+	const KString& GetRequestPath() const
 	{
 		return m_sRequestPath;
 	}
 
 	/// incoming http protocol and version as defined in status header
-	const KString& HTTPProtocol() const
+	const KString& GetHTTPProtocol() const
 	{
 		return m_sHttpProtocol;
 	}
 
 	/// query string (name=value&...)
-	const KString& QueryString() const
+	const KString& GetQueryString() const
 	{
 		return m_sQueryString;
 	}
 
 	/// raw, unprocessed incomiong POST data
-	const KString& PostData() const
+	const KString& GetPostData() const
 	{
 		return m_sPostData;
 	}
 
 	/// incoming request headers
-	const HeadersT& RequestHeaders() const
+	const HeadersT& GetRequestHeaders() const
 	{
 		return m_Headers;
 	}
 
 	/// incoming query parms off request URI
-	const QueryParmsT& QueryParms() const
+	const QueryParmsT& GetQueryParms() const
 	{
 		return m_QueryParms;
 	}
@@ -203,34 +203,34 @@ public:
 protected:
 //----------
 
-	/// incoming http request method: GET, POST, etc., non-const version for children
-	KString& SetRequestMethod()
+	/// set incoming http request method: GET, POST, etc.
+	void SetRequestMethod(KString& sMethod)
 	{
-		return m_sRequestMethod;
+		m_sRequestMethod = sMethod;
 	}
 
-	/// incoming URL including the query string, non-const version for children
-	KString& SetRequestURI()
+	/// set incoming URL including the query string
+	void SetRequestURI(KString& sURI)
 	{
-		return m_sRequestURI;
+		m_sRequestURI = sURI;
 	}
 
-	/// raw, unprocessed incomiong POST data, non-const version for children
-	KString& SetPostData()
+	/// raw, unprocessed incoming POST data
+	void SetPostData(KString& sData)
 	{
-		return m_sPostData;
+		m_sPostData = sData;
 	}
 
-	/// incoming request headers, non-const version for children
-	HeadersT& SetRequestHeaders()
+	/// add incoming request headers
+	void AddRequestHeaders(KString& sName, KString& sValue)
 	{
-		return m_Headers;
+		m_Headers.Add (sName, sValue);
 	}
 
-	/// incoming query parms off request URI, non-const version for children
-	QueryParmsT& SetQueryParms()
+	/// add incoming query parms off request URI
+	void AddQueryParms(KString& sName, KString& sValue)
 	{
-		return m_QueryParms;
+		m_QueryParms.Add (sName, sValue);
 	}
 
 	/// reset all class members for next request

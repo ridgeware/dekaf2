@@ -258,22 +258,6 @@ KString KJSON::EscWrap (KStringView sName, KStringView sValue, KStringView sPref
 } // KSJON::EscWrap
 
 //-----------------------------------------------------------------------------
-KString KJSON::EscWrap (KStringView sName, int iValue, KStringView sPrefix/*="\n\t"*/, KStringView sSuffix/*=","*/)
-//-----------------------------------------------------------------------------
-{
-	return EscWrapNumeric(sName, KString::to_string(iValue), sPrefix, sSuffix);
-
-} // KSJON::EscWrap
-
-//-----------------------------------------------------------------------------
-KString KJSON::EscWrapNumeric (KStringView sName, int iValue, KStringView sPrefix/*="\n\t"*/, KStringView sSuffix/*=","*/)
-//-----------------------------------------------------------------------------
-{
-	return KJSON::EscWrap(sName, iValue, sPrefix, sSuffix);
-
-} // KSJON::EscWrapNumeric
-
-//-----------------------------------------------------------------------------
 KString KJSON::EscWrapNumeric (KStringView sName, KStringView sValue, KStringView sPrefix/*="\n\t"*/, KStringView sSuffix/*=","*/)
 //-----------------------------------------------------------------------------
 {

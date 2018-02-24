@@ -248,8 +248,16 @@ public:
 	static KString EscWrap (KStringView sName, KStringView sValue, KStringView sPrefix="\n\t", KStringView sSuffix=",");
 
 	/// do not wrap the given string with double-quotes if it is explicitly known to be Numeric
-	static KString EscWrap (KStringView sName, int iNumber, KStringView sPrefix="\n\t", KStringView sSuffix=",");
-	static KString EscWrapNumeric (KStringView sString, int iNumber, KStringView sPrefix="\n\t", KStringView sSuffix=",");
+	template<typename I, typename std::enable_if<!std::is_constructible<KStringView, I>::value, int>::type = 0>
+	static KString EscWrap (KStringView sName, I iValue, KStringView sPrefix="\n\t", KStringView sSuffix=",")
+	{
+		return EscWrapNumeric(sName, KString::to_string(iValue), sPrefix, sSuffix);
+	}
+	template<typename I, typename std::enable_if<!std::is_constructible<KStringView, I>::value, int>::type = 0>
+	static KString EscWrapNumeric (KStringView sName, I iValue, KStringView sPrefix="\n\t", KStringView sSuffix=",")
+	{
+		return EscWrap(sName, iValue, sPrefix, sSuffix);
+	}
 	static KString EscWrapNumeric (KStringView sName, KStringView sValue, KStringView sPrefix="\n\t", KStringView sSuffix=",");
 
 //----------

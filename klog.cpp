@@ -326,6 +326,11 @@ void KLogTTYSerializer::Serialize() const
 void KLogJSONSerializer::Serialize() const
 //---------------------------------------------------------------------------
 {
+	m_sBuffer.reserve(m_sShortName.size()
+					+ m_sFunctionName.size()
+					+ m_sPathName.size()
+					+ m_sMessage.size()
+					+ 50);
 	m_sBuffer  = '{';
 	m_sBuffer += KJSON::EscWrap("level", m_Level);
 	m_sBuffer += KJSON::EscWrap("pid", m_Pid);
@@ -627,7 +632,7 @@ void KLog::CheckDebugFlag()
 	// "level, target" where level is numeric (-1 .. 3) and target can be
 	// anything like a pathname or a domain:host or syslog, stderr, stdout
 
-	time_t TouchTime = kGetLastMod(GetDebugFlag());
+	timeJ_t TouchTime = kGetLastMod(GetDebugFlag());
 
 	if (TouchTime == -1)
 	{

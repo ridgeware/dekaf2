@@ -302,9 +302,11 @@ void KLogTTYSerializer::Serialize() const
 
 	sPrefix.Printf("| %3.3s | %5.5s | %5u | %s | ", sLevel, m_sShortName, getpid(), kFormTimestamp());
 
-	KString sPrefixWOFunction(sPrefix);
+	KStringView sPrefixWOFunction(sPrefix);
 
-	if (!m_sFunctionName.empty())
+	// print the function name only if this is a warning or exception
+	// - otherwise this is an intentional debug message that does not need it
+	if (!m_sFunctionName.empty() && m_Level < 0)
 	{
 		sPrefix += m_sFunctionName;
 		sPrefix += ": ";
@@ -324,20 +326,15 @@ void KLogTTYSerializer::Serialize() const
 void KLogJSONSerializer::Serialize() const
 //---------------------------------------------------------------------------
 {
-	KJSON json;
-	json["level"]         = m_Level;
-	json["pid"]           = m_Pid;
-	json["time_t"]        = m_Time;
-	json["short_name"]    = KString(m_sShortName);
-	json["exe_name"]      = KString(m_sPathName);
-	json["function_name"] = KString(m_sFunctionName);
-	json["message"]       = KString(m_sMessage);
-	if (!m_sBacktrace.empty())
-	{
-		json["stack"]     = KString(m_sBacktrace);
-	}
-	// pretty print the json into our string buffer
-	m_sBuffer = json.dump(1, '\t');
+	m_sBuffer  = '{';
+	m_sBuffer += KJSON::EscWrap("level", m_Level);
+	m_sBuffer += KJSON::EscWrap("pid", m_Pid);
+	m_sBuffer += KJSON::EscWrap("time_t", m_Time);
+	m_sBuffer += KJSON::EscWrap("short_name", m_sShortName);
+	m_sBuffer += KJSON::EscWrap("path_name", m_sPathName);
+	m_sBuffer += KJSON::EscWrap("function_name", m_sFunctionName);
+	m_sBuffer += KJSON::EscWrap("message", m_sMessage);
+	m_sBuffer += '}';
 
 } // Serialize
 
@@ -439,16 +436,14 @@ void KLog::SetLevel(int iLevel)
 void KLog::SetName(KStringView sName)
 //---------------------------------------------------------------------------
 {
-	m_sShortName = sName;
-
-	if (m_sShortName.size() > 5)
+	if (sName.size() > 5)
 	{
-		m_sShortName.erase(5, KString::npos);
+		sName.erase(5, KStringView::npos);
 	}
 
-	m_sShortName.MakeUpper();
+	m_sShortName = kToUpper(sName);
 
-}
+} // SetName
 
 // name schemes:
 // http://host.name/path
@@ -492,7 +487,8 @@ bool KLog::SetWriter(std::unique_ptr<KLogWriter> logger)
 {
 	m_Logger = std::move(logger);
 	return m_Logger != nullptr && m_Logger->Good();
-}
+
+} // SetWriter
 
 //---------------------------------------------------------------------------
 bool KLog::SetSerializer(std::unique_ptr<KLogSerializer> serializer)
@@ -500,7 +496,8 @@ bool KLog::SetSerializer(std::unique_ptr<KLogSerializer> serializer)
 {
 	m_Serializer = std::move(serializer);
 	return m_Serializer != nullptr;
-}
+
+} // SetSerializer
 
 //---------------------------------------------------------------------------
 std::unique_ptr<KLogWriter> KLog::CreateWriter(Writer writer, KStringView sLogname)
@@ -522,7 +519,8 @@ std::unique_ptr<KLogWriter> KLog::CreateWriter(Writer writer, KStringView sLogna
 		case Writer::HTTP:
 			return std::make_unique<KLogHTTPWriter>(sLogname);
 	}
-}
+
+} // CreateWriter
 
 //---------------------------------------------------------------------------
 std::unique_ptr<KLogSerializer> KLog::CreateSerializer(Serializer serializer)
@@ -538,7 +536,8 @@ std::unique_ptr<KLogSerializer> KLog::CreateSerializer(Serializer serializer)
 		case Serializer::JSON:
 			return std::make_unique<KLogJSONSerializer>();
 	}
-}
+
+} // Create Serializer
 
 //---------------------------------------------------------------------------
 bool KLog::IntOpenLog()
@@ -611,7 +610,8 @@ bool KLog::SetDebugFlag(KStringView sFlagfile)
 	m_sFlagfile = sFlagfile;
 
 	return true;
-}
+
+} // SetDebugFlag
 
 //---------------------------------------------------------------------------
 void KLog::CheckDebugFlag()
@@ -682,7 +682,8 @@ void KLog::CheckDebugFlag()
 			}
 		}
 	}
-}
+
+} // CheckDebugFlag
 
 //---------------------------------------------------------------------------
 bool KLog::IntDebug(int level, KStringView sFunction, KStringView sMessage)
@@ -732,6 +733,7 @@ void KLog::IntException(KStringView sWhat, KStringView sFunction, KStringView sC
 	{
 		IntDebug(-2, sFunction, kFormat("caught exception: '{0}'", sWhat));
 	}
-}
+
+} // IntException
 
 } // of namespace dekaf2

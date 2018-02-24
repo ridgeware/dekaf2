@@ -352,7 +352,7 @@ void kParallelForEach(InputIterator first, InputIterator last,
 template<typename Container,
          typename Func,
          typename Progress = decltype(kParallelForEachPrintProgress)>
-void kParallelForEach(Container c,
+void kParallelForEach(Container& c,
                       Func&& f,
                       size_t max_threads = std::thread::hardware_concurrency(),
                       const Progress& fProgress = kParallelForEachPrintProgress)

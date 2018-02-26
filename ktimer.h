@@ -244,6 +244,13 @@ public:
 		return dst_now + (tp - src_now);
 	}
 
+	//---------------------------------------------------------------------------
+	void DestructWithJoin()
+	//---------------------------------------------------------------------------
+	{
+		m_bDestructWithJoin = true;
+	}
+
 //----------
 private:
 //----------
@@ -308,6 +315,7 @@ private:
 
 	std::unique_ptr<std::thread> m_tTiming;
 	bool m_bShutdown{false};
+	bool m_bDestructWithJoin{false};
 
 	using map_t = std::unordered_map<ID_t, Timer>;
 	map_t m_Timers;

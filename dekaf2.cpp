@@ -212,6 +212,7 @@ void Dekaf::StopDefaultTimer()
 {
 	if (m_Timer)
 	{
+		m_Timer->DestructWithJoin();At
 		m_Timer.reset();
 	}
 }

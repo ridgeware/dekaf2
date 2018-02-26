@@ -137,8 +137,15 @@ KString kGetHostname ();
 /// Alias to kGetHostname(): return operating system hostname as a string.
 inline KString khostname () { return kGetHostname(); }
 
-/// Send this process into the background and detach from terminals
-void kDaemonize();
+namespace detail {
+
+/// Send this process into the background and detach from terminals. If bChangeDir
+/// is true, the child will chdir to /. The umask of the child is set to 022.
+/// WARNING: In a dekaf2 governed executable, this function should NOT be called
+/// by anyone other than the Dekaf() class itself. As a user, call Dekaf().Daemonize().
+void kDaemonize(bool bChangeDir = false);
+
+} // end of namespace detail
 
 } // end of namespace dekaf2
 

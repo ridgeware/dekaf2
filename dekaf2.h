@@ -155,17 +155,21 @@ public:
 	//---------------------------------------------------------------------------
 	/// Returns Dekaf's main timing object so you can add more callbacks
 	/// without having to maintain another timer object
-	KTimer& GetTimer()
+	KTimer& GetTimer();
 	//---------------------------------------------------------------------------
-	{
-		return m_Timer;
-	}
 
 	using OneSecCallback = std::function<void(void)>;
 	//---------------------------------------------------------------------------
 	/// Add a (fast executing) callback to the general timing loop of
 	/// Dekaf. Cannot be removed later.
 	bool AddToOneSecTimer(OneSecCallback CB);
+	//---------------------------------------------------------------------------
+
+	//---------------------------------------------------------------------------
+	/// Make a dekaf2 application a system daemon. We need to run this
+	/// inside the Dekaf2 class because we have to stop the running timer
+	/// and restart it again after becoming a daemon.
+	void Daemonize();
 	//---------------------------------------------------------------------------
 
 //----------
@@ -177,12 +181,20 @@ private:
 	void OneSecTimer(KTimer::Timepoint tp);
 	//---------------------------------------------------------------------------
 
+	//---------------------------------------------------------------------------
+	void StartDefaultTimer();
+	//---------------------------------------------------------------------------
+
+	//---------------------------------------------------------------------------
+	void StopDefaultTimer();
+	//---------------------------------------------------------------------------
+
 	std::atomic_bool m_bIsMultiThreading{false};
 	KString m_sLocale;
 	KString m_sProgPath;
 	KString m_sProgName;
 	folly::CpuId m_CPUID;
-	KTimer m_Timer;
+	std::unique_ptr<KTimer> m_Timer;
 	KTimer::ID_t m_OneSecTimerID;
 	std::mutex m_OneSecTimerMutex;
 	std::vector<OneSecCallback> m_OneSecTimers;

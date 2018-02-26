@@ -45,6 +45,8 @@
 #include "dekaf2.h"
 #include "klog.h"
 #include "kfile.h"
+#include "kcrashexit.h"
+#include "ksystem.h"
 #include "bits/kcppcompat.h"
 #ifdef DEKAF2_HAS_LIBPROC
 #include <libproc.h>
@@ -57,8 +59,10 @@ namespace dekaf2
 const char DefaultLocale[] = "en_US.UTF-8";
 
 #if defined(DEKAF2_HAS_LIBPROC) || defined(DEKAF2_IS_UNIX)
+//---------------------------------------------------------------------------
 DEKAF2_ALWAYS_INLINE
 void local_split_in_path_and_name(const char* sFullPath, KString& sPath, KString& sName)
+//---------------------------------------------------------------------------
 {
 	// we have to do the separation of path and name manually here as kDirname() and kBasename()
 	// would invoke kRFind(), which on non-Linux platforms would call into Dekaf().GetCpuId() and hence
@@ -108,17 +112,7 @@ Dekaf::Dekaf()
 	}
 #endif
 
-	// make sure we have an initial value set for
-	// the time keepers
-	m_iCurrentTimepoint = KTimer::Clock::now();
-	m_iCurrentTime = KTimer::ToTimeT(m_iCurrentTimepoint);
-
-	// and start the timer that updates them
-	m_OneSecTimerID = m_Timer.CallEvery(
-	            std::chrono::seconds(1),
-	            [this](KTimer::Timepoint tp) {
-	                this->OneSecTimer(tp);
-                });
+	StartDefaultTimer();
 }
 
 //---------------------------------------------------------------------------
@@ -185,6 +179,55 @@ void Dekaf::SetRandomSeed(unsigned int iSeed)
 }
 
 //---------------------------------------------------------------------------
+void Dekaf::StartDefaultTimer()
+//---------------------------------------------------------------------------
+{
+	if (!m_Timer)
+	{
+		// make sure we have an initial value set for
+		// the time keepers
+		m_iCurrentTimepoint = KTimer::Clock::now();
+		m_iCurrentTime = KTimer::ToTimeT(m_iCurrentTimepoint);
+
+		// create a KTimer
+		m_Timer = std::make_unique<KTimer>();
+
+		if (!m_Timer)
+		{
+			kCrashExit();
+		}
+
+		// and start the timer that updates the time keepers
+		m_OneSecTimerID = m_Timer->CallEvery(
+											 std::chrono::seconds(1),
+											 [this](KTimer::Timepoint tp) {
+												 this->OneSecTimer(tp);
+											 });
+	}
+}
+
+//---------------------------------------------------------------------------
+void Dekaf::StopDefaultTimer()
+//---------------------------------------------------------------------------
+{
+	if (m_Timer)
+	{
+		m_Timer.reset();
+	}
+}
+
+//---------------------------------------------------------------------------
+KTimer& Dekaf::GetTimer()
+//---------------------------------------------------------------------------
+{
+	if (!m_Timer)
+	{
+		kCrashExit();
+	}
+	return *m_Timer;
+}
+
+//---------------------------------------------------------------------------
 void Dekaf::OneSecTimer(KTimer::Timepoint tp)
 //---------------------------------------------------------------------------
 {
@@ -212,6 +255,21 @@ bool Dekaf::AddToOneSecTimer(OneSecCallback CB)
 	m_OneSecTimers.push_back(CB);
 
 	return true;
+}
+
+//---------------------------------------------------------------------------
+void Dekaf::Daemonize()
+//---------------------------------------------------------------------------
+{
+	// we need to stop the thread with the default timer, otherwise
+	// parent will not return
+	StopDefaultTimer();
+
+	// now try to become a daemon
+	detail::kDaemonize();
+
+	// and start the timer again
+	StartDefaultTimer();
 }
 
 //---------------------------------------------------------------------------

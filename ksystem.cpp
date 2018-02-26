@@ -154,46 +154,86 @@ KString kGetHostname (KString& sHostname)
 
 } // kGetHostname
 
+namespace detail {
+
 //-----------------------------------------------------------------------------
-void kDaemonize()
+void kDaemonize(bool bChangeDir)
 //-----------------------------------------------------------------------------
 {
 	pid_t pid;
-	if ((pid = fork()))
+
+	if (!(pid = fork()))
 	{
-		if (pid < 0)
-		{
-			kWarning("cannot fork: {}", std::strerror(errno));
-			exit(0);
-		}
+		// parent
+		exit(0);
+	}
 
-		for (int fd = 0; fd <= 255; ++fd)
-		{
-			close(fd);
-		}
+	if (pid < 0)
+	{
+		kWarning("cannot fork: {}", std::strerror(errno));
+		exit(1);
+	}
 
-		pid_t sid = setsid();
-		if (sid < 0)
+	pid_t sid = setsid();
+	if (sid < 0)
+	{
+		if (errno != EPERM)
 		{
 			kWarning("setsid failed: {}", std::strerror(errno));
-		}
-
-		umask(0);
-
-		int fd = dup(0);
-		if (fd < 0)
-		{
-			kWarning("fdup failed {}", std::strerror(errno));
-		}
-
-		fd = dup(0);
-		if (fd < 0)
-		{
-			kWarning("fdup failed {}", std::strerror(errno));
+			exit(1);
 		}
 	}
 
+	if (!(pid = fork()))
+	{
+		// parent
+		exit(0);
+	}
+
+	if (pid < 0)
+	{
+		kWarning("cannot fork again: {}", std::strerror(errno));
+		exit(1);
+	}
+
+	if (bChangeDir)
+	{
+		if (chdir("/"))
+		{
+			kWarning("chdir to / failed: {}", std::strerror(errno));
+			exit(1);
+		}
+	}
+
+	// umask never fails, and it returns the previous umask
+	umask(S_IWGRP | S_IWOTH);
+
+	for (int fd = 0; fd <= 255; ++fd)
+	{
+		close(fd);
+	}
+
+	int iStdIn = open("/dev/null", O_RDONLY);
+	if (iStdIn != 0)
+	{
+		kWarning("opening stdin failed, got fd {}", iStdIn);
+	}
+
+	int iStdOut = open("/dev/null", O_WRONLY);
+	if (iStdOut != 1)
+	{
+		kWarning("opening stdout failed, got fd {}", iStdOut);
+	}
+
+	int iStdErr = dup(iStdOut);
+	if (iStdErr != 2)
+	{
+		kWarning("opening stderr failed, got fd {}", iStdErr);
+	}
+
 } // kDaemonize
+
+} // end of namespace detail
 
 } // end of namespace dekaf2
 

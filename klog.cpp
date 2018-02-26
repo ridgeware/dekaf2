@@ -632,7 +632,7 @@ void KLog::CheckDebugFlag()
 	// "level, target" where level is numeric (-1 .. 3) and target can be
 	// anything like a pathname or a domain:host or syslog, stderr, stdout
 
-	timeJ_t TouchTime = kGetLastMod(GetDebugFlag());
+	time_t TouchTime = kGetLastMod(GetDebugFlag());
 
 	if (TouchTime == -1)
 	{

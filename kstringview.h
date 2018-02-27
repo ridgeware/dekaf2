@@ -153,7 +153,6 @@ bool kEndsWith(KStringView sInput, KStringView sPattern);
 //----------------------------------------------------------------------
 
 //----------------------------------------------------------------------
-constexpr
 bool kContains(KStringView sInput, KStringView sPattern);
 //----------------------------------------------------------------------
 
@@ -598,7 +597,6 @@ public:
 
 	//-----------------------------------------------------------------------------
 	// nonstandard
-	constexpr
 	bool Contains(self_type other)
 	//-----------------------------------------------------------------------------
 	{
@@ -1135,7 +1133,6 @@ bool kEndsWith(KStringView sInput, KStringView sPattern)
 
 //----------------------------------------------------------------------
 inline
-constexpr
 bool kContains(KStringView sInput, KStringView sPattern)
 //----------------------------------------------------------------------
 {

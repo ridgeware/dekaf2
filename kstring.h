@@ -453,15 +453,12 @@ public:
 	size_type Replace(KStringView sSearch, value_type sReplace, size_type pos = 0, bool bReplaceAll = true);
 
 	/// does the string start with sPattern?
-	constexpr
 	bool StartsWith(KStringView sPattern) const { return kStartsWith(ToView(), sPattern); }
 
 	/// does the string end with sPattern?
-	constexpr
 	bool EndsWith(KStringView sPattern) const { return kEndsWith(ToView(), sPattern); }
 
 	/// does the string contain the sPattern?
-	constexpr
 	bool Contains(KStringView sPattern) const { return kContains(ToView(), sPattern); }
 
 	/// changes the string to lowercase
@@ -545,11 +542,9 @@ public:
 	string_type& str() { return m_rep; }
 
 	/// convert to KStringView
-	constexpr
 	operator KStringView() const { return ToView(); }
 
 	/// return a KStringView
-	constexpr
 	KStringView ToView() const { return KStringView(data(), size()); }
 
 	/// return a KStringView much like a substr(), but without the cost

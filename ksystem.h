@@ -142,7 +142,9 @@ namespace detail {
 /// Send this process into the background and detach from terminals. If bChangeDir
 /// is true, the child will chdir to /. The umask of the child is set to 022.
 /// WARNING: In a dekaf2 governed executable, this function should NOT be called
-/// by anyone other than the Dekaf() class itself. As a user, call Dekaf().Daemonize().
+/// by anyone other than the Dekaf() class itself. As a user, call Dekaf().Daemonize()
+/// as early in the process as possible, best before any file and thread based
+/// activity. And best do not use it at all but let instead systemd do the work for you.
 void kDaemonize(bool bChangeDir = false);
 
 } // end of namespace detail

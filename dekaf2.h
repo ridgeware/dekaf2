@@ -168,7 +168,10 @@ public:
 	//---------------------------------------------------------------------------
 	/// Make a dekaf2 application a system daemon. We need to run this
 	/// inside the Dekaf2 class because we have to stop the running timer
-	/// and restart it again after becoming a daemon.
+	/// and restart it again after becoming a daemon. If you have to call this
+	/// method please call it as early as possible, best before any file or thread
+	/// related activity. But in general let systemd do this for you. Today, handling
+	/// daemonization from inside the executable is no more an accepted approach.
 	void Daemonize();
 	//---------------------------------------------------------------------------
 

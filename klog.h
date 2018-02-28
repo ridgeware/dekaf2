@@ -441,7 +441,7 @@ public:
 	inline bool debug(int level, Args&&... args)
 	//---------------------------------------------------------------------------
 	{
-		return (level > s_kLogLevel) || IntDebug(level, KStringView(), kFormat(std::forward<Args>(args)...));
+		return (DEKAF2_LIKELY(level > s_kLogLevel)) || IntDebug(level, KStringView(), kFormat(std::forward<Args>(args)...));
 	}
 
 	//---------------------------------------------------------------------------
@@ -450,7 +450,7 @@ public:
 	inline bool debug_fun(int level, KStringView sFunction, Args&&... args)
 	//---------------------------------------------------------------------------
 	{
-		return (level > s_kLogLevel) || IntDebug(level, sFunction, kFormat(std::forward<Args>(args)...));
+		return (DEKAF2_LIKELY(level > s_kLogLevel)) || IntDebug(level, sFunction, kFormat(std::forward<Args>(args)...));
 	}
 
 	//---------------------------------------------------------------------------
@@ -552,7 +552,7 @@ KLog& KLog();
 /// log a debug message, automatically provide function name.
 #define kDebug(level, ...) \
 { \
-	if (level <= KLog::s_kLogLevel) \
+	if (DEKAF2_UNLIKELY(level <= KLog::s_kLogLevel)) \
 	{ \
 		KLog().debug_fun(level, DEKAF2_FUNCTION_NAME, __VA_ARGS__); \
 	} \
@@ -566,7 +566,7 @@ KLog& KLog();
 /// log a debug message, do NOT automatically provide function name.
 #define kDebugLog(level, ...) \
 { \
-	if (level <= KLog::s_kLogLevel) \
+	if (DEKAF2_UNLIKELY(level <= KLog::s_kLogLevel)) \
 	{ \
 		KLog().debug(level, __VA_ARGS__); \
 	} \
@@ -623,7 +623,7 @@ KLog& KLog();
 #endif
 	//---------------------------------------------------------------------------
 	/// test if a given log level would create output
-#define kWouldLog(level) (level <= KLog::s_kLogLevel)
+#define kWouldLog(level) (DEKAF2_UNLIKELY(level <= KLog::s_kLogLevel))
 //---------------------------------------------------------------------------
 
 

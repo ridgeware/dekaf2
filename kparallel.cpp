@@ -52,21 +52,10 @@ std::atomic_size_t  KRunThreads::s_iThreadIdCount{0};
 
 //-----------------------------------------------------------------------------
 /// add a new thread to the list of started threads
-void KThreadWait::Add(UPThread newThread)
+void KThreadWait::Add(std::unique_ptr<std::thread> newThread)
 //-----------------------------------------------------------------------------
 {
 	threads.emplace_back(std::move(newThread));
-}
-
-//-----------------------------------------------------------------------------
-/// add a new thread to the list of started threads
-inline void KThreadWait::Add(std::thread* newThread)
-//-----------------------------------------------------------------------------
-{
-	// create unique pointer
-	KThreadWait::UPThread uniqueThread(newThread);
-	// add it
-	Add(std::move(uniqueThread));
 }
 
 //-----------------------------------------------------------------------------
@@ -118,7 +107,7 @@ size_t KRunThreads::SetSize(size_t iNumThreads, size_t iMaxThreads)
 
 //-----------------------------------------------------------------------------
 /// store (or detach) the new thread object
-void KRunThreads::Store(UPThread&& thread)
+void KRunThreads::Store(std::unique_ptr<std::thread>&& thread)
 //-----------------------------------------------------------------------------
 {
 	if (m_start_detached)

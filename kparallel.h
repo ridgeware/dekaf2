@@ -3,7 +3,7 @@
 //
 // DEKAF(tm): Lighter, Faster, Smarter (tm)
 //
-// Copyright (c) 2017, Ridgeware, Inc.
+// Copyright (c) 2017-2018, Ridgeware, Inc.
 //
 // +-------------------------------------------------------------------------+
 // | /\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\|
@@ -63,20 +63,18 @@ namespace dekaf2
 class KThreadWait
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
-//----------
-public:
-//----------
-	typedef std::unique_ptr<std::thread> UPThread;
 
 //----------
 private:
 //----------
-	typedef std::vector<UPThread> threads_t;
+
+	using threads_t = std::vector<std::unique_ptr<std::thread>>;
 	threads_t threads;
 
 //----------
 public:
 //----------
+
 	//-----------------------------------------------------------------------------
 	/// Destructor waits for all threads to join
 	virtual ~KThreadWait();
@@ -84,12 +82,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// add a new thread to the list of started threads
-	void Add(UPThread newThread);
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// add a new thread to the list of started threads
-	void Add(std::thread* newThread);
+	void Add(std::unique_ptr<std::thread> newThread);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -104,7 +97,8 @@ public:
 	{
 		return threads.size();
 	}
-};
+
+}; // KThreadWait
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Runs a number of threads that call a given function. The number of threads
@@ -120,9 +114,11 @@ public:
 class KRunThreads : public KThreadWait
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
+
 //----------
 public:
 //----------
+
 	//-----------------------------------------------------------------------------
 	/// Constructor. Sets number of threads to #cpu if numThreads == 0, but
 	/// not higher than maxThreads if maxThreads > 0.
@@ -234,7 +230,7 @@ protected:
 
 	//-----------------------------------------------------------------------------
 	/// store (or detach) the new thread object
-	void Store(UPThread&& thread);
+	void Store(std::unique_ptr<std::thread>&& thread);
 	//-----------------------------------------------------------------------------
 
 //----------
@@ -448,7 +444,8 @@ private:
 
 	Data&  m_data;
 	size_t m_MyID;
-};
+
+}; // KBlockOnID
 
 
 } // of namespace dekaf2

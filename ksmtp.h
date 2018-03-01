@@ -79,6 +79,12 @@ public:
 	/// Returns true if this mail has all elements needed for expedition
 	bool Good() const;
 
+	bool Send(const KURL& URL);
+	bool Send(KStringView sServer)
+	{
+		return Send(KURL(sServer));
+	}
+
 	KMail& operator=(KStringView sMessage);
 	KMail& operator+=(KStringView sMessage);
 	KMail& Append(KStringView sMessage);

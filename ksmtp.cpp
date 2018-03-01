@@ -198,6 +198,26 @@ KMIME KMail::MIME() const
 	return m_MimeType;
 }
 
+//-----------------------------------------------------------------------------
+bool KMail::Send(const KURL& URL)
+//-----------------------------------------------------------------------------
+{
+	KSMTP server;
+
+	if (!server.Connect(URL))
+	{
+		return false;
+	}
+
+	if (!server.Send(*this))
+	{
+		return false;
+	}
+
+	return true;
+
+} // Send
+
 
 //-----------------------------------------------------------------------------
 bool KSMTP::Talk(KStringView sTx, KStringView sRx)

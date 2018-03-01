@@ -242,6 +242,7 @@ set (HEADERS
 	krow.h
 	ksharedref.h
 	ksignals.h
+	ksmtp.h
 	ksplit.h
 	ksql.h
 	ksslclient.h
@@ -304,6 +305,7 @@ set (SOURCES
 	kregex.cpp
 	krow.cpp
 	ksignals.cpp
+	ksmtp.cpp
 	ksplit.cpp
 	ksql.cpp
 	ksslstream.cpp

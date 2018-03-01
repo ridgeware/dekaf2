@@ -91,6 +91,7 @@ public:
 		return m_mime;
 	}
 
+	static constexpr KStringView NONE                = "";
 	static constexpr KStringView JSON_UTF8           = "application/json; charset=UTF-8";
 	static constexpr KStringView HTML_UTF8           = "text/html; charset=UTF-8";
 	static constexpr KStringView XML_UTF8            = "text/xml; charset=UTF-8";

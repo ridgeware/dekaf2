@@ -49,6 +49,7 @@ namespace dekaf2 {
 constexpr KStringView KCharSet::ANY_ISO8859;
 constexpr KStringView KCharSet::DEFAULT_CHARSET;
 
+constexpr KStringView KMIME::NONE;
 constexpr KStringView KMIME::JSON_UTF8;
 constexpr KStringView KMIME::HTML_UTF8;
 constexpr KStringView KMIME::XML_UTF8;

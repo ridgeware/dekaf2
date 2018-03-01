@@ -144,13 +144,11 @@ std::streamsize KSSLInOutStreamDevice::read(char* s, std::streamsize n) noexcept
 
 	}
 
-/*
 	catch (const std::exception& e)
 	{
-		// we cannot log the .what() string as boost is built with COW strings..
 		kException(e);
 	}
-*/
+
 	catch (...)
 	{
 		kUnknownException();

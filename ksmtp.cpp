@@ -415,12 +415,12 @@ bool KSMTP::Send(const KMail& Mail)
 		}
 	}
 
-	if (!PrettyPrint("To:", Mail.To()));
+	if (!PrettyPrint("To:", Mail.To()))
 	{
 		return false;
 	}
 
-	if (!PrettyPrint("Cc:", Mail.Cc()));
+	if (!PrettyPrint("Cc:", Mail.Cc()))
 	{
 		return false;
 	}

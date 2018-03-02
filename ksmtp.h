@@ -54,6 +54,9 @@
 namespace dekaf2 {
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// This class takes all information for an email message. It can then be used
+/// as an argument for the KSMTP class, or sent via the convenience Send()
+/// method of KMail, which internally calls KSMTP.
 class KMail
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -64,42 +67,65 @@ public:
 
 	using map_t = std::map<KString, KString>;
 
+	/// Add one recipient to the To list, first arg is the email,
+	/// second arg is the full name or nothing
 	void To(KStringView sTo, KStringView sPretty = KStringView{});
+	/// Add one recipient to the Cc list, first arg is the email,
+	/// second arg is the full name or nothing
 	void Cc(KStringView sCc, KStringView sPretty = KStringView{});
+	/// Add one recipient to the Bcc list, first arg is the email,
+	/// second arg is the full name or nothing
 	void Bcc(KStringView sBcc, KStringView sPretty = KStringView{});
+	/// Set the sender for the From field, first arg is the email,
+	/// second arg is the full name or nothing
 	void From(KStringView sFrom, KStringView sPretty = KStringView{});
+	/// Set the subject
 	void Subject(KStringView sSubject);
+	/// Set the message
 	void Message(KString&& sMessage);
+	/// Set the message
 	void Message(const KString& sMessage)
 	{
 		KString cp(sMessage);
 		Message(std::move(cp));
 	}
+	/// Set the MIME type
 	void MIME(KMIME MimeType);
 	/// Returns true if this mail has all elements needed for expedition
 	bool Good() const;
-
+	/// Send the mail via MTA at URL
 	bool Send(const KURL& URL);
+	/// Send the mail via MTA at URL
 	bool Send(KStringView sServer)
 	{
 		return Send(KURL(sServer));
 	}
-
+	/// Set the message
 	KMail& operator=(KStringView sMessage);
+	/// Append to message
 	KMail& operator+=(KStringView sMessage);
+	/// Append to message
 	KMail& Append(KStringView sMessage);
+	/// Append with formatting to message
 	template<class... Args>
 	KMail& AppendFormatted(Args&&... args)
 	{
 		return Append(kFormat(std::forward<Args>(args)...));
 	}
 
+	/// Returns the To recipients
 	const map_t& To() const;
+	/// Returns the Cc recipients
 	const map_t& Cc() const;
+	/// Returns the Bcc recipients
 	const map_t& Bcc() const;
+	/// Returns the sender (only first entry in map is valid)
 	const map_t& From() const;
+	/// Returns the subject
 	KStringView Subject() const;
+	/// Returns the message
 	KStringView Message() const;
+	/// Returns the MIME type
 	KMIME MIME() const;
 
 //----------
@@ -120,6 +146,9 @@ private:
 
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// This class speaks the SMTP protocol with an MTA. It takes a KMail class
+/// as the mail to be sent. Multiple mails can be sent consecutively in one
+/// session.
 class KSMTP
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -128,36 +157,59 @@ class KSMTP
 public:
 //----------
 
+	/// Ctor - connects to MTA if argument is not empty
 	KSMTP(KStringView sServer = KStringView{})
-	: KSMTP(KURL(sServer))
 	{
+		if (!sServer.empty())
+		{
+			Connect(sServer);
+		}
 	}
 
+	/// Ctor - connects to MTA
 	KSMTP(const KURL& URL)
 	{
 		Connect(URL);
 	}
 
+	KSMTP(const KSMTP&) = delete;
+	KSMTP(KSMTP&&) = default;
+	KSMTP& operator=(const KSMTP&) = delete;
+	KSMTP& operator=(KSMTP&&) = default;
+
+	/// Connect to MTA
 	bool Connect(const KURL& URL);
+	/// Connect to MTA
 	bool Connect(KStringView sServer)
 	{
 		return Connect(KURL(sServer));
 	}
+	/// Disconnect from MTA
 	void Disconnect();
+	/// Returns true if connected to an MTA
 	bool Good() const;
+	/// Send one KMail to MTA
 	bool Send(const KMail& Mail);
+	/// Set the connection timeout in seconds, preset is 30
 	void SetTimeout(uint16_t iSeconds);
+	/// Returns error message from TCP socket
 	KString Error();
 
 //----------
 private:
 //----------
 
+	/// Talk to MTA and check response
 	bool Talk(KStringView sTX, KStringView sRx);
+	/// Pretty print and send to MTA one set of addresses
 	bool PrettyPrint(KStringView sHeader, const KMail::map_t& map);
+	/// Reset the expiration timer
 	void ExpiresFromNow();
+
+	// The TCP stream class
 	std::unique_ptr<KTCPStream> m_Stream;
-	uint16_t m_iTimeout{ 30 }; // half a minute for the timeout per default
+	// Half a minute for the timeout per default
+	uint16_t m_iTimeout{ 30 };
 
 }; // KSMTP
 

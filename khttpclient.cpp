@@ -47,26 +47,89 @@
 namespace dekaf2 {
 
 //-----------------------------------------------------------------------------
-KHTTPClient::KHTTPClient(KConnection& stream, const KURL& url, KMethod method)
+	KHTTPClient::KHTTPClient(const KURL& url, KMethod method, bool bVerifyCerts)
 //-----------------------------------------------------------------------------
-    : m_Stream(stream)
-    // we do not know how to properly open the KStream object if it is not
-    // open. Therefore we mark it as CLOSED should it not be good()
-    , m_State((m_Stream && m_Stream->OutStream().good()) ? State::CONNECTED : State::CLOSED)
 {
+	if (Connect(url, bVerifyCerts))
+	{
+		Resource(url, method);
+	}
+
+} // Ctor
+
+//-----------------------------------------------------------------------------
+KHTTPClient::KHTTPClient(KStringView sUrl, KMethod method, bool bVerifyCerts)
+//-----------------------------------------------------------------------------
+	: KHTTPClient(KURL(sUrl), method, bVerifyCerts)
+{
+} // Ctor
+
+//-----------------------------------------------------------------------------
+KHTTPClient::KHTTPClient(std::unique_ptr<KConnection> stream, const KURL& url, KMethod method)
+//-----------------------------------------------------------------------------
+{
+	if (Connect(std::move(stream)))
+	{
+		Resource(url, method);
+	}
+
+} // Ctor
+
+//-----------------------------------------------------------------------------
+bool KHTTPClient::Connect(std::unique_ptr<KConnection> Connection)
+//-----------------------------------------------------------------------------
+{
+	m_Stream = std::move(Connection);
+
 	if (m_Stream)
 	{
-		m_Stream->SetReaderEndOfLine('\n');
-		m_Stream->SetReaderLeftTrim("");
-		m_Stream->SetReaderRightTrim("");
-		m_Stream->SetWriterEndOfLine("\r\n");
-		Resource(url, method);
+		KStream& Stream = m_Stream->Stream();
+		m_State = Stream.OutStream().good() ? State::CONNECTED : State::CLOSED;
+		Stream.SetReaderEndOfLine('\n');
+		Stream.SetReaderLeftTrim("");
+		Stream.SetReaderRightTrim("");
+		Stream.SetWriterEndOfLine("\r\n");
 	}
 	else
 	{
-		kWarning("constructing on an empty KConnection object");
+		m_State = State::CLOSED;
 	}
+
+	return m_State == State::CONNECTED;
+
+} // Connect
+
+//-----------------------------------------------------------------------------
+bool KHTTPClient::Connect(const KURL& url, bool bVerifyCerts)
+//-----------------------------------------------------------------------------
+{
+	return Connect(KConnection::Create(url, bVerifyCerts));
+
+} // Connect
+
+//-----------------------------------------------------------------------------
+bool KHTTPClient::Connect(KStringView sUrl, bool bVerifyCerts)
+//-----------------------------------------------------------------------------
+{
+	return Connect(KURL(sUrl), bVerifyCerts);
 }
+
+//-----------------------------------------------------------------------------
+bool KHTTPClient::Disconnect()
+//-----------------------------------------------------------------------------
+{
+	m_State = State::CLOSED;
+
+	if (!m_Stream)
+	{
+		return false;
+	}
+
+	m_Stream.reset();
+
+	return true;
+
+} // Disconnect
 
 //-----------------------------------------------------------------------------
 KHTTPClient& KHTTPClient::Resource(const KURL& url, KMethod method)
@@ -78,19 +141,20 @@ KHTTPClient& KHTTPClient::Resource(const KURL& url, KMethod method)
 	{
 		if ((m_State == State::CONNECTED || m_State == State::REQUEST_SENT) && m_Stream)
 		{
-			m_Stream->Write(method);
-			m_Stream->Write(' ');
+			KStream& Stream = m_Stream->Stream();
+			Stream.Write(method);
+			Stream.Write(' ');
 			if (!url.Path.empty())
 			{
-				url.Path.Serialize(*m_Stream);
+				url.Path.Serialize(Stream);
 			}
 			else
 			{
-				m_Stream->Write('/');
+				Stream.Write('/');
 			}
-			url.Query.Serialize(*m_Stream);
-			url.Fragment.Serialize(*m_Stream);
-			m_Stream->WriteLine(" HTTP/1.1");
+			url.Query.Serialize(Stream);
+			url.Fragment.Serialize(Stream);
+			Stream.WriteLine(" HTTP/1.1");
 			m_State = State::RESOURCE_SET;
 			RequestHeader(KHeader::HOST, url.Domain.Serialize());
 		}
@@ -108,9 +172,10 @@ KHTTPClient& KHTTPClient::RequestHeader(KStringView svName, KStringView svValue)
 {
 	if ((m_State == State::RESOURCE_SET || m_State == State::HEADER_SET) && m_Stream)
 	{
-		m_Stream->Write(svName);
-		m_Stream->Write(": ");
-		m_Stream->WriteLine(svValue);
+		KStream& Stream = m_Stream->Stream();
+		Stream.Write(svName);
+		Stream.Write(": ");
+		Stream.WriteLine(svValue);
 		m_State = State::HEADER_SET;
 	}
 	else
@@ -126,17 +191,18 @@ bool KHTTPClient::Request(KStringView svPostData, KStringView svMime)
 {
 	if (m_State == State::HEADER_SET && m_Stream)
 	{
+		KStream& Stream = m_Stream->Stream();
 		if (m_Method == KMethod::POST)
 		{
 			RequestHeader(KHeader::CONTENT_LENGTH, KString::to_string(svPostData.size()));
 			RequestHeader(KHeader::CONTENT_TYPE,   svMime.empty() ? KMIME::TEXT_PLAIN : svMime);
 		}
-		m_Stream->WriteLine();
+		Stream.WriteLine();
 		if (m_Method == KMethod::POST)
 		{
-			m_Stream->Write(svPostData);
+			Stream.Write(svPostData);
 		}
-		m_Stream->Flush();
+		Stream.Flush();
 		m_State = State::REQUEST_SENT;
 		return ReadHeader();
 	}
@@ -153,8 +219,9 @@ bool KHTTPClient::ReadHeader()
 {
 	if (m_State == State::REQUEST_SENT && m_Stream)
 	{
+		KStream& Stream = m_Stream->Stream();
 		KString sLine;
-		while (m_Stream->ReadLine(sLine))
+		while (Stream.ReadLine(sLine))
 		{
 			m_ResponseHeader.Parse(sLine);
 			if (m_ResponseHeader.HeaderComplete())
@@ -189,8 +256,9 @@ inline bool KHTTPClient::GetNextChunkSize()
 {
 	if (m_bTEChunked && m_iRemainingContentSize == 0)
 	{
+		KStream& Stream = m_Stream->Stream();
 		KString sLine;
-		bool bGood = m_Stream->ReadLine(sLine);
+		bool bGood = Stream.ReadLine(sLine);
 		if (bGood)
 		{
 			kTrim(sLine);
@@ -218,9 +286,10 @@ inline void KHTTPClient::CheckForChunkEnd()
 {
 	if (m_bTEChunked && m_iRemainingContentSize == 0)
 	{
-		if (m_Stream->Read() == 13)
+		KStream& Stream = m_Stream->Stream();
+		if (Stream.Read() == 13)
 		{
-			m_Stream->Read();
+			Stream.Read();
 		}
 	}
 }
@@ -232,6 +301,7 @@ size_t KHTTPClient::Read(KOutStream& stream, size_t len)
 {
 	if (m_State == State::HEADER_PARSED && m_Stream)
 	{
+		KStream& Stream = m_Stream->Stream();
 		size_t tlen{0};
 		auto rlen{len};
 		while (len && rlen)
@@ -239,7 +309,7 @@ size_t KHTTPClient::Read(KOutStream& stream, size_t len)
 			if (GetNextChunkSize())
 			{
 				rlen = std::min(len, size());
-				rlen = m_Stream->Read(stream, rlen);
+				rlen = Stream.Read(stream, rlen);
 				m_iRemainingContentSize -= rlen;
 				len  -= rlen;
 				tlen += rlen;
@@ -262,6 +332,7 @@ size_t KHTTPClient::Read(KString& sBuffer, size_t len)
 {
 	if (m_State == State::HEADER_PARSED && m_Stream)
 	{
+		KStream& Stream = m_Stream->Stream();
 		size_t tlen{0};
 		auto rlen{len};
 		while (len && rlen)
@@ -269,7 +340,7 @@ size_t KHTTPClient::Read(KString& sBuffer, size_t len)
 			if (GetNextChunkSize())
 			{
 				rlen = std::min(rlen, size());
-				len = m_Stream->Read(sBuffer, rlen);
+				len = Stream.Read(sBuffer, rlen);
 				m_iRemainingContentSize -= len;
 				rlen -= len;
 				tlen += len;
@@ -296,8 +367,9 @@ bool KHTTPClient::ReadLine(KString& sBuffer)
 		GetNextChunkSize();
 		if (m_iRemainingContentSize)
 		{
+			KStream& Stream = m_Stream->Stream();
 			// TODO this will fail with chunked transfer if the newline is in a new transfer block..
-			bGood = m_Stream->ReadLine(sBuffer);
+			bGood = Stream.ReadLine(sBuffer);
 			if (bGood)
 			{
 				auto len = sBuffer.size();

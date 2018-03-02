@@ -248,7 +248,7 @@ bool KSMTP::Talk(KStringView sTx, KStringView sRx)
 	{
 		ExpiresFromNow();
 
-		if (!m_Stream->WriteLine(sTx).Flush().Good())
+		if (!m_Connection->Stream().WriteLine(sTx).Flush().Good())
 		{
 			kWarning("cannot send to SMTP server");
 			Disconnect();
@@ -262,7 +262,7 @@ bool KSMTP::Talk(KStringView sTx, KStringView sRx)
 
 		ExpiresFromNow();
 
-		if (!m_Stream->ReadLine(sLine))
+		if (!m_Connection->Stream().ReadLine(sLine))
 		{
 			kWarning("cannot receive from SMTP server");
 			Disconnect();
@@ -415,12 +415,12 @@ bool KSMTP::Send(const KMail& Mail)
 		}
 	}
 
-	if (!PrettyPrint("To:", Mail.To()));
+	if (!PrettyPrint("To:", Mail.To()))
 	{
 		return false;
 	}
 
-	if (!PrettyPrint("Cc:", Mail.Cc()));
+	if (!PrettyPrint("Cc:", Mail.Cc()))
 	{
 		return false;
 	}
@@ -428,7 +428,7 @@ bool KSMTP::Send(const KMail& Mail)
 	ExpiresFromNow();
 
 	// empty line ends the header
-	if (!m_Stream->WriteLine().Good())
+	if (!m_Connection->Stream().WriteLine().Good())
 	{
 		kWarning("cannot send end of header");
 		Disconnect();
@@ -437,7 +437,7 @@ bool KSMTP::Send(const KMail& Mail)
 
 	ExpiresFromNow();
 
-	if (!m_Stream->Write(Mail.Message()).Good())
+	if (!m_Connection->Stream().Write(Mail.Message()).Good())
 	{
 		kWarning("cannot send mail body");
 		Disconnect();
@@ -446,16 +446,16 @@ bool KSMTP::Send(const KMail& Mail)
 
 	ExpiresFromNow();
 
-	if (!m_Stream->WriteLine().Good()
-		|| !m_Stream->Write('.').Good()
-		|| !m_Stream->WriteLine().Good())
+	if (!m_Connection->Stream().WriteLine().Good()
+		|| !m_Connection->Stream().Write('.').Good()
+		|| !m_Connection->Stream().WriteLine().Good())
 	{
 		kWarning("cannot send EOM");
 		Disconnect();
 		return false;
 	}
 
-	m_Stream->Flush();
+	m_Connection->Stream().Flush();
 
 	return true;
 
@@ -465,29 +465,17 @@ bool KSMTP::Send(const KMail& Mail)
 bool KSMTP::Connect(const KURL& URL)
 //-----------------------------------------------------------------------------
 {
-	std::string domain = URL.Domain.Serialize().ToStdString();
-	std::string port;
+	kDebug(1, "connecting to SMTP server {} on port {}", URL.Domain.Serialize(), URL.Port.Serialize());
 
-	if (!URL.Port.empty())
+	m_Connection = KConnection::Create(URL);
+
+	if (!m_Connection || !m_Connection->Stream().OutStream().good())
 	{
-		port = URL.Port.Serialize().ToStdString();
-	}
-	else
-	{
-		port = std::to_string(url::KProtocol(url::KProtocol::MAILTO).DefaultPort());
+		kWarning("cannot connect to SMTP server {}:{} - {}", URL.Domain.Serialize(), URL.Port.Serialize(), Error());
 	}
 
-	kDebug(1, "connecting to SMTP server {} on port {}", domain, port);
-
-	m_Stream = std::make_unique<KTCPStream>(domain, port);
-
-	if (!m_Stream || !m_Stream->good())
-	{
-		kWarning("cannot connect to SMTP server {}:{} - {}", domain, port, Error());
-	}
-
-	m_Stream->SetWriterEndOfLine("\r\n");
-	m_Stream->SetReaderRightTrim("\r\n");
+	m_Connection->Stream().SetWriterEndOfLine("\r\n");
+	m_Connection->Stream().SetReaderRightTrim("\r\n");
 
 	if (Talk("", "220")
 	 && Talk(kFormat("HELO {}", "localhost"), "250"))
@@ -506,7 +494,7 @@ bool KSMTP::Connect(const KURL& URL)
 void KSMTP::ExpiresFromNow()
 //-----------------------------------------------------------------------------
 {
-	m_Stream->expires_from_now(boost::posix_time::seconds(m_iTimeout));
+	m_Connection->ExpiresFromNow(m_iTimeout);
 }
 
 //-----------------------------------------------------------------------------
@@ -517,25 +505,32 @@ void KSMTP::Disconnect()
 	{
 		Talk("QUIT", "250");
 	}
-	m_Stream.reset();
+	m_Connection.reset();
 }
 
 //-----------------------------------------------------------------------------
 bool KSMTP::Good() const
 //-----------------------------------------------------------------------------
 {
-	return m_Stream && m_Stream->good();
+	return m_Connection && m_Connection->Stream().KOutStream::Good();
 }
 
 //-----------------------------------------------------------------------------
 KString KSMTP::Error()
 //-----------------------------------------------------------------------------
 {
-	if (!m_Stream)
+	if (!m_Connection || m_Connection->IsSSL())
 	{
 		return KString{};
 	}
-	return m_Stream->error().message();
+	
+	auto TCP = m_Connection->GetTCPStream();
+	if (TCP == nullptr)
+	{
+		return KString{};
+	}
+
+	return TCP->error().message();
 
 } // Error
 

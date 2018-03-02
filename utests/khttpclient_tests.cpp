@@ -52,7 +52,7 @@ protected:
 	KString m_sResponse;
 };
 
-TEST_CASE("KHTTP") {
+TEST_CASE("KHTTPClient") {
 
 	SECTION("check connection setup")
 	{
@@ -61,14 +61,14 @@ TEST_CASE("KHTTP") {
 		server.clear();
 
 		KURL URL("http://127.0.0.1:7654/path?query=val&another=here#fragment");
-		KConnection  cx(URL);
-		CHECK( cx == true );
-		if (cx == true)
+		std::unique_ptr<KConnection> cx = KConnection::Create(URL);
+		CHECK( cx->operator bool() == true );
+		if (cx->operator bool() == true)
 		{
-			CHECK( cx->OutStream().good() == true );
-			CHECK( cx->InStream().good()  == true );
+			CHECK( cx->Stream().OutStream().good() == true );
+			CHECK( cx->Stream().InStream().good()  == true );
 		}
-		KHTTPClient        cHTTP(cx);
+		KHTTPClient cHTTP(std::move(cx));
 		cHTTP.Resource(URL);
 		CHECK( cHTTP.Request() == true );
 		KString shtml;

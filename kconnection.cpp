@@ -110,10 +110,9 @@ bool KConnection::Connect(const url::KDomain& domain, const url::KPort& port)
 		m_bStreamIsNotOwned = false;
 		m_Stream.release();
 	}
-	KStringView sv = domain.Serialize();
-	std::string sd(sv.data(), sv.size());
-	sv = port.Serialize();
-	std::string sp(sv.data(), sv.size());
+	std::string sd = domain.Serialize().ToStdString();
+	std::string sp = port.Serialize().ToStdString();
+	m_bIsSSL = false;
 	m_Stream = std::make_unique<KTCPStream>(sd, sp);
 	return m_Stream->OutStream().good();
 }
@@ -134,6 +133,60 @@ void KConnection::Disonnect()
 }
 
 //-----------------------------------------------------------------------------
+bool KConnection::ExpiresFromNow(long iSeconds)
+//-----------------------------------------------------------------------------
+{
+	auto TCP = GetTCPStream();
+	TCP->expires_from_now(boost::posix_time::seconds(iSeconds));
+
+	return true;
+
+}
+
+//-----------------------------------------------------------------------------
+bool KConnection::SetTimeout(long iSeconds)
+//-----------------------------------------------------------------------------
+{
+	auto SSL = GetSSLStream();
+	if (SSL == nullptr)
+	{
+		return false;
+	}
+
+	// set connection timeout once, other than for the
+	// non-SSL connections where we have to repeatedly
+	// call ExpiresFromNow()
+	SSL->Timeout(iSeconds);
+
+	return true;
+
+}
+
+//-----------------------------------------------------------------------------
+KTCPStream* KConnection::GetTCPStream()
+//-----------------------------------------------------------------------------
+{
+	if (!IsSSL())
+	{
+		return static_cast<KTCPStream*>(m_Stream.get());
+	}
+	return nullptr;
+
+} // GetTCPStream
+
+//-----------------------------------------------------------------------------
+KSSLStream* KConnection::GetSSLStream()
+//-----------------------------------------------------------------------------
+{
+	if (IsSSL())
+	{
+		return static_cast<KSSLStream*>(m_Stream.get());
+	}
+	return nullptr;
+
+} // GetSSLStream
+
+//-----------------------------------------------------------------------------
 void KConnection::setConnection(std::unique_ptr<KStream>&& Stream)
 //-----------------------------------------------------------------------------
 {
@@ -149,8 +202,9 @@ void KConnection::setConnection(std::unique_ptr<KStream>&& Stream)
 bool KSSLConnection::Connect(const url::KDomain& domain, const url::KPort& port, bool bVerifyCerts)
 //-----------------------------------------------------------------------------
 {
+	m_bIsSSL = true;
 	setConnection(std::make_unique<KSSLStream>(domain.Serialize(), port.Serialize(), bVerifyCerts));
-	return get()->OutStream().good();
+	return Stream().OutStream().good();
 }
 
 

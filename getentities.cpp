@@ -10,8 +10,8 @@ using namespace dekaf2;
 int main(int argc, char** argv)
 {
 	KURL URL("http://www.w3.org/TR/html5/entities.json");
-	std::unique_ptr<KConnection> cx = KConnection::Create(URL, false);
-	KHTTPClient cHTTP(*cx);
+	KHTTPClient cHTTP;
+	cHTTP.Connect(URL);
 	cHTTP.Resource(URL);
 	cHTTP.Request();
 	KString sHTML;

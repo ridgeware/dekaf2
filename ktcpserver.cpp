@@ -144,6 +144,15 @@ void KTCPServer::RunSession(std::unique_ptr<KStream> stream, const endpoint_type
 
 	try
 	{
+		if (IsSSL())
+		{
+			// set connection timeout once, other than for the
+			// non-SSL connections where we have to repeatedly
+			// call ExpiresFromNow()
+			KSSLStream& s = static_cast<KSSLStream&>(*stream);
+			s.Timeout(m_iTimeout);
+		}
+
 		// run the actual Session code protected by
 		// an exception handler
 		Session(*stream, remote_endpoint);
@@ -169,12 +178,7 @@ void KTCPServer::RunSession(std::unique_ptr<KStream> stream, const endpoint_type
 void KTCPServer::ExpiresFromNow(KStream& stream, long iSeconds)
 //-----------------------------------------------------------------------------
 {
-	if (IsSSL())
-	{
-//		KSSLStream& s = static_cast<KSSLStream&>(stream);
-		// TODO
-	}
-	else
+	if (!IsSSL())
 	{
 		KTCPStream& s = static_cast<KTCPStream&>(stream);
 		s.expires_from_now(boost::posix_time::seconds(iSeconds));

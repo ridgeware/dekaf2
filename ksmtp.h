@@ -47,6 +47,7 @@
 #include "kstringutils.h"
 #include "kurl.h"
 #include "kmime.h"
+#include "kconnection.h"
 #include <map>
 #include <vector>
 
@@ -210,7 +211,7 @@ private:
 	void ExpiresFromNow();
 
 	// The TCP stream class
-	std::unique_ptr<KTCPStream> m_Stream;
+	std::unique_ptr<KConnection> m_Connection;
 	// Half a minute for the timeout per default
 	uint16_t m_iTimeout{ 30 };
 

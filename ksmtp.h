@@ -50,6 +50,9 @@
 #include <map>
 #include <vector>
 
+/// @file ksmtp.h
+/// Adds the KMail class to represent an email to be sent,
+/// and the KSMTP class which sends a KMail via SMTP to an MTA
 
 namespace dekaf2 {
 

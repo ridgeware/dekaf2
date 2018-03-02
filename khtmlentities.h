@@ -56,14 +56,14 @@ void kEntity(uint32_t ch, KString& sOut);
 /// Returns the codepoints for the named entity in cp1, cp2, false if not found
 bool kNamedEntity(KStringView sEntity, uint32_t& cp1, uint32_t& cp2);
 
-/// Adds the mandatory entity for the input character (<>&"'),
+/// Adds only mandatory entities for the input character (<>&"'),
 /// otherwise appends input char to output
 void kMandatoryEntity(uint32_t ch, KString& sOut);
 
-/// Converts HTML entities into utf8
+/// Converts utf8 input into HTML entities for non-alnum/space/punct characters
 KString kHTMLEntityEncode(KStringView sIn);
 
-/// Converts utf8 input into HTML entities for non-alnum/space/punct
+/// Converts HTML entities into utf8
 KString kHTMLEntityDecode(KStringView sIn);
 
 } // of namespace dekaf2

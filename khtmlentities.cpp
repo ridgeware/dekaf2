@@ -2217,6 +2217,8 @@ bool kNamedEntity(KStringView sEntity, uint32_t& cp1, uint32_t& cp2)
 			}
 		}
 
+		// TODO better algorithm, either binary search or map
+
 		for (size_t i{0}; i < std::extent<decltype(s_NamedEntitiesHTML4)>::value; ++i)
 		{
 			if (s_NamedEntitiesHTML4[i].sName < sEntity)

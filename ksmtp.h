@@ -137,6 +137,8 @@ private:
 //----------
 
 	void Add(map_t& map, KStringView Key, KStringView Value = KStringView{});
+	KStringView::size_type DottingNeededAt(KStringView sMessage, KStringView::size_type start = 0);
+	void AppendDotted(KStringView sMessage, KStringView::size_type iSingleDot);
 
 	map_t m_To;
 	map_t m_Cc;

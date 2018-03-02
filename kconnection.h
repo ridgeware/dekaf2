@@ -247,15 +247,15 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	static std::unique_ptr<KConnection> Create(const KURL& URL, bool bVerifyCerts = false);
+	static std::unique_ptr<KConnection> Create(const KURL& URL, bool bForceSSL = false, bool bVerifyCerts = false);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	static std::unique_ptr<KConnection> Create(KStringView URL, bool bVerifyCerts = false);
+	static std::unique_ptr<KConnection> Create(KStringView URL, bool bForceSSL = false, bool bVerifyCerts = false);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	static std::unique_ptr<KConnection> Create(const KURL& URL, const KProxy& Proxy, bool bVerifyCerts = false);
+	static std::unique_ptr<KConnection> Create(const KURL& URL, const KProxy& Proxy, bool bForceSSL = false, bool bVerifyCerts = false);
 	//-----------------------------------------------------------------------------
 
 //------

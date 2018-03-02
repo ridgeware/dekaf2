@@ -209,7 +209,7 @@ bool KSSLConnection::Connect(const url::KDomain& domain, const url::KPort& port,
 
 
 //-----------------------------------------------------------------------------
-std::unique_ptr<KConnection> KConnection::Create(const KURL& URL, bool bVerifyCerts)
+std::unique_ptr<KConnection> KConnection::Create(const KURL& URL, bool bForceSSL, bool bVerifyCerts)
 //-----------------------------------------------------------------------------
 {
 	KConnection Connection;
@@ -221,7 +221,7 @@ std::unique_ptr<KConnection> KConnection::Create(const KURL& URL, bool bVerifyCe
 		Port = KString::to_string(URL.Protocol.DefaultPort());
 	}
 
-	if (URL.Protocol == url::KProtocol::HTTPS)
+	if (URL.Protocol == url::KProtocol::HTTPS || bForceSSL)
 	{
 		return std::make_unique<KSSLConnection>(URL.Domain, Port, bVerifyCerts);
 	}
@@ -233,15 +233,15 @@ std::unique_ptr<KConnection> KConnection::Create(const KURL& URL, bool bVerifyCe
 } // Create
 
 //-----------------------------------------------------------------------------
-std::unique_ptr<KConnection> KConnection::Create(KStringView URL, bool bVerifyCerts)
+std::unique_ptr<KConnection> KConnection::Create(KStringView URL, bool bForceSSL, bool bVerifyCerts)
 //-----------------------------------------------------------------------------
 {
-	return Create(KURL(URL));
+	return Create(KURL(URL), bForceSSL, bVerifyCerts);
 
 } // Create
 
 //-----------------------------------------------------------------------------
-std::unique_ptr<KConnection> KConnection::Create(const KURL& URL, const KProxy& Proxy, bool bVerifyCerts)
+std::unique_ptr<KConnection> KConnection::Create(const KURL& URL, const KProxy& Proxy, bool bForceSSL, bool bVerifyCerts)
 //-----------------------------------------------------------------------------
 {
 	KConnection Connection;
@@ -265,7 +265,7 @@ std::unique_ptr<KConnection> KConnection::Create(const KURL& URL, const KProxy& 
 		Port = KString::to_string(URL.Protocol.DefaultPort());
 	}
 
-	if (URL.Protocol == url::KProtocol::HTTPS)
+	if (URL.Protocol == url::KProtocol::HTTPS || bForceSSL)
 	{
 		return std::make_unique<KSSLConnection>(Domain, Port, bVerifyCerts);
 	}

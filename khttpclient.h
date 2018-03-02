@@ -128,6 +128,10 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	void SetTimeout(long iSeconds);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
 	/// Set the resource to be requested
 	KHTTPClient& Resource(const KURL& url, KMethod method = KMethod::GET);
 	//-----------------------------------------------------------------------------
@@ -213,6 +217,7 @@ private:
 	KHeader  m_ResponseHeader;
 	size_t   m_iRemainingContentSize{0};
 	State    m_State{State::CLOSED};
+	long     m_Timeout{ 300 };
 	bool     m_bTEChunked;
 
 }; // KHTTPClient

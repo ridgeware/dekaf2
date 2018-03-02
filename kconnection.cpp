@@ -137,6 +137,11 @@ bool KConnection::ExpiresFromNow(long iSeconds)
 //-----------------------------------------------------------------------------
 {
 	auto TCP = GetTCPStream();
+	if (TCP == nullptr)
+	{
+		return false;
+	}
+
 	TCP->expires_from_now(boost::posix_time::seconds(iSeconds));
 
 	return true;

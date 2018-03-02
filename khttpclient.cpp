@@ -132,6 +132,14 @@ bool KHTTPClient::Disconnect()
 } // Disconnect
 
 //-----------------------------------------------------------------------------
+void KHTTPClient::SetTimeout(long iSeconds)
+//-----------------------------------------------------------------------------
+{
+	m_Timeout = iSeconds;
+	m_Stream->SetTimeout(iSeconds);
+}
+
+//-----------------------------------------------------------------------------
 KHTTPClient& KHTTPClient::Resource(const KURL& url, KMethod method)
 //-----------------------------------------------------------------------------
 {
@@ -141,6 +149,7 @@ KHTTPClient& KHTTPClient::Resource(const KURL& url, KMethod method)
 	{
 		if ((m_State == State::CONNECTED || m_State == State::REQUEST_SENT) && m_Stream)
 		{
+			m_Stream->ExpiresFromNow(m_Timeout);
 			KStream& Stream = m_Stream->Stream();
 			Stream.Write(method);
 			Stream.Write(' ');
@@ -172,6 +181,7 @@ KHTTPClient& KHTTPClient::RequestHeader(KStringView svName, KStringView svValue)
 {
 	if ((m_State == State::RESOURCE_SET || m_State == State::HEADER_SET) && m_Stream)
 	{
+		m_Stream->ExpiresFromNow(m_Timeout);
 		KStream& Stream = m_Stream->Stream();
 		Stream.Write(svName);
 		Stream.Write(": ");
@@ -191,6 +201,7 @@ bool KHTTPClient::Request(KStringView svPostData, KStringView svMime)
 {
 	if (m_State == State::HEADER_SET && m_Stream)
 	{
+		m_Stream->ExpiresFromNow(m_Timeout);
 		KStream& Stream = m_Stream->Stream();
 		if (m_Method == KMethod::POST)
 		{
@@ -219,6 +230,7 @@ bool KHTTPClient::ReadHeader()
 {
 	if (m_State == State::REQUEST_SENT && m_Stream)
 	{
+		m_Stream->ExpiresFromNow(m_Timeout);
 		KStream& Stream = m_Stream->Stream();
 		KString sLine;
 		while (Stream.ReadLine(sLine))
@@ -254,6 +266,7 @@ bool KHTTPClient::ReadHeader()
 inline bool KHTTPClient::GetNextChunkSize()
 //-----------------------------------------------------------------------------
 {
+	m_Stream->ExpiresFromNow(m_Timeout);
 	if (m_bTEChunked && m_iRemainingContentSize == 0)
 	{
 		KStream& Stream = m_Stream->Stream();
@@ -286,6 +299,7 @@ inline void KHTTPClient::CheckForChunkEnd()
 {
 	if (m_bTEChunked && m_iRemainingContentSize == 0)
 	{
+		m_Stream->ExpiresFromNow(m_Timeout);
 		KStream& Stream = m_Stream->Stream();
 		if (Stream.Read() == 13)
 		{
@@ -306,6 +320,7 @@ size_t KHTTPClient::Read(KOutStream& stream, size_t len)
 		auto rlen{len};
 		while (len && rlen)
 		{
+			// we touch the expiry timer in GetNextChunkSize() already
 			if (GetNextChunkSize())
 			{
 				rlen = std::min(len, size());
@@ -337,6 +352,7 @@ size_t KHTTPClient::Read(KString& sBuffer, size_t len)
 		auto rlen{len};
 		while (len && rlen)
 		{
+			// we touch the expiry timer in GetNextChunkSize() already
 			if (GetNextChunkSize())
 			{
 				rlen = std::min(rlen, size());
@@ -364,6 +380,7 @@ bool KHTTPClient::ReadLine(KString& sBuffer)
 	if (m_State == State::HEADER_PARSED && m_Stream)
 	{
 		bool bGood = false;
+		// we touch the expiry timer in GetNextChunkSize() already
 		GetNextChunkSize();
 		if (m_iRemainingContentSize)
 		{

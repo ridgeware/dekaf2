@@ -145,6 +145,21 @@ bool KMail::Good() const
 		kDebug(1, "no body in mail");
 	}
 
+	size_t pos{0};
+	for (;;)
+	{
+		pos = m_Message.find("\n.", pos);
+		if (pos == KString::npos)
+		{
+			break;
+		}
+		if (++pos < m_Message.size() && (m_Message[pos] == '\r' || m_Message[pos] == '\n'))
+		{
+			kDebug(1, "message body contains unescaped terminator");
+			break;
+		}
+	}
+
 	return true;
 
 } // Good
@@ -229,10 +244,10 @@ bool KSMTP::Talk(KStringView sTx, KStringView sRx)
 		return false;
 	}
 
-	ExpiresFromNow();
-
 	if (!sTx.empty())
 	{
+		ExpiresFromNow();
+
 		if (!m_Stream->WriteLine(sTx).Flush().Good())
 		{
 			kWarning("cannot send to SMTP server");
@@ -256,7 +271,7 @@ bool KSMTP::Talk(KStringView sTx, KStringView sRx)
 
 		if (!sLine.StartsWith(sRx))
 		{
-			kWarning("SMTP server responded with {} instead of {} on query {}", sLine, sRx, sTx);
+			kWarning("SMTP server responded with '{}' instead of '{}' on query '{}'", sLine, sRx, sTx);
 			Disconnect();
 			return false;
 		}
@@ -290,12 +305,14 @@ bool KSMTP::PrettyPrint(KStringView sHeader, const KMail::map_t& map)
 		{
 			sString += '"';
 			sString += it.second;
-			sString += "\" ";
+			sString += "\" <";
+			sString += it.first;
+			sString += '>';
 		}
-
-		sString += '<';
-		sString += it.first;
-		sString += '>';
+		else
+		{
+			sString += it.first;
+		}
 
 	}
 
@@ -354,10 +371,6 @@ bool KSMTP::Send(const KMail& Mail)
 		return false;
 	}
 
-	// TODO check if it is acceptable to switch from CR LF to LF
-	// line endings here. The original code in dekaf1 did so.
-	m_Stream->SetWriterEndOfLine("\n");
-
 	if (Mail.MIME() != KMIME::NONE)
 	{
 		if (!Talk("MIME-Version: 1.0", "")
@@ -367,8 +380,13 @@ bool KSMTP::Send(const KMail& Mail)
 		}
 	}
 
-	m_Stream->Write("Date: ");
-	m_Stream->WriteLine(kFormTimestamp(0, "%a, %d %b %Y %H:%M:%S %z"));
+	KString sDate("Date: ");
+	sDate += kFormTimestamp(0, "%a, %d %b %Y %H:%M:%S %z");
+
+	if (!Talk(sDate, ""))
+	{
+		return false;
+	}
 
 	if (!Talk(kFormat("Subject: {}", Mail.Subject()), ""))
 	{
@@ -497,7 +515,7 @@ void KSMTP::Disconnect()
 {
 	if (Good())
 	{
-		m_Stream->WriteLine("QUIT").Flush();
+		Talk("QUIT", "250");
 	}
 	m_Stream.reset();
 }

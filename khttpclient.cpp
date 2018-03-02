@@ -40,7 +40,7 @@
 // +-------------------------------------------------------------------------+
 */
 
-#include "khttp.h"
+#include "khttpclient.h"
 #include "kmime.h"
 #include "kurlencode.h"
 

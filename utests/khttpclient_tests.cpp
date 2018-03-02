@@ -1,6 +1,6 @@
 #include "catch.hpp"
 
-#include <dekaf2/khttp.h>
+#include <dekaf2/khttpclient.h>
 #include <dekaf2/ktcpserver.h>
 #include <dekaf2/kstring.h>
 

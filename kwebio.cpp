@@ -42,7 +42,7 @@
 
 #include "kwebio.h"
 #include "klog.h"
-#include "khttp.h"
+#include "khttpclient.h"
 #include "kstringutils.h"
 
 namespace dekaf2 {

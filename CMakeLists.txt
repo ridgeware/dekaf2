@@ -221,7 +221,7 @@ set (HEADERS
 	kgetruntimestack.h
 	khash.h
 	khtmlentities.h
-	khttp.h
+	khttpclient.h
 	khttp_header.h
 	khttp_method.h
 	kinpipe.h
@@ -286,7 +286,7 @@ set (SOURCES
 	kgetruntimestack.cpp
 	khash.cpp
 	khtmlentities.cpp
-	khttp.cpp
+	khttpclient.cpp
 	khttp_header.cpp
 	khttp_method.cpp
 	kinpipe.cpp

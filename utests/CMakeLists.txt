@@ -17,7 +17,7 @@ set (USOURCES
 	kcurl_tests.cpp
 	kencode_tests.cpp
 	kfile_tests.cpp
-	khttp_tests.cpp
+	khttpclient_tests.cpp
 	kinpipe_tests.cpp
 	kinshell_tests.cpp
 	kjson_tests.cpp

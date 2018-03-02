@@ -48,6 +48,9 @@
 #include "khttp_method.h"
 #include "kuseragent.h"
 
+/// @file khttpclient.h
+/// HTTP client implementation
+
 namespace dekaf2 {
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::

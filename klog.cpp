@@ -54,7 +54,7 @@ TODO: KLOG OVERHAUL NEEDED
 #include "kstringutils.h"
 #include "ksystem.h"
 #include "kurl.h"
-#include "khttp.h"
+#include "khttpclient.h"
 #include "kjson.h"
 #include "ksplit.h"
 

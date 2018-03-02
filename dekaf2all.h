@@ -64,7 +64,7 @@
 #include "kgetruntimestack.h"
 #include "khash.h"
 #include "khtmlentities.h"
-#include "khttp.h"
+#include "khttpclient.h"
 #include "khttp_header.h"
 #include "khttp_method.h"
 #include "kinpipe.h"

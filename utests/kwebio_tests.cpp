@@ -1,6 +1,6 @@
 #include "catch.hpp"
 #include <dekaf2/kwebio.h>
-#include <dekaf2/khttp.h>
+#include <dekaf2/khttpclient.h>
 
 using namespace dekaf2;
 

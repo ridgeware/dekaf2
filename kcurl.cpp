@@ -42,7 +42,7 @@
 
 #include "kcurl.h"
 #include "klog.h"
-#include "khttp.h"
+#include "khttpclient.h"
 
 #include <iostream>
 

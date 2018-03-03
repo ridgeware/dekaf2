@@ -198,19 +198,19 @@ bool KMail::Good() const
 {
 	if (m_To.empty())
 	{
-		kWarning("missing To address");
+		m_sError = "missing To address";
 		return false;
 	}
 
 	if (m_From.empty())
 	{
-		kWarning("missing From address");
+		m_sError = "missing From address";
 		return false;
 	}
 
 	if (m_Subject.empty())
 	{
-		kWarning("missing subject");
+		m_sError = "missing subject";
 		return false;
 	}
 
@@ -219,9 +219,18 @@ bool KMail::Good() const
 		kDebug(1, "no body in mail");
 	}
 
+	m_sError.clear();
+
 	return true;
 
 } // Good
+
+//-----------------------------------------------------------------------------
+const KString& KMail::Error() const
+//-----------------------------------------------------------------------------
+{
+	return m_sError;
+}
 
 //-----------------------------------------------------------------------------
 const KMail::map_t& KMail::To() const
@@ -280,11 +289,13 @@ bool KMail::Send(const KURL& URL)
 
 	if (!server.Connect(URL))
 	{
+		m_sError = server.Error();
 		return false;
 	}
 
 	if (!server.Send(*this))
 	{
+		m_sError = server.Error();
 		return false;
 	}
 
@@ -299,7 +310,7 @@ bool KSMTP::Talk(KStringView sTx, KStringView sRx)
 {
 	if (!Good())
 	{
-		kWarning("no connection to SMTP server");
+		m_sError = "no connection to SMTP server";
 		return false;
 	}
 
@@ -309,7 +320,7 @@ bool KSMTP::Talk(KStringView sTx, KStringView sRx)
 
 		if (!m_Connection->Stream().WriteLine(sTx).Flush().Good())
 		{
-			kWarning("cannot send to SMTP server");
+			m_sError = "cannot send to SMTP server";
 			Disconnect();
 			return false;
 		}
@@ -323,18 +334,20 @@ bool KSMTP::Talk(KStringView sTx, KStringView sRx)
 
 		if (!m_Connection->Stream().ReadLine(sLine))
 		{
-			kWarning("cannot receive from SMTP server");
+			m_sError = "cannot receive from SMTP server";
 			Disconnect();
 			return false;
 		}
 
 		if (!sLine.StartsWith(sRx))
 		{
-			kWarning("SMTP server responded with '{}' instead of '{}' on query '{}'", sLine, sRx, sTx);
+			m_sError.Format("SMTP server responded with '{}' instead of '{}' on query '{}'", sLine, sRx, sTx);
 			Disconnect();
 			return false;
 		}
 	}
+
+	m_sError.clear();
 
 	return true;
 
@@ -392,7 +405,7 @@ bool KSMTP::Send(const KMail& Mail)
 {
 	if (!Mail.Good())
 	{
-		kWarning("mail not sent");
+		m_sError.Format("mail not sent: {}", Mail.Error());
 		return false;
 	}
 
@@ -489,7 +502,7 @@ bool KSMTP::Send(const KMail& Mail)
 	// empty line ends the header
 	if (!m_Connection->Stream().WriteLine().Good())
 	{
-		kWarning("cannot send end of header");
+		m_sError = "cannot send end of header";
 		Disconnect();
 		return false;
 	}
@@ -498,7 +511,7 @@ bool KSMTP::Send(const KMail& Mail)
 
 	if (!m_Connection->Stream().Write(Mail.Message()).Good())
 	{
-		kWarning("cannot send mail body");
+		m_sError = "cannot send mail body";
 		Disconnect();
 		return false;
 	}
@@ -521,11 +534,14 @@ bool KSMTP::Connect(const KURL& URL)
 {
 	kDebug(1, "connecting to SMTP server {} on port {}", URL.Domain.Serialize(), URL.Port.Serialize());
 
+	m_sError.clear();
+
 	m_Connection = KConnection::Create(URL);
 
 	if (!m_Connection || !m_Connection->Stream().OutStream().good())
 	{
-		kWarning("cannot connect to SMTP server {}:{} - {}", URL.Domain.Serialize(), URL.Port.Serialize(), Error());
+		m_sError.Format("cannot connect to SMTP server {}:{} - {}", URL.Domain.Serialize(), URL.Port.Serialize(), Error());
+		return false;
 	}
 
 	m_Connection->Stream().SetWriterEndOfLine("\r\n");
@@ -570,22 +586,26 @@ bool KSMTP::Good() const
 }
 
 //-----------------------------------------------------------------------------
-KString KSMTP::Error()
+const KString& KSMTP::Error()
 //-----------------------------------------------------------------------------
 {
-	if (!m_Connection || m_Connection->IsSSL())
+	if (m_Connection && !m_Connection->IsSSL())
 	{
-		return KString{};
+		auto TCP = m_Connection->GetTCPStream();
+		if (TCP != nullptr)
+		{
+			if (!TCP->error().message().empty())
+			{
+				if (!m_sError.empty())
+				{
+					m_sError += ": ";
+				}
+				m_sError += TCP->error().message();
+			}
+		}
 	}
-	
-	auto TCP = m_Connection->GetTCPStream();
 
-	if (TCP == nullptr)
-	{
-		return KString{};
-	}
-
-	return TCP->error().message();
+	return m_sError;
 
 } // Error
 

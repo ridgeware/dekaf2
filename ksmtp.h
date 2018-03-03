@@ -131,6 +131,8 @@ public:
 	KStringView Message() const;
 	/// Returns the MIME type
 	KMIME MIME() const;
+	/// Returns last error
+	const KString& Error() const;
 
 //----------
 private:
@@ -146,6 +148,7 @@ private:
 	map_t m_From; // actually we only need one single key and value for this
 	KString m_Subject;
 	KString m_Message;
+	mutable KString m_sError;
 	KMIME m_MimeType{ KMIME::NONE };
 
 }; // KMail
@@ -198,8 +201,8 @@ public:
 	bool Send(const KMail& Mail);
 	/// Set the connection timeout in seconds, preset is 30
 	void SetTimeout(uint16_t iSeconds);
-	/// Returns error message from TCP socket
-	KString Error();
+	/// Returns last error
+	const KString& Error();
 
 //----------
 private:
@@ -212,6 +215,7 @@ private:
 	/// Reset the expiration timer
 	void ExpiresFromNow();
 
+	mutable KString m_sError;
 	// The TCP stream class
 	std::unique_ptr<KConnection> m_Connection;
 	// Half a minute for the timeout per default

@@ -86,7 +86,7 @@ void KMail::Message(KString&& sMessage)
 //-----------------------------------------------------------------------------
 {
 	auto pos = DottingNeededAt(sMessage);
-	if (pos != KStringView::npos)
+	if (DEKAF2_UNLIKELY(pos != KStringView::npos))
 	{
 		m_Message.clear();
 		AppendDotted(sMessage, pos);
@@ -102,7 +102,7 @@ KMail& KMail::operator=(KStringView sMessage)
 //-----------------------------------------------------------------------------
 {
 	auto pos = DottingNeededAt(sMessage);
-	if (pos != KStringView::npos)
+	if (DEKAF2_UNLIKELY(pos != KStringView::npos))
 	{
 		m_Message.clear();
 		AppendDotted(sMessage, pos);
@@ -126,7 +126,7 @@ KMail& KMail::Append(KStringView sMessage)
 //-----------------------------------------------------------------------------
 {
 	auto pos = DottingNeededAt(sMessage);
-	if (pos != KStringView::npos)
+	if (DEKAF2_UNLIKELY(pos != KStringView::npos))
 	{
 		AppendDotted(sMessage, pos);
 	}
@@ -141,13 +141,15 @@ KMail& KMail::Append(KStringView sMessage)
 void KMail::AppendDotted(KStringView sMessage, KStringView::size_type iSingleDot)
 //-----------------------------------------------------------------------------
 {
+	m_Message.reserve(m_Message.size() + sMessage.size() + 1);
+
 	KStringView::size_type lastpos = 0;
 	while (iSingleDot != KStringView::npos)
 	{
 		if (iSingleDot > 0)
 		{
 			m_Message += sMessage.substr(lastpos, iSingleDot);
-			++lastpos;
+			lastpos = iSingleDot;
 		}
 		m_Message += '.';
 		iSingleDot = DottingNeededAt(sMessage, iSingleDot+1);
@@ -166,21 +168,27 @@ void KMail::Add(map_t& map, KStringView Key, KStringView Value)
 KStringView::size_type KMail::DottingNeededAt(KStringView sMessage, KStringView::size_type start)
 //-----------------------------------------------------------------------------
 {
-	size_t pos{start};
-	for (;;)
+	// dotting shall always happen when a dot starts the line, regardless of
+	// it being alone on a line or followed by more characters
+
+	// because we dot on Append(), we have to check if the already existing
+	// string ends with a LF (or implicitly by being empty)
+
+	if (m_Message.empty() || m_Message.back() == '\n')
 	{
-		pos = sMessage.find("\n.", pos);
-
-		if (pos == KString::npos)
+		if (!sMessage.empty() and sMessage.front() == '.')
 		{
-			return KStringView::npos;
-		}
-
-		if (++pos < sMessage.size() && (sMessage[pos] == '\r' || sMessage[pos] == '\n'))
-		{
-			return --pos;
+			return 0;
 		}
 	}
+
+	auto pos = sMessage.find("\n.", start);
+	if (pos != KStringView::npos)
+	{
+		++pos;
+	}
+
+	return pos;
 
 } // DottingNeededAt
 
@@ -495,14 +503,9 @@ bool KSMTP::Send(const KMail& Mail)
 		return false;
 	}
 
-	ExpiresFromNow();
-
-	if (!m_Connection->Stream().WriteLine().Good()
-		|| !m_Connection->Stream().Write('.').Good()
-		|| !m_Connection->Stream().WriteLine().Good())
+	// Talk() adds another \r\n at the end, which terminates the message
+	if (!Talk("\r\n.", "250"))
 	{
-		kWarning("cannot send EOM");
-		Disconnect();
 		return false;
 	}
 

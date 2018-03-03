@@ -28,6 +28,7 @@ set (USOURCES
 	kpipe_tests.cpp
 	kprops_tests.cpp
 	kreader_tests.cpp
+	ksmtp_tests.cpp
 	ksplit_tests.cpp
 	kstack_tests.cpp
 	kstring_tests.cpp

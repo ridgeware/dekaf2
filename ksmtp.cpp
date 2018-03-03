@@ -468,7 +468,7 @@ bool KSMTP::Send(const KMail& Mail)
 	{
 		// this one is special as it fills up two headers
 		KString sFrom = "From: ";
-		KString sReplyTo = "Reply-To";
+		KString sReplyTo = "Reply-To: ";
 		if (!Mail.From().empty())
 		{
 			sFrom += Mail.From().begin()->first;

@@ -557,7 +557,7 @@ void KSMTP::Disconnect()
 {
 	if (Good())
 	{
-		Talk("QUIT", "250");
+		Talk("QUIT", "221");
 	}
 	m_Connection.reset();
 }

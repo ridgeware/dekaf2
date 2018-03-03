@@ -22,7 +22,7 @@ int main(int argc, char** argv)
 	KJSON json;
 	json.Parse(sHTML);
 	
-	COut << "\nconstexpr entity_t s_NamedEntitiesHTML4[] =\n{\n";
+	COut << "\nconstexpr entity_map_t s_NamedEntitiesHTML4 =\n{\n";
 
 	auto it = json.cbegin();
 	auto ie = json.cend();
@@ -52,14 +52,14 @@ int main(int argc, char** argv)
 				sValue += KString::to_hexstring(array[0]);
 				sValue.PadLeft(8);
 
-				COut << "\t{ \"" << sKey << ", " << sValue;
+				COut << "\t{ \"" << sKey << ", { " << sValue;
 
 				if (array.size() == 2)
 				{
 					COut << ", 0x" << KString::to_hexstring(array[1]);
 				}
 
-				COut << " },\n";
+				COut << " }},\n";
 			}
 		}
 	}

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomDataFormatters
+   version = "1.0">
+   <SummaryFormatters>
+      <SummaryFormatter
+         formatString = "{$VAR.data()}:s"
+         type = "dekaf2::KStringView">
+      </SummaryFormatter>
+      <SummaryFormatter
+         formatString = "{$VAR.c_str()}:s"
+         type = "dekaf2::KString">
+      </SummaryFormatter>
+   </SummaryFormatters>
+</CustomDataFormatters>

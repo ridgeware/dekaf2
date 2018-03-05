@@ -69,7 +69,7 @@ if (DEKAF2_WITH_COMPATIBILITY_LAYER_TO_DEKAF1)
 endif ()
 
 # make sure we have the necessary version of cmake installed
-#execute_process(COMMAND "${CMAKE_CURRENT_SOURCE_DIR}/bits/cmakeinstall -go")
+#execute_process(COMMAND "${CMAKE_CURRENT_SOURCE_DIR}/scriptsk/cmakeinstall -go")
 
 message(STATUS ${CMAKE_GENERATOR})
 if (DEKAF2_ENABLE_DEBUG_RUNTIME_CHECKS)

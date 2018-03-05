@@ -317,17 +317,20 @@ size_t KHTTPClient::Read(KOutStream& stream, size_t len)
 	{
 		KStream& Stream = m_Stream->Stream();
 		size_t tlen{0};
-		auto rlen{len};
-		while (len && rlen)
+		while (len)
 		{
 			// we touch the expiry timer in GetNextChunkSize() already
 			if (GetNextChunkSize())
 			{
-				rlen = std::min(len, size());
-				rlen = Stream.Read(stream, rlen);
-				m_iRemainingContentSize -= rlen;
-				len  -= rlen;
-				tlen += rlen;
+				auto rxlen = std::min(len, size());
+				rxlen = Stream.Read(stream, rxlen);
+				if (!rxlen)
+				{
+					break;
+				}
+				m_iRemainingContentSize -= rxlen;
+				len  -= rxlen;
+				tlen += rxlen;
 				CheckForChunkEnd();
 			}
 		}
@@ -349,17 +352,20 @@ size_t KHTTPClient::Read(KString& sBuffer, size_t len)
 	{
 		KStream& Stream = m_Stream->Stream();
 		size_t tlen{0};
-		auto rlen{len};
-		while (len && rlen)
+		while (len)
 		{
 			// we touch the expiry timer in GetNextChunkSize() already
 			if (GetNextChunkSize())
 			{
-				rlen = std::min(rlen, size());
-				len = Stream.Read(sBuffer, rlen);
-				m_iRemainingContentSize -= len;
-				rlen -= len;
-				tlen += len;
+				auto rxlen = std::min(len, size());
+				rxlen = Stream.Read(sBuffer, rxlen);
+				if (!rxlen)
+				{
+					break;
+				}
+				m_iRemainingContentSize -= rxlen;
+				len -= rxlen;
+				tlen += rxlen;
 				CheckForChunkEnd();
 			}
 		}

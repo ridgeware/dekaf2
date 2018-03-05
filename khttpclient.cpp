@@ -247,6 +247,7 @@ bool KHTTPClient::ReadHeader()
 					if (svTE == "chunked")
 					{
 						m_bTEChunked = true;
+						m_bReceivedFinalChunk = false;
 					}
 				}
 				m_iRemainingContentSize = sv.UInt64();
@@ -269,23 +270,31 @@ inline bool KHTTPClient::GetNextChunkSize()
 	m_Stream->ExpiresFromNow(m_Timeout);
 	if (m_bTEChunked && m_iRemainingContentSize == 0)
 	{
-		KStream& Stream = m_Stream->Stream();
-		KString sLine;
-		bool bGood = Stream.ReadLine(sLine);
-		if (bGood)
+		if (!m_bReceivedFinalChunk)
 		{
-			kTrim(sLine);
-			try {
-				if (sLine.empty())
-				{
+			KStream& Stream = m_Stream->Stream();
+			KString sLine;
+			bool bGood = Stream.ReadLine(sLine);
+			if (bGood)
+			{
+				kTrim(sLine);
+				try {
+					if (sLine.empty())
+					{
+						return false;
+					}
+					auto len = std::strtoul(sLine.c_str(), nullptr, 16);
+					m_iRemainingContentSize = len;
+					if (!m_iRemainingContentSize)
+					{
+						m_bReceivedFinalChunk = true;
+						return false;
+					}
+					return true;
+				} catch (const std::exception e) {
+					kException(e);
 					return false;
 				}
-				auto len = std::strtoul(sLine.c_str(), nullptr, 16);
-				m_iRemainingContentSize = len;
-				return true;
-			} catch (const std::exception e) {
-				kException(e);
-				return false;
 			}
 		}
 		return false;
@@ -317,22 +326,20 @@ size_t KHTTPClient::Read(KOutStream& stream, size_t len)
 	{
 		KStream& Stream = m_Stream->Stream();
 		size_t tlen{0};
-		while (len)
+		// if this is a chunked transfer we loop until we read len bytes
+		while (len && GetNextChunkSize())
 		{
 			// we touch the expiry timer in GetNextChunkSize() already
-			if (GetNextChunkSize())
+			auto wanted = std::min(len, size());
+			auto received = Stream.Read(stream, wanted);
+			m_iRemainingContentSize -= received;
+			len -= received;
+			tlen += received;
+			if (!m_bTEChunked || received < wanted)
 			{
-				auto rxlen = std::min(len, size());
-				rxlen = Stream.Read(stream, rxlen);
-				if (!rxlen)
-				{
-					break;
-				}
-				m_iRemainingContentSize -= rxlen;
-				len  -= rxlen;
-				tlen += rxlen;
-				CheckForChunkEnd();
+				break;
 			}
+			CheckForChunkEnd();
 		}
 		return tlen;
 	}
@@ -352,22 +359,20 @@ size_t KHTTPClient::Read(KString& sBuffer, size_t len)
 	{
 		KStream& Stream = m_Stream->Stream();
 		size_t tlen{0};
-		while (len)
+		// if this is a chunked transfer we loop until we read len bytes
+		while (len && GetNextChunkSize())
 		{
 			// we touch the expiry timer in GetNextChunkSize() already
-			if (GetNextChunkSize())
+			auto wanted = std::min(len, size());
+			auto received = Stream.Read(sBuffer, wanted);
+			m_iRemainingContentSize -= received;
+			len -= received;
+			tlen += received;
+			if (!m_bTEChunked || received < wanted)
 			{
-				auto rxlen = std::min(len, size());
-				rxlen = Stream.Read(sBuffer, rxlen);
-				if (!rxlen)
-				{
-					break;
-				}
-				m_iRemainingContentSize -= rxlen;
-				len -= rxlen;
-				tlen += rxlen;
-				CheckForChunkEnd();
+				break;
 			}
+			CheckForChunkEnd();
 		}
 		return tlen;
 	}

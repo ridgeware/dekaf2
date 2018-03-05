@@ -219,6 +219,7 @@ private:
 	State    m_State{State::CLOSED};
 	long     m_Timeout{ 300 };
 	bool     m_bTEChunked;
+	bool     m_bReceivedFinalChunk;
 
 }; // KHTTPClient
 

@@ -402,6 +402,26 @@ KStringView KHeader::Get(KCaseStringView sv) const
 	return svv;
 }
 
+//-----------------------------------------------------------------------------
+void KHeader::AppendCRLFIfMissing(KHeaderMap::iterator it)
+//-----------------------------------------------------------------------------
+{
+	if (it->second.empty())
+	{
+		it->second += "\r\n";
+	}
+	else if (it->second.back() != '\n')
+	{
+		if (it->second.back() != '\r')
+		{
+			it->second += '\r';
+		}
+		it->second += '\n';
+	}
+}
+
+
+
 #if !defined(DEKAF2_NO_GCC) && (DEKAF2_GCC_VERSION < 70000)
 
 // for some strange reason gcc < 7 wants these repeated definitions

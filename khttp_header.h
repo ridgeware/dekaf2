@@ -144,7 +144,9 @@ public:
 	KHeaderMap::iterator Set(K&& sv, V&& svv)
 	//-----------------------------------------------------------------------------
 	{
-		return m_responseHeaders.Set(std::forward<K>(sv), std::forward<V>(svv));
+		auto it = m_responseHeaders.Set(std::forward<K>(sv), std::forward<V>(svv));
+		AppendCRLFIfMissing(it);
+		return it;
 	}
 
 	//-----------------------------------------------------------------------------
@@ -342,6 +344,10 @@ public:
 //------
 private:
 //------
+
+	//-----------------------------------------------------------------------------
+	void AppendCRLFIfMissing(KHeaderMap::iterator it);
+	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// method that takes care of case-insentive header add logic and cookie add logic

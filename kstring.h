@@ -887,21 +887,21 @@ inline std::size_t kReplace(KString& string,
 }
 
 //----------------------------------------------------------------------
-inline bool kStrIn (KString& sNeedle, KString& sHaystack, char iDelim=',')
+inline bool kStrIn (const KString& sNeedle, const KString& sHaystack, char iDelim=',')
 //----------------------------------------------------------------------
 {
 	return kStrIn (sNeedle.c_str(), sHaystack.c_str(), iDelim);
 }
 
 //----------------------------------------------------------------------
-inline bool kStrIn (KString& sNeedle, const char* sHaystack, char iDelim=',')
+inline bool kStrIn (const KString& sNeedle, const char* sHaystack, char iDelim=',')
 //----------------------------------------------------------------------
 {
 	return kStrIn (sNeedle.c_str(), sHaystack, iDelim);
 }
 
 //----------------------------------------------------------------------
-inline bool kStrIn (const char* sNeedle, KString& sHaystack, char iDelim=',')
+inline bool kStrIn (const char* sNeedle, const KString& sHaystack, char iDelim=',')
 //----------------------------------------------------------------------
 {
 	return kStrIn (sNeedle, sHaystack.c_str(), iDelim);

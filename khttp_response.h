@@ -39,58 +39,52 @@
  // +-------------------------------------------------------------------------+
  */
 
-#include "khttp_request.h"
+#pragma once
+
+#include "kstringview.h"
+#include "khttp_header.h"
 
 namespace dekaf2 {
 
-
-//-----------------------------------------------------------------------------
-bool KHTTPRequest::Parse(KInStream& Stream)
-//-----------------------------------------------------------------------------
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+class KHTTPResponse : public KHTTPHeader
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
-	KString sLine;
 
-	if (!Stream.ReadLine(sLine) || sLine.empty())
+//------
+public:
+//------
+
+	//-----------------------------------------------------------------------------
+	bool Parse(KInStream& Stream);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	bool Serialize(KOutStream& Stream);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	void clear();
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	uint16_t GetStatus() const
+	//-----------------------------------------------------------------------------
 	{
-		return false;
+		return m_iStatus;
 	}
 
-	// analyze method and resource
-	// GET /some/page?query=search#fragment HTTP/1.1
+//------
+protected:
+//------
 
-	std::vector<KStringView> Words;
-	Words.reserve(3);
-	kSplit(Words, sLine, " ");
+//------
+private:
+//------
 
-	if (Words.size() != 3)
-	{
-		// garbage, bail out
-		return false;
-	}
+	KString m_HTTPVersion;
+	uint16_t m_iStatus;
 
-	m_Method = Words[0];
-	m_Resource = Words[1];
-	m_HTTPVersion = Words[2];
-
-	return KHTTPHeader::Parse(Stream);
-
-} // Parse
-
-//-----------------------------------------------------------------------------
-bool KHTTPRequest::Serialize(KOutStream& Stream)
-//-----------------------------------------------------------------------------
-{
-	Stream.FormatLine("{} {} {}", KStringView(m_Method), m_Resource.Serialize(), m_HTTPVersion);
-	return KHTTPHeader::Serialize(Stream);
-}
-
-//-----------------------------------------------------------------------------
-void KHTTPRequest::clear()
-//-----------------------------------------------------------------------------
-{
-	KHTTPHeader::clear();
-	m_Resource.clear();
-	m_HTTPVersion.clear();
-}
+}; // KHTTPResponse
 
 } // end of namespace dekaf2

@@ -44,7 +44,7 @@ protected:
 		KString tmp;
 		if (qstr.empty())
 		{
-			tmp = "Connection : close\r\nContent-Length : 10\r\n\r\n0123456789";
+			tmp = "HTTP/1.1 200\r\nConnection : close\r\nContent-Length : 10\r\n\r\n0123456789";
 		}
 		return tmp;
 	}

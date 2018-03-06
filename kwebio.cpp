@@ -294,7 +294,7 @@ bool KWebIO::Serialize(KOutStream& outStream)
 		{
 			outStream.WriteLine(iter.second);
 		}
-		else if (iter.first == KHTTPClient::KHeader::request_cookie)
+		else if (iter.first == KHTTPHeader::request_cookie)
 		{
 			outStream.Write(iter.first);
 			outStream.Write(':');
@@ -356,7 +356,7 @@ bool KWebIO::addResponseHeader(KStringView svBuffer, size_t colonPos, size_t lin
 
 	KStringView sHeaderName = svBuffer.substr(0, colonPos);
 	KStringView sHeaderValue = svBuffer.substr(colonPos + 1, lineEndPos-colonPos);
-	if (DEKAF2_LIKELY(!bParseCookies || !kCaseEqualTrimLeft(sHeaderName, KHTTPClient::KHeader::request_cookie)))
+	if (DEKAF2_LIKELY(!bParseCookies || !kCaseEqualTrimLeft(sHeaderName, KHTTPHeader::request_cookie)))
 	{
 		// most headers
 		m_responseHeaders.Add(sHeaderName, sHeaderValue);

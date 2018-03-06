@@ -44,7 +44,7 @@
 
 #include "kstringview.h"
 #include "kconnection.h"
-#include "khttp_header.h"
+#include "khttp_response.h"
 #include "khttp_method.h"
 #include "kuseragent.h"
 
@@ -63,8 +63,6 @@ public:
 //------
 
 	using KMethod    = detail::http::KMethod;
-	using KHeader    = KHTTPHeader;
-	using KUserAgent = detail::http::KUserAgent;
 
 	enum class State
 	{
@@ -175,14 +173,14 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	const KHTTPHeader& GetResponseHeader() const
+	const KHTTPResponse& GetResponseHeader() const
 	//-----------------------------------------------------------------------------
 	{
 		return m_ResponseHeader;
 	}
 
 	//-----------------------------------------------------------------------------
-	KHTTPHeader& GetResponseHeader()
+	KHTTPResponse& GetResponseHeader()
 	//-----------------------------------------------------------------------------
 	{
 		return m_ResponseHeader;
@@ -213,13 +211,13 @@ private:
 //------
 
 	std::unique_ptr<KConnection> m_Stream;
-	KMethod  m_Method;
-	KHTTPHeader  m_ResponseHeader;
-	size_t   m_iRemainingContentSize{0};
-	State    m_State{State::CLOSED};
-	long     m_Timeout{ 300 };
-	bool     m_bTEChunked;
-	bool     m_bReceivedFinalChunk;
+	KMethod m_Method;
+	KHTTPResponse m_ResponseHeader;
+	size_t m_iRemainingContentSize{0};
+	State m_State{State::CLOSED};
+	long m_Timeout{ 300 };
+	bool m_bTEChunked;
+	bool m_bReceivedFinalChunk;
 
 }; // KHTTPClient
 

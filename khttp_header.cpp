@@ -93,15 +93,17 @@ bool KHTTPHeader::Parse(KInStream& Stream)
 
 
 //-----------------------------------------------------------------------------
-bool KHTTPHeader::Serialize(KOutStream& outStream)
+bool KHTTPHeader::Serialize(KOutStream& Stream)
 //-----------------------------------------------------------------------------
 {
 	for (const auto& iter : m_Headers)
 	{
-		outStream.Write(iter.first);
-		outStream.Write(':');
-		outStream.WriteLine(iter.second);
+		Stream.Write(iter.first);
+		Stream.Write(':');
+		Stream.WriteLine(iter.second);
 	}
+
+	Stream.WriteLine();
 
 	return true;
 

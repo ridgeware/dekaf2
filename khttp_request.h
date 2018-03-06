@@ -1,5 +1,4 @@
 /*
- //-----------------------------------------------------------------------------//
  //
  // DEKAF(tm): Lighter, Faster, Smarter (tm)
  //
@@ -42,9 +41,6 @@
 
 #pragma once
 
-#include "kstringview.h"
-#include "kcasestring.h"
-#include "kprops.h"
 #include "khttp_method.h"
 #include "khttp_header.h"
 #include "kurl.h"
@@ -52,15 +48,13 @@
 namespace dekaf2 {
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-	class KHTTPRequest : public KHTTPHeader
+class KHTTPRequest : public KHTTPHeader
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
 //------
 public:
 //------
-
-	using KHeaderMap = KProps<KCaseTrimString, KString>; // case insensitive map for header info
 
 	//-----------------------------------------------------------------------------
 	bool Parse(KInStream& Stream);

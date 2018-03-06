@@ -606,6 +606,16 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
+	/// return encoded content
+	KString Serialize() const
+	//-------------------------------------------------------------------------
+	{
+		KString sReturn;
+		Serialize(sReturn);
+		return sReturn;
+	}
+
+	//-------------------------------------------------------------------------
 	/// restore instance to unpopulated state
 	void clear ();
 	//-------------------------------------------------------------------------
@@ -795,6 +805,16 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
+	/// return encoded content
+	KString Serialize() const
+	//-------------------------------------------------------------------------
+	{
+		KString sReturn;
+		Serialize(sReturn);
+		return sReturn;
+	}
+
+	//-------------------------------------------------------------------------
 	/// Parse stream style
 	KURI& operator<< (KStringView sSource)
 	//-------------------------------------------------------------------------
@@ -869,6 +889,16 @@ public:
 	/// generate content into string from members
 	bool Serialize (KOutStream& sTarget) const;
 	//-------------------------------------------------------------------------
+
+	//-------------------------------------------------------------------------
+	/// return encoded content
+	KString Serialize() const
+	//-------------------------------------------------------------------------
+	{
+		KString sReturn;
+		Serialize(sReturn);
+		return sReturn;
+	}
 
 	//-------------------------------------------------------------------------
 	/// Serialize stream style

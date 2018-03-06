@@ -1,5 +1,4 @@
 /*
-//-----------------------------------------------------------------------------//
 //
 // DEKAF(tm): Lighter, Faster, Smarter (tm)
 //
@@ -45,11 +44,9 @@
 #include "kstringview.h"
 
 namespace dekaf2 {
-namespace detail {
-namespace http {
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class KUserAgent
+class KHTTPUserAgent
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -58,36 +55,36 @@ public:
 //------
 
 	//-----------------------------------------------------------------------------
-	KUserAgent() = default;
+	KHTTPUserAgent() = default;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	constexpr
-	KUserAgent(KStringView svUserAgent)
+	KHTTPUserAgent(KStringView svUserAgent)
 	//-----------------------------------------------------------------------------
 	{
 		m_svUserAgent = Translate(svUserAgent);
 	}
 
 	//-----------------------------------------------------------------------------
-	KUserAgent(const KUserAgent&) = default;
+	KHTTPUserAgent(const KHTTPUserAgent&) = default;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	KUserAgent(KUserAgent&&) = default;
+	KHTTPUserAgent(KHTTPUserAgent&&) = default;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	KUserAgent& operator=(const KUserAgent&) = default;
+	KHTTPUserAgent& operator=(const KHTTPUserAgent&) = default;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	KUserAgent& operator=(KUserAgent&&) = default;
+	KHTTPUserAgent& operator=(KHTTPUserAgent&&) = default;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	constexpr
-	KUserAgent& operator=(KStringView svUserAgent)
+	KHTTPUserAgent& operator=(KStringView svUserAgent)
 	//-----------------------------------------------------------------------------
 	{
 		m_svUserAgent = Translate(svUserAgent);
@@ -181,6 +178,4 @@ private:
 
 };
 
-} // end of namespace http
-} // end of namespace detail
 } // enf of namespace dekaf2

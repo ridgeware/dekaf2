@@ -39,13 +39,13 @@
  // +-------------------------------------------------------------------------+
  */
 
-#include "khttp_request.h"
+#include "khttp_response.h"
 
 namespace dekaf2 {
 
 
 //-----------------------------------------------------------------------------
-bool KHTTPRequest::Parse(KInStream& Stream)
+bool KHTTPResponse::Parse(KInStream& Stream)
 //-----------------------------------------------------------------------------
 {
 	KString sLine;
@@ -55,42 +55,41 @@ bool KHTTPRequest::Parse(KInStream& Stream)
 		return false;
 	}
 
-	// analyze method and resource
-	// GET /some/page?query=search#fragment HTTP/1.1
+	// analyze protocol and status
+	// HTTP/1.1 200
 
 	std::vector<KStringView> Words;
-	Words.reserve(3);
+	Words.reserve(2);
 	kSplit(Words, sLine, " ");
 
-	if (Words.size() != 3)
+	if (Words.size() != 2)
 	{
 		// garbage, bail out
 		return false;
 	}
 
-	m_Method = Words[0];
-	m_Resource = Words[1];
-	m_HTTPVersion = Words[2];
+	m_HTTPVersion = Words[0];
+	m_iStatus = Words[1].UInt16();
 
 	return KHTTPHeader::Parse(Stream);
 
 } // Parse
 
 //-----------------------------------------------------------------------------
-bool KHTTPRequest::Serialize(KOutStream& Stream)
+bool KHTTPResponse::Serialize(KOutStream& Stream)
 //-----------------------------------------------------------------------------
 {
-	Stream.FormatLine("{} {} {}", KStringView(m_Method), m_Resource.Serialize(), m_HTTPVersion);
+	Stream.FormatLine("{} {}", m_HTTPVersion, m_iStatus);
 	return KHTTPHeader::Serialize(Stream);
 }
 
 //-----------------------------------------------------------------------------
-void KHTTPRequest::clear()
+void KHTTPResponse::clear()
 //-----------------------------------------------------------------------------
 {
 	KHTTPHeader::clear();
-	m_Resource.clear();
 	m_HTTPVersion.clear();
+	m_iStatus = 0;
 }
 
 } // end of namespace dekaf2

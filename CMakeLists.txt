@@ -230,6 +230,7 @@ set (HEADERS
 	klog.h
 	kmime.h
 	kmru.h
+	koptions.h
 	kostringstream.h
 	koutpipe.h
 	koutshell.h
@@ -294,6 +295,7 @@ set (SOURCES
 	kjson.cpp
 	klog.cpp
 	kmime.cpp
+	koptions.cpp
 	kostringstream.cpp
 	koutpipe.cpp
 	koutshell.cpp

@@ -776,6 +776,9 @@ public:
 		return find_last_not_of(self_type(&ch, 1), pos);
 	}
 
+	/// is string one of the values in sHaystack, delimited by iDelim?
+	bool In (KStringView sHaystack, value_type iDelim=',') const;
+
 	// conversions
 
 	//-----------------------------------------------------------------------------

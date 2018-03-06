@@ -1031,49 +1031,6 @@ KString::size_type KString::SubRegex(KStringView pszRegEx, KStringView pszReplac
 #endif
 
 //-----------------------------------------------------------------------------
-bool KString::In (KStringView sHaystack, value_type iDelim/*=','*/) const
-//-----------------------------------------------------------------------------
-{
-	// gcc 4.8.5 needs the non-brace initialization here..
-	auto& sNeedle(m_rep);
-
-	size_t iNeedle = 0, iHaystack = 0; // Beginning indices
-	size_t iNsize = sNeedle.size ();
-	size_t iHsize = sHaystack.size (); // Ending
-
-	while (iHaystack < iHsize)
-	{
-		iNeedle = 0;
-
-		// Search for matching tokens
-		while ( (iNeedle < iNsize) &&
-			(sNeedle[iNeedle] == sHaystack[iHaystack]))
-		{
-			++iNeedle;
-			++iHaystack;
-		}
-
-		// If end of needle or haystack at delimiter or end of haystack
-		if ((iNeedle >= iNsize) &&
-			((sHaystack[iHaystack] == iDelim) || iHaystack >= iHsize))
-		{
-			return true;
-		}
-
-		// Advance to next delimiter
-		while (iHaystack < iHsize && sHaystack[iHaystack] != iDelim)
-		{
-			++iHaystack;
-		}
-
-		// Pass by the delimiter if it exists
-		iHaystack += (iHaystack < iHsize);
-	}
-	return false;
-
-} // In
-
-//-----------------------------------------------------------------------------
 bool kStrIn (const char* sNeedle, const char* sHaystack, char iDelim/*=','*/)
 //-----------------------------------------------------------------------------
 {

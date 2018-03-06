@@ -554,7 +554,8 @@ public:
 	operator fmt::BasicCStringRef<char>() const { return fmt::BasicCStringRef<char>(c_str()); }
 
 	/// is string one of the values in sHaystack, delimited by iDelim?
-	bool In (KStringView sHaystack, value_type iDelim=',') const;
+	bool In (KStringView sHaystack, value_type iDelim=',') const
+	{ return ToView().In(sHaystack, iDelim); }
 
 #ifdef DEKAF2_WITH_DEPRECATED_KSTRING_MEMBER_FUNCTIONS
 

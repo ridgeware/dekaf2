@@ -87,7 +87,7 @@ bool KHTTPClient::Connect(std::unique_ptr<KConnection> Connection)
 		m_State = Stream.OutStream().good() ? State::CONNECTED : State::CLOSED;
 		Stream.SetReaderEndOfLine('\n');
 		Stream.SetReaderLeftTrim("");
-		Stream.SetReaderRightTrim("");
+		Stream.SetReaderRightTrim("\r\n");
 		Stream.SetWriterEndOfLine("\r\n");
 	}
 	else
@@ -165,7 +165,7 @@ KHTTPClient& KHTTPClient::Resource(const KURL& url, KMethod method)
 			url.Fragment.Serialize(Stream);
 			Stream.WriteLine(" HTTP/1.1");
 			m_State = State::RESOURCE_SET;
-			RequestHeader(KHeader::HOST, url.Domain.Serialize());
+			RequestHeader(KHTTPHeader::HOST, url.Domain.Serialize());
 		}
 		else
 		{
@@ -205,8 +205,8 @@ bool KHTTPClient::Request(KStringView svPostData, KStringView svMime)
 		KStream& Stream = m_Stream->Stream();
 		if (m_Method == KMethod::POST)
 		{
-			RequestHeader(KHeader::CONTENT_LENGTH, KString::to_string(svPostData.size()));
-			RequestHeader(KHeader::CONTENT_TYPE,   svMime.empty() ? KMIME::TEXT_PLAIN : svMime);
+			RequestHeader(KHTTPHeader::CONTENT_LENGTH, KString::to_string(svPostData.size()));
+			RequestHeader(KHTTPHeader::CONTENT_TYPE,   svMime.empty() ? KMIME::TEXT_PLAIN : svMime);
 		}
 		Stream.WriteLine();
 		if (m_Method == KMethod::POST)
@@ -232,29 +232,25 @@ bool KHTTPClient::ReadHeader()
 	{
 		m_Stream->ExpiresFromNow(m_Timeout);
 		KStream& Stream = m_Stream->Stream();
-		KString sLine;
-		while (Stream.ReadLine(sLine))
+		if (m_ResponseHeader.Parse(Stream))
 		{
-			m_ResponseHeader.Parse(sLine);
-			if (m_ResponseHeader.HeaderComplete())
+			m_bTEChunked = false;
+			// find the content length
+			KStringView sv(m_ResponseHeader.Get(KHTTPHeader::content_length));
+			if (sv.empty())
 			{
-				m_bTEChunked = false;
-				// find the content length
-				KStringView sv(m_ResponseHeader.Get(KHeader::content_length));
-				if (sv.empty())
+				KStringView svTE = m_ResponseHeader.Get(KHTTPHeader::transfer_encoding);
+				if (svTE == "chunked")
 				{
-					KStringView svTE = m_ResponseHeader.Get(KHeader::transfer_encoding);
-					if (svTE == "chunked")
-					{
-						m_bTEChunked = true;
-						m_bReceivedFinalChunk = false;
-					}
+					m_bTEChunked = true;
+					m_bReceivedFinalChunk = false;
 				}
-				m_iRemainingContentSize = sv.UInt64();
-				m_State = State::HEADER_PARSED;
-				return true;
 			}
+			m_iRemainingContentSize = sv.UInt64();
+			m_State = State::HEADER_PARSED;
+			return true;
 		}
+		return false;
 	}
 	else
 	{

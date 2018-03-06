@@ -224,6 +224,7 @@ set (HEADERS
 	khttpclient.h
 	khttp_header.h
 	khttp_method.h
+	khttp_request.h
 	kinpipe.h
 	kinshell.h
 	kjson.h
@@ -290,6 +291,7 @@ set (SOURCES
 	khttpclient.cpp
 	khttp_header.cpp
 	khttp_method.cpp
+	khttp_request.cpp
 	kinpipe.cpp
 	kinshell.cpp
 	kjson.cpp

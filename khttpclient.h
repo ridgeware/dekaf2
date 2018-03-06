@@ -63,7 +63,7 @@ public:
 //------
 
 	using KMethod    = detail::http::KMethod;
-	using KHeader    = detail::http::KHeader;
+	using KHeader    = KHTTPHeader;
 	using KUserAgent = detail::http::KUserAgent;
 
 	enum class State
@@ -175,14 +175,14 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	const KHeader& GetResponseHeader() const
+	const KHTTPHeader& GetResponseHeader() const
 	//-----------------------------------------------------------------------------
 	{
 		return m_ResponseHeader;
 	}
 
 	//-----------------------------------------------------------------------------
-	KHeader& GetResponseHeader()
+	KHTTPHeader& GetResponseHeader()
 	//-----------------------------------------------------------------------------
 	{
 		return m_ResponseHeader;
@@ -214,7 +214,7 @@ private:
 
 	std::unique_ptr<KConnection> m_Stream;
 	KMethod  m_Method;
-	KHeader  m_ResponseHeader;
+	KHTTPHeader  m_ResponseHeader;
 	size_t   m_iRemainingContentSize{0};
 	State    m_State{State::CLOSED};
 	long     m_Timeout{ 300 };

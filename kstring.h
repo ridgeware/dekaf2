@@ -886,6 +886,27 @@ inline std::size_t kReplace(KString& string,
 	return string.Replace(sSearch, sReplaceWith, pos, bReplaceAll);
 }
 
+//----------------------------------------------------------------------
+inline bool kStrIn (KString& sNeedle, KString& sHaystack, char iDelim=',')
+//----------------------------------------------------------------------
+{
+	return kStrIn (sNeedle.c_str(), sHaystack.c_str(), iDelim);
+}
+
+//----------------------------------------------------------------------
+inline bool kStrIn (KString& sNeedle, const char* sHaystack, char iDelim=',')
+//----------------------------------------------------------------------
+{
+	return kStrIn (sNeedle.c_str(), sHaystack, iDelim);
+}
+
+//----------------------------------------------------------------------
+inline bool kStrIn (const char* sNeedle, KString& sHaystack, char iDelim=',')
+//----------------------------------------------------------------------
+{
+	return kStrIn (sNeedle, sHaystack.c_str(), iDelim);
+}
+
 } // end of namespace dekaf2
 
 namespace std

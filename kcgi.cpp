@@ -134,12 +134,7 @@ void KCGI::init (bool bResetStreams)
 	m_sError.clear();
 	m_sCommentDelim.clear();
 	m_sRequestMethod.clear();
-	m_sRequestURI.clear();
-	m_sRequestPath.clear();
-	m_sHttpProtocol.clear();
-	m_sPostData.clear();
-	m_Headers.clear();
-	m_QueryParms.clear();
+	m_HTTPRequest.clear();
 
 	if (bResetStreams)
 	{
@@ -179,89 +174,14 @@ bool KCGI::ReadHeaders ()
 
 	kDebug (1, "KCGI: reading headers and post data...");
 
-	int       iRealLines = 0;
-	bool      bHeaders = true;
-	KString   sLine;
-
-	while (m_Reader->ReadLine(sLine))
+	if (!m_HTTPRequest.Parse(*m_Reader))
 	{
-		if (!m_sCommentDelim.empty() && sLine.StartsWith(m_sCommentDelim)) {
-			kDebug (2, "KCGI: skipping comment line: {}", sLine);
-			continue;
-		}
-		
-		if (++iRealLines == 1)
-		{
-			// GET /ApiTranslate?foo=bar HTTP/1.0
-			sLine.TrimRight();
-			kDebug (1, "KCGI: status line: {}", sLine);
-
-			auto pos = sLine.find(' ');
-			if (!pos || pos == KString::npos)
-			{
-				m_sError.Format ("KCGI: malformed status line: {}", sLine);
-				return (false);
-			}
-
-			m_sRequestMethod = sLine.substr(0, pos).Trim().ToUpper();
-
-			KStringView sURI = sLine.ToView(pos+1);
-			pos = sURI.find(' ');
-			if (!pos || pos == KString::npos)
-			{
-				m_sError.Format ("KCGI: malformed status line: {}", sLine);
-				return (false);
-			}
-
-			m_sRequestURI = sURI.substr(0, pos);
-			m_sRequestURI.Trim();
-			kUrlDecode(m_sRequestURI, /*bPlusAsSpace=*/true);
-
-			m_sHttpProtocol = sURI.substr(pos+1);
-			m_sHttpProtocol.Trim();
-
-			pos = m_sRequestURI.find('?');
-			if (pos && pos != KString::npos)
-			{
-				m_sQueryString = m_sRequestURI.substr(pos+1);
-			}
-
-			kDebug (1, "KCGI: method = {}", m_sRequestMethod);
-			kDebug (1, "KCGI: uri    = {}", m_sRequestURI);
-			kDebug (1, "KCGI: proto  = {}", m_sHttpProtocol);
-			kDebug (1, "KCGI: query  = {}", m_sQueryString);
-		}
-		else if (bHeaders)
-		{
-			sLine.TrimRight();
-
-			// User-Agent: whatever
-			if (sLine.empty())
-			{
-				return (true); // newline at end of headers
-			}
-			else
-			{
-				auto pos = sLine.find(':');
-				if (!pos || pos == KString::npos)
-				{
-					m_sError.Format ("KCGI: malformed header: no colon: {}", sLine);
-					return (false); // malformed headers
-				}
-
-				KStringView sLHS = sLine.ToView(0, pos);
-				KStringView sRHS = sLine.ToView(pos + 1);
-				kTrim(sLHS);
-				kTrim(sRHS);
-
-				kDebug (1, "KCGI: header: {}={}", sLHS, sRHS);
-
-				m_Headers.Add (sLHS, sRHS);
-			}
-		}
+		return false;
 	}
 
-	return (true); // nothing on stdin
+	m_sRequestMethod = KStringView(m_HTTPRequest.Method());
+
+	return true;
 
 } // ReadHeaders
 
@@ -320,29 +240,16 @@ bool KCGI::GetNextRequest (KStringView sFilename /*= KStringView{}*/, KStringVie
 	    )
 	{
 		// in case we are running within a web server that sets these:
-		m_sRequestMethod = GetVar (KCGI::REQUEST_METHOD);
-		m_sRequestURI    = GetVar (KCGI::REQUEST_URI);
-		m_sQueryString	 = GetVar (KCGI::QUERY_STRING);
+		SetRequestMethod(GetVar (KCGI::REQUEST_METHOD));
+		SetRequestURI(GetVar (KCGI::REQUEST_URI));
+		m_HTTPRequest.Resource().Query = GetVar (KCGI::QUERY_STRING);
 
 		// if environment vars not set, expect them in the input stream:
-		if (m_sRequestMethod.empty() && !ReadHeaders())
+		if (GetRequestMethod().empty() && !ReadHeaders())
 		{
 			// error message already set in ReadHeaders()
 			return (false);
 		}
-
-		// We need to perform UrlDecode on the RequestURI and the QueryString.
-		kUrlDecode (m_sRequestURI,  /*bPlusAsSpace=*/true);
-		kUrlDecode (m_sQueryString, /*bPlusAsSpace=*/true);
-
-		m_sRequestPath = m_sRequestURI.substr(0, m_sRequestURI.find('?'));
-
-		kSplitPairs (
-			/*Container= */ m_QueryParms,
-			/*Buffer=*/		m_sQueryString,
-			/*PairDelim=*/	'=',
-			/*Delim=*/		"&"
-		);
 
 		if (!ReadPostData())
 		{
@@ -352,10 +259,10 @@ bool KCGI::GetNextRequest (KStringView sFilename /*= KStringView{}*/, KStringVie
 
 		kDebug (1, "KCGI: request#{}: {} {}, {} headers, {} query parms, {} bytes post data", 
 			m_iNumRequests,
-			m_sRequestMethod,
-			m_sRequestPath,
-			m_Headers.size(),
-			m_QueryParms.size(),
+			GetRequestMethod(),
+			GetRequestPath(),
+			GetRequestHeaders().size(),
+			GetQueryParms().size(),
 			m_sPostData.length());
 
 		return (true);	// true ==> we got a request

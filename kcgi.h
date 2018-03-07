@@ -46,6 +46,7 @@
 #include "kstringview.h"
 #include "kprops.h"
 #include "ksplit.h"
+#include "khttp_request.h"
 #include <iostream>
 #ifdef DEKAF2_WITH_FCGI
 #include <fcgiapp.h>
@@ -119,10 +120,10 @@ public:
 
 	static constexpr KStringView FCGI_WEB_SERVER_ADDRS   = "FCGI_WEB_SERVER_ADDRS";
 
-	using HeadersT    = KProps <KString, KString, /*order-matters=*/false, /*unique-keys=*/false>;
-
-	using QueryParmsT = KProps <KString, KString, /*order-matters=*/false, /*unique-keys=*/false>;
-
+//	using HeadersT    = KProps <KString, KString, /*order-matters=*/false, /*unique-keys=*/false>;
+	using HeadersT    = KHTTPRequest::KHeaderMap;
+//	using QueryParmsT = KProps <KString, KString, /*order-matters=*/false, /*unique-keys=*/false>;
+	using QueryParmsT = URLEncodedQuery::value_type;
 	// static bool IsWebRequest(); -- not sure this will work
 
 	KCGI();
@@ -146,36 +147,36 @@ public:
 	KOutStream& Writer() { return *m_Writer; }
 
 	/// incoming http request method: GET, POST, etc.
-	const KString& GetRequestMethod() const
+	KStringView GetRequestMethod() const
 	{
 		return m_sRequestMethod;
 	}
 
 	/// incoming URL including the query string
-	const KString& GetRequestURI() const
+	KString GetRequestURI() const
 	{
-		return m_sRequestURI;
+		return m_HTTPRequest.Resource().Serialize();
 	}
 
 	/// incoming URL with query string trimmed
 	const KString& GetRequestPath() const
 	{
-		return m_sRequestPath;
+		return m_HTTPRequest.Resource().Path.get();
 	}
 
 	/// incoming http protocol and version as defined in status header
 	const KString& GetHTTPProtocol() const
 	{
-		return m_sHttpProtocol;
+		return m_HTTPRequest.HTTPVersion();
 	}
 
 	/// query string (name=value&...)
-	const KString& GetQueryString() const
+	KString GetQueryString() const
 	{
-		return m_sQueryString;
+		return m_HTTPRequest.Resource().Query.Serialize();
 	}
 
-	/// raw, unprocessed incomiong POST data
+	/// raw, unprocessed incoming POST data
 	const KString& GetPostData() const
 	{
 		return m_sPostData;
@@ -184,13 +185,13 @@ public:
 	/// incoming request headers
 	const HeadersT& GetRequestHeaders() const
 	{
-		return m_Headers;
+		return m_HTTPRequest.Get();
 	}
 
 	/// incoming query parms off request URI
 	const QueryParmsT& GetQueryParms() const
 	{
-		return m_QueryParms;
+		return m_HTTPRequest.Resource().Query.get();
 	}
 
 	/// returns last error message
@@ -204,33 +205,33 @@ protected:
 //----------
 
 	/// set incoming http request method: GET, POST, etc.
-	void SetRequestMethod(KString& sMethod)
+	void SetRequestMethod(KStringView sMethod)
 	{
 		m_sRequestMethod = sMethod;
 	}
 
 	/// set incoming URL including the query string
-	void SetRequestURI(KString& sURI)
+	void SetRequestURI(KStringView sURI)
 	{
-		m_sRequestURI = sURI;
+		m_HTTPRequest.Resource() = sURI;
 	}
 
 	/// raw, unprocessed incoming POST data
-	void SetPostData(KString& sData)
+	void SetPostData(KStringView sData)
 	{
 		m_sPostData = sData;
 	}
 
 	/// add incoming request headers
-	void AddRequestHeaders(KString& sName, KString& sValue)
+	void AddRequestHeaders(KStringView sName, KStringView sValue)
 	{
-		m_Headers.Add (sName, sValue);
+		m_HTTPRequest.Set(sName, sValue);
 	}
 
 	/// add incoming query parms off request URI
-	void AddQueryParms(KString& sName, KString& sValue)
+	void AddQueryParms(KStringView sName, KStringView sValue)
 	{
-		m_QueryParms.Add (sName, sValue);
+		m_HTTPRequest.Resource().Query->Add(sName, sValue);
 	}
 
 	/// reset all class members for next request
@@ -247,13 +248,8 @@ private:
 	}
 
 	KString      m_sRequestMethod;
-	KString      m_sRequestURI;
-	KString      m_sRequestPath;
-	KString      m_sHttpProtocol;
-	KString      m_sQueryString;
 	KString      m_sPostData; // aka body
-    HeadersT     m_Headers;
-    QueryParmsT  m_QueryParms;
+	KHTTPRequest m_HTTPRequest;
 
 	KString                     m_sError;
 	KString                     m_sCommentDelim;

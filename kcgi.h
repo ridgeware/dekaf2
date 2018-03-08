@@ -120,11 +120,8 @@ public:
 
 	static constexpr KStringView FCGI_WEB_SERVER_ADDRS   = "FCGI_WEB_SERVER_ADDRS";
 
-//	using HeadersT    = KProps <KString, KString, /*order-matters=*/false, /*unique-keys=*/false>;
 	using HeadersT    = KHTTPRequest::KHeaderMap;
-//	using QueryParmsT = KProps <KString, KString, /*order-matters=*/false, /*unique-keys=*/false>;
 	using QueryParmsT = URLEncodedQuery::value_type;
-	// static bool IsWebRequest(); -- not sure this will work
 
 	KCGI();
 
@@ -143,6 +140,9 @@ public:
 	/// read request body
 	bool ReadPostData ();
 
+	/// returns a reference to the input reader
+	KInStream& Reader() { return *m_Reader; }
+
 	/// returns a reference to the output writer
 	KOutStream& Writer() { return *m_Writer; }
 
@@ -152,13 +152,9 @@ public:
 		return m_sRequestMethod;
 	}
 
-	/// incoming URL including the query string
-	KString GetRequestURI() const
-	{
-		return m_HTTPRequest.Resource().Serialize();
-	}
+	// these getters expect the unencoded / decoded form of the URL parts..
 
-	/// incoming URL with query string trimmed
+	/// incoming Path component
 	const KString& GetRequestPath() const
 	{
 		return m_HTTPRequest.Resource().Path.get();
@@ -168,12 +164,6 @@ public:
 	const KString& GetHTTPProtocol() const
 	{
 		return m_HTTPRequest.HTTPVersion();
-	}
-
-	/// query string (name=value&...)
-	KString GetQueryString() const
-	{
-		return m_HTTPRequest.Resource().Query.Serialize();
 	}
 
 	/// raw, unprocessed incoming POST data
@@ -204,16 +194,24 @@ public:
 protected:
 //----------
 
+	/// set incoming URL including the query string (this actually decodes / parses the input)
+	void SetRequestURI(KStringView sURI)
+	{
+		m_HTTPRequest.Resource() = sURI;
+	}
+
+	// these setters set the unencoded / decoded form of the URL parts..
+
 	/// set incoming http request method: GET, POST, etc.
 	void SetRequestMethod(KStringView sMethod)
 	{
 		m_sRequestMethod = sMethod;
 	}
 
-	/// set incoming URL including the query string
-	void SetRequestURI(KStringView sURI)
+	/// set Path component
+	void SetRequestPath(KStringView sPath)
 	{
-		m_HTTPRequest.Resource() = sURI;
+		m_HTTPRequest.Resource().Path.set(sPath);
 	}
 
 	/// raw, unprocessed incoming POST data

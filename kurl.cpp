@@ -287,6 +287,8 @@ void KURI::clear()
 bool KURI::Serialize(KString& sTarget) const
 //-------------------------------------------------------------------------
 {
+	Query.WantStartSeparator();
+	Fragment.WantStartSeparator();
 	return Path.Serialize          (sTarget)
 	        && Query.Serialize     (sTarget)
 	        && Fragment.Serialize  (sTarget);
@@ -296,6 +298,8 @@ bool KURI::Serialize(KString& sTarget) const
 bool KURI::Serialize(KOutStream& sTarget) const
 //-------------------------------------------------------------------------
 {
+	Query.WantStartSeparator();
+	Fragment.WantStartSeparator();
 	return Path.Serialize          (sTarget)
 	        && Query.Serialize     (sTarget)
 	        && Fragment.Serialize  (sTarget);
@@ -359,6 +363,8 @@ void KURL::clear()
 bool KURL::Serialize(KString& sTarget) const
 //-------------------------------------------------------------------------
 {
+	Query.WantStartSeparator();
+	Fragment.WantStartSeparator();
 	return Protocol.Serialize      (sTarget)
 	        && User.Serialize      (sTarget)
 	        && Password.Serialize  (sTarget)
@@ -373,6 +379,8 @@ bool KURL::Serialize(KString& sTarget) const
 bool KURL::Serialize(KOutStream& sTarget) const
 //-------------------------------------------------------------------------
 {
+	Query.WantStartSeparator();
+	Fragment.WantStartSeparator();
 	return Protocol.Serialize      (sTarget)
 	        && User.Serialize      (sTarget)
 	        && Password.Serialize  (sTarget)

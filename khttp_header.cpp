@@ -54,6 +54,9 @@ bool KHTTPHeader::Parse(KInStream& Stream)
 	// We also do not care for line endings and will cannonify them on
 	// serialization.
 
+	// make sure we detect an empty header
+	Stream.SetReaderRightTrim("\r\n");
+
 	KString sLine;
 
 	while (Stream.ReadLine(sLine))
@@ -99,7 +102,7 @@ bool KHTTPHeader::Serialize(KOutStream& Stream)
 	for (const auto& iter : m_Headers)
 	{
 		Stream.Write(iter.first);
-		Stream.Write(':');
+		Stream.Write(": ");
 		Stream.WriteLine(iter.second);
 	}
 

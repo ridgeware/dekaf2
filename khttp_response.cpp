@@ -50,6 +50,9 @@ bool KHTTPResponse::Parse(KInStream& Stream)
 {
 	KString sLine;
 
+	// make sure we detect an empty header
+	Stream.SetReaderRightTrim("\r\n");
+
 	if (!Stream.ReadLine(sLine) || sLine.empty())
 	{
 		return false;

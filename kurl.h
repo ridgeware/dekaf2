@@ -247,11 +247,22 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
+	/// add the start separator (/, ?, #) when serializing? Is normally
+	/// determined by the parsing stage, but needs to be set manually after
+	/// setting the values in unencoded form.
+	void WantStartSeparator() const
+	//-------------------------------------------------------------------------
+	{
+		// only enable for those instances that actually also remove it
+		m_bHadStartSeparator = RemoveStartSeparator;
+	}
+
+	//-------------------------------------------------------------------------
 	/// generate content into string from members
 	bool Serialize (KString& sTarget) const
 	//-------------------------------------------------------------------------
 	{
-		if (m_bHadStartSeparator)
+		if (m_bHadStartSeparator && !m_sStorage.empty())
 		{
 			sTarget += StartToken;
 		}
@@ -287,7 +298,7 @@ public:
 	bool Serialize (KOutStream& sTarget) const
 	//-------------------------------------------------------------------------
 	{
-		if (m_bHadStartSeparator)
+		if (m_bHadStartSeparator && !m_sStorage.empty())
 		{
 			sTarget += StartToken;
 		}
@@ -333,16 +344,6 @@ public:
 
 	//-------------------------------------------------------------------------
 	/// return a const reference of the member
-	template<bool X = IsString, typename std::enable_if<X, int>::type = 0 >
-	const KString& get () const
-	//-------------------------------------------------------------------------
-	{
-		return m_sStorage.get();
-	}
-
-	//-------------------------------------------------------------------------
-	/// return a const reference of the key-value member
-	template<bool X = IsString, typename std::enable_if<!X, int>::type = 0 >
 	const typename Storage::value_type& get () const
 	//-------------------------------------------------------------------------
 	{
@@ -350,8 +351,7 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
-	/// return a reference of the key-value member
-	template<bool X = IsString, typename std::enable_if<!X, int>::type = 0 >
+	/// return a reference of the member
 	typename Storage::value_type& get ()
 	//-------------------------------------------------------------------------
 	{
@@ -359,8 +359,7 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
-	/// return a const pointer of the key-value member
-	template<bool X = IsString, typename std::enable_if<!X, int>::type = 0 >
+	/// return a const pointer of the member
 	const typename Storage::value_type* operator-> () const
 	//-------------------------------------------------------------------------
 	{
@@ -368,8 +367,7 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
-	/// return a pointer of the key-value member
-	template<bool X = IsString, typename std::enable_if<!X, int>::type = 0 >
+	/// return a pointer of the member
 	typename Storage::value_type* operator-> ()
 	//-------------------------------------------------------------------------
 	{
@@ -395,7 +393,7 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
-	/// modify member by parsing argument
+	/// modify member by setting argument
 	template<bool X = IsString, typename std::enable_if<X, int>::type = 0 >
 	void set (KStringView sv)
 	//-------------------------------------------------------------------------
@@ -462,7 +460,7 @@ private:
 //------
 
 	Storage m_sStorage;
-	bool m_bHadStartSeparator{false};
+	mutable bool m_bHadStartSeparator{false};
 
 };
 

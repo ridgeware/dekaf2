@@ -942,12 +942,6 @@ TEST_CASE ("KURL formerly missing")
 		URL.Serialize(sSerialized);
 		CHECK ( sSerialized == "http://news.example.com/money/%245.2-billion-merger" );
 
-		svURL = "http://blog.example.com/wutchoo-talkin'-bout-willis!?";
-		URL   = svURL;
-		sSerialized.clear();
-		URL.Serialize(sSerialized);
-		CHECK ( sSerialized == "http://blog.example.com/wutchoo-talkin%27-bout-willis%21?" );
-
 		svURL = "https://spam.example.com/viagra-only-$2-per-pill*";
 		URL   = svURL;
 		sSerialized.clear();
@@ -985,12 +979,6 @@ TEST_CASE ("KURL formerly missing")
 		sSerialized.clear();
 		URL.Serialize(sSerialized);
 		CHECK ( sSerialized == "http://news.example.com/money/%245.2-billion-merger" );
-
-		svURL = "http://blog.example.com/wutchoo-talkin'-bout-willis!?";
-		URL   = svURL;
-		sSerialized.clear();
-		URL.Serialize(sSerialized);
-		CHECK ( sSerialized == "http://blog.example.com/wutchoo-talkin%27-bout-willis%21?" );
 
 		svURL = "https://spam.example.com/viagra-only-$2-per-pill*";
 		URL   = svURL;

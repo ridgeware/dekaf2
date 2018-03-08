@@ -176,10 +176,11 @@ bool KCGI::ReadHeaders ()
 
 	if (!m_HTTPRequest.Parse(*m_Reader))
 	{
+		kDebug(1, "KCGI: cannot parse request header successfully");
 		return false;
 	}
 
-	m_sRequestMethod = KStringView(m_HTTPRequest.Method());
+	m_sRequestMethod = m_HTTPRequest.Method();
 
 	return true;
 
@@ -222,7 +223,21 @@ bool KCGI::GetNextRequest (KStringView sFilename /*= KStringView{}*/, KStringVie
 		}
 
 		m_sCommentDelim = sCommentDelim;
-		// TODO: test success and return (false) if failed to read file
+
+		if (!m_sCommentDelim.empty())
+		{
+			// check if we have leading comment lines, and skip them
+			while (m_Reader->InStream().get() == m_sCommentDelim.front())
+			{
+				KString sLine;
+				if (!m_Reader->ReadLine(sLine))
+				{
+					return false;
+				}
+			}
+			m_Reader->InStream().unget();
+		}
+
 	}
 	else
 	{

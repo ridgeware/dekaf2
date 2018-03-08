@@ -43,6 +43,7 @@
 #pragma once
 
 #include "kstringview.h"
+#include "kstring.h"
 
 namespace dekaf2 {
 namespace detail {
@@ -58,14 +59,12 @@ public:
 //------
 
 	//-----------------------------------------------------------------------------
-	constexpr
 	KMethod()
 	//-----------------------------------------------------------------------------
 	    : m_method(GET)
 	{}
 
 	//-----------------------------------------------------------------------------
-	constexpr
 	KMethod(KStringView sv)
 	//-----------------------------------------------------------------------------
 	    : m_method(sv)
@@ -73,23 +72,31 @@ public:
 
 	//-----------------------------------------------------------------------------
 	constexpr
-	operator KStringView() const
+	const KString& Serialize() const
 	//-----------------------------------------------------------------------------
 	{
 		return m_method;
 	}
 
-	static constexpr KStringView GET    = "GET";
-	static constexpr KStringView HEAD   = "HEAD";
-	static constexpr KStringView POST   = "POST";
-	static constexpr KStringView PUT    = "PUT";
-	static constexpr KStringView DELETE = "DELETE";
+	//-----------------------------------------------------------------------------
+	constexpr
+	operator const KString&() const
+	//-----------------------------------------------------------------------------
+	{
+		return Serialize();
+	}
+
+	static constexpr KStringView GET     = "GET";
+	static constexpr KStringView HEAD    = "HEAD";
+	static constexpr KStringView POST    = "POST";
+	static constexpr KStringView PUT     = "PUT";
+	static constexpr KStringView DELETE  = "DELETE";
 
 //------
 private:
 //------
 
-	KStringView m_method{GET};
+	KString m_method{GET};
 
 }; // KMethod
 

@@ -338,15 +338,6 @@ public:
 	//-------------------------------------------------------------------------
 
 	//-------------------------------------------------------------------------
-	// the non-Key-Value decoding
-	template<const char X = chPairSep, typename std::enable_if<X == '\0', int>::type = 0>
-	const KString& get() const
-	//-------------------------------------------------------------------------
-	{
-		return m_sDecoded;
-	}
-
-	//-------------------------------------------------------------------------
 	template<const char X = chPairSep, typename std::enable_if<X == '\0', int>::type = 0>
 	void get(KString& sTarget) const
 	//-------------------------------------------------------------------------
@@ -355,8 +346,6 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
-	// the Key-Value decoding
-	template<const char X = chPairSep, typename std::enable_if<X != '\0', int>::type = 0>
 	value_type& get()
 	//-------------------------------------------------------------------------
 	{
@@ -364,8 +353,6 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
-	// the Key-Value decoding
-	template<const char X = chPairSep, typename std::enable_if<X != '\0', int>::type = 0>
 	const value_type& get() const
 	//-------------------------------------------------------------------------
 	{

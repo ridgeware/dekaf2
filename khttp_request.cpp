@@ -50,8 +50,12 @@ bool KHTTPRequest::Parse(KInStream& Stream)
 {
 	KString sLine;
 
+	// make sure we detect an empty header
+	Stream.SetReaderRightTrim("\r\n");
+
 	if (!Stream.ReadLine(sLine) || sLine.empty())
 	{
+		kDebug(2, "cannot read input stream");
 		return false;
 	}
 
@@ -65,12 +69,19 @@ bool KHTTPRequest::Parse(KInStream& Stream)
 	if (Words.size() != 3)
 	{
 		// garbage, bail out
+		kDebug(2, "invalid HTTP header");
 		return false;
 	}
 
 	m_Method = Words[0];
 	m_Resource = Words[1];
 	m_HTTPVersion = Words[2];
+
+	if (!m_HTTPVersion.StartsWith("HTTP/"))
+	{
+		kDebug(2, "missing HTTP version in header");
+		return false;
+	}
 
 	return KHTTPHeader::Parse(Stream);
 
@@ -80,7 +91,7 @@ bool KHTTPRequest::Parse(KInStream& Stream)
 bool KHTTPRequest::Serialize(KOutStream& Stream)
 //-----------------------------------------------------------------------------
 {
-	Stream.FormatLine("{} {} {}", KStringView(m_Method), m_Resource.Serialize(), m_HTTPVersion);
+	Stream.FormatLine("{} {} {}", m_Method.Serialize(), m_Resource.Serialize(), m_HTTPVersion);
 	return KHTTPHeader::Serialize(Stream);
 }
 

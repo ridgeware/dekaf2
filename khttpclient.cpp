@@ -151,7 +151,7 @@ KHTTPClient& KHTTPClient::Resource(const KURL& url, KMethod method)
 		{
 			m_Stream->ExpiresFromNow(m_Timeout);
 			KStream& Stream = m_Stream->Stream();
-			Stream.Write(method);
+			Stream.Write(method.Serialize());
 			Stream.Write(' ');
 			if (!url.Path.empty())
 			{

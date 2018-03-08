@@ -55,19 +55,21 @@ bool KHTTPResponse::Parse(KInStream& Stream)
 
 	if (!Stream.ReadLine(sLine) || sLine.empty())
 	{
+		kDebug(2, "cannot read from stream");
 		return false;
 	}
 
 	// analyze protocol and status
-	// HTTP/1.1 200
+	// HTTP/1.1 200 Message with arbitrary words
 
 	std::vector<KStringView> Words;
 	Words.reserve(2);
 	kSplit(Words, sLine, " ");
 
-	if (Words.size() != 2)
+	if (Words.size() < 2)
 	{
 		// garbage, bail out
+		kDebug(2, "cannot read HTTP response status");
 		return false;
 	}
 

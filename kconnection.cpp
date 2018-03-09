@@ -102,6 +102,16 @@ KConnection& KConnection::operator=(KStream& Stream)
 }
 
 //-----------------------------------------------------------------------------
+// if KTCPStream is not constructed in its own stackframe, for some weird
+// reason std::ios_base()::~std::ios_base() crashes in heavy multithreading
+// with clang on OSX
+std::unique_ptr<KTCPStream> CreateKTCPStream(const std::string& sDomain, const std::string& sPort)
+//-----------------------------------------------------------------------------
+{
+	return std::make_unique<KTCPStream>(sDomain, sPort);
+}
+
+//-----------------------------------------------------------------------------
 bool KConnection::Connect(const url::KDomain& domain, const url::KPort& port)
 //-----------------------------------------------------------------------------
 {
@@ -113,14 +123,28 @@ bool KConnection::Connect(const url::KDomain& domain, const url::KPort& port)
 	std::string sd = domain.Serialize().ToStdString();
 	std::string sp = port.Serialize().ToStdString();
 	m_bIsSSL = false;
-	m_Stream = std::make_unique<KTCPStream>(sd, sp);
-	return m_Stream->OutStream().good();
+	kDebug(3, "connecting to {}:{}", sd, sp);
+	m_Stream = CreateKTCPStream(sd, sp);
+	if (!m_Stream->OutStream().good())
+	{
+		kDebug(2, "failed to connect to {}:{}", sd, sp);
+		return false;
+	}
+	return true;
 }
 
 //-----------------------------------------------------------------------------
-void KConnection::Disonnect()
+void KConnection::Disconnect()
 //-----------------------------------------------------------------------------
 {
+	if (m_Stream)
+	{
+		kDebug(3, "disconnecting");
+	}
+	else
+	{
+		kDebug(1, "disconnecting an unconnected stream");
+	}
 	if (m_bStreamIsNotOwned)
 	{
 		m_bStreamIsNotOwned = false;
@@ -204,12 +228,28 @@ void KConnection::setConnection(std::unique_ptr<KStream>&& Stream)
 }
 
 //-----------------------------------------------------------------------------
+// if KTCPStream is not constructed in its own stackframe, for some weird
+// reason std::ios_base()::~std::ios_base() crashes in heavy multithreading
+// with clang on OSX.
+std::unique_ptr<KSSLStream> CreateKSSLStream(KStringView sDomain, KStringView sPort, bool bVerifyCerts)
+//-----------------------------------------------------------------------------
+{
+	return std::make_unique<KSSLStream>(sDomain, sPort, bVerifyCerts);
+}
+
+//-----------------------------------------------------------------------------
 bool KSSLConnection::Connect(const url::KDomain& domain, const url::KPort& port, bool bVerifyCerts)
 //-----------------------------------------------------------------------------
 {
 	m_bIsSSL = true;
-	setConnection(std::make_unique<KSSLStream>(domain.Serialize(), port.Serialize(), bVerifyCerts));
-	return Stream().OutStream().good();
+	kDebug(3, "SSL: connecting to {}:{}", domain.Serialize(), port.Serialize());
+	setConnection(CreateKSSLStream(domain.Serialize(), port.Serialize(), bVerifyCerts));
+	if (!Stream().OutStream().good())
+	{
+		kDebug(2, "SSL:failed to connect to {}:{}", domain.Serialize(), port.Serialize());
+		return false;
+	}
+	return true;
 }
 
 

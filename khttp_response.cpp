@@ -53,9 +53,15 @@ bool KHTTPResponse::Parse(KInStream& Stream)
 	// make sure we detect an empty header
 	Stream.SetReaderRightTrim("\r\n");
 
-	if (!Stream.ReadLine(sLine) || sLine.empty())
+	if (!Stream.ReadLine(sLine))
 	{
 		kDebug(2, "cannot read from stream");
+		return false;
+	}
+
+	if (sLine.empty())
+	{
+		kDebug(2, "empty status line");
 		return false;
 	}
 

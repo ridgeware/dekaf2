@@ -99,9 +99,10 @@ public:
 	/// Construct a server, but do not yet start it.
 	/// @param iPort Port to bind to
 	/// @param bSSL If true will use SSL/TLS
-	KTCPServer(uint16_t iPort, bool bSSL)
+	KTCPServer(uint16_t iPort, bool bSSL, uint16_t iMaxConnections = 50)
 	//-----------------------------------------------------------------------------
 	    : m_iPort(iPort)
+	    , m_iMaxConnections(iMaxConnections)
 	    , m_bIsSSL(bSSL)
 	{
 	}
@@ -290,6 +291,8 @@ private:
 	KString m_sPem;
 	uint16_t m_iPort{0};
 	uint16_t m_iTimeout{5*60};
+	uint16_t m_iMaxConnections;
+	std::atomic_uint16_t m_iOpenConnections{0};
 	bool m_bBlock{true};
 	bool m_bQuit{false};
 	bool m_bStartIPv4{true};

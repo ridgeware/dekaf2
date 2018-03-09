@@ -138,6 +138,8 @@ void KTCPServer::Session(KStream& stream, const endpoint_type& remote_endpoint)
 void KTCPServer::RunSession(std::unique_ptr<KStream> stream, const endpoint_type& remote_endpoint)
 //-----------------------------------------------------------------------------
 {
+	++m_iOpenConnections;
+
 	kDebug(3, "accepting new connection from {} on port {}",
 	             to_string(remote_endpoint),
 	             m_iPort);
@@ -171,6 +173,8 @@ void KTCPServer::RunSession(std::unique_ptr<KStream> stream, const endpoint_type
 	kDebug(3, "closing connection with {} on port {}",
 	             to_string(remote_endpoint),
 	             m_iPort);
+
+	--m_iOpenConnections;
 
 }
 
@@ -207,6 +211,23 @@ bool KTCPServer::IsPortAvailable(uint16_t iPort)
 	return false;
 
 } // IsPortAvailable
+
+//-----------------------------------------------------------------------------
+// if KTCPStream is not constructed in its own stackframe, for some weird
+// reason std::ios_base()::~std::ios_base() crashes in heavy multithreading
+// with clang on OSX
+std::unique_ptr<KTCPStream> CreateKTCPStream()
+//-----------------------------------------------------------------------------
+{
+	return std::make_unique<KTCPStream>();
+}
+
+//-----------------------------------------------------------------------------
+std::unique_ptr<KSSLStream> CreateKSSLStream()
+//-----------------------------------------------------------------------------
+{
+	return std::make_unique<KSSLStream>();
+}
 
 //-----------------------------------------------------------------------------
 void KTCPServer::Server(bool ipv6)
@@ -256,7 +277,7 @@ void KTCPServer::Server(bool ipv6)
 			{
 				if (IsSSL())
 				{
-					auto ustream = std::make_unique<KSSLStream>();
+					auto ustream = CreateKSSLStream();
 					ustream->SetSSLCertificate(m_sCert.c_str(), m_sPem.c_str());
 					endpoint_type remote_endpoint;
 					acceptor.accept(ustream->GetTCPSocket(), remote_endpoint);
@@ -267,7 +288,7 @@ void KTCPServer::Server(bool ipv6)
 				}
 				else
 				{
-					auto ustream = std::make_unique<KTCPStream>();
+					auto ustream = CreateKTCPStream();
 					endpoint_type remote_endpoint;
 					acceptor.accept(*(ustream->rdbuf()), remote_endpoint);
 					if (!m_bQuit)
@@ -275,6 +296,14 @@ void KTCPServer::Server(bool ipv6)
 						std::thread(&KTCPServer::RunSession, this, std::move(ustream), std::ref(remote_endpoint)).detach();
 					}
 				}
+
+				while (m_iOpenConnections > m_iMaxConnections)
+				{
+					// this may actually trigger a few threads too late,
+					// but we do not care too much about
+					usleep(100);
+				}
+
 			}
 
 			if (!acceptor.is_open() && !m_bQuit)

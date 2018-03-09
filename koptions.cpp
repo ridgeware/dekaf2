@@ -210,7 +210,7 @@ bool KOptions::Options(KOutStream& out)
 					else if (it->sArg.In("d,dd,ddd"))
 					{
 						it->bConsumed = true;
-						KLog().SetLevel (it->sArg.size() - 1);
+						KLog().SetLevel (it->sArg.size());
 						KLog().SetDebugLog (KLog::STDOUT);
 						kDebug (1, "debug level set to: {}", KLog().GetLevel());
 					}

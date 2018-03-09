@@ -1034,7 +1034,6 @@ public:
 		{
 			return it->second;
 		}
-		kDebug(2, "non-existing key");
 		return base_type::s_EmptyMapValue_v.second;
 	}
 
@@ -1051,7 +1050,6 @@ public:
 		{
 			return it->second;
 		}
-		kDebug(2, "non-existing key");
 		return base_type::s_EmptyMapValue.second;
 	}
 

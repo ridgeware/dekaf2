@@ -784,7 +784,6 @@ public:
 		{
 			return it->second;
 		}
-		kDebug(2, "called for non-existing key");
 		return s_EmptyElement_v.second;
 	}
 
@@ -801,7 +800,6 @@ public:
 		{
 			return it->second;
 		}
-		kDebug(2, "called for non-existing key");
 		return s_EmptyElement.second;
 	}
 

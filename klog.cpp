@@ -46,6 +46,7 @@ TODO: KLOG OVERHAUL NEEDED
 */
 
 #include <iostream>
+#include <mutex>
 #include <syslog.h>
 #include "dekaf2.h"
 #include "klog.h"
@@ -622,12 +623,6 @@ bool KLog::SetDebugFlag(KStringView sFlagfile)
 void KLog::CheckDebugFlag()
 //---------------------------------------------------------------------------
 {
-#ifdef NDEBUG
-	m_iBackTrace = std::atoi(kGetEnv(s_sEnvTrace, "-3"));
-#else
-	m_iBackTrace = std::atoi(kGetEnv(s_sEnvTrace, "-2"));
-#endif
-
 	// file format of the debug "flag" file:
 	// "level, target" where level is numeric (-1 .. 3) and target can be
 	// anything like a pathname or a domain:host or syslog, stderr, stdout
@@ -694,6 +689,11 @@ void KLog::CheckDebugFlag()
 bool KLog::IntDebug(int level, KStringView sFunction, KStringView sMessage)
 //---------------------------------------------------------------------------
 {
+	// we need a lock if we run in multithreading, as the serializers
+	// have data members
+	static std::recursive_mutex mutex;
+	std::lock_guard<std::recursive_mutex> Lock(mutex);
+
 	if (!m_Logger || !m_Serializer)
 	{
 		return false;
@@ -701,24 +701,30 @@ bool KLog::IntDebug(int level, KStringView sFunction, KStringView sMessage)
 
 	m_Serializer->Set(level, m_sShortName, m_sPathName, sFunction, sMessage);
 
+	static bool s_bBackTraceAlreadyCalled = false;
+
 	if (level <= m_iBackTrace)
 	{
-		int iSkipFromStack{4};
-		if (level == -2)
+		// we can protect the recursion without a mutex, as we
+		// are already protected by a mutex..
+		if (!s_bBackTraceAlreadyCalled)
 		{
-			// for exceptions we have to peel off one more stack frame
-			// (it is of course a brittle expectation of level == -2 == exception,
-			// but for now it is true)
-			iSkipFromStack += 1;
+			s_bBackTraceAlreadyCalled = true;
+			int iSkipFromStack{4};
+			if (level == -2)
+			{
+				// for exceptions we have to peel off one more stack frame
+				// (it is of course a brittle expectation of level == -2 == exception,
+				// but for now it is true)
+				iSkipFromStack += 1;
+			}
+			KString sStack = kGetBacktrace(iSkipFromStack);
+			m_Serializer->SetBacktrace(sStack);
+			s_bBackTraceAlreadyCalled = false;
 		}
-		KString sStack = kGetBacktrace(iSkipFromStack);
-		m_Serializer->SetBacktrace(sStack);
-		return m_Logger->Write(level, m_Serializer->IsMultiline(), m_Serializer->Get());
 	}
-	else
-	{
-		return m_Logger->Write(level, m_Serializer->IsMultiline(), m_Serializer->Get());
-	}
+
+	return m_Logger->Write(level, m_Serializer->IsMultiline(), m_Serializer->Get());
 
 } // IntDebug
 

@@ -183,8 +183,8 @@ public:
 	KString& append(const KString& str, size_type pos, size_type n = npos) { return append(str.m_rep, pos, n); }
 	KString& append(const string_type& str){ m_rep.append(str); return *this; }
 	KString& append(const string_type& str, size_type pos, size_type n = npos);
-	KString& append(const value_type* str) { m_rep.append(str); return *this; }
-	KString& append(const value_type* str, size_type n) { m_rep.append(str, n); return *this; }
+	KString& append(const value_type* str) { if (str) m_rep.append(str); return *this; }
+	KString& append(const value_type* str, size_type n) { if (str) m_rep.append(str, n); return *this; }
 	KString& append(size_type n, value_type ch){ m_rep.append(n, ch); return *this; }
 	template<class _InputIterator>
 		KString& append(_InputIterator first, _InputIterator last) { m_rep.append(first, last); return *this; }
@@ -202,8 +202,8 @@ public:
 	KString& assign(const KString& str, size_type pos, size_type n = npos) { return assign(str.m_rep, pos, n); }
 	KString& assign(const string_type& str) { m_rep.assign(str); return *this; }
 	KString& assign(const string_type& str, size_type pos, size_type n = npos);
-	KString& assign(const value_type* s, size_type n) { m_rep.assign(s, n); return *this; }
-	KString& assign(const value_type* str) { m_rep.assign(str); return *this;}
+	KString& assign(const value_type* s, size_type n) { if (s) m_rep.assign(s, n); else m_rep.clear(); return *this; }
+	KString& assign(const value_type* str) { if (str) m_rep.assign(str); else m_rep.clear(); return *this;}
 	KString& assign(size_type n, value_type ch) { m_rep.assign(n, ch); return *this;}
 	template<class _InputIterator>
 		KString& assign(_InputIterator first, _InputIterator last) { m_rep.assign(first, last); return *this; }

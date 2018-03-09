@@ -79,19 +79,29 @@ KHTTPClient::KHTTPClient(std::unique_ptr<KConnection> stream, const KURL& url, K
 bool KHTTPClient::Connect(std::unique_ptr<KConnection> Connection)
 //-----------------------------------------------------------------------------
 {
+	SetError(KStringView{});
+
 	m_Stream = std::move(Connection);
 
 	if (m_Stream)
 	{
 		KStream& Stream = m_Stream->Stream();
 		m_State = Stream.OutStream().good() ? State::CONNECTED : State::CLOSED;
-		Stream.SetReaderEndOfLine('\n');
-		Stream.SetReaderLeftTrim("");
-		Stream.SetReaderRightTrim("\r\n");
-		Stream.SetWriterEndOfLine("\r\n");
+		if (m_State != State::CONNECTED)
+		{
+			SetError(m_Stream->Error());
+		}
+		else
+		{
+			Stream.SetReaderEndOfLine('\n');
+			Stream.SetReaderLeftTrim("");
+			Stream.SetReaderRightTrim("\r\n");
+			Stream.SetWriterEndOfLine("\r\n");
+		}
 	}
 	else
 	{
+		SetError("No Stream");
 		m_State = State::CLOSED;
 	}
 
@@ -169,7 +179,7 @@ KHTTPClient& KHTTPClient::Resource(const KURL& url, KHTTPMethod method)
 		}
 		else
 		{
-			kWarning("Bad state - cannot set resource {}", url.Path.Serialize());
+			SetError(kFormat("Bad state - cannot set resource {}", url.Path.Serialize()));
 		}
 	}
 	return *this;
@@ -190,7 +200,7 @@ KHTTPClient& KHTTPClient::RequestHeader(KStringView svName, KStringView svValue)
 	}
 	else
 	{
-		kWarning("Bad state - cannot set header '{} : {}'", svName, svValue);
+		SetError(kFormat("Bad state - cannot set header '{} : {}'", svName, svValue));
 	}
 	return *this;
 }
@@ -219,7 +229,7 @@ bool KHTTPClient::Request(KStringView svPostData, KStringView svMime)
 	}
 	else
 	{
-		kWarning("Bad state - cannot send request");
+		SetError(kFormat("Bad state - cannot send request"));
 	}
 	return false;
 }
@@ -250,11 +260,12 @@ bool KHTTPClient::ReadHeader()
 			m_State = State::HEADER_PARSED;
 			return true;
 		}
+		SetError(m_ResponseHeader.Error());
 		return false;
 	}
 	else
 	{
-		kWarning("Bad state - cannot read headers");
+		SetError("Bad state - cannot read headers");
 	}
 	return false;
 }
@@ -331,8 +342,13 @@ size_t KHTTPClient::Read(KOutStream& stream, size_t len)
 			m_iRemainingContentSize -= received;
 			len -= received;
 			tlen += received;
-			if (!m_bTEChunked || received < wanted)
+			if (!m_bTEChunked)
 			{
+				break;
+			}
+			if (received < wanted)
+			{
+				SetError(m_Stream->GetStreamError());
 				break;
 			}
 			CheckForChunkEnd();
@@ -341,7 +357,7 @@ size_t KHTTPClient::Read(KOutStream& stream, size_t len)
 	}
 	else
 	{
-		kWarning("Bad state - cannot read data");
+		SetError("Bad state - cannot read data");
 		return 0;
 	}
 }
@@ -364,8 +380,13 @@ size_t KHTTPClient::Read(KString& sBuffer, size_t len)
 			m_iRemainingContentSize -= received;
 			len -= received;
 			tlen += received;
-			if (!m_bTEChunked || received < wanted)
+			if (!m_bTEChunked)
 			{
+				break;
+			}
+			if (received < wanted)
+			{
+				SetError(m_Stream->GetStreamError());
 				break;
 			}
 			CheckForChunkEnd();
@@ -374,7 +395,7 @@ size_t KHTTPClient::Read(KString& sBuffer, size_t len)
 	}
 	else
 	{
-		kWarning("Bad state - cannot read data");
+		SetError("Bad state - cannot read data");
 		return 0;
 	}
 }
@@ -401,6 +422,7 @@ bool KHTTPClient::ReadLine(KString& sBuffer)
 			}
 			else
 			{
+				SetError(m_Stream->GetStreamError());
 				m_iRemainingContentSize = 0;
 			}
 		}
@@ -408,7 +430,7 @@ bool KHTTPClient::ReadLine(KString& sBuffer)
 	}
 	else
 	{
-		kWarning("Bad state - cannot read data");
+		SetError("Bad state - cannot read data");
 		sBuffer.clear();
 		return false;
 	}

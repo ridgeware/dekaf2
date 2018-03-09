@@ -55,14 +55,12 @@ bool KHTTPResponse::Parse(KInStream& Stream)
 
 	if (!Stream.ReadLine(sLine))
 	{
-		kDebug(2, "cannot read from stream");
-		return false;
+		return SetError("cannot read from stream");
 	}
 
 	if (sLine.empty())
 	{
-		kDebug(2, "empty status line");
-		return false;
+		return SetError("empty status line");
 	}
 
 	// analyze protocol and status
@@ -75,8 +73,7 @@ bool KHTTPResponse::Parse(KInStream& Stream)
 	if (Words.size() < 2)
 	{
 		// garbage, bail out
-		kDebug(2, "cannot read HTTP response status");
-		return false;
+		return SetError("cannot read HTTP response status");
 	}
 
 	m_HTTPVersion = Words[0];

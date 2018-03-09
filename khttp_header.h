@@ -173,6 +173,21 @@ public:
 		return m_Headers.Set(std::forward<K>(sv), std::forward<V>(svv));
 	}
 
+	//-----------------------------------------------------------------------------
+	const KString& ContentType() const;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	const KString& Charset() const;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	const KString& Error() const
+	//-----------------------------------------------------------------------------
+	{
+		return m_sError;
+	}
+
 	// https://en.wikipedia.org/wiki/List_of_HTTP_header_fields#Field_names
 	// awk '{u = toupper($1); gsub(/[-]/,"_",u); printf ("\tstatic constexpr KStringView %-32s = \"%s\";\n", u, $1)}'
 
@@ -333,11 +348,29 @@ public:
 	static constexpr KStringView x_powered_by                     = "x-powered-by";
 
 //------
+protected:
+//------
+
+	//-----------------------------------------------------------------------------
+	bool SetError(KStringView sError) const
+	//-----------------------------------------------------------------------------
+	{
+		m_sError = sError;
+		return false;
+	}
+
+	//-----------------------------------------------------------------------------
+	void SplitContentType() const;
+	//-----------------------------------------------------------------------------
+
+//------
 private:
 //------
 
 	KHeaderMap m_Headers; // response headers read in
-	KString m_HTTPVersion;
+	mutable KString m_sCharset;
+	mutable KString m_sContentType;
+	mutable KString m_sError;
 
 }; // KHeader
 

@@ -184,6 +184,13 @@ public:
 		return m_ResponseHeader;
 	}
 
+	//-----------------------------------------------------------------------------
+	const KString& Error() const
+	//-----------------------------------------------------------------------------
+	{
+		return m_sError;
+	}
+
 //------
 protected:
 //------
@@ -204,6 +211,14 @@ protected:
 	size_t Post(KStringView sv);
 	//-----------------------------------------------------------------------------
 
+	//-----------------------------------------------------------------------------
+	bool SetError(KStringView sError) const
+	//-----------------------------------------------------------------------------
+	{
+		m_sError = sError;
+		return false;
+	}
+
 //------
 private:
 //------
@@ -211,6 +226,7 @@ private:
 	std::unique_ptr<KConnection> m_Stream;
 	KHTTPMethod m_Method;
 	KHTTPResponse m_ResponseHeader;
+	mutable KString m_sError;
 	size_t m_iRemainingContentSize{0};
 	State m_State{State::CLOSED};
 	long m_Timeout{ 300 };

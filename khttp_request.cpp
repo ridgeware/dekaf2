@@ -55,14 +55,12 @@ bool KHTTPRequest::Parse(KInStream& Stream)
 
 	if (!Stream.ReadLine(sLine))
 	{
-		kDebug(2, "cannot read input stream");
-		return false;
+		return SetError("cannot read input stream");
 	}
 
 	if (sLine.empty())
 	{
-		kDebug(2, "empty request line");
-		return false;
+		return SetError("empty request line");
 	}
 
 	// analyze method and resource
@@ -75,8 +73,7 @@ bool KHTTPRequest::Parse(KInStream& Stream)
 	if (Words.size() != 3)
 	{
 		// garbage, bail out
-		kDebug(2, "invalid HTTP header");
-		return false;
+		return SetError("invalid HTTP header");
 	}
 
 	m_Method = Words[0];
@@ -85,8 +82,7 @@ bool KHTTPRequest::Parse(KInStream& Stream)
 
 	if (!m_HTTPVersion.StartsWith("HTTP/"))
 	{
-		kDebug(2, "missing HTTP version in header");
-		return false;
+		return SetError("missing HTTP version in header");
 	}
 
 	return KHTTPHeader::Parse(Stream);
@@ -108,6 +104,7 @@ void KHTTPRequest::clear()
 	KHTTPHeader::clear();
 	m_Resource.clear();
 	m_HTTPVersion.clear();
+
 }
 
 } // end of namespace dekaf2

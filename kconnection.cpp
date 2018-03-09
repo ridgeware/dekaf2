@@ -115,21 +115,29 @@ std::unique_ptr<KTCPStream> CreateKTCPStream(const std::string& sDomain, const s
 bool KConnection::Connect(const url::KDomain& domain, const url::KPort& port)
 //-----------------------------------------------------------------------------
 {
+	m_sError.clear();
+
 	if (m_bStreamIsNotOwned)
 	{
 		m_bStreamIsNotOwned = false;
 		m_Stream.release();
 	}
+
 	std::string sd = domain.Serialize().ToStdString();
 	std::string sp = port.Serialize().ToStdString();
 	m_bIsSSL = false;
+
 	kDebug(3, "connecting to {}:{}", sd, sp);
+
 	m_Stream = CreateKTCPStream(sd, sp);
+
 	if (!m_Stream->OutStream().good())
 	{
-		kDebug(2, "failed to connect to {}:{}", sd, sp);
+		SetError(kFormat("failed to connect to {}:{}: {}", sd, sp, GetStreamError()));
+		kDebug(2, Error());
 		return false;
 	}
+
 	return true;
 }
 
@@ -145,6 +153,7 @@ void KConnection::Disconnect()
 	{
 		kDebug(1, "disconnecting an unconnected stream");
 	}
+
 	if (m_bStreamIsNotOwned)
 	{
 		m_bStreamIsNotOwned = false;
@@ -216,6 +225,25 @@ KSSLStream* KConnection::GetSSLStream()
 } // GetSSLStream
 
 //-----------------------------------------------------------------------------
+KString KConnection::GetStreamError() const
+//-----------------------------------------------------------------------------
+{
+	if (!m_Stream || IsSSL())
+	{
+		return KString{};
+	}
+
+	auto TCP = static_cast<const KTCPStream*>(m_Stream.get());;
+	if (TCP == nullptr)
+	{
+		return KString{};
+	}
+
+	return TCP->error().message();
+
+} // GetStreamError
+
+//-----------------------------------------------------------------------------
 void KConnection::setConnection(std::unique_ptr<KStream>&& Stream)
 //-----------------------------------------------------------------------------
 {
@@ -225,7 +253,8 @@ void KConnection::setConnection(std::unique_ptr<KStream>&& Stream)
 		m_Stream.release();
 	}
 	m_Stream = std::move(Stream);
-}
+
+} // setConnection
 
 //-----------------------------------------------------------------------------
 // if KTCPStream is not constructed in its own stackframe, for some weird
@@ -243,12 +272,16 @@ bool KSSLConnection::Connect(const url::KDomain& domain, const url::KPort& port,
 {
 	m_bIsSSL = true;
 	kDebug(3, "SSL: connecting to {}:{}", domain.Serialize(), port.Serialize());
+
 	setConnection(CreateKSSLStream(domain.Serialize(), port.Serialize(), bVerifyCerts));
+
 	if (!Stream().OutStream().good())
 	{
-		kDebug(2, "SSL:failed to connect to {}:{}", domain.Serialize(), port.Serialize());
+		SetError(kFormat("SSL:failed to connect to {}:{}", domain.Serialize(), port.Serialize()));
+		kDebug(2, Error());
 		return false;
 	}
+	
 	return true;
 }
 

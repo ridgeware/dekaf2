@@ -54,6 +54,11 @@ bool KHTTPHeader::Parse(KInStream& Stream)
 	// We also do not care for line endings and will cannonify them on
 	// serialization.
 
+	if (!m_Headers.empty())
+	{
+		clear();
+	}
+
 	// make sure we detect an empty header
 	Stream.SetReaderRightTrim("\r\n");
 
@@ -118,8 +123,73 @@ void KHTTPHeader::clear()
 //-----------------------------------------------------------------------------
 {
 	m_Headers.clear();
+	m_sCharset.clear();
+	m_sContentType.clear();
+	m_sError.clear();
 
 } // clear
+
+//-----------------------------------------------------------------------------
+void KHTTPHeader::SplitContentType() const
+//-----------------------------------------------------------------------------
+{
+	KStringView sHeader = Get(content_type);
+	if (!sHeader.empty())
+	{
+		kTrimLeft(sHeader);
+		auto pos = sHeader.find(';');
+		if (pos == KStringView::npos)
+		{
+			kTrimRight(sHeader);
+			m_sContentType = sHeader;
+		}
+		else
+		{
+			KStringView sCtype = sHeader.substr(0, pos);
+			kTrimRight(sCtype);
+			m_sContentType = sCtype;
+
+			sHeader.remove_prefix(pos + 1);
+			pos = sHeader.find("charset=");
+			if (pos != KStringView::npos)
+			{
+				sHeader.remove_prefix(pos + 8);
+				kTrimLeft(sHeader);
+				kTrimRight(sHeader);
+				m_sCharset = sHeader;
+				// charsets come in upper and lower case variations
+				m_sCharset.MakeLower();
+			}
+		}
+	}
+
+} // SplitContentType
+
+//-----------------------------------------------------------------------------
+const KString& KHTTPHeader::ContentType() const
+//-----------------------------------------------------------------------------
+{
+	if (m_sContentType.empty())
+	{
+		SplitContentType();
+	}
+	return m_sContentType;
+
+} // ContentType
+
+//-----------------------------------------------------------------------------
+const KString& KHTTPHeader::Charset() const
+//-----------------------------------------------------------------------------
+{
+	if (m_sCharset.empty())
+	{
+		SplitContentType();
+	}
+	return m_sCharset;
+
+} // Charset
+
+
 
 
 #if !defined(DEKAF2_NO_GCC) && (DEKAF2_GCC_VERSION < 70000)

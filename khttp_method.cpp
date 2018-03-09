@@ -43,8 +43,6 @@
 #include "khttp_method.h"
 
 namespace dekaf2 {
-namespace detail {
-namespace http {
 
 #if !defined(DEKAF2_NO_GCC) && (DEKAF2_GCC_VERSION < 70000)
 
@@ -56,7 +54,5 @@ constexpr KStringView KMethod::DELETE;
 
 #endif
 
-} // end of namespace http
-} // end of namespace detail
 } // end of namespace dekaf2
 

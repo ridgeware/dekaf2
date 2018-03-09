@@ -97,14 +97,14 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	const detail::http::KMethod& Method() const
+	const KHTTPMethod& Method() const
 	//-----------------------------------------------------------------------------
 	{
 		return m_Method;
 	}
 
 	//-----------------------------------------------------------------------------
-	detail::http::KMethod& Method()
+	KHTTPMethod& Method()
 	//-----------------------------------------------------------------------------
 	{
 		return m_Method;
@@ -118,7 +118,7 @@ protected:
 private:
 //------
 
-	detail::http::KMethod m_Method;
+	KHTTPMethod m_Method;
 	KURL m_Resource;
 	KString m_HTTPVersion;
 

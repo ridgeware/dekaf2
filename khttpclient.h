@@ -62,8 +62,6 @@ class KHTTPClient
 public:
 //------
 
-	using KMethod    = detail::http::KMethod;
-
 	enum class State
 	{
 		CONNECTED,
@@ -80,17 +78,17 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Ctor, connects to a server
-	KHTTPClient(const KURL& url, KMethod method = KMethod::GET, bool bVerifyCerts = false);
+	KHTTPClient(const KURL& url, KHTTPMethod method = KHTTPMethod::GET, bool bVerifyCerts = false);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// Ctor, connects to a server
-	KHTTPClient(KStringView sUrl, KMethod method = KMethod::GET, bool bVerifyCerts = false);
+	KHTTPClient(KStringView sUrl, KHTTPMethod method = KHTTPMethod::GET, bool bVerifyCerts = false);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// Ctor, connects to a server
-	KHTTPClient(std::unique_ptr<KConnection> stream, const KURL& url = KURL{}, KMethod method = KMethod::GET);
+	KHTTPClient(std::unique_ptr<KConnection> stream, const KURL& url = KURL{}, KHTTPMethod method = KHTTPMethod::GET);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -131,7 +129,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Set the resource to be requested
-	KHTTPClient& Resource(const KURL& url, KMethod method = KMethod::GET);
+	KHTTPClient& Resource(const KURL& url, KHTTPMethod method = KHTTPMethod::GET);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -211,7 +209,7 @@ private:
 //------
 
 	std::unique_ptr<KConnection> m_Stream;
-	KMethod m_Method;
+	KHTTPMethod m_Method;
 	KHTTPResponse m_ResponseHeader;
 	size_t m_iRemainingContentSize{0};
 	State m_State{State::CLOSED};

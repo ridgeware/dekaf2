@@ -47,7 +47,7 @@
 namespace dekaf2 {
 
 //-----------------------------------------------------------------------------
-	KHTTPClient::KHTTPClient(const KURL& url, KMethod method, bool bVerifyCerts)
+	KHTTPClient::KHTTPClient(const KURL& url, KHTTPMethod method, bool bVerifyCerts)
 //-----------------------------------------------------------------------------
 {
 	if (Connect(url, bVerifyCerts))
@@ -58,14 +58,14 @@ namespace dekaf2 {
 } // Ctor
 
 //-----------------------------------------------------------------------------
-KHTTPClient::KHTTPClient(KStringView sUrl, KMethod method, bool bVerifyCerts)
+KHTTPClient::KHTTPClient(KStringView sUrl, KHTTPMethod method, bool bVerifyCerts)
 //-----------------------------------------------------------------------------
 	: KHTTPClient(KURL(sUrl), method, bVerifyCerts)
 {
 } // Ctor
 
 //-----------------------------------------------------------------------------
-KHTTPClient::KHTTPClient(std::unique_ptr<KConnection> stream, const KURL& url, KMethod method)
+KHTTPClient::KHTTPClient(std::unique_ptr<KConnection> stream, const KURL& url, KHTTPMethod method)
 //-----------------------------------------------------------------------------
 {
 	if (Connect(std::move(stream)))
@@ -140,7 +140,7 @@ void KHTTPClient::SetTimeout(long iSeconds)
 }
 
 //-----------------------------------------------------------------------------
-KHTTPClient& KHTTPClient::Resource(const KURL& url, KMethod method)
+KHTTPClient& KHTTPClient::Resource(const KURL& url, KHTTPMethod method)
 //-----------------------------------------------------------------------------
 {
 	m_Method = method;
@@ -203,13 +203,13 @@ bool KHTTPClient::Request(KStringView svPostData, KStringView svMime)
 	{
 		m_Stream->ExpiresFromNow(m_Timeout);
 		KStream& Stream = m_Stream->Stream();
-		if (m_Method == KMethod::POST)
+		if (m_Method == KHTTPMethod::POST)
 		{
 			RequestHeader(KHTTPHeader::CONTENT_LENGTH, KString::to_string(svPostData.size()));
 			RequestHeader(KHTTPHeader::CONTENT_TYPE,   svMime.empty() ? KMIME::TEXT_PLAIN : svMime);
 		}
 		Stream.WriteLine();
-		if (m_Method == KMethod::POST)
+		if (m_Method == KHTTPMethod::POST)
 		{
 			Stream.Write(svPostData);
 		}

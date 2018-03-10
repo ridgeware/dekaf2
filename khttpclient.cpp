@@ -81,31 +81,30 @@ bool KHTTPClient::Connect(std::unique_ptr<KConnection> Connection)
 {
 	SetError(KStringView{});
 
-	m_Stream = std::move(Connection);
+	m_State = State::CLOSED;
 
-	if (m_Stream)
+	m_Connection = std::move(Connection);
+
+	if (!m_Connection)
 	{
-		KStream& Stream = m_Stream->Stream();
-		m_State = Stream.OutStream().good() ? State::CONNECTED : State::CLOSED;
-		if (m_State != State::CONNECTED)
-		{
-			SetError(m_Stream->Error());
-		}
-		else
-		{
-			Stream.SetReaderEndOfLine('\n');
-			Stream.SetReaderLeftTrim("");
-			Stream.SetReaderRightTrim("\r\n");
-			Stream.SetWriterEndOfLine("\r\n");
-		}
-	}
-	else
-	{
-		SetError("No Stream");
-		m_State = State::CLOSED;
+		return SetError("No Stream");
 	}
 
-	return m_State == State::CONNECTED;
+	KStream& Stream = m_Connection->Stream();
+
+	if (!Stream.KOutStream::Good())
+	{
+		return SetError(m_Connection->Error());
+	}
+
+	Stream.SetReaderEndOfLine('\n');
+	Stream.SetReaderLeftTrim("");
+	Stream.SetReaderRightTrim("\r\n");
+	Stream.SetWriterEndOfLine("\r\n");
+
+	m_State = State::CONNECTED;
+
+	return true;
 
 } // Connect
 
@@ -130,12 +129,12 @@ bool KHTTPClient::Disconnect()
 {
 	m_State = State::CLOSED;
 
-	if (!m_Stream)
+	if (!m_Connection)
 	{
 		return false;
 	}
 
-	m_Stream.reset();
+	m_Connection.reset();
 
 	return true;
 
@@ -146,7 +145,7 @@ void KHTTPClient::SetTimeout(long iSeconds)
 //-----------------------------------------------------------------------------
 {
 	m_Timeout = iSeconds;
-	m_Stream->SetTimeout(iSeconds);
+	m_Connection->SetTimeout(iSeconds);
 }
 
 //-----------------------------------------------------------------------------
@@ -163,18 +162,18 @@ bool KHTTPClient::Resource(const KURL& url, KHTTPMethod method)
 	{
 		return SetError(kFormat("Bad state - cannot set resource {}", url.Path.Serialize()));
 	}
-	else if (!m_Stream)
+	else if (!m_Connection)
 	{
 		return SetError("no stream");
 	}
-	else if (!m_Stream->Stream().KOutStream::Good())
+	else if (!m_Connection->Stream().KOutStream::Good())
 	{
-		return SetError(m_Stream->Error());
+		return SetError(m_Connection->Error());
 	}
 
-	m_Stream->ExpiresFromNow(m_Timeout);
+	m_Connection->ExpiresFromNow(m_Timeout);
 
-	KStream& Stream = m_Stream->Stream();
+	KStream& Stream = m_Connection->Stream();
 
 	Stream.Write(method.Serialize());
 	Stream.Write(' ');
@@ -204,18 +203,18 @@ bool KHTTPClient::RequestHeader(KStringView svName, KStringView svValue)
 	{
 		return SetError(kFormat("Bad state - cannot set header '{} : {}'", svName, svValue));
 	}
-	else if (!m_Stream)
+	else if (!m_Connection)
 	{
 		return SetError("no stream");
 	}
-	else if (!m_Stream->Stream().KOutStream::Good())
+	else if (!m_Connection->Stream().KOutStream::Good())
 	{
-		return SetError(m_Stream->Error());
+		return SetError(m_Connection->Error());
 	}
 
-	m_Stream->ExpiresFromNow(m_Timeout);
+	m_Connection->ExpiresFromNow(m_Timeout);
 
-	KStream& Stream = m_Stream->Stream();
+	KStream& Stream = m_Connection->Stream();
 	Stream.Write(svName);
 	Stream.Write(": ");
 	Stream.WriteLine(svValue);
@@ -232,18 +231,18 @@ bool KHTTPClient::Request(KStringView svPostData, KStringView svMime)
 	{
 		SetError(kFormat("Bad state - cannot send request"));
 	}
-	else if (!m_Stream)
+	else if (!m_Connection)
 	{
 		return SetError("no stream");
 	}
-	else if (!m_Stream->Stream().KOutStream::Good())
+	else if (!m_Connection->Stream().KOutStream::Good())
 	{
-		return SetError(m_Stream->Error());
+		return SetError(m_Connection->Error());
 	}
 
-	m_Stream->ExpiresFromNow(m_Timeout);
+	m_Connection->ExpiresFromNow(m_Timeout);
 
-	KStream& Stream = m_Stream->Stream();
+	KStream& Stream = m_Connection->Stream();
 
 	if (m_Method == KHTTPMethod::POST)
 	{
@@ -272,18 +271,18 @@ bool KHTTPClient::ReadHeader()
 	{
 		SetError("Bad state - cannot read headers");
 	}
-	else if (!m_Stream)
+	else if (!m_Connection)
 	{
 		return SetError("no stream");
 	}
-	else if (!m_Stream->Stream().KOutStream::Good())
+	else if (!m_Connection->Stream().KOutStream::Good())
 	{
-		return SetError(m_Stream->Error());
+		return SetError(m_Connection->Error());
 	}
 
-	m_Stream->ExpiresFromNow(m_Timeout);
+	m_Connection->ExpiresFromNow(m_Timeout);
 
-	KStream& Stream = m_Stream->Stream();
+	KStream& Stream = m_Connection->Stream();
 
 	if (!m_ResponseHeader.Parse(Stream))
 	{
@@ -318,7 +317,7 @@ bool KHTTPClient::ReadHeader()
 inline bool KHTTPClient::GetNextChunkSize()
 //-----------------------------------------------------------------------------
 {
-	m_Stream->ExpiresFromNow(m_Timeout);
+	m_Connection->ExpiresFromNow(m_Timeout);
 	
 	if (!m_bTEChunked)
 	{
@@ -333,13 +332,13 @@ inline bool KHTTPClient::GetNextChunkSize()
 		return false;
 	}
 
-	KStream& Stream = m_Stream->Stream();
+	KStream& Stream = m_Connection->Stream();
 
 	KString sLine;
 
 	if (!Stream.ReadLine(sLine))
 	{
-		return SetError(m_Stream->Error());
+		return SetError(m_Connection->Error());
 	}
 
 	try
@@ -363,10 +362,12 @@ inline bool KHTTPClient::GetNextChunkSize()
 
 		return true;
 	}
-	catch (const std::exception e)
+	catch (const std::exception& e)
 	{
 		return SetError(e.what());
 	}
+
+	return false;
 
 } // GetNextChunkSize
 
@@ -376,8 +377,8 @@ inline void KHTTPClient::CheckForChunkEnd()
 {
 	if (m_bTEChunked && m_iRemainingContentSize == 0)
 	{
-		m_Stream->ExpiresFromNow(m_Timeout);
-		KStream& Stream = m_Stream->Stream();
+		m_Connection->ExpiresFromNow(m_Timeout);
+		KStream& Stream = m_Connection->Stream();
 		if (Stream.Read() == 13)
 		{
 			Stream.Read();
@@ -395,18 +396,18 @@ size_t KHTTPClient::Read(KOutStream& stream, size_t len)
 		SetError("Bad state - cannot read data");
 		return 0;
 	}
-	else if (!m_Stream)
+	else if (!m_Connection)
 	{
 		SetError("no stream");
 		return 0;
 	}
-	else if (!m_Stream->Stream().KInStream::Good())
+	else if (!m_Connection->Stream().KInStream::Good())
 	{
-		SetError(m_Stream->Error());
+		SetError(m_Connection->Error());
 		return 0;
 	}
 
-	KStream& Stream = m_Stream->Stream();
+	KStream& Stream = m_Connection->Stream();
 	size_t tlen{0};
 
 	// if this is a chunked transfer we loop until we read len bytes
@@ -426,16 +427,17 @@ size_t KHTTPClient::Read(KOutStream& stream, size_t len)
 		len -= received;
 		tlen += received;
 
+		if (received < wanted)
+		{
+			SetError(m_Connection->GetStreamError());
+			break;
+		}
+
 		if (!m_bTEChunked)
 		{
 			break;
 		}
 
-		if (received < wanted)
-		{
-			SetError(m_Stream->GetStreamError());
-			break;
-		}
 		CheckForChunkEnd();
 	}
 
@@ -453,18 +455,18 @@ size_t KHTTPClient::Read(KString& sBuffer, size_t len)
 		SetError("Bad state - cannot read data");
 		return 0;
 	}
-	else if (!m_Stream)
+	else if (!m_Connection)
 	{
 		SetError("no stream");
 		return 0;
 	}
-	else if (!m_Stream->Stream().KInStream::Good())
+	else if (!m_Connection->Stream().KInStream::Good())
 	{
-		SetError(m_Stream->Error());
+		SetError(m_Connection->Error());
 		return 0;
 	}
 
-	KStream& Stream = m_Stream->Stream();
+	KStream& Stream = m_Connection->Stream();
 	size_t tlen{0};
 
 	// if this is a chunked transfer we loop until we read len bytes
@@ -484,16 +486,17 @@ size_t KHTTPClient::Read(KString& sBuffer, size_t len)
 		len -= received;
 		tlen += received;
 
+		if (received < wanted)
+		{
+			SetError(m_Connection->GetStreamError());
+			break;
+		}
+
 		if (!m_bTEChunked)
 		{
 			break;
 		}
 
-		if (received < wanted)
-		{
-			SetError(m_Stream->GetStreamError());
-			break;
-		}
 		CheckForChunkEnd();
 	}
 
@@ -512,13 +515,13 @@ bool KHTTPClient::ReadLine(KString& sBuffer)
 	{
 		return SetError("Bad state - cannot read data");
 	}
-	else if (!m_Stream)
+	else if (!m_Connection)
 	{
 		return SetError("no stream");
 	}
-	else if (!m_Stream->Stream().KInStream::Good())
+	else if (!m_Connection->Stream().KInStream::Good())
 	{
-		return SetError(m_Stream->Error());
+		return SetError(m_Connection->Error());
 	}
 
 	// we touch the expiry timer in GetNextChunkSize() already
@@ -529,12 +532,12 @@ bool KHTTPClient::ReadLine(KString& sBuffer)
 		return false;
 	}
 
-	KStream& Stream = m_Stream->Stream();
+	KStream& Stream = m_Connection->Stream();
 
 	// TODO this will fail with chunked transfer if the newline is in a new transfer block..
 	if (!Stream.ReadLine(sBuffer))
 	{
-		SetError(m_Stream->GetStreamError());
+		SetError(m_Connection->GetStreamError());
 		m_iRemainingContentSize = 0;
 		return false;
 	}

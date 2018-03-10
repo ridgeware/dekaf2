@@ -223,7 +223,7 @@ protected:
 private:
 //------
 
-	std::unique_ptr<KConnection> m_Stream;
+	std::unique_ptr<KConnection> m_Connection;
 	KHTTPMethod m_Method;
 	KHTTPResponse m_ResponseHeader;
 	mutable KString m_sError;

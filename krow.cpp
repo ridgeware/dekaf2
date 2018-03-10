@@ -141,7 +141,7 @@ bool KROW::FormInsert (KString& sSQL, SQLTYPE iDBType, bool fIdentityInsert/*=fa
 {
 	m_sLastError = ""; // reset
 
-	kDebugLog (2, "KROW:FormInsert: before: {}", sSQL);
+	kDebugLog (3, "KROW:FormInsert: before: {}", sSQL);
 	
 	if (!size()) {
 		m_sLastError.Format("KROW::FormInsert(): no columns defined.");
@@ -162,11 +162,11 @@ bool KROW::FormInsert (KString& sSQL, SQLTYPE iDBType, bool fIdentityInsert/*=fa
 	sAdd.Format("insert into {} (\n", GetTablename());
 	sSQL += sAdd;
 
-	kDebugLog (2, "KROW:FormInsert: {}", GetTablename());
+	kDebugLog (3, "KROW:FormInsert: {}", GetTablename());
 
 	for (ii=0; ii < size(); ++ii)
 	{
-		kDebugLog (2, ColumnInfoForLogOutput(ii));
+		kDebugLog (3, ColumnInfoForLogOutput(ii));
 
 		if (IsFlag (ii, NONCOLUMN)) {
 			continue;
@@ -220,7 +220,7 @@ bool KROW::FormInsert (KString& sSQL, SQLTYPE iDBType, bool fIdentityInsert/*=fa
 					, GetTablename(), sAdd, GetTablename());
 	}
 	
-	kDebugLog (2, "KROW:FormInsert: after: {}", sSQL);
+	kDebugLog (3, "KROW:FormInsert: after: {}", sSQL);
 	
 	return (true);
 
@@ -250,11 +250,11 @@ bool KROW::FormUpdate (KString& sSQL, SQLTYPE iDBType)
 	sAdd.Format ("update {} set\n", GetTablename());
 	sSQL += sAdd;
 
-	kDebugLog (2, "KROW:FormUpdate: {}", m_sTablename);
+	kDebugLog (3, "KROW:FormUpdate: {}", m_sTablename);
 
 	for (uint32_t ii=0, jj=0; ii < size(); ++ii)
 	{
-		kDebugLog (2, ColumnInfoForLogOutput(ii));
+		kDebugLog (3, ColumnInfoForLogOutput(ii));
 
 		if (IsFlag (ii, NONCOLUMN)) {
 			continue;
@@ -337,7 +337,7 @@ bool KROW::FormDelete (KString& sSQL, SQLTYPE iDBType)
 {
 	m_sLastError = ""; // reset
 
-	kDebugLog (2, "KROW:FormDelete: before: {}", sSQL);
+	kDebugLog (3, "KROW:FormDelete: before: {}", sSQL);
 
 	if (!size()) {
 		m_sLastError.Format("KROW::FormDelete(): no columns defined.");
@@ -357,11 +357,11 @@ bool KROW::FormDelete (KString& sSQL, SQLTYPE iDBType)
 	sAdd.Format("delete from {}\n", GetTablename());
 	sSQL += sAdd;
 
-	kDebugLog (2, "KROW:FormDelete: {}", m_sTablename);
+	kDebugLog (3, "KROW:FormDelete: {}", m_sTablename);
 
 	for (uint32_t ii=0; ii < size(); ++ii)
 	{
-		kDebugLog (2, ColumnInfoForLogOutput(ii));
+		kDebugLog (3, ColumnInfoForLogOutput(ii));
 
 		if (!IsFlag (ii, PKEY)) {
 			continue;
@@ -399,7 +399,7 @@ bool KROW::FormDelete (KString& sSQL, SQLTYPE iDBType)
 		return (false);
 	}
 	
-	kDebugLog (2, "KROW:FormDelete: after: {}", sSQL);
+	kDebugLog (3, "KROW:FormDelete: after: {}", sSQL);
 
 	return (true);
 
@@ -414,7 +414,7 @@ KString KROW::ToJSON (bool bWrapInCurlies, KStringView sLineLeader, KStringView 
 
 	m_sLastError = ""; // reset
 
-	kDebugLog (2, "KROW:ToJSON: before: {}", sJSON);
+	kDebugLog (3, "KROW:ToJSON: before: {}", sJSON);
 	
 	if (!size())
 	{
@@ -429,7 +429,7 @@ KString KROW::ToJSON (bool bWrapInCurlies, KStringView sLineLeader, KStringView 
 		sJSON += sLineTrailer;
 	}
 
-	kDebugLog (2, "KROW:ToJSON: {}", GetTablename());
+	kDebugLog (3, "KROW:ToJSON: {}", GetTablename());
 
 	// variables used within the loop
 	KStringView sName;
@@ -438,7 +438,7 @@ KString KROW::ToJSON (bool bWrapInCurlies, KStringView sLineLeader, KStringView 
 
 	for (uint32_t ii=0; ii < size(); ++ii)
 	{
-		kDebugLog (2, ColumnInfoForLogOutput(ii));
+		kDebugLog (3, ColumnInfoForLogOutput(ii));
 
 		if (IsFlag (ii, NONCOLUMN)) {
 			continue;
@@ -486,7 +486,7 @@ KString KROW::ToJSON (bool bWrapInCurlies, KStringView sLineLeader, KStringView 
 		sJSON += "}";
 	}
 	
-	kDebugLog (2, "KROW:ToJSON: after: {}", sJSON);
+	kDebugLog (3, "KROW:ToJSON: after: {}", sJSON);
 	
 	return sJSON;
 

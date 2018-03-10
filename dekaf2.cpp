@@ -274,6 +274,16 @@ void Dekaf::Daemonize()
 }
 
 //---------------------------------------------------------------------------
+void Dekaf::StartSignalHandlerThread()
+//---------------------------------------------------------------------------
+{
+	if (!m_Signals)
+	{
+		m_Signals = std::make_unique<KSignals>();
+	}
+}
+
+//---------------------------------------------------------------------------
 class Dekaf& Dekaf()
 //---------------------------------------------------------------------------
 {
@@ -282,10 +292,23 @@ class Dekaf& Dekaf()
 }
 
 //---------------------------------------------------------------------------
-void kInit(KStringView sName, KStringView sDebugLog, KStringView sDebugFlag, bool bShouldDumpCore, bool bEnableMultiThreading)
+void kInit(KStringView sName, KStringView sDebugLog, KStringView sDebugFlag, bool bShouldDumpCore, bool bEnableMultiThreading, bool bStartSignalHandlerThread)
 //---------------------------------------------------------------------------
 {
+	if (bStartSignalHandlerThread)
+	{
+		// it is important to block all signals before
+		// instantiating Dekaf(), as otherwise the timer
+		// thread would run with an enabled sigmask
+		kBlockAllSignals();
+
+		Dekaf().StartSignalHandlerThread();
+	}
+	
 	Dekaf().SetMultiThreading(bEnableMultiThreading);
+
+	// make sure KLog is instantiated
+	KLog();
 
 	if (!sDebugLog.empty())
 	{

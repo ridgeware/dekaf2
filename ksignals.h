@@ -97,7 +97,7 @@ public:
 	//-----------------------------------------------------------------------------
 	/// Explicitly sets all signals to be ignored. This basically resets
 	/// the signal handling to its state after construction.
-	void IgnoreAllSignals();
+	void BlockAllSignals(bool bExceptSEGVandFPE = true);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -120,7 +120,7 @@ public:
 	/// @param bAsThread
 	/// Whether the signal handler will be called in its own thread (true)
 	/// or whether the signal's slot shall be used (false)
-	void SetSignalHandler(int iSignal, signal_func_t func, bool bAsThread = false);
+	void SetCSignalHandler(int iSignal, signal_func_t func, bool bAsThread = false);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -145,39 +145,13 @@ public:
 		IntDelSignalHandler(iSignal, SIG_IGN);
 	}
 
-	//-----------------------------------------------------------------------------
-	/// Sets one specific signal to use its default signal handler from now on.
-	/// @param iSignal
-	/// The signal that shall use its default signal handler
-	void DefaultSignalHandler(int iSignal)
-	//-----------------------------------------------------------------------------
-	{
-		IntDelSignalHandler(iSignal, SIG_DFL);
-	}
-
-	//-----------------------------------------------------------------------------
-	/// Waits until all requested handlers are set. As the signal handling
-	/// happens in a separate thread, the request to install or reset a
-	/// signal handler is executed asynchronously. This function waits until
-	/// all such requests are executed.
-	void WaitForSignalHandlersSet();
-	//-----------------------------------------------------------------------------
-
 //----------
 private:
 //----------
 
 	//-----------------------------------------------------------------------------
-	void PushSigsToSet(int iSignal, signal_func_t func);
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
 	/// only call with func == SIG_IGN or SIG_DFL
 	void IntDelSignalHandler(int iSignal, signal_func_t func);
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	void IntSetSignalHandler(int iSignal, signal_func_t func);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -188,29 +162,17 @@ private:
 	static void LookupFunc(int signal);
 	//-----------------------------------------------------------------------------
 
-	struct sigset_t
-	{
-		int iSignal;
-		signal_func_t func;
-	};
-
 	struct sigmap_t
 	{
 		std_func_t func;
 		bool bAsThread;
 	};
 
-	static const std::vector<int> m_AllSigs;
-	static const std::vector<int> m_SettableSigs;
+	static const std::array<int, 11> m_SettableSigs;
 
 	static std::mutex s_SigSetMutex;
 	static std::map<int, sigmap_t> s_SigFuncs;
 	static KRunThreads m_Threads;
-
-	typedef std::unique_lock<std::mutex> CondVarLock;
-	std::mutex m_CondVarMutex;
-	std::condition_variable m_CondVar;
-	std::vector<sigset_t> m_SigsToSet;
 
 };
 
@@ -224,6 +186,14 @@ private:
 const char* kTranslateSignal (int iSignalNum, bool bConcise = true);
 //-----------------------------------------------------------------------------
 
+//-----------------------------------------------------------------------------
+/// Block all possible signals for this thread - this is a standalone function
+/// that can be applied to any running thread.
+/// @param bExceptSEGVandFPE
+/// true (default) installs kCrashExit (backtrace) as handler functions for
+/// SIGSEGV and SIGFPE.
+void kBlockAllSignals(bool bExceptSEGVandFPE = true);
+//-----------------------------------------------------------------------------
 
 } // end of namespace dekaf2
 

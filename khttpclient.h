@@ -129,12 +129,12 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Set the resource to be requested
-	KHTTPClient& Resource(const KURL& url, KHTTPMethod method = KHTTPMethod::GET);
+	bool Resource(const KURL& url, KHTTPMethod method = KHTTPMethod::GET);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// Adds a request header for the next request
-	KHTTPClient& RequestHeader(KStringView svName, KStringView svValue);
+	bool RequestHeader(KStringView svName, KStringView svValue);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------

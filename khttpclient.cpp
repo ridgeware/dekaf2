@@ -150,164 +150,225 @@ void KHTTPClient::SetTimeout(long iSeconds)
 }
 
 //-----------------------------------------------------------------------------
-KHTTPClient& KHTTPClient::Resource(const KURL& url, KHTTPMethod method)
+bool KHTTPClient::Resource(const KURL& url, KHTTPMethod method)
 //-----------------------------------------------------------------------------
 {
 	m_Method = method;
 
-	if (!url.empty())
+	if (url.empty())
 	{
-		if ((m_State == State::CONNECTED || m_State == State::REQUEST_SENT) && m_Stream)
-		{
-			m_Stream->ExpiresFromNow(m_Timeout);
-			KStream& Stream = m_Stream->Stream();
-			Stream.Write(method.Serialize());
-			Stream.Write(' ');
-			if (!url.Path.empty())
-			{
-				url.Path.Serialize(Stream);
-			}
-			else
-			{
-				Stream.Write('/');
-			}
-			url.Query.Serialize(Stream);
-			url.Fragment.Serialize(Stream);
-			Stream.WriteLine(" HTTP/1.1");
-			m_State = State::RESOURCE_SET;
-			RequestHeader(KHTTPHeader::HOST, url.Domain.Serialize());
-		}
-		else
-		{
-			SetError(kFormat("Bad state - cannot set resource {}", url.Path.Serialize()));
-		}
+		return SetError("URL is empty");
 	}
-	return *this;
-}
-
-//-----------------------------------------------------------------------------
-KHTTPClient& KHTTPClient::RequestHeader(KStringView svName, KStringView svValue)
-//-----------------------------------------------------------------------------
-{
-	if ((m_State == State::RESOURCE_SET || m_State == State::HEADER_SET) && m_Stream)
+	else if ((m_State != State::CONNECTED && m_State != State::REQUEST_SENT))
 	{
-		m_Stream->ExpiresFromNow(m_Timeout);
-		KStream& Stream = m_Stream->Stream();
-		Stream.Write(svName);
-		Stream.Write(": ");
-		Stream.WriteLine(svValue);
-		m_State = State::HEADER_SET;
+		return SetError(kFormat("Bad state - cannot set resource {}", url.Path.Serialize()));
+	}
+	else if (!m_Stream)
+	{
+		return SetError("no stream");
+	}
+	else if (!m_Stream->Stream().KOutStream::Good())
+	{
+		return SetError(m_Stream->Error());
+	}
+
+	m_Stream->ExpiresFromNow(m_Timeout);
+
+	KStream& Stream = m_Stream->Stream();
+
+	Stream.Write(method.Serialize());
+	Stream.Write(' ');
+	if (!url.Path.empty())
+	{
+		url.Path.Serialize(Stream);
 	}
 	else
 	{
-		SetError(kFormat("Bad state - cannot set header '{} : {}'", svName, svValue));
+		Stream.Write('/');
 	}
-	return *this;
+	url.Query.Serialize(Stream);
+	url.Fragment.Serialize(Stream);
+	Stream.WriteLine(" HTTP/1.1");
+
+	m_State = State::RESOURCE_SET;
+
+	return RequestHeader(KHTTPHeader::HOST, url.Domain.Serialize());
+
+} // Resource
+
+//-----------------------------------------------------------------------------
+bool KHTTPClient::RequestHeader(KStringView svName, KStringView svValue)
+//-----------------------------------------------------------------------------
+{
+	if ((m_State != State::RESOURCE_SET && m_State != State::HEADER_SET))
+	{
+		return SetError(kFormat("Bad state - cannot set header '{} : {}'", svName, svValue));
+	}
+	else if (!m_Stream)
+	{
+		return SetError("no stream");
+	}
+	else if (!m_Stream->Stream().KOutStream::Good())
+	{
+		return SetError(m_Stream->Error());
+	}
+
+	m_Stream->ExpiresFromNow(m_Timeout);
+
+	KStream& Stream = m_Stream->Stream();
+	Stream.Write(svName);
+	Stream.Write(": ");
+	Stream.WriteLine(svValue);
+	m_State = State::HEADER_SET;
+
+	return true;
 }
 
 //-----------------------------------------------------------------------------
 bool KHTTPClient::Request(KStringView svPostData, KStringView svMime)
 //-----------------------------------------------------------------------------
 {
-	if (m_State == State::HEADER_SET && m_Stream)
-	{
-		m_Stream->ExpiresFromNow(m_Timeout);
-		KStream& Stream = m_Stream->Stream();
-		if (m_Method == KHTTPMethod::POST)
-		{
-			RequestHeader(KHTTPHeader::CONTENT_LENGTH, KString::to_string(svPostData.size()));
-			RequestHeader(KHTTPHeader::CONTENT_TYPE,   svMime.empty() ? KMIME::TEXT_PLAIN : svMime);
-		}
-		Stream.WriteLine();
-		if (m_Method == KHTTPMethod::POST)
-		{
-			Stream.Write(svPostData);
-		}
-		Stream.Flush();
-		m_State = State::REQUEST_SENT;
-		return ReadHeader();
-	}
-	else
+	if (m_State != State::HEADER_SET)
 	{
 		SetError(kFormat("Bad state - cannot send request"));
 	}
-	return false;
+	else if (!m_Stream)
+	{
+		return SetError("no stream");
+	}
+	else if (!m_Stream->Stream().KOutStream::Good())
+	{
+		return SetError(m_Stream->Error());
+	}
+
+	m_Stream->ExpiresFromNow(m_Timeout);
+
+	KStream& Stream = m_Stream->Stream();
+
+	if (m_Method == KHTTPMethod::POST)
+	{
+		RequestHeader(KHTTPHeader::CONTENT_LENGTH, KString::to_string(svPostData.size()));
+		RequestHeader(KHTTPHeader::CONTENT_TYPE,   svMime.empty() ? KMIME::TEXT_PLAIN : svMime);
+	}
+
+	Stream.WriteLine();
+
+	if (m_Method == KHTTPMethod::POST)
+	{
+		Stream.Write(svPostData);
+	}
+
+	Stream.Flush();
+	m_State = State::REQUEST_SENT;
+
+	return ReadHeader();
 }
 
 //-----------------------------------------------------------------------------
 bool KHTTPClient::ReadHeader()
 //-----------------------------------------------------------------------------
 {
-	if (m_State == State::REQUEST_SENT && m_Stream)
-	{
-		m_Stream->ExpiresFromNow(m_Timeout);
-		KStream& Stream = m_Stream->Stream();
-		if (m_ResponseHeader.Parse(Stream))
-		{
-			m_bTEChunked = false;
-			// find the content length
-			KStringView sv(m_ResponseHeader.Get(KHTTPHeader::content_length));
-			if (sv.empty())
-			{
-				KStringView svTE = m_ResponseHeader.Get(KHTTPHeader::transfer_encoding);
-				if (svTE == "chunked")
-				{
-					m_bTEChunked = true;
-					m_bReceivedFinalChunk = false;
-				}
-			}
-			m_iRemainingContentSize = sv.UInt64();
-			m_State = State::HEADER_PARSED;
-			return true;
-		}
-		SetError(m_ResponseHeader.Error());
-		return false;
-	}
-	else
+	if (m_State != State::REQUEST_SENT)
 	{
 		SetError("Bad state - cannot read headers");
 	}
-	return false;
-}
+	else if (!m_Stream)
+	{
+		return SetError("no stream");
+	}
+	else if (!m_Stream->Stream().KOutStream::Good())
+	{
+		return SetError(m_Stream->Error());
+	}
+
+	m_Stream->ExpiresFromNow(m_Timeout);
+
+	KStream& Stream = m_Stream->Stream();
+
+	if (!m_ResponseHeader.Parse(Stream))
+	{
+		SetError(m_ResponseHeader.Error());
+		return false;
+	}
+
+	m_bTEChunked = false;
+
+	// find the content length
+	KStringView sv(m_ResponseHeader.Get(KHTTPHeader::content_length));
+
+	if (sv.empty())
+	{
+		KStringView svTE = m_ResponseHeader.Get(KHTTPHeader::transfer_encoding);
+		if (svTE == "chunked")
+		{
+			m_bTEChunked = true;
+			m_bReceivedFinalChunk = false;
+		}
+	}
+
+	m_iRemainingContentSize = sv.UInt64();
+
+	m_State = State::HEADER_PARSED;
+
+	return true;
+
+} // ReadHeader
 
 //-----------------------------------------------------------------------------
 inline bool KHTTPClient::GetNextChunkSize()
 //-----------------------------------------------------------------------------
 {
 	m_Stream->ExpiresFromNow(m_Timeout);
-	if (m_bTEChunked && m_iRemainingContentSize == 0)
+	
+	if (!m_bTEChunked)
 	{
-		if (!m_bReceivedFinalChunk)
-		{
-			KStream& Stream = m_Stream->Stream();
-			KString sLine;
-			bool bGood = Stream.ReadLine(sLine);
-			if (bGood)
-			{
-				kTrim(sLine);
-				try {
-					if (sLine.empty())
-					{
-						return false;
-					}
-					auto len = std::strtoul(sLine.c_str(), nullptr, 16);
-					m_iRemainingContentSize = len;
-					if (!m_iRemainingContentSize)
-					{
-						m_bReceivedFinalChunk = true;
-						return false;
-					}
-					return true;
-				} catch (const std::exception e) {
-					kException(e);
-					return false;
-				}
-			}
-		}
+		return true;
+	}
+	else if (m_iRemainingContentSize != 0)
+	{
+		return true;
+	}
+	else if (m_bReceivedFinalChunk)
+	{
 		return false;
 	}
-	return true;
-}
+
+	KStream& Stream = m_Stream->Stream();
+
+	KString sLine;
+
+	if (!Stream.ReadLine(sLine))
+	{
+		return SetError(m_Stream->Error());
+	}
+
+	try
+	{
+		kTrim(sLine);
+
+		if (sLine.empty())
+		{
+			return false;
+		}
+
+		auto len = std::strtoul(sLine.c_str(), nullptr, 16);
+
+		m_iRemainingContentSize = len;
+
+		if (!m_iRemainingContentSize)
+		{
+			m_bReceivedFinalChunk = true;
+			return false;
+		}
+
+		return true;
+	}
+	catch (const std::exception e)
+	{
+		return SetError(e.what());
+	}
+
+} // GetNextChunkSize
 
 //-----------------------------------------------------------------------------
 inline void KHTTPClient::CheckForChunkEnd()
@@ -329,111 +390,160 @@ inline void KHTTPClient::CheckForChunkEnd()
 size_t KHTTPClient::Read(KOutStream& stream, size_t len)
 //-----------------------------------------------------------------------------
 {
-	if (m_State == State::HEADER_PARSED && m_Stream)
-	{
-		KStream& Stream = m_Stream->Stream();
-		size_t tlen{0};
-		// if this is a chunked transfer we loop until we read len bytes
-		while (len && GetNextChunkSize())
-		{
-			// we touch the expiry timer in GetNextChunkSize() already
-			auto wanted = std::min(len, size());
-			auto received = Stream.Read(stream, wanted);
-			m_iRemainingContentSize -= received;
-			len -= received;
-			tlen += received;
-			if (!m_bTEChunked)
-			{
-				break;
-			}
-			if (received < wanted)
-			{
-				SetError(m_Stream->GetStreamError());
-				break;
-			}
-			CheckForChunkEnd();
-		}
-		return tlen;
-	}
-	else
+	if (m_State != State::HEADER_PARSED)
 	{
 		SetError("Bad state - cannot read data");
 		return 0;
 	}
-}
+	else if (!m_Stream)
+	{
+		SetError("no stream");
+		return 0;
+	}
+	else if (!m_Stream->Stream().KInStream::Good())
+	{
+		SetError(m_Stream->Error());
+		return 0;
+	}
+
+	KStream& Stream = m_Stream->Stream();
+	size_t tlen{0};
+
+	// if this is a chunked transfer we loop until we read len bytes
+	while (len && GetNextChunkSize())
+	{
+		// we touch the expiry timer in GetNextChunkSize() already
+		auto wanted = std::min(len, size());
+
+		if (wanted == 0)
+		{
+			break;
+		}
+
+		auto received = Stream.Read(stream, wanted);
+
+		m_iRemainingContentSize -= received;
+		len -= received;
+		tlen += received;
+
+		if (!m_bTEChunked)
+		{
+			break;
+		}
+
+		if (received < wanted)
+		{
+			SetError(m_Stream->GetStreamError());
+			break;
+		}
+		CheckForChunkEnd();
+	}
+
+	return tlen;
+
+} // Read
 
 //-----------------------------------------------------------------------------
 /// Append to sBuffer
 size_t KHTTPClient::Read(KString& sBuffer, size_t len)
 //-----------------------------------------------------------------------------
 {
-	if (m_State == State::HEADER_PARSED && m_Stream)
-	{
-		KStream& Stream = m_Stream->Stream();
-		size_t tlen{0};
-		// if this is a chunked transfer we loop until we read len bytes
-		while (len && GetNextChunkSize())
-		{
-			// we touch the expiry timer in GetNextChunkSize() already
-			auto wanted = std::min(len, size());
-			auto received = Stream.Read(sBuffer, wanted);
-			m_iRemainingContentSize -= received;
-			len -= received;
-			tlen += received;
-			if (!m_bTEChunked)
-			{
-				break;
-			}
-			if (received < wanted)
-			{
-				SetError(m_Stream->GetStreamError());
-				break;
-			}
-			CheckForChunkEnd();
-		}
-		return tlen;
-	}
-	else
+	if (m_State != State::HEADER_PARSED)
 	{
 		SetError("Bad state - cannot read data");
 		return 0;
 	}
-}
+	else if (!m_Stream)
+	{
+		SetError("no stream");
+		return 0;
+	}
+	else if (!m_Stream->Stream().KInStream::Good())
+	{
+		SetError(m_Stream->Error());
+		return 0;
+	}
+
+	KStream& Stream = m_Stream->Stream();
+	size_t tlen{0};
+
+	// if this is a chunked transfer we loop until we read len bytes
+	while (len && GetNextChunkSize())
+	{
+		// we touch the expiry timer in GetNextChunkSize() already
+		auto wanted = std::min(len, size());
+
+		if (wanted == 0)
+		{
+			break;
+		}
+
+		auto received = Stream.Read(sBuffer, wanted);
+
+		m_iRemainingContentSize -= received;
+		len -= received;
+		tlen += received;
+
+		if (!m_bTEChunked)
+		{
+			break;
+		}
+
+		if (received < wanted)
+		{
+			SetError(m_Stream->GetStreamError());
+			break;
+		}
+		CheckForChunkEnd();
+	}
+
+	return tlen;
+
+} // Read
 
 //-----------------------------------------------------------------------------
 /// Read one line into sBuffer, including EOL
 bool KHTTPClient::ReadLine(KString& sBuffer)
 //-----------------------------------------------------------------------------
 {
-	if (m_State == State::HEADER_PARSED && m_Stream)
+	sBuffer.clear();
+
+	if (m_State != State::HEADER_PARSED)
 	{
-		bool bGood = false;
-		// we touch the expiry timer in GetNextChunkSize() already
-		GetNextChunkSize();
-		if (m_iRemainingContentSize)
-		{
-			KStream& Stream = m_Stream->Stream();
-			// TODO this will fail with chunked transfer if the newline is in a new transfer block..
-			bGood = Stream.ReadLine(sBuffer);
-			if (bGood)
-			{
-				auto len = sBuffer.size();
-				m_iRemainingContentSize -= len;
-			}
-			else
-			{
-				SetError(m_Stream->GetStreamError());
-				m_iRemainingContentSize = 0;
-			}
-		}
-		return bGood;
+		return SetError("Bad state - cannot read data");
 	}
-	else
+	else if (!m_Stream)
 	{
-		SetError("Bad state - cannot read data");
-		sBuffer.clear();
+		return SetError("no stream");
+	}
+	else if (!m_Stream->Stream().KInStream::Good())
+	{
+		return SetError(m_Stream->Error());
+	}
+
+	// we touch the expiry timer in GetNextChunkSize() already
+	GetNextChunkSize();
+
+	if (!m_iRemainingContentSize)
+	{
 		return false;
 	}
-}
+
+	KStream& Stream = m_Stream->Stream();
+
+	// TODO this will fail with chunked transfer if the newline is in a new transfer block..
+	if (!Stream.ReadLine(sBuffer))
+	{
+		SetError(m_Stream->GetStreamError());
+		m_iRemainingContentSize = 0;
+		return false;
+	}
+
+	auto len = sBuffer.size();
+	m_iRemainingContentSize -= len;
+
+	return true;
+
+} // ReadLine
 
 } // end of namespace dekaf2

@@ -50,6 +50,7 @@
 #include "kconfiguration.h"
 #include "kstring.h"
 #include "ktimer.h"
+#include "ksignals.h"
 #include <vector>
 #include <thread>
 
@@ -175,6 +176,21 @@ public:
 	void Daemonize();
 	//---------------------------------------------------------------------------
 
+	//---------------------------------------------------------------------------
+	/// Returns a pointer to the KSignals class, or a nullptr if the signal handler
+	/// thread had not been started. Can be used to set or remove handlers.
+	KSignals* Signals()
+	//---------------------------------------------------------------------------
+	{
+		return m_Signals.get();
+	}
+
+	//---------------------------------------------------------------------------
+	/// Start a dedicated signal handler thread that will accept all signals.
+	/// Set handlers for the signals through Signals()
+	void StartSignalHandlerThread();
+	//---------------------------------------------------------------------------
+
 //----------
 private:
 //----------
@@ -197,6 +213,7 @@ private:
 	KString m_sProgPath;
 	KString m_sProgName;
 	folly::CpuId m_CPUID;
+	std::unique_ptr<KSignals> m_Signals;
 	std::unique_ptr<KTimer> m_Timer;
 	KTimer::ID_t m_OneSecTimerID;
 	std::mutex m_OneSecTimerMutex;
@@ -222,7 +239,8 @@ void kInit(KStringView sName = KStringView{},
            KStringView sDebugLog = KStringView{},
            KStringView sDebugFlag = KStringView{},
            bool bShouldDumpCore = false,
-           bool bEnableMultiThreading = false);
+           bool bEnableMultiThreading = false,
+		   bool bStartSignalHandlerThread = true);
 //---------------------------------------------------------------------------
 
 } // end of namespace dekaf2

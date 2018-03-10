@@ -44,6 +44,7 @@
 //-----------------------------------------------------------------------------//
 */
 
+#include <pthread.h>
 #include <chrono>
 #include <thread>
 #include "ksignals.h"
@@ -54,20 +55,29 @@ namespace dekaf2
 {
 
 //-----------------------------------------------------------------------------
-void KSignals::IntSetSignalHandler(int iSignal, void (*func)(int))
+void kBlockAllSignals(bool bExceptSEGVandFPE)
 //-----------------------------------------------------------------------------
 {
-	signal (iSignal, func);
-}
+	sigset_t signal_set;
+	sigfillset(&signal_set);
+	pthread_sigmask(SIG_BLOCK, &signal_set, nullptr);
+
+	if (bExceptSEGVandFPE)
+	{
+		signal(SIGSEGV, kCrashExit);
+		signal(SIGFPE, kCrashExit);
+	}
+
+} // kIgnoreAllSignals
 
 //-----------------------------------------------------------------------------
-void KSignals::IgnoreAllSignals()
+void KSignals::BlockAllSignals(bool bExceptSEGVandFPE)
 //-----------------------------------------------------------------------------
 {
-	for (auto it : m_AllSigs)
-	{
-		IntSetSignalHandler(it, SIG_IGN);
-	}
+	kBlockAllSignals(bExceptSEGVandFPE);
+
+	std::lock_guard<std::mutex> Lock(s_SigSetMutex);
+	s_SigFuncs.clear();
 }
 
 //-----------------------------------------------------------------------------
@@ -76,25 +86,24 @@ void KSignals::WaitForSignals()
 {
 	// this is the thread that waits for signals
 	// first set up the default handler
-	for (auto it : m_SettableSigs)
-	{
-		IntSetSignalHandler(it, &kCrashExit);
-	}
+
+	int sig;
+
+	sigset_t signal_set;
+	sigfillset(&signal_set);
+	sigdelset(&signal_set, SIGSEGV);
+	sigdelset(&signal_set, SIGFPE);
 
 	for (;;)
 	{
-		CondVarLock cvlock(m_CondVarMutex);
-		m_CondVar.wait(cvlock);
+		// wait for all signals
+		sigwait(&signal_set, &sig);
 
-		std::lock_guard<std::mutex> Lock(s_SigSetMutex);
-		if (!m_SigsToSet.empty())
-		{
-			for (auto& it : m_SigsToSet)
-			{
-				IntSetSignalHandler(it.iSignal, it.func);
-			}
-			m_SigsToSet.clear();
-		}
+		// we received a signal
+		kDebug(3, "received signal {}", kTranslateSignal(sig));
+
+		// check if we have a function to call for
+		LookupFunc(sig);
 	}
 }
 
@@ -110,7 +119,6 @@ void KSignals::LookupFunc(int signal)
 		if (it == s_SigFuncs.end())
 		{
 			// signal function not found.
-			// TODO: We should somehow log..
 			return;
 		}
 		callable = it->second;
@@ -130,33 +138,6 @@ void KSignals::LookupFunc(int signal)
 }
 
 //-----------------------------------------------------------------------------
-void KSignals::WaitForSignalHandlersSet()
-//-----------------------------------------------------------------------------
-{
-	for(;;)
-	{
-		{
-			CondVarLock cvlock(m_CondVarMutex);
-			if (m_SigsToSet.empty())
-			{
-				return;
-			}
-			m_CondVar.notify_one();
-		}
-		std::this_thread::sleep_for(std::chrono::milliseconds(5));
-	}
-}
-
-//-----------------------------------------------------------------------------
-void KSignals::PushSigsToSet(int iSignal, signal_func_t func)
-//-----------------------------------------------------------------------------
-{
-	CondVarLock cvlock(m_CondVarMutex);
-	m_SigsToSet.push_back({iSignal, func});
-	m_CondVar.notify_one();
-}
-
-//-----------------------------------------------------------------------------
 void KSignals::IntDelSignalHandler(int iSignal, signal_func_t func)
 //-----------------------------------------------------------------------------
 {
@@ -164,22 +145,18 @@ void KSignals::IntDelSignalHandler(int iSignal, signal_func_t func)
 		std::lock_guard<std::mutex> Lock(s_SigSetMutex);
 		s_SigFuncs.erase(iSignal);
 	}
-	PushSigsToSet(iSignal, func);
 }
 
 //-----------------------------------------------------------------------------
 void KSignals::SetSignalHandler(int iSignal, std_func_t func, bool bAsThread)
 //-----------------------------------------------------------------------------
 {
-	{
-		std::lock_guard<std::mutex> Lock(s_SigSetMutex);
-		s_SigFuncs[iSignal] = {func, bAsThread};
-	}
-	PushSigsToSet(iSignal, LookupFunc);
+	std::lock_guard<std::mutex> Lock(s_SigSetMutex);
+	s_SigFuncs[iSignal] = {func, bAsThread};
 }
 
 //-----------------------------------------------------------------------------
-void KSignals::SetSignalHandler(int iSignal, signal_func_t func, bool bAsThread)
+void KSignals::SetCSignalHandler(int iSignal, signal_func_t func, bool bAsThread)
 //-----------------------------------------------------------------------------
 {
 	if (func == SIG_IGN || func == SIG_DFL)
@@ -188,11 +165,8 @@ void KSignals::SetSignalHandler(int iSignal, signal_func_t func, bool bAsThread)
 	}
 	else
 	{
-		{
-			std::lock_guard<std::mutex> Lock(s_SigSetMutex);
-			s_SigFuncs[iSignal] = {func, bAsThread};
-		}
-		PushSigsToSet(iSignal, LookupFunc);
+		std::lock_guard<std::mutex> Lock(s_SigSetMutex);
+		s_SigFuncs[iSignal] = {func, bAsThread};
 	}
 }
 
@@ -212,10 +186,15 @@ KSignals::KSignals(bool bStartHandlerThread)
 {
 	m_Threads.StartDetached();
 
-	IgnoreAllSignals();
-
 	if (bStartHandlerThread)
 	{
+		BlockAllSignals();
+
+		// terminate gracefully on SIGINT and SIGTERM
+		SetSignalHandler(SIGINT,  [](int){ std::exit(0); });
+		SetSignalHandler(SIGTERM, [](int){ std::exit(0); });
+
+		// and start handler thread
 		m_Threads.CreateOne(&KSignals::WaitForSignals, this);
 	}
 }
@@ -224,10 +203,10 @@ KSignals::KSignals(bool bStartHandlerThread)
 KSignals::~KSignals()
 //-----------------------------------------------------------------------------
 {
-	// clear the vector if existing, so the signal thread
+	// clear the map if existing, so the signal thread
 	// cannot run into a destructing vector
 	std::lock_guard<std::mutex> Lock(s_SigSetMutex);
-	m_SigsToSet.clear();
+	s_SigFuncs.clear();
 	// no need to clear s_SigFuncs - it is actually even
 	// better to keep it hanging around as the signal
 	// handling for plain function pointers also continues
@@ -238,34 +217,21 @@ std::mutex KSignals::s_SigSetMutex;
 std::map<int, KSignals::sigmap_t> KSignals::s_SigFuncs;
 KRunThreads KSignals::m_Threads;
 
-const std::vector<int> KSignals::m_AllSigs
+const std::array<int, 11> KSignals::m_SettableSigs
 {
-	SIGINT,
-	SIGQUIT,
-	SIGPIPE,
-	SIGHUP,
-	SIGTERM,
-	SIGUSR1,
-	SIGUSR2,
-	SIGILL,
-	SIGFPE,
-	SIGBUS,
-	SIGSEGV
-};
-
-const std::vector<int> KSignals::m_SettableSigs
-{
-	SIGINT,
-	SIGQUIT,
-	SIGPIPE,
-	SIGHUP,
-	SIGTERM,
-	SIGUSR1,
-	SIGUSR2,
-	SIGILL,
-	SIGFPE,
-	SIGBUS,
-	SIGSEGV
+	{
+		SIGINT,
+		SIGQUIT,
+		SIGPIPE,
+		SIGHUP,
+		SIGTERM,
+		SIGUSR1,
+		SIGUSR2,
+		SIGILL,
+		SIGFPE,
+		SIGBUS,
+		SIGSEGV
+	}
 };
 
 //-----------------------------------------------------------------------------

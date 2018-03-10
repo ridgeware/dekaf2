@@ -160,7 +160,7 @@ bool KHTTPClient::Resource(const KURL& url, KHTTPMethod method)
 	}
 	else if ((m_State != State::CONNECTED && m_State != State::REQUEST_SENT))
 	{
-		return SetError(kFormat("Bad state - cannot set resource {}", url.Path.Serialize()));
+		return SetError(kFormat("bad state - cannot set resource {}", url.Path.Serialize()));
 	}
 	else if (!m_Connection)
 	{
@@ -201,7 +201,7 @@ bool KHTTPClient::RequestHeader(KStringView svName, KStringView svValue)
 {
 	if ((m_State != State::RESOURCE_SET && m_State != State::HEADER_SET))
 	{
-		return SetError(kFormat("Bad state - cannot set header '{} : {}'", svName, svValue));
+		return SetError(kFormat("bad state - cannot set header '{} : {}'", svName, svValue));
 	}
 	else if (!m_Connection)
 	{
@@ -229,7 +229,7 @@ bool KHTTPClient::Request(KStringView svPostData, KStringView svMime)
 {
 	if (m_State != State::HEADER_SET)
 	{
-		SetError(kFormat("Bad state - cannot send request"));
+		SetError(kFormat("bad state - cannot send request"));
 	}
 	else if (!m_Connection)
 	{
@@ -269,7 +269,7 @@ bool KHTTPClient::ReadHeader()
 {
 	if (m_State != State::REQUEST_SENT)
 	{
-		SetError("Bad state - cannot read headers");
+		SetError("bad state - cannot read headers");
 	}
 	else if (!m_Connection)
 	{
@@ -377,11 +377,17 @@ inline void KHTTPClient::CheckForChunkEnd()
 {
 	if (m_bTEChunked && m_iRemainingContentSize == 0)
 	{
+		// read a line ending, either LF or CRLF
 		m_Connection->ExpiresFromNow(m_Timeout);
 		KStream& Stream = m_Connection->Stream();
-		if (Stream.Read() == 13)
+		auto ch = Stream.Read();
+		if (ch == 13)
 		{
-			Stream.Read();
+			ch = Stream.Read();
+		}
+		if (ch != 10)
+		{
+			kDebug(0, "have invalid chunk end, char == {}", ch);
 		}
 	}
 }
@@ -393,7 +399,7 @@ size_t KHTTPClient::Read(KOutStream& stream, size_t len)
 {
 	if (m_State != State::HEADER_PARSED)
 	{
-		SetError("Bad state - cannot read data");
+		SetError("bad state - cannot read data");
 		return 0;
 	}
 	else if (!m_Connection)
@@ -452,7 +458,7 @@ size_t KHTTPClient::Read(KString& sBuffer, size_t len)
 {
 	if (m_State != State::HEADER_PARSED)
 	{
-		SetError("Bad state - cannot read data");
+		SetError("bad state - cannot read data");
 		return 0;
 	}
 	else if (!m_Connection)
@@ -513,7 +519,7 @@ bool KHTTPClient::ReadLine(KString& sBuffer)
 
 	if (m_State != State::HEADER_PARSED)
 	{
-		return SetError("Bad state - cannot read data");
+		return SetError("bad state - cannot read data");
 	}
 	else if (!m_Connection)
 	{

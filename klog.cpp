@@ -303,7 +303,7 @@ void KLogTTYSerializer::Serialize() const
 
 	sPrefix.Printf("| %3.3s | %5.5s | %5u | %s | ", sLevel, m_sShortName, getpid(), kFormTimestamp());
 
-	KStringView sPrefixWOFunction(sPrefix);
+	auto PrefixWithoutFunctionSize = sPrefix.size();
 
 	// print the function name only if this is a warning or exception
 	// - otherwise this is an intentional debug message that does not need it
@@ -317,8 +317,8 @@ void KLogTTYSerializer::Serialize() const
 
 	if (!m_sBacktrace.empty())
 	{
-		AddMultiLineMessage(sPrefixWOFunction, m_sBacktrace);
-		AddMultiLineMessage(sPrefixWOFunction, KLog::DASH);
+		AddMultiLineMessage(sPrefix.ToView(0, PrefixWithoutFunctionSize), m_sBacktrace);
+		AddMultiLineMessage(sPrefix.ToView(0, PrefixWithoutFunctionSize), KLog::DASH);
 	}
 
 } // Serialize
@@ -721,6 +721,8 @@ bool KLog::IntDebug(int level, KStringView sFunction, KStringView sMessage)
 			KString sStack = kGetBacktrace(iSkipFromStack);
 			m_Serializer->SetBacktrace(sStack);
 			s_bBackTraceAlreadyCalled = false;
+			
+			return m_Logger->Write(level, m_Serializer->IsMultiline(), m_Serializer->Get());
 		}
 	}
 

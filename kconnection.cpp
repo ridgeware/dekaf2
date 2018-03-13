@@ -123,6 +123,9 @@ bool KConnection::Connect(const url::KDomain& domain, const url::KPort& port)
 		m_Stream.release();
 	}
 
+	m_Endpoint.Domain = domain;
+	m_Endpoint.Port = port;
+
 	std::string sd = domain.Serialize().ToStdString();
 	std::string sp = port.Serialize().ToStdString();
 	m_bIsSSL = false;
@@ -307,14 +310,6 @@ std::unique_ptr<KConnection> KConnection::Create(const KURL& URL, bool bForceSSL
 	{
 		return std::make_unique<KConnection>(URL.Domain, Port);
 	}
-
-} // Create
-
-//-----------------------------------------------------------------------------
-std::unique_ptr<KConnection> KConnection::Create(KStringView URL, bool bForceSSL, bool bVerifyCerts)
-//-----------------------------------------------------------------------------
-{
-	return Create(KURL(URL), bForceSSL, bVerifyCerts);
 
 } // Create
 

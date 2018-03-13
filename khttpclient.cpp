@@ -58,13 +58,6 @@ namespace dekaf2 {
 } // Ctor
 
 //-----------------------------------------------------------------------------
-KHTTPClient::KHTTPClient(KStringView sUrl, KHTTPMethod method, bool bVerifyCerts)
-//-----------------------------------------------------------------------------
-	: KHTTPClient(KURL(sUrl), method, bVerifyCerts)
-{
-} // Ctor
-
-//-----------------------------------------------------------------------------
 KHTTPClient::KHTTPClient(std::unique_ptr<KConnection> stream, const KURL& url, KHTTPMethod method)
 //-----------------------------------------------------------------------------
 {
@@ -112,16 +105,14 @@ bool KHTTPClient::Connect(std::unique_ptr<KConnection> Connection)
 bool KHTTPClient::Connect(const KURL& url, bool bVerifyCerts)
 //-----------------------------------------------------------------------------
 {
+	if (AlreadyConnected(url))
+	{
+		return true;
+	}
+
 	return Connect(KConnection::Create(url, bVerifyCerts));
 
 } // Connect
-
-//-----------------------------------------------------------------------------
-bool KHTTPClient::Connect(KStringView sUrl, bool bVerifyCerts)
-//-----------------------------------------------------------------------------
-{
-	return Connect(KURL(sUrl), bVerifyCerts);
-}
 
 //-----------------------------------------------------------------------------
 bool KHTTPClient::Disconnect()
@@ -554,5 +545,80 @@ bool KHTTPClient::ReadLine(KString& sBuffer)
 	return true;
 
 } // ReadLine
+
+//-----------------------------------------------------------------------------
+KString KHTTPClient::Get(const KURL& URL)
+//-----------------------------------------------------------------------------
+{
+	KString sBuffer;
+
+	if (Connect(URL))
+	{
+		if (Resource(URL, KHTTPMethod::GET))
+		{
+			if (Request())
+			{
+				Read(sBuffer);
+			}
+		}
+	}
+
+	return sBuffer;
+
+} // Get
+
+//-----------------------------------------------------------------------------
+KString KHTTPClient::Post(const KURL& URL, KStringView svPostData, KStringView svMime)
+//-----------------------------------------------------------------------------
+{
+	KString sBuffer;
+
+	if (Connect(URL))
+	{
+		if (Resource(URL, KHTTPMethod::POST))
+		{
+			if (Request(svPostData, svMime))
+			{
+				Read(sBuffer);
+			}
+		}
+	}
+
+	return sBuffer;
+
+} // Post
+
+//-----------------------------------------------------------------------------
+bool KHTTPClient::AlreadyConnected(const KURL& URL) const
+//-----------------------------------------------------------------------------
+{
+	if (!m_Connection)
+	{
+		return false;
+	}
+
+	return URL == m_Connection->EndPoint();
+
+} // AlreadyConnected
+
+
+//-----------------------------------------------------------------------------
+KString kHTTPGet(const KURL& URL)
+//-----------------------------------------------------------------------------
+{
+	KHTTPClient HTTP;
+	return HTTP.Get(URL);
+
+} // kHTTPGet
+
+//-----------------------------------------------------------------------------
+KString kHTTPPost(const KURL& URL, KStringView svPostData, KStringView svMime)
+//-----------------------------------------------------------------------------
+{
+	KHTTPClient HTTP;
+	return HTTP.Post(URL, svPostData, svMime);
+
+} // kHTTPPost
+
 
 } // end of namespace dekaf2

@@ -405,4 +405,13 @@ bool operator==(const KURL& left, const KURL& right)
 	        && left.Fragment == right.Fragment;
 }
 
+//-------------------------------------------------------------------------
+bool operator==(const KTCPEndPoint& left, const KTCPEndPoint& right)
+//-------------------------------------------------------------------------
+{
+	return left.Domain == right.Domain
+	        && left.Port == right.Port;
+}
+
+
 } // namespace dekaf2

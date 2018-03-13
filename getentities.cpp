@@ -9,13 +9,7 @@ using namespace dekaf2;
 
 int main(int argc, char** argv)
 {
-	KURL URL("http://www.w3.org/TR/html5/entities.json");
-	KHTTPClient cHTTP;
-	cHTTP.Connect(URL);
-	cHTTP.Resource(URL);
-	cHTTP.Request();
-	KString sHTML;
-	cHTTP.Read(sHTML);
+	KString sHTML = kHTTPGet("http://www.w3.org/TR/html5/entities.json");
 
 	KOutStream COut(std::cout);
 

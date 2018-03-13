@@ -89,6 +89,9 @@ public:
 	static constexpr KStringView POST    = "POST";
 	static constexpr KStringView PUT     = "PUT";
 	static constexpr KStringView DELETE  = "DELETE";
+	static constexpr KStringView OPTIONS = "OPTIONS";
+	static constexpr KStringView PATCH   = "PATCH";
+	static constexpr KStringView CONNECT = "CONNECT";
 
 //------
 private:

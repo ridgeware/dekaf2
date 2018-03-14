@@ -111,12 +111,11 @@ std::unique_ptr<KOptions::CParms> KOptions::CreateParms(int argc, char** argv)
 }
 
 //---------------------------------------------------------------------------
-KOptions::KOptions(int argc, char** argv, int& retval, bool bEmptyParmsIsError)
+KOptions::KOptions(int& retval, bool bEmptyParmsIsError)
 //---------------------------------------------------------------------------
 	: m_retval(&retval)
 	, m_bEmptyParmsIsError(bEmptyParmsIsError)
 {
-	m_Parms = CreateParms(argc, argv);
 }
 
 //---------------------------------------------------------------------------
@@ -184,9 +183,11 @@ bool KOptions::Evaluate(KOutStream& out)
 }
 
 //---------------------------------------------------------------------------
-bool KOptions::Options(KOutStream& out)
+bool KOptions::Options(int argc, char** argv, KOutStream& out)
 //---------------------------------------------------------------------------
 {
+	m_Parms = CreateParms(argc, argv);
+
 	CParms::iterator lastCommand;
 
 	try

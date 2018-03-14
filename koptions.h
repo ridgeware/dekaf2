@@ -80,7 +80,7 @@ public:
 	KOptions& operator=(KOptions&&) = delete;
 
 	// The only ctor, requiring basic initialization
-	explicit KOptions(int argc, char** argv, int& retval, bool bEmptyParmsIsError);
+	explicit KOptions(int& retval, bool bEmptyParmsIsError);
 
 	void SetHelp(KStringView* sHelp, size_t iCount)
 	{
@@ -88,7 +88,7 @@ public:
 		m_sHelpSize = iCount;
 	}
 
-	bool Options(KOutStream& out);
+	bool Options(int argc, char** argv, KOutStream& out);
 
 //----------
 protected:

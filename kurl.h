@@ -992,6 +992,11 @@ public:
 	, Port(URL.Port)
 	{}
 
+	KTCPEndPoint(const url::KDomain& domain, const url::KPort& port)
+	: Domain(domain)
+	, Port(port)
+	{}
+
 	KTCPEndPoint& operator=(const KTCPEndPoint&) = default;
 	KTCPEndPoint& operator=(KTCPEndPoint&&) = default;
 

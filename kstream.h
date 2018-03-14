@@ -129,7 +129,7 @@ public:
 	template<class... Args>
 	KReaderWriter(KStringView sv, Args&&... args)
 	    : base_type(std::string(sv.data(), sv.size()), std::forward<Args>(args)...)
-	    , k_rw_type(static_cast<base_type&>(*this))
+	    , k_rw_type(reinterpret_cast<base_type&>(*this))
 	//-----------------------------------------------------------------------------
 	{
 	}
@@ -139,7 +139,7 @@ public:
 	template<class... Args>
 	KReaderWriter(Args&&... args)
 	    : base_type(std::forward<Args>(args)...)
-	    , k_rw_type(static_cast<base_type&>(*this))
+	    , k_rw_type(reinterpret_cast<base_type&>(*this))
 	//-----------------------------------------------------------------------------
 	{
 	}
@@ -186,6 +186,13 @@ using KStringStream   = KReaderWriter<std::stringstream>;
 
 /// TCP stream based on asio::ip::tcp::iostream
 using KTCPStream      = KReaderWriter<asio::ip::tcp::iostream>;
+
+std::unique_ptr<KTCPStream> CreateKTCPStream();
+
+// fwd declaration
+class KTCPEndPoint;
+
+std::unique_ptr<KTCPStream> CreateKTCPStream(const KTCPEndPoint& EndPoint);
 
 } // end of namespace dekaf2
 

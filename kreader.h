@@ -548,7 +548,7 @@ public:
 	template<class... Args>
 	KReader(KStringView sv, Args&&... args)
 	    : base_type(std::string(sv.data(), sv.size()), std::forward<Args>(args)...)
-	    , KInStream(static_cast<std::istream&>(*this))
+	    , KInStream(reinterpret_cast<std::istream&>(*this))
 	//-----------------------------------------------------------------------------
 	{
 	}
@@ -558,7 +558,7 @@ public:
 	template<class... Args>
 	KReader(Args&&... args)
 	    : base_type(std::forward<Args>(args)...)
-	    , KInStream(static_cast<base_type&>(*this))
+	    , KInStream(reinterpret_cast<base_type&>(*this))
 	//-----------------------------------------------------------------------------
 	{
 	}

@@ -253,5 +253,17 @@ private:
 /// SSL stream based on boost::iostreams and asio::ssl
 using KSSLStream = KReaderWriter<KSSL_detail::KSSLIOStream>;
 
+//-----------------------------------------------------------------------------
+std::unique_ptr<KSSLStream> CreateKSSLStream();
+//-----------------------------------------------------------------------------
+
+// fwd declaration
+class KTCPEndPoint;
+
+//-----------------------------------------------------------------------------
+std::unique_ptr<KSSLStream> CreateKSSLStream(const KTCPEndPoint& EndPoint, bool bVerifyCerts);
+//-----------------------------------------------------------------------------
+
+
 }
 

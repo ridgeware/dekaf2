@@ -213,23 +213,6 @@ bool KTCPServer::IsPortAvailable(uint16_t iPort)
 } // IsPortAvailable
 
 //-----------------------------------------------------------------------------
-// if KTCPStream is not constructed in its own stackframe, for some weird
-// reason std::ios_base()::~std::ios_base() crashes in heavy multithreading
-// with clang on OSX
-std::unique_ptr<KTCPStream> CreateKTCPStream()
-//-----------------------------------------------------------------------------
-{
-	return std::make_unique<KTCPStream>();
-}
-
-//-----------------------------------------------------------------------------
-std::unique_ptr<KSSLStream> CreateKSSLStream()
-//-----------------------------------------------------------------------------
-{
-	return std::make_unique<KSSLStream>();
-}
-
-//-----------------------------------------------------------------------------
 void KTCPServer::Server(bool ipv6)
 //-----------------------------------------------------------------------------
 {

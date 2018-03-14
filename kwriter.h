@@ -284,7 +284,7 @@ public:
 	template<class... Args>
 	KWriter(KStringView sv, Args&&... args)
 	    : base_type(std::string(sv.data(), sv.size()), std::forward<Args>(args)...)
-	    , KOutStream(static_cast<std::ostream&>(*this))
+	    , KOutStream(reinterpret_cast<std::ostream&>(*this))
 	//-----------------------------------------------------------------------------
 	{
 	}
@@ -294,7 +294,7 @@ public:
 	template<class... Args>
 	KWriter(Args&&... args)
 	    : base_type(std::forward<Args>(args)...)
-	    , KOutStream(static_cast<base_type&>(*this))
+	    , KOutStream(reinterpret_cast<base_type&>(*this))
 	//-----------------------------------------------------------------------------
 	{
 	}

@@ -102,16 +102,6 @@ KConnection& KConnection::operator=(KStream& Stream)
 }
 
 //-----------------------------------------------------------------------------
-// if KTCPStream is not constructed in its own stackframe, for some weird
-// reason std::ios_base()::~std::ios_base() crashes in heavy multithreading
-// with clang on OSX
-std::unique_ptr<KTCPStream> CreateKTCPStream(const std::string& sDomain, const std::string& sPort)
-//-----------------------------------------------------------------------------
-{
-	return std::make_unique<KTCPStream>(sDomain, sPort);
-}
-
-//-----------------------------------------------------------------------------
 bool KConnection::Connect(const url::KDomain& domain, const url::KPort& port)
 //-----------------------------------------------------------------------------
 {
@@ -126,17 +116,15 @@ bool KConnection::Connect(const url::KDomain& domain, const url::KPort& port)
 	m_Endpoint.Domain = domain;
 	m_Endpoint.Port = port;
 
-	std::string sd = domain.Serialize().ToStdString();
-	std::string sp = port.Serialize().ToStdString();
 	m_bIsSSL = false;
 
-	kDebug(3, "connecting to {}:{}", sd, sp);
+	kDebug(3, "connecting to {}:{}", m_Endpoint.Domain.Serialize(), m_Endpoint.Port.Serialize());
 
-	m_Stream = CreateKTCPStream(sd, sp);
+	m_Stream = CreateKTCPStream(m_Endpoint);
 
 	if (!m_Stream->OutStream().good())
 	{
-		SetError(kFormat("failed to connect to {}:{}: {}", sd, sp, GetStreamError()));
+		SetError(kFormat("failed to connect to {}:{}: {}", m_Endpoint.Domain.Serialize(), m_Endpoint.Port.Serialize(), GetStreamError()));
 		kDebug(2, Error());
 		return false;
 	}
@@ -260,23 +248,15 @@ void KConnection::setConnection(std::unique_ptr<KStream>&& Stream)
 } // setConnection
 
 //-----------------------------------------------------------------------------
-// if KTCPStream is not constructed in its own stackframe, for some weird
-// reason std::ios_base()::~std::ios_base() crashes in heavy multithreading
-// with clang on OSX.
-std::unique_ptr<KSSLStream> CreateKSSLStream(KStringView sDomain, KStringView sPort, bool bVerifyCerts)
-//-----------------------------------------------------------------------------
-{
-	return std::make_unique<KSSLStream>(sDomain, sPort, bVerifyCerts);
-}
-
-//-----------------------------------------------------------------------------
 bool KSSLConnection::Connect(const url::KDomain& domain, const url::KPort& port, bool bVerifyCerts)
 //-----------------------------------------------------------------------------
 {
 	m_bIsSSL = true;
 	kDebug(3, "SSL: connecting to {}:{}", domain.Serialize(), port.Serialize());
 
-	setConnection(CreateKSSLStream(domain.Serialize(), port.Serialize(), bVerifyCerts));
+	KTCPEndPoint EndPoint(domain, port);
+
+	setConnection(CreateKSSLStream(EndPoint, bVerifyCerts));
 
 	if (!Stream().OutStream().good())
 	{

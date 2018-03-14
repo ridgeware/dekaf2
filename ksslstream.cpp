@@ -46,6 +46,7 @@
 #endif
 #include "ksslstream.h"
 #include "klog.h"
+#include "kurl.h"
 
 using namespace boost::asio;
 
@@ -323,6 +324,22 @@ bool KSSLIOStream::connect(const char* sServer, const char* sPort, bool bVerifyC
 }
 
 } // end of namespace KSSL_detail
+
+//-----------------------------------------------------------------------------
+std::unique_ptr<KSSLStream> CreateKSSLStream()
+//-----------------------------------------------------------------------------
+{
+	return std::make_unique<KSSLStream>();
+}
+
+//-----------------------------------------------------------------------------
+std::unique_ptr<KSSLStream> CreateKSSLStream(const KTCPEndPoint& EndPoint, bool bVerifyCerts)
+//-----------------------------------------------------------------------------
+{
+	return std::make_unique<KSSLStream>(EndPoint.Domain.get(), EndPoint.Port.get(), bVerifyCerts);
+}
+
+
 
 } // end of namespace dekaf2
 

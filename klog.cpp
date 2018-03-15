@@ -77,6 +77,18 @@ bool KLogStdWriter::Write(int iLevel, bool bIsMultiline, const KString& sOut)
 } // Write
 
 //---------------------------------------------------------------------------
+KLogFileWriter::KLogFileWriter(KStringView sFileName)
+//---------------------------------------------------------------------------
+: m_OutFile(sFileName, std::ios_base::app)
+{
+#ifdef DEKAF2_IS_UNIX
+	KString sBuffer(sFileName);
+	// force mode 666 for the log file ...
+	::chmod(sBuffer.c_str(), 0666);
+#endif
+} // ctor
+
+//---------------------------------------------------------------------------
 bool KLogFileWriter::Write(int iLevel, bool bIsMultiline, const KString& sOut)
 //---------------------------------------------------------------------------
 {

@@ -103,9 +103,7 @@ class KLogFileWriter : public KLogWriter
 //----------
 public:
 //----------
-	KLogFileWriter(KStringView sFileName)
-	    : m_OutFile(sFileName, std::ios_base::app)
-	{}
+	KLogFileWriter(KStringView sFileName);
 	virtual ~KLogFileWriter() {}
 	virtual bool Write(int iLevel, bool bIsMultiline, const KString& sOut) override;
 	virtual bool Good() const override { return m_OutFile.good(); }

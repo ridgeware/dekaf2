@@ -140,8 +140,12 @@ void KTCPServer::RunSession(std::unique_ptr<KStream> stream, const endpoint_type
 {
 	++m_iOpenConnections;
 
+	// we have to buffer the endpoint in a local string as
+	// it is already deleted when we want to log at the exit
+	KString sEndPoint = to_string(remote_endpoint);
+
 	kDebug(3, "accepting new connection from {} on port {}",
-	             to_string(remote_endpoint),
+	             sEndPoint,
 	             m_iPort);
 
 	try
@@ -171,7 +175,7 @@ void KTCPServer::RunSession(std::unique_ptr<KStream> stream, const endpoint_type
 	}
 
 	kDebug(3, "closing connection with {} on port {}",
-	             to_string(remote_endpoint),
+	             sEndPoint,
 	             m_iPort);
 
 	--m_iOpenConnections;

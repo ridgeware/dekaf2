@@ -45,6 +45,7 @@
 #pragma once
 
 #include "kstringview.h"
+#include "kstring.h"
 
 /// @file kwords.h
 /// Split marked up input buffer into words + skeleton.
@@ -110,6 +111,34 @@ private:
 	KStringView m_sInput;
 
 }; // SimpleHTML
+
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+class NormalizingHTML
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+	//------
+public:
+	//------
+
+	NormalizingHTML(KStringView sInput)
+	: m_sInput(sInput)
+	{}
+
+	bool empty()
+	{
+		return m_sInput.empty();
+	}
+
+	std::pair<KStringView, KString> NextPair();
+
+	//------
+private:
+	//------
+
+	KStringView m_sInput;
+
+}; // NormalizingHTML
 
 } // of namespace splitting_parser
 } // of namespace detail
@@ -265,5 +294,6 @@ using KSimpleWords = KWords<std::vector<KStringView>, detail::splitting_parser::
 using KSimpleSkeletonWords = KWords<std::vector<KStringViewPair>, detail::splitting_parser::SimpleText>;
 using KSimpleHTMLWords = KWords<std::vector<KStringView>, detail::splitting_parser::SimpleHTML>;
 using KSimpleHTMLSkeletonWords = KWords<std::vector<KStringViewPair>, detail::splitting_parser::SimpleHTML>;
+using KNormalizingHTMLSkeletonWords = KWords<std::vector<std::pair<KStringView, KString>>, detail::splitting_parser::NormalizingHTML>;
 
 } // namespace dekaf2

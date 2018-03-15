@@ -135,6 +135,95 @@ KStringViewPair SimpleHTML::NextPair()
 
 } // SimpleHTML::NextPair
 
+//-----------------------------------------------------------------------------
+std::pair<KStringView, KString> NormalizingHTML::NextPair()
+//-----------------------------------------------------------------------------
+{
+	// the following whitespace chars are equivalent:
+	//  CR, LF, TAB, SP
+	//
+	// examples:
+	//   in: "hello  there"
+	//  out: "hello there"
+	//
+	//   in: "hello     <span>there</span>    ."
+	//  out: "hello <span>there</span> ."
+	//
+	//   in: "hello    <span>      there      </span>    ."
+	//  out: "hello <span> there </span> ."
+	//
+	//   in: "hello    <span>   <standalone/>   there      </span>    ."
+	//  out: "hello <span> <standalone/> there </span> ."
+	//
+	//   in: "hello \t \n  <span>      there      </span>    ."
+	//  out: "hello <span> there </span> ."
+	//
+
+	size_t iSizeSkel { 0 };
+	size_t iSizeWord { 0 };
+	bool bOpenTag { false };
+	bool bLastWasSpace { false };
+
+	std::pair<KStringView, KString> sPair;
+
+	Unicode::FromUTF8(m_sInput, [&](uint32_t ch)
+	{
+	  if (bOpenTag)
+	  {
+		  if (ch == '>')
+		  {
+			  bOpenTag = false;
+			  bLastWasSpace = false;
+		  }
+		  Unicode::ToUTF8(ch, sPair.second);
+		  iSizeSkel += Unicode::UTF8Bytes(ch);
+	  }
+	  else
+	  {
+		  if (!std::iswalnum(ch))
+		  {
+			  if (iSizeWord)
+			  {
+				  // abort scanning here, this is the trailing skeleton
+				  return false;
+			  }
+			  if (ch == '<')
+			  {
+				  sPair.second += '<';
+				  bOpenTag = true;
+				  bLastWasSpace = false;
+			  }
+			  else if (std::iswspace(ch))
+			  {
+				  if (!bLastWasSpace)
+				  {
+					  sPair.second += ' ';
+					  bLastWasSpace = true;
+				  }
+			  }
+			  else
+			  {
+				  Unicode::ToUTF8(ch, sPair.second);
+				  bLastWasSpace = false;
+			  }
+			  iSizeSkel += Unicode::UTF8Bytes(ch);
+		  }
+		  else
+		  {
+			  iSizeWord += Unicode::UTF8Bytes(ch);
+		  }
+	  }
+	  return true;
+	});
+
+	m_sInput.remove_prefix(iSizeSkel);
+	sPair.first.assign(m_sInput.data(), iSizeWord);
+	m_sInput.remove_prefix(iSizeWord);
+
+	return sPair;
+
+} // NormalizingHTML::NextPair
+
 } // of namespace splitting_parser
 } // of namespace detail
 

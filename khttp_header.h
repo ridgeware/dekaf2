@@ -265,6 +265,7 @@ public:
 	static constexpr KStringView WWW_AUTHENTICATE                 = "WWW-Authenticate";
 	static constexpr KStringView X_FORWARDED_FOR                  = "X-Forwarded-For";
 	static constexpr KStringView X_FORWARDED_HOST                 = "X-Forwarded-Host";
+	static constexpr KStringView X_FORWARDED_SERVER               = "X-Forwarded-Server";
 	static constexpr KStringView X_FORWARDED_PROTO                = "X-Forwarded-Proto";
 	static constexpr KStringView X_FRAME_OPTIONS                  = "X-Frame-Options";
 	static constexpr KStringView X_POWERED_BY                     = "X-Powered-By";
@@ -343,6 +344,7 @@ public:
 	static constexpr KStringView www_authenticate                 = "www-authenticate";
 	static constexpr KStringView x_forwarded_for                  = "x-forwarded-for";
 	static constexpr KStringView x_forwarded_host                 = "x-forwarded-host";
+	static constexpr KStringView x_forwarded_server               = "x-forwarded-server";
 	static constexpr KStringView x_forwarded_proto                = "x-forwarded-proto";
 	static constexpr KStringView x_frame_options                  = "x-frame-options";
 	static constexpr KStringView x_powered_by                     = "x-powered-by";

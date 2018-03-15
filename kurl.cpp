@@ -207,7 +207,9 @@ bool KProtocol::Serialize (KString& sTarget) const
 	switch (m_eProto)
 	{
 		case UNDEFINED:
-			return false;
+			// The serialization is correctly empty when no value was parsed.
+			// Do not return false;
+			return true;
 
 		case UNKNOWN:
 			kUrlEncode(m_sProto, sTarget, URIPart::Protocol);

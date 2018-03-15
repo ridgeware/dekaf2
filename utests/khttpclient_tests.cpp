@@ -31,7 +31,7 @@ public:
 
 protected:
 
-	virtual bool Accepted(KStream& stream, const endpoint_type& remote_endpoint) override
+	virtual bool Accepted(KStream& stream, KStringView sRemoteEndpoint) override
 	{
 		stream.SetReaderRightTrim("\r\n");
 		stream.SetWriterEndOfLine("\r\n");

@@ -218,14 +218,14 @@ protected:
 	/// Virtual hook to override with a completely new session management logic
 	/// (either calling Accept(), CreateParameters(), Init() and Request() below,
 	/// or anything else)
-	virtual void Session(KStream& stream, const endpoint_type& remote_endpoint);
+	virtual void Session(KStream& stream, KStringView sRemoteEndPoint);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// Virtual hook that is called immediately after accepting a new stream.
 	/// Default does nothing. Could be used to set stream parameters. If
 	/// return value is false connection is terminated.
-	virtual bool Accepted(KStream& stream, const endpoint_type& remote_endpoint);
+	virtual bool Accepted(KStream& stream, KStringView sRemoteEndPoint);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -277,7 +277,7 @@ private:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	void RunSession(std::unique_ptr<KStream> stream, const endpoint_type& remote_endpoint);
+	void RunSession(std::unique_ptr<KStream> stream, KString sRemoteEndPoint);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------

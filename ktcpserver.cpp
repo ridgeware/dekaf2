@@ -81,7 +81,7 @@ namespace dekaf2
 using asio::ip::tcp;
 
 //-----------------------------------------------------------------------------
-bool KTCPServer::Accepted(KStream& stream, const endpoint_type& remote_endpoint)
+bool KTCPServer::Accepted(KStream& stream, KStringView sRemoteEndPoint)
 //-----------------------------------------------------------------------------
 {
 	return true;
@@ -102,10 +102,10 @@ KString KTCPServer::Request(const KString& qstr, Parameters& parameters)
 }
 
 //-----------------------------------------------------------------------------
-void KTCPServer::Session(KStream& stream, const endpoint_type& remote_endpoint)
+void KTCPServer::Session(KStream& stream, KStringView sRemoteEndPoint)
 //-----------------------------------------------------------------------------
 {
-	if (Accepted(stream, remote_endpoint))
+	if (Accepted(stream, sRemoteEndPoint))
 	{
 		param_t parameters = CreateParameters();
 
@@ -135,22 +135,13 @@ void KTCPServer::Session(KStream& stream, const endpoint_type& remote_endpoint)
 }
 
 //-----------------------------------------------------------------------------
-void KTCPServer::RunSession(std::unique_ptr<KStream> stream, const endpoint_type& remote_endpoint)
+void KTCPServer::RunSession(std::unique_ptr<KStream> stream, KString sRemoteEndPoint)
 //-----------------------------------------------------------------------------
 {
 	++m_iOpenConnections;
 
-	// we have to buffer the endpoint in a local string as
-	// it is already deleted when we want to log at the exit
-	KString sEndPoint;
-
-	if (kWouldLog(3))
-	{
-		sEndPoint = to_string(remote_endpoint);
-	}
-
 	kDebug(3, "accepting new connection from {} on port {}",
-	             sEndPoint,
+	             sRemoteEndPoint,
 	             m_iPort);
 
 	try
@@ -166,7 +157,7 @@ void KTCPServer::RunSession(std::unique_ptr<KStream> stream, const endpoint_type
 
 		// run the actual Session code protected by
 		// an exception handler
-		Session(*stream, remote_endpoint);
+		Session(*stream, sRemoteEndPoint);
 	}
 
 	catch (std::exception& e)
@@ -180,7 +171,7 @@ void KTCPServer::RunSession(std::unique_ptr<KStream> stream, const endpoint_type
 	}
 
 	kDebug(3, "closing connection with {} on port {}",
-	             sEndPoint,
+	             sRemoteEndPoint,
 	             m_iPort);
 
 	--m_iOpenConnections;
@@ -275,7 +266,7 @@ void KTCPServer::Server(bool ipv6)
 					acceptor.accept(ustream->GetTCPSocket(), remote_endpoint);
 					if (!m_bQuit)
 					{
-						std::thread(&KTCPServer::RunSession, this, std::move(ustream), std::ref(remote_endpoint)).detach();
+						std::thread(&KTCPServer::RunSession, this, std::move(ustream), to_string(remote_endpoint)).detach();
 					}
 				}
 				else
@@ -285,7 +276,7 @@ void KTCPServer::Server(bool ipv6)
 					acceptor.accept(*(ustream->rdbuf()), remote_endpoint);
 					if (!m_bQuit)
 					{
-						std::thread(&KTCPServer::RunSession, this, std::move(ustream), std::ref(remote_endpoint)).detach();
+						std::thread(&KTCPServer::RunSession, this, std::move(ustream), to_string(remote_endpoint)).detach();
 					}
 				}
 

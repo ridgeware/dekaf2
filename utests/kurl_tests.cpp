@@ -456,10 +456,10 @@ TEST_CASE ("KURL")
 		//parm_t (0, 0, false, "no TLD (Top Level Domain)", "");
 
 	URL_invalid["I Can Has Cheezburger."] =
-		parm_t (0, 0, false, "Garbage text", "");
+		parm_t (0, 0, true, "Garbage text", "I%20Can%20Has%20Cheezburger.");
 
 	URL_invalid["\x01\x02\x03\x04\xa0\xa1\xa2\xfd\xfe\xff"] =
-		parm_t (0, 0, false, "Non-ASCII", "");
+		parm_t (0, 0, true, "Non-ASCII", "%01%02%03%04%A0%A1%A2%FD%FE%FF");
 
 
 	//||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
@@ -629,9 +629,11 @@ TEST_CASE ("KURL")
 
 			dekaf2::url::KProtocol kproto  (solo);
 
+			bool ret1 = kproto.empty();
 			bool ret = kproto.Serialize (target);
 
-			CHECK (ret == false);
+			CHECK (ret == true);
+			CHECK (ret1 == true);
 			CHECK (target == expect);
 		}
 

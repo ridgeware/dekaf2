@@ -142,7 +142,12 @@ void KTCPServer::RunSession(std::unique_ptr<KStream> stream, const endpoint_type
 
 	// we have to buffer the endpoint in a local string as
 	// it is already deleted when we want to log at the exit
-	KString sEndPoint = to_string(remote_endpoint);
+	KString sEndPoint;
+
+	if (kWouldLog(3))
+	{
+		sEndPoint = to_string(remote_endpoint);
+	}
 
 	kDebug(3, "accepting new connection from {} on port {}",
 	             sEndPoint,

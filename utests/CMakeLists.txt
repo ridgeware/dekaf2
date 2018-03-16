@@ -32,6 +32,7 @@ set (USOURCES
 	ksplit_tests.cpp
 	kstack_tests.cpp
 	kstring_tests.cpp
+	kstringstream_tests.cpp
 	kstringutils_tests.cpp
 	kstringview_tests.cpp
 	ksubscribe_tests.cpp

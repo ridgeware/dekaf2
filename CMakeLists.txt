@@ -233,7 +233,7 @@ set (HEADERS
 	kmime.h
 	kmru.h
 	koptions.h
-	kostringstream.h
+	kstringstream.h
 	koutpipe.h
 	koutshell.h
 	kparallel.h
@@ -300,7 +300,7 @@ set (SOURCES
 	klog.cpp
 	kmime.cpp
 	koptions.cpp
-	kostringstream.cpp
+	kstringstream.cpp
 	koutpipe.cpp
 	koutshell.cpp
 	kparallel.cpp

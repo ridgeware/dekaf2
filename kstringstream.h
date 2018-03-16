@@ -42,9 +42,10 @@
 
 #pragma once
 
-/// @file KOStringStream.h
-/// provides kstrings that can be constructed from strings (multiple kinds) passed in
+/// @file KStringStream.h
+/// provides streams that can be constructed from KStrings
 
+#include <istream>
 #include <ostream>
 #include <iostream>
 #include <sys/types.h>
@@ -77,8 +78,10 @@ public:
 //----------
 
 	//-----------------------------------------------------------------------------
-	KOStringStream() {}
+	KOStringStream()
 	//-----------------------------------------------------------------------------
+	: base_type(&m_KOStreamBuf)
+	{}
 
 	//-----------------------------------------------------------------------------
 	KOStringStream(const KOStringStream&) = delete;
@@ -91,9 +94,9 @@ public:
 #endif
 
 	//-----------------------------------------------------------------------------
-	/// this class can be started from KString preferably
 	KOStringStream(KString& str)
 	//-----------------------------------------------------------------------------
+	: base_type(&m_KOStreamBuf)
 	{
 		m_sBuf = &str;
 	}
@@ -126,7 +129,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	/// get the constructed kstring
+	/// get the constructed KString
 	KString& str()
 	//-----------------------------------------------------------------------------
 	{
@@ -134,12 +137,12 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	/// set kstring
+	/// set KString
 	bool str(KString& newBuffer)
 	//-----------------------------------------------------------------------------
 	{
 		*m_sBuf = newBuffer;
-		return (newBuffer == *m_sBuf);
+		return true;
 	}
 
 //----------
@@ -151,7 +154,103 @@ protected:
 	KOutStreamBuf m_KOStreamBuf{&KStringWriter, &m_sBuf};
 };
 
-/// KString writer based on KOStringStream>
-using OKStringStream = KWriter<KOStringStream>;
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// This output stream class stores into a KString which can be retrieved.
+class KIStringStream : public std::istream
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+//----------
+protected:
+//----------
+
+	using base_type = std::istream;
+
+	//-----------------------------------------------------------------------------
+	/// this is the custom KString reader
+	static std::streamsize KStringReader(void* sBuffer, std::streamsize iCount, void* sTargetBuf);
+	//-----------------------------------------------------------------------------
+
+//----------
+public:
+//----------
+
+	//-----------------------------------------------------------------------------
+	KIStringStream()
+	//-----------------------------------------------------------------------------
+	: base_type(&m_KIStreamBuf)
+	{}
+
+	//-----------------------------------------------------------------------------
+	KIStringStream(const KIStringStream&) = delete;
+	//-----------------------------------------------------------------------------
+
+#if defined(DEKAF2_NO_GCC) || (DEKAF2_GCC_VERSION >= 50000)
+	//-----------------------------------------------------------------------------
+	KIStringStream(KIStringStream&& other);
+	//-----------------------------------------------------------------------------
+#endif
+
+	//-----------------------------------------------------------------------------
+	KIStringStream(KStringView sView)
+	//-----------------------------------------------------------------------------
+	: base_type(&m_KIStreamBuf)
+	{
+		open(sView);
+	}
+
+	//-----------------------------------------------------------------------------
+	virtual ~KIStringStream();
+	//-----------------------------------------------------------------------------
+
+#if defined(DEKAF2_NO_GCC) || (DEKAF2_GCC_VERSION >= 50000)
+	//-----------------------------------------------------------------------------
+	KIStringStream& operator=(KIStringStream&& other);
+	//-----------------------------------------------------------------------------
+#endif
+
+	//-----------------------------------------------------------------------------
+	KIStringStream& operator=(const KIStringStream&) = delete;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// this "restarts" the buffer, like a call to the constructor
+	bool open(KStringView sView)
+	//-----------------------------------------------------------------------------
+	{
+		m_sView = sView;
+		return true;
+	}
+
+	//-----------------------------------------------------------------------------
+	inline bool is_open() const
+	//-----------------------------------------------------------------------------
+	{
+		return !m_sView.empty();
+	}
+
+	//-----------------------------------------------------------------------------
+	/// get the KStringView
+	KStringView str()
+	//-----------------------------------------------------------------------------
+	{
+		return m_sView;
+	}
+
+	//-----------------------------------------------------------------------------
+	/// set KString
+	bool str(KStringView newView)
+	//-----------------------------------------------------------------------------
+	{
+		return open(newView);
+	}
+//----------
+protected:
+//----------
+
+	KStringView m_sView;
+
+	KInStreamBuf m_KIStreamBuf{&KStringReader, &m_sView};
+};
+
 
 } // end of namespace dekaf2

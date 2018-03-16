@@ -154,7 +154,7 @@ include_directories(SYSTEM ${OPENSSL_INCLUDE_DIR})
 
 set(Boost_USE_STATIC_LIBS ON)
 # boost asio (header only) needs system
-find_package(Boost QUIET COMPONENTS system REQUIRED)
+find_package(Boost QUIET COMPONENTS system iostreams REQUIRED)
 include_directories(SYSTEM ${Boost_INCLUDE_DIR})
 
 # add a target to generate API documentation with Doxygen
@@ -211,6 +211,7 @@ set (HEADERS
 	kcache.h
 	kcasestring.h
 	kcgi.h
+	kcompression.h
 	kconnection.h
 	kcrashexit.h
 	kcurl.h
@@ -279,6 +280,7 @@ set (SOURCES
 	kbase64.cpp
 	kcasestring.cpp
 	kcgi.cpp
+	kcompression.cpp
 	kconnection.cpp
 	kcrashexit.cpp
 	kcurl.cpp
@@ -401,6 +403,8 @@ target_link_libraries(dekaf2
 	${libproc_LIBRARIES}
 	nlohmann-json
 	Threads::Threads
+	z
+	bz2
 	)
 
 add_dependencies(dekaf2 lib-headers-dekaf2)

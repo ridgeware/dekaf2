@@ -41,6 +41,7 @@
  */
 
 #include "kcompression.h"
+#include "klog.h"
 
 #include <boost/iostreams/copy.hpp>
 #include <boost/iostreams/filter/gzip.hpp>
@@ -51,6 +52,11 @@ namespace dekaf2 {
 
 namespace bio = boost::iostreams;
 
+//-----------------------------------------------------------------------------
+KCompressBase::KCompressBase()
+//-----------------------------------------------------------------------------
+{
+}
 
 //-----------------------------------------------------------------------------
 KCompressBase::KCompressBase(KString& sTarget)
@@ -61,9 +67,16 @@ KCompressBase::KCompressBase(KString& sTarget)
 }
 
 //-----------------------------------------------------------------------------
+KCompressBase::KCompressBase(std::ostream& TargetStream)
+//-----------------------------------------------------------------------------
+: m_TargetStream(&TargetStream)
+{
+}
+
+//-----------------------------------------------------------------------------
 KCompressBase::KCompressBase(KOutStream& TargetStream)
 //-----------------------------------------------------------------------------
-	: m_TargetStream(&TargetStream.OutStream())
+: m_TargetStream(&TargetStream.OutStream())
 {
 }
 
@@ -71,46 +84,88 @@ KCompressBase::KCompressBase(KOutStream& TargetStream)
 KCompressBase::~KCompressBase()
 //-----------------------------------------------------------------------------
 {
+}
 
+//-----------------------------------------------------------------------------
+bool KCompressBase::SetOutput(std::ostream& TargetStream)
+//-----------------------------------------------------------------------------
+{
+	m_TargetStream = &TargetStream;
+	return m_TargetStream->good();
+}
+
+//-----------------------------------------------------------------------------
+bool KCompressBase::SetOutput(KOutStream& TargetStream)
+//-----------------------------------------------------------------------------
+{
+	return SetOutput(TargetStream.OutStream());
+}
+
+//-----------------------------------------------------------------------------
+bool KCompressBase::SetOutput(KString& sTarget)
+//-----------------------------------------------------------------------------
+{
+	m_KOStringStream = std::make_unique<KOStringStream>(sTarget);
+	return SetOutput(*m_KOStringStream);
+}
+
+//-----------------------------------------------------------------------------
+bool KCompressBase::Write(std::istream& InputStream)
+//-----------------------------------------------------------------------------
+{
+	try
+	{
+		if (!m_Filter)
+		{
+			if (!CreateFilter())
+			{
+				return false;
+			}
+		}
+
+		bio::copy(InputStream, *m_Filter);
+
+		return true;
+	}
+
+	catch (const std::exception& e)
+	{
+		kException(e);
+	}
+
+	return false;
 }
 
 //-----------------------------------------------------------------------------
 bool KCompressBase::Write(KStringView sInput)
 //-----------------------------------------------------------------------------
 {
-	if (!m_Filter)
-	{
-		CreateFilter();
-	}
-
 	KIStringStream istream(sInput);
-
-	bio::copy(istream, *m_Filter);
-
-	return true;
+	return Write(istream);
 }
 
 //-----------------------------------------------------------------------------
 bool KCompressBase::Write(KInStream& InputStream)
 //-----------------------------------------------------------------------------
 {
-	if (!m_Filter)
-	{
-		CreateFilter();
-	}
-
-	bio::copy(InputStream.InStream(), *m_Filter);
-
-	return true;
+	return Write(InputStream.InStream());
 }
 
 //-----------------------------------------------------------------------------
-void KCompressBase::CreateFilter()
+bool KCompressBase::CreateFilter()
 //-----------------------------------------------------------------------------
 {
+	if (!m_TargetStream)
+	{
+		kWarning("no output stream");
+		return false;
+	}
+
 	m_Filter = std::make_unique<streamfilter>();
 	AddFilter(*m_Filter.get());
 	m_Filter->push(*m_TargetStream);
+
+	return true;
 }
 
 //-----------------------------------------------------------------------------

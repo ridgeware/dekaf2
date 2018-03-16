@@ -54,6 +54,12 @@
 namespace dekaf2 {
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// KCompressBase gives the interface for all compression algorithms. The
+/// framework allows to compress / decompress in and out of strings and streams.
+/// It is possible to construct the class without output target, in which case
+/// any attempt to compress / decompress will fail until an output is set. As
+/// KCompressBase is an Abstract Base Class it can be used as the placeholder
+/// for any real compression class derived from it.
 class KCompressBase
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -61,13 +67,37 @@ class KCompressBase
 public:
 //------
 
+	/// constructs a compressor without target writer - set one with SetOutput
+	/// before attempting to write to it
+	KCompressBase();
+	/// constructs a compressor with a KString as the target
 	KCompressBase(KString& sTarget);
+	/// constructs a compressor with a std::ostream as the target
+	KCompressBase(std::ostream& TargetStream);
+	/// constructs a compressor with a KOutStream as the target
 	KCompressBase(KOutStream& TargetStream);
+	/// copy construction is deleted
+	KCompressBase(const KCompressBase&) = delete;
+	/// move construction is permitted
+	KCompressBase(KCompressBase&&) = default;
 	virtual ~KCompressBase();
 
+
+	/// sets a KString as the target
+	bool SetOutput(KString& sTarget);
+	/// sets a std::ostream as the target
+	bool SetOutput(std::ostream& TargetStream);
+	/// sets a KOutStream as the target
+	bool SetOutput(KOutStream& TargetStream);
+
+	/// writes a string into the compressor
 	bool Write(KStringView sInput);
+	/// writes a std::istream into the compressor
+	bool Write(std::istream& InputStream);
+	/// writes a KInStream into the compressor
 	bool Write(KInStream& InputStream);
 
+	/// writes a string into the compressor
 	KCompressBase& operator+=(KStringView sInput)
 	{
 		Write(sInput);
@@ -86,9 +116,9 @@ protected:
 private:
 //------
 
-	void CreateFilter();
+	bool CreateFilter();
 
-	std::ostream* m_TargetStream;
+	std::ostream* m_TargetStream { nullptr };
 	std::unique_ptr<KOStringStream> m_KOStringStream;
 	std::unique_ptr<streamfilter> m_Filter;
 

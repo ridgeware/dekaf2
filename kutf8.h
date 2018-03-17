@@ -454,6 +454,8 @@ bool FromUTF8(const NarrowString& sNarrow, WideString& sWide)
 {
 	using W = typename WideString::value_type;
 
+	static_assert(sizeof(W) < 2, "target string needs to be at least 16 bit wide");
+
 	return FromUTF8(sNarrow, [&sWide](codepoint_t uch)
 	{
 		if (sizeof(W) == 2 && NeedsSurrogates(uch))
@@ -480,7 +482,7 @@ bool TransformUTF8(const NarrowString& sInput, NarrowReturnString& sOutput, Func
 	});
 }
 
-template<typename NarrowReturnString, typename NarrowString>
+template<typename NarrowString, typename NarrowReturnString>
 bool ToLowerUTF8(const NarrowString& sInput, NarrowReturnString& sOutput)
 {
 	sOutput.reserve(sOutput.size() + sInput.size());
@@ -491,12 +493,12 @@ bool ToLowerUTF8(const NarrowString& sInput, NarrowReturnString& sOutput)
 	});
 }
 
-template<typename NarrowReturnString, typename NarrowString>
+template<typename NarrowString, typename NarrowReturnString>
 bool ToUpperUTF8(const NarrowString& sInput, NarrowReturnString& sOutput)
 {
 	sOutput.reserve(sOutput.size() + sInput.size());
 
-	return TransformUTF8(sInput, sOutput, [](codepoint_t uch, NarrowString& sOut)
+	return TransformUTF8(sInput, sOutput, [](codepoint_t uch, NarrowReturnString& sOut)
 	{
 		return ToUTF8(std::towupper(uch), sOut);
 	});

@@ -471,7 +471,45 @@ bool FromUTF8(const NarrowString& sNarrow, WideString& sWide)
 
 }
 
+template<typename NarrowString, typename NarrowReturnString, class Functor>
+bool TransformUTF8(const NarrowString& sInput, NarrowReturnString& sOutput, Functor func)
+{
+	return FromUTF8(sInput, [&sOutput, &func](codepoint_t uch)
+	{
+		return func(uch, sOutput);
+	});
+}
+
+template<typename NarrowReturnString, typename NarrowString>
+bool ToLowerUTF8(const NarrowString& sInput, NarrowReturnString& sOutput)
+{
+	sOutput.reserve(sOutput.size() + sInput.size());
+
+	return TransformUTF8(sInput, sOutput, [](codepoint_t uch, NarrowReturnString& sOut)
+	{
+		return ToUTF8(std::towlower(uch), sOut);
+	});
+}
+
+template<typename NarrowReturnString, typename NarrowString>
+bool ToUpperUTF8(const NarrowString& sInput, NarrowReturnString& sOutput)
+{
+	sOutput.reserve(sOutput.size() + sInput.size());
+
+	return TransformUTF8(sInput, sOutput, [](codepoint_t uch, NarrowString& sOut)
+	{
+		return ToUTF8(std::towupper(uch), sOut);
+	});
+}
+
 } // namespace Unicode
 
 } // of namespace dekaf2
+
+
+
+
+
+
+
 

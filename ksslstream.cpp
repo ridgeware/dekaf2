@@ -67,7 +67,7 @@ KSSLInOutStreamDevice::KSSLInOutStreamDevice(ssl::stream<ip::tcp::socket>& Strea
 }
 
 //-----------------------------------------------------------------------------
-bool KSSLInOutStreamDevice::timeout(bool bForReading)
+KSSLInOutStreamDevice::POLLSTATE KSSLInOutStreamDevice::timeout(bool bForReading)
 //-----------------------------------------------------------------------------
 {
 #ifdef DEKAF2_IS_UNIX
@@ -82,18 +82,26 @@ bool KSSLInOutStreamDevice::timeout(bool bForReading)
 
 	if (err < 0)
 	{
-		kWarning("KSSLInOutStreamDevice::timeout poll returned {}", strerror(errno));
+		kWarning("poll returned {}", strerror(errno));
 	}
 	else if (err == 1)
 	{
-		// we do not test for the bit value as any other bit set than
-		// the one we requested indicates an error
-		if (what.revents == event)
+		if ((what.revents & event) == event)
 		{
-			return false;
+			if ((what.revents & POLLHUP) == POLLHUP)
+			{
+				return POLL_LAST;
+			}
+			else
+			{
+				return POLL_SUCCESS;
+			}
 		}
 	}
-	return true;
+
+	kDebug(1, "have SSL timeout");
+
+	return POLL_FAILURE;
 
 #endif
 	// TODO add a Windows implementation for the timeout
@@ -105,12 +113,40 @@ void KSSLInOutStreamDevice::handshake(ssl::stream_base::handshake_type role)
 {
 	if (m_bNeedHandshake)
 	{
-		if (!timeout(false))
+		if (timeout(false) == POLL_SUCCESS)
 		{
 			m_bNeedHandshake = false;
 			m_Stream.handshake(role);
 		}
 	}
+}
+
+//-----------------------------------------------------------------------------
+size_t KSSLInOutStreamDevice::read_with_timeout(char* s, size_t n) noexcept
+//-----------------------------------------------------------------------------
+{
+	size_t iRead { 0 };
+
+	do
+	{
+		POLLSTATE ps = timeout(true);
+
+		if (ps == POLL_FAILURE)
+		{
+			break;
+		}
+
+		boost::system::error_code ec;
+		iRead += m_Stream.read_some(boost::asio::buffer(s + iRead, n - iRead), ec);
+
+		if (ps == POLL_LAST || ec != 0)
+		{
+			break;
+		}
+
+	} while (iRead < n);
+
+	return iRead;
 }
 
 //-----------------------------------------------------------------------------
@@ -121,21 +157,19 @@ std::streamsize KSSLInOutStreamDevice::read(char* s, std::streamsize n) noexcept
 
 		handshake(ssl::stream_base::server); // SSL servers read first
 
-		if (timeout(true))
-		{
-			return 0;
-		}
-
 		if (m_bUseSSL)
 		{
 			return static_cast<std::streamsize>(
-			    m_Stream.read_some(
-			        boost::asio::buffer(s, static_cast<std::size_t>(n))
-			    )
+				read_with_timeout(s, static_cast<std::size_t>(n))
 			);
 		}
 		else
 		{
+			if (timeout(true) == POLL_FAILURE)
+			{
+				return 0;
+			}
+
 			return static_cast<std::streamsize>(
 			    m_Stream.next_layer().read_some(
 			        boost::asio::buffer(s, static_cast<std::size_t>(n))
@@ -166,7 +200,7 @@ std::streamsize KSSLInOutStreamDevice::write(const char* s, std::streamsize n) n
 
 		handshake(ssl::stream_base::client); // SSL clients write first
 
-		if (timeout(false))
+		if (timeout(false) == POLL_FAILURE)
 		{
 			return 0;
 		}
@@ -190,13 +224,11 @@ std::streamsize KSSLInOutStreamDevice::write(const char* s, std::streamsize n) n
 
 	}
 
-/*
 	catch (const std::exception& e)
 	{
-		// we cannot log the .what() string as boost is built with COW strings..
 		kException(e);
 	}
-*/
+
 	catch (...)
 	{
 		kUnknownException();
@@ -308,13 +340,11 @@ bool KSSLIOStream::connect(const char* sServer, const char* sPort, bool bVerifyC
 
 	}
 
-/*
 	catch (const std::exception& e)
 	{
-		// we cannot log the .what() string as boost is built with COW strings..
 		kException(e);
 	}
-*/
+
 	catch (...)
 	{
 		kUnknownException();

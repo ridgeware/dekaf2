@@ -235,5 +235,17 @@ void kDaemonize(bool bChangeDir)
 
 } // end of namespace detail
 
+uint64_t kGetTid()
+{
+#ifdef DEKAF2_IS_OSX
+	uint64_t TID;
+	pthread_threadid_np(nullptr, &TID);
+	return TID;
+#else
+	return syscall(SYS_gettid);
+#endif
+}
+
+
 } // end of namespace dekaf2
 

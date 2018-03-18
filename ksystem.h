@@ -137,6 +137,15 @@ KString kGetHostname ();
 /// Alias to kGetHostname(): return operating system hostname as a string.
 inline KString khostname () { return kGetHostname(); }
 
+/// return process ID
+inline pid_t kGetPid()
+{
+	return getpid();
+}
+
+/// return thread ID
+uint64_t kGetTid();
+
 namespace detail {
 
 /// Send this process into the background and detach from terminals. If bChangeDir

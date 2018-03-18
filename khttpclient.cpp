@@ -149,7 +149,7 @@ bool KHTTPClient::Resource(const KURL& url, KHTTPMethod method)
 	{
 		return SetError("URL is empty");
 	}
-	else if ((m_State != State::CONNECTED && m_State != State::REQUEST_SENT))
+	else if ((m_State != State::CONNECTED && m_State != State::CONTENT_READ))
 	{
 		return SetError(kFormat("bad state - cannot set resource {}", url.Path.Serialize()));
 	}
@@ -347,6 +347,23 @@ inline bool KHTTPClient::GetNextChunkSize()
 
 		if (!m_iRemainingContentSize)
 		{
+			// chunked transfer has trailers (optional header fields)
+			// after the last chunk (simply skip them) and a finalizing
+			// empty line
+
+			for (;;)
+			{
+				if (!Stream.ReadLine(sLine))
+				{
+					return SetError(m_Connection->Error());
+				}
+
+				if (sLine.empty())
+				{
+					break;
+				}
+			}
+
 			m_bReceivedFinalChunk = true;
 			return false;
 		}
@@ -427,7 +444,7 @@ size_t KHTTPClient::Read(KOutStream& stream, size_t len)
 		if (received < wanted)
 		{
 			SetError(m_Connection->GetStreamError());
-			break;
+			return tlen;
 		}
 
 		if (!m_bTEChunked)
@@ -437,6 +454,8 @@ size_t KHTTPClient::Read(KOutStream& stream, size_t len)
 
 		CheckForChunkEnd();
 	}
+
+	m_State = State::CONTENT_READ;
 
 	return tlen;
 
@@ -486,7 +505,7 @@ size_t KHTTPClient::Read(KString& sBuffer, size_t len)
 		if (received < wanted)
 		{
 			SetError(m_Connection->GetStreamError());
-			break;
+			return tlen;
 		}
 
 		if (!m_bTEChunked)
@@ -496,6 +515,8 @@ size_t KHTTPClient::Read(KString& sBuffer, size_t len)
 
 		CheckForChunkEnd();
 	}
+
+	m_State = State::CONTENT_READ;
 
 	return tlen;
 
@@ -526,6 +547,7 @@ bool KHTTPClient::ReadLine(KString& sBuffer)
 
 	if (!m_iRemainingContentSize)
 	{
+		m_State = State::CONTENT_READ;
 		return false;
 	}
 

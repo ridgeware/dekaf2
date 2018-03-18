@@ -69,6 +69,7 @@ public:
 		HEADER_SET,
 		REQUEST_SENT,
 		HEADER_PARSED,
+		CONTENT_READ,
 		CLOSED
 	};
 

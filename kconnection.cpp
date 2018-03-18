@@ -125,7 +125,7 @@ bool KConnection::Connect(const url::KDomain& domain, const url::KPort& port)
 	if (!m_Stream->OutStream().good())
 	{
 		SetError(kFormat("failed to connect to {}:{}: {}", m_Endpoint.Domain.Serialize(), m_Endpoint.Port.Serialize(), GetStreamError()));
-		kDebug(2, Error());
+		kDebug(1, Error());
 		return false;
 	}
 
@@ -261,7 +261,7 @@ bool KSSLConnection::Connect(const url::KDomain& domain, const url::KPort& port,
 	if (!Stream().OutStream().good())
 	{
 		SetError(kFormat("SSL:failed to connect to {}:{}", domain.Serialize(), port.Serialize()));
-		kDebug(2, Error());
+		kDebug(1, Error());
 		return false;
 	}
 	

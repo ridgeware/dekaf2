@@ -58,6 +58,9 @@ TODO: KLOG OVERHAUL NEEDED
 #include "khttpclient.h"
 #include "kjson.h"
 #include "ksplit.h"
+#include "kconnection.h"
+#include "khttpclient.h"
+#include "kmime.h"
 
 namespace dekaf2
 {
@@ -152,32 +155,97 @@ bool KLogSyslogWriter::Write(int iLevel, bool bIsMultiline, const KString& sOut)
 //---------------------------------------------------------------------------
 KLogTCPWriter::KLogTCPWriter(KStringView sURL)
 //---------------------------------------------------------------------------
+	: m_sURL(sURL)
 {
-	KURL url(sURL);
-	KStringView sv = url.Domain.Serialize();
-	std::string sd(sv.data(), sv.size());
-	sv = url.Port.Serialize();
-	std::string sp(sv.data(), sv.size());
-	m_OutStream = std::make_unique<KTCPStream>(sd, sp);
-
 } // ctor
+
+//---------------------------------------------------------------------------
+KLogTCPWriter::~KLogTCPWriter()
+//---------------------------------------------------------------------------
+{
+} // dtor
+
+//---------------------------------------------------------------------------
+bool KLogTCPWriter::Good() const
+//---------------------------------------------------------------------------
+{
+	// this is special: we always return true if we have not (yet) created
+	// the tcp client
+	return !m_OutStream || m_OutStream->Good();
+
+} // Good
 
 //---------------------------------------------------------------------------
 bool KLogTCPWriter::Write(int iLevel, bool bIsMultiline, const KString& sOut)
 //---------------------------------------------------------------------------
 {
+	if (!Good())
+	{
+		// we try one reconnect should the connection have gone stale
+		m_OutStream.reset();
+	}
+
+	if (!m_OutStream)
+	{
+		m_OutStream = KConnection::Create(m_sURL);
+
+		if (!m_OutStream->Good())
+		{
+			return false;
+		}
+	}
+
 	return m_OutStream != nullptr
-	    && m_OutStream->Write(sOut).Flush().Good();
+	    && m_OutStream->Stream().Write(sOut).Flush().Good();
 
 } // Write
+
+//---------------------------------------------------------------------------
+KLogHTTPWriter::KLogHTTPWriter(KStringView sURL)
+//---------------------------------------------------------------------------
+	: m_sURL(sURL)
+{
+} // ctor
+
+//---------------------------------------------------------------------------
+KLogHTTPWriter::~KLogHTTPWriter()
+//---------------------------------------------------------------------------
+{
+} // dtor
+
+//---------------------------------------------------------------------------
+bool KLogHTTPWriter::Good() const
+//---------------------------------------------------------------------------
+{
+	// this is special: we always return true if we have not (yet) created
+	// the http client
+	return !m_OutStream || m_OutStream->Good();
+
+} // Good
 
 //---------------------------------------------------------------------------
 bool KLogHTTPWriter::Write(int iLevel, bool bIsMultiline, const KString& sOut)
 //---------------------------------------------------------------------------
 {
-	// TODO add HTTP protocol handler
-	return m_OutStream != nullptr
-	    && m_OutStream->Write(sOut).Flush().Good();
+	if (!Good())
+	{
+		// we try one reconnect should the connection have gone stale
+		m_OutStream.reset();
+	}
+
+	if (!m_OutStream)
+	{
+		m_OutStream = std::make_unique<KHTTPClient>(m_sURL);
+
+		if (!m_OutStream->Good())
+		{
+			return false;
+		}
+	}
+
+	m_OutStream->Post(m_sURL, sOut, KMIME::JSON_UTF8);
+
+	return m_OutStream->Good();
 
 } // Write
 
@@ -188,7 +256,8 @@ void KLogData::Set(int level, KStringView sShortName, KStringView sPathName, KSt
 //---------------------------------------------------------------------------
 {
 	m_Level = level;
-	m_Pid = getpid();
+	m_Pid = kGetPid();
+	m_Tid = kGetTid();
 	m_Time = Dekaf().GetCurrentTime();
 	m_sFunctionName = SanitizeFunctionName(sFunction);
 	m_sShortName = sShortName;
@@ -298,7 +367,7 @@ void KLogTTYSerializer::Serialize() const
 //---------------------------------------------------------------------------
 {
 	// desired format:
-	// | WAR | MYPRO | 17202 | 2001-08-24 10:37:04 | Function: select count(*) from foo
+	// | WAR | MYPRO | 17202 | 12345 | 2001-08-24 10:37:04 | Function: select count(*) from foo
 
 	KString sLevel;
 
@@ -313,7 +382,8 @@ void KLogTTYSerializer::Serialize() const
 
 	KString sPrefix;
 
-	sPrefix.Printf("| %3.3s | %5.5s | %5u | %s | ", sLevel, m_sShortName, getpid(), kFormTimestamp());
+	sPrefix.Printf("| %3.3s | %5.5s | %5u | %5u | %s | ",
+				   sLevel, m_sShortName, m_Pid, m_Tid, kFormTimestamp());
 
 	auto PrefixWithoutFunctionSize = sPrefix.size();
 
@@ -347,6 +417,7 @@ void KLogJSONSerializer::Serialize() const
 	m_sBuffer  = '{';
 	m_sBuffer += KJSON::EscWrap("level", m_Level);
 	m_sBuffer += KJSON::EscWrap("pid", m_Pid);
+	m_sBuffer += KJSON::EscWrap("tid", m_Tid);
 	m_sBuffer += KJSON::EscWrap("time_t", m_Time);
 	m_sBuffer += KJSON::EscWrap("short_name", m_sShortName);
 	m_sBuffer += KJSON::EscWrap("path_name", m_sPathName);

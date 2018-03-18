@@ -131,6 +131,7 @@ public:
 
 }; // KLogSyslogWriter
 
+class KConnection; // fwd decl - we do not want to include the kconnection header here
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Logwriter that writes to any TCP endpoint
@@ -141,29 +142,40 @@ class KLogTCPWriter : public KLogWriter
 public:
 //----------
 	KLogTCPWriter(KStringView sURL);
-	virtual ~KLogTCPWriter() {}
+	virtual ~KLogTCPWriter();
 	virtual bool Write(int iLevel, bool bIsMultiline, const KString& sOut) override;
-	virtual bool Good() const override { return m_OutStream != nullptr && m_OutStream->good(); }
+	virtual bool Good() const override;
 
 //----------
 protected:
 //----------
-	std::unique_ptr<KTCPStream> m_OutStream;
+
+	std::unique_ptr<KConnection> m_OutStream;
+	KString m_sURL;
 
 }; // KLogTCPWriter
 
+class KHTTPClient; // fwd decl - we do not want to include the khttpclient header here
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Logwriter that writes to any TCP endpoint using the HTTP(s) protocol
-class KLogHTTPWriter : public KLogTCPWriter
+class KLogHTTPWriter : public KLogWriter
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 //----------
 public:
 //----------
-	KLogHTTPWriter(KStringView sURL) : KLogTCPWriter(sURL) {}
-	virtual ~KLogHTTPWriter() {}
+	KLogHTTPWriter(KStringView sURL);
+	virtual ~KLogHTTPWriter();
 	virtual bool Write(int iLevel, bool bIsMultiline, const KString& sOut) override;
+	virtual bool Good() const override;
+
+//----------
+protected:
+//----------
+
+	std::unique_ptr<KHTTPClient> m_OutStream;
+	KString m_sURL;
 
 }; // KLogHTTPWriter
 
@@ -202,6 +214,7 @@ protected:
 
 	int         m_Level;
 	pid_t       m_Pid;
+	uint64_t    m_Tid; // tid is 64 bit on OSX
 	time_t      m_Time;
 	KStringView m_sShortName;
 	KStringView m_sPathName;

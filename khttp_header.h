@@ -237,6 +237,7 @@ public:
 	static constexpr KStringView IF_NONE_MATCH                    = "If-None-Match";
 	static constexpr KStringView IF_RANGE                         = "If-Range";
 	static constexpr KStringView IF_UNMODIFIED_SINCE              = "If-Unmodified-Since";
+	static constexpr KStringView KEEP_ALIVE                       = "Keep-Alive";
 	static constexpr KStringView LAST_MODIFIED                    = "Last-Modified";
 	static constexpr KStringView LINK                             = "Link";
 	static constexpr KStringView LOCATION                         = "Location";
@@ -265,8 +266,8 @@ public:
 	static constexpr KStringView WWW_AUTHENTICATE                 = "WWW-Authenticate";
 	static constexpr KStringView X_FORWARDED_FOR                  = "X-Forwarded-For";
 	static constexpr KStringView X_FORWARDED_HOST                 = "X-Forwarded-Host";
-	static constexpr KStringView X_FORWARDED_SERVER               = "X-Forwarded-Server";
 	static constexpr KStringView X_FORWARDED_PROTO                = "X-Forwarded-Proto";
+	static constexpr KStringView X_FORWARDED_SERVER               = "X-Forwarded-Server";
 	static constexpr KStringView X_FRAME_OPTIONS                  = "X-Frame-Options";
 	static constexpr KStringView X_POWERED_BY                     = "X-Powered-By";
 
@@ -316,6 +317,7 @@ public:
 	static constexpr KStringView if_none_match                    = "if-none-match";
 	static constexpr KStringView if_range                         = "if-range";
 	static constexpr KStringView if_unmodified_since              = "if-unmodified-since";
+	static constexpr KStringView keep_alive                       = "keep-alive";
 	static constexpr KStringView last_modified                    = "last-modified";
 	static constexpr KStringView link                             = "link";
 	static constexpr KStringView location                         = "location";
@@ -344,8 +346,8 @@ public:
 	static constexpr KStringView www_authenticate                 = "www-authenticate";
 	static constexpr KStringView x_forwarded_for                  = "x-forwarded-for";
 	static constexpr KStringView x_forwarded_host                 = "x-forwarded-host";
-	static constexpr KStringView x_forwarded_server               = "x-forwarded-server";
 	static constexpr KStringView x_forwarded_proto                = "x-forwarded-proto";
+	static constexpr KStringView x_forwarded_server               = "x-forwarded-server";
 	static constexpr KStringView x_frame_options                  = "x-frame-options";
 	static constexpr KStringView x_powered_by                     = "x-powered-by";
 

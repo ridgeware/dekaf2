@@ -138,20 +138,13 @@ public:
 
 	//---------------------------------------------------------------------------
 	/// Get current time without constantly querying the OS
-	time_t GetCurrentTime() const
+	time_t GetCurrentTime() const;
 	//---------------------------------------------------------------------------
-	{
-		return m_iCurrentTime;
-	}
 
 	//---------------------------------------------------------------------------
 	/// Get current time without constantly querying the OS
-	// TODO add updater thread
-	KTimer::Timepoint GetCurrentTimepoint() const
+	KTimer::Timepoint GetCurrentTimepoint() const;
 	//---------------------------------------------------------------------------
-	{
-		return m_iCurrentTimepoint;
-	}
 
 	//---------------------------------------------------------------------------
 	/// Returns Dekaf's main timing object so you can add more callbacks

@@ -183,6 +183,35 @@ void Dekaf::SetRandomSeed(unsigned int iSeed)
 }
 
 //---------------------------------------------------------------------------
+time_t Dekaf::GetCurrentTime() const
+//---------------------------------------------------------------------------
+{
+	if (DEKAF2_UNLIKELY(!m_Timer))
+	{
+		return std::time(nullptr);
+	}
+	else
+	{
+		return m_iCurrentTime;
+	}
+}
+
+//---------------------------------------------------------------------------
+/// Get current time without constantly querying the OS
+KTimer::Timepoint Dekaf::GetCurrentTimepoint() const
+//---------------------------------------------------------------------------
+{
+	if (DEKAF2_UNLIKELY(!m_Timer))
+	{
+		return KTimer::Clock::now();
+	}
+	else
+	{
+		return m_iCurrentTimepoint;
+	}
+}
+
+//---------------------------------------------------------------------------
 void Dekaf::StartDefaultTimer()
 //---------------------------------------------------------------------------
 {

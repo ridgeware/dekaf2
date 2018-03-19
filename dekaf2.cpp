@@ -146,7 +146,7 @@ bool Dekaf::SetUnicodeLocale(KStringView sName)
 		// on other platforms, query the user's locale
 		if (m_sLocale.empty())
 		{
-			m_sLocale = std::locale("").name();
+			m_sLocale = std::locale().name();
 		}
 		// set to a fully defined locale if only the C locale is setup. This is also needed for C.UTF-8, as
 		// that one does not permit character conversions outside the ASCII range.

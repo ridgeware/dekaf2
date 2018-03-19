@@ -70,6 +70,11 @@ KSSLInOutStreamDevice::KSSLInOutStreamDevice(ssl::stream<ip::tcp::socket>& Strea
 KSSLInOutStreamDevice::POLLSTATE KSSLInOutStreamDevice::timeout(bool bForReading)
 //-----------------------------------------------------------------------------
 {
+	if (m_bFailed)
+	{
+		return POLL_FAILURE;
+	}
+
 #ifdef DEKAF2_IS_UNIX
 
 	pollfd what;
@@ -111,6 +116,11 @@ KSSLInOutStreamDevice::POLLSTATE KSSLInOutStreamDevice::timeout(bool bForReading
 void KSSLInOutStreamDevice::handshake(ssl::stream_base::handshake_type role)
 //-----------------------------------------------------------------------------
 {
+	if (m_bFailed)
+	{
+		return;
+	}
+
 	if (m_bNeedHandshake)
 	{
 		if (timeout(false) == POLL_SUCCESS)
@@ -125,6 +135,11 @@ void KSSLInOutStreamDevice::handshake(ssl::stream_base::handshake_type role)
 size_t KSSLInOutStreamDevice::read_with_timeout(char* s, size_t n) noexcept
 //-----------------------------------------------------------------------------
 {
+	if (m_bFailed)
+	{
+		return 0;
+	}
+
 	size_t iRead { 0 };
 
 	do
@@ -153,6 +168,14 @@ size_t KSSLInOutStreamDevice::read_with_timeout(char* s, size_t n) noexcept
 std::streamsize KSSLInOutStreamDevice::read(char* s, std::streamsize n) noexcept
 //-----------------------------------------------------------------------------
 {
+	if (m_bFailed)
+	{
+		// it is weird, but boost::iostreams expect -1 to be returned
+		// for a failed read(), but an exception for a failed write()
+		// which is then finally not caught at least with Clang + libc++.
+		return -1;
+	}
+
 	try {
 
 		handshake(ssl::stream_base::server); // SSL servers read first
@@ -167,7 +190,7 @@ std::streamsize KSSLInOutStreamDevice::read(char* s, std::streamsize n) noexcept
 		{
 			if (timeout(true) == POLL_FAILURE)
 			{
-				return 0;
+				return -1;
 			}
 
 			return static_cast<std::streamsize>(
@@ -189,15 +212,22 @@ std::streamsize KSSLInOutStreamDevice::read(char* s, std::streamsize n) noexcept
 		kUnknownException();
 	}
 
-	return 0;
+	m_bFailed = true;
+
+	return -1;
 }
 
 //-----------------------------------------------------------------------------
 std::streamsize KSSLInOutStreamDevice::write(const char* s, std::streamsize n) noexcept
 //-----------------------------------------------------------------------------
 {
-	try {
+	if (m_bFailed)
+	{
+		return 0;
+	}
 
+	try {
+		
 		handshake(ssl::stream_base::client); // SSL clients write first
 
 		if (timeout(false) == POLL_FAILURE)
@@ -233,6 +263,8 @@ std::streamsize KSSLInOutStreamDevice::write(const char* s, std::streamsize n) n
 	{
 		kUnknownException();
 	}
+
+	m_bFailed = true;
 
 	return 0;
 }
@@ -320,6 +352,10 @@ bool KSSLIOStream::connect(const char* sServer, const char* sPort, bool bVerifyC
 		{
 			options |= (ssl::context::no_sslv2 | ssl::context::no_sslv3);
 		}
+		else
+		{
+			options |= ssl::context::sslv23;
+		}
 
 		m_Context.set_options(options);
 
@@ -363,10 +399,10 @@ std::unique_ptr<KSSLStream> CreateKSSLStream()
 }
 
 //-----------------------------------------------------------------------------
-std::unique_ptr<KSSLStream> CreateKSSLStream(const KTCPEndPoint& EndPoint, bool bVerifyCerts)
+std::unique_ptr<KSSLStream> CreateKSSLStream(const KTCPEndPoint& EndPoint, bool bVerifyCerts, bool bAllowSSLv2v3)
 //-----------------------------------------------------------------------------
 {
-	return std::make_unique<KSSLStream>(EndPoint.Domain.get(), EndPoint.Port.get(), bVerifyCerts);
+	return std::make_unique<KSSLStream>(EndPoint.Domain.get(), EndPoint.Port.get(), bVerifyCerts, bAllowSSLv2v3);
 }
 
 

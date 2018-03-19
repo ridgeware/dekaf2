@@ -113,6 +113,7 @@ private:
 	const int& m_iTimeoutMilliseconds;
 	bool m_bUseSSL;
 	bool m_bNeedHandshake;
+	bool m_bFailed { false };
 
 };  // KSSLIOStreamDevice
 
@@ -124,7 +125,7 @@ class KSSLIOStream : public boost::iostreams::stream<KSSLInOutStreamDevice>
 {
 	using base_type = boost::iostreams::stream<KSSLInOutStreamDevice>;
 
-	enum { DEFAULT_TIMEOUT = 1 * 60 };
+	enum { DEFAULT_TIMEOUT = 1 * 30 };
 
 //----------
 public:
@@ -151,7 +152,7 @@ public:
 	KSSLIOStream(const char* sServer,
 	             const char* sPort,
 	             bool bVerifyCerts,
-	             bool bAllowSSLv2v3 = false,
+	             bool bAllowSSLv2v3,
 	             int iSecondsTimeout = DEFAULT_TIMEOUT);
 	//-----------------------------------------------------------------------------
 
@@ -171,7 +172,7 @@ public:
 	KSSLIOStream(const KString& sServer,
 	             const KString& sPort,
 	             bool bVerifyCerts,
-	             bool bAllowSSLv2v3 = false,
+	             bool bAllowSSLv2v3,
 	             int iSecondsTimeout = DEFAULT_TIMEOUT);
 	//-----------------------------------------------------------------------------
 
@@ -209,7 +210,7 @@ public:
 	/// @param bAllowSSLv2v3
 	/// If true also connections with SSL versions 2 and 3 will be allowed.
 	/// Default is false, only TLS connections will be allowed.
-	bool connect(const char* sServer, const char* sPort, bool bVerifyCerts, bool bAllowSSLv2v3 = false);
+	bool connect(const char* sServer, const char* sPort, bool bVerifyCerts, bool bAllowSSLv2v3);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -223,7 +224,7 @@ public:
 	/// @param bAllowSSLv2v3
 	/// If true also connections with SSL versions 2 and 3 will be allowed.
 	/// Default is false, only TLS connections will be allowed.
-	inline bool connect(const KString& sServer, const KString& sPort, bool bVerifyCerts, bool bAllowSSLv2v3 = false)
+	inline bool connect(const KString& sServer, const KString& sPort, bool bVerifyCerts, bool bAllowSSLv2v3)
 	//-----------------------------------------------------------------------------
 	{
 		return connect(sServer.c_str(), sPort.c_str(), bVerifyCerts, bAllowSSLv2v3);
@@ -272,7 +273,7 @@ std::unique_ptr<KSSLStream> CreateKSSLStream();
 class KTCPEndPoint;
 
 //-----------------------------------------------------------------------------
-std::unique_ptr<KSSLStream> CreateKSSLStream(const KTCPEndPoint& EndPoint, bool bVerifyCerts);
+std::unique_ptr<KSSLStream> CreateKSSLStream(const KTCPEndPoint& EndPoint, bool bVerifyCerts, bool bAllowSSLv2v3);
 //-----------------------------------------------------------------------------
 
 

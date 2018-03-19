@@ -240,11 +240,11 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	static std::unique_ptr<KConnection> Create(const KURL& URL, bool bForceSSL = false, bool bVerifyCerts = false);
+	static std::unique_ptr<KConnection> Create(const KURL& URL, bool bForceSSL = false, bool bVerifyCerts = false, bool bAllowSSLv2v3 = true);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	static std::unique_ptr<KConnection> Create(const KURL& URL, const KProxy& Proxy, bool bForceSSL = false, bool bVerifyCerts = false);
+	static std::unique_ptr<KConnection> Create(const KURL& URL, const KProxy& Proxy, bool bForceSSL = false, bool bVerifyCerts = false, bool bAllowSSLv2v3 = true);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -318,28 +318,28 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	KSSLConnection(const url::KDomain& domain, const url::KPort& port, bool bVerifyCerts = false)
+	KSSLConnection(const url::KDomain& domain, const url::KPort& port, bool bVerifyCerts = false, bool bAllowSSLv2v3 = true)
 	//-----------------------------------------------------------------------------
 	{
-		Connect(domain, port, bVerifyCerts);
+		Connect(domain, port, bVerifyCerts, bAllowSSLv2v3);
 	}
 
 	//-----------------------------------------------------------------------------
-	KSSLConnection(const KURL& URL, bool bVerifyCerts = false)
+	KSSLConnection(const KURL& URL, bool bVerifyCerts = false, bool bAllowSSLv2v3 = true)
 	//-----------------------------------------------------------------------------
 	{
-		Connect(URL, bVerifyCerts);
+		Connect(URL, bVerifyCerts, bAllowSSLv2v3);
 	}
 
 	//-----------------------------------------------------------------------------
-	bool Connect(const url::KDomain& domain, const url::KPort& port, bool bVerifyCerts = false);
+	bool Connect(const url::KDomain& domain, const url::KPort& port, bool bVerifyCerts = false, bool bAllowSSLv2v3 = true);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	bool Connect(const KURL& URL, bool bVerifyCerts = false)
+	bool Connect(const KURL& URL, bool bVerifyCerts = false, bool bAllowSSLv2v3 = true)
 	//-----------------------------------------------------------------------------
 	{
-		return Connect(URL.Domain, URL.Port, bVerifyCerts);
+		return Connect(URL.Domain, URL.Port, bVerifyCerts, bAllowSSLv2v3);
 	}
 
 };

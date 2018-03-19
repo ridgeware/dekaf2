@@ -110,7 +110,7 @@ bool KHTTPClient::Connect(const KURL& url, bool bVerifyCerts)
 		return true;
 	}
 
-	return Connect(KConnection::Create(url, bVerifyCerts));
+	return Connect(KConnection::Create(url, false, bVerifyCerts, true));
 
 } // Connect
 
@@ -211,7 +211,7 @@ bool KHTTPClient::RequestHeader(KStringView svName, KStringView svValue)
 	Stream.WriteLine(svValue);
 	m_State = State::HEADER_SET;
 
-	return true;
+	return Stream.KOutStream::Good();
 }
 
 //-----------------------------------------------------------------------------
@@ -248,7 +248,11 @@ bool KHTTPClient::Request(KStringView svPostData, KStringView svMime)
 		Stream.Write(svPostData);
 	}
 
-	Stream.Flush();
+	if (!Stream.Flush().Good())
+	{
+		return SetError("write error");
+	}
+
 	m_State = State::REQUEST_SENT;
 
 	return ReadHeader();

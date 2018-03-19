@@ -248,7 +248,7 @@ void KConnection::setConnection(std::unique_ptr<KStream>&& Stream)
 } // setConnection
 
 //-----------------------------------------------------------------------------
-bool KSSLConnection::Connect(const url::KDomain& domain, const url::KPort& port, bool bVerifyCerts)
+bool KSSLConnection::Connect(const url::KDomain& domain, const url::KPort& port, bool bVerifyCerts, bool bAllowSSLv2v3)
 //-----------------------------------------------------------------------------
 {
 	m_bIsSSL = true;
@@ -256,7 +256,7 @@ bool KSSLConnection::Connect(const url::KDomain& domain, const url::KPort& port,
 
 	KTCPEndPoint EndPoint(domain, port);
 
-	setConnection(CreateKSSLStream(EndPoint, bVerifyCerts));
+	setConnection(CreateKSSLStream(EndPoint, bVerifyCerts, bAllowSSLv2v3));
 
 	if (!Stream().OutStream().good())
 	{
@@ -270,7 +270,7 @@ bool KSSLConnection::Connect(const url::KDomain& domain, const url::KPort& port,
 
 
 //-----------------------------------------------------------------------------
-std::unique_ptr<KConnection> KConnection::Create(const KURL& URL, bool bForceSSL, bool bVerifyCerts)
+std::unique_ptr<KConnection> KConnection::Create(const KURL& URL, bool bForceSSL, bool bVerifyCerts, bool bAllowSSLv2v3)
 //-----------------------------------------------------------------------------
 {
 	KConnection Connection;
@@ -284,7 +284,7 @@ std::unique_ptr<KConnection> KConnection::Create(const KURL& URL, bool bForceSSL
 
 	if (URL.Protocol == url::KProtocol::HTTPS || bForceSSL)
 	{
-		return std::make_unique<KSSLConnection>(URL.Domain, Port, bVerifyCerts);
+		return std::make_unique<KSSLConnection>(URL.Domain, Port, bVerifyCerts, bAllowSSLv2v3);
 	}
 	else
 	{
@@ -294,7 +294,7 @@ std::unique_ptr<KConnection> KConnection::Create(const KURL& URL, bool bForceSSL
 } // Create
 
 //-----------------------------------------------------------------------------
-std::unique_ptr<KConnection> KConnection::Create(const KURL& URL, const KProxy& Proxy, bool bForceSSL, bool bVerifyCerts)
+std::unique_ptr<KConnection> KConnection::Create(const KURL& URL, const KProxy& Proxy, bool bForceSSL, bool bVerifyCerts, bool bAllowSSLv2v3)
 //-----------------------------------------------------------------------------
 {
 	KConnection Connection;
@@ -320,7 +320,7 @@ std::unique_ptr<KConnection> KConnection::Create(const KURL& URL, const KProxy& 
 
 	if (URL.Protocol == url::KProtocol::HTTPS || bForceSSL)
 	{
-		return std::make_unique<KSSLConnection>(Domain, Port, bVerifyCerts);
+		return std::make_unique<KSSLConnection>(Domain, Port, bVerifyCerts, bAllowSSLv2v3);
 	}
 	else
 	{

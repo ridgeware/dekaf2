@@ -46,6 +46,9 @@
 
 #include <sys/types.h>    // for getpwuid()
 #include <pwd.h>          // for getpwuid()
+#ifndef DEKAF2_IS_OSX
+#include <sys/syscall.h>
+#endif
 
 namespace dekaf2
 {

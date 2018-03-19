@@ -224,6 +224,7 @@ private:
 	// readers
 	time_t m_iCurrentTime;
 	KTimer::Timepoint m_iCurrentTimepoint;
+	bool m_bInConstruction { true };
 
 }; // Dekaf
 

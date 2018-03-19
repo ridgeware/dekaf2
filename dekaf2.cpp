@@ -42,6 +42,7 @@
 
 #include <clocale>
 #include <cstdlib>
+#include <iostream>
 #include "dekaf2.h"
 #include "klog.h"
 #include "kfile.h"
@@ -113,6 +114,9 @@ Dekaf::Dekaf()
 #endif
 
 	StartDefaultTimer();
+
+	// allow KLog() calls from dekaf now
+	m_bInConstruction = false;
 }
 
 //---------------------------------------------------------------------------
@@ -155,11 +159,25 @@ bool Dekaf::SetUnicodeLocale(KStringView sName)
 #endif
 	}
 	catch (std::exception& e) {
-		kException(e);
+		if (m_bInConstruction)
+		{
+			std::cerr << e.what() << std::endl;
+		}
+		else
+		{
+			kException(e);
+		}
 		m_sLocale.erase();
 	}
 	catch (...) {
-		kUnknownException();
+		if (m_bInConstruction)
+		{
+			std::cerr << "unknown exception in Dekaf() construction" << std::endl;
+		}
+		else
+		{
+			kUnknownException();
+		}
 		m_sLocale.erase();
 	}
 

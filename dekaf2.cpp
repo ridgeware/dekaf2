@@ -127,36 +127,22 @@ bool Dekaf::SetUnicodeLocale(KStringView sName)
 
 	try
 	{
-#ifdef DEKAF2_IS_OSX
-		// no way to get the user's locale in OSX with C++. So simply set to en_US if not given as a parameter.
-		if (m_sLocale.empty() || m_sLocale == "C" || m_sLocale == "C.UTF-8")
-		{
-			m_sLocale = DefaultLocale;
-		}
-		std::setlocale(LC_ALL, m_sLocale.c_str());
-		// OSX does not use the .UTF-8 suffix (as all is UTF8)
-		if (m_sLocale.EndsWith(".UTF-8"))
-		{
-			m_sLocale.erase(m_sLocale.end() - 6, m_sLocale.end());
-		}
-		std::locale::global(std::locale(m_sLocale.c_str()));
-		// make the name compatible to the rest of the world
-		m_sLocale += ".UTF-8";
-#else
-		// on other platforms, query the user's locale
 		if (m_sLocale.empty())
 		{
 			m_sLocale = std::locale().name();
 		}
-		// set to a fully defined locale if only the C locale is setup. This is also needed for C.UTF-8, as
-		// that one does not permit character conversions outside the ASCII range.
 		if (m_sLocale.empty() || m_sLocale == "C" || m_sLocale == "C.UTF-8")
 		{
 			m_sLocale = DefaultLocale;
 		}
 		std::setlocale(LC_ALL, m_sLocale.c_str());
 		std::locale::global(std::locale(m_sLocale.c_str()));
-#endif
+		m_sLocale = std::locale().name();
+		if (!std::iswupper(0x53d))
+		{
+			std::cerr << "dekaf: cannot set C++ locale to Unicode" << std::endl;
+			return false;
+		}
 	}
 	catch (std::exception& e) {
 		if (m_bInConstruction)

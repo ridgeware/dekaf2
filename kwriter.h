@@ -57,6 +57,8 @@
 namespace dekaf2
 {
 
+class KInStream; // fwd decl
+
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// The standalone writer abstraction for dekaf2. Can be constructed around any
 /// std::ostream. Provides localization friendly formatting methods and a fast
@@ -122,6 +124,11 @@ public:
 		Write(str.data(), str.size());
 		return *this;
 	}
+
+	//-----------------------------------------------------------------------------
+	/// Read a range of characters and append to Stream. Returns count of successfully read charcters.
+	self_type& Write(KInStream& Stream, size_t iCount);
+	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	inline self_type& operator+=(KStringView::value_type ch)

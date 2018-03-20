@@ -7,15 +7,16 @@ set(CMAKE_CXX_STANDARD 17)
 #set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set (UHEADERS
-    catch.hpp
+	catch.hpp
 )
 
 set (USOURCES
-    main.cpp
-    kwebio_smoketests.cpp
-    kinshell_smoketests.cpp
-    ksslstream_smoketests.cpp
+	main.cpp
+	khttpclient_smoketests.cpp
+	kinshell_smoketests.cpp
+	ksslstream_smoketests.cpp
 	ksql_smoketests.cpp
+	kwebio_smoketests.cpp
 )
 
 add_executable(dekaf2-smoketests ${UHEADERS} ${USOURCES})

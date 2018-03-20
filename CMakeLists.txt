@@ -211,6 +211,7 @@ set (HEADERS
 	kcache.h
 	kcasestring.h
 	kcgi.h
+	kchunkedtransfer.h
 	kcompression.h
 	kconnection.h
 	kcrashexit.h

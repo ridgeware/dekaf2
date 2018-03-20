@@ -48,6 +48,10 @@
 #include "khttp_method.h"
 #include "kuseragent.h"
 
+// for chunked transfer and compression
+#include <boost/iostreams/filtering_stream.hpp>
+
+
 /// @file khttpclient.h
 /// HTTP client implementation
 
@@ -236,6 +240,7 @@ private:
 //------
 
 	std::unique_ptr<KConnection> m_Connection;
+	std::unique_ptr<boost::iostreams::filtering_istream> m_Filter;
 	KHTTPMethod m_Method;
 	KHTTPResponse m_ResponseHeader;
 	mutable KString m_sError;

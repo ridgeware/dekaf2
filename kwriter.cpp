@@ -42,6 +42,7 @@
 
 #include <fstream>
 #include "kwriter.h"
+#include "kreader.h"
 #include "klog.h"
 
 namespace dekaf2
@@ -87,6 +88,33 @@ KOutStream::self_type& KOutStream::Write(const typename std::ostream::char_type*
 			}
 		}
 	}
+	return *this;
+}
+
+//-----------------------------------------------------------------------------
+/// Read a range of characters and append to Stream. Returns count of successfully read charcters.
+KOutStream::self_type& KOutStream::Write(KInStream& Stream, size_t iCount)
+//-----------------------------------------------------------------------------
+{
+	enum { COPY_BUFSIZE = 4096 };
+	char sBuffer[COPY_BUFSIZE];
+
+	for (;iCount;)
+	{
+		auto iChunk = std::min(4096UL, iCount);
+
+		auto iReadChunk = Stream.Read(sBuffer, iChunk);
+
+		if (iReadChunk != iChunk)
+		{
+			break;
+		}
+
+		Write(sBuffer, iReadChunk);
+		iCount -= iReadChunk;
+
+	}
+
 	return *this;
 }
 

@@ -123,7 +123,8 @@ bool KCompressBase::Write(std::istream& InputStream)
 			}
 		}
 
-		bio::copy(InputStream, *m_Filter);
+		// This operator<< is actually not trying to format.
+		*m_Filter << InputStream.rdbuf();
 
 		return true;
 	}
@@ -166,6 +167,13 @@ bool KCompressBase::CreateFilter()
 	m_Filter->push(*m_TargetStream);
 
 	return true;
+}
+
+//-----------------------------------------------------------------------------
+void KCompressBase::Close()
+//-----------------------------------------------------------------------------
+{
+	m_Filter.reset();
 }
 
 //-----------------------------------------------------------------------------

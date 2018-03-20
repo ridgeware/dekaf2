@@ -43,6 +43,11 @@
 #include "khttpclient.h"
 #include "kmime.h"
 #include "kurlencode.h"
+#include "kchunkedtransfer.h"
+#include "kstringstream.h"
+
+#include <boost/iostreams/filter/gzip.hpp>
+#include <boost/iostreams/filter/zlib.hpp>
 
 namespace dekaf2 {
 
@@ -285,124 +290,41 @@ bool KHTTPClient::ReadHeader()
 		return false;
 	}
 
-	m_bTEChunked = false;
-
 	// find the content length
-	KStringView sv(m_ResponseHeader.Get(KHTTPHeader::content_length));
+	m_iRemainingContentSize  = m_ResponseHeader.Get(KHTTPHeader::content_length).UInt64();
+	m_bTEChunked             = m_ResponseHeader.Get(KHTTPHeader::transfer_encoding) == "chunked";
+	KStringView sCompression = m_ResponseHeader.Get(KHTTPHeader::content_encoding);
 
-	if (sv.empty())
+	// start setting up the input filter queue
+	m_Filter = std::make_unique<boost::iostreams::filtering_istream>();
+
+	if (sCompression == "gzip" || sCompression == "x-gzip")
 	{
-		KStringView svTE = m_ResponseHeader.Get(KHTTPHeader::transfer_encoding);
-		if (svTE == "chunked")
-		{
-			m_bTEChunked = true;
-			m_bReceivedFinalChunk = false;
-		}
+		m_Filter->push(boost::iostreams::gzip_decompressor());
+	}
+	else if (sCompression == "deflate")
+	{
+		m_Filter->push(boost::iostreams::zlib_decompressor());
 	}
 
-	m_iRemainingContentSize = sv.UInt64();
+	if (m_bTEChunked)
+	{
+		// add the chunk reader at the top of the filter chain,
+		// it has to come first
+		m_Filter->push(KChunkedReader());
+	}
+
+	// and finally add our stream to the filtering_istream
+	m_Filter->push(Stream.InStream());
 
 	m_State = State::HEADER_PARSED;
+
+	m_Filter->rdbuf()->pubsetbuf(0, 0);
 
 	return true;
 
 } // ReadHeader
 
-//-----------------------------------------------------------------------------
-inline bool KHTTPClient::GetNextChunkSize()
-//-----------------------------------------------------------------------------
-{
-	m_Connection->ExpiresFromNow(m_Timeout);
-	
-	if (!m_bTEChunked)
-	{
-		return true;
-	}
-	else if (m_iRemainingContentSize != 0)
-	{
-		return true;
-	}
-	else if (m_bReceivedFinalChunk)
-	{
-		return false;
-	}
-
-	KStream& Stream = m_Connection->Stream();
-
-	KString sLine;
-
-	if (!Stream.ReadLine(sLine))
-	{
-		return SetError(m_Connection->Error());
-	}
-
-	try
-	{
-		kTrim(sLine);
-
-		if (sLine.empty())
-		{
-			return false;
-		}
-
-		auto len = std::strtoul(sLine.c_str(), nullptr, 16);
-
-		m_iRemainingContentSize = len;
-
-		if (!m_iRemainingContentSize)
-		{
-			// chunked transfer has trailers (optional header fields)
-			// after the last chunk (simply skip them) and a finalizing
-			// empty line
-
-			for (;;)
-			{
-				if (!Stream.ReadLine(sLine))
-				{
-					return SetError(m_Connection->Error());
-				}
-
-				if (sLine.empty())
-				{
-					break;
-				}
-			}
-
-			m_bReceivedFinalChunk = true;
-			return false;
-		}
-
-		return true;
-	}
-	catch (const std::exception& e)
-	{
-		return SetError(e.what());
-	}
-
-	return false;
-
-} // GetNextChunkSize
-
-//-----------------------------------------------------------------------------
-inline void KHTTPClient::CheckForChunkEnd()
-//-----------------------------------------------------------------------------
-{
-	if (m_bTEChunked && m_iRemainingContentSize == 0)
-	{
-		// read a line ending, either LF or CRLF
-		m_Connection->ExpiresFromNow(m_Timeout);
-		KStream& Stream = m_Connection->Stream();
-		auto ch = Stream.Read();
-		if (ch == 13)
-		{
-			ch = Stream.Read();
-		}
-		if (ch != 10)
-		{
-			kDebug(0, "have invalid chunk end, char == {}", ch);
-		}
-	}
-}
 
 //-----------------------------------------------------------------------------
 /// Stream into outstream
@@ -414,54 +336,32 @@ size_t KHTTPClient::Read(KOutStream& stream, size_t len)
 		SetError("bad state - cannot read data");
 		return 0;
 	}
-	else if (!m_Connection)
+	else if (!m_Filter)
 	{
 		SetError("no stream");
 		return 0;
 	}
-	else if (!m_Connection->Stream().KInStream::Good())
+	else if (!m_Filter->good())
 	{
 		SetError(m_Connection->Error());
 		return 0;
 	}
 
-	KStream& Stream = m_Connection->Stream();
-	size_t tlen{0};
-
-	// if this is a chunked transfer we loop until we read len bytes
-	while (len && GetNextChunkSize())
+	if (len)
 	{
-		// we touch the expiry timer in GetNextChunkSize() already
-		auto wanted = std::min(len, size());
+		KInStream istream(*m_Filter);
+		stream.Write(istream, len);
+	}
 
-		if (wanted == 0)
-		{
-			break;
-		}
-
-		auto received = Stream.Read(stream, wanted);
-
-		m_iRemainingContentSize -= received;
-		len -= received;
-		tlen += received;
-
-		if (received < wanted)
-		{
-			SetError(m_Connection->GetStreamError());
-			return tlen;
-		}
-
-		if (!m_bTEChunked)
-		{
-			break;
-		}
-
-		CheckForChunkEnd();
+	if (!m_Filter->good())
+	{
+		SetError(m_Connection->GetStreamError());
+		return 0;
 	}
 
 	m_State = State::CONTENT_READ;
 
-	return tlen;
+	return len;
 
 } // Read
 
@@ -475,54 +375,40 @@ size_t KHTTPClient::Read(KString& sBuffer, size_t len)
 		SetError("bad state - cannot read data");
 		return 0;
 	}
-	else if (!m_Connection)
+	else if (!m_Filter)
 	{
 		SetError("no stream");
 		return 0;
 	}
-	else if (!m_Connection->Stream().KInStream::Good())
+	else if (!m_Filter->good())
 	{
 		SetError(m_Connection->Error());
 		return 0;
 	}
 
-	KStream& Stream = m_Connection->Stream();
-	size_t tlen{0};
+	len = std::min(len, size());
 
-	// if this is a chunked transfer we loop until we read len bytes
-	while (len && GetNextChunkSize())
+	if (len)
 	{
-		// we touch the expiry timer in GetNextChunkSize() already
-		auto wanted = std::min(len, size());
+		KInStream istream(*m_Filter);
+		istream.Read(sBuffer, len);
+	}
+	else if (m_bTEChunked)
+	{
+		// ignore len, copy full stream
+		KOStringStream ostream(sBuffer);
+		ostream << m_Filter->rdbuf();
+	}
 
-		if (wanted == 0)
-		{
-			break;
-		}
-
-		auto received = Stream.Read(sBuffer, wanted);
-
-		m_iRemainingContentSize -= received;
-		len -= received;
-		tlen += received;
-
-		if (received < wanted)
-		{
-			SetError(m_Connection->GetStreamError());
-			return tlen;
-		}
-
-		if (!m_bTEChunked)
-		{
-			break;
-		}
-
-		CheckForChunkEnd();
+	if (!m_Filter->good())
+	{
+		SetError(m_Connection->GetStreamError());
+		return sBuffer.size();
 	}
 
 	m_State = State::CONTENT_READ;
 
-	return tlen;
+	return sBuffer.size();
 
 } // Read
 
@@ -537,36 +423,39 @@ bool KHTTPClient::ReadLine(KString& sBuffer)
 	{
 		return SetError("bad state - cannot read data");
 	}
-	else if (!m_Connection)
+	else if (!m_Filter)
 	{
-		return SetError("no stream");
+		SetError("no stream");
+		return false;
 	}
-	else if (!m_Connection->Stream().KInStream::Good())
+	else if (m_Filter->eof())
 	{
-		return SetError(m_Connection->Error());
+		return false;
+	}
+	else if (!m_Filter->good())
+	{
+		SetError(m_Connection->Error());
+		return false;
 	}
 
-	// we touch the expiry timer in GetNextChunkSize() already
-	GetNextChunkSize();
-
-	if (!m_iRemainingContentSize)
+	if (!m_iRemainingContentSize && !m_bTEChunked)
 	{
 		m_State = State::CONTENT_READ;
 		return false;
 	}
 
-	KStream& Stream = m_Connection->Stream();
+	// we touch the expiry timer in GetNextChunkSize() already
 
-	// TODO this will fail with chunked transfer if the newline is in a new transfer block..
-	if (!Stream.ReadLine(sBuffer))
+	KInStream istream(*m_Filter);
+	if (!istream.ReadLine(sBuffer))
 	{
 		SetError(m_Connection->GetStreamError());
 		m_iRemainingContentSize = 0;
 		return false;
 	}
 
-	auto len = sBuffer.size();
-	m_iRemainingContentSize -= len;
+	// TODO fix the remaining size mechanism
+	m_iRemainingContentSize -= sBuffer.size() + 2;
 
 	return true;
 

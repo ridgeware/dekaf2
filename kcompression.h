@@ -48,7 +48,7 @@
 #include "kstream.h"
 #include "kstringstream.h"
 
-#include <boost/iostreams/filtering_streambuf.hpp>
+#include <boost/iostreams/filtering_stream.hpp>
 
 
 namespace dekaf2 {
@@ -97,6 +97,10 @@ public:
 	/// writes a KInStream into the compressor
 	bool Write(KInStream& InputStream);
 
+	/// closes the output stream, calls finalizers of
+	/// encoders/decoders (also done by destructor)
+	void Close();
+
 	/// writes a string into the compressor
 	KCompressBase& operator+=(KStringView sInput)
 	{
@@ -108,7 +112,7 @@ public:
 protected:
 //------
 
-	using streamfilter = boost::iostreams::filtering_streambuf<boost::iostreams::output>;
+	using streamfilter = boost::iostreams::filtering_ostream;
 
 	virtual void AddFilter(streamfilter& stream) = 0;
 

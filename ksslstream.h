@@ -46,6 +46,7 @@
 
 #include <boost/asio.hpp>
 #include <boost/asio/ssl.hpp>
+#include <boost/asio/ip/tcp.hpp>
 #include <boost/iostreams/concepts.hpp>
 #include <boost/iostreams/stream.hpp>
 #include "kstring.h"
@@ -251,6 +252,111 @@ private:
 	boost::asio::io_service m_IO_Service;
 	boost::asio::ssl::context m_Context;
 	boost::asio::ssl::stream<boost::asio::ip::tcp::socket> m_Socket;
+#if (BOOST_VERSION < 106600)
+	boost::asio::ip::tcp::resolver::iterator m_ConnectedHost;
+#else
+	boost::asio::ip::tcp::endpoint m_ConnectedHost;
+#endif
+	int m_iTimeoutMilliseconds;
+
+};
+
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// std::iostream implementation with SSL/TLS encryption and timeout.
+class KTCPIOStream : public boost::iostreams::stream<KSSLInOutStreamDevice>
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+	using base_type = boost::iostreams::stream<KSSLInOutStreamDevice>;
+
+	enum { DEFAULT_TIMEOUT = 1 * 30 };
+
+	//----------
+public:
+	//----------
+
+	//-----------------------------------------------------------------------------
+	/// Construcs an unconnected stream
+	KTCPIOStream();
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// Constructs a connected stream as a client.
+	/// @param sServer
+	/// Server name or IP address in v4 or v6 notation to connect to, as a string
+	/// @param sPort
+	/// Port to connect to, as a string
+	/// @param iSecondsTimeout
+	/// Timeout in seconds for any I/O. Defaults to 60.
+	KTCPIOStream(const char* sServer,
+				 const char* sPort,
+				 int iSecondsTimeout = DEFAULT_TIMEOUT);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// Constructs a connected stream as a client.
+	/// @param sServer
+	/// Server name or IP address in v4 or v6 notation to connect to, as a string
+	/// @param sPort
+	/// Port to connect to, as a string
+	/// @param iSecondsTimeout
+	/// Timeout in seconds for any I/O. Defaults to 60.
+	KTCPIOStream(const KString& sServer,
+				 const KString& sPort,
+				 int iSecondsTimeout = DEFAULT_TIMEOUT);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// Destructs and closes a stream
+	~KTCPIOStream();
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// Set I/O timeout in seconds.
+	bool Timeout(int iSeconds);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// Connects a given server as a client.
+	/// @param sServer
+	/// Server name or IP address in v4 or v6 notation to connect to, as a string
+	/// @param sPort
+	/// Port to connect to, as a string
+	bool connect(const char* sServer, const char* sPort);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// Connects a given server as a client.
+	/// @param sServer
+	/// Server name or IP address in v4 or v6 notation to connect to, as a string
+	/// @param sPort
+	/// Port to connect to, as a string
+	inline bool connect(const KString& sServer, const KString& sPort)
+	//-----------------------------------------------------------------------------
+	{
+		return connect(sServer.c_str(), sPort.c_str());
+	}
+
+	//-----------------------------------------------------------------------------
+	/// Gets the underlying TCP socket of the stream
+	/// @return
+	/// The TCP socket of the stream (wrapped into ASIO's basic_socket<> template)
+#if (BOOST_VERSION < 106600)
+	boost::asio::basic_socket<boost::asio::ip::tcp, boost::asio::stream_socket_service<boost::asio::ip::tcp> >& GetTCPSocket()
+#else
+	boost::asio::basic_socket<boost::asio::ip::tcp>& GetTCPSocket()
+#endif
+	//-----------------------------------------------------------------------------
+	{
+		return m_Socket.lowest_layer();
+	}
+
+	//----------
+private:
+	//----------
+
+	boost::asio::io_service m_IO_Service;
+//	boost::asio::ssl::context m_Context;
+	boost::asio::tcp::stream<boost::asio::ip::tcp::socket> m_Socket;
 #if (BOOST_VERSION < 106600)
 	boost::asio::ip::tcp::resolver::iterator m_ConnectedHost;
 #else

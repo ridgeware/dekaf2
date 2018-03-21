@@ -141,7 +141,7 @@ template class URIComponent<URLEncodedString, URIPart::Fragment, '#',  true,  fa
 /// For [file, ftp, http, https, mailto] store only the eProto.
 /// For others, store the characters.
 /// getters/setters and reserialization are available.
-KStringView KProtocol::Parse (KStringView svSource)
+KStringView KProtocol::Parse (KStringView svSource, bool bAcceptWithoutColon)
 //-----------------------------------------------------------------------------
 {
 	clear ();
@@ -149,6 +149,11 @@ KStringView KProtocol::Parse (KStringView svSource)
 	if (!svSource.empty ())
 	{
 		size_t iFound = svSource.find_first_of (':');
+
+		if (bAcceptWithoutColon && iFound == KStringView::npos)
+		{
+			iFound = svSource.size();
+		}
 
 		if (iFound != KStringView::npos)
 		{

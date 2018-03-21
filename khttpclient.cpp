@@ -441,7 +441,15 @@ size_t KHTTPClient::Read(KOutStream& stream, size_t len)
 
 		auto received = Stream.Read(stream, wanted);
 
-		m_iRemainingContentSize -= received;
+		if (m_iRemainingContentSize >= received)
+		{
+			m_iRemainingContentSize -= received;
+		}
+		else
+		{
+			m_iRemainingContentSize = 0;
+		}
+
 		len -= received;
 		tlen += received;
 
@@ -459,7 +467,10 @@ size_t KHTTPClient::Read(KOutStream& stream, size_t len)
 		CheckForChunkEnd();
 	}
 
-	m_State = State::CONTENT_READ;
+	if (!m_iRemainingContentSize)
+	{
+		m_State = State::CONTENT_READ;
+	}
 
 	return tlen;
 
@@ -502,7 +513,15 @@ size_t KHTTPClient::Read(KString& sBuffer, size_t len)
 
 		auto received = Stream.Read(sBuffer, wanted);
 
-		m_iRemainingContentSize -= received;
+		if (m_iRemainingContentSize >= received)
+		{
+			m_iRemainingContentSize -= received;
+		}
+		else
+		{
+			m_iRemainingContentSize = 0;
+		}
+
 		len -= received;
 		tlen += received;
 
@@ -520,7 +539,10 @@ size_t KHTTPClient::Read(KString& sBuffer, size_t len)
 		CheckForChunkEnd();
 	}
 
-	m_State = State::CONTENT_READ;
+	if (!m_iRemainingContentSize)
+	{
+		m_State = State::CONTENT_READ;
+	}
 
 	return tlen;
 
@@ -566,7 +588,20 @@ bool KHTTPClient::ReadLine(KString& sBuffer)
 	}
 
 	auto len = sBuffer.size();
-	m_iRemainingContentSize -= len;
+
+	if (m_iRemainingContentSize >= len)
+	{
+		m_iRemainingContentSize -= len;
+	}
+	else
+	{
+		m_iRemainingContentSize = 0;
+	}
+
+	if (!m_iRemainingContentSize)
+	{
+		m_State = State::CONTENT_READ;
+	}
 
 	return true;
 

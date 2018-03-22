@@ -137,6 +137,12 @@ std::streamsize KChunkedSource::read(char* s, std::streamsize n)
 					// switch state to chunk end
 					m_State = ReadingChunkEnd;
 				}
+				else if (!m_src.Good() || ird == 0)
+				{
+					// our stream got foul
+					m_State = Finished;
+					return iResult;
+				}
 
 				break;
 			}
@@ -246,6 +252,32 @@ std::streamsize KChunkedSource::read(char* s, std::streamsize n)
 }
 
 //-----------------------------------------------------------------------------
+KString KChunkedSource::read()
+//-----------------------------------------------------------------------------
+{
+	KString sBuffer;
+
+	enum { BUFSIZE = 4096 };
+	char buffer[BUFSIZE];
+
+	for (;;)
+	{
+		auto iRead = read(buffer, BUFSIZE);
+
+		if (iRead > 0)
+		{
+			sBuffer.append(buffer, iRead);
+		}
+		if (iRead < BUFSIZE)
+		{
+			break;
+		}
+	}
+
+	return sBuffer;
+}
+
+//-----------------------------------------------------------------------------
 KChunkedSink::KChunkedSink(KOutStream& sink, bool bIsChunked)
 //-----------------------------------------------------------------------------
 : m_sink { sink }
@@ -253,10 +285,10 @@ KChunkedSink::KChunkedSink(KOutStream& sink, bool bIsChunked)
 {}
 
 //-----------------------------------------------------------------------------
-std::streamsize KChunkedSink::write(char* s, std::streamsize n)
+std::streamsize KChunkedSink::write(const char* s, std::streamsize n)
 //-----------------------------------------------------------------------------
 {
-	if (n <= 0)
+	if (n <= 0 || !s)
 	{
 		return 0;
 	}

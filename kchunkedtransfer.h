@@ -83,6 +83,11 @@ public:
 	std::streamsize read(char* s, std::streamsize n);
 	//-----------------------------------------------------------------------------
 
+	//-----------------------------------------------------------------------------
+	/// non-boost interface to read a whole chunked transfer into a KString
+	KString read();
+	//-----------------------------------------------------------------------------
+
 //------
 private:
 //------
@@ -115,8 +120,16 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	std::streamsize write(char* s, std::streamsize n);
+	std::streamsize write(const char* s, std::streamsize n);
 	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// non-boost interface to write a KStringView in chunked mode
+	std::streamsize write(KStringView sBuffer)
+	//-----------------------------------------------------------------------------
+	{
+		return write(sBuffer.data(), sBuffer.size());
+	}
 
 	//-----------------------------------------------------------------------------
 	void close();

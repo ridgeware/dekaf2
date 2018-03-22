@@ -43,18 +43,15 @@
 #pragma once
 
 /// @file kchunkedtransfer.h
-/// Implements chunked reader and writer as boost iostreams filters
+/// Implements chunked reader and writer as boost iostreams source and sink
 
-#include <boost/iostreams/char_traits.hpp> // EOF, WOULD_BLOCK
-#include <boost/iostreams/concepts.hpp>    // input_filter
-#include <boost/iostreams/operations.hpp>  // get
-
-#include "kstringutils.h"
+#include <boost/iostreams/concepts.hpp>    // source
+#include "kstream.h"
 
 namespace dekaf2 {
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class KChunkedReader : public boost::iostreams::input_filter
+class KChunkedSource : public boost::iostreams::source
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -69,7 +66,9 @@ private:
 		SkipUntilEmptyLine,
 		HadNonEmptyLine,
 		IsNotChunked,
-		ReadingChunk
+		ReadingChunk,
+		ReadingChunkEnd,
+		Finished
 	};
 
 //------
@@ -77,133 +76,61 @@ public:
 //------
 
 	//-----------------------------------------------------------------------------
-	template<typename Source>
-	int get(Source& src)
+	KChunkedSource(KInStream& src, bool bIsChunked, std::streamsize iContentLen = -1);
 	//-----------------------------------------------------------------------------
-	{
-		for (;;)
-		{
-			int c = boost::iostreams::get(src);
-
-			if (c == EOF || c == boost::iostreams::WOULD_BLOCK)
-			{
-				return c;
-			}
-
-			switch (m_State)
-			{
-				case ReadingChunk:
-				{
-					if (!--m_iRemainingInChunk)
-					{
-						// switch state to next chunk header
-						m_State = StartingUp;
-					}
-
-					return c;
-				}
-
-				case IsNotChunked:
-					// if this is no chunked transfer just return the input
-					return c;
-
-				case StartingUp:
-				case ReadingSize:
-				{
-					if (c == 0x0d)
-					{
-						// skip CR
-					}
-					else if (c == 0x0a)
-					{
-						// stop reading the size on LF
-						if (m_iRemainingInChunk == 0)
-						{
-							if (m_State == StartingUp)
-							{
-								// we had not even seen a 0 ..
-								// this is a protocol error
-								m_State = IsNotChunked;
-								return c;
-							}
-
-							// this is the last chunk of a series.
-							// Stop skipping at the next empty line
-							m_State = SkipUntilEmptyLine;
-						}
-						// this was a valid chunk header, now
-						// switch to chunk reading mode
-						m_State = ReadingChunk;
-					}
-					else
-					{
-						// convert next nibble
-						auto iNibble = kFromHexChar(c);
-						if (iNibble < 16)
-						{
-							m_iRemainingInChunk <<= 4;
-							m_iRemainingInChunk += iNibble;
-							m_State = ReadingSize;
-						}
-						else
-						{
-							m_State = IsNotChunked;
-							// TODO try to put back the hex chars read so far
-						}
-					}
-					break;
-				}
-
-				case SkipUntilEmptyLine:
-				{
-					if (c == 0x0d)
-					{
-						// skip CR
-					}
-					else if (c == 0x0a)
-					{
-						// this was an empty line
-						m_State = StartingUp;
-						return EOF;
-					}
-					else
-					{
-						m_State = HadNonEmptyLine;
-					}
-					break;
-				}
-
-				case HadNonEmptyLine:
-				{
-					if (c == 0x0a)
-					{
-						m_State = SkipUntilEmptyLine;
-					}
-					break;
-				}
-
-			} // switch
-			
-		} // for (;;)
-	}
 
 	//-----------------------------------------------------------------------------
-	template<typename Source>
-	void close(Source&)
+	std::streamsize read(char* s, std::streamsize n);
 	//-----------------------------------------------------------------------------
-	{
-		m_iRemainingInChunk = 0;
-		m_State = StartingUp;
-	}
 
 //------
 private:
 //------
 
-	size_t m_iRemainingInChunk { 0 };
-	STATE m_State { StartingUp };
+	KInStream& m_src;
+	std::streamsize m_iRemainingInChunk { 0 };
+	std::streamsize m_iContentLen;
+	STATE m_State;
 
 };
+
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+class KChunkedSink : public boost::iostreams::sink
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+//------
+public:
+//------
+
+	//-----------------------------------------------------------------------------
+	KChunkedSink(KOutStream& sink, bool bIsChunked);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	~KChunkedSink()
+	//-----------------------------------------------------------------------------
+	{
+		close();
+	}
+
+	//-----------------------------------------------------------------------------
+	std::streamsize write(char* s, std::streamsize n);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	void close();
+	//-----------------------------------------------------------------------------
+
+//------
+private:
+//------
+
+	KOutStream& m_sink;
+	bool m_bIsChunked;
+
+};
+
 
 } // end of namespace dekaf2
 

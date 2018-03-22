@@ -281,6 +281,7 @@ set (SOURCES
 	kbase64.cpp
 	kcasestring.cpp
 	kcgi.cpp
+	kchunkedtransfer.cpp
 	kcompression.cpp
 	kconnection.cpp
 	kcrashexit.cpp

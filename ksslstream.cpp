@@ -57,7 +57,7 @@ namespace KSSL_detail
 {
 
 //-----------------------------------------------------------------------------
-KSSLInOutStreamDevice::KSSLInOutStreamDevice(ssl::stream<ip::tcp::socket>& Stream, bool bUseSSL, const int& iTimeoutMilliseconds) noexcept
+KSSLInOutStreamDevice::KSSLInOutStreamDevice(ssl::stream<ip::tcp::socket>& Stream, bool bUseSSL, const int& iTimeoutMilliseconds)
 //-----------------------------------------------------------------------------
     : m_Stream(Stream)
     , m_iTimeoutMilliseconds(iTimeoutMilliseconds)
@@ -106,6 +106,8 @@ KSSLInOutStreamDevice::POLLSTATE KSSLInOutStreamDevice::timeout(bool bForReading
 
 	kDebug(1, "have SSL timeout");
 
+	m_bFailed = true;
+
 	return POLL_FAILURE;
 
 #endif
@@ -132,7 +134,7 @@ void KSSLInOutStreamDevice::handshake(ssl::stream_base::handshake_type role)
 }
 
 //-----------------------------------------------------------------------------
-size_t KSSLInOutStreamDevice::read_with_timeout(char* s, size_t n) noexcept
+size_t KSSLInOutStreamDevice::read_with_timeout(char* s, size_t n)
 //-----------------------------------------------------------------------------
 {
 	if (m_bFailed)
@@ -165,14 +167,13 @@ size_t KSSLInOutStreamDevice::read_with_timeout(char* s, size_t n) noexcept
 }
 
 //-----------------------------------------------------------------------------
-std::streamsize KSSLInOutStreamDevice::read(char* s, std::streamsize n) noexcept
+std::streamsize KSSLInOutStreamDevice::read(char* s, std::streamsize n)
 //-----------------------------------------------------------------------------
 {
 	if (m_bFailed)
 	{
 		// it is weird, but boost::iostreams expect -1 to be returned
 		// for a failed read(), but an exception for a failed write()
-		// which is then finally not caught at least with Clang + libc++.
 		return -1;
 	}
 
@@ -180,25 +181,34 @@ std::streamsize KSSLInOutStreamDevice::read(char* s, std::streamsize n) noexcept
 
 		handshake(ssl::stream_base::server); // SSL servers read first
 
+		auto ps = timeout(true);
+
+		if (ps == POLL_FAILURE)
+		{
+			return -1;
+		}
+
+		if (ps == POLL_LAST)
+		{
+			return -1;
+		}
+
 		if (m_bUseSSL)
 		{
 			return static_cast<std::streamsize>(
-				read_with_timeout(s, static_cast<std::size_t>(n))
+				m_Stream.read_some(boost::asio::buffer(s, n))
+//				read_with_timeout(s, static_cast<std::size_t>(n))
 			);
 		}
 		else
 		{
-			if (timeout(true) == POLL_FAILURE)
-			{
-				return -1;
-			}
-
 			return static_cast<std::streamsize>(
-			    m_Stream.next_layer().read_some(
+				m_Stream.next_layer().read_some(
 			        boost::asio::buffer(s, static_cast<std::size_t>(n))
 			    )
 			);
 		}
+
 
 	}
 
@@ -218,7 +228,7 @@ std::streamsize KSSLInOutStreamDevice::read(char* s, std::streamsize n) noexcept
 }
 
 //-----------------------------------------------------------------------------
-std::streamsize KSSLInOutStreamDevice::write(const char* s, std::streamsize n) noexcept
+std::streamsize KSSLInOutStreamDevice::write(const char* s, std::streamsize n)
 //-----------------------------------------------------------------------------
 {
 	if (m_bFailed)
@@ -334,7 +344,7 @@ bool KSSLIOStream::Timeout(int iSeconds)
 {
 	if (iSeconds > std::numeric_limits<int>::max() / 1000)
 	{
-		kDebug(2, "KSSLIOStream::timeout: value too big: {}", iSeconds);
+		kDebug(2, "value too big: {}", iSeconds);
 		iSeconds = std::numeric_limits<int>::max() / 1000;
 	}
 	m_iTimeoutMilliseconds = iSeconds * 1000;
@@ -389,6 +399,208 @@ bool KSSLIOStream::connect(const char* sServer, const char* sPort, bool bVerifyC
 	return false;
 }
 
+
+//-----------------------------------------------------------------------------
+KTCPInOutStreamDevice::KTCPInOutStreamDevice(tcpstream& Stream, const int& iTimeoutMilliseconds)
+//-----------------------------------------------------------------------------
+: m_Stream(Stream)
+, m_iTimeoutMilliseconds(iTimeoutMilliseconds)
+{
+}
+
+//-----------------------------------------------------------------------------
+KTCPInOutStreamDevice::POLLSTATE KTCPInOutStreamDevice::timeout(bool bForReading)
+//-----------------------------------------------------------------------------
+{
+#ifdef DEKAF2_IS_UNIX
+
+	pollfd what;
+
+	short event = (bForReading) ? POLLIN : POLLOUT;
+	what.fd     = m_Stream.lowest_layer().native_handle();
+	what.events = event;
+
+	int err = ::poll(&what, 1, m_iTimeoutMilliseconds);
+
+	if (err < 0)
+	{
+		kWarning("poll returned {}", strerror(errno));
+	}
+	else if (err == 1)
+	{
+		if ((what.revents & event) == event)
+		{
+			if ((what.revents & POLLHUP) == POLLHUP)
+			{
+				return POLL_LAST;
+			}
+			else
+			{
+				return POLL_SUCCESS;
+			}
+		}
+	}
+
+	kDebug(1, "have TCP timeout");
+
+	return POLL_FAILURE;
+
+#endif
+	// TODO add a Windows implementation for the timeout
+}
+
+
+//-----------------------------------------------------------------------------
+std::streamsize KTCPInOutStreamDevice::read(char* s, std::streamsize n)
+//-----------------------------------------------------------------------------
+{
+	try {
+
+		if (timeout(true) == POLL_FAILURE)
+		{
+			return -1;
+		}
+		
+		return static_cast<std::streamsize>(
+			m_Stream.read_some(boost::asio::buffer(s, n))
+		);
+
+	}
+
+	catch (const std::exception& e)
+	{
+		kException(e);
+	}
+
+	catch (...)
+	{
+		kUnknownException();
+	}
+
+	return -1;
+
+} // read
+
+//-----------------------------------------------------------------------------
+std::streamsize KTCPInOutStreamDevice::write(const char* s, std::streamsize n)
+//-----------------------------------------------------------------------------
+{
+	try {
+
+		if (timeout(false) == POLL_FAILURE)
+		{
+			return 0;
+		}
+
+		return static_cast<std::streamsize>(
+			boost::asio::write(
+				m_Stream, boost::asio::buffer(s, static_cast<std::size_t>(n))
+			)
+		);
+
+	}
+
+	catch (const std::exception& e)
+	{
+		kException(e);
+	}
+
+	catch (...)
+	{
+		kUnknownException();
+	}
+
+	return 0;
+
+} // write
+
+//-----------------------------------------------------------------------------
+KTCPIOStream::KTCPIOStream()
+//-----------------------------------------------------------------------------
+: base_type(m_Socket, m_iTimeoutMilliseconds)
+, m_Socket(m_IO_Service)
+{
+	Timeout(DEFAULT_TIMEOUT);
+}
+
+//-----------------------------------------------------------------------------
+KTCPIOStream::KTCPIOStream(const char* sServer, const char* sPort, int iSecondsTimeout)
+//-----------------------------------------------------------------------------
+: base_type(m_Socket, m_iTimeoutMilliseconds)
+, m_Socket(m_IO_Service)
+{
+	Timeout(iSecondsTimeout);
+	connect(sServer, sPort);
+}
+
+//-----------------------------------------------------------------------------
+KTCPIOStream::KTCPIOStream(const KString& sServer, const KString& sPort, int iSecondsTimeout)
+//-----------------------------------------------------------------------------
+: base_type(m_Socket, m_iTimeoutMilliseconds)
+, m_Socket(m_IO_Service)
+{
+	Timeout(iSecondsTimeout);
+	connect(sServer, sPort);
+}
+
+//-----------------------------------------------------------------------------
+KTCPIOStream::~KTCPIOStream()
+//-----------------------------------------------------------------------------
+{
+}
+
+//-----------------------------------------------------------------------------
+bool KTCPIOStream::Timeout(int iSeconds)
+//-----------------------------------------------------------------------------
+{
+	if (iSeconds > std::numeric_limits<int>::max() / 1000)
+	{
+		kDebug(2, "value too big: {}", iSeconds);
+		iSeconds = std::numeric_limits<int>::max() / 1000;
+	}
+	m_iTimeoutMilliseconds = iSeconds * 1000;
+	return true;
+}
+
+//-----------------------------------------------------------------------------
+bool KTCPIOStream::connect(const char* sServer, const char* sPort)
+//-----------------------------------------------------------------------------
+{
+	try {
+
+		ip::tcp::resolver Resolver(m_IO_Service);
+
+		ip::tcp::resolver::query query(sServer, sPort);
+		auto hosts = Resolver.resolve(query);
+
+		if (m_Expect <= 0)
+		{
+			m_Expect = -1;
+		}
+
+		m_ConnectedHost = boost::asio::connect(m_Socket.lowest_layer(), hosts);
+
+		return true;
+
+	}
+
+	catch (const std::exception& e)
+	{
+		kException(e);
+	}
+
+	catch (...)
+	{
+		kUnknownException();
+	}
+
+	return false;
+}
+
+
+
+
+
 } // end of namespace KSSL_detail
 
 //-----------------------------------------------------------------------------
@@ -406,6 +618,22 @@ std::unique_ptr<KSSLStream> CreateKSSLStream(const KTCPEndPoint& EndPoint, bool 
 }
 
 
+//-----------------------------------------------------------------------------
+std::unique_ptr<KTCPStream> CreateKTCPStream()
+//-----------------------------------------------------------------------------
+{
+	return std::make_unique<KTCPStream>();
+}
+
+//-----------------------------------------------------------------------------
+std::unique_ptr<KTCPStream> CreateKTCPStream(const KTCPEndPoint& EndPoint)
+//-----------------------------------------------------------------------------
+{
+	std::string sDomain = EndPoint.Domain.get().ToStdString();
+	std::string sPort   = EndPoint.Port.get().ToStdString();
+
+	return std::make_unique<KTCPStream>(sDomain, sPort);
+}
 
 } // end of namespace dekaf2
 

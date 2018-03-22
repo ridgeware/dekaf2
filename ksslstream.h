@@ -72,7 +72,7 @@ public:
 //----------
 
 	//-----------------------------------------------------------------------------
-	KSSLInOutStreamDevice(boost::asio::ssl::stream<boost::asio::ip::tcp::socket>& Stream, bool bUseSSL, const int& iTimeoutMilliseconds) noexcept;
+	KSSLInOutStreamDevice(boost::asio::ssl::stream<boost::asio::ip::tcp::socket>& Stream, bool bUseSSL, const int& iTimeoutMilliseconds);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -80,11 +80,11 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	std::streamsize read(char* s, std::streamsize n) noexcept;
+	std::streamsize read(char* s, std::streamsize n);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	std::streamsize write(const char* s, std::streamsize n) noexcept;
+	std::streamsize write(const char* s, std::streamsize n);
 	//-----------------------------------------------------------------------------
 
 //----------
@@ -103,7 +103,7 @@ protected:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	size_t read_with_timeout(char* s, size_t n) noexcept;
+	size_t read_with_timeout(char* s, size_t n);
 	//-----------------------------------------------------------------------------
 
 //----------
@@ -251,7 +251,8 @@ private:
 
 	boost::asio::io_service m_IO_Service;
 	boost::asio::ssl::context m_Context;
-	boost::asio::ssl::stream<boost::asio::ip::tcp::socket> m_Socket;
+	using tcpstream = boost::asio::ssl::stream<boost::asio::ip::tcp::socket>;
+	tcpstream m_Socket;
 #if (BOOST_VERSION < 106600)
 	boost::asio::ip::tcp::resolver::iterator m_ConnectedHost;
 #else
@@ -261,12 +262,69 @@ private:
 
 };
 
+
+
+
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// std::iostream implementation with SSL/TLS encryption and timeout.
-class KTCPIOStream : public boost::iostreams::stream<KSSLInOutStreamDevice>
+/// IOStream device that speaks TCP. Equivalent to
+/// a std::streambuf, but not derived.
+class KTCPInOutStreamDevice : public boost::iostreams::device<boost::iostreams::bidirectional>
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
-	using base_type = boost::iostreams::stream<KSSLInOutStreamDevice>;
+
+	using base_type = boost::iostreams::device<boost::iostreams::bidirectional>;
+	using tcpstream = boost::asio::basic_stream_socket<boost::asio::ip::tcp>;
+
+//----------
+public:
+//----------
+
+	//-----------------------------------------------------------------------------
+	KTCPInOutStreamDevice(tcpstream& Stream, const int& iTimeoutMilliseconds);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	std::streamsize read(char* s, std::streamsize n);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	std::streamsize write(const char* s, std::streamsize n);
+	//-----------------------------------------------------------------------------
+
+//----------
+protected:
+//----------
+
+	enum POLLSTATE
+	{
+		POLL_FAILURE = 0,
+		POLL_SUCCESS = 1,
+		POLL_LAST    = 2
+	};
+
+	//-----------------------------------------------------------------------------
+	POLLSTATE timeout(bool bForReading);
+	//-----------------------------------------------------------------------------
+
+//----------
+private:
+//----------
+
+	tcpstream& m_Stream;
+	const int& m_iTimeoutMilliseconds;
+
+};  // KTCPIOStreamDevice
+
+
+
+
+
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// std::iostream implementation with SSL/TLS encryption and timeout.
+class KTCPIOStream : public boost::iostreams::stream<KTCPInOutStreamDevice>
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+	using base_type = boost::iostreams::stream<KTCPInOutStreamDevice>;
 
 	enum { DEFAULT_TIMEOUT = 1 * 30 };
 
@@ -350,18 +408,24 @@ public:
 		return m_Socket.lowest_layer();
 	}
 
+	KString error() const
+	{
+		return ""; // TODO
+	}
+
 	//----------
 private:
 	//----------
 
 	boost::asio::io_service m_IO_Service;
-//	boost::asio::ssl::context m_Context;
-	boost::asio::tcp::stream<boost::asio::ip::tcp::socket> m_Socket;
+	using tcpstream = boost::asio::basic_stream_socket<boost::asio::ip::tcp>;
+	tcpstream m_Socket;
 #if (BOOST_VERSION < 106600)
 	boost::asio::ip::tcp::resolver::iterator m_ConnectedHost;
 #else
 	boost::asio::ip::tcp::endpoint m_ConnectedHost;
 #endif
+	std::streamsize m_Expect{-1};
 	int m_iTimeoutMilliseconds;
 
 };
@@ -382,6 +446,12 @@ class KTCPEndPoint;
 std::unique_ptr<KSSLStream> CreateKSSLStream(const KTCPEndPoint& EndPoint, bool bVerifyCerts, bool bAllowSSLv2v3);
 //-----------------------------------------------------------------------------
 
+/// SSL stream based on boost::iostreams and asio::ssl
+using KTCPStream = KReaderWriter<KSSL_detail::KTCPIOStream>;
 
-}
+	std::unique_ptr<KTCPStream> CreateKTCPStream();
+std::unique_ptr<KTCPStream> CreateKTCPStream(const KTCPEndPoint& EndPoint);
+
+} // end of namespace dekaf2
+
 

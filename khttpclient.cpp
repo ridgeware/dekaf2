@@ -95,6 +95,8 @@ bool KHTTPClient::Connect(std::unique_ptr<KConnection> Connection)
 		return SetError(m_Connection->Error());
 	}
 
+	m_Connection->SetTimeout(m_Timeout);
+	
 	Stream.SetReaderEndOfLine('\n');
 	Stream.SetReaderLeftTrim("");
 	Stream.SetReaderRightTrim("\r\n");
@@ -167,8 +169,6 @@ bool KHTTPClient::Resource(const KURL& url, KHTTPMethod method)
 		return SetError(m_Connection->Error());
 	}
 
-	m_Connection->ExpiresFromNow(m_Timeout);
-
 	KStream& Stream = m_Connection->Stream();
 
 	Stream.Write(method.Serialize());
@@ -208,8 +208,6 @@ bool KHTTPClient::RequestHeader(KStringView svName, KStringView svValue)
 		return SetError(m_Connection->Error());
 	}
 
-	m_Connection->ExpiresFromNow(m_Timeout);
-
 	KStream& Stream = m_Connection->Stream();
 	Stream.Write(svName);
 	Stream.Write(": ");
@@ -235,8 +233,6 @@ bool KHTTPClient::Request(KStringView svPostData, KStringView svMime)
 	{
 		return SetError(m_Connection->Error());
 	}
-
-	m_Connection->ExpiresFromNow(m_Timeout);
 
 	KStream& Stream = m_Connection->Stream();
 
@@ -280,8 +276,6 @@ bool KHTTPClient::ReadHeader()
 		return SetError(m_Connection->Error());
 	}
 
-	m_Connection->ExpiresFromNow(m_Timeout);
-
 	KStream& Stream = m_Connection->Stream();
 
 	if (!m_ResponseHeader.Parse(Stream))
@@ -291,7 +285,8 @@ bool KHTTPClient::ReadHeader()
 	}
 
 	// find the content length
-	m_iRemainingContentSize  = m_ResponseHeader.Get(KHTTPHeader::content_length).UInt64();
+	KStringView sRemainingContentSize  = m_ResponseHeader.Get(KHTTPHeader::content_length);
+	m_iRemainingContentSize  = sRemainingContentSize.UInt64();
 	m_bTEChunked             = m_ResponseHeader.Get(KHTTPHeader::transfer_encoding) == "chunked";
 	KStringView sCompression = m_ResponseHeader.Get(KHTTPHeader::content_encoding);
 
@@ -307,19 +302,15 @@ bool KHTTPClient::ReadHeader()
 		m_Filter->push(boost::iostreams::zlib_decompressor());
 	}
 
-	if (m_bTEChunked)
-	{
-		// add the chunk reader at the top of the filter chain,
-		// it has to come first
-		m_Filter->push(KChunkedReader());
-	}
+	// we use the chunked reader also in the unchunked case -
+	// it protects us from reading more than content length bytes
+	// into the buffered iostreams
+	KChunkedSource Source(Stream, m_bTEChunked, sRemainingContentSize.empty() ? -1 : m_iRemainingContentSize);
 
-	// and finally add our stream to the filtering_istream
-	m_Filter->push(Stream.InStream());
+	// and finally add our source stream to the filtering_istream
+	m_Filter->push(Source);
 
 	m_State = State::HEADER_PARSED;
-
-	m_Filter->rdbuf()->pubsetbuf(0, 0);
 
 	return true;
 

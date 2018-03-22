@@ -182,11 +182,13 @@ void KTCPServer::RunSession(std::unique_ptr<KStream> stream, KString sRemoteEndP
 void KTCPServer::ExpiresFromNow(KStream& stream, long iSeconds)
 //-----------------------------------------------------------------------------
 {
+	/*
 	if (!IsSSL())
 	{
 		KTCPStream& s = static_cast<KTCPStream&>(stream);
 		s.expires_from_now(boost::posix_time::seconds(iSeconds));
 	}
+	*/
 }
 
 //-----------------------------------------------------------------------------
@@ -273,7 +275,8 @@ void KTCPServer::Server(bool ipv6)
 				{
 					auto ustream = CreateKTCPStream();
 					endpoint_type remote_endpoint;
-					acceptor.accept(*(ustream->rdbuf()), remote_endpoint);
+//					acceptor.accept(*(ustream->rdbuf()), remote_endpoint);
+					acceptor.accept(ustream->GetTCPSocket(), remote_endpoint);
 					if (!m_bQuit)
 					{
 						std::thread(&KTCPServer::RunSession, this, std::move(ustream), to_string(remote_endpoint)).detach();

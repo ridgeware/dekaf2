@@ -212,8 +212,6 @@ private:
 	bool Talk(KStringView sTX, KStringView sRx);
 	/// Pretty print and send to MTA one set of addresses
 	bool PrettyPrint(KStringView sHeader, const KMail::map_t& map);
-	/// Reset the expiration timer
-	void ExpiresFromNow();
 
 	mutable KString m_sError;
 	// The TCP stream class

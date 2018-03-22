@@ -185,14 +185,14 @@ using KFile           = KReaderWriter<std::fstream>;
 using KStringStream   = KReaderWriter<std::stringstream>;
 
 /// TCP stream based on asio::ip::tcp::iostream
-using KTCPStream      = KReaderWriter<asio::ip::tcp::iostream>;
+//using KTCPStream      = KReaderWriter<asio::ip::tcp::iostream>;
 
-std::unique_ptr<KTCPStream> CreateKTCPStream();
+// std::unique_ptr<KTCPStream> CreateKTCPStream();
 
 // fwd declaration
-class KTCPEndPoint;
+//class KTCPEndPoint;
 
-std::unique_ptr<KTCPStream> CreateKTCPStream(const KTCPEndPoint& EndPoint);
+// std::unique_ptr<KTCPStream> CreateKTCPStream(const KTCPEndPoint& EndPoint);
 
 } // end of namespace dekaf2
 

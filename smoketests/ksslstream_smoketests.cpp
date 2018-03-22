@@ -12,7 +12,8 @@ using namespace dekaf2;
 TEST_CASE("KTCPCLient")
 {
 	KTCPClient stream;
-	stream.expires_from_now(boost::posix_time::seconds(5));
+	stream.Timeout(5);
+//	stream.expires_from_now(boost::posix_time::seconds(5));
 	stream.connect("www.google.com", "http");
 
 	stream.SetWriterEndOfLine("\r\n");

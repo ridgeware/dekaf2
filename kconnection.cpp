@@ -157,35 +157,29 @@ void KConnection::Disconnect()
 }
 
 //-----------------------------------------------------------------------------
-bool KConnection::ExpiresFromNow(long iSeconds)
-//-----------------------------------------------------------------------------
-{
-	auto TCP = GetTCPStream();
-	if (TCP == nullptr)
-	{
-		return false;
-	}
-
-	TCP->expires_from_now(boost::posix_time::seconds(iSeconds));
-
-	return true;
-
-}
-
-//-----------------------------------------------------------------------------
 bool KConnection::SetTimeout(long iSeconds)
 //-----------------------------------------------------------------------------
 {
-	auto SSL = GetSSLStream();
-	if (SSL == nullptr)
+	if (IsSSL())
 	{
-		return false;
-	}
+		auto SSL = GetSSLStream();
+		if (SSL == nullptr)
+		{
+			return false;
+		}
 
-	// set connection timeout once, other than for the
-	// non-SSL connections where we have to repeatedly
-	// call ExpiresFromNow()
-	SSL->Timeout(iSeconds);
+		SSL->Timeout(iSeconds);
+	}
+	else
+	{
+		auto TCP = GetTCPStream();
+		if (TCP == nullptr)
+		{
+			return false;
+		}
+
+		TCP->Timeout(iSeconds);
+	}
 
 	return true;
 
@@ -230,7 +224,8 @@ KString KConnection::GetStreamError() const
 		return KString{};
 	}
 
-	return TCP->error().message();
+	return ""; // TODO
+//	return TCP->error().message();
 
 } // GetStreamError
 

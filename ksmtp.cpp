@@ -316,8 +316,6 @@ bool KSMTP::Talk(KStringView sTx, KStringView sRx)
 
 	if (!sTx.empty())
 	{
-		ExpiresFromNow();
-
 		if (!m_Connection->Stream().WriteLine(sTx).Flush().Good())
 		{
 			m_sError = "cannot send to SMTP server";
@@ -329,8 +327,6 @@ bool KSMTP::Talk(KStringView sTx, KStringView sRx)
 	if (!sRx.empty())
 	{
 		KString sLine;
-
-		ExpiresFromNow();
 
 		if (!m_Connection->Stream().ReadLine(sLine))
 		{
@@ -497,8 +493,6 @@ bool KSMTP::Send(const KMail& Mail)
 		return false;
 	}
 
-	ExpiresFromNow();
-
 	// empty line ends the header
 	if (!m_Connection->Stream().WriteLine().Good())
 	{
@@ -506,8 +500,6 @@ bool KSMTP::Send(const KMail& Mail)
 		Disconnect();
 		return false;
 	}
-
-	ExpiresFromNow();
 
 	if (!m_Connection->Stream().Write(Mail.Message()).Good())
 	{
@@ -547,6 +539,8 @@ bool KSMTP::Connect(const KURL& URL)
 	m_Connection->Stream().SetWriterEndOfLine("\r\n");
 	m_Connection->Stream().SetReaderRightTrim("\r\n");
 
+	m_Connection->SetTimeout(m_iTimeout);
+
 	if (Talk("", "220")
 	 && Talk(kFormat("HELO {}", "localhost"), "250"))
 	{
@@ -559,13 +553,6 @@ bool KSMTP::Connect(const KURL& URL)
 	}
 
 } // Connect
-
-//-----------------------------------------------------------------------------
-void KSMTP::ExpiresFromNow()
-//-----------------------------------------------------------------------------
-{
-	m_Connection->ExpiresFromNow(m_iTimeout);
-}
 
 //-----------------------------------------------------------------------------
 void KSMTP::Disconnect()
@@ -594,6 +581,8 @@ const KString& KSMTP::Error()
 		auto TCP = m_Connection->GetTCPStream();
 		if (TCP != nullptr)
 		{
+// TODO
+/*
 			if (!TCP->error().message().empty())
 			{
 				if (!m_sError.empty())
@@ -601,7 +590,8 @@ const KString& KSMTP::Error()
 					m_sError += ": ";
 				}
 				m_sError += TCP->error().message();
-			}
+ 			}
+ */
 		}
 	}
 

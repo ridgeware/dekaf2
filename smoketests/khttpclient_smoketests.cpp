@@ -10,26 +10,7 @@ using namespace dekaf2;
 
 TEST_CASE("KHTTPCLient")
 {
-	// KString sHTML = kHTTPGet("http://www.google.fr/");
-	// CHECK ( sHTML.empty() == false );
-
-	KURL URL = "http://www.google.fr/";
-	KString sBuffer;
-	KHTTPClient client;
-
-	if (client.Connect(URL))
-	{
-		if (client.Resource(URL, KHTTPMethod::GET))
-		{
-			if (client.Request())
-			{
-				while (client.ReadLine(sBuffer))
-				{
-					std::cerr << sBuffer << std::endl;
-				}
-			}
-		}
-	}
-
+	KString sHTML = kHTTPGet("https://www.google.fr/");
+	CHECK ( sHTML.empty() == false );
 
 }

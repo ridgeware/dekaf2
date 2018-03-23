@@ -2405,5 +2405,125 @@ KString kHTMLEntityDecode(KStringView sIn)
 
 } // kHTMLEntityDecode
 
+//-----------------------------------------------------------------------------
+KString kConvertNumerical(KStringView sIn)
+//-----------------------------------------------------------------------------
+{
+	KString sRet;
+	// convert numerical value
+	KStringView::const_iterator it = sIn.cbegin();
+	KStringView::const_iterator ie = sIn.cend();
+	if (it != ie)
+	{
+		uint32_t iChar{0};
+
+		if (*it == 'x' || *it == 'X')
+		{
+			++it;
+			// hex
+			for (;++it != ie;)
+			{
+				auto iCh = kFromHexChar(*it);
+				if (iCh > 15)
+				{
+					sRet = sIn;
+					return sRet;
+				}
+
+				iChar *= 16;
+				iChar += iCh;
+			}
+		}
+		else
+		{
+			// decimal
+			for (;++it != ie;)
+			{
+				if (!std::isdigit(*it))
+				{
+					sRet = sIn;
+					return sRet;
+				}
+
+				iChar *= 10;
+				iChar += *it - '0';
+			}
+		}
+
+		Unicode::ToUTF8(iChar, sRet);
+	}
+
+	return sRet;
+}
+
+//-----------------------------------------------------------------------------
+KString kHTMLEntityDecodeValue(KStringView sIn)
+//-----------------------------------------------------------------------------
+{
+	KStringView sEntity { sIn };
+	KString sRet;
+
+	for (;;)
+	{
+		if (sEntity.empty())
+		{
+			break;
+		}
+
+		if (!sEntity.size())
+		{
+			break;
+		}
+
+		if (sEntity.front() == '&')
+		{
+			sEntity.remove_prefix(1);
+			if (sEntity.empty())
+			{
+				sRet = sIn;
+				break;
+			}
+		}
+
+		if (sEntity.back() == ';')
+		{
+			sEntity.remove_suffix(1);
+			if (sEntity.empty())
+			{
+				sRet = sIn;
+				break;
+			}
+		}
+
+		if (sEntity.front() == '#')
+		{
+			sEntity.remove_prefix(1);
+			sRet = kConvertNumerical(sEntity);
+		}
+		else
+		{
+			// convert entity name
+			auto it = s_NamedEntitiesHTML4.find(sEntity);
+			if (DEKAF2_LIKELY(it != s_NamedEntitiesHTML4.end()))
+			{
+				Unicode::ToUTF8(it->second.iCodepoint1, sRet);
+				if (it->second.iCodepoint2)
+				{
+					Unicode::ToUTF8(it->second.iCodepoint2, sRet);
+				}
+				break;
+			}
+			else
+			{
+				sRet = sIn;
+				break;
+			}
+		}
+	}
+
+	return sRet;
+
+} // kHTMLEntityDecodeValue
+
 } // of namespace dekaf2
 

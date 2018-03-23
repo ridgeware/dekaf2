@@ -42,6 +42,7 @@
 
 #include "kwords.h"
 #include "kutf8.h"
+#include "khtmlentities.h"
 
 
 namespace dekaf2 {
@@ -85,12 +86,16 @@ KStringViewPair SimpleText::NextPair()
 } // SimpleText::NextPair
 
 //-----------------------------------------------------------------------------
-KStringViewPair SimpleHTML::NextPair()
+std::pair<KString, KStringView> SimpleHTML::NextPair()
 //-----------------------------------------------------------------------------
 {
 	size_t iSizeSkel { 0 };
 	size_t iSizeWord { 0 };
+	size_t iStartEntity { 0 };
+	KStringView sEntity;
+	std::pair<KString, KStringView> sPair;
 	bool bOpenTag { false };
+	bool bOpenEntity { false };
 
 	Unicode::FromUTF8(m_sInput, [&](uint32_t ch)
 	{
@@ -101,12 +106,51 @@ KStringViewPair SimpleHTML::NextPair()
 				bOpenTag = false;
 			}
 			iSizeSkel += Unicode::UTF8Bytes(ch);
+			return true;
 		}
-		else
+		else if (bOpenEntity)
 		{
-			if (!std::iswalnum(ch))
+			if (std::iswalnum(ch))
 			{
-				if (iSizeWord)
+				++iSizeWord;
+			}
+			else
+			{
+				bOpenEntity = false;
+				if (ch == ';')
+				{
+					++iSizeWord;
+				}
+				sPair.first += kHTMLEntityDecodeValue(m_sInput.substr(iStartEntity, iSizeSkel + iSizeWord - iStartEntity));
+				if (ch != ';')
+				{
+					if (ch == '&')
+					{
+						bOpenEntity = true;
+						iStartEntity = iSizeSkel + iSizeWord;
+						++iSizeWord;
+					}
+					else
+					{
+						Unicode::ToUTF8(ch, sPair.first);
+						iSizeWord += Unicode::UTF8Bytes(ch);
+					}
+				}
+			}
+			return true;
+		}
+
+		{
+			if (ch == '&')
+			{
+				// start of entity
+				bOpenEntity = true;
+				iStartEntity = iSizeSkel + iSizeWord;
+				++iSizeWord;
+			}
+			else if (!std::iswalnum(ch))
+			{
+				if (!sPair.first.empty())
 				{
 					// abort scanning here, this is the trailing skeleton
 					return false;
@@ -119,24 +163,27 @@ KStringViewPair SimpleHTML::NextPair()
 			}
 			else
 			{
+				Unicode::ToUTF8(ch, sPair.first);
 				iSizeWord += Unicode::UTF8Bytes(ch);
 			}
 		}
 		return true;
 	});
 
-	KStringViewPair sPair;
+	if (bOpenEntity)
+	{
+		sPair.first += kHTMLEntityDecodeValue(m_sInput.substr(iStartEntity, iSizeSkel + iSizeWord - iStartEntity));
+	}
+	
 	sPair.second.assign(m_sInput.data(), iSizeSkel);
-	m_sInput.remove_prefix(iSizeSkel);
-	sPair.first.assign(m_sInput.data(), iSizeWord);
-	m_sInput.remove_prefix(iSizeWord);
+	m_sInput.remove_prefix(iSizeSkel + iSizeWord);
 
 	return sPair;
 
 } // SimpleHTML::NextPair
 
 //-----------------------------------------------------------------------------
-std::pair<KStringView, KString> NormalizingHTML::NextPair()
+std::pair<KString, KString> NormalizingHTML::NextPair()
 //-----------------------------------------------------------------------------
 {
 	// the following whitespace chars are equivalent:

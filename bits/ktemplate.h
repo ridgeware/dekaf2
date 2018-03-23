@@ -49,6 +49,7 @@
 #include <cwctype>
 #include <type_traits>
 #include "../kstring.h"
+#include "../kstringview.h"
 
 namespace dekaf2
 {
@@ -84,6 +85,8 @@ template<class T>
 struct is_narrow_cpp_str
   : std::integral_constant<
       bool,
+      std::is_same<const KStringView, typename std::decay<T>::type>::value ||
+      std::is_same<KStringView,       typename std::decay<T>::type>::value ||
       std::is_same<const KString,     typename std::decay<T>::type>::value ||
       std::is_same<KString,           typename std::decay<T>::type>::value ||
       std::is_same<const std::string, typename std::decay<T>::type>::value ||

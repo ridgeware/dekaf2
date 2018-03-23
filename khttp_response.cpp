@@ -93,7 +93,7 @@ bool KHTTPResponse::Parse(KInStream& Stream)
 } // Parse
 
 //-----------------------------------------------------------------------------
-bool KHTTPResponse::Serialize(KOutStream& Stream)
+bool KHTTPResponse::Serialize(KOutStream& Stream) const
 //-----------------------------------------------------------------------------
 {
 	Stream.FormatLine("{} {} {}", m_HTTPVersion, m_iStatus, m_sMessage);

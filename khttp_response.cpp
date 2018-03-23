@@ -79,6 +79,15 @@ bool KHTTPResponse::Parse(KInStream& Stream)
 	m_HTTPVersion = Words[0];
 	m_iStatus = Words[1].UInt16();
 
+	if (Words.size() > 2)
+	{
+		// this actually copies the reminder of the sLine
+		// into m_sMessage. It looks dangerous but is absolutely
+		// clean, as data() returns a pointer into sLine, which
+		// itself is 0-terminated
+		m_sMessage.assign(Words[2].data());
+	}
+
 	return KHTTPHeader::Parse(Stream);
 
 } // Parse
@@ -87,9 +96,10 @@ bool KHTTPResponse::Parse(KInStream& Stream)
 bool KHTTPResponse::Serialize(KOutStream& Stream)
 //-----------------------------------------------------------------------------
 {
-	Stream.FormatLine("{} {}", m_HTTPVersion, m_iStatus);
+	Stream.FormatLine("{} {} {}", m_HTTPVersion, m_iStatus, m_sMessage);
 	return KHTTPHeader::Serialize(Stream);
-}
+
+} // Serialize
 
 //-----------------------------------------------------------------------------
 void KHTTPResponse::clear()
@@ -97,7 +107,9 @@ void KHTTPResponse::clear()
 {
 	KHTTPHeader::clear();
 	m_HTTPVersion.clear();
+	m_sMessage.clear();
 	m_iStatus = 0;
-}
+
+} // clear
 
 } // end of namespace dekaf2

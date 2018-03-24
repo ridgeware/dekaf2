@@ -11,12 +11,10 @@ int main(int argc, char** argv)
 {
 	KString sHTML = kHTTPGet("http://www.w3.org/TR/html5/entities.json");
 
-	KOutStream COut(std::cout);
-
 	KJSON json;
 	json.Parse(sHTML);
 	
-	COut << "\nconstexpr entity_map_t s_NamedEntitiesHTML4 =\n{\n";
+	KOut << "\nconstexpr entity_map_t s_NamedEntitiesHTML4 =\n{\n";
 
 	auto it = json.cbegin();
 	auto ie = json.cend();
@@ -46,19 +44,19 @@ int main(int argc, char** argv)
 				sValue += KString::to_hexstring(array[0]);
 				sValue.PadLeft(8);
 
-				COut << "\t{ \"" << sKey << ", { " << sValue;
+				KOut << "\t{ \"" << sKey << ", { " << sValue;
 
 				if (array.size() == 2)
 				{
-					COut << ", 0x" << KString::to_hexstring(array[1]);
+					KOut << ", 0x" << KString::to_hexstring(array[1]);
 				}
 
-				COut << " }},\n";
+				KOut << " }},\n";
 			}
 		}
 	}
 
-	COut << "};\n\n";
+	KOut << "};\n\n";
 
 	return 0;
 }

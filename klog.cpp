@@ -65,6 +65,10 @@ TODO: KLOG OVERHAUL NEEDED
 namespace dekaf2
 {
 
+KOutStream KErr(std::cerr);
+KOutStream KOut(std::cout);
+KInStream  KIn(std::cin);
+
 //---------------------------------------------------------------------------
 KLogWriter::~KLogWriter()
 //---------------------------------------------------------------------------

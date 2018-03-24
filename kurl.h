@@ -535,8 +535,10 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
-	/// parses source into members of instance
-	KStringView Parse (KStringView svSource);
+	/// parses source into members of instance - if bAcceptWithoutColon is true
+	/// also strings like "http" will be consumed, otherwise only strings followed
+	/// by a colon, like "http:" or "http://".
+	KStringView Parse (KStringView svSource, bool bAcceptWithoutColon = false);
 	//-------------------------------------------------------------------------
 
 	//-------------------------------------------------------------------------
@@ -637,11 +639,12 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
-	/// modify member by parsing argument
+	/// modify member by parsing argument - accepts also strings without following
+	/// colon, like "http"
 	void set (KStringView svProto)
 	//-------------------------------------------------------------------------
 	{
-		Parse (svProto);
+		Parse (svProto, true);
 	}
 
 	//-------------------------------------------------------------------------

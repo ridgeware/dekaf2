@@ -56,6 +56,10 @@
 namespace dekaf2
 {
 
+extern KOutStream KErr;
+extern KOutStream KOut;
+extern KInStream  KIn;
+
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// ABC for the LogWriter object
 class KLogWriter

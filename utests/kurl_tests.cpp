@@ -1039,4 +1039,18 @@ TEST_CASE ("KURL formerly missing")
 		CHECK ( URL.Path.get() == "/path/to/file" );
 
 	}
+
+	SECTION("KURL ugly")
+	{
+		KURL URL;
+		URL = "http://any.one/A.css,,_style.css+css,,_custom005.css+vendor,,_masterslider,,_style,,_masterslider.css+vendor,,_masterslider,,_skins,,_default,,_style.css+vendor,,_masterslider,,_style,,_ms-fullscreen.css+vendor,,_OwlCarousel2-2.2.1,,_dist,,_assets,,_owl.carousel.css+vendor,,_OwlCarousel2-2.2.1,,_dist,,_assets,,_owl.theme.default.css,Mcc.WnnFPiCXw1.css.pagespeed.cf.oRioQJq-Az.css";
+		CHECK ( URL.IsHttpURL() == true );
+		CHECK ( URL.Domain.get() == "any.one" );
+		CHECK ( URL.Path.get() == "/A.css,,_style.css+css,,_custom005.css+vendor,,_masterslider,,_style,,_masterslider.css+vendor,,_masterslider,,_skins,,_default,,_style.css+vendor,,_masterslider,,_style,,_ms-fullscreen.css+vendor,,_OwlCarousel2-2.2.1,,_dist,,_assets,,_owl.carousel.css+vendor,,_OwlCarousel2-2.2.1,,_dist,,_assets,,_owl.theme.default.css,Mcc.WnnFPiCXw1.css.pagespeed.cf.oRioQJq-Az.css" );
+
+		URL = "/A.css,,_style.css+css,,_custom005.css+vendor,,_masterslider,,_style,,_masterslider.css+vendor,,_masterslider,,_skins,,_default,,_style.css+vendor,,_masterslider,,_style,,_ms-fullscreen.css+vendor,,_OwlCarousel2-2.2.1,,_dist,,_assets,,_owl.carousel.css+vendor,,_OwlCarousel2-2.2.1,,_dist,,_assets,,_owl.theme.default.css,Mcc.WnnFPiCXw1.css.pagespeed.cf.oRioQJq-Az.css";
+		CHECK ( URL.Domain.get() == "" );
+		CHECK ( URL.Path.get() == "/A.css,,_style.css+css,,_custom005.css+vendor,,_masterslider,,_style,,_masterslider.css+vendor,,_masterslider,,_skins,,_default,,_style.css+vendor,,_masterslider,,_style,,_ms-fullscreen.css+vendor,,_OwlCarousel2-2.2.1,,_dist,,_assets,,_owl.carousel.css+vendor,,_OwlCarousel2-2.2.1,,_dist,,_assets,,_owl.theme.default.css,Mcc.WnnFPiCXw1.css.pagespeed.cf.oRioQJq-Az.css" );
+}
+	
 }

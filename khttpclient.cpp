@@ -350,7 +350,10 @@ size_t KHTTPClient::Read(KOutStream& stream, size_t len)
 		return 0;
 	}
 
-	m_State = State::CONTENT_READ;
+	if (!m_iRemainingContentSize)
+	{
+		m_State = State::CONTENT_READ;
+	}
 
 	return len;
 
@@ -397,7 +400,10 @@ size_t KHTTPClient::Read(KString& sBuffer, size_t len)
 		return sBuffer.size();
 	}
 
-	m_State = State::CONTENT_READ;
+	if (!m_iRemainingContentSize)
+	{
+		m_State = State::CONTENT_READ;
+	}
 
 	return sBuffer.size();
 

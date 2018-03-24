@@ -73,11 +73,7 @@ TEST_CASE("KInShell")
 
 		KInShell pipe;
 
-#ifdef __APPLE__
 		CHECK(pipe.Open("sleep 1"));
-#else
-		CHECK(pipe.Open("usleep 2"));
-#endif
 
 		CHECK(pipe.is_open());
 

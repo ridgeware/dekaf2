@@ -101,7 +101,7 @@ bool KHTTPHeader::Parse(KInStream& Stream)
 
 
 //-----------------------------------------------------------------------------
-bool KHTTPHeader::Serialize(KOutStream& Stream)
+bool KHTTPHeader::Serialize(KOutStream& Stream) const
 //-----------------------------------------------------------------------------
 {
 	for (const auto& iter : m_Headers)

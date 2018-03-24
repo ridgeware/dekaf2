@@ -66,5 +66,8 @@ KString kHTMLEntityEncode(KStringView sIn);
 /// Converts HTML entities into utf8
 KString kHTMLEntityDecode(KStringView sIn);
 
+/// Converts isolated HTML entity into utf8
+KString kHTMLEntityDecodeValue(KStringView sIn);
+
 } // of namespace dekaf2
 

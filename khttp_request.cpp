@@ -90,7 +90,7 @@ bool KHTTPRequest::Parse(KInStream& Stream)
 } // Parse
 
 //-----------------------------------------------------------------------------
-bool KHTTPRequest::Serialize(KOutStream& Stream)
+bool KHTTPRequest::Serialize(KOutStream& Stream) const
 //-----------------------------------------------------------------------------
 {
 	Stream.FormatLine("{} {} {}", m_Method.Serialize(), m_Resource.Serialize(), m_HTTPVersion);

@@ -54,34 +54,34 @@ namespace splitting_parser {
 KStringViewPair SimpleText::NextPair()
 //-----------------------------------------------------------------------------
 {
-	size_t iSizeSkel { 0 };
-	size_t iSizeWord { 0 };
+    size_t iSizeSkel { 0 };
+    size_t iSizeWord { 0 };
 
-	Unicode::FromUTF8(m_sInput, [&](uint32_t ch)
-	{
-		if (!std::iswalnum(ch))
-		{
-			if (iSizeWord)
-			{
-				// abort scanning here, this is the trailing skeleton
-				return false;
-			}
-			iSizeSkel += Unicode::UTF8Bytes(ch);
-		}
-		else
-		{
-			iSizeWord += Unicode::UTF8Bytes(ch);
-		}
-		return true;
-	});
+    Unicode::FromUTF8(m_sInput, [&](uint32_t ch)
+    {
+        if (!std::iswalnum(ch))
+        {
+            if (iSizeWord)
+            {
+                // abort scanning here, this is the trailing skeleton
+                return false;
+            }
+            iSizeSkel += Unicode::UTF8Bytes(ch);
+        }
+        else
+        {
+            iSizeWord += Unicode::UTF8Bytes(ch);
+        }
+        return true;
+    });
 
-	KStringViewPair sPair;
-	sPair.second.assign(m_sInput.data(), iSizeSkel);
-	m_sInput.remove_prefix(iSizeSkel);
-	sPair.first.assign(m_sInput.data(), iSizeWord);
-	m_sInput.remove_prefix(iSizeWord);
+    KStringViewPair sPair;
+    sPair.second.assign(m_sInput.data(), iSizeSkel);
+    m_sInput.remove_prefix(iSizeSkel);
+    sPair.first.assign(m_sInput.data(), iSizeWord);
+    m_sInput.remove_prefix(iSizeWord);
 
-	return sPair;
+    return sPair;
 
 } // SimpleText::NextPair
 
@@ -89,96 +89,96 @@ KStringViewPair SimpleText::NextPair()
 std::pair<KString, KStringView> SimpleHTML::NextPair()
 //-----------------------------------------------------------------------------
 {
-	size_t iSizeSkel { 0 };
-	size_t iSizeWord { 0 };
-	size_t iStartEntity { 0 };
-	KStringView sEntity;
-	std::pair<KString, KStringView> sPair;
-	bool bOpenTag { false };
-	bool bOpenEntity { false };
+    size_t iSizeSkel { 0 };
+    size_t iSizeWord { 0 };
+    size_t iStartEntity { 0 };
+    KStringView sEntity;
+    std::pair<KString, KStringView> sPair;
+    bool bOpenTag { false };
+    bool bOpenEntity { false };
 
-	Unicode::FromUTF8(m_sInput, [&](uint32_t ch)
-	{
-		if (bOpenTag)
-		{
-			if (ch == '>')
-			{
-				bOpenTag = false;
-			}
-			iSizeSkel += Unicode::UTF8Bytes(ch);
-			return true;
-		}
-		else if (bOpenEntity)
-		{
-			if (std::iswalnum(ch))
-			{
-				++iSizeWord;
-			}
-			else
-			{
-				bOpenEntity = false;
-				if (ch == ';')
-				{
-					++iSizeWord;
-				}
-				sPair.first += kHTMLEntityDecodeValue(m_sInput.substr(iStartEntity, iSizeSkel + iSizeWord - iStartEntity));
-				if (ch != ';')
-				{
-					if (ch == '&')
-					{
-						bOpenEntity = true;
-						iStartEntity = iSizeSkel + iSizeWord;
-						++iSizeWord;
-					}
-					else
-					{
-						Unicode::ToUTF8(ch, sPair.first);
-						iSizeWord += Unicode::UTF8Bytes(ch);
-					}
-				}
-			}
-			return true;
-		}
+    Unicode::FromUTF8(m_sInput, [&](uint32_t ch)
+    {
+        if (bOpenTag)
+        {
+            if (ch == '>')
+            {
+                bOpenTag = false;
+            }
+            iSizeSkel += Unicode::UTF8Bytes(ch);
+            return true;
+        }
+        else if (bOpenEntity)
+        {
+            if (std::iswalnum(ch))
+            {
+                ++iSizeWord;
+            }
+            else
+            {
+                bOpenEntity = false;
+                if (ch == ';')
+                {
+                    ++iSizeWord;
+                }
+                sPair.first += kHTMLEntityDecodeValue(m_sInput.substr(iStartEntity, iSizeSkel + iSizeWord - iStartEntity));
+                if (ch != ';')
+                {
+                    if (ch == '&')
+                    {
+                        bOpenEntity = true;
+                        iStartEntity = iSizeSkel + iSizeWord;
+                        ++iSizeWord;
+                    }
+                    else
+                    {
+                        Unicode::ToUTF8(ch, sPair.first);
+                        iSizeWord += Unicode::UTF8Bytes(ch);
+                    }
+                }
+            }
+            return true;
+        }
 
-		{
-			if (ch == '&')
-			{
-				// start of entity
-				bOpenEntity = true;
-				iStartEntity = iSizeSkel + iSizeWord;
-				++iSizeWord;
-			}
-			else if (!std::iswalnum(ch))
-			{
-				if (!sPair.first.empty())
-				{
-					// abort scanning here, this is the trailing skeleton
-					return false;
-				}
-				if (ch == '<')
-				{
-					bOpenTag = true;
-				}
-				iSizeSkel += Unicode::UTF8Bytes(ch);
-			}
-			else
-			{
-				Unicode::ToUTF8(ch, sPair.first);
-				iSizeWord += Unicode::UTF8Bytes(ch);
-			}
-		}
-		return true;
-	});
+        {
+            if (ch == '&')
+            {
+                // start of entity
+                bOpenEntity = true;
+                iStartEntity = iSizeSkel + iSizeWord;
+                ++iSizeWord;
+            }
+            else if (!std::iswalnum(ch))
+            {
+                if (!sPair.first.empty())
+                {
+                    // abort scanning here, this is the trailing skeleton
+                    return false;
+                }
+                if (ch == '<')
+                {
+                    bOpenTag = true;
+                }
+                iSizeSkel += Unicode::UTF8Bytes(ch);
+            }
+            else
+            {
+                Unicode::ToUTF8(ch, sPair.first);
+                iSizeWord += Unicode::UTF8Bytes(ch);
+            }
+        }
+        return true;
+    });
 
-	if (bOpenEntity)
-	{
-		sPair.first += kHTMLEntityDecodeValue(m_sInput.substr(iStartEntity, iSizeSkel + iSizeWord - iStartEntity));
-	}
-	
-	sPair.second.assign(m_sInput.data(), iSizeSkel);
-	m_sInput.remove_prefix(iSizeSkel + iSizeWord);
+    if (bOpenEntity)
+    {
+        sPair.first += kHTMLEntityDecodeValue(m_sInput.substr(iStartEntity, iSizeSkel + iSizeWord - iStartEntity));
+    }
+    
+    sPair.second.assign(m_sInput.data(), iSizeSkel);
+    m_sInput.remove_prefix(iSizeSkel + iSizeWord);
 
-	return sPair;
+    return sPair;
 
 } // SimpleHTML::NextPair
 
@@ -186,88 +186,88 @@ std::pair<KString, KStringView> SimpleHTML::NextPair()
 std::pair<KString, KString> NormalizingHTML::NextPair()
 //-----------------------------------------------------------------------------
 {
-	// the following whitespace chars are equivalent:
-	//  CR, LF, TAB, SP
-	//
-	// examples:
-	//   in: "hello  there"
-	//  out: "hello there"
-	//
-	//   in: "hello     <span>there</span>    ."
-	//  out: "hello <span>there</span> ."
-	//
-	//   in: "hello    <span>      there      </span>    ."
-	//  out: "hello <span> there </span> ."
-	//
-	//   in: "hello    <span>   <standalone/>   there      </span>    ."
-	//  out: "hello <span> <standalone/> there </span> ."
-	//
-	//   in: "hello \t \n  <span>      there      </span>    ."
-	//  out: "hello <span> there </span> ."
-	//
+    // the following whitespace chars are equivalent:
+    //  CR, LF, TAB, SP
+    //
+    // examples:
+    //   in: "hello  there"
+    //  out: "hello there"
+    //
+    //   in: "hello     <span>there</span>    ."
+    //  out: "hello <span>there</span> ."
+    //
+    //   in: "hello    <span>      there      </span>    ."
+    //  out: "hello <span> there </span> ."
+    //
+    //   in: "hello    <span>   <standalone/>   there      </span>    ."
+    //  out: "hello <span> <standalone/> there </span> ."
+    //
+    //   in: "hello \t \n  <span>      there      </span>    ."
+    //  out: "hello <span> there </span> ."
+    //
 
-	size_t iSizeSkel { 0 };
-	size_t iSizeWord { 0 };
-	bool bOpenTag { false };
-	bool bLastWasSpace { false };
+    size_t iSizeSkel { 0 };
+    size_t iSizeWord { 0 };
+    bool bOpenTag { false };
+    bool bLastWasSpace { false };
 
-	std::pair<KStringView, KString> sPair;
+    std::pair<KStringView, KString> sPair;
 
-	Unicode::FromUTF8(m_sInput, [&](uint32_t ch)
-	{
-	  if (bOpenTag)
-	  {
-		  if (ch == '>')
-		  {
-			  bOpenTag = false;
-			  bLastWasSpace = false;
-		  }
-		  Unicode::ToUTF8(ch, sPair.second);
-		  iSizeSkel += Unicode::UTF8Bytes(ch);
-	  }
-	  else
-	  {
-		  if (!std::iswalnum(ch))
-		  {
-			  if (iSizeWord)
-			  {
-				  // abort scanning here, this is the trailing skeleton
-				  return false;
-			  }
-			  if (ch == '<')
-			  {
-				  sPair.second += '<';
-				  bOpenTag = true;
-				  bLastWasSpace = false;
-			  }
-			  else if (std::iswspace(ch))
-			  {
-				  if (!bLastWasSpace)
-				  {
-					  sPair.second += ' ';
-					  bLastWasSpace = true;
-				  }
-			  }
-			  else
-			  {
-				  Unicode::ToUTF8(ch, sPair.second);
-				  bLastWasSpace = false;
-			  }
-			  iSizeSkel += Unicode::UTF8Bytes(ch);
-		  }
-		  else
-		  {
-			  iSizeWord += Unicode::UTF8Bytes(ch);
-		  }
-	  }
-	  return true;
-	});
+    Unicode::FromUTF8(m_sInput, [&](uint32_t ch)
+    {
+      if (bOpenTag)
+      {
+          if (ch == '>')
+          {
+              bOpenTag = false;
+              bLastWasSpace = false;
+          }
+          Unicode::ToUTF8(ch, sPair.second);
+          iSizeSkel += Unicode::UTF8Bytes(ch);
+      }
+      else
+      {
+          if (!std::iswalnum(ch))
+          {
+              if (iSizeWord)
+              {
+                  // abort scanning here, this is the trailing skeleton
+                  return false;
+              }
+              if (ch == '<')
+              {
+                  sPair.second += '<';
+                  bOpenTag = true;
+                  bLastWasSpace = false;
+              }
+              else if (std::iswspace(ch))
+              {
+                  if (!bLastWasSpace)
+                  {
+                      sPair.second += ' ';
+                      bLastWasSpace = true;
+                  }
+              }
+              else
+              {
+                  Unicode::ToUTF8(ch, sPair.second);
+                  bLastWasSpace = false;
+              }
+              iSizeSkel += Unicode::UTF8Bytes(ch);
+          }
+          else
+          {
+              iSizeWord += Unicode::UTF8Bytes(ch);
+          }
+      }
+      return true;
+    });
 
-	m_sInput.remove_prefix(iSizeSkel);
-	sPair.first.assign(m_sInput.data(), iSizeWord);
-	m_sInput.remove_prefix(iSizeWord);
+    m_sInput.remove_prefix(iSizeSkel);
+    sPair.first.assign(m_sInput.data(), iSizeWord);
+    m_sInput.remove_prefix(iSizeWord);
 
-	return sPair;
+    return sPair;
 
 } // NormalizingHTML::NextPair
 

@@ -54,63 +54,63 @@ namespace dekaf2 {
 KString kGetBaseDomain (KStringView sHostName)
 //-------------------------------------------------------------------------
 {
-	KString sBaseName;
+    KString sBaseName;
 
-	if (!sHostName.empty())
-	{
-		// sBaseName   is special-cased
-		//
-		//         google.com       1Back but no 2Back     GOOGLE
-		//
-		//        www.ibm.com       2Back but no ".co."    IBM
-		//
-		// foo.bar.baz.co.jp        3Back and is ".co."    BAZ
-		//    ^   ^   ^  ^
-		//    |   |   |  |
-		//    4   3   2  1 Back
-		// If ".co." between 2Back & 1Back : base domain is between 3Back & 2Back
-		// If not, and 2Back exists: base domain is between 2Back & 1Back
-		// If not even 2Back then base domain is between beginning and 1Back
+    if (!sHostName.empty())
+    {
+        // sBaseName   is special-cased
+        //
+        //         google.com       1Back but no 2Back     GOOGLE
+        //
+        //        www.ibm.com       2Back but no ".co."    IBM
+        //
+        // foo.bar.baz.co.jp        3Back and is ".co."    BAZ
+        //    ^   ^   ^  ^
+        //    |   |   |  |
+        //    4   3   2  1 Back
+        // If ".co." between 2Back & 1Back : base domain is between 3Back & 2Back
+        // If not, and 2Back exists: base domain is between 2Back & 1Back
+        // If not even 2Back then base domain is between beginning and 1Back
 
-		auto iDotEnd = sHostName.rfind ('.');
-		if (iDotEnd == 0 || iDotEnd == KStringView::npos)
-		{
-			// Ignore simple non-dot hostname (localhost).
-		}
-		else
-		{
-			// When there is at least 1 dot, look for domain name features
+        auto iDotEnd = sHostName.rfind ('.');
+        if (iDotEnd == 0 || iDotEnd == KStringView::npos)
+        {
+            // Ignore simple non-dot hostname (localhost).
+        }
+        else
+        {
+            // When there is at least 1 dot, look for domain name features
 
-			auto iDotStart = sHostName.rfind ('.', iDotEnd - 1);
+            auto iDotStart = sHostName.rfind ('.', iDotEnd - 1);
 
-			if (iDotStart != KStringView::npos)
-			{
-				// When there are at least 2 dots, look for ".co.".
+            if (iDotStart != KStringView::npos)
+            {
+                // When there are at least 2 dots, look for ".co.".
 
-				KStringView svCheckForDotCo (sHostName);
-				svCheckForDotCo.remove_prefix (iDotStart);
+                KStringView svCheckForDotCo (sHostName);
+                svCheckForDotCo.remove_prefix (iDotStart);
 
-				if (svCheckForDotCo.StartsWith (".co."))
-				{
-					iDotEnd = iDotStart;
-					iDotStart = sHostName.rfind ('.', iDotStart - 1);
-				}
-			}
+                if (svCheckForDotCo.StartsWith (".co."))
+                {
+                    iDotEnd = iDotStart;
+                    iDotStart = sHostName.rfind ('.', iDotStart - 1);
+                }
+            }
 
-			if (iDotStart == KStringView::npos)
-			{
-				iDotStart = 0;
-			}
-			else
-			{
-				++iDotStart;
-			}
+            if (iDotStart == KStringView::npos)
+            {
+                iDotStart = 0;
+            }
+            else
+            {
+                ++iDotStart;
+            }
 
-			sBaseName = kToUpper(KStringView(sHostName.data() + iDotStart, iDotEnd - iDotStart));
-		}
-	}
+            sBaseName = kToUpper(KStringView(sHostName.data() + iDotStart, iDotEnd - iDotStart));
+        }
+    }
 
-	return sBaseName;
+    return sBaseName;
 }
 
 
@@ -144,62 +144,62 @@ template class URIComponent<URLEncodedString, URIPart::Fragment, '#',  true,  fa
 KStringView KProtocol::Parse (KStringView svSource, bool bAcceptWithoutColon)
 //-----------------------------------------------------------------------------
 {
-	clear ();
+    clear ();
 
-	if (!svSource.empty ())
-	{
-		size_t iFound = svSource.find_first_of (':');
+    if (!svSource.empty ())
+    {
+        size_t iFound = svSource.find_first_of (':');
 
-		if (bAcceptWithoutColon && iFound == KStringView::npos)
-		{
-			iFound = svSource.size();
-		}
+        if (bAcceptWithoutColon && iFound == KStringView::npos)
+        {
+            iFound = svSource.size();
+        }
 
-		if (iFound != KStringView::npos)
-		{
-			KStringView svProto = svSource.substr (0, iFound);
+        if (iFound != KStringView::npos)
+        {
+            KStringView svProto = svSource.substr (0, iFound);
 
-			// we do accept schemata with only one slash, as that is
-			// a common typo (but we do correct them when serializing)
-			if (svSource.size () >= iFound + 1
-			    && svSource[iFound + 1] == '/')
-			{
-				svSource.remove_prefix (iFound + 2);
+            // we do accept schemata with only one slash, as that is
+            // a common typo (but we do correct them when serializing)
+            if (svSource.size () >= iFound + 1
+                && svSource[iFound + 1] == '/')
+            {
+                svSource.remove_prefix (iFound + 2);
 
-				if (!svSource.empty () && svSource.front () == '/')
-				{
-					svSource.remove_prefix (1);
-				}
+                if (!svSource.empty () && svSource.front () == '/')
+                {
+                    svSource.remove_prefix (1);
+                }
 
-				m_eProto = UNKNOWN;
-				// we do not want to recognize MAILTO in this branch, as it
-				// has the wrong separator. But if we find it we store it as
-				// unknown and then reproduce the same on serialization.
-				for (uint16_t iProto = MAILTO + 1; iProto < UNKNOWN; ++iProto)
-				{
-					if (m_sCanonical[iProto].name == svProto)
-					{
-						m_eProto = static_cast<eProto>(iProto);
-						break;
-					}
-				}
+                m_eProto = UNKNOWN;
+                // we do not want to recognize MAILTO in this branch, as it
+                // has the wrong separator. But if we find it we store it as
+                // unknown and then reproduce the same on serialization.
+                for (uint16_t iProto = MAILTO + 1; iProto < UNKNOWN; ++iProto)
+                {
+                    if (m_sCanonical[iProto].name == svProto)
+                    {
+                        m_eProto = static_cast<eProto>(iProto);
+                        break;
+                    }
+                }
 
-				if (m_eProto == UNKNOWN)
-				{
-					// only store the protocol scheme if it is not one
-					// of the canonical
-					kUrlDecode (svProto, m_sProto);
-				}
-			}
-			else if (svProto == "mailto")
-			{
-				m_eProto = MAILTO;
-				svSource.remove_prefix (iFound + 1);
-			}
-		}
-	}
+                if (m_eProto == UNKNOWN)
+                {
+                    // only store the protocol scheme if it is not one
+                    // of the canonical
+                    kUrlDecode (svProto, m_sProto);
+                }
+            }
+            else if (svProto == "mailto")
+            {
+                m_eProto = MAILTO;
+                svSource.remove_prefix (iFound + 1);
+            }
+        }
+    }
 
-	return svSource;
+    return svSource;
 }
 
 //-----------------------------------------------------------------------------
@@ -208,31 +208,31 @@ KStringView KProtocol::Parse (KStringView svSource, bool bAcceptWithoutColon)
 bool KProtocol::Serialize (KString& sTarget) const
 //-----------------------------------------------------------------------------
 {
-	// m_eProto is UNKNOWN for protocols like "opaquelocktoken://"
-	switch (m_eProto)
-	{
-		case UNDEFINED:
-			// The serialization is correctly empty when no value was parsed.
-			// Do not return false;
-			return true;
+    // m_eProto is UNKNOWN for protocols like "opaquelocktoken://"
+    switch (m_eProto)
+    {
+        case UNDEFINED:
+            // The serialization is correctly empty when no value was parsed.
+            // Do not return false;
+            return true;
 
-		case UNKNOWN:
-			kUrlEncode(m_sProto, sTarget, URIPart::Protocol);
-			sTarget += "://";
-			break;
+        case UNKNOWN:
+            kUrlEncode(m_sProto, sTarget, URIPart::Protocol);
+            sTarget += "://";
+            break;
 
-		case MAILTO:
-			sTarget += m_sCanonical[m_eProto].name;
-			sTarget += ':';
-			break;
+        case MAILTO:
+            sTarget += m_sCanonical[m_eProto].name;
+            sTarget += ':';
+            break;
 
-		default:
-			sTarget += m_sCanonical[m_eProto].name;
-			sTarget += "://";
-			break;
-	}
+        default:
+            sTarget += m_sCanonical[m_eProto].name;
+            sTarget += "://";
+            break;
+    }
 
-	return true;
+    return true;
 }
 
 //-----------------------------------------------------------------------------
@@ -240,8 +240,8 @@ bool KProtocol::Serialize (KString& sTarget) const
 void KProtocol::clear()
 //-----------------------------------------------------------------------------
 {
-	m_sProto.clear ();
-	m_eProto = UNDEFINED;
+    m_sProto.clear ();
+    m_eProto = UNDEFINED;
 }
 
 // watch out: in Parse() and Serialize(), we assume that the schemata
@@ -249,20 +249,20 @@ void KProtocol::clear()
 // please use the URL encoded form here, too.
 const KProtocol::Protocols KProtocol::m_sCanonical [UNKNOWN+1] =
 {
-	{    0, ""       }, // Empty placeholder for UNDEFINED, parse has not been run yet.
-	{   25, "mailto" },
-	{   80, "http"   },
-	{  443, "https"  },
-	{    0, "file"   },
-	{   21, "ftp"    },
-	{ 9418, "git"    },
-	{    0, "svn"    },
-	{  531, "irc"    },
-	{  119, "news"   },
-	{  119, "nntp"   },
-	{   23, "telnet" },
-	{   70, "gopher" }, // pure nostalgia
-	{    0, ""       }  // Empty placeholder for UNKNOWN, use m_sProto.
+    {    0, ""       }, // Empty placeholder for UNDEFINED, parse has not been run yet.
+    {   25, "mailto" },
+    {   80, "http"   },
+    {  443, "https"  },
+    {    0, "file"   },
+    {   21, "ftp"    },
+    { 9418, "git"    },
+    {    0, "svn"    },
+    {  531, "irc"    },
+    {  119, "news"   },
+    {  119, "nntp"   },
+    {   23, "telnet" },
+    {   70, "gopher" }, // pure nostalgia
+    {    0, ""       }  // Empty placeholder for UNKNOWN, use m_sProto.
 };
 
 } // end of namespace url
@@ -272,152 +272,152 @@ const KProtocol::Protocols KProtocol::m_sCanonical [UNKNOWN+1] =
 KStringView KURI::Parse(KStringView svSource)
 //-------------------------------------------------------------------------
 {
-	clear ();
+    clear ();
 
-	svSource = Path.Parse      (svSource, true);
-	svSource = Query.Parse     (svSource, true);
-	svSource = Fragment.Parse  (svSource, true);
+    svSource = Path.Parse      (svSource, true);
+    svSource = Query.Parse     (svSource, true);
+    svSource = Fragment.Parse  (svSource, true);
 
-	return svSource;
+    return svSource;
 }
 
 //-------------------------------------------------------------------------
 void KURI::clear()
 //-------------------------------------------------------------------------
 {
-	Path.clear();
-	Query.clear();
-	Fragment.clear();
+    Path.clear();
+    Query.clear();
+    Fragment.clear();
 }
 
 //-------------------------------------------------------------------------
 bool KURI::Serialize(KString& sTarget) const
 //-------------------------------------------------------------------------
 {
-	Query.WantStartSeparator();
-	Fragment.WantStartSeparator();
-	return Path.Serialize          (sTarget)
-	        && Query.Serialize     (sTarget)
-	        && Fragment.Serialize  (sTarget);
+    Query.WantStartSeparator();
+    Fragment.WantStartSeparator();
+    return Path.Serialize          (sTarget)
+            && Query.Serialize     (sTarget)
+            && Fragment.Serialize  (sTarget);
 }
 
 //-------------------------------------------------------------------------
 bool KURI::Serialize(KOutStream& sTarget) const
 //-------------------------------------------------------------------------
 {
-	Query.WantStartSeparator();
-	Fragment.WantStartSeparator();
-	return Path.Serialize          (sTarget)
-	        && Query.Serialize     (sTarget)
-	        && Fragment.Serialize  (sTarget);
+    Query.WantStartSeparator();
+    Fragment.WantStartSeparator();
+    return Path.Serialize          (sTarget)
+            && Query.Serialize     (sTarget)
+            && Fragment.Serialize  (sTarget);
 }
 
 //-------------------------------------------------------------------------
 KURI& KURI::operator=(const KURL& url)
 //-------------------------------------------------------------------------
 {
-	Path      = url.Path;
-	Query     = url.Query;
-	Fragment  = url.Fragment;
-	return *this;
+    Path      = url.Path;
+    Query     = url.Query;
+    Fragment  = url.Fragment;
+    return *this;
 }
 
 //-------------------------------------------------------------------------
 KStringView KURL::getBaseDomain() const
 //-------------------------------------------------------------------------
 {
-	if (BaseDomain.empty() && !Domain.empty())
-	{
-		BaseDomain = kGetBaseDomain(Domain.get());
-	}
-	return BaseDomain;
+    if (BaseDomain.empty() && !Domain.empty())
+    {
+        BaseDomain = kGetBaseDomain(Domain.get());
+    }
+    return BaseDomain;
 }
 
 //-------------------------------------------------------------------------
 KStringView KURL::Parse(KStringView svSource)
 //-------------------------------------------------------------------------
 {
-	clear ();
+    clear ();
 
-	svSource = Protocol.Parse  (svSource); // mandatory, but we do not enforce
-	svSource = User.Parse      (svSource);
-	svSource = Password.Parse  (svSource);
-	svSource = Domain.Parse    (svSource); // mandatory for non-files, but we do not enforce
-	svSource = Port.Parse      (svSource);
-	svSource = Path.Parse      (svSource, true);
-	svSource = Query.Parse     (svSource, true);
-	svSource = Fragment.Parse  (svSource, true);
+    svSource = Protocol.Parse  (svSource); // mandatory, but we do not enforce
+    svSource = User.Parse      (svSource);
+    svSource = Password.Parse  (svSource);
+    svSource = Domain.Parse    (svSource); // mandatory for non-files, but we do not enforce
+    svSource = Port.Parse      (svSource);
+    svSource = Path.Parse      (svSource, true);
+    svSource = Query.Parse     (svSource, true);
+    svSource = Fragment.Parse  (svSource, true);
 
-	return svSource;
+    return svSource;
 }
 
 //-------------------------------------------------------------------------
 void KURL::clear()
 //-------------------------------------------------------------------------
 {
-	Protocol.clear();
-	User.clear();
-	Password.clear();
-	Domain.clear();
-	Port.clear();
-	Path.clear();
-	Query.clear();
-	Fragment.clear();
-	BaseDomain.clear();
+    Protocol.clear();
+    User.clear();
+    Password.clear();
+    Domain.clear();
+    Port.clear();
+    Path.clear();
+    Query.clear();
+    Fragment.clear();
+    BaseDomain.clear();
 }
 
 //-------------------------------------------------------------------------
 bool KURL::Serialize(KString& sTarget) const
 //-------------------------------------------------------------------------
 {
-	Query.WantStartSeparator();
-	Fragment.WantStartSeparator();
-	return Protocol.Serialize      (sTarget)
-	        && User.Serialize      (sTarget)
-	        && Password.Serialize  (sTarget)
-	        && Domain.Serialize    (sTarget)
-	        && Port.Serialize      (sTarget)
-	        && Path.Serialize      (sTarget)
-	        && Query.Serialize     (sTarget)
-	        && Fragment.Serialize  (sTarget);
+    Query.WantStartSeparator();
+    Fragment.WantStartSeparator();
+    return Protocol.Serialize      (sTarget)
+            && User.Serialize      (sTarget)
+            && Password.Serialize  (sTarget)
+            && Domain.Serialize    (sTarget)
+            && Port.Serialize      (sTarget)
+            && Path.Serialize      (sTarget)
+            && Query.Serialize     (sTarget)
+            && Fragment.Serialize  (sTarget);
 }
 
 //-------------------------------------------------------------------------
 bool KURL::Serialize(KOutStream& sTarget) const
 //-------------------------------------------------------------------------
 {
-	Query.WantStartSeparator();
-	Fragment.WantStartSeparator();
-	return Protocol.Serialize      (sTarget)
-	        && User.Serialize      (sTarget)
-	        && Password.Serialize  (sTarget)
-	        && Domain.Serialize    (sTarget)
-	        && Port.Serialize      (sTarget)
-	        && Path.Serialize      (sTarget)
-	        && Query.Serialize     (sTarget)
-	        && Fragment.Serialize  (sTarget);
+    Query.WantStartSeparator();
+    Fragment.WantStartSeparator();
+    return Protocol.Serialize      (sTarget)
+            && User.Serialize      (sTarget)
+            && Password.Serialize  (sTarget)
+            && Domain.Serialize    (sTarget)
+            && Port.Serialize      (sTarget)
+            && Path.Serialize      (sTarget)
+            && Query.Serialize     (sTarget)
+            && Fragment.Serialize  (sTarget);
 }
 
 //-------------------------------------------------------------------------
 bool operator==(const KURL& left, const KURL& right)
 //-------------------------------------------------------------------------
 {
-	return left.Protocol     == right.Protocol
-	        && left.User     == right.User
-	        && left.Password == right.Password
-	        && left.Domain   == right.Domain
-	        && left.Port     == right.Port
-	        && left.Path     == right.Path
-	        && left.Query    == right.Query
-	        && left.Fragment == right.Fragment;
+    return left.Protocol     == right.Protocol
+            && left.User     == right.User
+            && left.Password == right.Password
+            && left.Domain   == right.Domain
+            && left.Port     == right.Port
+            && left.Path     == right.Path
+            && left.Query    == right.Query
+            && left.Fragment == right.Fragment;
 }
 
 //-------------------------------------------------------------------------
 bool operator==(const KTCPEndPoint& left, const KTCPEndPoint& right)
 //-------------------------------------------------------------------------
 {
-	return left.Domain == right.Domain
-	        && left.Port == right.Port;
+    return left.Domain == right.Domain
+            && left.Port == right.Port;
 }
 
 

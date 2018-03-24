@@ -25,1032 +25,1032 @@ typedef KProps<KString, KString, true, false> KProp_t;
 
 
 #define VIEW_STE(id,source,target,expect) \
-	INFO("VIEW[" <<\
-		"#id" << "] " <<\
-		" source='" << source << "'" <<\
-		" target='" << source << "'" <<\
-		" expect='" << source << "'" <<\
-	)
+    INFO("VIEW[" <<\
+        "#id" << "] " <<\
+        " source='" << source << "'" <<\
+        " target='" << source << "'" <<\
+        " expect='" << source << "'" <<\
+    )
 
 
 SCENARIO ( "KURL unit tests on valid data" )
 {
-	test_t URL_valid;
+    test_t URL_valid;
 
-	URL_valid["http://google.com"] =
-		parm_t (0, 17, true, "minimum sensible URL", "");
-	URL_valid["http://subsub.sub.go.co.jp"] =
-		parm_t (0, 26, true, "valid URL with .co.", "");
+    URL_valid["http://google.com"] =
+        parm_t (0, 17, true, "minimum sensible URL", "");
+    URL_valid["http://subsub.sub.go.co.jp"] =
+        parm_t (0, 26, true, "valid URL with .co.", "");
 
-	// user:pass in simple URLs
-	URL_valid["https://johndoe@mail.google.com"] =
-		parm_t (0, 32, true, "user@host", "");
-	URL_valid["https://user:password@mail.google.com"] =
-		parm_t (0, 37, true, "user:pass@host", "");
-	URL_valid["opaquelocktoken://user:password@point.domain.pizza"] =
-		parm_t (0, 50, true, "unusual scheme", "");
+    // user:pass in simple URLs
+    URL_valid["https://johndoe@mail.google.com"] =
+        parm_t (0, 32, true, "user@host", "");
+    URL_valid["https://user:password@mail.google.com"] =
+        parm_t (0, 37, true, "user:pass@host", "");
+    URL_valid["opaquelocktoken://user:password@point.domain.pizza"] =
+        parm_t (0, 50, true, "unusual scheme", "");
 
-	// query string in simple URL
-	URL_valid["http://foo.bar?hello=world"] =
-		parm_t (0, 26, true, "query on simple URL", "");
+    // query string in simple URL
+    URL_valid["http://foo.bar?hello=world"] =
+        parm_t (0, 26, true, "query on simple URL", "");
 
-	// fragment in simple URL
-	URL_valid["http://sushi.bar#uni"] =
-		parm_t (0, 20, true, "fragment on simple URL", "");
+    // fragment in simple URL
+    URL_valid["http://sushi.bar#uni"] =
+        parm_t (0, 20, true, "fragment on simple URL", "");
 
-	// scheme/user/pass/domain/query/fragment
-	URL_valid["https://user:password@what.ever.com?please=stop%20the test%90&a=b#now"] =
-		parm_t (0, 69, true, "all URL elements in use",
-				"https://user:password@what.ever.com?please=stop+the+test%90&a=b#now"
-				);
+    // scheme/user/pass/domain/query/fragment
+    URL_valid["https://user:password@what.ever.com?please=stop%20the test%90&a=b#now"] =
+        parm_t (0, 69, true, "all URL elements in use",
+                "https://user:password@what.ever.com?please=stop+the+test%90&a=b#now"
+                );
 
-	// TODO This next one fails.  Fix it.
-	URL_valid["a://b.c:1/d?e=f#g"] =
-		parm_t (0, 17, true, "minimum valid fully populated URL",
-				""); //"a://b.c:1%2Fd?e=f#g");
+    // TODO This next one fails.  Fix it.
+    URL_valid["a://b.c:1/d?e=f#g"] =
+        parm_t (0, 17, true, "minimum valid fully populated URL",
+                ""); //"a://b.c:1%2Fd?e=f#g");
 
-	URL_valid["https://user:password@what.ever.com:8080/home/guest/noop.php?please=stop#now"] =
-		parm_t (0, 76, true, "all URL elements in use", "");
+    URL_valid["https://user:password@what.ever.com:8080/home/guest/noop.php?please=stop#now"] =
+        parm_t (0, 76, true, "all URL elements in use", "");
 
-	GIVEN ( "a valid string" )
-	{
-		WHEN ( "parse simple urls" )
-		{
-			THEN ( "collect and test each" )
-			{
-				test_t::iterator it;
-				for (it = URL_valid.begin(); it != URL_valid.end(); ++it)
-				{
-					const KString& source = it->first;
-					const KStringView svSource =
-						KStringView (source.c_str(), source.size ());
-					parm_t&  parameter = it->second;
-					KString  target{};
-					size_t   hint   {get<0>(parameter)};
-					size_t   done   {get<1>(parameter)};
-					bool     want   {get<2>(parameter)};
-					KString  expect {get<4>(parameter)};
-					if (expect.size() == 0)
-					{
-						expect = source;
-					}
+    GIVEN ( "a valid string" )
+    {
+        WHEN ( "parse simple urls" )
+        {
+            THEN ( "collect and test each" )
+            {
+                test_t::iterator it;
+                for (it = URL_valid.begin(); it != URL_valid.end(); ++it)
+                {
+                    const KString& source = it->first;
+                    const KStringView svSource =
+                        KStringView (source.c_str(), source.size ());
+                    parm_t&  parameter = it->second;
+                    KString  target{};
+                    size_t   hint   {get<0>(parameter)};
+                    size_t   done   {get<1>(parameter)};
+                    bool     want   {get<2>(parameter)};
+                    KString  expect {get<4>(parameter)};
+                    if (expect.size() == 0)
+                    {
+                        expect = source;
+                    }
 
-					dekaf2::KURL kurl  (svSource);
-					bool have{kurl.Serialize (target)};
+                    dekaf2::KURL kurl  (svSource);
+                    bool have{kurl.Serialize (target)};
 
-					INFO (svSource);
-					if (want != have || target != expect || done != hint)
-					{
-						CHECK (target == expect);
-						dekaf2::KURL kurl  (svSource);
-					}
-					CHECK (want   == have  );
-					CHECK (target == expect);
-				}
-			}
-		}
-		WHEN ( "Try all valid hex decodings" )
-		{
-			THEN ( "Loop through all valid hex digits in both places" )
-			{
-				KString iDigit{"0123456789ABCDEFabcdef"};
-				size_t iHi, iLo, iExpect;
-				KString sKey{"convert"};
-				KString sBase{sKey + "=%"};
-				for (iHi = 0; iHi < iDigit.size(); iHi++)
-				{
-					for (iLo = 0; iLo < iDigit.size(); iLo++)
-					{
-						KString sBefore{sBase};
-						sBefore += iDigit[iHi];
-						sBefore += iDigit[iLo];
-						KStringView svConvert{sBefore};
-						dekaf2::url::KQuery query;
-						svConvert = query.Parse (svConvert);
-						//const KProp_t& kprops = query.getProperties();
-						KString sAfter = query[sKey];
-						INFO ("Before:" + sBefore);
-						INFO (" After:" + sAfter);
-						CHECK (svConvert == "");
-						CHECK (query[sKey].size() == 1);
-					}
-				}
-			}
-		}
-	}
+                    INFO (svSource);
+                    if (want != have || target != expect || done != hint)
+                    {
+                        CHECK (target == expect);
+                        dekaf2::KURL kurl  (svSource);
+                    }
+                    CHECK (want   == have  );
+                    CHECK (target == expect);
+                }
+            }
+        }
+        WHEN ( "Try all valid hex decodings" )
+        {
+            THEN ( "Loop through all valid hex digits in both places" )
+            {
+                KString iDigit{"0123456789ABCDEFabcdef"};
+                size_t iHi, iLo, iExpect;
+                KString sKey{"convert"};
+                KString sBase{sKey + "=%"};
+                for (iHi = 0; iHi < iDigit.size(); iHi++)
+                {
+                    for (iLo = 0; iLo < iDigit.size(); iLo++)
+                    {
+                        KString sBefore{sBase};
+                        sBefore += iDigit[iHi];
+                        sBefore += iDigit[iLo];
+                        KStringView svConvert{sBefore};
+                        dekaf2::url::KQuery query;
+                        svConvert = query.Parse (svConvert);
+                        //const KProp_t& kprops = query.getProperties();
+                        KString sAfter = query[sKey];
+                        INFO ("Before:" + sBefore);
+                        INFO (" After:" + sAfter);
+                        CHECK (svConvert == "");
+                        CHECK (query[sKey].size() == 1);
+                    }
+                }
+            }
+        }
+    }
 
 }
 
 //SSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS
 SCENARIO ( "KURL unit tests on operators")
 {
-	test_t URL_valid;
+    test_t URL_valid;
 
-	URL_valid["https://user:password@what.ever.com:8080/home/guest/noop.php?please=stop#now"] =
-		parm_t (0, 76, true, "all URL elements in use", "");
+    URL_valid["https://user:password@what.ever.com:8080/home/guest/noop.php?please=stop#now"] =
+        parm_t (0, 76, true, "all URL elements in use", "");
 
-	GIVEN ( "valid data")
-	{
-		WHEN ( "operating on an entire complex URL")
-		{
-			dekaf2::KURL url;
-			THEN ( "Check results for validity")
-			{
-				test_t::iterator it;
-				for (it = URL_valid.begin(); it != URL_valid.end(); ++it)
-				{
-					KString sSource = it->first;
-					KString sTarget;
+    GIVEN ( "valid data")
+    {
+        WHEN ( "operating on an entire complex URL")
+        {
+            dekaf2::KURL url;
+            THEN ( "Check results for validity")
+            {
+                test_t::iterator it;
+                for (it = URL_valid.begin(); it != URL_valid.end(); ++it)
+                {
+                    KString sSource = it->first;
+                    KString sTarget;
 
-					url << sSource;
-					url >> sTarget;
+                    url << sSource;
+                    url >> sTarget;
 
-					CHECK(sSource == sTarget);
-				}
-			}
-		}
-		WHEN ( "operating on individual fields of URL")
-		{
-			dekaf2::url::KProtocol  protocol;
-			dekaf2::url::KUser      user;
-			dekaf2::url::KPassword  password;
-			dekaf2::url::KDomain    domain;
-			dekaf2::url::KPath      path;
-			dekaf2::url::KQuery     query;
-			dekaf2::url::KFragment  fragment;
-			dekaf2::KURI       uri;
-			THEN ( "Check results for validity")
-			{
-				KString sProtocol   {"unknown://"};
-				KString sUser       {"some.body.is.a@"};
-				KString sPassword   {"Secretive1.@"};
-				KString sDomain     {"East.Podunk.nj"};
-				KString sPath       {"/too/many/subdirectories/for/comfort"};
-				KString sQuery      {"?team=hermes&language=c++"};
-				KString sFragment   {"#partwayDown"};
-				KString sURI        {sPath + sQuery + sFragment};
+                    CHECK(sSource == sTarget);
+                }
+            }
+        }
+        WHEN ( "operating on individual fields of URL")
+        {
+            dekaf2::url::KProtocol  protocol;
+            dekaf2::url::KUser      user;
+            dekaf2::url::KPassword  password;
+            dekaf2::url::KDomain    domain;
+            dekaf2::url::KPath      path;
+            dekaf2::url::KQuery     query;
+            dekaf2::url::KFragment  fragment;
+            dekaf2::KURI       uri;
+            THEN ( "Check results for validity")
+            {
+                KString sProtocol   {"unknown://"};
+                KString sUser       {"some.body.is.a@"};
+                KString sPassword   {"Secretive1.@"};
+                KString sDomain     {"East.Podunk.nj"};
+                KString sPath       {"/too/many/subdirectories/for/comfort"};
+                KString sQuery      {"?team=hermes&language=c++"};
+                KString sFragment   {"#partwayDown"};
+                KString sURI        {sPath + sQuery + sFragment};
 
-				KString sResult;
+                KString sResult;
 
-				sResult.clear ();
-				protocol << sProtocol;
-				protocol >> sResult;
-				CHECK ( sProtocol == sResult);
+                sResult.clear ();
+                protocol << sProtocol;
+                protocol >> sResult;
+                CHECK ( sProtocol == sResult);
 
-				sResult.clear ();
-				user << sUser;
-				user >> sResult;
-				CHECK ( sUser == sResult);
+                sResult.clear ();
+                user << sUser;
+                user >> sResult;
+                CHECK ( sUser == sResult);
 
-				sResult.clear ();
-				password << sPassword;
-				password >> sResult;
-				CHECK ( sPassword == sResult);
+                sResult.clear ();
+                password << sPassword;
+                password >> sResult;
+                CHECK ( sPassword == sResult);
 
-				sResult.clear ();
-				domain << sDomain;
-				domain >> sResult;
-				CHECK ( sDomain == sResult);
+                sResult.clear ();
+                domain << sDomain;
+                domain >> sResult;
+                CHECK ( sDomain == sResult);
 
-				sResult.clear ();
-				path << sPath;
-				path >> sResult;
-				CHECK ( sPath == sResult);
+                sResult.clear ();
+                path << sPath;
+                path >> sResult;
+                CHECK ( sPath == sResult);
 
-				sResult.clear ();
-				query << sQuery;
-				query >> sResult;
-				CHECK ( sQuery == sResult);
+                sResult.clear ();
+                query << sQuery;
+                query >> sResult;
+                CHECK ( sQuery == sResult);
 
-				sResult.clear ();
-				fragment << sFragment;
-				fragment >> sResult;
-				CHECK ( sFragment == sResult);
+                sResult.clear ();
+                fragment << sFragment;
+                fragment >> sResult;
+                CHECK ( sFragment == sResult);
 
-				sResult.clear ();
-				uri << sURI;
-				uri >> sResult;
-				CHECK ( sURI == sResult);
-			}
-		}
-	}
+                sResult.clear ();
+                uri << sURI;
+                uri >> sResult;
+                CHECK ( sURI == sResult);
+            }
+        }
+    }
 }
 
 //SSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS
 SCENARIO ( "KURL unit tests on invalid data")
 {
-	GIVEN ( "an invalid string" )
-	{
-		WHEN ( "parsing an empty string" )
-		{
-			KString sEmptyString{};
-			KStringView svEmptyString = sEmptyString;
-			dekaf2::url::KProtocol  protocol;
-			dekaf2::url::KUser      user;
-			dekaf2::url::KDomain    domain;
-			dekaf2::url::KPath      path;
-			dekaf2::url::KQuery     query;
-			dekaf2::url::KFragment  fragment;
-			dekaf2::KURI       uri;
-			dekaf2::KURL       url;
+    GIVEN ( "an invalid string" )
+    {
+        WHEN ( "parsing an empty string" )
+        {
+            KString sEmptyString{};
+            KStringView svEmptyString = sEmptyString;
+            dekaf2::url::KProtocol  protocol;
+            dekaf2::url::KUser      user;
+            dekaf2::url::KDomain    domain;
+            dekaf2::url::KPath      path;
+            dekaf2::url::KQuery     query;
+            dekaf2::url::KFragment  fragment;
+            dekaf2::KURI       uri;
+            dekaf2::KURL       url;
 
-			THEN ( "check responses to empty string" )
-			{
-				KStringView svProto     {protocol.Parse( svEmptyString)};
-				KStringView svUser      {user    .Parse( svProto)};
-				KStringView svDomain    {domain  .Parse( svUser)};
-				KStringView svPath      {path    .Parse( svDomain)};
-				KStringView svQuery     {query   .Parse( svPath)};
-				KStringView svFragment  {fragment.Parse( svQuery)};
-				KStringView svURI       {uri     .Parse( svFragment)};
-				KStringView svURL       {url     .Parse( svURI)};
+            THEN ( "check responses to empty string" )
+            {
+                KStringView svProto     {protocol.Parse( svEmptyString)};
+                KStringView svUser      {user    .Parse( svProto)};
+                KStringView svDomain    {domain  .Parse( svUser)};
+                KStringView svPath      {path    .Parse( svDomain)};
+                KStringView svQuery     {query   .Parse( svPath)};
+                KStringView svFragment  {fragment.Parse( svQuery)};
+                KStringView svURI       {uri     .Parse( svFragment)};
+                KStringView svURL       {url     .Parse( svURI)};
 
-				// Mandatory: Protocol, Domain, and URL cannot parse empty
-				CHECK( protocol.empty () == true );  // Fail on empty
-				CHECK(     user.empty () == true );
-				CHECK(    query.empty () == true );
-				CHECK( fragment.empty () == true );
-			}
-		}
-		WHEN ( "parsing an invalid path" )
-		{
-			THEN ( "check for error" )
-			{
-				KString sBadPath{"fubar"};
-				KStringView svBadPath = sBadPath;
-				dekaf2::url::KPath path;
-				svBadPath = path.Parse (svBadPath);
-				CHECK (svBadPath == sBadPath);
-			}
-		}
-		WHEN ( "parsing an invalid query" )
-		{
+                // Mandatory: Protocol, Domain, and URL cannot parse empty
+                CHECK( protocol.empty () == true );  // Fail on empty
+                CHECK(     user.empty () == true );
+                CHECK(    query.empty () == true );
+                CHECK( fragment.empty () == true );
+            }
+        }
+        WHEN ( "parsing an invalid path" )
+        {
+            THEN ( "check for error" )
+            {
+                KString sBadPath{"fubar"};
+                KStringView svBadPath = sBadPath;
+                dekaf2::url::KPath path;
+                svBadPath = path.Parse (svBadPath);
+                CHECK (svBadPath == sBadPath);
+            }
+        }
+        WHEN ( "parsing an invalid query" )
+        {
 #if 0  // TODO
-			THEN ( "check for missing '='" )
-			{
-				KString sBadQuery{"hello world"}; // missing ?.*=.*
-				KStringView svBadQuery = sBadQuery;
-				size_t hint{0};
-				dekaf2::url::KQuery query;
-				bool bReturn = query.Parse (svBadQuery, hint);
-				CHECK (bReturn == false);
-			}
+            THEN ( "check for missing '='" )
+            {
+                KString sBadQuery{"hello world"}; // missing ?.*=.*
+                KStringView svBadQuery = sBadQuery;
+                size_t hint{0};
+                dekaf2::url::KQuery query;
+                bool bReturn = query.Parse (svBadQuery, hint);
+                CHECK (bReturn == false);
+            }
 #endif
 
-			THEN ( "check for missing hex digits" )
-			{
-				KString sBadQuery{"hello=world%2"}; // missing %21
-				KStringView svBadQuery = sBadQuery;
-				dekaf2::url::KQuery query;
-				svBadQuery = query.Parse (svBadQuery);
-				//const KProp_t& kprops = query.getProperties();
-				CHECK (svBadQuery != sBadQuery);
-				CHECK (query["hello"] == "world%2");
-			}
-			THEN ( "check for bad hex digits" )
-			{
-				KString sBadQuery{"hello=world%gg"}; // bad %gg
-				KStringView svBadQuery = sBadQuery;
-				dekaf2::url::KQuery query;
-				svBadQuery = query.Parse (svBadQuery);
-				//const KProp_t& kprops = query.getProperties();
-				CHECK (svBadQuery != sBadQuery);
-				CHECK (query["hello"] == "world%gg");
-			}
-		}
-		WHEN ( "Try all invalid 2 byte hex decodings" )
-		{
-			THEN ( "Loop through all invalid hex digits in both places" )
-			{
-				int i1, i2, iExpect;
-				char c1, c2;
-				KString sKey{"convert"};
-				size_t iLength = sKey.size() + 4;
-				int iLoopBegin{0x01};
-				int iLoopEnd{0xff};
-				for (i2 = iLoopBegin; i2 <= iLoopEnd; ++i2)
-				{
-					c2 = static_cast<char>(i2);
-					if (c2 == '#' || c2 == '&' || c2 == '+')
-					{
-						// TODO should these special chars be handled better?
-						// '\0' Special char used to identify char* end
-						// #    Special char used to identify Fragment
-						// &    Special char used to separate key:val pairs
-						// +    Special char used to convert to ' '
-						continue;
-					}
+            THEN ( "check for missing hex digits" )
+            {
+                KString sBadQuery{"hello=world%2"}; // missing %21
+                KStringView svBadQuery = sBadQuery;
+                dekaf2::url::KQuery query;
+                svBadQuery = query.Parse (svBadQuery);
+                //const KProp_t& kprops = query.getProperties();
+                CHECK (svBadQuery != sBadQuery);
+                CHECK (query["hello"] == "world%2");
+            }
+            THEN ( "check for bad hex digits" )
+            {
+                KString sBadQuery{"hello=world%gg"}; // bad %gg
+                KStringView svBadQuery = sBadQuery;
+                dekaf2::url::KQuery query;
+                svBadQuery = query.Parse (svBadQuery);
+                //const KProp_t& kprops = query.getProperties();
+                CHECK (svBadQuery != sBadQuery);
+                CHECK (query["hello"] == "world%gg");
+            }
+        }
+        WHEN ( "Try all invalid 2 byte hex decodings" )
+        {
+            THEN ( "Loop through all invalid hex digits in both places" )
+            {
+                int i1, i2, iExpect;
+                char c1, c2;
+                KString sKey{"convert"};
+                size_t iLength = sKey.size() + 4;
+                int iLoopBegin{0x01};
+                int iLoopEnd{0xff};
+                for (i2 = iLoopBegin; i2 <= iLoopEnd; ++i2)
+                {
+                    c2 = static_cast<char>(i2);
+                    if (c2 == '#' || c2 == '&' || c2 == '+')
+                    {
+                        // TODO should these special chars be handled better?
+                        // '\0' Special char used to identify char* end
+                        // #    Special char used to identify Fragment
+                        // &    Special char used to separate key:val pairs
+                        // +    Special char used to convert to ' '
+                        continue;
+                    }
 
-					for (i1 = iLoopBegin; i1 <= iLoopEnd; ++i1)
-					{
-						c1 = static_cast<char>(i1);
-						if (c1 == '#' || c1 == '&' || c1 == '+')
-						{
-							// '\0' Special char used to identify char* end
-							// #    Special char used to identify Fragment
-							// &    Special char used to separate key:val pairs
-							// +    Special char used to convert to ' '
-							continue;
-						}
-						if (isxdigit(c1) && isxdigit(c2))
-						{
-							continue;
-						}
-						KString sBefore{sKey};
-						KString sValue{};
-						sValue += '%';
-						sValue += c2;
-						sValue += c1;
-						sBefore += "=" + sValue;
+                    for (i1 = iLoopBegin; i1 <= iLoopEnd; ++i1)
+                    {
+                        c1 = static_cast<char>(i1);
+                        if (c1 == '#' || c1 == '&' || c1 == '+')
+                        {
+                            // '\0' Special char used to identify char* end
+                            // #    Special char used to identify Fragment
+                            // &    Special char used to separate key:val pairs
+                            // +    Special char used to convert to ' '
+                            continue;
+                        }
+                        if (isxdigit(c1) && isxdigit(c2))
+                        {
+                            continue;
+                        }
+                        KString sBefore{sKey};
+                        KString sValue{};
+                        sValue += '%';
+                        sValue += c2;
+                        sValue += c1;
+                        sBefore += "=" + sValue;
 
-						KStringView svConvert(sBefore.c_str(), iLength);
-						dekaf2::url::KQuery query;
-						svConvert = query.Parse (svConvert);
-						//const KProp_t& kprops = query.getProperties();
-						KString sResult = query[sKey];
-						size_t size = sResult.size();
-						if (size == 2 || sValue != sResult)
-						{
-							dekaf2::url::KQuery bad;
-							bad.Parse(svConvert);
-							sResult.size();
-						}
-						if (sResult.size() != 3 || sResult != sValue) {
-							dekaf2::url::KQuery bad;
-							bad.Parse(svConvert);
-						}
-						CHECK (sResult.size() == 3);
-						CHECK (sResult == sValue);
-					}
+                        KStringView svConvert(sBefore.c_str(), iLength);
+                        dekaf2::url::KQuery query;
+                        svConvert = query.Parse (svConvert);
+                        //const KProp_t& kprops = query.getProperties();
+                        KString sResult = query[sKey];
+                        size_t size = sResult.size();
+                        if (size == 2 || sValue != sResult)
+                        {
+                            dekaf2::url::KQuery bad;
+                            bad.Parse(svConvert);
+                            sResult.size();
+                        }
+                        if (sResult.size() != 3 || sResult != sValue) {
+                            dekaf2::url::KQuery bad;
+                            bad.Parse(svConvert);
+                        }
+                        CHECK (sResult.size() == 3);
+                        CHECK (sResult == sValue);
+                    }
 
-				}
-			}
-		}
-	}
+                }
+            }
+        }
+    }
 
 }
 
 //SSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS
 TEST_CASE ("KURL")
 {
-	//            hint    final   flag
-	//            get<0>  get<1>  get<2> get<3>   get<4>
-	typedef tuple<size_t, size_t, bool,  KString, KString> parm_t;
-	typedef map<KString, parm_t> test_t;
-	// get<3> is unused but could be used if catch.hpp has output support.
-	// It is used to identify qualities of URL analyzed by KURL and friends.
+    //            hint    final   flag
+    //            get<0>  get<1>  get<2> get<3>   get<4>
+    typedef tuple<size_t, size_t, bool,  KString, KString> parm_t;
+    typedef map<KString, parm_t> test_t;
+    // get<3> is unused but could be used if catch.hpp has output support.
+    // It is used to identify qualities of URL analyzed by KURL and friends.
 
-	//||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
-	// These are examples of valid URLs
-	//||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+    //||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+    // These are examples of valid URLs
+    //||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
 
-	// simple URLs
-	test_t URL_valid;
+    // simple URLs
+    test_t URL_valid;
 
-	URL_valid["http://google.com"] =
-		parm_t (0, 17, true, "minimum sensible URL", "");
-	URL_valid["http://subsub.sub.go.co.jp"] =
-		parm_t (0, 26, true, "valid URL with .co.", "");
+    URL_valid["http://google.com"] =
+        parm_t (0, 17, true, "minimum sensible URL", "");
+    URL_valid["http://subsub.sub.go.co.jp"] =
+        parm_t (0, 26, true, "valid URL with .co.", "");
 
-	// user:pass in simple URLs
-	URL_valid["https://johndoe@mail.google.com"] =
-		parm_t (0, 31, true, "user@host", "");
-	URL_valid["https://user:password@mail.google.com"] =
-		parm_t (0, 37, true, "user:pass@host", "");
-	URL_valid["opaquelocktoken://user:password@point.domain.pizza"] =
-		parm_t (0, 50, true, "unusual scheme", "");
+    // user:pass in simple URLs
+    URL_valid["https://johndoe@mail.google.com"] =
+        parm_t (0, 31, true, "user@host", "");
+    URL_valid["https://user:password@mail.google.com"] =
+        parm_t (0, 37, true, "user:pass@host", "");
+    URL_valid["opaquelocktoken://user:password@point.domain.pizza"] =
+        parm_t (0, 50, true, "unusual scheme", "");
 
-	// query string in simple URL
-	URL_valid["http://foo.bar?hello=world"] =
-		parm_t (0, 26, true, "query on simple URL", "");
+    // query string in simple URL
+    URL_valid["http://foo.bar?hello=world"] =
+        parm_t (0, 26, true, "query on simple URL", "");
 
-	// fragment in simple URL
-	URL_valid["http://sushi.bar#uni"] =
-		parm_t (0, 20, true, "fragment on simple URL", "");
+    // fragment in simple URL
+    URL_valid["http://sushi.bar#uni"] =
+        parm_t (0, 20, true, "fragment on simple URL", "");
 
-	// scheme/user/pass/domain/query/fragment
-	URL_valid["https://user:password@what.ever.com?please=stop#now"] =
-		parm_t (0, 51, true, "all URL elements in use", "");
-	// TODO This next one fails.  Fix it.
-	//URL_valid["a://b.c:1/d?e=f#g"] =
-		//parm_t (0, 17, true, "minimum valid fully populated URL", "");
+    // scheme/user/pass/domain/query/fragment
+    URL_valid["https://user:password@what.ever.com?please=stop#now"] =
+        parm_t (0, 51, true, "all URL elements in use", "");
+    // TODO This next one fails.  Fix it.
+    //URL_valid["a://b.c:1/d?e=f#g"] =
+        //parm_t (0, 17, true, "minimum valid fully populated URL", "");
 
-	URL_valid["https://user:password@what.ever.com:8080/home/guest/noop.php?please=stop#now"] =
-		parm_t (0, 76, true, "all URL elements in use", "");
+    URL_valid["https://user:password@what.ever.com:8080/home/guest/noop.php?please=stop#now"] =
+        parm_t (0, 76, true, "all URL elements in use", "");
 
-	URL_valid["a://b.c"] =
-		parm_t (0, 7, true, "protocol can be 1 char", "a://b.c");
+    URL_valid["a://b.c"] =
+        parm_t (0, 7, true, "protocol can be 1 char", "a://b.c");
 
-	URL_valid["file:///home/johndoe/.bashrc"] =
-		parm_t (0, 28, true, "file:/// handled", "");
+    URL_valid["file:///home/johndoe/.bashrc"] =
+        parm_t (0, 28, true, "file:/// handled", "");
 
 
-	//||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
-	// These are examples of valid URLs
-	//||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+    //||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+    // These are examples of valid URLs
+    //||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
 
-	test_t URL_invalid;
+    test_t URL_invalid;
 
-	// TODO fix this one too.
-	//URL_invalid["http://home/johndoe/.bashrc"] =
-		//parm_t (0, 0, false, "no TLD (Top Level Domain)", "");
+    // TODO fix this one too.
+    //URL_invalid["http://home/johndoe/.bashrc"] =
+        //parm_t (0, 0, false, "no TLD (Top Level Domain)", "");
 
-	URL_invalid["I Can Has Cheezburger."] =
-		parm_t (0, 0, true, "Garbage text", "I%20Can%20Has%20Cheezburger.");
+    URL_invalid["I Can Has Cheezburger."] =
+        parm_t (0, 0, true, "Garbage text", "I%20Can%20Has%20Cheezburger.");
 
-	URL_invalid["\x01\x02\x03\x04\xa0\xa1\xa2\xfd\xfe\xff"] =
-		parm_t (0, 0, true, "Non-ASCII", "%01%02%03%04%A0%A1%A2%FD%FE%FF");
+    URL_invalid["\x01\x02\x03\x04\xa0\xa1\xa2\xfd\xfe\xff"] =
+        parm_t (0, 0, true, "Non-ASCII", "%01%02%03%04%A0%A1%A2%FD%FE%FF");
 
 
-	//||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
-	// Data for tests designed early
-	//||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+    //||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+    // Data for tests designed early
+    //||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
 
-		KString sProto1 {"https://"};
-		KString sProto2 {"http://"};
-		KString sUser   {"johndoe:"};
-		KString sPassword{"password@"};
-		KString sDomain {"johndoe.github.com:80"};
-		KString sPath   {"/foo/bar"};
-		KString sQuery  {"?baz=beef"};
-		KString sFragment{"#fun"};
-		KString sURI    {"/home/guest/noop.php?please=stop#now"};
+        KString sProto1 {"https://"};
+        KString sProto2 {"http://"};
+        KString sUser   {"johndoe:"};
+        KString sPassword{"password@"};
+        KString sDomain {"johndoe.github.com:80"};
+        KString sPath   {"/foo/bar"};
+        KString sQuery  {"?baz=beef"};
+        KString sFragment{"#fun"};
+        KString sURI    {"/home/guest/noop.php?please=stop#now"};
 
-		SECTION ("kurl simple test")
-		{
-			KString source1{sProto1+sUser+sPassword+sDomain};
-			KString source2{sProto2+sUser+sPassword+sDomain};
+        SECTION ("kurl simple test")
+        {
+            KString source1{sProto1+sUser+sPassword+sDomain};
+            KString source2{sProto2+sUser+sPassword+sDomain};
 
-			KString target;
-			KString expect1 ("https://");
+            KString target;
+            KString expect1 ("https://");
 
-			dekaf2::url::KProtocol kproto1  (source1);
-			dekaf2::url::KProtocol kproto2  (source2);
-			dekaf2::url::KProtocol kproto3  (kproto1);
+            dekaf2::url::KProtocol kproto1  (source1);
+            dekaf2::url::KProtocol kproto2  (source2);
+            dekaf2::url::KProtocol kproto3  (kproto1);
 
-			dekaf2::url::KQuery kqueryparms  (sQuery);
+            dekaf2::url::KQuery kqueryparms  (sQuery);
 
-			dekaf2::url::KFragment kfragment  (sFragment);
+            dekaf2::url::KFragment kfragment  (sFragment);
 
-			dekaf2::KURI kuri  (sURI);
+            dekaf2::KURI kuri  (sURI);
 
-			dekaf2::KURI kuriBad ("<b>I'm bold</b>");
+            dekaf2::KURI kuriBad ("<b>I'm bold</b>");
 
-			dekaf2::KURL kurl;
+            dekaf2::KURL kurl;
 
-			KString kurlOut{};
-			INFO(kurl.Serialize(kurlOut));
+            KString kurlOut{};
+            INFO(kurl.Serialize(kurlOut));
 
-			kproto1.Serialize (target);
+            kproto1.Serialize (target);
 
-			int how =  target.compare(expect1);
-			bool empty = kproto1.empty ();
-			//size_t size = kproto1.size ();
+            int how =  target.compare(expect1);
+            bool empty = kproto1.empty ();
+            //size_t size = kproto1.size ();
 
-			dekaf2::KURL soperator;
-			KString toperator;
+            dekaf2::KURL soperator;
+            KString toperator;
 
-			soperator << source1;
-			soperator >> toperator;
+            soperator << source1;
+            soperator >> toperator;
 
-			CHECK (toperator == source1);
+            CHECK (toperator == source1);
 
-			CHECK (how == 0);
-			CHECK (empty == false);
-			//CHECK (size == 8);
+            CHECK (how == 0);
+            CHECK (empty == false);
+            //CHECK (size == 8);
 
-			CHECK (kproto1 == kproto3);
-			CHECK (kproto3 != kproto2);
-		}
+            CHECK (kproto1 == kproto3);
+            CHECK (kproto3 != kproto2);
+        }
 
-		SECTION ("Protocol User Domain simple test")
-		{
-			KString source1{sProto1+sUser+sPassword+sDomain};
-			KString source2{sProto2+sUser+sPassword+sDomain};
+        SECTION ("Protocol User Domain simple test")
+        {
+            KString source1{sProto1+sUser+sPassword+sDomain};
+            KString source2{sProto2+sUser+sPassword+sDomain};
 
-			KString target;
-			KString expect{source1};
+            KString target;
+            KString expect{source1};
 
-			dekaf2::url::KProtocol kproto;
-			source1 = kproto.Parse (source1);
+            dekaf2::url::KProtocol kproto;
+            source1 = kproto.Parse (source1);
 
-			dekaf2::url::KUser kuser;
-			source1 = kuser.Parse (source1);
+            dekaf2::url::KUser kuser;
+            source1 = kuser.Parse (source1);
 
-			dekaf2::url::KPassword kpassword;
-			source1 = kpassword.Parse (source1);
+            dekaf2::url::KPassword kpassword;
+            source1 = kpassword.Parse (source1);
 
-			dekaf2::url::KDomain kdomain;
-			source1 = kdomain.Parse(source1);
+            dekaf2::url::KDomain kdomain;
+            source1 = kdomain.Parse(source1);
 
-			dekaf2::url::KPort kport (source1);
+            dekaf2::url::KPort kport (source1);
 
-			kproto   .Serialize (target);
-			kuser    .Serialize (target);
-			kpassword.Serialize (target);
-			kdomain  .Serialize (target);
-			kport    .Serialize (target);
+            kproto   .Serialize (target);
+            kuser    .Serialize (target);
+            kpassword.Serialize (target);
+            kdomain  .Serialize (target);
+            kport    .Serialize (target);
 
-			int iDiff = target.compare(expect);
+            int iDiff = target.compare(expect);
 
-			CHECK (iDiff == 0);
-			CHECK (target == expect);
-		}
+            CHECK (iDiff == 0);
+            CHECK (target == expect);
+        }
 
-		SECTION ("Protocol/Domain hint offset")
-		{
-				KString target;
-				KString expect{sDomain};
+        SECTION ("Protocol/Domain hint offset")
+        {
+                KString target;
+                KString expect{sDomain};
 
-				dekaf2::url::KDomain kdomain;
-				sDomain = kdomain.Parse(sDomain);
+                dekaf2::url::KDomain kdomain;
+                sDomain = kdomain.Parse(sDomain);
 
-				dekaf2::url::KPort kport(sDomain);
+                dekaf2::url::KPort kport(sDomain);
 
-				kdomain.Serialize (target);
-				kport.Serialize (target);
+                kdomain.Serialize (target);
+                kport.Serialize (target);
 
-				CHECK (target == expect);
-		}
+                CHECK (target == expect);
+        }
 
-		//||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
-		// SOLO unit tests
-		//||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+        //||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+        // SOLO unit tests
+        //||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
 
-		SECTION ("Protocol move")
-		{
-			KString protocol("https://");
-			dekaf2::url::KProtocol k1 (protocol);
-			dekaf2::url::KProtocol k2;
-			k1 = std::move(k2);
-			k2 = url::KProtocol("http://");
-			CHECK (k2 != k1);
-		}
+        SECTION ("Protocol move")
+        {
+            KString protocol("https://");
+            dekaf2::url::KProtocol k1 (protocol);
+            dekaf2::url::KProtocol k2;
+            k1 = std::move(k2);
+            k2 = url::KProtocol("http://");
+            CHECK (k2 != k1);
+        }
 
-		SECTION ("Protocol solo unit (pass https://)")
-		{
-			KString solo ("https://");
-			KString expect{solo};
-			KString target;
+        SECTION ("Protocol solo unit (pass https://)")
+        {
+            KString solo ("https://");
+            KString expect{solo};
+            KString target;
 
-			dekaf2::url::KProtocol kproto;
-			kproto.Parse(solo);
+            dekaf2::url::KProtocol kproto;
+            kproto.Parse(solo);
 
-			bool ret = kproto.Serialize (target);
+            bool ret = kproto.Serialize (target);
 
-			CHECK (ret == true);
-			CHECK (target == expect);
-		}
+            CHECK (ret == true);
+            CHECK (target == expect);
+        }
 
-		SECTION ("Protocol solo unit (pass even with missing slash)")
-		{
-			KString solo ("https:/");
-			KString expect{"https://"};
-			KString target{};
-
-			dekaf2::url::KProtocol kproto  (solo);
-
-			bool ret = kproto.Serialize (target);
-
-			if (target != expect)
-			{
-				dekaf2::url::KProtocol kproto  (solo);
-			}
-
-			CHECK (ret == true);
-			CHECK (target == expect);
-		}
-
-		SECTION ("Protocol solo unit (fail missing ://)")
-		{
-			KString solo ("https");
-			KString expect{};
-			KString target{};
-
-			dekaf2::url::KProtocol kproto  (solo);
-
-			bool ret1 = kproto.empty();
-			bool ret = kproto.Serialize (target);
-
-			CHECK (ret == true);
-			CHECK (ret1 == true);
-			CHECK (target == expect);
-		}
-
-		SECTION ("Protocol solo unit (pass mailto:)")
-		{
-			KString solo ("mailto:");
-			KString expect{"mailto:"};
-			KString target{};
-
-			dekaf2::url::KProtocol kproto  (solo);
-
-			bool ret = kproto.Serialize (target);
-
-			CHECK (ret == true);
-			CHECK (target == expect);
-		}
-
-		SECTION ("User solo unit (pass foo:bar@)")
-		{
-			KString solo ("foo:bar@");
-			KString expect{"foo:bar@"};
-			KString target{};
-			size_t hint{0};
-
-			dekaf2::url::KUser kuser;
-			solo = kuser.Parse(solo);
-
-			dekaf2::url::KPassword kpassword;
-			solo = kpassword.Parse(solo);
-
-			bool ret = kuser.Serialize (target) && kpassword.Serialize(target);
-
-			CHECK (ret == true);
-			CHECK (target == expect);
-		}
-
-		SECTION ("KURL bulk valid tests")
-		{
-			test_t::iterator it;
-			for (it = URL_valid.begin(); it != URL_valid.end(); ++it)
-			{
-				const KString& source = it->first;
-				parm_t&  parameter = it->second;
-				KString  expect{source};
-				KString  target{};
-				size_t   hint{get<0>(parameter)};
-				size_t   done{get<1>(parameter)};
-				bool     want{get<2>(parameter)};
-
-				dekaf2::KURL kurl  (source);
-				bool have{kurl.Serialize (target)};
-
-				if (want != have || target != expect)
-				{
-					CHECK (source == expect);
-				}
-				INFO (target);
-				INFO (expect);
-				CHECK (want   == have  );
-				CHECK (target == expect);
-				CHECK (done   == target.size ()  );
-			}
-		}
-
-		SECTION ("KURL bulk KStringView valid tests")
-		{
-			test_t::iterator it;
-			for (it = URL_valid.begin(); it != URL_valid.end(); ++it)
-			{
-				const KString& source = it->first;
-				INFO(source << "---" << source.c_str() << "---" << source.size());
-				const KStringView svSource =
-					KStringView (source.c_str (), source.size ());
-				parm_t&  parameter = it->second;
-				KString  expect{source};
-				KString  target{};
-				size_t   hint{get<0>(parameter)};
-				size_t   done{get<1>(parameter)};
-				bool     want{get<2>(parameter)};
-
-				dekaf2::KURL kurl  (svSource);
-				bool have{kurl.Serialize (target)};
-
-				if (want != have || target != expect)
-				{
-					CHECK (source == expect);
-				}
-				CHECK (want   == have  );
-				CHECK (target == expect);
-				CHECK (done   == target.size () );
-			}
-		}
-
-		SECTION ("KURL bulk invalid tests")
-		{
-			test_t::iterator it;
-			for (it = URL_invalid.begin(); it != URL_invalid.end(); ++it)
-			{
-				const KString& source = it->first;
-				parm_t&  parameter = it->second;
-				KString  target{};
-				size_t   hint		{get<0>(parameter)};
-				size_t   done		{get<1>(parameter)};
-				bool     want		{get<2>(parameter)};
-				KString  feature	{get<3>(parameter)};
-				KString  expect     {get<4>(parameter)};
-
-				dekaf2::KURL kurl  (source);
-				bool have{kurl.Serialize (target)};
-
-				if (want != have || target != expect)
-				{
-					CHECK (target == expect);
-					dekaf2::KURL kurl  (source);
-				}
-				CHECK (want   == have  );
-				CHECK (target == expect);
-			}
-		}
-
-		SECTION ("KURL query properties")
-		{
-			KString ksQueryParms {"?hello=world&hola=mundo&space=%20"};
-			dekaf2::url::KQuery query (ksQueryParms);
-			//const KProp_t& kprops = query.getProperties();
-			CHECK (query["hello"] == "world");
-			CHECK (query["hola"] == "mundo");
-			CHECK (query["space"] == " ");
-		}
-
-		SECTION ("One-off coverage items")
-		{
-			KString ksHttpSlashless{"http:"};
-			KString ksTarget;
-			dekaf2::url::KProtocol protocol (ksHttpSlashless);
-			protocol.Serialize (ksTarget);
-			CHECK (ksTarget.size () == 0);
-
-			ksTarget.clear();
-			KString ksQueryNoEqual{"?a=b&fubar"};
-			KStringView svQueryNoEqual{ksQueryNoEqual};
-			dekaf2::url::KQuery queryNoEqual (svQueryNoEqual);
-			CHECK (queryNoEqual.empty () == false); // this is simply an empty value
-
-			ksTarget.clear();
-			KString ksQueryBadKey{"?fu%2=bar"};
-			KStringView svQueryBadKey{ksQueryBadKey};
-			dekaf2::url::KQuery queryBadKey (svQueryBadKey);
-			CHECK (queryBadKey.empty () == false);
-		}
+        SECTION ("Protocol solo unit (pass even with missing slash)")
+        {
+            KString solo ("https:/");
+            KString expect{"https://"};
+            KString target{};
+
+            dekaf2::url::KProtocol kproto  (solo);
+
+            bool ret = kproto.Serialize (target);
+
+            if (target != expect)
+            {
+                dekaf2::url::KProtocol kproto  (solo);
+            }
+
+            CHECK (ret == true);
+            CHECK (target == expect);
+        }
+
+        SECTION ("Protocol solo unit (fail missing ://)")
+        {
+            KString solo ("https");
+            KString expect{};
+            KString target{};
+
+            dekaf2::url::KProtocol kproto  (solo);
+
+            bool ret1 = kproto.empty();
+            bool ret = kproto.Serialize (target);
+
+            CHECK (ret == true);
+            CHECK (ret1 == true);
+            CHECK (target == expect);
+        }
+
+        SECTION ("Protocol solo unit (pass mailto:)")
+        {
+            KString solo ("mailto:");
+            KString expect{"mailto:"};
+            KString target{};
+
+            dekaf2::url::KProtocol kproto  (solo);
+
+            bool ret = kproto.Serialize (target);
+
+            CHECK (ret == true);
+            CHECK (target == expect);
+        }
+
+        SECTION ("User solo unit (pass foo:bar@)")
+        {
+            KString solo ("foo:bar@");
+            KString expect{"foo:bar@"};
+            KString target{};
+            size_t hint{0};
+
+            dekaf2::url::KUser kuser;
+            solo = kuser.Parse(solo);
+
+            dekaf2::url::KPassword kpassword;
+            solo = kpassword.Parse(solo);
+
+            bool ret = kuser.Serialize (target) && kpassword.Serialize(target);
+
+            CHECK (ret == true);
+            CHECK (target == expect);
+        }
+
+        SECTION ("KURL bulk valid tests")
+        {
+            test_t::iterator it;
+            for (it = URL_valid.begin(); it != URL_valid.end(); ++it)
+            {
+                const KString& source = it->first;
+                parm_t&  parameter = it->second;
+                KString  expect{source};
+                KString  target{};
+                size_t   hint{get<0>(parameter)};
+                size_t   done{get<1>(parameter)};
+                bool     want{get<2>(parameter)};
+
+                dekaf2::KURL kurl  (source);
+                bool have{kurl.Serialize (target)};
+
+                if (want != have || target != expect)
+                {
+                    CHECK (source == expect);
+                }
+                INFO (target);
+                INFO (expect);
+                CHECK (want   == have  );
+                CHECK (target == expect);
+                CHECK (done   == target.size ()  );
+            }
+        }
+
+        SECTION ("KURL bulk KStringView valid tests")
+        {
+            test_t::iterator it;
+            for (it = URL_valid.begin(); it != URL_valid.end(); ++it)
+            {
+                const KString& source = it->first;
+                INFO(source << "---" << source.c_str() << "---" << source.size());
+                const KStringView svSource =
+                    KStringView (source.c_str (), source.size ());
+                parm_t&  parameter = it->second;
+                KString  expect{source};
+                KString  target{};
+                size_t   hint{get<0>(parameter)};
+                size_t   done{get<1>(parameter)};
+                bool     want{get<2>(parameter)};
+
+                dekaf2::KURL kurl  (svSource);
+                bool have{kurl.Serialize (target)};
+
+                if (want != have || target != expect)
+                {
+                    CHECK (source == expect);
+                }
+                CHECK (want   == have  );
+                CHECK (target == expect);
+                CHECK (done   == target.size () );
+            }
+        }
+
+        SECTION ("KURL bulk invalid tests")
+        {
+            test_t::iterator it;
+            for (it = URL_invalid.begin(); it != URL_invalid.end(); ++it)
+            {
+                const KString& source = it->first;
+                parm_t&  parameter = it->second;
+                KString  target{};
+                size_t   hint        {get<0>(parameter)};
+                size_t   done        {get<1>(parameter)};
+                bool     want        {get<2>(parameter)};
+                KString  feature    {get<3>(parameter)};
+                KString  expect     {get<4>(parameter)};
+
+                dekaf2::KURL kurl  (source);
+                bool have{kurl.Serialize (target)};
+
+                if (want != have || target != expect)
+                {
+                    CHECK (target == expect);
+                    dekaf2::KURL kurl  (source);
+                }
+                CHECK (want   == have  );
+                CHECK (target == expect);
+            }
+        }
+
+        SECTION ("KURL query properties")
+        {
+            KString ksQueryParms {"?hello=world&hola=mundo&space=%20"};
+            dekaf2::url::KQuery query (ksQueryParms);
+            //const KProp_t& kprops = query.getProperties();
+            CHECK (query["hello"] == "world");
+            CHECK (query["hola"] == "mundo");
+            CHECK (query["space"] == " ");
+        }
+
+        SECTION ("One-off coverage items")
+        {
+            KString ksHttpSlashless{"http:"};
+            KString ksTarget;
+            dekaf2::url::KProtocol protocol (ksHttpSlashless);
+            protocol.Serialize (ksTarget);
+            CHECK (ksTarget.size () == 0);
+
+            ksTarget.clear();
+            KString ksQueryNoEqual{"?a=b&fubar"};
+            KStringView svQueryNoEqual{ksQueryNoEqual};
+            dekaf2::url::KQuery queryNoEqual (svQueryNoEqual);
+            CHECK (queryNoEqual.empty () == false); // this is simply an empty value
+
+            ksTarget.clear();
+            KString ksQueryBadKey{"?fu%2=bar"};
+            KStringView svQueryBadKey{ksQueryBadKey};
+            dekaf2::url::KQuery queryBadKey (svQueryBadKey);
+            CHECK (queryBadKey.empty () == false);
+        }
 }
 
 TEST_CASE ("KURL formerly missing")
 {
-	SECTION ("KURL base domain")
-	{
-		KStringView svDomain("abc.test.com");
-		KURL Domain(svDomain);
-		KStringView svResult = Domain.getBaseDomain();
-		CHECK (svResult == "TEST");
+    SECTION ("KURL base domain")
+    {
+        KStringView svDomain("abc.test.com");
+        KURL Domain(svDomain);
+        KStringView svResult = Domain.getBaseDomain();
+        CHECK (svResult == "TEST");
 
-		svDomain = "test.com";
-		Domain = svDomain;
-		svResult = Domain.getBaseDomain();
-		CHECK (svResult == "TEST");
+        svDomain = "test.com";
+        Domain = svDomain;
+        svResult = Domain.getBaseDomain();
+        CHECK (svResult == "TEST");
 
-		svDomain = "test.co.uk";
-		Domain = svDomain;
-		svResult = Domain.getBaseDomain();
-		CHECK (svResult == "TEST");
+        svDomain = "test.co.uk";
+        Domain = svDomain;
+        svResult = Domain.getBaseDomain();
+        CHECK (svResult == "TEST");
 
-		svDomain = "www.test.co.uk";
-		Domain = svDomain;
-		svResult = Domain.getBaseDomain();
-		CHECK (svResult == "TEST");
+        svDomain = "www.test.co.uk";
+        Domain = svDomain;
+        svResult = Domain.getBaseDomain();
+        CHECK (svResult == "TEST");
 
-		svDomain = ".test.com";
-		Domain = svDomain;
-		svResult = Domain.getBaseDomain();
-		CHECK (svResult == "TEST");
+        svDomain = ".test.com";
+        Domain = svDomain;
+        svResult = Domain.getBaseDomain();
+        CHECK (svResult == "TEST");
 
-		svDomain = "lot.of.name.co.fragments.test.de";
-		Domain = svDomain;
-		svResult = Domain.getBaseDomain();
-		CHECK (svResult == "TEST");
+        svDomain = "lot.of.name.co.fragments.test.de";
+        Domain = svDomain;
+        svResult = Domain.getBaseDomain();
+        CHECK (svResult == "TEST");
 
-		svDomain = "test";
-		Domain = svDomain;
-		svResult = Domain.getBaseDomain();
-		CHECK (svResult == "");
-	}
+        svDomain = "test";
+        Domain = svDomain;
+        svResult = Domain.getBaseDomain();
+        CHECK (svResult == "");
+    }
 
-	SECTION ("KURL ip addresses")
-	{
-		KStringView svURL("http://192.168.178.2:8080/and/a/path?with=cheese&with=onions#salt");
-		KURL URL(svURL);
-		KStringView svResult = URL.Domain;
-		CHECK (svResult == "192.168.178.2");
+    SECTION ("KURL ip addresses")
+    {
+        KStringView svURL("http://192.168.178.2:8080/and/a/path?with=cheese&with=onions#salt");
+        KURL URL(svURL);
+        KStringView svResult = URL.Domain;
+        CHECK (svResult == "192.168.178.2");
 
-		svURL = "http://[FEDC:BA98:7654:3210:FEDC:BA98:7654:3210]:8080/and/a/path?with=cheese&with=onions#salt";
-		URL = svURL;
-		svResult = URL.Domain;
-		CHECK (svResult == "[FEDC:BA98:7654:3210:FEDC:BA98:7654:3210]");
-		KString ser;
-		url::KQuery Query(URL.Query);
-		Query.Serialize(ser);
-		CHECK(ser == "?with=cheese&with=onions");
+        svURL = "http://[FEDC:BA98:7654:3210:FEDC:BA98:7654:3210]:8080/and/a/path?with=cheese&with=onions#salt";
+        URL = svURL;
+        svResult = URL.Domain;
+        CHECK (svResult == "[FEDC:BA98:7654:3210:FEDC:BA98:7654:3210]");
+        KString ser;
+        url::KQuery Query(URL.Query);
+        Query.Serialize(ser);
+        CHECK(ser == "?with=cheese&with=onions");
 
-		svURL = "http://[::192.9.5.5]:8080/and/a/path?with=cheese&with=onions#salt";
-		URL = svURL;
-		svResult = URL.Domain;
-		CHECK (svResult == "[::192.9.5.5]");
+        svURL = "http://[::192.9.5.5]:8080/and/a/path?with=cheese&with=onions#salt";
+        URL = svURL;
+        svResult = URL.Domain;
+        CHECK (svResult == "[::192.9.5.5]");
 
-		svURL = "http://[3ffe:2a00:100:7031::]:8080/and/a/path?with=cheese&with=onions#salt";
-		URL = svURL;
-		svResult = URL.Domain;
-		CHECK (svResult == "[3ffe:2a00:100:7031::]");
-	}
+        svURL = "http://[3ffe:2a00:100:7031::]:8080/and/a/path?with=cheese&with=onions#salt";
+        URL = svURL;
+        svResult = URL.Domain;
+        CHECK (svResult == "[3ffe:2a00:100:7031::]");
+    }
 
-	SECTION ("KURL no schema")
-	{
-		KStringView svURL("my.domain.name:8080/and/a/path?with=cheese&with=onions#salt");
-		KURL URL(svURL);
-		CHECK (URL.Domain == "my.domain.name");
-	}
+    SECTION ("KURL no schema")
+    {
+        KStringView svURL("my.domain.name:8080/and/a/path?with=cheese&with=onions#salt");
+        KURL URL(svURL);
+        CHECK (URL.Domain == "my.domain.name");
+    }
 
-	SECTION ("KURL copy assignment")
-	{
-		KStringView svURL;
-		KURL URL1;
-		KURL URL2;
-		KString serialized1, serialized2;
+    SECTION ("KURL copy assignment")
+    {
+        KStringView svURL;
+        KURL URL1;
+        KURL URL2;
+        KString serialized1, serialized2;
 
-		svURL = "whatever://fred:secret@www.test.com:7654/works.html;param;a=b;multi=a,b,c,d;this=that?foo=bar&you=me#fragment";
-		URL1.Parse(svURL);
-		URL1.Serialize(serialized1);
-		CHECK ( serialized1 == svURL );
+        svURL = "whatever://fred:secret@www.test.com:7654/works.html;param;a=b;multi=a,b,c,d;this=that?foo=bar&you=me#fragment";
+        URL1.Parse(svURL);
+        URL1.Serialize(serialized1);
+        CHECK ( serialized1 == svURL );
 
-		URL2 = URL1;
-		URL2.Serialize(serialized2);
-		CHECK ( serialized1 == serialized2 );
-	}
+        URL2 = URL1;
+        URL2.Serialize(serialized2);
+        CHECK ( serialized1 == serialized2 );
+    }
 
-	SECTION ("KURL move assignment")
-	{
-		KStringView svURL;
-		KURL URL1;
-		KURL URL2;
-		KString serialized1, serialized2;
+    SECTION ("KURL move assignment")
+    {
+        KStringView svURL;
+        KURL URL1;
+        KURL URL2;
+        KString serialized1, serialized2;
 
-		svURL = "whatever://fred:secret@www.test.com:7654/works.html;param;a=b;multi=a,b,c,d;this=that?foo=bar&you=me#fragment";
-		URL1.Parse(svURL);
-		URL1.Serialize(serialized1);
-		CHECK ( serialized1 == svURL );
+        svURL = "whatever://fred:secret@www.test.com:7654/works.html;param;a=b;multi=a,b,c,d;this=that?foo=bar&you=me#fragment";
+        URL1.Parse(svURL);
+        URL1.Serialize(serialized1);
+        CHECK ( serialized1 == svURL );
 
-		URL2 = std::move(URL1);
-		URL2.Serialize(serialized2);
-		CHECK ( serialized1 == serialized2 );
-	}
+        URL2 = std::move(URL1);
+        URL2.Serialize(serialized2);
+        CHECK ( serialized1 == serialized2 );
+    }
 
-	SECTION ("KURL copy constructor")
-	{
-		KStringView svURL;
-		KURL URL1;
-		KString serialized1, serialized2;
+    SECTION ("KURL copy constructor")
+    {
+        KStringView svURL;
+        KURL URL1;
+        KString serialized1, serialized2;
 
-		svURL = "whatever://fred:secret@www.test.com:7654/works.html;param;a=b;multi=a,b,c,d;this=that?foo=bar&you=me#fragment";
-		URL1.Parse(svURL);
-		URL1.Serialize(serialized1);
-		CHECK ( serialized1 == svURL );
+        svURL = "whatever://fred:secret@www.test.com:7654/works.html;param;a=b;multi=a,b,c,d;this=that?foo=bar&you=me#fragment";
+        URL1.Parse(svURL);
+        URL1.Serialize(serialized1);
+        CHECK ( serialized1 == svURL );
 
-		KURL URL2(URL1);
-		URL2.Serialize(serialized2);
-		CHECK ( serialized1 == serialized2 );
-	}
+        KURL URL2(URL1);
+        URL2.Serialize(serialized2);
+        CHECK ( serialized1 == serialized2 );
+    }
 
-	SECTION ("KURL move constructor")
-	{
-		KStringView svURL;
-		KURL URL1;
-		KString serialized1, serialized2;
+    SECTION ("KURL move constructor")
+    {
+        KStringView svURL;
+        KURL URL1;
+        KString serialized1, serialized2;
 
-		svURL = "whatever://fred:secret@www.test.com:7654/works.html;param;a=b;multi=a,b,c,d;this=that?foo=bar&you=me#fragment";
-		URL1.Parse(svURL);
-		URL1.Serialize(serialized1);
-		CHECK ( serialized1 == svURL );
+        svURL = "whatever://fred:secret@www.test.com:7654/works.html;param;a=b;multi=a,b,c,d;this=that?foo=bar&you=me#fragment";
+        URL1.Parse(svURL);
+        URL1.Serialize(serialized1);
+        CHECK ( serialized1 == svURL );
 
-		KURL URL2(std::move(URL1));
-		URL2.Serialize(serialized2);
-		CHECK ( serialized1 == serialized2 );
-	}
+        KURL URL2(std::move(URL1));
+        URL2.Serialize(serialized2);
+        CHECK ( serialized1 == serialized2 );
+    }
 
-	SECTION ("KURL self expressions")
-	{
-		KStringView svURL;
-		KURL URL;
-		KString sSerialized;
+    SECTION ("KURL self expressions")
+    {
+        KStringView svURL;
+        KURL URL;
+        KString sSerialized;
 
-		svURL = "whatever://fred:secret@www.test.com:7654/works.html;param;a=b;multi=a,b,c,d;this=that?foo=bar&you=me#fragment";
-		URL   = svURL;
-		sSerialized.clear();
-		URL.Serialize(sSerialized);
-		CHECK ( sSerialized == svURL );
+        svURL = "whatever://fred:secret@www.test.com:7654/works.html;param;a=b;multi=a,b,c,d;this=that?foo=bar&you=me#fragment";
+        URL   = svURL;
+        sSerialized.clear();
+        URL.Serialize(sSerialized);
+        CHECK ( sSerialized == svURL );
 
-		svURL = "http://news.example.com/money/$5.2-billion-merger";
-		URL   = svURL;
-		sSerialized.clear();
-		URL.Serialize(sSerialized);
-		CHECK ( sSerialized == "http://news.example.com/money/%245.2-billion-merger" );
+        svURL = "http://news.example.com/money/$5.2-billion-merger";
+        URL   = svURL;
+        sSerialized.clear();
+        URL.Serialize(sSerialized);
+        CHECK ( sSerialized == "http://news.example.com/money/%245.2-billion-merger" );
 
-		svURL = "https://spam.example.com/viagra-only-$2-per-pill*";
-		URL   = svURL;
-		sSerialized.clear();
-		URL.Serialize(sSerialized);
-		CHECK ( sSerialized == "https://spam.example.com/viagra-only-%242-per-pill%2A" );
+        svURL = "https://spam.example.com/viagra-only-$2-per-pill*";
+        URL   = svURL;
+        sSerialized.clear();
+        URL.Serialize(sSerialized);
+        CHECK ( sSerialized == "https://spam.example.com/viagra-only-%242-per-pill%2A" );
 
-		svURL = "http://example.com/path/foo:bogus";
-		URL   = svURL;
-		sSerialized.clear();
-		URL.Serialize(sSerialized);
-		CHECK ( sSerialized == "http://example.com/path/foo%3Abogus" );
+        svURL = "http://example.com/path/foo:bogus";
+        URL   = svURL;
+        sSerialized.clear();
+        URL.Serialize(sSerialized);
+        CHECK ( sSerialized == "http://example.com/path/foo%3Abogus" );
 
-		svURL = "http://example.com/path+test/foo%20bogus?foo+bogus%2Btest#foo%20bogus+test";
-		URL   = svURL;
-		sSerialized.clear();
-		URL.Serialize(sSerialized);
-		CHECK ( sSerialized == "http://example.com/path%2Btest/foo%20bogus?foo+bogus%2Btest=#foo%20bogus%2Btest" );
+        svURL = "http://example.com/path+test/foo%20bogus?foo+bogus%2Btest#foo%20bogus+test";
+        URL   = svURL;
+        sSerialized.clear();
+        URL.Serialize(sSerialized);
+        CHECK ( sSerialized == "http://example.com/path%2Btest/foo%20bogus?foo+bogus%2Btest=#foo%20bogus%2Btest" );
 
-	}
+    }
 
-	SECTION("KURL new design")
-	{
-		KStringView svURL;
-		KURL URL;
-		KString sSerialized;
+    SECTION("KURL new design")
+    {
+        KStringView svURL;
+        KURL URL;
+        KString sSerialized;
 
-		svURL = "whatever://fred:secret@www.test.com:7654/works.html;param;a=b;multi=a,b,c,d;this=that?foo=bar&you=me#fragment";
-		URL   = svURL;
-		sSerialized.clear();
-		URL.Serialize(sSerialized);
-		CHECK ( sSerialized == svURL );
+        svURL = "whatever://fred:secret@www.test.com:7654/works.html;param;a=b;multi=a,b,c,d;this=that?foo=bar&you=me#fragment";
+        URL   = svURL;
+        sSerialized.clear();
+        URL.Serialize(sSerialized);
+        CHECK ( sSerialized == svURL );
 
-		svURL = "http://news.example.com/money/$5.2-billion-merger";
-		URL   = svURL;
-		sSerialized.clear();
-		URL.Serialize(sSerialized);
-		CHECK ( sSerialized == "http://news.example.com/money/%245.2-billion-merger" );
+        svURL = "http://news.example.com/money/$5.2-billion-merger";
+        URL   = svURL;
+        sSerialized.clear();
+        URL.Serialize(sSerialized);
+        CHECK ( sSerialized == "http://news.example.com/money/%245.2-billion-merger" );
 
-		svURL = "https://spam.example.com/viagra-only-$2-per-pill*";
-		URL   = svURL;
-		sSerialized.clear();
-		URL.Serialize(sSerialized);
-		CHECK ( sSerialized == "https://spam.example.com/viagra-only-%242-per-pill%2A" );
+        svURL = "https://spam.example.com/viagra-only-$2-per-pill*";
+        URL   = svURL;
+        sSerialized.clear();
+        URL.Serialize(sSerialized);
+        CHECK ( sSerialized == "https://spam.example.com/viagra-only-%242-per-pill%2A" );
 
-		svURL = "http://example.com/path/foo:bogus";
-		URL   = svURL;
-		sSerialized.clear();
-		URL.Serialize(sSerialized);
-		CHECK ( sSerialized == "http://example.com/path/foo%3Abogus" );
+        svURL = "http://example.com/path/foo:bogus";
+        URL   = svURL;
+        sSerialized.clear();
+        URL.Serialize(sSerialized);
+        CHECK ( sSerialized == "http://example.com/path/foo%3Abogus" );
 
-		svURL = "http://example.com/path+test/foo%20bogus?foo+bogus%2Btest#foo%20bogus+test";
-		URL   = svURL;
-		sSerialized.clear();
-		URL.Serialize(sSerialized);
-		CHECK ( sSerialized == "http://example.com/path%2Btest/foo%20bogus?foo+bogus%2Btest=#foo%20bogus%2Btest" );
+        svURL = "http://example.com/path+test/foo%20bogus?foo+bogus%2Btest#foo%20bogus+test";
+        URL   = svURL;
+        sSerialized.clear();
+        URL.Serialize(sSerialized);
+        CHECK ( sSerialized == "http://example.com/path%2Btest/foo%20bogus?foo+bogus%2Btest=#foo%20bogus%2Btest" );
 
-		svURL = "whatever://fred:secret@www.test.com:7654/works.html;param;a=b;multi=a,b,c,d;this=that?foo=bar&you=me#fragment";
-		URL   = svURL;
-		svURL = URL.Password;
-		CHECK ( svURL == "secret" );
-		KString bar = URL.Query.get().find("foo")->second;
-		CHECK ( bar == "bar" );
-		URL.Query.get().Set("foo", "röb");
-		URL.Query->Set("you", "whø");
-		URL.Path = "/changed.xml";
-		URL.Protocol = "https://";
-		sSerialized.clear();
-		URL.Serialize(sSerialized);
-		svURL = "https://fred:secret@www.test.com:7654/changed.xml?foo=r%C3%B6b&you=wh%C3%B8#fragment";
-		CHECK ( sSerialized == svURL );
-//		CHECK ( URL.Protocol.getProtocol() == dekaf2::url::KProtocol::HTTPS );
-//		CHECK ( URL.Protocol == dekaf2::url::KProtocol::HTTPS );
-	}
+        svURL = "whatever://fred:secret@www.test.com:7654/works.html;param;a=b;multi=a,b,c,d;this=that?foo=bar&you=me#fragment";
+        URL   = svURL;
+        svURL = URL.Password;
+        CHECK ( svURL == "secret" );
+        KString bar = URL.Query.get().find("foo")->second;
+        CHECK ( bar == "bar" );
+        URL.Query.get().Set("foo", "röb");
+        URL.Query->Set("you", "whø");
+        URL.Path = "/changed.xml";
+        URL.Protocol = "https://";
+        sSerialized.clear();
+        URL.Serialize(sSerialized);
+        svURL = "https://fred:secret@www.test.com:7654/changed.xml?foo=r%C3%B6b&you=wh%C3%B8#fragment";
+        CHECK ( sSerialized == svURL );
+//        CHECK ( URL.Protocol.getProtocol() == dekaf2::url::KProtocol::HTTPS );
+//        CHECK ( URL.Protocol == dekaf2::url::KProtocol::HTTPS );
+    }
 
-	SECTION("KURL various schemes")
-	{
-		KURL URL;
+    SECTION("KURL various schemes")
+    {
+        KURL URL;
 
-		URL = "http://that.server.name/with_a_path";
-		CHECK ( URL.IsHttpURL() == true );
-		CHECK ( URL.Domain.get() == "that.server.name" );
-		CHECK ( URL.Path.get() == "/with_a_path" );
+        URL = "http://that.server.name/with_a_path";
+        CHECK ( URL.IsHttpURL() == true );
+        CHECK ( URL.Domain.get() == "that.server.name" );
+        CHECK ( URL.Path.get() == "/with_a_path" );
 
-		URL = "log.server.my.domain:35";
-		CHECK ( URL.IsHttpURL() == false );
-		CHECK ( URL.Domain.get() == "log.server.my.domain" );
-		CHECK ( URL.Path.get() == "" );
-		CHECK ( URL.Port.get() == "35" );
+        URL = "log.server.my.domain:35";
+        CHECK ( URL.IsHttpURL() == false );
+        CHECK ( URL.Domain.get() == "log.server.my.domain" );
+        CHECK ( URL.Path.get() == "" );
+        CHECK ( URL.Port.get() == "35" );
 
-		URL = "/path/to/file";
-		CHECK ( URL.IsHttpURL() == false );
-		CHECK ( URL.Domain.empty() == true );
-		CHECK ( URL.Path.get() == "/path/to/file" );
+        URL = "/path/to/file";
+        CHECK ( URL.IsHttpURL() == false );
+        CHECK ( URL.Domain.empty() == true );
+        CHECK ( URL.Path.get() == "/path/to/file" );
 
-	}
+    }
 
-	SECTION("KURL ugly")
-	{
-		KURL URL;
-		URL = "http://any.one/A.css,,_style.css+css,,_custom005.css+vendor,,_masterslider,,_style,,_masterslider.css+vendor,,_masterslider,,_skins,,_default,,_style.css+vendor,,_masterslider,,_style,,_ms-fullscreen.css+vendor,,_OwlCarousel2-2.2.1,,_dist,,_assets,,_owl.carousel.css+vendor,,_OwlCarousel2-2.2.1,,_dist,,_assets,,_owl.theme.default.css,Mcc.WnnFPiCXw1.css.pagespeed.cf.oRioQJq-Az.css";
-		CHECK ( URL.IsHttpURL() == true );
-		CHECK ( URL.Domain.get() == "any.one" );
-		CHECK ( URL.Path.get() == "/A.css,,_style.css+css,,_custom005.css+vendor,,_masterslider,,_style,,_masterslider.css+vendor,,_masterslider,,_skins,,_default,,_style.css+vendor,,_masterslider,,_style,,_ms-fullscreen.css+vendor,,_OwlCarousel2-2.2.1,,_dist,,_assets,,_owl.carousel.css+vendor,,_OwlCarousel2-2.2.1,,_dist,,_assets,,_owl.theme.default.css,Mcc.WnnFPiCXw1.css.pagespeed.cf.oRioQJq-Az.css" );
+    SECTION("KURL ugly")
+    {
+        KURL URL;
+        URL = "http://any.one/A.css,,_style.css+css,,_custom005.css+vendor,,_masterslider,,_style,,_masterslider.css+vendor,,_masterslider,,_skins,,_default,,_style.css+vendor,,_masterslider,,_style,,_ms-fullscreen.css+vendor,,_OwlCarousel2-2.2.1,,_dist,,_assets,,_owl.carousel.css+vendor,,_OwlCarousel2-2.2.1,,_dist,,_assets,,_owl.theme.default.css,Mcc.WnnFPiCXw1.css.pagespeed.cf.oRioQJq-Az.css";
+        CHECK ( URL.IsHttpURL() == true );
+        CHECK ( URL.Domain.get() == "any.one" );
+        CHECK ( URL.Path.get() == "/A.css,,_style.css+css,,_custom005.css+vendor,,_masterslider,,_style,,_masterslider.css+vendor,,_masterslider,,_skins,,_default,,_style.css+vendor,,_masterslider,,_style,,_ms-fullscreen.css+vendor,,_OwlCarousel2-2.2.1,,_dist,,_assets,,_owl.carousel.css+vendor,,_OwlCarousel2-2.2.1,,_dist,,_assets,,_owl.theme.default.css,Mcc.WnnFPiCXw1.css.pagespeed.cf.oRioQJq-Az.css" );
 
-		URL = "/A.css,,_style.css+css,,_custom005.css+vendor,,_masterslider,,_style,,_masterslider.css+vendor,,_masterslider,,_skins,,_default,,_style.css+vendor,,_masterslider,,_style,,_ms-fullscreen.css+vendor,,_OwlCarousel2-2.2.1,,_dist,,_assets,,_owl.carousel.css+vendor,,_OwlCarousel2-2.2.1,,_dist,,_assets,,_owl.theme.default.css,Mcc.WnnFPiCXw1.css.pagespeed.cf.oRioQJq-Az.css";
-		CHECK ( URL.Domain.get() == "" );
-		CHECK ( URL.Path.get() == "/A.css,,_style.css+css,,_custom005.css+vendor,,_masterslider,,_style,,_masterslider.css+vendor,,_masterslider,,_skins,,_default,,_style.css+vendor,,_masterslider,,_style,,_ms-fullscreen.css+vendor,,_OwlCarousel2-2.2.1,,_dist,,_assets,,_owl.carousel.css+vendor,,_OwlCarousel2-2.2.1,,_dist,,_assets,,_owl.theme.default.css,Mcc.WnnFPiCXw1.css.pagespeed.cf.oRioQJq-Az.css" );
+        URL = "/A.css,,_style.css+css,,_custom005.css+vendor,,_masterslider,,_style,,_masterslider.css+vendor,,_masterslider,,_skins,,_default,,_style.css+vendor,,_masterslider,,_style,,_ms-fullscreen.css+vendor,,_OwlCarousel2-2.2.1,,_dist,,_assets,,_owl.carousel.css+vendor,,_OwlCarousel2-2.2.1,,_dist,,_assets,,_owl.theme.default.css,Mcc.WnnFPiCXw1.css.pagespeed.cf.oRioQJq-Az.css";
+        CHECK ( URL.Domain.get() == "" );
+        CHECK ( URL.Path.get() == "/A.css,,_style.css+css,,_custom005.css+vendor,,_masterslider,,_style,,_masterslider.css+vendor,,_masterslider,,_skins,,_default,,_style.css+vendor,,_masterslider,,_style,,_ms-fullscreen.css+vendor,,_OwlCarousel2-2.2.1,,_dist,,_assets,,_owl.carousel.css+vendor,,_OwlCarousel2-2.2.1,,_dist,,_assets,,_owl.theme.default.css,Mcc.WnnFPiCXw1.css.pagespeed.cf.oRioQJq-Az.css" );
 }
-	
+    
 }

@@ -116,7 +116,8 @@ public:
 	bool is_open() const
 	//-----------------------------------------------------------------------------
 	{
-		return m_Stream.Socket.is_open()	}
+		return m_Stream.Socket.is_open();
+	}
 
 	//-----------------------------------------------------------------------------
 	/// Gets the underlying TCP socket of the stream

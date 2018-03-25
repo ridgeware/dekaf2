@@ -120,12 +120,35 @@ public:
 	/// KTCPEndPoint as the server to connect to - can be constructed from
 	/// a variety of inputs, like strings or KURL
 	/// @param bVerifyCerts
-	/// If true server certificate will verified
+	/// If true server certificate will be verified
 	/// @param bAllowSSLv2v3
 	/// If true also connections with SSL versions 2 and 3 will be allowed.
 	/// Default is false, only TLS connections will be allowed.
 	bool connect(const KTCPEndPoint& Endpoint, bool bVerifyCerts, bool bAllowSSLv2v3);
 	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// std::iostream interface to open a stream. Delegates to connect()
+	/// @param Endpoint
+	/// KTCPEndPoint as the server to connect to - can be constructed from
+	/// a variety of inputs, like strings or KURL
+	/// @param bVerifyCerts
+	/// If true server certificate will be verified
+	/// @param bAllowSSLv2v3
+	/// If true also connections with SSL versions 2 and 3 will be allowed.
+	/// Default is false, only TLS connections will be allowed.
+	bool open(const KTCPEndPoint& Endpoint, bool bVerifyCerts, bool bAllowSSLv2v3)
+	//-----------------------------------------------------------------------------
+	{
+		return connect(Endpoint, bVerifyCerts, bAllowSSLv2v3);
+	}
+
+	//-----------------------------------------------------------------------------
+	bool is_open() const
+	//-----------------------------------------------------------------------------
+	{
+		return m_Stream.Socket.next_layer().is_open();
+	}
 
 	//-----------------------------------------------------------------------------
 	/// Gets the underlying TCP socket of the stream

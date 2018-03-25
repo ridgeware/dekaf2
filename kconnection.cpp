@@ -102,7 +102,7 @@ KConnection& KConnection::operator=(KStream& Stream)
 }
 
 //-----------------------------------------------------------------------------
-bool KConnection::Connect(const url::KDomain& domain, const url::KPort& port)
+bool KConnection::Connect(const KTCPEndPoint& Endpoint)
 //-----------------------------------------------------------------------------
 {
 	m_sError.clear();
@@ -113,8 +113,7 @@ bool KConnection::Connect(const url::KDomain& domain, const url::KPort& port)
 		m_Stream.release();
 	}
 
-	m_Endpoint.Domain = domain;
-	m_Endpoint.Port = port;
+	m_Endpoint = Endpoint;
 
 	m_bIsSSL = false;
 
@@ -124,8 +123,7 @@ bool KConnection::Connect(const url::KDomain& domain, const url::KPort& port)
 
 	if (!m_Stream->OutStream().good())
 	{
-		SetError(kFormat("failed to connect to {}:{}: {}", m_Endpoint.Domain.Serialize(), m_Endpoint.Port.Serialize(), GetStreamError()));
-		kDebug(1, Error());
+		kDebug(1, "failed to connect to {}:{}: {}", m_Endpoint.Domain.Serialize(), m_Endpoint.Port.Serialize(), Error());
 		return false;
 	}
 
@@ -186,6 +184,30 @@ bool KConnection::SetTimeout(long iSeconds)
 }
 
 //-----------------------------------------------------------------------------
+const KTCPStream* KConnection::GetTCPStream() const
+//-----------------------------------------------------------------------------
+{
+	if (!IsSSL())
+	{
+		return static_cast<const KTCPStream*>(m_Stream.get());
+	}
+	return nullptr;
+
+} // GetTCPStream
+
+//-----------------------------------------------------------------------------
+const KSSLStream* KConnection::GetSSLStream() const
+//-----------------------------------------------------------------------------
+{
+	if (IsSSL())
+	{
+		return static_cast<const KSSLStream*>(m_Stream.get());
+	}
+	return nullptr;
+
+} // GetSSLStream
+
+//-----------------------------------------------------------------------------
 KTCPStream* KConnection::GetTCPStream()
 //-----------------------------------------------------------------------------
 {
@@ -210,24 +232,32 @@ KSSLStream* KConnection::GetSSLStream()
 } // GetSSLStream
 
 //-----------------------------------------------------------------------------
-KString KConnection::GetStreamError() const
+KString KConnection::Error() const
 //-----------------------------------------------------------------------------
 {
-	if (!m_Stream || IsSSL())
+	if (m_Stream)
 	{
-		return KString{};
+		if (IsSSL())
+		{
+			auto SSL = GetSSLStream();
+			if (SSL)
+			{
+				return SSL->Error();
+			}
+		}
+		else
+		{
+			auto TCP = GetTCPStream();
+			if (TCP)
+			{
+				return TCP->Error();
+			}
+		}
 	}
 
-	auto TCP = static_cast<const KTCPStream*>(m_Stream.get());;
-	if (TCP == nullptr)
-	{
-		return KString{};
-	}
+	return KString{};
 
-	return ""; // TODO
-//	return TCP->error().message();
-
-} // GetStreamError
+} // Error
 
 //-----------------------------------------------------------------------------
 void KConnection::setConnection(std::unique_ptr<KStream>&& Stream)
@@ -243,19 +273,19 @@ void KConnection::setConnection(std::unique_ptr<KStream>&& Stream)
 } // setConnection
 
 //-----------------------------------------------------------------------------
-bool KSSLConnection::Connect(const url::KDomain& domain, const url::KPort& port, bool bVerifyCerts, bool bAllowSSLv2v3)
+bool KSSLConnection::Connect(const KTCPEndPoint& Endpoint, bool bVerifyCerts, bool bAllowSSLv2v3)
 //-----------------------------------------------------------------------------
 {
 	m_bIsSSL = true;
-	kDebug(3, "SSL: connecting to {}:{}", domain.Serialize(), port.Serialize());
+	m_Endpoint = Endpoint;
 
-	KTCPEndPoint EndPoint(domain, port);
+	kDebug(3, "SSL: connecting to {}:{}", Endpoint.Domain.Serialize(), Endpoint.Port.Serialize());
 
-	setConnection(CreateKSSLStream(EndPoint, bVerifyCerts, bAllowSSLv2v3));
+	setConnection(CreateKSSLStream(Endpoint, bVerifyCerts, bAllowSSLv2v3));
 
 	if (!Stream().OutStream().good())
 	{
-		SetError(kFormat("SSL:failed to connect to {}:{}", domain.Serialize(), port.Serialize()));
+		SetError(kFormat("SSL:failed to connect to {}:{}", Endpoint.Domain.Serialize(), Endpoint.Port.Serialize()));
 		kDebug(1, Error());
 		return false;
 	}
@@ -270,7 +300,7 @@ std::unique_ptr<KConnection> KConnection::Create(const KURL& URL, bool bForceSSL
 {
 	KConnection Connection;
 
-	url::KPort Port = URL.Port;
+	url::KPort Port;
 
 	if (Port.empty())
 	{
@@ -279,11 +309,11 @@ std::unique_ptr<KConnection> KConnection::Create(const KURL& URL, bool bForceSSL
 
 	if (URL.Protocol == url::KProtocol::HTTPS || bForceSSL)
 	{
-		return std::make_unique<KSSLConnection>(URL.Domain, Port, bVerifyCerts, bAllowSSLv2v3);
+		return std::make_unique<KSSLConnection>(KTCPEndPoint(URL.Domain, Port), bVerifyCerts, bAllowSSLv2v3);
 	}
 	else
 	{
-		return std::make_unique<KConnection>(URL.Domain, Port);
+		return std::make_unique<KConnection>(KTCPEndPoint(URL.Domain, Port));
 	}
 
 } // Create
@@ -315,11 +345,11 @@ std::unique_ptr<KConnection> KConnection::Create(const KURL& URL, const KProxy& 
 
 	if (URL.Protocol == url::KProtocol::HTTPS || bForceSSL)
 	{
-		return std::make_unique<KSSLConnection>(Domain, Port, bVerifyCerts, bAllowSSLv2v3);
+		return std::make_unique<KSSLConnection>(KTCPEndPoint(Domain, Port), bVerifyCerts, bAllowSSLv2v3);
 	}
 	else
 	{
-		return std::make_unique<KConnection>(Domain, Port);
+		return std::make_unique<KConnection>(KTCPEndPoint(Domain, Port));
 	}
 
 } // Create

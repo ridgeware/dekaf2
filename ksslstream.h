@@ -50,12 +50,13 @@
 #include "kstring.h"
 #include "kstream.h" // TODO remove
 #include "kstreambuf.h"
+#include "kurl.h"
 
 namespace dekaf2
 {
 
-
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// std::iostream SSL/TLS implementation with timeout.
 class KSSLIOStream : public std::iostream
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -74,10 +75,9 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Constructs a connected stream as a client.
-	/// @param sServer
-	/// Server name or IP address in v4 or v6 notation to connect to, as a string
-	/// @param sPort
-	/// Port to connect to, as a string
+	/// @param Endpoint
+	/// KTCPEndPoint as the server to connect to - can be constructed from
+	/// a variety of inputs, like strings or KURL
 	/// @param bVerifyCerts
 	/// If true server certificate will verified
 	/// @param bAllowSSLv2v3
@@ -85,28 +85,7 @@ public:
 	/// Default is false, only TLS connections will be allowed.
 	/// @param iSecondsTimeout
 	/// Timeout in seconds for any I/O. Defaults to 60.
-	KSSLIOStream(const char* sServer,
-				 const char* sPort,
-				 bool bVerifyCerts,
-				 bool bAllowSSLv2v3,
-				 int iSecondsTimeout = DEFAULT_TIMEOUT);
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// Constructs a connected stream as a client.
-	/// @param sServer
-	/// Server name or IP address in v4 or v6 notation to connect to, as a string
-	/// @param sPort
-	/// Port to connect to, as a string
-	/// @param bVerifyCerts
-	/// If true server certificate will verified
-	/// @param bAllowSSLv2v3
-	/// If true also connections with SSL versions 2 and 3 will be allowed.
-	/// Default is false, only TLS connections will be allowed.
-	/// @param iSecondsTimeout
-	/// Timeout in seconds for any I/O. Defaults to 60.
-	KSSLIOStream(const KString& sServer,
-				 const KString& sPort,
+	KSSLIOStream(const KTCPEndPoint& Endpoint,
 				 bool bVerifyCerts,
 				 bool bAllowSSLv2v3,
 				 int iSecondsTimeout = DEFAULT_TIMEOUT);
@@ -137,34 +116,16 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Connects a given server as a client.
-	/// @param sServer
-	/// Server name or IP address in v4 or v6 notation to connect to, as a string
-	/// @param sPort
-	/// Port to connect to, as a string
+	/// @param Endpoint
+	/// KTCPEndPoint as the server to connect to - can be constructed from
+	/// a variety of inputs, like strings or KURL
 	/// @param bVerifyCerts
 	/// If true server certificate will verified
 	/// @param bAllowSSLv2v3
 	/// If true also connections with SSL versions 2 and 3 will be allowed.
 	/// Default is false, only TLS connections will be allowed.
-	bool connect(const char* sServer, const char* sPort, bool bVerifyCerts, bool bAllowSSLv2v3);
+	bool connect(const KTCPEndPoint& Endpoint, bool bVerifyCerts, bool bAllowSSLv2v3);
 	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// Connects a given server as a client.
-	/// @param sServer
-	/// Server name or IP address in v4 or v6 notation to connect to, as a string
-	/// @param sPort
-	/// Port to connect to, as a string
-	/// @param bVerifyCerts
-	/// If true server certificate will verified
-	/// @param bAllowSSLv2v3
-	/// If true also connections with SSL versions 2 and 3 will be allowed.
-	/// Default is false, only TLS connections will be allowed.
-	inline bool connect(const KString& sServer, const KString& sPort, bool bVerifyCerts, bool bAllowSSLv2v3)
-	//-----------------------------------------------------------------------------
-	{
-		return connect(sServer.c_str(), sPort.c_str(), bVerifyCerts, bAllowSSLv2v3);
-	}
 
 	//-----------------------------------------------------------------------------
 	/// Gets the underlying TCP socket of the stream
@@ -178,6 +139,20 @@ public:
 	//-----------------------------------------------------------------------------
 	{
 		return m_Stream.Socket.lowest_layer();
+	}
+
+	//-----------------------------------------------------------------------------
+	bool Good() const
+	//-----------------------------------------------------------------------------
+	{
+		return m_Stream.ec.value() == 0;
+	}
+
+	//-----------------------------------------------------------------------------
+	KString Error() const
+	//-----------------------------------------------------------------------------
+	{
+		return m_Stream.ec.message();
 	}
 
 //----------
@@ -195,8 +170,9 @@ private:
 		{}
 
 		tcpstream Socket;
-		bool bNeedHandshake  { true };
+		boost::system::error_code ec;
 		int iTimeoutMilliseconds { 30 * 1000 };
+		bool bNeedHandshake { true };
 	};
 
 	Stream_t m_Stream;
@@ -207,9 +183,6 @@ private:
 	boost::asio::ip::tcp::endpoint m_ConnectedHost;
 #endif
 
-	// see comment in KOutputFDStream about the legality
-	// to only construct the KStreamBuf here, but to use it in
-	// the constructor before
 	KStreamBuf m_SSLStreamBuf{&SSLStreamReader, &SSLStreamWriter, &m_Stream, &m_Stream};
 
 	enum POLLSTATE
@@ -230,7 +203,7 @@ private:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	static void handshake(boost::asio::ssl::stream_base::handshake_type role, Stream_t* stream);
+	static bool handshake(boost::asio::ssl::stream_base::handshake_type role, Stream_t* stream);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -246,9 +219,6 @@ using KSSLStream = KReaderWriter<KSSLIOStream>;
 //-----------------------------------------------------------------------------
 std::unique_ptr<KSSLStream> CreateKSSLStream();
 //-----------------------------------------------------------------------------
-
-// fwd declaration
-class KTCPEndPoint;
 
 //-----------------------------------------------------------------------------
 std::unique_ptr<KSSLStream> CreateKSSLStream(const KTCPEndPoint& EndPoint, bool bVerifyCerts, bool bAllowSSLv2v3);

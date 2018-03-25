@@ -14,7 +14,7 @@ TEST_CASE("KTCPCLient")
 	KTCPClient stream;
 	stream.Timeout(5);
 //	stream.expires_from_now(boost::posix_time::seconds(5));
-	stream.connect("www.google.com", "http");
+	stream.connect("www.google.com:80");
 
 	stream.SetWriterEndOfLine("\r\n");
 	stream.SetReaderRightTrim("\r\n");
@@ -37,7 +37,7 @@ TEST_CASE("KSSLClient")
 {
 
 	KSSLClient stream;
-	CHECK ( stream.connect("www.google.com", "https", true, false) == true );
+	CHECK ( stream.connect("www.google.com:443", true, false) == true );
 	stream.Timeout(1);
 
 	stream.SetReaderRightTrim("\r\n");

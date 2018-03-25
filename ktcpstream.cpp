@@ -145,23 +145,18 @@ std::streamsize KTCPIOStream::TCPStreamReader(void* sBuffer, std::streamsize iCo
 	{
 		Stream_t* stream = static_cast<Stream_t*>(stream_);
 
-		boost::system::error_code ec;
-
 		if (timeout(true, stream) != POLL_FAILURE)
 		{
-			iRead = stream->Socket.read_some(boost::asio::buffer(sBuffer, iCount), ec);
+			iRead = stream->Socket.read_some(boost::asio::buffer(sBuffer, iCount), stream->ec);
 		}
 		else
 		{
 			iRead = -1;
 		}
 
-		if (iRead < 0 || ec != 0)
+		if (iRead < 0 || stream->ec.value() != 0)
 		{
-			// do some logging
-			kDebug(2, "cannot read from stream: - requested {}, got {} bytes",
-				   iCount,
-				   iRead);
+			kDebug(2, "cannot read from stream: {}", stream->ec.message());
 		}
 	}
 
@@ -179,17 +174,14 @@ std::streamsize KTCPIOStream::TCPStreamWriter(const void* sBuffer, std::streamsi
 	{
 		Stream_t* stream = static_cast<Stream_t*>(stream_);
 
-		boost::system::error_code ec;
-
 		if (timeout(false, stream) == POLL_SUCCESS)
 		{
-			iWrote = stream->Socket.write_some(boost::asio::buffer(sBuffer, iCount), ec);
+			iWrote = stream->Socket.write_some(boost::asio::buffer(sBuffer, iCount), stream->ec);
 		}
 
-		if (iWrote != iCount || ec != 0)
+		if (iWrote != iCount || stream->ec.value() != 0)
 		{
-			// do some logging
-			kDebug(2, "cannot write to stream");
+			kDebug(2, "cannot write to stream: {}", stream->ec.message());
 		}
 	}
 
@@ -207,23 +199,13 @@ KTCPIOStream::KTCPIOStream()
 }
 
 //-----------------------------------------------------------------------------
-KTCPIOStream::KTCPIOStream(const char* sServer, const char* sPort, int iSecondsTimeout)
+KTCPIOStream::KTCPIOStream(const KTCPEndPoint& Endpoint, int iSecondsTimeout)
 //-----------------------------------------------------------------------------
 : base_type(&m_TCPStreamBuf)
 , m_Stream(m_IO_Service)
 {
 	Timeout(iSecondsTimeout);
-	connect(sServer, sPort);
-}
-
-//-----------------------------------------------------------------------------
-KTCPIOStream::KTCPIOStream(const KString& sServer, const KString& sPort, int iSecondsTimeout)
-//-----------------------------------------------------------------------------
-: base_type(&m_TCPStreamBuf)
-, m_Stream(m_IO_Service)
-{
-	Timeout(iSecondsTimeout);
-	connect(sServer, sPort);
+	connect(Endpoint);
 }
 
 //-----------------------------------------------------------------------------
@@ -246,34 +228,29 @@ bool KTCPIOStream::Timeout(int iSeconds)
 }
 
 //-----------------------------------------------------------------------------
-bool KTCPIOStream::connect(const char* sServer, const char* sPort)
+bool KTCPIOStream::connect(const KTCPEndPoint& Endpoint)
 //-----------------------------------------------------------------------------
 {
-	try {
+	boost::asio::ip::tcp::resolver Resolver(m_IO_Service);
 
-		boost::asio::ip::tcp::resolver Resolver(m_IO_Service);
+	boost::asio::ip::tcp::resolver::query query(Endpoint.Domain.get().c_str(), Endpoint.Port.get().c_str());
 
-		boost::asio::ip::tcp::resolver::query query(sServer, sPort);
-		auto hosts = Resolver.resolve(query);
+	auto hosts = Resolver.resolve(query, m_Stream.ec);
 
-		m_ConnectedHost = boost::asio::connect(m_Stream.Socket.lowest_layer(), hosts);
-
-		return true;
-
-	}
-
-	catch (const std::exception& e)
+	if (Good())
 	{
-		kException(e);
+		m_ConnectedHost = boost::asio::connect(m_Stream.Socket.lowest_layer(), hosts, m_Stream.ec);
 	}
 
-	catch (...)
+	if (!Good())
 	{
-		kUnknownException();
+		kDebug(2, "{}", Error());
+		return false;
 	}
 
-	return false;
-}
+	return true;
+
+} // connect
 
 
 
@@ -288,10 +265,7 @@ std::unique_ptr<KTCPStream> CreateKTCPStream()
 std::unique_ptr<KTCPStream> CreateKTCPStream(const KTCPEndPoint& EndPoint)
 //-----------------------------------------------------------------------------
 {
-	std::string sDomain = EndPoint.Domain.get().ToStdString();
-	std::string sPort   = EndPoint.Port.get().ToStdString();
-
-	return std::make_unique<KTCPStream>(sDomain, sPort);
+	return std::make_unique<KTCPStream>(EndPoint);
 }
 
 } // of namespace dekaf2

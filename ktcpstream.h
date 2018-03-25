@@ -49,13 +49,14 @@
 #include "kstring.h"
 #include "kstream.h" // TODO remove
 #include "kstreambuf.h"
+#include "kurl.h"
 
 namespace dekaf2
 {
 
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// std::iostream implementation with timeout.
+/// std::iostream TCP implementation with timeout.
 class KTCPIOStream : public std::iostream
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -63,9 +64,9 @@ class KTCPIOStream : public std::iostream
 
 	enum { DEFAULT_TIMEOUT = 1 * 30 };
 
-	//----------
+//----------
 public:
-	//----------
+//----------
 
 	//-----------------------------------------------------------------------------
 	/// Construcs an unconnected stream
@@ -74,28 +75,12 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Constructs a connected stream as a client.
-	/// @param sServer
-	/// Server name or IP address in v4 or v6 notation to connect to, as a string
-	/// @param sPort
-	/// Port to connect to, as a string
+	/// @param Endpoint
+	/// KTCPEndPoint as the server to connect to - can be constructed from
+	/// a variety of inputs, like strings or KURL
 	/// @param iSecondsTimeout
 	/// Timeout in seconds for any I/O. Defaults to 60.
-	KTCPIOStream(const char* sServer,
-				 const char* sPort,
-				 int iSecondsTimeout = DEFAULT_TIMEOUT);
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// Constructs a connected stream as a client.
-	/// @param sServer
-	/// Server name or IP address in v4 or v6 notation to connect to, as a string
-	/// @param sPort
-	/// Port to connect to, as a string
-	/// @param iSecondsTimeout
-	/// Timeout in seconds for any I/O. Defaults to 60.
-	KTCPIOStream(const KString& sServer,
-				 const KString& sPort,
-				 int iSecondsTimeout = DEFAULT_TIMEOUT);
+	KTCPIOStream(const KTCPEndPoint& Endpoint, int iSecondsTimeout = DEFAULT_TIMEOUT);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -110,24 +95,11 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Connects a given server as a client.
-	/// @param sServer
-	/// Server name or IP address in v4 or v6 notation to connect to, as a string
-	/// @param sPort
-	/// Port to connect to, as a string
-	bool connect(const char* sServer, const char* sPort);
+	/// @param Endpoint
+	/// KTCPEndPoint as the server to connect to - can be constructed from
+	/// a variety of inputs, like strings or KURL
+	bool connect(const KTCPEndPoint& Endpoint);
 	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// Connects a given server as a client.
-	/// @param sServer
-	/// Server name or IP address in v4 or v6 notation to connect to, as a string
-	/// @param sPort
-	/// Port to connect to, as a string
-	inline bool connect(const KString& sServer, const KString& sPort)
-	//-----------------------------------------------------------------------------
-	{
-		return connect(sServer.c_str(), sPort.c_str());
-	}
 
 	//-----------------------------------------------------------------------------
 	/// Gets the underlying TCP socket of the stream
@@ -143,14 +115,23 @@ public:
 		return m_Stream.Socket.lowest_layer();
 	}
 
-	KString error() const
+	//-----------------------------------------------------------------------------
+	bool Good() const
+	//-----------------------------------------------------------------------------
 	{
-		return ""; // TODO
+		return m_Stream.ec.value() == 0;
 	}
 
-	//----------
+	//-----------------------------------------------------------------------------
+	KString Error() const
+	//-----------------------------------------------------------------------------
+	{
+		return m_Stream.ec.message();
+	}
+
+//----------
 private:
-	//----------
+//----------
 
 	boost::asio::io_service m_IO_Service;
 	using tcpstream = boost::asio::basic_stream_socket<boost::asio::ip::tcp>;
@@ -162,6 +143,7 @@ private:
 		{}
 		
 		tcpstream Socket;
+		boost::system::error_code ec;
 		int iTimeoutMilliseconds { 30 * 1000 };
 	};
 
@@ -204,9 +186,6 @@ using KTCPStream = KReaderWriter<KTCPIOStream>;
 //-----------------------------------------------------------------------------
 std::unique_ptr<KTCPStream> CreateKTCPStream();
 //-----------------------------------------------------------------------------
-
-// fwd declaration
-class KTCPEndPoint;
 
 //-----------------------------------------------------------------------------
 std::unique_ptr<KTCPStream> CreateKTCPStream(const KTCPEndPoint& EndPoint);

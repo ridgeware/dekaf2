@@ -48,7 +48,6 @@
 #endif
 #include "ksslstream.h"
 #include "klog.h"
-#include "kurl.h"
 
 
 namespace dekaf2 {
@@ -150,7 +149,7 @@ KSSLIOStream::POLLSTATE KSSLIOStream::timeout(bool bForReading, Stream_t* stream
 } // timeout
 
 //-----------------------------------------------------------------------------
-void KSSLIOStream::handshake(boost::asio::ssl::stream_base::handshake_type role, Stream_t* stream)
+bool KSSLIOStream::handshake(boost::asio::ssl::stream_base::handshake_type role, Stream_t* stream)
 //-----------------------------------------------------------------------------
 {
 	if (stream->bNeedHandshake)
@@ -158,9 +157,10 @@ void KSSLIOStream::handshake(boost::asio::ssl::stream_base::handshake_type role,
 		if (timeout(false, stream) == POLL_SUCCESS)
 		{
 			stream->bNeedHandshake = false;
-			stream->Socket.handshake(role);
+			stream->Socket.handshake(role, stream->ec);
 		}
 	}
+	return stream->ec.value() == 0;
 
 } // handshake
 
@@ -174,25 +174,21 @@ std::streamsize KSSLIOStream::SSLStreamReader(void* sBuffer, std::streamsize iCo
 	{
 		Stream_t* stream = static_cast<Stream_t*>(stream_);
 
-		handshake(boost::asio::ssl::stream_base::server, stream); // SSL servers read first
-
-		boost::system::error_code ec;
-
-		if (timeout(true, stream) != POLL_FAILURE)
+		if (handshake(boost::asio::ssl::stream_base::server, stream)) // SSL servers read first
 		{
-			iRead = stream->Socket.read_some(boost::asio::buffer(sBuffer, iCount), ec);
+			if (timeout(true, stream) != POLL_FAILURE)
+			{
+				iRead = stream->Socket.read_some(boost::asio::buffer(sBuffer, iCount), stream->ec);
+			}
+			else
+			{
+				iRead = -1;
+			}
 		}
-		else
-		{
-			iRead = -1;
-		}
 
-		if (iRead < 0 || ec != 0)
+		if (iRead < 0 || stream->ec.value() != 0)
 		{
-			// do some logging
-			kDebug(2, "cannot read from stream: - requested {}, got {} bytes",
-				   iCount,
-				   iRead);
+			kDebug(2, "cannot read from stream: {}", stream->ec.message());
 		}
 	}
 
@@ -210,19 +206,17 @@ std::streamsize KSSLIOStream::SSLStreamWriter(const void* sBuffer, std::streamsi
 	{
 		Stream_t* stream = static_cast<Stream_t*>(stream_);
 
-		handshake(boost::asio::ssl::stream_base::client, stream); // SSL servers read first
-
-		boost::system::error_code ec;
-
-		if (timeout(false, stream) == POLL_SUCCESS)
+		if (handshake(boost::asio::ssl::stream_base::client, stream)) // SSL servers read first
 		{
-			iWrote = stream->Socket.write_some(boost::asio::buffer(sBuffer, iCount), ec);
+			if (timeout(false, stream) == POLL_SUCCESS)
+			{
+				iWrote = stream->Socket.write_some(boost::asio::buffer(sBuffer, iCount), stream->ec);
+			}
 		}
 
-		if (iWrote != iCount || ec != 0)
+		if (iWrote != iCount || stream->ec.value() != 0)
 		{
-			// do some logging
-			kDebug(2, "cannot write to stream");
+			kDebug(2, "cannot write to stream: {}", stream->ec.message());
 		}
 	}
 
@@ -245,7 +239,7 @@ KSSLIOStream::KSSLIOStream()
 }
 
 //-----------------------------------------------------------------------------
-KSSLIOStream::KSSLIOStream(const char* sServer, const char* sPort, bool bVerifyCerts, bool bAllowSSLv2v3, int iSecondsTimeout)
+KSSLIOStream::KSSLIOStream(const KTCPEndPoint& Endpoint, bool bVerifyCerts, bool bAllowSSLv2v3, int iSecondsTimeout)
 //-----------------------------------------------------------------------------
 : base_type(&m_SSLStreamBuf)
 #if (BOOST_VERSION < 106600)
@@ -256,22 +250,7 @@ KSSLIOStream::KSSLIOStream(const char* sServer, const char* sPort, bool bVerifyC
 , m_Stream(m_IO_Service, m_Context)
 {
 	Timeout(iSecondsTimeout);
-	connect(sServer, sPort, bVerifyCerts, bAllowSSLv2v3);
-}
-
-//-----------------------------------------------------------------------------
-KSSLIOStream::KSSLIOStream(const KString& sServer, const KString& sPort, bool bVerifyCerts, bool bAllowSSLv2v3, int iSecondsTimeout)
-//-----------------------------------------------------------------------------
-: base_type(&m_SSLStreamBuf)
-#if (BOOST_VERSION < 106600)
-, m_Context(m_IO_Service, boost::asio::ssl::context::tlsv12_client)
-#else
-, m_Context(boost::asio::ssl::context::tlsv12_client)
-#endif
-, m_Stream(m_IO_Service, m_Context)
-{
-	Timeout(iSecondsTimeout);
-	connect(sServer, sPort, bVerifyCerts, bAllowSSLv2v3);
+	connect(Endpoint, bVerifyCerts, bAllowSSLv2v3);
 }
 
 //-----------------------------------------------------------------------------
@@ -302,54 +281,54 @@ bool KSSLIOStream::Timeout(int iSeconds)
 }
 
 //-----------------------------------------------------------------------------
-bool KSSLIOStream::connect(const char* sServer, const char* sPort, bool bVerifyCerts, bool bAllowSSLv2v3)
+bool KSSLIOStream::connect(const KTCPEndPoint& Endpoint, bool bVerifyCerts, bool bAllowSSLv2v3)
 //-----------------------------------------------------------------------------
 {
-	try {
+	m_Stream.bNeedHandshake = true;
 
-		m_Stream.bNeedHandshake = true;
+	boost::asio::ssl::context::options options = boost::asio::ssl::context::default_workarounds;
 
-		boost::asio::ssl::context::options options = boost::asio::ssl::context::default_workarounds;
-		if (!bAllowSSLv2v3)
-		{
-			options |= (boost::asio::ssl::context::no_sslv2 | boost::asio::ssl::context::no_sslv3);
-		}
-		else
-		{
-			options |= boost::asio::ssl::context::sslv23;
-		}
+	if (!bAllowSSLv2v3)
+	{
+		options |= (boost::asio::ssl::context::no_sslv2 | boost::asio::ssl::context::no_sslv3);
+	}
+	else
+	{
+		options |= boost::asio::ssl::context::sslv23;
+	}
 
-		m_Context.set_options(options);
+	m_Context.set_options(options, m_Stream.ec);
 
+	if (Good())
+	{
 		boost::asio::ip::tcp::resolver Resolver(m_IO_Service);
 
-		boost::asio::ip::tcp::resolver::query query(sServer, sPort);
-		auto hosts = Resolver.resolve(query);
+		boost::asio::ip::tcp::resolver::query query(Endpoint.Domain.get().c_str(),
+													Endpoint.Port.get().c_str());
+		
+		auto hosts = Resolver.resolve(query, m_Stream.ec);
 
-		if (bVerifyCerts)
+		if (Good())
 		{
-			m_Context.set_default_verify_paths();
-			m_Stream.Socket.set_verify_mode(boost::asio::ssl::verify_peer);
+			if (bVerifyCerts)
+			{
+				m_Context.set_default_verify_paths();
+				m_Stream.Socket.set_verify_mode(boost::asio::ssl::verify_peer);
+			}
+
+			m_ConnectedHost = boost::asio::connect(m_Stream.Socket.lowest_layer(), hosts, m_Stream.ec);
 		}
-
-		m_ConnectedHost = boost::asio::connect(m_Stream.Socket.lowest_layer(), hosts);
-
-		return true;
-
 	}
 
-	catch (const std::exception& e)
+	if (!Good())
 	{
-		kException(e);
+		kDebug(2, "{}", Error());
+		return false;
 	}
 
-	catch (...)
-	{
-		kUnknownException();
-	}
+	return true;
 
-	return false;
-}
+} // connect
 
 
 //-----------------------------------------------------------------------------
@@ -363,7 +342,7 @@ std::unique_ptr<KSSLStream> CreateKSSLStream()
 std::unique_ptr<KSSLStream> CreateKSSLStream(const KTCPEndPoint& EndPoint, bool bVerifyCerts, bool bAllowSSLv2v3)
 //-----------------------------------------------------------------------------
 {
-	return std::make_unique<KSSLStream>(EndPoint.Domain.get(), EndPoint.Port.get(), bVerifyCerts, bAllowSSLv2v3);
+	return std::make_unique<KSSLStream>(EndPoint, bVerifyCerts, bAllowSSLv2v3);
 }
 
 

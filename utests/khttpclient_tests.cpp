@@ -72,7 +72,6 @@ TEST_CASE("KHTTPClient") {
 		cHTTP.Resource(URL);
 		CHECK( cHTTP.Request() == true );
 		KString shtml;
-		CHECK( cHTTP.size() == 10 );
 		cHTTP.Read(shtml);
 		CHECK( shtml == "0123456789");
 		CHECK( server.m_rx.size() >= 3 ); // compression adds more headers

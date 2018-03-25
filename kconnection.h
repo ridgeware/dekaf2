@@ -119,17 +119,10 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	KConnection(const url::KDomain& domain, const url::KPort& port)
+	KConnection(const KTCPEndPoint& Endpoint)
 	//-----------------------------------------------------------------------------
 	{
-		Connect(domain, port);
-	}
-
-	//-----------------------------------------------------------------------------
-	KConnection(const KURL& URL)
-	//-----------------------------------------------------------------------------
-	{
-		Connect(URL);
+		Connect(Endpoint);
 	}
 
 	//-----------------------------------------------------------------------------
@@ -199,15 +192,8 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	bool Connect(const url::KDomain& domain, const url::KPort& port);
+	bool Connect(const KTCPEndPoint& Endpoint);
 	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	bool Connect(const KURL& URL)
-	//-----------------------------------------------------------------------------
-	{
-		return Connect(URL.Domain, URL.Port);
-	}
 
 	//-----------------------------------------------------------------------------
 	void Disconnect();
@@ -219,6 +205,14 @@ public:
 
 	//-----------------------------------------------------------------------------
 	bool SetTimeout(long iSeconds);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	const KTCPStream* GetTCPStream() const;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	const KSSLStream* GetSSLStream() const;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -237,23 +231,18 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	// this interface uses KURL instead of KTCPEndPoint to allow construction like "https://www.abc.de" - otherwise the protocol would be lost..
 	static std::unique_ptr<KConnection> Create(const KURL& URL, bool bForceSSL = false, bool bVerifyCerts = false, bool bAllowSSLv2v3 = true);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	// this interface uses KURL instead of KTCPEndPoint to allow construction like "https://www.abc.de" - otherwise the protocol would be lost..
 	static std::unique_ptr<KConnection> Create(const KURL& URL, const KProxy& Proxy, bool bForceSSL = false, bool bVerifyCerts = false, bool bAllowSSLv2v3 = true);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	KString GetStreamError() const;
+	KString Error() const;
 	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	const KString& Error() const
-	//-----------------------------------------------------------------------------
-	{
-		return m_sError;
-	}
 
 	//-----------------------------------------------------------------------------
 	const KTCPEndPoint& EndPoint() const
@@ -274,20 +263,18 @@ protected:
 		return false;
 	}
 
-	//-----------------------------------------------------------------------------
+	KTCPEndPoint m_Endpoint;
 	bool m_bIsSSL{false};
-	//-----------------------------------------------------------------------------
 
 //------
 private:
 //------
 
 	std::unique_ptr<KStream> m_Stream;
-	KTCPEndPoint m_Endpoint;
 	mutable KString m_sError;
 	bool m_bStreamIsNotOwned{false};
 
-};
+}; // KConnection
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class KSSLConnection : public KConnection
@@ -315,29 +302,15 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	KSSLConnection(const url::KDomain& domain, const url::KPort& port, bool bVerifyCerts = false, bool bAllowSSLv2v3 = true)
+	KSSLConnection(const KTCPEndPoint& Endpoint, bool bVerifyCerts = false, bool bAllowSSLv2v3 = true)
 	//-----------------------------------------------------------------------------
 	{
-		Connect(domain, port, bVerifyCerts, bAllowSSLv2v3);
+		Connect(Endpoint, bVerifyCerts, bAllowSSLv2v3);
 	}
 
 	//-----------------------------------------------------------------------------
-	KSSLConnection(const KURL& URL, bool bVerifyCerts = false, bool bAllowSSLv2v3 = true)
+	bool Connect(const KTCPEndPoint& Endpoint, bool bVerifyCerts = false, bool bAllowSSLv2v3 = true);
 	//-----------------------------------------------------------------------------
-	{
-		Connect(URL, bVerifyCerts, bAllowSSLv2v3);
-	}
-
-	//-----------------------------------------------------------------------------
-	bool Connect(const url::KDomain& domain, const url::KPort& port, bool bVerifyCerts = false, bool bAllowSSLv2v3 = true);
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	bool Connect(const KURL& URL, bool bVerifyCerts = false, bool bAllowSSLv2v3 = true)
-	//-----------------------------------------------------------------------------
-	{
-		return Connect(URL.Domain, URL.Port, bVerifyCerts, bAllowSSLv2v3);
-	}
 
 };
 

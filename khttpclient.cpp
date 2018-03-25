@@ -442,7 +442,7 @@ bool KHTTPClient::ReadLine(KString& sBuffer)
 	KInStream istream(*m_Filter);
 	if (!istream.ReadLine(sBuffer))
 	{
-		SetError(m_Connection->GetStreamError());
+		SetError(m_Connection->Error());
 		return false;
 	}
 

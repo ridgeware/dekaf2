@@ -1003,7 +1003,19 @@ public:
     KTCPEndPoint() = default;
     KTCPEndPoint(const KTCPEndPoint&) = default;
     KTCPEndPoint(KTCPEndPoint&&) = default;
-    
+
+	KTCPEndPoint(KStringView sv)
+	: KTCPEndPoint(KURL(sv))
+	{}
+
+	KTCPEndPoint(const KString& str)
+	: KTCPEndPoint(KURL(str))
+	{}
+
+	KTCPEndPoint(const char* sp)
+	: KTCPEndPoint(KURL(sp))
+	{}
+
     KTCPEndPoint(const KURL& URL)
     : Domain(URL.Domain)
     , Port(URL.Port)

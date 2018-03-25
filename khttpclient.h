@@ -153,13 +153,6 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	size_t size() const
-	//-----------------------------------------------------------------------------
-	{
-		return m_iRemainingContentSize;
-	}
-
-	//-----------------------------------------------------------------------------
 	State GetState() const
 	//-----------------------------------------------------------------------------
 	{
@@ -223,12 +216,8 @@ protected:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	bool SetError(KStringView sError) const
+	bool SetError(KStringView sError) const;
 	//-----------------------------------------------------------------------------
-	{
-		m_sError = sError;
-		return false;
-	}
 
 	//-----------------------------------------------------------------------------
 	/// Returns true if we are already connected to the endpoint in URL
@@ -244,11 +233,8 @@ private:
 	KHTTPMethod m_Method;
 	KHTTPResponse m_ResponseHeader;
 	mutable KString m_sError;
-	size_t m_iRemainingContentSize{0};
-	State m_State{State::CLOSED};
-	long m_Timeout{ 300 };
-	bool m_bTEChunked;
-	bool m_bReceivedFinalChunk;
+	State m_State { State::CLOSED };
+	long m_Timeout { 30 };
 
 }; // KHTTPClient
 

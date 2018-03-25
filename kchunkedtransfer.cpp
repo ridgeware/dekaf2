@@ -42,6 +42,7 @@
 
 #include "kchunkedtransfer.h"
 #include "kstringutils.h"
+#include "klog.h"
 
 namespace dekaf2 {
 
@@ -62,7 +63,8 @@ std::streamsize KChunkedSource::read(char* s, std::streamsize n)
 
 	if (n <= 0)
 	{
-		return 0;
+		kDebug(2, "invalid read request of size {} deferred", n);
+		return !n ? 0 : -1;
 	}
 
 	if (m_State == Finished)
@@ -99,7 +101,7 @@ std::streamsize KChunkedSource::read(char* s, std::streamsize n)
 
 				iResult = m_src.Read(s, len);
 
-				if (iResult < n)
+				if (iResult <= 0)
 				{
 					// make sure that any following requests get an end of stream..
 					m_State = Finished;
@@ -128,7 +130,9 @@ std::streamsize KChunkedSource::read(char* s, std::streamsize n)
 				}
 
 				auto len = std::min(n - iResult, m_iRemainingInChunk);
+
 				auto ird = m_src.Read(s + iResult, len);
+
 				m_iRemainingInChunk -= ird;
 				iResult += ird;
 
@@ -137,8 +141,9 @@ std::streamsize KChunkedSource::read(char* s, std::streamsize n)
 					// switch state to chunk end
 					m_State = ReadingChunkEnd;
 				}
-				else if (!m_src.Good() || ird == 0)
+				else if (ird <= 0)
 				{
+					kDebug(1, "cannot read from stream, return {} instead of {} bytes", iResult, n);
 					// our stream got foul
 					m_State = Finished;
 					return iResult;
@@ -160,6 +165,7 @@ std::streamsize KChunkedSource::read(char* s, std::streamsize n)
 				}
 				else
 				{
+					kDebug(1, "invalid chunk end");
 					// this is a protocol failure
 					m_State = IsNotChunked;
 					return iResult;
@@ -182,6 +188,7 @@ std::streamsize KChunkedSource::read(char* s, std::streamsize n)
 						if (m_State == StartingUp)
 						{
 							// we had not even seen a 0 ..
+							kDebug(1, "invalid chunk start, switching to unchunked transfer");
 							// this is a protocol error
 							m_State = IsNotChunked;
 							return iResult;
@@ -210,6 +217,7 @@ std::streamsize KChunkedSource::read(char* s, std::streamsize n)
 					}
 					else
 					{
+						kDebug(1, "invalid chunk start, not a hex character - transfer will fail");
 						m_State = IsNotChunked;
 						// TODO try to put back the hex chars read so far
 					}

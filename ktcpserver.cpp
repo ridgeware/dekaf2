@@ -73,6 +73,7 @@
 
 #include "ktcpserver.h"
 #include "ksslstream.h"
+#include "ktcpstream.h"
 #include "klog.h"
 
 namespace dekaf2

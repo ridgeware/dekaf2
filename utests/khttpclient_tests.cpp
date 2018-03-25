@@ -75,7 +75,7 @@ TEST_CASE("KHTTPClient") {
 		CHECK( cHTTP.size() == 10 );
 		cHTTP.Read(shtml);
 		CHECK( shtml == "0123456789");
-		CHECK( server.m_rx.size() == 3 );
+		CHECK( server.m_rx.size() >= 3 ); // compression adds more headers
 		if (server.m_rx.size() == 3)
 		{
 			CHECK( server.m_rx[0] == "GET /path?query=val&another=here#fragment HTTP/1.1" );

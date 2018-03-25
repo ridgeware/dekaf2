@@ -1,0 +1,216 @@
+/*
+ //
+ // DEKAF(tm): Lighter, Faster, Smarter (tm)
+ //
+ // Copyright (c) 2017, Ridgeware, Inc.
+ //
+ // +-------------------------------------------------------------------------+
+ // | /\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\|
+ // |/+---------------------------------------------------------------------+/|
+ // |/|                                                                     |/|
+ // |\|  ** THIS NOTICE MUST NOT BE REMOVED FROM THE SOURCE CODE MODULE **  |\|
+ // |/|                                                                     |/|
+ // |\|   OPEN SOURCE LICENSE                                               |\|
+ // |/|                                                                     |/|
+ // |\|   Permission is hereby granted, free of charge, to any person       |\|
+ // |/|   obtaining a copy of this software and associated                  |/|
+ // |\|   documentation files (the "Software"), to deal in the              |\|
+ // |/|   Software without restriction, including without limitation        |/|
+ // |\|   the rights to use, copy, modify, merge, publish,                  |\|
+ // |/|   distribute, sublicense, and/or sell copies of the Software,       |/|
+ // |\|   and to permit persons to whom the Software is furnished to        |\|
+ // |/|   do so, subject to the following conditions:                       |/|
+ // |\|                                                                     |\|
+ // |/|   The above copyright notice and this permission notice shall       |/|
+ // |\|   be included in all copies or substantial portions of the          |\|
+ // |/|   Software.                                                         |/|
+ // |\|                                                                     |\|
+ // |/|   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY         |/|
+ // |\|   KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE        |\|
+ // |/|   WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR           |/|
+ // |\|   PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS        |\|
+ // |/|   OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR          |/|
+ // |\|   OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR        |\|
+ // |/|   OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE         |/|
+ // |\|   SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.            |\|
+ // |/|                                                                     |/|
+ // |/+---------------------------------------------------------------------+/|
+ // |\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/ |
+ // +-------------------------------------------------------------------------+
+ */
+
+#pragma once
+
+/// @file ksslstream.h
+/// provides an implementation of std::iostreams supporting SSL/TLS
+
+#include <boost/asio.hpp>
+#include <boost/asio/ip/tcp.hpp>
+#include "kstring.h"
+#include "kstream.h" // TODO remove
+#include "kstreambuf.h"
+
+namespace dekaf2
+{
+
+
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// std::iostream implementation with timeout.
+class KTCPIOStream : public std::iostream
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+	using base_type = std::iostream;
+
+	enum { DEFAULT_TIMEOUT = 1 * 30 };
+
+	//----------
+public:
+	//----------
+
+	//-----------------------------------------------------------------------------
+	/// Construcs an unconnected stream
+	KTCPIOStream();
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// Constructs a connected stream as a client.
+	/// @param sServer
+	/// Server name or IP address in v4 or v6 notation to connect to, as a string
+	/// @param sPort
+	/// Port to connect to, as a string
+	/// @param iSecondsTimeout
+	/// Timeout in seconds for any I/O. Defaults to 60.
+	KTCPIOStream(const char* sServer,
+				 const char* sPort,
+				 int iSecondsTimeout = DEFAULT_TIMEOUT);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// Constructs a connected stream as a client.
+	/// @param sServer
+	/// Server name or IP address in v4 or v6 notation to connect to, as a string
+	/// @param sPort
+	/// Port to connect to, as a string
+	/// @param iSecondsTimeout
+	/// Timeout in seconds for any I/O. Defaults to 60.
+	KTCPIOStream(const KString& sServer,
+				 const KString& sPort,
+				 int iSecondsTimeout = DEFAULT_TIMEOUT);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// Destructs and closes a stream
+	~KTCPIOStream();
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// Set I/O timeout in seconds.
+	bool Timeout(int iSeconds);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// Connects a given server as a client.
+	/// @param sServer
+	/// Server name or IP address in v4 or v6 notation to connect to, as a string
+	/// @param sPort
+	/// Port to connect to, as a string
+	bool connect(const char* sServer, const char* sPort);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// Connects a given server as a client.
+	/// @param sServer
+	/// Server name or IP address in v4 or v6 notation to connect to, as a string
+	/// @param sPort
+	/// Port to connect to, as a string
+	inline bool connect(const KString& sServer, const KString& sPort)
+	//-----------------------------------------------------------------------------
+	{
+		return connect(sServer.c_str(), sPort.c_str());
+	}
+
+	//-----------------------------------------------------------------------------
+	/// Gets the underlying TCP socket of the stream
+	/// @return
+	/// The TCP socket of the stream (wrapped into ASIO's basic_socket<> template)
+#if (BOOST_VERSION < 106600)
+	boost::asio::basic_socket<boost::asio::ip::tcp, boost::asio::stream_socket_service<boost::asio::ip::tcp> >& GetTCPSocket()
+#else
+	boost::asio::basic_socket<boost::asio::ip::tcp>& GetTCPSocket()
+#endif
+	//-----------------------------------------------------------------------------
+	{
+		return m_Stream.Socket.lowest_layer();
+	}
+
+	KString error() const
+	{
+		return ""; // TODO
+	}
+
+	//----------
+private:
+	//----------
+
+	boost::asio::io_service m_IO_Service;
+	using tcpstream = boost::asio::basic_stream_socket<boost::asio::ip::tcp>;
+
+	struct Stream_t
+	{
+		Stream_t(boost::asio::io_service& ioservice)
+		: Socket(ioservice)
+		{}
+		
+		tcpstream Socket;
+		int iTimeoutMilliseconds { 30 * 1000 };
+	};
+
+	Stream_t m_Stream;
+
+#if (BOOST_VERSION < 106600)
+	boost::asio::ip::tcp::resolver::iterator m_ConnectedHost;
+#else
+	boost::asio::ip::tcp::endpoint m_ConnectedHost;
+#endif
+
+	KStreamBuf m_TCPStreamBuf{&TCPStreamReader, &TCPStreamWriter, &m_Stream, &m_Stream};
+
+	enum POLLSTATE
+	{
+		POLL_FAILURE = 0,
+		POLL_SUCCESS = 1,
+		POLL_LAST    = 2
+	};
+
+	//-----------------------------------------------------------------------------
+	/// this is the custom streambuf reader
+	static std::streamsize TCPStreamReader(void* sBuffer, std::streamsize iCount, void* stream);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// this is the custom streambuf writer
+	static std::streamsize TCPStreamWriter(const void* sBuffer, std::streamsize iCount, void* stream);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	static POLLSTATE timeout(bool bForReading, Stream_t* stream);
+	//-----------------------------------------------------------------------------
+
+};
+
+/// TCP stream based on std::iostream
+using KTCPStream = KReaderWriter<KTCPIOStream>;
+
+//-----------------------------------------------------------------------------
+std::unique_ptr<KTCPStream> CreateKTCPStream();
+//-----------------------------------------------------------------------------
+
+// fwd declaration
+class KTCPEndPoint;
+
+//-----------------------------------------------------------------------------
+std::unique_ptr<KTCPStream> CreateKTCPStream(const KTCPEndPoint& EndPoint);
+//-----------------------------------------------------------------------------
+
+} // namespace dekaf2
+

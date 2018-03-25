@@ -409,7 +409,7 @@ typename std::istream::int_type KInStream::Read()
 		typename std::istream::int_type iCh = sb->sbumpc();
 		if (std::istream::traits_type::eq_int_type(iCh, std::istream::traits_type::eof()))
 		{
-//			InStream().setstate(std::ios::eofbit);
+			InStream().setstate(std::ios::eofbit);
 		}
 		return iCh;
 	}
@@ -424,12 +424,13 @@ size_t KInStream::Read(typename std::istream::char_type* pAddress, size_t iCount
 	std::streambuf* sb = InStream().rdbuf();
 	if (sb)
 	{
-		size_t iRead = static_cast<size_t>(sb->sgetn(pAddress, static_cast<std::streamsize>(iCount)));
-		if (iRead != iCount)
+		auto iRead = sb->sgetn(pAddress, static_cast<std::streamsize>(iCount));
+		if (iRead <= 0)
 		{
-//			InStream().setstate(std::ios::eofbit);
+			InStream().setstate(std::ios::eofbit);
+			iRead = 0;
 		}
-		return iRead;
+		return static_cast<size_t>(iRead);
 	}
 	return 0;
 }

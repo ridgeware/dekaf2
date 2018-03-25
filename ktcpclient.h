@@ -45,7 +45,7 @@
 /// @file ktcpclient.h
 /// provides a typedef for KTCPClient
 
-#include "kstream.h"
+#include "ktcpstream.h"
 
 namespace dekaf2
 {

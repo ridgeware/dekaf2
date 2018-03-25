@@ -44,6 +44,7 @@
 
 #include "kstream.h"
 #include "ksslstream.h"
+#include "ktcpstream.h"
 #include "kurl.h"
 
 namespace dekaf2 {

@@ -256,11 +256,6 @@ protected:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// Set expiration for I/O for the stream of a session.
-	void ExpiresFromNow(KStream& stream, long iSeconds);
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
 	/// Returns true if the server is in SSL/TLS mode.
 	inline bool IsSSL() const
 	//-----------------------------------------------------------------------------
@@ -284,20 +279,20 @@ private:
 	void StopServerThread(bool ipv6);
 	//-----------------------------------------------------------------------------
 
-	asio::io_service m_asio;
+	boost::asio::io_service m_asio;
 	std::unique_ptr<std::thread> m_ipv4_server;
 	std::unique_ptr<std::thread> m_ipv6_server;
 	KString m_sCert;
 	KString m_sPem;
-	uint16_t m_iPort{0};
-	uint16_t m_iTimeout{5*60};
+	uint16_t m_iPort { 0 };
+	uint16_t m_iTimeout { 1*30 };
 	uint16_t m_iMaxConnections;
-	std::atomic_uint16_t m_iOpenConnections{0};
-	bool m_bBlock{true};
-	bool m_bQuit{false};
-	bool m_bStartIPv4{true};
-	bool m_bStartIPv6{true};
-	bool m_bIsSSL{false};
+	std::atomic_uint16_t m_iOpenConnections { 0 };
+	bool m_bBlock { true };
+	bool m_bQuit { false };
+	bool m_bStartIPv4 { true };
+	bool m_bStartIPv6 { true };
+	bool m_bIsSSL { false };
 
 }; // KTCPServer
 

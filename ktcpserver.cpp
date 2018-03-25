@@ -110,15 +110,12 @@ void KTCPServer::Session(KStream& stream, KStringView sRemoteEndPoint)
 	{
 		param_t parameters = CreateParameters();
 
-		ExpiresFromNow(stream, m_iTimeout);
-		stream << Init(*parameters);
+		stream.Write(Init(*parameters));
 
 		KString line;
 
 		while (!parameters->terminate && !stream.InStream().bad() && !m_bQuit)
 		{
-
-			ExpiresFromNow(stream, m_iTimeout);
 
 			if (!stream.ReadLine(line))
 			{
@@ -133,7 +130,7 @@ void KTCPServer::Session(KStream& stream, KStringView sRemoteEndPoint)
 		}
 	}
 
-}
+} // Session
 
 //-----------------------------------------------------------------------------
 void KTCPServer::RunSession(std::unique_ptr<KStream> stream, KString sRemoteEndPoint)
@@ -147,15 +144,6 @@ void KTCPServer::RunSession(std::unique_ptr<KStream> stream, KString sRemoteEndP
 
 	try
 	{
-		if (IsSSL())
-		{
-			// set connection timeout once, other than for the
-			// non-SSL connections where we have to repeatedly
-			// call ExpiresFromNow()
-			KSSLStream& s = static_cast<KSSLStream&>(*stream);
-			s.Timeout(m_iTimeout);
-		}
-
 		// run the actual Session code protected by
 		// an exception handler
 		Session(*stream, sRemoteEndPoint);
@@ -177,20 +165,7 @@ void KTCPServer::RunSession(std::unique_ptr<KStream> stream, KString sRemoteEndP
 
 	--m_iOpenConnections;
 
-}
-
-//-----------------------------------------------------------------------------
-void KTCPServer::ExpiresFromNow(KStream& stream, long iSeconds)
-//-----------------------------------------------------------------------------
-{
-	/*
-	if (!IsSSL())
-	{
-		KTCPStream& s = static_cast<KTCPStream&>(stream);
-		s.expires_from_now(boost::posix_time::seconds(iSeconds));
-	}
-	*/
-}
+} // RunSession
 
 //-----------------------------------------------------------------------------
 // static
@@ -263,24 +238,25 @@ void KTCPServer::Server(bool ipv6)
 			{
 				if (IsSSL())
 				{
-					auto ustream = CreateKSSLStream();
-					ustream->SetSSLCertificate(m_sCert.c_str(), m_sPem.c_str());
+					auto stream = CreateKSSLStream();
+					stream->SetSSLCertificate(m_sCert.c_str(), m_sPem.c_str());
 					endpoint_type remote_endpoint;
-					acceptor.accept(ustream->GetTCPSocket(), remote_endpoint);
+					acceptor.accept(stream->GetTCPSocket(), remote_endpoint);
 					if (!m_bQuit)
 					{
-						std::thread(&KTCPServer::RunSession, this, std::move(ustream), to_string(remote_endpoint)).detach();
+						stream->Timeout(m_iTimeout);
+						std::thread(&KTCPServer::RunSession, this, std::move(stream), to_string(remote_endpoint)).detach();
 					}
 				}
 				else
 				{
-					auto ustream = CreateKTCPStream();
+					auto stream = CreateKTCPStream();
 					endpoint_type remote_endpoint;
-//					acceptor.accept(*(ustream->rdbuf()), remote_endpoint);
-					acceptor.accept(ustream->GetTCPSocket(), remote_endpoint);
+					acceptor.accept(stream->GetTCPSocket(), remote_endpoint);
 					if (!m_bQuit)
 					{
-						std::thread(&KTCPServer::RunSession, this, std::move(ustream), to_string(remote_endpoint)).detach();
+						stream->Timeout(m_iTimeout);
+						std::thread(&KTCPServer::RunSession, this, std::move(stream), to_string(remote_endpoint)).detach();
 					}
 				}
 
@@ -311,7 +287,8 @@ void KTCPServer::Server(bool ipv6)
 	{
 		kUnknownException();
 	}
-}
+
+} // Server
 
 //-----------------------------------------------------------------------------
 bool KTCPServer::SetSSLCertificate(KStringView sCert, KStringView sPem)
@@ -320,7 +297,8 @@ bool KTCPServer::SetSSLCertificate(KStringView sCert, KStringView sPem)
 	m_sCert = sCert;
 	m_sPem = sPem;
 	return true; // TODO add validity check
-}
+
+} // SetSSLCertificate
 
 //-----------------------------------------------------------------------------
 bool KTCPServer::Start(uint16_t iTimeoutInSeconds, bool bBlock)
@@ -356,7 +334,8 @@ bool KTCPServer::Start(uint16_t iTimeoutInSeconds, bool bBlock)
 	sleep(1);
 
 	return IsRunning();
-}
+
+} // Start
 
 //-----------------------------------------------------------------------------
 void KTCPServer::StopServerThread(bool ipv6)
@@ -378,7 +357,8 @@ void KTCPServer::StopServerThread(bool ipv6)
 	boost::asio::ip::tcp::socket socket(io_service);
 
 	socket.connect(remote_endpoint);
-}
+
+} // StopServerThread
 
 //-----------------------------------------------------------------------------
 // The process to stop a running server is a bit convoluted. Because the acceptor
@@ -417,7 +397,8 @@ bool KTCPServer::Stop()
 	}
 
 	return true;
-}
+
+} // Stop
 
 //-----------------------------------------------------------------------------
 KTCPServer::~KTCPServer()

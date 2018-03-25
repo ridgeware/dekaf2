@@ -41,8 +41,8 @@
 
 #pragma once
 
-/// @file ksslstream.h
-/// provides an implementation of std::iostreams supporting SSL/TLS
+/// @file ktcpstream.h
+/// provides an implementation of std::iostreams for TCP
 
 #include <boost/asio.hpp>
 #include <boost/asio/ip/tcp.hpp>
@@ -102,6 +102,23 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	/// std::iostream interface to open a stream. Delegates to connect()
+	/// @param Endpoint
+	/// KTCPEndPoint as the server to connect to - can be constructed from
+	/// a variety of inputs, like strings or KURL
+	bool open(const KTCPEndPoint& Endpoint)
+	//-----------------------------------------------------------------------------
+	{
+		return connect(Endpoint);
+	}
+
+	//-----------------------------------------------------------------------------
+	bool is_open() const
+	//-----------------------------------------------------------------------------
+	{
+		return m_Stream.Socket.is_open()	}
+
+	//-----------------------------------------------------------------------------
 	/// Gets the underlying TCP socket of the stream
 	/// @return
 	/// The TCP socket of the stream (wrapped into ASIO's basic_socket<> template)
@@ -133,7 +150,7 @@ public:
 private:
 //----------
 
-	boost::asio::io_service m_IO_Service;
+    boost::asio::io_service m_IO_Service;
 	using tcpstream = boost::asio::basic_stream_socket<boost::asio::ip::tcp>;
 
 	struct Stream_t

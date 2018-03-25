@@ -202,7 +202,7 @@ public:
 	/// Set the connection timeout in seconds, preset is 30
 	void SetTimeout(uint16_t iSeconds);
 	/// Returns last error
-	const KString& Error();
+	KString Error() const;
 
 //----------
 private:

@@ -573,29 +573,22 @@ bool KSMTP::Good() const
 }
 
 //-----------------------------------------------------------------------------
-const KString& KSMTP::Error()
+KString KSMTP::Error() const
 //-----------------------------------------------------------------------------
 {
-	if (m_Connection && !m_Connection->IsSSL())
+	KString sReturn;
+
+	if (m_Connection)
 	{
-		auto TCP = m_Connection->GetTCPStream();
-		if (TCP != nullptr)
-		{
-// TODO
-/*
-			if (!TCP->error().message().empty())
-			{
-				if (!m_sError.empty())
-				{
-					m_sError += ": ";
-				}
-				m_sError += TCP->error().message();
- 			}
- */
-		}
+		sReturn = m_Connection->Error();
 	}
 
-	return m_sError;
+	if (sReturn.empty() && !m_sError.empty())
+	{
+		sReturn = m_sError;
+	}
+
+	return sReturn;
 
 } // Error
 

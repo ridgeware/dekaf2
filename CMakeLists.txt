@@ -215,7 +215,6 @@ set (HEADERS
 	kcompression.h
 	kconnection.h
 	kcrashexit.h
-	kcurl.h
 	kencode.h
 	kfdstream.h
 	kfile.h
@@ -268,7 +267,6 @@ set (HEADERS
 	kurlencode.h
 	kuseragent.h
 	kutf8.h
-	kwebio.h
 	kwords.h
 	kwriter.h
 	)
@@ -286,7 +284,6 @@ set (SOURCES
 	kcompression.cpp
 	kconnection.cpp
 	kcrashexit.cpp
-	kcurl.cpp
 	kencode.cpp
 	kfdstream.cpp
 	kfile.cpp
@@ -331,7 +328,6 @@ set (SOURCES
 	ktimer.cpp
 	kurl.cpp
 	kurlencode.cpp
-	kwebio.cpp
 	kwords.cpp
 	kwriter.cpp
 	)

@@ -16,7 +16,6 @@ set (USOURCES
 	kinshell_smoketests.cpp
 	ksslstream_smoketests.cpp
 	ksql_smoketests.cpp
-	kwebio_smoketests.cpp
 )
 
 add_executable(dekaf2-smoketests ${UHEADERS} ${USOURCES})

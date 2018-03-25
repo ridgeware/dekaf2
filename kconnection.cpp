@@ -300,7 +300,7 @@ std::unique_ptr<KConnection> KConnection::Create(const KURL& URL, bool bForceSSL
 {
 	KConnection Connection;
 
-	url::KPort Port;
+	url::KPort Port = URL.Port;
 
 	if (Port.empty())
 	{

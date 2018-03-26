@@ -227,9 +227,9 @@ public:
 	int compare(KStringView sv) const { return ToView().compare(sv); }
 	int compare(size_type pos, size_type n1, KStringView sv) const { return ToView().compare(pos, n1, sv); }
 #ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
-	int compare(const std::string& str) const { return KStringView(*this).compare(str); }
-	int compare(size_type pos, size_type n, const std::string& str) const { return KStringView(*this).compare(pos, n, str); }
-	int compare(size_type pos1, size_type n1, const std::string& str, size_type pos2, size_type n2 = npos) const { return KStringView(*this).compare(pos1, n1, str, pos2, n2); }
+	int compare(const std::string& str) const { return ToView().compare(str); }
+	int compare(size_type pos, size_type n, const std::string& str) const { return ToView().compare(pos, n, str); }
+	int compare(size_type pos1, size_type n1, const std::string& str, size_type pos2, size_type n2 = npos) const { return ToView().compare(pos1, n1, str, pos2, n2); }
 #endif
 
 	size_type copy(value_type* s, size_type n, size_type pos = 0) const;

@@ -46,6 +46,7 @@
 namespace dekaf2
 {
 
+//-----------------------------------------------------------------------------
 KStream::~KStream()
 //-----------------------------------------------------------------------------
 {
@@ -53,23 +54,5 @@ KStream::~KStream()
 
 template class KReaderWriter<std::fstream>;
 template class KReaderWriter<std::stringstream>;
-template class KReaderWriter<asio::ip::tcp::iostream>;
-/*
-//-----------------------------------------------------------------------------
-std::unique_ptr<KTCPStream> CreateKTCPStream()
-//-----------------------------------------------------------------------------
-{
-	return std::make_unique<KTCPStream>();
-}
 
-//-----------------------------------------------------------------------------
-std::unique_ptr<KTCPStream> CreateKTCPStream(const KTCPEndPoint& EndPoint)
-//-----------------------------------------------------------------------------
-{
-	std::string sDomain = EndPoint.Domain.get().ToStdString();
-	std::string sPort   = EndPoint.Port.get().ToStdString();
-
-	return std::make_unique<KTCPStream>(sDomain, sPort);
-}
-*/
 }

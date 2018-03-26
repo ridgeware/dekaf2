@@ -227,13 +227,13 @@ std::streamsize KSSLIOStream::SSLStreamWriter(const void* sBuffer, std::streamsi
 //-----------------------------------------------------------------------------
 KSSLIOStream::KSSLIOStream()
 //-----------------------------------------------------------------------------
-: base_type(&m_SSLStreamBuf)
-#if (BOOST_VERSION < 106600)
-, m_Context(m_IO_Service, boost::asio::ssl::context::tlsv12_client)
-#else
-, m_Context(boost::asio::ssl::context::tlsv12_client)
-#endif
-, m_Stream(m_IO_Service, m_Context)
+    : base_type(&m_SSLStreamBuf)
+    #if (BOOST_VERSION < 106600)
+    , m_Context(m_IO_Service, boost::asio::ssl::context::tlsv12_client)
+    #else
+    , m_Context(boost::asio::ssl::context::tlsv12_client)
+    #endif
+    , m_Stream(m_IO_Service, m_Context)
 {
 	Timeout(DEFAULT_TIMEOUT);
 }
@@ -241,13 +241,13 @@ KSSLIOStream::KSSLIOStream()
 //-----------------------------------------------------------------------------
 KSSLIOStream::KSSLIOStream(const KTCPEndPoint& Endpoint, bool bVerifyCerts, bool bAllowSSLv2v3, int iSecondsTimeout)
 //-----------------------------------------------------------------------------
-: base_type(&m_SSLStreamBuf)
-#if (BOOST_VERSION < 106600)
-, m_Context(m_IO_Service, boost::asio::ssl::context::tlsv12_client)
-#else
-, m_Context(boost::asio::ssl::context::tlsv12_client)
-#endif
-, m_Stream(m_IO_Service, m_Context)
+    : base_type(&m_SSLStreamBuf)
+    #if (BOOST_VERSION < 106600)
+    , m_Context(m_IO_Service, boost::asio::ssl::context::tlsv12_client)
+    #else
+    , m_Context(boost::asio::ssl::context::tlsv12_client)
+    #endif
+    , m_Stream(m_IO_Service, m_Context)
 {
 	Timeout(iSecondsTimeout);
 	connect(Endpoint, bVerifyCerts, bAllowSSLv2v3);

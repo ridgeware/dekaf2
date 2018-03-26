@@ -155,6 +155,13 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	/// dtor
+	virtual ~KReaderWriter()
+	//-----------------------------------------------------------------------------
+	{
+	}
+
+	//-----------------------------------------------------------------------------
 	/// copy assignment is deleted - std::iostring's is, too
 	self_type& operator=(const self_type& other) = delete;
 	//-----------------------------------------------------------------------------
@@ -176,23 +183,12 @@ public:
 
 extern template class KReaderWriter<std::fstream>;
 extern template class KReaderWriter<std::stringstream>;
-extern template class KReaderWriter<asio::ip::tcp::iostream>;
 
 /// File stream based on std::fstream
 using KFile           = KReaderWriter<std::fstream>;
 
 /// String stream based on std::stringstream
 using KStringStream   = KReaderWriter<std::stringstream>;
-
-/// TCP stream based on asio::ip::tcp::iostream
-//using KTCPStream      = KReaderWriter<asio::ip::tcp::iostream>;
-
-// std::unique_ptr<KTCPStream> CreateKTCPStream();
-
-// fwd declaration
-//class KTCPEndPoint;
-
-// std::unique_ptr<KTCPStream> CreateKTCPStream(const KTCPEndPoint& EndPoint);
 
 } // end of namespace dekaf2
 

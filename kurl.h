@@ -68,13 +68,13 @@ namespace detail {
 // KProps
 // For some of the class methods we need specializations
 template<
-         class Storage,
-         URIPart Component,
-         const char StartToken,
-         bool RemoveStartSeparator,
-         bool RemoveEndSeparator,
-         bool IsString
-         >
+        class Storage,
+        URIPart Component,
+        const char StartToken,
+        bool RemoveStartSeparator,
+        bool RemoveEndSeparator,
+        bool IsString
+        >
 class URIComponent
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -83,384 +83,384 @@ class URIComponent
 public:
 //------
 
-    using self_type = URIComponent<Storage, Component, StartToken, RemoveStartSeparator, RemoveEndSeparator, IsString>;
+	using self_type = URIComponent<Storage, Component, StartToken, RemoveStartSeparator, RemoveEndSeparator, IsString>;
 
-    //-------------------------------------------------------------------------
-    /// constructs empty instance.
-    URIComponent () = default;
-    //-------------------------------------------------------------------------
+	//-------------------------------------------------------------------------
+	/// constructs empty instance.
+	URIComponent () = default;
+	//-------------------------------------------------------------------------
 
-    //-------------------------------------------------------------------------
-    /// constructs instance and parses source into members
-    URIComponent (KStringView svSource)
-    //-------------------------------------------------------------------------
-    {
-        Parse (svSource);
-    }
+	//-------------------------------------------------------------------------
+	/// constructs instance and parses source into members
+	URIComponent (KStringView svSource)
+	//-------------------------------------------------------------------------
+	{
+		Parse (svSource);
+	}
 
-    //-------------------------------------------------------------------------
-    /// copy constructor
-    URIComponent (const URIComponent& other) = default;
-    //-------------------------------------------------------------------------
+	//-------------------------------------------------------------------------
+	/// copy constructor
+	URIComponent (const URIComponent& other) = default;
+	//-------------------------------------------------------------------------
 
-    //-------------------------------------------------------------------------
-    /// move constructor
-    URIComponent (URIComponent&& other) = default;
-    //-------------------------------------------------------------------------
+	//-------------------------------------------------------------------------
+	/// move constructor
+	URIComponent (URIComponent&& other) = default;
+	//-------------------------------------------------------------------------
 
-    //-------------------------------------------------------------------------
-    /// copy assignment
-    URIComponent& operator= (const URIComponent& other) = default;
-    //-------------------------------------------------------------------------
+	//-------------------------------------------------------------------------
+	/// copy assignment
+	URIComponent& operator= (const URIComponent& other) = default;
+	//-------------------------------------------------------------------------
 
-    //-------------------------------------------------------------------------
-    /// move assignment
-    URIComponent& operator= (URIComponent&& other) = default;
-    //-------------------------------------------------------------------------
+	//-------------------------------------------------------------------------
+	/// move assignment
+	URIComponent& operator= (URIComponent&& other) = default;
+	//-------------------------------------------------------------------------
 
-    //-------------------------------------------------------------------------
-    /// parses source into members of instance
-    KStringView Parse (KStringView svSource, bool bRequiresPrefix = false)
-    //-------------------------------------------------------------------------
-    {
-        clear();
+	//-------------------------------------------------------------------------
+	/// parses source into members of instance
+	KStringView Parse (KStringView svSource, bool bRequiresPrefix = false)
+	//-------------------------------------------------------------------------
+	{
+		clear();
 
-        if (!svSource.empty())
-        {
-            if (Component == URIPart::Path)
-            {
-                // we always need a slash at the beginning of a Path to accept it
-                // otherwise it would not be bidirectional to create a Path from a string
-                // and to read back a Path into a string, as the slash is always needed to
-                // separate the hostname / port from the path
-                bRequiresPrefix = true;
-            }
+		if (!svSource.empty())
+		{
+			if (Component == URIPart::Path)
+			{
+				// we always need a slash at the beginning of a Path to accept it
+				// otherwise it would not be bidirectional to create a Path from a string
+				// and to read back a Path into a string, as the slash is always needed to
+				// separate the hostname / port from the path
+				bRequiresPrefix = true;
+			}
 
-            if (!StartToken || (!bRequiresPrefix || svSource.front() == StartToken))
-            {
-                if (RemoveStartSeparator && svSource.front() == StartToken)
-                {
-                    svSource.remove_prefix(1);
-                    m_bHadStartSeparator = true;
-                }
+			if (!StartToken || (!bRequiresPrefix || svSource.front() == StartToken))
+			{
+				if (RemoveStartSeparator && svSource.front() == StartToken)
+				{
+					svSource.remove_prefix(1);
+					m_bHadStartSeparator = true;
+				}
 
-                // this switch gets optimized away completely
-                const char* NextToken;
-                switch (Component)
-                {
-                    case URIPart::User:
-                        NextToken = "@";
-                        break;
-                    case URIPart::Password:
-                        NextToken = "@";
-                        break;
-                    case URIPart::Domain:
-                        NextToken = ":/;?#";
-                        break;
-                    case URIPart::Port:
-                        NextToken = "/;?#";
-                        break;
-                    case URIPart::Path:
-                        NextToken = "?#";
-                        break;
-                    case URIPart::Query:
-                        NextToken = "#";
-                        break;
-                    default:
-                    case URIPart::Fragment:
-                        NextToken = "";
-                        break;
-                }
+				// this switch gets optimized away completely
+				const char* NextToken;
+				switch (Component)
+				{
+					case URIPart::User:
+						NextToken = "@";
+						break;
+					case URIPart::Password:
+						NextToken = "@";
+						break;
+					case URIPart::Domain:
+						NextToken = ":/;?#";
+						break;
+					case URIPart::Port:
+						NextToken = "/;?#";
+						break;
+					case URIPart::Path:
+						NextToken = "?#";
+						break;
+					case URIPart::Query:
+						NextToken = "#";
+						break;
+					default:
+					case URIPart::Fragment:
+						NextToken = "";
+						break;
+				}
 
-                size_t iFound;
+				size_t iFound;
 
-                if (Component == URIPart::Domain && !svSource.empty() && svSource.front() == '[')
-                {
-                    // an IPv6 address
-                    iFound = svSource.find(']');
-                    if (iFound == KStringView::npos)
-                    {
-                        // unterminated IPv6 address, bail out
-                        return svSource;
-                    }
+				if (Component == URIPart::Domain && !svSource.empty() && svSource.front() == '[')
+				{
+					// an IPv6 address
+					iFound = svSource.find(']');
+					if (iFound == KStringView::npos)
+					{
+						// unterminated IPv6 address, bail out
+						return svSource;
+					}
 
-                    // we want to include the closing ] into the hostname string
-                    ++iFound;
-                }
-                else
-                {
-                    // anything else than an IPv6 address
-                    iFound = svSource.find_first_of(NextToken);
-                }
+					// we want to include the closing ] into the hostname string
+					++iFound;
+				}
+				else
+				{
+					// anything else than an IPv6 address
+					iFound = svSource.find_first_of(NextToken);
+				}
 
-                if (iFound == KStringView::npos)
-                {
-                    if (Component == URIPart::User || Component == URIPart::Password)
-                    {
-                        // bail out - we need to find the @ for User or Password
-                        // or else this is no User or Password component of a KURI
-                        return svSource;
-                    }
-                    iFound = svSource.size();
-                }
+				if (iFound == KStringView::npos)
+				{
+					if (Component == URIPart::User || Component == URIPart::Password)
+					{
+						// bail out - we need to find the @ for User or Password
+						// or else this is no User or Password component of a KURI
+						return svSource;
+					}
+					iFound = svSource.size();
+				}
 
-                if (Component == URIPart::User)
-                {
-                    // search backwards to check if there is a password separator
-                    auto iPass = svSource.rfind(':', iFound);
-                    if (iPass < iFound)
-                    {
-                        iFound  = iPass;
-                    }
-                }
+				if (Component == URIPart::User)
+				{
+					// search backwards to check if there is a password separator
+					auto iPass = svSource.rfind(':', iFound);
+					if (iPass < iFound)
+					{
+						iFound  = iPass;
+					}
+				}
 
-                m_sStorage.Parse(svSource.substr(0, iFound), Component);
+				m_sStorage.Parse(svSource.substr(0, iFound), Component);
 
-                svSource.remove_prefix(iFound);
+				svSource.remove_prefix(iFound);
 
-                if (RemoveEndSeparator)
-                {
-                    svSource.remove_prefix(1);
-                }
-            }
-        }
+				if (RemoveEndSeparator)
+				{
+					svSource.remove_prefix(1);
+				}
+			}
+		}
 
-        return svSource;
-    }
+		return svSource;
+	}
 
-    //-------------------------------------------------------------------------
-    /// Serialize stream style
-    const URIComponent& operator>> (KString& sTarget) const
-    //-------------------------------------------------------------------------
-    {
-        Serialize (sTarget);
-        return *this;
-    }
+	//-------------------------------------------------------------------------
+	/// Serialize stream style
+	const URIComponent& operator>> (KString& sTarget) const
+	//-------------------------------------------------------------------------
+	{
+		Serialize (sTarget);
+		return *this;
+	}
 
-    //-------------------------------------------------------------------------
-    /// Parse stream style
-    URIComponent& operator<< (KStringView sSource)
-    //-------------------------------------------------------------------------
-    {
-        Parse (sSource);
-        return *this;
-    }
+	//-------------------------------------------------------------------------
+	/// Parse stream style
+	URIComponent& operator<< (KStringView sSource)
+	//-------------------------------------------------------------------------
+	{
+		Parse (sSource);
+		return *this;
+	}
 
-    //-------------------------------------------------------------------------
-    /// add the start separator (/, ?, #) when serializing? Is normally
-    /// determined by the parsing stage, but needs to be set manually after
-    /// setting the values in unencoded form.
-    void WantStartSeparator() const
-    //-------------------------------------------------------------------------
-    {
-        // only enable for those instances that actually also remove it
-        m_bHadStartSeparator = RemoveStartSeparator;
-    }
+	//-------------------------------------------------------------------------
+	/// add the start separator (/, ?, #) when serializing? Is normally
+	/// determined by the parsing stage, but needs to be set manually after
+	/// setting the values in unencoded form.
+	void WantStartSeparator() const
+	//-------------------------------------------------------------------------
+	{
+		// only enable for those instances that actually also remove it
+		m_bHadStartSeparator = RemoveStartSeparator;
+	}
 
-    //-------------------------------------------------------------------------
-    /// generate content into string from members
-    bool Serialize (KString& sTarget) const
-    //-------------------------------------------------------------------------
-    {
-        if (m_bHadStartSeparator && !m_sStorage.empty())
-        {
-            sTarget += StartToken;
-        }
+	//-------------------------------------------------------------------------
+	/// generate content into string from members
+	bool Serialize (KString& sTarget) const
+	//-------------------------------------------------------------------------
+	{
+		if (m_bHadStartSeparator && !m_sStorage.empty())
+		{
+			sTarget += StartToken;
+		}
 
-        if (!m_sStorage.empty())
-        {
-            if (Component == URIPart::Password)
-            {
-                if (!sTarget.empty())
-                {
-                    if (sTarget.back() == '@')
-                    {
-                        sTarget.erase(sTarget.size()-1, 1);
-                    }
+		if (!m_sStorage.empty())
+		{
+			if (Component == URIPart::Password)
+			{
+				if (!sTarget.empty())
+				{
+					if (sTarget.back() == '@')
+					{
+						sTarget.erase(sTarget.size()-1, 1);
+					}
 
-                    sTarget += ':';
-                }
-            }
+					sTarget += ':';
+				}
+			}
 
-            m_sStorage.Serialize(sTarget, Component);
+			m_sStorage.Serialize(sTarget, Component);
 
-            if (Component == URIPart::User || Component == URIPart::Password)
-            {
-                sTarget += '@';
-            }
-        }
+			if (Component == URIPart::User || Component == URIPart::Password)
+			{
+				sTarget += '@';
+			}
+		}
 
-        return true;
-    }
+		return true;
+	}
 
-    //-------------------------------------------------------------------------
-    /// generate content into string from members
-    bool Serialize (KOutStream& sTarget) const
-    //-------------------------------------------------------------------------
-    {
-        if (m_bHadStartSeparator && !m_sStorage.empty())
-        {
-            sTarget += StartToken;
-        }
+	//-------------------------------------------------------------------------
+	/// generate content into string from members
+	bool Serialize (KOutStream& sTarget) const
+	//-------------------------------------------------------------------------
+	{
+		if (m_bHadStartSeparator && !m_sStorage.empty())
+		{
+			sTarget += StartToken;
+		}
 
-        if (!m_sStorage.empty())
-        {
-            if (Component == URIPart::Password)
-            {
-                // we should throw here or output an error as we cannot
-                // add a password to an existing stream (because we would
-                // have to rewind by one to remove the @ previously output).
-                kWarning("cannot serialize a password to a stream")
-                return false;
-            }
+		if (!m_sStorage.empty())
+		{
+			if (Component == URIPart::Password)
+			{
+				// we should throw here or output an error as we cannot
+				// add a password to an existing stream (because we would
+				// have to rewind by one to remove the @ previously output).
+				kWarning("cannot serialize a password to a stream")
+				        return false;
+			}
 
-            m_sStorage.Serialize(sTarget, Component);
+			m_sStorage.Serialize(sTarget, Component);
 
-            if (Component == URIPart::User)
-            {
-                sTarget += '@';
-            }
-        }
+			if (Component == URIPart::User)
+			{
+				sTarget += '@';
+			}
+		}
 
-        return true;
-    }
+		return true;
+	}
 
-    //-------------------------------------------------------------------------
-    /// return encoded content, without leading separator
-    KString Serialize() const
-    //-------------------------------------------------------------------------
-    {
-        return m_sStorage.Serialize(Component);
-    }
+	//-------------------------------------------------------------------------
+	/// return encoded content, without leading separator
+	KString Serialize() const
+	//-------------------------------------------------------------------------
+	{
+		return m_sStorage.Serialize(Component);
+	}
 
-    //-------------------------------------------------------------------------
-    /// restore instance to unpopulated state
-    void clear ()
-    //-------------------------------------------------------------------------
-    {
-        m_sStorage.clear();
-        m_bHadStartSeparator = false;
-    }
+	//-------------------------------------------------------------------------
+	/// restore instance to unpopulated state
+	void clear ()
+	//-------------------------------------------------------------------------
+	{
+		m_sStorage.clear();
+		m_bHadStartSeparator = false;
+	}
 
-    //-------------------------------------------------------------------------
-    /// return a const reference of the member
-    const typename Storage::value_type& get () const
-    //-------------------------------------------------------------------------
-    {
-        return m_sStorage.get();
-    }
+	//-------------------------------------------------------------------------
+	/// return a const reference of the member
+	const typename Storage::value_type& get () const
+	//-------------------------------------------------------------------------
+	{
+		return m_sStorage.get();
+	}
 
-    //-------------------------------------------------------------------------
-    /// return a reference of the member
-    typename Storage::value_type& get ()
-    //-------------------------------------------------------------------------
-    {
-        return m_sStorage.get();
-    }
+	//-------------------------------------------------------------------------
+	/// return a reference of the member
+	typename Storage::value_type& get ()
+	//-------------------------------------------------------------------------
+	{
+		return m_sStorage.get();
+	}
 
-    //-------------------------------------------------------------------------
-    /// return a const pointer of the member
-    const typename Storage::value_type* operator-> () const
-    //-------------------------------------------------------------------------
-    {
-        return &get();
-    }
+	//-------------------------------------------------------------------------
+	/// return a const pointer of the member
+	const typename Storage::value_type* operator-> () const
+	//-------------------------------------------------------------------------
+	{
+		return &get();
+	}
 
-    //-------------------------------------------------------------------------
-    /// return a pointer of the member
-    typename Storage::value_type* operator-> ()
-    //-------------------------------------------------------------------------
-    {
-        return &get();
-    }
+	//-------------------------------------------------------------------------
+	/// return a pointer of the member
+	typename Storage::value_type* operator-> ()
+	//-------------------------------------------------------------------------
+	{
+		return &get();
+	}
 
-    //-------------------------------------------------------------------------
-    /// return the key-value value
-    template<bool X = IsString, typename std::enable_if<!X, int>::type = 0 >
-    const KString& operator[] (KStringView sv) const
-    //-------------------------------------------------------------------------
-    {
-        return get()[sv];
-    }
+	//-------------------------------------------------------------------------
+	/// return the key-value value
+	template<bool X = IsString, typename std::enable_if<!X, int>::type = 0 >
+	const KString& operator[] (KStringView sv) const
+	//-------------------------------------------------------------------------
+	{
+		return get()[sv];
+	}
 
-    //-------------------------------------------------------------------------
-    /// return the key-value value
-    template<bool X = IsString, typename std::enable_if<!X, int>::type = 0 >
-    KString& operator[] (KStringView sv)
-    //-------------------------------------------------------------------------
-    {
-        return get()[sv];
-    }
+	//-------------------------------------------------------------------------
+	/// return the key-value value
+	template<bool X = IsString, typename std::enable_if<!X, int>::type = 0 >
+	KString& operator[] (KStringView sv)
+	//-------------------------------------------------------------------------
+	{
+		return get()[sv];
+	}
 
-    //-------------------------------------------------------------------------
-    /// modify member by setting argument
-    template<bool X = IsString, typename std::enable_if<X, int>::type = 0 >
-    void set (KStringView sv)
-    //-------------------------------------------------------------------------
-    {
-        m_sStorage.set(sv);
-    }
+	//-------------------------------------------------------------------------
+	/// modify member by setting argument
+	template<bool X = IsString, typename std::enable_if<X, int>::type = 0 >
+	void set (KStringView sv)
+	//-------------------------------------------------------------------------
+	{
+		m_sStorage.set(sv);
+	}
 
-    //-------------------------------------------------------------------------
-    /// operator KStringView () returns the decoded string
-    template<bool X = IsString, typename std::enable_if<X, int>::type = 0 >
-    operator KStringView () const
-    //-------------------------------------------------------------------------
-    {
-        return get();
-    }
+	//-------------------------------------------------------------------------
+	/// operator KStringView () returns the decoded string
+	template<bool X = IsString, typename std::enable_if<X, int>::type = 0 >
+	operator KStringView () const
+	//-------------------------------------------------------------------------
+	{
+		return get();
+	}
 
-    //-------------------------------------------------------------------------
-    /// operator=(KStringView) parses the decoded string
-    URIComponent& operator=(KStringView sv)
-    //-------------------------------------------------------------------------
-    {
-        Parse(sv);
-        return *this;
-    }
+	//-------------------------------------------------------------------------
+	/// operator=(KStringView) parses the decoded string
+	URIComponent& operator=(KStringView sv)
+	//-------------------------------------------------------------------------
+	{
+		Parse(sv);
+		return *this;
+	}
 
-    //-------------------------------------------------------------------------
-    /// Predicate: Are there contents?
-    bool empty () const
-    //-------------------------------------------------------------------------
-    {
-        return m_sStorage.empty();
-    }
+	//-------------------------------------------------------------------------
+	/// Predicate: Are there contents?
+	bool empty () const
+	//-------------------------------------------------------------------------
+	{
+		return m_sStorage.empty();
+	}
 
-    //-------------------------------------------------------------------------
-    friend bool operator==(const self_type& left, const self_type& right)
-    //-------------------------------------------------------------------------
-    {
-        return left.m_sStorage == right.m_sStorage;
-    }
+	//-------------------------------------------------------------------------
+	friend bool operator==(const self_type& left, const self_type& right)
+	//-------------------------------------------------------------------------
+	{
+		return left.m_sStorage == right.m_sStorage;
+	}
 
-    //-------------------------------------------------------------------------
-    friend bool operator!=(const self_type& left, const self_type& right)
-    //-------------------------------------------------------------------------
-    {
-        return !operator==(left, right);
-    }
+	//-------------------------------------------------------------------------
+	friend bool operator!=(const self_type& left, const self_type& right)
+	//-------------------------------------------------------------------------
+	{
+		return !operator==(left, right);
+	}
 
-    //-------------------------------------------------------------------------
-    friend bool operator< (const self_type& left, const self_type& right)
-    //-------------------------------------------------------------------------
-    {
-        return left.m_sStorage < right.m_sStorage;
-    }
+	//-------------------------------------------------------------------------
+	friend bool operator< (const self_type& left, const self_type& right)
+	//-------------------------------------------------------------------------
+	{
+		return left.m_sStorage < right.m_sStorage;
+	}
 
-    //-------------------------------------------------------------------------
-    friend bool operator> (const self_type& left, const self_type& right)
-    //-------------------------------------------------------------------------
-    {
-        return operator<(right, left);
-    }
+	//-------------------------------------------------------------------------
+	friend bool operator> (const self_type& left, const self_type& right)
+	//-------------------------------------------------------------------------
+	{
+		return operator<(right, left);
+	}
 
 //------
 private:
 //------
 
-    Storage m_sStorage;
-    mutable bool m_bHadStartSeparator{false};
+	Storage m_sStorage;
+	mutable bool m_bHadStartSeparator{false};
 
 };
 
@@ -495,233 +495,233 @@ class KProtocol
 public:
 //------
 
-    enum eProto : uint16_t
-    {
-        // Explicit values to guarantee map to m_sCanonical.
-        UNDEFINED =  0,
-        MAILTO    =  1, // MAILTO _has_ to stay at the second position after UNDEFINED!
-        HTTP      =  2,
-        HTTPS     =  3,
-        FILE      =  4,
-        FTP       =  5,
-        GIT       =  6,
-        SVN       =  7,
-        IRC       =  8,
-        NEWS      =  9,
-        NNTP      = 10,
-        TELNET    = 11,
-        GOPHER    = 12,
-        UNKNOWN   = 13  // UNKNOWN _has_ to be the last value
-    };
+	enum eProto : uint16_t
+	{
+		// Explicit values to guarantee map to m_sCanonical.
+		UNDEFINED =  0,
+		MAILTO    =  1, // MAILTO _has_ to stay at the second position after UNDEFINED!
+		HTTP      =  2,
+		HTTPS     =  3,
+		FILE      =  4,
+		FTP       =  5,
+		GIT       =  6,
+		SVN       =  7,
+		IRC       =  8,
+		NEWS      =  9,
+		NNTP      = 10,
+		TELNET    = 11,
+		GOPHER    = 12,
+		UNKNOWN   = 13  // UNKNOWN _has_ to be the last value
+	};
 
-    //-------------------------------------------------------------------------
-    /// default constructor
-    KProtocol () = default;
-    //-------------------------------------------------------------------------
+	//-------------------------------------------------------------------------
+	/// default constructor
+	KProtocol () = default;
+	//-------------------------------------------------------------------------
 
-    //-------------------------------------------------------------------------
-    /// construct an instance for enumerated protocol.
-    KProtocol (eProto iProto)
-        : m_eProto {iProto}
-    //-------------------------------------------------------------------------
-    {}
+	//-------------------------------------------------------------------------
+	/// construct an instance for enumerated protocol.
+	KProtocol (eProto iProto)
+	    : m_eProto {iProto}
+	    //-------------------------------------------------------------------------
+	{}
 
-    //-------------------------------------------------------------------------
-    /// constructs instance and parses source into members
-    KProtocol (KStringView svSource)
-    //-------------------------------------------------------------------------
-    {
-        Parse (svSource);
-    }
+	//-------------------------------------------------------------------------
+	/// constructs instance and parses source into members
+	KProtocol (KStringView svSource)
+	//-------------------------------------------------------------------------
+	{
+		Parse (svSource);
+	}
 
-    //-------------------------------------------------------------------------
-    /// parses source into members of instance - if bAcceptWithoutColon is true
-    /// also strings like "http" will be consumed, otherwise only strings followed
-    /// by a colon, like "http:" or "http://".
-    KStringView Parse (KStringView svSource, bool bAcceptWithoutColon = false);
-    //-------------------------------------------------------------------------
+	//-------------------------------------------------------------------------
+	/// parses source into members of instance - if bAcceptWithoutColon is true
+	/// also strings like "http" will be consumed, otherwise only strings followed
+	/// by a colon, like "http:" or "http://".
+	KStringView Parse (KStringView svSource, bool bAcceptWithoutColon = false);
+	//-------------------------------------------------------------------------
 
-    //-------------------------------------------------------------------------
-    /// copy constructor
-    KProtocol (const KProtocol& other) = default;
-    //-------------------------------------------------------------------------
+	//-------------------------------------------------------------------------
+	/// copy constructor
+	KProtocol (const KProtocol& other) = default;
+	//-------------------------------------------------------------------------
 
-    //-------------------------------------------------------------------------
-    /// move constructor
-    KProtocol (KProtocol&& other) = default;
-    //-------------------------------------------------------------------------
+	//-------------------------------------------------------------------------
+	/// move constructor
+	KProtocol (KProtocol&& other) = default;
+	//-------------------------------------------------------------------------
 
-    //-------------------------------------------------------------------------
-    /// copy assignment
-    KProtocol& operator= (const KProtocol& other) = default;
-    //-------------------------------------------------------------------------
+	//-------------------------------------------------------------------------
+	/// copy assignment
+	KProtocol& operator= (const KProtocol& other) = default;
+	//-------------------------------------------------------------------------
 
-    //-------------------------------------------------------------------------
-    /// moves members from other instance into this
-    KProtocol& operator= (KProtocol&& other) = default;
-    //-------------------------------------------------------------------------
+	//-------------------------------------------------------------------------
+	/// moves members from other instance into this
+	KProtocol& operator= (KProtocol&& other) = default;
+	//-------------------------------------------------------------------------
 
-    //-------------------------------------------------------------------------
-    /// Convert internal rep to KString
-    operator KString () const
-    //-------------------------------------------------------------------------
-    {
-        KString sResult;
-        Serialize (sResult);
-        return sResult;
-    }
+	//-------------------------------------------------------------------------
+	/// Convert internal rep to KString
+	operator KString () const
+	//-------------------------------------------------------------------------
+	{
+		KString sResult;
+		Serialize (sResult);
+		return sResult;
+	}
 
-    //-------------------------------------------------------------------------
-    /// Serialize internal rep into arg KString
-    const KProtocol& operator>> (KString& sTarget) const
-    //-------------------------------------------------------------------------
-    {
-        Serialize (sTarget);
-        return *this;
-    }
+	//-------------------------------------------------------------------------
+	/// Serialize internal rep into arg KString
+	const KProtocol& operator>> (KString& sTarget) const
+	//-------------------------------------------------------------------------
+	{
+		Serialize (sTarget);
+		return *this;
+	}
 
-    //-------------------------------------------------------------------------
-    /// Parse arg into internal rep
-    KProtocol& operator<< (KStringView sSource)
-    //-------------------------------------------------------------------------
-    {
-        Parse (sSource);
-        return *this;
-    }
+	//-------------------------------------------------------------------------
+	/// Parse arg into internal rep
+	KProtocol& operator<< (KStringView sSource)
+	//-------------------------------------------------------------------------
+	{
+		Parse (sSource);
+		return *this;
+	}
 
-    //-------------------------------------------------------------------------
-    /// generate content into string from members
-    bool Serialize (KString& sTarget) const;
-    //-------------------------------------------------------------------------
+	//-------------------------------------------------------------------------
+	/// generate content into string from members
+	bool Serialize (KString& sTarget) const;
+	//-------------------------------------------------------------------------
 
-    //-------------------------------------------------------------------------
-    /// generate content into string from members
-    bool Serialize (KOutStream& sTarget) const
-    //-------------------------------------------------------------------------
-    {
-        KString str;
-        Serialize(str);
-        sTarget.Write(str);
-        return true;
-    }
+	//-------------------------------------------------------------------------
+	/// generate content into string from members
+	bool Serialize (KOutStream& sTarget) const
+	//-------------------------------------------------------------------------
+	{
+		KString str;
+		Serialize(str);
+		sTarget.Write(str);
+		return true;
+	}
 
-    //-------------------------------------------------------------------------
-    /// return encoded content
-    KString Serialize() const
-    //-------------------------------------------------------------------------
-    {
-        KString sReturn;
-        Serialize(sReturn);
-        return sReturn;
-    }
+	//-------------------------------------------------------------------------
+	/// return encoded content
+	KString Serialize() const
+	//-------------------------------------------------------------------------
+	{
+		KString sReturn;
+		Serialize(sReturn);
+		return sReturn;
+	}
 
-    //-------------------------------------------------------------------------
-    /// restore instance to unpopulated state
-    void clear ();
-    //-------------------------------------------------------------------------
+	//-------------------------------------------------------------------------
+	/// restore instance to unpopulated state
+	void clear ();
+	//-------------------------------------------------------------------------
 
-    //-------------------------------------------------------------------------
-    /// return a view of the member
-    KString get () const
-    //-------------------------------------------------------------------------
-    {
-        KString sEncoded;
-        Serialize (sEncoded);
-        return sEncoded;
-    }
+	//-------------------------------------------------------------------------
+	/// return a view of the member
+	KString get () const
+	//-------------------------------------------------------------------------
+	{
+		KString sEncoded;
+		Serialize (sEncoded);
+		return sEncoded;
+	}
 
-    //-------------------------------------------------------------------------
-    /// return the numeric scheme identifier
-    eProto getProtocol () const
-    //-------------------------------------------------------------------------
-    {
-        return m_eProto;
-    }
+	//-------------------------------------------------------------------------
+	/// return the numeric scheme identifier
+	eProto getProtocol () const
+	//-------------------------------------------------------------------------
+	{
+		return m_eProto;
+	}
 
-    //-------------------------------------------------------------------------
-    /// modify member by parsing argument - accepts also strings without following
-    /// colon, like "http"
-    void set (KStringView svProto)
-    //-------------------------------------------------------------------------
-    {
-        Parse (svProto, true);
-    }
+	//-------------------------------------------------------------------------
+	/// modify member by parsing argument - accepts also strings without following
+	/// colon, like "http"
+	void set (KStringView svProto)
+	//-------------------------------------------------------------------------
+	{
+		Parse (svProto, true);
+	}
 
-    //-------------------------------------------------------------------------
-    /// operator=(KStringView) parses the argument
-    KProtocol& operator=(KStringView sv)
-    //-------------------------------------------------------------------------
-    {
-        set(sv);
-        return *this;
-    }
-    //-------------------------------------------------------------------------
-    bool operator== (eProto iProto) const
-    //-------------------------------------------------------------------------
-    {
-        return iProto == m_eProto;
-    }
+	//-------------------------------------------------------------------------
+	/// operator=(KStringView) parses the argument
+	KProtocol& operator=(KStringView sv)
+	//-------------------------------------------------------------------------
+	{
+		set(sv);
+		return *this;
+	}
+	//-------------------------------------------------------------------------
+	bool operator== (eProto iProto) const
+	//-------------------------------------------------------------------------
+	{
+		return iProto == m_eProto;
+	}
 
-    //-------------------------------------------------------------------------
-     bool operator!= (eProto iProto) const
-    //-------------------------------------------------------------------------
-    {
-        return !operator== (iProto);
-    }
+	//-------------------------------------------------------------------------
+	bool operator!= (eProto iProto) const
+	//-------------------------------------------------------------------------
+	{
+		return !operator== (iProto);
+	}
 
-    //-------------------------------------------------------------------------
-    /// compares other instance with this
-    friend bool operator== (const KProtocol& left, const KProtocol& right)
-    //-------------------------------------------------------------------------
-    {
-        if (left.m_eProto != right.m_eProto)
-        {
-            return false;
-        }
+	//-------------------------------------------------------------------------
+	/// compares other instance with this
+	friend bool operator== (const KProtocol& left, const KProtocol& right)
+	//-------------------------------------------------------------------------
+	{
+		if (left.m_eProto != right.m_eProto)
+		{
+			return false;
+		}
 
-        if (DEKAF2_UNLIKELY(left.m_eProto == UNKNOWN))
-        {
-            return left.m_sProto == left.m_sProto;
-        }
+		if (DEKAF2_UNLIKELY(left.m_eProto == UNKNOWN))
+		{
+			return left.m_sProto == left.m_sProto;
+		}
 
-        return true;
-    }
+		return true;
+	}
 
-    //-------------------------------------------------------------------------
-    /// compares other instance with this
-    //-------------------------------------------------------------------------
-    friend bool operator!= (const KProtocol& left, const KProtocol& right)
-    {
-        return !(left == right);
-    }
+	//-------------------------------------------------------------------------
+	/// compares other instance with this
+	//-------------------------------------------------------------------------
+	friend bool operator!= (const KProtocol& left, const KProtocol& right)
+	{
+		return !(left == right);
+	}
 
-    //-------------------------------------------------------------------------
-    /// Predicate: Are there contents?
-    inline bool empty () const
-    //-------------------------------------------------------------------------
-    {
-        return (m_eProto == UNDEFINED);
-    }
+	//-------------------------------------------------------------------------
+	/// Predicate: Are there contents?
+	inline bool empty () const
+	//-------------------------------------------------------------------------
+	{
+		return (m_eProto == UNDEFINED);
+	}
 
-    //-------------------------------------------------------------------------
-    uint16_t DefaultPort() const
-    //-------------------------------------------------------------------------
-    {
-        return m_sCanonical[m_eProto].port;
-    }
+	//-------------------------------------------------------------------------
+	uint16_t DefaultPort() const
+	//-------------------------------------------------------------------------
+	{
+		return m_sCanonical[m_eProto].port;
+	}
 
 //------
 private:
 //------
 
-    KString m_sProto {};
-    eProto  m_eProto {UNDEFINED};
-    struct Protocols
-    {
-        const uint16_t port;
-        const KStringView::value_type* name;
-    };
-    static const Protocols m_sCanonical [UNKNOWN+1];
+	KString m_sProto {};
+	eProto  m_eProto {UNDEFINED};
+	struct Protocols
+	{
+		const uint16_t port;
+		const KStringView::value_type* name;
+	};
+	static const Protocols m_sCanonical [UNKNOWN+1];
 
 };
 
@@ -741,98 +741,98 @@ class KURI
 public:
 //------
 
-    //-------------------------------------------------------------------------
-    KURI() = default;
-    //-------------------------------------------------------------------------
+	//-------------------------------------------------------------------------
+	KURI() = default;
+	//-------------------------------------------------------------------------
 
-    //-------------------------------------------------------------------------
-    KURI(KStringView sv)
-    //-------------------------------------------------------------------------
-    {
-        Parse(sv);
-    }
+	//-------------------------------------------------------------------------
+	KURI(KStringView sv)
+	//-------------------------------------------------------------------------
+	{
+		Parse(sv);
+	}
 
-    //-------------------------------------------------------------------------
-    KURI(const KString& str)
-    //-------------------------------------------------------------------------
-    {
-        Parse(str);
-    }
+	//-------------------------------------------------------------------------
+	KURI(const KString& str)
+	//-------------------------------------------------------------------------
+	{
+		Parse(str);
+	}
 
-    //-------------------------------------------------------------------------
-    KURI(const char* sp)
-    //-------------------------------------------------------------------------
-    : KURI(KStringView(sp))
-    {
-    }
+	//-------------------------------------------------------------------------
+	KURI(const char* sp)
+	//-------------------------------------------------------------------------
+	    : KURI(KStringView(sp))
+	{
+	}
 
-    //-------------------------------------------------------------------------
-    KURI(const KURI&) = default;
-    //-------------------------------------------------------------------------
+	//-------------------------------------------------------------------------
+	KURI(const KURI&) = default;
+	//-------------------------------------------------------------------------
 
-    //-------------------------------------------------------------------------
-    KURI(KURI&&) = default;
-    //-------------------------------------------------------------------------
+	//-------------------------------------------------------------------------
+	KURI(KURI&&) = default;
+	//-------------------------------------------------------------------------
 
-    //-------------------------------------------------------------------------
-    KURI& operator=(const KURI&) = default;
-    //-------------------------------------------------------------------------
+	//-------------------------------------------------------------------------
+	KURI& operator=(const KURI&) = default;
+	//-------------------------------------------------------------------------
 
-    //-------------------------------------------------------------------------
-    KURI& operator=(KURI&&) = default;
-    //-------------------------------------------------------------------------
+	//-------------------------------------------------------------------------
+	KURI& operator=(KURI&&) = default;
+	//-------------------------------------------------------------------------
 
-    //-------------------------------------------------------------------------
-    KURI& operator=(const KURL& url);
-    //-------------------------------------------------------------------------
+	//-------------------------------------------------------------------------
+	KURI& operator=(const KURL& url);
+	//-------------------------------------------------------------------------
 
-    //-------------------------------------------------------------------------
-    KStringView Parse(KStringView svSource);
-    //-------------------------------------------------------------------------
+	//-------------------------------------------------------------------------
+	KStringView Parse(KStringView svSource);
+	//-------------------------------------------------------------------------
 
-    //-------------------------------------------------------------------------
-    void clear();
-    //-------------------------------------------------------------------------
+	//-------------------------------------------------------------------------
+	void clear();
+	//-------------------------------------------------------------------------
 
-    //-------------------------------------------------------------------------
-    bool Serialize(KString& sTarget) const;
-    //-------------------------------------------------------------------------
+	//-------------------------------------------------------------------------
+	bool Serialize(KString& sTarget) const;
+	//-------------------------------------------------------------------------
 
-    //-------------------------------------------------------------------------
-    bool Serialize(KOutStream& sTarget) const;
-    //-------------------------------------------------------------------------
+	//-------------------------------------------------------------------------
+	bool Serialize(KOutStream& sTarget) const;
+	//-------------------------------------------------------------------------
 
-    //-------------------------------------------------------------------------
-    /// Serialize stream style
-    const KURI& operator>> (KString& sTarget) const
-    //-------------------------------------------------------------------------
-    {
-        Serialize (sTarget);
-        return *this;
-    }
+	//-------------------------------------------------------------------------
+	/// Serialize stream style
+	const KURI& operator>> (KString& sTarget) const
+	//-------------------------------------------------------------------------
+	{
+		Serialize (sTarget);
+		return *this;
+	}
 
-    //-------------------------------------------------------------------------
-    /// return encoded content
-    KString Serialize() const
-    //-------------------------------------------------------------------------
-    {
-        KString sReturn;
-        Serialize(sReturn);
-        return sReturn;
-    }
+	//-------------------------------------------------------------------------
+	/// return encoded content
+	KString Serialize() const
+	//-------------------------------------------------------------------------
+	{
+		KString sReturn;
+		Serialize(sReturn);
+		return sReturn;
+	}
 
-    //-------------------------------------------------------------------------
-    /// Parse stream style
-    KURI& operator<< (KStringView sSource)
-    //-------------------------------------------------------------------------
-    {
-        Parse (sSource);
-        return *this;
-    }
+	//-------------------------------------------------------------------------
+	/// Parse stream style
+	KURI& operator<< (KStringView sSource)
+	//-------------------------------------------------------------------------
+	{
+		Parse (sSource);
+		return *this;
+	}
 
-    url::KPath      Path;
-    url::KQuery     Query;
-    url::KFragment  Fragment;
+	url::KPath      Path;
+	url::KQuery     Query;
+	url::KFragment  Fragment;
 
 }; // KURI
 
@@ -845,149 +845,149 @@ class KURL
 public:
 //------
 
-    //-------------------------------------------------------------------------
-    KURL() = default;
-    //-------------------------------------------------------------------------
+	//-------------------------------------------------------------------------
+	KURL() = default;
+	//-------------------------------------------------------------------------
 
-    //-------------------------------------------------------------------------
-    KURL(KStringView sv)
-    //-------------------------------------------------------------------------
-    {
-        Parse(sv);
-    }
+	//-------------------------------------------------------------------------
+	KURL(KStringView sv)
+	//-------------------------------------------------------------------------
+	{
+		Parse(sv);
+	}
 
-    //-------------------------------------------------------------------------
-    KURL(const KString& str)
-    //-------------------------------------------------------------------------
-    {
-        Parse(str);
-    }
+	//-------------------------------------------------------------------------
+	KURL(const KString& str)
+	//-------------------------------------------------------------------------
+	{
+		Parse(str);
+	}
 
-    //-------------------------------------------------------------------------
-    KURL(const char* sp)
-    //-------------------------------------------------------------------------
-    : KURL(KStringView(sp))
-    {
-    }
+	//-------------------------------------------------------------------------
+	KURL(const char* sp)
+	//-------------------------------------------------------------------------
+	    : KURL(KStringView(sp))
+	{
+	}
 
-    //-------------------------------------------------------------------------
-    KURL(const KURL&) = default;
-    //-------------------------------------------------------------------------
+	//-------------------------------------------------------------------------
+	KURL(const KURL&) = default;
+	//-------------------------------------------------------------------------
 
-    //-------------------------------------------------------------------------
-    KURL(KURL&&) = default;
-    //-------------------------------------------------------------------------
+	//-------------------------------------------------------------------------
+	KURL(KURL&&) = default;
+	//-------------------------------------------------------------------------
 
-    //-------------------------------------------------------------------------
-    KURL& operator=(const KURL&) = default;
-    //-------------------------------------------------------------------------
+	//-------------------------------------------------------------------------
+	KURL& operator=(const KURL&) = default;
+	//-------------------------------------------------------------------------
 
-    //-------------------------------------------------------------------------
-    KURL& operator=(KURL&&) = default;
-    //-------------------------------------------------------------------------
+	//-------------------------------------------------------------------------
+	KURL& operator=(KURL&&) = default;
+	//-------------------------------------------------------------------------
 
-    //-------------------------------------------------------------------------
-    KStringView Parse(KStringView svSource);
-    //-------------------------------------------------------------------------
+	//-------------------------------------------------------------------------
+	KStringView Parse(KStringView svSource);
+	//-------------------------------------------------------------------------
 
-    //-------------------------------------------------------------------------
-    void clear();
-    //-------------------------------------------------------------------------
+	//-------------------------------------------------------------------------
+	void clear();
+	//-------------------------------------------------------------------------
 
-    //-------------------------------------------------------------------------
-    bool Serialize(KString& sTarget) const;
-    //-------------------------------------------------------------------------
+	//-------------------------------------------------------------------------
+	bool Serialize(KString& sTarget) const;
+	//-------------------------------------------------------------------------
 
-    //-------------------------------------------------------------------------
-    /// generate content into string from members
-    bool Serialize (KOutStream& sTarget) const;
-    //-------------------------------------------------------------------------
+	//-------------------------------------------------------------------------
+	/// generate content into string from members
+	bool Serialize (KOutStream& sTarget) const;
+	//-------------------------------------------------------------------------
 
-    //-------------------------------------------------------------------------
-    /// return encoded content
-    KString Serialize() const
-    //-------------------------------------------------------------------------
-    {
-        KString sReturn;
-        Serialize(sReturn);
-        return sReturn;
-    }
+	//-------------------------------------------------------------------------
+	/// return encoded content
+	KString Serialize() const
+	//-------------------------------------------------------------------------
+	{
+		KString sReturn;
+		Serialize(sReturn);
+		return sReturn;
+	}
 
-    //-------------------------------------------------------------------------
-    /// Serialize stream style
-    const KURL& operator>> (KString& sTarget) const
-    //-------------------------------------------------------------------------
-    {
-        Serialize (sTarget);
-        return *this;
-    }
+	//-------------------------------------------------------------------------
+	/// Serialize stream style
+	const KURL& operator>> (KString& sTarget) const
+	//-------------------------------------------------------------------------
+	{
+		Serialize (sTarget);
+		return *this;
+	}
 
-    //-------------------------------------------------------------------------
-    /// Parse stream style
-    KURL& operator<< (KStringView sSource)
-    //-------------------------------------------------------------------------
-    {
-        Parse (sSource);
-        return *this;
-    }
+	//-------------------------------------------------------------------------
+	/// Parse stream style
+	KURL& operator<< (KStringView sSource)
+	//-------------------------------------------------------------------------
+	{
+		Parse (sSource);
+		return *this;
+	}
 
-    //-------------------------------------------------------------------------
-    /// is this a valid URL?
-    bool IsURL () const
-    //-------------------------------------------------------------------------
-    {
-        return !Protocol.empty()
-                && (!Domain.empty()
-                    || (Protocol == url::KProtocol::FILE
-                        && !Path.empty()));
-    }
+	//-------------------------------------------------------------------------
+	/// is this a valid URL?
+	bool IsURL () const
+	//-------------------------------------------------------------------------
+	{
+		return !Protocol.empty()
+		        && (!Domain.empty()
+		            || (Protocol == url::KProtocol::FILE
+		                && !Path.empty()));
+	}
 
-    //-------------------------------------------------------------------------
-    /// is this a valid HTTP / HTTPS URL?
-    bool IsHttpURL () const
-    //-------------------------------------------------------------------------
-    {
-        return (Protocol == url::KProtocol::HTTP || Protocol == url::KProtocol::HTTPS)
-                && (!Domain.empty())
-;
-    }
+	//-------------------------------------------------------------------------
+	/// is this a valid HTTP / HTTPS URL?
+	bool IsHttpURL () const
+	//-------------------------------------------------------------------------
+	{
+		return (Protocol == url::KProtocol::HTTP || Protocol == url::KProtocol::HTTPS)
+		        && (!Domain.empty())
+		        ;
+	}
 
-    //-------------------------------------------------------------------------
-    bool empty() const
-    //-------------------------------------------------------------------------
-    {
-        return Protocol.empty() && Domain.empty() && Path.empty();
-    }
+	//-------------------------------------------------------------------------
+	bool empty() const
+	//-------------------------------------------------------------------------
+	{
+		return Protocol.empty() && Domain.empty() && Path.empty();
+	}
 
-    //-------------------------------------------------------------------------
-    friend bool operator==(const KURL& left, const KURL& right);
-    //-------------------------------------------------------------------------
+	//-------------------------------------------------------------------------
+	friend bool operator==(const KURL& left, const KURL& right);
+	//-------------------------------------------------------------------------
 
-    //-------------------------------------------------------------------------
-    friend bool operator!=(const KURL& left, const KURL& right)
-    //-------------------------------------------------------------------------
-    {
-        return !operator==(left, right);
-    }
+	//-------------------------------------------------------------------------
+	friend bool operator!=(const KURL& left, const KURL& right)
+	//-------------------------------------------------------------------------
+	{
+		return !operator==(left, right);
+	}
 
-    //-------------------------------------------------------------------------
-    KStringView getBaseDomain() const;
-    //-------------------------------------------------------------------------
+	//-------------------------------------------------------------------------
+	KStringView getBaseDomain() const;
+	//-------------------------------------------------------------------------
 
-    url::KProtocol  Protocol;
-    url::KUser      User;
-    url::KPassword  Password;
-    url::KDomain    Domain;
-    url::KPort      Port;
-    url::KPath      Path;
-    url::KQuery     Query;
-    url::KFragment  Fragment;
+	url::KProtocol  Protocol;
+	url::KUser      User;
+	url::KPassword  Password;
+	url::KDomain    Domain;
+	url::KPort      Port;
+	url::KPath      Path;
+	url::KQuery     Query;
+	url::KFragment  Fragment;
 
 //------
 protected:
 //------
 
-    mutable KString BaseDomain;
+	mutable KString BaseDomain;
 
 }; // KURL
 
@@ -1000,48 +1000,68 @@ class KTCPEndPoint
 public:
 //------
 
-    KTCPEndPoint() = default;
-    KTCPEndPoint(const KTCPEndPoint&) = default;
-    KTCPEndPoint(KTCPEndPoint&&) = default;
+	//-------------------------------------------------------------------------
+	KTCPEndPoint() = default;
+	//-------------------------------------------------------------------------
 
+	//-------------------------------------------------------------------------
+	KTCPEndPoint(const KTCPEndPoint&) = default;
+	//-------------------------------------------------------------------------
+
+	//-------------------------------------------------------------------------
+	KTCPEndPoint(KTCPEndPoint&&) = default;
+	//-------------------------------------------------------------------------
+
+	//-------------------------------------------------------------------------
 	KTCPEndPoint(KStringView sv)
-	: KTCPEndPoint(KURL(sv))
+	//-------------------------------------------------------------------------
+	    : KTCPEndPoint(KURL(sv))
 	{}
 
+	//-------------------------------------------------------------------------
 	KTCPEndPoint(const KString& str)
-	: KTCPEndPoint(KURL(str))
+	//-------------------------------------------------------------------------
+	    : KTCPEndPoint(KURL(str))
 	{}
 
+	//-------------------------------------------------------------------------
 	KTCPEndPoint(const char* sp)
-	: KTCPEndPoint(KURL(sp))
+	//-------------------------------------------------------------------------
+	    : KTCPEndPoint(KURL(sp))
 	{}
 
-    KTCPEndPoint(const KURL& URL)
-    : Domain(URL.Domain)
-    , Port(URL.Port)
-    {}
+	//-------------------------------------------------------------------------
+	KTCPEndPoint(const KURL& URL);
+	//-------------------------------------------------------------------------
 
-    KTCPEndPoint(const url::KDomain& domain, const url::KPort& port)
-    : Domain(domain)
-    , Port(port)
-    {}
+	//-------------------------------------------------------------------------
+	KTCPEndPoint(const url::KDomain& domain, const url::KPort& port)
+	//-------------------------------------------------------------------------
+	    : Domain(domain)
+	    , Port(port)
+	{}
 
-    KTCPEndPoint& operator=(const KTCPEndPoint&) = default;
-    KTCPEndPoint& operator=(KTCPEndPoint&&) = default;
+	//-------------------------------------------------------------------------
+	KTCPEndPoint& operator=(const KTCPEndPoint&) = default;
+	//-------------------------------------------------------------------------
 
-    //-------------------------------------------------------------------------
-    friend bool operator==(const KTCPEndPoint& left, const KTCPEndPoint& right);
-    //-------------------------------------------------------------------------
+	//-------------------------------------------------------------------------
+	KTCPEndPoint& operator=(KTCPEndPoint&&) = default;
+	//-------------------------------------------------------------------------
 
-    //-------------------------------------------------------------------------
-    friend bool operator!=(const KTCPEndPoint& left, const KTCPEndPoint& right)
-    //-------------------------------------------------------------------------
-    {
-        return !operator==(left, right);
-    }
+	//-------------------------------------------------------------------------
+	friend bool operator==(const KTCPEndPoint& left, const KTCPEndPoint& right);
+	//-------------------------------------------------------------------------
 
-    url::KDomain    Domain;
-    url::KPort      Port;
+	//-------------------------------------------------------------------------
+	friend bool operator!=(const KTCPEndPoint& left, const KTCPEndPoint& right)
+	//-------------------------------------------------------------------------
+	{
+		return !operator==(left, right);
+	}
+
+	url::KDomain    Domain;
+	url::KPort      Port;
 
 }; // KTCPEndPoint
 

@@ -75,18 +75,18 @@ public:
 
 	template<class T>
 	KJSON(initializer_list_t init,
-			bool type_deduction = true,
-			value_t manual_type = value_t::array)
-	: LJSON(init, type_deduction, manual_type)
+	      bool type_deduction = true,
+	      value_t manual_type = value_t::array)
+	    : LJSON(init, type_deduction, manual_type)
 	{
 	}
 
 	template<class...Args>
 	KJSON(Args&&...args)
-	: LJSON(std::forward<Args>(args)...)
+	    : LJSON(std::forward<Args>(args)...)
 	{
 	}
-/*
+	/*
 	KJSON& operator=(const KJSON& other)
 	{
 		LJSON::operator=(other);

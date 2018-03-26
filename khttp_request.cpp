@@ -48,44 +48,44 @@ namespace dekaf2 {
 bool KHTTPRequest::Parse(KInStream& Stream)
 //-----------------------------------------------------------------------------
 {
-    KString sLine;
+	KString sLine;
 
-    // make sure we detect an empty header
-    Stream.SetReaderRightTrim("\r\n");
+	// make sure we detect an empty header
+	Stream.SetReaderRightTrim("\r\n");
 
-    if (!Stream.ReadLine(sLine))
-    {
-        return SetError("cannot read input stream");
-    }
+	if (!Stream.ReadLine(sLine))
+	{
+		return SetError("cannot read input stream");
+	}
 
-    if (sLine.empty())
-    {
-        return SetError("empty request line");
-    }
+	if (sLine.empty())
+	{
+		return SetError("empty request line");
+	}
 
-    // analyze method and resource
-    // GET /some/page?query=search#fragment HTTP/1.1
+	// analyze method and resource
+	// GET /some/page?query=search#fragment HTTP/1.1
 
-    std::vector<KStringView> Words;
-    Words.reserve(3);
-    kSplit(Words, sLine, " ");
+	std::vector<KStringView> Words;
+	Words.reserve(3);
+	kSplit(Words, sLine, " ");
 
-    if (Words.size() != 3)
-    {
-        // garbage, bail out
-        return SetError("invalid HTTP header");
-    }
+	if (Words.size() != 3)
+	{
+		// garbage, bail out
+		return SetError("invalid HTTP header");
+	}
 
-    m_Method = Words[0];
-    m_Resource = Words[1];
-    m_HTTPVersion = Words[2];
+	m_Method = Words[0];
+	m_Resource = Words[1];
+	m_HTTPVersion = Words[2];
 
-    if (!m_HTTPVersion.StartsWith("HTTP/"))
-    {
-        return SetError("missing HTTP version in header");
-    }
+	if (!m_HTTPVersion.StartsWith("HTTP/"))
+	{
+		return SetError("missing HTTP version in header");
+	}
 
-    return KHTTPHeader::Parse(Stream);
+	return KHTTPHeader::Parse(Stream);
 
 } // Parse
 
@@ -93,17 +93,17 @@ bool KHTTPRequest::Parse(KInStream& Stream)
 bool KHTTPRequest::Serialize(KOutStream& Stream) const
 //-----------------------------------------------------------------------------
 {
-    Stream.FormatLine("{} {} {}", m_Method.Serialize(), m_Resource.Serialize(), m_HTTPVersion);
-    return KHTTPHeader::Serialize(Stream);
+	Stream.FormatLine("{} {} {}", m_Method.Serialize(), m_Resource.Serialize(), m_HTTPVersion);
+	return KHTTPHeader::Serialize(Stream);
 }
 
 //-----------------------------------------------------------------------------
 void KHTTPRequest::clear()
 //-----------------------------------------------------------------------------
 {
-    KHTTPHeader::clear();
-    m_Resource.clear();
-    m_HTTPVersion.clear();
+	KHTTPHeader::clear();
+	m_Resource.clear();
+	m_HTTPVersion.clear();
 
 }
 

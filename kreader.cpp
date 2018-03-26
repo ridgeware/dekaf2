@@ -268,6 +268,7 @@ bool kReadAll(KStringView sFileName, KString& sContent)
 {
 	KInFile File(sFileName);
 	return File.ReadRemaining(sContent);
+
 } // kReadAll
 
 //-----------------------------------------------------------------------------
@@ -349,7 +350,8 @@ KInStream::const_kreader_line_iterator::const_kreader_line_iterator(base_iterato
 			m_it = nullptr;
 		}
 	}
-}
+
+} // ctor
 
 //-----------------------------------------------------------------------------
 KInStream::const_kreader_line_iterator::self_type& KInStream::const_kreader_line_iterator::operator++()
@@ -368,6 +370,7 @@ KInStream::const_kreader_line_iterator::self_type& KInStream::const_kreader_line
 	}
 
 	return *this;
+
 } // prefix
 
 //-----------------------------------------------------------------------------
@@ -389,6 +392,7 @@ KInStream::const_kreader_line_iterator::self_type KInStream::const_kreader_line_
 	}
 
 	return i;
+
 } // postfix
 
 
@@ -404,6 +408,7 @@ typename std::istream::int_type KInStream::Read()
 //-----------------------------------------------------------------------------
 {
 	std::streambuf* sb = InStream().rdbuf();
+
 	if (sb)
 	{
 		typename std::istream::int_type iCh = sb->sbumpc();
@@ -413,8 +418,10 @@ typename std::istream::int_type KInStream::Read()
 		}
 		return iCh;
 	}
+
 	return std::istream::traits_type::eof();
-}
+
+} // Read
 
 //-----------------------------------------------------------------------------
 /// Read a range of characters. Returns count of successfully read charcters.
@@ -422,6 +429,7 @@ size_t KInStream::Read(typename std::istream::char_type* pAddress, size_t iCount
 //-----------------------------------------------------------------------------
 {
 	std::streambuf* sb = InStream().rdbuf();
+
 	if (sb)
 	{
 		auto iRead = sb->sgetn(pAddress, static_cast<std::streamsize>(iCount));
@@ -432,8 +440,10 @@ size_t KInStream::Read(typename std::istream::char_type* pAddress, size_t iCount
 		}
 		return static_cast<size_t>(iRead);
 	}
+
 	return 0;
-}
+
+} // Read
 
 //-----------------------------------------------------------------------------
 /// Read a range of characters and append to sBuffer. Returns count of successfully read charcters.
@@ -447,8 +457,10 @@ size_t KInStream::Read(KString& sBuffer, size_t iCount)
 	{
 		sBuffer.resize(iOldLen + iAddedLen);
 	}
+
 	return iAddedLen;
-}
+
+} // Read
 
 //-----------------------------------------------------------------------------
 /// Read a range of characters and append to Stream. Returns count of successfully read charcters.
@@ -473,7 +485,8 @@ size_t KInStream::Read(KOutStream& Stream, size_t iCount)
 	}
 
 	return iRead;
-}
+
+} // Read
 
 template class KReader<std::ifstream>;
 template class KReader<std::istringstream>;

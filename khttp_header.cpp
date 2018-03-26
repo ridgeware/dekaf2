@@ -48,55 +48,55 @@ namespace dekaf2 {
 bool KHTTPHeader::Parse(KInStream& Stream)
 //-----------------------------------------------------------------------------
 {
-    // Continuation lines are no more allowed in HTTP headers, so we don't
-    // care for them. Any broken header (like missing key, no colon) will
-    // get dropped.
-    // We also do not care for line endings and will cannonify them on
-    // serialization.
+	// Continuation lines are no more allowed in HTTP headers, so we don't
+	// care for them. Any broken header (like missing key, no colon) will
+	// get dropped.
+	// We also do not care for line endings and will cannonify them on
+	// serialization.
 
-    if (!m_Headers.empty())
-    {
-        clear();
-    }
+	if (!m_Headers.empty())
+	{
+		clear();
+	}
 
-    // make sure we detect an empty header
-    Stream.SetReaderRightTrim("\r\n");
+	// make sure we detect an empty header
+	Stream.SetReaderRightTrim("\r\n");
 
-    KString sLine;
+	KString sLine;
 
-    while (Stream.ReadLine(sLine))
-    {
-        if (sLine.empty())
-        {
-            // end of header
-            return true;
-        }
+	while (Stream.ReadLine(sLine))
+	{
+		if (sLine.empty())
+		{
+			// end of header
+			return true;
+		}
 
-        if (!std::isalpha(sLine.front()))
-        {
-            // garbage, drop
-            continue;
-        }
+		if (!std::isalpha(sLine.front()))
+		{
+			// garbage, drop
+			continue;
+		}
 
-        auto pos = sLine.find(':');
+		auto pos = sLine.find(':');
 
-        if (pos == npos)
-        {
-            // drop invalid header
-            continue;
-        }
+		if (pos == npos)
+		{
+			// drop invalid header
+			continue;
+		}
 
-        // store
-        KStringView sKey(sLine.ToView(0, pos));
-        KStringView sValue(sLine.ToView(pos + 1, npos));
-        kTrimRight(sKey);
-        kTrim(sValue);
+		// store
+		KStringView sKey(sLine.ToView(0, pos));
+		KStringView sValue(sLine.ToView(pos + 1, npos));
+		kTrimRight(sKey);
+		kTrim(sValue);
 
-        m_Headers.emplace(sKey, sValue);
+		m_Headers.emplace(sKey, sValue);
 
-    }
+	}
 
-    return false;
+	return false;
 }
 
 
@@ -104,16 +104,16 @@ bool KHTTPHeader::Parse(KInStream& Stream)
 bool KHTTPHeader::Serialize(KOutStream& Stream) const
 //-----------------------------------------------------------------------------
 {
-    for (const auto& iter : m_Headers)
-    {
-        Stream.Write(iter.first);
-        Stream.Write(": ");
-        Stream.WriteLine(iter.second);
-    }
+	for (const auto& iter : m_Headers)
+	{
+		Stream.Write(iter.first);
+		Stream.Write(": ");
+		Stream.WriteLine(iter.second);
+	}
 
-    Stream.WriteLine();
+	Stream.WriteLine();
 
-    return true;
+	return true;
 
 } // Serialize
 
@@ -122,10 +122,10 @@ bool KHTTPHeader::Serialize(KOutStream& Stream) const
 void KHTTPHeader::clear()
 //-----------------------------------------------------------------------------
 {
-    m_Headers.clear();
-    m_sCharset.clear();
-    m_sContentType.clear();
-    m_sError.clear();
+	m_Headers.clear();
+	m_sCharset.clear();
+	m_sContentType.clear();
+	m_sError.clear();
 
 } // clear
 
@@ -133,35 +133,35 @@ void KHTTPHeader::clear()
 void KHTTPHeader::SplitContentType() const
 //-----------------------------------------------------------------------------
 {
-    KStringView sHeader = Get(content_type);
-    if (!sHeader.empty())
-    {
-        kTrimLeft(sHeader);
-        auto pos = sHeader.find(';');
-        if (pos == KStringView::npos)
-        {
-            kTrimRight(sHeader);
-            m_sContentType = sHeader;
-        }
-        else
-        {
-            KStringView sCtype = sHeader.substr(0, pos);
-            kTrimRight(sCtype);
-            m_sContentType = sCtype;
+	KStringView sHeader = Get(content_type);
+	if (!sHeader.empty())
+	{
+		kTrimLeft(sHeader);
+		auto pos = sHeader.find(';');
+		if (pos == KStringView::npos)
+		{
+			kTrimRight(sHeader);
+			m_sContentType = sHeader;
+		}
+		else
+		{
+			KStringView sCtype = sHeader.substr(0, pos);
+			kTrimRight(sCtype);
+			m_sContentType = sCtype;
 
-            sHeader.remove_prefix(pos + 1);
-            pos = sHeader.find("charset=");
-            if (pos != KStringView::npos)
-            {
-                sHeader.remove_prefix(pos + 8);
-                kTrimLeft(sHeader);
-                kTrimRight(sHeader);
-                m_sCharset = sHeader;
-                // charsets come in upper and lower case variations
-                m_sCharset.MakeLower();
-            }
-        }
-    }
+			sHeader.remove_prefix(pos + 1);
+			pos = sHeader.find("charset=");
+			if (pos != KStringView::npos)
+			{
+				sHeader.remove_prefix(pos + 8);
+				kTrimLeft(sHeader);
+				kTrimRight(sHeader);
+				m_sCharset = sHeader;
+				// charsets come in upper and lower case variations
+				m_sCharset.MakeLower();
+			}
+		}
+	}
 
 } // SplitContentType
 
@@ -169,11 +169,11 @@ void KHTTPHeader::SplitContentType() const
 const KString& KHTTPHeader::ContentType() const
 //-----------------------------------------------------------------------------
 {
-    if (m_sContentType.empty())
-    {
-        SplitContentType();
-    }
-    return m_sContentType;
+	if (m_sContentType.empty())
+	{
+		SplitContentType();
+	}
+	return m_sContentType;
 
 } // ContentType
 
@@ -181,11 +181,11 @@ const KString& KHTTPHeader::ContentType() const
 const KString& KHTTPHeader::Charset() const
 //-----------------------------------------------------------------------------
 {
-    if (m_sCharset.empty())
-    {
-        SplitContentType();
-    }
-    return m_sCharset;
+	if (m_sCharset.empty())
+	{
+		SplitContentType();
+	}
+	return m_sCharset;
 
 } // Charset
 

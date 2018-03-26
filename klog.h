@@ -68,10 +68,10 @@ class KLogWriter
 //----------
 public:
 //----------
-    KLogWriter() {}
-    virtual ~KLogWriter();
-    virtual bool Write(int iLevel, bool bIsMultiline, const KString& sOut) = 0;
-    virtual bool Good() const = 0;
+	KLogWriter() {}
+	virtual ~KLogWriter();
+	virtual bool Write(int iLevel, bool bIsMultiline, const KString& sOut) = 0;
+	virtual bool Good() const = 0;
 
 }; // KLogWriter
 
@@ -84,17 +84,17 @@ class KLogStdWriter : public KLogWriter
 //----------
 public:
 //----------
-    KLogStdWriter(std::ostream& iostream)
-        : m_OutStream(iostream)
-    {}
-    virtual ~KLogStdWriter() {}
-    virtual bool Write(int iLevel, bool bIsMultiline, const KString& sOut) override;
-    virtual bool Good() const override { return m_OutStream.good(); }
+	KLogStdWriter(std::ostream& iostream)
+	    : m_OutStream(iostream)
+	{}
+	virtual ~KLogStdWriter() {}
+	virtual bool Write(int iLevel, bool bIsMultiline, const KString& sOut) override;
+	virtual bool Good() const override { return m_OutStream.good(); }
 
 //----------
 private:
 //----------
-    std::ostream& m_OutStream;
+	std::ostream& m_OutStream;
 
 }; // KLogStdWriter
 
@@ -107,15 +107,15 @@ class KLogFileWriter : public KLogWriter
 //----------
 public:
 //----------
-    KLogFileWriter(KStringView sFileName);
-    virtual ~KLogFileWriter() {}
-    virtual bool Write(int iLevel, bool bIsMultiline, const KString& sOut) override;
-    virtual bool Good() const override { return m_OutFile.good(); }
+	KLogFileWriter(KStringView sFileName);
+	virtual ~KLogFileWriter() {}
+	virtual bool Write(int iLevel, bool bIsMultiline, const KString& sOut) override;
+	virtual bool Good() const override { return m_OutFile.good(); }
 
 //----------
 private:
 //----------
-    KOutFile m_OutFile;
+	KOutFile m_OutFile;
 
 }; // KLogFileWriter
 
@@ -128,10 +128,10 @@ class KLogSyslogWriter : public KLogWriter
 //----------
 public:
 //----------
-    KLogSyslogWriter() {}
-    virtual ~KLogSyslogWriter() {}
-    virtual bool Write(int iLevel, bool bIsMultiline, const KString& sOut) override;
-    virtual bool Good() const override { return true; }
+	KLogSyslogWriter() {}
+	virtual ~KLogSyslogWriter() {}
+	virtual bool Write(int iLevel, bool bIsMultiline, const KString& sOut) override;
+	virtual bool Good() const override { return true; }
 
 }; // KLogSyslogWriter
 
@@ -145,17 +145,17 @@ class KLogTCPWriter : public KLogWriter
 //----------
 public:
 //----------
-    KLogTCPWriter(KStringView sURL);
-    virtual ~KLogTCPWriter();
-    virtual bool Write(int iLevel, bool bIsMultiline, const KString& sOut) override;
-    virtual bool Good() const override;
+	KLogTCPWriter(KStringView sURL);
+	virtual ~KLogTCPWriter();
+	virtual bool Write(int iLevel, bool bIsMultiline, const KString& sOut) override;
+	virtual bool Good() const override;
 
 //----------
 protected:
 //----------
 
-    std::unique_ptr<KConnection> m_OutStream;
-    KString m_sURL;
+	std::unique_ptr<KConnection> m_OutStream;
+	KString m_sURL;
 
 }; // KLogTCPWriter
 
@@ -169,17 +169,17 @@ class KLogHTTPWriter : public KLogWriter
 //----------
 public:
 //----------
-    KLogHTTPWriter(KStringView sURL);
-    virtual ~KLogHTTPWriter();
-    virtual bool Write(int iLevel, bool bIsMultiline, const KString& sOut) override;
-    virtual bool Good() const override;
+	KLogHTTPWriter(KStringView sURL);
+	virtual ~KLogHTTPWriter();
+	virtual bool Write(int iLevel, bool bIsMultiline, const KString& sOut) override;
+	virtual bool Good() const override;
 
 //----------
 protected:
 //----------
 
-    std::unique_ptr<KHTTPClient> m_OutStream;
-    KString m_sURL;
+	std::unique_ptr<KHTTPClient> m_OutStream;
+	KString m_sURL;
 
 }; // KLogHTTPWriter
 
@@ -192,39 +192,39 @@ class KLogData
 //----------
 public:
 //----------
-    KLogData(int level = 0,
-             KStringView sShortName = KStringView{},
-             KStringView sPathName  = KStringView{},
-             KStringView sFunction  = KStringView{},
-             KStringView sMessage   = KStringView{})
-    {
-        Set(level, sShortName, sPathName, sFunction, sMessage);
-    }
+	KLogData(int level = 0,
+	         KStringView sShortName = KStringView{},
+	         KStringView sPathName  = KStringView{},
+	         KStringView sFunction  = KStringView{},
+	         KStringView sMessage   = KStringView{})
+	{
+		Set(level, sShortName, sPathName, sFunction, sMessage);
+	}
 
-    void Set(int level, KStringView sShortName, KStringView sPathName, KStringView sFunction, KStringView sMessage);
-    void SetBacktrace(KStringView sBacktrace)
-    {
-        m_sBacktrace = sBacktrace;
-    }
-    int GetLevel() const
-    {
-        return m_Level;
-    }
+	void Set(int level, KStringView sShortName, KStringView sPathName, KStringView sFunction, KStringView sMessage);
+	void SetBacktrace(KStringView sBacktrace)
+	{
+		m_sBacktrace = sBacktrace;
+	}
+	int GetLevel() const
+	{
+		return m_Level;
+	}
 
 //----------
 protected:
 //----------
-    static KStringView SanitizeFunctionName(KStringView sFunction);
+	static KStringView SanitizeFunctionName(KStringView sFunction);
 
-    int         m_Level;
-    pid_t       m_Pid;
-    uint64_t    m_Tid; // tid is 64 bit on OSX
-    time_t      m_Time;
-    KStringView m_sShortName;
-    KStringView m_sPathName;
-    KStringView m_sFunctionName;
-    KStringView m_sMessage;
-    KStringView m_sBacktrace;
+	int         m_Level;
+	pid_t       m_Pid;
+	uint64_t    m_Tid; // tid is 64 bit on OSX
+	time_t      m_Time;
+	KStringView m_sShortName;
+	KStringView m_sPathName;
+	KStringView m_sFunctionName;
+	KStringView m_sMessage;
+	KStringView m_sBacktrace;
 
 }; // KLogData
 
@@ -237,20 +237,20 @@ class KLogSerializer : public KLogData
 //----------
 public:
 //----------
-    KLogSerializer() {}
-    virtual ~KLogSerializer() {}
-    const KString& Get() const;
-    virtual operator KStringView() const;
-    void Set(int level, KStringView sShortName, KStringView sPathName, KStringView sFunction, KStringView sMessage);
-    bool IsMultiline() const { return m_bIsMultiline; }
+	KLogSerializer() {}
+	virtual ~KLogSerializer() {}
+	const KString& Get() const;
+	virtual operator KStringView() const;
+	void Set(int level, KStringView sShortName, KStringView sPathName, KStringView sFunction, KStringView sMessage);
+	bool IsMultiline() const { return m_bIsMultiline; }
 
 //----------
 protected:
 //----------
-    virtual void Serialize() const = 0;
+	virtual void Serialize() const = 0;
 
-    mutable KString m_sBuffer;
-    mutable bool m_bIsMultiline;
+	mutable KString m_sBuffer;
+	mutable bool m_bIsMultiline;
 
 }; // KLogSerializer
 
@@ -263,14 +263,14 @@ class KLogTTYSerializer : public KLogSerializer
 //----------
 public:
 //----------
-    KLogTTYSerializer() {}
-    virtual ~KLogTTYSerializer() {}
+	KLogTTYSerializer() {}
+	virtual ~KLogTTYSerializer() {}
 
 //----------
 protected:
 //----------
-    void AddMultiLineMessage(KStringView sPrefix, KStringView sMessage) const;
-    virtual void Serialize() const;
+	void AddMultiLineMessage(KStringView sPrefix, KStringView sMessage) const;
+	virtual void Serialize() const;
 
 }; // KLogTTYSerializer
 
@@ -283,13 +283,13 @@ class KLogSyslogSerializer : public KLogTTYSerializer
 //----------
 public:
 //----------
-    KLogSyslogSerializer() {}
-    virtual ~KLogSyslogSerializer() {}
+	KLogSyslogSerializer() {}
+	virtual ~KLogSyslogSerializer() {}
 
 //----------
 protected:
 //----------
-    virtual void Serialize() const;
+	virtual void Serialize() const;
 
 }; // KLogSyslogSerializer
 
@@ -302,13 +302,13 @@ class KLogJSONSerializer : public KLogSerializer
 //----------
 public:
 //----------
-    KLogJSONSerializer() {}
-    virtual ~KLogJSONSerializer() {}
+	KLogJSONSerializer() {}
+	virtual ~KLogJSONSerializer() {}
 
 //----------
 protected:
 //----------
-    virtual void Serialize() const;
+	virtual void Serialize() const;
 
 }; // KLogJSONSerializer
 
@@ -343,201 +343,201 @@ class KLog
 //----------
 public:
 //----------
-    KLog();
-    KLog(const KLog&) = delete;
-    KLog(KLog&&) = delete;
-    KLog& operator=(const KLog&) = delete;
-    KLog& operator=(KLog&&) = delete;
+	KLog();
+	KLog(const KLog&) = delete;
+	KLog(KLog&&) = delete;
+	KLog& operator=(const KLog&) = delete;
+	KLog& operator=(KLog&&) = delete;
 
-    static constexpr KStringView STDOUT             = "stdout";
-    static constexpr KStringView STDERR             = "stderr";
-    static constexpr KStringView SYSLOG             = "syslog";
-    static constexpr KStringView DBAR               = "================================================================================";
-    static constexpr KStringView BAR                = "--------------------------------------------------------------------------------";
-    static constexpr KStringView DASH               = "- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - ";
+	static constexpr KStringView STDOUT             = "stdout";
+	static constexpr KStringView STDERR             = "stderr";
+	static constexpr KStringView SYSLOG             = "syslog";
+	static constexpr KStringView DBAR               = "================================================================================";
+	static constexpr KStringView BAR                = "--------------------------------------------------------------------------------";
+	static constexpr KStringView DASH               = "- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - ";
 
-    //---------------------------------------------------------------------------
-    /// Gets the current log level. Any log message that has a higher level than
-    /// this value is not output.
-    static inline int GetLevel()
-    //---------------------------------------------------------------------------
-    {
-        return s_kLogLevel;
-    }
+	//---------------------------------------------------------------------------
+	/// Gets the current log level. Any log message that has a higher level than
+	/// this value is not output.
+	static inline int GetLevel()
+	//---------------------------------------------------------------------------
+	{
+		return s_kLogLevel;
+	}
 
-    //---------------------------------------------------------------------------
-    /// Sets a new log level.
-    void SetLevel(int iLevel);
-    //---------------------------------------------------------------------------
+	//---------------------------------------------------------------------------
+	/// Sets a new log level.
+	void SetLevel(int iLevel);
+	//---------------------------------------------------------------------------
 
-    //---------------------------------------------------------------------------
-    /// Get level at which back traces are automatically generated.
-    inline int GetBackTraceLevel() const
-    //---------------------------------------------------------------------------
-    {
-        return m_iBackTrace;
-    }
+	//---------------------------------------------------------------------------
+	/// Get level at which back traces are automatically generated.
+	inline int GetBackTraceLevel() const
+	//---------------------------------------------------------------------------
+	{
+		return m_iBackTrace;
+	}
 
-    //---------------------------------------------------------------------------
-    /// Set level at which back traces are automatically generated.
-    inline int SetBackTraceLevel(int iLevel)
-    //---------------------------------------------------------------------------
-    {
-        m_iBackTrace = iLevel;
-        return m_iBackTrace;
-    }
+	//---------------------------------------------------------------------------
+	/// Set level at which back traces are automatically generated.
+	inline int SetBackTraceLevel(int iLevel)
+	//---------------------------------------------------------------------------
+	{
+		m_iBackTrace = iLevel;
+		return m_iBackTrace;
+	}
 
-    //---------------------------------------------------------------------------
-    /// Set application name for logging.
-    void SetName(KStringView sName);
-    //---------------------------------------------------------------------------
+	//---------------------------------------------------------------------------
+	/// Set application name for logging.
+	void SetName(KStringView sName);
+	//---------------------------------------------------------------------------
 
-    //---------------------------------------------------------------------------
-    /// Get application name as provided by user.
-    const KString& GetName() const
-    //---------------------------------------------------------------------------
-    {
-        return m_sPathName;
-    }
+	//---------------------------------------------------------------------------
+	/// Get application name as provided by user.
+	const KString& GetName() const
+	//---------------------------------------------------------------------------
+	{
+		return m_sPathName;
+	}
 
-    //---------------------------------------------------------------------------
-    /// Set the output file (or tcp stream) for the log.
-    bool SetDebugLog(KStringView sLogfile);
-    //---------------------------------------------------------------------------
+	//---------------------------------------------------------------------------
+	/// Set the output file (or tcp stream) for the log.
+	bool SetDebugLog(KStringView sLogfile);
+	//---------------------------------------------------------------------------
 
-    enum class Writer { STDOUT, STDERR, FILE, SYSLOG, TCP, HTTP };
-    //---------------------------------------------------------------------------
-    /// Create a Writer of specific type
-    static std::unique_ptr<KLogWriter> CreateWriter(Writer writer, KStringView sLogname = KStringView{});
-    //---------------------------------------------------------------------------
+	enum class Writer { STDOUT, STDERR, FILE, SYSLOG, TCP, HTTP };
+	//---------------------------------------------------------------------------
+	/// Create a Writer of specific type
+	static std::unique_ptr<KLogWriter> CreateWriter(Writer writer, KStringView sLogname = KStringView{});
+	//---------------------------------------------------------------------------
 
-    enum class Serializer { TTY, SYSLOG, JSON };
-    //---------------------------------------------------------------------------
-    /// Create a Serializer of specific type
-    static std::unique_ptr<KLogSerializer> CreateSerializer(Serializer serializer);
-    //---------------------------------------------------------------------------
+	enum class Serializer { TTY, SYSLOG, JSON };
+	//---------------------------------------------------------------------------
+	/// Create a Serializer of specific type
+	static std::unique_ptr<KLogSerializer> CreateSerializer(Serializer serializer);
+	//---------------------------------------------------------------------------
 
-    //---------------------------------------------------------------------------
-    /// Set the log writer directly instead of opening one implicitly with SetDebugLog()
-    bool SetWriter(std::unique_ptr<KLogWriter> logger);
-    //---------------------------------------------------------------------------
+	//---------------------------------------------------------------------------
+	/// Set the log writer directly instead of opening one implicitly with SetDebugLog()
+	bool SetWriter(std::unique_ptr<KLogWriter> logger);
+	//---------------------------------------------------------------------------
 
-    //---------------------------------------------------------------------------
-    /// Set the log serializer directly instead of opening one implicitly with SetDebugLog()
-    bool SetSerializer(std::unique_ptr<KLogSerializer> serializer);
-    //---------------------------------------------------------------------------
+	//---------------------------------------------------------------------------
+	/// Set the log serializer directly instead of opening one implicitly with SetDebugLog()
+	bool SetSerializer(std::unique_ptr<KLogSerializer> serializer);
+	//---------------------------------------------------------------------------
 
-    //---------------------------------------------------------------------------
-    /// Gets the file name of the output file for the log.
-    inline KStringView GetDebugLog() const
-    //---------------------------------------------------------------------------
-    {
-        return m_sLogName;
-    }
+	//---------------------------------------------------------------------------
+	/// Gets the file name of the output file for the log.
+	inline KStringView GetDebugLog() const
+	//---------------------------------------------------------------------------
+	{
+		return m_sLogName;
+	}
 
-    //---------------------------------------------------------------------------
-    /// Sets the file name of the flag file. The flag file is monitored in
-    /// regular intervals, and if changed its content is read and interpreted
-    /// as the new log level.
-    bool SetDebugFlag(KStringView sFlagfile);
-    //---------------------------------------------------------------------------
+	//---------------------------------------------------------------------------
+	/// Sets the file name of the flag file. The flag file is monitored in
+	/// regular intervals, and if changed its content is read and interpreted
+	/// as the new log level.
+	bool SetDebugFlag(KStringView sFlagfile);
+	//---------------------------------------------------------------------------
 
-    //---------------------------------------------------------------------------
-    /// Gets the file name of the flag file.
-    inline KStringView GetDebugFlag() const
-    //---------------------------------------------------------------------------
-    {
-        return m_sFlagfile;
-    }
+	//---------------------------------------------------------------------------
+	/// Gets the file name of the flag file.
+	inline KStringView GetDebugFlag() const
+	//---------------------------------------------------------------------------
+	{
+		return m_sFlagfile;
+	}
 
-    //---------------------------------------------------------------------------
-    /// this function is deprecated - use kDebug() instead!
-    template<class... Args>
-    inline bool debug(int level, Args&&... args)
-    //---------------------------------------------------------------------------
-    {
-        return (DEKAF2_LIKELY(level > s_kLogLevel)) || IntDebug(level, KStringView(), kFormat(std::forward<Args>(args)...));
-    }
+	//---------------------------------------------------------------------------
+	/// this function is deprecated - use kDebug() instead!
+	template<class... Args>
+	inline bool debug(int level, Args&&... args)
+	//---------------------------------------------------------------------------
+	{
+		return (DEKAF2_LIKELY(level > s_kLogLevel)) || IntDebug(level, KStringView(), kFormat(std::forward<Args>(args)...));
+	}
 
-    //---------------------------------------------------------------------------
-    /// this function is deprecated - use kDebug() instead!
-    template<class... Args>
-    inline bool debug_fun(int level, KStringView sFunction, Args&&... args)
-    //---------------------------------------------------------------------------
-    {
-        return (DEKAF2_LIKELY(level > s_kLogLevel)) || IntDebug(level, sFunction, kFormat(std::forward<Args>(args)...));
-    }
+	//---------------------------------------------------------------------------
+	/// this function is deprecated - use kDebug() instead!
+	template<class... Args>
+	inline bool debug_fun(int level, KStringView sFunction, Args&&... args)
+	//---------------------------------------------------------------------------
+	{
+		return (DEKAF2_LIKELY(level > s_kLogLevel)) || IntDebug(level, sFunction, kFormat(std::forward<Args>(args)...));
+	}
 
-    //---------------------------------------------------------------------------
-    /// Logs a warning. Takes any arguments that can be formatted through the
-    /// standard formatter of the library. A warning is a debug message with
-    /// level -1.
-    template<class... Args>
-    inline bool warning(Args&&... args)
-    //---------------------------------------------------------------------------
-    {
-        return IntDebug(-1, KStringView(), kFormat(std::forward<Args>(args)...));
-    }
+	//---------------------------------------------------------------------------
+	/// Logs a warning. Takes any arguments that can be formatted through the
+	/// standard formatter of the library. A warning is a debug message with
+	/// level -1.
+	template<class... Args>
+	inline bool warning(Args&&... args)
+	//---------------------------------------------------------------------------
+	{
+		return IntDebug(-1, KStringView(), kFormat(std::forward<Args>(args)...));
+	}
 
-    //---------------------------------------------------------------------------
-    /// report a known exception - better use kException().
-    void Exception(const std::exception& e, KStringView sFunction, KStringView sClass = "")
-    //---------------------------------------------------------------------------
-    {
-        IntException(e.what(), sFunction, sClass);
-    }
+	//---------------------------------------------------------------------------
+	/// report a known exception - better use kException().
+	void Exception(const std::exception& e, KStringView sFunction, KStringView sClass = "")
+	//---------------------------------------------------------------------------
+	{
+		IntException(e.what(), sFunction, sClass);
+	}
 
-    //---------------------------------------------------------------------------
-    /// report an unknown exception - better use kUnknownException().
-    void Exception(KStringView sFunction, KStringView sClass = "")
-    //---------------------------------------------------------------------------
-    {
-        IntException("unknown", sFunction, sClass);
-    }
+	//---------------------------------------------------------------------------
+	/// report an unknown exception - better use kUnknownException().
+	void Exception(KStringView sFunction, KStringView sClass = "")
+	//---------------------------------------------------------------------------
+	{
+		IntException("unknown", sFunction, sClass);
+	}
 
-    // do _not_ initialize s_kLoglevel - see implementation note. Also, it needs
-    // to be publicly visible as gcc does _not_ optimize a static inline GetLevel()
-    // into an inline. We have to test the static var directly from kDebug to
-    // have it inlined
-    static int s_kLogLevel;
+	// do _not_ initialize s_kLoglevel - see implementation note. Also, it needs
+	// to be publicly visible as gcc does _not_ optimize a static inline GetLevel()
+	// into an inline. We have to test the static var directly from kDebug to
+	// have it inlined
+	static int s_kLogLevel;
 
 //----------
 private:
 //----------
 
-    //---------------------------------------------------------------------------
-    /// Registered with Dekaf::AddToOneSecTimer() at construction, gets
-    /// called every second and reconfigures debug level, output, and format
-    /// if changed
-    void CheckDebugFlag();
-    //---------------------------------------------------------------------------
+	//---------------------------------------------------------------------------
+	/// Registered with Dekaf::AddToOneSecTimer() at construction, gets
+	/// called every second and reconfigures debug level, output, and format
+	/// if changed
+	void CheckDebugFlag();
+	//---------------------------------------------------------------------------
 
-    //---------------------------------------------------------------------------
-    bool IntDebug(int level, KStringView sFunction, KStringView sMessage);
-    //---------------------------------------------------------------------------
+	//---------------------------------------------------------------------------
+	bool IntDebug(int level, KStringView sFunction, KStringView sMessage);
+	//---------------------------------------------------------------------------
 
-    //---------------------------------------------------------------------------
-    void IntException(KStringView sWhat, KStringView sFunction, KStringView sClass);
-    //---------------------------------------------------------------------------
+	//---------------------------------------------------------------------------
+	void IntException(KStringView sWhat, KStringView sFunction, KStringView sClass);
+	//---------------------------------------------------------------------------
 
-    //---------------------------------------------------------------------------
-    bool IntOpenLog();
-    //---------------------------------------------------------------------------
+	//---------------------------------------------------------------------------
+	bool IntOpenLog();
+	//---------------------------------------------------------------------------
 
-    KString m_sPathName;
-     KString m_sShortName;
-    KString m_sLogName;
-    KString m_sFlagfile;
-    int m_iBackTrace;
-    time_t m_sTimestampFlagfile{0};
-    std::unique_ptr<KLogSerializer> m_Serializer;
-    std::unique_ptr<KLogWriter> m_Logger;
+	KString m_sPathName;
+	KString m_sShortName;
+	KString m_sLogName;
+	KString m_sFlagfile;
+	int m_iBackTrace;
+	time_t m_sTimestampFlagfile{0};
+	std::unique_ptr<KLogSerializer> m_Serializer;
+	std::unique_ptr<KLogWriter> m_Logger;
 
-    constexpr static const char* const s_sEnvLog      = "DEKAFLOG";
-    constexpr static const char* const s_sEnvFlag     = "DEKAFDBG";
-    constexpr static const char* const s_sEnvTrace    = "DEKAFTRC";
-    constexpr static const char* const s_sDefaultLog  = "/tmp/dekaf.log";
-    constexpr static const char* const s_sDefaultFlag = "/tmp/dekaf.dbg";
+	constexpr static const char* const s_sEnvLog      = "DEKAFLOG";
+	constexpr static const char* const s_sEnvFlag     = "DEKAFDBG";
+	constexpr static const char* const s_sEnvTrace    = "DEKAFTRC";
+	constexpr static const char* const s_sDefaultLog  = "/tmp/dekaf.log";
+	constexpr static const char* const s_sDefaultFlag = "/tmp/dekaf.dbg";
 
 }; // KLog
 
@@ -561,83 +561,83 @@ KLog& KLog();
 // a debug output in the initialization phase of the program or have one too many.
 
 #ifdef kDebug
-    #undef kDebug
+#undef kDebug
 #endif
 //---------------------------------------------------------------------------
 /// log a debug message, automatically provide function name.
 #define kDebug(level, ...) \
 { \
-    if (DEKAF2_UNLIKELY(level <= KLog::s_kLogLevel)) \
-    { \
-        KLog().debug_fun(level, DEKAF2_FUNCTION_NAME, __VA_ARGS__); \
-    } \
+	if (DEKAF2_UNLIKELY(level <= KLog::s_kLogLevel)) \
+{ \
+	KLog().debug_fun(level, DEKAF2_FUNCTION_NAME, __VA_ARGS__); \
+} \
 }
 //---------------------------------------------------------------------------
 
 #ifdef kDebugLog
-    #undef kDebugLog
+#undef kDebugLog
 #endif
 //---------------------------------------------------------------------------
 /// log a debug message, do NOT automatically provide function name.
 #define kDebugLog(level, ...) \
 { \
-    if (DEKAF2_UNLIKELY(level <= KLog::s_kLogLevel)) \
-    { \
-        KLog().debug(level, __VA_ARGS__); \
-    } \
+	if (DEKAF2_UNLIKELY(level <= KLog::s_kLogLevel)) \
+{ \
+	KLog().debug(level, __VA_ARGS__); \
+} \
 }
 //---------------------------------------------------------------------------
 
 #ifdef kWarning
-    #undef kWarning
+#undef kWarning
 #endif
 //---------------------------------------------------------------------------
 /// log a warning message, automatically provide function name.
 #define kWarning(...) \
 { \
-    KLog().debug_fun(-1, DEKAF2_FUNCTION_NAME, __VA_ARGS__); \
+	KLog().debug_fun(-1, DEKAF2_FUNCTION_NAME, __VA_ARGS__); \
 }
 //---------------------------------------------------------------------------
 
 #ifdef kException
-    #undef kException
+#undef kException
 #endif
 //---------------------------------------------------------------------------
 /// log an exception, automatically provide function name and generate a
 /// stacktrace at level -2
 #define kException(except) \
 { \
-    KLog().Exception(except, DEKAF2_FUNCTION_NAME); \
+	KLog().Exception(except, DEKAF2_FUNCTION_NAME); \
 }
 //---------------------------------------------------------------------------
 
 #ifdef kUnknownException
-    #undef kUnknownException
+#undef kUnknownException
 #endif
 //---------------------------------------------------------------------------
 /// log an unknown exception, automatically provide function name.
 #define kUnknownException() \
 { \
-    KLog().Exception(DEKAF2_FUNCTION_NAME); \
+	KLog().Exception(DEKAF2_FUNCTION_NAME); \
 }
 //---------------------------------------------------------------------------
 
 #ifdef kDebugTrace
-    #undef kDebugTrace
+#undef kDebugTrace
 #endif
 //---------------------------------------------------------------------------
 /// force a stack trace, automatically provide function name.
 #define kDebugTrace(...) \
 { \
-    KLog().debug_fun(-2, DEKAF2_FUNCTION_NAME, __VA_ARGS__); \
+	KLog().debug_fun(-2, DEKAF2_FUNCTION_NAME, __VA_ARGS__); \
 }
 //---------------------------------------------------------------------------
 
 #ifdef kWouldLog
-    #undef kWouldLog
+#undef kWouldLog
 #endif
-    //---------------------------------------------------------------------------
-    /// test if a given log level would create output
+//---------------------------------------------------------------------------
+/// test if a given log level would create output
 #define kWouldLog(level) (DEKAF2_UNLIKELY(level <= KLog::s_kLogLevel))
 //---------------------------------------------------------------------------
 

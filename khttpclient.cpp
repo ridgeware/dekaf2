@@ -52,7 +52,7 @@
 namespace dekaf2 {
 
 //-----------------------------------------------------------------------------
-    KHTTPClient::KHTTPClient(const KURL& url, KHTTPMethod method, bool bVerifyCerts)
+KHTTPClient::KHTTPClient(const KURL& url, KHTTPMethod method, bool bVerifyCerts)
 //-----------------------------------------------------------------------------
 {
 	if (Connect(url, bVerifyCerts))

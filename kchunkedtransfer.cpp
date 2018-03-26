@@ -48,11 +48,11 @@ namespace dekaf2 {
 
 
 //-----------------------------------------------------------------------------
-	KChunkedSource::KChunkedSource(KInStream& src, bool bIsChunked, std::streamsize iContentLen)
+KChunkedSource::KChunkedSource(KInStream& src, bool bIsChunked, std::streamsize iContentLen)
 //-----------------------------------------------------------------------------
-: m_src { src }
-, m_iContentLen(iContentLen)
-, m_State { bIsChunked ? StartingUp : IsNotChunked }
+    : m_src { src }
+    , m_iContentLen(iContentLen)
+    , m_State { bIsChunked ? StartingUp : IsNotChunked }
 {}
 
 //-----------------------------------------------------------------------------
@@ -288,8 +288,8 @@ KString KChunkedSource::read()
 //-----------------------------------------------------------------------------
 KChunkedSink::KChunkedSink(KOutStream& sink, bool bIsChunked)
 //-----------------------------------------------------------------------------
-: m_sink { sink }
-, m_bIsChunked { bIsChunked }
+    : m_sink { sink }
+    , m_bIsChunked { bIsChunked }
 {}
 
 //-----------------------------------------------------------------------------

@@ -192,8 +192,8 @@ std::streamsize KTCPIOStream::TCPStreamWriter(const void* sBuffer, std::streamsi
 //-----------------------------------------------------------------------------
 KTCPIOStream::KTCPIOStream()
 //-----------------------------------------------------------------------------
-: base_type(&m_TCPStreamBuf)
-, m_Stream(m_IO_Service)
+    : base_type(&m_TCPStreamBuf)
+    , m_Stream(m_IO_Service)
 {
 	Timeout(DEFAULT_TIMEOUT);
 }
@@ -201,8 +201,8 @@ KTCPIOStream::KTCPIOStream()
 //-----------------------------------------------------------------------------
 KTCPIOStream::KTCPIOStream(const KTCPEndPoint& Endpoint, int iSecondsTimeout)
 //-----------------------------------------------------------------------------
-: base_type(&m_TCPStreamBuf)
-, m_Stream(m_IO_Service)
+    : base_type(&m_TCPStreamBuf)
+    , m_Stream(m_IO_Service)
 {
 	Timeout(iSecondsTimeout);
 	connect(Endpoint);

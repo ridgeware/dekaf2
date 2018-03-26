@@ -304,7 +304,7 @@ std::streamsize KChunkedSink::write(const char* s, std::streamsize n)
 	if (m_bIsChunked)
 	{
 		// write the chunk header
-		m_sink.Format("{}\r\n", n);
+		m_sink.Format("{}\r\n", KString::to_hexstring(n));
 	}
 
 	m_sink.Write(s, n);

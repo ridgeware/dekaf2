@@ -96,6 +96,10 @@ bool KHTTPResponse::Parse(KInStream& Stream)
 bool KHTTPResponse::Serialize(KOutStream& Stream) const
 //-----------------------------------------------------------------------------
 {
+	if (HTTPVersion().empty())
+	{
+		SetError("missing http version");
+	}
 	Stream.FormatLine("{} {} {}", HTTPVersion(), m_iStatus, m_sMessage);
 	return KHTTPHeader::Serialize(Stream);
 
@@ -105,7 +109,7 @@ bool KHTTPResponse::Serialize(KOutStream& Stream) const
 bool KHTTPResponse::HasChunking() const
 //-----------------------------------------------------------------------------
 {
-	return Get(KHTTPHeader::transfer_encoding) == "chunking";
+	return Get(KHTTPHeader::transfer_encoding) == "chunked";
 
 } // HasChunking
 
@@ -114,6 +118,7 @@ void KHTTPResponse::clear()
 //-----------------------------------------------------------------------------
 {
 	KHTTPHeader::clear();
+	HTTPVersion().clear();
 	m_sMessage.clear();
 	m_iStatus = 0;
 

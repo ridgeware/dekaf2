@@ -119,6 +119,7 @@ void KHTTPRequest::clear()
 //-----------------------------------------------------------------------------
 {
 	KHTTPHeader::clear();
+	HTTPVersion().clear();
 	m_Resource.clear();
 
 }

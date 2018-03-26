@@ -126,7 +126,6 @@ void KHTTPHeader::clear()
 	m_sCharset.clear();
 	m_sContentType.clear();
 	m_sError.clear();
-	m_HTTPVersion.clear();
 
 } // clear
 
@@ -204,7 +203,9 @@ bool KHTTPHeader::HasKeepAlive() const
 
 		if (!sValue.empty())
 		{
-			return sValue == "keep-alive" || sValue == "keepalive";
+			KString slower = sValue;
+			slower.MakeLower();
+			return slower == "keep-alive" || slower == "keepalive";
 		}
 		else
 		{

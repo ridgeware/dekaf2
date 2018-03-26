@@ -76,7 +76,7 @@ bool KHTTPResponse::Parse(KInStream& Stream)
 		return SetError("cannot read HTTP response status");
 	}
 
-	m_HTTPVersion = Words[0];
+	HTTPVersion() = Words[0];
 	m_iStatus = Words[1].UInt16();
 
 	if (Words.size() > 2)
@@ -96,7 +96,7 @@ bool KHTTPResponse::Parse(KInStream& Stream)
 bool KHTTPResponse::Serialize(KOutStream& Stream) const
 //-----------------------------------------------------------------------------
 {
-	Stream.FormatLine("{} {} {}", m_HTTPVersion, m_iStatus, m_sMessage);
+	Stream.FormatLine("{} {} {}", HTTPVersion(), m_iStatus, m_sMessage);
 	return KHTTPHeader::Serialize(Stream);
 
 } // Serialize
@@ -106,7 +106,6 @@ void KHTTPResponse::clear()
 //-----------------------------------------------------------------------------
 {
 	KHTTPHeader::clear();
-	m_HTTPVersion.clear();
 	m_sMessage.clear();
 	m_iStatus = 0;
 

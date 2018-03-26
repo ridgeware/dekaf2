@@ -126,6 +126,7 @@ void KHTTPHeader::clear()
 	m_sCharset.clear();
 	m_sContentType.clear();
 	m_sError.clear();
+	m_HTTPVersion.clear();
 
 } // clear
 
@@ -190,6 +191,30 @@ const KString& KHTTPHeader::Charset() const
 } // Charset
 
 
+//-----------------------------------------------------------------------------
+bool KHTTPHeader::HasKeepAlive() const
+//-----------------------------------------------------------------------------
+{
+	if (HTTPVersion() == "HTTP/1.0" || HTTPVersion() == "HTTP/0.9")
+	{
+		return false;
+	}
+	else
+	{
+		KStringView sValue = Get(KHTTPHeader::connection);
+
+		if (!sValue.empty())
+		{
+			return sValue == "keep-alive" || sValue == "keepalive";
+		}
+		else
+		{
+			// keepalive is default with HTTP/1.1
+			return true;
+		}
+	}
+
+} // HasKeepAlive
 
 
 #if !defined(DEKAF2_NO_GCC) && (DEKAF2_GCC_VERSION < 70000)

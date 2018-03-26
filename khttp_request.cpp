@@ -78,9 +78,9 @@ bool KHTTPRequest::Parse(KInStream& Stream)
 
 	m_Method = Words[0];
 	m_Resource = Words[1];
-	m_HTTPVersion = Words[2];
+	HTTPVersion() = Words[2];
 
-	if (!m_HTTPVersion.StartsWith("HTTP/"))
+	if (!HTTPVersion().StartsWith("HTTP/"))
 	{
 		return SetError("missing HTTP version in header");
 	}
@@ -93,9 +93,10 @@ bool KHTTPRequest::Parse(KInStream& Stream)
 bool KHTTPRequest::Serialize(KOutStream& Stream) const
 //-----------------------------------------------------------------------------
 {
-	Stream.FormatLine("{} {} {}", m_Method.Serialize(), m_Resource.Serialize(), m_HTTPVersion);
+	Stream.FormatLine("{} {} {}", m_Method.Serialize(), m_Resource.Serialize(), HTTPVersion());
 	return KHTTPHeader::Serialize(Stream);
-}
+
+} // Serialize
 
 //-----------------------------------------------------------------------------
 void KHTTPRequest::clear()
@@ -103,7 +104,6 @@ void KHTTPRequest::clear()
 {
 	KHTTPHeader::clear();
 	m_Resource.clear();
-	m_HTTPVersion.clear();
 
 }
 

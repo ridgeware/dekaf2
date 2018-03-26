@@ -307,7 +307,7 @@ std::unique_ptr<KConnection> KConnection::Create(const KURL& URL, bool bForceSSL
 		Port = KString::to_string(URL.Protocol.DefaultPort());
 	}
 
-	if (URL.Protocol == url::KProtocol::HTTPS || bForceSSL)
+	if (Port == "443" || URL.Protocol == url::KProtocol::HTTPS || bForceSSL)
 	{
 		return std::make_unique<KSSLConnection>(KTCPEndPoint(URL.Domain, Port), bVerifyCerts, bAllowSSLv2v3);
 	}
@@ -343,7 +343,7 @@ std::unique_ptr<KConnection> KConnection::Create(const KURL& URL, const KProxy& 
 		Port = KString::to_string(URL.Protocol.DefaultPort());
 	}
 
-	if (URL.Protocol == url::KProtocol::HTTPS || bForceSSL)
+	if (Port == "443" || URL.Protocol == url::KProtocol::HTTPS || bForceSSL)
 	{
 		return std::make_unique<KSSLConnection>(KTCPEndPoint(Domain, Port), bVerifyCerts, bAllowSSLv2v3);
 	}

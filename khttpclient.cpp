@@ -245,7 +245,10 @@ bool KHTTPClient::Request(KStringView svPostData, KStringView svMime)
 		RequestHeader(KHTTPHeader::CONTENT_TYPE,   svMime.empty() ? KMIME::TEXT_PLAIN : svMime);
 	}
 
-	RequestHeader(KHTTPHeader::ACCEPT_ENCODING, "gzip");
+	if (m_bRequestCompression)
+	{
+		RequestHeader(KHTTPHeader::ACCEPT_ENCODING, "gzip");
+	}
 
 	Stream.WriteLine();
 

@@ -187,6 +187,13 @@ public:
 		return m_sError;
 	}
 
+	//-----------------------------------------------------------------------------
+	void RequestCompression(bool bYesNo)
+	//-----------------------------------------------------------------------------
+	{
+		m_bRequestCompression = bYesNo;
+	}
+
 	// alternative interface
 
 	//-----------------------------------------------------------------------------
@@ -235,6 +242,7 @@ private:
 	mutable KString m_sError;
 	State m_State { State::CLOSED };
 	long m_Timeout { 30 };
+	bool m_bRequestCompression { true };
 
 }; // KHTTPClient
 

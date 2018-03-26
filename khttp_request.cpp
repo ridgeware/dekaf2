@@ -99,6 +99,22 @@ bool KHTTPRequest::Serialize(KOutStream& Stream) const
 } // Serialize
 
 //-----------------------------------------------------------------------------
+bool KHTTPRequest::HasChunking() const
+//-----------------------------------------------------------------------------
+{
+	if (HTTPVersion() == "HTTP/1.0" || HTTPVersion() == "HTTP/0.9")
+	{
+		return false;
+	}
+	else
+	{
+		return true;
+	}
+
+} // HasChunking
+
+
+//-----------------------------------------------------------------------------
 void KHTTPRequest::clear()
 //-----------------------------------------------------------------------------
 {

@@ -297,7 +297,7 @@ bool KHTTPClient::ReadHeader()
 	KStringView sRemainingContentSize = m_ResponseHeader.Get(KHTTPHeader::content_length);
 	size_t      iRemainingContentSize = sRemainingContentSize.UInt64();
 
-	bool bTEChunked          = m_ResponseHeader.Get(KHTTPHeader::transfer_encoding) == "chunked";
+	bool bTEChunked          = m_ResponseHeader.HasChunking();
 	KStringView sCompression = m_ResponseHeader.Get(KHTTPHeader::content_encoding);
 
 	// start setting up the input filter queue

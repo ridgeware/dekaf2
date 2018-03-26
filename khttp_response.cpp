@@ -102,6 +102,14 @@ bool KHTTPResponse::Serialize(KOutStream& Stream) const
 } // Serialize
 
 //-----------------------------------------------------------------------------
+bool KHTTPResponse::HasChunking() const
+//-----------------------------------------------------------------------------
+{
+	return Get(KHTTPHeader::transfer_encoding) == "chunking";
+
+} // HasChunking
+
+//-----------------------------------------------------------------------------
 void KHTTPResponse::clear()
 //-----------------------------------------------------------------------------
 {

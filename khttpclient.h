@@ -194,6 +194,13 @@ public:
 		m_bRequestCompression = bYesNo;
 	}
 
+	//-----------------------------------------------------------------------------
+	void Uncompress(bool bYesNo)
+	//-----------------------------------------------------------------------------
+	{
+		m_bPerformUncompression = bYesNo;
+	}
+
 	// alternative interface
 
 	//-----------------------------------------------------------------------------
@@ -243,6 +250,7 @@ private:
 	State m_State { State::CLOSED };
 	long m_Timeout { 30 };
 	bool m_bRequestCompression { true };
+	bool m_bPerformUncompression { true };
 
 }; // KHTTPClient
 

@@ -298,20 +298,24 @@ bool KHTTPClient::ReadHeader()
 	size_t      iRemainingContentSize = sRemainingContentSize.UInt64();
 
 	bool bTEChunked          = m_ResponseHeader.HasChunking();
-	KStringView sCompression = m_ResponseHeader.Get(KHTTPHeader::content_encoding);
 
 	// start setting up the input filter queue
 	m_Filter = std::make_unique<boost::iostreams::filtering_istream>();
 
-	if (sCompression == "gzip" || sCompression == "x-gzip")
+	if (m_bPerformUncompression)
 	{
-		kDebug(2, "using {} decompression", sCompression);
-		m_Filter->push(boost::iostreams::gzip_decompressor());
-	}
-	else if (sCompression == "deflate")
-	{
-		kDebug(2, "using zlib / {} decompression", sCompression);
-		m_Filter->push(boost::iostreams::zlib_decompressor());
+		KStringView sCompression = m_ResponseHeader.Get(KHTTPHeader::content_encoding);
+		
+		if (sCompression == "gzip" || sCompression == "x-gzip")
+		{
+			kDebug(2, "using {} decompression", sCompression);
+			m_Filter->push(boost::iostreams::gzip_decompressor());
+		}
+		else if (sCompression == "deflate")
+		{
+			kDebug(2, "using zlib / {} decompression", sCompression);
+			m_Filter->push(boost::iostreams::zlib_decompressor());
+		}
 	}
 
 	kDebug(2, "content transfer: {}", bTEChunked ? "chunked" : "plain");

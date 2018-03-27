@@ -74,7 +74,6 @@
 
 #include <cinttypes>
 #include <thread>
-#include <boost/asio/ip/tcp.hpp>
 #include <boost/asio/io_service.hpp>
 #include "kstream.h"
 #include "kstring.h"
@@ -93,7 +92,6 @@ public:
 //-------
 
 	using self_type     = KTCPServer;
-	using endpoint_type = boost::asio::ip::tcp::acceptor::endpoint_type;
 
 	//-----------------------------------------------------------------------------
 	/// Construct a server, but do not yet start it.
@@ -101,9 +99,21 @@ public:
 	/// @param bSSL If true will use SSL/TLS
 	KTCPServer(uint16_t iPort, bool bSSL, uint16_t iMaxConnections = 50)
 	//-----------------------------------------------------------------------------
-	    : m_iPort(iPort)
-	    , m_iMaxConnections(iMaxConnections)
-	    , m_bIsSSL(bSSL)
+	: m_iPort(iPort)
+	, m_iMaxConnections(iMaxConnections)
+	, m_bIsSSL(bSSL)
+	{
+	}
+
+	//-----------------------------------------------------------------------------
+	/// Construct a server, but do not yet start it.
+	/// @param sSocketFile Unix domain socket to bind to
+	KTCPServer(KStringView sSocketFile, uint16_t iMaxConnections = 50)
+	//-----------------------------------------------------------------------------
+	: m_sSocketFile(sSocketFile)
+	, m_iPort(0)
+	, m_iMaxConnections(iMaxConnections)
+	, m_bIsSSL(false)
 	{
 	}
 
@@ -181,12 +191,6 @@ public:
 	{
 		return m_ipv6_server || m_ipv4_server;
 	}
-
-	//-----------------------------------------------------------------------------
-	/// Converts an endpoint type into a human readable string. Could be used for
-	/// logging.
-	static KString to_string(const endpoint_type& endpoint);
-	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// Checks if the given port can be bound to
@@ -268,7 +272,11 @@ private:
 //-------
 
 	//-----------------------------------------------------------------------------
-	void Server(bool ipv6);
+	void TCPServer(bool ipv6);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	void UnixServer();
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -282,6 +290,7 @@ private:
 	boost::asio::io_service m_asio;
 	std::unique_ptr<std::thread> m_ipv4_server;
 	std::unique_ptr<std::thread> m_ipv6_server;
+	KString m_sSocketFile;
 	KString m_sCert;
 	KString m_sPem;
 	uint16_t m_iPort { 0 };

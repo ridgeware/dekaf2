@@ -67,6 +67,7 @@
 
 */
 
+#include <boost/asio/ip/tcp.hpp>
 #include <boost/asio/ip/v6_only.hpp>
 #include <boost/asio/basic_socket_iostream.hpp>
 #include <boost/system/system_error.hpp>
@@ -74,12 +75,27 @@
 #include "ktcpserver.h"
 #include "ksslstream.h"
 #include "ktcpstream.h"
+#include "kunixstream.h"
 #include "klog.h"
 
 namespace dekaf2
 {
 
 using asio::ip::tcp;
+using endpoint_type = boost::asio::ip::tcp::acceptor::endpoint_type;
+
+//-----------------------------------------------------------------------------
+/// Converts an endpoint type into a human readable string. Could be used for
+/// logging.
+static KString to_string(const endpoint_type& endpoint)
+//-----------------------------------------------------------------------------
+{
+	KString sEndpoint;
+	sEndpoint.Format("{}:{}",
+					 endpoint.address().to_string(),
+					 endpoint.port());
+	return sEndpoint;
+}
 
 //-----------------------------------------------------------------------------
 bool KTCPServer::Accepted(KStream& stream, KStringView sRemoteEndPoint)
@@ -191,7 +207,7 @@ bool KTCPServer::IsPortAvailable(uint16_t iPort)
 } // IsPortAvailable
 
 //-----------------------------------------------------------------------------
-void KTCPServer::Server(bool ipv6)
+void KTCPServer::TCPServer(bool ipv6)
 //-----------------------------------------------------------------------------
 {
 	try
@@ -215,12 +231,12 @@ void KTCPServer::Server(bool ipv6)
 					// is not working, and blocking construction is requested)
 					if (!acceptor.is_open() && m_bBlock)
 					{
-						Server(false);
+						TCPServer(false);
 					}
 					else
 					{
 						// else open v4 explicitly in another thread
-						m_ipv4_server = std::make_unique<std::thread>(&KTCPServer::Server, this, false);
+						m_ipv4_server = std::make_unique<std::thread>(&KTCPServer::TCPServer, this, false);
 					}
 				}
 			}
@@ -288,7 +304,61 @@ void KTCPServer::Server(bool ipv6)
 		kUnknownException();
 	}
 
-} // Server
+} // TCPServer
+
+//-----------------------------------------------------------------------------
+void KTCPServer::UnixServer()
+//-----------------------------------------------------------------------------
+{
+	try
+	{
+		asio::ip::v6_only v6_only(false);
+
+		boost::asio::local::stream_protocol::endpoint local_endpoint(m_sSocketFile.c_str());
+		boost::asio::local::stream_protocol::acceptor acceptor(m_asio, local_endpoint);
+		if (!acceptor.is_open())
+		{
+			kWarning("listener for socket file {} could not open", m_sSocketFile);
+		}
+		else
+		{
+			while (acceptor.is_open() && !m_bQuit)
+			{
+				auto stream = CreateKUnixStream();
+				acceptor.accept(stream->GetUnixSocket());
+				if (!m_bQuit)
+				{
+					stream->Timeout(m_iTimeout);
+					std::thread(&KTCPServer::RunSession, this, std::move(stream), KString{}).detach();
+				}
+
+				while (m_iOpenConnections > m_iMaxConnections)
+				{
+					// this may actually trigger a few threads too late,
+					// but we do not care too much about
+					usleep(100);
+				}
+
+			}
+
+			if (!acceptor.is_open() && !m_bQuit)
+			{
+				kWarning("listener for socket file {} has closed", m_sSocketFile);
+			}
+		}
+	}
+
+	catch (const std::exception& e)
+	{
+		kException(e);
+	}
+
+	catch (...)
+	{
+		kUnknownException();
+	}
+
+} // UnixServer
 
 //-----------------------------------------------------------------------------
 bool KTCPServer::SetSSLCertificate(KStringView sCert, KStringView sPem)
@@ -324,11 +394,25 @@ bool KTCPServer::Start(uint16_t iTimeoutInSeconds, bool bBlock)
 
 	if (m_bBlock)
 	{
-		Server(m_bStartIPv6);
+		if (m_sSocketFile.empty())
+		{
+			TCPServer(m_bStartIPv6);
+		}
+		else
+		{
+			UnixServer();
+		}
 	}
 	else
 	{
-		m_ipv6_server = std::make_unique<std::thread>(&KTCPServer::Server, this, m_bStartIPv6);
+		if (m_sSocketFile.empty())
+		{
+			m_ipv6_server = std::make_unique<std::thread>(&KTCPServer::TCPServer, this, m_bStartIPv6);
+		}
+		else
+		{
+			m_ipv6_server = std::make_unique<std::thread>(&KTCPServer::UnixServer, this);
+		}
 	}
 
 	sleep(1);
@@ -341,23 +425,31 @@ bool KTCPServer::Start(uint16_t iTimeoutInSeconds, bool bBlock)
 void KTCPServer::StopServerThread(bool ipv6)
 //-----------------------------------------------------------------------------
 {
-	// now connect to localhost on the listen port
-	boost::asio::ip::address localhost;
-	if (ipv6)
+	if (!m_sSocketFile.empty())
 	{
-		localhost.from_string("::1");
+		// connect to socket file
+		boost::asio::local::stream_protocol::socket s(m_asio);
+		s.connect(boost::asio::local::stream_protocol::endpoint(m_sSocketFile.c_str()));
 	}
 	else
 	{
-		localhost.from_string("127.0.0.1");
+		boost::asio::ip::address localhost;
+		// now connect to localhost on the listen port
+		if (ipv6)
+		{
+			localhost.from_string("::1");
+		}
+		else
+		{
+			localhost.from_string("127.0.0.1");
+		}
+		tcp::endpoint remote_endpoint(localhost, m_iPort);
+
+		boost::asio::io_service io_service;
+		boost::asio::ip::tcp::socket socket(io_service);
+
+		socket.connect(remote_endpoint);
 	}
-	tcp::endpoint remote_endpoint(localhost, m_iPort);
-
-	boost::asio::io_service io_service;
-	boost::asio::ip::tcp::socket socket(io_service);
-
-	socket.connect(remote_endpoint);
-
 } // StopServerThread
 
 //-----------------------------------------------------------------------------
@@ -412,17 +504,6 @@ KTCPServer::param_t KTCPServer::CreateParameters()
 //-----------------------------------------------------------------------------
 {
 	return std::make_unique<Parameters>();
-}
-
-//-----------------------------------------------------------------------------
-KString KTCPServer::to_string(const endpoint_type& endpoint)
-//-----------------------------------------------------------------------------
-{
-	KString sEndpoint;
-	sEndpoint.Format("{}:{}",
-	                 endpoint.address().to_string(),
-	                 endpoint.port());
-	return sEndpoint;
 }
 
 //-----------------------------------------------------------------------------

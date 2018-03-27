@@ -263,7 +263,7 @@ set (HEADERS
 	ktcpserver.h
 	ktcpstream.h
 	ktimer.h
-	kunixstreams.h
+	kunixstream.h
 	kurl.h
 	kurlencode.h
 	kuseragent.h
@@ -327,7 +327,7 @@ set (SOURCES
 	ktcpserver.cpp
 	ktcpstream.cpp
 	ktimer.cpp
-	kunixstreams.cpp
+	kunixstream.cpp
 	kurl.cpp
 	kurlencode.cpp
 	kwords.cpp

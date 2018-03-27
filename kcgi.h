@@ -149,7 +149,7 @@ public:
 	/// incoming http request method: GET, POST, etc.
 	KStringView GetRequestMethod() const
 	{
-		return m_sRequestMethod;
+		return m_HTTPRequest.Method().Serialize();
 	}
 
 	// these getters expect the unencoded / decoded form of the URL parts..
@@ -205,7 +205,7 @@ protected:
 	/// set incoming http request method: GET, POST, etc.
 	void SetRequestMethod(KStringView sMethod)
 	{
-		m_sRequestMethod = sMethod;
+		m_HTTPRequest.Method() = sMethod;
 	}
 
 	/// set Path component
@@ -245,7 +245,6 @@ private:
 		return (m_bIsFCGI);
 	}
 
-	KString      m_sRequestMethod;
 	KString      m_sPostData; // aka body
 	KHTTPRequest m_HTTPRequest;
 

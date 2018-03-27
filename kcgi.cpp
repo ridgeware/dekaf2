@@ -133,7 +133,6 @@ void KCGI::init (bool bResetStreams)
 {
 	m_sError.clear();
 	m_sCommentDelim.clear();
-	m_sRequestMethod.clear();
 	m_HTTPRequest.clear();
 
 	if (bResetStreams)
@@ -179,8 +178,6 @@ bool KCGI::ReadHeaders ()
 		kDebug(1, "KCGI: cannot parse request header successfully");
 		return false;
 	}
-
-	m_sRequestMethod = m_HTTPRequest.Method();
 
 	return true;
 

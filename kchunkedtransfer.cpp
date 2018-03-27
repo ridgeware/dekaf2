@@ -85,6 +85,11 @@ std::streamsize KChunkedSource::read(char* s, std::streamsize n)
 				return iResult;
 			}
 		}
+		else
+		{
+			// gcc would warn otherwise
+			c = 0;
+		}
 
 		switch (m_State)
 		{

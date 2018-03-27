@@ -46,6 +46,7 @@
 #elif DEKAF2_IS_WINDOWS
 #include "Mswsock.h" // WSAPoll
 #endif
+#include <openssl/ssl.h>
 #include "ksslstream.h"
 #include "klog.h"
 
@@ -66,7 +67,8 @@ KSSLIOStream::POLLSTATE KSSLIOStream::timeout(bool bForReading, Stream_t* stream
 			return POLL_SUCCESS;
 		}
 		// now check in the read BIO buffers
-		if (BIO_pending(stream->Socket.native_handle()->rbio))
+		BIO* bio = SSL_get_rbio(stream->Socket.native_handle());
+		if (BIO_pending(bio))
 		{
 			// yes - return immediately
 			return POLL_SUCCESS;

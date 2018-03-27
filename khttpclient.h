@@ -73,6 +73,7 @@ public:
 		HEADER_SET,
 		REQUEST_SENT,
 		HEADER_PARSED,
+		FILTER_CREATED,
 		CONTENT_READ,
 		CLOSED
 	};
@@ -242,8 +243,12 @@ protected:
 private:
 //------
 
+	//-----------------------------------------------------------------------------
+	bool SetupInputFilter();
+	//-----------------------------------------------------------------------------
+
 	std::unique_ptr<KConnection> m_Connection;
-	std::unique_ptr<boost::iostreams::filtering_istream> m_Filter;
+	boost::iostreams::filtering_istream m_Filter;
 	KHTTPMethod m_Method;
 	KHTTPResponse m_ResponseHeader;
 	mutable KString m_sError;
@@ -251,6 +256,29 @@ private:
 	long m_Timeout { 30 };
 	bool m_bRequestCompression { true };
 	bool m_bPerformUncompression { true };
+
+	enum COMP
+	{
+		NONE,
+		GZIP,
+		ZLIB
+	};
+
+	struct FilterParms_t
+	{
+		COMP compression { NONE };
+		bool chunked { false };
+		std::streamsize content_size { -1 };
+
+		void clear()
+		{
+			compression = NONE;
+			chunked = false;
+			content_size = -1;
+		}
+	};
+
+	FilterParms_t m_FilterParms;
 
 }; // KHTTPClient
 

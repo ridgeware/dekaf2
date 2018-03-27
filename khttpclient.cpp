@@ -293,41 +293,30 @@ bool KHTTPClient::ReadHeader()
 		return false;
 	}
 
+	m_FilterParms.clear();
+
 	// find the content length
 	KStringView sRemainingContentSize = m_ResponseHeader.Get(KHTTPHeader::content_length);
-	size_t      iRemainingContentSize = sRemainingContentSize.UInt64();
-
-	bool bTEChunked          = m_ResponseHeader.HasChunking();
-
-	// start setting up the input filter queue
-	m_Filter = std::make_unique<boost::iostreams::filtering_istream>();
-
-	if (m_bPerformUncompression)
+	if (!sRemainingContentSize.empty())
 	{
-		KStringView sCompression = m_ResponseHeader.Get(KHTTPHeader::content_encoding);
-		
-		if (sCompression == "gzip" || sCompression == "x-gzip")
-		{
-			kDebug(2, "using {} decompression", sCompression);
-			m_Filter->push(boost::iostreams::gzip_decompressor());
-		}
-		else if (sCompression == "deflate")
-		{
-			kDebug(2, "using zlib / {} decompression", sCompression);
-			m_Filter->push(boost::iostreams::zlib_decompressor());
-		}
+		m_FilterParms.content_size = sRemainingContentSize.UInt64();
 	}
 
-	kDebug(2, "content transfer: {}", bTEChunked ? "chunked" : "plain");
-	kDebug(2, "content length:   {}", iRemainingContentSize);
+	m_FilterParms.chunked = m_ResponseHeader.HasChunking();
 
-	// we use the chunked reader also in the unchunked case -
-	// it protects us from reading more than content length bytes
-	// into the buffered iostreams
-	KChunkedSource Source(Stream, bTEChunked, sRemainingContentSize.empty() ? -1 : iRemainingContentSize);
+	KStringView sCompression = m_ResponseHeader.Get(KHTTPHeader::content_encoding);
 
-	// and finally add our source stream to the filtering_istream
-	m_Filter->push(Source);
+	if (sCompression == "gzip" || sCompression == "x-gzip")
+	{
+		m_FilterParms.compression = GZIP;
+	}
+	else if (sCompression == "deflate")
+	{
+		m_FilterParms.compression = ZLIB;
+	}
+
+	kDebug(2, "content transfer: {}", m_FilterParms.chunked ? "chunked" : "plain");
+	kDebug(2, "content length:   {}", m_FilterParms.content_size);
 
 	m_State = State::HEADER_PARSED;
 
@@ -335,13 +324,62 @@ bool KHTTPClient::ReadHeader()
 
 } // ReadHeader
 
+//-----------------------------------------------------------------------------
+bool KHTTPClient::SetupInputFilter()
+//-----------------------------------------------------------------------------
+{
+	// we lazy-create the input filter chain because we want to give
+	// the user the chance to switch off compression AFTER reading
+	// the headers
+
+	if (m_State != State::HEADER_PARSED)
+	{
+		return SetError("bad state - cannot setup input filter");
+	}
+
+	m_Filter.reset();
+
+	if (m_bPerformUncompression)
+	{
+		if (m_FilterParms.compression == GZIP)
+		{
+			kDebug(2, "using gzip decompression");
+			m_Filter.push(boost::iostreams::gzip_decompressor());
+		}
+		else if (m_FilterParms.compression == ZLIB)
+		{
+			kDebug(2, "using zlib decompression");
+			m_Filter.push(boost::iostreams::zlib_decompressor());
+		}
+	}
+
+	// we use the chunked reader also in the unchunked case -
+	// it protects us from reading more than content length bytes
+	// into the buffered iostreams
+	KChunkedSource Source(m_Connection->Stream(),
+						  m_FilterParms.chunked,
+						  m_FilterParms.content_size);
+
+	// and finally add our source stream to the filtering_istream
+	m_Filter.push(Source);
+
+	m_State = State::FILTER_CREATED;
+
+	return true;
+
+} // SetupInputFilter
 
 //-----------------------------------------------------------------------------
 /// Stream into outstream
 size_t KHTTPClient::Read(KOutStream& stream, size_t len)
 //-----------------------------------------------------------------------------
 {
-	if (m_State != State::HEADER_PARSED)
+	if (m_State == State::HEADER_PARSED)
+	{
+		SetupInputFilter();
+	}
+
+	if (m_State != State::FILTER_CREATED)
 	{
 		SetError("bad state - cannot read data");
 		return 0;
@@ -351,7 +389,7 @@ size_t KHTTPClient::Read(KOutStream& stream, size_t len)
 		SetError("no stream");
 		return 0;
 	}
-	else if (!m_Filter->good())
+	else if (!m_Filter.good())
 	{
 		SetError(m_Connection->Error());
 		return 0;
@@ -361,14 +399,14 @@ size_t KHTTPClient::Read(KOutStream& stream, size_t len)
 	{
 		// read until eof
 		// ignore len, copy full stream
-		stream.OutStream() << m_Filter->rdbuf();
+		stream.OutStream() << m_Filter.rdbuf();
 	}
 	{
-		KInStream istream(*m_Filter);
+		KInStream istream(m_Filter);
 		stream.Write(istream, len);
 	}
 
-	if (m_Filter->eof())
+	if (m_Filter.eof())
 	{
 		m_State = State::CONTENT_READ;
 	}
@@ -382,7 +420,12 @@ size_t KHTTPClient::Read(KOutStream& stream, size_t len)
 size_t KHTTPClient::Read(KString& sBuffer, size_t len)
 //-----------------------------------------------------------------------------
 {
-	if (m_State != State::HEADER_PARSED)
+	if (m_State == State::HEADER_PARSED)
+	{
+		SetupInputFilter();
+	}
+
+	if (m_State != State::FILTER_CREATED)
 	{
 		SetError("bad state - cannot read data");
 		return 0;
@@ -392,7 +435,7 @@ size_t KHTTPClient::Read(KString& sBuffer, size_t len)
 		SetError("no stream");
 		return 0;
 	}
-	else if (!m_Filter->good())
+	else if (!m_Filter.good())
 	{
 		SetError(m_Connection->Error());
 		return 0;
@@ -402,15 +445,15 @@ size_t KHTTPClient::Read(KString& sBuffer, size_t len)
 	{
 		// read until eof
 		KOStringStream stream(sBuffer);
-		stream << m_Filter->rdbuf();
+		stream << m_Filter.rdbuf();
 	}
 	else
 	{
-		KInStream istream(*m_Filter);
+		KInStream istream(m_Filter);
 		istream.Read(sBuffer, len);
 	}
 
-	if (m_Filter->eof())
+	if (m_Filter.eof())
 	{
 		m_State = State::CONTENT_READ;
 	}
@@ -426,7 +469,12 @@ bool KHTTPClient::ReadLine(KString& sBuffer)
 {
 	sBuffer.clear();
 
-	if (m_State != State::HEADER_PARSED)
+	if (m_State == State::HEADER_PARSED)
+	{
+		SetupInputFilter();
+	}
+
+	if (m_State != State::FILTER_CREATED)
 	{
 		return SetError("bad state - cannot read data");
 	}
@@ -435,25 +483,25 @@ bool KHTTPClient::ReadLine(KString& sBuffer)
 		SetError("no stream");
 		return false;
 	}
-	else if (m_Filter->eof())
+	else if (m_Filter.eof())
 	{
 		m_State = State::CONTENT_READ;
 		return false;
 	}
-	else if (!m_Filter->good())
+	else if (!m_Filter.good())
 	{
 		SetError(m_Connection->Error());
 		return false;
 	}
 
-	KInStream istream(*m_Filter);
+	KInStream istream(m_Filter);
 	if (!istream.ReadLine(sBuffer))
 	{
 		SetError(m_Connection->Error());
 		return false;
 	}
 
-	if (m_Filter->eof())
+	if (m_Filter.eof())
 	{
 		m_State = State::CONTENT_READ;
 	}

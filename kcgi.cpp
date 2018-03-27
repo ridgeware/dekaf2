@@ -133,7 +133,7 @@ void KCGI::init (bool bResetStreams)
 {
 	m_sError.clear();
 	m_sCommentDelim.clear();
-	m_HTTPRequest.clear();
+	KHTTPRequest::clear();
 
 	if (bResetStreams)
 	{
@@ -173,7 +173,7 @@ bool KCGI::ReadHeaders ()
 
 	kDebug (1, "KCGI: reading headers and post data...");
 
-	if (!m_HTTPRequest.Parse(*m_Reader))
+	if (!KHTTPRequest::Parse(*m_Reader))
 	{
 		kDebug(1, "KCGI: cannot parse request header successfully");
 		return false;
@@ -254,7 +254,7 @@ bool KCGI::GetNextRequest (KStringView sFilename /*= KStringView{}*/, KStringVie
 		// in case we are running within a web server that sets these:
 		SetRequestMethod(GetVar (KCGI::REQUEST_METHOD));
 		SetRequestURI(GetVar (KCGI::REQUEST_URI));
-		m_HTTPRequest.Resource().Query = GetVar (KCGI::QUERY_STRING);
+		KHTTPRequest::Resource().Query = GetVar (KCGI::QUERY_STRING);
 
 		// if environment vars not set, expect them in the input stream:
 		if (GetRequestMethod().empty() && !ReadHeaders())

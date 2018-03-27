@@ -57,7 +57,7 @@ namespace dekaf2 {
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// A common interface class for both CGI and FCGI requests.
-class KCGI
+class KCGI : public KHTTPRequest
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 //------
@@ -149,7 +149,7 @@ public:
 	/// incoming http request method: GET, POST, etc.
 	KStringView GetRequestMethod() const
 	{
-		return m_HTTPRequest.Method().Serialize();
+		return KHTTPRequest::Method().Serialize();
 	}
 
 	// these getters expect the unencoded / decoded form of the URL parts..
@@ -157,13 +157,13 @@ public:
 	/// incoming Path component
 	const KString& GetRequestPath() const
 	{
-		return m_HTTPRequest.Resource().Path.get();
+		return KHTTPRequest::Resource().Path.get();
 	}
 
 	/// incoming http protocol and version as defined in status header
 	const KString& GetHTTPProtocol() const
 	{
-		return m_HTTPRequest.HTTPVersion();
+		return KHTTPRequest::HTTPVersion();
 	}
 
 	/// raw, unprocessed incoming POST data
@@ -175,13 +175,13 @@ public:
 	/// incoming request headers
 	const HeadersT& GetRequestHeaders() const
 	{
-		return m_HTTPRequest.Get();
+		return KHTTPRequest::Get();
 	}
 
 	/// incoming query parms off request URI
 	const QueryParmsT& GetQueryParms() const
 	{
-		return m_HTTPRequest.Resource().Query.get();
+		return KHTTPRequest::Resource().Query.get();
 	}
 
 	/// returns last error message
@@ -197,7 +197,7 @@ protected:
 	/// set incoming URL including the query string (this actually decodes / parses the input)
 	void SetRequestURI(KStringView sURI)
 	{
-		m_HTTPRequest.Resource() = sURI;
+		KHTTPRequest::Resource() = sURI;
 	}
 
 	// these setters set the unencoded / decoded form of the URL parts..
@@ -205,13 +205,13 @@ protected:
 	/// set incoming http request method: GET, POST, etc.
 	void SetRequestMethod(KStringView sMethod)
 	{
-		m_HTTPRequest.Method() = sMethod;
+		KHTTPRequest::Method() = sMethod;
 	}
 
 	/// set Path component
 	void SetRequestPath(KStringView sPath)
 	{
-		m_HTTPRequest.Resource().Path.set(sPath);
+		KHTTPRequest::Resource().Path.set(sPath);
 	}
 
 	/// raw, unprocessed incoming POST data
@@ -223,13 +223,13 @@ protected:
 	/// add incoming request headers
 	void AddRequestHeaders(KStringView sName, KStringView sValue)
 	{
-		m_HTTPRequest.Set(sName, sValue);
+		KHTTPRequest::Set(sName, sValue);
 	}
 
 	/// add incoming query parms off request URI
 	void AddQueryParms(KStringView sName, KStringView sValue)
 	{
-		m_HTTPRequest.Resource().Query->Add(sName, sValue);
+		KHTTPRequest::Resource().Query->Add(sName, sValue);
 	}
 
 	/// reset all class members for next request
@@ -246,7 +246,6 @@ private:
 	}
 
 	KString      m_sPostData; // aka body
-	KHTTPRequest m_HTTPRequest;
 
 	KString                     m_sError;
 	KString                     m_sCommentDelim;

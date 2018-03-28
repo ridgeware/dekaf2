@@ -47,66 +47,6 @@
 
 namespace dekaf2 {
 
-#if !defined(DEKAF2_NO_GCC) && (DEKAF2_GCC_VERSION < 70000)
-
-constexpr KStringView KHeader::AUTH_PASSWORD;
-constexpr KStringView KHeader::AUTH_TYPE;
-constexpr KStringView KHeader::AUTH_USER;
-constexpr KStringView KHeader::CERT_COOKIE;
-constexpr KStringView KHeader::CERT_FLAGS;
-constexpr KStringView KHeader::CERT_ISSUER;
-constexpr KStringView KHeader::CERT_KEYSIZE;
-constexpr KStringView KHeader::CERT_SECRETKEYSIZE;
-constexpr KStringView KHeader::CERT_SERIALNUMBER;
-constexpr KStringView KHeader::CERT_SERVER_ISSUER;
-constexpr KStringView KHeader::CERT_SERVER_SUBJECT;
-constexpr KStringView KHeader::CERT_SUBJECT;
-constexpr KStringView KHeader::CF_TEMPLATE_PATH;
-constexpr KStringView KHeader::CONTENT_LENGTH;
-constexpr KStringView KHeader::CONTENT_TYPE;
-constexpr KStringView KHeader::CONTEXT_PATH;
-constexpr KStringView KHeader::GATEWAY_INTERFACE;
-constexpr KStringView KHeader::HTTPS;
-constexpr KStringView KHeader::HTTPS_KEYSIZE;
-constexpr KStringView KHeader::HTTPS_SECRETKEYSIZE;
-constexpr KStringView KHeader::HTTPS_SERVER_ISSUER;
-constexpr KStringView KHeader::HTTPS_SERVER_SUBJECT;
-constexpr KStringView KHeader::HTTP_ACCEPT;
-constexpr KStringView KHeader::HTTP_ACCEPT_ENCODING;
-constexpr KStringView KHeader::HTTP_ACCEPT_LANGUAGE;
-constexpr KStringView KHeader::HTTP_CONNECTION;
-constexpr KStringView KHeader::HTTP_COOKIE;
-constexpr KStringView KHeader::HTTP_HOST;
-constexpr KStringView KHeader::HTTP_REFERER;
-constexpr KStringView KHeader::HTTP_USER_AGENT;
-constexpr KStringView KHeader::QUERY_STRING;
-constexpr KStringView KHeader::REMOTE_ADDR;
-constexpr KStringView KHeader::REMOTE_HOST;
-constexpr KStringView KHeader::REMOTE_USER;
-constexpr KStringView KHeader::REQUEST_METHOD;
-constexpr KStringView KHeader::REQUEST_URI;
-constexpr KStringView KHeader::SCRIPT_NAME;
-constexpr KStringView KHeader::SERVER_NAME;
-constexpr KStringView KHeader::SERVER_PORT;
-constexpr KStringView KHeader::SERVER_PORT_SECURE;
-constexpr KStringView KHeader::SERVER_PROTOCOL;
-constexpr KStringView KHeader::SERVER_SOFTWARE;
-constexpr KStringView KHeader::WEB_SERVER_API;
-
-constexpr KStringView KHeader::GET;
-constexpr KStringView KHeader::HEAD;
-constexpr KStringView KHeader::POST;
-constexpr KStringView KHeader::PUT;
-constexpr KStringView KHeader::DELETE;
-constexpr KStringView KHeader::CONNECT;
-constexpr KStringView KHeader::OPTIONS;
-constexpr KStringView KHeader::TRACE;
-constexpr KStringView KHeader::PATCH;
-
-constexpr KStringView KHeader::FCGI_WEB_SERVER_ADDRS;
-
-#endif
-
 //-----------------------------------------------------------------------------
 KCGI::KCGI()
 //-----------------------------------------------------------------------------
@@ -348,5 +288,55 @@ bool KCGI::GetNextRequest (KStringView sFilename /*= KStringView{}*/, KStringVie
 	return (false); // no more requests
 
 } // GetNextRequest
+
+#if !defined(DEKAF2_NO_GCC) && (DEKAF2_GCC_VERSION < 70000)
+
+constexpr KStringView KHeader::AUTH_PASSWORD;
+constexpr KStringView KHeader::AUTH_TYPE;
+constexpr KStringView KHeader::AUTH_USER;
+constexpr KStringView KHeader::CERT_COOKIE;
+constexpr KStringView KHeader::CERT_FLAGS;
+constexpr KStringView KHeader::CERT_ISSUER;
+constexpr KStringView KHeader::CERT_KEYSIZE;
+constexpr KStringView KHeader::CERT_SECRETKEYSIZE;
+constexpr KStringView KHeader::CERT_SERIALNUMBER;
+constexpr KStringView KHeader::CERT_SERVER_ISSUER;
+constexpr KStringView KHeader::CERT_SERVER_SUBJECT;
+constexpr KStringView KHeader::CERT_SUBJECT;
+constexpr KStringView KHeader::CF_TEMPLATE_PATH;
+constexpr KStringView KHeader::CONTENT_LENGTH;
+constexpr KStringView KHeader::CONTENT_TYPE;
+constexpr KStringView KHeader::CONTEXT_PATH;
+constexpr KStringView KHeader::GATEWAY_INTERFACE;
+constexpr KStringView KHeader::HTTPS;
+constexpr KStringView KHeader::HTTPS_KEYSIZE;
+constexpr KStringView KHeader::HTTPS_SECRETKEYSIZE;
+constexpr KStringView KHeader::HTTPS_SERVER_ISSUER;
+constexpr KStringView KHeader::HTTPS_SERVER_SUBJECT;
+constexpr KStringView KHeader::HTTP_ACCEPT;
+constexpr KStringView KHeader::HTTP_ACCEPT_ENCODING;
+constexpr KStringView KHeader::HTTP_ACCEPT_LANGUAGE;
+constexpr KStringView KHeader::HTTP_CONNECTION;
+constexpr KStringView KHeader::HTTP_COOKIE;
+constexpr KStringView KHeader::HTTP_HOST;
+constexpr KStringView KHeader::HTTP_REFERER;
+constexpr KStringView KHeader::HTTP_USER_AGENT;
+constexpr KStringView KHeader::QUERY_STRING;
+constexpr KStringView KHeader::REMOTE_ADDR;
+constexpr KStringView KHeader::REMOTE_HOST;
+constexpr KStringView KHeader::REMOTE_USER;
+constexpr KStringView KHeader::REQUEST_METHOD;
+constexpr KStringView KHeader::REQUEST_URI;
+constexpr KStringView KHeader::SCRIPT_NAME;
+constexpr KStringView KHeader::SERVER_NAME;
+constexpr KStringView KHeader::SERVER_PORT;
+constexpr KStringView KHeader::SERVER_PORT_SECURE;
+constexpr KStringView KHeader::SERVER_PROTOCOL;
+constexpr KStringView KHeader::SERVER_SOFTWARE;
+constexpr KStringView KHeader::WEB_SERVER_API;
+
+constexpr KStringView KHeader::FCGI_WEB_SERVER_ADDRS;
+
+#endif
 
 } // dekaf2

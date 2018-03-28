@@ -285,6 +285,11 @@ KMIME KMail::MIME() const
 bool KMail::Send(const KURL& URL)
 //-----------------------------------------------------------------------------
 {
+	if (!Good())
+	{
+		return false;
+	}
+
 	KSMTP server;
 
 	if (!server.Connect(URL))

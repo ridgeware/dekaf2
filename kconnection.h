@@ -153,21 +153,21 @@ public:
 	KStream& Stream()
 	//-----------------------------------------------------------------------------
 	{
-		return *m_Stream.get();
+		return *StreamPtr();
 	}
 
 	//-----------------------------------------------------------------------------
 	KStream* operator->()
 	//-----------------------------------------------------------------------------
 	{
-		return m_Stream.get();
+		return StreamPtr();
 	}
 
 	//-----------------------------------------------------------------------------
 	KStream& operator*()
 	//-----------------------------------------------------------------------------
 	{
-		return Stream();
+		return *StreamPtr();
 	}
 
 	//-----------------------------------------------------------------------------
@@ -216,14 +216,14 @@ protected:
 	const KStream* StreamPtr() const
 	//-----------------------------------------------------------------------------
 	{
-		return m_Stream.get();
+		return m_Stream.get() ? m_Stream.get() : &m_Empty;
 	}
 
 	//-----------------------------------------------------------------------------
 	KStream* StreamPtr()
 	//-----------------------------------------------------------------------------
 	{
-		return m_Stream.get();
+		return m_Stream.get() ? m_Stream.get() : &m_Empty;
 	}
 
 	KTCPEndPoint m_Endpoint;
@@ -232,6 +232,7 @@ protected:
 private:
 //------
 
+	static KStringStream m_Empty;
 	std::unique_ptr<KStream> m_Stream;
 	bool m_bStreamIsNotOwned{false};
 

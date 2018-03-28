@@ -194,7 +194,7 @@ bool KCGI::ReadPostData (char chCommentDelim)
 			continue;
 		}
 		m_sPostData += sLine;
-		m_sPostData += "\r\n";
+		m_sPostData += "\n";
 	}
 
 	return (true);
@@ -262,7 +262,7 @@ bool KCGI::Parse(KInStream& Stream, char chCommentDelim)
 			continue;
 		}
 		m_sPostData += sLine;
-		m_sPostData += "\r\n";
+		m_sPostData += "\n";
 	}
 
 	kDebug (1, "KCGI: request#{}: {} {}, {} headers, {} query parms, {} bytes post data",

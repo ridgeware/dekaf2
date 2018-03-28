@@ -223,6 +223,7 @@ set (HEADERS
 	khash.h
 	khtmlentities.h
 	khttpclient.h
+	khttpinputfilter.h
 	khttp_header.h
 	khttp_method.h
 	khttp_request.h
@@ -293,6 +294,7 @@ set (SOURCES
 	khash.cpp
 	khtmlentities.cpp
 	khttpclient.cpp
+	khttpinputfilter.cpp
 	khttp_header.cpp
 	khttp_method.cpp
 	khttp_request.cpp

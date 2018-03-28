@@ -183,19 +183,18 @@ bool KCGI::ReadHeaders ()
 } // ReadHeaders
 
 //-----------------------------------------------------------------------------
-bool KCGI::ReadPostData ()
+bool KCGI::ReadPostData (char chCommentDelim)
 //-----------------------------------------------------------------------------
 {
-	// TODO: not coded for chunking (ignores Content-Length and reads to end of stdin right now)
-
-	KString   sLine;
-	while (m_Reader->ReadLine(sLine))
+	KString sLine;
+	while (ReadLine(*m_Reader, sLine))
 	{
-		if (!m_sCommentDelim.empty() && sLine.StartsWith(m_sCommentDelim)) {
+		if (chCommentDelim && !sLine.empty() && sLine.front() == chCommentDelim) {
 			kDebug (2, "KCGI: skipping comment line: {}", sLine);
 			continue;
 		}
 		m_sPostData += sLine;
+		m_sPostData += "\r\n";
 	}
 
 	return (true);
@@ -253,12 +252,18 @@ bool KCGI::Parse(KInStream& Stream, char chCommentDelim)
 		return (false);
 	}
 
-	auto iPostContentLen = KHTTPRequest::Get(KHTTPHeader::content_length).UInt64();
-	if (iPostContentLen)
+	// TODO separate post reader from header reader and offer a stream interface for it
+
+	KString sLine;
+	while (ReadLine(Stream, sLine))
 	{
-		Stream.Read(m_sPostData, iPostContentLen);
+		if (chCommentDelim && !sLine.empty() && sLine.front() == chCommentDelim) {
+			kDebug (2, "KCGI: skipping comment line: {}", sLine);
+			continue;
+		}
+		m_sPostData += sLine;
+		m_sPostData += "\r\n";
 	}
-	// TODO react or read on chunked POST transfers
 
 	kDebug (1, "KCGI: request#{}: {} {}, {} headers, {} query parms, {} bytes post data",
 			m_iNumRequests,
@@ -323,7 +328,7 @@ bool KCGI::GetNextRequest (KStringView sFilename /*= KStringView{}*/, KStringVie
 			return (false);
 		}
 
-		if (!ReadPostData())
+		if (!ReadPostData(m_sCommentDelim.front()))
 		{
 			// error message already set in ReadPostData()
 			return (false);

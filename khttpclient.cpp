@@ -46,9 +46,6 @@
 #include "kchunkedtransfer.h"
 #include "kstringstream.h"
 
-#include <boost/iostreams/filter/gzip.hpp>
-#include <boost/iostreams/filter/zlib.hpp>
-
 namespace dekaf2 {
 
 //-----------------------------------------------------------------------------
@@ -258,113 +255,25 @@ bool KHTTPClient::ReadHeader()
 		return false;
 	}
 
-	m_FilterParms.clear();
-
-	// find the content length
-	KStringView sRemainingContentSize = m_ResponseHeader.Get(KHTTPHeader::content_length);
-	if (!sRemainingContentSize.empty())
-	{
-		m_FilterParms.content_size = sRemainingContentSize.UInt64();
-	}
-
-	m_FilterParms.chunked = m_ResponseHeader.HasChunking();
-
-	KStringView sCompression = m_ResponseHeader.Get(KHTTPHeader::content_encoding);
-
-	if (sCompression == "gzip" || sCompression == "x-gzip")
-	{
-		m_FilterParms.compression = GZIP;
-	}
-	else if (sCompression == "deflate")
-	{
-		m_FilterParms.compression = ZLIB;
-	}
-
-	kDebug(2, "content transfer: {}", m_FilterParms.chunked ? "chunked" : "plain");
-	kDebug(2, "content length:   {}", m_FilterParms.content_size);
-
 	m_State = State::HEADER_PARSED;
 
-	return true;
+	// setup the input filter parameters
+	return m_Filter.Parse(m_ResponseHeader);
 
 } // ReadHeader
-
-//-----------------------------------------------------------------------------
-bool KHTTPClient::SetupInputFilter()
-//-----------------------------------------------------------------------------
-{
-	// we lazy-create the input filter chain because we want to give
-	// the user the chance to switch off compression AFTER reading
-	// the headers
-
-	if (m_State != State::HEADER_PARSED)
-	{
-		return SetError("bad state - cannot setup input filter");
-	}
-
-	m_Filter.reset();
-
-	if (m_bPerformUncompression)
-	{
-		if (m_FilterParms.compression == GZIP)
-		{
-			kDebug(2, "using gzip decompression");
-			m_Filter.push(boost::iostreams::gzip_decompressor());
-		}
-		else if (m_FilterParms.compression == ZLIB)
-		{
-			kDebug(2, "using zlib decompression");
-			m_Filter.push(boost::iostreams::zlib_decompressor());
-		}
-	}
-
-	// we use the chunked reader also in the unchunked case -
-	// it protects us from reading more than content length bytes
-	// into the buffered iostreams
-	KChunkedSource Source(*m_Connection,
-						  m_FilterParms.chunked,
-						  m_FilterParms.content_size);
-
-	// and finally add our source stream to the filtering_istream
-	m_Filter.push(Source);
-
-	m_State = State::FILTER_CREATED;
-
-	return true;
-
-} // SetupInputFilter
 
 //-----------------------------------------------------------------------------
 /// Stream into outstream
 size_t KHTTPClient::Read(KOutStream& stream, size_t len)
 //-----------------------------------------------------------------------------
 {
-	if (m_State == State::HEADER_PARSED)
-	{
-		SetupInputFilter();
-	}
-
-	if (m_State != State::FILTER_CREATED)
+	if (m_State != State::HEADER_PARSED)
 	{
 		SetError("bad state - cannot read data");
 		return 0;
 	}
-	else if (!m_Filter)
-	{
-		SetError("no stream");
-		return 0;
-	}
 
-	if (len == KString::npos)
-	{
-		// read until eof
-		// ignore len, copy full stream
-		stream.OutStream() << m_Filter.rdbuf();
-	}
-	{
-		KInStream istream(m_Filter);
-		stream.Write(istream, len);
-	}
+	m_Filter.Read(m_Connection.Stream(), stream, len);
 
 	if (m_Filter.eof())
 	{
@@ -380,33 +289,13 @@ size_t KHTTPClient::Read(KOutStream& stream, size_t len)
 size_t KHTTPClient::Read(KString& sBuffer, size_t len)
 //-----------------------------------------------------------------------------
 {
-	if (m_State == State::HEADER_PARSED)
-	{
-		SetupInputFilter();
-	}
-
-	if (m_State != State::FILTER_CREATED)
+	if (m_State != State::HEADER_PARSED)
 	{
 		SetError("bad state - cannot read data");
 		return 0;
 	}
-	else if (!m_Filter)
-	{
-		SetError("no stream");
-		return 0;
-	}
 
-	if (len == KString::npos)
-	{
-		// read until eof
-		KOStringStream stream(sBuffer);
-		stream << m_Filter.rdbuf();
-	}
-	else
-	{
-		KInStream istream(m_Filter);
-		istream.Read(sBuffer, len);
-	}
+	m_Filter.Read(m_Connection.Stream(), sBuffer, len);
 
 	if (m_Filter.eof())
 	{
@@ -424,28 +313,12 @@ bool KHTTPClient::ReadLine(KString& sBuffer)
 {
 	sBuffer.clear();
 
-	if (m_State == State::HEADER_PARSED)
-	{
-		SetupInputFilter();
-	}
-
-	if (m_State != State::FILTER_CREATED)
+	if (m_State != State::HEADER_PARSED)
 	{
 		return SetError("bad state - cannot read data");
 	}
-	else if (!m_Filter)
-	{
-		SetError("no stream");
-		return false;
-	}
-	else if (m_Filter.eof())
-	{
-		m_State = State::CONTENT_READ;
-		return false;
-	}
 
-	KInStream istream(m_Filter);
-	if (!istream.ReadLine(sBuffer))
+	if (!m_Filter.ReadLine(m_Connection.Stream(), sBuffer))
 	{
 		SetError(m_Connection.Error());
 		return false;

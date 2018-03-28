@@ -1,4 +1,5 @@
 /*
+ //-----------------------------------------------------------------------------//
  //
  // DEKAF(tm): Lighter, Faster, Smarter (tm)
  //
@@ -39,133 +40,158 @@
  // +-------------------------------------------------------------------------+
  */
 
-#include "khttp_request.h"
+#include <boost/iostreams/filter/gzip.hpp>
+#include <boost/iostreams/filter/zlib.hpp>
+
+#include "khttpinputfilter.h"
+#include "kchunkedtransfer.h"
+#include "kstringstream.h"
+
 
 namespace dekaf2 {
 
-
 //-----------------------------------------------------------------------------
-bool KHTTPRequest::Parse(KInStream& Stream)
+bool KHTTPInputFilter::Parse(const KHTTPHeader& headers)
 //-----------------------------------------------------------------------------
 {
-	KString sLine;
+	clear();
 
-	// make sure we detect an empty header
-	Stream.SetReaderRightTrim("\r\n");
-
-	if (!Stream.ReadLine(sLine))
+	// find the content length
+	KStringView sRemainingContentSize = headers.Get(KHTTPHeader::content_length);
+	if (!sRemainingContentSize.empty())
 	{
-		return SetError("cannot read input stream");
+		m_iContentSize = sRemainingContentSize.UInt64();
 	}
 
-	if (sLine.empty())
+	m_bChunked = headers.Get(KHTTPHeader::transfer_encoding) == "chunked";
+
+	KStringView sCompression = headers.Get(KHTTPHeader::content_encoding);
+	if (sCompression == "gzip" || sCompression == "x-gzip")
 	{
-		return SetError("empty request line");
+		m_Compression = GZIP;
+	}
+	else if (sCompression == "deflate")
+	{
+		m_Compression = ZLIB;
 	}
 
-	// analyze method and resource
-	// GET /some/page?query=search#fragment HTTP/1.1
+	kDebug(2, "content transfer: {}", m_bChunked ? "chunked" : "plain");
+	kDebug(2, "content length:   {}", m_iContentSize);
 
-	std::vector<KStringView> Words;
-	Words.reserve(3);
-	kSplit(Words, sLine, " ");
-
-	if (Words.size() != 3)
-	{
-		// garbage, bail out
-		return SetError("invalid HTTP header");
-	}
-
-	m_Method = Words[0];
-	m_Resource = Words[1];
-	HTTPVersion() = Words[2];
-
-	if (!HTTPVersion().StartsWith("HTTP/"))
-	{
-		return SetError("missing HTTP version in header");
-	}
-
-	if (!KHTTPHeader::Parse(Stream))
-	{
-		// never returns false actually, therefore no error to fetch
-		return false;
-	}
-
-	// set up the chunked reader
-	return KHTTPInputFilter::Parse(*this);
+	return true;
 
 } // Parse
 
 //-----------------------------------------------------------------------------
-bool KHTTPRequest::Serialize(KOutStream& Stream) const
+bool KHTTPInputFilter::SetupInputFilter(KInStream& InStream)
 //-----------------------------------------------------------------------------
 {
-	Stream.FormatLine("{} {} {}", m_Method.Serialize(), m_Resource.Serialize(), HTTPVersion());
-	return KHTTPHeader::Serialize(Stream);
+	// we lazy-create the input filter chain because we want to give
+	// the user the chance to switch off compression AFTER reading
+	// the headers
 
-} // Serialize
+	if (m_bPerformUncompression)
+	{
+		if (m_Compression == GZIP)
+		{
+			kDebug(2, "using gzip decompression");
+			m_Filter.push(boost::iostreams::gzip_decompressor());
+		}
+		else if (m_Compression == ZLIB)
+		{
+			kDebug(2, "using zlib decompression");
+			m_Filter.push(boost::iostreams::zlib_decompressor());
+		}
+	}
+
+	// we use the chunked reader also in the unchunked case -
+	// it protects us from reading more than content length bytes
+	// into the buffered iostreams
+	KChunkedSource Source(InStream,
+						  m_bChunked,
+						  m_iContentSize);
+
+	// and finally add our source stream to the filtering_istream
+	m_Filter.push(Source);
+
+	return true;
+
+} // SetupInputFilter
 
 //-----------------------------------------------------------------------------
-bool KHTTPRequest::HasChunking() const
+size_t KHTTPInputFilter::Read(KInStream& InStream, KOutStream& OutStream, size_t len)
 //-----------------------------------------------------------------------------
 {
-	if (HTTPVersion() == "HTTP/1.0" || HTTPVersion() == "HTTP/0.9")
+	auto& In(Stream(InStream));
+
+	if (len == KString::npos)
+	{
+		// read until eof
+		// ignore len, copy full stream
+		OutStream.OutStream() << In.InStream().rdbuf();
+	}
+	else
+	{
+		OutStream.Write(In, len);
+	}
+
+	return len;
+
+} // Read
+
+//-----------------------------------------------------------------------------
+size_t KHTTPInputFilter::Read(KInStream& InStream, KString& sBuffer, size_t len)
+//-----------------------------------------------------------------------------
+{
+	auto& In(Stream(InStream));
+
+	if (len == KString::npos)
+	{
+		// read until eof
+		// ignore len, copy full stream
+		KOStringStream stream(sBuffer);
+		stream << In.InStream().rdbuf();
+	}
+	else
+	{
+		In.Read(sBuffer, len);
+	}
+
+	return sBuffer.size();
+
+} // Read
+
+//-----------------------------------------------------------------------------
+bool KHTTPInputFilter::ReadLine(KInStream& InStream, KString& sBuffer)
+//-----------------------------------------------------------------------------
+{
+	sBuffer.clear();
+
+	auto& In(Stream(InStream));
+
+	if (!In.ReadLine(sBuffer))
 	{
 		return false;
 	}
-	else
-	{
-		return true;
-	}
 
-} // HasChunking
+	return true;
 
-//-----------------------------------------------------------------------------
-std::streamsize KHTTPRequest::ContentLength() const
-//-----------------------------------------------------------------------------
-{
-	std::streamsize iSize { -1 };
+} // ReadLine
 
-	KStringView sSize = Get(KHTTPHeader::content_length);
 
-	if (!sSize.empty())
-	{
-		iSize = sSize.UInt64();
-	}
-
-	return iSize;
-
-} // ContentLength
 
 //-----------------------------------------------------------------------------
-bool KHTTPRequest::HasContent() const
+void KHTTPInputFilter::clear()
 //-----------------------------------------------------------------------------
 {
-	auto iSize = ContentLength();
+	m_Filter.reset();
+	m_Compression = NONE;
+	m_bChunked = false;
+	m_iContentSize = -1;
 
-	if (iSize < 0)
-	{
-		// do not blindly trust in the transfer-encoding header, e.g.
-		// for methods that can not have content
-		return (Method() == "POST" || Method() == "PUT")
-		     && Get(KHTTPHeader::transfer_encoding) == "chunked";
-	}
-	else
-	{
-		return iSize > 0;
-	}
-
-} // HasContent
+} // clear
 
 
-//-----------------------------------------------------------------------------
-void KHTTPRequest::clear()
-//-----------------------------------------------------------------------------
-{
-	KHTTPHeader::clear();
-	HTTPVersion().clear();
-	m_Resource.clear();
+} // of namespace dekaf2
 
-}
 
-} // end of namespace dekaf2

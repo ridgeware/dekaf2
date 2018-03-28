@@ -47,10 +47,7 @@
 #include "khttp_response.h"
 #include "khttp_method.h"
 #include "kuseragent.h"
-
-// for chunked transfer and compression
-#include <boost/iostreams/filtering_stream.hpp>
-
+#include "khttpinputfilter.h"
 
 /// @file khttpclient.h
 /// HTTP client implementation
@@ -73,7 +70,6 @@ public:
 		HEADER_SET,
 		REQUEST_SENT,
 		HEADER_PARSED,
-		FILTER_CREATED,
 		CONTENT_READ,
 		CLOSED
 	};
@@ -199,7 +195,7 @@ public:
 	void Uncompress(bool bYesNo)
 	//-----------------------------------------------------------------------------
 	{
-		m_bPerformUncompression = bYesNo;
+		m_Filter.Uncompress(bYesNo);
 	}
 
 	// alternative interface
@@ -243,42 +239,14 @@ protected:
 private:
 //------
 
-	//-----------------------------------------------------------------------------
-	bool SetupInputFilter();
-	//-----------------------------------------------------------------------------
-
 	KConnection m_Connection;
-	boost::iostreams::filtering_istream m_Filter;
+	KHTTPInputFilter m_Filter;
 	KHTTPMethod m_Method;
 	KHTTPResponse m_ResponseHeader;
 	mutable KString m_sError;
 	State m_State { State::CLOSED };
 	long m_Timeout { 30 };
 	bool m_bRequestCompression { true };
-	bool m_bPerformUncompression { true };
-
-	enum COMP
-	{
-		NONE,
-		GZIP,
-		ZLIB
-	};
-
-	struct FilterParms_t
-	{
-		COMP compression { NONE };
-		bool chunked { false };
-		std::streamsize content_size { -1 };
-
-		void clear()
-		{
-			compression = NONE;
-			chunked = false;
-			content_size = -1;
-		}
-	};
-
-	FilterParms_t m_FilterParms;
 
 }; // KHTTPClient
 

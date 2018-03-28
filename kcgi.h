@@ -140,7 +140,7 @@ public:
 	bool ReadHeaders ();
 
 	/// read request body
-	bool ReadPostData ();
+	bool ReadPostData (char chCommentDelim = 0);
 
 	/// returns a reference to the input reader
 	KInStream& Reader() { return *m_Reader; }

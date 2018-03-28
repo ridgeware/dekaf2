@@ -13,4 +13,7 @@ TEST_CASE("KHTTPCLient")
 	KString sHTML = kHTTPGet("https://www.google.fr/");
 	CHECK ( sHTML.empty() == false );
 
+	KFile File;
+	KConnection Connection(File);
+	CHECK ( Connection.Good() == true );
 }

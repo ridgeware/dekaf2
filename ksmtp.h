@@ -215,7 +215,7 @@ private:
 
 	mutable KString m_sError;
 	// The TCP stream class
-	std::unique_ptr<KConnection> m_Connection;
+	KConnection m_Connection;
 	// Half a minute for the timeout per default
 	uint16_t m_iTimeout{ 30 };
 

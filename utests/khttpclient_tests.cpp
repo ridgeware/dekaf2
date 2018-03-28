@@ -61,12 +61,12 @@ TEST_CASE("KHTTPClient") {
 		server.clear();
 
 		KURL URL("http://127.0.0.1:7654/path?query=val&another=here#fragment");
-		std::unique_ptr<KConnection> cx = KConnection::Create(URL);
-		CHECK( cx->operator bool() == true );
-		if (cx->operator bool() == true)
+		KConnection cx = KConnection::Create(URL);
+		CHECK( cx.Good() == true );
+		if (cx.Good() == true)
 		{
-			CHECK( cx->Stream().OutStream().good() == true );
-			CHECK( cx->Stream().InStream().good()  == true );
+			CHECK( cx.Stream().OutStream().good() == true );
+			CHECK( cx.Stream().InStream().good()  == true );
 		}
 		KHTTPClient cHTTP(std::move(cx));
 		cHTTP.Resource(URL);

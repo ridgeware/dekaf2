@@ -191,7 +191,7 @@ bool KLogTCPWriter::Write(int iLevel, bool bIsMultiline, const KString& sOut)
 
 	if (!m_OutStream)
 	{
-		m_OutStream = KConnection::Create(m_sURL);
+		m_OutStream = std::make_unique<KConnection>(KConnection::Create(m_sURL));
 
 		if (!m_OutStream->Good())
 		{

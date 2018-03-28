@@ -89,7 +89,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Ctor, connects to a server
-	KHTTPClient(std::unique_ptr<KConnection> stream, const KURL& url = KURL{}, KHTTPMethod method = KHTTPMethod::GET);
+	KHTTPClient(KConnection&& stream, const KURL& url = KURL{}, KHTTPMethod method = KHTTPMethod::GET);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -109,7 +109,7 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	bool Connect(std::unique_ptr<KConnection> Connection);
+	bool Connect(KConnection&& Connection);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -164,7 +164,7 @@ public:
 	bool Good() const
 	//-----------------------------------------------------------------------------
 	{
-		return m_Connection && m_Connection->Good();
+		return m_Connection.Good();
 	}
 
 	//-----------------------------------------------------------------------------
@@ -247,7 +247,7 @@ private:
 	bool SetupInputFilter();
 	//-----------------------------------------------------------------------------
 
-	std::unique_ptr<KConnection> m_Connection;
+	KConnection m_Connection;
 	boost::iostreams::filtering_istream m_Filter;
 	KHTTPMethod m_Method;
 	KHTTPResponse m_ResponseHeader;

@@ -113,6 +113,43 @@ bool KHTTPRequest::HasChunking() const
 
 } // HasChunking
 
+//-----------------------------------------------------------------------------
+std::streamsize KHTTPRequest::ContentLength() const
+//-----------------------------------------------------------------------------
+{
+	std::streamsize iSize { -1 };
+
+	KStringView sSize = Get(KHTTPHeader::content_length);
+
+	if (!sSize.empty())
+	{
+		iSize = sSize.UInt64();
+	}
+
+	return iSize;
+
+} // ContentLength
+
+//-----------------------------------------------------------------------------
+bool KHTTPRequest::HasContent() const
+//-----------------------------------------------------------------------------
+{
+	auto iSize = ContentLength();
+
+	if (iSize < 0)
+	{
+		// do not blindly trust in the transfer-encoding header, e.g.
+		// for methods that can not have content
+		return (Method() == "POST" || Method() == "PUT")
+		     && Get(KHTTPHeader::transfer_encoding) == "chunked";
+	}
+	else
+	{
+		return iSize > 0;
+	}
+
+} // HasContent
+
 
 //-----------------------------------------------------------------------------
 void KHTTPRequest::clear()

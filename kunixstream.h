@@ -196,7 +196,7 @@ std::unique_ptr<KUnixStream> CreateKUnixStream();
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
-std::unique_ptr<KUnixStream> CreateKUnixStream(const KTCPEndPoint& EndPoint);
+std::unique_ptr<KUnixStream> CreateKUnixStream(const KString& sSocketFile);
 //-----------------------------------------------------------------------------
 
 } // namespace dekaf2

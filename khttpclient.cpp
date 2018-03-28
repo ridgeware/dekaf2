@@ -63,7 +63,7 @@ KHTTPClient::KHTTPClient(const KURL& url, KHTTPMethod method, bool bVerifyCerts)
 } // Ctor
 
 //-----------------------------------------------------------------------------
-KHTTPClient::KHTTPClient(std::unique_ptr<KConnection> stream, const KURL& url, KHTTPMethod method)
+KHTTPClient::KHTTPClient(KConnection&& stream, const KURL& url, KHTTPMethod method)
 //-----------------------------------------------------------------------------
 {
 	if (Connect(std::move(stream)))
@@ -74,7 +74,7 @@ KHTTPClient::KHTTPClient(std::unique_ptr<KConnection> stream, const KURL& url, K
 } // Ctor
 
 //-----------------------------------------------------------------------------
-bool KHTTPClient::Connect(std::unique_ptr<KConnection> Connection)
+bool KHTTPClient::Connect(KConnection&& Connection)
 //-----------------------------------------------------------------------------
 {
 	SetError(KStringView{});
@@ -85,22 +85,15 @@ bool KHTTPClient::Connect(std::unique_ptr<KConnection> Connection)
 
 	if (!m_Connection)
 	{
-		return SetError("No Stream");
+		return SetError(m_Connection.Error());
 	}
 
-	KStream& Stream = m_Connection->Stream();
+	m_Connection.SetTimeout(m_Timeout);
 
-	if (!Stream.KOutStream::Good())
-	{
-		return SetError(m_Connection->Error());
-	}
-
-	m_Connection->SetTimeout(m_Timeout);
-
-	Stream.SetReaderEndOfLine('\n');
-	Stream.SetReaderLeftTrim("");
-	Stream.SetReaderRightTrim("\r\n");
-	Stream.SetWriterEndOfLine("\r\n");
+	m_Connection->SetReaderEndOfLine('\n');
+	m_Connection->SetReaderLeftTrim("");
+	m_Connection->SetReaderRightTrim("\r\n");
+	m_Connection->SetWriterEndOfLine("\r\n");
 
 	m_State = State::CONNECTED;
 
@@ -127,12 +120,7 @@ bool KHTTPClient::Disconnect()
 {
 	m_State = State::CLOSED;
 
-	if (!m_Connection)
-	{
-		return false;
-	}
-
-	m_Connection.reset();
+	m_Connection.Disconnect();
 
 	return true;
 
@@ -143,11 +131,9 @@ void KHTTPClient::SetTimeout(long iSeconds)
 //-----------------------------------------------------------------------------
 {
 	m_Timeout = iSeconds;
-	if (m_Connection)
-	{
-		m_Connection->SetTimeout(iSeconds);
-	}
-}
+	m_Connection.SetTimeout(iSeconds);
+
+} // SetTimeout
 
 //-----------------------------------------------------------------------------
 bool KHTTPClient::Resource(const KURL& url, KHTTPMethod method)
@@ -167,26 +153,20 @@ bool KHTTPClient::Resource(const KURL& url, KHTTPMethod method)
 	{
 		return SetError("no stream");
 	}
-	else if (!m_Connection->Stream().KOutStream::Good())
-	{
-		return SetError(m_Connection->Error());
-	}
 
-	KStream& Stream = m_Connection->Stream();
-
-	Stream.Write(method.Serialize());
-	Stream.Write(' ');
+	m_Connection->Write(method.Serialize());
+	m_Connection->Write(' ');
 	if (!url.Path.empty())
 	{
-		url.Path.Serialize(Stream);
+		url.Path.Serialize(*m_Connection);
 	}
 	else
 	{
-		Stream.Write('/');
+		m_Connection->Write('/');
 	}
-	url.Query.Serialize(Stream);
-	url.Fragment.Serialize(Stream);
-	Stream.WriteLine(" HTTP/1.1");
+	url.Query.Serialize(*m_Connection);
+	url.Fragment.Serialize(*m_Connection);
+	m_Connection->WriteLine(" HTTP/1.1");
 
 	m_State = State::RESOURCE_SET;
 
@@ -206,18 +186,13 @@ bool KHTTPClient::RequestHeader(KStringView svName, KStringView svValue)
 	{
 		return SetError("no stream");
 	}
-	else if (!m_Connection->Stream().KOutStream::Good())
-	{
-		return SetError(m_Connection->Error());
-	}
 
-	KStream& Stream = m_Connection->Stream();
-	Stream.Write(svName);
-	Stream.Write(": ");
-	Stream.WriteLine(svValue);
+	m_Connection->Write(svName);
+	m_Connection->Write(": ");
+	m_Connection->WriteLine(svValue);
 	m_State = State::HEADER_SET;
 
-	return Stream.KOutStream::Good();
+	return m_Connection.Good();
 }
 
 //-----------------------------------------------------------------------------
@@ -232,12 +207,6 @@ bool KHTTPClient::Request(KStringView svPostData, KStringView svMime)
 	{
 		return SetError("no stream");
 	}
-	else if (!m_Connection->Stream().KOutStream::Good())
-	{
-		return SetError(m_Connection->Error());
-	}
-
-	KStream& Stream = m_Connection->Stream();
 
 	if (m_Method == KHTTPMethod::POST)
 	{
@@ -250,15 +219,17 @@ bool KHTTPClient::Request(KStringView svPostData, KStringView svMime)
 		RequestHeader(KHTTPHeader::ACCEPT_ENCODING, "gzip");
 	}
 
-	Stream.WriteLine();
+	m_Connection->WriteLine();
 
 	if (m_Method == KHTTPMethod::POST)
 	{
 		kDebug(2, "sending {} bytes of POST data", svPostData.size());
-		Stream.Write(svPostData);
+		m_Connection->Write(svPostData);
 	}
 
-	if (!Stream.Flush().Good())
+	m_Connection->Flush();
+
+	if (!m_Connection.Good())
 	{
 		return SetError("write error");
 	}
@@ -280,14 +251,8 @@ bool KHTTPClient::ReadHeader()
 	{
 		return SetError("no stream");
 	}
-	else if (!m_Connection->Stream().KOutStream::Good())
-	{
-		return SetError(m_Connection->Error());
-	}
 
-	KStream& Stream = m_Connection->Stream();
-
-	if (!m_ResponseHeader.Parse(Stream))
+	if (!m_ResponseHeader.Parse(*m_Connection))
 	{
 		SetError(m_ResponseHeader.Error());
 		return false;
@@ -356,7 +321,7 @@ bool KHTTPClient::SetupInputFilter()
 	// we use the chunked reader also in the unchunked case -
 	// it protects us from reading more than content length bytes
 	// into the buffered iostreams
-	KChunkedSource Source(m_Connection->Stream(),
+	KChunkedSource Source(*m_Connection,
 						  m_FilterParms.chunked,
 						  m_FilterParms.content_size);
 
@@ -387,11 +352,6 @@ size_t KHTTPClient::Read(KOutStream& stream, size_t len)
 	else if (!m_Filter)
 	{
 		SetError("no stream");
-		return 0;
-	}
-	else if (!m_Filter.good())
-	{
-		SetError(m_Connection->Error());
 		return 0;
 	}
 
@@ -433,11 +393,6 @@ size_t KHTTPClient::Read(KString& sBuffer, size_t len)
 	else if (!m_Filter)
 	{
 		SetError("no stream");
-		return 0;
-	}
-	else if (!m_Filter.good())
-	{
-		SetError(m_Connection->Error());
 		return 0;
 	}
 
@@ -488,16 +443,11 @@ bool KHTTPClient::ReadLine(KString& sBuffer)
 		m_State = State::CONTENT_READ;
 		return false;
 	}
-	else if (!m_Filter.good())
-	{
-		SetError(m_Connection->Error());
-		return false;
-	}
 
 	KInStream istream(m_Filter);
 	if (!istream.ReadLine(sBuffer))
 	{
-		SetError(m_Connection->Error());
+		SetError(m_Connection.Error());
 		return false;
 	}
 
@@ -561,7 +511,7 @@ bool KHTTPClient::AlreadyConnected(const KURL& URL) const
 		return false;
 	}
 
-	return URL == m_Connection->EndPoint();
+	return URL == m_Connection.EndPoint();
 
 } // AlreadyConnected
 

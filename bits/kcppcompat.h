@@ -81,11 +81,7 @@
 	#define DEKAF2_IS_OSX 1
 #endif
 
-#if !defined(UNIX) && (defined(unix) || defined(__unix__) || defined(DEKAF2_IS_OSX))
-	#define UNIX 1
-#endif
-
-#if !defined(DEKAF2_IS_UNIX) && defined(UNIX)
+#if !defined(DEKAF2_IS_UNIX) && (defined(unix) || defined(__unix__) || defined(DEKAF2_IS_OSX))
 	#define DEKAF2_IS_UNIX 1
 #endif
 

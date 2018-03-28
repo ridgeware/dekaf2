@@ -46,7 +46,7 @@
 #include "kinshell.h"
 #include "kgetruntimestack.h"
 
-#ifdef UNIX
+#ifdef DEKAF2_IS_UNIX
 #include <execinfo.h>          // for backtrace
 #include <cxxabi.h>            // for demangling
 #include <unistd.h>

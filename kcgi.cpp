@@ -131,7 +131,6 @@ KCGI::~KCGI()
 void KCGI::init (bool bResetStreams)
 //-----------------------------------------------------------------------------
 {
-	m_sError.clear();
 	m_sCommentDelim.clear();
 	KHTTPRequest::clear();
 
@@ -204,6 +203,76 @@ bool KCGI::ReadPostData ()
 } // ReadPostData
 
 //-----------------------------------------------------------------------------
+void KCGI::SkipComments(KInStream& Stream, char chCommentDelim)
+//-----------------------------------------------------------------------------
+{
+	// check if we have leading comment lines, and skip them
+	while (Stream.InStream().get() == chCommentDelim)
+	{
+		KString sLine;
+		if (!Stream.ReadLine(sLine))
+		{
+			break;
+		}
+	}
+	Stream.InStream().unget();
+
+} // SkipComments
+
+//-----------------------------------------------------------------------------
+bool KCGI::Parse(KInStream& Stream, char chCommentDelim)
+//-----------------------------------------------------------------------------
+{
+	if (chCommentDelim)
+	{
+		// skip leading comments
+		SkipComments(Stream, chCommentDelim);
+	}
+
+	init(false);
+
+	++m_iNumRequests;
+
+	m_bIsFCGI = false; //DEKAF2_WITH_FCGI (getenv(KString(KCGI::FCGI_WEB_SERVER_ADDRS).c_str()) != nullptr); // TODO: I don't think this test works.
+
+	KString sRM = GetVar (KCGI::REQUEST_METHOD);
+	if (!sRM.empty())
+	{
+		// we are running within a web server that sets these:
+		KHTTPRequest::Method()         = sRM.ToView();
+		KHTTPRequest::Resource()       = GetVar(KCGI::REQUEST_URI);
+		KHTTPRequest::Resource().Query = GetVar(KCGI::QUERY_STRING);
+		KHTTPRequest::HTTPVersion()    = GetVar(KCGI::SERVER_PROTOCOL);
+		KHTTPRequest::Set(KHTTPHeader::HOST,           GetVar(KCGI::HTTP_HOST));
+		KHTTPRequest::Set(KHTTPHeader::CONTENT_TYPE,   GetVar(KCGI::CONTENT_TYPE));
+		KHTTPRequest::Set(KHTTPHeader::CONTENT_LENGTH, GetVar(KCGI::CONTENT_LENGTH));
+		KHTTPRequest::Set(KHTTPHeader::FROM,           GetVar(KCGI::REMOTE_ADDR));
+	}
+	else if (!KHTTPRequest::Parse(Stream))
+	{
+		return (false);
+	}
+
+	auto iPostContentLen = KHTTPRequest::Get(KHTTPHeader::content_length).UInt64();
+	if (iPostContentLen)
+	{
+		Stream.Read(m_sPostData, iPostContentLen);
+	}
+	// TODO react or read on chunked POST transfers
+
+	kDebug (1, "KCGI: request#{}: {} {}, {} headers, {} query parms, {} bytes post data",
+			m_iNumRequests,
+			GetRequestMethod(),
+			GetRequestPath(),
+			GetRequestHeaders().size(),
+			GetQueryParms().size(),
+			m_sPostData.length());
+
+	return (true);	// true ==> we got a request
+
+} // Parse
+
+//-----------------------------------------------------------------------------
 bool KCGI::GetNextRequest (KStringView sFilename /*= KStringView{}*/, KStringView sCommentDelim /*= KStringView{}*/)
 //-----------------------------------------------------------------------------
 {
@@ -215,7 +284,7 @@ bool KCGI::GetNextRequest (KStringView sFilename /*= KStringView{}*/, KStringVie
 
 		if (!m_Reader->InStream().good())
 		{
-			m_sError.Format ("KCGI: cannot open input file: {}", sFilename);
+			SetError (kFormat("KCGI: cannot open input file: {}", sFilename));
 			return (false);
 		}
 
@@ -223,16 +292,7 @@ bool KCGI::GetNextRequest (KStringView sFilename /*= KStringView{}*/, KStringVie
 
 		if (!m_sCommentDelim.empty())
 		{
-			// check if we have leading comment lines, and skip them
-			while (m_Reader->InStream().get() == m_sCommentDelim.front())
-			{
-				KString sLine;
-				if (!m_Reader->ReadLine(sLine))
-				{
-					return false;
-				}
-			}
-			m_Reader->InStream().unget();
+			SkipComments(*m_Reader, m_sCommentDelim.front());
 		}
 
 	}

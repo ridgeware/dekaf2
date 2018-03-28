@@ -129,6 +129,8 @@ public:
 
 	KString GetVar (KStringView sEnvironmentVariable, const char* sDefaultValue="");
 
+	bool Parse(KInStream& Stream, char chCommentDelim = 0);
+
 	/// Get next CGI (or FCGI) reqeuest.  Defaults to STDIN for CGI.
 	/// Supplying a filename is useful for test harnesses that are not
 	/// running inside a web server.
@@ -187,12 +189,14 @@ public:
 	/// returns last error message
 	const KString& GetLastError() const
 	{
-		return m_sError;
+		return Error();
 	}
 
 //----------
 protected:
 //----------
+
+	static void SkipComments(KInStream& Stream, char chCommentDelim);
 
 	/// set incoming URL including the query string (this actually decodes / parses the input)
 	void SetRequestURI(KStringView sURI)
@@ -245,9 +249,7 @@ private:
 		return (m_bIsFCGI);
 	}
 
-	KString      m_sPostData; // aka body
-
-	KString                     m_sError;
+	KString                     m_sPostData; // aka body
 	KString                     m_sCommentDelim;
 	unsigned int                m_iNumRequests{0};
 	bool                        m_bIsFCGI{false};

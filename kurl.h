@@ -511,7 +511,8 @@ public:
 		NNTP      = 10,
 		TELNET    = 11,
 		GOPHER    = 12,
-		UNKNOWN   = 13  // UNKNOWN _has_ to be the last value
+		UNIX      = 13,
+		UNKNOWN   = 14  // UNKNOWN _has_ to be the last value
 	};
 
 	//-------------------------------------------------------------------------

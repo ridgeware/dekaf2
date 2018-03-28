@@ -131,6 +131,32 @@ template class URIComponent<URLEncodedString, URIPart::Fragment, '#',  true,  fa
 }
 
 //-----------------------------------------------------------------------------
+void KProtocol::SetProto(KStringView svProto)
+//-----------------------------------------------------------------------------
+{
+	m_eProto = UNKNOWN;
+	// we do not want to recognize MAILTO in this branch, as it
+	// has the wrong separator. But if we find it we store it as
+	// unknown and then reproduce the same on serialization.
+	for (uint16_t iProto = MAILTO + 1; iProto < UNKNOWN; ++iProto)
+	{
+		if (m_sCanonical[iProto].name == svProto)
+		{
+			m_eProto = static_cast<eProto>(iProto);
+			break;
+		}
+	}
+
+	if (m_eProto == UNKNOWN)
+	{
+		// only store the protocol scheme if it is not one
+		// of the canonical
+		kUrlDecode (svProto, m_sProto);
+	}
+
+} // SetProto
+
+//-----------------------------------------------------------------------------
 /// @brief class Protocol in group KURL.  Parse into members.
 /// Protocol parses and maintains "scheme" portion of w3 URL.
 /// RFC3986 3.1: scheme = ALPHA *( ALPHA / DIGIT / "+" / "-" / "." )
@@ -152,10 +178,10 @@ KStringView KProtocol::Parse (KStringView svSource, bool bAcceptWithoutColon)
 
 		if (bAcceptWithoutColon && iFound == KStringView::npos)
 		{
-			iFound = svSource.size();
+			SetProto(svSource);
+			svSource.clear();
 		}
-
-		if (iFound != KStringView::npos)
+		else if (iFound != KStringView::npos)
 		{
 			KStringView svProto = svSource.substr (0, iFound);
 
@@ -171,25 +197,7 @@ KStringView KProtocol::Parse (KStringView svSource, bool bAcceptWithoutColon)
 					svSource.remove_prefix (1);
 				}
 
-				m_eProto = UNKNOWN;
-				// we do not want to recognize MAILTO in this branch, as it
-				// has the wrong separator. But if we find it we store it as
-				// unknown and then reproduce the same on serialization.
-				for (uint16_t iProto = MAILTO + 1; iProto < UNKNOWN; ++iProto)
-				{
-					if (m_sCanonical[iProto].name == svProto)
-					{
-						m_eProto = static_cast<eProto>(iProto);
-						break;
-					}
-				}
-
-				if (m_eProto == UNKNOWN)
-				{
-					// only store the protocol scheme if it is not one
-					// of the canonical
-					kUrlDecode (svProto, m_sProto);
-				}
+				SetProto(svProto);
 			}
 			else if (svProto == "mailto")
 			{

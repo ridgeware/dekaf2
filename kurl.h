@@ -715,6 +715,8 @@ public:
 private:
 //------
 
+	void SetProto(KStringView svProto);
+
 	KString m_sProto {};
 	eProto  m_eProto {UNDEFINED};
 	struct Protocols

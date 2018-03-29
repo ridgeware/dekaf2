@@ -386,8 +386,11 @@ public:
 				bSeparator = true;
 			}
 			kUrlEncode (it.first, sEncoded, Component);
-			sEncoded += chKeyValSep;
-			kUrlEncode (it.second, sEncoded, Component);
+			if (!it.second.empty())
+			{
+				sEncoded += chKeyValSep;
+				kUrlEncode (it.second, sEncoded, Component);
+			}
 		}
 	}
 

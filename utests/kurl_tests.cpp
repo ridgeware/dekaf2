@@ -960,7 +960,7 @@ TEST_CASE ("KURL formerly missing")
         URL   = svURL;
         sSerialized.clear();
         URL.Serialize(sSerialized);
-        CHECK ( sSerialized == "http://example.com/path%2Btest/foo%20bogus?foo+bogus%2Btest=#foo%20bogus%2Btest" );
+        CHECK ( sSerialized == "http://example.com/path%2Btest/foo%20bogus?foo+bogus%2Btest#foo%20bogus%2Btest" );
 
     }
 
@@ -998,7 +998,7 @@ TEST_CASE ("KURL formerly missing")
         URL   = svURL;
         sSerialized.clear();
         URL.Serialize(sSerialized);
-        CHECK ( sSerialized == "http://example.com/path%2Btest/foo%20bogus?foo+bogus%2Btest=#foo%20bogus%2Btest" );
+        CHECK ( sSerialized == "http://example.com/path%2Btest/foo%20bogus?foo+bogus%2Btest#foo%20bogus%2Btest" );
 
         svURL = "whatever://fred:secret@www.test.com:7654/works.html;param;a=b;multi=a,b,c,d;this=that?foo=bar&you=me#fragment";
         URL   = svURL;
@@ -1051,6 +1051,22 @@ TEST_CASE ("KURL formerly missing")
         URL = "/A.css,,_style.css+css,,_custom005.css+vendor,,_masterslider,,_style,,_masterslider.css+vendor,,_masterslider,,_skins,,_default,,_style.css+vendor,,_masterslider,,_style,,_ms-fullscreen.css+vendor,,_OwlCarousel2-2.2.1,,_dist,,_assets,,_owl.carousel.css+vendor,,_OwlCarousel2-2.2.1,,_dist,,_assets,,_owl.theme.default.css,Mcc.WnnFPiCXw1.css.pagespeed.cf.oRioQJq-Az.css";
         CHECK ( URL.Domain.get() == "" );
         CHECK ( URL.Path.get() == "/A.css,,_style.css+css,,_custom005.css+vendor,,_masterslider,,_style,,_masterslider.css+vendor,,_masterslider,,_skins,,_default,,_style.css+vendor,,_masterslider,,_style,,_ms-fullscreen.css+vendor,,_OwlCarousel2-2.2.1,,_dist,,_assets,,_owl.carousel.css+vendor,,_OwlCarousel2-2.2.1,,_dist,,_assets,,_owl.theme.default.css,Mcc.WnnFPiCXw1.css.pagespeed.cf.oRioQJq-Az.css" );
-}
+	}
     
+	SECTION("KURL broken")
+	{
+		KURL URL;
+		URL = "/assets/heise/heise/css/heise.css?4e5ca4e953c65b217210";
+		CHECK ( URL.Domain.get() == "" );
+		CHECK ( URL.Serialize() == "/assets/heise/heise/css/heise.css?4e5ca4e953c65b217210" );
+
+		URL = "/stil/ho/ho.css?4af42cac6c10ef07d3df";
+		CHECK ( URL.Domain.get() == "" );
+		CHECK ( URL.Serialize() == "/stil/ho/ho.css?4af42cac6c10ef07d3df" );
+
+		URL = "/avw-bin/ivw/CP/barfoo/ho/4006197/0.gif?d=1872002745";
+		CHECK ( URL.Domain.get() == "" );
+		CHECK ( URL.Serialize() == "/avw-bin/ivw/CP/barfoo/ho/4006197/0.gif?d=1872002745" );
+	}
+
 }

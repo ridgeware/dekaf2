@@ -81,6 +81,11 @@ KSSLIOStream::POLLSTATE KSSLIOStream::timeout(bool bForReading, Stream_t* stream
 
 	short event = (bForReading) ? POLLIN : POLLOUT;
 	what.fd     = stream->Socket.lowest_layer().native_handle();
+	if (what.fd < 0)
+	{
+		// this means that the stream is not yet established..
+		return POLL_FAILURE;
+	}
 	what.events = event;
 
 	// now check if there is data available coming in from the
@@ -113,6 +118,11 @@ KSSLIOStream::POLLSTATE KSSLIOStream::timeout(bool bForReading, Stream_t* stream
 
 	short event = (bForReading) ? POLLIN : POLLOUT;
 	what.fd     = stream->Socket.lowest_layer().native_handle();
+	if (what.fd < 0)
+	{
+		// this means that the stream is not yet established..
+		return POLL_FAILURE;
+	}
 	what.events = event;
 
 	// now check if there is data available coming in from the

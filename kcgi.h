@@ -47,6 +47,7 @@
 #include "kprops.h"
 #include "ksplit.h"
 #include "khttp_request.h"
+#include "khttpinputfilter.h"
 #include <iostream>
 #ifdef DEKAF2_WITH_FCGI
 #include <fcgiapp.h>
@@ -94,7 +95,7 @@ public:
 	KOutStream& Writer() { return *m_Writer; }
 
 	/// incoming http request method: GET, POST, etc.
-	KStringView GetRequestMethod() const
+	const KString& GetRequestMethod() const
 	{
 		return KHTTPRequest::Method().Serialize();
 	}
@@ -200,6 +201,7 @@ private:
 	bool                        m_bIsFCGI{false};
 	std::unique_ptr<KInStream>  m_Reader;
 	std::unique_ptr<KOutStream> m_Writer;
+	KHTTPInputFilter            m_PostFilter;
 #ifdef DEKAF2_WITH_FCGI
 	FCGX_Request                m_FcgiRequest;
 #endif

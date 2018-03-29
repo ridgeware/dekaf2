@@ -127,7 +127,7 @@ bool KCGI::ReadPostData (char chCommentDelim)
 //-----------------------------------------------------------------------------
 {
 	KString sLine;
-	while (ReadLine(*m_Reader, sLine))
+	while (m_PostFilter.ReadLine(*m_Reader, sLine))
 	{
 		if (chCommentDelim && !sLine.empty() && sLine.front() == chCommentDelim) {
 			kDebug (2, "KCGI: skipping comment line: {}", sLine);
@@ -192,10 +192,13 @@ bool KCGI::Parse(KInStream& Stream, char chCommentDelim)
 		return (false);
 	}
 
+	// make sure the InputFilter knows the used encoding for the post content
+	m_PostFilter.Parse(*this);
+
 	// TODO separate post reader from header reader and offer a stream interface for it
 
 	KString sLine;
-	while (ReadLine(Stream, sLine))
+	while (m_PostFilter.ReadLine(Stream, sLine))
 	{
 		if (chCommentDelim && !sLine.empty() && sLine.front() == chCommentDelim) {
 			kDebug (2, "KCGI: skipping comment line: {}", sLine);
@@ -267,6 +270,9 @@ bool KCGI::GetNextRequest (KStringView sFilename /*= KStringView{}*/, KStringVie
 			// error message already set in ReadHeaders()
 			return (false);
 		}
+
+		// make sure the InputFilter knows the used encoding for the post content
+		m_PostFilter.Parse(*this);
 
 		if (!ReadPostData(m_sCommentDelim.front()))
 		{

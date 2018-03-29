@@ -43,7 +43,7 @@
 #include <boost/iostreams/filter/gzip.hpp>
 #include <boost/iostreams/filter/zlib.hpp>
 
-#include "khttpinputfilter.h"
+#include "khttpoutputfilter.h"
 #include "kchunkedtransfer.h"
 #include "kstringstream.h"
 
@@ -51,7 +51,7 @@
 namespace dekaf2 {
 
 //-----------------------------------------------------------------------------
-bool KHTTPInputFilter::Parse(const KHTTPHeader& headers)
+bool KHTTPOutputFilter::Parse(const KHTTPHeader& headers)
 //-----------------------------------------------------------------------------
 {
 	clear();
@@ -83,56 +83,52 @@ bool KHTTPInputFilter::Parse(const KHTTPHeader& headers)
 } // Parse
 
 //-----------------------------------------------------------------------------
-bool KHTTPInputFilter::SetupInputFilter(KInStream& InStream)
+bool KHTTPOutputFilter::SetupOutputFilter(KOutStream& OutStream)
 //-----------------------------------------------------------------------------
 {
 	// we lazy-create the input filter chain because we want to give
 	// the user the chance to switch off compression AFTER reading
 	// the headers
 
-	if (m_bPerformUncompression)
+	if (m_bPerformCompression)
 	{
 		if (m_Compression == GZIP)
 		{
-			kDebug(2, "using gzip decompression");
-			m_Filter.push(boost::iostreams::gzip_decompressor());
+			kDebug(2, "using gzip compression");
+			m_Filter.push(boost::iostreams::gzip_compressor());
 		}
 		else if (m_Compression == ZLIB)
 		{
-			kDebug(2, "using zlib decompression");
-			m_Filter.push(boost::iostreams::zlib_decompressor());
+			kDebug(2, "using zlib compression");
+			m_Filter.push(boost::iostreams::zlib_compressor());
 		}
 	}
 
-	// we use the chunked reader also in the unchunked case -
-	// it protects us from reading more than content length bytes
-	// into the buffered iostreams
-	KChunkedSource Source(InStream,
-						  m_bChunked,
-						  m_iContentSize);
+	// we use the chunked writer also in the unchunked case, but
+	// without writing chunks
+	KChunkedSink Sink(OutStream, m_bChunked);
 
 	// and finally add our source stream to the filtering_istream
-	m_Filter.push(Source);
+	m_Filter.push(Sink);
 
 	return true;
 
-} // SetupInputFilter
+} // SetupOutputFilter
 
 //-----------------------------------------------------------------------------
-size_t KHTTPInputFilter::Read(KInStream& InStream, KOutStream& OutStream, size_t len)
+size_t KHTTPOutputFilter::Write(KOutStream& OutStream, KInStream& InStream, size_t len)
 //-----------------------------------------------------------------------------
 {
-	auto& In(Stream(InStream));
+	auto& Out(Stream(OutStream));
 
 	if (len == KString::npos)
 	{
-		// read until eof
-		// ignore len, copy full stream
-		OutStream.OutStream() << In.InStream().rdbuf();
+		// write until eof
+		Out.OutStream() << InStream.InStream().rdbuf();
 	}
 	else
 	{
-		OutStream.Write(In, len);
+		Out.Write(InStream, len);
 	}
 
 	return len;
@@ -140,54 +136,39 @@ size_t KHTTPInputFilter::Read(KInStream& InStream, KOutStream& OutStream, size_t
 } // Read
 
 //-----------------------------------------------------------------------------
-size_t KHTTPInputFilter::Read(KInStream& InStream, KString& sBuffer, size_t len)
+size_t KHTTPOutputFilter::Write(KOutStream& OutStream, KStringView sBuffer)
 //-----------------------------------------------------------------------------
 {
-	auto& In(Stream(InStream));
+	auto& Out(Stream(OutStream));
 
-	if (len == KString::npos)
-	{
-		// read until eof
-		// ignore len, copy full stream
-		KOStringStream stream(sBuffer);
-		stream << In.InStream().rdbuf();
-	}
-	else
-	{
-		In.Read(sBuffer, len);
-	}
+	Out.Write(sBuffer);
 
 	return sBuffer.size();
 
 } // Read
 
 //-----------------------------------------------------------------------------
-bool KHTTPInputFilter::ReadLine(KInStream& InStream, KString& sBuffer)
+bool KHTTPOutputFilter::WriteLine(KOutStream& OutStream, KStringView sBuffer)
 //-----------------------------------------------------------------------------
 {
-	sBuffer.clear();
+	auto& Out(Stream(OutStream));
 
-	auto& In(Stream(InStream));
+	Out.WriteLine(sBuffer);
 
-	if (!In.ReadLine(sBuffer))
-	{
-		return false;
-	}
-
-	return true;
+	return Out.Good();
 
 } // ReadLine
 
 
 
 //-----------------------------------------------------------------------------
-void KHTTPInputFilter::clear()
+void KHTTPOutputFilter::clear()
 //-----------------------------------------------------------------------------
 {
 	m_Filter.reset();
 	m_Compression = NONE;
 	m_bChunked = false;
-	m_bPerformUncompression = true;
+	m_bPerformCompression = true;
 	m_iContentSize = -1;
 
 } // clear

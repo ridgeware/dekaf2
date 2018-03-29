@@ -1,4 +1,5 @@
 /*
+ //-----------------------------------------------------------------------------//
  //
  // DEKAF(tm): Lighter, Faster, Smarter (tm)
  //
@@ -41,86 +42,89 @@
 
 #pragma once
 
-#include "khttp_method.h"
+// for chunked transfer and compression
+#include <boost/iostreams/filtering_stream.hpp>
+
+#include "kstringview.h"
 #include "khttp_header.h"
-#include "khttpoutputfilter.h"
-#include "kurl.h"
+
+
+/// @file khttpoutputfilter.h
+/// HTTP streaming output filter implementation
+
 
 namespace dekaf2 {
 
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class KHTTPRequest : public KHTTPHeader, public KHTTPOutputFilter
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+class KHTTPOutputFilter
 {
-
-//----------
 public:
-//----------
 
 	//-----------------------------------------------------------------------------
-	bool Parse(KInStream& Stream);
+	/// read input configuration from existing set of headers, but do not
+	/// yet build the filter.
+	bool Parse(const KHTTPHeader& headers);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	bool Serialize(KOutStream& Stream) const;
+	// build the filter if it is not yet created, and return a KOutStream reference to it
+	KOutStream& Stream(KOutStream& OutStream)
+	//-----------------------------------------------------------------------------
+	{
+		if (m_Filter.empty())
+		{
+			SetupOutputFilter(OutStream);
+		}
+		return m_OutStream;
+	}
+
+	//-----------------------------------------------------------------------------
+	/// Stream from InStream into OutStream
+	size_t Write(KOutStream& OutStream, KInStream& InStream, size_t len = KString::npos);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// Write sBuffer into OutStream
+	size_t Write(KOutStream& OutStream, KStringView sBuffer);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// Write one line into OutStream, including EOL
+	bool WriteLine(KOutStream& OutStream, KStringView sBuffer);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	void Compress(bool bYesNo)
+	//-----------------------------------------------------------------------------
+	{
+		m_bPerformCompression = bYesNo;
+	}
+
+private:
+
+	//-----------------------------------------------------------------------------
+	bool SetupOutputFilter(KOutStream& OutStream);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	void clear();
 	//-----------------------------------------------------------------------------
 
-	//-----------------------------------------------------------------------------
-	const KURL& Resource() const
-	//-----------------------------------------------------------------------------
+	enum COMP
 	{
-		return m_Resource;
-	}
+		NONE,
+		GZIP,
+		ZLIB
+	};
 
-	//-----------------------------------------------------------------------------
-	KURL& Resource()
-	//-----------------------------------------------------------------------------
-	{
-		return m_Resource;
-	}
+	boost::iostreams::filtering_ostream m_Filter;
+	KOutStream m_OutStream { m_Filter };
+	COMP m_Compression { NONE };
+	bool m_bChunked { false };
+	bool m_bPerformCompression { true };
+	std::streamsize m_iContentSize { -1 };
 
-	//-----------------------------------------------------------------------------
-	const KHTTPMethod& Method() const
-	//-----------------------------------------------------------------------------
-	{
-		return m_Method;
-	}
+}; // KHTTPOutputFilter
 
-	//-----------------------------------------------------------------------------
-	KHTTPMethod& Method()
-	//-----------------------------------------------------------------------------
-	{
-		return m_Method;
-	}
+} // of namespace dekaf2
 
-	//-----------------------------------------------------------------------------
-	bool HasChunking() const;
-	//-----------------------------------------------------------------------------
 
-	//-----------------------------------------------------------------------------
-	/// returns -1 for chunked content, 0 for no content, > 0 = size of content
-	std::streamsize ContentLength() const;
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	bool HasContent() const;
-	//-----------------------------------------------------------------------------
-
-//----------
-protected:
-//----------
-
-//----------
-private:
-//----------
-
-	KHTTPMethod m_Method;
-	KURL m_Resource;
-
-}; // KHTTPRequest
-
-} // end of namespace dekaf2

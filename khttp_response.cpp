@@ -88,7 +88,14 @@ bool KHTTPResponse::Parse(KInStream& Stream)
 		m_sMessage.assign(Words[2].data());
 	}
 
-	return KHTTPHeader::Parse(Stream);
+	if (!KHTTPHeader::Parse(Stream))
+	{
+		// never returns false actually, therefore no error to fetch
+		return false;
+	}
+
+	// set up the chunked reader
+	return KHTTPInputFilter::Parse(*this);
 
 } // Parse
 

@@ -92,7 +92,7 @@ bool KHTTPRequest::Parse(KInStream& Stream)
 	}
 
 	// set up the chunked reader
-	return KHTTPInputFilter::Parse(*this);
+	return KHTTPOutputFilter::Parse(*this);
 
 } // Parse
 

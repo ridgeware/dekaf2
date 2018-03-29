@@ -45,9 +45,8 @@
 #include "kstringview.h"
 #include "kconnection.h"
 #include "khttp_response.h"
+#include "khttp_request.h"
 #include "khttp_method.h"
-#include "kuseragent.h"
-#include "khttpinputfilter.h"
 
 /// @file khttpclient.h
 /// HTTP client implementation
@@ -62,17 +61,6 @@ class KHTTPClient
 //------
 public:
 //------
-
-	enum class State
-	{
-		CONNECTED,
-		RESOURCE_SET,
-		HEADER_SET,
-		REQUEST_SENT,
-		HEADER_PARSED,
-		CONTENT_READ,
-		CLOSED
-	};
 
 	//-----------------------------------------------------------------------------
 	KHTTPClient() = default;
@@ -150,13 +138,6 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	State GetState() const
-	//-----------------------------------------------------------------------------
-	{
-		return m_State;
-	}
-
-	//-----------------------------------------------------------------------------
 	bool Good() const
 	//-----------------------------------------------------------------------------
 	{
@@ -167,14 +148,14 @@ public:
 	const KHTTPResponse& GetResponseHeader() const
 	//-----------------------------------------------------------------------------
 	{
-		return m_ResponseHeader;
+		return m_Response;
 	}
 
 	//-----------------------------------------------------------------------------
 	KHTTPResponse& GetResponseHeader()
 	//-----------------------------------------------------------------------------
 	{
-		return m_ResponseHeader;
+		return m_Response;
 	}
 
 	//-----------------------------------------------------------------------------
@@ -195,7 +176,7 @@ public:
 	void Uncompress(bool bYesNo)
 	//-----------------------------------------------------------------------------
 	{
-		m_Filter.Uncompress(bYesNo);
+		m_Response.Uncompress(bYesNo);
 	}
 
 	// alternative interface
@@ -240,11 +221,9 @@ private:
 //------
 
 	KConnection m_Connection;
-	KHTTPInputFilter m_Filter;
-	KHTTPMethod m_Method;
-	KHTTPResponse m_ResponseHeader;
+	KHTTPRequest m_Request;
+	KHTTPResponse m_Response;
 	mutable KString m_sError;
-	State m_State { State::CLOSED };
 	long m_Timeout { 30 };
 	bool m_bRequestCompression { true };
 

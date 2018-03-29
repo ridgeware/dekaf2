@@ -43,11 +43,12 @@
 
 #include "kstringview.h"
 #include "khttp_header.h"
+#include "khttpinputfilter.h"
 
 namespace dekaf2 {
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class KHTTPResponse : public KHTTPHeader
+class KHTTPResponse : public KHTTPHeader, public KHTTPInputFilter
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 

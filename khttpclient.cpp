@@ -76,8 +76,6 @@ bool KHTTPClient::Connect(KConnection&& Connection)
 {
 	SetError(KStringView{});
 
-	m_State = State::CLOSED;
-
 	m_Connection = std::move(Connection);
 
 	if (!m_Connection)
@@ -91,8 +89,6 @@ bool KHTTPClient::Connect(KConnection&& Connection)
 	m_Connection->SetReaderLeftTrim("");
 	m_Connection->SetReaderRightTrim("\r\n");
 	m_Connection->SetWriterEndOfLine("\r\n");
-
-	m_State = State::CONNECTED;
 
 	return true;
 
@@ -115,8 +111,6 @@ bool KHTTPClient::Connect(const KURL& url, bool bVerifyCerts)
 bool KHTTPClient::Disconnect()
 //-----------------------------------------------------------------------------
 {
-	m_State = State::CLOSED;
-
 	m_Connection.Disconnect();
 
 	return true;
@@ -136,36 +130,14 @@ void KHTTPClient::SetTimeout(long iSeconds)
 bool KHTTPClient::Resource(const KURL& url, KHTTPMethod method)
 //-----------------------------------------------------------------------------
 {
-	m_Method = method;
-
 	if (url.empty())
 	{
 		return SetError("URL is empty");
-	}
-	else if ((m_State != State::CONNECTED && m_State != State::CONTENT_READ))
-	{
-		return SetError(kFormat("bad state - cannot set resource {}", url.Path.Serialize()));
-	}
-	else if (!m_Connection)
-	{
-		return SetError("no stream");
-	}
+	};
 
-	m_Connection->Write(method.Serialize());
-	m_Connection->Write(' ');
-	if (!url.Path.empty())
-	{
-		url.Path.Serialize(*m_Connection);
-	}
-	else
-	{
-		m_Connection->Write('/');
-	}
-	url.Query.Serialize(*m_Connection);
-	url.Fragment.Serialize(*m_Connection);
-	m_Connection->WriteLine(" HTTP/1.1");
-
-	m_State = State::RESOURCE_SET;
+	m_Request.Resource() = url;
+	m_Request.Method() = method;
+	m_Request.HTTPVersion() = "HTTP/1.1";
 
 	return RequestHeader(KHTTPHeader::HOST, url.Domain.Serialize());
 
@@ -175,37 +147,26 @@ bool KHTTPClient::Resource(const KURL& url, KHTTPMethod method)
 bool KHTTPClient::RequestHeader(KStringView svName, KStringView svValue)
 //-----------------------------------------------------------------------------
 {
-	if ((m_State != State::RESOURCE_SET && m_State != State::HEADER_SET))
-	{
-		return SetError(kFormat("bad state - cannot set header '{} : {}'", svName, svValue));
-	}
-	else if (!m_Connection)
-	{
-		return SetError("no stream");
-	}
+	m_Request->Add(svName, svValue);
 
-	m_Connection->Write(svName);
-	m_Connection->Write(": ");
-	m_Connection->WriteLine(svValue);
-	m_State = State::HEADER_SET;
+	return true;
 
-	return m_Connection.Good();
-}
+} // RequestHeader
 
 //-----------------------------------------------------------------------------
 bool KHTTPClient::Request(KStringView svPostData, KStringView svMime)
 //-----------------------------------------------------------------------------
 {
-	if (m_State != State::HEADER_SET)
+	if (m_Request.Resource().empty())
 	{
-		SetError(kFormat("bad state - cannot send request"));
+		return SetError("no resource");
 	}
 	else if (!m_Connection)
 	{
 		return SetError("no stream");
 	}
 
-	if (m_Method == KHTTPMethod::POST)
+	if (m_Request.Method() == KHTTPMethod::POST)
 	{
 		RequestHeader(KHTTPHeader::CONTENT_LENGTH, KString::to_string(svPostData.size()));
 		RequestHeader(KHTTPHeader::CONTENT_TYPE,   svMime.empty() ? KMIME::TEXT_PLAIN : svMime);
@@ -216,12 +177,15 @@ bool KHTTPClient::Request(KStringView svPostData, KStringView svMime)
 		RequestHeader(KHTTPHeader::ACCEPT_ENCODING, "gzip");
 	}
 
-	m_Connection->WriteLine();
+	if (!m_Request.Serialize(m_Connection.Stream()))
+	{
+		return SetError(m_Request.Error());
+	}
 
-	if (m_Method == KHTTPMethod::POST)
+	if (m_Request.Method() == KHTTPMethod::POST)
 	{
 		kDebug(2, "sending {} bytes of POST data", svPostData.size());
-		m_Connection->Write(svPostData);
+		m_Request.Write(m_Connection.Stream(), svPostData);
 	}
 
 	m_Connection->Flush();
@@ -231,8 +195,6 @@ bool KHTTPClient::Request(KStringView svPostData, KStringView svMime)
 		return SetError("write error");
 	}
 
-	m_State = State::REQUEST_SENT;
-
 	return ReadHeader();
 }
 
@@ -240,25 +202,13 @@ bool KHTTPClient::Request(KStringView svPostData, KStringView svMime)
 bool KHTTPClient::ReadHeader()
 //-----------------------------------------------------------------------------
 {
-	if (m_State != State::REQUEST_SENT)
+	if (!m_Response.Parse(*m_Connection))
 	{
-		SetError("bad state - cannot read headers");
-	}
-	else if (!m_Connection)
-	{
-		return SetError("no stream");
-	}
-
-	if (!m_ResponseHeader.Parse(*m_Connection))
-	{
-		SetError(m_ResponseHeader.Error());
+		SetError(m_Response.Error());
 		return false;
 	}
 
-	m_State = State::HEADER_PARSED;
-
-	// setup the input filter parameters
-	return m_Filter.Parse(m_ResponseHeader);
+	return true;
 
 } // ReadHeader
 
@@ -267,18 +217,7 @@ bool KHTTPClient::ReadHeader()
 size_t KHTTPClient::Read(KOutStream& stream, size_t len)
 //-----------------------------------------------------------------------------
 {
-	if (m_State != State::HEADER_PARSED)
-	{
-		SetError("bad state - cannot read data");
-		return 0;
-	}
-
-	m_Filter.Read(m_Connection.Stream(), stream, len);
-
-	if (m_Filter.eof())
-	{
-		m_State = State::CONTENT_READ;
-	}
+	m_Response.Read(m_Connection.Stream(), stream, len);
 
 	return len;
 
@@ -289,18 +228,7 @@ size_t KHTTPClient::Read(KOutStream& stream, size_t len)
 size_t KHTTPClient::Read(KString& sBuffer, size_t len)
 //-----------------------------------------------------------------------------
 {
-	if (m_State != State::HEADER_PARSED)
-	{
-		SetError("bad state - cannot read data");
-		return 0;
-	}
-
-	m_Filter.Read(m_Connection.Stream(), sBuffer, len);
-
-	if (m_Filter.eof())
-	{
-		m_State = State::CONTENT_READ;
-	}
+	m_Response.Read(m_Connection.Stream(), sBuffer, len);
 
 	return sBuffer.size();
 
@@ -313,20 +241,10 @@ bool KHTTPClient::ReadLine(KString& sBuffer)
 {
 	sBuffer.clear();
 
-	if (m_State != State::HEADER_PARSED)
-	{
-		return SetError("bad state - cannot read data");
-	}
-
-	if (!m_Filter.ReadLine(m_Connection.Stream(), sBuffer))
+	if (!m_Response.ReadLine(m_Connection.Stream(), sBuffer))
 	{
 		SetError(m_Connection.Error());
 		return false;
-	}
-
-	if (m_Filter.eof())
-	{
-		m_State = State::CONTENT_READ;
 	}
 
 	return true;

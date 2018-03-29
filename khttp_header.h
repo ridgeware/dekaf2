@@ -51,7 +51,7 @@ namespace dekaf2 {
 extern template class KProps<KCaseTrimString, KString>;
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class KHTTPHeader
+class KHTTPHeaders
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -290,6 +290,6 @@ private:
 	mutable KString m_sContentType;
 	mutable KString m_sError;
 
-}; // KHeader
+}; // KHTTPHeaders
 
 } // end of namespace dekaf2

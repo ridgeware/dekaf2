@@ -45,17 +45,9 @@ namespace dekaf2 {
 
 
 //-----------------------------------------------------------------------------
-bool KHTTPRequest::Parse(KInStream& Stream)
+bool KHTTPRequestHeaders::Parse(KInStream& Stream)
 //-----------------------------------------------------------------------------
 {
-	// This is for the case of receiving a HTTP request.
-	// Be aware that there is no KHTTPInputFilter setup
-	// automatically, as is for the KHTTPResponse class.
-	//
-	// The normal use case for these classes is the client
-	// mode. That is, requests are written and responses
-	// are read.
-
 	KString sLine;
 
 	// make sure we detect an empty header
@@ -93,27 +85,25 @@ bool KHTTPRequest::Parse(KInStream& Stream)
 		return SetError("missing HTTP version in header");
 	}
 
-	return KHTTPHeader::Parse(Stream);
+	return KHTTPHeaders::Parse(Stream);
 
 } // Parse
 
 //-----------------------------------------------------------------------------
-bool KHTTPRequest::Serialize(KOutStream& Stream)
+bool KHTTPRequestHeaders::Serialize(KOutStream& Stream) const
 //-----------------------------------------------------------------------------
 {
-	// set up the chunked writer
-	KHTTPOutputFilter::Parse(*this);
 	Stream.FormatLine("{} {} {}",
 					  Method.Serialize(),
 					  Resource.Serialize(),
 					  HTTPVersion);
 
-	return KHTTPHeader::Serialize(Stream);
+	return KHTTPHeaders::Serialize(Stream);
 
 } // Serialize
 
 //-----------------------------------------------------------------------------
-bool KHTTPRequest::HasChunking() const
+bool KHTTPRequestHeaders::HasChunking() const
 //-----------------------------------------------------------------------------
 {
 	if (HTTPVersion == "HTTP/1.0" || HTTPVersion == "HTTP/0.9")
@@ -128,12 +118,12 @@ bool KHTTPRequest::HasChunking() const
 } // HasChunking
 
 //-----------------------------------------------------------------------------
-std::streamsize KHTTPRequest::ContentLength() const
+std::streamsize KHTTPRequestHeaders::ContentLength() const
 //-----------------------------------------------------------------------------
 {
 	std::streamsize iSize { -1 };
 
-	KStringView sSize = Headers.Get(KHTTPHeader::content_length);
+	KStringView sSize = Headers.Get(KHTTPHeaders::content_length);
 
 	if (!sSize.empty())
 	{
@@ -145,7 +135,7 @@ std::streamsize KHTTPRequest::ContentLength() const
 } // ContentLength
 
 //-----------------------------------------------------------------------------
-bool KHTTPRequest::HasContent() const
+bool KHTTPRequestHeaders::HasContent() const
 //-----------------------------------------------------------------------------
 {
 	auto iSize = ContentLength();
@@ -155,7 +145,7 @@ bool KHTTPRequest::HasContent() const
 		// do not blindly trust in the transfer-encoding header, e.g.
 		// for methods that can not have content
 		return (Method == "POST" || Method == "PUT")
-		     && Headers.Get(KHTTPHeader::transfer_encoding) == "chunked";
+		     && Headers.Get(KHTTPHeaders::transfer_encoding) == "chunked";
 	}
 	else
 	{
@@ -164,15 +154,32 @@ bool KHTTPRequest::HasContent() const
 
 } // HasContent
 
-
 //-----------------------------------------------------------------------------
-void KHTTPRequest::clear()
+void KHTTPRequestHeaders::clear()
 //-----------------------------------------------------------------------------
 {
-	KHTTPHeader::clear();
+	KHTTPHeaders::clear();
 	HTTPVersion.clear();
 	Resource.clear();
 
-}
+} // clear
+
+//-----------------------------------------------------------------------------
+bool KOutHTTPRequest::Serialize(KOutStream& Stream)
+//-----------------------------------------------------------------------------
+{
+	// set up the chunked writer
+	return KHTTPOutputFilter::Parse(*this) && KHTTPRequestHeaders::Serialize(Stream);
+
+} // Serialize
+
+//-----------------------------------------------------------------------------
+bool KInHTTPRequest::Parse(KInStream& Stream)
+//-----------------------------------------------------------------------------
+{
+	// set up the chunked reader
+	return KHTTPRequestHeaders::Parse(Stream) && KHTTPInputFilter::Parse(*this);
+
+} // Parse
 
 } // end of namespace dekaf2

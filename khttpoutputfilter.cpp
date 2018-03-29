@@ -51,21 +51,21 @@
 namespace dekaf2 {
 
 //-----------------------------------------------------------------------------
-bool KHTTPOutputFilter::Parse(const KHTTPHeader& headers)
+bool KHTTPOutputFilter::Parse(const KHTTPHeaders& headers)
 //-----------------------------------------------------------------------------
 {
-	clear();
+	reset();
 
 	// find the content length
-	KStringView sRemainingContentSize = headers.Headers.Get(KHTTPHeader::content_length);
+	KStringView sRemainingContentSize = headers.Headers.Get(KHTTPHeaders::content_length);
 	if (!sRemainingContentSize.empty())
 	{
 		m_iContentSize = sRemainingContentSize.UInt64();
 	}
 
-	m_bChunked = headers.Headers.Get(KHTTPHeader::transfer_encoding) == "chunked";
+	m_bChunked = headers.Headers.Get(KHTTPHeaders::transfer_encoding) == "chunked";
 
-	KStringView sCompression = headers.Headers.Get(KHTTPHeader::content_encoding);
+	KStringView sCompression = headers.Headers.Get(KHTTPHeaders::content_encoding);
 	if (sCompression == "gzip" || sCompression == "x-gzip")
 	{
 		m_Compression = GZIP;
@@ -159,10 +159,8 @@ bool KHTTPOutputFilter::WriteLine(KOutStream& OutStream, KStringView sBuffer)
 
 } // ReadLine
 
-
-
 //-----------------------------------------------------------------------------
-void KHTTPOutputFilter::clear()
+void KHTTPOutputFilter::reset()
 //-----------------------------------------------------------------------------
 {
 	m_Filter.reset();
@@ -171,7 +169,7 @@ void KHTTPOutputFilter::clear()
 	m_bPerformCompression = true;
 	m_iContentSize = -1;
 
-} // clear
+} // reset
 
 
 } // of namespace dekaf2

@@ -45,7 +45,7 @@ namespace dekaf2 {
 
 
 //-----------------------------------------------------------------------------
-bool KHTTPResponse::Parse(KInStream& Stream)
+bool KHTTPResponseHeaders::Parse(KInStream& Stream)
 //-----------------------------------------------------------------------------
 {
 	KString sLine;
@@ -88,47 +88,62 @@ bool KHTTPResponse::Parse(KInStream& Stream)
 		StatusString.assign(Words[2].data());
 	}
 
-	if (!KHTTPHeader::Parse(Stream))
-	{
-		// never returns false actually, therefore no error to fetch
-		return false;
-	}
-
-	// set up the chunked reader
-	return KHTTPInputFilter::Parse(*this);
+	return KHTTPHeaders::Parse(Stream);
 
 } // Parse
 
 //-----------------------------------------------------------------------------
-bool KHTTPResponse::Serialize(KOutStream& Stream) const
+bool KHTTPResponseHeaders::Serialize(KOutStream& Stream) const
 //-----------------------------------------------------------------------------
 {
 	if (HTTPVersion.empty())
 	{
 		SetError("missing http version");
 	}
+	
 	Stream.FormatLine("{} {} {}", HTTPVersion, StatusCode, StatusString);
-	return KHTTPHeader::Serialize(Stream);
+
+	return KHTTPHeaders::Serialize(Stream);
 
 } // Serialize
 
 //-----------------------------------------------------------------------------
-bool KHTTPResponse::HasChunking() const
+bool KHTTPResponseHeaders::HasChunking() const
 //-----------------------------------------------------------------------------
 {
-	return Headers.Get(KHTTPHeader::transfer_encoding) == "chunked";
+	return Headers.Get(KHTTPHeaders::transfer_encoding) == "chunked";
 
 } // HasChunking
 
 //-----------------------------------------------------------------------------
-void KHTTPResponse::clear()
+void KHTTPResponseHeaders::clear()
 //-----------------------------------------------------------------------------
 {
-	KHTTPHeader::clear();
+	KHTTPHeaders::clear();
 	HTTPVersion.clear();
 	StatusString.clear();
 	StatusCode = 0;
 
 } // clear
+
+//-----------------------------------------------------------------------------
+bool KOutHTTPResponse::Serialize(KOutStream& Stream)
+//-----------------------------------------------------------------------------
+{
+	// set up the chunked writer
+	return KHTTPOutputFilter::Parse(*this) && KHTTPResponseHeaders::Serialize(Stream);
+
+} // Serialize
+
+//-----------------------------------------------------------------------------
+bool KInHTTPResponse::Parse(KInStream& Stream)
+//-----------------------------------------------------------------------------
+{
+	// set up the chunked reader
+	return KHTTPResponseHeaders::Parse(Stream) && KHTTPInputFilter::Parse(*this);
+
+} // Parse
+
+
 
 } // end of namespace dekaf2

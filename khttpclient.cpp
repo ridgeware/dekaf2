@@ -156,7 +156,7 @@ bool KHTTPClient::Resource(const KURL& url, KHTTPMethod method)
 	Request.Method = method;
 	Request.HTTPVersion = "HTTP/1.1";
 
-	return RequestHeader(KHTTPHeader::HOST, url.Domain.Serialize());
+	return RequestHeader(KHTTPHeaders::HOST, url.Domain.Serialize());
 
 } // Resource
 
@@ -185,13 +185,13 @@ bool KHTTPClient::SendRequest(KStringView svPostData, KStringView svMime)
 
 	if (Request.Method == KHTTPMethod::POST)
 	{
-		RequestHeader(KHTTPHeader::CONTENT_LENGTH, KString::to_string(svPostData.size()));
-		RequestHeader(KHTTPHeader::CONTENT_TYPE,   svMime.empty() ? KMIME::TEXT_PLAIN : svMime);
+		RequestHeader(KHTTPHeaders::CONTENT_LENGTH, KString::to_string(svPostData.size()));
+		RequestHeader(KHTTPHeaders::CONTENT_TYPE,   svMime.empty() ? KMIME::TEXT_PLAIN : svMime);
 	}
 
 	if (m_bRequestCompression)
 	{
-		RequestHeader(KHTTPHeader::ACCEPT_ENCODING, "gzip");
+		RequestHeader(KHTTPHeaders::ACCEPT_ENCODING, "gzip");
 	}
 
 	if (!Request.Serialize(m_Connection.Stream()))

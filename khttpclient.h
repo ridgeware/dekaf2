@@ -225,8 +225,8 @@ private:
 public:
 //------
 
-	KHTTPRequest Request;
-	KHTTPResponse Response;
+	KOutHTTPRequest Request;
+	KInHTTPResponse Response;
 
 }; // KHTTPClient
 

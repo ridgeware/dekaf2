@@ -44,12 +44,13 @@
 #include "khttp_method.h"
 #include "khttp_header.h"
 #include "khttpoutputfilter.h"
+#include "khttpinputfilter.h"
 #include "kurl.h"
 
 namespace dekaf2 {
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class KHTTPRequest : public KHTTPHeader, public KHTTPOutputFilter
+class KHTTPRequestHeaders : public KHTTPHeaders
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -62,7 +63,7 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	bool Serialize(KOutStream& Stream);
+	bool Serialize(KOutStream& Stream) const;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -89,6 +90,37 @@ public:
 	KHTTPMethod Method;
 	KURL Resource;
 
-}; // KHTTPRequest
+}; // KHTTPRequestHeaders
+
+
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+class KOutHTTPRequest : public KHTTPRequestHeaders, public KHTTPOutputFilter
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+//----------
+public:
+//----------
+
+	//-----------------------------------------------------------------------------
+	bool Serialize(KOutStream& Stream);
+	//-----------------------------------------------------------------------------
+
+};
+
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+class KInHTTPRequest : public KHTTPRequestHeaders, public KHTTPInputFilter
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+//----------
+public:
+//----------
+
+	//-----------------------------------------------------------------------------
+	bool Parse(KInStream& Stream);
+	//-----------------------------------------------------------------------------
+
+};
 
 } // end of namespace dekaf2

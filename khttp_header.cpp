@@ -45,7 +45,7 @@
 namespace dekaf2 {
 
 //-----------------------------------------------------------------------------
-bool KHTTPHeader::Parse(KInStream& Stream)
+bool KHTTPHeaders::Parse(KInStream& Stream)
 //-----------------------------------------------------------------------------
 {
 	// Continuation lines are no more allowed in HTTP headers, so we don't
@@ -101,7 +101,7 @@ bool KHTTPHeader::Parse(KInStream& Stream)
 
 
 //-----------------------------------------------------------------------------
-bool KHTTPHeader::Serialize(KOutStream& Stream) const
+bool KHTTPHeaders::Serialize(KOutStream& Stream) const
 //-----------------------------------------------------------------------------
 {
 	for (const auto& iter : Headers)
@@ -119,7 +119,7 @@ bool KHTTPHeader::Serialize(KOutStream& Stream) const
 
 
 //-----------------------------------------------------------------------------
-void KHTTPHeader::clear()
+void KHTTPHeaders::clear()
 //-----------------------------------------------------------------------------
 {
 	Headers.clear();
@@ -130,7 +130,7 @@ void KHTTPHeader::clear()
 } // clear
 
 //-----------------------------------------------------------------------------
-void KHTTPHeader::SplitContentType() const
+void KHTTPHeaders::SplitContentType() const
 //-----------------------------------------------------------------------------
 {
 	KStringView sHeader = Headers.Get(content_type);
@@ -166,7 +166,7 @@ void KHTTPHeader::SplitContentType() const
 } // SplitContentType
 
 //-----------------------------------------------------------------------------
-const KString& KHTTPHeader::ContentType() const
+const KString& KHTTPHeaders::ContentType() const
 //-----------------------------------------------------------------------------
 {
 	if (m_sContentType.empty())
@@ -178,7 +178,7 @@ const KString& KHTTPHeader::ContentType() const
 } // ContentType
 
 //-----------------------------------------------------------------------------
-const KString& KHTTPHeader::Charset() const
+const KString& KHTTPHeaders::Charset() const
 //-----------------------------------------------------------------------------
 {
 	if (m_sCharset.empty())
@@ -190,7 +190,7 @@ const KString& KHTTPHeader::Charset() const
 } // Charset
 
 //-----------------------------------------------------------------------------
-bool KHTTPHeader::HasKeepAlive() const
+bool KHTTPHeaders::HasKeepAlive() const
 //-----------------------------------------------------------------------------
 {
 	if (HTTPVersion == "HTTP/1.0" || HTTPVersion == "HTTP/0.9")
@@ -199,7 +199,7 @@ bool KHTTPHeader::HasKeepAlive() const
 	}
 	else
 	{
-		KStringView sValue = Headers.Get(KHTTPHeader::connection);
+		KStringView sValue = Headers.Get(KHTTPHeaders::connection);
 
 		if (!sValue.empty())
 		{

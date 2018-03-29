@@ -44,11 +44,12 @@
 #include "kstringview.h"
 #include "khttp_header.h"
 #include "khttpinputfilter.h"
+#include "khttpoutputfilter.h"
 
 namespace dekaf2 {
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class KHTTPResponse : public KHTTPHeader, public KHTTPInputFilter
+class KHTTPResponseHeaders : public KHTTPHeaders
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -94,6 +95,37 @@ public:
 	KString StatusString;
 	uint16_t StatusCode;
 
-}; // KHTTPResponse
+}; // KHTTPResponseHeaders
+
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+class KOutHTTPResponse : public KHTTPResponseHeaders, public KHTTPOutputFilter
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+//----------
+public:
+//----------
+
+	//-----------------------------------------------------------------------------
+	bool Serialize(KOutStream& Stream);
+	//-----------------------------------------------------------------------------
+
+};
+
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+class KInHTTPResponse : public KHTTPResponseHeaders, public KHTTPInputFilter
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+//----------
+public:
+//----------
+
+	//-----------------------------------------------------------------------------
+	bool Parse(KInStream& Stream);
+	//-----------------------------------------------------------------------------
+
+};
+
 
 } // end of namespace dekaf2

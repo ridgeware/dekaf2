@@ -99,11 +99,6 @@ public:
 	bool Good() const;
 	/// Send the mail via MTA at URL
 	bool Send(const KURL& URL);
-	/// Send the mail via MTA at URL
-	bool Send(KStringView sServer)
-	{
-		return Send(KURL(sServer));
-	}
 	/// Set the message
 	KMail& operator=(KStringView sMessage);
 	/// Append to message

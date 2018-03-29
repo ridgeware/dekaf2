@@ -119,7 +119,12 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	bool Request(KStringView svPostData = KStringView{}, KStringView svMime = KStringView{});
+	bool SendRequest(KStringView svPostData = KStringView{}, KStringView svMime = KStringView{});
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// POST/PUT from stream
+	size_t Write(KInStream& stream, size_t len = KString::npos);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -145,20 +150,6 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	const KHTTPResponse& GetResponseHeader() const
-	//-----------------------------------------------------------------------------
-	{
-		return m_Response;
-	}
-
-	//-----------------------------------------------------------------------------
-	KHTTPResponse& GetResponseHeader()
-	//-----------------------------------------------------------------------------
-	{
-		return m_Response;
-	}
-
-	//-----------------------------------------------------------------------------
 	const KString& Error() const
 	//-----------------------------------------------------------------------------
 	{
@@ -176,8 +167,13 @@ public:
 	void Uncompress(bool bYesNo)
 	//-----------------------------------------------------------------------------
 	{
-		m_Response.Uncompress(bYesNo);
+		Response.Uncompress(bYesNo);
 	}
+
+	//-----------------------------------------------------------------------------
+	/// Clear all headers, resource, and error. Keep connection
+	void clear();
+	//-----------------------------------------------------------------------------
 
 	// alternative interface
 
@@ -221,11 +217,16 @@ private:
 //------
 
 	KConnection m_Connection;
-	KHTTPRequest m_Request;
-	KHTTPResponse m_Response;
 	mutable KString m_sError;
 	long m_Timeout { 30 };
 	bool m_bRequestCompression { true };
+
+//------
+public:
+//------
+
+	KHTTPRequest Request;
+	KHTTPResponse Response;
 
 }; // KHTTPClient
 

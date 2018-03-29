@@ -178,14 +178,14 @@ bool KCGI::Parse(KInStream& Stream, char chCommentDelim)
 	if (!sRM.empty())
 	{
 		// we are running within a web server that sets these:
-		KHTTPRequest::Method()         = sRM.ToView();
-		KHTTPRequest::Resource()       = GetVar(KCGI::REQUEST_URI);
-		KHTTPRequest::Resource().Query = GetVar(KCGI::QUERY_STRING);
-		KHTTPRequest::HTTPVersion()    = GetVar(KCGI::SERVER_PROTOCOL);
-		KHTTPRequest::Set(KHTTPHeader::HOST,           GetVar(KCGI::HTTP_HOST));
-		KHTTPRequest::Set(KHTTPHeader::CONTENT_TYPE,   GetVar(KCGI::CONTENT_TYPE));
-		KHTTPRequest::Set(KHTTPHeader::CONTENT_LENGTH, GetVar(KCGI::CONTENT_LENGTH));
-		KHTTPRequest::Set(KHTTPHeader::FROM,           GetVar(KCGI::REMOTE_ADDR));
+		KHTTPRequest::Method           = sRM.ToView();
+		KHTTPRequest::Resource         = GetVar(KCGI::REQUEST_URI);
+		KHTTPRequest::Resource.Query   = GetVar(KCGI::QUERY_STRING);
+		KHTTPRequest::HTTPVersion      = GetVar(KCGI::SERVER_PROTOCOL);
+		KHTTPRequest::Headers.Set(KHTTPHeader::HOST,           GetVar(KCGI::HTTP_HOST));
+		KHTTPRequest::Headers.Set(KHTTPHeader::CONTENT_TYPE,   GetVar(KCGI::CONTENT_TYPE));
+		KHTTPRequest::Headers.Set(KHTTPHeader::CONTENT_LENGTH, GetVar(KCGI::CONTENT_LENGTH));
+		KHTTPRequest::Headers.Set(KHTTPHeader::FROM,           GetVar(KCGI::REMOTE_ADDR));
 	}
 	else if (!KHTTPRequest::Parse(Stream))
 	{
@@ -262,7 +262,7 @@ bool KCGI::GetNextRequest (KStringView sFilename /*= KStringView{}*/, KStringVie
 		// in case we are running within a web server that sets these:
 		SetRequestMethod(GetVar (KCGI::REQUEST_METHOD));
 		SetRequestURI(GetVar (KCGI::REQUEST_URI));
-		KHTTPRequest::Resource().Query = GetVar (KCGI::QUERY_STRING);
+		KHTTPRequest::Resource.Query = GetVar (KCGI::QUERY_STRING);
 
 		// if environment vars not set, expect them in the input stream:
 		if (GetRequestMethod().empty() && !ReadHeaders())

@@ -54,7 +54,7 @@ bool KHTTPHeader::Parse(KInStream& Stream)
 	// We also do not care for line endings and will cannonify them on
 	// serialization.
 
-	if (!m_Headers.empty())
+	if (!Headers.empty())
 	{
 		clear();
 	}
@@ -92,7 +92,7 @@ bool KHTTPHeader::Parse(KInStream& Stream)
 		kTrimRight(sKey);
 		kTrim(sValue);
 
-		m_Headers.emplace(sKey, sValue);
+		Headers.emplace(sKey, sValue);
 
 	}
 
@@ -104,7 +104,7 @@ bool KHTTPHeader::Parse(KInStream& Stream)
 bool KHTTPHeader::Serialize(KOutStream& Stream) const
 //-----------------------------------------------------------------------------
 {
-	for (const auto& iter : m_Headers)
+	for (const auto& iter : Headers)
 	{
 		Stream.Write(iter.first);
 		Stream.Write(": ");
@@ -122,7 +122,7 @@ bool KHTTPHeader::Serialize(KOutStream& Stream) const
 void KHTTPHeader::clear()
 //-----------------------------------------------------------------------------
 {
-	m_Headers.clear();
+	Headers.clear();
 	m_sCharset.clear();
 	m_sContentType.clear();
 	m_sError.clear();
@@ -133,7 +133,7 @@ void KHTTPHeader::clear()
 void KHTTPHeader::SplitContentType() const
 //-----------------------------------------------------------------------------
 {
-	KStringView sHeader = Get(content_type);
+	KStringView sHeader = Headers.Get(content_type);
 	if (!sHeader.empty())
 	{
 		kTrimLeft(sHeader);
@@ -193,13 +193,13 @@ const KString& KHTTPHeader::Charset() const
 bool KHTTPHeader::HasKeepAlive() const
 //-----------------------------------------------------------------------------
 {
-	if (HTTPVersion() == "HTTP/1.0" || HTTPVersion() == "HTTP/0.9")
+	if (HTTPVersion == "HTTP/1.0" || HTTPVersion == "HTTP/0.9")
 	{
 		return false;
 	}
 	else
 	{
-		KStringView sValue = Get(KHTTPHeader::connection);
+		KStringView sValue = Headers.Get(KHTTPHeader::connection);
 
 		if (!sValue.empty())
 		{

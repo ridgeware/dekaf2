@@ -97,7 +97,7 @@ public:
 	/// incoming http request method: GET, POST, etc.
 	const KString& GetRequestMethod() const
 	{
-		return KHTTPRequest::Method().Serialize();
+		return KHTTPRequest::Method.Serialize();
 	}
 
 	// these getters expect the unencoded / decoded form of the URL parts..
@@ -105,13 +105,13 @@ public:
 	/// incoming Path component
 	const KString& GetRequestPath() const
 	{
-		return KHTTPRequest::Resource().Path.get();
+		return KHTTPRequest::Resource.Path.get();
 	}
 
 	/// incoming http protocol and version as defined in status header
 	const KString& GetHTTPProtocol() const
 	{
-		return KHTTPRequest::HTTPVersion();
+		return KHTTPRequest::HTTPVersion;
 	}
 
 	/// raw, unprocessed incoming POST data
@@ -123,13 +123,13 @@ public:
 	/// incoming request headers
 	const HeadersT& GetRequestHeaders() const
 	{
-		return KHTTPRequest::Get();
+		return KHTTPRequest::Headers;
 	}
 
 	/// incoming query parms off request URI
 	const QueryParmsT& GetQueryParms() const
 	{
-		return KHTTPRequest::Resource().Query.get();
+		return KHTTPRequest::Resource.Query.get();
 	}
 
 	/// returns last error message
@@ -147,7 +147,7 @@ protected:
 	/// set incoming URL including the query string (this actually decodes / parses the input)
 	void SetRequestURI(KStringView sURI)
 	{
-		KHTTPRequest::Resource() = sURI;
+		KHTTPRequest::Resource = sURI;
 	}
 
 	// these setters set the unencoded / decoded form of the URL parts..
@@ -155,13 +155,13 @@ protected:
 	/// set incoming http request method: GET, POST, etc.
 	void SetRequestMethod(KStringView sMethod)
 	{
-		KHTTPRequest::Method() = sMethod;
+		KHTTPRequest::Method = sMethod;
 	}
 
 	/// set Path component
 	void SetRequestPath(KStringView sPath)
 	{
-		KHTTPRequest::Resource().Path.set(sPath);
+		KHTTPRequest::Resource.Path.set(sPath);
 	}
 
 	/// raw, unprocessed incoming POST data
@@ -173,13 +173,13 @@ protected:
 	/// add incoming request headers
 	void AddRequestHeaders(KStringView sName, KStringView sValue)
 	{
-		KHTTPRequest::Set(sName, sValue);
+		KHTTPRequest::Headers.Set(sName, sValue);
 	}
 
 	/// add incoming query parms off request URI
 	void AddQueryParms(KStringView sName, KStringView sValue)
 	{
-		KHTTPRequest::Resource().Query->Add(sName, sValue);
+		KHTTPRequest::Resource.Query->Add(sName, sValue);
 	}
 
 	/// reset all class members for next request

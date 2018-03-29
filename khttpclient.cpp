@@ -48,6 +48,17 @@
 
 namespace dekaf2 {
 
+
+//-----------------------------------------------------------------------------
+void KHTTPClient::clear()
+//-----------------------------------------------------------------------------
+{
+	Request.clear();
+	Response.clear();
+	m_sError.clear();
+	m_bRequestCompression = true;
+}
+
 //-----------------------------------------------------------------------------
 KHTTPClient::KHTTPClient(const KURL& url, KHTTPMethod method, bool bVerifyCerts)
 //-----------------------------------------------------------------------------
@@ -135,9 +146,15 @@ bool KHTTPClient::Resource(const KURL& url, KHTTPMethod method)
 		return SetError("URL is empty");
 	};
 
-	m_Request.Resource() = url;
-	m_Request.Method() = method;
-	m_Request.HTTPVersion() = "HTTP/1.1";
+	Request.Resource = url;
+	// we do not want to send any eventual protocol and domain parts of the URL in the request
+	Request.Resource.Protocol.clear();
+	Request.Resource.User.clear();
+	Request.Resource.Password.clear();
+	Request.Resource.Domain.clear();
+	Request.Resource.Port.clear();
+	Request.Method = method;
+	Request.HTTPVersion = "HTTP/1.1";
 
 	return RequestHeader(KHTTPHeader::HOST, url.Domain.Serialize());
 
@@ -147,17 +164,17 @@ bool KHTTPClient::Resource(const KURL& url, KHTTPMethod method)
 bool KHTTPClient::RequestHeader(KStringView svName, KStringView svValue)
 //-----------------------------------------------------------------------------
 {
-	m_Request->Add(svName, svValue);
+	Request.Headers.Add(svName, svValue);
 
 	return true;
 
 } // RequestHeader
 
 //-----------------------------------------------------------------------------
-bool KHTTPClient::Request(KStringView svPostData, KStringView svMime)
+bool KHTTPClient::SendRequest(KStringView svPostData, KStringView svMime)
 //-----------------------------------------------------------------------------
 {
-	if (m_Request.Resource().empty())
+	if (Request.Resource.empty())
 	{
 		return SetError("no resource");
 	}
@@ -166,7 +183,7 @@ bool KHTTPClient::Request(KStringView svPostData, KStringView svMime)
 		return SetError("no stream");
 	}
 
-	if (m_Request.Method() == KHTTPMethod::POST)
+	if (Request.Method == KHTTPMethod::POST)
 	{
 		RequestHeader(KHTTPHeader::CONTENT_LENGTH, KString::to_string(svPostData.size()));
 		RequestHeader(KHTTPHeader::CONTENT_TYPE,   svMime.empty() ? KMIME::TEXT_PLAIN : svMime);
@@ -177,15 +194,18 @@ bool KHTTPClient::Request(KStringView svPostData, KStringView svMime)
 		RequestHeader(KHTTPHeader::ACCEPT_ENCODING, "gzip");
 	}
 
-	if (!m_Request.Serialize(m_Connection.Stream()))
+	if (!Request.Serialize(m_Connection.Stream()))
 	{
-		return SetError(m_Request.Error());
+		return SetError(Request.Error());
 	}
 
-	if (m_Request.Method() == KHTTPMethod::POST)
+	// now parse the request headers to setup the output filter for post data
+	Request.KHTTPOutputFilter::Parse(Request);
+
+	if (Request.Method == KHTTPMethod::POST)
 	{
 		kDebug(2, "sending {} bytes of POST data", svPostData.size());
-		m_Request.Write(m_Connection.Stream(), svPostData);
+		Request.Write(m_Connection.Stream(), svPostData);
 	}
 
 	m_Connection->Flush();
@@ -202,9 +222,9 @@ bool KHTTPClient::Request(KStringView svPostData, KStringView svMime)
 bool KHTTPClient::ReadHeader()
 //-----------------------------------------------------------------------------
 {
-	if (!m_Response.Parse(*m_Connection))
+	if (!Response.Parse(*m_Connection))
 	{
-		SetError(m_Response.Error());
+		SetError(Response.Error());
 		return false;
 	}
 
@@ -213,11 +233,20 @@ bool KHTTPClient::ReadHeader()
 } // ReadHeader
 
 //-----------------------------------------------------------------------------
+/// POST/PUT from stream
+size_t KHTTPClient::Write(KInStream& stream, size_t len)
+//-----------------------------------------------------------------------------
+{
+	return Request.Write(m_Connection.Stream(), stream, len);
+
+} // Write
+
+//-----------------------------------------------------------------------------
 /// Stream into outstream
 size_t KHTTPClient::Read(KOutStream& stream, size_t len)
 //-----------------------------------------------------------------------------
 {
-	m_Response.Read(m_Connection.Stream(), stream, len);
+	Response.Read(m_Connection.Stream(), stream, len);
 
 	return len;
 
@@ -228,7 +257,7 @@ size_t KHTTPClient::Read(KOutStream& stream, size_t len)
 size_t KHTTPClient::Read(KString& sBuffer, size_t len)
 //-----------------------------------------------------------------------------
 {
-	m_Response.Read(m_Connection.Stream(), sBuffer, len);
+	Response.Read(m_Connection.Stream(), sBuffer, len);
 
 	return sBuffer.size();
 
@@ -241,7 +270,7 @@ bool KHTTPClient::ReadLine(KString& sBuffer)
 {
 	sBuffer.clear();
 
-	if (!m_Response.ReadLine(m_Connection.Stream(), sBuffer))
+	if (!Response.ReadLine(m_Connection.Stream(), sBuffer))
 	{
 		SetError(m_Connection.Error());
 		return false;
@@ -261,7 +290,7 @@ KString KHTTPClient::Get(const KURL& URL)
 	{
 		if (Resource(URL, KHTTPMethod::GET))
 		{
-			if (Request())
+			if (SendRequest())
 			{
 				Read(sBuffer);
 			}
@@ -282,7 +311,7 @@ KString KHTTPClient::Post(const KURL& URL, KStringView svPostData, KStringView s
 	{
 		if (Resource(URL, KHTTPMethod::POST))
 		{
-			if (Request(svPostData, svMime))
+			if (SendRequest(svPostData, svMime))
 			{
 				Read(sBuffer);
 			}

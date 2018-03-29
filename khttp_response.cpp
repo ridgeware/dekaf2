@@ -76,8 +76,8 @@ bool KHTTPResponse::Parse(KInStream& Stream)
 		return SetError("cannot read HTTP response status");
 	}
 
-	HTTPVersion() = Words[0];
-	m_iStatus = Words[1].UInt16();
+	HTTPVersion = Words[0];
+	StatusCode = Words[1].UInt16();
 
 	if (Words.size() > 2)
 	{
@@ -85,7 +85,7 @@ bool KHTTPResponse::Parse(KInStream& Stream)
 		// into m_sMessage. It looks dangerous but is absolutely
 		// clean, as data() returns a pointer into sLine, which
 		// itself is 0-terminated
-		m_sMessage.assign(Words[2].data());
+		StatusString.assign(Words[2].data());
 	}
 
 	if (!KHTTPHeader::Parse(Stream))
@@ -103,11 +103,11 @@ bool KHTTPResponse::Parse(KInStream& Stream)
 bool KHTTPResponse::Serialize(KOutStream& Stream) const
 //-----------------------------------------------------------------------------
 {
-	if (HTTPVersion().empty())
+	if (HTTPVersion.empty())
 	{
 		SetError("missing http version");
 	}
-	Stream.FormatLine("{} {} {}", HTTPVersion(), m_iStatus, m_sMessage);
+	Stream.FormatLine("{} {} {}", HTTPVersion, StatusCode, StatusString);
 	return KHTTPHeader::Serialize(Stream);
 
 } // Serialize
@@ -116,7 +116,7 @@ bool KHTTPResponse::Serialize(KOutStream& Stream) const
 bool KHTTPResponse::HasChunking() const
 //-----------------------------------------------------------------------------
 {
-	return Get(KHTTPHeader::transfer_encoding) == "chunked";
+	return Headers.Get(KHTTPHeader::transfer_encoding) == "chunked";
 
 } // HasChunking
 
@@ -125,9 +125,9 @@ void KHTTPResponse::clear()
 //-----------------------------------------------------------------------------
 {
 	KHTTPHeader::clear();
-	HTTPVersion().clear();
-	m_sMessage.clear();
-	m_iStatus = 0;
+	HTTPVersion.clear();
+	StatusString.clear();
+	StatusCode = 0;
 
 } // clear
 

@@ -48,6 +48,14 @@ namespace dekaf2 {
 bool KHTTPRequest::Parse(KInStream& Stream)
 //-----------------------------------------------------------------------------
 {
+	// This is for the case of receiving a HTTP request.
+	// Be aware that there is no KHTTPInputFilter setup
+	// automatically, as is for the KHTTPResponse class.
+	//
+	// The normal use case for these classes is the client
+	// mode. That is, requests are written and responses
+	// are read.
+
 	KString sLine;
 
 	// make sure we detect an empty header
@@ -76,31 +84,30 @@ bool KHTTPRequest::Parse(KInStream& Stream)
 		return SetError("invalid HTTP header");
 	}
 
-	m_Method = Words[0];
-	m_Resource = Words[1];
-	HTTPVersion() = Words[2];
+	Method = Words[0];
+	Resource = Words[1];
+	HTTPVersion = Words[2];
 
-	if (!HTTPVersion().StartsWith("HTTP/"))
+	if (!HTTPVersion.StartsWith("HTTP/"))
 	{
 		return SetError("missing HTTP version in header");
 	}
 
-	if (!KHTTPHeader::Parse(Stream))
-	{
-		// never returns false actually, therefore no error to fetch
-		return false;
-	}
-
-	// set up the chunked reader
-	return KHTTPOutputFilter::Parse(*this);
+	return KHTTPHeader::Parse(Stream);
 
 } // Parse
 
 //-----------------------------------------------------------------------------
-bool KHTTPRequest::Serialize(KOutStream& Stream) const
+bool KHTTPRequest::Serialize(KOutStream& Stream)
 //-----------------------------------------------------------------------------
 {
-	Stream.FormatLine("{} {} {}", m_Method.Serialize(), m_Resource.Serialize(), HTTPVersion());
+	// set up the chunked writer
+	KHTTPOutputFilter::Parse(*this);
+	Stream.FormatLine("{} {} {}",
+					  Method.Serialize(),
+					  Resource.Serialize(),
+					  HTTPVersion);
+
 	return KHTTPHeader::Serialize(Stream);
 
 } // Serialize
@@ -109,7 +116,7 @@ bool KHTTPRequest::Serialize(KOutStream& Stream) const
 bool KHTTPRequest::HasChunking() const
 //-----------------------------------------------------------------------------
 {
-	if (HTTPVersion() == "HTTP/1.0" || HTTPVersion() == "HTTP/0.9")
+	if (HTTPVersion == "HTTP/1.0" || HTTPVersion == "HTTP/0.9")
 	{
 		return false;
 	}
@@ -126,7 +133,7 @@ std::streamsize KHTTPRequest::ContentLength() const
 {
 	std::streamsize iSize { -1 };
 
-	KStringView sSize = Get(KHTTPHeader::content_length);
+	KStringView sSize = Headers.Get(KHTTPHeader::content_length);
 
 	if (!sSize.empty())
 	{
@@ -147,8 +154,8 @@ bool KHTTPRequest::HasContent() const
 	{
 		// do not blindly trust in the transfer-encoding header, e.g.
 		// for methods that can not have content
-		return (Method() == "POST" || Method() == "PUT")
-		     && Get(KHTTPHeader::transfer_encoding) == "chunked";
+		return (Method == "POST" || Method == "PUT")
+		     && Headers.Get(KHTTPHeader::transfer_encoding) == "chunked";
 	}
 	else
 	{
@@ -163,8 +170,8 @@ void KHTTPRequest::clear()
 //-----------------------------------------------------------------------------
 {
 	KHTTPHeader::clear();
-	HTTPVersion().clear();
-	m_Resource.clear();
+	HTTPVersion.clear();
+	Resource.clear();
 
 }
 

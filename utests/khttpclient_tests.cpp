@@ -70,7 +70,7 @@ TEST_CASE("KHTTPClient") {
 		}
 		KHTTPClient cHTTP(std::move(cx));
 		cHTTP.Resource(URL);
-		CHECK( cHTTP.Request() == true );
+		CHECK( cHTTP.SendRequest() == true );
 		KString shtml;
 		cHTTP.Read(shtml);
 		CHECK( shtml == "0123456789");

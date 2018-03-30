@@ -58,6 +58,16 @@ class KHTTPRequestHeaders : public KHTTPHeaders
 public:
 //----------
 
+	KHTTPRequestHeaders() = default;
+	KHTTPRequestHeaders(const KHTTPRequestHeaders&) = default;
+	KHTTPRequestHeaders(KHTTPRequestHeaders&&) = default;
+	KHTTPRequestHeaders& operator=(const KHTTPRequestHeaders&) = default;
+	KHTTPRequestHeaders& operator=(KHTTPRequestHeaders&&) = default;
+	KHTTPRequestHeaders(const KHTTPHeaders& other)
+	: KHTTPHeaders(other)
+	{
+	}
+
 	//-----------------------------------------------------------------------------
 	bool Parse(KInStream& Stream);
 	//-----------------------------------------------------------------------------
@@ -94,7 +104,7 @@ public:
 
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class KOutHTTPRequest : public KHTTPRequestHeaders, public KHTTPOutputFilter
+class KOutHTTPRequest : public KHTTPRequestHeaders, public KOutHTTPFilter
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -103,13 +113,62 @@ public:
 //----------
 
 	//-----------------------------------------------------------------------------
-	bool Serialize(KOutStream& Stream);
+	/// Constructs a KOutHTTPRequest without output stream - set one with
+	/// SetOutputStream() before actually writing through the class.
+	KOutHTTPRequest() = default;
 	//-----------------------------------------------------------------------------
+
+	KOutHTTPRequest(KOutHTTPRequest&&) = default;
+	KOutHTTPRequest& operator=(KOutHTTPRequest&&) = default;
+
+	//-----------------------------------------------------------------------------
+	/// Constructs a KOutHTTPRequest around any output stream
+	KOutHTTPRequest(KOutStream& OutStream)
+	//-----------------------------------------------------------------------------
+	: KOutHTTPFilter(OutStream)
+	{}
+
+	//-----------------------------------------------------------------------------
+	KOutHTTPRequest(const KHTTPRequestHeaders& other)
+	//-----------------------------------------------------------------------------
+	: KHTTPRequestHeaders(other)
+	{
+	}
+
+	//-----------------------------------------------------------------------------
+	KOutHTTPRequest(const KHTTPHeaders& other)
+	//-----------------------------------------------------------------------------
+	: KHTTPRequestHeaders(other)
+	{
+	}
+
+	//-----------------------------------------------------------------------------
+	/// Serialize / write the request and headers to the output stream.
+	bool Serialize();
+	//-----------------------------------------------------------------------------
+
+protected:
+
+	//-----------------------------------------------------------------------------
+	/// make parent class Parse() inaccessible
+	bool Parse(KInStream& Stream)
+	//-----------------------------------------------------------------------------
+	{
+		return KHTTPRequestHeaders::Parse(Stream);
+	}
+
+	//-----------------------------------------------------------------------------
+	/// make parent class Serialize() inaccessible
+	bool Serialize(KOutStream& Stream) const
+	//-----------------------------------------------------------------------------
+	{
+		return KHTTPRequestHeaders::Serialize(Stream);
+	}
 
 };
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class KInHTTPRequest : public KHTTPRequestHeaders, public KHTTPInputFilter
+class KInHTTPRequest : public KHTTPRequestHeaders, public KInHTTPFilter
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -118,8 +177,58 @@ public:
 //----------
 
 	//-----------------------------------------------------------------------------
-	bool Parse(KInStream& Stream);
+	/// Constructs a KInHTTPRequest without input stream - set one with
+	/// SetInputStream() before actually reading through the class.
+	KInHTTPRequest() = default;
 	//-----------------------------------------------------------------------------
+
+	KInHTTPRequest(KInHTTPRequest&&) = default;
+	KInHTTPRequest& operator=(KInHTTPRequest&&) = default;
+
+	//-----------------------------------------------------------------------------
+	/// Constructs a KInHTTPRequest around any input stream
+	KInHTTPRequest(KInStream& InStream)
+	//-----------------------------------------------------------------------------
+		: KInHTTPFilter(InStream)
+	{}
+
+	//-----------------------------------------------------------------------------
+	KInHTTPRequest(const KHTTPRequestHeaders& other)
+	//-----------------------------------------------------------------------------
+	: KHTTPRequestHeaders(other)
+	{
+	}
+
+	//-----------------------------------------------------------------------------
+	KInHTTPRequest(const KHTTPHeaders& other)
+	//-----------------------------------------------------------------------------
+	: KHTTPRequestHeaders(other)
+	{
+	}
+
+	//-----------------------------------------------------------------------------
+	/// Parse / receive headers from input stream. Returns after the header is completed
+	/// or stream read timeout occured.
+	bool Parse();
+	//-----------------------------------------------------------------------------
+
+protected:
+
+	//-----------------------------------------------------------------------------
+	/// make parent class Parse() inaccessible
+	bool Parse(KInStream& Stream)
+	//-----------------------------------------------------------------------------
+	{
+		return KHTTPRequestHeaders::Parse(Stream);
+	}
+
+	//-----------------------------------------------------------------------------
+	/// make parent class Serialize() inaccessible
+	bool Serialize(KOutStream& Stream) const
+	//-----------------------------------------------------------------------------
+	{
+		return KHTTPRequestHeaders::Serialize(Stream);
+	}
 
 };
 

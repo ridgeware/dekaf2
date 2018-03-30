@@ -72,7 +72,8 @@ void KCGI::init (bool bResetStreams)
 //-----------------------------------------------------------------------------
 {
 	m_sCommentDelim.clear();
-	KHTTPRequestHeaders::clear();
+	Request.clear();
+	Response.clear();
 
 	if (bResetStreams)
 	{
@@ -112,7 +113,7 @@ bool KCGI::ReadHeaders ()
 
 	kDebug (1, "KCGI: reading headers and post data...");
 
-	if (!KHTTPRequestHeaders::Parse(*m_Reader))
+	if (!Request.Parse())
 	{
 		kDebug(1, "KCGI: cannot parse request header successfully");
 		return false;
@@ -127,9 +128,10 @@ bool KCGI::ReadPostData (char chCommentDelim)
 //-----------------------------------------------------------------------------
 {
 	KString sLine;
-	while (ReadLine(*m_Reader, sLine))
+	while (Request.ReadLine(sLine))
 	{
-		if (chCommentDelim && !sLine.empty() && sLine.front() == chCommentDelim) {
+		if (chCommentDelim && !sLine.empty() && sLine.front() == chCommentDelim)
+		{
 			kDebug (2, "KCGI: skipping comment line: {}", sLine);
 			continue;
 		}
@@ -162,6 +164,8 @@ void KCGI::SkipComments(KInStream& Stream, char chCommentDelim)
 bool KCGI::Parse(KInStream& Stream, char chCommentDelim)
 //-----------------------------------------------------------------------------
 {
+	Request.SetInputStream(Stream);
+	
 	if (chCommentDelim)
 	{
 		// skip leading comments
@@ -178,19 +182,19 @@ bool KCGI::Parse(KInStream& Stream, char chCommentDelim)
 	if (!sRM.empty())
 	{
 		// we are running within a web server that sets these:
-		KHTTPRequestHeaders::Method           = sRM.ToView();
-		KHTTPRequestHeaders::Resource         = GetVar(KCGI::REQUEST_URI);
-		KHTTPRequestHeaders::Resource.Query   = GetVar(KCGI::QUERY_STRING);
-		KHTTPRequestHeaders::HTTPVersion      = GetVar(KCGI::SERVER_PROTOCOL);
-		KHTTPRequestHeaders::Headers.Set(KHTTPHeaders::HOST,           GetVar(KCGI::HTTP_HOST));
-		KHTTPRequestHeaders::Headers.Set(KHTTPHeaders::CONTENT_TYPE,   GetVar(KCGI::CONTENT_TYPE));
-		KHTTPRequestHeaders::Headers.Set(KHTTPHeaders::CONTENT_LENGTH, GetVar(KCGI::CONTENT_LENGTH));
-		KHTTPRequestHeaders::Headers.Set(KHTTPHeaders::FROM,           GetVar(KCGI::REMOTE_ADDR));
+		Request.Method           = sRM.ToView();
+		Request.Resource         = GetVar(KCGI::REQUEST_URI);
+		Request.Resource.Query   = GetVar(KCGI::QUERY_STRING);
+		Request.HTTPVersion      = GetVar(KCGI::SERVER_PROTOCOL);
+		Request.Headers.Set(KHTTPHeaders::HOST,           GetVar(KCGI::HTTP_HOST));
+		Request.Headers.Set(KHTTPHeaders::CONTENT_TYPE,   GetVar(KCGI::CONTENT_TYPE));
+		Request.Headers.Set(KHTTPHeaders::CONTENT_LENGTH, GetVar(KCGI::CONTENT_LENGTH));
+		Request.Headers.Set(KHTTPHeaders::FROM,           GetVar(KCGI::REMOTE_ADDR));
 
 		// make sure the input filter knows these settings
-		KHTTPInputFilter::Parse(*this);
+		Request.KInHTTPFilter::Parse(Request);
 	}
-	else if (!Parse(Stream))
+	else if (!Request.Parse())
 	{
 		return (false);
 	}
@@ -198,7 +202,7 @@ bool KCGI::Parse(KInStream& Stream, char chCommentDelim)
 	// TODO separate post reader from header reader and offer a stream interface for it
 
 	KString sLine;
-	while (ReadLine(Stream, sLine))
+	while (Request.ReadLine(sLine))
 	{
 		if (chCommentDelim && !sLine.empty() && sLine.front() == chCommentDelim) {
 			kDebug (2, "KCGI: skipping comment line: {}", sLine);
@@ -232,8 +236,7 @@ bool KCGI::GetNextRequest (KStringView sFilename /*= KStringView{}*/, KStringVie
 
 		if (!m_Reader->InStream().good())
 		{
-			SetError (kFormat("KCGI: cannot open input file: {}", sFilename));
-			return (false);
+			return SetError (kFormat("KCGI: cannot open input file: {}", sFilename));
 		}
 
 		m_sCommentDelim = sCommentDelim;
@@ -249,6 +252,8 @@ bool KCGI::GetNextRequest (KStringView sFilename /*= KStringView{}*/, KStringVie
 		init (true);
 	}
 
+	Request.SetInputStream(*m_Reader);
+
 	++m_iNumRequests;
 
 	m_bIsFCGI = false; //DEKAF2_WITH_FCGI (getenv(KString(KCGI::FCGI_WEB_SERVER_ADDRS).c_str()) != nullptr); // TODO: I don't think this test works.
@@ -262,17 +267,21 @@ bool KCGI::GetNextRequest (KStringView sFilename /*= KStringView{}*/, KStringVie
 		// in case we are running within a web server that sets these:
 		SetRequestMethod(GetVar (KCGI::REQUEST_METHOD));
 		SetRequestURI(GetVar (KCGI::REQUEST_URI));
-		KHTTPRequestHeaders::Resource.Query = GetVar (KCGI::QUERY_STRING);
+		Request.Resource.Query = GetVar (KCGI::QUERY_STRING);
 
 		// if environment vars not set, expect them in the input stream:
-		if (GetRequestMethod().empty() && !ReadHeaders())
+		if (GetRequestMethod().empty())
 		{
-			// error message already set in ReadHeaders()
-			return (false);
+			if (!ReadHeaders())
+			{
+				return (false);
+			}
 		}
-
-		// make sure the InputFilter knows the used encoding for the post content
-		KHTTPInputFilter::Parse(*this);
+		else
+		{
+			// make sure the input filter knows the setup
+			Request.KInHTTPFilter::Parse(Request);
+		}
 
 		if (!ReadPostData(m_sCommentDelim.front()))
 		{

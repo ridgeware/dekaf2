@@ -47,6 +47,7 @@
 
 #include "kstringview.h"
 #include "khttp_header.h"
+#include "kstringstream.h"
 
 
 /// @file khttpinputfilter.h
@@ -55,9 +56,44 @@
 
 namespace dekaf2 {
 
-class KHTTPInputFilter
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+class KInHTTPFilter
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
+
+//------
 public:
+//------
+
+	//-----------------------------------------------------------------------------
+	/// construct a HTTP input filter without an input stream
+	KInHTTPFilter()
+	: m_InStream(nullptr)
+	//-----------------------------------------------------------------------------
+	{
+	}
+
+	//-----------------------------------------------------------------------------
+	/// construct a HTTP input filter around an input stream
+	KInHTTPFilter(KInStream& InStream)
+	: m_InStream(&InStream)
+	//-----------------------------------------------------------------------------
+	{
+	}
+
+	KInHTTPFilter(const KInHTTPFilter&) = delete;
+	KInHTTPFilter(KInHTTPFilter&&) = default;
+	KInHTTPFilter& operator=(const KInHTTPFilter&) = delete;
+	KInHTTPFilter& operator=(KInHTTPFilter&&) = default;
+
+	//-----------------------------------------------------------------------------
+	/// Set a new input stream for the filter
+	void SetInputStream(KInStream& InStream)
+	//-----------------------------------------------------------------------------
+	{
+		m_InStream = &InStream;
+// TODO		m_Filter.reset();
+	}
 
 	//-----------------------------------------------------------------------------
 	/// read input configuration from existing set of headers, but do not
@@ -67,29 +103,22 @@ public:
 
 	//-----------------------------------------------------------------------------
 	// build the filter if it is not yet created, and return a KOutStream reference to it
-	KInStream& Stream(KInStream& InStream)
+	KInStream& FilteredStream();
 	//-----------------------------------------------------------------------------
-	{
-		if (m_Filter.empty())
-		{
-			SetupInputFilter(InStream);
-		}
-		return m_InStream;
-	}
 
 	//-----------------------------------------------------------------------------
 	/// Stream into outstream
-	size_t Read(KInStream& InStream, KOutStream& OutStream, size_t len = KString::npos);
+	size_t Read(KOutStream& OutStream, size_t len = KString::npos);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// Append to sBuffer
-	size_t Read(KInStream& InStream, KString& sBuffer, size_t len = KString::npos);
+	size_t Read(KString& sBuffer, size_t len = KString::npos);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// Read one line into sBuffer, including EOL
-	bool ReadLine(KInStream& InStream, KString& sBuffer);
+	bool ReadLine(KString& sBuffer);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -107,10 +136,30 @@ public:
 		return m_Filter.eof();
 	}
 
-private:
+//------
+protected:
+//------
 
 	//-----------------------------------------------------------------------------
-	bool SetupInputFilter(KInStream& InStream);
+	KInStream& UnfilteredStream()
+	//-----------------------------------------------------------------------------
+	{
+		if (DEKAF2_LIKELY(m_InStream != nullptr))
+		{
+			return *m_InStream;
+		}
+		else
+		{
+			return s_Empty;
+		}
+	}
+
+//------
+private:
+//------
+
+	//-----------------------------------------------------------------------------
+	bool SetupInputFilter();
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -124,8 +173,11 @@ private:
 		ZLIB
 	};
 
+	static KInStringStream s_Empty;
+
+	KInStream* m_InStream;
 	boost::iostreams::filtering_istream m_Filter;
-	KInStream m_InStream { m_Filter };
+	KInStream m_FilteredInStream { m_Filter };
 	COMP m_Compression { NONE };
 	bool m_bChunked { false };
 	bool m_bPerformUncompression { true };

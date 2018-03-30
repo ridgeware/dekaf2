@@ -51,7 +51,7 @@
 namespace dekaf2 {
 
 //-----------------------------------------------------------------------------
-bool KHTTPOutputFilter::Parse(const KHTTPHeaders& headers)
+bool KOutHTTPFilter::Parse(const KHTTPHeaders& headers)
 //-----------------------------------------------------------------------------
 {
 	reset();
@@ -83,7 +83,7 @@ bool KHTTPOutputFilter::Parse(const KHTTPHeaders& headers)
 } // Parse
 
 //-----------------------------------------------------------------------------
-bool KHTTPOutputFilter::SetupOutputFilter(KOutStream& OutStream)
+bool KOutHTTPFilter::SetupOutputFilter()
 //-----------------------------------------------------------------------------
 {
 	// we lazy-create the input filter chain because we want to give
@@ -106,7 +106,7 @@ bool KHTTPOutputFilter::SetupOutputFilter(KOutStream& OutStream)
 
 	// we use the chunked writer also in the unchunked case, but
 	// without writing chunks
-	KChunkedSink Sink(OutStream, m_bChunked);
+	KChunkedSink Sink(UnfilteredStream(), m_bChunked);
 
 	// and finally add our source stream to the filtering_istream
 	m_Filter.push(Sink);
@@ -116,10 +116,22 @@ bool KHTTPOutputFilter::SetupOutputFilter(KOutStream& OutStream)
 } // SetupOutputFilter
 
 //-----------------------------------------------------------------------------
-size_t KHTTPOutputFilter::Write(KOutStream& OutStream, KInStream& InStream, size_t len)
+// build the filter if it is not yet created, and return a KOutStream reference to it
+KOutStream& KOutHTTPFilter::FilteredStream()
 //-----------------------------------------------------------------------------
 {
-	auto& Out(Stream(OutStream));
+	if (m_Filter.empty())
+	{
+		SetupOutputFilter();
+	}
+	return m_FilteredOutStream;
+}
+
+//-----------------------------------------------------------------------------
+size_t KOutHTTPFilter::Write(KInStream& InStream, size_t len)
+//-----------------------------------------------------------------------------
+{
+	auto& Out(FilteredStream());
 
 	if (len == KString::npos)
 	{
@@ -136,10 +148,10 @@ size_t KHTTPOutputFilter::Write(KOutStream& OutStream, KInStream& InStream, size
 } // Read
 
 //-----------------------------------------------------------------------------
-size_t KHTTPOutputFilter::Write(KOutStream& OutStream, KStringView sBuffer)
+size_t KOutHTTPFilter::Write(KStringView sBuffer)
 //-----------------------------------------------------------------------------
 {
-	auto& Out(Stream(OutStream));
+	auto& Out(FilteredStream());
 
 	Out.Write(sBuffer);
 
@@ -148,10 +160,10 @@ size_t KHTTPOutputFilter::Write(KOutStream& OutStream, KStringView sBuffer)
 } // Read
 
 //-----------------------------------------------------------------------------
-bool KHTTPOutputFilter::WriteLine(KOutStream& OutStream, KStringView sBuffer)
+bool KOutHTTPFilter::WriteLine(KStringView sBuffer)
 //-----------------------------------------------------------------------------
 {
-	auto& Out(Stream(OutStream));
+	auto& Out(FilteredStream());
 
 	Out.WriteLine(sBuffer);
 
@@ -160,7 +172,7 @@ bool KHTTPOutputFilter::WriteLine(KOutStream& OutStream, KStringView sBuffer)
 } // ReadLine
 
 //-----------------------------------------------------------------------------
-void KHTTPOutputFilter::reset()
+void KOutHTTPFilter::reset()
 //-----------------------------------------------------------------------------
 {
 	m_Filter.reset();

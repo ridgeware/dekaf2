@@ -101,6 +101,9 @@ bool KHTTPClient::Connect(KConnection&& Connection)
 	m_Connection->SetReaderRightTrim("\r\n");
 	m_Connection->SetWriterEndOfLine("\r\n");
 
+	Response.SetInputStream(*m_Connection);
+	Request.SetOutputStream(*m_Connection);
+
 	return true;
 
 } // Connect
@@ -194,18 +197,15 @@ bool KHTTPClient::SendRequest(KStringView svPostData, KStringView svMime)
 		RequestHeader(KHTTPHeaders::ACCEPT_ENCODING, "gzip");
 	}
 
-	if (!Request.Serialize(m_Connection.Stream()))
+	if (!Request.Serialize())
 	{
 		return SetError(Request.Error());
 	}
 
-	// now parse the request headers to setup the output filter for post data
-	Request.KHTTPOutputFilter::Parse(Request);
-
 	if (Request.Method == KHTTPMethod::POST)
 	{
 		kDebug(2, "sending {} bytes of POST data", svPostData.size());
-		Request.Write(m_Connection.Stream(), svPostData);
+		Request.Write(svPostData);
 	}
 
 	m_Connection->Flush();
@@ -222,7 +222,7 @@ bool KHTTPClient::SendRequest(KStringView svPostData, KStringView svMime)
 bool KHTTPClient::ReadHeader()
 //-----------------------------------------------------------------------------
 {
-	if (!Response.Parse(*m_Connection))
+	if (!Response.Parse())
 	{
 		SetError(Response.Error());
 		return false;
@@ -231,54 +231,6 @@ bool KHTTPClient::ReadHeader()
 	return true;
 
 } // ReadHeader
-
-//-----------------------------------------------------------------------------
-/// POST/PUT from stream
-size_t KHTTPClient::Write(KInStream& stream, size_t len)
-//-----------------------------------------------------------------------------
-{
-	return Request.Write(m_Connection.Stream(), stream, len);
-
-} // Write
-
-//-----------------------------------------------------------------------------
-/// Stream into outstream
-size_t KHTTPClient::Read(KOutStream& stream, size_t len)
-//-----------------------------------------------------------------------------
-{
-	Response.Read(m_Connection.Stream(), stream, len);
-
-	return len;
-
-} // Read
-
-//-----------------------------------------------------------------------------
-/// Append to sBuffer
-size_t KHTTPClient::Read(KString& sBuffer, size_t len)
-//-----------------------------------------------------------------------------
-{
-	Response.Read(m_Connection.Stream(), sBuffer, len);
-
-	return sBuffer.size();
-
-} // Read
-
-//-----------------------------------------------------------------------------
-/// Read one line into sBuffer, including EOL
-bool KHTTPClient::ReadLine(KString& sBuffer)
-//-----------------------------------------------------------------------------
-{
-	sBuffer.clear();
-
-	if (!Response.ReadLine(m_Connection.Stream(), sBuffer))
-	{
-		SetError(m_Connection.Error());
-		return false;
-	}
-
-	return true;
-
-} // ReadLine
 
 //-----------------------------------------------------------------------------
 KString KHTTPClient::Get(const KURL& URL)

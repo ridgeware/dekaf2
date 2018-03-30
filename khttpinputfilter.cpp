@@ -51,7 +51,7 @@
 namespace dekaf2 {
 
 //-----------------------------------------------------------------------------
-bool KHTTPInputFilter::Parse(const KHTTPHeaders& headers)
+bool KInHTTPFilter::Parse(const KHTTPHeaders& headers)
 //-----------------------------------------------------------------------------
 {
 	reset();
@@ -83,7 +83,7 @@ bool KHTTPInputFilter::Parse(const KHTTPHeaders& headers)
 } // Parse
 
 //-----------------------------------------------------------------------------
-bool KHTTPInputFilter::SetupInputFilter(KInStream& InStream)
+bool KInHTTPFilter::SetupInputFilter()
 //-----------------------------------------------------------------------------
 {
 	// we lazy-create the input filter chain because we want to give
@@ -107,7 +107,7 @@ bool KHTTPInputFilter::SetupInputFilter(KInStream& InStream)
 	// we use the chunked reader also in the unchunked case -
 	// it protects us from reading more than content length bytes
 	// into the buffered iostreams
-	KChunkedSource Source(InStream,
+	KChunkedSource Source(UnfilteredStream(),
 						  m_bChunked,
 						  m_iContentSize);
 
@@ -119,10 +119,23 @@ bool KHTTPInputFilter::SetupInputFilter(KInStream& InStream)
 } // SetupInputFilter
 
 //-----------------------------------------------------------------------------
-size_t KHTTPInputFilter::Read(KInStream& InStream, KOutStream& OutStream, size_t len)
+// build the filter if it is not yet created, and return a KOutStream reference to it
+KInStream& KInHTTPFilter::FilteredStream()
 //-----------------------------------------------------------------------------
 {
-	auto& In(Stream(InStream));
+	if (m_Filter.empty())
+	{
+		SetupInputFilter();
+	}
+	return m_FilteredInStream;
+
+} // Stream
+
+//-----------------------------------------------------------------------------
+size_t KInHTTPFilter::Read(KOutStream& OutStream, size_t len)
+//-----------------------------------------------------------------------------
+{
+	auto& In(FilteredStream());
 
 	if (len == KString::npos)
 	{
@@ -140,10 +153,10 @@ size_t KHTTPInputFilter::Read(KInStream& InStream, KOutStream& OutStream, size_t
 } // Read
 
 //-----------------------------------------------------------------------------
-size_t KHTTPInputFilter::Read(KInStream& InStream, KString& sBuffer, size_t len)
+size_t KInHTTPFilter::Read(KString& sBuffer, size_t len)
 //-----------------------------------------------------------------------------
 {
-	auto& In(Stream(InStream));
+	auto& In(FilteredStream());
 
 	if (len == KString::npos)
 	{
@@ -162,12 +175,12 @@ size_t KHTTPInputFilter::Read(KInStream& InStream, KString& sBuffer, size_t len)
 } // Read
 
 //-----------------------------------------------------------------------------
-bool KHTTPInputFilter::ReadLine(KInStream& InStream, KString& sBuffer)
+bool KInHTTPFilter::ReadLine(KString& sBuffer)
 //-----------------------------------------------------------------------------
 {
 	sBuffer.clear();
 
-	auto& In(Stream(InStream));
+	auto& In(FilteredStream());
 
 	if (!In.ReadLine(sBuffer))
 	{
@@ -179,7 +192,7 @@ bool KHTTPInputFilter::ReadLine(KInStream& InStream, KString& sBuffer)
 } // ReadLine
 
 //-----------------------------------------------------------------------------
-void KHTTPInputFilter::reset()
+void KInHTTPFilter::reset()
 //-----------------------------------------------------------------------------
 {
 	m_Filter.reset();
@@ -189,6 +202,10 @@ void KHTTPInputFilter::reset()
 	m_iContentSize = -1;
 
 } // reset
+
+KInStringStream KInHTTPFilter::s_Empty;
+
+
 
 
 } // of namespace dekaf2

@@ -47,7 +47,7 @@
 #include "kprops.h"
 #include "ksplit.h"
 #include "khttp_request.h"
-#include "khttpinputfilter.h"
+#include "khttp_response.h"
 #include <iostream>
 #ifdef DEKAF2_WITH_FCGI
 #include <fcgiapp.h>
@@ -58,7 +58,7 @@ namespace dekaf2 {
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// A common interface class for both CGI and FCGI requests.
-class KCGI : public KInHTTPRequest
+class KCGI
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -97,7 +97,7 @@ public:
 	/// incoming http request method: GET, POST, etc.
 	const KString& GetRequestMethod() const
 	{
-		return KHTTPRequestHeaders::Method.Serialize();
+		return Request.Method.Serialize();
 	}
 
 	// these getters expect the unencoded / decoded form of the URL parts..
@@ -105,13 +105,13 @@ public:
 	/// incoming Path component
 	const KString& GetRequestPath() const
 	{
-		return KHTTPRequestHeaders::Resource.Path.get();
+		return Request.Resource.Path.get();
 	}
 
 	/// incoming http protocol and version as defined in status header
 	const KString& GetHTTPProtocol() const
 	{
-		return KHTTPRequestHeaders::HTTPVersion;
+		return Request.HTTPVersion;
 	}
 
 	/// raw, unprocessed incoming POST data
@@ -123,31 +123,37 @@ public:
 	/// incoming request headers
 	const HeadersT& GetRequestHeaders() const
 	{
-		return KHTTPRequestHeaders::Headers;
+		return Request.Headers;
 	}
 
 	/// incoming query parms off request URI
 	const QueryParmsT& GetQueryParms() const
 	{
-		return KHTTPRequestHeaders::Resource.Query.get();
+		return Request.Resource.Query.get();
 	}
 
 	/// returns last error message
 	const KString& GetLastError() const
 	{
-		return Error();
+		return m_sError;
 	}
 
 //----------
 protected:
 //----------
 
+	bool SetError(KStringView sError)
+	{
+		m_sError = sError;
+		return false;
+	}
+
 	static void SkipComments(KInStream& Stream, char chCommentDelim);
 
 	/// set incoming URL including the query string (this actually decodes / parses the input)
 	void SetRequestURI(KStringView sURI)
 	{
-		KHTTPRequestHeaders::Resource = sURI;
+		Request.Resource = sURI;
 	}
 
 	// these setters set the unencoded / decoded form of the URL parts..
@@ -155,13 +161,13 @@ protected:
 	/// set incoming http request method: GET, POST, etc.
 	void SetRequestMethod(KStringView sMethod)
 	{
-		KHTTPRequestHeaders::Method = sMethod;
+		Request.Method = sMethod;
 	}
 
 	/// set Path component
 	void SetRequestPath(KStringView sPath)
 	{
-		KHTTPRequestHeaders::Resource.Path.set(sPath);
+		Request.Resource.Path.set(sPath);
 	}
 
 	/// raw, unprocessed incoming POST data
@@ -173,13 +179,13 @@ protected:
 	/// add incoming request headers
 	void AddRequestHeaders(KStringView sName, KStringView sValue)
 	{
-		KHTTPRequestHeaders::Headers.Set(sName, sValue);
+		Request.Headers.Set(sName, sValue);
 	}
 
 	/// add incoming query parms off request URI
 	void AddQueryParms(KStringView sName, KStringView sValue)
 	{
-		KHTTPRequestHeaders::Resource.Query->Add(sName, sValue);
+		Request.Resource.Query->Add(sName, sValue);
 	}
 
 	/// reset all class members for next request
@@ -195,6 +201,7 @@ private:
 		return (m_bIsFCGI);
 	}
 
+	KString                     m_sError;
 	KString                     m_sPostData; // aka body
 	KString                     m_sCommentDelim;
 	unsigned int                m_iNumRequests{0};
@@ -204,6 +211,13 @@ private:
 #ifdef DEKAF2_WITH_FCGI
 	FCGX_Request                m_FcgiRequest;
 #endif
+
+//------
+public:
+//------
+
+	KInHTTPRequest              Request;
+	KOutHTTPResponse            Response;
 
 //------
 protected:

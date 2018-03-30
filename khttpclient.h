@@ -124,23 +124,35 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// POST/PUT from stream
-	size_t Write(KInStream& stream, size_t len = KString::npos);
+	size_t Write(KInStream& stream, size_t len = KString::npos)
 	//-----------------------------------------------------------------------------
+	{
+		return Request.Write(stream, len);
+	}
 
 	//-----------------------------------------------------------------------------
 	/// Stream into outstream
-	size_t Read(KOutStream& stream, size_t len = KString::npos);
+	size_t Read(KOutStream& stream, size_t len = KString::npos)
 	//-----------------------------------------------------------------------------
+	{
+		return Response.Read(stream, len);
+	}
 
 	//-----------------------------------------------------------------------------
 	/// Append to sBuffer
-	size_t Read(KString& sBuffer, size_t len = KString::npos);
+	size_t Read(KString& sBuffer, size_t len = KString::npos)
 	//-----------------------------------------------------------------------------
+	{
+		return Response.Read(sBuffer, len);
+	}
 
 	//-----------------------------------------------------------------------------
 	/// Read one line into sBuffer, including EOL
-	bool ReadLine(KString& sBuffer);
+	bool ReadLine(KString& sBuffer)
 	//-----------------------------------------------------------------------------
+	{
+		return Response.ReadLine(sBuffer);
+	}
 
 	//-----------------------------------------------------------------------------
 	bool Good() const

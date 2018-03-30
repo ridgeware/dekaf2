@@ -55,9 +55,42 @@
 
 namespace dekaf2 {
 
-class KHTTPOutputFilter
+class KOutHTTPFilter
 {
+
+//------
 public:
+//------
+
+	//-----------------------------------------------------------------------------
+	/// construct a HTTP output filter without an output stream
+	KOutHTTPFilter()
+	: m_OutStream(nullptr)
+	//-----------------------------------------------------------------------------
+	{
+	}
+
+	//-----------------------------------------------------------------------------
+	/// construct a HTTP output filter around an output stream
+	KOutHTTPFilter(KOutStream& OutStream)
+	: m_OutStream(&OutStream)
+	//-----------------------------------------------------------------------------
+	{
+	}
+
+	KOutHTTPFilter(const KOutHTTPFilter&) = delete;
+	KOutHTTPFilter(KOutHTTPFilter&&) = default;
+	KOutHTTPFilter& operator=(const KOutHTTPFilter&) = delete;
+	KOutHTTPFilter& operator=(KOutHTTPFilter&&) = default;
+
+	//-----------------------------------------------------------------------------
+	/// Set a new output stream for the filter
+	void SetOutputStream(KOutStream& OutStream)
+	//-----------------------------------------------------------------------------
+	{
+		m_OutStream = &OutStream;
+// TODO		m_Filter.reset();
+	}
 
 	//-----------------------------------------------------------------------------
 	/// read input configuration from existing set of headers, but do not
@@ -67,29 +100,22 @@ public:
 
 	//-----------------------------------------------------------------------------
 	// build the filter if it is not yet created, and return a KOutStream reference to it
-	KOutStream& Stream(KOutStream& OutStream)
+	KOutStream& FilteredStream();
 	//-----------------------------------------------------------------------------
-	{
-		if (m_Filter.empty())
-		{
-			SetupOutputFilter(OutStream);
-		}
-		return m_OutStream;
-	}
 
 	//-----------------------------------------------------------------------------
 	/// Stream from InStream into OutStream
-	size_t Write(KOutStream& OutStream, KInStream& InStream, size_t len = KString::npos);
+	size_t Write(KInStream& InStream, size_t len = KString::npos);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// Write sBuffer into OutStream
-	size_t Write(KOutStream& OutStream, KStringView sBuffer);
+	size_t Write(KStringView sBuffer);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// Write one line into OutStream, including EOL
-	bool WriteLine(KOutStream& OutStream, KStringView sBuffer);
+	bool WriteLine(KStringView sBuffer);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -99,10 +125,23 @@ public:
 		m_bPerformCompression = bYesNo;
 	}
 
-private:
+//------
+protected:
+//------
 
 	//-----------------------------------------------------------------------------
-	bool SetupOutputFilter(KOutStream& OutStream);
+	KOutStream& UnfilteredStream()
+	//-----------------------------------------------------------------------------
+	{
+		return *m_OutStream;
+	}
+
+//------
+private:
+//------
+
+	//-----------------------------------------------------------------------------
+	bool SetupOutputFilter();
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -116,8 +155,11 @@ private:
 		ZLIB
 	};
 
+	static KOutStringStream s_Empty;
+
+	KOutStream* m_OutStream;
 	boost::iostreams::filtering_ostream m_Filter;
-	KOutStream m_OutStream { m_Filter };
+	KOutStream m_FilteredOutStream { m_Filter };
 	COMP m_Compression { NONE };
 	bool m_bChunked { false };
 	bool m_bPerformCompression { true };

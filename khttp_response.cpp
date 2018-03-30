@@ -55,7 +55,9 @@ bool KHTTPResponseHeaders::Parse(KInStream& Stream)
 
 	if (!Stream.ReadLine(sLine))
 	{
-		return SetError("cannot read from stream");
+		// this is simply a read timeout, probably on a keep-alive
+		// connection. Unset the error string and return false;
+		return SetError("");
 	}
 
 	if (sLine.empty())
@@ -127,20 +129,20 @@ void KHTTPResponseHeaders::clear()
 } // clear
 
 //-----------------------------------------------------------------------------
-bool KOutHTTPResponse::Serialize(KOutStream& Stream)
+bool KOutHTTPResponse::Serialize()
 //-----------------------------------------------------------------------------
 {
 	// set up the chunked writer
-	return KHTTPOutputFilter::Parse(*this) && KHTTPResponseHeaders::Serialize(Stream);
+	return KOutHTTPFilter::Parse(*this) && KHTTPResponseHeaders::Serialize(UnfilteredStream());
 
 } // Serialize
 
 //-----------------------------------------------------------------------------
-bool KInHTTPResponse::Parse(KInStream& Stream)
+bool KInHTTPResponse::Parse()
 //-----------------------------------------------------------------------------
 {
 	// set up the chunked reader
-	return KHTTPResponseHeaders::Parse(Stream) && KHTTPInputFilter::Parse(*this);
+	return KHTTPResponseHeaders::Parse(UnfilteredStream()) && KInHTTPFilter::Parse(*this);
 
 } // Parse
 

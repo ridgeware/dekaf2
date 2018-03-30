@@ -94,6 +94,27 @@ bool KProxy::LoadFromEnv(KStringView svEnvVar)
 // our fallback stream..
 KStringStream KConnection::m_Empty;
 
+
+//-----------------------------------------------------------------------------
+KConnection::KConnection(KConnection&& Connection)
+//-----------------------------------------------------------------------------
+{
+	operator=(std::move(Connection));
+}
+
+//-----------------------------------------------------------------------------
+KConnection& KConnection::operator=(KConnection&& Connection)
+//-----------------------------------------------------------------------------
+{
+	if (m_bStreamIsNotOwned)
+	{
+		m_Stream.release();
+	}
+	m_bStreamIsNotOwned = false;
+	m_Stream = std::move(Connection.m_Stream);
+	return *this;
+}
+
 //-----------------------------------------------------------------------------
 KConnection& KConnection::operator=(KStream& Stream)
 //-----------------------------------------------------------------------------

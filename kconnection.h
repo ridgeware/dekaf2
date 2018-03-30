@@ -111,9 +111,9 @@ public:
 	//-----------------------------------------------------------------------------
 	KConnection() = default;
 	KConnection(const KConnection&) = delete;
-	KConnection(KConnection&&) = default;
+	KConnection(KConnection&& Connection);
 	KConnection& operator=(const KConnection&) = delete;
-	KConnection& operator=(KConnection&&) = default;
+	KConnection& operator=(KConnection&& Connection);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------

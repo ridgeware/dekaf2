@@ -3,7 +3,7 @@
 //
 // DEKAF(tm): Lighter, Faster, Smarter (tm)
 //
-// Copyright (c) 2017, Ridgeware, Inc.
+// Copyright (c) 2018, Ridgeware, Inc.
 //
 // +-------------------------------------------------------------------------+
 // | /\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\|
@@ -42,161 +42,151 @@
 
 #pragma once
 
-/// @file kstream.h
-/// bidirectional streams
+#include "kstringview.h"
+#include "kconnection.h"
+#include "khttp_response.h"
+#include "khttp_request.h"
+#include "khttp_method.h"
+#include "kmime.h"
+#include "kurl.h"
 
-#include "kreader.h"
-#include "kwriter.h"
+/// @file khttpserver.h
+/// HTTP server implementation
 
-#include <boost/asio/ip/tcp.hpp>
-
-namespace dekaf2
-{
-
-namespace asio = boost::asio;
-
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// The generalized bidirectional stream abstraction for dekaf2
-class KStream : public KInStream, public KOutStream
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-{
-	using self_type   = KStream;
-	using reader_type = KInStream;
-	using writer_type = KOutStream;
-
-//-------
-public:
-//-------
-
-	//-----------------------------------------------------------------------------
-	/// value construct a KStream
-	KStream(std::iostream& Stream)
-	//-----------------------------------------------------------------------------
-	    : reader_type(Stream)
-	    , writer_type(Stream)
-	{}
-
-	//-----------------------------------------------------------------------------
-	/// value construct a KStream from separate in- and out-streams
-	KStream(std::istream& InStream, std::ostream& OutStream)
-	//-----------------------------------------------------------------------------
-	    : reader_type(InStream)
-	    , writer_type(OutStream)
-	{}
-
-	//-----------------------------------------------------------------------------
-	/// move construct a KStream
-	KStream(self_type&& other) = default;
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// copy construction is deleted, as with std::iostream
-	KStream(self_type& other) = delete;
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// dtor
-	virtual ~KStream();
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// assignment operator is deleted, as with std::iostream
-	self_type& operator=(const self_type& other) = delete;
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// move operator
-	self_type& operator=(self_type&& other) = default;
-	//-----------------------------------------------------------------------------
-
-};
+namespace dekaf2 {
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// The templatized bidirectional stream abstraction for dekaf2. Can be constructed around any
-/// std::iostream.
-template<class IOStream>
-class KReaderWriter
+class KHTTPServer
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-        : public IOStream
-        , public KStream
 {
-	using base_type = IOStream;
-	using self_type = KReaderWriter<IOStream>;
-	using k_rw_type = KStream;
 
-	static_assert(std::is_base_of<std::iostream, IOStream>::value,
-	              "KReaderWriter cannot be derived from a non-std::iostream class");
-
-//-------
+//------
 public:
-//-------
+//------
 
 	//-----------------------------------------------------------------------------
-	// semi-perfect forwarding - currently needed as std::iostream does not yet
-	// support string_views as arguments
-	template<class... Args>
-	KReaderWriter(KStringView sv, Args&&... args)
-	    : base_type(std::string(sv.data(), sv.size()), std::forward<Args>(args)...)
-	    , k_rw_type(reinterpret_cast<base_type&>(*this))
+	KHTTPServer() = default;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	KHTTPServer(KStream& Stream);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	KHTTPServer(const KHTTPServer&) = delete;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	KHTTPServer(KHTTPServer&&) = default;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	KHTTPServer& operator=(const KHTTPServer&) = delete;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	KHTTPServer& operator=(KHTTPServer&&) = default;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	bool Accept(KStream& Connection);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	void Disconnect();
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// receive request and headers
+	bool Parse();
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// POST/PUT from stream
+	size_t Read(KOutStream& stream, size_t len = KString::npos)
 	//-----------------------------------------------------------------------------
 	{
+		return Request.Read(stream, len);
 	}
 
 	//-----------------------------------------------------------------------------
-	/// perfect forwarding ctor (forwards all arguments to the iostream)
-	template<class... Args>
-	KReaderWriter(Args&&... args)
-	    : base_type(std::forward<Args>(args)...)
-	    , k_rw_type(reinterpret_cast<base_type&>(*this))
+	/// Stream from instream
+	size_t Write(KInStream& stream, size_t len = KString::npos)
 	//-----------------------------------------------------------------------------
 	{
+		return Response.Write(stream, len);
 	}
 
 	//-----------------------------------------------------------------------------
-	/// move construct a KReaderWriter
-	KReaderWriter(self_type&& other) = default;
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// copy constructor is deleted - std::iostream's is, too
-	KReaderWriter(const self_type& other) = delete;
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// dtor
-	virtual ~KReaderWriter()
+	/// Write sBuffer
+	size_t Write(KStringView sBuffer)
 	//-----------------------------------------------------------------------------
 	{
+		return Response.Write(sBuffer);
 	}
 
 	//-----------------------------------------------------------------------------
-	/// copy assignment is deleted - std::iostring's is, too
-	self_type& operator=(const self_type& other) = delete;
+	/// Write one line, including EOL
+	bool WriteLine(KStringView sBuffer)
+	//-----------------------------------------------------------------------------
+	{
+		return Response.WriteLine(sBuffer);
+	}
+
+	//-----------------------------------------------------------------------------
+	const KString& Error() const
+	//-----------------------------------------------------------------------------
+	{
+		return m_sError;
+	}
+
+	//-----------------------------------------------------------------------------
+	void RequestCompression(bool bYesNo)
+	//-----------------------------------------------------------------------------
+	{
+		m_bRequestCompression = bYesNo;
+	}
+
+	//-----------------------------------------------------------------------------
+	void Uncompress(bool bYesNo)
+	//-----------------------------------------------------------------------------
+	{
+		Request.Uncompress(bYesNo);
+	}
+
+	//-----------------------------------------------------------------------------
+	/// Clear all headers, resource, and error. Keep connection
+	void clear();
+	//-----------------------------------------------------------------------------
+
+//------
+protected:
+//------
+ 
+	//-----------------------------------------------------------------------------
+	bool ReadHeader();
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// move assignment
-	self_type& operator=(self_type&& other) = default;
+	bool SetError(KStringView sError) const;
 	//-----------------------------------------------------------------------------
 
-	//-----------------------------------------------------------------------------
-	// this one is necessary because ios_base has a symbol named end .. (for seeking)
-	const_iterator end()
-	//-----------------------------------------------------------------------------
-	 {
-		return KInStream::end();
-	 }
+//------
+private:
+//------
 
-};
+	mutable KString m_sError;
+	long m_Timeout { 30 };
+	bool m_bRequestCompression { true };
 
-extern template class KReaderWriter<std::fstream>;
-extern template class KReaderWriter<std::stringstream>;
+//------
+public:
+//------
 
-/// File stream based on std::fstream
-using KFile           = KReaderWriter<std::fstream>;
+	KInHTTPRequest Request;
+	KOutHTTPResponse Response;
 
-/// String stream based on std::stringstream
-using KStringStream   = KReaderWriter<std::stringstream>;
+}; // KHTTPServer
+
 
 } // end of namespace dekaf2
-

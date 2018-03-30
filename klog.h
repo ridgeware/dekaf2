@@ -59,6 +59,7 @@ namespace dekaf2
 extern KOutStream KErr;
 extern KOutStream KOut;
 extern KInStream  KIn;
+extern KStream    KInOut;
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// ABC for the LogWriter object

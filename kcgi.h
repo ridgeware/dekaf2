@@ -44,10 +44,7 @@
 
 #include "kstring.h"
 #include "kstringview.h"
-#include "kprops.h"
-#include "ksplit.h"
-#include "khttp_request.h"
-#include "khttp_response.h"
+#include "khttpserver.h"
 #include <iostream>
 #ifdef DEKAF2_WITH_FCGI
 #include <fcgiapp.h>
@@ -58,7 +55,7 @@ namespace dekaf2 {
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// A common interface class for both CGI and FCGI requests.
-class KCGI
+class KCGI : public KHTTPServer
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -70,29 +67,24 @@ public:
 	using QueryParmsT = URLEncodedQuery::value_type;
 
 	KCGI();
+	KCGI(KStream& Stream);
+//	KCGI(KInStream& InStream, KOutStream& OutStream);
 
 	~KCGI();
 
 	KString GetVar (KStringView sEnvironmentVariable, const char* sDefaultValue="");
 
-	bool Parse(KInStream& Stream, char chCommentDelim = 0);
+	bool Parse(char chCommentDelim = 0);
 
-	/// Get next CGI (or FCGI) reqeuest.  Defaults to STDIN for CGI.
-	/// Supplying a filename is useful for test harnesses that are not
-	/// running inside a web server.
-	bool GetNextRequest (KStringView sFilename = KStringView{}, KStringView sCommentDelim = KStringView{});
-
-	/// read request headers
-	bool ReadHeaders ();
-
-	/// read request body
-	bool ReadPostData (char chCommentDelim = 0);
+// deprecated ----------------
 
 	/// returns a reference to the input reader
-	KInStream& Reader() { return *m_Reader; }
+	KInStream& Reader() { return Request.FilteredStream(); }
 
 	/// returns a reference to the output writer
-	KOutStream& Writer() { return *m_Writer; }
+	KOutStream& Writer() { return Response.FilteredStream(); }
+
+// deprecated until here ---------
 
 	/// incoming http request method: GET, POST, etc.
 	const KString& GetRequestMethod() const
@@ -189,7 +181,7 @@ protected:
 	}
 
 	/// reset all class members for next request
-	void init (bool bResetStreams = true);
+	void clear();
 
 //----------
 private:
@@ -202,22 +194,17 @@ private:
 	}
 
 	KString                     m_sError;
-	KString                     m_sPostData; // aka body
-	KString                     m_sCommentDelim;
+
 	unsigned int                m_iNumRequests{0};
+	bool                        m_bIsCGI{false};
 	bool                        m_bIsFCGI{false};
-	std::unique_ptr<KInStream>  m_Reader;
-	std::unique_ptr<KOutStream> m_Writer;
 #ifdef DEKAF2_WITH_FCGI
 	FCGX_Request                m_FcgiRequest;
 #endif
 
-//------
-public:
-//------
-
-	KInHTTPRequest              Request;
-	KOutHTTPResponse            Response;
+// deprecated ----------
+	KString                     m_sPostData; // aka body
+// deprecated until here --------
 
 //------
 protected:

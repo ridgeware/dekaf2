@@ -44,16 +44,19 @@
 #include "kstringutils.h"
 #include "kurlencode.h"
 #include "ksystem.h"
+#include "kconnection.h"
+#include "kstream.h"
+
+
 
 namespace dekaf2 {
 
 //-----------------------------------------------------------------------------
 KCGI::KCGI()
 //-----------------------------------------------------------------------------
-	: m_Reader(std::make_unique<KInStream>(std::cin))
-	, m_Writer(std::make_unique<KOutStream>(std::cout))
-
+    : KHTTPServer(KInOut)
 {
+
 #ifdef DEKAF2_WITH_FCGI
 	FCGX_Init();
 	FCGX_InitRequest (&m_FcgiRequest, 0, 0);
@@ -62,23 +65,30 @@ KCGI::KCGI()
 } // constructor
 
 //-----------------------------------------------------------------------------
+KCGI::KCGI(KStream& Stream)
+//-----------------------------------------------------------------------------
+    : KHTTPServer(Stream)
+{
+
+#ifdef DEKAF2_WITH_FCGI
+	FCGX_Init();
+	FCGX_InitRequest (&m_FcgiRequest, 0, 0);
+#endif
+
+}
+
+//-----------------------------------------------------------------------------
 KCGI::~KCGI()
 //-----------------------------------------------------------------------------
 {
 } // destructor
 
 //-----------------------------------------------------------------------------
-void KCGI::init (bool bResetStreams)
+void KCGI::clear()
 //-----------------------------------------------------------------------------
 {
-	m_sCommentDelim.clear();
 	Request.clear();
 	Response.clear();
-
-	if (bResetStreams)
-	{
-		m_Reader = std::make_unique<KInStream>(std::cin);
-	}
 
 } // init
 
@@ -106,44 +116,6 @@ KString KCGI::GetVar (KStringView sEnvironmentVariable, const char* sDefaultValu
 } // KCGI::GetVar
 
 //-----------------------------------------------------------------------------
-bool KCGI::ReadHeaders ()
-//-----------------------------------------------------------------------------
-{
-	// TODO: FCGI (only coded for CGI right now)
-
-	kDebug (1, "KCGI: reading headers and post data...");
-
-	if (!Request.Parse())
-	{
-		kDebug(1, "KCGI: cannot parse request header successfully");
-		return false;
-	}
-
-	return true;
-
-} // ReadHeaders
-
-//-----------------------------------------------------------------------------
-bool KCGI::ReadPostData (char chCommentDelim)
-//-----------------------------------------------------------------------------
-{
-	KString sLine;
-	while (Request.ReadLine(sLine))
-	{
-		if (chCommentDelim && !sLine.empty() && sLine.front() == chCommentDelim)
-		{
-			kDebug (2, "KCGI: skipping comment line: {}", sLine);
-			continue;
-		}
-		m_sPostData += sLine;
-		m_sPostData += "\n";
-	}
-
-	return (true);
-
-} // ReadPostData
-
-//-----------------------------------------------------------------------------
 void KCGI::SkipComments(KInStream& Stream, char chCommentDelim)
 //-----------------------------------------------------------------------------
 {
@@ -161,26 +133,26 @@ void KCGI::SkipComments(KInStream& Stream, char chCommentDelim)
 } // SkipComments
 
 //-----------------------------------------------------------------------------
-bool KCGI::Parse(KInStream& Stream, char chCommentDelim)
+bool KCGI::Parse(char chCommentDelim)
 //-----------------------------------------------------------------------------
 {
-	Request.SetInputStream(Stream);
-	
 	if (chCommentDelim)
 	{
 		// skip leading comments
-		SkipComments(Stream, chCommentDelim);
+		SkipComments(Request.UnfilteredStream(), chCommentDelim);
 	}
 
-	init(false);
+	clear();
 
 	++m_iNumRequests;
 
+	m_bIsCGI  = false;
 	m_bIsFCGI = false; //DEKAF2_WITH_FCGI (getenv(KString(KCGI::FCGI_WEB_SERVER_ADDRS).c_str()) != nullptr); // TODO: I don't think this test works.
 
 	KString sRM = GetVar (KCGI::REQUEST_METHOD);
 	if (!sRM.empty())
 	{
+		m_bIsCGI = true;
 		// we are running within a web server that sets these:
 		Request.Method           = sRM.ToView();
 		Request.Resource         = GetVar(KCGI::REQUEST_URI);
@@ -223,86 +195,6 @@ bool KCGI::Parse(KInStream& Stream, char chCommentDelim)
 	return (true);	// true ==> we got a request
 
 } // Parse
-
-//-----------------------------------------------------------------------------
-bool KCGI::GetNextRequest (KStringView sFilename /*= KStringView{}*/, KStringView sCommentDelim /*= KStringView{}*/)
-//-----------------------------------------------------------------------------
-{
-	if (!sFilename.empty())
-	{
-		init (false);
-
-		m_Reader = std::make_unique<KInFile>(sFilename);
-
-		if (!m_Reader->InStream().good())
-		{
-			return SetError (kFormat("KCGI: cannot open input file: {}", sFilename));
-		}
-
-		m_sCommentDelim = sCommentDelim;
-
-		if (!m_sCommentDelim.empty())
-		{
-			SkipComments(*m_Reader, m_sCommentDelim.front());
-		}
-
-	}
-	else
-	{
-		init (true);
-	}
-
-	Request.SetInputStream(*m_Reader);
-
-	++m_iNumRequests;
-
-	m_bIsFCGI = false; //DEKAF2_WITH_FCGI (getenv(KString(KCGI::FCGI_WEB_SERVER_ADDRS).c_str()) != nullptr); // TODO: I don't think this test works.
-
-	if (m_iNumRequests == 1
-#ifdef DEKAF2_WITH_FCGI
-	    || (m_bIsFCGI && FCGX_Accept_r(&m_FcgiRequest))
-#endif
-	    )
-	{
-		// in case we are running within a web server that sets these:
-		SetRequestMethod(GetVar (KCGI::REQUEST_METHOD));
-		SetRequestURI(GetVar (KCGI::REQUEST_URI));
-		Request.Resource.Query = GetVar (KCGI::QUERY_STRING);
-
-		// if environment vars not set, expect them in the input stream:
-		if (GetRequestMethod().empty())
-		{
-			if (!ReadHeaders())
-			{
-				return (false);
-			}
-		}
-		else
-		{
-			// make sure the input filter knows the setup
-			Request.KInHTTPFilter::Parse(Request);
-		}
-
-		if (!ReadPostData(m_sCommentDelim.front()))
-		{
-			// error message already set in ReadPostData()
-			return (false);
-		}
-
-		kDebug (1, "KCGI: request#{}: {} {}, {} headers, {} query parms, {} bytes post data", 
-			m_iNumRequests,
-			GetRequestMethod(),
-			GetRequestPath(),
-			GetRequestHeaders().size(),
-			GetQueryParms().size(),
-			m_sPostData.length());
-
-		return (true);	// true ==> we got a request
-	}
-
-	return (false); // no more requests
-
-} // GetNextRequest
 
 #if !defined(DEKAF2_NO_GCC) && (DEKAF2_GCC_VERSION < 70000)
 

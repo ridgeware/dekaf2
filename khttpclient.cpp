@@ -41,10 +41,6 @@
 */
 
 #include "khttpclient.h"
-#include "kmime.h"
-#include "kurlencode.h"
-#include "kchunkedtransfer.h"
-#include "kstringstream.h"
 
 namespace dekaf2 {
 

@@ -225,6 +225,7 @@ set (HEADERS
 	khttpclient.h
 	khttpinputfilter.h
 	khttpoutputfilter.h
+	khttpserver.h
 	khttp_header.h
 	khttp_method.h
 	khttp_request.h
@@ -297,6 +298,7 @@ set (SOURCES
 	khttpclient.cpp
 	khttpinputfilter.cpp
 	khttpoutputfilter.cpp
+	khttpserver.cpp
 	khttp_header.cpp
 	khttp_method.cpp
 	khttp_request.cpp

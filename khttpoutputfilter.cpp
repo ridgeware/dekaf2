@@ -54,7 +54,7 @@ namespace dekaf2 {
 bool KOutHTTPFilter::Parse(const KHTTPHeaders& headers)
 //-----------------------------------------------------------------------------
 {
-	reset();
+	close();
 
 	// find the content length
 	KStringView sRemainingContentSize = headers.Headers.Get(KHTTPHeaders::content_length);
@@ -172,7 +172,7 @@ bool KOutHTTPFilter::WriteLine(KStringView sBuffer)
 } // ReadLine
 
 //-----------------------------------------------------------------------------
-void KOutHTTPFilter::reset()
+void KOutHTTPFilter::close()
 //-----------------------------------------------------------------------------
 {
 	m_Filter.reset();
@@ -183,6 +183,7 @@ void KOutHTTPFilter::reset()
 
 } // reset
 
+KOutStringStream KOutHTTPFilter::s_Empty;
 
 } // of namespace dekaf2
 

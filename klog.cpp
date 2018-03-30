@@ -68,6 +68,7 @@ namespace dekaf2
 KOutStream KErr(std::cerr);
 KOutStream KOut(std::cout);
 KInStream  KIn(std::cin);
+KStream    KInOut(std::cin, std::cout);
 
 //---------------------------------------------------------------------------
 KLogWriter::~KLogWriter()

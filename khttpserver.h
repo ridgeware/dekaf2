@@ -102,7 +102,7 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// POST/PUT from stream
+	/// Read POST/PUT content into stream
 	size_t Read(KOutStream& stream, size_t len = KString::npos)
 	//-----------------------------------------------------------------------------
 	{
@@ -141,10 +141,10 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	void RequestCompression(bool bYesNo)
+	void SetCompression(bool bYesNo)
 	//-----------------------------------------------------------------------------
 	{
-		m_bRequestCompression = bYesNo;
+		m_bSetCompression = bYesNo;
 	}
 
 	//-----------------------------------------------------------------------------
@@ -177,7 +177,7 @@ private:
 
 	mutable KString m_sError;
 	long m_Timeout { 30 };
-	bool m_bRequestCompression { true };
+	bool m_bSetCompression { true };
 
 //------
 public:

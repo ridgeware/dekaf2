@@ -42,10 +42,7 @@
 
 #include "kcgi.h"
 #include "kstringutils.h"
-#include "kurlencode.h"
 #include "ksystem.h"
-#include "kconnection.h"
-#include "kstream.h"
 
 
 
@@ -54,14 +51,8 @@ namespace dekaf2 {
 //-----------------------------------------------------------------------------
 KCGI::KCGI()
 //-----------------------------------------------------------------------------
-    : KHTTPServer(KInOut)
+    : KCGI(KInOut)
 {
-
-#ifdef DEKAF2_WITH_FCGI
-	FCGX_Init();
-	FCGX_InitRequest (&m_FcgiRequest, 0, 0);
-#endif
-
 } // constructor
 
 //-----------------------------------------------------------------------------

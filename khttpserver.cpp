@@ -52,7 +52,7 @@ void KHTTPServer::clear()
 	Request.clear();
 	Response.clear();
 	m_sError.clear();
-	m_bRequestCompression = true;
+	m_bSetCompression = true;
 }
 
 //-----------------------------------------------------------------------------

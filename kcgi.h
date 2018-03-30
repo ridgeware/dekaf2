@@ -68,23 +68,12 @@ public:
 
 	KCGI();
 	KCGI(KStream& Stream);
-//	KCGI(KInStream& InStream, KOutStream& OutStream);
 
 	~KCGI();
 
 	KString GetVar (KStringView sEnvironmentVariable, const char* sDefaultValue="");
 
 	bool Parse(char chCommentDelim = 0);
-
-// deprecated ----------------
-
-	/// returns a reference to the input reader
-	KInStream& Reader() { return Request.FilteredStream(); }
-
-	/// returns a reference to the output writer
-	KOutStream& Writer() { return Response.FilteredStream(); }
-
-// deprecated until here ---------
 
 	/// incoming http request method: GET, POST, etc.
 	const KString& GetRequestMethod() const

@@ -129,7 +129,7 @@ KTCPIOStream::POLLSTATE KTCPIOStream::timeout(bool bForReading, Stream_t* stream
 
 #endif
 
-	kDebug(1, "have TCP timeout");
+	kDebug(2, "TCP timeout");
 
 	return POLL_FAILURE;
 
@@ -145,24 +145,22 @@ std::streamsize KTCPIOStream::TCPStreamReader(void* sBuffer, std::streamsize iCo
 	{
 		Stream_t* stream = static_cast<Stream_t*>(stream_);
 
-		if (timeout(true, stream) != POLL_FAILURE)
+		if (timeout(true, stream) == POLL_FAILURE)
 		{
-			iRead = stream->Socket.read_some(boost::asio::buffer(sBuffer, iCount), stream->ec);
+			return -1;
 		}
-		else
-		{
-			iRead = -1;
-		}
+
+		iRead = stream->Socket.read_some(boost::asio::buffer(sBuffer, iCount), stream->ec);
 
 		if (iRead < 0 || stream->ec.value() != 0)
 		{
-			kDebug(2, "cannot read from stream: {}", stream->ec.message());
+			kDebug(1, "cannot read from stream: {}", stream->ec.message());
 		}
 	}
 
 	return iRead;
 
-} // SSLStreamReader
+} // TCPStreamReader
 
 //-----------------------------------------------------------------------------
 std::streamsize KTCPIOStream::TCPStreamWriter(const void* sBuffer, std::streamsize iCount, void* stream_)
@@ -174,20 +172,22 @@ std::streamsize KTCPIOStream::TCPStreamWriter(const void* sBuffer, std::streamsi
 	{
 		Stream_t* stream = static_cast<Stream_t*>(stream_);
 
-		if (timeout(false, stream) == POLL_SUCCESS)
+		if (timeout(false, stream) != POLL_SUCCESS)
 		{
-			iWrote = stream->Socket.write_some(boost::asio::buffer(sBuffer, iCount), stream->ec);
+			return 0;
 		}
+
+		iWrote = stream->Socket.write_some(boost::asio::buffer(sBuffer, iCount), stream->ec);
 
 		if (iWrote != iCount || stream->ec.value() != 0)
 		{
-			kDebug(2, "cannot write to stream: {}", stream->ec.message());
+			kDebug(1, "cannot write to stream: {}", stream->ec.message());
 		}
 	}
 
 	return iWrote;
 
-} // SSLStreamWriter
+} // TCPStreamWriter
 
 //-----------------------------------------------------------------------------
 KTCPIOStream::KTCPIOStream()

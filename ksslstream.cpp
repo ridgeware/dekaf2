@@ -154,7 +154,7 @@ KSSLIOStream::POLLSTATE KSSLIOStream::timeout(bool bForReading, Stream_t* stream
 
 #endif
 
-	kDebug(1, "have SSL timeout");
+	kDebug(2, "SSL timeout");
 
 	return POLL_FAILURE;
 
@@ -164,15 +164,26 @@ KSSLIOStream::POLLSTATE KSSLIOStream::timeout(bool bForReading, Stream_t* stream
 bool KSSLIOStream::handshake(boost::asio::ssl::stream_base::handshake_type role, Stream_t* stream)
 //-----------------------------------------------------------------------------
 {
-	if (stream->bNeedHandshake)
+	if (!stream->bNeedHandshake)
 	{
-		if (timeout(false, stream) == POLL_SUCCESS)
-		{
-			stream->bNeedHandshake = false;
-			stream->Socket.handshake(role, stream->ec);
-		}
+		return true;
 	}
-	return stream->ec.value() == 0;
+
+	if (timeout(false, stream) != POLL_SUCCESS)
+	{
+		return false;
+	}
+
+	stream->bNeedHandshake = false;
+	stream->Socket.handshake(role, stream->ec);
+
+	if (stream->ec.value() != 0)
+	{
+		kDebug(1, "ssl handshake failed: {}", stream->ec.message());
+		return false;
+	}
+
+	return true;
 
 } // handshake
 
@@ -186,21 +197,21 @@ std::streamsize KSSLIOStream::SSLStreamReader(void* sBuffer, std::streamsize iCo
 	{
 		Stream_t* stream = static_cast<Stream_t*>(stream_);
 
-		if (handshake(boost::asio::ssl::stream_base::server, stream)) // SSL servers read first
+		if (!handshake(boost::asio::ssl::stream_base::server, stream)) // SSL servers read first
 		{
-			if (timeout(true, stream) != POLL_FAILURE)
-			{
-				iRead = stream->Socket.read_some(boost::asio::buffer(sBuffer, iCount), stream->ec);
-			}
-			else
-			{
-				iRead = -1;
-			}
+			return -1;
 		}
+
+		if (timeout(true, stream) == POLL_FAILURE)
+		{
+			return -1;
+		}
+
+		iRead = stream->Socket.read_some(boost::asio::buffer(sBuffer, iCount), stream->ec);
 
 		if (iRead < 0 || stream->ec.value() != 0)
 		{
-			kDebug(2, "cannot read from stream: {}", stream->ec.message());
+			kDebug(1, "cannot read from stream: {}", stream->ec.message());
 		}
 	}
 
@@ -218,17 +229,21 @@ std::streamsize KSSLIOStream::SSLStreamWriter(const void* sBuffer, std::streamsi
 	{
 		Stream_t* stream = static_cast<Stream_t*>(stream_);
 
-		if (handshake(boost::asio::ssl::stream_base::client, stream)) // SSL servers read first
+		if (!handshake(boost::asio::ssl::stream_base::client, stream)) // SSL servers read first
 		{
-			if (timeout(false, stream) == POLL_SUCCESS)
-			{
-				iWrote = stream->Socket.write_some(boost::asio::buffer(sBuffer, iCount), stream->ec);
-			}
+			return 0;
 		}
 
+		if (timeout(false, stream) != POLL_SUCCESS)
+		{
+			return 0;
+		}
+
+		iWrote = stream->Socket.write_some(boost::asio::buffer(sBuffer, iCount), stream->ec);
+		
 		if (iWrote != iCount || stream->ec.value() != 0)
 		{
-			kDebug(2, "cannot write to stream: {}", stream->ec.message());
+			kDebug(1, "cannot write to stream: {}", stream->ec.message());
 		}
 	}
 

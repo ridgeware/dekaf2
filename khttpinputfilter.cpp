@@ -75,9 +75,6 @@ bool KInHTTPFilter::Parse(const KHTTPHeaders& headers)
 		m_Compression = ZLIB;
 	}
 
-	kDebug(2, "content transfer: {}", m_bChunked ? "chunked" : "plain");
-	kDebug(2, "content length:   {}", m_iContentSize);
-
 	return true;
 
 } // Parse
@@ -94,12 +91,10 @@ bool KInHTTPFilter::SetupInputFilter()
 	{
 		if (m_Compression == GZIP)
 		{
-			kDebug(2, "using gzip decompression");
 			m_Filter.push(boost::iostreams::gzip_decompressor());
 		}
 		else if (m_Compression == ZLIB)
 		{
-			kDebug(2, "using zlib decompression");
 			m_Filter.push(boost::iostreams::zlib_decompressor());
 		}
 	}

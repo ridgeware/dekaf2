@@ -170,6 +170,36 @@ bool KHTTPClient::RequestHeader(KStringView svName, KStringView svValue)
 } // RequestHeader
 
 //-----------------------------------------------------------------------------
+bool KHTTPClient::Parse()
+//-----------------------------------------------------------------------------
+{
+	Request.close();
+
+	if (!Response.Parse())
+	{
+		SetError(Response.Error());
+		return false;
+	}
+
+	return true;
+
+} // Parse
+
+//-----------------------------------------------------------------------------
+bool KHTTPClient::Serialize()
+//-----------------------------------------------------------------------------
+{
+	if (!Request.Serialize())
+	{
+		SetError(Request.Error());
+		return false;
+	}
+
+	return true;
+
+} // Serialize
+
+//-----------------------------------------------------------------------------
 bool KHTTPClient::SendRequest(KStringView svPostData, KStringView svMime)
 //-----------------------------------------------------------------------------
 {

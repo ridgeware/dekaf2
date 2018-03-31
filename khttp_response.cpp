@@ -100,7 +100,7 @@ bool KHTTPResponseHeaders::Serialize(KOutStream& Stream) const
 {
 	if (HTTPVersion.empty())
 	{
-		SetError("missing http version");
+		return SetError("missing http version");
 	}
 	
 	Stream.FormatLine("{} {} {}", HTTPVersion, StatusCode, StatusString);

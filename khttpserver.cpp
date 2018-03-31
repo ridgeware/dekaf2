@@ -93,6 +93,8 @@ void KHTTPServer::Disconnect()
 bool KHTTPServer::Parse()
 //-----------------------------------------------------------------------------
 {
+	Response.close();
+	
 	if (!Request.Parse())
 	{
 		SetError(Request.Error());
@@ -102,6 +104,20 @@ bool KHTTPServer::Parse()
 	return true;
 
 } // Parse
+
+//-----------------------------------------------------------------------------
+bool KHTTPServer::Serialize()
+//-----------------------------------------------------------------------------
+{
+	if (!Response.Serialize())
+	{
+		SetError(Response.Error());
+		return false;
+	}
+
+	return true;
+
+} // Serialize
 
 //-----------------------------------------------------------------------------
 bool KHTTPServer::SetError(KStringView sError) const

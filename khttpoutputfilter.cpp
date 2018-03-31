@@ -143,7 +143,14 @@ size_t KOutHTTPFilter::Write(KInStream& InStream, size_t len)
 		Out.Write(InStream, len);
 	}
 
-	return len;
+	if (Out.Good())
+	{
+		return len;
+	}
+	else
+	{
+		return 0;
+	}
 
 } // Read
 
@@ -155,7 +162,14 @@ size_t KOutHTTPFilter::Write(KStringView sBuffer)
 
 	Out.Write(sBuffer);
 
-	return sBuffer.size();
+	if (Out.Good())
+	{
+		return sBuffer.size();
+	}
+	else
+	{
+		return 0;
+	}
 
 } // Read
 

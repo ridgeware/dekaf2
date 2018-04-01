@@ -140,6 +140,22 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	KOutHTTPResponse& operator=(KHTTPResponseHeaders& other)
+	//-----------------------------------------------------------------------------
+	{
+		KHTTPResponseHeaders::operator=(other);
+		return *this;
+	}
+
+	//-----------------------------------------------------------------------------
+	KOutHTTPResponse& operator=(KHTTPResponseHeaders&& other)
+	//-----------------------------------------------------------------------------
+	{
+		KHTTPResponseHeaders::operator=(std::move(other));
+		return *this;
+	}
+
+	//-----------------------------------------------------------------------------
 	KOutHTTPResponse(const KHTTPHeaders& other)
 	//-----------------------------------------------------------------------------
 	: KHTTPResponseHeaders(other)
@@ -194,6 +210,22 @@ public:
 	//-----------------------------------------------------------------------------
 	: KInHTTPFilter(InStream)
 	{}
+
+	//-----------------------------------------------------------------------------
+	KInHTTPResponse& operator=(const KHTTPResponseHeaders& other)
+	//-----------------------------------------------------------------------------
+	{
+		KHTTPResponseHeaders::operator=(other);
+		return *this;
+	}
+
+	//-----------------------------------------------------------------------------
+	KInHTTPResponse& operator=(KHTTPResponseHeaders&& other)
+	//-----------------------------------------------------------------------------
+	{
+		KHTTPResponseHeaders::operator=(std::move(other));
+		return *this;
+	}
 
 	//-----------------------------------------------------------------------------
 	KInHTTPResponse(const KHTTPResponseHeaders& other)

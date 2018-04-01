@@ -136,6 +136,22 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	KOutHTTPRequest& operator=(const KHTTPRequestHeaders& other)
+	//-----------------------------------------------------------------------------
+	{
+		KHTTPRequestHeaders::operator=(other);
+		return *this;
+	}
+
+	//-----------------------------------------------------------------------------
+	KOutHTTPRequest& operator=(KHTTPRequestHeaders&& other)
+	//-----------------------------------------------------------------------------
+	{
+		KHTTPRequestHeaders::operator=(std::move(other));
+		return *this;
+	}
+
+	//-----------------------------------------------------------------------------
 	KOutHTTPRequest(const KHTTPHeaders& other)
 	//-----------------------------------------------------------------------------
 	: KHTTPRequestHeaders(other)
@@ -197,6 +213,22 @@ public:
 	//-----------------------------------------------------------------------------
 	: KHTTPRequestHeaders(other)
 	{
+	}
+
+	//-----------------------------------------------------------------------------
+	KInHTTPRequest& operator=(const KHTTPRequestHeaders& other)
+	//-----------------------------------------------------------------------------
+	{
+		KHTTPRequestHeaders::operator=(other);
+		return *this;
+	}
+
+	//-----------------------------------------------------------------------------
+	KInHTTPRequest& operator=(KHTTPRequestHeaders&& other)
+	//-----------------------------------------------------------------------------
+	{
+		KHTTPRequestHeaders::operator=(std::move(other));
+		return *this;
 	}
 
 	//-----------------------------------------------------------------------------

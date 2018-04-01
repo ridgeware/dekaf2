@@ -117,6 +117,39 @@ bool KHTTPHeaders::Serialize(KOutStream& Stream) const
 
 } // Serialize
 
+//-----------------------------------------------------------------------------
+std::streamsize KHTTPHeaders::ContentLength() const
+//-----------------------------------------------------------------------------
+{
+	std::streamsize iSize { -1 };
+
+	KStringView sSize = Headers.Get(KHTTPHeaders::content_length);
+
+	if (!sSize.empty())
+	{
+		iSize = sSize.UInt64();
+	}
+
+	return iSize;
+
+} // ContentLength
+
+//-----------------------------------------------------------------------------
+bool KHTTPHeaders::HasContent() const
+//-----------------------------------------------------------------------------
+{
+	auto iSize = ContentLength();
+
+	if (iSize < 0)
+	{
+		return Headers.Get(KHTTPHeaders::transfer_encoding) == "chunked";
+	}
+	else
+	{
+		return iSize > 0;
+	}
+
+} // HasContent
 
 //-----------------------------------------------------------------------------
 void KHTTPHeaders::clear()

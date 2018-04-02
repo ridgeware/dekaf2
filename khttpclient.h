@@ -69,13 +69,13 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// Ctor, connects to a server
+	/// Ctor, connects to a server and sets method and resource
 	KHTTPClient(const KURL& url, KHTTPMethod method = KHTTPMethod::GET, bool bVerifyCerts = false);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// Ctor, connects to a server
-	KHTTPClient(KConnection&& stream, const KURL& url = KURL{}, KHTTPMethod method = KHTTPMethod::GET);
+	/// Ctor, takes an existing connection to a server
+	KHTTPClient(KConnection&& stream);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -117,7 +117,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Adds a request header for the next request
-	bool RequestHeader(KStringView svName, KStringView svValue);
+	bool RequestHeader(KStringView svName, KStringView svValue, bool bOverwrite = true);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------

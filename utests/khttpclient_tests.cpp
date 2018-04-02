@@ -57,7 +57,7 @@ TEST_CASE("KHTTPClient") {
 	SECTION("check connection setup")
 	{
 		KTinyHTTPServer server(7654, false);
-		server.Start(300, false);
+		server.Start(10, false);
 		server.clear();
 
 		KURL URL("http://127.0.0.1:7654/path?query=val&another=here#fragment");
@@ -74,7 +74,38 @@ TEST_CASE("KHTTPClient") {
 		KString shtml;
 		cHTTP.Read(shtml);
 		CHECK( shtml == "0123456789");
-		CHECK( server.m_rx.size() >= 3 ); // compression adds more headers
+		CHECK( server.m_rx.size() == 4 );
+		if (server.m_rx.size() == 4)
+		{
+			CHECK( server.m_rx[0] == "GET /path?query=val&another=here#fragment HTTP/1.1" );
+			CHECK( server.m_rx[1] == "Host: 127.0.0.1");
+			CHECK( server.m_rx[2] == "Accept-Encoding: gzip");
+			CHECK( server.m_rx[3] == "");
+		}
+	}
+
+	SECTION("check serialization")
+	{
+		KTinyHTTPServer server(7654, false);
+		server.Start(10, false);
+		server.clear();
+
+		KURL URL("http://127.0.0.1:7654/path?query=val&another=here#fragment");
+		KConnection cx = KConnection::Create(URL);
+		CHECK( cx.Good() == true );
+		if (cx.Good() == true)
+		{
+			CHECK( cx.Stream().OutStream().good() == true );
+			CHECK( cx.Stream().InStream().good()  == true );
+		}
+		KHTTPClient cHTTP(std::move(cx));
+		cHTTP.Resource(URL);
+		CHECK( cHTTP.Serialize() == true );
+		CHECK( cHTTP.Parse() == true );
+		KString shtml;
+		cHTTP.Read(shtml);
+		CHECK( shtml == "0123456789");
+		CHECK( server.m_rx.size() == 3 );
 		if (server.m_rx.size() == 3)
 		{
 			CHECK( server.m_rx[0] == "GET /path?query=val&another=here#fragment HTTP/1.1" );

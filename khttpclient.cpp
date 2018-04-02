@@ -67,13 +67,10 @@ KHTTPClient::KHTTPClient(const KURL& url, KHTTPMethod method, bool bVerifyCerts)
 } // Ctor
 
 //-----------------------------------------------------------------------------
-KHTTPClient::KHTTPClient(KConnection&& stream, const KURL& url, KHTTPMethod method)
+KHTTPClient::KHTTPClient(KConnection&& stream)
 //-----------------------------------------------------------------------------
 {
-	if (Connect(std::move(stream)))
-	{
-		Resource(url, method);
-	}
+	Connect(std::move(stream));
 
 } // Ctor
 
@@ -146,24 +143,39 @@ bool KHTTPClient::Resource(const KURL& url, KHTTPMethod method)
 	};
 
 	Request.Resource = url;
+
 	// we do not want to send any eventual protocol and domain parts of the URL in the request
 	Request.Resource.Protocol.clear();
 	Request.Resource.User.clear();
 	Request.Resource.Password.clear();
 	Request.Resource.Domain.clear();
 	Request.Resource.Port.clear();
+
 	Request.Method = method;
 	Request.HTTPVersion = "HTTP/1.1";
 
-	return RequestHeader(KHTTPHeaders::HOST, url.Domain.Serialize());
+	if (!url.Domain.empty())
+	{
+		// set the host header so that it overwrites a previously set one
+		RequestHeader(KHTTPHeaders::HOST, url.Domain.Serialize(), true);
+	}
+
+	return true;
 
 } // Resource
 
 //-----------------------------------------------------------------------------
-bool KHTTPClient::RequestHeader(KStringView svName, KStringView svValue)
+bool KHTTPClient::RequestHeader(KStringView svName, KStringView svValue, bool bOverwrite)
 //-----------------------------------------------------------------------------
 {
-	Request.Headers.Add(svName, svValue);
+	if (bOverwrite)
+	{
+		Request.Headers.Set(svName, svValue);
+	}
+	else
+	{
+		Request.Headers.Add(svName, svValue);
+	}
 
 	return true;
 

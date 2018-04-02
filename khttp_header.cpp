@@ -113,6 +113,8 @@ bool KHTTPHeaders::Serialize(KOutStream& Stream) const
 
 	Stream.WriteLine();
 
+	Stream.Flush();
+
 	return true;
 
 } // Serialize

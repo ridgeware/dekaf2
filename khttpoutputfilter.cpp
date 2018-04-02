@@ -185,6 +185,10 @@ void KOutHTTPFilter::close()
 //-----------------------------------------------------------------------------
 {
 	m_Filter.reset();
+	if (m_OutStream)
+	{
+		m_OutStream->Flush();
+	}
 	m_Compression = NONE;
 	m_bChunked = false;
 	m_bPerformCompression = true;

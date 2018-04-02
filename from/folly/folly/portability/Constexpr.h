@@ -45,7 +45,7 @@ constexpr size_t constexpr_strlen(const char* s) {
 #elif defined(_MSC_VER) || defined(__CUDACC__)
   return detail::constexpr_strlen_internal(s, 0);
 #elif defined(__GNUC__)
-  return std::char_traits<char>::length(s);
+  return s ? std::char_traits<char>::length(s) : 0;
 #else
   return std::strlen(s);
 #endif

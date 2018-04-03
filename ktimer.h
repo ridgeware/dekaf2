@@ -55,6 +55,95 @@
 namespace dekaf2 {
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// Measure the time between two events
+class KStopTime
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+//----------
+public:
+//----------
+
+	using clock_t = std::chrono::steady_clock;
+
+	//-----------------------------------------------------------------------------
+	size_t elapsed()
+	//-----------------------------------------------------------------------------
+	{
+		return (clock_t::now() - m_Start).count();
+	}
+
+//----------
+protected:
+//----------
+
+	clock_t::time_point m_Start { clock_t::now() };
+
+}; // KStopTime
+
+
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// really simple implementation of a stop watch
+class KStopWatch : public KStopTime
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+//----------
+public:
+//----------
+
+	//-----------------------------------------------------------------------------
+	size_t elapsed()
+	//-----------------------------------------------------------------------------
+	{
+		if (!m_bIsHalted)
+		{
+			return (clock_t::now() - m_Start).count() + m_iNanoSoFar;
+		}
+		else
+		{
+			return m_iNanoSoFar;
+		}
+	}
+
+	//-----------------------------------------------------------------------------
+	void halt()
+	//-----------------------------------------------------------------------------
+	{
+		m_iNanoSoFar += (clock_t::now() - m_Start).count();
+		m_bIsHalted = true;
+	}
+
+	//-----------------------------------------------------------------------------
+	void resume()
+	//-----------------------------------------------------------------------------
+	{
+		if (m_bIsHalted)
+		{
+			m_bIsHalted = false;
+			m_Start = clock_t::now();
+		}
+	}
+
+	//-----------------------------------------------------------------------------
+	void clear()
+	//-----------------------------------------------------------------------------
+	{
+		m_iNanoSoFar = 0;
+		m_bIsHalted = true;
+	}
+
+//----------
+private:
+//----------
+
+	bool m_bIsHalted { false };
+	size_t m_iNanoSoFar { 0 };
+
+}; // KStopWatch
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// KTimer can be used to call functions both repeatedly after a fixed
 /// time interval or once after expiration of a time interval, or at
 /// a fixed time point. Granularity is low (1 second), it is intended for

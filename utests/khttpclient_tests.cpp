@@ -3,6 +3,7 @@
 #include <dekaf2/khttpclient.h>
 #include <dekaf2/ktcpserver.h>
 #include <dekaf2/kstring.h>
+#include <dekaf2/ktimer.h>
 
 using namespace dekaf2;
 
@@ -61,12 +62,12 @@ TEST_CASE("KHTTPClient") {
 		server.clear();
 
 		KURL URL("http://127.0.0.1:7654/path?query=val&another=here#fragment");
-		KConnection cx = KConnection::Create(URL);
-		CHECK( cx.Good() == true );
-		if (cx.Good() == true)
+		auto cx = KConnection::Create(URL);
+		CHECK( cx->Good() == true );
+		if (cx->Good() == true)
 		{
-			CHECK( cx.Stream().OutStream().good() == true );
-			CHECK( cx.Stream().InStream().good()  == true );
+			CHECK( cx->Stream().OutStream().good() == true );
+			CHECK( cx->Stream().InStream().good()  == true );
 		}
 		KHTTPClient cHTTP(std::move(cx));
 		cHTTP.Resource(URL);
@@ -91,12 +92,12 @@ TEST_CASE("KHTTPClient") {
 		server.clear();
 
 		KURL URL("http://127.0.0.1:7654/path?query=val&another=here#fragment");
-		KConnection cx = KConnection::Create(URL);
-		CHECK( cx.Good() == true );
-		if (cx.Good() == true)
+		auto cx = KConnection::Create(URL);
+		CHECK( cx->Good() == true );
+		if (cx->Good() == true)
 		{
-			CHECK( cx.Stream().OutStream().good() == true );
-			CHECK( cx.Stream().InStream().good()  == true );
+			CHECK( cx->Stream().OutStream().good() == true );
+			CHECK( cx->Stream().InStream().good()  == true );
 		}
 		KHTTPClient cHTTP(std::move(cx));
 		cHTTP.Resource(URL);
@@ -112,6 +113,15 @@ TEST_CASE("KHTTPClient") {
 			CHECK( server.m_rx[1] == "Host: 127.0.0.1");
 			CHECK( server.m_rx[2] == "");
 		}
+	}
+
+	SECTION("failing connection")
+	{
+		KHTTPClient Client("http://koltun-ballet-boston.com/");
+		KStopTime Stop;
+		CHECK( Client.SendRequest() == false );
+		// allow for a millisecond of fail time
+		CHECK( Stop.elapsed() < 1000*1000 );
 	}
 
 }

@@ -417,6 +417,7 @@ public:
 	KString& replace(size_type pos1, size_type n1, const std::string& str, size_type pos2, size_type n2 = npos);
 #endif
 
+	/// substring starting at zero-based position "pos" for "n" chars.  if "n" is not specified return the rest of the string starting at "pos"
 	KString substr(size_type pos = 0, size_type n = npos) const;
 
 	inline void swap(KString& s) { m_rep.swap(s.m_rep); }

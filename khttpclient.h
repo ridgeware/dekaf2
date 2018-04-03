@@ -75,7 +75,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Ctor, takes an existing connection to a server
-	KHTTPClient(KConnection&& stream);
+	KHTTPClient(std::unique_ptr<KConnection> stream);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -95,7 +95,7 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	bool Connect(KConnection&& Connection);
+	bool Connect(std::unique_ptr<KConnection> Connection);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -170,7 +170,7 @@ public:
 	bool Good() const
 	//-----------------------------------------------------------------------------
 	{
-		return m_Connection.Good();
+		return m_Connection && m_Connection->Good();
 	}
 
 	//-----------------------------------------------------------------------------
@@ -241,7 +241,7 @@ protected:
 private:
 //------
 
-	KConnection m_Connection;
+	std::unique_ptr<KConnection> m_Connection;
 	mutable KString m_sError;
 	long m_Timeout { 30 };
 	bool m_bRequestCompression { true };

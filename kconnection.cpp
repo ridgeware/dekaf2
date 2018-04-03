@@ -348,11 +348,9 @@ KString KSSLConnection::Error() const
 
 
 //-----------------------------------------------------------------------------
-KConnection KConnection::Create(const KURL& URL, bool bForceSSL, bool bVerifyCerts, bool bAllowSSLv2v3)
+std::unique_ptr<KConnection> KConnection::Create(const KURL& URL, bool bForceSSL, bool bVerifyCerts, bool bAllowSSLv2v3)
 //-----------------------------------------------------------------------------
 {
-	KConnection Connection;
-
 	url::KPort Port = URL.Port;
 
 	if (Port.empty())
@@ -362,23 +360,23 @@ KConnection KConnection::Create(const KURL& URL, bool bForceSSL, bool bVerifyCer
 
 	if (Port == "443" || URL.Protocol == url::KProtocol::HTTPS || bForceSSL)
 	{
-		KSSLConnection C;
-		C.Connect(KTCPEndPoint(URL.Domain, Port), bVerifyCerts, bAllowSSLv2v3);
-		Connection = std::move(C);
+		auto C = std::make_unique<KSSLConnection>();
+		C->Connect(KTCPEndPoint(URL.Domain, Port), bVerifyCerts, bAllowSSLv2v3);
+		return std::move(C);
 	}
 	else
 	{
-		KTCPConnection C;
-		C.Connect(KTCPEndPoint(URL.Domain, Port));
-		Connection = std::move(C);
+		auto C = std::make_unique<KTCPConnection>();
+		C->Connect(KTCPEndPoint(URL.Domain, Port));
+		return std::move(C);
 	}
 
-	return Connection;
+	return std::make_unique<KTCPConnection>();
 
 } // Create
 
 //-----------------------------------------------------------------------------
-KConnection KConnection::Create(const KURL& URL, const KProxy& Proxy, bool bForceSSL, bool bVerifyCerts, bool bAllowSSLv2v3)
+std::unique_ptr<KConnection> KConnection::Create(const KURL& URL, const KProxy& Proxy, bool bForceSSL, bool bVerifyCerts, bool bAllowSSLv2v3)
 //-----------------------------------------------------------------------------
 {
 	KConnection Connection;
@@ -404,18 +402,18 @@ KConnection KConnection::Create(const KURL& URL, const KProxy& Proxy, bool bForc
 
 	if (Port == "443" || URL.Protocol == url::KProtocol::HTTPS || bForceSSL)
 	{
-		KSSLConnection C;
-		C.Connect(KTCPEndPoint(Domain, Port), bVerifyCerts, bAllowSSLv2v3);
-		Connection = std::move(C);
+		auto C = std::make_unique<KSSLConnection>();
+		C->Connect(KTCPEndPoint(URL.Domain, Port), bVerifyCerts, bAllowSSLv2v3);
+		return std::move(C);
 	}
 	else
 	{
-		KTCPConnection C;
-		C.Connect(KTCPEndPoint(Domain, Port));
-		Connection = std::move(C);
+		auto C = std::make_unique<KTCPConnection>();
+		C->Connect(KTCPEndPoint(URL.Domain, Port));
+		return std::move(C);
 	}
 
-	return Connection;
+	return std::make_unique<KTCPConnection>();
 
 } // Create
 

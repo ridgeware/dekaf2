@@ -321,7 +321,7 @@ bool KSMTP::Talk(KStringView sTx, KStringView sRx)
 
 	if (!sTx.empty())
 	{
-		if (!m_Connection->WriteLine(sTx).Flush().Good())
+		if (!(*m_Connection)->WriteLine(sTx).Flush().Good())
 		{
 			m_sError = "cannot send to SMTP server";
 			Disconnect();
@@ -333,7 +333,7 @@ bool KSMTP::Talk(KStringView sTx, KStringView sRx)
 	{
 		KString sLine;
 
-		if (!m_Connection->ReadLine(sLine))
+		if (!(*m_Connection)->ReadLine(sLine))
 		{
 			m_sError = "cannot receive from SMTP server";
 			Disconnect();
@@ -498,15 +498,20 @@ bool KSMTP::Send(const KMail& Mail)
 		return false;
 	}
 
+	if (!Good())
+	{
+		return false;
+	}
+
 	// empty line ends the header
-	if (!m_Connection->WriteLine().Good())
+	if (!(*m_Connection)->WriteLine().Good())
 	{
 		m_sError = "cannot send end of header";
 		Disconnect();
 		return false;
 	}
 
-	if (!m_Connection->Write(Mail.Message()).Good())
+	if (!(*m_Connection)->Write(Mail.Message()).Good())
 	{
 		m_sError = "cannot send mail body";
 		Disconnect();
@@ -519,7 +524,7 @@ bool KSMTP::Send(const KMail& Mail)
 		return false;
 	}
 
-	m_Connection->Flush();
+	(*m_Connection)->Flush();
 
 	return true;
 
@@ -535,16 +540,16 @@ bool KSMTP::Connect(const KURL& URL)
 
 	m_Connection = KConnection::Create(URL);
 
-	if (!m_Connection || !m_Connection->OutStream().good())
+	if (!Good())
 	{
 		m_sError.Format("cannot connect to SMTP server {}:{} - {}", URL.Domain.Serialize(), URL.Port.Serialize(), Error());
 		return false;
 	}
 
-	m_Connection->SetWriterEndOfLine("\r\n");
-	m_Connection->SetReaderRightTrim("\r\n");
+	(*m_Connection)->SetWriterEndOfLine("\r\n");
+	(*m_Connection)->SetReaderRightTrim("\r\n");
 
-	m_Connection.SetTimeout(m_iTimeout);
+	m_Connection->SetTimeout(m_iTimeout);
 
 	if (Talk("", "220")
 	 && Talk(kFormat("HELO {}", "localhost"), "250"))
@@ -567,14 +572,17 @@ void KSMTP::Disconnect()
 	{
 		Talk("QUIT", "221");
 	}
-	m_Connection.Disconnect();
+	if (m_Connection)
+	{
+		m_Connection->Disconnect();
+	}
 }
 
 //-----------------------------------------------------------------------------
 bool KSMTP::Good() const
 //-----------------------------------------------------------------------------
 {
-	return m_Connection.Good();
+	return m_Connection && m_Connection->Good();
 }
 
 //-----------------------------------------------------------------------------
@@ -583,7 +591,10 @@ KString KSMTP::Error() const
 {
 	KString sReturn;
 
-	sReturn = m_Connection.Error();
+	if (m_Connection)
+	{
+		sReturn = m_Connection->Error();
+	}
 
 	if (sReturn.empty() && !m_sError.empty())
 	{

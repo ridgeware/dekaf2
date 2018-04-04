@@ -268,7 +268,7 @@ KString& KString::replace(iterator i1, iterator i2, KStringView sv)
 KString KString::substr(size_type pos, size_type n/*=npos*/) const
 //------------------------------------------------------------------------------
 {
-	if ((n == npos) || (n == 0)) { // if "n" not spec'ed, return rest of string starting at "pos"
+	if (n == npos) { // if "n" not spec'ed, return rest of string starting at "pos"
 		n = size() - pos;
 	}
 

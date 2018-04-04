@@ -108,7 +108,7 @@ void KSharedProfiler::print()
 	typedef map_t::value_type set_value_t;
 	struct compare_set
 	{
-		bool operator()(const set_value_t& a, const set_value_t& b)
+		bool operator()(const set_value_t& a, const set_value_t& b) const
 		{
 			return a.second.order < b.second.order;
 		}

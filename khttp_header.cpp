@@ -144,7 +144,8 @@ bool KHTTPHeaders::HasContent() const
 
 	if (iSize < 0)
 	{
-		return Headers.Get(KHTTPHeaders::transfer_encoding) == "chunked";
+		return Headers.Get(KHTTPHeaders::transfer_encoding) == "chunked"
+		    || Headers.Get(KHTTPHeaders::connection) == "close";
 	}
 	else
 	{

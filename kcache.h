@@ -197,6 +197,13 @@ public:
 	using base_type  = KCache<Key, value_type>;
 
 	//-----------------------------------------------------------------------------
+	KSharedCache(size_t iMaxSize = base_type::DEFAULT_MAX_CACHE_SIZE)
+	//-----------------------------------------------------------------------------
+	: base_type(iMaxSize)
+	{
+	}
+
+	//-----------------------------------------------------------------------------
 	/// Add a new key value pair to the cache.
 	template<class K, class V>
 	value_type& Set(K&& key, V&& value)

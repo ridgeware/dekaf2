@@ -140,7 +140,14 @@ public:
 	KString Error() const
 	//-----------------------------------------------------------------------------
 	{
-		return m_Stream.ec.message();
+		if (!Good())
+		{
+			return m_Stream.ec.message();
+		}
+		else
+		{
+			return KString{};
+		}
 	}
 
 //----------

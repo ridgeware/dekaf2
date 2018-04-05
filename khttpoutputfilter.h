@@ -64,11 +64,8 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// construct a HTTP output filter without an output stream
-	KOutHTTPFilter()
-	: m_OutStream(nullptr)
+	KOutHTTPFilter() = default;
 	//-----------------------------------------------------------------------------
-	{
-	}
 
 	//-----------------------------------------------------------------------------
 	/// construct a HTTP output filter around an output stream
@@ -107,14 +104,7 @@ public:
 	KOutStream& UnfilteredStream()
 	//-----------------------------------------------------------------------------
 	{
-		if (DEKAF2_LIKELY(m_OutStream != nullptr))
-		{
-			return *m_OutStream;
-		}
-		else
-		{
-			return s_Empty;
-		}
+		return *m_OutStream;
 	}
 
 	//-----------------------------------------------------------------------------
@@ -160,7 +150,7 @@ private:
 
 	static KOutStringStream s_Empty;
 
-	KOutStream* m_OutStream;
+	KOutStream* m_OutStream { &s_Empty };
 	boost::iostreams::filtering_ostream m_Filter;
 	KOutStream m_FilteredOutStream { m_Filter };
 	COMP m_Compression { NONE };

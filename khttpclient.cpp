@@ -128,7 +128,7 @@ bool KHTTPClient::Disconnect()
 		return SetError("no connection to disconnect");
 	}
 
-	m_Connection->Disconnect();
+	m_Connection.reset();
 
 	return true;
 
@@ -202,7 +202,14 @@ bool KHTTPClient::Parse()
 
 	if (!Response.Parse())
 	{
-		SetError(Response.Error());
+		if (!Response.Error().empty())
+		{
+			SetError(Response.Error());
+		}
+		else
+		{
+			SetError(m_Connection->Error());
+		}
 		return false;
 	}
 

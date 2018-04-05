@@ -184,15 +184,18 @@ bool KOutHTTPFilter::WriteLine(KStringView sBuffer)
 void KOutHTTPFilter::close()
 //-----------------------------------------------------------------------------
 {
-	m_Filter.reset();
-	if (m_OutStream)
+	if (!m_Filter.empty())
 	{
-		m_OutStream->Flush();
+		m_Filter.reset();
+		if (m_OutStream)
+		{
+			m_OutStream->Flush();
+		}
+		m_Compression = NONE;
+		m_bChunked = false;
+		m_bPerformCompression = true;
+		m_iContentSize = -1;
 	}
-	m_Compression = NONE;
-	m_bChunked = false;
-	m_bPerformCompression = true;
-	m_iContentSize = -1;
 
 } // reset
 

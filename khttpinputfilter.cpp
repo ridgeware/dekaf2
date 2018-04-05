@@ -190,12 +190,15 @@ bool KInHTTPFilter::ReadLine(KString& sBuffer)
 void KInHTTPFilter::close()
 //-----------------------------------------------------------------------------
 {
-	m_Filter.reset();
-	m_Compression = NONE;
-	m_bChunked = false;
-	m_bPerformUncompression = true;
-	m_iContentSize = -1;
-
+	if (!m_Filter.empty())
+	{
+		m_Filter.reset();
+		m_Compression = NONE;
+		m_bChunked = false;
+		m_bPerformUncompression = true;
+		m_iContentSize = -1;
+	}
+	
 } // reset
 
 KInStringStream KInHTTPFilter::s_Empty;

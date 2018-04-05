@@ -67,11 +67,8 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// construct a HTTP input filter without an input stream
-	KInHTTPFilter()
-	: m_InStream(nullptr)
+	KInHTTPFilter() = default;
 	//-----------------------------------------------------------------------------
-	{
-	}
 
 	//-----------------------------------------------------------------------------
 	/// construct a HTTP input filter around an input stream
@@ -110,14 +107,7 @@ public:
 	KInStream& UnfilteredStream()
 	//-----------------------------------------------------------------------------
 	{
-		if (DEKAF2_LIKELY(m_InStream != nullptr))
-		{
-			return *m_InStream;
-		}
-		else
-		{
-			return s_Empty;
-		}
+		return *m_InStream;
 	}
 
 	//-----------------------------------------------------------------------------
@@ -171,7 +161,7 @@ private:
 
 	static KInStringStream s_Empty;
 
-	KInStream* m_InStream;
+	KInStream* m_InStream { &s_Empty };
 	boost::iostreams::filtering_istream m_Filter;
 	KInStream m_FilteredInStream { m_Filter };
 	COMP m_Compression { NONE };

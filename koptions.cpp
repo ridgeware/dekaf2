@@ -111,10 +111,11 @@ std::unique_ptr<KOptions::CParms> KOptions::CreateParms(int argc, char** argv)
 }
 
 //---------------------------------------------------------------------------
-KOptions::KOptions(int& retval, bool bEmptyParmsIsError)
+KOptions::KOptions(int& retval, bool bEmptyParmsIsError, KStringView sCliDebugTo/*=KLog::STDOUT*/)
 //---------------------------------------------------------------------------
 	: m_retval(&retval)
 	, m_bEmptyParmsIsError(bEmptyParmsIsError)
+	, m_sCliDebugTo(sCliDebugTo)
 {
 }
 
@@ -212,7 +213,7 @@ bool KOptions::Options(int argc, char** argv, KOutStream& out)
 					{
 						it->bConsumed = true;
 						KLog().SetLevel (it->sArg.size());
-						KLog().SetDebugLog (KLog::STDOUT);
+						KLog().SetDebugLog (m_sCliDebugTo);
 						kDebug (1, "debug level set to: {}", KLog().GetLevel());
 					}
 				}

@@ -44,6 +44,7 @@
 
 #include "kstringview.h"
 #include "kwriter.h"
+#include "klog.h"
 #include <exception>
 
 
@@ -80,7 +81,7 @@ public:
 	KOptions& operator=(KOptions&&) = delete;
 
 	// The only ctor, requiring basic initialization
-	explicit KOptions(int& retval, bool bEmptyParmsIsError);
+	explicit KOptions (int& retval, bool bEmptyParmsIsError, KStringView sCliDebugTo=KLog::STDOUT);
 
 	void SetHelp(KStringView* sHelp, size_t iCount)
 	{
@@ -148,11 +149,11 @@ private:
 	void Help();
 	void SetRetval(int iVal);
 
-	int* m_retval { nullptr };
+	int*         m_retval { nullptr };
 	KStringView* m_sHelp { nullptr };
-	size_t m_sHelpSize { 0 };
-	bool m_bEmptyParmsIsError { true };
-
+	size_t       m_sHelpSize { 0 };
+	bool         m_bEmptyParmsIsError { true };
+	KString      m_sCliDebugTo;
 };
 
 

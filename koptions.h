@@ -46,6 +46,7 @@
 #include "kwriter.h"
 #include "klog.h"
 #include <exception>
+#include <functional>
 
 
 /// @file koptions.h
@@ -76,7 +77,7 @@ public:
 	KOptions() = delete;
 	KOptions(const KOptions&) = delete;
 	KOptions(KOptions&&) = delete;
-	virtual ~KOptions();
+	~KOptions();
 	KOptions& operator=(const KOptions&) = delete;
 	KOptions& operator=(KOptions&&) = delete;
 
@@ -91,8 +92,48 @@ public:
 
 	bool Options(int argc, char** argv, KOutStream& out);
 
+	using ArgList = std::vector<KStringView>;
+
+	using Command_t = std::function<size_t(const ArgList&)>;
+
+	struct CommandStore_t
+	{
+		CommandStore_t() = default;
+		CommandStore_t(const CommandStore_t&) = default;
+		CommandStore_t(CommandStore_t&&) = default;
+
+		CommandStore_t(KStringView _sCmd, Command_t _func)
+		: sCmd(_sCmd)
+		, func(_func)
+		{
+		}
+
+		KString sCmd;
+		Command_t func { nullptr };
+	};
+
+	void RegisterOption(CommandStore_t Command)
+	{
+		m_Options.push_back(Command);
+	}
+
+	void RegisterCommand(CommandStore_t Command)
+	{
+		m_Commands.push_back(Command);
+	}
+
+	void RegisterOption(KStringView sCmd, Command_t Command)
+	{
+		m_Options.push_back({sCmd, Command});
+	}
+
+	void RegisterCommand(KStringView sCmd, Command_t Command)
+	{
+		m_Commands.push_back({sCmd, Command});
+	}
+
 //----------
-protected:
+private:
 //----------
 
 	class CParms
@@ -105,7 +146,7 @@ protected:
 			Arg_t() = default;
 			Arg_t(KStringView sArg_);
 
-			bool IsCommand() const { return bIsSingleDashed || bIsDoubleDashed; }
+			bool IsOption() const { return bIsSingleDashed || bIsDoubleDashed; }
 
 			KStringView sArg;
 			bool bIsSingleDashed { false };
@@ -118,7 +159,7 @@ protected:
 
 		CParms() = default;
 		CParms(int argc_, char** argv_);
-		virtual ~CParms();
+		~CParms();
 
 		size_t size() const  { return Args.size();  }
 		size_t empty() const { return Args.empty(); }
@@ -131,23 +172,20 @@ protected:
 
 	};
 
-	virtual std::unique_ptr<CParms> CreateParms(int argc, char** argv);
+	std::unique_ptr<CParms> CreateParms(int argc, char** argv);
 
-	/// Hook for derived classes to check for commands
-	virtual bool Command(CParms::iterator& Arg) { return false; }
-	/// Hook for derived classes to check for parameters without dashes
-	virtual void Parameter(CParms::iterator& Arg) {}
-
-	virtual bool Evaluate(KOutStream& out);
+	bool Evaluate(KOutStream& out);
 
 	std::unique_ptr<CParms> m_Parms;
 
-//----------
-private:
-//----------
-
 	void Help();
 	void SetRetval(int iVal);
+
+	using CommandStore = std::vector<CommandStore_t>;
+	CommandStore m_Commands;
+	CommandStore m_Options;
+
+	static const Command_t* FindCommand(const CommandStore& Store, KStringView sCommand);
 
 	int*         m_retval { nullptr };
 	KStringView* m_sHelp { nullptr };
@@ -155,79 +193,6 @@ private:
 	bool         m_bEmptyParmsIsError { true };
 	KString      m_sCliDebugTo;
 };
-
-
-/*
-struct Parms
-{
-	uint16_t iPort { 80 };
-	bool bCGI { false };
-};
-
-class MyMain : public KMain
-{
-public:
-
-	explicit MyMain(int argc, char** argv, int& retval, bool bEmptyParmsIsError)
-	: KMain(argc, argv, retval, bEmptyParmsIsError)
-	{}
-
-	class MyParms : public CParms, public Parms
-	{
-	public:
-
-		MyParms(int argc, char** argv)
-		: CParms(argc, argv)
-		{}
-
-	};
-
-	virtual std::unique_ptr<CParms> CreateParms(int argc, char** argv) override
-	{
-		return std::make_unique<MyParms>(argc, argv);
-	}
-
-	virtual bool Command(CParms::iterator& Arg) override
-	{
-		MyParms& parms = static_cast<MyParms&>(*m_Parms);
-
-		if (Arg->sArg == "p")
-		{
-			++Arg;
-			if (Arg == parms.end())
-			{
-				throw MissingParameterError("need port number");
-			}
-			parms.iPort = Arg->sArg.UInt16();
-			if (!parms.iPort)
-			{
-				throw WrongParameterError(kFormat("need port number > 1, got {}", Arg->sArg));
-			}
-		}
-		else
-		{
-			return false;
-		}
-	}
-
-};
-
-int main(int argc, char** argv)
-{
-	int retval { 0 };
-
-	KOutStream out(std::cerr);
-
-	MyMain Main(argc, argv, retval, true);
-
-	if (Main.Options(out))
-	{
-
-	}
-
-	return retval;
-}
-*/
 
 } // end of namespace dekaf2
 

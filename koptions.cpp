@@ -184,6 +184,25 @@ bool KOptions::Evaluate(KOutStream& out)
 }
 
 //---------------------------------------------------------------------------
+const KOptions::Command_t* KOptions::FindCommand(const CommandStore& Store, KStringView sCommand)
+//---------------------------------------------------------------------------
+{
+	if (!sCommand.empty())
+	{
+		for (auto& it : Store)
+		{
+			if (it.sCmd == sCommand)
+			{
+				return &it.func;
+			}
+		}
+	}
+
+	return nullptr;
+
+} // FindCommand
+
+//---------------------------------------------------------------------------
 bool KOptions::Options(int argc, char** argv, KOutStream& out)
 //---------------------------------------------------------------------------
 {
@@ -194,13 +213,38 @@ bool KOptions::Options(int argc, char** argv, KOutStream& out)
 	try
 	{
 
-		// using explicit iterartors so that children can move the loop forward more than one step
+		// using explicit iterators so that children can move the loop forward more than one step
 		for (auto it = m_Parms->begin() + 1; it != m_Parms->end(); ++it)
 		{
-			if (it->IsCommand())
+			lastCommand = it;
+
+			if (it->IsOption())
 			{
-				lastCommand = it;
-				if (!Command(it))
+				auto Cmd = FindCommand(m_Options, it->sArg);
+				if (Cmd)
+				{
+					it->bConsumed = true;
+					// isolate parms until next command
+					ArgList Args;
+					auto it2 = it + 1;
+					for (; it2 != m_Parms->end() && !it2->IsOption(); ++it2)
+					{
+						Args.push_back(it2->sArg);
+					}
+
+					auto iConsumed = Cmd->operator()(Args);
+					if (iConsumed > Args.size())
+					{
+						// error
+						break;
+					}
+					// advance arg iter
+					while (iConsumed-- > 0)
+					{
+						(++it)->bConsumed = true;
+					}
+				}
+				else
 				{
 					// children did not evaluate argument
 					if (it->sArg == "help")
@@ -217,10 +261,17 @@ bool KOptions::Options(int argc, char** argv, KOutStream& out)
 						kDebug (1, "debug level set to: {}", KLog().GetLevel());
 					}
 				}
+
 			}
 			else
 			{
-				Parameter(it);
+				auto Cmd = FindCommand(m_Commands, it->sArg);
+				if (Cmd)
+				{
+					it->bConsumed = true;
+					ArgList Args;
+					Cmd->operator()(Args);
+				}
 			}
 		}
 

@@ -47,6 +47,7 @@
 #include "klog.h"
 #include <exception>
 #include <functional>
+#include <unordered_map>
 
 
 /// @file koptions.h
@@ -76,12 +77,11 @@ public:
 
 	KOptions() = delete;
 	KOptions(const KOptions&) = delete;
-	KOptions(KOptions&&) = delete;
-	~KOptions();
+	KOptions(KOptions&&) = default;
 	KOptions& operator=(const KOptions&) = delete;
-	KOptions& operator=(KOptions&&) = delete;
+	KOptions& operator=(KOptions&&) = default;
 
-	// The only ctor, requiring basic initialization
+	// ctor, requiring basic initialization
 	explicit KOptions (int& retval, bool bEmptyParmsIsError, KStringView sCliDebugTo=KLog::STDOUT);
 
 	void SetHelp(KStringView* sHelp, size_t iCount)
@@ -93,50 +93,23 @@ public:
 	bool Options(int argc, char** argv, KOutStream& out);
 
 	using ArgList = std::vector<KStringView>;
+	using Callback = std::function<size_t(const ArgList&)>;
 
-	using Command_t = std::function<size_t(const ArgList&)>;
-
-	struct CommandStore_t
+	void RegisterOption(KStringView sCmd, Callback Function)
 	{
-		CommandStore_t() = default;
-		CommandStore_t(const CommandStore_t&) = default;
-		CommandStore_t(CommandStore_t&&) = default;
-
-		CommandStore_t(KStringView _sCmd, Command_t _func)
-		: sCmd(_sCmd)
-		, func(_func)
-		{
-		}
-
-		KString sCmd;
-		Command_t func { nullptr };
-	};
-
-	void RegisterOption(CommandStore_t Command)
-	{
-		m_Options.push_back(Command);
+		m_Options.insert({sCmd, Function});
 	}
 
-	void RegisterCommand(CommandStore_t Command)
+	void RegisterCommand(KStringView sCmd, Callback Function)
 	{
-		m_Commands.push_back(Command);
-	}
-
-	void RegisterOption(KStringView sCmd, Command_t Command)
-	{
-		m_Options.push_back({sCmd, Command});
-	}
-
-	void RegisterCommand(KStringView sCmd, Command_t Command)
-	{
-		m_Commands.push_back({sCmd, Command});
+		m_Commands.insert({sCmd, Function});
 	}
 
 //----------
 private:
 //----------
 
-	class CParms
+	class CLIParms
 	{
 
 	public:
@@ -146,25 +119,35 @@ private:
 			Arg_t() = default;
 			Arg_t(KStringView sArg_);
 
-			bool IsOption() const { return bIsSingleDashed || bIsDoubleDashed; }
+			bool IsOption() const { return iDashes; }
+			KStringView Dashes() const;
 
 			KStringView sArg;
-			bool bIsSingleDashed { false };
-			bool bIsDoubleDashed { false };
-			bool bConsumed       { false };
+			bool bConsumed  { false };
+
+		private:
+
+			static constexpr KStringView sDoubleDash = "--";
+
+			uint8_t iDashes { 0 };
+
 		};
 
 		using ArgVec   = std::vector<Arg_t>;
 		using iterator = ArgVec::iterator;
 
-		CParms() = default;
-		CParms(int argc_, char** argv_);
-		~CParms();
+		CLIParms() = default;
+		CLIParms(int argc, char** argv)
+		{
+			Create(argc, argv);
+		}
 
+		void Create(int argc, char** argv);
 		size_t size() const  { return Args.size();  }
 		size_t empty() const { return Args.empty(); }
 		iterator begin()     { return Args.begin(); }
 		iterator end()       { return Args.end();   }
+		void clear()         { Args.clear();        }
 
 		ArgVec Args;
 		KStringView sProgramName;
@@ -172,27 +155,26 @@ private:
 
 	};
 
-	std::unique_ptr<CParms> CreateParms(int argc, char** argv);
-
 	bool Evaluate(KOutStream& out);
 
-	std::unique_ptr<CParms> m_Parms;
+	CLIParms m_CLIParms;
 
 	void Help();
 	void SetRetval(int iVal);
 
-	using CommandStore = std::vector<CommandStore_t>;
+	using CommandStore = std::unordered_map<KString, Callback>;
 	CommandStore m_Commands;
 	CommandStore m_Options;
 
-	static const Command_t* FindCommand(const CommandStore& Store, KStringView sCommand);
+	static const Callback* FindCommand(const CommandStore& Store, KStringView sCommand);
 
-	int*         m_retval { nullptr };
+	KString      m_sCliDebugTo;
 	KStringView* m_sHelp { nullptr };
 	size_t       m_sHelpSize { 0 };
+	int*         m_retval { nullptr };
 	bool         m_bEmptyParmsIsError { true };
-	KString      m_sCliDebugTo;
-};
+
+}; // KOptions
 
 } // end of namespace dekaf2
 

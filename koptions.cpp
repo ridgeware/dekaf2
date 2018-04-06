@@ -48,10 +48,11 @@
 namespace dekaf2 {
 
 //---------------------------------------------------------------------------
-KOptions::CParms::Arg_t::Arg_t(KStringView sArg_)
+KOptions::CLIParms::Arg_t::Arg_t(KStringView sArg_)
 //---------------------------------------------------------------------------
 	: sArg(sArg_)
-	, bConsumed {false}
+	, bConsumed { false }
+	, iDashes { 0 }
 {
 	if (sArg.front() == '-')
 	{
@@ -62,16 +63,14 @@ KOptions::CParms::Arg_t::Arg_t(KStringView sArg_)
 				if (sArg.size() > 2)
 				{
 					sArg.remove_prefix(2);
-					bIsSingleDashed = false;
-					bIsDoubleDashed = true;
+					iDashes = 2;
 				}
 				// double dash, leave alone
 			}
 			else
 			{
 				sArg.remove_prefix(1);
-				bIsSingleDashed = true;
-				bIsDoubleDashed = false;
+				iDashes = 1;
 			}
 		}
 		// single dash, leave alone
@@ -79,9 +78,21 @@ KOptions::CParms::Arg_t::Arg_t(KStringView sArg_)
 }
 
 //---------------------------------------------------------------------------
-KOptions::CParms::CParms(int argc, char** argv)
+KStringView KOptions::CLIParms::Arg_t::Dashes() const
 //---------------------------------------------------------------------------
 {
+	KStringView sReturn { sDoubleDash };
+	sReturn.remove_suffix(2 - iDashes);
+
+	return sReturn;
+
+} // Dashes
+
+//---------------------------------------------------------------------------
+void KOptions::CLIParms::Create(int argc, char** argv)
+//---------------------------------------------------------------------------
+{
+	Args.clear();
 	Args.reserve(argc);
 
 	for (int ii = 0; ii < argc; ++ii)
@@ -95,33 +106,14 @@ KOptions::CParms::CParms(int argc, char** argv)
 		Args.front().bConsumed = true;
 	}
 
-}
-
-//---------------------------------------------------------------------------
-KOptions::CParms::~CParms()
-//---------------------------------------------------------------------------
-{
-}
-
-//---------------------------------------------------------------------------
-std::unique_ptr<KOptions::CParms> KOptions::CreateParms(int argc, char** argv)
-//---------------------------------------------------------------------------
-{
-	return std::make_unique<CParms>(argc, argv);
-}
+} // CParms ctor
 
 //---------------------------------------------------------------------------
 KOptions::KOptions(int& retval, bool bEmptyParmsIsError, KStringView sCliDebugTo/*=KLog::STDOUT*/)
 //---------------------------------------------------------------------------
-	: m_retval(&retval)
+	: m_sCliDebugTo(sCliDebugTo)
+	, m_retval(&retval)
 	, m_bEmptyParmsIsError(bEmptyParmsIsError)
-	, m_sCliDebugTo(sCliDebugTo)
-{
-}
-
-//---------------------------------------------------------------------------
-KOptions::~KOptions()
-//---------------------------------------------------------------------------
 {
 }
 
@@ -131,8 +123,8 @@ void KOptions::Help()
 {
 	for (size_t ct = 0; ct < m_sHelpSize; ++ct)
 	{
-		std::cout.write(m_sHelp[ct].data(), m_sHelp[ct].size());
-		std::cout.write("\n", 1);
+		KOut.Write(m_sHelp[ct].data(), m_sHelp[ct].size());
+		KOut.WriteLine();
 	}
 }
 
@@ -140,7 +132,7 @@ void KOptions::Help()
 bool KOptions::Evaluate(KOutStream& out)
 //---------------------------------------------------------------------------
 {
-	if (m_Parms->empty() || m_Parms->size() == 1)
+	if (m_CLIParms.empty() || m_CLIParms.size() == 1)
 	{
 		if (m_bEmptyParmsIsError)
 		{
@@ -150,7 +142,8 @@ bool KOptions::Evaluate(KOutStream& out)
 	}
 
 	size_t iUnconsumed {0};
-	for (auto& it : *m_Parms)
+
+	for (auto& it : m_CLIParms)
 	{
 		if (!it.bConsumed)
 		{
@@ -160,19 +153,13 @@ bool KOptions::Evaluate(KOutStream& out)
 
 	if (iUnconsumed)
 	{
-		out.FormatLine("have {} excess arguments:", iUnconsumed);
-		for (auto& it : *m_Parms)
+		out.FormatLine("have {} excess argument{}:", iUnconsumed, iUnconsumed == 1 ? "" : "s");
+
+		for (auto& it : m_CLIParms)
 		{
 			if (!it.bConsumed)
 			{
-				if (it.bIsSingleDashed)
-				{
-					out.Write('-');
-				}
-				else if (it.bIsDoubleDashed)
-				{
-					out.Write("--");
-				}
+				out.Write(it.Dashes());
 				out.WriteLine(it.sArg);
 			}
 		}
@@ -184,18 +171,13 @@ bool KOptions::Evaluate(KOutStream& out)
 }
 
 //---------------------------------------------------------------------------
-const KOptions::Command_t* KOptions::FindCommand(const CommandStore& Store, KStringView sCommand)
+const KOptions::Callback* KOptions::FindCommand(const CommandStore& Store, KStringView sCommand)
 //---------------------------------------------------------------------------
 {
-	if (!sCommand.empty())
+	auto it = Store.find(sCommand);
+	if (it != Store.end())
 	{
-		for (auto& it : Store)
-		{
-			if (it.sCmd == sCommand)
-			{
-				return &it.func;
-			}
-		}
+		return &it->second;
 	}
 
 	return nullptr;
@@ -206,71 +188,56 @@ const KOptions::Command_t* KOptions::FindCommand(const CommandStore& Store, KStr
 bool KOptions::Options(int argc, char** argv, KOutStream& out)
 //---------------------------------------------------------------------------
 {
-	m_Parms = CreateParms(argc, argv);
+	m_CLIParms.Create(argc, argv);
 
-	CParms::iterator lastCommand;
+	CLIParms::iterator lastCommand;
 
 	try
 	{
 
-		// using explicit iterators so that children can move the loop forward more than one step
-		for (auto it = m_Parms->begin() + 1; it != m_Parms->end(); ++it)
+		// using explicit iterators so that options can move the loop forward more than one step
+		for (auto it = m_CLIParms.begin() + 1; it != m_CLIParms.end(); ++it)
 		{
 			lastCommand = it;
 
-			if (it->IsOption())
+			auto Cmd = FindCommand(it->IsOption() ? m_Options : m_Commands, it->sArg);
+			if (Cmd)
 			{
-				auto Cmd = FindCommand(m_Options, it->sArg);
-				if (Cmd)
+				it->bConsumed = true;
+				// isolate parms until next command
+				ArgList Args;
+				auto it2 = it + 1;
+				for (; it2 != m_CLIParms.end() && !it2->IsOption(); ++it2)
 				{
-					it->bConsumed = true;
-					// isolate parms until next command
-					ArgList Args;
-					auto it2 = it + 1;
-					for (; it2 != m_Parms->end() && !it2->IsOption(); ++it2)
-					{
-						Args.push_back(it2->sArg);
-					}
-
-					auto iConsumed = Cmd->operator()(Args);
-					if (iConsumed > Args.size())
-					{
-						// error
-						break;
-					}
-					// advance arg iter
-					while (iConsumed-- > 0)
-					{
-						(++it)->bConsumed = true;
-					}
-				}
-				else
-				{
-					// children did not evaluate argument
-					if (it->sArg == "help")
-					{
-						Help();
-						it->bConsumed = true;
-						return false;
-					}
-					else if (it->sArg.In("d,dd,ddd"))
-					{
-						it->bConsumed = true;
-						KLog().SetLevel (it->sArg.size());
-						KLog().SetDebugLog (m_sCliDebugTo);
-						kDebug (1, "debug level set to: {}", KLog().GetLevel());
-					}
+					Args.push_back(it2->sArg);
 				}
 
+				auto iConsumed = Cmd->operator()(Args);
+				if (iConsumed > Args.size())
+				{
+					throw WrongParameterError("consumed more args than available");
+				}
+				// advance arg iter
+				while (iConsumed-- > 0)
+				{
+					(++it)->bConsumed = true;
+				}
 			}
-			else
+			else if (it->IsOption())
 			{
-				auto Cmd = FindCommand(m_Commands, it->sArg);
-				if (Cmd)
+				// argument was not evaluated
+				if (it->sArg == "help")
+				{
+					Help();
+					it->bConsumed = true;
+					return false;
+				}
+				else if (it->sArg.In("d,dd,ddd"))
 				{
 					it->bConsumed = true;
-					ArgList Args;
-					Cmd->operator()(Args);
+					KLog().SetLevel (it->sArg.size());
+					KLog().SetDebugLog (m_sCliDebugTo);
+					kDebug (1, "debug level set to: {}", KLog().GetLevel());
 				}
 			}
 		}
@@ -286,22 +253,22 @@ bool KOptions::Options(int argc, char** argv, KOutStream& out)
 
 	catch (const MissingParameterError& error)
 	{
-		out.FormatLine("missing parameter after {} : {}", lastCommand->sArg, error.what());
+		out.FormatLine("missing parameter after {}{} : {}", lastCommand->Dashes(), lastCommand->sArg, error.what());
 	}
 
 	catch (const WrongParameterError& error)
 	{
-		out.FormatLine("wrong parameter after {} : {}", lastCommand->sArg, error.what());
+		out.FormatLine("wrong parameter after {}{} : {}", lastCommand->Dashes(), lastCommand->sArg, error.what());
 	}
 
 	catch (const std::exception error)
 	{
-		out.FormatLine("exception at {} : {}", lastCommand->sArg, error.what());
+		out.FormatLine("exception at {}{} : {}", lastCommand->Dashes(), lastCommand->sArg, error.what());
 	}
 
 	catch (...)
 	{
-		out.FormatLine("unknown exception at {}", lastCommand->sArg);
+		out.FormatLine("unknown exception at {}{}", lastCommand->Dashes(), lastCommand->sArg);
 	}
 
 	SetRetval(1);
@@ -322,5 +289,10 @@ void KOptions::SetRetval(int iVal)
 		}
 	}
 }
+
+
+#if !defined(DEKAF2_NO_GCC) && (DEKAF2_GCC_VERSION < 70000)
+	constexpr KStringView KOptions::CParms::Arg_t::sDoubleDash;
+#endif
 
 } // end of namespace dekaf2

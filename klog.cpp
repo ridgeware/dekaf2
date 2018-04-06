@@ -777,15 +777,18 @@ void KLog::CheckDebugFlag()
 bool KLog::IntDebug(int level, KStringView sFunction, KStringView sMessage)
 //---------------------------------------------------------------------------
 {
-	// we need a lock if we run in multithreading, as the serializers
-	// have data members
-	static std::recursive_mutex mutex;
-	std::lock_guard<std::recursive_mutex> Lock(mutex);
-
+	// moving this check to the first place helps avoiding
+	// static deinitialization races with static instances of classes that will
+	// output to KLog in their destructor
 	if (!m_Logger || !m_Serializer)
 	{
 		return false;
 	}
+
+	// we need a lock if we run in multithreading, as the serializers
+	// have data members
+	static std::recursive_mutex mutex;
+	std::lock_guard<std::recursive_mutex> Lock(mutex);
 
 	m_Serializer->Set(level, m_sShortName, m_sPathName, sFunction, sMessage);
 

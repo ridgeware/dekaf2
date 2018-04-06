@@ -184,6 +184,12 @@ public:
 	void StartSignalHandlerThread();
 	//---------------------------------------------------------------------------
 
+	//---------------------------------------------------------------------------
+	/// Prepares for process shutdown by stopping the timer object. If bImmediately
+	/// is false may wait up to one second for the timer to join.
+	void ShutDown(bool bImmediately = true);
+	//---------------------------------------------------------------------------
+
 //----------
 private:
 //----------

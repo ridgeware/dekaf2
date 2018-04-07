@@ -205,7 +205,7 @@ void KOptions::RegisterCommand(KStringView sCmd, uint16_t iMinArgs, const char* 
 }
 
 //---------------------------------------------------------------------------
-int KOptions::Options(int argc, char** argv, KOutStream& out)
+int KOptions::Parse(int argc, char** argv, KOutStream& out)
 //---------------------------------------------------------------------------
 {
 	m_CLIParms.Create(argc, argv);
@@ -344,7 +344,7 @@ int KOptions::Options(int argc, char** argv, KOutStream& out)
 
 	return 1;
 
-} // Options
+} // Parse
 
 
 #if !defined(DEKAF2_NO_GCC) && (DEKAF2_GCC_VERSION < 70000)

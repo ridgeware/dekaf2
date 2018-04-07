@@ -75,7 +75,8 @@ KOptions::CLIParms::Arg_t::Arg_t(KStringView sArg_)
 		}
 		// single dash, leave alone
 	}
-}
+
+} // Arg_t ctor
 
 //---------------------------------------------------------------------------
 KStringView KOptions::CLIParms::Arg_t::Dashes() const
@@ -109,13 +110,12 @@ void KOptions::CLIParms::Create(int argc, char** argv)
 } // CParms ctor
 
 //---------------------------------------------------------------------------
-KOptions::KOptions(int& retval, bool bEmptyParmsIsError, KStringView sCliDebugTo/*=KLog::STDOUT*/)
+KOptions::KOptions(bool bEmptyParmsIsError, KStringView sCliDebugTo/*=KLog::STDOUT*/)
 //---------------------------------------------------------------------------
 	: m_sCliDebugTo(sCliDebugTo)
-	, m_retval(&retval)
 	, m_bEmptyParmsIsError(bEmptyParmsIsError)
 {
-}
+} // KOptions ctor
 
 //---------------------------------------------------------------------------
 void KOptions::Help()
@@ -123,13 +123,13 @@ void KOptions::Help()
 {
 	for (size_t ct = 0; ct < m_sHelpSize; ++ct)
 	{
-		KOut.Write(m_sHelp[ct].data(), m_sHelp[ct].size());
-		KOut.WriteLine();
+		KOut.WriteLine(m_sHelp[ct]);
 	}
-}
+
+} // Help
 
 //---------------------------------------------------------------------------
-bool KOptions::Evaluate(KOutStream& out)
+int KOptions::Evaluate(KOutStream& out)
 //---------------------------------------------------------------------------
 {
 	if (m_CLIParms.empty() || m_CLIParms.size() == 1)
@@ -137,7 +137,7 @@ bool KOptions::Evaluate(KOutStream& out)
 		if (m_bEmptyParmsIsError)
 		{
 			Help();
-			return false;
+			return 1;
 		}
 	}
 
@@ -164,28 +164,43 @@ bool KOptions::Evaluate(KOutStream& out)
 			}
 		}
 
-		return false;
+		return 1;
 	}
 
-	return true;
+	return 0;
+
+} // Evaluate
+
+//---------------------------------------------------------------------------
+void KOptions::RegisterUnknownOption(Callback Function)
+//---------------------------------------------------------------------------
+{
+	m_UnknownOption.func = Function;
 }
 
 //---------------------------------------------------------------------------
-const KOptions::Callback* KOptions::FindCommand(const CommandStore& Store, KStringView sCommand)
+void KOptions::RegisterUnknownCommand(Callback Function)
 //---------------------------------------------------------------------------
 {
-	auto it = Store.find(sCommand);
-	if (it != Store.end())
-	{
-		return &it->second;
-	}
-
-	return nullptr;
-
-} // FindCommand
+	m_UnknownCommand.func = Function;
+}
 
 //---------------------------------------------------------------------------
-bool KOptions::Options(int argc, char** argv, KOutStream& out)
+void KOptions::RegisterOption(KStringView sCmd, uint16_t iMinArgs, const char* sMissingParms, Callback Function)
+//---------------------------------------------------------------------------
+{
+	m_Options.insert({sCmd, {iMinArgs, sMissingParms, Function}});
+}
+
+//---------------------------------------------------------------------------
+void KOptions::RegisterCommand(KStringView sCmd, uint16_t iMinArgs, const char* sMissingParms, Callback Function)
+//---------------------------------------------------------------------------
+{
+	m_Commands.insert({sCmd, {iMinArgs, sMissingParms, Function}});
+}
+
+//---------------------------------------------------------------------------
+int KOptions::Options(int argc, char** argv, KOutStream& out)
 //---------------------------------------------------------------------------
 {
 	m_CLIParms.Create(argc, argv);
@@ -199,26 +214,75 @@ bool KOptions::Options(int argc, char** argv, KOutStream& out)
 		for (auto it = m_CLIParms.begin() + 1; it != m_CLIParms.end(); ++it)
 		{
 			lastCommand = it;
+			ArgList Args;
+			CallbackParams* CBP { nullptr };
 
-			auto Cmd = FindCommand(it->IsOption() ? m_Options : m_Commands, it->sArg);
-			if (Cmd)
+			auto& Store = it->IsOption() ? m_Options : m_Commands;
+			auto cbi = Store.find(it->sArg);
+			if (cbi == Store.end())
+			{
+				// check if we have a handler for an unknown arg
+				if (it->IsOption())
+				{
+					if (m_UnknownOption.func)
+					{
+						CBP = &m_UnknownOption;
+					}
+				}
+				else
+				{
+					if (m_UnknownCommand.func)
+					{
+						CBP = &m_UnknownCommand;
+					}
+				}
+
+				if (CBP)
+				{
+					// yes - pass the current arg as first element of ArgList
+					Args.PushBottom(it->sArg);
+				}
+			}
+			else
+			{
+				CBP = &cbi->second;
+			}
+
+			if (CBP)
 			{
 				it->bConsumed = true;
-				// isolate parms until next command
-				ArgList Args;
+				// isolate parms until next command and add them to the ArgList
 				auto it2 = it + 1;
 				for (; it2 != m_CLIParms.end() && !it2->IsOption(); ++it2)
 				{
-					Args.push_back(it2->sArg);
+					Args.PushBottom(it2->sArg);
 				}
 
-				auto iConsumed = Cmd->operator()(Args);
-				if (iConsumed > Args.size())
+				if (CBP->iMinArgs > Args.size())
 				{
-					throw WrongParameterError("consumed more args than available");
+					if (CBP->sMissingParms && *CBP->sMissingParms)
+					{
+						throw MissingParameterError(CBP->sMissingParms);
+					}
+					else
+					{
+						throw MissingParameterError(kFormat("{} arguments required, but only {} found", CBP->iMinArgs, Args.size()));
+					}
 				}
-				// advance arg iter
-				while (iConsumed-- > 0)
+
+				// keep record of the initial args count
+				auto iOldSize = Args.size();
+
+				// finally call the callback
+				CBP->func(Args);
+
+				if (iOldSize < Args.size())
+				{
+					throw WrongParameterError("callback manipulated parameter count");
+				}
+
+				// advance arg iter by count of consumed args
+				while (iOldSize-- > Args.size())
 				{
 					(++it)->bConsumed = true;
 				}
@@ -230,7 +294,7 @@ bool KOptions::Options(int argc, char** argv, KOutStream& out)
 				{
 					Help();
 					it->bConsumed = true;
-					return false;
+					return -1;
 				}
 				else if (it->sArg.In("d,dd,ddd"))
 				{
@@ -242,13 +306,7 @@ bool KOptions::Options(int argc, char** argv, KOutStream& out)
 			}
 		}
 
-		if (!Evaluate(out))
-		{
-			SetRetval(1);
-			return false;
-		}
-
-		return true;
+		return Evaluate(out);
 	}
 
 	catch (const MissingParameterError& error)
@@ -261,6 +319,11 @@ bool KOptions::Options(int argc, char** argv, KOutStream& out)
 		out.FormatLine("wrong parameter after {}{} : {}", lastCommand->Dashes(), lastCommand->sArg, error.what());
 	}
 
+	catch (const Error& error)
+	{
+		out.FormatLine("Error : {}", error.what());
+	}
+
 	catch (const std::exception error)
 	{
 		out.FormatLine("exception at {}{} : {}", lastCommand->Dashes(), lastCommand->sArg, error.what());
@@ -271,24 +334,9 @@ bool KOptions::Options(int argc, char** argv, KOutStream& out)
 		out.FormatLine("unknown exception at {}{}", lastCommand->Dashes(), lastCommand->sArg);
 	}
 
-	SetRetval(1);
+	return 1;
 
-	return false;
-
-}
-
-//---------------------------------------------------------------------------
-void KOptions::SetRetval(int iVal)
-//---------------------------------------------------------------------------
-{
-	if (m_retval)
-	{
-		if (!*m_retval)
-		{
-			*m_retval = iVal;
-		}
-	}
-}
+} // Options
 
 
 #if !defined(DEKAF2_NO_GCC) && (DEKAF2_GCC_VERSION < 70000)

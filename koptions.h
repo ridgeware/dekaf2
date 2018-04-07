@@ -45,6 +45,7 @@
 #include "kstringview.h"
 #include "kwriter.h"
 #include "klog.h"
+#include "kstack.h"
 #include <exception>
 #include <functional>
 #include <unordered_map>
@@ -75,35 +76,45 @@ public:
 		using runtime_error::runtime_error;
 	};
 
+	class Error : public std::runtime_error
+	{
+		using runtime_error::runtime_error;
+	};
+
 	KOptions() = delete;
 	KOptions(const KOptions&) = delete;
 	KOptions(KOptions&&) = default;
 	KOptions& operator=(const KOptions&) = delete;
 	KOptions& operator=(KOptions&&) = default;
 
-	// ctor, requiring basic initialization
-	explicit KOptions (int& retval, bool bEmptyParmsIsError, KStringView sCliDebugTo=KLog::STDOUT);
+	/// ctor, requiring basic initialization
+	explicit KOptions (bool bEmptyParmsIsError, KStringView sCliDebugTo = KLog::STDOUT);
 
+	/// register an array of KStringViews as help output
 	void SetHelp(KStringView* sHelp, size_t iCount)
 	{
 		m_sHelp = sHelp;
 		m_sHelpSize = iCount;
 	}
 
-	bool Options(int argc, char** argv, KOutStream& out);
+	/// Parse arguments and call the registered callback functions. Returns 0
+	/// if valid, -1 if -help was called, and > 0 for error
+	int Options(int argc, char** argv, KOutStream& out);
 
-	using ArgList = std::vector<KStringView>;
-	using Callback = std::function<size_t(const ArgList&)>;
+	using ArgList = KStack<KStringView>;
+	using Callback = std::function<void(ArgList&)>;
 
-	void RegisterOption(KStringView sCmd, Callback Function)
-	{
-		m_Options.insert({sCmd, Function});
-	}
+	/// Register a callback function for occurences of "-sOption"
+	void RegisterOption(KStringView sOption, uint16_t iMinArgs, const char* sMissingParms, Callback Function);
 
-	void RegisterCommand(KStringView sCmd, Callback Function)
-	{
-		m_Commands.insert({sCmd, Function});
-	}
+	/// Register a callback function for occurences of "sCommand"
+	void RegisterCommand(KStringView sCommand, uint16_t iMinArgs, const char* sMissingParms, Callback Function);
+
+	/// Register a callback function for unhandled options
+	void RegisterUnknownOption(Callback Function);
+
+	/// Register a callback function for unhandled commands
+	void RegisterUnknownCommand(Callback Function);
 
 //----------
 private:
@@ -153,26 +164,42 @@ private:
 		KStringView sProgramName;
 		size_t iArg { 0 };
 
-	};
+	}; // CLIParms
 
-	bool Evaluate(KOutStream& out);
-
-	CLIParms m_CLIParms;
+	int Evaluate(KOutStream& out);
 
 	void Help();
-	void SetRetval(int iVal);
 
-	using CommandStore = std::unordered_map<KString, Callback>;
-	CommandStore m_Commands;
-	CommandStore m_Options;
+	class CallbackParams
+	{
 
-	static const Callback* FindCommand(const CommandStore& Store, KStringView sCommand);
+	public:
 
-	KString      m_sCliDebugTo;
-	KStringView* m_sHelp { nullptr };
-	size_t       m_sHelpSize { 0 };
-	int*         m_retval { nullptr };
-	bool         m_bEmptyParmsIsError { true };
+		CallbackParams() = default;
+
+		CallbackParams(uint16_t _iMinArgs, const char* _sMissingParms, Callback _func)
+		: func(_func)
+		, sMissingParms(_sMissingParms)
+		, iMinArgs(_iMinArgs)
+		{}
+
+		Callback    func { nullptr };
+		const char* sMissingParms { nullptr };
+		uint16_t    iMinArgs { 0 };
+
+	};
+
+	using CommandStore = std::unordered_map<KString, CallbackParams>;
+
+	CLIParms       m_CLIParms;
+	CommandStore   m_Commands;
+	CommandStore   m_Options;
+	CallbackParams m_UnknownCommand;
+	CallbackParams m_UnknownOption;
+	KString        m_sCliDebugTo;
+	KStringView*   m_sHelp { nullptr };
+	size_t         m_sHelpSize { 0 };
+	bool           m_bEmptyParmsIsError { true };
 
 }; // KOptions
 

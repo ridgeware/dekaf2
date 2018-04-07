@@ -66,16 +66,19 @@ class KOptions
 public:
 //----------
 
+	/// throw in case of a missing parameter - it will report the param it got called with
 	class MissingParameterError : public std::runtime_error
 	{
 		using runtime_error::runtime_error;
 	};
 
+	/// throw in case of a wrong parameter - it will report the param it got called with
 	class WrongParameterError : public std::runtime_error
 	{
 		using runtime_error::runtime_error;
 	};
 
+	/// throw in case of a general error - it will not report a specific param it got called with
 	class Error : public std::runtime_error
 	{
 		using runtime_error::runtime_error;
@@ -115,6 +118,9 @@ public:
 
 	/// Register a callback function for unhandled commands
 	void RegisterUnknownCommand(Callback Function);
+
+	/// Output the registered help message
+	void Help(KOutStream& out);
 
 //----------
 private:
@@ -168,8 +174,6 @@ private:
 
 	int Evaluate(KOutStream& out);
 
-	void Help();
-
 	class CallbackParams
 	{
 
@@ -187,7 +191,7 @@ private:
 		const char* sMissingParms { nullptr };
 		uint16_t    iMinArgs { 0 };
 
-	};
+	}; // CallbackParams
 
 	using CommandStore = std::unordered_map<KString, CallbackParams>;
 

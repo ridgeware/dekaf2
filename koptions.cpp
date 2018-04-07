@@ -118,12 +118,17 @@ KOptions::KOptions(bool bEmptyParmsIsError, KStringView sCliDebugTo/*=KLog::STDO
 } // KOptions ctor
 
 //---------------------------------------------------------------------------
-void KOptions::Help()
+void KOptions::Help(KOutStream& out)
 //---------------------------------------------------------------------------
 {
+	if (DEKAF2_UNLIKELY(m_sHelp == nullptr))
+	{
+		throw Error("no help registered");
+	}
+
 	for (size_t ct = 0; ct < m_sHelpSize; ++ct)
 	{
-		KOut.WriteLine(m_sHelp[ct]);
+		out.WriteLine(m_sHelp[ct]);
 	}
 
 } // Help
@@ -136,8 +141,8 @@ int KOptions::Evaluate(KOutStream& out)
 	{
 		if (m_bEmptyParmsIsError)
 		{
-			Help();
-			return 1;
+			Help(out);
+			return -1;
 		}
 	}
 
@@ -216,10 +221,11 @@ int KOptions::Options(int argc, char** argv, KOutStream& out)
 			lastCommand = it;
 			ArgList Args;
 			CallbackParams* CBP { nullptr };
+			bool bIsUnknown { false };
 
 			auto& Store = it->IsOption() ? m_Options : m_Commands;
 			auto cbi = Store.find(it->sArg);
-			if (cbi == Store.end())
+			if (DEKAF2_UNLIKELY(cbi == Store.end()))
 			{
 				// check if we have a handler for an unknown arg
 				if (it->IsOption())
@@ -227,6 +233,12 @@ int KOptions::Options(int argc, char** argv, KOutStream& out)
 					if (m_UnknownOption.func)
 					{
 						CBP = &m_UnknownOption;
+						// we pass the current Arg as the first arg of Args,
+						// but we need to take care to not take it into account
+						// when we readjust the remaining args after calling the
+						// callback
+						Args.PushBottom(it->sArg);
+						bIsUnknown = true;
 					}
 				}
 				else
@@ -234,13 +246,13 @@ int KOptions::Options(int argc, char** argv, KOutStream& out)
 					if (m_UnknownCommand.func)
 					{
 						CBP = &m_UnknownCommand;
+						// we pass the current Arg as the first arg of Args,
+						// but we need to take care to not take it into account
+						// when we readjust the remaining args after calling the
+						// callback
+						Args.PushBottom(it->sArg);
+						bIsUnknown = true;
 					}
-				}
-
-				if (CBP)
-				{
-					// yes - pass the current arg as first element of ArgList
-					Args.PushBottom(it->sArg);
 				}
 			}
 			else
@@ -281,6 +293,12 @@ int KOptions::Options(int argc, char** argv, KOutStream& out)
 					throw WrongParameterError("callback manipulated parameter count");
 				}
 
+				if (bIsUnknown)
+				{
+					// adjust arg count
+					--iOldSize;
+				}
+
 				// advance arg iter by count of consumed args
 				while (iOldSize-- > Args.size())
 				{
@@ -292,7 +310,7 @@ int KOptions::Options(int argc, char** argv, KOutStream& out)
 				// argument was not evaluated
 				if (it->sArg == "help")
 				{
-					Help();
+					Help(out);
 					it->bConsumed = true;
 					return -1;
 				}
@@ -322,16 +340,6 @@ int KOptions::Options(int argc, char** argv, KOutStream& out)
 	catch (const Error& error)
 	{
 		out.FormatLine("Error : {}", error.what());
-	}
-
-	catch (const std::exception error)
-	{
-		out.FormatLine("exception at {}{} : {}", lastCommand->Dashes(), lastCommand->sArg, error.what());
-	}
-
-	catch (...)
-	{
-		out.FormatLine("unknown exception at {}{}", lastCommand->Dashes(), lastCommand->sArg);
 	}
 
 	return 1;

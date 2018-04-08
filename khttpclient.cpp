@@ -167,6 +167,12 @@ bool KHTTPClient::Resource(const KURL& url, KHTTPMethod method)
 	Request.Method = method;
 	Request.HTTPVersion = "HTTP/1.1";
 
+	// make sure we always have a valid path set
+	if (Request.Resource.Path.empty())
+	{
+		Request.Resource.Path.set("/");
+	}
+
 	if (!url.Domain.empty())
 	{
 		// set the host header so that it overwrites a previously set one

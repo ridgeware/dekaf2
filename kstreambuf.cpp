@@ -136,4 +136,159 @@ KStreamBuf::int_type KStreamBuf::overflow(int_type ch)
 	return static_cast<int_type>(m_CallbackW(&ch, 1, m_CustomPointerW));
 }
 
+
+
+
+
+//-----------------------------------------------------------------------------
+KBufferedOutStreamBuf::~KBufferedOutStreamBuf()
+//-----------------------------------------------------------------------------
+{
+}
+
+//-----------------------------------------------------------------------------
+std::streamsize KBufferedOutStreamBuf::xsputn(const char_type* s, std::streamsize n)
+//-----------------------------------------------------------------------------
+{
+	std::streamsize iWrote { 0 };
+
+	while (n)
+	{
+		std::streamsize iWriteInStreamBuf = std::min(n, epptr() - pptr());
+		if (iWriteInStreamBuf > 0)
+		{
+			std::memcpy(pptr(), s, static_cast<size_t>(iWriteInStreamBuf));
+			s += iWriteInStreamBuf;
+			n -= iWriteInStreamBuf;
+			iWrote += iWriteInStreamBuf;
+			// adjust stream buffer pointers
+			setp(pptr()+iWriteInStreamBuf, egptr());
+		}
+
+		if (epptr() - pptr() == 0)
+		{
+			// flush buffer
+			if (sync())
+			{
+				// error
+				return 0;
+			}
+		}
+	}
+
+	return iWrote;
+
+} // xsputn
+
+//-----------------------------------------------------------------------------
+KBufferedOutStreamBuf::int_type KBufferedOutStreamBuf::overflow(int_type ch)
+//-----------------------------------------------------------------------------
+{
+	if (!traits_type::eq_int_type(ch, traits_type::eof()))
+	{
+		char_type cch = ch;
+		return xsputn(&cch, 1);
+	}
+	else
+	{
+		sync();
+		return 0;
+	}
+
+} // overflow
+
+//-----------------------------------------------------------------------------
+int KBufferedOutStreamBuf::sync()
+//-----------------------------------------------------------------------------
+{
+	std::streamsize iToWrite = pptr() - m_buf;
+	std::streamsize iWrote { 0 };
+	if (iToWrite)
+	{
+		iWrote = base_type::xsputn(m_buf, pptr() - m_buf);
+		setp(m_buf, m_buf+STREAMBUFSIZE);
+	}
+
+	return (iWrote == iToWrite) ? 0 : -1;
+
+} // sync
+
+
+
+
+//-----------------------------------------------------------------------------
+KBufferedStreamBuf::~KBufferedStreamBuf()
+//-----------------------------------------------------------------------------
+{
+}
+
+//-----------------------------------------------------------------------------
+std::streamsize KBufferedStreamBuf::xsputn(const char_type* s, std::streamsize n)
+//-----------------------------------------------------------------------------
+{
+	std::streamsize iWrote { 0 };
+
+	while (n)
+	{
+		std::streamsize iAvail = epptr() - pptr();
+		std::streamsize iWriteInStreamBuf = std::min(n, iAvail);
+		if (iWriteInStreamBuf > 0)
+		{
+			std::memcpy(pptr(), s, static_cast<size_t>(iWriteInStreamBuf));
+			s += iWriteInStreamBuf;
+			n -= iWriteInStreamBuf;
+			iWrote += iWriteInStreamBuf;
+			// adjust stream buffer pointers
+			setp(pptr()+iWriteInStreamBuf, epptr());
+		}
+
+		if (epptr() - pptr() == 0)
+		{
+			// flush buffer
+			if (sync())
+			{
+				// error
+				return 0;
+			}
+		}
+	}
+
+	return iWrote;
+
+} // xsputn
+
+//-----------------------------------------------------------------------------
+KBufferedStreamBuf::int_type KBufferedStreamBuf::overflow(int_type ch)
+//-----------------------------------------------------------------------------
+{
+	if (!traits_type::eq_int_type(ch, traits_type::eof()))
+	{
+		char_type cch = ch;
+		return xsputn(&cch, 1);
+	}
+	else
+	{
+		sync();
+		return 0;
+	}
+
+} // overflow
+
+//-----------------------------------------------------------------------------
+int KBufferedStreamBuf::sync()
+//-----------------------------------------------------------------------------
+{
+	std::streamsize iToWrite = pptr() - m_buf;
+	std::streamsize iWrote { 0 };
+	if (iToWrite)
+	{
+		iWrote = base_type::xsputn(m_buf, iToWrite);
+		setp(m_buf, m_buf+STREAMBUFSIZE);
+	}
+
+	return (iWrote == iToWrite) ? 0 : -1;
+
+} // sync
+
+
 }

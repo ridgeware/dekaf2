@@ -213,7 +213,7 @@ private:
 	boost::asio::ip::tcp::endpoint m_ConnectedHost;
 #endif
 
-	KStreamBuf m_SSLStreamBuf{&SSLStreamReader, &SSLStreamWriter, &m_Stream, &m_Stream};
+	KBufferedStreamBuf m_SSLStreamBuf{&SSLStreamReader, &SSLStreamWriter, &m_Stream, &m_Stream};
 
 	enum POLLSTATE
 	{

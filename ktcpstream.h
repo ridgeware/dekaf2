@@ -180,7 +180,7 @@ private:
 	boost::asio::ip::tcp::endpoint m_ConnectedHost;
 #endif
 
-	KStreamBuf m_TCPStreamBuf{&TCPStreamReader, &TCPStreamWriter, &m_Stream, &m_Stream};
+	KBufferedStreamBuf m_TCPStreamBuf{&TCPStreamReader, &TCPStreamWriter, &m_Stream, &m_Stream};
 
 	enum POLLSTATE
 	{

@@ -71,6 +71,7 @@ public:
 	    : m_CallbackR(rcb), m_CustomPointerR(CustomPointerR)
 	{
 	}
+
 	//-----------------------------------------------------------------------------
 	virtual ~KInStreamBuf();
 	//-----------------------------------------------------------------------------
@@ -123,6 +124,7 @@ public:
 	    : m_Callback(cb), m_CustomPointer(CustomPointer)
 	{
 	}
+
 	//-----------------------------------------------------------------------------
 	virtual ~KOutStreamBuf();
 	//-----------------------------------------------------------------------------
@@ -199,5 +201,124 @@ private:
 	void* m_CustomPointerW{nullptr};
 
 }; // KStreamBuf
+
+
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// a customized buffered output stream buffer
+class KBufferedOutStreamBuf : public KOutStreamBuf
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+//-------
+public:
+//-------
+
+	//-----------------------------------------------------------------------------
+	/// the Writer function's signature:
+	/// std::streamsize Writer(const void* sBuffer, std::streamsize iCount, void* CustomPointer)
+	///  - returns written bytes. CustomPointer can be used for anything, to the discretion of the
+	/// Writer.
+	typedef std::streamsize (*Writer)(const void*, std::streamsize, void*);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// provide a Writer function, it will be called by std::streambuf on buffer flushes
+	KBufferedOutStreamBuf(Writer cb, void* CustomPointer = nullptr)
+	//-----------------------------------------------------------------------------
+	: dekaf2::KOutStreamBuf(cb, CustomPointer)
+	{
+		setp(m_buf, m_buf+STREAMBUFSIZE);
+	}
+
+	//-----------------------------------------------------------------------------
+	virtual ~KBufferedOutStreamBuf();
+	//-----------------------------------------------------------------------------
+
+//-------
+protected:
+//-------
+
+	using base_type = KOutStreamBuf;
+
+	//-----------------------------------------------------------------------------
+	virtual std::streamsize xsputn(const char_type* s, std::streamsize n) override;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	virtual int_type overflow(int_type ch) override;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	virtual int sync() override;
+	//-----------------------------------------------------------------------------
+
+//-------
+private:
+//-------
+
+	enum { STREAMBUFSIZE = 4096, DIRECTWRITE = 1024 };
+	char_type m_buf[STREAMBUFSIZE];
+
+}; // KBufferedOutStreamBuf
+
+
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+class KBufferedStreamBuf : public KStreamBuf
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+//-------
+public:
+//-------
+
+	//-----------------------------------------------------------------------------
+	/// the Writer function's signature:
+	/// std::streamsize Writer(const void* sBuffer, std::streamsize iCount, void* CustomPointer)
+	///  - returns written bytes. CustomPointer can be used for anything, to the discretion of the
+	/// Writer.
+	typedef std::streamsize (*Writer)(const void*, std::streamsize, void*);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// provide a Reader function, it will be called by std::streambuf on buffer reads
+	KBufferedStreamBuf(Reader rcb, Writer wcb, void* CustomPointerR = nullptr, void* CustomPointerW = nullptr)
+	//-----------------------------------------------------------------------------
+	: KStreamBuf(rcb, wcb, CustomPointerR, CustomPointerW)
+	{
+		setp(m_buf, m_buf+STREAMBUFSIZE);
+	}
+
+	//-----------------------------------------------------------------------------
+	virtual ~KBufferedStreamBuf();
+	//-----------------------------------------------------------------------------
+
+//-------
+protected:
+//-------
+
+	using base_type = KStreamBuf;
+
+	//-----------------------------------------------------------------------------
+	virtual std::streamsize xsputn(const char_type* s, std::streamsize n) override;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	virtual int_type overflow(int_type ch) override;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	virtual int sync() override;
+	//-----------------------------------------------------------------------------
+
+//-------
+private:
+//-------
+
+	enum { STREAMBUFSIZE = 4096, DIRECTWRITE = 1024 };
+	char_type m_buf[STREAMBUFSIZE];
+
+}; // KBufferedStreamBuf
+
+
 
 }

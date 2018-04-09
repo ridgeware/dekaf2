@@ -270,9 +270,10 @@ bool KHTTPClient::SendRequest(KStringView svPostData, KStringView svMime)
 	{
 		kDebug(2, "sending {} bytes of POST data", svPostData.size());
 		Request.Write(svPostData);
+		// we only need to flush if we have content data, as Request.Serialize()
+		// already flushes after the headers are written
+		(*m_Connection)->Flush();
 	}
-
-	(*m_Connection)->Flush();
 
 	if (!m_Connection->Good())
 	{

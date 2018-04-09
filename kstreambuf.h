@@ -256,8 +256,24 @@ protected:
 private:
 //-------
 
-	enum { STREAMBUFSIZE = 4096, DIRECTWRITE = 1024 };
+	//-----------------------------------------------------------------------------
+	std::streamsize RemainingSize() const
+	//-----------------------------------------------------------------------------
+	{
+		return epptr() - pptr();
+	}
+
+	//-----------------------------------------------------------------------------
+	std::streamsize FlushableSize() const
+	//-----------------------------------------------------------------------------
+	{
+		return pptr() - m_buf;
+	}
+
+	enum { STREAMBUFSIZE = 4096, DIRECTWRITE = 2048 };
 	char_type m_buf[STREAMBUFSIZE];
+
+	static_assert(STREAMBUFSIZE - DIRECTWRITE >= DIRECTWRITE, "buffer size has to be at least twice as large as the direct write threshold");
 
 }; // KBufferedOutStreamBuf
 
@@ -314,8 +330,24 @@ protected:
 private:
 //-------
 
-	enum { STREAMBUFSIZE = 4096, DIRECTWRITE = 1024 };
+	//-----------------------------------------------------------------------------
+	std::streamsize RemainingSize() const
+	//-----------------------------------------------------------------------------
+	{
+		return epptr() - pptr();
+	}
+
+	//-----------------------------------------------------------------------------
+	std::streamsize FlushableSize() const
+	//-----------------------------------------------------------------------------
+	{
+		return pptr() - m_buf;
+	}
+
+	enum { STREAMBUFSIZE = 4096, DIRECTWRITE = 2048 };
 	char_type m_buf[STREAMBUFSIZE];
+
+	static_assert(STREAMBUFSIZE - DIRECTWRITE >= DIRECTWRITE, "buffer size has to be at least twice as large as the direct write threshold");
 
 }; // KBufferedStreamBuf
 

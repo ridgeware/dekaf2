@@ -152,9 +152,61 @@ std::streamsize KBufferedOutStreamBuf::xsputn(const char_type* s, std::streamsiz
 {
 	std::streamsize iWrote { 0 };
 
+	for (; n >= DIRECTWRITE; )
+	{
+		auto iFilled = FlushableSize();
+
+		if (iFilled >= DIRECTWRITE)
+		{
+			if (sync())
+			{
+				// error
+				return 0;
+			}
+		}
+		else if (iFilled > 0)
+		{
+			auto iNeedToFill = DIRECTWRITE - iFilled;
+			if (n - iNeedToFill >= DIRECTWRITE)
+			{
+				// fill buffer with iNeedToFill chars so that it reaches
+				// the minimum flush length, then send the remainder of s
+				// directly - we use a recursion to achieve this, n is
+				// always guaranteed to be < DIRECTWRITE so it will not
+				// take this branch
+				iWrote = xsputn(s, iNeedToFill);
+				if (iWrote != iNeedToFill)
+				{
+					// error
+					return 0;
+				}
+
+				s += iNeedToFill;
+				n -= iNeedToFill;
+
+				if (sync())
+				{
+					// error
+					return 0;
+				}
+
+				// and simply run into the call to base_type::xsputn below
+			}
+			else
+			{
+				// jump out of this loop and add s to the buffer.
+				break;
+			}
+		}
+
+		// buffer is empty, just write this fragment to the underlying stream
+		return iWrote + base_type::xsputn(s, n);
+	}
+
 	while (n)
 	{
-		std::streamsize iWriteInStreamBuf = std::min(n, epptr() - pptr());
+		std::streamsize iAvail = RemainingSize();
+		std::streamsize iWriteInStreamBuf = std::min(n, iAvail);
 		if (iWriteInStreamBuf > 0)
 		{
 			std::memcpy(pptr(), s, static_cast<size_t>(iWriteInStreamBuf));
@@ -162,7 +214,7 @@ std::streamsize KBufferedOutStreamBuf::xsputn(const char_type* s, std::streamsiz
 			n -= iWriteInStreamBuf;
 			iWrote += iWriteInStreamBuf;
 			// adjust stream buffer pointers
-			setp(pptr()+iWriteInStreamBuf, egptr());
+			setp(pptr()+iWriteInStreamBuf, epptr());
 		}
 
 		if (epptr() - pptr() == 0)
@@ -187,12 +239,11 @@ KBufferedOutStreamBuf::int_type KBufferedOutStreamBuf::overflow(int_type ch)
 	if (!traits_type::eq_int_type(ch, traits_type::eof()))
 	{
 		char_type cch = ch;
-		return xsputn(&cch, 1);
+		return (xsputn(&cch, 1) == 1) ? 0 : traits_type::eof();
 	}
 	else
 	{
-		sync();
-		return 0;
+		return (sync() == 0) ? 0 : traits_type::eof();
 	}
 
 } // overflow
@@ -201,7 +252,7 @@ KBufferedOutStreamBuf::int_type KBufferedOutStreamBuf::overflow(int_type ch)
 int KBufferedOutStreamBuf::sync()
 //-----------------------------------------------------------------------------
 {
-	std::streamsize iToWrite = pptr() - m_buf;
+	std::streamsize iToWrite = FlushableSize();
 	std::streamsize iWrote { 0 };
 	if (iToWrite)
 	{
@@ -228,9 +279,60 @@ std::streamsize KBufferedStreamBuf::xsputn(const char_type* s, std::streamsize n
 {
 	std::streamsize iWrote { 0 };
 
+	for (; n >= DIRECTWRITE; )
+	{
+		auto iFilled = FlushableSize();
+
+		if (iFilled >= DIRECTWRITE)
+		{
+			if (sync())
+			{
+				// error
+				return 0;
+			}
+		}
+		else if (iFilled > 0)
+		{
+			auto iNeedToFill = DIRECTWRITE - iFilled;
+			if (n - iNeedToFill >= DIRECTWRITE)
+			{
+				// fill buffer with iNeedToFill chars so that it reaches
+				// the minimum flush length, then send the remainder of s
+				// directly - we use a recursion to achieve this, n is
+				// always guaranteed to be < DIRECTWRITE so it will not
+				// take this branch
+				iWrote = xsputn(s, iNeedToFill);
+				if (iWrote != iNeedToFill)
+				{
+					// error
+					return 0;
+				}
+
+				s += iNeedToFill;
+				n -= iNeedToFill;
+
+				if (sync())
+				{
+					// error
+					return 0;
+				}
+
+				// and simply run into the call to base_type::xsputn below
+			}
+			else
+			{
+				// jump out of this loop and add s to the buffer.
+				break;
+			}
+		}
+
+		// buffer is empty, just write this fragment to the underlying stream
+		return iWrote + base_type::xsputn(s, n);
+	}
+
 	while (n)
 	{
-		std::streamsize iAvail = epptr() - pptr();
+		std::streamsize iAvail = RemainingSize();
 		std::streamsize iWriteInStreamBuf = std::min(n, iAvail);
 		if (iWriteInStreamBuf > 0)
 		{
@@ -264,12 +366,11 @@ KBufferedStreamBuf::int_type KBufferedStreamBuf::overflow(int_type ch)
 	if (!traits_type::eq_int_type(ch, traits_type::eof()))
 	{
 		char_type cch = ch;
-		return xsputn(&cch, 1);
+		return (xsputn(&cch, 1) == 1) ? 0 : traits_type::eof();
 	}
 	else
 	{
-		sync();
-		return 0;
+		return (sync() == 0) ? 0 : traits_type::eof();
 	}
 
 } // overflow
@@ -278,7 +379,7 @@ KBufferedStreamBuf::int_type KBufferedStreamBuf::overflow(int_type ch)
 int KBufferedStreamBuf::sync()
 //-----------------------------------------------------------------------------
 {
-	std::streamsize iToWrite = pptr() - m_buf;
+	std::streamsize iToWrite = FlushableSize();
 	std::streamsize iWrote { 0 };
 	if (iToWrite)
 	{

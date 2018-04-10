@@ -286,17 +286,6 @@ public:
 //-------
 
 	//-----------------------------------------------------------------------------
-	// semi-perfect forwarding - currently needed as std::ostream does not yet
-	// support string_views as arguments
-	template<class... Args>
-	KWriter(KStringView sv, Args&&... args)
-	    : base_type(std::string(sv.data(), sv.size()), std::forward<Args>(args)...)
-	    , KOutStream(reinterpret_cast<std::ostream&>(*this))
-	//-----------------------------------------------------------------------------
-	{
-	}
-
-	//-----------------------------------------------------------------------------
 	// perfect forwarding
 	template<class... Args>
 	KWriter(Args&&... args)
@@ -338,10 +327,43 @@ extern template class KWriter<std::ofstream>;
 extern template class KWriter<std::ostringstream>;
 
 /// File writer based on std::ofstream
-using KOutFile         = KWriter<std::ofstream>;
+// std::ofstream does not understand KString and KStringView, so let's help it
+class KOutFile : public KWriter<std::ofstream>
+{
+public:
 
-/// String writer based on std::ostringstream
-using KOutStringStream = KWriter<std::ostringstream>;
+	using base_type = KWriter<std::ofstream>;
+
+	//-----------------------------------------------------------------------------
+	// semi-perfect forwarding - currently needed as std::ostream does not
+	// support KStrings as arguments
+	template<class... Args>
+	KOutFile(KString str, Args&&... args)
+	: base_type(str.ToStdString(), std::forward<Args>(args)...)
+	//-----------------------------------------------------------------------------
+	{
+	}
+
+	//-----------------------------------------------------------------------------
+	// semi-perfect forwarding - currently needed as std::ostream does not yet
+	// support string_views as arguments
+	template<class... Args>
+	KOutFile(KStringView sv, Args&&... args)
+	: KOutFile(KString(sv), std::forward<Args>(args)...)
+	//-----------------------------------------------------------------------------
+	{
+	}
+
+	//-----------------------------------------------------------------------------
+	// perfect forwarding
+	template<class... Args>
+	KOutFile(Args&&... args)
+	: base_type(std::forward<Args>(args)...)
+	//-----------------------------------------------------------------------------
+	{
+	}
+
+};
 
 } // end of namespace dekaf2
 

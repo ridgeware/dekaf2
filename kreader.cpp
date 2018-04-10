@@ -424,6 +424,28 @@ typename std::istream::int_type KInStream::Read()
 } // Read
 
 //-----------------------------------------------------------------------------
+/// UnRead a character
+bool KInStream::UnRead()
+//-----------------------------------------------------------------------------
+{
+	std::streambuf* sb = InStream().rdbuf();
+
+	if (sb)
+	{
+		typename std::istream::int_type iCh = sb->sungetc();
+		if (std::istream::traits_type::eq_int_type(iCh, std::istream::traits_type::eof()))
+		{
+			InStream().setstate(std::ios::eofbit);
+			return false;
+		}
+		return true;
+	}
+
+	return false;
+
+} // UnRead
+
+//-----------------------------------------------------------------------------
 /// Read a range of characters. Returns count of successfully read charcters.
 size_t KInStream::Read(typename std::istream::char_type* pAddress, size_t iCount)
 //-----------------------------------------------------------------------------
@@ -489,7 +511,6 @@ size_t KInStream::Read(KOutStream& Stream, size_t iCount)
 } // Read
 
 template class KReader<std::ifstream>;
-template class KReader<std::istringstream>;
 
 } // end of namespace dekaf2
 

@@ -3089,7 +3089,7 @@ bool KSQL::BufferResults ()
 		kRemoveFile (m_sTmpResultsFile);
 	}
 
-	KOutFile file(m_sTmpResultsFile.c_str());
+	KOutFile file(m_sTmpResultsFile);
 	if (!file.Good())
 	{
 		m_sLastError.Format ("{}BufferResults(): could not buffer results b/c {} could not write to '{}'", m_sErrorPrefix,

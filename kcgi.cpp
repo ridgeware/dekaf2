@@ -111,7 +111,7 @@ void KCGI::SkipComments(KInStream& Stream, char chCommentDelim)
 //-----------------------------------------------------------------------------
 {
 	// check if we have leading comment lines, and skip them
-	while (Stream.InStream().get() == chCommentDelim)
+	while (Stream.Read() == chCommentDelim)
 	{
 		KString sLine;
 		if (!Stream.ReadLine(sLine))
@@ -119,7 +119,7 @@ void KCGI::SkipComments(KInStream& Stream, char chCommentDelim)
 			break;
 		}
 	}
-	Stream.InStream().unget();
+	Stream.UnRead();
 
 } // SkipComments
 

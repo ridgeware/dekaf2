@@ -266,6 +266,11 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	/// UnRead / putback a character. Returns false if character cannot be put back.
+	bool UnRead();
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
 	/// Read a character. Returns stream reference that resolves to false if no input available
 	inline self_type& Read(KString::value_type& ch)
 	//-----------------------------------------------------------------------------
@@ -543,17 +548,6 @@ public:
 //-------
 
 	//-----------------------------------------------------------------------------
-	// semi-perfect forwarding - currently needed as std::istream does not yet
-	// support string_views as arguments
-	template<class... Args>
-	KReader(KStringView sv, Args&&... args)
-	    : base_type(std::string(sv.data(), sv.size()), std::forward<Args>(args)...)
-	    , KInStream(reinterpret_cast<std::istream&>(*this))
-	//-----------------------------------------------------------------------------
-	{
-	}
-
-	//-----------------------------------------------------------------------------
 	// perfect forwarding
 	template<class... Args>
 	KReader(Args&&... args)
@@ -603,10 +597,43 @@ extern template class KReader<std::ifstream>;
 extern template class KReader<std::istringstream>;
 
 /// File reader based on std::ifstream
-using KInFile          = KReader<std::ifstream>;
+// std::ifstream does not understand KString and KStringView, so let's help it
+class KInFile : public KReader<std::ifstream>
+{
+public:
 
-/// String reader based on std::istringstream
-using KInStringStream  = KReader<std::istringstream>;
+	using base_type = KReader<std::ifstream>;
+
+	//-----------------------------------------------------------------------------
+	// semi-perfect forwarding - currently needed as std::istream does not
+	// support KStrings as arguments
+	template<class... Args>
+	KInFile(KString str, Args&&... args)
+	: base_type(str.ToStdString(), std::forward<Args>(args)...)
+	//-----------------------------------------------------------------------------
+	{
+	}
+
+	//-----------------------------------------------------------------------------
+	// semi-perfect forwarding - currently needed as std::istream does not yet
+	// support string_views as arguments
+	template<class... Args>
+	KInFile(KStringView sv, Args&&... args)
+	: KInFile(KString(sv), std::forward<Args>(args)...)
+	//-----------------------------------------------------------------------------
+	{
+	}
+
+	//-----------------------------------------------------------------------------
+	// perfect forwarding
+	template<class... Args>
+	KInFile(Args&&... args)
+	: base_type(std::forward<Args>(args)...)
+	//-----------------------------------------------------------------------------
+	{
+	}
+
+};
 
 } // end of namespace dekaf2
 

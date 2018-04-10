@@ -13,12 +13,12 @@ TEST_CASE("KWriter") {
 	{
 		KString sFile("/tmp/kwriter_test_sdfjhkshg23.txt");
 		{
-			KOutFile out(sFile.c_str());
+			KOutFile out(sFile);
 			int i = 123;
 			out.Printf("test: %d\n", i);
 		}
 		{
-			KInFile inf(sFile.c_str());
+			KInFile inf(sFile);
 			KString sRead;
 			inf.ReadLine(sRead);
 			CHECK (sRead == "test: 123");

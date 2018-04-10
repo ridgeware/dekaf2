@@ -493,8 +493,8 @@ TEST_CASE("KSQL")
 		    |select count(*) from TEST_KSQL;;
 		)");
 
-		KFile fp1 (sTmp1.c_str(), std::ios::out);
-		KFile fp2 (sTmp2.c_str(), std::ios::out);
+		KFile fp1 (sTmp1, std::ios::out);
+		KFile fp2 (sTmp2, std::ios::out);
 		if (!fp1.Write (sContents1).Good())
 		{
 			kWarning ("failed to write {} bytes to file: {}", sContents1.size(), sTmp1);
@@ -558,7 +558,7 @@ TEST_CASE("KSQL")
 
 		KString sTmp;  sTmp.Format ("testksql{}c.sql", getpid());
 
-		KFile fp (sTmp.c_str(), std::ios::out);
+		KFile fp (sTmp, std::ios::out);
 		fp.Write (HereDoc(R"(
 			|// This is a full-line comment
 			|

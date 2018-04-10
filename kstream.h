@@ -132,17 +132,6 @@ public:
 //-------
 
 	//-----------------------------------------------------------------------------
-	// semi-perfect forwarding - currently needed as std::iostream does not yet
-	// support string_views as arguments
-	template<class... Args>
-	KReaderWriter(KStringView sv, Args&&... args)
-	    : base_type(std::string(sv.data(), sv.size()), std::forward<Args>(args)...)
-	    , k_rw_type(reinterpret_cast<base_type&>(*this))
-	//-----------------------------------------------------------------------------
-	{
-	}
-
-	//-----------------------------------------------------------------------------
 	/// perfect forwarding ctor (forwards all arguments to the iostream)
 	template<class... Args>
 	KReaderWriter(Args&&... args)
@@ -193,10 +182,43 @@ extern template class KReaderWriter<std::fstream>;
 extern template class KReaderWriter<std::stringstream>;
 
 /// File stream based on std::fstream
-using KFile           = KReaderWriter<std::fstream>;
+// std::fstream does not understand KString and KStringView, so let's help it
+class KFile : public KReaderWriter<std::fstream>
+{
+public:
 
-/// String stream based on std::stringstream
-using KStringStream   = KReaderWriter<std::stringstream>;
+	using base_type = KReaderWriter<std::fstream>;
+
+	//-----------------------------------------------------------------------------
+	// semi-perfect forwarding - currently needed as std::istream does not
+	// support KStrings as arguments
+	template<class... Args>
+	KFile(KString str, Args&&... args)
+	: base_type(str.ToStdString(), std::forward<Args>(args)...)
+	//-----------------------------------------------------------------------------
+	{
+	}
+
+	//-----------------------------------------------------------------------------
+	// semi-perfect forwarding - currently needed as std::istream does not yet
+	// support string_views as arguments
+	template<class... Args>
+	KFile(KStringView sv, Args&&... args)
+	: KFile(KString(sv), std::forward<Args>(args)...)
+	//-----------------------------------------------------------------------------
+	{
+	}
+
+	//-----------------------------------------------------------------------------
+	// perfect forwarding
+	template<class... Args>
+	KFile(Args&&... args)
+	: base_type(std::forward<Args>(args)...)
+	//-----------------------------------------------------------------------------
+	{
+	}
+
+};
 
 } // end of namespace dekaf2
 

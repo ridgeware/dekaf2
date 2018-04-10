@@ -27,7 +27,7 @@ TEST_CASE("KFile") {
  	SECTION("openmode")
 	{
 		{
-			KOutFile fWriter(sFile.c_str(), std::ios_base::trunc);
+			KOutFile fWriter(sFile, std::ios_base::trunc);
 			CHECK( fWriter.is_open() == true );
 
 			if (fWriter.is_open())
@@ -37,7 +37,7 @@ TEST_CASE("KFile") {
 		}
 
 		{
-			KOutFile fWriter(sFile.c_str(), std::ios_base::app);
+			KOutFile fWriter(sFile, std::ios_base::app);
 			CHECK( fWriter.is_open() == true );
 
 			if (fWriter.is_open())
@@ -54,7 +54,7 @@ TEST_CASE("KFile") {
 
 	SECTION("setup test file")
 	{
-		KOutFile fWriter(sFile.c_str(), std::ios_base::trunc);
+		KOutFile fWriter(sFile, std::ios_base::trunc);
 		CHECK( fWriter.is_open() == true );
 
 		if (fWriter.is_open())
@@ -71,7 +71,7 @@ TEST_CASE("KFile") {
 
 	SECTION("KFile read all")
 	{
-		KInFile File(sFile.c_str());
+		KInFile File(sFile);
 		KString sRead;
 		CHECK( File.GetContent(sRead) == true );
 		CHECK( sRead == sOut );
@@ -79,7 +79,7 @@ TEST_CASE("KFile") {
 
 	SECTION("KFile read iterator 1")
 	{
-		KInFile File(sFile.c_str());
+		KInFile File(sFile);
 		auto it = File.begin();
 		KString s1;
 		s1 = *it;
@@ -104,7 +104,7 @@ TEST_CASE("KFile") {
 
 	SECTION("KFile read iterator 2")
 	{
-		KInFile File(sFile.c_str());
+		KInFile File(sFile);
 		for (const auto& it : File)
 		{
 			CHECK( it.StartsWith("line ") == true );

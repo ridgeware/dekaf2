@@ -176,7 +176,7 @@ public:
 	// operator=
 	KString& operator= (const KString& str) = default;
 	KString& operator= (KString&& str) noexcept = default;
-	KString& operator= (value_type ch) { append(1, ch); return *this; }
+	KString& operator= (value_type ch) { assign(1, ch); return *this; }
 
 	// std methods
 	KString& append(const KString& str){ m_rep.append(str.m_rep); return *this; }

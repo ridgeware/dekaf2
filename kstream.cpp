@@ -53,6 +53,5 @@ KStream::~KStream()
 }
 
 template class KReaderWriter<std::fstream>;
-template class KReaderWriter<std::stringstream>;
 
 }

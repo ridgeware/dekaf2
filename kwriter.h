@@ -324,7 +324,6 @@ public:
 }; // KWriter
 
 extern template class KWriter<std::ofstream>;
-extern template class KWriter<std::ostringstream>;
 
 /// File writer based on std::ofstream
 // std::ofstream does not understand KString and KStringView, so let's help it

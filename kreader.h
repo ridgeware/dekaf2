@@ -594,7 +594,6 @@ public:
 }; // KReader
 
 extern template class KReader<std::ifstream>;
-extern template class KReader<std::istringstream>;
 
 /// File reader based on std::ifstream
 // std::ifstream does not understand KString and KStringView, so let's help it

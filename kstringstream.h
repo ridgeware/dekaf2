@@ -51,7 +51,7 @@
 #include <sys/types.h>
 
 #include "kstreambuf.h"
-#include "kwriter.h"
+#include "kstream.h"
 #include "kformat.h"
 
 namespace dekaf2
@@ -152,7 +152,8 @@ protected:
 	KString* m_sBuf{nullptr};
 
 	KOutStreamBuf m_KOStreamBuf{&KStringWriter, &m_sBuf};
-};
+
+}; // KOStringStream
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// This output stream class stores into a KString which can be retrieved.
@@ -243,6 +244,7 @@ public:
 	{
 		return open(newView);
 	}
+
 //----------
 protected:
 //----------
@@ -250,7 +252,14 @@ protected:
 	KStringView m_sView;
 
 	KInStreamBuf m_KIStreamBuf{&KStringReader, &m_sView};
-};
 
+}; // KIStringStream
+
+
+/// String streams based on KString
+using KInStringStream   = KReader<KIStringStream>;
+using KOutStringStream  = KWriter<KOStringStream>;
+// TODO make this a KString
+using KStringStream     = KReaderWriter<std::stringstream>;
 
 } // end of namespace dekaf2

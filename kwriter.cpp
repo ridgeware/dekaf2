@@ -119,7 +119,6 @@ KOutStream::self_type& KOutStream::Write(KInStream& Stream, size_t iCount)
 }
 
 template class KWriter<std::ofstream>;
-template class KWriter<std::ostringstream>;
 
 } // end of namespace dekaf2
 

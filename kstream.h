@@ -179,7 +179,6 @@ public:
 };
 
 extern template class KReaderWriter<std::fstream>;
-extern template class KReaderWriter<std::stringstream>;
 
 /// File stream based on std::fstream
 // std::fstream does not understand KString and KStringView, so let's help it

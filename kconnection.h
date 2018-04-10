@@ -43,6 +43,7 @@
 #pragma once
 
 #include "kstream.h"
+#include "kstringstream.h"
 #include "kurl.h"
 
 namespace dekaf2 {

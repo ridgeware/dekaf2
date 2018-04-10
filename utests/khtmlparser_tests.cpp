@@ -58,7 +58,17 @@ TEST_CASE("KHTMLParser")
 				m_OutStream.Write(ch);
 			}
 
+			virtual void DocumentType(char ch) override
+			{
+				m_OutStream.Write(ch);
+			}
+
 			virtual void ProcessingInstruction(char ch) override
+			{
+				m_OutStream.Write(ch);
+			}
+
+			virtual void Invalid(char ch) override
 			{
 				m_OutStream.Write(ch);
 			}
@@ -71,8 +81,12 @@ TEST_CASE("KHTMLParser")
 						m_OutStream.Write("<!--");
 						break;
 
-					case PROCESSINGINSTRUCTION:
+					case DOCUMENTTYPE:
 						m_OutStream.Write("<!");
+						break;
+
+					case PROCESSINGINSTRUCTION:
+						m_OutStream.Write("<?");
 						break;
 
 					default:
@@ -80,9 +94,13 @@ TEST_CASE("KHTMLParser")
 						{
 							m_OutStream.Write("-->");
 						}
-						else if (m_Output == PROCESSINGINSTRUCTION)
+						else if (m_Output == DOCUMENTTYPE)
 						{
 							m_OutStream.Write(">");
+						}
+						else if (m_Output == PROCESSINGINSTRUCTION)
+						{
+							m_OutStream.Write("?>");
 						}
 						break;
 				}

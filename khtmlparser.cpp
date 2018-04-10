@@ -490,74 +490,40 @@ KHTMLParser::~KHTMLParser()
 }
 
 //-----------------------------------------------------------------------------
-bool KHTMLParser::ParseComment(KInStream& InStream, uint16_t iConsumed)
+bool KHTMLParser::ParseComment(KInStream& InStream)
 //-----------------------------------------------------------------------------
 {
 	std::iostream::int_type ch;
 
+	ch = InStream.Read();
+
+	if (ch != '-')
+	{
+		PushToInvalid("<!-");
+		PushToInvalid(ch);
+		return false;
+	}
+
+	// announce output of comment chars
+	SwitchOutput(COMMENT);
+
 	while ((ch = InStream.Read()) != std::iostream::traits_type::eof())
 	{
-		switch (iConsumed)
+		if (ch == '-')
 		{
-			case 0:
-				if (ch != '<')
-				{
-					return false;
-				}
-				++iConsumed;
-				break;
-
-			case 1:
-				if (ch != '!')
-				{
-					return false;
-				}
-				++iConsumed;
-				break;
-
-			case 2:
-				if (ch != '-')
-				{
-					return false;
-				}
-				++iConsumed;
-				break;
-
-			case 3:
-				if (ch != '-')
-				{
-					return false;
-				}
-				++iConsumed;
-				DEKAF2_FALLTHROUGH;
-
-			default:
+			ch = InStream.Read();
+			while (ch == '-')
 			{
-				// announce output of comment chars
-				SwitchOutput(COMMENT);
-
-				while ((ch = InStream.Read()) != std::iostream::traits_type::eof())
+				ch = InStream.Read();
+				if (ch == '>')
 				{
-					if (ch == '-')
-					{
-						ch = InStream.Read();
-						while (ch == '-')
-						{
-							ch = InStream.Read();
-							if (ch == '>')
-							{
-								return true;
-							}
-							Comment('-');
-						}
-						Comment('-');
-					}
-					Comment(ch);
+					return true;
 				}
-				break;
+				Comment('-');
 			}
-
+			Comment('-');
 		}
+		Comment(ch);
 	}
 
 	return false;
@@ -565,65 +531,86 @@ bool KHTMLParser::ParseComment(KInStream& InStream, uint16_t iConsumed)
 } // ParseComment
 
 //-----------------------------------------------------------------------------
-bool KHTMLParser::ParseProcessingInstruction(KInStream& InStream, uint16_t iConsumed)
+bool KHTMLParser::ParseDocumentType(KInStream& InStream)
 //-----------------------------------------------------------------------------
 {
 	std::iostream::int_type ch;
 
+	ch = InStream.Read();
+
+	if (ch == '-')
+	{
+		// this is most probably a comment
+		return ParseComment(InStream);
+	}
+
+	// start capturing the document type
+	SwitchOutput(DOCUMENTTYPE);
+	DocumentType(ch);
+
 	while ((ch = InStream.Read()) != std::iostream::traits_type::eof())
 	{
-		switch (iConsumed)
+		if (ch == '>')
 		{
-			case 0:
-				if (ch != '<')
-				{
-					return false;
-				}
-				++iConsumed;
-				break;
-
-			case 1:
-				if (ch != '!')
-				{
-					return false;
-				}
-				++iConsumed;
-				break;
-
-			case 2:
-				if (!std::isalpha(ch))
-				{
-					if (ch == '-')
-					{
-						// this is most probably a comment
-						return ParseComment(InStream, 3);
-					}
-				}
-				++iConsumed;
-				DEKAF2_FALLTHROUGH;
-
-			default:
-			{
-				// start capturing the processing instruction
-				SwitchOutput(PROCESSINGINSTRUCTION);
-				ProcessingInstruction(ch);
-
-				while ((ch = InStream.Read()) != std::iostream::traits_type::eof())
-				{
-					if (ch == '>')
-					{
-						return true;
-					}
-					ProcessingInstruction(ch);
-				}
-				break;
-			}
+			return true;
 		}
+		DocumentType(ch);
+	}
+
+	return false;
+
+} // ParseDocumentType
+
+//-----------------------------------------------------------------------------
+bool KHTMLParser::ParseProcessingInstruction(KInStream& InStream)
+//-----------------------------------------------------------------------------
+{
+	std::iostream::int_type ch;
+
+	// announce output of a processing instruction
+	SwitchOutput(PROCESSINGINSTRUCTION);
+
+	while ((ch = InStream.Read()) != std::iostream::traits_type::eof())
+	{
+		while (ch == '?')
+		{
+			ch = InStream.Read();
+			if (ch == '>')
+			{
+				return true;
+			}
+			ProcessingInstruction('?');
+		}
+		ProcessingInstruction(ch);
 	}
 
 	return false;
 
 } // ParseProcessingInstruction
+
+//-----------------------------------------------------------------------------
+void KHTMLParser::PushToInvalid(KStringView sInvalid)
+//-----------------------------------------------------------------------------
+{
+	if (!sInvalid.empty())
+	{
+		SwitchOutput(INVALID);
+		for (auto ch : sInvalid)
+		{
+			Invalid(ch);
+		}
+	}
+
+} // PushToInvalid
+
+//-----------------------------------------------------------------------------
+void KHTMLParser::PushToInvalid(std::iostream::int_type ch)
+//-----------------------------------------------------------------------------
+{
+	SwitchOutput(INVALID);
+	Invalid(ch);
+
+} // PushToInvalid
 
 //-----------------------------------------------------------------------------
 bool KHTMLParser::Parse(KInStream& InStream)
@@ -633,23 +620,38 @@ bool KHTMLParser::Parse(KInStream& InStream)
 
 	while ((ch = InStream.Read()) != std::iostream::traits_type::eof())
 	{
-		if (ch == '<')
+		if (m_Output == INVALID)
+		{
+			Invalid(ch);
+			if (ch == '>')
+			{
+				m_Output = NONE;
+			}
+		}
+		else if (ch == '<')
 		{
 			// check if this starts a comment or other command construct
 			ch = InStream.Read();
+
 			if (ch == std::iostream::traits_type::eof())
 			{
 				return false;
 			}
 			else if (ch == '!')
 			{
-				if (!ParseProcessingInstruction(InStream, 2))
-				{
-					// trouble ..
-					return false;
-				}
+				ParseDocumentType(InStream);
+				// if this went wrong we have the output set to INVALID, and will
+				// parse into that until we reach a '>'
 				continue;
 			}
+			else if (ch == '?')
+			{
+				ParseProcessingInstruction(InStream);
+				// if this went wrong we have the output set to INVALID, and will
+				// parse into that until we reach a '>'
+				continue;
+			}
+
 			InStream.UnRead();
 
 			// no, this is most probably a tag
@@ -708,6 +710,14 @@ void KHTMLParser::Comment(char ch)
 	// does nothing in base class
 
 } // Comment
+
+//-----------------------------------------------------------------------------
+void KHTMLParser::DocumentType(char ch)
+//-----------------------------------------------------------------------------
+{
+	// does nothing in base class
+
+} // DTD
 
 //-----------------------------------------------------------------------------
 void KHTMLParser::ProcessingInstruction(char ch)

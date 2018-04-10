@@ -281,11 +281,12 @@ public:
 protected:
 //------
 
-	enum OutputType { NONE, CONTENT, TAG, COMMENT, PROCESSINGINSTRUCTION, INVALID };
+	enum OutputType { NONE, CONTENT, TAG, COMMENT, DOCUMENTTYPE, PROCESSINGINSTRUCTION, INVALID };
 
 	virtual void Tag(KHTMLTag& Tag);
 	virtual void Content(char ch);
 	virtual void Comment(char ch);
+	virtual void DocumentType(char ch);
 	virtual void ProcessingInstruction(char ch);
 	virtual void Invalid(char ch);
 	virtual void Output(OutputType Type);
@@ -294,8 +295,11 @@ protected:
 private:
 //------
 
-	bool ParseComment(KInStream& InStream, uint16_t iConsumed = 0);
-	bool ParseProcessingInstruction(KInStream& InStream, uint16_t iConsumed = 0);
+	bool ParseComment(KInStream& InStream);
+	bool ParseDocumentType(KInStream& InStream);
+	bool ParseProcessingInstruction(KInStream& InStream);
+	void PushToInvalid(KStringView sInvalid);
+	void PushToInvalid(std::iostream::int_type ch);
 	void SwitchOutput(OutputType To)
 	{
 		if (m_Output != To)

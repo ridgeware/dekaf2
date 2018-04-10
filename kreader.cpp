@@ -435,7 +435,6 @@ bool KInStream::UnRead()
 		typename std::istream::int_type iCh = sb->sungetc();
 		if (std::istream::traits_type::eq_int_type(iCh, std::istream::traits_type::eof()))
 		{
-			InStream().setstate(std::ios::eofbit);
 			return false;
 		}
 		return true;

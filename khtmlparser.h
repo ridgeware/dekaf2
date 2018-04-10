@@ -64,6 +64,13 @@ public:
 	KHTMLAttribute& operator=(const KHTMLAttribute&) = default;
 	KHTMLAttribute& operator=(KHTMLAttribute&&) = default;
 
+	KHTMLAttribute(KStringView sName, KStringView sValue, char _Quote='"')
+	: Name(sName)
+	, Value(sValue)
+	, Quote(_Quote)
+	{
+	}
+
 	KHTMLAttribute(KStringView sInput)
 	{
 		Parse(sInput);
@@ -95,6 +102,95 @@ public:
 	mutable std::iostream::int_type Quote { 0 };
 
 }; // KHTMLAttribute
+
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+class KHTMLAttributes
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+//------
+private:
+//------
+
+	struct less_for_attribute
+	{
+		//-----------------------------------------------------------------------------
+		bool operator()(const KHTMLAttribute& a1, const KHTMLAttribute& a2) const
+		//-----------------------------------------------------------------------------
+		{
+			return a1.Name < a2.Name;
+		}
+	};
+
+//------
+public:
+//------
+
+	using AttributeList = std::set<KHTMLAttribute, less_for_attribute>;
+
+	AttributeList::iterator begin()
+	{
+		return m_Attributes.begin();
+	}
+
+	AttributeList::iterator end()
+	{
+		return m_Attributes.end();
+	}
+
+	AttributeList::const_iterator begin() const
+	{
+		return m_Attributes.begin();
+	}
+
+	AttributeList::const_iterator end() const
+	{
+		return m_Attributes.end();
+	}
+
+	void clear()
+	{
+		m_Attributes.clear();
+	}
+
+	bool empty() const
+	{
+		return m_Attributes.empty();
+	}
+
+	KStringView Get(KStringView sAttributeName) const;
+
+	void Set(KStringView sAttributeName, KStringView sAttributeValue, char Quote='"')
+	{
+		Add(KHTMLAttribute({sAttributeName, sAttributeValue, Quote}));
+	}
+
+	void Add(const KHTMLAttribute& Attribute);
+	void Add(KHTMLAttribute&& Attribute);
+
+	KHTMLAttributes& operator+=(const KHTMLAttribute& Attribute)
+	{
+		Add(Attribute);
+		return *this;
+	}
+
+	KHTMLAttributes& operator+=(KHTMLAttribute&& Attribute)
+	{
+		Add(std::move(Attribute));
+		return *this;
+	}
+
+	void Parse(KStringView sInput);
+	void Parse(KInStream& InStream);
+	void Serialize(KOutStream& OutStream) const;
+
+//------
+protected:
+//------
+
+	AttributeList m_Attributes;
+
+}; // KHTMLAttributes
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class KHTMLTag
@@ -135,39 +231,8 @@ public:
 	bool IsInline() const;
 
 //------
-private:
-//------
-
-	struct less_for_attribute
-	{
-		//-----------------------------------------------------------------------------
-		bool operator()(const KHTMLAttribute& a1, const KHTMLAttribute& a2) const
-		//-----------------------------------------------------------------------------
-		{
-			return a1.Name < a2.Name;
-		}
-	};
-
-//------
 public:
 //------
-
-	using AttributeList = std::set<KHTMLAttribute, less_for_attribute>;
-
-	void AddAttribute(const KHTMLAttribute& Attribute);
-	void AddAttribute(KHTMLAttribute&& Attribute);
-
-	KHTMLTag& operator+=(const KHTMLAttribute& Attribute)
-	{
-		AddAttribute(Attribute);
-		return *this;
-	}
-
-	KHTMLTag& operator+=(KHTMLAttribute&& Attribute)
-	{
-		AddAttribute(std::move(Attribute));
-		return *this;
-	}
 
 	KHTMLTag& operator=(KStringView sInput)
 	{
@@ -175,10 +240,10 @@ public:
 		return *this;
 	}
 
-	KString       Name;
-	AttributeList Attributes;
-	bool          bSelfClosing { false };
-	bool          bClosing { false };
+	KString         Name;
+	KHTMLAttributes Attributes;
+	bool            bSelfClosing { false };
+	bool            bClosing { false };
 
 }; // KHTMLTag
 

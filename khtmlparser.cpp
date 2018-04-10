@@ -211,6 +211,96 @@ void KHTMLAttribute::Serialize(KOutStream& OutStream) const
 
 } // Serialize
 
+
+//-----------------------------------------------------------------------------
+KStringView KHTMLAttributes::Get(KStringView sAttributeName) const
+//-----------------------------------------------------------------------------
+{
+	auto it = m_Attributes.find(sAttributeName);
+	if (it != m_Attributes.end())
+	{
+		return it->Value;
+	}
+	else
+	{
+		return KStringView{};
+	}
+
+} // Get
+
+//-----------------------------------------------------------------------------
+void KHTMLAttributes::Add(const KHTMLAttribute& Attribute)
+//-----------------------------------------------------------------------------
+{
+	KHTMLAttribute attribute(Attribute);
+	Add(std::move(attribute));
+
+} // Add
+
+//-----------------------------------------------------------------------------
+void KHTMLAttributes::Add(KHTMLAttribute&& Attribute)
+//-----------------------------------------------------------------------------
+{
+	m_Attributes.insert(std::move(Attribute));
+
+} // Add
+
+
+//-----------------------------------------------------------------------------
+void KHTMLAttributes::Parse(KInStream& InStream)
+//-----------------------------------------------------------------------------
+{
+	clear();
+
+	std::iostream::int_type ch;
+
+	while ((ch = InStream.Read()) != std::iostream::traits_type::eof())
+	{
+		if (!std::isspace(ch))
+		{
+			if (ch == '>' || ch == '/')
+			{
+				// we're done
+				InStream.UnRead();
+				return;
+			}
+			else
+			{
+				InStream.UnRead();
+				// parse a new attribute
+				KHTMLAttribute attribute(InStream);
+				if (!attribute.empty())
+				{
+					Add(std::move(attribute));
+				}
+			}
+		}
+	}
+
+} // Parse
+
+//-----------------------------------------------------------------------------
+void KHTMLAttributes::Parse(KStringView sInput)
+//-----------------------------------------------------------------------------
+{
+	KInStringStream iss(sInput);
+	Parse(iss);
+
+} // Parse
+
+//-----------------------------------------------------------------------------
+void KHTMLAttributes::Serialize(KOutStream& OutStream) const
+//-----------------------------------------------------------------------------
+{
+	for (auto& attribute : m_Attributes)
+	{
+		OutStream.Write(' ');
+		attribute.Serialize(OutStream);
+	}
+
+} // Serialize
+
+
 //-----------------------------------------------------------------------------
 bool KHTMLTag::IsInline() const
 //-----------------------------------------------------------------------------
@@ -289,7 +379,7 @@ void KHTMLTag::Parse(KInStream& InStream, bool bHadOpenAngleBracket)
 {
 	clear();
 
-	enum pstate { START, OPEN, NAME, ATTRIBUTES };
+	enum pstate { START, OPEN, NAME, CLOSE };
 	pstate state { bHadOpenAngleBracket ? OPEN : START };
 	std::iostream::int_type ch;
 
@@ -331,7 +421,8 @@ void KHTMLTag::Parse(KInStream& InStream, bool bHadOpenAngleBracket)
 			case NAME:
 				if (std::isspace(ch))
 				{
-					state = ATTRIBUTES;
+					Attributes.Parse(InStream);
+					state = CLOSE;
 				}
 				else if (ch == '>')
 				{
@@ -344,7 +435,7 @@ void KHTMLTag::Parse(KInStream& InStream, bool bHadOpenAngleBracket)
 				}
 				break;
 
-			case ATTRIBUTES:
+			case CLOSE:
 				if (!std::isspace(ch))
 				{
 					if (ch == '>')
@@ -355,16 +446,6 @@ void KHTMLTag::Parse(KInStream& InStream, bool bHadOpenAngleBracket)
 					else if (ch == '/' && !bClosing)
 					{
 						bSelfClosing = true;
-					}
-					else
-					{
-						InStream.UnRead();
-						// parse a new attribute
-						KHTMLAttribute attribute(InStream);
-						if (!attribute.empty())
-						{
-							AddAttribute(std::move(attribute));
-						}
 					}
 				}
 				break;
@@ -389,11 +470,7 @@ void KHTMLTag::Serialize(KOutStream& OutStream) const
 
 		OutStream.Write(Name);
 
-		for (auto& attribute : Attributes)
-		{
-			OutStream.Write(' ');
-			attribute.Serialize(OutStream);
-		}
+		Attributes.Serialize(OutStream);
 
 		if (bSelfClosing)
 		{
@@ -404,21 +481,6 @@ void KHTMLTag::Serialize(KOutStream& OutStream) const
 	}
 
 } // Serialize
-
-//-----------------------------------------------------------------------------
-void KHTMLTag::AddAttribute(const KHTMLAttribute& Attribute)
-//-----------------------------------------------------------------------------
-{
-	KHTMLAttribute attribute(Attribute);
-	AddAttribute(std::move(attribute));
-}
-
-//-----------------------------------------------------------------------------
-void KHTMLTag::AddAttribute(KHTMLAttribute&& Attribute)
-//-----------------------------------------------------------------------------
-{
-	Attributes.insert(std::move(Attribute));
-}
 
 
 //-----------------------------------------------------------------------------

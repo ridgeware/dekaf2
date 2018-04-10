@@ -17,7 +17,7 @@ TEST_CASE("KHTMLParser")
 	<title>A study of population dynamics</title>
 	</head>
 	<body>
-			 <!----- another comment here until here -->
+			 <!----- another comment here until here --->
 			 <img checked href="http://www.xyz.com/my/image.png" title=Ñice/>
 			 <p>And finally <i>some</i> content</p>
 	</body>

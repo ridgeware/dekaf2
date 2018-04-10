@@ -459,6 +459,7 @@ bool KHTMLParser::ParseComment(KInStream& InStream, uint16_t iConsumed)
 					return false;
 				}
 				++iConsumed;
+				break;
 
 			case 3:
 				if (ch != '-')
@@ -478,7 +479,7 @@ bool KHTMLParser::ParseComment(KInStream& InStream, uint16_t iConsumed)
 					if (ch == '-')
 					{
 						ch = InStream.Read();
-						if (ch == '-')
+						while (ch == '-')
 						{
 							ch = InStream.Read();
 							if (ch == '>')

@@ -222,6 +222,7 @@ set (HEADERS
 	kgetruntimestack.h
 	khash.h
 	khtmlentities.h
+	khtmlparser.h
 	khttpclient.h
 	khttpinputfilter.h
 	khttpoutputfilter.h
@@ -295,6 +296,7 @@ set (SOURCES
 	kgetruntimestack.cpp
 	khash.cpp
 	khtmlentities.cpp
+	khtmlparser.cpp
 	khttpclient.cpp
 	khttpinputfilter.cpp
 	khttpoutputfilter.cpp

@@ -17,6 +17,7 @@ set (USOURCES
 	kcompression_tests.cpp
 	kencode_tests.cpp
 	kfile_tests.cpp
+	khtmlparser_tests.cpp
 	khttpclient_tests.cpp
 	kinpipe_tests.cpp
 	kinshell_tests.cpp

@@ -171,7 +171,31 @@ public:
 		return (KCOLS::Add (sColName, std::move(col)) != KCOLS::end());
 	}
 
+	bool AddCol (KStringView sColName, int16_t iValue, uint64_t iFlags=0, uint32_t iMaxLen=0)
+	{
+		KCOL col (kFormat("{}", iValue), iFlags, iMaxLen);
+		return (KCOLS::Add (sColName, std::move(col)) != KCOLS::end());
+	}
+
+	bool AddCol (KStringView sColName, int32_t iValue, uint64_t iFlags=0, uint32_t iMaxLen=0)
+	{
+		KCOL col (kFormat("{}", iValue), iFlags, iMaxLen);
+		return (KCOLS::Add (sColName, std::move(col)) != KCOLS::end());
+	}
+
 	bool AddCol (KStringView sColName, int64_t iValue, uint64_t iFlags=0, uint32_t iMaxLen=0)
+	{
+		KCOL col (kFormat("{}", iValue), iFlags, iMaxLen);
+		return (KCOLS::Add (sColName, std::move(col)) != KCOLS::end());
+	}
+
+	bool AddCol (KStringView sColName, uint16_t iValue, uint64_t iFlags=0, uint32_t iMaxLen=0)
+	{
+		KCOL col (kFormat("{}", iValue), iFlags, iMaxLen);
+		return (KCOLS::Add (sColName, std::move(col)) != KCOLS::end());
+	}
+
+	bool AddCol (KStringView sColName, uint32_t iValue, uint64_t iFlags=0, uint32_t iMaxLen=0)
 	{
 		KCOL col (kFormat("{}", iValue), iFlags, iMaxLen);
 		return (KCOLS::Add (sColName, std::move(col)) != KCOLS::end());
@@ -180,6 +204,12 @@ public:
 	bool AddCol (KStringView sColName, uint64_t iValue, uint64_t iFlags=0, uint32_t iMaxLen=0)
 	{
 		KCOL col (kFormat("{}", iValue), iFlags, iMaxLen);
+		return (KCOLS::Add (sColName, std::move(col)) != KCOLS::end());
+	}
+
+	bool AddCol (KStringView sColName, std::string::size_type iValue, uint64_t iFlags=0, uint32_t iMaxLen=0)
+	{
+		KCOL col (kFormat("{}", iValue), iFlags,	 iMaxLen);
 		return (KCOLS::Add (sColName, std::move(col)) != KCOLS::end());
 	}
 

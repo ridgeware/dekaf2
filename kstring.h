@@ -124,6 +124,7 @@ public:
 	inline const_reverse_iterator crend() const noexcept { return m_rep.crend(); }
 
 	inline size_type size() const { return m_rep.size(); }
+	inline uint64_t  hash() const { return hash_bytes_FNV (m_rep.c_str(), m_rep.size()); }
 	inline size_type length() const { return m_rep.length(); }
 	inline size_type max_size() const { return m_rep.max_size(); }
 	inline void resize(size_type n, value_type c) { m_rep.resize(n, c); }

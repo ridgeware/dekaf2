@@ -52,22 +52,25 @@ void KHTTPServer::clear()
 	Request.clear();
 	Response.clear();
 	m_sError.clear();
+	RemoteEndpoint.clear();
 	m_bSetCompression = true;
 }
 
 //-----------------------------------------------------------------------------
-KHTTPServer::KHTTPServer(KStream& Stream)
+KHTTPServer::KHTTPServer(KStream& Stream, KStringView sRemoteEndpoint)
 //-----------------------------------------------------------------------------
 {
-	Accept(Stream);
+	Accept(Stream, sRemoteEndpoint);
 
 } // Ctor
 
 //-----------------------------------------------------------------------------
-bool KHTTPServer::Accept(KStream& Stream)
+bool KHTTPServer::Accept(KStream& Stream, KStringView sRemoteEndpoint)
 //-----------------------------------------------------------------------------
 {
 	SetError(KStringView{});
+
+	RemoteEndpoint = sRemoteEndpoint;
 
 	Stream.SetReaderEndOfLine('\n');
 	Stream.SetReaderLeftTrim("");
@@ -79,7 +82,7 @@ bool KHTTPServer::Accept(KStream& Stream)
 
 	return true;
 
-} // Connect
+} // Accept
 
 //-----------------------------------------------------------------------------
 void KHTTPServer::Disconnect()
@@ -118,6 +121,32 @@ bool KHTTPServer::Serialize()
 	return true;
 
 } // Serialize
+
+//-----------------------------------------------------------------------------
+KString KHTTPServer::GetBrowserIP() const
+//-----------------------------------------------------------------------------
+{
+	KString sBrowserIP(Request.GetBrowserIP());
+
+	if (sBrowserIP.empty())
+	{
+		// check our connection endpoint
+		sBrowserIP = RemoteEndpoint;
+		auto iColon = sBrowserIP.rfind(':');
+		if (iColon != KString::npos)
+		{
+			// check if the colon is part of an IPv6 address,
+			// or if it is host:port
+			if (!iColon || sBrowserIP[iColon - 1] != ':')
+			{
+				sBrowserIP.erase(iColon);
+			}
+		}
+	}
+
+	return sBrowserIP;
+
+} // GetBrowserIP
 
 //-----------------------------------------------------------------------------
 bool KHTTPServer::SetError(KStringView sError) const

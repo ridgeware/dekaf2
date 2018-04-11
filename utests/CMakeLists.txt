@@ -19,6 +19,7 @@ set (USOURCES
 	kfile_tests.cpp
 	khtmlparser_tests.cpp
 	khttpclient_tests.cpp
+	khttpserver_tests.cpp
 	kinpipe_tests.cpp
 	kinshell_tests.cpp
 	kjson_tests.cpp

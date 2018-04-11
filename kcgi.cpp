@@ -58,7 +58,7 @@ KCGI::KCGI()
 //-----------------------------------------------------------------------------
 KCGI::KCGI(KStream& Stream)
 //-----------------------------------------------------------------------------
-    : KHTTPServer(Stream)
+    : KHTTPServer(Stream, GetVar(REMOTE_ADDR)) // TODO check for FCGI init when calling GetVar..
 {
 
 #ifdef DEKAF2_WITH_FCGI
@@ -149,10 +149,10 @@ bool KCGI::Parse(char chCommentDelim)
 		Request.Resource         = GetVar(KCGI::REQUEST_URI);
 		Request.Resource.Query   = GetVar(KCGI::QUERY_STRING);
 		Request.HTTPVersion      = GetVar(KCGI::SERVER_PROTOCOL);
-		Request.Headers.Set(KHTTPHeaders::HOST,           GetVar(KCGI::HTTP_HOST));
-		Request.Headers.Set(KHTTPHeaders::CONTENT_TYPE,   GetVar(KCGI::CONTENT_TYPE));
-		Request.Headers.Set(KHTTPHeaders::CONTENT_LENGTH, GetVar(KCGI::CONTENT_LENGTH));
-		Request.Headers.Set(KHTTPHeaders::FROM,           GetVar(KCGI::REMOTE_ADDR));
+		Request.Headers.Set(KHTTPHeaders::HOST,            GetVar(KCGI::HTTP_HOST));
+		Request.Headers.Set(KHTTPHeaders::CONTENT_TYPE,    GetVar(KCGI::CONTENT_TYPE));
+		Request.Headers.Set(KHTTPHeaders::CONTENT_LENGTH,  GetVar(KCGI::CONTENT_LENGTH));
+		Request.Headers.Set(KHTTPHeaders::X_FORWARDED_FOR, GetVar(KCGI::REMOTE_ADDR));
 
 		// make sure the input filter knows these settings
 		Request.KInHTTPFilter::Parse(Request);

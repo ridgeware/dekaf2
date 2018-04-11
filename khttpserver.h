@@ -69,7 +69,7 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	KHTTPServer(KStream& Stream);
+	KHTTPServer(KStream& Stream, KStringView sRemoteEndpoint);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -89,7 +89,7 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	bool Accept(KStream& Connection);
+	bool Accept(KStream& Connection, KStringView sRemoteEndpoint);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -173,6 +173,13 @@ public:
 	void clear();
 	//-----------------------------------------------------------------------------
 
+	//-----------------------------------------------------------------------------
+	// we repeat the method from KHTTPRequest here as we want to look into
+	// the remote endpoint data of the tcp connection if we do not find the IP
+	// in the headers - and the connection details are only known here..
+	KString GetBrowserIP() const;
+	//-----------------------------------------------------------------------------
+
 //------
 protected:
 //------
@@ -199,6 +206,7 @@ public:
 
 	KInHTTPRequest Request;
 	KOutHTTPResponse Response;
+	KString RemoteEndpoint;
 
 }; // KHTTPServer
 

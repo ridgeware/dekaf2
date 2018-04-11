@@ -10,6 +10,7 @@ TEST_CASE("KHTMLParser")
 {
 	KStringView sHTML;
 	sHTML = (R"(
+	<?xml-stylesheet type="text/xsl" href="style.xsl"?>
 	<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN"
 	"http://www.w3.org/TR/html4/strict.dtd">
 	<html>
@@ -18,7 +19,7 @@ TEST_CASE("KHTMLParser")
 	</head>
 	<body>
 			 <!----- another comment here until here --->
-			 <img checked href="http://www.xyz.com/my/image.png" title=Ñice/>
+			 <img checked href="http://www.xyz.com/my/image.png" title=Ñicé/>
 			 <p>And finally <i>some</i> content</p>
 	</body>
 	</html>
@@ -31,7 +32,7 @@ TEST_CASE("KHTMLParser")
 		CHECK ( ret == true );
 	}
 
-	SECTION("rebuilding")
+	SECTION("rebuilding into stream")
 	{
 		class KHTMLSerializer : public KHTMLParser
 		{
@@ -73,7 +74,7 @@ TEST_CASE("KHTMLParser")
 				m_OutStream.Write(ch);
 			}
 
-			virtual void Output(OutputType Type) override
+			virtual void Emit(OutputType Type) override
 			{
 				switch (Type)
 				{
@@ -118,6 +119,98 @@ TEST_CASE("KHTMLParser")
 		{
 			KOutStringStream oss(sOutput);
 			KHTMLSerializer HTMLSerializer(oss);
+			HTMLSerializer.Parse(sHTML);
+		}
+		CHECK ( sHTML == sOutput );
+
+	}
+
+	SECTION("rebuilding into string")
+	{
+		class KHTMLSerializer : public KHTMLParser
+		{
+		public:
+
+			KHTMLSerializer(KString& OutString)
+			: m_OutString(OutString)
+			{}
+
+		protected:
+
+			virtual void Tag(KHTMLTag& Tag) override
+			{
+				Tag.Serialize(m_OutString);
+			}
+
+			virtual void Content(char ch) override
+			{
+				m_OutString += ch;
+			}
+
+			virtual void Comment(char ch) override
+			{
+				m_OutString += ch;
+			}
+
+			virtual void DocumentType(char ch) override
+			{
+				m_OutString += ch;
+			}
+
+			virtual void ProcessingInstruction(char ch) override
+			{
+				m_OutString += ch;
+			}
+
+			virtual void Invalid(char ch) override
+			{
+				m_OutString += ch;
+			}
+
+			virtual void Emit(OutputType Type) override
+			{
+				switch (Type)
+				{
+					case COMMENT:
+						m_OutString += "<!--";
+						break;
+
+					case DOCUMENTTYPE:
+						m_OutString += "<!";
+						break;
+
+					case PROCESSINGINSTRUCTION:
+						m_OutString += "<?";
+						break;
+
+					default:
+						if (m_Output == COMMENT)
+						{
+							m_OutString += "-->";
+						}
+						else if (m_Output == DOCUMENTTYPE)
+						{
+							m_OutString += ">";
+						}
+						else if (m_Output == PROCESSINGINSTRUCTION)
+						{
+							m_OutString += "?>";
+						}
+						break;
+				}
+				m_Output = Type;
+			}
+
+		private:
+
+			KString& m_OutString;
+			OutputType m_Output { NONE };
+
+		};
+
+		KString sOutput;
+		{
+			KHTMLSerializer HTMLSerializer(sOutput);
 			HTMLSerializer.Parse(sHTML);
 		}
 		CHECK ( sHTML == sOutput );

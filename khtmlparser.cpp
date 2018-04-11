@@ -175,6 +175,43 @@ void KHTMLAttribute::Parse(KInStream& InStream)
 } // Parse
 
 //-----------------------------------------------------------------------------
+void KHTMLAttribute::Serialize(KString& sOut) const
+//-----------------------------------------------------------------------------
+{
+	if (!empty())
+	{
+		sOut += Name;
+
+		if (!Value.empty())
+		{
+			sOut += '=';
+
+			if (!Quote)
+			{
+				// lazy check if we need a quote (maybe the value was changed)
+				if (Value.find_first_of(" \t") != KString::npos)
+				{
+					Quote = '"';
+				}
+			}
+
+			if (Quote)
+			{
+				sOut += Quote;
+			}
+
+			sOut += Value;
+
+			if (Quote)
+			{
+				sOut += Quote;
+			}
+		}
+	}
+
+} // Serialize
+
+//-----------------------------------------------------------------------------
 void KHTMLAttribute::Serialize(KOutStream& OutStream) const
 //-----------------------------------------------------------------------------
 {
@@ -289,6 +326,18 @@ void KHTMLAttributes::Parse(KStringView sInput)
 } // Parse
 
 //-----------------------------------------------------------------------------
+void KHTMLAttributes::Serialize(KString& sOut) const
+//-----------------------------------------------------------------------------
+{
+	for (auto& attribute : m_Attributes)
+	{
+		sOut += ' ';
+		attribute.Serialize(sOut);
+	}
+
+} // Serialize
+
+//-----------------------------------------------------------------------------
 void KHTMLAttributes::Serialize(KOutStream& OutStream) const
 //-----------------------------------------------------------------------------
 {
@@ -365,16 +414,16 @@ void KHTMLTag::clear()
 } // clear
 
 //-----------------------------------------------------------------------------
-void KHTMLTag::Parse(KStringView sInput)
+bool KHTMLTag::Parse(KStringView sInput)
 //-----------------------------------------------------------------------------
 {
 	KInStringStream iss(sInput);
-	Parse(iss);
+	return Parse(iss);
 
 } // Parse
 
 //-----------------------------------------------------------------------------
-void KHTMLTag::Parse(KInStream& InStream, bool bHadOpenAngleBracket)
+bool KHTMLTag::Parse(KInStream& InStream, bool bHadOpenAngleBracket)
 //-----------------------------------------------------------------------------
 {
 	clear();
@@ -396,7 +445,8 @@ void KHTMLTag::Parse(KInStream& InStream, bool bHadOpenAngleBracket)
 						break;
 					}
 					// this is no tag
-					return;
+					InStream.UnRead();
+					return false;
 				}
 				break;
 
@@ -405,7 +455,9 @@ void KHTMLTag::Parse(KInStream& InStream, bool bHadOpenAngleBracket)
 				if (ch == '>')
 				{
 					// error (no tag, probably a comment)
-					return;
+					// make sure the INVALID destination will find this closing bracket
+					InStream.UnRead();
+					return false;
 				}
 				else if (ch == '/' && !bClosing)
 				{
@@ -427,7 +479,7 @@ void KHTMLTag::Parse(KInStream& InStream, bool bHadOpenAngleBracket)
 				else if (ch == '>')
 				{
 					// we're done
-					return;
+					return true;
 				}
 				else
 				{
@@ -441,7 +493,7 @@ void KHTMLTag::Parse(KInStream& InStream, bool bHadOpenAngleBracket)
 					if (ch == '>')
 					{
 						// we're done
-						return;
+						return true;
 					}
 					else if (ch == '/' && !bClosing)
 					{
@@ -453,7 +505,36 @@ void KHTMLTag::Parse(KInStream& InStream, bool bHadOpenAngleBracket)
 		}
 	}
 
+	return false;
+	
 } // Parse
+
+//-----------------------------------------------------------------------------
+void KHTMLTag::Serialize(KString& sOut) const
+//-----------------------------------------------------------------------------
+{
+	if (!empty())
+	{
+		sOut += '<';
+
+		if (bClosing)
+		{
+			sOut += '/';
+		}
+
+		sOut += Name;
+
+		Attributes.Serialize(sOut);
+
+		if (bSelfClosing)
+		{
+			sOut += '/';
+		}
+
+		sOut += '>';
+	}
+
+} // Serialize
 
 //-----------------------------------------------------------------------------
 void KHTMLTag::Serialize(KOutStream& OutStream) const
@@ -655,16 +736,19 @@ bool KHTMLParser::Parse(KInStream& InStream)
 			InStream.UnRead();
 
 			// no, this is most probably a tag
-			KHTMLTag tag(InStream, true);
-			if (!tag.empty())
+			KHTMLTag tag;
+			if (tag.Parse(InStream, true))
 			{
-				SwitchOutput(TAG);
-				Tag(tag);
+				if (!tag.empty())
+				{
+					SwitchOutput(TAG);
+					Tag(tag);
+				}
 			}
 			else
 			{
-				// trouble ..
-				kDebug(1, "parser error: invalid tag");
+				// print to Invalid() until next '>'
+				PushToInvalid('<');
 			}
 		}
 		else
@@ -736,7 +820,7 @@ void KHTMLParser::Invalid(char ch)
 } // Invalid
 
 //-----------------------------------------------------------------------------
-void KHTMLParser::Output(OutputType)
+void KHTMLParser::Emit(OutputType)
 //-----------------------------------------------------------------------------
 {
 	// does nothing in base class

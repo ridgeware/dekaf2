@@ -84,6 +84,7 @@ public:
 	void Parse(KStringView sInput);
 	void Parse(KInStream& InStream);
 	void Serialize(KOutStream& OutStream) const;
+	void Serialize(KString& sOut) const;
 
 	KHTMLAttribute& operator=(KStringView sInput)
 	{
@@ -183,6 +184,7 @@ public:
 	void Parse(KStringView sInput);
 	void Parse(KInStream& InStream);
 	void Serialize(KOutStream& OutStream) const;
+	void Serialize(KString& sOut) const;
 
 //------
 protected:
@@ -218,9 +220,10 @@ public:
 		Parse(InStream, bHadOpenAngleBracket);
 	}
 
-	void Parse(KStringView sInput);
-	void Parse(KInStream& InStream, bool bHadOpenAngleBracket = false);
+	bool Parse(KStringView sInput);
+	bool Parse(KInStream& InStream, bool bHadOpenAngleBracket = false);
 	void Serialize(KOutStream& OutStream) const;
+	void Serialize(KString& sOut) const;
 
 	void clear();
 	bool empty() const
@@ -281,7 +284,16 @@ public:
 protected:
 //------
 
-	enum OutputType { NONE, CONTENT, TAG, COMMENT, DOCUMENTTYPE, PROCESSINGINSTRUCTION, INVALID };
+	enum OutputType
+	{
+		NONE,
+		CONTENT,
+		TAG,
+		COMMENT,
+		DOCUMENTTYPE,
+		PROCESSINGINSTRUCTION,
+		INVALID
+	};
 
 	virtual void Tag(KHTMLTag& Tag);
 	virtual void Content(char ch);
@@ -289,7 +301,12 @@ protected:
 	virtual void DocumentType(char ch);
 	virtual void ProcessingInstruction(char ch);
 	virtual void Invalid(char ch);
-	virtual void Output(OutputType Type);
+	virtual void Emit(OutputType Type);
+	
+	OutputType   EmitsTo() const
+	{
+		return m_Output;
+	}
 
 //------
 private:
@@ -305,7 +322,7 @@ private:
 		if (m_Output != To)
 		{
 			m_Output = To;
-			Output(To);
+			Emit(To);
 		}
 	}
 

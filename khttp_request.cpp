@@ -137,6 +137,44 @@ KString KHTTPRequestHeaders::GetBrowserIP() const
 				// KString is immune against npos in substr()
 				sBrowserIP = sHeader.substr(iStart+4, iEnd-(iStart+4));
 				sBrowserIP.Trim();
+
+				// The header may be an ipv6 address, which has a
+				// different format in the Forwarded: header than
+				// in X-Forwarded-For, so we normalize it
+				// Forwarded   = "[2001:db8:cafe::17]:4711"
+				// X-Forwarded = 2001:db8:cafe::17 (no port)
+				if (sBrowserIP.size() > 1 && sBrowserIP.front() == '"')
+				{
+					if (sBrowserIP[1] == '[')
+					{
+						sBrowserIP.remove_prefix(2);
+						// check for the closing ]
+						auto iPos = sBrowserIP.find(']');
+						if (iPos != KString::npos)
+						{
+							// remove all after and including the ]
+							sBrowserIP.erase(iPos);
+						}
+					}
+					else
+					{
+						sBrowserIP.remove_prefix(1);
+					}
+					if (!sBrowserIP.empty() && sBrowserIP.back() == '"')
+					{
+						sBrowserIP.remove_suffix(1);
+					}
+				}
+				else
+				{
+					// IPv4 address, remove :port
+					auto iPos = sBrowserIP.find(':');
+					if (iPos != KString::npos)
+					{
+						// remove all after and including the :
+						sBrowserIP.erase(iPos);
+					}
+				}
 			}
 		}
 	}
@@ -165,46 +203,6 @@ KString KHTTPRequestHeaders::GetBrowserIP() const
 			// KString is immune against npos in substr()
 			sBrowserIP = sHeader.substr(0, iEnd);
 			sBrowserIP.Trim();
-		}
-	}
-
-	// The header may be an ipv6 address, which has a
-	// different format in the Forwarded: header than
-	// in X-Forwarded-For, so we normalize it (also if
-	// coming from other headers)
-	// Forwarded   = "[2001:db8:cafe::17]:4711"
-	// X-Forwarded = 2001:db8:cafe::17:4711
-	if (sBrowserIP.size() > 1 && sBrowserIP.front() == '"')
-	{
-		if (sBrowserIP[1] == '[')
-		{
-			sBrowserIP.remove_prefix(2);
-			// check for the closing ]
-			auto iPos = sBrowserIP.find(']');
-			if (iPos != KString::npos)
-			{
-				sBrowserIP.erase(iPos, 1);
-			}
-		}
-		else
-		{
-			sBrowserIP.remove_prefix(1);
-		}
-		if (!sBrowserIP.empty() && sBrowserIP.back() == '"')
-		{
-			sBrowserIP.remove_suffix(1);
-		}
-	}
-
-	// remove an optional port from the IP
-	auto iColon = sBrowserIP.rfind(':');
-	if (iColon != KString::npos)
-	{
-		// check if the colon is part of an IPv6 address,
-		// or if it is host:port
-		if (!iColon || sBrowserIP[iColon - 1] != ':')
-		{
-			sBrowserIP.erase(iColon);
 		}
 	}
 

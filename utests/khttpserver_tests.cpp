@@ -89,7 +89,7 @@ X-Forwarded-For: 2001:db8:85a3:8d3:1319:8a2e:370:7348
 		KStream stream(iss, oss);
 		KHTTPServer Browser(stream, "192.168.178.1:234");
 		Browser.Parse();
-		CHECK ( Browser.GetBrowserIP() == "2001:db8:85a3:8d3:1319:8a2e:370" );
+		CHECK ( Browser.GetBrowserIP() == "2001:db8:85a3:8d3:1319:8a2e:370:7348" );
 	}
 
 	SECTION("GetBrowserIP 4")
@@ -116,7 +116,7 @@ X-Forwarded-For: 203.0.113.195
 		sRequest =
 (R"(GET / HTTP/1.1
 Host: www.test.com
-X-ProxyUser-Ip: 203.0.113.19:93
+X-ProxyUser-Ip: 203.0.113.19
 
 )");
 		KString sResponse;
@@ -170,7 +170,7 @@ Forwarded: for="[2001:db8:cafe::17]"
 sRequest =
 (R"(GET / HTTP/1.1
 Host: www.test.com
-Forwarded: for=192.0.2.43, for=198.51.100.17
+Forwarded: for=192.0.2.43:1234, for=198.51.100.17
 
 )");
 		KString sResponse;

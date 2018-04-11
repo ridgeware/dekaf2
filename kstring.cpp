@@ -123,6 +123,10 @@ KString& KString::replace(size_type pos, size_type n, const string_type& str)
 //------------------------------------------------------------------------------
 {
 	try {
+		if (n > size() || pos + n > size())
+		{
+			n = size() - pos;
+		}
 		m_rep.replace(pos, n, str);
 	} catch (std::exception& e) {
 		kException(e);
@@ -135,6 +139,10 @@ KString& KString::replace(size_type pos1, size_type n1, const string_type& str, 
 //------------------------------------------------------------------------------
 {
 	try {
+		if (n1 > size() || pos1 + n1 > size())
+		{
+			n1 = size() - pos1;
+		}
 		m_rep.replace(pos1, n1, str, pos2, n2);
 	} catch (std::exception& e) {
 		kException(e);
@@ -148,6 +156,10 @@ KString& KString::replace(size_type pos1, size_type n1, const std::string& str, 
 //------------------------------------------------------------------------------
 {
 	try {
+		if (n1 > size() || pos1 + n1 > size())
+		{
+			n1 = size() - pos1;
+		}
 		// avoid segfaults
 		if (pos2 > str.size())
 		{
@@ -173,6 +185,10 @@ KString& KString::replace(size_type pos, size_type n1, const value_type* s, size
 //------------------------------------------------------------------------------
 {
 	try {
+		if (n1 > size() || pos + n1 > size())
+		{
+			n1 = size() - pos;
+		}
 		m_rep.replace(pos, n1, s ? s : "", n2);
 	} catch (std::exception& e) {
 		kException(e);
@@ -185,6 +201,10 @@ KString& KString::replace(size_type pos, size_type n1, const value_type* s)
 //------------------------------------------------------------------------------
 {
 	try {
+		if (n1 > size() || pos + n1 > size())
+		{
+			n1 = size() - pos;
+		}
 		m_rep.replace(pos, n1, s ? s : "");
 	} catch (std::exception& e) {
 		kException(e);
@@ -197,6 +217,10 @@ KString& KString::replace(size_type pos, size_type n1, size_type n2, value_type 
 //------------------------------------------------------------------------------
 {
 	try {
+		if (n1 > size() || pos + n1 > size())
+		{
+			n1 = size() - pos;
+		}
 		m_rep.replace(pos, n1, n2, c);
 	} catch (std::exception& e) {
 		kException(e);
@@ -245,6 +269,10 @@ KString& KString::replace(size_type pos, size_type n, KStringView sv)
 //------------------------------------------------------------------------------
 {
 	try {
+		if (n > size() || pos + n > size())
+		{
+			n = size() - pos;
+		}
 		m_rep.replace(pos, n, sv.data(), sv.size());
 	} catch (std::exception& e) {
 		kException(e);
@@ -268,11 +296,11 @@ KString& KString::replace(iterator i1, iterator i2, KStringView sv)
 KString KString::substr(size_type pos, size_type n/*=npos*/) const
 //------------------------------------------------------------------------------
 {
-	if (n == npos) { // if "n" not spec'ed, return rest of string starting at "pos"
-		n = size() - pos;
-	}
-
 	try {
+		if (n > size() || pos + n > size())
+		{
+			n = size() - pos;
+		}
 		return m_rep.substr(pos, n);
 	} catch (std::exception& e) {
 		kException(e);
@@ -418,6 +446,10 @@ KString& KString::erase(size_type pos, size_type n)
 //------------------------------------------------------------------------------
 {
 	try {
+		if (n > size() || pos + n > size())
+		{
+			n = size() - pos;
+		}
 		m_rep.erase(pos, n);
 	} catch (std::exception& e) {
 		kException(e);
@@ -762,13 +794,12 @@ KStringView KString::ToView(size_type pos, size_type n) const
 		kWarning("pos ({}) exceeds size ({})", pos, size());
 		pos = size();
 	}
-	if (n == npos)
+	if (n > size())
 	{
 		n = size() - pos;
 	}
 	else if (pos + n > size())
 	{
-		kWarning("pos ({}) + n ({}) exceeds size ({})", pos, n, size());
 		n = size() - pos;
 	}
 	return KStringView(data() + pos, n);

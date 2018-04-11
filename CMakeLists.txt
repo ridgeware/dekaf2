@@ -221,6 +221,7 @@ set (HEADERS
 	kformat.h
 	kgetruntimestack.h
 	khash.h
+	khtmlcontentblocks.h
 	khtmlentities.h
 	khtmlparser.h
 	khttpclient.h
@@ -295,6 +296,7 @@ set (SOURCES
 	kformat.cpp
 	kgetruntimestack.cpp
 	khash.cpp
+	khtmlcontentblocks.cpp
 	khtmlentities.cpp
 	khtmlparser.cpp
 	khttpclient.cpp

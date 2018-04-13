@@ -56,6 +56,7 @@ enum KHTMLObjectType
 	COMMENT,
 	DOCUMENTTYPE,
 	PROCESSINGINSTRUCTION,
+	CDATA,
 	INVALID
 };
 
@@ -384,6 +385,36 @@ public:
 //------
 protected:
 //------
+
+	virtual bool SearchForLeadOut(KInStream& InStream) override;
+
+}; // KHTMLProcessingInstruction
+
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// a HTML CDATA section
+class KHTMLCData : public KHTMLStringObject
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+	//------
+public:
+	//------
+
+	KHTMLCData()
+	: KHTMLStringObject(LEAD_IN, LEAD_OUT)
+	{}
+
+	// forward all constructors
+	using KHTMLStringObject::KHTMLStringObject;
+
+	virtual KHTMLObjectType Type() const override;
+
+	static constexpr KStringView LEAD_IN  = "<![CDATA[";
+	static constexpr KStringView LEAD_OUT = "]]>";
+
+	//------
+protected:
+	//------
 
 	virtual bool SearchForLeadOut(KInStream& InStream) override;
 

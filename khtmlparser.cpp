@@ -825,6 +825,43 @@ bool KHTMLProcessingInstruction::SearchForLeadOut(KInStream& InStream)
 
 
 //-----------------------------------------------------------------------------
+KHTMLObjectType KHTMLCData::Type() const
+//-----------------------------------------------------------------------------
+{
+	return CDATA;
+}
+
+//-----------------------------------------------------------------------------
+bool KHTMLCData::SearchForLeadOut(KInStream& InStream)
+//-----------------------------------------------------------------------------
+{
+	std::iostream::int_type ch;
+
+	while ((ch = InStream.Read()) != std::iostream::traits_type::eof())
+	{
+		if (ch == ']')
+		{
+			ch = InStream.Read();
+			while (ch == ']')
+			{
+				ch = InStream.Read();
+				if (ch == '>')
+				{
+					return true;
+				}
+				Value += ']';
+			}
+			Value += ']';
+		}
+		Value += ch;
+	}
+
+	return false;
+
+} // SearchForLeadOut
+
+
+//-----------------------------------------------------------------------------
 KHTMLParser::~KHTMLParser()
 //-----------------------------------------------------------------------------
 {
@@ -894,6 +931,21 @@ bool KHTMLParser::Parse(KInStream& InStream)
 						// if this went wrong we set the output to INVALID, and will
 						// parse into that until we reach a '>'
 						Invalid(Comment);
+						bInvalid = true;
+					}
+				}
+				else if (ch == '[')
+				{
+					KHTMLCData CData;
+					if (CData.Parse(InStream, "<!["))
+					{
+						Object(CData);
+					}
+					else
+					{
+						// if this went wrong we set the output to INVALID, and will
+						// parse into that until we reach a '>'
+						Invalid(CData);
 						bInvalid = true;
 					}
 				}

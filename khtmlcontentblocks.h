@@ -62,14 +62,13 @@ protected:
 
 	virtual void ContentBlock(KStringView sContentBlock);
 	virtual void Skeleton(char ch);
+	virtual void Skeleton(KStringView sSkeleton);
+	virtual void Skeleton(const KHTMLObject& Object);
 
-	virtual void Tag(KHTMLTag& Tag);
-	virtual void Content(char ch);
-	virtual void Comment(char ch);
-	virtual void DocumentType(char ch);
-	virtual void ProcessingInstruction(char ch);
-	virtual void Invalid(char ch);
-	virtual void Emit(OutputType Type);
+	virtual void Object(KHTMLObject& Object) override;
+	virtual void Content(char ch) override;
+	virtual void Invalid(char ch) override;
+	virtual void Finished() override;
 
 	void FlushContentBlock();
 

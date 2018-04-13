@@ -15,9 +15,11 @@ set (USOURCES
 	kbase64_tests.cpp
 	kcasestring_tests.cpp
 	kcompression_tests.cpp
+	khtmlcontentblocks_tests.cpp
 	kencode_tests.cpp
 	kfile_tests.cpp
 	khtmlparser_tests.cpp
+	khtmlcontentblocks_tests.cpp
 	khttpclient_tests.cpp
 	khttpserver_tests.cpp
 	kinpipe_tests.cpp

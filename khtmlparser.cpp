@@ -48,6 +48,140 @@
 namespace dekaf2 {
 
 //-----------------------------------------------------------------------------
+KHTMLObject::~KHTMLObject()
+//-----------------------------------------------------------------------------
+{
+}
+
+//-----------------------------------------------------------------------------
+void KHTMLObject::clear()
+//-----------------------------------------------------------------------------
+{
+}
+
+//-----------------------------------------------------------------------------
+KHTMLObjectType KHTMLObject::Type() const
+//-----------------------------------------------------------------------------
+{
+	return NONE;
+}
+
+//-----------------------------------------------------------------------------
+bool KHTMLObject::Parse(KInStream& InStream, KStringView sOpening)
+//-----------------------------------------------------------------------------
+{
+	// it would not make sense to call the string parser, as
+	// we woud not know in advance how many characters of the
+	// stream we would have to consume
+	return false;
+
+} // Parse
+
+//-----------------------------------------------------------------------------
+bool KHTMLObject::Parse(KStringView sInput)
+//-----------------------------------------------------------------------------
+{
+	// call the stream parser
+	KInStringStream iss(sInput);
+	return Parse(iss);
+
+} // Parse
+
+//-----------------------------------------------------------------------------
+void KHTMLObject::Serialize(KOutStream& OutStream) const
+//-----------------------------------------------------------------------------
+{
+	// call the string serializer - make sure always at least one of those
+	// two serializers are implemented in derived classes!
+	KString sSerialized;
+	Serialize(sSerialized);
+	OutStream.Write(sSerialized);
+
+} // Serialize
+
+//-----------------------------------------------------------------------------
+void KHTMLObject::Serialize(KString& sOut) const
+//-----------------------------------------------------------------------------
+{
+	// call the stream serializer - make sure always at least one of those
+	// two serializers are implemented in derived classes!
+	KOutStringStream oss(sOut);
+	Serialize(oss);
+
+} // Serialize
+
+
+//-----------------------------------------------------------------------------
+void KHTMLStringObject::clear()
+//-----------------------------------------------------------------------------
+{
+	Value.clear();
+}
+
+//-----------------------------------------------------------------------------
+bool KHTMLStringObject::empty() const
+//-----------------------------------------------------------------------------
+{
+	return Value.empty();
+}
+
+//-----------------------------------------------------------------------------
+bool KHTMLStringObject::Parse(KInStream& InStream, KStringView sOpening)
+//-----------------------------------------------------------------------------
+{
+	// <!-- opens a comment until -->
+	// <! opens a DTD until >
+	// <? opens a processing instruction until ?>
+
+	auto iStart = sOpening.size();
+	auto iLeadIn = m_sLeadIn.size();
+
+	if (iStart >= iLeadIn)
+	{
+		sOpening.remove_prefix(iLeadIn);
+		Value = sOpening;
+	}
+	else
+	{
+		while (iStart < iLeadIn)
+		{
+			auto ch = InStream.Read();
+			if (ch == m_sLeadIn[iStart])
+			{
+				++iStart;
+			}
+			else
+			{
+				return false;
+			}
+		}
+	}
+
+	// A performant stream search for a pattern is not trivial to do,
+	// the algorithm of choice would actually be a Knuth-Morris-Pratt
+	// search. However, for the three patterns we are searching for
+	// in this parser we can implement really fast and simple
+	// hard wired code. But the consequence is that we cannot accept
+	// arbitrary lead-out strings, but only "-->", "?>" and ">".
+	// In fact we delegate the search for the lead-out to the child
+	// class to implement the corresponding algorithm there.
+
+	return SearchForLeadOut(InStream);
+
+} // Parse
+
+//-----------------------------------------------------------------------------
+void KHTMLStringObject::Serialize(KOutStream& OutStream) const
+//-----------------------------------------------------------------------------
+{
+	OutStream.Write(m_sLeadIn);
+	OutStream.Write(Value);
+	OutStream.Write(m_sLeadOut);
+
+} // Serialize
+
+
+//-----------------------------------------------------------------------------
 void KHTMLAttribute::clear()
 //-----------------------------------------------------------------------------
 {
@@ -57,21 +191,26 @@ void KHTMLAttribute::clear()
 }
 
 //-----------------------------------------------------------------------------
-void KHTMLAttribute::Parse(KStringView sInput)
+bool KHTMLAttribute::empty() const
 //-----------------------------------------------------------------------------
 {
-	KInStringStream iss(sInput);
-	Parse(iss);
+	return Name.empty();
 }
 
 //-----------------------------------------------------------------------------
-void KHTMLAttribute::Parse(KInStream& InStream)
+bool KHTMLAttribute::Parse(KInStream& InStream, KStringView sOpening)
 //-----------------------------------------------------------------------------
 {
 	clear();
 
 	enum pstate { START, KEY, BEFORE_EQUAL, AFTER_EQUAL, VALUE };
 	pstate state { START };
+
+	if (!sOpening.empty())
+	{
+		Name = sOpening;
+		state = KEY;
+	}
 
 	std::iostream::int_type ch;
 
@@ -84,7 +223,7 @@ void KHTMLAttribute::Parse(KInStream& InStream)
 				{
 					// normal exit (no attribute)
 					InStream.UnRead();
-					return;
+					return true;
 				}
 				else if (!std::isspace(ch))
 				{
@@ -117,7 +256,7 @@ void KHTMLAttribute::Parse(KInStream& InStream)
 				{
 					// probably the next attribute - this one had no value
 					InStream.UnRead();
-					return;
+					return true;
 				}
 				break;
 
@@ -147,7 +286,7 @@ void KHTMLAttribute::Parse(KInStream& InStream)
 					else
 					{
 						// normal exit
-						return;
+						return true;
 					}
 				}
 				else
@@ -156,14 +295,14 @@ void KHTMLAttribute::Parse(KInStream& InStream)
 					if (std::isspace(ch))
 					{
 						// normal exit
-						return;
+						return true;
 					}
 
 					if (ch == '>' || ch == '/')
 					{
 						// normal exit
 						InStream.UnRead();
-						return;
+						return true;
 					}
 
 					Value += ch;
@@ -171,6 +310,8 @@ void KHTMLAttribute::Parse(KInStream& InStream)
 				break;
 		}
 	}
+
+	return true;
 
 } // Parse
 
@@ -250,6 +391,20 @@ void KHTMLAttribute::Serialize(KOutStream& OutStream) const
 
 
 //-----------------------------------------------------------------------------
+void KHTMLAttributes::clear()
+//-----------------------------------------------------------------------------
+{
+	m_Attributes.clear();
+}
+
+//-----------------------------------------------------------------------------
+bool KHTMLAttributes::empty() const
+//-----------------------------------------------------------------------------
+{
+	return m_Attributes.empty();
+}
+
+//-----------------------------------------------------------------------------
 KStringView KHTMLAttributes::Get(KStringView sAttributeName) const
 //-----------------------------------------------------------------------------
 {
@@ -284,7 +439,7 @@ void KHTMLAttributes::Add(KHTMLAttribute&& Attribute)
 
 
 //-----------------------------------------------------------------------------
-void KHTMLAttributes::Parse(KInStream& InStream)
+bool KHTMLAttributes::Parse(KInStream& InStream, KStringView sOpening)
 //-----------------------------------------------------------------------------
 {
 	clear();
@@ -299,13 +454,14 @@ void KHTMLAttributes::Parse(KInStream& InStream)
 			{
 				// we're done
 				InStream.UnRead();
-				return;
+				return true;
 			}
 			else
 			{
 				InStream.UnRead();
 				// parse a new attribute
-				KHTMLAttribute attribute(InStream);
+				KHTMLAttribute attribute;
+				attribute.Parse(InStream);
 				if (!attribute.empty())
 				{
 					Add(std::move(attribute));
@@ -314,14 +470,7 @@ void KHTMLAttributes::Parse(KInStream& InStream)
 		}
 	}
 
-} // Parse
-
-//-----------------------------------------------------------------------------
-void KHTMLAttributes::Parse(KStringView sInput)
-//-----------------------------------------------------------------------------
-{
-	KInStringStream iss(sInput);
-	Parse(iss);
+	return true;
 
 } // Parse
 
@@ -356,6 +505,7 @@ bool KHTMLTag::IsInline() const
 {
 	// https://en.wikipedia.org/wiki/HTML_element#Inline_elements
 
+	// TODO fix possible race in MT
 	static std::unordered_set<KStringView> s_InlineTags {
 		KStringView {"a"},
 		KStringView {"abbr"},
@@ -414,23 +564,39 @@ void KHTMLTag::clear()
 } // clear
 
 //-----------------------------------------------------------------------------
-bool KHTMLTag::Parse(KStringView sInput)
+bool KHTMLTag::empty() const
 //-----------------------------------------------------------------------------
 {
-	KInStringStream iss(sInput);
-	return Parse(iss);
+	return Name.empty();
 
-} // Parse
+} // empty
 
 //-----------------------------------------------------------------------------
-bool KHTMLTag::Parse(KInStream& InStream, bool bHadOpenAngleBracket)
+KHTMLObjectType KHTMLTag::Type() const
+//-----------------------------------------------------------------------------
+{
+	return TAG;
+}
+
+//-----------------------------------------------------------------------------
+bool KHTMLTag::Parse(KInStream& InStream, KStringView sOpening)
 //-----------------------------------------------------------------------------
 {
 	clear();
 
 	enum pstate { START, OPEN, NAME, CLOSE };
-	pstate state { bHadOpenAngleBracket ? OPEN : START };
+	pstate state { START };
 	std::iostream::int_type ch;
+
+	auto iOSize = sOpening.size();
+	if (iOSize)
+	{
+		if (iOSize > 1)
+		{
+			Name = sOpening.substr(1, KStringView::npos);
+		}
+		state = OPEN;
+	}
 
 	while ((ch = InStream.Read()) != std::iostream::traits_type::eof())
 	{
@@ -565,28 +731,17 @@ void KHTMLTag::Serialize(KOutStream& OutStream) const
 
 
 //-----------------------------------------------------------------------------
-KHTMLParser::~KHTMLParser()
+KHTMLObjectType KHTMLComment::Type() const
 //-----------------------------------------------------------------------------
 {
+	return COMMENT;
 }
 
 //-----------------------------------------------------------------------------
-bool KHTMLParser::ParseComment(KInStream& InStream)
+bool KHTMLComment::SearchForLeadOut(KInStream& InStream)
 //-----------------------------------------------------------------------------
 {
 	std::iostream::int_type ch;
-
-	ch = InStream.Read();
-
-	if (ch != '-')
-	{
-		PushToInvalid("<!-");
-		PushToInvalid(ch);
-		return false;
-	}
-
-	// announce output of comment chars
-	SwitchOutput(COMMENT);
 
 	while ((ch = InStream.Read()) != std::iostream::traits_type::eof())
 	{
@@ -600,34 +755,29 @@ bool KHTMLParser::ParseComment(KInStream& InStream)
 				{
 					return true;
 				}
-				Comment('-');
+				Value += '-';
 			}
-			Comment('-');
+			Value += '-';
 		}
-		Comment(ch);
+		Value += ch;
 	}
 
 	return false;
 
-} // ParseComment
+} // SearchForLeadOut
 
 //-----------------------------------------------------------------------------
-bool KHTMLParser::ParseDocumentType(KInStream& InStream)
+KHTMLObjectType KHTMLDocumentType::Type() const
+//-----------------------------------------------------------------------------
+{
+	return DOCUMENTTYPE;
+}
+
+//-----------------------------------------------------------------------------
+bool KHTMLDocumentType::SearchForLeadOut(KInStream& InStream)
 //-----------------------------------------------------------------------------
 {
 	std::iostream::int_type ch;
-
-	ch = InStream.Read();
-
-	if (ch == '-')
-	{
-		// this is most probably a comment
-		return ParseComment(InStream);
-	}
-
-	// start capturing the document type
-	SwitchOutput(DOCUMENTTYPE);
-	DocumentType(ch);
 
 	while ((ch = InStream.Read()) != std::iostream::traits_type::eof())
 	{
@@ -635,21 +785,25 @@ bool KHTMLParser::ParseDocumentType(KInStream& InStream)
 		{
 			return true;
 		}
-		DocumentType(ch);
+		Value += ch;
 	}
 
 	return false;
 
-} // ParseDocumentType
+} // SearchForLeadOut
 
 //-----------------------------------------------------------------------------
-bool KHTMLParser::ParseProcessingInstruction(KInStream& InStream)
+KHTMLObjectType KHTMLProcessingInstruction::Type() const
+//-----------------------------------------------------------------------------
+{
+	return PROCESSINGINSTRUCTION;
+}
+
+//-----------------------------------------------------------------------------
+bool KHTMLProcessingInstruction::SearchForLeadOut(KInStream& InStream)
 //-----------------------------------------------------------------------------
 {
 	std::iostream::int_type ch;
-
-	// announce output of a processing instruction
-	SwitchOutput(PROCESSINGINSTRUCTION);
 
 	while ((ch = InStream.Read()) != std::iostream::traits_type::eof())
 	{
@@ -660,36 +814,42 @@ bool KHTMLParser::ParseProcessingInstruction(KInStream& InStream)
 			{
 				return true;
 			}
-			ProcessingInstruction('?');
+			Value += '?';
 		}
-		ProcessingInstruction(ch);
+		Value += ch;
 	}
 
 	return false;
 
-} // ParseProcessingInstruction
+} // SearchForLeadOut
+
 
 //-----------------------------------------------------------------------------
-void KHTMLParser::PushToInvalid(KStringView sInvalid)
+KHTMLParser::~KHTMLParser()
+//-----------------------------------------------------------------------------
+{
+}
+
+//-----------------------------------------------------------------------------
+void KHTMLParser::Invalid(KStringView sInvalid)
 //-----------------------------------------------------------------------------
 {
 	if (!sInvalid.empty())
 	{
-		SwitchOutput(INVALID);
 		for (auto ch : sInvalid)
 		{
 			Invalid(ch);
 		}
 	}
 
-} // PushToInvalid
+} // Invalid
 
 //-----------------------------------------------------------------------------
-void KHTMLParser::PushToInvalid(std::iostream::int_type ch)
+void KHTMLParser::Invalid(const KHTMLStringObject& Object)
 //-----------------------------------------------------------------------------
 {
-	SwitchOutput(INVALID);
-	Invalid(ch);
+	Invalid(Object.LeadIn());
+	Invalid(Object.Value);
 
 } // PushToInvalid
 
@@ -698,15 +858,16 @@ bool KHTMLParser::Parse(KInStream& InStream)
 //-----------------------------------------------------------------------------
 {
 	std::iostream::int_type ch;
+	bool bInvalid { false };
 
 	while ((ch = InStream.Read()) != std::iostream::traits_type::eof())
 	{
-		if (m_Output == INVALID)
+		if (bInvalid)
 		{
 			Invalid(ch);
 			if (ch == '>')
 			{
-				m_Output = NONE;
+				bInvalid = false;
 			}
 		}
 		else if (ch == '<')
@@ -720,16 +881,54 @@ bool KHTMLParser::Parse(KInStream& InStream)
 			}
 			else if (ch == '!')
 			{
-				ParseDocumentType(InStream);
-				// if this went wrong we have the output set to INVALID, and will
-				// parse into that until we reach a '>'
+				ch = InStream.Read();
+				if (ch == '-')
+				{
+					KHTMLComment Comment;
+					if (Comment.Parse(InStream, "<!-"))
+					{
+						Object(Comment);
+					}
+					else
+					{
+						// if this went wrong we set the output to INVALID, and will
+						// parse into that until we reach a '>'
+						Invalid(Comment);
+						bInvalid = true;
+					}
+				}
+				else
+				{
+					InStream.UnRead();
+					KHTMLDocumentType DTD;
+					if (DTD.Parse(InStream, "<!"))
+					{
+						Object(DTD);
+					}
+					else
+					{
+						// if this went wrong we set the output to INVALID, and will
+						// parse into that until we reach a '>'
+						Invalid(DTD);
+						bInvalid = true;
+					}
+				}
 				continue;
 			}
 			else if (ch == '?')
 			{
-				ParseProcessingInstruction(InStream);
-				// if this went wrong we have the output set to INVALID, and will
-				// parse into that until we reach a '>'
+				KHTMLProcessingInstruction PI;
+				if (PI.Parse(InStream, "<?"))
+				{
+					Object(PI);
+				}
+				else
+				{
+					// if this went wrong we set the output to INVALID, and will
+					// parse into that until we reach a '>'
+					Invalid(PI);
+					bInvalid = true;
+				}
 				continue;
 			}
 
@@ -737,26 +936,28 @@ bool KHTMLParser::Parse(KInStream& InStream)
 
 			// no, this is most probably a tag
 			KHTMLTag tag;
-			if (tag.Parse(InStream, true))
+			if (tag.Parse(InStream, "<"))
 			{
 				if (!tag.empty())
 				{
-					SwitchOutput(TAG);
-					Tag(tag);
+					Object(tag);
 				}
 			}
 			else
 			{
 				// print to Invalid() until next '>'
-				PushToInvalid('<');
+				Invalid('<');
+				bInvalid = true;
 			}
 		}
 		else
 		{
-			SwitchOutput(CONTENT);
 			Content(ch);
 		}
 	}
+
+	// force a flush in children
+	Finished();
 
 	return true;
 
@@ -772,14 +973,6 @@ bool KHTMLParser::Parse(KStringView sInput)
 } // Parse
 
 //-----------------------------------------------------------------------------
-void KHTMLParser::Tag(KHTMLTag& Tag)
-//-----------------------------------------------------------------------------
-{
-	// does nothing in base class
-
-} // Element
-
-//-----------------------------------------------------------------------------
 void KHTMLParser::Content(char ch)
 //-----------------------------------------------------------------------------
 {
@@ -788,23 +981,7 @@ void KHTMLParser::Content(char ch)
 } // Content
 
 //-----------------------------------------------------------------------------
-void KHTMLParser::Comment(char ch)
-//-----------------------------------------------------------------------------
-{
-	// does nothing in base class
-
-} // Comment
-
-//-----------------------------------------------------------------------------
-void KHTMLParser::DocumentType(char ch)
-//-----------------------------------------------------------------------------
-{
-	// does nothing in base class
-
-} // DTD
-
-//-----------------------------------------------------------------------------
-void KHTMLParser::ProcessingInstruction(char ch)
+void KHTMLParser::Object(KHTMLObject& Object)
 //-----------------------------------------------------------------------------
 {
 	// does nothing in base class
@@ -820,12 +997,12 @@ void KHTMLParser::Invalid(char ch)
 } // Invalid
 
 //-----------------------------------------------------------------------------
-void KHTMLParser::Emit(OutputType)
+void KHTMLParser::Finished()
 //-----------------------------------------------------------------------------
 {
 	// does nothing in base class
 
-} // Output
+} // Finished
 
 } // end of namespace dekaf2
 

@@ -48,9 +48,20 @@
 
 namespace dekaf2 {
 
+enum KHTMLObjectType
+{
+	NONE,
+	CONTENT,
+	TAG,
+	COMMENT,
+	DOCUMENTTYPE,
+	PROCESSINGINSTRUCTION,
+	INVALID
+};
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class KHTMLAttribute
+/// Interface
+class KHTMLObject
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -58,54 +69,113 @@ class KHTMLAttribute
 public:
 //------
 
-	KHTMLAttribute() = default;
-	KHTMLAttribute(const KHTMLAttribute&) = default;
-	KHTMLAttribute(KHTMLAttribute&&) = default;
-	KHTMLAttribute& operator=(const KHTMLAttribute&) = default;
-	KHTMLAttribute& operator=(KHTMLAttribute&&) = default;
+	KHTMLObject() = default;
+	KHTMLObject(const KHTMLObject&) = default;
+	KHTMLObject(KHTMLObject&&) = default;
+	KHTMLObject& operator=(const KHTMLObject&) = default;
+	KHTMLObject& operator=(KHTMLObject&&) = default;
 
-	KHTMLAttribute(KStringView sName, KStringView sValue, char _Quote='"')
+	virtual ~KHTMLObject();
+
+	virtual bool Parse(KInStream& InStream, KStringView sOpening = KStringView{});
+	virtual void Serialize(KOutStream& OutStream) const;
+
+	virtual bool Parse(KStringView sInput);
+	virtual void Serialize(KString& sOut) const;
+
+	KHTMLObject& operator=(KStringView sInput)
+	{
+		Parse(sInput);
+		return *this;
+	}
+
+	virtual void clear();
+	// make this base an ABC
+	virtual bool empty() const = 0;
+	virtual KHTMLObjectType Type() const;
+
+}; // KHTMLObject
+
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// an object with text and a lead-in and lead-out string
+class KHTMLStringObject : public KHTMLObject
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+//------
+public:
+//------
+
+	KHTMLStringObject(KStringView sLeadIn, KStringView sLeadOut)
+	: m_sLeadIn(sLeadIn)
+	, m_sLeadOut(sLeadOut)
+	{}
+
+	// forward all base class constructors
+	using KHTMLObject::KHTMLObject;
+
+	virtual bool Parse(KInStream& InStream, KStringView sOpening = KStringView{}) override;
+	virtual void Serialize(KOutStream& OutStream) const override;
+
+	virtual void clear() override;
+	virtual bool empty() const override;
+
+	KString Value {}; // {} = make sure Value is initialized, we may not have a constructor here!
+
+	KStringView LeadIn() const
+	{
+		return m_sLeadIn;
+	}
+
+	KStringView LeadOut() const
+	{
+		return m_sLeadOut;
+	}
+
+//------
+protected:
+//------
+
+	virtual bool SearchForLeadOut(KInStream& InStream) = 0;
+
+	KStringView m_sLeadIn {};
+	KStringView m_sLeadOut {};
+
+}; // KHTMLStringObject
+
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+class KHTMLAttribute : public KHTMLObject
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+//------
+public:
+//------
+
+	KHTMLAttribute(KStringView sName, KStringView sValue=KStringView{}, char _Quote='"')
 	: Name(sName)
 	, Value(sValue)
 	, Quote(_Quote)
 	{
 	}
 
-	KHTMLAttribute(KStringView sInput)
-	{
-		Parse(sInput);
-	}
+	using KHTMLObject::KHTMLObject;
 
-	KHTMLAttribute(KInStream& InStream)
-	{
-		Parse(InStream);
-	}
+	virtual bool Parse(KInStream& InStream, KStringView sOpening = KStringView{}) override;
+	virtual void Serialize(KOutStream& OutStream) const override;
+	virtual void Serialize(KString& sOut) const override;
 
-	void Parse(KStringView sInput);
-	void Parse(KInStream& InStream);
-	void Serialize(KOutStream& OutStream) const;
-	void Serialize(KString& sOut) const;
+	virtual void clear() override;
+	virtual bool empty() const override;
 
-	KHTMLAttribute& operator=(KStringView sInput)
-	{
-		Parse(sInput);
-		return *this;
-	}
-
-	void clear();
-	bool empty() const
-	{
-		return Name.empty();
-	}
-
-	KString Name;
-	KString Value;
+	KString Name {};
+	KString Value {};
 	mutable std::iostream::int_type Quote { 0 };
 
 }; // KHTMLAttribute
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class KHTMLAttributes
+class KHTMLAttributes : public KHTMLObject
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -149,16 +219,6 @@ public:
 		return m_Attributes.end();
 	}
 
-	void clear()
-	{
-		m_Attributes.clear();
-	}
-
-	bool empty() const
-	{
-		return m_Attributes.empty();
-	}
-
 	KStringView Get(KStringView sAttributeName) const;
 
 	void Set(KStringView sAttributeName, KStringView sAttributeValue, char Quote='"')
@@ -181,10 +241,12 @@ public:
 		return *this;
 	}
 
-	void Parse(KStringView sInput);
-	void Parse(KInStream& InStream);
-	void Serialize(KOutStream& OutStream) const;
-	void Serialize(KString& sOut) const;
+	virtual bool Parse(KInStream& InStream, KStringView sOpening = KStringView{}) override;
+	virtual void Serialize(KOutStream& OutStream) const override;
+	virtual void Serialize(KString& sOut) const override;
+
+	virtual void clear() override;
+	virtual bool empty() const override;
 
 //------
 protected:
@@ -195,7 +257,7 @@ protected:
 }; // KHTMLAttributes
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class KHTMLTag
+class KHTMLTag : public KHTMLObject
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -203,33 +265,25 @@ class KHTMLTag
 public:
 //------
 
-	KHTMLTag() = default;
-	KHTMLTag(const KHTMLTag&) = default;
-	KHTMLTag(KHTMLTag&&) = default;
-	KHTMLTag& operator=(const KHTMLTag&) = default;
-	KHTMLTag& operator=(KHTMLTag&&) = default;
-
-
 	KHTMLTag(KStringView sInput)
 	{
-		Parse(sInput);
+		KHTMLObject::Parse(sInput);
 	}
 
-	KHTMLTag(KInStream& InStream, bool bHadOpenAngleBracket = false)
+	KHTMLTag(KInStream& InStream, KStringView sOpening = KStringView{})
 	{
-		Parse(InStream, bHadOpenAngleBracket);
+		Parse(InStream, sOpening);
 	}
 
-	bool Parse(KStringView sInput);
-	bool Parse(KInStream& InStream, bool bHadOpenAngleBracket = false);
-	void Serialize(KOutStream& OutStream) const;
-	void Serialize(KString& sOut) const;
+	using KHTMLObject::KHTMLObject;
 
-	void clear();
-	bool empty() const
-	{
-		return Name.empty();
-	}
+	virtual bool Parse(KInStream& InStream, KStringView sOpening = KStringView{}) override;
+	virtual void Serialize(KOutStream& OutStream) const override;
+	virtual void Serialize(KString& sOut) const override;
+
+	virtual void clear() override;
+	virtual bool empty() const override;
+	virtual KHTMLObjectType Type() const override;
 
 	bool IsInline() const;
 
@@ -237,18 +291,103 @@ public:
 public:
 //------
 
-	KHTMLTag& operator=(KStringView sInput)
-	{
-		Parse(sInput);
-		return *this;
-	}
-
 	KString         Name;
 	KHTMLAttributes Attributes;
 	bool            bSelfClosing { false };
 	bool            bClosing { false };
 
 }; // KHTMLTag
+
+
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// a HTML comment
+class KHTMLComment : public KHTMLStringObject
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+//------
+public:
+//------
+
+	KHTMLComment()
+	: KHTMLStringObject(LEAD_IN, LEAD_OUT)
+	{}
+
+	// forward all constructors
+	using KHTMLStringObject::KHTMLStringObject;
+
+	virtual KHTMLObjectType Type() const override;
+
+	static constexpr KStringView LEAD_IN  = "<!--";
+	static constexpr KStringView LEAD_OUT = "-->";
+
+//------
+protected:
+//------
+
+	virtual bool SearchForLeadOut(KInStream& InStream) override;
+
+}; // KHTMLComment
+
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// a HTML document type declaration
+class KHTMLDocumentType : public KHTMLStringObject
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+//------
+public:
+//------
+
+	KHTMLDocumentType()
+	: KHTMLStringObject(LEAD_IN, LEAD_OUT)
+	{}
+
+	// forward all constructors
+	using KHTMLStringObject::KHTMLStringObject;
+
+	virtual KHTMLObjectType Type() const override;
+
+	static constexpr KStringView LEAD_IN  = "<!";
+	static constexpr KStringView LEAD_OUT = ">";
+
+//------
+protected:
+//------
+
+	virtual bool SearchForLeadOut(KInStream& InStream) override;
+
+}; // KHTMLDocumentType
+
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// a HTML processing instruction
+class KHTMLProcessingInstruction : public KHTMLStringObject
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+//------
+public:
+//------
+
+	KHTMLProcessingInstruction()
+	: KHTMLStringObject(LEAD_IN, LEAD_OUT)
+	{}
+
+	// forward all constructors
+	using KHTMLStringObject::KHTMLStringObject;
+
+	virtual KHTMLObjectType Type() const override;
+
+	static constexpr KStringView LEAD_IN  = "<?";
+	static constexpr KStringView LEAD_OUT = "?>";
+
+//------
+protected:
+//------
+
+	virtual bool SearchForLeadOut(KInStream& InStream) override;
+
+}; // KHTMLProcessingInstruction
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class KHTMLParser
@@ -284,49 +423,17 @@ public:
 protected:
 //------
 
-	enum OutputType
-	{
-		NONE,
-		CONTENT,
-		TAG,
-		COMMENT,
-		DOCUMENTTYPE,
-		PROCESSINGINSTRUCTION,
-		INVALID
-	};
-
-	virtual void Tag(KHTMLTag& Tag);
+	virtual void Object(KHTMLObject& Object);
 	virtual void Content(char ch);
-	virtual void Comment(char ch);
-	virtual void DocumentType(char ch);
-	virtual void ProcessingInstruction(char ch);
 	virtual void Invalid(char ch);
-	virtual void Emit(OutputType Type);
-	
-	OutputType   EmitsTo() const
-	{
-		return m_Output;
-	}
+	virtual void Finished();
 
 //------
 private:
 //------
 
-	bool ParseComment(KInStream& InStream);
-	bool ParseDocumentType(KInStream& InStream);
-	bool ParseProcessingInstruction(KInStream& InStream);
-	void PushToInvalid(KStringView sInvalid);
-	void PushToInvalid(std::iostream::int_type ch);
-	void SwitchOutput(OutputType To)
-	{
-		if (m_Output != To)
-		{
-			m_Output = To;
-			Emit(To);
-		}
-	}
-
-	OutputType m_Output { NONE };
+	void Invalid(KStringView sInvalid);
+	void Invalid(const KHTMLStringObject& Object);
 
 }; // KHTMLParser
 

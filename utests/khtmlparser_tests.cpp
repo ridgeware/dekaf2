@@ -14,13 +14,13 @@ TEST_CASE("KHTMLParser")
 	<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN"
 	"http://www.w3.org/TR/html4/strict.dtd">
 	<html>
-	<head><!-- with a comment here! >> -> until here -->
+	<head><!-- with a comment here! >> -> until here --><!--- just one more --->
 	<title>A study of population dynamics</title>
 	</head>
 	<body>
-			 <!----- another comment here until here --->
+			 <!----- another comment here until here ---> <!--really?>-->
 			 <img checked href="http://www.xyz.com/my/image.png" title=Ñicé/>
-			 <p>And finally <i>some</i> content</p>
+			 <p class='fancy' id=self style="curly">And finally <i class='shallow'>some</i> content</p>
 	</body>
 	</html>
 	)");
@@ -44,27 +44,12 @@ TEST_CASE("KHTMLParser")
 
 		protected:
 
-			virtual void Tag(KHTMLTag& Tag) override
+			virtual void Object(KHTMLObject& Object) override
 			{
-				Tag.Serialize(m_OutStream);
+				Object.Serialize(m_OutStream);
 			}
 
 			virtual void Content(char ch) override
-			{
-				m_OutStream.Write(ch);
-			}
-
-			virtual void Comment(char ch) override
-			{
-				m_OutStream.Write(ch);
-			}
-
-			virtual void DocumentType(char ch) override
-			{
-				m_OutStream.Write(ch);
-			}
-
-			virtual void ProcessingInstruction(char ch) override
 			{
 				m_OutStream.Write(ch);
 			}
@@ -74,44 +59,9 @@ TEST_CASE("KHTMLParser")
 				m_OutStream.Write(ch);
 			}
 
-			virtual void Emit(OutputType Type) override
-			{
-				switch (Type)
-				{
-					case COMMENT:
-						m_OutStream.Write("<!--");
-						break;
-
-					case DOCUMENTTYPE:
-						m_OutStream.Write("<!");
-						break;
-
-					case PROCESSINGINSTRUCTION:
-						m_OutStream.Write("<?");
-						break;
-
-					default:
-						if (m_Output == COMMENT)
-						{
-							m_OutStream.Write("-->");
-						}
-						else if (m_Output == DOCUMENTTYPE)
-						{
-							m_OutStream.Write(">");
-						}
-						else if (m_Output == PROCESSINGINSTRUCTION)
-						{
-							m_OutStream.Write("?>");
-						}
-						break;
-				}
-				m_Output = Type;
-			}
-
 		private:
 
 			KOutStream& m_OutStream;
-			OutputType m_Output { NONE };
 
 		};
 
@@ -137,27 +87,12 @@ TEST_CASE("KHTMLParser")
 
 		protected:
 
-			virtual void Tag(KHTMLTag& Tag) override
+			virtual void Object(KHTMLObject& Object) override
 			{
-				Tag.Serialize(m_OutString);
+				Object.Serialize(m_OutString);
 			}
 
 			virtual void Content(char ch) override
-			{
-				m_OutString += ch;
-			}
-
-			virtual void Comment(char ch) override
-			{
-				m_OutString += ch;
-			}
-
-			virtual void DocumentType(char ch) override
-			{
-				m_OutString += ch;
-			}
-
-			virtual void ProcessingInstruction(char ch) override
 			{
 				m_OutString += ch;
 			}
@@ -167,44 +102,9 @@ TEST_CASE("KHTMLParser")
 				m_OutString += ch;
 			}
 
-			virtual void Emit(OutputType Type) override
-			{
-				switch (Type)
-				{
-					case COMMENT:
-						m_OutString += "<!--";
-						break;
-
-					case DOCUMENTTYPE:
-						m_OutString += "<!";
-						break;
-
-					case PROCESSINGINSTRUCTION:
-						m_OutString += "<?";
-						break;
-
-					default:
-						if (m_Output == COMMENT)
-						{
-							m_OutString += "-->";
-						}
-						else if (m_Output == DOCUMENTTYPE)
-						{
-							m_OutString += ">";
-						}
-						else if (m_Output == PROCESSINGINSTRUCTION)
-						{
-							m_OutString += "?>";
-						}
-						break;
-				}
-				m_Output = Type;
-			}
-
 		private:
 
 			KString& m_OutString;
-			OutputType m_Output { NONE };
 
 		};
 

@@ -50,7 +50,7 @@ void KHTMLContentBlocks::ContentBlock(KStringView sContentBlock)
 {
 	// base version does nothing
 
-}
+} // ContentBlock
 
 //-----------------------------------------------------------------------------
 void KHTMLContentBlocks::Skeleton(char ch)
@@ -58,7 +58,29 @@ void KHTMLContentBlocks::Skeleton(char ch)
 {
 	// base version does nothing
 
-}
+} // Skeleton
+
+//-----------------------------------------------------------------------------
+void KHTMLContentBlocks::Skeleton(KStringView sSkeleton)
+//-----------------------------------------------------------------------------
+{
+	// base version outputs to Skeleton(char)
+	for (auto ch : sSkeleton)
+	{
+		Skeleton(ch);
+	}
+
+} // Skeleton
+
+//-----------------------------------------------------------------------------
+void KHTMLContentBlocks::Skeleton(const KHTMLObject& Object)
+//-----------------------------------------------------------------------------
+{
+	KString sOutput;
+	Object.Serialize(sOutput);
+	Skeleton(sOutput);
+
+} // Skeleton
 
 //-----------------------------------------------------------------------------
 void KHTMLContentBlocks::FlushContentBlock()
@@ -84,20 +106,51 @@ void KHTMLContentBlocks::FlushContentBlock()
 } // FlushContentBlock
 
 //-----------------------------------------------------------------------------
-void KHTMLContentBlocks::Tag(KHTMLTag& Tag)
+void KHTMLContentBlocks::Object(KHTMLObject& Object)
 //-----------------------------------------------------------------------------
 {
-	if (!Tag.IsInline())
+	switch (Object.Type())
 	{
-		FlushContentBlock();
-	}
-	else
-	{
-		// push the inline tag into the content block
-		Tag.Serialize(m_sContentBlock);
+		case TAG:
+		{
+			KHTMLTag& Tag = reinterpret_cast<KHTMLTag&>(Object);
+			if (!Tag.IsInline())
+			{
+				FlushContentBlock();
+				// and push the tag into the skeleton
+				Skeleton(Object);
+			}
+			else
+			{
+				// push the inline tag into the content block
+				Tag.Serialize(m_sContentBlock);
+			}
+			break;
+		}
+
+		case COMMENT:
+			if (!m_bHadTextContent)
+			{
+				FlushContentBlock();
+				Skeleton(Object);
+			}
+			break;
+
+		default:
+			FlushContentBlock();
+			Skeleton(Object);
+			break;
 	}
 
-} // Element
+} // Object
+
+//-----------------------------------------------------------------------------
+void KHTMLContentBlocks::Finished()
+//-----------------------------------------------------------------------------
+{
+	FlushContentBlock();
+
+} // Finished
 
 //-----------------------------------------------------------------------------
 void KHTMLContentBlocks::Content(char ch)
@@ -107,37 +160,11 @@ void KHTMLContentBlocks::Content(char ch)
 	{
 		m_bHadTextContent = true;
 	}
+	
 	// push the char into the content block
 	m_sContentBlock += ch;
 
 } // Content
-
-//-----------------------------------------------------------------------------
-void KHTMLContentBlocks::Comment(char ch)
-//-----------------------------------------------------------------------------
-{
-	if (!m_bHadTextContent)
-	{
-		Skeleton(ch);
-	}
-
-} // Comment
-
-//-----------------------------------------------------------------------------
-void KHTMLContentBlocks::DocumentType(char ch)
-//-----------------------------------------------------------------------------
-{
-	Skeleton(ch);
-
-} // DTD
-
-//-----------------------------------------------------------------------------
-void KHTMLContentBlocks::ProcessingInstruction(char ch)
-//-----------------------------------------------------------------------------
-{
-	Skeleton(ch);
-
-} // ProcessingInstruction
 
 //-----------------------------------------------------------------------------
 void KHTMLContentBlocks::Invalid(char ch)
@@ -146,17 +173,6 @@ void KHTMLContentBlocks::Invalid(char ch)
 	Skeleton(ch);
 
 } // Invalid
-
-//-----------------------------------------------------------------------------
-void KHTMLContentBlocks::Emit(OutputType Type)
-//-----------------------------------------------------------------------------
-{
-	if (Type != COMMENT)
-	{
-		FlushContentBlock();
-	}
-
-} // Output
 
 } // end of namespace dekaf2
 

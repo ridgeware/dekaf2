@@ -19,7 +19,7 @@ TEST_CASE("KHTMLContentBlocks")
 	</head>
 	<body>
 	<!----- another comment here until here ---> <!--really?>-->
-	<img checked href="http://www.xyz.com/my/image.png" title=Ñicé/>
+	<img checked href="http://www.xyz.com/my/image.png" title=Ñicé />
 	<p class='fancy' id=self style="curly">And finally <i class='shallow'>some</i> content</p>
 	</body>
 	</html>

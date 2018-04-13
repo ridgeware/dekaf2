@@ -330,7 +330,7 @@ void KHTMLAttribute::Serialize(KString& sOut) const
 			if (!Quote)
 			{
 				// lazy check if we need a quote (maybe the value was changed)
-				if (Value.find_first_of(" \t") != KString::npos)
+				if (Value.find_first_of(" \t\r\n\b\"'=<>`") != KString::npos)
 				{
 					Quote = '"';
 				}
@@ -634,6 +634,12 @@ bool KHTMLTag::Parse(KInStream& InStream, KStringView sOpening)
 					Name.assign(1, std::tolower(ch));
 					state = NAME;
 				}
+				else
+				{
+					// no spaces are allowed in front of tag names
+					InStream.UnRead();
+					return false;
+				}
 				break;
 
 			case NAME:
@@ -661,8 +667,10 @@ bool KHTMLTag::Parse(KInStream& InStream, KStringView sOpening)
 						// we're done
 						return true;
 					}
-					else if (ch == '/' && !bClosing)
+					else if (ch == '/')
 					{
+						// it would be good to check for !bClosing here as well,
+						// but - garbage in, garbage out
 						bSelfClosing = true;
 					}
 				}
@@ -694,6 +702,10 @@ void KHTMLTag::Serialize(KString& sOut) const
 
 		if (bSelfClosing)
 		{
+			if (!Attributes.empty())
+			{
+				sOut += ' ';
+			}
 			sOut += '/';
 		}
 
@@ -721,6 +733,10 @@ void KHTMLTag::Serialize(KOutStream& OutStream) const
 
 		if (bSelfClosing)
 		{
+			if (!Attributes.empty())
+			{
+				OutStream.Write(' ');
+			}
 			OutStream.Write('/');
 		}
 

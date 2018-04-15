@@ -910,10 +910,10 @@ void KHTMLParser::Invalid(const KHTMLStringObject& Object)
 bool KHTMLParser::Parse(KInStream& InStream)
 //-----------------------------------------------------------------------------
 {
-	std::iostream::int_type ch;
+	std::istream::int_type ch;
 	bool bInvalid { false };
 
-	while ((ch = InStream.Read()) != std::iostream::traits_type::eof())
+	while ((ch = InStream.Read()) != std::istream::traits_type::eof())
 	{
 		if (bInvalid)
 		{

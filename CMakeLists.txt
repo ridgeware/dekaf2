@@ -237,6 +237,7 @@ set (HEADERS
 	kjson.h
 	klog.h
 	kmime.h
+	kmpsearch.h
 	kmru.h
 	koptions.h
 	kstringstream.h
@@ -312,6 +313,7 @@ set (SOURCES
 	kjson.cpp
 	klog.cpp
 	kmime.cpp
+	kmpsearch.cpp
 	koptions.cpp
 	kstringstream.cpp
 	koutpipe.cpp

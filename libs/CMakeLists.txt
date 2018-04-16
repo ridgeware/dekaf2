@@ -19,6 +19,9 @@ if(CMAKE_COMPILER_IS_GNUCC)
 	set(CMAKE_CXX_FLAGS ${CXX_FLAGS_STASHED})
 endif()
 
+# add the frozen lib (constexpr set and map)
+add_subdirectory(frozen)
+
 if (DEKAF2_WITH_FCGI)
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # add FCGI as an external project in the local "fcgi" directory:

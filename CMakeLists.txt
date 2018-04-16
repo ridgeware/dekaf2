@@ -219,6 +219,7 @@ set (HEADERS
 	kfdstream.h
 	kfile.h
 	kformat.h
+	kfrozen.h
 	kgetruntimestack.h
 	khash.h
 	khtmlcontentblocks.h
@@ -416,6 +417,7 @@ target_link_libraries(dekaf2
 	${MYSQL_LIBRARIES}
 	${libproc_LIBRARIES}
 	nlohmann-json
+	frozen
 	Threads::Threads
 	z
 	bz2

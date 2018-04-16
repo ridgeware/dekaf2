@@ -1072,5 +1072,18 @@ void KHTMLParser::Finished()
 
 } // Finished
 
+#ifndef DEKAF2_HAS_CPP17
+
+constexpr KStringView KHTMLComment::LEAD_IN;
+constexpr KStringView KHTMLComment::LEAD_OUT;
+constexpr KStringView KHTMLDocumentType::LEAD_IN;
+constexpr KStringView KHTMLDocumentType::LEAD_OUT;
+constexpr KStringView KHTMLProcessingInstruction::LEAD_IN;
+constexpr KStringView KHTMLProcessingInstruction::LEAD_OUT;
+constexpr KStringView KHTMLCData::LEAD_IN;
+constexpr KStringView KHTMLCData::LEAD_OUT;
+
+#endif
+
 } // end of namespace dekaf2
 

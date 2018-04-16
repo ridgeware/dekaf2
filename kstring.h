@@ -654,7 +654,7 @@ public:
 	static KString to_string(Integer i)
 	//-----------------------------------------------------------------------------
 	{
-		static_assert(std::is_integral<Integer>::value);
+		static_assert(std::is_integral<Integer>::value, "need integral type");
 		if (std::is_signed<Integer>::value)
 		{
 			return signed_to_string(static_cast<int64_t>(i));

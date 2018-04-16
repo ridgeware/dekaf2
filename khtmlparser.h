@@ -396,9 +396,9 @@ class KHTMLCData : public KHTMLStringObject
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
-	//------
+//------
 public:
-	//------
+//------
 
 	KHTMLCData()
 	: KHTMLStringObject(LEAD_IN, LEAD_OUT)
@@ -412,9 +412,9 @@ public:
 	static constexpr KStringView LEAD_IN  = "<![CDATA[";
 	static constexpr KStringView LEAD_OUT = "]]>";
 
-	//------
+//------
 protected:
-	//------
+//------
 
 	virtual bool SearchForLeadOut(KInStream& InStream) override;
 

@@ -50,7 +50,7 @@
 namespace dekaf2
 {
 
-#if !defined(DEKAF2_NO_GCC) && (DEKAF2_GCC_VERSION < 70000)
+#ifndef DEKAF2_HAS_CPP17
 
 constexpr KString::size_type KString::npos;
 constexpr KString::value_type KString::s_0ch;

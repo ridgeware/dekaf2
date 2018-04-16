@@ -347,8 +347,8 @@ int KOptions::Parse(int argc, char** argv, KOutStream& out)
 } // Parse
 
 
-#if !defined(DEKAF2_NO_GCC) && (DEKAF2_GCC_VERSION < 70000)
-	constexpr KStringView KOptions::CParms::Arg_t::sDoubleDash;
+#ifndef DEKAF2_HAS_CPP17
+	constexpr KStringView KOptions::CLIParms::Arg_t::sDoubleDash;
 #endif
 
 } // end of namespace dekaf2

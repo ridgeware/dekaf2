@@ -44,7 +44,7 @@
 
 namespace dekaf2 {
 
-#if !defined(DEKAF2_NO_GCC) && (DEKAF2_GCC_VERSION < 70000)
+#if !defined(DEKAF2_HAS_CPP17)
 
 constexpr KStringView KCharSet::ANY_ISO8859;
 constexpr KStringView KCharSet::DEFAULT_CHARSET;
@@ -58,6 +58,7 @@ constexpr KStringView KMIME::WWW_FORM_URLENCODED;
 constexpr KStringView KMIME::MULTIPART_FORM_DATA;
 constexpr KStringView KMIME::TEXT_PLAIN;
 constexpr KStringView KMIME::APPLICATION_BINARY;
+constexpr KStringView KMIME::APPLICATION_JAVASCRIPT;
 
 #endif
 

@@ -82,8 +82,8 @@ void* memrchr(const void* s, int c, size_t n)
 
 namespace dekaf2 {
 
-#if !defined(DEKAF2_NO_GCC) && (DEKAF2_GCC_VERSION < 70000)
-
+#ifndef DEKAF2_HAS_CPP17
+	
 constexpr KStringView::size_type KStringView::npos;
 constexpr KStringView::value_type KStringView::s_0ch;
 

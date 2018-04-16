@@ -187,53 +187,53 @@ bool KCGI::Parse(char chCommentDelim)
 
 } // Parse
 
-#if !defined(DEKAF2_NO_GCC) && (DEKAF2_GCC_VERSION < 70000)
+#ifndef DEKAF2_HAS_CPP17
 
-constexpr KStringView KHeader::AUTH_PASSWORD;
-constexpr KStringView KHeader::AUTH_TYPE;
-constexpr KStringView KHeader::AUTH_USER;
-constexpr KStringView KHeader::CERT_COOKIE;
-constexpr KStringView KHeader::CERT_FLAGS;
-constexpr KStringView KHeader::CERT_ISSUER;
-constexpr KStringView KHeader::CERT_KEYSIZE;
-constexpr KStringView KHeader::CERT_SECRETKEYSIZE;
-constexpr KStringView KHeader::CERT_SERIALNUMBER;
-constexpr KStringView KHeader::CERT_SERVER_ISSUER;
-constexpr KStringView KHeader::CERT_SERVER_SUBJECT;
-constexpr KStringView KHeader::CERT_SUBJECT;
-constexpr KStringView KHeader::CF_TEMPLATE_PATH;
-constexpr KStringView KHeader::CONTENT_LENGTH;
-constexpr KStringView KHeader::CONTENT_TYPE;
-constexpr KStringView KHeader::CONTEXT_PATH;
-constexpr KStringView KHeader::GATEWAY_INTERFACE;
-constexpr KStringView KHeader::HTTPS;
-constexpr KStringView KHeader::HTTPS_KEYSIZE;
-constexpr KStringView KHeader::HTTPS_SECRETKEYSIZE;
-constexpr KStringView KHeader::HTTPS_SERVER_ISSUER;
-constexpr KStringView KHeader::HTTPS_SERVER_SUBJECT;
-constexpr KStringView KHeader::HTTP_ACCEPT;
-constexpr KStringView KHeader::HTTP_ACCEPT_ENCODING;
-constexpr KStringView KHeader::HTTP_ACCEPT_LANGUAGE;
-constexpr KStringView KHeader::HTTP_CONNECTION;
-constexpr KStringView KHeader::HTTP_COOKIE;
-constexpr KStringView KHeader::HTTP_HOST;
-constexpr KStringView KHeader::HTTP_REFERER;
-constexpr KStringView KHeader::HTTP_USER_AGENT;
-constexpr KStringView KHeader::QUERY_STRING;
-constexpr KStringView KHeader::REMOTE_ADDR;
-constexpr KStringView KHeader::REMOTE_HOST;
-constexpr KStringView KHeader::REMOTE_USER;
-constexpr KStringView KHeader::REQUEST_METHOD;
-constexpr KStringView KHeader::REQUEST_URI;
-constexpr KStringView KHeader::SCRIPT_NAME;
-constexpr KStringView KHeader::SERVER_NAME;
-constexpr KStringView KHeader::SERVER_PORT;
-constexpr KStringView KHeader::SERVER_PORT_SECURE;
-constexpr KStringView KHeader::SERVER_PROTOCOL;
-constexpr KStringView KHeader::SERVER_SOFTWARE;
-constexpr KStringView KHeader::WEB_SERVER_API;
+constexpr KStringView KCGI::AUTH_PASSWORD;
+constexpr KStringView KCGI::AUTH_TYPE;
+constexpr KStringView KCGI::AUTH_USER;
+constexpr KStringView KCGI::CERT_COOKIE;
+constexpr KStringView KCGI::CERT_FLAGS;
+constexpr KStringView KCGI::CERT_ISSUER;
+constexpr KStringView KCGI::CERT_KEYSIZE;
+constexpr KStringView KCGI::CERT_SECRETKEYSIZE;
+constexpr KStringView KCGI::CERT_SERIALNUMBER;
+constexpr KStringView KCGI::CERT_SERVER_ISSUER;
+constexpr KStringView KCGI::CERT_SERVER_SUBJECT;
+constexpr KStringView KCGI::CERT_SUBJECT;
+constexpr KStringView KCGI::CF_TEMPLATE_PATH;
+constexpr KStringView KCGI::CONTENT_LENGTH;
+constexpr KStringView KCGI::CONTENT_TYPE;
+constexpr KStringView KCGI::CONTEXT_PATH;
+constexpr KStringView KCGI::GATEWAY_INTERFACE;
+constexpr KStringView KCGI::HTTPS;
+constexpr KStringView KCGI::HTTPS_KEYSIZE;
+constexpr KStringView KCGI::HTTPS_SECRETKEYSIZE;
+constexpr KStringView KCGI::HTTPS_SERVER_ISSUER;
+constexpr KStringView KCGI::HTTPS_SERVER_SUBJECT;
+constexpr KStringView KCGI::HTTP_ACCEPT;
+constexpr KStringView KCGI::HTTP_ACCEPT_ENCODING;
+constexpr KStringView KCGI::HTTP_ACCEPT_LANGUAGE;
+constexpr KStringView KCGI::HTTP_CONNECTION;
+constexpr KStringView KCGI::HTTP_COOKIE;
+constexpr KStringView KCGI::HTTP_HOST;
+constexpr KStringView KCGI::HTTP_REFERER;
+constexpr KStringView KCGI::HTTP_USER_AGENT;
+constexpr KStringView KCGI::QUERY_STRING;
+constexpr KStringView KCGI::REMOTE_ADDR;
+constexpr KStringView KCGI::REMOTE_HOST;
+constexpr KStringView KCGI::REMOTE_USER;
+constexpr KStringView KCGI::REQUEST_METHOD;
+constexpr KStringView KCGI::REQUEST_URI;
+constexpr KStringView KCGI::SCRIPT_NAME;
+constexpr KStringView KCGI::SERVER_NAME;
+constexpr KStringView KCGI::SERVER_PORT;
+constexpr KStringView KCGI::SERVER_PORT_SECURE;
+constexpr KStringView KCGI::SERVER_PROTOCOL;
+constexpr KStringView KCGI::SERVER_SOFTWARE;
+constexpr KStringView KCGI::WEB_SERVER_API;
 
-constexpr KStringView KHeader::FCGI_WEB_SERVER_ADDRS;
+constexpr KStringView KCGI::FCGI_WEB_SERVER_ADDRS;
 
 #endif
 

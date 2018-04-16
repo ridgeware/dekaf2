@@ -840,4 +840,21 @@ void KLog::IntException(KStringView sWhat, KStringView sFunction, KStringView sC
 
 } // IntException
 
+#ifndef DEKAF2_HAS_CPP17
+
+constexpr KStringView KLog::STDOUT;
+constexpr KStringView KLog::STDERR;
+constexpr KStringView KLog::SYSLOG;
+constexpr KStringView KLog::DBAR;
+constexpr KStringView KLog::BAR;
+constexpr KStringView KLog::DASH;
+
+constexpr const char* const KLog::s_sEnvLog;
+constexpr const char* const KLog::s_sEnvFlag;
+constexpr const char* const KLog::s_sEnvTrace;
+constexpr const char* const KLog::s_sDefaultLog;
+constexpr const char* const KLog::s_sDefaultFlag;
+
+#endif
+
 } // of namespace dekaf2

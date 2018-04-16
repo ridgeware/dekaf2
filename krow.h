@@ -43,6 +43,7 @@
 #pragma once
 
 #include "kprops.h"
+#include "bits/ktemplate.h"
 
 #define ESCAPE_MYSQL "\'\\"
 #define ESCAPE_MSSQL "\'"
@@ -165,59 +166,20 @@ public:
 		m_sTablename =  sTablename;
 	}
 
-	bool AddCol (KStringView sColName, KStringView sValue, uint64_t iFlags=0, uint32_t iMaxLen=0)
+	template<typename COLTYPE, typename std::enable_if<detail::is_narrow_cpp_str<COLTYPE>::value, int>::type = 0>
+	bool AddCol (KStringView sColName, COLTYPE Value, uint64_t iFlags=0, uint32_t iMaxLen=0)
 	{
-		KCOL col (sValue, iFlags, iMaxLen);
+		KCOL col (Value, iFlags, iMaxLen);
 		return (KCOLS::Add (sColName, std::move(col)) != KCOLS::end());
 	}
 
-	bool AddCol (KStringView sColName, int16_t iValue, uint64_t iFlags=0, uint32_t iMaxLen=0)
+	template<typename COLTYPE, typename std::enable_if<!detail::is_narrow_cpp_str<COLTYPE>::value, int>::type = 0>
+	bool AddCol (KStringView sColName, COLTYPE Value, uint64_t iFlags=0, uint32_t iMaxLen=0)
 	{
-		KCOL col (kFormat("{}", iValue), iFlags, iMaxLen);
+		KCOL col (kFormat("{}", Value), iFlags, iMaxLen);
 		return (KCOLS::Add (sColName, std::move(col)) != KCOLS::end());
 	}
 
-	bool AddCol (KStringView sColName, int32_t iValue, uint64_t iFlags=0, uint32_t iMaxLen=0)
-	{
-		KCOL col (kFormat("{}", iValue), iFlags, iMaxLen);
-		return (KCOLS::Add (sColName, std::move(col)) != KCOLS::end());
-	}
-
-	bool AddCol (KStringView sColName, int64_t iValue, uint64_t iFlags=0, uint32_t iMaxLen=0)
-	{
-		KCOL col (kFormat("{}", iValue), iFlags, iMaxLen);
-		return (KCOLS::Add (sColName, std::move(col)) != KCOLS::end());
-	}
-
-	bool AddCol (KStringView sColName, uint16_t iValue, uint64_t iFlags=0, uint32_t iMaxLen=0)
-	{
-		KCOL col (kFormat("{}", iValue), iFlags, iMaxLen);
-		return (KCOLS::Add (sColName, std::move(col)) != KCOLS::end());
-	}
-
-	bool AddCol (KStringView sColName, uint32_t iValue, uint64_t iFlags=0, uint32_t iMaxLen=0)
-	{
-		KCOL col (kFormat("{}", iValue), iFlags, iMaxLen);
-		return (KCOLS::Add (sColName, std::move(col)) != KCOLS::end());
-	}
-
-	bool AddCol (KStringView sColName, uint64_t iValue, uint64_t iFlags=0, uint32_t iMaxLen=0)
-	{
-		KCOL col (kFormat("{}", iValue), iFlags, iMaxLen);
-		return (KCOLS::Add (sColName, std::move(col)) != KCOLS::end());
-	}
-
-	bool AddCol (KStringView sColName, std::string::size_type iValue, uint64_t iFlags=0, uint32_t iMaxLen=0)
-	{
-		KCOL col (kFormat("{}", iValue), iFlags,	 iMaxLen);
-		return (KCOLS::Add (sColName, std::move(col)) != KCOLS::end());
-	}
-
-	bool AddCol (KStringView sColName, double nValue, uint64_t iFlags=0, uint32_t iMaxLen=0)
-	{
-		KCOL col (kFormat("{}", nValue), iFlags, iMaxLen);
-		return (KCOLS::Add (sColName, std::move(col)) != KCOLS::end());
-	}
 
 	bool SetValue (KStringView sColName, KStringView sValue)
 	{

@@ -43,7 +43,7 @@
 #include "khtmlparser.h"
 #include "kstringstream.h"
 #include "klog.h"
-#include <unordered_set>
+#include "kfrozen.h"
 
 namespace dekaf2 {
 
@@ -505,48 +505,48 @@ bool KHTMLTag::IsInline() const
 {
 	// https://en.wikipedia.org/wiki/HTML_element#Inline_elements
 
-	// TODO fix possible race in MT
-	static std::unordered_set<KStringView> s_InlineTags {
-		KStringView {"a"},
-		KStringView {"abbr"},
-		KStringView {"acronym"},
-		KStringView {"dfn"},
-		KStringView {"em"},
-		KStringView {"strong"},
-		KStringView {"code"},
-		KStringView {"kbd"},
-		KStringView {"samp"},
-		KStringView {"var"},
-		KStringView {"b"},
-		KStringView {"i"},
-		KStringView {"u"},
-		KStringView {"small"},
-		KStringView {"s"},
-		KStringView {"big"},
-		KStringView {"strike"},
-		KStringView {"tt"},
-		KStringView {"font"},
-		KStringView {"span"},
-		KStringView {"br"},
-		KStringView {"bdi"},
-		KStringView {"bdo"},
-		KStringView {"cite"},
-		KStringView {"data"},
-		KStringView {"del"},
-		KStringView {"ins"},
-		KStringView {"mark"},
-		KStringView {"q"},
-		KStringView {"rb"},
-		KStringView {"rp"},
-		KStringView {"rt"},
-		KStringView {"rtc"},
-		KStringView {"ruby"},
-		KStringView {"script"},
-		KStringView {"sub"},
-		KStringView {"template"},
-		KStringView {"time"},
-		KStringView {"wbr"}
-	};
+	// this set is created at compile time
+	static constexpr auto s_InlineTags {frozen::make_unordered_set(	{
+		"a"_ksv,
+		"abbr"_ksv,
+		"acronym"_ksv,
+		"dfn"_ksv,
+		"em"_ksv,
+		"strong"_ksv,
+		"code"_ksv,
+		"kbd"_ksv,
+		"samp"_ksv,
+		"var"_ksv,
+		"b"_ksv,
+		"i"_ksv,
+		"u"_ksv,
+		"small"_ksv,
+		"s"_ksv,
+		"big"_ksv,
+		"strike"_ksv,
+		"tt"_ksv,
+		"font"_ksv,
+		"span"_ksv,
+		"br"_ksv,
+		"bdi"_ksv,
+		"bdo"_ksv,
+		"cite"_ksv,
+		"data"_ksv,
+		"del"_ksv,
+		"ins"_ksv,
+		"mark"_ksv,
+		"q"_ksv,
+		"rb"_ksv,
+		"rp"_ksv,
+		"rt"_ksv,
+		"rtc"_ksv,
+		"ruby"_ksv,
+		"script"_ksv,
+		"sub"_ksv,
+		"template"_ksv,
+		"time"_ksv,
+		"wbr"_ksv
+	})};
 
 	return s_InlineTags.find(Name) != s_InlineTags.end();
 

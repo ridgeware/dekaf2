@@ -1148,6 +1148,15 @@ bool kContains(KStringView sInput, KStringView sPattern)
 
 } // kContains
 
+inline namespace literals {
+
+	/// provide a string literal for KStringView
+	constexpr dekaf2::KStringView operator"" _ksv(const char *data, std::size_t size)
+	{
+		return {data, size};
+	}
+
+} // namespace literals
 
 } // end of namespace dekaf2
 
@@ -1167,7 +1176,7 @@ namespace std
 		}
 	};
 
-}
+} // namespace std
 
 namespace boost
 {
@@ -1185,5 +1194,5 @@ namespace boost
 		}
 	};
 
-}
+} // namespace boost
 

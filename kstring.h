@@ -909,6 +909,16 @@ inline bool kStrIn (const char* sNeedle, const KString& sHaystack, char iDelim='
 	return kStrIn (sNeedle, sHaystack.c_str(), iDelim);
 }
 
+inline namespace literals {
+
+	/// provide a string literal for KString
+	inline dekaf2::KString operator"" _ks(const char *data, std::size_t size)
+	{
+		return {data, size};
+	}
+
+} // namespace literals
+
 } // end of namespace dekaf2
 
 namespace std

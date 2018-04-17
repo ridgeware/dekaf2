@@ -46,6 +46,9 @@
 
 using namespace dekaf2;
 
+constexpr KStringView ESCAPE_MYSQL { "\'\\" };
+constexpr KStringView ESCAPE_MSSQL { "\'"   };
+
 int32_t  detail::KCommonSQLBase::m_iDebugLevel{2};
 
 //-----------------------------------------------------------------------------
@@ -70,21 +73,21 @@ KString KROW::ColumnInfoForLogOutput (uint32_t ii)
 void KROW::EscapeChars (KStringView sString, KString& sEscaped, SQLTYPE iDBType)
 //-----------------------------------------------------------------------------
 {
-	const char* szCharsToEscape = "";
+	KStringView sCharsToEscape;
 
 	switch (iDBType)
 	{
 	case DBT_SQLSERVER:
 	case DBT_SYBASE:
-		szCharsToEscape = ESCAPE_MSSQL;
+		sCharsToEscape = ESCAPE_MSSQL;
 		break;
 	case DBT_MYSQL:
 	default:
-		szCharsToEscape = ESCAPE_MYSQL;
+		sCharsToEscape = ESCAPE_MYSQL;
 		break;
 	}
 
-	EscapeChars (sString, sEscaped, szCharsToEscape);
+	EscapeChars (sString, sEscaped, sCharsToEscape);
 
 } // EscapeChars - v1
 

@@ -45,10 +45,6 @@
 #include "kprops.h"
 #include "bits/ktemplate.h"
 
-#define ESCAPE_MYSQL "\'\\"
-#define ESCAPE_MSSQL "\'"
-
-
 namespace dekaf2 {
 
 namespace detail {

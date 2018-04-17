@@ -55,6 +55,9 @@ namespace dekaf2
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// a Fowler-Noll-Vo hash function (FNV)
 // from: https://stackoverflow.com/questions/34597260/stdhash-value-on-char-value-and-not-on-memory-address
+// actually, this implementation is not constexpr, despite the various qualifiers.. it has
+// a modified member variable and needs a reinterpret cast, and casting from void*, all of
+// which do not qualify for constexpr functions and classes
 template <typename ResultT, ResultT OffsetBasis, ResultT Prime>
 class basic_fnv1a final
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::

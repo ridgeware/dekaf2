@@ -40,6 +40,7 @@ set (USOURCES
 	kstringstream_tests.cpp
 	kstringutils_tests.cpp
 	kstringview_tests.cpp
+	kstringviewz_tests.cpp
 	ksubscribe_tests.cpp
 	ktcpserver_tests.cpp
 	kurl_tests.cpp

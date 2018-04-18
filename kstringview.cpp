@@ -568,5 +568,12 @@ double KStringView::Double() const noexcept
 	return std::strtod(sTmp.c_str(), nullptr);
 }
 
+//-----------------------------------------------------------------------------
+void KStringView::Warn(KStringView sWhat) const
+//-----------------------------------------------------------------------------
+{
+	kWarning("{}", sWhat);
+}
+
 } // end of namespace dekaf2
 

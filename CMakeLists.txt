@@ -204,6 +204,7 @@ set (HEADERS
 	bits/kmutable_pair.h
 	bits/kprops-multi-index.h
 	bits/kprops-std-map.h
+	bits/kstringviewz.h
 	bits/ktemplate.h
 	bits/kunique_deleter.h
 	bits/kurldualencode.h
@@ -286,6 +287,7 @@ set (SOURCES
 	# KEEP ALPHABETIZED!!
 	bits/kbasepipe.cpp
 	bits/kbaseshell.cpp
+	bits/kstringviewz.cpp
 	bits/simd/kfindfirstof.cpp
 	dekaf2.cpp
 	kbase64.cpp

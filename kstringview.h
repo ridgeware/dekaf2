@@ -156,6 +156,9 @@ bool kEndsWith(KStringView sInput, KStringView sPattern);
 bool kContains(KStringView sInput, KStringView sPattern);
 //----------------------------------------------------------------------
 
+// forward declarations
+class KString;
+class KStringViewZ;
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class KStringView {
@@ -179,6 +182,9 @@ public:
 	using value_type             = rep_type::value_type;
 	using difference_type        = rep_type::difference_type;
 	using reference              = rep_type::reference;
+	using const_reference        = rep_type::reference;
+	using pointer                = value_type*;
+	using const_pointer          = const pointer;
 	using traits_type            = rep_type::traits_type;
 
 	static constexpr size_type npos = std::string::npos;
@@ -196,7 +202,6 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	// constexpr (currently not constexpr, probably with final c++17
 	KStringView(const std::string& str) noexcept
 	//-----------------------------------------------------------------------------
 	    : m_rep(str.data(), str.size())
@@ -218,6 +223,15 @@ public:
 	    : m_rep(s)
 	{
 	}
+
+	//-----------------------------------------------------------------------------
+	constexpr
+	KStringView(KStringViewZ svz) noexcept;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	KStringView(const KString& svz) noexcept;
+	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	constexpr
@@ -407,7 +421,7 @@ public:
 	{
 		if DEKAF2_UNLIKELY(empty())
 		{
-			// TODO warn
+			Warn("front() is not available");
 			return s_0ch;
 		}
 		return m_rep.front();
@@ -420,7 +434,7 @@ public:
 	{
 		if DEKAF2_UNLIKELY(empty())
 		{
-			// TODO warn
+			Warn("back() is not available");
 			return s_0ch;
 		}
 		return m_rep.back();
@@ -491,7 +505,7 @@ public:
 	{
 		if DEKAF2_UNLIKELY(index >= size())
 		{
-			// TODO warn
+			Warn("Index access out of range");
 			return s_0ch;
 		}
 		return m_rep[index];
@@ -504,7 +518,7 @@ public:
 	{
 		if DEKAF2_UNLIKELY(index >= size())
 		{
-			// TODO warn
+			Warn("Index access out of range");
 			return s_0ch;
 		}
 		return m_rep[index];
@@ -517,7 +531,7 @@ public:
 	{
 		if (pos > size())
 		{
-			// TODO warn
+			Warn("pos > size()");
 			pos = size();
 		}
 		return self_type(begin() + pos, std::min(count, size() - pos));
@@ -530,7 +544,7 @@ public:
 	{
 		if (n > size())
 		{
-			// warn
+			Warn("n > size()");
 			n = size();
 		}
 		unchecked_remove_prefix(n);
@@ -543,7 +557,7 @@ public:
 	{
 		if (n > size())
 		{
-			// TODO warn
+			Warn("n > size()");
 			n = size();
 		}
 		unchecked_remove_suffix(n);
@@ -609,6 +623,11 @@ public:
 	{
 		std::swap(m_rep, other.m_rep);
 	}
+
+	//-----------------------------------------------------------------------------
+	/// nonstandard: output the hash value of instance by calling std::hash() for the type
+	std::size_t Hash() const;
+	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// nonstandard: emulate erase if range is at begin or end
@@ -850,6 +869,10 @@ protected:
 		m_rep.remove_suffix(n);
 #endif
 	}
+
+	//-----------------------------------------------------------------------------
+	void Warn(KStringView sWhat) const;
+	//-----------------------------------------------------------------------------
 
 	rep_type m_rep;
 
@@ -1158,6 +1181,14 @@ inline namespace literals {
 
 } // namespace literals
 
+//-----------------------------------------------------------------------------
+inline std::ostream& operator <<(std::ostream& stream, KStringView str)
+//-----------------------------------------------------------------------------
+{
+	stream.write(str.data(), str.size());
+	return stream;
+}
+
 } // end of namespace dekaf2
 
 namespace std
@@ -1195,4 +1226,32 @@ namespace boost
 	};
 
 } // namespace boost
+
+//----------------------------------------------------------------------
+inline std::size_t dekaf2::KStringView::Hash() const
+//----------------------------------------------------------------------
+{
+	return std::hash<dekaf2::KStringView>()(*this);
+}
+
+#include "bits/kstringviewz.h"
+
+//-----------------------------------------------------------------------------
+inline
+constexpr
+dekaf2::KStringView::KStringView(KStringViewZ svz) noexcept
+//-----------------------------------------------------------------------------
+: KStringView(svz.data(), svz.size())
+{
+}
+
+#include "kstring.h"
+
+//-----------------------------------------------------------------------------
+inline
+dekaf2::KStringView::KStringView(const KString& str) noexcept
+//-----------------------------------------------------------------------------
+: KStringView(str.data(), str.size())
+{
+}
 

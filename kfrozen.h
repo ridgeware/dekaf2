@@ -51,11 +51,10 @@
 #include <frozen/unordered_map.h>
 #include <frozen/unordered_set.h>
 #include "kstringview.h"
-#include "kstring.h"
 
 namespace frozen {
 
-// add hash specialization for KStringView to frozen:: - the easier
+// add hash specialization for KStringView(Z) to frozen:: - the easier
 // the better, the compiler will find the seed needed for a perfect hash anyway
 
 template <>
@@ -72,6 +71,31 @@ struct elsa<dekaf2::KStringView>
 	}
 
 	constexpr std::size_t operator()(dekaf2::KStringView value, std::size_t seed) const
+	{
+		std::size_t d = seed;
+		for (std::size_t i = 0; i < value.size(); ++i)
+		{
+			d = (d * 0x01000193) ^ value[i];
+		}
+		return d;
+	}
+
+};
+
+template <>
+struct elsa<dekaf2::KStringViewZ>
+{
+	constexpr std::size_t operator()(dekaf2::KStringViewZ value) const
+	{
+		std::size_t d = 5381;
+		for (std::size_t i = 0; i < value.size(); ++i)
+		{
+			d = d * 33 + value[i];
+		}
+		return d;
+	}
+
+	constexpr std::size_t operator()(dekaf2::KStringViewZ value, std::size_t seed) const
 	{
 		std::size_t d = seed;
 		for (std::size_t i = 0; i < value.size(); ++i)

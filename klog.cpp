@@ -356,10 +356,13 @@ void KLogTTYSerializer::AddMultiLineMessage(KStringView sPrefix, KStringView sMe
 			m_sBuffer += sLine;
 			m_sBuffer += '\n';
 		}
-		sMessage.remove_prefix(pos);
 		if (pos != KStringView::npos)
 		{
-			sMessage.remove_prefix(1);
+			sMessage.remove_prefix(pos+1);
+		}
+		else
+		{
+			sMessage.clear();
 		}
 	}
 

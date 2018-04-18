@@ -187,7 +187,7 @@ KStringView KProtocol::Parse (KStringView svSource, bool bAcceptWithoutColon)
 
 			// we do accept schemata with only one slash, as that is
 			// a common typo (but we do correct them when serializing)
-			if (svSource.size () >= iFound + 1
+			if (svSource.size () > iFound + 1
 			    && svSource[iFound + 1] == '/')
 			{
 				svSource.remove_prefix (iFound + 2);

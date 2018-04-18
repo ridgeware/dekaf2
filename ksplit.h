@@ -147,6 +147,10 @@ size_t kSplit (
 				iNext = svBuffer.find_first_not_of(svDelim, iNext);
 			}
 
+			if (iNext > svBuffer.size())
+			{
+				iNext = svBuffer.size();
+			}
 			svBuffer.remove_prefix(iNext);
 		}
 		else

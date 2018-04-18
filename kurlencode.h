@@ -134,41 +134,44 @@ template<class String>
 void kUrlDecode (String& sDecode, bool bPlusAsSpace = false)
 //-----------------------------------------------------------------------------
 {
-	auto insert  = &sDecode[0];
-	auto current = insert;
-	auto end     = current + sDecode.size();
-	while (current < end)
+	if (!sDecode.empty())
 	{
-		if (*current == '+')
+		auto insert  = &sDecode[0];
+		auto current = insert;
+		auto end     = current + sDecode.size();
+		while (current < end)
 		{
-			if (bPlusAsSpace)
+			if (*current == '+')
 			{
-				*insert++ = ' ';
-				++current;
+				if (bPlusAsSpace)
+				{
+					*insert++ = ' ';
+					++current;
+				}
+				else
+				{
+					*insert++ = *current++;
+				}
+			}
+			else if (*current == '%'
+				&& end - current > 2
+				&& std::isxdigit(*(current + 1))
+				&& std::isxdigit(*(current + 2)))
+			{
+				*insert++ = detail::kx2c(current + 1);
+				current += 3;
 			}
 			else
 			{
 				*insert++ = *current++;
 			}
 		}
-		else if (*current == '%'
-			&& end - current > 2
-			&& std::isxdigit(*(current + 1))
-			&& std::isxdigit(*(current + 2)))
-		{
-			*insert++ = detail::kx2c(current + 1);
-			current += 3;
-		}
-		else
-		{
-			*insert++ = *current++;
-		}
-	}
 
-	if (insert < end)
-	{
-		size_t nsz = insert - &sDecode[0];
-		sDecode.erase(nsz);
+		if (insert < end)
+		{
+			size_t nsz = insert - &sDecode[0];
+			sDecode.erase(nsz);
+		}
 	}
 
 } // kUrlDecode
@@ -181,34 +184,37 @@ template<class String>
 void kUrlDecode (KStringView sSource, String& sTarget, bool bPlusAsSpace = false)
 //-----------------------------------------------------------------------------
 {
-	sTarget.reserve (sTarget.size ()+sSource.size ());
-	auto current = &sSource[0];
-	auto end     = current + sSource.size();
-	while (current < end)
+	if (!sSource.empty())
 	{
-		if (*current == '+')
+		sTarget.reserve (sTarget.size ()+sSource.size ());
+		auto current = &sSource[0];
+		auto end     = current + sSource.size();
+		while (current < end)
 		{
-			if (bPlusAsSpace)
+			if (*current == '+')
 			{
-				sTarget += ' ';
-				++current;
+				if (bPlusAsSpace)
+				{
+					sTarget += ' ';
+					++current;
+				}
+				else
+				{
+					sTarget += *current++;
+				}
+			}
+			else if (*current == '%'
+				&& end - current > 2
+				&& std::isxdigit(*(current + 1))
+				&& std::isxdigit(*(current + 2)))
+			{
+				sTarget += detail::kx2c(current + 1);
+				current += 3;
 			}
 			else
 			{
 				sTarget += *current++;
 			}
-		}
-		else if (*current == '%'
-		    && end - current > 2
-			&& std::isxdigit(*(current + 1))
-			&& std::isxdigit(*(current + 2)))
-		{
-			sTarget += detail::kx2c(current + 1);
-			current += 3;
-		}
-		else
-		{
-			sTarget += *current++;
 		}
 	}
 
@@ -426,14 +432,21 @@ public:
 	{
 		while (!sv.empty())
 		{
+			KStringView svEncoded;
+
 			// Get bounds of query pair
 			auto iEnd = sv.find (chPairSep); // Find separator
 			if (iEnd == KString::npos)
 			{
 				iEnd = sv.size();
+				svEncoded = sv.substr(0, iEnd);
+				sv.remove_prefix(iEnd);
 			}
-
-			KStringView svEncoded{sv.substr (0, iEnd)};
+			else
+			{
+				svEncoded = sv.substr(0, iEnd);
+				sv.remove_prefix(iEnd+1);
+			}
 
 			auto iEquals = svEncoded.find (chKeyValSep);
 			if (iEquals > iEnd)
@@ -441,8 +454,8 @@ public:
 				iEquals = iEnd;
 			}
 
-			KStringView svKeyEncoded (svEncoded.substr (0          , iEquals));
-			KStringView svValEncoded (svEncoded.substr (iEquals + 1         ));
+			KStringView svKeyEncoded (svEncoded.substr (0, iEquals));
+			KStringView svValEncoded (iEquals < svEncoded.size() ? svEncoded.substr (iEquals + 1) : KStringView{});
 
 			// we can have empty values
 			if (svKeyEncoded.size () /* && svValEncoded.size () */ )
@@ -453,8 +466,6 @@ public:
 				kUrlDecode (svValEncoded, sVal, Component);
 				m_sDecoded.Add (std::move (sKey), std::move (sVal));
 			}
-
-			sv.remove_prefix(iEnd + 1);
 		}
 	}
 

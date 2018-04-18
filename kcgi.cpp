@@ -84,7 +84,7 @@ void KCGI::clear()
 } // init
 
 //-----------------------------------------------------------------------------
-KString KCGI::GetVar (KStringView sEnvironmentVariable, const char* sDefaultValue/*=""*/)
+KString KCGI::GetVar (KStringViewZ sEnvironmentVariable, KStringViewZ sDefaultValue/*=""*/)
 //-----------------------------------------------------------------------------
 {
 #ifdef DEKAF2_WITH_FCGI
@@ -189,51 +189,51 @@ bool KCGI::Parse(char chCommentDelim)
 
 #ifndef DEKAF2_HAS_CPP17
 
-constexpr KStringView KCGI::AUTH_PASSWORD;
-constexpr KStringView KCGI::AUTH_TYPE;
-constexpr KStringView KCGI::AUTH_USER;
-constexpr KStringView KCGI::CERT_COOKIE;
-constexpr KStringView KCGI::CERT_FLAGS;
-constexpr KStringView KCGI::CERT_ISSUER;
-constexpr KStringView KCGI::CERT_KEYSIZE;
-constexpr KStringView KCGI::CERT_SECRETKEYSIZE;
-constexpr KStringView KCGI::CERT_SERIALNUMBER;
-constexpr KStringView KCGI::CERT_SERVER_ISSUER;
-constexpr KStringView KCGI::CERT_SERVER_SUBJECT;
-constexpr KStringView KCGI::CERT_SUBJECT;
-constexpr KStringView KCGI::CF_TEMPLATE_PATH;
-constexpr KStringView KCGI::CONTENT_LENGTH;
-constexpr KStringView KCGI::CONTENT_TYPE;
-constexpr KStringView KCGI::CONTEXT_PATH;
-constexpr KStringView KCGI::GATEWAY_INTERFACE;
-constexpr KStringView KCGI::HTTPS;
-constexpr KStringView KCGI::HTTPS_KEYSIZE;
-constexpr KStringView KCGI::HTTPS_SECRETKEYSIZE;
-constexpr KStringView KCGI::HTTPS_SERVER_ISSUER;
-constexpr KStringView KCGI::HTTPS_SERVER_SUBJECT;
-constexpr KStringView KCGI::HTTP_ACCEPT;
-constexpr KStringView KCGI::HTTP_ACCEPT_ENCODING;
-constexpr KStringView KCGI::HTTP_ACCEPT_LANGUAGE;
-constexpr KStringView KCGI::HTTP_CONNECTION;
-constexpr KStringView KCGI::HTTP_COOKIE;
-constexpr KStringView KCGI::HTTP_HOST;
-constexpr KStringView KCGI::HTTP_REFERER;
-constexpr KStringView KCGI::HTTP_USER_AGENT;
-constexpr KStringView KCGI::QUERY_STRING;
-constexpr KStringView KCGI::REMOTE_ADDR;
-constexpr KStringView KCGI::REMOTE_HOST;
-constexpr KStringView KCGI::REMOTE_USER;
-constexpr KStringView KCGI::REQUEST_METHOD;
-constexpr KStringView KCGI::REQUEST_URI;
-constexpr KStringView KCGI::SCRIPT_NAME;
-constexpr KStringView KCGI::SERVER_NAME;
-constexpr KStringView KCGI::SERVER_PORT;
-constexpr KStringView KCGI::SERVER_PORT_SECURE;
-constexpr KStringView KCGI::SERVER_PROTOCOL;
-constexpr KStringView KCGI::SERVER_SOFTWARE;
-constexpr KStringView KCGI::WEB_SERVER_API;
+constexpr KStringViewZ KCGI::AUTH_PASSWORD;
+constexpr KStringViewZ KCGI::AUTH_TYPE;
+constexpr KStringViewZ KCGI::AUTH_USER;
+constexpr KStringViewZ KCGI::CERT_COOKIE;
+constexpr KStringViewZ KCGI::CERT_FLAGS;
+constexpr KStringViewZ KCGI::CERT_ISSUER;
+constexpr KStringViewZ KCGI::CERT_KEYSIZE;
+constexpr KStringViewZ KCGI::CERT_SECRETKEYSIZE;
+constexpr KStringViewZ KCGI::CERT_SERIALNUMBER;
+constexpr KStringViewZ KCGI::CERT_SERVER_ISSUER;
+constexpr KStringViewZ KCGI::CERT_SERVER_SUBJECT;
+constexpr KStringViewZ KCGI::CERT_SUBJECT;
+constexpr KStringViewZ KCGI::CF_TEMPLATE_PATH;
+constexpr KStringViewZ KCGI::CONTENT_LENGTH;
+constexpr KStringViewZ KCGI::CONTENT_TYPE;
+constexpr KStringViewZ KCGI::CONTEXT_PATH;
+constexpr KStringViewZ KCGI::GATEWAY_INTERFACE;
+constexpr KStringViewZ KCGI::HTTPS;
+constexpr KStringViewZ KCGI::HTTPS_KEYSIZE;
+constexpr KStringViewZ KCGI::HTTPS_SECRETKEYSIZE;
+constexpr KStringViewZ KCGI::HTTPS_SERVER_ISSUER;
+constexpr KStringViewZ KCGI::HTTPS_SERVER_SUBJECT;
+constexpr KStringViewZ KCGI::HTTP_ACCEPT;
+constexpr KStringViewZ KCGI::HTTP_ACCEPT_ENCODING;
+constexpr KStringViewZ KCGI::HTTP_ACCEPT_LANGUAGE;
+constexpr KStringViewZ KCGI::HTTP_CONNECTION;
+constexpr KStringViewZ KCGI::HTTP_COOKIE;
+constexpr KStringViewZ KCGI::HTTP_HOST;
+constexpr KStringViewZ KCGI::HTTP_REFERER;
+constexpr KStringViewZ KCGI::HTTP_USER_AGENT;
+constexpr KStringViewZ KCGI::QUERY_STRING;
+constexpr KStringViewZ KCGI::REMOTE_ADDR;
+constexpr KStringViewZ KCGI::REMOTE_HOST;
+constexpr KStringViewZ KCGI::REMOTE_USER;
+constexpr KStringViewZ KCGI::REQUEST_METHOD;
+constexpr KStringViewZ KCGI::REQUEST_URI;
+constexpr KStringViewZ KCGI::SCRIPT_NAME;
+constexpr KStringViewZ KCGI::SERVER_NAME;
+constexpr KStringViewZ KCGI::SERVER_PORT;
+constexpr KStringViewZ KCGI::SERVER_PORT_SECURE;
+constexpr KStringViewZ KCGI::SERVER_PROTOCOL;
+constexpr KStringViewZ KCGI::SERVER_SOFTWARE;
+constexpr KStringViewZ KCGI::WEB_SERVER_API;
 
-constexpr KStringView KCGI::FCGI_WEB_SERVER_ADDRS;
+constexpr KStringViewZ KCGI::FCGI_WEB_SERVER_ADDRS;
 
 #endif
 

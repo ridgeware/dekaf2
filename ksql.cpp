@@ -190,7 +190,7 @@ static uint64_t s_ulDebugID = 0;
 
 uint32_t KSQL::m_iDebugLevel = 1;
 
-KString  kExpandVariable  (KStringView sName, KSQL::KPROPS* pVarList=NULL);
+KString  kExpandVariable  (KStringViewZ sName, KSQL::KPROPS* pVarList=NULL);
 uint32_t kExpandVariables (KString& sAnyString, KSQL::KPROPS *pVarList=NULL);
 void*    kmalloc          (uint32_t iNumBytes, const char* pszContext, bool fClearMemory=true);
 
@@ -239,17 +239,19 @@ void* kmalloc (uint32_t iNumBytes, const char* pszContext, bool bClearMemory/*=T
 } // kmalloc 
 
 //-----------------------------------------------------------------------------
-KString kExpandVariable (KStringView sName, KSQL::KPROPS* pVarList/*=NULL*/)
+KString kExpandVariable (KStringViewZ sName, KSQL::KPROPS* pVarList/*=NULL*/)
 //-----------------------------------------------------------------------------
 {
 	KString sValue;
-	if (pVarList) {
+	if (pVarList)
+	{
 		sValue = pVarList->Get(sName);
 	}
 
-	//if sName wasn't found in pVarList, then we will try to search it environment
-	if (sValue.empty()) {
-		sValue = kGetEnv(sName, "");
+	// if sName wasn't found in pVarList, then we will try to search in environment
+	if (sValue.empty())
+	{
+		sValue = kGetEnv(sName);
 	}
 
 	return sValue;
@@ -261,13 +263,6 @@ uint32_t kExpandVariables (KString& sAnyString, KSQL::KPROPS *pVarList/*=NULL*/)
 //-----------------------------------------------------------------------------
 {
 	uint32_t iNumReplacements = 0;
-
-	// TODO:IVAN: https://techqa1.translations.com/jira/browse/ONE-2810
-
-	// isolate variables
-	// if env[] is not null, use env structure for expansion
-	// otherwise use getenv("varname") for expansion
-	// follow spec carefully
 
 	KString::size_type iStartIndex = sAnyString.find("${");
 

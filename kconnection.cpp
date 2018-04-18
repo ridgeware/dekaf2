@@ -84,7 +84,7 @@ void KProxy::clear()
 }
 
 //-----------------------------------------------------------------------------
-bool KProxy::LoadFromEnv(KStringView svEnvVar)
+bool KProxy::LoadFromEnv(KStringViewZ svEnvVar)
 //-----------------------------------------------------------------------------
 {
 	Port.Parse(Domain.Parse(kGetEnv(svEnvVar)));

@@ -71,7 +71,7 @@ public:
 
 	~KCGI();
 
-	KString GetVar (KStringView sEnvironmentVariable, const char* sDefaultValue="");
+	KString GetVar (KStringViewZ sEnvironmentVariable, KStringViewZ sDefaultValue="");
 
 	bool Parse(char chCommentDelim = 0);
 
@@ -199,51 +199,51 @@ private:
 protected:
 //------
 
-	static constexpr KStringView AUTH_PASSWORD           = "AUTH_PASSWORD";
-	static constexpr KStringView AUTH_TYPE               = "AUTH_TYPE";
-	static constexpr KStringView AUTH_USER               = "AUTH_USER";
-	static constexpr KStringView CERT_COOKIE             = "CERT_COOKIE";
-	static constexpr KStringView CERT_FLAGS              = "CERT_FLAGS";
-	static constexpr KStringView CERT_ISSUER             = "CERT_ISSUER";
-	static constexpr KStringView CERT_KEYSIZE            = "CERT_KEYSIZE";
-	static constexpr KStringView CERT_SECRETKEYSIZE      = "CERT_SECRETKEYSIZE";
-	static constexpr KStringView CERT_SERIALNUMBER       = "CERT_SERIALNUMBER";
-	static constexpr KStringView CERT_SERVER_ISSUER      = "CERT_SERVER_ISSUER";
-	static constexpr KStringView CERT_SERVER_SUBJECT     = "CERT_SERVER_SUBJECT";
-	static constexpr KStringView CERT_SUBJECT            = "CERT_SUBJECT";
-	static constexpr KStringView CF_TEMPLATE_PATH        = "CF_TEMPLATE_PATH";
-	static constexpr KStringView CONTENT_LENGTH          = "CONTENT_LENGTH";
-	static constexpr KStringView CONTENT_TYPE            = "CONTENT_TYPE";
-	static constexpr KStringView CONTEXT_PATH            = "CONTEXT_PATH";
-	static constexpr KStringView GATEWAY_INTERFACE       = "GATEWAY_INTERFACE";
-	static constexpr KStringView HTTPS                   = "HTTPS";
-	static constexpr KStringView HTTPS_KEYSIZE           = "HTTPS_KEYSIZE";
-	static constexpr KStringView HTTPS_SECRETKEYSIZE     = "HTTPS_SECRETKEYSIZE";
-	static constexpr KStringView HTTPS_SERVER_ISSUER     = "HTTPS_SERVER_ISSUER";
-	static constexpr KStringView HTTPS_SERVER_SUBJECT    = "HTTPS_SERVER_SUBJECT";
-	static constexpr KStringView HTTP_ACCEPT             = "HTTP_ACCEPT";
-	static constexpr KStringView HTTP_ACCEPT_ENCODING    = "HTTP_ACCEPT_ENCODING";
-	static constexpr KStringView HTTP_ACCEPT_LANGUAGE    = "HTTP_ACCEPT_LANGUAGE";
-	static constexpr KStringView HTTP_CONNECTION         = "HTTP_CONNECTION";
-	static constexpr KStringView HTTP_COOKIE             = "HTTP_COOKIE";
-	static constexpr KStringView HTTP_HOST               = "HTTP_HOST";
-	static constexpr KStringView HTTP_REFERER            = "HTTP_REFERER";
-	static constexpr KStringView HTTP_USER_AGENT         = "HTTP_USER_AGENT";
-	static constexpr KStringView QUERY_STRING            = "QUERY_STRING";
-	static constexpr KStringView REMOTE_ADDR             = "REMOTE_ADDR";
-	static constexpr KStringView REMOTE_HOST             = "REMOTE_HOST";
-	static constexpr KStringView REMOTE_USER             = "REMOTE_USER";
-	static constexpr KStringView REQUEST_METHOD          = "REQUEST_METHOD";
-	static constexpr KStringView REQUEST_URI             = "REQUEST_URI";
-	static constexpr KStringView SCRIPT_NAME             = "SCRIPT_NAME";
-	static constexpr KStringView SERVER_NAME             = "SERVER_NAME";
-	static constexpr KStringView SERVER_PORT             = "SERVER_PORT";
-	static constexpr KStringView SERVER_PORT_SECURE      = "SERVER_PORT_SECURE";
-	static constexpr KStringView SERVER_PROTOCOL         = "SERVER_PROTOCOL";
-	static constexpr KStringView SERVER_SOFTWARE         = "SERVER_SOFTWARE";
-	static constexpr KStringView WEB_SERVER_API          = "WEB_SERVER_API";
+	static constexpr KStringViewZ AUTH_PASSWORD           = "AUTH_PASSWORD";
+	static constexpr KStringViewZ AUTH_TYPE               = "AUTH_TYPE";
+	static constexpr KStringViewZ AUTH_USER               = "AUTH_USER";
+	static constexpr KStringViewZ CERT_COOKIE             = "CERT_COOKIE";
+	static constexpr KStringViewZ CERT_FLAGS              = "CERT_FLAGS";
+	static constexpr KStringViewZ CERT_ISSUER             = "CERT_ISSUER";
+	static constexpr KStringViewZ CERT_KEYSIZE            = "CERT_KEYSIZE";
+	static constexpr KStringViewZ CERT_SECRETKEYSIZE      = "CERT_SECRETKEYSIZE";
+	static constexpr KStringViewZ CERT_SERIALNUMBER       = "CERT_SERIALNUMBER";
+	static constexpr KStringViewZ CERT_SERVER_ISSUER      = "CERT_SERVER_ISSUER";
+	static constexpr KStringViewZ CERT_SERVER_SUBJECT     = "CERT_SERVER_SUBJECT";
+	static constexpr KStringViewZ CERT_SUBJECT            = "CERT_SUBJECT";
+	static constexpr KStringViewZ CF_TEMPLATE_PATH        = "CF_TEMPLATE_PATH";
+	static constexpr KStringViewZ CONTENT_LENGTH          = "CONTENT_LENGTH";
+	static constexpr KStringViewZ CONTENT_TYPE            = "CONTENT_TYPE";
+	static constexpr KStringViewZ CONTEXT_PATH            = "CONTEXT_PATH";
+	static constexpr KStringViewZ GATEWAY_INTERFACE       = "GATEWAY_INTERFACE";
+	static constexpr KStringViewZ HTTPS                   = "HTTPS";
+	static constexpr KStringViewZ HTTPS_KEYSIZE           = "HTTPS_KEYSIZE";
+	static constexpr KStringViewZ HTTPS_SECRETKEYSIZE     = "HTTPS_SECRETKEYSIZE";
+	static constexpr KStringViewZ HTTPS_SERVER_ISSUER     = "HTTPS_SERVER_ISSUER";
+	static constexpr KStringViewZ HTTPS_SERVER_SUBJECT    = "HTTPS_SERVER_SUBJECT";
+	static constexpr KStringViewZ HTTP_ACCEPT             = "HTTP_ACCEPT";
+	static constexpr KStringViewZ HTTP_ACCEPT_ENCODING    = "HTTP_ACCEPT_ENCODING";
+	static constexpr KStringViewZ HTTP_ACCEPT_LANGUAGE    = "HTTP_ACCEPT_LANGUAGE";
+	static constexpr KStringViewZ HTTP_CONNECTION         = "HTTP_CONNECTION";
+	static constexpr KStringViewZ HTTP_COOKIE             = "HTTP_COOKIE";
+	static constexpr KStringViewZ HTTP_HOST               = "HTTP_HOST";
+	static constexpr KStringViewZ HTTP_REFERER            = "HTTP_REFERER";
+	static constexpr KStringViewZ HTTP_USER_AGENT         = "HTTP_USER_AGENT";
+	static constexpr KStringViewZ QUERY_STRING            = "QUERY_STRING";
+	static constexpr KStringViewZ REMOTE_ADDR             = "REMOTE_ADDR";
+	static constexpr KStringViewZ REMOTE_HOST             = "REMOTE_HOST";
+	static constexpr KStringViewZ REMOTE_USER             = "REMOTE_USER";
+	static constexpr KStringViewZ REQUEST_METHOD          = "REQUEST_METHOD";
+	static constexpr KStringViewZ REQUEST_URI             = "REQUEST_URI";
+	static constexpr KStringViewZ SCRIPT_NAME             = "SCRIPT_NAME";
+	static constexpr KStringViewZ SERVER_NAME             = "SERVER_NAME";
+	static constexpr KStringViewZ SERVER_PORT             = "SERVER_PORT";
+	static constexpr KStringViewZ SERVER_PORT_SECURE      = "SERVER_PORT_SECURE";
+	static constexpr KStringViewZ SERVER_PROTOCOL         = "SERVER_PROTOCOL";
+	static constexpr KStringViewZ SERVER_SOFTWARE         = "SERVER_SOFTWARE";
+	static constexpr KStringViewZ WEB_SERVER_API          = "WEB_SERVER_API";
 
-	static constexpr KStringView FCGI_WEB_SERVER_ADDRS   = "FCGI_WEB_SERVER_ADDRS";
+	static constexpr KStringViewZ FCGI_WEB_SERVER_ADDRS   = "FCGI_WEB_SERVER_ADDRS";
 
 }; // class KCGI
 

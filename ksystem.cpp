@@ -78,7 +78,7 @@ KString kGetCWD ()
 } // kGetCWD
 
 //-----------------------------------------------------------------------------
-KString kGetWhoami ()
+KString kGetWhoAmI ()
 //-----------------------------------------------------------------------------
 {
 	KString sWhoami;
@@ -90,11 +90,13 @@ KString kGetWhoami ()
 	enum { MAX = 100 };
 	char szWhoami[MAX + 1] = { 0 };
 	DWORD nSize = MAX;
-	if (!GetUserName (szWhoami, &nSize)) {
+	if (!GetUserName (szWhoami, &nSize))
+	{
 		sWhoami = "ERROR";
 	}
-	else {
-		sWhoami.Format ("{}", szWhoami);
+	else
+	{
+		sWhoami = szWhoami;
 	}
 	
 	#else
@@ -106,12 +108,12 @@ KString kGetWhoami ()
 	struct passwd* pPassStruct = getpwuid (iUID);
 	if (pPassStruct)
 	{
-		kDebugLog (2, "kGetWhoami(): used new method");
-		sWhoami.Format ("{}", pPassStruct->pw_name);
+		kDebugLog (2, "kGetWhoAmI(): used new method");
+		sWhoami = pPassStruct->pw_name;
 	}
 	#endif
 
-	kDebugLog (2, "kGetWhoami(): {}", sWhoami);
+	kDebugLog (2, "kGetWhoAmI(): {}", sWhoami);
 
 	return (sWhoami);
 
@@ -137,16 +139,19 @@ KString kGetHostname (KString& sHostname)
 
 	sHostname = szHostname;
 
-	if (sHostname.empty()) {
+	if (sHostname.empty())
+	{
 		sHostname = "hostname-error";
 	}
 
 	#else
-	if (gethostname (szHostname, sizeof (szHostname)) != 0) {
+	if (gethostname (szHostname, sizeof (szHostname)) != 0)
+	{
 		kDebugLog (1, "CMD ERROR: hostname");
 		sHostname = "hostname-error";
 	}
-	else {
+	else
+	{
 		sHostname = szHostname;
 	}
 	#endif

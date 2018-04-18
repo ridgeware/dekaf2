@@ -54,11 +54,11 @@ namespace dekaf2
 
 //-----------------------------------------------------------------------------
 /// Get environment variable. Return @p szDefault if not found.
-inline const char* kGetEnv (const char* szEnvVar, const char* szDefault = "")
+inline KStringViewZ kGetEnv (KStringViewZ szEnvVar, KStringViewZ szDefault = "")
 //-----------------------------------------------------------------------------
 {
-	const char* sValue = ::getenv(szEnvVar);
-	if (sValue)
+	KStringViewZ sValue = ::getenv(szEnvVar);
+	if (!sValue.empty())
 	{
 		return (sValue);
 	}
@@ -70,16 +70,8 @@ inline const char* kGetEnv (const char* szEnvVar, const char* szDefault = "")
 } // kGetEnv
 
 //-----------------------------------------------------------------------------
-/// Get environment variable. Return @p szDefault if not found.
-inline const char* kGetEnv (const KString& sEnvVar, const char* szDefault = "")
-//-----------------------------------------------------------------------------
-{
-	return kGetEnv(sEnvVar.c_str(), szDefault);
-}
-
-//-----------------------------------------------------------------------------
 /// Set environment variable.
-inline bool kSetEnv (const char* szEnvVar, const char* sValue)
+inline bool kSetEnv (KStringViewZ szEnvVar, KStringViewZ sValue)
 //-----------------------------------------------------------------------------
 {
 	bool bOK = (::setenv(szEnvVar, sValue, true) == 0);
@@ -91,16 +83,8 @@ inline bool kSetEnv (const char* szEnvVar, const char* sValue)
 }
 
 //-----------------------------------------------------------------------------
-/// Set environment variable.
-inline bool kSetEnv (const KString& sEnvVar, const KString& sValue)
-//-----------------------------------------------------------------------------
-{
-	return (kSetEnv(sEnvVar.c_str(), sValue.c_str()));
-}
-
-//-----------------------------------------------------------------------------
 /// Unset environment variable.
-inline bool kUnsetEnv (const char* szEnvVar)
+inline bool kUnsetEnv (KStringViewZ szEnvVar)
 //-----------------------------------------------------------------------------
 {
 	bool bOK = (::unsetenv(szEnvVar) == 0);
@@ -111,14 +95,6 @@ inline bool kUnsetEnv (const char* szEnvVar)
 	return (bOK);
 }
 
-//-----------------------------------------------------------------------------
-/// Unset environment variable.
-inline bool kUnsetEnv (const KString& sEnvVar)
-//-----------------------------------------------------------------------------
-{
-	return (kUnsetEnv(sEnvVar.c_str()));
-}
-
 /// Return operating system current working directory as a string.
 KString kGetCWD ();
 
@@ -126,10 +102,10 @@ KString kGetCWD ();
 inline KString kcwd () { return kGetCWD(); }
 
 /// Return current operating system user as a string.
-KString kGetWhoami ();
+KString kGetWhoAmI ();
 
 /// alias to kGetWhoami(): return current operating system user as a string.
-inline KString kwhoami () { return kGetWhoami(); }
+inline KString kwhoami () { return kGetWhoAmI(); }
 
 /// Return operating system hostname as a string.
 KString kGetHostname ();

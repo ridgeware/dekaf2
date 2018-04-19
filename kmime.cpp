@@ -46,19 +46,19 @@ namespace dekaf2 {
 
 #if !defined(DEKAF2_HAS_CPP17)
 
-constexpr KStringView KCharSet::ANY_ISO8859;
-constexpr KStringView KCharSet::DEFAULT_CHARSET;
+constexpr KStringViewZ KCharSet::ANY_ISO8859;
+constexpr KStringViewZ KCharSet::DEFAULT_CHARSET;
 
-constexpr KStringView KMIME::NONE;
-constexpr KStringView KMIME::JSON_UTF8;
-constexpr KStringView KMIME::HTML_UTF8;
-constexpr KStringView KMIME::XML_UTF8;
-constexpr KStringView KMIME::SWF;
-constexpr KStringView KMIME::WWW_FORM_URLENCODED;
-constexpr KStringView KMIME::MULTIPART_FORM_DATA;
-constexpr KStringView KMIME::TEXT_PLAIN;
-constexpr KStringView KMIME::APPLICATION_BINARY;
-constexpr KStringView KMIME::APPLICATION_JAVASCRIPT;
+constexpr KStringViewZ KMIME::NONE;
+constexpr KStringViewZ KMIME::JSON_UTF8;
+constexpr KStringViewZ KMIME::HTML_UTF8;
+constexpr KStringViewZ KMIME::XML_UTF8;
+constexpr KStringViewZ KMIME::SWF;
+constexpr KStringViewZ KMIME::WWW_FORM_URLENCODED;
+constexpr KStringViewZ KMIME::MULTIPART_FORM_DATA;
+constexpr KStringViewZ KMIME::TEXT_PLAIN;
+constexpr KStringViewZ KMIME::APPLICATION_BINARY;
+constexpr KStringViewZ KMIME::APPLICATION_JAVASCRIPT;
 
 #endif
 

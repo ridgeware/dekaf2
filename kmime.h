@@ -55,8 +55,8 @@ class KCharSet
 public:
 //------
 
-	static constexpr KStringView ANY_ISO8859         = "ISO-8859"; /*-1...*/
-	static constexpr KStringView DEFAULT_CHARSET     = "WINDOWS-1252";
+	static constexpr KStringViewZ ANY_ISO8859         = "ISO-8859"; /*-1...*/
+	static constexpr KStringViewZ DEFAULT_CHARSET     = "WINDOWS-1252";
 
 }; // KCharSet
 
@@ -91,16 +91,16 @@ public:
 		return m_mime;
 	}
 
-	static constexpr KStringView NONE                   = "";
-	static constexpr KStringView JSON_UTF8              = "application/json; charset=UTF-8";
-	static constexpr KStringView HTML_UTF8              = "text/html; charset=UTF-8";
-	static constexpr KStringView XML_UTF8               = "text/xml; charset=UTF-8";
-	static constexpr KStringView SWF                    = "application/x-shockwave-flash";
-	static constexpr KStringView WWW_FORM_URLENCODED    = "application/x-www-form-urlencoded";
-	static constexpr KStringView MULTIPART_FORM_DATA    = "multipart/form-data";
-	static constexpr KStringView TEXT_PLAIN             = "text/plain";
-	static constexpr KStringView APPLICATION_BINARY     = "application/octet-stream";
-	static constexpr KStringView APPLICATION_JAVASCRIPT = "application/javascript";
+	static constexpr KStringViewZ NONE                   = "";
+	static constexpr KStringViewZ JSON_UTF8              = "application/json; charset=UTF-8";
+	static constexpr KStringViewZ HTML_UTF8              = "text/html; charset=UTF-8";
+	static constexpr KStringViewZ XML_UTF8               = "text/xml; charset=UTF-8";
+	static constexpr KStringViewZ SWF                    = "application/x-shockwave-flash";
+	static constexpr KStringViewZ WWW_FORM_URLENCODED    = "application/x-www-form-urlencoded";
+	static constexpr KStringViewZ MULTIPART_FORM_DATA    = "multipart/form-data";
+	static constexpr KStringViewZ TEXT_PLAIN             = "text/plain";
+	static constexpr KStringViewZ APPLICATION_BINARY     = "application/octet-stream";
+	static constexpr KStringViewZ APPLICATION_JAVASCRIPT = "application/javascript";
 
 //------
 private:

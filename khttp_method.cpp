@@ -46,14 +46,14 @@ namespace dekaf2 {
 
 #if !defined(DEKAF2_HAS_CPP17)
 
-constexpr KStringView KHTTPMethod::GET;
-constexpr KStringView KHTTPMethod::HEAD;
-constexpr KStringView KHTTPMethod::POST;
-constexpr KStringView KHTTPMethod::PUT;
-constexpr KStringView KHTTPMethod::DELETE;
-constexpr KStringView KHTTPMethod::OPTIONS;
-constexpr KStringView KHTTPMethod::PATCH;
-constexpr KStringView KHTTPMethod::CONNECT;
+constexpr KStringViewZ KHTTPMethod::GET;
+constexpr KStringViewZ KHTTPMethod::HEAD;
+constexpr KStringViewZ KHTTPMethod::POST;
+constexpr KStringViewZ KHTTPMethod::PUT;
+constexpr KStringViewZ KHTTPMethod::DELETE;
+constexpr KStringViewZ KHTTPMethod::OPTIONS;
+constexpr KStringViewZ KHTTPMethod::PATCH;
+constexpr KStringViewZ KHTTPMethod::CONNECT;
 
 #endif
 

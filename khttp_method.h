@@ -84,14 +84,14 @@ public:
 		return Serialize();
 	}
 
-	static constexpr KStringView GET     = "GET";
-	static constexpr KStringView HEAD    = "HEAD";
-	static constexpr KStringView POST    = "POST";
-	static constexpr KStringView PUT     = "PUT";
-	static constexpr KStringView DELETE  = "DELETE";
-	static constexpr KStringView OPTIONS = "OPTIONS";
-	static constexpr KStringView PATCH   = "PATCH";
-	static constexpr KStringView CONNECT = "CONNECT";
+	static constexpr KStringViewZ GET     = "GET";
+	static constexpr KStringViewZ HEAD    = "HEAD";
+	static constexpr KStringViewZ POST    = "POST";
+	static constexpr KStringViewZ PUT     = "PUT";
+	static constexpr KStringViewZ DELETE  = "DELETE";
+	static constexpr KStringViewZ OPTIONS = "OPTIONS";
+	static constexpr KStringViewZ PATCH   = "PATCH";
+	static constexpr KStringViewZ CONNECT = "CONNECT";
 
 //------
 private:

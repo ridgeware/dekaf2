@@ -238,7 +238,7 @@ bool KHTTPClient::Serialize()
 } // Serialize
 
 //-----------------------------------------------------------------------------
-bool KHTTPClient::SendRequest(KStringView svPostData, KStringView svMime)
+bool KHTTPClient::SendRequest(KStringView svPostData, KMIME Mime)
 //-----------------------------------------------------------------------------
 {
 	if (Request.Resource.empty())
@@ -253,7 +253,7 @@ bool KHTTPClient::SendRequest(KStringView svPostData, KStringView svMime)
 	if (Request.Method == KHTTPMethod::POST)
 	{
 		RequestHeader(KHTTPHeaders::CONTENT_LENGTH, KString::to_string(svPostData.size()));
-		RequestHeader(KHTTPHeaders::CONTENT_TYPE,   svMime.empty() ? KMIME::TEXT_PLAIN : svMime);
+		RequestHeader(KHTTPHeaders::CONTENT_TYPE,   Mime);
 	}
 
 	if (m_bRequestCompression)

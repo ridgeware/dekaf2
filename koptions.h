@@ -93,31 +93,32 @@ public:
 	/// ctor, requiring basic initialization
 	explicit KOptions (bool bEmptyParmsIsError, KStringView sCliDebugTo = KLog::STDOUT);
 
-	/// register an array of KStringViews as help output
-	void SetHelp(KStringView* sHelp, size_t iCount)
-	{
-		m_sHelp = sHelp;
-		m_sHelpSize = iCount;
-	}
-
 	/// Parse arguments and call the registered callback functions. Returns 0
 	/// if valid, -1 if -help was called, and > 0 for error
 	int Parse(int argc, char** argv, KOutStream& out);
 
-	using ArgList = KStack<KStringView>;
+	using ArgList = KStack<KStringViewZ>;
 	using Callback = std::function<void(ArgList&)>;
 
 	/// Register a callback function for occurences of "-sOption"
-	void RegisterOption(KStringView sOption, uint16_t iMinArgs, const char* sMissingParms, Callback Function);
+	void RegisterOption(KStringView sOption, uint16_t iMinArgs, KStringViewZ sMissingParms, Callback Function);
 
 	/// Register a callback function for occurences of "sCommand"
-	void RegisterCommand(KStringView sCommand, uint16_t iMinArgs, const char* sMissingParms, Callback Function);
+	void RegisterCommand(KStringView sCommand, uint16_t iMinArgs, KStringViewZ sMissingParms, Callback Function);
 
 	/// Register a callback function for unhandled options
 	void RegisterUnknownOption(Callback Function);
 
 	/// Register a callback function for unhandled commands
 	void RegisterUnknownCommand(Callback Function);
+
+	/// register an array of KStringViews as help output
+	template<std::size_t COUNT>
+	void RegisterHelp(KStringView (&sHelp)[COUNT])
+	{
+		m_sHelp = sHelp;
+		m_sHelpSize = COUNT;
+	}
 
 	/// Output the registered help message
 	void Help(KOutStream& out);
@@ -134,13 +135,13 @@ private:
 		struct Arg_t
 		{
 			Arg_t() = default;
-			Arg_t(KStringView sArg_);
+			Arg_t(KStringViewZ sArg_);
 
 			bool IsOption() const { return iDashes; }
-			KStringView Dashes() const;
+			KStringViewZ Dashes() const;
 
-			KStringView sArg;
-			bool bConsumed  { false };
+			KStringViewZ sArg;
+			bool bConsumed { false };
 
 		private:
 
@@ -167,7 +168,7 @@ private:
 		void clear()         { Args.clear();        }
 
 		ArgVec Args;
-		KStringView sProgramName;
+		KStringViewZ sProgramName;
 		size_t iArg { 0 };
 
 	}; // CLIParms
@@ -181,15 +182,15 @@ private:
 
 		CallbackParams() = default;
 
-		CallbackParams(uint16_t _iMinArgs, const char* _sMissingParms, Callback _func)
+		CallbackParams(uint16_t _iMinArgs, KStringViewZ _sMissingParms, Callback _func)
 		: func(_func)
 		, sMissingParms(_sMissingParms)
 		, iMinArgs(_iMinArgs)
 		{}
 
-		Callback    func { nullptr };
-		const char* sMissingParms { nullptr };
-		uint16_t    iMinArgs { 0 };
+		Callback     func { nullptr };
+		KStringViewZ sMissingParms { };
+		uint16_t     iMinArgs { 0 };
 
 	}; // CallbackParams
 

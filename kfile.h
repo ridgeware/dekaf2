@@ -46,7 +46,7 @@
 /// remaining standalone functions around files and the file system
 
 #include <cinttypes>
-#include "kstring.h"
+#include "kstringview.h"
 #include "kstream.h"
 
 namespace dekaf2
@@ -57,22 +57,22 @@ typedef uint16_t KFileFlags;
 //-----------------------------------------------------------------------------
 /// Checks if a file exists.
 /// @param bTestForEmptyFile If true treats a file as non-existing if its size is 0
-bool kFileExists (const KString& sPath, bool bTestForEmptyFile = false);
+bool kFileExists (KStringViewZ sPath, bool bTestForEmptyFile = false);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
 /// Checks if a directory exists.
-bool kDirExists (const KString& sPath);
+bool kDirExists (KStringViewZ sPath);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
 /// Remove (unlink) a file.
-bool kRemoveFile (const KString& sPath);
+bool kRemoveFile (KStringViewZ sPath);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
 /// Remove (unlink) a directory (folder).
-bool kRemoveDir (const KString& sPath);
+bool kRemoveDir (KStringViewZ sPath);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
@@ -87,12 +87,12 @@ KStringView kDirname(KStringView sFilePath, bool bWithSlash = true);
 
 //-----------------------------------------------------------------------------
 /// Get last modification time of a file, returns -1 if file not found
-time_t kGetLastMod(const KString& sFilePath);
+time_t kGetLastMod(KStringViewZ sFilePath);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
 /// Get size in bytes of a file, returns npos if file not found
-size_t kGetNumBytes(const KString& sFilePath);
+size_t kGetNumBytes(KStringViewZ sFilePath);
 //-----------------------------------------------------------------------------
 
 } // end of namespace dekaf2

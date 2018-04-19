@@ -56,7 +56,7 @@ typedef const char* LPCTSTR;
 int64_t DumpRows (KSQL& db);
 void  TestEscapes (int iTestNum, LPCTSTR pszString, LPCTSTR pszStringX, int iDBType);
 
-KStringView g_sDbcFile;
+KStringViewZ g_sDbcFile;
 
 #define ORADATEFORM  "YYYYMMDDHH24MISS"
 

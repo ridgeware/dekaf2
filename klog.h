@@ -350,12 +350,12 @@ public:
 	KLog& operator=(const KLog&) = delete;
 	KLog& operator=(KLog&&) = delete;
 
-	static constexpr KStringView STDOUT             = "stdout";
-	static constexpr KStringView STDERR             = "stderr";
-	static constexpr KStringView SYSLOG             = "syslog";
-	static constexpr KStringView DBAR               = "================================================================================";
-	static constexpr KStringView BAR                = "--------------------------------------------------------------------------------";
-	static constexpr KStringView DASH               = "- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - ";
+	static constexpr KStringViewZ STDOUT = "stdout";
+	static constexpr KStringViewZ STDERR = "stderr";
+	static constexpr KStringViewZ SYSLOG = "syslog";
+	static constexpr KStringViewZ DBAR   = "================================================================================";
+	static constexpr KStringViewZ BAR    = "--------------------------------------------------------------------------------";
+	static constexpr KStringViewZ DASH   = "- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - ";
 
 	//---------------------------------------------------------------------------
 	/// Gets the current log level. Any log message that has a higher level than
@@ -430,7 +430,7 @@ public:
 
 	//---------------------------------------------------------------------------
 	/// Gets the file name of the output file for the log.
-	inline KStringView GetDebugLog() const
+	inline KStringViewZ GetDebugLog() const
 	//---------------------------------------------------------------------------
 	{
 		return m_sLogName;
@@ -440,12 +440,12 @@ public:
 	/// Sets the file name of the flag file. The flag file is monitored in
 	/// regular intervals, and if changed its content is read and interpreted
 	/// as the new log level.
-	bool SetDebugFlag(KStringView sFlagfile);
+	bool SetDebugFlag(KStringViewZ sFlagfile);
 	//---------------------------------------------------------------------------
 
 	//---------------------------------------------------------------------------
 	/// Gets the file name of the flag file.
-	inline KStringView GetDebugFlag() const
+	inline KStringViewZ GetDebugFlag() const
 	//---------------------------------------------------------------------------
 	{
 		return m_sFlagfile;
@@ -534,11 +534,11 @@ private:
 	std::unique_ptr<KLogSerializer> m_Serializer;
 	std::unique_ptr<KLogWriter> m_Logger;
 
-	constexpr static const char* const s_sEnvLog      = "DEKAFLOG";
-	constexpr static const char* const s_sEnvFlag     = "DEKAFDBG";
-	constexpr static const char* const s_sEnvTrace    = "DEKAFTRC";
-	constexpr static const char* const s_sDefaultLog  = "/tmp/dekaf.log";
-	constexpr static const char* const s_sDefaultFlag = "/tmp/dekaf.dbg";
+	static constexpr KStringViewZ s_sEnvLog      = "DEKAFLOG";
+	static constexpr KStringViewZ s_sEnvFlag     = "DEKAFDBG";
+	static constexpr KStringViewZ s_sEnvTrace    = "DEKAFTRC";
+	static constexpr KStringViewZ s_sDefaultLog  = "/tmp/dekaf.log";
+	static constexpr KStringViewZ s_sDefaultFlag = "/tmp/dekaf.dbg";
 
 }; // KLog
 

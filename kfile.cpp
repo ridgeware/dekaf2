@@ -67,7 +67,7 @@ namespace fs = std::experimental::filesystem;
 #endif
 
 //-----------------------------------------------------------------------------
-bool kFileExists (const KString& sPath, bool bTestForEmptyFile /* = false */ )
+bool kFileExists (KStringViewZ sPath, bool bTestForEmptyFile /* = false */ )
 //-----------------------------------------------------------------------------
 {
 #ifdef USE_STD_FILESYSTEM
@@ -131,19 +131,25 @@ bool kFileExists (const KString& sPath, bool bTestForEmptyFile /* = false */ )
 } // Exists
 
 //-----------------------------------------------------------------------------
-bool kDirExists (const KString& sPath)
+bool kDirExists (KStringViewZ sPath)
 //-----------------------------------------------------------------------------
 {
 	struct stat StatStruct;
 
 	if (stat (sPath.c_str(), &StatStruct) < 0)
+	{
 		return (false);  // <-- file/dir doesn't exist
+	}
 	else
 	{
 		if (StatStruct.st_mode & S_IFDIR)
+		{
 			return (true);    // <-- directory exists
+		}
 		else
+		{
 			return (false);   // <-- something exists, but is not a directory
+		}
 	}
 
 } // kDirExists
@@ -203,7 +209,7 @@ KStringView kDirname(KStringView sFilePath, bool bWithSlash)
 }  // kDirname()
 
 //-----------------------------------------------------------------------------
-bool kRemoveFile (const KString& sPath)
+bool kRemoveFile (KStringViewZ sPath)
 //-----------------------------------------------------------------------------
 {
 	if (!kFileExists (sPath))
@@ -237,7 +243,7 @@ bool kRemoveFile (const KString& sPath)
 } // kRemoveFile
 
 //-----------------------------------------------------------------------------
-bool kRemoveDir (const KString& sPath)
+bool kRemoveDir (KStringViewZ sPath)
 //-----------------------------------------------------------------------------
 {
 	if (kFileExists (sPath))
@@ -279,7 +285,7 @@ bool kRemoveDir (const KString& sPath)
 } // kRemoveDir
 
 //-----------------------------------------------------------------------------
-time_t kGetLastMod(const KString& sFilePath)
+time_t kGetLastMod(KStringViewZ sFilePath)
 //-----------------------------------------------------------------------------
 {
 #ifdef USE_STD_FILESYSTEM
@@ -306,7 +312,7 @@ time_t kGetLastMod(const KString& sFilePath)
 }
 
 //-----------------------------------------------------------------------------
-size_t kGetNumBytes(const KString& sFilePath)
+size_t kGetNumBytes(KStringViewZ sFilePath)
 //-----------------------------------------------------------------------------
 {
 #ifdef USE_STD_FILESYSTEM

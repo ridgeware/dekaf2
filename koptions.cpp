@@ -48,7 +48,7 @@
 namespace dekaf2 {
 
 //---------------------------------------------------------------------------
-KOptions::CLIParms::Arg_t::Arg_t(KStringView sArg_)
+KOptions::CLIParms::Arg_t::Arg_t(KStringViewZ sArg_)
 //---------------------------------------------------------------------------
 	: sArg(sArg_)
 	, bConsumed { false }
@@ -79,11 +79,11 @@ KOptions::CLIParms::Arg_t::Arg_t(KStringView sArg_)
 } // Arg_t ctor
 
 //---------------------------------------------------------------------------
-KStringView KOptions::CLIParms::Arg_t::Dashes() const
+KStringViewZ KOptions::CLIParms::Arg_t::Dashes() const
 //---------------------------------------------------------------------------
 {
-	KStringView sReturn { sDoubleDash };
-	sReturn.remove_suffix(2 - iDashes);
+	KStringViewZ sReturn { sDoubleDash };
+	sReturn.remove_prefix(2 - iDashes);
 
 	return sReturn;
 
@@ -98,7 +98,7 @@ void KOptions::CLIParms::Create(int argc, char** argv)
 
 	for (int ii = 0; ii < argc; ++ii)
 	{
-		Args.push_back(KStringView(*argv++));
+		Args.push_back(KStringViewZ(*argv++));
 	}
 
 	if (!Args.empty())
@@ -191,14 +191,14 @@ void KOptions::RegisterUnknownCommand(Callback Function)
 }
 
 //---------------------------------------------------------------------------
-void KOptions::RegisterOption(KStringView sCmd, uint16_t iMinArgs, const char* sMissingParms, Callback Function)
+void KOptions::RegisterOption(KStringView sCmd, uint16_t iMinArgs, KStringViewZ sMissingParms, Callback Function)
 //---------------------------------------------------------------------------
 {
 	m_Options.insert({sCmd, {iMinArgs, sMissingParms, Function}});
 }
 
 //---------------------------------------------------------------------------
-void KOptions::RegisterCommand(KStringView sCmd, uint16_t iMinArgs, const char* sMissingParms, Callback Function)
+void KOptions::RegisterCommand(KStringView sCmd, uint16_t iMinArgs, KStringViewZ sMissingParms, Callback Function)
 //---------------------------------------------------------------------------
 {
 	m_Commands.insert({sCmd, {iMinArgs, sMissingParms, Function}});
@@ -272,7 +272,7 @@ int KOptions::Parse(int argc, char** argv, KOutStream& out)
 
 				if (CBP->iMinArgs > Args.size())
 				{
-					if (CBP->sMissingParms && *CBP->sMissingParms)
+					if (!CBP->sMissingParms.empty())
 					{
 						throw MissingParameterError(CBP->sMissingParms);
 					}

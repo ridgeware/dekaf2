@@ -551,14 +551,15 @@ void KLog::SetName(KStringView sName)
 bool KLog::SetDebugLog(KStringView sLogfile)
 //---------------------------------------------------------------------------
 {
-	if (sLogfile.empty()) {
+	if (sLogfile.empty())
+	{
 		sLogfile = s_sDefaultLog; // restore default
 	}
 
 	// env values always override programmatic values, and at construction of
 	// KLog() we would have fetched the env value already if it is non-zero
-	const char* sEnv(kGetEnv(s_sEnvLog, nullptr));
-	if (sEnv)
+	KStringViewZ sEnv(kGetEnv(s_sEnvLog));
+	if (!sEnv.empty())
 	{
 		kDebug(0, "prevented setting the debug log file to '{}' because the environment variable '{}' is set to '{}'",
 		       sLogfile,
@@ -680,16 +681,17 @@ bool KLog::IntOpenLog()
 } // SetDebugLog
 
 //---------------------------------------------------------------------------
-bool KLog::SetDebugFlag(KStringView sFlagfile)
+bool KLog::SetDebugFlag(KStringViewZ sFlagfile)
 //---------------------------------------------------------------------------
 {
-	if (sFlagfile.empty()) {
+	if (sFlagfile.empty())
+	{
 		sFlagfile = s_sDefaultFlag; // restore default
 	}
 
 	// env values always override programmatic values, and at construction of
 	// KLog() we would have fetched the env value already if it is non-zero
-	const char* sEnv(kGetEnv(s_sEnvFlag, nullptr));
+	KStringViewZ sEnv(kGetEnv(s_sEnvFlag));
 	if (sEnv)
 	{
 		kDebug(0, "prevented setting the debug flag file to '{}' because the environment variable '{}' is set to '{}'",
@@ -845,18 +847,18 @@ void KLog::IntException(KStringView sWhat, KStringView sFunction, KStringView sC
 
 #ifndef DEKAF2_HAS_CPP17
 
-constexpr KStringView KLog::STDOUT;
-constexpr KStringView KLog::STDERR;
-constexpr KStringView KLog::SYSLOG;
-constexpr KStringView KLog::DBAR;
-constexpr KStringView KLog::BAR;
-constexpr KStringView KLog::DASH;
+constexpr KStringViewZ KLog::STDOUT;
+constexpr KStringViewZ KLog::STDERR;
+constexpr KStringViewZ KLog::SYSLOG;
+constexpr KStringViewZ KLog::DBAR;
+constexpr KStringViewZ KLog::BAR;
+constexpr KStringViewZ KLog::DASH;
 
-constexpr const char* const KLog::s_sEnvLog;
-constexpr const char* const KLog::s_sEnvFlag;
-constexpr const char* const KLog::s_sEnvTrace;
-constexpr const char* const KLog::s_sDefaultLog;
-constexpr const char* const KLog::s_sDefaultFlag;
+constexpr KStringViewZ KLog::s_sEnvLog;
+constexpr KStringViewZ KLog::s_sEnvFlag;
+constexpr KStringViewZ KLog::s_sEnvTrace;
+constexpr KStringViewZ KLog::s_sDefaultLog;
+constexpr KStringViewZ KLog::s_sDefaultFlag;
 
 #endif
 

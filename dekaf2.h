@@ -236,8 +236,8 @@ class Dekaf& Dekaf();
 /// Shortcut to initialize Dekaf and KLog in one call - however, not needed for
 /// default settings as those are automatically set at startup
 void kInit(KStringView sName = KStringView{},
-           KStringView sDebugLog = KStringView{},
-           KStringView sDebugFlag = KStringView{},
+           KStringViewZ sDebugLog = KStringViewZ{},
+           KStringViewZ sDebugFlag = KStringViewZ{},
            bool bShouldDumpCore = false,
            bool bEnableMultiThreading = false,
 		   bool bStartSignalHandlerThread = true);

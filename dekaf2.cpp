@@ -341,7 +341,7 @@ class Dekaf& Dekaf()
 }
 
 //---------------------------------------------------------------------------
-void kInit(KStringView sName, KStringView sDebugLog, KStringView sDebugFlag, bool bShouldDumpCore, bool bEnableMultiThreading, bool bStartSignalHandlerThread)
+void kInit(KStringView sName, KStringViewZ sDebugLog, KStringViewZ sDebugFlag, bool bShouldDumpCore, bool bEnableMultiThreading, bool bStartSignalHandlerThread)
 //---------------------------------------------------------------------------
 {
 	if (bStartSignalHandlerThread)

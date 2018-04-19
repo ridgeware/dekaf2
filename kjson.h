@@ -55,7 +55,12 @@ inline void to_json(LJSON& j, const dekaf2::KStringView& s)
 	j = LJSON::string_t(s);
 }
 
-inline void from_json(const LJSON& j, dekaf2::KStringView& s)
+inline void to_json(LJSON& j, const dekaf2::KStringViewZ& s)
+{
+	j = LJSON::string_t(s);
+}
+
+inline void from_json(const LJSON& j, dekaf2::KStringViewZ& s)
 {
 	s = j.get<LJSON::string_t>();
 }

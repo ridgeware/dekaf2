@@ -117,7 +117,9 @@ elseif (CMAKE_CXX_COMPILER_ID MATCHES "[cC][lL][aA][nN][gG]")
 endif ()
 
 # increase amount of permitted constexpr steps (default is around 1.000.000)
-# set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fconstexpr-steps=10000000")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fconstexpr-steps=100000000")
+# increase amount of permitted constexpr depth (default is 512)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fconstexpr-depth=2048")
 
 message(STATUS "dekaf2 C++ compile flags for Release build : ${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_RELEASE}")
 message(STATUS "dekaf2 C++ compile flags for Debug   build : ${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_DEBUG}")

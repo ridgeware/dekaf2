@@ -20,6 +20,7 @@ set (USOURCES
 	kfile_tests.cpp
 	khtmlparser_tests.cpp
 	khtmlcontentblocks_tests.cpp
+	khtmlentities_tests.cpp
 	khttpclient_tests.cpp
 	khttpserver_tests.cpp
 	kinpipe_tests.cpp

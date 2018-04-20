@@ -41,7 +41,7 @@
 #include "khtmlentities.h"
 #include "kutf8.h"
 #include "kstringutils.h"
-#include <unordered_map>
+#include "kfrozen.h"
 
 namespace dekaf2 {
 
@@ -51,9 +51,7 @@ struct codes_t
 	uint32_t iCodepoint2{0};
 };
 
-using entity_map_t = std::unordered_map<KStringView, codes_t>;
-
-entity_map_t s_NamedEntitiesHTML4 =
+static constexpr std::pair<KStringView, codes_t> s_Entities[]
 {
     { "AElig"                            , {     0xC6 }},
     { "AMP"                              , {     0x26 }},
@@ -2181,6 +2179,8 @@ entity_map_t s_NamedEntitiesHTML4 =
     { "zwj"                              , {   0x200D }},
     { "zwnj"                             , {   0x200C }},
 };
+
+static constexpr auto s_NamedEntitiesHTML4 = frozen::make_unordered_map(s_Entities);
 
 //-----------------------------------------------------------------------------
 void kEntity(uint32_t ch, KString& sOut)

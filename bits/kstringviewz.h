@@ -149,6 +149,7 @@ public:
 	using base_type::StartsWith;
 	using base_type::EndsWith;
 	using base_type::Contains;
+	using base_type::Bool;
 	using base_type::Int16;
 	using base_type::UInt16;
 	using base_type::Int32;

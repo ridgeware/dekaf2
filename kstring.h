@@ -1121,7 +1121,7 @@ inline bool KString::In(KStringView sHaystack, value_type iDelim) const
 inline bool KString::Bool() const noexcept
 //-----------------------------------------------------------------------------
 {
-	return (ToView().Int16() != 0);
+	return (ToView().Bool());
 }
 //-----------------------------------------------------------------------------
 inline int16_t KString::Int16(bool bIsHex) const noexcept

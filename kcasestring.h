@@ -186,12 +186,7 @@ class KCaseStringViewBase : public KStringView
 public:
 //------
 
-	//-----------------------------------------------------------------------------
-	template<typename ...Args>
-	KCaseStringViewBase(Args&& ...args)
-	//-----------------------------------------------------------------------------
-	    : KStringView(std::forward<Args>(args)...)
-	{}
+	using KStringView::KStringView;
 
 	//-----------------------------------------------------------------------------
 	int compare(KCaseStringViewBase other) const
@@ -326,12 +321,7 @@ class KCaseStringBase : public KString
 public:
 //------
 
-	//-----------------------------------------------------------------------------
-	template<typename ...Args>
-	KCaseStringBase(Args&& ...args)
-	//-----------------------------------------------------------------------------
-	    : KString(std::forward<Args>(args)...)
-	{}
+	using KString::KString;
 
 	//-----------------------------------------------------------------------------
 	int compare(const KCaseStringBase& other) const

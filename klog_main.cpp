@@ -73,11 +73,9 @@ class KlogServer : public KTCPServer
 //-------
 public:
 //-------
-	template<typename... Args>
-	KlogServer(Args&&... args)
-	    : KTCPServer(std::forward<Args>(args)...)
-	{}
 
+	using KTCPServer::KTCPServer;
+	
 //-------
 protected:
 //-------

@@ -86,11 +86,8 @@ public:
 	{
 	}
 
-	template<class...Args>
-	KJSON(Args&&...args)
-	    : LJSON(std::forward<Args>(args)...)
-	{
-	}
+	using LJSON::LJSON;
+
 	/*
 	KJSON& operator=(const KJSON& other)
 	{

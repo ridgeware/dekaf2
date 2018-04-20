@@ -136,10 +136,7 @@ class KGZip : public KCompressBase
 public:
 //------
 
-	template<class...Args>
-	KGZip(Args&&...args)
-	: KCompressBase(std::forward<Args>(args)...)
-	{}
+	using KCompressBase::KCompressBase;
 
 //------
 protected:
@@ -157,10 +154,7 @@ class KGUnZip : public KCompressBase
 public:
 //------
 
-	template<class...Args>
-	KGUnZip(Args&&...args)
-	: KCompressBase(std::forward<Args>(args)...)
-	{}
+	using KCompressBase::KCompressBase;
 
 //------
 protected:
@@ -178,10 +172,7 @@ class KBZip2 : public KCompressBase
 public:
 	//------
 
-	template<class...Args>
-	KBZip2(Args&&...args)
-	: KCompressBase(std::forward<Args>(args)...)
-	{}
+	using KCompressBase::KCompressBase;
 
 	//------
 protected:
@@ -199,10 +190,7 @@ class KBUnZip2 : public KCompressBase
 public:
 	//------
 
-	template<class...Args>
-	KBUnZip2(Args&&...args)
-	: KCompressBase(std::forward<Args>(args)...)
-	{}
+	using KCompressBase::KCompressBase;
 
 	//------
 protected:
@@ -220,10 +208,7 @@ class KZlib : public KCompressBase
 public:
 	//------
 
-	template<class...Args>
-	KZlib(Args&&...args)
-	: KCompressBase(std::forward<Args>(args)...)
-	{}
+	using KCompressBase::KCompressBase;
 
 	//------
 protected:
@@ -241,10 +226,7 @@ class KUnZlib : public KCompressBase
 public:
 	//------
 
-	template<class...Args>
-	KUnZlib(Args&&...args)
-	: KCompressBase(std::forward<Args>(args)...)
-	{}
+	using KCompressBase::KCompressBase;
 
 	//------
 protected:

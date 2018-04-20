@@ -151,11 +151,7 @@ public:
 	KROW& operator = (KROW&&)      = default;
 	KROW& operator = (const KROW&) = default;
 
-	template<class... Args>
-	KROW(Args&&... args)
-	    : KCOLS(std::forward<Args>(args)...)
-	{
-	}
+	using KCOLS::KCOLS;
 
 	void SetTablename (KStringView sTablename)
 	{

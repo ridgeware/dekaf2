@@ -12,11 +12,8 @@ class KTinyHTTPServer : public KTCPServer
 
 public:
 
-	template<typename... Args>
-	KTinyHTTPServer(Args&&... args)
-	    : KTCPServer(std::forward<Args>(args)...)
-	{}
-
+	using KTCPServer::KTCPServer;
+	
 	std::vector<KString> m_rx;
 
 	void clear()

@@ -4150,7 +4150,7 @@ bool KSQL::SetAPISet (int iAPISet)
 	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 	// check environment: $KSQL_APISET
 	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-	int iEnv = atoi (kGetEnv ("KSQL_APISET", "0"));
+	int iEnv = kGetEnv ("KSQL_APISET", "0").Int32();
 	if (iEnv)
 	{
 		m_iAPISet = iEnv;

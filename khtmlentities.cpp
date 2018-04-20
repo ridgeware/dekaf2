@@ -2180,7 +2180,11 @@ static constexpr std::pair<KStringView, codes_t> s_Entities[]
     { "zwnj"                             , {   0x200C }},
 };
 
+#ifdef DEKAF2_USE_FROZEN_HASH_FOR_LARGE_MAPS
 static constexpr auto s_NamedEntitiesHTML4 = frozen::make_unordered_map(s_Entities);
+#else
+static constexpr auto s_NamedEntitiesHTML4 = frozen::make_map(s_Entities);
+#endif
 
 //-----------------------------------------------------------------------------
 void kEntity(uint32_t ch, KString& sOut)

@@ -73,9 +73,8 @@
 #cmakedefine DEKAF1_INCLUDE_PATH @DEKAF1_INCLUDE_PATH@
 
 #cmakedefine DEKAF2_HAS_LIBPROC
-
 #cmakedefine DEKAF2_HAS_MYSQL
-
+#cmakedefine DEKAF2_USE_FROZEN_HASH_FOR_LARGE_MAPS
 #cmakedefine DEKAF2_WITH_FCGI
 
 

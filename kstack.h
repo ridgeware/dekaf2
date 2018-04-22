@@ -110,7 +110,7 @@ public:
 
 		catch (const std::exception& e)
 		{
-			KLog().Exception(e, "Push", "KStack");
+			kException(e);
 		}
 
 		return false;
@@ -159,7 +159,7 @@ public:
 
 		catch (const std::exception& e)
 		{
-			KLog().Exception(e, "PushBottom", "KStack");
+			kException(e);
 		}
 
 		return false;

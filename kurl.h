@@ -310,8 +310,8 @@ public:
 				// we should throw here or output an error as we cannot
 				// add a password to an existing stream (because we would
 				// have to rewind by one to remove the @ previously output).
-				kWarning("cannot serialize a password to a stream")
-				        return false;
+				kException("cannot serialize a password to a stream");
+				return false;
 			}
 
 			m_sStorage.Serialize(sTarget, Component);

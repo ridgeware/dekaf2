@@ -137,7 +137,7 @@ void KOptions::Help(KOutStream& out)
 int KOptions::Evaluate(KOutStream& out)
 //---------------------------------------------------------------------------
 {
-	if (m_CLIParms.empty() || m_CLIParms.size() == 1)
+	if (m_CLIParms.size() < 2)
 	{
 		if (m_bEmptyParmsIsError)
 		{
@@ -202,6 +202,46 @@ void KOptions::RegisterCommand(KStringView sCmd, uint16_t iMinArgs, KStringViewZ
 //---------------------------------------------------------------------------
 {
 	m_Commands.insert({sCmd, {iMinArgs, sMissingParms, Function}});
+}
+
+//---------------------------------------------------------------------------
+void KOptions::RegisterOption(KStringView sOption, Callback0 Function)
+//---------------------------------------------------------------------------
+{
+	RegisterOption(sOption, 0, "", [&Function](ArgList&)
+	{
+		Function();
+	});
+}
+
+//---------------------------------------------------------------------------
+void KOptions::RegisterCommand(KStringView sCommand, Callback0 Function)
+//---------------------------------------------------------------------------
+{
+	RegisterCommand(sCommand, 0, "", [&Function](ArgList&)
+	{
+		Function();
+	});
+}
+
+//---------------------------------------------------------------------------
+void KOptions::RegisterOption(KStringView sOption, KStringViewZ sMissingParms, Callback1 Function)
+//---------------------------------------------------------------------------
+{
+	RegisterOption(sOption, 1, sMissingParms, [&Function](ArgList& args)
+	{
+		Function(args.Pop());
+	});
+}
+
+//---------------------------------------------------------------------------
+void KOptions::RegisterCommand(KStringView sCommand, KStringViewZ sMissingParms, Callback1 Function)
+//---------------------------------------------------------------------------
+{
+	RegisterCommand(sCommand, 1, sMissingParms, [&Function](ArgList& args)
+	{
+		Function(args.Pop());
+	});
 }
 
 //---------------------------------------------------------------------------

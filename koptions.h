@@ -97,14 +97,28 @@ public:
 	/// if valid, -1 if -help was called, and > 0 for error
 	int Parse(int argc, char** argv, KOutStream& out);
 
-	using ArgList = KStack<KStringViewZ>;
-	using Callback = std::function<void(ArgList&)>;
+	using ArgList   = KStack<KStringViewZ>;
+	using Callback  = std::function<void(ArgList&)>;
+	using Callback0 = std::function<void()>;
+	using Callback1 = std::function<void(KStringViewZ)>;
 
-	/// Register a callback function for occurences of "-sOption"
-	void RegisterOption(KStringView sOption, uint16_t iMinArgs, KStringViewZ sMissingParms, Callback Function);
+	/// Register a callback function for occurences of "-sOption" with no additional args
+	void RegisterOption(KStringView sOption, Callback0 Function);
 
-	/// Register a callback function for occurences of "sCommand"
-	void RegisterCommand(KStringView sCommand, uint16_t iMinArgs, KStringViewZ sMissingParms, Callback Function);
+	/// Register a callback function for occurences of "sCommand" with no additional args
+	void RegisterCommand(KStringView sCommand, Callback0 Function);
+
+	/// Register a callback function for occurences of "-sOption" with exactly one additional args
+	void RegisterOption(KStringView sOption, KStringViewZ sMissingParms, Callback1 Function);
+
+	/// Register a callback function for occurences of "sCommand" with exactly one additional args
+	void RegisterCommand(KStringView sCommand, KStringViewZ sMissingParms, Callback1 Function);
+
+	/// Register a callback function for occurences of "-sOption" with an arbitrary amount of additional args
+	void RegisterOption(KStringView sOption, KStringViewZ sMissingParms, Callback Function);
+
+	/// Register a callback function for occurences of "sCommand" with an arbitrary amount of additional args
+	void RegisterCommand(KStringView sCommand, KStringViewZ sMissingParms, Callback Function);
 
 	/// Register a callback function for unhandled options
 	void RegisterUnknownOption(Callback Function);
@@ -126,6 +140,12 @@ public:
 //----------
 private:
 //----------
+
+	/// Register a callback function for occurences of "-sOption" with an arbitrary, but defined minimal amount of additional args
+	void RegisterOption(KStringView sOption, uint16_t iMinArgs, KStringViewZ sMissingParms, Callback Function);
+
+	/// Register a callback function for occurences of "sCommand" with an arbitrary, but defined minimal amount of additional args
+	void RegisterCommand(KStringView sCommand, uint16_t iMinArgs, KStringViewZ sMissingParms, Callback Function);
 
 	class CLIParms
 	{

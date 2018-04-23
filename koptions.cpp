@@ -177,28 +177,28 @@ int KOptions::Evaluate(KOutStream& out)
 } // Evaluate
 
 //---------------------------------------------------------------------------
-void KOptions::RegisterUnknownOption(Callback Function)
+void KOptions::RegisterUnknownOption(CallbackN Function)
 //---------------------------------------------------------------------------
 {
 	m_UnknownOption.func = Function;
 }
 
 //---------------------------------------------------------------------------
-void KOptions::RegisterUnknownCommand(Callback Function)
+void KOptions::RegisterUnknownCommand(CallbackN Function)
 //---------------------------------------------------------------------------
 {
 	m_UnknownCommand.func = Function;
 }
 
 //---------------------------------------------------------------------------
-void KOptions::RegisterOption(KStringView sCmd, uint16_t iMinArgs, KStringViewZ sMissingParms, Callback Function)
+void KOptions::RegisterOption(KStringView sCmd, uint16_t iMinArgs, KStringViewZ sMissingParms, CallbackN Function)
 //---------------------------------------------------------------------------
 {
 	m_Options.insert({sCmd, {iMinArgs, sMissingParms, Function}});
 }
 
 //---------------------------------------------------------------------------
-void KOptions::RegisterCommand(KStringView sCmd, uint16_t iMinArgs, KStringViewZ sMissingParms, Callback Function)
+void KOptions::RegisterCommand(KStringView sCmd, uint16_t iMinArgs, KStringViewZ sMissingParms, CallbackN Function)
 //---------------------------------------------------------------------------
 {
 	m_Commands.insert({sCmd, {iMinArgs, sMissingParms, Function}});
@@ -208,7 +208,7 @@ void KOptions::RegisterCommand(KStringView sCmd, uint16_t iMinArgs, KStringViewZ
 void KOptions::RegisterOption(KStringView sOption, Callback0 Function)
 //---------------------------------------------------------------------------
 {
-	RegisterOption(sOption, 0, "", [&Function](ArgList&)
+	RegisterOption(sOption, 0, "", [Function](ArgList&)
 	{
 		Function();
 	});
@@ -218,27 +218,27 @@ void KOptions::RegisterOption(KStringView sOption, Callback0 Function)
 void KOptions::RegisterCommand(KStringView sCommand, Callback0 Function)
 //---------------------------------------------------------------------------
 {
-	RegisterCommand(sCommand, 0, "", [&Function](ArgList&)
+	RegisterCommand(sCommand, 0, "", [Function](ArgList&)
 	{
 		Function();
 	});
 }
 
 //---------------------------------------------------------------------------
-void KOptions::RegisterOption(KStringView sOption, KStringViewZ sMissingParms, Callback1 Function)
+void KOptions::RegisterOption(KStringView sOption, KStringViewZ sMissingParm, Callback1 Function)
 //---------------------------------------------------------------------------
 {
-	RegisterOption(sOption, 1, sMissingParms, [&Function](ArgList& args)
+	RegisterOption(sOption, 1, sMissingParm, [Function](ArgList& args)
 	{
 		Function(args.Pop());
 	});
 }
 
 //---------------------------------------------------------------------------
-void KOptions::RegisterCommand(KStringView sCommand, KStringViewZ sMissingParms, Callback1 Function)
+void KOptions::RegisterCommand(KStringView sCommand, KStringViewZ sMissingParm, Callback1 Function)
 //---------------------------------------------------------------------------
 {
-	RegisterCommand(sCommand, 1, sMissingParms, [&Function](ArgList& args)
+	RegisterCommand(sCommand, 1, sMissingParm, [Function](ArgList& args)
 	{
 		Function(args.Pop());
 	});

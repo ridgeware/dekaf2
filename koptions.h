@@ -98,9 +98,9 @@ public:
 	int Parse(int argc, char** argv, KOutStream& out);
 
 	using ArgList   = KStack<KStringViewZ>;
-	using Callback  = std::function<void(ArgList&)>;
 	using Callback0 = std::function<void()>;
 	using Callback1 = std::function<void(KStringViewZ)>;
+	using CallbackN = std::function<void(ArgList&)>;
 
 	/// Register a callback function for occurences of "-sOption" with no additional args
 	void RegisterOption(KStringView sOption, Callback0 Function);
@@ -108,25 +108,29 @@ public:
 	/// Register a callback function for occurences of "sCommand" with no additional args
 	void RegisterCommand(KStringView sCommand, Callback0 Function);
 
-	/// Register a callback function for occurences of "-sOption" with exactly one additional args
-	void RegisterOption(KStringView sOption, KStringViewZ sMissingParms, Callback1 Function);
+	/// Register a callback function for occurences of "-sOption" with exactly one additional arg.
+	/// The sMissingParm string is output if there is no additional arg.
+	void RegisterOption(KStringView sOption, KStringViewZ sMissingParm, Callback1 Function);
 
-	/// Register a callback function for occurences of "sCommand" with exactly one additional args
-	void RegisterCommand(KStringView sCommand, KStringViewZ sMissingParms, Callback1 Function);
+	/// Register a callback function for occurences of "sCommand" with exactly one additional arg.
+	/// The sMissingParm string is output if there is no additional arg.
+	void RegisterCommand(KStringView sCommand, KStringViewZ sMissingParm, Callback1 Function);
 
-	/// Register a callback function for occurences of "-sOption" with an arbitrary amount of additional args
-	void RegisterOption(KStringView sOption, KStringViewZ sMissingParms, Callback Function);
+	/// Register a callback function for occurences of "-sOption" with an arbitrary, but defined minimal amount of additional args
+	/// The sMissingParms string is output if there are less than iMinArgs args.
+	void RegisterOption(KStringView sOption, uint16_t iMinArgs, KStringViewZ sMissingParms, CallbackN Function);
 
-	/// Register a callback function for occurences of "sCommand" with an arbitrary amount of additional args
-	void RegisterCommand(KStringView sCommand, KStringViewZ sMissingParms, Callback Function);
+	/// Register a callback function for occurences of "sCommand" with an arbitrary, but defined minimal amount of additional args
+	/// The sMissingParms string is output if there are less than iMinArgs args.
+	void RegisterCommand(KStringView sCommand, uint16_t iMinArgs, KStringViewZ sMissingParms, CallbackN Function);
 
 	/// Register a callback function for unhandled options
-	void RegisterUnknownOption(Callback Function);
+	void RegisterUnknownOption(CallbackN Function);
 
 	/// Register a callback function for unhandled commands
-	void RegisterUnknownCommand(Callback Function);
+	void RegisterUnknownCommand(CallbackN Function);
 
-	/// register an array of KStringViews as help output
+	/// Register an array of KStringViews as help output
 	template<std::size_t COUNT>
 	void RegisterHelp(KStringView (&sHelp)[COUNT])
 	{
@@ -140,12 +144,6 @@ public:
 //----------
 private:
 //----------
-
-	/// Register a callback function for occurences of "-sOption" with an arbitrary, but defined minimal amount of additional args
-	void RegisterOption(KStringView sOption, uint16_t iMinArgs, KStringViewZ sMissingParms, Callback Function);
-
-	/// Register a callback function for occurences of "sCommand" with an arbitrary, but defined minimal amount of additional args
-	void RegisterCommand(KStringView sCommand, uint16_t iMinArgs, KStringViewZ sMissingParms, Callback Function);
 
 	class CLIParms
 	{
@@ -201,14 +199,18 @@ private:
 	public:
 
 		CallbackParams() = default;
+		CallbackParams(const CallbackParams&) = default;
+		CallbackParams(CallbackParams&&) = default;
+		CallbackParams& operator=(const CallbackParams&) = default;
+		CallbackParams& operator=(CallbackParams&&) = default;
 
-		CallbackParams(uint16_t _iMinArgs, KStringViewZ _sMissingParms, Callback _func)
+		CallbackParams(uint16_t _iMinArgs, KStringViewZ _sMissingParms, CallbackN _func)
 		: func(_func)
 		, sMissingParms(_sMissingParms)
 		, iMinArgs(_iMinArgs)
 		{}
 
-		Callback     func { nullptr };
+		CallbackN    func { nullptr };
 		KStringViewZ sMissingParms { };
 		uint16_t     iMinArgs { 0 };
 

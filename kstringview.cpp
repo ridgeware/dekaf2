@@ -419,20 +419,6 @@ KStringView::self_type& KStringView::erase(size_type pos, size_type n)
 
 	n = std::min(n, size() - pos);
 
-#ifdef DEKAF2_USE_FOLLY_STRINGPIECE_AS_KSTRINGVIEW
-
-	try {
-
-		m_rep.erase(begin()+pos, begin()+pos+n);
-
-	} catch (const std::exception& ex) {
-
-			kException(ex);
-
-	}
-
-#else
-
 	if (pos == 0)
 	{
 		remove_prefix(n);
@@ -443,11 +429,14 @@ KStringView::self_type& KStringView::erase(size_type pos, size_type n)
 	}
 	else
 	{
-		kWarning("impossible to remove {} chars at pos {} in a string view of size {}",
-				 n, pos, size());
-	}
-
+		KString sError(kFormat("impossible to remove {} chars at pos {} in a string view of size {}",
+							   n, pos, size()));
+#ifdef DEKAF2_EXCEPTIONS
+		DEKAF2_THROW(std::runtime_error(sError.c_str()));
+#else
+		kWarning(sError);
 #endif
+	}
 
 	return *this;
 

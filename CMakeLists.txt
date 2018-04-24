@@ -14,6 +14,7 @@ set(CMAKE_CXX_STANDARD 17)
 
 # these are all configurable project options
 OPTION(DEKAF2_INSTALL_HEADERS "Install headers" OFF)
+OPTION(DEKAF2_USE_EXCEPTIONS "Use exceptions for error handling" OFF)
 OPTION(DEKAF2_USE_FBSTRING_AS_KSTRING "Use Folly::FBString for KString" ON)
 OPTION(DEKAF2_USE_FOLLY_STRINGPIECE_AS_KSTRINGVIEW "Use Folly::StringPiece for KStringView" ON)
 OPTION(DEKAF2_USE_STD_STRING_FOR_DEBUG_BUILDS "Use std::string for debug builds" OFF)

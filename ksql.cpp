@@ -202,10 +202,10 @@ static void*  kfree (void* dPointer, const char* sContext/*=NULL*/)
 
 	if (dPointer)
 	{
-		try {
+		DEKAF2_TRY {
 			free (dPointer);
 		}
-		catch (EX) {
+		DEKAF2_CATCH (EX) {
 			kWarning ("kfree: would have crashed on free() of 0x{} {}", 
 				dPointer,
 				(sContext) ? " : "      : "",

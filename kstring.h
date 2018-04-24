@@ -350,12 +350,16 @@ public:
 	template<class _InputIterator>
 	KString& replace(const_iterator i1, iterator i2, _InputIterator first, _InputIterator last)
 	{
-		try {
+#ifdef DEKAF2_EXCEPTIONS
+		m_rep.replace(i1, i2, first, last);
+#else
+		DEKAF2_TRY {
 			m_rep.replace(i1, i2, first, last);
-		} catch (std::exception& e) {
+		} DEKAF2_CATCH (std::exception& e) {
 			log_exception(e, "replace");
 		}
 		return *this;
+#endif
 	}
 	// C++17 wants a const_iterator here, but the COW string implementation in libstdc++ does not have it
 	KString& replace(iterator i1, iterator i2, std::initializer_list<value_type> il);

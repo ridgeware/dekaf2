@@ -125,7 +125,7 @@ bool Dekaf::SetUnicodeLocale(KStringView sName)
 {
 	m_sLocale = sName;
 
-	try
+	DEKAF2_TRY
 	{
 		if (m_sLocale.empty())
 		{
@@ -144,7 +144,7 @@ bool Dekaf::SetUnicodeLocale(KStringView sName)
 			return false;
 		}
 	}
-	catch (std::exception& e) {
+	DEKAF2_CATCH (std::exception& e) {
 		if (m_bInConstruction)
 		{
 			std::cerr << e.what() << std::endl;
@@ -152,17 +152,6 @@ bool Dekaf::SetUnicodeLocale(KStringView sName)
 		else
 		{
 			kException(e);
-		}
-		m_sLocale.erase();
-	}
-	catch (...) {
-		if (m_bInConstruction)
-		{
-			std::cerr << "unknown exception in Dekaf() construction" << std::endl;
-		}
-		else
-		{
-			kUnknownException();
 		}
 		m_sLocale.erase();
 	}

@@ -70,15 +70,9 @@ namespace dekaf2
 bool kRewind(std::istream& Stream)
 //-----------------------------------------------------------------------------
 {
-	try {
-
-		return Stream.rdbuf() && Stream.rdbuf()->pubseekoff(0, std::ios_base::beg) != std::streambuf::pos_type(std::streambuf::off_type(-1));
-	}
-
-	catch (std::exception& e)
-	{
-		kException(e);
-	}
+	DEKAF2_TRY_EXCEPTION
+	return Stream.rdbuf() && Stream.rdbuf()->pubseekoff(0, std::ios_base::beg) != std::streambuf::pos_type(std::streambuf::off_type(-1));
+	DEKAF2_LOG_EXCEPTION
 
 	return false;
 
@@ -88,7 +82,7 @@ bool kRewind(std::istream& Stream)
 ssize_t kGetSize(std::istream& Stream, bool bFromStart)
 //-----------------------------------------------------------------------------
 {
-	try {
+	DEKAF2_TRY {
 
 		std::streambuf* sb = Stream.rdbuf();
 
@@ -127,7 +121,7 @@ ssize_t kGetSize(std::istream& Stream, bool bFromStart)
 		}
 	}
 
-	catch (std::exception& e)
+	DEKAF2_CATCH (std::exception& e)
 	{
 		if (kContains(e.what(), "random"))
 		{
@@ -135,7 +129,11 @@ ssize_t kGetSize(std::istream& Stream, bool bFromStart)
 		}
 		else
 		{
+#ifdef DEKAF2_EXCEPTIONS
+			DEKAF2_THROW();
+#else
 			kException(e);
+#endif
 		}
 	}
 
@@ -201,27 +199,20 @@ bool kReadAll(std::istream& Stream, KString& sContent, bool bFromStart)
 
 		// as this approach can be really dangerous on endless input
 		// streams we do wrap it at least into a try-catch block..
-		try
+		DEKAF2_TRY_EXCEPTION
+		for (;;)
 		{
-			for (;;)
+			size_t iRead = static_cast<size_t>(sb->sgetn(buf, BUFSIZE));
+			if (iRead > 0)
 			{
-				size_t iRead = static_cast<size_t>(sb->sgetn(buf, BUFSIZE));
-				if (iRead > 0)
-				{
-					sContent.append(buf, iRead);
-				}
-				if (iRead < BUFSIZE)
-				{
-					break;
-				}
+				sContent.append(buf, iRead);
+			}
+			if (iRead < BUFSIZE)
+			{
+				break;
 			}
 		}
-
-		catch (std::exception& e)
-		{
-			sContent.clear();
-			kException(e);
-		}
+		DEKAF2_LOG_EXCEPTION
 
 		Stream.setstate(std::ios_base::eofbit);
 

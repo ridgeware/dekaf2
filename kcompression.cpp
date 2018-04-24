@@ -113,26 +113,20 @@ bool KCompressBase::SetOutput(KString& sTarget)
 bool KCompressBase::Write(std::istream& InputStream)
 //-----------------------------------------------------------------------------
 {
-	try
+	DEKAF2_TRY_EXCEPTION
+	if (!m_Filter)
 	{
-		if (!m_Filter)
+		if (!CreateFilter())
 		{
-			if (!CreateFilter())
-			{
-				return false;
-			}
+			return false;
 		}
-
-		// This operator<< is actually not trying to format.
-		*m_Filter << InputStream.rdbuf();
-
-		return true;
 	}
 
-	catch (const std::exception& e)
-	{
-		kException(e);
-	}
+	// This operator<< is actually not trying to format.
+	*m_Filter << InputStream.rdbuf();
+
+	return true;
+	DEKAF2_LOG_EXCEPTION
 
 	return false;
 }

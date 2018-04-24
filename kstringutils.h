@@ -237,11 +237,11 @@ String kFormNumber(Arithmetic i, typename String::value_type separator = ',', ty
 	static_assert(std::is_arithmetic<Arithmetic>::value, "arithmetic type required");
 	String result;
 
-	try
+	DEKAF2_TRY
 	{
 		result = std::to_string(i);
 	}
-	catch (...)
+	DEKAF2_CATCH (...)
 	{
 		// that conversion failed..
 		result.clear();

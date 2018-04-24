@@ -77,7 +77,7 @@ std::vector<KString> Addr2LineMsg_ (const std::vector<KString>& vsAddress)
 	if (!vsAddress.empty())
 	{
 #ifdef DEKAF2_IS_OSX
-		try {
+		DEKAF2_TRY {
 			KString sCmdLine = "atos -p ";
 			sCmdLine += std::to_string(getpid());
 			for (const auto& it : vsAddress)
@@ -113,11 +113,11 @@ std::vector<KString> Addr2LineMsg_ (const std::vector<KString>& vsAddress)
 			}
 		}
 
-		catch (...) {
+		DEKAF2_CATCH (...) {
 			// ignore - just do default - returning empty string
 		}
 #elif DEKAF2_IS_UNIX
-		try {
+		DEKAF2_TRY {
 			char sMyExeName[512];
 			ssize_t n;
 			if ( (n = readlink ("/proc/self/exe", sMyExeName, NUM_ELEMENTS (sMyExeName)-1)) > 0)
@@ -162,7 +162,7 @@ std::vector<KString> Addr2LineMsg_ (const std::vector<KString>& vsAddress)
 			}
 		}
 
-		catch (...) {
+		DEKAF2_CATCH (...) {
 			// ignore - just do default - returning empty string
 		}
 #endif
@@ -217,7 +217,7 @@ KString GetGDBAttachBased_Callstack_ ()
 {
 	KString sStack;
 
-	try
+	DEKAF2_TRY
 	{
 		bool seenPrintGDBAttachedxxx = false;
 		char name_buf[512];
@@ -272,7 +272,7 @@ KString GetGDBAttachBased_Callstack_ ()
 		}
 	}
 
-	catch (...)
+	DEKAF2_CATCH (...)
 	{
 		sStack.clear();
 	}

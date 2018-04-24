@@ -209,6 +209,7 @@ public:
 		return (it != LJSON::end() && it->is_boolean());
 	}
 
+#ifndef DEKAF2_EXCEPTIONS
 	/// This overload of the operator[] simply calls the existing operator[] of LJSON.
 	/// The only additional protection it gives is to not throw when being called on
 	/// non-objects.
@@ -217,18 +218,20 @@ public:
 	{
 		ClearError();
 
-		try
+		DEKAF2_TRY
 		{
 			return LJSON::operator[](Key);
 		}
-		catch (const LJSON::exception& exc)
+		DEKAF2_CATCH (const LJSON::exception& exc)
 		{
 			FormError(exc);
 		}
 
 		return s_empty;
 	}
+#endif
 
+#ifndef DEKAF2_EXCEPTIONS
 	/// We do not want this overload of the operator[] as it would abort on nonexisting keys
 	template<typename T>
 	const_reference operator[](T* Key) const
@@ -236,11 +239,27 @@ public:
 		static_assert(sizeof(Key) == 0, "this version of operator[] is intentionally blocked");
 		return s_empty;
 	}
+#endif
 
+#ifndef DEKAF2_EXCEPTIONS
 	reference operator[](const KString& Key)
 	{
 		return operator[](Key.c_str());
 	}
+#else
+	reference operator[](const KString& Key)
+	{
+		return LJSON::operator[](Key.c_str());
+	}
+	reference operator[](KStringViewZ Key)
+	{
+		return LJSON::operator[](Key.c_str());
+	}
+	reference operator[](const char* Key)
+	{
+		return LJSON::operator[](Key);
+	}
+#endif
 
 	bool FormError (const LJSON::exception& exc) const;
 

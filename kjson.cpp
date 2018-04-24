@@ -51,17 +51,23 @@ bool KJSON::Parse (KStringView sJSON)
 {
 	ClearError();
 
-	try
+#ifdef DEKAF2_EXCEPTIONS
+	clear();
+	*this = LJSON::parse(sJSON.cbegin(), sJSON.cend());
+	return true;
+#else
+	DEKAF2_TRY
 	{
 		clear();
 		*this = LJSON::parse(sJSON.cbegin(), sJSON.cend());
 		return true;
 	}
-	catch (const LJSON::exception& exc)
+	DEKAF2_CATCH (const LJSON::exception& exc)
 	{
 		kDebug (1, "exception was thrown.");
 		return (FormError (exc));
 	}
+#endif
 
 } // parse
 
@@ -73,7 +79,15 @@ KString KJSON::GetString(const KString& sKey)
 
 	KString oReturnMe;
 
-	try
+#ifdef DEKAF2_EXCEPTIONS
+	auto it = find(sKey);
+	if (it != end() && it->is_string())
+	{
+		oReturnMe = it.value();
+	}
+	return (oReturnMe);
+#else
+	DEKAF2_TRY
 	{
 		auto it = find(sKey);
 		if (it != end() && it->is_string())
@@ -82,12 +96,13 @@ KString KJSON::GetString(const KString& sKey)
 		}
 		return (oReturnMe);
 	}
-	catch (const LJSON::exception& exc)
+	DEKAF2_CATCH (const LJSON::exception& exc)
 	{
 		kDebug (1, "exception was thrown.");
 		FormError(exc);
 		return (oReturnMe);
 	}
+#endif
 
 } // KJSON::GetString
 
@@ -99,7 +114,15 @@ KJSON KJSON::GetObject (const KString& sKey)
 
 	KJSON oReturnMe;
 
-	try
+#ifdef DEKAF2_EXCEPTIONS
+	auto it = find(sKey);
+	if (it != end())
+	{
+		oReturnMe = it.value();
+	}
+	return (oReturnMe);
+#else
+	DEKAF2_TRY
 	{
 		auto it = find(sKey);
 		if (it != end())
@@ -108,12 +131,13 @@ KJSON KJSON::GetObject (const KString& sKey)
 		}
 		return (oReturnMe);
 	}
-	catch (const LJSON::exception& exc)
+	DEKAF2_CATCH (const LJSON::exception& exc)
 	{
 		kDebug (1, "exception was thrown.");
 		FormError(exc);
 		return (oReturnMe);
 	}
+#endif
 
 } // KJSON::GetObject
 

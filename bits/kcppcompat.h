@@ -133,6 +133,48 @@
 	#define DEKAF2_FALLTHROUGH __attribute__ ((fallthrough))
 #endif
 
+// configure exception behavior
+#if (defined(__cpp_exceptions) || defined(__EXCEPTIONS) || defined(_CPPUNWIND))
+	// The system has exception handling features. Now check
+	// if we want to use exceptions as the error handling mechanism
+	// in dekaf2 or not
+	#define DEKAF2_THROW(exception) throw exception
+	#define DEKAF2_TRY try
+	#define DEKAF2_CATCH(exception) catch(exception)
+	#if defined(DEKAF2_USE_EXCEPTIONS)
+		// macro to test if exceptions are available for error handling
+		#define DEKAF2_EXCEPTIONS
+		// do not catch exceptions and log them, but pass
+		// them on..
+		#define DEKAF2_TRY_EXCEPTION {
+		#define DEKAF2_LOG_EXCEPTION }
+	#else
+		#define DEKAF2_TRY_EXCEPTION try {
+		#define DEKAF2_LOG_EXCEPTION } catch (std::exception& e) { kException(e); }
+	#endif
+#else
+	// no exception handling capabilities available
+	#define DEKAF2_THROW(exception) std::abort()
+	#define DEKAF2_TRY if(true)
+	#define DEKAF2_CATCH(exception) if(false)
+	#define DEKAF2_TRY_EXCEPTION {
+	#define DEKAF2_LOG_EXCEPTION }
+#endif
+
+// override exception macros
+#if defined(DEKAF2_THROW_USER)
+	#undef DEKAF2_THROW
+	#define DEKAF2_THROW DEKAF2_THROW_USER
+#endif
+#if defined(DEKAF2_TRY_USER)
+	#undef DEKAF_TRY
+	#define DEKAF2_TRY DEKAF2_TRY_USER
+#endif
+#if defined(DEKAF2_CATCH_USER)
+	#undef DEKAF2_CATCH
+	#define DEKAF2_CATCH DEKAF2_CATCH_USER
+#endif
+
 // prepare for the shared_mutex enabler below - this has to go into
 // the base namespace
 #ifdef DEKAF2_HAS_CPP_14

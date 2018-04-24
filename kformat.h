@@ -66,12 +66,10 @@ template<class... Args>
 std::string kFormat(Args&&... args)
 //-----------------------------------------------------------------------------
 {
-	try {
+	DEKAF2_TRY {
 		return fmt::format(std::forward<Args>(args)...);
-	} catch (std::exception& e) {
+	} DEKAF2_CATCH (std::exception& e) {
 		kFormat_internal::report_format_exception(e, DEKAF2_FUNCTION_NAME);
-	} catch (...) {
-		kFormat_internal::report_format_exception(DEKAF2_FUNCTION_NAME);
 	}
 	return std::string();
 }
@@ -82,12 +80,10 @@ template<class... Args>
 std::ostream& kfFormat(std::ostream& os, Args&&... args)
 //-----------------------------------------------------------------------------
 {
-	try {
+	DEKAF2_TRY {
 		fmt::print(os, std::forward<Args>(args)...);
-	} catch (std::exception& e) {
+	} DEKAF2_CATCH (std::exception& e) {
 		kFormat_internal::report_format_exception(e, DEKAF2_FUNCTION_NAME);
-	} catch (...) {
-		kFormat_internal::report_format_exception(DEKAF2_FUNCTION_NAME);
 	}
 	return os;
 }
@@ -98,12 +94,10 @@ template<class... Args>
 std::string kPrintf(Args&&... args)
 //-----------------------------------------------------------------------------
 {
-	try {
+	DEKAF2_TRY {
 		return fmt::sprintf(std::forward<Args>(args)...);
-	} catch (std::exception& e) {
+	} DEKAF2_CATCH (std::exception& e) {
 		kFormat_internal::report_format_exception(e, DEKAF2_FUNCTION_NAME);
-	} catch (...) {
-		kFormat_internal::report_format_exception(DEKAF2_FUNCTION_NAME);
 	}
 	return std::string();
 }
@@ -114,13 +108,11 @@ template<class... Args>
 std::ostream& kfPrintf(std::ostream& os, Args&&... args)
 //-----------------------------------------------------------------------------
 {
-	try {
+	DEKAF2_TRY {
 		std::string tmp = kPrintf(std::forward<Args>(args)...);
 		os.write(tmp.data(), static_cast<std::streamsize>(tmp.size()));
-	} catch (std::exception& e) {
+	} DEKAF2_CATCH (std::exception& e) {
 		kFormat_internal::report_format_exception(e, DEKAF2_FUNCTION_NAME);
-	} catch (...) {
-		kFormat_internal::report_format_exception(DEKAF2_FUNCTION_NAME);
 	}
 	return os;
 }

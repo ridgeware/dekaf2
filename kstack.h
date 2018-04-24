@@ -103,15 +103,12 @@ public:
 	//-----------------------------------------------------------------------------
 	{
 		// May throw bad_alloc if can't allocate space for new stack item
-		try {
-			m_Storage.emplace_back(std::forward<Input>(newItem));
-			return true;
-		}
+		DEKAF2_TRY_EXCEPTION
 
-		catch (const std::exception& e)
-		{
-			kException(e);
-		}
+		m_Storage.emplace_back(std::forward<Input>(newItem));
+		return true;
+
+		DEKAF2_LOG_EXCEPTION
 
 		return false;
 	} // Push
@@ -152,15 +149,12 @@ public:
 	//-----------------------------------------------------------------------------
 	{
 		// May throw bad_alloc if can't allocate space for new stack item
-		try {
-			m_Storage.emplace_front(std::forward<Input>(newItem));
-			return true;
-		}
+		DEKAF2_TRY_EXCEPTION
 
-		catch (const std::exception& e)
-		{
-			kException(e);
-		}
+		m_Storage.emplace_front(std::forward<Input>(newItem));
+		return true;
+
+		DEKAF2_LOG_EXCEPTION
 
 		return false;
 	}

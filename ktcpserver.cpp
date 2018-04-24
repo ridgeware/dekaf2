@@ -158,21 +158,18 @@ void KTCPServer::RunSession(std::unique_ptr<KStream> stream, KString sRemoteEndP
 	             sRemoteEndPoint,
 	             m_iPort);
 
-	try
+	DEKAF2_TRY
 	{
 		// run the actual Session code protected by
 		// an exception handler
 		Session(*stream, sRemoteEndPoint);
 	}
-
-	catch (std::exception& e)
+	
+	DEKAF2_CATCH(std::exception& e)
 	{
+		// This is the lowest stack level of a new thread. If we would
+		// not catch the exception here the whole program would abort.
 		kException(e);
-	}
-
-	catch (...)
-	{
-		kUnknownException();
 	}
 
 	kDebug(3, "closing connection with {} on port {}",
@@ -188,7 +185,7 @@ void KTCPServer::RunSession(std::unique_ptr<KStream> stream, KString sRemoteEndP
 bool KTCPServer::IsPortAvailable(uint16_t iPort)
 //-----------------------------------------------------------------------------
 {
-	try
+	DEKAF2_TRY
 	{
 		asio::io_service io_service;
 		tcp::endpoint local_endpoint(tcp::v4(), iPort);
@@ -197,8 +194,10 @@ bool KTCPServer::IsPortAvailable(uint16_t iPort)
 		return true;
 	}
 
-	catch (const std::exception& e)
+	DEKAF2_CATCH(const std::exception& e)
 	{
+		// This exception is expected to happen if the port is already in use,
+		// we simply want to return with false from the check.
 		kException(e);
 	}
 
@@ -210,99 +209,88 @@ bool KTCPServer::IsPortAvailable(uint16_t iPort)
 void KTCPServer::TCPServer(bool ipv6)
 //-----------------------------------------------------------------------------
 {
-	try
+	DEKAF2_TRY_EXCEPTION
+	asio::ip::v6_only v6_only(false);
+
+	tcp::endpoint local_endpoint((ipv6) ? tcp::v6() : tcp::v4(), m_iPort);
+	tcp::acceptor acceptor(m_asio, local_endpoint, true); // true means reuse_addr
+
+	if (ipv6)
 	{
-		asio::ip::v6_only v6_only(false);
-
-		tcp::endpoint local_endpoint((ipv6) ? tcp::v6() : tcp::v4(), m_iPort);
-		tcp::acceptor acceptor(m_asio, local_endpoint, true); // true means reuse_addr
-
-		if (ipv6)
+		// check if we listen on both v4 and v6, or only on v6
+		acceptor.get_option(v6_only);
+		// if acceptor is not open this computer does not support v6
+		// if v6_only then this computer does not use a dual stack
+		if (!acceptor.is_open() || v6_only)
 		{
-			// check if we listen on both v4 and v6, or only on v6
-			acceptor.get_option(v6_only);
-			// if acceptor is not open this computer does not support v6
-			// if v6_only then this computer does not use a dual stack
-			if (!acceptor.is_open() || v6_only)
+			if (m_bStartIPv4)
 			{
-				if (m_bStartIPv4)
+				// check if we can stay in this thread (because the v6 acceptor
+				// is not working, and blocking construction is requested)
+				if (!acceptor.is_open() && m_bBlock)
 				{
-					// check if we can stay in this thread (because the v6 acceptor
-					// is not working, and blocking construction is requested)
-					if (!acceptor.is_open() && m_bBlock)
-					{
-						TCPServer(false);
-					}
-					else
-					{
-						// else open v4 explicitly in another thread
-						m_ipv4_server = std::make_unique<std::thread>(&KTCPServer::TCPServer, this, false);
-					}
-				}
-			}
-		}
-
-		if (!acceptor.is_open())
-		{
-			kWarning("IPv{} listener for port {} could not open",
-			               (ipv6) ? '6' : '4',
-			               m_iPort);
-		}
-		else
-		{
-			while (acceptor.is_open() && !m_bQuit)
-			{
-				if (IsSSL())
-				{
-					auto stream = CreateKSSLStream();
-					stream->SetSSLCertificate(m_sCert.c_str(), m_sPem.c_str());
-					endpoint_type remote_endpoint;
-					acceptor.accept(stream->GetTCPSocket(), remote_endpoint);
-					if (!m_bQuit)
-					{
-						stream->Timeout(m_iTimeout);
-						std::thread(&KTCPServer::RunSession, this, std::move(stream), to_string(remote_endpoint)).detach();
-					}
+					TCPServer(false);
 				}
 				else
 				{
-					auto stream = CreateKTCPStream();
-					endpoint_type remote_endpoint;
-					acceptor.accept(stream->GetTCPSocket(), remote_endpoint);
-					if (!m_bQuit)
-					{
-						stream->Timeout(m_iTimeout);
-						std::thread(&KTCPServer::RunSession, this, std::move(stream), to_string(remote_endpoint)).detach();
-					}
+					// else open v4 explicitly in another thread
+					m_ipv4_server = std::make_unique<std::thread>(&KTCPServer::TCPServer, this, false);
 				}
-
-				while (m_iOpenConnections > m_iMaxConnections)
-				{
-					// this may actually trigger a few threads too late,
-					// but we do not care too much about
-					usleep(100);
-				}
-
-			}
-
-			if (!acceptor.is_open() && !m_bQuit)
-			{
-				kWarning("IPv{} listener for port {} has closed",
-				               (ipv6) ? '6' : '4',
-				               m_iPort);
 			}
 		}
 	}
 
-	catch (const std::exception& e)
+	if (!acceptor.is_open())
 	{
-		kException(e);
+		kWarning("IPv{} listener for port {} could not open",
+					   (ipv6) ? '6' : '4',
+					   m_iPort);
 	}
+	else
+	{
+		while (acceptor.is_open() && !m_bQuit)
+		{
+			if (IsSSL())
+			{
+				auto stream = CreateKSSLStream();
+				stream->SetSSLCertificate(m_sCert.c_str(), m_sPem.c_str());
+				endpoint_type remote_endpoint;
+				acceptor.accept(stream->GetTCPSocket(), remote_endpoint);
+				if (!m_bQuit)
+				{
+					stream->Timeout(m_iTimeout);
+					std::thread(&KTCPServer::RunSession, this, std::move(stream), to_string(remote_endpoint)).detach();
+				}
+			}
+			else
+			{
+				auto stream = CreateKTCPStream();
+				endpoint_type remote_endpoint;
+				acceptor.accept(stream->GetTCPSocket(), remote_endpoint);
+				if (!m_bQuit)
+				{
+					stream->Timeout(m_iTimeout);
+					std::thread(&KTCPServer::RunSession, this, std::move(stream), to_string(remote_endpoint)).detach();
+				}
+			}
 
-	catch (...)
-	{
-		kUnknownException();
+			while (m_iOpenConnections > m_iMaxConnections)
+			{
+				// this may actually trigger a few threads too late,
+				// but we do not care too much about
+				usleep(100);
+			}
+
+		}
+
+		if (!acceptor.is_open() && !m_bQuit)
+		{
+			kWarning("IPv{} listener for port {} has closed",
+						   (ipv6) ? '6' : '4',
+						   m_iPort);
+		}
 	}
+	DEKAF2_LOG_EXCEPTION
 
 } // TCPServer
 
@@ -310,53 +298,42 @@ void KTCPServer::TCPServer(bool ipv6)
 void KTCPServer::UnixServer()
 //-----------------------------------------------------------------------------
 {
-	try
+	DEKAF2_TRY_EXCEPTION
+	asio::ip::v6_only v6_only(false);
+
+	boost::asio::local::stream_protocol::endpoint local_endpoint(m_sSocketFile.c_str());
+	boost::asio::local::stream_protocol::acceptor acceptor(m_asio, local_endpoint);
+	if (!acceptor.is_open())
 	{
-		asio::ip::v6_only v6_only(false);
-
-		boost::asio::local::stream_protocol::endpoint local_endpoint(m_sSocketFile.c_str());
-		boost::asio::local::stream_protocol::acceptor acceptor(m_asio, local_endpoint);
-		if (!acceptor.is_open())
+		kWarning("listener for socket file {} could not open", m_sSocketFile);
+	}
+	else
+	{
+		while (acceptor.is_open() && !m_bQuit)
 		{
-			kWarning("listener for socket file {} could not open", m_sSocketFile);
-		}
-		else
-		{
-			while (acceptor.is_open() && !m_bQuit)
+			auto stream = CreateKUnixStream();
+			acceptor.accept(stream->GetUnixSocket());
+			if (!m_bQuit)
 			{
-				auto stream = CreateKUnixStream();
-				acceptor.accept(stream->GetUnixSocket());
-				if (!m_bQuit)
-				{
-					stream->Timeout(m_iTimeout);
-					std::thread(&KTCPServer::RunSession, this, std::move(stream), KString{}).detach();
-				}
-
-				while (m_iOpenConnections > m_iMaxConnections)
-				{
-					// this may actually trigger a few threads too late,
-					// but we do not care too much about
-					usleep(100);
-				}
-
+				stream->Timeout(m_iTimeout);
+				std::thread(&KTCPServer::RunSession, this, std::move(stream), KString{}).detach();
 			}
 
-			if (!acceptor.is_open() && !m_bQuit)
+			while (m_iOpenConnections > m_iMaxConnections)
 			{
-				kWarning("listener for socket file {} has closed", m_sSocketFile);
+				// this may actually trigger a few threads too late,
+				// but we do not care too much about
+				usleep(100);
 			}
+
+		}
+
+		if (!acceptor.is_open() && !m_bQuit)
+		{
+			kWarning("listener for socket file {} has closed", m_sSocketFile);
 		}
 	}
-
-	catch (const std::exception& e)
-	{
-		kException(e);
-	}
-
-	catch (...)
-	{
-		kUnknownException();
-	}
+	DEKAF2_LOG_EXCEPTION
 
 } // UnixServer
 

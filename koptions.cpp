@@ -123,7 +123,7 @@ void KOptions::Help(KOutStream& out)
 {
 	if (DEKAF2_UNLIKELY(m_sHelp == nullptr))
 	{
-		throw Error("no help registered");
+		DEKAF2_THROW (Error("no help registered"));
 	}
 
 	for (size_t ct = 0; ct < m_sHelpSize; ++ct)
@@ -252,7 +252,7 @@ int KOptions::Parse(int argc, char** argv, KOutStream& out)
 
 	CLIParms::iterator lastCommand;
 
-	try
+	DEKAF2_TRY
 	{
 
 		// using explicit iterators so that options can move the loop forward more than one step
@@ -314,11 +314,11 @@ int KOptions::Parse(int argc, char** argv, KOutStream& out)
 				{
 					if (!CBP->sMissingParms.empty())
 					{
-						throw MissingParameterError(CBP->sMissingParms);
+						DEKAF2_THROW(MissingParameterError(CBP->sMissingParms));
 					}
 					else
 					{
-						throw MissingParameterError(kFormat("{} arguments required, but only {} found", CBP->iMinArgs, Args.size()));
+						DEKAF2_THROW(MissingParameterError(kFormat("{} arguments required, but only {} found", CBP->iMinArgs, Args.size())));
 					}
 				}
 
@@ -330,7 +330,7 @@ int KOptions::Parse(int argc, char** argv, KOutStream& out)
 
 				if (iOldSize < Args.size())
 				{
-					throw WrongParameterError("callback manipulated parameter count");
+					DEKAF2_THROW(WrongParameterError("callback manipulated parameter count"));
 				}
 
 				if (bIsUnknown)
@@ -367,17 +367,17 @@ int KOptions::Parse(int argc, char** argv, KOutStream& out)
 		return Evaluate(out);
 	}
 
-	catch (const MissingParameterError& error)
+	DEKAF2_CATCH (const MissingParameterError& error)
 	{
 		out.FormatLine("missing parameter after {}{} : {}", lastCommand->Dashes(), lastCommand->sArg, error.what());
 	}
 
-	catch (const WrongParameterError& error)
+	DEKAF2_CATCH (const WrongParameterError& error)
 	{
 		out.FormatLine("wrong parameter after {}{} : {}", lastCommand->Dashes(), lastCommand->sArg, error.what());
 	}
 
-	catch (const Error& error)
+	DEKAF2_CATCH (const Error& error)
 	{
 		out.FormatLine("Error : {}", error.what());
 	}

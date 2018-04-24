@@ -12,9 +12,15 @@ TEST_CASE("KString") {
 	SECTION("Exception safety of KString")
 	{
 		KString s("12345");
+		KString s2;
+#ifdef DEKAF2_EXCEPTIONS
+		CHECK_THROWS_AS ( s.insert(10, "aaaaa"), std::exception );
+		CHECK_THROWS_AS( (s2 = s.substr(20, 6)), std::exception );
+#else
 		s.insert(10, "aaaaa");
-		KString s2 = s.substr(20, 6);
+		s2 = s.substr(20, 6);
 		CHECK ( s2 == "" );
+#endif
 		KString s3(s, 30, 10);
 		CHECK ( s3 == "" );
 	}

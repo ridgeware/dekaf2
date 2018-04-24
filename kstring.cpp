@@ -70,11 +70,9 @@ void KString::log_exception(const std::exception& e, const char* sWhere)
 KString& KString::append(const string_type& str, size_type pos, size_type n)
 //------------------------------------------------------------------------------
 {
-	try {
-		m_rep.append(str, pos, n);
-	} catch (std::exception& e) {
-		kException(e);
-	}
+	DEKAF2_TRY_EXCEPTION
+	m_rep.append(str, pos, n);
+	DEKAF2_LOG_EXCEPTION
 	return *this;
 }
 
@@ -83,11 +81,10 @@ KString& KString::append(const string_type& str, size_type pos, size_type n)
 KString& KString::append(const std::string& str, size_type pos, size_type n)
 //------------------------------------------------------------------------------
 {
-	try {
-		m_rep.append(str, pos, n);
-	} catch (std::exception& e) {
-		kException(e);
-	}
+	DEKAF2_TRY_EXCEPTION
+	m_rep.append(str, pos, n);
+	DEKAF2_LOG_EXCEPTION
+
 	return *this;
 }
 #endif
@@ -96,11 +93,9 @@ KString& KString::append(const std::string& str, size_type pos, size_type n)
 KString& KString::assign(const string_type& str, size_type pos, size_type n)
 //------------------------------------------------------------------------------
 {
-	try {
-		m_rep.assign(str, pos, n);
-	} catch (std::exception& e) {
-		kException(e);
-	}
+	DEKAF2_TRY_EXCEPTION
+	m_rep.assign(str, pos, n);
+	DEKAF2_LOG_EXCEPTION
 	return *this;
 }
 
@@ -109,11 +104,9 @@ KString& KString::assign(const string_type& str, size_type pos, size_type n)
 KString& KString::assign(const std::string& str, size_type pos, size_type n)
 //------------------------------------------------------------------------------
 {
-	try {
-		m_rep.assign(str, pos, n);
-	} catch (std::exception& e) {
-		kException(e);
-	}
+	DEKAF2_TRY_EXCEPTION
+	m_rep.assign(str, pos, n);
+	DEKAF2_LOG_EXCEPTION
 	return *this;
 }
 #endif
@@ -122,15 +115,13 @@ KString& KString::assign(const std::string& str, size_type pos, size_type n)
 KString& KString::replace(size_type pos, size_type n, const string_type& str)
 //------------------------------------------------------------------------------
 {
-	try {
-		if (n > size() || pos + n > size())
-		{
-			n = size() - pos;
-		}
-		m_rep.replace(pos, n, str);
-	} catch (std::exception& e) {
-		kException(e);
+	DEKAF2_TRY_EXCEPTION
+	if (n > size() || pos + n > size())
+	{
+		n = size() - pos;
 	}
+	m_rep.replace(pos, n, str);
+	DEKAF2_LOG_EXCEPTION
 	return *this;
 }
 
@@ -138,15 +129,13 @@ KString& KString::replace(size_type pos, size_type n, const string_type& str)
 KString& KString::replace(size_type pos1, size_type n1, const string_type& str, size_type pos2, size_type n2)
 //------------------------------------------------------------------------------
 {
-	try {
-		if (n1 > size() || pos1 + n1 > size())
-		{
-			n1 = size() - pos1;
-		}
-		m_rep.replace(pos1, n1, str, pos2, n2);
-	} catch (std::exception& e) {
-		kException(e);
+	DEKAF2_TRY_EXCEPTION
+	if (n1 > size() || pos1 + n1 > size())
+	{
+		n1 = size() - pos1;
 	}
+	m_rep.replace(pos1, n1, str, pos2, n2);
+	DEKAF2_LOG_EXCEPTION
 	return *this;
 }
 
@@ -155,26 +144,24 @@ KString& KString::replace(size_type pos1, size_type n1, const string_type& str, 
 KString& KString::replace(size_type pos1, size_type n1, const std::string& str, size_type pos2, size_type n2)
 //------------------------------------------------------------------------------
 {
-	try {
-		if (n1 > size() || pos1 + n1 > size())
-		{
-			n1 = size() - pos1;
-		}
-		// avoid segfaults
-		if (pos2 > str.size())
-		{
-			kWarning("pos2 ({}) exceeds size ({})", pos2, str.size());
-			pos2 = str.size();
-		}
-		if (pos2 + n2 > str.size())
-		{
-			kWarning("pos2 ({}) + n ({}) exceeds size ({})", pos2, n2, str.size());
-			n2 = str.size() - pos2;
-		}
-		m_rep.replace(pos1, n1, str.data()+pos2, n2);
-	} catch (std::exception& e) {
-		kException(e);
+	DEKAF2_TRY_EXCEPTION
+	if (n1 > size() || pos1 + n1 > size())
+	{
+		n1 = size() - pos1;
 	}
+	// avoid segfaults
+	if (pos2 > str.size())
+	{
+		kWarning("pos2 ({}) exceeds size ({})", pos2, str.size());
+		pos2 = str.size();
+	}
+	if (pos2 + n2 > str.size())
+	{
+		kWarning("pos2 ({}) + n ({}) exceeds size ({})", pos2, n2, str.size());
+		n2 = str.size() - pos2;
+	}
+	m_rep.replace(pos1, n1, str.data()+pos2, n2);
+	DEKAF2_LOG_EXCEPTION
 	return *this;
 }
 
@@ -184,15 +171,13 @@ KString& KString::replace(size_type pos1, size_type n1, const std::string& str, 
 KString& KString::replace(size_type pos, size_type n1, const value_type* s, size_type n2)
 //------------------------------------------------------------------------------
 {
-	try {
-		if (n1 > size() || pos + n1 > size())
-		{
-			n1 = size() - pos;
-		}
-		m_rep.replace(pos, n1, s ? s : "", n2);
-	} catch (std::exception& e) {
-		kException(e);
+	DEKAF2_TRY_EXCEPTION
+	if (n1 > size() || pos + n1 > size())
+	{
+		n1 = size() - pos;
 	}
+	m_rep.replace(pos, n1, s ? s : "", n2);
+	DEKAF2_LOG_EXCEPTION
 	return *this;
 }
 
@@ -200,15 +185,13 @@ KString& KString::replace(size_type pos, size_type n1, const value_type* s, size
 KString& KString::replace(size_type pos, size_type n1, const value_type* s)
 //------------------------------------------------------------------------------
 {
-	try {
-		if (n1 > size() || pos + n1 > size())
-		{
-			n1 = size() - pos;
-		}
-		m_rep.replace(pos, n1, s ? s : "");
-	} catch (std::exception& e) {
-		kException(e);
+	DEKAF2_TRY_EXCEPTION
+	if (n1 > size() || pos + n1 > size())
+	{
+		n1 = size() - pos;
 	}
+	m_rep.replace(pos, n1, s ? s : "");
+	DEKAF2_LOG_EXCEPTION
 	return *this;
 }
 
@@ -216,15 +199,13 @@ KString& KString::replace(size_type pos, size_type n1, const value_type* s)
 KString& KString::replace(size_type pos, size_type n1, size_type n2, value_type c)
 //------------------------------------------------------------------------------
 {
-	try {
-		if (n1 > size() || pos + n1 > size())
-		{
-			n1 = size() - pos;
-		}
-		m_rep.replace(pos, n1, n2, c);
-	} catch (std::exception& e) {
-		kException(e);
+	DEKAF2_TRY_EXCEPTION
+	if (n1 > size() || pos + n1 > size())
+	{
+		n1 = size() - pos;
 	}
+	m_rep.replace(pos, n1, n2, c);
+	DEKAF2_LOG_EXCEPTION
 	return *this;
 }
 
@@ -232,11 +213,9 @@ KString& KString::replace(size_type pos, size_type n1, size_type n2, value_type 
 KString& KString::replace(iterator i1, iterator i2, const string_type& str)
 //------------------------------------------------------------------------------
 {
-	try {
-		m_rep.replace(i1, i2, str);
-	} catch (std::exception& e) {
-		kException(e);
-	}
+	DEKAF2_TRY_EXCEPTION
+	m_rep.replace(i1, i2, str);
+	DEKAF2_LOG_EXCEPTION
 	return *this;
 }
 
@@ -244,11 +223,9 @@ KString& KString::replace(iterator i1, iterator i2, const string_type& str)
 KString& KString::replace(iterator i1, iterator i2, const value_type* s, size_type n)
 //------------------------------------------------------------------------------
 {
-	try {
-		m_rep.replace(i1, i2, s ? s : "", n);
-	} catch (std::exception& e) {
-		kException(e);
-	}
+	DEKAF2_TRY_EXCEPTION
+	m_rep.replace(i1, i2, s ? s : "", n);
+	DEKAF2_LOG_EXCEPTION
 	return *this;
 }
 
@@ -256,11 +233,9 @@ KString& KString::replace(iterator i1, iterator i2, const value_type* s, size_ty
 KString& KString::replace(iterator i1, iterator i2, std::initializer_list<value_type> il)
 //------------------------------------------------------------------------------
 {
-	try {
-		m_rep.replace(i1, i2, il);
-	} catch (std::exception& e) {
-		kException(e);
-	}
+	DEKAF2_TRY_EXCEPTION
+	m_rep.replace(i1, i2, il);
+	DEKAF2_LOG_EXCEPTION
 	return *this;
 }
 
@@ -268,15 +243,13 @@ KString& KString::replace(iterator i1, iterator i2, std::initializer_list<value_
 KString& KString::replace(size_type pos, size_type n, KStringView sv)
 //------------------------------------------------------------------------------
 {
-	try {
-		if (n > size() || pos + n > size())
-		{
-			n = size() - pos;
-		}
-		m_rep.replace(pos, n, sv.data(), sv.size());
-	} catch (std::exception& e) {
-		kException(e);
+	DEKAF2_TRY_EXCEPTION
+	if (n > size() || pos + n > size())
+	{
+		n = size() - pos;
 	}
+	m_rep.replace(pos, n, sv.data(), sv.size());
+	DEKAF2_LOG_EXCEPTION
 	return *this;
 }
 
@@ -284,11 +257,9 @@ KString& KString::replace(size_type pos, size_type n, KStringView sv)
 KString& KString::replace(iterator i1, iterator i2, KStringView sv)
 //------------------------------------------------------------------------------
 {
-	try {
-		m_rep.replace(i1, i2, sv.data(), sv.size());
-	} catch (std::exception& e) {
-		kException(e);
-	}
+	DEKAF2_TRY_EXCEPTION
+	m_rep.replace(i1, i2, sv.data(), sv.size());
+	DEKAF2_LOG_EXCEPTION
 	return *this;
 }
 
@@ -296,15 +267,13 @@ KString& KString::replace(iterator i1, iterator i2, KStringView sv)
 KString KString::substr(size_type pos, size_type n/*=npos*/) const
 //------------------------------------------------------------------------------
 {
-	try {
-		if (n > size() || pos + n > size())
-		{
-			n = size() - pos;
-		}
-		return m_rep.substr(pos, n);
-	} catch (std::exception& e) {
-		kException(e);
+	DEKAF2_TRY_EXCEPTION
+	if (n > size() || pos + n > size())
+	{
+		n = size() - pos;
 	}
+	return m_rep.substr(pos, n);
+	DEKAF2_LOG_EXCEPTION
 	return KString();
 }
 
@@ -312,11 +281,9 @@ KString KString::substr(size_type pos, size_type n/*=npos*/) const
 KString::size_type KString::copy(value_type* s, size_type n, size_type pos) const
 //------------------------------------------------------------------------------
 {
-	try {
-		return m_rep.copy(s, n, pos);
-	} catch (std::exception& e) {
-		kException(e);
-	}
+	DEKAF2_TRY_EXCEPTION
+	return m_rep.copy(s, n, pos);
+	DEKAF2_LOG_EXCEPTION
 	return 0;
 }
 
@@ -324,11 +291,9 @@ KString::size_type KString::copy(value_type* s, size_type n, size_type pos) cons
 KString& KString::insert(size_type pos, const string_type& str)
 //------------------------------------------------------------------------------
 {
-	try {
-		m_rep.insert(pos, str);
-	} catch (std::exception& e) {
-		kException(e);
-	}
+	DEKAF2_TRY_EXCEPTION
+	m_rep.insert(pos, str);
+	DEKAF2_LOG_EXCEPTION
 	return *this;
 }
 
@@ -336,11 +301,9 @@ KString& KString::insert(size_type pos, const string_type& str)
 KString& KString::insert(size_type pos1, const string_type& str, size_type pos2, size_type n)
 //------------------------------------------------------------------------------
 {
-	try {
-		m_rep.insert(pos1, str, pos2, n);
-	} catch (std::exception& e) {
-		kException(e);
-	}
+	DEKAF2_TRY_EXCEPTION
+	m_rep.insert(pos1, str, pos2, n);
+	DEKAF2_LOG_EXCEPTION
 	return *this;
 }
 
@@ -349,22 +312,20 @@ KString& KString::insert(size_type pos1, const string_type& str, size_type pos2,
 KString& KString::insert(size_type pos1, const std::string& str, size_type pos2, size_type n)
 //------------------------------------------------------------------------------
 {
-	try {
-		// avoid segfaults
-		if (pos2 > str.size())
-		{
-			kWarning("pos2 ({}) exceeds size ({})", pos2, str.size());
-			pos2 = str.size();
-		}
-		if (pos2 + n > str.size())
-		{
-			kWarning("pos2 ({}) + n ({}) exceeds size ({})", pos2, n, str.size());
-			n = str.size() - pos2;
-		}
-		m_rep.insert(pos1, str.data()+pos2, n);
-	} catch (std::exception& e) {
-		kException(e);
+	DEKAF2_TRY_EXCEPTION
+	// avoid segfaults
+	if (pos2 > str.size())
+	{
+		kWarning("pos2 ({}) exceeds size ({})", pos2, str.size());
+		pos2 = str.size();
 	}
+	if (pos2 + n > str.size())
+	{
+		kWarning("pos2 ({}) + n ({}) exceeds size ({})", pos2, n, str.size());
+		n = str.size() - pos2;
+	}
+	m_rep.insert(pos1, str.data()+pos2, n);
+	DEKAF2_LOG_EXCEPTION
 	return *this;
 }
 #endif
@@ -373,11 +334,9 @@ KString& KString::insert(size_type pos1, const std::string& str, size_type pos2,
 KString& KString::insert(size_type pos, const value_type* s, size_type n)
 //------------------------------------------------------------------------------
 {
-	try {
-		m_rep.insert(pos, s ? s : "", n);
-	} catch (std::exception& e) {
-		kException(e);
-	}
+	DEKAF2_TRY_EXCEPTION
+	m_rep.insert(pos, s ? s : "", n);
+	DEKAF2_LOG_EXCEPTION
 	return *this;
 }
 
@@ -385,11 +344,9 @@ KString& KString::insert(size_type pos, const value_type* s, size_type n)
 KString& KString::insert(size_type pos, const value_type* s)
 //------------------------------------------------------------------------------
 {
-	try {
-		m_rep.insert(pos, s ? s : "");
-	} catch (std::exception& e) {
-		kException(e);
-	}
+	DEKAF2_TRY_EXCEPTION
+	m_rep.insert(pos, s ? s : "");
+	DEKAF2_LOG_EXCEPTION
 	return *this;
 }
 
@@ -397,11 +354,9 @@ KString& KString::insert(size_type pos, const value_type* s)
 KString& KString::insert(size_type pos, size_type n, value_type c)
 //------------------------------------------------------------------------------
 {
-	try {
-		m_rep.insert(pos, n, c);
-	} catch (std::exception& e) {
-		kException(e);
-	}
+	DEKAF2_TRY_EXCEPTION
+	m_rep.insert(pos, n, c);
+	DEKAF2_LOG_EXCEPTION
 	return *this;
 }
 
@@ -409,11 +364,9 @@ KString& KString::insert(size_type pos, size_type n, value_type c)
 KString::iterator KString::insert(iterator it, value_type c)
 //------------------------------------------------------------------------------
 {
-	try {
-		return m_rep.insert(it, c);
-	} catch (std::exception& e) {
-		kException(e);
-	}
+	DEKAF2_TRY_EXCEPTION
+	return m_rep.insert(it, c);
+	DEKAF2_LOG_EXCEPTION
 	return end();
 }
 
@@ -421,11 +374,9 @@ KString::iterator KString::insert(iterator it, value_type c)
 KString& KString::insert (iterator it, std::initializer_list<value_type> il)
 //------------------------------------------------------------------------------
 {
-	try {
-		m_rep.insert(it, il);
-	} catch (std::exception& e) {
-		kException(e);
-	}
+	DEKAF2_TRY_EXCEPTION
+	m_rep.insert(it, il);
+	DEKAF2_LOG_EXCEPTION
 	return *this;
 }
 
@@ -433,11 +384,9 @@ KString& KString::insert (iterator it, std::initializer_list<value_type> il)
 KString& KString::insert(size_type pos, KStringView sv)
 //------------------------------------------------------------------------------
 {
-	try {
-		m_rep.insert(pos, sv.data(), sv.size());
-	} catch (std::exception& e) {
-		kException(e);
-	}
+	DEKAF2_TRY_EXCEPTION
+	m_rep.insert(pos, sv.data(), sv.size());
+	DEKAF2_LOG_EXCEPTION
 	return *this;
 }
 
@@ -445,15 +394,13 @@ KString& KString::insert(size_type pos, KStringView sv)
 KString& KString::erase(size_type pos, size_type n)
 //------------------------------------------------------------------------------
 {
-	try {
-		if (n > size() || pos + n > size())
-		{
-			n = size() - pos;
-		}
-		m_rep.erase(pos, n);
-	} catch (std::exception& e) {
-		kException(e);
+	DEKAF2_TRY_EXCEPTION
+	if (n > size() || pos + n > size())
+	{
+		n = size() - pos;
 	}
+	m_rep.erase(pos, n);
+	DEKAF2_LOG_EXCEPTION
 	return *this;
 }
 
@@ -461,15 +408,13 @@ KString& KString::erase(size_type pos, size_type n)
 KString::iterator KString::erase(iterator position)
 //------------------------------------------------------------------------------
 {
-	try {
-		// we turn this into a indexed erase, because
-		// the std::string iterator erase does not test for
-		// iterator out of range and segfaults if out of range..
-		m_rep.erase(static_cast<size_type>(position - begin()), 1);
-		return position;
-	} catch (std::exception& e) {
-		kException(e);
-	}
+	DEKAF2_TRY_EXCEPTION
+	// we turn this into a indexed erase, because
+	// the std::string iterator erase does not test for
+	// iterator out of range and segfaults if out of range..
+	m_rep.erase(static_cast<size_type>(position - begin()), 1);
+	return position;
+	DEKAF2_LOG_EXCEPTION
 	return end();
 }
 
@@ -477,16 +422,14 @@ KString::iterator KString::erase(iterator position)
 KString::iterator KString::erase(iterator first, iterator last)
 //------------------------------------------------------------------------------
 {
-	try {
-		// we turn this into a indexed erase, because
-		// the std::string iterator erase does not test for
-		// iterator out of range and segfaults if out of range..
-		m_rep.erase(static_cast<size_type>(first - begin()),
-		            static_cast<size_type>(last - first));
-		return first;
-	} catch (std::exception& e) {
-		kException(e);
-	}
+	DEKAF2_TRY_EXCEPTION
+	// we turn this into a indexed erase, because
+	// the std::string iterator erase does not test for
+	// iterator out of range and segfaults if out of range..
+	m_rep.erase(static_cast<size_type>(first - begin()),
+				static_cast<size_type>(last - first));
+	return first;
+	DEKAF2_LOG_EXCEPTION
 	return end();
 }
 

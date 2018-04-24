@@ -161,20 +161,6 @@
 	#define DEKAF2_LOG_EXCEPTION }
 #endif
 
-// override exception macros
-#if defined(DEKAF2_THROW_USER)
-	#undef DEKAF2_THROW
-	#define DEKAF2_THROW DEKAF2_THROW_USER
-#endif
-#if defined(DEKAF2_TRY_USER)
-	#undef DEKAF_TRY
-	#define DEKAF2_TRY DEKAF2_TRY_USER
-#endif
-#if defined(DEKAF2_CATCH_USER)
-	#undef DEKAF2_CATCH
-	#define DEKAF2_CATCH DEKAF2_CATCH_USER
-#endif
-
 // prepare for the shared_mutex enabler below - this has to go into
 // the base namespace
 #ifdef DEKAF2_HAS_CPP_14

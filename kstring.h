@@ -1441,9 +1441,9 @@ namespace boost
 } // end of namespace boost
 
 //----------------------------------------------------------------------
-inline std::size_t dekaf2::KString::Hash() const
+inline size_t dekaf2::KString::Hash() const
 //----------------------------------------------------------------------
 {
-	return std::hash<dekaf2::KString>()(*this);
+	return dekaf2::hash_bytes_FNV(data(), size());
 }
 

@@ -1413,11 +1413,7 @@ namespace std
 		typedef std::size_t result_type;
 		result_type operator()(argument_type const& s) const noexcept
 		{
-#ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
-			return std::hash<dekaf2::KString::string_type>{}(s);
-#else
-			return std::hash<dekaf2::KString::string_type>{}(s.ToStdString());
-#endif
+			return dekaf2::hash_bytes_FNV(s.data(), s.size());
 		}
 	};
 
@@ -1441,9 +1437,9 @@ namespace boost
 } // end of namespace boost
 
 //----------------------------------------------------------------------
-inline size_t dekaf2::KString::Hash() const
+inline std::size_t dekaf2::KString::Hash() const
 //----------------------------------------------------------------------
 {
-	return dekaf2::hash_bytes_FNV(data(), size());
+	return std::hash<dekaf2::KString>()(*this);
 }
 

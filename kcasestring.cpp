@@ -259,7 +259,7 @@ std::size_t kCalcCaseHashTrim(KStringView sv, KStringView svTrim)
 	return kCalcCaseHash(sv);
 }
 
-#ifndef DEKAF2_HAS_CPP17
+#ifdef DEKAF2_REPEAT_CONSTEXPR_VARIABLE
 
 constexpr KStringView detail::casestring::TrimWhiteSpaces::svTrimLeft;
 constexpr KStringView detail::casestring::TrimWhiteSpaces::svTrimRight;

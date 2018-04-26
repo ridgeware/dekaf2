@@ -215,7 +215,11 @@ void KJSON::Escape (KStringView sInput, KString& sOutput)
 			{
 				// escape control characters (0x00..0x1F) or, if
 				// ensure_ascii parameter is used, non-ASCII characters
+#if !DEKAF2_NO_GCC && DEKAF2_GCC_VERSION < 70000
+				if (ch <= 0x1F)
+#else
 				if ((ch >= 0) && (ch <= 0x1F))
+#endif
 				{
 					sOutput += "\\u00";
 					sOutput += KString::to_hexstring(static_cast<uint32_t>(ch));

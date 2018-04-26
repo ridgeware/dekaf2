@@ -97,7 +97,7 @@ protected:
 	inline bool* getTableInt(URIPart part)
 	//-----------------------------------------------------------------------------
 	{
-		size_t which = std::min(static_cast<size_t>(part), TABLECOUNT - 1UL);
+		std::size_t which = std::min(static_cast<std::size_t>(part), static_cast<std::size_t>(TABLECOUNT - 1));
 		return EncodingTable[which];
 	}
 

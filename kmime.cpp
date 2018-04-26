@@ -44,7 +44,7 @@
 
 namespace dekaf2 {
 
-#if !defined(DEKAF2_HAS_CPP17)
+#ifdef DEKAF2_REPEAT_CONSTEXPR_VARIABLE
 
 constexpr KStringViewZ KCharSet::ANY_ISO8859;
 constexpr KStringViewZ KCharSet::DEFAULT_CHARSET;

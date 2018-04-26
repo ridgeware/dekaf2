@@ -61,6 +61,8 @@
 #define FOLLY_FALLTHROUGH [[gnu::fallthrough]]
 #elif FOLLY_HAS_ATTRIBUTE(fallthrough)
 #define FOLLY_FALLTHROUGH __attribute__ ((fallthrough))
+#else
+#define FOLLY_FALLTHROUGH
 #endif
 
 /**

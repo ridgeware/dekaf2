@@ -252,7 +252,7 @@ bool KHTTPHeaders::HasKeepAlive() const
 
 } // HasKeepAlive
 
-#if !defined(DEKAF2_HAS_CPP_17)
+#ifdef DEKAF2_REPEAT_CONSTEXPR_VARIABLE
 
 constexpr KStringViewZ KHTTPHeaders::ACCEPT;
 constexpr KStringViewZ KHTTPHeaders::ACCEPT_CHARSET;

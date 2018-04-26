@@ -156,8 +156,10 @@ public:
 	using base_type::UInt32;
 	using base_type::Int64;
 	using base_type::UInt64;
+#ifdef DEKAF2_HAS_INT128
 	using base_type::Int128;
 	using base_type::UInt128;
+#endif
 	using base_type::Float;
 	using base_type::Double;
 	using base_type::In;

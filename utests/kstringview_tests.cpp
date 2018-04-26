@@ -704,36 +704,52 @@ TEST_CASE("KStringView") {
 		s = "1234567";
 		CHECK( s.Int32()     == 1234567 );
 		CHECK( s.Int64()     == 1234567 );
+#ifdef DEKAF2_HAS_INT128
 		// CHECK has issues with 128 bit integers, so we cast them down
 		int64_t ii = s.Int128();
 		CHECK( ii            == 1234567 );
+#endif
 		CHECK( s.UInt32()    == 1234567 );
 		CHECK( s.UInt64()    == 1234567 );
+#ifdef DEKAF2_HAS_INT128
 		uint64_t uii = s.Int128();
 		CHECK( uii           == 1234567 );
+#endif
 		s = "-1234567";
 		CHECK( s.Int32()     == -1234567 );
 		CHECK( s.Int64()     == -1234567 );
+#ifdef DEKAF2_HAS_INT128
 		ii = s.Int128();
 		CHECK( ii            == -1234567 );
+#endif
 		CHECK( s.UInt32()    == -1234567U );
 		CHECK( s.UInt64()    == -1234567UL );
+#ifdef DEKAF2_HAS_INT128
 		uii = s.UInt128();
 		CHECK( uii           == -1234567UL );
+#endif
 		s = "123456789012345";
 		CHECK( s.Int64()     == 123456789012345 );
+#ifdef DEKAF2_HAS_INT128
 		ii = s.Int128();
 		CHECK( ii            == 123456789012345 );
+#endif
 		CHECK( s.UInt64()    == 123456789012345 );
+#ifdef DEKAF2_HAS_INT128
 		uii = s.UInt128();
 		CHECK( uii           == 123456789012345 );
+#endif
 		s = "-123456789012345";
 		CHECK( s.Int64()     == -123456789012345 );
+#ifdef DEKAF2_HAS_INT128
 		ii = s.Int128();
 		CHECK( ii            == -123456789012345 );
+#endif
 		CHECK( s.UInt64()    == -123456789012345UL );
+#ifdef DEKAF2_HAS_INT128
 		uii = s.UInt128();
 		CHECK( uii           == -123456789012345UL );
+#endif
 
 		s = "-12.34567";
 		CHECK ( s.Float()    == -12.34567f );

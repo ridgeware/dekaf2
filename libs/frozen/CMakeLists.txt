@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.8)
+cmake_minimum_required(VERSION 3.2)
 get_directory_property(is_subproject PARENT_DIRECTORY)
 
 project(frozen VERSION 1.0.0 LANGUAGES CXX)
@@ -17,7 +17,9 @@ CMAKE_DEPENDENT_OPTION(frozen.benchmark
 add_library(frozen INTERFACE)
 add_library(frozen::frozen ALIAS frozen)
 
-target_compile_features(frozen INTERFACE cxx_std_14)
+if(${CMAKE_VERSION} VERSION_GREATER "3.7.0")
+	target_compile_features(frozen INTERFACE cxx_std_14)
+endif()
 
 target_include_directories(frozen INTERFACE
   $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>

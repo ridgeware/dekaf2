@@ -89,7 +89,7 @@ public:
 	{
 		if (m_print)
 		{
-#ifdef __APPLE__
+#if defined(__APPLE__) || defined (__arm__)
 			fprintf(stdout, "KQDProf::%-25.25s %10lli nsecs\n", m_label, (clock_t::now()-m_start).count());
 #else
 			fprintf(stdout, "KQDProf::%-25.25s %10li nsecs\n", m_label, (clock_t::now()-m_start).count());

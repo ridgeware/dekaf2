@@ -101,7 +101,7 @@ KOutStream::self_type& KOutStream::Write(KInStream& Stream, size_t iCount)
 
 	for (;iCount;)
 	{
-		auto iChunk = std::min(4096UL, iCount);
+		auto iChunk = std::min(static_cast<size_t>(COPY_BUFSIZE), iCount);
 
 		auto iReadChunk = Stream.Read(sBuffer, iChunk);
 

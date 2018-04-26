@@ -82,8 +82,8 @@ void* memrchr(const void* s, int c, size_t n)
 
 namespace dekaf2 {
 
-#ifndef DEKAF2_HAS_CPP17
-	
+#ifdef DEKAF2_REPEAT_CONSTEXPR_VARIABLE
+
 constexpr KStringView::size_type KStringView::npos;
 constexpr KStringView::value_type KStringView::s_0ch;
 
@@ -527,6 +527,7 @@ uint64_t KStringView::UInt64(bool bIsHex) const noexcept
 	return kToInt<uint64_t>(data(), size(), bIsHex);
 }
 
+#ifdef DEKAF2_HAS_INT128
 //-----------------------------------------------------------------------------
 int128_t KStringView::Int128(bool bIsHex) const noexcept
 //-----------------------------------------------------------------------------
@@ -540,6 +541,7 @@ uint128_t KStringView::UInt128(bool bIsHex) const noexcept
 {
 	return kToInt<uint128_t>(data(), size(), bIsHex);
 }
+#endif
 
 //-----------------------------------------------------------------------------
 float KStringView::Float() const noexcept

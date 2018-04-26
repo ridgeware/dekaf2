@@ -296,7 +296,7 @@ public:
 	void   SetErrorPrefix   (KStringView sPrefix, uint32_t iLineNum=0);
 	void   ClearErrorPrefix ()        { m_sErrorPrefix = "KSQL: "; }
 
-	void   SetWarningThreshold  (uint32_t iWarnIfOverNumSeconds, FILE* fpAlternativeToKlog=NULL)
+	void   SetWarningThreshold  (time_t iWarnIfOverNumSeconds, FILE* fpAlternativeToKlog=NULL)
 					{ m_iWarnIfOverNumSeconds = iWarnIfOverNumSeconds;
 					  m_bpWarnIfOverNumSeconds = fpAlternativeToKlog; }
 
@@ -561,7 +561,7 @@ protected:
 	uint32_t   m_iCursor; // CTLIB
 	KString    m_sErrorPrefix;
 	int        m_bDisableRetries;
-	uint32_t   m_iWarnIfOverNumSeconds;
+	time_t     m_iWarnIfOverNumSeconds;
 	FILE*      m_bpWarnIfOverNumSeconds;
 	KString    m_sTempDir;
 

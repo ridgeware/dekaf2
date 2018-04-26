@@ -485,15 +485,12 @@ public:
 	std::string ToStdString() const { return m_rep.toStdString(); }
 #else
 	/// convert to std::string
-	constexpr
 	const std::string& ToStdString() const { return m_rep; }
 #endif
 
 	/// return the representation type
-	constexpr
 	const string_type& str() const { return m_rep; }
 
-	constexpr
 	string_type& str() { return m_rep; }
 
 	/// return a KStringViewZ
@@ -543,8 +540,10 @@ public:
 	uint32_t UInt32(bool bIsHex = false) const noexcept;
 	int64_t Int64(bool bIsHex = false) const noexcept;
 	uint64_t UInt64(bool bIsHex = false) const noexcept;
+#ifdef DEKAF2_HAS_INT128
 	int128_t Int128(bool bIsHex = false) const noexcept;
 	uint128_t UInt128(bool bIsHex = false) const noexcept;
+#endif
 	float Float() const noexcept;
 	double Double() const noexcept;
 
@@ -1166,6 +1165,7 @@ inline uint64_t KString::UInt64(bool bIsHex) const noexcept
 	return ToView().UInt64(bIsHex);
 }
 
+#ifdef DEKAF2_HAS_INT128
 //-----------------------------------------------------------------------------
 inline int128_t KString::Int128(bool bIsHex) const noexcept
 //-----------------------------------------------------------------------------
@@ -1179,6 +1179,7 @@ inline uint128_t KString::UInt128(bool bIsHex) const noexcept
 {
 	return ToView().UInt128(bIsHex);
 }
+#endif
 
 // KString inline methods until here
 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++

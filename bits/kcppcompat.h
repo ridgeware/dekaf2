@@ -105,6 +105,12 @@
 	#define DEKAF2_HAS_CPP_17 1
 #endif
 
+// unfortunately GCC < 7 require the repetition of a constexpr variable
+// in the .cpp even if in c++17 mode
+#if !defined(DEKAF2_HAS_CPP_17) || (!defined(DEKAF2_NO_GCC) && DEKAF2_GCC_VERSION < 70000)
+	#define DEKAF2_REPEAT_CONSTEXPR_VARIABLE 1
+#endif
+
 #ifndef __has_attribute
 	#define DEKAF2_HAS_ATTRIBUTE(x) 0
 #else
@@ -131,6 +137,8 @@
 	#define DEKAF2_FALLTHROUGH [[gnu::fallthrough]]
 #elif DEKAF2_HAS_ATTRIBUTE(fallthrough)
 	#define DEKAF2_FALLTHROUGH __attribute__ ((fallthrough))
+#else
+	#define DEKAF2_FALLTHROUGH
 #endif
 
 // configure exception behavior
@@ -319,12 +327,31 @@ DEKAF2_LE_BE_CONSTEXPR void kFromLittleEndian(VALUE& value)
 	}
 }
 
-#ifndef int128_t
-    using int128_t = __int128;
+#ifdef __i386__
+	#define DEKAF2_X86 1
 #endif
 
-#ifndef uint128_t
-    using uint128_t = unsigned __int128;
+#ifdef __x86_64__
+	#ifndef DEKAF2_X86
+		#define DEKAF2_X86 1
+	#endif
+	#define DEKAF2_X86_64 1
+#endif
+
+#ifdef __arm__
+	#define DEKAF2_ARM 1
+#endif
+
+#ifdef __x86_64__
+	#define DEKAF2_HAS_INT128 1
+
+	#ifndef int128_t
+		using int128_t = __int128;
+	#endif
+
+	#ifndef uint128_t
+		using uint128_t = unsigned __int128;
+	#endif
 #endif
 
 #ifndef npos

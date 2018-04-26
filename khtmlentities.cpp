@@ -38,10 +38,15 @@
 // +-------------------------------------------------------------------------+
 */
 
+#include "bits/kcppcompat.h"
 #include "khtmlentities.h"
 #include "kutf8.h"
 #include "kstringutils.h"
+#if defined(DEKAF2_USE_FROZEN_HASH_FOR_LARGE_MAPS) || defined(DEKAF2_X86)
 #include "kfrozen.h"
+#else
+#include <unordered_map>
+#endif
 
 namespace dekaf2 {
 
@@ -51,7 +56,13 @@ struct codes_t
 	uint32_t iCodepoint2{0};
 };
 
-static constexpr std::pair<KStringView, codes_t> s_Entities[]
+
+#if defined(DEKAF2_USE_FROZEN_HASH_FOR_LARGE_MAPS) || defined(DEKAF2_X86)
+	static constexpr std::pair<KStringView, codes_t> s_Entities[]
+#else
+	using entity_map_t = std::unordered_map<KStringView, codes_t>;
+	entity_map_t s_NamedEntitiesHTML4 =
+#endif
 {
     { "AElig"                            , {     0xC6 }},
     { "AMP"                              , {     0x26 }},
@@ -2183,7 +2194,9 @@ static constexpr std::pair<KStringView, codes_t> s_Entities[]
 #ifdef DEKAF2_USE_FROZEN_HASH_FOR_LARGE_MAPS
 static constexpr auto s_NamedEntitiesHTML4 = frozen::make_unordered_map(s_Entities);
 #else
-static constexpr auto s_NamedEntitiesHTML4 = frozen::make_map(s_Entities);
+	#ifdef DEKAF2_x86
+		static constexpr auto s_NamedEntitiesHTML4 = frozen::make_map(s_Entities);
+	#endif
 #endif
 
 //-----------------------------------------------------------------------------

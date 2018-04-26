@@ -1,9 +1,11 @@
-cmake_minimum_required(VERSION 3.8)
+cmake_minimum_required(VERSION 3.2)
 
 project(dekaf2-utests)
 
-set(CMAKE_CXX_STANDARD 17)
-#set(CMAKE_CXX_STANDARD_REQUIRED ON)
+if(${CMAKE_VERSION} VERSION_GREATER "3.7.0")
+	set(CMAKE_CXX_STANDARD 17)
+	#set(CMAKE_CXX_STANDARD_REQUIRED ON)
+endif()
 
 set (UHEADERS
 	catch.hpp

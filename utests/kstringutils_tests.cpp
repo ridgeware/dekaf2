@@ -391,7 +391,7 @@ TEST_CASE("KStringUtils") {
 
 	SECTION("Freestanding Trimming on char *")
 	{
-		std::vector<std::string> stest
+		std::vector<KString> stest
 		{
 			"",
 			" ",

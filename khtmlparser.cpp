@@ -1072,7 +1072,7 @@ void KHTMLParser::Finished()
 
 } // Finished
 
-#ifndef DEKAF2_HAS_CPP17
+#ifdef DEKAF2_REPEAT_CONSTEXPR_VARIABLE
 
 constexpr KStringView KHTMLComment::LEAD_IN;
 constexpr KStringView KHTMLComment::LEAD_OUT;

@@ -296,7 +296,7 @@ private:
 	uint16_t m_iPort { 0 };
 	uint16_t m_iTimeout { 1*30 };
 	uint16_t m_iMaxConnections;
-	std::atomic_uint16_t m_iOpenConnections { 0 };
+	std::atomic<uint16_t> m_iOpenConnections { 0 };
 	bool m_bBlock { true };
 	bool m_bQuit { false };
 	bool m_bStartIPv4 { true };

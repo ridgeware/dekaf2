@@ -187,7 +187,7 @@ bool KCGI::Parse(char chCommentDelim)
 
 } // Parse
 
-#ifndef DEKAF2_HAS_CPP17
+#ifdef DEKAF2_REPEAT_CONSTEXPR_VARIABLE
 
 constexpr KStringViewZ KCGI::AUTH_PASSWORD;
 constexpr KStringViewZ KCGI::AUTH_TYPE;

@@ -146,6 +146,7 @@ public:
 		m_sTablename =  sTablename;
 	}
 
+	KROW ()                        = default;
 	KROW (KROW&&)                  = default;
 	KROW (const KROW&)             = default;
 	KROW& operator = (KROW&&)      = default;

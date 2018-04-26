@@ -485,7 +485,7 @@ size_t KInStream::Read(KOutStream& Stream, size_t iCount)
 
 	for (;iCount;)
 	{
-		auto iChunk = std::min(4096UL, iCount);
+		auto iChunk = std::min(static_cast<size_t>(COPY_BUFSIZE), iCount);
 		auto iReadChunk = Read(sBuffer, iChunk);
 		iRead  += iReadChunk;
 		iCount -= iReadChunk;

@@ -153,6 +153,11 @@ class KHTMLAttribute : public KHTMLObject
 public:
 //------
 
+#if (!DEKAF2_NO_GCC && DEKAF2_GCC_VERSION < 70000)
+	// older GCCs need a default constructor here as they do not honor the using directive below
+	KHTMLAttribute() = default;
+#endif
+
 	KHTMLAttribute(KStringView sName, KStringView sValue=KStringView{}, char _Quote='"')
 	: Name(sName)
 	, Value(sValue)
@@ -265,6 +270,11 @@ class KHTMLTag : public KHTMLObject
 //------
 public:
 //------
+
+#if (!DEKAF2_NO_GCC && DEKAF2_GCC_VERSION < 70000)
+	// older GCCs need a default constructor here as they do not honor the using directive below
+	KHTMLTag() = default;
+#endif
 
 	KHTMLTag(KStringView sInput)
 	{

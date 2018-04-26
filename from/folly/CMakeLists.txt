@@ -1,12 +1,17 @@
-cmake_minimum_required(VERSION 3.8)
+cmake_minimum_required(VERSION 3.2)
 
 # this is a minimal cmake recipe for our stripped down
 # version of facebook's folly
 project(minifolly)
 
-set(CMAKE_CXX_STANDARD 17)
-# we do not force C++17 if not available
-# set(CMAKE_CXX_STANDARD_REQUIRED ON)
+if(${CMAKE_VERSION} VERSION_LESS "3.8.0")
+	# we have set the c++ version applicable in dekaf2's CMakeList in the
+	# compiler options
+else()
+	set(CMAKE_CXX_STANDARD 17)
+	# we do not force C++17 if not available
+	# set(CMAKE_CXX_STANDARD_REQUIRED ON)
+endif()
 
 # make sure we have our version of folly installed
 #execute_process(COMMAND "${CMAKE_CURRENT_SOURCE_DIR}/folly-gen.sh" installifmissing "${CMAKE_CURRENT_SOURCE_DIR}/folly" "${CMAKE_CURRENT_SOURCE_DIR}/folly-patch.diff")
@@ -86,8 +91,14 @@ set (SOURCES
     folly/detail/RangeCommon.cpp
     folly/detail/RangeSse42.cpp
     folly/Assume.cpp
-    folly/SharedMutex.cpp
 )
+
+if (NOT CMAKE_SYSTEM_PROCESSOR MATCHES "arm")
+	# the shared mutex implementation does not compile on arm
+	set (SOURCES "${SOURCES}"
+		folly/SharedMutex.cpp
+)
+endif()
 
 set (MINIFOLLY_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
 include_directories("${MINIFOLLY_INCLUDE_DIR}")

@@ -50,7 +50,7 @@
 namespace dekaf2
 {
 
-#ifndef DEKAF2_HAS_CPP17
+#ifdef DEKAF2_REPEAT_CONSTEXPR_VARIABLE
 
 constexpr KString::size_type KString::npos;
 constexpr KString::value_type KString::s_0ch;

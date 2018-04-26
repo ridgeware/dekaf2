@@ -1340,10 +1340,12 @@ typedef SharedMutexImpl<true> SharedMutexReadPriority;
 typedef SharedMutexImpl<false> SharedMutexWritePriority;
 typedef SharedMutexWritePriority SharedMutex;
 
+#ifndef __arm__
 // Prevent the compiler from instantiating these in other translation units.
 // They are instantiated once in SharedMutex.cpp
 extern template class SharedMutexImpl<true>;
 extern template class SharedMutexImpl<false>;
+#endif
 
 template <
     bool ReaderPriority,

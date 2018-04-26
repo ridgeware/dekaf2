@@ -8,9 +8,30 @@ cmake_minimum_required(VERSION 2.8)
 
 project(dekaf2)
 
-set(CMAKE_CXX_STANDARD 17)
-# we do not force C++17 if not available
-# set(CMAKE_CXX_STANDARD_REQUIRED ON)
+if(${CMAKE_VERSION} VERSION_LESS "3.8.0")
+	message(STATUS "Please consider switching to CMake 3.8.0 or newer")
+	set(OLD_CMAKE 1)
+endif()
+
+if (${CMAKE_SYSTEM_PROCESSOR} MATCHES "x86")
+	set (CPU_x86 1)
+	if (${CMAKE_SYSTEM_PROCESSOR} MATCHES "x86_64")
+		set(CPU_64_BIT 1)
+	else()
+		set(CPU_32_BIT 1)
+	endif()
+elseif (${CMAKE_SYSTEM_PROCESSOR} MATCHES "arm")
+	set (CPU_ARM 1)
+endif()
+
+if (NOT OLD_CMAKE)
+	set(CMAKE_CXX_STANDARD 17)
+	# we do not force C++17 if not available
+	# set(CMAKE_CXX_STANDARD_REQUIRED ON)
+else()
+	# do not even set C++14, older cmakes have trouble doing so. We will
+	# set it manually in the compiler flags
+endif()
 
 # these are all configurable project options
 OPTION(DEKAF2_INSTALL_HEADERS "Install headers" OFF)
@@ -38,6 +59,12 @@ if (DEKAF2_USE_STD_STRING_FOR_DEBUG_BUILDS)
 	endif ()
 endif ()
 message (STATUS "FBSTRING: ${DEKAF2_USE_FBSTRING_AS_KSTRING}")
+
+if (CPU_ARM)
+	set (DEKAF2_ENABLE_DEBUG_RUNTIME_CHECKS OFF)
+	# there is typically not enough RAM for large frozen maps, except in case of cross compilation
+	set (DEKAF2_USE_FROZEN_HASH_FOR_LARGE_MAPS OFF)
+endif()
 
 # suppress linker warnings for empty object files on OS X
 if (${CMAKE_SYSTEM_NAME} STREQUAL "Darwin")
@@ -87,7 +114,7 @@ if (CMAKE_COMPILER_IS_GNUCXX)
 	set(CMAKE_CXX_FLAGS_RELEASE "-O2 -DNDEBUG")
 
 	# configure cpu architecture dependant optimization
-	if ("${CMAKE_SYSTEM_PROCESSOR}" STREQUAL "x86_64")
+	if (CPU_x86)
 
 		if (CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 6.0)
 			set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -msse4.2 -mavx2 -mfpmath=sse -maes")
@@ -102,6 +129,14 @@ if (CMAKE_COMPILER_IS_GNUCXX)
 
 	endif ()
 
+	if (OLD_CMAKE)
+		if (CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 6.2)
+			set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17")
+		else()
+			set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14")
+		endif()
+	endif()
+
 	# increase amount of permitted constexpr depth (default is 512)
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fconstexpr-depth=2048")
 
@@ -112,12 +147,16 @@ elseif (CMAKE_CXX_COMPILER_ID MATCHES "[cC][lL][aA][nN][gG]")
 	set(CMAKE_CXX_FLAGS_RELEASE "-O2 -DNDEBUG")
 
 	# configure cpu architecture dependant optimization
-	if ("${CMAKE_SYSTEM_PROCESSOR}" STREQUAL "x86_64")
+	if (CPU_x86)
 
 		set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -msse4.2 -mavx2 -mfpmath=sse -maes")
 		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse4.2 -mavx2 -mfpmath=sse -maes")
 
 	endif ()
+
+	if (OLD_CMAKE)
+		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17")
+	endif()
 
 	# increase amount of permitted constexpr steps (default is around 1.000.000)
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fconstexpr-steps=100000000")
@@ -128,6 +167,7 @@ endif ()
 
 message(STATUS "dekaf2 C++ compile flags for Release build : ${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_RELEASE}")
 message(STATUS "dekaf2 C++ compile flags for Debug   build : ${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_DEBUG}")
+message(STATUS "CPU : ${CMAKE_SYSTEM_PROCESSOR}")
 
 set(CMAKE_THREAD_PREFER_PTHREAD TRUE)
 set(THREADS_PREFER_PTHREAD_FLAG TRUE)

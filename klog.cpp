@@ -845,7 +845,7 @@ void KLog::IntException(KStringView sWhat, KStringView sFunction, KStringView sC
 
 } // IntException
 
-#ifndef DEKAF2_HAS_CPP17
+#ifdef DEKAF2_REPEAT_CONSTEXPR_VARIABLE
 
 constexpr KStringViewZ KLog::STDOUT;
 constexpr KStringViewZ KLog::STDERR;

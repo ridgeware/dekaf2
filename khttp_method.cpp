@@ -44,7 +44,7 @@
 
 namespace dekaf2 {
 
-#if !defined(DEKAF2_HAS_CPP17)
+#ifdef DEKAF2_REPEAT_CONSTEXPR_VARIABLE
 
 constexpr KStringViewZ KHTTPMethod::GET;
 constexpr KStringViewZ KHTTPMethod::HEAD;

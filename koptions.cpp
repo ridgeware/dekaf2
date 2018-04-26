@@ -58,7 +58,8 @@ KOptions::CLIParms::Arg_t::Arg_t(KStringViewZ sArg_)
 	{
 		if (sArg.size() > 1)
 		{
-			if (sArg[1] == '-')
+			// this equivalent for sArg[1] is necessary to satisfy gcc 6.3
+			if (sArg.operator[](1) == '-')
 			{
 				if (sArg.size() > 2)
 				{
@@ -387,7 +388,7 @@ int KOptions::Parse(int argc, char** argv, KOutStream& out)
 } // Parse
 
 
-#ifndef DEKAF2_HAS_CPP17
+#ifdef DEKAF2_REPEAT_CONSTEXPR_VARIABLE
 	constexpr KStringView KOptions::CLIParms::Arg_t::sDoubleDash;
 #endif
 

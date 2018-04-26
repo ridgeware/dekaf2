@@ -663,10 +663,10 @@ TEST_CASE("KString") {
 		CHECK( ii            == -1234567 );
 #endif
 		CHECK( s.UInt32()    == -1234567U );
-		CHECK( s.UInt64()    == -1234567UL );
+		CHECK( s.UInt64()    == static_cast<uint64_t>(-1234567) );
 #ifdef DEKAF2_HAS_INT128
 		uii = s.UInt128();
-		CHECK( uii           == -1234567UL );
+		CHECK( uii           == static_cast<uint64_t>(-1234567) );
 #endif
 		s = "123456789012345";
 		CHECK( s.Int64()     == 123456789012345 );
@@ -674,10 +674,10 @@ TEST_CASE("KString") {
 		ii = s.Int128();
 		CHECK( ii            == 123456789012345 );
 #endif
-		CHECK( s.UInt64()    == 123456789012345 );
+		CHECK( s.UInt64()    == static_cast<uint64_t>(123456789012345) );
 #ifdef DEKAF2_HAS_INT128
 		uii = s.UInt128();
-		CHECK( uii           == 123456789012345 );
+		CHECK( uii           == static_cast<uint64_t>(123456789012345) );
 #endif
 		s = "-123456789012345";
 		CHECK( s.Int64()     == -123456789012345 );
@@ -685,10 +685,10 @@ TEST_CASE("KString") {
 		ii = s.Int128();
 		CHECK( ii            == -123456789012345 );
 #endif
-		CHECK( s.UInt64()    == -123456789012345UL );
+		CHECK( s.UInt64()    == static_cast<uint64_t>(-123456789012345) );
 #ifdef DEKAF2_HAS_INT128
 		uii = s.UInt128();
-		CHECK( uii           == -123456789012345UL );
+		CHECK( uii           == static_cast<uint64_t>(-123456789012345) );
 #endif
 		
 		s = "-12.34567";

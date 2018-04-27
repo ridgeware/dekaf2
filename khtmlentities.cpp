@@ -2194,7 +2194,7 @@ struct codes_t
 #ifdef DEKAF2_USE_FROZEN_HASH_FOR_LARGE_MAPS
 static constexpr auto s_NamedEntitiesHTML4 = frozen::make_unordered_map(s_Entities);
 #else
-	#ifdef DEKAF2_x86
+	#ifdef DEKAF2_X86
 		static constexpr auto s_NamedEntitiesHTML4 = frozen::make_map(s_Entities);
 	#endif
 #endif

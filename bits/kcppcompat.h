@@ -327,6 +327,14 @@ DEKAF2_LE_BE_CONSTEXPR void kFromLittleEndian(VALUE& value)
 	}
 }
 
+#ifndef npos
+	// npos is used in dekaf2 as error return for unsigned return types
+	static constexpr size_t npos = static_cast<size_t>(-1);
+#endif
+
+} // end of namespace dekaf2
+
+
 #ifdef __i386__
 	#define DEKAF2_X86 1
 #endif
@@ -343,6 +351,7 @@ DEKAF2_LE_BE_CONSTEXPR void kFromLittleEndian(VALUE& value)
 #endif
 
 #ifdef __x86_64__
+
 	#define DEKAF2_HAS_INT128 1
 
 	#ifndef int128_t
@@ -352,14 +361,20 @@ DEKAF2_LE_BE_CONSTEXPR void kFromLittleEndian(VALUE& value)
 	#ifndef uint128_t
 		using uint128_t = unsigned __int128;
 	#endif
-#endif
 
-#ifndef npos
-    // npos is used in dekaf2 as error return for unsigned return types
-    static constexpr size_t npos = static_cast<size_t>(-1);
-#endif
+/*
+ // we cannot yet use the boost emulation of int128_t, as it does not
+ // convert into uint64_t which we need as a workaround in the string
+ // utests currently
+#else
 
-} // end of namespace dekaf2
+	#define DEKAF2_HAS_INT128 1
+
+	#include <boost/multiprecision/cpp_int.hpp>
+	using int128_t = boost::multiprecision::int128_t;
+	using uint128_t = boost::multiprecision::uint128_t;
+*/
+#endif
 
 #undef DEKAF2_LE_BE_CONSTEXPR
 

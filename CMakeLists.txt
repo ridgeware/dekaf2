@@ -129,6 +129,11 @@ if (CMAKE_COMPILER_IS_GNUCXX)
 
 	endif ()
 
+	if (CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 6.0) AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 7.1)
+		# mute the annoying warning on changing abi with gcc 7.1
+		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-psabi")
+	endif()
+
 	if (OLD_CMAKE)
 		if (CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 6.2)
 			set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17")

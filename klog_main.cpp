@@ -73,12 +73,22 @@ class KlogServer : public KTCPServer
 //-------
 public:
 //-------
-
+	
+#if !defined(DEKAF2_NO_GCC) && DEKAF2_GCC_VERSION < 70000
+	// gcc versions below 7.0 do not properly honour the constructor forwarding,
+	// therefore we use argument forwarding
+	template<typename... Args>
+	KlogServer(Args&&... args)
+	: KTCPServer(std::forward<Args>(args)...)
+	{}
+#else
 	using KTCPServer::KTCPServer;
+#endif
 	
 //-------
 protected:
 //-------
+
 	virtual KString Request(const KString& sLine, Parameters& parameters) override
 	{
 		m_out.WriteLine (sLine).Flush();

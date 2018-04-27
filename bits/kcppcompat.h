@@ -138,7 +138,7 @@
 #elif DEKAF2_HAS_ATTRIBUTE(fallthrough)
 	#define DEKAF2_FALLTHROUGH __attribute__ ((fallthrough))
 #else
-	#define DEKAF2_FALLTHROUGH
+	#define DEKAF2_FALLTHROUGH do {} while (0)
 #endif
 
 // configure exception behavior

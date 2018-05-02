@@ -43,7 +43,6 @@
 #pragma once
 
 #include "khtmlparser.h"
-#include "kstringstream.h"
 
 namespace dekaf2 {
 

@@ -197,7 +197,7 @@ KUnixIOStream::KUnixIOStream()
 }
 
 //-----------------------------------------------------------------------------
-KUnixIOStream::KUnixIOStream(const KString& sSocketFile, int iSecondsTimeout)
+KUnixIOStream::KUnixIOStream(KStringViewZ sSocketFile, int iSecondsTimeout)
 //-----------------------------------------------------------------------------
     : base_type(&m_TCPStreamBuf)
     , m_Stream(m_IO_Service)
@@ -226,10 +226,10 @@ bool KUnixIOStream::Timeout(int iSeconds)
 }
 
 //-----------------------------------------------------------------------------
-bool KUnixIOStream::connect(const KString& sSocketFile)
+bool KUnixIOStream::connect(KStringViewZ sSocketFile)
 //-----------------------------------------------------------------------------
 {
-	m_Stream.Socket.connect(boost::asio::local::stream_protocol::endpoint(sSocketFile.c_str()), m_Stream.ec);
+	m_Stream.Socket.connect(boost::asio::local::stream_protocol::endpoint(sSocketFile), m_Stream.ec);
 
 	if (!Good())
 	{
@@ -251,7 +251,7 @@ std::unique_ptr<KUnixStream> CreateKUnixStream()
 }
 
 //-----------------------------------------------------------------------------
-std::unique_ptr<KUnixStream> CreateKUnixStream(const KString& sSocketFile)
+std::unique_ptr<KUnixStream> CreateKUnixStream(KStringViewZ sSocketFile)
 //-----------------------------------------------------------------------------
 {
 	return std::make_unique<KUnixStream>(sSocketFile);

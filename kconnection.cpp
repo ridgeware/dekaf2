@@ -254,7 +254,7 @@ KString KTCPConnection::Error() const
 } // Error
 
 //-----------------------------------------------------------------------------
-bool KUnixConnection::Connect(KStringView sSocketFile)
+bool KUnixConnection::Connect(KStringViewZ sSocketFile)
 //-----------------------------------------------------------------------------
 {
 	return setConnection(CreateKUnixStream(sSocketFile), sSocketFile);

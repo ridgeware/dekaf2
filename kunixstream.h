@@ -45,7 +45,7 @@
 /// provides an implementation of std::iostreams for Unix stream sockets
 
 #include <boost/asio.hpp>
-#include "kstring.h"
+#include "kstringview.h"
 #include "kstream.h"
 #include "kstreambuf.h"
 #include "kurl.h"
@@ -78,7 +78,7 @@ public:
 	/// a unix socket endpoint file
 	/// @param iSecondsTimeout
 	/// Timeout in seconds for any I/O. Defaults to 60.
-	KUnixIOStream(const KString& sSocketFile, int iSecondsTimeout = DEFAULT_TIMEOUT);
+	KUnixIOStream(KStringViewZ sSocketFile, int iSecondsTimeout = DEFAULT_TIMEOUT);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -95,14 +95,14 @@ public:
 	/// Connects a given server as a client.
 	/// @param sSocketFile
 	/// a unix socket endpoint file
-	bool connect(const KString& sSocketFile);
+	bool connect(KStringViewZ sSocketFile);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// std::iostream interface to open a stream. Delegates to connect()
 	/// @param sSocketFile
 	/// a unix socket endpoint file
-	bool open(const KString& sSocketFile)
+	bool open(KStringViewZ sSocketFile)
 	//-----------------------------------------------------------------------------
 	{
 		return connect(sSocketFile);
@@ -203,7 +203,7 @@ std::unique_ptr<KUnixStream> CreateKUnixStream();
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
-std::unique_ptr<KUnixStream> CreateKUnixStream(const KString& sSocketFile);
+std::unique_ptr<KUnixStream> CreateKUnixStream(KStringViewZ sSocketFile);
 //-----------------------------------------------------------------------------
 
 } // namespace dekaf2

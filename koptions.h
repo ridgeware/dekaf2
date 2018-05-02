@@ -46,7 +46,7 @@
 #include "kwriter.h"
 #include "klog.h"
 #include "kstack.h"
-#include <exception>
+#include "kexception.h"
 #include <functional>
 #include <unordered_map>
 
@@ -67,21 +67,21 @@ public:
 //----------
 
 	/// throw in case of a missing parameter - it will report the param it got called with
-	class MissingParameterError : public std::runtime_error
+	class MissingParameterError : public KException
 	{
-		using runtime_error::runtime_error;
+		using KException::KException;
 	};
 
 	/// throw in case of a wrong parameter - it will report the param it got called with
-	class WrongParameterError : public std::runtime_error
+	class WrongParameterError : public KException
 	{
-		using runtime_error::runtime_error;
+		using KException::KException;
 	};
 
 	/// throw in case of a general error - it will not report a specific param it got called with
-	class Error : public std::runtime_error
+	class Error : public KException
 	{
-		using runtime_error::runtime_error;
+		using KException::KException;
 	};
 
 	KOptions() = delete;

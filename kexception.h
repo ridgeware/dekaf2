@@ -1,7 +1,7 @@
 /*
 // DEKAF(tm): Lighter, Faster, Smarter (tm)
 //
-// Copyright (c) 2017, Ridgeware, Inc.
+// Copyright (c) 2018, Ridgeware, Inc.
 //
 // +-------------------------------------------------------------------------+
 // | /\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\|
@@ -38,20 +38,30 @@
 // +-------------------------------------------------------------------------+
 */
 
-#include "kformat.h"
-#include "klog.h"
+#pragma once
+
+/// @file kexceptions.h
+/// provides basic dekaf2 exception class
+
+#include <exception>
+#include "kstringview.h"
 
 namespace dekaf2
 {
-namespace kFormat_internal
-{
 
-// to avoid circular includes we call KLog only from the implementation and not from the header
-void report_format_exception(std::exception& e, const char* where)
+class KException : public std::runtime_error
 {
-	KLog().Exception(e, where);
-}
+//----------
+public:
+//----------
 
-}
-}
+	KException(const KString& sWhat)
+	: runtime_error(sWhat.c_str())
+	{
+	}
+
+	using runtime_error::runtime_error;
+};
+
+} // end of namespace dekaf2
 

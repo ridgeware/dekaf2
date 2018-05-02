@@ -50,10 +50,10 @@
 #include <istream>
 #include <ostream>
 #include "bits/kcppcompat.h"
-#include "kformat.h"
 #ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
 #include <folly/FBString.h>
 #endif
+#include <fmt/format.h>
 
 
 namespace dekaf2
@@ -378,22 +378,13 @@ public:
 
 	allocator_type get_allocator() const noexcept { return m_rep.get_allocator(); }
 
-	// other methods
 	/// print arguments with fmt::format
 	template<class... Args>
-	KString& Format(Args&&... args)
-	{
-		m_rep = kFormat(std::forward<Args>(args)...);
-		return *this;
-	}
+	KString& Format(Args&&... args);
 
 	/// print arguments with fmt::printf
 	template<class... Args>
-	KString& Printf(Args&&... args)
-	{
-		m_rep = kPrintf(std::forward<Args>(args)...);
-		return *this;
-	}
+	KString& Printf(Args&&... args);
 
 	/// replace with regular expression, sReplaceWith may address sub-groups with \\1 etc.
 	size_type ReplaceRegex(KStringView sRegEx, KStringView sReplaceWith, bool bReplaceAll = true);
@@ -503,7 +494,7 @@ public:
 	KStringView ToView(size_type pos, size_type n) const;
 
 	/// helper operator to allow KString as formatting arg of fmt::format
-	operator fmt::BasicCStringRef<char>() const { return fmt::BasicCStringRef<char>(c_str()); }
+	operator fmt::BasicCStringRef<char>() const;
 
 	/// is string one of the values in sHaystack, delimited by iDelim?
 	bool In (KStringView sHaystack, value_type iDelim=',') const;
@@ -1399,6 +1390,39 @@ inline namespace literals {
 	}
 
 } // namespace literals
+
+} // end of namespace dekaf2
+
+#include "kformat.h"
+
+namespace dekaf2 {
+
+//----------------------------------------------------------------------
+/// helper operator to allow KString as formatting arg of fmt::format
+inline KString::operator fmt::BasicCStringRef<char>() const
+//----------------------------------------------------------------------
+{
+	return fmt::BasicCStringRef<char>(c_str());
+}
+
+//----------------------------------------------------------------------
+template<class... Args>
+KString& KString::Format(Args&&... args)
+//----------------------------------------------------------------------
+{
+	m_rep = kFormat(std::forward<Args>(args)...);
+	return *this;
+}
+
+//----------------------------------------------------------------------
+/// print arguments with fmt::printf
+template<class... Args>
+KString& KString::Printf(Args&&... args)
+//----------------------------------------------------------------------
+{
+	m_rep = kPrintf(std::forward<Args>(args)...);
+	return *this;
+}
 
 } // end of namespace dekaf2
 

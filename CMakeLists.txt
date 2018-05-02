@@ -250,10 +250,12 @@ set (HEADERS
 	bits/kbasepipe.h
 	bits/kconfiguration.h
 	bits/kcppcompat.h
+	bits/kistringstream.h
 	bits/kmake_unique.h
 	bits/kmru-std-vector.h
 	bits/kmru-multi-index.h
 	bits/kmutable_pair.h
+	bits/kostringstream.h
 	bits/kprops-multi-index.h
 	bits/kprops-std-map.h
 	bits/kstringviewz.h
@@ -272,6 +274,7 @@ set (HEADERS
 	kconnection.h
 	kcrashexit.h
 	kencode.h
+	kexception.h
 	kfdstream.h
 	kfile.h
 	kformat.h
@@ -339,6 +342,8 @@ set (SOURCES
 	# KEEP ALPHABETIZED!!
 	bits/kbasepipe.cpp
 	bits/kbaseshell.cpp
+	bits/kistringstream.cpp
+	bits/kostringstream.cpp
 	bits/kstringviewz.cpp
 	bits/simd/kfindfirstof.cpp
 	dekaf2.cpp
@@ -373,7 +378,6 @@ set (SOURCES
 	kmime.cpp
 	kmpsearch.cpp
 	koptions.cpp
-	kstringstream.cpp
 	koutpipe.cpp
 	koutshell.cpp
 	kparallel.cpp

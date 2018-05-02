@@ -40,70 +40,10 @@
 // +-------------------------------------------------------------------------+
 */
 
-#include "kstringstream.h"
+#include "kistringstream.h"
 
 namespace dekaf2
 {
-
-#if defined(DEKAF2_NO_GCC) || (DEKAF2_GCC_VERSION >= 50000)
-//-----------------------------------------------------------------------------
-KOStringStream::KOStringStream(KOStringStream&& other)
-    : base_type{std::move(other)}
-    , m_sBuf{other.m_sBuf}
-    , m_KOStreamBuf{std::move(other.m_KOStreamBuf)}
-//-----------------------------------------------------------------------------
-{
-} // move ctor
-#endif
-
-//-----------------------------------------------------------------------------
-KOStringStream::~KOStringStream()
-//-----------------------------------------------------------------------------
-{}
-
-#if defined(DEKAF2_NO_GCC) || (DEKAF2_GCC_VERSION >= 50000)
-//-----------------------------------------------------------------------------
-KOStringStream& KOStringStream::operator=(KOStringStream&& other)
-//-----------------------------------------------------------------------------
-{
-	m_sBuf = other.m_sBuf;
-	m_KOStreamBuf = std::move(other.m_KOStreamBuf);
-	return *this;
-}
-#endif
-
-//-----------------------------------------------------------------------------
-/// this "restarts" the buffer, like a call to the constructor
-bool KOStringStream::open(KString& str)
-//-----------------------------------------------------------------------------
-{
-	*m_sBuf = str;
-	return true;
-}
-
-//-----------------------------------------------------------------------------
-/// this is the custom KString writer
-std::streamsize KOStringStream::KStringWriter(const void* sBuffer, std::streamsize iCount, void* sTargetBuf)
-//-----------------------------------------------------------------------------
-{
-	std::streamsize iWrote{0};
-
-	if (sTargetBuf != nullptr && sBuffer != nullptr)
-	{
-		const KString::value_type* pInBuf = reinterpret_cast<const KString::value_type*>(sBuffer);
-		KString** pOutBuf = reinterpret_cast<KString**>(sTargetBuf);
-		if (*pOutBuf != nullptr)
-		{
-			(*pOutBuf)->append(pInBuf, static_cast<size_t>(iCount));
-			iWrote = iCount;
-		}
-	}
-
-	return iWrote;
-}
-
-
-
 
 #if defined(DEKAF2_NO_GCC) || (DEKAF2_GCC_VERSION >= 50000)
 //-----------------------------------------------------------------------------
@@ -150,6 +90,5 @@ std::streamsize KIStringStream::KStringReader(void* sBuffer, std::streamsize iCo
 	
 	return iWrote;
 }
-
 
 } // end namespace dekaf2

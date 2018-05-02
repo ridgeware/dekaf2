@@ -44,10 +44,11 @@
 /// provides basic string formatter functionality
 
 #include <ostream>
-#include <fmt/format.h>
 #include <fmt/ostream.h>
 #include <fmt/printf.h>
 #include "bits/kcppcompat.h"
+#include "bits/kostringstream.h"
+#include "kstring.h"
 
 namespace dekaf2
 {
@@ -55,24 +56,9 @@ namespace dekaf2
 namespace kFormat_internal
 {
 
-void report_format_exception(const char* where);
 void report_format_exception(std::exception& e, const char* where);
 
 } // end of namespace kFormat_internal
-
-//-----------------------------------------------------------------------------
-/// formats a string using Python syntax
-template<class... Args>
-std::string kFormat(Args&&... args)
-//-----------------------------------------------------------------------------
-{
-	DEKAF2_TRY {
-		return fmt::format(std::forward<Args>(args)...);
-	} DEKAF2_CATCH (std::exception& e) {
-		kFormat_internal::report_format_exception(e, DEKAF2_FUNCTION_NAME);
-	}
-	return std::string();
-}
 
 //-----------------------------------------------------------------------------
 /// formats a std::ostream using Python syntax
@@ -89,17 +75,15 @@ std::ostream& kfFormat(std::ostream& os, Args&&... args)
 }
 
 //-----------------------------------------------------------------------------
-/// formats a string using POSIX printf syntax
+/// formats a KString using Python syntax
 template<class... Args>
-std::string kPrintf(Args&&... args)
+KString kFormat(Args&&... args)
 //-----------------------------------------------------------------------------
 {
-	DEKAF2_TRY {
-		return fmt::sprintf(std::forward<Args>(args)...);
-	} DEKAF2_CATCH (std::exception& e) {
-		kFormat_internal::report_format_exception(e, DEKAF2_FUNCTION_NAME);
-	}
-	return std::string();
+	KString sOutput;
+	KOStringStream oss(sOutput);
+	kfFormat(oss, std::forward<Args>(args)...);
+	return sOutput;
 }
 
 //-----------------------------------------------------------------------------
@@ -109,12 +93,23 @@ std::ostream& kfPrintf(std::ostream& os, Args&&... args)
 //-----------------------------------------------------------------------------
 {
 	DEKAF2_TRY {
-		std::string tmp = kPrintf(std::forward<Args>(args)...);
-		os.write(tmp.data(), static_cast<std::streamsize>(tmp.size()));
+		fmt::fprintf(os, std::forward<Args>(args)...);
 	} DEKAF2_CATCH (std::exception& e) {
 		kFormat_internal::report_format_exception(e, DEKAF2_FUNCTION_NAME);
 	}
 	return os;
+}
+
+//-----------------------------------------------------------------------------
+/// formats a KString using POSIX printf syntax
+template<class... Args>
+KString kPrintf(Args&&... args)
+//-----------------------------------------------------------------------------
+{
+	KString sOutput;
+	KOStringStream oss(sOutput);
+	kfPrintf(oss, std::forward<Args>(args)...);
+	return sOutput;
 }
 
 } // end of namespace dekaf2

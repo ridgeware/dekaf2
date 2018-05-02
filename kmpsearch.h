@@ -63,7 +63,7 @@ public:
 	bool Match(KInStream& InStream) const;
 
 	template <class ForwardIterator>
-	constexpr std::pair<ForwardIterator, ForwardIterator> Match(ForwardIterator first, ForwardIterator last) const
+	std::pair<ForwardIterator, ForwardIterator> Match(ForwardIterator first, ForwardIterator last) const
 	{
 		index = 0;
 

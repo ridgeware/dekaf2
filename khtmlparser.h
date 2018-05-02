@@ -43,6 +43,7 @@
 #pragma once
 
 #include "kstringview.h"
+#include "kstring.h"
 #include "kstream.h"
 #include <set>
 

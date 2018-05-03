@@ -315,7 +315,7 @@ int KOptions::Parse(int argc, char** argv, KOutStream& out)
 				{
 					if (!CBP->sMissingParms.empty())
 					{
-						DEKAF2_THROW(MissingParameterError(CBP->sMissingParms));
+						DEKAF2_THROW(MissingParameterError(CBP->sMissingParms.c_str()));
 					}
 					else
 					{

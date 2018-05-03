@@ -163,7 +163,7 @@ private:
 
 		private:
 
-			static constexpr KStringView sDoubleDash = "--";
+			static constexpr KStringViewZ sDoubleDash = "--";
 
 			uint8_t iDashes { 0 };
 

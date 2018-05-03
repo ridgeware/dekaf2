@@ -129,6 +129,8 @@ void KHTMLContentBlocks::Object(KHTMLObject& Object)
 		}
 
 		case KHTMLObject::COMMENT:
+			// the effect of this check is that we throw away comments inside of
+			// content blocks with real content
 			if (!m_bHadTextContent)
 			{
 				FlushContentBlock();
@@ -165,6 +167,14 @@ void KHTMLContentBlocks::Content(char ch)
 	m_sContentBlock += ch;
 
 } // Content
+
+//-----------------------------------------------------------------------------
+void KHTMLContentBlocks::Script(char ch)
+//-----------------------------------------------------------------------------
+{
+	m_sContentBlock += ch;
+
+} // Script
 
 //-----------------------------------------------------------------------------
 void KHTMLContentBlocks::Invalid(char ch)

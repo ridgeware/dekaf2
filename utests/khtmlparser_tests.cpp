@@ -19,6 +19,7 @@ TEST_CASE("KHTMLParser")
 	</head>
 	<body>
 			 <!----- another comment here until here ---> <!--really?>-->
+			 <script> this is <a <new <a href="www.w3c.org">scripting</a> language> </script>
 			 <img checked href="http://www.xyz.com/my/image.png" title=Ñicé />
 			 <p class='fancy' id=self style="curly">And finally <i class='shallow'>some</i> content</p>
 	</body>
@@ -50,6 +51,11 @@ TEST_CASE("KHTMLParser")
 			}
 
 			virtual void Content(char ch) override
+			{
+				m_OutStream.Write(ch);
+			}
+
+			virtual void Script(char ch) override
 			{
 				m_OutStream.Write(ch);
 			}
@@ -93,6 +99,11 @@ TEST_CASE("KHTMLParser")
 			}
 
 			virtual void Content(char ch) override
+			{
+				m_OutString += ch;
+			}
+
+			virtual void Script(char ch) override
 			{
 				m_OutString += ch;
 			}

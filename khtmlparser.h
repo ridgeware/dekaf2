@@ -476,6 +476,7 @@ protected:
 
 	virtual void Object(KHTMLObject& Object);
 	virtual void Content(char ch);
+	virtual void Script(char ch);
 	virtual void Invalid(char ch);
 	virtual void Finished();
 
@@ -485,6 +486,8 @@ private:
 
 	void Invalid(KStringView sInvalid);
 	void Invalid(const KHTMLStringObject& Object);
+	void SkipScript(KInStream& InStream);
+	void SkipInvalid(KInStream& InStream);
 
 }; // KHTMLParser
 

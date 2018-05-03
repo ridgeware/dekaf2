@@ -214,7 +214,7 @@ bool KHTMLAttribute::Parse(KInStream& InStream, KStringView sOpening)
 
 	std::iostream::int_type ch;
 
-	while ((ch = InStream.Read()) != std::iostream::traits_type::eof())
+	while (DEKAF2_LIKELY((ch = InStream.Read()) != std::iostream::traits_type::eof()))
 	{
 		switch (state)
 		{
@@ -449,7 +449,7 @@ bool KHTMLAttributes::Parse(KInStream& InStream, KStringView sOpening)
 
 	std::iostream::int_type ch;
 
-	while ((ch = InStream.Read()) != std::iostream::traits_type::eof())
+	while (DEKAF2_LIKELY((ch = InStream.Read()) != std::iostream::traits_type::eof()))
 	{
 		if (!std::isspace(ch))
 		{
@@ -601,7 +601,7 @@ bool KHTMLTag::Parse(KInStream& InStream, KStringView sOpening)
 		state = OPEN;
 	}
 
-	while ((ch = InStream.Read()) != std::iostream::traits_type::eof())
+	while (DEKAF2_LIKELY((ch = InStream.Read()) != std::iostream::traits_type::eof()))
 	{
 		switch (state)
 		{
@@ -703,7 +703,7 @@ void KHTMLTag::Serialize(KString& sOut) const
 
 		Attributes.Serialize(sOut);
 
-		if (bSelfClosing)
+		if (DEKAF2_UNLIKELY(bSelfClosing))
 		{
 			if (!Attributes.empty())
 			{
@@ -734,7 +734,7 @@ void KHTMLTag::Serialize(KOutStream& OutStream) const
 
 		Attributes.Serialize(OutStream);
 
-		if (bSelfClosing)
+		if (DEKAF2_UNLIKELY(bSelfClosing))
 		{
 			if (!Attributes.empty())
 			{
@@ -762,9 +762,9 @@ bool KHTMLComment::SearchForLeadOut(KInStream& InStream)
 {
 	std::iostream::int_type ch;
 
-	while ((ch = InStream.Read()) != std::iostream::traits_type::eof())
+	while (DEKAF2_LIKELY((ch = InStream.Read()) != std::iostream::traits_type::eof()))
 	{
-		if (ch == '-')
+		if (DEKAF2_UNLIKELY(ch == '-'))
 		{
 			ch = InStream.Read();
 			while (ch == '-')
@@ -798,9 +798,9 @@ bool KHTMLDocumentType::SearchForLeadOut(KInStream& InStream)
 {
 	std::iostream::int_type ch;
 
-	while ((ch = InStream.Read()) != std::iostream::traits_type::eof())
+	while (DEKAF2_LIKELY((ch = InStream.Read()) != std::iostream::traits_type::eof()))
 	{
-		if (ch == '>')
+		if (DEKAF2_UNLIKELY(ch == '>'))
 		{
 			return true;
 		}
@@ -824,9 +824,9 @@ bool KHTMLProcessingInstruction::SearchForLeadOut(KInStream& InStream)
 {
 	std::iostream::int_type ch;
 
-	while ((ch = InStream.Read()) != std::iostream::traits_type::eof())
+	while (DEKAF2_LIKELY((ch = InStream.Read()) != std::iostream::traits_type::eof()))
 	{
-		while (ch == '?')
+		while (DEKAF2_UNLIKELY(ch == '?'))
 		{
 			ch = InStream.Read();
 			if (ch == '>')
@@ -856,9 +856,9 @@ bool KHTMLCData::SearchForLeadOut(KInStream& InStream)
 {
 	std::iostream::int_type ch;
 
-	while ((ch = InStream.Read()) != std::iostream::traits_type::eof())
+	while (DEKAF2_LIKELY((ch = InStream.Read()) != std::iostream::traits_type::eof()))
 	{
-		if (ch == ']')
+		if (DEKAF2_UNLIKELY(ch == ']'))
 		{
 			ch = InStream.Read();
 			while (ch == ']')
@@ -910,32 +910,80 @@ void KHTMLParser::Invalid(const KHTMLStringObject& Object)
 } // PushToInvalid
 
 //-----------------------------------------------------------------------------
+void KHTMLParser::SkipInvalid(KInStream& InStream)
+//-----------------------------------------------------------------------------
+{
+	std::istream::int_type ch;
+	
+	while (DEKAF2_LIKELY((ch = InStream.Read()) != std::istream::traits_type::eof()))
+	{
+		Invalid(ch);
+		if (DEKAF2_UNLIKELY(ch == '>'))
+		{
+			break;
+		}
+	}
+}
+
+//-----------------------------------------------------------------------------
+void KHTMLParser::SkipScript(KInStream& InStream)
+//-----------------------------------------------------------------------------
+{
+	static const char ScriptEndTag[] = "/script>";
+
+	const char* pScriptEndTag = nullptr;
+	std::istream::int_type ch;
+
+	while (DEKAF2_LIKELY((ch = InStream.Read()) != std::istream::traits_type::eof()))
+	{
+		Script(ch);
+		if (DEKAF2_UNLIKELY(ch == '<'))
+		{
+			pScriptEndTag = ScriptEndTag;
+		}
+		else if (DEKAF2_UNLIKELY(pScriptEndTag != nullptr))
+		{
+			if (std::tolower(ch) == *pScriptEndTag)
+			{
+				++pScriptEndTag;
+				if (!*pScriptEndTag)
+				{
+					break;
+				}
+			}
+			else
+			{
+				if (ch == '<')
+				{
+					pScriptEndTag = ScriptEndTag;
+				}
+				else
+				{
+					pScriptEndTag = nullptr;
+				}
+			}
+		}
+	}
+}
+
+//-----------------------------------------------------------------------------
 bool KHTMLParser::Parse(KInStream& InStream)
 //-----------------------------------------------------------------------------
 {
 	std::istream::int_type ch;
-	bool bInvalid { false };
 
-	while ((ch = InStream.Read()) != std::istream::traits_type::eof())
+	while (DEKAF2_LIKELY((ch = InStream.Read()) != std::istream::traits_type::eof()))
 	{
-		if (bInvalid)
-		{
-			Invalid(ch);
-			if (ch == '>')
-			{
-				bInvalid = false;
-			}
-		}
-		else if (ch == '<')
+		if (ch == '<')
 		{
 			// check if this starts a comment or other command construct
 			ch = InStream.Read();
 
-			if (ch == std::iostream::traits_type::eof())
+			if (DEKAF2_UNLIKELY(ch == std::iostream::traits_type::eof()))
 			{
 				return false;
 			}
-			else if (ch == '!')
+			else if (DEKAF2_UNLIKELY(ch == '!'))
 			{
 				ch = InStream.Read();
 				if (ch == '-')
@@ -950,7 +998,7 @@ bool KHTMLParser::Parse(KInStream& InStream)
 						// if this went wrong we set the output to INVALID, and will
 						// parse into that until we reach a '>'
 						Invalid(Comment);
-						bInvalid = true;
+						SkipInvalid(InStream);
 					}
 				}
 				else if (ch == '[')
@@ -965,7 +1013,7 @@ bool KHTMLParser::Parse(KInStream& InStream)
 						// if this went wrong we set the output to INVALID, and will
 						// parse into that until we reach a '>'
 						Invalid(CData);
-						bInvalid = true;
+						SkipInvalid(InStream);
 					}
 				}
 				else
@@ -981,12 +1029,12 @@ bool KHTMLParser::Parse(KInStream& InStream)
 						// if this went wrong we set the output to INVALID, and will
 						// parse into that until we reach a '>'
 						Invalid(DTD);
-						bInvalid = true;
+						SkipInvalid(InStream);
 					}
 				}
 				continue;
 			}
-			else if (ch == '?')
+			else if (DEKAF2_UNLIKELY(ch == '?'))
 			{
 				KHTMLProcessingInstruction PI;
 				if (PI.Parse(InStream, "<?"))
@@ -998,7 +1046,7 @@ bool KHTMLParser::Parse(KInStream& InStream)
 					// if this went wrong we set the output to INVALID, and will
 					// parse into that until we reach a '>'
 					Invalid(PI);
-					bInvalid = true;
+					SkipInvalid(InStream);
 				}
 				continue;
 			}
@@ -1007,18 +1055,22 @@ bool KHTMLParser::Parse(KInStream& InStream)
 
 			// no, this is most probably a tag
 			KHTMLTag tag;
-			if (tag.Parse(InStream, "<"))
+			if (DEKAF2_LIKELY(tag.Parse(InStream, "<")))
 			{
 				if (!tag.empty())
 				{
 					Object(tag);
+					if (DEKAF2_UNLIKELY(tag.Name == "script" && !tag.bClosing))
+					{
+						SkipScript(InStream);
+					}
 				}
 			}
 			else
 			{
 				// print to Invalid() until next '>'
 				Invalid('<');
-				bInvalid = true;
+				SkipInvalid(InStream);
 			}
 		}
 		else
@@ -1058,6 +1110,15 @@ void KHTMLParser::Object(KHTMLObject& Object)
 	// does nothing in base class
 
 } // ProcessingInstruction
+
+//-----------------------------------------------------------------------------
+void KHTMLParser::Script(char ch)
+//-----------------------------------------------------------------------------
+{
+	// write script content to invalid
+	Invalid(ch);
+
+} // Script
 
 //-----------------------------------------------------------------------------
 void KHTMLParser::Invalid(char ch)

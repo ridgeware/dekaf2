@@ -66,6 +66,7 @@ protected:
 
 	virtual void Object(KHTMLObject& Object) override;
 	virtual void Content(char ch) override;
+	virtual void Script(char ch) override;
 	virtual void Invalid(char ch) override;
 	virtual void Finished() override;
 

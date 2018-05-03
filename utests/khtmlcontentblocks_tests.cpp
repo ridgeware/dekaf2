@@ -19,6 +19,7 @@ TEST_CASE("KHTMLContentBlocks")
 	</head>
 	<body>
 	<!----- another comment here until here ---> <!--really?>-->
+	<script> this is <a <new <a href="www.w3c.org">scripting</a> language> </script>
 	<img checked href="http://www.xyz.com/my/image.png" title=Ñicé />
 	<p class='fancy' id=self style="curly">And finally <i class='shallow'>some</i> content</p>
 	</body>

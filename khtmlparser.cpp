@@ -60,7 +60,7 @@ void KHTMLObject::clear()
 }
 
 //-----------------------------------------------------------------------------
-KHTMLObjectType KHTMLObject::Type() const
+KHTMLObject::ObjectType KHTMLObject::Type() const
 //-----------------------------------------------------------------------------
 {
 	return NONE;
@@ -421,15 +421,6 @@ KStringView KHTMLAttributes::Get(KStringView sAttributeName) const
 } // Get
 
 //-----------------------------------------------------------------------------
-void KHTMLAttributes::Add(const KHTMLAttribute& Attribute)
-//-----------------------------------------------------------------------------
-{
-	KHTMLAttribute attribute(Attribute);
-	Add(std::move(attribute));
-
-} // Add
-
-//-----------------------------------------------------------------------------
 void KHTMLAttributes::Add(KHTMLAttribute&& Attribute)
 //-----------------------------------------------------------------------------
 {
@@ -437,6 +428,18 @@ void KHTMLAttributes::Add(KHTMLAttribute&& Attribute)
 
 } // Add
 
+//-----------------------------------------------------------------------------
+void KHTMLAttributes::Replace(KHTMLAttribute&& Attribute)
+//-----------------------------------------------------------------------------
+{
+	auto it = m_Attributes.find(Attribute.Name.ToView());
+	if (it != m_Attributes.end())
+	{
+		m_Attributes.erase(it);
+	}
+	m_Attributes.insert(std::move(Attribute));
+
+} // Add
 
 //-----------------------------------------------------------------------------
 bool KHTMLAttributes::Parse(KInStream& InStream, KStringView sOpening)
@@ -572,7 +575,7 @@ bool KHTMLTag::empty() const
 } // empty
 
 //-----------------------------------------------------------------------------
-KHTMLObjectType KHTMLTag::Type() const
+KHTMLObject::ObjectType KHTMLTag::Type() const
 //-----------------------------------------------------------------------------
 {
 	return TAG;
@@ -747,7 +750,7 @@ void KHTMLTag::Serialize(KOutStream& OutStream) const
 
 
 //-----------------------------------------------------------------------------
-KHTMLObjectType KHTMLComment::Type() const
+KHTMLObject::ObjectType KHTMLComment::Type() const
 //-----------------------------------------------------------------------------
 {
 	return COMMENT;
@@ -783,7 +786,7 @@ bool KHTMLComment::SearchForLeadOut(KInStream& InStream)
 } // SearchForLeadOut
 
 //-----------------------------------------------------------------------------
-KHTMLObjectType KHTMLDocumentType::Type() const
+KHTMLObject::ObjectType KHTMLDocumentType::Type() const
 //-----------------------------------------------------------------------------
 {
 	return DOCUMENTTYPE;
@@ -809,7 +812,7 @@ bool KHTMLDocumentType::SearchForLeadOut(KInStream& InStream)
 } // SearchForLeadOut
 
 //-----------------------------------------------------------------------------
-KHTMLObjectType KHTMLProcessingInstruction::Type() const
+KHTMLObject::ObjectType KHTMLProcessingInstruction::Type() const
 //-----------------------------------------------------------------------------
 {
 	return PROCESSINGINSTRUCTION;
@@ -841,7 +844,7 @@ bool KHTMLProcessingInstruction::SearchForLeadOut(KInStream& InStream)
 
 
 //-----------------------------------------------------------------------------
-KHTMLObjectType KHTMLCData::Type() const
+KHTMLObject::ObjectType KHTMLCData::Type() const
 //-----------------------------------------------------------------------------
 {
 	return CDATA;

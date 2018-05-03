@@ -111,7 +111,7 @@ void KHTMLContentBlocks::Object(KHTMLObject& Object)
 {
 	switch (Object.Type())
 	{
-		case TAG:
+		case KHTMLObject::TAG:
 		{
 			KHTMLTag& Tag = reinterpret_cast<KHTMLTag&>(Object);
 			if (!Tag.IsInline())
@@ -128,7 +128,7 @@ void KHTMLContentBlocks::Object(KHTMLObject& Object)
 			break;
 		}
 
-		case COMMENT:
+		case KHTMLObject::COMMENT:
 			if (!m_bHadTextContent)
 			{
 				FlushContentBlock();

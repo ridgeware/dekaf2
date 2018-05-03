@@ -49,18 +49,6 @@
 
 namespace dekaf2 {
 
-enum KHTMLObjectType
-{
-	NONE,
-	CONTENT,
-	TAG,
-	COMMENT,
-	DOCUMENTTYPE,
-	PROCESSINGINSTRUCTION,
-	CDATA,
-	INVALID
-};
-
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Interface
 class KHTMLObject
@@ -70,6 +58,18 @@ class KHTMLObject
 //------
 public:
 //------
+
+	enum ObjectType
+	{
+		NONE,
+		CONTENT,
+		TAG,
+		COMMENT,
+		DOCUMENTTYPE,
+		PROCESSINGINSTRUCTION,
+		CDATA,
+		INVALID
+	};
 
 	KHTMLObject() = default;
 	KHTMLObject(const KHTMLObject&) = default;
@@ -94,7 +94,7 @@ public:
 	virtual void clear();
 	// make this base an ABC
 	virtual bool empty() const = 0;
-	virtual KHTMLObjectType Type() const;
+	virtual ObjectType Type() const;
 
 }; // KHTMLObject
 
@@ -230,11 +230,20 @@ public:
 
 	void Set(KStringView sAttributeName, KStringView sAttributeValue, char Quote='"')
 	{
-		Add(KHTMLAttribute({sAttributeName, sAttributeValue, Quote}));
+		Replace(KHTMLAttribute({sAttributeName, sAttributeValue, Quote}));
 	}
 
-	void Add(const KHTMLAttribute& Attribute);
 	void Add(KHTMLAttribute&& Attribute);
+	void Add(const KHTMLAttribute& Attribute)
+	{
+		Add(KHTMLAttribute(Attribute));
+	}
+
+	void Replace(KHTMLAttribute&& Attribute);
+	void Replace(const KHTMLAttribute& Attribute)
+	{
+		Replace(KHTMLAttribute(Attribute));
+	}
 
 	KHTMLAttributes& operator+=(const KHTMLAttribute& Attribute)
 	{
@@ -295,7 +304,7 @@ public:
 
 	virtual void clear() override;
 	virtual bool empty() const override;
-	virtual KHTMLObjectType Type() const override;
+	virtual ObjectType Type() const override;
 
 	bool IsInline() const;
 
@@ -328,7 +337,7 @@ public:
 	// forward all constructors
 	using KHTMLStringObject::KHTMLStringObject;
 
-	virtual KHTMLObjectType Type() const override;
+	virtual ObjectType Type() const override;
 
 	static constexpr KStringView LEAD_IN  = "<!--";
 	static constexpr KStringView LEAD_OUT = "-->";
@@ -358,7 +367,7 @@ public:
 	// forward all constructors
 	using KHTMLStringObject::KHTMLStringObject;
 
-	virtual KHTMLObjectType Type() const override;
+	virtual ObjectType Type() const override;
 
 	static constexpr KStringView LEAD_IN  = "<!";
 	static constexpr KStringView LEAD_OUT = ">";
@@ -388,7 +397,7 @@ public:
 	// forward all constructors
 	using KHTMLStringObject::KHTMLStringObject;
 
-	virtual KHTMLObjectType Type() const override;
+	virtual ObjectType Type() const override;
 
 	static constexpr KStringView LEAD_IN  = "<?";
 	static constexpr KStringView LEAD_OUT = "?>";
@@ -418,7 +427,7 @@ public:
 	// forward all constructors
 	using KHTMLStringObject::KHTMLStringObject;
 
-	virtual KHTMLObjectType Type() const override;
+	virtual ObjectType Type() const override;
 
 	static constexpr KStringView LEAD_IN  = "<![CDATA[";
 	static constexpr KStringView LEAD_OUT = "]]>";

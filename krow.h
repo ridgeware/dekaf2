@@ -217,6 +217,10 @@ public:
 		}
 	}
 
+	/// association arrays, e.g. row["column_name"] --> the value for that columm
+	      KString& operator[] (KStringView sColName)        { return Get(sColName).sValue; }
+	const KString& operator[] (KStringView sColName) const  { return Get(sColName).sValue; }
+
 	/// Returns the Nth column's name (note: column index starts at 0).
 	KStringView GetName (size_t iZeroBasedIndex)
 	{

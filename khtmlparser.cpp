@@ -915,6 +915,8 @@ bool KHTMLParser::Parse(KInStream& InStream)
 {
 	std::istream::int_type ch;
 	bool bInvalid { false };
+	bool bScript  { false };
+	KStringView ScriptEndTag;
 
 	while ((ch = InStream.Read()) != std::istream::traits_type::eof())
 	{
@@ -924,6 +926,36 @@ bool KHTMLParser::Parse(KInStream& InStream)
 			if (ch == '>')
 			{
 				bInvalid = false;
+			}
+		}
+		else if (bScript)
+		{
+			Invalid(ch);
+			if (ch == '<')
+			{
+				ScriptEndTag = "/script>";
+			}
+			else if (!ScriptEndTag.empty())
+			{
+				if (std::tolower(ch) == ScriptEndTag.front())
+				{
+					ScriptEndTag.remove_prefix(1);
+					if (ScriptEndTag.empty())
+					{
+						bScript = false;
+					}
+				}
+				else
+				{
+					if (ch == '<')
+					{
+						ScriptEndTag = "/script>";
+					}
+					else
+					{
+						ScriptEndTag.clear();
+					}
+				}
 			}
 		}
 		else if (ch == '<')
@@ -1011,6 +1043,11 @@ bool KHTMLParser::Parse(KInStream& InStream)
 			{
 				if (!tag.empty())
 				{
+					if (tag.Name == "script" && !tag.bClosing)
+					{
+						// switch into script bypass mode
+						bScript = true;
+					}
 					Object(tag);
 				}
 			}

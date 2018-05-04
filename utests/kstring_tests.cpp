@@ -954,7 +954,7 @@ TEST_CASE("KString") {
 			{ "hello"    , "HELLO"   },
 			{ "öäü"      , "ÖÄÜ"     },
 			{ "hello"    , "hello"   },
-			{ "öäü"      , "öäü"     },nd
+			{ "öäü"      , "öäü"     },
 		};
 
 		for (const auto& it : pvector)

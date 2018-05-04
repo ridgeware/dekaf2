@@ -493,7 +493,7 @@ bool FromUTF8(const NarrowString& sNarrow, WideString& sWide)
 {
 	using W = typename WideString::value_type;
 
-	static_assert(sizeof(W) < 2, "target string needs to be at least 16 bit wide");
+	static_assert(sizeof(W) > 1, "target string needs to be at least 16 bit wide");
 
 	return FromUTF8(sNarrow, [&sWide](codepoint_t uch)
 	{

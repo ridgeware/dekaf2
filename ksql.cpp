@@ -5505,7 +5505,7 @@ bool KSQL::Delete (KROW& Row)
 } // Delete
 
 //-----------------------------------------------------------------------------
-bool KSQL::InsertOrUpdate (KROW& Row, bool* pbInserted/*=NULL*/)
+bool KSQL::UpdateOrInsert (KROW& Row, KROW& AdditionalInsertCols, bool* pbInserted/*=NULL*/)
 //-----------------------------------------------------------------------------
 {
 	if (pbInserted) {
@@ -5529,11 +5529,14 @@ bool KSQL::InsertOrUpdate (KROW& Row, bool* pbInserted/*=NULL*/)
 	}
 
 	kDebugLog (GetDebugLevel()+1, "InsertOrUpdate: attempting insert...");
+
+	Row += AdditionalInsertCols;
+
 	bool bOK = Insert (Row);
 
 	return (bOK);
 
-} // DbInsertOrUpdate 
+} // UpdateOrInsert
 
 //-----------------------------------------------------------------------------
 uint64_t KSQL::GetLastInsertID ()

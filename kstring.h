@@ -74,6 +74,14 @@ KString kToUpper(KStringView sInput);
 KString kToLower(KStringView sInput);
 //----------------------------------------------------------------------
 
+//----------------------------------------------------------------------
+KString kToUpperLocale(KStringView sInput);
+//----------------------------------------------------------------------
+
+//----------------------------------------------------------------------
+KString kToLowerLocale(KStringView sInput);
+//----------------------------------------------------------------------
+
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// dekaf2's own string class - a wrapper around std::string
 /// that handles most error cases in a benign way and speeds up
@@ -407,17 +415,29 @@ public:
 	/// does the string contain the sPattern?
 	bool Contains(KStringView sPattern) const;
 
-	/// changes the string to lowercase
+	/// changes the string to lowercase (UTF8)
 	KString& MakeLower();
 
-	/// changes the string to uppercase
+	/// changes the string to uppercase (UTF8)
 	KString& MakeUpper();
 
-	/// returns a copy of the string in uppercase
+	/// changes the string to lowercase according to the current locale
+	KString& MakeLowerLocale();
+
+	/// changes the string to uppercase according to the current locale
+	KString& MakeUpperLocale();
+
+	/// returns a copy of the string in uppercase (UTF8)
 	KString ToUpper() const;
 
-	/// returns a copy of the string in lowercase
+	/// returns a copy of the string in lowercase (UTF8)
 	KString ToLower() const;
+
+	/// returns a copy of the string in uppercase according to the current locale
+	KString ToUpperLocale() const;
+
+	/// returns a copy of the string in lowercase according to the current locale
+	KString ToLowerLocale() const;
 
 	/// returns leftmost iCount chars of string
 	KStringView Left(size_type iCount) const;
@@ -1088,6 +1108,20 @@ inline KString KString::ToLower() const
 //-----------------------------------------------------------------------------
 {
 	return kToLower(*this);
+}
+
+//-----------------------------------------------------------------------------
+inline KString KString::ToUpperLocale() const
+//-----------------------------------------------------------------------------
+{
+	return kToUpperLocale(*this);
+}
+
+//-----------------------------------------------------------------------------
+inline KString KString::ToLowerLocale() const
+//-----------------------------------------------------------------------------
+{
+	return kToLowerLocale(*this);
 }
 
 //-----------------------------------------------------------------------------

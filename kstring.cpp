@@ -46,6 +46,7 @@
 #include "kstringutils.h"
 #include "klog.h"
 #include "kregex.h"
+#include "kutf8.h"
 
 namespace dekaf2
 {
@@ -649,6 +650,32 @@ KStringView KString::ToView(size_type pos, size_type n) const
 KString& KString::MakeLower()
 //----------------------------------------------------------------------
 {
+	char* sOut { data() };
+	Unicode::FromUTF8(*this, [&](Unicode::codepoint_t ch)
+	{
+		return Unicode::ToUTF8(std::towlower(ch), sOut);
+	});
+	return *this;
+
+} // MakeLower
+
+//----------------------------------------------------------------------
+KString& KString::MakeUpper()
+//----------------------------------------------------------------------
+{
+	char* sOut { data() };
+	Unicode::FromUTF8(*this, [&](Unicode::codepoint_t ch)
+	{
+		return Unicode::ToUTF8(std::towupper(ch), sOut);
+	});
+	return *this;
+
+} // MakeUpper
+
+//----------------------------------------------------------------------
+KString& KString::MakeLowerLocale()
+//----------------------------------------------------------------------
+{
 	for (auto& it : m_rep)
 	{
 		it = static_cast<value_type>(std::tolower(static_cast<unsigned char>(it)));
@@ -658,7 +685,7 @@ KString& KString::MakeLower()
 } // MakeLower
 
 //----------------------------------------------------------------------
-KString& KString::MakeUpper()
+KString& KString::MakeUpperLocale()
 //----------------------------------------------------------------------
 {
 	for (auto& it : m_rep)
@@ -956,6 +983,36 @@ KString kToUpper(KStringView sInput)
 	KString sTransformed;
 	sTransformed.reserve(sInput.size());
 
+	Unicode::FromUTF8(sInput, [&](Unicode::codepoint_t ch)
+	{
+		return Unicode::ToUTF8(std::towupper(ch), sTransformed);
+	});
+
+	return sTransformed;
+}
+
+//----------------------------------------------------------------------
+KString kToLower(KStringView sInput)
+//----------------------------------------------------------------------
+{
+	KString sTransformed;
+	sTransformed.reserve(sInput.size());
+
+	Unicode::FromUTF8(sInput, [&](Unicode::codepoint_t ch)
+	{
+		return Unicode::ToUTF8(std::towlower(ch), sTransformed);
+	});
+
+	return sTransformed;
+}
+
+//----------------------------------------------------------------------
+KString kToUpperLocale(KStringView sInput)
+//----------------------------------------------------------------------
+{
+	KString sTransformed;
+	sTransformed.reserve(sInput.size());
+
 	for (const auto& it : sInput)
 	{
 		sTransformed += static_cast<KString::value_type>(std::toupper(static_cast<unsigned char>(it)));
@@ -965,7 +1022,7 @@ KString kToUpper(KStringView sInput)
 }
 
 //----------------------------------------------------------------------
-KString kToLower(KStringView sInput)
+KString kToLowerLocale(KStringView sInput)
 //----------------------------------------------------------------------
 {
 	KString sTransformed;

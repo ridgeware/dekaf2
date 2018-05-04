@@ -869,5 +869,101 @@ TEST_CASE("KString") {
 		}
 	}
 
+	SECTION("MakeUpper")
+	{
+		struct parms_t
+		{
+			KString input;
+			KString output;
+		};
+
+		std::vector<parms_t> pvector = {
+			{ ""         , ""        },
+			{ "hello"    , "HELLO"   },
+			{ "öäü"      , "ÖÄÜ"     },
+			{ "HELLO"    , "HELLO"   },
+			{ "ÖÄÜ"      , "ÖÄÜ"     },
+		};
+
+		for (const auto& it : pvector)
+		{
+			KString s(it.input);
+			s.MakeUpper();
+			CHECK ( s == it.output );
+		}
+	}
+
+	SECTION("MakeLower")
+	{
+		struct parms_t
+		{
+			KString output;
+			KString input;
+		};
+
+		std::vector<parms_t> pvector = {
+			{ ""         , ""        },
+			{ "hello"    , "HELLO"   },
+			{ "öäü"      , "ÖÄÜ"     },
+			{ "hello"    , "hello"   },
+			{ "öäü"      , "öäü"     },
+		};
+
+		for (const auto& it : pvector)
+		{
+			KString s(it.input);
+			s.MakeLower();
+			CHECK ( s == it.output );
+		}
+	}
+
+	SECTION("ToUpper")
+	{
+		struct parms_t
+		{
+			KString input;
+			KString output;
+		};
+
+		std::vector<parms_t> pvector = {
+			{ ""         , ""        },
+			{ "hello"    , "HELLO"   },
+			{ "öäü"      , "ÖÄÜ"     },
+			{ "HELLO"    , "HELLO"   },
+			{ "ÖÄÜ"      , "ÖÄÜ"     },
+		};
+
+		for (const auto& it : pvector)
+		{
+			KString s(it.input);
+			KString o = s.ToUpper();
+			CHECK ( o == it.output );
+		}
+	}
+
+	SECTION("ToLower")
+	{
+		struct parms_t
+		{
+			KString output;
+			KString input;
+		};
+
+		std::vector<parms_t> pvector = {
+			{ ""         , ""        },
+			{ "hello"    , "HELLO"   },
+			{ "öäü"      , "ÖÄÜ"     },
+			{ "hello"    , "hello"   },
+			{ "öäü"      , "öäü"     },nd
+		};
+
+		for (const auto& it : pvector)
+		{
+			KString s(it.input);
+			KString o = s.ToLower();
+			CHECK ( o == it.output );
+		}
+	}
+
 }
 

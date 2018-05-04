@@ -90,7 +90,7 @@ bool NeedsSurrogates(codepoint_t ch)
 
 /// check before calling that the input needs surrogate separation
 inline
- SurrogatePair CodepointToSurrogates(codepoint_t ch)
+SurrogatePair CodepointToSurrogates(codepoint_t ch)
 {
 	SurrogatePair sp;
 	ch -= 0x10000;
@@ -158,6 +158,45 @@ size_t UTF8Bytes(Ch sch)
 	}
 }
 
+template<typename Ch,
+         typename = std::enable_if_t<std::is_integral<Ch>::value> >
+constexpr
+bool ToUTF8(Ch sch, char*& sNarrow)
+{
+	using N = char;
+
+	codepoint_t ch = CodepointCast(sch);
+
+	if (ch < 0x0080)
+	{
+		*sNarrow++ = static_cast<N>(ch);
+	}
+	else if (ch < 0x0800)
+	{
+		*sNarrow++ = static_cast<N>(0xc0 | ((ch >> 6) & 0x1f));
+		*sNarrow++ = static_cast<N>(0x80 | (ch & 0x3f));
+	}
+	else if (ch < 0x010000)
+	{
+		*sNarrow++ = static_cast<N>(0xe0 | ((ch >> 12) & 0x0f));
+		*sNarrow++ = static_cast<N>(0x80 | ((ch >>  6) & 0x3f));
+		*sNarrow++ = static_cast<N>(0x80 | (ch & 0x3f));
+	}
+	else if (ch < 0x0110000)
+	{
+		*sNarrow++ = static_cast<N>(0xf0 | ((ch >> 18) & 0x07));
+		*sNarrow++ = static_cast<N>(0x80 | ((ch >> 12) & 0x3f));
+		*sNarrow++ = static_cast<N>(0x80 | ((ch >>  6) & 0x3f));
+		*sNarrow++ = static_cast<N>(0x80 | (ch & 0x3f));
+	}
+	else
+	{
+		*sNarrow++ = '?';
+		return false;
+	}
+	return true;
+}
+
 template<typename Ch, typename NarrowString,
          typename = std::enable_if_t<std::is_integral<Ch>::value> >
 constexpr
@@ -169,25 +208,25 @@ bool ToUTF8(Ch sch, NarrowString& sNarrow)
 
 	if (ch < 0x0080)
 	{
-		sNarrow += N(ch);
+		sNarrow += static_cast<N>(ch);
 	}
 	else if (ch < 0x0800)
 	{
-		sNarrow += N(0xc0 | ((ch >> 6) & 0x1f));
-		sNarrow += N(0x80 | (ch & 0x3f));
+		sNarrow += static_cast<N>(0xc0 | ((ch >> 6) & 0x1f));
+		sNarrow += static_cast<N>(0x80 | (ch & 0x3f));
 	}
 	else if (ch < 0x010000)
 	{
-		sNarrow += N(0xe0 | ((ch >> 12) & 0x0f));
-		sNarrow += N(0x80 | ((ch >> 6) & 0x3f));
-		sNarrow += N(0x80 | (ch & 0x3f));
+		sNarrow += static_cast<N>(0xe0 | ((ch >> 12) & 0x0f));
+		sNarrow += static_cast<N>(0x80 | ((ch >>  6) & 0x3f));
+		sNarrow += static_cast<N>(0x80 | (ch & 0x3f));
 	}
 	else if (ch < 0x0110000)
 	{
-		sNarrow += N(0xf0 | ((ch >> 18) & 0x07));
-		sNarrow += N(0x80 | ((ch >> 12) & 0x3f));
-		sNarrow += N(0x80 | ((ch >> 6) & 0x3f));
-		sNarrow += N(0x80 | (ch & 0x3f));
+		sNarrow += static_cast<N>(0xf0 | ((ch >> 18) & 0x07));
+		sNarrow += static_cast<N>(0x80 | ((ch >> 12) & 0x3f));
+		sNarrow += static_cast<N>(0x80 | ((ch >>  6) & 0x3f));
+		sNarrow += static_cast<N>(0x80 | (ch & 0x3f));
 	}
 	else
 	{

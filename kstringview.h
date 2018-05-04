@@ -636,6 +636,26 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	// nonstandard
+	KString ToUpper();
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	// nonstandard
+	KString ToLower();
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	// nonstandard
+	KString ToUpperLocale();
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	// nonstandard
+	KString ToLowerLocale();
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
 	void swap(self_type& other)
 	//-----------------------------------------------------------------------------
 	{
@@ -1263,10 +1283,12 @@ inline std::size_t dekaf2::KStringView::Hash() const
 
 #include "bits/kstringviewz.h"
 
+namespace dekaf2 {
+
 //-----------------------------------------------------------------------------
 inline
 constexpr
-dekaf2::KStringView::KStringView(KStringViewZ svz) noexcept
+KStringView::KStringView(KStringViewZ svz) noexcept
 //-----------------------------------------------------------------------------
 : KStringView(svz.data(), svz.size())
 {
@@ -1275,18 +1297,22 @@ dekaf2::KStringView::KStringView(KStringViewZ svz) noexcept
 //-----------------------------------------------------------------------------
 inline
 constexpr
-dekaf2::KStringView& dekaf2::KStringView::operator=(dekaf2::KStringViewZ other)
+KStringView& KStringView::operator=(KStringViewZ other)
 //-----------------------------------------------------------------------------
 {
 	assign(other.begin(), other.end());
 	return *this;
 }
 
+} // end of namespace dekaf2
+
 #include "kstring.h"
+
+namespace dekaf2 {
 
 //-----------------------------------------------------------------------------
 inline
-dekaf2::KStringView::KStringView(const KString& str) noexcept
+KStringView::KStringView(const KString& str) noexcept
 //-----------------------------------------------------------------------------
 : KStringView(str.data(), str.size())
 {
@@ -1294,10 +1320,45 @@ dekaf2::KStringView::KStringView(const KString& str) noexcept
 
 //-----------------------------------------------------------------------------
 inline
-dekaf2::KStringView& dekaf2::KStringView::operator=(const dekaf2::KString& other)
+KStringView& KStringView::operator=(const KString& other)
 //-----------------------------------------------------------------------------
 {
 	assign(other.data(), other.size());
 	return *this;
 }
+
+//-----------------------------------------------------------------------------
+inline
+KString KStringView::ToUpper()
+//-----------------------------------------------------------------------------
+{
+	return kToUpper(*this);
+}
+
+//-----------------------------------------------------------------------------
+inline
+KString KStringView::ToLower()
+//-----------------------------------------------------------------------------
+{
+	return kToLower(*this);
+}
+
+//-----------------------------------------------------------------------------
+inline
+KString KStringView::ToUpperLocale()
+//-----------------------------------------------------------------------------
+{
+	return kToUpperLocale(*this);
+}
+
+//-----------------------------------------------------------------------------
+inline
+KString KStringView::ToLowerLocale()
+//-----------------------------------------------------------------------------
+{
+	return kToLowerLocale(*this);
+}
+
+} // end of namespace dekaf2
+
 

@@ -149,6 +149,10 @@ public:
 	using base_type::StartsWith;
 	using base_type::EndsWith;
 	using base_type::Contains;
+	using base_type::ToUpper;
+	using base_type::ToLower;
+	using base_type::ToUpperLocale;
+	using base_type::ToLowerLocale;
 	using base_type::Bool;
 	using base_type::Int16;
 	using base_type::UInt16;

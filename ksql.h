@@ -284,7 +284,7 @@ public:
 	bool   Insert         (KROW& Row);
 	bool   Update         (KROW& Row);
 	bool   Delete         (KROW& Row);
-	bool   InsertOrUpdate (KROW& Row, bool* pbInserted=NULL);
+	bool   UpdateOrInsert (KROW& Row, KROW& AdditionalInsertCols, bool* pbInserted=NULL);
 
 	bool   FormInsert     (KROW& Row, KString& sSQL, bool fIdentityInsert=false)
 			{ bool fOK = Row.FormInsert (m_sLastSQL, m_iDBType, fIdentityInsert); sSQL=m_sLastSQL; return (fOK); }

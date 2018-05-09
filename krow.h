@@ -263,7 +263,7 @@ public:
 	bool FormDelete (KString& sSQL, SQLTYPE iDBType);
 
 	/// Returns a JSON formatted string representing the KROW object
-	KString ToJSON (bool bWrapInCurlies=true, KStringView sLineLeader="\t", KStringView sLineTrailer="\n");
+	KString ToJSON (uint8_t iIndent=0, bool bWrapInCurlies=true);
 
 	/// Returns the last RDBMS error message.
 	KStringView GetLastError() { return (m_sLastError); }

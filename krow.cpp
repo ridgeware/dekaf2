@@ -408,12 +408,15 @@ bool KROW::FormDelete (KString& sSQL, SQLTYPE iDBType)
 
 } // FormDelete
 
-
 //-----------------------------------------------------------------------------
-KString KROW::ToJSON (bool bWrapInCurlies, KStringView sLineLeader, KStringView sLineTrailer)
+KString KROW::ToJSON (uint8_t iIndent/*=0*/, bool bWrapInCurlies/*=true*/)
 //-----------------------------------------------------------------------------
 {
 	KString sJSON;
+	KString sIndent;
+	while (iIndent--) {
+		sIndent += "\t";
+	}
 
 	m_sLastError = ""; // reset
 
@@ -428,8 +431,8 @@ KString KROW::ToJSON (bool bWrapInCurlies, KStringView sLineLeader, KStringView 
 
 	if (bWrapInCurlies)
 	{
-		sJSON += "{";
-		sJSON += sLineTrailer;
+		sJSON += sIndent;
+		sJSON += "{\n";
 	}
 
 	kDebugLog (3, "KROW:ToJSON: {}", GetTablename());
@@ -455,38 +458,39 @@ KString KROW::ToJSON (bool bWrapInCurlies, KStringView sLineLeader, KStringView 
 		}
 
 		if (!bFirst) {
-			sJSON += ",";
-			sJSON += sLineTrailer;
+			sJSON += ",\n";
 		}
 
+		sJSON += sIndent;
 		if (sValue.empty() && !IsFlag (ii, NULL_IS_NOT_NIL))
 		{
-			sJSON += KJSON::EscWrapNumeric (sName, "null", sLineLeader, "");
+			sJSON += KJSON::EscWrapNumeric (sName, "null", bWrapInCurlies ? "\t" : "", "");
 		}
 		else if (IsFlag (ii, BOOLEAN))
 		{
 			// NOTE: Boolean values should be output as the word true and false without quotes around them.
 			KStringView sTrueFalse = ((sValue == "0") || (sValue == "false") || (sValue == "FALSE")) ? "false" : "true";
-			sJSON += KJSON::EscWrapNumeric (sName, sTrueFalse, sLineLeader, "");
+			sJSON += KJSON::EscWrapNumeric (sName, sTrueFalse, bWrapInCurlies ? "\t" : "", "");
 		}
 		else if (IsFlag (ii, NUMERIC) || IsFlag (ii, EXPRESSION) || IsFlag(ii, BOOLEAN))
 		{
-			sJSON += KJSON::EscWrapNumeric (sName, sValue, sLineLeader, "");
+			sJSON += KJSON::EscWrapNumeric (sName, sValue, bWrapInCurlies ? "\t" : "", "");
 		}
 		else // catch-all logic for all string values
 		{
-			sJSON += KJSON::EscWrap (sName, sValue, sLineLeader, "");
+			sJSON += KJSON::EscWrap (sName, sValue, bWrapInCurlies ? "\t" : "", "");
 		}
 		bFirst = false;
 	}
 
-	// NOTE: If we are not wrapping the entire JSON object in curlies, we leave off the sLineTrailer
+	// NOTE: If we are not wrapping the entire JSON object in curlies, we leave off the newline
 	//       because the caller may need to append this object with another krow JSON object, or add
-	//       more fields like array fields, so the caller may need to add a comma before sLineTrailer.
+	//       more fields like array fields, so the caller may need to add a comma before newline
 	if (bWrapInCurlies)
 	{
-		sJSON += sLineTrailer;
-		sJSON += "}";
+		sJSON += "\n";
+		sJSON += sIndent;
+		sJSON += "}\n";
 	}
 	
 	kDebugLog (3, "KROW:ToJSON: after: {}", sJSON);

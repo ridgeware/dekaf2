@@ -96,6 +96,7 @@ bool KHTTPHeaders::Parse(KInStream& Stream)
 
 	}
 
+	kDebugLog (1, "KHTTPHeaders::Parse(): never found double newline to end headers");
 	return false;
 }
 
@@ -229,7 +230,7 @@ const KString& KHTTPHeaders::Charset() const
 bool KHTTPHeaders::HasKeepAlive() const
 //-----------------------------------------------------------------------------
 {
-	if (HTTPVersion == "HTTP/1.0" || HTTPVersion == "HTTP/0.9")
+	if (m_sHTTPVersion == "HTTP/1.0" || m_sHTTPVersion == "HTTP/0.9")
 	{
 		return false;
 	}

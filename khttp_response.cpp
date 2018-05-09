@@ -78,8 +78,8 @@ bool KHTTPResponseHeaders::Parse(KInStream& Stream)
 		return SetError("cannot read HTTP response status");
 	}
 
-	HTTPVersion = Words[0];
-	StatusCode = Words[1].UInt16();
+	m_sHTTPVersion = Words[0];
+	m_iStatusCode = Words[1].UInt16();
 
 	if (Words.size() > 2)
 	{
@@ -87,7 +87,7 @@ bool KHTTPResponseHeaders::Parse(KInStream& Stream)
 		// into m_sMessage. It looks dangerous but is absolutely
 		// clean, as data() returns a pointer into sLine, which
 		// itself is 0-terminated
-		StatusString.assign(Words[2].data());
+		m_sStatusString.assign(Words[2].data());
 	}
 
 	return KHTTPHeaders::Parse(Stream);
@@ -98,12 +98,12 @@ bool KHTTPResponseHeaders::Parse(KInStream& Stream)
 bool KHTTPResponseHeaders::Serialize(KOutStream& Stream) const
 //-----------------------------------------------------------------------------
 {
-	if (HTTPVersion.empty())
+	if (m_sHTTPVersion.empty())
 	{
 		return SetError("missing http version");
 	}
 	
-	Stream.FormatLine("{} {} {}", HTTPVersion, StatusCode, StatusString);
+	Stream.FormatLine("{} {} {}", m_sHTTPVersion, m_iStatusCode, m_sStatusString);
 
 	return KHTTPHeaders::Serialize(Stream);
 
@@ -122,9 +122,9 @@ void KHTTPResponseHeaders::clear()
 //-----------------------------------------------------------------------------
 {
 	KHTTPHeaders::clear();
-	HTTPVersion.clear();
-	StatusString.clear();
-	StatusCode = 0;
+	m_sHTTPVersion.clear();
+	m_sStatusString.clear();
+	m_iStatusCode = 0;
 
 } // clear
 

@@ -289,7 +289,7 @@ public:
 
 	// we store the http version here as it is a shared property
 	// of request and response headers
-	KString HTTPVersion;
+	KString m_sHTTPVersion;
 
 //------
 private:

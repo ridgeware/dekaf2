@@ -92,7 +92,7 @@ public:
 	/// incoming http protocol and version as defined in status header
 	const KString& GetHTTPProtocol() const
 	{
-		return Request.HTTPVersion;
+		return Request.m_sHTTPVersion;
 	}
 
 	/// raw, unprocessed incoming POST data

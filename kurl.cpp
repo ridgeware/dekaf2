@@ -174,50 +174,49 @@ KStringView KProtocol::Parse (KStringView svSource, bool bAcceptWithoutColon)
 
 	if (!svSource.empty ())
 	{
-		size_t iFound = svSource.find_first_of (':');
-
-		KStringView svProto;
+		// we search for the colon, but also for all other chars
+		// that would indicate that we are not in a protocol part of the URL
+		size_t iFound = svSource.find_first_of (": \t@/;?=#");
 
 		if (iFound != KStringView::npos)
 		{
-			svProto = svSource.substr (0, iFound);
-			// check if we have characters that do not belong into
-			// the protocol - this tells us that the colon is not part
-			// of the protocol, but of some other URL part
-			if (svProto.find_first_of(" \t@/;?=#") != KStringView::npos)
+			// check if the found char is the colon
+			if (svSource[iFound] == ':')
 			{
-				iFound = KStringView::npos;
-				svProto.clear();
+				KStringView svProto = svSource.substr (0, iFound);
+				// we do accept schemata with only one slash, as that is
+				// a common typo (but we do correct them when serializing)
+				if (svSource.size () > iFound + 1
+					&& svSource[iFound + 1] == '/')
+				{
+					svSource.remove_prefix (iFound + 2);
+
+					if (!svSource.empty () && svSource.front () == '/')
+					{
+						svSource.remove_prefix (1);
+					}
+
+					SetProto(svProto);
+				}
+				else if (svProto == "mailto")
+				{
+					m_eProto = MAILTO;
+					svSource.remove_prefix (iFound + 1);
+				}
+			}
+			else if (iFound == 0 && svSource[0] == '/')
+			{
+				if (svSource.size() > 1 && svSource[1] == '/')
+				{
+					m_eProto = AUTO;
+					svSource.remove_prefix(2);
+				}
 			}
 		}
-
-		if (bAcceptWithoutColon && iFound == KStringView::npos)
+		else if (bAcceptWithoutColon)
 		{
 			SetProto(svSource);
 			svSource.clear();
-		}
-
-		if (iFound != KStringView::npos)
-		{
-			// we do accept schemata with only one slash, as that is
-			// a common typo (but we do correct them when serializing)
-			if (svSource.size () > iFound + 1
-			    && svSource[iFound + 1] == '/')
-			{
-				svSource.remove_prefix (iFound + 2);
-
-				if (!svSource.empty () && svSource.front () == '/')
-				{
-					svSource.remove_prefix (1);
-				}
-
-				SetProto(svProto);
-			}
-			else if (svProto == "mailto")
-			{
-				m_eProto = MAILTO;
-				svSource.remove_prefix (iFound + 1);
-			}
 		}
 	}
 
@@ -248,6 +247,10 @@ bool KProtocol::Serialize (KString& sTarget) const
 			sTarget += ':';
 			break;
 
+		case AUTO:
+			sTarget += "//";
+			break;
+
 		default:
 			sTarget += m_sCanonical[m_eProto].name;
 			sTarget += "://";
@@ -273,6 +276,7 @@ const KProtocol::Protocols KProtocol::m_sCanonical [UNKNOWN+1] =
 {
     {    0, ""       }, // Empty placeholder for UNDEFINED, parse has not been run yet.
     {   25, "mailto" },
+	{    0, "auto"   },
     {   80, "http"   },
     {  443, "https"  },
     {    0, "file"   },

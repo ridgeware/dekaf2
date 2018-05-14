@@ -500,19 +500,20 @@ public:
 		// Explicit values to guarantee map to m_sCanonical.
 		UNDEFINED =  0,
 		MAILTO    =  1, // MAILTO _has_ to stay at the second position after UNDEFINED!
-		HTTP      =  2,
-		HTTPS     =  3,
-		FILE      =  4,
-		FTP       =  5,
-		GIT       =  6,
-		SVN       =  7,
-		IRC       =  8,
-		NEWS      =  9,
-		NNTP      = 10,
-		TELNET    = 11,
-		GOPHER    = 12,
-		UNIX      = 13,
-		UNKNOWN   = 14  // UNKNOWN _has_ to be the last value
+		AUTO      =  2, // the "//" in HTML attributes
+		HTTP      =  3,
+		HTTPS     =  4,
+		FILE      =  5,
+		FTP       =  6,
+		GIT       =  7,
+		SVN       =  8,
+		IRC       =  9,
+		NEWS      = 10,
+		NNTP      = 11,
+		TELNET    = 12,
+		GOPHER    = 13,
+		UNIX      = 14,
+		UNKNOWN   = 15  // UNKNOWN _has_ to be the last value
 	};
 
 	//-------------------------------------------------------------------------
@@ -950,9 +951,8 @@ public:
 	bool IsHttpURL () const
 	//-------------------------------------------------------------------------
 	{
-		return (Protocol == url::KProtocol::HTTP || Protocol == url::KProtocol::HTTPS)
-		        && (!Domain.empty())
-		        ;
+		return (Protocol == url::KProtocol::HTTP || Protocol == url::KProtocol::HTTPS || Protocol == url::KProtocol::AUTO)
+		        && (!Domain.empty());
 	}
 
 	//-------------------------------------------------------------------------

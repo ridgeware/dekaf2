@@ -1014,6 +1014,7 @@ TEST_CASE ("KURL formerly missing")
         URL.Serialize(sSerialized);
         svURL = "https://fred:secret@www.test.com:7654/changed.xml?foo=r%C3%B6b&you=wh%C3%B8#fragment";
         CHECK ( sSerialized == svURL );
+// commented out because of type deduction trouble in CATCH
 //        CHECK ( URL.Protocol.getProtocol() == dekaf2::url::KProtocol::HTTPS );
 //        CHECK ( URL.Protocol == dekaf2::url::KProtocol::HTTPS );
     }
@@ -1026,18 +1027,27 @@ TEST_CASE ("KURL formerly missing")
         CHECK ( URL.IsHttpURL() == true );
         CHECK ( URL.Domain.get() == "that.server.name" );
         CHECK ( URL.Path.get() == "/with_a_path" );
+		CHECK ( URL.Serialize() == "http://that.server.name/with_a_path" );
 
         URL = "log.server.my.domain:35";
         CHECK ( URL.IsHttpURL() == false );
         CHECK ( URL.Domain.get() == "log.server.my.domain" );
+		CHECK ( URL.Port.get() == "35" );
         CHECK ( URL.Path.get() == "" );
-        CHECK ( URL.Port.get() == "35" );
+		CHECK ( URL.Serialize() == "log.server.my.domain:35" );
 
-        URL = "/path/to/file";
-        CHECK ( URL.IsHttpURL() == false );
-        CHECK ( URL.Domain.empty() == true );
-        CHECK ( URL.Path.get() == "/path/to/file" );
+		URL = "/path/to/file";
+		CHECK ( URL.IsHttpURL() == false );
+		CHECK ( URL.Domain.empty() == true );
+		CHECK ( URL.Path.get() == "/path/to/file" );
+		CHECK ( URL.Serialize() == "/path/to/file" );
 
+		URL = "//domain.com:35/path/to/file";
+		CHECK ( URL.IsHttpURL() == true );
+		CHECK ( URL.Domain.get() == "domain.com" );
+		CHECK ( URL.Port.get() == "35" );
+		CHECK ( URL.Path.get() == "/path/to/file" );
+		CHECK ( URL.Serialize() == "//domain.com:35/path/to/file" );
     }
 
     SECTION("KURL ugly")

@@ -147,7 +147,6 @@ bool KCGI::Parse(char chCommentDelim)
 		// we are running within a web server that sets these:
 		Request.Method           = sRM.ToView();
 		Request.Resource         = GetVar(KCGI::REQUEST_URI);
-		Request.Resource.Query   = GetVar(KCGI::QUERY_STRING);
 		Request.m_sHTTPVersion   = GetVar(KCGI::SERVER_PROTOCOL);
 		Request.Headers.Set(KHTTPHeaders::HOST,            GetVar(KCGI::HTTP_HOST));
 		Request.Headers.Set(KHTTPHeaders::CONTENT_TYPE,    GetVar(KCGI::CONTENT_TYPE));

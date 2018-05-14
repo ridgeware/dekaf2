@@ -176,15 +176,29 @@ KStringView KProtocol::Parse (KStringView svSource, bool bAcceptWithoutColon)
 	{
 		size_t iFound = svSource.find_first_of (':');
 
+		KStringView svProto;
+
+		if (iFound != KStringView::npos)
+		{
+			svProto = svSource.substr (0, iFound);
+			// check if we have characters that do not belong into
+			// the protocol - this tells us that the colon is not part
+			// of the protocol, but of some other URL part
+			if (svProto.find_first_of(" \t@/;?=#") != KStringView::npos)
+			{
+				iFound = KStringView::npos;
+				svProto.clear();
+			}
+		}
+
 		if (bAcceptWithoutColon && iFound == KStringView::npos)
 		{
 			SetProto(svSource);
 			svSource.clear();
 		}
-		else if (iFound != KStringView::npos)
-		{
-			KStringView svProto = svSource.substr (0, iFound);
 
+		if (iFound != KStringView::npos)
+		{
 			// we do accept schemata with only one slash, as that is
 			// a common typo (but we do correct them when serializing)
 			if (svSource.size () > iFound + 1

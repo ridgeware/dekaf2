@@ -1093,5 +1093,11 @@ TEST_CASE ("KURL formerly missing")
 		CHECK ( URL.Domain.get() == "" );
 		CHECK ( URL.Path.get() == "/Some/Path/5C86463AA7BAFCE4" );
 		CHECK ( URL.Query["url"] == "http://some.host.com/resources/images/image1.gif" );
+
+		URL = "//localhost/Some/Path/5C86463AA7BAFCE4?url=http://some.host.com/resources/images/image1.gif";
+		CHECK ( URL.Protocol.get() == "//" );
+		CHECK ( URL.Domain.get() == "localhost" );
+		CHECK ( URL.Path.get() == "/Some/Path/5C86463AA7BAFCE4" );
+		CHECK ( URL.Query["url"] == "http://some.host.com/resources/images/image1.gif" );
 	}
 }

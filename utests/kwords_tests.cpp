@@ -142,6 +142,14 @@ TEST_CASE("KWords") {
 					{ "7ee1", "</b>?" }
 				}
 			},
+			{ "a<sCript> some stuff here, x<a>c + \"</a>\" </scrIpt><a href = \"test\">tad<b>.@more</b>?7ee1",
+				{
+					{ "a", "" },
+					{ "tad", "<sCript> some stuff here, x<a>c + \"</a>\" </scrIpt><a href = \"test\">" },
+					{ "more", "<b>.@" },
+					{ "7ee1", "</b>?" }
+				}
+			},
 			{ "Hello <span attr=\"something\">World.</span>  It is 'cold' outside.",
 				{
 					{ "Hello", "" },
@@ -230,6 +238,14 @@ TEST_CASE("KWords") {
 				{
 					{ "a", "" },
 					{ "tad", " <a href = \"test\">" },
+					{ "more", "<b>. @" },
+					{ "7ee1", " </b> ?" }
+				}
+			},
+			{ "a  <sCript> some stuff here,  x<a>c + \"</a>\" </scrIpt> <a href = \"test\">tad<b>.  @more </b> ?7ee1",
+				{
+					{ "a", "" },
+					{ "tad", " <sCript> some stuff here,  x<a>c + \"</a>\" </scrIpt> <a href = \"test\">" },
 					{ "more", "<b>. @" },
 					{ "7ee1", " </b> ?" }
 				}

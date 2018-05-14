@@ -94,19 +94,74 @@ std::pair<KString, KStringView> SimpleHTML::NextPair()
 	size_t iStartEntity { 0 };
 	KStringView sEntity;
 	std::pair<KString, KStringView> sPair;
+	KString sTagName;
+	static const char ScriptEndTag[] = "/script>";
+	const char* pScriptEndTag = nullptr;
 	bool bOpenTag { false };
+	bool bOpenTagHadSpace { false };
+	bool bOpenScript { false };
 	bool bOpenEntity { false };
 
 	Unicode::FromUTF8(m_sInput, [&](uint32_t ch)
 	{
-		if (bOpenTag)
+		if (bOpenScript)
 		{
+			// push everything into the skeleton until we had </script>
+			if (ch == '<')
+			{
+				pScriptEndTag = ScriptEndTag;
+			}
+			else if (pScriptEndTag != nullptr)
+			{
+				if (std::tolower(ch) == *pScriptEndTag)
+				{
+					++pScriptEndTag;
+					if (!*pScriptEndTag)
+					{
+						bOpenScript = false;
+					}
+				}
+				else
+				{
+					if (ch == '<')
+					{
+						pScriptEndTag = ScriptEndTag;
+					}
+					else
+					{
+						pScriptEndTag = nullptr;
+					}
+				}
+			}
+			iSizeSkel += Unicode::UTF8Bytes(ch);
+		}
+		else if (bOpenTag)
+		{
+			if (!bOpenTagHadSpace)
+			{
+				if (std::iswspace(ch))
+				{
+					bOpenTagHadSpace = true;
+					if (sTagName == "script")
+					{
+						bOpenScript = true;
+					}
+				}
+				else if (ch != '>')
+				{
+					// tag names may be ASCII only
+					sTagName += std::tolower(static_cast<KString::value_type>(ch));
+				}
+			}
 			if (ch == '>')
 			{
 				bOpenTag = false;
+				if (sTagName == "script")
+				{
+					bOpenScript = true;
+				}
 			}
 			iSizeSkel += Unicode::UTF8Bytes(ch);
-			return true;
 		}
 		else if (bOpenEntity)
 		{
@@ -137,9 +192,8 @@ std::pair<KString, KStringView> SimpleHTML::NextPair()
 					}
 				}
 			}
-			return true;
 		}
-
+		else
 		{
 			if (ch == '&')
 			{
@@ -158,6 +212,8 @@ std::pair<KString, KStringView> SimpleHTML::NextPair()
 				if (ch == '<')
 				{
 					bOpenTag = true;
+					bOpenTagHadSpace = false;
+					sTagName.clear();
 				}
 				iSizeSkel += Unicode::UTF8Bytes(ch);
 			}
@@ -208,19 +264,76 @@ std::pair<KString, KString> NormalizingHTML::NextPair()
 
 	size_t iSizeSkel { 0 };
 	size_t iSizeWord { 0 };
+	KString sTagName;
+	static const char ScriptEndTag[] = "/script>";
+	const char* pScriptEndTag = nullptr;
 	bool bOpenTag { false };
+	bool bOpenTagHadSpace { false };
+	bool bOpenScript { false };
 	bool bLastWasSpace { false };
 
 	std::pair<KStringView, KString> sPair;
 
 	Unicode::FromUTF8(m_sInput, [&](uint32_t ch)
 	{
-		if (bOpenTag)
+		if (bOpenScript)
 		{
+			// push everything into the skeleton until we had </script>
+			if (ch == '<')
+			{
+				pScriptEndTag = ScriptEndTag;
+			}
+			else if (pScriptEndTag != nullptr)
+			{
+				if (std::tolower(ch) == *pScriptEndTag)
+				{
+					++pScriptEndTag;
+					if (!*pScriptEndTag)
+					{
+						bOpenScript = false;
+					}
+				}
+				else
+				{
+					if (ch == '<')
+					{
+						pScriptEndTag = ScriptEndTag;
+					}
+					else
+					{
+						pScriptEndTag = nullptr;
+					}
+				}
+			}
+			Unicode::ToUTF8(ch, sPair.second);
+			iSizeSkel += Unicode::UTF8Bytes(ch);
+		}
+		else if (bOpenTag)
+		{
+			if (!bOpenTagHadSpace)
+			{
+				if (std::iswspace(ch))
+				{
+					bOpenTagHadSpace = true;
+					if (sTagName == "script")
+					{
+						bOpenScript = true;
+					}
+				}
+				else if (ch != '>')
+				{
+					// tag names may be ASCII only
+					sTagName += std::tolower(static_cast<KString::value_type>(ch));
+				}
+			}
 			if (ch == '>')
 			{
 				bOpenTag = false;
 				bLastWasSpace = false;
+				if (sTagName == "script")
+				{
+					bOpenScript = true;
+				}
 			}
 			Unicode::ToUTF8(ch, sPair.second);
 			iSizeSkel += Unicode::UTF8Bytes(ch);
@@ -238,6 +351,8 @@ std::pair<KString, KString> NormalizingHTML::NextPair()
 				{
 					sPair.second += '<';
 					bOpenTag = true;
+					bOpenTagHadSpace = false;
+					sTagName.clear();
 					bLastWasSpace = false;
 				}
 				else if (std::iswspace(ch))

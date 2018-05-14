@@ -186,10 +186,10 @@ kSplitWords (
 
 	while (!parser.empty())
 	{
-		KStringView sWord = parser.NextPair().first;
-		if (!sWord.empty())
+		auto sNext = parser.NextPair();
+		if (!sNext.first.empty())
 		{
-			cContainer.push_back(sWord);
+			cContainer.push_back(sNext.first);
 		}
 	}
 

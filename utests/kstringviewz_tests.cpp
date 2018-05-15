@@ -768,6 +768,61 @@ TEST_CASE("KStringViewZ") {
 		CHECK ( svz == s );
 	}
 
+	SECTION("Conversions")
+	{
+		{
+			KStringView sv = "abcdefg";
+			// this shall not compile
+//			KStringViewZ svz(sv);
+		}
+
+		{
+			const char* sz = "abcdefg";
+			KStringViewZ svz(sz);
+		}
+
+		{
+			KString s = "abcdefg";
+			KStringViewZ svz(s);
+		}
+
+		{
+			KStringView sv = "abcdefg";
+			KString s(sv);
+		}
+
+		{
+			KStringViewZ svz = "abcdefg";
+			KStringView sv(svz);
+		}
+
+		{
+			KStringView sv = "abcdefg";
+			KString s = sv;
+		}
+
+		{
+			KString s = "abcdefg";
+			KStringViewZ svz = s;
+		}
+
+		{
+			KStringViewZ svz = "abcdefg";
+			KStringView sv = svz;
+		}
+
+		{
+			const char* sz = "abcdefg";
+			KStringViewZ svz = sz;
+		}
+
+		{
+			KStringView sv = "abcdefg";
+			// this shall not compile
+//			KStringViewZ svz = sv;
+		}
+	}
+
 
 }
 

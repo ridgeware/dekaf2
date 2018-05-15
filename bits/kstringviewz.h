@@ -105,7 +105,13 @@ public:
 	: base_type { str }
 	{}
 
+	//-----------------------------------------------------------------------------
 	// no construction from KStringView, which has no trailing 0
+	// this overrides the otherwise implicit construction
+	// KStringView > (temp)KString > KStringViewZ
+	/// Construction of KStringViewZ from KStringView is not allowed
+	KStringViewZ(KStringView sv) = delete;
+	//-----------------------------------------------------------------------------
 
 	using base_type::begin;
 	using base_type::cbegin;

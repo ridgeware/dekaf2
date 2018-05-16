@@ -129,7 +129,7 @@ if (CMAKE_COMPILER_IS_GNUCXX)
 
 	endif ()
 
-	if (CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 6.0 AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 7.1)
+	if (CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 6.0 AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 7.2)
 		# mute the annoying warning on changing abi with gcc 7.1
 		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-psabi")
 	endif()
@@ -209,6 +209,7 @@ include_directories(SYSTEM ${OPENSSL_INCLUDE_DIR})
 
 set(Boost_USE_STATIC_LIBS ON)
 # boost asio (header only) needs system
+# dekaf2's http part needs iostreams
 find_package(Boost QUIET COMPONENTS system iostreams REQUIRED)
 include_directories(SYSTEM ${Boost_INCLUDE_DIR})
 
@@ -448,7 +449,7 @@ else ()
 
 endif (DEKAF2_INSTALL_HEADERS)
 
-# we add the HEADERS as well, as otherwise qtcreator would not see them
+# we add the HEADERS as well, as otherwise cmake based IDEs would not see them
 # as belonging to the project. CMake would not need them here.
 add_library(dekaf2 ${HEADERS} ${SOURCES})
 

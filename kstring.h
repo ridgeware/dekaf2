@@ -1151,12 +1151,14 @@ inline bool KString::Bool() const noexcept
 {
 	return (ToView().Bool());
 }
+
 //-----------------------------------------------------------------------------
 inline int16_t KString::Int16(bool bIsHex) const noexcept
 //-----------------------------------------------------------------------------
 {
 	return ToView().Int16(bIsHex);
 }
+
 //-----------------------------------------------------------------------------
 inline uint16_t KString::UInt16(bool bIsHex) const noexcept
 //-----------------------------------------------------------------------------
@@ -1170,6 +1172,7 @@ inline int32_t KString::Int32(bool bIsHex) const noexcept
 {
 	return ToView().Int32(bIsHex);
 }
+
 //-----------------------------------------------------------------------------
 inline uint32_t KString::UInt32(bool bIsHex) const noexcept
 //-----------------------------------------------------------------------------
@@ -1183,6 +1186,7 @@ inline int64_t KString::Int64(bool bIsHex) const noexcept
 {
 	 return ToView().Int64(bIsHex);
 }
+	
 //-----------------------------------------------------------------------------
 inline uint64_t KString::UInt64(bool bIsHex) const noexcept
 //-----------------------------------------------------------------------------

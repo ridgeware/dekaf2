@@ -430,7 +430,7 @@ public:
 
 	//---------------------------------------------------------------------------
 	/// Gets the file name of the output file for the log.
-	inline KStringViewZ GetDebugLog() const
+	inline const KString& GetDebugLog() const
 	//---------------------------------------------------------------------------
 	{
 		return m_sLogName;
@@ -445,7 +445,7 @@ public:
 
 	//---------------------------------------------------------------------------
 	/// Gets the file name of the flag file.
-	inline KStringViewZ GetDebugFlag() const
+	inline const KString& GetDebugFlag() const
 	//---------------------------------------------------------------------------
 	{
 		return m_sFlagfile;

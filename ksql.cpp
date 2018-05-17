@@ -3434,7 +3434,7 @@ bool KSQL::NextRow ()
 			}
 			else
 			{
-				kDebugLog (3, "[{}]NextRow(): mysql_getch_row gave us row {}", m_iDebugID, m_iRowNum);
+				kDebugLog (3, "[{}]NextRow(): mysql_fetch_row gave us row {}", m_iDebugID, m_iRowNum);
 			}
 
 			return (m_MYSQLRow != NULL);

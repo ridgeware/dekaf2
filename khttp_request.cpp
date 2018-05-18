@@ -90,7 +90,8 @@ bool KHTTPRequestHeaders::Parse(KInStream& Stream)
 	}
 
 	bool bOK = KHTTPHeaders::Parse(Stream);
-	if (bOK) {
+	if (!bOK)
+	{
 		SetError("invalid http request headers");
 	}
 	return (bOK);

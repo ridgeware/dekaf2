@@ -176,6 +176,40 @@ public:
 
 	//-----------------------------------------------------------------------------
 	constexpr
+	self_type ToView(size_type pos = 0) const noexcept
+	//-----------------------------------------------------------------------------
+	{
+		if (pos > size())
+		{
+			Warn("pos exceeds size");
+			pos = size();
+		}
+		return self_type(data() + pos, size() - pos);
+	}
+
+	//----------------------------------------------------------------------
+	constexpr
+	KStringView ToView(size_type pos, size_type n) const
+	//----------------------------------------------------------------------
+	{
+		if (pos > size())
+		{
+			Warn("pos exceeds size");
+			pos = size();
+		}
+		if (n > size())
+		{
+			n = size() - pos;
+		}
+		else if (pos + n > size())
+		{
+			n = size() - pos;
+		}
+		return KStringView(data() + pos, n);
+
+	} // ToView
+	//-----------------------------------------------------------------------------
+	constexpr
 	const_iterator c_str() const noexcept
 	//-----------------------------------------------------------------------------
 	{

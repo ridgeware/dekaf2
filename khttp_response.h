@@ -83,15 +83,15 @@ public:
 	void SetStatus(uint16_t iCode, KStringView sMessage)
 	//-----------------------------------------------------------------------------
 	{
-		m_iStatusCode = iCode;
-		m_sStatusString = sMessage;
+		iStatusCode = iCode;
+		sStatusString = sMessage;
 	}
 
 	//-----------------------------------------------------------------------------
 	bool Good() const
 	//-----------------------------------------------------------------------------
 	{
-		return m_iStatusCode <= 299 && m_iStatusCode >= 200;
+		return iStatusCode <= 299 && iStatusCode >= 200;
 	}
 
 	//-----------------------------------------------------------------------------
@@ -102,8 +102,8 @@ public:
 public:
 //------
 
-	KString  m_sStatusString;
-	uint16_t m_iStatusCode;
+	KString  sStatusString;
+	uint16_t iStatusCode;
 
 }; // KHTTPResponseHeaders
 

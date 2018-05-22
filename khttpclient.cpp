@@ -165,7 +165,7 @@ bool KHTTPClient::Resource(const KURL& url, KHTTPMethod method)
 	Request.Resource.Port.clear();
 
 	Request.Method = method;
-	Request.m_sHTTPVersion = "HTTP/1.1";
+	Request.sHTTPVersion = "HTTP/1.1";
 
 	// make sure we always have a valid path set
 	if (Request.Resource.Path.empty())

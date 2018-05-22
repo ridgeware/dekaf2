@@ -81,20 +81,15 @@ bool KHTTPRequestHeaders::Parse(KInStream& Stream)
 
 	Method = Words[0];
 	Resource = Words[1];
-	m_sHTTPVersion = Words[2];
+	sHTTPVersion = Words[2];
 
-	if (!m_sHTTPVersion.StartsWith("HTTP/"))
+	if (!sHTTPVersion.StartsWith("HTTP/"))
 	{
-		kDebugLog (1, "KHTTPRequestHeaders::parse(): first line (status) line of HTTP header is invalid: expected 'HTTP/' not '{}'", m_sHTTPVersion);
+		kDebugLog (1, "KHTTPRequestHeaders::parse(): first line (status) line of HTTP header is invalid: expected 'HTTP/' not '{}'", sHTTPVersion);
 		return SetError("invalid status line of HTTP header [2]");
 	}
 
-	bool bOK = KHTTPHeaders::Parse(Stream);
-	if (!bOK)
-	{
-		SetError("invalid http request headers");
-	}
-	return (bOK);
+	return KHTTPHeaders::Parse(Stream);
 
 } // Parse
 
@@ -105,7 +100,7 @@ bool KHTTPRequestHeaders::Serialize(KOutStream& Stream) const
 	Stream.FormatLine("{} {} {}",
 					  Method.Serialize(),
 					  Resource.Serialize(),
-					  m_sHTTPVersion);
+					  sHTTPVersion);
 
 	return KHTTPHeaders::Serialize(Stream);
 
@@ -115,7 +110,7 @@ bool KHTTPRequestHeaders::Serialize(KOutStream& Stream) const
 bool KHTTPRequestHeaders::HasChunking() const
 //-----------------------------------------------------------------------------
 {
-	if (m_sHTTPVersion == "HTTP/1.0" || m_sHTTPVersion == "HTTP/0.9")
+	if (sHTTPVersion == "HTTP/1.0" || sHTTPVersion == "HTTP/0.9")
 	{
 		return false;
 	}
@@ -222,7 +217,7 @@ void KHTTPRequestHeaders::clear()
 //-----------------------------------------------------------------------------
 {
 	KHTTPHeaders::clear();
-	m_sHTTPVersion.clear();
+	sHTTPVersion.clear();
 	Resource.clear();
 
 } // clear

@@ -18,6 +18,7 @@ TEST_CASE("KHTMLParser")
 	<title>A study of population dynamics</title>
 	</head>
 	<body>
+			 <tr><td align="center" nowrap>hi</td></tr>
 			 <!----- another comment here until here ---> <!--really?>-->
 			 <script> this is <a <new <a href="www.w3c.org">scripting</a> language> </script>
 			 <img checked href="http://www.xyz.com/my/image.png" title=Ñicé />

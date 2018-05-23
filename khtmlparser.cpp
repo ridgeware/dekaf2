@@ -241,6 +241,12 @@ bool KHTMLAttribute::Parse(KInStream& InStream, KStringView sOpening)
 				{
 					state = AFTER_EQUAL;
 				}
+				else if (ch == '>')
+				{
+					// an attribute without value
+					InStream.UnRead();
+					return true;
+				}
 				else
 				{
 					Name += std::tolower(ch);

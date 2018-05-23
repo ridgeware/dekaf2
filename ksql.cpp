@@ -2376,7 +2376,14 @@ bool KSQL::ExecRawQuery (KStringView sSQL, uint64_t iFlags/*=0*/, KStringView sA
 			{
 				kDebugLog(1, "KSQL: expected query results but got none. Did you intend to use ExecSQL() instead of ExecQuery() ?");
 				m_iErrorNum = mysql_errno ((MYSQL*)m_dMYSQL);
-				m_sLastError.Format ("{}MSQL-{}: {}", m_sErrorPrefix, GetLastErrorNum(), mysql_error((MYSQL*)m_dMYSQL));
+				if (m_iErrorNum == 0)
+				{
+					m_sLastError = "KSQL: expected query results but got none. Did you intend to use ExecSQL() instead of ExecQuery() ?";
+				}
+				else
+				{
+					m_sLastError.Format ("{}MSQL-{}: {}", m_sErrorPrefix, GetLastErrorNum(), mysql_error((MYSQL*)m_dMYSQL));
+				}
 				return (SQLError());
 			}
 

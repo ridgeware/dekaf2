@@ -301,8 +301,9 @@ void KTCPServer::UnixServer()
 	DEKAF2_TRY_EXCEPTION
 	asio::ip::v6_only v6_only(false);
 
+	::unlink(m_sSocketFile.c_str());
 	boost::asio::local::stream_protocol::endpoint local_endpoint(m_sSocketFile.c_str());
-	boost::asio::local::stream_protocol::acceptor acceptor(m_asio, local_endpoint);
+	boost::asio::local::stream_protocol::acceptor acceptor(m_asio, local_endpoint, true); // true == reuse addr
 	if (!acceptor.is_open())
 	{
 		kWarning("listener for socket file {} could not open", m_sSocketFile);

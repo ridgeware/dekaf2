@@ -44,6 +44,7 @@
 #include "kstream.h"
 #include "klog.h"
 #include "ksplit.h"
+#include "kfile.h"
 
 namespace dekaf2 {
 
@@ -380,17 +381,17 @@ int KOptions::Parse(int argc, char** argv, KOutStream& out)
 
 	DEKAF2_CATCH (const MissingParameterError& error)
 	{
-		out.FormatLine("missing parameter after {}{} : {}", lastCommand->Dashes(), lastCommand->sArg, error.what());
+		out.FormatLine("{}: missing parameter after {}{}: {}", kBasename(m_CLIParms.begin()->sArg), lastCommand->Dashes(), lastCommand->sArg, error.what());
 	}
 
 	DEKAF2_CATCH (const WrongParameterError& error)
 	{
-		out.FormatLine("wrong parameter after {}{} : {}", lastCommand->Dashes(), lastCommand->sArg, error.what());
+		out.FormatLine("{}: wrong parameter after {}{}: {}", kBasename(m_CLIParms.begin()->sArg), lastCommand->Dashes(), lastCommand->sArg, error.what());
 	}
 
 	DEKAF2_CATCH (const Error& error)
 	{
-		out.FormatLine("Error : {}", error.what());
+		out.WriteLine(error.what());
 	}
 
 	DEKAF2_CATCH (const NoError& error)

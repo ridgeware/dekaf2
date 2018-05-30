@@ -55,6 +55,11 @@ class KException : public std::runtime_error
 public:
 //----------
 
+	KException()
+	: runtime_error("")
+	{
+	}
+
 	KException(const KString& sWhat)
 	: runtime_error(sWhat.c_str())
 	{

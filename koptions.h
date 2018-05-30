@@ -84,6 +84,12 @@ public:
 		using KException::KException;
 	};
 
+	/// throw in case of no error, to simply terminate the option parsing
+	class NoError : public KException
+	{
+		using KException::KException;
+	};
+
 	KOptions() = delete;
 	KOptions(const KOptions&) = delete;
 	KOptions(KOptions&&) = default;

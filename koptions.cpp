@@ -43,7 +43,7 @@
 #include "koptions.h"
 #include "kstream.h"
 #include "klog.h"
-#include <iostream>
+#include "ksplit.h"
 
 namespace dekaf2 {
 
@@ -192,17 +192,27 @@ void KOptions::RegisterUnknownCommand(CallbackN Function)
 }
 
 //---------------------------------------------------------------------------
-void KOptions::RegisterOption(KStringView sCmd, uint16_t iMinArgs, KStringViewZ sMissingParms, CallbackN Function)
+void KOptions::RegisterOption(KStringView sOptions, uint16_t iMinArgs, KStringViewZ sMissingParms, CallbackN Function)
 //---------------------------------------------------------------------------
 {
-	m_Options.insert({sCmd, {iMinArgs, sMissingParms, Function}});
+	std::vector<KStringView> Options;
+	kSplit(Options, sOptions);
+	for (auto sOption : Options)
+	{
+		m_Options.insert({sOption, {iMinArgs, sMissingParms, Function}});
+	}
 }
 
 //---------------------------------------------------------------------------
-void KOptions::RegisterCommand(KStringView sCmd, uint16_t iMinArgs, KStringViewZ sMissingParms, CallbackN Function)
+void KOptions::RegisterCommand(KStringView sCommands, uint16_t iMinArgs, KStringViewZ sMissingParms, CallbackN Function)
 //---------------------------------------------------------------------------
 {
-	m_Commands.insert({sCmd, {iMinArgs, sMissingParms, Function}});
+	std::vector<KStringView> Commands;
+	kSplit(Commands, sCommands);
+	for (auto sCommand : Commands)
+	{
+		m_Commands.insert({sCommand, {iMinArgs, sMissingParms, Function}});
+	}
 }
 
 //---------------------------------------------------------------------------
@@ -381,6 +391,10 @@ int KOptions::Parse(int argc, char** argv, KOutStream& out)
 	DEKAF2_CATCH (const Error& error)
 	{
 		out.FormatLine("Error : {}", error.what());
+	}
+
+	DEKAF2_CATCH (const NoError& error)
+	{
 	}
 
 	return 1;

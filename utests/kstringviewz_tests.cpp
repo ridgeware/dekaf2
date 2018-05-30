@@ -774,52 +774,62 @@ TEST_CASE("KStringViewZ") {
 			KStringView sv = "abcdefg";
 			// this shall not compile
 //			KStringViewZ svz(sv);
+			CHECK ( sv == "abcdefg" );
 		}
 
 		{
 			const char* sz = "abcdefg";
 			KStringViewZ svz(sz);
+			CHECK ( svz == "abcdefg" );
 		}
 
 		{
 			KString s = "abcdefg";
 			KStringViewZ svz(s);
+			CHECK ( svz == "abcdefg" );
 		}
 
 		{
 			KStringView sv = "abcdefg";
 			KString s(sv);
+			CHECK ( s == "abcdefg" );
 		}
 
 		{
 			KStringViewZ svz = "abcdefg";
 			KStringView sv(svz);
+			CHECK ( sv == "abcdefg" );
 		}
 
 		{
 			KStringView sv = "abcdefg";
 			KString s = sv;
+			CHECK ( s == "abcdefg" );
 		}
 
 		{
 			KString s = "abcdefg";
 			KStringViewZ svz = s;
+			CHECK ( svz == "abcdefg" );
 		}
 
 		{
 			KStringViewZ svz = "abcdefg";
 			KStringView sv = svz;
+			CHECK ( sv == "abcdefg" );
 		}
 
 		{
 			const char* sz = "abcdefg";
 			KStringViewZ svz = sz;
+			CHECK ( svz == "abcdefg" );
 		}
 
 		{
 			KStringView sv = "abcdefg";
 			// this shall not compile
 //			KStringViewZ svz = sv;
+			CHECK ( sv == "abcdefg" );
 		}
 	}
 

@@ -267,126 +267,129 @@ int KOptions::Parse(int argc, char** argv, KOutStream& out)
 	DEKAF2_TRY
 	{
 
-		// using explicit iterators so that options can move the loop forward more than one step
-		for (auto it = m_CLIParms.begin() + 1; it != m_CLIParms.end(); ++it)
+		if (!m_CLIParms.empty())
 		{
-			lastCommand = it;
-			ArgList Args;
-			CallbackParams* CBP { nullptr };
-			bool bIsUnknown { false };
-
-			auto& Store = it->IsOption() ? m_Options : m_Commands;
-			auto cbi = Store.find(it->sArg);
-			if (DEKAF2_UNLIKELY(cbi == Store.end()))
+			// using explicit iterators so that options can move the loop forward more than one step
+			for (auto it = m_CLIParms.begin() + 1; it != m_CLIParms.end(); ++it)
 			{
-				// check if we have a handler for an unknown arg
-				if (it->IsOption())
+				lastCommand = it;
+				ArgList Args;
+				CallbackParams* CBP { nullptr };
+				bool bIsUnknown { false };
+
+				auto& Store = it->IsOption() ? m_Options : m_Commands;
+				auto cbi = Store.find(it->sArg);
+				if (DEKAF2_UNLIKELY(cbi == Store.end()))
 				{
-					if (m_UnknownOption.func)
+					// check if we have a handler for an unknown arg
+					if (it->IsOption())
 					{
-						CBP = &m_UnknownOption;
-						// we pass the current Arg as the first arg of Args,
-						// but we need to take care to not take it into account
-						// when we readjust the remaining args after calling the
-						// callback
-						Args.PushBottom(it->sArg);
-						bIsUnknown = true;
+						if (m_UnknownOption.func)
+						{
+							CBP = &m_UnknownOption;
+							// we pass the current Arg as the first arg of Args,
+							// but we need to take care to not take it into account
+							// when we readjust the remaining args after calling the
+							// callback
+							Args.PushBottom(it->sArg);
+							bIsUnknown = true;
+						}
+					}
+					else
+					{
+						if (m_UnknownCommand.func)
+						{
+							CBP = &m_UnknownCommand;
+							// we pass the current Arg as the first arg of Args,
+							// but we need to take care to not take it into account
+							// when we readjust the remaining args after calling the
+							// callback
+							Args.PushBottom(it->sArg);
+							bIsUnknown = true;
+						}
 					}
 				}
 				else
 				{
-					if (m_UnknownCommand.func)
-					{
-						CBP = &m_UnknownCommand;
-						// we pass the current Arg as the first arg of Args,
-						// but we need to take care to not take it into account
-						// when we readjust the remaining args after calling the
-						// callback
-						Args.PushBottom(it->sArg);
-						bIsUnknown = true;
-					}
-				}
-			}
-			else
-			{
-				CBP = &cbi->second;
-			}
-
-			if (CBP)
-			{
-				it->bConsumed = true;
-				// isolate parms until next command and add them to the ArgList
-				auto it2 = it + 1;
-				for (; it2 != m_CLIParms.end() && !it2->IsOption(); ++it2)
-				{
-					Args.PushBottom(it2->sArg);
+					CBP = &cbi->second;
 				}
 
-				if (CBP->iMinArgs > Args.size())
-				{
-					if (!CBP->sMissingParms.empty())
-					{
-						DEKAF2_THROW(MissingParameterError(CBP->sMissingParms.c_str()));
-					}
-					else
-					{
-						DEKAF2_THROW(MissingParameterError(kFormat("{} arguments required, but only {} found", CBP->iMinArgs, Args.size())));
-					}
-				}
-
-				// keep record of the initial args count
-				auto iOldSize = Args.size();
-
-				// finally call the callback
-				CBP->func(Args);
-
-				if (iOldSize < Args.size())
-				{
-					DEKAF2_THROW(WrongParameterError("callback manipulated parameter count"));
-				}
-
-				if (bIsUnknown)
-				{
-					// adjust arg count
-					--iOldSize;
-				}
-
-				// advance arg iter by count of consumed args
-				while (iOldSize-- > Args.size())
-				{
-					(++it)->bConsumed = true;
-				}
-			}
-			else if (it->IsOption())
-			{
-				// argument was not evaluated
-				if (it->sArg == "help")
-				{
-					Help(out);
-					it->bConsumed = true;
-					return -1;
-				}
-				else if (it->sArg.In("d,dd,ddd"))
+				if (CBP)
 				{
 					it->bConsumed = true;
-					KLog().SetLevel (it->sArg.size());
-					KLog().SetDebugLog (m_sCliDebugTo);
-					kDebug (1, "debug level set to: {}", KLog().GetLevel());
+					// isolate parms until next command and add them to the ArgList
+					auto it2 = it + 1;
+					for (; it2 != m_CLIParms.end() && !it2->IsOption(); ++it2)
+					{
+						Args.PushBottom(it2->sArg);
+					}
+
+					if (CBP->iMinArgs > Args.size())
+					{
+						if (!CBP->sMissingParms.empty())
+						{
+							DEKAF2_THROW(MissingParameterError(CBP->sMissingParms.c_str()));
+						}
+						else
+						{
+							DEKAF2_THROW(MissingParameterError(kFormat("{} arguments required, but only {} found", CBP->iMinArgs, Args.size())));
+						}
+					}
+
+					// keep record of the initial args count
+					auto iOldSize = Args.size();
+
+					// finally call the callback
+					CBP->func(Args);
+
+					if (iOldSize < Args.size())
+					{
+						DEKAF2_THROW(WrongParameterError("callback manipulated parameter count"));
+					}
+
+					if (bIsUnknown)
+					{
+						// adjust arg count
+						--iOldSize;
+					}
+
+					// advance arg iter by count of consumed args
+					while (iOldSize-- > Args.size())
+					{
+						(++it)->bConsumed = true;
+					}
+				}
+				else if (it->IsOption())
+				{
+					// argument was not evaluated
+					if (it->sArg == "help")
+					{
+						Help(out);
+						it->bConsumed = true;
+						return -1;
+					}
+					else if (it->sArg.In("d,dd,ddd"))
+					{
+						it->bConsumed = true;
+						KLog().SetLevel (it->sArg.size());
+						KLog().SetDebugLog (m_sCliDebugTo);
+						kDebug (1, "debug level set to: {}", KLog().GetLevel());
+					}
 				}
 			}
 		}
-
+		
 		return Evaluate(out);
 	}
 
 	DEKAF2_CATCH (const MissingParameterError& error)
 	{
-		out.FormatLine("{}: missing parameter after {}{}: {}", kBasename(m_CLIParms.begin()->sArg), lastCommand->Dashes(), lastCommand->sArg, error.what());
+		out.FormatLine("{}: missing parameter after {}{}: {}", kBasename(m_CLIParms.sProgramName), lastCommand->Dashes(), lastCommand->sArg, error.what());
 	}
 
 	DEKAF2_CATCH (const WrongParameterError& error)
 	{
-		out.FormatLine("{}: wrong parameter after {}{}: {}", kBasename(m_CLIParms.begin()->sArg), lastCommand->Dashes(), lastCommand->sArg, error.what());
+		out.FormatLine("{}: wrong parameter after {}{}: {}", kBasename(m_CLIParms.sProgramName), lastCommand->Dashes(), lastCommand->sArg, error.what());
 	}
 
 	DEKAF2_CATCH (const Error& error)

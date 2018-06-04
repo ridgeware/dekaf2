@@ -180,7 +180,7 @@ KMD5::KMD5(KStringView sMessage)
 			kDebugLog(1, "{}: cannot initialize digest context", "MD5");
 			Release();
 		}
-		if (!sMessage.empty())
+		else if (!sMessage.empty())
 		{
 			Update(sMessage);
 		}
@@ -236,6 +236,10 @@ KSHA256::KSHA256(KStringView sMessage)
 		{
 			kDebugLog(1, "{}: cannot initialize digest context", "SHA256");
 			Release();
+		}
+		else if (!sMessage.empty())
+		{
+			Update(sMessage);
 		}
 	}
 

@@ -206,6 +206,7 @@ if (${CMAKE_SYSTEM_NAME} STREQUAL "Darwin")
 endif ()
 find_package(OpenSSL QUIET REQUIRED)
 include_directories(SYSTEM ${OPENSSL_INCLUDE_DIR})
+message(STATUS "OpenSSL: ${OPENSSL_INCLUDE_DIR}")
 
 set(Boost_USE_STATIC_LIBS ON)
 # boost asio (header only) needs system
@@ -297,6 +298,7 @@ set (HEADERS
 	kinshell.h
 	kjson.h
 	klog.h
+	kmessagedigest.h
 	kmime.h
 	kmpsearch.h
 	kmru.h
@@ -376,6 +378,7 @@ set (SOURCES
 	kinshell.cpp
 	kjson.cpp
 	klog.cpp
+	kmessagedigest.cpp
 	kmime.cpp
 	kmpsearch.cpp
 	koptions.cpp

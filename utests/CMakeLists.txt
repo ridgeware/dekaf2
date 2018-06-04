@@ -29,6 +29,7 @@ set (USOURCES
 	kinshell_tests.cpp
 	kjson_tests.cpp
 	klog_tests.cpp
+	kmessagedigest_tests.cpp
 	kmpsearch_tests.cpp
 #	kostringstream_tests.cpp
 	koutpipe_tests.cpp

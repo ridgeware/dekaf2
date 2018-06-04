@@ -83,22 +83,6 @@ void KMessageDigest::clear()
 
 	const EVP_MD* md = EVP_MD_CTX_md(static_cast<EVP_MD_CTX*>(mdctx));
 
-#if 0 // check if cleanup / reset is unneeded
-#if OPENSSL_VERSION_NUMBER < 0x010100000
-	if (1 != EVP_MD_CTX_cleanup(static_cast<EVP_MD_CTX*>(mdctx)))
-	{
-		Release();
-		return;
-	}
-#else
-	if (1 != EVP_MD_CTX_reset(static_cast<EVP_MD_CTX*>(mdctx)))
-	{
-		Release();
-		return;
-	}
-#endif
-#endif
-
 	if (1 != EVP_DigestInit_ex(static_cast<EVP_MD_CTX*>(mdctx), md, nullptr))
 	{
 		Release();

@@ -239,8 +239,8 @@ template<class String>
 void kUrlEncode (KStringView sSource, String& sTarget, const bool excludeTable[256], bool bSpaceAsPlus = false)
 //-----------------------------------------------------------------------------
 {
-	static const unsigned char* sxDigit{
-		reinterpret_cast<const unsigned char*>("0123456789ABCDEF")};
+	static constexpr char sxDigit[] = "0123456789ABCDEF";
+
 	size_t iSize = sSource.size();
 	// Pre-allocate to prevent potential multiple re-allocations.
 	sTarget.reserve (sTarget.size () + sSource.size ());

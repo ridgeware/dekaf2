@@ -206,7 +206,6 @@ if (${CMAKE_SYSTEM_NAME} STREQUAL "Darwin")
 endif ()
 find_package(OpenSSL QUIET REQUIRED)
 include_directories(SYSTEM ${OPENSSL_INCLUDE_DIR})
-message(STATUS "OpenSSL: ${OPENSSL_INCLUDE_DIR}")
 
 set(Boost_USE_STATIC_LIBS ON)
 # boost asio (header only) needs system

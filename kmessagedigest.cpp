@@ -295,48 +295,6 @@ KSHA512::KSHA512(KStringView sMessage)
 
 } // ctor
 
-//---------------------------------------------------------------------------
-KDSS1::KDSS1(KStringView sMessage)
-//---------------------------------------------------------------------------
-{
-	if (mdctx)
-	{
-		if (1 != EVP_DigestInit_ex(static_cast<EVP_MD_CTX*>(mdctx), EVP_dss1(), nullptr))
-		{
-			kDebugLog(1, "{}: cannot initialize digest context", "DSS1");
-			Release();
-		}
-		else if (!sMessage.empty())
-		{
-			Update(sMessage);
-		}
-		else if (!sMessage.empty())
-		{
-			Update(sMessage);
-		}
-	}
-
-} // ctor
-
-//---------------------------------------------------------------------------
-KECDSA::KECDSA(KStringView sMessage)
-//---------------------------------------------------------------------------
-{
-	if (mdctx)
-	{
-		if (1 != EVP_DigestInit_ex(static_cast<EVP_MD_CTX*>(mdctx), EVP_ecdsa(), nullptr))
-		{
-			kDebugLog(1, "{}: cannot initialize digest context", "ECDSA");
-			Release();
-		}
-		else if (!sMessage.empty())
-		{
-			Update(sMessage);
-		}
-	}
-
-} // ctor
-
 } // end of namespace dekaf2
 
 

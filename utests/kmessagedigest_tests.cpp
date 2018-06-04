@@ -30,10 +30,36 @@ TEST_CASE("KMessageDigest") {
 		CHECK ( sha224 == "619cba8e8e05826e9b8c519c0a5c68f4fb653e8a3d8aa04bb2c8cd4c" );
 	}
 
+	SECTION("known digests for nonempty strings, multiple updates")
+	{
+		KSHA224 sha224("The ");
+		sha224.Update("quick brown");
+		sha224.Update(" fox jumps over ");
+		sha224.Update("the lazy dog");
+		CHECK ( sha224 == "730e109bd7a8a32b1cb9d9a09aa2325d2430587ddbc0c38bad911525" );
+	}
 
 	SECTION("nonempty constructor")
 	{
 		KSHA224 sha224("The quick brown fox jumps over the lazy dog");
 		CHECK ( sha224 == "730e109bd7a8a32b1cb9d9a09aa2325d2430587ddbc0c38bad911525" );
+	}
+
+	SECTION("assignment")
+	{
+		KSHA224 sha224("test");
+		sha224 = "The quick brown fox jumps over the lazy dog"_ksz;
+		CHECK ( sha224 == "730e109bd7a8a32b1cb9d9a09aa2325d2430587ddbc0c38bad911525" );
+		sha224 = "The quick brown fox jumps over the lazy dog"_ksv;
+		CHECK ( sha224 == "730e109bd7a8a32b1cb9d9a09aa2325d2430587ddbc0c38bad911525" );
+		sha224 = "The quick brown fox jumps over the lazy dog"_ks;
+		CHECK ( sha224 == "730e109bd7a8a32b1cb9d9a09aa2325d2430587ddbc0c38bad911525" );
+		sha224 = "The quick brown fox jumps over the lazy dog";
+		CHECK ( sha224 == "730e109bd7a8a32b1cb9d9a09aa2325d2430587ddbc0c38bad911525" );
+	}
+
+	SECTION("temporary")
+	{
+		CHECK ( KSHA224("The quick brown fox jumps over the lazy dog") == "730e109bd7a8a32b1cb9d9a09aa2325d2430587ddbc0c38bad911525" );
 	}
 }

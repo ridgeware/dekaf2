@@ -47,6 +47,8 @@
 
 #include "kstream.h"
 #include "kstringstream.h"
+#include "kstringview.h"
+#include "kstring.h"
 
 
 namespace dekaf2 {
@@ -63,33 +65,38 @@ public:
 //------
 
 	/// copy construction
-	KMessageDigest(const KMessageDigest&) = default;
+	KMessageDigest(const KMessageDigest&) = delete;
 	/// move construction
-	KMessageDigest(KMessageDigest&&) = default;
-	~KMessageDigest();
+	KMessageDigest(KMessageDigest&&);
+	~KMessageDigest()
+	{
+		Release();
+	}
+	/// copy assignment
+	KMessageDigest& operator=(const KMessageDigest&) = delete;
+	/// move assignment
+	KMessageDigest& operator=(KMessageDigest&&);
 
-	/// writes a string into the digest
+	/// appends a string to the digest
 	bool Update(KStringView sInput);
-	/// writes a KInStream into the digest
+	/// appends a string to the digest
 	bool Update(KInStream& InputStream);
-
-	const KString& Digest() const;
-	const KString& Get() const
-	{
-		return Digest();
-	}
-	operator const KString&() const
-	{
-		return Digest();
-	}
-
-	/// writes a string into the digest
+	/// appends a string to the digest
 	KMessageDigest& operator+=(KStringView sInput)
 	{
 		Update(sInput);
 		return *this;
 	}
 
+	/// returns the message digest
+	const KString& Digest() const;
+	/// returns the message digest
+	operator const KString&() const
+	{
+		return Digest();
+	}
+
+	/// clears the digest and prepares for new computation
 	void clear();
 
 //------
@@ -103,7 +110,6 @@ protected:
 
 	void* mdctx { nullptr }; // is a EVP_MD_CTX
 	mutable KString m_sDigest;
-	KString::size_type m_iDigestSize { 0 };
 
 }; // KMessageDigest
 
@@ -117,11 +123,12 @@ public:
 //------
 
 	KMD5(KStringView sMessage = KStringView{});
-
-//------
-private:
-//------
-
+	KMD5(const KString& sMessage)
+	: KMD5(KStringView(sMessage))
+	{}
+	KMD5(const char* sMessage)
+	: KMD5(KStringView(sMessage))
+	{}
 
 }; // KMD5
 
@@ -135,11 +142,12 @@ public:
 //------
 
 	KSHA1(KStringView sMessage = KStringView{});
-
-//------
-private:
-//------
-
+	KSHA1(const KString& sMessage)
+	: KSHA1(KStringView(sMessage))
+	{}
+	KSHA1(const char* sMessage)
+	: KSHA1(KStringView(sMessage))
+	{}
 
 }; // KSHA1
 
@@ -153,11 +161,12 @@ public:
 //------
 
 	KSHA224(KStringView sMessage = KStringView{});
-
-//------
-private:
-//------
-
+	KSHA224(const KString& sMessage)
+	: KSHA224(KStringView(sMessage))
+	{}
+	KSHA224(const char* sMessage)
+	: KSHA224(KStringView(sMessage))
+	{}
 
 }; // KSHA224
 
@@ -171,11 +180,12 @@ public:
 //------
 
 	KSHA256(KStringView sMessage = KStringView{});
-
-//------
-private:
-//------
-
+	KSHA256(const KString& sMessage)
+	: KSHA256(KStringView(sMessage))
+	{}
+	KSHA256(const char* sMessage)
+	: KSHA256(KStringView(sMessage))
+	{}
 
 }; // KSHA256
 
@@ -189,11 +199,12 @@ public:
 //------
 
 	KSHA384(KStringView sMessage = KStringView{});
-
-//------
-private:
-//------
-
+	KSHA384(const KString& sMessage)
+	: KSHA384(KStringView(sMessage))
+	{}
+	KSHA384(const char* sMessage)
+	: KSHA384(KStringView(sMessage))
+	{}
 
 }; // KSHA384
 
@@ -207,11 +218,12 @@ public:
 //------
 
 	KSHA512(KStringView sMessage = KStringView{});
-
-//------
-private:
-//------
-
+	KSHA512(const KString& sMessage)
+	: KSHA512(KStringView(sMessage))
+	{}
+	KSHA512(const char* sMessage)
+	: KSHA512(KStringView(sMessage))
+	{}
 
 }; // KSHA512
 

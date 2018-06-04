@@ -63,12 +63,25 @@ KMessageDigest::KMessageDigest()
 } // ctor
 
 //---------------------------------------------------------------------------
-KMessageDigest::~KMessageDigest()
+KMessageDigest::KMessageDigest(KMessageDigest&& other)
 //---------------------------------------------------------------------------
 {
-	Release();
+	mdctx = other.mdctx;
+	other.mdctx = nullptr;
+	m_sDigest = std::move(other.m_sDigest);
 
-} // dtor
+} // move ctor
+
+//---------------------------------------------------------------------------
+KMessageDigest& KMessageDigest::operator=(KMessageDigest&& other)
+//---------------------------------------------------------------------------
+{
+	mdctx = other.mdctx;
+	other.mdctx = nullptr;
+	m_sDigest = std::move(other.m_sDigest);
+	return *this;
+	
+} // move ctor
 
 //---------------------------------------------------------------------------
 void KMessageDigest::clear()
@@ -85,6 +98,7 @@ void KMessageDigest::clear()
 
 	if (1 != EVP_DigestInit_ex(static_cast<EVP_MD_CTX*>(mdctx), md, nullptr))
 	{
+		kDebugLog(1, "MessageDigest: cannot clear digest");
 		Release();
 		return;
 	}
@@ -110,8 +124,18 @@ void KMessageDigest::Release()
 bool KMessageDigest::Update(KStringView sInput)
 //---------------------------------------------------------------------------
 {
-	return mdctx
-		&& 1 != EVP_DigestUpdate(static_cast<EVP_MD_CTX*>(mdctx), sInput.data(), sInput.size());
+	if (!mdctx)
+	{
+		return false;
+	}
+
+	if (1 != EVP_DigestUpdate(static_cast<EVP_MD_CTX*>(mdctx), sInput.data(), sInput.size()))
+	{
+		kDebugLog(1, "MessageDigest: cannot update digest");
+		return false;
+	}
+
+	return true;
 
 } // Update
 
@@ -152,15 +176,21 @@ const KString& KMessageDigest::Digest() const
 
 	if (m_sDigest.empty())
 	{
-		unsigned int md_len;
+		unsigned int iDigestLen;
 		unsigned char sBuffer[EVP_MAX_MD_SIZE];
-		EVP_DigestFinal_ex(static_cast<EVP_MD_CTX*>(mdctx), sBuffer, &md_len);
-		m_sDigest.reserve(md_len * 2);
-		for (unsigned int iDigit = 0; iDigit < md_len; ++iDigit)
+		if (1 != EVP_DigestFinal_ex(static_cast<EVP_MD_CTX*>(mdctx), sBuffer, &iDigestLen))
 		{
-			int ch = sBuffer[iDigit];
-			m_sDigest += static_cast<char> (s_xDigit[(ch>>4)&0xf]);
-			m_sDigest += static_cast<char> (s_xDigit[(ch   )&0xf]);
+			kDebugLog(1, "MessageDigest: cannot read digest");
+		}
+		else
+		{
+			m_sDigest.reserve(iDigestLen * 2);
+			for (unsigned int iDigit = 0; iDigit < iDigestLen; ++iDigit)
+			{
+				int ch = sBuffer[iDigit];
+				m_sDigest += static_cast<char> (s_xDigit[(ch>>4)&0xf]);
+				m_sDigest += static_cast<char> (s_xDigit[(ch   )&0xf]);
+			}
 		}
 	}
 

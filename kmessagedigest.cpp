@@ -76,6 +76,7 @@ KMessageDigest::KMessageDigest(KMessageDigest&& other)
 KMessageDigest& KMessageDigest::operator=(KMessageDigest&& other)
 //---------------------------------------------------------------------------
 {
+	Release();
 	mdctx = other.mdctx;
 	other.mdctx = nullptr;
 	m_sDigest = std::move(other.m_sDigest);

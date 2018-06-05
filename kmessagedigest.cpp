@@ -116,6 +116,7 @@ void KMessageDigest::Release()
 #else
 		EVP_MD_CTX_free(static_cast<EVP_MD_CTX*>(mdctx));
 #endif
+		mdctx = nullptr;
 	}
 
 } // Release

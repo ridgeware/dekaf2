@@ -169,6 +169,11 @@ void Dekaf::SetRandomSeed(unsigned int iSeed)
 	}
 	srand(iSeed);
 	srand48(iSeed);
+#ifdef DEKAF2_IS_OSX
+	srandomdev();
+#else
+	srandom(iSeed);
+#endif
 }
 
 //---------------------------------------------------------------------------

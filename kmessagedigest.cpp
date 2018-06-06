@@ -40,7 +40,6 @@
  //
  */
 
-#include <openssl/opensslv.h>
 #include <openssl/evp.h>
 #include "kmessagedigest.h"
 #include "klog.h"
@@ -65,10 +64,10 @@ KMessageDigest::KMessageDigest()
 //---------------------------------------------------------------------------
 KMessageDigest::KMessageDigest(KMessageDigest&& other)
 //---------------------------------------------------------------------------
+	: mdctx(other.mdctx)
+	, m_sDigest(std::move(other.m_sDigest))
 {
-	mdctx = other.mdctx;
 	other.mdctx = nullptr;
-	m_sDigest = std::move(other.m_sDigest);
 
 } // move ctor
 
@@ -314,6 +313,46 @@ KSHA512::KSHA512(KStringView sMessage)
 	}
 
 } // ctor
+
+#if OPENSSL_VERSION_NUMBER >= 0x010100000
+//---------------------------------------------------------------------------
+KBLAKE2S::KBLAKE2S(KStringView sMessage)
+//---------------------------------------------------------------------------
+{
+	if (mdctx)
+	{
+		if (1 != EVP_DigestInit_ex(static_cast<EVP_MD_CTX*>(mdctx), EVP_blake2s(), nullptr))
+		{
+			kDebugLog(1, "{}: cannot initialize digest context", "BLAKE2S");
+			Release();
+		}
+		else if (!sMessage.empty())
+		{
+			Update(sMessage);
+		}
+	}
+
+} // ctor
+
+//---------------------------------------------------------------------------
+KBLAKE2B::KBLAKE2B(KStringView sMessage)
+//---------------------------------------------------------------------------
+{
+	if (mdctx)
+	{
+		if (1 != EVP_DigestInit_ex(static_cast<EVP_MD_CTX*>(mdctx), EVP_blake2b(), nullptr))
+		{
+			kDebugLog(1, "{}: cannot initialize digest context", "BLAKE2B");
+			Release();
+		}
+		else if (!sMessage.empty())
+		{
+			Update(sMessage);
+		}
+	}
+
+} // ctor
+#endif
 
 } // end of namespace dekaf2
 

@@ -45,6 +45,7 @@
 /// @file kmessagedigest.h
 /// (cryptographic) message digests
 
+#include <openssl/opensslv.h>
 #include "kstream.h"
 #include "kstringstream.h"
 #include "kstringview.h"
@@ -226,6 +227,61 @@ public:
 	{}
 
 }; // KSHA512
+
+#if OPENSSL_VERSION_NUMBER >= 0x010100000
+
+#define DEKAF2_HAS_BLAKE2 1
+
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+class KBLAKE2S : public KMessageDigest
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+//------
+public:
+//------
+
+	KBLAKE2S(KStringView sMessage = KStringView{});
+	KBLAKE2S(const KString& sMessage)
+	: KBLAKE2S(KStringView(sMessage))
+	{}
+	KBLAKE2S(const char* sMessage)
+	: KBLAKE2S(KStringView(sMessage))
+	{}
+
+}; // KBLAKE2S
+
+using KHASH256 = KBLAKE2S;
+
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+class KBLAKE2B : public KMessageDigest
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+//------
+public:
+//------
+
+	KBLAKE2B(KStringView sMessage = KStringView{});
+	KBLAKE2B(const KString& sMessage)
+	: KBLAKE2B(KStringView(sMessage))
+	{}
+	KBLAKE2B(const char* sMessage)
+	: KBLAKE2B(KStringView(sMessage))
+	{}
+
+}; // KBLAKE2B
+
+using KHASH512 = KBLAKE2B;
+
+#else
+
+// With an older version of OpenSSL we use SHA2 as a BLAKE2 replacement.
+// It is slower, but has probably the same security
+using KHASH256 = KSHA256;
+using KHASH512 = KSHA512;
+
+#endif // of OPENSSL_VERSION_NUMBER >= 0x010100000
 
 } // end of namespace dekaf2
 

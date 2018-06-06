@@ -446,7 +446,7 @@ public:
 	KStringView Mid(size_type iStart, size_type iCount) const;
 
 	/// returns rightmost iCount chars of string
-	KStringView Right(size_type iCount) const;
+	KStringViewZ Right(size_type iCount) const;
 
 	/// pads string at the left up to iWidth size with chPad
 	KString& PadLeft(size_t iWidth, value_type chPad = ' ');
@@ -544,21 +544,33 @@ public:
 
 	// conversions
 
+	/// convert to bool
 	bool Bool() const noexcept;
+	/// convert to int16_t - set bIsHex to true if string is a hex number
 	int16_t Int16(bool bIsHex = false) const noexcept;
+	/// convert to uint16_t - set bIsHex to true if string is a hex number
 	uint16_t UInt16(bool bIsHex = false) const noexcept;
+	/// convert to int32_t - set bIsHex to true if string is a hex number
 	int32_t Int32(bool bIsHex = false) const noexcept;
+	/// convert to uint32_t - set bIsHex to true if string is a hex number
 	uint32_t UInt32(bool bIsHex = false) const noexcept;
+	/// convert to int64_t - set bIsHex to true if string is a hex number
 	int64_t Int64(bool bIsHex = false) const noexcept;
+	/// convert to uint64_t - set bIsHex to true if string is a hex number
 	uint64_t UInt64(bool bIsHex = false) const noexcept;
 #ifdef DEKAF2_HAS_INT128
+	/// convert to int128_t - set bIsHex to true if string is a hex number
 	int128_t Int128(bool bIsHex = false) const noexcept;
+	/// convert to uint128_t - set bIsHex to true if string is a hex number
 	uint128_t UInt128(bool bIsHex = false) const noexcept;
 #endif
+	/// convert to float
 	float Float() const noexcept;
+	/// convert to double
 	double Double() const noexcept;
 
 	//-----------------------------------------------------------------------------
+	/// convert any integer to KString
 	template<typename Integer>
 	static KString to_string(Integer i)
 	//-----------------------------------------------------------------------------
@@ -589,6 +601,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// convert integer into a hex string
 	static KString to_hexstring(uint64_t i, bool bZeroPad = true, bool bUpperCase = true);
 	//-----------------------------------------------------------------------------
 

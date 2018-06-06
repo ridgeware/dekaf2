@@ -700,31 +700,25 @@ KString& KString::MakeUpperLocale()
 KStringView KString::Left(size_type iCount) const
 //----------------------------------------------------------------------
 {
-	if (iCount >= size())
+	if (iCount > size())
 	{
-		return *this;
+		kWarning("count ({}) exceeds size ({})", iCount, size());
+		iCount = size();
 	}
 	return KStringView(m_rep.data(), iCount);
 
 } // Left
 
 //----------------------------------------------------------------------
-KStringView KString::Right(size_type iCount) const
+KStringViewZ KString::Right(size_type iCount) const
 //----------------------------------------------------------------------
 {
-	if (iCount >= size())
+	if (iCount > size())
 	{
-		return *this;
+		kWarning("count ({}) exceeds size ({})", iCount, size());
+		iCount = size();
 	}
-	else if (!iCount || !size())
-	{
-		// return an empty string
-		return KStringView{};
-	}
-	else
-	{
-		return KStringView(m_rep.data() + size() - iCount, iCount);
-	}
+	return KStringViewZ(m_rep.data() + size() - iCount, iCount);
 
 } // Right
 

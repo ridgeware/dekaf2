@@ -965,5 +965,30 @@ TEST_CASE("KString") {
 		}
 	}
 
+	SECTION("Left")
+	{
+		KString s("1234567890");
+		CHECK ( s.Left(0)  == ""           );
+		CHECK ( s.Left(4)  == "1234"       );
+		CHECK ( s.Left(12) == "1234567890" );
+	}
+
+	SECTION("Right")
+	{
+		KString s("1234567890");
+		CHECK ( s.Right(0)  == ""           );
+		CHECK ( s.Right(4)  == "7890"       );
+		CHECK ( s.Right(12) == "1234567890" );
+	}
+
+	SECTION("Mid")
+	{
+		KString s("1234567890");
+		CHECK ( s.Mid(4, 0)  == ""       );
+		CHECK ( s.Mid(12, 2) == ""       );
+		CHECK ( s.Mid(4, 4)  == "5678"   );
+		CHECK ( s.Mid(4, 9)  == "567890" );
+	}
+
 }
 

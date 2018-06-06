@@ -321,7 +321,7 @@ KBLAKE2S::KBLAKE2S(KStringView sMessage)
 {
 	if (mdctx)
 	{
-		if (1 != EVP_DigestInit_ex(static_cast<EVP_MD_CTX*>(mdctx), EVP_blake2s(), nullptr))
+		if (1 != EVP_DigestInit_ex(static_cast<EVP_MD_CTX*>(mdctx), EVP_blake2s256(), nullptr))
 		{
 			kDebugLog(1, "{}: cannot initialize digest context", "BLAKE2S");
 			Release();
@@ -340,7 +340,7 @@ KBLAKE2B::KBLAKE2B(KStringView sMessage)
 {
 	if (mdctx)
 	{
-		if (1 != EVP_DigestInit_ex(static_cast<EVP_MD_CTX*>(mdctx), EVP_blake2b(), nullptr))
+		if (1 != EVP_DigestInit_ex(static_cast<EVP_MD_CTX*>(mdctx), EVP_blake2b512(), nullptr))
 		{
 			kDebugLog(1, "{}: cannot initialize digest context", "BLAKE2B");
 			Release();

@@ -276,7 +276,7 @@ const KProtocol::Protocols KProtocol::m_sCanonical [UNKNOWN+1] =
 {
     {    0, ""       }, // Empty placeholder for UNDEFINED, parse has not been run yet.
     {   25, "mailto" },
-	{    0, "auto"   },
+	{   80, "auto"   }, // auto falls back to HTTP..
     {   80, "http"   },
     {  443, "https"  },
     {    0, "file"   },

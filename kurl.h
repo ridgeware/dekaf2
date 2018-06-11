@@ -709,8 +709,14 @@ public:
 	uint16_t DefaultPort() const
 	//-------------------------------------------------------------------------
 	{
-		return m_sCanonical[m_eProto].port;
+		uint16_t iPort = m_sCanonical[m_eProto].port;
+		if (!iPort)
+		{
+			kWarning("no default port - return 0");
+		}
+		return iPort;
 	}
+
 
 //------
 private:

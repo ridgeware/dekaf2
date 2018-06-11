@@ -125,6 +125,21 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// Get a pointer on a value for a key from the cache. If the key does not exist,
+	/// a nullptr will be returned.
+	Value* Find(const Key& key)
+	//-----------------------------------------------------------------------------
+	{
+		auto it = m_map.find(key);
+		if (it != m_map.end())
+		{
+			return &it->second;
+		}
+
+		return nullptr;
+	}
+
+	//-----------------------------------------------------------------------------
 	/// Erase a key and its corresponding value from the cache.
 	bool Erase(const Key& key)
 	//-----------------------------------------------------------------------------
@@ -214,7 +229,7 @@ public:
 		{
 			Lock.lock();
 		}
-		return base_type::Set(std::forward<K>(key), std::forward<V>(value));
+		return base_type::Set(std::forward<K>(key), value_type(std::forward<V>(value)));
 	}
 
 	//-----------------------------------------------------------------------------
@@ -249,6 +264,31 @@ public:
 		// we call the base_type to search again exclusively,
 		// and to create if still not found
 		return base_type::Get(key);
+	}
+
+	//-----------------------------------------------------------------------------
+	/// Get a pointer on a value for a key from the cache. If the key does not exist,
+	/// a nullptr will be returned.
+	value_type* Find(const Key& key)
+	//-----------------------------------------------------------------------------
+	{
+		if (!Dekaf().GetMultiThreading())
+		{
+			// we can use the lock free version
+			return base_type::Find(key);
+		}
+		// we will use shared and unique locks
+		{
+			// check in a readlock if key is existing
+			std::shared_lock<std::shared_mutex> Lock(m_Mutex);
+
+			auto it = base_type::m_map.find(key);
+			if (it != base_type::m_map.end())
+			{
+				return &it->second;
+			}
+			return nullptr;
+		}
 	}
 
 	//-----------------------------------------------------------------------------

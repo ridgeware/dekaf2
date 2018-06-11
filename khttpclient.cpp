@@ -319,6 +319,27 @@ KString KHTTPClient::Get(const KURL& URL)
 } // Get
 
 //-----------------------------------------------------------------------------
+bool KHTTPClient::Head(const KURL& URL)
+//-----------------------------------------------------------------------------
+{
+	KString sBuffer;
+	
+	if (Connect(URL))
+	{
+		if (Resource(URL, KHTTPMethod::HEAD))
+		{
+			if (SendRequest())
+			{
+				return Response.Good();
+			}
+		}
+	}
+
+	return false;
+
+} // Get
+
+//-----------------------------------------------------------------------------
 KString KHTTPClient::Post(const KURL& URL, KStringView svPostData, KStringView svMime)
 //-----------------------------------------------------------------------------
 {
@@ -371,6 +392,15 @@ KString kHTTPGet(const KURL& URL)
 	return HTTP.Get(URL);
 
 } // kHTTPGet
+
+//-----------------------------------------------------------------------------
+bool kHTTPHead(const KURL& URL)
+//-----------------------------------------------------------------------------
+{
+	KHTTPClient HTTP;
+	return HTTP.Head(URL);
+
+} // kHTTPHead
 
 //-----------------------------------------------------------------------------
 KString kHTTPPost(const KURL& URL, KStringView svPostData, KStringView svMime)

@@ -51,6 +51,13 @@ bool KJSON::Parse (KStringView sJSON)
 {
 	ClearError();
 
+	if (sJSON.empty())
+	{
+		// avoid throwing an exception for empty input - JSON will simply
+		// be empty too, so no error.
+		return true;
+	}
+
 #ifdef DEKAF2_EXCEPTIONS
 	clear();
 	*this = LJSON::parse(sJSON.cbegin(), sJSON.cend());

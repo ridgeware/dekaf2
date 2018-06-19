@@ -317,7 +317,7 @@ bool KHTMLAttribute::Parse(KInStream& InStream, KStringView sOpening)
 		}
 	}
 
-	return true;
+	return false;
 
 } // Parse
 
@@ -373,7 +373,7 @@ void KHTMLAttribute::Serialize(KOutStream& OutStream) const
 			if (!Quote)
 			{
 				// lazy check if we need a quote (maybe the value was changed)
-				if (Value.find_first_of(" \t") != KString::npos)
+				if (Value.find_first_of(" \t\r\n\b\"'=<>`") != KString::npos)
 				{
 					Quote = '"';
 				}
@@ -479,7 +479,7 @@ bool KHTMLAttributes::Parse(KInStream& InStream, KStringView sOpening)
 		}
 	}
 
-	return true;
+	return false;
 
 } // Parse
 
@@ -766,10 +766,10 @@ KHTMLObject::ObjectType KHTMLComment::Type() const
 bool KHTMLComment::SearchForLeadOut(KInStream& InStream)
 //-----------------------------------------------------------------------------
 {
-	std::iostream::int_type ch;
-
-	while (DEKAF2_LIKELY((ch = InStream.Read()) != std::iostream::traits_type::eof()))
+	for (;;)
 	{
+		std::iostream::int_type ch = InStream.Read();
+
 		if (DEKAF2_UNLIKELY(ch == '-'))
 		{
 			ch = InStream.Read();
@@ -784,10 +784,14 @@ bool KHTMLComment::SearchForLeadOut(KInStream& InStream)
 			}
 			Value += '-';
 		}
+
+		if (DEKAF2_UNLIKELY(ch == std::iostream::traits_type::eof()))
+		{
+			return false;
+		}
+
 		Value += ch;
 	}
-
-	return false;
 
 } // SearchForLeadOut
 
@@ -802,18 +806,22 @@ KHTMLObject::ObjectType KHTMLDocumentType::Type() const
 bool KHTMLDocumentType::SearchForLeadOut(KInStream& InStream)
 //-----------------------------------------------------------------------------
 {
-	std::iostream::int_type ch;
-
-	while (DEKAF2_LIKELY((ch = InStream.Read()) != std::iostream::traits_type::eof()))
+	for (;;)
 	{
+		std::iostream::int_type ch = InStream.Read();
+
 		if (DEKAF2_UNLIKELY(ch == '>'))
 		{
 			return true;
 		}
+
+		if (DEKAF2_UNLIKELY(ch == std::iostream::traits_type::eof()))
+		{
+			return false;
+		}
+
 		Value += ch;
 	}
-
-	return false;
 
 } // SearchForLeadOut
 
@@ -828,10 +836,10 @@ KHTMLObject::ObjectType KHTMLProcessingInstruction::Type() const
 bool KHTMLProcessingInstruction::SearchForLeadOut(KInStream& InStream)
 //-----------------------------------------------------------------------------
 {
-	std::iostream::int_type ch;
-
-	while (DEKAF2_LIKELY((ch = InStream.Read()) != std::iostream::traits_type::eof()))
+	for (;;)
 	{
+		std::iostream::int_type ch = InStream.Read();
+
 		while (DEKAF2_UNLIKELY(ch == '?'))
 		{
 			ch = InStream.Read();
@@ -841,10 +849,14 @@ bool KHTMLProcessingInstruction::SearchForLeadOut(KInStream& InStream)
 			}
 			Value += '?';
 		}
+
+		if (DEKAF2_UNLIKELY(ch == std::iostream::traits_type::eof()))
+		{
+			return false;
+		}
+
 		Value += ch;
 	}
-
-	return false;
 
 } // SearchForLeadOut
 
@@ -860,10 +872,10 @@ KHTMLObject::ObjectType KHTMLCData::Type() const
 bool KHTMLCData::SearchForLeadOut(KInStream& InStream)
 //-----------------------------------------------------------------------------
 {
-	std::iostream::int_type ch;
-
-	while (DEKAF2_LIKELY((ch = InStream.Read()) != std::iostream::traits_type::eof()))
+	for (;;)
 	{
+		std::iostream::int_type ch = InStream.Read();
+
 		if (DEKAF2_UNLIKELY(ch == ']'))
 		{
 			ch = InStream.Read();
@@ -878,10 +890,14 @@ bool KHTMLCData::SearchForLeadOut(KInStream& InStream)
 			}
 			Value += ']';
 		}
+
+		if (DEKAF2_UNLIKELY(ch == std::iostream::traits_type::eof()))
+		{
+			return false;
+		}
+
 		Value += ch;
 	}
-
-	return false;
 
 } // SearchForLeadOut
 
@@ -992,6 +1008,7 @@ bool KHTMLParser::Parse(KInStream& InStream)
 			else if (DEKAF2_UNLIKELY(ch == '!'))
 			{
 				ch = InStream.Read();
+
 				if (ch == '-')
 				{
 					KHTMLComment Comment;

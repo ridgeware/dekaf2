@@ -95,8 +95,8 @@ public:
 
 	KCache(const KCache&) = delete;
 	KCache& operator=(const KCache&) = delete;
-	KCache(const KCache&&) = delete;
-	KCache& operator=(const KCache&&) = delete;
+	KCache(KCache&&) = delete;
+	KCache& operator=(KCache&&) = delete;
 
 	//-----------------------------------------------------------------------------
 	/// Add a new key value pair to the cache.

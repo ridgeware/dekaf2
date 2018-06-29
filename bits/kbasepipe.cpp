@@ -22,34 +22,31 @@ bool KBasePipe::IsRunning()
 		return false;
 	}
 
-	bool bResponse = false;
-
 	// sets m_iReadChildStatus if iPid is not zero
 	wait();
 
-	// Did we fail to get a status?
-	// We don't want to call WIFEEXITED if so
-	if (-2 == m_iChildStatus)
+	// Do we have an exit status code to interpret?
+	if (m_bChildStatusValid == false)
 	{
-		m_iExitCode = -1;
-		return bResponse;
+		return true;
 	}
 
-	// Do we have an exit status code to interpret?
-	if (false == m_bChildStatusValid)
+	// Did we fail to get a status?
+	// We don't want to call WIFEEXITED if so
+	if (m_iChildStatus == -2)
 	{
-		bResponse = true;
-		return bResponse;
+		m_iExitCode = -1;
+		return false;
 	}
 
 	// did the called function "exit" normally?
 	if (WIFEXITED(m_iChildStatus))
 	{
 		m_iExitCode = WEXITSTATUS(m_iChildStatus);
-		return bResponse;
+		return false;
 	}
 
-	return bResponse;
+	return false;
 
 } // IsRunning
 
@@ -66,11 +63,14 @@ bool KBasePipe::WaitForFinished(int msecs)
 			++counter;
 
 			if (counter == msecs)
+            {
 				return false;
+            }
 		}
 		return true;
 	}
 	return false;
+
 } // WaitForFinished
 
 //-----------------------------------------------------------------------------
@@ -101,6 +101,7 @@ bool KBasePipe::splitArgsInPlace(KString& argString, CharVec& argVector)
 	}
 	argVector.push_back(nullptr); // null terminate
 	return !argVector.empty();
+	
 } // splitArgs
 
 //-----------------------------------------------------------------------------
@@ -140,6 +141,7 @@ bool KBasePipe::wait()
 	}
 
 	return false;
+
 } // wait
 
 } // end namespace dekaf2

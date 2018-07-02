@@ -49,6 +49,7 @@ set (USOURCES
 	ktcpserver_tests.cpp
 	kurl_tests.cpp
 	kutf8_tests.cpp
+	kutf8iterator_tests.cpp
 	kwords_tests.cpp
 	kwriter_tests.cpp
 )

@@ -54,6 +54,8 @@ using codepoint_t = uint32_t;
 using utf16_t     = uint16_t;
 using utf8_t      = uint8_t;
 
+static constexpr codepoint_t INVALID_CODEPOINT = 0xFFFFFFFF;
+
 struct SurrogatePair
 {
 	utf16_t	first{0};
@@ -388,6 +390,94 @@ bool ValidUTF8(const NarrowString& sNarrow)
 
 	}
 	return true;
+}
+
+template<typename NarrowString>
+codepoint_t CodepointFromUTF8(typename NarrowString::const_iterator& it,
+							  typename NarrowString::const_iterator ie)
+{
+	using N=typename NarrowString::value_type;
+
+	uint16_t remaining { 0 };
+	codepoint_t codepoint { 0 };
+	codepoint_t lower_limit { 0 };
+
+	for (; it != ie; )
+	{
+		codepoint_t ch = CodepointCast(*it++);
+
+		if (sizeof(N) > 1 && ch > 0x0ff)
+		{
+			return INVALID_CODEPOINT;
+		}
+
+		switch (remaining)
+		{
+
+			default:
+			case 0:
+			{
+				codepoint = 0;
+				if (ch < 128)
+				{
+					return ch;
+				}
+				else if ((ch & 0x0e0) == 0x0c0)
+				{
+					remaining = 1;
+					lower_limit = 0x080;
+					codepoint = ch & 0x01f;
+				}
+				else if ((ch & 0x0f0) == 0x0e0)
+				{
+					remaining = 2;
+					lower_limit = 0x0800;
+					codepoint = ch & 0x0f;
+				}
+				else if ((ch & 0x0f8) == 0x0f0)
+				{
+					remaining = 3;
+					lower_limit = 0x010000;
+					codepoint = ch & 0x07;
+				}
+				else
+				{
+					return INVALID_CODEPOINT;
+				}
+				break;
+			}
+
+			case 5:
+			case 4:
+			case 3:
+			case 2:
+			case 1:
+			{
+				if ((ch & 0x0c0) != 0x080)
+				{
+					return INVALID_CODEPOINT;
+				}
+				codepoint <<= 6;
+				codepoint |= (ch & 0x03f);
+				--remaining;
+				if (!remaining)
+				{
+					if (codepoint < lower_limit)
+					{
+						return INVALID_CODEPOINT;
+					}
+
+					return codepoint;
+				}
+				break;
+
+			}
+
+		}
+
+	}
+
+	return INVALID_CODEPOINT;
 }
 
 template<typename NarrowString, class Functor,

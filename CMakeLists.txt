@@ -336,6 +336,7 @@ set (HEADERS
 	kurlencode.h
 	kuseragent.h
 	kutf8.h
+	kutf8iterator.h
 	kwords.h
 	kwriter.h
 	)
@@ -407,6 +408,7 @@ set (SOURCES
 	kunixstream.cpp
 	kurl.cpp
 	kurlencode.cpp
+	kutf8iterator.cpp
 	kwords.cpp
 	kwriter.cpp
 	)

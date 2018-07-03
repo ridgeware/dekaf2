@@ -120,12 +120,12 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	/// postfix increment
+	/// prefix increment
 	self_type& operator++();
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// prefix increment
+	/// postfix increment
 	self_type operator++(int);
 	//-----------------------------------------------------------------------------
 
@@ -256,12 +256,12 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	/// postfix increment
+	/// prefix increment
 	self_type& operator++();
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// prefix increment
+	/// postfix increment
 	self_type operator++(int);
 	//-----------------------------------------------------------------------------
 
@@ -288,18 +288,7 @@ public:
 	{
 		// need to check for same value as well, as the end iterator points
 		// to the same address, but has an invalid value (-1)
-		if (m_Value != rhs.m_Value)
-		{
-			return false;
-		}
-
-		if (m_Value == INVALID_CODEPOINT)
-		{
-			// this is the end iterator
-			return true;
-		}
-
-		return m_next == rhs.m_next;
+		return m_next == rhs.m_next && m_Value == rhs.m_Value;
 	}
 
 	//-----------------------------------------------------------------------------

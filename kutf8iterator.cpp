@@ -59,7 +59,7 @@ UTF8ConstIterator::UTF8ConstIterator(const iterator_base& it, bool bToEnd)
 UTF8ConstIterator::self_type& UTF8ConstIterator::operator++()
 //-----------------------------------------------------------------------------
 {
-	m_Value = CodepointFromUTF8<iterator_base>(m_next, m_end);
+	m_Value = NextCodepointFromUTF8<iterator_base>(m_next, m_end);
 	return *this;
 
 } // prefix
@@ -91,7 +91,7 @@ UTF8Iterator::self_type& UTF8Iterator::operator++()
 	if (m_base)
 	{
 		SaveChangedValue();
-		m_Value = m_OrigValue = CodepointFromUTF8<iterator_base>(m_next, m_base->end());
+		m_Value = m_OrigValue = NextCodepointFromUTF8<iterator_base>(m_next, m_base->end());
 	}
 	return *this;
 
@@ -103,6 +103,38 @@ UTF8Iterator::self_type UTF8Iterator::operator++(int)
 {
 	self_type i = *this;
 	operator++();
+	i.m_OrigValue = i.m_Value;
+	i.m_postfix = this;
+	return i;
+
+} // postfix
+
+//-----------------------------------------------------------------------------
+UTF8Iterator::self_type& UTF8Iterator::operator--()
+//-----------------------------------------------------------------------------
+{
+	if (m_base)
+	{
+		SaveChangedValue();
+		// stay at .end() if value is invalid
+		if (m_Value != INVALID_CODEPOINT)
+		{
+			m_next -= UTF8Bytes(m_Value);
+		}
+		iterator_base::const_iterator hit = m_next;
+		m_Value = m_OrigValue = PrevCodepointFromUTF8<iterator_base>(m_next, m_base->begin(), m_base->end());
+		m_next = hit;
+	}
+	return *this;
+
+} // prefix
+
+//-----------------------------------------------------------------------------
+UTF8Iterator::self_type UTF8Iterator::operator--(int)
+//-----------------------------------------------------------------------------
+{
+	self_type i = *this;
+	operator--();
 	i.m_OrigValue = i.m_Value;
 	i.m_postfix = this;
 	return i;

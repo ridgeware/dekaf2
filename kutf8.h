@@ -393,8 +393,8 @@ bool ValidUTF8(const NarrowString& sNarrow)
 }
 
 template<typename NarrowString>
-codepoint_t CodepointFromUTF8(typename NarrowString::const_iterator& it,
-							  typename NarrowString::const_iterator ie)
+codepoint_t NextCodepointFromUTF8(typename NarrowString::const_iterator& it,
+								  typename NarrowString::const_iterator ie)
 {
 	using N=typename NarrowString::value_type;
 
@@ -474,6 +474,32 @@ codepoint_t CodepointFromUTF8(typename NarrowString::const_iterator& it,
 
 		}
 
+	}
+
+	return INVALID_CODEPOINT;
+}
+
+template<typename NarrowString>
+codepoint_t PrevCodepointFromUTF8(typename NarrowString::const_iterator& it,
+								  typename NarrowString::const_iterator ibegin,
+								  typename NarrowString::const_iterator iend)
+{
+	while (it != ibegin)
+	{
+		// check if this char starts a utf8 sequence
+		codepoint_t ch = CodepointCast(*--it);
+
+		if (ch < 128)
+		{
+			return ch;
+		}
+		else if (   (ch & 0x0e0) == 0x0c0
+				 || (ch & 0x0f0) == 0x0e0
+				 || (ch & 0x0f8) == 0x0f0 )
+		{
+			typename NarrowString::const_iterator nit = it;
+			return NextCodepointFromUTF8<NarrowString>(nit, iend);
+		}
 	}
 
 	return INVALID_CODEPOINT;

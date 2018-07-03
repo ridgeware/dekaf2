@@ -55,6 +55,8 @@ TEST_CASE("UTF8Iterator") {
 		CHECK ( *it++ == 'a' );
 		CHECK (    it != ie  );
 		CHECK ( *it++ == 'b' );
+		CHECK ( *--it == 'b' );
+		++it;
 		CHECK (    it != ie  );
 		CHECK ( *it++ == 'c' );
 		CHECK (    it == ie  );

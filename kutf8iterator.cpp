@@ -48,21 +48,10 @@ namespace Unicode {
 //-----------------------------------------------------------------------------
 UTF8ConstIterator::UTF8ConstIterator(const iterator_base& it, bool bToEnd)
 //-----------------------------------------------------------------------------
-    : m_base(bToEnd ? nullptr : &it)
+    : m_next(bToEnd ? it.end() : it.begin())
+	, m_end(it.end())
 {
-	if (m_base != nullptr)
-	{
-		m_next = it.begin();
-		m_Value = CodepointFromUTF8<iterator_base>(m_next, m_base->end());
-		if (m_Value == INVALID_CODEPOINT)
-		{
-			m_base = nullptr;
-		}
-	}
-	else
-	{
-		m_next = it.end();
-	}
+	operator++();
 
 } // ctor
 
@@ -70,15 +59,7 @@ UTF8ConstIterator::UTF8ConstIterator(const iterator_base& it, bool bToEnd)
 UTF8ConstIterator::self_type& UTF8ConstIterator::operator++()
 //-----------------------------------------------------------------------------
 {
-	if (m_base != nullptr)
-	{
-		m_Value = CodepointFromUTF8<iterator_base>(m_next, m_base->end());
-		if (m_Value == INVALID_CODEPOINT)
-		{
-			m_base = nullptr;
-		}
-	}
-
+	m_Value = CodepointFromUTF8<iterator_base>(m_next, m_end);
 	return *this;
 
 } // prefix
@@ -88,16 +69,7 @@ UTF8ConstIterator::self_type UTF8ConstIterator::operator++(int)
 //-----------------------------------------------------------------------------
 {
 	self_type i = *this;
-
-	if (m_base != nullptr)
-	{
-		m_Value = CodepointFromUTF8<iterator_base>(m_next, m_base->end());
-		if (m_Value == INVALID_CODEPOINT)
-		{
-			m_base = nullptr;
-		}
-	}
-
+	operator++();
 	return i;
 
 } // postfix

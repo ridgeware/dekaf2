@@ -48,137 +48,132 @@
 namespace dekaf2 {
 namespace Unicode {
 
-	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-	class UTF8ConstIterator
-	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+class UTF8ConstIterator
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+//-------
+public:
+//-------
+	using iterator_category = std::input_iterator_tag;
+	using value_type = codepoint_t;
+
+	using reference = value_type&;
+	using pointer = value_type*;
+	using difference_type = std::ptrdiff_t;
+	using self_type = UTF8ConstIterator;
+	using iterator_base = KStringView;
+
+	//-----------------------------------------------------------------------------
+	/// standalone ctor
+	inline UTF8ConstIterator()
+	//-----------------------------------------------------------------------------
 	{
-	//-------
-	public:
-	//-------
-		using iterator_category = std::input_iterator_tag;
-		using value_type = codepoint_t;
+		// beware, m_it is a nullptr now
+	}
 
-		using reference = value_type&;
-		using pointer = value_type*;
-		using difference_type = std::ptrdiff_t;
-		using self_type = UTF8ConstIterator;
-		using iterator_base = KStringView;
+	//-----------------------------------------------------------------------------
+	/// ctor for const strings
+	UTF8ConstIterator(const iterator_base& it, bool bToEnd);
+	//-----------------------------------------------------------------------------
 
-		//-----------------------------------------------------------------------------
-		/// standalone ctor
-		inline UTF8ConstIterator()
-		//-----------------------------------------------------------------------------
-		{
-			// beware, m_it is a nullptr now
-		}
+	//-----------------------------------------------------------------------------
+	/// copy constructor
+	inline UTF8ConstIterator(const self_type& other)
+	//-----------------------------------------------------------------------------
+	: m_next(other.m_next)
+	, m_end(other.m_end)
+	, m_Value(other.m_Value)
+	{
+	}
 
-		//-----------------------------------------------------------------------------
-		/// ctor for const strings
-		UTF8ConstIterator(const iterator_base& it, bool bToEnd);
-		//-----------------------------------------------------------------------------
+	//-----------------------------------------------------------------------------
+	/// move constructor
+	inline UTF8ConstIterator(self_type&& other)
+	//-----------------------------------------------------------------------------
+	: m_next(std::move(other.m_next))
+	, m_end(std::move(other.m_end))
+	, m_Value(std::move(other.m_Value))
+	{
+	}
 
-		//-----------------------------------------------------------------------------
-		/// copy constructor
-		inline UTF8ConstIterator(const self_type& other)
-		//-----------------------------------------------------------------------------
-		: m_base(other.m_base)
-		, m_next(other.m_next)
-		, m_Value(other.m_Value)
-		{
-		}
+	//-----------------------------------------------------------------------------
+	/// copy assignment
+	inline self_type& operator=(const self_type& other)
+	//-----------------------------------------------------------------------------
+	{
+		m_next = other.m_next;
+		m_end = other.m_end;
+		m_Value = other.m_Value;
+		return *this;
+	}
 
-		//-----------------------------------------------------------------------------
-		/// move constructor
-		inline UTF8ConstIterator(self_type&& other)
-		//-----------------------------------------------------------------------------
-		: m_base(std::move(other.m_base))
-		, m_next(std::move(other.m_next))
-		, m_Value(std::move(other.m_Value))
-		{
-		}
+	//-----------------------------------------------------------------------------
+	/// move assignment
+	inline self_type& operator=(self_type&& other)
+	//-----------------------------------------------------------------------------
+	{
+		m_next = std::move(other.m_next);
+		m_end = std::move(other.m_end);
+		m_Value = std::move(other.m_Value);
+		return *this;
+	}
 
-		//-----------------------------------------------------------------------------
-		/// copy assignment
-		inline self_type& operator=(const self_type& other)
-		//-----------------------------------------------------------------------------
-		{
-			m_base = other.m_base;
-			m_next = other.m_next;
-			m_Value = other.m_Value;
-			return *this;
-		}
+	//-----------------------------------------------------------------------------
+	/// postfix increment
+	self_type& operator++();
+	//-----------------------------------------------------------------------------
 
-		//-----------------------------------------------------------------------------
-		/// move assignment
-		inline self_type& operator=(self_type&& other)
-		//-----------------------------------------------------------------------------
-		{
-			m_base = std::move(other.m_base);
-			m_next = std::move(other.m_next);
-			m_Value = std::move(other.m_Value);
-			return *this;
-		}
+	//-----------------------------------------------------------------------------
+	/// prefix increment
+	self_type operator++(int);
+	//-----------------------------------------------------------------------------
 
-		//-----------------------------------------------------------------------------
-		/// postfix increment
-		self_type& operator++();
-		//-----------------------------------------------------------------------------
+	//-----------------------------------------------------------------------------
+	/// returns the current value
+	inline reference operator*()
+	//-----------------------------------------------------------------------------
+	{
+		return m_Value;
+	}
 
-		//-----------------------------------------------------------------------------
-		/// prefix increment
-		self_type operator++(int);
-		//-----------------------------------------------------------------------------
+	//-----------------------------------------------------------------------------
+	/// returns the current value
+	inline pointer operator->()
+	//-----------------------------------------------------------------------------
+	{
+		return &m_Value;
+	}
 
-		//-----------------------------------------------------------------------------
-		/// returns the current value
-		inline reference operator*()
-		//-----------------------------------------------------------------------------
-		{
-			return m_Value;
-		}
+	//-----------------------------------------------------------------------------
+	/// equality operator
+	inline bool operator==(const self_type& rhs)
+	//-----------------------------------------------------------------------------
+	{
+		// need to check for same value as well, as the end iterator points
+		// to the same address, but has an invalid value (-1)
+		return m_next == rhs.m_next && m_Value == rhs.m_Value;
+	}
 
-		//-----------------------------------------------------------------------------
-		/// returns the current value
-		inline pointer operator->()
-		//-----------------------------------------------------------------------------
-		{
-			return &m_Value;
-		}
+	//-----------------------------------------------------------------------------
+	/// inequality operator
+	inline bool operator!=(const self_type& rhs)
+	//-----------------------------------------------------------------------------
+	{
+		return !operator==(rhs);
+	}
 
-		//-----------------------------------------------------------------------------
-		/// equality operator
-		inline bool operator==(const self_type& rhs)
-		//-----------------------------------------------------------------------------
-		{
-			return m_base == rhs.m_base && m_next == rhs.m_next;
-		}
+//-------
+protected:
+//-------
 
-		//-----------------------------------------------------------------------------
-		/// inequality operator
-		inline bool operator!=(const self_type& rhs)
-		//-----------------------------------------------------------------------------
-		{
-			return !operator==(rhs);
-		}
+	iterator_base::const_iterator m_next;
+	iterator_base::const_iterator m_end;
+	value_type m_Value;
 
-		//-------
-	protected:
-		//-------
-
-		const iterator_base* m_base { nullptr };
-		iterator_base::const_iterator m_next;
-		value_type m_Value;
-
-	};
+};
 
 } // namespace Unicode
 
 } // of namespace dekaf2
-
-
-
-
-
-
-
 

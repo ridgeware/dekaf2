@@ -58,15 +58,15 @@ public:
 	using iterator_category = std::input_iterator_tag;
 	using value_type = codepoint_t;
 
-	using reference = value_type&;
-	using pointer = value_type*;
+	using reference = const value_type&;
+	using pointer = const value_type*;
 	using difference_type = std::ptrdiff_t;
 	using self_type = UTF8ConstIterator;
 	using iterator_base = KStringView;
 
 	//-----------------------------------------------------------------------------
 	/// standalone ctor
-	inline UTF8ConstIterator()
+	UTF8ConstIterator()
 	//-----------------------------------------------------------------------------
 	{
 		// beware, m_it is a nullptr now
@@ -79,7 +79,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// copy constructor
-	inline UTF8ConstIterator(const self_type& other)
+	UTF8ConstIterator(const self_type& other)
 	//-----------------------------------------------------------------------------
 	: m_next(other.m_next)
 	, m_end(other.m_end)
@@ -89,7 +89,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// move constructor
-	inline UTF8ConstIterator(self_type&& other)
+	UTF8ConstIterator(self_type&& other)
 	//-----------------------------------------------------------------------------
 	: m_next(std::move(other.m_next))
 	, m_end(std::move(other.m_end))
@@ -99,7 +99,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// copy assignment
-	inline self_type& operator=(const self_type& other)
+	self_type& operator=(const self_type& other)
 	//-----------------------------------------------------------------------------
 	{
 		m_next = other.m_next;
@@ -110,7 +110,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// move assignment
-	inline self_type& operator=(self_type&& other)
+	self_type& operator=(self_type&& other)
 	//-----------------------------------------------------------------------------
 	{
 		m_next = std::move(other.m_next);
@@ -131,7 +131,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// returns the current value
-	inline reference operator*()
+	reference operator*() const
 	//-----------------------------------------------------------------------------
 	{
 		return m_Value;
@@ -139,7 +139,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// returns the current value
-	inline pointer operator->()
+	pointer operator->() const
 	//-----------------------------------------------------------------------------
 	{
 		return &m_Value;
@@ -147,7 +147,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// equality operator
-	inline bool operator==(const self_type& rhs)
+	bool operator==(const self_type& rhs) const
 	//-----------------------------------------------------------------------------
 	{
 		// need to check for same value as well, as the end iterator points
@@ -157,7 +157,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// inequality operator
-	inline bool operator!=(const self_type& rhs)
+	bool operator!=(const self_type& rhs) const
 	//-----------------------------------------------------------------------------
 	{
 		return !operator==(rhs);
@@ -170,6 +170,157 @@ protected:
 	iterator_base::const_iterator m_next;
 	iterator_base::const_iterator m_end;
 	value_type m_Value;
+
+};
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+class UTF8Iterator
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+//-------
+public:
+//-------
+	using iterator_category = std::forward_iterator_tag;
+	using value_type = codepoint_t;
+
+	using reference = value_type&;
+	using pointer = value_type*;
+	using difference_type = std::ptrdiff_t;
+	using self_type = UTF8Iterator;
+	using iterator_base = KString;
+
+	//-----------------------------------------------------------------------------
+	/// standalone ctor
+	UTF8Iterator()
+	//-----------------------------------------------------------------------------
+	{
+	}
+
+	//-----------------------------------------------------------------------------
+	/// ctor for strings
+	UTF8Iterator(iterator_base& it, bool bToEnd);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// copy constructor
+	UTF8Iterator(const self_type& other)
+	//-----------------------------------------------------------------------------
+	: m_base(other.m_base)
+	, m_next(other.m_next)
+	, m_Value(other.m_Value)
+	, m_OrigValue(other.m_OrigValue)
+	{
+	}
+
+	//-----------------------------------------------------------------------------
+	/// move constructor
+	UTF8Iterator(self_type&& other)
+	//-----------------------------------------------------------------------------
+	: m_base(std::move(other.m_base))
+	, m_next(std::move(other.m_next))
+	, m_Value(std::move(other.m_Value))
+	, m_OrigValue(std::move(other.m_OrigValue))
+	{
+	}
+
+	//-----------------------------------------------------------------------------
+	/// dtor
+	~UTF8Iterator()
+	//-----------------------------------------------------------------------------
+	{
+		SaveChangedValue();
+	}
+
+	//-----------------------------------------------------------------------------
+	/// copy assignment
+	self_type& operator=(const self_type& other)
+	//-----------------------------------------------------------------------------
+	{
+		m_base = other.m_base;
+		m_next = other.m_next;
+		m_Value = other.m_Value;
+		m_OrigValue = other.m_OrigValue;
+		return *this;
+	}
+
+	//-----------------------------------------------------------------------------
+	/// move assignment
+	self_type& operator=(self_type&& other)
+	//-----------------------------------------------------------------------------
+	{
+		m_base = std::move(other.m_base);
+		m_next = std::move(other.m_next);
+		m_Value = std::move(other.m_Value);
+		m_OrigValue = std::move(other.m_OrigValue);
+		return *this;
+	}
+
+	//-----------------------------------------------------------------------------
+	/// postfix increment
+	self_type& operator++();
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// prefix increment
+	self_type operator++(int);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// returns the current value
+	reference operator*()
+	//-----------------------------------------------------------------------------
+	{
+		return m_Value;
+	}
+
+	//-----------------------------------------------------------------------------
+	/// returns the current value
+	pointer operator->()
+	//-----------------------------------------------------------------------------
+	{
+		return &m_Value;
+	}
+
+	//-----------------------------------------------------------------------------
+	/// equality operator
+	bool operator==(const self_type& rhs) const
+	//-----------------------------------------------------------------------------
+	{
+		// need to check for same value as well, as the end iterator points
+		// to the same address, but has an invalid value (-1)
+		if (m_Value != rhs.m_Value)
+		{
+			return false;
+		}
+
+		if (m_Value == INVALID_CODEPOINT)
+		{
+			// this is the end iterator
+			return true;
+		}
+
+		return m_next == rhs.m_next;
+	}
+
+	//-----------------------------------------------------------------------------
+	/// inequality operator
+	bool operator!=(const self_type& rhs) const
+	//-----------------------------------------------------------------------------
+	{
+		return !operator==(rhs);
+	}
+
+//-------
+protected:
+//-------
+
+	void SaveChangedValue();
+
+	iterator_base* m_base { nullptr };
+	iterator_base::const_iterator m_next;
+	self_type* m_postfix { 0 };
+	value_type m_Value { 0 };
+	value_type m_OrigValue { 0 };
 
 };
 

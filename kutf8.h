@@ -417,7 +417,6 @@ codepoint_t CodepointFromUTF8(typename NarrowString::const_iterator& it,
 			default:
 			case 0:
 			{
-				codepoint = 0;
 				if (ch < 128)
 				{
 					return ch;
@@ -507,7 +506,6 @@ bool FromUTF8(const NarrowString& sNarrow, Functor func)
 			default:
 			case 0:
 				{
-					codepoint = 0;
 					if (ch < 128)
 					{
 						if (!func(ch))
@@ -565,6 +563,7 @@ bool FromUTF8(const NarrowString& sNarrow, Functor func)
 						{
 							return false;
 						}
+						codepoint = 0;
 					}
 					break;
 				}

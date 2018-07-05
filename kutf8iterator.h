@@ -49,40 +49,58 @@ namespace dekaf2 {
 namespace Unicode {
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+template<class NarrowString = KStringView>
 class UTF8ConstIterator
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
+
 //-------
 public:
 //-------
-	using iterator_category = std::input_iterator_tag;
-	using value_type = codepoint_t;
 
+	using iterator_category = std::bidirectional_iterator_tag;
+	using value_type = codepoint_t;
 	using reference = const value_type&;
 	using pointer = const value_type*;
 	using difference_type = std::ptrdiff_t;
 	using self_type = UTF8ConstIterator;
-	using iterator_base = KStringView;
 
 	//-----------------------------------------------------------------------------
 	/// standalone ctor
 	UTF8ConstIterator()
 	//-----------------------------------------------------------------------------
 	{
-		// beware, m_it is a nullptr now
 	}
 
 	//-----------------------------------------------------------------------------
 	/// ctor for const strings
-	UTF8ConstIterator(const iterator_base& it, bool bToEnd);
+	UTF8ConstIterator(const NarrowString& it, bool bToEnd)
 	//-----------------------------------------------------------------------------
+	: m_begin(it.begin())
+	, m_end(it.end())
+	, m_next(bToEnd ? it.end() : it.begin())
+	{
+		operator++();
+	}
+
+	//-----------------------------------------------------------------------------
+	/// ctor for const string iterators
+	UTF8ConstIterator(const typename NarrowString::const_iterator it, const typename NarrowString::const_iterator ie, bool bToEnd)
+	//-----------------------------------------------------------------------------
+	: m_begin(it)
+	, m_end(ie)
+	, m_next(bToEnd ? ie : it)
+	{
+		operator++();
+	}
 
 	//-----------------------------------------------------------------------------
 	/// copy constructor
 	UTF8ConstIterator(const self_type& other)
 	//-----------------------------------------------------------------------------
-	: m_next(other.m_next)
+	: m_begin(other.m_begin)
 	, m_end(other.m_end)
+	, m_next(other.m_next)
 	, m_Value(other.m_Value)
 	{
 	}
@@ -91,8 +109,9 @@ public:
 	/// move constructor
 	UTF8ConstIterator(self_type&& other)
 	//-----------------------------------------------------------------------------
-	: m_next(std::move(other.m_next))
+	: m_begin(std::move(other.m_begin))
 	, m_end(std::move(other.m_end))
+	, m_next(std::move(other.m_next))
 	, m_Value(std::move(other.m_Value))
 	{
 	}
@@ -102,8 +121,9 @@ public:
 	self_type& operator=(const self_type& other)
 	//-----------------------------------------------------------------------------
 	{
-		m_next = other.m_next;
+		m_begin = other.m_begin;
 		m_end = other.m_end;
+		m_next = other.m_next;
 		m_Value = other.m_Value;
 		return *this;
 	}
@@ -113,21 +133,57 @@ public:
 	self_type& operator=(self_type&& other)
 	//-----------------------------------------------------------------------------
 	{
-		m_next = std::move(other.m_next);
+		m_begin = std::move(other.m_begin);
 		m_end = std::move(other.m_end);
+		m_next = std::move(other.m_next);
 		m_Value = std::move(other.m_Value);
 		return *this;
 	}
 
 	//-----------------------------------------------------------------------------
 	/// prefix increment
-	self_type& operator++();
+	self_type& operator++()
 	//-----------------------------------------------------------------------------
+	{
+		m_Value = NextCodepointFromUTF8<NarrowString>(m_next, m_end);
+		return *this;
+	}
 
 	//-----------------------------------------------------------------------------
 	/// postfix increment
-	self_type operator++(int);
+	self_type operator++(int)
 	//-----------------------------------------------------------------------------
+	{
+		self_type i = *this;
+		operator++();
+		return i;
+	}
+
+	//-----------------------------------------------------------------------------
+	/// prefix decrement
+	self_type& operator--()
+	//-----------------------------------------------------------------------------
+	{
+		// stay at .end() if value is invalid
+		if (m_Value != INVALID_CODEPOINT)
+		{
+			m_next -= UTF8Bytes(m_Value);
+		}
+		typename NarrowString::const_iterator hit = m_next;
+		m_Value = PrevCodepointFromUTF8<NarrowString>(m_next, m_begin, m_end);
+		m_next = hit;
+		return *this;
+	}
+
+	//-----------------------------------------------------------------------------
+	/// postfix decrement
+	self_type operator--(int)
+	//-----------------------------------------------------------------------------
+	{
+		self_type i = *this;
+		operator--();
+		return i;
+	}
 
 	//-----------------------------------------------------------------------------
 	/// returns the current value
@@ -167,27 +223,30 @@ public:
 protected:
 //-------
 
-	iterator_base::const_iterator m_next;
-	iterator_base::const_iterator m_end;
+	typename NarrowString::const_iterator m_begin;
+	typename NarrowString::const_iterator m_end;
+	typename NarrowString::const_iterator m_next;
 	value_type m_Value;
 
 };
 
+
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+template<class NarrowString = KString>
 class UTF8Iterator
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
+
 //-------
 public:
 //-------
-	using iterator_category = std::forward_iterator_tag;
-	using value_type = codepoint_t;
 
+	using iterator_category = std::bidirectional_iterator_tag;
+	using value_type = codepoint_t;
 	using reference = value_type&;
 	using pointer = value_type*;
 	using difference_type = std::ptrdiff_t;
 	using self_type = UTF8Iterator;
-	using iterator_base = KString;
 
 	//-----------------------------------------------------------------------------
 	/// standalone ctor
@@ -198,14 +257,19 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// ctor for strings
-	UTF8Iterator(iterator_base& it, bool bToEnd);
+	UTF8Iterator(NarrowString& it, bool bToEnd)
 	//-----------------------------------------------------------------------------
+	: m_String(&it)
+	, m_next(bToEnd ? it.end() : it.begin())
+	{
+		operator++();
+	}
 
 	//-----------------------------------------------------------------------------
 	/// copy constructor
 	UTF8Iterator(const self_type& other)
 	//-----------------------------------------------------------------------------
-	: m_base(other.m_base)
+	: m_String(other.m_String)
 	, m_next(other.m_next)
 	, m_Value(other.m_Value)
 	, m_OrigValue(other.m_OrigValue)
@@ -216,7 +280,7 @@ public:
 	/// move constructor
 	UTF8Iterator(self_type&& other)
 	//-----------------------------------------------------------------------------
-	: m_base(std::move(other.m_base))
+	: m_String(std::move(other.m_String))
 	, m_next(std::move(other.m_next))
 	, m_Value(std::move(other.m_Value))
 	, m_OrigValue(std::move(other.m_OrigValue))
@@ -228,7 +292,10 @@ public:
 	~UTF8Iterator()
 	//-----------------------------------------------------------------------------
 	{
-		SaveChangedValue();
+		if (DEKAF2_UNLIKELY(m_Value != m_OrigValue))
+		{
+			SaveChangedValue();
+		}
 	}
 
 	//-----------------------------------------------------------------------------
@@ -236,7 +303,7 @@ public:
 	self_type& operator=(const self_type& other)
 	//-----------------------------------------------------------------------------
 	{
-		m_base = other.m_base;
+		m_String = other.m_String;
 		m_next = other.m_next;
 		m_Value = other.m_Value;
 		m_OrigValue = other.m_OrigValue;
@@ -248,7 +315,7 @@ public:
 	self_type& operator=(self_type&& other)
 	//-----------------------------------------------------------------------------
 	{
-		m_base = std::move(other.m_base);
+		m_String = std::move(other.m_String);
 		m_next = std::move(other.m_next);
 		m_Value = std::move(other.m_Value);
 		m_OrigValue = std::move(other.m_OrigValue);
@@ -257,23 +324,68 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// prefix increment
-	self_type& operator++();
+	self_type& operator++()
 	//-----------------------------------------------------------------------------
+	{
+		if (DEKAF2_LIKELY(m_String != nullptr))
+		{
+			if (DEKAF2_UNLIKELY(m_Value != m_OrigValue))
+			{
+				SaveChangedValue();
+			}
+			m_Value = m_OrigValue = NextCodepointFromUTF8<NarrowString>(m_next, m_String->end());
+		}
+		return *this;
+	}
 
 	//-----------------------------------------------------------------------------
 	/// postfix increment
-	self_type operator++(int);
+	self_type operator++(int)
 	//-----------------------------------------------------------------------------
+	{
+		self_type i = *this;
+		operator++();
+		i.m_OrigValue = i.m_Value;
+		i.m_postfix = this;
+		return i;
+	}
 
 	//-----------------------------------------------------------------------------
 	/// prefix decrement
-	self_type& operator--();
+	self_type& operator--()
 	//-----------------------------------------------------------------------------
+	{
+		if (DEKAF2_LIKELY(m_String != nullptr))
+		{
+			if (DEKAF2_UNLIKELY(m_Value != m_OrigValue))
+			{
+				SaveChangedValue();
+			}
+
+			// stay at .end() if value is invalid
+			if (DEKAF2_UNLIKELY(m_Value != INVALID_CODEPOINT))
+			{
+				m_next -= UTF8Bytes(m_Value);
+			}
+
+			typename NarrowString::const_iterator hit = m_next;
+			m_Value = m_OrigValue = PrevCodepointFromUTF8<NarrowString>(m_next, m_String->begin(), m_String->end());
+			m_next = hit;
+		}
+		return *this;
+	}
 
 	//-----------------------------------------------------------------------------
 	/// postfix decrement
-	self_type operator--(int);
+	self_type operator--(int)
 	//-----------------------------------------------------------------------------
+	{
+		self_type i = *this;
+		operator--();
+		i.m_OrigValue = i.m_Value;
+		i.m_postfix = this;
+		return i;
+	}
 
 	//-----------------------------------------------------------------------------
 	/// returns the current value
@@ -313,15 +425,58 @@ public:
 protected:
 //-------
 
-	void SaveChangedValue();
+	//-----------------------------------------------------------------------------
+	void SaveChangedValue()
+	//-----------------------------------------------------------------------------
+	{
+		if (DEKAF2_LIKELY(m_String != nullptr))
+		{
+			size_t iOrigLen = UTF8Bytes(m_OrigValue);
+			size_t iNewLen = UTF8Bytes(m_Value);
 
-	iterator_base* m_base { nullptr };
-	iterator_base::const_iterator m_next;
+			// create an iterator pointing to the start of the current sequence
+			typename NarrowString::iterator it = const_cast<typename NarrowString::iterator>(m_next) - iOrigLen;
+
+			if (DEKAF2_UNLIKELY(iOrigLen < iNewLen))
+			{
+				// make room in the string
+				m_String->insert(it - m_String->begin(), iNewLen - iOrigLen, ' ');
+			}
+			else if (DEKAF2_UNLIKELY(iOrigLen > iNewLen))
+			{
+				// shorten the string
+				m_String->erase(it - m_String->begin(), iOrigLen - iNewLen);
+			}
+
+			// adjust m_next to point after end of replaced sequence
+			m_next += iNewLen - iOrigLen;
+
+			if (m_postfix)
+			{
+				// adjust the next iter in the original iterator
+				m_postfix->m_next += iNewLen - iOrigLen;
+				m_postfix = nullptr;
+			}
+
+			// and finally write the replacement sequence
+			ToUTF8(m_Value, it);
+
+			// no need to update m_OrigValue with m_Value as this
+			// function is only called from the dtor or from operator++()
+			// just before the values are updated anyway
+		}
+	}
+
+	NarrowString* m_String { nullptr };
+	typename NarrowString::const_iterator m_next;
 	self_type* m_postfix { 0 };
 	value_type m_Value { 0 };
 	value_type m_OrigValue { 0 };
 
 };
+
+extern template class UTF8ConstIterator<KStringView>;
+extern template class UTF8Iterator<KString>;
 
 } // namespace Unicode
 

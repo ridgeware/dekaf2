@@ -67,10 +67,8 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// standalone ctor
-	UTF8ConstIterator()
+	UTF8ConstIterator() = default;
 	//-----------------------------------------------------------------------------
-	{
-	}
 
 	//-----------------------------------------------------------------------------
 	/// ctor for const strings
@@ -96,49 +94,23 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// copy constructor
-	UTF8ConstIterator(const self_type& other)
+	UTF8ConstIterator(const self_type& other) = default;
 	//-----------------------------------------------------------------------------
-	: m_begin(other.m_begin)
-	, m_end(other.m_end)
-	, m_next(other.m_next)
-	, m_Value(other.m_Value)
-	{
-	}
 
 	//-----------------------------------------------------------------------------
 	/// move constructor
-	UTF8ConstIterator(self_type&& other)
+	UTF8ConstIterator(self_type&& other) = default;
 	//-----------------------------------------------------------------------------
-	: m_begin(std::move(other.m_begin))
-	, m_end(std::move(other.m_end))
-	, m_next(std::move(other.m_next))
-	, m_Value(std::move(other.m_Value))
-	{
-	}
 
 	//-----------------------------------------------------------------------------
 	/// copy assignment
-	self_type& operator=(const self_type& other)
+	self_type& operator=(const self_type& other) = default;
 	//-----------------------------------------------------------------------------
-	{
-		m_begin = other.m_begin;
-		m_end = other.m_end;
-		m_next = other.m_next;
-		m_Value = other.m_Value;
-		return *this;
-	}
 
 	//-----------------------------------------------------------------------------
 	/// move assignment
-	self_type& operator=(self_type&& other)
+	self_type& operator=(self_type&& other) = default;
 	//-----------------------------------------------------------------------------
-	{
-		m_begin = std::move(other.m_begin);
-		m_end = std::move(other.m_end);
-		m_next = std::move(other.m_next);
-		m_Value = std::move(other.m_Value);
-		return *this;
-	}
 
 	//-----------------------------------------------------------------------------
 	/// prefix increment
@@ -250,10 +222,8 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// standalone ctor
-	UTF8Iterator()
+	UTF8Iterator() = default;
 	//-----------------------------------------------------------------------------
-	{
-	}
 
 	//-----------------------------------------------------------------------------
 	/// ctor for strings
@@ -267,25 +237,13 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// copy constructor
-	UTF8Iterator(const self_type& other)
+	UTF8Iterator(const self_type& other) = default;
 	//-----------------------------------------------------------------------------
-	: m_String(other.m_String)
-	, m_next(other.m_next)
-	, m_Value(other.m_Value)
-	, m_OrigValue(other.m_OrigValue)
-	{
-	}
 
 	//-----------------------------------------------------------------------------
 	/// move constructor
-	UTF8Iterator(self_type&& other)
+	UTF8Iterator(self_type&& other) = default;
 	//-----------------------------------------------------------------------------
-	: m_String(std::move(other.m_String))
-	, m_next(std::move(other.m_next))
-	, m_Value(std::move(other.m_Value))
-	, m_OrigValue(std::move(other.m_OrigValue))
-	{
-	}
 
 	//-----------------------------------------------------------------------------
 	/// dtor
@@ -300,27 +258,13 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// copy assignment
-	self_type& operator=(const self_type& other)
+	self_type& operator=(const self_type& other) = default;
 	//-----------------------------------------------------------------------------
-	{
-		m_String = other.m_String;
-		m_next = other.m_next;
-		m_Value = other.m_Value;
-		m_OrigValue = other.m_OrigValue;
-		return *this;
-	}
 
 	//-----------------------------------------------------------------------------
 	/// move assignment
-	self_type& operator=(self_type&& other)
+	self_type& operator=(self_type&& other) = default;
 	//-----------------------------------------------------------------------------
-	{
-		m_String = std::move(other.m_String);
-		m_next = std::move(other.m_next);
-		m_Value = std::move(other.m_Value);
-		m_OrigValue = std::move(other.m_OrigValue);
-		return *this;
-	}
 
 	//-----------------------------------------------------------------------------
 	/// prefix increment

@@ -44,10 +44,27 @@
 /// provides support for UTF8, UTF16 and UCS4 encoding
 
 #include <cstdint>
-#include <string>
-#include "kstring.h"
+#include <cstddef>
+#include <cwctype>
 
+#if __cplusplus > 201402L
+	#if __has_include("bits/kcppcompat.h")
+		#include "bits/kcppcompat.h"
+		#define KUTF8_LIKELY DEKAF2_LIKELY
+		#define KUTF8_UNLIKELY DEKAF2_UNLIKELY
+	#else
+		#define KUTF8_LIKELY(x) x
+		#define KUTF8_UNLIKELY(x) x
+	#endif
+#else
+	#define KUTF8_LIKELY(x) x
+	#define KUTF8_UNLIKELY(x) x
+#endif
+
+#ifdef DEKAF2
 namespace dekaf2 {
+#endif
+
 namespace Unicode {
 
 using codepoint_t = uint32_t;
@@ -254,7 +271,7 @@ bool ToUTF8(Ch sch, NarrowString& sNarrow)
 }
 
 //-----------------------------------------------------------------------------
-template<typename Ch, typename NarrowString = KString,
+template<typename Ch, typename NarrowString,
          typename = std::enable_if_t<std::is_integral<Ch>::value> >
 constexpr
 NarrowString ToUTF8(Ch sch)
@@ -421,13 +438,13 @@ size_t CountUTF8(typename NarrowString::const_iterator it,
 {
 	size_t iCount { 0 };
 
-	for (; DEKAF2_LIKELY(it != ie) ;)
+	for (; KUTF8_LIKELY(it != ie) ;)
 	{
 		codepoint_t ch = CodepointCast(*it);
 
 		++it;
 
-		if (DEKAF2_LIKELY(ch < 128))
+		if (KUTF8_LIKELY(ch < 128))
 		{
 		}
 		else if ((ch & 0x0e0) == 0x0c0)
@@ -465,14 +482,14 @@ codepoint_t NextCodepointFromUTF8(typename NarrowString::const_iterator& it,
 {
 	using N=typename NarrowString::value_type;
 
-	if (DEKAF2_UNLIKELY(it == ie))
+	if (KUTF8_UNLIKELY(it == ie))
 	{
 		return INVALID_CODEPOINT;
 	}
 
 	codepoint_t ch = CodepointCast(*it++);
 
-	if (DEKAF2_LIKELY(ch < 128))
+	if (KUTF8_LIKELY(ch < 128))
 	{
 		return ch;
 	}
@@ -509,16 +526,16 @@ codepoint_t NextCodepointFromUTF8(typename NarrowString::const_iterator& it,
 		return INVALID_CODEPOINT;
 	}
 
-	for (; DEKAF2_LIKELY(it != ie); )
+	for (; KUTF8_LIKELY(it != ie); )
 	{
 		ch = CodepointCast(*it++);
 
-		if (DEKAF2_UNLIKELY((sizeof(N) > 1 && ch > 0x0ff)))
+		if (KUTF8_UNLIKELY((sizeof(N) > 1 && ch > 0x0ff)))
 		{
 			break; // invalid
 		}
 
-		if (DEKAF2_UNLIKELY((ch & 0x0c0) != 0x080))
+		if (KUTF8_UNLIKELY((ch & 0x0c0) != 0x080))
 		{
 			break; // invalid
 		}
@@ -528,7 +545,7 @@ codepoint_t NextCodepointFromUTF8(typename NarrowString::const_iterator& it,
 
 		if (!--remaining)
 		{
-			if (DEKAF2_UNLIKELY(codepoint < lower_limit))
+			if (KUTF8_UNLIKELY(codepoint < lower_limit))
 			{
 				break; // invalid
 			}
@@ -547,12 +564,12 @@ codepoint_t PrevCodepointFromUTF8(typename NarrowString::const_iterator& it,
 								  typename NarrowString::const_iterator iend)
 //-----------------------------------------------------------------------------
 {
-	while (DEKAF2_LIKELY(it != ibegin))
+	while (KUTF8_LIKELY(it != ibegin))
 	{
 		// check if this char starts a utf8 sequence
 		codepoint_t ch = CodepointCast(*--it);
 
-		if (DEKAF2_LIKELY(ch < 128))
+		if (KUTF8_LIKELY(ch < 128))
 		{
 			return ch;
 		}
@@ -577,11 +594,11 @@ bool FromUTF8(typename NarrowString::const_iterator it,
 			  Functor func)
 //-----------------------------------------------------------------------------
 {
-	for (; DEKAF2_LIKELY(it != ie);)
+	for (; KUTF8_LIKELY(it != ie);)
 	{
 		codepoint_t codepoint = NextCodepointFromUTF8<NarrowString>(it, ie);
 
-		if (DEKAF2_UNLIKELY(codepoint == INVALID_CODEPOINT))
+		if (KUTF8_UNLIKELY(codepoint == INVALID_CODEPOINT))
 		{
 			return false;
 		}
@@ -671,12 +688,6 @@ bool ToUpperUTF8(const NarrowString& sInput, NarrowReturnString& sOutput)
 
 } // namespace Unicode
 
+#ifdef DEKAF2
 } // of namespace dekaf2
-
-
-
-
-
-
-
-
+#endif

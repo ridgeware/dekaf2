@@ -43,13 +43,17 @@
 /// @file kutf8iterator.h
 /// provides iterator types for utf8 strings
 
+#include <iterator>
 #include "kutf8.h"
 
+#ifdef DEKAF2
 namespace dekaf2 {
+#endif
+
 namespace Unicode {
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-template<class NarrowString = KStringView>
+template<class NarrowString>
 class UTF8ConstIterator
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -137,7 +141,7 @@ public:
 	//-----------------------------------------------------------------------------
 	{
 		// stay at .end() if value is invalid
-		if (DEKAF2_LIKELY(m_Value != INVALID_CODEPOINT))
+		if (KUTF8_LIKELY(m_Value != INVALID_CODEPOINT))
 		{
 			m_next -= UTF8Bytes(m_Value);
 		}
@@ -204,7 +208,7 @@ protected:
 
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-template<class NarrowString = KString>
+template<class NarrowString>
 class UTF8Iterator
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -250,7 +254,7 @@ public:
 	~UTF8Iterator()
 	//-----------------------------------------------------------------------------
 	{
-		if (DEKAF2_UNLIKELY(m_Value != m_OrigValue))
+		if (KUTF8_UNLIKELY(m_Value != m_OrigValue))
 		{
 			SaveChangedValue();
 		}
@@ -271,9 +275,9 @@ public:
 	self_type& operator++()
 	//-----------------------------------------------------------------------------
 	{
-		if (DEKAF2_LIKELY(m_String != nullptr))
+		if (KUTF8_LIKELY(m_String != nullptr))
 		{
-			if (DEKAF2_UNLIKELY(m_Value != m_OrigValue))
+			if (KUTF8_UNLIKELY(m_Value != m_OrigValue))
 			{
 				SaveChangedValue();
 			}
@@ -299,15 +303,15 @@ public:
 	self_type& operator--()
 	//-----------------------------------------------------------------------------
 	{
-		if (DEKAF2_LIKELY(m_String != nullptr))
+		if (KUTF8_LIKELY(m_String != nullptr))
 		{
-			if (DEKAF2_UNLIKELY(m_Value != m_OrigValue))
+			if (KUTF8_UNLIKELY(m_Value != m_OrigValue))
 			{
 				SaveChangedValue();
 			}
 
 			// stay at .end() if value is invalid
-			if (DEKAF2_LIKELY(m_Value != INVALID_CODEPOINT))
+			if (KUTF8_LIKELY(m_Value != INVALID_CODEPOINT))
 			{
 				m_next -= UTF8Bytes(m_Value);
 			}
@@ -373,7 +377,7 @@ protected:
 	void SaveChangedValue()
 	//-----------------------------------------------------------------------------
 	{
-		if (DEKAF2_LIKELY(m_String != nullptr))
+		if (KUTF8_LIKELY(m_String != nullptr))
 		{
 			size_t iOrigLen = UTF8Bytes(m_OrigValue);
 			size_t iNewLen = UTF8Bytes(m_Value);
@@ -381,12 +385,12 @@ protected:
 			// create an iterator pointing to the start of the current sequence
 			typename NarrowString::iterator it = const_cast<typename NarrowString::iterator>(m_next) - iOrigLen;
 
-			if (DEKAF2_UNLIKELY(iOrigLen < iNewLen))
+			if (KUTF8_UNLIKELY(iOrigLen < iNewLen))
 			{
 				// make room in the string
 				m_String->insert(it - m_String->begin(), iNewLen - iOrigLen, ' ');
 			}
-			else if (DEKAF2_UNLIKELY(iOrigLen > iNewLen))
+			else if (KUTF8_UNLIKELY(iOrigLen > iNewLen))
 			{
 				// shorten the string
 				m_String->erase(it - m_String->begin(), iOrigLen - iNewLen);
@@ -419,10 +423,15 @@ protected:
 
 };
 
-extern template class UTF8ConstIterator<KStringView>;
-extern template class UTF8Iterator<KString>;
-
 } // namespace Unicode
 
+#ifdef DEKAF2
 } // of namespace dekaf2
-
+#include "kstring.h"
+namespace dekaf2 {
+namespace Unicode {
+extern template class UTF8ConstIterator<KStringView>;
+extern template class UTF8Iterator<KString>;
+} // of namespace Unicode
+} // of namespace dekaf2
+#endif

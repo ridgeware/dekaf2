@@ -42,6 +42,7 @@
 
 #include "kutf8iterator.h"
 
+#ifdef DEKAF2
 namespace dekaf2 {
 namespace Unicode {
 
@@ -50,4 +51,4 @@ template class UTF8Iterator<KString>;
 
 } // end of namespace Unicode
 } // end of namespace dekaf2
-
+#endif

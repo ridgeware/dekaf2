@@ -137,7 +137,7 @@ public:
 	//-----------------------------------------------------------------------------
 	{
 		// stay at .end() if value is invalid
-		if (m_Value != INVALID_CODEPOINT)
+		if (DEKAF2_LIKELY(m_Value != INVALID_CODEPOINT))
 		{
 			m_next -= UTF8Bytes(m_Value);
 		}
@@ -307,7 +307,7 @@ public:
 			}
 
 			// stay at .end() if value is invalid
-			if (DEKAF2_UNLIKELY(m_Value != INVALID_CODEPOINT))
+			if (DEKAF2_LIKELY(m_Value != INVALID_CODEPOINT))
 			{
 				m_next -= UTF8Bytes(m_Value);
 			}

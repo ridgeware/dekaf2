@@ -396,13 +396,16 @@ protected:
 				m_String->erase(it - m_String->begin(), iOrigLen - iNewLen);
 			}
 
+			// calculate size difference
+			ssize_t iAdjust = iNewLen - iOrigLen;
+
 			// adjust m_next to point after end of replaced sequence
-			m_next += iNewLen - iOrigLen;
+			m_next += iAdjust;
 
 			if (m_postfix)
 			{
 				// adjust the next iter in the original iterator
-				m_postfix->m_next += iNewLen - iOrigLen;
+				m_postfix->m_next += iAdjust;
 				m_postfix = nullptr;
 			}
 

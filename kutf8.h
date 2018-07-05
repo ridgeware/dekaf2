@@ -62,37 +62,43 @@ struct SurrogatePair
 	utf16_t second{0};
 };
 
-inline
-constexpr
+//-----------------------------------------------------------------------------
+inline constexpr
 bool IsLeadSurrogate(utf16_t ch)
+//-----------------------------------------------------------------------------
 {
 	return (ch & 0xfc00) == 0xd800;
 }
 
-inline
-constexpr
+//-----------------------------------------------------------------------------
+inline constexpr
 bool IsTrailSurrogate(utf16_t ch)
+//-----------------------------------------------------------------------------
 {
 	return (ch & 0xfc00) == 0xdc00;
 }
 
-inline
-constexpr
+//-----------------------------------------------------------------------------
+inline constexpr
 bool IsSurrogate(utf16_t ch)
+//-----------------------------------------------------------------------------
 {
 	return (ch & 0xd800) == 0xdfff;
 }
 
-inline
-constexpr
+//-----------------------------------------------------------------------------
+inline constexpr
 bool NeedsSurrogates(codepoint_t ch)
+//-----------------------------------------------------------------------------
 {
 	return (ch >= 0x010000 && ch <= 0x010ffff);
 }
 
+//-----------------------------------------------------------------------------
 /// check before calling that the input needs surrogate separation
 inline
 SurrogatePair CodepointToSurrogates(codepoint_t ch)
+//-----------------------------------------------------------------------------
 {
 	SurrogatePair sp;
 	ch -= 0x10000;
@@ -101,17 +107,20 @@ SurrogatePair CodepointToSurrogates(codepoint_t ch)
 	return sp;
 }
 
+//-----------------------------------------------------------------------------
 /// check before calling that the surrogates are valid for composition
-inline
-constexpr
+inline constexpr
 codepoint_t SurrogatesToCodepoint(SurrogatePair sp)
+//-----------------------------------------------------------------------------
 {
 	return (sp.first << 10) + sp.second - ((0xd800 << 10) + 0xdc00 - 0x10000);
 }
 
+//-----------------------------------------------------------------------------
 template<typename Ch>
 constexpr
 codepoint_t CodepointCast(Ch sch)
+//-----------------------------------------------------------------------------
 {
 	// All this code gets completely eliminated during
 	// compilation. All it does is to make sure we can
@@ -132,9 +141,11 @@ codepoint_t CodepointCast(Ch sch)
 	}
 }
 
+//-----------------------------------------------------------------------------
 template<typename Ch>
 constexpr
 size_t UTF8Bytes(Ch sch)
+//-----------------------------------------------------------------------------
 {
 	codepoint_t ch = CodepointCast(sch);
 
@@ -160,10 +171,12 @@ size_t UTF8Bytes(Ch sch)
 	}
 }
 
+//-----------------------------------------------------------------------------
 template<typename Ch,
-         typename = std::enable_if_t<std::is_integral<Ch>::value> >
+	 	 typename = std::enable_if_t<std::is_integral<Ch>::value> >
 constexpr
 bool ToUTF8(Ch sch, char*& sNarrow)
+//-----------------------------------------------------------------------------
 {
 	using N = char;
 
@@ -199,10 +212,12 @@ bool ToUTF8(Ch sch, char*& sNarrow)
 	return true;
 }
 
+//-----------------------------------------------------------------------------
 template<typename Ch, typename NarrowString,
          typename = std::enable_if_t<std::is_integral<Ch>::value> >
 constexpr
 bool ToUTF8(Ch sch, NarrowString& sNarrow)
+//-----------------------------------------------------------------------------
 {
 	using N=typename NarrowString::value_type;
 
@@ -238,20 +253,24 @@ bool ToUTF8(Ch sch, NarrowString& sNarrow)
 	return true;
 }
 
+//-----------------------------------------------------------------------------
 template<typename Ch, typename NarrowString = KString,
          typename = std::enable_if_t<std::is_integral<Ch>::value> >
 constexpr
 NarrowString ToUTF8(Ch sch)
+//-----------------------------------------------------------------------------
 {
 	NarrowString sRet;
 	ToUTF8(sch, sRet);
 	return sRet;
 }
 
+//-----------------------------------------------------------------------------
 template<typename WideString, typename NarrowString,
          typename = std::enable_if_t<!std::is_integral<WideString>::value> >
 constexpr
 bool ToUTF8(const WideString& sWide, NarrowString& sNarrow)
+//-----------------------------------------------------------------------------
 {
 	typename WideString::const_iterator it = sWide.cbegin();
 	typename WideString::const_iterator ie = sWide.cend();
@@ -307,9 +326,11 @@ bool ToUTF8(const WideString& sWide, NarrowString& sNarrow)
 	return true;
 }
 
+//-----------------------------------------------------------------------------
 template<typename NarrowString>
 constexpr
 bool ValidUTF8(const NarrowString& sNarrow)
+//-----------------------------------------------------------------------------
 {
 	using N=typename NarrowString::value_type;
 
@@ -392,104 +413,146 @@ bool ValidUTF8(const NarrowString& sNarrow)
 	return true;
 }
 
+//-----------------------------------------------------------------------------
+template<typename NarrowString>
+size_t CountUTF8(typename NarrowString::const_iterator it,
+				 typename NarrowString::const_iterator ie)
+//-----------------------------------------------------------------------------
+{
+	size_t iCount { 0 };
+
+	for (; DEKAF2_LIKELY(it != ie) ;)
+	{
+		codepoint_t ch = CodepointCast(*it);
+
+		++it;
+
+		if (DEKAF2_LIKELY(ch < 128))
+		{
+		}
+		else if ((ch & 0x0e0) == 0x0c0)
+		{
+			if (it != ie) ++it;
+		}
+		else if ((ch & 0x0f0) == 0x0e0)
+		{
+			if (it != ie) ++it;
+			if (it != ie) ++it;
+		}
+		else if ((ch & 0x0f8) == 0x0f0)
+		{
+			if (it != ie) ++it;
+			if (it != ie) ++it;
+			if (it != ie) ++it;
+		}
+		else
+		{
+			break; // invalid..
+		}
+
+		++iCount;
+
+	}
+
+	return iCount;
+}
+
+//-----------------------------------------------------------------------------
 template<typename NarrowString>
 codepoint_t NextCodepointFromUTF8(typename NarrowString::const_iterator& it,
 								  typename NarrowString::const_iterator ie)
+//-----------------------------------------------------------------------------
 {
 	using N=typename NarrowString::value_type;
 
-	uint16_t remaining { 0 };
-	codepoint_t codepoint { 0 };
-	codepoint_t lower_limit { 0 };
-
-	for (; it != ie; )
+	if (DEKAF2_UNLIKELY(it == ie))
 	{
-		codepoint_t ch = CodepointCast(*it++);
+		return INVALID_CODEPOINT;
+	}
 
-		if (sizeof(N) > 1 && ch > 0x0ff)
+	codepoint_t ch = CodepointCast(*it++);
+
+	if (DEKAF2_LIKELY(ch < 128))
+	{
+		return ch;
+	}
+
+	if (sizeof(N) > 1 && ch > 0x0ff)
+	{
+		return INVALID_CODEPOINT;
+	}
+
+	uint16_t remaining;
+	codepoint_t lower_limit;
+	codepoint_t codepoint;
+
+	if ((ch & 0x0e0) == 0x0c0)
+	{
+		remaining = 1;
+		lower_limit = 0x080;
+		codepoint = ch & 0x01f;
+	}
+	else if ((ch & 0x0f0) == 0x0e0)
+	{
+		remaining = 2;
+		lower_limit = 0x0800;
+		codepoint = ch & 0x0f;
+	}
+	else if ((ch & 0x0f8) == 0x0f0)
+	{
+		remaining = 3;
+		lower_limit = 0x010000;
+		codepoint = ch & 0x07;
+	}
+	else
+	{
+		return INVALID_CODEPOINT;
+	}
+
+	for (; DEKAF2_LIKELY(it != ie); )
+	{
+		ch = CodepointCast(*it++);
+
+		if (DEKAF2_UNLIKELY((sizeof(N) > 1 && ch > 0x0ff)))
 		{
-			return INVALID_CODEPOINT;
+			break; // invalid
 		}
 
-		switch (remaining)
+		if (DEKAF2_UNLIKELY((ch & 0x0c0) != 0x080))
 		{
-
-			default:
-			case 0:
-			{
-				if (ch < 128)
-				{
-					return ch;
-				}
-				else if ((ch & 0x0e0) == 0x0c0)
-				{
-					remaining = 1;
-					lower_limit = 0x080;
-					codepoint = ch & 0x01f;
-				}
-				else if ((ch & 0x0f0) == 0x0e0)
-				{
-					remaining = 2;
-					lower_limit = 0x0800;
-					codepoint = ch & 0x0f;
-				}
-				else if ((ch & 0x0f8) == 0x0f0)
-				{
-					remaining = 3;
-					lower_limit = 0x010000;
-					codepoint = ch & 0x07;
-				}
-				else
-				{
-					return INVALID_CODEPOINT;
-				}
-				break;
-			}
-
-			case 5:
-			case 4:
-			case 3:
-			case 2:
-			case 1:
-			{
-				if ((ch & 0x0c0) != 0x080)
-				{
-					return INVALID_CODEPOINT;
-				}
-				codepoint <<= 6;
-				codepoint |= (ch & 0x03f);
-				--remaining;
-				if (!remaining)
-				{
-					if (codepoint < lower_limit)
-					{
-						return INVALID_CODEPOINT;
-					}
-
-					return codepoint;
-				}
-				break;
-
-			}
-
+			break; // invalid
 		}
 
+		codepoint <<= 6;
+		codepoint |= (ch & 0x03f);
+
+		if (!--remaining)
+		{
+			if (DEKAF2_UNLIKELY(codepoint < lower_limit))
+			{
+				break; // invalid
+			}
+
+			return codepoint; // valid
+		}
 	}
 
 	return INVALID_CODEPOINT;
 }
 
+//-----------------------------------------------------------------------------
 template<typename NarrowString>
 codepoint_t PrevCodepointFromUTF8(typename NarrowString::const_iterator& it,
 								  typename NarrowString::const_iterator ibegin,
 								  typename NarrowString::const_iterator iend)
+//-----------------------------------------------------------------------------
 {
-	while (it != ibegin)
+	while (DEKAF2_LIKELY(it != ibegin))
 	{
 		// check if this char starts a utf8 sequence
 		codepoint_t ch = CodepointCast(*--it);
 
-		if (ch < 128)
+		if (DEKAF2_LIKELY(ch < 128))
 		{
 			return ch;
 		}
@@ -505,106 +568,49 @@ codepoint_t PrevCodepointFromUTF8(typename NarrowString::const_iterator& it,
 	return INVALID_CODEPOINT;
 }
 
+//-----------------------------------------------------------------------------
 template<typename NarrowString, class Functor,
          typename = std::enable_if_t<std::is_class<Functor>::value
                                   || std::is_function<Functor>::value> >
-bool FromUTF8(const NarrowString& sNarrow, Functor func)
+bool FromUTF8(typename NarrowString::const_iterator it,
+			  typename NarrowString::const_iterator ie,
+			  Functor func)
+//-----------------------------------------------------------------------------
 {
-	using N=typename NarrowString::value_type;
-
-	uint16_t remaining { 0 };
-	codepoint_t codepoint { 0 };
-	codepoint_t lower_limit { 0 };
-
-	for (const auto sch : sNarrow)
+	for (; DEKAF2_LIKELY(it != ie);)
 	{
+		codepoint_t codepoint = NextCodepointFromUTF8<NarrowString>(it, ie);
 
-		codepoint_t ch = CodepointCast(sch);
-
-		if (sizeof(N) > 1 && ch > 0x0ff)
+		if (DEKAF2_UNLIKELY(codepoint == INVALID_CODEPOINT))
 		{
 			return false;
 		}
 
-		switch (remaining)
+		if (!func(codepoint))
 		{
-
-			default:
-			case 0:
-				{
-					if (ch < 128)
-					{
-						if (!func(ch))
-						{
-							return false;
-						}
-						break;
-					}
-					else if ((ch & 0x0e0) == 0x0c0)
-					{
-						remaining = 1;
-						lower_limit = 0x080;
-						codepoint = ch & 0x01f;
-					}
-					else if ((ch & 0x0f0) == 0x0e0)
-					{
-						remaining = 2;
-						lower_limit = 0x0800;
-						codepoint = ch & 0x0f;
-					}
-					else if ((ch & 0x0f8) == 0x0f0)
-					{
-						remaining = 3;
-						lower_limit = 0x010000;
-						codepoint = ch & 0x07;
-					}
-					else
-					{
-						return false;
-					}
-					break;
-				}
-
-			case 5:
-			case 4:
-			case 3:
-			case 2:
-			case 1:
-				{
-					if ((ch & 0x0c0) != 0x080)
-					{
-						return false;
-					}
-					codepoint <<= 6;
-					codepoint |= (ch & 0x03f);
-					--remaining;
-					if (!remaining)
-					{
-						if (codepoint < lower_limit)
-						{
-							return false;
-						}
-
-						if (!func(codepoint))
-						{
-							return false;
-						}
-						codepoint = 0;
-					}
-					break;
-				}
-
+			return false;
 		}
-
 	}
 
 	return true;
 }
 
+//-----------------------------------------------------------------------------
+template<typename NarrowString, class Functor,
+		 typename = std::enable_if_t<std::is_class<Functor>::value
+									|| std::is_function<Functor>::value> >
+bool FromUTF8(const NarrowString& sNarrow, Functor func)
+//-----------------------------------------------------------------------------
+{
+	return FromUTF8<NarrowString>(sNarrow.begin(), sNarrow.end(), func);
+}
+
+//-----------------------------------------------------------------------------
 template<typename NarrowString, typename WideString,
          typename = std::enable_if_t<!std::is_function<WideString>::value
                                      && !std::is_class<WideString>::value> >
 bool FromUTF8(const NarrowString& sNarrow, WideString& sWide)
+//-----------------------------------------------------------------------------
 {
 	using W = typename WideString::value_type;
 
@@ -624,11 +630,12 @@ bool FromUTF8(const NarrowString& sNarrow, WideString& sWide)
 		}
 		return true;
 	});
-
 }
 
+//-----------------------------------------------------------------------------
 template<typename NarrowString, typename NarrowReturnString, class Functor>
 bool TransformUTF8(const NarrowString& sInput, NarrowReturnString& sOutput, Functor func)
+//-----------------------------------------------------------------------------
 {
 	return FromUTF8(sInput, [&sOutput, &func](codepoint_t uch)
 	{
@@ -636,8 +643,10 @@ bool TransformUTF8(const NarrowString& sInput, NarrowReturnString& sOutput, Func
 	});
 }
 
+//-----------------------------------------------------------------------------
 template<typename NarrowString, typename NarrowReturnString>
 bool ToLowerUTF8(const NarrowString& sInput, NarrowReturnString& sOutput)
+//-----------------------------------------------------------------------------
 {
 	sOutput.reserve(sOutput.size() + sInput.size());
 
@@ -647,8 +656,10 @@ bool ToLowerUTF8(const NarrowString& sInput, NarrowReturnString& sOutput)
 	});
 }
 
+//-----------------------------------------------------------------------------
 template<typename NarrowString, typename NarrowReturnString>
 bool ToUpperUTF8(const NarrowString& sInput, NarrowReturnString& sOutput)
+//-----------------------------------------------------------------------------
 {
 	sOutput.reserve(sOutput.size() + sInput.size());
 

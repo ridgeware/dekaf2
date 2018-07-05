@@ -47,18 +47,20 @@
 #include <cstddef>
 #include <cwctype>
 
-#if __cplusplus > 201402L
-	#if __has_include("bits/kcppcompat.h")
-		#include "bits/kcppcompat.h"
-		#define KUTF8_LIKELY DEKAF2_LIKELY
-		#define KUTF8_UNLIKELY DEKAF2_UNLIKELY
-	#else
-		#define KUTF8_LIKELY(x) x
-		#define KUTF8_UNLIKELY(x) x
-	#endif
+static_assert(__cplusplus >= 201103L, "the UTF8 code lib needs at least a C++11 compiler");
+
+#if defined(__GNUC__) && __GNUC__ >= 4
+	#define KUTF8_LIKELY(expression)   (__builtin_expect((expression), 1))
+	#define KUTF8_UNLIKELY(expression) (__builtin_expect((expression), 0))
 #else
-	#define KUTF8_LIKELY(x) x
-	#define KUTF8_UNLIKELY(x) x
+	#define KUTF8_LIKELY(expression)   (expression)
+	#define KUTF8_UNLIKELY(expxtression) (expression)
+#endif
+
+#if __cplusplus > 201402L
+	#if __has_include("kconfiguration.h")
+		#include "kconfiguration.h"
+	#endif
 #endif
 
 #ifdef DEKAF2

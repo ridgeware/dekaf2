@@ -58,6 +58,23 @@ TEST_CASE("UTF8") {
 		}
 	}
 
+	SECTION("ValidUTF8")
+	{
+		KString sStr("testäöü test日本語abc中文Русский");
+		CHECK( Unicode::ValidUTF8(sStr) == true );
+		CHECK( Unicode::ValidUTF8(sStr.begin()+3, sStr.end()) == true );
+		sStr[6] = 'a';
+		CHECK( Unicode::ValidUTF8(sStr) == false );
+	}
+
+	SECTION("CountUTF8")
+	{
+		KString sStr("testäöü test日本語abc中文Русский");
+		CHECK(              sStr.size() == 47 );
+		CHECK( Unicode::CountUTF8(sStr) == 27 );
+		CHECK( Unicode::CountUTF8(sStr.begin()+2, sStr.end()) == 25 );
+	}
+
 
 }
 

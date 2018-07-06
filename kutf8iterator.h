@@ -121,7 +121,7 @@ public:
 	self_type& operator++()
 	//-----------------------------------------------------------------------------
 	{
-		m_Value = NextCodepointFromUTF8<NarrowString>(m_next, m_end);
+		m_Value = NextCodepointFromUTF8(m_next, m_end);
 		return *this;
 	}
 
@@ -146,7 +146,7 @@ public:
 			m_next -= UTF8Bytes(m_Value);
 		}
 		typename NarrowString::const_iterator hit = m_next;
-		m_Value = PrevCodepointFromUTF8<NarrowString>(m_next, m_begin, m_end);
+		m_Value = PrevCodepointFromUTF8(m_next, m_begin, m_end);
 		m_next = hit;
 		return *this;
 	}
@@ -281,7 +281,7 @@ public:
 			{
 				SaveChangedValue();
 			}
-			m_Value = m_OrigValue = NextCodepointFromUTF8<NarrowString>(m_next, m_String->end());
+			m_Value = m_OrigValue = NextCodepointFromUTF8(m_next, m_String->end());
 		}
 		return *this;
 	}
@@ -316,8 +316,8 @@ public:
 				m_next -= UTF8Bytes(m_Value);
 			}
 
-			typename NarrowString::const_iterator hit = m_next;
-			m_Value = m_OrigValue = PrevCodepointFromUTF8<NarrowString>(m_next, m_String->begin(), m_String->end());
+			auto hit = m_next;
+			m_Value = m_OrigValue = PrevCodepointFromUTF8(m_next, m_String->begin(), m_String->end());
 			m_next = hit;
 		}
 		return *this;
@@ -419,7 +419,7 @@ protected:
 	}
 
 	NarrowString* m_String { nullptr };
-	typename NarrowString::const_iterator m_next;
+	typename NarrowString::iterator m_next;
 	self_type* m_postfix { 0 };
 	value_type m_Value { 0 };
 	value_type m_OrigValue { 0 };

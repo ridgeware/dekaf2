@@ -54,7 +54,7 @@ static_assert(__cplusplus >= 201103L, "the UTF8 code lib needs at least a C++11 
 	#define KUTF8_UNLIKELY(expression) (__builtin_expect((expression), 0))
 #else
 	#define KUTF8_LIKELY(expression)   (expression)
-	#define KUTF8_UNLIKELY(expxtression) (expression)
+	#define KUTF8_UNLIKELY(expression) (expression)
 #endif
 
 #if __cplusplus > 201402L

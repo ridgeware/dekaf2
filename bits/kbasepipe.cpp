@@ -100,7 +100,7 @@ bool KBasePipe::IsRunning()
 
 	wait();
 
-	return (m_iExitCode == EXIT_CODE_NOT_SET);
+	return (m_pid > 0 && m_iExitCode == EXIT_CODE_NOT_SET);
 
 } // IsRunning
 

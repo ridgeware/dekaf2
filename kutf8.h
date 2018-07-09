@@ -208,14 +208,16 @@ template <typename T>
 class HasSize
 {
 private:
-	typedef char YesType[1];
-	typedef char NoType[2];
+	typedef char Yes;
+	typedef char No[2];
 
-	template <typename C> static YesType& test( decltype(&C::size) ) ;
-	template <typename C> static NoType& test(...);
+	template<typename C> static auto Test(void*)
+	-> decltype(size_t{std::declval<C const>().size()}, Yes{});
+
+	template<typename> static No& Test(...);
 
 public:
-	enum { value = sizeof(test<T>(0)) == sizeof(YesType) };
+	static constexpr bool const value = sizeof(Test<T>(0)) == sizeof(Yes);
 };
 
 } // end of namespace detail
@@ -615,13 +617,15 @@ codepoint_t NextCodepointFromUTF8(Iterator& it, Iterator ie)
 }
 
 //-----------------------------------------------------------------------------
-/// Return codepoint before position it in range ibegin-iend, decrement it to point
+/// Return codepoint before position it in range ibegin-it, decrement it to point
 /// to the begin of the new (previous) codepoint
 template<typename Iterator>
 constexpr
-codepoint_t PrevCodepointFromUTF8(Iterator& it, Iterator ibegin, Iterator iend)
+codepoint_t PrevCodepointFromUTF8(Iterator& it, Iterator ibegin)
 //-----------------------------------------------------------------------------
 {
+	auto iend = it;
+
 	while (KUTF8_LIKELY(it != ibegin))
 	{
 		// check if this char starts a UTF8 sequence

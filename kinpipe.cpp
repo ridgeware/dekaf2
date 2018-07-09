@@ -1,5 +1,4 @@
-﻿/*
-//-----------------------------------------------------------------------------//
+/*
 //
 // DEKAF(tm): Lighter, Faster, Smarter (tm)
 //
@@ -107,32 +106,29 @@ bool KInPipe::Open(KStringView sProgram)
 int KInPipe::Close ()
 //-----------------------------------------------------------------------------
 {
-	int iExitCode = -1;
-
-	// Close Stream
-	KFDReader::close();
-	// Close the pipe
-	::close(m_readPdes[1]);
-	// Child has been cut off from parent, let it terminate for up to a minute
-	WaitForFinished(60000);
-
-	// is the child still running?
-	if (false == IsRunning())
+	if (m_pid > 0)
 	{
-		// child not running
-		iExitCode = m_iExitCode;
-	}
-	else
-	{
-		// the child process has been giving us trouble. Kill it
-		kill(m_pid, SIGKILL);
-	}
+		// Close Stream
+		KFDReader::close();
+		// Close the pipe
+		::close(m_readPdes[1]);
+		// Child has been cut off from parent, let it terminate for up to a minute
+		WaitForFinished(60000);
 
-	m_pid = -1;
-	m_readPdes[0] = -1;
-	m_readPdes[1] = -1;
+		// is the child still running?
+		if (IsRunning())
+		{
+			// the child process has been giving us trouble. Kill it
+			kill(m_pid, SIGKILL);
+			m_iExitCode = -1;
+		}
 
-	return (iExitCode);
+		m_pid = -1;
+		m_readPdes[0] = -1;
+		m_readPdes[1] = -1;
+	}
+	
+	return (m_iExitCode == EXIT_CODE_NOT_SET) ? -1 : m_iExitCode;
 
 } // Close
 
@@ -141,10 +137,8 @@ bool KInPipe::OpenReadPipe(KStringView sProgram)
 //-----------------------------------------------------------------------------
 {
 	// Reset status vars and pipes.
-	m_pid               = -1;
-	m_bChildStatusValid = false;
-	m_iChildStatus      = -1;
-	m_iExitCode         = -1;
+	m_pid       = -1;
+	m_iExitCode = EXIT_CODE_NOT_SET;
 
 	// try to open a pipe
 	if (pipe(m_readPdes) < 0)
@@ -161,6 +155,8 @@ bool KInPipe::OpenReadPipe(KStringView sProgram)
 			::close(m_readPdes[0]);
 			::close(m_readPdes[1]);
 			m_pid = -1;
+			m_readPdes[0] = -1;
+			m_readPdes[1] = -1;
 			break;
 		}
 
@@ -189,6 +185,7 @@ bool KInPipe::OpenReadPipe(KStringView sProgram)
 	::close(m_readPdes[1]);
 
 	return true;
+
 } // OpenReadPipe
 
 } // end namespace dekaf2

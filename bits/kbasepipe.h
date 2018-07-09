@@ -1,5 +1,4 @@
 /*
-//-----------------------------------------------------------------------------//
 //
 // DEKAF(tm): Lighter, Faster, Smarter (tm)
 //
@@ -48,12 +47,7 @@
 // Generic Includes
 #include <sys/wait.h>
 
-//## this file, as well as the cpp and kbaseshell.cpp/.h should go into
-//## the bits/ subdirectory as they are never meant to be included directy
-//## by a library user
-namespace dekaf2
-
-{
+namespace dekaf2 {
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class KBasePipe
@@ -105,14 +99,14 @@ public:
 protected:
 //--------
 
-	pid_t m_pid{-1};
-	int   m_iExitCode{-1};
-	int   m_iChildStatus{-1};
-	bool  m_bChildStatusValid{false};
+	enum { EXIT_CODE_NOT_SET = INT_MIN };
+
+	pid_t m_pid { -1 };
+	int   m_iExitCode { EXIT_CODE_NOT_SET };
 
 	//-----------------------------------------------------------------------------
 	// waitpid wrapper to ensure it is called only once after child exits
-	bool wait();
+	void wait();
 	//-----------------------------------------------------------------------------
 
 }; // KBasePipe

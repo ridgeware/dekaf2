@@ -1,5 +1,4 @@
 /*
-//-----------------------------------------------------------------------------//
 //
 // DEKAF(tm): Lighter, Faster, Smarter (tm)
 //
@@ -107,33 +106,29 @@ bool KOutPipe::Open(KStringView sProgram)
 int KOutPipe::Close()
 //-----------------------------------------------------------------------------
 {
-	int iExitCode = -1;
-
-	// Close stream
-	KFDWriter::close();
-	// Send EOF by closing write end of pipe
-	::close(m_writePdes[1]);
-	// Child has been cut off from parent, let it terminate for up to a minute
-	WaitForFinished(60000);
-
-
-	// Did the child terminate properly?
-	if (false == IsRunning())
+	if (m_pid > 0)
 	{
-		// child not running
-		iExitCode = m_iExitCode;
-	}
-	else
-	{
-		// the child process has been giving us trouble. Kill it
-		kill(m_pid, SIGKILL);
-	}
+		// Close stream
+		KFDWriter::close();
+		// Send EOF by closing write end of pipe
+		::close(m_writePdes[1]);
+		// Child has been cut off from parent, let it terminate for up to a minute
+		WaitForFinished(60000);
 
-	m_pid = -1;
-	m_writePdes[0] = -1;
-	m_writePdes[1] = -1;
+		// Did the child terminate properly?
+		if (IsRunning())
+		{
+			// the child process has been giving us trouble. Kill it
+			kill(m_pid, SIGKILL);
+			m_iExitCode = -1;
+		}
 
-	return (iExitCode);
+		m_pid = -1;
+		m_writePdes[0] = -1;
+		m_writePdes[1] = -1;
+	}
+	
+	return (m_iExitCode == EXIT_CODE_NOT_SET) ? -1 : m_iExitCode;
 
 } // Close
 
@@ -142,10 +137,8 @@ bool KOutPipe::OpenWritePipe(KStringView sProgram)
 //-----------------------------------------------------------------------------
 {
 	// Reset status vars and pipes.
-	m_pid               = -1;
-	m_bChildStatusValid = false;
-	m_iChildStatus      = -1;
-	m_iExitCode         = -1;
+	m_pid       = -1;
+	m_iExitCode = EXIT_CODE_NOT_SET;
 
 	// try to open a pipe
 	if (pipe(m_writePdes) < 0)

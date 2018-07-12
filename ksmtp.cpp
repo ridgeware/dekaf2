@@ -85,32 +85,14 @@ void KMail::Subject(KStringView sSubject)
 void KMail::Message(KString&& sMessage)
 //-----------------------------------------------------------------------------
 {
-	auto pos = DottingNeededAt(sMessage);
-	if (DEKAF2_UNLIKELY(pos != KStringView::npos))
-	{
-		m_Message.clear();
-		AppendDotted(sMessage, pos);
-	}
-	else
-	{
-		m_Message = std::move(sMessage);
-	}
+	m_Message = std::move(sMessage);
 }
 
 //-----------------------------------------------------------------------------
 KMail& KMail::operator=(KStringView sMessage)
 //-----------------------------------------------------------------------------
 {
-	auto pos = DottingNeededAt(sMessage);
-	if (DEKAF2_UNLIKELY(pos != KStringView::npos))
-	{
-		m_Message.clear();
-		AppendDotted(sMessage, pos);
-	}
-	else
-	{
-		Message(sMessage);
-	}
+	Message(sMessage);
 	return *this;
 }
 
@@ -125,36 +107,8 @@ KMail& KMail::operator+=(KStringView sMessage)
 KMail& KMail::Append(KStringView sMessage)
 //-----------------------------------------------------------------------------
 {
-	auto pos = DottingNeededAt(sMessage);
-	if (DEKAF2_UNLIKELY(pos != KStringView::npos))
-	{
-		AppendDotted(sMessage, pos);
-	}
-	else
-	{
-		m_Message += sMessage;
-	}
+	m_Message += sMessage;
 	return *this;
-}
-
-//-----------------------------------------------------------------------------
-void KMail::AppendDotted(KStringView sMessage, KStringView::size_type iSingleDot)
-//-----------------------------------------------------------------------------
-{
-	m_Message.reserve(m_Message.size() + sMessage.size() + 1);
-
-	KStringView::size_type lastpos = 0;
-	while (iSingleDot != KStringView::npos)
-	{
-		if (iSingleDot > 0)
-		{
-			m_Message += sMessage.substr(lastpos, iSingleDot);
-			lastpos = iSingleDot;
-		}
-		m_Message += '.';
-		iSingleDot = DottingNeededAt(sMessage, iSingleDot+1);
-	}
-	m_Message += sMessage.substr(lastpos, KStringView::npos);
 }
 
 //-----------------------------------------------------------------------------
@@ -163,34 +117,6 @@ void KMail::Add(map_t& map, KStringView Key, KStringView Value)
 {
 	map.emplace(Key, Value);
 }
-
-//-----------------------------------------------------------------------------
-KStringView::size_type KMail::DottingNeededAt(KStringView sMessage, KStringView::size_type start)
-//-----------------------------------------------------------------------------
-{
-	// dotting shall always happen when a dot starts the line, regardless of
-	// it being alone on a line or followed by more characters
-
-	// because we dot on Append(), we have to check if the already existing
-	// string ends with a LF (or implicitly by being empty)
-
-	if (m_Message.empty() || m_Message.back() == '\n')
-	{
-		if (!sMessage.empty() and sMessage.front() == '.')
-		{
-			return 0;
-		}
-	}
-
-	auto pos = sMessage.find("\n.", start);
-	if (pos != KStringView::npos)
-	{
-		++pos;
-	}
-
-	return pos;
-
-} // DottingNeededAt
 
 //-----------------------------------------------------------------------------
 bool KMail::Good() const
@@ -282,7 +208,7 @@ KMIME KMail::MIME() const
 }
 
 //-----------------------------------------------------------------------------
-bool KMail::Send(const KURL& URL)
+bool KMail::Send(const KURL& URL, bool bForceSSL)
 //-----------------------------------------------------------------------------
 {
 	if (!Good())
@@ -292,7 +218,7 @@ bool KMail::Send(const KURL& URL)
 
 	KSMTP server;
 
-	if (!server.Connect(URL))
+	if (!server.Connect(URL, bForceSSL))
 	{
 		m_sError = server.Error();
 		return false;
@@ -398,7 +324,37 @@ bool KSMTP::PrettyPrint(KStringView sHeader, const KMail::map_t& map)
 	}
 
 	return true;
-}
+
+} // PrettyPrint
+
+//-----------------------------------------------------------------------------
+bool KSMTP::SendDottedMessage(KStringView sMessage)
+//-----------------------------------------------------------------------------
+{
+	for (;!sMessage.empty();)
+	{
+		auto pos = sMessage.find("\n.");
+		if (pos != KStringView::npos)
+		{
+			pos += 2;
+			if (!(*m_Connection)->Write(sMessage.substr(0, pos)).Good())
+			{
+				return false;
+			}
+			sMessage.remove_prefix(pos);
+			if (!(*m_Connection)->Write('.').Good())
+			{
+				return false;
+			}
+		}
+		else
+		{
+			return (*m_Connection)->Write(sMessage).Good();
+		}
+	}
+	return true;
+
+} // SendDottedMessage
 
 //-----------------------------------------------------------------------------
 bool KSMTP::Send(const KMail& Mail)
@@ -511,7 +467,7 @@ bool KSMTP::Send(const KMail& Mail)
 		return false;
 	}
 
-	if (!(*m_Connection)->Write(Mail.Message()).Good())
+	if (!SendDottedMessage(Mail.Message()))
 	{
 		m_sError = "cannot send mail body";
 		Disconnect();
@@ -531,14 +487,14 @@ bool KSMTP::Send(const KMail& Mail)
 } // Send
 
 //-----------------------------------------------------------------------------
-bool KSMTP::Connect(const KURL& URL)
+bool KSMTP::Connect(const KURL& URL, bool bForceSSL)
 //-----------------------------------------------------------------------------
 {
 	kDebug(1, "connecting to SMTP server {} on port {}", URL.Domain.Serialize(), URL.Port.Serialize());
 
 	m_sError.clear();
 
-	m_Connection = KConnection::Create(URL);
+	m_Connection = KConnection::Create(URL, bForceSSL);
 
 	if (!Good())
 	{
@@ -576,7 +532,8 @@ void KSMTP::Disconnect()
 	{
 		m_Connection->Disconnect();
 	}
-}
+
+} // Disconnect
 
 //-----------------------------------------------------------------------------
 bool KSMTP::Good() const

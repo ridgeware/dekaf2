@@ -61,6 +61,7 @@ namespace dekaf2 {
 /// This class takes all information for an email message. It can then be used
 /// as an argument for the KSMTP class, or sent via the convenience Send()
 /// method of KMail, which internally calls KSMTP.
+/// If KMail is not instantiated with the
 class KMail
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -98,7 +99,7 @@ public:
 	/// Returns true if this mail has all elements needed for expedition
 	bool Good() const;
 	/// Send the mail via MTA at URL
-	bool Send(const KURL& URL);
+	bool Send(const KURL& URL, bool bForceSSL);
 	/// Set the message
 	KMail& operator=(KStringView sMessage);
 	/// Append to message
@@ -134,8 +135,6 @@ private:
 //----------
 
 	void Add(map_t& map, KStringView Key, KStringView Value = KStringView{});
-	KStringView::size_type DottingNeededAt(KStringView sMessage, KStringView::size_type start = 0);
-	void AppendDotted(KStringView sMessage, KStringView::size_type iSingleDot);
 
 	map_t m_To;
 	map_t m_Cc;
@@ -162,18 +161,18 @@ public:
 //----------
 
 	/// Ctor - connects to MTA if argument is not empty
-	KSMTP(KStringView sServer = KStringView{})
+	KSMTP(KStringView sServer = KStringView{}, bool bForceSSL = false)
 	{
 		if (!sServer.empty())
 		{
-			Connect(sServer);
+			Connect(sServer, bForceSSL);
 		}
 	}
 
 	/// Ctor - connects to MTA
-	KSMTP(const KURL& URL)
+	KSMTP(const KURL& URL, bool bForceSSL)
 	{
-		Connect(URL);
+		Connect(URL, bForceSSL);
 	}
 
 	KSMTP(const KSMTP&) = delete;
@@ -182,11 +181,11 @@ public:
 	KSMTP& operator=(KSMTP&&) = default;
 
 	/// Connect to MTA
-	bool Connect(const KURL& URL);
+	bool Connect(const KURL& URL, bool bForceSSL);
 	/// Connect to MTA
-	bool Connect(KStringView sServer)
+	bool Connect(KStringView sServer, bool bForceSSL)
 	{
-		return Connect(KURL(sServer));
+		return Connect(KURL(sServer), bForceSSL);
 	}
 	/// Disconnect from MTA
 	void Disconnect();
@@ -207,6 +206,8 @@ private:
 	bool Talk(KStringView sTX, KStringView sRx);
 	/// Pretty print and send to MTA one set of addresses
 	bool PrettyPrint(KStringView sHeader, const KMail::map_t& map);
+	/// Insert dots if needed
+	bool SendDottedMessage(KStringView sMessage);
 
 	mutable KString m_sError;
 	// The TCP stream class

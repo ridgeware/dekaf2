@@ -57,7 +57,6 @@ namespace dekaf2 {
 /// This class takes all information for an email message. It can then be used
 /// as an argument for the KSMTP class, or sent via the convenience Send()
 /// method of KMail, which internally calls KSMTP.
-/// If KMail is not instantiated with the
 class KMail
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -95,7 +94,7 @@ public:
 	/// Returns true if this mail has all elements needed for expedition
 	bool Good() const;
 	/// Send the mail via MTA at URL
-	bool Send(const KURL& URL, bool bForceSSL);
+	bool Send(const KURL& URL, bool bForceSSL, KStringView sUsername = KStringView{}, KStringView sPassword = KStringView{});
 	/// Set the message
 	KMail& operator=(KStringView sMessage);
 	/// Append to message

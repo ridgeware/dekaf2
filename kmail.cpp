@@ -209,7 +209,7 @@ KMIME KMail::MIME() const
 }
 
 //-----------------------------------------------------------------------------
-bool KMail::Send(const KURL& URL, bool bForceSSL)
+bool KMail::Send(const KURL& URL, bool bForceSSL, KStringView sUsername, KStringView sPassword)
 //-----------------------------------------------------------------------------
 {
 	if (!Good())
@@ -219,7 +219,7 @@ bool KMail::Send(const KURL& URL, bool bForceSSL)
 
 	KSMTP server;
 
-	if (!server.Connect(URL, bForceSSL))
+	if (!server.Connect(URL, bForceSSL, sUsername, sPassword))
 	{
 		m_sError = server.Error();
 		return false;

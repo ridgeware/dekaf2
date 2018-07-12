@@ -41,6 +41,7 @@
 
 #pragma once
 
+#include <map>
 #include "kmail.h"
 #include "kstring.h"
 #include "kstream.h"
@@ -65,18 +66,18 @@ public:
 //----------
 
 	/// Ctor - connects to MTA if argument is not empty
-	KSMTP(KStringView sServer = KStringView{}, bool bForceSSL = false)
+	KSMTP(KStringView sServer = KStringView{}, bool bForceSSL = false, KStringView sUsername = KStringView{}, KStringView sPassword = KStringView{})
 	{
 		if (!sServer.empty())
 		{
-			Connect(sServer, bForceSSL);
+			Connect(sServer, bForceSSL, sUsername, sPassword);
 		}
 	}
 
 	/// Ctor - connects to MTA
-	KSMTP(const KURL& URL, bool bForceSSL)
+	KSMTP(const KURL& URL, bool bForceSSL, KStringView sUsername = KStringView{}, KStringView sPassword = KStringView{})
 	{
-		Connect(URL, bForceSSL);
+		Connect(URL, bForceSSL, sUsername, sPassword);
 	}
 
 	KSMTP(const KSMTP&) = delete;
@@ -85,11 +86,11 @@ public:
 	KSMTP& operator=(KSMTP&&) = default;
 
 	/// Connect to MTA
-	bool Connect(const KURL& URL, bool bForceSSL);
+	bool Connect(const KURL& URL, bool bForceSSL, KStringView sUsername = KStringView{}, KStringView sPassword = KStringView{});
 	/// Connect to MTA
-	bool Connect(KStringView sServer, bool bForceSSL)
+	bool Connect(KStringView sServer, bool bForceSSL, KStringView sUsername = KStringView{}, KStringView sPassword = KStringView{})
 	{
-		return Connect(KURL(sServer), bForceSSL);
+		return Connect(KURL(sServer), bForceSSL, sUsername, sPassword);
 	}
 	/// Disconnect from MTA
 	void Disconnect();
@@ -106,8 +107,10 @@ public:
 private:
 //----------
 
+	using ESMTPParms = std::map<KString, KString>;
+
 	/// Talk to MTA and check response
-	bool Talk(KStringView sTX, KStringView sRx);
+	bool Talk(KStringView sTX, KStringView sRx, ESMTPParms* parms = nullptr);
 	/// Pretty print and send to MTA one set of addresses
 	bool PrettyPrint(KStringView sHeader, const KMail::map_t& map);
 	/// Insert dots if needed

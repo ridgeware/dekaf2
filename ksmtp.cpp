@@ -40,13 +40,15 @@
  */
 
 #include "ksmtp.h"
+#include "ksplit.h"
+#include "kbase64.h"
 #include "klog.h"
 
 
 namespace dekaf2 {
 
 //-----------------------------------------------------------------------------
-bool KSMTP::Talk(KStringView sTx, KStringView sRx)
+bool KSMTP::Talk(KStringView sTx, KStringView sRx, ESMTPParms* parms)
 //-----------------------------------------------------------------------------
 {
 	if (!Good())
@@ -69,18 +71,47 @@ bool KSMTP::Talk(KStringView sTx, KStringView sRx)
 	{
 		KString sLine;
 
-		if (!(*m_Connection)->ReadLine(sLine))
+		// be prepared for multiline responses like
+		// 250-xyz
+		// 250-abc
+		// 250 OK
+		// (in which case we read until the last line, and evaluate only that one)
+		for (;;)
 		{
-			m_sError = "cannot receive from SMTP server";
-			Disconnect();
-			return false;
-		}
 
-		if (!sLine.StartsWith(sRx))
-		{
-			m_sError.Format("SMTP server responded with '{}' instead of '{}' on query '{}'", sLine, sRx, sTx);
-			Disconnect();
-			return false;
+			if (!(*m_Connection)->ReadLine(sLine))
+			{
+				m_sError = "cannot receive from SMTP server";
+				Disconnect();
+				return false;
+			}
+
+			if (sLine.size() > 3 && sLine[3] != ' ')
+			{
+				if (parms)
+				{
+					// add key and value to parms
+					kSplitPairs(*parms, sLine, '-', "\r\n");
+				}
+				// this is a continuation line.. skip it
+				continue;
+			}
+
+			if (!sLine.StartsWith(sRx))
+			{
+				m_sError.Format("SMTP server responded with '{}' instead of '{}' on query '{}'", sLine, sRx, sTx);
+				Disconnect();
+				return false;
+			}
+
+			// success
+			if (parms)
+			{
+				// add key and value to parms
+				kSplitPairs(*parms, sLine, ' ', "\r\n");
+			}
+
+			break;
 		}
 	}
 
@@ -297,7 +328,7 @@ bool KSMTP::Send(const KMail& Mail)
 } // Send
 
 //-----------------------------------------------------------------------------
-bool KSMTP::Connect(const KURL& URL, bool bForceSSL)
+bool KSMTP::Connect(const KURL& URL, bool bForceSSL, KStringView sUsername, KStringView sPassword)
 //-----------------------------------------------------------------------------
 {
 	kDebug(1, "connecting to SMTP server {} on port {}", URL.Domain.Serialize(), URL.Port.Serialize());
@@ -317,16 +348,89 @@ bool KSMTP::Connect(const KURL& URL, bool bForceSSL)
 
 	m_Connection->SetTimeout(m_iTimeout);
 
-	if (Talk("", "220")
-	 && Talk(kFormat("HELO {}", "localhost"), "250"))
+	// get initial welcome message
+	if (!Talk("", "220"))
 	{
-		return true;
+		Disconnect();
+		return false;
+	}
+
+	// try ESMTP
+	ESMTPParms Parms;
+	if (!Talk(kFormat("EHLO {}", "localhost"), "250", &Parms))
+	{
+		// failed. try SMTP
+		if (!Talk(kFormat("HELO {}", "localhost"), "250"))
+		{
+			Disconnect();
+			return false;
+		}
+		else
+		{
+			// SMTP success. No authentication.
+			return true;
+		}
 	}
 	else
 	{
 		Disconnect();
 		return false;
 	}
+
+	// evaluate ESMTP response
+	if (!sUsername.empty() && sPassword.empty())
+	{
+		m_sError = "missing password";
+		return false;
+	}
+	else if (sUsername.empty() && !sPassword.empty())
+	{
+		m_sError = "missing username";
+		return false;
+	}
+
+	// check for SMTP-Auth
+	KString& sAuth = Parms["AUTH"];
+	if (sAuth.find("PLAIN") != KString::npos)
+	{
+		// try a PLAIN style authentication
+		KString sCmd;
+		sCmd = sUsername;
+		sCmd += '\0';
+		sCmd += sPassword;
+		sCmd += '\0';
+		if (!Talk(kFormat("AUTH PLAIN {}", KBase64::Encode(sCmd)), "235"))
+		{
+			Disconnect();
+			return false;
+		}
+	}
+	else if (sAuth.find("LOGIN") != KString::npos)
+	{
+		// try a LOGIN style authentication
+		if (!Talk("AUTH LOGIN", "334"))
+		{
+			Disconnect();
+			return false;
+		}
+		if (!Talk(KBase64::Encode(sUsername), "334"))
+		{
+			Disconnect();
+			return false;
+		}
+		if (!Talk(KBase64::Encode(sPassword), "235"))
+		{
+			Disconnect();
+			return false;
+		}
+	}
+	else
+	{
+		m_sError.Format("Cannot authenticate with server - announced capabilities are {}", sAuth);
+		return false;
+	}
+
+	return true;
 
 } // Connect
 

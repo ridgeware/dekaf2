@@ -298,6 +298,7 @@ set (HEADERS
 	kinshell.h
 	kjson.h
 	klog.h
+	kmail.h
 	kmessagedigest.h
 	kmime.h
 	kmpsearch.h
@@ -380,6 +381,7 @@ set (SOURCES
 	kinshell.cpp
 	kjson.cpp
 	klog.cpp
+	kmail.cpp
 	kmessagedigest.cpp
 	kmime.cpp
 	kmpsearch.cpp

@@ -41,22 +41,24 @@
 
 #pragma once
 
-#include "kmail.h"
 #include "kstring.h"
-#include "kstream.h"
+#include "kstringview.h"
 #include "kurl.h"
-#include "kconnection.h"
+#include "kmime.h"
+#include <map>
+#include <vector>
 
 /// @file ksmtp.h
-/// Adds the KSMTP class which sends a KMail via SMTP to an MTA
+/// Adds the KMail class to represent an email to be sent
 
 namespace dekaf2 {
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// This class speaks the SMTP protocol with an MTA. It takes a KMail class
-/// as the mail to be sent. Multiple mails can be sent consecutively in one
-/// session.
-class KSMTP
+/// This class takes all information for an email message. It can then be used
+/// as an argument for the KSMTP class, or sent via the convenience Send()
+/// method of KMail, which internally calls KSMTP.
+/// If KMail is not instantiated with the
+class KMail
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -64,61 +66,81 @@ class KSMTP
 public:
 //----------
 
-	/// Ctor - connects to MTA if argument is not empty
-	KSMTP(KStringView sServer = KStringView{}, bool bForceSSL = false)
-	{
-		if (!sServer.empty())
-		{
-			Connect(sServer, bForceSSL);
-		}
-	}
+	using map_t = std::map<KString, KString>;
 
-	/// Ctor - connects to MTA
-	KSMTP(const KURL& URL, bool bForceSSL)
+	/// Add one recipient to the To list, first arg is the email,
+	/// second arg is the full name or nothing
+	void To(KStringView sTo, KStringView sPretty = KStringView{});
+	/// Add one recipient to the Cc list, first arg is the email,
+	/// second arg is the full name or nothing
+	void Cc(KStringView sCc, KStringView sPretty = KStringView{});
+	/// Add one recipient to the Bcc list, first arg is the email,
+	/// second arg is the full name or nothing
+	void Bcc(KStringView sBcc, KStringView sPretty = KStringView{});
+	/// Set the sender for the From field, first arg is the email,
+	/// second arg is the full name or nothing
+	void From(KStringView sFrom, KStringView sPretty = KStringView{});
+	/// Set the subject
+	void Subject(KStringView sSubject);
+	/// Set the message
+	void Message(KString&& sMessage);
+	/// Set the message
+	void Message(const KString& sMessage)
 	{
-		Connect(URL, bForceSSL);
+		KString cp(sMessage);
+		Message(std::move(cp));
 	}
-
-	KSMTP(const KSMTP&) = delete;
-	KSMTP(KSMTP&&) = default;
-	KSMTP& operator=(const KSMTP&) = delete;
-	KSMTP& operator=(KSMTP&&) = default;
-
-	/// Connect to MTA
-	bool Connect(const KURL& URL, bool bForceSSL);
-	/// Connect to MTA
-	bool Connect(KStringView sServer, bool bForceSSL)
-	{
-		return Connect(KURL(sServer), bForceSSL);
-	}
-	/// Disconnect from MTA
-	void Disconnect();
-	/// Returns true if connected to an MTA
+	/// Set the MIME type
+	void MIME(KMIME MimeType);
+	/// Returns true if this mail has all elements needed for expedition
 	bool Good() const;
-	/// Send one KMail to MTA
-	bool Send(const KMail& Mail);
-	/// Set the connection timeout in seconds, preset is 30
-	void SetTimeout(uint16_t iSeconds);
+	/// Send the mail via MTA at URL
+	bool Send(const KURL& URL, bool bForceSSL);
+	/// Set the message
+	KMail& operator=(KStringView sMessage);
+	/// Append to message
+	KMail& operator+=(KStringView sMessage);
+	/// Append to message
+	KMail& Append(KStringView sMessage);
+	/// Append with formatting to message
+	template<class... Args>
+	KMail& AppendFormatted(Args&&... args)
+	{
+		return Append(kFormat(std::forward<Args>(args)...));
+	}
+
+	/// Returns the To recipients
+	const map_t& To() const;
+	/// Returns the Cc recipients
+	const map_t& Cc() const;
+	/// Returns the Bcc recipients
+	const map_t& Bcc() const;
+	/// Returns the sender (only first entry in map is valid)
+	const map_t& From() const;
+	/// Returns the subject
+	KStringView Subject() const;
+	/// Returns the message
+	KStringView Message() const;
+	/// Returns the MIME type
+	KMIME MIME() const;
 	/// Returns last error
-	KString Error() const;
+	const KString& Error() const;
 
 //----------
 private:
 //----------
 
-	/// Talk to MTA and check response
-	bool Talk(KStringView sTX, KStringView sRx);
-	/// Pretty print and send to MTA one set of addresses
-	bool PrettyPrint(KStringView sHeader, const KMail::map_t& map);
-	/// Insert dots if needed
-	bool SendDottedMessage(KStringView sMessage);
+	void Add(map_t& map, KStringView Key, KStringView Value = KStringView{});
 
+	map_t m_To;
+	map_t m_Cc;
+	map_t m_Bcc;
+	map_t m_From; // actually we only need one single key and value for this
+	KString m_Subject;
+	KString m_Message;
 	mutable KString m_sError;
-	// The TCP stream class
-	std::unique_ptr<KConnection> m_Connection;
-	// Half a minute for the timeout per default
-	uint16_t m_iTimeout{ 30 };
+	KMIME m_MimeType{ KMIME::NONE };
 
-}; // KSMTP
+}; // KMail
 
 } // end of namespace dekaf2

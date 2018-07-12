@@ -20,6 +20,7 @@ set (USOURCES
 	khtmlcontentblocks_tests.cpp
 	kencode_tests.cpp
 	kfile_tests.cpp
+	khmac_tests.cpp
 	khtmlparser_tests.cpp
 	khtmlcontentblocks_tests.cpp
 	khtmlentities_tests.cpp

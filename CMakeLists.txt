@@ -282,6 +282,7 @@ set (HEADERS
 	kfrozen.h
 	kgetruntimestack.h
 	khash.h
+	khmac.h
 	khtmlcontentblocks.h
 	khtmlentities.h
 	khtmlparser.h
@@ -363,6 +364,7 @@ set (SOURCES
 	kformat.cpp
 	kgetruntimestack.cpp
 	khash.cpp
+	khmac.cpp
 	khtmlcontentblocks.cpp
 	khtmlentities.cpp
 	khtmlparser.cpp

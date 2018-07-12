@@ -371,11 +371,6 @@ bool KSMTP::Connect(const KURL& URL, bool bForceSSL, KStringView sUsername, KStr
 			return true;
 		}
 	}
-	else
-	{
-		Disconnect();
-		return false;
-	}
 
 	// evaluate ESMTP response
 	if (!sUsername.empty() && sPassword.empty())
@@ -386,6 +381,16 @@ bool KSMTP::Connect(const KURL& URL, bool bForceSSL, KStringView sUsername, KStr
 	else if (sUsername.empty() && !sPassword.empty())
 	{
 		m_sError = "missing username";
+		return false;
+	}
+	else if (sUsername.empty() && sPassword.empty())
+	{
+		return true;
+	}
+
+	if (!bForceSSL)
+	{
+		m_sError = "cannot authenticate without encryption";
 		return false;
 	}
 

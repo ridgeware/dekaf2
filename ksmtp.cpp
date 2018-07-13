@@ -387,6 +387,8 @@ bool KSMTP::Connect(const KURL& URL, bool bForceSSL, KStringView sUsername, KStr
 		}
 	}
 
+	bool bIsTLS { false };
+
 	if (m_Connection->IsTLS() && Parms.find("STARTTLS") != Parms.end())
 	{
 		// prepare for TLS handshake
@@ -394,18 +396,24 @@ bool KSMTP::Connect(const KURL& URL, bool bForceSSL, KStringView sUsername, KStr
 		{
 			return false;
 		}
+
 		// and finally kick off the TLS negotiation
 		if (!m_Connection->StartManualTLSHandshake())
 		{
 			return false;
 		}
+
+		// clear the initial feature list from the unencrypted connection
+		Parms.clear();
+
 		// we have now switched to TLS, redo the EHLO (the server may now
 		// advertise different features)
-		Parms.clear();
 		if (!Talk("EHLO localhost", "250", &Parms))
 		{
 			return false;
 		}
+
+		bIsTLS = true;
 	}
 
 	if (sUsername.empty() && sPassword.empty())
@@ -431,14 +439,14 @@ bool KSMTP::Connect(const KURL& URL, bool bForceSSL, KStringView sUsername, KStr
 		return true;
 	}
 
-	if (false && !bForceSSL)
+	if (!bIsTLS)
 	{
 		m_sError = "cannot authenticate without encryption";
 		return false;
 	}
 
 	// check for SMTP-Auth
-	KString& sAuth = Parms["AUTH"];
+	const KString& sAuth = Parms["AUTH"];
 	if (sAuth.find("PLAIN") != KString::npos)
 	{
 		// try a PLAIN style authentication

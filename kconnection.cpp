@@ -177,6 +177,20 @@ bool KConnection::IsSSL() const
 }
 
 //-----------------------------------------------------------------------------
+bool KConnection::SetManualTLSHandshake(bool bYes)
+//-----------------------------------------------------------------------------
+{
+	return false;
+}
+
+//-----------------------------------------------------------------------------
+bool KConnection::StartManualTLSHandshake()
+//-----------------------------------------------------------------------------
+{
+	return false;
+}
+
+//-----------------------------------------------------------------------------
 KString KConnection::Error() const
 //-----------------------------------------------------------------------------
 {
@@ -320,6 +334,24 @@ bool KSSLConnection::IsSSL() const
 	return true;
 
 } // IsSSL
+
+//-----------------------------------------------------------------------------
+bool KSSLConnection::SetManualTLSHandshake(bool bYes)
+//-----------------------------------------------------------------------------
+{
+	auto stream = static_cast<KSSLStream*>(StreamPtr());
+	return stream != nullptr && stream->SetManualTLSHandshake(bYes);
+
+} // SetManualTLSHandshake
+
+//-----------------------------------------------------------------------------
+bool KSSLConnection::StartManualTLSHandshake()
+//-----------------------------------------------------------------------------
+{
+	auto stream = static_cast<KSSLStream*>(StreamPtr());
+	return stream != nullptr && stream->StartManualTLSHandshake();
+
+} // StartManualTLSHandshake
 
 //-----------------------------------------------------------------------------
 bool KSSLConnection::SetTimeout(long iSeconds)

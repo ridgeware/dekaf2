@@ -62,15 +62,15 @@ class KSSLIOStream : public std::iostream
 {
 	using base_type = std::iostream;
 
-	enum { DEFAULT_TIMEOUT = 1 * 30 };
-
 //----------
 public:
 //----------
 
+	enum { DEFAULT_TIMEOUT = 1 * 30 };
+
 	//-----------------------------------------------------------------------------
 	/// Constructs an unconnected stream
-	KSSLIOStream();
+	KSSLIOStream(bool bManualHandshake = false);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -88,7 +88,8 @@ public:
 	KSSLIOStream(const KTCPEndPoint& Endpoint,
 				 bool bVerifyCerts,
 				 bool bAllowSSLv2v3,
-				 int iSecondsTimeout = DEFAULT_TIMEOUT);
+				 int iSecondsTimeout = DEFAULT_TIMEOUT,
+				 bool bManualHandshake = false);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -151,6 +152,18 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// upgrade connection from TCP to TCP over TLS if manual handshaking was set
+	/// at construction. Returns true on success.
+	bool StartManualTLSHandshake();
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// switch to manual handshake, only possible before any data has been read or
+	/// written
+	bool SetManualTLSHandshake(bool bYesno = true);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
 	/// Gets the underlying TCP socket of the stream
 	/// @return
 	/// The TCP socket of the stream (wrapped into ASIO's basic_socket<> template)
@@ -195,14 +208,17 @@ private:
 
 	struct Stream_t
 	{
-		Stream_t(boost::asio::io_service& ioservice, boost::asio::ssl::context& context)
+		// we use manual handshake operation for opportunistic TLS connections (like SMTP with STARTTLS)
+		Stream_t(boost::asio::io_service& ioservice, boost::asio::ssl::context& context, bool bManualHandshake_)
 		: Socket(ioservice, context)
+		, bManualHandshake(bManualHandshake_)
 		{}
 
 		tcpstream Socket;
 		boost::system::error_code ec;
 		int iTimeoutMilliseconds { 30 * 1000 };
 		bool bNeedHandshake { true };
+		bool bManualHandshake { false };
 	};
 
 	Stream_t m_Stream;
@@ -247,11 +263,11 @@ private:
 using KSSLStream = KReaderWriter<KSSLIOStream>;
 
 //-----------------------------------------------------------------------------
-std::unique_ptr<KSSLStream> CreateKSSLStream();
+std::unique_ptr<KSSLStream> CreateKSSLStream(bool bManualHandshake = false);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
-std::unique_ptr<KSSLStream> CreateKSSLStream(const KTCPEndPoint& EndPoint, bool bVerifyCerts, bool bAllowSSLv2v3);
+std::unique_ptr<KSSLStream> CreateKSSLStream(const KTCPEndPoint& EndPoint, bool bVerifyCerts, bool bAllowSSLv2v3, bool bManualHandshake = false);
 //-----------------------------------------------------------------------------
 
 } // end of namespace dekaf2

@@ -57,7 +57,7 @@ namespace dekaf2 {
 KSSLIOStream::POLLSTATE KSSLIOStream::timeout(bool bForReading, Stream_t* stream)
 //-----------------------------------------------------------------------------
 {
-	if (bForReading)
+	if (bForReading && !stream->bNeedHandshake)
 	{
 		// first check if there is still unread data in the internal
 		// SSL buffers (this is in openssl)
@@ -188,6 +188,39 @@ bool KSSLIOStream::handshake(boost::asio::ssl::stream_base::handshake_type role,
 } // handshake
 
 //-----------------------------------------------------------------------------
+bool KSSLIOStream::StartManualTLSHandshake()
+//-----------------------------------------------------------------------------
+{
+	// check if this stream was constructed with the manual handshake flag
+	if (m_Stream.bManualHandshake)
+	{
+		m_Stream.bManualHandshake = false;
+		return handshake(boost::asio::ssl::stream_base::client, &m_Stream);
+	}
+	else
+	{
+		return false;
+	}
+
+} // StartManualTLSHandshake
+
+//-----------------------------------------------------------------------------
+bool KSSLIOStream::SetManualTLSHandshake(bool bYesno)
+//-----------------------------------------------------------------------------
+{
+	if (m_Stream.bNeedHandshake)
+	{
+		m_Stream.bManualHandshake = bYesno;
+		return true;
+	}
+	else
+	{
+		return false;
+	}
+
+} // SetManualTLSHandshake
+
+//-----------------------------------------------------------------------------
 std::streamsize KSSLIOStream::SSLStreamReader(void* sBuffer, std::streamsize iCount, void* stream_)
 //-----------------------------------------------------------------------------
 {
@@ -197,9 +230,12 @@ std::streamsize KSSLIOStream::SSLStreamReader(void* sBuffer, std::streamsize iCo
 	{
 		Stream_t* stream = static_cast<Stream_t*>(stream_);
 
-		if (!handshake(boost::asio::ssl::stream_base::server, stream)) // SSL servers read first
+		if (!stream->bManualHandshake)
 		{
-			return -1;
+			if (!handshake(boost::asio::ssl::stream_base::server, stream)) // SSL servers read first
+			{
+				return -1;
+			}
 		}
 
 		if (timeout(true, stream) == POLL_FAILURE)
@@ -207,7 +243,14 @@ std::streamsize KSSLIOStream::SSLStreamReader(void* sBuffer, std::streamsize iCo
 			return -1;
 		}
 
-		iRead = stream->Socket.read_some(boost::asio::buffer(sBuffer, iCount), stream->ec);
+		if (!stream->bManualHandshake)
+		{
+			iRead = stream->Socket.read_some(boost::asio::buffer(sBuffer, iCount), stream->ec);
+		}
+		else
+		{
+			iRead = stream->Socket.next_layer().read_some(boost::asio::buffer(sBuffer, iCount), stream->ec);
+		}
 
 		if (iRead < 0 || stream->ec.value() != 0)
 		{
@@ -229,9 +272,12 @@ std::streamsize KSSLIOStream::SSLStreamWriter(const void* sBuffer, std::streamsi
 	{
 		Stream_t* stream = static_cast<Stream_t*>(stream_);
 
-		if (!handshake(boost::asio::ssl::stream_base::client, stream)) // SSL servers read first
+		if (!stream->bManualHandshake)
 		{
-			return 0;
+			if (!handshake(boost::asio::ssl::stream_base::client, stream)) // SSL clients write first
+			{
+				return 0;
+			}
 		}
 
 		if (timeout(false, stream) != POLL_SUCCESS)
@@ -239,8 +285,15 @@ std::streamsize KSSLIOStream::SSLStreamWriter(const void* sBuffer, std::streamsi
 			return 0;
 		}
 
-		iWrote = stream->Socket.write_some(boost::asio::buffer(sBuffer, iCount), stream->ec);
-		
+		if (!stream->bManualHandshake)
+		{
+			iWrote = stream->Socket.write_some(boost::asio::buffer(sBuffer, iCount), stream->ec);
+		}
+		else
+		{
+			iWrote = stream->Socket.next_layer().write_some(boost::asio::buffer(sBuffer, iCount), stream->ec);
+		}
+
 		if (iWrote != iCount || stream->ec.value() != 0)
 		{
 			kDebug(1, "cannot write to stream: {}", stream->ec.message());
@@ -252,7 +305,7 @@ std::streamsize KSSLIOStream::SSLStreamWriter(const void* sBuffer, std::streamsi
 } // SSLStreamWriter
 
 //-----------------------------------------------------------------------------
-KSSLIOStream::KSSLIOStream()
+KSSLIOStream::KSSLIOStream(bool bManualHandshake)
 //-----------------------------------------------------------------------------
     : base_type(&m_SSLStreamBuf)
     #if (BOOST_VERSION < 106600)
@@ -260,13 +313,13 @@ KSSLIOStream::KSSLIOStream()
     #else
     , m_Context(boost::asio::ssl::context::tlsv12_client)
     #endif
-    , m_Stream(m_IO_Service, m_Context)
+    , m_Stream(m_IO_Service, m_Context, bManualHandshake)
 {
 	Timeout(DEFAULT_TIMEOUT);
 }
 
 //-----------------------------------------------------------------------------
-KSSLIOStream::KSSLIOStream(const KTCPEndPoint& Endpoint, bool bVerifyCerts, bool bAllowSSLv2v3, int iSecondsTimeout)
+KSSLIOStream::KSSLIOStream(const KTCPEndPoint& Endpoint, bool bVerifyCerts, bool bAllowSSLv2v3, int iSecondsTimeout, bool bManualHandshake)
 //-----------------------------------------------------------------------------
     : base_type(&m_SSLStreamBuf)
     #if (BOOST_VERSION < 106600)
@@ -274,7 +327,7 @@ KSSLIOStream::KSSLIOStream(const KTCPEndPoint& Endpoint, bool bVerifyCerts, bool
     #else
     , m_Context(boost::asio::ssl::context::tlsv12_client)
     #endif
-    , m_Stream(m_IO_Service, m_Context)
+    , m_Stream(m_IO_Service, m_Context, bManualHandshake)
 {
 	Timeout(iSecondsTimeout);
 	connect(Endpoint, bVerifyCerts, bAllowSSLv2v3);
@@ -359,17 +412,17 @@ bool KSSLIOStream::connect(const KTCPEndPoint& Endpoint, bool bVerifyCerts, bool
 
 
 //-----------------------------------------------------------------------------
-std::unique_ptr<KSSLStream> CreateKSSLStream()
+std::unique_ptr<KSSLStream> CreateKSSLStream(bool bManualHandshake)
 //-----------------------------------------------------------------------------
 {
-	return std::make_unique<KSSLStream>();
+	return std::make_unique<KSSLStream>(bManualHandshake);
 }
 
 //-----------------------------------------------------------------------------
-std::unique_ptr<KSSLStream> CreateKSSLStream(const KTCPEndPoint& EndPoint, bool bVerifyCerts, bool bAllowSSLv2v3)
+std::unique_ptr<KSSLStream> CreateKSSLStream(const KTCPEndPoint& EndPoint, bool bVerifyCerts, bool bAllowSSLv2v3, bool bManualHandshake)
 //-----------------------------------------------------------------------------
 {
-	return std::make_unique<KSSLStream>(EndPoint, bVerifyCerts, bAllowSSLv2v3);
+	return std::make_unique<KSSLStream>(EndPoint, bVerifyCerts, bAllowSSLv2v3, KSSLIOStream::DEFAULT_TIMEOUT, bManualHandshake);
 }
 
 

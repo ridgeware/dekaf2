@@ -48,7 +48,7 @@
 namespace dekaf2 {
 
 //-----------------------------------------------------------------------------
-bool KSMTP::Talk(KStringView sTx, KStringView sRx, ESMTPParms* parms)
+bool KSMTP::Talk(KStringView sTx, KStringView sRx, ESMTPParms* parms, bool bDisconnectOnFailure)
 //-----------------------------------------------------------------------------
 {
 	if (!Good())
@@ -62,7 +62,10 @@ bool KSMTP::Talk(KStringView sTx, KStringView sRx, ESMTPParms* parms)
 		if (!(*m_Connection)->WriteLine(sTx).Flush().Good())
 		{
 			m_sError = "cannot send to SMTP server";
-			Disconnect();
+			if (bDisconnectOnFailure)
+			{
+				Disconnect();
+			}
 			return false;
 		}
 	}
@@ -82,7 +85,10 @@ bool KSMTP::Talk(KStringView sTx, KStringView sRx, ESMTPParms* parms)
 			if (!(*m_Connection)->ReadLine(sLine))
 			{
 				m_sError = "cannot receive from SMTP server";
-				Disconnect();
+				if (bDisconnectOnFailure)
+				{
+					Disconnect();
+				}
 				return false;
 			}
 
@@ -90,8 +96,10 @@ bool KSMTP::Talk(KStringView sTx, KStringView sRx, ESMTPParms* parms)
 			{
 				if (parms)
 				{
+					KStringView sParms = sLine;
+					sParms.remove_prefix(4);
 					// add key and value to parms
-					kSplitPairs(*parms, sLine, '-', "\r\n");
+					kSplitPairs(*parms, sParms, ' ', "\r\n");
 				}
 				// this is a continuation line.. skip it
 				continue;
@@ -100,13 +108,18 @@ bool KSMTP::Talk(KStringView sTx, KStringView sRx, ESMTPParms* parms)
 			if (!sLine.StartsWith(sRx))
 			{
 				m_sError.Format("SMTP server responded with '{}' instead of '{}' on query '{}'", sLine, sRx, sTx);
-				Disconnect();
+				if (bDisconnectOnFailure)
+				{
+					Disconnect();
+				}
 				return false;
 			}
 
 			// success
 			if (parms)
 			{
+				KStringView sParms = sLine;
+				sParms.remove_prefix(4);
 				// add key and value to parms
 				kSplitPairs(*parms, sLine, ' ', "\r\n");
 			}
@@ -114,8 +127,6 @@ bool KSMTP::Talk(KStringView sTx, KStringView sRx, ESMTPParms* parms)
 			break;
 		}
 	}
-
-	m_sError.clear();
 
 	return true;
 
@@ -285,12 +296,12 @@ bool KSMTP::Send(const KMail& Mail)
 		}
 	}
 
-	if (!PrettyPrint("To:", Mail.To()))
+	if (!PrettyPrint("To", Mail.To()))
 	{
 		return false;
 	}
 
-	if (!PrettyPrint("Cc:", Mail.Cc()))
+	if (!PrettyPrint("Cc", Mail.Cc()))
 	{
 		return false;
 	}
@@ -351,18 +362,16 @@ bool KSMTP::Connect(const KURL& URL, bool bForceSSL, KStringView sUsername, KStr
 	// get initial welcome message
 	if (!Talk("", "220"))
 	{
-		Disconnect();
 		return false;
 	}
 
 	// try ESMTP
 	ESMTPParms Parms;
-	if (!Talk(kFormat("EHLO {}", "localhost"), "250", &Parms))
+	if (!Talk(kFormat("EHLO {}", "localhost"), "250", &Parms, false))
 	{
 		// failed. try SMTP
 		if (!Talk(kFormat("HELO {}", "localhost"), "250"))
 		{
-			Disconnect();
 			return false;
 		}
 		else
@@ -370,6 +379,13 @@ bool KSMTP::Connect(const KURL& URL, bool bForceSSL, KStringView sUsername, KStr
 			// SMTP success. No authentication.
 			return true;
 		}
+	}
+
+	if (sUsername.empty() && sPassword.empty())
+	{
+		// check if we have username and password in the URL
+		sUsername = URL.User.get();
+		sPassword = URL.Password.get();
 	}
 
 	// evaluate ESMTP response
@@ -388,7 +404,7 @@ bool KSMTP::Connect(const KURL& URL, bool bForceSSL, KStringView sUsername, KStr
 		return true;
 	}
 
-	if (!bForceSSL)
+	if (false && !bForceSSL)
 	{
 		m_sError = "cannot authenticate without encryption";
 		return false;
@@ -400,13 +416,13 @@ bool KSMTP::Connect(const KURL& URL, bool bForceSSL, KStringView sUsername, KStr
 	{
 		// try a PLAIN style authentication
 		KString sCmd;
-		sCmd = sUsername;
+		sCmd += '\0';
+		sCmd += sUsername;
 		sCmd += '\0';
 		sCmd += sPassword;
 		sCmd += '\0';
 		if (!Talk(kFormat("AUTH PLAIN {}", KBase64::Encode(sCmd)), "235"))
 		{
-			Disconnect();
 			return false;
 		}
 	}
@@ -415,17 +431,14 @@ bool KSMTP::Connect(const KURL& URL, bool bForceSSL, KStringView sUsername, KStr
 		// try a LOGIN style authentication
 		if (!Talk("AUTH LOGIN", "334"))
 		{
-			Disconnect();
 			return false;
 		}
 		if (!Talk(KBase64::Encode(sUsername), "334"))
 		{
-			Disconnect();
 			return false;
 		}
 		if (!Talk(KBase64::Encode(sPassword), "235"))
 		{
-			Disconnect();
 			return false;
 		}
 	}

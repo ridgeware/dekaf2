@@ -110,7 +110,7 @@ private:
 	using ESMTPParms = std::map<KString, KString>;
 
 	/// Talk to MTA and check response
-	bool Talk(KStringView sTX, KStringView sRx, ESMTPParms* parms = nullptr);
+	bool Talk(KStringView sTX, KStringView sRx, ESMTPParms* parms = nullptr, bool bDisconnectOnFailure = true);
 	/// Pretty print and send to MTA one set of addresses
 	bool PrettyPrint(KStringView sHeader, const KMail::map_t& map);
 	/// Insert dots if needed

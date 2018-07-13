@@ -354,6 +354,12 @@ bool KSMTP::Connect(const KURL& URL, bool bForceSSL, KStringView sUsername, KStr
 		return false;
 	}
 
+	if (m_Connection->IsSSL())
+	{
+		// we want an opportunistic TLS handshake (after having issued STARTTLS)
+		m_Connection->SetManualTLSHandshake(true);
+	}
+
 	(*m_Connection)->SetWriterEndOfLine("\r\n");
 	(*m_Connection)->SetReaderRightTrim("\r\n");
 
@@ -376,8 +382,29 @@ bool KSMTP::Connect(const KURL& URL, bool bForceSSL, KStringView sUsername, KStr
 		}
 		else
 		{
-			// SMTP success. No authentication.
+			// SMTP success. No authentication, no STARTTLS
 			return true;
+		}
+	}
+
+	if (m_Connection->IsSSL() && Parms.find("STARTTLS") != Parms.end())
+	{
+		// prepare for TLS handshake
+		if (!Talk("STARTTLS", "220"))
+		{
+			return false;
+		}
+		// and finally kick off the TLS negotiation
+		if (!m_Connection->StartManualTLSHandshake())
+		{
+			return false;
+		}
+		// we have now switched to TLS, redo the EHLO (the server may now
+		// advertise different features)
+		Parms.clear();
+		if (!Talk("EHLO localhost", "250", &Parms))
+		{
+			return false;
 		}
 	}
 

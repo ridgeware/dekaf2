@@ -51,7 +51,11 @@ namespace dekaf2 {
 KHMAC::KHMAC()
 //---------------------------------------------------------------------------
 {
+#if OPENSSL_VERSION_NUMBER < 0x010100000
 	hmacctx = new HMAC_CTX();
+#else
+	hmacctx = HMAC_CTX_new();
+#endif
 
 } // ctor
 
@@ -84,7 +88,11 @@ void KHMAC::Release()
 	if (hmacctx)
 	{
 		HMAC_CTX_cleanup(static_cast<HMAC_CTX*>(hmacctx));
+#if OPENSSL_VERSION_NUMBER < 0x010100000
 		delete static_cast<HMAC_CTX*>(hmacctx);
+#else
+		HMAC_CTX_free(static_cast<HMAC_CTX*>(hmacctx));
+#endif
 		hmacctx = nullptr;
 	}
 

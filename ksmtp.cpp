@@ -354,7 +354,7 @@ bool KSMTP::Connect(const KURL& URL, bool bForceSSL, KStringView sUsername, KStr
 		return false;
 	}
 
-	if (m_Connection->IsSSL())
+	if (m_Connection->IsTLS())
 	{
 		// we want an opportunistic TLS handshake (after having issued STARTTLS)
 		m_Connection->SetManualTLSHandshake(true);
@@ -387,7 +387,7 @@ bool KSMTP::Connect(const KURL& URL, bool bForceSSL, KStringView sUsername, KStr
 		}
 	}
 
-	if (m_Connection->IsSSL() && Parms.find("STARTTLS") != Parms.end())
+	if (m_Connection->IsTLS() && Parms.find("STARTTLS") != Parms.end())
 	{
 		// prepare for TLS handshake
 		if (!Talk("STARTTLS", "220"))

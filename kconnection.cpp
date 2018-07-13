@@ -170,7 +170,7 @@ bool KConnection::SetTimeout(long iSeconds)
 }
 
 //-----------------------------------------------------------------------------
-bool KConnection::IsSSL() const
+bool KConnection::IsTLS() const
 //-----------------------------------------------------------------------------
 {
 	return false;
@@ -328,12 +328,12 @@ bool KSSLConnection::Good() const
 } // Good
 
 //-----------------------------------------------------------------------------
-bool KSSLConnection::IsSSL() const
+bool KSSLConnection::IsTLS() const
 //-----------------------------------------------------------------------------
 {
 	return true;
 
-} // IsSSL
+} // IsTLS
 
 //-----------------------------------------------------------------------------
 bool KSSLConnection::SetManualTLSHandshake(bool bYes)

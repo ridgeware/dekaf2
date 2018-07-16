@@ -87,8 +87,8 @@ void KHMAC::Release()
 {
 	if (hmacctx)
 	{
-		HMAC_CTX_cleanup(static_cast<HMAC_CTX*>(hmacctx));
 #if OPENSSL_VERSION_NUMBER < 0x010100000
+		HMAC_CTX_cleanup(static_cast<HMAC_CTX*>(hmacctx));
 		delete static_cast<HMAC_CTX*>(hmacctx);
 #else
 		HMAC_CTX_free(static_cast<HMAC_CTX*>(hmacctx));

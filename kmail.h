@@ -81,31 +81,67 @@ public:
 	void From(KStringView sFrom, KStringView sPretty = KStringView{});
 	/// Set the subject
 	void Subject(KStringView sSubject);
-	/// Set the message
+	/// Set the plain text message (UTF-8)
 	void Message(KString&& sMessage);
-	/// Set the message
+	/// Set the plain text message (UTF-8)
 	void Message(const KString& sMessage)
 	{
 		KString cp(sMessage);
 		Message(std::move(cp));
 	}
-	/// Set the MIME type
-	void MIME(KMIME MimeType);
 	/// Returns true if this mail has all elements needed for expedition
 	bool Good() const;
 	/// Send the mail via MTA at URL
-	bool Send(const KURL& URL, bool bForceSSL, KStringView sUsername = KStringView{}, KStringView sPassword = KStringView{});
-	/// Set the message
+	bool Send(const KURL& URL, KStringView sUsername = KStringView{}, KStringView sPassword = KStringView{});
+	/// Set the plain text message
 	KMail& operator=(KStringView sMessage);
-	/// Append to message
+	/// Append to plain text message
 	KMail& operator+=(KStringView sMessage);
-	/// Append to message
-	KMail& Append(KStringView sMessage);
-	/// Append with formatting to message
-	template<class... Args>
-	KMail& AppendFormatted(Args&&... args)
+
+	/// Set the mail body to a multipart structure
+	KMail& Body(KMIMEMultiPart&& part);
+	/// Set the mail body to a multipart structure
+	KMail& Body(const KMIMEMultiPart& part)
 	{
-		return Append(kFormat(std::forward<Args>(args)...));
+		KMIMEMultiPart cp(part);
+		return Body(std::move(cp));
+	}
+	/// Set the mail body to a multipart structure (or to a single part). This voids
+	/// any previously set content.
+	KMail& operator=(KMIMEMultiPart&& part)
+	{
+		return Body(part);
+	}
+	/// Set the mail body to a multipart structure (or to a single part). This voids
+	/// any previously set content.
+	KMail& operator=(const KMIMEMultiPart& part)
+	{
+		return Body(part);
+	}
+	/// Attach a file, automatically creating a multipart structure if not yet
+	/// set
+	bool Attach(KStringView sFilename, KMIME MIME = KMIME::APPLICATION_BINARY);
+	/// Attach KMIMEParts, automatically creating a multipart structure if not yet
+	/// set
+	KMail& Attach(KMIMEPart&& part);
+	/// Attach KMIMEParts, automatically creating a multipart structure if not yet
+	/// set
+	KMail& Attach(const KMIMEPart& part)
+	{
+		KMIMEPart cp(part);
+		return Attach(std::move(cp));
+	}
+	/// Attach KMIMEParts, automatically creating a multipart structure if not yet
+	/// set
+	KMail& operator+=(KMIMEPart&& part)
+	{
+		return Attach(std::move(part));
+	}
+	/// Attach KMIMEParts, automatically creating a multipart structure if not yet
+	/// set
+	KMail& operator+=(const KMIMEPart& part)
+	{
+		return Attach(part);
 	}
 
 	/// Returns the To recipients
@@ -119,9 +155,9 @@ public:
 	/// Returns the subject
 	KStringView Subject() const;
 	/// Returns the message
-	KStringView Message() const;
-	/// Returns the MIME type
-	KMIME MIME() const;
+	KString Serialize() const;
+	/// Returns creation time
+	time_t Time() const;
 	/// Returns last error
 	const KString& Error() const;
 
@@ -138,7 +174,8 @@ private:
 	KString m_Subject;
 	KString m_Message;
 	mutable KString m_sError;
-	KMIME m_MimeType{ KMIME::NONE };
+	time_t m_Time { time(nullptr) };
+	KMIMEMultiPart m_Parts;
 
 }; // KMail
 

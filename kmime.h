@@ -43,6 +43,8 @@
 #pragma once
 
 #include "kstringview.h"
+#include "kwriter.h"
+#include <boost/container/vector.hpp>
 
 namespace dekaf2 {
 
@@ -92,15 +94,20 @@ public:
 	}
 
 	static constexpr KStringViewZ NONE                   = "";
+	static constexpr KStringViewZ TEXT_PLAIN             = "text/plain";
+	static constexpr KStringViewZ TEXT_UTF8              = "text/plain; charset=UTF-8";
 	static constexpr KStringViewZ JSON_UTF8              = "application/json; charset=UTF-8";
 	static constexpr KStringViewZ HTML_UTF8              = "text/html; charset=UTF-8";
 	static constexpr KStringViewZ XML_UTF8               = "text/xml; charset=UTF-8";
 	static constexpr KStringViewZ SWF                    = "application/x-shockwave-flash";
 	static constexpr KStringViewZ WWW_FORM_URLENCODED    = "application/x-www-form-urlencoded";
 	static constexpr KStringViewZ MULTIPART_FORM_DATA    = "multipart/form-data";
-	static constexpr KStringViewZ TEXT_PLAIN             = "text/plain";
+	static constexpr KStringViewZ MULTIPART_ALTERNATIVE  = "multipart/alternative";
+	static constexpr KStringViewZ MULTIPART_MIXED        = "multipart/mixed";
+	static constexpr KStringViewZ MULTIPART_RELATED      = "multipart/related";
 	static constexpr KStringViewZ APPLICATION_BINARY     = "application/octet-stream";
 	static constexpr KStringViewZ APPLICATION_JAVASCRIPT = "application/javascript";
+	static constexpr KStringViewZ IMAGE_JPEG             = "image/jpeg";
 
 //------
 private:
@@ -109,5 +116,123 @@ private:
 	KStringView m_mime{TEXT_PLAIN};
 
 }; // KMIME
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+class KMIMEPart
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+//----------
+public:
+//----------
+
+	KMIMEPart(KMIME MIME = KMIME::NONE) : m_MIME(MIME) {}
+	KMIMEPart(KStringView sMessage, KMIME MIME) : m_MIME(MIME), m_Data(sMessage) {}
+	KMIMEPart(const KMIMEPart&) = default;
+	KMIMEPart(KMIMEPart&&) = default;
+	KMIMEPart& operator=(const KMIMEPart&) = default;
+	KMIMEPart& operator=(KMIMEPart&&) = default;
+	KMIMEPart& operator=(KStringView sv)  { m_Data = sv;  return *this; }
+	KMIMEPart& operator+=(KStringView sv) { m_Data += sv; return *this; }
+	/// Add content of file sFileName to MIME part, use sDispName as attachment name
+	/// else basename of sFileName
+	bool File(KStringView sFilename, KStringView sDispname = KStringView{});
+	/// Add content of Stream to MIME part
+	bool Stream(KInStream& Stream, KStringView sDispname = "untitled");
+
+	/// Is this a multipart structure?
+	bool IsMultiPart() const;
+	/// Is this a binary content?
+	bool IsBinary() const;
+
+	/// Attach another part to this multipart structure - returns false if this->MIME type is not multipart
+	bool Attach(KMIMEPart&& part);
+	/// Attach another part to this multipart structure - returns false if this->MIME type is not multipart
+	bool Attach(const KMIMEPart& part)
+	{
+		return Attach(KMIMEPart(part));
+	}
+	/// Attach another part to this multipart structure - fails if this->MIME type is not multipart
+	KMIMEPart& operator+=(KMIMEPart&& part) { Attach(std::move(part)); return *this; }
+	/// Attach another part to this multipart structure - fails if this->MIME type is not multipart
+	KMIMEPart& operator+=(const KMIMEPart& part) { Attach(part); return *this; }
+
+	bool Serialize(KString& sOut, uint16_t recursion = 0) const;
+	bool Serialize(KOutStream& Stream, uint16_t recursion = 0) const;
+	KString Serialize(uint16_t recursion = 0) const;
+
+	bool empty() const { return m_Parts.empty(); }
+	bool size()  const { return m_Parts.size();  }
+	auto begin() { return m_Parts.begin(); }
+	auto end() { return m_Parts.end(); }
+	KMIME MIME() const { return m_MIME; }
+	const KString& Name() const { return m_sName; }
+	const KString& Data() const { return m_Data; }
+
+//----------
+protected:
+//----------
+
+	KMIME   m_MIME;
+	KString m_Data;
+	KString m_sName;
+
+	// boost::container allows use of incomplete types
+	boost::container::vector<KMIMEPart> m_Parts;
+
+};
+
+using KMIMEMultiPart = KMIMEPart;
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+class KMIMEText : public KMIMEPart
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+//----------
+public:
+//----------
+
+	KMIMEText(KStringView sMessage = KStringView{}) : KMIMEPart(sMessage, KMIME::TEXT_UTF8) {}
+	KMIMEText(const KMIMEText&) = default;
+	KMIMEText(KMIMEText&&) = default;
+	KMIMEText& operator=(const KMIMEText&) = default;
+	KMIMEText& operator=(KMIMEText&&) = default;
+
+};
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+class KMIMEHTML : public KMIMEPart
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+//----------
+public:
+//----------
+
+	KMIMEHTML(KStringView sMessage = KStringView{}) : KMIMEPart(sMessage, KMIME::HTML_UTF8) {}
+	KMIMEHTML(const KMIMEHTML&) = default;
+	KMIMEHTML(KMIMEHTML&&) = default;
+	KMIMEHTML& operator=(const KMIMEHTML&) = default;
+	KMIMEHTML& operator=(KMIMEHTML&&) = default;
+
+};
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+class KMIMEFile : public KMIMEPart
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+//----------
+public:
+//----------
+
+	KMIMEFile(KStringView sFilename, KMIME MIME = KMIME::APPLICATION_BINARY) : KMIMEPart(MIME) { File(sFilename); }
+	KMIMEFile(const KMIMEFile&) = default;
+	KMIMEFile(KMIMEFile&&) = default;
+	KMIMEFile& operator=(const KMIMEFile&) = default;
+	KMIMEFile& operator=(KMIMEFile&&) = default;
+
+};
 
 } // end of namespace dekaf2

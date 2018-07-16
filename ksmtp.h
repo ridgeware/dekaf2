@@ -66,18 +66,18 @@ public:
 //----------
 
 	/// Ctor - connects to MTA if argument is not empty
-	KSMTP(KStringView sServer = KStringView{}, bool bForceSSL = false, KStringView sUsername = KStringView{}, KStringView sPassword = KStringView{})
+	KSMTP(KStringView sServer = KStringView{}, KStringView sUsername = KStringView{}, KStringView sPassword = KStringView{})
 	{
 		if (!sServer.empty())
 		{
-			Connect(sServer, bForceSSL, sUsername, sPassword);
+			Connect(sServer, sUsername, sPassword);
 		}
 	}
 
 	/// Ctor - connects to MTA
-	KSMTP(const KURL& URL, bool bForceSSL, KStringView sUsername = KStringView{}, KStringView sPassword = KStringView{})
+	KSMTP(const KURL& URL, KStringView sUsername = KStringView{}, KStringView sPassword = KStringView{})
 	{
-		Connect(URL, bForceSSL, sUsername, sPassword);
+		Connect(URL, sUsername, sPassword);
 	}
 
 	KSMTP(const KSMTP&) = delete;
@@ -86,11 +86,11 @@ public:
 	KSMTP& operator=(KSMTP&&) = default;
 
 	/// Connect to MTA
-	bool Connect(const KURL& URL, bool bForceSSL, KStringView sUsername = KStringView{}, KStringView sPassword = KStringView{});
+	bool Connect(const KURL& URL, KStringView sUsername = KStringView{}, KStringView sPassword = KStringView{});
 	/// Connect to MTA
-	bool Connect(KStringView sServer, bool bForceSSL, KStringView sUsername = KStringView{}, KStringView sPassword = KStringView{})
+	bool Connect(KStringView sServer, KStringView sUsername = KStringView{}, KStringView sPassword = KStringView{})
 	{
-		return Connect(KURL(sServer), bForceSSL, sUsername, sPassword);
+		return Connect(KURL(sServer), sUsername, sPassword);
 	}
 	/// Disconnect from MTA
 	void Disconnect();

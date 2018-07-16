@@ -43,7 +43,6 @@
 #include "ksmtp.h"
 #include "klog.h"
 
-
 namespace dekaf2 {
 
 //-----------------------------------------------------------------------------
@@ -86,7 +85,28 @@ void KMail::Subject(KStringView sSubject)
 void KMail::Message(KString&& sMessage)
 //-----------------------------------------------------------------------------
 {
-	m_Message = std::move(sMessage);
+	if (m_Parts.empty())
+	{
+		m_Message = std::move(sMessage);
+	}
+	else
+	{
+		// find the text/utf8 part
+		auto it = m_Parts.begin();
+		while (it != m_Parts.end() && it->MIME() != KMIME::TEXT_UTF8)
+		{
+			++it;
+		}
+		if (it != m_Parts.end())
+		{
+			(*it) = sMessage;
+		}
+		else
+		{
+			m_Parts += KMIMEText(std::move(sMessage));
+		}
+
+	}
 }
 
 //-----------------------------------------------------------------------------
@@ -101,14 +121,70 @@ KMail& KMail::operator=(KStringView sMessage)
 KMail& KMail::operator+=(KStringView sMessage)
 //-----------------------------------------------------------------------------
 {
-	return Append(sMessage);
+	if (m_Parts.empty())
+	{
+		m_Message += sMessage;
+	}
+	else
+	{
+		// find the text/utf8 part
+		auto it = m_Parts.begin();
+		while (it != m_Parts.end() && it->MIME() != KMIME::TEXT_UTF8)
+		{
+			++it;
+		}
+		if (it != m_Parts.end())
+		{
+			(*it) += sMessage;
+		}
+		else
+		{
+			m_Parts += KMIMEText(sMessage);
+		}
+	}
+	return *this;
 }
 
 //-----------------------------------------------------------------------------
-KMail& KMail::Append(KStringView sMessage)
+KMail& KMail::Body(KMIMEMultiPart&& parts)
 //-----------------------------------------------------------------------------
 {
-	m_Message += sMessage;
+	m_Parts = parts;
+	return *this;
+}
+
+//-----------------------------------------------------------------------------
+bool KMail::Attach(KStringView sFilename, KMIME MIME)
+//-----------------------------------------------------------------------------
+{
+	KMIMEPart File(MIME);
+	if (File.File(sFilename))
+	{
+		Attach(std::move(File));
+		return true;
+	}
+	else
+	{
+		return false;
+	}
+}
+
+//-----------------------------------------------------------------------------
+KMail& KMail::Attach(KMIMEPart&& part)
+//-----------------------------------------------------------------------------
+{
+	if (m_Parts.empty())
+	{
+		// create a multipart structure
+		m_Parts = KMIMEMultiPart(KMIME::MULTIPART_MIXED);
+		// append a text part if not empty
+		if (!m_Message.empty())
+		{
+			m_Parts += KMIMEText(m_Message);
+			m_Message.clear();
+		}
+	}
+	m_Parts += std::move(part);
 	return *this;
 }
 
@@ -141,7 +217,7 @@ bool KMail::Good() const
 		return false;
 	}
 
-	if (m_Message.empty())
+	if (m_Message.empty() && m_Parts.empty())
 	{
 		kDebug(1, "no body in mail");
 	}
@@ -195,21 +271,34 @@ KStringView KMail::Subject() const
 }
 
 //-----------------------------------------------------------------------------
-KStringView KMail::Message() const
+KString KMail::Serialize() const
 //-----------------------------------------------------------------------------
 {
-	return m_Message;
+	KString sBody;
+	if (m_Parts.empty())
+	{
+		sBody = "Content-Type: ";
+		sBody += KMIME::TEXT_UTF8;
+		sBody += "\r\n\r\n";
+		sBody += m_Message;
+	}
+	else
+	{
+		m_Parts.Serialize(sBody);
+	}
+	return sBody;
+
+} // Serialize
+
+//-----------------------------------------------------------------------------
+time_t KMail::Time() const
+//-----------------------------------------------------------------------------
+{
+	return m_Time;
 }
 
 //-----------------------------------------------------------------------------
-KMIME KMail::MIME() const
-//-----------------------------------------------------------------------------
-{
-	return m_MimeType;
-}
-
-//-----------------------------------------------------------------------------
-bool KMail::Send(const KURL& URL, bool bForceSSL, KStringView sUsername, KStringView sPassword)
+bool KMail::Send(const KURL& URL, KStringView sUsername, KStringView sPassword)
 //-----------------------------------------------------------------------------
 {
 	if (!Good())
@@ -219,7 +308,7 @@ bool KMail::Send(const KURL& URL, bool bForceSSL, KStringView sUsername, KString
 
 	KSMTP server;
 
-	if (!server.Connect(URL, bForceSSL, sUsername, sPassword))
+	if (!server.Connect(URL, sUsername, sPassword))
 	{
 		m_sError = server.Error();
 		return false;

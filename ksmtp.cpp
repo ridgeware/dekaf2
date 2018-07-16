@@ -252,17 +252,13 @@ bool KSMTP::Send(const KMail& Mail)
 		return false;
 	}
 
-	if (Mail.MIME() != KMIME::NONE)
+	if (!Talk("MIME-Version: 1.0", ""))
 	{
-		if (!Talk("MIME-Version: 1.0", "")
-			|| !Talk(kFormat("Content-Type: {}", KStringView(Mail.MIME())), ""))
-		{
-			return false;
-		}
+		return false;
 	}
 
 	KString sDate("Date: ");
-	sDate += kFormTimestamp(0, "%a, %d %b %Y %H:%M:%S %z");
+	sDate += kFormTimestamp(Mail.Time(), "%a, %d %b %Y %H:%M:%S %z");
 
 	if (!Talk(sDate, ""))
 	{
@@ -311,15 +307,7 @@ bool KSMTP::Send(const KMail& Mail)
 		return false;
 	}
 
-	// empty line ends the header
-	if (!(*m_Connection)->WriteLine().Good())
-	{
-		m_sError = "cannot send end of header";
-		Disconnect();
-		return false;
-	}
-
-	if (!SendDottedMessage(Mail.Message()))
+	if (!SendDottedMessage(Mail.Serialize()))
 	{
 		m_sError = "cannot send mail body";
 		Disconnect();
@@ -339,14 +327,15 @@ bool KSMTP::Send(const KMail& Mail)
 } // Send
 
 //-----------------------------------------------------------------------------
-bool KSMTP::Connect(const KURL& URL, bool bForceSSL, KStringView sUsername, KStringView sPassword)
+bool KSMTP::Connect(const KURL& URL, KStringView sUsername, KStringView sPassword)
 //-----------------------------------------------------------------------------
 {
 	kDebug(1, "connecting to SMTP server {} on port {}", URL.Domain.Serialize(), URL.Port.Serialize());
 
 	m_sError.clear();
 
-	m_Connection = KConnection::Create(URL, bForceSSL);
+	// force SSL socket for opportunistic TLS
+	m_Connection = KConnection::Create(URL, true);
 
 	if (!Good())
 	{

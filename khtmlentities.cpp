@@ -2361,7 +2361,7 @@ KString kHTMLEntityDecode(KStringView sIn)
 
 						Unicode::ToUTF8(iChar, sRet);
 
-						if (it != ie && *it  == static_cast<KStringView::value_type>(';'))
+						if (it != ie && *it  == ';')
 						{
 							++it;
 						}

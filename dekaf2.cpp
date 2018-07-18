@@ -58,6 +58,7 @@ namespace dekaf2
 {
 
 const char DefaultLocale[] = "en_US.UTF-8";
+bool Dekaf::s_bShutdown = false;
 
 #if defined(DEKAF2_HAS_LIBPROC) || defined(DEKAF2_IS_UNIX)
 //---------------------------------------------------------------------------
@@ -217,7 +218,7 @@ void Dekaf::StartDefaultTimer()
 		m_iCurrentTime = KTimer::ToTimeT(m_iCurrentTimepoint);
 
 		// create a KTimer
-		m_Timer = std::make_unique<KTimer>(m_bShutdownStorage);
+		m_Timer = std::make_unique<KTimer>();
 
 		if (!m_Timer)
 		{

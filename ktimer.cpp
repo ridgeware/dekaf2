@@ -41,6 +41,7 @@
 */
 
 #include "ktimer.h"
+#include "dekaf2.h"
 #include "klog.h"
 
 namespace dekaf2 {
@@ -49,18 +50,6 @@ namespace dekaf2 {
 KTimer::KTimer()
 //---------------------------------------------------------------------------
 {
-	m_tTiming = std::make_unique<std::thread>(&KTimer::TimingLoop, this);
-
-} // ctor
-
-//---------------------------------------------------------------------------
-/// Avoid a memory violation on program shutdown by providing external storage
-/// for an internal flag
-KTimer::KTimer(bool& bShutdownStorage)
-//---------------------------------------------------------------------------
-: m_bShutdown(bShutdownStorage)
-{
-	m_bShutdown = false;
 	m_tTiming = std::make_unique<std::thread>(&KTimer::TimingLoop, this);
 
 } // ctor
@@ -230,7 +219,7 @@ void KTimer::TimingLoop()
 	{
 		std::this_thread::sleep_for(std::chrono::seconds(1));
 
-		if (m_bShutdown)
+		if (Dekaf::IsShutDown() || m_bShutdown)
 		{
 			return;
 		}

@@ -74,6 +74,7 @@ public:
 	Dekaf(Dekaf&&) = delete;
 	Dekaf& operator=(const Dekaf&) = delete;
 	Dekaf& operator=(Dekaf&&) = delete;
+	~Dekaf() { s_bShutdown = true; }
 
 	//---------------------------------------------------------------------------
 	/// Switch library to multi threaded mode.
@@ -190,6 +191,14 @@ public:
 	void ShutDown(bool bImmediately = true);
 	//---------------------------------------------------------------------------
 
+	//---------------------------------------------------------------------------
+	/// Check if dekaf is shutdown / deconstructed
+	static bool IsShutDown()
+	//---------------------------------------------------------------------------
+	{
+		return s_bShutdown;
+	}
+
 //----------
 private:
 //----------
@@ -224,9 +233,8 @@ private:
 	time_t m_iCurrentTime;
 	KTimer::Timepoint m_iCurrentTimepoint;
 	bool m_bInConstruction { true };
-	// storage used for default timer to prevent from memory violation
-	// on shutdown
-	bool m_bShutdownStorage { false };
+	static bool s_bShutdown;
+
 
 }; // Dekaf
 

@@ -54,6 +54,18 @@ KTimer::KTimer()
 } // ctor
 
 //---------------------------------------------------------------------------
+/// Avoid a memory violation on program shutdown by providing external storage
+/// for an internal flag
+KTimer::KTimer(bool& bShutdownStorage)
+//---------------------------------------------------------------------------
+: m_bShutdown(bShutdownStorage)
+{
+	m_bShutdown = false;
+	m_tTiming = std::make_unique<std::thread>(&KTimer::TimingLoop, this);
+
+} // ctor
+
+//---------------------------------------------------------------------------
 KTimer::~KTimer()
 //---------------------------------------------------------------------------
 {

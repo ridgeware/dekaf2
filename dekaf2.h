@@ -224,6 +224,9 @@ private:
 	time_t m_iCurrentTime;
 	KTimer::Timepoint m_iCurrentTimepoint;
 	bool m_bInConstruction { true };
+	// storage used for default timer to prevent from memory violation
+	// on shutdown
+	bool m_bShutdownStorage { false };
 
 }; // Dekaf
 

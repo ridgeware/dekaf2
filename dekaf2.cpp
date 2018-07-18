@@ -217,7 +217,7 @@ void Dekaf::StartDefaultTimer()
 		m_iCurrentTime = KTimer::ToTimeT(m_iCurrentTimepoint);
 
 		// create a KTimer
-		m_Timer = std::make_unique<KTimer>();
+		m_Timer = std::make_unique<KTimer>(m_bShutdownStorage);
 
 		if (!m_Timer)
 		{

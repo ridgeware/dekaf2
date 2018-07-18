@@ -170,6 +170,10 @@ public:
 	//---------------------------------------------------------------------------
 
 	//---------------------------------------------------------------------------
+	KTimer(bool& bShutdownStorage);
+	//---------------------------------------------------------------------------
+
+	//---------------------------------------------------------------------------
 	KTimer(const KTimer&) = delete;
 	//---------------------------------------------------------------------------
 
@@ -403,7 +407,8 @@ private:
 	};
 
 	std::unique_ptr<std::thread> m_tTiming;
-	bool m_bShutdown{false};
+	bool m_bShutdownLocal{false};
+	bool& m_bShutdown{m_bShutdownLocal};
 	bool m_bDestructWithJoin{false};
 
 	using map_t = std::unordered_map<ID_t, Timer>;

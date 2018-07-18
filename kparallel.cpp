@@ -1,5 +1,4 @@
 /*
-//-----------------------------------------------------------------------------//
 //
 // DEKAF(tm): Lighter, Faster, Smarter (tm)
 //
@@ -42,8 +41,7 @@
 
 #include "kparallel.h"
 
-namespace dekaf2
-{
+namespace dekaf2 {
 
 bool                KRunThreads::s_bHasThreadsStarted{false};
 thread_local size_t KRunThreads::s_iThreadNum{0};
@@ -56,7 +54,8 @@ void KThreadWait::Add(std::unique_ptr<std::thread> newThread)
 //-----------------------------------------------------------------------------
 {
 	threads.emplace_back(std::move(newThread));
-}
+
+} // Add
 
 //-----------------------------------------------------------------------------
 /// wait for all threads to join
@@ -71,7 +70,8 @@ void KThreadWait::Join()
 		}
 		threads.clear();
 	}
-}
+
+} // Join
 
 //-----------------------------------------------------------------------------
 /// Destructor waits for all threads to join
@@ -79,13 +79,8 @@ KThreadWait::~KThreadWait()
 //-----------------------------------------------------------------------------
 {
 	Join();
-}
 
-//-----------------------------------------------------------------------------
-KRunThreads::~KRunThreads()
-//-----------------------------------------------------------------------------
-{
-}
+} // dtor
 
 //-----------------------------------------------------------------------------
 /// sets number of threads to #cpu if numThreads == 0, but
@@ -103,7 +98,8 @@ size_t KRunThreads::SetSize(size_t iNumThreads, size_t iMaxThreads)
 		m_numThreads = iMaxThreads;
 	}
 	return m_numThreads;
-}
+
+} // SetSize
 
 //-----------------------------------------------------------------------------
 /// store (or detach) the new thread object
@@ -126,7 +122,8 @@ void KRunThreads::Store(std::unique_ptr<std::thread>&& thread)
 	{
 		std::this_thread::sleep_for(m_pause);
 	}
-}
+
+} // Store
 
 //-----------------------------------------------------------------------------
 void KBlockOnID::Data::Lock(size_t ID)
@@ -146,7 +143,8 @@ void KBlockOnID::Data::Lock(size_t ID)
 	}
 
 	it->second->lock();
-}
+
+} // Data::Lock
 
 //-----------------------------------------------------------------------------
 bool KBlockOnID::Data::Unlock(size_t ID)
@@ -168,12 +166,12 @@ bool KBlockOnID::Data::Unlock(size_t ID)
 	}
 	else
 	{
-		// TODO add output
-//		cVerboseOut(0, "%s fatal: cannot unlock lock for ID %lu\n", ERR(), ID);
+		kWarning("cannot unlock lock for ID {}", ID);
 	}
 
 	return bFoundLock;
-}
+
+} // Data::Unlock
 
 //-----------------------------------------------------------------------------
 void kParallelForEachPrintProgress(size_t iMax, size_t iDone, size_t iRunning)
@@ -197,7 +195,8 @@ void kParallelForEachPrintProgress(size_t iMax, size_t iDone, size_t iRunning)
 //				OK(),
 //				iPercent,
 //				iInProgress);
-}
+
+} // kParallelForEachPrintProgress
 
 } // end of namespace dekaf2
 

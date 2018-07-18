@@ -1,5 +1,4 @@
 /*
-//-----------------------------------------------------------------------------//
 //
 // DEKAF(tm): Lighter, Faster, Smarter (tm)
 //
@@ -77,7 +76,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Destructor waits for all threads to join
-	virtual ~KThreadWait();
+	~KThreadWait();
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -92,7 +91,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// return count of started threads
-	inline size_t size() const
+	size_t size() const
 	//-----------------------------------------------------------------------------
 	{
 		return threads.size();
@@ -129,10 +128,6 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	virtual ~KRunThreads();
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
 	/// sets number of threads to #cpu if numThreads == 0, but
 	/// not higher than maxThreads if maxThreads > 0.
 	size_t SetSize(size_t iNumThreads, size_t iMaxThreads = 0);
@@ -140,7 +135,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// request max number of threads to be started
-	inline size_t MaxSize() const
+	size_t MaxSize() const
 	//-----------------------------------------------------------------------------
 	{
 		return m_numThreads;
@@ -148,7 +143,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// request a delay after starting each thread
-	inline void StartWithPause(std::chrono::microseconds pause)
+	void StartWithPause(std::chrono::microseconds pause)
 	//-----------------------------------------------------------------------------
 	{
 		m_pause = pause;
@@ -156,7 +151,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// create new threads in detached mode?
-	inline void StartDetached(bool yesno = true)
+	void StartDetached(bool yesno = true)
 	//-----------------------------------------------------------------------------
 	{
 		m_start_detached = yesno;
@@ -183,11 +178,10 @@ public:
 	{
 		size_t iCount{0};
 
-		for (size_t ct=size(); ct < m_numThreads; ++ct) {
-
+		for (size_t ct=size(); ct < m_numThreads; ++ct)
+		{
 			CreateOne(std::forward<Function>(f), std::forward<Args>(args)...);
 			++iCount;
-
 		}
 
 		kDebug(2, "started {} additional threads", iCount);
@@ -198,7 +192,7 @@ public:
 	//-----------------------------------------------------------------------------
 	/// Checks if threads have already been started since startup.
 	/// @return true if at least one thread has already been started, otherwise false.
-	inline static bool HasThreadsStarted()
+	static bool HasThreadsStarted()
 	//-----------------------------------------------------------------------------
 	{
 		return s_bHasThreadsStarted;
@@ -207,7 +201,7 @@ public:
 	//-----------------------------------------------------------------------------
 	/// Gets the internal number of this thread. Each started thread gets an
 	/// incrementing number.
-	inline static size_t GetThreadNum()
+	static size_t GetThreadNum()
 	//-----------------------------------------------------------------------------
 	{
 		return s_iThreadNum;
@@ -286,7 +280,7 @@ void kParallelForEach(size_t size,
 					InputIterator it;
 					{
 						std::lock_guard<std::mutex> lock(m_IterMutex);
-						if (!m_bFirstLoop)
+						if (DEKAF2_LIKELY(!m_bFirstLoop))
 						{
 							++m_iDone;
 							--m_iRunning;
@@ -295,7 +289,7 @@ void kParallelForEach(size_t size,
 						{
 							m_bFirstLoop = false;
 						}
-						if (first == last)
+						if (DEKAF2_UNLIKELY(first == last))
 						{
 							return;
 						}

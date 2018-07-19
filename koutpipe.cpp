@@ -147,6 +147,14 @@ bool KOutPipe::OpenWritePipe(KStringView sProgram)
 		return false;
 	}
 
+	// we need to do the object allocations in the parent
+	// process as otherwise leak detectors would claim the
+	// child has lost allocated memory (as the child would
+	// never run the destructor)
+	KString sCmd(sProgram); // need non const for split
+	std::vector<char*> argV;
+	splitArgsInPlace(sCmd, argV);
+
 	// create a child
 	switch (m_pid = vfork())
 	{
@@ -169,10 +177,6 @@ bool KOutPipe::OpenWritePipe(KStringView sProgram)
 			}
 
 			// execute the command
-			KString sCmd(sProgram); // need non const for split
-			std::vector<char*> argV;
-			splitArgsInPlace(sCmd, argV);
-
 			execvp(argV[0], const_cast<char* const*>(argV.data()));
 
 			_exit(127);

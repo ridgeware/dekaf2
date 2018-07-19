@@ -1,5 +1,4 @@
 /*
-//-----------------------------------------------------------------------------//
 //
 // DEKAF(tm): Lighter, Faster, Smarter (tm)
 //
@@ -167,6 +166,14 @@
 	#define DEKAF2_CATCH(exception) if(false)
 	#define DEKAF2_TRY_EXCEPTION {
 	#define DEKAF2_LOG_EXCEPTION }
+#endif
+
+#if defined(__clang__) || defined(__GNUC__)
+	// disables Address Sanitizer on request for functions which are not
+	// well understood by ASAN
+	#define DEKAF2_NO_ASAN __attribute__((no_sanitize_address))
+#else
+	#define DEKAF2_NO_ASAN
 #endif
 
 // prepare for the shared_mutex enabler below - this has to go into

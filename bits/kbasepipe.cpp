@@ -155,7 +155,7 @@ bool KBasePipe::splitArgsInPlace(KString& argString, CharVec& argVector)
 	}
 	argVector.push_back(nullptr); // null terminate
 	return !argVector.empty();
-	
+
 } // splitArgs
 
 } // end namespace dekaf2

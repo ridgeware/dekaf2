@@ -40,6 +40,7 @@
 //
 */
 
+#include "bits/kfilesystem.h"
 #include "ksystem.h"
 #include "kstring.h"
 #include "klog.h"
@@ -57,7 +58,7 @@ namespace dekaf2
 KString kGetCWD ()
 //-----------------------------------------------------------------------------
 {
-#ifdef USE_STD_FILESYSTEM
+#ifdef DEKAF2_HAS_STD_FILESYSTEM
 	return fs::current_path().string();
 #else
 	enum { MAX_PATH = 1024 };
@@ -83,23 +84,18 @@ KString kGetWhoAmI ()
 {
 	KString sWhoami;
 
-	#ifdef WIN32
+#ifdef WIN32
 	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 	// WINDOWS:
 	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 	enum { MAX = 100 };
 	char szWhoami[MAX + 1] = { 0 };
 	DWORD nSize = MAX;
-	if (!GetUserName (szWhoami, &nSize))
-	{
-		sWhoami = "ERROR";
-	}
-	else
+	if (GetUserName (szWhoami, &nSize))
 	{
 		sWhoami = szWhoami;
 	}
-	
-	#else
+#else
 	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 	// on UNIX, we do *not* cache the kGetWhoami() result, to allow
 	// identity changes through setuid():
@@ -108,10 +104,9 @@ KString kGetWhoAmI ()
 	struct passwd* pPassStruct = getpwuid (iUID);
 	if (pPassStruct)
 	{
-		kDebugLog (2, "kGetWhoAmI(): used new method");
 		sWhoami = pPassStruct->pw_name;
 	}
-	#endif
+#endif
 
 	kDebugLog (2, "kGetWhoAmI(): {}", sWhoami);
 
@@ -128,7 +123,7 @@ KString kGetHostname (KString& sHostname)
 	enum {MAX = 50};
 	char szHostname[MAX+1];
 
-	#ifdef WIN32
+#ifdef WIN32
 	*szHostname = 0;
 
 	DWORD nSize = MAX;
@@ -143,8 +138,7 @@ KString kGetHostname (KString& sHostname)
 	{
 		sHostname = "hostname-error";
 	}
-
-	#else
+#else
 	if (gethostname (szHostname, sizeof (szHostname)) != 0)
 	{
 		kDebugLog (1, "CMD ERROR: hostname");
@@ -154,7 +148,7 @@ KString kGetHostname (KString& sHostname)
 	{
 		sHostname = szHostname;
 	}
-	#endif
+#endif
 
 	kDebugLog (2, "kGetHostname(): %s", sHostname);
 
@@ -252,7 +246,8 @@ uint64_t kGetTid()
 #else
 	return syscall(SYS_gettid);
 #endif
-}
+
+} // kGetTid
 
 
 } // end of namespace dekaf2

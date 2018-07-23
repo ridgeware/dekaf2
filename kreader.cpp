@@ -41,30 +41,14 @@
 */
 
 #include "bits/kcppcompat.h"
+#include "bits/kfilesystem.h"
 
 #include "kreader.h"
 #include "kwriter.h" // we need KOutStream
 #include "klog.h"
 
-#if defined(DEKAF2_HAS_CPP_17) && !defined(__clang__)
- #define USE_STD_FILESYSTEM 1
-#endif
-
-#ifdef USE_STD_FILESYSTEM
- #include <experimental/filesystem>
-#else
- #include <sys/types.h>
- #include <sys/stat.h>
- #include <unistd.h>
- #include <cstdio>
-#endif
-
 namespace dekaf2
 {
-
-#ifdef USE_STD_FILESYSTEM
- namespace fs = std::experimental::filesystem;
-#endif
 
 //-----------------------------------------------------------------------------
 bool kRewind(std::istream& Stream)
@@ -143,12 +127,12 @@ ssize_t kGetSize(std::istream& Stream, bool bFromStart)
 
 //-----------------------------------------------------------------------------
 // we cannot use KStringView as we need to access a C API
-ssize_t kGetSize(const char* sFileName)
+ssize_t kGetSize(KStringViewZ sFileName)
 //-----------------------------------------------------------------------------
 {
-#ifdef USE_STD_FILESYSTEM
+#ifdef DEKAF2_HAS_STD_FILESYSTEM
 	std::error_code ec;
-	ssize_t iSize = static_cast<ssize_t>(fs::file_size(sFileName, ec));
+	ssize_t iSize = static_cast<ssize_t>(fs::file_size(sFileName.c_str(), ec));
 	if (ec)
 	{
 		iSize = -1;
@@ -156,7 +140,7 @@ ssize_t kGetSize(const char* sFileName)
 	return iSize;
 #else // default to posix interface
 	struct stat buf;
-	if (!::stat(sFileName, &buf))
+	if (!::stat(sFileName.c_str(), &buf))
 	{
 		return buf.st_size;
 	}
@@ -165,7 +149,8 @@ ssize_t kGetSize(const char* sFileName)
 		return -1;
 	}
 #endif
-}
+
+} // kGetSize
 
 //-----------------------------------------------------------------------------
 bool kReadAll(std::istream& Stream, KString& sContent, bool bFromStart)

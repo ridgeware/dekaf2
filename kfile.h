@@ -55,25 +55,51 @@ namespace dekaf2
 typedef uint16_t KFileFlags;
 
 //-----------------------------------------------------------------------------
-/// Checks if a file exists.
-/// @param bTestForEmptyFile If true treats a file as non-existing if its size is 0
-bool kFileExists (KStringViewZ sPath, bool bTestForEmptyFile = false);
+/// Checks if a file system entity exists
+bool kExists (KStringViewZ sPath, bool bAsFile, bool bAsDirectory, bool bTestForEmptyFile = false);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
+/// Checks if a file exists.
+/// @param bTestForEmptyFile If true treats a file as non-existing if its size is 0
+inline
+bool kFileExists (KStringViewZ sPath, bool bTestForEmptyFile = false)
+//-----------------------------------------------------------------------------
+{
+	return kExists(sPath, true, false, bTestForEmptyFile);
+}
+
+//-----------------------------------------------------------------------------
 /// Checks if a directory exists.
-bool kDirExists (KStringViewZ sPath);
+inline
+bool kDirExists (KStringViewZ sPath)
+//-----------------------------------------------------------------------------
+{
+	return kExists(sPath, false, true, false);
+}
+
+//-----------------------------------------------------------------------------
+/// Remove (unlink) a file or directory tree.
+bool kRemove (KStringViewZ sPath, bool bDir);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
 /// Remove (unlink) a file.
-bool kRemoveFile (KStringViewZ sPath);
+inline
+bool kRemoveFile (KStringViewZ sPath)
 //-----------------------------------------------------------------------------
+{
+	return kRemove (sPath, false);
+}
 
 //-----------------------------------------------------------------------------
-/// Remove (unlink) a directory (folder).
-bool kRemoveDir (KStringViewZ sPath);
+/// Remove (unlink) a directory (folder) hierarchically.
+inline
+bool kRemoveDir (KStringViewZ sPath)
 //-----------------------------------------------------------------------------
+{
+	return kRemove (sPath, true);
+}
 
 //-----------------------------------------------------------------------------
 /// Isolate the basename of a path (filename without directory).
@@ -94,6 +120,15 @@ time_t kGetLastMod(KStringViewZ sFilePath);
 /// Get size in bytes of a file, returns npos if file not found
 size_t kGetNumBytes(KStringViewZ sFilePath);
 //-----------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
+/// Get size in bytes of a file, returns npos if file not found
+inline
+size_t kFileSize(KStringViewZ sFilePath)
+//-----------------------------------------------------------------------------
+{
+	return kGetNumBytes(sFilePath);
+}
 
 } // end of namespace dekaf2
 

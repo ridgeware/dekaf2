@@ -76,13 +76,7 @@ bool kReadAll(KStringView sFileName, KString& sContent);
 ssize_t kGetSize(std::istream& Stream, bool bFromStart = true);
 
 /// Get the total size of a file with name sFileName. Returns -1 on Failure.
-ssize_t kGetSize(const char* sFileName);
-
-/// Get the total size of a file with name sFileName. Returns -1 on Failure.
-inline ssize_t kGetSize(const KString& sFileName)
-{
-	return kGetSize(sFileName.c_str());
-}
+ssize_t kGetSize(KStringViewZ sFileName);
 
 /// Reposition the device of a std::istream to the beginning. Fails on non-seekable istreams.
 bool kRewind(std::istream& Stream);

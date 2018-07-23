@@ -251,6 +251,7 @@ set (HEADERS
 	bits/kbasepipe.h
 	bits/kconfiguration.h
 	bits/kcppcompat.h
+	bits/kfilesystem.h
 	bits/kistringstream.h
 	bits/kmake_unique.h
 	bits/kmru-std-vector.h

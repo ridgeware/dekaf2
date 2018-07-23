@@ -40,21 +40,7 @@
 //
 */
 
-#include "bits/kcppcompat.h"
-
-#if defined(DEKAF2_HAS_CPP_17) && !defined(__clang__)
- #define USE_STD_FILESYSTEM 1
-#endif
-
-#ifdef USE_STD_FILESYSTEM
- #include <experimental/filesystem>
-#else
- #include <sys/types.h>
- #include <sys/stat.h>
- #include <unistd.h>
- #include <cstdio>
-#endif
-
+#include "bits/kfilesystem.h"
 #include "kfile.h"
 #include "kstring.h"
 #include "klog.h"
@@ -62,15 +48,11 @@
 namespace dekaf2
 {
 
-#ifdef USE_STD_FILESYSTEM
-namespace fs = std::experimental::filesystem;
-#endif
-
 //-----------------------------------------------------------------------------
-bool kFileExists (KStringViewZ sPath, bool bTestForEmptyFile /* = false */ )
+bool kExists (KStringViewZ sPath, bool bAsFile, bool bAsDirectory, bool bTestForEmptyFile)
 //-----------------------------------------------------------------------------
 {
-#ifdef USE_STD_FILESYSTEM
+#ifdef DEKAF2_HAS_STD_FILESYSTEM
 	std::error_code ec;
 
 	fs::file_status status = fs::status(sPath.c_str(), ec);
@@ -85,9 +67,23 @@ bool kFileExists (KStringViewZ sPath, bool bTestForEmptyFile /* = false */ )
 		return false;
 	}
 
-	if (fs::is_directory(status))
+	if (bAsFile)
 	{
-		return false;
+		if (fs::is_directory(status))
+		{
+			return false;
+		}
+	}
+	else if (bAsDirectory)
+	{
+		if (!fs::is_directory(status))
+		{
+			return false;
+		}
+		else
+		{
+			return true;
+		}
 	}
 
 	if (!bTestForEmptyFile)
@@ -112,11 +108,25 @@ bool kFileExists (KStringViewZ sPath, bool bTestForEmptyFile /* = false */ )
 	struct stat StatStruct;
 	if (stat (sPath.c_str(), &StatStruct) < 0)
 	{
-		return false;  // <-- file doesn't exist
+		return false;  // <-- file/dir doesn't exist
 	}
-	if (StatStruct.st_mode & S_IFDIR)
+	if (bAsFile)
 	{
-		return false;   // <-- exists, but is a directory
+		if (StatStruct.st_mode & S_IFDIR)
+		{
+			return false;   // <-- exists, but is a directory
+		}
+	}
+	else if (bAsDirectory)
+	{
+		if ((StatStruct.st_mode & S_IFDIR) == 0)
+		{
+			return false;   // <-- exists, but is not a directory
+		}
+		else
+		{
+			return true;
+		}
 	}
 	if (!bTestForEmptyFile)
 	{
@@ -128,31 +138,8 @@ bool kFileExists (KStringViewZ sPath, bool bTestForEmptyFile /* = false */ )
 	}
 	return true;     // <-- exists, is a file and is non-zero length
 #endif
-} // Exists
 
-//-----------------------------------------------------------------------------
-bool kDirExists (KStringViewZ sPath)
-//-----------------------------------------------------------------------------
-{
-	struct stat StatStruct;
-
-	if (stat (sPath.c_str(), &StatStruct) < 0)
-	{
-		return (false);  // <-- file/dir doesn't exist
-	}
-	else
-	{
-		if (StatStruct.st_mode & S_IFDIR)
-		{
-			return (true);    // <-- directory exists
-		}
-		else
-		{
-			return (false);   // <-- something exists, but is not a directory
-		}
-	}
-
-} // kDirExists
+} // kExists
 
 //-----------------------------------------------------------------------------
 KStringView kBasename(KStringView sFilePath)
@@ -209,20 +196,44 @@ KStringView kDirname(KStringView sFilePath, bool bWithSlash)
 }  // kDirname()
 
 //-----------------------------------------------------------------------------
-bool kRemoveFile (KStringViewZ sPath)
+bool kRemove (KStringViewZ sPath, bool bDir)
 //-----------------------------------------------------------------------------
 {
-	if (!kFileExists (sPath))
+	if (bDir)
 	{
-		return true;
+		if (kFileExists (sPath))
+		{
+			kDebugLog (1, "cannot remove file with kRemoveDir: {}", sPath);
+			return false;
+		}
+
+		if (!kDirExists (sPath))
+		{
+			return true;
+		}
+	}
+	else
+	{
+		if (!kFileExists (sPath))
+		{
+			return true;
+		}
 	}
 
-#ifdef USE_STD_FILESYSTEM
+#ifdef DEKAF2_HAS_STD_FILESYSTEM
 	std::error_code ec;
 	fs::permissions (sPath.c_str(), fs::perms::all, ec); // chmod (ignore failures)
 	ec.clear();
-	fs::remove (sPath.c_str(), ec);
-	if (ec) {
+	if (bDir)
+	{
+		fs::remove_all (sPath.c_str(), ec);
+	}
+	else
+	{
+		fs::remove (sPath.c_str(), ec);
+	}
+	if (ec)
+	{
 		kDebugLog (1, "remove failed: {}: {}", sPath, ec.message());
 	}
 #else
@@ -231,8 +242,14 @@ bool kRemoveFile (KStringViewZ sPath)
 		chmod (sPath.c_str(), S_IRUSR|S_IWUSR|S_IXUSR | S_IRGRP|S_IWGRP|S_IXGRP | S_IROTH|S_IWOTH|S_IXOTH);
 		if (unlink (sPath.c_str()) != 0)
 		{
-			if (unlink (sPath.c_str()) != 0) {
-				kDebugLog (1, "remove failed: {}: {}", sPath, strerror (errno));
+			if (bDir && (rmdir (sPath.c_str()) != 0))
+			{
+				KString sCmd;
+				sCmd.Format ("rm -rf \"{}\"", sPath);
+				if (system (sCmd.c_str()) != 0)
+				{
+					kDebugLog (1, "remove failed: {}: {}", sPath, strerror (errno));
+				}
 			}
 		}
 	}
@@ -240,55 +257,13 @@ bool kRemoveFile (KStringViewZ sPath)
 
 	return (true);
 
-} // kRemoveFile
-
-//-----------------------------------------------------------------------------
-bool kRemoveDir (KStringViewZ sPath)
-//-----------------------------------------------------------------------------
-{
-	if (kFileExists (sPath))
-	{
-		kDebugLog (1, "cannot remove file with kRemoveDir: {}", sPath);
-		return false;
-	}
-
-	if (!kDirExists (sPath))
-	{
-		return true;
-	}
-
-#ifdef USE_STD_FILESYSTEM
-	std::error_code ec;
-	fs::permissions (sPath.c_str(), fs::perms::all, ec); // chmod (ignore failures)
-	ec.clear();
-	fs::remove_all (sPath.c_str(), ec);
-	if (ec) {
-		kDebugLog (1, "remove failed: {}: {}", sPath, ec.message());
-	}
-#else
-	if (unlink (sPath.c_str()) != 0)
-	{
-		chmod (sPath.c_str(), S_IRUSR|S_IWUSR|S_IXUSR | S_IRGRP|S_IWGRP|S_IXGRP | S_IROTH|S_IWOTH|S_IXOTH);
-		if ((unlink (sPath.c_str()) != 0) && (rmdir (sPath.c_str()) != 0))
-		{
-			KString sCmd;
-			sCmd.Format ("rm -rf \"{}\"", sPath);
-			if (system (sCmd.c_str()) != 0) {
-				kDebugLog (1, "remove failed: {}: {}", sPath, strerror (errno));
-			}
-		}
-	}
-#endif
-
-	return (true);
-
-} // kRemoveDir
+} // kRemove
 
 //-----------------------------------------------------------------------------
 time_t kGetLastMod(KStringViewZ sFilePath)
 //-----------------------------------------------------------------------------
 {
-#ifdef USE_STD_FILESYSTEM
+#ifdef DEKAF2_HAS_STD_FILESYSTEM
 	std::error_code ec;
 
 	auto ftime = fs::last_write_time(sFilePath.c_str(), ec);
@@ -315,7 +290,7 @@ time_t kGetLastMod(KStringViewZ sFilePath)
 size_t kGetNumBytes(KStringViewZ sFilePath)
 //-----------------------------------------------------------------------------
 {
-#ifdef USE_STD_FILESYSTEM
+#ifdef DEKAF2_HAS_STD_FILESYSTEM
 	std::error_code ec;
 
 	auto size = fs::file_size(sFilePath.c_str(), ec);

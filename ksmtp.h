@@ -54,7 +54,7 @@
 namespace dekaf2 {
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// This class speaks the SMTP protocol with an MTA. It takes a KMail class
+/// This class speaks the SMTP protocol with a mail relay. It takes a KMail class
 /// as the mail to be sent. Multiple mails can be sent consecutively in one
 /// session.
 class KSMTP
@@ -64,20 +64,15 @@ class KSMTP
 //----------
 public:
 //----------
-
-	/// Ctor - connects to MTA if argument is not empty
-	KSMTP(KStringView sServer = KStringView{}, KStringView sUsername = KStringView{}, KStringView sPassword = KStringView{})
+	/// Ctor - connects to mail relay. Relay may contain a user's name and pass, or
+	/// they can be set explicitly with sUsername / sPassword, which will override
+	/// anything in the URL.
+	KSMTP(const KURL& Relay = KURL{}, KStringView sUsername = KStringView{}, KStringView sPassword = KStringView{})
 	{
-		if (!sServer.empty())
+		if (!Relay.empty())
 		{
-			Connect(sServer, sUsername, sPassword);
+			Connect(Relay, sUsername, sPassword);
 		}
-	}
-
-	/// Ctor - connects to MTA
-	KSMTP(const KURL& URL, KStringView sUsername = KStringView{}, KStringView sPassword = KStringView{})
-	{
-		Connect(URL, sUsername, sPassword);
 	}
 
 	KSMTP(const KSMTP&) = delete;
@@ -85,18 +80,15 @@ public:
 	KSMTP& operator=(const KSMTP&) = delete;
 	KSMTP& operator=(KSMTP&&) = default;
 
-	/// Connect to MTA
-	bool Connect(const KURL& URL, KStringView sUsername = KStringView{}, KStringView sPassword = KStringView{});
-	/// Connect to MTA
-	bool Connect(KStringView sServer, KStringView sUsername = KStringView{}, KStringView sPassword = KStringView{})
-	{
-		return Connect(KURL(sServer), sUsername, sPassword);
-	}
-	/// Disconnect from MTA
+	/// Connect to mail relay. Relay may contain a user's name and pass, or
+	/// they can be set explicitly with sUsername / sPassword, which will override
+	/// anything in the URL.
+	bool Connect(const KURL& Relay, KStringView sUsername = KStringView{}, KStringView sPassword = KStringView{});
+	/// Disconnect from mail relay
 	void Disconnect();
-	/// Returns true if connected to an MTA
+	/// Returns true if connected to a mail relay
 	bool Good() const;
-	/// Send one KMail to MTA
+	/// Send a KMail to the mail relay
 	bool Send(const KMail& Mail);
 	/// Set the connection timeout in seconds, preset is 30
 	void SetTimeout(uint16_t iSeconds);

@@ -307,7 +307,7 @@ bool KSMTP::Send(const KMail& Mail)
 		return false;
 	}
 
-	// the mime serializer guarantees that no dots start a new line,
+	// the KMIMEPart serializer guarantees that no dots start a new line,
 	// therefore we do not need to filter for them again with SendDottedMessage()
 	if (!(*m_Connection)->Write(Mail.Serialize()).Good())
 	{
@@ -329,19 +329,21 @@ bool KSMTP::Send(const KMail& Mail)
 } // Send
 
 //-----------------------------------------------------------------------------
-bool KSMTP::Connect(const KURL& URL, KStringView sUsername, KStringView sPassword)
+bool KSMTP::Connect(const KURL& Relay, KStringView sUsername, KStringView sPassword)
 //-----------------------------------------------------------------------------
 {
-	kDebug(1, "connecting to SMTP server {} on port {}", URL.Domain.Serialize(), URL.Port.Serialize());
+	kDebug(1, "connecting to SMTP server {} on port {}", Relay.Domain.Serialize(), Relay.Port.Serialize());
+
+	Disconnect();
 
 	m_sError.clear();
 
 	// force SSL socket for opportunistic TLS
-	m_Connection = KConnection::Create(URL, true);
+	m_Connection = KConnection::Create(Relay, true);
 
 	if (!Good())
 	{
-		m_sError.Format("cannot connect to SMTP server {}:{} - {}", URL.Domain.Serialize(), URL.Port.Serialize(), Error());
+		m_sError.Format("cannot connect to SMTP server {}:{} - {}", Relay.Domain.Serialize(), Relay.Port.Serialize(), Error());
 		return false;
 	}
 
@@ -410,8 +412,8 @@ bool KSMTP::Connect(const KURL& URL, KStringView sUsername, KStringView sPasswor
 	if (sUsername.empty() && sPassword.empty())
 	{
 		// check if we have username and password in the URL
-		sUsername = URL.User.get();
-		sPassword = URL.Password.get();
+		sUsername = Relay.User.get();
+		sPassword = Relay.Password.get();
 	}
 
 	// evaluate ESMTP response

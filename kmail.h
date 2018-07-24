@@ -86,19 +86,20 @@ public:
 	/// Set the text message (UTF-8, or HTML/UTF-8 if AsHTML() was called before)
 	void Message(const KString& sMessage)
 	{
-		KString cp(sMessage);
-		Message(std::move(cp));
+		Message(KString(sMessage));
 	}
 	/// Set the MIME type for the main content part to HTML/UTF-8. Returns false
 	/// if content was added before.
 	bool AsHTML();
 	/// Returns true if this mail has all elements needed for expedition
 	bool Good() const;
-	/// Send the mail via MTA at URL
+	/// Send the mail via MTA at URL. URL may contain a user's name and pass, or
+	/// they can be set explicitly with sUsername / sPassword, which will override
+	/// anything in the URL.
 	bool Send(const KURL& URL, KStringView sUsername = KStringView{}, KStringView sPassword = KStringView{});
-	/// Set the plain text message (UTF-8, or HTML/UTF-8 if AsHTML() was called before)
+	/// Set the text message (UTF-8, or HTML/UTF-8 if AsHTML() was called before)
 	KMail& operator=(KStringView sMessage);
-	/// Append to plain text message (UTF-8, or HTML/UTF-8 if AsHTML() was called before)
+	/// Append to text message (UTF-8, or HTML/UTF-8 if AsHTML() was called before)
 	KMail& operator+=(KStringView sMessage);
 
 	/// Set the mail body to a multipart structure (or to a single part). This voids
@@ -108,14 +109,13 @@ public:
 	/// any previously set content.
 	KMail& Body(const KMIMEMultiPart& part)
 	{
-		KMIMEMultiPart cp(part);
-		return Body(std::move(cp));
+		return Body(KMIMEMultiPart(part));
 	}
 	/// Set the mail body to a multipart structure (or to a single part). This voids
 	/// any previously set content.
 	KMail& operator=(KMIMEMultiPart&& part)
 	{
-		return Body(part);
+		return Body(std::move(part));
 	}
 	/// Set the mail body to a multipart structure (or to a single part). This voids
 	/// any previously set content.
@@ -133,8 +133,7 @@ public:
 	/// set
 	KMail& Attach(const KMIMEPart& part)
 	{
-		KMIMEPart cp(part);
-		return Attach(std::move(cp));
+		return Attach(KMIMEPart(part));
 	}
 	/// Attach KMIMEParts, automatically creating a multipart structure if not yet
 	/// set

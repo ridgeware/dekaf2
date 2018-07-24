@@ -81,23 +81,24 @@ public:
 	void From(KStringView sFrom, KStringView sPretty = KStringView{});
 	/// Set the subject
 	void Subject(KStringView sSubject);
-	/// Set the plain text message (UTF-8)
+	/// Set the text message (UTF-8, or HTML/UTF-8 if AsHTML() was called before)
 	void Message(KString&& sMessage);
-	/// Set the plain text message (UTF-8)
+	/// Set the text message (UTF-8, or HTML/UTF-8 if AsHTML() was called before)
 	void Message(const KString& sMessage)
 	{
 		KString cp(sMessage);
 		Message(std::move(cp));
 	}
-	/// Set the MIME type for the main content part to HTML
+	/// Set the MIME type for the main content part to HTML/UTF-8. Returns false
+	/// if content was added before.
 	bool AsHTML();
 	/// Returns true if this mail has all elements needed for expedition
 	bool Good() const;
 	/// Send the mail via MTA at URL
 	bool Send(const KURL& URL, KStringView sUsername = KStringView{}, KStringView sPassword = KStringView{});
-	/// Set the plain text message
+	/// Set the plain text message (UTF-8, or HTML/UTF-8 if AsHTML() was called before)
 	KMail& operator=(KStringView sMessage);
-	/// Append to plain text message
+	/// Append to plain text message (UTF-8, or HTML/UTF-8 if AsHTML() was called before)
 	KMail& operator+=(KStringView sMessage);
 
 	/// Set the mail body to a multipart structure (or to a single part). This voids

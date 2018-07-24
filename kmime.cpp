@@ -74,17 +74,18 @@ bool KMIMEPart::Serialize(KString& sOut, uint16_t recursion) const
 		{
 			sOut += "Content-Type: ";
 			sOut += m_MIME;
+
 			sOut += "\r\nContent-Transfer-Encoding: ";
 			if (IsBinary())
 			{
-				sOut += "base64\r\n";
+				sOut += "base64";
 			}
 			else
 			{
-				sOut += "quoted-printable\r\n";
+				sOut += "quoted-printable";
 			}
 
-			sOut += "Content-Disposition: ";
+			sOut += "\r\nContent-Disposition: ";
 			if (!m_sName.empty())
 			{
 				if (m_MIME == KMIME::MULTIPART_FORM_DATA)
@@ -96,14 +97,14 @@ bool KMIMEPart::Serialize(KString& sOut, uint16_t recursion) const
 					sOut += "attachment; filename=\"";
 				}
 				sOut += m_sName;
-				sOut += "\"\r\n";
+				sOut += '"';
 			}
 			else
 			{
-				sOut += "inline\r\n";
+				sOut += "inline";
 			}
 
-			sOut += "\r\n"; // End of headers
+			sOut += "\r\n\r\n"; // End of headers
 
 			if (IsBinary())
 			{

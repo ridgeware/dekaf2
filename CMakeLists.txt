@@ -312,6 +312,7 @@ set (HEADERS
 	kpipe.h
 	kprof.h
 	kprops.h
+	kquotedprintable.h
 	kreader.h
 	kregex.h
 	krow.h
@@ -393,6 +394,7 @@ set (SOURCES
 	kpipe.cpp
 	kprof.cpp
 	kprops.cpp
+	kquotedprintable.cpp
 	kreader.cpp
 	kregex.cpp
 	krow.cpp

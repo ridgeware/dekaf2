@@ -48,6 +48,7 @@
 #include "kbase64.h"
 #include "kurlencode.h"
 #include "khtmlentities.h"
+#include "kquotedprintable.h"
 
 
 namespace dekaf2 {
@@ -80,6 +81,19 @@ public:
 	static void Base64InPlace(KString& sBuffer)
 	{
 		KString sRet = Base64(sBuffer);
+		sBuffer.swap(sRet);
+	}
+
+	/// Wrapper around KQuotedPrintable::Encode. Does the same.
+	static KString QuotedPrintable(KStringView sIn)
+	{
+		return KQuotedPrintable::Encode(sIn);
+	}
+
+	/// Wrapper around KQuotedPrintable::Encode. Does the same with a different interface.
+	static void QuotedPrintableInPlace(KString& sBuffer)
+	{
+		KString sRet = QuotedPrintable(sBuffer);
 		sBuffer.swap(sRet);
 	}
 
@@ -142,6 +156,19 @@ public:
 	static void Base64InPlace(KString& sBuffer)
 	{
 		KString sRet = Base64(sBuffer);
+		sBuffer.swap(sRet);
+	}
+
+	/// Wrapper around KQuotedPrintable::Decode. Does the same.
+	static KString QuotedPrintable(KStringView sIn)
+	{
+		return KQuotedPrintable::Decode(sIn);
+	}
+
+	/// Wrapper around KQuotedPrintable::Encode. Does the same with a different interface.
+	static void QuotedPrintableInPlace(KString& sBuffer)
+	{
+		KString sRet = QuotedPrintable(sBuffer);
 		sBuffer.swap(sRet);
 	}
 

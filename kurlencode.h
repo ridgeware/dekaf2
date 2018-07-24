@@ -262,8 +262,8 @@ void kUrlEncode (KStringView sSource, String& sTarget, const bool excludeTable[2
 		else
 		{
 			sTarget += '%';
-			sTarget += static_cast<char> (sxDigit[(ch>>4)&0xf]);
-			sTarget += static_cast<char> (sxDigit[(ch   )&0xf]);
+			sTarget += sxDigit[(ch >> 4) & 0x0f];
+			sTarget += sxDigit[(ch     ) & 0x0f];
 		}
 	}
 }

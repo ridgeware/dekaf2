@@ -57,11 +57,15 @@ public:
 //----------
 
 	//-----------------------------------------------------------------------------
-	static KString Encode(KStringView sInput);
+	/// Encodes sInput in QuotedPrintable. If bDotStuffing is true, inserts a dot
+	/// at the start of a line that itself starts with a dot.
+	static KString Encode(KStringView sInput, bool bDotStuffing = true);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	static KString Decode(KStringView sInput);
+	/// Decodes sInput from QuotedPrintable. If bDotStuffing is true, removes one dot
+	/// at the start of a line (but does not not check if a second follows).
+	static KString Decode(KStringView sInput, bool bDotStuffing = true);
 	//-----------------------------------------------------------------------------
 
 };

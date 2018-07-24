@@ -85,13 +85,13 @@ public:
 	}
 
 	/// Wrapper around KQuotedPrintable::Encode. Does the same.
-	static KString QuotedPrintable(KStringView sIn)
+	static KString QuotedPrintable(KStringView sIn, bool bDotStuffing = true)
 	{
 		return KQuotedPrintable::Encode(sIn);
 	}
 
 	/// Wrapper around KQuotedPrintable::Encode. Does the same with a different interface.
-	static void QuotedPrintableInPlace(KString& sBuffer)
+	static void QuotedPrintableInPlace(KString& sBuffer, bool bDotStuffing = true)
 	{
 		KString sRet = QuotedPrintable(sBuffer);
 		sBuffer.swap(sRet);
@@ -160,13 +160,13 @@ public:
 	}
 
 	/// Wrapper around KQuotedPrintable::Decode. Does the same.
-	static KString QuotedPrintable(KStringView sIn)
+	static KString QuotedPrintable(KStringView sIn, bool bDotStuffing = true)
 	{
 		return KQuotedPrintable::Decode(sIn);
 	}
 
 	/// Wrapper around KQuotedPrintable::Encode. Does the same with a different interface.
-	static void QuotedPrintableInPlace(KString& sBuffer)
+	static void QuotedPrintableInPlace(KString& sBuffer, bool bDotStuffing = true)
 	{
 		KString sRet = QuotedPrintable(sBuffer);
 		sBuffer.swap(sRet);

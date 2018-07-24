@@ -42,6 +42,7 @@
 
 #include "kmime.h"
 #include "kbase64.h"
+#include "kquotedprintable.h"
 #include "kfile.h"
 #include "klog.h"
 
@@ -73,11 +74,14 @@ bool KMIMEPart::Serialize(KString& sOut, uint16_t recursion) const
 		{
 			sOut += "Content-Type: ";
 			sOut += m_MIME;
-			sOut += "\r\n";
-
+			sOut += "\r\nContent-Transfer-Encoding: ";
 			if (IsBinary())
 			{
-				sOut += "Content-Transfer-Encoding: base64\r\n";
+				sOut += "base64\r\n";
+			}
+			else
+			{
+				sOut += "quoted-printable\r\n";
 			}
 
 			sOut += "Content-Disposition: ";
@@ -107,7 +111,7 @@ bool KMIMEPart::Serialize(KString& sOut, uint16_t recursion) const
 			}
 			else
 			{
-				sOut += m_Data;
+				sOut += KQuotedPrintable::Encode(m_Data, true);
 			}
 
 			return true;
@@ -183,7 +187,7 @@ KString KMIMEPart::Serialize(uint16_t recursion) const
 bool KMIMEPart::Attach(KMIMEPart&& part)
 //-----------------------------------------------------------------------------
 {
-	if (empty() || IsMultiPart())
+	if (IsMultiPart())
 	{
 		m_Parts.push_back(std::move(part));
 		return true;

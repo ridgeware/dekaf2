@@ -307,7 +307,9 @@ bool KSMTP::Send(const KMail& Mail)
 		return false;
 	}
 
-	if (!SendDottedMessage(Mail.Serialize()))
+	// the mime serializer guarantees that no dots start a new line,
+	// therefore we do not need to filter for them again with SendDottedMessage()
+	if (!(*m_Connection)->Write(Mail.Serialize()).Good())
 	{
 		m_sError = "cannot send mail body";
 		Disconnect();

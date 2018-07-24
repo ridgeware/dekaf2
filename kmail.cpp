@@ -82,30 +82,34 @@ void KMail::Subject(KStringView sSubject)
 }
 
 //-----------------------------------------------------------------------------
-void KMail::Message(KString&& sMessage)
+bool KMail::AsHTML()
 //-----------------------------------------------------------------------------
 {
-	if (m_Parts.empty())
+	if (m_iBody)
 	{
-		m_Message = std::move(sMessage);
+		kDebug(2, "Cannot switch to HTML, body part is already existing");
+		return false;
 	}
 	else
 	{
-		// find the text/utf8 part
-		auto it = m_Parts.begin();
-		while (it != m_Parts.end() && it->MIME() != KMIME::TEXT_UTF8)
-		{
-			++it;
-		}
-		if (it != m_Parts.end())
-		{
-			(*it) = sMessage;
-		}
-		else
-		{
-			m_Parts += KMIMEText(std::move(sMessage));
-		}
+		Attach(KMIMEHTML());
+		m_iBody = m_Parts.size();
+		return true;
+	}
+}
 
+//-----------------------------------------------------------------------------
+void KMail::Message(KString&& sMessage)
+//-----------------------------------------------------------------------------
+{
+	if (m_iBody)
+	{
+		m_Parts[m_iBody-1] = sMessage;
+	}
+	else
+	{
+		Attach(KMIMEText(std::move(sMessage)));
+		m_iBody = m_Parts.size();
 	}
 }
 
@@ -121,26 +125,14 @@ KMail& KMail::operator=(KStringView sMessage)
 KMail& KMail::operator+=(KStringView sMessage)
 //-----------------------------------------------------------------------------
 {
-	if (m_Parts.empty())
+	if (m_iBody)
 	{
-		m_Message += sMessage;
+		m_Parts[m_iBody-1] += sMessage;
 	}
 	else
 	{
-		// find the text/utf8 part
-		auto it = m_Parts.begin();
-		while (it != m_Parts.end() && it->MIME() != KMIME::TEXT_UTF8)
-		{
-			++it;
-		}
-		if (it != m_Parts.end())
-		{
-			(*it) += sMessage;
-		}
-		else
-		{
-			m_Parts += KMIMEText(sMessage);
-		}
+		Attach(KMIMEText(sMessage));
+		m_iBody = m_Parts.size();
 	}
 	return *this;
 }
@@ -150,6 +142,7 @@ KMail& KMail::Body(KMIMEMultiPart&& parts)
 //-----------------------------------------------------------------------------
 {
 	m_Parts = parts;
+	m_iBody = 0;
 	return *this;
 }
 
@@ -177,12 +170,6 @@ KMail& KMail::Attach(KMIMEPart&& part)
 	{
 		// create a multipart structure
 		m_Parts = KMIMEMultiPart(KMIME::MULTIPART_MIXED);
-		// append a text part if not empty
-		if (!m_Message.empty())
-		{
-			m_Parts += KMIMEText(m_Message);
-			m_Message.clear();
-		}
 	}
 	m_Parts += std::move(part);
 	return *this;
@@ -217,7 +204,7 @@ bool KMail::Good() const
 		return false;
 	}
 
-	if (m_Message.empty() && m_Parts.empty())
+	if (m_Parts.empty())
 	{
 		kDebug(1, "no body in mail");
 	}
@@ -275,17 +262,9 @@ KString KMail::Serialize() const
 //-----------------------------------------------------------------------------
 {
 	KString sBody;
-	if (m_Parts.empty())
-	{
-		sBody = "Content-Type: ";
-		sBody += KMIME::TEXT_UTF8;
-		sBody += "\r\n\r\n";
-		sBody += m_Message;
-	}
-	else
-	{
-		m_Parts.Serialize(sBody);
-	}
+
+	m_Parts.Serialize(sBody);
+
 	return sBody;
 
 } // Serialize

@@ -48,7 +48,7 @@
 #include <map>
 #include <vector>
 
-/// @file ksmtp.h
+/// @file kmail.h
 /// Adds the KMail class to represent an email to be sent
 
 namespace dekaf2 {
@@ -89,6 +89,8 @@ public:
 		KString cp(sMessage);
 		Message(std::move(cp));
 	}
+	/// Set the MIME type for the main content part to HTML
+	bool AsHTML();
 	/// Returns true if this mail has all elements needed for expedition
 	bool Good() const;
 	/// Send the mail via MTA at URL
@@ -98,9 +100,11 @@ public:
 	/// Append to plain text message
 	KMail& operator+=(KStringView sMessage);
 
-	/// Set the mail body to a multipart structure
+	/// Set the mail body to a multipart structure (or to a single part). This voids
+	/// any previously set content.
 	KMail& Body(KMIMEMultiPart&& part);
-	/// Set the mail body to a multipart structure
+	/// Set the mail body to a multipart structure (or to a single part). This voids
+	/// any previously set content.
 	KMail& Body(const KMIMEMultiPart& part)
 	{
 		KMIMEMultiPart cp(part);
@@ -172,10 +176,10 @@ private:
 	map_t m_Bcc;
 	map_t m_From; // actually we only need one single key and value for this
 	KString m_Subject;
-	KString m_Message;
 	mutable KString m_sError;
 	time_t m_Time { time(nullptr) };
-	KMIMEMultiPart m_Parts;
+	mutable KMIMEMultiPart m_Parts;
+	mutable size_t m_iBody { 0 };
 
 }; // KMail
 

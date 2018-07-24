@@ -165,9 +165,12 @@ public:
 	bool size()  const { return m_Parts.size();  }
 	auto begin() { return m_Parts.begin(); }
 	auto end() { return m_Parts.end(); }
+	KMIMEPart& operator[](size_t pos) { return m_Parts[pos]; }
+	const KMIMEPart& operator[](size_t pos) const { return m_Parts[pos]; }
+
 	KMIME MIME() const { return m_MIME; }
-	const KString& Name() const { return m_sName; }
 	const KString& Data() const { return m_Data; }
+	const KString& Name() const { return m_sName; }
 
 //----------
 protected:

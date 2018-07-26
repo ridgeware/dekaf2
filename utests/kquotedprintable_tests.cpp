@@ -17,7 +17,7 @@ TEST_CASE("KQuotedPrintable")
 	    { "", "" },
 		{ "This is a test.", "This is a test." },
 		{ "Hätten Hüte ein ß im Namen, wären sie möglicherweise keine Hüte mehr, sondern Hüße.",
-			"H=C3=A4tten H=C3=BCte ein =C3=9F im Namen, w=C3=A4ren sie m=C3=B6glicherwei=\nse keine H=C3=BCte mehr, sondern H=C3=BC=C3=9Fe." }
+			"H=C3=A4tten H=C3=BCte ein =C3=9F im Namen, w=C3=A4ren sie m=C3=B6glicherwei=\r\nse keine H=C3=BCte mehr, sondern H=C3=BC=C3=9Fe." }
 	};
 
 	std::vector<std::vector<KString>> dottests = {
@@ -25,12 +25,12 @@ TEST_CASE("KQuotedPrintable")
 		{ "This is a test.", "This is a test.", "This is a test." },
 		{ ".This is a test\n.", "=2EThis is a test\n=2E", "..This is a test\n.." },
 		{ "Hätten Hüte ein ß im Namen, wären sie möglicherwei.se keine Hüte mehr, sondern Hüße.",
-			"H=C3=A4tten H=C3=BCte ein =C3=9F im Namen, w=C3=A4ren sie m=C3=B6glicherwei=\n=2Ese keine H=C3=BCte mehr, sondern H=C3=BC=C3=9Fe.",
-			"H=C3=A4tten H=C3=BCte ein =C3=9F im Namen, w=C3=A4ren sie m=C3=B6glicherwei=\n..se keine H=C3=BCte mehr, sondern H=C3=BC=C3=9Fe."
+			"H=C3=A4tten H=C3=BCte ein =C3=9F im Namen, w=C3=A4ren sie m=C3=B6glicherwei=\r\n=2Ese keine H=C3=BCte mehr, sondern H=C3=BC=C3=9Fe.",
+			"H=C3=A4tten H=C3=BCte ein =C3=9F im Namen, w=C3=A4ren sie m=C3=B6glicherwei=\r\n..se keine H=C3=BCte mehr, sondern H=C3=BC=C3=9Fe."
 		},
 		{ "Hätten Hüte ein ß im Namen, wären sie möglicherwei..se keine Hüte mehr, sondern Hüße.",
-			"H=C3=A4tten H=C3=BCte ein =C3=9F im Namen, w=C3=A4ren sie m=C3=B6glicherwei=\n=2E.se keine H=C3=BCte mehr, sondern H=C3=BC=C3=9Fe.",
-			"H=C3=A4tten H=C3=BCte ein =C3=9F im Namen, w=C3=A4ren sie m=C3=B6glicherwei=\n...se keine H=C3=BCte mehr, sondern H=C3=BC=C3=9Fe."
+			"H=C3=A4tten H=C3=BCte ein =C3=9F im Namen, w=C3=A4ren sie m=C3=B6glicherwei=\r\n=2E.se keine H=C3=BCte mehr, sondern H=C3=BC=C3=9Fe.",
+			"H=C3=A4tten H=C3=BCte ein =C3=9F im Namen, w=C3=A4ren sie m=C3=B6glicherwei=\r\n...se keine H=C3=BCte mehr, sondern H=C3=BC=C3=9Fe."
 		}
 	};
 
@@ -48,9 +48,9 @@ TEST_CASE("KQuotedPrintable")
 		{ "This =i.s a test.", "This =i=2Es a test." },
 		{ "This =ao.s a test.", "This =ao=2Es a test." },
 		{ "Hätten Hüte ein ß im Namen, wären sie möglicherweise keine Hüte mehr, sondern Hüße.",
-			"H=C3=A4tten H=C3=BCte ein =C3=9F im Namen, w=C3=A4ren sie m=C3=B6glicherwei=\nse keine H=C3=BCte mehr, sondern H=C3=BC=C3=9Fe." },
+			"H=C3=A4tten H=C3=BCte ein =C3=9F im Namen, w=C3=A4ren sie m=C3=B6glicherwei=\r\nse keine H=C3=BCte mehr, sondern H=C3=BC=C3=9Fe." },
 		{ "Hätten Hüte ein ß im Namen, wären sie möglicherweise keine Hüte mehr, sondern Hüße.",
-			"H=C3=A4tten H=C3=bcte ein =c3=9F im Namen, w=C3=A4ren sie m=C3=B6glicherwei=\n.se keine H=C3=BCte mehr, sondern H=C3=BC=C3=9Fe." }
+			"H=C3=A4tten H=C3=bcte ein =c3=9F im Namen, w=C3=A4ren sie m=C3=B6glicherwei=\r\n.se keine H=C3=BCte mehr, sondern H=C3=BC=C3=9Fe." }
 	};
 
 	SECTION("Encode/Decode all characters")

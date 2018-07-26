@@ -85,15 +85,15 @@ public:
 	}
 
 	/// Wrapper around KQuotedPrintable::Encode. Does the same.
-	static KString QuotedPrintable(KStringView sIn, bool bDotStuffing = true)
+	static KString QuotedPrintable(KStringView sIn, bool bForMailHeaders = false)
 	{
-		return KQuotedPrintable::Encode(sIn);
+		return KQuotedPrintable::Encode(sIn, bForMailHeaders);
 	}
 
 	/// Wrapper around KQuotedPrintable::Encode. Does the same with a different interface.
-	static void QuotedPrintableInPlace(KString& sBuffer, bool bDotStuffing = true)
+	static void QuotedPrintableInPlace(KString& sBuffer, bool bForMailHeaders = false)
 	{
-		KString sRet = QuotedPrintable(sBuffer);
+		KString sRet = QuotedPrintable(sBuffer, bForMailHeaders);
 		sBuffer.swap(sRet);
 	}
 
@@ -152,7 +152,7 @@ public:
 		return KBase64::Decode(sIn);
 	}
 
-	/// Wrapper around KBase64::Encode. Does the same with a different interface.
+	/// Wrapper around KBase64::Decode. Does the same with a different interface.
 	static void Base64InPlace(KString& sBuffer)
 	{
 		KString sRet = Base64(sBuffer);
@@ -162,13 +162,13 @@ public:
 	/// Wrapper around KQuotedPrintable::Decode. Does the same.
 	static KString QuotedPrintable(KStringView sIn, bool bDotStuffing = true)
 	{
-		return KQuotedPrintable::Decode(sIn);
+		return KQuotedPrintable::Decode(sIn, bDotStuffing);
 	}
 
-	/// Wrapper around KQuotedPrintable::Encode. Does the same with a different interface.
+	/// Wrapper around KQuotedPrintable::Decode. Does the same with a different interface.
 	static void QuotedPrintableInPlace(KString& sBuffer, bool bDotStuffing = true)
 	{
-		KString sRet = QuotedPrintable(sBuffer);
+		KString sRet = QuotedPrintable(sBuffer, bDotStuffing);
 		sBuffer.swap(sRet);
 	}
 

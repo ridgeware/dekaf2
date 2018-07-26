@@ -112,7 +112,7 @@ bool KMIMEPart::Serialize(KString& sOut, uint16_t recursion) const
 			}
 			else
 			{
-				sOut += KQuotedPrintable::Encode(m_Data, true);
+				sOut += KQuotedPrintable::Encode(m_Data, false);
 			}
 
 			return true;
@@ -135,7 +135,7 @@ bool KMIMEPart::Serialize(KString& sOut, uint16_t recursion) const
 		sOut += m_MIME;
 		KString sBoundary;
 		sBoundary.Format("----=_KMIME_Part_{}_{}.{}----", recursion, random(), random());
-		sOut += "; boundary=\"";
+		sOut += ";\r\n boundary=\"";
 		sOut += sBoundary;
 		sOut += "\"\r\n"; // End of headers (see the next \r\n at the begin of the boundaries)
 

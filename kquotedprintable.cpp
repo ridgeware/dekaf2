@@ -85,30 +85,32 @@ KString KQuotedPrintable::Encode(KStringView sInput, bool bForMailHeaders)
 	KString out;
 	out.reserve(sInput.size());
 	uint16_t iLineLen { 0 };
+	uint16_t iMaxLineLen { 75 };
 
 	if (bForMailHeaders)
 	{
 		out += "=?UTF-8?Q?";
 		// we already add the 2 chars we need to close the encoding, and reserve 15
 		// chars for the 'Header: '
-		iLineLen = 10 + 2 + 15;
+		iMaxLineLen = 75 - (10 + 2 + 15);
 	}
 
 	for (auto byte : sInput)
 	{
-		if (iLineLen >= 75)
+		if (iLineLen >= iMaxLineLen)
 		{
 			if (bForMailHeaders)
 			{
 				out += "?=\r\n =?UTF-8?Q?";
-				iLineLen = 1 + 10 + 2;
+				iMaxLineLen = 75 - (1 + 10 + 2);
 			}
 			else
 			{
 				out += '=';
 				out += "\r\n";
-				iLineLen = 1;
+				iMaxLineLen = 75 - 1;
 			}
+			iLineLen = 0;
 		}
 
 		switch (sEncodeCodepoints[static_cast<uint8_t>(byte)])

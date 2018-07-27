@@ -60,7 +60,7 @@ enum ETYPE : uint8_t
 constexpr ETYPE sEncodeCodepoints[256] =
 {
 // 0x0 0x1 0x2 0x3 0x4 0x5 0x6 0x7 0x8 0x9 0xA 0xB 0xC 0xD 0xE 0xF
-	YY, YY, YY, YY, YY, YY, YY, YY, YY, YY, LF, YY, YY, LF, YY, YY, // 0x00
+	YY, YY, YY, YY, YY, YY, YY, YY, YY, MH, LF, YY, YY, LF, YY, YY, // 0x00
 	YY, YY, YY, YY, YY, YY, YY, YY, YY, YY, YY, YY, YY, YY, YY, YY, // 0x10
 	MH, NO, NO, NO, NO, NO, NO, NO, NO, NO, NO, NO, NO, NO, SL, NO, // 0x20
 	NO, NO, NO, NO, NO, NO, NO, NO, NO, NO, NO, NO, NO, YY, NO, MH, // 0x30

@@ -43,6 +43,7 @@
 #include "ksplit.h"
 #include "kbase64.h"
 #include "klog.h"
+#include "kquotedprintable.h"
 
 
 namespace dekaf2 {
@@ -149,14 +150,13 @@ bool KSMTP::PrettyPrint(KStringView sHeader, const KMail::map_t& map)
 		}
 		else
 		{
-			sString += ", ";
+			sString += ",\r\n ";
 		}
 
 		if (!it.second.empty())
 		{
-			sString += '"';
-			sString += it.second;
-			sString += "\" <";
+			sString += KQuotedPrintable::Encode(it.second, true);
+			sString += " <";
 			sString += it.first;
 			sString += '>';
 		}
@@ -265,31 +265,19 @@ bool KSMTP::Send(const KMail& Mail)
 		return false;
 	}
 
-	if (!Talk(kFormat("Subject: {}", Mail.Subject()), ""))
+	if (!Talk(kFormat("Subject: {}", KQuotedPrintable::Encode(Mail.Subject(), true)), ""))
 	{
 		return false;
 	}
 
+	if (!PrettyPrint("From", Mail.From()))
 	{
-		// this one is special as it fills up two headers
-		KString sFrom = "From: ";
-		KString sReplyTo = "Reply-To: ";
-		if (!Mail.From().empty())
-		{
-			sFrom += Mail.From().begin()->first;
-			if (!Talk(sFrom, ""))
-			{
-				return false;
-			}
-			if (!Mail.From().begin()->second.empty())
-			{
-				sReplyTo += Mail.From().begin()->second;
-				if (!Talk(sReplyTo, ""))
-				{
-					return false;
-				}
-			}
-		}
+		return false;
+	}
+
+	if (!PrettyPrint("Reply-To", Mail.From()))
+	{
+		return false;
 	}
 
 	if (!PrettyPrint("To", Mail.To()))

@@ -91,13 +91,14 @@ bool KMIMEPart::Serialize(KString& sOut, uint16_t recursion) const
 				if (m_MIME == KMIME::MULTIPART_FORM_DATA)
 				{
 					sOut += "form-data; name=\"";
+					sOut += m_sName;
+					sOut += '"';
 				}
 				else
 				{
-					sOut += "attachment; filename=\"";
+					sOut += "attachment;\r\n filename=";
+					sOut += KQuotedPrintable::Encode(m_sName, true);
 				}
-				sOut += m_sName;
-				sOut += '"';
 			}
 			else
 			{

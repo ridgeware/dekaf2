@@ -407,7 +407,7 @@ int KOptions::Parse(int argc, char** argv, KOutStream& out)
 
 
 #ifdef DEKAF2_REPEAT_CONSTEXPR_VARIABLE
-	constexpr KStringView KOptions::CLIParms::Arg_t::sDoubleDash;
+	constexpr KStringViewZ KOptions::CLIParms::Arg_t::sDoubleDash;
 #endif
 
 } // end of namespace dekaf2

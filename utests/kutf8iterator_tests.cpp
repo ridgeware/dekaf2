@@ -11,8 +11,9 @@ TEST_CASE("UTF8Iterator") {
 	SECTION("const iterator")
 	{
 		KString str("abcäöüabc");
-		Unicode::UTF8ConstIterator it(str, false);
-		Unicode::UTF8ConstIterator ie(str, true);
+		// the KString template argument is only needed for C++ < 17
+		Unicode::UTF8ConstIterator<KString> it(str, false);
+		Unicode::UTF8ConstIterator<KString> ie(str, true);
 		CHECK (    it != ie  );
 		CHECK ( *it++ == 'a' );
 		CHECK (    it != ie  );
@@ -37,8 +38,8 @@ TEST_CASE("UTF8Iterator") {
 	SECTION("iterator")
 	{
 		KString str("abcäöüabc");
-		Unicode::UTF8Iterator it(str, false);
-		Unicode::UTF8Iterator ie(str, true);
+		Unicode::UTF8Iterator<KString> it(str, false);
+		Unicode::UTF8Iterator<KString> ie(str, true);
 		CHECK (    it != ie  );
 		CHECK ( *it++ == 'a' );
 		CHECK (    it != ie  );
@@ -65,8 +66,8 @@ TEST_CASE("UTF8Iterator") {
 	SECTION("modifying iterator")
 	{
 		KString str("abcäöüabc");
-		Unicode::UTF8Iterator it(str, false);
-		Unicode::UTF8Iterator ie(str, true);
+		Unicode::UTF8Iterator<KString> it(str, false);
+		Unicode::UTF8Iterator<KString> ie(str, true);
 		CHECK (    it != ie  );
 		CHECK ( *it++ == 'a' );
 		CHECK (    it != ie  );

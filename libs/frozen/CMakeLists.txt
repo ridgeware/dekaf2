@@ -17,7 +17,7 @@ CMAKE_DEPENDENT_OPTION(frozen.benchmark
 add_library(frozen INTERFACE)
 add_library(frozen::frozen ALIAS frozen)
 
-if(${CMAKE_VERSION} VERSION_GREATER "3.7.0")
+if(${CMAKE_VERSION} VERSION_GREATER "3.7.99")
 	target_compile_features(frozen INTERFACE cxx_std_14)
 endif()
 

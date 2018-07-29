@@ -352,7 +352,9 @@ size_t KDirectory::Open(KStringViewZ sDirectory, EntryType Type)
 
 #if DEKAF2_HAS_STD_FILESYSTEM
 
-	for (const auto& Entry : fs::directory_iterator(sDirectory.c_str()))
+	std::error_code ec;
+
+	for (const auto& Entry : fs::directory_iterator(sDirectory.c_str(), ec))
 	{
 		fs::file_type dtype;
 		switch (Type)
@@ -387,7 +389,8 @@ size_t KDirectory::Open(KStringViewZ sDirectory, EntryType Type)
 		if (Type == EntryType::ALL)
 		{
 			EntryType ET;
-			switch (Entry.symlink_status())
+			fs::file_type ftype = Entry.symlink_status(ec).type();
+			switch (ftype)
 			{
 				case fs::file_type::block:
 					ET = EntryType::BLOCK;
@@ -401,7 +404,7 @@ size_t KDirectory::Open(KStringViewZ sDirectory, EntryType Type)
 				case fs::file_type::fifo:
 					ET = EntryType::FIFO;
 					break;
-				case fs::file_type::symbolic_link:
+				case fs::file_type::symlink:
 					ET = EntryType::LINK;
 					break;
 				case fs::file_type::regular:
@@ -415,11 +418,11 @@ size_t KDirectory::Open(KStringViewZ sDirectory, EntryType Type)
 					ET = EntryType::OTHER;
 					break;
 			}
-			m_DirEntries.emplace_back(Entry, ET);
+			m_DirEntries.emplace_back(Entry.path().filename().c_str(), ET);
 		}
-		else if (Entry.symlink_status() == dtype)
+		else if (Entry.symlink_status().type() == dtype)
 		{
-			m_DirEntries.emplace_back(Entry, Type);
+			m_DirEntries.emplace_back(Entry.path().filename().c_str(), Type);
 		}
 
 	}

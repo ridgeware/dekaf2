@@ -217,7 +217,7 @@ constexpr KMPSearch<SIZE-1> CreateKMPSearch(const char (&sPattern)[SIZE])
 }
 
 template <std::size_t SIZE>
-constexpr KMPSearch<SIZE-1> CreateKMPSearch(KStringView sPattern)
+constexpr KMPSearch<SIZE> CreateKMPSearch(KStringView sPattern)
 {
 	return {sPattern};
 }

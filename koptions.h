@@ -205,11 +205,6 @@ private:
 	public:
 
 		CallbackParams() = default;
-		CallbackParams(const CallbackParams&) = default;
-		CallbackParams(CallbackParams&&) = default;
-		CallbackParams& operator=(const CallbackParams&) = default;
-		CallbackParams& operator=(CallbackParams&&) = default;
-
 		CallbackParams(uint16_t _iMinArgs, KStringViewZ _sMissingParms, CallbackN _func)
 		: func(_func)
 		, sMissingParms(_sMissingParms)

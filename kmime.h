@@ -128,10 +128,6 @@ public:
 
 	KMIMEPart(KMIME MIME = KMIME::NONE) : m_MIME(MIME) {}
 	KMIMEPart(KStringView sMessage, KMIME MIME) : m_MIME(MIME), m_Data(sMessage) {}
-	KMIMEPart(const KMIMEPart&) = default;
-	KMIMEPart(KMIMEPart&&) = default;
-	KMIMEPart& operator=(const KMIMEPart&) = default;
-	KMIMEPart& operator=(KMIMEPart&&) = default;
 	KMIMEPart& operator=(KStringView sv)  { m_Data = sv;  return *this; }
 	KMIMEPart& operator+=(KStringView sv) { m_Data += sv; return *this; }
 	/// Add content of file sFileName to MIME part, use sDispName as attachment name
@@ -197,10 +193,6 @@ public:
 //----------
 
 	KMIMEText(KStringView sMessage = KStringView{}) : KMIMEPart(sMessage, KMIME::TEXT_UTF8) {}
-	KMIMEText(const KMIMEText&) = default;
-	KMIMEText(KMIMEText&&) = default;
-	KMIMEText& operator=(const KMIMEText&) = default;
-	KMIMEText& operator=(KMIMEText&&) = default;
 
 };
 
@@ -214,10 +206,6 @@ public:
 //----------
 
 	KMIMEHTML(KStringView sMessage = KStringView{}) : KMIMEPart(sMessage, KMIME::HTML_UTF8) {}
-	KMIMEHTML(const KMIMEHTML&) = default;
-	KMIMEHTML(KMIMEHTML&&) = default;
-	KMIMEHTML& operator=(const KMIMEHTML&) = default;
-	KMIMEHTML& operator=(KMIMEHTML&&) = default;
 
 };
 
@@ -231,10 +219,6 @@ public:
 //----------
 
 	KMIMEFile(KStringView sFilename, KMIME MIME = KMIME::APPLICATION_BINARY) : KMIMEPart(MIME) { File(sFilename); }
-	KMIMEFile(const KMIMEFile&) = default;
-	KMIMEFile(KMIMEFile&&) = default;
-	KMIMEFile& operator=(const KMIMEFile&) = default;
-	KMIMEFile& operator=(KMIMEFile&&) = default;
 
 };
 

@@ -209,10 +209,6 @@ public:
 //------
 
 	KWords() = default;
-	KWords(const KWords&) = default;
-	KWords(KWords&&) = default;
-	KWords& operator=(const KWords&) = default;
-	KWords& operator=(KWords&&) = default;
 
 	/// Constructs from a buffer
 	KWords(KStringView sBuffer)

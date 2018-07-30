@@ -75,7 +75,7 @@ public:
 
 	using base_type::npos;
 
-	constexpr KStringViewZ() noexcept = default;
+	constexpr KStringViewZ() = default;
 	constexpr KStringViewZ(const self_type&) noexcept = default;
 	constexpr KStringViewZ& operator=(const self_type&) noexcept = default;
 

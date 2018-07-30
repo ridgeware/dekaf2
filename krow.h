@@ -89,9 +89,11 @@ private:
 class KCOL
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
+
 //----------
 public:
 //----------
+
 	KCOL () = default;
 
 	KCOL (KString&& _sValue, uint64_t _iFlags=0, uint32_t _iMaxLen=0)
@@ -116,11 +118,6 @@ public:
 	{
 	}
 
-	KCOL (KCOL&&)                  = default;
-	KCOL (const KCOL&)             = default;
-	KCOL& operator = (KCOL&&)      = default;
-	KCOL& operator = (const KCOL&) = default;
-
 	KString  sValue;  // aka "second"
 	uint64_t iFlags{0};
 	uint32_t iMaxLen{0};
@@ -136,6 +133,9 @@ class KROW : public KCOLS, public detail::KCommonSQLBase
 //----------
 public:
 //----------
+
+	KROW () = default;
+
 	KROW (const char* szTablename)
 	{
 		m_sTablename =  szTablename;
@@ -145,12 +145,6 @@ public:
 	{
 		m_sTablename =  sTablename;
 	}
-
-	KROW ()                        = default;
-	KROW (KROW&&)                  = default;
-	KROW (const KROW&)             = default;
-	KROW& operator = (KROW&&)      = default;
-	KROW& operator = (const KROW&) = default;
 
 	using KCOLS::KCOLS;
 

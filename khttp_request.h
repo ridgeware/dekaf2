@@ -58,12 +58,13 @@ class KHTTPRequestHeaders : public KHTTPHeaders
 public:
 //----------
 
+	//-----------------------------------------------------------------------------
 	KHTTPRequestHeaders() = default;
-	KHTTPRequestHeaders(const KHTTPRequestHeaders&) = default;
-	KHTTPRequestHeaders(KHTTPRequestHeaders&&) = default;
-	KHTTPRequestHeaders& operator=(const KHTTPRequestHeaders&) = default;
-	KHTTPRequestHeaders& operator=(KHTTPRequestHeaders&&) = default;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
 	KHTTPRequestHeaders(const KHTTPHeaders& other)
+	//-----------------------------------------------------------------------------
 	: KHTTPHeaders(other)
 	{
 	}
@@ -112,9 +113,6 @@ public:
 	/// SetOutputStream() before actually writing through the class.
 	KOutHTTPRequest() = default;
 	//-----------------------------------------------------------------------------
-
-	KOutHTTPRequest(KOutHTTPRequest&&) = default;
-	KOutHTTPRequest& operator=(KOutHTTPRequest&&) = default;
 
 	//-----------------------------------------------------------------------------
 	/// Constructs a KOutHTTPRequest around any output stream
@@ -192,9 +190,6 @@ public:
 	/// SetInputStream() before actually reading through the class.
 	KInHTTPRequest() = default;
 	//-----------------------------------------------------------------------------
-
-	KInHTTPRequest(KInHTTPRequest&&) = default;
-	KInHTTPRequest& operator=(KInHTTPRequest&&) = default;
 
 	//-----------------------------------------------------------------------------
 	/// Constructs a KInHTTPRequest around any input stream

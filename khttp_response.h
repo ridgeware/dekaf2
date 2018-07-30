@@ -57,12 +57,13 @@ class KHTTPResponseHeaders : public KHTTPHeaders
 public:
 //------
 
+	//-----------------------------------------------------------------------------
 	KHTTPResponseHeaders() = default;
-	KHTTPResponseHeaders(const KHTTPResponseHeaders&) = default;
-	KHTTPResponseHeaders(KHTTPResponseHeaders&&) = default;
-	KHTTPResponseHeaders& operator=(const KHTTPResponseHeaders&) = default;
-	KHTTPResponseHeaders& operator=(KHTTPResponseHeaders&&) = default;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
 	KHTTPResponseHeaders(const KHTTPHeaders& other)
+	//-----------------------------------------------------------------------------
 	: KHTTPHeaders(other)
 	{
 	}
@@ -121,9 +122,6 @@ public:
 	/// SetOutputStream() before actually writing through the class.
 	KOutHTTPResponse() = default;
 	//-----------------------------------------------------------------------------
-
-	KOutHTTPResponse(KOutHTTPResponse&&) = default;
-	KOutHTTPResponse& operator=(KOutHTTPResponse&&) = default;
 
 	//-----------------------------------------------------------------------------
 	/// Constructs a KOutHTTPResponse around any output stream
@@ -200,9 +198,6 @@ public:
 	/// SetInputStream() before actually reading through the class.
 	KInHTTPResponse() = default;
 	//-----------------------------------------------------------------------------
-
-	KInHTTPResponse(KInHTTPResponse&&) = default;
-	KInHTTPResponse& operator=(KInHTTPResponse&&) = default;
 
 	//-----------------------------------------------------------------------------
 	/// Constructs a KInHTTPResponse around any input stream

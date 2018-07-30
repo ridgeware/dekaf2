@@ -51,14 +51,28 @@
 #include <string>
 #include "bits/kcppcompat.h"
 #include "khash.h"
+
+#if !defined(DEKAF2_HAS_CPP_17) && !defined(DEKAF2_USE_FOLLY_STRINGPIECE_AS_KSTRINGVIEW)
+	// we have to use folly's stringpiece if we do not have C++17..
+	#define DEKAF2_USE_FOLLY_STRINGPIECE_AS_KSTRINGVIEW 1
+#endif
+
 #ifdef DEKAF2_USE_FOLLY_STRINGPIECE_AS_KSTRINGVIEW
-#include <folly/Range.h>
+	#include <folly/Range.h>
 #else
-#include <experimental/string_view>
+	#if __has_include(<string_view>)
+		#include <string_view>
+		#define DEKAF2_SV_NAMESPACE std
+	#elif __has_include(<experimental/string_view>)
+		#include <experimental/string_view>
+		#define DEKAF2_SV_NAMESPACE std::experimental
+	#else
+		#error "cannot include <string_view>"
+	#endif
 #endif
 
 #ifndef __linux__
-extern void* memrchr(const void* s, int c, size_t n);
+	extern void* memrchr(const void* s, int c, size_t n);
 #endif
 
 namespace dekaf2 {
@@ -171,7 +185,7 @@ public:
 #ifdef DEKAF2_USE_FOLLY_STRINGPIECE_AS_KSTRINGVIEW
 	using rep_type               = folly::StringPiece;
 #else
-	using rep_type               = std::experimental::string_view;
+	using rep_type               = DEKAF2_SV_NAMESPACE::string_view;
 #endif
 	using self_type              = KStringView;
 	using size_type              = std::size_t;

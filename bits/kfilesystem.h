@@ -52,11 +52,11 @@
 	#if __has_include(<filesystem>)
 		#include <filesystem>
 		#define DEKAF2_HAS_STD_FILESYSTEM 1
-		#define FS_NAMESPACE std::filesystem
+		#define DEKAF2_FS_NAMESPACE std::filesystem
 	#elif __has_include(<experimental/filesystem>)
 		#include <experimental/filesystem>
 		#define DEKAF2_HAS_STD_FILESYSTEM 1
-		#define FS_NAMESPACE std::experimental::filesystem
+		#define DEKAF2_FS_NAMESPACE std::experimental::filesystem
 	#endif
 #endif
 
@@ -67,6 +67,6 @@
 	#include <cstdio>
 #endif
 
-#ifdef FS_NAMESPACE
-	namespace fs = FS_NAMESPACE;
+#ifdef DEKAF2_FS_NAMESPACE
+	namespace fs = DEKAF2_FS_NAMESPACE;
 #endif

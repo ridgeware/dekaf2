@@ -44,6 +44,7 @@
 #include "kstringutils.h"
 #include "kurl.h"
 #include "dekaf2.h"
+#include "kregex.h"
 
 namespace dekaf2
 {
@@ -94,7 +95,9 @@ char* KASCII::ktoupper (char* szString)
 	while (szString && *szString)
 	{
 		if ((*szString >= 'a') && (*szString <= 'z'))
+		{
 			*szString -= ('a'-'A');
+		}
 		++szString;
 	}
 
@@ -110,7 +113,9 @@ char* KASCII::ktolower (char* szString)
 	while (szString && *szString)
 	{
 		if ((*szString >= 'A') && (*szString <= 'Z'))
+		{
 			*szString += ('a'-'A');
+		}
 		++szString;
 	}
 
@@ -125,7 +130,9 @@ char* kstrncpy (char* szTarget, const char* szSource, size_t iMaxAllocTarget)
 	char* rtn = strncpy (szTarget, szSource, iMaxAllocTarget);
 
 	if (iMaxAllocTarget > 1)
+	{
 		szTarget[iMaxAllocTarget-1] = 0;
+	}
 
 	return (rtn);
 
@@ -148,7 +155,8 @@ uint16_t kFromHexChar(char ch)
 			kDebug(1, "invalid input: {}", ch);
 			return static_cast<uint16_t>(-1);
 	}
-}
+
+} // kFromHexChar
 
 //-----------------------------------------------------------------------------
 KString kFormString(KStringView sInp, typename KString::value_type separator, typename KString::size_type every)
@@ -168,7 +176,8 @@ KString kFormString(KStringView sInp, typename KString::value_type separator, ty
 		}
 	}
 	return result;
-}
+
+} // kFormString
 
 
 //-----------------------------------------------------------------------------
@@ -343,7 +352,7 @@ KString kTranslateSeconds(int64_t iNumSeconds, bool bLongForm)
 
 	return (szBuf);
 
-}
+} // kTranslateSeconds
 
 //-----------------------------------------------------------------------------
 size_t kCountChar(KStringView str, const char ch) noexcept
@@ -360,7 +369,8 @@ size_t kCountChar(KStringView str, const char ch) noexcept
 		}
 	}
 	return ret;
-}
+
+} // kCountChar
 
 //-----------------------------------------------------------------------------
 bool kIsDecimal(KStringView str) noexcept
@@ -386,7 +396,8 @@ bool kIsDecimal(KStringView str) noexcept
 		}
 	}
 	return true;
-}
+
+} // kIsDecimal
 
 //-----------------------------------------------------------------------------
 bool kIsEmail(KStringView str) noexcept
@@ -396,8 +407,14 @@ bool kIsEmail(KStringView str) noexcept
 	{
 		return false;
 	}
-	return false;
-}
+
+ 	// see https://stackoverflow.com/a/201378
+	static constexpr KStringView sRegex =
+	R"foo((?:[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*|"(?:[\x01-\x08\x0b\x0c\x0e-\x1f\x21\x23-\x5b\x5d-\x7f]|\\[\x01-\x09\x0b\x0c\x0e-\x7f])*")@(?:(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?|\[(?:(?:(2(5[0-5]|[0-4][0-9])|1[0-9][0-9]|[1-9]?[0-9]))\.){3}(?:(2(5[0-5]|[0-4][0-9])|1[0-9][0-9]|[1-9]?[0-9])|[a-z0-9-]*[a-z0-9]:(?:[\x01-\x08\x0b\x0c\x0e-\x1f\x21-\x5a\x53-\x7f]|\\[\x01-\x09\x0b\x0c\x0e-\x7f])+)\]))foo";
+
+	return KRegex::Matches(str, sRegex);
+
+} // kIsEmail
 
 //-----------------------------------------------------------------------------
 bool kIsURL(KStringView str) noexcept

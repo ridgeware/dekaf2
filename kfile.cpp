@@ -292,7 +292,7 @@ bool kCreateDir(KStringViewZ sPath)
 {
 #ifdef DEKAF2_HAS_STD_FILESYSTEM
 
-	std::error_code;
+	std::error_code ec;
 
 	if (fs::create_directories(sPath.c_str(), ec))
 	{

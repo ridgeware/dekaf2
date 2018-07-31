@@ -351,7 +351,7 @@ bool KUnTar::Next()
 {
     do
 	{
-		if (!m_bIsConsumed && m_header.Type() == tar::File)
+		if (!m_bIsConsumed && (m_header.Type() == tar::File))
 		{
 			if (!SkipCurrentFile())
 			{

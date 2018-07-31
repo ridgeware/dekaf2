@@ -81,7 +81,7 @@ KString kGetCWD ()
 {
 #ifdef DEKAF2_HAS_STD_FILESYSTEM
 	std::error_code ec;
-	KString sPath fs::current_path(ec);
+	KString sPath = fs::current_path(ec).string();
 	if (ec)
 	{
 		kWarning("cannot get current working directory: {}", ec.message());

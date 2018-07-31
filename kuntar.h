@@ -242,7 +242,7 @@ private:
 	KInStream& m_Stream;
 	int m_AcceptedTypes;
 	bool m_bSkipAppleResourceForks;
-	mutable bool m_bIsConsumed;
+	mutable bool m_bIsConsumed { true };
 	tar::Header m_header;
 
 }; // KUnTar

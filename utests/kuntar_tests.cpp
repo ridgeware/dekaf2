@@ -15,11 +15,13 @@ TEST_CASE("KUnTar")
 {
 	SECTION("Create archive")
 	{
-		KString sTarDir = sBaseDir + "myfolder/";
+		KString sTarDir = sBaseDir + "myfolder";
 
 		kRemoveDir(sBaseDir);
 
 		CHECK ( kCreateDir(sTarDir) == true );
+
+		sTarDir += '/';
 
 		kSetCWD(sBaseDir);
 

@@ -479,6 +479,7 @@ size_t KDirectory::Open(KStringViewZ sDirectory, EntryType Type)
 			case EntryType::SOCKET:
 				dtype = fs::file_type::socket;
 				break;
+			default:
 			case EntryType::OTHER:
 				dtype = fs::file_type::not_found;
 				break;

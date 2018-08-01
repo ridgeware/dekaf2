@@ -248,7 +248,7 @@ bool KLogHTTPWriter::Write(int iLevel, bool bIsMultiline, const KString& sOut)
 		}
 	}
 
-	m_OutStream->Post(m_sURL, sOut, KMIME::JSON_UTF8);
+	m_OutStream->Post(m_sURL, sOut, KMIME::JSON);
 
 	return m_OutStream->Good();
 

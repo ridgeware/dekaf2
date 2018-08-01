@@ -102,6 +102,11 @@ bool kRemoveDir (KStringViewZ sPath)
 }
 
 //-----------------------------------------------------------------------------
+/// Isolate the extension of a path (filename extension after a dot).
+KStringView kExtension(KStringView sFilePath);
+//-----------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
 /// Isolate the basename of a path (filename without directory).
 KStringView kBasename(KStringView sFilePath);
 //-----------------------------------------------------------------------------

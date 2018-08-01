@@ -86,6 +86,14 @@ public:
 	{}
 
 	//-----------------------------------------------------------------------------
+	bool ByExtension(KStringView sFilename, KMIME Default = NONE);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	static KMIME CreateByExtension(KStringView sFilename, KMIME Default = NONE);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
 	constexpr
 	operator KStringView() const
 	//-----------------------------------------------------------------------------
@@ -94,26 +102,83 @@ public:
 	}
 
 	static constexpr KStringViewZ NONE                   = "";
-	static constexpr KStringViewZ TEXT_PLAIN             = "text/plain";
-	static constexpr KStringViewZ TEXT_UTF8              = "text/plain; charset=UTF-8";
-	static constexpr KStringViewZ JSON_UTF8              = "application/json; charset=UTF-8";
-	static constexpr KStringViewZ HTML_UTF8              = "text/html; charset=UTF-8";
-	static constexpr KStringViewZ XML_UTF8               = "text/xml; charset=UTF-8";
+
+	static constexpr KStringViewZ AAC                    = "audio/aac";
+	static constexpr KStringViewZ MIDI                   = "audio/midi";
+	static constexpr KStringViewZ OGA                    = "audio/ogg";
+	static constexpr KStringViewZ WAV                    = "audio/wav";
+	static constexpr KStringViewZ WEBA                   = "audio/webm";
+
+	static constexpr KStringViewZ BINARY                 = "application/octet-stream";
+	static constexpr KStringViewZ JAVASCRIPT             = "application/javascript";
+	static constexpr KStringViewZ JSON                   = "application/json";
+	static constexpr KStringViewZ XML                    = "application/xml";
 	static constexpr KStringViewZ SWF                    = "application/x-shockwave-flash";
 	static constexpr KStringViewZ WWW_FORM_URLENCODED    = "application/x-www-form-urlencoded";
+	static constexpr KStringViewZ AZV                    = "application/vnd.amazon.ebook";
+	static constexpr KStringViewZ BZ2                    = "application/x-bzip2";
+	static constexpr KStringViewZ CSH                    = "application/x-csh";
+	static constexpr KStringViewZ DOC                    = "application/msword";
+	static constexpr KStringViewZ DOCX                   = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+	static constexpr KStringViewZ EPUB                   = "application/epub+zip";
+	static constexpr KStringViewZ JAR                    = "application/java-archive";
+	static constexpr KStringViewZ ODP                    = "application/vnd.oasis.opendocument.presentation";
+	static constexpr KStringViewZ ODS                    = "application/vnd.oasis.opendocument.spreadsheet";
+	static constexpr KStringViewZ ODT                    = "application/vnd.oasis.opendocument.text";
+	static constexpr KStringViewZ OGX                    = "application/ogg";
+	static constexpr KStringViewZ PDF                    = "application/pdf";
+	static constexpr KStringViewZ PPT                    = "application/vnd.ms-powerpoint";
+	static constexpr KStringViewZ PPTX                   = "application/vnd.openxmlformats-officedocument.presentationml.presentation";
+	static constexpr KStringViewZ RAR                    = "application/x-rar-compressed";
+	static constexpr KStringViewZ RTF                    = "application/rtf";
+	static constexpr KStringViewZ SH                     = "application/x-sh";
+	static constexpr KStringViewZ TAR                    = "application/x-tar";
+	static constexpr KStringViewZ TS                     = "application/typescript";
+	static constexpr KStringViewZ VSD                    = "application/vnd.visio";
+	static constexpr KStringViewZ XHTML                  = "application/xhtml+xml";
+	static constexpr KStringViewZ XLS                    = "application/vnd.ms-excel";
+	static constexpr KStringViewZ XLSX                   = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+	static constexpr KStringViewZ ZIP                    = "application/zip";
+	static constexpr KStringViewZ SEVENZIP               = "application/x-7z-compressed";
+
+	static constexpr KStringViewZ EOT                    = "font/vnd.ms-fontobject";
+	static constexpr KStringViewZ OTF                    = "font/otf";
+	static constexpr KStringViewZ TTC                    = "font/collection";
+	static constexpr KStringViewZ TTF                    = "font/ttf";
+	static constexpr KStringViewZ WOFF                   = "font/woff";
+	static constexpr KStringViewZ WOFF2                  = "font/woff2";
+
+	static constexpr KStringViewZ BMP                    = "image/bmp";
+	static constexpr KStringViewZ JPEG                   = "image/jpeg";
+	static constexpr KStringViewZ GIF                    = "image/gif";
+	static constexpr KStringViewZ PNG                    = "image/png";
+	static constexpr KStringViewZ ICON                   = "image/x-icon";
+	static constexpr KStringViewZ SVG                    = "image/svg+xml";
+	static constexpr KStringViewZ TIFF                   = "image/tiff";
+	static constexpr KStringViewZ WEBP                   = "image/webp";
+
 	static constexpr KStringViewZ MULTIPART_FORM_DATA    = "multipart/form-data";
 	static constexpr KStringViewZ MULTIPART_ALTERNATIVE  = "multipart/alternative";
 	static constexpr KStringViewZ MULTIPART_MIXED        = "multipart/mixed";
 	static constexpr KStringViewZ MULTIPART_RELATED      = "multipart/related";
-	static constexpr KStringViewZ APPLICATION_BINARY     = "application/octet-stream";
-	static constexpr KStringViewZ APPLICATION_JAVASCRIPT = "application/javascript";
-	static constexpr KStringViewZ IMAGE_JPEG             = "image/jpeg";
+
+	static constexpr KStringViewZ TEXT_PLAIN             = "text/plain";
+	static constexpr KStringViewZ TEXT_UTF8              = "text/plain; charset=UTF-8";
+	static constexpr KStringViewZ HTML_UTF8              = "text/html; charset=UTF-8";
+	static constexpr KStringViewZ CSS                    = "text/css; charset=UTF-8";
+	static constexpr KStringViewZ CSV                    = "text/csv";
+	static constexpr KStringViewZ CALENDAR               = "text/calendar";
+
+	static constexpr KStringViewZ AVI                    = "video/x-msvideo";
+	static constexpr KStringViewZ MPEG                   = "video/mpeg";
+	static constexpr KStringViewZ OGV                    = "video/ogg";
+	static constexpr KStringViewZ WEBM                   = "video/webm";
 
 //------
 private:
 //------
 
-	KStringView m_mime{TEXT_PLAIN};
+	KStringView m_mime{NONE};
 
 }; // KMIME
 
@@ -218,7 +283,7 @@ class KMIMEFile : public KMIMEPart
 public:
 //----------
 
-	KMIMEFile(KStringView sFilename, KMIME MIME = KMIME::APPLICATION_BINARY) : KMIMEPart(MIME) { File(sFilename); }
+	KMIMEFile(KStringView sFilename, KMIME MIME = KMIME::NONE) : KMIMEPart(MIME) { File(sFilename); }
 
 };
 

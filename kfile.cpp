@@ -142,13 +142,34 @@ bool kExists (KStringViewZ sPath, bool bAsFile, bool bAsDirectory, bool bTestFor
 } // kExists
 
 //-----------------------------------------------------------------------------
+KStringView kExtension(KStringView sFilePath)
+//-----------------------------------------------------------------------------
+{
+	// Given a filesystem path, return the file extension
+	if (!sFilePath.empty())
+	{
+#ifdef _WIN32
+		auto pos = sFilePath.find_last_of("/\\:.");
+#else
+		auto pos = sFilePath.find_last_of("/.");
+#endif
+
+		if (pos != KStringView::npos && sFilePath[pos] == '.')
+		{
+			return sFilePath.substr(pos + 1);
+		}
+	}
+
+	return "";
+
+} // kBasename
+
+//-----------------------------------------------------------------------------
 KStringView kBasename(KStringView sFilePath)
 //-----------------------------------------------------------------------------
 {
 	// Given a filesystem path, return the "basename":
 	// that is, just the filename itself without any directory elements
-	dekaf2::KStringView sResult;
-
 	if (!sFilePath.empty())
 	{
 #ifdef _WIN32

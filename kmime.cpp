@@ -45,8 +45,115 @@
 #include "kquotedprintable.h"
 #include "kfile.h"
 #include "klog.h"
+#include "kfrozen.h"
 
 namespace dekaf2 {
+
+//-----------------------------------------------------------------------------
+bool KMIME::ByExtension(KStringView sFilename, KMIME Default)
+//-----------------------------------------------------------------------------
+{
+
+	static constexpr std::pair<KStringView, KStringViewZ> s_MIME_Extensions[]
+	{
+		{ "aac"_ksv,   AAC },
+		{ "mid"_ksv,   MIDI },
+		{ "midi"_ksv,  MIDI },
+		{ "oga"_ksv,   OGA },
+		{ "wav"_ksv,   WAV },
+		{ "weba"_ksv,  WEBA },
+
+		{ "bin"_ksv,   BINARY },
+		{ "js"_ksv,    JAVASCRIPT },
+		{ "json"_ksv,  JSON },
+		{ "xml"_ksv,   XML },
+		{ "swf"_ksv,   SWF },
+		{ "bz2"_ksv,   BZ2 },
+		{ "csh"_ksv,   CSH },
+		{ "doc"_ksv,   DOC },
+		{ "docx"_ksv,  DOCX },
+		{ "epub"_ksv,  EPUB },
+		{ "jar"_ksv,   JAR },
+		{ "odp"_ksv,   ODP },
+		{ "ods"_ksv,   ODS },
+		{ "odt"_ksv,   ODT },
+		{ "ogx"_ksv,   OGX },
+		{ "pdf"_ksv,   PDF },
+		{ "ppt"_ksv,   PPT },
+		{ "pptx"_ksv,  PPTX },
+		{ "rar"_ksv,   RAR },
+		{ "rtf"_ksv,   RTF },
+		{ "sh"_ksv,    SH },
+		{ "tar"_ksv,   TAR },
+		{ "ts"_ksv,    TS },
+		{ "vsd"_ksv,   VSD },
+		{ "xhtml"_ksv, XHTML },
+		{ "xls"_ksv,   XLS },
+		{ "xlsx"_ksv,  XLSX },
+		{ "zip"_ksv,   ZIP },
+		{ "7z"_ksv,    SEVENZIP },
+
+		{ "eot"_ksv,   EOT },
+		{ "otf"_ksv,   OTF },
+		{ "ttc"_ksv,   TTC },
+		{ "ttf"_ksv,   TTF },
+		{ "woff"_ksv,  WOFF },
+		{ "woff2"_ksv, WOFF2 },
+
+		{ "jpg"_ksv,   JPEG },
+		{ "jpeg"_ksv,  JPEG },
+		{ "gif"_ksv,   GIF },
+		{ "png"_ksv,   PNG },
+		{ "ico"_ksv,   ICON },
+		{ "svg"_ksv,   SVG },
+		{ "tif"_ksv,   TIFF },
+		{ "tiff"_ksv,  TIFF },
+		{ "webp"_ksv,  WEBP },
+
+		{ "txt"_ksv,   TEXT_UTF8 },
+		{ "htm"_ksv,   HTML_UTF8 },
+		{ "html"_ksv,  HTML_UTF8 },
+		{ "css"_ksv,   CSS },
+		{ "csv"_ksv,   CSV },
+		{ "ics"_ksv,   CALENDAR },
+
+		{ "avi"_ksv,   AVI },
+		{ "mpeg"_ksv,  MPEG },
+		{ "ogv"_ksv,   OGV },
+		{ "webm"_ksv,  WEBM },
+	};
+
+	static constexpr auto s_Extension_Map = frozen::make_unordered_map(s_MIME_Extensions);
+
+	KString sExtension = kExtension(sFilename).ToLowerLocale();
+
+	if (sExtension.empty())
+	{
+		sExtension = sFilename;
+	}
+
+	auto it = s_Extension_Map.find(sExtension);
+
+	if (it != s_Extension_Map.end())
+	{
+		m_mime = it->second;
+		return true;
+	}
+
+	m_mime = Default;
+	return false;
+
+} // ByExtension
+
+//-----------------------------------------------------------------------------
+KMIME KMIME::CreateByExtension(KStringView sFilename, KMIME Default)
+//-----------------------------------------------------------------------------
+{
+	KMIME mime;
+	mime.ByExtension(sFilename, Default);
+	return mime;
+
+} // Create
 
 //-----------------------------------------------------------------------------
 bool KMIMEPart::IsMultiPart() const
@@ -60,7 +167,7 @@ bool KMIMEPart::IsMultiPart() const
 bool KMIMEPart::IsBinary() const
 //-----------------------------------------------------------------------------
 {
-	return KStringView(m_MIME).StartsWith("application/");
+	return !KStringView(m_MIME).StartsWith("text/");
 
 } // IsBinary
 
@@ -229,6 +336,10 @@ bool KMIMEPart::File(KStringView sFilename, KStringView sDispname)
 		{
 			sDispname = kBasename(sFilename);
 		}
+		if (m_MIME == KMIME::NONE)
+		{
+			m_MIME.ByExtension(kExtension(sFilename), KMIME::BINARY);
+		}
 		if (Stream(File, sDispname))
 		{
 			return true;
@@ -245,20 +356,70 @@ constexpr KStringViewZ KCharSet::ANY_ISO8859;
 constexpr KStringViewZ KCharSet::DEFAULT_CHARSET;
 
 constexpr KStringViewZ KMIME::NONE;
-constexpr KStringViewZ KMIME::TEXT_PLAIN;
-constexpr KStringViewZ KMIME::TEXT_UTF8;
-constexpr KStringViewZ KMIME::JSON_UTF8;
-constexpr KStringViewZ KMIME::HTML_UTF8;
-constexpr KStringViewZ KMIME::XML_UTF8;
+constexpr KStringViewZ KMIME::AAC;
+constexpr KStringViewZ KMIME::MIDI;
+constexpr KStringViewZ KMIME::OGA;
+constexpr KStringViewZ KMIME::WAV;
+constexpr KStringViewZ KMIME::WEBA;
+constexpr KStringViewZ KMIME::BINARY;
+constexpr KStringViewZ KMIME::JAVASCRIPT;
+constexpr KStringViewZ KMIME::JSON;
+constexpr KStringViewZ KMIME::XML;
 constexpr KStringViewZ KMIME::SWF;
 constexpr KStringViewZ KMIME::WWW_FORM_URLENCODED;
+constexpr KStringViewZ KMIME::AZV;
+constexpr KStringViewZ KMIME::BZ2;
+constexpr KStringViewZ KMIME::CSH;
+constexpr KStringViewZ KMIME::DOC;
+constexpr KStringViewZ KMIME::DOCX;
+constexpr KStringViewZ KMIME::EPUB;
+constexpr KStringViewZ KMIME::JAR;
+constexpr KStringViewZ KMIME::ODP;
+constexpr KStringViewZ KMIME::ODS;
+constexpr KStringViewZ KMIME::ODT;
+constexpr KStringViewZ KMIME::OGX;
+constexpr KStringViewZ KMIME::PDF;
+constexpr KStringViewZ KMIME::PPT;
+constexpr KStringViewZ KMIME::PPTX;
+constexpr KStringViewZ KMIME::RAR;
+constexpr KStringViewZ KMIME::RTF;
+constexpr KStringViewZ KMIME::SH;
+constexpr KStringViewZ KMIME::TAR;
+constexpr KStringViewZ KMIME::TS;
+constexpr KStringViewZ KMIME::VSD;
+constexpr KStringViewZ KMIME::XHTML;
+constexpr KStringViewZ KMIME::XLS;
+constexpr KStringViewZ KMIME::XLSX;
+constexpr KStringViewZ KMIME::ZIP;
+constexpr KStringViewZ KMIME::SEVENZIP;
+constexpr KStringViewZ KMIME::EOT;
+constexpr KStringViewZ KMIME::OTF;
+constexpr KStringViewZ KMIME::TTC;
+constexpr KStringViewZ KMIME::TTF;
+constexpr KStringViewZ KMIME::WOFF;
+constexpr KStringViewZ KMIME::WOFF2;
+constexpr KStringViewZ KMIME::BMP;
+constexpr KStringViewZ KMIME::JPEG;
+constexpr KStringViewZ KMIME::GIF;
+constexpr KStringViewZ KMIME::PNG;
+constexpr KStringViewZ KMIME::ICON;
+constexpr KStringViewZ KMIME::SVG;
+constexpr KStringViewZ KMIME::TIFF;
+constexpr KStringViewZ KMIME::WEBP;
 constexpr KStringViewZ KMIME::MULTIPART_FORM_DATA;
 constexpr KStringViewZ KMIME::MULTIPART_ALTERNATIVE;
 constexpr KStringViewZ KMIME::MULTIPART_MIXED;
 constexpr KStringViewZ KMIME::MULTIPART_RELATED;
-constexpr KStringViewZ KMIME::APPLICATION_BINARY;
-constexpr KStringViewZ KMIME::APPLICATION_JAVASCRIPT;
-constexpr KStringViewZ KMIME::IMAGE_JPEG;
+constexpr KStringViewZ KMIME::TEXT_PLAIN;
+constexpr KStringViewZ KMIME::TEXT_UTF8;
+constexpr KStringViewZ KMIME::HTML_UTF8;
+constexpr KStringViewZ KMIME::CSS;
+constexpr KStringViewZ KMIME::CSV;
+constexpr KStringViewZ KMIME::CALENDAR;
+constexpr KStringViewZ KMIME::AVI;
+constexpr KStringViewZ KMIME::MPEG;
+constexpr KStringViewZ KMIME::OGV;
+constexpr KStringViewZ KMIME::WEBM;
 
 #endif
 

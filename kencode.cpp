@@ -44,7 +44,9 @@
 
 namespace dekaf2 {
 
+//-----------------------------------------------------------------------------
 KString KEnc::Hex(KStringView sIn)
+//-----------------------------------------------------------------------------
 {
 	static constexpr KStringView hexify { "0123456789abcdef" };
 
@@ -58,9 +60,12 @@ KString KEnc::Hex(KStringView sIn)
 	}
 
 	return sRet;
-}
 
+} // KEnc::Hex
+
+//-----------------------------------------------------------------------------
 KString KDec::Hex(KStringView sIn)
+//-----------------------------------------------------------------------------
 {
 	KString sRet;
 
@@ -91,7 +96,8 @@ KString KDec::Hex(KStringView sIn)
 	}
 
 	return sRet;
-}
+
+} // KDec::Hex
 
 } // of namespace dekaf2
 

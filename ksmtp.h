@@ -90,7 +90,7 @@ public:
 	bool Good() const;
 	/// Send a KMail to the mail relay
 	bool Send(const KMail& Mail);
-	/// Set the connection timeout in seconds, preset is 30
+	/// Set the connection timeout in seconds, preset is 10
 	void SetTimeout(uint16_t iSeconds);
 	/// Returns last error
 	KString Error() const;
@@ -111,8 +111,8 @@ private:
 	mutable KString m_sError;
 	// The TCP stream class
 	std::unique_ptr<KConnection> m_Connection;
-	// Half a minute for the timeout per default
-	uint16_t m_iTimeout{ 30 };
+	// Ten seconds for the timeout per default
+	uint16_t m_iTimeout{ 10 };
 
 }; // KSMTP
 

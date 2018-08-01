@@ -31,6 +31,7 @@ set (USOURCES
 	kjson_tests.cpp
 	klog_tests.cpp
 	kmessagedigest_tests.cpp
+	kmime_tests.cpp
 	kmpsearch_tests.cpp
 #	kostringstream_tests.cpp
 	koutpipe_tests.cpp

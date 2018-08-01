@@ -125,7 +125,7 @@ public:
 	}
 	/// Attach a file, automatically creating a multipart structure if not yet
 	/// set
-	bool Attach(KStringView sFilename, KMIME MIME = KMIME::APPLICATION_BINARY);
+	bool Attach(KStringView sFilename, KMIME MIME = KMIME::BINARY);
 	/// Attach KMIMEParts, automatically creating a multipart structure if not yet
 	/// set
 	KMail& Attach(KMIMEPart&& part);

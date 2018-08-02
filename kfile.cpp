@@ -40,10 +40,13 @@
 //
 */
 
+#include <algorithm>
 #include "bits/kfilesystem.h"
 #include "kfile.h"
 #include "kstring.h"
 #include "klog.h"
+#include "kregex.h"
+
 
 namespace dekaf2
 {
@@ -305,7 +308,8 @@ time_t kGetLastMod(KStringViewZ sFilePath)
 	return StatStruct.st_mtim.tv_sec;
 #endif
 #endif
-}
+
+} // kGetLastMod
 
 //-----------------------------------------------------------------------------
 size_t kGetNumBytes(KStringViewZ sFilePath)
@@ -328,7 +332,272 @@ size_t kGetNumBytes(KStringViewZ sFilePath)
 	}
 	return StatStruct.st_size;
 #endif
-}
+
+} // kGetNumBytes
+
+//-----------------------------------------------------------------------------
+void KDirectory::clear()
+//-----------------------------------------------------------------------------
+{
+	m_DirEntries.clear();
+	m_bSorted = false;
+
+} // clear
+
+//-----------------------------------------------------------------------------
+size_t KDirectory::Open(KStringViewZ sDirectory, EntryType Type)
+//-----------------------------------------------------------------------------
+{
+	clear();
+
+#if DEKAF2_HAS_STD_FILESYSTEM
+
+	for (const auto& Entry : fs::directory_iterator(sDirectory.c_str()))
+	{
+		fs::file_type dtype;
+		switch (Type)
+		{
+			case EntryType::BLOCK:
+				dtype = fs::file_type::block;
+				break;
+			case EntryType::CHARACTER:
+				dtype = fs::file_type::character;
+				break;
+			case EntryType::DIRECTORY:
+				dtype = fs::file_type::directory;
+				break;
+			case EntryType::FIFO:
+				dtype = fs::file_type::fifo;
+				break;
+			case EntryType::LINK:
+				dtype = fs::file_type::symlink;
+				break;
+			case EntryType::ALL:
+			case EntryType::REGULAR:
+				dtype = fs::file_type::regular;
+				break;
+			case EntryType::SOCKET:
+				dtype = fs::file_type::socket;
+				break;
+			case EntryType::OTHER:
+				dtype = fs::file_type::not_found;
+				break;
+		}
+
+		if (Type == EntryType::ALL)
+		{
+			EntryType ET;
+			switch (Entry.symlink_status())
+			{
+				case fs::file_type::block:
+					ET = EntryType::BLOCK;
+					break;
+				case fs::file_type::character:
+					ET = EntryType::CHARACTER;
+					break;
+				case fs::file_type::directory:
+					ET = EntryType::DIRECTORY;
+					break;
+				case fs::file_type::fifo:
+					ET = EntryType::FIFO;
+					break;
+				case fs::file_type::symbolic_link:
+					ET = EntryType::LINK;
+					break;
+				case fs::file_type::regular:
+					ET = EntryType::REGULAR;
+					break;
+				case fs::file_type::socket:
+					ET = EntryType::SOCKET;
+					break;
+				default:
+				case fs::file_type::not_found:
+					ET = EntryType::OTHER;
+					break;
+			}
+			m_DirEntries.emplace_back(Entry, ET);
+		}
+		else if (Entry.symlink_status() == dtype)
+		{
+			m_DirEntries.emplace_back(Entry, Type);
+		}
+
+	}
+
+#else
+
+#ifdef __linux__
+	auto len = sizeof(struct dirent);
+#else
+	auto name_max = ::pathconf(sDirectory.c_str(), _PC_NAME_MAX);
+	if (name_max == -1)
+	{
+		name_max = 255;
+	}
+	auto len = offsetof(struct dirent, d_name) + name_max + 1;
+#endif
+
+	auto entry = std::make_unique<uint8_t[]>(len);
+
+	auto dir = reinterpret_cast<struct dirent*>(entry.get());
+
+	unsigned char dtype;
+	switch (Type)
+	{
+		case EntryType::BLOCK:
+			dtype = DT_BLK;
+			break;
+		case EntryType::CHARACTER:
+			dtype = DT_CHR;
+			break;
+		case EntryType::DIRECTORY:
+			dtype = DT_DIR;
+			break;
+		case EntryType::FIFO:
+			dtype = DT_FIFO;
+			break;
+		case EntryType::LINK:
+			dtype = DT_LNK;
+			break;
+		case EntryType::ALL:
+		case EntryType::REGULAR:
+			dtype = DT_REG;
+			break;
+		case EntryType::SOCKET:
+			dtype = DT_SOCK;
+			break;
+		case EntryType::OTHER:
+			dtype = DT_UNKNOWN;
+			break;
+	}
+
+	auto d = ::opendir(sDirectory.c_str());
+	if (d)
+	{
+		struct dirent* result;
+		while ((::readdir_r(d, dir, &result)) == 0 && result != nullptr)
+		{
+			if (Type == EntryType::ALL)
+			{
+				EntryType ET;
+				switch (dir->d_type)
+				{
+					case DT_BLK:
+						ET = EntryType::BLOCK;
+						break;
+					case DT_CHR:
+						ET = EntryType::CHARACTER;
+						break;
+					case DT_DIR:
+						ET = EntryType::DIRECTORY;
+						break;
+					case DT_FIFO:
+						ET = EntryType::FIFO;
+						break;
+					case DT_LNK:
+						ET = EntryType::LINK;
+						break;
+					case DT_REG:
+						ET = EntryType::REGULAR;
+						break;
+					case DT_SOCK:
+						ET = EntryType::SOCKET;
+						break;
+					default:
+					case DT_UNKNOWN:
+						ET = EntryType::OTHER;
+						break;
+				}
+				m_DirEntries.emplace_back(dir->d_name, ET);
+			}
+			else if (dir->d_type == dtype)
+			{
+				m_DirEntries.emplace_back(dir->d_name, Type);
+			}
+		}
+		::closedir(d);
+	}
+
+#endif
+
+	return size();
+
+} // Open
+
+//-----------------------------------------------------------------------------
+void KDirectory::RemoveHidden()
+//-----------------------------------------------------------------------------
+{
+	// erase-remove idiom..
+	m_DirEntries.erase(std::remove_if(m_DirEntries.begin(),
+									  m_DirEntries.end(),
+									  [](const DirEntries::value_type& elem)
+                                      {
+                                          return elem.Name.empty() || elem.Name[0] == '.';
+									  }),
+                       m_DirEntries.end());
+
+} // RemoveHidden
+
+//-----------------------------------------------------------------------------
+size_t KDirectory::Match(EntryType Type, bool bRemoveMatches)
+//-----------------------------------------------------------------------------
+{
+	// erase-remove idiom..
+	m_DirEntries.erase(std::remove_if(m_DirEntries.begin(),
+									  m_DirEntries.end(),
+									  [Type, bRemoveMatches](const DirEntries::value_type& elem)
+									  {
+										  return bRemoveMatches == (elem.Type == Type);
+									  }),
+					   m_DirEntries.end());
+
+	return size();
+
+} // Match
+
+//-----------------------------------------------------------------------------
+size_t KDirectory::Match(KStringView sRegex, bool bRemoveMatches)
+//-----------------------------------------------------------------------------
+{
+	KRegex Regex(sRegex);
+
+	// erase-remove idiom..
+	m_DirEntries.erase(std::remove_if(m_DirEntries.begin(),
+                                      m_DirEntries.end(),
+                                      [&Regex, bRemoveMatches](const DirEntries::value_type& elem)
+                                      {
+                                          return bRemoveMatches == Regex.Matches(elem.Name);
+                                      }),
+                       m_DirEntries.end());
+
+	return size();
+
+} // Match
+
+//-----------------------------------------------------------------------------
+bool KDirectory::Find(KStringView sName) const
+//-----------------------------------------------------------------------------
+{
+	if (m_bSorted)
+	{
+		return std::binary_search(m_DirEntries.begin(), m_DirEntries.end(), sName);
+	}
+	else
+	{
+		return std::find(m_DirEntries.begin(), m_DirEntries.end(), sName) != m_DirEntries.end();
+	}
+
+} // Find
+
+//-----------------------------------------------------------------------------
+void KDirectory::Sort()
+//-----------------------------------------------------------------------------
+{
+	std::sort(m_DirEntries.begin(), m_DirEntries.end());
+	m_bSorted = true;
+
+} // Sort
 
 } // end of namespace dekaf2
 

@@ -46,6 +46,7 @@
 /// remaining standalone functions around files and the file system
 
 #include <cinttypes>
+#include <vector>
 #include "kstringview.h"
 #include "kstream.h"
 
@@ -134,6 +135,102 @@ size_t kFileSize(KStringViewZ sFilePath)
 {
 	return kGetNumBytes(sFilePath);
 }
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// Retrieve and filter directory listings
+class KDirectory
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+//----------
+public:
+//----------
+
+	enum class EntryType
+	{
+		ALL,
+		BLOCK,
+		CHARACTER,
+		DIRECTORY,
+		FIFO,
+		LINK,
+		REGULAR,
+		SOCKET,
+		OTHER
+	};
+
+	/// helper type that keeps one directory entry, with its name and type
+	struct DirEntry
+	{
+		DirEntry() : Type(EntryType::ALL) {}
+		DirEntry(KStringView _Name, EntryType _Type) : Name(_Name), Type(_Type) {}
+
+		bool operator<(const DirEntry& other)
+		{
+			return Name < other.Name;
+		}
+
+		bool operator<(KStringView sName)
+		{
+			return Name < sName;
+		}
+
+		operator KStringViewZ() const
+		{
+			return Name;
+		}
+
+		bool operator==(KStringView sName)
+		{
+			return Name == sName;
+		}
+
+		KString Name;
+		EntryType Type;
+	};
+
+	using DirEntries = std::vector<DirEntry>;
+	using iterator = DirEntries::iterator;
+	using const_iterator = DirEntries::const_iterator;
+
+	/// default ctor
+	KDirectory() = default;
+
+	/// ctor that will open a directory and store all entries that are of EntryType Type
+	KDirectory(KStringViewZ sDirectory, EntryType Type = EntryType::ALL)
+	{
+		Open(sDirectory, Type);
+	}
+
+	const_iterator cbegin() const { return m_DirEntries.begin(); }
+	const_iterator cend() const { return m_DirEntries.end(); }
+	iterator begin() { return m_DirEntries.begin(); }
+	iterator end() { return m_DirEntries.end(); }
+	size_t size() const { return m_DirEntries.size(); }
+	void clear();
+
+	/// open a directory and store all entries that are of EntryType Type
+	size_t Open(KStringViewZ sDirectory, EntryType Type = EntryType::ALL);
+	/// remove all hidden files, that is, files that start with a dot
+	void RemoveHidden();
+	/// match or remove all files that have EntryType Type from the list
+	size_t Match(EntryType Type, bool bRemoveMatches = false);
+	/// match or remove all files that match the regular expression sRegex from the list
+	size_t Match(KStringView sRegex, bool bRemoveMatches = false);
+	/// returns true if the directory list contains sName
+	bool Find(KStringView sName) const;
+	/// sort the directory list
+	void Sort();
+
+
+//----------
+protected:
+//----------
+
+	DirEntries m_DirEntries;
+	bool m_bSorted { false };
+
+}; // KDirectory
 
 } // end of namespace dekaf2
 

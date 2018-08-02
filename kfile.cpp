@@ -286,6 +286,44 @@ bool kRemove (KStringViewZ sPath, bool bDir)
 } // kRemove
 
 //-----------------------------------------------------------------------------
+bool kCreateDir(KStringViewZ sPath)
+//-----------------------------------------------------------------------------
+{
+#ifdef DEKAF2_HAS_STD_FILESYSTEM
+
+	std::error_code;
+
+	if (fs::create_directories(sPath.c_str(), ec))
+	{
+		return true;
+	}
+
+	if (ec)
+	{
+		kDebug(2, ec.message());
+	}
+
+	return false;
+
+#else
+
+	if (::mkdir(sPath.c_str(), 0755))
+	{
+		if (kDirExists(sPath))
+		{
+			return true;
+		}
+		kDebug(2, "cannot create directory: {}", sPath);
+		return false;
+	}
+
+	return true;
+
+#endif
+
+} // kCreateDir
+
+//-----------------------------------------------------------------------------
 time_t kGetLastMod(KStringViewZ sFilePath)
 //-----------------------------------------------------------------------------
 {

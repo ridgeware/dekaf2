@@ -71,7 +71,7 @@ bool kFileExists (KStringViewZ sPath, bool bTestForEmptyFile = false)
 }
 
 //-----------------------------------------------------------------------------
-/// Checks if a directory exists.
+/// Checks if a directory exists
 inline
 bool kDirExists (KStringViewZ sPath)
 //-----------------------------------------------------------------------------
@@ -80,12 +80,12 @@ bool kDirExists (KStringViewZ sPath)
 }
 
 //-----------------------------------------------------------------------------
-/// Remove (unlink) a file or directory tree.
+/// Remove (unlink) a file or directory tree
 bool kRemove (KStringViewZ sPath, bool bDir);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
-/// Remove (unlink) a file.
+/// Remove (unlink) a file
 inline
 bool kRemoveFile (KStringViewZ sPath)
 //-----------------------------------------------------------------------------
@@ -94,7 +94,7 @@ bool kRemoveFile (KStringViewZ sPath)
 }
 
 //-----------------------------------------------------------------------------
-/// Remove (unlink) a directory (folder) hierarchically.
+/// Remove (unlink) a directory (folder) hierarchically
 inline
 bool kRemoveDir (KStringViewZ sPath)
 //-----------------------------------------------------------------------------
@@ -103,17 +103,22 @@ bool kRemoveDir (KStringViewZ sPath)
 }
 
 //-----------------------------------------------------------------------------
-/// Isolate the extension of a path (filename extension after a dot).
+/// Create a directory (folder) hierarchically
+bool kCreateDir (KStringViewZ sPath);
+//-----------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
+/// Isolate the extension of a path (filename extension after a dot)
 KStringView kExtension(KStringView sFilePath);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
-/// Isolate the basename of a path (filename without directory).
+/// Isolate the basename of a path (filename without directory)
 KStringView kBasename(KStringView sFilePath);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
-/// Isolate the dirname of a path (directory name without the fileame).
+/// Isolate the dirname of a path (directory name without the fileame)
 KStringView kDirname(KStringView sFilePath, bool bWithSlash = true);
 //-----------------------------------------------------------------------------
 

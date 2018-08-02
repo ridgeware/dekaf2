@@ -172,7 +172,7 @@ bool KMIMEPart::IsBinary() const
 } // IsBinary
 
 //-----------------------------------------------------------------------------
-bool KMIMEPart::Serialize(KString& sOut, uint16_t recursion) const
+bool KMIMEPart::Serialize(KString& sOut, uint16_t recursion, bool bIsMultipartRelated) const
 //-----------------------------------------------------------------------------
 {
 	if (!IsMultiPart())
@@ -181,8 +181,16 @@ bool KMIMEPart::Serialize(KString& sOut, uint16_t recursion) const
 		{
 			sOut += "Content-Type: ";
 			sOut += m_MIME;
+			sOut += "\r\n";
 
-			sOut += "\r\nContent-Transfer-Encoding: ";
+			if (bIsMultipartRelated && !m_sName.empty())
+			{
+				sOut += "Content-ID: <";
+				sOut += m_sName;
+				sOut += ">\r\n";
+			}
+
+			sOut += "Content-Transfer-Encoding: ";
 			if (IsBinary())
 			{
 				sOut += "base64";
@@ -193,7 +201,7 @@ bool KMIMEPart::Serialize(KString& sOut, uint16_t recursion) const
 			}
 
 			sOut += "\r\nContent-Disposition: ";
-			if (!m_sName.empty())
+			if (!m_sName.empty() && !bIsMultipartRelated)
 			{
 				if (m_MIME == KMIME::MULTIPART_FORM_DATA)
 				{
@@ -252,7 +260,7 @@ bool KMIMEPart::Serialize(KString& sOut, uint16_t recursion) const
 			sOut += "\r\n--";
 			sOut += sBoundary;
 			sOut += "\r\n";
-			it.Serialize(sOut, recursion);
+			it.Serialize(sOut, recursion, m_MIME == KMIME::MULTIPART_RELATED);
 		}
 
 		sOut += "\r\n--";
@@ -348,6 +356,70 @@ bool KMIMEPart::File(KStringView sFilename, KStringView sDispname)
 	return false;
 
 } // File
+
+//-----------------------------------------------------------------------------
+KMIMEDirectory::KMIMEDirectory(KStringViewZ sPathname)
+//-----------------------------------------------------------------------------
+{
+	if (kDirExists(sPathname))
+	{
+		// get all regular files
+		KDirectory Dir(sPathname, KDirectory::EntryType::REGULAR);
+		if (Dir.Find("index.html"))
+		{
+			// we have an index.html
+			Dir.Remove("index.html");
+
+			// create a multipart/related structure (it will be removed
+			// automatically by the serializer if there are no related files..)
+			KMIMEMultiPart Related(KMIME::MULTIPART_RELATED);
+
+			// create a multipart/alternative structure inside the
+			// multipart/related (will be removed by the serializer if there
+			// is no text part)
+			KMIMEMultiPart Alternative(KMIME::MULTIPART_ALTERNATIVE);
+
+			if (Dir.Find("index.txt"))
+			{
+				Dir.Remove("index.txt");
+
+				// add the text version to the alternative part
+				KString sFile(sPathname);
+				sFile += "/index.txt";
+				Alternative += KMIMEFile(sFile);
+			}
+
+			// add the html version
+			KString sFile = sPathname;
+			sFile += "/index.html";
+			Alternative += KMIMEFile(sFile);
+
+			// and attach to the related part
+			Related += std::move(Alternative);
+
+			for (auto& it : Dir)
+			{
+				// add all other files as related to the first part
+				Related += KMIMEFile(it);
+			}
+		}
+		else
+		{
+			// just create a multipart/mixed with all files
+			KMIMEMultiPart Mixed(KMIME::MULTIPART_MIXED);
+
+			for (auto& it : Dir)
+			{
+				Mixed += KMIMEFile(it);
+			}
+		}
+	}
+	else
+	{
+		kDebug(2, "Directory does not exist: {}", sPathname);
+	}
+
+} // ctor
 
 
 #ifdef DEKAF2_REPEAT_CONSTEXPR_VARIABLE

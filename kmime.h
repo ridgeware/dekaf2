@@ -1,5 +1,4 @@
 /*
-//-----------------------------------------------------------------------------//
 //
 // DEKAF(tm): Lighter, Faster, Smarter (tm)
 //
@@ -63,6 +62,7 @@ public:
 }; // KCharSet
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// a MIME type
 class KMIME
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -72,6 +72,7 @@ public:
 //------
 
 	//-----------------------------------------------------------------------------
+	/// Construct an empty MIME type (NONE)
 	constexpr
 	KMIME()
 	//-----------------------------------------------------------------------------
@@ -79,6 +80,7 @@ public:
 	{}
 
 	//-----------------------------------------------------------------------------
+	/// Construct a MIME type with an arbitrary type
 	constexpr
 	KMIME(KStringView sv)
 	//-----------------------------------------------------------------------------
@@ -86,14 +88,19 @@ public:
 	{}
 
 	//-----------------------------------------------------------------------------
+	/// Set MIME type according to the extension of sFilename. Use Default if no
+	/// association found.
 	bool ByExtension(KStringView sFilename, KMIME Default = NONE);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	/// Generate a KMIME instance with the MIME type set according to the extension
+	/// of sFilename. Use Default if no association found.
 	static KMIME CreateByExtension(KStringView sFilename, KMIME Default = NONE);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	/// return the KStringView version of the MIME type
 	constexpr
 	operator KStringView() const
 	//-----------------------------------------------------------------------------
@@ -183,6 +190,7 @@ private:
 }; // KMIME
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// one part of a MIME structure
 class KMIMEPart
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -218,7 +226,7 @@ public:
 	/// Attach another part to this multipart structure - fails if this->MIME type is not multipart
 	KMIMEPart& operator+=(const KMIMEPart& part) { Attach(part); return *this; }
 
-	bool Serialize(KString& sOut, uint16_t recursion = 0) const;
+	bool Serialize(KString& sOut, uint16_t recursion = 0, bool bIsMultipartRelated = false) const;
 	bool Serialize(KOutStream& Stream, uint16_t recursion = 0) const;
 	KString Serialize(uint16_t recursion = 0) const;
 
@@ -244,11 +252,12 @@ protected:
 	// boost::container allows use of incomplete types
 	boost::container::vector<KMIMEPart> m_Parts;
 
-};
+}; // KMIMEPart
 
 using KMIMEMultiPart = KMIMEPart;
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// a MIME part holding UTF8 plain text
 class KMIMEText : public KMIMEPart
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -257,11 +266,13 @@ class KMIMEText : public KMIMEPart
 public:
 //----------
 
+	/// sMessage sets the initial plain text (UTF8) message for this part
 	KMIMEText(KStringView sMessage = KStringView{}) : KMIMEPart(sMessage, KMIME::TEXT_UTF8) {}
 
-};
+}; // KMIMEText
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// a MIME part holding a UTF8 HTML message
 class KMIMEHTML : public KMIMEPart
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -270,11 +281,13 @@ class KMIMEHTML : public KMIMEPart
 public:
 //----------
 
+	/// sMessage sets the initial HTML (UTF8) message for this part
 	KMIMEHTML(KStringView sMessage = KStringView{}) : KMIMEPart(sMessage, KMIME::HTML_UTF8) {}
 
-};
+}; // KMIMEHTML
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// A MIME part holding a file
 class KMIMEFile : public KMIMEPart
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -283,8 +296,31 @@ class KMIMEFile : public KMIMEPart
 public:
 //----------
 
+	/// sFilename is loaded as data for this part. MIME type is automatically detected,
+	/// or can be set explicitly through the MIME parameter
 	KMIMEFile(KStringView sFilename, KMIME MIME = KMIME::NONE) : KMIMEPart(MIME) { File(sFilename); }
 
-};
+}; // KMIMEFile
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// KMIMEDirectory wraps all files in a directory into a multipart message. If
+/// index.html and or index.txt exist, those will become the body part. All
+/// additional files become part of a multipart/related structure, typically
+/// used for a html message with inline images.
+class KMIMEDirectory : public KMIMEMultiPart
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+//----------
+public:
+//----------
+
+	/// KMIMEDirectory wraps all files in a directory into a multipart message. If
+	/// index.html and or index.txt exist, those will become the body part. All
+	/// additional files become part of a multipart/related structure, typically
+	/// used for a html message with inline images.
+	KMIMEDirectory(KStringViewZ sPathname);
+
+}; // KMIMEDirectory
 
 } // end of namespace dekaf2

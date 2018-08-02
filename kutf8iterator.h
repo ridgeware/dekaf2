@@ -53,6 +53,7 @@ namespace dekaf2 {
 namespace Unicode {
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// A non-modifying bidirectional iterator over a utf8 string
 template<class NarrowString>
 class UTF8ConstIterator
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -76,18 +77,20 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// ctor for const strings
-	UTF8ConstIterator(const NarrowString& it, bool bToEnd)
+	UTF8ConstIterator(const NarrowString& String, bool bToEnd)
 	//-----------------------------------------------------------------------------
-	: m_begin(it.begin())
-	, m_end(it.end())
-	, m_next(bToEnd ? it.end() : it.begin())
+	: m_begin(String.begin())
+	, m_end(String.end())
+	, m_next(bToEnd ? String.end() : String.begin())
 	{
 		operator++();
 	}
 
 	//-----------------------------------------------------------------------------
 	/// ctor for const string iterators
-	UTF8ConstIterator(const typename NarrowString::const_iterator it, const typename NarrowString::const_iterator ie, bool bToEnd)
+	UTF8ConstIterator(const typename NarrowString::const_iterator it,
+	                  const typename NarrowString::const_iterator ie,
+	                  bool bToEnd)
 	//-----------------------------------------------------------------------------
 	: m_begin(it)
 	, m_end(ie)
@@ -159,20 +162,20 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// equality operator
-	bool operator==(const self_type& rhs) const
+	bool operator==(const self_type& other) const
 	//-----------------------------------------------------------------------------
 	{
 		// need to check for same value as well, as the end iterator points
 		// to the same address, but has an invalid value (-1)
-		return m_next == rhs.m_next && m_Value == rhs.m_Value;
+		return m_next == other.m_next && m_Value == other.m_Value;
 	}
 
 	//-----------------------------------------------------------------------------
 	/// inequality operator
-	bool operator!=(const self_type& rhs) const
+	bool operator!=(const self_type& other) const
 	//-----------------------------------------------------------------------------
 	{
-		return !operator==(rhs);
+		return !operator==(other);
 	}
 
 //-------
@@ -188,6 +191,8 @@ protected:
 
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// A modifying bidirectional iterator over a utf8 string - new codepoints do not need to
+/// have the same size in utf8-bytes as the codepoint they are replacing
 template<class NarrowString>
 class UTF8Iterator
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -211,10 +216,10 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// ctor for strings
-	UTF8Iterator(NarrowString& it, bool bToEnd)
+	UTF8Iterator(NarrowString& String, bool bToEnd)
 	//-----------------------------------------------------------------------------
-	: m_String(&it)
-	, m_next(bToEnd ? it.end() : it.begin())
+	: m_String(&String)
+	, m_next(bToEnd ? String.end() : String.begin())
 	{
 		operator++();
 	}
@@ -333,20 +338,20 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// equality operator
-	bool operator==(const self_type& rhs) const
+	bool operator==(const self_type& other) const
 	//-----------------------------------------------------------------------------
 	{
 		// need to check for same value as well, as the end iterator points
 		// to the same address, but has an invalid value (-1)
-		return m_next == rhs.m_next && m_Value == rhs.m_Value;
+		return m_next == other.m_next && m_Value == other.m_Value;
 	}
 
 	//-----------------------------------------------------------------------------
 	/// inequality operator
-	bool operator!=(const self_type& rhs) const
+	bool operator!=(const self_type& other) const
 	//-----------------------------------------------------------------------------
 	{
-		return !operator==(rhs);
+		return !operator==(other);
 	}
 
 //-------
@@ -409,12 +414,5 @@ protected:
 } // namespace Unicode
 
 #ifdef DEKAF2
-} // of namespace dekaf2
-#include "kstring.h"
-namespace dekaf2 {
-namespace Unicode {
-extern template class UTF8ConstIterator<KStringView>;
-extern template class UTF8Iterator<KString>;
-} // of namespace Unicode
 } // of namespace dekaf2
 #endif

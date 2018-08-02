@@ -415,7 +415,6 @@ set (SOURCES
 	kunixstream.cpp
 	kurl.cpp
 	kurlencode.cpp
-	kutf8iterator.cpp
 	kwords.cpp
 	kwriter.cpp
 	)

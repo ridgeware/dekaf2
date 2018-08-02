@@ -616,6 +616,20 @@ bool KDirectory::Find(KStringView sName) const
 } // Find
 
 //-----------------------------------------------------------------------------
+bool KDirectory::Remove(KStringView sName)
+//-----------------------------------------------------------------------------
+{
+	auto it = std::find(m_DirEntries.begin(), m_DirEntries.end(), sName);
+	if (it != m_DirEntries.end())
+	{
+		m_DirEntries.erase(it);
+		return true;
+	}
+	return false;
+
+} // Remove
+
+//-----------------------------------------------------------------------------
 void KDirectory::Sort()
 //-----------------------------------------------------------------------------
 {

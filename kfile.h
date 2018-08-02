@@ -219,6 +219,8 @@ public:
 	size_t Match(KStringView sRegex, bool bRemoveMatches = false);
 	/// returns true if the directory list contains sName
 	bool Find(KStringView sName) const;
+	/// remove one entry from the list
+	bool Remove(KStringView sName);
 	/// sort the directory list
 	void Sort();
 

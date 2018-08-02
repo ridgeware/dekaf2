@@ -372,10 +372,9 @@ KMIMEDirectory::KMIMEDirectory(KStringViewZ sPathname)
 	{
 		// get all regular files
 		KDirectory Dir(sPathname, KDirectory::EntryType::REGULAR);
-		if (Dir.Find("index.html"))
+		if (Dir.Find("index.html", true))
 		{
 			// we have an index.html
-			Dir.Remove("index.html");
 
 			// create a multipart/related structure (it will be removed
 			// automatically by the serializer if there are no related files..)
@@ -386,10 +385,8 @@ KMIMEDirectory::KMIMEDirectory(KStringViewZ sPathname)
 			// is no text part)
 			KMIMEMultiPartAlternative Alternative;
 
-			if (Dir.Find("index.txt"))
+			if (Dir.Find("index.txt", true))
 			{
-				Dir.Remove("index.txt");
-
 				// add the text version to the alternative part
 				KString sFile(sPathname);
 				sFile += "/index.txt";
@@ -407,10 +404,7 @@ KMIMEDirectory::KMIMEDirectory(KStringViewZ sPathname)
 			for (auto& it : Dir)
 			{
 				// add all other files as related to the first part
-				KString sFile(sPathname);
-				sFile += '/';
-				sFile += it;
-				*this += KMIMEFile(sFile);
+				*this += KMIMEFile(it);
 			}
 		}
 		else
@@ -420,10 +414,7 @@ KMIMEDirectory::KMIMEDirectory(KStringViewZ sPathname)
 
 			for (auto& it : Dir)
 			{
-				KString sFile(sPathname);
-				sFile += '/';
-				sFile += it;
-				*this += KMIMEFile(sFile);
+				*this += KMIMEFile(it);
 			}
 		}
 	}

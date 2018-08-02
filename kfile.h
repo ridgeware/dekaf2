@@ -164,35 +164,71 @@ public:
 		OTHER
 	};
 
-	/// helper type that keeps one directory entry, with its name and type
-	struct DirEntry
+	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	/// helper type that keeps one directory entry, with its name, full path and type
+	class DirEntry
+	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	{
-		DirEntry() : Type(EntryType::ALL) {}
-		DirEntry(KStringView _Name, EntryType _Type) : Name(_Name), Type(_Type) {}
+
+	//----------
+	public:
+	//----------
+
+		DirEntry() : m_Type(EntryType::ALL) {}
+
+		DirEntry(KStringView BasePath, KStringView Name, EntryType Type)
+		: m_Path(BasePath)
+		, m_Type(Type)
+		{
+			if (!BasePath.empty())
+			{
+				m_Path += '/';
+			}
+			auto iPath = m_Path.size();
+			m_Path += Name;
+			m_Filename = m_Path;
+			m_Filename.remove_prefix(iPath);
+		}
 
 		bool operator<(const DirEntry& other)
 		{
-			return Name < other.Name;
+			return m_Path < other.m_Path;
 		}
 
-		bool operator<(KStringView sName)
+		bool operator==(const DirEntry& other)
 		{
-			return Name < sName;
+			return m_Path == other.m_Path && m_Type == other.m_Type;
 		}
 
 		operator KStringViewZ() const
 		{
-			return Name;
+			return Path();
 		}
 
-		bool operator==(KStringView sName)
+		KStringViewZ Path() const
 		{
-			return Name == sName;
+			return m_Path;
 		}
 
-		KString Name;
-		EntryType Type;
-	};
+		KStringViewZ Filename() const
+		{
+			return m_Filename;
+		}
+
+		EntryType Type() const
+		{
+			return m_Type;
+		}
+
+	//----------
+	private:
+	//----------
+
+		KString m_Path;
+		KStringViewZ m_Filename;
+		EntryType m_Type;
+
+	}; // DirEntry
 
 	using DirEntries = std::vector<DirEntry>;
 	using iterator = DirEntries::iterator;
@@ -223,19 +259,15 @@ public:
 	/// match or remove all files that match the regular expression sRegex from the list
 	size_t Match(KStringView sRegex, bool bRemoveMatches = false);
 	/// returns true if the directory list contains sName
-	bool Find(KStringView sName) const;
-	/// remove one entry from the list
-	bool Remove(KStringView sName);
+	bool Find(KStringView sName, bool bRemoveMatch = false);
 	/// sort the directory list
 	void Sort();
-
 
 //----------
 protected:
 //----------
 
 	DirEntries m_DirEntries;
-	bool m_bSorted { false };
 
 }; // KDirectory
 

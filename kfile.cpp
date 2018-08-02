@@ -46,6 +46,7 @@
 #include "kstring.h"
 #include "klog.h"
 #include "kregex.h"
+#include "ksplit.h"
 
 
 namespace dekaf2
@@ -307,14 +308,44 @@ bool kCreateDir(KStringViewZ sPath)
 
 #else
 
-	if (::mkdir(sPath.c_str(), 0755))
+	if (sPath.empty())
 	{
-		if (kDirExists(sPath))
-		{
-			return true;
-		}
-		kDebug(2, "cannot create directory: {}", sPath);
 		return false;
+	}
+
+	if (kDirExists(sPath))
+	{
+		return true;
+	}
+
+	// else test each part of the directory chain
+	std::vector<KStringView> Parts;
+	kSplit(Parts, sPath, "/\\", "");
+
+	KString sNewPath;
+	for (const auto& it : Parts)
+	{
+		if (sNewPath.empty())
+		{
+			if (sPath.front() == '/')
+			{
+				sNewPath += '/';
+			}
+		}
+		else
+		{
+			sNewPath += '/';
+		}
+		sNewPath += it;
+
+		if (!kDirExists(sNewPath))
+		{
+			if (::mkdir(sNewPath.c_str(), 0755))
+			{
+				kDebug(2, "cannot create directory: {}, {}", sPath, strerror(errno));
+				return false;
+			}
+		}
 	}
 
 	return true;
@@ -382,7 +413,6 @@ void KDirectory::clear()
 //-----------------------------------------------------------------------------
 {
 	m_DirEntries.clear();
-	m_bSorted = false;
 
 } // clear
 
@@ -474,11 +504,11 @@ size_t KDirectory::Open(KStringViewZ sDirectory, EntryType Type)
 					ET = EntryType::OTHER;
 					break;
 			}
-			m_DirEntries.emplace_back(Entry.path().filename().c_str(), ET);
+			m_DirEntries.emplace_back(sDirectory, Entry.path().filename().c_str(), ET);
 		}
 		else if (Entry.symlink_status().type() == dtype)
 		{
-			m_DirEntries.emplace_back(Entry.path().filename().c_str(), Type);
+			m_DirEntries.emplace_back(sDirectory, Entry.path().filename().c_str(), Type);
 		}
 
 	}
@@ -567,11 +597,11 @@ size_t KDirectory::Open(KStringViewZ sDirectory, EntryType Type)
 						ET = EntryType::OTHER;
 						break;
 				}
-				m_DirEntries.emplace_back(dir->d_name, ET);
+				m_DirEntries.emplace_back(sDirectory, dir->d_name, ET);
 			}
 			else if (dir->d_type == dtype)
 			{
-				m_DirEntries.emplace_back(dir->d_name, Type);
+				m_DirEntries.emplace_back(sDirectory, dir->d_name, Type);
 			}
 		}
 		::closedir(d);
@@ -596,7 +626,7 @@ void KDirectory::RemoveHidden()
 									  m_DirEntries.end(),
 									  [](const DirEntries::value_type& elem)
                                       {
-                                          return elem.Name.empty() || elem.Name[0] == '.';
+                                          return elem.Filename().empty() || elem.Filename()[0] == '.';
 									  }),
                        m_DirEntries.end());
 
@@ -611,7 +641,7 @@ size_t KDirectory::Match(EntryType Type, bool bRemoveMatches)
 									  m_DirEntries.end(),
 									  [Type, bRemoveMatches](const DirEntries::value_type& elem)
 									  {
-										  return bRemoveMatches == (elem.Type == Type);
+										  return bRemoveMatches == (elem.Type() == Type);
 									  }),
 					   m_DirEntries.end());
 
@@ -630,7 +660,7 @@ size_t KDirectory::Match(KStringView sRegex, bool bRemoveMatches)
                                       m_DirEntries.end(),
                                       [&Regex, bRemoveMatches](const DirEntries::value_type& elem)
                                       {
-                                          return bRemoveMatches == Regex.Matches(elem.Name);
+										  return bRemoveMatches == Regex.Matches(KStringView(elem.Filename()));
                                       }),
                        m_DirEntries.end());
 
@@ -639,28 +669,22 @@ size_t KDirectory::Match(KStringView sRegex, bool bRemoveMatches)
 } // Match
 
 //-----------------------------------------------------------------------------
-bool KDirectory::Find(KStringView sName) const
+bool KDirectory::Find(KStringView sName, bool bRemoveMatch)
 //-----------------------------------------------------------------------------
 {
-	if (m_bSorted)
-	{
-		return std::binary_search(m_DirEntries.begin(), m_DirEntries.end(), sName);
-	}
-	else
-	{
-		return std::find(m_DirEntries.begin(), m_DirEntries.end(), sName) != m_DirEntries.end();
-	}
+	auto it = std::find_if(m_DirEntries.begin(),
+                           m_DirEntries.end(),
+                           [&sName](const DirEntries::value_type& elem)
+                           {
+                               return elem.Filename() == sName;
+                           });
 
-} // Find
-
-//-----------------------------------------------------------------------------
-bool KDirectory::Remove(KStringView sName)
-//-----------------------------------------------------------------------------
-{
-	auto it = std::find(m_DirEntries.begin(), m_DirEntries.end(), sName);
 	if (it != m_DirEntries.end())
 	{
-		m_DirEntries.erase(it);
+		if (bRemoveMatch)
+		{
+			m_DirEntries.erase(it);
+		}
 		return true;
 	}
 	return false;
@@ -672,7 +696,6 @@ void KDirectory::Sort()
 //-----------------------------------------------------------------------------
 {
 	std::sort(m_DirEntries.begin(), m_DirEntries.end());
-	m_bSorted = true;
 
 } // Sort
 

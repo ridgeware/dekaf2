@@ -62,6 +62,7 @@ bool kExists (KStringViewZ sPath, bool bAsFile, bool bAsDirectory, bool bTestFor
 
 	if (ec)
 	{
+		kDebug(2, ec.message());
 		return false;
 	}
 
@@ -102,6 +103,7 @@ bool kExists (KStringViewZ sPath, bool bAsFile, bool bAsDirectory, bool bTestFor
 
 	if (ec)
 	{
+		kDebug(2, ec.message());
 		return false;
 	}
 
@@ -293,6 +295,7 @@ time_t kGetLastMod(KStringViewZ sFilePath)
 	auto ftime = fs::last_write_time(sFilePath.c_str(), ec);
 	if (ec)
 	{
+		kDebug(2, ec.message());
 		return -1;
 	}
 	return decltype(ftime)::clock::to_time_t(ftime);
@@ -321,6 +324,7 @@ size_t kGetNumBytes(KStringViewZ sFilePath)
 	auto size = fs::file_size(sFilePath.c_str(), ec);
 	if (ec)
 	{
+		kDebug(2, ec.message());
 		return npos;
 	}
 	return size;
@@ -356,6 +360,12 @@ size_t KDirectory::Open(KStringViewZ sDirectory, EntryType Type)
 
 	for (const auto& Entry : fs::directory_iterator(sDirectory.c_str(), ec))
 	{
+		if (ec)
+		{
+			kDebug(2, ec.message());
+			break;
+		}
+
 		fs::file_type dtype;
 		switch (Type)
 		{
@@ -388,8 +398,16 @@ size_t KDirectory::Open(KStringViewZ sDirectory, EntryType Type)
 
 		if (Type == EntryType::ALL)
 		{
-			EntryType ET;
 			fs::file_type ftype = Entry.symlink_status(ec).type();
+
+			if (ec)
+			{
+				kDebug(2, ec.message());
+				break;
+			}
+
+			EntryType ET;
+
 			switch (ftype)
 			{
 				case fs::file_type::block:
@@ -519,6 +537,10 @@ size_t KDirectory::Open(KStringViewZ sDirectory, EntryType Type)
 			}
 		}
 		::closedir(d);
+	}
+	else
+	{
+		kDebug(2, "could not open directory: {}", sDirectory);
 	}
 
 #endif

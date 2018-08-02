@@ -245,6 +245,8 @@ public:
 protected:
 //----------
 
+	void MIME(KMIME _MIME) { m_MIME = _MIME; }
+
 	KMIME   m_MIME;
 	KString m_Data;
 	KString m_sName;
@@ -255,6 +257,45 @@ protected:
 }; // KMIMEPart
 
 using KMIMEMultiPart = KMIMEPart;
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+class KMIMEMultiPartMixed : public KMIMEMultiPart
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+//----------
+public:
+//----------
+
+	KMIMEMultiPartMixed() : KMIMEPart(KMIME::MULTIPART_MIXED) {}
+
+}; // KMIMEMultiPartMixed
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+class KMIMEMultiPartRelated : public KMIMEMultiPart
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+//----------
+public:
+//----------
+
+	KMIMEMultiPartRelated() : KMIMEPart(KMIME::MULTIPART_RELATED) {}
+
+}; // KMIMEMultiPartRelated
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+class KMIMEMultiPartAlternative : public KMIMEMultiPart
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+//----------
+public:
+//----------
+
+	KMIMEMultiPartAlternative() : KMIMEPart(KMIME::MULTIPART_ALTERNATIVE) {}
+
+}; // KMIMEMultiPartAlternative
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// a MIME part holding UTF8 plain text
@@ -299,6 +340,22 @@ public:
 	/// sFilename is loaded as data for this part. MIME type is automatically detected,
 	/// or can be set explicitly through the MIME parameter
 	KMIMEFile(KStringView sFilename, KMIME MIME = KMIME::NONE) : KMIMEPart(MIME) { File(sFilename); }
+
+}; // KMIMEFile
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// A MIME part holding a file that will be displayed inline
+class KMIMEFileInline : public KMIMEPart
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+	//----------
+public:
+	//----------
+
+	/// sFilename is loaded as data for this part. MIME type is automatically detected,
+	/// or can be set explicitly through the MIME parameter
+	KMIMEFileInline(KStringView sFilename, KMIME MIME = KMIME::NONE) : KMIMEPart(MIME) { File(sFilename); m_sName.erase(); }
 
 }; // KMIMEFile
 

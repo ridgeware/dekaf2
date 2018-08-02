@@ -218,6 +218,11 @@ bool KMIMEPart::Serialize(KString& sOut, uint16_t recursion, bool bIsMultipartRe
 			else
 			{
 				sOut += "inline";
+				if (bIsMultipartRelated)
+				{
+					sOut += "\r\n filename=";
+					sOut += KQuotedPrintable::Encode(m_sName, true);
+				}
 			}
 
 			sOut += "\r\n\r\n"; // End of headers
@@ -328,6 +333,7 @@ bool KMIMEPart::Stream(KInStream& Stream, KStringView sDispname)
 	}
 	else
 	{
+		kDebug(2, "cannot read stream: {}", sDispname);
 		return false;
 	}
 
@@ -346,12 +352,13 @@ bool KMIMEPart::File(KStringView sFilename, KStringView sDispname)
 		}
 		if (m_MIME == KMIME::NONE)
 		{
-			m_MIME.ByExtension(kExtension(sFilename), KMIME::BINARY);
+			m_MIME.ByExtension(sFilename, KMIME::BINARY);
 		}
-		if (Stream(File, sDispname))
-		{
-			return true;
-		}
+		return Stream(File, sDispname);
+	}
+	else
+	{
+		kDebug(2, "cannot open file: {}", sFilename);
 	}
 	return false;
 
@@ -372,12 +379,12 @@ KMIMEDirectory::KMIMEDirectory(KStringViewZ sPathname)
 
 			// create a multipart/related structure (it will be removed
 			// automatically by the serializer if there are no related files..)
-			KMIMEMultiPart Related(KMIME::MULTIPART_RELATED);
+			MIME(KMIME::MULTIPART_RELATED);
 
 			// create a multipart/alternative structure inside the
 			// multipart/related (will be removed by the serializer if there
 			// is no text part)
-			KMIMEMultiPart Alternative(KMIME::MULTIPART_ALTERNATIVE);
+			KMIMEMultiPartAlternative Alternative;
 
 			if (Dir.Find("index.txt"))
 			{
@@ -386,31 +393,37 @@ KMIMEDirectory::KMIMEDirectory(KStringViewZ sPathname)
 				// add the text version to the alternative part
 				KString sFile(sPathname);
 				sFile += "/index.txt";
-				Alternative += KMIMEFile(sFile);
+				Alternative += KMIMEFileInline(sFile);
 			}
 
 			// add the html version
 			KString sFile = sPathname;
 			sFile += "/index.html";
-			Alternative += KMIMEFile(sFile);
+			Alternative += KMIMEFileInline(sFile);
 
 			// and attach to the related part
-			Related += std::move(Alternative);
+			*this += std::move(Alternative);
 
 			for (auto& it : Dir)
 			{
 				// add all other files as related to the first part
-				Related += KMIMEFile(it);
+				KString sFile(sPathname);
+				sFile += '/';
+				sFile += it;
+				*this += KMIMEFile(sFile);
 			}
 		}
 		else
 		{
 			// just create a multipart/mixed with all files
-			KMIMEMultiPart Mixed(KMIME::MULTIPART_MIXED);
+			MIME(KMIME::MULTIPART_MIXED);
 
 			for (auto& it : Dir)
 			{
-				Mixed += KMIMEFile(it);
+				KString sFile(sPathname);
+				sFile += '/';
+				sFile += it;
+				*this += KMIMEFile(sFile);
 			}
 		}
 	}

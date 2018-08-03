@@ -70,77 +70,104 @@ public:
 	/// Add one recipient to the To list, first arg is the email,
 	/// second arg is the full name or nothing
 	void To(KStringView sTo, KStringView sPretty = KStringView{});
+
 	/// Add one recipient to the Cc list, first arg is the email,
 	/// second arg is the full name or nothing
 	void Cc(KStringView sCc, KStringView sPretty = KStringView{});
+
 	/// Add one recipient to the Bcc list, first arg is the email,
 	/// second arg is the full name or nothing
 	void Bcc(KStringView sBcc, KStringView sPretty = KStringView{});
+
 	/// Set the sender for the From field, first arg is the email,
 	/// second arg is the full name or nothing
 	void From(KStringView sFrom, KStringView sPretty = KStringView{});
+
 	/// Set the subject
 	void Subject(KStringView sSubject);
+
 	/// Set the text message (UTF-8, or HTML/UTF-8 if AsHTML() was called before)
 	void Message(KString&& sMessage);
+
 	/// Set the text message (UTF-8, or HTML/UTF-8 if AsHTML() was called before)
 	void Message(const KString& sMessage)
 	{
 		Message(KString(sMessage));
 	}
+
 	/// Set the MIME type for the main content part to HTML/UTF-8. Returns false
 	/// if content was added before.
 	bool AsHTML();
+
 	/// Returns true if this mail has all elements needed for expedition
 	bool Good() const;
+
 	/// Send the mail via MTA at URL. URL may contain a user's name and pass, or
 	/// they can be set explicitly with sUsername / sPassword, which will override
 	/// anything in the URL.
 	bool Send(const KURL& URL, KStringView sUsername = KStringView{}, KStringView sPassword = KStringView{});
+
 	/// Set the text message (UTF-8, or HTML/UTF-8 if AsHTML() was called before)
 	KMail& operator=(KStringView sMessage);
+
 	/// Append to text message (UTF-8, or HTML/UTF-8 if AsHTML() was called before)
 	KMail& operator+=(KStringView sMessage);
 
 	/// Set the mail body to a multipart structure (or to a single part). This voids
 	/// any previously set content.
 	KMail& Body(KMIMEMultiPart&& part);
+
 	/// Set the mail body to a multipart structure (or to a single part). This voids
 	/// any previously set content.
 	KMail& Body(const KMIMEMultiPart& part)
 	{
 		return Body(KMIMEMultiPart(part));
 	}
+
 	/// Set the mail body to a multipart structure (or to a single part). This voids
 	/// any previously set content.
 	KMail& operator=(KMIMEMultiPart&& part)
 	{
 		return Body(std::move(part));
 	}
+
 	/// Set the mail body to a multipart structure (or to a single part). This voids
 	/// any previously set content.
 	KMail& operator=(const KMIMEMultiPart& part)
 	{
 		return Body(part);
 	}
+
+	/// Create mail body by reading the files in a directory, creating either
+	/// a multipart/related mail with inline images, or a multipart/mixed mail
+	/// with attachments. This voids any previously set content.
+	KMail& Directory(KStringViewZ sDirectory)
+	{
+		return Body(KMIMEDirectory(sDirectory));
+	}
+
 	/// Attach a file, automatically creating a multipart structure if not yet
 	/// set
 	bool Attach(KStringView sFilename, KMIME MIME = KMIME::BINARY);
+
 	/// Attach KMIMEParts, automatically creating a multipart structure if not yet
 	/// set
 	KMail& Attach(KMIMEPart&& part);
+
 	/// Attach KMIMEParts, automatically creating a multipart structure if not yet
 	/// set
 	KMail& Attach(const KMIMEPart& part)
 	{
 		return Attach(KMIMEPart(part));
 	}
+
 	/// Attach KMIMEParts, automatically creating a multipart structure if not yet
 	/// set
 	KMail& operator+=(KMIMEPart&& part)
 	{
 		return Attach(std::move(part));
 	}
+
 	/// Attach KMIMEParts, automatically creating a multipart structure if not yet
 	/// set
 	KMail& operator+=(const KMIMEPart& part)
@@ -150,18 +177,25 @@ public:
 
 	/// Returns the To recipients
 	const map_t& To() const;
+
 	/// Returns the Cc recipients
 	const map_t& Cc() const;
+
 	/// Returns the Bcc recipients
 	const map_t& Bcc() const;
+
 	/// Returns the sender (only first entry in map is valid)
 	const map_t& From() const;
+
 	/// Returns the subject
 	KStringView Subject() const;
+
 	/// Returns the message
 	KString Serialize() const;
+
 	/// Returns creation time
 	time_t Time() const;
+
 	/// Returns last error
 	const KString& Error() const;
 

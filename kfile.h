@@ -176,19 +176,7 @@ public:
 
 		DirEntry() : m_Type(EntryType::ALL) {}
 
-		DirEntry(KStringView BasePath, KStringView Name, EntryType Type)
-		: m_Path(BasePath)
-		, m_Type(Type)
-		{
-			if (!BasePath.empty())
-			{
-				m_Path += '/';
-			}
-			auto iPath = m_Path.size();
-			m_Path += Name;
-			m_Filename = m_Path;
-			m_Filename.remove_prefix(iPath);
-		}
+		DirEntry(KStringView BasePath, KStringView Name, EntryType Type);
 
 		bool operator<(const DirEntry& other)
 		{
@@ -200,21 +188,25 @@ public:
 			return m_Path == other.m_Path && m_Type == other.m_Type;
 		}
 
+		/// returns full pathname (path + filename)
 		operator KStringViewZ() const
 		{
 			return Path();
 		}
 
+		/// returns full pathname (path + filename)
 		KStringViewZ Path() const
 		{
 			return m_Path;
 		}
 
+		/// returns filename only, no path component
 		KStringViewZ Filename() const
 		{
 			return m_Filename;
 		}
 
+		/// returns directory entry type
 		EntryType Type() const
 		{
 			return m_Type;

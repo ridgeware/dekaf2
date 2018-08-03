@@ -409,6 +409,22 @@ size_t kGetNumBytes(KStringViewZ sFilePath)
 } // kGetNumBytes
 
 //-----------------------------------------------------------------------------
+KDirectory::DirEntry::DirEntry(KStringView BasePath, KStringView Name, EntryType Type)
+//-----------------------------------------------------------------------------
+: m_Path(BasePath)
+, m_Type(Type)
+{
+	if (!BasePath.empty())
+	{
+		m_Path += '/';
+	}
+	auto iPath = m_Path.size();
+	m_Path += Name;
+	m_Filename = m_Path.ToView(iPath);
+
+} // DirEntry ctor
+
+//-----------------------------------------------------------------------------
 void KDirectory::clear()
 //-----------------------------------------------------------------------------
 {
@@ -689,7 +705,7 @@ bool KDirectory::Find(KStringView sName, bool bRemoveMatch)
 	}
 	return false;
 
-} // Remove
+} // Find
 
 //-----------------------------------------------------------------------------
 void KDirectory::Sort()

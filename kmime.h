@@ -41,9 +41,11 @@
 
 #pragma once
 
+#include <boost/container/vector.hpp>
 #include "kstringview.h"
 #include "kwriter.h"
-#include <boost/container/vector.hpp>
+#include "kreplacer.h"
+
 
 namespace dekaf2 {
 
@@ -226,9 +228,9 @@ public:
 	/// Attach another part to this multipart structure - fails if this->MIME type is not multipart
 	KMIMEPart& operator+=(const KMIMEPart& part) { Attach(part); return *this; }
 
-	bool Serialize(KString& sOut, uint16_t recursion = 0, bool bIsMultipartRelated = false) const;
-	bool Serialize(KOutStream& Stream, uint16_t recursion = 0) const;
-	KString Serialize(uint16_t recursion = 0) const;
+	bool Serialize(KString& sOut, const KReplacer& Replacer = KReplacer{}, uint16_t recursion = 0, bool bIsMultipartRelated = false) const;
+	bool Serialize(KOutStream& Stream, const KReplacer& Replacer = KReplacer{}, uint16_t recursion = 0) const;
+	KString Serialize(const KReplacer& Replacer = KReplacer{}, uint16_t recursion = 0) const;
 
 	bool empty() const { return m_Parts.empty(); }
 	bool size()  const { return m_Parts.size();  }

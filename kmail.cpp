@@ -263,7 +263,14 @@ KString KMail::Serialize() const
 {
 	KString sBody;
 
-	m_Parts.Serialize(sBody);
+	if (m_Replacer)
+	{
+		m_Parts.Serialize(sBody, *m_Replacer);
+	}
+	else
+	{
+		m_Parts.Serialize(sBody);
+	}
 
 	return sBody;
 

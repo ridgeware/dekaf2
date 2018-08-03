@@ -72,6 +72,8 @@ public:
 	void clear();
 	bool insert(KStringView sSearch, KStringView sReplace);
 
+	bool GetRemoveAllVariables() const { return m_bRemoveAllVariables; }
+
 	template<class MapType>
 	void insert(const MapType& map)
 	{

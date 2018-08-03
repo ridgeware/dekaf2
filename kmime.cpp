@@ -172,7 +172,7 @@ bool KMIMEPart::IsBinary() const
 } // IsBinary
 
 //-----------------------------------------------------------------------------
-bool KMIMEPart::Serialize(KString& sOut, uint16_t recursion, bool bIsMultipartRelated) const
+bool KMIMEPart::Serialize(KString& sOut, const KReplacer& Replacer, uint16_t recursion, bool bIsMultipartRelated) const
 //-----------------------------------------------------------------------------
 {
 	if (!IsMultiPart())
@@ -228,7 +228,14 @@ bool KMIMEPart::Serialize(KString& sOut, uint16_t recursion, bool bIsMultipartRe
 			}
 			else
 			{
-				sOut += KQuotedPrintable::Encode(m_Data, false);
+				if (Replacer.empty() && !Replacer.GetRemoveAllVariables())
+				{
+					sOut += KQuotedPrintable::Encode(m_Data, false);
+				}
+				else
+				{
+					sOut += KQuotedPrintable::Encode(Replacer.Replace(m_Data), false);
+				}
 			}
 
 			return true;
@@ -241,7 +248,7 @@ bool KMIMEPart::Serialize(KString& sOut, uint16_t recursion, bool bIsMultipartRe
 	else if (m_Parts.size() == 1)
 	{
 		// serialize the single part directly, do not embed it into a multipart structure
-		return m_Parts.front().Serialize(sOut, recursion);
+		return m_Parts.front().Serialize(sOut, Replacer, recursion);
 	}
 	else
 	{
@@ -260,7 +267,7 @@ bool KMIMEPart::Serialize(KString& sOut, uint16_t recursion, bool bIsMultipartRe
 			sOut += "\r\n--";
 			sOut += sBoundary;
 			sOut += "\r\n";
-			it.Serialize(sOut, recursion, m_MIME == KMIME::MULTIPART_RELATED);
+			it.Serialize(sOut, Replacer, recursion, m_MIME == KMIME::MULTIPART_RELATED);
 		}
 
 		sOut += "\r\n--";
@@ -275,11 +282,11 @@ bool KMIMEPart::Serialize(KString& sOut, uint16_t recursion, bool bIsMultipartRe
 } // Serialize
 
 //-----------------------------------------------------------------------------
-bool KMIMEPart::Serialize(KOutStream& Stream, uint16_t recursion) const
+bool KMIMEPart::Serialize(KOutStream& Stream, const KReplacer& Replacer, uint16_t recursion) const
 //-----------------------------------------------------------------------------
 {
 	KString sOut;
-	if (Serialize(sOut, recursion))
+	if (Serialize(sOut, Replacer, recursion))
 	{
 		return Stream.Write(sOut).Good();
 	}
@@ -291,11 +298,11 @@ bool KMIMEPart::Serialize(KOutStream& Stream, uint16_t recursion) const
 } // Serialize
 
 //-----------------------------------------------------------------------------
-KString KMIMEPart::Serialize(uint16_t recursion) const
+KString KMIMEPart::Serialize(const KReplacer& Replacer, uint16_t recursion) const
 //-----------------------------------------------------------------------------
 {
 	KString sOut;
-	Serialize(sOut, recursion);
+	Serialize(sOut, Replacer, recursion);
 	return sOut;
 
 } // Serialize

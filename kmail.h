@@ -146,6 +146,18 @@ public:
 		return Body(KMIMEDirectory(sDirectory));
 	}
 
+	/// Add a KReplacer to substitute text in all text/* parts of the mail
+	void VariableReplacer(std::shared_ptr<KReplacer> Replacer)
+	{
+		m_Replacer = Replacer;
+	}
+
+	/// Add a KReplacer to substitute text in all text/* parts of the mail
+	void VariableReplacer(const KReplacer& Replacer)
+	{
+		m_Replacer = std::make_shared<KReplacer>(Replacer);
+	}
+
 	/// Attach a file, automatically creating a multipart structure if not yet
 	/// set
 	bool Attach(KStringView sFilename, KMIME MIME = KMIME::BINARY);
@@ -208,8 +220,10 @@ private:
 	map_t m_To;
 	map_t m_Cc;
 	map_t m_Bcc;
-	map_t m_From; // actually we only need one single key and value for this
+	map_t m_From; // actually we only need one single key and value for From
 	KString m_Subject;
+
+	std::shared_ptr<KReplacer> m_Replacer;
 	mutable KString m_sError;
 	time_t m_Time { time(nullptr) };
 	mutable KMIMEMultiPart m_Parts;

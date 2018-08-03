@@ -185,9 +185,9 @@ bool KMIMEPart::Serialize(KString& sOut, uint16_t recursion, bool bIsMultipartRe
 
 			if (bIsMultipartRelated && !m_sName.empty())
 			{
-				sOut += "Content-ID: <";
-				sOut += m_sName;
-				sOut += ">\r\n";
+				sOut += "Content-ID: ";
+				sOut += KQuotedPrintable::Encode(m_sName, true);
+				sOut += "\r\n";
 			}
 
 			sOut += "Content-Transfer-Encoding: ";
@@ -218,11 +218,6 @@ bool KMIMEPart::Serialize(KString& sOut, uint16_t recursion, bool bIsMultipartRe
 			else
 			{
 				sOut += "inline";
-				if (bIsMultipartRelated)
-				{
-					sOut += "\r\n filename=";
-					sOut += KQuotedPrintable::Encode(m_sName, true);
-				}
 			}
 
 			sOut += "\r\n\r\n"; // End of headers

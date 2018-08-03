@@ -40,6 +40,7 @@ set (USOURCES
 	kprops_tests.cpp
 	kquotedprintable_tests.cpp
 	kreader_tests.cpp
+	kreplacer_tests.cpp
 	ksplit_tests.cpp
 	kstack_tests.cpp
 	kstring_tests.cpp

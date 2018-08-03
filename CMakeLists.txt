@@ -315,6 +315,7 @@ set (HEADERS
 	kquotedprintable.h
 	kreader.h
 	kregex.h
+	kreplacer.h
 	krow.h
 	ksharedref.h
 	ksignals.h
@@ -397,6 +398,7 @@ set (SOURCES
 	kquotedprintable.cpp
 	kreader.cpp
 	kregex.cpp
+	kreplacer.cpp
 	krow.cpp
 	ksignals.cpp
 	ksmtp.cpp

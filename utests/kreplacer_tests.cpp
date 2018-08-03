@@ -116,16 +116,42 @@ TEST_CASE("KReplacer")
 		Replacer.insert("SHORT", "verylongvalue");
 		CHECK ( Replacer.size() == 3 );
 
-		KString sIn = "This {{IS}} a {{{TEST}} with a {{{{SHORT}}{{VARIABLE}}";
+		KString sIn = "This {{IS}} a {{{TEST}} with a {{{{SHORT}}{{VARIABLE}}{{TEST abcde";
 
 		KString sOut = Replacer.Replace(sIn);
-		CHECK ( sOut == "This  a  with a variable" );
+		CHECK ( sOut == "This  a  with a variable{{TEST abcde" );
 
 		sOut.clear();
 
 		sOut = sIn;
 		Replacer.ReplaceInPlace(sOut);
-		CHECK ( sOut == "This  a  with a variable" );
+		CHECK ( sOut == "This  a  with a variable{{TEST abcde" );
+	}
+
+	SECTION("Load from KReplacer")
+	{
+		KReplacer Map("{{", "}}", true);
+		Map.insert("TEST", "test");
+		Map.insert("VARIABLE", "variable");
+		Map.insert("SHORT", "verylongvalue");
+
+		KReplacer Replacer("{{", "}}");
+		Replacer.insert(Map);
+		CHECK ( Replacer.size() == 3 );
+		// test a repetitive insertion (should have no effect)
+		Replacer.insert(Map);
+		CHECK ( Replacer.size() == 3 );
+
+		KString sIn = "This {{IS}} a {{TEST}} with a {{SHORT}}{{VARIABLE}}";
+
+		KString sOut = Replacer.Replace(sIn);
+		CHECK ( sOut == "This {{IS}} a test with a verylongvaluevariable" );
+
+		sOut.clear();
+
+		sOut = sIn;
+		Replacer.ReplaceInPlace(sOut);
+		CHECK ( sOut == "This {{IS}} a test with a verylongvaluevariable" );
 	}
 
 	SECTION("Load from KProps")

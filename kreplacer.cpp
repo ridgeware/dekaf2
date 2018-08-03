@@ -39,6 +39,7 @@
 */
 
 #include "kreplacer.h"
+#include "klog.h"
 
 namespace dekaf2 {
 
@@ -86,10 +87,29 @@ bool KReplacer::insert(KStringView sSearch, KStringView sReplace)
 } // insert
 
 //-----------------------------------------------------------------------------
+void KReplacer::insert(const KReplacer& other)
+//-----------------------------------------------------------------------------
+{
+	if (m_sLeadIn == other.m_sLeadIn && m_sLeadOut == other.m_sLeadOut)
+	{
+		for (const auto& it : other.m_RepMap)
+		{
+			m_RepMap.insert(it);
+		}
+	}
+	else
+	{
+		kDebug(2, "lead in and lead out are not same");
+	}
+
+} // insert
+
+//-----------------------------------------------------------------------------
 KString KReplacer::Replace(KStringView sIn) const
 //-----------------------------------------------------------------------------
 {
 	KString sOut;
+	sOut.reserve(sIn.size());
 
 	if (m_sLeadIn.empty())
 	{
@@ -141,6 +161,12 @@ KString KReplacer::Replace(KStringView sIn) const
 					{
 						sIn.remove_prefix(pos + m_sLeadOut.size());
 						continue;
+					}
+					else
+					{
+						// we have no lead out anymore in the content, so we give up
+						sOut += sIn;
+						break;
 					}
 				}
 				// advance one char

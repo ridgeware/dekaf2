@@ -59,6 +59,9 @@ class KReplacer
 public:
 //----------
 
+	using RepMap = std::map<KString, KString>;
+	using const_iterator = RepMap::const_iterator;
+
 	KReplacer() = default;
 
 	KReplacer(KStringView sLeadIn, KStringView sLeadOut, bool bRemoveAllVariables = false)
@@ -70,6 +73,7 @@ public:
 	bool empty() const;
 	size_t size() const;
 	void clear();
+
 	bool insert(KStringView sSearch, KStringView sReplace);
 
 	bool GetRemoveAllVariables() const { return m_bRemoveAllVariables; }
@@ -83,6 +87,21 @@ public:
 		}
 	}
 
+	template<class MapType>
+	KReplacer& operator+=(const MapType& map)
+	{
+		insert(map);
+		return *this;
+	}
+
+	void insert(const KReplacer& other);
+
+	KReplacer& operator+=(const KReplacer& other)
+	{
+		insert(other);
+		return *this;
+	}
+
 	/// Replaces all variables in sIn with their values, returns new string
 	KString Replace(KStringView sIn) const;
 
@@ -92,8 +111,6 @@ public:
 //----------
 private:
 //----------
-
-	using RepMap = std::map<KString, KString>;
 
 	KString m_sLeadIn;
 	KString m_sLeadOut;

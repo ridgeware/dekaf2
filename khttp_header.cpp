@@ -1,5 +1,4 @@
 /*
-//-----------------------------------------------------------------------------//
 //
 // DEKAF(tm): Lighter, Faster, Smarter (tm)
 //
@@ -53,6 +52,9 @@ bool KHTTPHeaders::Parse(KInStream& Stream)
 	// get dropped.
 	// We also do not care for line endings and will cannonify them on
 	// serialization.
+	// For sake of SMTP we do now support continuation lines, but we
+	// canonify the separator to a single space when composing multi line
+	// headers into one single line header.
 
 	if (!Headers.empty())
 	{
@@ -63,6 +65,7 @@ bool KHTTPHeaders::Parse(KInStream& Stream)
 	Stream.SetReaderRightTrim("\r\n");
 
 	KString sLine;
+	KHeaderMap::iterator last = Headers.end();
 
 	while (Stream.ReadLine(sLine))
 	{
@@ -71,11 +74,36 @@ bool KHTTPHeaders::Parse(KInStream& Stream)
 			// end of header
 			return true;
 		}
+		else if (sLine.size() > MAX_LINELENGTH)
+		{
+			kDebugLog(1, "KHTTPHeaders::Parse(): Header line too long: {} bytes", sLine.size());
+			return SetError("HTTP header line too long");
+		}
 
 		if (!std::isalpha(sLine.front()))
 		{
-			// garbage, drop
-			continue;
+			if (std::isspace(sLine.front()) && last != Headers.end())
+			{
+				// continuation line, append trimmed line to last header, insert a space
+				kTrim(sLine);
+				if (!sLine.empty())
+				{
+					if (last->second.size() + sLine.size() > MAX_LINELENGTH)
+					{
+						kDebugLog(1, "KHTTPHeaders::Parse(): Continuation header line too long: {} bytes",
+								  last->second.size() + sLine.size());
+						return SetError("HTTP header line too long");
+					}
+					last->second += ' ';
+					last->second += sLine;
+				}
+				continue;
+			}
+			else
+			{
+				// garbage, drop
+				continue;
+			}
 		}
 
 		auto pos = sLine.find(':');
@@ -92,7 +120,7 @@ bool KHTTPHeaders::Parse(KInStream& Stream)
 		kTrimRight(sKey);
 		kTrim(sValue);
 
-		Headers.emplace(sKey, sValue);
+		last = Headers.Add(sKey, sValue);
 
 	}
 
@@ -242,9 +270,8 @@ bool KHTTPHeaders::HasKeepAlive() const
 
 		if (!sValue.empty())
 		{
-			KString slower = sValue;
-			slower.MakeLower();
-			return slower == "keep-alive" || slower == "keepalive";
+			KString sLower = sValue.ToLower();
+			return sLower == "keep-alive" || sLower == "keepalive";
 		}
 		else
 		{

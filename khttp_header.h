@@ -59,6 +59,8 @@ class KHTTPHeaders
 public:
 //------
 
+	enum { MAX_LINELENGTH = 8 * 1024 };
+
 	// The key for the Header is trimmed and lower cased on comparisons, but stores the original string
 	using KHeaderMap = KProps<KCaseTrimString, KString>; // case insensitive map for header info
 

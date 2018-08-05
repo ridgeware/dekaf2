@@ -47,7 +47,6 @@
 
 #include <openssl/opensslv.h>
 #include "kstream.h"
-#include "kstringstream.h"
 #include "kstringview.h"
 #include "kstring.h"
 
@@ -55,8 +54,8 @@
 namespace dekaf2 {
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// KHMAC constructs around a message digest class and extends the message
-/// digest to a HMAC-digest
+/// KHMAC gives the interface for all HMAC algorithms. The
+/// framework allows to calculate HMACs out of strings and streams.
 class KHMAC
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -88,11 +87,26 @@ public:
 		Update(sInput);
 		return *this;
 	}
+	/// appends a string to the digest
+	void operator()(KStringView sInput)
+	{
+		Update(sInput);
+	}
+	/// appends a stream to the digest
+	void operator()(KInStream& InputStream)
+	{
+		Update(InputStream);
+	}
 
 	/// returns the HMAC
 	const KString& HMAC() const;
 	/// returns the HMAC
 	operator const KString&() const
+	{
+		return HMAC();
+	}
+	/// returns the HMAC
+	const KString& operator()() const
 	{
 		return HMAC();
 	}

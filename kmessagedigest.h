@@ -47,7 +47,6 @@
 
 #include <openssl/opensslv.h>
 #include "kstream.h"
-#include "kstringstream.h"
 #include "kstringview.h"
 #include "kstring.h"
 
@@ -88,11 +87,26 @@ public:
 		Update(sInput);
 		return *this;
 	}
+	/// appends a string to the digest
+	void operator()(KStringView sInput)
+	{
+		Update(sInput);
+	}
+	/// appends a stream to the digest
+	void operator()(KInStream& InputStream)
+	{
+		Update(InputStream);
+	}
 
 	/// returns the message digest
 	const KString& Digest() const;
 	/// returns the message digest
 	operator const KString&() const
+	{
+		return Digest();
+	}
+	/// returns the message digest
+	const KString& operator()() const
 	{
 		return Digest();
 	}

@@ -46,6 +46,7 @@
 /// general system utilities for dekaf2
 
 #include <cstdlib>
+#include <chrono>
 #include "kstring.h"
 #include "klog.h"
 
@@ -133,6 +134,76 @@ namespace detail {
 void kDaemonize(bool bChangeDir = false);
 
 } // end of namespace detail
+
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// Start and control a child process
+class KChildProcess
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+//------
+public:
+//------
+
+	/// default ctor
+	KChildProcess() = default;
+	KChildProcess(const KChildProcess&) = delete;
+	KChildProcess(KChildProcess&&) = default;
+	KChildProcess& operator=(const KChildProcess&) = delete;
+	KChildProcess& operator=(KChildProcess&&) = default;
+
+	/// ctor with arguments to start child
+	KChildProcess(KStringView sCommand,
+				  KStringViewZ sChangeDirectory = KStringViewZ{},
+				  bool bDaemonized = false)
+	{
+		Start(sCommand, sChangeDirectory, bDaemonized);
+	}
+
+	~KChildProcess();
+
+	/// Start a child with sCommand, change to sChangeDirectory, and detach
+	/// from terminal if bDaemonized is true
+	bool Start(KStringView sCommand,
+			   KStringViewZ sChangeDirectory = KStringViewZ{},
+			   bool bDaemonized = false);
+
+	/// Detach child so that it will not be killed when this class is destructed.
+	/// Only works for daemonized childs
+	bool Detach();
+
+	/// Join a started child, wait max for Timeout
+	bool Join(std::chrono::nanoseconds Timeout = std::chrono::nanoseconds(0));
+
+	/// Stop a started child with SIGTERM, wait max for Timeout
+	bool Stop(std::chrono::nanoseconds Timeout = std::chrono::nanoseconds(0));
+
+	/// Kill a started child with SIGHUP
+	bool Kill();
+
+	/// Check if a child is started
+	bool IsStarted() const { return m_child != 0; }
+
+	/// Check if a child is stopped
+	bool IsStopped() const { return !IsStarted(); }
+
+	/// Returns the process ID of a started child
+	pid_t GetChildPID() const { return m_child; }
+
+	/// Returns error string
+	const KString& Error() const { return m_sError; }
+
+//------
+protected:
+//------
+
+	bool SetError(KStringView sError);
+
+	pid_t m_child { 0 };
+	bool m_bIsDaemonized { false };
+	KString m_sError;
+
+}; // KChildProcess
 
 } // end of namespace dekaf2
 

@@ -17,6 +17,7 @@ set (USOURCES
 	kbase64_tests.cpp
 	kcasestring_tests.cpp
 	kcompression_tests.cpp
+	kcrc_tests.cpp
 	khtmlcontentblocks_tests.cpp
 	kencode_tests.cpp
 	kfile_tests.cpp

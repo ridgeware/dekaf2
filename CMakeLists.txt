@@ -275,6 +275,7 @@ set (HEADERS
 	kcompression.h
 	kconnection.h
 	kcrashexit.h
+	kcrc.h
 	kencode.h
 	kexception.h
 	kfdstream.h
@@ -362,6 +363,7 @@ set (SOURCES
 	kcompression.cpp
 	kconnection.cpp
 	kcrashexit.cpp
+	kcrc.cpp
 	kencode.cpp
 	kfdstream.cpp
 	kfile.cpp

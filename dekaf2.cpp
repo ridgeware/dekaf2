@@ -48,6 +48,7 @@
 #include "kfile.h"
 #include "kcrashexit.h"
 #include "ksystem.h"
+#include "kchildprocess.h"
 #include "bits/kcppcompat.h"
 #ifdef DEKAF2_HAS_LIBPROC
 #include <libproc.h>

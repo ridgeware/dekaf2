@@ -271,6 +271,7 @@ set (HEADERS
 	kcache.h
 	kcasestring.h
 	kcgi.h
+	kchildprocess.h
 	kchunkedtransfer.h
 	kcompression.h
 	kconnection.h
@@ -359,6 +360,7 @@ set (SOURCES
 	kbase64.cpp
 	kcasestring.cpp
 	kcgi.cpp
+	kchildprocess.cpp
 	kchunkedtransfer.cpp
 	kcompression.cpp
 	kconnection.cpp

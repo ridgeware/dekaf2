@@ -586,42 +586,46 @@ size_t KDirectory::Open(KStringViewZ sDirectory, EntryType Type)
 		struct dirent* result;
 		while ((::readdir_r(d, dir, &result)) == 0 && result != nullptr)
 		{
-			if (Type == EntryType::ALL)
+			// exclude . and .. as std::filesystem excludes them, too
+			if (strcmp(dir->d_name, ".") && strcmp(dir->d_name, ".."))
 			{
-				EntryType ET;
-				switch (dir->d_type)
+				if (Type == EntryType::ALL)
 				{
-					case DT_BLK:
-						ET = EntryType::BLOCK;
-						break;
-					case DT_CHR:
-						ET = EntryType::CHARACTER;
-						break;
-					case DT_DIR:
-						ET = EntryType::DIRECTORY;
-						break;
-					case DT_FIFO:
-						ET = EntryType::FIFO;
-						break;
-					case DT_LNK:
-						ET = EntryType::LINK;
-						break;
-					case DT_REG:
-						ET = EntryType::REGULAR;
-						break;
-					case DT_SOCK:
-						ET = EntryType::SOCKET;
-						break;
-					default:
-					case DT_UNKNOWN:
-						ET = EntryType::OTHER;
-						break;
+					EntryType ET;
+					switch (dir->d_type)
+					{
+						case DT_BLK:
+							ET = EntryType::BLOCK;
+							break;
+						case DT_CHR:
+							ET = EntryType::CHARACTER;
+							break;
+						case DT_DIR:
+							ET = EntryType::DIRECTORY;
+							break;
+						case DT_FIFO:
+							ET = EntryType::FIFO;
+							break;
+						case DT_LNK:
+							ET = EntryType::LINK;
+							break;
+						case DT_REG:
+							ET = EntryType::REGULAR;
+							break;
+						case DT_SOCK:
+							ET = EntryType::SOCKET;
+							break;
+						default:
+						case DT_UNKNOWN:
+							ET = EntryType::OTHER;
+							break;
+					}
+					m_DirEntries.emplace_back(sDirectory, dir->d_name, ET);
 				}
-				m_DirEntries.emplace_back(sDirectory, dir->d_name, ET);
-			}
-			else if (dir->d_type == dtype)
-			{
-				m_DirEntries.emplace_back(sDirectory, dir->d_name, Type);
+				else if (dir->d_type == dtype)
+				{
+					m_DirEntries.emplace_back(sDirectory, dir->d_name, Type);
+				}
 			}
 		}
 		::closedir(d);

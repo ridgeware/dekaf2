@@ -94,12 +94,12 @@ TEST_CASE("KFilesystem") {
 	SECTION("KDirectory")
 	{
 		KDirectory Dir(sDirectory);
-		CHECK ( Dir.size() == 3 );
+		CHECK ( Dir.size() == 1 );
 		CHECK ( Dir.Find("KFilesystem.test") == true );
 		CHECK ( Dir.Match( KDirectory::EntryType::REGULAR) == 1);
 		CHECK ( Dir.Match( KDirectory::EntryType::REGULAR, true) == 0);
 		CHECK ( Dir.empty() == true );
-		CHECK ( Dir.Open(sDirectory) == 3 );
+		CHECK ( Dir.Open(sDirectory) == 1 );
 		Dir.RemoveHidden();
 		CHECK ( Dir.size() == 1 );
 		CHECK ( Dir.Match(".*\\.test") == 1 );

@@ -150,7 +150,7 @@ bool KMessageDigest::Update(KInStream& InputStream)
 	}
 
 	enum { BLOCKSIZE = 4096 };
-	char sBuffer[BLOCKSIZE];
+	unsigned char sBuffer[BLOCKSIZE];
 
 	for (;;)
 	{

@@ -113,7 +113,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Write a range of characters. Returns stream reference that resolves to false on failure
-	self_type& Write(const typename std::ostream::char_type* pAddress, size_t iCount);
+	self_type& Write(const void* pAddress, size_t iCount);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------

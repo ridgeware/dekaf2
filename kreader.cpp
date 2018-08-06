@@ -422,14 +422,14 @@ bool KInStream::UnRead()
 
 //-----------------------------------------------------------------------------
 /// Read a range of characters. Returns count of successfully read charcters.
-size_t KInStream::Read(typename std::istream::char_type* pAddress, size_t iCount)
+size_t KInStream::Read(void* pAddress, size_t iCount)
 //-----------------------------------------------------------------------------
 {
 	std::streambuf* sb = InStream().rdbuf();
 
 	if (sb)
 	{
-		auto iRead = sb->sgetn(pAddress, static_cast<std::streamsize>(iCount));
+		auto iRead = sb->sgetn(static_cast<std::istream::char_type*>(pAddress), iCount);
 		if (iRead <= 0)
 		{
 			InStream().setstate(std::ios::eofbit);

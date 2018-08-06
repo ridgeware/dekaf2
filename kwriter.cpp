@@ -73,7 +73,7 @@ KOutStream::self_type& KOutStream::Write(KString::value_type ch)
 
 //-----------------------------------------------------------------------------
 /// Write a range of characters. Returns stream reference that resolves to false on failure
-KOutStream::self_type& KOutStream::Write(const typename std::ostream::char_type* pAddress, size_t iCount)
+KOutStream::self_type& KOutStream::Write(const void* pAddress, size_t iCount)
 //-----------------------------------------------------------------------------
 {
 	if (iCount)
@@ -81,7 +81,7 @@ KOutStream::self_type& KOutStream::Write(const typename std::ostream::char_type*
 		std::streambuf* sb = OutStream().rdbuf();
 		if (sb != nullptr)
 		{
-			size_t iWrote = static_cast<size_t>(sb->sputn(pAddress, iCount));
+			size_t iWrote = static_cast<size_t>(sb->sputn(static_cast<const std::ostream::char_type*>(pAddress), iCount));
 			if (iWrote != iCount)
 			{
 				OutStream().setstate(std::ios_base::badbit);

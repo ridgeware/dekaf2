@@ -275,7 +275,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Read a range of characters. Returns count of successfully read charcters.
-	size_t Read(typename std::istream::char_type* pAddress, size_t iCount);
+	size_t Read(void* pAddress, size_t iCount);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------

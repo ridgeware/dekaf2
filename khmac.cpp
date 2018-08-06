@@ -127,12 +127,12 @@ bool KHMAC::Update(KInStream& InputStream)
 	}
 
 	enum { BLOCKSIZE = 4096 };
-	char sBuffer[BLOCKSIZE];
+	unsigned char sBuffer[BLOCKSIZE];
 
 	for (;;)
 	{
 		auto iReadChunk = InputStream.Read(sBuffer, BLOCKSIZE);
-		if (1 != HMAC_Update(static_cast<HMAC_CTX*>(hmacctx), reinterpret_cast<const unsigned char*>(sBuffer), iReadChunk))
+		if (1 != HMAC_Update(static_cast<HMAC_CTX*>(hmacctx), sBuffer, iReadChunk))
 		{
 			kDebugLog(1, "HMAC: cannot update HMAC");
 			return false;

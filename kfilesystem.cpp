@@ -167,7 +167,7 @@ KStringView kExtension(KStringView sFilePath)
 		}
 	}
 
-	return "";
+	return KStringView{};
 
 } // kBasename
 
@@ -196,7 +196,7 @@ KStringView kBasename(KStringView sFilePath)
 } // kBasename
 
 //-----------------------------------------------------------------------------
-KStringView kDirname(KStringView sFilePath, bool bWithSlash)
+KStringView kDirname(KStringView sFilePath, bool bWithTrailingSlash)
 //-----------------------------------------------------------------------------
 {
 	// Given a filesystem path, return the "dirname":
@@ -211,14 +211,14 @@ KStringView kDirname(KStringView sFilePath, bool bWithSlash)
 
 		if (pos != KStringView::npos)
 		{
-			return sFilePath.substr(0, pos);
+			return sFilePath.substr(0, (bWithTrailingSlash) ? pos + 1 : pos);
 		}
 	}
 
 #ifdef _WIN32
-	return (bWithSlash) ? ".\\" : ".";
+	return (bWithTrailingSlash) ? ".\\" : ".";
 #else
-	return (bWithSlash) ? "./" : ".";
+	return (bWithTrailingSlash) ? "./" : ".";
 #endif
 
 }  // kDirname()

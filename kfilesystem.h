@@ -119,7 +119,7 @@ KStringView kBasename(KStringView sFilePath);
 
 //-----------------------------------------------------------------------------
 /// Isolate the dirname of a path (directory name without the fileame)
-KStringView kDirname(KStringView sFilePath, bool bWithSlash = true);
+KStringView kDirname(KStringView sFilePath, bool bWithTrailingSlash = true);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------

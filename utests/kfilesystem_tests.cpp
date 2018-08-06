@@ -88,7 +88,8 @@ TEST_CASE("KFilesystem") {
 		KString sPathname = "/this/is/a/name.txt";
 		CHECK ( kExtension(sPathname) == "txt" );
 		CHECK ( kBasename(sPathname) == "name.txt" );
-		CHECK ( kDirname(sPathname) == "/this/is/a" );
+		CHECK ( kDirname(sPathname) == "/this/is/a/" );
+		CHECK ( kDirname(sPathname, false) == "/this/is/a" );
 	}
 
 	SECTION("KDirectory")

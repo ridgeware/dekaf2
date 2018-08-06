@@ -60,7 +60,7 @@ public:
 	{
 	}
 
-	KException(const KString& sWhat)
+	KException(KStringViewZ sWhat)
 	: runtime_error(sWhat.c_str())
 	{
 	}

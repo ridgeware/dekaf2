@@ -111,6 +111,8 @@ KString KReplacer::Replace(KStringView sIn) const
 	KString sOut;
 	sOut.reserve(sIn.size());
 
+	// TODO consider using Aho-Corasick here
+
 	if (m_sLeadIn.empty())
 	{
 		// brute force, try to replace all variables across the whole content
@@ -130,7 +132,7 @@ KString KReplacer::Replace(KStringView sIn) const
 			auto pos = sIn.find(m_sLeadIn);
 			if (pos == KStringView::npos)
 			{
-				// no more variable lead in found
+				// no more lead in found
 				sOut += sIn;
 				break;
 			}

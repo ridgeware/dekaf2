@@ -211,7 +211,7 @@ KStringView kDirname(KStringView sFilePath, bool bWithSlash)
 
 		if (pos != KStringView::npos)
 		{
-			return sFilePath.substr(0, (pos + 1));
+			return sFilePath.substr(0, pos);
 		}
 	}
 
@@ -321,30 +321,33 @@ bool kCreateDir(KStringViewZ sPath)
 
 	// else test each part of the directory chain
 	std::vector<KStringView> Parts;
-	kSplit(Parts, sPath, "/\\", "");
+	kSplit(Parts, sPath, "/\\", "", 0, true, false);
 
 	KString sNewPath;
 	for (const auto& it : Parts)
 	{
-		if (sNewPath.empty())
+		if (!it.empty())
 		{
-			if (sPath.front() == '/')
+			if (sNewPath.empty())
+			{
+				if (sPath.front() == '/')
+				{
+					sNewPath += '/';
+				}
+			}
+			else
 			{
 				sNewPath += '/';
 			}
-		}
-		else
-		{
-			sNewPath += '/';
-		}
-		sNewPath += it;
+			sNewPath += it;
 
-		if (!kDirExists(sNewPath))
-		{
-			if (::mkdir(sNewPath.c_str(), 0755))
+			if (!kDirExists(sNewPath))
 			{
-				kDebug(2, "cannot create directory: {}, {}", sPath, strerror(errno));
-				return false;
+				if (::mkdir(sNewPath.c_str(), 0755))
+				{
+					kDebug(2, "cannot create directory: {}, {}", sPath, strerror(errno));
+					return false;
+				}
 			}
 		}
 	}

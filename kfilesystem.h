@@ -240,6 +240,7 @@ public:
 	iterator begin() { return m_DirEntries.begin(); }
 	iterator end() { return m_DirEntries.end(); }
 	size_t size() const { return m_DirEntries.size(); }
+	bool empty() const { return m_DirEntries.empty(); }
 	void clear();
 
 	/// open a directory and store all entries that are of EntryType Type

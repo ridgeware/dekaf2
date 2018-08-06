@@ -45,7 +45,7 @@
 #include <iostream>
 #include "dekaf2.h"
 #include "klog.h"
-#include "kfile.h"
+#include "kfilesystem.h"
 #include "kcrashexit.h"
 #include "ksystem.h"
 #include "kchildprocess.h"

@@ -1,6 +1,6 @@
 #include "catch.hpp"
 
-#include <dekaf2/kfile.h>
+#include <dekaf2/kfilesystem.h>
 #include <vector>
 #include <fstream>
 #include <dekaf2/kreader.h>

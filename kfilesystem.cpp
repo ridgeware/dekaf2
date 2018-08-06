@@ -42,7 +42,7 @@
 
 #include <algorithm>
 #include "bits/kfilesystem.h"
-#include "kfile.h"
+#include "kfilesystem.h"
 #include "kstring.h"
 #include "klog.h"
 #include "kregex.h"

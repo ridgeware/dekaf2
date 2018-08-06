@@ -50,7 +50,7 @@
 #include "kstring.h"
 #include "kwriter.h"
 #include "kformat.h"
-#include "kfile.h"
+#include "kfilesystem.h"
 #include "bits/kcppcompat.h"
 
 namespace dekaf2

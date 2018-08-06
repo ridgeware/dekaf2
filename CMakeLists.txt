@@ -280,7 +280,7 @@ set (HEADERS
 	kencode.h
 	kexception.h
 	kfdstream.h
-	kfile.h
+	kfilesystem.h
 	kformat.h
 	kfrozen.h
 	kgetruntimestack.h
@@ -368,7 +368,7 @@ set (SOURCES
 	kcrc.cpp
 	kencode.cpp
 	kfdstream.cpp
-	kfile.cpp
+	kfilesystem.cpp
 	kformat.cpp
 	kgetruntimestack.cpp
 	khash.cpp

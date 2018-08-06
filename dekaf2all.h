@@ -60,7 +60,7 @@
 #include "kcrashexit.h"
 #include "kencode.h"
 #include "kfdstream.h"
-#include "kfile.h"
+#include "kfilesystem.h"
 #include "kformat.h"
 #include "kgetruntimestack.h"
 #include "khash.h"

@@ -43,7 +43,7 @@
 #include "kmime.h"
 #include "kbase64.h"
 #include "kquotedprintable.h"
-#include "kfile.h"
+#include "kfilesystem.h"
 #include "klog.h"
 #include "kfrozen.h"
 

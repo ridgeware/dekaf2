@@ -44,7 +44,7 @@
 #include "kstream.h"
 #include "klog.h"
 #include "ksplit.h"
-#include "kfile.h"
+#include "kfilesystem.h"
 
 namespace dekaf2 {
 

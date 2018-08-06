@@ -42,8 +42,8 @@
 
 #pragma once
 
-/// @file kfile.h
-/// remaining standalone functions around files and the file system
+/// @file kfilesystem.h
+/// remaining standalone functions and classes around files and the file system
 
 #include <cinttypes>
 #include <vector>

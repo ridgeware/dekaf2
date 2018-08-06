@@ -264,17 +264,10 @@ bool KChildProcess::Detach()
 {
 	if (m_child)
 	{
-		if (m_bIsDaemonized)
-		{
-			m_child = 0;
-			m_bIsDaemonized = false;
-			m_sError.clear();
-			return true;
-		}
-		else
-		{
-			return SetError("child is not a daemon");
-		}
+		m_child = 0;
+		m_bIsDaemonized = false;
+		m_sError.clear();
+		return true;
 	}
 	else
 	{

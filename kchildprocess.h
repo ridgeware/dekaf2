@@ -97,8 +97,7 @@ public:
 			   KStringViewZ sChangeDirectory = KStringViewZ{},
 			   bool bDaemonized = false);
 
-	/// Detach child so that it will not be killed when this class is destructed.
-	/// Only works for daemonized childs
+	/// Detach child so that it will not be killed when this class is destructed
 	bool Detach();
 
 	/// Join a started child, wait max for Timeout, 0 = forever (default)

@@ -244,14 +244,25 @@ public:
 
 	/// open a directory and store all entries that are of EntryType Type
 	size_t Open(KStringViewZ sDirectory, EntryType Type = EntryType::ALL);
+
+	/// open a directory and store all entries that are of EntryType Type
+	size_t operator()(KStringViewZ sDirectory, EntryType Type = EntryType::ALL)
+	{
+		return Open(sDirectory, Type);
+	}
+
 	/// remove all hidden files, that is, files that start with a dot
 	void RemoveHidden();
+
 	/// match or remove all files that have EntryType Type from the list
 	size_t Match(EntryType Type, bool bRemoveMatches = false);
+
 	/// match or remove all files that match the regular expression sRegex from the list
 	size_t Match(KStringView sRegex, bool bRemoveMatches = false);
+
 	/// returns true if the directory list contains sName
 	bool Find(KStringView sName, bool bRemoveMatch = false);
+
 	/// sort the directory list
 	void Sort();
 
@@ -262,6 +273,74 @@ protected:
 	DirEntries m_DirEntries;
 
 }; // KDirectory
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// Get disk capacity
+class KDiskStat
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+//----------
+public:
+//----------
+
+	/// default ctor
+	KDiskStat() = default;
+
+	/// Read disk stats for partition at sPath
+	KDiskStat(KStringViewZ sPath)
+	{
+		Check(sPath);
+	}
+
+	/// Read disk stats for partition at sPath
+	KDiskStat& Check(KStringViewZ sPath);
+
+	/// Read disk stats for partition at sPath
+	KDiskStat& operator()(KStringViewZ sPath)
+	{
+		return Check(sPath);
+	}
+
+	/// Return count of total bytes on file system
+	uint64_t Total() const { return m_Total; }
+
+	/// Return count of used bytes on file system
+	uint64_t Used() const { return m_Used; }
+
+	/// Return count of free bytes on file system for non-priviledged user
+	uint64_t Free() const { return m_Free; }
+
+	/// Return count of free bytes on file system for priviledged user
+	uint64_t SystemFree() const { return m_SystemFree; }
+
+	/// Returns false if an error occured
+	operator bool() const { return !m_sError.empty(); }
+
+	/// Return last error
+	const KString& Error() const { return m_sError; }
+
+	/// Reset to default
+	void clear();
+
+//----------
+private:
+//----------
+
+	bool SetError(KStringView sError)
+	{
+		m_sError = sError;
+		return false;
+	}
+
+	uint64_t m_Free       { 0 };
+	uint64_t m_Total      { 0 };
+	uint64_t m_Used       { 0 };
+	uint64_t m_SystemFree { 0 };
+
+	KString m_sError;
+
+}; // KDiskStat
 
 } // end of namespace dekaf2
 

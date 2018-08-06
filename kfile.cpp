@@ -47,6 +47,7 @@
 #include "klog.h"
 #include "kregex.h"
 #include "ksplit.h"
+#include "kinshell.h"
 
 
 namespace dekaf2
@@ -714,6 +715,120 @@ void KDirectory::Sort()
 	std::sort(m_DirEntries.begin(), m_DirEntries.end());
 
 } // Sort
+
+//-----------------------------------------------------------------------------
+void KDiskStat::clear()
+//-----------------------------------------------------------------------------
+{
+	m_Free = 0;
+	m_Total = 0;
+	m_Used = 0;
+	m_SystemFree = 0;
+	m_sError.clear();
+
+} // clear
+
+//-----------------------------------------------------------------------------
+KDiskStat& KDiskStat::Check(KStringViewZ sPath)
+//-----------------------------------------------------------------------------
+{
+	clear();
+
+#if DEKAF2_HAS_STD_FILESYSTEM
+
+	std::error_code ec;
+
+	fs::space_info fsinfo = fs::space(sPath.c_str(), ec);
+
+	if (ec)
+	{
+		SetError(kFormat("cannot read file system status: {}", ec.message()));
+		return *this;
+	}
+
+	m_Total       = fsinfo.capacity;
+	m_Free        = fsinfo.available;
+	m_SystemFree  = fsinfo.free;
+	m_Used        = m_Total - m_SystemFree;
+
+#else
+
+	struct statvfs fsinfo;
+
+	if (::statvfs(sPath.c_str(), &fsinfo))
+	{
+		SetError(kFormat("cannot read file system status: {}", strerror(errno)));
+		return *this;
+	}
+
+	uint64_t bsize = static_cast<uint64_t>(fsinfo.f_frsize);
+	m_Total        = bsize * fsinfo.f_blocks;
+	m_Free         = bsize * fsinfo.f_bavail;
+	m_SystemFree   = bsize * fsinfo.f_bfree;
+	m_Used         = m_Total - m_SystemFree;
+
+#endif // HAS STD FILESYSTEM
+
+#ifdef DEKAF2_IS_UNIX
+
+	if (m_Total == 0 || m_Free == 0)
+	{
+		// use a call to df, this is probably a file system that is not supported by
+		// statvfs() like FAT..
+		KString sCmd;
+#ifdef DEKAF2_IS_OSX
+		// OSX df outputs in 512 byte blocks, and we cannot change that
+		sCmd.Format("df \"{}\"", sPath);
+#else
+		// Linux has it at 1k, and we set it also explicitly
+		sCmd.Format("df -B 1024 \"{}\"", sPath);
+#endif
+		KInShell Shell(sCmd);
+
+		// we expect two lines:
+		// a) OSX
+		// Filesystem   512-blocks      Used Available Capacity iused               ifree %iused  Mounted on
+		// /dev/disk1s1  976490568 113271256 852397240    12%  891979 9223372036853883828    0%   /
+		// b) Linux
+		// Filesystem     1K-blocks    Used Available Use% Mounted on
+		// /dev/sda1         82043328 8179584  69636776  11% /
+
+		KString sLine;
+		for (int i = 0; i < 2; ++i)
+		{
+			if (!Shell.ReadLine(sLine))
+			{
+				SetError("cannot read df output");
+				return *this;
+			}
+		}
+
+		std::vector<KStringView> Words;
+		kSplit(Words, sLine, " \t");
+
+		if (Words.size() < 6)
+		{
+			SetError(kFormat("unexpected output format: {}", sLine));
+			return *this;
+		}
+
+#ifdef DEKAF2_IS_OSX
+		enum { iBlock = 512 };
+#else
+		enum { iBlock = 1024 };
+#endif
+
+		m_Total      = iBlock * Words[1].UInt64();
+		m_Used       = iBlock * Words[2].UInt64();
+		m_Free       = iBlock * Words[3].UInt64();
+		m_SystemFree = m_Free;
+	}
+
+#endif // IS UNIX
+
+	return *this;
+
+} // Check
 
 } // end of namespace dekaf2
 

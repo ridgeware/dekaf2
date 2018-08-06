@@ -63,6 +63,7 @@
 #ifndef DEKAF2_HAS_STD_FILESYSTEM
 	#include <sys/types.h>
 	#include <sys/stat.h>
+	#include <sys/statvfs.h>
 	#include <unistd.h>
 	#include <cstdio>
 	#include <dirent.h>

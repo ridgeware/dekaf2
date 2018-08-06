@@ -1,6 +1,7 @@
 #include "catch.hpp"
 
 #include <dekaf2/kstream.h>
+#include <dekaf2/kfilesystem.h>
 #include <unistd.h>
 #include <iostream>
 
@@ -23,7 +24,7 @@ TEST_CASE("KWriter") {
 			inf.ReadLine(sRead);
 			CHECK (sRead == "test: 123");
 		}
-		unlink(sFile.c_str());
+		kRemoveFile(sFile);
 	}
 
 }

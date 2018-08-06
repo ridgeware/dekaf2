@@ -424,4 +424,46 @@ TEST_CASE("KReader") {
 	}
 
 
+	SECTION("KFile read all")
+	{
+		KInFile File(sFile);
+		KString sRead;
+		CHECK( File.GetContent(sRead) == true );
+		CHECK( sRead == sOut );
+	}
+
+	SECTION("KFile read iterator 1")
+	{
+		KInFile File(sFile);
+		auto it = File.begin();
+		KString s1;
+		s1 = *it;
+		CHECK( s1 == "line 1" );
+		s1 = *it;
+		CHECK( s1 == "line 1" );
+		++it;
+		s1 = std::move(*it);
+		CHECK( s1 == "line 2" );
+		s1 = *it;
+		CHECK( s1 != "line 2" );
+		s1 = *++it;
+		CHECK( s1 == "line 3" );
+		s1 = *it++;
+		CHECK( s1 == "line 3" );
+		s1 = *it++;
+		CHECK( s1 == "line 4" );
+		s1 = *it;
+		CHECK( s1 == "line 5" );
+
+	}
+
+	SECTION("KFile read iterator 2")
+	{
+		KInFile File(sFile);
+		for (const auto& it : File)
+		{
+			CHECK( it.StartsWith("line ") == true );
+		}
+	}
+
 }

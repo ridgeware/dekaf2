@@ -8,9 +8,11 @@
 
 using namespace dekaf2;
 
-TEST_CASE("KFile") {
+TEST_CASE("KFilesystem") {
 
-	KString sFile("/tmp/KFile.test");
+	KString sDirectory("/tmp/filetests12r4948t5/depth/three");
+
+	KString sFile("/tmp/filetests12r4948t5/depth/three/KFilesystem.test");
 
 	KString sOut {
 		"line 1\n"
@@ -23,6 +25,12 @@ TEST_CASE("KFile") {
 		"line 8\n"
 		"line 9\n"
 	};
+
+	SECTION("create nested dir")
+	{
+		kCreateDir(sDirectory);
+		CHECK ( kDirExists(sDirectory) == true );
+	}
 
  	SECTION("openmode")
 	{
@@ -46,16 +54,22 @@ TEST_CASE("KFile") {
 			}
 		}
 
-		{
-			CHECK( kFileExists(sFile, true) == true );
-			CHECK( kGetSize(sFile) == 63 * 2 );
-		}
+		CHECK( kFileExists(sFile, true) == true );
+		CHECK( kGetSize(sFile) == 63 * 2 );
+
+		kRemoveFile(sFile);
+		CHECK( kFileExists(sFile) == false );
+
 	}
 
 	SECTION("setup test file")
 	{
+		time_t now = time(0);
+
 		KOutFile fWriter(sFile, std::ios_base::trunc);
 		CHECK( fWriter.is_open() == true );
+
+		CHECK ( kGetLastMod(sFile) - now < 2 );
 
 		if (fWriter.is_open())
 		{
@@ -69,46 +83,43 @@ TEST_CASE("KFile") {
 		CHECK( kGetSize(sFile) == 63 );
 	}
 
-	SECTION("KFile read all")
+	SECTION("name manipulations")
 	{
-		KInFile File(sFile);
-		KString sRead;
-		CHECK( File.GetContent(sRead) == true );
-		CHECK( sRead == sOut );
+		KString sPathname = "/this/is/a/name.txt";
+		CHECK ( kExtension(sPathname) == "txt" );
+		CHECK ( kBasename(sPathname) == "name.txt" );
+		CHECK ( kDirname(sPathname) == "/this/is/a" );
 	}
 
-	SECTION("KFile read iterator 1")
+	SECTION("KDirectory")
 	{
-		KInFile File(sFile);
-		auto it = File.begin();
-		KString s1;
-		s1 = *it;
-		CHECK( s1 == "line 1" );
-		s1 = *it;
-		CHECK( s1 == "line 1" );
-		++it;
-		s1 = std::move(*it);
-		CHECK( s1 == "line 2" );
-		s1 = *it;
-		CHECK( s1 != "line 2" );
-		s1 = *++it;
-		CHECK( s1 == "line 3" );
-		s1 = *it++;
-		CHECK( s1 == "line 3" );
-		s1 = *it++;
-		CHECK( s1 == "line 4" );
-		s1 = *it;
-		CHECK( s1 == "line 5" );
-
+		KDirectory Dir(sDirectory);
+		CHECK ( Dir.size() == 3 );
+		CHECK ( Dir.Find("KFilesystem.test") == true );
+		CHECK ( Dir.Match( KDirectory::EntryType::REGULAR) == 1);
+		CHECK ( Dir.Match( KDirectory::EntryType::REGULAR, true) == 0);
+		CHECK ( Dir.empty() == true );
+		CHECK ( Dir.Open(sDirectory) == 3 );
+		Dir.RemoveHidden();
+		CHECK ( Dir.size() == 1 );
+		CHECK ( Dir.Match(".*\\.test") == 1 );
+		CHECK ( Dir.Match(".*\\.test", true) == 0 );
+		CHECK ( Dir.empty() == true );
+		CHECK ( Dir.Open(sDirectory, KDirectory::EntryType::REGULAR) == 1 );
+		CHECK ( Dir.size() == 1 );
 	}
 
-	SECTION("KFile read iterator 2")
+	SECTION("KDiskStat")
 	{
-		KInFile File(sFile);
-		for (const auto& it : File)
-		{
-			CHECK( it.StartsWith("line ") == true );
-		}
+		KDiskStat Stat(sDirectory);
+		CHECK ( Stat.Total() > 100000 );
+		CHECK ( Stat.Error() == "" );
 	}
 
+}
+
+TEST_CASE("KFilesystem cleanup")
+{
+	CHECK ( kRemoveDir("/tmp/filetests12r4948t5") == true );
+	CHECK ( kDirExists("/tmp/filetests12r4948t5") == false);
 }

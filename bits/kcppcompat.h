@@ -251,9 +251,8 @@ using decay_t = typename decay<T>::type;
 	#define DEKAF2_ALWAYS_INLINE inline
 #endif
 
-#if (!defined __GNUC__ || DEKAF2_GCC_VERSION >= 50000) && DEKAF2_HAS_CPP_11
-	// this causes an error message in clang syntax analysis, but it compiles
-	// in both gcc >= 5 and clang!
+#if !DEKAF_NO_GCC && DEKAF2_GCC_VERSION >= 50000 && DEKAF2_HAS_CPP_11
+	// this causes an error message in clang, gcc >= 5 takes it
 	#define DEKAF2_LE_BE_CONSTEXPR constexpr
 #else
 	// older gcc versions do not compile the constexpr

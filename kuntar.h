@@ -71,6 +71,8 @@
 #include <cinttypes>
 #include <vector>
 #include <memory>
+#include <boost/iostreams/filtering_stream.hpp>
+
 #include "kstring.h"
 #include "kreader.h"
 #include "kwriter.h"
@@ -179,8 +181,9 @@ private:
 
 } // end of namespace tar
 
+
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// Tar unarchiver
+/// Tar unarchiver for uncompressed archives
 class KUnTar
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -190,10 +193,14 @@ public:
 //----------
 
 	/// Construct around an open stream
-	KUnTar(KInStream& Stream, int AcceptedTypes = tar::File, bool bSkipAppleResourceForks = false);
+	KUnTar(KInStream& Stream,
+		   int AcceptedTypes = tar::File,
+		   bool bSkipAppleResourceForks = false);
 
 	/// Construct from an archive file name
-	KUnTar(KStringView sArchiveFilename, int AcceptedTypes = tar::File, bool bSkipAppleResourceForks = false);
+	KUnTar(KStringView sArchiveFilename,
+		   int AcceptedTypes = tar::File,
+		   bool bSkipAppleResourceForks = false);
 
     /// Simple interface: call for subsequent files, with sBuffer getting filled
 	/// with the file's data. Returns false if end of archive. Additional properties
@@ -239,5 +246,111 @@ private:
 	tar::Header m_header;
 
 }; // KUnTar
+
+
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// Tar unarchiver that can read GZip or BZip2 compressed archives
+class KUnTarCompressed : KUnTar
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+//----------
+public:
+//----------
+
+	enum COMPRESSION
+	{
+		NONE,
+		GZIP,
+		BZIP2,
+		AUTODETECT
+	};
+
+	/// Construct around an open stream. Compression type options are NONE, GZIP, BZIP2.
+	KUnTarCompressed(COMPRESSION Compression,
+					 KInStream& InStream,
+					 int AcceptedTypes = tar::File,
+					 bool bSkipAppleResourceForks = false);
+
+	/// Construct from an archive file name. Compression type options are NONE, GZIP, BZIP2,
+	/// AUTODETECT. If AUTODETECT, compression will be set from the file name suffix.
+	KUnTarCompressed(COMPRESSION Compression,
+					 KStringView sArchiveFilename,
+					 int AcceptedTypes = tar::File,
+					 bool bSkipAppleResourceForks = false);
+
+	/// Construct from an archive file name. Compression will be set from the file name suffix.
+	KUnTarCompressed(KStringView sArchiveFilename,
+					 int AcceptedTypes = tar::File,
+					 bool bSkipAppleResourceForks = false)
+	: KUnTarCompressed(AUTODETECT, sArchiveFilename, AcceptedTypes, bSkipAppleResourceForks)
+	{}
+
+//----------
+private:
+//----------
+
+	void SetupFilter(COMPRESSION Compression, KInStream& InStream);
+
+	boost::iostreams::filtering_istream m_Filter;
+	KInStream m_FilteredInStream { m_Filter };
+	std::unique_ptr<KInFile> m_File;
+
+}; // KUnTarCompressed
+
+
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// Tar unarchiver that can read GZip compressed archives
+class KUnTarGZip : KUnTarCompressed
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+//----------
+public:
+//----------
+
+	/// Construct around an open stream
+	KUnTarGZip(KInStream& InStream,
+			   int AcceptedTypes = tar::File,
+			   bool bSkipAppleResourceForks = false)
+	: KUnTarCompressed(GZIP, InStream, AcceptedTypes, bSkipAppleResourceForks)
+	{}
+
+	/// Construct from an archive file name
+	KUnTarGZip(KStringView sArchiveFilename,
+			   int AcceptedTypes = tar::File,
+			   bool bSkipAppleResourceForks = false)
+	: KUnTarCompressed(GZIP, sArchiveFilename, AcceptedTypes, bSkipAppleResourceForks)
+	{}
+
+}; // KUnTarGZip
+
+
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// Tar unarchiver that can read BZip2 compressed archives
+class KUnTarBZip2 : KUnTarCompressed
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+//----------
+public:
+//----------
+
+	/// Construct around an open stream
+	KUnTarBZip2(KInStream& InStream,
+			   int AcceptedTypes = tar::File,
+			   bool bSkipAppleResourceForks = false)
+	: KUnTarCompressed(BZIP2, InStream, AcceptedTypes, bSkipAppleResourceForks)
+	{}
+
+	/// Construct from an archive file name
+	KUnTarBZip2(KStringView sArchiveFilename,
+			   int AcceptedTypes = tar::File,
+			   bool bSkipAppleResourceForks = false)
+	: KUnTarCompressed(BZIP2, sArchiveFilename, AcceptedTypes, bSkipAppleResourceForks)
+	{}
+
+}; // KUnTarBZip2
+
 
 } // end of namespace dekaf2

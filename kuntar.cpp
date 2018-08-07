@@ -39,7 +39,7 @@
 // +-------------------------------------------------------------------------+
 
 // large portions of this code are taken from
-// https://github.com/JoachimSchurig/CppCDDB/blob/master/asioserver.hpp
+// https://github.com/JoachimSchurig/CppCDDB/blob/master/untar.cpp
 // which is under a BSD style open source license
 
 //  Copyright © 2016 Joachim Schurig. All rights reserved.
@@ -81,6 +81,9 @@
 //  So please do not blame those for any errors this code may cause or have.
 
 #include <cstring>
+#include <boost/iostreams/filter/gzip.hpp>
+#include <boost/iostreams/filter/bzip2.hpp>
+
 #include "kuntar.h"
 #include "klog.h"
 
@@ -422,7 +425,7 @@ bool KUnTar::SkipCurrentFile()
 {
 	return Skip(m_header.Filesize() + CalcPadding());
 
-} // SkipFile
+} // SkipCurrentFile
 
 //-----------------------------------------------------------------------------
 bool KUnTar::Read(KOutStream& OutStream)
@@ -507,6 +510,78 @@ bool KUnTar::File(KString& sName, KString& sBuffer)
     return true;
 
 } // File
+
+
+//-----------------------------------------------------------------------------
+KUnTarCompressed::KUnTarCompressed(COMPRESSION Compression,
+				 KInStream& InStream,
+				 int AcceptedTypes,
+				 bool bSkipAppleResourceForks)
+//-----------------------------------------------------------------------------
+	: KUnTar(m_FilteredInStream, AcceptedTypes, bSkipAppleResourceForks)
+{
+	SetupFilter(Compression, InStream);
+
+} // ctor
+
+//-----------------------------------------------------------------------------
+KUnTarCompressed::KUnTarCompressed(COMPRESSION Compression,
+				 KStringView sArchiveFilename,
+				 int AcceptedTypes,
+				 bool bSkipAppleResourceForks)
+//-----------------------------------------------------------------------------
+	: KUnTar(m_FilteredInStream, AcceptedTypes, bSkipAppleResourceForks)
+{
+	m_File = std::make_unique<KInFile>(sArchiveFilename);
+
+	if (Compression == AUTODETECT)
+	{
+		KString sSuffix = kExtension(sArchiveFilename).ToLower();
+
+		if (sSuffix == "tar")
+		{
+			Compression = NONE;
+		}
+		else if (sSuffix == "tgz" || sSuffix == "gz" || sSuffix == "gzip")
+		{
+			Compression = GZIP;
+		}
+		else if (sSuffix == "tbz" || sSuffix == "tbz2" || sSuffix == "bz2" || sSuffix == "bzip2")
+		{
+			Compression = BZIP2;
+		}
+		else
+		{
+			Compression = NONE;
+		}
+	}
+
+	SetupFilter(Compression, *m_File);
+
+} // ctor
+
+//-----------------------------------------------------------------------------
+void KUnTarCompressed::SetupFilter(COMPRESSION Compression, KInStream& InStream)
+//-----------------------------------------------------------------------------
+{
+	switch (Compression)
+	{
+		case AUTODETECT:
+		case NONE:
+			break;
+
+		case GZIP:
+			m_Filter.push(boost::iostreams::gzip_decompressor());
+			break;
+
+		case BZIP2:
+			m_Filter.push(boost::iostreams::bzip2_decompressor());
+			break;
+	}
+
+	m_Filter.push(InStream.InStream());
+
+} // SetupFilter
 
 } // end of namespace dekaf2
 

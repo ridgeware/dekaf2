@@ -51,6 +51,7 @@ set (USOURCES
 	kstringviewz_tests.cpp
 	ksubscribe_tests.cpp
 	ktcpserver_tests.cpp
+	kuntar_tests.cpp
 	kurl_tests.cpp
 	kutf8_tests.cpp
 	kutf8iterator_tests.cpp

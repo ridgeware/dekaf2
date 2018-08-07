@@ -250,7 +250,7 @@ private:
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Tar unarchiver that can read GZip or BZip2 compressed archives
-class KUnTarCompressed : KUnTar
+class KUnTarCompressed : public KUnTar
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -301,7 +301,7 @@ private:
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Tar unarchiver that can read GZip compressed archives
-class KUnTarGZip : KUnTarCompressed
+class KUnTarGZip : public KUnTarCompressed
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -328,7 +328,7 @@ public:
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Tar unarchiver that can read BZip2 compressed archives
-class KUnTarBZip2 : KUnTarCompressed
+class KUnTarBZip2 : public KUnTarCompressed
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 

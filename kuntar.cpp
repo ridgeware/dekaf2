@@ -80,10 +80,6 @@
 //  code, particularly because this is a pure C++11 implementation for untar.
 //  So please do not blame those for any errors this code may cause or have.
 
-
-#include <unistd.h>
-#include <fcntl.h>
-#include <cstdlib>
 #include <cstring>
 #include "kuntar.h"
 #include "klog.h"
@@ -152,7 +148,10 @@ bool Header::Analyze()
         uint64_t header_checksum = std::strtoull(header.checksum, nullptr, 8);
         std::memset(header.checksum, ' ', 8);
         uint64_t sum = 0;
-        for (auto ch : raw.header) sum += ch;
+        for (auto ch : raw.header)
+		{
+			sum += ch;
+		}
         if (header_checksum != sum)
 		{
 			kDebug(2, "invalid header checksum");
@@ -180,7 +179,10 @@ bool Header::Analyze()
     if (!m_filename.empty() && *m_filename.rbegin() == '/')
 	{
         // make sure we detect also pre-1988 directory names :)
-        if (!header.extension.ustar.type_flag) header.extension.ustar.type_flag = '5';
+        if (!header.extension.ustar.type_flag)
+		{
+			header.extension.ustar.type_flag = '5';
+		}
     }
 
     // now analyze the entry type
@@ -265,18 +267,20 @@ bool Header::Analyze()
 
 
 //-----------------------------------------------------------------------------
-KUnTar::KUnTar(KInStream& Stream, bool bSkipAppleResourceForks)
+KUnTar::KUnTar(KInStream& Stream, int AcceptedTypes, bool bSkipAppleResourceForks)
 //-----------------------------------------------------------------------------
 	: m_Stream(Stream)
+	, m_AcceptedTypes(AcceptedTypes)
 	, m_bSkipAppleResourceForks(bSkipAppleResourceForks)
 {
 }
 
 //-----------------------------------------------------------------------------
-KUnTar::KUnTar(KStringView sArchiveFilename, bool bSkipAppleResourceForks)
+KUnTar::KUnTar(KStringView sArchiveFilename, int AcceptedTypes, bool bSkipAppleResourceForks)
 //-----------------------------------------------------------------------------
 	: m_File(std::make_unique<KInFile>(sArchiveFilename))
 	, m_Stream(*m_File)
+	, m_AcceptedTypes(AcceptedTypes)
 	, m_bSkipAppleResourceForks(bSkipAppleResourceForks)
 {
 }
@@ -298,7 +302,7 @@ bool KUnTar::Read(void* buf, size_t len)
 } // Read
 
 //-----------------------------------------------------------------------------
-size_t KUnTar::Padding()
+size_t KUnTar::CalcPadding()
 //-----------------------------------------------------------------------------
 {
 	if (m_header.Type() == tar::File)
@@ -306,22 +310,47 @@ size_t KUnTar::Padding()
 		// check if we have to skip some padding bytes (tar files have a block size of 512)
 		return (tar::Header::HeaderLen - (m_header.Filesize() % tar::Header::HeaderLen)) % tar::Header::HeaderLen;
 	}
-	else
-	{
-		return 0;
-	}
 
-} // Padding
+	return 0;
+
+} // CalcPadding
 
 //-----------------------------------------------------------------------------
-bool KUnTar::Next(int AcceptedTypes)
+bool KUnTar::ReadPadding()
+//-----------------------------------------------------------------------------
+{
+	if (m_header.Type() == tar::File)
+	{
+		size_t padding = CalcPadding();
+
+		if (padding)
+		{
+			// this invalidates the (raw) header, but it is a handy buffer to read up to 512
+			// bytes into here (and we do not need it anymore)
+			if (!Read(*m_header, padding))
+			{
+				return false;
+			}
+		}
+
+		return true;
+	}
+	else
+	{
+		return false;
+	}
+
+} // ReadPadding
+
+//-----------------------------------------------------------------------------
+bool KUnTar::Next()
 //-----------------------------------------------------------------------------
 {
     do
 	{
 		if (!m_bIsConsumed && m_header.Type() == tar::File)
 		{
-			if (!Skip())
+			if (!SkipCurrentFile())
 			{
 				return false;
 			}
@@ -350,7 +379,7 @@ bool KUnTar::Next(int AcceptedTypes)
 			m_bIsConsumed = false;
         }
 
-    } while ((m_header.Type() & AcceptedTypes) == 0
+    } while ((m_header.Type() & m_AcceptedTypes) == 0
 			 || (m_bSkipAppleResourceForks && m_header.Filename().StartsWith("./._")));
 
     return true;
@@ -358,10 +387,13 @@ bool KUnTar::Next(int AcceptedTypes)
 } // Entry
 
 //-----------------------------------------------------------------------------
-bool KUnTar::Skip()
+bool KUnTar::Skip(size_t iSize)
 //-----------------------------------------------------------------------------
 {
-	size_t iSize = m_header.Filesize() + Padding();
+	if (!iSize)
+	{
+		return true;
+	}
 
 	enum { SKIP_BUFSIZE = 4096 };
 	char sBuffer[SKIP_BUFSIZE];
@@ -371,7 +403,7 @@ bool KUnTar::Skip()
 	{
 		auto iChunk = std::min(static_cast<size_t>(SKIP_BUFSIZE), iSize);
 		auto iReadChunk = Read(sBuffer, iChunk);
-		iRead  += iReadChunk;
+		iRead += iReadChunk;
 		iSize -= iReadChunk;
 
 		if (iReadChunk < iChunk)
@@ -383,6 +415,14 @@ bool KUnTar::Skip()
 	return iRead == iSize;
 
 } // Skip
+
+//-----------------------------------------------------------------------------
+bool KUnTar::SkipCurrentFile()
+//-----------------------------------------------------------------------------
+{
+	return Skip(m_header.Filesize() + CalcPadding());
+
+} // SkipFile
 
 //-----------------------------------------------------------------------------
 bool KUnTar::Read(KOutStream& OutStream)
@@ -400,17 +440,9 @@ bool KUnTar::Read(KOutStream& OutStream)
 		return false;
 	}
 
-	// check if we have to skip some padding bytes (tar files have a block size of 512)
-	size_t padding = Padding();
-
-	if (padding)
+	if (!ReadPadding())
 	{
-		// this invalidates the (raw) header, but it is a handy buffer to read up to 512
-		// bytes into here (and we do not need it anymore)
-		if (!Read(*m_header, padding))
-		{
-			return false;
-		}
+		return false;
 	}
 
 	m_bIsConsumed = true;
@@ -423,6 +455,8 @@ bool KUnTar::Read(KOutStream& OutStream)
 bool KUnTar::Read(KString& sBuffer)
 //-----------------------------------------------------------------------------
 {
+	sBuffer.clear();
+
 	if (m_header.Type() != tar::File)
 	{
 		kDebug(2, "cannot read - not a file");
@@ -437,17 +471,9 @@ bool KUnTar::Read(KString& sBuffer)
 		return false;
 	}
 
-	// check if we have to skip some padding bytes (tar files have a block size of 512)
-	size_t padding = Padding();
-
-	if (padding)
+	if (!ReadPadding())
 	{
-		// this invalidates the (raw) header, but it is a handy buffer to read up to 512
-		// bytes into here (and we do not need it anymore)
-		if (!Read(*m_header, padding))
-		{
-			return false;
-		}
+		return false;
 	}
 
 	m_bIsConsumed = true;
@@ -460,12 +486,24 @@ bool KUnTar::Read(KString& sBuffer)
 bool KUnTar::File(KString& sName, KString& sBuffer)
 //-----------------------------------------------------------------------------
 {
-    if (!Next(tar::File))
+	sName.clear();
+	sBuffer.clear();
+
+    if (!Next())
 	{
 		return false;
 	}
 
+	if (m_header.Type() == tar::File)
+	{
+		if (!Read(sBuffer))
+		{
+			return false;
+		}
+	}
+
     sName = m_header.Filename();
+
     return true;
 
 } // File

@@ -190,42 +190,50 @@ public:
 //----------
 
 	/// Construct around an open stream
-	KUnTar(KInStream& Stream, bool bSkipAppleResourceForks = false);
+	KUnTar(KInStream& Stream, int AcceptedTypes = tar::File, bool bSkipAppleResourceForks = false);
 
 	/// Construct from an archive file name
-	KUnTar(KStringView sArchiveFilename, bool bSkipAppleResourceForks = false);
+	KUnTar(KStringView sArchiveFilename, int AcceptedTypes = tar::File, bool bSkipAppleResourceForks = false);
 
-    /// simple interface: call for subsequent real files, with sBuffer getting filled with the file's data
-    /// returns false if end of archive
+    /// Simple interface: call for subsequent files, with sBuffer getting filled
+	/// with the file's data. Returns false if end of archive. Additional properties
+	/// can be requested by the other property methods.
     bool File(KString& sName, KString& sBuffer);
 
-    /// extended interface, permitting to receive files, but also directory, link, and symlink entries from a tar archive
-	bool Next(int AcceptedTypes = tar::File);
+    /// Advance to next entry in an archive, returns false at error or end of archive
+	bool Next();
 
-    /// for the extended interface: get the current file type (after a call to Next() )
+    /// Get type of the current file
 	tar::EntryType Type() const { return m_header.Type(); }
 
-    /// for the extended interface: get the current file name (after a call to Next(), and if the type is File, Link, or Symlink )
+    /// Get name of the current file (when the type is File, Link or Symlink)
     const KString& Filename() const { return m_header.Filename(); }
 
-    /// for the extended interface: get the current link name (after a call to Next(), and if the type is Link or Symlink)
+	/// Get link name of the current file (when the type is Link or Symlink)
     const KString& Linkname() const { return m_header.Linkname(); }
 
-	uint64_t Size() const { return m_header.Filesize(); }
+	/// Get size in bytes of the current file (when the type is File)
+	uint64_t Filesize() const { return m_header.Filesize(); }
 
+	/// Read content of the current file into a KOutStream (when the type is File)
 	bool Read(KOutStream& OutStream);
+
+	/// Read content of the current file into a KString (when the type is File)
 	bool Read(KString& sBuffer);
 
 //----------
 private:
 //----------
 
-	size_t Padding();
+	size_t CalcPadding();
+	bool ReadPadding();
+	bool Skip(size_t iSize);
+	bool SkipCurrentFile();
 	bool Read(void* buf, size_t len);
-	bool Skip();
 
 	std::unique_ptr<KInFile> m_File;
 	KInStream& m_Stream;
+	int m_AcceptedTypes;
 	bool m_bSkipAppleResourceForks;
 	mutable bool m_bIsConsumed;
 	tar::Header m_header;

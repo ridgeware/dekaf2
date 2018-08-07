@@ -36,6 +36,7 @@ set (USOURCES
 	kmpsearch_tests.cpp
 #	kostringstream_tests.cpp
 	koutpipe_tests.cpp
+	koutputtemplate_tests.cpp
 	koutshell_tests.cpp
 	kpipe_tests.cpp
 	kprops_tests.cpp

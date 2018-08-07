@@ -309,6 +309,7 @@ set (HEADERS
 	koptions.h
 	kstringstream.h
 	koutpipe.h
+	koutputtemplate.h
 	koutshell.h
 	kparallel.h
 	kpipe.h
@@ -395,6 +396,7 @@ set (SOURCES
 	kmpsearch.cpp
 	koptions.cpp
 	koutpipe.cpp
+	koutputtemplate.cpp
 	koutshell.cpp
 	kparallel.cpp
 	kpipe.cpp

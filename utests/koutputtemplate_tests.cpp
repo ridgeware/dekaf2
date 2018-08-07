@@ -18,11 +18,12 @@ END more text
 Line 4
 )";
 
-		CHECK ( Template.Write("BEGIN", "END") == "Line 3\n" );
-
 		KReplacer Replacer;
 		Replacer.insert("Line", "Zeile");
 
+		CHECK ( Template.Write("BEGIN", "END") == "Line 3\n" );
 		CHECK ( Template.Write("BEGIN", "END", Replacer) == "Zeile 3\n" );
+		CHECK ( Template.Write("", "BEGIN", Replacer) == "\nZeile 1\n" );
+		CHECK ( Template.Write("END", "", Replacer) == "Zeile 4\n" );
 	}
 }

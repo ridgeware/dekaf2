@@ -75,6 +75,7 @@ public:
 	void clear();
 
 	bool insert(KStringView sSearch, KStringView sReplace);
+	bool erase(KStringView sSearch);
 
 	bool GetRemoveAllVariables() const { return m_bRemoveAllVariables; }
 

@@ -77,9 +77,18 @@ bool KReplacer::insert(KStringView sSearch, KStringView sReplace)
 		sKey += sSearch;
 		sKey += m_sLeadOut;
 
+#ifdef DEKAF2_HAS_CPP_17
+		m_RepMap.insert_or_assign(std::move(sKey), sReplace);
+		return true;
+#else
 		auto p = m_RepMap.emplace(std::pair(std::move(sKey), sReplace));
-
-		return p.second;
+		if (p.second == false)
+		{
+			// replace the existing value
+			p.first->second = sReplace;
+		}
+		return true;
+#endif
 	}
 
 	return false;
@@ -103,6 +112,25 @@ void KReplacer::insert(const KReplacer& other)
 	}
 
 } // insert
+
+//-----------------------------------------------------------------------------
+bool KReplacer::erase(KStringView sSearch)
+//-----------------------------------------------------------------------------
+{
+	if (!sSearch.empty())
+	{
+		KString sKey = m_sLeadIn;
+		sKey += sSearch;
+		sKey += m_sLeadOut;
+
+		m_RepMap.erase(sKey);
+
+		return true;
+	}
+
+	return false;
+
+} // erase
 
 //-----------------------------------------------------------------------------
 KString KReplacer::Replace(KStringView sIn) const

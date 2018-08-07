@@ -114,7 +114,7 @@ bool KInHTTPFilter::SetupInputFilter()
 } // SetupInputFilter
 
 //-----------------------------------------------------------------------------
-// build the filter if it is not yet created, and return a KOutStream reference to it
+// build the filter if it is not yet created, and return a KInStream reference to it
 KInStream& KInHTTPFilter::FilteredStream()
 //-----------------------------------------------------------------------------
 {

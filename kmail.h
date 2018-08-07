@@ -86,18 +86,18 @@ public:
 	/// Set the subject
 	void Subject(KStringView sSubject);
 
+	/// Set the MIME type for the main content part to HTML/UTF-8. Returns false
+	/// if content was added before.
+	bool AsHTML();
+
 	/// Set the text message (UTF-8, or HTML/UTF-8 if AsHTML() was called before)
 	void Message(KString&& sMessage);
 
 	/// Set the text message (UTF-8, or HTML/UTF-8 if AsHTML() was called before)
-	void Message(const KString& sMessage)
+	void Message(KStringView sMessage)
 	{
 		Message(KString(sMessage));
 	}
-
-	/// Set the MIME type for the main content part to HTML/UTF-8. Returns false
-	/// if content was added before.
-	bool AsHTML();
 
 	/// Returns true if this mail has all elements needed for expedition
 	bool Good() const;
@@ -138,13 +138,11 @@ public:
 		return Body(part);
 	}
 
-	/// Create mail body by reading the files in a directory, creating either
-	/// a multipart/related mail with inline images, or a multipart/mixed mail
-	/// with attachments. This voids any previously set content.
-	KMail& Directory(KStringViewZ sDirectory)
-	{
-		return Body(KMIMEDirectory(sDirectory));
-	}
+	/// Create mail body by reading the files in a directory or from a single file,
+	/// creating either a multipart/related mail with inline images, or a
+	/// multipart/mixed mail with attachments, or in case of a single file a mime
+	/// type deduced from the file extension. This voids any previously set content.
+	KMail& LoadBodyFrom(KStringViewZ sPath);
 
 	/// Add a KReplacer to substitute text in all text/* parts of the mail
 	void VariableReplacer(std::shared_ptr<KReplacer> Replacer)

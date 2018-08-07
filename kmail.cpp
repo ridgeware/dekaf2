@@ -96,7 +96,8 @@ bool KMail::AsHTML()
 		m_iBody = m_Parts.size();
 		return true;
 	}
-}
+
+} // AsHTML
 
 //-----------------------------------------------------------------------------
 void KMail::Message(KString&& sMessage)
@@ -111,7 +112,8 @@ void KMail::Message(KString&& sMessage)
 		Attach(KMIMEText(std::move(sMessage)));
 		m_iBody = m_Parts.size();
 	}
-}
+
+} // Message
 
 //-----------------------------------------------------------------------------
 KMail& KMail::operator=(KStringView sMessage)
@@ -135,7 +137,8 @@ KMail& KMail::operator+=(KStringView sMessage)
 		m_iBody = m_Parts.size();
 	}
 	return *this;
-}
+
+} // operator+=
 
 //-----------------------------------------------------------------------------
 KMail& KMail::Body(KMIMEMultiPart&& parts)
@@ -144,7 +147,23 @@ KMail& KMail::Body(KMIMEMultiPart&& parts)
 	m_Parts = parts;
 	m_iBody = 0;
 	return *this;
-}
+
+} // Body
+
+//-----------------------------------------------------------------------------
+KMail& KMail::LoadBodyFrom(KStringViewZ sPath)
+//-----------------------------------------------------------------------------
+{
+	if (kDirExists(sPath))
+	{
+		return Body(KMIMEDirectory(sPath));
+	}
+	else
+	{
+		return Body(KMIMEFile(sPath));
+	}
+
+} // LoadBodyFrom
 
 //-----------------------------------------------------------------------------
 bool KMail::Attach(KStringView sFilename, KMIME MIME)
@@ -160,7 +179,8 @@ bool KMail::Attach(KStringView sFilename, KMIME MIME)
 	{
 		return false;
 	}
-}
+
+} // Attach
 
 //-----------------------------------------------------------------------------
 KMail& KMail::Attach(KMIMEPart&& part)
@@ -173,14 +193,16 @@ KMail& KMail::Attach(KMIMEPart&& part)
 	}
 	m_Parts += std::move(part);
 	return *this;
-}
+
+} // Attach
 
 //-----------------------------------------------------------------------------
 void KMail::Add(map_t& map, KStringView Key, KStringView Value)
 //-----------------------------------------------------------------------------
 {
 	map.emplace(Key, Value);
-}
+
+} // Add
 
 //-----------------------------------------------------------------------------
 bool KMail::Good() const

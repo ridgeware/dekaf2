@@ -153,11 +153,9 @@ ssize_t kGetSize(KStringViewZ sFileName)
 } // kGetSize
 
 //-----------------------------------------------------------------------------
-bool kReadAll(std::istream& Stream, KString& sContent, bool bFromStart)
+bool kAppendAll(std::istream& Stream, KString& sContent, bool bFromStart)
 //-----------------------------------------------------------------------------
 {
-	sContent.clear();
-
 	std::streambuf* sb = Stream.rdbuf();
 
 	if (!sb)
@@ -213,10 +211,12 @@ bool kReadAll(std::istream& Stream, KString& sContent, bool bFromStart)
 
 	size_t uiSize = static_cast<size_t>(iSize);
 
-	// create the read buffer
-	sContent.resize(uiSize);
+	size_t uiContentSize = sContent.size();
 
-	size_t iRead = static_cast<size_t>(sb->sgetn(sContent.data(), iSize));
+	// create the read buffer
+	sContent.resize(uiContentSize + uiSize);
+
+	size_t iRead = static_cast<size_t>(sb->sgetn(&sContent[uiContentSize], iSize));
 
 	// we should now be at the end of the input..
 	if (std::istream::traits_type::eq_int_type(sb->sgetc(), std::istream::traits_type::eof()))
@@ -235,6 +235,15 @@ bool kReadAll(std::istream& Stream, KString& sContent, bool bFromStart)
 	}
 
 	return true;
+
+} // kAppendAll
+
+//-----------------------------------------------------------------------------
+bool kReadAll(std::istream& Stream, KString& sContent, bool bFromStart)
+//-----------------------------------------------------------------------------
+{
+	sContent.clear();
+	return kAppendAll(Stream, sContent, bFromStart);
 
 } // kReadAll
 

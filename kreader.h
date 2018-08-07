@@ -64,6 +64,11 @@ bool kReadLine(std::istream& Stream,
                KStringView sTrimLeft = "",
                KString::value_type delimiter = '\n');
 
+/// Appends all content of a std::istream device to a string. Fails on non-seekable
+/// istreams if bFromStart is true, otherwise tries to read as much as possible.
+/// Reads directly in the underlying streambuf
+bool kAppendAll(std::istream& Stream, KString& sContent, bool bFromStart = true);
+
 /// Read all content of a std::istream device into a string. Fails on non-seekable
 /// istreams if bFromStart is true, otherwise tries to read as much as possible.
 /// Reads directly in the underlying streambuf

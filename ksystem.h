@@ -95,6 +95,9 @@ inline bool kUnsetEnv (KStringViewZ szEnvVar)
 	return (bOK);
 }
 
+/// Set operating system current working directory.
+bool kSetCWD (KStringViewZ sPath);
+
 /// Return operating system current working directory as a string.
 KString kGetCWD ();
 

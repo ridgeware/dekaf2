@@ -54,12 +54,39 @@
 namespace dekaf2
 {
 
+bool kSetCWD (KStringViewZ sPath)
+{
+#ifdef DEKAF2_HAS_STD_FILESYSTEM
+	std::error_code ec;
+	fs::current_path(sPath.c_str(), ec);
+	if (ec)
+	{
+		kWarning("cannot set current working directory: {}", ec.message());
+		return false;
+	}
+	return true;
+#else
+	if (::chdir(sPath.c_str()))
+	{
+		kWarning("chdir failed: {}", ::strerror(errno));
+		return false;
+	}
+	return true;
+#endif
+}
+
 //-----------------------------------------------------------------------------
 KString kGetCWD ()
 //-----------------------------------------------------------------------------
 {
 #ifdef DEKAF2_HAS_STD_FILESYSTEM
-	return fs::current_path().string();
+	std::error_code ec;
+	KString sPath fs::current_path(ec);
+	if (ec)
+	{
+		kWarning("cannot get current working directory: {}", ec.message());
+	}
+	return sPath;
 #else
 	enum { MAX_PATH = 1024 };
 	KString str(MAX_PATH, '\0');

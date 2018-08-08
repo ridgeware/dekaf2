@@ -78,34 +78,32 @@ public:
 	using reference       = LJSON::reference;
 	using const_reference = LJSON::const_reference;
 
-	template<class T>
-	KJSON(initializer_list_t init,
-	      bool type_deduction = true,
-	      value_t manual_type = value_t::array)
-	    : LJSON(init, type_deduction, manual_type)
+	KJSON() = default;
+
+	KJSON(const LJSON& other)
+	: LJSON(other)
 	{
 	}
 
-	template<class...Args>
-	KJSON(Args&&...args)
-	    : LJSON(std::forward<Args>(args)...)
+	KJSON(LJSON&& other)
+	: LJSON(std::move(other))
 	{
 	}
-	/*
-	KJSON& operator=(const KJSON& other)
+
+	KJSON& operator=(const LJSON& other)
 	{
 		LJSON::operator=(other);
-		m_sLastError = other.m_sLastError;
+		m_sLastError.clear();
 		return *this;
 	}
 
-	KJSON& operator=(KJSON&& other)
+	KJSON& operator=(LJSON&& other)
 	{
 		LJSON::operator=(std::move(other));
-		m_sLastError = std::move(other.m_sLastError);
+		m_sLastError.clear();
 		return *this;
 	}
-*/
+
 	bool        Parse     (KStringView sJSON);
 
 	KJSON       GetObject (const KString& sKey);
@@ -287,6 +285,7 @@ public:
 //----------
 private:
 //----------
+
 	void ClearError() const { m_sLastError.clear(); }
 
 	static value_type s_empty;

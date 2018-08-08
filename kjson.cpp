@@ -127,7 +127,6 @@ KJSON KJSON::GetObject (const KString& sKey)
 	{
 		oReturnMe = it.value();
 	}
-	return (oReturnMe);
 #else
 	DEKAF2_TRY
 	{
@@ -136,15 +135,15 @@ KJSON KJSON::GetObject (const KString& sKey)
 		{
 			oReturnMe = it.value();
 		}
-		return (oReturnMe);
 	}
 	DEKAF2_CATCH (const LJSON::exception& exc)
 	{
 		kDebug (1, "exception was thrown.");
 		FormError(exc);
-		return (oReturnMe);
 	}
 #endif
+
+	return (oReturnMe);
 
 } // KJSON::GetObject
 

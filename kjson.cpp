@@ -71,7 +71,6 @@ bool KJSON::Parse (KStringView sJSON)
 	}
 	DEKAF2_CATCH (const LJSON::exception& exc)
 	{
-		kDebug (1, "exception was thrown.");
 		return (FormError (exc));
 	}
 #endif
@@ -79,7 +78,7 @@ bool KJSON::Parse (KStringView sJSON)
 } // parse
 
 //-----------------------------------------------------------------------------
-KString KJSON::GetString(const KString& sKey)
+KString KJSON::GetString(KStringView sKey)
 //-----------------------------------------------------------------------------
 {
 	ClearError();
@@ -105,7 +104,6 @@ KString KJSON::GetString(const KString& sKey)
 	}
 	DEKAF2_CATCH (const LJSON::exception& exc)
 	{
-		kDebug (1, "exception was thrown.");
 		FormError(exc);
 		return (oReturnMe);
 	}
@@ -114,7 +112,7 @@ KString KJSON::GetString(const KString& sKey)
 } // KJSON::GetString
 
 //-----------------------------------------------------------------------------
-KJSON KJSON::GetObject (const KString& sKey)
+KJSON KJSON::GetObject (KStringView sKey)
 //-----------------------------------------------------------------------------
 {
 	ClearError();
@@ -138,7 +136,6 @@ KJSON KJSON::GetObject (const KString& sKey)
 	}
 	DEKAF2_CATCH (const LJSON::exception& exc)
 	{
-		kDebug (1, "exception was thrown.");
 		FormError(exc);
 	}
 #endif
@@ -152,6 +149,7 @@ bool KJSON::FormError (const LJSON::exception& exc) const
 //-----------------------------------------------------------------------------
 {
 	m_sLastError.Printf ("JSON[%03d]: %s", exc.id, exc.what());
+	kDebug (1, m_sLastError);
 
 	return (false);
 

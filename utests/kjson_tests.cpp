@@ -25,14 +25,14 @@ TEST_CASE("KJSON")
 		KString value;
 		value = j1["key1"];
 		CHECK ( value == "val1" );
-		value = j1["key2"];
+		value = j1["key2"_ksz];
 		CHECK ( value == "val2" );
 
 		value = j1["object"]["currency"];
 		CHECK ( value == "USD" );
 		double d = j1["object"]["value"];
 		CHECK ( d == 42.99 );
-		KJSON j2 = j1["object"];
+		KJSON j2 = j1["object"_ksv];
 		value = j2["currency"];
 		CHECK ( value == "USD" );
 		d = j2["value"];
@@ -42,6 +42,18 @@ TEST_CASE("KJSON")
 		value = j1[sKey];
 		CHECK ( value == "val1" );
 		if (!j1.IsObject("object"))
+		{
+			CHECK ( false );
+		}
+		if (!j1.IsObject("object"_ks))
+		{
+			CHECK ( false );
+		}
+		if (!j1.IsObject("object"_ksv))
+		{
+			CHECK ( false );
+		}
+		if (!j1.IsObject("object"_ksz))
 		{
 			CHECK ( false );
 		}
@@ -66,7 +78,7 @@ TEST_CASE("KJSON")
 		value = j1.GetString("not existing");
 		CHECK ( value == "" );
 	}
-/*
+
 	SECTION("Initializer list construction")
 	{
 		KJSON j1 = {
@@ -85,7 +97,7 @@ TEST_CASE("KJSON")
 		     }}
 		};
 
-		std::string value = j1["key1"];
+		KString value = j1["key1"];
 		CHECK ( value == "val1" );
 		value = j1["key2"];
 		CHECK ( value == "val2" );
@@ -100,5 +112,5 @@ TEST_CASE("KJSON")
 		d = j2["value"];
 		CHECK ( d == 42.99 );
 	}
-*/
+
 }

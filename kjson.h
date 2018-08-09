@@ -69,6 +69,7 @@ inline void from_json(const LJSON& j, dekaf2::KStringViewZ& s)
 class KJSON : public LJSON
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
+
 //----------
 public:
 //----------
@@ -90,6 +91,8 @@ public:
 	{
 	}
 
+	using LJSON::LJSON;
+
 	KJSON& operator=(const LJSON& other)
 	{
 		LJSON::operator=(other);
@@ -106,102 +109,55 @@ public:
 
 	bool        Parse     (KStringView sJSON);
 
-	KJSON       GetObject (const KString& sKey);
+	KJSON       GetObject (KStringView sKey);
 
-	KString     GetString (const KString& sKey);
+	KString     GetString (KStringView sKey);
 
 	const KString& GetLastError () { return m_sLastError; }
 
-	bool Exists(const char* Key) const
-	{
-		return LJSON::find(Key) != LJSON::end();
-	}
-
-	bool IsObject(const char* Key) const
-	{
-		auto it = LJSON::find(Key);
-		return (it != LJSON::end() && it->is_object());
-	}
-
-	bool IsArray(const char* Key) const
-	{
-		auto it = LJSON::find(Key);
-		return (it != LJSON::end() && it->is_array());
-	}
-
-	bool IsString(const char* Key) const
-	{
-		auto it = LJSON::find(Key);
-		return (it != LJSON::end() && it->is_string());
-	}
-
-	bool IsInteger(const char* Key) const
-	{
-		auto it = LJSON::find(Key);
-		return (it != LJSON::end() && it->is_number_integer());
-	}
-
-	bool IsFloat(const char* Key) const
-	{
-		auto it = LJSON::find(Key);
-		return (it != LJSON::end() && it->is_number_float());
-	}
-
-	bool IsNull(const char* Key) const
-	{
-		auto it = LJSON::find(Key);
-		return (it != LJSON::end() && it->is_null());
-	}
-
-	bool IsBoolean(const char* Key) const
-	{
-		auto it = LJSON::find(Key);
-		return (it != LJSON::end() && it->is_boolean());
-	}
-
-	bool Exists(const KString& Key) const
+	bool Exists(KStringView Key) const
 	{
 		auto it = LJSON::find(Key);
 		return (it != LJSON::end());
 	}
 
-	bool IsObject(const KString& Key) const
+	bool IsObject(KStringView Key) const
 	{
 		auto it = LJSON::find(Key);
 		return (it != LJSON::end() && it->is_object());
 	}
 
-	bool IsArray(const KString& Key) const
+	bool IsArray(KStringView Key) const
 	{
 		auto it = LJSON::find(Key);
 		return (it != LJSON::end() && it->is_array());
 	}
 
-	bool IsString(const KString& Key) const
+	bool IsString(KStringView Key) const
 	{
 		auto it = LJSON::find(Key);
 		return (it != LJSON::end() && it->is_string());
 	}
 
-	bool IsInteger(const KString& Key) const
+	bool IsInteger(KStringView Key) const
 	{
 		auto it = LJSON::find(Key);
 		return (it != LJSON::end() && it->is_number_integer());
 	}
 
-	bool IsFloat(const KString& Key) const
+	bool IsFloat(KStringView Key) const
 	{
 		auto it = LJSON::find(Key);
 		return (it != LJSON::end() && it->is_number_float());
 	}
 
-	bool IsNull(const KString& Key) const
+	bool IsNull(KStringView Key) const
 	{
 		auto it = LJSON::find(Key);
 		return (it != LJSON::end() && it->is_null());
 	}
 
-	bool IsBoolean(const KString& Key) const
+	bool IsBoolean(KStringView Key) const
 	{
 		auto it = LJSON::find(Key);
 		return (it != LJSON::end() && it->is_boolean());
@@ -227,37 +183,51 @@ public:
 
 		return s_empty;
 	}
+
+	template<typename T>
+	reference operator[](const T& Key)
+	{
+		ClearError();
+
+		DEKAF2_TRY
+		{
+			return LJSON::operator[](Key);
+		}
+		DEKAF2_CATCH (const LJSON::exception& exc)
+		{
+			FormError(exc);
+		}
+
+		return s_empty;
+	}
 #endif
 
+//----------
+private:
+//----------
+
 #ifndef DEKAF2_EXCEPTIONS
-	/// We do not want this overload of the operator[] as it would abort on nonexisting keys
+	/// We do not want this overload of the operator[] as it would abort on
+	/// nonexisting keys in debug mode
 	template<typename T>
 	const_reference operator[](T* Key) const
 	{
 		static_assert(sizeof(Key) == 0, "this version of operator[] is intentionally blocked");
 		return s_empty;
 	}
+	/// We do not want this overload of the operator[] as it would abort on
+	/// nonexisting keys in debug mode
+	template<typename T>
+	const_reference operator[](const T& Key) const
+	{
+		static_assert(sizeof(Key) == 0, "this version of operator[] is intentionally blocked");
+		return s_empty;
+	}
 #endif
 
-#ifndef DEKAF2_EXCEPTIONS
-	reference operator[](const KString& Key)
-	{
-		return operator[](Key.c_str());
-	}
-#else
-	reference operator[](const KString& Key)
-	{
-		return LJSON::operator[](Key.c_str());
-	}
-	reference operator[](KStringViewZ Key)
-	{
-		return LJSON::operator[](Key.c_str());
-	}
-	reference operator[](const char* Key)
-	{
-		return LJSON::operator[](Key);
-	}
-#endif
+//----------
+public:
+//----------
 
 	bool FormError (const LJSON::exception& exc) const;
 

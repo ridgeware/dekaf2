@@ -607,7 +607,17 @@ public:
 	// support KStrings as arguments
 	template<class... Args>
 	KInFile(KString str, Args&&... args)
-	: base_type(str.ToStdString(), std::forward<Args>(args)...)
+	: base_type(str.c_str(), std::forward<Args>(args)...)
+	//-----------------------------------------------------------------------------
+	{
+	}
+
+	//-----------------------------------------------------------------------------
+	// semi-perfect forwarding - currently needed as std::istream does not yet
+	// support string_views as arguments
+	template<class... Args>
+	KInFile(KStringViewZ sz, Args&&... args)
+	: KInFile(sz.c_str(), std::forward<Args>(args)...)
 	//-----------------------------------------------------------------------------
 	{
 	}

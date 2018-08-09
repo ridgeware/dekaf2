@@ -338,7 +338,17 @@ public:
 	// support KStrings as arguments
 	template<class... Args>
 	KOutFile(KString str, Args&&... args)
-	: base_type(str.ToStdString(), std::forward<Args>(args)...)
+	: base_type(str.c_str(), std::forward<Args>(args)...)
+	//-----------------------------------------------------------------------------
+	{
+	}
+
+	//-----------------------------------------------------------------------------
+	// semi-perfect forwarding - currently needed as std::ostream does not yet
+	// support string_views as arguments
+	template<class... Args>
+	KOutFile(KStringViewZ sz, Args&&... args)
+	: KOutFile(sz.c_str(), std::forward<Args>(args)...)
 	//-----------------------------------------------------------------------------
 	{
 	}

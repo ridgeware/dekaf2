@@ -110,6 +110,7 @@ namespace dekaf2
 class KRegex
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
+	
 //----------
 private:
 //----------
@@ -121,43 +122,9 @@ public:
 //----------
 
 	//-----------------------------------------------------------------------------
-	/// copy constructor
-	KRegex(const KRegex& other)
-	//-----------------------------------------------------------------------------
-	    : m_Regex(other.m_Regex)
-	{
-	}
-
-	//-----------------------------------------------------------------------------
-	/// move constructor
-	KRegex(KRegex&& other)
-	//-----------------------------------------------------------------------------
-	    : m_Regex(std::move(other.m_Regex))
-	{
-	}
-
-	//-----------------------------------------------------------------------------
 	/// converting constructor, takes string literals and strings
-	KRegex(const KStringView& expression);
+	KRegex(KStringView expression);
 	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// assignment operator
-	KRegex& operator=(const KRegex& other)
-	//-----------------------------------------------------------------------------
-	{
-		m_Regex = other.m_Regex;
-		return *this;
-	}
-
-	//-----------------------------------------------------------------------------
-	/// move operator
-	KRegex& operator=(KRegex&& other)
-	//-----------------------------------------------------------------------------
-	{
-		m_Regex = std::move(other.m_Regex);
-		return *this;
-	}
 
 	using Group  = re2::StringPiece;
 	using Groups = std::vector<Group>;
@@ -165,64 +132,64 @@ public:
 	// member function interface
 	//-----------------------------------------------------------------------------
 	/// match a regular expression in sStr
-	bool Matches(const KStringView& sStr);
+	bool Matches(KStringView sStr);
 	//-----------------------------------------------------------------------------
 
 	// member function interface
 	//-----------------------------------------------------------------------------
 	/// match a regular expression in sStr and return all match groups, including the overall match in group 0.
-	bool Matches(const KStringView& sStr, Groups& sGroups);
+	bool Matches(KStringView sStr, Groups& sGroups);
 	//-----------------------------------------------------------------------------
 
 	// member function interface
 	//-----------------------------------------------------------------------------
 	/// match a regular expression in sStr and return the overall match (group 0) in iStart, iSize as in a substring definition
-	bool Matches(const KStringView& sStr, size_t& iStart, size_t& iSize);
+	bool Matches(KStringView sStr, size_t& iStart, size_t& iSize);
 	//-----------------------------------------------------------------------------
 
 	// member function interface
 	//-----------------------------------------------------------------------------
 	/// replace a regular expression with new text. Sub groups can be addressed with \1 \2 etc. in the replacement text
-	size_t Replace(std::string& sStr, const KStringView& sReplaceWith, bool bReplaceAll = true);
+	size_t Replace(std::string& sStr, KStringView sReplaceWith, bool bReplaceAll = true);
 	//-----------------------------------------------------------------------------
 
 #ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
 	// member function interface
 	//-----------------------------------------------------------------------------
 	/// replace a regular expression with new text. Sub groups can be addressed with \1 \2 etc. in the replacement text
-	size_t Replace(KString& sStr, const KStringView& sReplaceWith, bool bReplaceAll = true);
+	size_t Replace(KString& sStr, KStringView sReplaceWith, bool bReplaceAll = true);
 	//-----------------------------------------------------------------------------
 #endif
 
 	// static interface
 	//-----------------------------------------------------------------------------
 	/// match a regular expression in sStr
-	static bool Matches(const KStringView& sStr, const KStringView& sRegex);
+	static bool Matches(KStringView sStr, KStringView sRegex);
 	//-----------------------------------------------------------------------------
 
 	// static interface
 	//-----------------------------------------------------------------------------
 	/// match a regular expression in sStr and return all match groups, including the overall match in group 0.
-	static bool Matches(const KStringView& sStr, const KStringView& sRegex, Groups& sGroups);
+	static bool Matches(KStringView sStr, KStringView sRegex, Groups& sGroups);
 	//-----------------------------------------------------------------------------
 
 	// static interface
 	//-----------------------------------------------------------------------------
 	/// match a regular expression in sStr and return the overall match (group 0) in iStart, iSize as in a substring definition
-	static bool Matches(const KStringView& sStr, const KStringView& sRegex, size_t& iStart, size_t& iSize);
+	static bool Matches(KStringView sStr, KStringView sRegex, size_t& iStart, size_t& iSize);
 	//-----------------------------------------------------------------------------
 
 	// static interface
 	//-----------------------------------------------------------------------------
 	/// replace a regular expression with new text. Sub groups can be addressed with \1 \2 etc. in the replacement text
-	static size_t Replace(std::string& sStr, const KStringView& sRegex, const KStringView& sReplaceWith, bool bReplaceAll = true);
+	static size_t Replace(std::string& sStr, KStringView sRegex, KStringView sReplaceWith, bool bReplaceAll = true);
 	//-----------------------------------------------------------------------------
 
 #ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
 	// static interface
 	//-----------------------------------------------------------------------------
 	/// replace a regular expression with new text. Sub groups can be addressed with \1 \2 etc. in the replacement text
-	static size_t Replace(KString& sStr, const KStringView& sRegex, const KStringView& sReplaceWith, bool bReplaceAll = true);
+	static size_t Replace(KString& sStr, KStringView sRegex, KStringView sReplaceWith, bool bReplaceAll = true);
 	//-----------------------------------------------------------------------------
 #endif
 
@@ -269,6 +236,7 @@ public:
 //----------
 protected:
 //----------
+
 	//-----------------------------------------------------------------------------
 	/// prints the details of a regex error into the debug log
 	void LogExpError();
@@ -277,6 +245,7 @@ protected:
 //----------
 private:
 //----------
+
 	static cache_t s_Cache;
 
 	regex_t m_Regex;

@@ -266,7 +266,7 @@ void KRegex::LogExpError()
 
 //-----------------------------------------------------------------------------
 /// converting constructor, takes string literals and strings
-KRegex::KRegex(const KStringView& expression)
+KRegex::KRegex(KStringView expression)
 //-----------------------------------------------------------------------------
     : m_Regex(s_Cache.Get(re2::StringPiece(expression.data(), expression.size())))
 {
@@ -277,7 +277,7 @@ KRegex::KRegex(const KStringView& expression)
 }
 
 //-----------------------------------------------------------------------------
-bool KRegex::Matches(const KStringView& sStr, Groups& sGroups)
+bool KRegex::Matches(KStringView sStr, Groups& sGroups)
 //-----------------------------------------------------------------------------
 {
 	sGroups.clear();
@@ -292,7 +292,7 @@ bool KRegex::Matches(const KStringView& sStr, Groups& sGroups)
 }
 
 //-----------------------------------------------------------------------------
-bool KRegex::Matches(const KStringView& sStr, size_t& iStart, size_t& iSize)
+bool KRegex::Matches(KStringView sStr, size_t& iStart, size_t& iSize)
 //-----------------------------------------------------------------------------
 {
 	Groups sGroups;
@@ -312,7 +312,7 @@ bool KRegex::Matches(const KStringView& sStr, size_t& iStart, size_t& iSize)
 }
 
 //-----------------------------------------------------------------------------
-bool KRegex::Matches(const KStringView& sStr)
+bool KRegex::Matches(KStringView sStr)
 //-----------------------------------------------------------------------------
 {
 	Groups sGroups;
@@ -320,7 +320,7 @@ bool KRegex::Matches(const KStringView& sStr)
 }
 
 //-----------------------------------------------------------------------------
-size_t KRegex::Replace(std::string& sStr, const KStringView& sReplaceWith, bool bReplaceAll)
+size_t KRegex::Replace(std::string& sStr, KStringView sReplaceWith, bool bReplaceAll)
 //-----------------------------------------------------------------------------
 {
 	size_t iCount{0};
@@ -344,7 +344,7 @@ size_t KRegex::Replace(std::string& sStr, const KStringView& sReplaceWith, bool 
 
 #ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
 //-----------------------------------------------------------------------------
-size_t KRegex::Replace(KString& sStr, const KStringView& sReplaceWith, bool bReplaceAll)
+size_t KRegex::Replace(KString& sStr, KStringView sReplaceWith, bool bReplaceAll)
 //-----------------------------------------------------------------------------
 {
 	size_t iCount{0};
@@ -371,7 +371,7 @@ size_t KRegex::Replace(KString& sStr, const KStringView& sReplaceWith, bool bRep
 // the static calls to the member functions:
 
 //-----------------------------------------------------------------------------
-bool KRegex::Matches(const KStringView& sStr, const KStringView& sRegex, Groups& sGroups)
+bool KRegex::Matches(KStringView sStr, KStringView sRegex, Groups& sGroups)
 //-----------------------------------------------------------------------------
 {
 	KRegex regex(sRegex);
@@ -379,7 +379,7 @@ bool KRegex::Matches(const KStringView& sStr, const KStringView& sRegex, Groups&
 }
 
 //-----------------------------------------------------------------------------
-bool KRegex::Matches(const KStringView& sStr, const KStringView& sRegex, size_t& iStart, size_t& iSize)
+bool KRegex::Matches(KStringView sStr, KStringView sRegex, size_t& iStart, size_t& iSize)
 //-----------------------------------------------------------------------------
 {
 	KRegex regex(sRegex);
@@ -387,7 +387,7 @@ bool KRegex::Matches(const KStringView& sStr, const KStringView& sRegex, size_t&
 }
 
 //-----------------------------------------------------------------------------
-bool KRegex::Matches(const KStringView& sStr, const KStringView& sRegex)
+bool KRegex::Matches(KStringView sStr, KStringView sRegex)
 //-----------------------------------------------------------------------------
 {
 	KRegex regex(sRegex);
@@ -395,7 +395,7 @@ bool KRegex::Matches(const KStringView& sStr, const KStringView& sRegex)
 }
 
 //-----------------------------------------------------------------------------
-size_t KRegex::Replace(std::string& sStr, const KStringView& sRegex, const KStringView& sReplaceWith, bool bReplaceAll)
+size_t KRegex::Replace(std::string& sStr, KStringView sRegex, KStringView sReplaceWith, bool bReplaceAll)
 //-----------------------------------------------------------------------------
 {
 	KRegex regex(sRegex);
@@ -404,7 +404,7 @@ size_t KRegex::Replace(std::string& sStr, const KStringView& sRegex, const KStri
 
 #ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
 //-----------------------------------------------------------------------------
-size_t KRegex::Replace(KString& sStr, const KStringView& sRegex, const KStringView& sReplaceWith, bool bReplaceAll)
+size_t KRegex::Replace(KString& sStr, KStringView sRegex, KStringView sReplaceWith, bool bReplaceAll)
 //-----------------------------------------------------------------------------
 {
 	KRegex regex(sRegex);

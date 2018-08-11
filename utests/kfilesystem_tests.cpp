@@ -113,7 +113,7 @@ TEST_CASE("KFilesystem") {
 	SECTION("KDiskStat")
 	{
 		KDiskStat Stat(sDirectory);
-		CHECK ( Stat.Total() > 100000 );
+		CHECK ( Stat.Total() > 100000ULL );
 		CHECK ( Stat.Error() == "" );
 	}
 

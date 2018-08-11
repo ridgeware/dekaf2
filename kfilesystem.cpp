@@ -651,7 +651,7 @@ void KDirectory::RemoveHidden()
 									  m_DirEntries.end(),
 									  [](const DirEntries::value_type& elem)
                                       {
-                                          return elem.Filename().empty() || elem.Filename()[0] == '.';
+                                          return elem.Filename().empty() || elem.Filename().front() == '.';
 									  }),
                        m_DirEntries.end());
 

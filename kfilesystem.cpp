@@ -694,23 +694,24 @@ size_t KDirectory::Match(KStringView sRegex, bool bRemoveMatches)
 } // Match
 
 //-----------------------------------------------------------------------------
-bool KDirectory::Find(KStringView sName, bool bRemoveMatch)
+size_t KDirectory::WildCardMatch(KStringView sWildCard, bool bRemoveMatches)
 //-----------------------------------------------------------------------------
 {
-	auto it = std::find_if(m_DirEntries.begin(),
-                           m_DirEntries.end(),
-                           [&sName](const DirEntries::value_type& elem)
-                           {
-                               return elem.Filename() == sName;
-                           });
+	return Match(kWildCard2Regex(sWildCard), bRemoveMatches);
 
-	if (it != m_DirEntries.end())
+} // WildCardMatch
+
+//-----------------------------------------------------------------------------
+bool KDirectory::Find(KStringView sWildCard)
+//-----------------------------------------------------------------------------
+{
+	KRegex Regex(kWildCard2Regex(sWildCard));
+	for (auto& it : m_DirEntries)
 	{
-		if (bRemoveMatch)
+		if (Regex.Matches(it.Filename()))
 		{
-			m_DirEntries.erase(it);
+			return true;
 		}
-		return true;
 	}
 	return false;
 

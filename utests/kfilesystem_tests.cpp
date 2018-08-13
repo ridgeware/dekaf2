@@ -75,6 +75,9 @@ TEST_CASE("KFilesystem") {
 		{
 			fWriter.Write(sOut);
 		}
+
+		KOutFile fOut(sDirectory + "/test.txt");
+
 	}
 
 	SECTION("KFile stats")
@@ -95,19 +98,25 @@ TEST_CASE("KFilesystem") {
 	SECTION("KDirectory")
 	{
 		KDirectory Dir(sDirectory);
-		CHECK ( Dir.size() == 1 );
-		CHECK ( Dir.Find("KFilesystem.test") == true );
-		CHECK ( Dir.Match( KDirectory::EntryType::REGULAR) == 1);
+		CHECK ( Dir.size() == 2 );
+		CHECK ( Dir.Match( KDirectory::EntryType::REGULAR) == 2);
 		CHECK ( Dir.Match( KDirectory::EntryType::REGULAR, true) == 0);
 		CHECK ( Dir.empty() == true );
-		CHECK ( Dir.Open(sDirectory) == 1 );
+		CHECK ( Dir.Open(sDirectory) == 2 );
 		Dir.RemoveHidden();
-		CHECK ( Dir.size() == 1 );
+		CHECK ( Dir.size() == 2 );
 		CHECK ( Dir.Match(".*\\.test") == 1 );
 		CHECK ( Dir.Match(".*\\.test", true) == 0 );
 		CHECK ( Dir.empty() == true );
-		CHECK ( Dir.Open(sDirectory, KDirectory::EntryType::REGULAR) == 1 );
-		CHECK ( Dir.size() == 1 );
+		CHECK ( Dir.Open(sDirectory, KDirectory::EntryType::REGULAR) == 2 );
+		CHECK ( Dir.size() == 2 );
+		CHECK ( Dir.Find("KFilesystem.test") == true );
+		CHECK ( Dir.Find("test.txt") == true );
+		CHECK ( Dir.Find("KFi*ystem.t?st") == true );
+		CHECK ( Dir.WildCardMatch("KFilesystem.test") == 1 );
+		CHECK ( Dir.WildCardMatch("*.t?st") == 1 );
+		CHECK ( Dir.WildCardMatch("*.t?st", true) == 0 );
+		CHECK ( Dir.empty() == true );
 	}
 
 	SECTION("KDiskStat")

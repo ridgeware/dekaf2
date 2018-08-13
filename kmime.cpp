@@ -374,7 +374,7 @@ KMIMEDirectory::KMIMEDirectory(KStringViewZ sPathname)
 	{
 		// get all regular files
 		KDirectory Dir(sPathname, KDirectory::EntryType::REGULAR);
-		if (Dir.Find("index.html", true))
+		if (Dir.WildCardMatch("index.html", true))
 		{
 			// we have an index.html
 
@@ -387,7 +387,7 @@ KMIMEDirectory::KMIMEDirectory(KStringViewZ sPathname)
 			// is no text part)
 			KMIMEMultiPartAlternative Alternative;
 
-			if (Dir.Find("index.txt", true))
+			if (Dir.WildCardMatch("index.txt", true))
 			{
 				// add the text version to the alternative part
 				KString sFile(sPathname);

@@ -261,8 +261,11 @@ public:
 	/// match or remove all files that match the regular expression sRegex from the list
 	size_t Match(KStringView sRegex, bool bRemoveMatches = false);
 
-	/// returns true if the directory list contains sName
-	bool Find(KStringView sName, bool bRemoveMatch = false);
+	/// match or remove all files that match the basic regular expression sWildCard from the list
+	size_t WildCardMatch(KStringView sWildCard, bool bRemoveMatches = false);
+
+	/// returns true if the directory list contains sWildCard, wildcard matching is supported
+	bool Find(KStringView sWildCard);
 
 	/// sort the directory list
 	void Sort();

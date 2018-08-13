@@ -43,7 +43,7 @@ TEST_CASE("KStack")
 		CHECK_FALSE(kStack.empty());
 
 		// Pop off the top and bottom, shrinking stack
-		const int& popTop = kStack.pop();
+		int popTop = kStack.pop();
 		CHECK(rtop == popTop);
 		CHECK(5 == kStack.size());
 		CHECK_FALSE(kStack.empty());

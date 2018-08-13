@@ -289,6 +289,8 @@ const KProtocol::Protocols KProtocol::m_sCanonical [UNKNOWN+1] =
     {   23, "telnet" },
     {   70, "gopher" }, // pure nostalgia
 	{    0, "unix"   }, // this is for unix socket files ("unix:///this/is/my/socket")
+	{   25, "smtp"   },
+	{  587, "smtps"  },
     {    0, ""       }  // Empty placeholder for UNKNOWN, use m_sProto.
 };
 

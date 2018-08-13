@@ -493,7 +493,9 @@ public:
 		TELNET    = 12,
 		GOPHER    = 13,
 		UNIX      = 14,
-		UNKNOWN   = 15  // UNKNOWN _has_ to be the last value
+		SMTP      = 15,
+		SMTPS     = 16,
+		UNKNOWN   = 17  // UNKNOWN _has_ to be the last value
 	};
 
 	//-------------------------------------------------------------------------

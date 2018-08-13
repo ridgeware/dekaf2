@@ -2200,7 +2200,7 @@ static constexpr auto s_NamedEntitiesHTML4 = frozen::make_unordered_map(s_Entiti
 #endif
 
 //-----------------------------------------------------------------------------
-void kEntity(uint32_t ch, KString& sOut)
+void KHTMLEntity::ToHex(uint32_t ch, KString& sOut)
 //-----------------------------------------------------------------------------
 {
 	sOut += "&#x";
@@ -2209,7 +2209,7 @@ void kEntity(uint32_t ch, KString& sOut)
 }
 
 //-----------------------------------------------------------------------------
-bool kNamedEntity(KStringView sEntity, uint32_t& cp1, uint32_t& cp2)
+bool KHTMLEntity::FromNamedEntity(KStringView sEntity, uint32_t& cp1, uint32_t& cp2)
 //-----------------------------------------------------------------------------
 {
 	cp1 = 0;
@@ -2252,7 +2252,7 @@ bool kNamedEntity(KStringView sEntity, uint32_t& cp1, uint32_t& cp2)
 } // kNamedEntity
 
 //-----------------------------------------------------------------------------
-void kMandatoryEntity(uint32_t ch, KString& sOut)
+void KHTMLEntity::ToMandatoryEntity(uint32_t ch, KString& sOut)
 //-----------------------------------------------------------------------------
 {
 	switch (ch)
@@ -2280,7 +2280,7 @@ void kMandatoryEntity(uint32_t ch, KString& sOut)
 } // kMandatoryEntity
 
 //-----------------------------------------------------------------------------
-KString kHTMLEntityEncode(KStringView sIn)
+KString KHTMLEntity::Encode(KStringView sIn)
 //-----------------------------------------------------------------------------
 {
 	KString sRet;
@@ -2288,9 +2288,13 @@ KString kHTMLEntityEncode(KStringView sIn)
 
 	Unicode::FromUTF8(sIn, [&sRet](uint32_t ch)
 	{
-		if (std::iswalnum(ch) || std::iswpunct(ch) || std::iswspace(ch))
+		if (std::iswalnum(ch) || std::iswspace(ch))
 		{
-			kMandatoryEntity(ch, sRet);
+			Unicode::ToUTF8(ch, sRet);
+		}
+		else if (std::iswpunct(ch))
+		{
+			ToMandatoryEntity(ch, sRet);
 		}
 		else
 		{
@@ -2306,7 +2310,7 @@ KString kHTMLEntityEncode(KStringView sIn)
 } // kHTMLEntityEncode
 
 //-----------------------------------------------------------------------------
-KString kHTMLEntityDecode(KStringView sIn)
+KString KHTMLEntity::Decode(KStringView sIn)
 //-----------------------------------------------------------------------------
 {
 	KString sRet;
@@ -2328,11 +2332,14 @@ KString kHTMLEntityDecode(KStringView sIn)
 					if (++it != ie)
 					{
 						uint32_t iChar{0};
+						auto start_it = it;
+						bool bValid { false };
 
 						if (*it == 'x' || *it == 'X')
 						{
 							// hex
-							for (;++it != ie;)
+							++it;
+							for (;it != ie; ++it)
 							{
 								auto iCh = kFromHexChar(*it);
 								if (iCh > 15)
@@ -2340,6 +2347,7 @@ KString kHTMLEntityDecode(KStringView sIn)
 									break;
 								}
 
+								bValid = true;
 								iChar *= 16;
 								iChar += iCh;
 							}
@@ -2347,23 +2355,37 @@ KString kHTMLEntityDecode(KStringView sIn)
 						else
 						{
 							// decimal
-							for (;++it != ie;)
+							for (;it != ie; ++it)
 							{
 								if (!std::isdigit(*it))
 								{
 									break;
 								}
 
+								bValid = true;
 								iChar *= 10;
 								iChar += *it - '0';
 							}
 						}
 
-						Unicode::ToUTF8(iChar, sRet);
-
-						if (it != ie && *it  == ';')
+						if (DEKAF2_LIKELY(bValid))
 						{
-							++it;
+
+							Unicode::ToUTF8(iChar, sRet);
+
+							if (it != ie && *it  == ';')
+							{
+								++it;
+							}
+						}
+						else
+						{
+							// this &# sequence was invalid
+							sRet += "&#";
+							for (; start_it != it; ++start_it)
+							{
+								sRet += *start_it;
+							}
 						}
 					}
 				}
@@ -2387,7 +2409,7 @@ KString kHTMLEntityDecode(KStringView sIn)
 							++it;
 						}
 						uint32_t cp1, cp2;
-						if (kNamedEntity(sEntity, cp1, cp2))
+						if (FromNamedEntity(sEntity, cp1, cp2))
 						{
 							Unicode::ToUTF8(cp1, sRet);
 							if (cp2)
@@ -2399,6 +2421,7 @@ KString kHTMLEntityDecode(KStringView sIn)
 						{
 							sRet += '&';
 							sRet += sEntity;
+							sRet += ';';
 						}
 					}
 					else
@@ -2423,7 +2446,7 @@ KString kHTMLEntityDecode(KStringView sIn)
 } // kHTMLEntityDecode
 
 //-----------------------------------------------------------------------------
-KString kConvertNumerical(KStringView sIn)
+KString ConvertNumerical(KStringView sIn)
 //-----------------------------------------------------------------------------
 {
 	KString sRet;
@@ -2474,7 +2497,7 @@ KString kConvertNumerical(KStringView sIn)
 }
 
 //-----------------------------------------------------------------------------
-KString kHTMLEntityDecodeValue(KStringView sIn)
+KString KHTMLEntity::DecodeOne(KStringView sIn)
 //-----------------------------------------------------------------------------
 {
 	KStringView sEntity { sIn };
@@ -2515,7 +2538,7 @@ KString kHTMLEntityDecodeValue(KStringView sIn)
 		if (sEntity.front() == '#')
 		{
 			sEntity.remove_prefix(1);
-			sRet = kConvertNumerical(sEntity);
+			sRet = ConvertNumerical(sEntity);
 		}
 		else
 		{
@@ -2540,7 +2563,7 @@ KString kHTMLEntityDecodeValue(KStringView sIn)
 
 	return sRet;
 
-} // kHTMLEntityDecodeValue
+} // EncodeOne
 
 } // of namespace dekaf2
 

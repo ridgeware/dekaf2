@@ -176,7 +176,7 @@ std::pair<KString, KStringView> SimpleHTML::NextPair()
 				{
 					++iSizeWord;
 				}
-				sPair.first += kHTMLEntityDecodeValue(m_sInput.substr(iStartEntity, iSizeSkel + iSizeWord - iStartEntity));
+				sPair.first += KHTMLEntity::DecodeOne(m_sInput.substr(iStartEntity, iSizeSkel + iSizeWord - iStartEntity));
 				if (ch != ';')
 				{
 					if (ch == '&')
@@ -228,7 +228,7 @@ std::pair<KString, KStringView> SimpleHTML::NextPair()
 
 	if (bOpenEntity)
 	{
-		sPair.first += kHTMLEntityDecodeValue(m_sInput.substr(iStartEntity, iSizeSkel + iSizeWord - iStartEntity));
+		sPair.first += KHTMLEntity::DecodeOne(m_sInput.substr(iStartEntity, iSizeSkel + iSizeWord - iStartEntity));
 	}
 
 	sPair.second.assign(m_sInput.data(), iSizeSkel);

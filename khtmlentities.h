@@ -50,24 +50,31 @@
 
 namespace dekaf2 {
 
-/// Returns the numerical entity for the input character
-void kEntity(uint32_t ch, KString& sOut);
+class KHTMLEntity
+{
 
-/// Returns the codepoints for the named entity in cp1, cp2, false if not found
-bool kNamedEntity(KStringView sEntity, uint32_t& cp1, uint32_t& cp2);
+public:
 
-/// Adds only mandatory entities for the input character (<>&"'),
-/// otherwise appends input char to output
-void kMandatoryEntity(uint32_t ch, KString& sOut);
+	/// Returns the numerical entity for the input character
+	static void ToHex(uint32_t ch, KString& sOut);
 
-/// Converts utf8 input into HTML entities for non-alnum/space/punct characters
-KString kHTMLEntityEncode(KStringView sIn);
+	/// Returns the codepoints for the named entity in cp1, cp2, false if not found
+	static bool FromNamedEntity(KStringView sEntity, uint32_t& cp1, uint32_t& cp2);
 
-/// Converts HTML entities into utf8
-KString kHTMLEntityDecode(KStringView sIn);
+	/// Adds only mandatory entities for the input character (<>&"'),
+	/// otherwise appends input char to output (and converts into UTF8)
+	static void ToMandatoryEntity(uint32_t ch, KString& sOut);
 
-/// Converts isolated HTML entity into utf8
-KString kHTMLEntityDecodeValue(KStringView sIn);
+	/// Converts utf8 input into HTML entities for non-alnum/space/punct characters
+	static KString Encode(KStringView sIn);
+
+	/// Converts string containing HTML entities into pure utf8
+	static KString Decode(KStringView sIn);
+
+	/// Converts isolated HTML entity into utf8
+	static KString DecodeOne(KStringView sIn);
+
+}; // KHTMLEntity
 
 } // of namespace dekaf2
 

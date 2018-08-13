@@ -108,22 +108,20 @@ public:
 	/// Wrapper around kURLEncode. Does the same with a different interface.
 	static void URLInPlace(KString& sBuffer, URIPart URIpart = URIPart::Query)
 	{
-		KString sRet;
-		kUrlEncode(sBuffer, sRet, URIpart);
+		KString sRet = URL(sBuffer, URIpart);
 		sBuffer.swap(sRet);
 	}
 
 	/// Wrapper around kHTMLEntityEncode. Does the same.
 	static KString HTML(KStringView sIn)
 	{
-		return kHTMLEntityEncode(sIn);
+		return KHTMLEntity::Encode(sIn);
 	}
 
 	/// Wrapper around kHTMLEntityEncode. Does the same with a different interface.
 	static void HTMLInPlace(KString& sBuffer)
 	{
-		KString sRet;
-		sRet = kHTMLEntityEncode(sBuffer);
+		KString sRet = HTML(sBuffer);
 		sBuffer.swap(sRet);
 	}
 
@@ -184,17 +182,16 @@ public:
 		kUrlDecode(sBuffer, URIpart == URIPart::Query);
 	}
 
-	/// Wrapper around kHTMLEntityDecode. Does the same.
+	/// Wrapper around KHTMLEntity::Decode. Does the same.
 	static KString HTML(KStringView sIn)
 	{
-		return kHTMLEntityDecode(sIn);
+		return KHTMLEntity::Decode(sIn);
 	}
 
-	/// Wrapper around kHTMLEntityDecode. Does the same with a different interface.
+	/// Wrapper around KHTMLEntity::Decode. Does the same with a different interface.
 	static void HTMLInPlace(KString& sBuffer)
 	{
-		KString sRet;
-		sRet = kHTMLEntityDecode(sBuffer);
+		KString sRet = HTML(sBuffer);
 		sBuffer.swap(sRet);
 	}
 

@@ -42,7 +42,7 @@
 
 #include "kprof.h"
 
-#if defined(ENABLE_PROFILING) || defined(DEKAF2_LIBRARY_BUILD)
+#if defined(DEKAF2_ENABLE_PROFILING) || defined(DEKAF2_LIBRARY_BUILD)
 
 #include <algorithm>
 #include <set>
@@ -267,4 +267,4 @@ void KProf::stop()
 	}
 }
 
-#endif // ENABLE_PROFILING
+#endif // DEKAF2_ENABLE_PROFILING

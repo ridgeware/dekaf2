@@ -45,7 +45,7 @@
 /// @file kprof.h
 /// provides a code profiler
 
-#if defined(ENABLE_PROFILING) || defined(DEKAF2_LIBRARY_BUILD)
+#if defined(DEKAF2_ENABLE_PROFILING) || defined(DEKAF2_LIBRARY_BUILD)
 
 #include <map>
 #include <cinttypes>
@@ -308,9 +308,9 @@ private:
 } // of namespace enabled
 } // namespace dekaf2
 
-#endif // ENABLE_PROFILING || DEKAF2_LIBRARY_BUILD
+#endif // DEKAF2_ENABLE_PROFILING || DEKAF2_LIBRARY_BUILD
 
-#if !defined(ENABLE_PROFILING)
+#if !defined(DEKAF2_ENABLE_PROFILING)
 
 namespace dekaf2 {
 namespace disabled {
@@ -445,18 +445,18 @@ public:
 
 } // of namespace dekaf2
 
-#endif // ENABLE_PROFILING == false
+#endif // DEKAF2_ENABLE_PROFILING == false
 
 namespace dekaf2
 {
 
-#if defined(ENABLE_PROFILING) || defined(DEKAF2_LIBRARY_BUILD)
+#if defined(DEKAF2_ENABLE_PROFILING) || defined(DEKAF2_LIBRARY_BUILD)
 #ifndef DISABLE_AUTOMATIC_PROFILER
 extern thread_local enabled::KSharedProfiler g_Prof;
 #endif
 #endif
 
-#if defined(ENABLE_PROFILING)
+#if defined(DEKAF2_ENABLE_PROFILING)
 typedef enabled::KQDProf KQDProf;
 typedef enabled::KSharedProfiler SharedProfiler;
 typedef enabled::KProf KProf;
@@ -472,7 +472,7 @@ inline void kProfWake()
 }
 #endif // DISABLE_AUTOMATIC_PROFILER
 
-#else // ENABLE_PROFILING
+#else // DEKAF2_ENABLE_PROFILING
 
 typedef disabled::KQDProf KQDProf;
 typedef disabled::KSharedProfiler KSharedProfiler;
@@ -485,7 +485,7 @@ inline void kProfWake()
 {}
 #endif
 
-#endif // ENABLE_PROFILING == false
+#endif // DEKAF2_ENABLE_PROFILING == false
 
 } // of namespace dekaf2
 

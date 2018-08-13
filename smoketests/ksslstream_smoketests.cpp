@@ -37,7 +37,7 @@ TEST_CASE("KSSLClient")
 {
 
 	KSSLClient stream;
-	CHECK ( stream.connect("www.google.com:443", true, false) == true );
+	CHECK ( stream.connect("www.google.com:443", false, false) == true );
 	stream.Timeout(1);
 
 	stream.SetReaderRightTrim("\r\n");

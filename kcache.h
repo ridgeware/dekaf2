@@ -51,14 +51,29 @@
 #include "kmru.h"
 
 
-namespace dekaf2
+namespace dekaf2 {
+
+namespace detail {
+
+template<class Value>
+struct LoadByConstruction
 {
+	template<class Key>
+	Value operator()(Key&& key) const
+	{
+		return Value(std::forward<Key>(key));
+	}
+};
+
+} // of namespace detail
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Implements a generic cache.
 /// For cache size management it uses a Least Recently Used removal strategy.
-/// To load a new value it calls the constructor of Value() with the new Key.
-template<class Key, class Value>
+/// To load a new value per default it calls the constructor of Value() with
+/// the new Key, but you can also add a class with call operator Key to the
+/// template.
+template<class Key, class Value, class Load = detail::LoadByConstruction<Value> >
 class KCache
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -121,7 +136,8 @@ public:
 			return it->second;
 		}
 
-		return Create(key, Value(key));
+		Load Loader;
+		return Create(key, Loader(key));
 	}
 
 	//-----------------------------------------------------------------------------
@@ -195,12 +211,11 @@ public:
 }; // KCache
 
 
-
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// KSharedCache wraps the Value type into a shared pointer (KSharedRef)
 /// and enables shared locking when Dekaf is set into multithreading mode
-template<class Key, class Value>
-class KSharedCache : public KCache<Key, KSharedRef<Value, true>>
+template<class Key, class Value, class Load = detail::LoadByConstruction<KSharedRef<Value, true> > >
+class KSharedCache : public KCache<Key, KSharedRef<Value, true>, Load>
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -209,7 +224,7 @@ public:
 //----------
 
 	using value_type = KSharedRef<Value, true>;
-	using base_type  = KCache<Key, value_type>;
+	using base_type  = KCache<Key, value_type, Load>;
 
 	//-----------------------------------------------------------------------------
 	KSharedCache(size_t iMaxSize = base_type::DEFAULT_MAX_CACHE_SIZE)

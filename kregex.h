@@ -51,53 +51,6 @@
 #include "bits/kcppcompat.h"
 #include "kcache.h"
 #include "kstring.h"
-#ifndef DEKAF2_HAS_CPP_17
-#include "khash.h"
-#endif
-
-namespace std
-{
-    //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-	/// provide a std::hash for re2::StringPiece
-	template<>
-	struct hash<re2::StringPiece>
-	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-	{
-		typedef re2::StringPiece argument_type;
-		typedef std::size_t result_type;
-		result_type operator()(const argument_type& s) const
-		{
-#ifdef DEKAF2_HAS_CPP_17
-			return std::hash<dekaf2::KStringView>{}({s.data(), s.size()});
-#else
-			return dekaf2::hash_bytes_FNV(s.data(), s.size());
-#endif
-		}
-	};
-
-}
-
-namespace boost
-{
-	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-	/// provide a boost::hash for re2::StringPiece
-	template<>
-	struct hash<re2::StringPiece>
-	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-	{
-		typedef re2::StringPiece argument_type;
-		typedef std::size_t result_type;
-		result_type operator()(const argument_type& s) const
-		{
-#ifdef DEKAF2_HAS_CPP_17
-			return std::hash<dekaf2::KStringView>{}({s.data(), s.size()});
-#else
-			return dekaf2::hash_bytes_FNV(s.data(), s.size());
-#endif
-		}
-	};
-
-}
 
 namespace dekaf2
 {
@@ -114,7 +67,17 @@ class KRegex
 //----------
 private:
 //----------
-	using cache_t = KSharedCache<re2::StringPiece, re2::RE2>;
+
+	struct Loader
+	{
+		// teach RE2 how to load from a KString(View)
+		KSharedRef<re2::RE2, true> operator()(KStringView s)
+		{
+			return re2::StringPiece(s.data(), s.size());
+		}
+	};
+
+	using cache_t = KSharedCache<KString, re2::RE2, Loader>;
 	using regex_t = cache_t::value_type;
 
 //----------
@@ -251,6 +214,10 @@ private:
 	regex_t m_Regex;
 
 }; // KRegex
+
+/// Converts a wildcard expression for file matching into a regular expression.
+/// $ and ? are allowed expressions.
+KString kWildCard2Regex(KStringView sInput);
 
 } // of namespace dekaf2
 

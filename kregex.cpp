@@ -268,7 +268,7 @@ void KRegex::LogExpError()
 /// converting constructor, takes string literals and strings
 KRegex::KRegex(KStringView expression)
 //-----------------------------------------------------------------------------
-    : m_Regex(s_Cache.Get(re2::StringPiece(expression.data(), expression.size())))
+    : m_Regex(s_Cache.Get(expression))
 {
 	if (!OK())
 	{
@@ -411,6 +411,57 @@ size_t KRegex::Replace(KString& sStr, KStringView sRegex, KStringView sReplaceWi
 	return regex.Replace(sStr, sReplaceWith, bReplaceAll);
 }
 #endif
+
+//-----------------------------------------------------------------------------
+KString kWildCard2Regex(KStringView sInput)
+//-----------------------------------------------------------------------------
+{
+	KString sRegex;
+	sRegex.reserve(sInput.size() + 5);
+	sRegex += '^';
+
+	for (auto ch : sInput)
+	{
+		switch (ch)
+		{
+			case '.':
+			case '<':
+			case '>':
+			case '$':
+			case '^':
+			case '(':
+			case ')':
+			case '{':
+			case '}':
+			case '|':
+			case '+':
+			case '[':
+			case ']':
+			case '\\':
+				sRegex += '\\';
+				sRegex += ch;
+				break;
+
+			case '*':
+				sRegex += ".*";
+				break;
+
+			case '?':
+				sRegex += '.';
+				break;
+
+			default:
+				sRegex += ch;
+				break;
+		}
+	}
+
+	sRegex += '$';
+
+	return sRegex;
+
+} // kWildCard2Regex
+
 
 } // of namespace dekaf2
 

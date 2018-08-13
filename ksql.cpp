@@ -319,7 +319,7 @@ class KSTACK : public KStack <KString>
 public:
 	KStringView Get (size_t iIndex)
 	{
-		return (GetItem (iIndex));
+		return (at (iIndex));
 	}
 };
 
@@ -471,25 +471,23 @@ void KSQL::_init (int iDebugID)
 	m_iNumRowsAffected  = 0;
 	m_iLastInsertID     = 0;
 	m_dBufferedColArray = NULL;
-
-	__sync_lock_test_and_set(&m_bDisableRetries, 0);
-
+	m_bDisableRetries   = false;
 	m_iWarnIfOverNumSeconds  = 0;
 	m_bpWarnIfOverNumSeconds = NULL;
 
-    #ifdef DEKAF2_HAS_ORACLE
+#ifdef DEKAF2_HAS_ORACLE
 	m_bStatementParsed  = false;
 	m_iMaxBindVars      = 0;
 	m_idxBindVar        = 0;
-	#endif
+#endif
 
-    #ifdef DEKAF2_HAS_ODBC
+#ifdef DEKAF2_HAS_ODBC
 	m_Environment       = NULL;
 	m_hdbc              = SQL_NULL_HSTMT;
 	m_hstmt             = NULL;
 	m_sConnectString.clear();
 	m_sConnectOutput.clear();
-	#endif
+#endif
 
 } // _init
 
@@ -1072,12 +1070,11 @@ bool KSQL::LoadConnect (KString sDBCFile)
 bool KSQL::OpenConnection (KStringView sListOfHosts, KStringView sDelimeter/* = ","*/)
 //-----------------------------------------------------------------------------
 {
-	KStack <KString> stackOfHosts;
-	kSplit (stackOfHosts, sListOfHosts, sDelimeter);
+	std::vector<KStringView> Hosts;
+	kSplit (Hosts, sListOfHosts, sDelimeter);
 
-	for (size_t ii=0; ii < stackOfHosts.size(); ++ii)
+	for (auto sDBHost : Hosts)
 	{
-		KStringView sDBHost = stackOfHosts.GetItem(ii);
 		SetDBHost (sDBHost);
 
 		if (OpenConnection()) {
@@ -1098,7 +1095,7 @@ bool KSQL::OpenConnection (KStringView sListOfHosts, KStringView sDelimeter/* = 
 void KSQL::DisableRetries()
 //-----------------------------------------------------------------------------
 {
-	__sync_lock_test_and_set(&m_bDisableRetries, 1);
+	m_bDisableRetries = true;
 
 } // KSQL::DisableRetries
 
@@ -1106,7 +1103,7 @@ void KSQL::DisableRetries()
 void KSQL::EnableRetries()
 //-----------------------------------------------------------------------------
 {
-	__sync_lock_test_and_set(&m_bDisableRetries, 0);
+	m_bDisableRetries = false;
 
 } // KSQL::DisableRetries
 
@@ -1621,7 +1618,7 @@ bool KSQL::ExecRawSQL (KStringView sSQL, uint64_t iFlags/*=0*/, KStringView sAPI
 		tStarted = time(NULL);
 	}
 
-	while (!fOK && iRetriesLeft && !__sync_add_and_fetch(&m_bDisableRetries, 0))
+	while (!fOK && iRetriesLeft && !m_bDisableRetries)
 	{
 		ResetErrorStatus ();
 

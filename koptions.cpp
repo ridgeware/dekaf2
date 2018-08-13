@@ -242,7 +242,7 @@ void KOptions::RegisterOption(KStringView sOption, KStringViewZ sMissingParm, Ca
 {
 	RegisterOption(sOption, 1, sMissingParm, [Function](ArgList& args)
 	{
-		Function(args.Pop());
+		Function(args.pop());
 	});
 }
 
@@ -252,7 +252,7 @@ void KOptions::RegisterCommand(KStringView sCommand, KStringViewZ sMissingParm, 
 {
 	RegisterCommand(sCommand, 1, sMissingParm, [Function](ArgList& args)
 	{
-		Function(args.Pop());
+		Function(args.pop());
 	});
 }
 
@@ -291,7 +291,7 @@ int KOptions::Parse(int argc, char** argv, KOutStream& out)
 							// but we need to take care to not take it into account
 							// when we readjust the remaining args after calling the
 							// callback
-							Args.PushBottom(it->sArg);
+							Args.push_front(it->sArg);
 							bIsUnknown = true;
 						}
 					}
@@ -304,7 +304,7 @@ int KOptions::Parse(int argc, char** argv, KOutStream& out)
 							// but we need to take care to not take it into account
 							// when we readjust the remaining args after calling the
 							// callback
-							Args.PushBottom(it->sArg);
+							Args.push_front(it->sArg);
 							bIsUnknown = true;
 						}
 					}
@@ -321,7 +321,7 @@ int KOptions::Parse(int argc, char** argv, KOutStream& out)
 					auto it2 = it + 1;
 					for (; it2 != m_CLIParms.end() && !it2->IsOption(); ++it2)
 					{
-						Args.PushBottom(it2->sArg);
+						Args.push_front(it2->sArg);
 					}
 
 					if (CBP->iMinArgs > Args.size())

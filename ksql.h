@@ -241,13 +241,13 @@ public:
 		NUM_RETRIES           =     5,      // <-- when db connection is lost
 		MAX_CHARS_CTLIB       = 8000,       //varchar columns hold at most 8000 characters.
 
-		F_IgnoreSQLErrors     = 0x00000001,  // <-- only effects the WarningLog
-		F_BufferResults       = 0x00000010,  // <-- for use with ResetBuffer()
-		F_NoAutoCommit        = 0x00000100,  // <-- only used by Oracle
-		F_NoTranslations      = 0x00001000,  // <-- turn off {{token}} translations in SQL
-		F_IgnoreSelectKeyword = 0x00010000,  // <-- override check in ExecQuery() for "select..."
-		F_NoKlogDebug         = 0x00100000,  // <-- quietly: do not output the customary klog debug statements
-		F_AutoReset           = 0x01000000,  // <-- For ctlib, refresh the connection to the server for each query
+		F_IgnoreSQLErrors     = 1 << 0,      // <-- only effects the WarningLog
+		F_BufferResults       = 1 << 1,      // <-- for use with ResetBuffer()
+		F_NoAutoCommit        = 1 << 2,      // <-- only used by Oracle
+		F_NoTranslations      = 1 << 3,      // <-- turn off {{token}} translations in SQL
+		F_IgnoreSelectKeyword = 1 << 4,      // <-- override check in ExecQuery() for "select..."
+		F_NoKlogDebug         = 1 << 5,      // <-- quietly: do not output the customary klog debug statements
+		F_AutoReset           = 1 << 6,      // <-- For ctlib, refresh the connection to the server for each query
 
 		FORM_ASCII            = 'a',         // <-- for OutputQuery() method
 		FORM_CSV              = 'c',
@@ -560,7 +560,7 @@ protected:
 	char**     m_dBufferedColArray;
 	uint32_t   m_iCursor; // CTLIB
 	KString    m_sErrorPrefix;
-	int        m_bDisableRetries;
+	bool       m_bDisableRetries;
 	time_t     m_iWarnIfOverNumSeconds;
 	FILE*      m_bpWarnIfOverNumSeconds;
 	KString    m_sTempDir;

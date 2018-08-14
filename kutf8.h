@@ -197,7 +197,8 @@ size_t UTF8Bytes(Ch sch)
 	}
 	else
 	{
-		return 0;
+		// we return a '?', so the bytecount is 1
+		return 1;
 	}
 }
 

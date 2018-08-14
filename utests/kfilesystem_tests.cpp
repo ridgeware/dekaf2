@@ -88,11 +88,14 @@ TEST_CASE("KFilesystem") {
 
 	SECTION("name manipulations")
 	{
-		KString sPathname = "/this/is/a/name.txt";
+		KStringView sPathname = "/this/is/a/name.txt";
 		CHECK ( kExtension(sPathname) == "txt" );
+		CHECK ( kExtension("/this.is/a./name") == "" );
 		CHECK ( kBasename(sPathname) == "name.txt" );
 		CHECK ( kDirname(sPathname) == "/this/is/a/" );
 		CHECK ( kDirname(sPathname, false) == "/this/is/a" );
+		CHECK ( kRemoveExtension(sPathname) == "/this/is/a/name" );
+		CHECK ( kRemoveExtension("/this.is/a./name") == "/this.is/a./name" );
 	}
 
 	SECTION("KDirectory")

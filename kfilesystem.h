@@ -113,6 +113,11 @@ KStringView kExtension(KStringView sFilePath);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
+/// Remove the extension from a path (filename extension after a dot)
+KStringView kRemoveExtension(KStringView sFilePath);
+//-----------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
 /// Isolate the basename of a path (filename without directory)
 KStringView kBasename(KStringView sFilePath);
 //-----------------------------------------------------------------------------

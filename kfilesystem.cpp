@@ -58,6 +58,7 @@ bool kExists (KStringViewZ sPath, bool bAsFile, bool bAsDirectory, bool bTestFor
 //-----------------------------------------------------------------------------
 {
 #ifdef DEKAF2_HAS_STD_FILESYSTEM
+
 	std::error_code ec;
 
 	fs::file_status status = fs::status(sPath.c_str(), ec);
@@ -112,6 +113,7 @@ bool kExists (KStringViewZ sPath, bool bAsFile, bool bAsDirectory, bool bTestFor
 	return true;
 
 #else
+
 	struct stat StatStruct;
 	if (stat (sPath.c_str(), &StatStruct) < 0)
 	{
@@ -144,6 +146,7 @@ bool kExists (KStringViewZ sPath, bool bAsFile, bool bAsDirectory, bool bTestFor
 		return false;    // <-- exists, is a file but is zero length
 	}
 	return true;     // <-- exists, is a file and is non-zero length
+
 #endif
 
 } // kExists
@@ -169,7 +172,30 @@ KStringView kExtension(KStringView sFilePath)
 
 	return KStringView{};
 
-} // kBasename
+} // kExtension
+
+//-----------------------------------------------------------------------------
+KStringView kRemoveExtension(KStringView sFilePath)
+//-----------------------------------------------------------------------------
+{
+	// Given a filesystem path, remove the file extension
+	if (!sFilePath.empty())
+	{
+#ifdef _WIN32
+		auto pos = sFilePath.find_last_of("/\\:.");
+#else
+		auto pos = sFilePath.find_last_of("/.");
+#endif
+
+		if (pos != KStringView::npos && sFilePath[pos] == '.')
+		{
+			return sFilePath.substr(0, pos);
+		}
+	}
+
+	return sFilePath;
+
+} // kRemoveExtension
 
 //-----------------------------------------------------------------------------
 KStringView kBasename(KStringView sFilePath)
@@ -249,6 +275,7 @@ bool kRemove (KStringViewZ sPath, bool bDir)
 	}
 
 #ifdef DEKAF2_HAS_STD_FILESYSTEM
+
 	std::error_code ec;
 	fs::permissions (sPath.c_str(), fs::perms::all, ec); // chmod (ignore failures)
 	ec.clear();
@@ -264,7 +291,9 @@ bool kRemove (KStringViewZ sPath, bool bDir)
 	{
 		kDebugLog (1, "remove failed: {}: {}", sPath, ec.message());
 	}
+
 #else
+
 	if (unlink (sPath.c_str()) != 0)
 	{
 		chmod (sPath.c_str(), S_IRUSR|S_IWUSR|S_IXUSR | S_IRGRP|S_IWGRP|S_IXGRP | S_IROTH|S_IWOTH|S_IXOTH);
@@ -281,6 +310,7 @@ bool kRemove (KStringViewZ sPath, bool bDir)
 			}
 		}
 	}
+
 #endif
 
 	return (true);
@@ -363,6 +393,7 @@ time_t kGetLastMod(KStringViewZ sFilePath)
 //-----------------------------------------------------------------------------
 {
 #ifdef DEKAF2_HAS_STD_FILESYSTEM
+
 	std::error_code ec;
 
 	auto ftime = fs::last_write_time(sFilePath.c_str(), ec);
@@ -372,7 +403,9 @@ time_t kGetLastMod(KStringViewZ sFilePath)
 		return -1;
 	}
 	return decltype(ftime)::clock::to_time_t(ftime);
+
 #else
+
 	struct stat StatStruct;
 	if (stat (sFilePath.c_str(), &StatStruct) < 0)
 	{
@@ -383,6 +416,7 @@ time_t kGetLastMod(KStringViewZ sFilePath)
 #else
 	return StatStruct.st_mtim.tv_sec;
 #endif
+
 #endif
 
 } // kGetLastMod
@@ -392,6 +426,7 @@ size_t kGetNumBytes(KStringViewZ sFilePath)
 //-----------------------------------------------------------------------------
 {
 #ifdef DEKAF2_HAS_STD_FILESYSTEM
+
 	std::error_code ec;
 
 	auto size = fs::file_size(sFilePath.c_str(), ec);
@@ -401,13 +436,16 @@ size_t kGetNumBytes(KStringViewZ sFilePath)
 		return npos;
 	}
 	return size;
+
 #else
+
 	struct stat StatStruct;
 	if (stat (sFilePath.c_str(), &StatStruct) < 0)
 	{
 		return npos;  // <-- file doesn't exist
 	}
 	return StatStruct.st_size;
+	
 #endif
 
 } // kGetNumBytes

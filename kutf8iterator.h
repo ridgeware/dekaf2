@@ -71,32 +71,24 @@ public:
 	using self_type = UTF8ConstIterator;
 
 	//-----------------------------------------------------------------------------
-	/// standalone ctor
-	UTF8ConstIterator() = default;
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// ctor for const strings
-	UTF8ConstIterator(const NarrowString& String, bool bToEnd)
-	//-----------------------------------------------------------------------------
-	: m_begin(String.begin())
-	, m_end(String.end())
-	, m_next(bToEnd ? String.end() : String.begin())
-	{
-		operator++();
-	}
-
-	//-----------------------------------------------------------------------------
 	/// ctor for const string iterators
 	UTF8ConstIterator(const typename NarrowString::const_iterator it,
 	                  const typename NarrowString::const_iterator ie,
-	                  bool bToEnd)
+	                  bool bToEnd = false)
 	//-----------------------------------------------------------------------------
 	: m_begin(it)
 	, m_end(ie)
 	, m_next(bToEnd ? ie : it)
 	{
 		operator++();
+	}
+
+	//-----------------------------------------------------------------------------
+	/// ctor for const strings
+	UTF8ConstIterator(const NarrowString& String, bool bToEnd = false)
+	//-----------------------------------------------------------------------------
+	: UTF8ConstIterator(String.begin(), String.end(), bToEnd)
+	{
 	}
 
 	//-----------------------------------------------------------------------------
@@ -210,13 +202,8 @@ public:
 	using self_type = UTF8Iterator;
 
 	//-----------------------------------------------------------------------------
-	/// standalone ctor
-	UTF8Iterator() = default;
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
 	/// ctor for strings
-	UTF8Iterator(NarrowString& String, bool bToEnd)
+	UTF8Iterator(NarrowString& String, bool bToEnd = false)
 	//-----------------------------------------------------------------------------
 	: m_String(&String)
 	, m_next(bToEnd ? String.end() : String.begin())

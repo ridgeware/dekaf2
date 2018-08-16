@@ -14,6 +14,7 @@ set (UHEADERS
 # keep alphabetic sort order
 set (USOURCES
 	main.cpp
+	kassociative_tests.cpp
 	kbase64_tests.cpp
 	kcasestring_tests.cpp
 	kcompression_tests.cpp

@@ -1,5 +1,4 @@
 /*
-//-----------------------------------------------------------------------------//
 //
 // DEKAF(tm): Lighter, Faster, Smarter (tm)
 //
@@ -195,6 +194,11 @@ public:
 		return kCaseCompareTrim(*this, other);
 	}
 
+	//-----------------------------------------------------------------------------
+	/// nonstandard: output the hash value of instance by calling std::hash() for the type
+	std::size_t Hash() const;
+	//-----------------------------------------------------------------------------
+
 };
 
 //-----------------------------------------------------------------------------
@@ -337,6 +341,11 @@ public:
 		return KCaseStringViewBase<Trimming>(this->data(), this->size());
 	}
 
+	//-----------------------------------------------------------------------------
+	/// nonstandard: output the hash value of instance by calling std::hash() for the type
+	std::size_t Hash() const;
+	//-----------------------------------------------------------------------------
+
 };
 
 //-----------------------------------------------------------------------------
@@ -466,34 +475,88 @@ using KCaseTrimString     = KCaseStringBase<detail::casestring::TrimWhiteSpaces>
 
 namespace std
 {
-	/// provide a std::hash for KString
-	template<typename Trimming> struct hash<dekaf2::KCaseStringBase<Trimming>>
+	/// provide a std::hash for KCaseStringViewBase
+	template<typename Trimming> struct hash<dekaf2::KCaseStringViewBase<Trimming>>
 	{
-		typedef dekaf2::KCaseStringBase<Trimming> argument_type;
-		typedef std::size_t result_type;
-		result_type operator()(argument_type const& s) const noexcept
+		std::size_t operator()(dekaf2::KStringView sv) const noexcept
 		{
-			return dekaf2::kCalcCaseHashTrim<Trimming>(s);
+			return dekaf2::kCalcCaseHashTrim<Trimming>(sv);
 		}
 	};
 
+	/// provide a std::hash for KCaseStringBase
+	template<typename Trimming> struct hash<dekaf2::KCaseStringBase<Trimming>>
+	{
+		std::size_t operator()(dekaf2::KStringView sv) const noexcept
+		{
+			return dekaf2::kCalcCaseHashTrim<Trimming>(sv);
+		}
+	};
+
+	// make sure comparisons work without construction of KCaseStringBase
+	template<typename Trimming> struct equal_to<dekaf2::KCaseStringBase<Trimming>>
+	{
+		bool operator()(const dekaf2::KCaseStringBase<Trimming>& s1, dekaf2::KStringView s2) const
+		{
+			return s1 == s2;
+		}
+		bool operator()(const dekaf2::KCaseStringBase<Trimming>& s1, const char* s2) const
+		{
+			return s1 == s2;
+		}
+		bool operator()(dekaf2::KStringView s1, const dekaf2::KCaseStringBase<Trimming>& s2) const
+		{
+			return s1 == s2;
+		}
+		bool operator()(const char* s1, const dekaf2::KCaseStringBase<Trimming>& s2) const
+		{
+			return s1 == s2;
+		}
+		bool operator()(const dekaf2::KCaseStringBase<Trimming>& s1, const dekaf2::KCaseStringBase<Trimming>& s2) const
+		{
+			return s1 == s2;
+		}
+	};
 } // end of namespace std
 
 #include <boost/functional/hash.hpp>
 
 namespace boost
 {
-	/// provide a boost::hash for KString
+	/// provide a boost::hash for KCaseStringViewBase
+	template<typename Trimming> struct hash<dekaf2::KCaseStringViewBase<Trimming>> : public std::unary_function<dekaf2::KCaseStringBase<Trimming>, std::size_t>
+	{
+		std::size_t operator()(dekaf2::KStringView sv) const noexcept
+		{
+			return dekaf2::kCalcCaseHashTrim<Trimming>(sv);
+		}
+	};
+
+	/// provide a boost::hash for KCaseStringBase
 	template<typename Trimming> struct hash<dekaf2::KCaseStringBase<Trimming>> : public std::unary_function<dekaf2::KCaseStringBase<Trimming>, std::size_t>
 	{
-		typedef dekaf2::KCaseStringBase<Trimming> argument_type;
-		typedef std::size_t result_type;
-		result_type operator()(argument_type const& s) const noexcept
+		std::size_t operator()(dekaf2::KStringView sv) const noexcept
 		{
-			return dekaf2::kCalcCaseHashTrim<Trimming>(s);
+			return dekaf2::kCalcCaseHashTrim<Trimming>(sv);
 		}
 	};
 
 } // end of namespace boost
+
+//----------------------------------------------------------------------
+template<typename Trimming>
+inline std::size_t dekaf2::KCaseStringViewBase<Trimming>::Hash() const
+//----------------------------------------------------------------------
+{
+	return std::hash<dekaf2::KCaseStringViewBase<Trimming>>()(*this);
+}
+
+//----------------------------------------------------------------------
+template<typename Trimming>
+inline std::size_t dekaf2::KCaseStringBase<Trimming>::Hash() const
+//----------------------------------------------------------------------
+{
+	return std::hash<dekaf2::KCaseStringBase<Trimming>>()(*this);
+}
 
 

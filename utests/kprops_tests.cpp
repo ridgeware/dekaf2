@@ -3,7 +3,7 @@
 #include <dekaf2/kprops.h>
 #include <dekaf2/kstring.h>
 #include <dekaf2/bits/kcppcompat.h>
-
+#include <unordered_map>
 using namespace dekaf2;
 
 
@@ -32,7 +32,10 @@ TEST_CASE("KProp") {
 			data.Add(std::move(k2), std::move(v2));
 
 			CHECK ( data.size()   == 2 );
-			CHECK ( data["key 10"]  == "value 20" );
+			CHECK ( data["key 10"]      == "value 20" );
+			CHECK ( data["key 10"_ks]   == "value 20" );
+			CHECK ( data["key 10"_ksv]  == "value 20" );
+			CHECK ( data["key 10"_ksz]  == "value 20" );
 
 #ifdef DO_MOVE_TESTS
 #if (DEKAF2_GCC_VERSION > 60000) && defined(DEKAF2_HAS_CPP_17)
@@ -664,4 +667,18 @@ TEST_CASE("KProp") {
 		CHECK( MyProps == NewProps );
 	}
 
+	SECTION("std::map")
+	{
+		std::unordered_map<KString, KString> map;
+		map.emplace( "key1", "value1" );
+		map.emplace( "key2", "value2" );
+		map.emplace( "key3", "value3" );
+		map.emplace( "key4", "value4" );
+		KStringView sv("key1");
+		CHECK ( map.find("key1")     != map.end() );
+		CHECK ( map.find(sv) != map.end() );
+		CHECK ( map.find("key1"_ksz) != map.end() );
+		CHECK ( map["key1"] == "value1" );
+		CHECK ( map[sv] == "value1" );
+	}
 }

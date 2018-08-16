@@ -1,5 +1,4 @@
 /*
-//-----------------------------------------------------------------------------//
 //
 // DEKAF(tm): Lighter, Faster, Smarter (tm)
 //
@@ -245,8 +244,7 @@ std::size_t kCalcCaseHash(KStringView sv)
 	auto hashfn = fnv1a_t<CHAR_BIT * sizeof(std::size_t)> {};
 	for (auto ch : sv)
 	{
-		auto lch = std::tolower(ch);
-		hashfn.update(&lch, 1);
+		hashfn.update(static_cast<unsigned char>(std::tolower(ch)));
 	}
 	return hashfn.digest();
 }

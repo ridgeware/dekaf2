@@ -685,6 +685,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// nonstandard: output the hash value of instance by calling std::hash() for the type
+	constexpr
 	std::size_t Hash() const;
 	//-----------------------------------------------------------------------------
 
@@ -1269,7 +1270,7 @@ namespace std
 	{
 		typedef dekaf2::KStringView argument_type;
 		typedef std::size_t result_type;
-		result_type operator()(argument_type s) const
+		constexpr result_type operator()(argument_type s) const
 		{
 			return dekaf2::hash_bytes_FNV(s.data(), s.size());
 		}
@@ -1287,7 +1288,7 @@ namespace boost
 	{
 		typedef dekaf2::KStringView argument_type;
 		typedef std::size_t result_type;
-		result_type operator()(argument_type s) const
+		constexpr result_type operator()(argument_type s) const
 		{
 			return dekaf2::hash_bytes_FNV(s.data(), s.size());
 		}
@@ -1296,7 +1297,7 @@ namespace boost
 } // namespace boost
 
 //----------------------------------------------------------------------
-inline std::size_t dekaf2::KStringView::Hash() const
+inline constexpr std::size_t dekaf2::KStringView::Hash() const
 //----------------------------------------------------------------------
 {
 	return std::hash<dekaf2::KStringView>()(*this);

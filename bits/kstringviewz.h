@@ -136,6 +136,7 @@ public:
 	using base_type::compare;
 	using base_type::find;
 	using base_type::rfind;
+	using base_type::Hash;
 
 #if defined(DEKAF2_USE_OPTIMIZED_STRING_FIND)
 	// we have a super fast implementation for these signatures, let
@@ -306,11 +307,6 @@ public:
 
 	// not using base_type::remove_suffix;
 
-	//-----------------------------------------------------------------------------
-	/// nonstandard: output the hash value of instance by calling std::hash() for the type
-	std::size_t Hash() const;
-	//-----------------------------------------------------------------------------
-
 }; // KStringViewZ
 
 using KStringViewZPair = std::pair<KStringViewZ, KStringViewZ>;
@@ -337,7 +333,7 @@ namespace std
 	{
 		typedef dekaf2::KStringViewZ argument_type;
 		typedef std::size_t result_type;
-		result_type operator()(argument_type s) const
+		constexpr result_type operator()(argument_type s) const
 		{
 			return dekaf2::hash_bytes_FNV(s.data(), s.size());
 		}
@@ -355,19 +351,12 @@ namespace boost
 	{
 		typedef dekaf2::KStringViewZ argument_type;
 		typedef std::size_t result_type;
-		result_type operator()(argument_type s) const
+		constexpr result_type operator()(argument_type s) const
 		{
 			return dekaf2::hash_bytes_FNV(s.data(), s.size());
 		}
 	};
 
 } // namespace boost
-
-//----------------------------------------------------------------------
-inline std::size_t dekaf2::KStringViewZ::Hash() const
-//----------------------------------------------------------------------
-{
-	return std::hash<dekaf2::KStringViewZ>()(*this);
-}
 
 

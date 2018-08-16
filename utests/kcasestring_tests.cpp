@@ -79,6 +79,13 @@ TEST_CASE("KCaseTrimString") {
 	props.Add("ContentType   ", "Value2");
 
 	CHECK ( props["cookie"] == "Value1");
+	CHECK ( props["CoOkie"] == "Value1");
+	CHECK ( props["    CoOkie "] == "Value1");
+	CHECK ( props["    cookie"] == "Value1");
+	CHECK ( props["    cookie "] == "Value1");
+	CHECK ( props[" \r\nCoOkie "] == "Value1");
+	CHECK ( props[" cookie"] == "Value1");
+	CHECK ( props[" cookie\n"] == "Value1");
 	CHECK ( props["contenttype"] == "Value2");
 	CHECK ( props["coOkie"] == "Value1");
 

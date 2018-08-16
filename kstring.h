@@ -1485,11 +1485,34 @@ namespace std
 	/// provide a std::hash for KString
 	template<> struct hash<dekaf2::KString>
 	{
-		typedef dekaf2::KString argument_type;
-		typedef std::size_t result_type;
-		result_type operator()(argument_type const& s) const noexcept
+		// we actually use a KStringView as the parameter, as this avoids
+		// accidentially constructing a KString if coming from a KStringView
+		// or char* in a template that uses KString as elements
+		constexpr std::size_t operator()(dekaf2::KStringView sv) const noexcept
 		{
-			return dekaf2::hash_bytes_FNV(s.data(), s.size());
+			return dekaf2::hash_bytes_FNV(sv.data(), sv.size());
+		}
+	};
+
+	// make sure comparisons work without construction of KString
+	template<> struct equal_to<dekaf2::KString>
+	{
+		using is_transparent = void;
+
+		bool operator()(dekaf2::KStringView s1, dekaf2::KStringView s2) const
+		{
+			return s1 == s2;
+		}
+	};
+
+	// make sure comparisons work without construction of KString
+	template<> struct less<dekaf2::KString>
+	{
+		using is_transparent = void;
+
+		bool operator()(dekaf2::KStringView s1, dekaf2::KStringView s2) const
+		{
+			return s1 < s2;
 		}
 	};
 
@@ -1502,13 +1525,14 @@ namespace boost
 	/// provide a boost::hash for KString
 	template<> struct hash<dekaf2::KString> : public std::unary_function<dekaf2::KString, std::size_t>
 	{
-		typedef dekaf2::KString argument_type;
-		typedef std::size_t result_type;
-		result_type operator()(argument_type const& s) const noexcept
+		// we actually use a KStringView as the parameter, as this avoids
+		// accidentially constructing a KString if coming from a KStringView
+		// or char* in a template that uses KString as elements
+		constexpr std::size_t operator()(dekaf2::KStringView s) const noexcept
 		{
 			return dekaf2::hash_bytes_FNV(s.data(), s.size());
 		}
-	};
+};
 
 } // end of namespace boost
 

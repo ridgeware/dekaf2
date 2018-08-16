@@ -1,5 +1,4 @@
 /*
-//-----------------------------------------------------------------------------//
 //
 // DEKAF(tm): Lighter, Faster, Smarter (tm)
 //
@@ -48,7 +47,6 @@
 
 namespace dekaf2 {
 
-extern template class KProps<KCaseTrimString, KString>;
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class KHTTPHeaders
@@ -61,8 +59,8 @@ public:
 
 	enum { MAX_LINELENGTH = 8 * 1024 };
 
-	// The key for the Header is trimmed and lower cased on comparisons, but stores the original string
-	using KHeaderMap = KProps<KCaseTrimString, KString>; // case insensitive map for header info
+	// The key for the Header is no trimming and lower cased on comparisons, and stores the original string
+	using KHeaderMap = KProps<KCaseString, KString>; // case insensitive map for header info
 
 	//-----------------------------------------------------------------------------
 	bool Parse(KInStream& Stream);

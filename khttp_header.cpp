@@ -439,6 +439,4 @@ constexpr KStringViewZ KHTTPHeaders::x_powered_by;
 
 #endif
 
-template class KProps<KCaseTrimString, KString>;
-
 } // end of namespace dekaf2

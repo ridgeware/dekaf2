@@ -69,7 +69,7 @@ std::ostream& kfFormat(std::ostream& os, Args&&... args)
 	DEKAF2_TRY {
 		fmt::print(os, std::forward<Args>(args)...);
 	} DEKAF2_CATCH (std::exception& e) {
-		kFormat_internal::report_format_exception(e, DEKAF2_FUNCTION_NAME);
+		kFormat_internal::report_format_exception(e, "kFormat");
 	}
 	return os;
 }
@@ -95,7 +95,7 @@ std::ostream& kfPrintf(std::ostream& os, Args&&... args)
 	DEKAF2_TRY {
 		fmt::fprintf(os, std::forward<Args>(args)...);
 	} DEKAF2_CATCH (std::exception& e) {
-		kFormat_internal::report_format_exception(e, DEKAF2_FUNCTION_NAME);
+		kFormat_internal::report_format_exception(e, "kfPrintf");
 	}
 	return os;
 }

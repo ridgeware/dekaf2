@@ -101,7 +101,8 @@ KString KQuotedPrintable::Encode(KStringView sInput, bool bForMailHeaders)
 		{
 			if (bForMailHeaders)
 			{
-				out += "?=\r\n =?UTF-8?Q?";
+				out += "?=\r\n ";
+				out += "=?UTF-8?Q?";
 				iMaxLineLen = 75 - (1 + 10 + 2);
 			}
 			else

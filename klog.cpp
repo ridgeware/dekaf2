@@ -561,8 +561,9 @@ bool KLog::SetDebugLog(KStringView sLogfile)
 	KStringViewZ sEnv(kGetEnv(s_sEnvLog));
 	if (!sEnv.empty())
 	{
-		kDebug(0, "prevented setting the debug log file to '{}' because the environment variable '{}' is set to '{}'",
-		       sLogfile,
+		kDebug(0, "prevented setting the debug {} file to '{}' because the environment variable '{}' is set to '{}'",
+		       "log",
+			   sLogfile,
 		       s_sEnvLog,
 		       sEnv);
 		return false;
@@ -694,8 +695,9 @@ bool KLog::SetDebugFlag(KStringViewZ sFlagfile)
 	KStringViewZ sEnv(kGetEnv(s_sEnvFlag));
 	if (!sEnv.empty())
 	{
-		kDebug(0, "prevented setting the debug flag file to '{}' because the environment variable '{}' is set to '{}'",
-		       sFlagfile,
+		kDebug(0, "prevented setting the debug {} file to '{}' because the environment variable '{}' is set to '{}'",
+		       "flag",
+			   sFlagfile,
 		       s_sEnvFlag,
 		       sEnv);
 		return false;

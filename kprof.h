@@ -118,7 +118,8 @@ private:
 	const char*         m_label;
 	bool                m_print{true};
 	clock_t::time_point m_start;
-};
+
+}; // KQDProf
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// profiler class, working single process, single thread, multi threaded
@@ -130,6 +131,7 @@ class KSharedProfiler
 //----------
 public:
 //----------
+
 	typedef std::chrono::steady_clock clock_t;
 
 	//-----------------------------------------------------------------------------
@@ -161,6 +163,7 @@ public:
 //----------
 private:
 //----------
+
 	typedef std::chrono::nanoseconds duration_t;
 
 	struct data_t
@@ -187,7 +190,8 @@ private:
 		uint32_t   level{0};
 		uint32_t   order{0};
 		duration_t duration{0};
-	};
+
+	}; // data_t
 
 	struct less_for_c_strings
 	{
@@ -247,7 +251,7 @@ private:
 	map_t                        m_map;
 	uint32_t                     m_level{0};
 
-}; // SharedProfile
+}; // KSharedProfiler
 
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -262,7 +266,7 @@ class KProf
 public:
 //----------
 
-#ifdef DISABLE_AUTOMATIC_PROFILER
+#ifdef DEKAF2_DISABLE_AUTOMATIC_PROFILER
 	//-----------------------------------------------------------------------------
 	explicit KProf(SharedProfiler& parent, const char* label, bool increment_level = true);
 	//-----------------------------------------------------------------------------
@@ -303,7 +307,7 @@ private:
 	bool                                 m_stopped{false};
 	bool                                 m_increment_level{true};
 
-}; // Profiler
+}; // KProf
 
 } // of namespace enabled
 } // namespace dekaf2
@@ -348,7 +352,7 @@ public:
 	{
 	}
 
-};
+}; // KQDProf
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// the nil version that generates no code at all
@@ -396,7 +400,7 @@ public:
 	{
 	}
 
-};
+}; // KSharedProfiler
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// the nil version that generates no code at all
@@ -408,7 +412,7 @@ class KProf
 public:
 //----------
 
-#ifdef DISABLE_AUTOMATIC_PROFILER
+#ifdef DEKAF2_DISABLE_AUTOMATIC_PROFILER
 	//-----------------------------------------------------------------------------
 	KProf(KSharedProfiler& parent, const char* label, bool increment_level = true) {}
 	//-----------------------------------------------------------------------------
@@ -439,7 +443,7 @@ public:
 	{
 	}
 
-};
+}; // KProf
 
 } // of namespace disabled
 
@@ -451,7 +455,7 @@ namespace dekaf2
 {
 
 #if defined(DEKAF2_ENABLE_PROFILING) || defined(DEKAF2_LIBRARY_BUILD)
-#ifndef DISABLE_AUTOMATIC_PROFILER
+#ifndef DEKAF2_DISABLE_AUTOMATIC_PROFILER
 extern thread_local enabled::KSharedProfiler g_Prof;
 #endif
 #endif
@@ -461,7 +465,7 @@ typedef enabled::KQDProf KQDProf;
 typedef enabled::KSharedProfiler SharedProfiler;
 typedef enabled::KProf KProf;
 
-#ifndef DISABLE_AUTOMATIC_PROFILER
+#ifndef DEKAF2_DISABLE_AUTOMATIC_PROFILER
 inline void kProfSleep()
 {
 	g_Prof.sleep();
@@ -470,7 +474,7 @@ inline void kProfWake()
 {
 	g_Prof.wake();
 }
-#endif // DISABLE_AUTOMATIC_PROFILER
+#endif // DEKAF2_DISABLE_AUTOMATIC_PROFILER
 
 #else // DEKAF2_ENABLE_PROFILING
 
@@ -478,7 +482,7 @@ typedef disabled::KQDProf KQDProf;
 typedef disabled::KSharedProfiler KSharedProfiler;
 typedef disabled::KProf KProf;
 
-#ifndef DISABLE_AUTOMATIC_PROFILER
+#ifndef DEKAF2_DISABLE_AUTOMATIC_PROFILER
 inline void kProfSleep()
 {}
 inline void kProfWake()

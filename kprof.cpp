@@ -127,24 +127,46 @@ void KSharedProfiler::print()
 
 	maxlen = std::max(maxlen, std::strlen("accumulated runtime"));
 	int imaxlen = static_cast<int>(maxlen);
+	std::string sSeparator(imaxlen + 74, '-');
 
 	// report:
 	fprintf (stdout, "\n\nperformance stats:\n\n");
 	for (const auto& it : set)
 	{
-		double  nPercent = (m_profiled_runtime.count())
-				  ? (it.second.duration.count()*100.0)/(m_profiled_runtime.count()*1.0)
-				  : 0.0;
+		double nPercent = (m_profiled_runtime.count())
+		? (it.second.duration.count()*100.0)/(m_profiled_runtime.count()*1.0)
+		: 0.0;
 		std::string dispname(it.second.level * 2, '.');
-		dispname += it.first;
-		fprintf (stdout,
-				 "|  %-*.*s : %12s usecs : %5.1f%% : %10s calls : %16s nsecs\n",
-				 imaxlen, imaxlen,
-				 dispname.c_str(),
-				 kFormNumber(std::chrono::duration_cast<std::chrono::microseconds>(it.second.duration).count()).c_str(),
-				 nPercent,
-				 kFormNumber(it.second.count).c_str(),
-				 kFormNumber(static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(it.second.duration).count()) / it.second.count).c_str()); // it.second.count is always non-zero..
+
+		if (it.first[0] == '-')
+		{
+			// this is a section header
+			if (!it.second.level)
+			{
+				fprintf (stdout,
+						 "|  %s\n",
+						 sSeparator.c_str() );
+			}
+			dispname += &it.first[1];
+			fprintf (stdout,
+					 "|  %-*.*s : %12s usecs : %5.1f%%\n",
+					 imaxlen, imaxlen,
+					 dispname.c_str(),
+					 kFormNumber(std::chrono::duration_cast<std::chrono::microseconds>(it.second.duration).count()).c_str(),
+					 nPercent);
+		}
+		else
+		{
+			dispname += it.first;
+			fprintf (stdout,
+					 "|  %-*.*s : %12s usecs : %5.1f%% : %10s calls : %16s nsecs\n",
+					 imaxlen, imaxlen,
+					 dispname.c_str(),
+					 kFormNumber(std::chrono::duration_cast<std::chrono::microseconds>(it.second.duration).count()).c_str(),
+					 nPercent,
+					 kFormNumber(it.second.count).c_str(),
+					 kFormNumber(static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(it.second.duration).count()) / it.second.count).c_str()); // it.second.count is always non-zero..
+		}
 	}
 
 	fprintf (stdout, "\n");
@@ -199,12 +221,12 @@ KSharedProfiler::data_t& KSharedProfiler::data_t::operator +=(const data_t& d)
 	return *this;
 }
 
-#ifndef DISABLE_AUTOMATIC_PROFILER
+#ifndef DEKAF2_DISABLE_AUTOMATIC_PROFILER
 thread_local KSharedProfiler dekaf2::g_Prof;
 #endif
 
 //-----------------------------------------------------------------------------
-#ifdef DISABLE_AUTOMATIC_PROFILER
+#ifdef DEKAF2_DISABLE_AUTOMATIC_PROFILER
 KProf::KProf(KSharedProfiler& parent, const char* label, bool increment_level)
 	: m_parent(parent)
 #else

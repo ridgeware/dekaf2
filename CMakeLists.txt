@@ -524,5 +524,6 @@ target_link_libraries(getentities dekaf2)
 
 add_subdirectory(utests)
 add_subdirectory(smoketests)
+add_subdirectory(benchmarks)
 
 

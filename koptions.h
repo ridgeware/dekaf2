@@ -47,8 +47,8 @@
 #include "klog.h"
 #include "kstack.h"
 #include "kexception.h"
+#include "kassociative.h"
 #include <functional>
-#include <unordered_map>
 
 
 /// @file koptions.h
@@ -217,7 +217,7 @@ private:
 
 	}; // CallbackParams
 
-	using CommandStore = std::unordered_map<KString, CallbackParams>;
+	using CommandStore = KUnorderedMap<KString, CallbackParams>;
 
 	CLIParms       m_CLIParms;
 	CommandStore   m_Commands;

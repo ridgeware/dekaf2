@@ -5,6 +5,7 @@
 
 void kcasestring()
 {
+	dekaf2::KProf("-KCaseString");
 	{
 		dekaf2::KString s(10, 'A');
 		dekaf2::KString s2(9, 'A');

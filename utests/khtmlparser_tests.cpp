@@ -128,5 +128,41 @@ TEST_CASE("KHTMLParser")
 		CHECK ( sHTML == sOutput );
 
 	}
+	SECTION("attribute extraction")
+	{
+		class KHTMLScanner : public KHTMLParser
+		{
+		public:
+
+			KHTMLScanner()
+			{}
+
+			bool Found() const { return m_bFound; }
+
+		protected:
+
+			virtual void Object(KHTMLObject& Object) override
+			{
+				if (Object.Type() == KHTMLObject::TAG)
+				{
+					KHTMLTag& tag = static_cast<KHTMLTag&>(Object);
+					if (tag.Attributes.Get("class") == "shallow")
+					{
+						m_bFound = true;
+					}
+				}
+			}
+
+		private:
+
+			bool m_bFound { false };
+
+		};
+
+		KHTMLScanner HTMLScanner;
+		HTMLScanner.Parse(sHTML);
+		CHECK ( HTMLScanner.Found() == true );
+
+	}
 
 }

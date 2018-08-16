@@ -192,12 +192,31 @@ private:
 
 	struct less_for_attribute
 	{
+		// enable find(const T&) overloads in C++14
+		using is_transparent = void;
+
 		//-----------------------------------------------------------------------------
 		bool operator()(const KHTMLAttribute& a1, const KHTMLAttribute& a2) const
 		//-----------------------------------------------------------------------------
 		{
 			return a1.Name < a2.Name;
 		}
+
+		// add comparators for strings so that C++14 finds them with find()
+		//-----------------------------------------------------------------------------
+		bool operator()(KStringView s1, const KHTMLAttribute& a2) const
+		//-----------------------------------------------------------------------------
+		{
+			return s1 < a2.Name;
+		}
+
+		//-----------------------------------------------------------------------------
+		bool operator()(const KHTMLAttribute& a1, KStringView s2) const
+		//-----------------------------------------------------------------------------
+		{
+			return a1.Name < s2;
+		}
+
 	};
 
 //------
@@ -233,10 +252,10 @@ public:
 		Replace(KHTMLAttribute({sAttributeName, sAttributeValue, Quote}));
 	}
 
-	void Add(KHTMLAttribute&& Attribute);
-	void Add(const KHTMLAttribute& Attribute)
+	bool Add(KHTMLAttribute&& Attribute);
+	bool Add(const KHTMLAttribute& Attribute)
 	{
-		Add(KHTMLAttribute(Attribute));
+		return Add(KHTMLAttribute(Attribute));
 	}
 
 	void Replace(KHTMLAttribute&& Attribute);

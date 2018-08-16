@@ -427,10 +427,10 @@ KStringView KHTMLAttributes::Get(KStringView sAttributeName) const
 } // Get
 
 //-----------------------------------------------------------------------------
-void KHTMLAttributes::Add(KHTMLAttribute&& Attribute)
+bool KHTMLAttributes::Add(KHTMLAttribute&& Attribute)
 //-----------------------------------------------------------------------------
 {
-	m_Attributes.insert(std::move(Attribute));
+	return m_Attributes.insert(std::move(Attribute)).second;
 
 } // Add
 
@@ -438,14 +438,10 @@ void KHTMLAttributes::Add(KHTMLAttribute&& Attribute)
 void KHTMLAttributes::Replace(KHTMLAttribute&& Attribute)
 //-----------------------------------------------------------------------------
 {
-	auto it = m_Attributes.find(Attribute.Name.ToView());
-	if (it != m_Attributes.end())
-	{
-		m_Attributes.erase(it);
-	}
+	m_Attributes.erase(Attribute);
 	m_Attributes.insert(std::move(Attribute));
 
-} // Add
+} // Replace
 
 //-----------------------------------------------------------------------------
 bool KHTMLAttributes::Parse(KInStream& InStream, KStringView sOpening)

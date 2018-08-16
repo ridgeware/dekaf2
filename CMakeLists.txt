@@ -373,7 +373,6 @@ set (SOURCES
 	kfilesystem.cpp
 	kformat.cpp
 	kgetruntimestack.cpp
-	khash.cpp
 	khmac.cpp
 	khtmlcontentblocks.cpp
 	khtmlentities.cpp

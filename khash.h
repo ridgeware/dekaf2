@@ -49,6 +49,12 @@
 #include <climits>
 #include "bits/kcppcompat.h"
 
+#ifdef DEKAF2_HAS_CPP_14
+	#define DEKAF2_FNV_CONSTEXPR constexpr
+#else
+	#define DEKAF2_FNV_CONSTEXPR inline
+#endif
+
 namespace dekaf2
 {
 
@@ -68,11 +74,13 @@ class basic_fnv1a final
 //----------
 public:
 //----------
+
 	using result_type = ResultT;
 
 //----------
 private:
 //----------
+
 	result_type m_State {};
 
 //----------
@@ -80,9 +88,7 @@ public:
 //----------
 
 	//---------------------------------------------------------------------------
-#ifdef DEKAF2_HAS_CPP_14
-	constexpr
-#endif
+	DEKAF2_FNV_CONSTEXPR
 	basic_fnv1a() noexcept
 	//---------------------------------------------------------------------------
 	    : m_State {OffsetBasis}
@@ -90,26 +96,35 @@ public:
 	}
 
 	//---------------------------------------------------------------------------
-#ifdef DEKAF2_HAS_CPP_14
-	constexpr
-#endif
+	DEKAF2_FNV_CONSTEXPR
 	void update(const void* const data, const std::size_t size) noexcept
 	//---------------------------------------------------------------------------
 	{
 		const auto cdata = static_cast<const unsigned char*>(data);
-		auto acc = this->m_State;
+		auto& acc = this->m_State;
 		for (auto i = std::size_t {}; i < size; ++i)
 		{
 			const auto next = std::size_t {cdata[i]};
 			acc = (acc ^ next) * Prime;
 		}
-		this->m_State = acc;
 	}
 
 	//---------------------------------------------------------------------------
-#ifdef DEKAF2_HAS_CPP_14
-	constexpr
-#endif
+	template<typename Type>
+	DEKAF2_FNV_CONSTEXPR
+	void update(const Type ch) noexcept
+	//---------------------------------------------------------------------------
+	{
+		static_assert(sizeof(ch) == 1, "only byte sized values allowed");
+
+		const auto cdata = static_cast<const unsigned char>(ch);
+		auto& acc = this->m_State;
+		const auto next = std::size_t {cdata};
+		acc = (acc ^ next) * Prime;
+	}
+
+	//---------------------------------------------------------------------------
+	DEKAF2_FNV_CONSTEXPR
 	result_type digest() const noexcept
 	//---------------------------------------------------------------------------
 	{
@@ -159,8 +174,7 @@ using fnv1a_t = typename fnv1a<Bits>::type;
 
 //---------------------------------------------------------------------------
 /// Fowler-Noll-Vo hash function for arbitrary data
-#ifdef DEKAF2_HAS_CPP_14
-constexpr
+DEKAF2_FNV_CONSTEXPR
 std::size_t hash_bytes_FNV(const void* const data, const std::size_t size) noexcept
 //---------------------------------------------------------------------------
 {
@@ -168,8 +182,6 @@ std::size_t hash_bytes_FNV(const void* const data, const std::size_t size) noexc
 	hashfn.update(data, size);
 	return hashfn.digest();
 }
-#else
-std::size_t hash_bytes_FNV(const void* const data, const std::size_t size) noexcept;
-#endif
+
 } // end of namespace dekaf2
 

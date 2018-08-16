@@ -881,7 +881,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	// SFINAE && perfect forwarding, only active for non-integral K, or if the Key is integral
-	/// Gets the element with the given key. Returns empty element if not found.
+	/// Gets the value with the given key. Returns empty value if not found.
 	template<class K, class T = Key,
 			typename = std::enable_if_t<std::is_integral<T>::value || !std::is_integral<K>::value> >
 	const Value& operator[](K&& key) const

@@ -669,7 +669,7 @@ TEST_CASE("KProp") {
 
 	SECTION("std::map")
 	{
-		std::unordered_map<KString, KString> map;
+		std::map<KString, KString> map;
 		map.emplace( "key1", "value1" );
 		map.emplace( "key2", "value2" );
 		map.emplace( "key3", "value3" );

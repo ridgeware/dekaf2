@@ -2,6 +2,7 @@
 #include <iostream>
 #include <vector>
 #include <map>
+#include <unordered_map>
 #include <set>
 #include <cinttypes>
 #include <dekaf2/kprof.h>
@@ -9,6 +10,7 @@
 #include <dekaf2/kstringutils.h>
 #include <dekaf2/kprops.h>
 #include <dekaf2/kurlencode.h>
+#include <dekaf2/kassociative.h>
 
 using namespace std;
 using namespace dekaf2;
@@ -212,10 +214,318 @@ void UrlDecode_bench()
 	}
 }
 
+void maps()
+{
+	{
+		KProf ps("-std::map");
+		{
+			std::map<std::string, std::string> map;
+			std::string sValue("value");
+
+			{
+				KProf p("map.emplace(std::string)");
+				p.SetMultiplier(1000);
+				for (uint32_t i = 0; i < 1000; i++)
+				{
+					map.emplace(std::to_string(i), sValue);
+				}
+			}
+			{
+				std::string sFind("876");
+				KProf p("map.find(std::string)");
+				p.SetMultiplier(100000);
+				for (uint32_t i = 0; i < 100000; i++)
+				{
+					if (map.find(sFind) == map.end())
+					{
+						break;
+					}
+				}
+			}
+			{
+				KProf p("map.find(std::string literal)");
+				p.SetMultiplier(100000);
+				for (uint32_t i = 0; i < 100000; i++)
+				{
+					if (map.find("876") == map.end())
+					{
+						break;
+					}
+				}
+			}
+		}
+		{
+			std::map<KString, KString> map;
+			KString sValue("value");
+
+			{
+				KProf p("map.emplace(KString)");
+				p.SetMultiplier(1000);
+				for (uint32_t i = 0; i < 1000; i++)
+				{
+					map.emplace(KString::to_string(i), sValue);
+				}
+			}
+			{
+				KString sFind("876");
+				KProf p("map.find(KString)");
+				p.SetMultiplier(100000);
+				for (uint32_t i = 0; i < 100000; i++)
+				{
+					if (map.find(sFind) == map.end())
+					{
+						break;
+					}
+				}
+			}
+			{
+				KProf p("map.find(KString literal)");
+				p.SetMultiplier(100000);
+				for (uint32_t i = 0; i < 100000; i++)
+				{
+					if (map.find("876") == map.end())
+					{
+						break;
+					}
+				}
+			}
+		}
+	}
+
+	{
+		KProf ps("-std::unordered_map");
+		{
+			std::unordered_map<std::string, std::string> map;
+			std::string sValue("value");
+
+			{
+				KProf p("unordered_map.emplace(std::string)");
+				p.SetMultiplier(1000);
+				for (uint32_t i = 0; i < 1000; i++)
+				{
+					map.emplace(std::to_string(i), sValue);
+				}
+			}
+			{
+				std::string sFind("876");
+				KProf p("unordered_map.find(std::string)");
+				p.SetMultiplier(100000);
+				for (uint32_t i = 0; i < 100000; i++)
+				{
+					if (map.find(sFind) == map.end())
+					{
+						break;
+					}
+				}
+			}
+			{
+				KProf p("unordered_map.find(std::string literal)");
+				p.SetMultiplier(100000);
+				for (uint32_t i = 0; i < 100000; i++)
+				{
+					if (map.find("876") == map.end())
+					{
+						break;
+					}
+				}
+			}
+		}
+		{
+			std::unordered_map<KString, KString> map;
+			KString sValue("value");
+
+			{
+				KProf p("unordered_map.emplace(KString)");
+				p.SetMultiplier(1000);
+				for (uint32_t i = 0; i < 1000; i++)
+				{
+					map.emplace(KString::to_string(i), sValue);
+				}
+			}
+			{
+				KString sFind("876");
+				KProf p("unordered_map.find(KString)");
+				p.SetMultiplier(100000);
+				for (uint32_t i = 0; i < 100000; i++)
+				{
+					if (map.find(sFind) == map.end())
+					{
+						break;
+					}
+				}
+			}
+			{
+				KProf p("unordered_map.find(KString literal)");
+				p.SetMultiplier(100000);
+				for (uint32_t i = 0; i < 100000; i++)
+				{
+					if (map.find("876") == map.end())
+					{
+						break;
+					}
+				}
+			}
+		}
+	}
+
+	{
+		KProf ps("-KUnorderedMap");
+		{
+			KUnorderedMap<std::string, std::string> map;
+			std::string sValue("value");
+
+			{
+				KProf p("KUnorderedMap.emplace(std::string)");
+				p.SetMultiplier(1000);
+				for (uint32_t i = 0; i < 1000; i++)
+				{
+					map.emplace(std::to_string(i), sValue);
+				}
+			}
+			{
+				std::string sFind("876");
+				KProf p("KUnorderedMap.find(std::string)");
+				p.SetMultiplier(100000);
+				for (uint32_t i = 0; i < 100000; i++)
+				{
+					if (map.find(sFind) == map.end())
+					{
+						break;
+					}
+				}
+			}
+			{
+				KProf p("KUnorderedMap.find(std::string literal)");
+				p.SetMultiplier(100000);
+				for (uint32_t i = 0; i < 100000; i++)
+				{
+					if (map.find("876") == map.end())
+					{
+						break;
+					}
+				}
+			}
+		}
+		{
+			KUnorderedMap<KString, KString> map;
+			KString sValue("value");
+
+			{
+				KProf p("KUnorderedMap.emplace(KString)");
+				p.SetMultiplier(1000);
+				for (uint32_t i = 0; i < 1000; i++)
+				{
+					map.emplace(KString::to_string(i), sValue);
+				}
+			}
+			{
+				KString sFind("876");
+				KProf p("KUnorderedMap.find(KString)");
+				p.SetMultiplier(100000);
+				for (uint32_t i = 0; i < 100000; i++)
+				{
+					if (map.find(sFind) == map.end())
+					{
+						break;
+					}
+				}
+			}
+			{
+				KProf p("KUnorderedMap.find(KString literal)");
+				p.SetMultiplier(100000);
+				for (uint32_t i = 0; i < 100000; i++)
+				{
+					if (map.find("876") == map.end())
+					{
+						break;
+					}
+				}
+			}
+		}
+	}
+
+	{
+		KProf ps("-KProps unique non sequential");
+		{
+			KProps<std::string, std::string, false, true> map;
+			std::string sValue("value");
+
+			{
+				KProf p("KProps.emplace(std::string)");
+				p.SetMultiplier(1000);
+				for (uint32_t i = 0; i < 1000; i++)
+				{
+					map.emplace(std::to_string(i), sValue);
+				}
+			}
+			{
+				std::string sFind("876");
+				KProf p("KProps.find(std::string)");
+				p.SetMultiplier(100000);
+				for (uint32_t i = 0; i < 100000; i++)
+				{
+					if (map.find(sFind) == map.end())
+					{
+						break;
+					}
+				}
+			}
+			{
+				KProf p("KProps.find(std::string literal)");
+				p.SetMultiplier(100000);
+				for (uint32_t i = 0; i < 100000; i++)
+				{
+					if (map.find("876") == map.end())
+					{
+						break;
+					}
+				}
+			}
+		}
+		{
+			KProps<KString, KString, false, true> map;
+			KString sValue("value");
+
+			{
+				KProf p("KProps.emplace(KString)");
+				p.SetMultiplier(1000);
+				for (uint32_t i = 0; i < 1000; i++)
+				{
+					map.emplace(KString::to_string(i), sValue);
+				}
+			}
+			{
+				KString sFind("876");
+				KProf p("KProps.find(KString)");
+				p.SetMultiplier(100000);
+				for (uint32_t i = 0; i < 100000; i++)
+				{
+					if (map.find(sFind) == map.end())
+					{
+						break;
+					}
+				}
+			}
+			{
+				KProf p("KProps.find(KString literal)");
+				p.SetMultiplier(100000);
+				for (uint32_t i = 0; i < 100000; i++)
+				{
+					if (map.find("876") == map.end())
+					{
+						break;
+					}
+				}
+			}
+		}
+	}
+}
+
 void kprops_bench()
 {
 //	thread_local_bench();
 	kprops();
+	maps();
 	UrlDecode_bench();
 }
 

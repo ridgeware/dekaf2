@@ -10,6 +10,7 @@
 #include <dekaf2/kstring.h>
 #include <dekaf2/kprof.h>
 #include <dekaf2/kfilesystem.h>
+#include <iostream>
 #include <fstream>
 
 using namespace dekaf2;
@@ -41,6 +42,7 @@ void compare_readers()
 			{
 				::read(fd, &Ch, 1);
 			}
+			if (Ch == 'x') std::cout << "nope";
 		}
 		close(fd);
 	}
@@ -55,6 +57,7 @@ void compare_readers()
 			{
 				Ch = fgetc(fp);
 			}
+			if (Ch == 'x') std::cout << "nope";
 		}
 		fclose(fp);
 	}
@@ -69,6 +72,7 @@ void compare_readers()
 			{
 				Ch = is.get();
 			}
+			if (Ch == 'x') std::cout << "nope";
 		}
 		is.close();
 	}
@@ -83,6 +87,7 @@ void compare_readers()
 			{
 				Ch = is.Read();
 			}
+			if (Ch == 'x') std::cout << "nope";
 		}
 		is.close();
 	}
@@ -98,6 +103,7 @@ void compare_readers()
 			{
 				Ch = is.Read();
 			}
+			if (Ch == 'x') std::cout << "nope";
 		}
 		is.close();
 	}
@@ -113,6 +119,7 @@ void compare_readers()
 			{
 				Ch = is.Read();
 			}
+			if (Ch == 'x') std::cout << "nope";
 		}
 		is.close();
 	}

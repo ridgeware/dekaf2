@@ -30,7 +30,7 @@ void kstringview()
 		prof.SetMultiplier(1000000);
 		for (int ct = 0; ct < 1000000; ++ct)
 		{
-			sv.find("abcdefg");
+			if (sv.find("abcdefg") < 10) std::cout << "found";
 		}
 	}
 	{
@@ -40,39 +40,50 @@ void kstringview()
 		prof.SetMultiplier(1000000);
 		for (int ct = 0; ct < 1000000; ++ct)
 		{
-			sv.find("abcdefg");
+			if (sv.find("abcdefg") < 10) std::cout << "found";
 		}
 	}
 	{
-		dekaf2::KString s(50000, '-');
+		dekaf2::KString s(5000, '-');
 		s.append("abcdefg");
 		dekaf2::KStringView sv(s);
-		dekaf2::KProf prof("sv find (50000)");
-		prof.SetMultiplier(100000);
-		for (int ct = 0; ct < 100000; ++ct)
+		dekaf2::KProf prof("sv find (5000)");
+		prof.SetMultiplier(1000000);
+		for (int ct = 0; ct < 1000000; ++ct)
 		{
-			sv.find("abcdefg");
+			if (sv.find("abcdefg") < 10) std::cout << "found";
 		}
 	}
 	{
-		dekaf2::KString s(50000, '-');
+		dekaf2::KString s(5000, '-');
 		dekaf2::KStringView sv(s);
-		dekaf2::KProf prof("sv notfound (50000)");
-		prof.SetMultiplier(100000);
-		for (int ct = 0; ct < 100000; ++ct)
+		dekaf2::KProf prof("sv notfound (5000)");
+		prof.SetMultiplier(1000000);
+		for (int ct = 0; ct < 1000000; ++ct)
 		{
-			sv.find("abcdefg");
+			if (sv.find("abcdefg") < 10) std::cout << "found";
 		}
 	}
 	{
-		dekaf2::KString s(50000, 'a');
+		dekaf2::KString s(5000000, '-');
+		s.append("abcdefg");
+		dekaf2::KStringView sv(s);
+		dekaf2::KProf prof("sv find (5M)");
+		prof.SetMultiplier(1000);
+		for (int ct = 0; ct < 1000; ++ct)
+		{
+			if (sv.find("abcdefg") < 10) std::cout << "found";
+		}
+	}
+	{
+		dekaf2::KString s(5000, 'a');
 		s.append("abcdefg");
 		dekaf2::KStringView sv(s);
 		dekaf2::KProf prof("sv find worst case");
-		prof.SetMultiplier(10000);
-		for (int ct = 0; ct < 10000; ++ct)
+		prof.SetMultiplier(100000);
+		for (int ct = 0; ct < 100000; ++ct)
 		{
-			sv.find("abcdefg");
+			if (sv.find("abcdefg") < 10) std::cout << "found";
 		}
 	}
 	{
@@ -94,6 +105,17 @@ void kstringview()
 		dekaf2::KProf prof("sv find char (5000)");
 		prof.SetMultiplier(1000000);
 		for (int ct = 0; ct < 1000000; ++ct)
+		{
+			if (sv.find('d') < 100) std::cout << "found";
+		}
+	}
+	{
+		dekaf2::KString s(5000000, '-');
+		s.append("abcdefg");
+		dekaf2::KStringView sv(s);
+		dekaf2::KProf prof("sv find char (5M)");
+		prof.SetMultiplier(1000);
+		for (int ct = 0; ct < 1000; ++ct)
 		{
 			if (sv.find('d') < 100) std::cout << "found";
 		}
@@ -414,18 +436,62 @@ void kstringview()
 		prof.SetMultiplier(1000000);
 		for (int ct = 0; ct < 1000000; ++ct)
 		{
-			sv.rfind("abcdefg");
+			if (sv.rfind("abcdefg") > 100) std::cout << "found";
 		}
 	}
 	{
-		dekaf2::KString s(50000, '-');
+		dekaf2::KString s(5000, '-');
 		s.insert(0, "abcdefg");
 		dekaf2::KStringView sv(s);
-		dekaf2::KProf prof("sv rfind (50000)");
-		prof.SetMultiplier(100000);
-		for (int ct = 0; ct < 100000; ++ct)
+		dekaf2::KProf prof("sv rfind (5000)");
+		prof.SetMultiplier(1000000);
+		for (int ct = 0; ct < 1000000; ++ct)
 		{
-			sv.rfind("abcdefg");
+			if (sv.rfind("abcdefg") > 100) std::cout << "found";
+		}
+	}
+	{
+		dekaf2::KString s(5000000, '-');
+		s.insert(0, "abcdefg");
+		dekaf2::KStringView sv(s);
+		dekaf2::KProf prof("sv rfind (5M)");
+		prof.SetMultiplier(1000);
+		for (int ct = 0; ct < 1000; ++ct)
+		{
+			if (sv.rfind("abcdefg") > 100) std::cout << "found";
+		}
+	}
+	{
+		dekaf2::KString s(200, '-');
+		s.insert(0, "abcdefg");
+		dekaf2::KStringView sv(s);
+		dekaf2::KProf prof("sv rfind char (200)");
+		prof.SetMultiplier(1000000);
+		for (int ct = 0; ct < 1000000; ++ct)
+		{
+			if (sv.rfind('d') > 100) std::cout << "found";
+		}
+	}
+	{
+		dekaf2::KString s(5000, '-');
+		s.insert(0, "abcdefg");
+		dekaf2::KStringView sv(s);
+		dekaf2::KProf prof("sv rfind char (5000)");
+		prof.SetMultiplier(1000000);
+		for (int ct = 0; ct < 1000000; ++ct)
+		{
+			if (sv.rfind('d') > 100) std::cout << "found";
+		}
+	}
+	{
+		dekaf2::KString s(5000000, '-');
+		s.insert(0, "abcdefg");
+		dekaf2::KStringView sv(s);
+		dekaf2::KProf prof("sv rfind char (5M)");
+		prof.SetMultiplier(1000);
+		for (int ct = 0; ct < 1000; ++ct)
+		{
+			if (sv.rfind('d') > 100) std::cout << "found";
 		}
 	}
 }

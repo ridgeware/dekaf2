@@ -75,7 +75,7 @@ void kstring()
 		prof.SetMultiplier(1000000);
 		for (int ct = 0; ct < 1000000; ++ct)
 		{
-			s.find("abcdefg");
+			if (s.find("abcdefg") < 10) std::cout << "found";
 		}
 	}
 	{
@@ -84,36 +84,46 @@ void kstring()
 		prof.SetMultiplier(1000000);
 		for (int ct = 0; ct < 1000000; ++ct)
 		{
-			s.find("abcdefg");
+			if (s.find("abcdefg") < 10) std::cout << "found";
 		}
 	}
 	{
-		dekaf2::KString s(50000, '-');
+		dekaf2::KString s(5000, '-');
 		s.append("abcdefg");
-		dekaf2::KProf prof("find (50000)");
-		prof.SetMultiplier(10000);
-		for (int ct = 0; ct < 10000; ++ct)
+		dekaf2::KProf prof("find (5000)");
+		prof.SetMultiplier(100000);
+		for (int ct = 0; ct < 100000; ++ct)
 		{
-			s.find("abcdefg");
+			if (s.find("abcdefg") < 10) std::cout << "found";
 		}
 	}
 	{
-		dekaf2::KString s(50000, '-');
-		dekaf2::KProf prof("notfound (50000)");
-		prof.SetMultiplier(10000);
-		for (int ct = 0; ct < 10000; ++ct)
+		dekaf2::KString s(5000, '-');
+		dekaf2::KProf prof("notfound (5000)");
+		prof.SetMultiplier(100000);
+		for (int ct = 0; ct < 100000; ++ct)
 		{
-			s.find("abcdefg");
+			if (s.find("abcdefg") < 10) std::cout << "found";
 		}
 	}
 	{
-		dekaf2::KString s(50000, 'a');
+		dekaf2::KString s(5000000, '-');
+		s.append("abcdefg");
+		dekaf2::KProf prof("find (5M)");
+		prof.SetMultiplier(1000);
+		for (int ct = 0; ct < 1000; ++ct)
+		{
+			if (s.find("abcdefg") < 10) std::cout << "found";
+		}
+	}
+	{
+		dekaf2::KString s(5000, 'a');
 		s.append("abcdefg");
 		dekaf2::KProf prof("find worst case");
-		prof.SetMultiplier(10000);
-		for (int ct = 0; ct < 10000; ++ct)
+		prof.SetMultiplier(100000);
+		for (int ct = 0; ct < 100000; ++ct)
 		{
-			s.find("abcdefg");
+			if (s.find("abcdefg") < 10) std::cout << "found";
 		}
 	}
 	{
@@ -133,6 +143,16 @@ void kstring()
 		dekaf2::KProf prof("find char (5000)");
 		prof.SetMultiplier(1000000);
 		for (int ct = 0; ct < 1000000; ++ct)
+		{
+			if (s.find('d') < 100) std::cout << "found";
+		}
+	}
+	{
+		dekaf2::KString s(5000000, '-');
+		s.append("abcdefg");
+		dekaf2::KProf prof("find char (5M)");
+		prof.SetMultiplier(1000);
+		for (int ct = 0; ct < 1000; ++ct)
 		{
 			if (s.find('d') < 100) std::cout << "found";
 		}
@@ -264,6 +284,66 @@ void kstring()
 		for (int ct = 0; ct < 500; ++ct)
 		{
 			if (s.find_first_not_of("&%-?") < 100) std::cout << "found";
+		}
+	}
+	{
+		dekaf2::KString s(200, '-');
+		s.insert(0, "abcdefg");
+		dekaf2::KProf prof("rfind (200)");
+		prof.SetMultiplier(1000000);
+		for (int ct = 0; ct < 1000000; ++ct)
+		{
+			if (s.rfind("abcdefg") > 100) std::cout << "found";
+		}
+	}
+	{
+		dekaf2::KString s(5000, '-');
+		s.insert(0, "abcdefg");
+		dekaf2::KProf prof("rfind (5000)");
+		prof.SetMultiplier(1000000);
+		for (int ct = 0; ct < 1000000; ++ct)
+		{
+			if (s.rfind("abcdefg") > 100) std::cout << "found";
+		}
+	}
+	{
+		dekaf2::KString s(5000000, '-');
+		s.insert(0, "abcdefg");
+		dekaf2::KProf prof("rfind (5M)");
+		prof.SetMultiplier(1000);
+		for (int ct = 0; ct < 1000; ++ct)
+		{
+			if (s.rfind("abcdefg") > 100) std::cout << "found";
+		}
+	}
+	{
+		dekaf2::KString s(200, '-');
+		s.insert(0, "abcdefg");
+		dekaf2::KProf prof("rfind char (200)");
+		prof.SetMultiplier(1000000);
+		for (int ct = 0; ct < 1000000; ++ct)
+		{
+			if (s.rfind('d') > 100) std::cout << "found";
+		}
+	}
+	{
+		dekaf2::KString s(5000, '-');
+		s.insert(0, "abcdefg");
+		dekaf2::KProf prof("rfind char (5000)");
+		prof.SetMultiplier(1000000);
+		for (int ct = 0; ct < 1000000; ++ct)
+		{
+			if (s.rfind('d') > 100) std::cout << "found";
+		}
+	}
+	{
+		dekaf2::KString s(5000000, '-');
+		s.insert(0, "abcdefg");
+		dekaf2::KProf prof("rfind char (5M)");
+		prof.SetMultiplier(1000);
+		for (int ct = 0; ct < 1000; ++ct)
+		{
+			if (s.rfind('d') > 100) std::cout << "found";
 		}
 	}
 }

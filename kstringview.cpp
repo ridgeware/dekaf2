@@ -46,7 +46,7 @@
 #include "dekaf2.h"
 #include "bits/simd/kfindfirstof.h"
 
-#ifndef __linux__
+#ifdef DEKAF2_NO_GCC
 void* memrchr(const void* s, int c, size_t n)
 {
 #ifdef __x86_64__
@@ -103,10 +103,24 @@ size_t kFind(
 		return kFind(haystack, needle[0], pos);
 	}
 
-	if (DEKAF2_UNLIKELY(pos > haystack.size()))
+	if (DEKAF2_UNLIKELY(pos >= haystack.size()))
 	{
 		return KStringView::npos;
 	}
+
+	if (DEKAF2_UNLIKELY(needle.empty()))
+	{
+		return KStringView::npos;
+	}
+
+	if (DEKAF2_UNLIKELY(needle.size() > (haystack.size() - pos)))
+	{
+		return KStringView::npos;
+	}
+
+#ifndef DEKAF2_NO_GCC
+
+	// glibc has an excellent memmem implementation, so we use it
 
 	auto found = static_cast<const char*>(::memmem(haystack.data() + pos,
 	                                               haystack.size() - pos,
@@ -123,6 +137,35 @@ size_t kFind(
 	}
 
 #else
+
+	// libc has a very slow memmem implementation (about 100 times slower than glibc),
+	// so we write our own
+
+	for(;;)
+	{
+		auto found = static_cast<const char*>(memchr(haystack.data() + pos,
+													  needle[0],
+													  (haystack.size() - pos - needle.size()) + 1));
+		if (DEKAF2_UNLIKELY(!found))
+		{
+			return KStringView::npos;
+		}
+
+		pos = static_cast<size_t>(found - haystack.data());
+
+		if (std::memcmp(haystack.data() + pos + 1,
+						needle.data() + 1,
+						needle.size() - 1) == 0)
+		{
+			return pos;
+		}
+
+		++pos;
+	}
+
+#endif
+
+#else // non-optimized
 
 	return static_cast<KStringView::rep_type>(haystack).find(needle, pos);
 

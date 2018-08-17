@@ -138,8 +138,8 @@ public:
 	using base_type::rfind;
 	using base_type::Hash;
 
-#if defined(DEKAF2_USE_OPTIMIZED_STRING_FIND)
-	// we have a super fast implementation for these signatures, let
+#if defined(DEKAF2_USE_OPTIMIZED_STRING_FIND) && !defined(DEKAF2_NO_GCC)
+	// we have a super fast implementation for these signatures in GLIBC, let
 	// them superseede base_type's version
 	size_type find_first_of(KStringView sv, size_type pos = 0) const;
 	size_type find_first_not_of(KStringView sv, size_type pos = 0) const;

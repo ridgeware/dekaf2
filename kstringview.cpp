@@ -143,7 +143,7 @@ size_t kFind(
 
 	for(;;)
 	{
-		auto found = static_cast<const char*>(memchr(haystack.data() + pos,
+		auto found = static_cast<const char*>(::memchr(haystack.data() + pos,
 													  needle[0],
 													  (haystack.size() - pos - needle.size()) + 1));
 		if (DEKAF2_UNLIKELY(!found))

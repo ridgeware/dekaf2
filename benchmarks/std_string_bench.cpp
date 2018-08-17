@@ -240,8 +240,8 @@ void std_string()
 		std::string s(5000000, '-');
 		s.append("abcdefg");
 		dekaf2::KProf prof("std find_first_of (5M)");
-		prof.SetMultiplier(500);
-		for (int ct = 0; ct < 500; ++ct)
+		prof.SetMultiplier(1000);
+		for (int ct = 0; ct < 1000; ++ct)
 		{
 			if (s.find_first_of("defg") < 100) std::cout << "found";
 		}
@@ -279,8 +279,8 @@ void std_string()
 		std::string s(5000000, '-');
 		s.append("abcdefg");
 		dekaf2::KProf prof("std find_first_not_of (5M)");
-		prof.SetMultiplier(500);
-		for (int ct = 0; ct < 500; ++ct)
+		prof.SetMultiplier(1000);
+		for (int ct = 0; ct < 1000; ++ct)
 		{
 			if (s.find_first_not_of("&%-?") < 100) std::cout << "found";
 		}

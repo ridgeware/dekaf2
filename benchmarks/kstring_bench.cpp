@@ -18,7 +18,8 @@ static const char* str250 = "12345678901234567890123456789012345678901234567890"
 
 void kstring()
 {
-	dekaf2::KProf("-KString");
+	dekaf2::KProf ps("-KString");
+	
 	{
 		dekaf2::KProf prof("short (0)");
 		prof.SetMultiplier(1000000);
@@ -90,8 +91,8 @@ void kstring()
 		dekaf2::KString s(50000, '-');
 		s.append("abcdefg");
 		dekaf2::KProf prof("find (50000)");
-		prof.SetMultiplier(100000);
-		for (int ct = 0; ct < 100000; ++ct)
+		prof.SetMultiplier(10000);
+		for (int ct = 0; ct < 10000; ++ct)
 		{
 			s.find("abcdefg");
 		}
@@ -99,8 +100,8 @@ void kstring()
 	{
 		dekaf2::KString s(50000, '-');
 		dekaf2::KProf prof("notfound (50000)");
-		prof.SetMultiplier(100000);
-		for (int ct = 0; ct < 100000; ++ct)
+		prof.SetMultiplier(10000);
+		for (int ct = 0; ct < 10000; ++ct)
 		{
 			s.find("abcdefg");
 		}
@@ -109,8 +110,8 @@ void kstring()
 		dekaf2::KString s(50000, 'a');
 		s.append("abcdefg");
 		dekaf2::KProf prof("find worst case");
-		prof.SetMultiplier(100000);
-		for (int ct = 0; ct < 100000; ++ct)
+		prof.SetMultiplier(10000);
+		for (int ct = 0; ct < 10000; ++ct)
 		{
 			s.find("abcdefg");
 		}
@@ -210,8 +211,8 @@ void kstring()
 		dekaf2::KString s(5000, '-');
 		s.append("abcdefg");
 		dekaf2::KProf prof("find_first_of (5000)");
-		prof.SetMultiplier(1000000);
-		for (int ct = 0; ct < 1000000; ++ct)
+		prof.SetMultiplier(100000);
+		for (int ct = 0; ct < 100000; ++ct)
 		{
 			if (s.find_first_of("defg") < 100) std::cout << "found";
 		}
@@ -220,8 +221,8 @@ void kstring()
 		dekaf2::KString s(5000000, '-');
 		s.append("abcdefg");
 		dekaf2::KProf prof("find_first_of (5M)");
-		prof.SetMultiplier(1000);
-		for (int ct = 0; ct < 1000; ++ct)
+		prof.SetMultiplier(500);
+		for (int ct = 0; ct < 500; ++ct)
 		{
 			if (s.find_first_of("defg") < 100) std::cout << "found";
 		}
@@ -249,8 +250,8 @@ void kstring()
 		dekaf2::KString s(5000, '-');
 		s.append("abcdefg");
 		dekaf2::KProf prof("find_first_not_of (5000)");
-		prof.SetMultiplier(1000000);
-		for (int ct = 0; ct < 1000000; ++ct)
+		prof.SetMultiplier(100000);
+		for (int ct = 0; ct < 100000; ++ct)
 		{
 			if (s.find_first_not_of("&%-?") < 10) std::cout << "found";
 		}
@@ -259,8 +260,8 @@ void kstring()
 		dekaf2::KString s(5000000, '-');
 		s.append("abcdefg");
 		dekaf2::KProf prof("find_first_not_of (5M)");
-		prof.SetMultiplier(1000);
-		for (int ct = 0; ct < 1000; ++ct)
+		prof.SetMultiplier(500);
+		for (int ct = 0; ct < 500; ++ct)
 		{
 			if (s.find_first_not_of("&%-?") < 100) std::cout << "found";
 		}

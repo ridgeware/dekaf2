@@ -4,6 +4,7 @@
 #include <dekaf2/kfdstream.h>
 #include <dekaf2/kstring.h>
 #include <dekaf2/kprof.h>
+#include <dekaf2/kfilesystem.h>
 #include <fstream>
 #include <unistd.h>
 
@@ -13,7 +14,7 @@ void compare_writers()
 {
 	std::string filename("/tmp/dekaf2_writer_test");
 	std::string s("123456789012345678901234567890123456789\n");
-	unlink(filename.c_str());
+	kRemoveFile(filename);
 
 	KProf pp("-Writers");
 
@@ -22,6 +23,7 @@ void compare_writers()
 		if (fd >= 0)
 		{
 			KProf prof("FileDesc, 40 bytes");
+			prof.SetMultiplier(100000);
 			for (int ct = 0; ct < 100000; ++ct)
 			{
 				write(fd, s.data(), s.size());
@@ -29,12 +31,13 @@ void compare_writers()
 		}
 		close(fd);
 	}
-	unlink(filename.c_str());
+	kRemoveFile(filename);
 	{
 		FILE* fp = fopen(filename.c_str(), "w");
 		if (fp)
 		{
 			KProf prof("FILE*, 40 bytes");
+			prof.SetMultiplier(100000);
 			for (int ct = 0; ct < 100000; ++ct)
 			{
 				fwrite(s.data(), 1, s.size(), fp);
@@ -43,12 +46,13 @@ void compare_writers()
 		}
 		fclose(fp);
 	}
-	unlink(filename.c_str());
+	kRemoveFile(filename);
 	{
 		std::ofstream os(filename);
 		if (os.is_open())
 		{
 			KProf prof("std::ofstream, 40 bytes");
+			prof.SetMultiplier(100000);
 			for (int ct = 0; ct < 100000; ++ct)
 			{
 				os.write(s.data(), s.size());
@@ -57,12 +61,13 @@ void compare_writers()
 		}
 		os.close();
 	}
-	unlink(filename.c_str());
+	kRemoveFile(filename);
 	{
 		KOutFile os(filename);
 		if (os.is_open())
 		{
 			KProf prof("KFileWriter, 40 bytes");
+			prof.SetMultiplier(100000);
 			for (int ct = 0; ct < 100000; ++ct)
 			{
 				os.Write(s.data(), s.size());
@@ -71,13 +76,14 @@ void compare_writers()
 		}
 		os.close();
 	}
-	unlink(filename.c_str());
+	kRemoveFile(filename);
 	{
 		FILE* fp = std::fopen(filename.c_str(), "w");
 		KFPWriter os(fp);
 		if (os.is_open())
 		{
 			KProf prof("KFPWriter, 40 bytes");
+			prof.SetMultiplier(100000);
 			for (int ct = 0; ct < 100000; ++ct)
 			{
 				os.Write(s.data(), s.size());
@@ -86,13 +92,14 @@ void compare_writers()
 		}
 		os.close();
 	}
-	unlink(filename.c_str());
+	kRemoveFile(filename);
 	{
 		int fd = ::open(filename.c_str(), O_WRONLY | O_CREAT, S_IWUSR | S_IRUSR);
 		KFDWriter os(fd);
 		if (os.is_open())
 		{
 			KProf prof("KFileDescWriter, 40 bytes");
+			prof.SetMultiplier(100000);
 			for (int ct = 0; ct < 100000; ++ct)
 			{
 				os.Write(s.data(), s.size());
@@ -101,7 +108,7 @@ void compare_writers()
 		}
 		os.close();
 	}
-	unlink(filename.c_str());
+	kRemoveFile(filename);
 
 	{
 		s = "123456789012345678901234567890123456789\n";
@@ -114,12 +121,13 @@ void compare_writers()
 		s = tmp;
 	}
 
-	unlink(filename.c_str());
+	kRemoveFile(filename);
 	{
 		int fd = open(filename.c_str(), O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR);
 		if (fd >= 0)
 		{
 			KProf prof("FileDesc, 4000 bytes");
+			prof.SetMultiplier(1000);
 			for (int ct = 0; ct < 1000; ++ct)
 			{
 				write(fd, s.data(), s.size());
@@ -127,12 +135,13 @@ void compare_writers()
 		}
 		close(fd);
 	}
-	unlink(filename.c_str());
+	kRemoveFile(filename);
 	{
 		FILE* fp = fopen(filename.c_str(), "w");
 		if (fp)
 		{
 			KProf prof("FILE*, 4000 bytes");
+			prof.SetMultiplier(1000);
 			for (int ct = 0; ct < 1000; ++ct)
 			{
 				fwrite(s.data(), 1, s.size(), fp);
@@ -141,12 +150,13 @@ void compare_writers()
 		}
 		fclose(fp);
 	}
-	unlink(filename.c_str());
+	kRemoveFile(filename);
 	{
 		std::ofstream os(filename);
 		if (os.is_open())
 		{
 			KProf prof("std::ofstream, 4000 bytes");
+			prof.SetMultiplier(1000);
 			for (int ct = 0; ct < 1000; ++ct)
 			{
 				os.write(s.data(), s.size());
@@ -155,12 +165,13 @@ void compare_writers()
 		}
 		os.close();
 	}
-	unlink(filename.c_str());
+	kRemoveFile(filename);
 	{
 		KOutFile os(filename);
 		if (os.is_open())
 		{
 			KProf prof("KFileWriter, 4000 bytes");
+			prof.SetMultiplier(1000);
 			for (int ct = 0; ct < 1000; ++ct)
 			{
 				os.Write(s.data(), s.size());
@@ -169,13 +180,14 @@ void compare_writers()
 		}
 		os.close();
 	}
-	unlink(filename.c_str());
+	kRemoveFile(filename);
 	{
 		FILE* fp = std::fopen(filename.c_str(), "w");
 		KFPWriter os(fp);
 		if (os.is_open())
 		{
 			KProf prof("KFPWriter, 4000 bytes");
+			prof.SetMultiplier(1000);
 			for (int ct = 0; ct < 1000; ++ct)
 			{
 				os.Write(s.data(), s.size());
@@ -184,13 +196,14 @@ void compare_writers()
 		}
 		os.close();
 	}
-	unlink(filename.c_str());
+	kRemoveFile(filename);
 	{
 		int fd = ::open(filename.c_str(), O_WRONLY | O_CREAT, S_IWUSR | S_IRUSR);
 		KFDWriter os(fd);
 		if (os.is_open())
 		{
 			KProf prof("KFileDescWriter, 4000 bytes");
+			prof.SetMultiplier(1000);
 			for (int ct = 0; ct < 1000; ++ct)
 			{
 				os.Write(s.data(), s.size());
@@ -212,12 +225,13 @@ void compare_writers()
 		s = tmp;
 	}
 
-	unlink(filename.c_str());
+	kRemoveFile(filename);
 	{
 		int fd = open(filename.c_str(), O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR);
 		if (fd >= 0)
 		{
 			KProf prof("FileDesc, 40000 bytes");
+			prof.SetMultiplier(100);
 			for (int ct = 0; ct < 100; ++ct)
 			{
 				write(fd, s.data(), s.size());
@@ -225,12 +239,13 @@ void compare_writers()
 		}
 		close(fd);
 	}
-	unlink(filename.c_str());
+	kRemoveFile(filename);
 	{
 		FILE* fp = fopen(filename.c_str(), "w");
 		if (fp)
 		{
 			KProf prof("FILE*, 40000 bytes");
+			prof.SetMultiplier(100);
 			for (int ct = 0; ct < 100; ++ct)
 			{
 				fwrite(s.data(), 1, s.size(), fp);
@@ -239,12 +254,13 @@ void compare_writers()
 		}
 		fclose(fp);
 	}
-	unlink(filename.c_str());
+	kRemoveFile(filename);
 	{
 		std::ofstream os(filename);
 		if (os.is_open())
 		{
 			KProf prof("std::ofstream, 40000 bytes");
+			prof.SetMultiplier(100);
 			for (int ct = 0; ct < 100; ++ct)
 			{
 				os.write(s.data(), s.size());
@@ -253,12 +269,13 @@ void compare_writers()
 		}
 		os.close();
 	}
-	unlink(filename.c_str());
+	kRemoveFile(filename);
 	{
 		KOutFile os(filename);
 		if (os.is_open())
 		{
 			KProf prof("KFileWriter, 40000 bytes");
+			prof.SetMultiplier(100);
 			for (int ct = 0; ct < 100; ++ct)
 			{
 				os.Write(s.data(), s.size());
@@ -267,13 +284,14 @@ void compare_writers()
 		}
 		os.close();
 	}
-	unlink(filename.c_str());
+	kRemoveFile(filename);
 	{
 		FILE* fp = std::fopen(filename.c_str(), "w");
 		KFPWriter os(fp);
 		if (os.is_open())
 		{
 			KProf prof("KFPWriter, 40000 bytes");
+			prof.SetMultiplier(100);
 			for (int ct = 0; ct < 100; ++ct)
 			{
 				os.Write(s.data(), s.size());
@@ -282,13 +300,14 @@ void compare_writers()
 		}
 		os.close();
 	}
-	unlink(filename.c_str());
+	kRemoveFile(filename);
 	{
 		int fd = ::open(filename.c_str(), O_WRONLY | O_CREAT, S_IWUSR | S_IRUSR);
 		KFDWriter os(fd);
 		if (os.is_open())
 		{
 			KProf prof("KFileDescWriter, 40000 bytes");
+			prof.SetMultiplier(100);
 			for (int ct = 0; ct < 100; ++ct)
 			{
 				os.Write(s.data(), s.size());
@@ -297,7 +316,7 @@ void compare_writers()
 		}
 		os.close();
 	}
-	unlink(filename.c_str());
+	kRemoveFile(filename);
 
 }
 

@@ -20,12 +20,13 @@ static const char* str250 = "12345678901234567890123456789012345678901234567890"
 
 void kstringview()
 {
-	dekaf2::KProf("-KStringView");
+	dekaf2::KProf ps("-KStringView");
+	
 	{
 		dekaf2::KString s(200, '-');
 		s.append("abcdefg");
 		dekaf2::KStringView sv(s);
-		dekaf2::KProf prof("find (200)");
+		dekaf2::KProf prof("sv find (200)");
 		prof.SetMultiplier(1000000);
 		for (int ct = 0; ct < 1000000; ++ct)
 		{
@@ -35,7 +36,7 @@ void kstringview()
 	{
 		dekaf2::KString s(200, '-');
 		dekaf2::KStringView sv(s);
-		dekaf2::KProf prof("notfound (200)");
+		dekaf2::KProf prof("sv notfound (200)");
 		prof.SetMultiplier(1000000);
 		for (int ct = 0; ct < 1000000; ++ct)
 		{
@@ -46,7 +47,7 @@ void kstringview()
 		dekaf2::KString s(50000, '-');
 		s.append("abcdefg");
 		dekaf2::KStringView sv(s);
-		dekaf2::KProf prof("find (50000)");
+		dekaf2::KProf prof("sv find (50000)");
 		prof.SetMultiplier(100000);
 		for (int ct = 0; ct < 100000; ++ct)
 		{
@@ -56,7 +57,7 @@ void kstringview()
 	{
 		dekaf2::KString s(50000, '-');
 		dekaf2::KStringView sv(s);
-		dekaf2::KProf prof("notfound (50000)");
+		dekaf2::KProf prof("sv notfound (50000)");
 		prof.SetMultiplier(100000);
 		for (int ct = 0; ct < 100000; ++ct)
 		{
@@ -67,9 +68,9 @@ void kstringview()
 		dekaf2::KString s(50000, 'a');
 		s.append("abcdefg");
 		dekaf2::KStringView sv(s);
-		dekaf2::KProf prof("find worst case");
-		prof.SetMultiplier(100000);
-		for (int ct = 0; ct < 100000; ++ct)
+		dekaf2::KProf prof("sv find worst case");
+		prof.SetMultiplier(10000);
+		for (int ct = 0; ct < 10000; ++ct)
 		{
 			sv.find("abcdefg");
 		}
@@ -78,7 +79,7 @@ void kstringview()
 		dekaf2::KString s(200, '-');
 		s.append("abcdefg");
 		dekaf2::KStringView sv(s);
-		dekaf2::KProf prof("find char (200)");
+		dekaf2::KProf prof("sv find char (200)");
 		prof.SetMultiplier(1000000);
 		for (int ct = 0; ct < 1000000; ++ct)
 		{
@@ -90,7 +91,7 @@ void kstringview()
 		dekaf2::KString s(5000, '-');
 		s.append("abcdefg");
 		dekaf2::KStringView sv(s);
-		dekaf2::KProf prof("find char (5000)");
+		dekaf2::KProf prof("sv find char (5000)");
 		prof.SetMultiplier(1000000);
 		for (int ct = 0; ct < 1000000; ++ct)
 		{
@@ -101,7 +102,7 @@ void kstringview()
 		dekaf2::KString s(20, '-');
 		s.append("abcdefg");
 		dekaf2::KStringView sv(s);
-		dekaf2::KProf prof("find_first_of (20)");
+		dekaf2::KProf prof("sv find_first_of (20)");
 		prof.SetMultiplier(1000000);
 		for (int ct = 0; ct < 1000000; ++ct)
 		{
@@ -112,7 +113,7 @@ void kstringview()
 		dekaf2::KString s(200, '-');
 		s.append("abcdefg");
 		dekaf2::KStringView sv(s);
-		dekaf2::KProf prof("find_first_of (200)");
+		dekaf2::KProf prof("sv find_first_of (200)");
 		prof.SetMultiplier(1000000);
 		for (int ct = 0; ct < 1000000; ++ct)
 		{
@@ -123,7 +124,7 @@ void kstringview()
 		dekaf2::KString s(5000, '-');
 		s.append("abcdefg");
 		dekaf2::KStringView sv(s);
-		dekaf2::KProf prof("find_first_of (5000)");
+		dekaf2::KProf prof("sv find_first_of (5000)");
 		prof.SetMultiplier(1000000);
 		for (int ct = 0; ct < 1000000; ++ct)
 		{
@@ -134,7 +135,7 @@ void kstringview()
 		dekaf2::KString s(5000000, '-');
 		s.append("abcdefg");
 		dekaf2::KStringView sv(s);
-		dekaf2::KProf prof("find_first_of (5M)");
+		dekaf2::KProf prof("sv find_first_of (5M)");
 		prof.SetMultiplier(1000);
 		for (int ct = 0; ct < 1000; ++ct)
 		{
@@ -145,7 +146,7 @@ void kstringview()
 		dekaf2::KString s(20, '-');
 		s.append("abcdefg");
 		dekaf2::KStringView sv(s);
-		dekaf2::KProf prof("find_first_of >16 (20)");
+		dekaf2::KProf prof("sv find_first_of >16 (20)");
 		prof.SetMultiplier(1000000);
 		for (int ct = 0; ct < 1000000; ++ct)
 		{
@@ -156,7 +157,7 @@ void kstringview()
 		dekaf2::KString s(200, '-');
 		s.append("abcdefg");
 		dekaf2::KStringView sv(s);
-		dekaf2::KProf prof("find_first_of >16 (200)");
+		dekaf2::KProf prof("sv find_first_of >16 (200)");
 		prof.SetMultiplier(1000000);
 		for (int ct = 0; ct < 1000000; ++ct)
 		{
@@ -167,7 +168,7 @@ void kstringview()
 		dekaf2::KString s(5000, '-');
 		s.append("abcdefg");
 		dekaf2::KStringView sv(s);
-		dekaf2::KProf prof("find_first_of >16 (5000)");
+		dekaf2::KProf prof("sv find_first_of >16 (5000)");
 		prof.SetMultiplier(1000000);
 		for (int ct = 0; ct < 1000000; ++ct)
 		{
@@ -178,7 +179,7 @@ void kstringview()
 		dekaf2::KString s(5000000, '-');
 		s.append("abcdefg");
 		dekaf2::KStringView sv(s);
-		dekaf2::KProf prof("find_first_of >16 (5M)");
+		dekaf2::KProf prof("sv find_first_of >16 (5M)");
 		prof.SetMultiplier(1000);
 		for (int ct = 0; ct < 1000; ++ct)
 		{
@@ -189,7 +190,7 @@ void kstringview()
 		dekaf2::KString s(20, '-');
 		s.append("abcdefg");
 		dekaf2::KStringView sv(s);
-		dekaf2::KProf prof("find_first_not_of (20)");
+		dekaf2::KProf prof("sv find_first_not_of (20)");
 		prof.SetMultiplier(1000000);
 		for (int ct = 0; ct < 1000000; ++ct)
 		{
@@ -200,7 +201,7 @@ void kstringview()
 		dekaf2::KString s(200, '-');
 		s.append("abcdefg");
 		dekaf2::KStringView sv(s);
-		dekaf2::KProf prof("find_first_not_of (200)");
+		dekaf2::KProf prof("sv find_first_not_of (200)");
 		prof.SetMultiplier(1000000);
 		for (int ct = 0; ct < 1000000; ++ct)
 		{
@@ -211,7 +212,7 @@ void kstringview()
 		dekaf2::KString s(5000, '-');
 		s.append("abcdefg");
 		dekaf2::KStringView sv(s);
-		dekaf2::KProf prof("find_first_not_of (5000)");
+		dekaf2::KProf prof("sv find_first_not_of (5000)");
 		prof.SetMultiplier(1000000);
 		for (int ct = 0; ct < 1000000; ++ct)
 		{
@@ -222,7 +223,7 @@ void kstringview()
 		dekaf2::KString s(5000000, '-');
 		s.append("abcdefg");
 		dekaf2::KStringView sv(s);
-		dekaf2::KProf prof("find_first_not_of (5M)");
+		dekaf2::KProf prof("sv find_first_not_of (5M)");
 		prof.SetMultiplier(1000);
 		for (int ct = 0; ct < 1000; ++ct)
 		{
@@ -233,7 +234,7 @@ void kstringview()
 		dekaf2::KString s(20, '-');
 		s.append("abcdefg");
 		dekaf2::KStringView sv(s);
-		dekaf2::KProf prof("find_first_not_of >16 (20)");
+		dekaf2::KProf prof("sv find_first_not_of >16 (20)");
 		prof.SetMultiplier(1000000);
 		for (int ct = 0; ct < 1000000; ++ct)
 		{
@@ -244,7 +245,7 @@ void kstringview()
 		dekaf2::KString s(200, '-');
 		s.append("abcdefg");
 		dekaf2::KStringView sv(s);
-		dekaf2::KProf prof("find_first_not_of >16 (200)");
+		dekaf2::KProf prof("sv find_first_not_of >16 (200)");
 		prof.SetMultiplier(1000000);
 		for (int ct = 0; ct < 1000000; ++ct)
 		{
@@ -255,7 +256,7 @@ void kstringview()
 		dekaf2::KString s(5000, '-');
 		s.append("abcdefg");
 		dekaf2::KStringView sv(s);
-		dekaf2::KProf prof("find_first_not_of >16 (5000)");
+		dekaf2::KProf prof("sv find_first_not_of >16 (5000)");
 		prof.SetMultiplier(1000000);
 		for (int ct = 0; ct < 1000000; ++ct)
 		{
@@ -266,7 +267,7 @@ void kstringview()
 		dekaf2::KString s(5000000, '-');
 		s.append("abcdefg");
 		dekaf2::KStringView sv(s);
-		dekaf2::KProf prof("find_first_not_of >16 (5M)");
+		dekaf2::KProf prof("sv find_first_not_of >16 (5M)");
 		prof.SetMultiplier(1000);
 		for (int ct = 0; ct < 1000; ++ct)
 		{
@@ -277,7 +278,7 @@ void kstringview()
 		dekaf2::KString s(20, '-');
 		s.insert(0, "abcdefg");
 		dekaf2::KStringView sv(s);
-		dekaf2::KProf prof("find_last_of (20)");
+		dekaf2::KProf prof("sv find_last_of (20)");
 		prof.SetMultiplier(1000000);
 		for (int ct = 0; ct < 1000000; ++ct)
 		{
@@ -288,7 +289,7 @@ void kstringview()
 		dekaf2::KString s(200, '-');
 		s.insert(0, "abcdefg");
 		dekaf2::KStringView sv(s);
-		dekaf2::KProf prof("find_last_of (200)");
+		dekaf2::KProf prof("sv find_last_of (200)");
 		prof.SetMultiplier(1000000);
 		for (int ct = 0; ct < 1000000; ++ct)
 		{
@@ -299,7 +300,7 @@ void kstringview()
 		dekaf2::KString s(5000, '-');
 		s.insert(0, "abcdefg");
 		dekaf2::KStringView sv(s);
-		dekaf2::KProf prof("find_last_of (5000)");
+		dekaf2::KProf prof("sv find_last_of (5000)");
 		prof.SetMultiplier(1000000);
 		for (int ct = 0; ct < 1000000; ++ct)
 		{
@@ -310,7 +311,7 @@ void kstringview()
 		dekaf2::KString s(20, '-');
 		s.insert(0, "abcdefg");
 		dekaf2::KStringView sv(s);
-		dekaf2::KProf prof("find_last_of >16 (20)");
+		dekaf2::KProf prof("sv find_last_of >16 (20)");
 		prof.SetMultiplier(1000000);
 		for (int ct = 0; ct < 1000000; ++ct)
 		{
@@ -321,7 +322,7 @@ void kstringview()
 		dekaf2::KString s(200, '-');
 		s.insert(0, "abcdefg");
 		dekaf2::KStringView sv(s);
-		dekaf2::KProf prof("find_last_of >16 (200)");
+		dekaf2::KProf prof("sv find_last_of >16 (200)");
 		prof.SetMultiplier(1000000);
 		for (int ct = 0; ct < 1000000; ++ct)
 		{
@@ -332,7 +333,7 @@ void kstringview()
 		dekaf2::KString s(5000, '-');
 		s.insert(0, "abcdefg");
 		dekaf2::KStringView sv(s);
-		dekaf2::KProf prof("find_last_of >16 (5000)");
+		dekaf2::KProf prof("sv find_last_of >16 (5000)");
 		prof.SetMultiplier(1000000);
 		for (int ct = 0; ct < 1000000; ++ct)
 		{
@@ -343,7 +344,7 @@ void kstringview()
 		dekaf2::KString s(20, '-');
 		s.insert(0, "abcdefg");
 		dekaf2::KStringView sv(s);
-		dekaf2::KProf prof("find_last_not_of (20)");
+		dekaf2::KProf prof("sv find_last_not_of (20)");
 		prof.SetMultiplier(1000000);
 		for (int ct = 0; ct < 1000000; ++ct)
 		{
@@ -354,7 +355,7 @@ void kstringview()
 		dekaf2::KString s(200, '-');
 		s.insert(0, "abcdefg");
 		dekaf2::KStringView sv(s);
-		dekaf2::KProf prof("find_last_not_of (200)");
+		dekaf2::KProf prof("sv find_last_not_of (200)");
 		prof.SetMultiplier(1000000);
 		for (int ct = 0; ct < 1000000; ++ct)
 		{
@@ -365,7 +366,7 @@ void kstringview()
 		dekaf2::KString s(5000, '-');
 		s.insert(0, "abcdefg");
 		dekaf2::KStringView sv(s);
-		dekaf2::KProf prof("find_last_not_of (5000)");
+		dekaf2::KProf prof("sv find_last_not_of (5000)");
 		prof.SetMultiplier(1000000);
 		for (int ct = 0; ct < 1000000; ++ct)
 		{
@@ -376,7 +377,7 @@ void kstringview()
 		dekaf2::KString s(20, '-');
 		s.insert(0, "abcdefg");
 		dekaf2::KStringView sv(s);
-		dekaf2::KProf prof("find_last_not_of >16 (20)");
+		dekaf2::KProf prof("sv find_last_not_of >16 (20)");
 		prof.SetMultiplier(1000000);
 		for (int ct = 0; ct < 1000000; ++ct)
 		{
@@ -387,7 +388,7 @@ void kstringview()
 		dekaf2::KString s(200, '-');
 		s.insert(0, "abcdefg");
 		dekaf2::KStringView sv(s);
-		dekaf2::KProf prof("find_last_not_of >16 (200)");
+		dekaf2::KProf prof("sv find_last_not_of >16 (200)");
 		prof.SetMultiplier(1000000);
 		for (int ct = 0; ct < 1000000; ++ct)
 		{
@@ -398,7 +399,7 @@ void kstringview()
 		dekaf2::KString s(5000, '-');
 		s.insert(0, "abcdefg");
 		dekaf2::KStringView sv(s);
-		dekaf2::KProf prof("find_last_not_of >16 (5000)");
+		dekaf2::KProf prof("sv find_last_not_of >16 (5000)");
 		prof.SetMultiplier(1000000);
 		for (int ct = 0; ct < 1000000; ++ct)
 		{
@@ -409,7 +410,7 @@ void kstringview()
 		dekaf2::KString s(200, '-');
 		s.insert(0, "abcdefg");
 		dekaf2::KStringView sv(s);
-		dekaf2::KProf prof("rfind (200)");
+		dekaf2::KProf prof("sv rfind (200)");
 		prof.SetMultiplier(1000000);
 		for (int ct = 0; ct < 1000000; ++ct)
 		{
@@ -420,7 +421,7 @@ void kstringview()
 		dekaf2::KString s(50000, '-');
 		s.insert(0, "abcdefg");
 		dekaf2::KStringView sv(s);
-		dekaf2::KProf prof("rfind (50000)");
+		dekaf2::KProf prof("sv rfind (50000)");
 		prof.SetMultiplier(100000);
 		for (int ct = 0; ct < 100000; ++ct)
 		{

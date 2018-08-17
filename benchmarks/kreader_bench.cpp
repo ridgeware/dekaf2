@@ -9,6 +9,7 @@
 #include <dekaf2/kfdstream.h>
 #include <dekaf2/kstring.h>
 #include <dekaf2/kprof.h>
+#include <dekaf2/kfilesystem.h>
 #include <fstream>
 
 using namespace dekaf2;
@@ -35,6 +36,7 @@ void compare_readers()
 		{
 			char Ch;
 			KProf prof("read FileDesc, single chars");
+			prof.SetMultiplier(500000);
 			for (int ct = 0; ct < 500000; ++ct)
 			{
 				::read(fd, &Ch, 1);
@@ -48,6 +50,7 @@ void compare_readers()
 		{
 			char Ch;
 			KProf prof("read FILE*, single chars");
+			prof.SetMultiplier(500000);
 			for (int ct = 0; ct < 500000; ++ct)
 			{
 				Ch = fgetc(fp);
@@ -61,6 +64,7 @@ void compare_readers()
 		{
 			char Ch;
 			KProf prof("read std::ifstream, single chars");
+			prof.SetMultiplier(500000);
 			for (int ct = 0; ct < 500000; ++ct)
 			{
 				Ch = is.get();
@@ -74,6 +78,7 @@ void compare_readers()
 		{
 			char Ch;
 			KProf prof("read KInFile, single chars");
+			prof.SetMultiplier(500000);
 			for (int ct = 0; ct < 500000; ++ct)
 			{
 				Ch = is.Read();
@@ -88,6 +93,7 @@ void compare_readers()
 		{
 			char Ch;
 			KProf prof("read KFPReader, single chars");
+			prof.SetMultiplier(500000);
 			for (int ct = 0; ct < 500000; ++ct)
 			{
 				Ch = is.Read();
@@ -102,6 +108,7 @@ void compare_readers()
 		if (is.is_open())
 		{
 			KProf prof("read KFDReader, single chars");
+			prof.SetMultiplier(500000);
 			for (int ct = 0; ct < 500000; ++ct)
 			{
 				Ch = is.Read();
@@ -117,6 +124,7 @@ void compare_readers()
 			char Ch;
 			KString line;
 			KProf prof("read FileDesc, single lines");
+			prof.SetMultiplier(10000);
 			for (int ct = 0; ct < 10000; ++ct)
 			{
 				line.clear();
@@ -139,6 +147,7 @@ void compare_readers()
 		{
 			char* szLine = static_cast<char*>(malloc(1000));
 			KProf prof("read FILE*, single lines w/o copy");
+			prof.SetMultiplier(10000);
 			for (int ct = 0; ct < 10000; ++ct)
 			{
 				size_t rb = 999;
@@ -154,6 +163,7 @@ void compare_readers()
 			KString line;
 			char* szLine = static_cast<char*>(malloc(1000));
 			KProf prof("read FILE*, single lines w/ copy");
+			prof.SetMultiplier(10000);
 			for (int ct = 0; ct < 10000; ++ct)
 			{
 				line.clear();
@@ -170,6 +180,7 @@ void compare_readers()
 		{
 			KString line;
 			KProf prof("read std::ifstream, single lines");
+			prof.SetMultiplier(10000);
 			for (int ct = 0; ct < 10000; ++ct)
 			{
 				std::getline(is, line);
@@ -183,6 +194,7 @@ void compare_readers()
 		{
 			KString line;
 			KProf prof("read KInFile, single lines");
+			prof.SetMultiplier(10000);
 			for (int ct = 0; ct < 10000; ++ct)
 			{
 				is.ReadLine(line);
@@ -197,6 +209,7 @@ void compare_readers()
 		{
 			KString line;
 			KProf prof("read KFPReader, single lines");
+			prof.SetMultiplier(10000);
 			for (int ct = 0; ct < 10000; ++ct)
 			{
 				is.ReadLine(line);
@@ -211,6 +224,7 @@ void compare_readers()
 		{
 			KString line;
 			KProf prof("read KFDReader, single lines");
+			prof.SetMultiplier(10000);
 			for (int ct = 0; ct < 10000; ++ct)
 			{
 				is.ReadLine(line);
@@ -219,7 +233,7 @@ void compare_readers()
 		is.close();
 	}
 
-	unlink(filename.c_str());
+	kRemoveFile(filename);
 
 }
 

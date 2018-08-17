@@ -18,6 +18,7 @@ set (SOURCES
 	kwriter_bench.cpp
 	main.cpp
 	shared_ptr_bench.cpp
+	std_string_bench.cpp
 )
 
 set (HEADERS

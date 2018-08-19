@@ -52,10 +52,12 @@
 	#if __has_include(<variant>)
 		#include <variant>
 		#define DEKAF2_HAS_VARIANT 1
+		#define DEKAF2_HAS_STD_VARIANT 1
 		#define DEKAF2_VARIANT_NAMESPACE std
 	#elif __has_include(<experimental/variant>)
 		#include <experimental/variant>
 		#define DEKAF2_HAS_VARIANT 1
+		#define DEKAF2_HAS_STD_VARIANT 1
 		#define DEKAF2_VARIANT_NAMESPACE std::experimental
 	#endif
 #endif
@@ -63,6 +65,7 @@
 #ifndef DEKAF2_HAS_VARIANT
 	#include <boost/variant.hpp>
 	#define DEKAF2_HAS_VARIANT 1
+	#define DEKAF2_HAS_BOOST_VARIANT 1
 	#define DEKAF2_VARIANT_NAMESPACE boost
 	namespace boost
 	{

@@ -264,6 +264,7 @@ set (HEADERS
 	bits/ktemplate.h
 	bits/kunique_deleter.h
 	bits/kurldualencode.h
+	bits/kvariant.h
 	bits/simd/kfindfirstof.h
 	dekaf2.h
 	dekaf2all.h

@@ -45,6 +45,7 @@
 #include <nlohmann/json.hpp>
 #include "kstring.h"
 #include "kstringview.h"
+#include "kreader.h"
 
 using LJSON = nlohmann::basic_json<std::map, std::vector, dekaf2::KString >;
 
@@ -61,6 +62,11 @@ inline void to_json(LJSON& j, const dekaf2::KStringViewZ& s)
 }
 
 inline void from_json(const LJSON& j, dekaf2::KStringViewZ& s)
+{
+	s = j.get<LJSON::string_t>();
+}
+
+inline void from_json(const LJSON& j, dekaf2::KStringView& s)
 {
 	s = j.get<LJSON::string_t>();
 }
@@ -109,9 +115,11 @@ public:
 
 	bool        Parse     (KStringView sJSON);
 
-	KJSON       GetObject (KStringView sKey);
+	bool        Parse     (KInStream& InStream);
 
-	KString     GetString (KStringView sKey);
+	KJSON       GetObject (KStringView sKey) const;
+
+	KString     GetString (KStringView sKey) const;
 
 	const KString& GetLastError () { return m_sLastError; }
 

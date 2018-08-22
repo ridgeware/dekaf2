@@ -78,7 +78,39 @@ bool KJSON::Parse (KStringView sJSON)
 } // parse
 
 //-----------------------------------------------------------------------------
-KString KJSON::GetString(KStringView sKey)
+bool KJSON::Parse (KInStream& InStream)
+//-----------------------------------------------------------------------------
+{
+	ClearError();
+
+	if (InStream.InStream().eof())
+	{
+		// avoid throwing an exception for empty input - JSON will simply
+		// be empty too, so no error.
+		return true;
+	}
+
+#ifdef DEKAF2_EXCEPTIONS
+	clear();
+	*this = LJSON::parse(sJSON.cbegin(), sJSON.cend());
+	return true;
+#else
+	DEKAF2_TRY
+	{
+		clear();
+		InStream >> *this;
+		return true;
+	}
+	DEKAF2_CATCH (const LJSON::exception& exc)
+	{
+		return (FormError (exc));
+	}
+#endif
+
+} // parse
+
+//-----------------------------------------------------------------------------
+KString KJSON::GetString(KStringView sKey) const
 //-----------------------------------------------------------------------------
 {
 	ClearError();
@@ -112,7 +144,7 @@ KString KJSON::GetString(KStringView sKey)
 } // KJSON::GetString
 
 //-----------------------------------------------------------------------------
-KJSON KJSON::GetObject (KStringView sKey)
+KJSON KJSON::GetObject (KStringView sKey) const
 //-----------------------------------------------------------------------------
 {
 	ClearError();

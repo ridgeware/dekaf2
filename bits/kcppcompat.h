@@ -140,6 +140,14 @@
 	#define DEKAF2_FALLTHROUGH do {} while (0)
 #endif
 
+#if defined(__clang__) || defined(__GNUC__)
+	#define DEKAF2_DEPRECATED(msg) __attribute__((__deprecated__(msg)))
+#elif defined(_MSC_VER)
+	#define DEKAF2_DEPRECATED(msg) __declspec(deprecated(msg))
+#else
+	#define DEKAF2_DEPRECATED(msg)
+#endif
+
 // configure exception behavior
 #if (defined(__cpp_exceptions) || defined(__EXCEPTIONS) || defined(_CPPUNWIND))
 	// The system has exception handling features. Now check

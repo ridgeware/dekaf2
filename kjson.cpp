@@ -92,7 +92,7 @@ bool KJSON::Parse (KInStream& InStream)
 
 #ifdef DEKAF2_EXCEPTIONS
 	clear();
-	*this = LJSON::parse(sJSON.cbegin(), sJSON.cend());
+	InStream >> *this;
 	return true;
 #else
 	DEKAF2_TRY

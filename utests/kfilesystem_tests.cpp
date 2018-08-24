@@ -90,8 +90,8 @@ TEST_CASE("KFilesystem") {
 		CHECK ( kExtension(sPathname) == "txt" );
 		CHECK ( kExtension("/this.is/a./name") == "" );
 		CHECK ( kBasename(sPathname) == "name.txt" );
-		CHECK ( kDirname(sPathname) == "/this/is/a/" );
-		CHECK ( kDirname(sPathname, false) == "/this/is/a" );
+		CHECK ( kDirname(sPathname) == "/this/is/a" );
+		CHECK ( kDirname(sPathname, true) == "/this/is/a/" );
 		CHECK ( kRemoveExtension(sPathname) == "/this/is/a/name" );
 		CHECK ( kRemoveExtension("/this.is/a./name") == "/this.is/a./name" );
 	}

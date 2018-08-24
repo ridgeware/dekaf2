@@ -325,14 +325,33 @@ bool kCreateDir(KStringViewZ sPath)
 
 	std::error_code ec;
 
-	if (fs::create_directories(sPath.c_str(), ec))
+	if (!sPath.empty() && sPath.back() == '/')
 	{
-		return true;
+		// unfortunately fs::create_directories chokes on a
+		// trailing slash, so we copy the KStringViewZ if it
+		// has one and remove it from the copy
+		KString sTmp = sPath;
+		sTmp.erase(sTmp.size() - 1, 1);
+		if (fs::create_directories(sTmp.c_str(), ec))
+		{
+			return true;
+		}
+	}
+	else
+	{
+		if (fs::create_directories(sPath.c_str(), ec))
+		{
+			return true;
+		}
 	}
 
 	if (ec)
 	{
 		kDebug(2, ec.message());
+	}
+	else
+	{
+		kDebug(2, "failure creating {}, but no errorcode", sPath);
 	}
 
 	return false;
@@ -410,6 +429,10 @@ bool kTouchFile(KStringViewZ sPath)
 				// give up
 				return false;
 			}
+		}
+		else
+		{
+			return false;
 		}
 	}
 

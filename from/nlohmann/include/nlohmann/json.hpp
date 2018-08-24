@@ -1384,6 +1384,7 @@ template<typename IteratorType> class iteration_proxy
         using pointer = iteration_proxy_internal*;
         using reference = iteration_proxy_internal&;
         using iterator_category = std::input_iterator_tag;
+		using string_t = typename IteratorType::string_t;
 
       private:
         /// the iterator
@@ -1393,9 +1394,9 @@ template<typename IteratorType> class iteration_proxy
         /// last stringified array index
         mutable std::size_t array_index_last = 0;
         /// a string representation of the array index
-        mutable std::string array_index_str = "0";
+        mutable string_t array_index_str = "0";
         /// an empty string (to return a reference for primitive values)
-        const std::string empty_str = "";
+        const string_t empty_str = "";
 
       public:
         explicit iteration_proxy_internal(IteratorType it) noexcept : anchor(it) {}
@@ -1431,7 +1432,7 @@ template<typename IteratorType> class iteration_proxy
         }
 
         /// return key of the iterator
-        const std::string& key() const
+		const string_t& key() const
         {
             assert(anchor.m_object != nullptr);
 
@@ -5165,6 +5166,7 @@ class iter_impl
 
     using object_t = typename BasicJsonType::object_t;
     using array_t = typename BasicJsonType::array_t;
+	using string_t = typename BasicJsonType::string_t;
     // make sure BasicJsonType is basic_json or const basic_json
     static_assert(is_basic_json<typename std::remove_const<BasicJsonType>::type>::value,
                   "iter_impl only accepts (const) basic_json");

@@ -389,6 +389,37 @@ bool kCreateDir(KStringViewZ sPath)
 } // kCreateDir
 
 //-----------------------------------------------------------------------------
+bool kTouchFile(KStringViewZ sPath)
+//-----------------------------------------------------------------------------
+{
+	FILE* fp = std::fopen(sPath.c_str(), "a");
+
+	if (!fp)
+	{
+		if (errno != ENOENT)
+		{
+			return false;
+		}
+		// else we may miss a path component
+		KString sDir = kDirname(sPath);
+		if (kCreateDir(sDir))
+		{
+			fp = std::fopen(sPath.c_str(), "a");
+			if (!fp)
+			{
+				// give up
+				return false;
+			}
+		}
+	}
+
+	std::fclose(fp);
+
+	return true;
+
+} // kTouchFile
+
+//-----------------------------------------------------------------------------
 time_t kGetLastMod(KStringViewZ sFilePath)
 //-----------------------------------------------------------------------------
 {

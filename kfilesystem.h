@@ -108,6 +108,12 @@ bool kCreateDir (KStringViewZ sPath);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
+/// Create a file if it does not exist, including the directory component.
+/// If the file exists, advance its last mod timestamp.
+bool kTouchFile(KStringViewZ sPath);
+//-----------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
 /// Isolate the extension of a path (filename extension after a dot)
 KStringView kExtension(KStringView sFilePath);
 //-----------------------------------------------------------------------------

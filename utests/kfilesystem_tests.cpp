@@ -59,7 +59,6 @@ TEST_CASE("KFilesystem") {
 
 		kRemoveFile(sFile);
 		CHECK( kFileExists(sFile) == false );
-
 	}
 
 	SECTION("setup test file")
@@ -77,7 +76,6 @@ TEST_CASE("KFilesystem") {
 		}
 
 		KOutFile fOut(sDirectory + "/test.txt");
-
 	}
 
 	SECTION("KFile stats")
@@ -127,6 +125,20 @@ TEST_CASE("KFilesystem") {
 		KDiskStat Stat(sDirectory);
 		CHECK ( Stat.Total() > 100000ULL );
 		CHECK ( Stat.Error() == "" );
+	}
+
+	SECTION("kTouchFile")
+	{
+		KString sNested { sDirectory };
+		sNested += "/far/down/here.txt";
+
+		CHECK ( kTouchFile(sNested)   );
+		CHECK ( kFileExists(sNested)  );
+		CHECK ( kTouchFile(sNested)   );
+		CHECK ( kRemoveFile(sNested)  );
+		CHECK ( !kFileExists(sNested) );
+		CHECK ( kTouchFile(sNested)   );
+		CHECK ( kFileExists(sNested)  );
 	}
 
 }

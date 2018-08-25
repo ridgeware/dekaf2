@@ -1,5 +1,6 @@
 #include "catch.hpp"
 
+#include <cstring>
 #include <dekaf2/kbitfields.h>
 #include <dekaf2/kaddrplus.h>
 

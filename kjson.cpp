@@ -343,6 +343,65 @@ KString KJSON::EscWrapNumeric (KStringView sName, KStringView sValue, KStringVie
 
 } // KSJON::EscWrapNumeric
 
+//-----------------------------------------------------------------------------
+bool KJSON::Add (KROW& row)
+//-----------------------------------------------------------------------------
+{
+	DEKAF2_TRY
+	{
+		if (this->is_array())
+		{
+			// current object is an array: place KROW as another array element:
+			KJSON child;
+			child.Add (row);
+			this->operator+=(child);
+		}
+		else
+		{
+			// merge KROW elements into current level:
+			for (uint32_t ii=0; ii < row.size(); ++ii)
+			{
+				kDebugLog (1, "{}", row.ColumnInfoForLogOutput(ii));
+
+				if (row.IsFlag (ii, KROW::NONCOLUMN)) {
+					continue;
+				}
+
+				KStringView sName    = row.GetName(ii);
+				KStringView sValue   = row.GetValue(ii);  // note: GetValue() never returns NULL, it might return "" (which Joe calls NIL)
+
+				if (sName.empty()) {
+					continue;
+				}
+
+				if (row.IsFlag (ii, KROW::BOOLEAN))
+				{
+					this->operator[](sName) = sValue.UInt16() ? true : false;
+				}
+				else if (row.IsFlag (ii, KROW::NUMERIC))
+				{
+					if (sValue.Contains(".")) {
+						this->operator[](sName) = sValue.Float();
+					}
+					else {
+						this->operator[](sName) = sValue.UInt64();
+					}
+				}
+				else // catch-all logic for all string values
+				{
+					this->operator[](sName) = sValue;
+				}
+			}
+		}
+	}
+	DEKAF2_CATCH (const LJSON::exception& exc)
+	{
+		return (FormError (exc));
+	}
+
+	return (true);
+
+} // Add
 
 KJSON::value_type KJSON::s_empty;
 

@@ -283,11 +283,12 @@ public:
 	static void EscapeChars (KStringView sString, KString& sEscaped,
 	                         KStringView sCharsToEscape, KString::value_type iEscapeChar=0);
 
+	KString ColumnInfoForLogOutput (uint32_t ii);
+
 //----------
 private:
 //----------
 	void    SmartClip (KStringView sColName, KString& sValue, size_t iMaxLen);
-	KString ColumnInfoForLogOutput (uint32_t ii);
 
 	KString m_sTablename;
 	KString m_sLastError;

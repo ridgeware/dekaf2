@@ -43,6 +43,7 @@
 #pragma once
 
 #include <nlohmann/json.hpp>
+#include "krow.h"
 #include "kstring.h"
 #include "kstringview.h"
 #include "kreader.h"
@@ -170,6 +171,8 @@ public:
 		auto it = LJSON::find(Key);
 		return (it != LJSON::end() && it->is_boolean());
 	}
+
+	bool Add (KROW& row);
 
 #ifndef DEKAF2_EXCEPTIONS
 	/// This overload of the operator[] simply calls the existing operator[] of LJSON.

@@ -116,7 +116,8 @@ void Header::reset()
 void Header::clear()
 //-----------------------------------------------------------------------------
 {
-    std::memset(raw.header, 0, HeaderLen);
+	std::memset(raw.header, 0, HeaderLen);
+	m_keep_members_once = false;
     reset();
 
 } // clear
@@ -322,26 +323,19 @@ size_t KUnTar::CalcPadding()
 bool KUnTar::ReadPadding()
 //-----------------------------------------------------------------------------
 {
-	if (m_header.Type() == tar::File)
-	{
-		size_t padding = CalcPadding();
+	size_t padding = CalcPadding();
 
-		if (padding)
+	if (padding)
+	{
+		// this invalidates the (raw) header, but it is a handy buffer to read up to 512
+		// bytes into here (and we do not need it anymore)
+		if (!Read(*m_header, padding))
 		{
-			// this invalidates the (raw) header, but it is a handy buffer to read up to 512
-			// bytes into here (and we do not need it anymore)
-			if (!Read(*m_header, padding))
-			{
-				return false;
-			}
+			return false;
 		}
+	}
 
-		return true;
-	}
-	else
-	{
-		return false;
-	}
+	return true;
 
 } // ReadPadding
 

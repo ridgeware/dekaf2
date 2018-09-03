@@ -106,7 +106,7 @@ public:
 
 	enum { HeaderLen = 512 };
 
-    Header() : m_keep_members_once(false) { clear(); }
+    Header() { clear(); }
 
     void clear();
     void reset();

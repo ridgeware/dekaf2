@@ -133,7 +133,7 @@ String& kTrimLeft(String& string, KStringView svTrim)
 	auto iDelete = string.find_first_not_of(svTrim);
 	if (iDelete)
 	{
-		string.erase(0, iDelete);
+		string.erase(static_cast<typename String::size_type>(0), iDelete);
 	}
 	return string;
 }
@@ -147,7 +147,7 @@ String& kTrimLeft(String& string, Compare cmp)
 	typename String::size_type iDelete = static_cast<typename String::size_type>(it - string.begin());
 	if (iDelete)
 	{
-		string.erase(0, iDelete);
+		string.erase(static_cast<typename String::size_type>(0), iDelete);
 	}
 	return string;
 }

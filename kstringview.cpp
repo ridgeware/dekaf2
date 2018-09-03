@@ -609,5 +609,144 @@ void KStringView::Warn(KStringView sWhat) const
 	kWarning("{}", sWhat);
 }
 
+//----------------------------------------------------------------------
+KStringView KStringView::Left(size_type iCount) const
+//----------------------------------------------------------------------
+{
+	if (iCount > size())
+	{
+		kWarning("count ({}) exceeds size ({})", iCount, size());
+		iCount = size();
+	}
+	return KStringView(data(), iCount);
+
+} // Left
+
+//----------------------------------------------------------------------
+KStringView KStringView::Right(size_type iCount) const
+//----------------------------------------------------------------------
+{
+	if (iCount > size())
+	{
+		kWarning("count ({}) exceeds size ({})", iCount, size());
+		iCount = size();
+	}
+	return KStringView(data() + size() - iCount, iCount);
+
+} // Right
+
+//----------------------------------------------------------------------
+KStringView& KStringView::TrimLeft()
+//----------------------------------------------------------------------
+{
+	dekaf2::kTrimLeft(*this, [](value_type ch){ return std::isspace(ch) != 0; } );
+	return *this;
+}
+
+//----------------------------------------------------------------------
+KStringView& KStringView::TrimLeft(value_type chTrim)
+//----------------------------------------------------------------------
+{
+	dekaf2::kTrimLeft(*this, [chTrim](value_type ch){ return ch == chTrim; } );
+	return *this;
+}
+
+//----------------------------------------------------------------------
+KStringView& KStringView::TrimLeft(KStringView sTrim)
+//----------------------------------------------------------------------
+{
+	if (sTrim.size() == 1)
+	{
+		return TrimLeft(sTrim[0]);
+	}
+	dekaf2::kTrimLeft(*this, [sTrim](value_type ch){ return memchr(sTrim.data(), ch, sTrim.size()) != nullptr; } );
+	return *this;
+}
+
+//----------------------------------------------------------------------
+KStringView& KStringView::TrimRight()
+//----------------------------------------------------------------------
+{
+	dekaf2::kTrimRight(*this, [](value_type ch){ return std::isspace(ch) != 0; } );
+	return *this;
+}
+
+//----------------------------------------------------------------------
+KStringView& KStringView::TrimRight(value_type chTrim)
+//----------------------------------------------------------------------
+{
+	dekaf2::kTrimRight(*this, [chTrim](value_type ch){ return ch == chTrim; } );
+	return *this;
+}
+
+//----------------------------------------------------------------------
+KStringView& KStringView::TrimRight(KStringView sTrim)
+//----------------------------------------------------------------------
+{
+	if (sTrim.size() == 1)
+	{
+		return TrimRight(sTrim[0]);
+	}
+	dekaf2::kTrimRight(*this, [sTrim](value_type ch){ return memchr(sTrim.data(), ch, sTrim.size()) != nullptr; } );
+	return *this;
+}
+
+//----------------------------------------------------------------------
+KStringView& KStringView::Trim()
+//----------------------------------------------------------------------
+{
+	dekaf2::kTrim(*this, [](value_type ch){ return std::isspace(ch) != 0; } );
+	return *this;
+}
+
+//----------------------------------------------------------------------
+KStringView& KStringView::Trim(value_type chTrim)
+//----------------------------------------------------------------------
+{
+	dekaf2::kTrim(*this, [chTrim](value_type ch){ return ch == chTrim; } );
+	return *this;
+}
+
+//----------------------------------------------------------------------
+KStringView& KStringView::Trim(KStringView sTrim)
+//----------------------------------------------------------------------
+{
+	if (sTrim.size() == 1)
+	{
+		return Trim(sTrim[0]);
+	}
+	dekaf2::kTrim(*this, [sTrim](value_type ch){ return memchr(sTrim.data(), ch, sTrim.size()) != nullptr; } );
+	return *this;
+}
+
+//----------------------------------------------------------------------
+bool KStringView::ClipAt(KStringView sClipAt)
+//----------------------------------------------------------------------
+{
+	size_type pos = find(sClipAt);
+	if (pos != npos)
+	{
+		erase(pos);
+		return (true); // we modified the string
+	}
+	return (false); // we did not modify the string
+
+} // ClipAt
+
+//----------------------------------------------------------------------
+bool KStringView::ClipAtReverse(KStringView sClipAtReverse)
+//----------------------------------------------------------------------
+{
+	size_type pos = find(sClipAtReverse);
+	if (pos != npos)
+	{
+		erase(0, pos);
+		return true;
+	}
+	return false;
+
+} // ClipAtReverse
+
+
 } // end of namespace dekaf2
 

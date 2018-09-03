@@ -677,6 +677,91 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	// nonstandard
+	/// returns leftmost iCount chars of string
+	KStringView Left(size_type iCount) const;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	// nonstandard
+	/// returns substring starting at iStart for iCount chars
+	KStringView Mid(size_type iStart, size_type iCount) const;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	// nonstandard
+	/// returns rightmost iCount chars of string
+	KStringView Right(size_type iCount) const;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	// nonstandard
+	/// removes white space from the left of the string
+	KStringView& TrimLeft();
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	// nonstandard
+	/// removes chTrim from the left of the string
+	KStringView& TrimLeft(value_type chTrim);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	// nonstandard
+	/// removes any character in sTrim from the left of the string
+	KStringView& TrimLeft(KStringView sTrim);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	// nonstandard
+	/// removes white space from the right of the string
+	KStringView& TrimRight();
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	// nonstandard
+	/// removes chTrim from the right of the string
+	KStringView& TrimRight(value_type chTrim);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	// nonstandard
+	/// removes any character in sTrim from the right of the string
+	KStringView& TrimRight(KStringView sTrim);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	// nonstandard
+	/// removes white space from the left and right of the string
+	KStringView& Trim();
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	// nonstandard
+	/// removes chTrim from the left and right of the string
+	KStringView& Trim(value_type chTrim);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	// nonstandard
+	/// removes any character in sTrim from the left and right of the string
+	KStringView& Trim(KStringView sTrim);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	// nonstandard
+	/// Clip removing sClipAt and everything to its right if found; otherwise do not alter the string
+	bool ClipAt(KStringView sClipAt);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	// nonstandard
+	/// Clip removing everything to the left of sClipAtReverse so that sClipAtReverse becomes the beginning of the string;
+	/// otherwise do not alter the string
+	bool ClipAtReverse(KStringView sClipAtReverse);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
 	void swap(self_type& other)
 	//-----------------------------------------------------------------------------
 	{

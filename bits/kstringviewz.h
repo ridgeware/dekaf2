@@ -160,6 +160,16 @@ public:
 	using base_type::ToLower;
 	using base_type::ToUpperLocale;
 	using base_type::ToLowerLocale;
+
+	using base_type::Left;
+	using base_type::Mid;
+	using base_type::Right; // TODO return KStringViewZ
+	using base_type::TrimLeft;
+	using base_type::TrimRight; // TODO return KStringViewZ
+	using base_type::Trim;
+	using base_type::ClipAt;
+	using base_type::ClipAtReverse; // TODO return KStringViewZ
+
 	using base_type::Bool;
 	using base_type::Int16;
 	using base_type::UInt16;

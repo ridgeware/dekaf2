@@ -46,6 +46,7 @@
 #include <map>
 #include "kstringview.h"
 #include "kstring.h"
+#include "kassociative.h"
 
 namespace dekaf2 {
 
@@ -59,7 +60,7 @@ class KReplacer
 public:
 //----------
 
-	using RepMap = std::map<KString, KString>;
+	using RepMap = KMap<KString, KString>;
 	using const_iterator = RepMap::const_iterator;
 
 	KReplacer() = default;

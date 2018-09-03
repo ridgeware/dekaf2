@@ -41,12 +41,12 @@
 
 #pragma once
 
-#include <map>
 #include "kmail.h"
 #include "kstring.h"
 #include "kstream.h"
 #include "kurl.h"
 #include "kconnection.h"
+#include "kassociative.h"
 
 /// @file ksmtp.h
 /// Adds the KSMTP class which sends a KMail via SMTP to an MTA
@@ -99,7 +99,7 @@ public:
 private:
 //----------
 
-	using ESMTPParms = std::map<KString, KString>;
+	using ESMTPParms = KMap<KString, KString>;
 
 	/// Talk to MTA and check response
 	bool Talk(KStringView sTX, KStringView sRx, ESMTPParms* parms = nullptr, bool bDisconnectOnFailure = true);

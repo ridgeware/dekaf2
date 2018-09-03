@@ -43,27 +43,31 @@
 #pragma once
 
 /// @file kassociative.h
-/// provides unordered maps and sets based on boost::multi_index to overcome
-/// the weakness of current std::multimaps/sets to allow for a template
+/// Provides unordered maps and sets based on boost::multi_index to overcome
+/// the weakness of current std::unordered_multimaps/sets to allow for a template
 /// iterator find(T& key), which e.g. with string keys and lookups through
 /// string literals always forces a string allocation. Strangely, these
 /// containers seem to have been overlooked when the ordered versions
 /// became extended with a template iterator find(T& key). As boost::multi_index
 /// supports promotion of the find argument we use it as a replacement for the
-/// std templates
+/// std templates.
+/// Also adds ordered versions based on boost::multi_index, as they tend to be
+/// 10-20% faster on insertion than the std:: versions.
+/// The map implementations all have a operator[](Key) const that will not add
+/// a new element when the key is not found, but instead return a reference to
+/// a static, default constructed value.
 
-#include <set>
-#include <map>
 #include <boost/multi_index_container.hpp>
 #include <boost/multi_index/member.hpp>
 #include <boost/multi_index/hashed_index.hpp>
+#include <boost/multi_index/ordered_index.hpp>
 #include "bits/kmutable_pair.h"
 
 namespace dekaf2
 {
 
 //---------------------------------------------------------------------------
-// typedefs of std::map/multimap/set/multiset
+// boost::multi_index versions of std::map/multimap/set/multiset
 //---------------------------------------------------------------------------
 
 template<
@@ -71,14 +75,36 @@ template<
 	class Compare = std::less<Key>,
 	class Allocator = std::allocator<Key>
 >
-using KSet = std::set<Key, Compare, Allocator>;
+using KSet = boost::multi_index::multi_index_container<
+	Key,
+	boost::multi_index::indexed_by<
+		boost::multi_index::ordered_unique<
+			boost::multi_index::identity<
+				Key
+			>,
+			Compare,
+			Allocator
+		>
+	>
+>;
 
 template<
 	class Key,
 	class Compare = std::less<Key>,
 	class Allocator = std::allocator<Key>
 >
-using KMultiSet = std::multiset<Key, Compare, Allocator>;
+using KMultiSet = boost::multi_index::multi_index_container<
+	Key,
+	boost::multi_index::indexed_by<
+		boost::multi_index::ordered_non_unique<
+			boost::multi_index::identity<
+				Key
+			>,
+			Compare,
+			Allocator
+		>
+	>
+>;
 
 template<
 	class Key,
@@ -86,7 +112,56 @@ template<
 	class Compare = std::less<Key>,
 	class Allocator = std::allocator<std::pair<const Key, Value> >
 >
-using KMap = std::map<Key, Value, Compare, Allocator>;
+class KMap : public boost::multi_index::multi_index_container<
+	detail::KMutablePair<Key, Value>,
+	boost::multi_index::indexed_by<
+		boost::multi_index::ordered_unique<
+			boost::multi_index::member<
+				detail::KMutablePair<Key, Value>,
+				Key,
+				&detail::KMutablePair<Key, Value>::first
+			>,
+			Compare,
+			Allocator
+		>
+	>
+>
+{
+public:
+	template<typename K>
+	const Value& operator[](K&& key) const
+	{
+		auto it = this->find(std::forward<K>(key));
+		if (it != this->end())
+		{
+			return it->second;
+		}
+		else
+		{
+			return s_Empty;
+		}
+	}
+
+	template<typename K>
+	Value& operator[](K&& key)
+	{
+		auto it = this->find(std::forward<K>(key));
+		if (it != this->end())
+		{
+			return it->second;
+		}
+		else
+		{
+			return this->insert({std::forward<K>(key), Value{}}).first->second;
+		}
+	}
+
+private:
+	static const Value s_Empty;
+};
+
+template<class Key, class Value, class Compare, class Allocator>
+const Value KMap<Key, Value, Compare, Allocator>::s_Empty = Value();
 
 template<
 	class Key,
@@ -94,7 +169,57 @@ template<
 	class Compare = std::less<Key>,
 	class Allocator = std::allocator<std::pair<const Key, Value> >
 >
-using KMultiMap = std::multimap<Key, Value, Compare, Allocator>;
+class KMultiMap : public boost::multi_index::multi_index_container<
+	detail::KMutablePair<Key, Value>,
+	boost::multi_index::indexed_by<
+		boost::multi_index::ordered_non_unique<
+			boost::multi_index::member<
+				detail::KMutablePair<Key, Value>,
+				Key,
+				&detail::KMutablePair<Key, Value>::first
+			>,
+			Compare,
+			Allocator
+		>
+	>
+>
+{
+
+public:
+	template<typename K>
+	const Value& operator[](K&& key) const
+	{
+		auto it = this->find(std::forward<K>(key));
+		if (it != this->end())
+		{
+			return it->second;
+		}
+		else
+		{
+			return s_Empty;
+		}
+	}
+
+	template<typename K>
+	Value& operator[](K&& key)
+	{
+		auto it = this->find(std::forward<K>(key));
+		if (it != this->end())
+		{
+			return it->second;
+		}
+		else
+		{
+			return this->insert({std::forward<K>(key), Value{}}).first->second;
+		}
+	}
+
+private:
+	static const Value s_Empty;
+};
+
+template<class Key, class Value, class Compare, class Allocator>
+const Value KMultiMap<Key, Value, Compare, Allocator>::s_Empty = Value();
 
 //---------------------------------------------------------------------------
 // boost::multi_index versions of std::unordered_map/unordered_multimap/unordered_set/unordered_multiset
@@ -147,7 +272,7 @@ template<
 	class KeyEqual = std::equal_to<Key>,
 	class Allocator = std::allocator< std::pair<const Key, Value> >
 >
-using KUnorderedMap = boost::multi_index::multi_index_container<
+class KUnorderedMap : public boost::multi_index::multi_index_container<
 	detail::KMutablePair<Key, Value>,
 	boost::multi_index::indexed_by<
 		boost::multi_index::hashed_unique<
@@ -161,7 +286,43 @@ using KUnorderedMap = boost::multi_index::multi_index_container<
 			Allocator
 		>
 	>
->;
+>
+{
+public:
+	template<typename K>
+	const Value& operator[](K&& key) const
+	{
+		auto it = this->find(std::forward<K>(key));
+		if (it != this->end())
+		{
+			return it->second;
+		}
+		else
+		{
+			return s_Empty;
+		}
+	}
+
+	template<typename K>
+	Value& operator[](K&& key)
+	{
+		auto it = this->find(std::forward<K>(key));
+		if (it != this->end())
+		{
+			return it->second;
+		}
+		else
+		{
+			return this->insert({std::forward<K>(key), Value{}}).first->second;
+		}
+	}
+
+private:
+	static const Value s_Empty;
+};
+
+template<class Key, class Value, class Hash, class KeyEqual, class Allocator>
+const Value KUnorderedMap<Key, Value, Hash, KeyEqual, Allocator>::s_Empty = Value();
 
 template<
 	class Key,
@@ -170,7 +331,7 @@ template<
 	class KeyEqual = std::equal_to<Key>,
 	class Allocator = std::allocator< std::pair<const Key, Value> >
 >
-using KUnorderedMultiMap = boost::multi_index::multi_index_container<
+class KUnorderedMultiMap : public boost::multi_index::multi_index_container<
 	detail::KMutablePair<Key, Value>,
 	boost::multi_index::indexed_by<
 		boost::multi_index::hashed_non_unique<
@@ -184,6 +345,44 @@ using KUnorderedMultiMap = boost::multi_index::multi_index_container<
 			Allocator
 		>
 	>
->;
+>
+{
+public:
+	template<typename K>
+	const Value& operator[](K&& key) const
+	{
+		auto it = this->find(std::forward<K>(key));
+		if (it != this->end())
+		{
+			return it->second;
+		}
+		else
+		{
+			return s_Empty;
+		}
+	}
+
+	template<typename K>
+	Value& operator[](K&& key)
+	{
+		auto it = this->find(std::forward<K>(key));
+		if (it != this->end())
+		{
+			return it->second;
+		}
+		else
+		{
+			return this->insert({std::forward<K>(key), Value{}}).first->second;
+		}
+	}
+
+private:
+	static const Value s_Empty;
+};
+
+template<class Key, class Value, class Hash, class KeyEqual, class Allocator>
+const Value KUnorderedMultiMap<Key, Value, Hash, KeyEqual, Allocator>::s_Empty = Value();
+
+
 
 } // end of namespace dekaf2

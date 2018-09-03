@@ -41,6 +41,7 @@
 
 #pragma once
 
+#include "kassociative.h"
 #include "kstring.h"
 #include "kstringview.h"
 #include "kurl.h"
@@ -65,7 +66,7 @@ class KMail
 public:
 //----------
 
-	using map_t = std::map<KString, KString>;
+	using map_t = KMap<KString, KString>;
 
 	/// Add one recipient to the To list, first arg is the email,
 	/// second arg is the full name or nothing

@@ -141,7 +141,7 @@ KStringView Trim(KStringView sv)
 
 //-----------------------------------------------------------------------------
 /// compares trimmed strings
-template<typename TrimmingLeft, typename TrimmingRight = detail::casestring::NoTrim>
+template<typename TrimmingLeft, typename TrimmingRight>
 int kCaseCompareTrim(KStringView left, KStringView right)
 //-----------------------------------------------------------------------------
 {
@@ -188,10 +188,11 @@ public:
 	using KStringView::KStringView;
 
 	//-----------------------------------------------------------------------------
-	int compare(KCaseStringViewBase other) const
+	template<typename TrimmingRight = detail::casestring::NoTrim>
+	int compare(KCaseStringViewBase<TrimmingRight> other) const
 	//-----------------------------------------------------------------------------
 	{
-		return kCaseCompareTrim(*this, other);
+		return kCaseCompareTrim<Trimming, TrimmingRight>(*this, other);
 	}
 
 	//-----------------------------------------------------------------------------
@@ -243,7 +244,7 @@ inline bool operator==(KStringView left, const KCaseStringViewBase<TrimmingRight
 
 //-----------------------------------------------------------------------------
 template<typename TrimmingLeft>
-inline bool operator==(KCaseStringViewBase<TrimmingLeft> left, KString right)
+inline bool operator==(KCaseStringViewBase<TrimmingLeft> left, const KString& right)
 //-----------------------------------------------------------------------------
 {
 	return kCaseEqualTrim<TrimmingLeft, detail::casestring::NoTrim>(left, right.ToView());
@@ -251,7 +252,7 @@ inline bool operator==(KCaseStringViewBase<TrimmingLeft> left, KString right)
 
 //-----------------------------------------------------------------------------
 template<typename TrimmingRight>
-inline bool operator==(KString left, const KCaseStringViewBase<TrimmingRight> right)
+inline bool operator==(const KString& left, const KCaseStringViewBase<TrimmingRight> right)
 //-----------------------------------------------------------------------------
 {
 	return right == left;
@@ -299,7 +300,7 @@ inline bool operator!=(KStringView left, const KCaseStringViewBase<TrimmingRight
 
 //-----------------------------------------------------------------------------
 template<typename TrimmingLeft>
-inline bool operator!=(KCaseStringViewBase<TrimmingLeft> left, KString right)
+inline bool operator!=(KCaseStringViewBase<TrimmingLeft> left, const KString& right)
 //-----------------------------------------------------------------------------
 {
 	return !(left == right);
@@ -307,7 +308,7 @@ inline bool operator!=(KCaseStringViewBase<TrimmingLeft> left, KString right)
 
 //-----------------------------------------------------------------------------
 template<typename TrimmingRight>
-inline bool operator!=(KString left, const KCaseStringViewBase<TrimmingRight> right)
+inline bool operator!=(const KString& left, const KCaseStringViewBase<TrimmingRight> right)
 //-----------------------------------------------------------------------------
 {
 	return right == left;
@@ -328,10 +329,11 @@ public:
 	using KString::KString;
 
 	//-----------------------------------------------------------------------------
-	int compare(const KCaseStringBase& other) const
+	template<typename TrimmingRight = detail::casestring::NoTrim>
+	int compare(const KCaseStringBase<TrimmingRight>& other) const
 	//-----------------------------------------------------------------------------
 	{
-		return ToView().compare(other.ToView());
+		return ToView().template compare<Trimming, TrimmingRight>(other.ToView());
 	}
 
 	//-----------------------------------------------------------------------------
@@ -350,23 +352,23 @@ public:
 
 //-----------------------------------------------------------------------------
 template<typename TrimmingLeft, typename TrimmingRight>
-inline bool operator==(KCaseStringBase<TrimmingLeft> left, KCaseStringBase<TrimmingRight> right)
+inline bool operator==(const KCaseStringBase<TrimmingLeft>& left, const KCaseStringBase<TrimmingRight>& right)
 //-----------------------------------------------------------------------------
 {
-	return kCaseEqualTrim(left.ToView(), right.ToView());
+	return kCaseEqualTrim<TrimmingLeft, TrimmingRight>(left.ToView(), right.ToView());
 }
 
 //-----------------------------------------------------------------------------
 template<typename TrimmingLeft>
-inline bool operator==(KCaseStringBase<TrimmingLeft> left, const char* right)
+inline bool operator==(const KCaseStringBase<TrimmingLeft>& left, const char* right)
 //-----------------------------------------------------------------------------
 {
-	return kCaseEqualTrim(left.ToView(), right);
+	return kCaseEqualTrim<TrimmingLeft, detail::casestring::NoTrim>(left.ToView(), right);
 }
 
 //-----------------------------------------------------------------------------
 template<typename TrimmingRight>
-inline bool operator==(const char* left, const KCaseStringBase<TrimmingRight> right)
+inline bool operator==(const char* left, const KCaseStringBase<TrimmingRight>& right)
 //-----------------------------------------------------------------------------
 {
 	return right == left;
@@ -374,15 +376,15 @@ inline bool operator==(const char* left, const KCaseStringBase<TrimmingRight> ri
 
 //-----------------------------------------------------------------------------
 template<typename TrimmingLeft>
-inline bool operator==(KCaseStringBase<TrimmingLeft> left, KStringView right)
+inline bool operator==(const KCaseStringBase<TrimmingLeft>& left, KStringView right)
 //-----------------------------------------------------------------------------
 {
-	return kCaseEqualTrim(left.ToView(), right);
+	return kCaseEqualTrim<TrimmingLeft, detail::casestring::NoTrim>(left.ToView(), right);
 }
 
 //-----------------------------------------------------------------------------
 template<typename TrimmingRight>
-inline bool operator==(KStringView left, const KCaseStringBase<TrimmingRight> right)
+inline bool operator==(KStringView left, const KCaseStringBase<TrimmingRight>& right)
 //-----------------------------------------------------------------------------
 {
 	return right == left;
@@ -390,15 +392,15 @@ inline bool operator==(KStringView left, const KCaseStringBase<TrimmingRight> ri
 
 //-----------------------------------------------------------------------------
 template<typename TrimmingLeft>
-inline bool operator==(KCaseStringBase<TrimmingLeft> left, KString right)
+inline bool operator==(const KCaseStringBase<TrimmingLeft>& left, const KString& right)
 //-----------------------------------------------------------------------------
 {
-	return kCaseEqualTrim(left.ToView(), right.ToView());
+	return kCaseEqualTrim<TrimmingLeft, detail::casestring::NoTrim>(left.ToView(), right.ToView());
 }
 
 //-----------------------------------------------------------------------------
 template<typename TrimmingRight>
-inline bool operator==(KString left, const KCaseStringBase<TrimmingRight> right)
+inline bool operator==(const KString& left, const KCaseStringBase<TrimmingRight>& right)
 //-----------------------------------------------------------------------------
 {
 	return right == left;
@@ -406,7 +408,7 @@ inline bool operator==(KString left, const KCaseStringBase<TrimmingRight> right)
 
 //-----------------------------------------------------------------------------
 template<typename TrimmingLeft, typename TrimmingRight>
-inline bool operator!=(KCaseStringBase<TrimmingLeft> left, KCaseStringBase<TrimmingRight> right)
+inline bool operator!=(const KCaseStringBase<TrimmingLeft>& left, const KCaseStringBase<TrimmingRight>& right)
 //-----------------------------------------------------------------------------
 {
 	return !(left == right);
@@ -414,7 +416,7 @@ inline bool operator!=(KCaseStringBase<TrimmingLeft> left, KCaseStringBase<Trimm
 
 //-----------------------------------------------------------------------------
 template<typename TrimmingLeft>
-inline bool operator!=(KCaseStringBase<TrimmingLeft> left, const char* right)
+inline bool operator!=(const KCaseStringBase<TrimmingLeft>& left, const char* right)
 //-----------------------------------------------------------------------------
 {
 	return !(left == right);
@@ -422,7 +424,7 @@ inline bool operator!=(KCaseStringBase<TrimmingLeft> left, const char* right)
 
 //-----------------------------------------------------------------------------
 template<typename TrimmingRight>
-inline bool operator!=(const char* left, const KCaseStringBase<TrimmingRight> right)
+inline bool operator!=(const char* left, const KCaseStringBase<TrimmingRight>& right)
 //-----------------------------------------------------------------------------
 {
 	return right != left;
@@ -430,7 +432,7 @@ inline bool operator!=(const char* left, const KCaseStringBase<TrimmingRight> ri
 
 //-----------------------------------------------------------------------------
 template<typename TrimmingLeft>
-inline bool operator!=(KCaseStringBase<TrimmingLeft> left, KStringView right)
+inline bool operator!=(const KCaseStringBase<TrimmingLeft>& left, KStringView right)
 //-----------------------------------------------------------------------------
 {
 	return !(left == right);
@@ -438,7 +440,7 @@ inline bool operator!=(KCaseStringBase<TrimmingLeft> left, KStringView right)
 
 //-----------------------------------------------------------------------------
 template<typename TrimmingRight>
-inline bool operator!=(KStringView left, const KCaseStringBase<TrimmingRight> right)
+inline bool operator!=(KStringView left, const KCaseStringBase<TrimmingRight>& right)
 //-----------------------------------------------------------------------------
 {
 	return right != left;
@@ -446,7 +448,7 @@ inline bool operator!=(KStringView left, const KCaseStringBase<TrimmingRight> ri
 
 //-----------------------------------------------------------------------------
 template<typename TrimmingLeft>
-inline bool operator!=(KCaseStringBase<TrimmingLeft> left, KString right)
+inline bool operator!=(const KCaseStringBase<TrimmingLeft>& left, const KString& right)
 //-----------------------------------------------------------------------------
 {
 	return !(left == right);
@@ -454,7 +456,7 @@ inline bool operator!=(KCaseStringBase<TrimmingLeft> left, KString right)
 
 //-----------------------------------------------------------------------------
 template<typename TrimmingRight>
-inline bool operator!=(KString left, const KCaseStringBase<TrimmingRight> right)
+inline bool operator!=(const KString& left, const KCaseStringBase<TrimmingRight>& right)
 //-----------------------------------------------------------------------------
 {
 	return right == left;
@@ -496,11 +498,9 @@ namespace std
 	// make sure comparisons work without construction of KCaseStringBase
 	template<typename Trimming> struct equal_to<dekaf2::KCaseStringBase<Trimming>>
 	{
+		using is_transparent = void;
+
 		bool operator()(const dekaf2::KCaseStringBase<Trimming>& s1, dekaf2::KStringView s2) const
-		{
-			return s1 == s2;
-		}
-		bool operator()(const dekaf2::KCaseStringBase<Trimming>& s1, const char* s2) const
 		{
 			return s1 == s2;
 		}
@@ -508,13 +508,28 @@ namespace std
 		{
 			return s1 == s2;
 		}
-		bool operator()(const char* s1, const dekaf2::KCaseStringBase<Trimming>& s2) const
-		{
-			return s1 == s2;
-		}
 		bool operator()(const dekaf2::KCaseStringBase<Trimming>& s1, const dekaf2::KCaseStringBase<Trimming>& s2) const
 		{
 			return s1 == s2;
+		}
+	};
+
+	// make sure comparisons work without construction of KCaseStringBase
+	template<typename Trimming> struct less<dekaf2::KCaseStringBase<Trimming>>
+	{
+		using is_transparent = void;
+
+		bool operator()(const dekaf2::KCaseStringBase<Trimming>& s1, dekaf2::KStringView s2) const
+		{
+			return s1.ToView().template compare<Trimming, dekaf2::detail::casestring::NoTrim>(s2) < 0;
+		}
+		bool operator()(dekaf2::KStringView s1, const dekaf2::KCaseStringBase<Trimming>& s2) const
+		{
+			return s2.ToView().template compare<Trimming, dekaf2::detail::casestring::NoTrim>(s1) > 0;
+		}
+		bool operator()(const dekaf2::KCaseStringBase<Trimming>& s1, const dekaf2::KCaseStringViewBase<Trimming>& s2) const
+		{
+			return s1.compare(s2) < 0;
 		}
 	};
 } // end of namespace std

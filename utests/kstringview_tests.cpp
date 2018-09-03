@@ -756,6 +756,183 @@ TEST_CASE("KStringView") {
 		CHECK ( s.Double()   == -12.34567 );
 	}
 
+	SECTION("KString Trimming")
+	{
+		std::vector<KStringView> stest
+		{
+			"",
+			" ",
+			"\t \r\n",
+			"abcde",
+			" abcde",
+			"  abcde",
+			"\t abcde",
+			"\n\r\t abcde",
+			"a abcde",
+			" a abcde",
+			"a\t abcde",
+			"\na\r\t abcde",
+			" abcde ",
+			"  abcde  ",
+			"\t abcde \t",
+			"\n\r\t abcde \t\r\n",
+			"a abcde a",
+			" a abcde a ",
+			"a\t abcde \t a",
+			"\na\r\t abcde \t\ra\n",
+		};
+
+		SECTION("Left")
+		{
+			std::vector<KStringView> sexpect
+			{
+				"",
+				"",
+				"",
+				"abcde",
+				"abcde",
+				"abcde",
+				"abcde",
+				"abcde",
+				"a abcde",
+				"a abcde",
+				"a\t abcde",
+				"a\r\t abcde",
+				"abcde ",
+				"abcde  ",
+				"abcde \t",
+				"abcde \t\r\n",
+				"a abcde a",
+				"a abcde a ",
+				"a\t abcde \t a",
+				"a\r\t abcde \t\ra\n",
+			};
+
+			SECTION("isspace()") {
+
+				CHECK( sexpect.size() == stest.size() );
+				for (size_t iCount = 0; iCount < stest.size(); ++iCount)
+				{
+					stest[iCount].TrimLeft();
+					CHECK( stest[iCount] == sexpect[iCount] );
+				}
+
+			}
+
+			SECTION("char*") {
+
+				CHECK( sexpect.size() == stest.size() );
+				for (size_t iCount = 0; iCount < stest.size(); ++iCount)
+				{
+					stest[iCount].TrimLeft(" \t\r\n");
+					CHECK( stest[iCount] == sexpect[iCount] );
+				}
+
+			}
+
+		}
+
+		SECTION("Right")
+		{
+			std::vector<KStringView> sexpect
+			{
+				"",
+				"",
+				"",
+				"abcde",
+				" abcde",
+				"  abcde",
+				"\t abcde",
+				"\n\r\t abcde",
+				"a abcde",
+				" a abcde",
+				"a\t abcde",
+				"\na\r\t abcde",
+				" abcde",
+				"  abcde",
+				"\t abcde",
+				"\n\r\t abcde",
+				"a abcde a",
+				" a abcde a",
+				"a\t abcde \t a",
+				"\na\r\t abcde \t\ra",
+			};
+
+			SECTION("isspace()") {
+
+				CHECK( sexpect.size() == stest.size() );
+				for (size_t iCount = 0; iCount < stest.size(); ++iCount)
+				{
+					stest[iCount].TrimRight();
+					CHECK( stest[iCount] == sexpect[iCount] );
+				}
+
+			}
+
+			SECTION("char*") {
+
+				CHECK( sexpect.size() == stest.size() );
+				for (size_t iCount = 0; iCount < stest.size(); ++iCount)
+				{
+					stest[iCount].TrimRight(" \t\r\n");
+					CHECK( stest[iCount] == sexpect[iCount] );
+				}
+
+			}
+
+		}
+
+		SECTION("Left and Right")
+		{
+			std::vector<KStringView> sexpect
+			{
+				"",
+				"",
+				"",
+				"abcde",
+				"abcde",
+				"abcde",
+				"abcde",
+				"abcde",
+				"a abcde",
+				"a abcde",
+				"a\t abcde",
+				"a\r\t abcde",
+				"abcde",
+				"abcde",
+				"abcde",
+				"abcde",
+				"a abcde a",
+				"a abcde a",
+				"a\t abcde \t a",
+				"a\r\t abcde \t\ra",
+			};
+
+			SECTION("isspace()") {
+
+				CHECK( sexpect.size() == stest.size() );
+				for (size_t iCount = 0; iCount < stest.size(); ++iCount)
+				{
+					stest[iCount].Trim();
+					CHECK( stest[iCount] == sexpect[iCount] );
+				}
+
+			}
+
+			SECTION("char*") {
+
+				CHECK( sexpect.size() == stest.size() );
+				for (size_t iCount = 0; iCount < stest.size(); ++iCount)
+				{
+					stest[iCount].Trim(" \t\r\n");
+					CHECK( stest[iCount] == sexpect[iCount] );
+				}
+
+			}
+
+		}
+
+	}
 
 }
 

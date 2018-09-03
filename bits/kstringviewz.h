@@ -163,12 +163,41 @@ public:
 
 	using base_type::Left;
 	using base_type::Mid;
-	using base_type::Right; // TODO return KStringViewZ
-	using base_type::TrimLeft;
-	using base_type::TrimRight; // TODO return KStringViewZ
+
+	//-----------------------------------------------------------------------------
+	// nonstandard
+	/// returns rightmost iCount chars of string
+	self_type Right(size_type iCount) const;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	// nonstandard
+	/// removes white space from the left of the string
+	self_type& TrimLeft();
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	// nonstandard
+	/// removes chTrim from the left of the string
+	self_type& TrimLeft(value_type chTrim);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	// nonstandard
+	/// removes any character in sTrim from the left of the string
+	self_type& TrimLeft(KStringView sTrim);
+	//-----------------------------------------------------------------------------
+
+	using base_type::TrimRight;
 	using base_type::Trim;
 	using base_type::ClipAt;
-	using base_type::ClipAtReverse; // TODO return KStringViewZ
+
+	//-----------------------------------------------------------------------------
+	// nonstandard
+	/// Clip removing everything to the left of sClipAtReverse so that sClipAtReverse becomes the beginning of the string;
+	/// otherwise do not alter the string
+	bool ClipAtReverse(KStringView sClipAtReverse);
+	//-----------------------------------------------------------------------------
 
 	using base_type::Bool;
 	using base_type::Int16;

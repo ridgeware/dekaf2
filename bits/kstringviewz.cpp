@@ -41,6 +41,8 @@
 */
 
 #include "../kstringview.h"
+#include "../kstringutils.h"
+#include "../klog.h"
 
 namespace dekaf2 {
 
@@ -165,6 +167,61 @@ KStringViewZ::size_type KStringViewZ::find_first_not_of(KStringView sv, size_typ
 
 } // find_first_not_of
 #endif
+
+//----------------------------------------------------------------------
+KStringViewZ KStringViewZ::Right(size_type iCount) const
+//----------------------------------------------------------------------
+{
+	if (iCount > size())
+	{
+		kWarning("count ({}) exceeds size ({})", iCount, size());
+		iCount = size();
+	}
+	return KStringViewZ(data() + size() - iCount, iCount);
+
+} // Right
+
+//----------------------------------------------------------------------
+KStringViewZ& KStringViewZ::TrimLeft()
+//----------------------------------------------------------------------
+{
+	dekaf2::kTrimLeft(*this, [](value_type ch){ return std::isspace(ch) != 0; } );
+	return *this;
+}
+
+//----------------------------------------------------------------------
+KStringViewZ& KStringViewZ::TrimLeft(value_type chTrim)
+//----------------------------------------------------------------------
+{
+	dekaf2::kTrimLeft(*this, [chTrim](value_type ch){ return ch == chTrim; } );
+	return *this;
+}
+
+//----------------------------------------------------------------------
+KStringViewZ& KStringViewZ::TrimLeft(KStringView sTrim)
+//----------------------------------------------------------------------
+{
+	if (sTrim.size() == 1)
+	{
+		return TrimLeft(sTrim[0]);
+	}
+	dekaf2::kTrimLeft(*this, [sTrim](value_type ch){ return memchr(sTrim.data(), ch, sTrim.size()) != nullptr; } );
+	return *this;
+}
+
+//----------------------------------------------------------------------
+bool KStringViewZ::ClipAtReverse(KStringView sClipAtReverse)
+//----------------------------------------------------------------------
+{
+	size_type pos = find(sClipAtReverse);
+	if (pos != npos)
+	{
+		erase(0, pos);
+		return true;
+	}
+	return false;
+
+} // ClipAtReverse
 
 
 

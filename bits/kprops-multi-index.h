@@ -745,36 +745,33 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	// perfect forwarding
 	/// returns iterator on the element with the given key.
 	template<class K>
-	iterator find(K&& key)
+	iterator find(const K& key)
 	//-----------------------------------------------------------------------------
 	{
-		auto it = KeyIndex().find(std::forward<K>(key));
+		auto it = KeyIndex().find(key);
 		return m_Storage.template project<IndexBySeq>(it);
 	}
 
 	//-----------------------------------------------------------------------------
-	// perfect forwarding
 	/// returns const_iterator on the element with the given key.
 	template<class K>
-	const_iterator find(K&& key) const
+	const_iterator find(const K& key) const
 	//-----------------------------------------------------------------------------
 	{
-		auto it = KeyIndex().find(std::forward<K>(key));
+		auto it = KeyIndex().find(key);
 		return m_Storage.template project<IndexBySeq>(it);
 	}
 
 	//-----------------------------------------------------------------------------
-	// perfect forwarding
 	/// Returns value of the element with the given key. Returns default constructed
 	/// value if not found.
 	template<class K>
-	Value& Get(K&& key)
+	Value& Get(const K& key)
 	//-----------------------------------------------------------------------------
 	{
-		auto it = KeyIndex().find(std::forward<K>(key));
+		auto it = KeyIndex().find(key);
 		if (it != KeyIndex().end())
 		{
 			return it->second;
@@ -783,14 +780,13 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	// perfect forwarding
 	/// Returns value of the element with the given key. Returns default constructed
 	/// value if not found.
 	template<class K>
-	const Value& Get(K&& key) const
+	const Value& Get(const K& key) const
 	//-----------------------------------------------------------------------------
 	{
-		auto it = KeyIndex().find(std::forward<K>(key));
+		auto it = KeyIndex().find(key);
 		if (it != KeyIndex().end())
 		{
 			return it->second;
@@ -799,54 +795,50 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	// perfect forwarding
 	/// Returns iterator range of the elements with the given key.
 	template<class K>
-	const_range GetMulti(K&& key) const
+	const_range GetMulti(const K& key) const
 	//-----------------------------------------------------------------------------
 	{
-		return KeyIndex().equal_range(std::forward<K>(key));
+		return KeyIndex().equal_range(key);
 	}
 
 	//-----------------------------------------------------------------------------
-	// perfect forwarding
 	/// Returns iterator range of the elements with the given key.
 	template<class K>
-	range GetMulti(K&& key)
+	range GetMulti(const K& key)
 	//-----------------------------------------------------------------------------
 	{
-		return KeyIndex().equal_range(std::forward<K>(key));
+		return KeyIndex().equal_range(key);
 	}
 
 	//-----------------------------------------------------------------------------
-	// perfect forwarding
 	/// Returns count of elements with the given key.
 	template<class K>
-	size_t Count(K&& key) const
+	size_t Count(const K& key) const
 	//-----------------------------------------------------------------------------
 	{
-		return KeyIndex().count(std::forward<K>(key));
+		return KeyIndex().count(key);
 	}
 
 	//-----------------------------------------------------------------------------
 	/// Returns true if at least one element with the given key exists.
 	template<class K>
-	bool Exists(K&& key) const
+	bool Contains(const K& key) const
 	//-----------------------------------------------------------------------------
 	{
 		// TODO switch to find() once we have unified the end() for sequential
 		// and non sequential KProps
-		return Count(std::forward<K>(key)) > 0;
+		return Count(key) > 0;
 	}
 
 	//-----------------------------------------------------------------------------
-	// perfect forwarding
 	/// Returns true if a key appears multiple times.
 	template<class K>
-	bool IsMulti(K&& key) const
+	bool IsMulti(const K& key) const
 	//-----------------------------------------------------------------------------
 	{
-		return Count(std::forward<K>(key)) > 1;
+		return Count(key) > 1;
 	}
 
 	//-----------------------------------------------------------------------------
@@ -880,14 +872,14 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	// SFINAE && perfect forwarding, only active for non-integral K, or if the Key is integral
+	// SFINAE, only active for non-integral K, or if the Key is integral
 	/// Gets the value with the given key. Returns empty value if not found.
 	template<class K, class T = Key,
 			typename = std::enable_if_t<std::is_integral<T>::value || !std::is_integral<K>::value> >
-	const Value& operator[](K&& key) const
+	const Value& operator[](const K& key) const
 	//-----------------------------------------------------------------------------
 	{
-		return Get(std::forward<K>(key));
+		return Get(key);
 	}
 
 	//-----------------------------------------------------------------------------

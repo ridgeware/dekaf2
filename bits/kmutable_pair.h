@@ -47,11 +47,8 @@
 
 #include <utility>
 
-namespace dekaf2
-{
-
-namespace detail
-{
+namespace dekaf2 {
+namespace detail {
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// A helper type to map a std::map into boost::multi_index,
@@ -83,14 +80,6 @@ struct KMutablePair
 	{}
 
 	//-----------------------------------------------------------------------------
-	KMutablePair(const self_type& p) = default;
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	KMutablePair(self_type&& p) = default;
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
 	KMutablePair(const std::pair<Key, Value>& p)
 	//-----------------------------------------------------------------------------
 	    : first(p.first)
@@ -103,14 +92,6 @@ struct KMutablePair
 	    : first(std::move(p.first))
 	    , second(std::move(p.second))
 	{}
-
-	//-----------------------------------------------------------------------------
-	KMutablePair& operator=(const KMutablePair&) = default;
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	KMutablePair& operator=(KMutablePair&&) = default;
-	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	bool operator==(const KMutablePair& other) const
@@ -129,9 +110,8 @@ struct KMutablePair
 	Key           first;
 	mutable Value second;
 
-};
+}; // KMutablePair
 
 } // end of namespace detail
-
 } // end of namespace dekaf2
 

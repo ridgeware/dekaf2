@@ -18,6 +18,8 @@ static const char* str250 = "12345678901234567890123456789012345678901234567890"
 		"12345678901234567890123456789012345678901234567890";
 #endif
 
+using namespace dekaf2;
+
 void kstringview()
 {
 	dekaf2::KProf ps("-KStringView");
@@ -30,7 +32,8 @@ void kstringview()
 		prof.SetMultiplier(1000000);
 		for (int ct = 0; ct < 1000000; ++ct)
 		{
-			if (sv.find("abcdefg") < 10) std::cout << "found";
+			KProf::Force(&sv);
+			if (sv.find("abcdefg") < 10) KProf::Force();
 		}
 	}
 	{
@@ -40,7 +43,8 @@ void kstringview()
 		prof.SetMultiplier(1000000);
 		for (int ct = 0; ct < 1000000; ++ct)
 		{
-			if (sv.find("abcdefg") < 10) std::cout << "found";
+			KProf::Force(&sv);
+			if (sv.find("abcdefg") < 10) KProf::Force();
 		}
 	}
 	{
@@ -51,7 +55,8 @@ void kstringview()
 		prof.SetMultiplier(1000000);
 		for (int ct = 0; ct < 1000000; ++ct)
 		{
-			if (sv.find("abcdefg") < 10) std::cout << "found";
+			KProf::Force(&sv);
+			if (sv.find("abcdefg") < 10) KProf::Force();
 		}
 	}
 	{
@@ -61,7 +66,8 @@ void kstringview()
 		prof.SetMultiplier(1000000);
 		for (int ct = 0; ct < 1000000; ++ct)
 		{
-			if (sv.find("abcdefg") < 10) std::cout << "found";
+			KProf::Force(&sv);
+			if (sv.find("abcdefg") < 10) KProf::Force();
 		}
 	}
 	{
@@ -72,7 +78,8 @@ void kstringview()
 		prof.SetMultiplier(1000);
 		for (int ct = 0; ct < 1000; ++ct)
 		{
-			if (sv.find("abcdefg") < 10) std::cout << "found";
+			KProf::Force(&sv);
+			if (sv.find("abcdefg") < 10) KProf::Force();
 		}
 	}
 	{
@@ -83,7 +90,8 @@ void kstringview()
 		prof.SetMultiplier(100000);
 		for (int ct = 0; ct < 100000; ++ct)
 		{
-			if (sv.find("abcdefg") < 10) std::cout << "found";
+			KProf::Force(&sv);
+			if (sv.find("abcdefg") < 10) KProf::Force();
 		}
 	}
 	{
@@ -94,7 +102,8 @@ void kstringview()
 		prof.SetMultiplier(1000000);
 		for (int ct = 0; ct < 1000000; ++ct)
 		{
-			if (sv.find('d') < 100) std::cout << "found";
+			KProf::Force(&sv);
+			if (sv.find('d') < 100) KProf::Force();
 
 		}
 	}
@@ -106,7 +115,8 @@ void kstringview()
 		prof.SetMultiplier(1000000);
 		for (int ct = 0; ct < 1000000; ++ct)
 		{
-			if (sv.find('d') < 100) std::cout << "found";
+			KProf::Force(&sv);
+			if (sv.find('d') < 100) KProf::Force();
 		}
 	}
 	{
@@ -117,7 +127,8 @@ void kstringview()
 		prof.SetMultiplier(1000);
 		for (int ct = 0; ct < 1000; ++ct)
 		{
-			if (sv.find('d') < 100) std::cout << "found";
+			KProf::Force(&sv);
+			if (sv.find('d') < 100) KProf::Force();
 		}
 	}
 	{
@@ -128,7 +139,8 @@ void kstringview()
 		prof.SetMultiplier(1000000);
 		for (int ct = 0; ct < 1000000; ++ct)
 		{
-			if (sv.find_first_of("defg") < 10) std::cout << "found";
+			KProf::Force(&sv);
+			if (sv.find_first_of("defg") < 10) KProf::Force();
 		}
 	}
 	{
@@ -139,7 +151,8 @@ void kstringview()
 		prof.SetMultiplier(1000000);
 		for (int ct = 0; ct < 1000000; ++ct)
 		{
-			if (sv.find_first_of("defg") < 100) std::cout << "found";
+			KProf::Force(&sv);
+			if (sv.find_first_of("defg") < 100) KProf::Force();
 		}
 	}
 	{
@@ -150,7 +163,8 @@ void kstringview()
 		prof.SetMultiplier(1000000);
 		for (int ct = 0; ct < 1000000; ++ct)
 		{
-			if (sv.find_first_of("defg") < 100) std::cout << "found";
+			KProf::Force(&sv);
+			if (sv.find_first_of("defg") < 100) KProf::Force();
 		}
 	}
 	{
@@ -161,7 +175,8 @@ void kstringview()
 		prof.SetMultiplier(1000);
 		for (int ct = 0; ct < 1000; ++ct)
 		{
-			if (sv.find_first_of("defg") < 100) std::cout << "found";
+			KProf::Force(&sv);
+			if (sv.find_first_of("defg") < 100) KProf::Force();
 		}
 	}
 	{
@@ -172,7 +187,8 @@ void kstringview()
 		prof.SetMultiplier(1000000);
 		for (int ct = 0; ct < 1000000; ++ct)
 		{
-			if (sv.find_first_of("abcdefghijklmnopqrstuvwxyz") < 10) std::cout << "found";
+			KProf::Force(&sv);
+			if (sv.find_first_of("abcdefghijklmnopqrstuvwxyz") < 10) KProf::Force();
 		}
 	}
 	{
@@ -183,7 +199,8 @@ void kstringview()
 		prof.SetMultiplier(1000000);
 		for (int ct = 0; ct < 1000000; ++ct)
 		{
-			if (sv.find_first_of("abcdefghijklmnopqrstuvwxyz") < 100) std::cout << "found";
+			KProf::Force(&sv);
+			if (sv.find_first_of("abcdefghijklmnopqrstuvwxyz") < 100) KProf::Force();
 		}
 	}
 	{
@@ -194,7 +211,8 @@ void kstringview()
 		prof.SetMultiplier(1000000);
 		for (int ct = 0; ct < 1000000; ++ct)
 		{
-			if (sv.find_first_of("abcdefghijklmnopqrstuvwxyz") < 100) std::cout << "found";
+			KProf::Force(&sv);
+			if (sv.find_first_of("abcdefghijklmnopqrstuvwxyz") < 100) KProf::Force();
 		}
 	}
 	{
@@ -205,7 +223,8 @@ void kstringview()
 		prof.SetMultiplier(1000);
 		for (int ct = 0; ct < 1000; ++ct)
 		{
-			if (sv.find_first_of("abcdefghijklmnopqrstuvwxyz") < 100) std::cout << "found";
+			KProf::Force(&sv);
+			if (sv.find_first_of("abcdefghijklmnopqrstuvwxyz") < 100) KProf::Force();
 		}
 	}
 	{
@@ -216,7 +235,8 @@ void kstringview()
 		prof.SetMultiplier(1000000);
 		for (int ct = 0; ct < 1000000; ++ct)
 		{
-			if (sv.find_first_not_of("&%-?") < 10) std::cout << "found";
+			KProf::Force(&sv);
+			if (sv.find_first_not_of("&%-?") < 10) KProf::Force();
 		}
 	}
 	{
@@ -227,7 +247,8 @@ void kstringview()
 		prof.SetMultiplier(1000000);
 		for (int ct = 0; ct < 1000000; ++ct)
 		{
-			if (sv.find_first_not_of("&%-?") < 10) std::cout << "found";
+			KProf::Force(&sv);
+			if (sv.find_first_not_of("&%-?") < 10) KProf::Force();
 		}
 	}
 	{
@@ -238,7 +259,8 @@ void kstringview()
 		prof.SetMultiplier(1000000);
 		for (int ct = 0; ct < 1000000; ++ct)
 		{
-			if (sv.find_first_not_of("&%-?") < 10) std::cout << "found";
+			KProf::Force(&sv);
+			if (sv.find_first_not_of("&%-?") < 10) KProf::Force();
 		}
 	}
 	{
@@ -249,7 +271,8 @@ void kstringview()
 		prof.SetMultiplier(1000);
 		for (int ct = 0; ct < 1000; ++ct)
 		{
-			if (sv.find_first_not_of("&%-?") < 100) std::cout << "found";
+			KProf::Force(&sv);
+			if (sv.find_first_not_of("&%-?") < 100) KProf::Force();
 		}
 	}
 	{
@@ -260,7 +283,8 @@ void kstringview()
 		prof.SetMultiplier(1000000);
 		for (int ct = 0; ct < 1000000; ++ct)
 		{
-			if (sv.find_first_not_of("&%-!§&/()=?*#1234567890üöä") < 10) std::cout << "found";
+			KProf::Force(&sv);
+			if (sv.find_first_not_of("&%-!§&/()=?*#1234567890üöä") < 10) KProf::Force();
 		}
 	}
 	{
@@ -271,7 +295,8 @@ void kstringview()
 		prof.SetMultiplier(1000000);
 		for (int ct = 0; ct < 1000000; ++ct)
 		{
-			if (sv.find_first_not_of("&%-!§&/()=?*#1234567890üöä") < 10) std::cout << "found";
+			KProf::Force(&sv);
+			if (sv.find_first_not_of("&%-!§&/()=?*#1234567890üöä") < 10) KProf::Force();
 		}
 	}
 	{
@@ -282,7 +307,8 @@ void kstringview()
 		prof.SetMultiplier(1000000);
 		for (int ct = 0; ct < 1000000; ++ct)
 		{
-			if (sv.find_first_not_of("&%-!§&/()=?*#1234567890üöä") < 10) std::cout << "found";
+			KProf::Force(&sv);
+			if (sv.find_first_not_of("&%-!§&/()=?*#1234567890üöä") < 10) KProf::Force();
 		}
 	}
 	{
@@ -293,7 +319,8 @@ void kstringview()
 		prof.SetMultiplier(1000);
 		for (int ct = 0; ct < 1000; ++ct)
 		{
-			if (sv.find_first_not_of("&%-!§&/()=?*#1234567890üöä") < 10) std::cout << "found";
+			KProf::Force(&sv);
+			if (sv.find_first_not_of("&%-!§&/()=?*#1234567890üöä") < 10) KProf::Force();
 		}
 	}
 	{
@@ -304,7 +331,8 @@ void kstringview()
 		prof.SetMultiplier(1000000);
 		for (int ct = 0; ct < 1000000; ++ct)
 		{
-			if (sv.find_last_of("defg") > 100) std::cout << "found";
+			KProf::Force(&sv);
+			if (sv.find_last_of("defg") > 100) KProf::Force();
 		}
 	}
 	{
@@ -315,7 +343,8 @@ void kstringview()
 		prof.SetMultiplier(1000000);
 		for (int ct = 0; ct < 1000000; ++ct)
 		{
-			if (sv.find_last_of("defg") > 100) std::cout << "found";
+			KProf::Force(&sv);
+			if (sv.find_last_of("defg") > 100) KProf::Force();
 		}
 	}
 	{
@@ -326,7 +355,8 @@ void kstringview()
 		prof.SetMultiplier(1000000);
 		for (int ct = 0; ct < 1000000; ++ct)
 		{
-			if (sv.find_last_of("defg") > 100) std::cout << "found";
+			KProf::Force(&sv);
+			if (sv.find_last_of("defg") > 100) KProf::Force();
 		}
 	}
 	{
@@ -337,7 +367,8 @@ void kstringview()
 		prof.SetMultiplier(1000000);
 		for (int ct = 0; ct < 1000000; ++ct)
 		{
-			if (sv.find_last_of("abcdefghijklmnopqrstuvwxyz") > 100) std::cout << "found";
+			KProf::Force(&sv);
+			if (sv.find_last_of("abcdefghijklmnopqrstuvwxyz") > 100) KProf::Force();
 		}
 	}
 	{
@@ -348,7 +379,8 @@ void kstringview()
 		prof.SetMultiplier(1000000);
 		for (int ct = 0; ct < 1000000; ++ct)
 		{
-			if (sv.find_last_of("abcdefghijklmnopqrstuvwxyz") > 100) std::cout << "found";
+			KProf::Force(&sv);
+			if (sv.find_last_of("abcdefghijklmnopqrstuvwxyz") > 100) KProf::Force();
 		}
 	}
 	{
@@ -359,7 +391,8 @@ void kstringview()
 		prof.SetMultiplier(1000000);
 		for (int ct = 0; ct < 1000000; ++ct)
 		{
-			if (sv.find_last_of("abcdefghijklmnopqrstuvwxyz") > 100) std::cout << "found";
+			KProf::Force(&sv);
+			if (sv.find_last_of("abcdefghijklmnopqrstuvwxyz") > 100) KProf::Force();
 		}
 	}
 	{
@@ -370,7 +403,8 @@ void kstringview()
 		prof.SetMultiplier(1000000);
 		for (int ct = 0; ct < 1000000; ++ct)
 		{
-			if (sv.find_last_not_of("&%-?") > 100) std::cout << "found";
+			KProf::Force(&sv);
+			if (sv.find_last_not_of("&%-?") > 100) KProf::Force();
 		}
 	}
 	{
@@ -381,7 +415,8 @@ void kstringview()
 		prof.SetMultiplier(1000000);
 		for (int ct = 0; ct < 1000000; ++ct)
 		{
-			if (sv.find_last_not_of("&%-?") > 100) std::cout << "found";
+			KProf::Force(&sv);
+			if (sv.find_last_not_of("&%-?") > 100) KProf::Force();
 		}
 	}
 	{
@@ -392,7 +427,8 @@ void kstringview()
 		prof.SetMultiplier(1000000);
 		for (int ct = 0; ct < 1000000; ++ct)
 		{
-			if (sv.find_last_not_of("&%-?") > 100) std::cout << "found";
+			KProf::Force(&sv);
+			if (sv.find_last_not_of("&%-?") > 100) KProf::Force();
 		}
 	}
 	{
@@ -403,7 +439,8 @@ void kstringview()
 		prof.SetMultiplier(1000000);
 		for (int ct = 0; ct < 1000000; ++ct)
 		{
-			if (sv.find_last_not_of("&%-!§&/()=?*#1234567890üöä") > 100) std::cout << "found";
+			KProf::Force(&sv);
+			if (sv.find_last_not_of("&%-!§&/()=?*#1234567890üöä") > 100) KProf::Force();
 		}
 	}
 	{
@@ -414,7 +451,8 @@ void kstringview()
 		prof.SetMultiplier(1000000);
 		for (int ct = 0; ct < 1000000; ++ct)
 		{
-			if (sv.find_last_not_of("&%-!§&/()=?*#1234567890üöä") > 100) std::cout << "found";
+			KProf::Force(&sv);
+			if (sv.find_last_not_of("&%-!§&/()=?*#1234567890üöä") > 100) KProf::Force();
 		}
 	}
 	{
@@ -425,7 +463,8 @@ void kstringview()
 		prof.SetMultiplier(1000000);
 		for (int ct = 0; ct < 1000000; ++ct)
 		{
-			if (sv.find_last_not_of("&%-!§&/()=?*#1234567890üöä") > 100) std::cout << "found";
+			KProf::Force(&sv);
+			if (sv.find_last_not_of("&%-!§&/()=?*#1234567890üöä") > 100) KProf::Force();
 		}
 	}
 	{
@@ -436,7 +475,8 @@ void kstringview()
 		prof.SetMultiplier(1000000);
 		for (int ct = 0; ct < 1000000; ++ct)
 		{
-			if (sv.rfind("abcdefg") > 100) std::cout << "found";
+			KProf::Force(&sv);
+			if (sv.rfind("abcdefg") > 100) KProf::Force();
 		}
 	}
 	{
@@ -447,7 +487,8 @@ void kstringview()
 		prof.SetMultiplier(1000000);
 		for (int ct = 0; ct < 1000000; ++ct)
 		{
-			if (sv.rfind("abcdefg") > 100) std::cout << "found";
+			KProf::Force(&sv);
+			if (sv.rfind("abcdefg") > 100) KProf::Force();
 		}
 	}
 	{
@@ -458,7 +499,8 @@ void kstringview()
 		prof.SetMultiplier(1000);
 		for (int ct = 0; ct < 1000; ++ct)
 		{
-			if (sv.rfind("abcdefg") > 100) std::cout << "found";
+			KProf::Force(&sv);
+			if (sv.rfind("abcdefg") > 100) KProf::Force();
 		}
 	}
 	{
@@ -469,7 +511,8 @@ void kstringview()
 		prof.SetMultiplier(1000000);
 		for (int ct = 0; ct < 1000000; ++ct)
 		{
-			if (sv.rfind('d') > 100) std::cout << "found";
+			KProf::Force(&sv);
+			if (sv.rfind('d') > 100) KProf::Force();
 		}
 	}
 	{
@@ -480,7 +523,8 @@ void kstringview()
 		prof.SetMultiplier(1000000);
 		for (int ct = 0; ct < 1000000; ++ct)
 		{
-			if (sv.rfind('d') > 100) std::cout << "found";
+			KProf::Force(&sv);
+			if (sv.rfind('d') > 100) KProf::Force();
 		}
 	}
 	{
@@ -491,7 +535,8 @@ void kstringview()
 		prof.SetMultiplier(1000);
 		for (int ct = 0; ct < 1000; ++ct)
 		{
-			if (sv.rfind('d') > 100) std::cout << "found";
+			KProf::Force(&sv);
+			if (sv.rfind('d') > 100) KProf::Force();
 		}
 	}
 }

@@ -3,6 +3,8 @@
 #include <dekaf2/kprof.h>
 #include <dekaf2/kcasestring.h>
 
+using namespace dekaf2;
+
 void kcasestring()
 {
 	dekaf2::KProf ps("-KCaseString");
@@ -15,7 +17,8 @@ void kcasestring()
 		prof.SetMultiplier(1000000);
 		for (int ct = 0; ct < 1000000; ++ct)
 		{
-			if (!strcmp(s.c_str(), s2.c_str())) std::cout << "found";
+			KProf::Force(&s);
+			if (!strcmp(s.c_str(), s2.c_str())) KProf::Force();
 		}
 	}
 	{
@@ -26,7 +29,8 @@ void kcasestring()
 		prof.SetMultiplier(1000000);
 		for (int ct = 0; ct < 1000000; ++ct)
 		{
-			if (!strcasecmp(s.c_str(), s2.c_str())) std::cout << "found";
+			KProf::Force(&s);
+			if (!strcasecmp(s.c_str(), s2.c_str())) KProf::Force();
 		}
 	}
 	{
@@ -37,7 +41,8 @@ void kcasestring()
 		prof.SetMultiplier(1000000);
 		for (int ct = 0; ct < 1000000; ++ct)
 		{
-			if (s == s2) std::cout << "found";
+			KProf::Force(&s);
+			if (s == s2) KProf::Force();
 		}
 	}
 	{
@@ -48,7 +53,8 @@ void kcasestring()
 		prof.SetMultiplier(1000000);
 		for (int ct = 0; ct < 1000000; ++ct)
 		{
-			if (s == s2) std::cout << "found";
+			KProf::Force(&s);
+			if (s == s2) KProf::Force();
 		}
 	}
 	{
@@ -61,7 +67,8 @@ void kcasestring()
 		prof.SetMultiplier(1000000);
 		for (int ct = 0; ct < 1000000; ++ct)
 		{
-			if (s == s2) std::cout << "found";
+			KProf::Force(&s);
+			if (s == s2) KProf::Force();
 		}
 	}
 	{
@@ -72,7 +79,8 @@ void kcasestring()
 		prof.SetMultiplier(1000000);
 		for (int ct = 0; ct < 1000000; ++ct)
 		{
-			if (!strcmp(s.c_str(), s2.c_str())) std::cout << "found";
+			KProf::Force(&s);
+			if (!strcmp(s.c_str(), s2.c_str())) KProf::Force();
 		}
 	}
 	{
@@ -83,7 +91,8 @@ void kcasestring()
 		prof.SetMultiplier(1000000);
 		for (int ct = 0; ct < 1000000; ++ct)
 		{
-			if (!strcasecmp(s.c_str(), s2.c_str())) std::cout << "found";
+			KProf::Force(&s);
+			if (!strcasecmp(s.c_str(), s2.c_str())) KProf::Force();
 		}
 	}
 	{
@@ -94,7 +103,8 @@ void kcasestring()
 		prof.SetMultiplier(1000000);
 		for (int ct = 0; ct < 1000000; ++ct)
 		{
-			if (s == s2) std::cout << "found";
+			KProf::Force(&s);
+			if (s == s2) KProf::Force();
 		}
 	}
 	{
@@ -105,7 +115,8 @@ void kcasestring()
 		prof.SetMultiplier(1000000);
 		for (int ct = 0; ct < 1000000; ++ct)
 		{
-			if (s == s2) std::cout << "found";
+			KProf::Force(&s);
+			if (s == s2) KProf::Force();
 		}
 	}
 	{
@@ -118,7 +129,8 @@ void kcasestring()
 		prof.SetMultiplier(1000000);
 		for (int ct = 0; ct < 1000000; ++ct)
 		{
-			if (s == s2) std::cout << "found";
+			KProf::Force(&s);
+			if (s == s2) KProf::Force();
 		}
 	}
 	{
@@ -129,7 +141,8 @@ void kcasestring()
 		prof.SetMultiplier(10000);
 		for (int ct = 0; ct < 10000; ++ct)
 		{
-			if (!strcmp(s.c_str(), s2.c_str())) std::cout << "found";
+			KProf::Force(&s);
+			if (!strcmp(s.c_str(), s2.c_str())) KProf::Force();
 		}
 	}
 	{
@@ -140,7 +153,8 @@ void kcasestring()
 		prof.SetMultiplier(10000);
 		for (int ct = 0; ct < 10000; ++ct)
 		{
-			if (!strcasecmp(s.c_str(), s2.c_str())) std::cout << "found";
+			KProf::Force(&s);
+			if (!strcasecmp(s.c_str(), s2.c_str())) KProf::Force();
 		}
 	}
 	{
@@ -151,7 +165,8 @@ void kcasestring()
 		prof.SetMultiplier(10000);
 		for (int ct = 0; ct < 10000; ++ct)
 		{
-			if (s == s2) std::cout << "found";
+			KProf::Force(&s);
+			if (s == s2) KProf::Force();
 		}
 	}
 	{
@@ -162,7 +177,8 @@ void kcasestring()
 		prof.SetMultiplier(10000);
 		for (int ct = 0; ct < 10000; ++ct)
 		{
-			if (s == s2) std::cout << "found";
+			KProf::Force(&s);
+			if (s == s2) KProf::Force();
 		}
 	}
 	{
@@ -175,7 +191,8 @@ void kcasestring()
 		prof.SetMultiplier(10000);
 		for (int ct = 0; ct < 10000; ++ct)
 		{
-			if (s == s2) std::cout << "found";
+			KProf::Force(&s);
+			if (s == s2) KProf::Force();
 		}
 	}
 

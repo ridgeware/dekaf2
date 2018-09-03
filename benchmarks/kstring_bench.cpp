@@ -16,6 +16,8 @@ static const char* str250 = "12345678901234567890123456789012345678901234567890"
 		"12345678901234567890123456789012345678901234567890"
 		"12345678901234567890123456789012345678901234567890";
 
+using namespace dekaf2;
+
 void kstring()
 {
 	dekaf2::KProf ps("-KString");
@@ -25,8 +27,9 @@ void kstring()
 		prof.SetMultiplier(1000000);
 		for (int ct = 0; ct < 1000000; ++ct)
 		{
+			KProf::Force(&str0);
 			dekaf2::KString str(str0);
-			if (str.size() > 100000) std::cout << "large";
+			if (str.size() > 100000) KProf::Force();
 		}
 	}
 	{
@@ -34,8 +37,9 @@ void kstring()
 		prof.SetMultiplier(1000000);
 		for (int ct = 0; ct < 1000000; ++ct)
 		{
+			KProf::Force(&str15);
 			dekaf2::KString str(str15);
-			if (str.size() > 100000) std::cout << "large";
+			if (str.size() > 100000) KProf::Force();
 		}
 	}
 	{
@@ -43,8 +47,9 @@ void kstring()
 		prof.SetMultiplier(1000000);
 		for (int ct = 0; ct < 1000000; ++ct)
 		{
+			KProf::Force(&str23);
 			dekaf2::KString str(str23);
-			if (str.size() > 100000) std::cout << "large";
+			if (str.size() > 100000) KProf::Force();
 		}
 	}
 	{
@@ -52,8 +57,9 @@ void kstring()
 		prof.SetMultiplier(1000000);
 		for (int ct = 0; ct < 1000000; ++ct)
 		{
+			KProf::Force(&str250);
 			dekaf2::KString str(str250);
-			if (str.size() > 100000) std::cout << "large";
+			if (str.size() > 100000) KProf::Force();
 		}
 	}
 	{
@@ -64,8 +70,9 @@ void kstring()
 		prof.SetMultiplier(1000000);
 		for (int ct = 0; ct < 1000000; ++ct)
 		{
+			KProf::Force(buffer);
 			dekaf2::KString str(buffer);
-			if (str.size() > 100000) std::cout << "large";
+			if (str.size() > 100000) KProf::Force();
 		}
 	}
 	{
@@ -75,7 +82,8 @@ void kstring()
 		prof.SetMultiplier(1000000);
 		for (int ct = 0; ct < 1000000; ++ct)
 		{
-			if (s.find("abcdefg") < 10) std::cout << "found";
+			KProf::Force(&s);
+			if (s.find("abcdefg") < 10) KProf::Force();
 		}
 	}
 	{
@@ -84,7 +92,8 @@ void kstring()
 		prof.SetMultiplier(1000000);
 		for (int ct = 0; ct < 1000000; ++ct)
 		{
-			if (s.find("abcdefg") < 10) std::cout << "found";
+			KProf::Force(&s);
+			if (s.find("abcdefg") < 10) KProf::Force();
 		}
 	}
 	{
@@ -94,7 +103,8 @@ void kstring()
 		prof.SetMultiplier(100000);
 		for (int ct = 0; ct < 100000; ++ct)
 		{
-			if (s.find("abcdefg") < 10) std::cout << "found";
+			KProf::Force(&s);
+			if (s.find("abcdefg") < 10) KProf::Force();
 		}
 	}
 	{
@@ -103,7 +113,8 @@ void kstring()
 		prof.SetMultiplier(100000);
 		for (int ct = 0; ct < 100000; ++ct)
 		{
-			if (s.find("abcdefg") < 10) std::cout << "found";
+			KProf::Force(&s);
+			if (s.find("abcdefg") < 10) KProf::Force();
 		}
 	}
 	{
@@ -113,7 +124,8 @@ void kstring()
 		prof.SetMultiplier(1000);
 		for (int ct = 0; ct < 1000; ++ct)
 		{
-			if (s.find("abcdefg") < 10) std::cout << "found";
+			KProf::Force(&s);
+			if (s.find("abcdefg") < 10) KProf::Force();
 		}
 	}
 	{
@@ -123,7 +135,8 @@ void kstring()
 		prof.SetMultiplier(100000);
 		for (int ct = 0; ct < 100000; ++ct)
 		{
-			if (s.find("abcdefg") < 10) std::cout << "found";
+			KProf::Force(&s);
+			if (s.find("abcdefg") < 10) KProf::Force();
 		}
 	}
 	{
@@ -133,7 +146,8 @@ void kstring()
 		prof.SetMultiplier(1000000);
 		for (int ct = 0; ct < 1000000; ++ct)
 		{
-			if (s.find('d') < 100) std::cout << "found";
+			KProf::Force(&s);
+			if (s.find('d') < 100) KProf::Force();
 
 		}
 	}
@@ -144,7 +158,8 @@ void kstring()
 		prof.SetMultiplier(1000000);
 		for (int ct = 0; ct < 1000000; ++ct)
 		{
-			if (s.find('d') < 100) std::cout << "found";
+			KProf::Force(&s);
+			if (s.find('d') < 100) KProf::Force();
 		}
 	}
 	{
@@ -154,7 +169,8 @@ void kstring()
 		prof.SetMultiplier(1000);
 		for (int ct = 0; ct < 1000; ++ct)
 		{
-			if (s.find('d') < 100) std::cout << "found";
+			KProf::Force(&s);
+			if (s.find('d') < 100) KProf::Force();
 		}
 	}
 	{
@@ -164,6 +180,7 @@ void kstring()
 		for (int ct = 0; ct < 100000; ++ct)
 		{
 			s += '-';
+			KProf::Force(&s);
 			s.pop_back();
 		}
 	}
@@ -174,6 +191,7 @@ void kstring()
 		for (int ct = 0; ct < 100000; ++ct)
 		{
 			s += '-';
+			KProf::Force(&s);
 			s.pop_back();
 		}
 	}
@@ -184,6 +202,7 @@ void kstring()
 		for (int ct = 0; ct < 100000; ++ct)
 		{
 			s += '-';
+			KProf::Force(&s);
 			s.pop_back();
 		}
 	}
@@ -194,6 +213,7 @@ void kstring()
 		for (int ct = 0; ct < 100000; ++ct)
 		{
 			s += '-';
+			KProf::Force(&s);
 			s.pop_back();
 		}
 	}
@@ -204,6 +224,7 @@ void kstring()
 		for (int ct = 0; ct < 100000; ++ct)
 		{
 			s += '-';
+			KProf::Force(&s);
 			s.pop_back();
 		}
 	}
@@ -214,7 +235,8 @@ void kstring()
 		prof.SetMultiplier(1000000);
 		for (int ct = 0; ct < 1000000; ++ct)
 		{
-			if (s.find_first_of("defg") < 10) std::cout << "found";
+			KProf::Force(&s);
+			if (s.find_first_of("defg") < 10) KProf::Force();
 		}
 	}
 	{
@@ -224,7 +246,8 @@ void kstring()
 		prof.SetMultiplier(1000000);
 		for (int ct = 0; ct < 1000000; ++ct)
 		{
-			if (s.find_first_of("defg") < 100) std::cout << "found";
+			KProf::Force(&s);
+			if (s.find_first_of("defg") < 100) KProf::Force();
 		}
 	}
 	{
@@ -234,7 +257,8 @@ void kstring()
 		prof.SetMultiplier(100000);
 		for (int ct = 0; ct < 100000; ++ct)
 		{
-			if (s.find_first_of("defg") < 100) std::cout << "found";
+			KProf::Force(&s);
+			if (s.find_first_of("defg") < 100) KProf::Force();
 		}
 	}
 	{
@@ -244,7 +268,8 @@ void kstring()
 		prof.SetMultiplier(1000);
 		for (int ct = 0; ct < 1000; ++ct)
 		{
-			if (s.find_first_of("defg") < 100) std::cout << "found";
+			KProf::Force(&s);
+			if (s.find_first_of("defg") < 100) KProf::Force();
 		}
 	}	{
 		dekaf2::KString s(20, '-');
@@ -253,7 +278,8 @@ void kstring()
 		prof.SetMultiplier(1000000);
 		for (int ct = 0; ct < 1000000; ++ct)
 		{
-			if (s.find_first_not_of("&%-?") < 10) std::cout << "found";
+			KProf::Force(&s);
+			if (s.find_first_not_of("&%-?") < 10) KProf::Force();
 		}
 	}
 	{
@@ -263,7 +289,8 @@ void kstring()
 		prof.SetMultiplier(1000000);
 		for (int ct = 0; ct < 1000000; ++ct)
 		{
-			if (s.find_first_not_of("&%-?") < 10) std::cout << "found";
+			KProf::Force(&s);
+			if (s.find_first_not_of("&%-?") < 10) KProf::Force();
 		}
 	}
 	{
@@ -273,7 +300,8 @@ void kstring()
 		prof.SetMultiplier(100000);
 		for (int ct = 0; ct < 100000; ++ct)
 		{
-			if (s.find_first_not_of("&%-?") < 10) std::cout << "found";
+			KProf::Force(&s);
+			if (s.find_first_not_of("&%-?") < 10) KProf::Force();
 		}
 	}
 	{
@@ -283,7 +311,8 @@ void kstring()
 		prof.SetMultiplier(1000);
 		for (int ct = 0; ct < 1000; ++ct)
 		{
-			if (s.find_first_not_of("&%-?") < 100) std::cout << "found";
+			KProf::Force(&s);
+			if (s.find_first_not_of("&%-?") < 100) KProf::Force();
 		}
 	}
 	{
@@ -293,7 +322,8 @@ void kstring()
 		prof.SetMultiplier(1000000);
 		for (int ct = 0; ct < 1000000; ++ct)
 		{
-			if (s.rfind("abcdefg") > 100) std::cout << "found";
+			KProf::Force(&s);
+			if (s.rfind("abcdefg") > 100) KProf::Force();
 		}
 	}
 	{
@@ -303,7 +333,8 @@ void kstring()
 		prof.SetMultiplier(1000000);
 		for (int ct = 0; ct < 1000000; ++ct)
 		{
-			if (s.rfind("abcdefg") > 100) std::cout << "found";
+			KProf::Force(&s);
+			if (s.rfind("abcdefg") > 100) KProf::Force();
 		}
 	}
 	{
@@ -313,7 +344,8 @@ void kstring()
 		prof.SetMultiplier(1000);
 		for (int ct = 0; ct < 1000; ++ct)
 		{
-			if (s.rfind("abcdefg") > 100) std::cout << "found";
+			KProf::Force(&s);
+			if (s.rfind("abcdefg") > 100) KProf::Force();
 		}
 	}
 	{
@@ -323,7 +355,8 @@ void kstring()
 		prof.SetMultiplier(1000000);
 		for (int ct = 0; ct < 1000000; ++ct)
 		{
-			if (s.rfind('d') > 100) std::cout << "found";
+			KProf::Force(&s);
+			if (s.rfind('d') > 100) KProf::Force();
 		}
 	}
 	{
@@ -333,7 +366,8 @@ void kstring()
 		prof.SetMultiplier(1000000);
 		for (int ct = 0; ct < 1000000; ++ct)
 		{
-			if (s.rfind('d') > 100) std::cout << "found";
+			KProf::Force(&s);
+			if (s.rfind('d') > 100) KProf::Force();
 		}
 	}
 	{
@@ -343,7 +377,8 @@ void kstring()
 		prof.SetMultiplier(1000);
 		for (int ct = 0; ct < 1000; ++ct)
 		{
-			if (s.rfind('d') > 100) std::cout << "found";
+			KProf::Force(&s);
+			if (s.rfind('d') > 100) KProf::Force();
 		}
 	}
 }

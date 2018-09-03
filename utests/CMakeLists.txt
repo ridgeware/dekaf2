@@ -16,6 +16,7 @@ set (USOURCES
 	main.cpp
 	kassociative_tests.cpp
 	kbase64_tests.cpp
+	kbitfields_tests.cpp
 	kcasestring_tests.cpp
 	kcompression_tests.cpp
 	kcrc_tests.cpp

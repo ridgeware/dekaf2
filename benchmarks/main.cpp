@@ -1,5 +1,6 @@
 #include <dekaf2/dekaf2.h>
 
+extern void kbitfields_bench();
 extern void shared_ptr_bench();
 extern void kprops_bench();
 extern void kwriter_bench();
@@ -17,6 +18,7 @@ int main()
 	Dekaf().SetMultiThreading();
 	Dekaf().SetUnicodeLocale();
 
+	kbitfields_bench();
 	shared_ptr_bench();
 	kprops_bench();
 	kwriter_bench();

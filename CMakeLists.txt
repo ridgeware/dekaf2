@@ -268,8 +268,10 @@ set (HEADERS
 	bits/simd/kfindfirstof.h
 	dekaf2.h
 	dekaf2all.h
+	kaddrplus.h
 	kassociative.h
 	kbase64.h
+	kbitfields.h
 	kcache.h
 	kcasestring.h
 	kcgi.h

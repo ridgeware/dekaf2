@@ -43,7 +43,7 @@
 #pragma once
 
 /// @file kvariant.h
-/// test for include file locations for std::varuant, and include if
+/// test for include file locations for std::variant, and include if
 /// available, otherwise provide an alternative boost implementation
 
 #include "kcppcompat.h"

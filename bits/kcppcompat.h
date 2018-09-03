@@ -48,6 +48,7 @@
 /// compatibility layer to provide same interfaces for C++11 to 17
 
 #include "kconfiguration.h"
+#include <climits>
 
 #define DEKAF2_xstringify(x) #x
 #define DEKAF2_stringify(x) DEKAF2_xstringify(x)
@@ -191,6 +192,17 @@
 	#include <mutex> // to be balanced with the C++11 case below
 #else
 	#include <mutex>
+#endif
+
+#if (UINTPTR_MAX == 0xffffffffffffffff)
+	#define DEKAF2_IS_64_BITS = 1
+	#define DEKAF2_BITS = 64
+#elif (UINTPTR_MAX == 0xffffffff)
+	#define DEKAF2_IS_32_BITS = 1
+	#define DEKAF2_BITS = 32
+#elif (UINTPTR_MAX == 0xffff)
+	#define DEKAF2_IS_16_BITS = 1
+	#define DEKAF2_BITS = 16
 #endif
 
 namespace std

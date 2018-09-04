@@ -172,7 +172,16 @@ public:
 		return (it != LJSON::end() && it->is_boolean());
 	}
 
-	bool Add (KROW& row);
+	bool Add (const KROW& row);
+
+	KJSON& operator+=(const KROW& row)
+	{
+		Add(row);
+		return *this;
+	}
+
+	// make sure the above operator+= does not overwrite all parent operator+=
+	using LJSON::operator+=;
 
 #ifndef DEKAF2_EXCEPTIONS
 	/// This overload of the operator[] simply calls the existing operator[] of LJSON.

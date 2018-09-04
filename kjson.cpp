@@ -344,7 +344,7 @@ KString KJSON::EscWrapNumeric (KStringView sName, KStringView sValue, KStringVie
 } // KSJON::EscWrapNumeric
 
 //-----------------------------------------------------------------------------
-bool KJSON::Add (KROW& row)
+bool KJSON::Add (const KROW& row)
 //-----------------------------------------------------------------------------
 {
 	DEKAF2_TRY

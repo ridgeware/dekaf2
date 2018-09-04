@@ -48,7 +48,7 @@
 
 #include "kcppcompat.h"
 
-#if defined(DEKAF2_HAS_CPP_17)
+#if defined(DEKAF2_HAS_CPP_17) && !defined(__clang__)
 	#if __has_include(<filesystem>)
 		#include <filesystem>
 		#define DEKAF2_HAS_STD_FILESYSTEM 1

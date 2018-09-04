@@ -628,21 +628,6 @@ size_t KDirectory::Open(KStringViewZ sDirectory, EntryType Type)
 
 #else
 
-#ifdef __linux__
-	auto len = sizeof(struct dirent);
-#else
-	auto name_max = ::pathconf(sDirectory.c_str(), _PC_NAME_MAX);
-	if (name_max == -1)
-	{
-		name_max = 255;
-	}
-	auto len = offsetof(struct dirent, d_name) + name_max + 1;
-#endif
-
-	auto entry = std::make_unique<uint8_t[]>(len);
-
-	auto dir = reinterpret_cast<struct dirent*>(entry.get());
-
 	unsigned char dtype;
 	switch (Type)
 	{
@@ -676,8 +661,8 @@ size_t KDirectory::Open(KStringViewZ sDirectory, EntryType Type)
 	auto d = ::opendir(sDirectory.c_str());
 	if (d)
 	{
-		struct dirent* result;
-		while ((::readdir_r(d, dir, &result)) == 0 && result != nullptr)
+		struct dirent* dir;
+		while ((dir = ::readdir(d)) != nullptr)
 		{
 			// exclude . and .. as std::filesystem excludes them, too
 			if (strcmp(dir->d_name, ".") && strcmp(dir->d_name, ".."))

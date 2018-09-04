@@ -92,7 +92,6 @@ std::pair<KString, KStringView> SimpleHTML::NextPair()
 	size_t iSizeSkel { 0 };
 	size_t iSizeWord { 0 };
 	size_t iStartEntity { 0 };
-	KStringView sEntity;
 	std::pair<KString, KStringView> sPair;
 	KString sTagName;
 	static const char ScriptEndTag[] = "/script>";

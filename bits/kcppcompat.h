@@ -378,14 +378,17 @@ DEKAF2_LE_BE_CONSTEXPR void kFromLittleEndian(VALUE& value)
 
 #ifdef __x86_64__
 
-	#define DEKAF2_HAS_INT128 1
+	#if !defined(__clang__) || DEKAF2_IS_OSX
+		// clang has severe issues with int128 and adress sanitizer symbols on Linux
+		#define DEKAF2_HAS_INT128 1
 
-	#ifndef int128_t
-		using int128_t = __int128;
-	#endif
+		#ifndef int128_t
+			using int128_t = __int128;
+		#endif
 
-	#ifndef uint128_t
-		using uint128_t = unsigned __int128;
+		#ifndef uint128_t
+			using uint128_t = unsigned __int128;
+		#endif
 	#endif
 
 /*

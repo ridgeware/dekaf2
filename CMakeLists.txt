@@ -478,6 +478,13 @@ add_library(dekaf2 ${HEADERS} ${SOURCES})
 
 if (CMAKE_COMPILER_IS_GNUCC AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 6.0)
 	set (FSLIB libstdc++fs.a)
+# this does currently not work well with mixed gcc/clang systems
+#elseif (CMAKE_CXX_COMPILER_ID MATCHES "[cC][lL][aA][nN][gG]" AND NOT APPLE)
+#	if (CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 6.0)
+#		set (FSLIB libc++experimental.a)
+#	elseif (CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 7.0)
+#		set (FSLIB libc++fs.a)
+#	endif()
 else ()
 	set (FSLIB "")
 endif ()

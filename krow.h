@@ -216,54 +216,54 @@ public:
 	const KString& operator[] (KStringView sColName) const  { return Get(sColName).sValue; }
 
 	/// Returns the Nth column's name (note: column index starts at 0).
-	KStringView GetName (size_t iZeroBasedIndex)
+	KStringView GetName (size_t iZeroBasedIndex) const
 	{
 		return (at (iZeroBasedIndex).first);
 	}
 
 	/// Returns the Nth column's value as a string (note: column index starts at 0).  Note that you can map this to literally any data type by using KStringView member functions like .Int32().
-	KStringView GetValue (size_t iZeroBasedIndex)
+	KStringView GetValue (size_t iZeroBasedIndex) const
 	{
 		return (at (iZeroBasedIndex).second.sValue);
 	}
 
 	/// Returns the Nth column's flags (note: column index starts at 0).
-	uint64_t GetFlags (size_t iZeroBasedIndex)
+	uint64_t GetFlags (size_t iZeroBasedIndex) const
 	{
 		return (at (iZeroBasedIndex).second.iFlags);
 	}
 
 	/// Returns whether or not a particular flag is set on the Nth column (note: column index starts at 0).
-	bool IsFlag (size_t iZeroBasedIndex, uint64_t iFlag)
+	bool IsFlag (size_t iZeroBasedIndex, uint64_t iFlag) const
 	{
 		return ((GetFlags(iZeroBasedIndex) & iFlag) == iFlag);
 	}
 
 	/// Returns the maximum character length of the Nth column if it was set (note: column index starts at 0).
-	uint32_t MaxLength (uint32_t iZeroBasedIndex)
+	uint32_t MaxLength (uint32_t iZeroBasedIndex) const
 	{
 		return (at (iZeroBasedIndex).second.iMaxLen);
 	}
 
 	/// Formats the proper RDBMS DDL statement for inserting one row into the database for the given table and column structure.
-	bool FormInsert (KString& sSQL, SQLTYPE iDBType, bool fIdentityInsert=false);
+	bool FormInsert (KString& sSQL, SQLTYPE iDBType, bool fIdentityInsert=false) const;
 
 	/// Formats the proper RDBMS DDL statement for updating one row in the database for the given table and column structure.
 	/// Note that at least one column must have the PKEY flag set (so that the framework knows what to put in the WHERE clause).
-	bool FormUpdate (KString& sSQL, SQLTYPE iDBType);
+	bool FormUpdate (KString& sSQL, SQLTYPE iDBType) const;
 
 	/// Formats the proper RDBMS DDL statement for deleting one row in the database for the given table and column structure.
 	/// Note that at least one column must have the PKEY flag set (so that the framework knows what to put in the WHERE clause).
-	bool FormDelete (KString& sSQL, SQLTYPE iDBType);
+	bool FormDelete (KString& sSQL, SQLTYPE iDBType) const;
 
 	/// Returns a JSON formatted string representing the KROW object
-	KString ToJSON (uint8_t iIndent=0, bool bWrapInCurlies=true);
+	KString ToJSON (uint8_t iIndent=0, bool bWrapInCurlies=true) const;
 
 	/// Returns the last RDBMS error message.
-	KStringView GetLastError() { return (m_sLastError); }
+	KStringView GetLastError() const { return (m_sLastError); }
 
 	/// Returns the tablename of this KROW object (if set).
-	KStringView GetTablename() { return (m_sTablename); }
+	KStringView GetTablename() const { return (m_sTablename); }
 
 	enum
 	{
@@ -283,15 +283,15 @@ public:
 	static void EscapeChars (KStringView sString, KString& sEscaped,
 	                         KStringView sCharsToEscape, KString::value_type iEscapeChar=0);
 
-	KString ColumnInfoForLogOutput (uint32_t ii);
+	KString ColumnInfoForLogOutput (uint32_t ii) const;
 
 //----------
 private:
 //----------
-	void    SmartClip (KStringView sColName, KString& sValue, size_t iMaxLen);
+	void    SmartClip (KStringView sColName, KString& sValue, size_t iMaxLen) const;
 
 	KString m_sTablename;
-	KString m_sLastError;
+	mutable KString m_sLastError;
 };
 
 } // namespace dekaf2

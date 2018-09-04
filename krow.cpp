@@ -52,7 +52,7 @@ constexpr KStringView ESCAPE_MSSQL { "\'"   };
 int32_t  detail::KCommonSQLBase::m_iDebugLevel{2};
 
 //-----------------------------------------------------------------------------
-KString KROW::ColumnInfoForLogOutput (uint32_t ii)
+KString KROW::ColumnInfoForLogOutput (uint32_t ii) const
 //-----------------------------------------------------------------------------
 {
 	KString sLogMessage;
@@ -116,7 +116,7 @@ void KROW::EscapeChars (KStringView sString, KString& sEscaped,
 } // EscapeChars
 
 //-----------------------------------------------------------------------------
-void KROW::SmartClip (KStringView sColName, KString& sValue, size_t iMaxLen)
+void KROW::SmartClip (KStringView sColName, KString& sValue, size_t iMaxLen) const
 //-----------------------------------------------------------------------------
 {
 	if (iMaxLen)
@@ -139,7 +139,7 @@ void KROW::SmartClip (KStringView sColName, KString& sValue, size_t iMaxLen)
 } // SmartClip
 
 //-----------------------------------------------------------------------------
-bool KROW::FormInsert (KString& sSQL, SQLTYPE iDBType, bool fIdentityInsert/*=false*/)
+bool KROW::FormInsert (KString& sSQL, SQLTYPE iDBType, bool fIdentityInsert/*=false*/) const
 //-----------------------------------------------------------------------------
 {
 	m_sLastError = ""; // reset
@@ -230,7 +230,7 @@ bool KROW::FormInsert (KString& sSQL, SQLTYPE iDBType, bool fIdentityInsert/*=fa
 } // FormInsert
 
 //-----------------------------------------------------------------------------
-bool KROW::FormUpdate (KString& sSQL, SQLTYPE iDBType)
+bool KROW::FormUpdate (KString& sSQL, SQLTYPE iDBType) const
 //-----------------------------------------------------------------------------
 {
 	m_sLastError = ""; // reset
@@ -335,7 +335,7 @@ bool KROW::FormUpdate (KString& sSQL, SQLTYPE iDBType)
 } // FormUpdate
 
 //-----------------------------------------------------------------------------
-bool KROW::FormDelete (KString& sSQL, SQLTYPE iDBType)
+bool KROW::FormDelete (KString& sSQL, SQLTYPE iDBType) const
 //-----------------------------------------------------------------------------
 {
 	m_sLastError = ""; // reset
@@ -409,7 +409,7 @@ bool KROW::FormDelete (KString& sSQL, SQLTYPE iDBType)
 } // FormDelete
 
 //-----------------------------------------------------------------------------
-KString KROW::ToJSON (uint8_t iIndent/*=0*/, bool bWrapInCurlies/*=true*/)
+KString KROW::ToJSON (uint8_t iIndent/*=0*/, bool bWrapInCurlies/*=true*/) const
 //-----------------------------------------------------------------------------
 {
 	KString sJSON;

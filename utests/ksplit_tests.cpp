@@ -509,18 +509,24 @@ TEST_CASE("kSplitPairs")
 		}
 	}
 
-
 }
 
-
-SCENARIO ( "ksplit unit tests on invalid data" )
+TEST_CASE("kSplitArgsInPlace")
 {
-	GIVEN ( "a valid string" )
+	SECTION("split")
 	{
-		WHEN ( "parse simple delimited lists" )
+		std::vector<const char*> argVector;
+		KString sCommand("/bin/sh 'random arg' -c \\\"hi! \"echo 'some random data' > /tmp/kinpipetests/kinpipetest.file 2>&1\"");//
+		CHECK( kSplitArgsInPlace(argVector, sCommand) );
+		CHECK(argVector.size() == 5);
+		std::vector<const char*> compVector = {"/bin/sh", "random arg", "-c", "\"hi!", "echo 'some random data' > /tmp/kinpipetests/kinpipetest.file 2>&1"};
+		CHECK ( compVector.size() == argVector.size() );
+		if (compVector.size() == argVector.size())
 		{
-			THEN ( "examine the results" )
+			for (size_t i = 0; i < argVector.size() - 1; i++)
 			{
+				INFO (argVector[i]);
+				CHECK( strcmp(compVector[i], argVector[i]) == 0);
 			}
 		}
 	}

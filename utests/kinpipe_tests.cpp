@@ -53,31 +53,6 @@ TEST_CASE("KInPipe")
 		INFO("KInPipe fail_to_open::Done:");
 	} // fail_to_open
 
-	SECTION("KInPipe split arg test")
-	{
-		INFO("KInPipe split arg test::Start:");
-
-		KInPipe pipe;
-		pipe.SetReaderTrim("");
-
-		char ** args;
-		size_t len;
-		std::vector<char*> argVector;
-		KString sCommand("/bin/sh -c \"echo 'some random data' > /tmp/kinpipetests/kinpipetest.file 2>&1\"");//
-		CHECK(pipe.splitArgsInPlace(sCommand, argVector));
-
-		std::ofstream outFile;
-		outFile.open("/tmp/hermes/utestLog.txt");
-		CHECK(argVector.size() == 4);
-		std::vector<const char*> compVector = {"/bin/sh", "-c", "echo 'some random data' > /tmp/kinpipetests/kinpipetest.file 2>&1", NULL};
-		for (size_t i = 0; i < argVector.size() - 1; i++)
-		{
-			CHECK(strcmp(compVector[i], argVector[i]) == 0);
-		}
-
-		INFO("KInPipe split arg test::Done:");
-	} // normal open close
-
 #if KInPipeCleanup
 	SECTION("KInPipe  cleanup test")
 	{

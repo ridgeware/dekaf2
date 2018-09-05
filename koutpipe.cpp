@@ -41,6 +41,7 @@
 
 #include <signal.h>
 #include "koutpipe.h"
+#include "ksplit.h"
 
 namespace dekaf2
 {
@@ -152,8 +153,10 @@ bool KOutPipe::OpenWritePipe(KStringView sProgram)
 	// child has lost allocated memory (as the child would
 	// never run the destructor)
 	KString sCmd(sProgram); // need non const for split
-	std::vector<char*> argV;
-	splitArgsInPlace(sCmd, argV);
+	std::vector<const char*> argV;
+	kSplitArgsInPlace(argV, sCmd);
+	// terminate with nullptr
+	argV.push_back(nullptr);
 
 	// create a child
 	switch (m_pid = vfork())

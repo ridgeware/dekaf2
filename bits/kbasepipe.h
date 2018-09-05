@@ -89,12 +89,6 @@ public:
 	bool WaitForFinished(int msecs);
 	//-----------------------------------------------------------------------------
 
-	//-----------------------------------------------------------------------------
-	/// Splits args into char*[] terminated with NULL
-	typedef std::vector<char*> CharVec;
-	bool splitArgsInPlace(KString& argString, CharVec& vector );
-	//-----------------------------------------------------------------------------
-
 //--------
 protected:
 //--------

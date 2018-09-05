@@ -64,7 +64,7 @@ namespace dekaf2
 /// @param chEscape Escape character for delimiters. Defaults to '\0' (disabled).
 /// @param bCombineDelimiters if true skips consecutive delimiters (an action always
 /// taken for found spaces if defined as delimiter). Defaults to false.
-/// @param bQuotesAreFrames if true, escape characters and delimiters inside
+/// @param bQuotesAreEscapes if true, escape characters and delimiters inside
 /// double quotes are treated as literal chars, and quotes themselves are removed.
 /// No trimming is applied inside the quotes (but outside). The quote has to be the
 /// first character after applied trimming, and trailing content after the closing quote
@@ -292,6 +292,94 @@ size_t kSplitPairs(
 	return kSplit(cAdaptor, svBuffer, svDelim, svTrim, chEscape,
 	              bCombineDelimiters, bQuotesAreEscapes);
 }
+
+
+//-----------------------------------------------------------------------------
+/// Splitting a command line style string into token container, modifying the source buffer
+/// so that each token is followed by a null char, much like strtok()
+/// @param ctContainer needs to have a push_back() that can construct an element from
+/// a char*.
+/// @param sBuffer the source char sequence - will be modified.
+/// @param svDelim a string view of delimiter characters. Defaults to " \t\r\n\b".
+/// @param svQuotes a string view of quote characters. Defaults to "\"'".
+/// @param chEscape Escape character for delimiters. Defaults to '\\'.
+template<typename Container>
+bool kSplitArgsInPlace(
+	Container&  ctContainer,
+	KString&    sBuffer,
+	KStringView svDelim  = " \t\r\n\b",     // default: whitespace delimiter
+	KStringView svQuotes = "\"'",           // default: dequote
+	const char  chEscape = '\\'             // default: escape with backslash
+	)
+//-----------------------------------------------------------------------------
+{
+	char* Start { nullptr };
+	char quoteChar { 0 };
+	bool bEscaped { false };
+
+	for (auto& ch : sBuffer)
+	{
+		if (bEscaped)
+		{
+			bEscaped = false;
+			if (!Start)
+			{
+				Start = &ch;
+			}
+			continue;
+		}
+
+		if (ch == chEscape)
+		{
+			bEscaped = true;
+		}
+		else if (quoteChar)
+		{
+			if (ch == quoteChar)
+			{
+				ch = quoteChar = 0;
+
+				if (Start)
+				{
+					ctContainer.push_back(Start);
+					Start = nullptr;
+				}
+			}
+		}
+		else
+		{
+			if (svDelim.find(ch) != KStringView::npos)
+			{
+				ch = 0;
+
+				if (Start)
+				{
+					ctContainer.push_back(Start);
+					Start = nullptr;
+				}
+			}
+			else if (svQuotes.find(ch) != KStringView::npos)
+			{
+				quoteChar = ch;
+				Start = &ch + 1;
+			}
+			else if (!Start)
+			{
+				Start = &ch;
+			}
+		}
+	}
+
+	if (Start)
+	{
+		// last fragment if not quoted
+		ctContainer.push_back(Start);
+	}
+
+	return !ctContainer.empty();
+
+} // kSplitArgsInPlace
+
 
 // some explicit template instances
 

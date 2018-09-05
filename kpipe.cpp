@@ -42,6 +42,7 @@
 
 #include <signal.h>
 #include "kpipe.h"
+#include "ksplit.h"
 
 namespace dekaf2
 {
@@ -151,19 +152,15 @@ bool KPipe::OpenPipeRW(KStringView sProgram)
 		return false;
 	} // could not create pipe
 
-	//  * # @ $ % ^ &  * # @ $ % ^ &  * # @ $ % ^ &  * # @ $ % ^ &  * # @ $ % ^ &  * # @ $ % ^ &  * # @ $ % ^ &  * # @ $ % ^ &
-	//
-	//    KEEF NOTE: this logic is FATALLY FLAWED.  it parses the args and splits it into a vector of words (args).
-	//
-	//  * # @ $ % ^ &  * # @ $ % ^ &  * # @ $ % ^ &  * # @ $ % ^ &  * # @ $ % ^ &  * # @ $ % ^ &  * # @ $ % ^ &  * # @ $ % ^ &
-
 	// we need to do the object allocations in the parent
 	// process as otherwise leak detectors would claim the
 	// child has lost allocated memory (as the child would
 	// never run the destructor)
 	KString sCmd(sProgram); // need non const for split
-	std::vector<char*> argV;
-	splitArgsInPlace(sCmd, argV);
+	std::vector<const char*> argV;
+	kSplitArgsInPlace(argV, sCmd);
+	// terminate with nullptr
+	argV.push_back(nullptr);
 
 	// create a child
 	switch (m_pid = vfork())

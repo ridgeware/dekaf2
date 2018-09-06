@@ -361,7 +361,7 @@ bool KJSON::Add (const KROW& row)
 			// merge KROW elements into current level:
 			for (uint32_t ii=0; ii < row.size(); ++ii)
 			{
-				kDebugLog (1, "{}", row.ColumnInfoForLogOutput(ii));
+				kDebugLog (2, "KJSON::Add: {}", row.ColumnInfoForLogOutput(ii));
 
 				if (row.IsFlag (ii, KROW::NONCOLUMN)) {
 					continue;

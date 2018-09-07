@@ -269,6 +269,7 @@ set (HEADERS
 	dekaf2.h
 	dekaf2all.h
 	kaddrplus.h
+	kallocator.h
 	kassociative.h
 	kbase64.h
 	kbitfields.h

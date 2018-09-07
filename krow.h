@@ -153,6 +153,8 @@ public:
 		m_sTablename =  sTablename;
 	}
 
+	void operator= (const KROW& other);
+
 	template<typename COLTYPE, typename std::enable_if<detail::is_narrow_cpp_str<COLTYPE>::value, int>::type = 0>
 	bool AddCol (KStringView sColName, COLTYPE Value, uint64_t iFlags=0, uint32_t iMaxLen=0)
 	{

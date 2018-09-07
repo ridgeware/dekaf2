@@ -113,4 +113,35 @@ TEST_CASE("KJSON")
 		CHECK ( d == 42.99 );
 	}
 
+	SECTION("LJSON basic ops")
+	{
+		LJSON obj;
+		obj["one"] = 1;
+		obj["two"] = 2;
+		LJSON child;
+		child["duck"] = "donald";
+		child["pig"]  = "porky";
+		LJSON arr1 = LJSON::array();
+		LJSON arr2 = LJSON::array();
+		arr1 += child;
+		obj["three"] = arr1;
+		obj["four"] = arr2;
+	}
+
+	SECTION("KJSON basic ops")
+	{
+		KJSON obj;
+		obj["one"] = 1;
+		obj["two"] = 2;
+		KJSON child;
+		child["duck"] = "donald";
+		child["pig"]  = "porky";
+		KJSON arr1 = KJSON::array();
+		KJSON arr2 = KJSON::array();
+		arr1 += child;
+		obj["three"] = arr1;
+		obj["four"] = arr2;
+	}
+
+
 }

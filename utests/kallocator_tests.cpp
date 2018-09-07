@@ -23,7 +23,12 @@ void* operator new(std::size_t s) noexcept(false)
 	return malloc(s);
 }
 
-void operator delete(void* p) throw()
+void operator delete(void* p) noexcept
+{
+	free(p);
+}
+
+void operator delete(void* p, std::size_t s) noexcept
 {
 	free(p);
 }

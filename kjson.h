@@ -114,6 +114,16 @@ public:
 		return *this;
 	}
 
+	LJSON& ToLJSON()
+	{
+		return *this;
+	}
+
+	const LJSON& ToLJSON() const
+	{
+		return *this;
+	}
+
 	bool        Parse     (KStringView sJSON);
 
 	bool        Parse     (KInStream& InStream);

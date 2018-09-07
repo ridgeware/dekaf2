@@ -291,7 +291,6 @@ set (HEADERS
 	khash.h
 	khmac.h
 	khtmlcontentblocks.h
-	khtmlentities.h
 	khtmlparser.h
 	khttpclient.h
 	khttpinputfilter.h
@@ -352,6 +351,8 @@ set (HEADERS
 	kutf8iterator.h
 	kwords.h
 	kwriter.h
+	# keep this one at the end
+	khtmlentities.h
 	)
 
 set (SOURCES
@@ -379,7 +380,6 @@ set (SOURCES
 	kgetruntimestack.cpp
 	khmac.cpp
 	khtmlcontentblocks.cpp
-	khtmlentities.cpp
 	khtmlparser.cpp
 	khttpclient.cpp
 	khttpinputfilter.cpp
@@ -430,6 +430,8 @@ set (SOURCES
 	kurlencode.cpp
 	kwords.cpp
 	kwriter.cpp
+	# keep this one at the end
+	khtmlentities.cpp
 	)
 
 if (DEKAF2_WITH_COMPATIBILITY_LAYER_TO_DEKAF1)

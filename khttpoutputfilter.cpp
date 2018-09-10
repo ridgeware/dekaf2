@@ -147,7 +147,7 @@ size_t KOutHTTPFilter::Write(KInStream& InStream, size_t len)
 		return 0;
 	}
 
-} // Read
+} // Write
 
 //-----------------------------------------------------------------------------
 size_t KOutHTTPFilter::Write(KStringView sBuffer)
@@ -166,7 +166,7 @@ size_t KOutHTTPFilter::Write(KStringView sBuffer)
 		return 0;
 	}
 
-} // Read
+} // Write
 
 //-----------------------------------------------------------------------------
 bool KOutHTTPFilter::WriteLine(KStringView sBuffer)
@@ -178,7 +178,7 @@ bool KOutHTTPFilter::WriteLine(KStringView sBuffer)
 
 	return Out.Good();
 
-} // ReadLine
+} // WriteLine
 
 //-----------------------------------------------------------------------------
 void KOutHTTPFilter::close()
@@ -197,7 +197,7 @@ void KOutHTTPFilter::close()
 		m_iContentSize = -1;
 	}
 
-} // reset
+} // close
 
 KOutStringStream KOutHTTPFilter::s_Empty;
 

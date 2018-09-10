@@ -52,17 +52,6 @@ constexpr KStringView ESCAPE_MSSQL { "\'"   };
 int32_t  detail::KCommonSQLBase::m_iDebugLevel{2};
 
 //-----------------------------------------------------------------------------
-void KROW::operator=(const KROW& other)
-//-----------------------------------------------------------------------------
-{
-	for (size_t ii=0; ii < other.size(); ++ii)
-	{
-		AddCol (other.GetName(ii), other.GetValue(ii), other.GetFlags(ii), other.MaxLength(ii));
-	}
-
-} // Add
-
-//-----------------------------------------------------------------------------
 KString KROW::ColumnInfoForLogOutput (uint32_t ii) const
 //-----------------------------------------------------------------------------
 {

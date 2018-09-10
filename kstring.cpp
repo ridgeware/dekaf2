@@ -85,7 +85,6 @@ KString& KString::append(const std::string& str, size_type pos, size_type n)
 	DEKAF2_TRY_EXCEPTION
 	m_rep.append(str, pos, n);
 	DEKAF2_LOG_EXCEPTION
-
 	return *this;
 }
 #endif

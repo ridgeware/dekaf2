@@ -270,7 +270,7 @@ KRegex::KRegex(KStringView expression)
 //-----------------------------------------------------------------------------
     : m_Regex(s_Cache.Get(expression))
 {
-	if (!OK())
+	if (!Good())
 	{
 		LogExpError();
 	}
@@ -282,7 +282,7 @@ bool KRegex::Matches(KStringView sStr, Groups& sGroups)
 {
 	sGroups.clear();
 
-	if DEKAF2_LIKELY((OK()))
+	if DEKAF2_LIKELY((Good()))
 	{
 		sGroups.resize(static_cast<size_t>(m_Regex->NumberOfCapturingGroups()+1));
 		return m_Regex->Match(re2::StringPiece(sStr.data(), sStr.size()), 0, sStr.size(), re2::RE2::UNANCHORED, &sGroups[0], static_cast<int>(sGroups.size()));
@@ -325,7 +325,7 @@ size_t KRegex::Replace(std::string& sStr, KStringView sReplaceWith, bool bReplac
 {
 	size_t iCount{0};
 
-	if (OK())
+	if (Good())
 	{
 		if (bReplaceAll)
 		{
@@ -349,7 +349,7 @@ size_t KRegex::Replace(KString& sStr, KStringView sReplaceWith, bool bReplaceAll
 {
 	size_t iCount{0};
 
-	if (OK())
+	if (Good())
 	{
 		if (bReplaceAll)
 		{

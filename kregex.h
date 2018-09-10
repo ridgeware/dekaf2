@@ -174,14 +174,14 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// returns false if the regular expression could not be compiled
-	inline bool OK() const
+	inline bool Good() const
 	//-----------------------------------------------------------------------------
 	{
 		return m_Regex->ok();
 	}
 
 	//-----------------------------------------------------------------------------
-	/// returns error string if !OK()
+	/// returns error string if !Good()
 	inline const std::string& Error() const
 	//-----------------------------------------------------------------------------
 	{
@@ -189,7 +189,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	/// returns erroneous argument if !OK()
+	/// returns erroneous argument if !Good()
 	inline const std::string& ErrorArg() const
 	//-----------------------------------------------------------------------------
 	{

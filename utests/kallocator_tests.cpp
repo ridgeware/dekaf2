@@ -16,6 +16,8 @@ using namespace dekaf2;
 std::size_t memory = 0;
 std::size_t allocations = 0;
 
+#ifdef DEKAF2_NO_GCC
+
 void* operator new(std::size_t s) noexcept(false)
 {
 	memory += s;
@@ -32,6 +34,8 @@ void operator delete(void* p, std::size_t s) noexcept
 {
 	free(p);
 }
+
+#endif
 
 // the CATCH framework extensively calls operator new and delete itself,
 // therefore we need to reset, and make sure we have no CATCH macros in

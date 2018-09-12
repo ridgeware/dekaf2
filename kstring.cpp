@@ -822,6 +822,38 @@ KString& KString::Trim(KStringView sTrim)
 }
 
 //----------------------------------------------------------------------
+KString& KString::Collapse()
+//----------------------------------------------------------------------
+{
+	return kCollapse(*this, " \f\n\r\t\v\b", ' ');
+	return *this;
+}
+
+//----------------------------------------------------------------------
+KString& KString::Collapse(KStringView svCollapse, value_type chTo)
+//----------------------------------------------------------------------
+{
+	kCollapse(*this, svCollapse, chTo);
+	return *this;
+}
+
+//----------------------------------------------------------------------
+KString& KString::CollapseAndTrim()
+//----------------------------------------------------------------------
+{
+	return kCollapseAndTrim(*this, " \f\n\r\t\v\b", ' ');
+	return *this;
+}
+
+//----------------------------------------------------------------------
+KString& KString::CollapseAndTrim(KStringView svCollapse, value_type chTo)
+//----------------------------------------------------------------------
+{
+	kCollapseAndTrim(*this, svCollapse, chTo);
+	return *this;
+}
+
+//----------------------------------------------------------------------
 bool KString::ClipAt(KStringView sClipAt)
 //----------------------------------------------------------------------
 {

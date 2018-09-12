@@ -375,6 +375,112 @@ TEST_CASE("KString") {
 
 	}
 
+	SECTION("KString Collapse")
+	{
+		std::vector<std::vector<KString>> stest
+		{
+			{ "", " \f\n\r\t\v\b", " ", "" },
+			{ " ", " \f\n\r\t\v\b", " ", " " },
+			{ " ", " \f\n\r\t\v\b", "-", "-" },
+			{ "\t \r\n", " \f\n\r\t\v\b", " ", " " },
+			{ "abcde", " \f\n\r\t\v\b", " ", "abcde" },
+			{ " abcde", " \f\n\r\t\v\b", " ", " abcde" },
+			{ "  abcde", " \f\n\r\t\v\b", " ", " abcde" },
+			{ "\t abcde", " \f\n\r\t\v\b", " ", " abcde" },
+			{ "\n\r\t abcde", " \f\n\r\t\v\b", " ", " abcde" },
+			{ "a abcde", " \f\n\r\t\v\b", " ", "a abcde" },
+			{ "a  abcde", " \f\n\r\t\v\b", " ", "a abcde" },
+			{ " a  abcde", " \f\n\r\t\v\b", " ", " a abcde" },
+			{ "  a  abcde", " \f\n\r\t\v\b", " ", " a abcde" },
+			{ "a\t abcde", " \f\n\r\t\v\b", " ", "a abcde" },
+			{ "\na\r\t abcde", " \f\n\r\t\v\b", " ", " a abcde" },
+			{ " abcde ", " \f\n\r\t\v\b", " ", " abcde " },
+			{ "  abcde  ", " \f\n\r\t\v\b", " ", " abcde " },
+			{ "\t abcde \t", " \f\n\r\t\v\b", " ", " abcde " },
+			{ "\n\r\t abcde \t\r\n", " \f\n\r\t\v\b", " ", " abcde " },
+			{ "a abcde a", " \f\n\r\t\v\b", " ", "a abcde a" },
+			{ "a  abcde  a", " \f\n\r\t\v\b", " ", "a abcde a" },
+			{ " a abcde a ", " \f\n\r\t\v\b", " ", " a abcde a " },
+			{ "  a  abcde  a  ", " \f\n\r\t\v\b", " ", " a abcde a " },
+			{ "  a  abcde  a  ", " \f\n\r\t\v\b", "-", "-a-abcde-a-" },
+			{ "a\t abcde \t a", " \f\n\r\t\v\b", " ", "a abcde a" },
+			{ "\na\r\t abcde \t\ra\n", " \f\n\r\t\v\b", " ", " a abcde a " }
+		};
+
+		for (size_t iCount = 0; iCount < stest.size(); ++iCount)
+		{
+			KString sCollapse{ stest[iCount][0] };
+			sCollapse.Collapse(stest[iCount][1], stest[iCount][2][0]);
+			INFO ( std::to_string(iCount) );
+			CHECK( stest[iCount][3] == sCollapse );
+		}
+
+		for (size_t iCount = 0; iCount < stest.size(); ++iCount)
+		{
+			// only take the tests that collapse to space
+			if (stest[iCount][2][0] == ' ')
+			{
+				KString sCollapse{ stest[iCount][0] };
+				sCollapse.Collapse();
+				INFO ( std::to_string(iCount) );
+				CHECK( stest[iCount][3] == sCollapse );
+			}
+		}
+	}
+
+	SECTION("KString CollapseAndTrim")
+	{
+		std::vector<std::vector<KString>> stest
+		{
+			{ "", " \f\n\r\t\v\b", " ", "" },
+			{ " ", " \f\n\r\t\v\b", " ", "" },
+			{ " ", " \f\n\r\t\v\b", "-", "" },
+			{ "\t \r\n", " \f\n\r\t\v\b", " ", "" },
+			{ "abcde", " \f\n\r\t\v\b", " ", "abcde" },
+			{ " abcde", " \f\n\r\t\v\b", " ", "abcde" },
+			{ "  abcde", " \f\n\r\t\v\b", " ", "abcde" },
+			{ "\t abcde", " \f\n\r\t\v\b", " ", "abcde" },
+			{ "\n\r\t abcde", " \f\n\r\t\v\b", " ", "abcde" },
+			{ "a abcde", " \f\n\r\t\v\b", " ", "a abcde" },
+			{ "a  abcde", " \f\n\r\t\v\b", " ", "a abcde" },
+			{ " a  abcde", " \f\n\r\t\v\b", " ", "a abcde" },
+			{ "  a  abcde", " \f\n\r\t\v\b", " ", "a abcde" },
+			{ "a\t abcde", " \f\n\r\t\v\b", " ", "a abcde" },
+			{ "\na\r\t abcde", " \f\n\r\t\v\b", " ", "a abcde" },
+			{ " abcde ", " \f\n\r\t\v\b", " ", "abcde" },
+			{ "  abcde  ", " \f\n\r\t\v\b", " ", "abcde" },
+			{ "\t abcde \t", " \f\n\r\t\v\b", " ", "abcde" },
+			{ "\n\r\t abcde \t\r\n", " \f\n\r\t\v\b", " ", "abcde" },
+			{ "a abcde a", " \f\n\r\t\v\b", " ", "a abcde a" },
+			{ "a  abcde  a", " \f\n\r\t\v\b", " ", "a abcde a" },
+			{ " a abcde a ", " \f\n\r\t\v\b", " ", "a abcde a" },
+			{ "  a  abcde  a  ", " \f\n\r\t\v\b", " ", "a abcde a" },
+			{ "  a  abcde  a  ", " \f\n\r\t\v\b", "-", "a-abcde-a" },
+			{ "a\t abcde \t a", " \f\n\r\t\v\b", " ", "a abcde a" },
+			{ "\na\r\t abcde \t\ra\n", " \f\n\r\t\v\b", " ", "a abcde a" }
+		};
+
+		for (size_t iCount = 0; iCount < stest.size(); ++iCount)
+		{
+			KString sCollapse{ stest[iCount][0] };
+			sCollapse.CollapseAndTrim(stest[iCount][1], stest[iCount][2][0]);
+			INFO ( std::to_string(iCount) );
+			CHECK( stest[iCount][3] == sCollapse );
+		}
+
+		for (size_t iCount = 0; iCount < stest.size(); ++iCount)
+		{
+			// only take the tests that collapse to space
+			if (stest[iCount][2][0] == ' ')
+			{
+				KString sCollapse{ stest[iCount][0] };
+				sCollapse.CollapseAndTrim();
+				INFO ( std::to_string(iCount) );
+				CHECK( stest[iCount][3] == sCollapse );
+			}
+		}
+	}
+
 	SECTION("Regular Expression Replacement")
 	{
 		KString s;

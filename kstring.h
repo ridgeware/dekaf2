@@ -415,6 +415,9 @@ public:
 	/// does the string contain the sPattern?
 	bool Contains(KStringView sPattern) const;
 
+	/// does the string contain the ch?
+	bool Contains(const value_type ch) const;
+
 	/// changes the string to lowercase (UTF8)
 	KString& MakeLower();
 
@@ -474,6 +477,16 @@ public:
 	KString& Trim(value_type chTrim);
 	/// removes any character in sTrim from the left and right of the string
 	KString& Trim(KStringView sTrim);
+
+	/// Collapses multiple white space to one space
+	KString& Collapse();
+	/// Collapses consecutive chars in svCollapse to one instance of chTo
+	KString& Collapse(KStringView svCollapse, value_type chTo);
+
+	/// Collapses multiple white space to one space and trims left and right white space
+	KString& CollapseAndTrim();
+	/// Collapses consecutive chars in svCollapse to one instance of chTo and trims the same chars left and right
+	KString& CollapseAndTrim(KStringView svCollapse, value_type chTo);
 
 	/// Clip removing sClipAt and everything to its right if found; otherwise do not alter the string
 	bool ClipAt(KStringView sClipAt);
@@ -1107,6 +1120,13 @@ inline bool KString::Contains(KStringView sPattern) const
 //-----------------------------------------------------------------------------
 {
 	return kContains(*this, sPattern);
+}
+
+//-----------------------------------------------------------------------------
+inline bool KString::Contains(const KString::value_type ch) const
+//-----------------------------------------------------------------------------
+{
+	return kContains(*this, ch);
 }
 
 //-----------------------------------------------------------------------------

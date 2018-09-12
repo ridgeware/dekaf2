@@ -222,6 +222,81 @@ String& kTrim(String& string)
 }
 
 //-----------------------------------------------------------------------------
+template<class String>
+String& kCollapse(String& string, KStringView svCollapse, typename String::value_type chTo)
+//-----------------------------------------------------------------------------
+{
+	auto it = string.begin();
+	auto ins = it;
+	auto ie = string.end();
+	bool bLastWasFound { false };
+
+	for (;it != ie; ++it)
+	{
+		if (DEKAF2_UNLIKELY(svCollapse.Contains(*it)))
+		{
+			bLastWasFound = true;
+		}
+		else
+		{
+			if (DEKAF2_UNLIKELY(bLastWasFound))
+			{
+				*ins++ = chTo;
+				bLastWasFound = false;
+			}
+
+			*ins++ = std::move(*it);
+		}
+	}
+
+	if (bLastWasFound)
+	{
+		*ins++ = chTo;
+	}
+
+	string.erase(ins, ie);
+
+	return string;
+}
+
+//-----------------------------------------------------------------------------
+template<class String>
+String& kCollapseAndTrim(String& string, KStringView svCollapse, typename String::value_type chTo)
+//-----------------------------------------------------------------------------
+{
+	auto it = string.begin();
+	auto ins = it;
+	auto ie = string.end();
+	bool bLastWasFound { false };
+
+	for (;it != ie; ++it)
+	{
+		if (DEKAF2_UNLIKELY(svCollapse.Contains(*it)))
+		{
+			if (ins != string.begin())
+			{
+				// we already had non-trim chars
+				bLastWasFound = true;
+			}
+		}
+		else
+		{
+			if (DEKAF2_UNLIKELY(bLastWasFound))
+			{
+				*ins++ = chTo;
+				bLastWasFound = false;
+			}
+
+			*ins++ = std::move(*it);
+		}
+	}
+
+	string.erase(ins, ie);
+
+	return string;
+}
+
+//-----------------------------------------------------------------------------
 KString kFormTimestamp (time_t tTime = 0, const char* pszFormat = "%Y-%m-%d %H:%M:%S");
 //-----------------------------------------------------------------------------
 

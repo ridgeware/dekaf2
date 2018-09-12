@@ -170,6 +170,10 @@ bool kEndsWith(KStringView sInput, KStringView sPattern);
 bool kContains(KStringView sInput, KStringView sPattern);
 //----------------------------------------------------------------------
 
+//----------------------------------------------------------------------
+bool kContains(KStringView sInput, const char ch);
+//----------------------------------------------------------------------
+
 // forward declarations
 class KString;
 class KStringViewZ;
@@ -633,7 +637,7 @@ public:
 	//-----------------------------------------------------------------------------
 	// nonstandard
 	constexpr
-	bool StartsWith(self_type other)
+	bool StartsWith(self_type other) const
 	//-----------------------------------------------------------------------------
 	{
 		return kStartsWith(*this, other);
@@ -642,7 +646,7 @@ public:
 	//-----------------------------------------------------------------------------
 	// nonstandard
 	constexpr
-	bool EndsWith(self_type other)
+	bool EndsWith(self_type other) const
 	//-----------------------------------------------------------------------------
 	{
 		return kEndsWith(*this, other);
@@ -650,7 +654,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	// nonstandard
-	bool Contains(self_type other)
+	bool Contains(self_type other) const
 	//-----------------------------------------------------------------------------
 	{
 		return kContains(*this, other);
@@ -658,22 +662,30 @@ public:
 
 	//-----------------------------------------------------------------------------
 	// nonstandard
-	KString ToUpper();
+	bool Contains(value_type ch) const
+	//-----------------------------------------------------------------------------
+	{
+		return kContains(*this, ch);
+	}
+
+	//-----------------------------------------------------------------------------
+	// nonstandard
+	KString ToUpper() const;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	// nonstandard
-	KString ToLower();
+	KString ToLower() const;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	// nonstandard
-	KString ToUpperLocale();
+	KString ToUpperLocale() const;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	// nonstandard
-	KString ToLowerLocale();
+	KString ToLowerLocale() const;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -1325,6 +1337,20 @@ bool kContains(KStringView sInput, KStringView sPattern)
 
 } // kContains
 
+//----------------------------------------------------------------------
+inline
+bool kContains(KStringView sInput, const char ch)
+//----------------------------------------------------------------------
+{
+	if (DEKAF2_UNLIKELY(sInput.empty()))
+	{
+		return false;
+	}
+
+	return kFind(sInput, ch) != KStringView::npos;
+
+} // kContains
+
 inline namespace literals {
 
 	/// provide a string literal for KStringView
@@ -1436,7 +1462,7 @@ KStringView& KStringView::operator=(const KString& other)
 
 //-----------------------------------------------------------------------------
 inline
-KString KStringView::ToUpper()
+KString KStringView::ToUpper() const
 //-----------------------------------------------------------------------------
 {
 	return kToUpper(*this);
@@ -1444,7 +1470,7 @@ KString KStringView::ToUpper()
 
 //-----------------------------------------------------------------------------
 inline
-KString KStringView::ToLower()
+KString KStringView::ToLower() const
 //-----------------------------------------------------------------------------
 {
 	return kToLower(*this);
@@ -1452,7 +1478,7 @@ KString KStringView::ToLower()
 
 //-----------------------------------------------------------------------------
 inline
-KString KStringView::ToUpperLocale()
+KString KStringView::ToUpperLocale() const
 //-----------------------------------------------------------------------------
 {
 	return kToUpperLocale(*this);
@@ -1460,7 +1486,7 @@ KString KStringView::ToUpperLocale()
 
 //-----------------------------------------------------------------------------
 inline
-KString KStringView::ToLowerLocale()
+KString KStringView::ToLowerLocale() const
 //-----------------------------------------------------------------------------
 {
 	return kToLowerLocale(*this);

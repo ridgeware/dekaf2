@@ -374,6 +374,10 @@ KMIMEDirectory::KMIMEDirectory(KStringViewZ sPathname)
 	{
 		// get all regular files
 		KDirectory Dir(sPathname, KDirectory::EntryType::REGULAR);
+
+		// remove the manifest if existing, we do not want to send it
+		Dir.WildCardMatch("manifest.ini", true);
+
 		if (Dir.WildCardMatch("index.html", true))
 		{
 			// we have an index.html

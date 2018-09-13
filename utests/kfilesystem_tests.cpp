@@ -107,7 +107,7 @@ TEST_CASE("KFilesystem") {
 		Dir.RemoveHidden();
 		CHECK ( Dir.size() == 2 );
 		CHECK ( Dir.Match(".*\\.test") == 1 );
-		CHECK ( Dir.Match(".*\\.test", true) == 0 );
+		CHECK ( Dir.Match(".*\\.test", true) == 1 );
 		CHECK ( Dir.empty() == true );
 		CHECK ( Dir.Open(sDirectory, KDirectory::EntryType::REGULAR) == 2 );
 		CHECK ( Dir.size() == 2 );
@@ -116,7 +116,7 @@ TEST_CASE("KFilesystem") {
 		CHECK ( Dir.Find("KFi*ystem.t?st") == true );
 		CHECK ( Dir.WildCardMatch("KFilesystem.test") == 1 );
 		CHECK ( Dir.WildCardMatch("*.t?st") == 1 );
-		CHECK ( Dir.WildCardMatch("*.t?st", true) == 0 );
+		CHECK ( Dir.WildCardMatch("*.t?st", true) == 1 );
 		CHECK ( Dir.empty() == true );
 	}
 

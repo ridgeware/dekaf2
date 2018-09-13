@@ -738,16 +738,23 @@ void KDirectory::RemoveHidden()
 size_t KDirectory::Match(EntryType Type, bool bRemoveMatches)
 //-----------------------------------------------------------------------------
 {
+	size_t iMatched { 0 };
+
 	// erase-remove idiom..
 	m_DirEntries.erase(std::remove_if(m_DirEntries.begin(),
 									  m_DirEntries.end(),
-									  [Type, bRemoveMatches](const DirEntries::value_type& elem)
+									  [&iMatched, Type, bRemoveMatches](const DirEntries::value_type& elem)
 									  {
-										  return bRemoveMatches == (elem.Type() == Type);
+										  bool bMatches = (elem.Type() == Type);
+										  if (bMatches)
+										  {
+											  ++iMatched;
+										  }
+										  return bRemoveMatches == bMatches;
 									  }),
 					   m_DirEntries.end());
 
-	return size();
+	return iMatched;
 
 } // Match
 
@@ -757,16 +764,23 @@ size_t KDirectory::Match(KStringView sRegex, bool bRemoveMatches)
 {
 	KRegex Regex(sRegex);
 
+	size_t iMatched { 0 };
+
 	// erase-remove idiom..
 	m_DirEntries.erase(std::remove_if(m_DirEntries.begin(),
                                       m_DirEntries.end(),
-                                      [&Regex, bRemoveMatches](const DirEntries::value_type& elem)
+                                      [&Regex, &iMatched, bRemoveMatches](const DirEntries::value_type& elem)
                                       {
-										  return bRemoveMatches == Regex.Matches(KStringView(elem.Filename()));
+										  bool bMatches = Regex.Matches(KStringView(elem.Filename()));
+										  if (bMatches)
+										  {
+											  ++iMatched;
+										  }
+										  return bRemoveMatches == bMatches;
                                       }),
                        m_DirEntries.end());
 
-	return size();
+	return iMatched;
 
 } // Match
 

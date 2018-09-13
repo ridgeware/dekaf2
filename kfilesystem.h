@@ -266,13 +266,13 @@ public:
 	/// remove all hidden files, that is, files that start with a dot
 	void RemoveHidden();
 
-	/// match or remove all files that have EntryType Type from the list
+	/// match or remove all files that have EntryType Type from the list, returns count of matched entries
 	size_t Match(EntryType Type, bool bRemoveMatches = false);
 
-	/// match or remove all files that match the regular expression sRegex from the list
+	/// match or remove all files that match the regular expression sRegex from the list, returns count of matched entries
 	size_t Match(KStringView sRegex, bool bRemoveMatches = false);
 
-	/// match or remove all files that match the basic regular expression sWildCard from the list
+	/// match or remove all files that match the basic regular expression sWildCard from the list, returns count of matched entries
 	size_t WildCardMatch(KStringView sWildCard, bool bRemoveMatches = false);
 
 	/// returns true if the directory list contains sWildCard, wildcard matching is supported

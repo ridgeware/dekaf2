@@ -999,6 +999,7 @@ bool KHTMLParser::Parse(KInStream& InStream)
 
 			if (DEKAF2_UNLIKELY(ch == std::iostream::traits_type::eof()))
 			{
+				Invalid('<');
 				return false;
 			}
 			else if (DEKAF2_UNLIKELY(ch == '!'))

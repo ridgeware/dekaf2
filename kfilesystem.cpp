@@ -779,7 +779,7 @@ size_t KDirectory::WildCardMatch(KStringView sWildCard, bool bRemoveMatches)
 } // WildCardMatch
 
 //-----------------------------------------------------------------------------
-bool KDirectory::Find(KStringView sWildCard)
+bool KDirectory::Find(KStringView sWildCard) const
 //-----------------------------------------------------------------------------
 {
 	KRegex Regex(kWildCard2Regex(sWildCard));

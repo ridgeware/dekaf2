@@ -276,7 +276,13 @@ public:
 	size_t WildCardMatch(KStringView sWildCard, bool bRemoveMatches = false);
 
 	/// returns true if the directory list contains sWildCard, wildcard matching is supported
-	bool Find(KStringView sWildCard);
+	bool Find(KStringView sWildCard) const;
+
+	/// returns true if the directory list contains sWildCard, wildcard matching is supported
+	bool Contains(KStringView sWildCard) const
+	{
+		return Find(sWildCard);
+	}
 
 	/// sort the directory list
 	void Sort();

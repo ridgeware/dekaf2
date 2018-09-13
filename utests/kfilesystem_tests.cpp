@@ -101,7 +101,7 @@ TEST_CASE("KFilesystem") {
 		KDirectory Dir(sDirectory);
 		CHECK ( Dir.size() == 2 );
 		CHECK ( Dir.Match( KDirectory::EntryType::REGULAR) == 2);
-		CHECK ( Dir.Match( KDirectory::EntryType::REGULAR, true) == 0);
+		CHECK ( Dir.Match( KDirectory::EntryType::REGULAR, true) == 2);
 		CHECK ( Dir.empty() == true );
 		CHECK ( Dir.Open(sDirectory) == 2 );
 		Dir.RemoveHidden();

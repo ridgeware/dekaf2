@@ -74,6 +74,9 @@ public:
 	bool empty() const;
 	size_t size() const;
 	void clear();
+	const_iterator begin() const { return m_RepMap.begin(); }
+	const_iterator end() const { return m_RepMap.end(); }
+	const_iterator find(KStringView sKey) const { return m_RepMap.find(sKey); }
 
 	bool insert(KStringView sSearch, KStringView sReplace);
 	bool erase(KStringView sSearch);

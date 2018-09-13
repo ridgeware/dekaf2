@@ -168,7 +168,7 @@ KMail& KMail::LoadBodyFrom(KStringViewZ sPath)
 } // LoadBodyFrom
 
 //-----------------------------------------------------------------------------
-KMail& KMail::ReadManifestFrom(KStringViewZ sPath)
+KMail& KMail::LoadManifestFrom(KStringViewZ sPath)
 //-----------------------------------------------------------------------------
 {
 	KHTTPHeaders Manifest;

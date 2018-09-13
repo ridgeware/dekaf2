@@ -146,12 +146,21 @@ public:
 	/// Read a manifest.ini file or try to load the manifest from an index.html/.txt
 	/// in the folder sPath, and set or add key/values to the Replacer. If sPath is a
 	/// regular file, try to read the key/values from the head of it
-	KMail& ReadManifestFrom(KStringViewZ sPath);
+	KMail& LoadManifestFrom(KStringViewZ sPath);
 
 	/// Read manifest and body in one call
-	KMail& ReadManifestAndBodyFrom(KStringViewZ sPath)
+	KMail& LoadManifestAndBodyFrom(KStringViewZ sPath)
 	{
-		return ReadManifestFrom(sPath).LoadBodyFrom(sPath);
+		return LoadManifestFrom(sPath).LoadBodyFrom(sPath);
+	}
+
+	/// Read manifest and body in one call, compose path from sBasePath and sName
+	KMail& LoadManifestAndBodyFrom(KStringView sBasePath, KStringView sName)
+	{
+		KString sPath { sBasePath };
+		sPath += '/';
+		sPath += sName;
+		return LoadManifestAndBodyFrom(sPath);
 	}
 
 	/// Add a KReplacer to substitute text in all text/* parts of the mail

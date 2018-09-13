@@ -41,6 +41,8 @@
 
 #include "kmail.h"
 #include "ksmtp.h"
+#include "khttp_header.h"
+#include "kreader.h"
 #include "klog.h"
 
 namespace dekaf2 {
@@ -164,6 +166,107 @@ KMail& KMail::LoadBodyFrom(KStringViewZ sPath)
 	}
 
 } // LoadBodyFrom
+
+//-----------------------------------------------------------------------------
+KMail& KMail::ReadManifestFrom(KStringViewZ sPath)
+//-----------------------------------------------------------------------------
+{
+	KHTTPHeaders Manifest;
+	KString sManifestFileName = sPath;
+
+	if (kDirExists(sPath))
+	{
+		KDirectory Dir(sPath);
+
+		sManifestFileName += '/';
+
+		if (Dir.Contains("manifest.ini"))
+		{
+			sManifestFileName += "manifest.ini";
+		}
+		else if (Dir.Contains("index.html"))
+		{
+			sManifestFileName += "index.html";
+		}
+		else if (Dir.Contains("index.txt"))
+		{
+			sManifestFileName += "index.txt";
+		}
+		else
+		{
+			m_sError = kFormat("cannot find manifest in directory '{}'", sPath);
+			return *this;
+		}
+	}
+	else if (!kFileExists(sPath))
+	{
+		m_sError = kFormat("file '{}' does not exist", sPath);
+		return *this;
+	}
+
+	KInFile fManifest(sManifestFileName);
+	Manifest.Parse(fManifest);
+
+	if (Manifest.Headers.empty())
+	{
+		m_sError = kFormat("cannot find manifest in file '{}'", sManifestFileName);
+		return *this;
+	}
+
+	// check if we already have a KReplacer instance attached:
+	if (!m_Replacer)
+	{
+		// no, create one with "{{" / "}}" prefix / suffix
+		m_Replacer = std::make_shared<KVariables>();
+	}
+
+	// add all found key / values
+	m_Replacer->insert(Manifest.Headers);
+
+	// and set hardcoded ones
+	for (auto& it : *m_Replacer)
+	{
+		if (it.first == "FROM")
+		{
+			From(it.second);
+		}
+		else if (it.first == "TO")
+		{
+			To(it.second);
+		}
+		else if (it.first == "CC")
+		{
+			Cc(it.second);
+		}
+		else if (it.first == "BCC")
+		{
+			Bcc(it.second);
+		}
+		else if (it.first == "SUBJECT")
+		{
+			Subject(it.second);
+		}
+	}
+
+	return *this;
+
+} // LoadManifestFrom
+
+//-----------------------------------------------------------------------------
+void KMail::AddReplaceVar(KStringView sKey, KStringView sValue)
+//-----------------------------------------------------------------------------
+{
+	// check if we already have a KReplacer instance attached:
+	if (!m_Replacer)
+	{
+		// no, create one with "{{" / "}}" prefix / suffix
+		m_Replacer = std::make_shared<KVariables>();
+	}
+
+	// add key / value
+	m_Replacer->insert(sKey, sValue);
+
+} // AddReplaceVar
 
 //-----------------------------------------------------------------------------
 bool KMail::Attach(KStringView sFilename, KMIME MIME)

@@ -46,8 +46,6 @@
 #include "kstringview.h"
 #include "kurl.h"
 #include "kmime.h"
-#include <map>
-#include <vector>
 
 /// @file kmail.h
 /// Adds the KMail class to represent an email to be sent
@@ -145,6 +143,17 @@ public:
 	/// type deduced from the file extension. This voids any previously set content.
 	KMail& LoadBodyFrom(KStringViewZ sPath);
 
+	/// Read a manifest.ini file or try to load the manifest from an index.html/.txt
+	/// in the folder sPath, and set or add key/values to the Replacer. If sPath is a
+	/// regular file, try to read the key/values from the head of it
+	KMail& ReadManifestFrom(KStringViewZ sPath);
+
+	/// Read manifest and body in one call
+	KMail& ReadManifestAndBodyFrom(KStringViewZ sPath)
+	{
+		return ReadManifestFrom(sPath).LoadBodyFrom(sPath);
+	}
+
 	/// Add a KReplacer to substitute text in all text/* parts of the mail
 	void VariableReplacer(std::shared_ptr<KReplacer> Replacer)
 	{
@@ -156,6 +165,9 @@ public:
 	{
 		m_Replacer = std::make_shared<KReplacer>(Replacer);
 	}
+
+	/// Add a key/value pair to substitute text in all text/* parts of the mail
+	void AddReplaceVar(KStringView sKey, KStringView sValue);
 
 	/// Attach a file, automatically creating a multipart structure if not yet
 	/// set

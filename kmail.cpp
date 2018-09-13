@@ -226,23 +226,23 @@ KMail& KMail::LoadManifestFrom(KStringViewZ sPath)
 	// and set hardcoded ones
 	for (auto& it : *m_Replacer)
 	{
-		if (it.first == "FROM")
+		if (it.first == "{{FROM}}")
 		{
 			From(it.second);
 		}
-		else if (it.first == "TO")
+		else if (it.first == "{{TO}}")
 		{
 			To(it.second);
 		}
-		else if (it.first == "CC")
+		else if (it.first == "{{CC}}")
 		{
 			Cc(it.second);
 		}
-		else if (it.first == "BCC")
+		else if (it.first == "{{BCC}}")
 		{
 			Bcc(it.second);
 		}
-		else if (it.first == "SUBJECT")
+		else if (it.first == "{{SUBJECT}}")
 		{
 			Subject(it.second);
 		}
@@ -311,6 +311,11 @@ void KMail::Add(map_t& map, KStringView Key, KStringView Value)
 bool KMail::Good() const
 //-----------------------------------------------------------------------------
 {
+	if (!m_sError.empty())
+	{
+		return false;
+	}
+	
 	if (m_To.empty())
 	{
 		m_sError = "missing To address";

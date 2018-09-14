@@ -106,6 +106,33 @@ KString kGetCWD ()
 } // kGetCWD
 
 //-----------------------------------------------------------------------------
+KString kGetHome()
+//-----------------------------------------------------------------------------
+{
+	// HOME var is always the authoritative source for the home directory
+	KString sHome = kGetEnv("HOME");
+
+	if (sHome.empty())
+	{
+		// only if it is empty check getpwuid()
+		auto ent = getpwuid(geteuid());
+
+		if (ent)
+		{
+			sHome = ent->pw_dir;
+		}
+
+		if (sHome.empty())
+		{
+			kWarning("cannot get home directory");
+		}
+	}
+
+	return sHome;
+
+} // kGetHome
+
+//-----------------------------------------------------------------------------
 KString kGetWhoAmI ()
 //-----------------------------------------------------------------------------
 {

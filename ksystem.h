@@ -104,6 +104,9 @@ KString kGetCWD ();
 /// alias to kGetCWD(): return operating system current working directory as a string.
 inline KString kcwd () { return kGetCWD(); }
 
+/// Return user's home directory
+KString kGetHome();
+
 /// Return current operating system user as a string.
 KString kGetWhoAmI ();
 

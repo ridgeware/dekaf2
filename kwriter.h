@@ -1,5 +1,4 @@
 /*
-//-----------------------------------------------------------------------------//
 //
 // DEKAF(tm): Lighter, Faster, Smarter (tm)
 //
@@ -107,18 +106,19 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// Write a character. Returns stream reference that resolves to false on failure
+	/// Write a character. Returns stream reference that resolves to false on failure.
 	self_type& Write(KStringView::value_type ch);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// Write a range of characters. Returns stream reference that resolves to false on failure
+	/// Write a range of characters. Returns stream reference that resolves to false
+	/// on failure.
 	self_type& Write(const void* pAddress, size_t iCount);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// Write a string. Returns stream reference that resolves to false on failure
-	inline self_type& Write(KStringView str)
+	/// Write a string. Returns stream reference that resolves to false on failure.
+	self_type& Write(KStringView str)
 	//-----------------------------------------------------------------------------
 	{
 		Write(str.data(), str.size());
@@ -126,19 +126,20 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	/// Read a range of characters and append to Stream. Returns count of successfully read charcters.
+	/// Read a range of characters and append to Stream. Returns stream reference
+	/// that resolves to false on failure.
 	self_type& Write(KInStream& Stream, size_t iCount);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	inline self_type& operator+=(KStringView::value_type ch)
+	self_type& operator+=(KStringView::value_type ch)
 	//-----------------------------------------------------------------------------
 	{
 		return Write(ch);
 	}
 
 	//-----------------------------------------------------------------------------
-	inline self_type& operator+=(KStringView sv)
+	self_type& operator+=(KStringView sv)
 	//-----------------------------------------------------------------------------
 	{
 		return Write(sv);
@@ -147,7 +148,7 @@ public:
 	//-----------------------------------------------------------------------------
 	/// Write a line delimiter. Returns stream reference that resolves
 	/// to false on failure.
-	inline self_type& WriteLine()
+	self_type& WriteLine()
 	//-----------------------------------------------------------------------------
 	{
 		Write(m_sDelimiter.data(), m_sDelimiter.size());
@@ -157,7 +158,7 @@ public:
 	//-----------------------------------------------------------------------------
 	/// Write a string and a line delimiter. Returns stream reference that resolves
 	/// to false on failure.
-	inline self_type& WriteLine(KStringView line)
+	self_type& WriteLine(KStringView line)
 	//-----------------------------------------------------------------------------
 	{
 		Write(line.data(), line.size());
@@ -168,7 +169,7 @@ public:
 	/// Write a fmt::format() formatted argument list. Returns stream reference that
 	/// resolves to false on failure.
 	template<class... Args>
-	inline self_type& Format(Args&&... args)
+	self_type& Format(Args&&... args)
 	//-----------------------------------------------------------------------------
 	{
 		kfFormat(*this, std::forward<Args>(args)...);
@@ -179,7 +180,7 @@ public:
 	/// Write a fmt::format() formatted argument list. Returns stream reference that
 	/// resolves to false on failure.
 	template<class... Args>
-	inline self_type& FormatLine(Args&&... args)
+	self_type& FormatLine(Args&&... args)
 	//-----------------------------------------------------------------------------
 	{
 		kfFormat(*this, std::forward<Args>(args)...);
@@ -199,7 +200,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Set the end-of-line sequence (defaults to "LF", may differ depending on platform)
-	inline self_type& SetWriterEndOfLine(KStringView sDelimiter = "\n")
+	self_type& SetWriterEndOfLine(KStringView sDelimiter = "\n")
 	//-----------------------------------------------------------------------------
 	{
 		m_sDelimiter = sDelimiter;
@@ -334,43 +335,50 @@ public:
 	using base_type = KWriter<std::ofstream>;
 
 	//-----------------------------------------------------------------------------
-	// semi-perfect forwarding - currently needed as std::ostream does not
-	// support KStrings as arguments
-	template<class... Args>
-	KOutFile(KString str, Args&&... args)
-	: base_type(str.c_str(), std::forward<Args>(args)...)
+	KOutFile(KString str, ios_base::openmode mode = ios_base::out)
+	: base_type(str.c_str(), mode)
 	//-----------------------------------------------------------------------------
 	{
 	}
 
 	//-----------------------------------------------------------------------------
-	// semi-perfect forwarding - currently needed as std::ostream does not yet
-	// support string_views as arguments
-	template<class... Args>
-	KOutFile(KStringViewZ sz, Args&&... args)
-	: KOutFile(sz.c_str(), std::forward<Args>(args)...)
+	KOutFile(KStringViewZ sz, ios_base::openmode mode = ios_base::out)
+	: base_type(sz.c_str(), mode)
 	//-----------------------------------------------------------------------------
 	{
 	}
 
 	//-----------------------------------------------------------------------------
-	// semi-perfect forwarding - currently needed as std::ostream does not yet
-	// support string_views as arguments
-	template<class... Args>
-	KOutFile(KStringView sv, Args&&... args)
-	: KOutFile(KString(sv), std::forward<Args>(args)...)
+	KOutFile(KStringView sv, ios_base::openmode mode = ios_base::out)
+	: KOutFile(KString(sv), mode)
 	//-----------------------------------------------------------------------------
 	{
 	}
 
+	using base_type::base_type;
+
 	//-----------------------------------------------------------------------------
-	// perfect forwarding
-	template<class... Args>
-	KOutFile(Args&&... args)
-	: base_type(std::forward<Args>(args)...)
+	void open(const KString& str, ios_base::openmode mode = ios_base::out)
 	//-----------------------------------------------------------------------------
 	{
+		base_type::open(str.c_str(), mode);
 	}
+
+	//-----------------------------------------------------------------------------
+	void open(const KStringViewZ sz, ios_base::openmode mode = ios_base::out)
+	//-----------------------------------------------------------------------------
+	{
+		base_type::open(sz.c_str(), mode);
+	}
+
+	//-----------------------------------------------------------------------------
+	void open(const KStringView sv, ios_base::openmode mode = ios_base::out)
+	//-----------------------------------------------------------------------------
+	{
+		open(KString(sv), mode);
+	}
+
+	using base_type::open;
 
 };
 

@@ -1,5 +1,4 @@
 /*
-//-----------------------------------------------------------------------------//
 //
 // DEKAF(tm): Lighter, Faster, Smarter (tm)
 //
@@ -261,7 +260,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Read a character. Returns std::istream::traits_type::eof() (== -1) if no input available
-	typename std::istream::int_type Read();
+	std::istream::int_type Read();
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -271,7 +270,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Read a character. Returns stream reference that resolves to false if no input available
-	inline self_type& Read(KString::value_type& ch)
+	self_type& Read(KString::value_type& ch)
 	//-----------------------------------------------------------------------------
 	{
 		ch = std::istream::traits_type::to_char_type(Read());
@@ -302,7 +301,7 @@ public:
 	/// Please note that this method does _not_ return the stream reference,
 	/// but a boolean. std::istreams would not read a file with a missing newline
 	/// at the end successfully, but report an error. This function succeeds.
-	inline bool ReadLine(KString& sLine)
+	bool ReadLine(KString& sLine)
 	//-----------------------------------------------------------------------------
 	{
 		return kReadLine(InStream(), sLine, m_sTrimRight, m_sTrimLeft, m_chDelimiter);
@@ -311,7 +310,7 @@ public:
 	//-----------------------------------------------------------------------------
 	/// Returns the complete content of a file in a string. Returns false if no input
 	/// available. Fails on non-seekable inputs, e.g. streams.
-	inline bool ReadAll(KString& sBuffer)
+	bool ReadAll(KString& sBuffer)
 	//-----------------------------------------------------------------------------
 	{
 		return kReadAll(InStream(), sBuffer, true);
@@ -320,7 +319,7 @@ public:
 	//-----------------------------------------------------------------------------
 	/// Returns the remaining content of a file in a string. Returns false if no input
 	/// available. Does not fail on non-seekable inputs, but tries to read the utmost.
-	inline bool ReadRemaining(KString& sBuffer)
+	bool ReadRemaining(KString& sBuffer)
 	//-----------------------------------------------------------------------------
 	{
 		return kReadAll(InStream(), sBuffer, false);
@@ -328,7 +327,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Alias for ReadAll
-	inline bool GetContent(KString& sBuffer)
+	bool GetContent(KString& sBuffer)
 	//-----------------------------------------------------------------------------
 	{
 		return ReadAll(sBuffer);
@@ -337,7 +336,7 @@ public:
 	//-----------------------------------------------------------------------------
 	/// Returns the size of a file. Returns 0 if no input available. Fails on
 	/// non-seekable inputs, e.g. streams.
-	inline size_t GetSize()
+	size_t GetSize()
 	//-----------------------------------------------------------------------------
 	{
 		std::streamsize iSize = kGetSize(InStream(), true);
@@ -354,7 +353,7 @@ public:
 	//-----------------------------------------------------------------------------
 	/// Returns the remaining size of a file. Returns 0 if no input available.
 	/// Fails on non-seekable inputs, e.g. streams.
-	inline size_t GetRemainingSize()
+	size_t GetRemainingSize()
 	//-----------------------------------------------------------------------------
 	{
 		std::streamsize iSize = kGetSize(InStream(), false);
@@ -373,7 +372,7 @@ public:
 	/// specified trimming includes the end-of-line delimiter, returns an empty
 	/// string for both an empty line and unavailable input. In that case call
 	/// eof() on the istream to distinguish between both cases.
-	inline operator KString()
+	operator KString()
 	//-----------------------------------------------------------------------------
 	{
 		KString sStr;
@@ -383,7 +382,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Reposition the input device of the std::istream to the beginning. Fails on streams.
-	inline bool Rewind()
+	bool Rewind()
 	//-----------------------------------------------------------------------------
 	{
 		return kRewind(InStream());
@@ -391,7 +390,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Returns a const_iterator to the current read position in a stream
-	inline const_iterator cbegin()
+	const_iterator cbegin()
 	//-----------------------------------------------------------------------------
 	{
 		return const_iterator(*this, false);
@@ -400,7 +399,7 @@ public:
 	//-----------------------------------------------------------------------------
 	/// Returns a const_iterator that is equal to an iterator that has reached the
 	/// end of a stream
-	inline const_iterator cend()
+	const_iterator cend()
 	//-----------------------------------------------------------------------------
 	{
 		return const_iterator(*this, true);
@@ -408,7 +407,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Returns a const_iterator to the current read position in a stream
-	inline const_iterator begin()
+	const_iterator begin()
 	//-----------------------------------------------------------------------------
 	{
 		return cbegin();
@@ -417,7 +416,7 @@ public:
 	//-----------------------------------------------------------------------------
 	/// Returns a const_iterator that is equal to an iterator that has reached the
 	/// end of a stream
-	inline const_iterator end()
+	const_iterator end()
 	//-----------------------------------------------------------------------------
 	{
 		return cend();
@@ -425,7 +424,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Returns a char iterator to the current read position in a stream
-	inline char_iterator char_begin()
+	char_iterator char_begin()
 	//-----------------------------------------------------------------------------
 	{
 		return char_iterator(InStream());
@@ -434,7 +433,7 @@ public:
 	//-----------------------------------------------------------------------------
 	/// Returns a char iterator that is equal to an iterator that has reached the
 	/// end of a stream
-	inline char_iterator char_end()
+	char_iterator char_end()
 	//-----------------------------------------------------------------------------
 	{
 		return char_iterator();
@@ -442,7 +441,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Set the end-of-line character (defaults to LF)
-	inline void SetReaderEndOfLine(char chDelimiter = '\n')
+	void SetReaderEndOfLine(char chDelimiter = '\n')
 	//-----------------------------------------------------------------------------
 	{
 		m_chDelimiter = chDelimiter;
@@ -450,7 +449,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Set the left trim characters for line based reading (default to none)
-	inline void SetReaderLeftTrim(KStringView sTrimLeft = "")
+	void SetReaderLeftTrim(KStringView sTrimLeft = "")
 	//-----------------------------------------------------------------------------
 	{
 		m_sTrimLeft  = sTrimLeft;
@@ -458,7 +457,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Set the right trim characters for line based reading (default to LF)
-	inline void SetReaderRightTrim(KStringView sTrimRight = "\n")
+	void SetReaderRightTrim(KStringView sTrimRight = "\n")
 	//-----------------------------------------------------------------------------
 	{
 		m_sTrimRight = sTrimRight;
@@ -466,7 +465,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Set the right and left trim characters for line based reading (default to LF for right, none for left)
-	inline void SetReaderTrim(KStringView sTrimRight = "\n", KStringView sTrimLeft = "")
+	void SetReaderTrim(KStringView sTrimRight = "\n", KStringView sTrimLeft = "")
 	//-----------------------------------------------------------------------------
 	{
 		SetReaderRightTrim(sTrimRight);
@@ -475,7 +474,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Get the std::istream
-	inline const std::istream& InStream() const
+	const std::istream& InStream() const
 	//-----------------------------------------------------------------------------
 	{
 		return *m_InStream;
@@ -483,7 +482,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Get the std::istream
-	inline std::istream& InStream()
+	std::istream& InStream()
 	//-----------------------------------------------------------------------------
 	{
 		return *m_InStream;
@@ -491,7 +490,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Get the std::istream
-	inline operator const std::istream& () const
+	operator const std::istream& () const
 	//-----------------------------------------------------------------------------
 	{
 		return InStream();
@@ -499,7 +498,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Get the std::istream
-	inline operator std::istream& ()
+	operator std::istream& ()
 	//-----------------------------------------------------------------------------
 	{
 		return InStream();
@@ -603,43 +602,50 @@ public:
 	using base_type = KReader<std::ifstream>;
 
 	//-----------------------------------------------------------------------------
-	// semi-perfect forwarding - currently needed as std::istream does not
-	// support KStrings as arguments
-	template<class... Args>
-	KInFile(KString str, Args&&... args)
-	: base_type(str.c_str(), std::forward<Args>(args)...)
+	KInFile(KString str, ios_base::openmode mode = ios_base::in)
+	: base_type(str.c_str(), mode)
 	//-----------------------------------------------------------------------------
 	{
 	}
 
 	//-----------------------------------------------------------------------------
-	// semi-perfect forwarding - currently needed as std::istream does not yet
-	// support string_views as arguments
-	template<class... Args>
-	KInFile(KStringViewZ sz, Args&&... args)
-	: KInFile(sz.c_str(), std::forward<Args>(args)...)
+	KInFile(KStringViewZ sz, ios_base::openmode mode = ios_base::in)
+	: base_type(sz.c_str(), mode)
 	//-----------------------------------------------------------------------------
 	{
 	}
 
 	//-----------------------------------------------------------------------------
-	// semi-perfect forwarding - currently needed as std::istream does not yet
-	// support string_views as arguments
-	template<class... Args>
-	KInFile(KStringView sv, Args&&... args)
-	: KInFile(KString(sv), std::forward<Args>(args)...)
+	KInFile(KStringView sv, ios_base::openmode mode = ios_base::in)
+	: KInFile(KString(sv), mode)
 	//-----------------------------------------------------------------------------
 	{
 	}
 
+	using base_type::base_type;
+
 	//-----------------------------------------------------------------------------
-	// perfect forwarding
-	template<class... Args>
-	KInFile(Args&&... args)
-	: base_type(std::forward<Args>(args)...)
+	void open(const KString& str, ios_base::openmode mode = ios_base::in)
 	//-----------------------------------------------------------------------------
 	{
+		base_type::open(str.c_str(), mode);
 	}
+
+	//-----------------------------------------------------------------------------
+	void open(const KStringViewZ sz, ios_base::openmode mode = ios_base::in)
+	//-----------------------------------------------------------------------------
+	{
+		base_type::open(sz.c_str(), mode);
+	}
+
+	//-----------------------------------------------------------------------------
+	void open(const KStringView sv, ios_base::openmode mode = ios_base::in)
+	//-----------------------------------------------------------------------------
+	{
+		open(KString(sv), mode);
+	}
+
+	using base_type::open;
 
 };
 

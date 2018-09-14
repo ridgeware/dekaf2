@@ -1,5 +1,4 @@
 /*
-//-----------------------------------------------------------------------------//
 //
 // DEKAF(tm): Lighter, Faster, Smarter (tm)
 //
@@ -112,8 +111,8 @@ public:
 };
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// The templatized bidirectional stream abstraction for dekaf2. Can be constructed around any
-/// std::iostream.
+/// The templatized bidirectional stream abstraction for dekaf2. Can be constructed
+/// around any std::iostream.
 template<class IOStream>
 class KReaderWriter
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -189,43 +188,50 @@ public:
 	using base_type = KReaderWriter<std::fstream>;
 
 	//-----------------------------------------------------------------------------
-	// semi-perfect forwarding - currently needed as std::istream does not
-	// support KStrings as arguments
-	template<class... Args>
-	KFile(KString str, Args&&... args)
-	: base_type(str.c_str(), std::forward<Args>(args)...)
+	KFile(KString str, ios_base::openmode mode = ios_base::in | ios_base::out)
+	: base_type(str.c_str(), mode)
 	//-----------------------------------------------------------------------------
 	{
 	}
 
 	//-----------------------------------------------------------------------------
-	// semi-perfect forwarding - currently needed as std::istream does not yet
-	// support string_views as arguments
-	template<class... Args>
-	KFile(KStringViewZ sz, Args&&... args)
-	: KFile(sz.c_str(), std::forward<Args>(args)...)
+	KFile(KStringViewZ sz, ios_base::openmode mode = ios_base::in | ios_base::out)
+	: base_type(sz.c_str(), mode)
 	//-----------------------------------------------------------------------------
 	{
 	}
 
 	//-----------------------------------------------------------------------------
-	// semi-perfect forwarding - currently needed as std::istream does not yet
-	// support string_views as arguments
-	template<class... Args>
-	KFile(KStringView sv, Args&&... args)
-	: KFile(KString(sv), std::forward<Args>(args)...)
+	KFile(KStringView sv, ios_base::openmode mode = ios_base::in | ios_base::out)
+	: KFile(KString(sv), mode)
 	//-----------------------------------------------------------------------------
 	{
 	}
 
+	using base_type::base_type;
+
 	//-----------------------------------------------------------------------------
-	// perfect forwarding
-	template<class... Args>
-	KFile(Args&&... args)
-	: base_type(std::forward<Args>(args)...)
+	void open(const KString& str, ios_base::openmode mode = ios_base::in | ios_base::out)
 	//-----------------------------------------------------------------------------
 	{
+		base_type::open(str.c_str(), mode);
 	}
+
+	//-----------------------------------------------------------------------------
+	void open(const KStringViewZ sz, ios_base::openmode mode = ios_base::in | ios_base::out)
+	//-----------------------------------------------------------------------------
+	{
+		base_type::open(sz.c_str(), mode);
+	}
+
+	//-----------------------------------------------------------------------------
+	void open(const KStringView sv, ios_base::openmode mode = ios_base::in | ios_base::out)
+	//-----------------------------------------------------------------------------
+	{
+		open(KString(sv), mode);
+	}
+
+	using base_type::open;
 
 };
 

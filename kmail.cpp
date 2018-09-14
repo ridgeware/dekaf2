@@ -171,8 +171,8 @@ KMail& KMail::LoadBodyFrom(KStringViewZ sPath)
 KMail& KMail::LoadManifestFrom(KStringViewZ sPath)
 //-----------------------------------------------------------------------------
 {
-	KHTTPHeaders Manifest;
-	KString sManifestFileName = sPath;
+	KString sManifestFileName   { sPath };
+	bool bNeedsManifestPreamble { true  };
 
 	if (kDirExists(sPath))
 	{
@@ -183,6 +183,7 @@ KMail& KMail::LoadManifestFrom(KStringViewZ sPath)
 		if (Dir.Contains("manifest.ini"))
 		{
 			sManifestFileName += "manifest.ini";
+			bNeedsManifestPreamble = false;
 		}
 		else if (Dir.Contains("index.html"))
 		{
@@ -205,11 +206,27 @@ KMail& KMail::LoadManifestFrom(KStringViewZ sPath)
 	}
 
 	KInFile fManifest(sManifestFileName);
+
+	if (bNeedsManifestPreamble)
+	{
+		KString sLine;
+		if (fManifest.ReadLine(sLine))
+		{
+			sLine.Trim();
+			if (sLine != "#manifest")
+			{
+				m_sError = kFormat("no #manifest preamble in file '{}'", sManifestFileName);
+				return *this;
+			}
+		}
+	}
+
+	KHTTPHeaders Manifest;
 	Manifest.Parse(fManifest);
 
 	if (Manifest.Headers.empty())
 	{
-		m_sError = kFormat("cannot find manifest in file '{}'", sManifestFileName);
+		m_sError = kFormat("no manifest headers in file '{}'", sManifestFileName);
 		return *this;
 	}
 

@@ -328,7 +328,7 @@ bool KMIMEPart::Attach(KMIMEPart&& part)
 bool KMIMEPart::Stream(KInStream& Stream, KStringView sDispname)
 //-----------------------------------------------------------------------------
 {
-	if (Stream.ReadAll(m_Data))
+	if (Stream.ReadRemaining(m_Data))
 	{
 		m_sName = sDispname;
 		return true;
@@ -376,7 +376,7 @@ KMIMEDirectory::KMIMEDirectory(KStringViewZ sPathname)
 		KDirectory Dir(sPathname, KDirectory::EntryType::REGULAR);
 
 		// remove the manifest if existing, we do not want to send it
-		Dir.WildCardMatch("manifest.ini", true);
+		bool bHasManifest = Dir.WildCardMatch("manifest.ini", true);
 
 		if (Dir.WildCardMatch("index.html", true))
 		{
@@ -402,7 +402,37 @@ KMIMEDirectory::KMIMEDirectory(KStringViewZ sPathname)
 			// add the html version
 			KString sFile = sPathname;
 			sFile += "/index.html";
-			Alternative += KMIMEFileInline(sFile);
+
+			KInFile fFile(sFile);
+
+			if (!bHasManifest)
+			{
+				// the manifest is most probably at the start of this file
+				KString sLine;
+				if (fFile.ReadLine(sLine))
+				{
+					sLine.Trim();
+					if (sLine == "#manifest")
+					{
+						// yes it is
+						// remove it by reading the file until an empty line is reached
+						for (auto& sLineRef : fFile)
+						{
+							if (sLineRef.empty())
+							{
+								break;
+							}
+						}
+					}
+					else
+					{
+						// rewind and read from the beginning
+						fFile.Rewind();
+					}
+				}
+			}
+
+			Alternative += KMIMEFileInline(fFile, KMIME::CreateByExtension(sFile));
 
 			// and attach to the related part
 			*this += std::move(Alternative);

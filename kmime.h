@@ -358,6 +358,8 @@ public:
 	/// sFilename is loaded as data for this part. MIME type is automatically detected,
 	/// or can be set explicitly through the MIME parameter
 	KMIMEFileInline(KStringView sFilename, KMIME MIME = KMIME::NONE) : KMIMEPart(MIME) { File(sFilename); m_sName.erase(); }
+	/// the open stream is loaded as data for this part. MIME type has to be set manually.
+	KMIMEFileInline(KInStream& stream, KMIME MIME) : KMIMEPart(MIME) { Stream(stream, KStringView{}); }
 
 }; // KMIMEFile
 

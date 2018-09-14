@@ -51,21 +51,21 @@ namespace dekaf2 {
 void KMail::To(KStringView sTo, KStringView sPretty)
 //-----------------------------------------------------------------------------
 {
-	Add(m_To, sTo, sPretty);
+	Add("To", m_To, sTo, sPretty);
 }
 
 //-----------------------------------------------------------------------------
 void KMail::Cc(KStringView sCc, KStringView sPretty)
 //-----------------------------------------------------------------------------
 {
-	Add(m_Cc, sCc, sPretty);
+	Add("Cc", m_Cc, sCc, sPretty);
 }
 
 //-----------------------------------------------------------------------------
 void KMail::Bcc(KStringView sBcc, KStringView sPretty)
 //-----------------------------------------------------------------------------
 {
-	Add(m_Bcc, sBcc, sPretty);
+	Add("Bcc", m_Bcc, sBcc, sPretty);
 }
 
 //-----------------------------------------------------------------------------
@@ -73,7 +73,7 @@ void KMail::From(KStringView sFrom, KStringView sPretty)
 //-----------------------------------------------------------------------------
 {
 	m_From.clear();
-	Add(m_From, sFrom, sPretty);
+	Add("From", m_From, sFrom, sPretty);
 }
 
 //-----------------------------------------------------------------------------
@@ -317,10 +317,17 @@ KMail& KMail::Attach(KMIMEPart&& part)
 } // Attach
 
 //-----------------------------------------------------------------------------
-void KMail::Add(map_t& map, KStringView Key, KStringView Value)
+void KMail::Add(KStringView sWhich, map_t& map, KStringView Key, KStringView Value)
 //-----------------------------------------------------------------------------
 {
-	map.emplace(Key, Value);
+	if (!kIsEmail(Key))
+	{
+		m_sError = kFormat("{} address is invalid: {}", sWhich, Key);
+	}
+	else
+	{
+		map.emplace(Key, Value);
+	}
 
 } // Add
 

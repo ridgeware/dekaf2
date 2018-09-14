@@ -235,7 +235,7 @@ public:
 private:
 //----------
 
-	void Add(map_t& map, KStringView Key, KStringView Value = KStringView{});
+	void Add(KStringView sWhich, map_t& map, KStringView Key, KStringView Value = KStringView{});
 
 	map_t m_To;
 	map_t m_Cc;

@@ -401,6 +401,11 @@ int KOptions::Parse(int argc, char** argv, KOutStream& out)
 	{
 	}
 
+	DEKAF2_CATCH (const KException& error)
+	{
+		out.WriteLine(error.what());
+	}
+
 	return 1;
 
 } // Parse

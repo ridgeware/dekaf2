@@ -275,7 +275,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	/// make sure previous changes to variables do not get optimized away
+	/// keep a loop from being optimized away
 	static void Force()
 	//-----------------------------------------------------------------------------
 	{

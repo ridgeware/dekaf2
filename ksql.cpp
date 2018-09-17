@@ -1615,7 +1615,7 @@ bool KSQL::ExecRawSQL (KStringView sSQL, uint64_t iFlags/*=0*/, KStringView sAPI
 	time_t tStarted     = 0;
 
 	if (m_iWarnIfOverNumSeconds) {
-		tStarted = time(NULL);
+		tStarted = Dekaf().GetCurrentTime();
 	}
 
 	while (!fOK && iRetriesLeft && !m_bDisableRetries)
@@ -1798,7 +1798,7 @@ bool KSQL::ExecRawSQL (KStringView sSQL, uint64_t iFlags/*=0*/, KStringView sAPI
 
 	if (m_iWarnIfOverNumSeconds)
 	{
-		time_t tTook = time(NULL) - tStarted;
+		time_t tTook = Dekaf().GetCurrentTime() - tStarted;
 		if (tTook >= m_iWarnIfOverNumSeconds) 
 		{
 			KString sWarning;
@@ -2338,7 +2338,7 @@ bool KSQL::ExecRawQuery (KStringView sSQL, uint64_t iFlags/*=0*/, KStringView sA
 
 	time_t tStarted     = 0;
 	if (m_iWarnIfOverNumSeconds) {
-		tStarted = time(NULL);
+		tStarted = Dekaf().GetCurrentTime();
 	}
 
 	#if defined(DEKAF2_HAS_CTLIB)
@@ -2796,7 +2796,7 @@ bool KSQL::ExecRawQuery (KStringView sSQL, uint64_t iFlags/*=0*/, KStringView sA
 
 	if (m_iWarnIfOverNumSeconds)
 	{
-		time_t tTook = time(NULL) - tStarted;
+		time_t tTook = Dekaf().GetCurrentTime() - tStarted;
 		if (tTook >= m_iWarnIfOverNumSeconds) 
 		{
 			KString sWarning;

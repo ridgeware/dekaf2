@@ -167,7 +167,7 @@ void Dekaf::SetRandomSeed(unsigned int iSeed)
 {
 	if (!iSeed)
 	{
-		iSeed = static_cast<unsigned int>(time(0));
+		iSeed = static_cast<unsigned int>(time(nullptr));
 	}
 	srand(iSeed);
 	srand48(iSeed);

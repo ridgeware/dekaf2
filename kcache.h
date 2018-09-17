@@ -58,10 +58,10 @@ namespace detail {
 template<class Value>
 struct LoadByConstruction
 {
-	template<class Key>
-	Value operator()(Key&& key) const
+	template<class Key, typename... Args>
+	Value operator()(Key&& key, Args&& ...args) const
 	{
-		return Value(std::forward<Key>(key));
+		return Value(std::forward<Key>(key), std::forward<Args>(args)...);
 	}
 };
 
@@ -127,7 +127,8 @@ public:
 	/// value will be created and the key value pair will be inserted into the
 	/// cache. For this to be possible, the Value type needs to be constructible
 	/// from the Key type (so, have a constructor Value(Key) ).
-	Value& Get(const Key& key)
+	template<typename...Args>
+	Value& Get(const Key& key, Args&&...args)
 	//-----------------------------------------------------------------------------
 	{
 		auto it = m_map.find(key);
@@ -137,7 +138,7 @@ public:
 		}
 
 		Load Loader;
-		return Create(key, Loader(key));
+		return Create(key, Loader(key, std::forward<Args>(args)...));
 	}
 
 	//-----------------------------------------------------------------------------
@@ -253,13 +254,14 @@ public:
 	/// value will be created and the key value pair will be inserted into the
 	/// cache. For this to be possible, the Value type needs to be constructible
 	/// from the Key type (so, have a constructor Value(Key) ).
-	value_type& Get(const Key& key)
+	template<typename...Args>
+	value_type& Get(const Key& key, Args&&...args)
 	//-----------------------------------------------------------------------------
 	{
 		if (!Dekaf().GetMultiThreading())
 		{
 			// we can use the lock free version
-			return base_type::Get(key);
+			return base_type::Get(key, std::forward<Args>(args)...);
 		}
 		// we will use shared and unique locks
 		{
@@ -278,7 +280,7 @@ public:
 
 		// we call the base_type to search again exclusively,
 		// and to create if still not found
-		return base_type::Get(key);
+		return base_type::Get(key, std::forward<Args>(args)...);
 	}
 
 	//-----------------------------------------------------------------------------

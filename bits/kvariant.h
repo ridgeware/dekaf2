@@ -48,7 +48,11 @@
 
 #include "kcppcompat.h"
 
-#if defined(DEKAF2_HAS_CPP_17)
+// clang has multiple issues with variants:
+// If used with libc++ it explicitly blocks std::visit() uses which work perfectly fine with gcc
+// and if used with libstdc++ it does not discover a friend declaration for variant::get, so it fails.
+// Therefore for the time being, if clang then simply use the boost implementation
+#if defined(DEKAF2_HAS_CPP_17) && !defined(DEKAF2_NO_GCC)
 	#if __has_include(<variant>)
 		#include <variant>
 		#define DEKAF2_HAS_VARIANT 1

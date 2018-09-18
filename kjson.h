@@ -72,6 +72,12 @@ inline void from_json(const LJSON& j, dekaf2::KStringView& s)
 	s = j.get<LJSON::string_t>();
 }
 
+void kParse (LJSON& json, KStringView sJSON);
+bool kParse (LJSON& json, KStringView sJSON, KString& sError);
+KString kGetString(const LJSON& json, KStringView sKey);
+LJSON kGetObject (LJSON& json, KStringView sKey);
+bool kAdd (LJSON& json, const KROW& row);
+
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class KJSON : public LJSON
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -192,44 +198,6 @@ public:
 
 	// make sure the above operator+= does not overwrite all parent operator+=
 	using LJSON::operator+=;
-
-#ifndef DEKAF2_EXCEPTIONS
-	/// This overload of the operator[] simply calls the existing operator[] of LJSON.
-	/// The only additional protection it gives is to not throw when being called on
-	/// non-objects.
-	template<typename T>
-	reference operator[](T&& Key)
-	{
-		ClearError();
-
-		DEKAF2_TRY
-		{
-			return LJSON::operator[](std::forward<T>(Key));
-		}
-		DEKAF2_CATCH (const LJSON::exception& exc)
-		{
-			FormError(exc);
-		}
-
-		return s_empty;
-	}
-#endif
-
-//----------
-private:
-//----------
-
-#ifndef DEKAF2_EXCEPTIONS
-	/// We do not want this overload of the operator[] as it would abort on
-	/// nonexisting keys in debug mode, and lead to undefined behaviour in
-	/// release mode
-	template<typename T>
-	const_reference operator[](T&& Key) const
-	{
-		static_assert(sizeof(Key) == 0, "this version of operator[] is intentionally blocked");
-		return s_empty;
-	}
-#endif
 
 //----------
 public:

@@ -46,6 +46,176 @@
 namespace dekaf2 {
 
 //-----------------------------------------------------------------------------
+bool kParse (LJSON& json, KStringView sJSON, KString& sError)
+//-----------------------------------------------------------------------------
+{
+	json.clear();
+
+	if (sJSON.empty())
+	{
+		// avoid throwing an exception for empty input - JSON will simply
+		// be empty too, so no error.
+		return true;
+	}
+
+#ifdef DEKAF2_EXCEPTIONS
+	json = LJSON::parse(sJSON.cbegin(), sJSON.cend());
+	return true;
+#else
+	DEKAF2_TRY
+	{
+		json = LJSON::parse(sJSON.cbegin(), sJSON.cend());
+		return true;
+	}
+	DEKAF2_CATCH (const LJSON::exception& exc)
+	{
+		sError.Printf ("JSON[%03d]: %s", exc.id, exc.what());
+		return false;
+	}
+#endif
+
+} // kParse
+
+//-----------------------------------------------------------------------------
+void kParse (LJSON& json, KStringView sJSON)
+//-----------------------------------------------------------------------------
+{
+	json.clear();
+
+	if (!sJSON.empty())
+	{
+		// avoid throwing an exception for empty input - JSON will simply
+		// be empty too, so no error.
+		json = LJSON::parse(sJSON.cbegin(), sJSON.cend());
+	}
+
+} // kParse
+
+//-----------------------------------------------------------------------------
+KString kGetString(const LJSON& json, KStringView sKey)
+//-----------------------------------------------------------------------------
+{
+	KString sReturn;
+
+#ifdef DEKAF2_EXCEPTIONS
+	auto it = json.find(sKey);
+	if (it != json.end() && it->is_string())
+	{
+		sReturn = it.value();
+	}
+#else
+	DEKAF2_TRY
+	{
+		auto it = json.find(sKey);
+		if (it != json.end() && it->is_string())
+		{
+			sReturn = it.value();
+		}
+	}
+	DEKAF2_CATCH (const LJSON::exception& exc)
+	{
+	}
+#endif
+
+	return sReturn;
+
+} // kGetString
+
+//-----------------------------------------------------------------------------
+LJSON kGetObject (LJSON& json, KStringView sKey)
+//-----------------------------------------------------------------------------
+{
+	LJSON oReturnMe;
+
+#ifdef DEKAF2_EXCEPTIONS
+	auto it = json.find(sKey);
+	if (it != json.end())
+	{
+		oReturnMe = it.value();
+	}
+#else
+	DEKAF2_TRY
+	{
+		auto it = json.find(sKey);
+		if (it != json.end())
+		{
+			oReturnMe = it.value();
+		}
+	}
+	DEKAF2_CATCH (const LJSON::exception& exc)
+	{
+	}
+#endif
+
+	return (oReturnMe);
+
+} // kGetObject
+
+//-----------------------------------------------------------------------------
+bool kAdd (LJSON& json, const KROW& row)
+//-----------------------------------------------------------------------------
+{
+	DEKAF2_TRY
+	{
+		if (json.is_array())
+		{
+			// current object is an array: place KROW as another array element:
+			KJSON child;
+			child.Add (row);
+			json.operator+=(child);
+		}
+		else
+		{
+			// merge KROW elements into current level:
+			for (uint32_t ii=0; ii < row.size(); ++ii)
+			{
+				kDebugLog (2, "KJSON::Add: {}", row.ColumnInfoForLogOutput(ii));
+
+				if (row.IsFlag (ii, KROW::NONCOLUMN))
+				{
+					continue;
+				}
+
+				KStringView sName    = row.GetName(ii);
+				KStringView sValue   = row.GetValue(ii);  // note: GetValue() never returns NULL, it might return "" (which Joe calls NIL)
+
+				if (sName.empty())
+				{
+					continue;
+				}
+
+				if (row.IsFlag (ii, KROW::BOOLEAN))
+				{
+					json.operator[](sName) = sValue.UInt16() ? true : false;
+				}
+				else if (row.IsFlag (ii, KROW::NUMERIC))
+				{
+					if (sValue.Contains("."))
+					{
+						json.operator[](sName) = sValue.Float();
+					}
+					else
+					{
+						json.operator[](sName) = sValue.UInt64();
+					}
+				}
+				else // catch-all logic for all string values
+				{
+					json.operator[](sName) = sValue;
+				}
+			}
+		}
+	}
+	DEKAF2_CATCH (const LJSON::exception& exc)
+	{
+		return false;
+	}
+
+	return true;
+
+} // kAdd
+
+//-----------------------------------------------------------------------------
 bool KJSON::Parse (KStringView sJSON)
 //-----------------------------------------------------------------------------
 {

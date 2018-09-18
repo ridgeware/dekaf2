@@ -128,20 +128,4 @@ TEST_CASE("KJSON")
 		obj["four"] = arr2;
 	}
 
-	SECTION("KJSON basic ops")
-	{
-		KJSON obj;
-		obj["one"] = 1;
-		obj["two"] = 2;
-		KJSON child;
-		child["duck"] = "donald";
-		child["pig"]  = "porky";
-		KJSON arr1 = KJSON::array();
-		KJSON arr2 = KJSON::array();
-		arr1 += child;
-		obj["three"] = arr1;
-		obj["four"] = arr2;
-	}
-
-
 }

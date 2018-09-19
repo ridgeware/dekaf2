@@ -185,15 +185,6 @@
 	#define DEKAF2_NO_ASAN
 #endif
 
-// prepare for the shared_mutex enabler below - this has to go into
-// the base namespace
-#ifdef DEKAF2_HAS_CPP_14
-	#include <shared_mutex>
-	#include <mutex> // to be balanced with the C++11 case below
-#else
-	#include <mutex>
-#endif
-
 #if (UINTPTR_MAX == 0xffffffffffffffff)
 	#define DEKAF2_IS_64_BITS = 1
 	#define DEKAF2_BITS = 64
@@ -203,6 +194,15 @@
 #elif (UINTPTR_MAX == 0xffff)
 	#define DEKAF2_IS_16_BITS = 1
 	#define DEKAF2_BITS = 16
+#endif
+
+// prepare for the shared_mutex enabler below - this has to go into
+// the base namespace
+#ifdef DEKAF2_HAS_CPP_14
+#include <shared_mutex>
+#include <mutex> // to be balanced with the C++11 case below
+#else
+#include <mutex>
 #endif
 
 namespace std
@@ -275,7 +275,7 @@ using decay_t = typename decay<T>::type;
 	// this causes an error message in clang, gcc >= 5 takes it
 	#define DEKAF2_LE_BE_CONSTEXPR constexpr
 #else
-	// older gcc versions do not compile the constexpr
+	// older gcc versions and newer clang do not compile the constexpr
 	#define DEKAF2_LE_BE_CONSTEXPR inline
 #endif
 

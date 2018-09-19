@@ -95,24 +95,24 @@ public:
 //----------
 
 #ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
-	typedef folly::fbstring string_type;
+	using string_type               = folly::fbstring;
 #else
-	typedef std::string string_type;
+	using string_type               = std::string;
 #endif
-
-	typedef string_type::traits_type            traits_type;
-	typedef string_type::value_type             value_type;
-	typedef string_type::allocator_type         allocator_type;
-	typedef string_type::size_type              size_type;
-	typedef string_type::difference_type        difference_type;
-	typedef string_type::reference              reference;
-	typedef string_type::const_reference        const_reference;
-	typedef string_type::pointer                pointer;
-	typedef string_type::const_pointer          const_pointer;
-	typedef string_type::iterator               iterator;
-	typedef string_type::const_iterator         const_iterator;
-	typedef string_type::const_reverse_iterator const_reverse_iterator;
-	typedef string_type::reverse_iterator       reverse_iterator;
+	using self                      = KString;
+	using traits_type               = string_type::traits_type;
+	using value_type                = string_type::value_type;
+	using allocator_type            = string_type::allocator_type;
+	using size_type                 = string_type::size_type;
+	using difference_type           = string_type::difference_type;
+	using reference                 = string_type::reference;
+	using const_reference           = string_type::const_reference;
+	using pointer                   = string_type::pointer;
+	using const_pointer             = string_type::const_pointer;
+	using iterator                  = string_type::iterator;
+	using const_iterator            = string_type::const_iterator;
+	using const_reverse_iterator    = string_type::const_reverse_iterator;
+	using reverse_iterator          = string_type::reverse_iterator;
 
 	static constexpr size_type npos = string_type::npos;
 
@@ -171,56 +171,56 @@ public:
 #endif
 
 	// operator+=
-	KString& operator+= (const KString& str) { m_rep += str.m_rep; return *this; }
-	KString& operator+= (const string_type& str) { m_rep += str; return *this; }
-	KString& operator+= (const value_type ch) { m_rep += ch; return *this; }
-	KString& operator+= (const value_type *s) { if (s) m_rep += s; return *this; }
-	KString& operator+= (std::initializer_list<value_type> il) { m_rep += il; return *this; }
-	KString& operator+= (KStringView sv);
+	self& operator+= (const KString& str) { m_rep += str.m_rep; return *this; }
+	self& operator+= (const string_type& str) { m_rep += str; return *this; }
+	self& operator+= (const value_type ch) { m_rep += ch; return *this; }
+	self& operator+= (const value_type *s) { if (s) m_rep += s; return *this; }
+	self& operator+= (std::initializer_list<value_type> il) { m_rep += il; return *this; }
+	self& operator+= (KStringView sv);
 #ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
-	KString& operator+= (const std::string& str) { m_rep += str; return *this; }
+	self& operator+= (const std::string& str) { m_rep += str; return *this; }
 #endif
 
 	// operator=
-	KString& operator= (const KString& str) = default;
-	KString& operator= (KString&& str) noexcept = default;
-	KString& operator= (value_type ch) { assign(1, ch); return *this; }
+	self& operator= (const KString& str) = default;
+	self& operator= (KString&& str) noexcept = default;
+	self& operator= (value_type ch) { assign(1, ch); return *this; }
 
 	// std methods
-	KString& append(const KString& str) { m_rep.append(str.m_rep); return *this; }
-	KString& append(const KString& str, size_type pos, size_type n = npos) { return append(str.m_rep, pos, n); }
-	KString& append(const string_type& str) { m_rep.append(str); return *this; }
-	KString& append(const string_type& str, size_type pos, size_type n = npos);
-	KString& append(const value_type* str) { if (str) m_rep.append(str); return *this; }
-	KString& append(const value_type* str, size_type n) { if (str) m_rep.append(str, n); return *this; }
-	KString& append(size_type n, value_type ch) { m_rep.append(n, ch); return *this; }
+	self& append(const KString& str) { m_rep.append(str.m_rep); return *this; }
+	self& append(const KString& str, size_type pos, size_type n = npos) { return append(str.m_rep, pos, n); }
+	self& append(const string_type& str) { m_rep.append(str); return *this; }
+	self& append(const string_type& str, size_type pos, size_type n = npos);
+	self& append(const value_type* str) { if (str) m_rep.append(str); return *this; }
+	self& append(const value_type* str, size_type n) { if (str) m_rep.append(str, n); return *this; }
+	self& append(size_type n, value_type ch) { m_rep.append(n, ch); return *this; }
 	template<class _InputIterator>
-		KString& append(_InputIterator first, _InputIterator last) { m_rep.append(first, last); return *this; }
-	KString& append(std::initializer_list<value_type> il) { m_rep.append(il); return *this; }
-	KString& append(KStringView sv);
+		self& append(_InputIterator first, _InputIterator last) { m_rep.append(first, last); return *this; }
+	self& append(std::initializer_list<value_type> il) { m_rep.append(il); return *this; }
+	self& append(KStringView sv);
 #ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
-	KString& append(const std::string& str) { m_rep.append(str); return *this; }
-	KString& append(const std::string& str, size_type pos, size_type n = npos);
+	self& append(const std::string& str) { m_rep.append(str); return *this; }
+	self& append(const std::string& str, size_type pos, size_type n = npos);
 #endif
 
-	KString& push_back(const value_type chPushBack) { m_rep.push_back(chPushBack); return *this; }
+	self& push_back(const value_type chPushBack) { m_rep.push_back(chPushBack); return *this; }
 	void pop_back() { m_rep.pop_back(); }
 
-	KString& assign(const KString& str) { m_rep.assign(str.m_rep); return *this; }
-	KString& assign(const KString& str, size_type pos, size_type n = npos) { return assign(str.m_rep, pos, n); }
-	KString& assign(const string_type& str) { m_rep.assign(str); return *this; }
-	KString& assign(const string_type& str, size_type pos, size_type n = npos);
-	KString& assign(const value_type* s, size_type n) { if (s) m_rep.assign(s, n); else m_rep.clear(); return *this; }
-	KString& assign(const value_type* str) { if (str) m_rep.assign(str); else m_rep.clear(); return *this;}
-	KString& assign(size_type n, value_type ch) { m_rep.assign(n, ch); return *this;}
+	self& assign(const KString& str) { m_rep.assign(str.m_rep); return *this; }
+	self& assign(const KString& str, size_type pos, size_type n = npos) { return assign(str.m_rep, pos, n); }
+	self& assign(const string_type& str) { m_rep.assign(str); return *this; }
+	self& assign(const string_type& str, size_type pos, size_type n = npos);
+	self& assign(const value_type* s, size_type n) { if (s) m_rep.assign(s, n); else m_rep.clear(); return *this; }
+	self& assign(const value_type* str) { if (str) m_rep.assign(str); else m_rep.clear(); return *this;}
+	self& assign(size_type n, value_type ch) { m_rep.assign(n, ch); return *this;}
 	template<class _InputIterator>
-		KString& assign(_InputIterator first, _InputIterator last) { m_rep.assign(first, last); return *this; }
-	KString& assign(std::initializer_list<value_type> il) { m_rep.assign(il); return *this; }
-	KString& assign(KString&& str) { m_rep.assign(std::move(str.m_rep)); return *this; }
-	KString& assign(KStringView sv);
+		self& assign(_InputIterator first, _InputIterator last) { m_rep.assign(first, last); return *this; }
+	self& assign(std::initializer_list<value_type> il) { m_rep.assign(il); return *this; }
+	self& assign(KString&& str) { m_rep.assign(std::move(str.m_rep)); return *this; }
+	self& assign(KStringView sv);
 #ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
-	KString& assign(const std::string& str) { m_rep.assign(str); return *this; }
-	KString& assign(const std::string& str, size_type pos, size_type n = npos);
+	self& assign(const std::string& str) { m_rep.assign(str); return *this; }
+	self& assign(const std::string& str, size_type pos, size_type n = npos);
 #endif
 
 	int compare(const KString& str) const;
@@ -303,23 +303,23 @@ public:
 #endif
 
 	void insert(iterator p, size_type n, value_type c) { m_rep.insert(p, n, c); }
-	KString& insert(size_type pos, const KString& str) { return insert(pos, str.m_rep); }
-	KString& insert(size_type pos1, const KString& str, size_type pos2, size_type n = npos) { return insert(pos1, str.m_rep, pos2, n); }
-	KString& insert(size_type pos, const string_type& str);
-	KString& insert(size_type pos1, const string_type& str, size_type pos2, size_type n = npos);
-	KString& insert(size_type pos, const value_type* s, size_type n);
-	KString& insert(size_type pos, const value_type* s);
-	KString& insert(size_type pos, size_type n, value_type c);
+	self& insert(size_type pos, const KString& str) { return insert(pos, str.m_rep); }
+	self& insert(size_type pos1, const KString& str, size_type pos2, size_type n = npos) { return insert(pos1, str.m_rep, pos2, n); }
+	self& insert(size_type pos, const string_type& str);
+	self& insert(size_type pos1, const string_type& str, size_type pos2, size_type n = npos);
+	self& insert(size_type pos, const value_type* s, size_type n);
+	self& insert(size_type pos, const value_type* s);
+	self& insert(size_type pos, size_type n, value_type c);
 	// C++17 wants a const_iterator here, but the COW string implementation in libstdc++ does not have it
 	iterator insert(iterator it, value_type c);
 	template<class _InputIterator>
 		void insert(const_iterator it, _InputIterator beg, _InputIterator end) { m_rep.insert(it, beg, end); }
 	// should be const_iterator with C++11, but is not supported by libstdc++
-	KString& insert (iterator it, std::initializer_list<value_type> il);
-	KString& insert(size_type pos, KStringView sv);
+	self& insert (iterator it, std::initializer_list<value_type> il);
+	self& insert(size_type pos, KStringView sv);
 #ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
-	KString& insert(size_type pos, const std::string& str) { return insert(pos, str.data(), str.size()); }
-	KString& insert(size_type pos1, const std::string& str, size_type pos2, size_type n = npos);
+	self& insert(size_type pos, const std::string& str) { return insert(pos, str.data(), str.size()); }
+	self& insert(size_type pos1, const std::string& str, size_type pos2, size_type n = npos);
 #endif
 
 	const value_type* c_str() const noexcept { return m_rep.c_str(); }
@@ -327,7 +327,7 @@ public:
 	// C++17 supports non-const data(), but gcc does not yet know it..
 	value_type* data() noexcept { return &m_rep[0]; }
 
-	KString& erase(size_type pos = 0, size_type n = npos);
+	self& erase(size_type pos = 0, size_type n = npos);
 	// C++17 wants a const_iterator here, but the COW string implementation in libstdc++ does not have it
 	iterator erase(iterator position);
 	// C++17 wants a const_iterator here, but the COW string implementation in libstdc++ does not have it
@@ -342,21 +342,21 @@ public:
 	// extension from string_view
 	bool remove_prefix(KStringView prefix);
 
-	KString& replace(size_type pos, size_type n, const KString& str) { return replace(pos, n, str.m_rep); }
-	KString& replace(size_type pos1, size_type n1, const KString& str, size_type pos2, size_type n2 = npos) { return replace(pos1, n1, str.m_rep, pos2, n2); }
-	KString& replace(size_type pos, size_type n, const string_type& str);
-	KString& replace(size_type pos1, size_type n1, const string_type& str, size_type pos2, size_type n2 = npos);
-	KString& replace(size_type pos, size_type n1, const value_type* s, size_type n2);
-	KString& replace(size_type pos, size_type n1, const value_type* s);
-	KString& replace(size_type pos, size_type n1, size_type n2, value_type c);
+	self& replace(size_type pos, size_type n, const KString& str) { return replace(pos, n, str.m_rep); }
+	self& replace(size_type pos1, size_type n1, const KString& str, size_type pos2, size_type n2 = npos) { return replace(pos1, n1, str.m_rep, pos2, n2); }
+	self& replace(size_type pos, size_type n, const string_type& str);
+	self& replace(size_type pos1, size_type n1, const string_type& str, size_type pos2, size_type n2 = npos);
+	self& replace(size_type pos, size_type n1, const value_type* s, size_type n2);
+	self& replace(size_type pos, size_type n1, const value_type* s);
+	self& replace(size_type pos, size_type n1, size_type n2, value_type c);
 	// C++17 wants a const_iterator here, but the COW string implementation in libstdc++ does not have it
-	KString& replace(iterator i1, iterator i2, const KString& str) { return replace(i1, i2, str.m_rep); }
+	self& replace(iterator i1, iterator i2, const KString& str) { return replace(i1, i2, str.m_rep); }
 	// C++17 wants a const_iterator here, but the COW string implementation in libstdc++ does not have it
-	KString& replace(iterator i1, iterator i2, const string_type& str);
+	self& replace(iterator i1, iterator i2, const string_type& str);
 	// C++17 wants a const_iterator here, but the COW string implementation in libstdc++ does not have it
-	KString& replace(iterator i1, iterator i2, const value_type* s, size_type n);
+	self& replace(iterator i1, iterator i2, const value_type* s, size_type n);
 	template<class _InputIterator>
-	KString& replace(const_iterator i1, iterator i2, _InputIterator first, _InputIterator last)
+	self& replace(const_iterator i1, iterator i2, _InputIterator first, _InputIterator last)
 	{
 #ifdef DEKAF2_EXCEPTIONS
 		m_rep.replace(i1, i2, first, last);
@@ -370,13 +370,13 @@ public:
 #endif
 	}
 	// C++17 wants a const_iterator here, but the COW string implementation in libstdc++ does not have it
-	KString& replace(iterator i1, iterator i2, std::initializer_list<value_type> il);
-	KString& replace(size_type pos, size_type n, KStringView sv);
+	self& replace(iterator i1, iterator i2, std::initializer_list<value_type> il);
+	self& replace(size_type pos, size_type n, KStringView sv);
 	// C++17 wants a const_iterator here, but the COW string implementation in libstdc++ does not have it
-	KString& replace(iterator i1, iterator i2, KStringView sv);
+	self& replace(iterator i1, iterator i2, KStringView sv);
 #ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
-	KString& replace(size_type pos, size_type n, const std::string& str) { return replace(pos, n, str.data(), str.size()); }
-	KString& replace(size_type pos1, size_type n1, const std::string& str, size_type pos2, size_type n2 = npos);
+	self& replace(size_type pos, size_type n, const std::string& str) { return replace(pos, n, str.data(), str.size()); }
+	self& replace(size_type pos1, size_type n1, const std::string& str, size_type pos2, size_type n2 = npos);
 #endif
 
 	/// substring starting at zero-based position "pos" for "n" chars.  if "n" is not specified return the rest of the string starting at "pos"
@@ -388,11 +388,11 @@ public:
 
 	/// print arguments with fmt::format
 	template<class... Args>
-	KString& Format(Args&&... args);
+	self& Format(Args&&... args);
 
 	/// print arguments with fmt::printf
 	template<class... Args>
-	KString& Printf(Args&&... args);
+	self& Printf(Args&&... args);
 
 	/// replace with regular expression, sReplaceWith may address sub-groups with \\1 etc.
 	size_type ReplaceRegex(KStringView sRegEx, KStringView sReplaceWith, bool bReplaceAll = true);
@@ -419,16 +419,16 @@ public:
 	bool Contains(const value_type ch) const;
 
 	/// changes the string to lowercase (UTF8)
-	KString& MakeLower();
+	self& MakeLower();
 
 	/// changes the string to uppercase (UTF8)
-	KString& MakeUpper();
+	self& MakeUpper();
 
 	/// changes the string to lowercase according to the current locale
-	KString& MakeLowerLocale();
+	self& MakeLowerLocale();
 
 	/// changes the string to uppercase according to the current locale
-	KString& MakeUpperLocale();
+	self& MakeUpperLocale();
 
 	/// returns a copy of the string in uppercase (UTF8)
 	KString ToUpper() const;
@@ -452,41 +452,41 @@ public:
 	KStringViewZ Right(size_type iCount) const;
 
 	/// pads string at the left up to iWidth size with chPad
-	KString& PadLeft(size_t iWidth, value_type chPad = ' ');
+	self& PadLeft(size_t iWidth, value_type chPad = ' ');
 
 	/// pads string at the right up to iWidth size with chPad
-	KString& PadRight(size_t iWidth, value_type chPad = ' ');
+	self& PadRight(size_t iWidth, value_type chPad = ' ');
 
 	/// removes white space from the left of the string
-	KString& TrimLeft();
+	self& TrimLeft();
 	/// removes chTrim from the left of the string
-	KString& TrimLeft(value_type chTrim);
+	self& TrimLeft(value_type chTrim);
 	/// removes any character in sTrim from the left of the string
-	KString& TrimLeft(KStringView sTrim);
+	self& TrimLeft(KStringView sTrim);
 
 	/// removes white space from the right of the string
-	KString& TrimRight();
+	self& TrimRight();
 	/// removes chTrim from the right of the string
-	KString& TrimRight(value_type chTrim);
+	self& TrimRight(value_type chTrim);
 	/// removes any character in sTrim from the right of the string
-	KString& TrimRight(KStringView sTrim);
+	self& TrimRight(KStringView sTrim);
 
 	/// removes white space from the left and right of the string
-	KString& Trim();
+	self& Trim();
 	/// removes chTrim from the left and right of the string
-	KString& Trim(value_type chTrim);
+	self& Trim(value_type chTrim);
 	/// removes any character in sTrim from the left and right of the string
-	KString& Trim(KStringView sTrim);
+	self& Trim(KStringView sTrim);
 
 	/// Collapses multiple white space to one space
-	KString& Collapse();
+	self& Collapse();
 	/// Collapses consecutive chars in svCollapse to one instance of chTo
-	KString& Collapse(KStringView svCollapse, value_type chTo);
+	self& Collapse(KStringView svCollapse, value_type chTo);
 
 	/// Collapses multiple white space to one space and trims left and right white space
-	KString& CollapseAndTrim();
+	self& CollapseAndTrim();
 	/// Collapses consecutive chars in svCollapse to one instance of chTo and trims the same chars left and right
-	KString& CollapseAndTrim(KStringView svCollapse, value_type chTo);
+	self& CollapseAndTrim(KStringView svCollapse, value_type chTo);
 
 	/// Clip removing sClipAt and everything to its right if found; otherwise do not alter the string
 	bool ClipAt(KStringView sClipAt);
@@ -551,7 +551,7 @@ public:
 	/// DEPRECATED - only for compatibility with old code
 	const value_type* c() const { return c_str(); }
 	/// DEPRECATED - only for compatibility with old code
-	KString& Append(const value_type* pszAppend) { return append(pszAppend); }
+	self& Append(const value_type* pszAppend) { return append(pszAppend); }
 
 #endif
 

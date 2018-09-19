@@ -1,5 +1,4 @@
 /*
-//-----------------------------------------------------------------------------//
 //
 // DEKAF(tm): Lighter, Faster, Smarter (tm)
 //
@@ -192,6 +191,7 @@ public:
 	using rep_type               = DEKAF2_SV_NAMESPACE::string_view;
 #endif
 	using self_type              = KStringView;
+	using self                   = KStringView;
 	using size_type              = std::size_t;
 	using iterator               = rep_type::iterator;
 	using const_iterator         = rep_type::iterator;
@@ -251,21 +251,21 @@ public:
 
 	//-----------------------------------------------------------------------------
 	constexpr
-	self_type& operator=(const self_type& other) noexcept = default;
+	self& operator=(const self_type& other) noexcept = default;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	constexpr
-	self_type& operator=(KStringViewZ other);
+	self& operator=(KStringViewZ other);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	self_type& operator=(const KString& other);
+	self& operator=(const KString& other);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	constexpr
-	self_type& operator=(const value_type* other)
+	self& operator=(const value_type* other)
 	//-----------------------------------------------------------------------------
 	{
 		assign(other, strlen(other));
@@ -709,55 +709,55 @@ public:
 	//-----------------------------------------------------------------------------
 	// nonstandard
 	/// removes white space from the left of the string
-	KStringView& TrimLeft();
+	self& TrimLeft();
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	// nonstandard
 	/// removes chTrim from the left of the string
-	KStringView& TrimLeft(value_type chTrim);
+	self& TrimLeft(value_type chTrim);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	// nonstandard
 	/// removes any character in sTrim from the left of the string
-	KStringView& TrimLeft(KStringView sTrim);
+	self& TrimLeft(KStringView sTrim);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	// nonstandard
 	/// removes white space from the right of the string
-	KStringView& TrimRight();
+	self& TrimRight();
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	// nonstandard
 	/// removes chTrim from the right of the string
-	KStringView& TrimRight(value_type chTrim);
+	self& TrimRight(value_type chTrim);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	// nonstandard
 	/// removes any character in sTrim from the right of the string
-	KStringView& TrimRight(KStringView sTrim);
+	self& TrimRight(KStringView sTrim);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	// nonstandard
 	/// removes white space from the left and right of the string
-	KStringView& Trim();
+	self& Trim();
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	// nonstandard
 	/// removes chTrim from the left and right of the string
-	KStringView& Trim(value_type chTrim);
+	self& Trim(value_type chTrim);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	// nonstandard
 	/// removes any character in sTrim from the left and right of the string
-	KStringView& Trim(KStringView sTrim);
+	self& Trim(KStringView sTrim);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -788,7 +788,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// nonstandard: emulate erase if range is at begin or end
-	self_type& erase(size_type pos = 0, size_type n = npos);
+	self& erase(size_type pos = 0, size_type n = npos);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------

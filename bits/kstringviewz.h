@@ -1,5 +1,4 @@
 /*
-//-----------------------------------------------------------------------------//
 //
 // DEKAF(tm): Lighter, Faster, Smarter (tm)
 //
@@ -59,6 +58,7 @@ public:
 //----------
 
 	using self_type              = KStringViewZ;
+	using self                   = KStringViewZ;
 	using base_type              = KStringView;
 	using size_type              = base_type::size_type;
 	using iterator               = base_type::iterator;
@@ -173,19 +173,19 @@ public:
 	//-----------------------------------------------------------------------------
 	// nonstandard
 	/// removes white space from the left of the string
-	self_type& TrimLeft();
+	self& TrimLeft();
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	// nonstandard
 	/// removes chTrim from the left of the string
-	self_type& TrimLeft(value_type chTrim);
+	self& TrimLeft(value_type chTrim);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	// nonstandard
 	/// removes any character in sTrim from the left of the string
-	self_type& TrimLeft(KStringView sTrim);
+	self& TrimLeft(KStringView sTrim);
 	//-----------------------------------------------------------------------------
 
 	using base_type::TrimRight;
@@ -295,7 +295,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// nonstandard: emulate erase if range is at begin
-	self_type& erase(size_type pos = 0, size_type n = npos)
+	self& erase(size_type pos = 0, size_type n = npos)
 	//-----------------------------------------------------------------------------
 	{
 		if (pos)

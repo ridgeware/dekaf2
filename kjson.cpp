@@ -120,7 +120,7 @@ void Parse (KJSON& json, KInStream& InStream)
 {
 	json.clear();
 
-	if (InStream.InStream().eof())
+	if (!InStream.InStream().eof())
 	{
 		// avoid throwing an exception for empty input - JSON will simply
 		// be empty too, so no error.

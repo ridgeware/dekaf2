@@ -233,6 +233,7 @@ bool Add (KJSON& json, const KROW& row)
 
 	DEKAF2_CATCH (const KJSON::exception& exc)
 	{
+		kDebugLog(1, "JSON[%03d]: %s", exc.id, exc.what());
 		return false;
 	}
 

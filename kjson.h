@@ -52,6 +52,9 @@ using KJSON = nlohmann::basic_json<std::map, std::vector, dekaf2::KString >;
 
 namespace dekaf2 {
 
+// ADL resolvers for KStringView and KStringViewZ (KString is the
+// built-in json string type, and therefore does not need conversion)
+
 inline void to_json(KJSON& j, const dekaf2::KStringView& s)
 {
 	j = KJSON::string_t(s);
@@ -76,65 +79,78 @@ inline void from_json(const KJSON& j, dekaf2::KStringView& s)
 namespace kjson
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
+	/// Parse a string, throws with KJSON::exception in case of error
 	void Parse (KJSON& json, KStringView sJSON);
+
+	/// Parse a string, returns error in sError if any (does not throw)
 	bool Parse (KJSON& json, KStringView sJSON, KString& sError);
+
+	/// Parse a stream, throws with KJSON::exception in case of error
 	void Parse (KJSON& json, KInStream& InStream);
+
+	/// Parse a stream, returns error in sError if any (does not throw)
 	bool Parse (KJSON& json, KInStream& InStream, KString& sError);
+
+	/// returns a value for a string key, does never throw
 	KString GetString(const KJSON& json, KStringView sKey);
+
+	/// returns a value for an object key, does never throw
 	KJSON GetObject (const KJSON& json, KStringView sKey);
+
+	/// adds the contents of a KROW as an array to json, does not throw
 	bool Add (KJSON& json, const KROW& row);
 
-	inline
-	bool Exists(const KJSON& json, KStringView Key)
+	/// returns true if the key exists
+	inline bool Exists(const KJSON& json, KStringView Key)
 	{
 		auto it = json.find(Key);
 		return (it != json.end());
 	}
 
-	inline
-	bool IsObject(const KJSON& json, KStringView Key)
+	/// returns true if the key exists and contains an object
+	inline bool IsObject(const KJSON& json, KStringView Key)
 	{
 		auto it = json.find(Key);
 		return (it != json.end() && it->is_object());
 	}
 
-	inline
-	bool IsArray(const KJSON& json, KStringView Key)
+	/// returns true if the key exists and contains an array
+	inline bool IsArray(const KJSON& json, KStringView Key)
 	{
 		auto it = json.find(Key);
 		return (it != json.end() && it->is_array());
 	}
 
-	inline
-	bool IsString(const KJSON& json, KStringView Key)
+	/// returns true if the key exists and contains a string
+	inline bool IsString(const KJSON& json, KStringView Key)
 	{
 		auto it = json.find(Key);
 		return (it != json.end() && it->is_string());
 	}
 
-	inline
-	bool IsInteger(const KJSON& json, KStringView Key)
+	/// returns true if the key exists and contains an integer
+	inline bool IsInteger(const KJSON& json, KStringView Key)
 	{
 		auto it = json.find(Key);
 		return (it != json.end() && it->is_number_integer());
 	}
 
-	inline
-	bool IsFloat(const KJSON& json, KStringView Key)
+	/// returns true if the key exists and contains a float
+	inline bool IsFloat(const KJSON& json, KStringView Key)
 	{
 		auto it = json.find(Key);
 		return (it != json.end() && it->is_number_float());
 	}
 
-	inline
-	bool IsNull(const KJSON& json, KStringView Key)
+	/// returns true if the key exists and contains null
+	inline bool IsNull(const KJSON& json, KStringView Key)
 	{
 		auto it = json.find(Key);
 		return (it != json.end() && it->is_null());
 	}
 
-	inline
-	bool IsBoolean(const KJSON& json, KStringView Key)
+	/// returns true if the key exists and contains a bool
+	inline bool IsBoolean(const KJSON& json, KStringView Key)
 	{
 		auto it = json.find(Key);
 		return (it != json.end() && it->is_boolean());
@@ -142,19 +158,27 @@ namespace kjson
 
 	/// proper json string escaping
 	void Escape (KStringView sInput, KString& sOutput);
+
+	/// proper json string escaping
 	KString Escape (KStringView sInput);
 
 	/// wrap the given string with double-quotes and escape it for legal json
 	KString EscWrap (KStringView sString);
+
+	/// wrap the given string with double-quotes and escape it for legal json
 	KString EscWrap (KStringView sName, KStringView sValue, KStringView sPrefix="\n\t", KStringView sSuffix=",");
 
 	/// do not wrap the given string with double-quotes if it is explicitly known to be Numeric
 	KString EscWrapNumeric (KStringView sName, KStringView sValue, KStringView sPrefix="\n\t", KStringView sSuffix=",");
+
+	/// do not wrap the given string with double-quotes if it is explicitly known to be Numeric
 	template<typename I, typename std::enable_if<!std::is_constructible<KStringView, I>::value, int>::type = 0>
 	KString EscWrap (KStringView sName, I iValue, KStringView sPrefix="\n\t", KStringView sSuffix=",")
 	{
 		return EscWrapNumeric(sName, KString::to_string(iValue), sPrefix, sSuffix);
 	}
+
+	/// do not wrap the given string with double-quotes if it is explicitly known to be Numeric
 	template<typename I, typename std::enable_if<!std::is_constructible<KStringView, I>::value, int>::type = 0>
 	KString EscWrapNumeric (KStringView sName, I iValue, KStringView sPrefix="\n\t", KStringView sSuffix=",")
 	{

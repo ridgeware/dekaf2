@@ -60,10 +60,6 @@ bool Parse (KJSON& json, KStringView sJSON, KString& sError)
 		return true;
 	}
 
-#ifdef DEKAF2_EXCEPTIONS
-	json = LJSON::parse(sJSON.cbegin(), sJSON.cend());
-	return true;
-#else
 	DEKAF2_TRY
 	{
 		json = KJSON::parse(sJSON.cbegin(), sJSON.cend());
@@ -74,7 +70,6 @@ bool Parse (KJSON& json, KStringView sJSON, KString& sError)
 		sError.Printf ("JSON[%03d]: %s", exc.id, exc.what());
 		return false;
 	}
-#endif
 
 } // kParse
 
@@ -106,10 +101,6 @@ bool Parse (KJSON& json, KInStream& InStream, KString& sError)
 		return true;
 	}
 
-#ifdef DEKAF2_EXCEPTIONS
-	json = LJSON::parse(sJSON.cbegin(), sJSON.cend());
-	return true;
-#else
 	DEKAF2_TRY
 	{
 		InStream >> json;
@@ -120,7 +111,6 @@ bool Parse (KJSON& json, KInStream& InStream, KString& sError)
 		sError.Printf ("JSON[%03d]: %s", exc.id, exc.what());
 		return false;
 	}
-#endif
 
 } // kParse
 
@@ -145,13 +135,6 @@ KString GetString(const KJSON& json, KStringView sKey)
 {
 	KString sReturn;
 
-#ifdef DEKAF2_EXCEPTIONS
-	auto it = json.find(sKey);
-	if (it != json.end() && it->is_string())
-	{
-		sReturn = it.value();
-	}
-#else
 	DEKAF2_TRY
 	{
 		auto it = json.find(sKey);
@@ -162,8 +145,8 @@ KString GetString(const KJSON& json, KStringView sKey)
 	}
 	DEKAF2_CATCH (const KJSON::exception& exc)
 	{
+		kDebugLog(1, "JSON[%03d]: %s", exc.id, exc.what());
 	}
-#endif
 
 	return sReturn;
 
@@ -175,13 +158,6 @@ KJSON GetObject (const KJSON& json, KStringView sKey)
 {
 	KJSON oReturnMe;
 
-#ifdef DEKAF2_EXCEPTIONS
-	auto it = json.find(sKey);
-	if (it != json.end())
-	{
-		oReturnMe = it.value();
-	}
-#else
 	DEKAF2_TRY
 	{
 		auto it = json.find(sKey);
@@ -192,8 +168,8 @@ KJSON GetObject (const KJSON& json, KStringView sKey)
 	}
 	DEKAF2_CATCH (const KJSON::exception& exc)
 	{
+		kDebugLog(1, "JSON[%03d]: %s", exc.id, exc.what());
 	}
-#endif
 
 	return (oReturnMe);
 
@@ -215,17 +191,17 @@ bool Add (KJSON& json, const KROW& row)
 		else
 		{
 			// merge KROW elements into current level:
-			for (uint32_t ii=0; ii < row.size(); ++ii)
+			for (size_t ii=0; ii < row.size(); ++ii)
 			{
-				kDebugLog (2, "KJSON::Add: {}", row.ColumnInfoForLogOutput(ii));
+				kDebugLog (2, "kjson::Add: {}", row.ColumnInfoForLogOutput(ii));
 
 				if (row.IsFlag (ii, KROW::NONCOLUMN))
 				{
 					continue;
 				}
 
-				KStringView sName    = row.GetName(ii);
-				KStringView sValue   = row.GetValue(ii);  // note: GetValue() never returns NULL, it might return "" (which Joe calls NIL)
+				KStringView sName  = row.GetName(ii);
+				KStringView sValue = row.GetValue(ii);  // note: GetValue() never returns NULL, it might return "" (which Joe calls NIL)
 
 				if (sName.empty())
 				{
@@ -254,6 +230,7 @@ bool Add (KJSON& json, const KROW& row)
 			}
 		}
 	}
+
 	DEKAF2_CATCH (const KJSON::exception& exc)
 	{
 		return false;

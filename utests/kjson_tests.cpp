@@ -10,7 +10,7 @@ TEST_CASE("KJSON")
 	SECTION("Basic construction")
 	{
 		KJSON j1;
-		j1.Parse(R"(
+		kjson::Parse(j1, R"(
 				   {
 				       "key1": "val1",
 				       "key2": "val2",
@@ -41,19 +41,19 @@ TEST_CASE("KJSON")
 		sKey = "key1";
 		value = j1[sKey];
 		CHECK ( value == "val1" );
-		if (!j1.IsObject("object"))
+		if (!kjson::IsObject(j1, "object"))
 		{
 			CHECK ( false );
 		}
-		if (!j1.IsObject("object"_ks))
+		if (!kjson::IsObject(j1, "object"_ks))
 		{
 			CHECK ( false );
 		}
-		if (!j1.IsObject("object"_ksv))
+		if (!kjson::IsObject(j1, "object"_ksv))
 		{
 			CHECK ( false );
 		}
-		if (!j1.IsObject("object"_ksz))
+		if (!kjson::IsObject(j1, "object"_ksz))
 		{
 			CHECK ( false );
 		}
@@ -72,10 +72,10 @@ TEST_CASE("KJSON")
 			CHECK ( false );
 		}
 
-		value = j1.GetString("key2");
+		value = kjson::GetString(j1, "key2");
 		CHECK ( value == "val2" );
 
-		value = j1.GetString("not existing");
+		value = kjson::GetString(j1, "not existing");
 		CHECK ( value == "" );
 	}
 
@@ -115,14 +115,14 @@ TEST_CASE("KJSON")
 
 	SECTION("LJSON basic ops")
 	{
-		LJSON obj;
+		KJSON obj;
 		obj["one"] = 1;
 		obj["two"] = 2;
-		LJSON child;
+		KJSON child;
 		child["duck"] = "donald";
 		child["pig"]  = "porky";
-		LJSON arr1 = LJSON::array();
-		LJSON arr2 = LJSON::array();
+		KJSON arr1 = KJSON::array();
+		KJSON arr2 = KJSON::array();
 		arr1 += child;
 		obj["three"] = arr1;
 		obj["four"] = arr2;

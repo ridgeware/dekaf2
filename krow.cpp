@@ -469,21 +469,21 @@ KString KROW::ToJSON (uint8_t iIndent/*=0*/, bool bWrapInCurlies/*=true*/) const
 		sJSON += sIndent;
 		if (sValue.empty() && !IsFlag (ii, NULL_IS_NOT_NIL))
 		{
-			sJSON += KJSON::EscWrapNumeric (sName, "null", bWrapInCurlies ? "\t" : "", "");
+			sJSON += kjson::EscWrapNumeric (sName, "null", bWrapInCurlies ? "\t" : "", "");
 		}
 		else if (IsFlag (ii, BOOLEAN))
 		{
 			// NOTE: Boolean values should be output as the word true and false without quotes around them.
 			KStringView sTrueFalse = ((sValue == "0") || (sValue == "false") || (sValue == "FALSE")) ? "false" : "true";
-			sJSON += KJSON::EscWrapNumeric (sName, sTrueFalse, bWrapInCurlies ? "\t" : "", "");
+			sJSON += kjson::EscWrapNumeric (sName, sTrueFalse, bWrapInCurlies ? "\t" : "", "");
 		}
 		else if (IsFlag (ii, NUMERIC) || IsFlag (ii, EXPRESSION) || IsFlag(ii, BOOLEAN))
 		{
-			sJSON += KJSON::EscWrapNumeric (sName, sValue, bWrapInCurlies ? "\t" : "", "");
+			sJSON += kjson::EscWrapNumeric (sName, sValue, bWrapInCurlies ? "\t" : "", "");
 		}
 		else // catch-all logic for all string values
 		{
-			sJSON += KJSON::EscWrap (sName, sValue, bWrapInCurlies ? "\t" : "", "");
+			sJSON += kjson::EscWrap (sName, sValue, bWrapInCurlies ? "\t" : "", "");
 		}
 		bComma = true;
 	}

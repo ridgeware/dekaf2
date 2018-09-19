@@ -48,194 +48,119 @@
 #include "kstringview.h"
 #include "kreader.h"
 
-using LJSON = nlohmann::basic_json<std::map, std::vector, dekaf2::KString >;
+using KJSON = nlohmann::basic_json<std::map, std::vector, dekaf2::KString >;
 
 namespace dekaf2 {
 
-inline void to_json(LJSON& j, const dekaf2::KStringView& s)
+inline void to_json(KJSON& j, const dekaf2::KStringView& s)
 {
-	j = LJSON::string_t(s);
+	j = KJSON::string_t(s);
 }
 
-inline void to_json(LJSON& j, const dekaf2::KStringViewZ& s)
+inline void to_json(KJSON& j, const dekaf2::KStringViewZ& s)
 {
-	j = LJSON::string_t(s);
+	j = KJSON::string_t(s);
 }
 
-inline void from_json(const LJSON& j, dekaf2::KStringViewZ& s)
+inline void from_json(const KJSON& j, dekaf2::KStringViewZ& s)
 {
-	s = j.get<LJSON::string_t>();
+	s = j.get<KJSON::string_t>();
 }
 
-inline void from_json(const LJSON& j, dekaf2::KStringView& s)
+inline void from_json(const KJSON& j, dekaf2::KStringView& s)
 {
-	s = j.get<LJSON::string_t>();
+	s = j.get<KJSON::string_t>();
 }
-
-void kParse (LJSON& json, KStringView sJSON);
-bool kParse (LJSON& json, KStringView sJSON, KString& sError);
-KString kGetString(const LJSON& json, KStringView sKey);
-LJSON kGetObject (LJSON& json, KStringView sKey);
-bool kAdd (LJSON& json, const KROW& row);
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class KJSON : public LJSON
+namespace kjson
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
+	void Parse (KJSON& json, KStringView sJSON);
+	bool Parse (KJSON& json, KStringView sJSON, KString& sError);
+	void Parse (KJSON& json, KInStream& InStream);
+	bool Parse (KJSON& json, KInStream& InStream, KString& sError);
+	KString GetString(const KJSON& json, KStringView sKey);
+	KJSON GetObject (const KJSON& json, KStringView sKey);
+	bool Add (KJSON& json, const KROW& row);
 
-//----------
-public:
-//----------
-
-	using string_t        = LJSON::string_t;
-	using value_type      = LJSON::value_type;
-	using reference       = LJSON::reference;
-	using const_reference = LJSON::const_reference;
-
-	KJSON() = default;
-
-	KJSON(const LJSON& other)
-	: LJSON(other)
+	inline
+	bool Exists(const KJSON& json, KStringView Key)
 	{
+		auto it = json.find(Key);
+		return (it != json.end());
 	}
 
-	KJSON(LJSON&& other)
-	: LJSON(std::move(other))
+	inline
+	bool IsObject(const KJSON& json, KStringView Key)
 	{
+		auto it = json.find(Key);
+		return (it != json.end() && it->is_object());
 	}
 
-	using LJSON::LJSON;
-
-	KJSON& operator=(const LJSON& other)
+	inline
+	bool IsArray(const KJSON& json, KStringView Key)
 	{
-		LJSON::operator=(other);
-		m_sLastError.clear();
-		return *this;
+		auto it = json.find(Key);
+		return (it != json.end() && it->is_array());
 	}
 
-	KJSON& operator=(LJSON&& other)
+	inline
+	bool IsString(const KJSON& json, KStringView Key)
 	{
-		LJSON::operator=(std::move(other));
-		m_sLastError.clear();
-		return *this;
+		auto it = json.find(Key);
+		return (it != json.end() && it->is_string());
 	}
 
-	LJSON& ToLJSON()
+	inline
+	bool IsInteger(const KJSON& json, KStringView Key)
 	{
-		return *this;
+		auto it = json.find(Key);
+		return (it != json.end() && it->is_number_integer());
 	}
 
-	const LJSON& ToLJSON() const
+	inline
+	bool IsFloat(const KJSON& json, KStringView Key)
 	{
-		return *this;
+		auto it = json.find(Key);
+		return (it != json.end() && it->is_number_float());
 	}
 
-	bool        Parse     (KStringView sJSON);
-
-	bool        Parse     (KInStream& InStream);
-
-	KJSON       GetObject (KStringView sKey) const;
-
-	KString     GetString (KStringView sKey) const;
-
-	const KString& GetLastError () { return m_sLastError; }
-
-	bool Exists(KStringView Key) const
+	inline
+	bool IsNull(const KJSON& json, KStringView Key)
 	{
-		auto it = LJSON::find(Key);
-		return (it != LJSON::end());
+		auto it = json.find(Key);
+		return (it != json.end() && it->is_null());
 	}
 
-	bool IsObject(KStringView Key) const
+	inline
+	bool IsBoolean(const KJSON& json, KStringView Key)
 	{
-		auto it = LJSON::find(Key);
-		return (it != LJSON::end() && it->is_object());
+		auto it = json.find(Key);
+		return (it != json.end() && it->is_boolean());
 	}
-
-	bool IsArray(KStringView Key) const
-	{
-		auto it = LJSON::find(Key);
-		return (it != LJSON::end() && it->is_array());
-	}
-
-	bool IsString(KStringView Key) const
-	{
-		auto it = LJSON::find(Key);
-		return (it != LJSON::end() && it->is_string());
-	}
-
-	bool IsInteger(KStringView Key) const
-	{
-		auto it = LJSON::find(Key);
-		return (it != LJSON::end() && it->is_number_integer());
-	}
-
-	bool IsFloat(KStringView Key) const
-	{
-		auto it = LJSON::find(Key);
-		return (it != LJSON::end() && it->is_number_float());
-	}
-
-	bool IsNull(KStringView Key) const
-	{
-		auto it = LJSON::find(Key);
-		return (it != LJSON::end() && it->is_null());
-	}
-
-	bool IsBoolean(KStringView Key) const
-	{
-		auto it = LJSON::find(Key);
-		return (it != LJSON::end() && it->is_boolean());
-	}
-
-	bool Add (const KROW& row);
-
-	KJSON& operator+=(const KROW& row)
-	{
-		Add(row);
-		return *this;
-	}
-
-	// make sure the above operator+= does not overwrite all parent operator+=
-	using LJSON::operator+=;
-
-//----------
-public:
-//----------
-
-	bool FormError (const LJSON::exception& exc) const;
 
 	/// proper json string escaping
-	static void Escape (KStringView sInput, KString& sOutput);
-	static KString Escape (KStringView sInput);
+	void Escape (KStringView sInput, KString& sOutput);
+	KString Escape (KStringView sInput);
 
 	/// wrap the given string with double-quotes and escape it for legal json
-	static KString EscWrap (KStringView sString);
-	static KString EscWrap (KStringView sName, KStringView sValue, KStringView sPrefix="\n\t", KStringView sSuffix=",");
+	KString EscWrap (KStringView sString);
+	KString EscWrap (KStringView sName, KStringView sValue, KStringView sPrefix="\n\t", KStringView sSuffix=",");
 
 	/// do not wrap the given string with double-quotes if it is explicitly known to be Numeric
+	KString EscWrapNumeric (KStringView sName, KStringView sValue, KStringView sPrefix="\n\t", KStringView sSuffix=",");
 	template<typename I, typename std::enable_if<!std::is_constructible<KStringView, I>::value, int>::type = 0>
-	static KString EscWrap (KStringView sName, I iValue, KStringView sPrefix="\n\t", KStringView sSuffix=",")
+	KString EscWrap (KStringView sName, I iValue, KStringView sPrefix="\n\t", KStringView sSuffix=",")
 	{
 		return EscWrapNumeric(sName, KString::to_string(iValue), sPrefix, sSuffix);
 	}
 	template<typename I, typename std::enable_if<!std::is_constructible<KStringView, I>::value, int>::type = 0>
-	static KString EscWrapNumeric (KStringView sName, I iValue, KStringView sPrefix="\n\t", KStringView sSuffix=",")
+	KString EscWrapNumeric (KStringView sName, I iValue, KStringView sPrefix="\n\t", KStringView sSuffix=",")
 	{
 		return EscWrap(sName, iValue, sPrefix, sSuffix);
 	}
-	static KString EscWrapNumeric (KStringView sName, KStringView sValue, KStringView sPrefix="\n\t", KStringView sSuffix=",");
 
-//----------
-private:
-//----------
-
-	void ClearError() const { m_sLastError.clear(); }
-
-	static value_type s_empty;
-
-	mutable KString m_sLastError;
-
-}; // KJSON
+}; // end of namespace kjson
 
 } // end of namespace dekaf2

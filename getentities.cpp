@@ -12,7 +12,7 @@ int main(int argc, char** argv)
 	KString sHTML = kHTTPGet("http://www.w3.org/TR/html5/entities.json");
 
 	KJSON json;
-	json.Parse(sHTML);
+	kjson::Parse(json, sHTML);
 	
 	KOut << "\nconstexpr entity_map_t s_NamedEntitiesHTML4 =\n{\n";
 

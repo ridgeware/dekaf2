@@ -216,13 +216,13 @@ public:
 	const KString& operator[] (KStringView sColName) const  { return KCOLS::operator[](sColName).sValue; }
 
 	/// Returns the Nth column's name (note: column index starts at 0).
-	KStringView GetName (size_t iZeroBasedIndex) const
+	const KString& GetName (size_t iZeroBasedIndex) const
 	{
 		return (at (iZeroBasedIndex).first);
 	}
 
 	/// Returns the Nth column's value as a string (note: column index starts at 0).  Note that you can map this to literally any data type by using KStringView member functions like .Int32().
-	KStringView GetValue (size_t iZeroBasedIndex) const
+	const KString& GetValue (size_t iZeroBasedIndex) const
 	{
 		return (at (iZeroBasedIndex).second.sValue);
 	}

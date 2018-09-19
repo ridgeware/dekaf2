@@ -200,8 +200,8 @@ bool Add (KJSON& json, const KROW& row)
 					continue;
 				}
 
-				KStringView sName  = row.GetName(ii);
-				KStringView sValue = row.GetValue(ii);  // note: GetValue() never returns NULL, it might return "" (which Joe calls NIL)
+				const auto& sName  = row.GetName(ii);
+				const auto& sValue = row.GetValue(ii);
 
 				if (sName.empty())
 				{
@@ -210,7 +210,7 @@ bool Add (KJSON& json, const KROW& row)
 
 				if (row.IsFlag (ii, KROW::BOOLEAN))
 				{
-					json[sName] = sValue.UInt16() ? true : false;
+					json[sName] = sValue.Bool();
 				}
 				else if (row.IsFlag (ii, KROW::NUMERIC))
 				{

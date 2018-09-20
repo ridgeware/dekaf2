@@ -45,19 +45,16 @@
 /// @file kregex.h
 /// The Regular Expression encapsulation
 
-#include <re2/re2.h>
 #include <vector>
-#include <boost/functional/hash.hpp>
-#include "bits/kcppcompat.h"
-#include "kcache.h"
 #include "kstring.h"
+#include "kstringview.h"
 
 namespace dekaf2
 {
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// KRegex constructs a (shared) regex object. Normally you do not use it
-/// directly, but rather use it's static functions that construct regex
+/// directly, but rather use its static functions that construct regex
 /// objects on the fly. The KRegex class uses a static regex object cache
 /// to make reuse of constructed regexes easy.
 class KRegex
@@ -68,18 +65,6 @@ class KRegex
 private:
 //----------
 
-	struct Loader
-	{
-		// teach RE2 how to load from a KString(View)
-		KSharedRef<re2::RE2, true> operator()(KStringView s)
-		{
-			return re2::StringPiece(s.data(), s.size());
-		}
-	};
-
-	using cache_t = KSharedCache<KString, re2::RE2, Loader>;
-	using regex_t = cache_t::value_type;
-
 //----------
 public:
 //----------
@@ -89,7 +74,7 @@ public:
 	KRegex(KStringView expression);
 	//-----------------------------------------------------------------------------
 
-	using Group  = re2::StringPiece;
+	using Group  = KStringView;
 	using Groups = std::vector<Group>;
 
 	// member function interface
@@ -158,43 +143,28 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// returns regular expression string
-	inline const std::string& Pattern() const
+	const std::string& Pattern() const;
 	//-----------------------------------------------------------------------------
-	{
-		return m_Regex->pattern();
-	}
 
 	//-----------------------------------------------------------------------------
 	/// returns an integer that increases with larger complexity of the regex search
-	inline size_t Cost() const
+	size_t Cost() const;
 	//-----------------------------------------------------------------------------
-	{
-		return static_cast<size_t>(m_Regex->ProgramSize());
-	}
 
 	//-----------------------------------------------------------------------------
 	/// returns false if the regular expression could not be compiled
-	inline bool Good() const
+	bool Good() const;
 	//-----------------------------------------------------------------------------
-	{
-		return m_Regex->ok();
-	}
 
 	//-----------------------------------------------------------------------------
 	/// returns error string if !Good()
-	inline const std::string& Error() const
+	const std::string& Error() const;
 	//-----------------------------------------------------------------------------
-	{
-		return m_Regex->error();
-	}
 
 	//-----------------------------------------------------------------------------
 	/// returns erroneous argument if !Good()
-	inline const std::string& ErrorArg() const
+	const std::string& ErrorArg() const;
 	//-----------------------------------------------------------------------------
-	{
-		return m_Regex->error_arg();
-	}
 
 //----------
 protected:
@@ -209,14 +179,12 @@ protected:
 private:
 //----------
 
-	static cache_t s_Cache;
-
-	regex_t m_Regex;
+	void* m_Regex;
 
 }; // KRegex
 
 /// Converts a wildcard expression for file matching into a regular expression.
-/// $ and ? are allowed expressions.
+/// * and ? are allowed expressions.
 KString kWildCard2Regex(KStringView sInput);
 
 } // of namespace dekaf2

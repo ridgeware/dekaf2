@@ -47,9 +47,9 @@
 
 #include <cinttypes>
 #include <algorithm>
-#include <functional>
-#include "bits/kcppcompat.h"
-#include "bits/ktemplate.h"
+#include <cstring>
+#include "kstring.h"
+#include "kstringview.h"
 
 namespace dekaf2
 {
@@ -102,6 +102,7 @@ public:
 char* kstrncpy (char* szTarget, const char* szSource, size_t iMaxAllocTarget);
 
 //-----------------------------------------------------------------------------
+/// pads string at the left up to iWidth size with chPad
 template<class String>
 String& kPadLeft(String& string, size_t iWidth, typename String::value_type chPad = ' ')
 //-----------------------------------------------------------------------------
@@ -114,6 +115,7 @@ String& kPadLeft(String& string, size_t iWidth, typename String::value_type chPa
 }
 
 //-----------------------------------------------------------------------------
+/// pads string at the right up to iWidth size with chPad
 template<class String>
 String& kPadRight(String& string, size_t iWidth, typename String::value_type chPad = ' ')
 //-----------------------------------------------------------------------------
@@ -126,6 +128,7 @@ String& kPadRight(String& string, size_t iWidth, typename String::value_type chP
 }
 
 //-----------------------------------------------------------------------------
+/// removes any character in svTrim from the left of the string
 template<class String>
 String& kTrimLeft(String& string, KStringView svTrim)
 //-----------------------------------------------------------------------------
@@ -139,6 +142,7 @@ String& kTrimLeft(String& string, KStringView svTrim)
 }
 
 //-----------------------------------------------------------------------------
+/// removes any character for which cmp returns true from the left of the string
 template<class String, class Compare>
 String& kTrimLeft(String& string, Compare cmp)
 //-----------------------------------------------------------------------------
@@ -153,6 +157,7 @@ String& kTrimLeft(String& string, Compare cmp)
 }
 
 //-----------------------------------------------------------------------------
+/// removes white space from the left of the string
 template<class String>
 String& kTrimLeft(String& string)
 //-----------------------------------------------------------------------------
@@ -161,6 +166,7 @@ String& kTrimLeft(String& string)
 }
 
 //-----------------------------------------------------------------------------
+/// removes any character in svTrim from the right of the string
 template<class String>
 String& kTrimRight(String& string, KStringView svTrim)
 //-----------------------------------------------------------------------------
@@ -174,6 +180,7 @@ String& kTrimRight(String& string, KStringView svTrim)
 }
 
 //-----------------------------------------------------------------------------
+/// removes any character for which cmp returns true from the right of the string
 template<class String, class Compare>
 String& kTrimRight(String& string, Compare cmp)
 //-----------------------------------------------------------------------------
@@ -188,6 +195,7 @@ String& kTrimRight(String& string, Compare cmp)
 }
 
 //-----------------------------------------------------------------------------
+/// removes white space from the right of the string
 template<class String>
 String& kTrimRight(String& string)
 //-----------------------------------------------------------------------------
@@ -196,6 +204,7 @@ String& kTrimRight(String& string)
 }
 
 //-----------------------------------------------------------------------------
+/// removes any character in svTrim from the left and right of the string
 template<class String>
 String& kTrim(String& string, KStringView svTrim)
 //-----------------------------------------------------------------------------
@@ -205,6 +214,7 @@ String& kTrim(String& string, KStringView svTrim)
 }
 
 //-----------------------------------------------------------------------------
+/// removes any character for which cmp returns true from the left and right of the string
 template<class String, class Compare>
 String& kTrim(String& string, Compare cmp)
 //-----------------------------------------------------------------------------
@@ -214,6 +224,7 @@ String& kTrim(String& string, Compare cmp)
 }
 
 //-----------------------------------------------------------------------------
+/// removes white space from the left and right of the string
 template<class String>
 String& kTrim(String& string)
 //-----------------------------------------------------------------------------
@@ -222,6 +233,7 @@ String& kTrim(String& string)
 }
 
 //-----------------------------------------------------------------------------
+/// Collapses consecutive chars in svCollapse to one instance of chTo
 template<class String>
 String& kCollapse(String& string, KStringView svCollapse, typename String::value_type chTo)
 //-----------------------------------------------------------------------------
@@ -260,6 +272,7 @@ String& kCollapse(String& string, KStringView svCollapse, typename String::value
 }
 
 //-----------------------------------------------------------------------------
+/// Collapses consecutive chars in svCollapse to one instance of chTo and trims the same chars left and right
 template<class String>
 String& kCollapseAndTrim(String& string, KStringView svCollapse, typename String::value_type chTo)
 //-----------------------------------------------------------------------------
@@ -297,14 +310,18 @@ String& kCollapseAndTrim(String& string, KStringView svCollapse, typename String
 }
 
 //-----------------------------------------------------------------------------
+/// Create a UTC time stamp following strftime patterns. If tTime is 0, current time is
+/// used.
 KString kFormTimestamp (time_t tTime = 0, const char* pszFormat = "%Y-%m-%d %H:%M:%S");
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
+/// Form a string that expresses a duration
 KString kTranslateSeconds(int64_t iNumSeconds, bool bLongForm = false);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
+/// Convert value into string and insert separator every n digits
 template <class Arithmetic, class String = KString>
 String kFormNumber(Arithmetic i, typename String::value_type separator = ',', typename String::size_type every = 3)
 //-----------------------------------------------------------------------------
@@ -343,14 +360,17 @@ String kFormNumber(Arithmetic i, typename String::value_type separator = ',', ty
 }
 
 //-----------------------------------------------------------------------------
+/// Copy sInp and insert separator every n digits
 KString kFormString(KStringView sInp, typename KString::value_type separator = ',', typename KString::size_type every = 3);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
+/// Count occurence of ch in str
 size_t kCountChar(KStringView str, const char ch) noexcept;
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
+/// Count occurence of ch in container
 template<class Container>
 size_t kCountChar(const Container& container, const typename Container::value_type ch) noexcept
 //-----------------------------------------------------------------------------
@@ -370,6 +390,7 @@ size_t kCountChar(const Container& container, const typename Container::value_ty
 }
 
 //-----------------------------------------------------------------------------
+/// Returns true if ch is a digit
 template<class Char>
 inline bool kIsDigit(Char ch) noexcept
 //-----------------------------------------------------------------------------
@@ -378,14 +399,17 @@ inline bool kIsDigit(Char ch) noexcept
 }
 
 //-----------------------------------------------------------------------------
-bool kIsDecimal(KStringView str) noexcept;
+/// Returns true if str contains an integer, possibly with a leading + or -
+bool kIsInteger(KStringView str) noexcept;
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
+/// Returns true if str contains a syntactically valid email address
 bool kIsEmail(KStringView str) noexcept;
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
+/// Returns true if str contains a syntactically valid URL
 bool kIsURL(KStringView str) noexcept;
 //-----------------------------------------------------------------------------
 
@@ -394,10 +418,12 @@ bool kIsURL(KStringView str) noexcept;
 //-----------------------------------------------------------------------------
 /// Converts a hex digit into the corresponding integer value. Returns -1 if not
 /// a valid digit
-uint16_t kFromHexChar(char ch);
+uint16_t kFromHexChar(char ch) noexcept;
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
+/// Converts a character array starting at data with length size into an integer.
+/// If bIsHex is true input will be interpreted as hex string
 template<class Integer>
 Integer kToInt(const char* data, size_t size, bool bIsHex = false) noexcept
 //-----------------------------------------------------------------------------

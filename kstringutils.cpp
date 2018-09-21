@@ -40,7 +40,6 @@
 // +-------------------------------------------------------------------------+
 */
 
-#include <cstring>
 #include "kstringutils.h"
 #include "kurl.h"
 #include "dekaf2.h"
@@ -139,7 +138,7 @@ char* kstrncpy (char* szTarget, const char* szSource, size_t iMaxAllocTarget)
 } // kstrncpy
 
 //-----------------------------------------------------------------------------
-uint16_t kFromHexChar(char ch)
+uint16_t kFromHexChar(char ch) noexcept
 //-----------------------------------------------------------------------------
 {
 	switch (ch)
@@ -198,7 +197,7 @@ KString kFormTimestamp (time_t tTime, const char* szFormat)
 
 	strftime (szBuffer, iMaxBuf, szFormat, &ptmStruct);
 
-	return (szBuffer);
+	return { szBuffer };
 
 } // FormTimestamp
 
@@ -219,7 +218,8 @@ KString kTranslateSeconds(int64_t iNumSeconds, bool bLongForm)
 		return (szBuf);
 	}
 
-	enum {
+	enum
+	{
 		SECS_PER_YEAR  = (60*60*24*365),
 		SECS_PER_WEEK  = (60*60*24*7),
 		SECS_PER_DAY   = (60*60*24),
@@ -350,7 +350,7 @@ KString kTranslateSeconds(int64_t iNumSeconds, bool bLongForm)
 
 	}
 
-	return (szBuf);
+	return { szBuf };
 
 } // kTranslateSeconds
 
@@ -373,7 +373,7 @@ size_t kCountChar(KStringView str, const char ch) noexcept
 } // kCountChar
 
 //-----------------------------------------------------------------------------
-bool kIsDecimal(KStringView str) noexcept
+bool kIsInteger(KStringView str) noexcept
 //-----------------------------------------------------------------------------
 {
 	if (str.empty())

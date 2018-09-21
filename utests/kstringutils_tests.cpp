@@ -580,38 +580,38 @@ TEST_CASE("KStringUtils") {
 	{
 		KString s;
 		s = "1";
-		CHECK( kIsDecimal(s) );
+		CHECK( kIsInteger(s) );
 		s = "123456";
-		CHECK( kIsDecimal(s) );
+		CHECK( kIsInteger(s) );
 		s = "-123456";
-		CHECK( kIsDecimal(s) );
+		CHECK( kIsInteger(s) );
 		s = "+123456";
-		CHECK( kIsDecimal(s) );
+		CHECK( kIsInteger(s) );
 		s = "123a456";
-		CHECK( !kIsDecimal(s) );
+		CHECK( !kIsInteger(s) );
 		s = "aa";
-		CHECK( !kIsDecimal(s) );
+		CHECK( !kIsInteger(s) );
 		s = "";
-		CHECK( !kIsDecimal(s) );
+		CHECK( !kIsInteger(s) );
 	}
 
 	SECTION("kIsDecimal on char*")
 	{
 		const char* s;
 		s = "1";
-		CHECK( kIsDecimal(s) );
+		CHECK( kIsInteger(s) );
 		s = "123456";
-		CHECK( kIsDecimal(s) );
+		CHECK( kIsInteger(s) );
 		s = "-123456";
-		CHECK( kIsDecimal(s) );
+		CHECK( kIsInteger(s) );
 		s = "+123456";
-		CHECK( kIsDecimal(s) );
+		CHECK( kIsInteger(s) );
 		s = "123a456";
-		CHECK( !kIsDecimal(s) );
+		CHECK( !kIsInteger(s) );
 		s = "aa";
-		CHECK( !kIsDecimal(s) );
+		CHECK( !kIsInteger(s) );
 		s = "";
-		CHECK( !kIsDecimal(s) );
+		CHECK( !kIsInteger(s) );
 	}
 
 	SECTION("kCountChar on strings")

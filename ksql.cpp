@@ -47,6 +47,7 @@
 // #define DEKAF2_HAS_ODBC    <-- conditionally defined by makefile
 
 #include "ksql.h"   // <-- public header (should have no dependent headers other than DEKAF header)
+#include "dekaf2.h"
 #include "kcrashexit.h"
 #include "ksystem.h"
 #include "kregex.h"

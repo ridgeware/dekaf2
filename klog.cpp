@@ -422,16 +422,16 @@ void KLogJSONSerializer::Serialize() const
 	                  + m_sPathName.size()
 	                  + m_sMessage.size()
 	                  + 50);
-	m_sBuffer  = '{';
-	m_sBuffer += kjson::EscWrap("level", m_Level);
-	m_sBuffer += kjson::EscWrap("pid", m_Pid);
-	m_sBuffer += kjson::EscWrap("tid", m_Tid);
-	m_sBuffer += kjson::EscWrap("time_t", m_Time);
-	m_sBuffer += kjson::EscWrap("short_name", m_sShortName);
-	m_sBuffer += kjson::EscWrap("path_name", m_sPathName);
-	m_sBuffer += kjson::EscWrap("function_name", m_sFunctionName);
-	m_sBuffer += kjson::EscWrap("message", m_sMessage);
-	m_sBuffer += '}';
+	KJSON json;
+	json["level"] = m_Level;
+	json["pid"] = m_Pid;
+	json["tid"] = m_Tid;
+	json["time_t"] = m_Time;
+	json["short_name"] = m_sShortName;
+	json["path_name"] = m_sPathName;
+	json["function_name"] = m_sFunctionName;
+	json["message"] = m_sMessage;
+	m_sBuffer = json.dump();
 
 } // Serialize
 

@@ -256,9 +256,6 @@ public:
 	/// Note that at least one column must have the PKEY flag set (so that the framework knows what to put in the WHERE clause).
 	bool FormDelete (KString& sSQL, SQLTYPE iDBType) const;
 
-	/// Returns a JSON formatted string representing the KROW object
-	KString ToJSON (uint8_t iIndent=0, bool bWrapInCurlies=true) const;
-
 	/// Returns the last RDBMS error message.
 	KStringView GetLastError() const { return (m_sLastError); }
 

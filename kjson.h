@@ -162,29 +162,6 @@ namespace kjson
 	/// proper json string escaping
 	KString Escape (KStringView sInput);
 
-	/// wrap the given string with double-quotes and escape it for legal json
-	KString EscWrap (KStringView sString);
-
-	/// wrap the given string with double-quotes and escape it for legal json
-	KString EscWrap (KStringView sName, KStringView sValue, KStringView sPrefix="\n\t", KStringView sSuffix=",");
-
-	/// do not wrap the given string with double-quotes if it is explicitly known to be Numeric
-	KString EscWrapNumeric (KStringView sName, KStringView sValue, KStringView sPrefix="\n\t", KStringView sSuffix=",");
-
-	/// do not wrap the given string with double-quotes if it is explicitly known to be Numeric
-	template<typename I, typename std::enable_if<!std::is_constructible<KStringView, I>::value, int>::type = 0>
-	KString EscWrap (KStringView sName, I iValue, KStringView sPrefix="\n\t", KStringView sSuffix=",")
-	{
-		return EscWrapNumeric(sName, KString::to_string(iValue), sPrefix, sSuffix);
-	}
-
-	/// do not wrap the given string with double-quotes if it is explicitly known to be Numeric
-	template<typename I, typename std::enable_if<!std::is_constructible<KStringView, I>::value, int>::type = 0>
-	KString EscWrapNumeric (KStringView sName, I iValue, KStringView sPrefix="\n\t", KStringView sSuffix=",")
-	{
-		return EscWrap(sName, iValue, sPrefix, sSuffix);
-	}
-
 }; // end of namespace kjson
 
 } // end of namespace dekaf2

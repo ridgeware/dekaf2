@@ -337,66 +337,6 @@ KString Escape (KStringView sInput)
 
 } // Escape
 
-//-----------------------------------------------------------------------------
-KString EscWrap (KStringView sString)
-//-----------------------------------------------------------------------------
-{
-	KString sReturnMe;
-	sReturnMe.reserve(sString.size() + 2 + 10);
-
-	sReturnMe += '"';
-	Escape(sString, sReturnMe);
-	sReturnMe += '"';
-
-	return (sReturnMe);
-
-} // EscWrap
-
-//-----------------------------------------------------------------------------
-KString EscWrap (KStringView sName, KStringView sValue, KStringView sPrefix/*="\n\t"*/, KStringView sSuffix/*=","*/)
-//-----------------------------------------------------------------------------
-{
-	KString sReturnMe;
-	sReturnMe.reserve(sPrefix.size()
-	                + sName.size()
-	                + sValue.size()
-	                + sSuffix.size()
-	                + 6 + 10);
-
-	sReturnMe += sPrefix;
-	sReturnMe += '"';
-	Escape(sName, sReturnMe);
-	sReturnMe += "\": \"";
-	Escape(sValue, sReturnMe);
-	sReturnMe += '"';
-	sReturnMe += sSuffix;
-
-	return (sReturnMe);
-
-} // EscWrap
-
-//-----------------------------------------------------------------------------
-KString EscWrapNumeric (KStringView sName, KStringView sValue, KStringView sPrefix/*="\n\t"*/, KStringView sSuffix/*=","*/)
-//-----------------------------------------------------------------------------
-{
-	KString sReturnMe;
-	sReturnMe.reserve(sPrefix.size()
-	                + sName.size()
-	                + sValue.size()
-	                + sSuffix.size()
-	                + 4 + 10);
-
-	sReturnMe += sPrefix;
-	sReturnMe += '"';
-	Escape(sName, sReturnMe);
-	sReturnMe += "\": ";
-	Escape(sValue, sReturnMe);
-	sReturnMe += sSuffix;
-
-	return (sReturnMe);
-
-} // EscWrapNumeric
-
 } // end of namespace kjson
 
 } // end of namespace dekaf2

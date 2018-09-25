@@ -211,8 +211,23 @@ public:
 	// alternative interface
 
 	//-----------------------------------------------------------------------------
-	/// Get from URL, store in return value KString
+	/// Get from URL, store response body in return value KString
 	KString Get(const KURL& URL);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// Get from URL, store response body in return value KString
+	KString Options(const KURL& URL);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// Post to URL, store response body in return value KString
+	KString Post(const KURL& URL, KStringView svRequestBody, KMIME Mime);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// Deletes URL, store response body in return value KString
+	KString Delete(const KURL& URL, KStringView svRequestBody, KMIME Mime);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -221,9 +236,22 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// Post to URL, store in return value KString
-	KString Post(const KURL& URL, KStringView svPostData, KStringView svMime);
+	/// Put to URL - returns true if response is in the 2xx range
+	bool Put(const KURL& URL, KStringView svRequestBody, KMIME Mime);
 	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// Patch URL - returns true if response is in the 2xx range
+	bool Patch(const KURL& URL, KStringView svRequestBody, KMIME Mime);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// Return HTTP status code from last request
+	uint16_t GetStatusCode() const
+	//-----------------------------------------------------------------------------
+	{
+		return Response.iStatusCode;
+	}
 
 //------
 protected:

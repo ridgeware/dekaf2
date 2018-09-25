@@ -245,15 +245,30 @@ bool KHTTPClient::SendRequest(KStringView svPostData, KMIME Mime)
 	{
 		return SetError("no resource");
 	}
-	else if (!m_Connection || !m_Connection->Good())
+
+	if (!m_Connection || !m_Connection->Good())
 	{
 		return SetError("no stream");
 	}
 
-	if (Request.Method == KHTTPMethod::POST)
+	if (   Request.Method != KHTTPMethod::GET
+		&& Request.Method != KHTTPMethod::HEAD
+		&& Request.Method != KHTTPMethod::OPTIONS)
 	{
 		RequestHeader(KHTTPHeaders::CONTENT_LENGTH, KString::to_string(svPostData.size()));
-		RequestHeader(KHTTPHeaders::CONTENT_TYPE,   Mime);
+
+		if (!svPostData.empty())
+		{
+			RequestHeader(KHTTPHeaders::CONTENT_TYPE, Mime);
+		}
+	}
+	else
+	{
+		if (!svPostData.empty())
+		{
+			kDebug(1, "cannot send body data with {} request, data removed", Mime)
+			svPostData.clear();
+		}
 	}
 
 	if (m_bRequestCompression)
@@ -266,9 +281,9 @@ bool KHTTPClient::SendRequest(KStringView svPostData, KMIME Mime)
 		return SetError(Request.Error());
 	}
 
-	if (Request.Method == KHTTPMethod::POST)
+	if (!svPostData.empty())
 	{
-		kDebug(2, "sending {} bytes of POST data", svPostData.size());
+		kDebug(2, "sending {} bytes of {} data", svPostData.size(), Mime);
 		Request.Write(svPostData);
 		// We only need to flush if we have content data, as Request.Serialize()
 		// already flushes after the headers are written.
@@ -322,6 +337,27 @@ KString KHTTPClient::Get(const KURL& URL)
 } // Get
 
 //-----------------------------------------------------------------------------
+KString KHTTPClient::Options(const KURL& URL)
+//-----------------------------------------------------------------------------
+{
+	KString sBuffer;
+
+	if (Connect(URL))
+	{
+		if (Resource(URL, KHTTPMethod::OPTIONS))
+		{
+			if (SendRequest())
+			{
+				Read(sBuffer);
+			}
+		}
+	}
+
+	return sBuffer;
+
+} // Options
+
+//-----------------------------------------------------------------------------
 bool KHTTPClient::Head(const KURL& URL)
 //-----------------------------------------------------------------------------
 {
@@ -340,10 +376,10 @@ bool KHTTPClient::Head(const KURL& URL)
 
 	return false;
 
-} // Get
+} // Head
 
 //-----------------------------------------------------------------------------
-KString KHTTPClient::Post(const KURL& URL, KStringView svPostData, KStringView svMime)
+KString KHTTPClient::Post(const KURL& URL, KStringView svRequestBody, KMIME Mime)
 //-----------------------------------------------------------------------------
 {
 	KString sBuffer;
@@ -352,7 +388,7 @@ KString KHTTPClient::Post(const KURL& URL, KStringView svPostData, KStringView s
 	{
 		if (Resource(URL, KHTTPMethod::POST))
 		{
-			if (SendRequest(svPostData, svMime))
+			if (SendRequest(svRequestBody, Mime))
 			{
 				Read(sBuffer);
 			}
@@ -362,6 +398,65 @@ KString KHTTPClient::Post(const KURL& URL, KStringView svPostData, KStringView s
 	return sBuffer;
 
 } // Post
+
+//-----------------------------------------------------------------------------
+KString KHTTPClient::Delete(const KURL& URL, KStringView svRequestBody, KMIME Mime)
+//-----------------------------------------------------------------------------
+{
+	KString sBuffer;
+
+	if (Connect(URL))
+	{
+		if (Resource(URL, KHTTPMethod::DELETE))
+		{
+			if (SendRequest(svRequestBody, Mime))
+			{
+				Read(sBuffer);
+			}
+		}
+	}
+
+	return sBuffer;
+
+} // Delete
+
+//-----------------------------------------------------------------------------
+bool KHTTPClient::Put(const KURL& URL, KStringView svRequestBody, KMIME Mime)
+//-----------------------------------------------------------------------------
+{
+	if (Connect(URL))
+	{
+		if (Resource(URL, KHTTPMethod::PUT))
+		{
+			if (SendRequest(svRequestBody, Mime))
+			{
+				return Response.Good();
+			}
+		}
+	}
+
+	return false;
+
+} // Put
+
+//-----------------------------------------------------------------------------
+bool KHTTPClient::Patch(const KURL& URL, KStringView svRequestBody, KMIME Mime)
+//-----------------------------------------------------------------------------
+{
+	if (Connect(URL))
+	{
+		if (Resource(URL, KHTTPMethod::PATCH))
+		{
+			if (SendRequest(svRequestBody, Mime))
+			{
+				return Response.Good();
+			}
+		}
+	}
+
+	return false;
+
+} // Patch
 
 //-----------------------------------------------------------------------------
 bool KHTTPClient::AlreadyConnected(const KURL& URL) const

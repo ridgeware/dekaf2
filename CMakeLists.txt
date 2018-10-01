@@ -362,6 +362,7 @@ set(PUBLIC_HEADERS
 	ktcpclient.h
 	ktcpserver.h
 	ktcpstream.h
+	kthreadpool.h
 	ktimer.h
 	kunixstream.h
 	kuntar.h

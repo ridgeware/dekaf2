@@ -33,6 +33,15 @@ else()
 	# set it manually in the compiler flags
 endif()
 
+# Joins arguments and places the results in ${result_var}.
+function(join result_var)
+	set(result )
+	foreach (arg ${ARGN})
+		set(result "${result}${arg}")
+	endforeach ()
+	set(${result_var} "${result}" PARENT_SCOPE)
+endfunction()
+
 # these are all configurable project options
 OPTION(DEKAF2_INSTALL_HEADERS "Install headers" OFF)
 OPTION(DEKAF2_USE_EXCEPTIONS "Use exceptions for error handling" OFF)
@@ -52,6 +61,13 @@ set(VERSION_MAJOR   2) # This is DEKAF 2 !
 set(VERSION_MINOR   0)
 set(VERSION_PATCH   0)
 mark_as_advanced(VERSION_MAJOR VERSION_MINOR VERSION_PATCH)
+
+set(CPACK_PACKAGE_VERSION_MAJOR ${VERSION_MAJOR})
+set(CPACK_PACKAGE_VERSION_MINOR ${VERSION_MINOR})
+set(CPACK_PACKAGE_VERSION_PATCH ${VERSION_PATCH})
+
+join(DEKAF_VERSION ${CPACK_PACKAGE_VERSION_MAJOR}.${CPACK_PACKAGE_VERSION_MINOR}.${CPACK_PACKAGE_VERSION_PATCH})
+message(STATUS "dekaf version: ${DEKAF_VERSION}")
 
 if (DEKAF2_USE_STD_STRING_FOR_DEBUG_BUILDS)
 	if (CMAKE_BUILD_TYPE STREQUAL "Debug")
@@ -179,10 +195,10 @@ set(THREADS_PREFER_PTHREAD_FLAG TRUE)
 find_package(Threads REQUIRED)
 
 # add third party libraries included in source control
-add_subdirectory(libs)
+add_subdirectory(libs EXCLUDE_FROM_ALL)
 
 # add partial third party libraries included in source control
-add_subdirectory(from)
+add_subdirectory(from EXCLUDE_FROM_ALL)
 
 # add externally installed third party libraries:
 
@@ -245,11 +261,10 @@ include_directories("${GENERATED_FILES_DIR}")
 # create the configuration header file
 configure_file("bits/kconfiguration.h.in" "${GENERATED_FILES_DIR}/kconfiguration.h" @ONLY)
 
-set (HEADERS
+set (BITS_HEADERS
 	# KEEP ALPHABETIZED!!
 	bits/kbaseshell.h
 	bits/kbasepipe.h
-	bits/kconfiguration.h
 	bits/kcppcompat.h
 	bits/kfilesystem.h
 	bits/kistringstream.h
@@ -265,7 +280,12 @@ set (HEADERS
 	bits/kunique_deleter.h
 	bits/kurldualencode.h
 	bits/kvariant.h
+)
+set(BITS_SIMD_HEADERS
 	bits/simd/kfindfirstof.h
+)
+set(PUBLIC_HEADERS
+	# KEEP ALPHABETIZED!!
 	dekaf2.h
 	dekaf2all.h
 	kaddrplus.h
@@ -354,7 +374,23 @@ set (HEADERS
 	kwriter.h
 	# keep this one at the end
 	khtmlentities.h
+)
+
+if (DEKAF2_WITH_COMPATIBILITY_LAYER_TO_DEKAF1)
+	set(COMPAT_HEADERS
+		compat/kstring.h
+		compat/kprops.h
+		compat/kstack.h
+		compat/dekaf.h
 	)
+endif ()
+
+set(HEADERS
+	${BITS_HEADERS}
+	${COMPAT_HEADERS}
+	${BITS_SIMD_HEADERS}
+	${PUBLIC_HEADERS}
+)
 
 set (SOURCES
 	# KEEP ALPHABETIZED!!
@@ -433,16 +469,7 @@ set (SOURCES
 	kwriter.cpp
 	# keep this one at the end
 	khtmlentities.cpp
-	)
-
-if (DEKAF2_WITH_COMPATIBILITY_LAYER_TO_DEKAF1)
-	set(HEADERS ${HEADERS}
-		compat/kstring.h
-		compat/kprops.h
-		compat/kstack.h
-		compat/dekaf.h
-		)
-endif ()
+)
 
 if (DEKAF2_INSTALL_HEADERS)
 
@@ -502,20 +529,22 @@ else ()
 endif ()
 
 target_link_libraries(dekaf2
-	fmt
-	re2
-	minifolly
-	${FCGILIBS}
-	${FSLIB}
-	${Boost_LIBRARIES}
-	${OPENSSL_LIBRARIES}
-	${MYSQL_LIBRARIES}
-	${libproc_LIBRARIES}
-	nlohmann-json
-	frozen
-	Threads::Threads
-	z
-	bz2
+	PUBLIC
+		fmt
+		nlohmann-json
+		${Boost_LIBRARIES}
+		${OPENSSL_LIBRARIES}
+		frozen
+		minifolly
+	PRIVATE
+		${FCGILIBS}
+		${FSLIB}
+		${MYSQL_LIBRARIES}
+		${libproc_LIBRARIES}
+		Threads::Threads
+		re2
+		z
+		bz2
 	)
 
 add_dependencies(dekaf2 lib-headers-dekaf2)
@@ -539,4 +568,39 @@ add_subdirectory(utests)
 add_subdirectory(smoketests)
 add_subdirectory(benchmarks)
 
+install(TARGETS dekaf2 DESTINATION lib)
+install(FILES ${PUBLIC_HEADERS} DESTINATION include/dekaf2)
+install(FILES ${BITS_HEADERS} DESTINATION include/dekaf2/bits)
+install(FILES ${BITS_SIMD_HEADERS} DESTINATION include/dekaf2/bits/simd)
+install(FILES "${GENERATED_FILES_DIR}/kconfiguration.h" DESTINATION include/dekaf2)
+if (DEKAF2_WITH_COMPATIBILITY_LAYER_TO_DEKAF1)
+	install(FILES ${COMPAT_HEADERS} DESTINATION include/dekaf2/compat)
+endif()
 
+file (GLOB FMT_FILES "${CMAKE_CURRENT_SOURCE_DIR}/libs/fmt-4.0.0/fmt/*.h")
+install(FILES ${FMT_FILES} DESTINATION include/dekaf2/fmt)
+
+file (GLOB FOLLY_FILES "${CMAKE_CURRENT_SOURCE_DIR}/from/folly/folly/*.h")
+install(FILES ${FOLLY_FILES} DESTINATION include/dekaf2/folly)
+file (GLOB FOLLY_FILES "${CMAKE_CURRENT_SOURCE_DIR}/from/folly/folly/portability/*.h")
+install(FILES ${FOLLY_FILES} DESTINATION include/dekaf2/folly/portability)
+file (GLOB FOLLY_FILES "${CMAKE_CURRENT_SOURCE_DIR}/from/folly/folly/hash/*.h")
+install(FILES ${FOLLY_FILES} DESTINATION include/dekaf2/folly/hash)
+file (GLOB FOLLY_FILES "${CMAKE_CURRENT_SOURCE_DIR}/from/folly/folly/detail/*.h")
+install(FILES ${FOLLY_FILES} DESTINATION include/dekaf2/folly/detail)
+file (GLOB FOLLY_FILES "${CMAKE_CURRENT_SOURCE_DIR}/from/folly/folly/concurrency/*.h")
+install(FILES ${FOLLY_FILES} DESTINATION include/dekaf2/folly/concurrency)
+
+file (GLOB NLOHMANN_FILES "${CMAKE_CURRENT_SOURCE_DIR}/from/nlohmann/include/nlohmann/*.h")
+install(FILES ${NLOHMANN_FILES} DESTINATION include/dekaf2/nlohmann)
+
+file (GLOB FROZEN_FILES "${CMAKE_CURRENT_SOURCE_DIR}/libs/frozen/include/frozen/*.h")
+install(FILES ${FROZEN_FILES} DESTINATION include/dekaf2/frozen)
+file (GLOB FROZEN_FILES "${CMAKE_CURRENT_SOURCE_DIR}/libs/frozen/include/frozen/bits/*.h")
+install(FILES ${FROZEN_FILES} DESTINATION include/dekaf2/frozen/bits)
+
+set(CPACK_SOURCE_GENERATOR ZIP)
+set(CPACK_SOURCE_IGNORE_FILES ${ignored_files})
+set(CPACK_SOURCE_PACKAGE_FILE_NAME dekaf2-${DEKAF_VERSION})
+set(CPACK_PACKAGE_NAME dekaf2)
+include(CPack)

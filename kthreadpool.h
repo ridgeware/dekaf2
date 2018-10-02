@@ -59,10 +59,10 @@ class Queue {
 
 public:
 
-	bool push(T const & value)
+	bool push(T && value)
 	{
 		std::unique_lock<std::mutex> lock(m_mutex);
-		m_queue.push(value);
+		m_queue.push(std::move(value));
 		return true;
 	}
 
@@ -74,7 +74,7 @@ public:
 		{
 			return false;
 		}
-		v = m_queue.front();
+		v = std::move(m_queue.front());
 		m_queue.pop();
 		return true;
 	}
@@ -154,7 +154,6 @@ public:
 				}
 				{
 					// stop the detached threads that were waiting
-					std::unique_lock<std::mutex> lock(m_mutex);
 					m_cond.notify_all();
 				}
 				m_threads .resize(nThreads); // safe to delete because the threads are detached
@@ -165,7 +164,7 @@ public:
 
 	/// wait for all computing threads to finish and stop all threads
 	/// may be called asynchronously to not pause the calling thread while waiting
-	/// if kill == true, all the functions in the queue are run, otherwise the queue is cleared without running the functions
+	/// if kill == false, all the functions in the queue are run, otherwise the queue is cleared without running the functions
 	void interrupt( bool kill = false )
 	{
 		if (kill)
@@ -193,7 +192,6 @@ public:
 		}
 
 		{
-			std::unique_lock<std::mutex> lock(m_mutex);
 			m_cond.notify_all();  // stop all waiting threads
 		}
 
@@ -212,59 +210,73 @@ public:
 		m_abort   .clear();
 	}
 
-	template<typename F, typename... Rest>
-	auto push(F && f, Rest&&... rest) ->std::future<decltype(f(0, rest...))>
+	/// Push a class member function for asynchronous execution with arbitrary args. Receive result in returned future,
+	/// or ignore..
+	template<typename F, typename Object, typename... Args>
+	auto push(F && f, Object && o, Args&&... args) ->std::future<decltype((o->*f)(std::forward<Args>(args)...))>
 	{
+		std::future<decltype((o->*f)(std::forward<Args>(args)...))> future;
+
 		if (!ma_kill && !ma_interrupt)
 		{
-			auto pck = std::make_shared<std::packaged_task< decltype(f(0, rest...)) (size_t) >>(
-																								std::bind(std::forward<F>(f), std::placeholders::_1, std::forward<Rest>(rest)...)
-																								);
-			auto _f  = new std::function<void(size_t id)>([pck](size_t id){ (*pck)(id); });
-
-			m_queue.push(_f);
-			std::unique_lock<std::mutex> lock(m_mutex);
+			auto pck = std::packaged_task<decltype((o->*f)(std::forward<Args>(args)...))()>(
+				std::bind(std::forward<F>(f), std::forward<Object>(o), std::forward<Args>(args)...)
+			);
+			future = pck.get_future();
+			auto _f = [ pack = std::move(pck) ]()
+			{
+				// wonder if it is a bug in clang that a moved lambda capture becomes
+				// a const type - which forces us to do the ugly const_cast inside the
+				// lambda..
+				auto* pp = const_cast<typename std::remove_const<decltype(pack)>::type*> (&pack);
+				(*pp)();
+			};
+			std::packaged_task<void()> up(std::move(_f));
+			m_queue.push(std::move(up));
 			m_cond.notify_one();
-			return pck->get_future();
 		}
-		else
-		{
-			return std::future<decltype(f(0, rest...))>();
-		}
+
+		return future;
 	}
 
-	/// run the user's function that accepts argument size_t - id of the running thread. returned value is templatized
-	/// operator returns std::future, where the user can get the result and rethrow the catched exceptions
-	template<typename F>
-	auto push(F && f) ->std::future<decltype(f(0))>
+	/// Push a non-class callable for asynchronous execution with arbitrary args. Receive result in returned future,
+	/// or ignore..
+	template<typename F, typename... Args>
+	auto push(F && f, Args&&... args) ->std::future<decltype(f(std::forward<Args>(args)...))>
 	{
+		std::future<decltype(f(std::forward<Args>(args)...))> future;
+
 		if (!ma_kill && !ma_interrupt)
 		{
-			auto pck = std::make_shared<std::packaged_task< decltype(f(0)) (size_t) >>(std::forward<F>(f));
-			auto _f  = new std::function<void(size_t id)>([pck](size_t id){ (*pck)(id); });
-
-			m_queue.push(_f);
-			std::unique_lock<std::mutex> lock(m_mutex);
+			auto pck = std::packaged_task<decltype(f(std::forward<Args>(args)...))()>(
+				std::bind(std::forward<F>(f), std::forward<Args>(args)...)
+			);
+			future = pck.get_future();
+			auto _f = [ pack = std::move(pck) ]()
+			{
+				// wonder if it is a bug in clang that a moved lambda capture becomes
+				// a const type - which forces us to do the ugly const_cast inside the
+				// lambda..
+				auto* pp = const_cast<typename std::remove_const<decltype(pack)>::type*> (&pack);
+				(*pp)();
+			};
+			std::packaged_task<void()> up(std::move(_f));
+			m_queue.push(std::move(up));
 			m_cond.notify_one();
-			return pck->get_future();
 		}
-		else
-		{
-			return std::future<decltype(f(0))>();
-		}
-	}
 
+		return future;
+	}
 
 private:
 
 	// clear all tasks
 	void clear_queue()
 	{
-		std::function<void(size_t id)> * _f = nullptr;
+		std::packaged_task<void()> _f;
 
 		while (m_queue.pop(_f))
 		{
-			delete _f; // empty the queue
 		}
 	}
 
@@ -285,20 +297,17 @@ private:
 		// a copy of the shared ptr to the abort
 		std::shared_ptr<std::atomic<bool>> abort_ptr(m_abort[i]);
 
-		auto f = [this, i, abort_ptr]()
+		auto f = [this, abort_ptr]()
 		{
 			std::atomic<bool> & abort = *abort_ptr;
-			std::function<void(size_t id)> * _f = nullptr;
+			std::packaged_task<void()> _f;
 			bool more_tasks = m_queue.pop(_f);
 
 			while (true)
 			{
 				while (more_tasks) // if there is anything in the queue
 				{
-					// at return, delete the function even if an exception occurred
-					std::unique_ptr<std::function<void(size_t id)>> func(_f);
-
-					(*_f)(i);
+					(_f)();
 
 					if (abort)
 					{
@@ -331,7 +340,7 @@ private:
 
 	std::vector<std::unique_ptr<std::thread>>        m_threads;
 	std::vector<std::shared_ptr<std::atomic<bool>>>  m_abort;
-	Queue<std::function<void(size_t id)> *>          m_queue;
+	Queue<std::packaged_task<void()>>                m_queue;
 
 	std::atomic<bool>        ma_interrupt, ma_kill;
 	std::atomic<size_t>      ma_n_idle;

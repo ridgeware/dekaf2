@@ -461,6 +461,7 @@ set (SOURCES
 	ksystem.cpp
 	ktcpserver.cpp
 	ktcpstream.cpp
+	kthreadpool.cpp
 	ktimer.cpp
 	kunixstream.cpp
 	kuntar.cpp

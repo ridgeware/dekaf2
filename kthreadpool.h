@@ -79,16 +79,31 @@ public:
 		return true;
 	}
 
-	bool empty()
+	void clear()
+	{
+		std::unique_lock<std::mutex> lock(m_mutex);
+		while (!m_queue.empty())
+		{
+			m_queue.pop();
+		}
+	}
+
+	bool empty() const
 	{
 		std::unique_lock<std::mutex> lock(m_mutex);
 		return m_queue.empty();
 	}
 
+	size_t size() const
+	{
+		std::unique_lock<std::mutex> lock(m_mutex);
+		return m_queue.size();
+	}
+
 private:
 
 	std::queue<T> m_queue;
-	std::mutex    m_mutex;
+	mutable std::mutex m_mutex;
 
 };
 
@@ -101,17 +116,20 @@ public:
 	thread_pool & operator=(const thread_pool &) = delete;
 	thread_pool & operator=(thread_pool &&) = delete;
 
-	thread_pool() { this->init(); }
-	thread_pool(size_t nThreads) { this->init(); this->resize(nThreads); }
+	thread_pool() { init(); }
+	thread_pool(size_t nThreads) { init(); resize(nThreads); }
 
 	/// the destructor waits for all the functions in the queue to be finished
-	~thread_pool() { this->interrupt(false); }
+	~thread_pool() { interrupt(false); }
 
 	/// get the number of running threads in the pool
 	inline size_t size() const { return m_threads.size(); }
 
 	/// number of idle threads
 	inline size_t n_idle() const { return ma_n_idle; }
+
+	/// number of tasks waiting in queue
+	inline size_t n_queued() const { return m_queue.size(); }
 
 	/// get a specific thread
 	inline std::thread & get_thread( size_t i ) { return *m_threads.at(i); }
@@ -120,8 +138,8 @@ public:
 	/// restart the pool
 	void restart()
 	{
-		this->interrupt(false); // finish all existing tasks but prevent new ones
-		this->init(); // reset atomic flags
+		interrupt(false); // finish all existing tasks but prevent new ones
+		init(); // reset atomic flags
 	}
 
 	/// change the number of threads in the pool -
@@ -141,7 +159,7 @@ public:
 				for (size_t i = oldNThreads; i < nThreads; ++i)
 				{
 					m_abort[i] = std::make_shared<std::atomic<bool>>(false);
-					this->setup_thread(i);
+					setup_thread(i);
 				}
 			}
 			else
@@ -176,7 +194,7 @@ public:
 
 			ma_kill = true;
 
-			for (size_t i = 0, n = this->size(); i < n; ++i)
+			for (size_t i = 0, n = size(); i < n; ++i)
 			{
 				*m_abort[i] = true;  // command the threads to stop
 			}
@@ -204,8 +222,7 @@ public:
 			}
 		}
 
-		this->clear_queue();
-
+		m_queue   .clear();
 		m_threads .clear();
 		m_abort   .clear();
 	}
@@ -223,16 +240,7 @@ public:
 				std::bind(std::forward<F>(f), std::forward<Object>(o), std::forward<Args>(args)...)
 			);
 			future = pck.get_future();
-			auto _f = [ pack = std::move(pck) ]()
-			{
-				// wonder if it is a bug in clang that a moved lambda capture becomes
-				// a const type - which forces us to do the ugly const_cast inside the
-				// lambda..
-				auto* pp = const_cast<typename std::remove_const<decltype(pack)>::type*> (&pack);
-				(*pp)();
-			};
-			std::packaged_task<void()> up(std::move(_f));
-			m_queue.push(std::move(up));
+			m_queue.push(std::move(pck));
 			m_cond.notify_one();
 		}
 
@@ -252,16 +260,7 @@ public:
 				std::bind(std::forward<F>(f), std::forward<Args>(args)...)
 			);
 			future = pck.get_future();
-			auto _f = [ pack = std::move(pck) ]()
-			{
-				// wonder if it is a bug in clang that a moved lambda capture becomes
-				// a const type - which forces us to do the ugly const_cast inside the
-				// lambda..
-				auto* pp = const_cast<typename std::remove_const<decltype(pack)>::type*> (&pack);
-				(*pp)();
-			};
-			std::packaged_task<void()> up(std::move(_f));
-			m_queue.push(std::move(up));
+			m_queue.push(std::move(pck));
 			m_cond.notify_one();
 		}
 
@@ -269,16 +268,6 @@ public:
 	}
 
 private:
-
-	// clear all tasks
-	void clear_queue()
-	{
-		std::packaged_task<void()> _f;
-
-		while (m_queue.pop(_f))
-		{
-		}
-	}
 
 	// reset all flags
 	void init()

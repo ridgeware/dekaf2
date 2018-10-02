@@ -1,5 +1,4 @@
 /*
-//-----------------------------------------------------------------------------//
 //
 // DEKAF(tm): Lighter, Faster, Smarter (tm)
 //
@@ -149,11 +148,9 @@ void KTCPServer::Session(KStream& stream, KStringView sRemoteEndPoint)
 } // Session
 
 //-----------------------------------------------------------------------------
-void KTCPServer::RunSession(std::unique_ptr<KStream> stream, KString sRemoteEndPoint)
+void KTCPServer::RunSession(KStream& stream, KString sRemoteEndPoint)
 //-----------------------------------------------------------------------------
 {
-	++m_iOpenConnections;
-
 	kDebug(3, "accepting new connection from {} on port {}",
 	             sRemoteEndPoint,
 	             m_iPort);
@@ -162,7 +159,7 @@ void KTCPServer::RunSession(std::unique_ptr<KStream> stream, KString sRemoteEndP
 	{
 		// run the actual Session code protected by
 		// an exception handler
-		Session(*stream, sRemoteEndPoint);
+		Session(stream, sRemoteEndPoint);
 	}
 	
 	DEKAF2_CATCH(std::exception& e)
@@ -175,8 +172,6 @@ void KTCPServer::RunSession(std::unique_ptr<KStream> stream, KString sRemoteEndP
 	kDebug(3, "closing connection with {} on port {}",
 	             sRemoteEndPoint,
 	             m_iPort);
-
-	--m_iOpenConnections;
 
 } // RunSession
 
@@ -259,7 +254,10 @@ void KTCPServer::TCPServer(bool ipv6)
 				if (!m_bQuit)
 				{
 					stream->Timeout(m_iTimeout);
-					std::thread(&KTCPServer::RunSession, this, std::move(stream), to_string(remote_endpoint)).detach();
+					m_ThreadPool->push([ this, moved_stream = std::move(stream), remote_endpoint ]()
+					{
+						RunSession(*moved_stream, to_string(remote_endpoint));
+					});
 				}
 			}
 			else
@@ -270,15 +268,11 @@ void KTCPServer::TCPServer(bool ipv6)
 				if (!m_bQuit)
 				{
 					stream->Timeout(m_iTimeout);
-					std::thread(&KTCPServer::RunSession, this, std::move(stream), to_string(remote_endpoint)).detach();
+					m_ThreadPool->push([ this, moved_stream = std::move(stream), remote_endpoint ]()
+					{
+						RunSession(*moved_stream, to_string(remote_endpoint));
+					});
 				}
-			}
-
-			while (m_iOpenConnections > m_iMaxConnections)
-			{
-				// this may actually trigger a few threads too late,
-				// but we do not care too much about
-				usleep(100);
 			}
 
 		}
@@ -299,8 +293,6 @@ void KTCPServer::UnixServer()
 //-----------------------------------------------------------------------------
 {
 	DEKAF2_TRY_EXCEPTION
-	asio::ip::v6_only v6_only(false);
-
 	::unlink(m_sSocketFile.c_str());
 	boost::asio::local::stream_protocol::endpoint local_endpoint(m_sSocketFile.c_str());
 	boost::asio::local::stream_protocol::acceptor acceptor(m_asio, local_endpoint, true); // true == reuse addr
@@ -317,16 +309,11 @@ void KTCPServer::UnixServer()
 			if (!m_bQuit)
 			{
 				stream->Timeout(m_iTimeout);
-				std::thread(&KTCPServer::RunSession, this, std::move(stream), KString{}).detach();
+				m_ThreadPool->push([ this, moved_stream = std::move(stream) ]()
+				{
+					RunSession(*moved_stream, KString{});
+				});
 			}
-
-			while (m_iOpenConnections > m_iMaxConnections)
-			{
-				// this may actually trigger a few threads too late,
-				// but we do not care too much about
-				usleep(100);
-			}
-
 		}
 
 		if (!acceptor.is_open() && !m_bQuit)
@@ -428,6 +415,7 @@ void KTCPServer::StopServerThread(bool ipv6)
 
 		socket.connect(remote_endpoint);
 	}
+	
 } // StopServerThread
 
 //-----------------------------------------------------------------------------
@@ -469,6 +457,25 @@ bool KTCPServer::Stop()
 	return true;
 
 } // Stop
+
+//-----------------------------------------------------------------------------
+KTCPServer::KTCPServer(uint16_t iPort, bool bSSL, uint16_t iMaxConnections)
+//-----------------------------------------------------------------------------
+: m_ThreadPool(std::make_unique<KThreadPool>(iMaxConnections))
+, m_iPort(iPort)
+, m_bIsSSL(bSSL)
+{
+}
+
+//-----------------------------------------------------------------------------
+KTCPServer::KTCPServer(KStringView sSocketFile, uint16_t iMaxConnections)
+//-----------------------------------------------------------------------------
+: m_ThreadPool(std::make_unique<KThreadPool>(iMaxConnections))
+, m_sSocketFile(sSocketFile)
+, m_iPort(0)
+, m_bIsSSL(false)
+{
+}
 
 //-----------------------------------------------------------------------------
 KTCPServer::~KTCPServer()

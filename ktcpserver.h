@@ -1,5 +1,4 @@
 /*
-//-----------------------------------------------------------------------------//
 //
 // DEKAF(tm): Lighter, Faster, Smarter (tm)
 //
@@ -77,6 +76,7 @@
 #include <boost/asio/io_service.hpp>
 #include "kstream.h"
 #include "kstring.h"
+#include "kthreadpool.h"
 
 namespace dekaf2
 {
@@ -97,25 +97,14 @@ public:
 	/// Construct a server, but do not yet start it.
 	/// @param iPort Port to bind to
 	/// @param bSSL If true will use SSL/TLS
-	KTCPServer(uint16_t iPort, bool bSSL, uint16_t iMaxConnections = 50)
+	KTCPServer(uint16_t iPort, bool bSSL, uint16_t iMaxConnections = 50);
 	//-----------------------------------------------------------------------------
-	: m_iPort(iPort)
-	, m_iMaxConnections(iMaxConnections)
-	, m_bIsSSL(bSSL)
-	{
-	}
 
 	//-----------------------------------------------------------------------------
 	/// Construct a server, but do not yet start it.
 	/// @param sSocketFile Unix domain socket to bind to
-	KTCPServer(KStringView sSocketFile, uint16_t iMaxConnections = 50)
+	KTCPServer(KStringView sSocketFile, uint16_t iMaxConnections = 50);
 	//-----------------------------------------------------------------------------
-	: m_sSocketFile(sSocketFile)
-	, m_iPort(0)
-	, m_iMaxConnections(iMaxConnections)
-	, m_bIsSSL(false)
-	{
-	}
 
 	//-----------------------------------------------------------------------------
 	virtual ~KTCPServer();
@@ -280,7 +269,7 @@ private:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	void RunSession(std::unique_ptr<KStream> stream, KString sRemoteEndPoint);
+	void RunSession(KStream& stream, KString sRemoteEndPoint);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -290,13 +279,12 @@ private:
 	boost::asio::io_service m_asio;
 	std::unique_ptr<std::thread> m_ipv4_server;
 	std::unique_ptr<std::thread> m_ipv6_server;
+	std::unique_ptr<KThreadPool> m_ThreadPool;
 	KString m_sSocketFile;
 	KString m_sCert;
 	KString m_sPem;
 	uint16_t m_iPort { 0 };
 	uint16_t m_iTimeout { 1*30 };
-	uint16_t m_iMaxConnections;
-	std::atomic<uint16_t> m_iOpenConnections { 0 };
 	bool m_bBlock { true };
 	bool m_bQuit { false };
 	bool m_bStartIPv4 { true };

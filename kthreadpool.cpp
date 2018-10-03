@@ -68,7 +68,9 @@ KThreadPool::~KThreadPool()
 void KThreadPool::restart()
 //-----------------------------------------------------------------------------
 {
-	stop(false); // finish all existing tasks but prevent new ones
+	auto nsize = size();
+	stop(false);
+	resize(nsize);
 
 } // restart
 

@@ -26,10 +26,12 @@
  *  		+ atomic guards on pushes;
  *  		+ make clear_queue private
  *
- * October 2018, Joachim Schurig
- *  - adapt brace standard and swap into the dekaf2 namespace
- *  - remove shared pointers, enable member function callables, and
- *    splitting up the code into header and implementation
+ *  October 2018, Joachim Schurig
+ *   - adapt dekaf2 brace standard and swap into the dekaf2 namespace
+ *   - remove most shared pointers by using the move idiom, enable member
+ *     function callables, and splitting up the code into header and
+ *     implementation
+ *   - remove unsafe atomic guards, replace with a 'resize' mutex
  *
  *********************************************************/
 
@@ -42,7 +44,6 @@ namespace dekaf2 {
 KThreadPool::KThreadPool()
 //-----------------------------------------------------------------------------
 {
-	init();
 
 } // ctor
 
@@ -50,7 +51,6 @@ KThreadPool::KThreadPool()
 KThreadPool::KThreadPool(size_t nThreads)
 //-----------------------------------------------------------------------------
 {
-	init();
 	resize(nThreads);
 
 } // ctor
@@ -68,7 +68,6 @@ void KThreadPool::restart()
 //-----------------------------------------------------------------------------
 {
 	interrupt(false); // finish all existing tasks but prevent new ones
-	init(); // reset atomic flags
 
 } // restart
 
@@ -78,38 +77,34 @@ void KThreadPool::resize(size_t nThreads)
 {
 	std::unique_lock<std::mutex> lock(m_resize_mutex);
 
-	if (!ma_kill && !ma_interrupt)
+	size_t oldNThreads = m_threads.size();
+
+	if (oldNThreads <= nThreads)
 	{
+		// the number of threads is increased
+		m_threads .resize(nThreads);
+		m_abort   .resize(nThreads);
 
-		size_t oldNThreads = m_threads.size();
-
-		if (oldNThreads <= nThreads)
+		for (size_t i = oldNThreads; i < nThreads; ++i)
 		{
-			// the number of threads is increased
-			m_threads .resize(nThreads);
-			m_abort   .resize(nThreads);
-
-			for (size_t i = oldNThreads; i < nThreads; ++i)
-			{
-				m_abort[i] = std::make_shared<std::atomic<bool>>(false);
-				setup_thread(i);
-			}
+			m_abort[i] = std::make_shared<std::atomic<bool>>(false);
+			setup_thread(i);
 		}
-		else
+	}
+	else
+	{
+		// the number of threads is decreased
+		for (size_t i = oldNThreads - 1; i >= nThreads; --i)
 		{
-			// the number of threads is decreased
-			for (size_t i = oldNThreads - 1; i >= nThreads; --i)
-			{
-				*m_abort[i] = true;  // this thread will finish
-				m_threads[i]->detach();
-			}
-
-			// stop the detached threads that were waiting
-			m_cond_var.notify_all();
-
-			m_threads .resize(nThreads); // safe to delete because the threads are detached
-			m_abort   .resize(nThreads); // safe to delete because the threads have copies of shared_ptr of the flags, not originals
+			*m_abort[i] = true;  // this thread will finish
+			m_threads[i]->detach();
 		}
+
+		// stop the detached threads that were waiting
+		m_cond_var.notify_all();
+
+		m_threads .resize(nThreads); // safe to delete because the threads are detached
+		m_abort   .resize(nThreads); // safe to delete because the threads have copies of shared_ptr of the flags, not originals
 	}
 
 } // resize
@@ -122,27 +117,13 @@ void KThreadPool::interrupt( bool kill )
 
 	if (kill)
 	{
-		if (ma_kill)
-		{
-			return;
-		}
-
-		ma_kill = true;
-
 		for (size_t i = 0, n = size(); i < n; ++i)
 		{
 			*m_abort[i] = true;  // command the threads to stop
 		}
 	}
-	else
-	{
-		if (ma_interrupt || ma_kill)
-		{
-			return;
-		}
 
-		ma_interrupt = true;  // give the waiting threads a command to finish
-	}
+	ma_interrupt = true;
 
 	m_cond_var.notify_all();  // stop all waiting threads
 
@@ -158,19 +139,10 @@ void KThreadPool::interrupt( bool kill )
 	m_queue   .clear();
 	m_threads .clear();
 	m_abort   .clear();
-
-} // interrupt
-
-//-----------------------------------------------------------------------------
-// reset all flags
-void KThreadPool::init()
-//-----------------------------------------------------------------------------
-{
 	ma_n_idle = 0;
-	ma_kill = false;
 	ma_interrupt = false;
 
-} // init
+} // interrupt
 
 //-----------------------------------------------------------------------------
 // each thread pops jobs from the queue until:

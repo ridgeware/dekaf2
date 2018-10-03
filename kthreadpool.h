@@ -26,10 +26,12 @@
  *  		+ atomic guards on pushes;
  *  		+ make clear_queue private
  *
- * October 2018, Joachim Schurig
- *  - adapt brace standard and swap into the dekaf2 namespace
- *  - remove shared pointers, enable member function callables, and
- *    splitting up the code into header and implementation
+ *  October 2018, Joachim Schurig
+ *   - adapt dekaf2 brace standard and swap into the dekaf2 namespace
+ *   - remove most shared pointers by using the move idiom, enable member
+ *     function callables, and splitting up the code into header and
+ *     implementation
+ *   - remove unsafe atomic guards, replace with a 'resize' mutex
  *
  *********************************************************/
 
@@ -178,16 +180,19 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Get the number of tasks waiting in the queue
-	//-----------------------------------------------------------------------------
 	size_t n_queued() const
+	//-----------------------------------------------------------------------------
 	{
 		return m_queue.size();
 	}
 
 	//-----------------------------------------------------------------------------
 	/// Get a specific thread
-	std::thread & get_thread( size_t i ) { return *m_threads.at(i); }
+	std::thread & get_thread( size_t i )
 	//-----------------------------------------------------------------------------
+	{
+		return *m_threads.at(i);
+	}
 
 	//-----------------------------------------------------------------------------
 	/// Restart the pool
@@ -215,15 +220,12 @@ public:
 	{
 		std::future<decltype((o->*f)(std::forward<Args>(args)...))> future;
 
-		if (!ma_kill && !ma_interrupt)
-		{
-			auto pck = std::packaged_task<decltype((o->*f)(std::forward<Args>(args)...))()>(
-				std::bind(std::forward<Function>(f), std::forward<Object>(o), std::forward<Args>(args)...)
-			);
-			future = pck.get_future();
-			m_queue.push(std::move(pck));
-			m_cond_var.notify_one();
-		}
+		auto pck = std::packaged_task<decltype((o->*f)(std::forward<Args>(args)...))()>(
+			std::bind(std::forward<Function>(f), std::forward<Object>(o), std::forward<Args>(args)...)
+		);
+		future = pck.get_future();
+		m_queue.push(std::move(pck));
+		m_cond_var.notify_one();
 
 		return future;
 	}
@@ -237,15 +239,12 @@ public:
 	{
 		std::future<decltype(f(std::forward<Args>(args)...))> future;
 
-		if (!ma_kill && !ma_interrupt)
-		{
-			auto pck = std::packaged_task<decltype(f(std::forward<Args>(args)...))()>(
-				std::bind(std::forward<Function>(f), std::forward<Args>(args)...)
-			);
-			future = pck.get_future();
-			m_queue.push(std::move(pck));
-			m_cond_var.notify_one();
-		}
+		auto pck = std::packaged_task<decltype(f(std::forward<Args>(args)...))()>(
+			std::bind(std::forward<Function>(f), std::forward<Args>(args)...)
+		);
+		future = pck.get_future();
+		m_queue.push(std::move(pck));
+		m_cond_var.notify_one();
 
 		return future;
 	}
@@ -254,16 +253,14 @@ public:
 private:
 //------
 
-	void init();
-
 	void setup_thread( size_t i );
 
 	std::vector<std::unique_ptr<std::thread>>             m_threads;
 	std::vector<std::shared_ptr<std::atomic<bool>>>       m_abort;
 	detail::threadpool::Queue<std::packaged_task<void()>> m_queue;
 
-	std::atomic<bool>        ma_interrupt, ma_kill;
-	std::atomic<size_t>      ma_n_idle;
+	std::atomic<size_t>      ma_n_idle { 0 };
+	std::atomic<bool>        ma_interrupt { false };
 
 	std::mutex               m_resize_mutex;
 	std::mutex               m_cond_mutex;

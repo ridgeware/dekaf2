@@ -1,4 +1,4 @@
-// This version initially copied from https://raw.githubusercontent.com/sheljohn/CTPL/master/ctpl_stl.h
+// This file was initially copied from https://raw.githubusercontent.com/sheljohn/CTPL/master/ctpl_stl.h
 
 /*********************************************************
  *
@@ -32,6 +32,7 @@
  *     function callables, and splitting up the code into header and
  *     implementation
  *   - remove unsafe atomic guards, replace with a 'resize' mutex
+ *   - safeguarding against lost tasks with consistent condition locking
  *
  *********************************************************/
 
@@ -57,8 +58,7 @@ namespace detail {
 namespace threadpool {
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// move semantics queue implementation with unique locks for all accessors -
-/// helper type for thread pool
+/// move semantics queue implementation - helper type for thread pool
 template <typename T>
 class Queue
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -69,19 +69,16 @@ public:
 //------
 
 	//-----------------------------------------------------------------------------
-	bool push(T&& value)
+	void push(T&& value)
 	//-----------------------------------------------------------------------------
 	{
-		std::unique_lock<std::mutex> lock(m_mutex);
 		m_queue.push(std::move(value));
-		return true;
 	}
 
 	//-----------------------------------------------------------------------------
 	bool pop(T& v)
 	//-----------------------------------------------------------------------------
 	{
-		std::unique_lock<std::mutex> lock(m_mutex);
 		if (m_queue.empty())
 		{
 			return false;
@@ -92,10 +89,11 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	void clear()
+	void clear(std::mutex& mutex)
 	//-----------------------------------------------------------------------------
 	{
-		std::unique_lock<std::mutex> lock(m_mutex);
+		std::unique_lock<std::mutex> lock(mutex);
+
 		while (!m_queue.empty())
 		{
 			m_queue.pop();
@@ -103,18 +101,20 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	bool empty() const
+	bool empty(std::mutex& mutex) const
 	//-----------------------------------------------------------------------------
 	{
-		std::unique_lock<std::mutex> lock(m_mutex);
+		std::unique_lock<std::mutex> lock(mutex);
+
 		return m_queue.empty();
 	}
 
 	//-----------------------------------------------------------------------------
-	size_t size() const
+	size_t size(std::mutex& mutex) const
 	//-----------------------------------------------------------------------------
 	{
-		std::unique_lock<std::mutex> lock(m_mutex);
+		std::unique_lock<std::mutex> lock(mutex);
+
 		return m_queue.size();
 	}
 
@@ -123,7 +123,6 @@ private:
 //------
 
 	std::queue<T> m_queue;
-	mutable std::mutex m_mutex;
 
 }; // Queue
 
@@ -167,6 +166,7 @@ public:
 	size_t size() const
 	//-----------------------------------------------------------------------------
 	{
+		std::unique_lock<std::mutex> lock(m_resize_mutex);
 		return m_threads.size();
 	}
 
@@ -183,15 +183,7 @@ public:
 	size_t n_queued() const
 	//-----------------------------------------------------------------------------
 	{
-		return m_queue.size();
-	}
-
-	//-----------------------------------------------------------------------------
-	/// Get a specific thread
-	std::thread & get_thread( size_t i )
-	//-----------------------------------------------------------------------------
-	{
-		return *m_threads.at(i);
+		return m_queue.size(m_cond_mutex);
 	}
 
 	//-----------------------------------------------------------------------------
@@ -208,7 +200,7 @@ public:
 	/// Wait for all computing threads to finish and stop all threads.
 	/// May be called asynchronously to not pause the calling thread while waiting.
 	/// If kill == false, all the functions in the queue are run, otherwise the queue is cleared without running the functions
-	void interrupt( bool kill = false );
+	void stop( bool kill = false );
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -220,12 +212,13 @@ public:
 	{
 		std::future<decltype((o->*f)(std::forward<Args>(args)...))> future;
 
-		auto pck = std::packaged_task<decltype((o->*f)(std::forward<Args>(args)...))()>(
+		auto task = std::packaged_task<decltype((o->*f)(std::forward<Args>(args)...))()>(
 			std::bind(std::forward<Function>(f), std::forward<Object>(o), std::forward<Args>(args)...)
 		);
-		future = pck.get_future();
-		m_queue.push(std::move(pck));
-		m_cond_var.notify_one();
+
+		future = task.get_future();
+
+		push_packaged_task(std::move(task));
 
 		return future;
 	}
@@ -239,12 +232,13 @@ public:
 	{
 		std::future<decltype(f(std::forward<Args>(args)...))> future;
 
-		auto pck = std::packaged_task<decltype(f(std::forward<Args>(args)...))()>(
+		auto task = std::packaged_task<decltype(f(std::forward<Args>(args)...))()>(
 			std::bind(std::forward<Function>(f), std::forward<Args>(args)...)
 		);
-		future = pck.get_future();
-		m_queue.push(std::move(pck));
-		m_cond_var.notify_one();
+
+		future = task.get_future();
+
+		push_packaged_task(std::move(task));
 
 		return future;
 	}
@@ -252,6 +246,8 @@ public:
 //------
 private:
 //------
+
+	void push_packaged_task(std::packaged_task<void()> task);
 
 	void setup_thread( size_t i );
 
@@ -262,8 +258,8 @@ private:
 	std::atomic<size_t>      ma_n_idle { 0 };
 	std::atomic<bool>        ma_interrupt { false };
 
-	std::mutex               m_resize_mutex;
-	std::mutex               m_cond_mutex;
+	mutable std::mutex       m_resize_mutex;
+	mutable std::mutex       m_cond_mutex;
 	std::condition_variable  m_cond_var;
 
 }; // KThreadPool

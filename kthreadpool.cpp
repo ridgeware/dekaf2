@@ -1,4 +1,4 @@
-// This version initially copied from https://raw.githubusercontent.com/sheljohn/CTPL/master/ctpl_stl.h
+// This file was initially copied from https://raw.githubusercontent.com/sheljohn/CTPL/master/ctpl_stl.h
 
 /*********************************************************
  *
@@ -32,6 +32,7 @@
  *     function callables, and splitting up the code into header and
  *     implementation
  *   - remove unsafe atomic guards, replace with a 'resize' mutex
+ *   - safeguarding against lost tasks with consistent condition locking
  *
  *********************************************************/
 
@@ -59,7 +60,7 @@ KThreadPool::KThreadPool(size_t nThreads)
 KThreadPool::~KThreadPool()
 //-----------------------------------------------------------------------------
 {
-	interrupt(false);
+	stop(false);
 
 } // dtor
 
@@ -67,7 +68,7 @@ KThreadPool::~KThreadPool()
 void KThreadPool::restart()
 //-----------------------------------------------------------------------------
 {
-	interrupt(false); // finish all existing tasks but prevent new ones
+	stop(false); // finish all existing tasks but prevent new ones
 
 } // restart
 
@@ -110,7 +111,7 @@ void KThreadPool::resize(size_t nThreads)
 } // resize
 
 //-----------------------------------------------------------------------------
-void KThreadPool::interrupt( bool kill )
+void KThreadPool::stop( bool kill )
 //-----------------------------------------------------------------------------
 {
 	std::unique_lock<std::mutex> lock(m_resize_mutex);
@@ -136,13 +137,13 @@ void KThreadPool::interrupt( bool kill )
 		}
 	}
 
-	m_queue   .clear();
+	m_queue   .clear(m_cond_mutex);
 	m_threads .clear();
 	m_abort   .clear();
 	ma_n_idle = 0;
 	ma_interrupt = false;
 
-} // interrupt
+} // stop
 
 //-----------------------------------------------------------------------------
 // each thread pops jobs from the queue until:
@@ -159,26 +160,27 @@ void KThreadPool::setup_thread( size_t i )
 	{
 		std::atomic<bool> & abort = *abort_ptr;
 		std::packaged_task<void()> _f;
+		std::unique_lock<std::mutex> lock(m_cond_mutex);
+
 		bool more_tasks = m_queue.pop(_f);
 
 		for (;;)
 		{
 			while (more_tasks) // if there is anything in the queue
 			{
+				lock.unlock();
+
 				(_f)();
 
 				if (abort)
 				{
 					return; // return even if the queue is not empty yet
 				}
-				else
-				{
-					more_tasks = m_queue.pop(_f);
-				}
-			}
 
-			// the queue is empty here, wait for the next command
-			std::unique_lock<std::mutex> lock(m_cond_mutex);
+				lock.lock();
+
+				more_tasks = m_queue.pop(_f);
+			}
 
 			++ma_n_idle;
 
@@ -201,6 +203,21 @@ void KThreadPool::setup_thread( size_t i )
 	m_threads[i] = std::make_unique<std::thread>(f);
 
 } // setup_thread
+
+//-----------------------------------------------------------------------------
+void KThreadPool::push_packaged_task(std::packaged_task<void()> task)
+//-----------------------------------------------------------------------------
+{
+	std::unique_lock<std::mutex> lock(m_cond_mutex);
+
+	m_queue.push(std::move(task));
+
+	lock.unlock();
+
+	// notify in the unlocked state!
+	m_cond_var.notify_one();
+
+} // push_packaged_task
 
 } // end of namespace dekaf2
 

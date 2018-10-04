@@ -49,7 +49,7 @@
 #include <queue>
 
 /// @file kthreadpool.h
-/// thread pool to run user's functors with signature
+/// thread pool to run user's tasks (all types of callables) with signature
 /// ret func(params, ...)
 
 namespace dekaf2 {
@@ -141,18 +141,19 @@ class KThreadPool
 public:
 //------
 
+	//-----------------------------------------------------------------------------
+	/// Construct an empty thread pool
+	KThreadPool() = default;
+	//-----------------------------------------------------------------------------
+
 	KThreadPool(const KThreadPool &) = delete;
 	KThreadPool(KThreadPool &&) = delete;
 	KThreadPool & operator=(const KThreadPool &) = delete;
 	KThreadPool & operator=(KThreadPool &&) = delete;
 
 	//-----------------------------------------------------------------------------
-	/// Construct an empty thread pool
-	KThreadPool();
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// Construct a thread pool with nThreads size
+	/// Construct a thread pool with nThreads size - if nThreads == 0 starts as many
+	/// threads as CPU cores are available
 	KThreadPool(size_t nThreads);
 	//-----------------------------------------------------------------------------
 

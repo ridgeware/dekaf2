@@ -340,6 +340,7 @@ set(PUBLIC_HEADERS
 	kprof.h
 	kprops.h
 	kquotedprintable.h
+	krapidxml.h
 	kreader.h
 	kregex.h
 	kreplacer.h
@@ -444,6 +445,7 @@ set (SOURCES
 	kprof.cpp
 	kprops.cpp
 	kquotedprintable.cpp
+	krapidxml.cpp
 	kreader.cpp
 	kregex.cpp
 	kreplacer.cpp

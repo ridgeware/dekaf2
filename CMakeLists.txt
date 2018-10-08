@@ -572,10 +572,6 @@ add_subdirectory(utests)
 add_subdirectory(smoketests)
 add_subdirectory(benchmarks)
 
-# for testing
-set(CMAKE_INSTALL_PREFIX "/Users/jschurig/src/install")
-file(MAKE_DIRECTORY ${CMAKE_INSTALL_PREFIX})
-
 install(TARGETS dekaf2 DESTINATION lib)
 install(FILES ${PUBLIC_HEADERS} DESTINATION include/dekaf2)
 install(FILES ${BITS_HEADERS} DESTINATION include/dekaf2/bits)

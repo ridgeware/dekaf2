@@ -10,6 +10,7 @@ extern void std_string_bench();
 extern void kstring_bench();
 extern void kstringview_bench();
 extern void kcasestring_bench();
+extern void kxml_bench();
 
 using namespace dekaf2;
 
@@ -19,6 +20,7 @@ int main()
 	Dekaf().SetMultiThreading();
 	Dekaf().SetUnicodeLocale();
 
+	kxml_bench();
 	kbitfields_bench();
 	shared_ptr_bench();
 	kprops_bench();

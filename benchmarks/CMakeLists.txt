@@ -10,6 +10,7 @@ endif()
 
 # keep alphabetic sort order
 set (SOURCES
+	kxml_bench.cpp
 	kbitfields_bench.cpp
 	kcasestring_bench.cpp
 	kprops_bench.cpp

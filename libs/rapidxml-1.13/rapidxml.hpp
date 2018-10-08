@@ -833,7 +833,7 @@ namespace rapidxml
         //! \param name_size Size of name, in characters, or 0 to have size calculated automatically from string
         //! \param case_sensitive Should name comparison be case-sensitive; non case-sensitive comparison works properly only for ASCII characters
         //! \return Pointer to found attribute, or 0 if not found.
-        xml_attribute<Ch> *previous_attribute(const Ch *name = 0, std::size_t name_size = 0, bool case_sensitive = true) const
+        xml_attribute<Ch> *previous_attribute(const Ch *name, std::size_t name_size = 0, bool case_sensitive = true) const
         {
             if (name)
             {
@@ -848,12 +848,17 @@ namespace rapidxml
                 return this->m_parent ? m_prev_attribute : 0;
         }
 
-        //! Gets next attribute, optionally matching attribute name. 
+		xml_attribute<Ch> *previous_attribute() const
+		{
+			return this->m_parent ? m_prev_attribute : 0;
+		}
+
+        //! Gets next attribute, optionally matching attribute name.
         //! \param name Name of attribute to find, or 0 to return next attribute regardless of its name; this string doesn't have to be zero-terminated if name_size is non-zero
         //! \param name_size Size of name, in characters, or 0 to have size calculated automatically from string
         //! \param case_sensitive Should name comparison be case-sensitive; non case-sensitive comparison works properly only for ASCII characters
         //! \return Pointer to found attribute, or 0 if not found.
-        xml_attribute<Ch> *next_attribute(const Ch *name = 0, std::size_t name_size = 0, bool case_sensitive = true) const
+        xml_attribute<Ch> *next_attribute(const Ch *name, std::size_t name_size = 0, bool case_sensitive = true) const
         {
             if (name)
             {
@@ -867,6 +872,11 @@ namespace rapidxml
             else
                 return this->m_parent ? m_next_attribute : 0;
         }
+
+		xml_attribute<Ch> *next_attribute() const
+		{
+			return this->m_parent ? m_next_attribute : 0;
+		}
 
     private:
 
@@ -933,7 +943,7 @@ namespace rapidxml
         //! \param name_size Size of name, in characters, or 0 to have size calculated automatically from string
         //! \param case_sensitive Should name comparison be case-sensitive; non case-sensitive comparison works properly only for ASCII characters
         //! \return Pointer to found child, or 0 if not found.
-        xml_node<Ch> *first_node(const Ch *name = 0, std::size_t name_size = 0, bool case_sensitive = true) const
+        xml_node<Ch> *first_node(const Ch *name, std::size_t name_size = 0, bool case_sensitive = true) const
         {
             if (name)
             {
@@ -948,114 +958,144 @@ namespace rapidxml
                 return m_first_node;
         }
 
-        //! Gets last child node, optionally matching node name. 
+		xml_node<Ch> *first_node() const
+		{
+			return m_first_node;
+		}
+
+        //! Gets last child node, optionally matching node name.
         //! Behaviour is undefined if node has no children.
         //! Use first_node() to test if node has children.
         //! \param name Name of child to find, or 0 to return last child regardless of its name; this string doesn't have to be zero-terminated if name_size is non-zero
         //! \param name_size Size of name, in characters, or 0 to have size calculated automatically from string
         //! \param case_sensitive Should name comparison be case-sensitive; non case-sensitive comparison works properly only for ASCII characters
         //! \return Pointer to found child, or 0 if not found.
-        xml_node<Ch> *last_node(const Ch *name = 0, std::size_t name_size = 0, bool case_sensitive = true) const
-        {
-            assert(m_first_node);  // Cannot query for last child if node has no children
-            if (name)
-            {
-                if (name_size == 0)
-                    name_size = internal::measure(name);
-                for (xml_node<Ch> *child = m_last_node; child; child = child->previous_sibling())
-                    if (internal::compare(child->name(), child->name_size(), name, name_size, case_sensitive))
-                        return child;
-                return 0;
-            }
-            else
-                return m_last_node;
-        }
+		xml_node<Ch> *last_node(const Ch *name, std::size_t name_size = 0, bool case_sensitive = true) const
+		{
+			assert(m_first_node);  // Cannot query for last child if node has no children
+			if (name)
+			{
+				if (name_size == 0)
+					name_size = internal::measure(name);
+				for (xml_node<Ch> *child = m_last_node; child; child = child->previous_sibling())
+					if (internal::compare(child->name(), child->name_size(), name, name_size, case_sensitive))
+						return child;
+				return 0;
+			}
+			else
+				return m_last_node;
+		}
 
-        //! Gets previous sibling node, optionally matching node name. 
+		xml_node<Ch> *last_node() const
+		{
+			return m_last_node;
+		}
+
+        //! Gets previous sibling node, optionally matching node name.
         //! Behaviour is undefined if node has no parent.
         //! Use parent() to test if node has a parent.
         //! \param name Name of sibling to find, or 0 to return previous sibling regardless of its name; this string doesn't have to be zero-terminated if name_size is non-zero
         //! \param name_size Size of name, in characters, or 0 to have size calculated automatically from string
         //! \param case_sensitive Should name comparison be case-sensitive; non case-sensitive comparison works properly only for ASCII characters
         //! \return Pointer to found sibling, or 0 if not found.
-        xml_node<Ch> *previous_sibling(const Ch *name = 0, std::size_t name_size = 0, bool case_sensitive = true) const
-        {
-            assert(this->m_parent);     // Cannot query for siblings if node has no parent
-            if (name)
-            {
-                if (name_size == 0)
-                    name_size = internal::measure(name);
-                for (xml_node<Ch> *sibling = m_prev_sibling; sibling; sibling = sibling->m_prev_sibling)
-                    if (internal::compare(sibling->name(), sibling->name_size(), name, name_size, case_sensitive))
-                        return sibling;
-                return 0;
-            }
-            else
-                return m_prev_sibling;
-        }
+		xml_node<Ch> *previous_sibling(const Ch *name, std::size_t name_size = 0, bool case_sensitive = true) const
+		{
+			assert(this->m_parent);     // Cannot query for siblings if node has no parent
+			if (name)
+			{
+				if (name_size == 0)
+					name_size = internal::measure(name);
+				for (xml_node<Ch> *sibling = m_prev_sibling; sibling; sibling = sibling->m_prev_sibling)
+					if (internal::compare(sibling->name(), sibling->name_size(), name, name_size, case_sensitive))
+						return sibling;
+				return 0;
+			}
+			else
+				return m_prev_sibling;
+		}
 
-        //! Gets next sibling node, optionally matching node name. 
+		xml_node<Ch> *previous_sibling() const
+		{
+			return m_prev_sibling;
+		}
+
+        //! Gets next sibling node, optionally matching node name.
         //! Behaviour is undefined if node has no parent.
         //! Use parent() to test if node has a parent.
         //! \param name Name of sibling to find, or 0 to return next sibling regardless of its name; this string doesn't have to be zero-terminated if name_size is non-zero
         //! \param name_size Size of name, in characters, or 0 to have size calculated automatically from string
         //! \param case_sensitive Should name comparison be case-sensitive; non case-sensitive comparison works properly only for ASCII characters
         //! \return Pointer to found sibling, or 0 if not found.
-        xml_node<Ch> *next_sibling(const Ch *name = 0, std::size_t name_size = 0, bool case_sensitive = true) const
-        {
-            assert(this->m_parent);     // Cannot query for siblings if node has no parent
-            if (name)
-            {
-                if (name_size == 0)
-                    name_size = internal::measure(name);
-                for (xml_node<Ch> *sibling = m_next_sibling; sibling; sibling = sibling->m_next_sibling)
-                    if (internal::compare(sibling->name(), sibling->name_size(), name, name_size, case_sensitive))
-                        return sibling;
-                return 0;
-            }
-            else
-                return m_next_sibling;
-        }
+		xml_node<Ch> *next_sibling(const Ch *name, std::size_t name_size = 0, bool case_sensitive = true) const
+		{
+			assert(this->m_parent);     // Cannot query for siblings if node has no parent
+			if (name)
+			{
+				if (name_size == 0)
+					name_size = internal::measure(name);
+				for (xml_node<Ch> *sibling = m_next_sibling; sibling; sibling = sibling->m_next_sibling)
+					if (internal::compare(sibling->name(), sibling->name_size(), name, name_size, case_sensitive))
+						return sibling;
+				return 0;
+			}
+			else
+				return m_next_sibling;
+		}
+
+		xml_node<Ch> *next_sibling() const
+		{
+			return m_next_sibling;
+		}
 
         //! Gets first attribute of node, optionally matching attribute name.
         //! \param name Name of attribute to find, or 0 to return first attribute regardless of its name; this string doesn't have to be zero-terminated if name_size is non-zero
         //! \param name_size Size of name, in characters, or 0 to have size calculated automatically from string
         //! \param case_sensitive Should name comparison be case-sensitive; non case-sensitive comparison works properly only for ASCII characters
         //! \return Pointer to found attribute, or 0 if not found.
-        xml_attribute<Ch> *first_attribute(const Ch *name = 0, std::size_t name_size = 0, bool case_sensitive = true) const
-        {
-            if (name)
-            {
-                if (name_size == 0)
-                    name_size = internal::measure(name);
-                for (xml_attribute<Ch> *attribute = m_first_attribute; attribute; attribute = attribute->m_next_attribute)
-                    if (internal::compare(attribute->name(), attribute->name_size(), name, name_size, case_sensitive))
-                        return attribute;
-                return 0;
-            }
-            else
-                return m_first_attribute;
-        }
+		xml_attribute<Ch> *first_attribute(const Ch *name, std::size_t name_size = 0, bool case_sensitive = true) const
+		{
+			if (name)
+			{
+				if (name_size == 0)
+					name_size = internal::measure(name);
+				for (xml_attribute<Ch> *attribute = m_first_attribute; attribute; attribute = attribute->m_next_attribute)
+					if (internal::compare(attribute->name(), attribute->name_size(), name, name_size, case_sensitive))
+						return attribute;
+				return 0;
+			}
+			else
+				return m_first_attribute;
+		}
+
+		xml_attribute<Ch> *first_attribute() const
+		{
+			return m_first_attribute;
+		}
 
         //! Gets last attribute of node, optionally matching attribute name.
         //! \param name Name of attribute to find, or 0 to return last attribute regardless of its name; this string doesn't have to be zero-terminated if name_size is non-zero
         //! \param name_size Size of name, in characters, or 0 to have size calculated automatically from string
         //! \param case_sensitive Should name comparison be case-sensitive; non case-sensitive comparison works properly only for ASCII characters
         //! \return Pointer to found attribute, or 0 if not found.
-        xml_attribute<Ch> *last_attribute(const Ch *name = 0, std::size_t name_size = 0, bool case_sensitive = true) const
-        {
-            if (name)
-            {
-                if (name_size == 0)
-                    name_size = internal::measure(name);
-                for (xml_attribute<Ch> *attribute = m_last_attribute; attribute; attribute = attribute->m_prev_attribute)
-                    if (internal::compare(attribute->name(), attribute->name_size(), name, name_size, case_sensitive))
-                        return attribute;
-                return 0;
-            }
-            else
-                return m_first_attribute ? m_last_attribute : 0;
-        }
+		xml_attribute<Ch> *last_attribute(const Ch *name, std::size_t name_size = 0, bool case_sensitive = true) const
+		{
+			if (name)
+			{
+				if (name_size == 0)
+					name_size = internal::measure(name);
+				for (xml_attribute<Ch> *attribute = m_last_attribute; attribute; attribute = attribute->m_prev_attribute)
+					if (internal::compare(attribute->name(), attribute->name_size(), name, name_size, case_sensitive))
+						return attribute;
+				return 0;
+			}
+			else
+				return m_first_attribute ? m_last_attribute : 0;
+		}
+
+		xml_attribute<Ch> *last_attribute() const
+		{
+			return m_first_attribute ? m_last_attribute : 0;
+		}
 
         ///////////////////////////////////////////////////////////////////////////
         // Node modification

@@ -340,7 +340,6 @@ set(PUBLIC_HEADERS
 	kprof.h
 	kprops.h
 	kquotedprintable.h
-	krapidxml.h
 	kreader.h
 	kregex.h
 	kreplacer.h
@@ -374,6 +373,7 @@ set(PUBLIC_HEADERS
 	kutf8iterator.h
 	kwords.h
 	kwriter.h
+	kxml.h
 	# keep this one at the end
 	khtmlentities.h
 )
@@ -445,7 +445,6 @@ set (SOURCES
 	kprof.cpp
 	kprops.cpp
 	kquotedprintable.cpp
-	krapidxml.cpp
 	kreader.cpp
 	kregex.cpp
 	kreplacer.cpp
@@ -471,6 +470,7 @@ set (SOURCES
 	kurlencode.cpp
 	kwords.cpp
 	kwriter.cpp
+	kxml.cpp
 	# keep this one at the end
 	khtmlentities.cpp
 )
@@ -571,6 +571,10 @@ target_link_libraries(getentities dekaf2)
 add_subdirectory(utests)
 add_subdirectory(smoketests)
 add_subdirectory(benchmarks)
+
+# for testing
+set(CMAKE_INSTALL_PREFIX "/Users/jschurig/src/install")
+file(MAKE_DIRECTORY ${CMAKE_INSTALL_PREFIX})
 
 install(TARGETS dekaf2 DESTINATION lib)
 install(FILES ${PUBLIC_HEADERS} DESTINATION include/dekaf2)

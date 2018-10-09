@@ -5,12 +5,12 @@
 #include <dekaf2/kstring.h>
 #include <dekaf2/kstringview.h>
 #include <dekaf2/kstringutils.h>
-#include <dekaf2/kxml.h>
+#include <dekaf2/khtmlparser.h>
 
 
 using namespace dekaf2;
 
-KStringViewZ sXML = R"(
+KStringViewZ sHTML = R"(
 <root>
 <listing>
 <seller_info>
@@ -482,82 +482,34 @@ Upgrade your system with Intel Pentium III CPU. QUICK GLANCE :This Product is br
 </root>
 )";
 
-void xml_parse()
+void html_parse()
 {
 	{
-		dekaf2::KProf ps("XMLParse in memory");
-		ps.SetMultiplier(10000);
+		dekaf2::KProf ps("HTMLParse from memory");
+		ps.SetMultiplier(1000);
 
-		for (size_t count = 0; count < 10000; ++ count)
+		for (size_t count = 0; count < 1000; ++ count)
 		{
-			KXMLDocument doc(sXML);
+			KHTMLParser doc(sHTML);
 			KProf::Force(&doc);
 		}
 	}
 	{
-		dekaf2::KProf ps("XMLParse from file");
+		dekaf2::KProf ps("HTMLParse from file");
 		ps.SetMultiplier(100);
 
 		for (size_t count = 0; count < 100; ++ count)
 		{
 			KInFile InFile("mondial-3.0.xml");
-			KXMLDocument doc(InFile);
+			KHTMLParser doc(InFile);
 			KProf::Force(&doc);
 		}
 	}
 }
 
-
-void traverse(KXMLNode node)
+void khtmlparser_bench()
 {
-	KProf::Force(&node);
-
-	for (auto& attr : node.GetAttributes())
-	{
-		auto name = attr.GetName();
-		auto value = attr.GetValue();
-		KProf::Force(&name);
-		KProf::Force(&value);
-	}
-
-	for (auto& it : node)
-	{
-		traverse(it);
-	}
-}
-
-void xml_traverse()
-{
-	KXMLDocument doc(sXML);
-
-	dekaf2::KProf ps("XMLTraverse");
-	ps.SetMultiplier(10000);
-
-	for (size_t count = 0; count < 10000; ++ count)
-	{
-		KProf::Force(&doc);
-		traverse(doc);
-	}
-}
-
-void xml_strlen()
-{
-	dekaf2::KProf ps("XML_strlen");
-	ps.SetMultiplier(10000);
-
-	for (size_t count = 0; count < 10000; ++ count)
-	{
-		KProf::Force(&sXML);
-		auto len = strlen(sXML.c_str());
-		KProf::Force(&len);
-	}
-}
-
-void kxml_bench()
-{
-	xml_strlen();
-	xml_parse();
-	xml_traverse();
+	html_parse();
 }
 
 

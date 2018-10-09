@@ -11,6 +11,7 @@ extern void kstring_bench();
 extern void kstringview_bench();
 extern void kcasestring_bench();
 extern void kxml_bench();
+extern void khtmlparser_bench();
 
 using namespace dekaf2;
 
@@ -21,6 +22,7 @@ int main()
 	Dekaf().SetUnicodeLocale();
 
 	kxml_bench();
+	khtmlparser_bench();
 	kbitfields_bench();
 	shared_ptr_bench();
 	kprops_bench();

@@ -110,16 +110,18 @@ rapidXMLAttribute* CreateAttribute(rapidXMLDoc* Document, KStringView sName, KSt
 // ================================= KXML =====================================
 
 //-----------------------------------------------------------------------------
+auto rapidXMLDocDeleter = [](void* data)
+//-----------------------------------------------------------------------------
+{
+	auto p = static_cast<rapidXMLDoc*>(data);
+	delete p;
+};
+
+//-----------------------------------------------------------------------------
 KXML::KXML()
 //-----------------------------------------------------------------------------
 {
-	auto deleter = [](void* data)
-	{
-		auto p = static_cast<rapidXMLDoc*>(data);
-		delete p;
-	};
-
-	D = unique_void_ptr(new rapidXMLDoc, deleter);
+	D = unique_void_ptr(new rapidXMLDoc, rapidXMLDocDeleter);
 }
 
 //-----------------------------------------------------------------------------
@@ -194,15 +196,8 @@ void KXML::Parse(KStringView string)
 void KXML::clear()
 //-----------------------------------------------------------------------------
 {
-	Document(D.get())->clear();
+	D = unique_void_ptr(new rapidXMLDoc, rapidXMLDocDeleter);
 	XMLData.clear();
-	Clear();
-}
-
-//-----------------------------------------------------------------------------
-void KXML::Clear()
-//-----------------------------------------------------------------------------
-{
 }
 
 //-----------------------------------------------------------------------------
@@ -732,9 +727,10 @@ bool KXMLDocument::NextSibling(KStringView sName, bool bPrevious) const
 }
 
 //-----------------------------------------------------------------------------
-void KXMLDocument::Clear()
+void KXMLDocument::clear()
 //-----------------------------------------------------------------------------
 {
+	KXML::clear();
 	P = D.get();
 }
 

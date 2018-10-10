@@ -428,6 +428,9 @@ bool KSMTP::Connect(const KURL& Relay, KStringView sUsername, KStringView sPassw
 
 	// check for SMTP-Auth
 	const KString& sAuth = Parms["AUTH"];
+/*
+ * somehow PLAIN auth does not work properly
+ *
 	if (sAuth.find("PLAIN") != KString::npos)
 	{
 		// try a PLAIN style authentication
@@ -437,12 +440,13 @@ bool KSMTP::Connect(const KURL& Relay, KStringView sUsername, KStringView sPassw
 		sCmd += '\0';
 		sCmd += sPassword;
 		sCmd += '\0';
-		if (!Talk(kFormat("AUTH PLAIN {}", KBase64::Encode(sCmd)), "235"))
+		if (Talk(kFormat("AUTH PLAIN {}", KBase64::Encode(sCmd)), "235"))
 		{
-			return false;
+			return true;
 		}
 	}
-	else if (sAuth.find("LOGIN") != KString::npos)
+*/
+	if (sAuth.find("LOGIN") != KString::npos)
 	{
 		// try a LOGIN style authentication
 		if (!Talk("AUTH LOGIN", "334"))
@@ -453,18 +457,15 @@ bool KSMTP::Connect(const KURL& Relay, KStringView sUsername, KStringView sPassw
 		{
 			return false;
 		}
-		if (!Talk(KBase64::Encode(sPassword), "235"))
+		if (Talk(KBase64::Encode(sPassword), "235"))
 		{
-			return false;
+			return true;
 		}
 	}
-	else
-	{
-		m_sError.Format("Cannot authenticate with server - announced capabilities are {}", sAuth);
-		return false;
-	}
 
-	return true;
+	m_sError.Format("Cannot authenticate with server - announced capabilities are {}", sAuth);
+
+	return false;
 
 } // Connect
 

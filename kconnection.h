@@ -225,14 +225,14 @@ protected:
 	const KStream* StreamPtr() const
 	//-----------------------------------------------------------------------------
 	{
-		return m_Stream.get() ? m_Stream.get() : &m_Empty;
+		return m_Stream.get();
 	}
 
 	//-----------------------------------------------------------------------------
 	KStream* StreamPtr()
 	//-----------------------------------------------------------------------------
 	{
-		return m_Stream.get() ? m_Stream.get() : &m_Empty;
+		return m_Stream.get();
 	}
 
 	KTCPEndPoint m_Endpoint;
@@ -241,7 +241,6 @@ protected:
 private:
 //------
 
-	static KStringStream m_Empty;
 	std::unique_ptr<KStream> m_Stream;
 	bool m_bStreamIsNotOwned{false};
 

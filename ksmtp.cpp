@@ -474,7 +474,7 @@ void KSMTP::Disconnect()
 {
 	if (Good())
 	{
-		Talk("QUIT", "221");
+		Talk("QUIT", "221", nullptr, false);
 	}
 	if (m_Connection)
 	{

@@ -91,9 +91,6 @@ bool KProxy::LoadFromEnv(KStringViewZ svEnvVar)
 	return !empty();
 }
 
-// our fallback stream..
-KStringStream KConnection::m_Empty;
-
 
 //-----------------------------------------------------------------------------
 KConnection::KConnection(KConnection&& Connection)

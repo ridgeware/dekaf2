@@ -74,7 +74,7 @@ bool kAppendAll(std::istream& Stream, KString& sContent, bool bFromStart = true)
 bool kReadAll(std::istream& Stream, KString& sContent, bool bFromStart = true);
 
 /// Read all content of a file with name sFileName into a string
-bool kReadAll(KStringView sFileName, KString& sContent);
+bool kReadAll(KStringViewZ sFileName, KString& sContent);
 
 /// Get the total size of a std::istream device. Returns -1 on Failure. Fails on non-seekable istreams.
 ssize_t kGetSize(std::istream& Stream, bool bFromStart = true);

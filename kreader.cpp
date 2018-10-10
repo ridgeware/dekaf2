@@ -214,9 +214,23 @@ bool kAppendAll(std::istream& Stream, KString& sContent, bool bFromStart)
 	size_t uiContentSize = sContent.size();
 
 	// create the read buffer
+
+#ifdef DEKAF2_KSTRING_HAS_RESIZE_UNINITIALIZED
+	// This saves one run of unnecessary construction.
+	sContent.resize(uiContentSize + uiSize, KString::ResizeUninitialized());
+#else
+	// It's a std::string, just resize() it (which leads to initialized
+	// string content that is then quickly overwritten in the stream
+	// read.
 	sContent.resize(uiContentSize + uiSize);
+#endif
 
 	size_t iRead = static_cast<size_t>(sb->sgetn(&sContent[uiContentSize], iSize));
+
+	if (iRead < uiSize)
+	{
+		sContent.resize(uiContentSize + iRead);
+	}
 
 	// we should now be at the end of the input..
 	if (std::istream::traits_type::eq_int_type(sb->sgetc(), std::istream::traits_type::eof()))
@@ -248,11 +262,39 @@ bool kReadAll(std::istream& Stream, KString& sContent, bool bFromStart)
 } // kReadAll
 
 //-----------------------------------------------------------------------------
-bool kReadAll(KStringView sFileName, KString& sContent)
+bool kReadAll(KStringViewZ sFileName, KString& sContent)
 //-----------------------------------------------------------------------------
 {
-	KInFile File(sFileName);
-	return File.ReadRemaining(sContent);
+	sContent.clear();
+
+	auto iSize(kGetSize(sFileName));
+
+	if (iSize)
+	{
+		auto fd = open(sFileName.c_str(), O_RDONLY);
+
+		if (fd)
+		{
+			auto iContent = sContent.size();
+#ifdef DEKAF2_KSTRING_HAS_RESIZE_UNINITIALIZED
+			sContent.resize(iContent + iSize, KString::ResizeUninitialized());
+#else
+			sContent.resize(iContent + iSize);
+#endif
+			auto iRead = read(fd, &sContent[iContent], iSize);
+
+			close(fd);
+
+			if (iRead < iSize)
+			{
+				sContent.resize(iContent + iRead);
+			}
+
+			return iRead == iSize;
+		}
+	}
+
+	return false;
 
 } // kReadAll
 
@@ -457,8 +499,14 @@ size_t KInStream::Read(KString& sBuffer, size_t iCount)
 //-----------------------------------------------------------------------------
 {
 	KString::size_type iOldLen = sBuffer.size();
+#ifdef DEKAF2_KSTRING_HAS_RESIZE_UNINITIALIZED
+	sBuffer.resize(iOldLen + iCount, KString::ResizeUninitialized());
+#else
 	sBuffer.resize(iOldLen + iCount);
+#endif
+
 	KString::size_type iAddedLen = Read(&sBuffer[iOldLen], iCount);
+
 	if (iAddedLen < iCount)
 	{
 		sBuffer.resize(iOldLen + iAddedLen);

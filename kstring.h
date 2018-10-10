@@ -96,6 +96,12 @@ public:
 
 #ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
 	using string_type               = folly::fbstring;
+	/// tag to construct a string on an existing malloced buffer
+	using AcquireMallocatedString   = folly::AcquireMallocatedString;
+	#define DEKAF2_KSTRING_HAS_ACQUIRE_MALLOCATED
+	/// tag to allow a call to resize() without forcing element initialization
+	struct ResizeUninitialized {};
+	#define DEKAF2_KSTRING_HAS_RESIZE_UNINITIALIZED
 #else
 	using string_type               = std::string;
 #endif
@@ -141,7 +147,10 @@ public:
 	void clear() { m_rep.clear(); }
 	bool empty() const { return m_rep.empty(); }
 	void shrink_to_fit() { m_rep.shrink_to_fit(); }
-	
+#ifdef DEKAF2_KSTRING_HAS_RESIZE_UNINITIALIZED
+	void resize(size_type n, ResizeUninitialized a);
+#endif
+
 	const_reference operator[] (size_type pos) const { return at(pos); }
 	reference operator[](size_type pos) { return at(pos); }
 	const_reference at(size_type pos) const { if DEKAF2_UNLIKELY(pos >= size()) { return s_0ch; } return m_rep.at(pos); }
@@ -168,6 +177,11 @@ public:
 	KString (KStringView sv);
 #ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
 	KString (const std::string& sStr) : m_rep(sStr) {}
+#endif
+#ifdef DEKAF2_KSTRING_HAS_ACQUIRE_MALLOCATED
+	// nonstandard constructor to snatch an existing malloced buffer
+	KString (value_type *s, size_type n, size_type c, AcquireMallocatedString a)
+	: m_rep(s, n, c, a) {}
 #endif
 
 	// operator+=

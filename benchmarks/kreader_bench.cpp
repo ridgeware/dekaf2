@@ -239,6 +239,143 @@ void compare_readers()
 		}
 		is.close();
 	}
+	{
+		size_t fsize = kGetSize(filename.c_str());
+		KProf prof("read FileDesc, full file");
+		prof.SetMultiplier(1000);
+		for (int ct = 0; ct < 1000; ++ct)
+		{
+			int fd = ::open(filename.c_str(), O_RDONLY);
+			if (fd >= 0)
+			{
+				char* szBuffer = static_cast<char*>(malloc(fsize));
+				read(fd, szBuffer, fsize);
+				KProf::Force(szBuffer);
+				close(fd);
+				free(szBuffer);
+			}
+		}
+	}
+	{
+		size_t fsize = kGetSize(filename.c_str());
+		KProf prof("read FileDesc, full file into KString");
+		prof.SetMultiplier(1000);
+		for (int ct = 0; ct < 1000; ++ct)
+		{
+			int fd = ::open(filename.c_str(), O_RDONLY);
+			if (fd >= 0)
+			{
+				char* szBuffer = static_cast<char*>(malloc(fsize+1));
+				read(fd, szBuffer, fsize);
+				KProf::Force(szBuffer);
+				KString str(szBuffer, fsize, fsize+1, KString::AcquireMallocatedString());
+				close(fd);
+				KProf::Force(&str);
+			}
+		}
+	}
+	{
+		size_t fsize = kGetSize(filename.c_str());
+		KProf prof("read FileDesc, full file into resized KString");
+		prof.SetMultiplier(1000);
+		for (int ct = 0; ct < 1000; ++ct)
+		{
+			int fd = ::open(filename.c_str(), O_RDONLY);
+			if (fd >= 0)
+			{
+				KString str;
+				str.resize(fsize);
+				read(fd, str.data(), fsize);
+				close(fd);
+				KProf::Force(&str);
+			}
+		}
+	}
+	{
+		size_t fsize = kGetSize(filename.c_str());
+		KProf prof("read FileDesc, full file into resized uninit KString");
+		prof.SetMultiplier(1000);
+		for (int ct = 0; ct < 1000; ++ct)
+		{
+			int fd = ::open(filename.c_str(), O_RDONLY);
+			if (fd >= 0)
+			{
+				KString str;
+				str.resize(fsize, KString::ResizeUninitialized());
+				read(fd, str.data(), fsize);
+				close(fd);
+				KProf::Force(&str);
+			}
+		}
+	}
+	{
+		size_t fsize = kGetSize(filename.c_str());
+		KProf prof("read FILE*, full file");
+		prof.SetMultiplier(1000);
+		for (int ct = 0; ct < 1000; ++ct)
+		{
+			FILE* fp = fopen(filename.c_str(), "r");
+			if (fp)
+			{
+				char* szBuffer = static_cast<char*>(malloc(fsize));
+				fread(szBuffer, fsize, 1, fp);
+				KProf::Force(szBuffer);
+				free(szBuffer);
+				fclose(fp);
+			}
+		}
+	}
+	{
+		KProf prof("read KInFile, full file");
+		prof.SetMultiplier(1000);
+		for (int ct = 0; ct < 1000; ++ct)
+		{
+			KInFile is(filename);
+			if (is.is_open())
+			{
+				KString buffer;
+				is.ReadRemaining(buffer);
+				KProf::Force(&buffer);
+			}
+		}
+	}
+	{
+		size_t fsize = kGetSize(filename.c_str());
+		KProf prof("read KInFile, full file manually");
+		prof.SetMultiplier(1000);
+		for (int ct = 0; ct < 1000; ++ct)
+		{
+			KInFile is(filename);
+			if (is.is_open())
+			{
+				KString buffer(static_cast<char*>(malloc(fsize+1)), fsize, fsize+1, KString::AcquireMallocatedString());
+				is.Read(&buffer[0], fsize);
+				KProf::Force(&buffer);
+			}
+		}
+	}
+	{
+		KProf prof("kReadAll, full file");
+		prof.SetMultiplier(1000);
+		for (int ct = 0; ct < 1000; ++ct)
+		{
+			KString buffer;
+			kReadAll(filename, buffer);
+			KProf::Force(&buffer);
+		}
+	}
+	{
+		KProf prof("kReadAll from KInFile, full file");
+		prof.SetMultiplier(1000);
+		for (int ct = 0; ct < 1000; ++ct)
+		{
+			KString buffer;
+			KInFile is(filename);
+			kReadAll(is, buffer);
+			KProf::Force(&buffer);
+		}
+	}
+
 
 	kRemoveFile(filename);
 

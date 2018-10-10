@@ -73,6 +73,9 @@ public:
 	/// ctor from a parent node
 	KXMLAttribute(const KXMLNode& node);
 
+	/// returns count of attributes
+	size_t size() const;
+
 	/// true if there are no attributes
 	bool empty() const
 	{
@@ -159,6 +162,9 @@ public:
 	KXMLNode(const KXML& DOM);
 	/// ctor from current node in KXMLDocument
 	KXMLNode(const KXMLDocument& document);
+
+	/// returns count of child nodes
+	size_t size() const;
 
 	/// true if this node is empty / unexisting
 	bool empty() const

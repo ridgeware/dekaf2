@@ -169,18 +169,9 @@ bool KXML::Parse(KInStream& InStream)
 //-----------------------------------------------------------------------------
 {
 	clear();
-	std::istream& stream = InStream.InStream();
-	stream.unsetf(std::ios::skipws);
-	XMLData.assign(std::istreambuf_iterator<char>(stream), std::istreambuf_iterator<char>());
-	if (stream.fail())
-	{
-		return false;
-	}
-	else
-	{
-		Parse();
-		return true;
-	}
+	kReadAll(InStream, XMLData, false);
+	Parse();
+	return true;
 }
 
 //-----------------------------------------------------------------------------
@@ -270,6 +261,25 @@ KXMLNode KXMLNode::operator--(int)
 	}
 
 	return it;
+}
+
+//-----------------------------------------------------------------------------
+size_t KXMLNode::size() const
+//-----------------------------------------------------------------------------
+{
+	size_t count { 0 };
+
+	if (m_node)
+	{
+		rapidXMLNode* child = Node(m_node)->first_node();
+		while (child)
+		{
+			++count;
+			child = child->next_sibling();
+		}
+	}
+
+	return count;
 }
 
 //-----------------------------------------------------------------------------
@@ -442,6 +452,31 @@ KXMLAttribute KXMLAttribute::operator--(int)
 	}
 
 	return it;
+}
+
+//-----------------------------------------------------------------------------
+size_t KXMLAttribute::size() const
+//-----------------------------------------------------------------------------
+{
+	size_t count { 0 };
+
+	if (m_attribute)
+	{
+		rapidXMLNode* parent = Attribute(m_attribute)->parent();
+
+		if (parent)
+		{
+			rapidXMLAttribute* attribute = parent->first_attribute();
+
+			while (attribute)
+			{
+				++count;
+				attribute = attribute->next_attribute();
+			}
+		}
+	}
+
+	return count;
 }
 
 //-----------------------------------------------------------------------------

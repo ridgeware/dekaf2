@@ -165,7 +165,7 @@ bool kAppendAll(std::istream& Stream, KString& sContent, bool bFromStart)
 	}
 
 	// get size of the file.
-	ssize_t iSize = kGetSize(Stream, bFromStart);
+	auto iSize = kGetSize(Stream, bFromStart);
 
 	if (!iSize)
 	{
@@ -176,20 +176,35 @@ bool kAppendAll(std::istream& Stream, KString& sContent, bool bFromStart)
 	{
 		// We could not determine the input size - this might be a
 		// minimalistic input stream buffer, or a non-seekable stream.
-		// We will simply try to read blocks until we fail.
+		// We will simply try to read blocks until we fail or reach a
+		// max size.
+
 		enum { BUFSIZE = 4096 };
 		char buf[BUFSIZE];
 
-		// as this approach can be really dangerous on endless input
-		// streams we do wrap it at least into a try-catch block..
+		// This approach can be really dangerous on endless input streams,
+		// therefore we do wrap it into a try-catch block and limit the
+		// rx size to ~1 GB.
+
+		size_t iTotal { 0 };
+		static constexpr size_t iLimit = 1*1024*1024*1024;
+
 		DEKAF2_TRY_EXCEPTION
 		for (;;)
 		{
-			size_t iRead = static_cast<size_t>(sb->sgetn(buf, BUFSIZE));
+			auto iRead = static_cast<size_t>(sb->sgetn(buf, BUFSIZE));
+
 			if (iRead > 0)
 			{
+				iTotal += iRead;
 				sContent.append(buf, iRead);
+				if (iTotal > iLimit)
+				{
+					kDebugLog(1, "kAppendAll: stepped over limit of {} MB for non-seekable input stream", iLimit / 1024);
+					break;
+				}
 			}
+
 			if (iRead < BUFSIZE)
 			{
 				break;
@@ -199,7 +214,7 @@ bool kAppendAll(std::istream& Stream, KString& sContent, bool bFromStart)
 
 		Stream.setstate(std::ios_base::eofbit);
 
-		return sContent.size();
+		return iTotal > 0;
 	}
 
 	// position stream to the beginning
@@ -209,9 +224,9 @@ bool kAppendAll(std::istream& Stream, KString& sContent, bool bFromStart)
 		return false;
 	}
 
-	size_t uiSize = static_cast<size_t>(iSize);
+	auto uiSize = static_cast<size_t>(iSize);
 
-	size_t uiContentSize = sContent.size();
+	auto uiContentSize = sContent.size();
 
 	// create the read buffer
 
@@ -221,11 +236,11 @@ bool kAppendAll(std::istream& Stream, KString& sContent, bool bFromStart)
 #else
 	// It's a std::string, just resize() it (which leads to initialized
 	// string content that is then quickly overwritten in the stream
-	// read.
+	// read)
 	sContent.resize(uiContentSize + uiSize);
 #endif
 
-	size_t iRead = static_cast<size_t>(sb->sgetn(&sContent[uiContentSize], iSize));
+	auto iRead = static_cast<size_t>(sb->sgetn(&sContent[uiContentSize], iSize));
 
 	if (iRead < uiSize)
 	{
@@ -269,7 +284,13 @@ bool kReadAll(KStringViewZ sFileName, KString& sContent)
 
 	auto iSize(kGetSize(sFileName));
 
-	if (iSize)
+	if (!iSize)
+	{
+		// empty file
+		return true;
+	}
+
+	if (iSize > 0)
 	{
 		auto fd = open(sFileName.c_str(), O_RDONLY);
 
@@ -498,14 +519,15 @@ size_t KInStream::Read(void* pAddress, size_t iCount)
 size_t KInStream::Read(KString& sBuffer, size_t iCount)
 //-----------------------------------------------------------------------------
 {
-	KString::size_type iOldLen = sBuffer.size();
+	auto iOldLen = sBuffer.size();
+
 #ifdef DEKAF2_KSTRING_HAS_RESIZE_UNINITIALIZED
 	sBuffer.resize(iOldLen + iCount, KString::ResizeUninitialized());
 #else
 	sBuffer.resize(iOldLen + iCount);
 #endif
 
-	KString::size_type iAddedLen = Read(&sBuffer[iOldLen], iCount);
+	auto iAddedLen = Read(&sBuffer[iOldLen], iCount);
 
 	if (iAddedLen < iCount)
 	{

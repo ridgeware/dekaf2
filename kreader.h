@@ -339,7 +339,7 @@ public:
 	size_t GetSize()
 	//-----------------------------------------------------------------------------
 	{
-		std::streamsize iSize = kGetSize(InStream(), true);
+		auto iSize = kGetSize(InStream(), true);
 		if (iSize < 0)
 		{
 			return 0;
@@ -356,7 +356,7 @@ public:
 	size_t GetRemainingSize()
 	//-----------------------------------------------------------------------------
 	{
-		std::streamsize iSize = kGetSize(InStream(), false);
+		auto iSize = kGetSize(InStream(), false);
 		if (iSize < 0)
 		{
 			return 0;

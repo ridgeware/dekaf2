@@ -77,6 +77,7 @@ ssize_t kGetSize(std::istream& Stream, bool bFromStart)
 		}
 
 		std::streambuf::pos_type curPos = sb->pubseekoff(0, std::ios_base::cur);
+
 		if (curPos == std::streambuf::pos_type(std::streambuf::off_type(-1)))
 		{
 			kDebug(3, "kGetSize: istream is not seekable ({})", 1);
@@ -84,6 +85,7 @@ ssize_t kGetSize(std::istream& Stream, bool bFromStart)
 		}
 
 		std::streambuf::pos_type endPos = sb->pubseekoff(0, std::ios_base::end);
+
 		if (endPos == std::streambuf::pos_type(std::streambuf::off_type(-1)))
 		{
 			kDebug(3, "kGetSize: istream is not seekable ({})", 2);
@@ -114,7 +116,7 @@ ssize_t kGetSize(std::istream& Stream, bool bFromStart)
 		else
 		{
 #ifdef DEKAF2_EXCEPTIONS
-			DEKAF2_THROW();
+			DEKAF2_THROW(e);
 #else
 			kException(e);
 #endif
@@ -196,11 +198,13 @@ bool kAppendAll(std::istream& Stream, KString& sContent, bool bFromStart)
 
 			if (iRead > 0)
 			{
-				iTotal += iRead;
 				sContent.append(buf, iRead);
+
+				iTotal += iRead;
+
 				if (iTotal > iLimit)
 				{
-					kDebugLog(1, "kAppendAll: stepped over limit of {} MB for non-seekable input stream", iLimit / 1024);
+					kDebug(1, "kAppendAll: stepped over limit of {} MB for non-seekable input stream - aborted reading", iLimit / (1024*1024) );
 					break;
 				}
 			}
@@ -292,9 +296,18 @@ bool kReadAll(KStringViewZ sFileName, KString& sContent)
 
 	if (iSize > 0)
 	{
+		// We use an unbuffered file descriptor read because with
+		// sub-optimal iostream implementations like the one coming
+		// with clang on the mac it is about five times faster than
+		// reading from the iostream..
+		//
+		// Current gcc implementations would not need this hack,
+		// there, the speed is the same with iostreams as with simple
+		// file descriptor reads. But it does not hurt there either.
+
 		auto fd = open(sFileName.c_str(), O_RDONLY);
 
-		if (fd)
+		if (fd >= 0)
 		{
 			auto iContent = sContent.size();
 #ifdef DEKAF2_KSTRING_HAS_RESIZE_UNINITIALIZED
@@ -313,6 +326,10 @@ bool kReadAll(KStringViewZ sFileName, KString& sContent)
 
 			return iRead == iSize;
 		}
+		else
+		{
+			kDebug(2, "cannot open file '{}': {}", sFileName, strerror(errno));
+		}
 	}
 
 	return false;
@@ -327,7 +344,7 @@ bool kReadLine(std::istream& Stream,
                KString::value_type delimiter)
 //-----------------------------------------------------------------------------
 {
-	if (!Stream.good())
+	if (DEKAF2_UNLIKELY(!Stream.good()))
 	{
 		sLine.clear();
 		return false;
@@ -336,7 +353,7 @@ bool kReadLine(std::istream& Stream,
 	// do not implement your own version of std::getline without performance checks ..
 	std::getline(Stream, sLine, delimiter);
 
-	if (Stream.fail())
+	if (DEKAF2_UNLIKELY(Stream.fail()))
 	{
 		return false;
 	}
@@ -387,17 +404,7 @@ KInStream::const_kreader_line_iterator::const_kreader_line_iterator(base_iterato
 //-----------------------------------------------------------------------------
     : m_it(bToEnd ? nullptr : &it)
 {
-	if (m_it != nullptr)
-	{
-		if (!kReadLine(m_it->InStream(),
-		               m_sBuffer,
-		               m_it->m_sTrimRight,
-		               m_it->m_sTrimLeft,
-		               m_it->m_chDelimiter))
-		{
-			m_it = nullptr;
-		}
-	}
+	operator++();
 
 } // ctor
 
@@ -427,17 +434,7 @@ KInStream::const_kreader_line_iterator::self_type KInStream::const_kreader_line_
 {
 	self_type i = *this;
 
-	if (m_it != nullptr)
-	{
-		if (!kReadLine(m_it->InStream(),
-		               m_sBuffer,
-		               m_it->m_sTrimRight,
-		               m_it->m_sTrimLeft,
-		               m_it->m_chDelimiter))
-		{
-			m_it = nullptr;
-		}
-	}
+	operator++();
 
 	return i;
 

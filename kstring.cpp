@@ -82,32 +82,41 @@ KString& KString::append(const string_type& str, size_type pos, size_type n)
 void KString::resize(size_type n, ResizeUninitialized a)
 //------------------------------------------------------------------------------
 {
-	auto iSize = size();
-
-	if (n > iSize)
+	// never do this optimization for SSO strings
+	if (n > 23)
 	{
-		auto iUninitialized = n - iSize;
-		if (!iSize || (iUninitialized / iSize > 2))
-		{
-			// We can do this trick only with FBString, as std::string does not
-			// offer a matching constructor: we malloc enough memory for the full
-			// buffer, memcopy the existing string (if any) into it, construct a
-			// new fbstring from that partly uninitialized buffer, and swap the string.
+		auto iSize = size();
 
-			// reserve the buffer
-			char* buf = static_cast<char*>(std::malloc(iSize + iUninitialized + 1)); // do not forget the 0-terminator
-			// copy existing string content into
-			std::memcpy(buf, data(), size());
-			// set 0 at end of buffer
-			buf[iSize + iUninitialized] = 0;
-			// construct string on the buffer
-			KString sNew(buf, iSize + iUninitialized, iSize + iUninitialized + 1, AcquireMallocatedString());
-			// and swap it in for the existing string
-			this->swap(sNew);
-			// that's it
-			return;
+		if (n > iSize)
+		{
+			auto iUninitialized = n - iSize;
+			if (!iSize || (iUninitialized / iSize > 2))
+			{
+				// We can do this trick only with FBString, as std::string does not
+				// offer a matching constructor: we malloc enough memory for the full
+				// buffer, memcopy the existing string (if any) into it, construct a
+				// new fbstring from that partly uninitialized buffer, and swap the string.
+
+				// reserve the buffer
+				char* buf = static_cast<char*>(std::malloc(iSize + iUninitialized + 1)); // do not forget the 0-terminator
+
+				if (buf)
+				{
+					// copy existing string content into
+					std::memcpy(buf, data(), iSize);
+					// set 0 at end of buffer
+					buf[iSize + iUninitialized] = 0;
+					// construct string on the buffer
+					KString sNew(buf, iSize + iUninitialized, iSize + iUninitialized + 1, AcquireMallocatedString());
+					// and swap it in for the existing string
+					this->swap(sNew);
+					// that's it
+					return;
+				}
+			}
 		}
 	}
+
 	resize(n);
 }
 #endif

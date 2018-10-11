@@ -37,7 +37,6 @@ set (USOURCES
 	kmessagedigest_tests.cpp
 	kmime_tests.cpp
 	kmpsearch_tests.cpp
-#	kostringstream_tests.cpp
 	koutpipe_tests.cpp
 	koutputtemplate_tests.cpp
 	koutshell_tests.cpp
@@ -61,6 +60,7 @@ set (USOURCES
 	kutf8iterator_tests.cpp
 	kwords_tests.cpp
 	kwriter_tests.cpp
+	kxml_tests.cpp
 )
 
 add_executable(dekaf2-utests ${UHEADERS} ${USOURCES})

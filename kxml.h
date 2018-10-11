@@ -119,6 +119,14 @@ public:
 	/// Get attribute value
 	KStringView GetValue() const;
 
+	/// Set name of current attribute
+	void SetName(KStringView sName);
+	/// Set value of current attribute
+	void SetValue(KStringView sValue);
+
+	/// Add an attribute to parent of current attribute
+	KXMLAttribute AddAttribute(KStringView sName, KStringView sValue = KStringView{});
+
 	bool operator==(const KXMLAttribute& other) const
 	{
 		return m_attribute == other.m_attribute;
@@ -274,17 +282,17 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Print DOM into OutStream
-	void Serialize(KOutStream& OutStream) const;
+	void Serialize(KOutStream& OutStream, bool bIndented = true) const;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// Print DOM into string
-	void Serialize(KString& string) const;
+	void Serialize(KString& string, bool bIndented = true) const;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// Print DOM into string
-	KString Serialize() const;
+	KString Serialize(bool bIndented = true) const;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------

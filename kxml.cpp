@@ -88,21 +88,28 @@ inline rapidXMLAttribute* Attribute(void* p)
 Ch* CreateString(rapidXMLDoc* Document, KStringView str)
 //-----------------------------------------------------------------------------
 {
-	return Document->allocate_string(str.data(), str.size());
+	if (!str.empty())
+	{
+		return Document->allocate_string(str.data(), str.size());
+	}
+	else
+	{
+		return nullptr;
+	}
 }
 
 //-----------------------------------------------------------------------------
-rapidXMLNode* CreateNode(rapidXMLDoc* Document, KStringView sName, KStringView sValue, rapidxml::node_type type = rapidxml::node_element)
+rapidXMLNode* CreateNode(rapidXMLDoc* Document, KStringView sName, KStringView sValue = KStringView{}, rapidxml::node_type type = rapidxml::node_element)
 //-----------------------------------------------------------------------------
 {
-	return Document->allocate_node(type, CreateString(Document, sName), CreateString(Document, sValue), 0, sValue.size());
+	return Document->allocate_node(type, CreateString(Document, sName), CreateString(Document, sValue), sName.size(), sValue.size());
 }
 
 //-----------------------------------------------------------------------------
 rapidXMLAttribute* CreateAttribute(rapidXMLDoc* Document, KStringView sName, KStringView sValue)
 //-----------------------------------------------------------------------------
 {
-	return Document->allocate_attribute(CreateString(Document, sName), CreateString(Document, sValue));
+	return Document->allocate_attribute(CreateString(Document, sName), CreateString(Document, sValue), sName.size(), sValue.size());
 }
 
 // class members
@@ -141,26 +148,25 @@ KXML::KXML(KInStream& InStream)
 }
 
 //-----------------------------------------------------------------------------
-void KXML::Serialize(KOutStream& OutStream) const
+void KXML::Serialize(KOutStream& OutStream, bool bIndented) const
 //-----------------------------------------------------------------------------
 {
-	print(OutStream.OutStream(), *Document(D.get()));
+	print(OutStream.OutStream(), *Document(D.get()), bIndented ? 0 : rapidxml::print_no_indenting);
 }
 
 //-----------------------------------------------------------------------------
-void KXML::Serialize(KString& xstring) const
+void KXML::Serialize(KString& string, bool bIndented) const
 //-----------------------------------------------------------------------------
 {
-	std::string string;
-	print(std::back_inserter(string), *Document(D.get()));
+	print(std::back_inserter(string), *Document(D.get()), bIndented ? 0 : rapidxml::print_no_indenting);
 }
 
 //-----------------------------------------------------------------------------
-KString KXML::Serialize() const
+KString KXML::Serialize(bool bIndented) const
 //-----------------------------------------------------------------------------
 {
 	KString string;
-	Serialize(string);
+	Serialize(string, bIndented);
 	return string;
 }
 
@@ -346,7 +352,13 @@ KXMLNode KXMLNode::AddNode(KStringView sName, KStringView sValue)
 
 	if (m_node)
 	{
-		node.m_node = CreateNode(Node(m_node)->document(), sName, sValue);
+		node.m_node = CreateNode(Node(m_node)->document(), sName);
+
+		if (!sValue.empty())
+		{
+			Node(node.m_node)->append_node(CreateNode(Node(m_node)->document(), KStringView{}, sValue, rapidxml::node_data));
+		}
+
 		Node(m_node)->append_node(Node(node.m_node));
 	}
 
@@ -371,7 +383,7 @@ void KXMLNode::SetValue(KStringView sValue)
 	if (m_node)
 	{
 		Ch* value = CreateString(Node(m_node)->document(), sValue);
-		Node(m_node)->name(value, sValue.size());
+		Node(m_node)->value(value, sValue.size());
 	}
 }
 
@@ -524,6 +536,48 @@ KStringView KXMLAttribute::GetValue() const
 	}
 
 	return sValue;
+}
+
+//-----------------------------------------------------------------------------
+void KXMLAttribute::SetName(KStringView sName)
+//-----------------------------------------------------------------------------
+{
+	if (m_attribute)
+	{
+		Ch* name = CreateString(Attribute(m_attribute)->document(), sName);
+		Attribute(m_attribute)->name(name, sName.size());
+	}
+}
+
+//-----------------------------------------------------------------------------
+void KXMLAttribute::SetValue(KStringView sValue)
+//-----------------------------------------------------------------------------
+{
+	if (m_attribute)
+	{
+		Ch* value = CreateString(Attribute(m_attribute)->document(), sValue);
+		Attribute(m_attribute)->value(value, sValue.size());
+	}
+}
+
+//-----------------------------------------------------------------------------
+KXMLAttribute KXMLAttribute::AddAttribute(KStringView sName, KStringView sValue)
+//-----------------------------------------------------------------------------
+{
+	KXMLAttribute sibling;
+
+	if (m_attribute)
+	{
+		rapidXMLNode* parent = Attribute(m_attribute)->parent();
+
+		if (parent)
+		{
+			sibling.m_attribute = CreateAttribute(parent->document(), sName, sValue);
+			parent->append_attribute(Attribute(sibling.m_attribute));
+		}
+	}
+
+	return sibling;
 }
 
 // ============================= KXMLDocument =================================

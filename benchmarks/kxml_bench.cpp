@@ -490,7 +490,7 @@ void xml_parse()
 
 		for (size_t count = 0; count < 10000; ++ count)
 		{
-			KXMLDocument doc(sXML);
+			KXML doc(sXML);
 			KProf::Force(&doc);
 		}
 	}
@@ -501,7 +501,7 @@ void xml_parse()
 		for (size_t count = 0; count < 100; ++ count)
 		{
 			KInFile InFile("mondial-3.0.xml");
-			KXMLDocument doc(InFile);
+			KXML doc(InFile);
 			KProf::Force(&doc);
 		}
 	}
@@ -512,7 +512,7 @@ void traverse(KXMLNode node)
 {
 	KProf::Force(&node);
 
-	for (auto& attr : node.GetAttributes())
+	for (auto attr : node.Attributes())
 	{
 		auto name = attr.GetName();
 		auto value = attr.GetValue();
@@ -528,7 +528,7 @@ void traverse(KXMLNode node)
 
 void xml_traverse()
 {
-	KXMLDocument doc(sXML);
+	KXML doc(sXML);
 
 	dekaf2::KProf ps("XMLTraverse");
 	ps.SetMultiplier(10000);

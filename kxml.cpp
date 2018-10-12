@@ -54,29 +54,22 @@ using rapidXMLAttribute = rapidxml::xml_attribute<Ch>;
 // helpers for type casting
 
 //-----------------------------------------------------------------------------
-inline rapidXMLDoc* Document(void* p)
+inline rapidXMLDoc* pDocument(void* p)
 //-----------------------------------------------------------------------------
 {
 	return static_cast<rapidXMLDoc*>(p);
 }
 
 //-----------------------------------------------------------------------------
-inline rapidXMLNode* Parent(void* p)
-//-----------------------------------------------------------------------------
-{
-	return static_cast<rapidXMLNode*>(p);
-}
-
-//-----------------------------------------------------------------------------
 // alias to make it look syntactically correct for siblings..
-inline rapidXMLNode* Node(void* p)
+inline rapidXMLNode* pNode(void* p)
 //-----------------------------------------------------------------------------
 {
 	return static_cast<rapidXMLNode*>(p);
 }
 
 //-----------------------------------------------------------------------------
-inline rapidXMLAttribute* Attribute(void* p)
+inline rapidXMLAttribute* pAttribute(void* p)
 //-----------------------------------------------------------------------------
 {
 	return static_cast<rapidXMLAttribute*>(p);
@@ -88,7 +81,7 @@ inline rapidXMLAttribute* Attribute(void* p)
 Ch* CreateString(rapidXMLDoc* Document, KStringView str)
 //-----------------------------------------------------------------------------
 {
-	if (!str.empty())
+	if (!str.empty() && DEKAF2_LIKELY(Document != nullptr))
 	{
 		return Document->allocate_string(str.data(), str.size());
 	}
@@ -102,14 +95,28 @@ Ch* CreateString(rapidXMLDoc* Document, KStringView str)
 rapidXMLNode* CreateNode(rapidXMLDoc* Document, KStringView sName, KStringView sValue = KStringView{}, rapidxml::node_type type = rapidxml::node_element)
 //-----------------------------------------------------------------------------
 {
-	return Document->allocate_node(type, CreateString(Document, sName), CreateString(Document, sValue), sName.size(), sValue.size());
+	if (DEKAF2_LIKELY(Document != nullptr))
+	{
+		return Document->allocate_node(type, CreateString(Document, sName), CreateString(Document, sValue), sName.size(), sValue.size());
+	}
+	else
+	{
+		return nullptr;
+	}
 }
 
 //-----------------------------------------------------------------------------
 rapidXMLAttribute* CreateAttribute(rapidXMLDoc* Document, KStringView sName, KStringView sValue)
 //-----------------------------------------------------------------------------
 {
-	return Document->allocate_attribute(CreateString(Document, sName), CreateString(Document, sValue), sName.size(), sValue.size());
+	if (DEKAF2_LIKELY(Document != nullptr))
+	{
+		return Document->allocate_attribute(CreateString(Document, sName), CreateString(Document, sValue), sName.size(), sValue.size());
+	}
+	else
+	{
+		return nullptr;
+	}
 }
 
 // class members
@@ -151,14 +158,14 @@ KXML::KXML(KInStream& InStream)
 void KXML::Serialize(KOutStream& OutStream, bool bIndented) const
 //-----------------------------------------------------------------------------
 {
-	print(OutStream.OutStream(), *Document(D.get()), bIndented ? 0 : rapidxml::print_no_indenting);
+	print(OutStream.OutStream(), *pDocument(D.get()), bIndented ? 0 : rapidxml::print_no_indenting);
 }
 
 //-----------------------------------------------------------------------------
 void KXML::Serialize(KString& string, bool bIndented) const
 //-----------------------------------------------------------------------------
 {
-	print(std::back_inserter(string), *Document(D.get()), bIndented ? 0 : rapidxml::print_no_indenting);
+	print(std::back_inserter(string), *pDocument(D.get()), bIndented ? 0 : rapidxml::print_no_indenting);
 }
 
 //-----------------------------------------------------------------------------
@@ -201,18 +208,19 @@ void KXML::clear()
 void KXML::Parse()
 //-----------------------------------------------------------------------------
 {
-	Document(D.get())->parse<rapidxml::parse_no_string_terminators>(&XMLData.front());
+	pDocument(D.get())->parse<rapidxml::parse_no_string_terminators>(&XMLData.front());
 }
 
 //-----------------------------------------------------------------------------
 void KXML::AddXMLDeclaration()
 //-----------------------------------------------------------------------------
 {
-	rapidXMLNode* DocType = CreateNode(Document(D.get()), "", "", rapidxml::node_declaration);
-	DocType->append_attribute(CreateAttribute(Document(D.get()), "version", "1.0"));
-	DocType->append_attribute(CreateAttribute(Document(D.get()), "encoding", "utf-8"));
-	DocType->append_attribute(CreateAttribute(Document(D.get()), "standalone", "yes"));
-	Document(D.get())->prepend_node(DocType);
+	rapidXMLDoc* doc = pDocument(D.get());
+	rapidXMLNode* DocType = CreateNode(doc, "", "", rapidxml::node_declaration);
+	DocType->append_attribute(CreateAttribute(doc, "version", "1.0"));
+	DocType->append_attribute(CreateAttribute(doc, "encoding", "utf-8"));
+	DocType->append_attribute(CreateAttribute(doc, "standalone", "yes"));
+	doc->prepend_node(DocType);
 }
 
 // =============================== KXMLNode ===================================
@@ -223,7 +231,7 @@ KXMLNode& KXMLNode::operator++()
 {
 	if (m_node)
 	{
-		m_node = Node(m_node)->next_sibling();
+		m_node = pNode(m_node)->next_sibling();
 	}
 
 	return *this;
@@ -235,10 +243,7 @@ KXMLNode KXMLNode::operator++(int)
 {
 	KXMLNode it = *this;
 
-	if (m_node)
-	{
-		m_node = Node(m_node)->next_sibling();
-	}
+	operator++();
 
 	return it;
 }
@@ -249,7 +254,7 @@ KXMLNode& KXMLNode::operator--()
 {
 	if (m_node)
 	{
-		m_node = Node(m_node)->previous_sibling();
+		m_node = pNode(m_node)->previous_sibling();
 	}
 
 	return *this;
@@ -261,10 +266,7 @@ KXMLNode KXMLNode::operator--(int)
 {
 	KXMLNode it = *this;
 
-	if (m_node)
-	{
-		m_node = Node(m_node)->previous_sibling();
-	}
+	operator--();
 
 	return it;
 }
@@ -277,7 +279,7 @@ size_t KXMLNode::size() const
 
 	if (m_node)
 	{
-		rapidXMLNode* child = Node(m_node)->first_node();
+		rapidXMLNode* child = pNode(m_node)->first_node();
 		while (child)
 		{
 			++count;
@@ -289,31 +291,59 @@ size_t KXMLNode::size() const
 }
 
 //-----------------------------------------------------------------------------
-KXMLNode KXMLNode::find(KStringView sName) const
+KXMLNode KXMLNode::Parent() const
+//-----------------------------------------------------------------------------
+{
+	KXMLNode parent;
+
+	if (m_node)
+	{
+		parent.m_node = pNode(m_node)->parent();
+	}
+
+	return parent;
+}
+
+//-----------------------------------------------------------------------------
+KXMLNode KXMLNode::Child() const
 //-----------------------------------------------------------------------------
 {
 	KXMLNode child;
 
 	if (m_node)
 	{
-		child.m_node = Node(m_node)->first_node(sName.data(), sName.size());
+		child.m_node = pNode(m_node)->first_node();
 	}
 
 	return child;
 }
 
 //-----------------------------------------------------------------------------
-KXMLNode::iterator KXMLNode::begin() const
+KXMLNode KXMLNode::Child(KStringView sName) const
 //-----------------------------------------------------------------------------
 {
-	iterator it;
+	KXMLNode child;
 
 	if (m_node)
 	{
-		it.m_node = Node(m_node)->first_node();
+		child.m_node = pNode(m_node)->first_node(sName.data(), sName.size());
 	}
 
-	return it;
+	return child;
+}
+
+//-----------------------------------------------------------------------------
+KXMLNode KXMLNode::Next(KStringView sName) const
+//-----------------------------------------------------------------------------
+{
+	KXMLNode sibling;
+
+	if (m_node)
+	{
+		sibling.m_node = pNode(m_node)->next_sibling(sName.data(), sName.size());
+	}
+
+	return sibling;
 }
 
 //-----------------------------------------------------------------------------
@@ -324,7 +354,7 @@ KStringView KXMLNode::GetName() const
 
 	if (m_node)
 	{
-		sName.assign(Node(m_node)->name(), Node(m_node)->name_size());
+		sName.assign(pNode(m_node)->name(), pNode(m_node)->name_size());
 	}
 
 	return sName;
@@ -338,7 +368,7 @@ KStringView KXMLNode::GetValue() const
 
 	if (m_node)
 	{
-		sValue.assign(Node(m_node)->value(), Node(m_node)->value_size());
+		sValue.assign(pNode(m_node)->value(), pNode(m_node)->value_size());
 	}
 
 	return sValue;
@@ -352,39 +382,57 @@ KXMLNode KXMLNode::AddNode(KStringView sName, KStringView sValue)
 
 	if (m_node)
 	{
-		node.m_node = CreateNode(Node(m_node)->document(), sName);
+		rapidXMLDoc* doc = pNode(m_node)->document();
+
+		node.m_node = CreateNode(doc, sName);
 
 		if (!sValue.empty())
 		{
-			Node(node.m_node)->append_node(CreateNode(Node(m_node)->document(), KStringView{}, sValue, rapidxml::node_data));
+			pNode(node.m_node)->append_node(CreateNode(doc, KStringView{}, sValue, rapidxml::node_data));
 		}
 
-		Node(m_node)->append_node(Node(node.m_node));
+		pNode(m_node)->append_node(pNode(node.m_node));
 	}
 
 	return node;
 }
 
 //-----------------------------------------------------------------------------
-void KXMLNode::SetName(KStringView sName)
+KXMLNode& KXMLNode::SetName(KStringView sName)
 //-----------------------------------------------------------------------------
 {
 	if (m_node)
 	{
-		Ch* name = CreateString(Node(m_node)->document(), sName);
-		Node(m_node)->name(name, sName.size());
+		Ch* name = CreateString(pNode(m_node)->document(), sName);
+		pNode(m_node)->name(name, sName.size());
 	}
+	return *this;
 }
 
 //-----------------------------------------------------------------------------
-void KXMLNode::SetValue(KStringView sValue)
+KXMLNode& KXMLNode::SetValue(KStringView sValue)
 //-----------------------------------------------------------------------------
 {
 	if (m_node)
 	{
-		Ch* value = CreateString(Node(m_node)->document(), sValue);
-		Node(m_node)->value(value, sValue.size());
+		Ch* value = CreateString(pNode(m_node)->document(), sValue);
+		pNode(m_node)->value(value, sValue.size());
 	}
+	return *this;
+}
+
+//-----------------------------------------------------------------------------
+KXMLAttribute KXMLNode::Attribute(KStringView sName) const
+//-----------------------------------------------------------------------------
+{
+	KXMLAttribute attribute;
+
+	if (m_node)
+	{
+		attribute.m_attribute = pNode(m_node)->first_attribute(sName.data(), sName.size());
+	}
+
+	return attribute;
 }
 
 //-----------------------------------------------------------------------------
@@ -395,8 +443,8 @@ KXMLAttribute KXMLNode::AddAttribute(KStringView sName, KStringView sValue)
 
 	if (m_node)
 	{
-		attribute.m_attribute = CreateAttribute(Node(m_node)->document(), sName, sValue);
-		Node(m_node)->append_attribute(Attribute(attribute.m_attribute));
+		attribute.m_attribute = CreateAttribute(pNode(m_node)->document(), sName, sValue);
+		pNode(m_node)->append_attribute(pAttribute(attribute.m_attribute));
 	}
 
 	return attribute;
@@ -410,7 +458,7 @@ KXMLAttribute::KXMLAttribute(const KXMLNode& node)
 {
 	if (node.m_node)
 	{
-		m_attribute = Node(node.m_node)->first_attribute();
+		m_attribute = pNode(node.m_node)->first_attribute();
 	}
 }
 
@@ -420,7 +468,7 @@ KXMLAttribute& KXMLAttribute::operator++()
 {
 	if (m_attribute)
 	{
-		m_attribute = Attribute(m_attribute)->next_attribute();
+		m_attribute = pAttribute(m_attribute)->next_attribute();
 	}
 
 	return *this;
@@ -432,10 +480,7 @@ KXMLAttribute KXMLAttribute::operator++(int)
 {
 	KXMLAttribute it = *this;
 
-	if (m_attribute)
-	{
-		m_attribute = Attribute(m_attribute)->next_attribute();
-	}
+	operator++();
 
 	return it;
 }
@@ -446,7 +491,7 @@ KXMLAttribute& KXMLAttribute::operator--()
 {
 	if (m_attribute)
 	{
-		m_attribute = Attribute(m_attribute)->previous_attribute();
+		m_attribute = pAttribute(m_attribute)->previous_attribute();
 	}
 
 	return *this;
@@ -458,10 +503,7 @@ KXMLAttribute KXMLAttribute::operator--(int)
 {
 	KXMLAttribute it = *this;
 
-	if (m_attribute)
-	{
-		m_attribute = Attribute(m_attribute)->previous_attribute();
-	}
+	operator--();
 
 	return it;
 }
@@ -474,7 +516,7 @@ size_t KXMLAttribute::size() const
 
 	if (m_attribute)
 	{
-		rapidXMLNode* parent = Attribute(m_attribute)->parent();
+		rapidXMLNode* parent = pAttribute(m_attribute)->parent();
 
 		if (parent)
 		{
@@ -492,6 +534,20 @@ size_t KXMLAttribute::size() const
 }
 
 //-----------------------------------------------------------------------------
+KXMLNode KXMLAttribute::Parent() const
+//-----------------------------------------------------------------------------
+{
+	KXMLNode parent;
+
+	if (m_attribute)
+	{
+		parent.m_node = pAttribute(m_attribute)->parent();
+	}
+
+	return parent;
+}
+
+//-----------------------------------------------------------------------------
 KXMLAttribute KXMLAttribute::find(KStringView sName) const
 //-----------------------------------------------------------------------------
 {
@@ -499,7 +555,7 @@ KXMLAttribute KXMLAttribute::find(KStringView sName) const
 
 	if (m_attribute)
 	{
-		rapidXMLNode* parent = Attribute(m_attribute)->parent();
+		rapidXMLNode* parent = pAttribute(m_attribute)->parent();
 
 		if (parent)
 		{
@@ -518,7 +574,7 @@ KStringView KXMLAttribute::GetName() const
 
 	if (m_attribute)
 	{
-		sName.assign(Attribute(m_attribute)->name(), Attribute(m_attribute)->name_size());
+		sName.assign(pAttribute(m_attribute)->name(), pAttribute(m_attribute)->name_size());
 	}
 
 	return sName;
@@ -532,32 +588,34 @@ KStringView KXMLAttribute::GetValue() const
 
 	if (m_attribute)
 	{
-		sValue.assign(Attribute(m_attribute)->value(), Attribute(m_attribute)->value_size());
+		sValue.assign(pAttribute(m_attribute)->value(), pAttribute(m_attribute)->value_size());
 	}
 
 	return sValue;
 }
 
 //-----------------------------------------------------------------------------
-void KXMLAttribute::SetName(KStringView sName)
+KXMLAttribute& KXMLAttribute::SetName(KStringView sName)
 //-----------------------------------------------------------------------------
 {
 	if (m_attribute)
 	{
-		Ch* name = CreateString(Attribute(m_attribute)->document(), sName);
-		Attribute(m_attribute)->name(name, sName.size());
+		Ch* name = CreateString(pAttribute(m_attribute)->document(), sName);
+		pAttribute(m_attribute)->name(name, sName.size());
 	}
+	return *this;
 }
 
 //-----------------------------------------------------------------------------
-void KXMLAttribute::SetValue(KStringView sValue)
+KXMLAttribute& KXMLAttribute::SetValue(KStringView sValue)
 //-----------------------------------------------------------------------------
 {
 	if (m_attribute)
 	{
-		Ch* value = CreateString(Attribute(m_attribute)->document(), sValue);
-		Attribute(m_attribute)->value(value, sValue.size());
+		Ch* value = CreateString(pAttribute(m_attribute)->document(), sValue);
+		pAttribute(m_attribute)->value(value, sValue.size());
 	}
+	return *this;
 }
 
 //-----------------------------------------------------------------------------
@@ -568,259 +626,16 @@ KXMLAttribute KXMLAttribute::AddAttribute(KStringView sName, KStringView sValue)
 
 	if (m_attribute)
 	{
-		rapidXMLNode* parent = Attribute(m_attribute)->parent();
+		rapidXMLNode* parent = pAttribute(m_attribute)->parent();
 
 		if (parent)
 		{
 			sibling.m_attribute = CreateAttribute(parent->document(), sName, sValue);
-			parent->append_attribute(Attribute(sibling.m_attribute));
+			parent->append_attribute(pAttribute(sibling.m_attribute));
 		}
 	}
 
 	return sibling;
-}
-
-// ============================= KXMLDocument =================================
-
-//-----------------------------------------------------------------------------
-void KXMLDocument::AddNode(KStringView sName, KStringView sValue, bool bDescendInto)
-//-----------------------------------------------------------------------------
-{
-	rapidXMLNode* node = CreateNode(Document(D.get()), sName, sValue);
-	Parent(P)->append_node(node);
-	if (bDescendInto)
-	{
-		P = node;
-	}
-}
-
-//-----------------------------------------------------------------------------
-void KXMLDocument::AddAttribute(KStringView sName, KStringView sValue)
-//-----------------------------------------------------------------------------
-{
-	rapidXMLAttribute* attribute = CreateAttribute(Document(D.get()), sName, sValue);
-	Parent(P)->append_attribute(attribute);
-}
-
-//-----------------------------------------------------------------------------
-void KXMLDocument::AddValue(KStringView sValue)
-//-----------------------------------------------------------------------------
-{
-	KStringView sExisting = GetValue();
-
-	if (!sExisting.empty())
-	{
-		KString string { sExisting };
-		string += sValue;
-		Ch* value = CreateString(Document(D.get()), string);
-		Parent(P)->value(value, string.size());
-	}
-	else
-	{
-		Ch* value = CreateString(Document(D.get()), sValue);
-		Parent(P)->value(value, sValue.size());
-	}
-
-}
-
-//-----------------------------------------------------------------------------
-void KXMLDocument::SetValue(KStringView sValue)
-//-----------------------------------------------------------------------------
-{
-	Ch* value = CreateString(Document(D.get()), sValue);
-	Parent(P)->value(value, sValue.size());
-}
-
-//-----------------------------------------------------------------------------
-bool KXMLDocument::GetNode(KStringView sName, KStringView& sValue, bool bDescendInto) const
-//-----------------------------------------------------------------------------
-{
-	rapidXMLNode* node = Parent(P)->first_node(sName.data(), sName.size());
-	if (!node)
-	{
-		sValue.clear();
-		return false;
-	}
-	else
-	{
-		sValue.assign(node->value(), node->value_size());
-
-		if (bDescendInto)
-		{
-			P = node;
-		}
-
-		return true;
-	}
-}
-
-//-----------------------------------------------------------------------------
-KStringView KXMLDocument::GetNode(KStringView sName) const
-//-----------------------------------------------------------------------------
-{
-	KStringView sValue;
-	GetNode(sName, sValue);
-	return sValue;
-}
-
-//-----------------------------------------------------------------------------
-bool KXMLDocument::GetSibling(KStringView sName, KStringView& sValue, bool bPrevious) const
-//-----------------------------------------------------------------------------
-{
-	if (!NextSibling(sName, bPrevious))
-	{
-		sValue.clear();
-		return false;
-	}
-
-	GetValue(sValue);
-	return true;
-}
-
-//-----------------------------------------------------------------------------
-bool KXMLDocument::GetAttribute(KStringView sName, KStringView& sValue) const
-//-----------------------------------------------------------------------------
-{
-	rapidXMLAttribute* attribute = Parent(P)->first_attribute(sName.data(), sName.size());
-	if (!attribute)
-	{
-		sValue.clear();
-		return false;
-	}
-	else
-	{
-		sValue.assign(attribute->value(), attribute->value_size());
-		return true;
-	}
-}
-
-//-----------------------------------------------------------------------------
-KStringView KXMLDocument::GetAttribute(KStringView sName) const
-//-----------------------------------------------------------------------------
-{
-	KStringView sValue;
-	GetAttribute(sName, sValue);
-	return sValue;
-}
-
-//-----------------------------------------------------------------------------
-void KXMLDocument::GetValue(KStringView& sValue) const
-//-----------------------------------------------------------------------------
-{
-	sValue.assign(Parent(P)->value(), Parent(P)->value_size());
-}
-
-//-----------------------------------------------------------------------------
-KStringView KXMLDocument::GetValue() const
-//-----------------------------------------------------------------------------
-{
-	KStringView sValue;
-	GetValue(sValue);
-	return sValue;
-}
-
-//-----------------------------------------------------------------------------
-KStringView KXMLDocument::GetName() const
-//-----------------------------------------------------------------------------
-{
-	KStringView sName;
-	sName.assign(Parent(P)->name(), Parent(P)->name_size());
-	return sName;
-}
-
-//-----------------------------------------------------------------------------
-KXMLDocument::XMLPosition KXMLDocument::GetPosition() const
-//-----------------------------------------------------------------------------
-{
-	return P;
-}
-
-//-----------------------------------------------------------------------------
-bool KXMLDocument::SetPosition(XMLPosition position) const
-//-----------------------------------------------------------------------------
-{
-	if (!position)
-	{
-		// error
-		return false;
-	}
-	else
-	{
-		P = position;
-		return true;
-	}
-}
-
-//-----------------------------------------------------------------------------
-void KXMLDocument::StartNode() const
-//-----------------------------------------------------------------------------
-{
-	P = D.get();
-}
-
-//-----------------------------------------------------------------------------
-bool KXMLDocument::DescendNode(KStringView sName) const
-//-----------------------------------------------------------------------------
-{
-	rapidXMLNode* child = Parent(P)->first_node(sName.data(), sName.size());
-	if (!child)
-	{
-		return false;
-	}
-	else
-	{
-		P = child;
-		return true;
-	}
-}
-
-//-----------------------------------------------------------------------------
-bool KXMLDocument::AscendNode() const
-//-----------------------------------------------------------------------------
-{
-	rapidXMLNode* parent = Parent(P)->parent();
-	if (!parent)
-	{
-		return false;
-	}
-	else
-	{
-		P = parent;
-		return true;
-	}
-}
-
-//-----------------------------------------------------------------------------
-bool KXMLDocument::NextSibling(KStringView sName, bool bPrevious) const
-//-----------------------------------------------------------------------------
-{
-	rapidXMLNode* sibling;
-	if (!bPrevious)
-	{
-		sibling = Parent(P)->next_sibling(sName.data(), sName.size());
-	}
-	else
-	{
-		sibling = Parent(P)->previous_sibling(sName.data(), sName.size());
-	}
-
-	if (!sibling)
-	{
-		return false;
-	}
-	else
-	{
-		P = sibling;
-		return true;
-	}
-}
-
-//-----------------------------------------------------------------------------
-void KXMLDocument::clear()
-//-----------------------------------------------------------------------------
-{
-	KXML::clear();
-	P = D.get();
 }
 
 } // end of namespace dekaf2

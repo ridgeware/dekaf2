@@ -88,6 +88,9 @@ public:
 		return m_attribute;
 	}
 
+	/// ascend to parent node
+	KXMLNode Parent() const;
+
 	/// find attribute by name
 	KXMLAttribute find(KStringView sName) const;
 
@@ -114,15 +117,22 @@ public:
 	/// iterate to previous attribute
 	KXMLAttribute  operator--(int);  // postfix
 
+	/// Get next attribute of parent node
+	KXMLAttribute Next() const
+	{
+		auto sibling = *this;
+		return ++sibling;
+	}
+
 	/// Get attribute name
 	KStringView GetName() const;
 	/// Get attribute value
 	KStringView GetValue() const;
 
 	/// Set name of current attribute
-	void SetName(KStringView sName);
+	KXMLAttribute& SetName(KStringView sName);
 	/// Set value of current attribute
-	void SetValue(KStringView sValue);
+	KXMLAttribute& SetValue(KStringView sValue);
 
 	/// Add an attribute to parent of current attribute
 	KXMLAttribute AddAttribute(KStringView sName, KStringView sValue = KStringView{});
@@ -146,10 +156,9 @@ protected:
 }; // KXMLAttribute
 
 class KXML;
-class KXMLDocument;
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// Accessor to one XML node; is also its own iterator
+/// Accessor to one XML node and its attributes and children; is also its own iterator
 class KXMLNode
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -168,8 +177,6 @@ public:
 	KXMLNode() = default;
 	/// ctor from KXML root node
 	KXMLNode(const KXML& DOM);
-	/// ctor from current node in KXMLDocument
-	KXMLNode(const KXMLDocument& document);
 
 	/// returns count of child nodes
 	size_t size() const;
@@ -186,11 +193,27 @@ public:
 		return m_node;
 	}
 
-	/// find a child node
-	KXMLNode find(KStringView sName) const;
+	/// Ascend to parent node
+	KXMLNode Parent() const;
+
+	/// Descend to first child node
+	KXMLNode Child() const;
+	/// Get next sibling node
+	KXMLNode Next() const
+	{
+		auto sibling = *this;
+		return ++sibling;
+	}
+	/// Descend to first child node with sName
+	KXMLNode Child(KStringView sName) const;
+	/// Get next sibling node with sName
+	KXMLNode Next(KStringView sName) const;
 
 	/// return begin iterator
-	iterator begin() const;
+	iterator begin() const
+	{
+		return Child();
+	}
 	/// return end iterator
 	iterator end() const
 	{
@@ -213,20 +236,26 @@ public:
 	KStringView GetName() const;
 	/// Get value of current node
 	KStringView GetValue() const;
-	/// Get Attributes of current node
-	KXMLAttribute GetAttributes() const
+	/// Get attributes of current node
+	KXMLAttribute Attributes() const
 	{
 		return KXMLAttribute(*this);
 	}
+	/// Get attribute with sName
+	KXMLAttribute Attribute(KStringView sName) const;
 
-	/// Add a child node to current node
+	/// Add a child node to current node. Only works if the current node is
+	/// not empty (= part of a KXML tree).
 	KXMLNode AddNode(KStringView sName, KStringView sValue = KStringView{});
-	/// Set name of current node
-	void SetName(KStringView sName);
-	/// Set value of current node
-	void SetValue(KStringView sValue);
+	/// Set name of current node. Only works if the current node is
+	/// not empty (= part of a KXML tree).
+	KXMLNode& SetName(KStringView sName);
+	/// Set value of current node. Only works if the current node is
+	/// not empty (= part of a KXML tree).
+	KXMLNode& SetValue(KStringView sValue);
 
-	/// Add an attribute to current node
+	/// Add an attribute to current node. Only works if the current node is
+	/// not empty (= part of a KXML tree).
 	KXMLAttribute AddAttribute(KStringView sName, KStringView sValue = KStringView{});
 
 	bool operator==(const KXMLNode& other) const
@@ -249,7 +278,7 @@ protected:
 
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// Basic XML support. Fast XML parsing and DOM traversal.
+/// Basic XML support. Fast XML parsing and serialization.
 class KXML
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -260,68 +289,62 @@ class KXML
 public:
 //------
 
-	//-----------------------------------------------------------------------------
+	using const_iterator    = KXMLNode;
+	using iterator          = const_iterator;
+
 	/// Construct an empty KXML DOM
 	KXML();
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
 	/// Construct a KXML DOM by parsing sDocument - content gets copied
 	KXML(KStringView sDocument);
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
 	/// Construct a KXML DOM by parsing InStream
 	KXML(KInStream& InStream);
-	//-----------------------------------------------------------------------------
 
 	KXML(const KXML&) = delete;
 	KXML(KXML&&) = default;
 	KXML& operator=(const KXML&) = delete;
 	KXML& operator=(KXML&&) = default;
 
-	//-----------------------------------------------------------------------------
 	/// Print DOM into OutStream
 	void Serialize(KOutStream& OutStream, bool bIndented = true) const;
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
 	/// Print DOM into string
 	void Serialize(KString& string, bool bIndented = true) const;
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
 	/// Print DOM into string
 	KString Serialize(bool bIndented = true) const;
-	//-----------------------------------------------------------------------------
 
-	//-----------------------------------------------------------------------------
 	/// Parse DOM from InStream
 	bool Parse(KInStream& InStream);
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
 	/// Parse DOM from string
 	void Parse(KStringView string);
-	//-----------------------------------------------------------------------------
 
-	//-----------------------------------------------------------------------------
 	/// Clear all content
 	void clear();
-	//-----------------------------------------------------------------------------
 
-	//-----------------------------------------------------------------------------
 	/// Add a default XML declaration to the start of DOM
 	void AddXMLDeclaration();
-	//-----------------------------------------------------------------------------
+
+	/// Return first child node with sName
+	KXMLNode Child(KStringView sName) const
+	{
+		return KXMLNode(*this).Child(sName);
+	}
+
+	/// Return begin iterator
+	iterator begin() const
+	{
+		return KXMLNode(*this).Child();
+	}
+
+	/// Return end iterator
+	iterator end() const
+	{
+		return {};
+	}
 
 //------
 protected:
 //------
 
-	//-----------------------------------------------------------------------------
 	void Parse();
-	//-----------------------------------------------------------------------------
 
 	// helper types to allow for a unique_ptr<void>, which lets us hide all
 	// implementation headers from the interface and nonetheless keep exception safety
@@ -333,140 +356,10 @@ protected:
 
 }; // KXML
 
-
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// KXMLDocument adds string based traversal and manipulation methods to a KXML
-/// DOM.
-class KXMLDocument : public KXML
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-{
-
-	friend class KXMLNode;
-
-//------
-public:
-//------
-
-	using XMLPosition  = void*;
-
-	// make base class constructors available
-	using KXML::KXML;
-
-	//-----------------------------------------------------------------------------
-	/// Add a node as child to the current node
-	void AddNode(KStringView sName, KStringView sValue = KStringView{}, bool bDescendInto = false);
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// Add an attribute to the current node
-	void AddAttribute(KStringView sName, KStringView sValue = KStringView{});
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// Add a value to the current node's value
-	void AddValue(KStringView sValue);
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// Set the value of the current node
-	void SetValue(KStringView sValue);
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// Get value of node with name sName, descend into it if bDescendInto is true
-	bool GetNode(KStringView sName, KStringView& sValue, bool bDescendInto = false) const;
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// Get value of node with name sName
-	KStringView GetNode(KStringView sName) const;
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// Get sibling of current node with name sName
-	bool GetSibling(KStringView sName, KStringView& sValue, bool bPrevious = false) const;
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// Get attribute value of attribute sName of current node
-	bool GetAttribute(KStringView sName, KStringView& sValue) const;
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// Get attribute value of attribute sName of current node
-	KStringView GetAttribute(KStringView sName) const;
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// Get value of current node
-	void GetValue(KStringView& sValue) const;
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// Get value of current node
-	KStringView GetValue() const;
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// Get name of current node
-	KStringView GetName() const;
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// Get a pointer to the current position in the DOM tree
-	XMLPosition GetPosition() const;
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// Set the position in the DOM tree
-	bool SetPosition(XMLPosition position) const;
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// Set the position to the start node in the DOM
-	void StartNode() const;
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// Descend to first child of current node
-	bool DescendNode(KStringView sName) const;
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// Ascend to parent of current node
-	bool AscendNode() const;
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// Advance to next sibling of name sName of current node
-	bool NextSibling(KStringView sName, bool bPrevious = false) const;
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// Clear all content
-	void clear();
-	//-----------------------------------------------------------------------------
-
-//------
-protected:
-//------
-
-	mutable void* P { D.get() };
-
-}; // KXMLDocument
-
-
 //-----------------------------------------------------------------------------
 inline KXMLNode::KXMLNode(const KXML& DOM)
 //-----------------------------------------------------------------------------
 : m_node { DOM.D.get() }
-{
-}
-
-//-----------------------------------------------------------------------------
-inline KXMLNode::KXMLNode(const KXMLDocument& document)
-//-----------------------------------------------------------------------------
-: m_node { document.P }
 {
 }
 

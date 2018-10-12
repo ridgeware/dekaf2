@@ -9,7 +9,7 @@ TEST_CASE("KXML")
 {
 	SECTION("Basic construction")
 	{
-		KXMLDocument xmldoc;
+		KXML xmldoc;
 		xmldoc.AddXMLDeclaration();
 		KXMLNode root = xmldoc;
 		root = root.AddNode("myroot");
@@ -51,8 +51,8 @@ R"(<?xml version="1.0" encoding="utf-8" standalone="yes"?>
 		KXML xml2(sOut);
 
 		root = xml2;
-		root = root.find("myroot");
-		segment1 = root.find("file").find("group").find("unit").find("segment");
+		root = root.Child("myroot");
+		segment1 = root.Child("file").Child("group").Child("unit").Child("segment");
 		auto sv = segment1.GetValue();
 		CHECK ( sv == "some contents" );
 

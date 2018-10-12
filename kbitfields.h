@@ -60,6 +60,12 @@
 #include <cinttypes>
 #include <type_traits> // std::enable_if
 
+#ifdef DEKAF2_IS_64_BITS
+	#define DEKAF2_BF_SHIFTED 1ull
+#else
+	#define DEKAF2_BF_SHIFTED 1ul
+#endif
+
 namespace dekaf2 {
 namespace detail {
 namespace bitfields {
@@ -137,11 +143,11 @@ private:
 		}
 		else if (_size == 1)
 		{
-			return (store & (1ull << b4)) != 0;
+			return (store & (DEKAF2_BF_SHIFTED << b4)) != 0;
 		}
 		else
 		{
-			return (store >> b4) & ((1ull << _size) - 1);
+			return (store >> b4) & ((DEKAF2_BF_SHIFTED << _size) - 1);
 		}
 	}
 
@@ -170,7 +176,7 @@ private:
 		}
 		else
 		{
-			type mask = ((1ull << _size) - 1) << b4;
+			type mask = ((DEKAF2_BF_SHIFTED << _size) - 1) << b4;
 			store &= ~mask;
 			store |= (value << b4) & mask;
 		}

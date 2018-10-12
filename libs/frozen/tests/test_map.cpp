@@ -51,7 +51,7 @@ TEST_CASE("empty frozen map", "[map]") {
   std::for_each(ze_map.begin(), ze_map.end(), [](std::tuple<int, float>) {});
   REQUIRE(std::distance(ze_map.rbegin(), ze_map.rend()) == 0);
   REQUIRE(std::count(ze_map.crbegin(), ze_map.crend(),
-                     decltype(ze_map)::value_type(3, 5.3)) == 0);
+                     decltype(ze_map)::value_type(3, 5.3f)) == 0);
 }
 
 TEST_CASE("singleton frozen map", "[map]") {
@@ -120,7 +120,7 @@ TEST_CASE("singleton frozen map", "[map]") {
   auto const cbegin = ze_map.cbegin(), cend = ze_map.cend();
   REQUIRE(cbegin == (cend - 1));
 
-  std::for_each(ze_map.begin(), ze_map.end(), [](std::tuple<int, float>) {});
+  std::for_each(ze_map.begin(), ze_map.end(), [](std::tuple<short, double>) {});
   REQUIRE(std::distance(ze_map.rbegin(), ze_map.rend()) == 1);
   REQUIRE(std::count(ze_map.crbegin(), ze_map.crend(),
                      decltype(ze_map)::value_type(3, 14)) == 0);
@@ -197,7 +197,7 @@ TEST_CASE("triple frozen map", "[map]") {
   auto const cbegin = ze_map.cbegin(), cend = ze_map.cend();
   REQUIRE(cbegin == (cend - ze_map.size()));
 
-  std::for_each(ze_map.begin(), ze_map.end(), [](std::tuple<long, bool>) {});
+  std::for_each(ze_map.begin(), ze_map.end(), [](std::tuple<unsigned long, bool>) {});
   REQUIRE(std::distance(ze_map.rbegin(), ze_map.rend()) == ze_map.size());
   REQUIRE(std::count(ze_map.crbegin(), ze_map.crend(),
                      decltype(ze_map)::value_type(3, 14)) == 0);
@@ -265,7 +265,26 @@ TEST_CASE("frozen::map <> frozen::make_map", "[map]") {
     for (auto v : frozen_map)
       REQUIRE(frozen_map2.count(std::get<0>(v)));
   }
+
+  constexpr frozen::map<int, short, 0> frozen_empty_map = {};
+  constexpr auto frozen_empty_map2 = frozen::make_map<int, short>();
+  constexpr auto frozen_empty_map3 = frozen::make_map<int, short>({});
+
+  SECTION("checking empty map") {
+    REQUIRE(frozen_empty_map.empty());
+    REQUIRE(frozen_empty_map.size() == 0);
+    REQUIRE(frozen_empty_map.begin() == frozen_empty_map.end());
+
+    REQUIRE(frozen_empty_map2.empty());
+    REQUIRE(frozen_empty_map2.size() == 0);
+    REQUIRE(frozen_empty_map2.begin() == frozen_empty_map2.end());
+
+    REQUIRE(frozen_empty_map3.empty());
+    REQUIRE(frozen_empty_map3.size() == 0);
+    REQUIRE(frozen_empty_map3.begin() == frozen_empty_map3.end());
+  }
 }
+
 
 TEST_CASE("frozen::map constexpr", "[map]") {
   constexpr frozen::map<unsigned, unsigned, 2> ce = {{3,4}, {11,12}};

@@ -4,7 +4,7 @@ addons:
     apt:
         sources:
             - ubuntu-toolchain-r-test
-            - llvm-toolchain-precise
+            - llvm-toolchain-trusty-5.0
         packages:
             - g++-6
             - clang-5.0
@@ -21,7 +21,7 @@ matrix:
 script:
   - mkdir build
   - cd build
-  - cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=${CXX_COMPILER} ..
+  - cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=${CXX_COMPILER} -DCMAKE_VERBOSE_MAKEFILE=ON ..
   - cmake --build .
   - ctest -V
 

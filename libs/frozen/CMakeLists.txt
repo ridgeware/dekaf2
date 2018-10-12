@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.8)
+cmake_minimum_required(VERSION 3.7)
 #
 # Here we check whether frozen is being configured in isolation or as a component
 # of a larger proeject. To do so, we query whether the `PROJECT_NAME` CMake
@@ -49,7 +49,9 @@ add_library(frozen::frozen ALIAS frozen)
 # features ensures that the corresponding C++ standard flag is populated in
 # targets linking to frozen
 #
-target_compile_features(frozen INTERFACE cxx_std_14)
+if (${CMAKE_VERSION} VERSION_GREATER "3.7.99")
+	target_compile_features(frozen INTERFACE cxx_std_14)
+endif()
 
 #
 # The include directory for frozen can be expected to vary between build

@@ -111,21 +111,23 @@ TEST_CASE("KBitfields")
 		AddressPlus Address;
 		Address.set<0>(0xffffffffffffff);
 		Address.set<1>(0x9a);
-		CHECK ( Address.get<0>() == 0xffffffffffffff );
+		CHECK ( Address.get<0>() == 0xffffffffffffffull );
 		CHECK ( Address.get<1>() == 0x9a );
 		Address.set<0>(40000000000000000);
-		CHECK ( Address.get<0>() == 40000000000000000 );
+		CHECK ( Address.get<0>() == 40000000000000000ull );
 
 		KBitfields<56, 8> bf = 0x9affffffffffffff;
-		CHECK ( bf.get<0>() == 0xffffffffffffff );
+		CHECK ( bf.get<0>() == 0xffffffffffffffull );
 		CHECK ( bf.get<1>() == 0x9a );
 		CHECK ( bf == 0x9affffffffffffff );
 
+#if defined(DEKAF2_NO_GCC) || (DEKAF2_GCC_VERSION_MAJOR > 6)
 		KBitfields<64> bf1;
 		CHECK ( sizeof(bf1) == 8 );
 		bf1.set<0>(0xffffffffffffffff);
 		CHECK ( bf1.get<0>() == 0xffffffffffffffff );
 		CHECK ( bf1 == 0xffffffffffffffff );
+#endif
 	}
 
 	SECTION("32 bit")

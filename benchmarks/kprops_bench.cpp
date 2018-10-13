@@ -196,7 +196,11 @@ void thread_local_bench()
 		}
 		result = test_thread_local();
 	}
+#ifdef DEKAF2_IS_64_BIT
 	fprintf(stdout, "result 1 is %lu\n", result);
+#else
+	fprintf(stdout, "result 1 is %u\n", result);
+#endif
 	{
 		KProf p("no thread local");
 		for (uint32_t ct = 0; ct < 1000000; ++ct)
@@ -206,7 +210,11 @@ void thread_local_bench()
 		}
 		result = test_no_thread_local();
 	}
+#ifdef DEKAF2_IS_64_BIT
 	fprintf(stdout, "result 2 is %lu\n", result);
+#else
+	fprintf(stdout, "result 2 is %u\n", result);
+#endif
 }
 
 void UrlDecode_bench()

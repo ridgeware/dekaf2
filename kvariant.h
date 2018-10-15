@@ -110,10 +110,12 @@ namespace dekaf2 {
 
 #ifdef DEKAF2_HAS_CPP_17
 	/// generic overload class - we need C++17 for the variadic using directive
-	template <class RETURNTYPE = void, class ...Fs>
-	struct KVisitor : Fs..., KVisitorBase<RETURNTYPE>
+	// we drop the RETURNTYPE and only allow for void returns as otherwise the template
+	// would not resolve on lambdas..
+	template <class ...Fs>
+	struct KVisitor : Fs..., KVisitorBase<void>
 	{
-		KVisitor(Fs const&... fs) : Fs{fs}..., KVisitorBase<RETURNTYPE>{}
+		KVisitor(Fs const&... fs) : Fs{fs}..., KVisitorBase<void>{}
 		{}
 
 		using Fs::operator()...;

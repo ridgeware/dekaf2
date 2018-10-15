@@ -138,7 +138,7 @@ public:
 
 	/// Register an array of KStringViews as help output
 	template<std::size_t COUNT>
-	void RegisterHelp(KStringView (&sHelp)[COUNT])
+	void RegisterHelp(const KStringView (&sHelp)[COUNT])
 	{
 		m_sHelp = sHelp;
 		m_sHelpSize = COUNT;
@@ -219,15 +219,15 @@ private:
 
 	using CommandStore = KUnorderedMap<KString, CallbackParams>;
 
-	CLIParms       m_CLIParms;
-	CommandStore   m_Commands;
-	CommandStore   m_Options;
-	CallbackParams m_UnknownCommand;
-	CallbackParams m_UnknownOption;
-	KString        m_sCliDebugTo;
-	KStringView*   m_sHelp { nullptr };
-	size_t         m_sHelpSize { 0 };
-	bool           m_bEmptyParmsIsError { true };
+	CLIParms           m_CLIParms;
+	CommandStore       m_Commands;
+	CommandStore       m_Options;
+	CallbackParams     m_UnknownCommand;
+	CallbackParams     m_UnknownOption;
+	KString            m_sCliDebugTo;
+	const KStringView* m_sHelp { nullptr };
+	size_t             m_sHelpSize { 0 };
+	bool               m_bEmptyParmsIsError { true };
 
 }; // KOptions
 

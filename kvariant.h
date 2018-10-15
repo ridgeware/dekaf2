@@ -46,52 +46,98 @@
 /// test for include file locations for std::variant, and include if
 /// available, otherwise provide an alternative boost implementation
 
-#include "kcppcompat.h"
+#include "bits/kcppcompat.h"
 
 // clang has multiple issues with variants:
-// If used with libc++ it explicitly blocks std::visit() uses which work perfectly fine with gcc
-// and if used with libstdc++ it does not discover a friend declaration for variant::get, so it fails.
+//
+// If used with Xcode 10, it needs the deployment target be set to 10.14 to allow
+// the use of it.
+//
+// If used with current libstdc++ (gcc 8.1) it does not discover a friend declaration
+// for variant::get, so it fails.
+//
 // Therefore for the time being, if clang then simply use the boost implementation
-#if defined(DEKAF2_HAS_CPP_17) && !defined(DEKAF2_NO_GCC)
-	#if __has_include(<variant>)
-		#include <variant>
-		#define DEKAF2_HAS_VARIANT 1
-		#define DEKAF2_HAS_STD_VARIANT 1
-		#define DEKAF2_VARIANT_NAMESPACE std
-	#elif __has_include(<experimental/variant>)
-		#include <experimental/variant>
-		#define DEKAF2_HAS_VARIANT 1
-		#define DEKAF2_HAS_STD_VARIANT 1
-		#define DEKAF2_VARIANT_NAMESPACE std::experimental
-	#endif
-#endif
 
-#ifndef DEKAF2_HAS_VARIANT
+#if DEKAF2_HAS_INCLUDE(<variant>) && !DEKAF2_IS_CLANG
+	#include <variant>
+	#define DEKAF2_HAS_VARIANT 1
+	#define DEKAF2_HAS_STD_VARIANT 1
+	#define DEKAF2_VARIANT_NAMESPACE std
+#elif DEKAF2_HAS_INCLUDE(<experimental/variant>) && !DEKAF2_IS_CLANG
+	#include <experimental/variant>
+	#define DEKAF2_HAS_VARIANT 1
+	#define DEKAF2_HAS_STD_VARIANT 1
+	#define DEKAF2_VARIANT_NAMESPACE std::experimental
+#else
 	#include <boost/variant.hpp>
+	#include <boost/variant/multivisitors.hpp>
 	#define DEKAF2_HAS_VARIANT 1
 	#define DEKAF2_HAS_BOOST_VARIANT 1
 	#define DEKAF2_VARIANT_NAMESPACE boost
 	namespace boost
 	{
-		// not ideal, but we need to add some conversions
-		template <typename Visitor, typename Visitable>
-		inline
-		BOOST_VARIANT_AUX_GENERIC_RESULT_TYPE(typename Visitor::result_type)
-		visit(Visitor& visitor, Visitable&& visitable)
+		// not ideal, but we need to add some template name conversions, as the
+		// std version calls the function visit, and not apply_visitor
+
+		template <typename Visitor, typename...Visitable>
+		typename Visitor::result_type visit(Visitor& visitor, Visitable&&...visitable)
 		{
-			return ::boost::forward<Visitable>(visitable).apply_visitor(visitor);
+			return apply_visitor(visitor, std::forward<Visitable>(visitable)...);
 		}
 
-		template <typename Visitor, typename Visitable>
-		inline
-		BOOST_VARIANT_AUX_GENERIC_RESULT_TYPE(typename Visitor::result_type)
-		visit(const Visitor& visitor, Visitable&& visitable)
+		template <typename Visitor, typename...Visitable>
+		typename Visitor::result_type visit(const Visitor& visitor, Visitable&&...visitable)
 		{
-			return ::boost::forward<Visitable>(visitable).apply_visitor(visitor);
+			return apply_visitor(visitor, std::forward<Visitable>(visitable)...);
 		}
+
 	} // end of namespace boost
 #endif
 
 #ifdef DEKAF2_VARIANT_NAMESPACE
 	namespace var = DEKAF2_VARIANT_NAMESPACE;
 #endif
+
+namespace dekaf2 {
+
+#ifdef DEKAF2_HAS_BOOST_VARIANT
+	template<typename RETURNTYPE = void>
+	struct KVisitorBase : public var::static_visitor<RETURNTYPE> {};
+#else
+	template<typename RETURNTYPE = void>
+	struct KVisitorBase {};
+#endif
+
+#ifdef DEKAF2_HAS_CPP_17
+	/// generic overload class - we need C++17 for the variadic using directive
+	template <class RETURNTYPE = void, class ...Fs>
+	struct KVisitor : Fs..., KVisitorBase<RETURNTYPE>
+	{
+		KVisitor(Fs const&... fs) : Fs{fs}..., KVisitorBase<RETURNTYPE>{}
+		{}
+
+		using Fs::operator()...;
+	};
+
+	// the better solution would be the following overload,
+	// as it also permits for move constructed lambdas and
+	// generic function objects, but current versions of
+	// gcc and clang do not compile it..
+/*
+	template <class ...Fs>
+	struct overload : Fs...
+ 	{
+		template <class ...Ts>
+		overload(Ts&& ...ts) : Fs{std::forward<Ts>(ts)}...
+		{}
+
+		using Fs::operator()...;
+	};
+
+	template <class ...Ts>
+	overload(Ts&&...) -> overload<std::remove_reference_t<Ts>...>;
+ */
+
+#endif // of namespace dekaf2
+
+}

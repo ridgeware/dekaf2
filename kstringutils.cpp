@@ -355,24 +355,6 @@ KString kTranslateSeconds(int64_t iNumSeconds, bool bLongForm)
 } // kTranslateSeconds
 
 //-----------------------------------------------------------------------------
-size_t kCountChar(KStringView str, const char ch) noexcept
-//-----------------------------------------------------------------------------
-{
-	size_t ret{0};
-	const char* buf = str.data();
-	size_t size = str.size();
-	while (size--)
-	{
-		if (*buf++ == ch)
-		{
-			++ret;
-		}
-	}
-	return ret;
-
-} // kCountChar
-
-//-----------------------------------------------------------------------------
 bool kIsInteger(KStringView str) noexcept
 //-----------------------------------------------------------------------------
 {

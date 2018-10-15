@@ -48,12 +48,12 @@
 
 #include "kcppcompat.h"
 
-#if defined(DEKAF2_HAS_CPP_17) && !defined(__clang__)
-	#if __has_include(<filesystem>)
+#if DEKAF2_HAS_CPP_17 && !DEKAF2_IS_CLANG
+	#if DEKAF2_HAS_INCLUDE(<filesystem>)
 		#include <filesystem>
 		#define DEKAF2_HAS_STD_FILESYSTEM 1
 		#define DEKAF2_FS_NAMESPACE std::filesystem
-	#elif __has_include(<experimental/filesystem>)
+	#elif DEKAF2_HAS_INCLUDE(<experimental/filesystem>)
 		#include <experimental/filesystem>
 		#define DEKAF2_HAS_STD_FILESYSTEM 1
 		#define DEKAF2_FS_NAMESPACE std::experimental::filesystem

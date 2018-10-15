@@ -55,6 +55,7 @@
 
 #if defined __clang__
 	#define DEKAF2_CLANG_VERSION __clang_major__ * 10000 + __clang_minor__ * 100 + __clang_patchlevel__
+	#define DEKAF2_IS_CLANG 1
 	#define DEKAF2_NO_GCC 1
 #else
 	#define DEKAF2_CLANG_VERSION 0
@@ -62,6 +63,9 @@
 
 #if defined __GNUC__
 	#define DEKAF2_GCC_VERSION __GNUC__ * 10000 + __GNUC_MINOR__ * 100 + __GNUC_PATCHLEVEL__
+	#ifndef DEKAF2_IS_CLANG
+		#define DEKAF2_IS_GCC 1
+	#endif
 #else
 	#define DEKAF2_GCC_VERSION 0
 	#ifndef DEKAF2_NO_GCC
@@ -107,8 +111,14 @@
 
 // unfortunately GCC < 7 require the repetition of a constexpr variable
 // in the .cpp even if in c++17 mode
-#if !defined(DEKAF2_HAS_CPP_17) || (!defined(DEKAF2_NO_GCC) && DEKAF2_GCC_VERSION < 70000)
+#if !defined(DEKAF2_HAS_CPP_17) || (defined(DEKAF2_IS_GCC) && DEKAF2_GCC_VERSION < 70000)
 	#define DEKAF2_REPEAT_CONSTEXPR_VARIABLE 1
+#endif
+
+#ifndef __has_include
+	#define DEKAF2_HAS_INCLUDE(x) 0
+#else
+	#define DEKAF2_HAS_INCLUDE(x) __has_include(x)
 #endif
 
 #ifndef __has_attribute

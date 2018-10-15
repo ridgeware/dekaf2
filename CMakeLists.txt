@@ -127,7 +127,7 @@ endif ()
 if (CMAKE_COMPILER_IS_GNUCXX)
 
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wno-unused-parameter -Werror")
-	set(CMAKE_CXX_FLAGS_RELEASE "-O2 -DNDEBUG")
+	set(CMAKE_CXX_FLAGS_RELEASE "-O3 -DNDEBUG")
 
 	# configure cpu architecture dependant optimization
 	if (CPU_x86)
@@ -165,7 +165,7 @@ elseif (CMAKE_CXX_COMPILER_ID MATCHES "[cC][lL][aA][nN][gG]")
 
 	# clang
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wno-unused-parameter -Werror")
-	set(CMAKE_CXX_FLAGS_RELEASE "-O2 -DNDEBUG")
+	set(CMAKE_CXX_FLAGS_RELEASE "-O3 -DNDEBUG")
 
 	# configure cpu architecture dependant optimization
 	if (CPU_x86)
@@ -279,7 +279,6 @@ set (BITS_HEADERS
 	bits/ktemplate.h
 	bits/kunique_deleter.h
 	bits/kurldualencode.h
-	bits/kvariant.h
 )
 set(BITS_SIMD_HEADERS
 	bits/simd/kfindfirstof.h
@@ -371,6 +370,7 @@ set(PUBLIC_HEADERS
 	kuseragent.h
 	kutf8.h
 	kutf8iterator.h
+	kvariant.h
 	kwords.h
 	kwriter.h
 	kxml.h

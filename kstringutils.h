@@ -365,28 +365,20 @@ KString kFormString(KStringView sInp, typename KString::value_type separator = '
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
-/// Count occurence of ch in str
-size_t kCountChar(KStringView str, const char ch) noexcept;
-//-----------------------------------------------------------------------------
-
-//-----------------------------------------------------------------------------
 /// Count occurence of ch in container
 template<class Container>
-size_t kCountChar(const Container& container, const typename Container::value_type ch) noexcept
+inline size_t kCountChar(const Container& container, const typename Container::value_type ch) noexcept
 //-----------------------------------------------------------------------------
 {
-	size_t ret{0};
-	size_t len = container.size();
+	return std::count(container.begin(), container.end(), ch);
+}
 
-	for (auto it = container.data(); len--;)
-	{
-		if (*it++ == ch)
-		{
-			++ret;
-		}
-	}
-
-	return ret;
+//-----------------------------------------------------------------------------
+/// Count occurence of ch in str (to catch char* as well)
+inline size_t kCountChar(KStringView str, const char ch) noexcept
+//-----------------------------------------------------------------------------
+{
+	return std::count(str.begin(), str.end(), ch);
 }
 
 //-----------------------------------------------------------------------------

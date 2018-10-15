@@ -555,16 +555,22 @@ public:
 	// DO NOT USE THEM IN NEW CODE
 
 	/// DEPRECATED - only for compatibility with old code
+	DEKAF2_DEPRECATED("only for compatibility with old code")
 	bool FindRegex(KStringView regex) const;
 	/// DEPRECATED - only for compatibility with old code
+	DEKAF2_DEPRECATED("only for compatibility with old code")
 	bool FindRegex(KStringView regex, unsigned int* start, unsigned int* end, size_type pos = 0) const;
 	/// DEPRECATED - only for compatibility with old code
+	DEKAF2_DEPRECATED("only for compatibility with old code")
 	size_type SubString(KStringView sReplaceMe, KStringView sReplaceWith, bool bReplaceAll = false) { return Replace(sReplaceMe, sReplaceWith, 0, bReplaceAll); }
 	/// DEPRECATED - only for compatibility with old code
+	DEKAF2_DEPRECATED("only for compatibility with old code")
 	size_type SubRegex(KStringView pszRegEx, KStringView pszReplaceWith, bool bReplaceAll = false, size_type* piIdxOffset = nullptr);
 	/// DEPRECATED - only for compatibility with old code
+	DEKAF2_DEPRECATED("only for compatibility with old code")
 	const value_type* c() const { return c_str(); }
 	/// DEPRECATED - only for compatibility with old code
+	DEKAF2_DEPRECATED("only for compatibility with old code")
 	self& Append(const value_type* pszAppend) { return append(pszAppend); }
 
 #endif

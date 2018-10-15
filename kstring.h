@@ -541,7 +541,7 @@ public:
 	KStringView ToView(size_type pos, size_type n) const;
 
 	/// helper operator to allow KString as formatting arg of fmt::format
-	operator fmt::BasicCStringRef<char>() const;
+	operator fmt::string_view() const;
 
 	/// is string one of the values in sHaystack, delimited by iDelim?
 	bool In (KStringView sHaystack, value_type iDelim=',') const;
@@ -1484,10 +1484,10 @@ namespace dekaf2 {
 
 //----------------------------------------------------------------------
 /// helper operator to allow KString as formatting arg of fmt::format
-inline KString::operator fmt::BasicCStringRef<char>() const
+inline KString::operator fmt::string_view() const
 //----------------------------------------------------------------------
 {
-	return fmt::BasicCStringRef<char>(c_str());
+	return fmt::string_view(data(), size());
 }
 
 //----------------------------------------------------------------------

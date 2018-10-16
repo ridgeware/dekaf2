@@ -298,6 +298,7 @@ public:
 	KXML(KStringView sDocument);
 	/// Construct a KXML DOM by parsing InStream
 	KXML(KInStream& InStream);
+	KXML(KInStream&& InStream);
 
 	KXML(const KXML&) = delete;
 	KXML(KXML&&) = default;

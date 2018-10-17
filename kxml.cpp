@@ -40,6 +40,7 @@
 */
 
 #include "kxml.h"
+#include "klog.h"
 #include "libs/rapidxml-1.13/rapidxml.hpp"
 #include "libs/rapidxml-1.13/rapidxml_print.hpp"
 
@@ -139,27 +140,27 @@ KXML::KXML()
 }
 
 //-----------------------------------------------------------------------------
-KXML::KXML(KStringView sDocument, bool bWhitespaceOnlyDataNodes)
+KXML::KXML(KStringView sDocument, bool bPreserveWhiteSpace)
 //-----------------------------------------------------------------------------
 : KXML()
 {
-	Parse(sDocument, bWhitespaceOnlyDataNodes);
+	Parse(sDocument, bPreserveWhiteSpace);
 }
 
 //-----------------------------------------------------------------------------
-KXML::KXML(KInStream& InStream, bool bWhitespaceOnlyDataNodes)
+KXML::KXML(KInStream& InStream, bool bPreserveWhiteSpace)
 //-----------------------------------------------------------------------------
 : KXML()
 {
-	Parse(InStream, bWhitespaceOnlyDataNodes);
+	Parse(InStream, bPreserveWhiteSpace);
 }
 
 //-----------------------------------------------------------------------------
-KXML::KXML(KInStream&& InStream, bool bWhitespaceOnlyDataNodes)
+KXML::KXML(KInStream&& InStream, bool bPreserveWhiteSpace)
 //-----------------------------------------------------------------------------
 : KXML()
 {
-	Parse(InStream, bWhitespaceOnlyDataNodes);
+	Parse(InStream, bPreserveWhiteSpace);
 }
 
 //-----------------------------------------------------------------------------
@@ -186,22 +187,21 @@ KString KXML::Serialize(bool bIndented) const
 }
 
 //-----------------------------------------------------------------------------
-bool KXML::Parse(KInStream& InStream, bool bWhitespaceOnlyDataNodes)
+bool KXML::Parse(KInStream& InStream, bool bPreserveWhiteSpace)
 //-----------------------------------------------------------------------------
 {
 	clear();
 	kReadAll(InStream, XMLData, false);
-	Parse(bWhitespaceOnlyDataNodes);
-	return true;
+	return Parse(bPreserveWhiteSpace);
 }
 
 //-----------------------------------------------------------------------------
-void KXML::Parse(KStringView string, bool bWhitespaceOnlyDataNodes)
+bool KXML::Parse(KStringView string, bool bPreserveWhiteSpace)
 //-----------------------------------------------------------------------------
 {
 	clear();
 	XMLData = string;
-	Parse(bWhitespaceOnlyDataNodes);
+	return Parse(bPreserveWhiteSpace);
 }
 
 //-----------------------------------------------------------------------------
@@ -213,18 +213,28 @@ void KXML::clear()
 }
 
 //-----------------------------------------------------------------------------
-void KXML::Parse(bool bWhitespaceOnlyDataNodes)
+bool KXML::Parse(bool bPreserveWhiteSpace)
 //-----------------------------------------------------------------------------
 {
-	if (bWhitespaceOnlyDataNodes)
+	DEKAF2_TRY_EXCEPTION
+
+	if (bPreserveWhiteSpace)
 	{
 		pDocument(D.get())->parse<rapidxml::parse_no_string_terminators
-								| rapidxml::parse_whitespace_only_data_nodes>(&XMLData.front());
+		                        | rapidxml::parse_preserve_whitespace>(&XMLData.front());
 	}
 	else
 	{
 		pDocument(D.get())->parse<rapidxml::parse_no_string_terminators>(&XMLData.front());
 	}
+
+	return true;
+
+	DEKAF2_LOG_EXCEPTION
+
+	clear();
+
+	return false;
 }
 
 //-----------------------------------------------------------------------------

@@ -252,7 +252,7 @@ namespace rapidxml
 	//! Can be combined with other flags by use of | operator.
 	//! <br><br>
 	//! See xml_document::parse() function.
-	const int parse_whitespace_only_data_nodes = 0x1000;
+	const int parse_preserve_whitespace = 0x1000;
 
     // Compound flags
     
@@ -2219,7 +2219,7 @@ namespace rapidxml
             {
                 // Skip whitespace between > and node contents
                 Ch *contents_start = text;      // Store start of node contents before whitespace is skipped
-				if ((Flags & parse_whitespace_only_data_nodes) == 0)
+				if ((Flags & parse_preserve_whitespace) == 0)
 				{
 					// this skips whitespace-only data nodes
                 	skip<whitespace_pred, Flags>(text);

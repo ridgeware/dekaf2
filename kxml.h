@@ -295,10 +295,10 @@ public:
 	/// Construct an empty KXML DOM
 	KXML();
 	/// Construct a KXML DOM by parsing sDocument - content gets copied
-	KXML(KStringView sDocument);
+	KXML(KStringView sDocument, bool bWhitespaceOnlyDataNodes = false);
 	/// Construct a KXML DOM by parsing InStream
-	KXML(KInStream& InStream);
-	KXML(KInStream&& InStream);
+	KXML(KInStream& InStream, bool bWhitespaceOnlyDataNodes = false);
+	KXML(KInStream&& InStream, bool bWhitespaceOnlyDataNodes = false);
 
 	KXML(const KXML&) = delete;
 	KXML(KXML&&) = default;
@@ -313,9 +313,9 @@ public:
 	KString Serialize(bool bIndented = true) const;
 
 	/// Parse DOM from InStream
-	bool Parse(KInStream& InStream);
+	bool Parse(KInStream& InStream, bool bWhitespaceOnlyDataNodes = false);
 	/// Parse DOM from string
-	void Parse(KStringView string);
+	void Parse(KStringView string, bool bWhitespaceOnlyDataNodes = false);
 
 	/// Clear all content
 	void clear();
@@ -345,7 +345,7 @@ public:
 protected:
 //------
 
-	void Parse();
+	void Parse(bool bWhitespaceOnlyDataNodes = false);
 
 	// helper types to allow for a unique_ptr<void>, which lets us hide all
 	// implementation headers from the interface and nonetheless keep exception safety

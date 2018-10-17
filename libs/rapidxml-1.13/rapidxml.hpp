@@ -246,6 +246,14 @@ namespace rapidxml
     //! See xml_document::parse() function.
     const int parse_normalize_whitespace = 0x800;
 
+	//! Parse flag instructing the parser to allow for whitespace-only data nodes.
+	//! By default, the parser skips any whitespace-only data nodes.
+	//! This flag does not cause the parser to modify source text.
+	//! Can be combined with other flags by use of | operator.
+	//! <br><br>
+	//! See xml_document::parse() function.
+	const int parse_whitespace_only_data_nodes = 0x1000;
+
     // Compound flags
     
     //! Parse flags which represent default behaviour of the parser. 
@@ -2211,7 +2219,11 @@ namespace rapidxml
             {
                 // Skip whitespace between > and node contents
                 Ch *contents_start = text;      // Store start of node contents before whitespace is skipped
-                skip<whitespace_pred, Flags>(text);
+				if ((Flags & parse_whitespace_only_data_nodes) == 0)
+				{
+					// this skips whitespace-only data nodes
+                	skip<whitespace_pred, Flags>(text);
+				}
                 Ch next_char = *text;
 
             // After data nodes, instead of continuing the loop, control jumps here.

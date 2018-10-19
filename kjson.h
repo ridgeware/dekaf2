@@ -43,7 +43,6 @@
 #pragma once
 
 #include <nlohmann/json.hpp>
-#include "krow.h"
 #include "kstring.h"
 #include "kstringview.h"
 #include "kreader.h"
@@ -74,6 +73,8 @@ inline void from_json(const KJSON& j, dekaf2::KStringView& s)
 {
 	s = j.get<KJSON::string_t>();
 }
+
+class KROW;
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 namespace kjson

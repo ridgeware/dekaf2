@@ -42,8 +42,9 @@
 
 #pragma once
 
-#include "kprops.h"
 #include "bits/ktemplate.h"
+#include "kprops.h"
+#include "kjson.h"
 
 namespace dekaf2 {
 
@@ -152,6 +153,8 @@ public:
 	{
 		m_sTablename =  sTablename;
 	}
+
+	bool AddCol (KStringView sColName, const KJSON& Value, uint64_t iFlags=0, uint32_t iMaxLen=0);
 
 	template<typename COLTYPE, typename std::enable_if<detail::is_narrow_cpp_str<COLTYPE>::value, int>::type = 0>
 	bool AddCol (KStringView sColName, COLTYPE Value, uint64_t iFlags=0, uint32_t iMaxLen=0)

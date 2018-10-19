@@ -42,6 +42,7 @@
 
 #include "kjson.h"
 #include "klog.h"
+#include "krow.h"
 
 namespace dekaf2 {
 
@@ -225,7 +226,17 @@ bool Add (KJSON& json, const KROW& row)
 				}
 				else // catch-all logic for all string values
 				{
-					json[sName] = sValue;
+					if (!sValue.empty() && sValue.front() == '{' && sValue.back() == '}')
+					{
+						// we assume this is a json serialization
+						KJSON object;
+						Parse(object, sValue);
+						json[sName] = object;
+					}
+					else
+					{
+						json[sName] = sValue;
+					}
 				}
 			}
 		}

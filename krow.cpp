@@ -42,7 +42,6 @@
 
 #include "krow.h"
 #include "klog.h"
-#include "kjson.h"
 
 using namespace dekaf2;
 
@@ -412,3 +411,12 @@ bool KROW::FormDelete (KString& sSQL, SQLTYPE iDBType) const
 	return (true);
 
 } // FormDelete
+
+//-----------------------------------------------------------------------------
+bool KROW::AddCol (KStringView sColName, const KJSON& Value, uint64_t iFlags, uint32_t iMaxLen)
+//-----------------------------------------------------------------------------
+{
+	KCOL col (Value.dump(-1), iFlags, iMaxLen);
+	return (KCOLS::Add (sColName, std::move(col)) != KCOLS::end());
+}
+

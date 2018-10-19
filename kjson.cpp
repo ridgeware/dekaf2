@@ -226,7 +226,9 @@ bool Add (KJSON& json, const KROW& row)
 				}
 				else // catch-all logic for all string values
 				{
-					if (!sValue.empty() && sValue.front() == '{' && sValue.back() == '}')
+					if (!sValue.empty()
+						&& ((sValue.front() == '{' && sValue.back() == '}')
+						 || (sValue.front() == '[' && sValue.back() == ']')))
 					{
 						// we assume this is a json serialization
 						KJSON object;

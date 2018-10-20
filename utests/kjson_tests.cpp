@@ -153,7 +153,7 @@ TEST_CASE("KJSON")
 		json["second"] = "value2";
 		json["third"] = 12345;
 
-		KROW row(json);
+		KROW row = json;
 		CHECK( row["first"] == "value1" );
 		CHECK( row["second"] == "value2" );
 		CHECK( row["third"].Int64() == 12345 );

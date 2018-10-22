@@ -57,7 +57,7 @@ public:
 //----------
 
 	//-----------------------------------------------------------------------------
-	/// Encodes sInput in QuotedPrintable. If bDotStuffing is true, inserts a dot
+	/// Encodes sInput in QuotedPrintable. If bForMailHeaders is true, inserts a dot
 	/// at the start of a line that itself starts with a dot.
 	static KString Encode(KStringView sInput, bool bForMailHeaders = false);
 	//-----------------------------------------------------------------------------

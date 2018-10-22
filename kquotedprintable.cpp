@@ -107,8 +107,7 @@ KString KQuotedPrintable::Encode(KStringView sInput, bool bForMailHeaders)
 			}
 			else
 			{
-				out += '=';
-				out += "\r\n";
+				out += "=\r\n";
 				iMaxLineLen = 75 - 1;
 			}
 			iLineLen = 0;

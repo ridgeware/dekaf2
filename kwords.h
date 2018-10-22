@@ -210,9 +210,10 @@ public:
 
 	KWords() = default;
 
-	/// Constructs from a buffer
-	KWords(KStringView sBuffer)
+	/// Constructs from a buffer. Reserves space for iReserve items.
+	KWords(KStringView sBuffer, size_t iReserve = 1)
 	{
+		m_Container.reserve(iReserve);
 		Add(sBuffer);
 	}
 

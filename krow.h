@@ -285,6 +285,8 @@ public:
 
 	KString ColumnInfoForLogOutput (uint32_t ii) const;
 
+	KJSON to_json();
+
 //----------
 private:
 //----------

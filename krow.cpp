@@ -420,3 +420,33 @@ bool KROW::AddCol (KStringView sColName, const KJSON& Value, uint64_t iFlags, ui
 	return (KCOLS::Add (sColName, std::move(col)) != KCOLS::end());
 }
 
+//-----------------------------------------------------------------------------
+KJSON KROW::to_json ()
+//-----------------------------------------------------------------------------
+{
+	KJSON json;
+
+	for (auto& col : *this)
+	{
+		if (col.second.iFlags & KROW::NONCOLUMN) {
+			continue;
+		}
+		else if (col.second.iFlags & KROW::NUMERIC) {
+			json[col.first] = col.second.sValue.Int64();
+		}
+		else if (col.second.iFlags & KROW::BOOLEAN) {
+			json[col.first] = col.second.sValue.Int64() ? true : false;
+		}
+		#if 0
+		else if (/*(col.second.iFlags & KROW::NULL_IS_NOT_NIL) &&*/ col.second.sValue.empty()) {
+			json[col.first] = NULL;
+		}
+		#endif
+		else {
+			json[col.first] = col.second.sValue;
+		}
+	}
+
+	return json;
+
+} // json

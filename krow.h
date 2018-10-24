@@ -97,31 +97,31 @@ public:
 
 	KCOL () = default;
 
-	KCOL (KString&& _sValue, uint64_t _iFlags=0, uint32_t _iMaxLen=0)
+	KCOL (KString&& _sValue, uint16_t _iFlags=0, uint32_t _iMaxLen=0)
 		: sValue(std::move(_sValue))
-		, iFlags(_iFlags)
 		, iMaxLen(_iMaxLen)
+		, iFlags(_iFlags)
 	{
 	}
 
-	KCOL (KStringView _sValue, uint64_t _iFlags=0, uint32_t _iMaxLen=0)
+	KCOL (KStringView _sValue, uint16_t _iFlags=0, uint32_t _iMaxLen=0)
 		: KCOL(KString(_sValue), _iFlags, _iMaxLen)
 	{
 	}
 
-	KCOL (const std::string& _sValue, uint64_t _iFlags=0, uint32_t _iMaxLen=0)
+	KCOL (const std::string& _sValue, uint16_t _iFlags=0, uint32_t _iMaxLen=0)
 		: KCOL(KString(_sValue), _iFlags, _iMaxLen)
 	{
 	}
 
-	KCOL (const char* _sValue, uint64_t _iFlags=0, uint32_t _iMaxLen=0)
+	KCOL (const char* _sValue, uint16_t _iFlags=0, uint32_t _iMaxLen=0)
 		: KCOL(KString(_sValue), _iFlags, _iMaxLen)
 	{
 	}
 
 	KString  sValue;  // aka "second"
-	uint64_t iFlags{0};
 	uint32_t iMaxLen{0};
+	uint16_t iFlags{0};
 
 }; // KCOL
 
@@ -154,22 +154,33 @@ public:
 		m_sTablename =  sTablename;
 	}
 
-	bool AddCol (KStringView sColName, const KJSON& Value, uint64_t iFlags=0, uint32_t iMaxLen=0);
+	bool AddCol (KStringView sColName, const KJSON& Value, uint16_t iFlags=JSON, uint32_t iMaxLen=0);
+
+	bool AddCol (KStringView sColName, bool Value, uint16_t iFlags=BOOLEAN, uint32_t iMaxLen=0)
+	{
+		KCOL col (kFormat("{}", Value), iFlags, iMaxLen);
+		return (KCOLS::Add (sColName, std::move(col)) != KCOLS::end());
+	}
+
+	bool AddCol (KStringView sColName, const char* Value, uint16_t iFlags=0, uint32_t iMaxLen=0)
+	{
+		KCOL col (Value, iFlags, iMaxLen);
+		return (KCOLS::Add (sColName, std::move(col)) != KCOLS::end());
+	}
 
 	template<typename COLTYPE, typename std::enable_if<detail::is_narrow_cpp_str<COLTYPE>::value, int>::type = 0>
-	bool AddCol (KStringView sColName, COLTYPE Value, uint64_t iFlags=0, uint32_t iMaxLen=0)
+	bool AddCol (KStringView sColName, COLTYPE Value, uint16_t iFlags=0, uint32_t iMaxLen=0)
 	{
 		KCOL col (Value, iFlags, iMaxLen);
 		return (KCOLS::Add (sColName, std::move(col)) != KCOLS::end());
 	}
 
 	template<typename COLTYPE, typename std::enable_if<!detail::is_narrow_cpp_str<COLTYPE>::value, int>::type = 0>
-	bool AddCol (KStringView sColName, COLTYPE Value, uint64_t iFlags=0, uint32_t iMaxLen=0)
+	bool AddCol (KStringView sColName, COLTYPE Value, uint16_t iFlags=NUMERIC, uint32_t iMaxLen=0)
 	{
 		KCOL col (kFormat("{}", Value), iFlags, iMaxLen);
 		return (KCOLS::Add (sColName, std::move(col)) != KCOLS::end());
 	}
-
 
 	bool SetValue (KStringView sColName, KStringView sValue)
 	{
@@ -200,7 +211,7 @@ public:
 		}
 	}
 
-	bool SetFlags (KStringView sColName, uint64_t iFlags)
+	bool SetFlags (KStringView sColName, uint16_t iFlags)
 	{
 		auto it = KCOLS::find (sColName);
 		if (it == KCOLS::end())
@@ -237,7 +248,7 @@ public:
 	}
 
 	/// Returns whether or not a particular flag is set on the Nth column (note: column index starts at 0).
-	bool IsFlag (size_t iZeroBasedIndex, uint64_t iFlag) const
+	bool IsFlag (size_t iZeroBasedIndex, uint16_t iFlag) const
 	{
 		return ((GetFlags(iZeroBasedIndex) & iFlag) == iFlag);
 	}
@@ -267,13 +278,14 @@ public:
 
 	enum
 	{
-		PKEY             = 0x0000001,   ///< Indicates given column is part of the primary key.  At least one column must have the PKEY flag to use KROW to do UPDATE and DELETE.
-		NONCOLUMN        = 0x0000010,   ///< Indicates given column is not a column and should be included in DDL statements.
-		EXPRESSION       = 0x0000100,   ///< Indicates given column is not a column and should be included in DDL statements.
-		INSERTONLY       = 0x0001000,   ///< Indicates given column is only to be used in INSERT statements (not UPDATE or DELETE).
-		NUMERIC          = 0x0010000,   ///< Indicates given column should not be quoted when forming DDL statements.
-		NULL_IS_NOT_NIL  = 0x0100000,   ///< Indicates given column is ???
-		BOOLEAN          = 0x1000000    ///< Indicates given column is a boolean (true/false)
+		PKEY             = 1 << 0,   ///< Indicates given column is part of the primary key.  At least one column must have the PKEY flag to use KROW to do UPDATE and DELETE.
+		NONCOLUMN        = 1 << 1,   ///< Indicates given column is not a column and should be included in DDL statements.
+		EXPRESSION       = 1 << 2,   ///< Indicates given column is not a column and should be included in DDL statements.
+		INSERTONLY       = 1 << 3,   ///< Indicates given column is only to be used in INSERT statements (not UPDATE or DELETE).
+		NUMERIC          = 1 << 4,   ///< Indicates given column should not be quoted when forming DDL statements.
+		NULL_IS_NOT_NIL  = 1 << 5,   ///< Indicates given column is ???
+		BOOLEAN          = 1 << 6,   ///< Indicates given column is a boolean (true/false)
+		JSON             = 1 << 7    ///< Indicates given column is a JSON object
 	};
 
 	// - - - - - - - - - - - - - - - -
@@ -305,6 +317,7 @@ public:
 //----------
 private:
 //----------
+	
 	void    SmartClip (KStringView sColName, KString& sValue, size_t iMaxLen) const;
 
 	KString m_sTablename;

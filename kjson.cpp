@@ -240,6 +240,22 @@ bool Add (KJSON& json, const KROW& row)
 						json[sName] = sValue.Int64();
 					}
 				}
+				else if (row.IsFlag (ii, KROW::JSON))
+				{
+					// this is a json serialization
+					DEKAF2_TRY
+					{
+						KJSON object;
+						Parse(object, sValue);
+						json[sName] = object;
+					}
+					DEKAF2_CATCH(const KJSON::exception& exc)
+					{
+						// not a valid json object / array, store it as a string
+						kDebug(1, "invalid json object/array: {}", sValue);
+						json[sName] = sValue;
+					}
+				}
 				else // catch-all logic for all string values
 				{
 					if (!sValue.empty()
@@ -256,6 +272,7 @@ bool Add (KJSON& json, const KROW& row)
 						DEKAF2_CATCH(const KJSON::exception& exc)
 						{
 							// not a valid json object / array, store it as a string
+							kDebug(1, "invalid json object/array: {}", sValue);
 							json[sName] = sValue;
 						}
 					}

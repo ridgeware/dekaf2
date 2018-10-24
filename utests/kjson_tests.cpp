@@ -134,7 +134,11 @@ TEST_CASE("KJSON")
 		KROW row;
 		row.AddCol("first", "value1");
 		row.AddCol("second", "value2");
-		row.AddCol("third", 12345, KROW::NUMERIC);
+		row.AddCol("third", 12345);
+
+		CHECK( row["first"] == "value1" );
+		CHECK( row["second"] == "value2" );
+		CHECK( row["third"].Int64() == 12345 );
 
 		KJSON obj = row;
 		CHECK( obj["first"] == "value1" );

@@ -67,6 +67,7 @@ inline void to_json(KJSON& j, const dekaf2::KStringViewZ& s)
 }
 
 void to_json(KJSON& j, const KROW& row);
+void from_json(const KJSON& j, KROW& row);
 
 inline void from_json(const KJSON& j, dekaf2::KStringViewZ& s)
 {

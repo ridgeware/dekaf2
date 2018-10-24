@@ -288,6 +288,20 @@ public:
 	/// Return row as a KJSON object
 	KJSON to_json() const;
 
+	KROW& operator+=(const KJSON& json);
+
+	KROW& operator=(const KJSON& json)
+	{
+		clear();
+		return operator+=(json);
+	}
+
+	/// Load row from a KJSON object
+	KROW& from_json(const KJSON& json)
+	{
+		return operator=(json);
+	}
+
 //----------
 private:
 //----------

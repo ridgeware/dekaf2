@@ -484,3 +484,38 @@ KJSON KROW::to_json () const
 	return json;
 
 } // json
+
+
+KROW& KROW::operator+=(const KJSON& json)
+{
+	for (auto& it : json.items())
+	{
+		if (it.value().is_string())
+		{
+			AddCol(it.key(), it.value().get<KJSON::string_t>());
+		}
+		else if (it.value().is_number())
+		{
+			if (it.value().is_number_float())
+			{
+				AddCol(it.key(), it.value().get<KJSON::number_float_t>(), NUMERIC);
+			}
+			else
+			{
+				AddCol(it.key(), it.value().get<KJSON::number_integer_t>(), NUMERIC);
+			}
+
+		}
+		else if (it.value().is_boolean())
+		{
+			AddCol(it.key(), it.value().get<KJSON::boolean_t>(), BOOLEAN);
+		}
+		else if (it.value().is_object())
+		{
+			AddCol(it.key(), it.value().get<KJSON>());
+		}
+	}
+	return *this;
+
+} // operator+=(KJSON)
+

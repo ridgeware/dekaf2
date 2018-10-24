@@ -1,6 +1,7 @@
 #include "catch.hpp"
 
 #include <dekaf2/kjson.h>
+#include <dekaf2/krow.h>
 #include <vector>
 
 using namespace dekaf2;
@@ -127,5 +128,54 @@ TEST_CASE("KJSON")
 		obj["three"] = arr1;
 		obj["four"] = arr2;
 	}
+
+	SECTION("KJSON - KROW interoperability")
+	{
+		KROW row;
+		row.AddCol("first", "value1");
+		row.AddCol("second", "value2");
+		row.AddCol("third", 12345, KROW::NUMERIC);
+
+		KJSON obj = row;
+		CHECK( obj["first"] == "value1" );
+		CHECK( obj["second"] == "value2" );
+		CHECK( obj["third"] == 12345 );
+	}
+
+	SECTION("KROW - KJSON interoperability")
+	{
+		KJSON json;
+		json["first"] = "value1";
+		json["second"] = "value2";
+		json["third"] = 12345;
+
+		KROW row(json);
+		CHECK( row["first"] == "value1" );
+		CHECK( row["second"] == "value2" );
+		CHECK( row["third"].Int64() == 12345 );
+
+		KJSON json2 = row;
+
+		CHECK ( json == json2 );
+
+		KROW row2;
+		row2.AddCol("fourth", "value4");
+
+		row2 += json;
+		CHECK( row2["first"] == "value1" );
+		CHECK( row2["second"] == "value2" );
+		CHECK( row2["third"].Int64() == 12345 );
+		CHECK( row2["fourth"] == "value4" );
+	}
+/*
+		KJSON obj2;
+		obj2["fourth"] = 87654;
+ 		// this does not work because KJSON does not know how to merge two objects
+		obj2 += row;
+		CHECK( obj2["first"] == "value1" );
+		CHECK( obj2["second"] == "value2" );
+		CHECK( obj2["third"] == 12345 );
+		CHECK( obj2["fourth"] == 87654 );
+*/
 
 }

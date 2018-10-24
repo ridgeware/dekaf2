@@ -46,6 +46,14 @@
 
 namespace dekaf2 {
 
+//-----------------------------------------------------------------------------
+/// ADL converter for KROW to KJSON
+void to_json(KJSON& j, const KROW& row)
+//-----------------------------------------------------------------------------
+{
+	j = row.to_json();
+}
+
 namespace kjson {
 
 //-----------------------------------------------------------------------------
@@ -221,7 +229,7 @@ bool Add (KJSON& json, const KROW& row)
 					}
 					else
 					{
-						json[sName] = sValue.UInt64();
+						json[sName] = sValue.Int64();
 					}
 				}
 				else // catch-all logic for all string values
@@ -231,9 +239,17 @@ bool Add (KJSON& json, const KROW& row)
 						 || (sValue.front() == '[' && sValue.back() == ']')))
 					{
 						// we assume this is a json serialization
-						KJSON object;
-						Parse(object, sValue);
-						json[sName] = object;
+						DEKAF2_TRY
+						{
+							KJSON object;
+							Parse(object, sValue);
+							json[sName] = object;
+						}
+						DEKAF2_CATCH(const KJSON::exception& exc)
+						{
+							// not a valid json object / array, store it as a string
+							json[sName] = sValue;
+						}
 					}
 					else
 					{

@@ -421,29 +421,63 @@ bool KROW::AddCol (KStringView sColName, const KJSON& Value, uint64_t iFlags, ui
 }
 
 //-----------------------------------------------------------------------------
-KJSON KROW::to_json ()
+KJSON KROW::to_json () const
 //-----------------------------------------------------------------------------
 {
 	KJSON json;
 
 	for (auto& col : *this)
 	{
-		if (col.second.iFlags & KROW::NONCOLUMN) {
+		if (col.second.iFlags & KROW::NONCOLUMN)
+		{
 			continue;
 		}
-		else if (col.second.iFlags & KROW::NUMERIC) {
-			json[col.first] = col.second.sValue.Int64();
+		else if (col.second.iFlags & KROW::NUMERIC)
+		{
+			if (col.second.sValue.Contains('.'))
+			{
+				json[col.first] = col.second.sValue.Float();
+			}
+			else
+			{
+				json[col.first] = col.second.sValue.Int64();
+			}
 		}
-		else if (col.second.iFlags & KROW::BOOLEAN) {
-			json[col.first] = col.second.sValue.Int64() ? true : false;
+		else if (col.second.iFlags & KROW::BOOLEAN)
+		{
+			json[col.first] = col.second.sValue.Bool();
 		}
 		#if 0
-		else if (/*(col.second.iFlags & KROW::NULL_IS_NOT_NIL) &&*/ col.second.sValue.empty()) {
+		else if (/*(col.second.iFlags & KROW::NULL_IS_NOT_NIL) &&*/ col.second.sValue.empty())
+		{
 			json[col.first] = NULL;
 		}
 		#endif
-		else {
-			json[col.first] = col.second.sValue;
+		else
+		{
+			// strings
+			if (!col.second.sValue.empty()
+				&& ((col.second.sValue.front() == '{' && col.second.sValue.back() == '}')
+					|| (col.second.sValue.front() == '[' && col.second.sValue.back() == ']')))
+			{
+				// we assume this is a json serialization
+				DEKAF2_TRY
+				{
+					KJSON object;
+					kjson::Parse(object, col.second.sValue);
+					json[col.first] = object;
+				}
+				DEKAF2_CATCH(const KJSON::exception& exc)
+				{
+					// not a valid json object / array, store it as a string
+					json[col.first] = col.second.sValue;
+				}
+
+			}
+			else
+			{
+				json[col.first] = col.second.sValue;
+			}
 		}
 	}
 

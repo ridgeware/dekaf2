@@ -51,6 +51,8 @@ using KJSON = nlohmann::basic_json<std::map, std::vector, dekaf2::KString >;
 
 namespace dekaf2 {
 
+class KROW;
+
 // ADL resolvers for KStringView and KStringViewZ (KString is the
 // built-in json string type, and therefore does not need conversion)
 
@@ -64,6 +66,8 @@ inline void to_json(KJSON& j, const dekaf2::KStringViewZ& s)
 	j = KJSON::string_t(s);
 }
 
+void to_json(KJSON& j, const KROW& row);
+
 inline void from_json(const KJSON& j, dekaf2::KStringViewZ& s)
 {
 	s = j.get<KJSON::string_t>();
@@ -73,8 +77,6 @@ inline void from_json(const KJSON& j, dekaf2::KStringView& s)
 {
 	s = j.get<KJSON::string_t>();
 }
-
-class KROW;
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 namespace kjson

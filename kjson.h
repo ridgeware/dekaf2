@@ -101,9 +101,6 @@ namespace kjson
 	/// returns a value for an object key, does never throw
 	KJSON GetObject (const KJSON& json, KStringView sKey);
 
-	/// adds the contents of a KROW as an array to json, does not throw
-	bool Add (KJSON& json, const KROW& row);
-
 	/// returns true if the key exists
 	inline bool Exists(const KJSON& json, KStringView Key)
 	{

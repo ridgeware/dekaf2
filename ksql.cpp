@@ -1631,12 +1631,14 @@ bool KSQL::ExecRawSQL (KStringView sSQL, uint64_t iFlags/*=0*/, KStringView sAPI
 		// - - - - - - - - - - - - - - - - -
 			do // once
 			{
-				if (!m_dMYSQL) {
+				if (!m_dMYSQL)
+				{
 					kDebug (1, "KSQL::ExecRawSQL: lost m_dMYSQL pointer.  Reopening connection ...");
 					CloseConnection();
 					OpenConnection();
 				}
-				if (!m_dMYSQL) {
+				if (!m_dMYSQL)
+				{
 					kDebug (1, "KSQL::ExecRawSQL: failed.  aborting query or SQL:\n{}", m_sLastSQL);
 					break; // once
 				}
@@ -1650,7 +1652,7 @@ bool KSQL::ExecRawSQL (KStringView sSQL, uint64_t iFlags/*=0*/, KStringView sAPI
 				m_iNumRowsAffected = 0;
 				kDebugLog (3, "mysql_affected_rows()...");
 				my_ulonglong iNumRows = mysql_affected_rows ((MYSQL*)m_dMYSQL);
-				if ((uint64_t)iNumRows != (uint64_t)(4294967295lu))
+				if ((uint64_t)iNumRows != (uint64_t)(-1))
 				{
 					m_iNumRowsAffected = (uint64_t) iNumRows;
 				}
@@ -1660,8 +1662,13 @@ bool KSQL::ExecRawSQL (KStringView sSQL, uint64_t iFlags/*=0*/, KStringView sAPI
 				m_iLastInsertID = (uint64_t) iNewID;
 		
 				if (m_iLastInsertID)
+				{
 					kDebugLog (GetDebugLevel(), "[{}]ExecSQL: last insert ID = {}", m_iDebugID, m_iLastInsertID);
-				kDebugLog (3, "no insert ID.");
+				}
+				else
+				{
+					kDebugLog (3, "no insert ID.");
+				}
 
 				fOK = true;
 			}
@@ -4318,9 +4325,11 @@ void KSQL::DoTranslations (KString& sSQL, int iDBType/*=0*/)
 			   sSQL);
 
 	if (!iDBType)
+	{
 		iDBType = m_iDBType;
+	}
 
-	if (!strstr (sSQL.c_str(), "{{"))
+	if (!sSQL.Contains("{{"))
 	{
 		kDebugLog (3, " --> no SQL translations.");
 		return;

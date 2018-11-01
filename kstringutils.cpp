@@ -151,7 +151,6 @@ uint16_t kFromHexChar(char ch) noexcept
 		case 'a': case 'b': case 'c': case 'd': case 'e': case 'f':
 			return ch - ('a' - 10);
 		default:
-			kDebug(1, "invalid input: {}", ch);
 			return static_cast<uint16_t>(-1);
 	}
 

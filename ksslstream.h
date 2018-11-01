@@ -56,6 +56,75 @@ namespace dekaf2
 {
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// Holds a configured ssl context - will be used in the constructor of KSSLIOStream
+class KSSLContext
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+//----------
+public:
+//----------
+
+	//-----------------------------------------------------------------------------
+	/// Constructs an SSL context
+	KSSLContext(bool bIsServer = false, bool bVerifyCerts = false, bool bAllowSSLv3 = false);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// When using this stream object as a server, set its SSL certificate files here
+	bool LoadSSLCertificates(KStringViewZ sCert, KStringViewZ sKey, KStringView sPassword = KStringView{});
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// When using this stream object as a server, set its SSL certificate buffers here
+	bool SetSSLCertificates(KStringView sCert, KStringView sKey, KStringView sPassword = KStringView{});
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	boost::asio::io_service& GetIOService()
+	//-----------------------------------------------------------------------------
+	{
+		return s_IO_Service;
+	}
+
+	//-----------------------------------------------------------------------------
+	boost::asio::ssl::context& GetContext()
+	//-----------------------------------------------------------------------------
+	{
+		return m_Context;
+	}
+
+	//-----------------------------------------------------------------------------
+	boost::asio::ssl::stream_base::handshake_type GetRole() const
+	//-----------------------------------------------------------------------------
+	{
+		return m_Role;
+	}
+
+	//-----------------------------------------------------------------------------
+	bool GetVerify() const
+	//-----------------------------------------------------------------------------
+	{
+		return m_bVerify;
+	}
+
+//----------
+private:
+//----------
+
+	//-----------------------------------------------------------------------------
+	std::string PasswordCallback(std::size_t max_length, boost::asio::ssl::context::password_purpose purpose) const;
+	//-----------------------------------------------------------------------------
+
+	static boost::asio::io_service s_IO_Service;
+	boost::asio::ssl::context m_Context;
+	boost::asio::ssl::stream_base::handshake_type m_Role;
+	std::string m_sPassword;
+	bool m_bVerify;
+
+}; // KSSLContext
+
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// std::iostream SSL/TLS implementation with timeout.
 class KSSLIOStream : public std::iostream
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -69,25 +138,24 @@ public:
 	enum { DEFAULT_TIMEOUT = 1 * 30 };
 
 	//-----------------------------------------------------------------------------
-	/// Constructs an unconnected stream
-	KSSLIOStream(bool bManualHandshake = false);
+	/// Constructs a client with default parameters (no certificate verification, no SSLv3)
+	KSSLIOStream();
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// Constructs a connected stream as a client.
+	/// Constructs an unconnected stream - KSSLContext holds most properties
+	KSSLIOStream(KSSLContext& Context);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// Constructs a connected stream as a client and with default parameters (no
+	/// certificate verification, no SSLv3)
 	/// @param Endpoint
 	/// KTCPEndPoint as the server to connect to - can be constructed from
 	/// a variety of inputs, like strings or KURL
-	/// @param bVerifyCerts
-	/// If true server certificate will verified
-	/// @param bAllowSSLv2v3
-	/// If true also connections with SSL versions 2 and 3 will be allowed.
-	/// Default is false, only TLS connections will be allowed.
 	/// @param iSecondsTimeout
-	/// Timeout in seconds for any I/O. Defaults to 60.
+	/// Timeout in seconds for any I/O. Defaults to 30.
 	KSSLIOStream(const KTCPEndPoint& Endpoint,
-				 bool bVerifyCerts,
-				 bool bAllowSSLv2v3,
 				 int iSecondsTimeout = DEFAULT_TIMEOUT,
 				 bool bManualHandshake = false);
 	//-----------------------------------------------------------------------------
@@ -96,19 +164,6 @@ public:
 	/// Destructs and closes a stream
 	~KSSLIOStream();
 	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// When using this stream object as a server, set it's SSL certificate here
-	void SetSSLCertificate(const char* sCert, const char* sPem);
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// When using this stream object as a server, set it's SSL certificate here
-	inline void SetSSLCertificate(const KString& sCert, const KString& sPem)
-	//-----------------------------------------------------------------------------
-	{
-		SetSSLCertificate(sCert.c_str(), sPem.c_str());
-	}
 
 	//-----------------------------------------------------------------------------
 	/// Set I/O timeout in seconds.
@@ -120,12 +175,7 @@ public:
 	/// @param Endpoint
 	/// KTCPEndPoint as the server to connect to - can be constructed from
 	/// a variety of inputs, like strings or KURL
-	/// @param bVerifyCerts
-	/// If true server certificate will be verified
-	/// @param bAllowSSLv2v3
-	/// If true also connections with SSL versions 2 and 3 will be allowed.
-	/// Default is false, only TLS connections will be allowed.
-	bool connect(const KTCPEndPoint& Endpoint, bool bVerifyCerts, bool bAllowSSLv2v3);
+	bool Connect(const KTCPEndPoint& Endpoint);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -133,15 +183,10 @@ public:
 	/// @param Endpoint
 	/// KTCPEndPoint as the server to connect to - can be constructed from
 	/// a variety of inputs, like strings or KURL
-	/// @param bVerifyCerts
-	/// If true server certificate will be verified
-	/// @param bAllowSSLv2v3
-	/// If true also connections with SSL versions 2 and 3 will be allowed.
-	/// Default is false, only TLS connections will be allowed.
-	bool open(const KTCPEndPoint& Endpoint, bool bVerifyCerts, bool bAllowSSLv2v3)
+	bool open(const KTCPEndPoint& Endpoint)
 	//-----------------------------------------------------------------------------
 	{
-		return connect(Endpoint, bVerifyCerts, bAllowSSLv2v3);
+		return Connect(Endpoint);
 	}
 
 	//-----------------------------------------------------------------------------
@@ -152,13 +197,13 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	/// upgrade connection from TCP to TCP over TLS if manual handshaking was set
-	/// at construction. Returns true on success.
+	/// Upgrade connection from TCP to TCP over TLS. Returns true on success. Can also
+	/// be used to force a handshake before any IO is triggered.
 	bool StartManualTLSHandshake();
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// switch to manual handshake, only possible before any data has been read or
+	/// Switch to manual handshake, only possible before any data has been read or
 	/// written
 	bool SetManualTLSHandshake(bool bYesno = true);
 	//-----------------------------------------------------------------------------
@@ -202,21 +247,21 @@ public:
 private:
 //----------
 
-	boost::asio::io_service m_IO_Service;
-	boost::asio::ssl::context m_Context;
 	using tcpstream = boost::asio::ssl::stream<boost::asio::ip::tcp::socket>;
 
 	struct Stream_t
 	{
 		// we use manual handshake operation for opportunistic TLS connections (like SMTP with STARTTLS)
-		Stream_t(boost::asio::io_service& ioservice, boost::asio::ssl::context& context, bool bManualHandshake_)
-		: Socket(ioservice, context)
-		, bManualHandshake(bManualHandshake_)
+		Stream_t(KSSLContext& _SSLContext, bool _bManualHandshake)
+		: SSLContext(_SSLContext)
+		, Socket(SSLContext.GetIOService(), SSLContext.GetContext())
+		, bManualHandshake(_bManualHandshake)
 		{}
 
+		KSSLContext& SSLContext;
 		tcpstream Socket;
 		boost::system::error_code ec;
-		int iTimeoutMilliseconds { 30 * 1000 };
+		int iTimeoutMilliseconds { DEFAULT_TIMEOUT };
 		bool bNeedHandshake { true };
 		bool bManualHandshake { false };
 	};
@@ -249,7 +294,7 @@ private:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	static bool handshake(boost::asio::ssl::stream_base::handshake_type role, Stream_t* stream);
+	static bool handshake(Stream_t* stream);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -262,12 +307,19 @@ private:
 /// SSL stream based on std::iostream and asio::ssl
 using KSSLStream = KReaderWriter<KSSLIOStream>;
 
+// there is nothing special with a tcp ssl client
+using KSSLClient = KSSLStream;
+
 //-----------------------------------------------------------------------------
-std::unique_ptr<KSSLStream> CreateKSSLStream(bool bManualHandshake = false);
+std::unique_ptr<KSSLStream> CreateKSSLServer(KSSLContext& Context);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
-std::unique_ptr<KSSLStream> CreateKSSLStream(const KTCPEndPoint& EndPoint, bool bVerifyCerts, bool bAllowSSLv2v3, bool bManualHandshake = false);
+std::unique_ptr<KSSLClient> CreateKSSLClient(bool bVerifyCerts = false);
+//-----------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
+std::unique_ptr<KSSLClient> CreateKSSLClient(const KTCPEndPoint& EndPoint, bool bVerifyCerts = false, bool bManualHandshake = false);
 //-----------------------------------------------------------------------------
 
 } // end of namespace dekaf2

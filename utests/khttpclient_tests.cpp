@@ -36,7 +36,7 @@ protected:
 		return true;
 	}
 
-	virtual KString Request(const KString& qstr, Parameters& parameters) override
+	virtual KString Request(KString& qstr, Parameters& parameters) override
 	{
 		m_rx.push_back(qstr);
 		KString tmp;
@@ -54,7 +54,7 @@ TEST_CASE("KHTTPClient") {
 
 	SECTION("check connection setup")
 	{
-		KTinyHTTPServer server(7654, false);
+		KTinyHTTPServer server(7654, false, 3);
 		server.Start(10, false);
 		server.clear();
 

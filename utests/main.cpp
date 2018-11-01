@@ -39,7 +39,7 @@ bool stdstring_supports_cow()
 
 int main( int argc, char* const argv[] )
 {
-	dekaf2::Dekaf().SetMultiThreading();
+	dekaf2::kInit("DEKAF", "", "", false, true, false);
 
 #ifndef DEKAF2_DO_NOT_WARN_ABOUT_COW_STRING
 #if _GLIBCXX_USE_CXX11_ABI

@@ -193,12 +193,12 @@ public:
 
 	//-----------------------------------------------------------------------------
 	// this interface uses KURL instead of KTCPEndPoint to allow construction like "https://www.abc.de" - otherwise the protocol would be lost..
-	static std::unique_ptr<KConnection> Create(const KURL& URL, bool bForceSSL = false, bool bVerifyCerts = false, bool bAllowSSLv2v3 = true);
+	static std::unique_ptr<KConnection> Create(const KURL& URL, bool bForceSSL = false, bool bVerifyCerts = false);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	// this interface uses KURL instead of KTCPEndPoint to allow construction like "https://www.abc.de" - otherwise the protocol would be lost..
-	static std::unique_ptr<KConnection> Create(const KURL& URL, const KProxy& Proxy, bool bForceSSL = false, bool bVerifyCerts = false, bool bAllowSSLv2v3 = true);
+	static std::unique_ptr<KConnection> Create(const KURL& URL, const KProxy& Proxy, bool bForceSSL = false, bool bVerifyCerts = false);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -315,7 +315,7 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	bool Connect(const KTCPEndPoint& Endpoint, bool bVerifyCerts = false, bool bAllowSSLv2v3 = true);
+	bool Connect(const KTCPEndPoint& Endpoint, bool bVerifyCerts = false);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------

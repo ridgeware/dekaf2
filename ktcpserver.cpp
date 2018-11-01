@@ -111,7 +111,7 @@ KString KTCPServer::Init(Parameters& parameters)
 }
 
 //-----------------------------------------------------------------------------
-KString KTCPServer::Request(const KString& qstr, Parameters& parameters)
+KString KTCPServer::Request(KString& qstr, Parameters& parameters)
 //-----------------------------------------------------------------------------
 {
 	return KString();
@@ -159,6 +159,7 @@ void KTCPServer::RunSession(KStream& stream, KString sRemoteEndPoint)
 	{
 		// run the actual Session code protected by
 		// an exception handler
+
 		Session(stream, sRemoteEndPoint);
 	}
 	
@@ -243,19 +244,39 @@ void KTCPServer::TCPServer(bool ipv6)
 	}
 	else
 	{
+		KSSLContext SSLContext(true, false, false);
+
+		if (IsSSL())
+		{
+			if (m_bBufferedCerts)
+			{
+				if (!SSLContext.SetSSLCertificates(m_sCert, m_sKey))
+				{
+					return; // already logged
+				}
+			}
+			else
+			{
+				if (!SSLContext.LoadSSLCertificates(m_sCert, m_sKey))
+				{
+					return; // already logged
+				}
+			}
+		}
+
 		while (acceptor.is_open() && !m_bQuit)
 		{
 			if (IsSSL())
 			{
-				auto stream = CreateKSSLStream();
-				stream->SetSSLCertificate(m_sCert.c_str(), m_sPem.c_str());
+				auto stream = CreateKSSLServer(SSLContext);
+				stream->Timeout(m_iTimeout);
 				endpoint_type remote_endpoint;
 				acceptor.accept(stream->GetTCPSocket(), remote_endpoint);
 				if (!m_bQuit)
 				{
-					stream->Timeout(m_iTimeout);
 					m_ThreadPool->push([ this, moved_stream = std::move(stream), remote_endpoint ]()
 					{
+						moved_stream->StartManualTLSHandshake();
 						RunSession(*moved_stream, to_string(remote_endpoint));
 					});
 				}
@@ -263,11 +284,11 @@ void KTCPServer::TCPServer(bool ipv6)
 			else
 			{
 				auto stream = CreateKTCPStream();
+				stream->Timeout(m_iTimeout);
 				endpoint_type remote_endpoint;
 				acceptor.accept(stream->GetTCPSocket(), remote_endpoint);
 				if (!m_bQuit)
 				{
-					stream->Timeout(m_iTimeout);
 					m_ThreadPool->push([ this, moved_stream = std::move(stream), remote_endpoint ]()
 					{
 						RunSession(*moved_stream, to_string(remote_endpoint));
@@ -326,14 +347,26 @@ void KTCPServer::UnixServer()
 } // UnixServer
 
 //-----------------------------------------------------------------------------
-bool KTCPServer::SetSSLCertificate(KStringView sCert, KStringView sPem)
+bool KTCPServer::LoadSSLCertificates(KStringView sCert, KStringView sKey)
 //-----------------------------------------------------------------------------
 {
 	m_sCert = sCert;
-	m_sPem = sPem;
+	m_sKey = sKey;
+	m_bBufferedCerts = false; // we point to files
 	return true; // TODO add validity check
 
-} // SetSSLCertificate
+} // SetSSLCertificateFiles
+
+//-----------------------------------------------------------------------------
+bool KTCPServer::SetSSLCertificates(KStringView sCert, KStringView sKey)
+//-----------------------------------------------------------------------------
+{
+	m_sCert = sCert;
+	m_sKey = sKey;
+	m_bBufferedCerts = true; // we buffer the certs
+	return true; // TODO add validity check
+
+} // SetSSLCertificates
 
 //-----------------------------------------------------------------------------
 bool KTCPServer::Start(uint16_t iTimeoutInSeconds, bool bBlock)
@@ -350,7 +383,7 @@ bool KTCPServer::Start(uint16_t iTimeoutInSeconds, bool bBlock)
 
 	if (IsSSL())
 	{
-		if (m_sCert.empty() || m_sPem.empty())
+		if (m_sCert.empty() || m_sKey.empty())
 		{
 			kWarning("cannot start SSL server on port {}, have no certificates", m_iPort);
 			return false;

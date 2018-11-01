@@ -7,13 +7,10 @@
 
 using namespace dekaf2;
 
-// TODO move these tests into smoketests once kcurl has been merged
-
 TEST_CASE("KTCPCLient")
 {
 	KTCPClient stream;
 	stream.Timeout(5);
-//	stream.expires_from_now(boost::posix_time::seconds(5));
 	stream.connect("www.google.com:80");
 
 	stream.SetWriterEndOfLine("\r\n");
@@ -37,7 +34,7 @@ TEST_CASE("KSSLClient")
 {
 
 	KSSLClient stream;
-	CHECK ( stream.connect("www.google.com:443", false, false) == true );
+	CHECK ( stream.Connect("www.google.com:443") == true );
 	stream.Timeout(1);
 
 	stream.SetReaderRightTrim("\r\n");

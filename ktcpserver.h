@@ -154,8 +154,13 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	/// Set the SSL/TLS certificate
-	bool SetSSLCertificate(KStringView sCert, KStringView sPem);
+	/// Set the SSL/TLS certificate files
+	bool LoadSSLCertificates(KStringView sCert, KStringView sKey);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// Set the SSL/TLS certificates as strings
+	bool SetSSLCertificates(KStringView sCert, KStringView sKey);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -167,9 +172,7 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// Stop the server. Due to the impossibility to stop a running thread
-	/// by another thread this only has an effect once the server accepts a new
-	/// connection.
+	/// Stop the server
 	bool Stop();
 	//-----------------------------------------------------------------------------
 
@@ -229,7 +232,7 @@ protected:
 
 	//-----------------------------------------------------------------------------
 	/// Virtual hook to process one line of client requests
-	virtual KString Request(const KString& qstr, Parameters& parameters);
+	virtual KString Request(KString& qstr, Parameters& parameters);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -282,7 +285,7 @@ private:
 	std::unique_ptr<KThreadPool> m_ThreadPool;
 	KString m_sSocketFile;
 	KString m_sCert;
-	KString m_sPem;
+	KString m_sKey;
 	uint16_t m_iPort { 0 };
 	uint16_t m_iTimeout { 1*30 };
 	bool m_bBlock { true };
@@ -290,6 +293,7 @@ private:
 	bool m_bStartIPv4 { true };
 	bool m_bStartIPv6 { true };
 	bool m_bIsSSL { false };
+	bool m_bBufferedCerts { false };
 
 }; // KTCPServer
 

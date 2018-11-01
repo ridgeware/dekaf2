@@ -43,15 +43,6 @@
 #pragma once
 
 /// @file ksslclient.h
-/// typedefs a KSSLClient type
+/// just an alias for ksslstream..
 
 #include "ksslstream.h"
-
-namespace dekaf2
-{
-
-// there is nothing special with a tcp ssl client
-using KSSLClient = KSSLStream;
-
-}
-

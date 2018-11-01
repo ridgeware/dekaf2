@@ -89,7 +89,7 @@ public:
 protected:
 //-------
 
-	virtual KString Request(const KString& sLine, Parameters& parameters) override
+	virtual KString Request(KString& sLine, Parameters& parameters) override
 	{
 		m_out.WriteLine (sLine).Flush();
 		return KString();

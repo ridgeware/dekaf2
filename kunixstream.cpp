@@ -137,6 +137,9 @@ KUnixIOStream::POLLSTATE KUnixIOStream::timeout(bool bForReading, Stream_t* stre
 std::streamsize KUnixIOStream::UnixStreamReader(void* sBuffer, std::streamsize iCount, void* stream_)
 //-----------------------------------------------------------------------------
 {
+	// we do not need to loop the reader, as the streambuf requests bytes in blocks
+	// and calls underflow() if more are expected
+
 	std::streamsize iRead{0};
 
 	if (stream_)
@@ -152,7 +155,7 @@ std::streamsize KUnixIOStream::UnixStreamReader(void* sBuffer, std::streamsize i
 
 		if (iRead < 0 || stream->ec.value() != 0)
 		{
-			kDebug(1, "cannot read from stream: {}", stream->ec.message());
+			kDebug(1, "cannot read from unix stream: {}", stream->ec.message());
 		}
 	}
 
@@ -164,22 +167,33 @@ std::streamsize KUnixIOStream::UnixStreamReader(void* sBuffer, std::streamsize i
 std::streamsize KUnixIOStream::UnixStreamWriter(const void* sBuffer, std::streamsize iCount, void* stream_)
 //-----------------------------------------------------------------------------
 {
+	// We need to loop the writer, as write_some() could have an upper limit (the buffer size) to which
+	// it can accept blocks - therefore we repeat the write until we have sent all bytes or
+	// an error condition occurs. In typical implementations however the write goes unbuffered in one
+	// call, regardless of the size.
+
 	std::streamsize iWrote{0};
 
 	if (stream_)
 	{
 		Stream_t* stream = static_cast<Stream_t*>(stream_);
 
-		if (timeout(false, stream) != POLL_SUCCESS)
+		for (;iWrote < iCount;)
 		{
-			return -1;
-		}
+			if (timeout(false, stream) != POLL_SUCCESS)
+			{
+				return -1;
+			}
 
-		iWrote = stream->Socket.write_some(boost::asio::buffer(sBuffer, iCount), stream->ec);
+			std::size_t iWrotePart = stream->Socket.write_some(boost::asio::buffer(sBuffer, iCount), stream->ec);
 
-		if (iWrote != iCount || stream->ec.value() != 0)
-		{
-			kDebug(1, "cannot write to stream: {}", stream->ec.message());
+			iWrote += iWrotePart;
+
+			if (iWrotePart == 0 || stream->ec.value() != 0)
+			{
+				kDebug(1, "cannot write to unix stream: {}", stream->ec.message());
+				break;
+			}
 		}
 	}
 

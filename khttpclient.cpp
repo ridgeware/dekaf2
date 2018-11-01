@@ -115,7 +115,7 @@ bool KHTTPClient::Connect(const KURL& url, bool bVerifyCerts)
 		return true;
 	}
 
-	return Connect(KConnection::Create(url, false, bVerifyCerts, true));
+	return Connect(KConnection::Create(url, false, bVerifyCerts));
 
 } // Connect
 

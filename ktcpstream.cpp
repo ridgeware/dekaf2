@@ -69,8 +69,7 @@ KTCPIOStream::POLLSTATE KTCPIOStream::timeout(bool bForReading, Stream_t* stream
 	what.events = event;
 
 	// now check if there is data available coming in from the
-	// underlying OS socket (which indicates that there might
-	// be openssl data ready soon)
+	// underlying OS socket
 	int err = ::poll(&what, 1, stream->iTimeoutMilliseconds);
 
 	if (err < 0)
@@ -101,8 +100,7 @@ KTCPIOStream::POLLSTATE KTCPIOStream::timeout(bool bForReading, Stream_t* stream
 	what.events = event;
 
 	// now check if there is data available coming in from the
-	// underlying OS socket (which indicates that there might
-	// be openssl data ready soon)
+	// underlying OS socket
 	int err = WSAPoll(&what, 1, stream->iTimeoutMilliseconds);
 
 	if (err < 0)
@@ -139,6 +137,9 @@ KTCPIOStream::POLLSTATE KTCPIOStream::timeout(bool bForReading, Stream_t* stream
 std::streamsize KTCPIOStream::TCPStreamReader(void* sBuffer, std::streamsize iCount, void* stream_)
 //-----------------------------------------------------------------------------
 {
+	// we do not need to loop the reader, as the streambuf requests bytes in blocks
+	// and calls underflow() if more are expected
+
 	std::streamsize iRead{0};
 
 	if (stream_)
@@ -154,7 +155,7 @@ std::streamsize KTCPIOStream::TCPStreamReader(void* sBuffer, std::streamsize iCo
 
 		if (iRead < 0 || stream->ec.value() != 0)
 		{
-			kDebug(1, "cannot read from stream: {}", stream->ec.message());
+			kDebug(1, "cannot read from tcp stream: {}", stream->ec.message());
 		}
 	}
 
@@ -166,22 +167,33 @@ std::streamsize KTCPIOStream::TCPStreamReader(void* sBuffer, std::streamsize iCo
 std::streamsize KTCPIOStream::TCPStreamWriter(const void* sBuffer, std::streamsize iCount, void* stream_)
 //-----------------------------------------------------------------------------
 {
+	// We need to loop the writer, as write_some() could have an upper limit (the buffer size) to which
+	// it can accept blocks - therefore we repeat the write until we have sent all bytes or
+	// an error condition occurs. In typical implementations however the write goes unbuffered in one
+	// call, regardless of the size.
+
 	std::streamsize iWrote{0};
 
 	if (stream_)
 	{
 		Stream_t* stream = static_cast<Stream_t*>(stream_);
 
-		if (timeout(false, stream) != POLL_SUCCESS)
+		for (;iWrote < iCount;)
 		{
-			return 0;
-		}
+			if (timeout(false, stream) != POLL_SUCCESS)
+			{
+				break;
+			}
 
-		iWrote = stream->Socket.write_some(boost::asio::buffer(sBuffer, iCount), stream->ec);
+			std::size_t iWrotePart = stream->Socket.write_some(boost::asio::buffer(sBuffer, iCount), stream->ec);
 
-		if (iWrote != iCount || stream->ec.value() != 0)
-		{
-			kDebug(1, "cannot write to stream: {}", stream->ec.message());
+			iWrote += iWrotePart;
+
+			if (iWrotePart == 0 || stream->ec.value() != 0)
+			{
+				kDebug(1, "cannot write to tcp stream: {}", stream->ec.message());
+				break;
+			}
 		}
 	}
 

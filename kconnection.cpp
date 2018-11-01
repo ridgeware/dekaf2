@@ -308,10 +308,10 @@ KString KUnixConnection::Error() const
 
 
 //-----------------------------------------------------------------------------
-bool KSSLConnection::Connect(const KTCPEndPoint& Endpoint, bool bVerifyCerts, bool bAllowSSLv2v3)
+bool KSSLConnection::Connect(const KTCPEndPoint& Endpoint, bool bVerifyCerts)
 //-----------------------------------------------------------------------------
 {
-	return setConnection(CreateKSSLStream(Endpoint, bVerifyCerts, bAllowSSLv2v3), Endpoint);
+	return setConnection(CreateKSSLClient(Endpoint, bVerifyCerts), Endpoint);
 
 } // Connect
 
@@ -377,7 +377,7 @@ KString KSSLConnection::Error() const
 
 
 //-----------------------------------------------------------------------------
-std::unique_ptr<KConnection> KConnection::Create(const KURL& URL, bool bForceSSL, bool bVerifyCerts, bool bAllowSSLv2v3)
+std::unique_ptr<KConnection> KConnection::Create(const KURL& URL, bool bForceSSL, bool bVerifyCerts)
 //-----------------------------------------------------------------------------
 {
 	url::KPort Port = URL.Port;
@@ -390,7 +390,7 @@ std::unique_ptr<KConnection> KConnection::Create(const KURL& URL, bool bForceSSL
 	if (Port == "443" || URL.Protocol == url::KProtocol::HTTPS || bForceSSL)
 	{
 		auto C = std::make_unique<KSSLConnection>();
-		C->Connect(KTCPEndPoint(URL.Domain, Port), bVerifyCerts, bAllowSSLv2v3);
+		C->Connect(KTCPEndPoint(URL.Domain, Port), bVerifyCerts);
 		return std::move(C);
 	}
 	else
@@ -405,7 +405,7 @@ std::unique_ptr<KConnection> KConnection::Create(const KURL& URL, bool bForceSSL
 } // Create
 
 //-----------------------------------------------------------------------------
-std::unique_ptr<KConnection> KConnection::Create(const KURL& URL, const KProxy& Proxy, bool bForceSSL, bool bVerifyCerts, bool bAllowSSLv2v3)
+std::unique_ptr<KConnection> KConnection::Create(const KURL& URL, const KProxy& Proxy, bool bForceSSL, bool bVerifyCerts)
 //-----------------------------------------------------------------------------
 {
 	KConnection Connection;
@@ -432,7 +432,7 @@ std::unique_ptr<KConnection> KConnection::Create(const KURL& URL, const KProxy& 
 	if (Port == "443" || URL.Protocol == url::KProtocol::HTTPS || bForceSSL)
 	{
 		auto C = std::make_unique<KSSLConnection>();
-		C->Connect(KTCPEndPoint(URL.Domain, Port), bVerifyCerts, bAllowSSLv2v3);
+		C->Connect(KTCPEndPoint(URL.Domain, Port), bVerifyCerts);
 		return std::move(C);
 	}
 	else

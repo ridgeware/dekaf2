@@ -144,7 +144,8 @@ bool KCGI::Parse(char chCommentDelim)
 	if (!sRM.empty())
 	{
 		m_bIsCGI = true;
-		// we are running within a web server that sets these:
+
+		kDebugLog (1, "KCGI: we are running within a web server that sets the CGI variables...");
 		Request.Method         = sRM.ToView();
 		Request.Resource       = GetVar(KCGI::REQUEST_URI);
 		Request.sHTTPVersion   = GetVar(KCGI::SERVER_PROTOCOL);

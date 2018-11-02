@@ -181,7 +181,7 @@ public:
 	bool IsRunning() const
 	//-----------------------------------------------------------------------------
 	{
-		return m_ipv6_server || m_ipv4_server;
+		return m_ipv6_server || m_ipv4_server || m_unix_server;
 	}
 
 	//-----------------------------------------------------------------------------
@@ -263,6 +263,13 @@ protected:
 private:
 //-------
 
+	enum ServerType
+	{
+		TCPv4,
+		TCPv6,
+		Unix
+	};
+
 	//-----------------------------------------------------------------------------
 	void TCPServer(bool ipv6);
 	//-----------------------------------------------------------------------------
@@ -276,12 +283,13 @@ private:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	void StopServerThread(bool ipv6);
+	void StopServerThread(ServerType SType);
 	//-----------------------------------------------------------------------------
 
 	boost::asio::io_service m_asio;
 	std::unique_ptr<std::thread> m_ipv4_server;
 	std::unique_ptr<std::thread> m_ipv6_server;
+	std::unique_ptr<std::thread> m_unix_server;
 	std::unique_ptr<KThreadPool> m_ThreadPool;
 	KString m_sSocketFile;
 	KString m_sCert;

@@ -2,9 +2,11 @@
 
 #include <dekaf2/kstream.h>
 #include <dekaf2/ktcpclient.h>
+#include <dekaf2/kunixstream.h>
 #include <dekaf2/ksslclient.h>
 #include <dekaf2/kfilesystem.h>
 #include <dekaf2/ktcpserver.h>
+#include <dekaf2/ksystem.h>
 #include <unistd.h>
 #include <iostream>
 
@@ -13,7 +15,9 @@ using namespace dekaf2;
 
 class KMyServer : public KTCPServer
 {
+
 public:
+
 	using KTCPServer::KTCPServer;
 
 protected:
@@ -24,10 +28,10 @@ protected:
 		sLine += "\n";
 		return sLine;
 	}
+
 };
 
-constexpr KStringView sCert =
-R"(-----BEGIN CERTIFICATE-----
+constexpr KStringView sCert = R"(-----BEGIN CERTIFICATE-----
 MIIEpDCCAowCCQCjjdpjiU244jANBgkqhkiG9w0BAQsFADAUMRIwEAYDVQQDDAls
 b2NhbGhvc3QwHhcNMTgxMDMwMTMwNjA4WhcNMTkxMDMwMTMwNjA4WjAUMRIwEAYD
 VQQDDAlsb2NhbGhvc3QwggIiMA0GCSqGSIb3DQEBAQUAA4ICDwAwggIKAoICAQCl
@@ -56,8 +60,7 @@ CBw53UppWW98e2rXKWXTtU6rEL1ctGz135WgBrqmkJ58n2pjd4jLDQ==
 -----END CERTIFICATE-----
 )";
 
-constexpr KStringView sKey =
-R"(-----BEGIN PRIVATE KEY-----
+constexpr KStringView sKey = R"(-----BEGIN PRIVATE KEY-----
 MIIJQgIBADANBgkqhkiG9w0BAQEFAASCCSwwggkoAgEAAoICAQClSy5eUHyAF14T
 bT713mYYozxG7Nj6twX2CbmrLkdpBPRgW/G35HPjiKlwr4D49I6tEjZyMF7hdH5G
 dXofGAlpT89emiMm5epZAoWEsqTpFpfJjbEf9a+SGzTrhRxlMtbJFQyBIcN86bLm
@@ -112,6 +115,8 @@ ifGH2FR4yO/361j9D9X2h9uBgconDA==
 )";
 
 TEST_CASE("KWriter") {
+
+	kSetCWD("/tmp");
 
 	SECTION("Printf")
 	{
@@ -214,6 +219,54 @@ TEST_CASE("KWriter") {
 		}
 	}
 
+	SECTION("Short write to Unix socket")
+	{
+		KString sLarge;
+		sLarge = "01234567890123456789012345678901234567890123456789012345678901234567890123456789";
+
+		KMyServer Server("/tmp/unixsocket2364576", 5);
+		Server.Start(5, false);
+
+		KUnixStream stream("/tmp/unixsocket2364576", 5);
+		stream.Write(sLarge);
+		stream.Write('\n');
+		stream.Flush();
+		CHECK( stream.KOutStream::Good() == true );
+
+		if (stream.KOutStream::Good())
+		{
+			KString sRx;
+			CHECK ( stream.ReadLine(sRx) == true );
+			CHECK ( sRx == sLarge );
+		}
+	}
+
+	SECTION("Large write to Unix socket")
+	{
+		KString sLarge;
+		sLarge.reserve(16*1024*1024);
+		for (size_t ct = 0; ct < 16*1024*1024 / 80; ++ct)
+		{
+			sLarge += "01234567890123456789012345678901234567890123456789012345678901234567890123456789";
+		}
+
+		KMyServer Server("/tmp/unixsocket2364577", 5);
+		Server.Start(5, false);
+
+		KUnixStream stream("/tmp/unixsocket2364577", 5);
+		stream.Write(sLarge);
+		stream.Write('\n');
+		stream.Flush();
+		CHECK( stream.KOutStream::Good() == true );
+
+		if (stream.KOutStream::Good())
+		{
+			KString sRx;
+			CHECK ( stream.ReadLine(sRx) == true );
+			CHECK ( sRx == sLarge );
+		}
+	}
+
 	SECTION("short write to TLS socket")
 	{
 		KString sLarge;
@@ -248,9 +301,9 @@ TEST_CASE("KWriter") {
 
 		KMyServer Server(43237, true, 5);
 		Server.SetSSLCertificates(sCert, sKey);
-		Server.Start(5000, false);
+		Server.Start(5, false);
 
-		KSSLClient stream("localhost:43237", 5000, false);
+		KSSLClient stream("localhost:43237", 5, false);
 		stream.Write(sLarge);
 		stream.Write('\n');
 		stream.Flush();

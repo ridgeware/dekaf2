@@ -66,6 +66,7 @@
 
 */
 
+#include <thread>
 #include <boost/asio/ip/tcp.hpp>
 #include <boost/asio/ip/v6_only.hpp>
 #include <boost/asio/basic_socket_iostream.hpp>
@@ -276,7 +277,6 @@ void KTCPServer::TCPServer(bool ipv6)
 				{
 					m_ThreadPool->push([ this, moved_stream = std::move(stream), remote_endpoint ]()
 					{
-						moved_stream->StartManualTLSHandshake();
 						RunSession(*moved_stream, to_string(remote_endpoint));
 					});
 				}
@@ -377,6 +377,7 @@ bool KTCPServer::Start(uint16_t iTimeoutInSeconds, bool bBlock)
 		kWarning("Server is already running on port {}", m_iPort);
 		return false;
 	}
+
 	m_iTimeout = iTimeoutInSeconds;
 	m_bBlock = bBlock;
 	m_bQuit = false;
@@ -409,46 +410,48 @@ bool KTCPServer::Start(uint16_t iTimeoutInSeconds, bool bBlock)
 		}
 		else
 		{
-			m_ipv6_server = std::make_unique<std::thread>(&KTCPServer::UnixServer, this);
+			m_unix_server = std::make_unique<std::thread>(&KTCPServer::UnixServer, this);
 		}
 	}
 
-	sleep(1);
+	std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
 	return IsRunning();
 
 } // Start
 
 //-----------------------------------------------------------------------------
-void KTCPServer::StopServerThread(bool ipv6)
+void KTCPServer::StopServerThread(ServerType SType)
 //-----------------------------------------------------------------------------
 {
-	if (!m_sSocketFile.empty())
+	boost::asio::ip::address localhost;
+
+	// now connect to localhost on the listen port
+	switch (SType)
 	{
-		// connect to socket file
-		boost::asio::local::stream_protocol::socket s(m_asio);
-		s.connect(boost::asio::local::stream_protocol::endpoint(m_sSocketFile.c_str()));
-	}
-	else
-	{
-		boost::asio::ip::address localhost;
-		// now connect to localhost on the listen port
-		if (ipv6)
-		{
+		case TCPv6:
 			localhost.from_string("::1");
-		}
-		else
-		{
+			break;
+
+		case TCPv4:
 			localhost.from_string("127.0.0.1");
-		}
-		tcp::endpoint remote_endpoint(localhost, m_iPort);
+			break;
 
-		boost::asio::io_service io_service;
-		boost::asio::ip::tcp::socket socket(io_service);
-
-		socket.connect(remote_endpoint);
+		case Unix:
+			// connect to socket file
+			boost::asio::local::stream_protocol::socket s(m_asio);
+			s.connect(boost::asio::local::stream_protocol::endpoint(m_sSocketFile.c_str()));
+			// wait a little to avoid acceptor exception
+			std::this_thread::sleep_for(std::chrono::milliseconds(1));
+			return;
 	}
-	
+
+	tcp::endpoint remote_endpoint(localhost, m_iPort);
+	boost::asio::ip::tcp::socket socket(m_asio);
+	socket.connect(remote_endpoint);
+	// wait a little to avoid acceptor exception
+	std::this_thread::sleep_for(std::chrono::milliseconds(1));
+
 } // StopServerThread
 
 //-----------------------------------------------------------------------------
@@ -465,25 +468,23 @@ bool KTCPServer::Stop()
 
 		if (m_ipv4_server)
 		{
-			std::thread(&KTCPServer::StopServerThread, this, false).detach();
-		}
-
-		if (m_ipv6_server)
-		{
-			std::thread(&KTCPServer::StopServerThread, this, true).detach();
-		}
-
-		// now wait for completion
-		if (m_ipv4_server)
-		{
+			StopServerThread(TCPv4);
 			m_ipv4_server->join();
 			m_ipv4_server.reset();
 		}
 
 		if (m_ipv6_server)
 		{
+			StopServerThread(TCPv6);
 			m_ipv6_server->join();
 			m_ipv6_server.reset();
+		}
+
+		if (m_unix_server)
+		{
+			StopServerThread(Unix);
+			m_unix_server->join();
+			m_unix_server.reset();
 		}
 	}
 

@@ -67,7 +67,7 @@ std::string KSSLContext::PasswordCallback(std::size_t max_length,
 KSSLContext::KSSLContext(bool bIsServer, bool bVerifyCerts, bool bAllowSSLv3)
 //-----------------------------------------------------------------------------
 #if (BOOST_VERSION < 106600)
-	: m_Context(s_IO_Service, boost::asio::ssl::context::tls)
+	: m_Context(s_IO_Service, bIsServer ? boost::asio::ssl::context::tls_server : boost::asio::ssl::context::tls_client)
 #else
 	: m_Context(bIsServer ? boost::asio::ssl::context::tls_server : boost::asio::ssl::context::tls_client)
 #endif
@@ -406,7 +406,7 @@ std::streamsize KSSLIOStream::SSLStreamWriter(const void* sBuffer, std::streamsi
 		{
 			if (!handshake(stream)) // SSL clients write first
 			{
-				return 0;
+				return -1;
 			}
 		}
 
@@ -500,7 +500,7 @@ bool KSSLIOStream::Connect(const KTCPEndPoint& Endpoint)
 		boost::asio::ip::tcp::resolver Resolver(m_Stream.SSLContext.GetIOService());
 
 		boost::asio::ip::tcp::resolver::query query(Endpoint.Domain.get().c_str(),
-													Endpoint.Port.get().c_str());
+		                                            Endpoint.Port.get().c_str());
 		
 		auto hosts = Resolver.resolve(query, m_Stream.ec);
 
@@ -509,7 +509,7 @@ bool KSSLIOStream::Connect(const KTCPEndPoint& Endpoint)
 			if (m_Stream.SSLContext.GetVerify())
 			{
 				m_Stream.Socket.set_verify_mode(boost::asio::ssl::verify_peer
-											  | boost::asio::ssl::verify_fail_if_no_peer_cert);
+				                              | boost::asio::ssl::verify_fail_if_no_peer_cert);
 			}
 			else
 			{

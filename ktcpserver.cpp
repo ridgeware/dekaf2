@@ -207,6 +207,7 @@ void KTCPServer::TCPServer(bool ipv6)
 //-----------------------------------------------------------------------------
 {
 	DEKAF2_TRY_EXCEPTION
+	
 	asio::ip::v6_only v6_only(false);
 
 	tcp::endpoint local_endpoint((ipv6) ? tcp::v6() : tcp::v4(), m_iPort);
@@ -242,69 +243,76 @@ void KTCPServer::TCPServer(bool ipv6)
 		kWarning("IPv{} listener for port {} could not open",
 					   (ipv6) ? '6' : '4',
 					   m_iPort);
+		return;
 	}
-	else
+
+	if (IsSSL())
 	{
+
+		// the SSL version of the server
+
 		KSSLContext SSLContext(true, false, false);
 
-		if (IsSSL())
+		if (m_bBufferedCerts)
 		{
-			if (m_bBufferedCerts)
+			if (!SSLContext.SetSSLCertificates(m_sCert, m_sKey))
 			{
-				if (!SSLContext.SetSSLCertificates(m_sCert, m_sKey))
-				{
-					return; // already logged
-				}
+				return; // already logged
 			}
-			else
+		}
+		else
+		{
+			if (!SSLContext.LoadSSLCertificates(m_sCert, m_sKey))
 			{
-				if (!SSLContext.LoadSSLCertificates(m_sCert, m_sKey))
-				{
-					return; // already logged
-				}
+				return; // already logged
 			}
 		}
 
 		while (acceptor.is_open() && !m_bQuit)
 		{
-			if (IsSSL())
+			auto stream = CreateKSSLServer(SSLContext);
+			stream->Timeout(m_iTimeout);
+			endpoint_type remote_endpoint;
+			acceptor.accept(stream->GetTCPSocket(), remote_endpoint);
+			if (!m_bQuit)
 			{
-				auto stream = CreateKSSLServer(SSLContext);
-				stream->Timeout(m_iTimeout);
-				endpoint_type remote_endpoint;
-				acceptor.accept(stream->GetTCPSocket(), remote_endpoint);
-				if (!m_bQuit)
+				m_ThreadPool->push([ this, moved_stream = std::move(stream), remote_endpoint ]()
 				{
-					m_ThreadPool->push([ this, moved_stream = std::move(stream), remote_endpoint ]()
-					{
-						RunSession(*moved_stream, to_string(remote_endpoint));
-					});
-				}
+					RunSession(*moved_stream, to_string(remote_endpoint));
+				});
 			}
-			else
-			{
-				auto stream = CreateKTCPStream();
-				stream->Timeout(m_iTimeout);
-				endpoint_type remote_endpoint;
-				acceptor.accept(stream->GetTCPSocket(), remote_endpoint);
-				if (!m_bQuit)
-				{
-					m_ThreadPool->push([ this, moved_stream = std::move(stream), remote_endpoint ]()
-					{
-						RunSession(*moved_stream, to_string(remote_endpoint));
-					});
-				}
-			}
-
 		}
 
-		if (!acceptor.is_open() && !m_bQuit)
-		{
-			kWarning("IPv{} listener for port {} has closed",
-						   (ipv6) ? '6' : '4',
-						   m_iPort);
-		}
 	}
+	else
+	{
+
+		// the TCP version of the server
+
+		while (acceptor.is_open() && !m_bQuit)
+		{
+			auto stream = CreateKTCPStream();
+			stream->Timeout(m_iTimeout);
+			endpoint_type remote_endpoint;
+			acceptor.accept(stream->GetTCPSocket(), remote_endpoint);
+			if (!m_bQuit)
+			{
+				m_ThreadPool->push([ this, moved_stream = std::move(stream), remote_endpoint ]()
+				{
+					RunSession(*moved_stream, to_string(remote_endpoint));
+				});
+			}
+		}
+
+	}
+
+	if (!acceptor.is_open() && !m_bQuit)
+	{
+		kWarning("IPv{} listener for port {} has closed",
+					   (ipv6) ? '6' : '4',
+					   m_iPort);
+	}
+
 	DEKAF2_LOG_EXCEPTION
 
 } // TCPServer

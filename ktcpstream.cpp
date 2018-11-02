@@ -185,7 +185,7 @@ std::streamsize KTCPIOStream::TCPStreamWriter(const void* sBuffer, std::streamsi
 				break;
 			}
 
-			std::size_t iWrotePart = stream->Socket.write_some(boost::asio::buffer(sBuffer, iCount), stream->ec);
+			std::size_t iWrotePart = stream->Socket.write_some(boost::asio::buffer(static_cast<const char*>(sBuffer) + iWrote, iCount - iWrote), stream->ec);
 
 			iWrote += iWrotePart;
 

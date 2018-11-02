@@ -263,6 +263,7 @@ configure_file("bits/kconfiguration.h.in" "${GENERATED_FILES_DIR}/kconfiguration
 
 set (BITS_HEADERS
 	# KEEP ALPHABETIZED!!
+	bits/kasiostream.h
 	bits/kbaseshell.h
 	bits/kbasepipe.h
 	bits/kcppcompat.h

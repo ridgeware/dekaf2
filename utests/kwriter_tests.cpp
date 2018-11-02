@@ -177,9 +177,9 @@ TEST_CASE("KWriter") {
 		sLarge = "01234567890123456789012345678901234567890123456789012345678901234567890123456789";
 
 		KMyServer Server(43234, false, 5);
-		Server.Start(5, false);
+		Server.Start(5000, false);
 
-		KTCPClient stream("localhost:43234", 5);
+		KTCPClient stream("localhost:43234", 5000);
 		stream.Write(sLarge);
 		stream.Write('\n');
 		stream.Flush();

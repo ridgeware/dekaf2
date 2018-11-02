@@ -54,85 +54,6 @@
 
 namespace dekaf2 {
 
-
-//-----------------------------------------------------------------------------
-KTCPIOStream::POLLSTATE KTCPIOStream::timeout(bool bForReading, Stream_t* stream)
-//-----------------------------------------------------------------------------
-{
-
-#ifdef DEKAF2_IS_UNIX
-
-	pollfd what;
-
-	short event = (bForReading) ? POLLIN : POLLOUT;
-	what.fd     = stream->Socket.lowest_layer().native_handle();
-	what.events = event;
-
-	// now check if there is data available coming in from the
-	// underlying OS socket
-	int err = ::poll(&what, 1, stream->iTimeoutMilliseconds);
-
-	if (err < 0)
-	{
-		kDebug(1, "poll returned {}", strerror(errno));
-	}
-	else if (err == 1)
-	{
-		if ((what.revents & event) == event)
-		{
-			if ((what.revents & POLLHUP) == POLLHUP)
-			{
-				return POLL_LAST;
-			}
-			else
-			{
-				return POLL_SUCCESS;
-			}
-		}
-	}
-
-#elif DEKAF2_IS_WINDOWS
-
-	WSAPOLLFD what;
-
-	short event = (bForReading) ? POLLIN : POLLOUT;
-	what.fd     = stream->Socket.lowest_layer().native_handle();
-	what.events = event;
-
-	// now check if there is data available coming in from the
-	// underlying OS socket
-	int err = WSAPoll(&what, 1, stream->iTimeoutMilliseconds);
-
-	if (err < 0)
-	{
-		// TODO check if strerror is appropriate on Windows,
-		// probably FormatMessage() needs to be used (or simply
-		// the naked error number..)
-		kDebug(1, "poll returned {}", strerror(WSAGetLastError()));
-	}
-	else if (err == 1)
-	{
-		if ((what.revents & event) == event)
-		{
-			if ((what.revents & POLLHUP) == POLLHUP)
-			{
-				return POLL_LAST;
-			}
-			else
-			{
-				return POLL_SUCCESS;
-			}
-		}
-	}
-
-#endif
-
-	kDebug(2, "TCP timeout");
-
-	return POLL_FAILURE;
-
-} // timeout
-
 //-----------------------------------------------------------------------------
 std::streamsize KTCPIOStream::TCPStreamReader(void* sBuffer, std::streamsize iCount, void* stream_)
 //-----------------------------------------------------------------------------
@@ -144,16 +65,25 @@ std::streamsize KTCPIOStream::TCPStreamReader(void* sBuffer, std::streamsize iCo
 
 	if (stream_)
 	{
-		Stream_t* stream = static_cast<Stream_t*>(stream_);
+		auto stream = static_cast<KAsioStream<tcpstream>*>(stream_);
 
-		if (timeout(true, stream) == POLL_FAILURE)
+		stream->ResetTimer();
+
+		stream->ec = boost::asio::error::would_block;
+
+		boost::asio::async_read(stream->Socket,
+								boost::asio::buffer(sBuffer, iCount),
+								[&](const boost::system::error_code& ec, std::size_t bytes_transferred)
 		{
-			return -1;
-		}
+			stream->ec = ec;
+			iRead = bytes_transferred;
+		});
 
-		iRead = stream->Socket.read_some(boost::asio::buffer(sBuffer, iCount), stream->ec);
+		do stream->IOService.run_one(); while (stream->ec == boost::asio::error::would_block);
 
-		if (iRead < 0 || stream->ec.value() != 0)
+		stream->ClearTimer();
+
+		if (iRead == 0 || stream->ec.value() != 0 || !stream->Socket.is_open())
 		{
 			kDebug(1, "cannot read from tcp stream: {}", stream->ec.message());
 		}
@@ -169,32 +99,41 @@ std::streamsize KTCPIOStream::TCPStreamWriter(const void* sBuffer, std::streamsi
 {
 	// We need to loop the writer, as write_some() could have an upper limit (the buffer size) to which
 	// it can accept blocks - therefore we repeat the write until we have sent all bytes or
-	// an error condition occurs. In typical implementations however the write goes unbuffered in one
-	// call, regardless of the size.
+	// an error condition occurs.
 
 	std::streamsize iWrote{0};
 
 	if (stream_)
 	{
-		Stream_t* stream = static_cast<Stream_t*>(stream_);
+		auto stream = static_cast<KAsioStream<tcpstream>*>(stream_);
 
 		for (;iWrote < iCount;)
 		{
-			if (timeout(false, stream) != POLL_SUCCESS)
-			{
-				break;
-			}
+			stream->ResetTimer();
 
-			std::size_t iWrotePart = stream->Socket.write_some(boost::asio::buffer(sBuffer, iCount), stream->ec);
+			stream->ec = boost::asio::error::would_block;
+			std::size_t iWrotePart { 0 };
+
+			boost::asio::async_write(stream->Socket,
+									boost::asio::buffer(static_cast<const char*>(sBuffer) + iWrote, iCount - iWrote),
+									[&](const boost::system::error_code& ec, std::size_t bytes_transferred)
+									{
+										stream->ec = ec;
+										iWrotePart = bytes_transferred;
+									});
+
+			do stream->IOService.run_one(); while (stream->ec == boost::asio::error::would_block);
 
 			iWrote += iWrotePart;
 
-			if (iWrotePart == 0 || stream->ec.value() != 0)
+			if (iWrotePart == 0 || stream->ec.value() != 0 || !stream->Socket.is_open())
 			{
 				kDebug(1, "cannot write to tcp stream: {}", stream->ec.message());
 				break;
 			}
 		}
+
+		stream->ClearTimer();
 	}
 
 	return iWrote;
@@ -205,7 +144,7 @@ std::streamsize KTCPIOStream::TCPStreamWriter(const void* sBuffer, std::streamsi
 KTCPIOStream::KTCPIOStream()
 //-----------------------------------------------------------------------------
     : base_type(&m_TCPStreamBuf)
-    , m_Stream(m_IO_Service)
+    , m_Stream(m_IO_Service, DEFAULT_TIMEOUT)
 {
 	Timeout(DEFAULT_TIMEOUT);
 }
@@ -214,7 +153,7 @@ KTCPIOStream::KTCPIOStream()
 KTCPIOStream::KTCPIOStream(const KTCPEndPoint& Endpoint, int iSecondsTimeout)
 //-----------------------------------------------------------------------------
     : base_type(&m_TCPStreamBuf)
-    , m_Stream(m_IO_Service)
+    , m_Stream(m_IO_Service, iSecondsTimeout)
 {
 	Timeout(iSecondsTimeout);
 	connect(Endpoint);
@@ -230,12 +169,7 @@ KTCPIOStream::~KTCPIOStream()
 bool KTCPIOStream::Timeout(int iSeconds)
 //-----------------------------------------------------------------------------
 {
-	if (iSeconds > std::numeric_limits<int>::max() / 1000)
-	{
-		kDebug(2, "value too big: {}", iSeconds);
-		iSeconds = std::numeric_limits<int>::max() / 1000;
-	}
-	m_Stream.iTimeoutMilliseconds = iSeconds * 1000;
+	m_Stream.iSecondsTimeout = iSeconds;
 	return true;
 }
 
@@ -251,10 +185,25 @@ bool KTCPIOStream::connect(const KTCPEndPoint& Endpoint)
 
 	if (Good())
 	{
-		m_ConnectedHost = boost::asio::connect(m_Stream.Socket.lowest_layer(), hosts, m_Stream.ec);
+		m_Stream.ec = boost::asio::error::would_block;
+
+		m_Stream.ResetTimer();
+
+		boost::asio::async_connect(m_Stream.Socket.lowest_layer(),
+								   hosts,
+								   [&](const boost::system::error_code& ec,
+									   const boost::asio::ip::tcp::endpoint& endpoint)
+		{
+			m_ConnectedHost = endpoint;
+			m_Stream.ec = ec;
+		});
+
+		do m_IO_Service.run_one(); while (m_Stream.ec == boost::asio::error::would_block);
+
+		m_Stream.ClearTimer();
 	}
 
-	if (!Good())
+	if (!Good() || !m_Stream.Socket.is_open())
 	{
 		kDebug(2, "{}", Error());
 		return false;

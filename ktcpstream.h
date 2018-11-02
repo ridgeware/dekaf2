@@ -50,6 +50,7 @@
 #include "kstream.h" // TODO remove
 #include "kstreambuf.h"
 #include "kurl.h"
+#include "bits/kasiostream.h"
 
 namespace dekaf2
 {
@@ -62,7 +63,7 @@ class KTCPIOStream : public std::iostream
 {
 	using base_type = std::iostream;
 
-	enum { DEFAULT_TIMEOUT = 1 * 30 };
+	enum { DEFAULT_TIMEOUT = 15 };
 
 //----------
 public:
@@ -79,7 +80,7 @@ public:
 	/// KTCPEndPoint as the server to connect to - can be constructed from
 	/// a variety of inputs, like strings or KURL
 	/// @param iSecondsTimeout
-	/// Timeout in seconds for any I/O. Defaults to 60.
+	/// Timeout in seconds for any I/O. Defaults to 15.
 	KTCPIOStream(const KTCPEndPoint& Endpoint, int iSecondsTimeout = DEFAULT_TIMEOUT);
 	//-----------------------------------------------------------------------------
 
@@ -158,21 +159,11 @@ public:
 private:
 //----------
 
-    boost::asio::io_service m_IO_Service;
 	using tcpstream = boost::asio::basic_stream_socket<boost::asio::ip::tcp>;
 
-	struct Stream_t
-	{
-		Stream_t(boost::asio::io_service& ioservice)
-		: Socket(ioservice)
-		{}
-		
-		tcpstream Socket;
-		boost::system::error_code ec;
-		int iTimeoutMilliseconds { 30 * 1000 };
-	};
+	boost::asio::io_service m_IO_Service;
 
-	Stream_t m_Stream;
+	KAsioStream<tcpstream> m_Stream;
 
 #if (BOOST_VERSION < 106600)
 	boost::asio::ip::tcp::resolver::iterator m_ConnectedHost;
@@ -197,10 +188,6 @@ private:
 	//-----------------------------------------------------------------------------
 	/// this is the custom streambuf writer
 	static std::streamsize TCPStreamWriter(const void* sBuffer, std::streamsize iCount, void* stream);
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	static POLLSTATE timeout(bool bForReading, Stream_t* stream);
 	//-----------------------------------------------------------------------------
 
 };

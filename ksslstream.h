@@ -81,13 +81,6 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	boost::asio::io_service& GetIOService()
-	//-----------------------------------------------------------------------------
-	{
-		return s_IO_Service;
-	}
-
-	//-----------------------------------------------------------------------------
 	boost::asio::ssl::context& GetContext()
 	//-----------------------------------------------------------------------------
 	{
@@ -116,13 +109,91 @@ private:
 	std::string PasswordCallback(std::size_t max_length, boost::asio::ssl::context::password_purpose purpose) const;
 	//-----------------------------------------------------------------------------
 
+#if (BOOST_VERSION < 106600)
 	static boost::asio::io_service s_IO_Service;
+#endif
 	boost::asio::ssl::context m_Context;
 	boost::asio::ssl::stream_base::handshake_type m_Role;
 	std::string m_sPassword;
 	bool m_bVerify;
 
 }; // KSSLContext
+
+
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+template<typename StreamType>
+struct KAsioSSLStream
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+	//-----------------------------------------------------------------------------
+	KAsioSSLStream(KSSLContext& Context, int _iSecondsTimeout = 15, bool _bManualHandshake = false)
+	//-----------------------------------------------------------------------------
+	: SSLContext       { Context }
+	, IOService        {}
+	, Socket           { IOService, Context.GetContext() }
+	, Timer            { IOService }
+	, iSecondsTimeout  { _iSecondsTimeout }
+	, bManualHandshake { _bManualHandshake }
+	{
+		ClearTimer();
+		CheckTimer();
+	}
+
+	//-----------------------------------------------------------------------------
+	void ResetTimer()
+	//-----------------------------------------------------------------------------
+	{
+		Timer.expires_from_now(boost::posix_time::seconds(iSecondsTimeout));
+	}
+
+	//-----------------------------------------------------------------------------
+	void ClearTimer()
+	//-----------------------------------------------------------------------------
+	{
+		Timer.expires_at(boost::posix_time::pos_infin);
+	}
+
+	//-----------------------------------------------------------------------------
+	void CheckTimer()
+	//-----------------------------------------------------------------------------
+	{
+		if (Timer.expires_at() <= boost::asio::deadline_timer::traits_type::now())
+		{
+			boost::system::error_code ignored_ec;
+			Socket.lowest_layer().close(ignored_ec);
+			Timer.expires_at(boost::posix_time::pos_infin);
+		}
+
+		Timer.async_wait(boost::bind(&KAsioSSLStream<StreamType>::CheckTimer, this));
+	}
+
+	//-----------------------------------------------------------------------------
+	void RunTimed()
+	//-----------------------------------------------------------------------------
+	{
+		ResetTimer();
+
+		ec = boost::asio::error::would_block;
+		do
+		{
+			IOService.run_one();
+		}
+		while (ec == boost::asio::error::would_block);
+
+		ClearTimer();
+	}
+
+	KSSLContext& SSLContext;
+	boost::asio::io_service IOService;
+	StreamType Socket;
+	boost::asio::deadline_timer Timer;
+	boost::system::error_code ec;
+	int iSecondsTimeout;
+	bool bNeedHandshake { true };
+	bool bManualHandshake { false };
+
+}; // KAsioSSLStream
+
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// std::iostream SSL/TLS implementation with timeout.
@@ -249,24 +320,7 @@ private:
 
 	using tcpstream = boost::asio::ssl::stream<boost::asio::ip::tcp::socket>;
 
-	struct Stream_t
-	{
-		// we use manual handshake operation for opportunistic TLS connections (like SMTP with STARTTLS)
-		Stream_t(KSSLContext& _SSLContext, bool _bManualHandshake)
-		: SSLContext(_SSLContext)
-		, Socket(SSLContext.GetIOService(), SSLContext.GetContext())
-		, bManualHandshake(_bManualHandshake)
-		{}
-
-		KSSLContext& SSLContext;
-		tcpstream Socket;
-		boost::system::error_code ec;
-		int iTimeoutMilliseconds { DEFAULT_TIMEOUT };
-		bool bNeedHandshake { true };
-		bool bManualHandshake { false };
-	};
-
-	Stream_t m_Stream;
+	KAsioSSLStream<tcpstream> m_Stream;
 
 #if (BOOST_VERSION < 106600)
 	boost::asio::ip::tcp::resolver::iterator m_ConnectedHost;
@@ -275,13 +329,6 @@ private:
 #endif
 
 	KBufferedStreamBuf m_SSLStreamBuf{&SSLStreamReader, &SSLStreamWriter, &m_Stream, &m_Stream};
-
-	enum POLLSTATE
-	{
-		POLL_FAILURE = 0,
-		POLL_SUCCESS = 1,
-		POLL_LAST    = 2
-	};
 
 	//-----------------------------------------------------------------------------
 	/// this is the custom streambuf reader
@@ -294,11 +341,7 @@ private:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	static bool handshake(Stream_t* stream);
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	static POLLSTATE timeout(bool bForReading, Stream_t* stream);
+	static bool handshake(KAsioSSLStream<tcpstream>* stream);
 	//-----------------------------------------------------------------------------
 
 };

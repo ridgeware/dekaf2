@@ -46,11 +46,11 @@
 
 #include <boost/asio.hpp>
 #include <boost/asio/ip/tcp.hpp>
+#include "bits/kasiostream.h"
 #include "kstring.h"
 #include "kstream.h" // TODO remove
 #include "kstreambuf.h"
 #include "kurl.h"
-#include "bits/kasiostream.h"
 
 namespace dekaf2
 {
@@ -99,7 +99,7 @@ public:
 	/// @param Endpoint
 	/// KTCPEndPoint as the server to connect to - can be constructed from
 	/// a variety of inputs, like strings or KURL
-	bool connect(const KTCPEndPoint& Endpoint);
+	bool Connect(const KTCPEndPoint& Endpoint);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -110,7 +110,7 @@ public:
 	bool open(const KTCPEndPoint& Endpoint)
 	//-----------------------------------------------------------------------------
 	{
-		return connect(Endpoint);
+		return Connect(Endpoint);
 	}
 
 	//-----------------------------------------------------------------------------
@@ -161,8 +161,6 @@ private:
 
 	using tcpstream = boost::asio::basic_stream_socket<boost::asio::ip::tcp>;
 
-	boost::asio::io_service m_IO_Service;
-
 	KAsioStream<tcpstream> m_Stream;
 
 #if (BOOST_VERSION < 106600)
@@ -172,13 +170,6 @@ private:
 #endif
 
 	KBufferedStreamBuf m_TCPStreamBuf{&TCPStreamReader, &TCPStreamWriter, &m_Stream, &m_Stream};
-
-	enum POLLSTATE
-	{
-		POLL_FAILURE = 0,
-		POLL_SUCCESS = 1,
-		POLL_LAST    = 2
-	};
 
 	//-----------------------------------------------------------------------------
 	/// this is the custom streambuf reader

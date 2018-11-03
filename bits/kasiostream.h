@@ -52,14 +52,14 @@ struct KAsioStream
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 	//-----------------------------------------------------------------------------
-	KAsioStream(boost::asio::io_service& ioservice, int _iSecondsTimeout)
+	KAsioStream(int _iSecondsTimeout = 15)
 	//-----------------------------------------------------------------------------
-	: IOService(ioservice)
-	, Socket(ioservice)
-	, Timer(ioservice)
-	, iSecondsTimeout(_iSecondsTimeout)
+	: IOService       {}
+	, Socket          { IOService }
+	, Timer           { IOService }
+	, iSecondsTimeout { _iSecondsTimeout }
 	{
-		Timer.expires_at(boost::posix_time::pos_infin);
+		ClearTimer();
 		CheckTimer();
 	}
 
@@ -88,14 +88,29 @@ struct KAsioStream
 			Timer.expires_at(boost::posix_time::pos_infin);
 		}
 
-		Timer.async_wait(boost::bind(&KAsioStream<StreamType>::CheckTimer, this));
+		Timer.async_wait(std::bind(&KAsioStream<StreamType>::CheckTimer, this));
 	}
 
-	boost::asio::io_service& IOService;
+	//-----------------------------------------------------------------------------
+	void RunTimed()
+	//-----------------------------------------------------------------------------
+	{
+		ResetTimer();
+
+		ec = boost::asio::error::would_block;
+		do
+		{
+			IOService.run_one();
+		}
+		while (ec == boost::asio::error::would_block);
+
+		ClearTimer();
+	}
+
+	boost::asio::io_service IOService;
 	StreamType Socket;
 	boost::asio::deadline_timer Timer;
 	boost::system::error_code ec;
-	int iSecondsTimeout { 30 * 1000 };
+	int iSecondsTimeout;
 
 }; // KAsioStream
-

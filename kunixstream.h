@@ -45,6 +45,7 @@
 /// provides an implementation of std::iostreams for Unix stream sockets
 
 #include <boost/asio.hpp>
+#include "bits/kasiostream.h"
 #include "kstringview.h"
 #include "kstream.h"
 #include "kstreambuf.h"
@@ -95,7 +96,7 @@ public:
 	/// Connects a given server as a client.
 	/// @param sSocketFile
 	/// a unix socket endpoint file
-	bool connect(KStringViewZ sSocketFile);
+	bool Connect(KStringViewZ sSocketFile);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -105,7 +106,7 @@ public:
 	bool open(KStringViewZ sSocketFile)
 	//-----------------------------------------------------------------------------
 	{
-		return connect(sSocketFile);
+		return Connect(sSocketFile);
 	}
 
 	//-----------------------------------------------------------------------------
@@ -154,30 +155,11 @@ public:
 private:
 //----------
 
-    boost::asio::io_service m_IO_Service;
 	using unixstream = boost::asio::local::stream_protocol::socket;
 
-	struct Stream_t
-	{
-		Stream_t(boost::asio::io_service& ioservice)
-		: Socket(ioservice)
-		{}
-		
-		unixstream Socket;
-		boost::system::error_code ec;
-		int iTimeoutMilliseconds { 30 * 1000 };
-	};
-
-	Stream_t m_Stream;
+	KAsioStream<unixstream> m_Stream;
 
 	KStreamBuf m_TCPStreamBuf{&UnixStreamReader, &UnixStreamWriter, &m_Stream, &m_Stream};
-
-	enum POLLSTATE
-	{
-		POLL_FAILURE = 0,
-		POLL_SUCCESS = 1,
-		POLL_LAST    = 2
-	};
 
 	//-----------------------------------------------------------------------------
 	/// this is the custom streambuf reader
@@ -187,10 +169,6 @@ private:
 	//-----------------------------------------------------------------------------
 	/// this is the custom streambuf writer
 	static std::streamsize UnixStreamWriter(const void* sBuffer, std::streamsize iCount, void* stream);
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	static POLLSTATE timeout(bool bForReading, Stream_t* stream);
 	//-----------------------------------------------------------------------------
 
 };

@@ -67,21 +67,14 @@ std::streamsize KTCPIOStream::TCPStreamReader(void* sBuffer, std::streamsize iCo
 	{
 		auto stream = static_cast<KAsioStream<tcpstream>*>(stream_);
 
-		stream->ResetTimer();
-
-		stream->ec = boost::asio::error::would_block;
-
-		boost::asio::async_read(stream->Socket,
-								boost::asio::buffer(sBuffer, iCount),
-								[&](const boost::system::error_code& ec, std::size_t bytes_transferred)
+		stream->Socket.async_read_some(boost::asio::buffer(sBuffer, iCount),
+		[&](const boost::system::error_code& ec, std::size_t bytes_transferred)
 		{
 			stream->ec = ec;
 			iRead = bytes_transferred;
 		});
 
-		do stream->IOService.run_one(); while (stream->ec == boost::asio::error::would_block);
-
-		stream->ClearTimer();
+		stream->RunTimed();
 
 		if (iRead == 0 || stream->ec.value() != 0 || !stream->Socket.is_open())
 		{
@@ -109,20 +102,16 @@ std::streamsize KTCPIOStream::TCPStreamWriter(const void* sBuffer, std::streamsi
 
 		for (;iWrote < iCount;)
 		{
-			stream->ResetTimer();
-
-			stream->ec = boost::asio::error::would_block;
 			std::size_t iWrotePart { 0 };
 
-			boost::asio::async_write(stream->Socket,
-									boost::asio::buffer(static_cast<const char*>(sBuffer) + iWrote, iCount - iWrote),
-									[&](const boost::system::error_code& ec, std::size_t bytes_transferred)
-									{
-										stream->ec = ec;
-										iWrotePart = bytes_transferred;
-									});
+			stream->Socket.async_write_some(boost::asio::buffer(static_cast<const char*>(sBuffer) + iWrote, iCount - iWrote),
+			[&](const boost::system::error_code& ec, std::size_t bytes_transferred)
+			{
+				stream->ec = ec;
+				iWrotePart = bytes_transferred;
+			});
 
-			do stream->IOService.run_one(); while (stream->ec == boost::asio::error::would_block);
+			stream->RunTimed();
 
 			iWrote += iWrotePart;
 
@@ -132,8 +121,6 @@ std::streamsize KTCPIOStream::TCPStreamWriter(const void* sBuffer, std::streamsi
 				break;
 			}
 		}
-
-		stream->ClearTimer();
 	}
 
 	return iWrote;
@@ -144,19 +131,17 @@ std::streamsize KTCPIOStream::TCPStreamWriter(const void* sBuffer, std::streamsi
 KTCPIOStream::KTCPIOStream()
 //-----------------------------------------------------------------------------
     : base_type(&m_TCPStreamBuf)
-    , m_Stream(m_IO_Service, DEFAULT_TIMEOUT)
+    , m_Stream(DEFAULT_TIMEOUT)
 {
-	Timeout(DEFAULT_TIMEOUT);
 }
 
 //-----------------------------------------------------------------------------
 KTCPIOStream::KTCPIOStream(const KTCPEndPoint& Endpoint, int iSecondsTimeout)
 //-----------------------------------------------------------------------------
     : base_type(&m_TCPStreamBuf)
-    , m_Stream(m_IO_Service, iSecondsTimeout)
+    , m_Stream(iSecondsTimeout)
 {
-	Timeout(iSecondsTimeout);
-	connect(Endpoint);
+	Connect(Endpoint);
 }
 
 //-----------------------------------------------------------------------------
@@ -174,21 +159,15 @@ bool KTCPIOStream::Timeout(int iSeconds)
 }
 
 //-----------------------------------------------------------------------------
-bool KTCPIOStream::connect(const KTCPEndPoint& Endpoint)
+bool KTCPIOStream::Connect(const KTCPEndPoint& Endpoint)
 //-----------------------------------------------------------------------------
 {
-	boost::asio::ip::tcp::resolver Resolver(m_IO_Service);
-
+	boost::asio::ip::tcp::resolver Resolver(m_Stream.IOService);
 	boost::asio::ip::tcp::resolver::query query(Endpoint.Domain.get().c_str(), Endpoint.Port.get().c_str());
-
 	auto hosts = Resolver.resolve(query, m_Stream.ec);
 
 	if (Good())
 	{
-		m_Stream.ec = boost::asio::error::would_block;
-
-		m_Stream.ResetTimer();
-
 		boost::asio::async_connect(m_Stream.Socket.lowest_layer(),
 								   hosts,
 								   [&](const boost::system::error_code& ec,
@@ -198,9 +177,7 @@ bool KTCPIOStream::connect(const KTCPEndPoint& Endpoint)
 			m_Stream.ec = ec;
 		});
 
-		do m_IO_Service.run_one(); while (m_Stream.ec == boost::asio::error::would_block);
-
-		m_Stream.ClearTimer();
+		m_Stream.RunTimed();
 	}
 
 	if (!Good() || !m_Stream.Socket.is_open())

@@ -55,7 +55,7 @@ TEST_CASE("KHTTPClient") {
 	SECTION("check connection setup")
 	{
 		KTinyHTTPServer server(7654, false, 3);
-		server.Start(10, false);
+		server.Start(30, false);
 		server.clear();
 
 		KURL URL("http://127.0.0.1:7654/path?query=val&another=here#fragment");

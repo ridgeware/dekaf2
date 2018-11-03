@@ -53,7 +53,9 @@
 
 namespace dekaf2 {
 
+#if (BOOST_VERSION < 106600)
 boost::asio::io_service KSSLContext::s_IO_Service;
+#endif
 
 //-----------------------------------------------------------------------------
 std::string KSSLContext::PasswordCallback(std::size_t max_length,
@@ -179,114 +181,7 @@ static KSSLContext s_KSSLContextWithVerification { false, true, false };
 
 
 //-----------------------------------------------------------------------------
-KSSLIOStream::POLLSTATE KSSLIOStream::timeout(bool bForReading, Stream_t* stream)
-//-----------------------------------------------------------------------------
-{
-	if (bForReading && !stream->bNeedHandshake)
-	{
-		// first check if there is still unread data in the internal
-		// SSL buffers (this is in openssl)
-		if (SSL_pending(stream->Socket.native_handle()))
-		{
-			// yes - return immediately
-			return POLL_SUCCESS;
-		}
-		// now check in the read BIO buffers
-		BIO* bio = SSL_get_rbio(stream->Socket.native_handle());
-		if (BIO_pending(bio))
-		{
-			// yes - return immediately
-			return POLL_SUCCESS;
-		}
-	}
-
-#ifdef DEKAF2_IS_UNIX
-
-	pollfd what;
-
-	short event = (bForReading) ? POLLIN : POLLOUT;
-	what.fd     = stream->Socket.lowest_layer().native_handle();
-	if (what.fd < 0)
-	{
-		// this means that the stream is not yet established..
-		return POLL_FAILURE;
-	}
-	what.events = event;
-
-	// now check if there is data available coming in from the
-	// underlying OS socket (which indicates that there might
-	// be openssl data ready soon)
-	int err = ::poll(&what, 1, stream->iTimeoutMilliseconds);
-
-	if (err < 0)
-	{
-		kDebug(1, "poll returned {}", strerror(errno));
-	}
-	else if (err == 1)
-	{
-		if ((what.revents & event) == event)
-		{
-			if ((what.revents & POLLHUP) == POLLHUP)
-			{
-				return POLL_LAST;
-			}
-			else
-			{
-				return POLL_SUCCESS;
-			}
-		}
-	}
-
-#elif DEKAF2_IS_WINDOWS
-
-	WSAPOLLFD what;
-
-	short event = (bForReading) ? POLLIN : POLLOUT;
-	what.fd     = stream->Socket.lowest_layer().native_handle();
-	if (what.fd < 0)
-	{
-		// this means that the stream is not yet established..
-		return POLL_FAILURE;
-	}
-	what.events = event;
-
-	// now check if there is data available coming in from the
-	// underlying OS socket (which indicates that there might
-	// be openssl data ready soon)
-	int err = WSAPoll(&what, 1, stream->iTimeoutMilliseconds);
-
-	if (err < 0)
-	{
-		// TODO check if strerror is appropriate on Windows,
-		// probably FormatMessage() needs to be used (or simply
-		// the naked error number..)
-		kDebug(1, "poll returned {}", strerror(WSAGetLastError()));
-	}
-	else if (err == 1)
-	{
-		if ((what.revents & event) == event)
-		{
-			if ((what.revents & POLLHUP) == POLLHUP)
-			{
-				return POLL_LAST;
-			}
-			else
-			{
-				return POLL_SUCCESS;
-			}
-		}
-	}
-
-#endif
-
-	kDebug(2, "SSL timeout");
-
-	return POLL_FAILURE;
-
-} // timeout
-
-//-----------------------------------------------------------------------------
-bool KSSLIOStream::handshake(Stream_t* stream)
+bool KSSLIOStream::handshake(KAsioSSLStream<tcpstream>* stream)
 //-----------------------------------------------------------------------------
 {
 	if (!stream->bNeedHandshake)
@@ -294,16 +189,17 @@ bool KSSLIOStream::handshake(Stream_t* stream)
 		return true;
 	}
 
-	if (timeout(stream->SSLContext.GetRole() == boost::asio::ssl::stream_base::server, stream) != POLL_SUCCESS)
-	{
-		return false;
-	}
-
 	stream->bNeedHandshake = false;
 	
-	stream->Socket.handshake(stream->SSLContext.GetRole(), stream->ec);
+	stream->Socket.async_handshake(stream->SSLContext.GetRole(),
+								   [&](const boost::system::error_code& ec)
+	{
+		stream->ec = ec;
+	});
 
-	if (stream->ec.value() != 0)
+	stream->RunTimed();
+
+	if (stream->ec.value() != 0 || !stream->Socket.lowest_layer().is_open())
 	{
 		kDebug(1, "ssl handshake failed: {}", stream->ec.message());
 		return false;
@@ -354,7 +250,7 @@ std::streamsize KSSLIOStream::SSLStreamReader(void* sBuffer, std::streamsize iCo
 
 	if (stream_)
 	{
-		Stream_t* stream = static_cast<Stream_t*>(stream_);
+		auto stream = static_cast<KAsioSSLStream<tcpstream>*>(stream_);
 
 		if (!stream->bManualHandshake)
 		{
@@ -364,21 +260,28 @@ std::streamsize KSSLIOStream::SSLStreamReader(void* sBuffer, std::streamsize iCo
 			}
 		}
 
-		if (timeout(true, stream) == POLL_FAILURE)
-		{
-			return -1;
-		}
-
 		if (!stream->bManualHandshake)
 		{
-			iRead = stream->Socket.read_some(boost::asio::buffer(sBuffer, iCount), stream->ec);
+			stream->Socket.async_read_some(boost::asio::buffer(sBuffer, iCount),
+			[&](const boost::system::error_code& ec, std::size_t bytes_transferred)
+			{
+				stream->ec = ec;
+				iRead = bytes_transferred;
+			});
 		}
 		else
 		{
-			iRead = stream->Socket.next_layer().read_some(boost::asio::buffer(sBuffer, iCount), stream->ec);
+			stream->Socket.next_layer().async_read_some(boost::asio::buffer(sBuffer, iCount),
+			[&](const boost::system::error_code& ec, std::size_t bytes_transferred)
+			{
+				stream->ec = ec;
+				iRead = bytes_transferred;
+			});
 		}
 
-		if (iRead == 0 || stream->ec.value() != 0)
+		stream->RunTimed();
+
+		if (iRead == 0 || stream->ec.value() != 0 || !stream->Socket.lowest_layer().is_open())
 		{
 			kDebug(1, "cannot read from tls stream: {}", stream->ec.message());
 		}
@@ -400,7 +303,7 @@ std::streamsize KSSLIOStream::SSLStreamWriter(const void* sBuffer, std::streamsi
 
 	if (stream_)
 	{
-		Stream_t* stream = static_cast<Stream_t*>(stream_);
+		auto stream = static_cast<KAsioSSLStream<tcpstream>*>(stream_);
 
 		if (!stream->bManualHandshake)
 		{
@@ -412,25 +315,32 @@ std::streamsize KSSLIOStream::SSLStreamWriter(const void* sBuffer, std::streamsi
 
 		for (;iWrote < iCount;)
 		{
-			if (timeout(false, stream) != POLL_SUCCESS)
-			{
-				break;
-			}
-
 			std::size_t iWrotePart{0};
 
 			if (!stream->bManualHandshake)
 			{
-				iWrotePart = stream->Socket.write_some(boost::asio::buffer(static_cast<const char*>(sBuffer) + iWrote, iCount - iWrote), stream->ec);
+				stream->Socket.async_write_some(boost::asio::buffer(static_cast<const char*>(sBuffer) + iWrote, iCount - iWrote),
+				[&](const boost::system::error_code& ec, std::size_t bytes_transferred)
+				{
+					stream->ec = ec;
+					iWrotePart = bytes_transferred;
+				});
 			}
 			else
 			{
-				iWrotePart = stream->Socket.next_layer().write_some(boost::asio::buffer(static_cast<const char*>(sBuffer) + iWrote, iCount - iWrote), stream->ec);
+				stream->Socket.next_layer().async_write_some(boost::asio::buffer(static_cast<const char*>(sBuffer) + iWrote, iCount - iWrote),
+				[&](const boost::system::error_code& ec, std::size_t bytes_transferred)
+				{
+					stream->ec = ec;
+					iWrotePart = bytes_transferred;
+				});
 			}
+
+			stream->RunTimed();
 
 			iWrote += iWrotePart;
 
-			if (iWrotePart == 0 || stream->ec.value() != 0)
+			if (iWrotePart == 0 || stream->ec.value() != 0 || !stream->Socket.lowest_layer().is_open())
 			{
 				kDebug(1, "cannot write to tls stream: {}", stream->ec.message());
 				break;
@@ -446,27 +356,24 @@ std::streamsize KSSLIOStream::SSLStreamWriter(const void* sBuffer, std::streamsi
 KSSLIOStream::KSSLIOStream()
 //-----------------------------------------------------------------------------
     : base_type(&m_SSLStreamBuf)
-	, m_Stream(s_KSSLContextNoVerification, false)
+	, m_Stream(s_KSSLContextNoVerification, DEFAULT_TIMEOUT, false)
 {
-	Timeout(DEFAULT_TIMEOUT);
 }
 
 //-----------------------------------------------------------------------------
 KSSLIOStream::KSSLIOStream(KSSLContext& Context)
 //-----------------------------------------------------------------------------
 	: base_type(&m_SSLStreamBuf)
-	, m_Stream(Context, false)
+	, m_Stream(Context, DEFAULT_TIMEOUT, false)
 {
-	Timeout(DEFAULT_TIMEOUT);
 }
 
 //-----------------------------------------------------------------------------
 KSSLIOStream::KSSLIOStream(const KTCPEndPoint& Endpoint, int iSecondsTimeout, bool bManualHandshake)
 //-----------------------------------------------------------------------------
     : base_type(&m_SSLStreamBuf)
-	, m_Stream(s_KSSLContextNoVerification, bManualHandshake)
+	, m_Stream(s_KSSLContextNoVerification, iSecondsTimeout, bManualHandshake)
 {
-	Timeout(iSecondsTimeout);
 	Connect(Endpoint);
 }
 
@@ -480,12 +387,7 @@ KSSLIOStream::~KSSLIOStream()
 bool KSSLIOStream::Timeout(int iSeconds)
 //-----------------------------------------------------------------------------
 {
-	if (iSeconds > std::numeric_limits<int>::max() / 1000)
-	{
-		kDebug(2, "value too big: {}", iSeconds);
-		iSeconds = std::numeric_limits<int>::max() / 1000;
-	}
-	m_Stream.iTimeoutMilliseconds = iSeconds * 1000;
+	m_Stream.iSecondsTimeout = iSeconds;
 	return true;
 }
 
@@ -495,32 +397,35 @@ bool KSSLIOStream::Connect(const KTCPEndPoint& Endpoint)
 {
 	m_Stream.bNeedHandshake = true;
 
+	boost::asio::ip::tcp::resolver Resolver(m_Stream.IOService);
+	boost::asio::ip::tcp::resolver::query query(Endpoint.Domain.get().c_str(), Endpoint.Port.get().c_str());
+	auto hosts = Resolver.resolve(query, m_Stream.ec);
+
 	if (Good())
 	{
-		boost::asio::ip::tcp::resolver Resolver(m_Stream.SSLContext.GetIOService());
-
-		boost::asio::ip::tcp::resolver::query query(Endpoint.Domain.get().c_str(),
-		                                            Endpoint.Port.get().c_str());
-		
-		auto hosts = Resolver.resolve(query, m_Stream.ec);
-
-		if (Good())
+		if (m_Stream.SSLContext.GetVerify())
 		{
-			if (m_Stream.SSLContext.GetVerify())
-			{
-				m_Stream.Socket.set_verify_mode(boost::asio::ssl::verify_peer
-				                              | boost::asio::ssl::verify_fail_if_no_peer_cert);
-			}
-			else
-			{
-				m_Stream.Socket.set_verify_mode(boost::asio::ssl::verify_none);
-			}
-
-			m_ConnectedHost = boost::asio::connect(m_Stream.Socket.lowest_layer(), hosts, m_Stream.ec);
+			m_Stream.Socket.set_verify_mode(boost::asio::ssl::verify_peer
+										  | boost::asio::ssl::verify_fail_if_no_peer_cert);
 		}
+		else
+		{
+			m_Stream.Socket.set_verify_mode(boost::asio::ssl::verify_none);
+		}
+
+		boost::asio::async_connect(m_Stream.Socket.lowest_layer(),
+								   hosts,
+								   [&](const boost::system::error_code& ec,
+									   const boost::asio::ip::tcp::endpoint& endpoint)
+		{
+			m_ConnectedHost = endpoint;
+			m_Stream.ec = ec;
+		});
+
+		m_Stream.RunTimed();
 	}
 
-	if (!Good())
+	if (!Good() || !m_Stream.Socket.lowest_layer().is_open())
 	{
 		kDebug(2, "{}", Error());
 		return false;

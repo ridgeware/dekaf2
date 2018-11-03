@@ -46,6 +46,7 @@
 
 #include <boost/asio.hpp>
 #include <boost/asio/ip/tcp.hpp>
+#include "bits/kasiostream.h"
 #include "kstring.h"
 #include "kstream.h" // TODO remove
 #include "kstreambuf.h"
@@ -62,7 +63,7 @@ class KTCPIOStream : public std::iostream
 {
 	using base_type = std::iostream;
 
-	enum { DEFAULT_TIMEOUT = 1 * 30 };
+	enum { DEFAULT_TIMEOUT = 15 };
 
 //----------
 public:
@@ -79,7 +80,7 @@ public:
 	/// KTCPEndPoint as the server to connect to - can be constructed from
 	/// a variety of inputs, like strings or KURL
 	/// @param iSecondsTimeout
-	/// Timeout in seconds for any I/O. Defaults to 60.
+	/// Timeout in seconds for any I/O. Defaults to 15.
 	KTCPIOStream(const KTCPEndPoint& Endpoint, int iSecondsTimeout = DEFAULT_TIMEOUT);
 	//-----------------------------------------------------------------------------
 
@@ -98,7 +99,7 @@ public:
 	/// @param Endpoint
 	/// KTCPEndPoint as the server to connect to - can be constructed from
 	/// a variety of inputs, like strings or KURL
-	bool connect(const KTCPEndPoint& Endpoint);
+	bool Connect(const KTCPEndPoint& Endpoint);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -109,7 +110,7 @@ public:
 	bool open(const KTCPEndPoint& Endpoint)
 	//-----------------------------------------------------------------------------
 	{
-		return connect(Endpoint);
+		return Connect(Endpoint);
 	}
 
 	//-----------------------------------------------------------------------------
@@ -158,21 +159,9 @@ public:
 private:
 //----------
 
-    boost::asio::io_service m_IO_Service;
 	using tcpstream = boost::asio::basic_stream_socket<boost::asio::ip::tcp>;
 
-	struct Stream_t
-	{
-		Stream_t(boost::asio::io_service& ioservice)
-		: Socket(ioservice)
-		{}
-		
-		tcpstream Socket;
-		boost::system::error_code ec;
-		int iTimeoutMilliseconds { 30 * 1000 };
-	};
-
-	Stream_t m_Stream;
+	KAsioStream<tcpstream> m_Stream;
 
 #if (BOOST_VERSION < 106600)
 	boost::asio::ip::tcp::resolver::iterator m_ConnectedHost;
@@ -182,13 +171,6 @@ private:
 
 	KBufferedStreamBuf m_TCPStreamBuf{&TCPStreamReader, &TCPStreamWriter, &m_Stream, &m_Stream};
 
-	enum POLLSTATE
-	{
-		POLL_FAILURE = 0,
-		POLL_SUCCESS = 1,
-		POLL_LAST    = 2
-	};
-
 	//-----------------------------------------------------------------------------
 	/// this is the custom streambuf reader
 	static std::streamsize TCPStreamReader(void* sBuffer, std::streamsize iCount, void* stream);
@@ -197,10 +179,6 @@ private:
 	//-----------------------------------------------------------------------------
 	/// this is the custom streambuf writer
 	static std::streamsize TCPStreamWriter(const void* sBuffer, std::streamsize iCount, void* stream);
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	static POLLSTATE timeout(bool bForReading, Stream_t* stream);
 	//-----------------------------------------------------------------------------
 
 };

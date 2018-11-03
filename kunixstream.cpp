@@ -56,84 +56,6 @@ namespace dekaf2 {
 
 
 //-----------------------------------------------------------------------------
-KUnixIOStream::POLLSTATE KUnixIOStream::timeout(bool bForReading, Stream_t* stream)
-//-----------------------------------------------------------------------------
-{
-
-#ifdef DEKAF2_IS_UNIX
-
-	pollfd what;
-
-	short event = (bForReading) ? POLLIN : POLLOUT;
-	what.fd     = stream->Socket.lowest_layer().native_handle();
-	what.events = event;
-
-	// now check if there is data available coming in from the
-	// underlying OS socket
-	int err = ::poll(&what, 1, stream->iTimeoutMilliseconds);
-
-	if (err < 0)
-	{
-		kDebug(1, "poll returned {}", strerror(errno));
-	}
-	else if (err == 1)
-	{
-		if ((what.revents & event) == event)
-		{
-			if ((what.revents & POLLHUP) == POLLHUP)
-			{
-				return POLL_LAST;
-			}
-			else
-			{
-				return POLL_SUCCESS;
-			}
-		}
-	}
-
-#elif DEKAF2_IS_WINDOWS
-
-	WSAPOLLFD what;
-
-	short event = (bForReading) ? POLLIN : POLLOUT;
-	what.fd     = stream->Socket.lowest_layer().native_handle();
-	what.events = event;
-
-	// now check if there is data available coming in from the
-	// underlying OS socket
-	int err = WSAPoll(&what, 1, stream->iTimeoutMilliseconds);
-
-	if (err < 0)
-	{
-		// TODO check if strerror is appropriate on Windows,
-		// probably FormatMessage() needs to be used (or simply
-		// the naked error number..)
-		kDebug(1, "poll returned {}", strerror(WSAGetLastError()));
-	}
-	else if (err == 1)
-	{
-		if ((what.revents & event) == event)
-		{
-			if ((what.revents & POLLHUP) == POLLHUP)
-			{
-				return POLL_LAST;
-			}
-			else
-			{
-				return POLL_SUCCESS;
-			}
-		}
-	}
-
-#endif
-
-	kDebug(2, "Unix socket timeout");
-
-	return POLL_FAILURE;
-
-} // timeout
-
-//-----------------------------------------------------------------------------
 std::streamsize KUnixIOStream::UnixStreamReader(void* sBuffer, std::streamsize iCount, void* stream_)
 //-----------------------------------------------------------------------------
 {
@@ -144,16 +66,18 @@ std::streamsize KUnixIOStream::UnixStreamReader(void* sBuffer, std::streamsize i
 
 	if (stream_)
 	{
-		Stream_t* stream = static_cast<Stream_t*>(stream_);
+		auto stream = static_cast<KAsioStream<unixstream>*>(stream_);
 
-		if (timeout(true, stream) == POLL_FAILURE)
+		stream->Socket.async_read_some(boost::asio::buffer(sBuffer, iCount),
+		[&](const boost::system::error_code& ec, std::size_t bytes_transferred)
 		{
-			return -1;
-		}
+			stream->ec = ec;
+			iRead = bytes_transferred;
+		});
 
-		iRead = stream->Socket.read_some(boost::asio::buffer(sBuffer, iCount), stream->ec);
+		stream->RunTimed();
 
-		if (iRead < 0 || stream->ec.value() != 0)
+		if (iRead == 0 || stream->ec.value() != 0 || !stream->Socket.is_open())
 		{
 			kDebug(1, "cannot read from unix stream: {}", stream->ec.message());
 		}
@@ -176,20 +100,24 @@ std::streamsize KUnixIOStream::UnixStreamWriter(const void* sBuffer, std::stream
 
 	if (stream_)
 	{
-		Stream_t* stream = static_cast<Stream_t*>(stream_);
+		auto stream = static_cast<KAsioStream<unixstream>*>(stream_);
 
 		for (;iWrote < iCount;)
 		{
-			if (timeout(false, stream) != POLL_SUCCESS)
-			{
-				return -1;
-			}
+			std::size_t iWrotePart { 0 };
 
-			std::size_t iWrotePart = stream->Socket.write_some(boost::asio::buffer(static_cast<const char*>(sBuffer) + iWrote, iCount - iWrote), stream->ec);
+			stream->Socket.async_write_some(boost::asio::buffer(static_cast<const char*>(sBuffer) + iWrote, iCount - iWrote),
+			[&](const boost::system::error_code& ec, std::size_t bytes_transferred)
+			{
+				stream->ec = ec;
+				iWrotePart = bytes_transferred;
+			});
+
+			stream->RunTimed();
 
 			iWrote += iWrotePart;
 
-			if (iWrotePart == 0 || stream->ec.value() != 0)
+			if (iWrotePart == 0 || stream->ec.value() != 0 || !stream->Socket.is_open())
 			{
 				kDebug(1, "cannot write to unix stream: {}", stream->ec.message());
 				break;
@@ -205,19 +133,17 @@ std::streamsize KUnixIOStream::UnixStreamWriter(const void* sBuffer, std::stream
 KUnixIOStream::KUnixIOStream()
 //-----------------------------------------------------------------------------
     : base_type(&m_TCPStreamBuf)
-    , m_Stream(m_IO_Service)
+    , m_Stream(DEFAULT_TIMEOUT)
 {
-	Timeout(DEFAULT_TIMEOUT);
 }
 
 //-----------------------------------------------------------------------------
 KUnixIOStream::KUnixIOStream(KStringViewZ sSocketFile, int iSecondsTimeout)
 //-----------------------------------------------------------------------------
     : base_type(&m_TCPStreamBuf)
-    , m_Stream(m_IO_Service)
+    , m_Stream(iSecondsTimeout)
 {
-	Timeout(iSecondsTimeout);
-	connect(sSocketFile);
+	Connect(sSocketFile);
 }
 
 //-----------------------------------------------------------------------------
@@ -230,22 +156,23 @@ KUnixIOStream::~KUnixIOStream()
 bool KUnixIOStream::Timeout(int iSeconds)
 //-----------------------------------------------------------------------------
 {
-	if (iSeconds > std::numeric_limits<int>::max() / 1000)
-	{
-		kDebug(2, "value too big: {}", iSeconds);
-		iSeconds = std::numeric_limits<int>::max() / 1000;
-	}
-	m_Stream.iTimeoutMilliseconds = iSeconds * 1000;
+	m_Stream.iSecondsTimeout = iSeconds;
 	return true;
 }
 
 //-----------------------------------------------------------------------------
-bool KUnixIOStream::connect(KStringViewZ sSocketFile)
+bool KUnixIOStream::Connect(KStringViewZ sSocketFile)
 //-----------------------------------------------------------------------------
 {
-	m_Stream.Socket.connect(boost::asio::local::stream_protocol::endpoint(sSocketFile), m_Stream.ec);
+	m_Stream.Socket.async_connect(boost::asio::local::stream_protocol::endpoint(sSocketFile),
+								  [&](const boost::system::error_code& ec)
+	{
+		m_Stream.ec = ec;
+	});
 
-	if (!Good())
+	m_Stream.RunTimed();
+
+	if (!Good() || !m_Stream.Socket.is_open())
 	{
 		kDebug(2, "{}", Error());
 		return false;

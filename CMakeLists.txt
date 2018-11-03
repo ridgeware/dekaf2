@@ -263,6 +263,7 @@ configure_file("bits/kconfiguration.h.in" "${GENERATED_FILES_DIR}/kconfiguration
 
 set (BITS_HEADERS
 	# KEEP ALPHABETIZED!!
+	bits/kasiostream.h
 	bits/kbaseshell.h
 	bits/kbasepipe.h
 	bits/kcppcompat.h
@@ -571,6 +572,10 @@ target_link_libraries(getentities dekaf2)
 add_subdirectory(utests)
 add_subdirectory(smoketests)
 add_subdirectory(benchmarks)
+
+# for testing
+set(CMAKE_INSTALL_PREFIX "~/src/install")
+file(MAKE_DIRECTORY ${CMAKE_INSTALL_PREFIX})
 
 install(TARGETS dekaf2 DESTINATION lib)
 install(FILES ${PUBLIC_HEADERS} DESTINATION include/dekaf2)

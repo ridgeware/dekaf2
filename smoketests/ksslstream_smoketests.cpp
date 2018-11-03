@@ -11,7 +11,7 @@ TEST_CASE("KTCPCLient")
 {
 	KTCPClient stream;
 	stream.Timeout(5);
-	stream.connect("www.google.com:80");
+	stream.Connect("www.google.com:80");
 
 	stream.SetWriterEndOfLine("\r\n");
 	stream.SetReaderRightTrim("\r\n");

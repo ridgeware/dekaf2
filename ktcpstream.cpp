@@ -78,7 +78,7 @@ std::streamsize KTCPIOStream::TCPStreamReader(void* sBuffer, std::streamsize iCo
 
 		if (iRead == 0 || stream->ec.value() != 0 || !stream->Socket.is_open())
 		{
-			kDebug(1, "cannot read from tcp stream: {}", stream->ec.message());
+			kDebug(3, "cannot read from tcp stream: {}", stream->ec.message());
 		}
 	}
 
@@ -117,7 +117,7 @@ std::streamsize KTCPIOStream::TCPStreamWriter(const void* sBuffer, std::streamsi
 
 			if (iWrotePart == 0 || stream->ec.value() != 0 || !stream->Socket.is_open())
 			{
-				kDebug(1, "cannot write to tcp stream: {}", stream->ec.message());
+				kDebug(3, "cannot write to tcp stream: {}", stream->ec.message());
 				break;
 			}
 		}

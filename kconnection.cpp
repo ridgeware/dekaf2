@@ -196,7 +196,7 @@ KString KConnection::Error() const
 } // Error
 
 //-----------------------------------------------------------------------------
-bool KConnection::setConnection(std::unique_ptr<KStream>&& Stream, const KTCPEndPoint& EndPoint)
+bool KConnection::setConnection(std::unique_ptr<KStream>&& Stream, KStringView EndPoint)
 //-----------------------------------------------------------------------------
 {
 	if (m_bStreamIsNotOwned)
@@ -209,12 +209,13 @@ bool KConnection::setConnection(std::unique_ptr<KStream>&& Stream, const KTCPEnd
 
 	if (Good())
 	{
-		kDebug(3, "connected to {}:{}", m_Endpoint.Domain.Serialize(), m_Endpoint.Port.Serialize());
+
+		kDebug(3, "connected to {}", m_Endpoint);
 		return true;
 	}
 	else
 	{
-		kDebug(1, "failed to connect to {}:{}: {}", m_Endpoint.Domain.Serialize(), m_Endpoint.Port.Serialize(), Error());
+		kDebug(1, "failed to connect to {}: {}", m_Endpoint, Error());
 		return false;
 	}
 
@@ -226,7 +227,7 @@ bool KConnection::setConnection(std::unique_ptr<KStream>&& Stream, const KTCPEnd
 bool KTCPConnection::Connect(const KTCPEndPoint& Endpoint)
 //-----------------------------------------------------------------------------
 {
-	return setConnection(CreateKTCPStream(Endpoint), Endpoint);
+	return setConnection(CreateKTCPStream(Endpoint), Endpoint.Serialize());
 
 } // Connect
 
@@ -311,7 +312,7 @@ KString KUnixConnection::Error() const
 bool KSSLConnection::Connect(const KTCPEndPoint& Endpoint, bool bVerifyCerts)
 //-----------------------------------------------------------------------------
 {
-	return setConnection(CreateKSSLClient(Endpoint, bVerifyCerts), Endpoint);
+	return setConnection(CreateKSSLClient(Endpoint, bVerifyCerts), Endpoint.Serialize());
 
 } // Connect
 
@@ -380,27 +381,34 @@ KString KSSLConnection::Error() const
 std::unique_ptr<KConnection> KConnection::Create(const KURL& URL, bool bForceSSL, bool bVerifyCerts)
 //-----------------------------------------------------------------------------
 {
-	url::KPort Port = URL.Port;
-
-	if (Port.empty())
+	if (URL.Protocol == url::KProtocol::UNIX)
 	{
-		Port = KString::to_string(URL.Protocol.DefaultPort());
-	}
-
-	if (Port == "443" || URL.Protocol == url::KProtocol::HTTPS || bForceSSL)
-	{
-		auto C = std::make_unique<KSSLConnection>();
-		C->Connect(KTCPEndPoint(URL.Domain, Port), bVerifyCerts);
-		return std::move(C);
+		auto C = std::make_unique<KUnixConnection>();
+		C->Connect(URL.Path.get());
+		return C;
 	}
 	else
 	{
-		auto C = std::make_unique<KTCPConnection>();
-		C->Connect(KTCPEndPoint(URL.Domain, Port));
-		return std::move(C);
-	}
+		url::KPort Port = URL.Port;
 
-	return std::make_unique<KTCPConnection>();
+		if (Port.empty())
+		{
+			Port = KString::to_string(URL.Protocol.DefaultPort());
+		}
+
+		if (Port == "443" || URL.Protocol == url::KProtocol::HTTPS || bForceSSL)
+		{
+			auto C = std::make_unique<KSSLConnection>();
+			C->Connect(KTCPEndPoint(URL.Domain, Port), bVerifyCerts);
+			return C;
+		}
+		else
+		{
+			auto C = std::make_unique<KTCPConnection>();
+			C->Connect(KTCPEndPoint(URL.Domain, Port));
+			return C;
+		}
+	}
 
 } // Create
 

@@ -152,9 +152,17 @@ void KTCPServer::Session(KStream& stream, KStringView sRemoteEndPoint)
 void KTCPServer::RunSession(KStream& stream, KString sRemoteEndPoint)
 //-----------------------------------------------------------------------------
 {
-	kDebug(3, "accepting new connection from {} on port {}",
-	             sRemoteEndPoint,
-	             m_iPort);
+	if (m_iPort)
+	{
+		kDebug(3, "accepting new TCP connection from {} on port {}",
+					 sRemoteEndPoint,
+					 m_iPort);
+	}
+	else
+	{
+		kDebug(3, "accepting new unix socket connection from {}",
+			   sRemoteEndPoint);
+	}
 
 	DEKAF2_TRY
 	{
@@ -171,9 +179,17 @@ void KTCPServer::RunSession(KStream& stream, KString sRemoteEndPoint)
 		kException(e);
 	}
 
-	kDebug(3, "closing connection with {} on port {}",
-	             sRemoteEndPoint,
-	             m_iPort);
+	if (m_iPort)
+	{
+		kDebug(3, "closing TCP connection with {} on port {}",
+					 sRemoteEndPoint,
+					 m_iPort);
+	}
+	else
+	{
+		kDebug(3, "closing unix socket connection with {}",
+			   sRemoteEndPoint);
+	}
 
 } // RunSession
 
@@ -253,19 +269,9 @@ void KTCPServer::TCPServer(bool ipv6)
 
 		KSSLContext SSLContext(true, false, false);
 
-		if (m_bBufferedCerts)
+		if (!SSLContext.SetSSLCertificates(m_sCert, m_sKey, m_sPassword))
 		{
-			if (!SSLContext.SetSSLCertificates(m_sCert, m_sKey))
-			{
-				return; // already logged
-			}
-		}
-		else
-		{
-			if (!SSLContext.LoadSSLCertificates(m_sCert, m_sKey))
-			{
-				return; // already logged
-			}
+			return; // already logged
 		}
 
 		while (acceptor.is_open() && !m_bQuit)
@@ -340,7 +346,7 @@ void KTCPServer::UnixServer()
 				stream->Timeout(m_iTimeout);
 				m_ThreadPool->push([ this, moved_stream = std::move(stream) ]()
 				{
-					RunSession(*moved_stream, KString{});
+					RunSession(*moved_stream, m_sSocketFile);
 				});
 			}
 		}
@@ -355,23 +361,21 @@ void KTCPServer::UnixServer()
 } // UnixServer
 
 //-----------------------------------------------------------------------------
-bool KTCPServer::LoadSSLCertificates(KStringView sCert, KStringView sKey)
+bool KTCPServer::LoadSSLCertificates(KStringViewZ sCert, KStringViewZ sKey, KStringView sPassword)
 //-----------------------------------------------------------------------------
 {
-	m_sCert = sCert;
-	m_sKey = sKey;
-	m_bBufferedCerts = false; // we point to files
-	return true; // TODO add validity check
+	m_sPassword = sPassword;
+	return kReadAll(sCert, m_sCert) && kReadAll(sKey, m_sKey);
 
 } // SetSSLCertificateFiles
 
 //-----------------------------------------------------------------------------
-bool KTCPServer::SetSSLCertificates(KStringView sCert, KStringView sKey)
+bool KTCPServer::SetSSLCertificates(KStringView sCert, KStringView sKey, KStringView sPassword)
 //-----------------------------------------------------------------------------
 {
+	m_sPassword = sPassword;
 	m_sCert = sCert;
 	m_sKey = sKey;
-	m_bBufferedCerts = true; // we buffer the certs
 	return true; // TODO add validity check
 
 } // SetSSLCertificates

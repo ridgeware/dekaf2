@@ -206,7 +206,7 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	const KTCPEndPoint& EndPoint() const
+	const KString& EndPoint() const
 	//-----------------------------------------------------------------------------
 	{
 		return m_Endpoint;
@@ -218,7 +218,7 @@ protected:
 
 	//-----------------------------------------------------------------------------
 	// returns true if connection is Good()
-	bool setConnection(std::unique_ptr<KStream>&& Stream, const KTCPEndPoint& EndPoint);
+	bool setConnection(std::unique_ptr<KStream>&& Stream, KStringView EndPoint);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -235,7 +235,7 @@ protected:
 		return m_Stream.get();
 	}
 
-	KTCPEndPoint m_Endpoint;
+	KString m_Endpoint;
 
 //------
 private:

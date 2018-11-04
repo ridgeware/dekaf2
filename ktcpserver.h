@@ -155,20 +155,20 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Set the SSL/TLS certificate files
-	bool LoadSSLCertificates(KStringView sCert, KStringView sKey);
+	bool LoadSSLCertificates(KStringViewZ sCert, KStringViewZ sKey, KStringView sPassword = KStringView{});
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// Set the SSL/TLS certificates as strings
-	bool SetSSLCertificates(KStringView sCert, KStringView sKey);
+	bool SetSSLCertificates(KStringView sCert, KStringView sKey, KStringView sPassword = KStringView{});
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// Start the server
-	/// @param iTimeoutInSeconds Timeout for I/O operations in seconds (default 300)
+	/// @param iTimeoutInSeconds Timeout for I/O operations in seconds (default 15)
 	/// @param bBlock If true will only return when server is destructed. If false
 	/// starts a server thread and returns immediately.
-	bool Start(uint16_t iTimeoutInSeconds = 5 * 60, bool bBlock = true);
+	bool Start(uint16_t iTimeoutInSeconds = 15, bool bBlock = true);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -294,14 +294,14 @@ private:
 	KString m_sSocketFile;
 	KString m_sCert;
 	KString m_sKey;
+	KString m_sPassword;
 	uint16_t m_iPort { 0 };
-	uint16_t m_iTimeout { 1*30 };
+	uint16_t m_iTimeout { 15 };
 	bool m_bBlock { true };
 	bool m_bQuit { false };
 	bool m_bStartIPv4 { true };
 	bool m_bStartIPv6 { true };
 	bool m_bIsSSL { false };
-	bool m_bBufferedCerts { false };
 
 }; // KTCPServer
 

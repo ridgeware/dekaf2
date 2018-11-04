@@ -454,6 +454,29 @@ KTCPEndPoint::KTCPEndPoint(const KURL& URL)
 }
 
 //-------------------------------------------------------------------------
+void KTCPEndPoint::clear()
+//-------------------------------------------------------------------------
+{
+	Domain.clear();
+	Port.clear();
+}
+
+//-------------------------------------------------------------------------
+bool KTCPEndPoint::Serialize(KString& sTarget) const
+//-------------------------------------------------------------------------
+{
+	return Domain.Serialize    (sTarget)
+		&& Port.Serialize      (sTarget);
+}
+
+//-------------------------------------------------------------------------
+bool KTCPEndPoint::Serialize(KOutStream& sTarget) const
+//-------------------------------------------------------------------------
+{
+	return Domain.Serialize    (sTarget)
+		&& Port.Serialize      (sTarget);
+}
+//-------------------------------------------------------------------------
 bool operator==(const KTCPEndPoint& left, const KTCPEndPoint& right)
 //-------------------------------------------------------------------------
 {

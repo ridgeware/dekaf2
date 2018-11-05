@@ -108,7 +108,7 @@ KSSLContext::KSSLContext(bool bIsServer, bool bVerifyCerts, bool bAllowSSLv3)
 bool KSSLContext::LoadSSLCertificates(KStringViewZ sCert, KStringViewZ sKey, KStringView sPassword)
 //-----------------------------------------------------------------------------
 {
-	m_sPassword = m_sPassword;
+	m_sPassword.assign(sPassword.data(), sPassword.size());
 
 	boost::system::error_code ec;
 
@@ -144,7 +144,7 @@ bool KSSLContext::LoadSSLCertificates(KStringViewZ sCert, KStringViewZ sKey, KSt
 bool KSSLContext::SetSSLCertificates(KStringView sCert, KStringView sKey, KStringView sPassword)
 //-----------------------------------------------------------------------------
 {
-	m_sPassword = m_sPassword;
+	m_sPassword.assign(sPassword.data(), sPassword.size());
 
 	boost::system::error_code ec;
 

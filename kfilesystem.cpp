@@ -930,5 +930,72 @@ KDiskStat& KDiskStat::Check(KStringViewZ sPath)
 
 } // Check
 
+//-----------------------------------------------------------------------------
+bool kWriteFile (const KString& sPath, const KString& sContents, mode_t iMode/*= S_IRUSR|S_IWUSR | S_IRGRP|S_IWGRP | S_IROTH|S_IWOTH*/)
+//-----------------------------------------------------------------------------
+{
+	FILE* fp = std::fopen (sPath.c_str(), "w");
+	if (!fp) {
+		kWarning ("kWriteFile: {}: {}", strerror(errno), sPath.c_str());
+		return (false);
+	}
+
+	std::fputs (sContents.c_str(), fp);
+	std::fclose (fp);
+
+	chmod (sPath.c_str(), iMode);
+
+	return (true);
+
+} // kWriteFile
+
+//-----------------------------------------------------------------------------
+bool kMakeDir (const KString& sPath, mode_t iMode)
+//-----------------------------------------------------------------------------
+{
+	kDebugLog (2, "kMakeDir: {}", sPath);
+
+#ifndef _WIN32
+	if(0 > mkdir(sPath.c_str(), iMode))
+#else
+	if(0 > _mkdir(sPath.c_str()))
+#endif
+	{
+#ifndef _WIN32
+		if (errno == EEXIST) {
+			kDebugLog (2, "kMakeDir: {}: already exists", sPath);
+			return true;
+		}
+#endif
+		kDebugLog (1, "kMakeDir: error creating dir '{}'. Reason: %s", sPath, strerror(errno));
+		return false;
+	}
+
+	return true;
+
+} // kMakeDir
+
+//-----------------------------------------------------------------------------
+bool kReadFile (const KString& sPath, KString& sContents)
+//-----------------------------------------------------------------------------
+{
+	kDebugLog (2, "kReadFile: {}", sPath.c_str());
+
+	std::ifstream file;
+	file.open(sPath.c_str());
+	if (!file.is_open()) {
+		return false;
+	}
+	std::ostringstream ssBuffer;
+	ssBuffer << file.rdbuf();
+
+	sContents = ssBuffer.str();
+	sContents.Replace("\n\r","\n"); // Mac -> UNIX
+	sContents.Replace("\r\n","\n"); // DOS -> UNIX
+	
+	return true;
+
+} // kReadFile
+
 } // end of namespace dekaf2
 

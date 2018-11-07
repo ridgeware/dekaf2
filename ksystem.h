@@ -128,5 +128,14 @@ inline pid_t kGetPid()
 /// return thread ID
 uint64_t kGetTid();
 
+/// Execute the given command, redirect stdout and stderr into a temp file and then return in the given sOutput string.  Return code matches the exit code command that was run: 0 is normally an indication of success.
+uint8_t ksystem (const KString& sCommand, KString& sOutput);
+
+/// Execute the given command, redirect stdout and stderr into /dev/null.  Return code matches the exit code command that was run: 0 is normally an indication of success.
+uint8_t ksystem (const KString& sCommand);
+
+/// Resolve the given hostname into an IPv4 IP address, e.g. "50.1.2.3".  If hostname fails to resolve, return empty string.
+KString kResolveHostIPV4 (const KString& sHostname);
+
 } // end of namespace dekaf2
 

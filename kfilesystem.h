@@ -55,16 +55,13 @@ namespace dekaf2
 
 typedef uint16_t KFileFlags;
 
-//-----------------------------------------------------------------------------
 /// Checks if a file system entity exists
 bool kExists (KStringViewZ sPath, bool bAsFile, bool bAsDirectory, bool bTestForEmptyFile = false);
-//-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
 /// Checks if a file exists.
 /// @param bTestForEmptyFile If true treats a file as non-existing if its size is 0
-inline
-bool kFileExists (KStringViewZ sPath, bool bTestForEmptyFile = false)
+inline bool kFileExists (KStringViewZ sPath, bool bTestForEmptyFile = false)
 //-----------------------------------------------------------------------------
 {
 	return kExists(sPath, true, false, bTestForEmptyFile);
@@ -72,22 +69,18 @@ bool kFileExists (KStringViewZ sPath, bool bTestForEmptyFile = false)
 
 //-----------------------------------------------------------------------------
 /// Checks if a directory exists
-inline
-bool kDirExists (KStringViewZ sPath)
+inline bool kDirExists (KStringViewZ sPath)
 //-----------------------------------------------------------------------------
 {
 	return kExists(sPath, false, true, false);
 }
 
-//-----------------------------------------------------------------------------
 /// Remove (unlink) a file or directory tree
 bool kRemove (KStringViewZ sPath, bool bDir);
-//-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
 /// Remove (unlink) a file
-inline
-bool kRemoveFile (KStringViewZ sPath)
+inline bool kRemoveFile (KStringViewZ sPath)
 //-----------------------------------------------------------------------------
 {
 	return kRemove (sPath, false);
@@ -95,62 +88,53 @@ bool kRemoveFile (KStringViewZ sPath)
 
 //-----------------------------------------------------------------------------
 /// Remove (unlink) a directory (folder) hierarchically
-inline
-bool kRemoveDir (KStringViewZ sPath)
+inline bool kRemoveDir (KStringViewZ sPath)
 //-----------------------------------------------------------------------------
 {
 	return kRemove (sPath, true);
 }
 
-//-----------------------------------------------------------------------------
+/// Create (or trump) a file with the given contents and then chmod the file.
+bool kWriteFile (const KString& sPath, const KString& sContents, mode_t iMode = S_IRUSR|S_IWUSR | S_IRGRP|S_IWGRP | S_IROTH|S_IWOTH);
+
+/// Create a directory (folder) similar to 'mkdir -m ... path'. See also kCreateDir which acts like 'mkdir -p ...'
+bool kMakeDir (const KString& sPath, mode_t iMode = S_IRUSR|S_IWUSR|S_IXUSR | S_IRGRP|S_IWGRP|S_IXGRP | S_IROTH|S_IWOTH|S_IWOTH);
+
 /// Create a directory (folder) hierarchically
 bool kCreateDir (KStringViewZ sPath);
-//-----------------------------------------------------------------------------
 
-//-----------------------------------------------------------------------------
 /// Create a file if it does not exist, including the directory component.
 /// If the file exists, advance its last mod timestamp.
 bool kTouchFile(KStringViewZ sPath);
-//-----------------------------------------------------------------------------
 
-//-----------------------------------------------------------------------------
 /// Isolate the extension of a path (filename extension after a dot)
 KStringView kExtension(KStringView sFilePath);
-//-----------------------------------------------------------------------------
 
-//-----------------------------------------------------------------------------
 /// Remove the extension from a path (filename extension after a dot)
 KStringView kRemoveExtension(KStringView sFilePath);
-//-----------------------------------------------------------------------------
 
-//-----------------------------------------------------------------------------
 /// Isolate the basename of a path (filename without directory)
 KStringView kBasename(KStringView sFilePath);
-//-----------------------------------------------------------------------------
 
-//-----------------------------------------------------------------------------
 /// Isolate the dirname of a path (directory name without the fileame)
 KStringView kDirname(KStringView sFilePath, bool bWithTrailingSlash = false);
-//-----------------------------------------------------------------------------
 
-//-----------------------------------------------------------------------------
 /// Get last modification time of a file, returns -1 if file not found
 time_t kGetLastMod(KStringViewZ sFilePath);
-//-----------------------------------------------------------------------------
 
-//-----------------------------------------------------------------------------
 /// Get size in bytes of a file, returns npos if file not found
 size_t kGetNumBytes(KStringViewZ sFilePath);
-//-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
 /// Get size in bytes of a file, returns npos if file not found
-inline
-size_t kFileSize(KStringViewZ sFilePath)
+inline size_t kFileSize(KStringViewZ sFilePath)
 //-----------------------------------------------------------------------------
 {
 	return kGetNumBytes(sFilePath);
 }
+
+/// Read entire text file into a single string and convert DOS newlines
+bool kReadFile (const KString& sPath, KString& sContents);
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Retrieve and filter directory listings

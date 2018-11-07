@@ -54,7 +54,9 @@
 namespace dekaf2
 {
 
+//-----------------------------------------------------------------------------
 bool kSetCWD (KStringViewZ sPath)
+//-----------------------------------------------------------------------------
 {
 #ifdef DEKAF2_HAS_STD_FILESYSTEM
 	std::error_code ec;
@@ -73,7 +75,8 @@ bool kSetCWD (KStringViewZ sPath)
 	}
 	return true;
 #endif
-}
+
+} // kSetCWD
 
 //-----------------------------------------------------------------------------
 KString kGetCWD ()
@@ -210,7 +213,9 @@ KString kGetHostname (KString& sHostname)
 
 } // kGetHostname
 
+//-----------------------------------------------------------------------------
 uint64_t kGetTid()
+//-----------------------------------------------------------------------------
 {
 #ifdef DEKAF2_IS_OSX
 	uint64_t TID;
@@ -221,6 +226,65 @@ uint64_t kGetTid()
 #endif
 
 } // kGetTid
+
+//-----------------------------------------------------------------------------
+uint8_t ksystem (const KString& sCommand, KString& sOutput)
+//-----------------------------------------------------------------------------
+{
+	KString sTmp;
+	sTmp.Format ("/tmp/ksystem{}.out", getpid());
+
+	KString sWrapped;
+	sWrapped.Format ("({}) > {} 2>&1", sCommand, sTmp);
+
+	// - - - - - - - - - - - - - - - - - - - - - - - -
+	// shell out to run the command:
+	// - - - - - - - - - - - - - - - - - - - - - - - -
+	uint8_t iStatus = system (sWrapped.c_str());
+
+	sOutput.clear();
+	kReadFile (sTmp, sOutput);
+	kRemoveFile (sTmp);
+
+	return (iStatus);  // 0 => success
+
+} // ksystem
+
+//-----------------------------------------------------------------------------
+uint8_t ksystem (const KString& sCommand)
+//-----------------------------------------------------------------------------
+{
+	KString sWrapped;
+	sWrapped.Format ("({}) > {} 2>&1", sCommand, "/dev/null");
+
+	// - - - - - - - - - - - - - - - - - - - - - - - -
+	// shell out to run the command:
+	// - - - - - - - - - - - - - - - - - - - - - - - -
+	uint8_t iStatus = system (sWrapped.c_str());
+
+	return (iStatus);  // 0 => success
+
+} // ksystem
+
+//-----------------------------------------------------------------------------
+KString kResolveHostIPV4 (const KString& sHostname)
+//-----------------------------------------------------------------------------
+{
+	KString sIPV4;
+	struct hostent* pHost = gethostbyname (sHostname.c_str());
+	if (!pHost)
+	{
+		kDebugLog (1, "kResolveHostIPV4: {} --> FAILED", sHostname);
+	}
+	else
+	{
+		sIPV4 = inet_ntoa (*(in_addr*)(pHost->h_addr_list[0]));
+		kDebugLog (1, "kResolveHostIPV4: {} --> {}", sHostname, sIPV4);
+	}
+
+	return sIPV4;
+
+} // kResolveHostIPV4
 
 } // end of namespace dekaf2
 

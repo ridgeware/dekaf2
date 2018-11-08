@@ -246,10 +246,17 @@ uint8_t ksystem (const KString& sCommand, KString& sOutput)
 	kDebugLog (3, "ksystem: exit code: {}", iStatus);
 
 	sOutput.clear();
-	kReadFile (sTmp, sOutput);
-	kDebugLog (3, "ksystem: output contained {} bytes", sOutput.size());
 
-	kRemoveFile (sTmp);
+	if (!kFileExists (sTmp))
+	{
+		kDebugLog (1, "ksystem: outfile is missing: {}", sOutput);
+	}
+	else
+	{
+		kReadFile (sTmp, sOutput);
+		kDebugLog (3, "ksystem: output contained {} bytes", sOutput.size());
+		kRemoveFile (sTmp);
+	}
 
 	return (iStatus);  // 0 => success
 

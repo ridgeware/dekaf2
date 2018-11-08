@@ -235,7 +235,7 @@ uint8_t ksystem (const KString& sCommand, KString& sOutput)
 	sTmp.Format ("/tmp/ksystem{}.out", getpid());
 
 	KString sWrapped;
-	sWrapped.Format ("({}) > {} 2>&1", sCommand, sTmp);
+	sWrapped.Format ("({} 2>&1) > {}", sCommand, sTmp);
 
 	kDebugLog (3, "ksystem: {}", sWrapped);
 

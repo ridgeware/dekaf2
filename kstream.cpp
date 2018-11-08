@@ -41,7 +41,6 @@
 */
 
 #include "kstream.h"
-#include "kurl.h"
 
 namespace dekaf2
 {

@@ -39,17 +39,8 @@
 // +-------------------------------------------------------------------------+
 */
 
-
-#include <limits>
-#ifdef DEKAF2_IS_UNIX
-#include <poll.h>
-#elif DEKAF2_IS_WINDOWS
-#include "Mswsock.h" // WSAPoll
-#endif
-#include <openssl/ssl.h>
 #include "ksslstream.h"
 #include "klog.h"
-
 
 namespace dekaf2 {
 
@@ -307,7 +298,7 @@ std::streamsize KSSLIOStream::SSLStreamWriter(const void* sBuffer, std::streamsi
 
 		if (!stream->bManualHandshake)
 		{
-			if (!handshake(stream)) // SSL clients write first
+			if (!handshake(stream))
 			{
 				return -1;
 			}

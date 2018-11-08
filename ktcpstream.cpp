@@ -40,17 +40,9 @@
  // +-------------------------------------------------------------------------+
  */
 
-
-#include <limits>
-#ifdef DEKAF2_IS_UNIX
-#include <poll.h>
-#elif DEKAF2_IS_WINDOWS
-#include "Mswsock.h" // WSAPoll
-#endif
 #include "ktcpstream.h"
 #include "klog.h"
 #include "kurl.h"
-
 
 namespace dekaf2 {
 

@@ -237,13 +237,18 @@ uint8_t ksystem (const KString& sCommand, KString& sOutput)
 	KString sWrapped;
 	sWrapped.Format ("({}) > {} 2>&1", sCommand, sTmp);
 
+	kDebugLog (3, "ksystem: {}", sWrapped);
+
 	// - - - - - - - - - - - - - - - - - - - - - - - -
 	// shell out to run the command:
 	// - - - - - - - - - - - - - - - - - - - - - - - -
 	uint8_t iStatus = system (sWrapped.c_str());
+	kDebugLog (3, "ksystem: exit code: {}", iStatus);
 
 	sOutput.clear();
 	kReadFile (sTmp, sOutput);
+	kDebugLog (3, "ksystem: output contained {} bytes", sOutput.size());
+
 	kRemoveFile (sTmp);
 
 	return (iStatus);  // 0 => success

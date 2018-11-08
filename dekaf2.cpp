@@ -119,34 +119,61 @@ Dekaf::Dekaf()
 
 	// allow KLog() calls from dekaf now
 	m_bInConstruction = false;
-}
+
+} // Dekaf - constructor
+
+//---------------------------------------------------------------------------
+static void SpecialLog (std::string sLogline)
+//---------------------------------------------------------------------------
+{
+	FILE* fp = std::fopen ("/tmp/dekaf2locale.err", "a");
+	std::fputs (sLogline.c_str(), fp);
+	std::fclose (fp);
+	chmod ("/tmp/dekaf2locale.err", S_IRUSR|S_IWUSR | S_IRGRP|S_IWGRP | S_IROTH|S_IWOTH);
+
+} // SpecialLog
 
 //---------------------------------------------------------------------------
 bool Dekaf::SetUnicodeLocale(KStringView sName)
 //---------------------------------------------------------------------------
 {
+	// WARNING: klog object will only be iniitialized if the programmer was smart enough to order these two statements in main() like this:
+	//    KLog().SetName("BBAPI");
+	//    Dekaf().SetUnicodeLocale("en_US.UTF-8");
+
 	m_sLocale = sName;
+
+	SpecialLog (std::string("SUL: SetUnicodeLocale(") + sName.data() + std::string(")...\n"));
 
 	DEKAF2_TRY
 	{
 		if (m_sLocale.empty())
 		{
+			SpecialLog (std::string("SUL: thinks its empty, so setting to ") + std::locale().name() + std::string("\n"));
 			m_sLocale = std::locale().name();
 		}
 		if (m_sLocale.empty() || m_sLocale == "C" || m_sLocale == "C.UTF-8")
 		{
+			SpecialLog (std::string("SUL: setting to default: ") + DefaultLocale + std::string("\n"));
 			m_sLocale = DefaultLocale;
 		}
 		std::setlocale(LC_ALL, m_sLocale.c_str());
 		std::locale::global(std::locale(m_sLocale.c_str()));
 		m_sLocale = std::locale().name();
+
+		SpecialLog (std::string("SUL: m_sLocale = ") + m_sLocale.c_str() + std::string("\n"));
+		SpecialLog (std::string("SUL: about to call iswupper() - moment of truth\n"));
 		if (!std::iswupper(0x53d))
 		{
-			std::cerr << "dekaf: cannot set C++ locale to Unicode" << std::endl;
+			SpecialLog (std::string("SUL: cannot set C++ locale to Unicode\n"));
+			std::cerr << "dekaf: cannot set C++ locale to Unicode" << std::endl; // omg: stderr?? klog not avail yet!!
 			return false;
 		}
 	}
-	DEKAF2_CATCH (std::exception& e) {
+	DEKAF2_CATCH (std::exception& e)
+	{
+		SpecialLog (std::string("SUL: exception thrown: cannot set locale"));
+
 		if (m_bInConstruction)
 		{
 			std::cerr << e.what() << std::endl;
@@ -158,8 +185,11 @@ bool Dekaf::SetUnicodeLocale(KStringView sName)
 		m_sLocale.erase();
 	}
 
+	SpecialLog (std::string("SUL: returning locale set as: ") + m_sLocale.c_str() + std::string("\n"));
+
 	return !m_sLocale.empty();
-}
+
+} // SetUnicodeLocale
 
 //---------------------------------------------------------------------------
 void Dekaf::SetRandomSeed(unsigned int iSeed)

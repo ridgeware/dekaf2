@@ -249,7 +249,7 @@ uint8_t ksystem (const KString& sCommand, KString& sOutput)
 
 	if (!kFileExists (sTmp))
 	{
-		kDebugLog (1, "ksystem: outfile is missing: {}", sOutput);
+		kDebugLog (1, "ksystem: outfile is missing: {}", sTmp);
 	}
 	else
 	{

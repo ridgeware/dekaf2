@@ -145,34 +145,49 @@ bool Dekaf::SetUnicodeLocale(KStringView sName)
 
 	m_sLocale = sName;
 
-	//SpecialLog (std::string("SUL: SetUnicodeLocale(") + sName.data() + std::string(")...\n"));
 	kDebugLog (3, "SUL: SetUnicodeLocale({})...\n", sName);
+
+	if (m_sLocale.empty())
+	{
+		kDebugLog (3, "SUL: thinks its empty, so setting to: {}", std::locale().name());
+		m_sLocale = std::locale().name();
+	}
+
+	if (m_sLocale.empty() || m_sLocale == "C" || m_sLocale == "C.UTF-8")
+	{
+		kDebugLog (3, "SUL: setting to default: {}", DefaultLocale);
+		m_sLocale = DefaultLocale;
+	}
 
 	DEKAF2_TRY
 	{
-		if (m_sLocale.empty())
-		{
-			//SpecialLog (std::string("SUL: thinks its empty, so setting to ") + std::locale().name() + std::string("\n"));
-			kDebugLog (3, "SUL: thinks its empty, so setting to: {}", std::locale().name());
-			m_sLocale = std::locale().name();
-		}
-		if (m_sLocale.empty() || m_sLocale == "C" || m_sLocale == "C.UTF-8")
-		{
-			//SpecialLog (std::string("SUL: setting to default: ") + DefaultLocale + std::string("\n"));
-			kDebugLog (3, "SUL: setting to default: {}", DefaultLocale);
-			m_sLocale = DefaultLocale;
-		}
+		kDebugLog (3, "SUL: about to call: {}", "std::setlocale()");
 		std::setlocale(LC_ALL, m_sLocale.c_str());
-		std::locale::global(std::locale(m_sLocale.c_str()));
-		m_sLocale = std::locale().name();
+	}
+	DEKAF2_CATCH (std::exception& e)
+	{
+		kDebugLog (3, "SUL: exception thrown: when calling: {}", "std::setlocale()");
+	}
 
-		//SpecialLog (std::string("SUL: m_sLocale = ") + m_sLocale.c_str() + std::string("\n"));
-		kDebugLog (3, "SUL: m_sLocale = {}", m_sLocale);
-		//SpecialLog (std::string("SUL: about to call iswupper() - moment of truth\n"));
-		kDebugLog (3, "SUL: about to call iswupper() - moment of truth");
+	DEKAF2_TRY
+	{
+		kDebugLog (3, "SUL: about to call: {}", "std::local::global()");
+		std::locale::global(std::locale(m_sLocale.c_str()));
+	}
+	DEKAF2_CATCH (std::exception& e)
+	{
+		kDebugLog (3, "SUL: exception thrown: when calling: {}", "std::local::global()");
+	}
+
+	m_sLocale = std::locale().name();
+
+	kDebugLog (3, "SUL: m_sLocale = {}", m_sLocale);
+
+	DEKAF2_TRY
+	{
+		kDebugLog (3, "SUL: about to call: {}", "std::iswupper()");
 		if (!std::iswupper(0x53d))
 		{
-			//SpecialLog (std::string("SUL: cannot set C++ locale to Unicode\n"));
 			kDebugLog (3, "SUL: cannot set C++ locale to Unicode");
 			std::cerr << "dekaf: cannot set C++ locale to Unicode" << std::endl; // omg: stderr?? klog not avail yet!!
 			return false;
@@ -180,8 +195,7 @@ bool Dekaf::SetUnicodeLocale(KStringView sName)
 	}
 	DEKAF2_CATCH (std::exception& e)
 	{
-		//SpecialLog (std::string("SUL: exception thrown: cannot set locale"));
-		kDebugLog (3, "SUL: exception thrown: cannot set locale");
+		kDebugLog (3, "SUL: exception thrown: when calling: {}", "std::iswupper()");
 
 		if (m_bInConstruction)
 		{
@@ -194,7 +208,6 @@ bool Dekaf::SetUnicodeLocale(KStringView sName)
 		m_sLocale.erase();
 	}
 
-	//SpecialLog (std::string("SUL: returning locale set as: ") + m_sLocale.c_str() + std::string("\n"));
 	kDebugLog (3, "SUL: returning locale set as: {}", m_sLocale);
 
 	return !m_sLocale.empty();

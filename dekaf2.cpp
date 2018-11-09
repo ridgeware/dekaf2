@@ -119,84 +119,34 @@ Dekaf::Dekaf()
 
 	// allow KLog() calls from dekaf now
 	m_bInConstruction = false;
-
-} // Dekaf - constructor
-
-#if 0
-//---------------------------------------------------------------------------
-static void SpecialLog (std::string sLogline)
-//---------------------------------------------------------------------------
-{
-	FILE* fp = std::fopen ("/tmp/dekaf2locale.err", "a");
-	std::fputs (sLogline.c_str(), fp);
-	std::fclose (fp);
-	chmod ("/tmp/dekaf2locale.err", S_IRUSR|S_IWUSR | S_IRGRP|S_IWGRP | S_IROTH|S_IWOTH);
-
-} // SpecialLog
-#endif
+}
 
 //---------------------------------------------------------------------------
 bool Dekaf::SetUnicodeLocale(KStringView sName)
 //---------------------------------------------------------------------------
 {
-	// WARNING: klog object will only be iniitialized if the programmer was smart enough to order these two statements in main() like this:
-	//    KLog().SetName("BBAPI");
-	//    Dekaf().SetUnicodeLocale("en_US.UTF-8");
-
 	m_sLocale = sName;
 
-	kDebugLog (3, "SUL: SetUnicodeLocale({})...\n", sName);
-
-	if (m_sLocale.empty())
-	{
-		kDebugLog (3, "SUL: thinks its empty, so setting to: {}", std::locale().name());
-		m_sLocale = std::locale().name();
-	}
-
-	if (m_sLocale.empty() || m_sLocale == "C" || m_sLocale == "C.UTF-8")
-	{
-		kDebugLog (3, "SUL: setting to default: {}", DefaultLocale);
-		m_sLocale = DefaultLocale;
-	}
-
 	DEKAF2_TRY
 	{
-		kDebugLog (3, "SUL: about to call: {}", "std::setlocale()");
+		if (m_sLocale.empty())
+		{
+			m_sLocale = std::locale().name();
+		}
+		if (m_sLocale.empty() || m_sLocale == "C" || m_sLocale == "C.UTF-8")
+		{
+			m_sLocale = DefaultLocale;
+		}
 		std::setlocale(LC_ALL, m_sLocale.c_str());
-	}
-	DEKAF2_CATCH (std::exception& e)
-	{
-		kDebugLog (3, "SUL: exception thrown: when calling: {}", "std::setlocale()");
-	}
-
-	DEKAF2_TRY
-	{
-		kDebugLog (3, "SUL: about to call: {}", "std::local::global()");
 		std::locale::global(std::locale(m_sLocale.c_str()));
-	}
-	DEKAF2_CATCH (std::exception& e)
-	{
-		kDebugLog (3, "SUL: exception thrown: when calling: {}", "std::local::global()");
-	}
-
-	m_sLocale = std::locale().name();
-
-	kDebugLog (3, "SUL: m_sLocale = {}", m_sLocale);
-
-	DEKAF2_TRY
-	{
-		kDebugLog (3, "SUL: about to call: {}", "std::iswupper()");
+		m_sLocale = std::locale().name();
 		if (!std::iswupper(0x53d))
 		{
-			kDebugLog (3, "SUL: cannot set C++ locale to Unicode");
-			std::cerr << "dekaf: cannot set C++ locale to Unicode" << std::endl; // omg: stderr?? klog not avail yet!!
+			std::cerr << "dekaf: cannot set C++ locale to Unicode" << std::endl;
 			return false;
 		}
 	}
-	DEKAF2_CATCH (std::exception& e)
-	{
-		kDebugLog (3, "SUL: exception thrown: when calling: {}", "std::iswupper()");
-
+	DEKAF2_CATCH (std::exception& e) {
 		if (m_bInConstruction)
 		{
 			std::cerr << e.what() << std::endl;
@@ -208,11 +158,8 @@ bool Dekaf::SetUnicodeLocale(KStringView sName)
 		m_sLocale.erase();
 	}
 
-	kDebugLog (3, "SUL: returning locale set as: {}", m_sLocale);
-
 	return !m_sLocale.empty();
-
-} // SetUnicodeLocale
+}
 
 //---------------------------------------------------------------------------
 void Dekaf::SetRandomSeed(unsigned int iSeed)

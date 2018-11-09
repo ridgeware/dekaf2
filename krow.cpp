@@ -441,7 +441,11 @@ bool KROW::FormDelete (KString& sSQL, SQLTYPE iDBType) const
 bool KROW::AddCol (KStringView sColName, const KJSON& Value, uint16_t iFlags, uint32_t iMaxLen)
 //-----------------------------------------------------------------------------
 {
-	KCOL col (Value.dump(-1), iFlags, iMaxLen);
+	KString sValue = Value.dump(-1); // warning: .dump() wraps strings with double quotes!!!
+	if (sValue.StartsWith("\"") && sValue.EndsWith("\"")) {
+		sValue = sValue.Mid(1,sValue.size()-2);
+	}
+	KCOL col (sValue, iFlags, iMaxLen);
 	return (KCOLS::Add (sColName, std::move(col)) != KCOLS::end());
 }
 

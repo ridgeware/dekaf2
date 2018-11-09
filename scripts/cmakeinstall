@@ -144,10 +144,10 @@ CMakeSetup ()
 		CMakeMinor=$(echo $sCMakeVersion | cut -d . -f 2)
 	fi
 
-	# we want at least 3.6
-	if [ $CMakeMajor -lt 3 ] || ( [ $CMakeMajor -eq 3 ] && [ $CMakeMinor -lt 8 ] ); then
+	# we want at least 3.12
+	if [ $CMakeMajor -lt 3 ] || ( [ $CMakeMajor -eq 3 ] && [ $CMakeMinor -lt 12 ] ); then
 
-		sCMakeNewVersion="3.8.2"
+		sCMakeNewVersion="3.12.4"
 
 		test -z "$BINDIR" && Die "BINDIR label cannot be determined"
 
@@ -174,10 +174,10 @@ CMakeSetup ()
 
 			Info "downloading CMake ${sCMakeNewVersion}"
 			if [ "${BINDIR}" == "redhat64v6" ] || [ "${BINDIR}" == "redhat64" ] || [ "${BINDIR}" == "centos64v6" ]; then
-				wget --no-check-certificate https://cmake.org/files/v3.8/cmake-${sCMakeNewVersion}.tar.gz \
+				wget --no-check-certificate https://cmake.org/files/v3.12/cmake-${sCMakeNewVersion}.tar.gz \
 					|| CMakeSetupAbort "cannot download cmake"
 			else
-				wget https://cmake.org/files/v3.8/cmake-${sCMakeNewVersion}.tar.gz \
+				wget https://cmake.org/files/v3.12/cmake-${sCMakeNewVersion}.tar.gz \
 					|| CMakeSetupAbort "cannot download cmake"
 			fi
 
@@ -200,7 +200,7 @@ CMakeSetup ()
 				--no-system-libs \
 				--prefix=/usr \
 				--datadir=share/cmake \
-				--docdir=share/doc/cmake-3.8 \
+				--docdir=share/doc/cmake-3.12 \
 				--mandir=share/man \
 				--parallel=4 \
 			&& make -j4 \
@@ -224,8 +224,8 @@ CMakeSetup ()
 			CMakeNewMajor=$(echo $sCMakeNewInstVersion | cut -d . -f 1)
 			CMakeNewMinor=$(echo $sCMakeNewInstVersion | cut -d . -f 2)
 
-			# expected 3.8
-			if [ $CMakeNewMajor -eq 3 ] && [ $CMakeNewMinor -eq 8 ]; then
+			# expected 3.12
+			if [ $CMakeNewMajor -eq 3 ] && [ $CMakeNewMinor -eq 12 ]; then
 				Info "successfully installed CMake ${sCMakeNewInstVersion}"
 			else
 				Die "CMake ${sCMakeNewVersion} failed to install - found version ${sCMakeNewInstVersion} instead"

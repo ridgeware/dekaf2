@@ -224,9 +224,11 @@ find_package(OpenSSL QUIET REQUIRED)
 include_directories(SYSTEM ${OPENSSL_INCLUDE_DIR})
 
 set(Boost_USE_STATIC_LIBS ON)
+# we prefer the boost lib that we installed ourselves in /opt/lib ..
+set(BOOST_ROOT "/opt/boost")
 # boost asio (header only) needs system
 # dekaf2's http part needs iostreams
-find_package(Boost QUIET COMPONENTS system iostreams REQUIRED)
+find_package(Boost 1.54 COMPONENTS system iostreams REQUIRED)
 include_directories(SYSTEM ${Boost_INCLUDE_DIR})
 
 # add a target to generate API documentation with Doxygen
@@ -551,6 +553,8 @@ target_link_libraries(dekaf2
 		z
 		bz2
 	)
+
+message(STATUS "boost-libs: ${Boost_LIBRARIES}")
 
 add_dependencies(dekaf2 lib-headers-dekaf2)
 target_include_directories(dekaf2

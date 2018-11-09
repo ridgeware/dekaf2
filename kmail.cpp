@@ -326,7 +326,7 @@ void KMail::Add(KStringView sWhich, map_t& map, KStringView Key, KStringView Val
 	}
 	else
 	{
-		map.emplace(Key, Value);
+		map.insert({Key, Value});
 	}
 
 } // Add

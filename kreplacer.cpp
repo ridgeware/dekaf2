@@ -77,7 +77,11 @@ bool KReplacer::insert(KStringView sSearch, KStringView sReplace)
 		sKey += sSearch;
 		sKey += m_sLeadOut;
 
+#if (BOOST_VERSION < 106600)
+		auto p = m_RepMap.insert({std::move(sKey), sReplace});
+#else
 		auto p = m_RepMap.emplace(std::move(sKey), sReplace);
+#endif
 		if (p.second == false)
 		{
 			// replace the existing value

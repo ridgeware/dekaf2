@@ -163,7 +163,11 @@ bool KTCPIOStream::Connect(const KTCPEndPoint& Endpoint)
 		boost::asio::async_connect(m_Stream.Socket.lowest_layer(),
 								   hosts,
 								   [&](const boost::system::error_code& ec,
+#if (BOOST_VERSION < 106600)
+		                                                           boost::asio::ip::tcp::resolver::iterator endpoint)
+#else
 									   const boost::asio::ip::tcp::endpoint& endpoint)
+#endif
 		{
 			m_ConnectedHost = endpoint;
 			m_Stream.ec = ec;

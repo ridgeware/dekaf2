@@ -233,7 +233,7 @@ public:
 	//-----------------------------------------------------------------------------
 	{
 		KStringViewPair svPair = kSplitToPair(sv, m_chPairDelim, m_svTrim, m_chEscape);
-		m_Container.emplace(svPair.first, svPair.second);
+		m_Container.insert({svPair.first, svPair.second});
 	}
 
 	//-----------------------------------------------------------------------------

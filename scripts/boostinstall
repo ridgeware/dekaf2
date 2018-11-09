@@ -1,0 +1,19 @@
+#!/bin/bash
+
+# install a clean boost under /opt/boost
+
+VERSION="1.68.0"
+NAME="1_68_0"
+BUILDDIR="/tmp/boost-build-${NAME}"
+rmdir ${BUILDDIR}
+mkdir -p ${BUILDDIR} || exit 1
+cd ${BUILDDIR} || exit 1
+
+wget https://dl.bintray.com/boostorg/release/${VERSION}/source/boost_${NAME}.tar.gz || exit 1
+
+tar -xzf boost_${NAME}.tar.gz || exit 1
+cd boost_${NAME} || exit 1
+./bootstrap.sh --prefix=/opt/boost || exit 1
+sudo ./b2 install -j4 --prefix=/opt/boost --with=all || exit 1
+
+cd && rm -rf ${BUILDDIR}

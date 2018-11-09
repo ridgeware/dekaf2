@@ -74,8 +74,8 @@ class KlogServer : public KTCPServer
 public:
 //-------
 	
-#if !defined(DEKAF2_NO_GCC) && DEKAF2_GCC_VERSION < 70000
-	// gcc versions below 7.0 do not properly honour the constructor forwarding,
+#if !defined(DEKAF2_NO_GCC) && DEKAF2_GCC_VERSION < 80000
+	// gcc versions below 8.0 do not properly honour the constructor forwarding,
 	// therefore we use argument forwarding
 	template<typename... Args>
 	KlogServer(Args&&... args)

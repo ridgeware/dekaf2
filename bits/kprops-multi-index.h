@@ -646,7 +646,11 @@ public:
 	{
 		// boost::multi_index does not know try_emplace, so we have to do value
 		// copies for the emplace anyway, as we could not call Replace() otherwise
+#if (BOOST_VERSION < 105900)
+		auto pair = KeyIndex().insert({key, value});
+#else
 		auto pair = KeyIndex().emplace(key, value);
+#endif
 		if (pair.second)
 		{
 			return m_Storage.template project<IndexBySeq>(pair.first);
@@ -667,7 +671,11 @@ public:
 	{
 		// boost::multi_index does not know try_emplace, so we have to do value
 		// copies for the emplace anyway, as we could not call Replace() otherwise
+#if (BOOST_VERSION < 105900)
+		auto pair = KeyIndex().insert({key, value});
+#else
 		auto pair = KeyIndex().emplace(key, value);
+#endif
 		if (pair.second)
 		{
 			return pair.first;
@@ -688,7 +696,11 @@ public:
 	{
 		// boost::multi_index does not know try_emplace, so we have to do value
 		// copies for the emplace anyway, as we could not call Replace() otherwise
+#if (BOOST_VERSION < 105900)
+		auto pair = KeyIndex().insert({std::forward<K>(key), std::forward<V>(value)});
+#else
 		auto pair = KeyIndex().emplace(std::forward<K>(key), std::forward<V>(value));
+#endif
 		return m_Storage.template project<IndexBySeq>(pair.first);
 	}
 
@@ -702,7 +714,11 @@ public:
 	{
 		// boost::multi_index does not know try_emplace, so we have to do value
 		// copies for the emplace anyway, as we could not call Replace() otherwise
+#if (BOOST_VERSION < 105900)
+		auto pair = KeyIndex().insert({std::forward<K>(key), std::forward<V>(value)});
+#else
 		auto pair = KeyIndex().emplace(std::forward<K>(key), std::forward<V>(value));
+#endif
 		return pair.first;
 	}
 

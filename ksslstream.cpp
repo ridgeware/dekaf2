@@ -60,7 +60,7 @@ std::string KSSLContext::PasswordCallback(std::size_t max_length,
 KSSLContext::KSSLContext(bool bIsServer, bool bVerifyCerts, bool bAllowSSLv3)
 //-----------------------------------------------------------------------------
 #if (BOOST_VERSION < 106600)
-	: m_Context(s_IO_Service, bIsServer ? boost::asio::ssl::context::tls_server : boost::asio::ssl::context::tls_client)
+	: m_Context(s_IO_Service, boost::asio::ssl::context::sslv23)
 #else
 	: m_Context(bIsServer ? boost::asio::ssl::context::tls_server : boost::asio::ssl::context::tls_client)
 #endif
@@ -79,6 +79,11 @@ KSSLContext::KSSLContext(bool bIsServer, bool bVerifyCerts, bool bAllowSSLv3)
 	{
 		options |= (boost::asio::ssl::context::no_sslv2 | boost::asio::ssl::context::no_sslv3);
 	}
+
+	options |= boost::asio::ssl::context::no_tlsv1;
+#if (BOOST_VERSION >= 106600)
+	options |= boost::asio::ssl::context::no_tlsv1_1;
+#endif
 
 	boost::system::error_code ec;
 	m_Context.set_options(options, ec);
@@ -103,7 +108,7 @@ bool KSSLContext::LoadSSLCertificates(KStringViewZ sCert, KStringViewZ sKey, KSt
 
 	boost::system::error_code ec;
 
-	m_Context.set_password_callback(boost::bind(&KSSLContext::PasswordCallback, this, boost::placeholders::_1, boost::placeholders::_2), ec);
+	m_Context.set_password_callback(std::bind(&KSSLContext::PasswordCallback, this, std::placeholders::_1, std::placeholders::_2), ec);
 
 	if (ec)
 	{
@@ -135,11 +140,18 @@ bool KSSLContext::LoadSSLCertificates(KStringViewZ sCert, KStringViewZ sKey, KSt
 bool KSSLContext::SetSSLCertificates(KStringView sCert, KStringView sKey, KStringView sPassword)
 //-----------------------------------------------------------------------------
 {
+#if (BOOST_VERSION < 105400)
+
+	kDebug(1, "you need to link against at least boost 1.54 for buffered SSL certificates");
+	return false;
+
+#else
+
 	m_sPassword.assign(sPassword.data(), sPassword.size());
 
 	boost::system::error_code ec;
 
-	m_Context.set_password_callback(boost::bind(&KSSLContext::PasswordCallback, this, boost::placeholders::_1, boost::placeholders::_2), ec);
+	m_Context.set_password_callback(std::bind(&KSSLContext::PasswordCallback, this, std::placeholders::_1, std::placeholders::_2), ec);
 
 	if (ec)
 	{
@@ -164,6 +176,8 @@ bool KSSLContext::SetSSLCertificates(KStringView sCert, KStringView sKey, KStrin
 	}
 
 	return true;
+
+#endif
 
 } // SetSSLCertificates
 
@@ -407,7 +421,11 @@ bool KSSLIOStream::Connect(const KTCPEndPoint& Endpoint)
 		boost::asio::async_connect(m_Stream.Socket.lowest_layer(),
 								   hosts,
 								   [&](const boost::system::error_code& ec,
+#if (BOOST_VERSION < 106600)
+		                                                           boost::asio::ip::tcp::resolver::iterator endpoint)
+#else
 									   const boost::asio::ip::tcp::endpoint& endpoint)
+#endif
 		{
 			m_ConnectedHost = endpoint;
 			m_Stream.ec = ec;

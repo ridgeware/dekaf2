@@ -31,7 +31,11 @@ protected:
 
 };
 
-constexpr KStringView sCert = R"(-----BEGIN CERTIFICATE-----
+
+#if defined(DEKAF2_NO_GCC) || (DEKAF2_GCC_VERSION >= 80000)
+constexpr
+#endif
+KStringView sCert = R"(-----BEGIN CERTIFICATE-----
 MIIEpDCCAowCCQCjjdpjiU244jANBgkqhkiG9w0BAQsFADAUMRIwEAYDVQQDDAls
 b2NhbGhvc3QwHhcNMTgxMDMwMTMwNjA4WhcNMTkxMDMwMTMwNjA4WjAUMRIwEAYD
 VQQDDAlsb2NhbGhvc3QwggIiMA0GCSqGSIb3DQEBAQUAA4ICDwAwggIKAoICAQCl
@@ -60,7 +64,10 @@ CBw53UppWW98e2rXKWXTtU6rEL1ctGz135WgBrqmkJ58n2pjd4jLDQ==
 -----END CERTIFICATE-----
 )";
 
-constexpr KStringView sKey = R"(-----BEGIN PRIVATE KEY-----
+#if defined(DEKAF2_NO_GCC) || (DEKAF2_GCC_VERSION >= 80000)
+constexpr 
+#endif
+KStringView sKey = R"(-----BEGIN PRIVATE KEY-----
 MIIJQgIBADANBgkqhkiG9w0BAQEFAASCCSwwggkoAgEAAoICAQClSy5eUHyAF14T
 bT713mYYozxG7Nj6twX2CbmrLkdpBPRgW/G35HPjiKlwr4D49I6tEjZyMF7hdH5G
 dXofGAlpT89emiMm5epZAoWEsqTpFpfJjbEf9a+SGzTrhRxlMtbJFQyBIcN86bLm

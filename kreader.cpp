@@ -234,15 +234,8 @@ bool kAppendAll(std::istream& Stream, KString& sContent, bool bFromStart)
 
 	// create the read buffer
 
-#ifdef DEKAF2_KSTRING_HAS_RESIZE_UNINITIALIZED
 	// This saves one run of unnecessary construction.
-	sContent.resize(uiContentSize + uiSize, KString::ResizeUninitialized());
-#else
-	// It's a std::string, just resize() it (which leads to initialized
-	// string content that is then quickly overwritten in the stream
-	// read)
-	sContent.resize(uiContentSize + uiSize);
-#endif
+	sContent.resize_uninitialized(uiContentSize + uiSize);
 
 	auto iRead = static_cast<size_t>(sb->sgetn(&sContent[uiContentSize], iSize));
 
@@ -310,11 +303,7 @@ bool kReadAll(KStringViewZ sFileName, KString& sContent)
 		if (fd >= 0)
 		{
 			auto iContent = sContent.size();
-#ifdef DEKAF2_KSTRING_HAS_RESIZE_UNINITIALIZED
-			sContent.resize(iContent + iSize, KString::ResizeUninitialized());
-#else
-			sContent.resize(iContent + iSize);
-#endif
+			sContent.resize_uninitialized(iContent + iSize);
 			auto iRead = read(fd, &sContent[iContent], iSize);
 
 			close(fd);
@@ -518,11 +507,7 @@ size_t KInStream::Read(KString& sBuffer, size_t iCount)
 {
 	auto iOldLen = sBuffer.size();
 
-#ifdef DEKAF2_KSTRING_HAS_RESIZE_UNINITIALIZED
-	sBuffer.resize(iOldLen + iCount, KString::ResizeUninitialized());
-#else
-	sBuffer.resize(iOldLen + iCount);
-#endif
+	sBuffer.resize_uninitialized(iOldLen + iCount);
 
 	auto iAddedLen = Read(&sBuffer[iOldLen], iCount);
 

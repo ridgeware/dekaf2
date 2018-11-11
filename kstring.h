@@ -99,11 +99,10 @@ public:
 	/// tag to construct a string on an existing malloced buffer
 	using AcquireMallocatedString   = folly::AcquireMallocatedString;
 	#define DEKAF2_KSTRING_HAS_ACQUIRE_MALLOCATED
-	/// tag to allow a call to resize() without forcing element initialization
-	struct ResizeUninitialized {};
-	#define DEKAF2_KSTRING_HAS_RESIZE_UNINITIALIZED
 #else
 	using string_type               = std::string;
+	// dummy to allow user code without #ifdefs
+	struct AcquireMallocatedString {};
 #endif
 	using self                      = KString;
 	using traits_type               = string_type::traits_type;
@@ -147,9 +146,7 @@ public:
 	void clear() { m_rep.clear(); }
 	bool empty() const { return m_rep.empty(); }
 	void shrink_to_fit() { m_rep.shrink_to_fit(); }
-#ifdef DEKAF2_KSTRING_HAS_RESIZE_UNINITIALIZED
-	void resize(size_type n, ResizeUninitialized a);
-#endif
+	void resize_uninitialized(size_type n);
 
 	const_reference operator[] (size_type pos) const { return at(pos); }
 	reference operator[](size_type pos) { return at(pos); }
@@ -179,9 +176,13 @@ public:
 	KString (const std::string& sStr) : m_rep(sStr) {}
 #endif
 #ifdef DEKAF2_KSTRING_HAS_ACQUIRE_MALLOCATED
-	// nonstandard constructor to snatch an existing malloced buffer
+	// nonstandard constructor to move an existing malloced buffer into the string
 	KString (value_type *s, size_type n, size_type c, AcquireMallocatedString a)
 	: m_rep(s, n, c, a) {}
+#else
+	// no buffer move possible, simply copy and release the input buffer
+	KString (value_type *s, size_type n, size_type c, AcquireMallocatedString a)
+	: KString (s, n) { if (s) delete(s); }
 #endif
 
 	// operator+=

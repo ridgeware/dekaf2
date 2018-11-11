@@ -461,11 +461,7 @@ bool KUnTar::Read(KString& sBuffer)
 	}
 	
 	// resize the buffer to be able to read the file size
-#ifdef DEKAF2_KSTRING_HAS_RESIZE_UNINITIALIZED
-	sBuffer.resize(m_header.Filesize(), KString::ResizeUninitialized());
-#else
-	sBuffer.resize(m_header.Filesize());
-#endif
+	sBuffer.resize_uninitialized(m_header.Filesize());
 
 	// read the file into the buffer
 	if (!Read(&sBuffer[0], m_header.Filesize()))

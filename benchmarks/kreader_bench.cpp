@@ -301,7 +301,7 @@ void compare_readers()
 			if (fd >= 0)
 			{
 				KString str;
-				str.resize(fsize, KString::ResizeUninitialized());
+				str.resize_uninitialized(fsize);
 				read(fd, str.data(), fsize);
 				close(fd);
 				KProf::Force(&str);

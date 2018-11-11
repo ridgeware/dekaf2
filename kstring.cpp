@@ -77,11 +77,11 @@ KString& KString::append(const string_type& str, size_type pos, size_type n)
 	return *this;
 }
 
-#ifdef DEKAF2_KSTRING_HAS_RESIZE_UNINITIALIZED
 //------------------------------------------------------------------------------
-void KString::resize(size_type n, ResizeUninitialized a)
+void KString::resize_uninitialized(size_type n)
 //------------------------------------------------------------------------------
 {
+#ifdef DEKAF2_KSTRING_HAS_ACQUIRE_MALLOCATED
 	// never do this optimization for SSO strings
 	if (n > 23)
 	{
@@ -116,10 +116,11 @@ void KString::resize(size_type n, ResizeUninitialized a)
 			}
 		}
 	}
+#endif
 
+	// fallback to an initialized resize
 	resize(n);
 }
-#endif
 
 #ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
 //------------------------------------------------------------------------------

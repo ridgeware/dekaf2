@@ -42,6 +42,7 @@
 
 #pragma once
 
+#include "bits/kcppcompat.h"
 #include "kstringview.h"
 #include "kreader.h"
 
@@ -90,6 +91,7 @@ private:
 
 }; // KMPSearch
 
+#ifdef DEKAF2_HAS_CPP_17
 
 namespace frozen {
 
@@ -231,6 +233,8 @@ static constexpr frozen::KMPSearch<sv.size()> a( sv );
 constexpr static auto xy { frozen::CreateKMPSearch("hello") };
 constexpr static auto bb { frozen::CreateKMPSearch<sv.size()>(sv) };
 */
+
+#endif // of DEKAF2_HAS_CPP_17
 
 } // end of namespace dekaf2
 

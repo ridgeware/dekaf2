@@ -54,7 +54,11 @@ bool KMIME::ByExtension(KStringView sFilename, KMIME Default)
 //-----------------------------------------------------------------------------
 {
 
+#ifdef DEKAF2_HAS_FROZEN
 	static constexpr std::pair<KStringView, KStringViewZ> s_MIME_Extensions[]
+#else
+	static const std::unordered_map<KStringView, KStringViewZ> s_Extension_Map
+#endif
 	{
 		{ "aac"_ksv,   AAC },
 		{ "mid"_ksv,   MIDI },
@@ -123,7 +127,9 @@ bool KMIME::ByExtension(KStringView sFilename, KMIME Default)
 		{ "webm"_ksv,  WEBM },
 	};
 
+#ifdef DEKAF2_HAS_FROZEN
 	static constexpr auto s_Extension_Map = frozen::make_unordered_map(s_MIME_Extensions);
+#endif
 
 	KString sExtension = kExtension(sFilename).ToLowerLocale();
 

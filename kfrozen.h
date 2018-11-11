@@ -42,6 +42,22 @@
 
 #pragma once
 
+#include "bits/kcppcompat.h"
+
+// frozen constexpr need at least C++14
+#ifndef DEKAF2_HAS_CPP_14
+
+// make it easier to code a C++11 replacement for frozen maps and sets by
+// already including the necessary header (note: KUnorderedMap/Set does
+// not work well as boost::multiindex does not support appropriate initializers)
+#include <unordered_map>
+#include <unordered_set>
+
+#else
+
+// set the define to tell that we can use frozen maps and sets
+#define DEKAF2_HAS_FROZEN 1
+
 // convenience header
 
 #include <frozen/algorithm.h>
@@ -109,3 +125,4 @@ struct elsa<dekaf2::KStringViewZ>
 
 }
 
+#endif // of DEKAF2_HAS_CPP_14

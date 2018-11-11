@@ -140,6 +140,6 @@ namespace dekaf2 {
 	overload(Ts&&...) -> overload<std::remove_reference_t<Ts>...>;
  */
 
-#endif // of namespace dekaf2
+#endif
 
-}
+} // of namespace dekaf2

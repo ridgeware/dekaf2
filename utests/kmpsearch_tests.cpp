@@ -7,9 +7,9 @@ using namespace dekaf2;
 
 TEST_CASE("KMPSearch") {
 
-// KMPSearch does not work in older gcc because it thinks that
+// frozen::KMPSearch does not work in older gcc and below C++17 because it thinks that
 // std::array is not constexpr
-#if defined(DEKAF2_NO_GCC) || DEKAF2_GCC_VERSION >= 70000
+#if (defined(DEKAF2_NO_GCC) || DEKAF2_GCC_VERSION >= 70000) && defined(DEKAF2_HAS_CPP_17)
 
 	SECTION("frozen::KMPSearch char* found search")
 	{
@@ -56,6 +56,7 @@ TEST_CASE("KMPSearch") {
 
 		CHECK ( bFound == false );
 	}
+#endif
 
 	SECTION("KMPSearch char* found search")
 	{
@@ -103,5 +104,4 @@ TEST_CASE("KMPSearch") {
 		CHECK ( iFound == KStringView::npos );
 	}
 
-#endif
 }

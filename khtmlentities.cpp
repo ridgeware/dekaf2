@@ -57,11 +57,10 @@ struct codes_t
 };
 
 
-#if defined(DEKAF2_USE_FROZEN_HASH_FOR_LARGE_MAPS) || defined(DEKAF2_X86)
+#if defined(DEKAF2_HAS_FROZEN) && (defined(DEKAF2_USE_FROZEN_HASH_FOR_LARGE_MAPS) || defined(DEKAF2_X86))
 	static constexpr std::pair<KStringView, codes_t> s_Entities[]
 #else
-	using entity_map_t = std::unordered_map<KStringView, codes_t>;
-	entity_map_t s_NamedEntitiesHTML4 =
+	const std::unordered_map<KStringView, codes_t> s_NamedEntitiesHTML4
 #endif
 {
     { "AElig"                            , {     0xC6 }},
@@ -2191,11 +2190,13 @@ struct codes_t
     { "zwnj"                             , {   0x200C }},
 };
 
-#ifdef DEKAF2_USE_FROZEN_HASH_FOR_LARGE_MAPS
-static constexpr auto s_NamedEntitiesHTML4 = frozen::make_unordered_map(s_Entities);
-#else
-	#ifdef DEKAF2_X86
-		static constexpr auto s_NamedEntitiesHTML4 = frozen::make_map(s_Entities);
+#ifdef DEKAF2_HAS_FROZEN
+	#ifdef DEKAF2_USE_FROZEN_HASH_FOR_LARGE_MAPS
+	static constexpr auto s_NamedEntitiesHTML4 = frozen::make_unordered_map(s_Entities);
+	#else
+		#ifdef DEKAF2_X86
+			static constexpr auto s_NamedEntitiesHTML4 = frozen::make_map(s_Entities);
+		#endif
 	#endif
 #endif
 

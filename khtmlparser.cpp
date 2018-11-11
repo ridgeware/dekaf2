@@ -503,15 +503,19 @@ void KHTMLAttributes::Serialize(KOutStream& OutStream) const
 
 } // Serialize
 
-
 //-----------------------------------------------------------------------------
 bool KHTMLTag::IsInline() const
 //-----------------------------------------------------------------------------
 {
 	// https://en.wikipedia.org/wiki/HTML_element#Inline_elements
 
+#ifdef DEKAF2_HAS_FROZEN
 	// this set is created at compile time
 	static constexpr auto s_InlineTags {frozen::make_unordered_set(	{
+#else
+	// this set is created at run time
+	static const std::unordered_set<KStringView> s_InlineTags {
+#endif
 		"a"_ksv,
 		"abbr"_ksv,
 		"acronym"_ksv,
@@ -551,7 +555,11 @@ bool KHTMLTag::IsInline() const
 		"template"_ksv,
 		"time"_ksv,
 		"wbr"_ksv
+#ifdef DEKAF2_HAS_FROZEN
 	})};
+#else
+	};
+#endif
 
 	return s_InlineTags.find(Name) != s_InlineTags.end();
 

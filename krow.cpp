@@ -441,9 +441,40 @@ bool KROW::FormDelete (KString& sSQL, SQLTYPE iDBType) const
 bool KROW::AddCol (KStringView sColName, const KJSON& Value, uint16_t iFlags, uint32_t iMaxLen)
 //-----------------------------------------------------------------------------
 {
-	KString sValue = Value.dump(-1);
-	KCOL col (sValue, iFlags, iMaxLen);
-	return (KCOLS::Add (sColName, std::move(col)) != KCOLS::end());
+	KString sValue;
+
+	if (Value.is_object() || Value.is_array())
+	{
+		return AddCol(sColName, Value.dump(-1), iFlags ? iFlags : JSON, iMaxLen);
+	}
+	else if (Value.is_string())
+	{
+		return AddCol(sColName, Value.get<KJSON::string_t>(), iFlags, iMaxLen);
+	}
+	else if (Value.is_number())
+	{
+		if (Value.is_number_float())
+		{
+			return AddCol(sColName, Value.get<KJSON::number_float_t>(), iFlags ? iFlags : NUMERIC, iMaxLen);
+		}
+		else
+		{
+			return AddCol(sColName, Value.get<KJSON::number_integer_t>(), iFlags ? iFlags : NUMERIC, iMaxLen);
+		}
+	}
+	else if (Value.is_boolean())
+	{
+		return AddCol(sColName, Value.get<KJSON::boolean_t>(), iFlags ? iFlags : BOOLEAN, iMaxLen);
+	}
+	else if (Value.is_null())
+	{
+		return AddCol(sColName, "", iFlags ? iFlags : JSON, iMaxLen);
+	}
+	else
+	{
+		kDebugLog(2, "KROW: could not identify JSON type for {}", sColName);
+		return false;
+	}
 }
 
 //-----------------------------------------------------------------------------
@@ -532,30 +563,7 @@ KROW& KROW::operator+=(const KJSON& json)
 {
 	for (auto& it : json.items())
 	{
-		if (it.value().is_string())
-		{
-			AddCol(it.key(), it.value().get<KJSON::string_t>());
-		}
-		else if (it.value().is_number())
-		{
-			if (it.value().is_number_float())
-			{
-				AddCol(it.key(), it.value().get<KJSON::number_float_t>(), NUMERIC);
-			}
-			else
-			{
-				AddCol(it.key(), it.value().get<KJSON::number_integer_t>(), NUMERIC);
-			}
-
-		}
-		else if (it.value().is_boolean())
-		{
-			AddCol(it.key(), it.value().get<KJSON::boolean_t>(), BOOLEAN);
-		}
-		else if (it.value().is_object())
-		{
-			AddCol(it.key(), it.value().get<KJSON>(), JSON);
-		}
+		AddCol(it.key(), it.value());
 	}
 	return *this;
 

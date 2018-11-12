@@ -1,19 +1,139 @@
 #!/bin/bash
 
-# install a clean boost under /opt/boost
+#% boostinstall - install a clean boost under /opt/boost
+#%
+#% usage: boostinstall -go|ask
+#%
 
-VERSION="1.68.0"
-NAME="1_68_0"
-BUILDDIR="/tmp/boost-build-${NAME}"
-rmdir ${BUILDDIR}
-mkdir -p ${BUILDDIR} || exit 1
-cd ${BUILDDIR} || exit 1
 
-wget https://dl.bintray.com/boostorg/release/${VERSION}/source/boost_${NAME}.tar.gz || exit 1
+# are we in test mode?
+if [ "$1" = "-x" ]; then
+	set -x
+	shift
+fi # end check test mode
 
-tar -xzf boost_${NAME}.tar.gz || exit 1
-cd boost_${NAME} || exit 1
-./bootstrap.sh --prefix=/opt/boost || exit 1
-sudo ./b2 install -j4 --prefix=/opt/boost --with=all || exit 1
+setx=Synopsis
+#==================
+Synopsis ()
+#==================
+{
+	awk '/^#%/ {print substr($0,3)}' "${ME_FULLPATH}"
 
-cd && rm -rf ${BUILDDIR}
+} # Synopsis
+
+setx=SetupColors
+#==============================
+SetupColors ()
+#==============================
+{
+	# Note, coloring possibility is tested for stderr and thus should not be used for stdout
+	if test -t 2 && which tput >/dev/null 2>&1; then
+		ncolors=$(tput colors)
+		if test -n "$ncolors"; then
+			xWarnColor=$((tput setf 6 || tput setaf 3) && (tput setb 0 || tput setab 0)) # yellow on black
+			xErrorColor=$((tput setf 7 || tput setaf 7) && (tput setb 4 || tput setab 1)) # white on red
+			xResetColor=$(tput sgr0)
+		fi
+	fi
+
+} # SetupColors
+
+setx=Info
+#==================
+Info ()
+#==================
+{
+	# All input args are interpreted as info text to display
+
+	echo ":: $(date +%T) : ${*:-unspecified}"
+
+} # Info
+
+setx=Error
+#==================
+Error ()
+#==================
+{
+	# All input args are interpreted as error text to display
+
+	echo "${xErrorColor}${ME}: $(date +%T) : ERROR: ${*:-unspecified}${xResetColor}" >&2
+
+} # Error
+
+setx=Die
+#==================
+Die ()
+#==================
+{
+	# All input args are interpreted as error text to display
+
+	local sMessage="${FUNCNAME[1]}: ${*}"
+	[[ ${BASH_SUBSHELL} -eq 0 ]] && sMessage="${sMessage}. Aborting"
+	Error "${sMessage}"
+
+	exit 1
+
+} # Die
+
+setx=BoostSetup
+#==================
+BoostSetup ()
+#==================
+{
+	ask=$1
+	VERSION="1.68.0"
+	NAME="1_68_0"
+	BUILDDIR="/tmp/boost-build-${NAME}"
+	PREFIX="/opt/boost"
+
+	if [ "$ask" != "" ]; then
+		echo "Continue installing boost-${VERSION} in ${PREFIX}? (Y/n)"
+		read -n 1 Ch
+		if [ "$Ch" == "n" ]; then
+			return
+		fi
+	fi
+
+	Info "installing boost-${VERSION}"
+
+	rmdir ${BUILDDIR}
+	mkdir -p ${BUILDDIR} || Die "cannot create build directory ${BUILDDIR}"
+	cd ${BUILDDIR} || Die "cannot cd into build directory ${BUILDDIR}"
+
+	wget https://dl.bintray.com/boostorg/release/${VERSION}/source/boost_${NAME}.tar.gz || \
+		Die "cannot not download from https://dl.bintray.com/boostorg/release/${VERSION}/source/boost_${NAME}.tar.gz"
+
+	tar -xzf boost_${NAME}.tar.gz || Die "cannot not untar source archive boost_${NAME}.tar.gz"
+	cd boost_${NAME} || Die "cannot cd into source directory ${BUILDDIR}/boost_${NAME}"
+	./bootstrap.sh --prefix=${PREFIX} || Die "cannot execute ./bootstrap.sh --prefix=${PREFIX}"
+	sudo ./b2 install -j4 --prefix=${PREFIX} --with=all || Die "cannot execute sudo ./b2 install -j4 --prefix=${PREFIX} --with=all"
+
+	cd && rm -rf ${BUILDDIR}
+
+	Info "boost-${VERSION} installed in ${PREFIX}"
+
+} # BoostSetup
+
+#==================
+setx=Main_Body
+#==================
+
+ME=$(basename "${BASH_SOURCE}")
+ME_ONLYPATH="$(cd $(dirname ${BASH_SOURCE}) && pwd)"
+ME_FULLPATH="$ME_ONLYPATH/$ME"
+
+if [ "$1" == "-ask" ]; then
+	ask="1"
+else
+	if [ "$1" != "-go" ]; then
+		Synopsis
+		exit 1
+	fi
+fi
+
+SetupColors
+SetBinDir
+BoostSetup $ask
+
+exit 0
+

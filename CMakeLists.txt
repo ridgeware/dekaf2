@@ -10,7 +10,17 @@ project(dekaf2)
 
 if(${CMAKE_VERSION} VERSION_LESS "3.8.0")
 	message(STATUS "Please consider switching to CMake 3.8.0 or newer")
-	set(OLD_CMAKE 1)
+	if (${CMAKE_SYSTEM_NAME} STREQUAL "Darwin")
+		message(STATUS "try brew install cmake")
+		set(OLD_CMAKE 1)
+	elseif (${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
+		EXECUTE_PROCESS(
+			COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/scripts/cmakeinstall -ask
+		)
+		message(FATAL "Please restart cmake now")
+	else()
+		set(OLD_CMAKE 1)
+	endif()
 endif()
 
 if (${CMAKE_SYSTEM_PROCESSOR} MATCHES "x86")
@@ -229,7 +239,22 @@ set(BOOST_ROOT "/opt/boost")
 # boost asio (header only) needs system
 # dekaf2's http part needs iostreams
 find_package(Boost 1.54 COMPONENTS system iostreams REQUIRED)
+
+if (${Boost_LIBRARIES} STREQUAL "")
+	if (${CMAKE_SYSTEM_NAME} STREQUAL "Darwin")
+		message(FATAL "No or insufficient boost library found - try brew install boost")
+	elseif (${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
+		EXECUTE_PROCESS(
+			COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/scripts/boostinstall -ask
+		)
+		message(FATAL "Please restart cmake now")
+	else()
+		message(FATAL "No or insufficient boost library found - please install a newer version")
+	endif()
+endif()
+
 include_directories(SYSTEM ${Boost_INCLUDE_DIR})
+message(STATUS "boost-libs: ${Boost_LIBRARIES}")
 
 # add a target to generate API documentation with Doxygen
 # please make sure the graphviz package is installed, too, not only doxygen
@@ -553,8 +578,6 @@ target_link_libraries(dekaf2
 		z
 		bz2
 	)
-
-message(STATUS "boost-libs: ${Boost_LIBRARIES}")
 
 add_dependencies(dekaf2 lib-headers-dekaf2)
 target_include_directories(dekaf2

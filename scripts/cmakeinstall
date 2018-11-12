@@ -3,7 +3,7 @@
 #%
 #% cmakeinstall - Install a version of cmake that is compatible with dekaf.
 #%
-#% usage: cmakeinstall -go
+#% usage: cmakeinstall -go|ask
 #%
 
 
@@ -134,6 +134,9 @@ setx=CMakeSetup
 CMakeSetup ()
 #==================
 {
+	# ask before update?
+	ask=$1
+
 	# check version of installed cmake
 	sCMakeVersion=$(cmake --version 2>/dev/null | sed 's|[^0-9.]||g')
 	if [ "$sCMakeVersion" == "" ]; then
@@ -155,6 +158,14 @@ CMakeSetup ()
 			Info "CMakeSetup: CMake is not installed"
 		else
 			Info "CMakeSetup: found insufficient CMake ${sCMakeVersion}. Will upgrade to ${sCMakeNewVersion}"
+		fi
+
+		if [ "$ask" != "" ]; then
+			echo "Continue installing CMake ${sCMakeNewVersion}? (Y/n)"
+			read -n 1 Ch
+			if [ "$Ch" == "n" ]; then
+				return
+			fi
 		fi
 
 		(
@@ -291,13 +302,17 @@ ME=$(basename "${BASH_SOURCE}")
 ME_ONLYPATH="$(cd $(dirname ${BASH_SOURCE}) && pwd)"
 ME_FULLPATH="$ME_ONLYPATH/$ME"
 
-if [ "$1" != "-go" ]; then
-	Synopsis
-	exit 1
+if [ "$1" == "-ask" ]; then
+	ask="1"
+else
+	if [ "$1" != "-go" ]; then
+		Synopsis
+		exit 1
+	fi
 fi
 
 SetupColors
 SetBinDir
-CMakeSetup
+CMakeSetup $ask
 
 exit 0

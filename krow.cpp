@@ -445,7 +445,7 @@ bool KROW::AddCol (KStringView sColName, const KJSON& Value, uint16_t iFlags, ui
 
 	if (Value.is_object() || Value.is_array())
 	{
-		return AddCol(sColName, Value.dump(-1), iFlags ? iFlags : JSON, iMaxLen);
+		return AddCol(sColName, Value.dump(-1), iFlags ? iFlags : static_cast<uint16_t>(JSON), iMaxLen);
 	}
 	else if (Value.is_string())
 	{
@@ -455,20 +455,20 @@ bool KROW::AddCol (KStringView sColName, const KJSON& Value, uint16_t iFlags, ui
 	{
 		if (Value.is_number_float())
 		{
-			return AddCol(sColName, Value.get<KJSON::number_float_t>(), iFlags ? iFlags : NUMERIC, iMaxLen);
+			return AddCol(sColName, Value.get<KJSON::number_float_t>(), iFlags ? iFlags : static_cast<uint16_t>(NUMERIC), iMaxLen);
 		}
 		else
 		{
-			return AddCol(sColName, Value.get<KJSON::number_integer_t>(), iFlags ? iFlags : NUMERIC, iMaxLen);
+			return AddCol(sColName, Value.get<KJSON::number_integer_t>(), iFlags ? iFlags : static_cast<uint16_t>(NUMERIC), iMaxLen);
 		}
 	}
 	else if (Value.is_boolean())
 	{
-		return AddCol(sColName, Value.get<KJSON::boolean_t>(), iFlags ? iFlags : BOOLEAN, iMaxLen);
+		return AddCol(sColName, Value.get<KJSON::boolean_t>(), iFlags ? iFlags : static_cast<uint16_t>(BOOLEAN), iMaxLen);
 	}
 	else if (Value.is_null())
 	{
-		return AddCol(sColName, "", iFlags ? iFlags : JSON, iMaxLen);
+		return AddCol(sColName, "", iFlags ? iFlags : static_cast<uint16_t>(JSON), iMaxLen);
 	}
 	else
 	{

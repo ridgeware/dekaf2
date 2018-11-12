@@ -17,7 +17,7 @@ if(${CMAKE_VERSION} VERSION_LESS "3.8.0")
 		EXECUTE_PROCESS(
 			COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/scripts/cmakeinstall -ask
 		)
-		message(FATAL "Please restart cmake now")
+		message(FATAL_ERROR "Please restart cmake now")
 	else()
 		set(OLD_CMAKE 1)
 	endif()
@@ -240,16 +240,16 @@ set(BOOST_ROOT "/opt/boost")
 # dekaf2's http part needs iostreams
 find_package(Boost 1.54 COMPONENTS system iostreams REQUIRED)
 
-if (${Boost_LIBRARIES} STREQUAL "")
+if (NOT Boost_FOUND)
 	if (${CMAKE_SYSTEM_NAME} STREQUAL "Darwin")
-		message(FATAL "No or insufficient boost library found - try brew install boost")
+		message(FATAL_ERROR "No or insufficient boost library found - try brew install boost")
 	elseif (${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
 		EXECUTE_PROCESS(
 			COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/scripts/boostinstall -ask
 		)
-		message(FATAL "Please restart cmake now")
+		message(FATAL_ERROR "Please restart cmake now")
 	else()
-		message(FATAL "No or insufficient boost library found - please install a newer version")
+		message(FATAL_ERROR "No or insufficient boost library found - please install a newer version")
 	endif()
 endif()
 

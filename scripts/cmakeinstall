@@ -176,7 +176,7 @@ CMakeSetup ()
 
 			RemoveSystemPackages cmake \
 				|| CMakeSetupAbort "cannot remove old CMake install"
-			InstallSystemPackages rpm-build \
+			InstallSystemPackages rpm-build wget \
 				|| CMakeSetupAbort "cannot install needed system package"
 			if [ "${BINDIR}" != "redhat64v6" ] && [ "${BINDIR}" != "redhat64" ] && [ "${BINDIR}" != "centos64v6" ]; then
 				InstallSystemPackages libarchive-devel \

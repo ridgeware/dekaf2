@@ -288,6 +288,53 @@ KString Escape (KStringView sInput)
 
 } // Escape
 
+//-----------------------------------------------------------------------------
+KString Print (const KJSON& Value)
+//-----------------------------------------------------------------------------
+{
+	DEKAF2_TRY
+	{
+		if (Value.is_object() || Value.is_array())
+		{
+			return Value.dump(-1);
+		}
+		else if (Value.is_string())
+		{
+			return Value.get<dekaf2::KJSON::string_t>();
+		}
+		else if (Value.is_number())
+		{
+			if (Value.is_number_float())
+			{
+				return KString::to_string(Value.get<KJSON::number_float_t>());
+			}
+			else
+			{
+				return KString::to_string(Value.get<KJSON::number_integer_t>());
+			}
+		}
+		else if (Value.is_boolean())
+		{
+			return Value.get<dekaf2::KJSON::boolean_t>() ? "true" : "false";
+		}
+		else if (Value.is_null())
+		{
+			return "NULL";
+		}
+		else
+		{
+			return "(UNKNOWN)";
+		}
+	}
+	DEKAF2_CATCH (const KJSON::exception& exc)
+	{
+		kDebugLog(1, "JSON[%03d]: %s", exc.id, exc.what());
+		return "(ERROR)";
+	}
+
+} // Print
+
+
 } // end of namespace kjson
 
 } // end of namespace dekaf2

@@ -171,6 +171,60 @@ TEST_CASE("KJSON")
 		CHECK( row2["third"].Int64() == 12345 );
 		CHECK( row2["fourth"] == "value4" );
 	}
+
+	SECTION("Print")
+	{
+		KJSON json = {
+			{"pi", 3.141529},
+			{"happy", true},
+			{"key1", "val1"},
+			{"key2", "val2"},
+			{"days", 365 },
+			{"nothing", nullptr},
+			{"answer", {
+				{"everything", 42}
+			}},
+			{"list", {1, 0, 2}},
+			{"object", {
+				{"currency", "USD"},
+				{"value", 42.99}
+			}}
+		};
+
+		KString sString = Print(json);
+		static constexpr KStringView sExpected1 = R"({"answer":{"everything":42},"days":365,"happy":true,"key1":"val1","key2":"val2","list":[1,0,2],"nothing":null,"object":{"currency":"USD","value":42.99},"pi":3.141529})";
+		CHECK ( sString == sExpected1 );
+
+		sString = Print(json["key1"]);
+		static constexpr KStringView sExpected2 = "val1";
+		CHECK ( sString == sExpected2 );
+
+		sString = Print(json["days"]);
+		static constexpr KStringView sExpected3 = "365";
+		CHECK ( sString == sExpected3 );
+
+		sString = Print(json["pi"]);
+		static constexpr KStringView sExpected4 = "3.141529";
+		CHECK ( sString == sExpected4 );
+
+		sString = Print(json["wrong"]);
+		static constexpr KStringView sExpected5 = "NULL";
+		CHECK ( sString == sExpected5 );
+
+		sString = Print(json["nothing"]);
+		static constexpr KStringView sExpected6 = "NULL";
+		CHECK ( sString == sExpected6 );
+
+		sString = Print(json["list"]);
+		static constexpr KStringView sExpected7 = "[1,0,2]";
+		CHECK ( sString == sExpected7 );
+
+		sString = Print(json["answer"]);
+		static constexpr KStringView sExpected8 = "{\"everything\":42}";
+		CHECK ( sString == sExpected8 );
+
+	}
+
 /*
 		KJSON obj2;
 		obj2["fourth"] = 87654;

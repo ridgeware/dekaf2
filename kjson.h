@@ -43,13 +43,14 @@
 #pragma once
 
 #include <nlohmann/json.hpp>
+#include <fmt/format.h>
 #include "kstring.h"
 #include "kstringview.h"
 #include "kreader.h"
 
-using KJSON = nlohmann::basic_json<std::map, std::vector, dekaf2::KString >;
-
 namespace dekaf2 {
+
+using KJSON = nlohmann::basic_json<std::map, std::vector, dekaf2::KString >;
 
 class KROW;
 
@@ -94,6 +95,9 @@ namespace kjson
 
 	/// Parse a stream, returns error in sError if any (does not throw)
 	bool Parse (KJSON& json, KInStream& InStream, KString& sError);
+
+	/// returns a string representation for the KJSON object, never throws
+	KString Print (const KJSON& json);
 
 	/// returns a value for a string key, does never throw
 	KString GetString(const KJSON& json, KStringView sKey);
@@ -164,5 +168,12 @@ namespace kjson
 	KString Escape (KStringView sInput);
 
 }; // end of namespace kjson
+
+// lift a few of the static methods into dekaf2's namespace
+
+using kjson::Parse;
+using kjson::Print;
+using kjson::GetString;
+using kjson::GetObject;
 
 } // end of namespace dekaf2

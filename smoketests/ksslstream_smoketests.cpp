@@ -2,6 +2,7 @@
 
 #include <dekaf2/ksslclient.h>
 #include <dekaf2/ktcpclient.h>
+#include <dekaf2/khttpclient.h>
 #include <dekaf2/kstring.h>
 #include <iostream>
 
@@ -54,5 +55,26 @@ TEST_CASE("KSSLClient")
 	CHECK ( stream.ReadRemaining(str) == true );
 	CHECK ( stream.good() == false );
 
+}
+
+TEST_CASE("KSSLClient 2")
+{
+	KString sURL {"https://www.google.com"};
+	KHTTPClient HTTP;
+	HTTP.SetTimeout(1);
+	KString sResponse = HTTP.Get (sURL);
+	CHECK ( !sResponse.empty() );
+	CHECK ( HTTP.Response.iStatusCode == 200 );
+}
+
+TEST_CASE("KSSLClient 3")
+{
+	KString sURL {"https://www.dfggooglesdkjfhsjuhkjlgrsisfugkhvij.com"};
+	KHTTPClient HTTP;
+	HTTP.SetTimeout(1);
+	KString sResponse = HTTP.Get (sURL);
+	CHECK ( sResponse.empty() );
+	CHECK ( HTTP.Response.iStatusCode != 200 );
+	CHECK ( HTTP.Error() == "Host not found (authoritative)" );
 }
 

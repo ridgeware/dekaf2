@@ -422,9 +422,9 @@ bool KSSLIOStream::Connect(const KTCPEndPoint& Endpoint)
 								   hosts,
 								   [&](const boost::system::error_code& ec,
 #if (BOOST_VERSION < 106600)
-		                                                           boost::asio::ip::tcp::resolver::iterator endpoint)
+                                       boost::asio::ip::tcp::resolver::iterator endpoint)
 #else
-									   const boost::asio::ip::tcp::endpoint& endpoint)
+                                       const boost::asio::ip::tcp::endpoint& endpoint)
 #endif
 		{
 			m_ConnectedHost = endpoint;

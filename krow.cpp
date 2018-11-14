@@ -441,8 +441,6 @@ bool KROW::FormDelete (KString& sSQL, SQLTYPE iDBType) const
 bool KROW::AddCol (KStringView sColName, const KJSON& Value, uint16_t iFlags, uint32_t iMaxLen)
 //-----------------------------------------------------------------------------
 {
-	KString sValue;
-
 	if (Value.is_object() || Value.is_array())
 	{
 		return AddCol(sColName, Value.dump(-1), iFlags ? iFlags : static_cast<uint16_t>(JSON), iMaxLen);

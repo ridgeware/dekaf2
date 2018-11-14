@@ -137,5 +137,11 @@ uint8_t ksystem (const KString& sCommand);
 /// Resolve the given hostname into an IPv4 IP address, e.g. "50.1.2.3".  If hostname fails to resolve, return empty string.
 KString kResolveHostIPV4 (const KString& sHostname);
 
+/// Block program from running for random amount of time within the given min and max.
+void kSleepRandomSeconds (uint64_t iMinSeconds, uint64_t iMaxSeconds);
+
+/// Block program from running for random amount of time within the given min and max.
+void kSleepRandomMilliseconds (uint64_t iMinMilliseconds, uint64_t iMaxMilliseconds);
+
 } // end of namespace dekaf2
 

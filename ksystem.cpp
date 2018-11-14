@@ -298,5 +298,39 @@ KString kResolveHostIPV4 (const KString& sHostname)
 
 } // kResolveHostIPV4
 
+//-----------------------------------------------------------------------------
+void kSleepRandomSeconds (uint64_t iMin, uint64_t iMax)
+//-----------------------------------------------------------------------------
+{
+	if (iMax <= iMin) {
+		sleep (iMin);
+		return;
+	}
+
+	uint64_t iDiff  = iMax - iMin;;
+	uint64_t iSleep = iMin + (rand() % iDiff);
+
+	kDebugLog (2, "sleeping {} seconds...", iSleep);
+	sleep (iSleep);
+
+} // kSleepRandomSeconds
+
+//-----------------------------------------------------------------------------
+void kSleepRandomMilliseconds (uint64_t iMin, uint64_t iMax)
+//-----------------------------------------------------------------------------
+{
+	if (iMax <= iMin) {
+		usleep (1000 * iMin);
+		return;
+	}
+
+	uint64_t iDiff  = iMax - iMin;;
+	uint64_t iSleep = iMin + (rand() % iDiff);
+
+	kDebugLog (2, "sleeping {} miliseconds...", iSleep);
+	usleep (1000 * iSleep);
+
+} // kSleepRandomMilliseconds
+
 } // end of namespace dekaf2
 

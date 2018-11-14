@@ -436,7 +436,6 @@ bool KSSLIOStream::Connect(const KTCPEndPoint& Endpoint)
 
 	if (!Good() || !m_Stream.Socket.lowest_layer().is_open())
 	{
-		kDebug(2, "{}", Error());
 		return false;
 	}
 

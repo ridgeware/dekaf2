@@ -50,6 +50,7 @@
 #include <string>
 #include "bits/kcppcompat.h"
 #include "khash.h"
+#include <fmt/format.h>
 
 #if !defined(DEKAF2_HAS_CPP_17) && !defined(DEKAF2_USE_FOLLY_STRINGPIECE_AS_KSTRINGVIEW)
 	// we have to use folly's stringpiece if we do not have C++17..
@@ -302,6 +303,14 @@ public:
 	//-----------------------------------------------------------------------------
 	{
 		return ToRange();
+	}
+
+	//-----------------------------------------------------------------------------
+	constexpr
+	operator fmt::string_view() const
+	//-----------------------------------------------------------------------------
+	{
+		return fmt::string_view(data(), size());
 	}
 
 	//-----------------------------------------------------------------------------

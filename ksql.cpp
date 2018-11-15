@@ -3555,43 +3555,63 @@ uint16_t KSQL::GetKRowFlags (COLINFO* pInfo)
 {
 	uint16_t iColFlags{0};
 
+	if (kStrIn (pInfo->szColName, "avg_lpc,avg_tcp")) {
+		int foo = 10;
+		foo += 10;
+	}
+
 	switch (m_iDBType)
 	{
 	case DBT_MYSQL:
 		#ifdef DEKAF2_HAS_MYSQL
 		switch (pInfo->iDataType)
 		{
+			// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 			// we only care about setting flags non-string types:
-			case FIELD_TYPE_DECIMAL:    // DECIMAL or NUMERIC
-			case FIELD_TYPE_DOUBLE:     // DOUBLE or REAL
-			case FIELD_TYPE_ENUM:       // ENUM
-			case FIELD_TYPE_FLOAT:      // FLOAT
-			case FIELD_TYPE_INT24:      // MEDIUMINT
-			case FIELD_TYPE_LONG:       // INT
-			case FIELD_TYPE_LONGLONG:   // BIGINT
-			case FIELD_TYPE_SHORT:      // SMALLINT
-			case FIELD_TYPE_TINY:       // TINYINT
-			case FIELD_TYPE_YEAR:       // YEAR
+			// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+			case MYSQL_TYPE_DECIMAL:
+			case MYSQL_TYPE_TINY:
+			case MYSQL_TYPE_SHORT:
+			case MYSQL_TYPE_LONG:
+			case MYSQL_TYPE_FLOAT:
+			case MYSQL_TYPE_DOUBLE:
+			case MYSQL_TYPE_LONGLONG:
+			case MYSQL_TYPE_INT24:
+			case MYSQL_TYPE_YEAR:
+			case MYSQL_TYPE_BIT:
+			case MYSQL_TYPE_NEWDECIMAL:
+			case MYSQL_TYPE_ENUM:
+			case MYSQL_TYPE_GEOMETRY:
 				iColFlags = KROW::NUMERIC;
 				break;
 
 			// always the problem child:
-			case FIELD_TYPE_NULL:       // NULL
+			case MYSQL_TYPE_NULL:
 				break;
 			
+			// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 			// these we can leave with no KROW flags:
-			case FIELD_TYPE_SET:        // SET
-			case FIELD_TYPE_BLOB:       // BLOB or TEXT
-			case FIELD_TYPE_DATE:       // DATE
-			case FIELD_TYPE_DATETIME:   // DATETIME
-			case FIELD_TYPE_VAR_STRING: // VARCHAR
-			case FIELD_TYPE_STRING:     // CHAR
-			case FIELD_TYPE_TIME:       // TIME
-			case FIELD_TYPE_TIMESTAMP:  // TIMESTAMP
+			// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+			case MYSQL_TYPE_TIMESTAMP:
+			case MYSQL_TYPE_DATE:
+			case MYSQL_TYPE_TIME:
+			case MYSQL_TYPE_DATETIME:
+			case MYSQL_TYPE_NEWDATE:
+			case MYSQL_TYPE_VARCHAR:
+			case MYSQL_TYPE_TIMESTAMP2:
+			case MYSQL_TYPE_DATETIME2:
+			case MYSQL_TYPE_TIME2:
+			case MYSQL_TYPE_JSON:
+			case MYSQL_TYPE_SET:
+			case MYSQL_TYPE_TINY_BLOB:
+			case MYSQL_TYPE_MEDIUM_BLOB:
+			case MYSQL_TYPE_LONG_BLOB:
+			case MYSQL_TYPE_BLOB:
+			case MYSQL_TYPE_VAR_STRING:
+			case MYSQL_TYPE_STRING:
 			default:
 				break;
 		}
-
 		#endif // DEKAF2_HAS_MYSQL
 		break;
 

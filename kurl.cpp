@@ -399,6 +399,7 @@ void KURL::clear()
 bool KURL::Serialize(KString& sTarget) const
 //-------------------------------------------------------------------------
 {
+	Port.WantStartSeparator();
 	Query.WantStartSeparator();
 	Fragment.WantStartSeparator();
 	return Protocol.Serialize      (sTarget)
@@ -415,6 +416,7 @@ bool KURL::Serialize(KString& sTarget) const
 bool KURL::Serialize(KOutStream& sTarget) const
 //-------------------------------------------------------------------------
 {
+	Port.WantStartSeparator();
 	Query.WantStartSeparator();
 	Fragment.WantStartSeparator();
 	return Protocol.Serialize      (sTarget)
@@ -465,6 +467,7 @@ void KTCPEndPoint::clear()
 bool KTCPEndPoint::Serialize(KString& sTarget) const
 //-------------------------------------------------------------------------
 {
+	Port.WantStartSeparator();
 	return Domain.Serialize    (sTarget)
 		&& Port.Serialize      (sTarget);
 }
@@ -473,6 +476,7 @@ bool KTCPEndPoint::Serialize(KString& sTarget) const
 bool KTCPEndPoint::Serialize(KOutStream& sTarget) const
 //-------------------------------------------------------------------------
 {
+	Port.WantStartSeparator();
 	return Domain.Serialize    (sTarget)
 		&& Port.Serialize      (sTarget);
 }

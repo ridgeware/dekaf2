@@ -241,6 +241,8 @@ bool KHTTPClient::Serialize()
 bool KHTTPClient::SendRequest(KStringView svPostData, KMIME Mime)
 //-----------------------------------------------------------------------------
 {
+	Response.clear();
+
 	if (Request.Resource.empty())
 	{
 		return SetError("no resource");
@@ -266,7 +268,7 @@ bool KHTTPClient::SendRequest(KStringView svPostData, KMIME Mime)
 	{
 		if (!svPostData.empty())
 		{
-			kDebug(1, "cannot send body data with {} request, data removed", Mime)
+			kDebug(1, "cannot send body data with {} request, data removed", Request.Method.Serialize())
 			svPostData.clear();
 		}
 	}

@@ -227,7 +227,7 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
-	/// add the start separator (/, ?, #) when serializing? Is normally
+	/// add the start separator (:, /, ?, #) when serializing? Is normally
 	/// determined by the parsing stage, but needs to be set manually after
 	/// setting the values in unencoded form.
 	void WantStartSeparator() const
@@ -242,13 +242,13 @@ public:
 	bool Serialize (KString& sTarget) const
 	//-------------------------------------------------------------------------
 	{
-		if (m_bHadStartSeparator && !m_sStorage.empty())
-		{
-			sTarget += StartToken;
-		}
-
 		if (!m_sStorage.empty())
 		{
+			if (m_bHadStartSeparator)
+			{
+				sTarget += StartToken;
+			}
+
 			if (Component == URIPart::Password)
 			{
 				if (!sTarget.empty())
@@ -278,13 +278,13 @@ public:
 	bool Serialize (KOutStream& sTarget) const
 	//-------------------------------------------------------------------------
 	{
-		if (m_bHadStartSeparator && !m_sStorage.empty())
-		{
-			sTarget += StartToken;
-		}
-
 		if (!m_sStorage.empty())
 		{
+			if (m_bHadStartSeparator)
+			{
+				sTarget += StartToken;
+			}
+
 			if (Component == URIPart::Password)
 			{
 				// we should throw here or output an error as we cannot

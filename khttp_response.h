@@ -104,7 +104,7 @@ public:
 //------
 
 	KString  sStatusString;
-	uint16_t iStatusCode;
+	uint16_t iStatusCode { 0 };
 
 }; // KHTTPResponseHeaders
 

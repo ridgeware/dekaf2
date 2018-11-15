@@ -3575,14 +3575,11 @@ uint16_t KSQL::GetKRowFlags (COLINFO* pInfo)
 			case MYSQL_TYPE_NEWDECIMAL:
 			case MYSQL_TYPE_ENUM:
 			case MYSQL_TYPE_GEOMETRY:
-				iColFlags = KROW::NUMERIC;
-				break;
-
-			// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-			// huge numbers that overflow when allowing them to be numbers:
-			// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 			case MYSQL_TYPE_LONGLONG:
 			case MYSQL_TYPE_INT24:
+				if (pInfo->iMaxDataLen < 19) { // huge numbers that overflow when allowing them to be numbers:
+					iColFlags = KROW::NUMERIC;
+				}
 				break;
 
 			// always the problem child:

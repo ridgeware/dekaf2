@@ -39,19 +39,81 @@
 */
 
 #include "kformat.h"
+#include "kstring.h"
+#include "bits/kcppcompat.h"
+#include <fmt/ostream.h>
+#include <fmt/printf.h>
 #include "klog.h"
 
-namespace dekaf2
-{
-namespace kFormat_internal
-{
-
-// to avoid circular includes we call KLog only from the implementation and not from the header
-void report_format_exception(std::exception& e, const char* where)
-{
-	KLog().Exception(e, where);
+namespace fmt {
+	template<>
+	struct is_contiguous<dekaf2::KString> : std::true_type {};
 }
 
-}
-}
+namespace dekaf2 {
+
+namespace detail {
+
+//-----------------------------------------------------------------------------
+/// formats a std::ostream using Python syntax
+std::ostream& kfFormat(std::ostream& os, KStringView sFormat, fmt::format_args args)
+//-----------------------------------------------------------------------------
+{
+	DEKAF2_TRY {
+		fmt::vprint(os, sFormat.operator fmt::string_view(), args);
+	} DEKAF2_CATCH (std::exception& e) {
+		kException(e);
+	}
+	return os;
+
+} // kfFormat
+
+//-----------------------------------------------------------------------------
+/// formats a KString using Python syntax
+KString kFormat(KStringView sFormat, fmt::format_args args)
+//-----------------------------------------------------------------------------
+{
+	KString sOut;
+	DEKAF2_TRY {
+		fmt::vformat_to(std::back_inserter(sOut), sFormat.operator fmt::string_view(), args);
+	} DEKAF2_CATCH (std::exception& e) {
+		kException(e);
+	}
+	return sOut;
+
+} // kFormat
+
+//-----------------------------------------------------------------------------
+/// formats a std::ostream using POSIX printf syntax
+std::ostream& kfPrintf(std::ostream& os, KStringView sFormat, fmt::printf_args args)
+//-----------------------------------------------------------------------------
+{
+	DEKAF2_TRY {
+		fmt::vfprintf(os, sFormat.operator fmt::string_view(), args);
+	} DEKAF2_CATCH (std::exception& e) {
+		kException(e);
+	}
+	return os;
+
+} // kfFormat
+
+//-----------------------------------------------------------------------------
+/// formats a KString using POSIX printf syntax
+KString kPrintf(KStringView sFormat, fmt::printf_args args)
+//-----------------------------------------------------------------------------
+{
+	fmt::memory_buffer buffer;
+	DEKAF2_TRY {
+		fmt::printf(buffer, sFormat.operator fmt::string_view(), args);
+	} DEKAF2_CATCH (std::exception& e) {
+		kException(e);
+	}
+	return { buffer.data(), buffer.size() };
+
+} // kFormat
+
+
+} // end of namespace detail
+
+} // end of namespace dekaf2
 

@@ -568,10 +568,10 @@ KLog& KLog();
 /// log a debug message, automatically provide function name.
 #define kDebug(level, ...) \
 { \
-	if (DEKAF2_UNLIKELY(level <= KLog::s_kLogLevel)) \
-{ \
-	KLog().debug_fun(level, DEKAF2_FUNCTION_NAME, __VA_ARGS__); \
-} \
+	if (DEKAF2_UNLIKELY(level <= dekaf2::KLog::s_kLogLevel)) \
+	{ \
+		dekaf2::KLog().debug_fun(level, DEKAF2_FUNCTION_NAME, __VA_ARGS__); \
+	} \
 }
 //---------------------------------------------------------------------------
 
@@ -582,10 +582,10 @@ KLog& KLog();
 /// log a debug message, do NOT automatically provide function name.
 #define kDebugLog(level, ...) \
 { \
-	if (DEKAF2_UNLIKELY(level <= KLog::s_kLogLevel)) \
-{ \
-	KLog().debug(level, __VA_ARGS__); \
-} \
+	if (DEKAF2_UNLIKELY(level <= dekaf2::KLog::s_kLogLevel)) \
+	{ \
+		dekaf2::KLog().debug(level, __VA_ARGS__); \
+	} \
 }
 //---------------------------------------------------------------------------
 
@@ -596,7 +596,7 @@ KLog& KLog();
 /// log a warning message, automatically provide function name.
 #define kWarning(...) \
 { \
-	KLog().debug_fun(-1, DEKAF2_FUNCTION_NAME, __VA_ARGS__); \
+	dekaf2::KLog().debug_fun(-1, DEKAF2_FUNCTION_NAME, __VA_ARGS__); \
 }
 //---------------------------------------------------------------------------
 
@@ -608,7 +608,7 @@ KLog& KLog();
 /// stacktrace at level -2
 #define kException(except) \
 { \
-	KLog().Exception(except, DEKAF2_FUNCTION_NAME); \
+	dekaf2::KLog().Exception(except, DEKAF2_FUNCTION_NAME); \
 }
 //---------------------------------------------------------------------------
 
@@ -619,7 +619,7 @@ KLog& KLog();
 /// log an unknown exception, automatically provide function name.
 #define kUnknownException() \
 { \
-	KLog().Exception(DEKAF2_FUNCTION_NAME); \
+	dekaf2::KLog().Exception(DEKAF2_FUNCTION_NAME); \
 }
 //---------------------------------------------------------------------------
 
@@ -630,7 +630,7 @@ KLog& KLog();
 /// force a stack trace, automatically provide function name.
 #define kDebugTrace(...) \
 { \
-	KLog().debug_fun(-2, DEKAF2_FUNCTION_NAME, __VA_ARGS__); \
+	dekaf2::KLog().debug_fun(-2, DEKAF2_FUNCTION_NAME, __VA_ARGS__); \
 }
 //---------------------------------------------------------------------------
 
@@ -639,7 +639,7 @@ KLog& KLog();
 #endif
 //---------------------------------------------------------------------------
 /// test if a given log level would create output
-#define kWouldLog(level) (DEKAF2_UNLIKELY(level <= KLog::s_kLogLevel))
+#define kWouldLog(level) (DEKAF2_UNLIKELY(level <= dekaf2::KLog::s_kLogLevel))
 //---------------------------------------------------------------------------
 
 

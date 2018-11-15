@@ -3580,6 +3580,13 @@ uint16_t KSQL::GetKRowFlags (COLINFO* pInfo)
 				iColFlags = KROW::NUMERIC;
 				break;
 
+			// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+			// huge numbers that overflow when allowing them to be numbers:
+			// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+			case MYSQL_TYPE_LONGLONG:
+			case MYSQL_TYPE_INT24:
+				break;
+
 			// always the problem child:
 			case MYSQL_TYPE_NULL:
 				break;

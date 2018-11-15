@@ -4,6 +4,7 @@
 #include <dekaf2/ktcpclient.h>
 #include <dekaf2/khttpclient.h>
 #include <dekaf2/kstring.h>
+#include <dekaf2/ksystem.h>
 #include <iostream>
 
 using namespace dekaf2;
@@ -76,5 +77,12 @@ TEST_CASE("KSSLClient 3")
 	CHECK ( sResponse.empty() );
 	CHECK ( HTTP.Response.iStatusCode != 200 );
 	CHECK ( HTTP.Error() == "Host not found (authoritative)" );
+}
+
+TEST_CASE("name resolution")
+{
+	auto sIP = kResolveHostIPV4("www.google.com");
+
+	CHECK ( sIP.empty() == false );
 }
 

@@ -40,11 +40,14 @@
 //
 */
 
+#include <thread>
 #include "bits/kfilesystem.h"
 #include "ksystem.h"
 #include "kstring.h"
 #include "klog.h"
 
+#include <boost/asio.hpp>
+#include <boost/asio/ip/tcp.hpp>
 #include <sys/types.h>    // for getpwuid()
 #include <pwd.h>          // for getpwuid()
 #ifndef DEKAF2_IS_OSX
@@ -279,22 +282,77 @@ uint8_t ksystem (const KString& sCommand)
 } // ksystem
 
 //-----------------------------------------------------------------------------
-KString kResolveHostIPV4 (const KString& sHostname)
+KString kResolveHost (KStringViewZ sHostname, bool bIPv4, bool bIPv6)
 //-----------------------------------------------------------------------------
 {
 	KString sIPV4;
-	struct hostent* pHost = gethostbyname (sHostname.c_str());
-	if (!pHost)
+	KString sIPV6;
+	KString sRet;
+
+	boost::asio::io_service IOService;
+	boost::asio::ip::tcp::resolver Resolver(IOService);
+	boost::asio::ip::tcp::resolver::query query(sHostname.c_str(), "80");
+	boost::system::error_code ec;
+	auto hosts = Resolver.resolve(query, ec);
+
+	if (ec)
 	{
-		kDebugLog (1, "kResolveHostIPV4: {} --> FAILED", sHostname);
+		KString sss=ec.message();
+		kDebugLog (1, "kResolveHostIPV4: {} --> FAILED : {}", sHostname, sss);
 	}
 	else
 	{
-		sIPV4 = inet_ntoa (*(in_addr*)(pHost->h_addr_list[0]));
-		kDebugLog (1, "kResolveHostIPV4: {} --> {}", sHostname, sIPV4);
+		auto it = hosts.begin();
+		for (; it != hosts.end(); ++it)
+		{
+			if (it->endpoint().protocol() == boost::asio::ip::tcp::v4())
+			{
+				sIPV4 = it->endpoint().address().to_string();
+
+				if (bIPv4)
+				{
+					break;
+				}
+			}
+			else
+			{
+				sIPV6 = it->endpoint().address().to_string();
+
+				if (bIPv6)
+				{
+					break;
+				}
+			}
+		}
+
+		if (bIPv4 && !sIPV4.empty())
+		{
+			// success
+			kDebugLog (1, "kResolveHost: {} --> {}", sHostname, sIPV4);
+			sRet = std::move(sIPV4);
+		}
+		else if (bIPv6 && !sIPV6.empty())
+		{
+			// success
+			kDebugLog (1, "kResolveHost: {} --> {}", sHostname, sIPV6);
+			sRet = std::move(sIPV6);
+		}
+		else if (sIPV4.empty() && sIPV6.empty())
+		{
+			// unknown..
+			kDebugLog(1, "kResolveHost: {} --> FAILED", sHostname);
+		}
+		else if (sIPV4.empty())
+		{
+			kDebugLog(1, "kResolveHost: {} --> FAILED, only has IPV6 {}", sHostname, sIPV6);
+		}
+		else if (sIPV6.empty())
+		{
+			kDebugLog(1, "kResolveHost: {} --> FAILED, only has IPV4 {}", sHostname, sIPV4);
+		}
 	}
 
-	return sIPV4;
+	return sRet;
 
 } // kResolveHostIPV4
 
@@ -302,8 +360,9 @@ KString kResolveHostIPV4 (const KString& sHostname)
 void kSleepRandomSeconds (uint64_t iMin, uint64_t iMax)
 //-----------------------------------------------------------------------------
 {
-	if (iMax <= iMin) {
-		sleep (iMin);
+	if (iMax <= iMin)
+	{
+		std::this_thread::sleep_for(std::chrono::seconds(iMin));
 		return;
 	}
 
@@ -311,7 +370,7 @@ void kSleepRandomSeconds (uint64_t iMin, uint64_t iMax)
 	uint64_t iSleep = iMin + (rand() % iDiff);
 
 	kDebugLog (2, "sleeping {} seconds...", iSleep);
-	sleep (iSleep);
+	std::this_thread::sleep_for(std::chrono::seconds(iSleep));
 
 } // kSleepRandomSeconds
 
@@ -319,8 +378,9 @@ void kSleepRandomSeconds (uint64_t iMin, uint64_t iMax)
 void kSleepRandomMilliseconds (uint64_t iMin, uint64_t iMax)
 //-----------------------------------------------------------------------------
 {
-	if (iMax <= iMin) {
-		usleep (1000 * iMin);
+	if (iMax <= iMin)
+	{
+		std::this_thread::sleep_for(std::chrono::milliseconds(iMin));
 		return;
 	}
 
@@ -328,7 +388,7 @@ void kSleepRandomMilliseconds (uint64_t iMin, uint64_t iMax)
 	uint64_t iSleep = iMin + (rand() % iDiff);
 
 	kDebugLog (2, "sleeping {} miliseconds...", iSleep);
-	usleep (1000 * iSleep);
+	std::this_thread::sleep_for(std::chrono::milliseconds(iSleep));
 
 } // kSleepRandomMilliseconds
 

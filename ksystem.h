@@ -134,8 +134,20 @@ uint8_t ksystem (const KString& sCommand, KString& sOutput);
 /// Execute the given command, redirect stdout and stderr into /dev/null.  Return code matches the exit code command that was run: 0 is normally an indication of success.
 uint8_t ksystem (const KString& sCommand);
 
+/// Resolve the given hostname into either an IPv4 IP address or an IPv6 address.  If hostname fails to resolve, return empty string.
+KString kResolveHost (KStringViewZ sHostname, bool bIPv4, bool bIPv6);
+
 /// Resolve the given hostname into an IPv4 IP address, e.g. "50.1.2.3".  If hostname fails to resolve, return empty string.
-KString kResolveHostIPV4 (const KString& sHostname);
+inline KString kResolveHostIPV4 (KStringViewZ sHostname)
+{
+	return kResolveHost (sHostname, true, false);
+}
+
+/// Resolve the given hostname into an IPv6 IP address, e.g. "fe80::be27:ebff:fad4:49e7".  If hostname fails to resolve, return empty string.
+inline KString kResolveHostIPV6 (KStringViewZ sHostname)
+{
+	return kResolveHost (sHostname, false, true);
+}
 
 /// Block program from running for random amount of time within the given min and max.
 void kSleepRandomSeconds (uint64_t iMinSeconds, uint64_t iMaxSeconds);

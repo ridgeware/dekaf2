@@ -162,6 +162,8 @@ struct KAsioSSLStream
 			boost::system::error_code ignored_ec;
 			Socket.lowest_layer().close(ignored_ec);
 			Timer.expires_at(boost::posix_time::pos_infin);
+			kDebug(2, "Connection timeout ({} seconds): {}:{}",
+				   iSecondsTimeout, sEndpoint);
 		}
 
 		Timer.async_wait(boost::bind(&KAsioSSLStream<StreamType>::CheckTimer, this));
@@ -186,6 +188,7 @@ struct KAsioSSLStream
 	KSSLContext& SSLContext;
 	boost::asio::io_service IOService;
 	StreamType Socket;
+	dekaf2::KString sEndpoint;
 	boost::asio::deadline_timer Timer;
 	boost::system::error_code ec;
 	int iSecondsTimeout;
@@ -206,7 +209,7 @@ class KSSLIOStream : public std::iostream
 public:
 //----------
 
-	enum { DEFAULT_TIMEOUT = 1 * 30 };
+	enum { DEFAULT_TIMEOUT = 1 * 15 };
 
 	//-----------------------------------------------------------------------------
 	/// Constructs a client with default parameters (no certificate verification, no SSLv3)
@@ -225,7 +228,7 @@ public:
 	/// KTCPEndPoint as the server to connect to - can be constructed from
 	/// a variety of inputs, like strings or KURL
 	/// @param iSecondsTimeout
-	/// Timeout in seconds for any I/O. Defaults to 30.
+	/// Timeout in seconds for any I/O. Defaults to 15.
 	KSSLIOStream(const KTCPEndPoint& Endpoint,
 				 int iSecondsTimeout = DEFAULT_TIMEOUT,
 				 bool bManualHandshake = false);
@@ -310,7 +313,7 @@ public:
 		}
 		else
 		{
-			return KString{};
+			return {};
 		}
 	}
 
@@ -321,12 +324,6 @@ private:
 	using tcpstream = boost::asio::ssl::stream<boost::asio::ip::tcp::socket>;
 
 	KAsioSSLStream<tcpstream> m_Stream;
-
-#if (BOOST_VERSION < 106600)
-	boost::asio::ip::tcp::resolver::iterator m_ConnectedHost;
-#else
-	boost::asio::ip::tcp::endpoint m_ConnectedHost;
-#endif
 
 	KBufferedStreamBuf m_SSLStreamBuf{&SSLStreamReader, &SSLStreamWriter, &m_Stream, &m_Stream};
 

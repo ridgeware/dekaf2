@@ -151,7 +151,7 @@ public:
 		}
 		else
 		{
-			return KString{};
+			return {};
 		}
 	}
 
@@ -162,12 +162,6 @@ private:
 	using tcpstream = boost::asio::basic_stream_socket<boost::asio::ip::tcp>;
 
 	KAsioStream<tcpstream> m_Stream;
-
-#if (BOOST_VERSION < 106600)
-	boost::asio::ip::tcp::resolver::iterator m_ConnectedHost;
-#else
-	boost::asio::ip::tcp::endpoint m_ConnectedHost;
-#endif
 
 	KBufferedStreamBuf m_TCPStreamBuf{&TCPStreamReader, &TCPStreamWriter, &m_Stream, &m_Stream};
 

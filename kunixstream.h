@@ -62,7 +62,7 @@ class KUnixIOStream : public std::iostream
 {
 	using base_type = std::iostream;
 
-	enum { DEFAULT_TIMEOUT = 1 * 30 };
+	enum { DEFAULT_TIMEOUT = 1 * 15 };
 
 //----------
 public:
@@ -78,7 +78,7 @@ public:
 	/// @param sSocketFile
 	/// a unix socket endpoint file
 	/// @param iSecondsTimeout
-	/// Timeout in seconds for any I/O. Defaults to 60.
+	/// Timeout in seconds for any I/O. Defaults to 15.
 	KUnixIOStream(KStringViewZ sSocketFile, int iSecondsTimeout = DEFAULT_TIMEOUT);
 	//-----------------------------------------------------------------------------
 
@@ -117,9 +117,9 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	/// Gets the underlying TCP socket of the stream
+	/// Gets the underlying socket of the stream
 	/// @return
-	/// The TCP socket of the stream (wrapped into ASIO's basic_socket<> template)
+	/// The socket of the stream (wrapped into ASIO's basic_socket<> template)
 #if (BOOST_VERSION < 106600)
 	boost::asio::basic_socket<boost::asio::local::stream_protocol, boost::asio::stream_socket_service<boost::asio::local::stream_protocol> >& GetUnixSocket()
 #else
@@ -147,7 +147,7 @@ public:
 		}
 		else
 		{
-			return KString{};
+			return {};
 		}
 	}
 

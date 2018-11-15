@@ -70,7 +70,9 @@ std::streamsize KTCPIOStream::TCPStreamReader(void* sBuffer, std::streamsize iCo
 
 		if (iRead == 0 || stream->ec.value() != 0 || !stream->Socket.is_open())
 		{
-			kDebug(3, "cannot read from tcp stream: {}", stream->ec.message());
+			kDebug(2, "cannot read from tcp stream with {}: {}",
+				   stream->sEndpoint,
+				   stream->ec.message());
 		}
 	}
 
@@ -109,7 +111,9 @@ std::streamsize KTCPIOStream::TCPStreamWriter(const void* sBuffer, std::streamsi
 
 			if (iWrotePart == 0 || stream->ec.value() != 0 || !stream->Socket.is_open())
 			{
-				kDebug(3, "cannot write to tcp stream: {}", stream->ec.message());
+				kDebug(2, "cannot write to tcp stream with {}: {}",
+					   stream->sEndpoint,
+					   stream->ec.message());
 				break;
 			}
 		}
@@ -162,14 +166,16 @@ bool KTCPIOStream::Connect(const KTCPEndPoint& Endpoint)
 	{
 		boost::asio::async_connect(m_Stream.Socket.lowest_layer(),
 								   hosts,
-								   [&](const boost::system::error_code& ec,
+		                           [&](const boost::system::error_code& ec,
 #if (BOOST_VERSION < 106600)
-		                                                           boost::asio::ip::tcp::resolver::iterator endpoint)
+		                               boost::asio::ip::tcp::resolver::iterator endpoint)
 #else
-									   const boost::asio::ip::tcp::endpoint& endpoint)
+		                               const boost::asio::ip::tcp::endpoint& endpoint)
 #endif
 		{
-			m_ConnectedHost = endpoint;
+			m_Stream.sEndpoint.Format("{}:{}",
+									  endpoint.address().to_string(),
+									  endpoint.port());
 			m_Stream.ec = ec;
 		});
 
@@ -178,7 +184,7 @@ bool KTCPIOStream::Connect(const KTCPEndPoint& Endpoint)
 
 	if (!Good() || !m_Stream.Socket.is_open())
 	{
-		kDebug(2, "{}", Error());
+		kDebug(2, "{}: {}", Endpoint.Serialize(), Error());
 		return false;
 	}
 

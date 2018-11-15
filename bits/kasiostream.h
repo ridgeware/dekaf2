@@ -45,6 +45,8 @@
 /// provides asio stream abstraction with deadline timer
 
 #include <boost/asio.hpp>
+#include "../kstring.h"
+#include "../klog.h"
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 template<typename StreamType>
@@ -86,6 +88,8 @@ struct KAsioStream
 			boost::system::error_code ignored_ec;
 			Socket.close(ignored_ec);
 			Timer.expires_at(boost::posix_time::pos_infin);
+			kDebug(2, "Connection timeout ({} seconds): {}",
+				   iSecondsTimeout, sEndpoint);
 		}
 
 		Timer.async_wait(std::bind(&KAsioStream<StreamType>::CheckTimer, this));
@@ -109,6 +113,7 @@ struct KAsioStream
 
 	boost::asio::io_service IOService;
 	StreamType Socket;
+	dekaf2::KString sEndpoint;
 	boost::asio::deadline_timer Timer;
 	boost::system::error_code ec;
 	int iSecondsTimeout;

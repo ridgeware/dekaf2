@@ -71,7 +71,9 @@ std::streamsize KUnixIOStream::UnixStreamReader(void* sBuffer, std::streamsize i
 
 		if (iRead == 0 || stream->ec.value() != 0 || !stream->Socket.is_open())
 		{
-			kDebug(3, "cannot read from unix stream: {}", stream->ec.message());
+			kDebug(3, "cannot read from unix stream {}: {}",
+				   stream->sEndpoint,
+				   stream->ec.message());
 		}
 	}
 
@@ -111,7 +113,9 @@ std::streamsize KUnixIOStream::UnixStreamWriter(const void* sBuffer, std::stream
 
 			if (iWrotePart == 0 || stream->ec.value() != 0 || !stream->Socket.is_open())
 			{
-				kDebug(3, "cannot write to unix stream: {}", stream->ec.message());
+				kDebug(3, "cannot write to unix stream {}: {}",
+					   stream->sEndpoint,
+					   stream->ec.message());
 				break;
 			}
 		}
@@ -159,6 +163,7 @@ bool KUnixIOStream::Connect(KStringViewZ sSocketFile)
 	m_Stream.Socket.async_connect(boost::asio::local::stream_protocol::endpoint(sSocketFile),
 								  [&](const boost::system::error_code& ec)
 	{
+		m_Stream.sEndpoint = sSocketFile;
 		m_Stream.ec = ec;
 	});
 
@@ -166,7 +171,7 @@ bool KUnixIOStream::Connect(KStringViewZ sSocketFile)
 
 	if (!Good() || !m_Stream.Socket.is_open())
 	{
-		kDebug(2, "{}", Error());
+		kDebug(2, "{}: {}", sSocketFile, Error());
 		return false;
 	}
 

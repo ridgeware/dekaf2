@@ -437,27 +437,6 @@ KInStream::~KInStream()
 }
 
 //-----------------------------------------------------------------------------
-/// Read a character. Returns std::istream::traits_type::eof() (== -1) if no input available
-typename std::istream::int_type KInStream::Read()
-//-----------------------------------------------------------------------------
-{
-	std::streambuf* sb = InStream().rdbuf();
-
-	if (sb)
-	{
-		typename std::istream::int_type iCh = sb->sbumpc();
-		if (std::istream::traits_type::eq_int_type(iCh, std::istream::traits_type::eof()))
-		{
-			InStream().setstate(std::ios::eofbit);
-		}
-		return iCh;
-	}
-
-	return std::istream::traits_type::eof();
-
-} // Read
-
-//-----------------------------------------------------------------------------
 /// UnRead a character
 bool KInStream::UnRead()
 //-----------------------------------------------------------------------------
@@ -477,6 +456,27 @@ bool KInStream::UnRead()
 	return false;
 
 } // UnRead
+
+//-----------------------------------------------------------------------------
+/// Read a character. Returns std::istream::traits_type::eof() (== -1) if no input available
+typename std::istream::int_type KInStream::Read()
+//-----------------------------------------------------------------------------
+{
+	std::streambuf* sb = InStream().rdbuf();
+
+	if (sb)
+	{
+		typename std::istream::int_type iCh = sb->sbumpc();
+		if (std::istream::traits_type::eq_int_type(iCh, std::istream::traits_type::eof()))
+		{
+			InStream().setstate(std::ios::eofbit);
+		}
+		return iCh;
+	}
+
+	return std::istream::traits_type::eof();
+
+} // Read
 
 //-----------------------------------------------------------------------------
 /// Read a range of characters. Returns count of successfully read charcters.

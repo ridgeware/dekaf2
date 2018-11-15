@@ -259,13 +259,13 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// Read a character. Returns std::istream::traits_type::eof() (== -1) if no input available
-	std::istream::int_type Read();
+	/// UnRead / putback a character. Returns false if character cannot be put back.
+	bool UnRead();
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// UnRead / putback a character. Returns false if character cannot be put back.
-	bool UnRead();
+	/// Read a character. Returns std::istream::traits_type::eof() (== -1) if no input available
+	std::istream::int_type Read();
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------

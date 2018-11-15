@@ -371,6 +371,7 @@ public:
 	bool           NextRow        (KROW& Row, bool fTrimRight=true);
 	uint64_t       GetNumBuffered ()         { return (m_iNumRowsBuffered); }
 	bool           ResetBuffer    ();
+	uint16_t       GetKRowFlags   (COLINFO* pInfo); // helper for NextRow(KROW)
 
     #ifdef DEKAF2_HAS_ORACLE
 	// Oracle/OCI variable binding support:

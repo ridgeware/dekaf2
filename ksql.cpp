@@ -2409,8 +2409,8 @@ bool KSQL::ExecRawQuery (KStringView sSQL, uint64_t iFlags/*=0*/, KStringView sA
 
 			for (int ii=1; ((pField = mysql_fetch_field((MYSQL_RES*)m_dMYSQLResult))); ++ii)
 			{
-				m_dColInfo[ii-1].iDataType   = 0; // TODO:KEEF
-				m_dColInfo[ii-1].iMaxDataLen = 0; // TODO:KEEF
+				m_dColInfo[ii-1].iDataType   = pField->type;
+				m_dColInfo[ii-1].iMaxDataLen = pField->length;
 				kstrncpy (m_dColInfo[ii-1].szColName, (char* )(pField->name), MAXCOLNAME+1);
 				m_dColInfo[ii-1].dszValue    = NULL;
 				m_dColInfo[ii-1].indp        = 0;
@@ -3550,6 +3550,68 @@ bool KSQL::NextRow ()
 } // KSQL::NextRow
 
 //-----------------------------------------------------------------------------
+uint16_t KSQL::GetKRowFlags (COLINFO* pInfo)
+//-----------------------------------------------------------------------------
+{
+	uint16_t iColFlags{0};
+
+	switch (m_iDBType)
+	{
+	case DBT_MYSQL:
+		#ifdef DEKAF2_HAS_MYSQL
+		switch (pInfo->iDataType)
+		{
+			// we only care about setting flags non-string types:
+			case FIELD_TYPE_DECIMAL:    // DECIMAL or NUMERIC
+			case FIELD_TYPE_DOUBLE:     // DOUBLE or REAL
+			case FIELD_TYPE_ENUM:       // ENUM
+			case FIELD_TYPE_FLOAT:      // FLOAT
+			case FIELD_TYPE_INT24:      // MEDIUMINT
+			case FIELD_TYPE_LONG:       // INT
+			case FIELD_TYPE_LONGLONG:   // BIGINT
+			case FIELD_TYPE_SHORT:      // SMALLINT
+			case FIELD_TYPE_TINY:       // TINYINT
+			case FIELD_TYPE_YEAR:       // YEAR
+				iColFlags = KROW::NUMERIC;
+				break;
+
+			// always the problem child:
+			case FIELD_TYPE_NULL:       // NULL
+				break;
+			
+			// these we can leave with no KROW flags:
+			case FIELD_TYPE_SET:        // SET
+			case FIELD_TYPE_BLOB:       // BLOB or TEXT
+			case FIELD_TYPE_DATE:       // DATE
+			case FIELD_TYPE_DATETIME:   // DATETIME
+			case FIELD_TYPE_VAR_STRING: // VARCHAR
+			case FIELD_TYPE_STRING:     // CHAR
+			case FIELD_TYPE_TIME:       // TIME
+			case FIELD_TYPE_TIMESTAMP:  // TIMESTAMP
+			default:
+				break;
+		}
+
+		#endif // DEKAF2_HAS_MYSQL
+		break;
+
+	case DBT_ORACLE6:
+	case DBT_ORACLE7:
+	case DBT_ORACLE8:
+	case DBT_ORACLE:
+	case DBT_SQLSERVER:
+	case DBT_SYBASE:
+	case DBT_INFORMIX:
+	default:
+		// TODO: get column meta data rom query respose for other dbtypes
+		break;
+	}
+
+	return (iColFlags);
+
+} // GetKRowFlags
+
+//-----------------------------------------------------------------------------
 bool KSQL::NextRow (KROW& Row, bool fTrimRight)
 //-----------------------------------------------------------------------------
 {
@@ -3568,9 +3630,10 @@ bool KSQL::NextRow (KROW& Row, bool fTrimRight)
 
 	// load up a property sheet so we can lookup values by column name:
 	// (we can do this even if we didn't get a row back)
-	for (uint32_t ii=1; ii <= GetNumCols(); ++ii) {
+	for (uint32_t ii=1; ii <= GetNumCols(); ++ii)
+	{
 		COLINFO* pInfo = GetColProps (ii);
-		Row.Add (pInfo->szColName, bGotOne ? Get (ii, fTrimRight) : "");
+		Row.AddCol (pInfo->szColName, (bGotOne ? Get (ii, fTrimRight) : ""), GetKRowFlags(pInfo), pInfo->iMaxDataLen);
 	}
 
 	return (bGotOne);

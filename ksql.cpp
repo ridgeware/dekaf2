@@ -3555,11 +3555,6 @@ uint16_t KSQL::GetKRowFlags (COLINFO* pInfo)
 {
 	uint16_t iColFlags{0};
 
-	if (kStrIn (pInfo->szColName, "avg_lpc,avg_tcp")) {
-		int foo = 10;
-		foo += 10;
-	}
-
 	switch (m_iDBType)
 	{
 	case DBT_MYSQL:

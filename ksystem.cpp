@@ -359,14 +359,13 @@ KString kResolveHost (KStringViewZ sHostname, bool bIPv4, bool bIPv6)
 void kSleepRandomMilliseconds (uint64_t iMin, uint64_t iMax)
 //-----------------------------------------------------------------------------
 {
-	if (iMax <= iMin)
-	{
-		std::this_thread::sleep_for(std::chrono::milliseconds(iMin));
-		return;
-	}
+	uint64_t iSleep = iMin;
 
-	uint64_t iDiff  = iMax - iMin;;
-	uint64_t iSleep = iMin + (rand() % iDiff);
+	if (iMax > iMin)
+	{
+		uint64_t iDiff = iMax - iMin;;
+		iSleep = iMin + (rand() % iDiff);
+	}
 
 	kDebugLog (2, "sleeping {} miliseconds...", iSleep);
 	std::this_thread::sleep_for(std::chrono::milliseconds(iSleep));

@@ -174,8 +174,13 @@ bool KTCPIOStream::Connect(const KTCPEndPoint& Endpoint)
 #endif
 		{
 			m_Stream.sEndpoint.Format("{}:{}",
+#if (BOOST_VERSION < 106600)
+									  endpoint->endpoint().address().to_string(),
+									  endpoint->endpoint().port());
+#else
 									  endpoint.address().to_string(),
 									  endpoint.port());
+#endif
 			m_Stream.ec = ec;
 		});
 

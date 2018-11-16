@@ -301,8 +301,14 @@ KString kResolveHost (KStringViewZ sHostname, bool bIPv4, bool bIPv6)
 	}
 	else
 	{
+#if (BOOST_VERSION < 106600)
+		auto it = hosts;
+		decltype(it) ie;
+#else
 		auto it = hosts.begin();
-		for (; it != hosts.end(); ++it)
+		auto ie = hosts.end();
+#endif
+		for (; it != ie; ++it)
 		{
 			if (it->endpoint().protocol() == boost::asio::ip::tcp::v4())
 			{

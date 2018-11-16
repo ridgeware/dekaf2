@@ -334,6 +334,7 @@ KString Print (const KJSON& Value)
 
 } // Print
 
+#if 0 // not working yet
 //-----------------------------------------------------------------------------
 bool Contains (const KJSON& json, KStringView sString)
 //-----------------------------------------------------------------------------
@@ -352,6 +353,7 @@ bool Contains (const KJSON& json, KStringView sString)
 	return (false);
 
 } // Contains
+#endif
 
 } // end of namespace kjson
 

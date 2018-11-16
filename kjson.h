@@ -168,7 +168,7 @@ namespace kjson
 	KString Escape (KStringView sInput);
 
 	/// returns true if object is a string array and contains the given string
-	bool Contains (const KJSON& json, KStringView sString);
+	//bool Contains (const KJSON& json, KStringView sString); -- doesnt work right yet
 
 }; // end of namespace kjson
 

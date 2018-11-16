@@ -297,8 +297,7 @@ KString kResolveHost (KStringViewZ sHostname, bool bIPv4, bool bIPv6)
 
 	if (ec)
 	{
-		KString sss=ec.message();
-		kDebugLog (1, "kResolveHostIPV4: {} --> FAILED : {}", sHostname, sss);
+		kDebugLog (1, "kResolveHostIPV4: {} --> FAILED : {}", sHostname, ec.message());
 	}
 	else
 	{
@@ -355,24 +354,6 @@ KString kResolveHost (KStringViewZ sHostname, bool bIPv4, bool bIPv6)
 	return sRet;
 
 } // kResolveHostIPV4
-
-//-----------------------------------------------------------------------------
-void kSleepRandomSeconds (uint64_t iMin, uint64_t iMax)
-//-----------------------------------------------------------------------------
-{
-	if (iMax <= iMin)
-	{
-		std::this_thread::sleep_for(std::chrono::seconds(iMin));
-		return;
-	}
-
-	uint64_t iDiff  = iMax - iMin;;
-	uint64_t iSleep = iMin + (rand() % iDiff);
-
-	kDebugLog (2, "sleeping {} seconds...", iSleep);
-	std::this_thread::sleep_for(std::chrono::seconds(iSleep));
-
-} // kSleepRandomSeconds
 
 //-----------------------------------------------------------------------------
 void kSleepRandomMilliseconds (uint64_t iMin, uint64_t iMax)

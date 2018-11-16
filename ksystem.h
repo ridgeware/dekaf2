@@ -150,10 +150,13 @@ inline KString kResolveHostIPV6 (KStringViewZ sHostname)
 }
 
 /// Block program from running for random amount of time within the given min and max.
-void kSleepRandomSeconds (uint64_t iMinSeconds, uint64_t iMaxSeconds);
+void kSleepRandomMilliseconds (uint64_t iMinMilliseconds, uint64_t iMaxMilliseconds);
 
 /// Block program from running for random amount of time within the given min and max.
-void kSleepRandomMilliseconds (uint64_t iMinMilliseconds, uint64_t iMaxMilliseconds);
+inline void kSleepRandomSeconds (uint64_t iMinSeconds, uint64_t iMaxSeconds)
+{
+	kSleepRandomMilliseconds (iMinSeconds * 1000, iMaxSeconds * 1000);
+}
 
 } // end of namespace dekaf2
 

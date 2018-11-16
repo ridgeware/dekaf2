@@ -3572,12 +3572,13 @@ uint16_t KSQL::GetKRowFlags (COLINFO* pInfo)
 			case MYSQL_TYPE_DOUBLE:
 			case MYSQL_TYPE_YEAR:
 			case MYSQL_TYPE_BIT:
-			case MYSQL_TYPE_NEWDECIMAL:
-			case MYSQL_TYPE_ENUM:
-			case MYSQL_TYPE_GEOMETRY:
+			case 246: // MYSQL_TYPE_NEWDECIMAL:
+			case 247: // MYSQL_TYPE_ENUM:
+			case 255: // MYSQL_TYPE_GEOMETRY:
 			case MYSQL_TYPE_LONGLONG:
 			case MYSQL_TYPE_INT24:
-				if (pInfo->iMaxDataLen < 19) { // huge numbers that overflow when allowing them to be numbers:
+				if (pInfo->iMaxDataLen < 19) 
+				{ // huge numbers that overflow when allowing them to be numbers:
 					iColFlags = KROW::NUMERIC;
 				}
 				break;
@@ -3595,17 +3596,17 @@ uint16_t KSQL::GetKRowFlags (COLINFO* pInfo)
 			case MYSQL_TYPE_DATETIME:
 			case MYSQL_TYPE_NEWDATE:
 			case MYSQL_TYPE_VARCHAR:
-			case MYSQL_TYPE_TIMESTAMP2:
-			case MYSQL_TYPE_DATETIME2:
-			case MYSQL_TYPE_TIME2:
-			case MYSQL_TYPE_JSON:
-			case MYSQL_TYPE_SET:
-			case MYSQL_TYPE_TINY_BLOB:
-			case MYSQL_TYPE_MEDIUM_BLOB:
-			case MYSQL_TYPE_LONG_BLOB:
-			case MYSQL_TYPE_BLOB:
-			case MYSQL_TYPE_VAR_STRING:
-			case MYSQL_TYPE_STRING:
+//			case MYSQL_TYPE_TIMESTAMP2: // we do not have
+//			case MYSQL_TYPE_DATETIME2:  // the integer value
+//			case MYSQL_TYPE_TIME2:      // for these three
+			case 245: // MYSQL_TYPE_JSON:
+			case 248: // MYSQL_TYPE_SET:
+			case 249: // MYSQL_TYPE_TINY_BLOB:
+			case 250: // MYSQL_TYPE_MEDIUM_BLOB:
+			case 251: // MYSQL_TYPE_LONG_BLOB:
+			case 252: // MYSQL_TYPE_BLOB:
+			case 253: // MYSQL_TYPE_VAR_STRING:
+			case 254: // MYSQL_TYPE_STRING:
 			default:
 				break;
 		}

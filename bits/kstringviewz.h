@@ -122,7 +122,6 @@ public:
 	using base_type::rend;
 	using base_type::crend;
 	using base_type::operator[];
-	using base_type::operator fmt::string_view;
 	using base_type::at;
 	using base_type::front;
 	using base_type::back;

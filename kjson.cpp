@@ -334,6 +334,24 @@ KString Print (const KJSON& Value)
 
 } // Print
 
+//-----------------------------------------------------------------------------
+bool Contains (const KJSON& json, KStringView sString)
+//-----------------------------------------------------------------------------
+{
+	if (!json.is_array()) {
+		return (false);
+	}
+
+	for (auto& item : json.items())
+	{
+		if (item.key() == sString) {
+			return (true);
+		}
+	}
+
+	return (false);
+
+} // Contains
 
 } // end of namespace kjson
 

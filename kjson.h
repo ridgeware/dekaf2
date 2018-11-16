@@ -167,6 +167,9 @@ namespace kjson
 	/// proper json string escaping
 	KString Escape (KStringView sInput);
 
+	/// returns true if object is a string array and contains the given string
+	bool Contains (const KJSON& json, KStringView sString);
+
 }; // end of namespace kjson
 
 // lift a few of the static methods into dekaf2's namespace

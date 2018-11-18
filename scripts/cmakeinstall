@@ -50,6 +50,17 @@ Info ()
 
 } # Info
 
+setx=Warn
+#==================
+Warn ()
+#==================
+{
+	# All input args are interpreted as error text to display
+
+	echo "${xWarnColor}${ME}: $(date +%T) : ERROR: ${*:-unspecified}${xResetColor}" >&2
+
+} # Warn
+
 setx=Error
 #==================
 Error ()
@@ -84,7 +95,7 @@ InstallSystemPackages ()
 	while [[ $# -gt 0 ]]; do
 		if ! IsSystemPackageInstalled "${1}"; then
 			Info "installing missing ${BINDIR} package '${1}' ..."
-			sudo yum install -y "${1}" || Die "could not install package '${1}'"
+			sudo ${INSTALLER} install -y "${1}" || Die "could not install package '${1}'"
 		fi
 		shift
 	done
@@ -97,7 +108,7 @@ IsSystemPackageInstalled ()
 #==============================
 {
 	[[ $# -eq 1 ]] || Die "script error: expected one argument, $# provided: $@"
-	yum list installed "$1" &> /dev/null 2>&1
+	${INSTALLER} list installed "$1" &> /dev/null 2>&1
 
 } # IsSystemPackageInstalled
 
@@ -109,7 +120,7 @@ RemoveSystemPackages ()
 	while [[ $# -gt 0 ]]; do
 		if IsSystemPackageInstalled "${1}"; then
 			Info "removing ${BINDIR} package '${1}' ..."
-			sudo yum remove -y "${1}" || Die "could not remove package '${1}'"
+			sudo ${INSTALLER} remove -y "${1}" || Die "could not remove package '${1}'"
 		fi
 		shift
 	done
@@ -170,25 +181,31 @@ CMakeSetup ()
 
 		(
 			sudo rm -rf /tmp/cmake-install \
-				&& mkdir /tmp/cmake-install \
+				&& mkdir -p /tmp/cmake-install \
 				&& cd /tmp/cmake-install \
 					|| CMakeSetupAbort "Cannot setup build dir /tmp/cmake-install"
 
 			RemoveSystemPackages cmake \
 				|| CMakeSetupAbort "cannot remove old CMake install"
-			InstallSystemPackages rpm-build wget \
-				|| CMakeSetupAbort "cannot install needed system package"
-			if [ "${BINDIR}" != "redhat64v6" ] && [ "${BINDIR}" != "redhat64" ] && [ "${BINDIR}" != "centos64v6" ]; then
-				InstallSystemPackages libarchive-devel \
+
+			if [ "${BINDIR}" == "debian" ]; then
+				InstallSystemPackages dpkg wget \
 					|| CMakeSetupAbort "cannot install needed system package"
+			else
+				InstallSystemPackages rpm-build wget \
+					|| CMakeSetupAbort "cannot install needed system package"
+				if [ "${BINDIR}" != "redhat64v6" ] && [ "${BINDIR}" != "redhat64" ] && [ "${BINDIR}" != "centos64v6" ]; then
+					InstallSystemPackages libarchive-devel \
+						|| CMakeSetupAbort "cannot install needed system package"
+				fi
 			fi
 
 			Info "downloading CMake ${sCMakeNewVersion}"
 			if [ "${BINDIR}" == "redhat64v6" ] || [ "${BINDIR}" == "redhat64" ] || [ "${BINDIR}" == "centos64v6" ]; then
-				wget --no-check-certificate https://cmake.org/files/v3.12/cmake-${sCMakeNewVersion}.tar.gz \
+				wget -q --no-check-certificate https://cmake.org/files/v3.12/cmake-${sCMakeNewVersion}.tar.gz \
 					|| CMakeSetupAbort "cannot download cmake"
 			else
-				wget https://cmake.org/files/v3.12/cmake-${sCMakeNewVersion}.tar.gz \
+				wget -q https://cmake.org/files/v3.12/cmake-${sCMakeNewVersion}.tar.gz \
 					|| CMakeSetupAbort "cannot download cmake"
 			fi
 
@@ -217,13 +234,23 @@ CMakeSetup ()
 			&& make -j4 \
 				|| CMakeSetupAbort "cannot build cmake"
 
-			Info "creating CMake ${sCMakeNewVersion} RPM"
-			bin/cpack -G RPM \
-				|| CMakeSetupAbort "cannot create cmake RPM"
+			if [ "${BINDIR}" == "debian" ]; then
+				Info "creating CMake ${sCMakeNewVersion} DEB"
+				bin/cpack -G DEB \
+					|| CMakeSetupAbort "cannot create cmake DEB"
 
-			Info "installing CMake ${sCMakeNewVersion} RPM"
-			sudo yum install -y -q --nogpgcheck cmake-${sCMakeNewVersion}-Linux-x86_64.rpm \
-				|| CMakeSetupAbort "cannot install built cmake RPM"
+				Info "installing CMake ${sCMakeNewVersion} DEB"
+				sudo ${INSTALLER} install -y -q ./cmake-${sCMakeNewVersion}-Linux-${ARCH}.deb \
+					|| CMakeSetupAbort "cannot install built cmake DEB"
+			else
+				Info "creating CMake ${sCMakeNewVersion} RPM"
+				bin/cpack -G RPM \
+					|| CMakeSetupAbort "cannot create cmake RPM"
+
+				Info "installing CMake ${sCMakeNewVersion} RPM"
+				sudo ${INSTALLER} install -y -q --nogpgcheck ./cmake-${sCMakeNewVersion}-Linux-${ARCH}.rpm \
+					|| CMakeSetupAbort "cannot install built cmake RPM"
+			fi
 
 			cd /
 
@@ -254,17 +281,21 @@ SetBinDir ()
 {
 	local fAmazon=0
 
+	INSTALLER="yum"
+	ARCH=$(uname -m)
+
 	# get the linux release information
 	if [[ -f /etc/system-release-cpe ]]; then
 		grep amazon /etc/system-release-cpe > /dev/null && fAmazon=1
-
-	# of the systems we support, only RHEL5 would cause us to go to this path
-	elif [[ ! -f /etc/redhat-release ]]; then
-		Warn "could not determine type of system"
 	fi
 
+	if [[ -f /etc/debian_version ]]; then
+		Info "configuring for Debian"
+		BINDIR="debian"
+		INSTALLER="apt-get"
+
 	# is this a red hat release
-	if [[ -f /etc/redhat-release ]]; then
+	elif [[ -f /etc/redhat-release ]]; then
 		# which release is this?
 		if [ "$(cat /etc/redhat-release 2>/dev/null | tr '.' ' ' | awk '{print $1}')" == "CentOS" ]; then
 			local BaseOS="centos"
@@ -288,8 +319,10 @@ SetBinDir ()
 		BINDIR="aws64v${sMajorRevision}"
 
 	else
-		Die "unable to determine the BINDIR"
+		Die "could not determine type of system"
 	fi
+
+	Info "${BINDIR} ${ARCH} using ${INSTALLER} as install tool"
 
 } # SetBinDir
 

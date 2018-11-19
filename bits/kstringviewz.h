@@ -79,12 +79,23 @@ public:
 	constexpr KStringViewZ(const self_type&) noexcept = default;
 	constexpr KStringViewZ& operator=(const self_type&) noexcept = default;
 
+//----------
+private:
+//----------
+
 	//-----------------------------------------------------------------------------
+	// This is a private constructor. We do not trust external sources to
+	// have a 0 following the string, but internally we guarantee this for
+	// functions like ToView() and substr()
 	constexpr
 	KStringViewZ(const char* s, size_type count) noexcept
 	//-----------------------------------------------------------------------------
 	: base_type { s, count }
 	{}
+
+//----------
+public:
+//----------
 
 	//-----------------------------------------------------------------------------
 	constexpr
@@ -355,7 +366,9 @@ inline namespace literals {
 	/// provide a string literal for KStringViewZ
 	constexpr dekaf2::KStringViewZ operator"" _ksz(const char *data, std::size_t size)
 	{
-		return {data, size};
+		// literals are always 0-terminated, therefore we can construct via a char*
+		// (and strlen will be called as a compile-time constant expression..)
+		return {data};
 	}
 
 } // namespace literals

@@ -50,6 +50,7 @@
 #include <istream>
 #include <ostream>
 #include "bits/kcppcompat.h"
+#include "bits/kstring_view.h"
 #ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
 #include <folly/FBString.h>
 #endif
@@ -174,6 +175,9 @@ public:
 	KString (KStringView sv);
 #ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
 	KString (const std::string& sStr) : m_rep(sStr) {}
+#endif
+#ifdef DEKAF2_HAS_STD_STRING_VIEW
+	KString (const sv::string_view& str) : m_rep(str.data(), str.size()) {}
 #endif
 #ifdef DEKAF2_KSTRING_HAS_ACQUIRE_MALLOCATED
 	// nonstandard constructor to move an existing malloced buffer into the string
@@ -1189,7 +1193,7 @@ inline KStringView KString::Mid(size_type iStart, size_type iCount) const
 inline KStringViewZ KString::ToView() const
 //-----------------------------------------------------------------------------
 {
-	return KStringViewZ(data(), size());
+	return KStringViewZ(*this);
 }
 
 //-----------------------------------------------------------------------------

@@ -660,12 +660,9 @@ KString::size_type KString::ReplaceRegex(KStringView sRegEx, KStringView sReplac
 KStringViewZ KString::ToView(size_type pos) const
 //----------------------------------------------------------------------
 {
-	if (pos > size())
-	{
-		kWarning("pos ({}) exceeds size ({})", pos, size());
-		pos = size();
-	}
-	return KStringViewZ(data() + pos, size() - pos);
+	KStringViewZ sv(*this);
+	sv.remove_prefix(pos);
+	return sv;
 
 } // ToView
 
@@ -762,7 +759,7 @@ KStringViewZ KString::Right(size_type iCount) const
 		kWarning("count ({}) exceeds size ({})", iCount, size());
 		iCount = size();
 	}
-	return KStringViewZ(m_rep.data() + size() - iCount, iCount);
+	return ToView(size() - iCount);
 
 } // Right
 

@@ -49,6 +49,7 @@
 #include <boost/functional/hash.hpp>
 #include <string>
 #include "bits/kcppcompat.h"
+#include "bits/kstring_view.h"
 #include "khash.h"
 #include <fmt/format.h>
 
@@ -59,16 +60,6 @@
 
 #ifdef DEKAF2_USE_FOLLY_STRINGPIECE_AS_KSTRINGVIEW
 	#include <folly/Range.h>
-#else
-	#if __has_include(<string_view>)
-		#include <string_view>
-		#define DEKAF2_SV_NAMESPACE std
-	#elif __has_include(<experimental/string_view>)
-		#include <experimental/string_view>
-		#define DEKAF2_SV_NAMESPACE std::experimental
-	#else
-		#error "cannot include <string_view>"
-	#endif
 #endif
 
 #ifndef __linux__
@@ -224,6 +215,15 @@ public:
 	    : m_rep(str.data(), str.size())
 	{
 	}
+
+#ifdef DEKAF2_HAS_STD_STRING_VIEW
+	//-----------------------------------------------------------------------------
+	KStringView(const sv::string_view& str) noexcept
+	//-----------------------------------------------------------------------------
+		: m_rep(str.data(), str.size())
+	{
+	}
+#endif
 
 	//-----------------------------------------------------------------------------
 	constexpr

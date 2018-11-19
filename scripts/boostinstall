@@ -132,7 +132,6 @@ else
 fi
 
 SetupColors
-SetBinDir
 BoostSetup $ask
 
 exit 0

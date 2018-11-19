@@ -57,7 +57,7 @@ Warn ()
 {
 	# All input args are interpreted as error text to display
 
-	echo "${xWarnColor}${ME}: $(date +%T) : ERROR: ${*:-unspecified}${xResetColor}" >&2
+	echo "${xWarnColor}${ME}: $(date +%T) : WARNING: ${*:-unspecified}${xResetColor}" >&2
 
 } # Warn
 

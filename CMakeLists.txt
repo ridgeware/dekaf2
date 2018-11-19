@@ -303,6 +303,7 @@ set (BITS_HEADERS
 	bits/kostringstream.h
 	bits/kprops-multi-index.h
 	bits/kprops-std-map.h
+	bits/kstring_view.h
 	bits/kstringviewz.h
 	bits/ktemplate.h
 	bits/kunique_deleter.h

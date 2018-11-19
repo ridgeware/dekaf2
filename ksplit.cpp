@@ -143,40 +143,4 @@ KStringViewPair kSplitToPair(
 
 }  // kSplitToPair
 
-template
-size_t kSplit (
-        std::vector<KStringView>&  ctContainer,
-        KStringView svBuffer,
-        KStringView svDelim  = ",",             // default: comma delimiter
-        KStringView svTrim   = " \t\r\n\b",     // default: trim all whitespace
-        const char  chEscape = '\0',            // default: ignore escapes
-        bool        bCombineDelimiters = false, // default: create an element for each delimiter char found
-        bool        bQuotesAreEscapes  = false  // default: treat double quotes like any other char
-    );
-
-template
-size_t kSplitPairs(
-        KProps<KStringView, KStringView>&  ctContainer,
-        KStringView svBuffer,
-        const char  chPairDelim = '=',
-        KStringView svDelim  = ",",             // default: comma delimiter
-        KStringView svTrim   = " \t\r\n\b",     // default: trim all whitespace
-        const char  chEscape = '\0',            // default: ignore escapes
-        bool        bCombineDelimiters = false, // default: create an element for each delimiter char found
-        bool        bQuotesAreEscapes  = false  // default: treat double quotes like any other char
-    );
-
-template
-size_t kSplitPairs(
-        KProps<KString, KString>&  ctContainer,
-        KStringView svBuffer,
-        const char  chPairDelim = '=',
-        KStringView svDelim  = ",",             // default: comma delimiter
-        KStringView svTrim   = " \t\r\n\b",     // default: trim all whitespace
-        const char  chEscape = '\0',            // default: ignore escapes
-        bool        bCombineDelimiters = false, // default: create an element for each delimiter char found
-        bool        bQuotesAreEscapes  = false  // default: treat double quotes like any other char
-    );
-
-
 } // end of namespace dekaf2

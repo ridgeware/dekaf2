@@ -155,9 +155,14 @@ KString GetString(const KJSON& json, KStringView sKey)
 	DEKAF2_TRY
 	{
 		auto it = json.find(sKey);
-		if (it != json.end() && it->is_string())
+		if (it != json.end())
 		{
-			sReturn = it.value();
+			if (it->is_string()) {
+				sReturn = it.value();
+			}
+			else { // everything converts to a string
+				sReturn = it.value().dump();
+			}
 		}
 	}
 	DEKAF2_CATCH (const KJSON::exception& exc)

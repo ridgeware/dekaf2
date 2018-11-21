@@ -214,6 +214,7 @@ public:
 	using const_map_iterator = typename IndexByKey_t::const_iterator;
 	using range              = std::pair<map_iterator, map_iterator>;
 	using const_range        = std::pair<const_map_iterator, const_map_iterator>;
+	using value_type         = Element;
 
 	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	class Parser

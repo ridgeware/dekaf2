@@ -481,6 +481,12 @@ KJSON KROW::to_json () const
 		{
 			continue;
 		}
+		else if (col.second.IsFlag(INT64NUMERIC))
+		{
+			// large integers > 53 bits have no representation in JSON and need to
+			// be stored as string values..
+			json[col.first] = col.second.sValue;
+		}
 		else if (col.second.IsFlag(NUMERIC))
 		{
 			if (col.second.sValue.Contains('.'))

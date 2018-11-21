@@ -224,6 +224,13 @@ public:
 	bool AddCol (KStringView sColName, COLTYPE Value, uint16_t iFlags=NUMERIC, uint32_t iMaxLen=0)
 	{
 		KCOL col (kFormat("{}", Value), iFlags, iMaxLen);
+		if (sizeof(COLTYPE) > 6 && (iFlags & NUMERIC))
+		{
+			// make sure we flag large integers - this is important when we want to
+			// convert them back into JSON integers, which have a limit of 53 bits
+			// - values larger than that need to be represented as strings..
+			iFlags |= INT64NUMERIC;
+		}
 		return (KCOLS::Add (sColName, std::move(col)) != KCOLS::end());
 	}
 

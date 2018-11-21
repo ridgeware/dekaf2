@@ -3564,7 +3564,6 @@ uint16_t KSQL::GetKRowFlags (COLINFO* pInfo)
 			// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 			// we only care about setting flags non-string types:
 			// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-			case MYSQL_TYPE_DECIMAL:
 			case MYSQL_TYPE_TINY:
 			case MYSQL_TYPE_SHORT:
 			case MYSQL_TYPE_LONG:
@@ -3572,15 +3571,27 @@ uint16_t KSQL::GetKRowFlags (COLINFO* pInfo)
 			case MYSQL_TYPE_DOUBLE:
 			case MYSQL_TYPE_YEAR:
 			case MYSQL_TYPE_BIT:
+				iColFlags = KROW::NUMERIC;
+				break;
+
+			case MYSQL_TYPE_DECIMAL:
 			case 246: // MYSQL_TYPE_NEWDECIMAL:
 			case 247: // MYSQL_TYPE_ENUM:
 			case 255: // MYSQL_TYPE_GEOMETRY:
+				iColFlags = KROW::NUMERIC;
+				if (pInfo->iMaxDataLen >= 19)
+				{
+					// this is a large integer as well (see below)..
+					iColFlags |= KROW::INT64NUMERIC;
+				}
+				break;
+
 			case MYSQL_TYPE_LONGLONG:
 			case MYSQL_TYPE_INT24:
-				if (pInfo->iMaxDataLen < 19) 
-				{ // huge numbers that overflow when allowing them to be numbers:
-					iColFlags = KROW::NUMERIC;
-				}
+				// make sure we flag large integers - this is important when we want to
+				// convert them into JSON integers, which have a limit of 53 bits
+				// - values larger than that need to be represented as strings..
+				iColFlags = KROW::NUMERIC | KROW::INT64NUMERIC;
 				break;
 
 			// always the problem child:

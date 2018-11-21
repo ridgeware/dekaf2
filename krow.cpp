@@ -51,20 +51,20 @@ constexpr KStringView ESCAPE_MSSQL { "\'"   };
 int32_t  detail::KCommonSQLBase::m_iDebugLevel{2};
 
 //-----------------------------------------------------------------------------
-KString KROW::ColumnInfoForLogOutput (uint32_t ii) const
+KString KROW::ColumnInfoForLogOutput (const KCOLS::value_type& it, int16_t iCol) const
 //-----------------------------------------------------------------------------
 {
 	KString sLogMessage;
 
-	sLogMessage.Format("  col[{:>02}]: {:<25} {}{}{}{}{}",
-		    ii,
-		    GetName(ii),
-		    !IsFlag (ii, PKEY)       ? "" : " [PKEY]",
-		    !IsFlag (ii, NONCOLUMN)  ? "" : " [NONCOLUMN]",
-		    !IsFlag (ii, EXPRESSION) ? "" : " [EXPRESSION]",
-		    !IsFlag (ii, NUMERIC)    ? "" : " [NUMERIC]",
-		    !IsFlag (ii, JSON)       ? "" : " [JSON]",
-		    !IsFlag (ii, BOOLEAN)    ? "" : " [BOOLEAN]");
+	sLogMessage.Format("  col[{:>02}]: {:<25} {}{}{}{}{}{}",
+		    iCol,
+		    it.first,
+		    !it.second.IsFlag (PKEY)       ? "" : " [PKEY]",
+		    !it.second.IsFlag (NONCOLUMN)  ? "" : " [NONCOLUMN]",
+		    !it.second.IsFlag (EXPRESSION) ? "" : " [EXPRESSION]",
+		    !it.second.IsFlag (NUMERIC)    ? "" : " [NUMERIC]",
+		    !it.second.IsFlag (JSON)       ? "" : " [JSON]",
+		    !it.second.IsFlag (BOOLEAN)    ? "" : " [BOOLEAN]");
 
 	return sLogMessage;
 }
@@ -163,8 +163,6 @@ bool KROW::FormInsert (KString& sSQL, SQLTYPE iDBType, bool fIdentityInsert/*=fa
 		return (false);
 	}
 
-	uint32_t ii;
-
 	KString sAdd;
 	sAdd.Format("insert into {} (\n", GetTablename());
 	sSQL += sAdd;
@@ -172,16 +170,17 @@ bool KROW::FormInsert (KString& sSQL, SQLTYPE iDBType, bool fIdentityInsert/*=fa
 	kDebugLog (3, "KROW:FormInsert: {}", GetTablename());
 
 	bool bComma = false;
-	for (ii=0; ii < size(); ++ii)
+	int16_t iii = 0;
+	for (const auto& it : *this)
 	{
-		kDebugLog (3, ColumnInfoForLogOutput(ii));
+		kDebugLog (3, ColumnInfoForLogOutput(it, iii++));
 
-		if (IsFlag (ii, NONCOLUMN))
+		if (it.second.IsFlag (NONCOLUMN))
 		{
 			continue;
 		}
 		
-		sAdd.Format ("\t{}{}\n", (bComma) ? "," : "", GetName(ii));
+		sAdd.Format ("\t{}{}\n", (bComma) ? "," : "", it.first);
 		sSQL += sAdd;
 		bComma = true;
 	}
@@ -189,24 +188,22 @@ bool KROW::FormInsert (KString& sSQL, SQLTYPE iDBType, bool fIdentityInsert/*=fa
 	sSQL += ") values (\n";
 
 	bComma = false;
-	for (ii=0; ii < size(); ++ii)
+	for (const auto& it : *this)
 	{
-		if (IsFlag (ii, NONCOLUMN))
+		if (it.second.IsFlag (NONCOLUMN))
 		{
 			continue;
 		}
 
-		KStringView sValue   = GetValue(ii);  // note: GetValue() never returns NULL, it might return '' (which Joe calls NIL)
-
-		if (sValue.empty() && !IsFlag (ii, NULL_IS_NOT_NIL))
+		if (it.second.sValue.empty() && !it.second.IsFlag (NULL_IS_NOT_NIL))
 		{
 			// Note: this is the default handling for NIL values: to place them in SQL as SQL null
 			sAdd.Format ("\t{}null\n", (bComma) ? "," : "");
 			sSQL += sAdd;
 		}
-		else if (IsFlag (ii, NUMERIC) || IsFlag (ii, EXPRESSION) || IsFlag (ii, BOOLEAN))
+		else if (it.second.HasFlag (NUMERIC | EXPRESSION | BOOLEAN))
 		{
-			sAdd.Format ("\t{}{}\n", (bComma) ? "," : "", sValue); // raw value, no quotes and no processing
+			sAdd.Format ("\t{}{}\n", (bComma) ? "," : "", it.second.sValue); // raw value, no quotes and no processing
 			sSQL += sAdd;
 		}
 		else
@@ -215,8 +212,8 @@ bool KROW::FormInsert (KString& sSQL, SQLTYPE iDBType, bool fIdentityInsert/*=fa
 			// Note: if the value is actually NIL ('') and NULL_IS_NOT_NIL is set, then the value will
 			// be placed into SQL as '' instead of SQL null.
 			KString sEscaped;
-			EscapeChars (sValue, sEscaped, iDBType);
-			SmartClip   (GetName(ii), sEscaped, MaxLength(ii));
+			EscapeChars (it.second.sValue, sEscaped, iDBType);
+			SmartClip   (it.first, sEscaped, it.second.GetMaxLen());
 			sAdd.Format ("\t{}'{}'\n", (bComma) ? "," : "", sEscaped);
 			sSQL += sAdd;
 		}
@@ -269,48 +266,46 @@ bool KROW::FormUpdate (KString& sSQL, SQLTYPE iDBType) const
 	kDebugLog (3, "KROW:FormUpdate: {}", m_sTablename);
 
 	bool bComma = false;
-	for (uint32_t ii=0; ii < size(); ++ii)
+	int16_t iii = 0;
+	for (const auto& it : *this)
 	{
-		kDebugLog (3, ColumnInfoForLogOutput(ii));
+		kDebugLog (3, ColumnInfoForLogOutput(it, iii++));
 
-		if (IsFlag (ii, NONCOLUMN))
+		if (it.second.IsFlag (NONCOLUMN))
 		{
 			continue;
 		}
-		else if (IsFlag (ii, PKEY))
+		else if (it.second.IsFlag (PKEY))
 		{
-			KCOL col (GetValue(ii), GetFlags(ii), MaxLength(ii));
-			Keys.Add (GetName(ii), col);
+			KCOL col (it.second.sValue, it.second.GetFlags(), it.second.GetMaxLen());
+			Keys.Add (it.first, col);
 		}
-		else if (IsFlag (ii, EXPRESSION) || IsFlag (ii, BOOLEAN))
+		else if (it.second.HasFlag (EXPRESSION | BOOLEAN))
 		{
-			sAdd.Format ("\t{}{}={}\n", (bComma) ? "," : "", GetName(ii), GetValue(ii));
+			sAdd.Format ("\t{}{}={}\n", (bComma) ? "," : "", it.first, it.second.sValue);
 			sSQL += sAdd;
 			bComma = true;
 		}
 		else
 		{
-			KStringView sValue = GetValue(ii);
-
-			if (sValue.empty())
+			if (it.second.sValue.empty())
 			{
-				sAdd.Format ("\t{}{}=null\n", (bComma) ? "," : "", GetName(ii));
+				sAdd.Format ("\t{}{}=null\n", (bComma) ? "," : "", it.first);
 				sSQL += sAdd;
 			}
 			else
 			{
 				KString sEscaped;
-				EscapeChars (sValue, sEscaped, iDBType);
-				SmartClip   (GetName(ii), sEscaped, MaxLength(ii));
+				EscapeChars (it.second.sValue, sEscaped, iDBType);
+				SmartClip   (it.first, sEscaped, it.second.GetMaxLen());
 
-				if (IsFlag (ii, NUMERIC) || IsFlag (ii, EXPRESSION) || IsFlag (ii, BOOLEAN))
+				if (it.second.HasFlag (NUMERIC | EXPRESSION | BOOLEAN))
 				{
-					sAdd.Format ("\t{}{}={}\n", (bComma) ? "," : "",
-						GetName(ii), sEscaped);
+					sAdd.Format ("\t{}{}={}\n", (bComma) ? "," : "", it.first, sEscaped);
 				}
 				else
 				{
-					sAdd.Format ("\t{}{}='{}'\n", (bComma) ? "," : "", GetName(ii), sEscaped);
+					sAdd.Format ("\t{}{}='{}'\n", (bComma) ? "," : "", it.first, sEscaped);
 				}
 				sSQL += sAdd;
 			}
@@ -321,7 +316,7 @@ bool KROW::FormUpdate (KString& sSQL, SQLTYPE iDBType) const
 	kDebugLog (GetDebugLevel()+1, "KROW::FormUpdate: update will rely on {} keys", Keys.size());
 	//Keys.DebugPairs (0, "FormUpdate: primary keys:");
 
-	if (Keys.size() == 0)
+	if (Keys.empty())
 	{
 		m_sLastError.Format("KROW::FormUpdate({}): no primary key[s] defined in column list", GetTablename());
 		kDebugLog (1, "{}", m_sLastError);
@@ -329,15 +324,16 @@ bool KROW::FormUpdate (KString& sSQL, SQLTYPE iDBType) const
 		return (false);
 	}
 
-	for (uint32_t kk=0; kk < Keys.size(); ++kk)
+	bool bFirstKey { true };
+	for (const auto& it : Keys)
 	{
-		KStringView sValue = Keys.GetValue(kk);
 		KString sEscaped;
-		EscapeChars (sValue, sEscaped, iDBType);
+		EscapeChars (it.second.sValue, sEscaped, iDBType);
 		
-		KString sPrefix;
-		if (!kk)
+		KStringView sPrefix;
+		if (bFirstKey)
 		{
+			bFirstKey = false;
 			sPrefix = " where ";
 		}
 		else
@@ -345,13 +341,13 @@ bool KROW::FormUpdate (KString& sSQL, SQLTYPE iDBType) const
 			sPrefix = "   and ";
 		}
 		
-		if (Keys.IsFlag(kk, NUMERIC) || Keys.IsFlag(kk, EXPRESSION) || Keys.IsFlag(kk, BOOLEAN))
+		if (it.second.HasFlag(NUMERIC | EXPRESSION | BOOLEAN))
 		{
-			sAdd.Format("{}{}={}\n", sPrefix, Keys.GetName(kk), sEscaped);
+			sAdd.Format("{}{}={}\n", sPrefix, it.first, sEscaped);
 		}
 		else
 		{
-			sAdd.Format("{}{}='{}'\n", sPrefix, Keys.GetName(kk), sEscaped);
+			sAdd.Format("{}{}='{}'\n", sPrefix, it.first, sEscaped);
 		}
 		sSQL += sAdd;
 	}
@@ -382,7 +378,7 @@ bool KROW::FormDelete (KString& sSQL, SQLTYPE iDBType) const
 		return (false);
 	}
 
-	uint32_t kk = 0;
+	uint16_t kk = 0;
 	KString  sAdd;
 
 	sAdd.Format("delete from {}\n", GetTablename());
@@ -390,33 +386,31 @@ bool KROW::FormDelete (KString& sSQL, SQLTYPE iDBType) const
 
 	kDebugLog (3, "KROW:FormDelete: {}", m_sTablename);
 
-	for (uint32_t ii=0; ii < size(); ++ii)
+	for (const auto& it : *this)
 	{
-		kDebugLog (3, ColumnInfoForLogOutput(ii));
+		kDebugLog (3, ColumnInfoForLogOutput(it, kk));
 
-		if (!IsFlag (ii, PKEY))
+		if (!it.second.IsFlag (PKEY))
 		{
 			continue;
 		}
 
-		KStringView sValue = GetValue(ii);
 		KString     sEscaped;
-		EscapeChars (sValue, sEscaped, iDBType);
+		EscapeChars (it.second.sValue, sEscaped, iDBType);
 
 		KString sAdd;
-		SmartClip(GetName(ii),sEscaped,MaxLength(ii));
-		if (sValue.empty())
+		SmartClip(it.first, sEscaped, it.second.GetMaxLen());
+		if (it.second.sValue.empty())
 		{
-			sAdd.Format(" {} {} is null\n",(!kk) ? "where" : "  and", GetName(ii));
+			sAdd.Format(" {} {} is null\n",(!kk) ? "where" : "  and", it.first);
 		}
-		else if (IsFlag(ii, NUMERIC) || IsFlag(ii, EXPRESSION) || IsFlag(ii, BOOLEAN))
+		else if (it.second.HasFlag(NUMERIC | EXPRESSION | BOOLEAN))
 		{
-			sAdd.Format(" {} {}={}\n",     (!kk) ? "where" : "  and", GetName(ii),
-				sEscaped);
+			sAdd.Format(" {} {}={}\n",     (!kk) ? "where" : "  and", it.first, sEscaped);
 		}
 		else
 		{
-			sAdd.Format(" {} {}='{}'\n",   (!kk) ? "where" : "  and", GetName(ii), sEscaped);
+			sAdd.Format(" {} {}='{}'\n",   (!kk) ? "where" : "  and", it.first, sEscaped);
 		}
 		sSQL += sAdd;
 
@@ -483,11 +477,11 @@ KJSON KROW::to_json () const
 
 	for (auto& col : *this)
 	{
-		if (col.second.iFlags & NONCOLUMN)
+		if (col.second.IsFlag(NONCOLUMN))
 		{
 			continue;
 		}
-		else if (col.second.iFlags & NUMERIC)
+		else if (col.second.IsFlag(NUMERIC))
 		{
 			if (col.second.sValue.Contains('.'))
 			{
@@ -498,7 +492,7 @@ KJSON KROW::to_json () const
 				json[col.first] = col.second.sValue.Int64();
 			}
 		}
-		else if (col.second.iFlags & BOOLEAN)
+		else if (col.second.IsFlag(BOOLEAN))
 		{
 			json[col.first] = col.second.sValue.Bool();
 		}
@@ -508,7 +502,7 @@ KJSON KROW::to_json () const
 			json[col.first] = NULL;
 		}
 		#endif
-		else if (col.second.iFlags & JSON)
+		else if (col.second.IsFlag(JSON))
 		{
 			// this is a json serialization
 			DEKAF2_TRY

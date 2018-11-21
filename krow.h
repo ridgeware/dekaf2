@@ -119,13 +119,58 @@ public:
 	{
 	}
 
+	uint16_t GetFlags() const
+	{
+		return iFlags;
+	}
+
+	void SetFlags(uint16_t _iFlags)
+	{
+		iFlags = _iFlags;
+	}
+
+	void AddFlags(uint16_t _iFlags)
+	{
+		iFlags |= _iFlags;
+	}
+
+	bool IsFlag(uint16_t _iFlags) const
+	{
+		return (iFlags & _iFlags) == _iFlags;
+	}
+
+	bool HasFlag(uint16_t _iFlags) const
+	{
+		return (iFlags & _iFlags) != 0;
+	}
+
+	void ClearFlags()
+	{
+		SetFlags(0);
+	}
+
+	uint32_t GetMaxLen() const
+	{
+		return iMaxLen;
+	}
+
+	void SetMaxLen(uint32_t _iMaxLen)
+	{
+		iMaxLen = _iMaxLen;
+	}
+
 	KString  sValue;  // aka "second"
+
+//----------
+private:
+//----------
+
 	uint32_t iMaxLen{0};
 	uint16_t iFlags{0};
 
 }; // KCOL
 
-typedef KProps <KString, KCOL,    /*order-matters=*/true, /*unique-keys*/true> KCOLS;
+using KCOLS = KProps <KString, KCOL, /*order-matters=*/true, /*unique-keys*/true>;
 
 //-----------------------------------------------------------------------------
 class KROW : public KCOLS, public detail::KCommonSQLBase
@@ -220,7 +265,7 @@ public:
 		}
 		else
 		{
-			it->second.iFlags = iFlags;
+			it->second.SetFlags(iFlags);
 			return (true);
 		}
 	}
@@ -239,24 +284,6 @@ public:
 	const KString& GetValue (size_t iZeroBasedIndex) const
 	{
 		return (at (iZeroBasedIndex).second.sValue);
-	}
-
-	/// Returns the Nth column's flags (note: column index starts at 0).
-	uint64_t GetFlags (size_t iZeroBasedIndex) const
-	{
-		return (at (iZeroBasedIndex).second.iFlags);
-	}
-
-	/// Returns whether or not a particular flag is set on the Nth column (note: column index starts at 0).
-	bool IsFlag (size_t iZeroBasedIndex, uint16_t iFlag) const
-	{
-		return ((GetFlags(iZeroBasedIndex) & iFlag) == iFlag);
-	}
-
-	/// Returns the maximum character length of the Nth column if it was set (note: column index starts at 0).
-	uint32_t MaxLength (uint32_t iZeroBasedIndex) const
-	{
-		return (at (iZeroBasedIndex).second.iMaxLen);
 	}
 
 	/// Formats the proper RDBMS DDL statement for inserting one row into the database for the given table and column structure.
@@ -285,7 +312,8 @@ public:
 		NUMERIC          = 1 << 4,   ///< Indicates given column should not be quoted when forming DDL statements.
 		NULL_IS_NOT_NIL  = 1 << 5,   ///< Indicates given column is ???
 		BOOLEAN          = 1 << 6,   ///< Indicates given column is a boolean (true/false)
-		JSON             = 1 << 7    ///< Indicates given column is a JSON object
+		JSON             = 1 << 7,   ///< Indicates given column is a JSON object
+		INT64NUMERIC     = 1 << 8    ///< Indicates given column is a NUMERIC, but would overflow in JSON - NUMERIC is also always set when this flag is true
 	};
 
 	// - - - - - - - - - - - - - - - -
@@ -295,7 +323,7 @@ public:
 	static void EscapeChars (KStringView sString, KString& sEscaped,
 	                         KStringView sCharsToEscape, KString::value_type iEscapeChar=0);
 
-	KString ColumnInfoForLogOutput (uint32_t ii) const;
+	KString ColumnInfoForLogOutput (const KCOLS::value_type& it, int16_t iCol = -1) const;
 
 	/// Return row as a KJSON object
 	KJSON to_json() const;

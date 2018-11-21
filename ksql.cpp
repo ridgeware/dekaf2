@@ -6302,7 +6302,6 @@ size_t KSQL::OutputQuery (KStringView sSQL, int iFormat/*=FORM_ASCII*/, FILE* fp
 	KROW   Row;
 	size_t iNumRows = 0;
 	enum   {MAXCOLWIDTH = 80};
-	size_t ii;
 
 	if (iFormat == FORM_ASCII)
 	{
@@ -6310,25 +6309,27 @@ size_t KSQL::OutputQuery (KStringView sSQL, int iFormat/*=FORM_ASCII*/, FILE* fp
 		{
 			if (++iNumRows == 1) // factor col headers into col widths
 			{
-				for (ii=0; ii < Row.size(); ++ii)
+				for (const auto& it : Row)
 				{
-					KString sName(Row.GetName (ii));
-					KString sValue(Row.GetName (ii));
-					size_t    iLen   = sValue.length();
-					size_t    iMax   = Widths.Get (sName).UInt32();
-					if ((iLen > iMax) && (iLen <= MAXCOLWIDTH))  {
+					const KString& sName(it.first);
+					const KString& sValue(it.first);
+					size_t iLen = sValue.length();
+					size_t iMax = Widths.Get (sName).UInt32();
+					if ((iLen > iMax) && (iLen <= MAXCOLWIDTH))
+					{
 						Widths.Add (sName, KString::to_string(iLen));
 					}
 				}
 			}
 
-			for (ii=0; ii < Row.size(); ++ii)
+			for (const auto& it : Row)
 			{
-				KString sName(Row.GetName (ii));
-				KString sValue(Row.GetValue (ii));
-				size_t  iLen  = sValue.length();
-				size_t  iMax  = Widths.Get (sName).UInt32();
-				if ((iLen > iMax) && (iLen <= MAXCOLWIDTH))  {
+				const KString& sName(it.first);
+				const KString& sValue(it.second.sValue);
+				size_t iLen = sValue.length();
+				size_t iMax = Widths.Get (sName).UInt32();
+				if ((iLen > iMax) && (iLen <= MAXCOLWIDTH))
+				{
 					Widths.Add (sName, KString::to_string(iLen));
 				}
 			}
@@ -6349,46 +6350,51 @@ size_t KSQL::OutputQuery (KStringView sSQL, int iFormat/*=FORM_ASCII*/, FILE* fp
 		// output column headers:
 		if (++iNumRows == 1)
 		{
+			bool bFirst { true };
 			switch (iFormat)
 			{
 			case FORM_ASCII:
-				for (ii=0; ii < Row.size(); ++ii)
+				for (const auto& it : Row)
 				{
-					KString sName = Row.GetName (ii);
+					const KString& sName = it.first;
 					int     iMax  = Widths.Get (sName).Int32();
-					fprintf (fpout, "%s%-*.*s-+", (!ii) ? "+-" : "-", iMax, iMax, BAR);
+					fprintf (fpout, "%s%-*.*s-+", (bFirst) ? "+-" : "-", iMax, iMax, BAR);
+					bFirst = false;
 				}
 				fprintf (fpout, "\n");
-				for (ii=0; ii < Row.size(); ++ii)
+				for (const auto& it : Row)
 				{
-					KString sName = Row.GetName (ii);
+					const KString& sName = it.first;
 					int     iMax  = Widths.Get (sName).Int32();
-					fprintf (fpout, "%s%-*.*s |", (!ii) ? "| " : " ", iMax, iMax, sName.c_str());
+					fprintf (fpout, "%s%-*.*s |", (bFirst) ? "| " : " ", iMax, iMax, sName.c_str());
+					bFirst = false;
 				}
 				fprintf (fpout, "\n");
-				for (ii=0; ii < Row.size(); ++ii)
+				for (const auto& it : Row)
 				{
-					KString sName = Row.GetName (ii);
+					const KString& sName = it.first;
 					int     iMax  = Widths.Get (sName).Int32();
-					fprintf (fpout, "%s%-*.*s-+", (!ii) ? "+-" : "-", iMax, iMax, BAR);
+					fprintf (fpout, "%s%-*.*s-+", (bFirst) ? "+-" : "-", iMax, iMax, BAR);
+					bFirst = false;
 				}
 				fprintf (fpout, "\n");
 				break;
 			case FORM_HTML:
 				fprintf (fpout, "<table>\n");
 				fprintf (fpout, "<tr>\n");
-				for (ii=0; ii < Row.size(); ++ii)
+				for (const auto& it : Row)
 				{
-					KString sName = Row.GetName (ii);
+					const KString& sName = it.first;
 					fprintf (fpout, " <th>%s</th>\n", sName.c_str());
 				}
 				fprintf (fpout, "</tr>\n");
 				break;
 			case FORM_CSV:
-				for (ii=0; ii < Row.size(); ++ii)
+				for (const auto& it : Row)
 				{
-					KString sName = Row.GetName (ii);
-					fprintf (fpout, "%s\"%s\"", (!ii) ? "" : ",", sName.c_str());
+					const KString& sName = it.first;
+					fprintf (fpout, "%s\"%s\"", (bFirst) ? "" : ",", sName.c_str());
+					bFirst = false;
 				}
 				fprintf (fpout, "\n");
 				break;
@@ -6396,32 +6402,35 @@ size_t KSQL::OutputQuery (KStringView sSQL, int iFormat/*=FORM_ASCII*/, FILE* fp
 		}
 
 		// output row:
+		bool bFirst { true };
 		switch (iFormat)
 		{
 		case FORM_ASCII:
-			for (ii=0; ii < Row.size(); ++ii)
+			for (const auto& it : Row)
 			{
-				KString sName  = Row.GetName (ii);
-				KString sValue = Row.GetValue (ii);
-				int     iMax   = Widths.Get (sName).Int32();
-				fprintf (fpout, "%s%-*.*s |", (!ii) ? "| " : " ", iMax, iMax, sValue.c_str());
+				const KString& sName  = it.first;
+				const KString& sValue = it.second.sValue;
+				int iMax = Widths.Get (sName).Int32();
+				fprintf (fpout, "%s%-*.*s |", (bFirst) ? "| " : " ", iMax, iMax, sValue.c_str());
+				bFirst = false;
 			}
 			fprintf (fpout, "\n");
 			break;
 		case FORM_HTML:
 			fprintf (fpout, "<tr>\n");
-			for (ii=0; ii < Row.size(); ++ii)
+			for (const auto& it : Row)
 			{
-				KString sValue = Row.GetValue (ii);
+				const KString& sValue = it.second.sValue;
 				fprintf (fpout, " <td>%s</td>\n", sValue.c_str());
 			}
 			fprintf (fpout, "</tr>\n");
 			break;
 		case FORM_CSV:
-			for (ii=0; ii < Row.size(); ++ii)
+			for (const auto& it : Row)
 			{
-				KString sValue = Row.GetValue (ii);
-				fprintf (fpout, "%s\"%s\"", (!ii) ? "" : ",", sValue.c_str());
+				const KString& sValue = it.second.sValue;
+				fprintf (fpout, "%s\"%s\"", (bFirst) ? "" : ",", sValue.c_str());
+				bFirst = false;
 			}
 			fprintf (fpout, "\n");
 			break;
@@ -6431,17 +6440,19 @@ size_t KSQL::OutputQuery (KStringView sSQL, int iFormat/*=FORM_ASCII*/, FILE* fp
 
 	if (iNumRows)
 	{
+		bool bFirst { true };
 		switch (iFormat)
 		{
 		case FORM_HTML:
 			fprintf (fpout, "</table>\n");
 			break;
 		case FORM_ASCII:
-			for (ii=0; ii < Row.size(); ++ii)
+			for (const auto& it : Row)
 			{
-				KString sName = Row.GetName (ii);
+				const KString& sName  = it.first;
 				int     iMax  = Widths.Get (sName).Int32();
-				fprintf (fpout, "%s%-*.*s-+", (!ii) ? "+-" : "-", iMax, iMax, BAR);
+				fprintf (fpout, "%s%-*.*s-+", (bFirst) ? "+-" : "-", iMax, iMax, BAR);
+				bFirst = false;
 			}
 			fprintf (fpout, "\n");
 			break;

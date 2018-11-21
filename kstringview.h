@@ -269,7 +269,7 @@ public:
 	self& operator=(const value_type* other)
 	//-----------------------------------------------------------------------------
 	{
-		assign(other, strlen(other));
+		*this = self_type(other);
 		return *this;
 	}
 

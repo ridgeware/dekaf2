@@ -225,6 +225,37 @@ TEST_CASE("KJSON")
 
 	}
 
+	SECTION("Contains (array)")
+	{
+		KJSON json;
+		json = KJSON::array();
+		json += "value1";
+		json += "value2";
+		json += "value3";
+		json += "value4";
+		json += "value6";
+		json += "value7";
+
+		CHECK ( Contains(json, "value3") == true  );
+		CHECK ( Contains(json, "value9") == false );
+	}
+
+	SECTION("Contains (object)")
+	{
+		KJSON json;
+		json = KJSON::object();
+		json += { "key1", "value1" };
+		json += { "key2", "value2" };
+		json += { "key3", "value3" };
+		json += { "key4", "value4" };
+		json += { "key5", "value5" };
+		json += { "key6", "value6" };
+		json += { "key7", "value7" };
+
+		CHECK ( Contains(json, "key3") == true  );
+		CHECK ( Contains(json, "key9") == false );
+	}
+
 /*
 		KJSON obj2;
 		obj2["fourth"] = 87654;

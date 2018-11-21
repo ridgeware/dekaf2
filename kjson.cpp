@@ -152,22 +152,11 @@ KString GetString(const KJSON& json, KStringView sKey)
 {
 	KString sReturn;
 
-	DEKAF2_TRY
+	auto it = json.find(sKey);
+	if (it != json.end())
 	{
-		auto it = json.find(sKey);
-		if (it != json.end())
-		{
-			if (it->is_string()) {
-				sReturn = it.value();
-			}
-			else { // everything converts to a string
-				sReturn = it.value().dump();
-			}
-		}
-	}
-	DEKAF2_CATCH (const KJSON::exception& exc)
-	{
-		kDebugLog(1, "JSON[%03d]: %s", exc.id, exc.what());
+		// convert to string whatever the input..
+		sReturn = Print(*it);
 	}
 
 	return sReturn;
@@ -339,26 +328,42 @@ KString Print (const KJSON& Value)
 
 } // Print
 
-#if 0 // not working yet
 //-----------------------------------------------------------------------------
 bool Contains (const KJSON& json, KStringView sString)
 //-----------------------------------------------------------------------------
 {
-	if (!json.is_array()) {
-		return (false);
-	}
-
-	for (auto& item : json.items())
+	DEKAF2_TRY
 	{
-		if (item.key() == sString) {
-			return (true);
+		if (!json.empty())
+		{
+			if (json.is_array())
+			{
+				if (json.front().is_string())
+				{
+					for (auto& it : json)
+					{
+						if (it.get<KString>() == sString)
+						{
+							return true;
+						}
+					}
+				}
+			}
+			else if (json.is_object())
+			{
+				return json.find(sString) != json.end();
+			}
 		}
 	}
 
-	return (false);
+	DEKAF2_CATCH (const KJSON::exception& exc)
+	{
+		kDebugLog(1, "JSON[%03d]: %s", exc.id, exc.what());
+	}
+
+	return false;
 
 } // Contains
-#endif
 
 } // end of namespace kjson
 

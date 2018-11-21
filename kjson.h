@@ -167,8 +167,8 @@ namespace kjson
 	/// proper json string escaping
 	KString Escape (KStringView sInput);
 
-	/// returns true if object is a string array and contains the given string
-	//bool Contains (const KJSON& json, KStringView sString); -- doesnt work right yet
+	/// returns true if object is a string array or an object and contains the given string
+	bool Contains (const KJSON& json, KStringView sString);
 
 }; // end of namespace kjson
 
@@ -178,5 +178,6 @@ using kjson::Parse;
 using kjson::Print;
 using kjson::GetString;
 using kjson::GetObject;
+using kjson::Contains;
 
 } // end of namespace dekaf2

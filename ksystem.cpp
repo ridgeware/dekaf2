@@ -175,44 +175,38 @@ KString kGetWhoAmI ()
 } // kGetWhoami
 
 //-----------------------------------------------------------------------------
-KString kGetHostname (KString& sHostname)
+KStringViewZ kGetHostname ()
 //-----------------------------------------------------------------------------
 {
-	KString sHostName;
+	enum { MAXNAMELEN = 50 };
+	static char szHostname[MAXNAMELEN+1] = "";
 
-	enum {MAX = 50};
-	char szHostname[MAX+1];
+	if (*szHostname)
+	{
+		// hostname already queried
+		return szHostname;
+	}
 
 #ifdef WIN32
 	*szHostname = 0;
 
-	DWORD nSize = MAX;
+	DWORD nSize = MAXNAMELEN;
 	GetComputerName (
 		szHostname,         // name buffer
 		&nSize              // address of size of name buffer
 	);
 
-	sHostname = szHostname;
-
-	if (sHostname.empty())
-	{
-		sHostname = "hostname-error";
-	}
+	if (!*szHostname)
 #else
 	if (gethostname (szHostname, sizeof (szHostname)) != 0)
+#endif
 	{
 		kDebugLog (1, "CMD ERROR: hostname");
-		sHostname = "hostname-error";
+		return "hostname-error";
 	}
-	else
-	{
-		sHostname = szHostname;
-	}
-#endif
 
-	kDebugLog (2, "kGetHostname(): %s", sHostname);
-
-	return (sHostname);
+	kDebugLog (2, "kGetHostname(): %s", szHostname);
+	return szHostname;
 
 } // kGetHostname
 

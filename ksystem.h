@@ -114,10 +114,7 @@ KString kGetWhoAmI ();
 inline KString kwhoami () { return kGetWhoAmI(); }
 
 /// Return operating system hostname as a string.
-KString kGetHostname ();
-
-/// Alias to kGetHostname(): return operating system hostname as a string.
-inline KString khostname () { return kGetHostname(); }
+KStringViewZ kGetHostname ();
 
 /// return process ID
 inline pid_t kGetPid()

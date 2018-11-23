@@ -48,8 +48,10 @@
 #include <cinttypes>
 #include <algorithm>
 #include <cstring>
+#include <map>
 #include "kstring.h"
 #include "kstringview.h"
+#include "ksystem.h"
 
 namespace dekaf2
 {
@@ -310,6 +312,62 @@ String& kCollapseAndTrim(String& string, KStringView svCollapse, typename String
 }
 
 //-----------------------------------------------------------------------------
+/// Replace variables in sString found in a map Variables, search for sOpen/sClose for lead-in and lead-out.
+/// Returns count of replaces
+template<class String, class StringView, class ReplaceMap = std::map<StringView, StringView> >
+std::size_t kReplaceVariables (String& sString, StringView sOpen, StringView sClose, bool bQueryEnvironment, const ReplaceMap& Variables = ReplaceMap{})
+//-----------------------------------------------------------------------------
+{
+	std::size_t iNumReplacements { 0 };
+	auto iOpen = sOpen.size();
+
+	if (DEKAF2_UNLIKELY(!iOpen || !sClose.size()))
+	{
+		// we need prefix and suffix
+		return 0;
+	}
+
+	for (typename String::size_type iPos, iStart = 0; (iPos = sString.find(sOpen, iStart)) != String::npos;)
+	{
+		StringView sHaystack ( sString.ToView(iPos + iOpen) );
+		auto iEnd = sHaystack.find(sClose);
+		if (iEnd != StringView::npos)
+		{
+			StringView sValue = sHaystack.ToView(0, iEnd);
+			StringView sReplace;
+			auto it = Variables.find(sValue);
+			if (it != Variables.end())
+			{
+				sReplace = it->second;
+			}
+			else if (bQueryEnvironment)
+			{
+				// need to convert into string, as kGetEnv wants a zero terminated string
+				KString strValue(sValue);
+				sReplace = kGetEnv(strValue);
+			}
+			if (!sReplace.empty())
+			{
+				// found one - replace it
+				sString.replace(iPos, sValue.size() + iOpen + sClose.size(), sReplace);
+				// readjust start position
+				iStart = iPos + it->second.size();
+				// increase replace counter
+				++iNumReplacements;
+			}
+		}
+		else
+		{
+			// no value found, prepare next loop
+			iStart += iOpen;
+		}
+	}
+
+	return (iNumReplacements);
+
+} // kReplaceVariables
+
+//-----------------------------------------------------------------------------
 /// Create a UTC time stamp following strftime patterns. If tTime is 0, current time is
 /// used.
 KString kFormTimestamp (time_t tTime = 0, const char* pszFormat = "%Y-%m-%d %H:%M:%S");
@@ -331,6 +389,7 @@ String kFormNumber(Arithmetic i, typename String::value_type separator = ',', ty
 
 	DEKAF2_TRY
 	{
+		// TODO specialize on KString::to_string()..
 		result = std::to_string(i);
 	}
 	DEKAF2_CATCH (...)

@@ -45,13 +45,17 @@
 
 using namespace dekaf2;
 
-constexpr KStringView ESCAPE_MYSQL { "\'\\" };
+// MySQL requires NUL, the quotes and backslash to be escaped. Do not escape
+// by doubling the value, as the result then depends on the context (if inside
+// single quotes, double double quotes will be seen as two, and vice verse)
+constexpr KStringView ESCAPE_MYSQL { "\'\"\\\0" };
+// TODO check the rules for MSSQL, particularly for \0 and \Z
 constexpr KStringView ESCAPE_MSSQL { "\'"   };
 
-int32_t  detail::KCommonSQLBase::m_iDebugLevel{2};
+int16_t detail::KCommonSQLBase::m_iDebugLevel { 2 };
 
 //-----------------------------------------------------------------------------
-KString KROW::ColumnInfoForLogOutput (const KCOLS::value_type& it, int16_t iCol) const
+KString KROW::ColumnInfoForLogOutput (const KCOLS::value_type& it, Index iCol) const
 //-----------------------------------------------------------------------------
 {
 	KString sLogMessage;
@@ -62,7 +66,7 @@ KString KROW::ColumnInfoForLogOutput (const KCOLS::value_type& it, int16_t iCol)
 		    !it.second.IsFlag (PKEY)       ? "" : " [PKEY]",
 		    !it.second.IsFlag (NONCOLUMN)  ? "" : " [NONCOLUMN]",
 		    !it.second.IsFlag (EXPRESSION) ? "" : " [EXPRESSION]",
-		    !it.second.IsFlag (NUMERIC)    ? "" : " [NUMERIC]",
+			!it.second.HasFlag(NUMERIC | INT64NUMERIC) ? "" : it.second.IsFlag(INT64NUMERIC) ? " [INT64NUMERIC]" : " [NUMERIC]",
 		    !it.second.IsFlag (JSON)       ? "" : " [JSON]",
 		    !it.second.IsFlag (BOOLEAN)    ? "" : " [BOOLEAN]");
 
@@ -70,81 +74,73 @@ KString KROW::ColumnInfoForLogOutput (const KCOLS::value_type& it, int16_t iCol)
 }
 
 //-----------------------------------------------------------------------------
-void KROW::EscapeChars (KStringView sString, KString& sEscaped, SQLTYPE iDBType)
-//-----------------------------------------------------------------------------
-{
-	KStringView sCharsToEscape;
-
-	switch (iDBType)
-	{
-	case DBT_SQLSERVER:
-	case DBT_SYBASE:
-		sCharsToEscape = ESCAPE_MSSQL;
-		break;
-	case DBT_MYSQL:
-	default:
-		sCharsToEscape = ESCAPE_MYSQL;
-		break;
-	}
-
-	EscapeChars (sString, sEscaped, sCharsToEscape);
-
-} // EscapeChars - v1
-
-//-----------------------------------------------------------------------------
-void KROW::EscapeChars (KStringView sString, KString& sEscaped,
-                        KStringView sCharsToEscape, KString::value_type iEscapeChar/*=0*/)
+KString KROW::EscapeChars (const KROW::value_type& Col, KStringView sCharsToEscape, KString::value_type iEscapeChar/*=0*/)
 //-----------------------------------------------------------------------------
 {
 	// Note: if iEscapeChar is ZERO, then the char is used as it's own escape char (i.e. it gets doubled up).
-	for (auto ch : sString)
+	KString sEscaped;
+	KStringView sString (Col.second.sValue);
+
+	for (KStringView::size_type iStart; (iStart = sString.find_first_of(sCharsToEscape)) != KStringView::npos; )
 	{
-		if (sCharsToEscape.find(ch) != KStringView::npos)
+		sEscaped += sString.substr(0, iStart);
+		auto ch = sString[iStart];
+		if (!ch) ch = '0'; // NUL needs special treatment
+		sEscaped += (iEscapeChar) ? iEscapeChar : ch;
+		sEscaped += ch;
+		// prepare for next round
+		sString.remove_prefix(++iStart);
+	}
+	// add the remainder of the input string
+	sEscaped += sString;
+
+	// check if we shall clip the string
+	auto iMaxLen = Col.second.GetMaxLen();
+	if (iMaxLen)
+	{
+		if (sEscaped.size() > iMaxLen)
 		{
-			if (iEscapeChar)
+			kDebugLog (1, "KSQL: clipping {}='{:.10}...' to {} chars", Col.first, sEscaped, iMaxLen);
+
+			auto cClipped = sEscaped[iMaxLen-1];
+			// watch out for a trailing escape:
+			if (sCharsToEscape.find(cClipped) != KStringView::npos)
 			{
-				sEscaped += iEscapeChar;
+				sEscaped.resize(iMaxLen-1);
 			}
 			else
 			{
-				sEscaped += ch;
+				sEscaped.resize(iMaxLen);
 			}
 		}
-		sEscaped += ch;
+
+	}
+
+	return sEscaped;
+
+} // EscapeChars
+
+//-----------------------------------------------------------------------------
+KString KROW::EscapeChars (const KROW::value_type& Col, SQLTYPE iDBType)
+//-----------------------------------------------------------------------------
+{
+	switch (iDBType)
+	{
+		case DBT_SQLSERVER:
+		case DBT_SYBASE:
+			return EscapeChars (Col, ESCAPE_MSSQL);
+		case DBT_MYSQL:
+		default:
+			return EscapeChars (Col, ESCAPE_MYSQL, '\\');
 	}
 
 } // EscapeChars
 
 //-----------------------------------------------------------------------------
-void KROW::SmartClip (KStringView sColName, KString& sValue, size_t iMaxLen) const
-//-----------------------------------------------------------------------------
-{
-	if (iMaxLen)
-	{
-		size_t iLen = sValue.length();
-		if (iLen > iMaxLen)
-		{
-			kDebugLog (1, "KSQL: clipping {}='{:.10}...' to {} chars", sColName, sValue, iMaxLen);
-
-			char cClipped = sValue[iMaxLen];
-			// watch out for a trailing escape:
-			if ((cClipped == '\'') || (cClipped == '\"'))
-			{
-				sValue.resize(iMaxLen-1);
-			}
-			else
-			{
-				sValue.resize(iMaxLen);
-			}
-		}
-	}
-} // SmartClip
-
-//-----------------------------------------------------------------------------
 bool KROW::FormInsert (KString& sSQL, SQLTYPE iDBType, bool fIdentityInsert/*=false*/) const
 //-----------------------------------------------------------------------------
 {
-	m_sLastError = ""; // reset
+	m_sLastError.clear(); // reset
 
 	kDebugLog (3, "KROW:FormInsert: before: {}", sSQL);
 	
@@ -211,10 +207,7 @@ bool KROW::FormInsert (KString& sSQL, SQLTYPE iDBType, bool fIdentityInsert/*=fa
 			// catch-all logic for all string values
 			// Note: if the value is actually NIL ('') and NULL_IS_NOT_NIL is set, then the value will
 			// be placed into SQL as '' instead of SQL null.
-			KString sEscaped;
-			EscapeChars (it.second.sValue, sEscaped, iDBType);
-			SmartClip   (it.first, sEscaped, it.second.GetMaxLen());
-			sAdd.Format ("\t{}'{}'\n", (bComma) ? "," : "", sEscaped);
+			sAdd.Format ("\t{}'{}'\n", (bComma) ? "," : "", EscapeChars (it, iDBType));
 			sSQL += sAdd;
 		}
 		bComma = true;
@@ -265,8 +258,8 @@ bool KROW::FormUpdate (KString& sSQL, SQLTYPE iDBType) const
 
 	kDebugLog (3, "KROW:FormUpdate: {}", m_sTablename);
 
-	bool bComma = false;
-	int16_t iii = 0;
+	bool  bComma = false;
+	Index iii = 0; // only needed for logging..
 	for (const auto& it : *this)
 	{
 		kDebugLog (3, ColumnInfoForLogOutput(it, iii++));
@@ -295,17 +288,13 @@ bool KROW::FormUpdate (KString& sSQL, SQLTYPE iDBType) const
 			}
 			else
 			{
-				KString sEscaped;
-				EscapeChars (it.second.sValue, sEscaped, iDBType);
-				SmartClip   (it.first, sEscaped, it.second.GetMaxLen());
-
 				if (it.second.HasFlag (NUMERIC | EXPRESSION | BOOLEAN))
 				{
-					sAdd.Format ("\t{}{}={}\n", (bComma) ? "," : "", it.first, sEscaped);
+					sAdd.Format ("\t{}{}={}\n", (bComma) ? "," : "", it.first, EscapeChars (it, iDBType));
 				}
 				else
 				{
-					sAdd.Format ("\t{}{}='{}'\n", (bComma) ? "," : "", it.first, sEscaped);
+					sAdd.Format ("\t{}{}='{}'\n", (bComma) ? "," : "", it.first, EscapeChars (it, iDBType));
 				}
 				sSQL += sAdd;
 			}
@@ -314,22 +303,17 @@ bool KROW::FormUpdate (KString& sSQL, SQLTYPE iDBType) const
 	}
 
 	kDebugLog (GetDebugLevel()+1, "KROW::FormUpdate: update will rely on {} keys", Keys.size());
-	//Keys.DebugPairs (0, "FormUpdate: primary keys:");
 
 	if (Keys.empty())
 	{
 		m_sLastError.Format("KROW::FormUpdate({}): no primary key[s] defined in column list", GetTablename());
 		kDebugLog (1, "{}", m_sLastError);
-		//DebugPairs (1);
 		return (false);
 	}
 
 	bool bFirstKey { true };
 	for (const auto& it : Keys)
 	{
-		KString sEscaped;
-		EscapeChars (it.second.sValue, sEscaped, iDBType);
-		
 		KStringView sPrefix;
 		if (bFirstKey)
 		{
@@ -343,11 +327,11 @@ bool KROW::FormUpdate (KString& sSQL, SQLTYPE iDBType) const
 		
 		if (it.second.HasFlag(NUMERIC | EXPRESSION | BOOLEAN))
 		{
-			sAdd.Format("{}{}={}\n", sPrefix, it.first, sEscaped);
+			sAdd.Format("{}{}={}\n", sPrefix, it.first, EscapeChars (it, iDBType));
 		}
 		else
 		{
-			sAdd.Format("{}{}='{}'\n", sPrefix, it.first, sEscaped);
+			sAdd.Format("{}{}='{}'\n", sPrefix, it.first, EscapeChars (it, iDBType));
 		}
 		sSQL += sAdd;
 	}
@@ -360,7 +344,7 @@ bool KROW::FormUpdate (KString& sSQL, SQLTYPE iDBType) const
 bool KROW::FormDelete (KString& sSQL, SQLTYPE iDBType) const
 //-----------------------------------------------------------------------------
 {
-	m_sLastError = ""; // reset
+	m_sLastError.clear(); // reset
 
 	kDebugLog (3, "KROW:FormDelete: before: {}", sSQL);
 
@@ -378,8 +362,8 @@ bool KROW::FormDelete (KString& sSQL, SQLTYPE iDBType) const
 		return (false);
 	}
 
-	uint16_t kk = 0;
-	KString  sAdd;
+	Index   kk = 0;
+	KString sAdd;
 
 	sAdd.Format("delete from {}\n", GetTablename());
 	sSQL += sAdd;
@@ -395,22 +379,18 @@ bool KROW::FormDelete (KString& sSQL, SQLTYPE iDBType) const
 			continue;
 		}
 
-		KString     sEscaped;
-		EscapeChars (it.second.sValue, sEscaped, iDBType);
-
 		KString sAdd;
-		SmartClip(it.first, sEscaped, it.second.GetMaxLen());
 		if (it.second.sValue.empty())
 		{
 			sAdd.Format(" {} {} is null\n",(!kk) ? "where" : "  and", it.first);
 		}
 		else if (it.second.HasFlag(NUMERIC | EXPRESSION | BOOLEAN))
 		{
-			sAdd.Format(" {} {}={}\n",     (!kk) ? "where" : "  and", it.first, sEscaped);
+			sAdd.Format(" {} {}={}\n",     (!kk) ? "where" : "  and", it.first, EscapeChars (it, iDBType));
 		}
 		else
 		{
-			sAdd.Format(" {} {}='{}'\n",   (!kk) ? "where" : "  and", it.first, sEscaped);
+			sAdd.Format(" {} {}='{}'\n",   (!kk) ? "where" : "  and", it.first, EscapeChars (it, iDBType));
 		}
 		sSQL += sAdd;
 
@@ -421,7 +401,6 @@ bool KROW::FormDelete (KString& sSQL, SQLTYPE iDBType) const
 	{
 		m_sLastError.Format("KROW::FormDelete({}): no primary key[s] defined in column list", GetTablename());
 		kDebugLog (1, "{}", m_sLastError);
-		//DebugPairs (1);
 		return (false);
 	}
 	
@@ -432,7 +411,7 @@ bool KROW::FormDelete (KString& sSQL, SQLTYPE iDBType) const
 } // FormDelete
 
 //-----------------------------------------------------------------------------
-bool KROW::AddCol (KStringView sColName, const KJSON& Value, uint16_t iFlags, uint32_t iMaxLen)
+bool KROW::AddCol (KStringView sColName, const KJSON& Value, KCOL::Flags iFlags, KCOL::Len iMaxLen)
 //-----------------------------------------------------------------------------
 {
 	if (Value.is_object() || Value.is_array())

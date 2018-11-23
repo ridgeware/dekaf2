@@ -115,9 +115,9 @@ TEST_CASE("KSQL")
 	KStringView BENIGN    = "Something benign.";
 	KStringView BENIGNX   = "Something benign.";
 	KStringView QUOTES1   = "Fred's Fishing Pole";
-	KStringView QUOTES1x  = "Fred''s Fishing Pole";
+	KStringView QUOTES1x  = "Fred\\'s Fishing Pole";
 	KStringView QUOTES2   = "Fred's fishing pole's longer than mine.";
-	KStringView QUOTES2x  = "Fred''s fishing pole''s longer than mine.";
+	KStringView QUOTES2x  = "Fred\\'s fishing pole\\'s longer than mine.";
 	KStringView SLASHES1  = "This is a \\l\\i\\t\\t\\l\\e /s/l/a/s/h test.";
 	KStringView SLASHES1x = "This is a \\\\l\\\\i\\\\t\\\\t\\\\l\\\\e /s/l/a/s/h test.";
 	KStringView SLASHES2  = "This <b>is</b>\\n a string\\r with s/l/a/s/h/e/s, \\g\\e\\t\\ i\\t\\???";
@@ -130,40 +130,61 @@ TEST_CASE("KSQL")
 	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
 	SECTION("KROW::EscapeChars(BENIGN)")
 	{
-		KString sEscaped;
-		KROW::EscapeChars (BENIGN, sEscaped, KSQL::DBT_MYSQL);
+		KROW::value_type Col;
+		Col.second.sValue = BENIGN;
+		KString sEscaped ( KROW::EscapeChars (Col, KSQL::DBT_MYSQL));
 		CHECK (sEscaped == BENIGNX);
 	}
 
 	SECTION("KROW::EscapeChars(QUOTES1)")
 	{
-		KString sEscaped;
-		KROW::EscapeChars (QUOTES1, sEscaped, KSQL::DBT_MYSQL);
+		KROW::value_type Col;
+		Col.second.sValue = QUOTES1;
+		KString sEscaped ( KROW::EscapeChars (Col, KSQL::DBT_MYSQL));
 		CHECK (sEscaped == QUOTES1x);
 	}
 
 	SECTION("KROW::EscapeChars(QUOTES2)")
 	{
-		KString sEscaped;
-		KROW::EscapeChars (QUOTES2, sEscaped, KSQL::DBT_MYSQL);
+		KROW::value_type Col;
+		Col.second.sValue = QUOTES2;
+		KString sEscaped ( KROW::EscapeChars (Col, KSQL::DBT_MYSQL));
 		CHECK (sEscaped == QUOTES2x);
 	}
 
 	SECTION("KROW::EscapeChars(SLASHES1)")
 	{
-		KString sEscaped;
-		KROW::EscapeChars (SLASHES1, sEscaped, KSQL::DBT_MYSQL);
+		KROW::value_type Col;
+		Col.second.sValue = SLASHES1;
+		KString sEscaped ( KROW::EscapeChars (Col, KSQL::DBT_MYSQL));
 		CHECK (sEscaped == SLASHES1x);
 	}
 
 	SECTION("KROW::EscapeChars(SLASHES2)")
 	{
-		KString sEscaped;
-		KROW::EscapeChars (SLASHES2, sEscaped, KSQL::DBT_MYSQL);
+		KROW::value_type Col;
+		Col.second.sValue = SLASHES2;
+		KString sEscaped ( KROW::EscapeChars (Col, KSQL::DBT_MYSQL));
 		CHECK (sEscaped == SLASHES2x);
 	}
 
-	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+	SECTION("KROW::EscapeChars(ASIAN1)")
+	{
+		KROW::value_type Col;
+		Col.second.sValue = ASIAN1;
+		KString sEscaped ( KROW::EscapeChars (Col, KSQL::DBT_MYSQL));
+		CHECK (sEscaped == ASIAN1);
+	}
+
+	SECTION("KROW::EscapeChars(ASIAN2)")
+	{
+		KROW::value_type Col;
+		Col.second.sValue = ASIAN1;
+		KString sEscaped ( KROW::EscapeChars (Col, KSQL::DBT_MYSQL));
+		CHECK (sEscaped == ASIAN1);
+	}
+
+	// - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 	// test KSQL class...
 	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
 	SECTION("KSQL::constructor and destructor (no connect info)...")
@@ -175,7 +196,8 @@ TEST_CASE("KSQL")
 	{
 		KSQL db; // <-- shared across the remaining tests
 
-		if (g_sDbcFile.empty()) {
+		if (g_sDbcFile.empty())
+		{
 			return;  // <--- other other tests are useless
 		}
 
@@ -493,21 +515,20 @@ TEST_CASE("KSQL")
 		    |select count(*) from TEST_KSQL;;
 		)");
 
-		KFile fp1 (sTmp1, std::ios::out);
-		KFile fp2 (sTmp2, std::ios::out);
-		if (!fp1.Write (sContents1).Good())
 		{
-			kWarning ("failed to write {} bytes to file: {}", sContents1.size(), sTmp1);
-			FAIL_CHECK ("could not write temp files to cwd");
+			KOutFile fp1 (sTmp1);
+			KOutFile fp2 (sTmp2);
+			if (!fp1.Write (sContents1).Good())
+			{
+				kWarning ("failed to write {} bytes to file: {}", sContents1.size(), sTmp1);
+				FAIL_CHECK ("could not write temp files to cwd");
+			}
+			if (!fp2.Write (sContents2).Good())
+			{
+				kWarning ("failed to write {} bytes to file: {}", sContents2.size(), sTmp2);
+				FAIL_CHECK ("could not write temp files to cwd");
+			}
 		}
-		if (!fp2.Write (sContents2).Good())
-		{
-			kWarning ("failed to write {} bytes to file: {}", sContents2.size(), sTmp2);
-			FAIL_CHECK ("could not write temp files to cwd");
-		}
-
-		fp1.close();
-		fp2.close();
 	
 		if (!kSetEnv ("INCLUDEME", sTmp2))
 		{
@@ -558,7 +579,7 @@ TEST_CASE("KSQL")
 
 		KString sTmp;  sTmp.Format ("testksql{}c.sql", getpid());
 
-		KFile fp (sTmp, std::ios::out);
+		KOutFile fp (sTmp);
 		fp.Write (HereDoc(R"(
 			|// This is a full-line comment
 			|

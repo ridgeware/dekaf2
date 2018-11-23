@@ -225,6 +225,13 @@ else()
 	message(STATUS "MySQL not found - will build without. Please install MySQL if you want to use KSQL.")
 endif()
 
+# SQLite3 (for KSQL) - if not available it's simply skipped
+find_package(SQLite3)
+if(SQLITE3_FOUND)
+	message(STATUS "configuring with SQLite3")
+	set(DEKAF2_HAS_SQLITE3 1)
+endif()
+
 # openssl (needed for boost asio)
 if (${CMAKE_SYSTEM_NAME} STREQUAL "Darwin")
     # check later if this is still needed to override an insufficient std OpenSSL on OSX
@@ -573,6 +580,7 @@ target_link_libraries(dekaf2
 		${FCGILIBS}
 		${FSLIB}
 		${MYSQL_LIBRARIES}
+		${SQLITE3_LIBRARIES}
 		${libproc_LIBRARIES}
 		Threads::Threads
 		re2
@@ -582,9 +590,9 @@ target_link_libraries(dekaf2
 
 add_dependencies(dekaf2 lib-headers-dekaf2)
 target_include_directories(dekaf2
-   PUBLIC "${DEKAF2_INCLUDE_DIR}" "${GENERATED_FILES_DIR}"
-   PRIVATE "${MYSQL_INCLUDE_DIRS}"
-   INTERFACE "${Boost_INCLUDE_DIR}" "${OPENSSL_INCLUDE_DIR}"
+	PUBLIC "${DEKAF2_INCLUDE_DIR}" "${GENERATED_FILES_DIR}"
+	PRIVATE "${MYSQL_INCLUDE_DIRS}" "${SQLITE3_INCLUDE_DIRS}"
+	INTERFACE "${Boost_INCLUDE_DIR}" "${OPENSSL_INCLUDE_DIR}"
 )
 target_compile_definitions(dekaf2 PRIVATE DEKAF2_LIBRARY_BUILD)
 

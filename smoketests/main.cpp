@@ -52,7 +52,7 @@
 
 using namespace dekaf2;
 
-extern KStringView g_sDbcFile;
+extern KStringViewZ g_sDbcFile;
 
 KStringView g_Synopsis[] = {
 "",
@@ -97,10 +97,6 @@ int main( int argc, char* const argv[] )
 				iLast = ii;
 				g_sDbcFile = argv[ii];
 			}
-			else
-			{
-				kWarning("missing file name argument to -dbc");
-			}
 		}
 
 		// part of the generic CATCH framework:
@@ -111,6 +107,15 @@ int main( int argc, char* const argv[] )
 		{
 			bSynopsis = true;
 		}
+	}
+
+	if (g_sDbcFile.empty())
+	{
+		KErr.WriteLine("dekaf2_smoketests: missing -dbc file name -- cannot test KSQL!");
+	}
+	else if (!kFileExists(g_sDbcFile))
+	{
+		KErr.FormatLine("dekaf2_smoketests: -dbc file name {} not existing -- cannot test KSQL!", g_sDbcFile);
 	}
 
 	if (bSynopsis)

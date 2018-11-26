@@ -42,6 +42,9 @@
 
 #pragma once
 
+/// @file ksql.h
+/// dekaf2's main SQL abstraction KSQL
+
 #include <cinttypes>
 #include <vector>
 #include "kstring.h"
@@ -138,72 +141,9 @@ namespace dekaf2 {
 //
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-/* DBC file format structures:
-   These structures, once established, CAN NOT CHANGE.
-   Size and offset of each field must be retained as-is in order to maintain compatibility with existing DBC files.
-   The first field, "szLeader[]", is used to identify which format a particular file follows
-*/
-struct DBCFILEv1
-{
-	enum
-	{
-		// DBCFILEv1 used 51 bytes for each authentication field
-		// however, older versions of KSQL will truncate the fields when reading them if they are over 49 characters long.
-		// Therefore, for compatibility, MAXLEN_CONNECTPARM is 49 characters even though sizeof(szUsername) is still 51 bytes.
-		MAXLEN_CONNECTPARM = 49
-	};
-
-	char           szLeader[10];     // <-- length of leader can never change as struct gets rev'ed
-	int32_t        iDBType;
-	int32_t        iAPISet;
-	unsigned char  szUsername[MAXLEN_CONNECTPARM+2]; // order: UPDH
-	unsigned char  szPassword[MAXLEN_CONNECTPARM+2];
-	unsigned char  szDatabase[MAXLEN_CONNECTPARM+2];
-	unsigned char  szHostname[MAXLEN_CONNECTPARM+2];
-	int32_t        iDBPortNum;
-};
-
-struct DBCFILEv2
-{
-	enum
-	{
-		// DBCFILEv2 used 51 bytes for each authentication field
-		// however, older versions of KSQL will truncate the fields when reading them if they are over 49 characters long.
-		// Therefore, for compatibility, MAXLEN_CONNECPARM is 49 characters even though sizeof(szUsername) is still 51 bytes.
-		MAXLEN_CONNECTPARM = 49
-	};
-
-	char          szLeader[10];     // <-- length of leader can never change as struct gets rev'ed
-	uint8_t       iDBType[4];
-	uint8_t       iAPISet[4];
-	unsigned char szUsername[MAXLEN_CONNECTPARM+2]; // order: UPDH
-	unsigned char szPassword[MAXLEN_CONNECTPARM+2];
-	unsigned char szDatabase[MAXLEN_CONNECTPARM+2];
-	unsigned char szHostname[MAXLEN_CONNECTPARM+2];
-	uint8_t       iDBPortNum[4];
-};
-
-/* DBCFilev3 was introduced to increase the maximum length of the connection parameters */
-struct DBCFILEv3
-{
-	enum
-	{
-		MAXLEN_CONNECTPARM = 127
-	};
-
-	char          szLeader[10];     // <-- length of leader can never change as struct gets rev'ed
-	uint8_t       iDBType[4];
-	uint8_t       iAPISet[4];
-	unsigned char szUsername[MAXLEN_CONNECTPARM+1]; // order: UPDH
-	unsigned char szPassword[MAXLEN_CONNECTPARM+1];
-	unsigned char szDatabase[MAXLEN_CONNECTPARM+1];
-	unsigned char szHostname[MAXLEN_CONNECTPARM+1];
-	uint8_t       iDBPortNum[4];
-};
-
-//-----------------------------------------------------------------------------
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class KSQL : public detail::KCommonSQLBase
-//-----------------------------------------------------------------------------
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
 //----------
@@ -216,20 +156,9 @@ public:
 	using TXList = KProps <KString, KString, /*order-matters=*/true, /*unique-keys*/true>;
 
 	enum {
-		// the API constant determines how to connect to the database
-		API_MYSQL             = 10000,      // connect to MYSQL using their custom APIs
-		API_OCI6              = 26000,      // connect to Oracle using the v6 OCI (older set)
-		API_OCI8              = 28000,      // connect to Oracle using the v8 OCI (the default)
-		API_SQLITE3           = 30000,      // connect to SQLite3 using their custom APIs
-		API_DBLIB             = 40000,      // connect to SQLServer or Sybase using DBLIB
-		API_CTLIB             = 50000,      // connect to SQLServer or Sybase using CTLIB
-		API_INFORMIX          = 80000,      // connect to Informix using their API
-		API_ODBC              = 90000,      // connect to something using ODBC APIs
-
 		// blob encoding schemes:
 		BT_ASCII              = 'A',        // ASCII:  only replace newlines and single quotes
 		BT_BINARY             = 'B',        // BINARY: encode every char into base 256 (2 digit hex)
-//		MAXLEN_CONNECTPARM    = DBCFILEv3::MAXLEN_CONNECTPARM,
 		MAX_BLOBCHUNKSIZE     =  2000,      // LCD between Oracle, Sybase, MySQL, and Informix
 //		MAXLEN_CURSORNAME     =    50,
 		NUM_RETRIES           =     5,      // <-- when db connection is lost
@@ -250,15 +179,13 @@ public:
 
 	const char* BAR = "--------------------------------------------------------------------------------"; // for printf() so keep this const char*
 
-	KSQL (Flags iFlags=0, int iDebugID=0, SQLTYPE iDBType=DBT_MYSQL, KStringView sUsername=NULL, KStringView sPassword=NULL, KStringView sDatabase=NULL, KStringView sHostname=NULL, uint16_t iDBPortNum=0);
-	KSQL (KSQL& Another,  int iDebugID=0);
-	KSQL (KSQL* pAnother, int iDebugID=0);
+	KSQL (DBT iDBType = DBT::MYSQL, KStringView sUsername = {}, KStringView sPassword = {}, KStringView sDatabase = {}, KStringView sHostname = {}, uint16_t iDBPortNum = 0);
+	KSQL (KSQL& other);
 
 	~KSQL ();
 
-	bool   CopyConnection (KSQL* pAnother);
-	bool   SetConnect (SQLTYPE iDBType, KStringView sUsername, KStringView sPassword, KStringView sDatabase, KStringView sHostname=NULL, uint16_t iDBPortNum=0);
-	bool   SetDBType (SQLTYPE iDBType);
+	bool   SetConnect (DBT iDBType, KStringView sUsername, KStringView sPassword, KStringView sDatabase, KStringView sHostname = {}, uint16_t iDBPortNum = 0);
+	bool   SetDBType (DBT iDBType);
 	bool   SetDBType (KStringView sDBType);
 	bool   SetDBUser (KStringView sUsername);
 	bool   SetDBPass (KStringView sPassword);
@@ -268,29 +195,29 @@ public:
 
 	bool   LoadConnect      (KString sDBCFile);
 	bool   SaveConnect      (KString sDBCFile);
-	int    GetAPISet        ()      { return (m_iAPISet); }
-	bool   SetAPISet        (int iAPISet);
+	API    GetAPISet        ()      { return (m_iAPISet); }
+	bool   SetAPISet        (API iAPISet);
 	bool   OpenConnection   ();
-	bool   OpenConnection   (KStringView sListOfHosts, KStringView sDelimeter = ",");
+	bool   OpenConnection   (KStringView sListOfHosts, KStringView sDelimiter = ",");
 	void   CloseConnection  ();
 	bool   IsConnectionOpen ()      { return (m_bConnectionIsOpen); }
 
 	bool   Insert         (KROW& Row);
 	bool   Update         (KROW& Row);
 	bool   Delete         (KROW& Row);
-	bool   UpdateOrInsert (KROW& Row, KROW& AdditionalInsertCols, bool* pbInserted=NULL);
+	bool   UpdateOrInsert (KROW& Row, KROW& AdditionalInsertCols, bool* pbInserted = nullptr);
 
 	bool   FormInsert     (KROW& Row, KString& sSQL, bool fIdentityInsert=false)
-			{ bool fOK = Row.FormInsert (m_sLastSQL, m_iDBType, fIdentityInsert); sSQL=m_sLastSQL; return (fOK); }
+			{ bool fOK = Row.FormInsert (m_sLastSQL, m_iDBType, fIdentityInsert); sSQL = m_sLastSQL; return (fOK); }
 	bool   FormUpdate     (KROW& Row, KString& sSQL)
-			{ bool fOK = Row.FormUpdate (m_sLastSQL, m_iDBType); sSQL=m_sLastSQL; return (fOK); }
+			{ bool fOK = Row.FormUpdate (m_sLastSQL, m_iDBType); sSQL = m_sLastSQL; return (fOK); }
 	bool   FormDelete     (KROW& Row, KString& sSQL)
-			{ bool fOK = Row.FormDelete (m_sLastSQL, m_iDBType); sSQL=m_sLastSQL; return (fOK); }
+			{ bool fOK = Row.FormDelete (m_sLastSQL, m_iDBType); sSQL = m_sLastSQL; return (fOK); }
 
-	void   SetErrorPrefix   (KStringView sPrefix, uint32_t iLineNum=0);
+	void   SetErrorPrefix   (KStringView sPrefix, uint32_t iLineNum = 0);
 	void   ClearErrorPrefix ()        { m_sErrorPrefix = "KSQL: "; }
 
-	void   SetWarningThreshold  (time_t iWarnIfOverNumSeconds, FILE* fpAlternativeToKlog=NULL)
+	void   SetWarningThreshold  (time_t iWarnIfOverNumSeconds, FILE* fpAlternativeToKlog=nullptr)
 					{ m_iWarnIfOverNumSeconds = iWarnIfOverNumSeconds;
 					  m_bpWarnIfOverNumSeconds = fpAlternativeToKlog; }
 
@@ -310,7 +237,7 @@ public:
 
 	} // KSQL::ExecSQL
 
-	bool           ExecRawSQL     (KStringView sSQL, Flags iFlags=0, KStringView sAPI="ExecRawSQL");
+	bool           ExecRawSQL     (KStringView sSQL, Flags iFlags = 0, KStringView sAPI="ExecRawSQL");
 	bool           ExecSQLFile    (KStringViewZ sFilename);
 
 	/// After establishing a database connection, this is how you issue a SQL query and get results.
@@ -356,9 +283,9 @@ public:
 
 	} // KSQL::SingleIntQuery
 
-	int64_t        SingleIntRawQuery (KStringView sSQL, Flags iFlags=0, KStringView sAPI="ExecRawQuery");
+	int64_t        SingleIntRawQuery (KStringView sSQL, Flags iFlags=0, KStringView sAPI = "ExecRawQuery");
 
-	bool           ExecRawQuery   (KStringView sSQL, Flags iFlags=0, KStringView sAPI="ExecRawQuery");
+	bool           ExecRawQuery   (KStringView sSQL, Flags iFlags=0, KStringView sAPI = "ExecRawQuery");
 	KROW::Index    GetNumCols     ();
 	KROW::Index    GetNumColumns  ()         { return (GetNumCols());       }
 	bool           NextRow        ();
@@ -369,9 +296,9 @@ public:
     #ifdef DEKAF2_HAS_ORACLE
 	// Oracle/OCI variable binding support:
 	bool   ParseSQL        (KStringView sFormat, ...);
-	bool   ParseRawSQL     (KStringView sSQL, uint64_t iFlags=0, KStringView sAPI="ParseRawSQL");
+	bool   ParseRawSQL     (KStringView sSQL, uint64_t iFlags=0, KStringView sAPI = "ParseRawSQL");
 	bool   ParseQuery      (KStringView sFormat, ...);
-	bool   ParseRawQuery   (KStringView sSQL, uint64_t iFlags=0, KStringView sAPI="ParseRawQuery");
+	bool   ParseRawQuery   (KStringView sSQL, uint64_t iFlags=0, KStringView sAPI = "ParseRawQuery");
 
 	bool   BindByName      (KStringView sPlaceholder, KStringView sValue) { return (BindByName (pszPlaceholder, (char*)pszValue)); };
 	bool   BindByName      (KStringView sPlaceholder, char*   pszValue);
@@ -430,7 +357,7 @@ public:
 	}
 	#endif
 
-	SQLTYPE     GetDBType ()             { return (m_iDBType);         }
+	DBT         GetDBType ()             { return (m_iDBType);         }
 	const KString& GetDBUser ()          { return (m_sUsername);       }
 	const KString& GetDBPass ()          { return (m_sPassword);       }
 	const KString& GetDBHost ()          { return (m_sHostname);       }
@@ -452,35 +379,35 @@ public:
 
 	void        SetTempDir (KStringView sTempDir)  { m_sTempDir = sTempDir; }
 
-	void        BuildTranslationList (TXList& pList, int iDBType = DBT_NONE);
-	void        DoTranslations (KString& sSQL, int iDBType = DBT_NONE);
-	KStringView TxDBType (int iDBType) const;
-	KStringView TxAPISet (int iAPISet) const;
+	void        BuildTranslationList (TXList& pList, DBT iDBType = DBT::NONE);
+	void        DoTranslations (KString& sSQL, DBT iDBType = DBT::NONE);
+	KStringView TxDBType (DBT iDBType) const;
+	KStringView TxAPISet (API iAPISet) const;
 
 	#if 0
 	// blob and long ascii support:
-	unsigned char* EncodeData (unsigned char* pszBlobData, int iBlobType, uint64_t iBlobDataLen=0, bool fInPlace=false);
-	unsigned char* DecodeData (unsigned char* pszBlobData, int iBlobType, uint64_t iEncodedLen=0, bool fInPlace=false);
-	bool           PutBlob    (KStringView sBlobTable, KStringView sBlobKey, unsigned char* pszBlobData, int iBlobType, uint64_t iBlobDataLen=0);
-	unsigned char* GetBlob    (KStringView sBlobTable, KStringView sBlobKey, uint64_t* piBlobDataLen=NULL);
+	unsigned char* EncodeData (unsigned char* pszBlobData, int iBlobType, uint64_t iBlobDataLen = 0, bool fInPlace = false);
+	unsigned char* DecodeData (unsigned char* pszBlobData, int iBlobType, uint64_t iEncodedLen = 0, bool fInPlace = false);
+	bool           PutBlob    (KStringView sBlobTable, KStringView sBlobKey, unsigned char* pszBlobData, int iBlobType, uint64_t iBlobDataLen = 0);
+	unsigned char* GetBlob    (KStringView sBlobTable, KStringView sBlobKey, uint64_t* piBlobDataLen = nullptr);
 	#endif
 
 	// canned queries:
-	bool   ListTables (KStringView sLike="%", bool fIncludeViews=false, bool fRestrictToMine=true);
+	bool   ListTables (KStringView sLike = "%", bool fIncludeViews = false, bool fRestrictToMine = true);
 	                                                  // ORACLE rtns: TableName, 'TABLE'|'VIEW', Owner
 	                                                  // MYSQL  rtns: TableName, etc. (see "show table status")
-	bool   ListProcedures (KStringView sLike="%", bool fRestrictToMine=true);
+	bool   ListProcedures (KStringView sLike = "%", bool fRestrictToMine = true);
 	                                                  // MYSQL  rtns: ProcedureName, etc. (see "show procedure status")
 	bool   DescribeTable (KStringView sTablename);  // rtns: ColName, Datatype, Null, Key, Default, Extras..
 
 	bool   QueryStarted ()         { return (m_bQueryStarted); }
 	void   EndQuery ();
 
-	size_t  OutputQuery     (KStringView sSQL, KStringView sFormat, FILE* fpout=stdout);
-	size_t  OutputQuery     (KStringView sSQL, int iFormat=FORM_ASCII, FILE* fpout=stdout);
+	size_t  OutputQuery     (KStringView sSQL, KStringView sFormat, FILE* fpout = stdout);
+	size_t  OutputQuery     (KStringView sSQL, int iFormat = FORM_ASCII, FILE* fpout = stdout);
 
-	void   DisableRetries();
-	void   EnableRetries();
+	void   DisableRetries() { m_bDisableRetries = true;  }
+	void   EnableRetries()  { m_bDisableRetries = false; }
 
 	TXList  m_TxList;
 
@@ -500,7 +427,7 @@ private:
 
 		KColInfo() = default;
 
-		void SetColumnType(SQLTYPE iDBType, int _iNativeDataType, KCOL::Len _iMaxDataLen);
+		void SetColumnType(DBT iDBType, int _iNativeDataType, KCOL::Len _iMaxDataLen);
 
 #if defined(DEKAF2_HAS_ORACLE) || defined(DEKAF2_HAS_CTLIB) || defined(DEKAF2_HAS_DBLIB)
 		std::unique_ptr<char> dszValue;
@@ -530,11 +457,9 @@ private:
 
 	}; // SQLFileParms
 
-	void   _init (int iDebugID);
 	void   ExecSQLFileGo (KStringView sFilename, SQLFileParms& Parms);
 	void   ResetErrorStatus ();
 	const  KColInfo& GetColProps (KROW::Index iOneBasedColNum);
-
 
 	// my own struct for column attributes and data coming back from queries:
 	KColInfos  m_dColInfo;
@@ -543,12 +468,21 @@ private:
 protected:
 //----------
 
-	int64_t    m_iDebugID;                // useful for tracing multiple instances of KSQL in debug log
-	Flags      m_iFlags;                  // set by calling SetFlags()
-	int        m_iErrorNum;               // db error number (e.g. ORA code)
-	SQLTYPE    m_iDBType;
-	int        m_iAPISet;
-	uint16_t   m_iDBPortNum;
+	static std::atomic_uint32_t s_ulDebugID;
+	uint32_t   m_iDebugID { ++s_ulDebugID };                // useful for tracing multiple instances of KSQL in debug log
+	Flags      m_iFlags { 0 };                  // set by calling SetFlags()
+	int        m_iErrorNum { 0 };               // db error number (e.g. ORA code)
+#ifdef DEKAF2_HAS_MYSQL
+	DBT        m_iDBType { DBT::MYSQL };
+	API        m_iAPISet { API::MYSQL };
+#elif DEKAF2_HAS_SQLITE3
+	DBT        m_iDBType { DBT::SQLITE3 };
+	API        m_iAPISet { API::SQLITE3 };
+#else
+	DBT        m_iDBType { DBT::NONE };
+	API        m_iAPISet { API::NONE };
+#endif
+	uint16_t   m_iDBPortNum { 0 };
 	KString    m_sUsername;
 	KString    m_sPassword;
 	KString    m_sHostname;
@@ -558,75 +492,75 @@ protected:
 	static     uint16_t  m_iDebugLevel;
 
 #ifdef DEKAF2_HAS_MYSQL
-	void*      m_dMYSQL;                   // MYSQL      m_mysql;
-	void*      m_MYSQLRow;                 // MYSQL_ROW  m_row;
-	void*      m_dMYSQLResult;             // MYSQL_RES* m_presult;
+	void*      m_dMYSQL { nullptr };                   // MYSQL      m_mysql;
+	void*      m_MYSQLRow { nullptr };                 // MYSQL_ROW  m_row;
+	void*      m_dMYSQLResult { nullptr };             // MYSQL_RES* m_presult;
 #endif
 
 #ifdef DEKAF2_HAS_ORACLE
-	void*      m_dOCI6LoginDataArea;       // Oracle6&7: (Lda_Def*), kmalloc
+	void*      m_dOCI6LoginDataArea { nullptr };       // Oracle6&7: (Lda_Def*), kmalloc
 	KString    m_sOCI6HostDataArea;        // Oracle6&7: char[256]
-	void*      m_dOCI6ConnectionDataArea;  // Oracle6&7: (Cda_Def*), kmalloc
+	void*      m_dOCI6ConnectionDataArea { nullptr };  // Oracle6&7: (Cda_Def*), kmalloc
 
-	void*      m_dOCI8EnvHandle;           // Oracle8: OCIEnv*
-	void*      m_dOCI8ErrorHandle;         // Oracle8: OCI6Error*
-	void*      m_dOCI8ServerHandle;        // Oracle8: OCIServer*
-	void*      m_dOCI8ServerContext;       // Oracle8: OCISvcCtx*
-	void*      m_dOCI8Session;             // Oracle8: OCISession*
-	void*      m_dOCI8Statement;           // Oracle8: OCIStmt*
-	int        m_iOCI8FirstRowStat;        // Oracle8: my status var for implied fetch after exec
+	void*      m_dOCI8EnvHandle { nullptr };           // Oracle8: OCIEnv*
+	void*      m_dOCI8ErrorHandle { nullptr };         // Oracle8: OCI6Error*
+	void*      m_dOCI8ServerHandle { nullptr };        // Oracle8: OCIServer*
+	void*      m_dOCI8ServerContext { nullptr };       // Oracle8: OCISvcCtx*
+	void*      m_dOCI8Session { nullptr };             // Oracle8: OCISession*
+	void*      m_dOCI8Statemen { nullptr }t;           // Oracle8: OCIStmt*
+	int        m_iOCI8FirstRowStat { 0 };        // Oracle8: my status var for implied fetch after exec
 
-	uint32_t   m_iOraSessionMode;          // mode arg for OCI8: OCISessionBegin()/OCISessionEnd()
-	uint32_t   m_iOraServerMode;           // mode arg for OCI8: OCIServerAttach()/OCIServerDetach()
+	uint32_t   m_iOraSessionMode { 0 };          // mode arg for OCI8: OCISessionBegin()/OCISessionEnd()
+	uint32_t   m_iOraServerMode { 0 };           // mode arg for OCI8: OCIServerAttach()/OCIServerDetach()
 
-	enum       {MAXBINDVARS = 100};
-	bool       m_bStatementParsed;
-	uint32_t   m_iMaxBindVars;
-	uint32_t   m_idxBindVar;
+	enum       { MAXBINDVARS = 100 };
+	bool       m_bStatementParsed { false };
+	uint32_t   m_iMaxBindVars { 0 };
+	uint32_t   m_idxBindVar { 0 };
 	OCIBind*   m_OCIBindArray[MAXBINDVARS+1];
 #endif
 
 #ifdef DEKAF2_HAS_DBLIB
-	DBPROCESS*     m_pDBPROC;              // DBLIB
+	DBPROCESS*     m_pDBPROC { nullptr };              // DBLIB
 #endif
 
 #ifdef DEKAF2_HAS_CTLIB
-	CS_CONTEXT*    m_pCtContext;           // CTLIB
-	CS_CONNECTION* m_pCtConnection;        // CTLIB
-	CS_COMMAND*    m_pCtCommand;           // CTLIB
+	CS_CONTEXT*    m_pCtContext { nullptr };           // CTLIB
+	CS_CONNECTION* m_pCtConnection { nullptr };        // CTLIB
+	CS_COMMAND*    m_pCtCommand { nullptr };           // CTLIB
 	KString        m_sCursorName;
-	uint32_t       m_iCursor; // CTLIB
+	uint32_t       m_iCursor { 0 }; // CTLIB
 #endif
 
 #ifdef DEKAF2_HAS_ODBC
-	enum       {MAX_ODBCSTR = 300};
-	HENV       m_Environment;
-	HDBC       m_hdbc;
-	HSTMT      m_hstmt;
+	enum       { MAX_ODBCSTR = 300 };
+	HENV       m_Environment { nullptr };
+	HDBC       m_hdbc { SQL_NULL_HSTMT };
+	HSTMT      m_hstmt { nullptr };
 	KString    m_sConnectString;
 	KString    m_sConnectOutput;
 
 	bool  CheckODBC (RETCODE iRetCode);
 #endif
 
-	FILE*      m_bpBufferedResults;
-	bool       m_bConnectionIsOpen;
-	bool       m_bFileIsOpen;
-	bool       m_bQueryStarted;
+	FILE*      m_bpBufferedResults { nullptr };
+	bool       m_bConnectionIsOpen { false };
+	bool       m_bFileIsOpen { false };
+	bool       m_bQueryStarted { false };
 	KString    m_sDBCFile;
 	KString    m_sLastSQL;
 	KString    m_sLastError;
 	KString    m_sTmpResultsFile;
-	uint64_t   m_iRowNum;
-	KROW::Index m_iNumColumns;
-	uint64_t   m_iNumRowsBuffered;
-	uint64_t   m_iNumRowsAffected;
-	uint64_t   m_iLastInsertID;
-	char**     m_dBufferedColArray;
-	KString    m_sErrorPrefix;
-	bool       m_bDisableRetries;
-	time_t     m_iWarnIfOverNumSeconds;
-	FILE*      m_bpWarnIfOverNumSeconds;
+	uint64_t   m_iRowNum { 0 };
+	KROW::Index m_iNumColumns { 0 };
+	uint64_t   m_iNumRowsBuffered { 0 };
+	uint64_t   m_iNumRowsAffected { 0 };
+	uint64_t   m_iLastInsertID { 0 };
+	char**     m_dBufferedColArray { nullptr };
+	KString    m_sErrorPrefix { "KSQL: " };
+	bool       m_bDisableRetries { false };
+	time_t     m_iWarnIfOverNumSeconds { 0 };
+	FILE*      m_bpWarnIfOverNumSeconds { nullptr };
 	KString    m_sTempDir;
 
 	bool  SQLError (bool fForceError=false);
@@ -656,12 +590,7 @@ protected:
 	void ctlib_flush_results   ();
 	#endif
 
-	bool DecodeDBCData(unsigned char *pszBuffer, long iNumRead, KStringView sDBCFile);
-	bool EncodeDBCData(DBCFILEv2& dbc);
-	bool EncodeDBCData(DBCFILEv3& dbc);
-
-	unsigned char* encrypt (unsigned char* string) const;
-	unsigned char* decrypt (unsigned char* string) const;
+	bool DecodeDBCData(KStringView sBuffer, KStringView sDBCFile);
 
 }; // KSQL
 

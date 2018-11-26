@@ -121,15 +121,15 @@ KString KROW::EscapeChars (const KROW::value_type& Col, KStringView sCharsToEsca
 } // EscapeChars
 
 //-----------------------------------------------------------------------------
-KString KROW::EscapeChars (const KROW::value_type& Col, SQLTYPE iDBType)
+KString KROW::EscapeChars (const KROW::value_type& Col, DBT iDBType)
 //-----------------------------------------------------------------------------
 {
 	switch (iDBType)
 	{
-		case DBT_SQLSERVER:
-		case DBT_SYBASE:
+		case DBT::SQLSERVER:
+		case DBT::SYBASE:
 			return EscapeChars (Col, ESCAPE_MSSQL);
-		case DBT_MYSQL:
+		case DBT::MYSQL:
 		default:
 			return EscapeChars (Col, ESCAPE_MYSQL, '\\');
 	}
@@ -137,7 +137,7 @@ KString KROW::EscapeChars (const KROW::value_type& Col, SQLTYPE iDBType)
 } // EscapeChars
 
 //-----------------------------------------------------------------------------
-bool KROW::FormInsert (KString& sSQL, SQLTYPE iDBType, bool fIdentityInsert/*=false*/) const
+bool KROW::FormInsert (KString& sSQL, DBT iDBType, bool fIdentityInsert/*=false*/) const
 //-----------------------------------------------------------------------------
 {
 	m_sLastError.clear(); // reset
@@ -231,7 +231,7 @@ bool KROW::FormInsert (KString& sSQL, SQLTYPE iDBType, bool fIdentityInsert/*=fa
 } // FormInsert
 
 //-----------------------------------------------------------------------------
-bool KROW::FormUpdate (KString& sSQL, SQLTYPE iDBType) const
+bool KROW::FormUpdate (KString& sSQL, DBT iDBType) const
 //-----------------------------------------------------------------------------
 {
 	m_sLastError.clear(); // reset
@@ -341,7 +341,7 @@ bool KROW::FormUpdate (KString& sSQL, SQLTYPE iDBType) const
 } // FormUpdate
 
 //-----------------------------------------------------------------------------
-bool KROW::FormDelete (KString& sSQL, SQLTYPE iDBType) const
+bool KROW::FormDelete (KString& sSQL, DBT iDBType) const
 //-----------------------------------------------------------------------------
 {
 	m_sLastError.clear(); // reset

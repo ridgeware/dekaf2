@@ -48,6 +48,7 @@
 // #define DEKAF2_HAS_SQLITE3 <-- conditionally defined by makefile
 
 #include "ksql.h"   // <-- public header (should have no dependent headers other than DEKAF header)
+#include "bits/ksql_dbc.h"
 #include "dekaf2.h"
 #include "kcrashexit.h"
 #include "ksystem.h"
@@ -72,8 +73,7 @@
     #undef STDCALL
   #endif
   #include <mysql.h>          // mysql top include
-  //nclude <mysql_com.h>      // included by mysql.h
-  //nclude <mysql_version.h>  // included by mysql.h
+  #include <mysql/errmsg.h>   // mysql error codes (start with CR_)
 #endif
 
 #ifdef DEKAF2_HAS_SQLITE3
@@ -171,30 +171,7 @@ constexpr SQLTX g_Translations[] = {
 	// ---------------  ----------------  ----------------  ---------------  --------------  ---------------  ----------------------------
 };
 
-namespace DBC {
-
-int ToINT(const uint8_t (&iSourceArray)[4])
-{
-	return ((iSourceArray[3]<<24) + (iSourceArray[2]<<16) + (iSourceArray[1]<<8) + iSourceArray[0]);
-}
-
-void FromINT(uint8_t (&cTargetArray)[4], int iSourceValue)
-{
-	// FromINT encodes a source integer into a four-byte little endian target
-
-	const uint32_t iTargetSize = sizeof(cTargetArray);
-	int iRemainingSourceBits = iSourceValue;
-
-	for (uint32_t iTargetIndex = 0; iTargetIndex < iTargetSize; iTargetIndex++)
-	{
-		cTargetArray[iTargetIndex] = (static_cast<uint32_t>(iRemainingSourceBits) & 0x000000ff);
-		iRemainingSourceBits >>= 8;
-	}
-}
-
-} // end of namespace DBC
-
-static uint64_t s_ulDebugID = 0;
+std::atomic_uint32_t KSQL::s_ulDebugID = 0;
 
 uint16_t KSQL::m_iDebugLevel = 1;
 
@@ -243,14 +220,14 @@ void* kmalloc (uint32_t iNumBytes, const char* pszContext, bool bClearMemory = t
 } // kmalloc 
 
 //-----------------------------------------------------------------------------
-void KSQL::KColInfo::SetColumnType(SQLTYPE iDBType, int iNativeDataType, KCOL::Len _iMaxDataLen)
+void KSQL::KColInfo::SetColumnType(DBT iDBType, int iNativeDataType, KCOL::Len _iMaxDataLen)
 //-----------------------------------------------------------------------------
 {
 	iMaxDataLen = _iMaxDataLen;
 
 	switch (iDBType)
 	{
-		case KSQL::DBT_MYSQL:
+		case DBT::MYSQL:
 #ifdef DEKAF2_HAS_MYSQL
 			switch (iNativeDataType)
 			{
@@ -319,13 +296,13 @@ void KSQL::KColInfo::SetColumnType(SQLTYPE iDBType, int iNativeDataType, KCOL::L
 #endif // DEKAF2_HAS_MYSQL
 			break;
 
-		case KSQL::DBT_ORACLE6:
-		case KSQL::DBT_ORACLE7:
-		case KSQL::DBT_ORACLE8:
-		case KSQL::DBT_ORACLE:
-		case KSQL::DBT_SQLSERVER:
-		case KSQL::DBT_SYBASE:
-		case KSQL::DBT_INFORMIX:
+		case DBT::ORACLE6:
+		case DBT::ORACLE7:
+		case DBT::ORACLE8:
+		case DBT::ORACLE:
+		case DBT::SQLSERVER:
+		case DBT::SYBASE:
+		case DBT::INFORMIX:
 		default:
 			iKSQLDataType = KROW::NOFLAG;
 			// TODO: get column meta data rom query respose for other dbtypes
@@ -335,15 +312,13 @@ void KSQL::KColInfo::SetColumnType(SQLTYPE iDBType, int iNativeDataType, KCOL::L
 } // KColInfo::SetColumnType
 
 //-----------------------------------------------------------------------------
-KSQL::KSQL (Flags iFlags/*=0*/, int iDebugID/*=0*/, SQLTYPE iDBType/*=DBT_MYSQL*/, KStringView sUsername/*=nullptr*/, KStringView sPassword/*=nullptr*/, KStringView sDatabase/*=nullptr*/, KStringView sHostname/*=nullptr*/, uint16_t iDBPortNum/*=0*/)
+KSQL::KSQL (DBT iDBType/*=DBT::MYSQL*/, KStringView sUsername/*=nullptr*/, KStringView sPassword/*=nullptr*/, KStringView sDatabase/*=nullptr*/, KStringView sHostname/*=nullptr*/, uint16_t iDBPortNum/*=0*/)
 //-----------------------------------------------------------------------------
 {
-	_init (iDebugID);
+	kDebugLog (3, "[{}]KSQL::KSQL()...", m_iDebugID);
 
 	// this tmp file is used to hold buffered results (if flag F_BufferResults is set):
 	m_sTmpResultsFile.Format ("{}/ksql-{}.res", GetTempDir(), getpid()*100 + m_iDebugID);
-
-	m_iFlags = iFlags;
 
 	if (!sUsername.empty())
 	{
@@ -351,154 +326,25 @@ KSQL::KSQL (Flags iFlags/*=0*/, int iDebugID/*=0*/, SQLTYPE iDBType/*=DBT_MYSQL*
 		// already calls SetAPISet() and FormatConnectSummary()
 	}
 
-} // KSQL - constructor 1
+} // KSQL - default constructor
 
 //-----------------------------------------------------------------------------
-KSQL::KSQL (KSQL& Another, int iDebugID/*=0*/)
-//-----------------------------------------------------------------------------
-{
-	_init (iDebugID);
-
-	// this tmp file is used to hold buffered results (if flag F_BufferResults is set):
-	m_sTmpResultsFile.Format ("{}/ksql-{}.res", GetTempDir(), getpid()*100 + m_iDebugID);
-
-	CopyConnection (&Another);
-
-	if (Another.IsConnectionOpen())
-	{
-		OpenConnection(); // no way to pass back status in a constructor
-	}
-
-} // KSQL - constructor 2
-
-//-----------------------------------------------------------------------------
-KSQL::KSQL (KSQL* pAnother, int iDebugID/*=0*/)
+KSQL::KSQL (KSQL& other)
 //-----------------------------------------------------------------------------
 {
-	_init (iDebugID);
-
-	// this tmp file is used to hold buffered results (if flag F_BufferResults is set):
-	m_sTmpResultsFile.Format ("{}/ksql-{}.res", GetTempDir(), getpid()*100 + m_iDebugID);
-
-	CopyConnection (pAnother);
-
-	if (pAnother->IsConnectionOpen())
-	{
-		OpenConnection(); // no way to pass back status in a constructor
-	}
-
-} // KSQL - constructor 3
-
-//-----------------------------------------------------------------------------
-bool KSQL::CopyConnection (KSQL* pAnother)
-//-----------------------------------------------------------------------------
-{
-	if (IsConnectionOpen())
-	{
-		kDebugLog(1, "[{}] CopyConnection: cannot copy connection info: already connected.", m_iDebugID);
-		return (false);
-	}
-
-	m_iFlags = pAnother->GetFlags();
-	SetConnect (pAnother->GetDBType(), pAnother->GetDBUser(), pAnother->GetDBPass(), pAnother->GetDBName(), pAnother->GetDBHost(), pAnother->GetDBPort());
-
-	return (true);
-
-} // CopyConnection
-
-//-----------------------------------------------------------------------------
-void KSQL::_init (int iDebugID)
-//-----------------------------------------------------------------------------
-{
-	m_iDebugID          = (iDebugID) ? iDebugID : ++s_ulDebugID;
-
 	kDebugLog (3, "[{}]KSQL::KSQL()...", m_iDebugID);
 
-	m_iFlags            = 0;
-	m_iDBType           = DBT_NONE;
-#ifdef DEKAF2_HAS_MYSQL
-	m_iDBType           = DBT_MYSQL;
-#endif
-	m_iAPISet           = 0;
-	m_iDBPortNum        = 0;
-	m_iErrorNum         = 0;
-	m_sUsername.clear();  // order: UPDH
-	m_sPassword.clear();
-	m_sDatabase.clear();
-	m_sHostname.clear();
-	m_sDBCFile.clear();
-	m_sConnectSummary.clear();
+	m_iFlags = other.GetFlags();
 
-#ifdef DEKAF2_HAS_MYSQL
-	m_dMYSQL           = nullptr;
-	m_MYSQLRow         = nullptr;
-	m_dMYSQLResult     = nullptr;
-#endif
+	// this tmp file is used to hold buffered results (if flag F_BufferResults is set):
+	m_sTmpResultsFile.Format ("{}/ksql-{}.res", GetTempDir(), getpid()*100 + m_iDebugID);
 
-#ifdef DEKAF2_HAS_ORACLE
-	m_dOCI6LoginDataArea       = nullptr;
-	m_sOCI6HostDataArea.clear();
-	m_dOCI6ConnectionDataArea  = nullptr;
+	if (!other.GetDBUser().empty())
+	{
+		SetConnect (other.GetDBType(), other.GetDBUser(), other.GetDBPass(), other.GetDBName(), other.GetDBHost(), other.GetDBPort());
+	}
 
-	m_dOCI8EnvHandle           = nullptr;
-	m_dOCI8ErrorHandle         = nullptr;
-	m_dOCI8ServerHandle        = nullptr;
-	m_dOCI8ServerContext       = nullptr;
-	m_dOCI8Session             = nullptr;
-	m_dOCI8Statement           = nullptr;
-	m_iOCI8FirstRowStat        = 0;
-
-	m_iOraSessionMode          = 0; /*OCI_DEFAULT*/
-	m_iOraServerMode           = 0; /*OCI_LM_DEF*/
-
-	m_bStatementParsed  = false;
-	m_iMaxBindVars      = 0;
-	m_idxBindVar        = 0;
-#endif
-
-#ifdef DEKAF2_HAS_DBLIB
-	m_pDBPROC           = nullptr;  // DBLIB
-#endif
-
-#ifdef DEKAF2_HAS_CTLIB
-	m_pCtContext        = nullptr;  // CTLIB
-	m_pCtConnection     = nullptr;  // CTLIB
-	m_pCtCommand        = nullptr;  // CTLIB
-	m_sCursorName.clear();
-	m_iCursor           = 0;     // CTLIB
-#endif
-
-#ifdef DEKAF2_HAS_ODBC
-	m_Environment       = nullptr;
-	m_hdbc              = SQL_NULL_HSTMT;
-	m_hstmt             = nullptr;
-	m_sConnectString.clear();
-	m_sConnectOutput.clear();
-#endif
-
-	ClearErrorPrefix();
-
-	m_dColInfo.clear();
-
-	m_bpBufferedResults = nullptr;
-	m_bConnectionIsOpen = false;
-	m_bFileIsOpen       = false;
-	m_bQueryStarted     = false;
-
-	m_sLastSQL.clear();
-	m_sTmpResultsFile.clear();
-
-	m_iRowNum           = 0;
-	m_iNumColumns       = 0;
-	m_iNumRowsBuffered  = 0;
-	m_iNumRowsAffected  = 0;
-	m_iLastInsertID     = 0;
-	m_dBufferedColArray = nullptr;
-	m_bDisableRetries   = false;
-	m_iWarnIfOverNumSeconds  = 0;
-	m_bpWarnIfOverNumSeconds = nullptr;
-
-} // _init
+} // KSQL - copy constructor
 
 //-----------------------------------------------------------------------------
 KSQL::~KSQL ()
@@ -619,7 +465,7 @@ void KSQL::FreeAll ()
 
 
 //-----------------------------------------------------------------------------
-bool KSQL::SetConnect (SQLTYPE iDBType, KStringView sUsername, KStringView sPassword, KStringView sDatabase, KStringView sHostname/*=nullptr*/, uint16_t iDBPortNum/*=0*/)
+bool KSQL::SetConnect (DBT iDBType, KStringView sUsername, KStringView sPassword, KStringView sDatabase, KStringView sHostname/*=nullptr*/, uint16_t iDBPortNum/*=0*/)
 //-----------------------------------------------------------------------------
 {
 	NOT_IF_ALREADY_OPEN("SetConnect");
@@ -631,7 +477,7 @@ bool KSQL::SetConnect (SQLTYPE iDBType, KStringView sUsername, KStringView sPass
 	m_sDatabase  = sDatabase;
 	m_sHostname  = sHostname;
 
-	SetAPISet (DBT_NONE); // <-- pick the default APIs for this DBType
+	SetAPISet (API::NONE); // <-- pick the default APIs for this DBType
 	FormatConnectSummary();
 	kDebug(1, "{}", ConnectSummary());
 
@@ -640,12 +486,12 @@ bool KSQL::SetConnect (SQLTYPE iDBType, KStringView sUsername, KStringView sPass
 } // SetConnect
 
 //-----------------------------------------------------------------------------
-bool KSQL::SetDBType (SQLTYPE iDBType)
+bool KSQL::SetDBType (DBT iDBType)
 //-----------------------------------------------------------------------------
 {
 	NOT_IF_ALREADY_OPEN ("SetDBType");
 	m_iDBType    = iDBType;
-	SetAPISet (0); // <-- pick the default APIs for this DBType
+	SetAPISet (API::NONE); // <-- pick the default APIs for this DBType
 	FormatConnectSummary();
 	return (true);
 
@@ -658,25 +504,31 @@ bool KSQL::SetDBType (KStringView sDBType)
 	NOT_IF_ALREADY_OPEN ("SetDBType");
 
 #ifdef DEKAF2_HAS_ORACLE
-	if (sDBType == "oracle")
+	if (sDBType.StartsWith("oracle"))
 	{
-		return (SetDBType (DBT_ORACLE));
+		return (SetDBType (DBT::ORACLE));
 	}
 #endif
 #ifdef DEKAF2_HAS_MYSQL
 	if (sDBType == "mysql")
 	{
-		return (SetDBType (DBT_MYSQL));
+		return (SetDBType (DBT::MYSQL));
+	}
+#endif
+#ifdef DEKAF2_HAS_SQLITE3
+	if (sDBType.StartsWith("sqlite"))
+	{
+		return (SetDBType (DBT::SQLITE3));
 	}
 #endif
 #if defined(DEKAF2_HAS_DBLIB) || defined(DEKAF2_HAS_CTLIB)
 	if (sDBType == "sqlserver")
 	{
-		return (SetDBType (DBT_SQLSERVER));
+		return (SetDBType (DBT::SQLSERVER));
 	}
 	if (sDBType == "sybase")
 	{
-		return (SetDBType (DBT_SYBASE));
+		return (SetDBType (DBT::SYBASE));
 	}
 #endif
 
@@ -741,271 +593,85 @@ bool KSQL::SetDBPort (int iDBPortNum)
 } // SetDBPort
 
 //-----------------------------------------------------------------------------
-unsigned char* KSQL::decrypt (unsigned char* string) const
-//-----------------------------------------------------------------------------
-{
-	size_t iLen = strlen((const char*)string);
-	for (size_t ii=0; ii < iLen; ++ii)
-	{
-		string[ii] -= 127;
-	}
-
-	return (string);
-
-} // decrypt
-
-//-----------------------------------------------------------------------------
-unsigned char* KSQL::encrypt (unsigned char* string) const
-//-----------------------------------------------------------------------------
-{
-	size_t iLen = strlen((const char*)string);
-	for (size_t ii=0; ii < iLen; ++ii)
-	{
-		string[ii] += 127;
-	}
-
-	return (string);
-
-} // encrypt
-
-//-----------------------------------------------------------------------------
-bool KSQL::EncodeDBCData(DBCFILEv2& dbc)
-//-----------------------------------------------------------------------------
-{
-	bool bResultOK = true;
-
-	// initialize with random values to make it harder to crack:
-	for (uint32_t iDbcDataIndex = 0; iDbcDataIndex < sizeof(dbc); ++iDbcDataIndex)
-	{
-		((char* )&dbc)[iDbcDataIndex] = 127 + (rand() % 127);
-	}
-
-	kstrncpy (dbc.szLeader, "KSQLDBC2", sizeof(dbc.szLeader));
-
-	DBC::FromINT(dbc.iDBType, m_iDBType);
-	DBC::FromINT(dbc.iAPISet, m_iAPISet);
-
-	kstrncpy ((char* )dbc.szUsername, m_sUsername.c_str(), sizeof(dbc.szUsername)); // order: UPDH
-	kstrncpy ((char* )dbc.szPassword, m_sPassword.c_str(), sizeof(dbc.szPassword));
-	kstrncpy ((char* )dbc.szDatabase, m_sDatabase.c_str(), sizeof(dbc.szDatabase));
-	kstrncpy ((char* )dbc.szHostname, m_sHostname.c_str(), sizeof(dbc.szHostname));
-	DBC::FromINT(dbc.iDBPortNum, m_iDBPortNum);
-
-	// crude encryption:
-	encrypt (dbc.szHostname);
-	encrypt (dbc.szUsername);
-	encrypt (dbc.szPassword);
-	encrypt (dbc.szDatabase);
-
-	return bResultOK;
-
-} // KSQL::EncodeDBCData (DBCFilev2)
-
-//-----------------------------------------------------------------------------
-bool KSQL::EncodeDBCData(DBCFILEv3& dbc)
-//-----------------------------------------------------------------------------
-{
-	bool bResultOK = true;
-
-	// initialize with random values to make it harder to crack:
-	for (uint32_t iDbcDataIndex = 0; iDbcDataIndex < sizeof(dbc); ++iDbcDataIndex)
-	{
-		((char* )&dbc)[iDbcDataIndex] = 127 + (rand() % 127);
-	}
-
-	kstrncpy (dbc.szLeader, "KSQLDBC3", sizeof(dbc.szLeader));
-
-	DBC::FromINT(dbc.iDBType, m_iDBType);
-	DBC::FromINT(dbc.iAPISet, m_iAPISet);
-
-	kstrncpy ((char* )dbc.szUsername, m_sUsername.c_str(), sizeof(dbc.szUsername)); // order: UPDH
-	kstrncpy ((char* )dbc.szPassword, m_sPassword.c_str(), sizeof(dbc.szPassword));
-	kstrncpy ((char* )dbc.szDatabase, m_sDatabase.c_str(), sizeof(dbc.szDatabase));
-	kstrncpy ((char* )dbc.szHostname, m_sHostname.c_str(), sizeof(dbc.szHostname));
-	DBC::FromINT(dbc.iDBPortNum, m_iDBPortNum);
-
-	// crude encryption:
-	encrypt (dbc.szHostname);
-	encrypt (dbc.szUsername);
-	encrypt (dbc.szPassword);
-	encrypt (dbc.szDatabase);
-
-	return bResultOK;
-
-} // KSQL::EncodeDBCData (DBCFilev3)
-
-//-----------------------------------------------------------------------------
 bool KSQL::SaveConnect (KString sDBCFile)
 //-----------------------------------------------------------------------------
 {
 	kDebugLog (3, "[{}]KSQL::SaveConnect()...", m_iDebugID);
-	
-	DBCFILEv2 dbc_v2;
-	DBCFILEv3 dbc_v3;
-	void*     pDbcStruct = 0;
-	int       iDbcStructSize = 0;
 
-	if (EncodeDBCData(dbc_v2))
 	{
-		// Store DBC as a version 2 file if we can
-		pDbcStruct = (void*)&dbc_v2;
-		iDbcStructSize = sizeof(dbc_v2);
-	}
-	else if (EncodeDBCData(dbc_v3))
-	{
-		// Use version 3 DBC if version 2 won't work
-		pDbcStruct = (void*)&dbc_v3;
-		iDbcStructSize = sizeof(dbc_v3);
-	}
-	else
-	{
-		return false;
-	}
+		DBCFILEv2 dbc_v2;
+		dbc_v2.SetDBT(m_iDBType);
+		dbc_v2.SetAPI(m_iAPISet);
+		dbc_v2.SetDBPort(m_iDBPortNum);
 
-	kRemoveFile (sDBCFile);
-	int fd = open(sDBCFile.c_str(), O_WRONLY|O_CREAT, 0644);
-
-	if (fd == -1)
-	{
-		m_sLastError.Format ("{}SaveConnect(): could not write to '{}' ({}).", m_sErrorPrefix, sDBCFile, strerror(errno));
-		return (false);
+		if (dbc_v2.SetUsername(m_sUsername)
+			&& dbc_v2.SetPassword(m_sPassword)
+			&& dbc_v2.SetDatabase(m_sDatabase)
+			&& dbc_v2.SetHostname(m_sHostname))
+		{
+			// Store DBC as a version 2 file if we can
+			if (!dbc_v2.Save(sDBCFile))
+			{
+				m_sLastError.Format ("{}SaveConnect(): could not write to '{}'.", m_sErrorPrefix, sDBCFile);
+				return (false);
+			}
+			return true;
+		}
 	}
 
-	if (write (fd, pDbcStruct, iDbcStructSize) != iDbcStructSize)
 	{
-		m_sLastError.Format ("{}SaveConnect(): could not write all {} bytes to '{}'.", m_sErrorPrefix, iDbcStructSize, sDBCFile);
-		close (fd);
-		return (false);
+		DBCFILEv3 dbc_v3;
+		dbc_v3.SetDBT(m_iDBType);
+		dbc_v3.SetAPI(m_iAPISet);
+		dbc_v3.SetDBPort(m_iDBPortNum);
+
+		if (dbc_v3.SetUsername(m_sUsername)
+			&& dbc_v3.SetPassword(m_sPassword)
+			&& dbc_v3.SetDatabase(m_sDatabase)
+			&& dbc_v3.SetHostname(m_sHostname))
+		{
+			// Store DBC as a version 2 file if we can
+			if (!dbc_v3.Save(sDBCFile))
+			{
+				m_sLastError.Format ("{}SaveConnect(): could not write to '{}'.", m_sErrorPrefix, sDBCFile);
+				return (false);
+			}
+			return true;
+		}
 	}
-
-	close (fd);
-
-	return (true);
+	m_sLastError.Format ("{}SaveConnect(): could not encode all strings into '{}' - too long.", m_sErrorPrefix, sDBCFile);
+	return false;
 
 } // SaveConnect
 
 //-----------------------------------------------------------------------------
-bool KSQL::DecodeDBCData (unsigned char* sBuffer, long iNumRead, KStringView sDBCFile)
+bool KSQL::DecodeDBCData (KStringView sBuffer, KStringView sDBCFile)
 //-----------------------------------------------------------------------------
 {
-	sBuffer[8] = 0;
-	if (KASCII::strmatch ((char* )sBuffer, "KSQLDBC1"))
+	std::unique_ptr<DBCFileBase> dbc;
+
+	if (sBuffer.StartsWith("KSQLDBC1"))
 	{
 		#ifdef WIN32
 		m_sLastError.Format ("{}DecodeDBCData(): old format (DBC1) doesn't work on win32", m_sErrorPrefix);
 		kDebugLog(GetDebugLevel(), "[{}] {}", m_iDebugID, m_sLastError);
 		return (false);
 		#else
-
 		kDebugLog((GetDebugLevel() + 1), "[{}] KSQL:DecodeDBCData(): old format (1)", m_iDebugID);
-		
-		if (iNumRead != sizeof(DBCFILEv1))
-		{
-			m_sLastError.Format ("{}DecodeDBCData(): corrupted DBC ({}) file '{}'.", m_sErrorPrefix, "V1", sDBCFile);
-			kDebugLog(GetDebugLevel(), "[{}] {}", m_iDebugID, m_sLastError);
-			return (false);
-		}
-
-		DBCFILEv1 dbc;
-		memcpy (&dbc, sBuffer, sizeof(DBCFILEv1));
-
-		m_iDBType    = static_cast<SQLTYPE>(dbc.iDBType);
-		m_iAPISet    = dbc.iAPISet;
-		m_iDBPortNum = static_cast<uint32_t>(dbc.iDBPortNum);
-
-		// crude decryption:
-		decrypt (dbc.szHostname);
-		decrypt (dbc.szUsername);
-		decrypt (dbc.szPassword);
-		decrypt (dbc.szDatabase);
-
-		m_sUsername = (const char*) dbc.szUsername;
-		m_sPassword = (const char*) dbc.szPassword;
-		m_sDatabase = (const char*) dbc.szDatabase;
-		m_sHostname = (const char*) dbc.szHostname;
+		dbc = std::make_unique<DBCFILEv1>();
 		#endif
 	}
-	else if (KASCII::strmatch ((char* )sBuffer, "KSQLDBC2"))
+	else if (sBuffer.StartsWith("KSQLDBC2"))
 	{
 		kDebugLog((GetDebugLevel() + 1), "[{}] KSQL:DecodeDBCData(): compact format (2)", m_iDebugID);
-		
-		if (iNumRead != sizeof(DBCFILEv2))
-		{
-			m_sLastError.Format ("{}DecodeDBCData(): corrupted DBC ({}) file '{}'.", m_sErrorPrefix, "V2", sDBCFile);
-			kDebugLog (GetDebugLevel(), "[{}] {}", m_iDebugID, m_sLastError);
-			return (false);
-		}
-
-		DBCFILEv2 dbc;
-		memcpy (&dbc, sBuffer, sizeof(DBCFILEv2));
-
-		m_iDBType    = static_cast<SQLTYPE>(DBC::ToINT(dbc.iDBType));
-		m_iAPISet    = DBC::ToINT(dbc.iAPISet);
-		m_iDBPortNum = DBC::ToINT(dbc.iDBPortNum);
-
-		// crude decryption:
-		decrypt (dbc.szHostname);
-		decrypt (dbc.szUsername);
-		decrypt (dbc.szPassword);
-		decrypt (dbc.szDatabase);
-
-		m_sUsername = (const char*) dbc.szUsername;
-		m_sPassword = (const char*) dbc.szPassword;
-		m_sDatabase = (const char*) dbc.szDatabase;
-		m_sHostname = (const char*) dbc.szHostname;
+		dbc = std::make_unique<DBCFILEv2>();
 	}
-	else if (KASCII::strmatch ((char* )sBuffer, "KSQLDBC3"))
+	else if (sBuffer.StartsWith("KSQLDBC3"))
 	{
-		bool bInvalid = false;
-
 		kDebugLog((GetDebugLevel() + 1), "[{}] KSQL:DecodeDBCData(): current format (3)", m_iDebugID);
-		
-		if (iNumRead != sizeof(DBCFILEv3))
-		{
-			bInvalid = true;
-		}
-
-		if (!bInvalid)
-		{
-			DBCFILEv3 dbc;
-			memcpy(&dbc, sBuffer, sizeof(dbc));
-
-			m_iDBType    = static_cast<SQLTYPE>(DBC::ToINT(dbc.iDBType));
-			m_iAPISet    = DBC::ToINT(dbc.iAPISet);
-			m_iDBPortNum = DBC::ToINT(dbc.iDBPortNum);
-
-			// Verify that all name fields include a null terminator
-			if ((strnlen((const char*)dbc.szUsername, sizeof(dbc.szUsername)) >= sizeof(dbc.szUsername)) ||
-				(strnlen((const char*)dbc.szPassword, sizeof(dbc.szPassword)) >= sizeof(dbc.szPassword)) ||
-				(strnlen((const char*)dbc.szDatabase, sizeof(dbc.szDatabase)) >= sizeof(dbc.szDatabase)) ||
-				(strnlen((const char*)dbc.szHostname, sizeof(dbc.szHostname)) >= sizeof(dbc.szHostname)))
-			{
-				bInvalid = true;
-			}
-
-			if (!bInvalid)
-			{
-				// crude decryption:
-				decrypt (dbc.szHostname);
-				decrypt (dbc.szUsername);
-				decrypt (dbc.szPassword);
-				decrypt (dbc.szDatabase);
-
-				m_sUsername = (const char*) dbc.szUsername;
-				m_sPassword = (const char*) dbc.szPassword;
-				m_sDatabase = (const char*) dbc.szDatabase;
-				m_sHostname = (const char*) dbc.szHostname;
-			}
-		}
-
-		if (bInvalid)
-		{
-			m_sLastError.Format ("{}DecodeDBCData(): corrupted DBC ({}) file '{}'.", m_sErrorPrefix, "V3", sDBCFile);
-			kDebugLog(GetDebugLevel(), "[{}] {}", m_iDebugID, m_sLastError);
-			return (false);
-		}
+		dbc = std::make_unique<DBCFILEv3>();
 	}
-	else if (strncmp((const char*)sBuffer, (const char*)"KSQLDBC", strlen((const char*)"KSQLDBC")) == 0)
+	else if (sBuffer.StartsWith("KSQLDBC"))
 	{
 		/* It's an unrecognized header but it follows the same pattern as the others:
 		   This version of the software can't process the data, but it may be a future version of DBC,
@@ -1021,6 +687,22 @@ bool KSQL::DecodeDBCData (unsigned char* sBuffer, long iNumRead, KStringView sDB
 		kDebugLog(GetDebugLevel(), "[{}] {}", m_iDebugID, m_sLastError);
 		return (false);
 	}
+
+	if (!dbc->SetBuffer(sBuffer))
+	{
+		m_sLastError.Format ("{}DecodeDBCData(): corrupted DBC file '{}'.", m_sErrorPrefix, sDBCFile);
+		kDebugLog(GetDebugLevel(), "[{}] {}", m_iDebugID, m_sLastError);
+		return (false);
+	}
+
+	m_iDBType    = dbc->GetDBT();
+	m_iAPISet    = dbc->GetAPI();
+	m_iDBPortNum = dbc->GetDBPort();
+	m_sUsername  = dbc->GetUsername();
+	m_sPassword  = dbc->GetPassword();
+	m_sDatabase  = dbc->GetDatabase();
+	m_sHostname  = dbc->GetHostname();
+
 	return true;
 
 } // DecodeDBCData
@@ -1031,15 +713,6 @@ bool KSQL::LoadConnect (KString sDBCFile)
 {
 	kDebugLog (3, "[{}]KSQL::LoadConnect()...", m_iDebugID);
 
-	m_iDBType           = DBT_NONE;
-	m_iAPISet           = 0;
-	m_iDBPortNum        = 0;
-	m_sUsername.clear();
-	m_sPassword.clear();
-	m_sDatabase.clear();
-	m_sHostname.clear();
-	m_sDBCFile.clear();
-
 	if (IsConnectionOpen())
 	{
 		m_sLastError.Format ("{}LoadConnect(): can't call LoadConnect on an OPEN DATABASE.", m_sErrorPrefix);
@@ -1047,33 +720,28 @@ bool KSQL::LoadConnect (KString sDBCFile)
 		return (false);
 	}
 
-	// MAX must be larger than our largest DBCFILE format, so we can detect if the DBC file is too large.
-	enum {MAX = (sizeof(DBCFILEv3) + 1)};
-	unsigned char szBuf[MAX+1];
-	memset (szBuf, 0, MAX+1);
+	m_iDBType           = DBT::NONE;
+	m_iAPISet           = API::NONE;
+	m_iDBPortNum        = 0;
+	m_sUsername.clear();
+	m_sPassword.clear();
+	m_sDatabase.clear();
+	m_sHostname.clear();
+	m_sDBCFile.clear();
 
 	kDebugLog (GetDebugLevel(), "[{}] KSQL:LoadConnect(): opening '{}'...", m_iDebugID, sDBCFile);
 
-	int fd = open (sDBCFile.c_str(), O_RDONLY);
+	KString sBuffer;
+	kReadAll(sDBCFile, sBuffer);
 
-	if (fd == -1)
-	{
-		m_sLastError.Format ("{}LoadConnect(): could not read from '{}'.", m_sErrorPrefix, sDBCFile);
-		kDebugLog (GetDebugLevel(), "[{}] {}", m_iDebugID, m_sLastError);
-		return (false);
-	}
-
-	long iNumRead = read (fd, (void*)szBuf, MAX);
-
-	close (fd);
-
-	if (!iNumRead)
+	if (sBuffer.empty())
 	{
 		m_sLastError.Format ("{}LoadConnect(): empty DBC file '{}'.", m_sErrorPrefix, sDBCFile);
 		kDebugLog (GetDebugLevel(), "[{}] {}", m_iDebugID, m_sLastError);
 		return (false);
 	}
-	if (!DecodeDBCData(szBuf, iNumRead, sDBCFile))
+
+	if (!DecodeDBCData(sBuffer, sDBCFile))
 	{
 		return false;
 	}
@@ -1113,22 +781,6 @@ bool KSQL::OpenConnection (KStringView sListOfHosts, KStringView sDelimeter/* = 
 } // KSQL::OpenConnection
 
 //-----------------------------------------------------------------------------
-void KSQL::DisableRetries()
-//-----------------------------------------------------------------------------
-{
-	m_bDisableRetries = true;
-
-} // KSQL::DisableRetries
-
-//-----------------------------------------------------------------------------
-void KSQL::EnableRetries()
-//-----------------------------------------------------------------------------
-{
-	m_bDisableRetries = false;
-
-} // KSQL::DisableRetries
-
-//-----------------------------------------------------------------------------
 bool KSQL::OpenConnection ()
 //-----------------------------------------------------------------------------
 {
@@ -1144,22 +796,19 @@ bool KSQL::OpenConnection ()
 	}
 
 	m_sLastError.clear();
-	if (!m_iAPISet)
+	if (m_iAPISet == API::NONE)
 	{
-		SetAPISet (0); // <-- pick the default APIs for this DBType
+		SetAPISet (API::NONE); // <-- pick the default APIs for this DBType
 	}
 
 	FormatConnectSummary ();
-
-	KStringView dbt = TxDBType(m_iDBType);
-	KStringView api = TxAPISet(m_iAPISet);
 
 	if (kWouldLog(GetDebugLevel() + 1))
 	{
 		kDebugLog (GetDebugLevel() + 1, "[{}]connect info:", m_iDebugID);
 		kDebugLog (GetDebugLevel() + 1, "  Summary  = {}", m_sConnectSummary);
-		kDebugLog (GetDebugLevel() + 1, "  DBType   = {} ( {} )", m_iDBType, dbt);
-		kDebugLog (GetDebugLevel() + 1, "  APISet   = {} ( {} )", m_iAPISet, api);
+		kDebugLog (GetDebugLevel() + 1, "  DBType   = {}", TxDBType(m_iDBType));
+		kDebugLog (GetDebugLevel() + 1, "  APISet   = {}", TxAPISet(m_iAPISet));
 		kDebugLog (GetDebugLevel() + 1, "  DBUser   = {}", m_sUsername);
 		kDebugLog (GetDebugLevel() + 1, "  DBHost   = {}", m_sHostname);
 		kDebugLog (GetDebugLevel() + 1, "  DBPort   = {}", m_iDBPortNum);
@@ -1196,14 +845,14 @@ bool KSQL::OpenConnection ()
 	switch (m_iAPISet)
 	{
 	// - - - - - - - - - - - - - - - - -
-	case 0:
+	case API::NONE:
 	// - - - - - - - - - - - - - - - - -
 		m_sLastError.Format ("{}CANNOT CONNECT (no connect info!)", m_sErrorPrefix);
 		return (SQLError ());
 
     #ifdef DEKAF2_HAS_MYSQL
 	// - - - - - - - - - - - - - - - - -
-	case API_MYSQL:
+	case API::MYSQL:
 	// - - - - - - - - - - - - - - - - -
 		if (m_sHostname.empty())
 		{
@@ -1250,7 +899,7 @@ bool KSQL::OpenConnection ()
 
     #ifdef DEKAF2_HAS_ODBC
 	// - - - - - - - - - - - - - - - - -
-	case API_ODBC:
+	case API::ODBC:
 	// - - - - - - - - - - - - - - - - -
 		// ODBC initialization:
 		if (SQLAllocEnv (&m_Environment) != SQL_SUCCESS)
@@ -1310,7 +959,7 @@ bool KSQL::OpenConnection ()
 
     #ifdef DEKAF2_HAS_ORACLE
 	// - - - - - - - - - - - - - - - - -
-	case API_OCI8:
+	case API::OCI8:
 	// - - - - - - - - - - - - - - - - -
 		kDebugLog (2, "[{}] ORACLE_HOME='{}'", m_iDebugID, sOraHome);
 		if (!*sOraHome)
@@ -1428,7 +1077,7 @@ bool KSQL::OpenConnection ()
 		break;
 
 	// - - - - - - - - - - - - - - - - -
-	case API_OCI6:
+	case API::OCI6:
 	// - - - - - - - - - - - - - - - - -
 		kDebugLog (GetDebugLevel(), "[{}] ORACLE_HOME='{}'", m_iDebugID, sOraHome);
 		if (!*sOraHome)
@@ -1471,7 +1120,7 @@ bool KSQL::OpenConnection ()
 
     #ifdef DEKAF2_HAS_DBLIB
 	// - - - - - - - - - - - - - - - - -
-	case API_DBLIB:
+	case API::DBLIB:
 	// - - - - - - - - - - - - - - - - -
 		dbinit();
 		dberrhandle (nullptr); // TODO: DBLIB BLOCKED until I figure out how to bind a member function here
@@ -1504,7 +1153,7 @@ bool KSQL::OpenConnection ()
 
 	#ifdef DEKAF2_HAS_CTLIB
 	// - - - - - - - - - - - - - - - - -
-	case API_CTLIB:
+	case API::CTLIB:
 	// - - - - - - - - - - - - - - - - -
 		if (!ctlib_login())
 		{
@@ -1518,10 +1167,10 @@ bool KSQL::OpenConnection ()
 	#endif
 
 	// - - - - - - - - - - - - - - - - -
-	case API_INFORMIX:
+	case API::INFORMIX:
 	default:
 	// - - - - - - - - - - - - - - - - -
-		m_sLastError.Format ("{}API Set not coded yet ({}={})", m_sErrorPrefix, GetAPISet(), TxAPISet(GetAPISet()));
+		m_sLastError.Format ("{}API Set not coded yet ({})", m_sErrorPrefix, TxAPISet(GetAPISet()));
 		return (SQLError ());
 	}
 
@@ -1564,7 +1213,7 @@ void KSQL::CloseConnection ()
 		{
         #ifdef DEKAF2_HAS_MYSQL
 		// - - - - - - - - - - - - - - - - -
-		case API_MYSQL:
+		case API::MYSQL:
 		// - - - - - - - - - - - - - - - - -
 			kDebugLog (3, "mysql_close()...");
 			mysql_close ((MYSQL*)m_dMYSQL);
@@ -1573,7 +1222,7 @@ void KSQL::CloseConnection ()
 
         #ifdef DEKAF2_HAS_ORACLE
 		// - - - - - - - - - - - - - - - - -
-		case API_OCI8:
+		case API::OCI8:
 		// - - - - - - - - - - - - - - - - -
 			#ifdef USE_SERVER_ATTACH
 			OCISessionEnd   ((OCISvcCtx*)m_dOCI8ServerContext, (OCIError*)m_dOCI8ErrorHandle, (OCISession*)m_dOCI8Session, OCI_DEFAULT);
@@ -1584,7 +1233,7 @@ void KSQL::CloseConnection ()
 			break;
 
 		// - - - - - - - - - - - - - - - - -
-		case API_OCI6:
+		case API::OCI6:
 		// - - - - - - - - - - - - - - - - -
 			oclose ((Cda_Def*)m_dOCI6ConnectionDataArea);   // <-- close the cursor
 			ologof ((Lda_Def*)m_dOCI6LoginDataArea);   // <-- close the connection      -- this sometimes causes a BUS ERROR -- why??
@@ -1593,7 +1242,7 @@ void KSQL::CloseConnection ()
 
         #ifdef DEKAF2_HAS_DBLIB
 		// - - - - - - - - - - - - - - - - -
-		case API_DBLIB:
+		case API::DBLIB:
 		// - - - - - - - - - - - - - - - - -
 			dbexit ();
 			break;
@@ -1601,18 +1250,18 @@ void KSQL::CloseConnection ()
 
 		#ifdef DEKAF2_HAS_CTLIB
 		// - - - - - - - - - - - - - - - - -
-		case API_CTLIB:
+		case API::CTLIB:
 		// - - - - - - - - - - - - - - - - -
 			ctlib_logout ();
 			break;
 		#endif
 
 		// - - - - - - - - - - - - - - - - -
-		case API_INFORMIX:
-		case API_ODBC:
+		case API::INFORMIX:
+		case API::ODBC:
 		default:
 		// - - - - - - - - - - - - - - - - -
-			kWarning ("[{}] KSQL::CloseConnection(): unsupported API Set ({}={})", m_iDebugID, m_iAPISet, TxAPISet(m_iAPISet));
+			kWarning ("[{}] KSQL::CloseConnection(): unsupported API Set ({})", m_iDebugID, TxAPISet(m_iAPISet));
 			kCrashExit (CRASHCODE_DEKAFUSAGE);
 		}
 	}
@@ -1677,7 +1326,7 @@ bool KSQL::ExecRawSQL (KStringView sSQL, Flags iFlags/*=0*/, KStringView sAPI/*=
 		{
         #ifdef DEKAF2_HAS_MYSQL
 		// - - - - - - - - - - - - - - - - -
-		case API_MYSQL:
+		case API::MYSQL:
 		// - - - - - - - - - - - - - - - - -
 			do // once
 			{
@@ -1728,7 +1377,7 @@ bool KSQL::ExecRawSQL (KStringView sSQL, Flags iFlags/*=0*/, KStringView sAPI/*=
 
         #ifdef DEKAF2_HAS_ORACLE
 		// - - - - - - - - - - - - - - - - -
-		case API_OCI8:
+		case API::OCI8:
 		// - - - - - - - - - - - - - - - - -
 			do // once
 			{
@@ -1763,7 +1412,7 @@ bool KSQL::ExecRawSQL (KStringView sSQL, Flags iFlags/*=0*/, KStringView sAPI/*=
 			break;
 
 		// - - - - - - - - - - - - - - - - -
-		case API_OCI6:
+		case API::OCI6:
 		// - - - - - - - - - - - - - - - - -
 			do // once
 			{
@@ -1807,7 +1456,7 @@ bool KSQL::ExecRawSQL (KStringView sSQL, Flags iFlags/*=0*/, KStringView sAPI/*=
 
 		#ifdef DEKAF2_HAS_CTLIB
 		// - - - - - - - - - - - - - - - - -
-		case API_CTLIB:
+		case API::CTLIB:
 		// - - - - - - - - - - - - - - - - -
 			fOK = ctlib_execsql (sSQL);
 			if (!fOK)
@@ -1818,12 +1467,12 @@ bool KSQL::ExecRawSQL (KStringView sSQL, Flags iFlags/*=0*/, KStringView sAPI/*=
 		#endif
 
 		// - - - - - - - - - - - - - - - - -
-		case API_DBLIB:
-		case API_INFORMIX:
-		case API_ODBC:
+		case API::DBLIB:
+		case API::INFORMIX:
+		case API::ODBC:
 		default:
 		// - - - - - - - - - - - - - - - - -
-			kWarning ("[{}] KSQL::ExecSQL(): unsupported API Set ({}={})", m_iDebugID, m_iAPISet, TxAPISet(m_iAPISet));
+			kWarning ("[{}] KSQL::ExecSQL(): unsupported API Set ({})", m_iDebugID, TxAPISet(m_iAPISet));
 			kCrashExit (CRASHCODE_DEKAFUSAGE);
 
 		} // switch
@@ -1905,23 +1554,26 @@ bool KSQL::PreparedToRetry ()
 
 	switch (m_iDBType)
 	{
-		case DBT_MYSQL:
+#ifdef DEKAF2_HAS_MYSQL
+		case DBT::MYSQL:
 			switch (m_iErrorNum)
 			{
-# ifdef CR_SERVER_GONE_ERROR
+#ifdef CR_SERVER_GONE_ERROR
 				case CR_SERVER_GONE_ERROR:
 				case CR_SERVER_LOST:
-				# else
+#else
 				case 2006:
 				case 2013:
-# endif
+#endif
 					fConnectionLost = true;
 					break;
 				}
 				break;
+#endif
 
-			case DBT_SQLSERVER:
-			case DBT_SYBASE:
+#if defined(DEKAF2_HAS_DBLIB) || defined(DEKAF2_HAS_CTLIB)
+			case DBT::SQLSERVER:
+			case DBT::SYBASE:
 				switch (m_iErrorNum)
 				{
 					// SQL-01205: State 45, Severity 13, Line 1, Transaction (Process ID 95) was deadlocked on lock resources with
@@ -1934,6 +1586,7 @@ bool KSQL::PreparedToRetry ()
 						fConnectionLost = true;
 				}
 				break;
+#endif
 
 			default:
 				break;
@@ -1952,19 +1605,7 @@ bool KSQL::PreparedToRetry ()
 			kWarning ("[{}] automatic retry now in progress...", m_iDebugID);
 		}
 
-		KSQL SaveMe;
-		SaveMe.CopyConnection (this);
 		CloseConnection ();
-		CopyConnection (&SaveMe);
-
-#if 0 // too much black magic
-		if (!m_sDBCFile.empty() && kFileExists(m_sDBCFile))
-		{
-			kDebugLog (GetDebugLevel(), "[{}] re-reading connection in from dbc file: {}", m_iDebugID, m_sDBCFile);
-			LoadConnect (m_sDBCFile);
-		}
-#endif
-
 		OpenConnection ();
 
 		if (IsConnectionOpen())
@@ -2040,7 +1681,7 @@ bool KSQL::ParseRawSQL (KStringView sSQL, int64_t iFlags/*=0*/, KStringView sAPI
 	switch (m_iAPISet)
 	{
 		// - - - - - - - - - - - - - - - - -
-		case API_OCI8:
+		case API::OCI8:
 		// - - - - - - - - - - - - - - - - -
 			m_iErrorNum = OCIStmtPrepare ((OCIStmt*)m_dOCI8Statement, (OCIError*)m_dOCI8ErrorHandle,
 										 (text*)sSQL, strlen(sSQL), OCI_NTV_SYNTAX, OCI_DEFAULT);
@@ -2083,7 +1724,7 @@ bool KSQL::ExecParsedSQL ()
 	switch (m_iAPISet)
 	{
 		// - - - - - - - - - - - - - - - - -
-		case API_OCI8:
+		case API::OCI8:
 		// - - - - - - - - - - - - - - - - -
 			m_iErrorNum = OCIStmtExecute ((OCISvcCtx*)m_dOCI8ServerContext, (OCIStmt*)m_dOCI8Statement, (OCIError*)m_dOCI8ErrorHandle, 1, 0,
 							 (CONST OCISnapshot *) nullptr, (OCISnapshot *) nullptr, IsFlag(F_NoAutoCommit) ? 0 : OCI_COMMIT_ON_SUCCESS);
@@ -2157,7 +1798,7 @@ bool KSQL::ExecSQLFile (KStringViewZ sFilename)
 	//   //ORA|                       -- line applies to Oracle only
 	//   //SYB|                       -- line applies to Sybase only
 	//   //MSS|                       -- line applies to (MS)SQLServer only
-	KString sLeader = kPrintf("//%3.3s|", (m_iDBType == DBT_SQLSERVER) ? "MSS" : TxDBType(m_iDBType).ToUpper());
+	KString sLeader = kPrintf("//%3.3s|", (m_iDBType == DBT::SQLSERVER) ? "MSS" : TxDBType(m_iDBType).ToUpper());
 
 	// Special strings for supporting the "delimiter" statement
 	constexpr KStringView sDefaultDelimiter = ";";
@@ -2459,7 +2100,7 @@ bool KSQL::ExecRawQuery (KStringView sSQL, Flags iFlags/*=0*/, KStringView sAPI/
 	{
     #ifdef DEKAF2_HAS_MYSQL
 	// - - - - - - - - - - - - - - - - -
-	case API_MYSQL:
+	case API::MYSQL:
 	// - - - - - - - - - - - - - - - - -
 		{
 			// with mysql, I can get away with calling my ExecSQL() function for the
@@ -2506,7 +2147,7 @@ bool KSQL::ExecRawQuery (KStringView sSQL, Flags iFlags/*=0*/, KStringView sAPI/
 				KColInfo ColInfo;
 
 				ColInfo.sColName = pField->name;
-				ColInfo.SetColumnType(DBT_MYSQL, pField->type, pField->length);
+				ColInfo.SetColumnType(DBT::MYSQL, pField->type, pField->length);
 
 				m_dColInfo.push_back(std::move(ColInfo));
 			}
@@ -2516,7 +2157,7 @@ bool KSQL::ExecRawQuery (KStringView sSQL, Flags iFlags/*=0*/, KStringView sAPI/
 
     #ifdef DEKAF2_HAS_ORACLE
 	// - - - - - - - - - - - - - - - - -
-	case API_OCI8:
+	case API::OCI8:
 	// - - - - - - - - - - - - - - - - -
 		{
 			// -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -
@@ -2611,7 +2252,7 @@ bool KSQL::ExecRawQuery (KStringView sSQL, Flags iFlags/*=0*/, KStringView sAPI/
 
 				KColInfo ColInfo;
 
-				ColInfo.SetColumnType(DBT_ORACLE8, iDataType, std::max(iMaxDataSize+2, 22+2)); // <-- always malloc at least 24 bytes
+				ColInfo.SetColumnType(DBT::ORACLE8, iDataType, std::max(iMaxDataSize+2, 22+2)); // <-- always malloc at least 24 bytes
 				ColInfo.sColName.assign((char* )dszColName, iLenColName);
 				ColInfo.dszValue = std::make_unique<char>(ColInfo.iMaxDataLen + 1);
 
@@ -2655,7 +2296,7 @@ bool KSQL::ExecRawQuery (KStringView sSQL, Flags iFlags/*=0*/, KStringView sAPI/
 		break;
 
 	// - - - - - - - - - - - - - - - - -
-	case API_OCI6:
+	case API::OCI6:
 	// - - - - - - - - - - - - - - - - -
 		do // once
 		{
@@ -2777,7 +2418,7 @@ bool KSQL::ExecRawQuery (KStringView sSQL, Flags iFlags/*=0*/, KStringView sAPI/
 
 				KColInfo ColInfo;
 
-				ColInfo.SetColumnType(DBT_ORACLE6, iDataType, std::max(iMaxDataSize+2, 22+2)); // <-- always malloc at least 24 bytes
+				ColInfo.SetColumnType(DBT::ORACLE6, iDataType, std::max(iMaxDataSize+2, 22+2)); // <-- always malloc at least 24 bytes
 				ColInfo.sColName = sColName;
 
 				kDebugLog (GetDebugLevel(), "  oci6:column[{}]={}, namelen={}, datatype={}, maxwidth={}, dsize={}, using={} -- OCI6 BUG [TODO]", 
@@ -2831,7 +2472,7 @@ bool KSQL::ExecRawQuery (KStringView sSQL, Flags iFlags/*=0*/, KStringView sAPI/
 
 	#ifdef DEKAF2_HAS_CTLIB
 	// - - - - - - - - - - - - - - - - -
-	case API_CTLIB:
+	case API::CTLIB:
 	// - - - - - - - - - - - - - - - - -
 		do // once
 		{
@@ -2892,12 +2533,12 @@ bool KSQL::ExecRawQuery (KStringView sSQL, Flags iFlags/*=0*/, KStringView sAPI/
 	#endif
 
 	// - - - - - - - - - - - - - - - - -
-	case API_DBLIB:
-	case API_INFORMIX:
-	case API_ODBC:
+	case API::DBLIB:
+	case API::INFORMIX:
+	case API::ODBC:
 	default:
 	// - - - - - - - - - - - - - - - - -
-		kWarning ("[{}] KSQL::ExecQuery(): unsupported API Set ({}={})", m_iDebugID, m_iAPISet, TxAPISet(m_iAPISet));
+		kWarning ("[{}] KSQL::ExecQuery(): unsupported API Set ({})", m_iDebugID, TxAPISet(m_iAPISet));
 		kCrashExit (CRASHCODE_DEKAFUSAGE);
 	}
 
@@ -3028,7 +2669,7 @@ bool KSQL::ParseRawQuery (KStringView sSQL, int64_t iFlags/*=0*/, KStringView sA
 	switch (m_iAPISet)
 	{
 		// - - - - - - - - - - - - - - - - -
-		case API_OCI8:
+		case API::OCI8:
 		// - - - - - - - - - - - - - - - - -
 			// -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -
 			// 1. OCI8: local "prepare" (parse) of SQL statement (note: in OCI6 this was a trip to the server)
@@ -3075,7 +2716,7 @@ bool KSQL::ExecParsedQuery ()
 	switch (m_iAPISet)
 	{
 	// - - - - - - - - - - - - - - - - -
-	case API_OCI8:
+	case API::OCI8:
 	// - - - - - - - - - - - - - - - - -
 		do // once
 		{
@@ -3146,7 +2787,7 @@ bool KSQL::ExecParsedQuery ()
 
 				KColInfo ColInfo;
 
-				ColInfo.SetColumnType(DBT_ORACLE8, iDataType, std::max(iMaxDataSize+2, 22+2)); // <-- always malloc at least 24 bytes
+				ColInfo.SetColumnType(DBT::ORACLE8, iDataType, std::max(iMaxDataSize+2, 22+2)); // <-- always malloc at least 24 bytes
 				ColInfo.sColName.assign(dszColName, iLenColName);
 				ColInfo.dszValue = std::make_unique<char>(ColInfo.iMaxDataLen + 1);
 
@@ -3267,7 +2908,7 @@ bool KSQL::BufferResults ()
 	{
     #ifdef DEKAF2_HAS_MYSQL
 	// - - - - - - - - - - - - - - - - -
-	case API_MYSQL:
+	case API::MYSQL:
 	// - - - - - - - - - - - - - - - - -
 		kDebugLog (3, "mysql_fetch_row() X N ...");
 
@@ -3307,7 +2948,7 @@ bool KSQL::BufferResults ()
 
     #ifdef DEKAF2_HAS_ORACLE
 	// - - - - - - - - - - - - - - - - -
-	case API_OCI8:
+	case API::OCI8:
 	// - - - - - - - - - - - - - - - - -
 		while (1)
 		{
@@ -3366,7 +3007,7 @@ bool KSQL::BufferResults ()
 		break;
 
 	// - - - - - - - - - - - - - - - - -
-	case API_OCI6:
+	case API::OCI6:
 	// - - - - - - - - - - - - - - - - -
 		while (1)
 		{
@@ -3410,13 +3051,13 @@ bool KSQL::BufferResults ()
 	#endif
 
 	// - - - - - - - - - - - - - - - - -
-	case API_CTLIB:
-	case API_DBLIB:
-	case API_INFORMIX:
-	case API_ODBC:
+	case API::CTLIB:
+	case API::DBLIB:
+	case API::INFORMIX:
+	case API::ODBC:
 	default:
 	// - - - - - - - - - - - - - - - - -
-		kWarning ("[{}] KSQL:BufferResults(): unsupported API Set ({}={})", m_iDebugID, m_iAPISet, TxAPISet(m_iAPISet));
+		kWarning ("[{}] KSQL:BufferResults(): unsupported API Set ({})", m_iDebugID, TxAPISet(m_iAPISet));
 		kCrashExit (CRASHCODE_DEKAFUSAGE);
 	}
 	
@@ -3475,7 +3116,7 @@ bool KSQL::NextRow ()
 		{
 #ifdef DEKAF2_HAS_MYSQL
 				// - - - - - - - - - - - - - - - - -
-			case API_MYSQL:
+			case API::MYSQL:
 				// - - - - - - - - - - - - - - - - -
 				kDebugLog (3, "mysql_fetch_row()...");
 
@@ -3496,7 +3137,7 @@ bool KSQL::NextRow ()
 
 #ifdef DEKAF2_HAS_ORACLE
 				// - - - - - - - - - - - - - - - - -
-			case API_OCI8:
+			case API::OCI8:
 				// - - - - - - - - - - - - - - - - -
 				if (!m_iRowNum)
 				{
@@ -3536,7 +3177,7 @@ bool KSQL::NextRow ()
 				return (true);
 
 				// - - - - - - - - - - - - - - - - -
-			case API_OCI6:
+			case API::OCI6:
 				// - - - - - - - - - - - - - - - - -
 			{
 				kDebugLog (3, "calling ofetch() to grab the next row...");
@@ -3571,19 +3212,19 @@ bool KSQL::NextRow ()
 
 #ifdef DEKAF2_HAS_CTLIB
 				// - - - - - - - - - - - - - - - - -
-			case API_CTLIB:
+			case API::CTLIB:
 				// - - - - - - - - - - - - - - - - -
 				return (ctlib_nextrow());
 				break;
 #endif
 
 				// - - - - - - - - - - - - - - - - -
-			case API_DBLIB:
-			case API_INFORMIX:
-			case API_ODBC:
+			case API::DBLIB:
+			case API::INFORMIX:
+			case API::ODBC:
 			default:
 				// - - - - - - - - - - - - - - - - -
-				kWarning ("[{}] KSQL:NextRow(): unsupported API Set ({}={})", m_iDebugID, m_iAPISet, TxAPISet(m_iAPISet));
+				kWarning ("[{}] KSQL:NextRow(): unsupported API Set ({})", m_iDebugID, TxAPISet(m_iAPISet));
 				kCrashExit (CRASHCODE_DEKAFUSAGE);
 		}
 	}
@@ -4008,7 +3649,7 @@ KStringView KSQL::Get (KROW::Index iOneBasedColNum, bool fTrimRight/*=true*/)
 		{
 			#ifdef DEKAF2_HAS_MYSQL
 			// - - - - - - - - - - - - - - - - -
-			case API_MYSQL:
+			case API::MYSQL:
 			// - - - - - - - - - - - - - - - - -
 				if (m_MYSQLRow)
 				{
@@ -4023,14 +3664,14 @@ KStringView KSQL::Get (KROW::Index iOneBasedColNum, bool fTrimRight/*=true*/)
 
 			// - - - - - - - - - - - - - - - - -
 			#ifdef DEKAF2_HAS_ORACLE
-			case API_OCI8:
-			case API_OCI6:
+			case API::OCI8:
+			case API::OCI6:
 			#endif
 			#ifdef DEKAF2_HAS_DBLIB
-			case API_DBLIB:
+			case API::DBLIB:
 			#endif
 			#ifdef DEKAF2_HAS_CTLIB
-			case API_CTLIB:
+			case API::CTLIB:
 			#endif
 			// - - - - - - - - - - - - - - - - -
 				#if defined(DEKAF2_HAS_ORACLE) || defined(DEKAF2_HAS_CTLIB) || defined(DEKAF2_HAS_DBLIB)
@@ -4039,11 +3680,11 @@ KStringView KSQL::Get (KROW::Index iOneBasedColNum, bool fTrimRight/*=true*/)
 				#endif
 
 			// - - - - - - - - - - - - - - - - -
-			case API_INFORMIX:
-			case API_ODBC:
+			case API::INFORMIX:
+			case API::ODBC:
 			default:
 			// - - - - - - - - - - - - - - - - -
-				kWarning ("[{}] KSQL: unsupported API Set ({}={})", m_iDebugID, m_iAPISet, TxAPISet(m_iAPISet));
+				kWarning ("[{}] KSQL: unsupported API Set ({})", m_iDebugID, TxAPISet(m_iAPISet));
 				kCrashExit (CRASHCODE_DEKAFUSAGE);
 		}
 
@@ -4231,7 +3872,7 @@ bool KSQL::WasOCICallOK (KStringView sContext)
 //		m_sLastError.Format ("{}OCI-{:05}: OCI_NO_DATA [{}]", m_sErrorPrefix, m_iErrorNum, sContext);
 //		break; // error
 	case OCI_ERROR:
-		if (GetAPISet() == API_OCI6)
+		if (GetAPISet() == API::OCI6)
 		{
 			if (m_dOCI6LoginDataArea && m_dOCI6ConnectionDataArea)
 			{
@@ -4245,7 +3886,7 @@ bool KSQL::WasOCICallOK (KStringView sContext)
 			else
 				m_sLastError.Format ("{}unknown error (m_dOCI6LoginDataArea not allocated yet)", m_sErrorPrefix);
 		}
-		else // API_OCI8
+		else // API::OCI8
 		{
 			// Tricky:
 			// One would think that after a successful OCI call, the OCI would always return OCI_SUCCESS.
@@ -4283,7 +3924,7 @@ bool KSQL::WasOCICallOK (KStringView sContext)
 	default:
 	//----------
 
-		if ((m_iErrorNum < 0) && (GetAPISet() == API_OCI6) && m_dOCI6LoginDataArea)
+		if ((m_iErrorNum < 0) && (GetAPISet() == API::OCI6) && m_dOCI6LoginDataArea)
 		{
 			// translate old convention into current error messages:
 			m_iErrorNum = -m_iErrorNum;
@@ -4330,7 +3971,7 @@ bool KSQL::WasOCICallOK (KStringView sContext)
 } // WasOCICallOK
 
 //-----------------------------------------------------------------------------
-bool KSQL::SetAPISet (int iAPISet)
+bool KSQL::SetAPISet (API iAPISet)
 //-----------------------------------------------------------------------------
 {
 	if (IsConnectionOpen())
@@ -4342,10 +3983,10 @@ bool KSQL::SetAPISet (int iAPISet)
 	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 	// explicit API selection:
 	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-	if (iAPISet)
+	if (iAPISet != API::NONE)
 	{
 		m_iAPISet = iAPISet;
-		kDebugLog (GetDebugLevel(), "APISet set to {} ({})", m_iAPISet, TxAPISet(m_iAPISet));
+		kDebugLog (GetDebugLevel(), "APISet set to {}", TxAPISet(m_iAPISet));
 		return (true);
 	}
 
@@ -4355,8 +3996,8 @@ bool KSQL::SetAPISet (int iAPISet)
 	int iEnv = kGetEnv ("KSQL_APISET", "0").Int32();
 	if (iEnv)
 	{
-		m_iAPISet = iEnv;
-		kDebugLog (GetDebugLevel(), "APISet (from $KSQL_APISET) set to {} ({})", m_iAPISet, TxAPISet(m_iAPISet));
+		m_iAPISet = static_cast<API>(iEnv);
+		kDebugLog (GetDebugLevel(), "APISet (from $KSQL_APISET) set to {}", TxAPISet(m_iAPISet));
 		return (true);
 	}
 
@@ -4367,26 +4008,26 @@ bool KSQL::SetAPISet (int iAPISet)
 	switch (m_iDBType)
 	{
 
-		case 0:
+		case DBT::NONE:
 			m_sLastError.Format ("{}SetAPISet(): API mismatch: database type not set.", m_sErrorPrefix);
 			return (false);
 
-		case DBT_MYSQL:                m_iAPISet = API_MYSQL;       break;
+		case DBT::MYSQL:                m_iAPISet = API::MYSQL;       break;
 
-		case DBT_SQLITE3:              m_iAPISet = API_SQLITE3;     break;
+		case DBT::SQLITE3:              m_iAPISet = API::SQLITE3;     break;
 
-		case DBT_ORACLE6:
-		case DBT_ORACLE7:
-		case DBT_ORACLE8:
-		case DBT_ORACLE:               m_iAPISet = API_OCI8;        break;
+		case DBT::ORACLE6:
+		case DBT::ORACLE7:
+		case DBT::ORACLE8:
+		case DBT::ORACLE:               m_iAPISet = API::OCI8;        break;
 
-		case DBT_SQLSERVER:
-		case DBT_SYBASE:               m_iAPISet = API_CTLIB;       break; // choices: API_DBLIB -or- API_CTLIB
+		case DBT::SQLSERVER:
+		case DBT::SYBASE:               m_iAPISet = API::CTLIB;       break; // choices: API::DBLIB -or- API::CTLIB
 
-		case DBT_INFORMIX:             m_iAPISet = API_INFORMIX;    break;
+		case DBT::INFORMIX:             m_iAPISet = API::INFORMIX;    break;
 
 		default:
-			m_sLastError.Format ("{}SetAPISet(): unsupported database type ({}={})", m_sErrorPrefix, m_iDBType, TxDBType(m_iDBType));
+			m_sLastError.Format ("{}SetAPISet(): unsupported database type ({})", m_sErrorPrefix, TxDBType(m_iDBType));
 			return (SQLError());
 	}
 
@@ -4430,12 +4071,12 @@ KString KSQL::GetLastInfo()
 } // KSQL::GeLastInfo
 
 //-----------------------------------------------------------------------------
-void KSQL::BuildTranslationList (TXList& pList, int iDBType)
+void KSQL::BuildTranslationList (TXList& pList, DBT iDBType)
 //-----------------------------------------------------------------------------
 {
 	kDebugLog (3, "[{}]KSQL::BuildTranslationList()...", m_iDebugID);
 
-	if (!iDBType)
+	if (iDBType == DBT::NONE)
 	{
 		iDBType = m_iDBType;
 	}
@@ -4449,31 +4090,34 @@ void KSQL::BuildTranslationList (TXList& pList, int iDBType)
 
 		switch (iDBType)
 		{
-			case DBT_MYSQL:
+			case DBT::MYSQL:
 				pList.Add (sName, g_Translations[jj].sMySQL);
 				break;
 
-			case DBT_SQLITE3:
+			case DBT::SQLITE3:
 				pList.Add (sName, g_Translations[jj].sSQLite3);
 				break;
 
-			case DBT_ORACLE6:
-			case DBT_ORACLE7:
+			case DBT::ORACLE6:
+			case DBT::ORACLE7:
 				pList.Add (sName, g_Translations[jj].sOraclePre8);
 				break;
 
-			case DBT_ORACLE8:
-			case DBT_ORACLE:
+			case DBT::ORACLE8:
+			case DBT::ORACLE:
 				pList.Add (sName, g_Translations[jj].sOracle);
 				break;
 
-			case DBT_SYBASE:
-			case DBT_SQLSERVER:
+			case DBT::SYBASE:
+			case DBT::SQLSERVER:
 				pList.Add (sName, g_Translations[jj].sSybase);
 				break;
 
-			case DBT_INFORMIX:
+			case DBT::INFORMIX:
 				pList.Add (sName, g_Translations[jj].sInformix);
+				break;
+
+			case DBT::NONE:
 				break;
 		}
 	}
@@ -4492,7 +4136,7 @@ void KSQL::BuildTranslationList (TXList& pList, int iDBType)
 } // BuildTranslationList
 
 //-----------------------------------------------------------------------------
-void KSQL::DoTranslations (KString& sSQL, int iDBType/*=0*/)
+void KSQL::DoTranslations (KString& sSQL, DBT iDBType)
 //-----------------------------------------------------------------------------
 {
 	kDebugLog (3,
@@ -4503,7 +4147,7 @@ void KSQL::DoTranslations (KString& sSQL, int iDBType/*=0*/)
 			   m_iDebugID,
 			   sSQL);
 
-	if (!iDBType)
+	if (iDBType == DBT::NONE)
 	{
 		iDBType = m_iDBType;
 	}
@@ -4526,40 +4170,40 @@ void KSQL::DoTranslations (KString& sSQL, int iDBType/*=0*/)
 } // DoTranslations
 
 //-----------------------------------------------------------------------------
-KStringView KSQL::TxDBType (int iDBType) const
+KStringView KSQL::TxDBType (DBT iDBType) const
 //-----------------------------------------------------------------------------
 {
 	switch (iDBType)
 	{
-		case 0:                 return ("NotInitialized");
-		case DBT_MYSQL:         return ("MySQL");
-		case DBT_SQLITE3:       return ("SQLite3");
-		case DBT_ORACLE6:       return ("Oracle6");
-		case DBT_ORACLE7:       return ("Oracle7");
-		case DBT_ORACLE8:       return ("Oracle8");
-		case DBT_ORACLE:        return ("Oracle");
-		case DBT_SQLSERVER:     return ("SQLServer");
-		case DBT_SYBASE:        return ("Sybase");
-		case DBT_INFORMIX:      return ("Informix");
+		case DBT::NONE:         return ("NotInitialized");
+		case DBT::MYSQL:        return ("MySQL");
+		case DBT::SQLITE3:      return ("SQLite3");
+		case DBT::ORACLE6:      return ("Oracle6");
+		case DBT::ORACLE7:      return ("Oracle7");
+		case DBT::ORACLE8:      return ("Oracle8");
+		case DBT::ORACLE:       return ("Oracle");
+		case DBT::SQLSERVER:    return ("SQLServer");
+		case DBT::SYBASE:       return ("Sybase");
+		case DBT::INFORMIX:     return ("Informix");
 		default:                return ("MysteryType");
 	}
 
 } // TxDBType
 
 //-----------------------------------------------------------------------------
-KStringView KSQL::TxAPISet (int iAPISet) const
+KStringView KSQL::TxAPISet (API iAPISet) const
 //-----------------------------------------------------------------------------
 {
 	switch (iAPISet)
 	{
-		case 0:                 return ("NotInitialized");
-		case API_MYSQL:         return ("mysql");
-		case API_SQLITE3:       return ("sqlite3");
-		case API_OCI6:          return ("oci6");
-		case API_OCI8:          return ("oci8");
-		case API_DBLIB:         return ("dblib");
-		case API_CTLIB:         return ("ctlib");
-		case API_INFORMIX:      return ("ifx");
+		case API::NONE:         return ("NotInitialized");
+		case API::MYSQL:        return ("mysql");
+		case API::SQLITE3:      return ("sqlite3");
+		case API::OCI6:         return ("oci6");
+		case API::OCI8:         return ("oci8");
+		case API::DBLIB:        return ("dblib");
+		case API::CTLIB:        return ("ctlib");
+		case API::INFORMIX:     return ("ifx");
 		default:                return ("MysteryAPIs");
 	}
 
@@ -4573,9 +4217,9 @@ void KSQL::FormatConnectSummary ()
 
 	switch (m_iDBType)
 	{
-		case DBT_ORACLE6:
-		case DBT_ORACLE7:
-		case DBT_ORACLE:
+		case DBT::ORACLE6:
+		case DBT::ORACLE7:
+		case DBT::ORACLE:
 			// - - - - - - - - - - - - - -
 			// fred@orcl [Oracle]
 			// - - - - - - - - - - - - - -
@@ -4773,7 +4417,7 @@ bool KSQL::ListTables (KStringView sLike/*="%"*/, bool fIncludeViews/*=false*/, 
 	switch (m_iDBType)
 	{
 	// - - - - - - - - - - - - - - - - - - - - - - - -
-	case KSQL::DBT_MYSQL:
+	case DBT::MYSQL:
 	// - - - - - - - - - - - - - - - - - - - - - - - -
 		// NONE OF THE ARGS: sLike, fIncludeViews and fRestrictToMine are supported for MySQL.
 		// fIncludeViews:   MySQL supports VIEWS and they appear in the "show table status" results with type=nullptr
@@ -4793,9 +4437,9 @@ bool KSQL::ListTables (KStringView sLike/*="%"*/, bool fIncludeViews/*=false*/, 
 		break;
 
 	// - - - - - - - - - - - - - - - - - - - - - - - -
-	case KSQL::DBT_ORACLE7:
-	case KSQL::DBT_ORACLE8:
-	case KSQL::DBT_ORACLE:
+	case DBT::ORACLE7:
+	case DBT::ORACLE8:
+	case DBT::ORACLE:
 	// - - - - - - - - - - - - - - - - - - - - - - - -
 		// FYI: Oracle USER_TABLES is the same as DBA_TABLES where owner=(connecting user)
 		if (fRestrictToMine)
@@ -4851,7 +4495,7 @@ bool KSQL::ListTables (KStringView sLike/*="%"*/, bool fIncludeViews/*=false*/, 
 		break;
 
 	// - - - - - - - - - - - - - - - - - - - - - - - -
-	case DBT_SQLSERVER:
+	case DBT::SQLSERVER:
 	// - - - - - - - - - - - - - - - - - - - - - - - -
 		return (ExecQuery ("select * from sysobjects where type = 'U' and name like '{}' order by name", sLike));
 
@@ -4879,7 +4523,7 @@ bool KSQL::ListProcedures (KStringView sLike/*="%"*/, bool fRestrictToMine/*=tru
 	switch (m_iDBType)
 	{
 	// - - - - - - - - - - - - - - - - - - - - - - - -
-	case KSQL::DBT_MYSQL:
+	case DBT::MYSQL:
 	// - - - - - - - - - - - - - - - - - - - - - - - -
 		// NONE OF THE ARGS: sLike and fRestrictToMine are supported for MySQL.
 		// fRestrictToMine: the MySQL "show procedure status" command only does exactly that
@@ -4898,13 +4542,13 @@ bool KSQL::ListProcedures (KStringView sLike/*="%"*/, bool fRestrictToMine/*=tru
 		break;
 
 	// - - - - - - - - - - - - - - - - - - - - - - - -
-	// case KSQL::DBT_ORACLE7:
-	// case KSQL::DBT_ORACLE8:
-	// case KSQL::DBT_ORACLE:
+	// case DBT::ORACLE7:
+	// case DBT::ORACLE8:
+	// case DBT::ORACLE:
 	// - - - - - - - - - - - - - - - - - - - - - - - -
 
 	// - - - - - - - - - - - - - - - - - - - - - - - -
-	// case DBT_SQLSERVER:
+	// case SQLSERVER:
 	// - - - - - - - - - - - - - - - - - - - - - - - -
 		// return (ExecQuery ("select * from sysobjects where type = 'P' and name like '{}' order by name", sLike));
 
@@ -4928,7 +4572,7 @@ bool KSQL::DescribeTable (KStringView sTablename)
 	switch (m_iDBType)
 	{
 	// - - - - - - - - - - - - - - - - - - - - - - - -
-	case KSQL::DBT_MYSQL:
+	case DBT::MYSQL:
 	// - - - - - - - - - - - - - - - - - - - - - - - -
 		// desc: ColName, Datatype, Null, Key, Default, Extra
 		{
@@ -4942,9 +4586,9 @@ bool KSQL::DescribeTable (KStringView sTablename)
 		break;
 
 	// - - - - - - - - - - - - - - - - - - - - - - - -
-	case KSQL::DBT_ORACLE7:
-	case KSQL::DBT_ORACLE8:
-	case KSQL::DBT_ORACLE:
+	case DBT::ORACLE7:
+	case DBT::ORACLE8:
+	case DBT::ORACLE:
 	// - - - - - - - - - - - - - - - - - - - - - - - -
 		{
 		char szSchemaOwner[50+1];
@@ -4960,7 +4604,7 @@ bool KSQL::DescribeTable (KStringView sTablename)
 		}
 
 	// - - - - - - - - - - - - - - - - - - - - - - - -
-	case KSQL::DBT_SQLSERVER:
+	case DBT::SQLSERVER:
 	// - - - - - - - - - - - - - - - - - - - - - - - -
 		{
 			//uint32_t iFlags = GetFlags();
@@ -5780,7 +5424,7 @@ bool KSQL::UpdateOrInsert (KROW& Row, KROW& AdditionalInsertCols, bool* pbInsert
 uint64_t KSQL::GetLastInsertID ()
 //-----------------------------------------------------------------------------
 {
-	if (m_iDBType == KSQL::DBT_SQLSERVER)
+	if (m_iDBType == DBT::SQLSERVER)
 	{
 		int64_t iID = SingleIntQuery ("select @@identity");
 		if (iID <= 0)
@@ -6350,8 +5994,8 @@ bool KSQL::ctlib_prepare_results ()
 
 		KColInfo ColInfo;
 
-		// TODO check if DBT_SYBASE is the right DBType
-		ColInfo.SetColumnType(DBT_SYBASE, iDataType, std::max(colinfo.maxlength+2, 8000)); // <-- allocate at least the max-varchar length to avoid overflows
+		// TODO check if DBT::SYBASE is the right DBType
+		ColInfo.SetColumnType(DBT::SYBASE, iDataType, std::max(colinfo.maxlength+2, 8000)); // <-- allocate at least the max-varchar length to avoid overflows
 		ColInfo.sColName        = (colinfo.namelen) ? colinfo.name : "";
 
 		enum {SANITY_MAX = 50*1024};

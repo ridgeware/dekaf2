@@ -95,7 +95,7 @@ KString HereDoc (KStringView sString)
 static bool SqlServerIdentityInsert (KSQL& db, LPCTSTR pszTablename, KStringView sOnOff)
 //-----------------------------------------------------------------------------
 {
-	if (db.GetDBType() == KSQL::DBT_SQLSERVER)
+	if (db.GetDBType() == KSQL::DBT::SQLSERVER)
 	{
 		// avoid this errors:
 		// Cannot insert explicit value for identity column in table 'XXX' when IDENTITY_INSERT is set to OFF.
@@ -132,7 +132,7 @@ TEST_CASE("KSQL")
 	{
 		KROW::value_type Col;
 		Col.second.sValue = BENIGN;
-		KString sEscaped ( KROW::EscapeChars (Col, KSQL::DBT_MYSQL));
+		KString sEscaped ( KROW::EscapeChars (Col, KSQL::DBT::MYSQL));
 		CHECK (sEscaped == BENIGNX);
 	}
 
@@ -140,7 +140,7 @@ TEST_CASE("KSQL")
 	{
 		KROW::value_type Col;
 		Col.second.sValue = QUOTES1;
-		KString sEscaped ( KROW::EscapeChars (Col, KSQL::DBT_MYSQL));
+		KString sEscaped ( KROW::EscapeChars (Col, KSQL::DBT::MYSQL));
 		CHECK (sEscaped == QUOTES1x);
 	}
 
@@ -148,7 +148,7 @@ TEST_CASE("KSQL")
 	{
 		KROW::value_type Col;
 		Col.second.sValue = QUOTES2;
-		KString sEscaped ( KROW::EscapeChars (Col, KSQL::DBT_MYSQL));
+		KString sEscaped ( KROW::EscapeChars (Col, KSQL::DBT::MYSQL));
 		CHECK (sEscaped == QUOTES2x);
 	}
 
@@ -156,7 +156,7 @@ TEST_CASE("KSQL")
 	{
 		KROW::value_type Col;
 		Col.second.sValue = SLASHES1;
-		KString sEscaped ( KROW::EscapeChars (Col, KSQL::DBT_MYSQL));
+		KString sEscaped ( KROW::EscapeChars (Col, KSQL::DBT::MYSQL));
 		CHECK (sEscaped == SLASHES1x);
 	}
 
@@ -164,7 +164,7 @@ TEST_CASE("KSQL")
 	{
 		KROW::value_type Col;
 		Col.second.sValue = SLASHES2;
-		KString sEscaped ( KROW::EscapeChars (Col, KSQL::DBT_MYSQL));
+		KString sEscaped ( KROW::EscapeChars (Col, KSQL::DBT::MYSQL));
 		CHECK (sEscaped == SLASHES2x);
 	}
 
@@ -172,7 +172,7 @@ TEST_CASE("KSQL")
 	{
 		KROW::value_type Col;
 		Col.second.sValue = ASIAN1;
-		KString sEscaped ( KROW::EscapeChars (Col, KSQL::DBT_MYSQL));
+		KString sEscaped ( KROW::EscapeChars (Col, KSQL::DBT::MYSQL));
 		CHECK (sEscaped == ASIAN1);
 	}
 
@@ -180,7 +180,7 @@ TEST_CASE("KSQL")
 	{
 		KROW::value_type Col;
 		Col.second.sValue = ASIAN1;
-		KString sEscaped ( KROW::EscapeChars (Col, KSQL::DBT_MYSQL));
+		KString sEscaped ( KROW::EscapeChars (Col, KSQL::DBT::MYSQL));
 		CHECK (sEscaped == ASIAN1);
 	}
 
@@ -256,7 +256,7 @@ TEST_CASE("KSQL")
 
 		kDebugLog (1, "AUTO INCREMENT");
 
-		if ((db.GetDBType() == KSQL::DBT_MYSQL) || (db.GetDBType() == KSQL::DBT_SQLSERVER))
+		if ((db.GetDBType() == KSQL::DBT::MYSQL) || (db.GetDBType() == KSQL::DBT::SQLSERVER))
 		{
 
 			if (!db.ExecSQL (
@@ -290,7 +290,7 @@ TEST_CASE("KSQL")
 
 		for (uint32_t ii=1; ii<=9; ++ii)
 		{
-			bool bHasAutoIncrement = ((db.GetDBType() == KSQL::DBT_MYSQL) || (db.GetDBType() == KSQL::DBT_SQLSERVER));
+			bool bHasAutoIncrement = ((db.GetDBType() == KSQL::DBT::MYSQL) || (db.GetDBType() == KSQL::DBT::SQLSERVER));
 			bool bIsFirstRow       = (ii==1);
 
 			if (!bHasAutoIncrement || bIsFirstRow)
@@ -469,7 +469,7 @@ TEST_CASE("KSQL")
 		// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 		// MySQL Bulk Insert
 		// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-		if (db.GetDBType() == KSQL::DBT_MYSQL)
+		if (db.GetDBType() == KSQL::DBT::MYSQL)
 		{
 			kDebugLog (1, "MySQL only test: BULK INSERT INTO");
 
@@ -585,7 +585,7 @@ TEST_CASE("KSQL")
 			|
 		)"));
 
-		if (db.GetDBType() == KSQL::DBT_SQLSERVER)
+		if (db.GetDBType() == KSQL::DBT::SQLSERVER)
 		{
 			fp.Write (HereDoc(R"(
 				|IF OBJECT_ID('FRED', 'U') IS NOT NULL DROP TABLE FRED;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

@@ -59,19 +59,35 @@ class KCommonSQLBase
 public:
 //----------
 
-	enum SQLTYPE
+	enum class DBT
 	{
 		// the DBT constant is used to govern certain SQL statments:
-		DBT_NONE              = 0,          // must stay zero
-		DBT_MYSQL             = 100,        // assume we're connecting to MySQL
-		DBT_ORACLE6           = 206,        // assume we're connecting to an Oracle6 rdbms
-		DBT_ORACLE7           = 207,        // assume we're connecting to an Oracle7 rdbms
-		DBT_ORACLE8           = 208,        // assume we're connecting to an Oracle8 rdbms
-		DBT_ORACLE            = 200,        // use the latest assumptions about Oracle
-		DBT_SQLSERVER         = 300,
-		DBT_SYBASE            = 400,
-		DBT_INFORMIX          = 500,
-		DBT_SQLITE3           = 600
+		// never change the absolute values, they are persisted in config files
+		NONE      = 0,   // must stay zero
+		MYSQL     = 100, // assume we're connecting to MySQL
+		ORACLE6   = 206, // assume we're connecting to an Oracle6 rdbms
+		ORACLE7   = 207, // assume we're connecting to an Oracle7 rdbms
+		ORACLE8   = 208, // assume we're connecting to an Oracle8 rdbms
+		ORACLE    = 200, // use the latest assumptions about Oracle
+		SQLSERVER = 300,
+		SYBASE    = 400,
+		INFORMIX  = 500,
+		SQLITE3   = 600  // assume we're connecting to SQLite3
+	};
+
+	enum class API
+	{
+		// the API constant determines how to connect to the database
+		// never change the absolute values, they are persisted in config files
+		NONE     = 0,     // must stay zero
+		MYSQL    = 10000, // connect to MYSQL using their custom APIs
+		SQLITE3  = 30000, // connect to SQLite3 using their custom APIs
+		OCI6     = 26000, // connect to Oracle using the v6 OCI (older set)
+		OCI8     = 28000, // connect to Oracle using the v8 OCI (the default)
+		DBLIB    = 40000, // connect to SQLServer or Sybase using DBLIB
+		CTLIB    = 50000, // connect to SQLServer or Sybase using CTLIB
+		INFORMIX = 80000, // connect to Informix using their API
+		ODBC     = 90000  // connect to something using ODBC APIs
 	};
 
 	static void     SetDebugLevel (int16_t iNewLevel) { m_iDebugLevel = iNewLevel; }
@@ -317,15 +333,15 @@ public:
 	}
 
 	/// Formats the proper RDBMS DDL statement for inserting one row into the database for the given table and column structure.
-	bool FormInsert (KString& sSQL, SQLTYPE iDBType, bool fIdentityInsert=false) const;
+	bool FormInsert (KString& sSQL, DBT iDBType, bool fIdentityInsert=false) const;
 
 	/// Formats the proper RDBMS DDL statement for updating one row in the database for the given table and column structure.
 	/// Note that at least one column must have the PKEY flag set (so that the framework knows what to put in the WHERE clause).
-	bool FormUpdate (KString& sSQL, SQLTYPE iDBType) const;
+	bool FormUpdate (KString& sSQL, DBT iDBType) const;
 
 	/// Formats the proper RDBMS DDL statement for deleting one row in the database for the given table and column structure.
 	/// Note that at least one column must have the PKEY flag set (so that the framework knows what to put in the WHERE clause).
-	bool FormDelete (KString& sSQL, SQLTYPE iDBType) const;
+	bool FormDelete (KString& sSQL, DBT iDBType) const;
 
 	/// Returns the last RDBMS error message.
 	KStringView GetLastError() const { return (m_sLastError); }
@@ -352,7 +368,7 @@ public:
 	// - - - - - - - - - - - - - - - -
 	static KString EscapeChars (const KROW::value_type& Col, KStringView sCharsToEscape,
 								KString::value_type iEscapeChar = 0);
-	static KString EscapeChars (const KROW::value_type& Col, SQLTYPE iDBType);
+	static KString EscapeChars (const KROW::value_type& Col, DBT iDBType);
 
 	KString ColumnInfoForLogOutput (const KCOLS::value_type& it, Index iCol) const;
 

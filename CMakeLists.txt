@@ -310,6 +310,7 @@ set (BITS_HEADERS
 	bits/kostringstream.h
 	bits/kprops-multi-index.h
 	bits/kprops-std-map.h
+	bits/ksql_dbc.h
 	bits/kstring_view.h
 	bits/kstringviewz.h
 	bits/ktemplate.h
@@ -436,6 +437,7 @@ set (SOURCES
 	bits/kbaseshell.cpp
 	bits/kistringstream.cpp
 	bits/kostringstream.cpp
+	bits/ksql_dbc.cpp
 	bits/kstringviewz.cpp
 	bits/simd/kfindfirstof.cpp
 	dekaf2.cpp
@@ -594,7 +596,7 @@ target_include_directories(dekaf2
 	PRIVATE "${MYSQL_INCLUDE_DIRS}" "${SQLITE3_INCLUDE_DIRS}"
 	INTERFACE "${Boost_INCLUDE_DIR}" "${OPENSSL_INCLUDE_DIR}"
 )
-target_compile_definitions(dekaf2 PRIVATE DEKAF2_LIBRARY_BUILD)
+target_compile_definitions(dekaf2 PRIVATE DEKAF2_LIBRARY_BUILD PUBLIC DEKAF2)
 
 add_executable(klog klog_main.cpp)
 target_link_libraries(klog dekaf2)

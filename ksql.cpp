@@ -77,7 +77,7 @@
 #endif
 
 #ifdef DEKAF2_HAS_SQLITE3
-  #include <sqlite3.h>
+  #include "ksqlite.h"
 #endif
 
 #ifdef DEKAF2_HAS_DBLIB

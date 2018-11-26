@@ -385,6 +385,7 @@ set(PUBLIC_HEADERS
 	ksmtp.h
 	ksplit.h
 	ksql.h
+	ksqlite.h
 	ksslclient.h
 	ksslstream.h
 	kstack.h
@@ -491,6 +492,7 @@ set (SOURCES
 	ksmtp.cpp
 	ksplit.cpp
 	ksql.cpp
+	ksqlite.cpp
 	ksslstream.cpp
 	kstream.cpp
 	kstreambuf.cpp

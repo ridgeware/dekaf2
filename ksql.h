@@ -432,9 +432,7 @@ private:
 #if defined(DEKAF2_HAS_ORACLE) || defined(DEKAF2_HAS_CTLIB) || defined(DEKAF2_HAS_DBLIB)
 		std::unique_ptr<char> dszValue;
 #endif
-#if defined(DEKAF2_HAS_MYSQL) || defined(DEKAF2_HAS_ORACLE)
 		KString  sColName;
-#endif
 		KCOL::Flags iKSQLDataType   { 0 };
 		KCOL::Len   iMaxDataLen     { 0 };
 #if defined(DEKAF2_HAS_ORACLE) || defined(DEKAF2_HAS_CTLIB)
@@ -468,14 +466,14 @@ private:
 protected:
 //----------
 
-	static std::atomic_uint32_t s_ulDebugID;
+	static std::atomic<uint32_t> s_ulDebugID;
 	uint32_t   m_iDebugID { ++s_ulDebugID };                // useful for tracing multiple instances of KSQL in debug log
 	Flags      m_iFlags { 0 };                  // set by calling SetFlags()
 	int        m_iErrorNum { 0 };               // db error number (e.g. ORA code)
-#ifdef DEKAF2_HAS_MYSQL
+#if defined(DEKAF2_HAS_MYSQL)
 	DBT        m_iDBType { DBT::MYSQL };
 	API        m_iAPISet { API::MYSQL };
-#elif DEKAF2_HAS_SQLITE3
+#elif defined(DEKAF2_HAS_SQLITE3)
 	DBT        m_iDBType { DBT::SQLITE3 };
 	API        m_iAPISet { API::SQLITE3 };
 #else

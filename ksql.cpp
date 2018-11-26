@@ -171,7 +171,7 @@ constexpr SQLTX g_Translations[] = {
 	// ---------------  ----------------  ----------------  ---------------  --------------  ---------------  ----------------------------
 };
 
-std::atomic_uint32_t KSQL::s_ulDebugID = 0;
+std::atomic<uint32_t> KSQL::s_ulDebugID { 0 };
 
 uint16_t KSQL::m_iDebugLevel = 1;
 

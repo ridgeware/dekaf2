@@ -385,7 +385,6 @@ set(PUBLIC_HEADERS
 	ksmtp.h
 	ksplit.h
 	ksql.h
-	ksqlite.h
 	ksslclient.h
 	ksslstream.h
 	kstack.h
@@ -415,6 +414,12 @@ set(PUBLIC_HEADERS
 	# keep this one at the end
 	khtmlentities.h
 )
+
+if(SQLITE3_FOUND)
+	set(HEADERS ${HEADERS}
+		ksqlite.h
+	)
+endif()
 
 if (DEKAF2_WITH_COMPATIBILITY_LAYER_TO_DEKAF1)
 	set(COMPAT_HEADERS
@@ -492,7 +497,6 @@ set (SOURCES
 	ksmtp.cpp
 	ksplit.cpp
 	ksql.cpp
-	ksqlite.cpp
 	ksslstream.cpp
 	kstream.cpp
 	kstreambuf.cpp
@@ -514,6 +518,12 @@ set (SOURCES
 	# keep this one at the end
 	khtmlentities.cpp
 )
+
+if(SQLITE3_FOUND)
+	set(SOURCES ${SOURCES}
+		ksqlite.cpp
+	)
+endif()
 
 if (DEKAF2_INSTALL_HEADERS)
 

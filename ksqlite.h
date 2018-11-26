@@ -45,8 +45,6 @@
 /// @file ksqlite.h
 /// wraps the SQLite3 API into C++
 
-#ifdef DEKAF2_HAS_SQLITE3
-
 #include <unordered_map>
 #include <vector>
 
@@ -429,5 +427,3 @@ private:
 #ifdef DEKAF2
 } // end of namespace dekaf2
 #endif
-
-#endif // of ifdef DEKAF2_HAS_SQLITE3

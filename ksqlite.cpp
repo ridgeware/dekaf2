@@ -40,8 +40,6 @@
  //
  */
 
-#ifdef DEKAF2_HAS_SQLITE3
-
 #include "ksqlite.h"
 #include <fstream>
 #include <sqlite3.h>
@@ -518,4 +516,3 @@ Column::Type Column::GetType()
 } // of namespace dekaf2
 #endif
 
-#endif // of ifdef DEKAF2_HAS_SQLITE3

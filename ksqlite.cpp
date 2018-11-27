@@ -423,7 +423,7 @@ bool Row::Next()
 		}
 		else
 		{
-			m_Row->m_bIsDone = ec == SQLITE_DONE;
+			SetIsDone(ec == SQLITE_DONE);
 			SetIsValid(false);
 		}
 	}

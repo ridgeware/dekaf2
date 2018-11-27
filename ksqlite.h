@@ -156,7 +156,52 @@ enum Mode
 	READWRITECREATE
 };
 
-class Column;
+namespace detail {
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+struct DBConnector
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+	using size_type = std::size_t;
+
+	DBConnector() = default;
+	// the copy constructor actually establishes a new connection
+	DBConnector(const DBConnector& other);
+	DBConnector(DBConnector&&) = default;
+	// ctor
+	DBConnector(StringViewZ sFilename, Mode iMode);
+	// dtor
+	~DBConnector();
+
+	/// Connect to database (fails if connection is already established)
+	bool Connect(StringViewZ sFilename, Mode iMode);
+	/// Returns count of rows affected by last query
+	size_type AffectedRows();
+	/// Returns row ID of last inserted row or 0
+	size_type LastInsertID();
+	/// Returns the filename of the connected database
+	StringViewZ Filename() const;
+
+	/// Returns last error (if any)
+	StringViewZ Error() const;
+	/// Returns non-zero in case of error
+	int IsError() const;
+	/// Returns true if no error
+	bool Good() const { return !IsError(); }
+
+	operator sqlite3*() noexcept { return m_DB; }
+
+	sqlite3* m_DB { nullptr };
+	Mode m_iMode { READONLY };
+
+}; // DBConnector
+
+} // end of namespace detail
+
+using SharedConnector = std::shared_ptr<detail::DBConnector>;
+
+class Statement;
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class Database
@@ -167,35 +212,40 @@ class Database
 public:
 //----------
 
-	using size_type   = std::size_t;
+	using size_type       = std::size_t;
 	using result_type_row = std::unordered_map<String, String>;
-	using result_type = std::vector<result_type_row>;
+	using result_type     = std::vector<result_type_row>;
 
 	Database() = default;
-	Database(const Database&) = delete;
+	// the copy constructor creates a new Connector
+	Database(const Database& other);
 	Database(Database&&) = default;
-	Database& operator=(const Database&) = delete;
 	Database& operator=(Database&&) = default;
-
 	/// Open database in file with given name, use given mode to open
-	Database(StringView sFilename, Mode iMode = Mode::READONLY);
-	// dtor
-	~Database();
+	Database(StringViewZ sFilename, Mode iMode = Mode::READONLY);
 
+	/// Connect to database - closes an established connection
+	bool Connect(StringViewZ sFilename, Mode iMode = Mode::READONLY);
+	/// Create a prepared statement
+	Statement Prepare(StringView sQuery);
 	/// Execute an ad-hoc query, returns success
 	bool ExecuteVoid(StringViewZ sQuery);
 	/// Execute an ad-hoc query, return all result rows
 	result_type Execute(StringViewZ sQuery);
 	/// Returns count of rows affected by last query
-	size_type AffectedRows();
+	size_type AffectedRows() { return Connector()->AffectedRows(); }
 	/// Returns row ID of last inserted row or 0
-	size_type LastInsertID() const noexcept;
+	size_type LastInsertID() { return Connector()->LastInsertID(); }
 	/// Returns true if table with given name exists
 	bool HasTable(StringViewZ sTable) const;
 	/// Returns last error (if any)
-	const String& Error() noexcept { return m_sError; }
+	StringViewZ Error() const { return Connector()->Error(); }
+	/// Returns non-zero in case of error
+	int IsError() const { return Connector()->IsError(); }
+	/// Returns true if no error
+	bool Good() const { return Connector()->Good(); }
 	/// Returns name of database file
-	const String& GetFilename() const noexcept { return m_sFilename; }
+	StringViewZ Filename() const noexcept { return Connector()->Filename(); }
 	/// Set de/encryption key for current database
 	bool Key(StringView sKey);
 	/// Set new key for current database, valid Key() must have been set before
@@ -203,50 +253,25 @@ public:
 	/// Checks if database needs a Key()
 	static bool IsEncrypted(StringViewZ sFilename);
 	/// Checks if current database needs a Key()
-	bool IsEncrypted() const { return IsEncrypted(GetFilename()); }
+	bool IsEncrypted() const { return IsEncrypted(Filename()); }
 
-	operator sqlite3*() { return m_DB; }
+	operator sqlite3*() noexcept { return *Connector(); }
+	operator SharedConnector&()  { return Connector();  }
 
 //----------
 private:
 //----------
 
-	bool SetError(StringView sError) const;
-	bool SetError() const;
+	const SharedConnector& Connector() const noexcept { return m_Connector; }
+	SharedConnector& Connector() noexcept { return m_Connector; }
+
 	bool Check(int iReturn);
 
-	String m_sFilename;
-	mutable String m_sError;
-	sqlite3* m_DB { nullptr };
+	SharedConnector m_Connector;
 
 }; // Database
 
-class Row;
-
-namespace detail {
-
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-struct RowBase
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-{
-	using ColIndex = int;
-
-	RowBase() = default;
-	RowBase(Database& database, StringView sQuery);
-	~RowBase();
-
-	using NameMap = std::unordered_map<String, ColIndex>;
-
-	NameMap m_NameMap;
-	sqlite3* m_DB { nullptr };
-	sqlite3_stmt* m_Statement { nullptr };
-	String m_sQuery;
-	ColIndex m_iColumnCount { 0 };
-	bool m_bIsValid { false };
-
-}; // RowBase
-
-} // end of namespace detail
+class Column;
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class Row
@@ -257,8 +282,7 @@ class Row
 public:
 //----------
 
-	using BaseType  = detail::RowBase;
-	using ColIndex  = detail::RowBase::ColIndex;
+	using ColIndex  = int;
 	using size_type = std::size_t;
 
 	Row(Database& database, StringView sQuery);
@@ -269,95 +293,76 @@ public:
 	Row& operator=(Row&&) = default;
 
 	/// Get a column from the result row by index
-	Column GetColumn(ColIndex iZeroBasedIndex);
+	class Column Column(ColIndex iZeroBasedIndex);
 	/// Get a column from the result row by name
-	Column GetColumn(StringView sColName);
+	class Column Column(StringView sColName);
 	/// Returns column index for given name
 	ColIndex GetColIndex(StringView sColName);
 
-	Column operator[](ColIndex iZeroBasedIndex);
-	Column operator[](StringView sColName);
+	class Column operator[](ColIndex iZeroBasedIndex);
+	class Column operator[](StringView sColName);
 
-	const String& GetQuery() const noexcept { return m_Row->m_sQuery; }
+	/// Get the Query used to build the statement
+	StringViewZ GetQuery() const;
+	/// Returns column count of the result set
 	ColIndex size() const noexcept { return m_Row->m_iColumnCount; }
+	/// Returns true if row is not valid or column count is 0
 	bool empty() const noexcept { return !m_Row->m_bIsValid || !size(); }
+	/// Returns true if there are no more rows to fetch
+	bool Done() const noexcept { return m_Row->m_bIsDone; }
+	/// Reset underlying prepared statement for another query. Normally called through Statement().
+	bool Reset(bool bClearBindings = false) noexcept;
+	/// Advance to next row in result set
+	bool Next();
+	/// Advance to next row in result set
+	Row& operator++();
+
+	/// Return sqlite3 object pointer
+	sqlite3_stmt* Statement() noexcept { return m_Row->m_Statement; }
+	operator sqlite3_stmt*()  noexcept { return Statement();        }
+
+//----------
+private:
+//----------
 
 	void SetIsValid(bool bYesno) const noexcept { m_Row->m_bIsValid = bYesno; }
+	void SetIsDone(bool bYesno)  const noexcept { m_Row->m_bIsDone = bYesno;  }
 
-	sqlite3* DB() const noexcept { return m_Row->m_DB; }
-	sqlite3_stmt* Statement() const noexcept { return m_Row->m_Statement; }
+	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	struct RowBase
+	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	{
+		using ColIndex = Row::ColIndex;
 
-//----------
-private:
-//----------
+		RowBase() = default;
+		RowBase(const RowBase&) = delete;
+		RowBase& operator=(const RowBase&) = delete;
+		RowBase(RowBase&&) = default;
+		RowBase& operator=(RowBase&&) = default;
+		RowBase(Database& database, StringView sQuery);
+		~RowBase();
 
-	using RowPtr = std::shared_ptr<detail::RowBase>;
+		operator sqlite3_stmt*() noexcept { return m_Statement; }
 
-	RowPtr m_Row;
+		using NameMap = std::unordered_map<String, ColIndex>;
+
+		// we basically keep an instance of the connector here to avoid
+		// it going out of scope while we still reference to it through
+		// the statement object
+		SharedConnector m_Connector;
+		sqlite3_stmt* m_Statement { nullptr };
+		NameMap m_NameMap;
+		ColIndex m_iColumnCount { 0 };
+		bool m_bIsValid { false };
+		bool m_bIsDone { false };
+
+	}; // RowBase
+
+	using SharedRow = std::shared_ptr<RowBase>;
+
+	SharedRow m_Row;
 
 }; // Row
-
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class Statement
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-{
-
-//----------
-public:
-//----------
-
-	using size_type = std::size_t;
-	using ColIndex  = Row::ColIndex;
-	using ParIndex  = int;
-
-	Statement() = default;
-	Statement(const Statement&) = delete;
-	Statement(Statement&&) = default;
-	Statement& operator=(const Statement&) = delete;
-	Statement& operator=(Statement&&) = default;
-
-	Statement(Database& database, StringView sQuery);
-
-	bool Bind(ParIndex iOneBasedIndex, int64_t iValue);
-	bool Bind(ParIndex iOneBasedIndex, double fValue);
-	bool Bind(ParIndex iOneBasedIndex, float fValue) { return Bind(iOneBasedIndex, double(fValue)); }
-	bool Bind(ParIndex iOneBasedIndex, StringView sValue);
-	bool Bind(ParIndex iOneBasedIndex, void* pValue, size_type iSize);
-	bool Bind(ParIndex iOneBasedIndex);
-	template<class Integer, typename std::enable_if<std::is_integral<Integer>::value, int>::type = 0>
-	bool Bind(ParIndex iOneBasedIndex, Integer iValue)
-	{ return Bind(iOneBasedIndex, static_cast<int64_t>(iValue)); }
-
-	bool Bind(StringViewZ sParName, void* pValue, size_type iSize)
-	{ return Bind(GetParIndex(sParName), pValue, iSize); }
-	bool Bind(StringViewZ sParName)
-	{ return Bind(GetParIndex(sParName)); }
-	template<class Parm>
-	bool Bind(StringViewZ sParName, Parm iValue)
-	{ return Bind(GetParIndex(sParName), iValue); }
-
-	/// Advance to next row
-	bool NextRow();
-	/// Execute a statement (same as NextRow() )
-	bool Execute() { return NextRow(); }
-	/// Get current row
-	Row GetRow() { return m_Row; }
-	/// Do we have a result set?
-	bool empty() const { return m_Row.empty(); }
-	/// Get the Query used to build the statement
-	const String& GetQuery() const noexcept { return m_Row.GetQuery(); }
-	/// Returns parameter index for given name
-	ParIndex GetParIndex(StringViewZ sParName);
-
-//----------
-private:
-//----------
-
-	bool CheckColIndex(ColIndex iZeroBasedIndex);
-
-	Row m_Row;
-
-}; // Statement
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class Column
@@ -371,7 +376,7 @@ public:
 	using ColIndex  = Row::ColIndex;
 	using size_type = std::size_t;
 
-	enum Type
+	enum ColType
 	{
 		Integer,
 		Float,
@@ -389,29 +394,43 @@ public:
 	Column(Row& row, ColIndex iZeroBasedIndex)
 	: m_Row(row), m_Index(iZeroBasedIndex) {}
 
-
 	/// Get original column name
-	KStringViewZ GetName();
+	StringViewZ GetName();
 	/// Get column name as assigned by an 'as' clause
-	KStringViewZ GetNameAs();
+	StringViewZ GetNameAs();
 
-	int32_t      GetInt32();
-	uint32_t     GetUInt32();
-	int64_t      GetInt64();
-	uint64_t     GetUInt64();
-	double       GetDouble();
-	KStringView  GetText();
-	KStringView  GetBLOB();
+	/// Return column as an int32_t
+	int32_t Int32();
+	/// Return column as a uint32_t
+	uint32_t UInt32();
+	/// Return column as an int64_t
+	int64_t Int64();
+	/// Return column as a uint64_t
+	uint64_t UInt64();
+	/// Return column as a double
+	double Double();
+	/// Return column as a string (from a TEXT)
+	StringView String();
+	/// Return column as a string (from a BLOB)
+	StringView Blob();
 
-	size_type    size();
-	size_type    length() { return size(); }
+	/// Size of result string
+	size_type size();
+	/// Size of result string (same as size())
+	size_type length() { return size(); }
 
-	Type GetType();
-	bool IsInteger() { return GetType() == Type::Integer; }
-	bool IsFloat()   { return GetType() == Type::Float;   }
-	bool IsText()    { return GetType() == Type::Text;    }
-	bool IsBLOB()    { return GetType() == Type::BLOB;    }
-	bool IsNull()    { return GetType() == Type::Null;    }
+	/// Returns type of column (Integer, Float, Text, BLOB, or Null)
+	ColType Type();
+	/// Is column an integer?
+	bool IsInteger() { return Type() == ColType::Integer; }
+	/// Is column a floating point value?
+	bool IsFloat()   { return Type() == ColType::Float;   }
+	/// Is column a string?
+	bool IsText()    { return Type() == ColType::Text;    }
+	/// Is column a BLOB?
+	bool IsBLOB()    { return Type() == ColType::BLOB;    }
+	/// Is column Null?
+	bool IsNull()    { return Type() == ColType::Null;    }
 
 //----------
 private:
@@ -421,6 +440,115 @@ private:
 	ColIndex m_Index { 0 };
 
 }; // Column
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// Prepared statement class for SQLite
+class Statement
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+//----------
+public:
+//----------
+
+	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	/// Iterator for a range of rows. Only supports prefix increment, typically
+	/// to be used in range based for loops.
+	class iterator
+	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	{
+
+	//----------
+	public:
+	//----------
+
+		iterator(Row& row, bool bToEnd = false);
+		iterator& operator++();
+		Row& operator*() { return *m_pRow; }
+		Row* operator->() { return m_pRow; }
+		bool operator==(const iterator& other) { return m_pRow == other.m_pRow; }
+		bool operator!=(const iterator& other) { return !operator==(other);     }
+
+	//----------
+	private:
+	//----------
+
+		Row* m_pRow { nullptr };
+
+	}; // iterator
+
+	using const_iterator = iterator;
+	using size_type      = std::size_t;
+	using ColIndex       = Row::ColIndex;
+	using ParIndex       = int;
+
+	Statement() = default;
+	Statement(const Statement&) = delete;
+	Statement(Statement&&) = default;
+	Statement& operator=(const Statement&) = delete;
+	Statement& operator=(Statement&&) = default;
+
+	/// Constructs a prepared statement from an SQL query
+	Statement(Database& database, StringView sQuery);
+
+	/// Bind an i64_t value
+	bool Bind(ParIndex iOneBasedIndex, int64_t iValue);
+	/// Bind a double value
+	bool Bind(ParIndex iOneBasedIndex, double fValue);
+	/// Bind a float value
+	bool Bind(ParIndex iOneBasedIndex, float fValue) { return Bind(iOneBasedIndex, double(fValue)); }
+	/// Bind a string value. If bCopy is true the string will be copied internally, to avoid issues with temporary strings.
+	bool Bind(ParIndex iOneBasedIndex, StringView sValue, bool bCopy = true);
+	/// Bind a BLOB value. If bCopy is true the BLOB will be copied internally, to avoid issues with temporary buffers.
+	bool Bind(ParIndex iOneBasedIndex, void* pValue, size_type iSize, bool bCopy = true);
+	/// Bind a NULL value.
+	bool Bind(ParIndex iOneBasedIndex);
+	/// Bind any integral value.
+	template<class Integer, typename std::enable_if<std::is_integral<Integer>::value, int>::type = 0>
+	bool Bind(ParIndex iOneBasedIndex, Integer iValue)
+	{ return Bind(iOneBasedIndex, static_cast<int64_t>(iValue)); }
+
+	/// Bind a string value by parameter name. If bCopy is true the string will be copied internally, to avoid issues with temporary strings.
+	bool Bind(StringViewZ sParName, StringView sValue, bool bCopy = true)
+	{ return Bind(GetParIndex(sParName), sValue, bCopy); }
+	/// Bind a BLOB value by parameter name. If bCopy is true the BLOB will be copied internally, to avoid issues with temporary buffers.
+	bool Bind(StringViewZ sParName, void* pValue, size_type iSize, bool bCopy = true)
+	{ return Bind(GetParIndex(sParName), pValue, iSize, bCopy); }
+	/// Bind a NULL value by parameter name.
+	bool Bind(StringViewZ sParName)
+	{ return Bind(GetParIndex(sParName)); }
+	/// Bind any integral value by parameter name.
+	template<class Parm>
+	bool Bind(StringViewZ sParName, Parm iValue)
+	{ return Bind(GetParIndex(sParName), iValue); }
+
+	/// Reset statement. If bClearBindings is true, clear all existing bindings as well, which his in general not necessary, permits reuse of unchanged bindings.
+	bool Reset(bool bClearBindings = false);
+	/// Advance to next row
+	bool NextRow();
+	/// Execute a statement (same as NextRow(), except that it returns true on empty results)
+	bool Execute();
+	/// Get current row
+	class Row Row() { return m_Row; }
+	/// Do we have a result set?
+	bool empty() const { return m_Row.empty(); }
+	/// Get the Query used to build the statement
+	StringViewZ GetQuery() const { return m_Row.GetQuery(); }
+	/// Returns parameter index for given name
+	ParIndex GetParIndex(StringViewZ sParName);
+
+	/// Get start iterator over rows after execution of a prepared statement
+	iterator begin() { return iterator(m_Row, false); }
+	/// Get end iterator over rows
+	iterator end()   { return iterator(m_Row, true);  }
+
+//----------
+private:
+//----------
+
+	class Row m_Row;
+
+}; // Statement
 
 } // end of namespace KSQLite
 

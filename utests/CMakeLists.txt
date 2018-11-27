@@ -46,6 +46,7 @@ set (USOURCES
 	kreader_tests.cpp
 	kreplacer_tests.cpp
 	ksplit_tests.cpp
+	ksqlite_tests.cpp
 	kstack_tests.cpp
 	kstring_tests.cpp
 	kstringstream_tests.cpp

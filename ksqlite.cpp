@@ -50,61 +50,168 @@ namespace dekaf2 {
 
 namespace KSQLite {
 
-//=================================== Database ===================================
-
 //--------------------------------------------------------------------------------
-Database::Database(StringView sFilename, Mode iMode)
+inline bool Success(int ec)
 //--------------------------------------------------------------------------------
-	: m_sFilename(sFilename)
 {
-	int iFlags;
-	switch (iMode)
-	{
-		default:
-		case READONLY:
-			iFlags = SQLITE_OPEN_READONLY;
-			break;
-
-		case READWRITE:
-			iFlags = SQLITE_OPEN_READWRITE;
-			break;
-
-		case READWRITECREATE:
-			iFlags = SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE;
-			break;
-	}
-	sqlite3* db = m_DB;
-	auto ret = sqlite3_open_v2(m_sFilename.c_str(), &db, iFlags, nullptr);
-	if (ret != SQLITE_OK)
-	{
-		SetError();
-		sqlite3_close(db);
-		db = nullptr;
-	}
-
-} // ctor
+	return (ec == SQLITE_OK);
+}
 
 //--------------------------------------------------------------------------------
-Database::~Database()
+detail::DBConnector::DBConnector(StringViewZ sFilename, Mode iMode)
+//--------------------------------------------------------------------------------
+{
+	Connect(sFilename, iMode);
+
+} // ctor DBConnector
+
+//--------------------------------------------------------------------------------
+detail::DBConnector::DBConnector(const DBConnector& other)
+//--------------------------------------------------------------------------------
+{
+	Connect(other.Filename(), other.m_iMode);
+
+} // copy ctor DBConnector
+
+//--------------------------------------------------------------------------------
+detail::DBConnector::~DBConnector()
+//--------------------------------------------------------------------------------
+{
+	sqlite3_close(m_DB);
+
+} // dtor DBConnector
+
+//--------------------------------------------------------------------------------
+bool detail::DBConnector::Connect(StringViewZ sFilename, Mode iMode)
+//--------------------------------------------------------------------------------
+{
+	if (m_DB == nullptr)
+	{
+		m_iMode = iMode;
+
+		int iFlags;
+		switch (m_iMode)
+		{
+			default:
+			case READONLY:
+				iFlags = SQLITE_OPEN_READONLY;
+				break;
+
+			case READWRITE:
+				iFlags = SQLITE_OPEN_READWRITE;
+				break;
+
+			case READWRITECREATE:
+				iFlags = SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE;
+				break;
+		}
+		auto ec = sqlite3_open_v2(sFilename.c_str(), &m_DB, iFlags, nullptr);
+		if (ec == SQLITE_OK)
+		{
+			return true;
+		}
+		else
+		{
+			sqlite3_close(m_DB);
+			m_DB = nullptr;
+		}
+	}
+
+	return false;
+
+} // Connect
+
+//--------------------------------------------------------------------------------
+StringViewZ detail::DBConnector::Filename() const
+//--------------------------------------------------------------------------------
+{
+	return sqlite3_db_filename(m_DB, "main");
+}
+
+//--------------------------------------------------------------------------------
+detail::DBConnector::size_type detail::DBConnector::AffectedRows()
+//--------------------------------------------------------------------------------
+{
+	return sqlite3_changes(m_DB);
+}
+
+//--------------------------------------------------------------------------------
+detail::DBConnector::size_type detail::DBConnector::LastInsertID()
+//--------------------------------------------------------------------------------
+{
+	return sqlite3_last_insert_rowid(m_DB);
+}
+
+//--------------------------------------------------------------------------------
+StringViewZ detail::DBConnector::Error() const
 //--------------------------------------------------------------------------------
 {
 	if (m_DB)
 	{
-		auto ret = sqlite3_close(m_DB);
-		if (ret)
+		auto ec = IsError();
+		if (ec)
 		{
-			SetError("database is locked");
+			return sqlite3_errstr(ec);
+		}
+		else
+		{
+			return {};
 		}
 	}
+	return "no database connection";
+}
 
-} // dtor
+//--------------------------------------------------------------------------------
+int detail::DBConnector::IsError() const
+//--------------------------------------------------------------------------------
+{
+	if (m_DB)
+	{
+		return sqlite3_extended_errcode(m_DB);
+	}
+	else
+	{
+		return SQLITE_CANTOPEN;
+	}
+}
+
+//=================================== Database ===================================
+
+//--------------------------------------------------------------------------------
+Database::Database(StringViewZ sFilename, Mode iMode)
+//--------------------------------------------------------------------------------
+	: m_Connector(std::make_shared<detail::DBConnector>(sFilename, iMode))
+{
+} // ctor
+
+//--------------------------------------------------------------------------------
+Database::Database(const Database& other)
+//--------------------------------------------------------------------------------
+	: m_Connector(std::make_shared<detail::DBConnector>(*other.Connector()))
+{
+} // copy ctor
+
+//--------------------------------------------------------------------------------
+bool Database::Connect(StringViewZ sFilename, Mode iMode)
+//--------------------------------------------------------------------------------
+{
+	m_Connector = std::make_shared<detail::DBConnector>();
+	return Connector()->Connect(sFilename, iMode);
+
+} // Connect
+
+//--------------------------------------------------------------------------------
+Statement Database::Prepare(StringView sQuery)
+//--------------------------------------------------------------------------------
+{
+	return Statement(*this, sQuery);
+}
 
 //--------------------------------------------------------------------------------
 bool Database::ExecuteVoid(StringViewZ sQuery)
 //--------------------------------------------------------------------------------
 {
-	auto ret = sqlite3_exec(m_DB, sQuery.c_str(), nullptr, nullptr, nullptr);
-	return Check(ret);
+	return Success(sqlite3_exec(*Connector(), sQuery.c_str(), nullptr, nullptr, nullptr));
 
 } // Execute
 
@@ -135,41 +242,19 @@ Database::result_type Database::Execute(StringViewZ sQuery)
 //--------------------------------------------------------------------------------
 {
 	result_type ResultSet;
-	auto ret = sqlite3_exec(m_DB, sQuery.c_str(), ResultCallback, &ResultSet, nullptr);
-	Check(ret);
+	sqlite3_exec(*Connector(), sQuery.c_str(), ResultCallback, &ResultSet, nullptr);
 	return ResultSet;
 
 } // Execute
-
-//--------------------------------------------------------------------------------
-Database::size_type Database::AffectedRows()
-//--------------------------------------------------------------------------------
-{
-	return sqlite3_changes(m_DB);
-}
-
-//--------------------------------------------------------------------------------
-Database::size_type Database::LastInsertID() const noexcept
-//--------------------------------------------------------------------------------
-{
-	return sqlite3_last_insert_rowid(m_DB);
-}
 
 //--------------------------------------------------------------------------------
 bool Database::Key(StringView sKey)
 //--------------------------------------------------------------------------------
 {
 #ifdef SQLITE_HAS_CODEC
-	if (!sKey.empty())
-	{
-		return Check(sqlite3_key(m_DB, sKey.data(), sKey.size()));
-	}
-	else
-	{
-		return SetError("empty key");
-	}
+	return Success(sqlite3_key(*Connector(), sKey.data(), sKey.size()));
 #else
-	return SetError("this version of SQLite does not support encryption");
+	return false;
 #endif
 
 } // Key
@@ -179,9 +264,9 @@ bool Database::Rekey(StringView sKey)
 //--------------------------------------------------------------------------------
 {
 #ifdef SQLITE_HAS_CODEC
-	return Check(sqlite3_rekey(m_DB, sKey.data(), sKey.size()));
+	return Success(sqlite3_rekey(*Connector(), sKey.data(), sKey.size()));
 #else
-	return SetError("this version of SQLite does not support encryption");
+	return false;
 #endif
 
 } // Rekey
@@ -205,67 +290,25 @@ bool Database::IsEncrypted(StringViewZ sFilename)
 
 } // IsEncrypted
 
-//--------------------------------------------------------------------------------
-bool Database::Check(int iReturn)
-//--------------------------------------------------------------------------------
-{
-	if (iReturn == SQLITE_OK)
-	{
-		SetError(StringView{});
-		return true;
-	}
-	else
-	{
-		return SetError(sqlite3_errstr(iReturn));
-	}
-
-} // Check
-
-//--------------------------------------------------------------------------------
-bool Database::SetError(StringView sError) const
-//--------------------------------------------------------------------------------
-{
-	m_sError = sError;
-	return false;
-
-} // SetError
-
-//--------------------------------------------------------------------------------
-bool Database::SetError() const
-//--------------------------------------------------------------------------------
-{
-	if (m_DB)
-	{
-		return SetError(sqlite3_errmsg(m_DB));
-	}
-	else
-	{
-		return SetError("no database handle");
-	}
-
-} // SetError
-
 //=================================== RowBase ====================================
 
 //--------------------------------------------------------------------------------
-detail::RowBase::RowBase(Database& database, StringView sQuery)
+Row::RowBase::RowBase(Database& database, StringView sQuery)
 //--------------------------------------------------------------------------------
-	: m_DB(database)
-	, m_sQuery(sQuery)
+	: m_Connector(database)
 {
-	sqlite3_prepare_v2(m_DB, m_sQuery.data(), m_sQuery.size(), &m_Statement, nullptr);
+	sqlite3_prepare_v2(*m_Connector, sQuery.data(), sQuery.size(), &m_Statement, nullptr);
 	m_iColumnCount = sqlite3_column_count(m_Statement);
 
 } // ctor RowBase
 
 //--------------------------------------------------------------------------------
-detail::RowBase::~RowBase()
+Row::RowBase::~RowBase()
 //--------------------------------------------------------------------------------
 {
 	if (m_Statement)
 	{
-		sqlite3_reset(m_Statement);
-		sqlite3_clear_bindings(m_Statement);
+		sqlite3_finalize(m_Statement);
 	}
 
 } // dtor RowBase
@@ -275,17 +318,17 @@ detail::RowBase::~RowBase()
 //--------------------------------------------------------------------------------
 Row::Row(Database& database, StringView sQuery)
 //--------------------------------------------------------------------------------
-: m_Row(std::make_shared<detail::RowBase>(database, sQuery))
+	: m_Row(std::make_shared<RowBase>(database, sQuery))
 {
 }
 
 //--------------------------------------------------------------------------------
-Column Row::GetColumn(ColIndex iZeroBasedIndex)
+Column Row::Column(ColIndex iZeroBasedIndex)
 //--------------------------------------------------------------------------------
 {
 	if (iZeroBasedIndex < m_Row->m_iColumnCount)
 	{
-		return Column(*this, iZeroBasedIndex);
+		return KSQLite::Column(*this, iZeroBasedIndex);
 	}
 	else
 	{
@@ -295,10 +338,10 @@ Column Row::GetColumn(ColIndex iZeroBasedIndex)
 }
 
 //--------------------------------------------------------------------------------
-Column Row::GetColumn(StringView sColName)
+Column Row::Column(StringView sColName)
 //--------------------------------------------------------------------------------
 {
-	return GetColumn(GetColIndex(sColName));
+	return Column(GetColIndex(sColName));
 }
 
 //--------------------------------------------------------------------------------
@@ -307,9 +350,10 @@ Row::ColIndex Row::GetColIndex(StringView sColName)
 {
 	if (m_Row->m_NameMap.empty())
 	{
+		// build the column to index map
 		for (int iCount = 0; iCount < size(); ++iCount)
 		{
-			m_Row->m_NameMap.insert({sqlite3_column_name(m_Row->m_Statement, iCount), iCount});
+			m_Row->m_NameMap.insert({sqlite3_column_name(Statement(), iCount), iCount});
 		}
 	}
 
@@ -327,14 +371,72 @@ Row::ColIndex Row::GetColIndex(StringView sColName)
 Column Row::operator[](ColIndex iZeroBasedIndex)
 //--------------------------------------------------------------------------------
 {
-	return GetColumn(iZeroBasedIndex);
+	return Column(iZeroBasedIndex);
 }
 
 //--------------------------------------------------------------------------------
 Column Row::operator[](StringView sColName)
 //--------------------------------------------------------------------------------
 {
-	return GetColumn(sColName);
+	return Column(sColName);
+}
+
+//--------------------------------------------------------------------------------
+StringViewZ Row::GetQuery() const
+//--------------------------------------------------------------------------------
+{
+	return sqlite3_sql(*m_Row);
+}
+
+//--------------------------------------------------------------------------------
+bool Row::Reset(bool bClearBindings) noexcept
+//--------------------------------------------------------------------------------
+{
+	auto ec = sqlite3_reset(*m_Row);
+	if (ec == SQLITE_OK && bClearBindings)
+	{
+		ec = sqlite3_clear_bindings(*m_Row);
+	}
+	m_Row->m_bIsDone = false;
+	m_Row->m_bIsValid = false;
+
+	return Success(ec);
+
+}
+
+//--------------------------------------------------------------------------------
+bool Row::Next()
+//--------------------------------------------------------------------------------
+{
+	if (m_Row->m_bIsDone)
+	{
+		SetIsValid(false);
+	}
+	else
+	{
+		auto ec = sqlite3_step(*m_Row);
+
+		if (ec == SQLITE_ROW)
+		{
+			SetIsValid(true);
+			return true;
+		}
+		else
+		{
+			m_Row->m_bIsDone = ec == SQLITE_DONE;
+			SetIsValid(false);
+		}
+	}
+	return false;
+
+}
+
+//--------------------------------------------------------------------------------
+Row& Row::operator++()
+//--------------------------------------------------------------------------------
+{
+	Next();
+	return *this;
 }
 
 //================================== Statement ===================================
@@ -350,71 +452,108 @@ Statement::Statement(Database& database, StringView sQuery)
 bool Statement::Bind(ParIndex iOneBasedIndex, int64_t iValue)
 //--------------------------------------------------------------------------------
 {
-	return sqlite3_bind_int64(m_Row.Statement(), iOneBasedIndex, iValue) == SQLITE_OK;
+	return Success(sqlite3_bind_int64(m_Row, iOneBasedIndex, iValue));
 }
 
 //--------------------------------------------------------------------------------
 bool Statement::Bind(ParIndex iOneBasedIndex, double iValue)
 //--------------------------------------------------------------------------------
 {
-	return sqlite3_bind_double(m_Row.Statement(), iOneBasedIndex, iValue) == SQLITE_OK;
+	return Success(sqlite3_bind_double(m_Row, iOneBasedIndex, iValue));
 }
 
 //--------------------------------------------------------------------------------
-bool Statement::Bind(ParIndex iOneBasedIndex, StringView sValue)
+bool Statement::Bind(ParIndex iOneBasedIndex, StringView sValue, bool bCopy)
 //--------------------------------------------------------------------------------
 {
-	return sqlite3_bind_text(m_Row.Statement(), iOneBasedIndex, sValue.data(), sValue.size(), SQLITE_STATIC) == SQLITE_OK;
+	return Success(sqlite3_bind_text(m_Row, iOneBasedIndex, sValue.data(), sValue.size(), bCopy ? SQLITE_TRANSIENT : SQLITE_STATIC));
 }
 
 //--------------------------------------------------------------------------------
-bool Statement::Bind(ParIndex iOneBasedIndex, void* pValue, size_type iSize)
+bool Statement::Bind(ParIndex iOneBasedIndex, void* pValue, size_type iSize, bool bCopy)
 //--------------------------------------------------------------------------------
 {
-	return sqlite3_bind_blob(m_Row.Statement(), iOneBasedIndex, pValue, iSize, SQLITE_STATIC) == SQLITE_OK;
+	return Success(sqlite3_bind_blob(m_Row, iOneBasedIndex, pValue, iSize, bCopy ? SQLITE_TRANSIENT : SQLITE_STATIC));
 }
 
 //--------------------------------------------------------------------------------
 bool Statement::Bind(ParIndex iOneBasedIndex)
 //--------------------------------------------------------------------------------
 {
-	return sqlite3_bind_null(m_Row.Statement(), iOneBasedIndex) == SQLITE_OK;
+	return Success(sqlite3_bind_null(m_Row, iOneBasedIndex));
 }
+
+//--------------------------------------------------------------------------------
+bool Statement::Reset(bool bClearBindings)
+//--------------------------------------------------------------------------------
+{
+	return m_Row.Reset(bClearBindings);
+
+} // Reset
 
 //--------------------------------------------------------------------------------
 bool Statement::NextRow()
 //--------------------------------------------------------------------------------
 {
-	auto ret = sqlite3_step(m_Row.Statement());
-
-	if (ret == SQLITE_ROW)
-	{
-		m_Row.SetIsValid(true);
-		return true;
-	}
-	else
-	{
-		m_Row.SetIsValid(false);
-		return false;
-	}
+	return m_Row.Next();
 
 } // Next
+
+//--------------------------------------------------------------------------------
+bool Statement::Execute()
+//--------------------------------------------------------------------------------
+{
+	bool bRet = m_Row.Next();
+	if (m_Row.Done())
+	{
+		bRet = true;
+	}
+	return bRet;
+
+} // Execute
+
+//--------------------------------------------------------------------------------
+Statement::iterator::iterator(class Row& row, bool bToEnd)
+//--------------------------------------------------------------------------------
+: m_pRow(bToEnd ? nullptr : &row)
+{
+	if (m_pRow && m_pRow->empty())
+	{
+		m_pRow = nullptr;
+	}
+
+} // ctor iterator
+
+//--------------------------------------------------------------------------------
+Statement::iterator& Statement::iterator::operator++()
+//--------------------------------------------------------------------------------
+{
+	if (m_pRow)
+	{
+		if (!m_pRow->Next())
+		{
+			m_pRow = nullptr;
+		}
+	}
+	return *this;
+	
+} // operator++
 
 //--------------------------------------------------------------------------------
 Statement::ParIndex Statement::GetParIndex(StringViewZ sParName)
 //--------------------------------------------------------------------------------
 {
-	return sqlite3_bind_parameter_index(m_Row.Statement(), sParName.c_str());
+	return sqlite3_bind_parameter_index(m_Row, sParName.c_str());
 }
 
 //=================================== Column =====================================
 
 //--------------------------------------------------------------------------------
-KStringViewZ Column::GetName()
+StringViewZ Column::GetName()
 //--------------------------------------------------------------------------------
 {
 #ifdef SQLITE_ENABLE_COLUMN_METADATA
-	return sqlite3_column_origin_name(m_Row.Statement(), m_Index);
+	return sqlite3_column_origin_name(m_Row, m_Index);
 #else
 	return {};
 #endif
@@ -422,78 +561,78 @@ KStringViewZ Column::GetName()
 } // GetName
 
 //--------------------------------------------------------------------------------
-KStringViewZ Column::GetNameAs()
+StringViewZ Column::GetNameAs()
 //--------------------------------------------------------------------------------
 {
-	return sqlite3_column_name(m_Row.Statement(), m_Index);
+	return sqlite3_column_name(m_Row, m_Index);
 
 } // GetNameAs
 
 //--------------------------------------------------------------------------------
-int32_t Column::GetInt32()
+int32_t Column::Int32()
 //--------------------------------------------------------------------------------
 {
-	return sqlite3_column_int(m_Row.Statement(), m_Index);
+	return sqlite3_column_int(m_Row, m_Index);
 }
 
 //--------------------------------------------------------------------------------
-uint32_t Column::GetUInt32()
+uint32_t Column::UInt32()
 //--------------------------------------------------------------------------------
 {
-	return static_cast<uint32_t>(GetInt64());
+	return static_cast<uint32_t>(Int64());
 }
 
 //--------------------------------------------------------------------------------
-int64_t Column::GetInt64()
+int64_t Column::Int64()
 //--------------------------------------------------------------------------------
 {
-	return sqlite3_column_int64(m_Row.Statement(), m_Index);
+	return sqlite3_column_int64(m_Row, m_Index);
 }
 
 //--------------------------------------------------------------------------------
-uint64_t Column::GetUInt64()
+uint64_t Column::UInt64()
 //--------------------------------------------------------------------------------
 {
-	return static_cast<uint64_t>(GetInt64());
+	return static_cast<uint64_t>(Int64());
 }
 
 //--------------------------------------------------------------------------------
-double Column::GetDouble()
+double Column::Double()
 //--------------------------------------------------------------------------------
 {
-	return sqlite3_column_double(m_Row.Statement(), m_Index);
+	return sqlite3_column_double(m_Row, m_Index);
 }
 
 //--------------------------------------------------------------------------------
-KStringView Column::GetText()
+StringView Column::String()
 //--------------------------------------------------------------------------------
 {
-	auto p = reinterpret_cast<const char*>(sqlite3_column_text(m_Row.Statement(), m_Index));
-	return KStringView(p, sqlite3_column_bytes(m_Row.Statement(), m_Index));
+	auto p = reinterpret_cast<const char*>(sqlite3_column_text(m_Row, m_Index));
+	return StringView(p, size());
 
-} // GetText
+} // String
 
 //--------------------------------------------------------------------------------
-KStringView Column::GetBLOB()
+StringView Column::Blob()
 //--------------------------------------------------------------------------------
 {
-	auto p = reinterpret_cast<const char*>(sqlite3_column_blob(m_Row.Statement(), m_Index));
-	return KStringView(p, sqlite3_column_bytes(m_Row.Statement(), m_Index));
+	auto p = reinterpret_cast<const char*>(sqlite3_column_blob(m_Row, m_Index));
+	return StringView(p, size());
 
-} // GetBLOB
+} // Blob
 
 //--------------------------------------------------------------------------------
 Column::size_type Column::size()
 //--------------------------------------------------------------------------------
 {
-	return sqlite3_column_bytes(m_Row.Statement(), m_Index);
+	return sqlite3_column_bytes(m_Row, m_Index);
 }
 
 //--------------------------------------------------------------------------------
-Column::Type Column::GetType()
+Column::ColType Column::Type()
 //--------------------------------------------------------------------------------
 {
-	switch (sqlite3_column_type(m_Row.Statement(), m_Index))
+	switch (sqlite3_column_type(m_Row, m_Index))
 	{
 		case SQLITE_INTEGER:
 			return Integer;

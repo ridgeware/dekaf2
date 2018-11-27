@@ -1,0 +1,75 @@
+#include "catch.hpp"
+
+#include <dekaf2/ksqlite.h>
+#include <dekaf2/kfilesystem.h>
+#include <vector>
+
+#ifdef DEKAF2_HAS_SQLITE3
+
+using namespace dekaf2;
+
+TEST_CASE("KSQLite")
+{
+	SECTION("Basic creation")
+	{
+		kRemoveFile("/tmp/sqlite_test.db");
+
+		KSQLite::Database db("/tmp/sqlite_test.db", KSQLite::Mode::READWRITECREATE);
+
+		if (!db.ExecuteVoid (
+						 "create table TEST_KSQL (\n"
+						 "    anum      integer       primary key,\n"
+						 "    astring   varchar(100)  null,\n"
+						 "    bigstring BLOB          null\n"
+						 ")"))
+		{
+			FAIL_CHECK (db.Error());
+		}
+
+		auto Insert = db.Prepare("insert into TEST_KSQL (anum,astring,bigstring) values (NULL,?1,?2)");
+
+		for (int ct = 1; ct < 1000; ++ct)
+		{
+			bool bOK = Insert.Bind(1, KString::to_string(ct));
+			CHECK ( bOK );
+			bOK = Insert.Bind(2, KString::to_string(ct+1000));
+			CHECK ( bOK );
+			if (!Insert.Execute())
+			{
+				FAIL_CHECK (db.Error());
+			}
+			bOK = Insert.Reset();
+			CHECK ( bOK );
+		}
+
+		auto Search = db.Prepare("select anum,astring,bigstring from TEST_KSQL where astring=?1");
+		CHECK ( Search.Bind(1, 91) == true );
+		CHECK ( Search.NextRow() == true );
+		auto Row = Search.Row();
+		CHECK ( Row.size() == 3 );
+		CHECK ( Row.empty() == false );
+		CHECK ( Row.GetColIndex("bigstring") == 2 );
+		CHECK ( Row.Column(1).Int32() == 91 );
+		CHECK ( Row.Column(0).Int32() == 91 );
+		CHECK ( Row.Column(2).Int32() == 1091 );
+
+		auto Range = db.Prepare("select anum,astring,bigstring from TEST_KSQL where anum > 100 and anum < 110");
+		int iCt = 100;
+		Range.Execute();
+		for (auto it : Range)
+		{
+			++iCt;
+			CHECK ( it.size() == 3 );
+			CHECK ( it.empty() == false );
+			CHECK ( it.Column(1).Int32() == iCt );
+			CHECK ( it.Column(0).Int32() == iCt );
+			CHECK ( it.Column(2).Int32() == iCt + 1000 );
+			CHECK ( it[1].Int32() == iCt );
+			CHECK ( it[0].Int32() == iCt );
+			CHECK ( it[2].Int32() == iCt + 1000 );
+		}
+	}
+}
+
+#endif
+

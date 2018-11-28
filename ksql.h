@@ -232,7 +232,7 @@ public:
 		}
 
 		bool bOK = ExecRawSQL (m_sLastSQL, 0, "ExecSQL");
-		kDebugLog (GetDebugLevel(), "[{}] {} rows affected.", m_iDebugID, m_iNumRowsAffected);
+		kDebugLog (GetDebugLevel(), "[{}] {} rows affected.", m_iNumRowsAffected);
 		return (bOK);
 
 	} // KSQL::ExecSQL
@@ -244,7 +244,7 @@ public:
 	template<class... Args>
 	bool ExecQuery (Args&&... args)
 	{
-		kDebugLog (3, "[{}]bool KSQL::ExecQuery()...", m_iDebugID);
+		kDebugLog (3, "KSQL::ExecQuery()...");
 
 		EndQuery ();
 		if (!OpenConnection())
@@ -271,7 +271,7 @@ public:
 	template<class... Args>
 	int64_t SingleIntQuery (Args&&... args)
 	{
-		kDebugLog (3, "[{}]long KSQL::SingleIntQuery()...", m_iDebugID);
+		kDebugLog (3, "KSQL::SingleIntQuery()...");
 
 		m_sLastSQL = kPrintf(std::forward<Args>(args)...);
 
@@ -466,8 +466,6 @@ private:
 protected:
 //----------
 
-	static std::atomic<uint32_t> s_ulDebugID;
-	uint32_t   m_iDebugID { ++s_ulDebugID };                // useful for tracing multiple instances of KSQL in debug log
 	Flags      m_iFlags { 0 };                  // set by calling SetFlags()
 	int        m_iErrorNum { 0 };               // db error number (e.g. ORA code)
 #if defined(DEKAF2_HAS_MYSQL)

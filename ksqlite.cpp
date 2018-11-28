@@ -323,12 +323,12 @@ Row::Row(Database& database, StringView sQuery)
 }
 
 //--------------------------------------------------------------------------------
-Column Row::Column(ColIndex iZeroBasedIndex)
+Column Row::Col(ColIndex iZeroBasedIndex)
 //--------------------------------------------------------------------------------
 {
 	if (iZeroBasedIndex < m_Row->m_iColumnCount)
 	{
-		return KSQLite::Column(*this, iZeroBasedIndex);
+		return Column(*this, iZeroBasedIndex);
 	}
 	else
 	{
@@ -338,10 +338,10 @@ Column Row::Column(ColIndex iZeroBasedIndex)
 }
 
 //--------------------------------------------------------------------------------
-Column Row::Column(StringView sColName)
+Column Row::Col(StringView sColName)
 //--------------------------------------------------------------------------------
 {
-	return Column(GetColIndex(sColName));
+	return Col(GetColIndex(sColName));
 }
 
 //--------------------------------------------------------------------------------
@@ -371,14 +371,14 @@ Row::ColIndex Row::GetColIndex(StringView sColName)
 Column Row::operator[](ColIndex iZeroBasedIndex)
 //--------------------------------------------------------------------------------
 {
-	return Column(iZeroBasedIndex);
+	return Col(iZeroBasedIndex);
 }
 
 //--------------------------------------------------------------------------------
 Column Row::operator[](StringView sColName)
 //--------------------------------------------------------------------------------
 {
-	return Column(sColName);
+	return Col(sColName);
 }
 
 //--------------------------------------------------------------------------------
@@ -611,15 +611,6 @@ StringView Column::String()
 	return StringView(p, size());
 
 } // String
-
-//--------------------------------------------------------------------------------
-StringView Column::Blob()
-//--------------------------------------------------------------------------------
-{
-	auto p = reinterpret_cast<const char*>(sqlite3_column_blob(m_Row, m_Index));
-	return StringView(p, size());
-
-} // Blob
 
 //--------------------------------------------------------------------------------
 Column::size_type Column::size()

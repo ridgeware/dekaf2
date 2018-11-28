@@ -42,31 +42,45 @@ TEST_CASE("KSQLite")
 			CHECK ( bOK );
 		}
 
-		auto Search = db.Prepare("select anum,astring,bigstring from TEST_KSQL where astring=?1");
-		CHECK ( Search.Bind(1, 91) == true );
-		CHECK ( Search.NextRow() == true );
-		auto Row = Search.Row();
-		CHECK ( Row.size() == 3 );
-		CHECK ( Row.empty() == false );
-		CHECK ( Row.GetColIndex("bigstring") == 2 );
-		CHECK ( Row.Column(1).Int32() == 91 );
-		CHECK ( Row.Column(0).Int32() == 91 );
-		CHECK ( Row.Column(2).Int32() == 1091 );
-
-		auto Range = db.Prepare("select anum,astring,bigstring from TEST_KSQL where anum > 100 and anum < 110");
-		int iCt = 100;
-		Range.Execute();
-		for (auto it : Range)
 		{
-			++iCt;
-			CHECK ( it.size() == 3 );
-			CHECK ( it.empty() == false );
-			CHECK ( it.Column(1).Int32() == iCt );
-			CHECK ( it.Column(0).Int32() == iCt );
-			CHECK ( it.Column(2).Int32() == iCt + 1000 );
-			CHECK ( it[1].Int32() == iCt );
-			CHECK ( it[0].Int32() == iCt );
-			CHECK ( it[2].Int32() == iCt + 1000 );
+			auto Search = db.Prepare("select anum,astring,bigstring from TEST_KSQL where astring=?1");
+			CHECK ( Search.Bind(1, 91) == true );
+			CHECK ( Search.NextRow() == true );
+			auto Row = Search.GetRow();
+			CHECK ( Row.size() == 3 );
+			CHECK ( Row.empty() == false );
+			CHECK ( Row.GetColIndex("bigstring") == 2 );
+			CHECK ( Row.Col(1).Int32() == 91 );
+			CHECK ( Row.Col(0).Int32() == 91 );
+			CHECK ( Row.Col(2).Int32() == 1091 );
+		}
+
+		{
+			auto Range = db.Prepare("select anum,astring,bigstring from TEST_KSQL where anum > 100 and anum < 110");
+			auto Row = Range.GetRow();
+
+			Range.Execute();
+
+			CHECK ( Row["astring"].IsText() );
+			CHECK ( Row["anum"].IsInteger() );
+			CHECK ( Row["bigstring"].IsText() );
+
+			int iCt = 100;
+			for (auto it : Range)
+			{
+				++iCt;
+				CHECK ( it.size() == 3 );
+				CHECK ( it.empty() == false );
+				CHECK ( it.Col(1).Int32() == iCt );
+				CHECK ( it.Col(0).Int32() == iCt );
+				CHECK ( it.Col(2).Int32() == iCt + 1000 );
+				CHECK ( it[1].Int32() == iCt );
+				CHECK ( it[0].Int32() == iCt );
+				CHECK ( it[2].Int32() == iCt + 1000 );
+				CHECK ( it["astring"].Int32() == iCt );
+				CHECK ( it["anum"].Int32() == iCt );
+				CHECK ( it["bigstring"].Int32() == iCt + 1000 );
+			}
 		}
 	}
 }

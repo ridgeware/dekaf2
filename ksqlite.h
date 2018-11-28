@@ -159,6 +159,7 @@ enum Mode
 namespace detail {
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// internal database connector class
 struct DBConnector
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -204,6 +205,9 @@ using SharedConnector = std::shared_ptr<detail::DBConnector>;
 class Statement;
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// Database connection class - creates the database connector, and allows
+/// for high level tasks. Creates prepared statements and can be used for
+/// ad-hoc SQL queries.
 class Database
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -274,6 +278,8 @@ private:
 class Column;
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// Holds information about the result set structure, and gives access to any
+/// of the columns in the result set, either by index or name.
 class Row
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -293,14 +299,14 @@ public:
 	Row& operator=(Row&&) = default;
 
 	/// Get a column from the result row by index
-	class Column Column(ColIndex iZeroBasedIndex);
+	Column Col(ColIndex iZeroBasedIndex);
 	/// Get a column from the result row by name
-	class Column Column(StringView sColName);
+	Column Col(StringView sColName);
 	/// Returns column index for given name
 	ColIndex GetColIndex(StringView sColName);
 
-	class Column operator[](ColIndex iZeroBasedIndex);
-	class Column operator[](StringView sColName);
+	Column operator[](ColIndex iZeroBasedIndex);
+	Column operator[](StringView sColName);
 
 	/// Get the Query used to build the statement
 	StringViewZ GetQuery() const;
@@ -326,9 +332,11 @@ private:
 //----------
 
 	void SetIsValid(bool bYesno) const noexcept { m_Row->m_bIsValid = bYesno; }
-	void SetIsDone(bool bYesno)  const noexcept { m_Row->m_bIsDone = bYesno;  }
+	void SetIsDone(bool bYesno)  const noexcept { m_Row->m_bIsDone  = bYesno; }
 
 	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	/// internal struct to maintain all statement- and row-related data in one
+	/// place
 	struct RowBase
 	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	{
@@ -336,8 +344,8 @@ private:
 
 		RowBase() = default;
 		RowBase(const RowBase&) = delete;
-		RowBase& operator=(const RowBase&) = delete;
 		RowBase(RowBase&&) = default;
+		RowBase& operator=(const RowBase&) = delete;
 		RowBase& operator=(RowBase&&) = default;
 		RowBase(Database& database, StringView sQuery);
 		~RowBase();
@@ -365,6 +373,7 @@ private:
 }; // Row
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// Access on the data of one column
 class Column
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -409,10 +418,8 @@ public:
 	uint64_t UInt64();
 	/// Return column as a double
 	double Double();
-	/// Return column as a string (from a TEXT)
+	/// Return column as a string (from a TEXT or BLOB)
 	StringView String();
-	/// Return column as a string (from a BLOB)
-	StringView Blob();
 
 	/// Size of result string
 	size_type size();
@@ -529,7 +536,7 @@ public:
 	/// Execute a statement (same as NextRow(), except that it returns true on empty results)
 	bool Execute();
 	/// Get current row
-	class Row Row() { return m_Row; }
+	Row GetRow() { return m_Row; }
 	/// Do we have a result set?
 	bool empty() const { return m_Row.empty(); }
 	/// Get the Query used to build the statement

@@ -138,6 +138,7 @@ bool KROW::FormInsert (KString& sSQL, DBT iDBType, bool fIdentityInsert/*=false*
 //-----------------------------------------------------------------------------
 {
 	m_sLastError.clear(); // reset
+	sSQL.clear();
 
 	kDebugLog (3, "KROW:FormInsert: before: {}", sSQL);
 	
@@ -156,7 +157,6 @@ bool KROW::FormInsert (KString& sSQL, DBT iDBType, bool fIdentityInsert/*=false*
 		return (false);
 	}
 
-	sSQL.clear();
 	sSQL += kFormat("insert into {} (\n", GetTablename());
 
 	kDebugLog (3, "KROW:FormInsert: {}", GetTablename());
@@ -189,7 +189,7 @@ bool KROW::FormInsert (KString& sSQL, DBT iDBType, bool fIdentityInsert/*=false*
 		KString sHack = (it.second.sValue.empty()) ? "" : it.second.sValue; // TODO:JOACHIM: REMOVE ME
 		sHack.MakeLower();
 		sHack.Replace(" ","");
-		bool    bHack = (sHack == "now()");
+		bool    bHack = ((sHack == "now()") || (sHack == "{{now}}"));
 
 		if (it.second.sValue.empty() && !it.second.IsFlag (NULL_IS_NOT_NIL))
 		{
@@ -231,6 +231,7 @@ bool KROW::FormUpdate (KString& sSQL, DBT iDBType) const
 //-----------------------------------------------------------------------------
 {
 	m_sLastError.clear(); // reset
+	sSQL.clear();
 	
 	if (!size())
 	{
@@ -335,6 +336,7 @@ bool KROW::FormDelete (KString& sSQL, DBT iDBType) const
 //-----------------------------------------------------------------------------
 {
 	m_sLastError.clear(); // reset
+	sSQL.clear();
 
 	kDebugLog (3, "KROW:FormDelete: before: {}", sSQL);
 

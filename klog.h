@@ -600,6 +600,17 @@ KLog& KLog();
 }
 //---------------------------------------------------------------------------
 
+#ifdef kWarningLog
+#undef kWarningLog
+#endif
+//---------------------------------------------------------------------------
+/// log a warning message, do NOT automatically provide function name.
+#define kWarningLog(...) \
+{ \
+	dekaf2::KLog().debug(-1, __VA_ARGS__); \
+}
+//---------------------------------------------------------------------------
+
 #ifdef kException
 #undef kException
 #endif

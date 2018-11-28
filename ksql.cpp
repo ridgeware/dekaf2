@@ -187,7 +187,7 @@ static void*  kfree (void* dPointer, const char* sContext = nullptr )
 			free (dPointer);
 		}
 		DEKAF2_CATCH (EX) {
-			kWarning ("kfree: would have crashed on free() of 0x{} {}", 
+			kWarningLog ("kfree: would have crashed on free() of 0x{} {}", 
 				dPointer,
 				(sContext) ? " : "    : "",
 				(sContext) ? sContext : "");
@@ -207,7 +207,7 @@ void* kmalloc (uint32_t iNumBytes, const char* pszContext, bool bClearMemory = t
 	char* pszRawMemory = (char*) malloc (iNumBytes);
 	if (!pszRawMemory)
 	{
-		kWarning ("{}: server ran out of memory!  Could not grab {} bytes", pszContext, iNumBytes);
+		kWarningLog ("{}: server ran out of memory!  Could not grab {} bytes", pszContext, iNumBytes);
 		kCrashExit (CRASHCODE_MEMORY);
 	}
 	else if (bClearMemory)
@@ -1034,7 +1034,7 @@ bool KSQL::OpenConnection ()
 			}
 			else
 			{
-				kWarning ("[{}] {}", m_iDebugID, m_sLastError);
+				kWarningLog ("[{}] {}", m_iDebugID, m_sLastError);
 			}
 			return (false);
 		}
@@ -1261,7 +1261,7 @@ void KSQL::CloseConnection ()
 		case API::ODBC:
 		default:
 		// - - - - - - - - - - - - - - - - -
-			kWarning ("[{}] KSQL::CloseConnection(): unsupported API Set ({})", m_iDebugID, TxAPISet(m_iAPISet));
+			kWarningLog ("[{}] KSQL::CloseConnection(): unsupported API Set ({})", m_iDebugID, TxAPISet(m_iAPISet));
 			kCrashExit (CRASHCODE_DEKAFUSAGE);
 		}
 	}
@@ -1292,20 +1292,16 @@ void KSQL::SetErrorPrefix (KStringView sPrefix, uint32_t iLineNum/*=0*/)
 } // SetErrorPrefix
 
 //-----------------------------------------------------------------------------
-bool KSQL::ExecRawSQL (KStringView sSQL, Flags iFlags/*=0*/, KStringView sAPI/*="ExecRawSQL"*/)
+bool KSQL::ExecRawSQL (const KString& sSQL, Flags iFlags/*=0*/, KStringView sAPI/*="ExecRawSQL"*/)
 //-----------------------------------------------------------------------------
 {
 	if (!(iFlags & F_NoKlogDebug) && !(m_iFlags & F_NoKlogDebug))
 	{
-		kDebugLog (GetDebugLevel(), "[{}]{}: {}\n", m_iDebugID, sAPI, m_sLastSQL);
+		kDebugLog (GetDebugLevel(), "[{}]{}: {}\n", m_iDebugID, sAPI, sSQL);
 	}
 
 	m_iNumRowsAffected = 0;
-
-	//if (sSQL != m_sLastSQL) { // be careful, we might have called ExecRawSQL() with m_sLastSQL already
-		m_sLastSQL = sSQL;
-	//}
-
+	m_sLastSQL = sSQL;
 	EndQuery();
 
 	bool   fOK          = false;
@@ -1338,11 +1334,11 @@ bool KSQL::ExecRawSQL (KStringView sSQL, Flags iFlags/*=0*/, KStringView sAPI/*=
 				}
 				if (!m_dMYSQL)
 				{
-					kDebug (1, "KSQL::ExecRawSQL: failed.  aborting query or SQL:\n{}", m_sLastSQL);
+					kDebug (1, "KSQL::ExecRawSQL: failed.  aborting query or SQL:\n{}", sSQL);
 					break; // once
 				}
-				kDebugLog (3, "mysql_query(): m_dMYSQL is {}, m_sLastSQL is {} bytes long", m_dMYSQL ? "not null" : "nullptr", m_sLastSQL.size());
-				if (mysql_query ((MYSQL*)m_dMYSQL, m_sLastSQL.c_str()))
+				kDebugLog (3, "mysql_query(): m_dMYSQL is {}, SQL is {} bytes long", m_dMYSQL ? "not null" : "nullptr", sSQL.size());
+				if (mysql_query ((MYSQL*)m_dMYSQL, sSQL.c_str()))
 				{
 					m_iErrorNum = mysql_errno ((MYSQL*)m_dMYSQL);
 					m_sLastError.Format ("{}MSQL-{}: {}", m_sErrorPrefix, GetLastErrorNum(), mysql_error((MYSQL*)m_dMYSQL));
@@ -1472,7 +1468,7 @@ bool KSQL::ExecRawSQL (KStringView sSQL, Flags iFlags/*=0*/, KStringView sAPI/*=
 		case API::ODBC:
 		default:
 		// - - - - - - - - - - - - - - - - -
-			kWarning ("[{}] KSQL::ExecSQL(): unsupported API Set ({})", m_iDebugID, TxAPISet(m_iAPISet));
+			kWarningLog ("[{}] KSQL::ExecSQL(): unsupported API Set ({})", m_iDebugID, TxAPISet(m_iAPISet));
 			kCrashExit (CRASHCODE_DEKAFUSAGE);
 
 		} // switch
@@ -1524,7 +1520,7 @@ bool KSQL::ExecRawSQL (KStringView sSQL, Flags iFlags/*=0*/, KStringView sAPI/*=
 				"KSQL: {} rows affected.\n",
 					m_iWarnIfOverNumSeconds,
 					kTranslateSeconds(tTook),
-					m_sLastSQL,
+					sSQL,
 					m_iNumRowsAffected);
 
 			if (m_bpWarnIfOverNumSeconds)
@@ -1534,7 +1530,7 @@ bool KSQL::ExecRawSQL (KStringView sSQL, Flags iFlags/*=0*/, KStringView sAPI/*=
 			}
 			else
 			{
-				kWarning ("{}", sWarning);
+				kWarningLog ("{}", sWarning);
 			}
 		}
 	}
@@ -1601,8 +1597,8 @@ bool KSQL::PreparedToRetry ()
 		}
 		else
 		{
-			kWarning ("[{}] {}", m_iDebugID, GetLastError());
-			kWarning ("[{}] automatic retry now in progress...", m_iDebugID);
+			kWarningLog ("[{}] {}", m_iDebugID, GetLastError());
+			kWarningLog ("[{}] automatic retry now in progress...", m_iDebugID);
 		}
 
 		CloseConnection ();
@@ -1617,7 +1613,7 @@ bool KSQL::PreparedToRetry ()
 		}
 		else
 		{
-			kWarning ("[{}] NEW CONNECTION FAILED.", m_iDebugID);
+			kWarningLog ("[{}] NEW CONNECTION FAILED.", m_iDebugID);
 		}
 
 		return (true); // <-- we are now prepare for automatic retry
@@ -1663,19 +1659,15 @@ bool KSQL::ParseSQL (KStringView sFormat, ...)
 } // ParseSQL
 
 //-----------------------------------------------------------------------------
-bool KSQL::ParseRawSQL (KStringView sSQL, int64_t iFlags/*=0*/, KStringView sAPI/*="ParseRawSQL"*/)
+bool KSQL::ParseRawSQL (const KString& sSQL, int64_t iFlags/*=0*/, KStringView sAPI/*="ParseRawSQL"*/)
 //-----------------------------------------------------------------------------
 {
 	if (!(iFlags & F_NoKlogDebug) && !(m_iFlags & F_NoKlogDebug))
 	{
-		kDebugLog (GetDebugLevel(), "[{}]{}: {}{}\n", m_iDebugID, sAPI, (strchr(m_sLastSQL,'\n')) ? "\n" : "", m_sLastSQL);
+		kDebugLog (GetDebugLevel(), "[{}]{}: {}{}\n", m_iDebugID, sAPI, (sSQL.Contains("\n")) ? "\n" : "", sSQL);
 	}
 
-	if (sSQL != m_sLastSQL)
-	{
-		m_sLastSQL = sSQL; // for error message display
-	}
-
+	m_sLastSQL = sSQL;
 	ResetErrorStatus ();
 
 	switch (m_iAPISet)
@@ -1698,7 +1690,7 @@ bool KSQL::ParseRawSQL (KStringView sSQL, int64_t iFlags/*=0*/, KStringView sAPI
 		// - - - - - - - - - - - - - - - - -
 		default:
 		// - - - - - - - - - - - - - - - - -
-			kWarning ("[{}] KSQL::ParseSQL(): unsupported API Set ({}={})", m_iDebugID, m_iAPISet, TxAPISet(m_iAPISet));
+			kWarningLog ("[{}] KSQL::ParseSQL(): unsupported API Set ({}={})", m_iDebugID, m_iAPISet, TxAPISet(m_iAPISet));
 			kCrashExit (CRASHCODE_DEKAFUSAGE);
 	}
 
@@ -1714,7 +1706,7 @@ bool KSQL::ExecParsedSQL ()
 {
 	if (!m_bStatementParsed)
 	{
-		kWarning ("[{}] KSQL::ExecParsedSQL(): ParseSQL() or ParseQuery() was not called yet.", m_iDebugID);
+		kWarningLog ("[{}] KSQL::ExecParsedSQL(): ParseSQL() or ParseQuery() was not called yet.", m_iDebugID);
 		kCrashExit (CRASHCODE_DEKAFUSAGE);
 		return (false);
 	}
@@ -1742,7 +1734,7 @@ bool KSQL::ExecParsedSQL ()
 		// - - - - - - - - - - - - - - - - -
 		default:
 		// - - - - - - - - - - - - - - - - -
-			kWarning ("[{}] KSQL::ExecParseSQL(): unsupported API Set ({}={})", m_iDebugID, m_iAPISet, TxAPISet(m_iAPISet));
+			kWarningLog ("[{}] KSQL::ExecParseSQL(): unsupported API Set ({}={})", m_iDebugID, m_iAPISet, TxAPISet(m_iAPISet));
 			kCrashExit (CRASHCODE_DEKAFUSAGE);
 	}
 
@@ -1972,7 +1964,7 @@ bool KSQL::ExecSQLFile (KStringViewZ sFilename)
 		// execute the SQL statement everytime we encounter a semicolon at the end:
 		if (fFoundDelimiter)
 		{
-			ExecSQLFileGo (sFilename, Parms);
+			ExecSQLFileGo (sFilename, Parms); // assumes m_sLastSQL contains the statement
 		}
 
 	} // while getting lines
@@ -1996,6 +1988,8 @@ bool KSQL::ExecSQLFile (KStringViewZ sFilename)
 void KSQL::ExecSQLFileGo (KStringView sFilename, SQLFileParms& Parms)
 //-----------------------------------------------------------------------------
 {
+	// assumes m_sLastSQL contains the statement to be executed
+
 	++Parms.iStatement;
 
 	if (Parms.fDropStatement)
@@ -2064,19 +2058,15 @@ void KSQL::ExecSQLFileGo (KStringView sFilename, SQLFileParms& Parms)
 } // ExecSQLFileGo
 
 //-----------------------------------------------------------------------------
-bool KSQL::ExecRawQuery (KStringView sSQL, Flags iFlags/*=0*/, KStringView sAPI/*="ExecRawQuery"*/)
+bool KSQL::ExecRawQuery (const KString& sSQL, Flags iFlags/*=0*/, KStringView sAPI/*="ExecRawQuery"*/)
 //-----------------------------------------------------------------------------
 {
 	if (!(iFlags & F_NoKlogDebug) && !(m_iFlags & F_NoKlogDebug))
 	{
-		kDebugLog (GetDebugLevel(), "[{}]{}: {}{}\n", m_iDebugID, sAPI, (strchr(m_sLastSQL.c_str(),'\n')) ? "\n" : "", m_sLastSQL);
+		kDebugLog (GetDebugLevel(), "[{}]{}: {}{}\n", m_iDebugID, sAPI, (sSQL.Contains("\n")) ? "\n" : "", sSQL);
 	}
 
-	if (sSQL != m_sLastSQL)
-	{
-		m_sLastSQL += sSQL;
-	}
-
+	m_sLastSQL = sSQL;
 	EndQuery();
 
 	time_t tStarted     = 0;
@@ -2538,7 +2528,7 @@ bool KSQL::ExecRawQuery (KStringView sSQL, Flags iFlags/*=0*/, KStringView sAPI/
 	case API::ODBC:
 	default:
 	// - - - - - - - - - - - - - - - - -
-		kWarning ("[{}] KSQL::ExecQuery(): unsupported API Set ({})", m_iDebugID, TxAPISet(m_iAPISet));
+		kWarningLog ("[{}] KSQL::ExecQuery(): unsupported API Set ({})", m_iDebugID, TxAPISet(m_iAPISet));
 		kCrashExit (CRASHCODE_DEKAFUSAGE);
 	}
 
@@ -2590,7 +2580,7 @@ bool KSQL::ExecRawQuery (KStringView sSQL, Flags iFlags/*=0*/, KStringView sAPI/
 				"{}\n",
 					m_iWarnIfOverNumSeconds,
 					kTranslateSeconds(tTook),
-					m_sLastSQL);
+					sSQL);
 
 			if (m_bpWarnIfOverNumSeconds)
 			{
@@ -2599,7 +2589,7 @@ bool KSQL::ExecRawQuery (KStringView sSQL, Flags iFlags/*=0*/, KStringView sAPI/
 			}
 			else
 			{
-				kWarning ("{}", sWarning);
+				kWarningLog ("{}", sWarning);
 			}
 		}
 	}
@@ -2651,19 +2641,15 @@ bool KSQL::ParseQuery (KStringView sFormat, ...)
 
 #ifdef DEKAF2_HAS_ORACLE
 //-----------------------------------------------------------------------------
-bool KSQL::ParseRawQuery (KStringView sSQL, int64_t iFlags/*=0*/, KStringView sAPI/*="ParseRawQuery"*/)
+bool KSQL::ParseRawQuery (const KString& sSQL, int64_t iFlags/*=0*/, KStringView sAPI/*="ParseRawQuery"*/)
 //-----------------------------------------------------------------------------
 {
 	if (!(iFlags & F_NoKlogDebug) && !(m_iFlags & F_NoKlogDebug))
 	{
-		kDebugLog (GetDebugLevel(), "[{}]{}: {}{}\n", m_iDebugID, sAPI, (strchr(m_sLastSQL.c_str(),'\n')) ? "\n" : "", m_sLastSQL);
+		kDebugLog (GetDebugLevel(), "[{}]{}: {}{}\n", m_iDebugID, sAPI, (sSQL.Contains("\n")) ? "\n" : "", sSQL);
 	}
 
-	if (sSQL != m_sLastSQL)
-	{
-		m_sLastSQL += sSQL; // for error message display
-	}
-
+	m_sLastSQL = sSQL;
 	ResetErrorStatus ();
 
 	switch (m_iAPISet)
@@ -2686,7 +2672,7 @@ bool KSQL::ParseRawQuery (KStringView sSQL, int64_t iFlags/*=0*/, KStringView sA
 		// - - - - - - - - - - - - - - - - -
 		default:
 		// - - - - - - - - - - - - - - - - -
-			kWarning ("[{}] KSQL::ParseQuery(): unsupported API Set ({}={})", m_iDebugID, m_iAPISet, TxAPISet(m_iAPISet));
+			kWarningLog ("[{}] KSQL::ParseQuery(): unsupported API Set ({}={})", m_iDebugID, m_iAPISet, TxAPISet(m_iAPISet));
 			kCrashExit (CRASHCODE_DEKAFUSAGE);
 	}
 
@@ -2706,7 +2692,7 @@ bool KSQL::ExecParsedQuery ()
 {
 	if (!m_bStatementParsed)
 	{
-		kWarning ("[{}] KSQL::ExecParsedQuery(): ParseQuery() was not called yet.", m_iDebugID);
+		kWarningLog ("[{}] KSQL::ExecParsedQuery(): ParseQuery() was not called yet.", m_iDebugID);
 		kCrashExit (CRASHCODE_DEKAFUSAGE);
 		return (false);
 	}
@@ -2834,7 +2820,7 @@ bool KSQL::ExecParsedQuery ()
 	// - - - - - - - - - - - - - - - - -
 	default:
 	// - - - - - - - - - - - - - - - - -
-		kWarning ("[{}] KSQL::ExecParsedQuery(): unsupported API Set ({}={})", m_iDebugID, m_iAPISet, TxAPISet(m_iAPISet));
+		kWarningLog ("[{}] KSQL::ExecParsedQuery(): unsupported API Set ({}={})", m_iDebugID, m_iAPISet, TxAPISet(m_iAPISet));
 		kCrashExit (CRASHCODE_DEKAFUSAGE);
 	}
 
@@ -3057,7 +3043,7 @@ bool KSQL::BufferResults ()
 	case API::ODBC:
 	default:
 	// - - - - - - - - - - - - - - - - -
-		kWarning ("[{}] KSQL:BufferResults(): unsupported API Set ({})", m_iDebugID, TxAPISet(m_iAPISet));
+		kWarningLog ("[{}] KSQL:BufferResults(): unsupported API Set ({})", m_iDebugID, TxAPISet(m_iAPISet));
 		kCrashExit (CRASHCODE_DEKAFUSAGE);
 	}
 	
@@ -3224,7 +3210,7 @@ bool KSQL::NextRow ()
 			case API::ODBC:
 			default:
 				// - - - - - - - - - - - - - - - - -
-				kWarning ("[{}] KSQL:NextRow(): unsupported API Set ({})", m_iDebugID, TxAPISet(m_iAPISet));
+				kWarningLog ("[{}] KSQL:NextRow(): unsupported API Set ({})", m_iDebugID, TxAPISet(m_iAPISet));
 				kCrashExit (CRASHCODE_DEKAFUSAGE);
 		}
 	}
@@ -3309,8 +3295,8 @@ bool KSQL::NextRow ()
 				}
 				else
 				{
-					kWarning ("[{}] NextRow(): CheckRowNum = {} [should be {}]", m_iDebugID, iCheckRowNum, m_iRowNum);
-					kWarning ("[{}] NextRow(): CheckColNum = {} [should be {}]", m_iDebugID, iCheckColNum, ii+1);
+					kWarningLog ("[{}] NextRow(): CheckRowNum = {} [should be {}]", m_iDebugID, iCheckRowNum, m_iRowNum);
+					kWarningLog ("[{}] NextRow(): CheckColNum = {} [should be {}]", m_iDebugID, iCheckColNum, ii+1);
 				}
 				m_sLastError.Format ("{}NextRow(): buffered results stat line out of sync for row={}, col={}", m_sErrorPrefix, 
 					(uint64_t)m_iRowNum, ii+1);
@@ -3427,7 +3413,7 @@ void KSQL::FreeBufferedColArray (bool fValuesOnly/*=false*/)
 } // FreeBufferedColArray
 
 //-----------------------------------------------------------------------------
-int64_t KSQL::SingleIntRawQuery (KStringView sSQL, Flags iFlags/*=0*/, KStringView sAPI/*="SingleIntRawQuery"*/)
+int64_t KSQL::SingleIntRawQuery (const KString& sSQL, Flags iFlags/*=0*/, KStringView sAPI/*="SingleIntRawQuery"*/)
 //-----------------------------------------------------------------------------
 {
 	EndQuery ();
@@ -3684,7 +3670,7 @@ KStringView KSQL::Get (KROW::Index iOneBasedColNum, bool fTrimRight/*=true*/)
 			case API::ODBC:
 			default:
 			// - - - - - - - - - - - - - - - - -
-				kWarning ("[{}] KSQL: unsupported API Set ({})", m_iDebugID, TxAPISet(m_iAPISet));
+				kWarningLog ("[{}] KSQL: unsupported API Set ({})", m_iDebugID, TxAPISet(m_iAPISet));
 				kCrashExit (CRASHCODE_DEKAFUSAGE);
 		}
 
@@ -3812,10 +3798,10 @@ bool KSQL::SQLError (bool fForceError/*=false*/)
 	}
 	else
 	{			
-		kWarning ("[{}] {}", m_iDebugID, m_sLastError);
+		kWarningLog ("[{}] {}", m_iDebugID, m_sLastError);
 		if (!m_sLastSQL.empty())
 		{
-			kWarning ("[{}] {}", m_iDebugID, m_sLastSQL);
+			kWarningLog ("[{}] {}", m_iDebugID, m_sLastSQL);
 		}
 	}
 
@@ -4591,16 +4577,15 @@ bool KSQL::DescribeTable (KStringView sTablename)
 	case DBT::ORACLE:
 	// - - - - - - - - - - - - - - - - - - - - - - - -
 		{
-		char szSchemaOwner[50+1];
-		kstrncpy (szSchemaOwner, KString(GetDBUser()).c_str(), 50+1);
-		KASCII::ktoupper (szSchemaOwner);
+		KString sSchemaOwner = GetDBUser();
+		sSchemaOwner.MakeUpper();
 		return (ExecQuery (
 			"select column_name, data_type, nullable, data_length, data_precision, ''\n"
 			"  from DBA_TAB_COLUMNS\n"
 			" where owner = '{}'\n"
 			"   and table_name = '{}'\n"
 			" order by column_id", 
-				szSchemaOwner, sTablename));
+				sSchemaOwner, sTablename));
 		}
 
 	// - - - - - - - - - - - - - - - - - - - - - - - -
@@ -5313,8 +5298,6 @@ bool KSQL::BindByPos (uint32_t iPosition, uint64_t* piValue)
 bool KSQL::Insert (KROW& Row)
 //-----------------------------------------------------------------------------
 {
-	m_sLastSQL.clear();
-	
 	if (!Row.FormInsert (m_sLastSQL, m_iDBType))
 	{
 		m_sLastError = Row.GetLastError();
@@ -5338,8 +5321,6 @@ bool KSQL::Insert (KROW& Row)
 bool KSQL::Update (KROW& Row)
 //-----------------------------------------------------------------------------
 {
-	m_sLastSQL.clear();
-
 	if (!Row.FormUpdate (m_sLastSQL, m_iDBType))
 	{
 		m_sLastError = Row.GetLastError();
@@ -5363,8 +5344,6 @@ bool KSQL::Update (KROW& Row)
 bool KSQL::Delete (KROW& Row)
 //-----------------------------------------------------------------------------
 {
-	m_sLastSQL.clear();
-
 	if (!Row.FormDelete (m_sLastSQL, m_iDBType))
 	{
 		m_sLastError.Format("{}", Row.GetLastError());
@@ -5570,7 +5549,7 @@ bool KSQL::ctlib_logout ()
 } // ctlib_logout
 
 //-----------------------------------------------------------------------------
-bool KSQL::ctlib_execsql (KStringView sSQL)
+bool KSQL::ctlib_execsql (const KString& sSQL)
 //-----------------------------------------------------------------------------
 {
 	m_iNumRowsAffected = 0;
@@ -6109,7 +6088,7 @@ void KSQL::ctlib_flush_results ()
 #endif
 
 //-----------------------------------------------------------------------------
-size_t KSQL::OutputQuery (KStringView sSQL, KStringView sFormat, FILE* fpout/*=stdout*/)
+size_t KSQL::OutputQuery (const KString& sSQL, KStringView sFormat, FILE* fpout/*=stdout*/)
 //-----------------------------------------------------------------------------
 {
 	int iFormat = FORM_ASCII;
@@ -6132,7 +6111,7 @@ size_t KSQL::OutputQuery (KStringView sSQL, KStringView sFormat, FILE* fpout/*=s
 } // OutputQuery
 
 //-----------------------------------------------------------------------------
-size_t KSQL::OutputQuery (KStringView sSQL, int iFormat/*=FORM_ASCII*/, FILE* fpout/*=stdout*/)
+size_t KSQL::OutputQuery (const KString& sSQL, int iFormat/*=FORM_ASCII*/, FILE* fpout/*=stdout*/)
 //-----------------------------------------------------------------------------
 {
 	if (!ExecRawQuery (sSQL, GetFlags(), "OutputQuery"))

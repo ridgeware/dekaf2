@@ -44,7 +44,7 @@
 #include "bits/kcppcompat.h"
 #include "kstring.h"
 #include "kstack.h"
-#include "kspli.h"
+#include "ksplit.h"
 #include "kinshell.h"
 #include "kgetruntimestack.h"
 

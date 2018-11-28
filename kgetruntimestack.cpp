@@ -293,7 +293,7 @@ namespace kgetruntimestack_detail
 {
 
 //-----------------------------------------------------------------------------
-KString GetBacktraceBased_Callstack_ (int iSkipStackLines)
+KString GetBacktraceBased_Callstack_ (int iSkipStackLines /*=2*/)
 //-----------------------------------------------------------------------------
 {
 	KString sStack;
@@ -342,7 +342,7 @@ KString GetBacktraceBased_Callstack_ (int iSkipStackLines)
 #endif
 
 //-----------------------------------------------------------------------------
-KString kGetRuntimeStack ()
+KString kGetRuntimeStack (int iSkipStackLines /*=2*/);
 //-----------------------------------------------------------------------------
 {
 	KString sStack;
@@ -355,7 +355,7 @@ KString kGetRuntimeStack ()
 	// fall back to libc based backtrace if GDB is not available
 	if (sStack.empty())
 	{
-		sStack = kgetruntimestack_detail::GetBacktraceBased_Callstack_(0);
+		sStack = kgetruntimestack_detail::GetBacktraceBased_Callstack_(iSkipStackLines);
 	}
 #endif
 
@@ -364,7 +364,7 @@ KString kGetRuntimeStack ()
 } // kGetRuntimeStack
 
 //-----------------------------------------------------------------------------
-KString kGetBacktrace (int iSkipStackLines)
+KString kGetBacktrace (int iSkipStackLines /*=2*/)
 //-----------------------------------------------------------------------------
 {
 	KString sStack;

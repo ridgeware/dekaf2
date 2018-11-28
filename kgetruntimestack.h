@@ -57,7 +57,7 @@ namespace dekaf2
 KString kGetRuntimeStack (int iSkipStackLines = 2);
 
 /// kGetRuntimeStack() as a JSON array.
-KJSON kGetRuntimeStackJSON (int iSkipStackLines = 2);
+KJSON kGetRuntimeStackJSON (int iSkipStackLines = 3);
 
 /// get a stack trace (uses gdb if possible). The output of this one is
 /// shorter than the one of kGetRuntimeStack, and intended for logging

@@ -44,7 +44,7 @@
 #include "bits/kcppcompat.h"
 #include "kstring.h"
 #include "kstack.h"
-#include "ksplit.h"
+#include "kspli.h"
 #include "kinshell.h"
 #include "kgetruntimestack.h"
 
@@ -295,7 +295,7 @@ namespace kgetruntimestack_detail
 {
 
 //-----------------------------------------------------------------------------
-KString GetBacktraceBased_Callstack_ (int iSkipStackLines /*=2*/)
+KString GetBacktraceBased_Callstack_ (int iSkipStackLines)
 //-----------------------------------------------------------------------------
 {
 	KString sStack;
@@ -366,7 +366,7 @@ KString kGetRuntimeStack (int iSkipStackLines /*=2*/)
 } // kGetRuntimeStack
 
 //-----------------------------------------------------------------------------
-KJSON kGetRuntimeStackJSON (int iSkipStackLines /*=2*/)
+KJSON kGetRuntimeStackJSON (int iSkipStackLines /*=3*/)
 //-----------------------------------------------------------------------------
 {
 	KStack <KString> List;

@@ -46,6 +46,7 @@
 /// provides a stack tracer
 
 #include "kstring.h"
+#include "kjson.h"
 
 namespace dekaf2
 {
@@ -54,6 +55,9 @@ namespace dekaf2
 /// of this function is as detailed as possible, and intended for crash
 /// situations.
 KString kGetRuntimeStack (int iSkipStackLines = 2);
+
+/// kGetRuntimeStack() as a JSON array.
+KJSON kGetRuntimeStackJSON (int iSkipStackLines = 2);
 
 /// get a stack trace (uses gdb if possible). The output of this one is
 /// shorter than the one of kGetRuntimeStack, and intended for logging

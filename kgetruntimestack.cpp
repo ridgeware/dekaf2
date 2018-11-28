@@ -43,6 +43,8 @@
 #include <vector>
 #include "bits/kcppcompat.h"
 #include "kstring.h"
+#include "kstack.h"
+#include "ksplit.h"
 #include "kinshell.h"
 #include "kgetruntimestack.h"
 
@@ -342,7 +344,7 @@ KString GetBacktraceBased_Callstack_ (int iSkipStackLines /*=2*/)
 #endif
 
 //-----------------------------------------------------------------------------
-KString kGetRuntimeStack (int iSkipStackLines /*=2*/);
+KString kGetRuntimeStack (int iSkipStackLines /*=2*/)
 //-----------------------------------------------------------------------------
 {
 	KString sStack;
@@ -362,6 +364,22 @@ KString kGetRuntimeStack (int iSkipStackLines /*=2*/);
 	return sStack;
 
 } // kGetRuntimeStack
+
+//-----------------------------------------------------------------------------
+KJSON kGetRuntimeStackJSON (int iSkipStackLines /*=2*/)
+//-----------------------------------------------------------------------------
+{
+	KStack <KString> List;
+	kSplit (List, kGetRuntimeStack (iSkipStackLines), "\n");
+
+	KJSON aStack = KJSON::array();
+	for (auto& item : List)	{
+		aStack += item;
+	}
+
+	return aStack;
+
+} // kGetRuntimeStackJSON
 
 //-----------------------------------------------------------------------------
 KString kGetBacktrace (int iSkipStackLines /*=2*/)

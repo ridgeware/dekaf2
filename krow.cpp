@@ -197,7 +197,7 @@ bool KROW::FormInsert (KString& sSQL, DBT iDBType, bool fIdentityInsert/*=false*
 			sAdd.Format ("\t{}null\n", (bComma) ? "," : "");
 			sSQL += sAdd;
 		}
-		else if (it.second.HasFlag (NUMERIC | EXPRESSION | BOOLEAN))
+		else if (it.second.HasFlag (/*NUMERIC | BOOLEAN |*/ EXPRESSION)) // TODO:JOACHIM: remove temp hack to quote everything
 		{
 			sAdd.Format ("\t{}{}\n", (bComma) ? "," : "", it.second.sValue); // raw value, no quotes and no processing
 			sSQL += sAdd;

@@ -430,6 +430,18 @@ bool KURL::Serialize(KOutStream& sTarget) const
 }
 
 //-------------------------------------------------------------------------
+bool KURL::GetURI(KString& sTarget) const
+//-------------------------------------------------------------------------
+{
+	Port.WantStartSeparator();
+	Query.WantStartSeparator();
+	Fragment.WantStartSeparator();
+	return Path.Serialize      (sTarget)
+	    && Query.Serialize     (sTarget)
+	    && Fragment.Serialize  (sTarget);
+}
+
+//-------------------------------------------------------------------------
 bool operator==(const KURL& left, const KURL& right)
 //-------------------------------------------------------------------------
 {

@@ -835,11 +835,12 @@ public:
 	//-------------------------------------------------------------------------
 
 	//-------------------------------------------------------------------------
+	/// generate content into encoded string from members
 	bool Serialize(KString& sTarget) const;
 	//-------------------------------------------------------------------------
 
 	//-------------------------------------------------------------------------
-	/// generate content into string from members
+	/// generate content into encoded stream from members
 	bool Serialize (KOutStream& sTarget) const;
 	//-------------------------------------------------------------------------
 
@@ -850,6 +851,21 @@ public:
 	{
 		KString sReturn;
 		Serialize(sReturn);
+		return sReturn;
+	}
+
+	//-------------------------------------------------------------------------
+	/// return Path, Query, Fragment as a URL encoded string
+	bool GetURI(KString& sTarget) const;
+	//-------------------------------------------------------------------------
+
+	//-------------------------------------------------------------------------
+	/// return Path, Query, Fragment as a URL encoded string
+	KString GetURI() const
+	//-------------------------------------------------------------------------
+	{
+		KString sReturn;
+		GetURI(sReturn);
 		return sReturn;
 	}
 

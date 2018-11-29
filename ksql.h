@@ -232,19 +232,19 @@ public:
 		}
 
 		bool bOK = ExecRawSQL (m_sLastSQL, 0, "ExecSQL");
-		kDebugLog (GetDebugLevel(), "[{}] {} rows affected.", m_iDebugID, m_iNumRowsAffected);
+		kDebugLog (GetDebugLevel(), "[{}] {} rows affected.", m_iNumRowsAffected);
 		return (bOK);
 
 	} // KSQL::ExecSQL
 
-	bool           ExecRawSQL     (KStringView sSQL, Flags iFlags = 0, KStringView sAPI="ExecRawSQL");
+	bool           ExecRawSQL     (const KString& sSQL, Flags iFlags = 0, KStringView sAPI="ExecRawSQL");
 	bool           ExecSQLFile    (KStringViewZ sFilename);
 
 	/// After establishing a database connection, this is how you issue a SQL query and get results.
 	template<class... Args>
 	bool ExecQuery (Args&&... args)
 	{
-		kDebugLog (3, "[{}]bool KSQL::ExecQuery()...", m_iDebugID);
+		kDebugLog (3, "KSQL::ExecQuery()...");
 
 		EndQuery ();
 		if (!OpenConnection())
@@ -271,7 +271,7 @@ public:
 	template<class... Args>
 	int64_t SingleIntQuery (Args&&... args)
 	{
-		kDebugLog (3, "[{}]long KSQL::SingleIntQuery()...", m_iDebugID);
+		kDebugLog (3, "KSQL::SingleIntQuery()...");
 
 		m_sLastSQL = kPrintf(std::forward<Args>(args)...);
 
@@ -283,9 +283,9 @@ public:
 
 	} // KSQL::SingleIntQuery
 
-	int64_t        SingleIntRawQuery (KStringView sSQL, Flags iFlags=0, KStringView sAPI = "ExecRawQuery");
+	int64_t        SingleIntRawQuery (const KString& sSQL, Flags iFlags=0, KStringView sAPI = "ExecRawQuery");
 
-	bool           ExecRawQuery   (KStringView sSQL, Flags iFlags=0, KStringView sAPI = "ExecRawQuery");
+	bool           ExecRawQuery   (const KString& sSQL, Flags iFlags=0, KStringView sAPI = "ExecRawQuery");
 	KROW::Index    GetNumCols     ();
 	KROW::Index    GetNumColumns  ()         { return (GetNumCols());       }
 	bool           NextRow        ();
@@ -296,9 +296,9 @@ public:
     #ifdef DEKAF2_HAS_ORACLE
 	// Oracle/OCI variable binding support:
 	bool   ParseSQL        (KStringView sFormat, ...);
-	bool   ParseRawSQL     (KStringView sSQL, uint64_t iFlags=0, KStringView sAPI = "ParseRawSQL");
+	bool   ParseRawSQL     (const KString& sSQL, uint64_t iFlags=0, KStringView sAPI = "ParseRawSQL");
 	bool   ParseQuery      (KStringView sFormat, ...);
-	bool   ParseRawQuery   (KStringView sSQL, uint64_t iFlags=0, KStringView sAPI = "ParseRawQuery");
+	bool   ParseRawQuery   (const KString& sSQL, uint64_t iFlags=0, KStringView sAPI = "ParseRawQuery");
 
 	bool   BindByName      (KStringView sPlaceholder, KStringView sValue) { return (BindByName (pszPlaceholder, (char*)pszValue)); };
 	bool   BindByName      (KStringView sPlaceholder, char*   pszValue);
@@ -403,8 +403,8 @@ public:
 	bool   QueryStarted ()         { return (m_bQueryStarted); }
 	void   EndQuery ();
 
-	size_t  OutputQuery     (KStringView sSQL, KStringView sFormat, FILE* fpout = stdout);
-	size_t  OutputQuery     (KStringView sSQL, int iFormat = FORM_ASCII, FILE* fpout = stdout);
+	size_t  OutputQuery     (const KString& sSQL, KStringView sFormat, FILE* fpout = stdout);
+	size_t  OutputQuery     (const KString& sSQL, int iFormat = FORM_ASCII, FILE* fpout = stdout);
 
 	void   DisableRetries() { m_bDisableRetries = true;  }
 	void   EnableRetries()  { m_bDisableRetries = false; }
@@ -466,8 +466,6 @@ private:
 protected:
 //----------
 
-	static std::atomic<uint32_t> s_ulDebugID;
-	uint32_t   m_iDebugID { ++s_ulDebugID };                // useful for tracing multiple instances of KSQL in debug log
 	Flags      m_iFlags { 0 };                  // set by calling SetFlags()
 	int        m_iErrorNum { 0 };               // db error number (e.g. ORA code)
 #if defined(DEKAF2_HAS_MYSQL)
@@ -579,7 +577,7 @@ protected:
 	#ifdef DEKAF2_HAS_CTLIB
 	bool ctlib_login           ();
 	bool ctlib_logout          ();
-	bool ctlib_execsql         (KStringView sSQL);
+	bool ctlib_execsql         (const KString& sSQL);
 	bool ctlib_nextrow         ();
 	bool ctlib_api_error       (KStringView sContext);
 	uint32_t ctlib_check_errors ();

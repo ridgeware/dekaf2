@@ -619,9 +619,6 @@ target_link_libraries(createdbc dekaf2)
 add_executable(getentities getentities.cpp)
 target_link_libraries(getentities dekaf2)
 
-add_executable(sizetest sizetest.cpp)
-target_link_libraries(sizetest dekaf2)
-
 add_subdirectory(utests)
 add_subdirectory(smoketests)
 add_subdirectory(benchmarks)

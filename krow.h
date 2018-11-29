@@ -124,58 +124,58 @@ public:
 
 	KCOL () = default;
 
-	KCOL (KString&& _sValue, Flags _iFlags=0, Len _iMaxLen=0)
+	KCOL (KString&& _sValue, Flags iFlags=0, Len iMaxLen=0)
 		: sValue(std::move(_sValue))
-		, iMaxLen(_iMaxLen)
-		, iFlags(_iFlags)
+		, m_iMaxLen(iMaxLen)
+		, m_iFlags(iFlags)
 	{
 	}
 
-	KCOL (KStringView _sValue, Flags _iFlags=0, Len _iMaxLen=0)
-		: KCOL(KString(_sValue), _iFlags, _iMaxLen)
+	KCOL (KStringView _sValue, Flags iFlags=0, Len iMaxLen=0)
+		: KCOL(KString(_sValue), iFlags, iMaxLen)
 	{
 	}
 
-	KCOL (const std::string& _sValue, Flags _iFlags=0, Len _iMaxLen=0)
-		: KCOL(KString(_sValue), _iFlags, _iMaxLen)
+	KCOL (const std::string& _sValue, Flags iFlags=0, Len iMaxLen=0)
+		: KCOL(KString(_sValue), iFlags, iMaxLen)
 	{
 	}
 
-	KCOL (const char* _sValue, Flags _iFlags=0, Len _iMaxLen=0)
-		: KCOL(KString(_sValue), _iFlags, _iMaxLen)
+	KCOL (const char* _sValue, Flags iFlags=0, Len iMaxLen=0)
+		: KCOL(KString(_sValue), iFlags, iMaxLen)
 	{
 	}
 
 	void clear()
 	{
 		sValue.clear();
-		iMaxLen = 0;
-		iFlags  = 0;
+		m_iMaxLen = 0;
+		m_iFlags  = 0;
 	}
 
 	Flags GetFlags() const
 	{
-		return iFlags;
+		return m_iFlags;
 	}
 
-	void SetFlags(Flags _iFlags)
+	void SetFlags(Flags iFlags)
 	{
-		iFlags = _iFlags;
+		m_iFlags = iFlags;
 	}
 
-	void AddFlags(Flags _iFlags)
+	void AddFlags(Flags iFlags)
 	{
-		iFlags |= _iFlags;
+		m_iFlags |= iFlags;
 	}
 
-	bool IsFlag(Flags _iFlags) const
+	bool IsFlag(Flags iFlags) const
 	{
-		return (iFlags & _iFlags) == _iFlags;
+		return (m_iFlags & iFlags) == iFlags;
 	}
 
-	bool HasFlag(Flags _iFlags) const
+	bool HasFlag(Flags iFlags) const
 	{
-		return (iFlags & _iFlags) != 0;
+		return (m_iFlags & iFlags) != 0;
 	}
 
 	void ClearFlags()
@@ -185,12 +185,12 @@ public:
 
 	Len GetMaxLen() const
 	{
-		return iMaxLen;
+		return m_iMaxLen;
 	}
 
-	void SetMaxLen(Len _iMaxLen)
+	void SetMaxLen(Len iMaxLen)
 	{
-		iMaxLen = _iMaxLen;
+		m_iMaxLen = iMaxLen;
 	}
 
 	KString  sValue;  // aka "second"
@@ -199,8 +199,8 @@ public:
 private:
 //----------
 
-	Len   iMaxLen { 0 };
-	Flags iFlags  { 0 };
+	Len   m_iMaxLen { 0 };
+	Flags m_iFlags  { 0 };
 
 }; // KCOL
 
@@ -221,20 +221,20 @@ public:
 	KROW () = default;
 
 	KROW (const char* szTablename)
+	    : m_sTablename(szTablename)
 	{
-		m_sTablename =  szTablename;
 	}
 
 	KROW (KStringView sTablename)
+	    : m_sTablename(sTablename)
 	{
-		m_sTablename =  sTablename;
 	}
 
 	using KCOLS::KCOLS;
 
 	void SetTablename (KStringView sTablename)
 	{
-		m_sTablename =  sTablename;
+		m_sTablename = sTablename;
 	}
 
 	bool AddCol (KStringView sColName, const KJSON& Value, KCOL::Flags iFlags=JSON, KCOL::Len iMaxLen=0);

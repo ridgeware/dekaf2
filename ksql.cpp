@@ -167,7 +167,7 @@ constexpr SQLTX g_Translations[] = {
 	{ "MAXCHAR",        "text",           "text",           "varchar(2000)", "varchar(4000)", "text",         "char(2000)"             },
 	{ "CHAR2000",       "text",           "text",           "varchar(2000)", "varchar(2000)", "text",         "char(2000)"             },
 	{ "PCT",            "%",              "%",              "%",             "%",             "%",            "%"                      },
-	{ "AUTO_INCREMENT", "auto_increment", "auto_increment", "",              "",              "identity",     ""                       }
+	{ "AUTO_INCREMENT", "auto_increment", "",               "",              "",              "identity",     ""                       }
 	// ---------------  ----------------  ----------------  ---------------  --------------  ---------------  ----------------------------
 };
 
@@ -1299,7 +1299,10 @@ bool KSQL::ExecRawSQL (const KString& sSQL, Flags iFlags/*=0*/, KStringView sAPI
 	}
 
 	m_iNumRowsAffected = 0;
-	m_sLastSQL = sSQL;
+	if (sSQL.data() != m_sLastSQL.data())
+	{
+		m_sLastSQL = sSQL;
+	}
 	EndQuery();
 
 	bool   fOK          = false;
@@ -1665,7 +1668,11 @@ bool KSQL::ParseRawSQL (const KString& sSQL, int64_t iFlags/*=0*/, KStringView s
 		kDebugLog (GetDebugLevel(), "{}: {}{}\n", sAPI, (sSQL.Contains("\n")) ? "\n" : "", sSQL);
 	}
 
-	m_sLastSQL = sSQL;
+	if (m_sLastSQL.data() != sSQL.data())
+	{
+		m_sLastSQL = sSQL;
+	}
+
 	ResetErrorStatus ();
 
 	switch (m_iAPISet)
@@ -1674,7 +1681,7 @@ bool KSQL::ParseRawSQL (const KString& sSQL, int64_t iFlags/*=0*/, KStringView s
 		case API::OCI8:
 		// - - - - - - - - - - - - - - - - -
 			m_iErrorNum = OCIStmtPrepare ((OCIStmt*)m_dOCI8Statement, (OCIError*)m_dOCI8ErrorHandle,
-										 (text*)sSQL, strlen(sSQL), OCI_NTV_SYNTAX, OCI_DEFAULT);
+										 (text*)sSQL.data(), sSQL.size(), OCI_NTV_SYNTAX, OCI_DEFAULT);
 			if (!WasOCICallOK("ParseSQL:OCIStmtPrepare"))
 			{
 				return (SQLError (/*fForceError=*/false));
@@ -1801,7 +1808,7 @@ bool KSQL::ExecSQLFile (KStringViewZ sFilename)
 		bool fFoundSpecialLeader = false;
 		++Parms.iLineNum;
 
-		kDebugLog (GetDebugLevel()+1, "{}", Parms.iLineNum, sLine);
+		kDebugLog (GetDebugLevel()+1, "[{}] {}", Parms.iLineNum, sLine);
 
 		KStringView sStart(sLine);
 		// remove all leading white space

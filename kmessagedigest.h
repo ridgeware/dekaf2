@@ -79,8 +79,10 @@ public:
 
 	/// appends a string to the digest
 	bool Update(KStringView sInput);
-	/// appends a string to the digest
+	/// appends a stream to the digest
 	bool Update(KInStream& InputStream);
+	/// appends a stream to the digest
+	bool Update(KInStream&& InputStream);
 	/// appends a string to the digest
 	KMessageDigest& operator+=(KStringView sInput)
 	{

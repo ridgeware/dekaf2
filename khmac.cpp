@@ -145,6 +145,13 @@ bool KHMAC::Update(KInStream& InputStream)
 
 } // Update
 
+//---------------------------------------------------------------------------
+bool KHMAC::Update(KInStream&& InputStream)
+//---------------------------------------------------------------------------
+{
+	return Update(InputStream);
+
+} // Update
 
 //---------------------------------------------------------------------------
 const KString& KHMAC::HMAC() const

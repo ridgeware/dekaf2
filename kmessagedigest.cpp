@@ -168,6 +168,13 @@ bool KMessageDigest::Update(KInStream& InputStream)
 
 } // Update
 
+//---------------------------------------------------------------------------
+bool KMessageDigest::Update(KInStream&& InputStream)
+//---------------------------------------------------------------------------
+{
+	return Update(InputStream);
+
+} // Update
 
 //---------------------------------------------------------------------------
 const KString& KMessageDigest::Digest() const

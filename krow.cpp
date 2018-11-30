@@ -71,6 +71,21 @@ KString KROW::ColumnInfoForLogOutput (const KCOLS::value_type& it, Index iCol) c
 } // ColumnInfoForLogOutput
 
 //-----------------------------------------------------------------------------
+void KROW::LogRowLayout(int iLogLevel) const
+//-----------------------------------------------------------------------------
+{
+	if (kWouldLog(iLogLevel))
+	{
+		int16_t iii = 0;
+		for (const auto& it : *this)
+		{
+			kDebugLog (iLogLevel, ColumnInfoForLogOutput(it, iii++));
+		}
+	}
+
+} // LogRowLayout
+
+//-----------------------------------------------------------------------------
 KString KROW::EscapeChars (const KROW::value_type& Col, KStringView sCharsToEscape, KString::value_type iEscapeChar/*=0*/)
 //-----------------------------------------------------------------------------
 {
@@ -161,12 +176,11 @@ bool KROW::FormInsert (KString& sSQL, DBT iDBType, bool fIdentityInsert/*=false*
 
 	kDebugLog (3, "KROW:FormInsert: {}", GetTablename());
 
+	LogRowLayout();
+
 	bool bComma = false;
-	int16_t iii = 0;
 	for (const auto& it : *this)
 	{
-		kDebugLog (3, ColumnInfoForLogOutput(it, iii++));
-
 		if (it.second.IsFlag (NONCOLUMN))
 		{
 			continue;
@@ -253,12 +267,11 @@ bool KROW::FormUpdate (KString& sSQL, DBT iDBType) const
 
 	kDebugLog (3, "KROW:FormUpdate: {}", m_sTablename);
 
+	LogRowLayout();
+
 	bool  bComma = false;
-	Index iii = 0; // only needed for logging..
 	for (const auto& it : *this)
 	{
-		kDebugLog (3, ColumnInfoForLogOutput(it, iii++));
-
 		if (it.second.IsFlag (NONCOLUMN))
 		{
 			continue;
@@ -354,7 +367,9 @@ bool KROW::FormDelete (KString& sSQL, DBT iDBType) const
 		return (false);
 	}
 
-	Index   kk = 0;
+	LogRowLayout();
+
+	Index kk = 0;
 
 	sSQL += kFormat("delete from {}\n", GetTablename());
 
@@ -362,8 +377,6 @@ bool KROW::FormDelete (KString& sSQL, DBT iDBType) const
 
 	for (const auto& it : *this)
 	{
-		kDebugLog (3, ColumnInfoForLogOutput(it, kk));
-
 		if (!it.second.IsFlag (PKEY))
 		{
 			continue;

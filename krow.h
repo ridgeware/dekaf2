@@ -371,6 +371,7 @@ public:
 	static KString EscapeChars (const KROW::value_type& Col, DBT iDBType);
 
 	KString ColumnInfoForLogOutput (const KCOLS::value_type& it, Index iCol) const;
+	void LogRowLayout(int iLogLevel = 3) const;
 
 	/// Return row as a KJSON object
 	KJSON to_json() const;

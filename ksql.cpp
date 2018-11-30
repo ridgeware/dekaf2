@@ -367,9 +367,9 @@ void KSQL::FreeAll ()
 
 		kDebugLog (3, "  dynamic memory outlook:");
 #ifdef DEKAF2_HAS_MYSQL
-		kDebugLog (3, "    m_dMYSQL                   = {}{}", m_dMYSQL, (m_dMYSQL) ? " (needs to be freed)" : "");
-		kDebugLog (3, "    m_MYSQLRow                 = {}{}", m_MYSQLRow, (m_MYSQLRow) ? " (needs to be freed)" : "");
-		kDebugLog (3, "    m_dMYSQLResult             = {}{}", m_dMYSQLResult, (m_dMYSQLResult) ? " (needs to be freed)" : "");
+		kDebugLog (3, "    m_dMYSQL                   = {}{}", (void*)m_dMYSQL, (m_dMYSQL) ? " (needs to be freed)" : "");
+		kDebugLog (3, "    m_MYSQLRow                 = {}{}", (void*)m_MYSQLRow, (m_MYSQLRow) ? " (needs to be freed)" : "");
+		kDebugLog (3, "    m_dMYSQLResult             = {}{}", (void*)m_dMYSQLResult, (m_dMYSQLResult) ? " (needs to be freed)" : "");
 #endif
 #ifdef DEKAF2_HAS_ORACLE
 		kDebugLog (3, "    m_dOCI6LoginDataArea       = {}{}", m_dOCI6LoginDataArea, (m_dOCI6LoginDataArea) ? " (needs to be freed)" : "");
@@ -857,12 +857,6 @@ bool KSQL::OpenConnection ()
 			m_sHostname = "localhost";
 		}
 
-		//kDebugLog (GetDebugLevel(), "connecting to mysql, Username='{}', Hostname='{}', Database='{}'...",
-		//	m_sUsername, m_sHostname, m_sDatabase);
-
-		//m_dMYSQL = (MYSQL*) kmalloc (sizeof(MYSQL),"KSQL:m_dMYSQL"); // <-- will gracefully crash on malloc failure
-		//mysql_init ((MYSQL*)m_dMYSQL);
-
 		static std::mutex s_OnceInitMutex;
 		static bool s_fOnceInitFlag = false;
 		if (!s_fOnceInitFlag)
@@ -881,14 +875,14 @@ bool KSQL::OpenConnection ()
 
 		kDebugLog (3, "mysql_real_connect()...");
 
-		if (!mysql_real_connect ((MYSQL*)m_dMYSQL, m_sHostname.c_str(), m_sUsername.c_str(), m_sPassword.c_str(), m_sDatabase.c_str(), /*port*/ iPortNum, /*sock*/nullptr,
+		if (!mysql_real_connect (m_dMYSQL, m_sHostname.c_str(), m_sUsername.c_str(), m_sPassword.c_str(), m_sDatabase.c_str(), /*port*/ iPortNum, /*sock*/nullptr,
 			/*flag*/CLIENT_FOUND_ROWS)) // <-- this flag corrects the behavior of GetNumRowsAffected()
 		{
-			m_iErrorNum = mysql_errno ((MYSQL*)m_dMYSQL);
-			m_sLastError.Format ("{}MSQL-{}: {}", m_sErrorPrefix, GetLastErrorNum(), mysql_error((MYSQL*)m_dMYSQL));
+			m_iErrorNum = mysql_errno (m_dMYSQL);
+			m_sLastError.Format ("{}MSQL-{}: {}", m_sErrorPrefix, GetLastErrorNum(), mysql_error(m_dMYSQL));
 			if (m_dMYSQL)
 			{
-				mysql_close((MYSQL*) m_dMYSQL);
+				mysql_close(m_dMYSQL);
 			}
 			return (SQLError ());
 		}
@@ -1214,7 +1208,7 @@ void KSQL::CloseConnection ()
 		case API::MYSQL:
 		// - - - - - - - - - - - - - - - - -
 			kDebugLog (3, "mysql_close()...");
-			mysql_close ((MYSQL*)m_dMYSQL);
+			mysql_close (m_dMYSQL);
 			break;
 		#endif
 
@@ -1289,8 +1283,58 @@ void KSQL::SetErrorPrefix (KStringView sPrefix, uint32_t iLineNum/*=0*/)
 
 } // SetErrorPrefix
 
+enum ViewInString
+{
+	Unrelated,
+	Same,
+	SameStart,
+	Substring
+};
+
+ViewInString kSameBuffer(const KString& sStr, KStringView svView)
+{
+	if (svView.data() >= sStr.data() + sStr.size())
+	{
+		return Unrelated;
+	}
+	if (svView.data() + svView.size() < sStr.data())
+	{
+		return Unrelated;
+	}
+	if (sStr.data() == svView.data())
+	{
+		if (sStr.size() == svView.size())
+		{
+			return Same;
+		}
+		else
+		{
+			return SameStart;
+		}
+	}
+	else
+	{
+		return Substring;
+	}
+}
+
+inline
+bool kSameBufferStart(const KString& sStr, KStringView svView)
+{
+	return (sStr.data() == svView.data());
+}
+
+inline
+void CopyIfNotSame(KString& sTarget, KStringView svView)
+{
+	if (!kSameBufferStart(sTarget, svView))
+	{
+		sTarget = svView;
+	}
+}
+
 //-----------------------------------------------------------------------------
-bool KSQL::ExecRawSQL (const KString& sSQL, Flags iFlags/*=0*/, KStringView sAPI/*="ExecRawSQL"*/)
+bool KSQL::ExecRawSQL (KStringView sSQL, Flags iFlags/*=0*/, KStringView sAPI/*="ExecRawSQL"*/)
 //-----------------------------------------------------------------------------
 {
 	if (!(iFlags & F_NoKlogDebug) && !(m_iFlags & F_NoKlogDebug))
@@ -1299,10 +1343,7 @@ bool KSQL::ExecRawSQL (const KString& sSQL, Flags iFlags/*=0*/, KStringView sAPI
 	}
 
 	m_iNumRowsAffected = 0;
-	if (sSQL.data() != m_sLastSQL.data())
-	{
-		m_sLastSQL = sSQL;
-	}
+	CopyIfNotSame(m_sLastSQL, sSQL);
 	EndQuery();
 
 	bool   fOK          = false;
@@ -1339,22 +1380,22 @@ bool KSQL::ExecRawSQL (const KString& sSQL, Flags iFlags/*=0*/, KStringView sAPI
 					break; // once
 				}
 				kDebugLog (3, "mysql_query(): m_dMYSQL is {}, SQL is {} bytes long", m_dMYSQL ? "not null" : "nullptr", sSQL.size());
-				if (mysql_query ((MYSQL*)m_dMYSQL, sSQL.c_str()))
+				if (mysql_query (m_dMYSQL, m_sLastSQL.c_str()))
 				{
-					m_iErrorNum = mysql_errno ((MYSQL*)m_dMYSQL);
-					m_sLastError.Format ("{}MSQL-{}: {}", m_sErrorPrefix, GetLastErrorNum(), mysql_error((MYSQL*)m_dMYSQL));
+					m_iErrorNum = mysql_errno (m_dMYSQL);
+					m_sLastError.Format ("{}MSQL-{}: {}", m_sErrorPrefix, GetLastErrorNum(), mysql_error(m_dMYSQL));
 					break; // inner do once
 				}
 				m_iNumRowsAffected = 0;
 				kDebugLog (3, "mysql_affected_rows()...");
-				my_ulonglong iNumRows = mysql_affected_rows ((MYSQL*)m_dMYSQL);
+				my_ulonglong iNumRows = mysql_affected_rows (m_dMYSQL);
 				if ((uint64_t)iNumRows != (uint64_t)(-1))
 				{
 					m_iNumRowsAffected = (uint64_t) iNumRows;
 				}
 
 				kDebugLog (3, "mysql_insert_id()...");
-				my_ulonglong iNewID = mysql_insert_id ((MYSQL*)m_dMYSQL);
+				my_ulonglong iNewID = mysql_insert_id (m_dMYSQL);
 				m_iLastInsertID = (uint64_t) iNewID;
 		
 				if (m_iLastInsertID)
@@ -1380,7 +1421,7 @@ bool KSQL::ExecRawSQL (const KString& sSQL, Flags iFlags/*=0*/, KStringView sAPI
 			{
 				kDebugLog (3, "OCIStmtPrepare...");
 				m_iErrorNum = OCIStmtPrepare ((OCIStmt*)m_dOCI8Statement, (OCIError*)m_dOCI8ErrorHandle, 
-				                             (text*)sSQL, strlen(sSQL), OCI_NTV_SYNTAX, OCI_DEFAULT);
+				                             (text*)sSQL.data(), sSQL.size(), OCI_NTV_SYNTAX, OCI_DEFAULT);
 
 				if (!WasOCICallOK("ExecSQL:OCIStmtPrepare"))
 				{
@@ -1415,7 +1456,7 @@ bool KSQL::ExecRawSQL (const KString& sSQL, Flags iFlags/*=0*/, KStringView sAPI
 			{
 				// let the RDBMS parse the SQL expression:
 				kDebugLog (3, "oparse...");
-				m_iErrorNum = oparse ((Cda_Def*)m_dOCI6ConnectionDataArea, (text *)sSQL, (sb4) -1, (sword) PARSE_NO_DEFER, (ub4) PARSE_V7_LNG);
+				m_iErrorNum = oparse ((Cda_Def*)m_dOCI6ConnectionDataArea, (text *)m_sLastSQL.c_str(), (sb4) -1, (sword) PARSE_NO_DEFER, (ub4) PARSE_V7_LNG);
 				if (!WasOCICallOK("ExecSQL:oparse"))
 				{
 					break; // inner do once
@@ -1660,7 +1701,7 @@ bool KSQL::ParseSQL (KStringView sFormat, ...)
 } // ParseSQL
 
 //-----------------------------------------------------------------------------
-bool KSQL::ParseRawSQL (const KString& sSQL, int64_t iFlags/*=0*/, KStringView sAPI/*="ParseRawSQL"*/)
+bool KSQL::ParseRawSQL (KStringView sSQL, int64_t iFlags/*=0*/, KStringView sAPI/*="ParseRawSQL"*/)
 //-----------------------------------------------------------------------------
 {
 	if (!(iFlags & F_NoKlogDebug) && !(m_iFlags & F_NoKlogDebug))
@@ -1668,11 +1709,7 @@ bool KSQL::ParseRawSQL (const KString& sSQL, int64_t iFlags/*=0*/, KStringView s
 		kDebugLog (GetDebugLevel(), "{}: {}{}\n", sAPI, (sSQL.Contains("\n")) ? "\n" : "", sSQL);
 	}
 
-	if (m_sLastSQL.data() != sSQL.data())
-	{
-		m_sLastSQL = sSQL;
-	}
-
+	CopyIfNotSame(m_sLastSQL, sSQL);
 	ResetErrorStatus ();
 
 	switch (m_iAPISet)
@@ -2063,7 +2100,7 @@ void KSQL::ExecSQLFileGo (KStringView sFilename, SQLFileParms& Parms)
 } // ExecSQLFileGo
 
 //-----------------------------------------------------------------------------
-bool KSQL::ExecRawQuery (const KString& sSQL, Flags iFlags/*=0*/, KStringView sAPI/*="ExecRawQuery"*/)
+bool KSQL::ExecRawQuery (KStringView sSQL, Flags iFlags/*=0*/, KStringView sAPI/*="ExecRawQuery"*/)
 //-----------------------------------------------------------------------------
 {
 	if (!(iFlags & F_NoKlogDebug) && !(m_iFlags & F_NoKlogDebug))
@@ -2071,7 +2108,7 @@ bool KSQL::ExecRawQuery (const KString& sSQL, Flags iFlags/*=0*/, KStringView sA
 		kDebugLog (GetDebugLevel(), "{}: {}{}\n", sAPI, (sSQL.Contains("\n")) ? "\n" : "", sSQL);
 	}
 
-	m_sLastSQL = sSQL;
+	CopyIfNotSame(m_sLastSQL, sSQL);
 	EndQuery();
 
 	time_t tStarted     = 0;
@@ -2107,18 +2144,18 @@ bool KSQL::ExecRawQuery (const KString& sSQL, Flags iFlags/*=0*/, KStringView sA
 			}
 
 			kDebugLog (3, "mysql_use_result()...");
-			m_dMYSQLResult = mysql_use_result ((MYSQL*)m_dMYSQL);
+			m_dMYSQLResult = mysql_use_result (m_dMYSQL);
 			if (!m_dMYSQLResult)
 			{
 				kDebugLog(1, "KSQL: expected query results but got none. Did you intend to use ExecSQL() instead of ExecQuery() ?");
-				m_iErrorNum = mysql_errno ((MYSQL*)m_dMYSQL);
+				m_iErrorNum = mysql_errno (m_dMYSQL);
 				if (m_iErrorNum == 0)
 				{
 					m_sLastError = "KSQL: expected query results but got none. Did you intend to use ExecSQL() instead of ExecQuery() ?";
 				}
 				else
 				{
-					m_sLastError.Format ("{}MSQL-{}: {}", m_sErrorPrefix, GetLastErrorNum(), mysql_error((MYSQL*)m_dMYSQL));
+					m_sLastError.Format ("{}MSQL-{}: {}", m_sErrorPrefix, GetLastErrorNum(), mysql_error(m_dMYSQL));
 				}
 				return (SQLError());
 			}
@@ -2126,7 +2163,7 @@ bool KSQL::ExecRawQuery (const KString& sSQL, Flags iFlags/*=0*/, KStringView sA
 			kDebugLog (3, "getting col info from mysql...");
 			kDebugLog (3, "mysql_field_count()...");
 
-			m_iNumColumns = mysql_field_count ((MYSQL*)m_dMYSQL);
+			m_iNumColumns = mysql_field_count (m_dMYSQL);
 
 			kDebugLog (3, "num columns: {}", m_iNumColumns);
 
@@ -2137,7 +2174,7 @@ bool KSQL::ExecRawQuery (const KString& sSQL, Flags iFlags/*=0*/, KStringView sA
 
 			MYSQL_FIELD* pField;
 
-			for (;(pField = mysql_fetch_field((MYSQL_RES*)m_dMYSQLResult));)
+			for (;(pField = mysql_fetch_field(m_dMYSQLResult));)
 			{
 				KColInfo ColInfo;
 
@@ -2159,7 +2196,7 @@ bool KSQL::ExecRawQuery (const KString& sSQL, Flags iFlags/*=0*/, KStringView sA
 			// 1. OCI8: local "prepare" (parse) of SQL statement (note: in OCI6 this was a trip to the server)
 			// -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -
 			m_iErrorNum = OCIStmtPrepare ((OCIStmt*)m_dOCI8Statement, (OCIError*)m_dOCI8ErrorHandle, 
-		                             (text*)sSQL, strlen(sSQL), OCI_NTV_SYNTAX, OCI_DEFAULT);
+		                             (text*)sSQL.data(), sSQL.size(), OCI_NTV_SYNTAX, OCI_DEFAULT);
 			// -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -
 			if (!WasOCICallOK("ExecQuery:OCIStmtPrepare"))
 			{
@@ -2301,7 +2338,7 @@ bool KSQL::ExecRawQuery (const KString& sSQL, Flags iFlags/*=0*/, KStringView sA
 			kDebugLog (3, "  calling oparse() to parse SQL statement...");
 
 			//  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -
-			m_iErrorNum = oparse((Cda_Def*)m_dOCI6ConnectionDataArea, (text *)sSQL, -1, PARSE_NO_DEFER, PARSE_V7_LNG);
+			m_iErrorNum = oparse((Cda_Def*)m_dOCI6ConnectionDataArea, (text *)m_sLastSQL.c_str(), -1, PARSE_NO_DEFER, PARSE_V7_LNG);
 			//  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -
 			if (!WasOCICallOK("ExecQuery:oparse"))
 			{
@@ -2646,7 +2683,7 @@ bool KSQL::ParseQuery (KStringView sFormat, ...)
 
 #ifdef DEKAF2_HAS_ORACLE
 //-----------------------------------------------------------------------------
-bool KSQL::ParseRawQuery (const KString& sSQL, int64_t iFlags/*=0*/, KStringView sAPI/*="ParseRawQuery"*/)
+bool KSQL::ParseRawQuery (KStringView sSQL, int64_t iFlags/*=0*/, KStringView sAPI/*="ParseRawQuery"*/)
 //-----------------------------------------------------------------------------
 {
 	if (!(iFlags & F_NoKlogDebug) && !(m_iFlags & F_NoKlogDebug))
@@ -2654,7 +2691,7 @@ bool KSQL::ParseRawQuery (const KString& sSQL, int64_t iFlags/*=0*/, KStringView
 		kDebugLog (GetDebugLevel(), "{}: {}{}\n", sAPI, (sSQL.Contains("\n")) ? "\n" : "", sSQL);
 	}
 
-	m_sLastSQL = sSQL;
+	CopyIfNotSame(m_sLastSQL, sSQL);
 	ResetErrorStatus ();
 
 	switch (m_iAPISet)
@@ -2666,7 +2703,7 @@ bool KSQL::ParseRawQuery (const KString& sSQL, int64_t iFlags/*=0*/, KStringView
 			// 1. OCI8: local "prepare" (parse) of SQL statement (note: in OCI6 this was a trip to the server)
 			// -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -
 			m_iErrorNum = OCIStmtPrepare ((OCIStmt*)m_dOCI8Statement, (OCIError*)m_dOCI8ErrorHandle,
-										 (text*)sSQL, strlen(sSQL), OCI_NTV_SYNTAX, OCI_DEFAULT);
+										 (text*)sSQL.data(), sSQL.size(), OCI_NTV_SYNTAX, OCI_DEFAULT);
 			// -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -
 			if (!WasOCICallOK("ParseQuery:OCIStmtPrepare"))
 				return (SQLError (/*fForceError=*/false));
@@ -2903,12 +2940,12 @@ bool KSQL::BufferResults ()
 	// - - - - - - - - - - - - - - - - -
 		kDebugLog (3, "mysql_fetch_row() X N ...");
 
-		while ((m_MYSQLRow = mysql_fetch_row ((MYSQL_RES*)m_dMYSQLResult)))
+		while ((m_MYSQLRow = mysql_fetch_row (m_dMYSQLResult)))
 		{
 			++m_iNumRowsBuffered;
 			for (uint32_t ii=0; ii<m_iNumColumns; ++ii)
 			{
-				char* colval = ((MYSQL_ROW)(m_MYSQLRow))[ii];
+				char* colval = (m_MYSQLRow)[ii];
 				if (!colval)
 				{
 					colval = (char*)"";   // <-- change db nullptr to cstring ""
@@ -3067,7 +3104,7 @@ bool KSQL::BufferResults ()
 	if (m_dMYSQLResult)
 	{
 		//kDebugMemory ((const char*)m_dMYSQLResult, 0);
-		mysql_free_result ((MYSQL_RES*)m_dMYSQLResult);
+		mysql_free_result (m_dMYSQLResult);
 		m_dMYSQLResult = nullptr;
 	}
 	#endif
@@ -3111,7 +3148,7 @@ bool KSQL::NextRow ()
 				// - - - - - - - - - - - - - - - - -
 				kDebugLog (3, "mysql_fetch_row()...");
 
-				m_MYSQLRow = mysql_fetch_row ((MYSQL_RES*)m_dMYSQLResult);
+				m_MYSQLRow = mysql_fetch_row (m_dMYSQLResult);
 				if (DEKAF2_LIKELY(m_MYSQLRow != nullptr))
 				{
 					++m_iRowNum;
@@ -3418,7 +3455,7 @@ void KSQL::FreeBufferedColArray (bool fValuesOnly/*=false*/)
 } // FreeBufferedColArray
 
 //-----------------------------------------------------------------------------
-int64_t KSQL::SingleIntRawQuery (const KString& sSQL, Flags iFlags/*=0*/, KStringView sAPI/*="SingleIntRawQuery"*/)
+int64_t KSQL::SingleIntRawQuery (KStringView sSQL, Flags iFlags/*=0*/, KStringView sAPI/*="SingleIntRawQuery"*/)
 //-----------------------------------------------------------------------------
 {
 	EndQuery ();
@@ -3521,7 +3558,7 @@ void KSQL::EndQuery ()
 	// - - - - - - - - - - - - - - - - - - - - - - - -
 	if (m_dMYSQLResult)
 	{
-		mysql_free_result ((MYSQL_RES*)m_dMYSQLResult);
+		mysql_free_result (m_dMYSQLResult);
 		m_dMYSQLResult = nullptr;
 	}
 	#endif
@@ -4054,7 +4091,7 @@ KString KSQL::GetLastInfo()
 //-----------------------------------------------------------------------------
 {
 #if defined(DEKAF2_HAS_MYSQL)
-	return mysql_info(static_cast<MYSQL*>(m_dMYSQL));
+	return mysql_info(m_dMYSQL);
 #else
 	return {};
 #endif
@@ -4614,7 +4651,7 @@ bool KSQL::DescribeTable (KStringView sTablename)
 
 #if 0
 //-----------------------------------------------------------------------------
-unsigned char* KSQL::EncodeData (unsigned char* sBlobData, int iBlobType, uint64_t iBlobDataLen/*=0*/, bool fInPlace/*=false*/)
+unsigned char* KSQL::EncodeData (unsigned char* sBlobData, BlobType iBlobType, uint64_t iBlobDataLen/*=0*/, bool fInPlace/*=false*/)
 //-----------------------------------------------------------------------------
 {
 	kDebugLog (3, "EncodeData()...");
@@ -4715,13 +4752,9 @@ unsigned char* KSQL::EncodeData (unsigned char* sBlobData, int iBlobType, uint64
 } // EncodeData
 
 //-----------------------------------------------------------------------------
-unsigned char* KSQL::DecodeData (unsigned char* sBlobData, int iBlobType, uint64_t iEncodedLen/*=0*/, bool fInPlace/*=false*/)
+unsigned char* KSQL::DecodeData (unsigned char* sBlobData, BlobType iBlobType, uint64_t iEncodedLen/*=0*/, bool fInPlace/*=false*/)
 //-----------------------------------------------------------------------------
 {
-	//#ifdef WIN32
-	//iDebugLevel = (iDebugLevel) ? 3 : 0;
-	//#endif
-
 	kDebugLog (GetDebugLevel(), "DecodeData()...");
 
 	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -4864,7 +4897,7 @@ unsigned char* KSQL::DecodeData (unsigned char* sBlobData, int iBlobType, uint64
 } // DecodeData
 
 //-----------------------------------------------------------------------------
-bool KSQL::PutBlob (KStringView sBlobTable, KStringView sBlobKey, unsigned char* sBlobData, int iBlobType, uint64_t iBlobDataLen/*=0*/)
+bool KSQL::PutBlob (KStringView sBlobTable, KStringView sBlobKey, unsigned char* sBlobData, BlobType iBlobType, uint64_t iBlobDataLen/*=0*/)
 //-----------------------------------------------------------------------------
 {
 	kDebugLog (3, "PutBlob()...");
@@ -4894,10 +4927,6 @@ bool KSQL::PutBlob (KStringView sBlobTable, KStringView sBlobKey, unsigned char*
 				return (SQLError());
 			}
 			break;
-
-		default:
-			m_sLastError.Format ("KSQL:DecodeData(): unsupported BlobType={}", iBlobType);
-			return (SQLError());
 	}
 	
 	// assumes table looks like this:
@@ -5551,7 +5580,7 @@ bool KSQL::ctlib_logout ()
 } // ctlib_logout
 
 //-----------------------------------------------------------------------------
-bool KSQL::ctlib_execsql (const KString& sSQL)
+bool KSQL::ctlib_execsql (KStringView sSQL)
 //-----------------------------------------------------------------------------
 {
 	m_iNumRowsAffected = 0;
@@ -6090,10 +6119,10 @@ void KSQL::ctlib_flush_results ()
 #endif
 
 //-----------------------------------------------------------------------------
-size_t KSQL::OutputQuery (const KString& sSQL, KStringView sFormat, FILE* fpout/*=stdout*/)
+size_t KSQL::OutputQuery (KStringView sSQL, KStringView sFormat, FILE* fpout/*=stdout*/)
 //-----------------------------------------------------------------------------
 {
-	int iFormat = FORM_ASCII;
+	OutputFormat iFormat = FORM_ASCII;
 
 	if ((sFormat == "-ascii") || (sFormat == "-query"))
 	{
@@ -6113,7 +6142,7 @@ size_t KSQL::OutputQuery (const KString& sSQL, KStringView sFormat, FILE* fpout/
 } // OutputQuery
 
 //-----------------------------------------------------------------------------
-size_t KSQL::OutputQuery (const KString& sSQL, int iFormat/*=FORM_ASCII*/, FILE* fpout/*=stdout*/)
+size_t KSQL::OutputQuery (KStringView sSQL, OutputFormat iFormat/*=FORM_ASCII*/, FILE* fpout/*=stdout*/)
 //-----------------------------------------------------------------------------
 {
 	if (!ExecRawQuery (sSQL, GetFlags(), "OutputQuery"))
@@ -6121,10 +6150,10 @@ size_t KSQL::OutputQuery (const KString& sSQL, int iFormat/*=FORM_ASCII*/, FILE*
 		return (-1);
 	}
 
-	KProps<KString, KString, false, true> Widths;
+	KProps<KString, std::size_t, false, true> Widths;
 	KROW   Row;
 	size_t iNumRows = 0;
-	enum   {MAXCOLWIDTH = 80};
+	enum   { MAXCOLWIDTH = 80 };
 
 	if (iFormat == FORM_ASCII)
 	{
@@ -6136,11 +6165,11 @@ size_t KSQL::OutputQuery (const KString& sSQL, int iFormat/*=FORM_ASCII*/, FILE*
 				{
 					const KString& sName(it.first);
 					const KString& sValue(it.first);
-					size_t iLen = sValue.length();
-					size_t iMax = Widths.Get (sName).UInt32();
+					auto iLen = sValue.length();
+					auto iMax = Widths.Get (sName);
 					if ((iLen > iMax) && (iLen <= MAXCOLWIDTH))
 					{
-						Widths.Add (sName, KString::to_string(iLen));
+						Widths.Add (sName, iLen);
 					}
 				}
 			}
@@ -6149,11 +6178,11 @@ size_t KSQL::OutputQuery (const KString& sSQL, int iFormat/*=FORM_ASCII*/, FILE*
 			{
 				const KString& sName(it.first);
 				const KString& sValue(it.second.sValue);
-				size_t iLen = sValue.length();
-				size_t iMax = Widths.Get (sName).UInt32();
+				auto iLen = sValue.length();
+				auto iMax = Widths.Get (sName);
 				if ((iLen > iMax) && (iLen <= MAXCOLWIDTH))
 				{
-					Widths.Add (sName, KString::to_string(iLen));
+					Widths.Add (sName, iLen);
 				}
 			}
 		}
@@ -6161,66 +6190,60 @@ size_t KSQL::OutputQuery (const KString& sSQL, int iFormat/*=FORM_ASCII*/, FILE*
 		ExecRawQuery (sSQL, GetFlags(), "OutputQuery");
 	}
 
-	//if (iFormat == FORM_ASCII) {
-	//	Widths.DebugPairs (1, "Max Widths:");
-	//}
-
 	iNumRows = 0;
 	while (NextRow (Row))
 	{
-		//Row.DebugPairs (1, "Row");
-
 		// output column headers:
 		if (++iNumRows == 1)
 		{
 			bool bFirst { true };
 			switch (iFormat)
 			{
-			case FORM_ASCII:
-				for (const auto& it : Row)
-				{
-					const KString& sName = it.first;
-					int     iMax  = Widths.Get (sName).Int32();
-					fprintf (fpout, "%s%-*.*s-+", (bFirst) ? "+-" : "-", iMax, iMax, BAR);
-					bFirst = false;
-				}
-				fprintf (fpout, "\n");
-				for (const auto& it : Row)
-				{
-					const KString& sName = it.first;
-					int     iMax  = Widths.Get (sName).Int32();
-					fprintf (fpout, "%s%-*.*s |", (bFirst) ? "| " : " ", iMax, iMax, sName.c_str());
-					bFirst = false;
-				}
-				fprintf (fpout, "\n");
-				for (const auto& it : Row)
-				{
-					const KString& sName = it.first;
-					int     iMax  = Widths.Get (sName).Int32();
-					fprintf (fpout, "%s%-*.*s-+", (bFirst) ? "+-" : "-", iMax, iMax, BAR);
-					bFirst = false;
-				}
-				fprintf (fpout, "\n");
-				break;
-			case FORM_HTML:
-				fprintf (fpout, "<table>\n");
-				fprintf (fpout, "<tr>\n");
-				for (const auto& it : Row)
-				{
-					const KString& sName = it.first;
-					fprintf (fpout, " <th>%s</th>\n", sName.c_str());
-				}
-				fprintf (fpout, "</tr>\n");
-				break;
-			case FORM_CSV:
-				for (const auto& it : Row)
-				{
-					const KString& sName = it.first;
-					fprintf (fpout, "%s\"%s\"", (bFirst) ? "" : ",", sName.c_str());
-					bFirst = false;
-				}
-				fprintf (fpout, "\n");
-				break;
+				case FORM_ASCII:
+					for (const auto& it : Row)
+					{
+						const KString& sName = it.first;
+						int iMax = Widths.Get (sName);
+						fprintf (fpout, "%s%-*.*s-+", (bFirst) ? "+-" : "-", iMax, iMax, BAR);
+						bFirst = false;
+					}
+					fprintf (fpout, "\n");
+					for (const auto& it : Row)
+					{
+						const KString& sName = it.first;
+						int iMax = Widths.Get (sName);
+						fprintf (fpout, "%s%-*.*s |", (bFirst) ? "| " : " ", iMax, iMax, sName.c_str());
+						bFirst = false;
+					}
+					fprintf (fpout, "\n");
+					for (const auto& it : Row)
+					{
+						const KString& sName = it.first;
+						int iMax = Widths.Get (sName);
+						fprintf (fpout, "%s%-*.*s-+", (bFirst) ? "+-" : "-", iMax, iMax, BAR);
+						bFirst = false;
+					}
+					fprintf (fpout, "\n");
+					break;
+				case FORM_HTML:
+					fprintf (fpout, "<table>\n");
+					fprintf (fpout, "<tr>\n");
+					for (const auto& it : Row)
+					{
+						const KString& sName = it.first;
+						fprintf (fpout, " <th>%s</th>\n", sName.c_str());
+					}
+					fprintf (fpout, "</tr>\n");
+					break;
+				case FORM_CSV:
+					for (const auto& it : Row)
+					{
+						const KString& sName = it.first;
+						fprintf (fpout, "%s\"%s\"", (bFirst) ? "" : ",", sName.c_str());
+						bFirst = false;
+					}
+					fprintf (fpout, "\n");
+					break;
 			}
 		}
 
@@ -6228,35 +6251,35 @@ size_t KSQL::OutputQuery (const KString& sSQL, int iFormat/*=FORM_ASCII*/, FILE*
 		bool bFirst { true };
 		switch (iFormat)
 		{
-		case FORM_ASCII:
-			for (const auto& it : Row)
-			{
-				const KString& sName  = it.first;
-				const KString& sValue = it.second.sValue;
-				int iMax = Widths.Get (sName).Int32();
-				fprintf (fpout, "%s%-*.*s |", (bFirst) ? "| " : " ", iMax, iMax, sValue.c_str());
-				bFirst = false;
-			}
-			fprintf (fpout, "\n");
-			break;
-		case FORM_HTML:
-			fprintf (fpout, "<tr>\n");
-			for (const auto& it : Row)
-			{
-				const KString& sValue = it.second.sValue;
-				fprintf (fpout, " <td>%s</td>\n", sValue.c_str());
-			}
-			fprintf (fpout, "</tr>\n");
-			break;
-		case FORM_CSV:
-			for (const auto& it : Row)
-			{
-				const KString& sValue = it.second.sValue;
-				fprintf (fpout, "%s\"%s\"", (bFirst) ? "" : ",", sValue.c_str());
-				bFirst = false;
-			}
-			fprintf (fpout, "\n");
-			break;
+			case FORM_ASCII:
+				for (const auto& it : Row)
+				{
+					const KString& sName  = it.first;
+					const KString& sValue = it.second.sValue;
+					int iMax = Widths.Get (sName);
+					fprintf (fpout, "%s%-*.*s |", (bFirst) ? "| " : " ", iMax, iMax, sValue.c_str());
+					bFirst = false;
+				}
+				fprintf (fpout, "\n");
+				break;
+			case FORM_HTML:
+				fprintf (fpout, "<tr>\n");
+				for (const auto& it : Row)
+				{
+					const KString& sValue = it.second.sValue;
+					fprintf (fpout, " <td>%s</td>\n", sValue.c_str());
+				}
+				fprintf (fpout, "</tr>\n");
+				break;
+			case FORM_CSV:
+				for (const auto& it : Row)
+				{
+					const KString& sValue = it.second.sValue;
+					fprintf (fpout, "%s\"%s\"", (bFirst) ? "" : ",", sValue.c_str());
+					bFirst = false;
+				}
+				fprintf (fpout, "\n");
+				break;
 		}
 
 	} // while
@@ -6266,19 +6289,21 @@ size_t KSQL::OutputQuery (const KString& sSQL, int iFormat/*=FORM_ASCII*/, FILE*
 		bool bFirst { true };
 		switch (iFormat)
 		{
-		case FORM_HTML:
-			fprintf (fpout, "</table>\n");
-			break;
-		case FORM_ASCII:
-			for (const auto& it : Row)
-			{
-				const KString& sName  = it.first;
-				int     iMax  = Widths.Get (sName).Int32();
-				fprintf (fpout, "%s%-*.*s-+", (bFirst) ? "+-" : "-", iMax, iMax, BAR);
-				bFirst = false;
-			}
-			fprintf (fpout, "\n");
-			break;
+			case FORM_CSV:
+				break;
+			case FORM_HTML:
+				fprintf (fpout, "</table>\n");
+				break;
+			case FORM_ASCII:
+				for (const auto& it : Row)
+				{
+					const KString& sName  = it.first;
+					int iMax  = Widths.Get (sName);
+					fprintf (fpout, "%s%-*.*s-+", (bFirst) ? "+-" : "-", iMax, iMax, BAR);
+					bFirst = false;
+				}
+				fprintf (fpout, "\n");
+				break;
 		}
 	}
 

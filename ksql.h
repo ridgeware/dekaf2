@@ -127,6 +127,13 @@ struct _cs_command;          typedef struct _cs_command CS_COMMAND;
 struct _cs_blk_row;          typedef struct _cs_blk_row CS_BLK_ROW;
 #endif
 
+#ifdef DEKAF2_HAS_MYSQL
+// forward declare MYSQL types
+typedef struct st_mysql MYSQL;
+typedef char** MYSQL_ROW;
+typedef struct st_mysql_res MYSQL_RES;
+#endif
+
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 // KSQL: DATABASE CONNECTION CLASS
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -155,10 +162,22 @@ public:
 	/// value translations
 	using TXList = KProps <KString, KString, /*order-matters=*/true, /*unique-keys*/true>;
 
-	enum {
+	enum OutputFormat
+	{
+		FORM_ASCII            = 'a',         // <-- for OutputQuery() method
+		FORM_CSV              = 'c',
+		FORM_HTML             = 'h'
+	};
+
+	enum BlobType
+	{
 		// blob encoding schemes:
 		BT_ASCII              = 'A',        // ASCII:  only replace newlines and single quotes
 		BT_BINARY             = 'B',        // BINARY: encode every char into base 256 (2 digit hex)
+	};
+
+	enum
+	{
 		MAX_BLOBCHUNKSIZE     =  2000,      // LCD between Oracle, Sybase, MySQL, and Informix
 //		MAXLEN_CURSORNAME     =    50,
 		NUM_RETRIES           =     5,      // <-- when db connection is lost
@@ -171,10 +190,6 @@ public:
 		F_IgnoreSelectKeyword = 1 << 4,      // <-- override check in ExecQuery() for "select..."
 		F_NoKlogDebug         = 1 << 5,      // <-- quietly: do not output the customary klog debug statements
 		F_AutoReset           = 1 << 6,      // <-- For ctlib, refresh the connection to the server for each query
-
-		FORM_ASCII            = 'a',         // <-- for OutputQuery() method
-		FORM_CSV              = 'c',
-		FORM_HTML             = 'h'
 	};
 
 	const char* BAR = "--------------------------------------------------------------------------------"; // for printf() so keep this const char*
@@ -237,8 +252,8 @@ public:
 
 	} // KSQL::ExecSQL
 
-	bool           ExecRawSQL     (const KString& sSQL, Flags iFlags = 0, KStringView sAPI="ExecRawSQL");
-	bool           ExecSQLFile    (KStringViewZ sFilename);
+	bool ExecRawSQL  (KStringView sSQL, Flags iFlags = 0, KStringView sAPI="ExecRawSQL");
+	bool ExecSQLFile (KStringViewZ sFilename);
 
 	/// After establishing a database connection, this is how you issue a SQL query and get results.
 	template<class... Args>
@@ -275,7 +290,8 @@ public:
 
 		m_sLastSQL = kPrintf(std::forward<Args>(args)...);
 
-		if (!IsFlag(F_NoTranslations)) {
+		if (!IsFlag(F_NoTranslations))
+		{
 			DoTranslations (m_sLastSQL, m_iDBType);
 		}
 
@@ -283,9 +299,9 @@ public:
 
 	} // KSQL::SingleIntQuery
 
-	int64_t        SingleIntRawQuery (const KString& sSQL, Flags iFlags=0, KStringView sAPI = "ExecRawQuery");
+	int64_t        SingleIntRawQuery (KStringView sSQL, Flags iFlags=0, KStringView sAPI = "ExecRawQuery");
 
-	bool           ExecRawQuery   (const KString& sSQL, Flags iFlags=0, KStringView sAPI = "ExecRawQuery");
+	bool           ExecRawQuery   (KStringView sSQL, Flags iFlags=0, KStringView sAPI = "ExecRawQuery");
 	KROW::Index    GetNumCols     ();
 	KROW::Index    GetNumColumns  ()         { return (GetNumCols());       }
 	bool           NextRow        ();
@@ -296,9 +312,9 @@ public:
     #ifdef DEKAF2_HAS_ORACLE
 	// Oracle/OCI variable binding support:
 	bool   ParseSQL        (KStringView sFormat, ...);
-	bool   ParseRawSQL     (const KString& sSQL, uint64_t iFlags=0, KStringView sAPI = "ParseRawSQL");
+	bool   ParseRawSQL     (KStringView sSQL, uint64_t iFlags=0, KStringView sAPI = "ParseRawSQL");
 	bool   ParseQuery      (KStringView sFormat, ...);
-	bool   ParseRawQuery   (const KString& sSQL, uint64_t iFlags=0, KStringView sAPI = "ParseRawQuery");
+	bool   ParseRawQuery   (KStringView sSQL, uint64_t iFlags=0, KStringView sAPI = "ParseRawQuery");
 
 	bool   BindByName      (KStringView sPlaceholder, KStringView sValue) { return (BindByName (pszPlaceholder, (char*)pszValue)); };
 	bool   BindByName      (KStringView sPlaceholder, char*   pszValue);
@@ -386,9 +402,9 @@ public:
 
 	#if 0
 	// blob and long ascii support:
-	unsigned char* EncodeData (unsigned char* pszBlobData, int iBlobType, uint64_t iBlobDataLen = 0, bool fInPlace = false);
-	unsigned char* DecodeData (unsigned char* pszBlobData, int iBlobType, uint64_t iEncodedLen = 0, bool fInPlace = false);
-	bool           PutBlob    (KStringView sBlobTable, KStringView sBlobKey, unsigned char* pszBlobData, int iBlobType, uint64_t iBlobDataLen = 0);
+	unsigned char* EncodeData (unsigned char* pszBlobData, BlobType iBlobType, uint64_t iBlobDataLen = 0, bool fInPlace = false);
+	unsigned char* DecodeData (unsigned char* pszBlobData, BlobType iBlobType, uint64_t iEncodedLen = 0, bool fInPlace = false);
+	bool           PutBlob    (KStringView sBlobTable, KStringView sBlobKey, unsigned char* pszBlobData, BlobType iBlobType, uint64_t iBlobDataLen = 0);
 	unsigned char* GetBlob    (KStringView sBlobTable, KStringView sBlobKey, uint64_t* piBlobDataLen = nullptr);
 	#endif
 
@@ -403,8 +419,8 @@ public:
 	bool   QueryStarted ()         { return (m_bQueryStarted); }
 	void   EndQuery ();
 
-	size_t  OutputQuery     (const KString& sSQL, KStringView sFormat, FILE* fpout = stdout);
-	size_t  OutputQuery     (const KString& sSQL, int iFormat = FORM_ASCII, FILE* fpout = stdout);
+	size_t  OutputQuery     (KStringView sSQL, KStringView sFormat, FILE* fpout = stdout);
+	size_t  OutputQuery     (KStringView sSQL, OutputFormat iFormat = FORM_ASCII, FILE* fpout = stdout);
 
 	void   DisableRetries() { m_bDisableRetries = true;  }
 	void   EnableRetries()  { m_bDisableRetries = false; }
@@ -488,9 +504,9 @@ protected:
 	static     uint16_t  m_iDebugLevel;
 
 #ifdef DEKAF2_HAS_MYSQL
-	void*      m_dMYSQL { nullptr };                   // MYSQL      m_mysql;
-	void*      m_MYSQLRow { nullptr };                 // MYSQL_ROW  m_row;
-	void*      m_dMYSQLResult { nullptr };             // MYSQL_RES* m_presult;
+	MYSQL*     m_dMYSQL { nullptr };                   // MYSQL      m_mysql;
+	MYSQL_ROW  m_MYSQLRow { nullptr };                 // MYSQL_ROW  m_row;
+	MYSQL_RES* m_dMYSQLResult { nullptr };             // MYSQL_RES* m_presult;
 #endif
 
 #ifdef DEKAF2_HAS_ORACLE
@@ -577,7 +593,7 @@ protected:
 	#ifdef DEKAF2_HAS_CTLIB
 	bool ctlib_login           ();
 	bool ctlib_logout          ();
-	bool ctlib_execsql         (const KString& sSQL);
+	bool ctlib_execsql         (KStringView sSQL);
 	bool ctlib_nextrow         ();
 	bool ctlib_api_error       (KStringView sContext);
 	uint32_t ctlib_check_errors ();

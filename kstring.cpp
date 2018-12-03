@@ -47,6 +47,7 @@
 #include "klog.h"
 #include "kregex.h"
 #include "kutf8.h"
+#include "kstack.h"
 
 namespace dekaf2
 {
@@ -1040,6 +1041,37 @@ bool kStrIn (const char* sNeedle, const char* sHaystack, char iDelim/*=','*/)
 		iHaystack += (!!sHaystack[iHaystack]);
 	}
 	return false;
+
+} // kStrIn
+
+//----------------------------------------------------------------------
+bool kStrIn (const KString& sNeedle, const char* Haystack[])
+//----------------------------------------------------------------------
+{
+	for (uint32_t ii=0; Haystack[ii] && *(Haystack[ii]); ++ii)
+	{
+		KStringView item = Haystack[ii];
+		if (sNeedle == item) {
+			return (true); // found
+		}
+	}
+
+	return (false); // not found
+
+} // kStrIn
+
+//----------------------------------------------------------------------
+bool kStrIn (const KString& sNeedle, KStack <KString>& Haystack)
+//----------------------------------------------------------------------
+{
+	for (auto& item : Haystack)
+	{
+		if (sNeedle == item) {
+			return (true); // found
+		}
+	}
+
+	return (false); // not found
 
 } // kStrIn
 

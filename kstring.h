@@ -56,7 +56,6 @@
 #endif
 #include <fmt/format.h>
 
-
 namespace dekaf2
 {
 
@@ -64,7 +63,7 @@ namespace dekaf2
 class KString;
 class KStringView;
 class KStringViewZ;
-
+template<class Value> class KStack;
 
 
 //----------------------------------------------------------------------
@@ -1452,9 +1451,9 @@ inline std::size_t kReplace(KString& string,
 	return string.Replace(sSearch, sReplaceWith, pos, bReplaceAll);
 }
 
-//----------------------------------------------------------------------
 bool kStrIn (const char* sNeedle, const char* sHaystack, char iDelim = ',');
-//----------------------------------------------------------------------
+bool kStrIn (const KString& sNeedle, const char* Haystack[]);
+bool kStrIn (const KString& sNeedle, KStack <KString>& Haystack);
 
 //----------------------------------------------------------------------
 inline bool kStrIn (const KString& sNeedle, const KString& sHaystack, char iDelim = ',')

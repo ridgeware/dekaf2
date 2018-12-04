@@ -16,6 +16,7 @@
 #include <dekaf2/dekaf2.h>
 #include <dekaf2/ksql.h>
 #include <dekaf2/kstring.h>
+#include <dekaf2/kstringutils.h>
 #include <dekaf2/klog.h>
 #include <dekaf2/kwriter.h>
 #include <iostream>

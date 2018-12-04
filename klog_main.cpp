@@ -42,6 +42,7 @@
 
 #include "klog.h"
 #include "kstring.h"
+#include "kstringutils.h"
 #include "kinshell.h"
 #include "ktcpserver.h"
 #include <iostream>  // STL

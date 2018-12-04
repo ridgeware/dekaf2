@@ -53,10 +53,23 @@
 namespace dekaf2
 {
 
-typedef uint16_t KFileFlags;
+enum DefaultFileCeateFlags
+{
+	DEKAF2_MODE_CREATE_FILE = 0666,
+	DEKAF2_MODE_CREATE_DIR  = 0777
+};
 
+//-----------------------------------------------------------------------------
+/// Change file or directory permissions to value iMode. iMode can be set both by
+/// POSIX permission bits or std::filesystem::perms permission bits (as they use
+/// the same numerical constants)
+bool kChangeMode(KStringViewZ sPath, int iMode);
+//-----------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
 /// Checks if a file system entity exists
 bool kExists (KStringViewZ sPath, bool bAsFile, bool bAsDirectory, bool bTestForEmptyFile = false);
+//-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
 /// Checks if a file exists.
@@ -94,36 +107,66 @@ inline bool kRemoveDir (KStringViewZ sPath)
 	return kRemove (sPath, true);
 }
 
-/// Create (or trump) a file with the given contents and then chmod the file.
-bool kWriteFile (const KString& sPath, const KString& sContents, mode_t iMode = S_IRUSR|S_IWUSR | S_IRGRP|S_IWGRP | S_IROTH|S_IWOTH);
+//-----------------------------------------------------------------------------
+/// Read entire text file into a single string and convert DOS newlines. The base
+/// function (that is also called by this variant) is kReadAll().
+bool kReadFile (KStringViewZ sPath, KString& sContents);
+//-----------------------------------------------------------------------------
 
-/// Create a directory (folder) similar to 'mkdir -m ... path'. See also kCreateDir which acts like 'mkdir -p ...'
-bool kMakeDir (const KString& sPath, mode_t iMode = S_IRUSR|S_IWUSR|S_IXUSR | S_IRGRP|S_IWGRP|S_IXGRP | S_IROTH|S_IWOTH|S_IWOTH);
+//-----------------------------------------------------------------------------
+/// Create (or recreate) a file with the given contents and then chmod the file if
+/// perms are different than 0666 (the default)
+bool kWriteFile (KStringViewZ sPath, KStringView sContents, int iMode = DEKAF2_MODE_CREATE_FILE);
+//-----------------------------------------------------------------------------
 
+//-----------------------------------------------------------------------------
 /// Create a directory (folder) hierarchically
-bool kCreateDir (KStringViewZ sPath);
+bool kCreateDir (KStringViewZ sPath, int iMode = DEKAF2_MODE_CREATE_DIR);
+//-----------------------------------------------------------------------------
 
+//-----------------------------------------------------------------------------
+/// Alias for kCreateDir
+inline bool kMakeDir (KStringViewZ sPath, int iMode = DEKAF2_MODE_CREATE_DIR)
+//-----------------------------------------------------------------------------
+{
+	return kCreateDir (sPath, iMode);
+}
+
+//-----------------------------------------------------------------------------
 /// Create a file if it does not exist, including the directory component.
 /// If the file exists, advance its last mod timestamp.
-bool kTouchFile(KStringViewZ sPath);
+bool kTouchFile(KStringViewZ sPath, int iMode = DEKAF2_MODE_CREATE_FILE);
+//-----------------------------------------------------------------------------
 
+//-----------------------------------------------------------------------------
 /// Isolate the extension of a path (filename extension after a dot)
 KStringView kExtension(KStringView sFilePath);
+//-----------------------------------------------------------------------------
 
+//-----------------------------------------------------------------------------
 /// Remove the extension from a path (filename extension after a dot)
 KStringView kRemoveExtension(KStringView sFilePath);
+//-----------------------------------------------------------------------------
 
+//-----------------------------------------------------------------------------
 /// Isolate the basename of a path (filename without directory)
 KStringView kBasename(KStringView sFilePath);
+//-----------------------------------------------------------------------------
 
+//-----------------------------------------------------------------------------
 /// Isolate the dirname of a path (directory name without the fileame)
 KStringView kDirname(KStringView sFilePath, bool bWithTrailingSlash = false);
+//-----------------------------------------------------------------------------
 
+//-----------------------------------------------------------------------------
 /// Get last modification time of a file, returns -1 if file not found
 time_t kGetLastMod(KStringViewZ sFilePath);
+//-----------------------------------------------------------------------------
 
+//-----------------------------------------------------------------------------
 /// Get size in bytes of a file, returns npos if file not found
 size_t kGetNumBytes(KStringViewZ sFilePath);
+//-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
 /// Get size in bytes of a file, returns npos if file not found
@@ -132,9 +175,6 @@ inline size_t kFileSize(KStringViewZ sFilePath)
 {
 	return kGetNumBytes(sFilePath);
 }
-
-/// Read entire text file into a single string and convert DOS newlines
-bool kReadFile (const KString& sPath, KString& sContents);
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Retrieve and filter directory listings

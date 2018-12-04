@@ -9,6 +9,26 @@ using namespace dekaf2;
 
 TEST_CASE("KString") {
 
+	SECTION("self assignment")
+	{
+		// 50 chars to get into a real allocated buffer
+		static constexpr KStringView sv = "1234567890123456789012345678901234567890123456789012345678901234567890";
+		{
+			KString s(sv);
+			KString& s2(s);
+			s = s2;
+			CHECK ( s == sv );
+		}
+
+		// now through a string view:
+		{
+			KString s(sv);
+			KStringView sv2(s);
+			s = sv2;
+			CHECK ( s == sv );
+		}
+	}
+
 	SECTION("Exception safety of KString")
 	{
 		KString s("12345");

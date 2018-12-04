@@ -48,10 +48,38 @@
 #include "kregex.h"
 #include "ksplit.h"
 #include "kinshell.h"
+#include "kwriter.h"
 
 
 namespace dekaf2
 {
+
+//-----------------------------------------------------------------------------
+bool kChangeMode(KStringViewZ sPath, int iMode)
+//-----------------------------------------------------------------------------
+{
+#ifdef DEKAF2_HAS_STD_FILESYSTEM
+	std::error_code ec;
+
+	fs::permissions(sPath.c_str(), iMode, ec);
+
+	if (ec)
+	{
+		kDebugLog(1, "KChangeMode: {}: {}", sPath, ec.message());
+		return false;
+	}
+
+#else
+	if (chmod(sPath.c_str(), iMode))
+	{
+		kDebugLog (1, "kChangeMode: {}: {}", sPath, strerror (errno));
+		return false;
+	}
+#endif
+
+	return true;
+
+}
 
 //-----------------------------------------------------------------------------
 bool kExists (KStringViewZ sPath, bool bAsFile, bool bAsDirectory, bool bTestForEmptyFile)
@@ -65,7 +93,7 @@ bool kExists (KStringViewZ sPath, bool bAsFile, bool bAsDirectory, bool bTestFor
 
 	if (ec)
 	{
-		kDebug(2, ec.message());
+		kDebugLog(2, "KExists: {}: {}", sPath, ec.message());
 		return false;
 	}
 
@@ -279,6 +307,7 @@ bool kRemove (KStringViewZ sPath, bool bDir)
 	std::error_code ec;
 	fs::permissions (sPath.c_str(), fs::perms::all, ec); // chmod (ignore failures)
 	ec.clear();
+
 	if (bDir)
 	{
 		fs::remove_all (sPath.c_str(), ec);
@@ -289,14 +318,15 @@ bool kRemove (KStringViewZ sPath, bool bDir)
 	}
 	if (ec)
 	{
-		kDebugLog (1, "remove failed: {}: {}", sPath, ec.message());
+		kDebugLog (1, "kRemove failed: {}: {}", sPath, ec.message());
 	}
 
 #else
 
 	if (unlink (sPath.c_str()) != 0)
 	{
-		chmod (sPath.c_str(), S_IRUSR|S_IWUSR|S_IXUSR | S_IRGRP|S_IWGRP|S_IXGRP | S_IROTH|S_IWOTH|S_IXOTH);
+		kChangeMode (sPath, S_IRUSR|S_IWUSR|S_IXUSR | S_IRGRP|S_IWGRP|S_IXGRP | S_IROTH|S_IWOTH|S_IXOTH);
+
 		if (unlink (sPath.c_str()) != 0)
 		{
 			if (bDir && (rmdir (sPath.c_str()) != 0))
@@ -305,7 +335,7 @@ bool kRemove (KStringViewZ sPath, bool bDir)
 				sCmd.Format ("rm -rf \"{}\"", sPath);
 				if (system (sCmd.c_str()) != 0)
 				{
-					kDebugLog (1, "remove failed: {}: {}", sPath, strerror (errno));
+					kDebugLog (1, "kRemove failed: {}: {}", sPath, strerror (errno));
 				}
 			}
 		}
@@ -318,7 +348,7 @@ bool kRemove (KStringViewZ sPath, bool bDir)
 } // kRemove
 
 //-----------------------------------------------------------------------------
-bool kCreateDir(KStringViewZ sPath)
+bool kCreateDir(KStringViewZ sPath, int iMode /* = DEKAF2_MODE_CREATE_DIR */)
 //-----------------------------------------------------------------------------
 {
 #ifdef DEKAF2_HAS_STD_FILESYSTEM
@@ -347,11 +377,11 @@ bool kCreateDir(KStringViewZ sPath)
 
 	if (ec)
 	{
-		kDebug(2, ec.message());
+		kDebugLog(2, "kCreateDir: {}: {}", sPath, ec.message());
 	}
 	else
 	{
-		kDebug(2, "failure creating {}, but no errorcode", sPath);
+		kDebugLog(2, "kCreateDir: failure creating '{}', but no errorcode", sPath);
 	}
 
 	return false;
@@ -392,9 +422,9 @@ bool kCreateDir(KStringViewZ sPath)
 
 			if (!kDirExists(sNewPath))
 			{
-				if (::mkdir(sNewPath.c_str(), 0755))
+				if (::mkdir(sNewPath.c_str(), iMode))
 				{
-					kDebug(2, "cannot create directory: {}, {}", sPath, strerror(errno));
+					kDebugLog(2, "kCreateDir: {}: {}", sPath, strerror(errno));
 					return false;
 				}
 			}
@@ -408,7 +438,7 @@ bool kCreateDir(KStringViewZ sPath)
 } // kCreateDir
 
 //-----------------------------------------------------------------------------
-bool kTouchFile(KStringViewZ sPath)
+bool kTouchFile(KStringViewZ sPath, int iMode /* = DEKAF2_MODE_CREATE_FILE */)
 //-----------------------------------------------------------------------------
 {
 	FILE* fp = std::fopen(sPath.c_str(), "a");
@@ -434,9 +464,18 @@ bool kTouchFile(KStringViewZ sPath)
 		{
 			return false;
 		}
-	}
 
-	std::fclose(fp);
+		std::fclose(fp);
+
+		if (iMode != DEKAF2_MODE_CREATE_FILE)
+		{
+			kChangeMode(sPath, iMode);
+		}
+	}
+	else
+	{
+		std::fclose(fp);
+	}
 
 	return true;
 
@@ -453,7 +492,7 @@ time_t kGetLastMod(KStringViewZ sFilePath)
 	auto ftime = fs::last_write_time(sFilePath.c_str(), ec);
 	if (ec)
 	{
-		kDebug(2, ec.message());
+		kDebugLog(2, "kGetLastMod: {}: {}", sFilePath, ec.message());
 		return -1;
 	}
 	return decltype(ftime)::clock::to_time_t(ftime);
@@ -486,7 +525,7 @@ size_t kGetNumBytes(KStringViewZ sFilePath)
 	auto size = fs::file_size(sFilePath.c_str(), ec);
 	if (ec)
 	{
-		kDebug(2, ec.message());
+		kDebugLog(2, "kGetSize: {}: {}", sFilePath, ec.message());
 		return npos;
 	}
 	return size;
@@ -542,7 +581,7 @@ size_t KDirectory::Open(KStringViewZ sDirectory, EntryType Type)
 	{
 		if (ec)
 		{
-			kDebug(2, ec.message());
+			kDebug(2, "{}: {}", sDirectory, ec.message());
 			break;
 		}
 
@@ -583,7 +622,7 @@ size_t KDirectory::Open(KStringViewZ sDirectory, EntryType Type)
 
 			if (ec)
 			{
-				kDebug(2, ec.message());
+				kDebug(2, "{}: {}", sDirectory, ec.message());
 				break;
 			}
 
@@ -931,66 +970,40 @@ KDiskStat& KDiskStat::Check(KStringViewZ sPath)
 } // Check
 
 //-----------------------------------------------------------------------------
-bool kWriteFile (const KString& sPath, const KString& sContents, mode_t iMode/*= S_IRUSR|S_IWUSR | S_IRGRP|S_IWGRP | S_IROTH|S_IWOTH*/)
+bool kWriteFile (KStringViewZ sPath, KStringView sContents, int iMode /* = DEKAF2_MODE_CREATE_FILE */)
 //-----------------------------------------------------------------------------
 {
-	FILE* fp = std::fopen (sPath.c_str(), "w");
-	if (!fp) {
-		kWarning ("kWriteFile: {}: {}", strerror(errno), sPath.c_str());
-		return (false);
+	{
+		KOutFile file(sPath);
+		if (!file.is_open())
+		{
+			kWarning ("kWriteFile: cannot open file: {}", sPath);
+			return (false);
+		}
+
+		file.Write(sContents);
 	}
 
-	std::fputs (sContents.c_str(), fp);
-	std::fclose (fp);
-
-	chmod (sPath.c_str(), iMode);
+	if (iMode != DEKAF2_MODE_CREATE_FILE)
+	{
+		kChangeMode (sPath, iMode);
+	}
 
 	return (true);
 
 } // kWriteFile
 
 //-----------------------------------------------------------------------------
-bool kMakeDir (const KString& sPath, mode_t iMode)
+bool kReadFile (KStringViewZ sPath, KString& sContents)
 //-----------------------------------------------------------------------------
 {
-	kDebugLog (2, "kMakeDir: {}", sPath);
+	kDebugLog (2, "kReadFile: {}", sPath);
 
-#ifndef _WIN32
-	if(0 > mkdir(sPath.c_str(), iMode))
-#else
-	if(0 > _mkdir(sPath.c_str()))
-#endif
+	if (!kReadAll(sPath, sContents))
 	{
-#ifndef _WIN32
-		if (errno == EEXIST) {
-			kDebugLog (2, "kMakeDir: {}: already exists", sPath);
-			return true;
-		}
-#endif
-		kDebugLog (1, "kMakeDir: error creating dir '{}'. Reason: %s", sPath, strerror(errno));
 		return false;
 	}
 
-	return true;
-
-} // kMakeDir
-
-//-----------------------------------------------------------------------------
-bool kReadFile (const KString& sPath, KString& sContents)
-//-----------------------------------------------------------------------------
-{
-	kDebugLog (2, "kReadFile: {}", sPath.c_str());
-
-	std::ifstream file;
-	file.open(sPath.c_str());
-	if (!file.is_open()) {
-		return false;
-	}
-	std::ostringstream ssBuffer;
-	ssBuffer << file.rdbuf();
-
-	sContents = ssBuffer.str();
-	sContents.Replace("\n\r","\n"); // Mac -> UNIX
 	sContents.Replace("\r\n","\n"); // DOS -> UNIX
 	
 	return true;

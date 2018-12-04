@@ -49,6 +49,65 @@ namespace dekaf2
 {
 
 //-----------------------------------------------------------------------------
+bool kStrIn (const char* sNeedle, const char* sHaystack, char iDelim/*=','*/)
+//-----------------------------------------------------------------------------
+{
+	if (!sHaystack || !sNeedle)
+	{
+		return false;
+	}
+
+	size_t iNeedle = 0, iHaystack = 0; // Beginning indices
+
+	while (sHaystack[iHaystack])
+	{
+		iNeedle = 0;
+
+		// Search for matching tokens
+		while (  sNeedle[iNeedle] &&
+			   (sNeedle[iNeedle] == sHaystack[iHaystack]))
+		{
+			++iNeedle;
+			++iHaystack;
+		}
+
+		// If end of needle or haystack at delimiter or end of haystack
+		if ( !sNeedle[iNeedle] &&
+			((sHaystack[iHaystack] == iDelim) || !sHaystack[iHaystack]))
+		{
+			return true;
+		}
+
+		// Advance to next delimiter
+		while (sHaystack[iHaystack] && sHaystack[iHaystack] != iDelim)
+		{
+			++iHaystack;
+		}
+
+		// Pass by the delimiter if it exists
+		iHaystack += (!!sHaystack[iHaystack]);
+	}
+	return false;
+
+} // kStrIn
+
+//----------------------------------------------------------------------
+bool kStrIn (KStringView sNeedle, const char* Haystack[])
+//----------------------------------------------------------------------
+{
+	for (std::size_t ii=0; Haystack[ii] && *(Haystack[ii]); ++ii)
+	{
+		if (!strncmp(sNeedle.data(), Haystack[ii], sNeedle.size()))
+		{
+			return (true);
+		}
+	}
+
+	return (false); // not found
+
+} // kStrIn
+
+//-----------------------------------------------------------------------------
 char* KASCII::ktrimleft (const char* str)
 //-----------------------------------------------------------------------------
 {
@@ -176,7 +235,6 @@ KString kFormString(KStringView sInp, typename KString::value_type separator, ty
 	return result;
 
 } // kFormString
-
 
 //-----------------------------------------------------------------------------
 KString kFormTimestamp (time_t tTime, const char* szFormat)

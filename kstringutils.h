@@ -56,6 +56,43 @@
 namespace dekaf2
 {
 
+//----------------------------------------------------------------------
+bool kStrIn (const char* sNeedle, const char* sHaystack, char iDelim = ',');
+//----------------------------------------------------------------------
+
+//----------------------------------------------------------------------
+inline bool kStrIn (KStringView sNeedle, KStringView sHaystack, char iDelim = ',')
+//----------------------------------------------------------------------
+{
+	return sNeedle.In(sHaystack, iDelim);
+}
+
+//----------------------------------------------------------------------
+inline bool kStrIn (const char* sNeedle, KStringView sHaystack, char iDelim = ',')
+//----------------------------------------------------------------------
+{
+	return kStrIn(KStringView(sNeedle), sHaystack, iDelim);
+}
+
+//----------------------------------------------------------------------
+inline bool kStrIn (KStringView sNeedle, const char* sHaystack, char iDelim = ',')
+//----------------------------------------------------------------------
+{
+	return kStrIn(sNeedle, KStringView(sHaystack), iDelim);
+}
+
+//----------------------------------------------------------------------
+bool kStrIn (KStringView sNeedle, const char* Haystack[]);
+//----------------------------------------------------------------------
+
+//----------------------------------------------------------------------
+template<class Container>
+bool kStrIn (KStringView sNeedle, const Container& Haystack)
+//----------------------------------------------------------------------
+{
+	return std::find(std::begin(Haystack), std::end(Haystack), sNeedle) != std::end(Haystack);
+}
+
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// KASCII - dekaf's char* helper functions, only safe for ASCII c-strings
 class KASCII

@@ -2,6 +2,9 @@
 
 #include <dekaf2/kstring.h>
 #include <dekaf2/kstringutils.h>
+#include <dekaf2/kstack.h>
+#include <vector>
+#include <set>
 
 using namespace dekaf2;
 
@@ -829,6 +832,121 @@ TEST_CASE("KStringUtils") {
 			}
 
 		}
+	}
+
+	SECTION("kStrIn 1")
+	{
+		const char* sNeedle = "needle";
+		const char* sHaystack = "find a needle in a haystack";
+		CHECK ( kStrIn (sNeedle, sHaystack, ' ') == true  );
+		CHECK ( kStrIn (sNeedle, sHaystack, ',') == false );
+	}
+
+	SECTION("kStrIn 2")
+	{
+		const char* sNeedle = "needle";
+		const char* sHaystack1[] = {"find","a","needle","in","a","haystack",""};
+		const char* sHaystack2[] = {"find","a","needle","in","a","haystack",nullptr};
+		CHECK ( kStrIn (sNeedle, sHaystack1) == true  );
+		CHECK ( kStrIn (sNeedle, sHaystack2) == true  );
+		CHECK ( kStrIn ("needles", sHaystack1) == false );
+		CHECK ( kStrIn ("needles", sHaystack2) == false );
+	}
+
+	SECTION("kStrIn 3")
+	{
+		const char* sNeedle = "needle";
+		KStack<KStringView> sHaystack = {"find","a","needle","in","a","haystack"};
+		CHECK ( kStrIn (sNeedle, sHaystack) == true  );
+		CHECK ( kStrIn ("needles", sHaystack) == false );
+	}
+
+	SECTION("kStrIn 4")
+	{
+		const char* sNeedle = "needle";
+		std::vector<KStringView> sHaystack = {"find","a","needle","in","a","haystack"};
+		CHECK ( kStrIn (sNeedle, sHaystack) == true  );
+		CHECK ( kStrIn ("needles", sHaystack) == false );
+	}
+
+	SECTION("kStrIn 5")
+	{
+		const char* sNeedle = "needle";
+		std::set<KString> sHaystack = {"find","a","needle","in","a","haystack"};
+		CHECK ( kStrIn (sNeedle, sHaystack) == true  );
+		CHECK ( kStrIn ("needles", sHaystack) == false );
+	}
+
+	SECTION("kStrIn 6")
+	{
+		KStringView sNeedle = "needle";
+		const char* sHaystack = "find a needle in a haystack";
+		CHECK ( kStrIn (sNeedle, sHaystack, ' ') == true  );
+		CHECK ( kStrIn (sNeedle, sHaystack, ',') == false );
+	}
+
+	SECTION("kStrIn 7")
+	{
+		KStringView sNeedle = "needle";
+		KStringView sHaystack = "find a needle in a haystack";
+		CHECK ( kStrIn (sNeedle, sHaystack, ' ') == true  );
+		CHECK ( kStrIn (sNeedle, sHaystack, ',') == false );
+	}
+
+	SECTION("kStrIn 8")
+	{
+		const char* sNeedle = "needle";
+		KStringView sHaystack = "find a needle in a haystack";
+		CHECK ( kStrIn (sNeedle, sHaystack, ' ') == true  );
+		CHECK ( kStrIn (sNeedle, sHaystack, ',') == false );
+	}
+
+	SECTION("kStrIn 8")
+	{
+		const char* sNeedle = "needle";
+		KStringViewZ sHaystack = "find a needle in a haystack";
+		CHECK ( kStrIn (sNeedle, sHaystack, ' ') == true  );
+		CHECK ( kStrIn (sNeedle, sHaystack, ',') == false );
+	}
+
+	SECTION("kStrIn 9")
+	{
+		KStringViewZ sNeedle = "needle";
+		KStringViewZ sHaystack = "find a needle in a haystack";
+		CHECK ( kStrIn (sNeedle, sHaystack, ' ') == true  );
+		CHECK ( kStrIn (sNeedle, sHaystack, ',') == false );
+	}
+
+	SECTION("kStrIn 10")
+	{
+		KStringViewZ sNeedle = "needle";
+		const char* sHaystack = "find a needle in a haystack";
+		CHECK ( kStrIn (sNeedle, sHaystack, ' ') == true  );
+		CHECK ( kStrIn (sNeedle, sHaystack, ',') == false );
+	}
+
+	SECTION("kStrIn 11")
+	{
+		const char* sNeedle = "needle";
+		KString sHaystack = "find a needle in a haystack";
+		CHECK ( kStrIn (sNeedle, sHaystack, ' ') == true  );
+		CHECK ( kStrIn (sNeedle, sHaystack, ',') == false );
+	}
+
+	SECTION("kStrIn 12")
+	{
+		KString sNeedle = "needle";
+		KString sHaystack = "find a needle in a haystack";
+		CHECK ( kStrIn (sNeedle, sHaystack, ' ') == true  );
+		CHECK ( kStrIn (sNeedle, sHaystack, ',') == false );
+	}
+
+	SECTION("kStrIn 13")
+	{
+		KString sNeedle = "needle";
+		const char* sHaystack = "find a needle in a haystack";
+		CHECK ( kStrIn (sNeedle, sHaystack, ' ') == true  );
+		CHECK ( kStrIn (sNeedle, sHaystack, ',') == false );
 	}
 
 }

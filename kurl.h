@@ -929,6 +929,11 @@ public:
 	KStringView getBaseDomain() const;
 	//-------------------------------------------------------------------------
 
+	//-------------------------------------------------------------------------
+	/// helper method: isolate the PATH portion of the given URL (no change to class instance)
+	static KString IsolatePath (KStringView sURL);
+	//-------------------------------------------------------------------------
+
 	url::KProtocol  Protocol;
 	url::KUser      User;
 	url::KPassword  Password;

@@ -46,6 +46,7 @@
 #include "kstring.h"
 #include "kstringutils.h"
 #include "kurl.h"
+#include "kstack.h"
 
 
 namespace dekaf2 {
@@ -442,6 +443,29 @@ bool KURL::GetURI(KString& sTarget) const
 }
 
 //-------------------------------------------------------------------------
+KString KURL::IsolatePath (KStringView sURL)
+//-------------------------------------------------------------------------
+{
+	if (sURL.empty()) {
+		return ("");
+	}
+
+	KStack <KString> Parts;
+	kSplit (Parts, sURL, "/", /*sTrim*/"");
+
+	KString  sPath;
+	uint32_t iStartWith = (Parts[0].Contains(":")) ? 3: 0;
+
+	for (auto ii=iStartWith; ii < Parts.size(); ++ii)
+	{
+		sPath += kFormat ("/{}", Parts[ii]);
+	}
+
+	return sPath;
+
+} // IsolatePath
+
+//-------------------------------------------------------------------------
 bool operator==(const KURL& left, const KURL& right)
 //-------------------------------------------------------------------------
 {
@@ -499,6 +523,5 @@ bool operator==(const KTCPEndPoint& left, const KTCPEndPoint& right)
 	return left.Domain == right.Domain
 	        && left.Port == right.Port;
 }
-
 
 } // namespace dekaf2

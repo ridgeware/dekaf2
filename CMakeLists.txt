@@ -8,6 +8,11 @@ cmake_minimum_required(VERSION 2.8)
 
 project(dekaf2)
 
+if (CMAKE_BUILD_TYPE STREQUAL "")
+	# Release is the default build type
+	set(CMAKE_BUILD_TYPE "Release")
+endif()
+
 if(${CMAKE_VERSION} VERSION_LESS "3.8.0")
 	message(STATUS "Please consider switching to CMake 3.8.0 or newer")
 	if (${CMAKE_SYSTEM_NAME} STREQUAL "Darwin")
@@ -23,13 +28,10 @@ if(${CMAKE_VERSION} VERSION_LESS "3.8.0")
 	endif()
 endif()
 
+cmake_host_system_information(RESULT CPU_64_BIT QUERY IS_64BIT)
+
 if (${CMAKE_SYSTEM_PROCESSOR} MATCHES "x86")
 	set (CPU_x86 1)
-	if (${CMAKE_SYSTEM_PROCESSOR} MATCHES "x86_64")
-		set(CPU_64_BIT 1)
-	else()
-		set(CPU_32_BIT 1)
-	endif()
 elseif (${CMAKE_SYSTEM_PROCESSOR} MATCHES "arm")
 	set (CPU_ARM 1)
 endif()
@@ -62,7 +64,7 @@ OPTION(DEKAF2_USE_BOOST_MULTI_INDEX "Use Boost::Multi_Index" ON)
 OPTION(DEKAF2_USE_OPTIMIZED_STRING_FIND "Use optimized string::find" ON)
 OPTION(DEKAF2_WITH_DEPRECATED_KSTRING_MEMBER_FUNCTIONS "With deprecated KString member functions" OFF)
 OPTION(DEKAF2_WITH_COMPATIBILITY_LAYER_TO_DEKAF1 "Provide compatibility layer to dekaf1" OFF)
-OPTION(DEKAF2_ENABLE_DEBUG_RUNTIME_CHECKS "debug build with sanitizers and additional runtime checks" OFF)
+OPTION(DEKAF2_ENABLE_DEBUG_RUNTIME_CHECKS "debug build with sanitizers and additional runtime checks" ON)
 OPTION(DEKAF2_USE_FROZEN_HASH_FOR_LARGE_MAPS "use frozen constexpr hash for large maps (needs a lot of memory on comp)" ON)
 OPTION(DEKAF2_WITH_FCGI "build with FCGI" OFF)
 
@@ -100,15 +102,11 @@ if (${CMAKE_SYSTEM_NAME} STREQUAL "Darwin")
 	SET(CMAKE_CXX_ARCHIVE_FINISH "<CMAKE_RANLIB> -no_warning_for_no_symbols -c <TARGET>")
 endif ()
 
+# variants only appeared in v10.14 of the MACOS SDK
+set(CMAKE_OSX_DEPLOYMENT_TARGET "10.14")
+
 # Add local cmake modules to the module path (used to find libraries which do not have find modules provided by cmake)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules/")
-
-# check if we have the libproc library (or at least its headers)
-find_package(libproc)
-if (libproc_FOUND)
-	set(DEKAF2_HAS_LIBPROC 1)
-	include_directories(SYSTEM ${libproc_INCLUDE_DIRS})
-endif ()
 
 # if requested to integrate with dekaf1, check if it is available
 if (DEKAF2_WITH_COMPATIBILITY_LAYER_TO_DEKAF1)
@@ -123,12 +121,16 @@ if (DEKAF2_WITH_COMPATIBILITY_LAYER_TO_DEKAF1)
 	endif ()
 endif ()
 
-# make sure we have the necessary version of cmake installed
-#execute_process(COMMAND "${CMAKE_CURRENT_SOURCE_DIR}/scriptsk/cmakeinstall -go")
-
 message(STATUS ${CMAKE_GENERATOR})
 if (DEKAF2_ENABLE_DEBUG_RUNTIME_CHECKS)
-	if (NOT CMAKE_GENERATOR STREQUAL "Xcode")
+	if (CMAKE_GENERATOR STREQUAL "Xcode")
+		message(STATUS "enabling ASAN/UBSAN for Xcode")
+		set(CMAKE_XCODE_GENERATE_SCHEME ON)
+		set(CMAKE_XCODE_SCHEME_ADDRESS_SANITIZER ON)
+		set(CMAKE_XCODE_SCHEME_ADDRESS_SANITIZER_USE_AFTER_RETURN ON)
+		set(CMAKE_XCODE_SCHEME_UNDEFINED_BEHAVIOUR_SANITIZER ON)
+	else ()
+		message(STATUS "enabling debug runtime checks")
 		set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fsanitize=address -fsanitize=undefined -fsanitize-address-use-after-scope")
 		set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fstack-protector-strong -fstack-check")
 	endif ()
@@ -212,21 +214,32 @@ add_subdirectory(from EXCLUDE_FROM_ALL)
 
 # add externally installed third party libraries:
 
+find_package(ZLIB REQUIRED)
+find_package(BZip2 REQUIRED)
+
+# check if we have the libproc library (or at least its headers)
+find_package(libproc QUIET)
+if (libproc_FOUND)
+	set(DEKAF2_HAS_LIBPROC 1)
+#	include_directories(SYSTEM ${libproc_INCLUDE_DIRS})
+endif ()
+
 # MySQL (for KSQL) - if not available, KSQL will not build something meaningful
-find_package(MYSQL)
+find_package(MYSQL QUIET)
 if(MYSQL_FOUND)
-	message(STATUS "configuring with MySQL ${MYSQL_VERSION_STRING}")
 	set(DEKAF2_HAS_MYSQL "${MYSQL_VERSION_STRING}")
 	if(MYSQL_VERSION_STRING STREQUAL "")
 		set(DEKAF2_HAS_MYSQL 1)
-		message(STATUS "MySQL found, CMAKE unable to report version.\n\tDEKAF2_HAS_MYSQL set to 1.")
+		message(STATUS "MySQL found, but CMAKE is unable to report MySQL version, DEKAF2_HAS_MYSQL set to 1.")
+	else()
+		message(STATUS "configuring with MySQL ${MYSQL_VERSION_STRING}")
 	endif()
 else()
 	message(STATUS "MySQL not found - will build without. Please install MySQL if you want to use KSQL.")
 endif()
 
-# SQLite3 (for KSQL) - if not available it's simply skipped
-find_package(SQLite3)
+# SQLite3 (for KSQL and KSQLite) - if not available it's simply skipped
+find_package(SQLite3 QUIET)
 if(SQLITE3_FOUND)
 	message(STATUS "configuring with SQLite3")
 	set(DEKAF2_HAS_SQLITE3 1)
@@ -234,11 +247,10 @@ endif()
 
 # openssl (needed for boost asio)
 if (${CMAKE_SYSTEM_NAME} STREQUAL "Darwin")
-    # check later if this is still needed to override an insufficient std OpenSSL on OSX
+    # this is still needed to override an insufficient std OpenSSL on OSX
 	set(OPENSSL_ROOT_DIR /usr/local/opt/openssl)
 endif ()
-find_package(OpenSSL QUIET REQUIRED)
-include_directories(SYSTEM ${OPENSSL_INCLUDE_DIR})
+find_package(OpenSSL REQUIRED)
 
 set(Boost_USE_STATIC_LIBS ON)
 # we prefer the boost lib that we installed ourselves in /opt/lib ..
@@ -260,7 +272,6 @@ if (NOT Boost_FOUND)
 	endif()
 endif()
 
-include_directories(SYSTEM ${Boost_INCLUDE_DIR})
 message(STATUS "boost-libs: ${Boost_LIBRARIES}")
 
 # add a target to generate API documentation with Doxygen
@@ -269,34 +280,37 @@ find_package(Doxygen)
 if (DOXYGEN_FOUND)
 
 	# configure doxygen config file
-	configure_file(${CMAKE_CURRENT_SOURCE_DIR}/doc/doxyfile.in
-		${CMAKE_CURRENT_BINARY_DIR}/doxyfile @ONLY)
+	configure_file(
+		${CMAKE_CURRENT_SOURCE_DIR}/doc/doxyfile.in
+		${CMAKE_CURRENT_BINARY_DIR}/doxyfile @ONLY
+	)
 
 	# execute doxygen
-	add_custom_target(doc
+	add_custom_target(
+		doc
 		${DOXYGEN_EXECUTABLE} ${CMAKE_CURRENT_BINARY_DIR}/doxyfile
 		WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
 		COMMENT "Generating API documentation with Doxygen" VERBATIM
-		)
+	)
 
 else ()
 
-	add_custom_target(doc
+	add_custom_target(
+		doc
 		COMMENT "Doxygen was not found on this machine. Documentation can not be generated." VERBATIM
-		)
+	)
 
 endif (DOXYGEN_FOUND)
 
 # create and include the build directory for generated files
 set(GENERATED_FILES_DIR "${CMAKE_CURRENT_BINARY_DIR}/generated")
 file(MAKE_DIRECTORY "${GENERATED_FILES_DIR}")
-include_directories("${GENERATED_FILES_DIR}")
 
 # create the configuration header file
 configure_file("bits/kconfiguration.h.in" "${GENERATED_FILES_DIR}/kconfiguration.h" @ONLY)
 
 set (BITS_HEADERS
-	# KEEP ALPHABETIZED!!
+	# KEEP ALPHABETIZED
 	bits/kasiostream.h
 	bits/kbaseshell.h
 	bits/kbasepipe.h
@@ -321,7 +335,7 @@ set(BITS_SIMD_HEADERS
 	bits/simd/kfindfirstof.h
 )
 set(PUBLIC_HEADERS
-	# KEEP ALPHABETIZED!!
+	# KEEP ALPHABETIZED
 	dekaf2.h
 	dekaf2all.h
 	kaddrplus.h
@@ -438,7 +452,7 @@ set(HEADERS
 )
 
 set (SOURCES
-	# KEEP ALPHABETIZED!!
+	# KEEP ALPHABETIZED
 	bits/kbasepipe.cpp
 	bits/kbaseshell.cpp
 	bits/kistringstream.cpp
@@ -541,13 +555,13 @@ if (DEKAF2_INSTALL_HEADERS)
 			OUTPUT "${DEKAF2_INCLUDE_DIR}/${HEADER}"
 			DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/${HEADER}"
 			COMMAND ${CMAKE_COMMAND} -E copy_if_different "${CMAKE_CURRENT_SOURCE_DIR}/${HEADER}" "${DEKAF2_INSTALL_DIR}/${HEADER}"
-			)
+		)
 		set(header_deps	${header_deps}	"${DEKAF2_INCLUDE_DIR}/${HEADER}")
 	endforeach(HEADER dekaf_library_headers)
 
 	add_custom_target(lib-headers-dekaf2
 		DEPENDS ${header_deps}
-		)
+	)
 
 else ()
 
@@ -598,15 +612,15 @@ target_link_libraries(dekaf2
 		${libproc_LIBRARIES}
 		Threads::Threads
 		re2
-		z
-		bz2
+		ZLIB::ZLIB
+		BZip2::BZip2
 	)
 
 add_dependencies(dekaf2 lib-headers-dekaf2)
 target_include_directories(dekaf2
-	PUBLIC "${DEKAF2_INCLUDE_DIR}" "${GENERATED_FILES_DIR}"
-	PRIVATE "${MYSQL_INCLUDE_DIRS}" "${SQLITE3_INCLUDE_DIRS}"
-	INTERFACE "${Boost_INCLUDE_DIR}" "${OPENSSL_INCLUDE_DIR}"
+	PUBLIC "${DEKAF2_INCLUDE_DIR}" "${GENERATED_FILES_DIR}" "${Boost_INCLUDE_DIR}" "${OPENSSL_INCLUDE_DIR}"
+	PRIVATE "${MYSQL_INCLUDE_DIRS}" "${SQLITE3_INCLUDE_DIRS}" "${libproc_INCLUDE_DIRS}"
+	INTERFACE
 )
 target_compile_definitions(dekaf2 PRIVATE DEKAF2_LIBRARY_BUILD PUBLIC DEKAF2)
 

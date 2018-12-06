@@ -299,15 +299,20 @@ const KProtocol::Protocols KProtocol::m_sCanonical [UNKNOWN+1] =
 
 
 //-------------------------------------------------------------------------
+KURI::KURI(KURL url)
+//-------------------------------------------------------------------------
+	: Path(std::move(url.Path))
+	, Query(std::move(url.Query))
+	, Fragment(std::move(url.Fragment))
+{
+}
+
+//-------------------------------------------------------------------------
 KStringView KURI::Parse(KStringView svSource)
 //-------------------------------------------------------------------------
 {
-	clear ();
-
-	svSource = Path.Parse      (svSource, true);
-	svSource = Query.Parse     (svSource, true);
-	svSource = Fragment.Parse  (svSource, true);
-
+	KURL url(svSource);
+	*this = std::move(url);
 	return svSource;
 }
 
@@ -340,16 +345,6 @@ bool KURI::Serialize(KOutStream& sTarget) const
 	return Path.Serialize          (sTarget)
 	        && Query.Serialize     (sTarget)
 	        && Fragment.Serialize  (sTarget);
-}
-
-//-------------------------------------------------------------------------
-KURI& KURI::operator=(const KURL& url)
-//-------------------------------------------------------------------------
-{
-	Path      = url.Path;
-	Query     = url.Query;
-	Fragment  = url.Fragment;
-	return *this;
 }
 
 //-------------------------------------------------------------------------

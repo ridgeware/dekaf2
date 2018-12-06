@@ -1100,4 +1100,31 @@ TEST_CASE ("KURL formerly missing")
 		CHECK ( URL.Path.get() == "/Some/Path/5C86463AA7BAFCE4" );
 		CHECK ( URL.Query["url"] == "http://some.host.com/resources/images/image1.gif" );
 	}
+
+	SECTION("KURI")
+	{
+		KURI URI;
+		KURL URL;
+		URL = "https://user:pass@localhost:876/Some/Path/5C86463AA7BAFCE4";
+		URI = URL;
+		CHECK ( URI.Path.get() == "/Some/Path/5C86463AA7BAFCE4" );
+		CHECK ( URI.Serialize() == "/Some/Path/5C86463AA7BAFCE4" );
+		URI = "https://user:pass@localhost:876/Some/Path/5C86463AA7BAFCE4";
+		CHECK ( URI.Path.get() == "/Some/Path/5C86463AA7BAFCE4" );
+		CHECK ( URI.Serialize() == "/Some/Path/5C86463AA7BAFCE4" );
+		URI = "/Some/Path/5C86463AA7BAFCE4";
+		CHECK ( URI.Path.get() == "/Some/Path/5C86463AA7BAFCE4" );
+		CHECK ( URI.Serialize() == "/Some/Path/5C86463AA7BAFCE4" );
+		URI = "Some/Path/5C86463AA7BAFCE4";
+		CHECK ( URI.Serialize() == "/Path/5C86463AA7BAFCE4" );
+		URI = "Some";
+		CHECK ( URI.Serialize() == "" );
+		URI = "/Some";
+		CHECK ( URI.Serialize() == "/Some" );
+		URI = "/Some/";
+		CHECK ( URI.Serialize() == "/Some/" );
+		URI = "https://localhost/Some/Path/5C86463AA7BAFCE4?url=http://some.host.com/resources/images/image1.gif";
+		CHECK ( URI.Path.get() == "/Some/Path/5C86463AA7BAFCE4" );
+		CHECK ( URI.Serialize() == "/Some/Path/5C86463AA7BAFCE4?url=http%3A%2F%2Fsome%2Ehost%2Ecom%2Fresources%2Fimages%2Fimage1%2Egif" );
+	}
 }

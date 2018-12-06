@@ -161,7 +161,8 @@ CMakeSetup ()
 	# we want at least 3.13
 	if [ $CMakeMajor -lt 3 ] || ( [ $CMakeMajor -eq 3 ] && [ $CMakeMinor -lt 13 ] ); then
 
-		sCMakeNewVersion="3.13.1"
+		sCmakeFolder="v3.13"         # e.g. https://cmake.org/files/v3.13/
+		sCMakeNewVersion="3.13.1"    # e.g. https://cmake.org/files/v3.13/cmake-3.13.1.tar.gz
 
 		test -z "$BINDIR" && Die "BINDIR label cannot be determined"
 
@@ -202,10 +203,10 @@ CMakeSetup ()
 
 			Info "downloading CMake ${sCMakeNewVersion}"
 			if [ "${BINDIR}" == "redhat64v6" ] || [ "${BINDIR}" == "redhat64" ] || [ "${BINDIR}" == "centos64v6" ]; then
-				wget -q --no-check-certificate https://cmake.org/files/v3.12/cmake-${sCMakeNewVersion}.tar.gz \
+				wget -q --no-check-certificate https://cmake.org/files/${sCmakeFolder}/cmake-${sCMakeNewVersion}.tar.gz \
 					|| CMakeSetupAbort "cannot download cmake"
 			else
-				wget -q https://cmake.org/files/v3.12/cmake-${sCMakeNewVersion}.tar.gz \
+				wget -q https://cmake.org/files/${sCmakeFolder}/cmake-${sCMakeNewVersion}.tar.gz \
 					|| CMakeSetupAbort "cannot download cmake"
 			fi
 

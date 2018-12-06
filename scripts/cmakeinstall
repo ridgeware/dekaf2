@@ -158,10 +158,10 @@ CMakeSetup ()
 		CMakeMinor=$(echo $sCMakeVersion | cut -d . -f 2)
 	fi
 
-	# we want at least 3.12
-	if [ $CMakeMajor -lt 3 ] || ( [ $CMakeMajor -eq 3 ] && [ $CMakeMinor -lt 12 ] ); then
+	# we want at least 3.13
+	if [ $CMakeMajor -lt 3 ] || ( [ $CMakeMajor -eq 3 ] && [ $CMakeMinor -lt 13 ] ); then
 
-		sCMakeNewVersion="3.12.4"
+		sCMakeNewVersion="3.13.1"
 
 		test -z "$BINDIR" && Die "BINDIR label cannot be determined"
 
@@ -262,8 +262,8 @@ CMakeSetup ()
 			CMakeNewMajor=$(echo $sCMakeNewInstVersion | cut -d . -f 1)
 			CMakeNewMinor=$(echo $sCMakeNewInstVersion | cut -d . -f 2)
 
-			# expected 3.12
-			if [ $CMakeNewMajor -eq 3 ] && [ $CMakeNewMinor -eq 12 ]; then
+			# expected 3.13
+			if [ $CMakeNewMajor -eq 3 ] && [ $CMakeNewMinor -eq 13 ]; then
 				Info "successfully installed CMake ${sCMakeNewInstVersion}"
 			else
 				Die "CMake ${sCMakeNewVersion} failed to install - found version ${sCMakeNewInstVersion} instead"

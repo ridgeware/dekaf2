@@ -388,7 +388,7 @@ std::size_t kReplaceVariables (String& sString, StringView sOpen, StringView sCl
 				// found one - replace it
 				sString.replace(iPos, sValue.size() + iOpen + sClose.size(), sReplace);
 				// readjust start position
-				iStart = iPos + it->second.size();
+				iStart = iPos + sReplace.size();
 				// increase replace counter
 				++iNumReplacements;
 			}

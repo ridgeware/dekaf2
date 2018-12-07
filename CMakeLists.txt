@@ -213,16 +213,6 @@ set(CMAKE_THREAD_PREFER_PTHREAD TRUE)
 set(THREADS_PREFER_PTHREAD_FLAG TRUE)
 find_package(Threads REQUIRED)
 
-# ========================= THIRD PARTY SOURCE LIBS ============================
-
-# add third party libraries included in source control
-add_subdirectory(libs EXCLUDE_FROM_ALL)
-
-# add partial third party libraries included in source control
-add_subdirectory(from EXCLUDE_FROM_ALL)
-
-# add externally installed third party libraries:
-
 # ============================== ZLIB / BZIP2 =================================
 
 find_package(ZLIB REQUIRED)
@@ -277,7 +267,7 @@ set(Boost_USE_STATIC_LIBS ON)
 set(BOOST_ROOT "/opt/boost")
 # boost asio (header only) needs system
 # dekaf2's http part needs iostreams
-find_package(Boost 1.54 COMPONENTS system iostreams REQUIRED)
+find_package(Boost 1.54 COMPONENTS system iostreams)
 
 if (NOT Boost_FOUND)
 	if (${CMAKE_SYSTEM_NAME} STREQUAL "Darwin")
@@ -323,6 +313,16 @@ else ()
 	)
 
 endif (DOXYGEN_FOUND)
+
+# ========================= THIRD PARTY SOURCE LIBS ============================
+
+# add third party libraries included in source control
+add_subdirectory(libs EXCLUDE_FROM_ALL)
+
+# add partial third party libraries included in source control
+add_subdirectory(from EXCLUDE_FROM_ALL)
+
+# add externally installed third party libraries:
 
 # =============================== GENERATED FILES =================================
 

@@ -13,6 +13,8 @@ else()
   set( subproject OFF )
 endif()
 
+cmake_policy(SET CMP0076 NEW) # otherwise newer cmakes complain
+
 project(frozen VERSION 1.0.0 LANGUAGES CXX)
 include(CTest)
 include(CMakeDependentOption)

@@ -1,17 +1,12 @@
-cmake_minimum_required(VERSION 3.2)
+cmake_minimum_required(VERSION 3.8)
 
 # this is a minimal cmake recipe for our stripped down
 # version of facebook's folly
 project(minifolly)
 
-if(${CMAKE_VERSION} VERSION_LESS "3.8.0")
-	# we have set the c++ version applicable in dekaf2's CMakeList in the
-	# compiler options
-else()
-	set(CMAKE_CXX_STANDARD 17)
-	# we do not force C++17 if not available
-	# set(CMAKE_CXX_STANDARD_REQUIRED ON)
-endif()
+set(CMAKE_CXX_STANDARD 17)
+# we do not force C++17 if not available
+# set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # make sure we have our version of folly installed
 #execute_process(COMMAND "${CMAKE_CURRENT_SOURCE_DIR}/folly-gen.sh" installifmissing "${CMAKE_CURRENT_SOURCE_DIR}/folly" "${CMAKE_CURRENT_SOURCE_DIR}/folly-patch.diff")
@@ -20,9 +15,13 @@ set(CMAKE_THREAD_PREFER_PTHREAD TRUE)
 set(THREADS_PREFER_PTHREAD_FLAG TRUE)
 find_package(Threads REQUIRED)
 
-set(Boost_USE_STATIC_LIBS ON)
-find_package(Boost QUIET COMPONENTS system REQUIRED)
-include_directories(SYSTEM ${Boost_INCLUDE_DIR})
+if(BOOST_INCLUDE_DIR STREQUAL "")
+	message(STATIC "searching boost for minifolly (should normally be done by dekaf2 before)")
+	set(Boost_USE_STATIC_LIBS ON)
+	# we prefer the boost lib that we installed ourselves in /opt/lib ..
+	set(BOOST_ROOT "/opt/boost")
+	find_package(Boost QUIET COMPONENTS system REQUIRED)
+endif()
 
 set (HEADERS
     glog/logging.h
@@ -101,16 +100,16 @@ if (NOT CMAKE_SYSTEM_PROCESSOR MATCHES "arm")
 endif()
 
 set (MINIFOLLY_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
-include_directories("${MINIFOLLY_INCLUDE_DIR}")
 
 # we add the HEADERS as well, as otherwise qtcreator would not see them
 # as belonging to the project. CMake would not need them here.
 add_library(minifolly ${HEADERS} ${SOURCES})
 
+target_include_directories(minifolly
+	PUBLIC "${MINIFOLLY_INCLUDE_DIR}" "${Boost_INCLUDE_DIR}"
+)
+
 target_link_libraries(minifolly
     ${Boost_LIBRARIES}
     Threads::Threads
 )
-
-set_target_properties(minifolly PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${MINIFOLLY_INCLUDE_DIR}")
-

@@ -98,10 +98,10 @@ if (CPU_ARM)
 	set (DEKAF2_ENABLE_DEBUG_RUNTIME_CHECKS OFF)
 endif()
 
-math(EXPR NEEDED_FROZEN_MEMORY "8 * 1024")
+math(EXPR NEEDED_FROZEN_MEMORY "7 * 1024")
 if (TOTAL_PHYSICAL_MEMORY LESS NEEDED_FROZEN_MEMORY)
-	message(STATUS "-- switching FROZEN off for large maps - not enough RAM (${TOTAL_PHYSICAL_MEMORY} MB)")
-	# this is not enough RAM for computation of large frozen maps, except when cross compiling
+	message(STATUS "switching FROZEN off for large maps - not enough RAM (${TOTAL_PHYSICAL_MEMORY} MB)")
+	# this is not enough RAM for compile time computation of large frozen maps
 	set (DEKAF2_USE_FROZEN_HASH_FOR_LARGE_MAPS OFF)
 endif()
 

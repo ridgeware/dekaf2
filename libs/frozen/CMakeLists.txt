@@ -13,7 +13,7 @@ else()
   set( subproject OFF )
 endif()
 
-if(${CMAKE_VERSION} VERSION_GREATER "3.12")
+if(NOT ${CMAKE_VERSION} VERSION_LESS "3.13")
 	cmake_policy(SET CMP0076 NEW) # otherwise newer cmakes complain
 endif()
 

@@ -13,7 +13,9 @@ else()
   set( subproject OFF )
 endif()
 
-cmake_policy(SET CMP0076 NEW) # otherwise newer cmakes complain
+if(${CMAKE_VERSION} VERSION_GREATER "3.12")
+	cmake_policy(SET CMP0076 NEW) # otherwise newer cmakes complain
+endif()
 
 project(frozen VERSION 1.0.0 LANGUAGES CXX)
 include(CTest)

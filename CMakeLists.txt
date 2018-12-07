@@ -1,58 +1,47 @@
-# in reality we need cmake 3.8 (for C++17) but that would
-# stop the automatic install of a new cmake through the
-# cmakeinstall script below. So we lower the required
-# version to 2.8, then install 3.8, and initially run into
-# a cmake error in the running instance. At the next run,
-# the new cmake then will complete without error..
-cmake_minimum_required(VERSION 2.8)
-
-project(dekaf2)
-
-if (CMAKE_BUILD_TYPE STREQUAL "")
-	# Release is the default build type
-	set(CMAKE_BUILD_TYPE "Release")
-endif()
+# ===================================== THE BEGIN ==================================
+#
+# In reality we need cmake 3.8 (for C++17) but that would stop the automatic install
+# of a new cmake through the cmakeinstall script below. So we lower the required
+# version to 2.6, then install 3.13, and initially run into a cmake error in the
+# running instance. At the next run, the new cmake then will complete without error..
+#
+# Note: C++20 is supported starting with 3.12
+#
+cmake_minimum_required(VERSION 2.6)
+#
+# =================================== UPDATE CMAKE =================================
 
 if(${CMAKE_VERSION} VERSION_LESS "3.8.0")
-	message(STATUS "Please consider switching to CMake 3.8.0 or newer")
+	message(STATUS "Please switch to CMake 3.8.0 or newer")
 	if (${CMAKE_SYSTEM_NAME} STREQUAL "Darwin")
-		message(STATUS "try brew install cmake")
-		set(OLD_CMAKE 1)
+		message(FATAL_ERROR "please do 'brew install/update cmake' and restart cmake")
 	elseif (${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
 		EXECUTE_PROCESS(
 			COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/scripts/cmakeinstall -ask
 		)
 		message(FATAL_ERROR "Please restart cmake now")
 	else()
-		set(OLD_CMAKE 1)
+		message(FATAL_ERROR "Please install a newer cmake and restart cmake. Take a look at dekaf2/scripts/cmakeinstall and check if you can reuse it for your platform.")
 	endif()
 endif()
 
-cmake_host_system_information(RESULT CPU_64_BIT QUERY IS_64BIT)
+# ==================================== PROJECT =====================================
 
-if (${CMAKE_SYSTEM_PROCESSOR} MATCHES "x86")
-	set (CPU_x86 1)
-elseif (${CMAKE_SYSTEM_PROCESSOR} MATCHES "arm")
-	set (CPU_ARM 1)
-endif()
+# When arriving here we guarantee at least cmake 3.8 being used
+# cmake_minimum_required(VERSION 3.8)
 
-if (NOT OLD_CMAKE)
-	set(CMAKE_CXX_STANDARD 17)
-	# we do not force C++17 if not available
-	# set(CMAKE_CXX_STANDARD_REQUIRED ON)
-else()
-	# do not even set C++14, older cmakes have trouble doing so. We will
-	# set it manually in the compiler flags
-endif()
+# allow version number in project command
+cmake_policy(SET CMP0048 NEW)
 
-# Joins arguments and places the results in ${result_var}.
-function(join result_var)
-	set(result )
-	foreach (arg ${ARGN})
-		set(result "${result}${arg}")
-	endforeach ()
-	set(${result_var} "${result}" PARENT_SCOPE)
-endfunction()
+# declare the project
+project(dekaf2 VERSION 2.0.0 DESCRIPTION "C++14/17 rapid application development framework")
+
+# force cpack to pick version numbers from this project, and not from a parent
+set(CPACK_PACKAGE_VERSION_MAJOR ${PROJECT_VERSION_MAJOR})
+set(CPACK_PACKAGE_VERSION_MINOR ${PROJECT_VERSION_MINOR})
+set(CPACK_PACKAGE_VERSION_PATCH ${PROJECT_VERSION_PATCH})
+
+# ================================= CONFIG OPTIONS =================================
 
 # these are all configurable project options
 OPTION(DEKAF2_INSTALL_HEADERS "Install headers" OFF)
@@ -68,18 +57,34 @@ OPTION(DEKAF2_ENABLE_DEBUG_RUNTIME_CHECKS "debug build with sanitizers and addit
 OPTION(DEKAF2_USE_FROZEN_HASH_FOR_LARGE_MAPS "use frozen constexpr hash for large maps (needs a lot of memory on comp)" ON)
 OPTION(DEKAF2_WITH_FCGI "build with FCGI" OFF)
 
-# The project version number.
-set(VERSION_MAJOR   2) # This is DEKAF 2 !
-set(VERSION_MINOR   0)
-set(VERSION_PATCH   0)
-mark_as_advanced(VERSION_MAJOR VERSION_MINOR VERSION_PATCH)
+# =================================== C++ STANDARD =================================
 
-set(CPACK_PACKAGE_VERSION_MAJOR ${VERSION_MAJOR})
-set(CPACK_PACKAGE_VERSION_MINOR ${VERSION_MINOR})
-set(CPACK_PACKAGE_VERSION_PATCH ${VERSION_PATCH})
+set(CMAKE_CXX_STANDARD 17)
+# we do not force C++17 if not available, cmake will pick the highest available
+# set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-join(DEKAF_VERSION ${CPACK_PACKAGE_VERSION_MAJOR}.${CPACK_PACKAGE_VERSION_MINOR}.${CPACK_PACKAGE_VERSION_PATCH})
-message(STATUS "dekaf version: ${DEKAF_VERSION}")
+# ==================================== BUILD TYPE ==================================
+
+if (CMAKE_BUILD_TYPE STREQUAL "")
+	# Release is the default build type
+	set(CMAKE_BUILD_TYPE "Release")
+endif()
+
+# =================================== ENVIRONMENT ==================================
+
+if (${CMAKE_SYSTEM_PROCESSOR} MATCHES "x86")
+	set (CPU_x86 1)
+elseif (${CMAKE_SYSTEM_PROCESSOR} MATCHES "arm")
+	set (CPU_ARM 1)
+endif()
+
+# these are supported by cmake 3.8 as well (but take care for other keys, they are
+# typically only supported starting with 3.10 and cause an error with lower versions)
+cmake_host_system_information(RESULT TOTAL_PHYSICAL_MEMORY QUERY TOTAL_PHYSICAL_MEMORY)
+cmake_host_system_information(RESULT NUMBER_OF_PHYSICAL_CORES QUERY NUMBER_OF_PHYSICAL_CORES)
+cmake_host_system_information(RESULT HOSTNAME QUERY HOSTNAME)
+
+# ========================= SWITCHING CONFIG ON ENVIRONMENT =========================
 
 if (DEKAF2_USE_STD_STRING_FOR_DEBUG_BUILDS)
 	if (CMAKE_BUILD_TYPE STREQUAL "Debug")
@@ -89,10 +94,18 @@ endif ()
 message (STATUS "FBSTRING: ${DEKAF2_USE_FBSTRING_AS_KSTRING}")
 
 if (CPU_ARM)
+	message(STATUS "-- no ASAN/UBSAN support for ARM")
 	set (DEKAF2_ENABLE_DEBUG_RUNTIME_CHECKS OFF)
-	# there is typically not enough RAM for large frozen maps, except in case of cross compilation
+endif()
+
+math(EXPR NEEDED_FROZEN_MEMORY "8 * 1024")
+if (TOTAL_PHYSICAL_MEMORY LESS NEEDED_FROZEN_MEMORY)
+	message(STATUS "-- switching FROZEN off for large maps - not enough RAM (${TOTAL_PHYSICAL_MEMORY} MB)")
+	# this is not enough RAM for computation of large frozen maps, except when cross compiling
 	set (DEKAF2_USE_FROZEN_HASH_FOR_LARGE_MAPS OFF)
 endif()
+
+# ================================ CMAKE INTERNALS =================================
 
 # suppress linker warnings for empty object files on OS X
 if (${CMAKE_SYSTEM_NAME} STREQUAL "Darwin")
@@ -108,6 +121,8 @@ set(CMAKE_OSX_DEPLOYMENT_TARGET "10.14")
 # Add local cmake modules to the module path (used to find libraries which do not have find modules provided by cmake)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules/")
 
+# ==================================== DEKAF1 ====================================
+
 # if requested to integrate with dekaf1, check if it is available
 if (DEKAF2_WITH_COMPATIBILITY_LAYER_TO_DEKAF1)
 	set (DPATH $ENV{dekaf})
@@ -120,6 +135,8 @@ if (DEKAF2_WITH_COMPATIBILITY_LAYER_TO_DEKAF1)
 		message(STATUS "Option to provide compatibility layer to dekaf1 is set, but dekaf1 can't be found. Option disabled.")
 	endif ()
 endif ()
+
+# ================================ ASAN / UBSAN =================================
 
 message(STATUS ${CMAKE_GENERATOR})
 if (DEKAF2_ENABLE_DEBUG_RUNTIME_CHECKS)
@@ -135,6 +152,8 @@ if (DEKAF2_ENABLE_DEBUG_RUNTIME_CHECKS)
 		set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fstack-protector-strong -fstack-check")
 	endif ()
 endif ()
+
+# ============================= COMPILER FLAGS =================================
 
 if (CMAKE_COMPILER_IS_GNUCXX)
 
@@ -162,14 +181,6 @@ if (CMAKE_COMPILER_IS_GNUCXX)
 		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-psabi")
 	endif()
 
-	if (OLD_CMAKE)
-		if (CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 6.2)
-			set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17")
-		else()
-			set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14")
-		endif()
-	endif()
-
 	# increase amount of permitted constexpr depth (default is 512)
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fconstexpr-depth=2048")
 
@@ -187,10 +198,6 @@ elseif (CMAKE_CXX_COMPILER_ID MATCHES "[cC][lL][aA][nN][gG]")
 
 	endif ()
 
-	if (OLD_CMAKE)
-		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17")
-	endif()
-
 	# increase amount of permitted constexpr steps (default is around 1.000.000)
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fconstexpr-steps=100000000")
 	# increase amount of permitted constexpr depth (default is 512)
@@ -206,6 +213,8 @@ set(CMAKE_THREAD_PREFER_PTHREAD TRUE)
 set(THREADS_PREFER_PTHREAD_FLAG TRUE)
 find_package(Threads REQUIRED)
 
+# ========================= THIRD PARTY SOURCE LIBS ============================
+
 # add third party libraries included in source control
 add_subdirectory(libs EXCLUDE_FROM_ALL)
 
@@ -214,15 +223,20 @@ add_subdirectory(from EXCLUDE_FROM_ALL)
 
 # add externally installed third party libraries:
 
+# ============================== ZLIB / BZIP2 =================================
+
 find_package(ZLIB REQUIRED)
 find_package(BZip2 REQUIRED)
+
+# ================================ LIBPROC ====================================
 
 # check if we have the libproc library (or at least its headers)
 find_package(libproc QUIET)
 if (libproc_FOUND)
 	set(DEKAF2_HAS_LIBPROC 1)
-#	include_directories(SYSTEM ${libproc_INCLUDE_DIRS})
 endif ()
+
+# ================================= MYSQL ====================================
 
 # MySQL (for KSQL) - if not available, KSQL will not build something meaningful
 find_package(MYSQL QUIET)
@@ -238,6 +252,8 @@ else()
 	message(STATUS "MySQL not found - will build without. Please install MySQL if you want to use KSQL.")
 endif()
 
+# ================================ SQLITE ====================================
+
 # SQLite3 (for KSQL and KSQLite) - if not available it's simply skipped
 find_package(SQLite3 QUIET)
 if(SQLITE3_FOUND)
@@ -245,12 +261,16 @@ if(SQLITE3_FOUND)
 	set(DEKAF2_HAS_SQLITE3 1)
 endif()
 
+# ================================ OPENSSL ===================================
+
 # openssl (needed for boost asio)
 if (${CMAKE_SYSTEM_NAME} STREQUAL "Darwin")
     # this is still needed to override an insufficient std OpenSSL on OSX
 	set(OPENSSL_ROOT_DIR /usr/local/opt/openssl)
 endif ()
 find_package(OpenSSL REQUIRED)
+
+# ================================= BOOST ====================================
 
 set(Boost_USE_STATIC_LIBS ON)
 # we prefer the boost lib that we installed ourselves in /opt/lib ..
@@ -273,6 +293,8 @@ if (NOT Boost_FOUND)
 endif()
 
 message(STATUS "boost-libs: ${Boost_LIBRARIES}")
+
+# ================================= DOXYGEN ==================================
 
 # add a target to generate API documentation with Doxygen
 # please make sure the graphviz package is installed, too, not only doxygen
@@ -302,12 +324,16 @@ else ()
 
 endif (DOXYGEN_FOUND)
 
+# =============================== GENERATED FILES =================================
+
 # create and include the build directory for generated files
 set(GENERATED_FILES_DIR "${CMAKE_CURRENT_BINARY_DIR}/generated")
 file(MAKE_DIRECTORY "${GENERATED_FILES_DIR}")
 
 # create the configuration header file
 configure_file("bits/kconfiguration.h.in" "${GENERATED_FILES_DIR}/kconfiguration.h" @ONLY)
+
+# =============================== HEADER FILES ====================================
 
 set (BITS_HEADERS
 	# KEEP ALPHABETIZED
@@ -451,6 +477,8 @@ set(HEADERS
 	${PUBLIC_HEADERS}
 )
 
+# =============================== SOURCE FILES ====================================
+
 set (SOURCES
 	# KEEP ALPHABETIZED
 	bits/kbasepipe.cpp
@@ -539,6 +567,8 @@ if(SQLITE3_FOUND)
 	)
 endif()
 
+# =============================== PSEUDO INSTALL ====================================
+
 if (DEKAF2_INSTALL_HEADERS)
 
 	set (DEKAF2_INCLUDE_DIR "${CMAKE_CURRENT_BINARY_DIR}/include")
@@ -570,9 +600,7 @@ else ()
 
 endif (DEKAF2_INSTALL_HEADERS)
 
-# we add the HEADERS as well, as otherwise cmake based IDEs would not see them
-# as belonging to the project. CMake would not need them here.
-add_library(dekaf2 ${HEADERS} ${SOURCES})
+# ============================= CONDITIONAL LIBS ==================================
 
 if (CMAKE_COMPILER_IS_GNUCC AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 6.0)
 	set (FSLIB libstdc++fs.a)
@@ -595,6 +623,12 @@ if (DEKAF2_WITH_FCGI)
 else ()
 	set (FCGILIBS "")
 endif ()
+
+# =============================== TARGETS ====================================
+
+# we add the HEADERS as well, as otherwise cmake based IDEs would not see them
+# as belonging to the project. CMake would not need them here.
+add_library(dekaf2 ${HEADERS} ${SOURCES})
 
 target_link_libraries(dekaf2
 	PUBLIC
@@ -633,9 +667,13 @@ target_link_libraries(createdbc dekaf2)
 add_executable(getentities getentities.cpp)
 target_link_libraries(getentities dekaf2)
 
+# ============================ UNIT AND SMOKE TESTS ==================================
+
 add_subdirectory(utests)
 add_subdirectory(smoketests)
 add_subdirectory(benchmarks)
+
+# ================================= INSTALLATION =====================================
 
 # for testing
 set(CMAKE_INSTALL_PREFIX "~/src/install")
@@ -674,6 +712,7 @@ install(FILES ${FROZEN_FILES} DESTINATION include/dekaf2/frozen/bits)
 
 set(CPACK_SOURCE_GENERATOR ZIP)
 set(CPACK_SOURCE_IGNORE_FILES ${ignored_files})
-set(CPACK_SOURCE_PACKAGE_FILE_NAME dekaf2-${DEKAF_VERSION})
-set(CPACK_PACKAGE_NAME dekaf2)
+set(CPACK_SOURCE_PACKAGE_FILE_NAME ${PROJECT_NAME}-${CPACK_PACKAGE_VERSION})
 include(CPack)
+
+# =================================== THE END ========================================

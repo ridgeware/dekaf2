@@ -61,7 +61,7 @@ bool kChangeMode(KStringViewZ sPath, int iMode)
 #ifdef DEKAF2_HAS_STD_FILESYSTEM
 	std::error_code ec;
 
-	fs::permissions(sPath.c_str(), static_cast<std::filesystem::perms>(iMode), ec);
+	fs::permissions(sPath.c_str(), static_cast<fs::perms>(iMode), ec);
 
 	if (ec)
 	{

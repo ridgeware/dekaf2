@@ -358,53 +358,44 @@ inline void re2groups(reGroups& inGroups, KRegex::Groups& outGroups)
 }
 
 //-----------------------------------------------------------------------------
-bool KRegex::Matches(KStringView sStr, Groups& sGroups)
+KRegex::Groups KRegex::MatchGroups(KStringView sStr, size_type pos) const
 //-----------------------------------------------------------------------------
 {
-	sGroups.clear();
+	Groups vGroups;
 
 	if DEKAF2_LIKELY((Good()))
 	{
 		reGroups resGroups;
 		resGroups.resize(static_cast<size_t>(rget(m_Regex)->NumberOfCapturingGroups()+1));
-		bool bRes = rget(m_Regex)->Match(re2::StringPiece(sStr.data(), sStr.size()), 0, sStr.size(), re2::RE2::UNANCHORED, &resGroups[0], static_cast<int>(sGroups.size()));
-		re2groups(resGroups, sGroups);
-		return bRes;
+		if (rget(m_Regex)->Match(re2::StringPiece(sStr.data(), sStr.size()), pos, sStr.size(), re2::RE2::UNANCHORED, &resGroups[0], static_cast<int>(resGroups.size())))
+		{
+			re2groups(resGroups, vGroups);
+		}
 	}
 
-	return false;
+	return vGroups;
 }
 
 //-----------------------------------------------------------------------------
-bool KRegex::Matches(KStringView sStr, size_t& iStart, size_t& iSize)
+KStringView KRegex::Match(KStringView sStr, size_type pos) const
 //-----------------------------------------------------------------------------
 {
-	Groups sGroups;
+	KStringView sGroup;
 
-	if (Matches(sStr, sGroups) && !sGroups.empty() && sGroups[0].data() != nullptr)
+	if (DEKAF2_LIKELY(Good()))
 	{
-		iStart = static_cast<size_t>(sGroups[0].data() - sStr.data());
-		iSize  = static_cast<size_t>(sGroups[0].size());
-		return true;
+		reGroup resGroup;
+		if (rget(m_Regex)->Match(re2::StringPiece(sStr.data(), sStr.size()), pos, sStr.size(), re2::RE2::UNANCHORED, &resGroup, 1))
+		{
+			sGroup.assign(resGroup.data(), resGroup.size());
+		}
 	}
-	else
-	{
-		iStart = 0;
-		iSize  = 0;
-		return false;
-	}
+
+	return sGroup;
 }
 
 //-----------------------------------------------------------------------------
-bool KRegex::Matches(KStringView sStr)
-//-----------------------------------------------------------------------------
-{
-	Groups sGroups;
-	return Matches(sStr, sGroups);
-}
-
-//-----------------------------------------------------------------------------
-size_t KRegex::Replace(std::string& sStr, KStringView sReplaceWith, bool bReplaceAll)
+size_t KRegex::Replace(std::string& sStr, KStringView sReplaceWith, bool bReplaceAll) const
 //-----------------------------------------------------------------------------
 {
 	size_t iCount{0};
@@ -428,7 +419,7 @@ size_t KRegex::Replace(std::string& sStr, KStringView sReplaceWith, bool bReplac
 
 #ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
 //-----------------------------------------------------------------------------
-size_t KRegex::Replace(KString& sStr, KStringView sReplaceWith, bool bReplaceAll)
+size_t KRegex::Replace(KString& sStr, KStringView sReplaceWith, bool bReplaceAll) const
 //-----------------------------------------------------------------------------
 {
 	size_t iCount{0};
@@ -455,27 +446,19 @@ size_t KRegex::Replace(KString& sStr, KStringView sReplaceWith, bool bReplaceAll
 // the static calls to the member functions:
 
 //-----------------------------------------------------------------------------
-bool KRegex::Matches(KStringView sStr, KStringView sRegex, Groups& sGroups)
+KRegex::Groups KRegex::MatchGroups(KStringView sStr, KStringView sRegex, size_type pos)
 //-----------------------------------------------------------------------------
 {
 	KRegex regex(sRegex);
-	return regex.Matches(sStr, sGroups);
+	return regex.MatchGroups(sStr, pos);
 }
 
 //-----------------------------------------------------------------------------
-bool KRegex::Matches(KStringView sStr, KStringView sRegex, size_t& iStart, size_t& iSize)
+KStringView KRegex::Match(KStringView sStr, KStringView sRegex, size_type pos)
 //-----------------------------------------------------------------------------
 {
 	KRegex regex(sRegex);
-	return regex.Matches(sStr, iStart, iSize);
-}
-
-//-----------------------------------------------------------------------------
-bool KRegex::Matches(KStringView sStr, KStringView sRegex)
-//-----------------------------------------------------------------------------
-{
-	KRegex regex(sRegex);
-	return regex.Matches(sStr);
+	return regex.Match(sStr, pos);
 }
 
 //-----------------------------------------------------------------------------

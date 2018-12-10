@@ -42,6 +42,7 @@
 
 #include "kstringview.h"
 #include "kstringutils.h"
+#include "kregex.h"
 #include "klog.h"
 #include "dekaf2.h"
 #include "bits/simd/kfindfirstof.h"
@@ -607,6 +608,20 @@ void KStringView::Warn(KStringView sWhat) const
 //-----------------------------------------------------------------------------
 {
 	kWarning("{}", sWhat);
+}
+
+//----------------------------------------------------------------------
+KStringView KStringView::MatchRegex(KStringView sRegEx, size_type pos) const
+//----------------------------------------------------------------------
+{
+	return dekaf2::KRegex::Match(*this, sRegEx, pos);
+}
+
+//----------------------------------------------------------------------
+std::vector<KStringView> KStringView::MatchRegexGroups(KStringView sRegEx, size_type pos) const
+//----------------------------------------------------------------------
+{
+	return dekaf2::KRegex::MatchGroups(*this, sRegEx, pos);
 }
 
 //----------------------------------------------------------------------

@@ -74,57 +74,46 @@ public:
 	KRegex(KStringView expression);
 	//-----------------------------------------------------------------------------
 
-	using Group  = KStringView;
-	using Groups = std::vector<Group>;
+	using Group     = KStringView;
+	using Groups    = std::vector<Group>;
+	using size_type = KStringView::size_type;
 
 	// member function interface
 	//-----------------------------------------------------------------------------
-	/// match a regular expression in sStr
-	bool Matches(KStringView sStr);
+	/// match a regular expression in sStr and return the overall match (group 0)
+	KStringView Match(KStringView sStr, size_type pos = 0) const;
 	//-----------------------------------------------------------------------------
 
 	// member function interface
 	//-----------------------------------------------------------------------------
 	/// match a regular expression in sStr and return all match groups, including the overall match in group 0.
-	bool Matches(KStringView sStr, Groups& sGroups);
-	//-----------------------------------------------------------------------------
-
-	// member function interface
-	//-----------------------------------------------------------------------------
-	/// match a regular expression in sStr and return the overall match (group 0) in iStart, iSize as in a substring definition
-	bool Matches(KStringView sStr, size_t& iStart, size_t& iSize);
+	Groups MatchGroups(KStringView sStr, size_type pos = 0) const;
 	//-----------------------------------------------------------------------------
 
 	// member function interface
 	//-----------------------------------------------------------------------------
 	/// replace a regular expression with new text. Sub groups can be addressed with \1 \2 etc. in the replacement text
-	size_t Replace(std::string& sStr, KStringView sReplaceWith, bool bReplaceAll = true);
+	size_t Replace(std::string& sStr, KStringView sReplaceWith, bool bReplaceAll = true) const;
 	//-----------------------------------------------------------------------------
 
 #ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
 	// member function interface
 	//-----------------------------------------------------------------------------
 	/// replace a regular expression with new text. Sub groups can be addressed with \1 \2 etc. in the replacement text
-	size_t Replace(KString& sStr, KStringView sReplaceWith, bool bReplaceAll = true);
+	size_t Replace(KString& sStr, KStringView sReplaceWith, bool bReplaceAll = true) const;
 	//-----------------------------------------------------------------------------
 #endif
 
 	// static interface
 	//-----------------------------------------------------------------------------
-	/// match a regular expression in sStr
-	static bool Matches(KStringView sStr, KStringView sRegex);
+	/// match a regular expression in sStr and return the overall match (group 0)
+	static KStringView Match(KStringView sStr, KStringView sRegex, size_type pos = 0);
 	//-----------------------------------------------------------------------------
 
 	// static interface
 	//-----------------------------------------------------------------------------
 	/// match a regular expression in sStr and return all match groups, including the overall match in group 0.
-	static bool Matches(KStringView sStr, KStringView sRegex, Groups& sGroups);
-	//-----------------------------------------------------------------------------
-
-	// static interface
-	//-----------------------------------------------------------------------------
-	/// match a regular expression in sStr and return the overall match (group 0) in iStart, iSize as in a substring definition
-	static bool Matches(KStringView sStr, KStringView sRegex, size_t& iStart, size_t& iSize);
+	static Groups MatchGroups(KStringView sStr, KStringView sRegex, size_type pos = 0);
 	//-----------------------------------------------------------------------------
 
 	// static interface

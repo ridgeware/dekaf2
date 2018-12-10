@@ -412,6 +412,12 @@ public:
 	template<class... Args>
 	self& Printf(Args&&... args);
 
+	/// match with regular expression and return the overall match (group 0)
+	KStringView MatchRegex(KStringView sRegEx, size_type pos = 0) const;
+
+	/// match with regular expression and return all match groups
+	std::vector<KStringView> MatchRegexGroups(KStringView sRegEx, size_type pos = 0) const;
+
 	/// replace with regular expression, sReplaceWith may address sub-groups with \\1 etc.
 	size_type ReplaceRegex(KStringView sRegEx, KStringView sReplaceWith, bool bReplaceAll = true);
 
@@ -1266,6 +1272,20 @@ inline uint128_t KString::UInt128(bool bIsHex) const noexcept
 	return ToView().UInt128(bIsHex);
 }
 #endif
+
+//-----------------------------------------------------------------------------
+inline KStringView KString::MatchRegex(KStringView sRegEx, size_type pos) const
+//-----------------------------------------------------------------------------
+{
+	return ToView().MatchRegex(sRegEx, pos);
+}
+
+//-----------------------------------------------------------------------------
+inline std::vector<KStringView> KString::MatchRegexGroups(KStringView sRegEx, size_type pos) const
+//-----------------------------------------------------------------------------
+{
+	return ToView().MatchRegexGroups(sRegEx, pos);
+}
 
 // KString inline methods until here
 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++

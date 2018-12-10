@@ -171,6 +171,8 @@ public:
 	using base_type::ToLower;
 	using base_type::ToUpperLocale;
 	using base_type::ToLowerLocale;
+	using base_type::MatchRegex;
+	using base_type::MatchRegexGroups;
 
 	using base_type::Left;
 	using base_type::Mid;

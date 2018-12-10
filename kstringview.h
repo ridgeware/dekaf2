@@ -699,6 +699,18 @@ public:
 
 	//-----------------------------------------------------------------------------
 	// nonstandard
+	/// match with regular expression and return the overall match (group 0)
+	KStringView MatchRegex(KStringView sRegEx, size_type pos = 0) const;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	// nonstandard
+	/// match with regular expression and return all match groups
+	std::vector<KStringView> MatchRegexGroups(KStringView sRegEx, size_type pos = 0) const;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	// nonstandard
 	/// returns leftmost iCount chars of string
 	KStringView Left(size_type iCount) const;
 	//-----------------------------------------------------------------------------

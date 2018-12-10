@@ -792,37 +792,37 @@ TEST_CASE ("KURL formerly missing")
     {
         KStringView svDomain("abc.test.com");
         KURL Domain(svDomain);
-        KStringView svResult = Domain.getBaseDomain();
+        KString svResult = Domain.GetBaseDomain();
         CHECK (svResult == "TEST");
 
         svDomain = "test.com";
         Domain = svDomain;
-        svResult = Domain.getBaseDomain();
+        svResult = Domain.GetBaseDomain();
         CHECK (svResult == "TEST");
 
         svDomain = "test.co.uk";
         Domain = svDomain;
-        svResult = Domain.getBaseDomain();
+        svResult = Domain.GetBaseDomain();
         CHECK (svResult == "TEST");
 
         svDomain = "www.test.co.uk";
         Domain = svDomain;
-        svResult = Domain.getBaseDomain();
+        svResult = Domain.GetBaseDomain();
         CHECK (svResult == "TEST");
 
         svDomain = ".test.com";
         Domain = svDomain;
-        svResult = Domain.getBaseDomain();
+        svResult = Domain.GetBaseDomain();
         CHECK (svResult == "TEST");
 
         svDomain = "lot.of.name.co.fragments.test.de";
         Domain = svDomain;
-        svResult = Domain.getBaseDomain();
+        svResult = Domain.GetBaseDomain();
         CHECK (svResult == "TEST");
 
         svDomain = "test";
         Domain = svDomain;
-        svResult = Domain.getBaseDomain();
+        svResult = Domain.GetBaseDomain();
         CHECK (svResult == "");
     }
 
@@ -1126,5 +1126,18 @@ TEST_CASE ("KURL formerly missing")
 		URI = "https://localhost/Some/Path/5C86463AA7BAFCE4?url=http://some.host.com/resources/images/image1.gif";
 		CHECK ( URI.Path.get() == "/Some/Path/5C86463AA7BAFCE4" );
 		CHECK ( URI.Serialize() == "/Some/Path/5C86463AA7BAFCE4?url=http%3A%2F%2Fsome%2Ehost%2Ecom%2Fresources%2Fimages%2Fimage1%2Egif" );
+	}
+
+	SECTION("decoded / encoded")
+	{
+		KURL URL;
+		URL = "https://user:pass@local.org:876/Some/Path/5C86463AA7BAFCE4?url=http%3A%2F%2Fsome%2Ehost%2Ecom%2Fresources%2Fimages%2Fimage1%2Egif#fragment%2Fhere";
+		CHECK ( URL.Path.Decoded() == "/Some/Path/5C86463AA7BAFCE4" );
+		CHECK ( URL.Domain.Decoded() == "local.org" );
+		CHECK ( URL.Protocol.Decoded() == "https://" );
+		CHECK ( URL.Query.Decoded() == "url=http%3A%2F%2Fsome%2Ehost%2Ecom%2Fresources%2Fimages%2Fimage1%2Egif" );
+		CHECK ( URL.Fragment.Decoded() == "fragment/here" );
+		CHECK ( URL.User.Decoded() == "user" );
+		CHECK ( URL.Password.Decoded() == "pass" );
 	}
 }

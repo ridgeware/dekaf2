@@ -131,6 +131,39 @@ template class URIComponent<URLEncodedString, URIPart::Fragment, '#',  true,  fa
 
 }
 
+// watch out: in Parse() and Serialize(), we assume that the schemata
+// do not need URL encoding! Therefore, when you add one that does,
+// please use the URL encoded form here, too.
+
+struct Protocols
+{
+	const uint16_t    iPort;
+	const KStringView sName;
+	const KStringView sProtoPrefix;
+};
+
+constexpr Protocols s_Canonical [KProtocol::UNKNOWN+1] =
+{
+	{    0, ""       , ""          }, // Empty placeholder for UNDEFINED, parse has not been run yet.
+	{   25, "mailto" , "mailto:"   }, // mailto stays first, auto second!
+	{   80, "auto"   , "//"        }, // auto falls back to HTTP..
+	{   80, "http"   , "http://"   },
+	{  443, "https"  , "https://"  },
+	{    0, "file"   , "file://"   },
+	{   21, "ftp"    , "ftp://"    },
+	{ 9418, "git"    , "git://"    },
+	{    0, "svn"    , "svn://"    },
+	{  531, "irc"    , "irc://"    },
+	{  119, "news"   , "news://"   },
+	{  119, "nntp"   , "nntp://"   },
+	{   23, "telnet" , "telnet://" },
+	{   70, "gopher" , "gopher://" }, // pure nostalgia
+	{    0, "unix"   , "unix://"   }, // this is for unix socket files ("unix:///this/is/my/socket")
+	{   25, "smtp"   , "smtp://"   },
+	{  587, "smtps"  , "smtps://"  },
+	{    0, ""       , ""          }  // Empty placeholder for UNKNOWN, use m_sProto.
+};
+
 //-----------------------------------------------------------------------------
 void KProtocol::SetProto(KStringView svProto)
 //-----------------------------------------------------------------------------
@@ -139,9 +172,9 @@ void KProtocol::SetProto(KStringView svProto)
 	// we do not want to recognize MAILTO in this branch, as it
 	// has the wrong separator. But if we find it we store it as
 	// unknown and then reproduce the same on serialization.
-	for (uint16_t iProto = MAILTO + 1; iProto < UNKNOWN; ++iProto)
+	for (uint16_t iProto = MAILTO + 2; iProto < UNKNOWN; ++iProto)
 	{
-		if (m_sCanonical[iProto].name == svProto)
+		if (s_Canonical[iProto].sName == svProto)
 		{
 			m_eProto = static_cast<eProto>(iProto);
 			break;
@@ -152,7 +185,11 @@ void KProtocol::SetProto(KStringView svProto)
 	{
 		// only store the protocol scheme if it is not one
 		// of the canonical
-		kUrlDecode (svProto, m_sProto);
+		if (!svProto.empty())
+		{
+			m_sProto = svProto;
+			m_sProto += "://";
+		}
 	}
 
 } // SetProto
@@ -227,38 +264,42 @@ KStringView KProtocol::Parse (KStringView svSource, bool bAcceptWithoutColon)
 //-----------------------------------------------------------------------------
 /// @brief Generate KProtocol/Scheme portion of URL.
 // Class KProtocol parses and maintains "scheme" portion of w3c URL.
-bool KProtocol::Serialize (KString& sTarget) const
+KStringView KProtocol::Serialize () const
 //-----------------------------------------------------------------------------
 {
+	KStringView sProto;
+
 	// m_eProto is UNKNOWN for protocols like "opaquelocktoken://"
 	switch (m_eProto)
 	{
 		case UNDEFINED:
 			// The serialization is correctly empty when no value was parsed.
-			// Do not return false;
-			return true;
+			break;
 
 		case UNKNOWN:
-			kUrlEncode(m_sProto, sTarget, URIPart::Protocol);
-			sTarget += "://";
-			break;
-
-		case MAILTO:
-			sTarget += m_sCanonical[m_eProto].name;
-			sTarget += ':';
-			break;
-
-		case AUTO:
-			sTarget += "//";
+			sProto = m_sProto;
 			break;
 
 		default:
-			sTarget += m_sCanonical[m_eProto].name;
-			sTarget += "://";
+			sProto = s_Canonical[m_eProto].sProtoPrefix;
 			break;
 	}
 
-	return true;
+	return sProto;
+}
+
+//-------------------------------------------------------------------------
+uint16_t KProtocol::DefaultPort() const
+//-------------------------------------------------------------------------
+{
+	uint16_t iPort = s_Canonical[m_eProto].iPort;
+
+	if (!iPort)
+	{
+		kWarning("no default port - return 0");
+	}
+
+	return iPort;
 }
 
 //-----------------------------------------------------------------------------
@@ -270,30 +311,6 @@ void KProtocol::clear()
 	m_eProto = UNDEFINED;
 }
 
-// watch out: in Parse() and Serialize(), we assume that the schemata
-// do not need URL encoding! Therefore, when you add one that does,
-// please use the URL encoded form here, too.
-const KProtocol::Protocols KProtocol::m_sCanonical [UNKNOWN+1] =
-{
-    {    0, ""       }, // Empty placeholder for UNDEFINED, parse has not been run yet.
-    {   25, "mailto" },
-	{   80, "auto"   }, // auto falls back to HTTP..
-    {   80, "http"   },
-    {  443, "https"  },
-    {    0, "file"   },
-    {   21, "ftp"    },
-    { 9418, "git"    },
-    {    0, "svn"    },
-    {  531, "irc"    },
-    {  119, "news"   },
-    {  119, "nntp"   },
-    {   23, "telnet" },
-    {   70, "gopher" }, // pure nostalgia
-	{    0, "unix"   }, // this is for unix socket files ("unix:///this/is/my/socket")
-	{   25, "smtp"   },
-	{  587, "smtps"  },
-    {    0, ""       }  // Empty placeholder for UNKNOWN, use m_sProto.
-};
 
 } // end of namespace url
 
@@ -348,17 +365,6 @@ bool KURI::Serialize(KOutStream& sTarget) const
 }
 
 //-------------------------------------------------------------------------
-KStringView KURL::getBaseDomain() const
-//-------------------------------------------------------------------------
-{
-	if (BaseDomain.empty() && !Domain.empty())
-	{
-		BaseDomain = kGetBaseDomain(Domain.get());
-	}
-	return BaseDomain;
-}
-
-//-------------------------------------------------------------------------
 KStringView KURL::Parse(KStringView svSource)
 //-------------------------------------------------------------------------
 {
@@ -388,7 +394,6 @@ void KURL::clear()
 	Path.clear();
 	Query.clear();
 	Fragment.clear();
-	BaseDomain.clear();
 }
 
 //-------------------------------------------------------------------------

@@ -382,7 +382,7 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
-	/// operator KStringView () returns the decoded string
+	/// operator const KString& () returns the decoded string
 	template<bool X = IsString, typename std::enable_if<X, int>::type = 0 >
 	operator KStringView () const
 	//-------------------------------------------------------------------------
@@ -391,11 +391,50 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
-	/// operator=(KStringView) parses the decoded string
+	/// return percent-encoded content
+	KString Encoded() const
+	//-------------------------------------------------------------------------
+	{
+		return Serialize();
+	}
+
+	//-------------------------------------------------------------------------
+	/// return percent-decoded content (for query part)
+	template<bool X = IsString, typename std::enable_if<!X, int>::type = 0 >
+	KString Decoded() const
+	//-------------------------------------------------------------------------
+	{
+		// key-value pair strings _have_ to be percent encoded, as that is the
+		// natural flat-string representation for them
+		return Serialize();
+	}
+
+	//-------------------------------------------------------------------------
+	/// return percent-decoded content (for string parts)
+	template<bool X = IsString, typename std::enable_if<X, int>::type = 0 >
+	const typename Storage::value_type& Decoded() const
+	//-------------------------------------------------------------------------
+	{
+		return get();
+	}
+
+	//-------------------------------------------------------------------------
+	/// operator=(KStringView) for the query part parses the encoded string
+	template<bool X = IsString, typename std::enable_if<!X, int>::type = 0 >
 	URIComponent& operator=(KStringView sv)
 	//-------------------------------------------------------------------------
 	{
-		Parse(sv);
+		Parse (sv);
+		return *this;
+	}
+
+	//-------------------------------------------------------------------------
+	/// operator=(KStringView) sets the decoded string
+	template<bool X = IsString, typename std::enable_if<X, int>::type = 0 >
+	URIComponent& operator=(KStringView sv)
+	//-------------------------------------------------------------------------
+	{
+		m_sStorage.set(sv);
 		return *this;
 	}
 
@@ -480,7 +519,7 @@ public:
 		// Explicit values to guarantee map to m_sCanonical.
 		UNDEFINED =  0,
 		MAILTO    =  1, // MAILTO _has_ to stay at the second position after UNDEFINED!
-		AUTO      =  2, // the "//" in HTML attributes
+		AUTO      =  2, // the "//" in HTML attributes (AUTO has to stay after MAILTO)
 		HTTP      =  3,
 		HTTPS     =  4,
 		FILE      =  5,
@@ -526,16 +565,6 @@ public:
 	//-------------------------------------------------------------------------
 
 	//-------------------------------------------------------------------------
-	/// Convert internal rep to KString
-	operator KString () const
-	//-------------------------------------------------------------------------
-	{
-		KString sResult;
-		Serialize (sResult);
-		return sResult;
-	}
-
-	//-------------------------------------------------------------------------
 	/// Serialize internal rep into arg KString
 	const KProtocol& operator>> (KString& sTarget) const
 	//-------------------------------------------------------------------------
@@ -555,28 +584,49 @@ public:
 
 	//-------------------------------------------------------------------------
 	/// generate content into string from members
-	bool Serialize (KString& sTarget) const;
+	bool Serialize (KString& sTarget) const
 	//-------------------------------------------------------------------------
+	{
+		sTarget += Serialize();
+		return true;
+	}
 
 	//-------------------------------------------------------------------------
 	/// generate content into string from members
 	bool Serialize (KOutStream& sTarget) const
 	//-------------------------------------------------------------------------
 	{
-		KString str;
-		Serialize(str);
-		sTarget.Write(str);
+		sTarget.Write(Serialize());
 		return true;
 	}
 
 	//-------------------------------------------------------------------------
 	/// return encoded content
-	KString Serialize() const
+	KStringView Serialize() const;
+	//-------------------------------------------------------------------------
+
+	//-------------------------------------------------------------------------
+	/// return percent-encoded content
+	KStringView Encoded() const
 	//-------------------------------------------------------------------------
 	{
-		KString sReturn;
-		Serialize(sReturn);
-		return sReturn;
+		return Serialize();
+	}
+
+	//-------------------------------------------------------------------------
+	/// return percent-decoded content
+	KStringView Decoded() const
+	//-------------------------------------------------------------------------
+	{
+		return get();
+	}
+
+	//-------------------------------------------------------------------------
+	/// operator KString returns the decoded string
+	operator KStringView() const
+	//-------------------------------------------------------------------------
+	{
+		return Decoded();
 	}
 
 	//-------------------------------------------------------------------------
@@ -586,12 +636,10 @@ public:
 
 	//-------------------------------------------------------------------------
 	/// return a view of the member
-	KString get () const
+	KStringView get () const
 	//-------------------------------------------------------------------------
 	{
-		KString sEncoded;
-		Serialize (sEncoded);
-		return sEncoded;
+		return Serialize();
 	}
 
 	//-------------------------------------------------------------------------
@@ -668,16 +716,8 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
-	uint16_t DefaultPort() const
+	uint16_t DefaultPort() const;
 	//-------------------------------------------------------------------------
-	{
-		uint16_t iPort = m_sCanonical[m_eProto].port;
-		if (!iPort)
-		{
-			kWarning("no default port - return 0");
-		}
-		return iPort;
-	}
 
 
 //------
@@ -688,12 +728,6 @@ private:
 
 	KString m_sProto {};
 	eProto  m_eProto {UNDEFINED};
-	struct Protocols
-	{
-		const uint16_t port;
-		const KStringView::value_type* name;
-	};
-	static const Protocols m_sCanonical [UNKNOWN+1];
 
 };
 
@@ -778,6 +812,14 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
+	/// return percent-encoded content (same as Serialize())
+	KString Encoded() const
+	//-------------------------------------------------------------------------
+	{
+		return Serialize();
+	}
+
+	//-------------------------------------------------------------------------
 	/// Parse stream style
 	KURI& operator<< (KStringView sSource)
 	//-------------------------------------------------------------------------
@@ -855,6 +897,14 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
+	/// return percent-encoded content (same as Serialize())
+	KString Encoded() const
+	//-------------------------------------------------------------------------
+	{
+		return Serialize();
+	}
+
+	//-------------------------------------------------------------------------
 	/// return Path, Query, Fragment as a URL encoded string
 	bool GetURI(KString& sTarget) const;
 	//-------------------------------------------------------------------------
@@ -926,8 +976,11 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
-	KStringView getBaseDomain() const;
+	KString GetBaseDomain() const
 	//-------------------------------------------------------------------------
+	{
+		return kGetBaseDomain(Domain.get());
+	}
 
 	//-------------------------------------------------------------------------
 	/// helper method: isolate the PATH portion of the given URL (no change to class instance)
@@ -942,12 +995,6 @@ public:
 	url::KPath      Path;
 	url::KQuery     Query;
 	url::KFragment  Fragment;
-
-//------
-protected:
-//------
-
-	mutable KString BaseDomain;
 
 }; // KURL
 

@@ -74,6 +74,8 @@ endif()
 
 if (${CMAKE_SYSTEM_PROCESSOR} MATCHES "x86")
 	set (CPU_x86 1)
+elseif (${CMAKE_SYSTEM_PROCESSOR} MATCHES "x86_64")
+	set (CPU_x86 1)
 elseif (${CMAKE_SYSTEM_PROCESSOR} MATCHES "arm")
 	set (CPU_ARM 1)
 endif()

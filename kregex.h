@@ -92,6 +92,12 @@ public:
 
 	// member function interface
 	//-----------------------------------------------------------------------------
+	/// match a regular expression in sStr and return true if found
+	bool Matches(KStringView sStr, size_type pos = 0) const;
+	//-----------------------------------------------------------------------------
+
+	// member function interface
+	//-----------------------------------------------------------------------------
 	/// replace a regular expression with new text. Sub groups can be addressed with \1 \2 etc. in the replacement text
 	size_t Replace(std::string& sStr, KStringView sReplaceWith, bool bReplaceAll = true) const;
 	//-----------------------------------------------------------------------------
@@ -114,6 +120,12 @@ public:
 	//-----------------------------------------------------------------------------
 	/// match a regular expression in sStr and return all match groups, including the overall match in group 0.
 	static Groups MatchGroups(KStringView sStr, KStringView sRegex, size_type pos = 0);
+	//-----------------------------------------------------------------------------
+
+	// static interface
+	//-----------------------------------------------------------------------------
+	/// match a regular expression in sStr and return true if found
+	static bool Matches(KStringView sStr, KStringView sRegex, size_type pos = 0);
 	//-----------------------------------------------------------------------------
 
 	// static interface

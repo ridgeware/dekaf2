@@ -810,7 +810,7 @@ size_t KDirectory::Match(KStringView sRegex, bool bRemoveMatches)
                                       m_DirEntries.end(),
                                       [&Regex, &iMatched, bRemoveMatches](const DirEntries::value_type& elem)
                                       {
-										  bool bMatches = !Regex.Match(KStringView(elem.Filename())).empty();
+										  bool bMatches = Regex.Matches(KStringView(elem.Filename()));
 										  if (bMatches)
 										  {
 											  ++iMatched;
@@ -838,7 +838,7 @@ bool KDirectory::Find(KStringView sWildCard) const
 	KRegex Regex(kWildCard2Regex(sWildCard));
 	for (auto& it : m_DirEntries)
 	{
-		if (!Regex.Match(it.Filename()).empty())
+		if (Regex.Matches(it.Filename()))
 		{
 			return true;
 		}

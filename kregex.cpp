@@ -395,6 +395,21 @@ KStringView KRegex::Match(KStringView sStr, size_type pos) const
 }
 
 //-----------------------------------------------------------------------------
+bool KRegex::Matches(KStringView sStr, size_type pos) const
+//-----------------------------------------------------------------------------
+{
+	if (DEKAF2_LIKELY(Good()))
+	{
+		if (rget(m_Regex)->Match(re2::StringPiece(sStr.data(), sStr.size()), pos, sStr.size(), re2::RE2::UNANCHORED, nullptr, 0))
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+//-----------------------------------------------------------------------------
 size_t KRegex::Replace(std::string& sStr, KStringView sReplaceWith, bool bReplaceAll) const
 //-----------------------------------------------------------------------------
 {
@@ -459,6 +474,14 @@ KStringView KRegex::Match(KStringView sStr, KStringView sRegex, size_type pos)
 {
 	KRegex regex(sRegex);
 	return regex.Match(sStr, pos);
+}
+
+//-----------------------------------------------------------------------------
+bool KRegex::Matches(KStringView sStr, KStringView sRegex, size_type pos)
+//-----------------------------------------------------------------------------
+{
+	KRegex regex(sRegex);
+	return regex.Matches(sStr, pos);
 }
 
 //-----------------------------------------------------------------------------

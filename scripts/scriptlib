@@ -1,0 +1,222 @@
+#! /bin/bash
+
+# scriptlib - common functions for other scripts
+# source from other scripts
+
+setx=SetupColors
+#==============================
+SetupColors ()
+#==============================
+{
+	# Note, coloring possibility is tested for stderr and thus should not be used for stdout
+	if test -t 2 && which tput >/dev/null 2>&1; then
+		ncolors=$(tput colors)
+		if test -n "$ncolors"; then
+			xWarnColor=$((tput setf 6 || tput setaf 3) && (tput setb 0 || tput setab 0)) # yellow on black
+			xErrorColor=$((tput setf 7 || tput setaf 7) && (tput setb 4 || tput setab 1)) # white on red
+			xResetColor=$(tput sgr0)
+		fi
+	fi
+
+} # SetupColors
+
+setx=Info
+#==================
+Info ()
+#==================
+{
+	# All input args are interpreted as info text to display
+
+	echo ":: $(date +%T) : ${*:-unspecified}"
+
+} # Info
+
+setx=Warn
+#==================
+Warn ()
+#==================
+{
+	# All input args are interpreted as error text to display
+
+	echo "${xWarnColor}${ME}: $(date +%T) : WARNING: ${*:-unspecified}${xResetColor}" >&2
+
+} # Warn
+
+setx=Error
+#==================
+Error ()
+#==================
+{
+	# All input args are interpreted as error text to display
+
+	echo "${xErrorColor}${ME}: $(date +%T) : ERROR: ${*:-unspecified}${xResetColor}" >&2
+
+} # Error
+
+setx=Die
+#==================
+Die ()
+#==================
+{
+	# All input args are interpreted as error text to display
+
+	local sMessage="${FUNCNAME[1]}: ${*}"
+	[[ ${BASH_SUBSHELL} -eq 0 ]] && sMessage="${sMessage}. Aborting"
+	Error "${sMessage}"
+
+	exit 1
+
+} # Die
+
+setx=InstallSystemPackages
+#==============================
+InstallSystemPackages ()
+#==============================
+{
+	while [[ $# -gt 0 ]]; do
+		if ! IsSystemPackageInstalled "${1}"; then
+			Info "installing missing ${BINDIR} package '${1}' ..."
+			${INSTALL} "${1}" || Die "could not install package '${1}'"
+		fi
+		shift
+	done
+
+} # InstallSystemPackages
+
+setx=IsSystemPackageInstalled
+#==============================
+IsSystemPackageInstalled ()
+#==============================
+{
+	[[ $# -eq 1 ]] || Die "script error: expected one argument, $# provided: $@"
+	case "${DISTRIB}" in
+		darwin)
+			[ ! $(brew list | grep "$1") == "" ]
+			;;
+		debian)
+			[ $(dpkg -l "$1" | grep "dpkg-query:") == "" ]
+			;;
+		*)
+			${CHECKINSTALLED} "$1" &> /dev/null 2>&1
+			;;
+	esac
+
+} # IsSystemPackageInstalled
+
+setx=RemoveSystemPackages
+#==============================
+RemoveSystemPackages ()
+#==============================
+{
+	while [[ $# -gt 0 ]]; do
+		if IsSystemPackageInstalled "${1}"; then
+			Info "removing ${BINDIR} package '${1}' ..."
+			${UNINSTALL} "${1}" || Die "could not remove package '${1}'"
+		fi
+		shift
+	done
+
+} # RemoveSystemPackages
+
+setx=GetOS
+#==================
+GetOS ()
+#==================
+{
+
+	# upon successful completion we will have the following global variables set:
+	#
+	# INSTALLER      : yum, apt-get, brew
+	# INSTALL        : sudo yum install -y, brew install
+	# UNINSTALL      : sudo yum remove -y, brew uninstall
+	# CHECKINSTALLED : sudo yum list installed, brew list
+	# STARTSERVICE   : sudo systemctl start, brew services start
+	# STOPSERVICE    : sudo systemctl stop, brew services stop
+	# ARCH           : uname -m (X86_64, armv7l, ...)
+	# OS             : uname -s (Linux, Darwin, ...)
+	# DISTRIB        : darwin, debian, redhat, centos, fedora, aws
+	# BINDIR         : redhat64v7, centos64v7, debian-armv7l, darwin-X86_64, fedora64v28, ...
+	# DEVPKG         : suffix for developer packages (-dev, -devel, empty (for brew))
+
+	INSTALLER="yum"
+	INSTALL="sudo yum install -y"
+	UNINSTALL="sudo yum remove -y"
+	CHECKINSTALLED="sudo yum list installed"
+	STARTSERVICE="sudo systemctl start"
+	STOPSERVICE="sudo systemctl stop"
+	ARCH=$(uname -m)
+	OS=$(uname -s)
+	DEVPKG="-devel"
+
+	if [[ "${OS}" == "Darwin" ]]; then
+
+		BINDIR="darwin-${ARCH}"
+		INSTALLER="brew"
+		INSTALL="${INSTALLER} install"
+		UNINSTALL="${INSTALLER} uninstall"
+		CHECKINSTALLED="${INSTALLER} list | grep"
+		STARTSERVICE="brew services start"
+		STOPSERVICE="brew services stop"
+		DISTRIB="darwin"
+		DEVPKG=""
+
+	elif [[ "${OS}" == "Linux" ]]; then
+
+		local fAmazon=0
+
+		# get the linux release information
+		if [[ -f /etc/system-release-cpe ]]; then
+			grep amazon /etc/system-release-cpe > /dev/null && fAmazon=1
+		fi
+
+		if [[ -f /etc/debian_version ]]; then
+
+			BINDIR="debian-${ARCH}"
+			INSTALLER="apt-get"
+			INSTALL="sudo ${INSTALLER} install -y"
+			UNINSTALL="sudo ${INSTALLER} remove -y"
+			CHECKINSTALLED="dpkg -l"
+			DISTRIB="debian"
+			DEVPKG="-dev"
+
+		# is this a red hat release
+		elif [[ -f /etc/redhat-release ]]; then
+
+			# which derivate is this?
+			local derivate="$(cat /etc/redhat-release 2>/dev/null | tr '.' ' ' | awk '{print $1}')"
+
+			if [ "$derivate" == "Fedora" ]; then
+				DISTRIB="fedora"
+				local RHEL="$(cat /etc/redhat-release 2>/dev/null | awk '{print $3}')"
+			elif [ "$derivate" == "CentOS" ]; then
+				DISTRIB="centos"
+				local RHEL="$(cat /etc/redhat-release 2>/dev/null | tr '.' ' ' | awk '{print $4}')"
+			else
+				DISTRIB="redhat"
+				local RHEL="$(cat /etc/redhat-release 2>/dev/null | tr '.' ' ' | awk '{print $7}')"
+			fi
+
+			# RHEL 5 gets special handling
+			if [[ "${RHEL}" -eq 5 ]]; then
+				BINDIR="${DISTRIB}64"
+			else
+				BINDIR="${DISTRIB}64v${RHEL}"
+			fi
+
+		elif [[ ${fAmazon} -ne 0 ]]; then
+
+			local sMajorRevision=$(grep -Po '(?<=cpe:/o:amazon:linux:).+(?=:ga)' /etc/system-release-cpe)
+			[[ "${sMajorRevision}" != "" ]] || Die "could not determine major revision of Amazon AWS VM"
+			BINDIR="aws64v${sMajorRevision}"
+			DISTRIB="amazon"
+			BaseOS="aws"
+
+		fi
+
+	fi
+
+	[[ "${BINDIR}" == "" ]] && Die "could not determine type of system"
+
+#	Info "${BINDIR} ${ARCH} on ${DISTRIB} using ${INSTALLER} as install tool"
+
+} # GetOS

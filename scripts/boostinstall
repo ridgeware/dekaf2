@@ -21,59 +21,18 @@ Synopsis ()
 
 } # Synopsis
 
-setx=SetupColors
-#==============================
-SetupColors ()
-#==============================
-{
-	# Note, coloring possibility is tested for stderr and thus should not be used for stdout
-	if test -t 2 && which tput >/dev/null 2>&1; then
-		ncolors=$(tput colors)
-		if test -n "$ncolors"; then
-			xWarnColor=$((tput setf 6 || tput setaf 3) && (tput setb 0 || tput setab 0)) # yellow on black
-			xErrorColor=$((tput setf 7 || tput setaf 7) && (tput setb 4 || tput setab 1)) # white on red
-			xResetColor=$(tput sgr0)
-		fi
-	fi
-
-} # SetupColors
-
-setx=Info
+setx=BoostSetupAbort
 #==================
-Info ()
+BoostSetupAbort ()
 #==================
 {
-	# All input args are interpreted as info text to display
+	cd /
+	# clean up in /tmp
+	[ "${BUILDDIR}" != "" ] && sudo rm -rf "${BUILDDIR}"
+	# and leave
+	Die $*
 
-	echo ":: $(date +%T) : ${*:-unspecified}"
-
-} # Info
-
-setx=Error
-#==================
-Error ()
-#==================
-{
-	# All input args are interpreted as error text to display
-
-	echo "${xErrorColor}${ME}: $(date +%T) : ERROR: ${*:-unspecified}${xResetColor}" >&2
-
-} # Error
-
-setx=Die
-#==================
-Die ()
-#==================
-{
-	# All input args are interpreted as error text to display
-
-	local sMessage="${FUNCNAME[1]}: ${*}"
-	[[ ${BASH_SUBSHELL} -eq 0 ]] && sMessage="${sMessage}. Aborting"
-	Error "${sMessage}"
-
-	exit 1
-
-} # Die
+} # BoostSetupAbort
 
 setx=BoostSetup
 #==================
@@ -85,6 +44,14 @@ BoostSetup ()
 	NAME="1_68_0"
 	BUILDDIR="/tmp/boost-build-${NAME}"
 	PREFIX="/opt/boost"
+
+	if [ "${DISTRIB}" == "darwin" ]; then
+		# simply install from brew
+		InstallSystemPackages boost
+		return
+	fi
+
+	[ -d "${PREFIX}" ] && Die "${PREFIX} already existing - change install location or remove existing install"
 
 	if [ "$ask" != "" ]; then
 		echo "Continue installing boost-${VERSION} in ${PREFIX}? (Y/n)"
@@ -98,17 +65,20 @@ BoostSetup ()
 
 	rmdir ${BUILDDIR}
 	mkdir -p ${BUILDDIR} || Die "cannot create build directory ${BUILDDIR}"
-	cd ${BUILDDIR} || Die "cannot cd into build directory ${BUILDDIR}"
+	cd ${BUILDDIR} || BoostSetupAbort "cannot cd into build directory ${BUILDDIR}"
 
 	wget https://dl.bintray.com/boostorg/release/${VERSION}/source/boost_${NAME}.tar.gz || \
-		Die "cannot not download from https://dl.bintray.com/boostorg/release/${VERSION}/source/boost_${NAME}.tar.gz"
+		BoostSetupAbort "cannot not download from https://dl.bintray.com/boostorg/release/${VERSION}/source/boost_${NAME}.tar.gz"
 
-	tar -xzf boost_${NAME}.tar.gz || Die "cannot not untar source archive boost_${NAME}.tar.gz"
-	cd boost_${NAME} || Die "cannot cd into source directory ${BUILDDIR}/boost_${NAME}"
-	./bootstrap.sh --prefix=${PREFIX} || Die "cannot execute ./bootstrap.sh --prefix=${PREFIX}"
-	sudo ./b2 install -j4 --prefix=${PREFIX} --with=all || Die "cannot execute sudo ./b2 install -j4 --prefix=${PREFIX} --with=all"
+	tar -xzf boost_${NAME}.tar.gz || BoostSetupAbort "cannot not untar source archive boost_${NAME}.tar.gz"
+	cd boost_${NAME} || BoostSetupAbort "cannot cd into source directory ${BUILDDIR}/boost_${NAME}"
+	./bootstrap.sh --prefix=${PREFIX} || BoostSetupAbort "cannot execute ./bootstrap.sh --prefix=${PREFIX}"
 
-	cd && rm -rf ${BUILDDIR}
+	# boost sometimes fails on building some of the hundreds of modules and returns with an error.
+	# However, we postpone the error check into cmake, so we do not evaluate a partial failure here.
+	sudo ./b2 install -j4 --prefix=${PREFIX} --with=all # || Die "cannot execute sudo ./b2 install -j4 --prefix=${PREFIX} --with=all"
+
+	cd && rm -rf "${BUILDDIR}"
 
 	Info "boost-${VERSION} installed in ${PREFIX}"
 
@@ -121,6 +91,11 @@ setx=Main_Body
 ME=$(basename "${BASH_SOURCE}")
 ME_ONLYPATH="$(cd $(dirname ${BASH_SOURCE}) && pwd)"
 ME_FULLPATH="$ME_ONLYPATH/$ME"
+ScriptLib="${ME_ONLYPATH}/scriptlib"
+
+[[ ! -f "${ScriptLib}" ]] && Die "Cannot check OS version, script '${ScriptLib}' not found"
+
+source ${ScriptLib}
 
 if [ "$1" == "-ask" ]; then
 	ask="1"
@@ -132,6 +107,7 @@ else
 fi
 
 SetupColors
+GetOS
 BoostSetup $ask
 
 exit 0

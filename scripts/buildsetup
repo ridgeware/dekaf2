@@ -1,0 +1,123 @@
+#!/bin/bash
+
+#% buildsetup - prepare the system for a dekaf2 build
+#%
+#% usage: buildsetup -go
+#%
+
+
+# are we in test mode?
+if [ "$1" = "-x" ]; then
+	set -x
+	shift
+fi # end check test mode
+
+setx=Synopsis
+#==================
+Synopsis ()
+#==================
+{
+	awk '/^#%/ {print substr($0,3)}' "${ME_FULLPATH}"
+
+} # Synopsis
+
+
+setx=BuildSetup
+#==================
+BuildSetup ()
+#==================
+{
+	echo
+
+	# we do not care too much if the flagfile is removed
+	flagfile="/tmp/installflag-dekaf2-build-setup"
+
+	if [ ! -f "${flagfile}" ]
+	then
+
+		echo "Prepare ${DISTRIB} system for dekaf2 builds"
+
+		case "${DISTRIB}" in
+			centos)
+				InstallSystemPackages centos-release-scl
+				InstallSystemPackages devtoolset-7 rh-git29
+				;;
+			rhel)
+				InstallSystemPackages yum-config-manager
+				sudo yum-config-manager --enable rhel-server-rhscl-7-rpms
+				;;
+		esac
+
+		InstallSystemPackages cmake boost${DEVPKG} openssl${DEVPKG} mariadb${DEVPKG} \
+			sqlite${DEVPKG} wget
+
+		case "${DISTRIB}" in
+			darwin)
+				;;
+			*)
+				InstallSystemPackages git sed tar gcc zlib${DEVPKG} bzip2${DEVPKG}
+				;;
+		esac
+
+		if [ "${system_name}" == "centos" ] || [ "${system_name}" == "rhel" ]
+		then
+			if [ -f "/bin/git" ]
+			then
+				if [ ! -f "/bin/git1.8" ]
+				then
+					echo "Making git 2.9 the default. If you need the old git, use 'git1.8'"
+					mv /bin/git /bin/git1.8 || Die "cannot rename /bin/git to /bin/git1.8"
+					ln -s /opt/rh/rh-git29/root/usr/bin/git /bin/git || Die "cannot symlink /opt/rh/rh-git29/root/usr/bin/git to /bin/git"
+				fi
+			fi
+
+			# enable gcc 7 for the subsequent install
+			source scl_source enable devtoolset-7
+
+			if [ ! -d "/opt/boost" ]
+			then
+				# check if the installed boost version is fresh enough, else install from source
+				${ME_ONLYPATH}/boostinstall -go
+			fi
+		fi
+
+		# check if the installed cmake version is fresh enough, else install from source
+		${ME_ONLYPATH}/cmakeinstall -go
+
+		touch "${flagfile}"
+
+	else
+		echo "${system_name} system already prepared for dekaf2 builds"
+	fi
+
+	if [ "${system_name}" == "centos" ] || [ "${system_name}" == "rhel" ]
+	then
+		echo "execute the following to make sure you use a modern gcc:"
+		echo
+		echo "    source scl_source enable devtoolset-7"
+		echo
+	fi
+}
+
+#==================
+setx=Main_Body
+#==================
+
+ME=$(basename "${BASH_SOURCE}")
+ME_ONLYPATH="$(cd $(dirname ${BASH_SOURCE}) && pwd)"
+ME_FULLPATH="$ME_ONLYPATH/$ME"
+ScriptLib="${ME_ONLYPATH}/scriptlib"
+
+[[ ! -f "${ScriptLib}" ]] && Die "Cannot check OS version, script '${ScriptLib}' not found"
+
+source ${ScriptLib}
+
+if [ "$1" != "-go" ]; then
+	Synopsis
+	exit 1
+fi
+
+SetupColors
+GetOS
+
+BuildSetup

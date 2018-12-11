@@ -22,111 +22,6 @@ Synopsis ()
 
 } # Synopsis
 
-setx=SetupColors
-#==============================
-SetupColors ()
-#==============================
-{
-	# Note, coloring possibility is tested for stderr and thus should not be used for stdout
-	if test -t 2 && which tput >/dev/null 2>&1; then
-		ncolors=$(tput colors)
-		if test -n "$ncolors"; then
-			xWarnColor=$((tput setf 6 || tput setaf 3) && (tput setb 0 || tput setab 0)) # yellow on black
-			xErrorColor=$((tput setf 7 || tput setaf 7) && (tput setb 4 || tput setab 1)) # white on red
-			xResetColor=$(tput sgr0)
-		fi
-	fi
-
-} # SetupColors
-
-setx=Info
-#==================
-Info ()
-#==================
-{
-	# All input args are interpreted as info text to display
-
-	echo ":: $(date +%T) : ${*:-unspecified}"
-
-} # Info
-
-setx=Warn
-#==================
-Warn ()
-#==================
-{
-	# All input args are interpreted as error text to display
-
-	echo "${xWarnColor}${ME}: $(date +%T) : WARNING: ${*:-unspecified}${xResetColor}" >&2
-
-} # Warn
-
-setx=Error
-#==================
-Error ()
-#==================
-{
-	# All input args are interpreted as error text to display
-
-	echo "${xErrorColor}${ME}: $(date +%T) : ERROR: ${*:-unspecified}${xResetColor}" >&2
-
-} # Error
-
-setx=Die
-#==================
-Die ()
-#==================
-{
-	# All input args are interpreted as error text to display
-
-	local sMessage="${FUNCNAME[1]}: ${*}"
-	[[ ${BASH_SUBSHELL} -eq 0 ]] && sMessage="${sMessage}. Aborting"
-	Error "${sMessage}"
-
-	exit 1
-
-} # Die
-
-setx=InstallSystemPackages
-#==============================
-InstallSystemPackages ()
-#==============================
-{
-	while [[ $# -gt 0 ]]; do
-		if ! IsSystemPackageInstalled "${1}"; then
-			Info "installing missing ${BINDIR} package '${1}' ..."
-			sudo ${INSTALLER} install -y "${1}" || Die "could not install package '${1}'"
-		fi
-		shift
-	done
-
-} # InstallSystemPackages
-
-setx=IsSystemPackageInstalled
-#==============================
-IsSystemPackageInstalled ()
-#==============================
-{
-	[[ $# -eq 1 ]] || Die "script error: expected one argument, $# provided: $@"
-	${INSTALLER} list installed "$1" &> /dev/null 2>&1
-
-} # IsSystemPackageInstalled
-
-setx=RemoveSystemPackages
-#==============================
-RemoveSystemPackages ()
-#==============================
-{
-	while [[ $# -gt 0 ]]; do
-		if IsSystemPackageInstalled "${1}"; then
-			Info "removing ${BINDIR} package '${1}' ..."
-			sudo ${INSTALLER} remove -y "${1}" || Die "could not remove package '${1}'"
-		fi
-		shift
-	done
-
-} # RemoveSystemPackages
-
 setx=CMakeSetupAbort
 #==================
 CMakeSetupAbort ()
@@ -164,7 +59,7 @@ CMakeSetup ()
 		sCmakeFolder="v3.13"         # e.g. https://cmake.org/files/v3.13/
 		sCMakeNewVersion="3.13.1"    # e.g. https://cmake.org/files/v3.13/cmake-3.13.1.tar.gz
 
-		test -z "$BINDIR" && Die "BINDIR label cannot be determined"
+ 		test -z "$BINDIR" && Die "BINDIR label cannot be determined"
 
 		if [ "$sCMakeVersion" == "" ]; then
 			Info "CMakeSetup: CMake is not installed"
@@ -180,6 +75,12 @@ CMakeSetup ()
 			fi
 		fi
 
+		if [ "${DISTRIB}" == "darwin" ]; then
+			# simply install from brew
+			InstallSystemPackages cmake
+			return
+		fi
+
 		(
 			sudo rm -rf /tmp/cmake-install \
 				&& mkdir -p /tmp/cmake-install \
@@ -189,17 +90,20 @@ CMakeSetup ()
 			RemoveSystemPackages cmake \
 				|| CMakeSetupAbort "cannot remove old CMake install"
 
-			if [ "${BINDIR}" == "debian" ]; then
-				InstallSystemPackages dpkg wget \
-					|| CMakeSetupAbort "cannot install needed system package"
-			else
-				InstallSystemPackages rpm-build wget \
-					|| CMakeSetupAbort "cannot install needed system package"
-				if [ "${BINDIR}" != "redhat64v6" ] && [ "${BINDIR}" != "redhat64" ] && [ "${BINDIR}" != "centos64v6" ]; then
-					InstallSystemPackages libarchive-devel \
+			case "${DISTRIB}" in
+				debian)
+					InstallSystemPackages dpkg wget \
 						|| CMakeSetupAbort "cannot install needed system package"
-				fi
-			fi
+					;;
+				*)
+					InstallSystemPackages rpm-build wget \
+						|| CMakeSetupAbort "cannot install needed system package"
+					if [ "${BINDIR}" != "redhat64v6" ] && [ "${BINDIR}" != "redhat64" ] && [ "${BINDIR}" != "centos64v6" ]; then
+						InstallSystemPackages libarchive${DEVPKG} \
+							|| CMakeSetupAbort "cannot install needed system package"
+					fi
+					;;
+			esac
 
 			Info "downloading CMake ${sCMakeNewVersion}"
 			if [ "${BINDIR}" == "redhat64v6" ] || [ "${BINDIR}" == "redhat64" ] || [ "${BINDIR}" == "centos64v6" ]; then
@@ -235,13 +139,13 @@ CMakeSetup ()
 			&& make -j4 \
 				|| CMakeSetupAbort "cannot build cmake"
 
-			if [ "${BINDIR}" == "debian" ]; then
+			if [ "${DISTRIB}" == "debian" ]; then
 				Info "creating CMake ${sCMakeNewVersion} DEB"
 				bin/cpack -G DEB \
 					|| CMakeSetupAbort "cannot create cmake DEB"
 
 				Info "installing CMake ${sCMakeNewVersion} DEB"
-				sudo ${INSTALLER} install -y -q ./cmake-${sCMakeNewVersion}-Linux-${ARCH}.deb \
+				${INSTALL} -q ./cmake-${sCMakeNewVersion}-Linux-${ARCH}.deb \
 					|| CMakeSetupAbort "cannot install built cmake DEB"
 			else
 				Info "creating CMake ${sCMakeNewVersion} RPM"
@@ -249,7 +153,7 @@ CMakeSetup ()
 					|| CMakeSetupAbort "cannot create cmake RPM"
 
 				Info "installing CMake ${sCMakeNewVersion} RPM"
-				sudo ${INSTALLER} install -y -q --nogpgcheck ./cmake-${sCMakeNewVersion}-Linux-${ARCH}.rpm \
+				${INSTALL} -q --nogpgcheck ./cmake-${sCMakeNewVersion}-Linux-${ARCH}.rpm \
 					|| CMakeSetupAbort "cannot install built cmake RPM"
 			fi
 
@@ -275,58 +179,6 @@ CMakeSetup ()
 
 } # CMakeSetup
 
-setx=SetBinDir
-#==================
-SetBinDir ()
-#==================
-{
-	local fAmazon=0
-
-	INSTALLER="yum"
-	ARCH=$(uname -m)
-
-	# get the linux release information
-	if [[ -f /etc/system-release-cpe ]]; then
-		grep amazon /etc/system-release-cpe > /dev/null && fAmazon=1
-	fi
-
-	if [[ -f /etc/debian_version ]]; then
-		Info "configuring for Debian"
-		BINDIR="debian"
-		INSTALLER="apt-get"
-
-	# is this a red hat release
-	elif [[ -f /etc/redhat-release ]]; then
-		# which release is this?
-		if [ "$(cat /etc/redhat-release 2>/dev/null | tr '.' ' ' | awk '{print $1}')" == "CentOS" ]; then
-			local BaseOS="centos"
-			local RHEL="$(cat /etc/redhat-release 2>/dev/null | tr '.' ' ' | awk '{print $4}')"
-		else
-			local BaseOS="redhat"
-			local RHEL="$(cat /etc/redhat-release 2>/dev/null | tr '.' ' ' | awk '{print $7}')"
-		fi
-
-		# RHEL 5 gets special handling
-		if [[ "${RHEL}" -eq 5 ]]; then
-			BINDIR="${BaseOS}64"
-		else
-			BINDIR="${BaseOS}64v${RHEL}"
-		fi
-
-	elif [[ ${fAmazon} -ne 0 ]]; then
-		Info "configuring for Amazon AWS"
-		local sMajorRevision=$(grep -Po '(?<=cpe:/o:amazon:linux:).+(?=:ga)' /etc/system-release-cpe)
-		[[ "${sMajorRevision}" != "" ]] || Die "could not determine major revision of Amazon AWS VM"
-		BINDIR="aws64v${sMajorRevision}"
-
-	else
-		Die "could not determine type of system"
-	fi
-
-	Info "${BINDIR} ${ARCH} using ${INSTALLER} as install tool"
-
-} # SetBinDir
-
 
 #==================
 setx=Main_Body
@@ -335,6 +187,11 @@ setx=Main_Body
 ME=$(basename "${BASH_SOURCE}")
 ME_ONLYPATH="$(cd $(dirname ${BASH_SOURCE}) && pwd)"
 ME_FULLPATH="$ME_ONLYPATH/$ME"
+ScriptLib="${ME_ONLYPATH}/scriptlib"
+
+[[ ! -f "${ScriptLib}" ]] && Die "Cannot check OS version, script '${ScriptLib}' not found"
+
+source ${ScriptLib}
 
 if [ "$1" == "-ask" ]; then
 	ask="1"
@@ -346,7 +203,7 @@ else
 fi
 
 SetupColors
-SetBinDir
+GetOS
 CMakeSetup $ask
 
 exit 0

@@ -59,7 +59,7 @@ BuildSetup ()
 				;;
 		esac
 
-		if [ "${system_name}" == "centos" ] || [ "${system_name}" == "rhel" ]
+		if [ "${DISTRIB}" == "centos" ] || [ "${DISTRIB}" == "rhel" ]
 		then
 			if [ -f "/bin/git" ]
 			then
@@ -87,10 +87,10 @@ BuildSetup ()
 		touch "${flagfile}"
 
 	else
-		echo "${system_name} system already prepared for dekaf2 builds"
+		echo "${DISTRIB} system already prepared for dekaf2 builds"
 	fi
 
-	if [ "${system_name}" == "centos" ] || [ "${system_name}" == "rhel" ]
+	if [ "${DISTRIB}" == "centos" ] || [ "${DISTRIB}" == "rhel" ]
 	then
 		echo "execute the following to make sure you use a modern gcc:"
 		echo

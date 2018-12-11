@@ -76,13 +76,13 @@ BuildSetup ()
 
 			if [ ! -d "/opt/boost" ]
 			then
-				# check if the installed boost version is fresh enough, else install from source
-				${ME_ONLYPATH}/boostinstall -go
+				# install boost from source
+				${ME_ONLYPATH}/boostinstall -go || Die
 			fi
 		fi
 
 		# check if the installed cmake version is fresh enough, else install from source
-		${ME_ONLYPATH}/cmakeinstall -go
+		${ME_ONLYPATH}/cmakeinstall -go || Die
 
 		touch "${flagfile}"
 
@@ -95,8 +95,9 @@ BuildSetup ()
 		echo "execute the following to make sure you use a modern gcc:"
 		echo
 		echo "    source scl_source enable devtoolset-7"
-		echo
 	fi
+
+	echo
 }
 
 #==================

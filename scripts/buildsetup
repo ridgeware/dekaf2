@@ -73,7 +73,8 @@ BuildSetup ()
 
 			# enable gcc 7 for the subsequent install
 			source scl_source enable devtoolset-7
-
+			# and git 2.9 as well
+			source /opt/rh/rh-git29/enable
 			if [ ! -d "/opt/boost" ]
 			then
 				# install boost from source
@@ -95,6 +96,7 @@ BuildSetup ()
 		echo "execute the following to make sure you use a modern gcc:"
 		echo
 		echo "    source scl_source enable devtoolset-7"
+		echo "    source /opt/rh/rh-git29/enable"
 	fi
 
 	echo

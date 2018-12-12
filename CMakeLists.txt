@@ -13,16 +13,10 @@ cmake_minimum_required(VERSION 2.6)
 
 if(${CMAKE_VERSION} VERSION_LESS "3.8.0")
 	message(STATUS "Please switch to CMake 3.8.0 or newer")
-	if (${CMAKE_SYSTEM_NAME} STREQUAL "Darwin")
-		message(FATAL_ERROR "please do 'brew install/update cmake' and restart cmake")
-	elseif (${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
-		EXECUTE_PROCESS(
-			COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/scripts/cmakeinstall -ask
-		)
-		message(FATAL_ERROR "Please restart cmake now")
-	else()
-		message(FATAL_ERROR "Please install a newer cmake and restart cmake. Take a look at dekaf2/scripts/cmakeinstall and check if you can reuse it for your platform.")
-	endif()
+	EXECUTE_PROCESS(
+		COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/scripts/cmakeinstall -ask
+	)
+	message(FATAL_ERROR "Please restart the build now")
 endif()
 
 # ==================================== PROJECT =====================================
@@ -272,16 +266,10 @@ set(BOOST_ROOT "/opt/boost")
 find_package(Boost 1.54 COMPONENTS system iostreams)
 
 if (NOT Boost_FOUND)
-	if (${CMAKE_SYSTEM_NAME} STREQUAL "Darwin")
-		message(FATAL_ERROR "No or insufficient boost library found - try brew install boost")
-	elseif (${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
-		EXECUTE_PROCESS(
-			COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/scripts/boostinstall -ask
-		)
-		message(FATAL_ERROR "Please restart cmake now")
-	else()
-		message(FATAL_ERROR "No or insufficient boost library found - please install a newer version")
-	endif()
+	EXECUTE_PROCESS(
+		COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/scripts/boostinstall -ask
+	)
+	message(FATAL_ERROR "Please restart the build now")
 endif()
 
 message(STATUS "boost-libs: ${Boost_LIBRARIES}")

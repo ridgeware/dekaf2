@@ -65,6 +65,13 @@ BuildSetup ()
 				;;
 		esac
 
+		case "${DISTRIB}" in
+			fedora)
+				# fedora-29 is just crazy to split C++ from gcc
+				InstallSystemPackages gcc-c++
+				;;
+		esac
+
 		if [ "${DISTRIB}" == "centos" ] || [ "${DISTRIB}" == "rhel" ]
 		then
  			# disable /bin/git replacement for now

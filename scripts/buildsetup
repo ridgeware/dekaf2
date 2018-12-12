@@ -27,7 +27,7 @@ setx=BuildSetup
 BuildSetup ()
 #==================
 {
-	echo
+	Info ""
 
 	# we do not care too much if the flagfile is removed
 	flagfile="/tmp/installflag-dekaf2-build-setup"
@@ -35,7 +35,7 @@ BuildSetup ()
 	if [ ! -f "${flagfile}" ]
 	then
 
-		echo "Prepare ${DISTRIB} system for dekaf2 builds"
+		Info "Prepare ${DISTRIB} system for dekaf2 builds"
 
 		case "${DISTRIB}" in
 			centos)
@@ -61,11 +61,12 @@ BuildSetup ()
 
 		if [ "${DISTRIB}" == "centos" ] || [ "${DISTRIB}" == "rhel" ]
 		then
-			if [ -f "/bin/git" ]
+ 			# disable /bin/git replacement for now
+			if [ -f "/bin/git-no-git-replacement" ]
 			then
 				if [ ! -f "/bin/git1.8" ]
 				then
-					echo "Making git 2.9 the default. If you need the old git, use 'git1.8'"
+					Info "Making git 2.9 the default. If you need the old git, use 'git1.8'"
 					mv /bin/git /bin/git1.8 || Die "cannot rename /bin/git to /bin/git1.8"
 					ln -s /opt/rh/rh-git29/root/usr/bin/git /bin/git || Die "cannot symlink /opt/rh/rh-git29/root/usr/bin/git to /bin/git"
 				fi
@@ -88,18 +89,18 @@ BuildSetup ()
 		touch "${flagfile}"
 
 	else
-		echo "${DISTRIB} system already prepared for dekaf2 builds"
+		Info "${DISTRIB} system already prepared for dekaf2 builds"
 	fi
 
 	if [ "${DISTRIB}" == "centos" ] || [ "${DISTRIB}" == "rhel" ]
 	then
-		echo "execute the following to make sure you use a modern gcc:"
-		echo
-		echo "    source scl_source enable devtoolset-7"
-		echo "    source /opt/rh/rh-git29/enable"
+		Info "execute the following to make sure you use a modern gcc:"
+		Info ""
+		Info "    source scl_source enable devtoolset-7"
+		Info "    source /opt/rh/rh-git29/enable"
 	fi
 
-	echo
+	Info ""
 }
 
 #==================

@@ -27,7 +27,7 @@ Info ()
 {
 	# All input args are interpreted as info text to display
 
-	echo ":: $(date +%T) : ${*:-unspecified}"
+	echo ":: ${*}"
 
 } # Info
 
@@ -38,7 +38,7 @@ Warn ()
 {
 	# All input args are interpreted as error text to display
 
-	echo "${xWarnColor}${ME}: $(date +%T) : WARNING: ${*:-unspecified}${xResetColor}" >&2
+	echo "${xWarnColor}${ME}: WARNING: ${*:-unspecified}${xResetColor}" >&2
 
 } # Warn
 
@@ -49,7 +49,7 @@ Error ()
 {
 	# All input args are interpreted as error text to display
 
-	echo "${xErrorColor}${ME}: $(date +%T) : ERROR: ${*:-unspecified}${xResetColor}" >&2
+	echo "${xErrorColor}${ME}: ERROR: ${*:-unspecified}${xResetColor}" >&2
 
 } # Error
 

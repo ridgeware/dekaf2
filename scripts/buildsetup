@@ -48,14 +48,20 @@ BuildSetup ()
 				;;
 		esac
 
-		InstallSystemPackages cmake boost${DEVPKG} openssl${DEVPKG} mariadb${DEVPKG} \
-			sqlite${DEVPKG} wget doxygen graphviz
-
 		case "${DISTRIB}" in
 			darwin)
+				InstallSystemPackages cmake boost${DEVPKG} openssl${DEVPKG} mariadb${DEVPKG} \
+					sqlite${DEVPKG} wget doxygen graphviz
+				;;
+			debian)
+				InstallSystemPackages cmake libboost-all${DEVPKG} openssl libmariadb${DEVPKG} \
+					sqlite3 libsqlite3${DEVPKG} wget doxygen graphviz git sed tar gcc \
+					libz${DEVPKG} lbzip2
 				;;
 			*)
-				InstallSystemPackages git sed tar gcc zlib${DEVPKG} bzip2${DEVPKG}
+				InstallSystemPackages cmake boost${DEVPKG} openssl${DEVPKG} mariadb${DEVPKG} \
+					sqlite${DEVPKG} wget doxygen graphviz git sed tar gcc \
+					zlib${DEVPKG} bzip2${DEVPKG}
 				;;
 		esac
 

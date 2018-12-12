@@ -49,7 +49,7 @@ BuildSetup ()
 		esac
 
 		InstallSystemPackages cmake boost${DEVPKG} openssl${DEVPKG} mariadb${DEVPKG} \
-			sqlite${DEVPKG} wget
+			sqlite${DEVPKG} wget doxygen graphviz
 
 		case "${DISTRIB}" in
 			darwin)
@@ -87,6 +87,8 @@ BuildSetup ()
 		${ME_ONLYPATH}/cmakeinstall -go || Die
 
 		touch "${flagfile}"
+
+		Info "${DISTRIB} system prepared for dekaf2 builds"
 
 	else
 		Info "${DISTRIB} system already prepared for dekaf2 builds"

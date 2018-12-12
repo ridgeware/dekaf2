@@ -49,6 +49,7 @@
 #include <string>
 #include <istream>
 #include <ostream>
+#include <vector>
 #include "bits/kcppcompat.h"
 #include "bits/kstring_view.h"
 #ifdef DEKAF2_USE_FBSTRING_AS_KSTRING

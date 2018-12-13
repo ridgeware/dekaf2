@@ -293,7 +293,7 @@ if (DOXYGEN_FOUND)
 
 	# execute doxygen
 	add_custom_target(
-		doc
+		dekaf2-doc
 		${DOXYGEN_EXECUTABLE} ${CMAKE_CURRENT_BINARY_DIR}/doxyfile
 		WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
 		COMMENT "Generating API documentation with Doxygen" VERBATIM
@@ -302,7 +302,7 @@ if (DOXYGEN_FOUND)
 else ()
 
 	add_custom_target(
-		doc
+		dekaf2-doc
 		COMMENT "Doxygen was not found on this machine. Documentation can not be generated." VERBATIM
 	)
 

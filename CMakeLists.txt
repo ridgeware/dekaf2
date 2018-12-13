@@ -276,6 +276,7 @@ if (NOT Boost_FOUND)
 	message(FATAL_ERROR "Please restart the build now")
 endif()
 
+message(STATUS "boost-hdrs: ${Boost_INCLUDE_DIR}")
 message(STATUS "boost-libs: ${Boost_LIBRARIES}")
 
 # ================================= DOXYGEN ==================================

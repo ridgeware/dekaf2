@@ -27,8 +27,6 @@ setx=BuildSetup
 BuildSetup ()
 #==================
 {
-	Info ""
-
 	# we do not care too much if the flagfile is removed
 	flagfile="/tmp/installflag-dekaf2-build-setup"
 	flagversion="1"
@@ -99,7 +97,7 @@ BuildSetup ()
 		fi
 
 		# check if the installed cmake version is fresh enough, else install from source
-		${ME_ONLYPATH}/cmakeinstall -go || Die
+		${ME_ONLYPATH}/cmakeinstall -ask || Die
 
 		echo "${flagversion}" > "${flagfile}"
 
@@ -117,8 +115,7 @@ BuildSetup ()
 		Info "    source /opt/rh/rh-git29/enable"
 	fi
 
-	Info ""
-}
+} # BuildSetup
 
 #==================
 setx=Main_Body

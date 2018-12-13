@@ -9,6 +9,14 @@
 #
 cmake_minimum_required(VERSION 2.6)
 #
+# ================================= BUILD SYSTEM SETUP =============================
+
+# Make sure the build system is properly setup
+
+EXECUTE_PROCESS(
+	COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/scripts/buildsetup -go
+)
+
 # =================================== UPDATE CMAKE =================================
 
 if(${CMAKE_VERSION} VERSION_LESS "3.8.0")

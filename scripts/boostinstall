@@ -57,7 +57,7 @@ BoostSetup ()
 		echo "Continue installing boost-${VERSION} in ${PREFIX}? (Y/n)"
 		read -n 1 Ch
 		if [ "$Ch" == "n" ]; then
-			return
+			exit 1
 		fi
 	fi
 

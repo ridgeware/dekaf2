@@ -71,7 +71,7 @@ CMakeSetup ()
 			echo "Continue installing CMake ${sCMakeNewVersion}? (Y/n)"
 			read -n 1 Ch
 			if [ "$Ch" == "n" ]; then
-				return
+				exit 1
 			fi
 		fi
 

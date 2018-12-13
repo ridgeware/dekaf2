@@ -3,12 +3,11 @@ PROJECT_NUMBER         = @VERSION_MAJOR@.@VERSION_MINOR@.@VERSION_PATCH@
 STRIP_FROM_PATH        = @PROJECT_SOURCE_DIR@ \
                          @PROJECT_BINARY_DIR@
 # STRIP_FROM_INC_PATH    = @@
-INPUT                  = @PROJECT_SOURCE_DIR@ \
-                         @PROJECT_SOURCE_DIR@/libs/re2/re2/stringpiece.h \
-                         @PROJECT_SOURCE_DIR@/libs/re2/re2/stringpiece.cc
+INPUT                  = @PROJECT_SOURCE_DIR@
 FILE_PATTERNS          = *.h \
                          *.cpp
 EXCLUDE_PATTERNS       = @PROJECT_SOURCE_DIR@/libs/* \
+                         @PROJECT_SOURCE_DIR@/benchmarks/* \
                          @PROJECT_SOURCE_DIR@/smoketests/* \
                          @PROJECT_SOURCE_DIR@/utests/* \
                          @PROJECT_SOURCE_DIR@/doc/* \
@@ -49,12 +48,13 @@ CLASS_GRAPH            = YES
 COLLABORATION_GRAPH    = NO
 HTML_TIMESTAMP         = YES
 HTML_DYNAMIC_SECTIONS  = NO
+# the below customization does not work anymore with doxygen 1.8.14
 # these locations point to the source, but doxygen takes care that they are copied into
 # the generated html/ directory (or included into the main html files)
-HTML_HEADER            = @PROJECT_SOURCE_DIR@/doc/doxygen-bootstrapped/example-site/header.html
-HTML_FOOTER            = @PROJECT_SOURCE_DIR@/doc/doxygen-bootstrapped/example-site/footer.html
-HTML_EXTRA_STYLESHEET  = @PROJECT_SOURCE_DIR@/doc/doxygen-bootstrapped/customdoxygen.css
-HTML_EXTRA_FILES       = @PROJECT_SOURCE_DIR@/doc/doxygen-bootstrapped/doxy-boot.js
+#HTML_HEADER            = @PROJECT_SOURCE_DIR@/doc/doxygen-bootstrapped/example-site/header.html
+#HTML_FOOTER            = @PROJECT_SOURCE_DIR@/doc/doxygen-bootstrapped/example-site/footer.html
+#HTML_EXTRA_STYLESHEET  = @PROJECT_SOURCE_DIR@/doc/doxygen-bootstrapped/customdoxygen.css
+#HTML_EXTRA_FILES       = @PROJECT_SOURCE_DIR@/doc/doxygen-bootstrapped/doxy-boot.js
 # locations until here
 GENERATE_HTML          = YES
 GENERATE_LATEX         = NO

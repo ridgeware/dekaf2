@@ -31,8 +31,9 @@ BuildSetup ()
 
 	# we do not care too much if the flagfile is removed
 	flagfile="/tmp/installflag-dekaf2-build-setup"
+	flagversion="1"
 
-	if [ ! -f "${flagfile}" ]
+	if [ ! -f "${flagfile}" ] || [ "$(cat ${flagfile})" != "${flagversion}" ]
 	then
 
 		Info "Prepare ${DISTRIB} system for dekaf2 builds"
@@ -100,7 +101,7 @@ BuildSetup ()
 		# check if the installed cmake version is fresh enough, else install from source
 		${ME_ONLYPATH}/cmakeinstall -go || Die
 
-		touch "${flagfile}"
+		echo "${flagversion}" > "${flagfile}"
 
 		Info "${DISTRIB} system prepared for dekaf2 builds"
 

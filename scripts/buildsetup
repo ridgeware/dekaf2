@@ -2,7 +2,7 @@
 
 #% buildsetup - prepare the system for a dekaf2 build
 #%
-#% usage: buildsetup -go
+#% usage: buildsetup -quiet -go
 #%
 
 
@@ -34,7 +34,7 @@ BuildSetup ()
 	if [ ! -f "${flagfile}" ] || [ "$(cat ${flagfile})" != "${flagversion}" ]
 	then
 
-		Info "Prepare ${DISTRIB} system for dekaf2 builds"
+		[[ -z "${bQuiet}" ]] && Info "Prepare ${DISTRIB} system for dekaf2 builds"
 
 		case "${DISTRIB}" in
 			centos)
@@ -79,7 +79,7 @@ BuildSetup ()
 			then
 				if [ ! -f "/bin/git1.8" ]
 				then
-					Info "Making git 2.9 the default. If you need the old git, use 'git1.8'"
+					[[ -z "${bQuiet}" ]] && Info "Making git 2.9 the default. If you need the old git, use 'git1.8'"
 					mv /bin/git /bin/git1.8 || Die "cannot rename /bin/git to /bin/git1.8"
 					ln -s /opt/rh/rh-git29/root/usr/bin/git /bin/git || Die "cannot symlink /opt/rh/rh-git29/root/usr/bin/git to /bin/git"
 				fi
@@ -101,18 +101,21 @@ BuildSetup ()
 
 		echo "${flagversion}" > "${flagfile}"
 
-		Info "${DISTRIB} system prepared for dekaf2 builds"
+		[[ -z "${bQuiet}" ]] && Info "${DISTRIB} system prepared for dekaf2 builds"
 
 	else
-		Info "${DISTRIB} system already prepared for dekaf2 builds"
+		[[ -z "${bQuiet}" ]] && Info "${DISTRIB} system already prepared for dekaf2 builds"
 	fi
 
-	if [ "${DISTRIB}" == "centos" ] || [ "${DISTRIB}" == "rhel" ]
+	if [[ "${DISTRIB}" == "centos" ]] || [[ "${DISTRIB}" == "rhel" ]]
 	then
-		Info "execute the following to make sure you use a modern gcc:"
-		Info ""
-		Info "    source scl_source enable devtoolset-7"
-		Info "    source /opt/rh/rh-git29/enable"
+		if [[ ! -z "${bQuiet}" ]]
+		then
+			Info "execute the following to make sure you use a modern gcc:"
+			Info ""
+			Info "    source scl_source enable devtoolset-7"
+			Info "    source /opt/rh/rh-git29/enable"
+		fi
 	fi
 
 } # BuildSetup
@@ -129,6 +132,11 @@ ScriptLib="${ME_ONLYPATH}/scriptlib"
 [[ ! -f "${ScriptLib}" ]] && Die "Cannot check OS version, script '${ScriptLib}' not found"
 
 source ${ScriptLib}
+
+if [[ "$1" == "-quiet" ]]; then
+	bQuiet="1"
+	shift
+fi
 
 if [ "$1" != "-go" ]; then
 	Synopsis

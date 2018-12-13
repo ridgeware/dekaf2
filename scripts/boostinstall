@@ -63,22 +63,24 @@ BoostSetup ()
 
 	Info "installing boost-${VERSION}"
 
-	rmdir ${BUILDDIR}
+	sudo rm -rf ${BUILDDIR}
 	mkdir -p ${BUILDDIR} || Die "cannot create build directory ${BUILDDIR}"
 	cd ${BUILDDIR} || BoostSetupAbort "cannot cd into build directory ${BUILDDIR}"
 
-	wget https://dl.bintray.com/boostorg/release/${VERSION}/source/boost_${NAME}.tar.gz || \
+	wget --no-verbose https://dl.bintray.com/boostorg/release/${VERSION}/source/boost_${NAME}.tar.gz || \
 		BoostSetupAbort "cannot not download from https://dl.bintray.com/boostorg/release/${VERSION}/source/boost_${NAME}.tar.gz"
 
 	tar -xzf boost_${NAME}.tar.gz || BoostSetupAbort "cannot not untar source archive boost_${NAME}.tar.gz"
+
 	cd boost_${NAME} || BoostSetupAbort "cannot cd into source directory ${BUILDDIR}/boost_${NAME}"
+
 	./bootstrap.sh --prefix=${PREFIX} || BoostSetupAbort "cannot execute ./bootstrap.sh --prefix=${PREFIX}"
 
 	# boost sometimes fails on building some of the hundreds of modules and returns with an error.
 	# However, we postpone the error check into cmake, so we do not evaluate a partial failure here.
 	sudo ./b2 install -j4 --prefix=${PREFIX} --with=all # || Die "cannot execute sudo ./b2 install -j4 --prefix=${PREFIX} --with=all"
 
-	cd && rm -rf "${BUILDDIR}"
+	cd && sudo rm -rf "${BUILDDIR}"
 
 	Info "boost-${VERSION} installed in ${PREFIX}"
 

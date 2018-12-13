@@ -259,6 +259,10 @@ find_package(OpenSSL REQUIRED)
 # ================================= BOOST ====================================
 
 set(Boost_USE_STATIC_LIBS ON)
+set(Boost_USE_DEBUG_LIBS OFF)
+set(Boost_USE_RELEASE_LIBS ON)
+set(Boost_USE_MULTITHREADED ON)
+set(Boost_USE_STATIC_RUNTIME ON)
 # we prefer the boost lib that we installed ourselves in /opt/lib ..
 set(BOOST_ROOT "/opt/boost")
 # boost asio (header only) needs system

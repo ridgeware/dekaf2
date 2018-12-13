@@ -67,6 +67,8 @@ BoostSetup ()
 	mkdir -p ${BUILDDIR} || Die "cannot create build directory ${BUILDDIR}"
 	cd ${BUILDDIR} || BoostSetupAbort "cannot cd into build directory ${BUILDDIR}"
 
+	Info "downloading boost-${VERSION} (this may take a while)"
+
 	wget --no-verbose https://dl.bintray.com/boostorg/release/${VERSION}/source/boost_${NAME}.tar.gz || \
 		BoostSetupAbort "cannot not download from https://dl.bintray.com/boostorg/release/${VERSION}/source/boost_${NAME}.tar.gz"
 

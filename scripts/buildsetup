@@ -67,8 +67,9 @@ BuildSetup ()
 
 		case "${DISTRIB}" in
 			fedora)
-				# fedora-29 is just crazy to split C++ from gcc
-				InstallSystemPackages gcc-c++
+				# fedora-29 is just crazy to split C++ from gcc - and it appears to be the
+				# only system on which you have to install ubsan and asan independently, too
+				InstallSystemPackages gcc-c++ libubsan libasan
 				;;
 		esac
 

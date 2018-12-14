@@ -142,7 +142,7 @@ bool KHTTPHeaders::Serialize(KOutStream& Stream) const
 		Stream.WriteLine(iter.second);
 	}
 
-	Stream.WriteLine();
+	Stream.WriteLine(); // blank line indicates end of headers
 
 	Stream.Flush();
 

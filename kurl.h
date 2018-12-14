@@ -744,6 +744,38 @@ private:
 
 };
 
+// we add these operator==(const char*) to get the same behavior for all
+// types in the url:: namespace. To compare with KStringView or KString
+// an explicit conversion has to be requested to avoid ambiguities.
+
+//-----------------------------------------------------------------------------
+inline bool operator==(const KProtocol& left, const char* right)
+//-----------------------------------------------------------------------------
+{
+	return KStringView(left) == KStringView(right);
+}
+
+//-----------------------------------------------------------------------------
+inline bool operator==(const char* left, const KProtocol& right)
+//-----------------------------------------------------------------------------
+{
+	return KStringView(left) == KStringView(right);
+}
+
+//-----------------------------------------------------------------------------
+inline bool operator!=(const KProtocol& left, const char* right)
+//-----------------------------------------------------------------------------
+{
+	return KStringView(left) != KStringView(right);
+}
+
+//-----------------------------------------------------------------------------
+inline bool operator!=(const char* left, const KProtocol& right)
+//-----------------------------------------------------------------------------
+{
+	return KStringView(left) != KStringView(right);
+}
+
 } // end of namespace url
 
 

@@ -132,7 +132,7 @@ public:
 						NextToken = "@/;?#";
 						break;
 					case URIPart::Password:
-						NextToken = "@/;?#";
+						NextToken = "@:/;?#";
 						break;
 					case URIPart::Domain:
 						NextToken = ":/;?#";

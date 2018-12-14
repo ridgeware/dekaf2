@@ -129,10 +129,10 @@ public:
 				switch (Component)
 				{
 					case URIPart::User:
-						NextToken = "@";
+						NextToken = "@/;?#";
 						break;
 					case URIPart::Password:
-						NextToken = "@";
+						NextToken = "@/;?#";
 						break;
 					case URIPart::Domain:
 						NextToken = ":/;?#";
@@ -181,16 +181,29 @@ public:
 						// or else this is no User or Password component of a KURI
 						return svSource;
 					}
-					iFound = svSource.size();
+					else
+					{
+						iFound = svSource.size();
+					}
 				}
 
-				if (Component == URIPart::User)
+				if (Component == URIPart::User || Component == URIPart::Password)
 				{
-					// search backwards to check if there is a password separator
-					auto iPass = svSource.rfind(':', iFound);
-					if (iPass < iFound)
+					if (svSource[iFound] != '@')
 					{
-						iFound  = iPass;
+						// bail out - we need to find the @ for User or Password
+						// or else this is no User or Password component of a KURI
+						return svSource;
+					}
+
+					if (Component == URIPart::User)
+					{
+						// search backwards to check if there is a password separator
+						auto iPass = svSource.rfind(':', iFound);
+						if (iPass < iFound)
+						{
+							iFound  = iPass;
+						}
 					}
 				}
 

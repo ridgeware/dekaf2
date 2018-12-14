@@ -45,7 +45,6 @@
 #include "kstringutils.h"
 #include "kinshell.h"
 #include "ktcpserver.h"
-#include <iostream>  // STL
 
 using namespace dekaf2;
 
@@ -92,11 +91,10 @@ protected:
 
 	virtual KString Request(KString& sLine, Parameters& parameters) override
 	{
-		m_out.WriteLine (sLine).Flush();
+		KOut.WriteLine (sLine).Flush();
 		return KString();
 	}
 
-	KOutStream m_out{std::cout};
 };
 
 
@@ -104,13 +102,12 @@ protected:
 void Synopsis ()
 //-----------------------------------------------------------------------------
 {
-	KOutStream out(std::cout);
     auto iNumLines = sizeof(g_Synopsis)/sizeof(KStringView);
     for (size_t ii=0; ii < iNumLines; ++ii) {
 		KString sLine = g_Synopsis[ii];
 		sLine.Replace ("{LOG}",  KLog().GetDebugLog());
 		sLine.Replace ("{FLAG}", KLog().GetDebugFlag());
-		out.WriteLine (sLine);
+		KOut.WriteLine (sLine);
 	}
 
 } // Synopsis
@@ -128,8 +125,6 @@ int main (int argc, char* argv[])
 	KString    sLogFile     = KLog().GetDebugLog();
 	KString    sFlagFile    = KLog().GetDebugFlag();
 	int        iPort        = 0;
-	KOutStream err(std::cerr);
-	KOutStream out(std::cout);
 
 	// just parse -dash style options:
 	for (int ii=1; ii < argc; ++ii)
@@ -152,7 +147,7 @@ int main (int argc, char* argv[])
 				KLog().SetDebugLog (sLogFile);
 			}
 			else {
-				err.Format ("klog: missing argument after -log option.\n");
+				KErr.Format ("klog: missing argument after -log option.\n");
 				bAbort = true;
 			}
 		}
@@ -163,7 +158,7 @@ int main (int argc, char* argv[])
 				KLog().SetDebugFlag (sFlagFile);
 			}
 			else {
-				err.Format ("klog: missing argument after -flag option.\n");
+				KErr.Format ("klog: missing argument after -flag option.\n");
 				bAbort = true;
 			}
 		}
@@ -174,7 +169,7 @@ int main (int argc, char* argv[])
 			}
 			else
 			{
-				err.Format ("klog: missing argument after -set option.\n");
+				KErr.Format ("klog: missing argument after -set option.\n");
 				bAbort = true;
 			}
 		}
@@ -189,7 +184,7 @@ int main (int argc, char* argv[])
 			}
 			else
 			{
-				err.Format ("klog: missing argument after -set option.\n");
+				KErr.Format ("klog: missing argument after -set option.\n");
 				bAbort = true;
 			}
 		}
@@ -198,7 +193,7 @@ int main (int argc, char* argv[])
 			iDumpLines = atoi (argv[ii] + 1);
 			if (iDumpLines <= 0)
 			{
-				err.Format ("klog: argument '{}' not understood.\n", sArg);
+				KErr.Format ("klog: argument '{}' not understood.\n", sArg);
 				bAbort = true;
 				break; // for
 			}
@@ -218,18 +213,18 @@ int main (int argc, char* argv[])
 	if (bClearLog)
 	{
 		if ((sLogFile == "stdout") || (sLogFile == "stderr") || (sLogFile == "null"))
-			err.Format ("klog: dekaf log is set to '{}' -- nothing to clear.\n", sLogFile);
+			KErr.Format ("klog: dekaf log is set to '{}' -- nothing to clear.\n", sLogFile);
 		else if (!kFileExists (sLogFile))
-			err.Format ("klog: log ({}) already cleared.\n", sLogFile);
+			KErr.Format ("klog: log ({}) already cleared.\n", sLogFile);
 		else if (kRemoveFile (sLogFile))
-			err.Format ("klog: log ({}) cleared.\n", sLogFile);
+			KErr.Format ("klog: log ({}) cleared.\n", sLogFile);
 		else
-			err.Format ("klog: FAILED to clear log ({}).\n", sLogFile);
+			KErr.Format ("klog: FAILED to clear log ({}).\n", sLogFile);
 	}
 
 	if (iNewLevel >= 0)
 	{
-		err.Format ("klog: set new debug level to {}.\n", iNewLevel);
+		KErr.Format ("klog: set new debug level to {}.\n", iNewLevel);
         KLog().SetLevel(iNewLevel);
 	}
 
@@ -239,12 +234,12 @@ int main (int argc, char* argv[])
 	}
 	else if ((bFollowFlag || iDumpLines) && ((sLogFile == "stdout") || (sLogFile == "stderr")))
 	{
-		err.Format ("klog: dekaf log already set to '{}' -- no need to use this utility to dump it.\n", sLogFile);
+		KErr.Format ("klog: dekaf log already set to '{}' -- no need to use this utility to dump it.\n", sLogFile);
 		return (++iErrors);
 	}
 	else if (bFollowFlag)
 	{
-		out.Format ("klog: continuous log output ({}), ^C to break...\n", sLogFile);
+		KOut.Format ("klog: continuous log output ({}), ^C to break...\n", sLogFile);
 
 		KString sCmd;
 
@@ -259,18 +254,18 @@ int main (int argc, char* argv[])
 		KString  sLine;
 		while (pipe.ReadLine(sLine))
 		{
-			out.WriteLine (sLine);
+			KOut.WriteLine (sLine);
 		}
 	}
 	else if (iDumpLines)
 	{
 		if (!kFileExists (sLogFile))
 		{
-			err.Format ("klog: log ({}) is empty.\n", sLogFile);
+			KErr.Format ("klog: log ({}) is empty.\n", sLogFile);
 		}
 		else
 		{
-			out.Format ("klog: last {} lines of {}...\n", iDumpLines, sLogFile);
+			KOut.Format ("klog: last {} lines of {}...\n", iDumpLines, sLogFile);
 
 			KString sCmd;
 			sCmd.Format ("tail -{} {}", iDumpLines, sLogFile);
@@ -279,13 +274,13 @@ int main (int argc, char* argv[])
 			KString  sLine;
 			while (pipe.ReadLine(sLine))
 			{
-				out.WriteLine (sLine);
+				KOut.WriteLine (sLine);
 			}
 		}
 	}
 	else if (iPort)
 	{
-		out.Format ("klog: listening to port {} ...\n", iPort);
+		KOut.Format ("klog: listening to port {} ...\n", iPort);
 		KlogServer server (iPort, /*bSSL=*/false);
 		server.Start(/*iTimeoutInSeconds=*/static_cast<uint16_t>(-1), /*bBlocking=*/true);
 	}

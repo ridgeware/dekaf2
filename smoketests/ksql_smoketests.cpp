@@ -41,8 +41,8 @@
 */
 
 #include "catch.hpp"
-#include <dekaf2/dekaf2all.h>
 #include <dekaf2/ksql.h>
+#include <dekaf2/ksystem.h>
 
 using namespace dekaf2;
 

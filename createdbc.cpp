@@ -19,7 +19,6 @@
 #include <dekaf2/kstringutils.h>
 #include <dekaf2/klog.h>
 #include <dekaf2/kwriter.h>
-#include <iostream>
 #include <cinttypes>
 
 using namespace dekaf2;
@@ -62,8 +61,6 @@ int main (int argc, char* argv[])
 	KString sDBHost;
 	KString sDBPort;
 
-	KOutStream COut(std::cout);
-
 	for (int ii=1; ii < argc; ++ii)
 	{
 		if (kStrIn (argv[ii], "-d,-dd,-ddd")) {
@@ -82,12 +79,12 @@ int main (int argc, char* argv[])
 			KSQL tmpdb;
 			if (!tmpdb.LoadConnect (argv[2]))
 			{
-				COut.FormatLine ("createdbc(ERR): {}", tmpdb.GetLastError());
+				KOut.FormatLine ("createdbc(ERR): {}", tmpdb.GetLastError());
 				return (1);
 			}
 			else
 			{
-				COut.FormatLine ("createdbc: {}", tmpdb.ConnectSummary());
+				KOut.FormatLine ("createdbc: {}", tmpdb.ConnectSummary());
 				return (0);
 			}
 		}
@@ -133,33 +130,33 @@ int main (int argc, char* argv[])
 
 	if (!tmpdb.SetConnect(tmpdb.GetDBType(), sDBUser, sDBPass, sDBName, sDBHost, sDBPort.UInt16()))
 	{
-		COut.FormatLine ("FAILED.\n{}", tmpdb.GetLastError());
+		KOut.FormatLine ("FAILED.\n{}", tmpdb.GetLastError());
 		return (1);
 	}
 
 	if (fTestConnection)
 	{
-		COut.Format ("testing connection to '{}' ... ", tmpdb.ConnectSummary());
-		COut.Flush();
+		KOut.Format ("testing connection to '{}' ... ", tmpdb.ConnectSummary());
+		KOut.Flush();
 
 		if (!tmpdb.OpenConnection())
 		{
-			COut.FormatLine ("FAILED.\n{}", tmpdb.GetLastError());
+			KOut.FormatLine ("FAILED.\n{}", tmpdb.GetLastError());
 			return (1);
 		}
 
-		COut.WriteLine ("ok.");
+		KOut.WriteLine ("ok.");
 	}
 
-	COut.Format ("generating file '{}' ... ", sTarget);
-	COut.Flush();
+	KOut.Format ("generating file '{}' ... ", sTarget);
+	KOut.Flush();
 	if (!tmpdb.SaveConnect (sTarget))
 	{
-		COut.FormatLine ("FAILED.\n{}", tmpdb.GetLastError());
+		KOut.FormatLine ("FAILED.\n{}", tmpdb.GetLastError());
 		return (1);
 	}
 
-	COut.WriteLine("done.");
+	KOut.WriteLine("done.");
 
 	return (0);
 

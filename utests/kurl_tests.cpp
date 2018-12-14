@@ -1145,36 +1145,49 @@ TEST_CASE ("KURL formerly missing")
 TEST_CASE ("KURL regression tests")
 {
 	KURL URL;
+
 	URL = "http://third.second-level.com/path/TomatoJuice/2B66-3D@77-AC7F-EE58";
-	CHECK ( URL.Protocol.get() == "http://" );
-	CHECK ( URL.Domain.get() == "third.second-level.com" );
-	CHECK ( URL.Path.get() == "/path/TomatoJuice/2B66-3D@77-AC7F-EE58" );
+	CHECK ( URL.Protocol == "http://" );
+	CHECK ( URL.Domain == "third.second-level.com" );
+	CHECK ( URL.Path == "/path/TomatoJuice/2B66-3D@77-AC7F-EE58" );
+
+	URL = "http://third.second-level.com/path/TomatoJuice/2B66-3D@77-AC7F-EE58";
+	CHECK ( URL.Protocol == "http://" );
+	CHECK ( URL.Domain == "third.second-level.com" );
+	CHECK ( URL.Path == "/path/TomatoJuice/2B66-3D@77-AC7F-EE58" );
 
 	URL = "level.com/path/TomatoJuice/2B66-3D@77-AC7F-EE58";
-	CHECK ( URL.Protocol.get() == "" );
-	CHECK ( URL.Domain.get() == "level.com" );
-	CHECK ( URL.Path.get() == "/path/TomatoJuice/2B66-3D@77-AC7F-EE58" );
+	CHECK ( URL.Protocol == "" );
+	CHECK ( URL.Domain == "level.com" );
+	CHECK ( URL.Path == "/path/TomatoJuice/2B66-3D@77-AC7F-EE58" );
 
 	URL = "/path/TomatoJuice/2B66-3D@77-AC7F-EE58";
-	CHECK ( URL.Protocol.get() == "" );
-	CHECK ( URL.Domain.get() == "" );
-	CHECK ( URL.Path.get() == "/path/TomatoJuice/2B66-3D@77-AC7F-EE58" );
+	CHECK ( URL.Protocol == "" );
+	CHECK ( URL.Domain == "" );
+	CHECK ( URL.Path == "/path/TomatoJuice/2B66-3D@77-AC7F-EE58" );
 
 	URL = "/2B66-3D@77-AC7F-EE58";
-	CHECK ( URL.Protocol.get() == "" );
-	CHECK ( URL.Domain.get() == "" );
-	CHECK ( URL.Path.get() == "/2B66-3D@77-AC7F-EE58" );
+	CHECK ( URL.Protocol == "" );
+	CHECK ( URL.Domain == "" );
+	CHECK ( URL.Path == "/2B66-3D@77-AC7F-EE58" );
 
 	URL = "2B66-3D@77-AC7F-EE58";
-	CHECK ( URL.Protocol.get() == "" );
-	CHECK ( URL.User.get() == "2B66-3D" );
-	CHECK ( URL.Domain.get() == "77-AC7F-EE58" );
-	CHECK ( URL.Path.get() == "" );
+	CHECK ( URL.Protocol == "" );
+	CHECK ( URL.User == "2B66-3D" );
+	CHECK ( URL.Domain == "77-AC7F-EE58" );
+	CHECK ( URL.Path == "" );
 
-	URL = "http://third.second-level.com/path/T?om#atoJuice/2B66-3D@77-AC7F-EE58";
-	CHECK ( URL.Protocol.get() == "http://" );
-	CHECK ( URL.Domain.get() == "third.second-level.com" );
-	CHECK ( URL.Path.get() == "/path/T" );
-	CHECK ( URL.Query.Decoded() == "om" );
-	CHECK ( URL.Fragment.get() == "atoJuice/2B66-3D@77-AC7F-EE58" );
+	URL = "http://third.second-level.com/path/T?om=ato#Juice/2B66-3D@77-AC7F-EE58";
+	CHECK ( URL.Protocol == "http://" );
+	CHECK ( URL.Domain == "third.second-level.com" );
+	CHECK ( URL.Path == "/path/T" );
+	CHECK ( URL.Query["om"] == "ato" );
+	CHECK ( URL.Fragment == "Juice/2B66-3D@77-AC7F-EE58" );
+
+	URL = "http://Tom:Jerry@third.second-level.com/path/TomatoJuice/2B66-3D@77-AC7F-EE58";
+	CHECK ( URL.Protocol == "http://" );
+	CHECK ( URL.User == "Tom" );
+	CHECK ( URL.Password == "Jerry" );
+	CHECK ( URL.Domain == "third.second-level.com" );
+	CHECK ( URL.Path == "/path/TomatoJuice/2B66-3D@77-AC7F-EE58" );
 }

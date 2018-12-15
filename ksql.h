@@ -573,7 +573,7 @@ protected:
 	bool       m_bDisableRetries { false };
 	time_t     m_iWarnIfOverNumSeconds { 0 };
 	FILE*      m_bpWarnIfOverNumSeconds { nullptr };
-	KString    m_sTempDir;
+	KString    m_sTempDir { "/tmp" };
 
 	bool  SQLError (bool fForceError=false);
 	bool  WasOCICallOK (KStringView sContext);

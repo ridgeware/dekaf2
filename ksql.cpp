@@ -316,7 +316,7 @@ KSQL::KSQL (DBT iDBType/*=DBT::MYSQL*/, KStringView sUsername/*=nullptr*/, KStri
 	kDebugLog (3, "KSQL::KSQL()...");
 
 	// this tmp file is used to hold buffered results (if flag F_BufferResults is set):
-	m_sTmpResultsFile.Format ("{}/ksql-{}.res", GetTempDir(), getpid()); // TODO: fix this hack
+	m_sTmpResultsFile.Format ("{}/ksql-{}-{}.res", GetTempDir(), kGetPid(), kGetTid());
 
 	if (!sUsername.empty())
 	{
@@ -335,7 +335,7 @@ KSQL::KSQL (KSQL& other)
 	m_iFlags = other.GetFlags();
 
 	// this tmp file is used to hold buffered results (if flag F_BufferResults is set):
-	m_sTmpResultsFile.Format ("{}/ksql-{}.res", GetTempDir(), getpid()); // TODO: fix this hack
+	m_sTmpResultsFile.Format ("{}/ksql-{}-{}.res", GetTempDir(), kGetPid(), kGetTid());
 
 	if (!other.GetDBUser().empty())
 	{

@@ -461,6 +461,11 @@ KString KURL::IsolatePath (KStringView sURL)
 		sPath += kFormat ("/{}", Parts[ii]);
 	}
 
+	if (sURL.EndsWith("/") && !sPath.EndsWith("/"))
+	{
+		sPath += "/";
+	}
+
 	return sPath;
 
 } // IsolatePath

@@ -205,7 +205,7 @@ KStringViewZ kGetHostname ()
 		return "hostname-error";
 	}
 
-	kDebugLog (2, "kGetHostname(): %s", szHostname);
+	kDebugLog (2, "kGetHostname(): {}", szHostname);
 	return szHostname;
 
 } // kGetHostname
@@ -225,11 +225,11 @@ uint64_t kGetTid()
 } // kGetTid
 
 //-----------------------------------------------------------------------------
-uint8_t ksystem (const KString& sCommand, KString& sOutput)
+uint8_t ksystem (KStringView sCommand, KString& sOutput)
 //-----------------------------------------------------------------------------
 {
 	KString sTmp;
-	sTmp.Format ("/tmp/ksystem{}.out", getpid());
+	sTmp.Format ("/tmp/ksystem{}_{}.out", kGetPid(), kGetTid());
 
 	KString sWrapped;
 	sWrapped.Format ("({} 2>&1) > {}", sCommand, sTmp);
@@ -239,7 +239,7 @@ uint8_t ksystem (const KString& sCommand, KString& sOutput)
 	// - - - - - - - - - - - - - - - - - - - - - - - -
 	// shell out to run the command:
 	// - - - - - - - - - - - - - - - - - - - - - - - -
-	uint8_t iStatus = system (sWrapped.c_str());
+	uint8_t iStatus = std::system (sWrapped.c_str());
 	kDebugLog (3, "ksystem: exit code: {}", iStatus);
 
 	sOutput.clear();
@@ -260,7 +260,7 @@ uint8_t ksystem (const KString& sCommand, KString& sOutput)
 } // ksystem
 
 //-----------------------------------------------------------------------------
-uint8_t ksystem (const KString& sCommand)
+uint8_t ksystem (KStringView sCommand)
 //-----------------------------------------------------------------------------
 {
 	KString sWrapped;
@@ -269,7 +269,7 @@ uint8_t ksystem (const KString& sCommand)
 	// - - - - - - - - - - - - - - - - - - - - - - - -
 	// shell out to run the command:
 	// - - - - - - - - - - - - - - - - - - - - - - - -
-	uint8_t iStatus = system (sWrapped.c_str());
+	uint8_t iStatus = std::system (sWrapped.c_str());
 
 	return (iStatus);  // 0 => success
 

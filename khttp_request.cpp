@@ -97,10 +97,22 @@ bool KHTTPRequestHeaders::Parse(KInStream& Stream)
 bool KHTTPRequestHeaders::Serialize(KOutStream& Stream) const
 //-----------------------------------------------------------------------------
 {
-	Stream.FormatLine("{} {} {}",
-					  Method.Serialize(),
-					  Resource.Serialize(),
-					  sHTTPVersion);
+	if (!Resource.empty())
+	{
+		Stream.FormatLine("{} {} {}",
+						  Method.Serialize(),
+						  Resource.Serialize(),
+						  sHTTPVersion);
+	}
+	else
+	{
+		// special case, insert a single slash for the resource to
+		// satisfy the HTTP protocol
+		kDebugLog(1, "KHTTPRequestHeaders::parse(): resource is empty, inserting /");
+		Stream.FormatLine("{} / {}",
+						  Method.Serialize(),
+						  sHTTPVersion);
+	}
 
 	return KHTTPHeaders::Serialize(Stream);
 

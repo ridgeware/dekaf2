@@ -156,14 +156,6 @@ bool KHTTPClient::Resource(const KURL& url, KHTTPMethod method)
 	};
 
 	Request.Resource = url;
-
-	// we do not want to send any eventual protocol and domain parts of the URL in the request
-	Request.Resource.Protocol.clear();
-	Request.Resource.User.clear();
-	Request.Resource.Password.clear();
-	Request.Resource.Domain.clear();
-	Request.Resource.Port.clear();
-
 	Request.Method = method;
 	Request.sHTTPVersion = "HTTP/1.1";
 

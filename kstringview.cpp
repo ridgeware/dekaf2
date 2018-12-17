@@ -511,7 +511,7 @@ bool KStringView::In (KStringView sHaystack, value_type iDelim/*=','*/) const
 
 		// If end of needle or haystack at delimiter or end of haystack
 		if ((iNeedle >= iNsize) &&
-			((sHaystack[iHaystack] == iDelim) || iHaystack >= iHsize))
+			(iHaystack >= iHsize || (sHaystack[iHaystack] == iDelim)))
 		{
 			return true;
 		}

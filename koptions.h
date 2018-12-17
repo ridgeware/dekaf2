@@ -141,7 +141,7 @@ public:
 	void RegisterHelp(const KStringView (&sHelp)[COUNT])
 	{
 		m_sHelp = sHelp;
-		m_sHelpSize = COUNT;
+		m_iHelpSize = COUNT;
 	}
 
 	/// Output the registered help message
@@ -169,7 +169,7 @@ private:
 
 		private:
 
-			static constexpr KStringViewZ sDoubleDash = "--";
+			static constexpr KStringViewZ s_sDoubleDash = "--";
 
 			uint8_t iDashes { 0 };
 
@@ -185,15 +185,14 @@ private:
 		}
 
 		void Create(int argc, char** argv);
-		size_t size() const  { return Args.size();  }
-		size_t empty() const { return Args.empty(); }
-		iterator begin()     { return Args.begin(); }
-		iterator end()       { return Args.end();   }
-		void clear()         { Args.clear();        }
+		size_t size() const  { return m_ArgVec.size();  }
+		size_t empty() const { return m_ArgVec.empty(); }
+		iterator begin()     { return m_ArgVec.begin(); }
+		iterator end()       { return m_ArgVec.end();   }
+		void clear()         { m_ArgVec.clear();        }
 
-		ArgVec Args;
-		KStringViewZ sProgramName;
-		size_t iArg { 0 };
+		ArgVec m_ArgVec;
+		KStringViewZ m_sProgramName;
 
 	}; // CLIParms
 
@@ -226,7 +225,7 @@ private:
 	CallbackParams     m_UnknownOption;
 	KString            m_sCliDebugTo;
 	const KStringView* m_sHelp { nullptr };
-	size_t             m_sHelpSize { 0 };
+	size_t             m_iHelpSize { 0 };
 	bool               m_bEmptyParmsIsError { true };
 
 }; // KOptions

@@ -84,7 +84,7 @@ KOptions::CLIParms::Arg_t::Arg_t(KStringViewZ sArg_)
 KStringViewZ KOptions::CLIParms::Arg_t::Dashes() const
 //---------------------------------------------------------------------------
 {
-	KStringViewZ sReturn { sDoubleDash };
+	KStringViewZ sReturn { s_sDoubleDash };
 	sReturn.remove_prefix(2 - iDashes);
 
 	return sReturn;
@@ -95,18 +95,18 @@ KStringViewZ KOptions::CLIParms::Arg_t::Dashes() const
 void KOptions::CLIParms::Create(int argc, char** argv)
 //---------------------------------------------------------------------------
 {
-	Args.clear();
-	Args.reserve(argc);
+	m_ArgVec.clear();
+	m_ArgVec.reserve(argc);
 
 	for (int ii = 0; ii < argc; ++ii)
 	{
-		Args.push_back(KStringViewZ(*argv++));
+		m_ArgVec.push_back(KStringViewZ(*argv++));
 	}
 
-	if (!Args.empty())
+	if (!m_ArgVec.empty())
 	{
-		sProgramName = Args.front().sArg;
-		Args.front().bConsumed = true;
+		m_sProgramName = m_ArgVec.front().sArg;
+		m_ArgVec.front().bConsumed = true;
 	}
 
 } // CParms ctor
@@ -128,9 +128,9 @@ void KOptions::Help(KOutStream& out)
 		DEKAF2_THROW (Error("no help registered"));
 	}
 
-	for (size_t ct = 0; ct < m_sHelpSize; ++ct)
+	for (size_t iCount = 0; iCount < m_iHelpSize; ++iCount)
 	{
-		out.WriteLine(m_sHelp[ct]);
+		out.WriteLine(m_sHelp[iCount]);
 	}
 
 } // Help
@@ -384,12 +384,12 @@ int KOptions::Parse(int argc, char** argv, KOutStream& out)
 
 	DEKAF2_CATCH (const MissingParameterError& error)
 	{
-		out.FormatLine("{}: missing parameter after {}{}: {}", kBasename(m_CLIParms.sProgramName), lastCommand->Dashes(), lastCommand->sArg, error.what());
+		out.FormatLine("{}: missing parameter after {}{}: {}", kBasename(m_CLIParms.m_sProgramName), lastCommand->Dashes(), lastCommand->sArg, error.what());
 	}
 
 	DEKAF2_CATCH (const WrongParameterError& error)
 	{
-		out.FormatLine("{}: wrong parameter after {}{}: {}", kBasename(m_CLIParms.sProgramName), lastCommand->Dashes(), lastCommand->sArg, error.what());
+		out.FormatLine("{}: wrong parameter after {}{}: {}", kBasename(m_CLIParms.m_sProgramName), lastCommand->Dashes(), lastCommand->sArg, error.what());
 	}
 
 	DEKAF2_CATCH (const Error& error)

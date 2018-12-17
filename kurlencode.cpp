@@ -61,9 +61,9 @@ KUrlEncodingTables KUrlEncodingTables::MyInstance {};
 
 const char* KUrlEncodingTables::s_sExcludes[] =
 {
-    "-._~",     // used by Schema .. Port
-    "-._~;,=/", // used by Path
-    ""          // used by Query and Fragment ("/?" would be better for conformity (see RFC3986 3.4)
+    "-._~",     // used by Schema .. Port                https://tools.ietf.org/html/rfc3986#section-3
+    "-._~;,=/", // used by Path (actually there is more) https://tools.ietf.org/html/rfc3986#section-3.3
+    "-._~/?"    // used by Query and Fragment            https://tools.ietf.org/html/rfc3986#section-3.4
 };
 
 bool* KUrlEncodingTables::EncodingTable[TABLECOUNT];

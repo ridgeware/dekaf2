@@ -1125,7 +1125,7 @@ TEST_CASE ("KURL formerly missing")
 		CHECK ( URI.Serialize() == "/Some/" );
 		URI = "https://localhost/Some/Path/5C86463AA7BAFCE4?url=http://some.host.com/resources/images/image1.gif";
 		CHECK ( URI.Path.get() == "/Some/Path/5C86463AA7BAFCE4" );
-		CHECK ( URI.Serialize() == "/Some/Path/5C86463AA7BAFCE4?url=http%3A%2F%2Fsome%2Ehost%2Ecom%2Fresources%2Fimages%2Fimage1%2Egif" );
+		CHECK ( URI.Serialize() == "/Some/Path/5C86463AA7BAFCE4?url=http%3A//some.host.com/resources/images/image1.gif" );
 	}
 
 	SECTION("decoded / encoded")
@@ -1135,7 +1135,7 @@ TEST_CASE ("KURL formerly missing")
 		CHECK ( URL.Path.Decoded() == "/Some/Path/5C86463AA7BAFCE4" );
 		CHECK ( URL.Domain.Decoded() == "local.org" );
 		CHECK ( URL.Protocol.Decoded() == "https://" );
-		CHECK ( URL.Query.Decoded() == "url=http%3A%2F%2Fsome%2Ehost%2Ecom%2Fresources%2Fimages%2Fimage1%2Egif" );
+		CHECK ( URL.Query.Decoded() == "url=http%3A//some.host.com/resources/images/image1.gif" );
 		CHECK ( URL.Fragment.Decoded() == "fragment/here" );
 		CHECK ( URL.User.Decoded() == "user" );
 		CHECK ( URL.Password.Decoded() == "pass" );

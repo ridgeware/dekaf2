@@ -57,7 +57,7 @@ std::string KSSLContext::PasswordCallback(std::size_t max_length,
 }
 
 //-----------------------------------------------------------------------------
-KSSLContext::KSSLContext(bool bIsServer, bool bVerifyCerts, bool bAllowSSLv3)
+KSSLContext::KSSLContext(bool bIsServer, bool bVerifyCerts)
 //-----------------------------------------------------------------------------
 #if (BOOST_VERSION < 106600)
 	: m_Context(s_IO_Service, boost::asio::ssl::context::sslv23)
@@ -67,23 +67,16 @@ KSSLContext::KSSLContext(bool bIsServer, bool bVerifyCerts, bool bAllowSSLv3)
 	, m_Role(bIsServer ? boost::asio::ssl::stream_base::server : boost::asio::ssl::stream_base::client)
 	, m_bVerify(bVerifyCerts)
  {
-	boost::asio::ssl::context::options options = boost::asio::ssl::context::default_workarounds;
-
-	options |= boost::asio::ssl::context::single_dh_use;
-
-	if (bAllowSSLv3)
-	{
-		options |= (boost::asio::ssl::context::no_sslv2 | boost::asio::ssl::context::sslv3);
-	}
-	else
-	{
-		options |= (boost::asio::ssl::context::no_sslv2 | boost::asio::ssl::context::no_sslv3);
-	}
-
-	options |= boost::asio::ssl::context::no_tlsv1;
+	 boost::asio::ssl::context::options options
+	 	= boost::asio::ssl::context::default_workarounds
+	 	| boost::asio::ssl::context::tls
+	 	| boost::asio::ssl::context::single_dh_use
+	 	| boost::asio::ssl::context::no_sslv2
+	 	| boost::asio::ssl::context::no_sslv3
 #if (BOOST_VERSION >= 106600)
-	options |= boost::asio::ssl::context::no_tlsv1_1;
+	 	| boost::asio::ssl::context::no_tlsv1_1
 #endif
+	 	| boost::asio::ssl::context::no_tlsv1;
 
 	boost::system::error_code ec;
 	m_Context.set_options(options, ec);
@@ -181,8 +174,8 @@ bool KSSLContext::SetSSLCertificates(KStringView sCert, KStringView sKey, KStrin
 
 } // SetSSLCertificates
 
-static KSSLContext s_KSSLContextNoVerification { false, false, false };
-static KSSLContext s_KSSLContextWithVerification { false, true, false };
+static KSSLContext s_KSSLContextNoVerification   { false, false };
+static KSSLContext s_KSSLContextWithVerification { false, true  };
 
 
 //-----------------------------------------------------------------------------

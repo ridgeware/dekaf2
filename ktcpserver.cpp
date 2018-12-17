@@ -267,7 +267,7 @@ void KTCPServer::TCPServer(bool ipv6)
 
 		// the SSL version of the server
 
-		KSSLContext SSLContext(true, false, false);
+		KSSLContext SSLContext(true, false);
 
 		if (!SSLContext.SetSSLCertificates(m_sCert, m_sKey, m_sPassword))
 		{

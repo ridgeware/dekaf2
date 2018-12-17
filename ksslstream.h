@@ -67,7 +67,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Constructs an SSL context
-	KSSLContext(bool bIsServer = false, bool bVerifyCerts = false, bool bAllowSSLv3 = false);
+	KSSLContext(bool bIsServer = false, bool bVerifyCerts = false);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -212,7 +212,7 @@ public:
 	enum { DEFAULT_TIMEOUT = 1 * 15 };
 
 	//-----------------------------------------------------------------------------
-	/// Constructs a client with default parameters (no certificate verification, no SSLv3)
+	/// Constructs a client with default parameters (no certificate verification)
 	KSSLIOStream();
 	//-----------------------------------------------------------------------------
 
@@ -223,7 +223,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Constructs a connected stream as a client and with default parameters (no
-	/// certificate verification, no SSLv3)
+	/// certificate verification)
 	/// @param Endpoint
 	/// KTCPEndPoint as the server to connect to - can be constructed from
 	/// a variety of inputs, like strings or KURL

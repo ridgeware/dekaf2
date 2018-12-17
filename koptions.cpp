@@ -278,7 +278,7 @@ int KOptions::Parse(int argc, char** argv, KOutStream& out)
 				bool bIsUnknown { false };
 
 				auto& Store = it->IsOption() ? m_Options : m_Commands;
-				auto cbi = Store.find(it->sArg);
+				auto cbi = Store.find(KStringView(it->sArg));
 				if (DEKAF2_UNLIKELY(cbi == Store.end()))
 				{
 					// check if we have a handler for an unknown arg

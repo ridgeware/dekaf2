@@ -216,14 +216,14 @@ private:
 
 	}; // CallbackParams
 
-	using CommandStore = KUnorderedMap<KString, CallbackParams>;
+	using CommandStore = KUnorderedMap<KStringView, CallbackParams>;
 
 	CLIParms           m_CLIParms;
 	CommandStore       m_Commands;
 	CommandStore       m_Options;
 	CallbackParams     m_UnknownCommand;
 	CallbackParams     m_UnknownOption;
-	KString            m_sCliDebugTo;
+	KStringView        m_sCliDebugTo;
 	const KStringView* m_sHelp { nullptr };
 	size_t             m_iHelpSize { 0 };
 	bool               m_bEmptyParmsIsError { true };

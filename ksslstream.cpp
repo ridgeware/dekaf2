@@ -69,7 +69,6 @@ KSSLContext::KSSLContext(bool bIsServer, bool bVerifyCerts)
  {
 	 boost::asio::ssl::context::options options
 	 	= boost::asio::ssl::context::default_workarounds
-	 	| boost::asio::ssl::context::tls
 	 	| boost::asio::ssl::context::single_dh_use
 	 	| boost::asio::ssl::context::no_sslv2
 	 	| boost::asio::ssl::context::no_sslv3
@@ -445,6 +444,9 @@ bool KSSLIOStream::Connect(const KTCPEndPoint& Endpoint)
 		kDebug(2, "{}: {}", Endpoint.Serialize(), Error());
 		return false;
 	}
+
+	// make sure client side SNI works..
+	SSL_set_tlsext_host_name(m_Stream.Socket.native_handle(), Endpoint.Domain.get().c_str());
 
 	return true;
 

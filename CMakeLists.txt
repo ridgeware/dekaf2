@@ -56,6 +56,8 @@ OPTION(DEKAF2_USE_OPTIMIZED_STRING_FIND "Use optimized string::find" ON)
 OPTION(DEKAF2_WITH_DEPRECATED_KSTRING_MEMBER_FUNCTIONS "With deprecated KString member functions" OFF)
 OPTION(DEKAF2_WITH_COMPATIBILITY_LAYER_TO_DEKAF1 "Provide compatibility layer to dekaf1" OFF)
 OPTION(DEKAF2_ENABLE_DEBUG_RUNTIME_CHECKS "debug build with sanitizers and additional runtime checks" ON)
+# in xcode 10, debug stepping crashes regularly when ASAN is active, so beware
+OPTION(DEKAF2_ENABLE_DEBUG_RUNTIME_CHECKS_IN_XCODE "debug build with sanitizers and additional runtime checks in Xcode" OFF)
 OPTION(DEKAF2_USE_FROZEN_HASH_FOR_LARGE_MAPS "use frozen constexpr hash for large maps (needs a lot of memory on comp)" ON)
 OPTION(DEKAF2_WITH_FCGI "build with FCGI" OFF)
 
@@ -67,6 +69,7 @@ set(CMAKE_CXX_STANDARD 17)
 
 # ==================================== BUILD TYPE ==================================
 
+message(STATUS "CMake Generator: ${CMAKE_GENERATOR}")
 if (CMAKE_BUILD_TYPE STREQUAL "")
 	# Release is the default build type
 	set(CMAKE_BUILD_TYPE "Release")
@@ -142,16 +145,17 @@ endif ()
 
 # ================================ ASAN / UBSAN =================================
 
-message(STATUS ${CMAKE_GENERATOR})
-if (DEKAF2_ENABLE_DEBUG_RUNTIME_CHECKS)
-	if (CMAKE_GENERATOR STREQUAL "Xcode")
-		message(STATUS "enabling ASAN/UBSAN for Xcode")
+if (CMAKE_GENERATOR STREQUAL "Xcode")
+	if (DEKAF2_ENABLE_DEBUG_RUNTIME_CHECKS_IN_XCODE)
+		message(STATUS "enabling ASAN/UBSAN runtime checks for Xcode")
 		set(CMAKE_XCODE_GENERATE_SCHEME ON)
 		set(CMAKE_XCODE_SCHEME_ADDRESS_SANITIZER ON)
 		set(CMAKE_XCODE_SCHEME_ADDRESS_SANITIZER_USE_AFTER_RETURN ON)
 		set(CMAKE_XCODE_SCHEME_UNDEFINED_BEHAVIOUR_SANITIZER ON)
-	else ()
-		message(STATUS "enabling debug runtime checks")
+	endif()
+else ()
+	if (DEKAF2_ENABLE_DEBUG_RUNTIME_CHECKS)
+		message(STATUS "enabling ASAN/UBSAN runtime checks")
 		set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fsanitize=address -fsanitize=undefined -fsanitize-address-use-after-scope")
 		set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fstack-protector-strong -fstack-check")
 	endif ()

@@ -458,34 +458,6 @@ bool KURL::Serialize(KOutStream& sTarget) const
 }
 
 //-------------------------------------------------------------------------
-KString KURL::IsolatePath (KStringView sURL)
-//-------------------------------------------------------------------------
-{
-	if (sURL.empty()) {
-		return ("");
-	}
-
-	KStack <KString> Parts;
-	kSplit (Parts, sURL, "/", /*sTrim*/"");
-
-	KString  sPath;
-	uint32_t iStartWith = (Parts[0].Contains(":")) ? 3: 0;
-
-	for (auto ii=iStartWith; ii < Parts.size(); ++ii)
-	{
-		sPath += kFormat ("/{}", Parts[ii]);
-	}
-
-	if (sURL.EndsWith("/") && !sPath.EndsWith("/"))
-	{
-		sPath += "/";
-	}
-
-	return sPath;
-
-} // IsolatePath
-
-//-------------------------------------------------------------------------
 bool operator==(const KURL& left, const KURL& right)
 //-------------------------------------------------------------------------
 {

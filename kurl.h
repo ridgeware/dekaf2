@@ -547,7 +547,9 @@ public:
 		UNIX      = 14,
 		SMTP      = 15,
 		SMTPS     = 16,
-		UNKNOWN   = 17  // UNKNOWN _has_ to be the last value
+		WS        = 17,
+		WSS       = 18,
+		UNKNOWN   = 19  // UNKNOWN _has_ to be the last value
 	};
 
 	//-------------------------------------------------------------------------

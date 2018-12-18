@@ -161,6 +161,8 @@ constexpr Protocols s_Canonical [KProtocol::UNKNOWN+1] =
 	{    0, "unix"   , "unix://"   }, // this is for unix socket files ("unix:///this/is/my/socket")
 	{   25, "smtp"   , "smtp://"   },
 	{  587, "smtps"  , "smtps://"  },
+	{   80, "ws"     , "ws://"     },
+	{  443, "wss"    , "wss://"    },
 	{    0, ""       , ""          }  // Empty placeholder for UNKNOWN, use m_sProto.
 };
 

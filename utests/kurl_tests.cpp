@@ -141,7 +141,6 @@ SCENARIO ( "KURL unit tests on valid data" )
 
 }
 
-//SSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS
 SCENARIO ( "KURL unit tests on operators")
 {
     test_t URL_valid;
@@ -178,7 +177,7 @@ SCENARIO ( "KURL unit tests on operators")
             dekaf2::url::KPath      path;
             dekaf2::url::KQuery     query;
             dekaf2::url::KFragment  fragment;
-            dekaf2::KURI       uri;
+            dekaf2::KResource       uri;
             THEN ( "Check results for validity")
             {
                 KString sProtocol   {"unknown://"};
@@ -188,7 +187,7 @@ SCENARIO ( "KURL unit tests on operators")
                 KString sPath       {"/too/many/subdirectories/for/comfort"};
                 KString sQuery      {"?team=hermes&language=c++"};
                 KString sFragment   {"#partwayDown"};
-                KString sURI        {sPath + sQuery + sFragment};
+                KString sURI        {sPath + sQuery};
 
                 KString sResult;
 
@@ -236,7 +235,6 @@ SCENARIO ( "KURL unit tests on operators")
     }
 }
 
-//SSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS
 SCENARIO ( "KURL unit tests on invalid data")
 {
     GIVEN ( "an invalid string" )
@@ -251,8 +249,8 @@ SCENARIO ( "KURL unit tests on invalid data")
             dekaf2::url::KPath      path;
             dekaf2::url::KQuery     query;
             dekaf2::url::KFragment  fragment;
-            dekaf2::KURI       uri;
-            dekaf2::KURL       url;
+            dekaf2::KResource       uri;
+            dekaf2::KURL            url;
 
             THEN ( "check responses to empty string" )
             {
@@ -390,7 +388,6 @@ SCENARIO ( "KURL unit tests on invalid data")
 
 }
 
-//SSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS
 TEST_CASE ("KURL")
 {
     //            hint    final   flag
@@ -492,9 +489,9 @@ TEST_CASE ("KURL")
 
             dekaf2::url::KFragment kfragment  (sFragment);
 
-            dekaf2::KURI kuri  (sURI);
+            dekaf2::KResource kuri  (sURI);
 
-            dekaf2::KURI kuriBad ("<b>I'm bold</b>");
+            dekaf2::KResource kuriBad ("<b>I'm bold</b>");
 
             dekaf2::KURL kurl;
 
@@ -621,10 +618,10 @@ TEST_CASE ("KURL")
             CHECK (target == expect);
         }
 
-        SECTION ("Protocol solo unit (fail missing ://)")
+        SECTION ("Protocol solo unit (succeed missing ://)")
         {
             KString solo ("https");
-            KString expect{};
+			KString expect{"https://"};
             KString target{};
 
             dekaf2::url::KProtocol kproto  (solo);
@@ -633,7 +630,7 @@ TEST_CASE ("KURL")
             bool ret = kproto.Serialize (target);
 
             CHECK (ret == true);
-            CHECK (ret1 == true);
+            CHECK (ret1 == false);
             CHECK (target == expect);
         }
 
@@ -1101,31 +1098,31 @@ TEST_CASE ("KURL formerly missing")
 		CHECK ( URL.Query["url"] == "http://some.host.com/resources/images/image1.gif" );
 	}
 
-	SECTION("KURI")
+	SECTION("KResource")
 	{
-		KURI URI;
+		KResource Resource;
 		KURL URL;
 		URL = "https://user:pass@localhost:876/Some/Path/5C86463AA7BAFCE4";
-		URI = URL;
-		CHECK ( URI.Path.get() == "/Some/Path/5C86463AA7BAFCE4" );
-		CHECK ( URI.Serialize() == "/Some/Path/5C86463AA7BAFCE4" );
-		URI = "https://user:pass@localhost:876/Some/Path/5C86463AA7BAFCE4";
-		CHECK ( URI.Path.get() == "/Some/Path/5C86463AA7BAFCE4" );
-		CHECK ( URI.Serialize() == "/Some/Path/5C86463AA7BAFCE4" );
-		URI = "/Some/Path/5C86463AA7BAFCE4";
-		CHECK ( URI.Path.get() == "/Some/Path/5C86463AA7BAFCE4" );
-		CHECK ( URI.Serialize() == "/Some/Path/5C86463AA7BAFCE4" );
-		URI = "Some/Path/5C86463AA7BAFCE4";
-		CHECK ( URI.Serialize() == "/Path/5C86463AA7BAFCE4" );
-		URI = "Some";
-		CHECK ( URI.Serialize() == "" );
-		URI = "/Some";
-		CHECK ( URI.Serialize() == "/Some" );
-		URI = "/Some/";
-		CHECK ( URI.Serialize() == "/Some/" );
-		URI = "https://localhost/Some/Path/5C86463AA7BAFCE4?url=http://some.host.com/resources/images/image1.gif";
-		CHECK ( URI.Path.get() == "/Some/Path/5C86463AA7BAFCE4" );
-		CHECK ( URI.Serialize() == "/Some/Path/5C86463AA7BAFCE4?url=http%3A//some.host.com/resources/images/image1.gif" );
+		Resource = URL;
+		CHECK ( Resource.Path.get() == "/Some/Path/5C86463AA7BAFCE4" );
+		CHECK ( Resource.Serialize() == "/Some/Path/5C86463AA7BAFCE4" );
+		Resource = "https://user:pass@localhost:876/Some/Path/5C86463AA7BAFCE4";
+		CHECK ( Resource.Path.get() == "/Some/Path/5C86463AA7BAFCE4" );
+		CHECK ( Resource.Serialize() == "/Some/Path/5C86463AA7BAFCE4" );
+		Resource = "/Some/Path/5C86463AA7BAFCE4";
+		CHECK ( Resource.Path.get() == "/Some/Path/5C86463AA7BAFCE4" );
+		CHECK ( Resource.Serialize() == "/Some/Path/5C86463AA7BAFCE4" );
+		Resource = "Some/Path/5C86463AA7BAFCE4";
+		CHECK ( Resource.Serialize() == "/Path/5C86463AA7BAFCE4" );
+		Resource = "Some";
+		CHECK ( Resource.Serialize() == "" );
+		Resource = "/Some";
+		CHECK ( Resource.Serialize() == "/Some" );
+		Resource = "/Some/";
+		CHECK ( Resource.Serialize() == "/Some/" );
+		Resource = "https://localhost/Some/Path/5C86463AA7BAFCE4?url=http://some.host.com/resources/images/image1.gif";
+		CHECK ( Resource.Path.get() == "/Some/Path/5C86463AA7BAFCE4" );
+		CHECK ( Resource.Serialize() == "/Some/Path/5C86463AA7BAFCE4?url=http%3A//some.host.com/resources/images/image1.gif" );
 	}
 
 	SECTION("decoded / encoded")

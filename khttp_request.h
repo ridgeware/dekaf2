@@ -94,7 +94,7 @@ public:
 //----------
 
 	KHTTPMethod Method;
-	KURI Resource;
+	KResource Resource;
 
 }; // KHTTPRequestHeaders
 

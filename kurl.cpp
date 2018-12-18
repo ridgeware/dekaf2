@@ -316,76 +316,97 @@ void KProtocol::clear()
 
 
 //-------------------------------------------------------------------------
-KURI::KURI(KURL url)
+KResource::KResource(const KURL& url)
 //-------------------------------------------------------------------------
-	: Path(std::move(url.Path))
-	, Query(std::move(url.Query))
-	, Fragment(std::move(url.Fragment))
+	: Path(url.Path)
+	, Query(url.Query)
 {
 }
 
 //-------------------------------------------------------------------------
-KStringView KURI::Parse(KStringView svSource)
+KStringView KResource::Parse(KStringView svSource)
 //-------------------------------------------------------------------------
 {
-	KURL url(svSource);
-	*this = std::move(url);
+	// identify a resource from a larger URL string
+	auto pos = svSource.find_first_of("/?");
+
+	if (pos != KStringView::npos
+		&& pos > 0
+		&& svSource[pos] == '/'
+		&& svSource[pos-1] == ':')
+	{
+		// this is most likely the scheme separator ("://"), step past it
+		pos = svSource.find_first_of("/?", pos + 2);
+	}
+
+	if (pos != KStringView::npos)
+	{
+		svSource.remove_prefix(pos);
+		svSource = ParseResourcePart(svSource);
+	}
+	else
+	{
+		clear();
+	}
+
 	return svSource;
 }
 
 //-------------------------------------------------------------------------
-void KURI::clear()
+KStringView KResource::ParseResourcePart(KStringView svSource)
+//-------------------------------------------------------------------------
+{
+	svSource = Path.Parse      (svSource, true);
+	svSource = Query.Parse     (svSource, true);
+
+	return svSource;
+}
+
+//-------------------------------------------------------------------------
+void KResource::clear()
 //-------------------------------------------------------------------------
 {
 	Path.clear();
 	Query.clear();
-	Fragment.clear();
 }
 
 //-------------------------------------------------------------------------
-bool KURI::Serialize(KString& sTarget) const
+bool KResource::Serialize(KString& sTarget) const
 //-------------------------------------------------------------------------
 {
 	Query.WantStartSeparator();
-	Fragment.WantStartSeparator();
 	return Path.Serialize          (sTarget)
-	        && Query.Serialize     (sTarget)
-	        && Fragment.Serialize  (sTarget);
+	        && Query.Serialize     (sTarget);
 }
 
 //-------------------------------------------------------------------------
-bool KURI::Serialize(KOutStream& sTarget) const
+bool KResource::Serialize(KOutStream& sTarget) const
 //-------------------------------------------------------------------------
 {
 	Query.WantStartSeparator();
-	Fragment.WantStartSeparator();
 	return Path.Serialize          (sTarget)
-	        && Query.Serialize     (sTarget)
-	        && Fragment.Serialize  (sTarget);
+	        && Query.Serialize     (sTarget);
 }
 
 //-------------------------------------------------------------------------
-KURL::KURL(KURI URI)
+bool operator==(const KResource& left, const KResource& right)
 //-------------------------------------------------------------------------
-	: Path(std::move(URI.Path))
-	, Query(std::move(URI.Query))
-	, Fragment(std::move(URI.Fragment))
 {
+	return left.Path     == right.Path
+	    && left.Query    == right.Query;
 }
+
 
 //-------------------------------------------------------------------------
 KStringView KURL::Parse(KStringView svSource)
 //-------------------------------------------------------------------------
 {
-	clear ();
-
 	svSource = Protocol.Parse  (svSource); // mandatory, but we do not enforce
 	svSource = User.Parse      (svSource);
 	svSource = Password.Parse  (svSource);
 	svSource = Domain.Parse    (svSource); // mandatory for non-files, but we do not enforce
 	svSource = Port.Parse      (svSource);
-	svSource = Path.Parse      (svSource, true);
-	svSource = Query.Parse     (svSource, true);
+	svSource = KResource::ParseResourcePart(svSource);
 	svSource = Fragment.Parse  (svSource, true);
 
 	return svSource;
@@ -400,8 +421,7 @@ void KURL::clear()
 	Password.clear();
 	Domain.clear();
 	Port.clear();
-	Path.clear();
-	Query.clear();
+	KResource::clear();
 	Fragment.clear();
 }
 
@@ -410,15 +430,13 @@ bool KURL::Serialize(KString& sTarget) const
 //-------------------------------------------------------------------------
 {
 	Port.WantStartSeparator();
-	Query.WantStartSeparator();
 	Fragment.WantStartSeparator();
 	return Protocol.Serialize      (sTarget)
 	        && User.Serialize      (sTarget)
 	        && Password.Serialize  (sTarget)
 	        && Domain.Serialize    (sTarget)
 	        && Port.Serialize      (sTarget)
-	        && Path.Serialize      (sTarget)
-	        && Query.Serialize     (sTarget)
+	        && KResource::Serialize(sTarget)
 	        && Fragment.Serialize  (sTarget);
 }
 
@@ -427,28 +445,14 @@ bool KURL::Serialize(KOutStream& sTarget) const
 //-------------------------------------------------------------------------
 {
 	Port.WantStartSeparator();
-	Query.WantStartSeparator();
 	Fragment.WantStartSeparator();
 	return Protocol.Serialize      (sTarget)
 	        && User.Serialize      (sTarget)
 	        && Password.Serialize  (sTarget)
 	        && Domain.Serialize    (sTarget)
 	        && Port.Serialize      (sTarget)
-	        && Path.Serialize      (sTarget)
-	        && Query.Serialize     (sTarget)
+	        && KResource::Serialize(sTarget)
 	        && Fragment.Serialize  (sTarget);
-}
-
-//-------------------------------------------------------------------------
-bool KURL::GetURI(KString& sTarget) const
-//-------------------------------------------------------------------------
-{
-	Port.WantStartSeparator();
-	Query.WantStartSeparator();
-	Fragment.WantStartSeparator();
-	return Path.Serialize      (sTarget)
-	    && Query.Serialize     (sTarget)
-	    && Fragment.Serialize  (sTarget);
 }
 
 //-------------------------------------------------------------------------
@@ -503,6 +507,36 @@ KTCPEndPoint::KTCPEndPoint(const KURL& URL)
 	{
 		Port = KString::to_string(URL.Protocol.DefaultPort());
 	}
+}
+
+//-------------------------------------------------------------------------
+KStringView KTCPEndPoint::Parse(KStringView svSource)
+//-------------------------------------------------------------------------
+{
+	// identify a TCPEndPoint from a larger URL string
+
+	// extract the protocol / scheme if existing, we use it later to set a port
+	// if omitted
+	url::KProtocol Protocol;
+	svSource = Protocol.Parse  (svSource);
+
+	auto pos = svSource.find_first_of("@/;?#");
+
+	if (pos != KStringView::npos && svSource[pos] == '@')
+	{
+		// this is most likely the username separator, step past it
+		svSource.remove_prefix(pos + 1);
+	}
+
+	svSource = Domain.Parse    (svSource);
+	svSource = Port.Parse      (svSource);
+
+	if (Port.empty() && !Protocol.empty())
+	{
+		Port = KString::to_string(Protocol.DefaultPort());
+	}
+
+	return svSource;
 }
 
 //-------------------------------------------------------------------------

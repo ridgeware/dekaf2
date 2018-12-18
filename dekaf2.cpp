@@ -50,6 +50,7 @@
 #include "ksystem.h"
 #include "kchildprocess.h"
 #include "bits/kcppcompat.h"
+#include "kconfiguration.h"
 #ifdef DEKAF2_HAS_LIBPROC
 #include <libproc.h>
 #endif
@@ -176,6 +177,62 @@ void Dekaf::SetRandomSeed(unsigned int iSeed)
 #else
 	srandom(iSeed);
 #endif
+}
+
+//---------------------------------------------------------------------------
+KStringView Dekaf::GetVersionInformation() const
+//---------------------------------------------------------------------------
+{
+	constexpr KStringView sVersionInformation =
+		"dekaf-" DEKAF_VERSION "-" DEKAF2_BUILD_TYPE
+#ifdef DEKAF2_USE_EXCEPTIONS
+		" exceptions"
+#endif
+#ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
+		" fbstring"
+#endif
+#ifdef DEKAF2_USE_FOLLY_STRINGPIECE_AS_KSTRINGVIEW
+		" fbstringview"
+#endif
+#ifdef DEKAF2_USE_OPTIMIZED_STRING_FIND
+		" optimized_string_find"
+#endif
+#ifdef DEKAF2_USE_BOOST_MULTI_INDEX
+		" multi_index"
+#endif
+#ifdef DEKAF2_HAS_LIBPROC
+		" libproc"
+#endif
+#ifdef DEKAF2_HAS_MYSQL
+		" mysql"
+#endif
+#ifdef DEKAF2_HAS_SQLITE3
+		" sqlite"
+#endif
+#ifdef DEKAF2_USE_FROZEN_HASH_FOR_LARGE_MAPS
+		" large_frozen_maps"
+#endif
+#ifdef DEKAF2_WITH_FCGI
+		" fcgi"
+#endif
+#ifdef DEKAF2_WITH_DEPRECATED_KSTRING_MEMBER_FUNCTIONS
+		" deprecated_kstring_interface"
+#endif
+#if (DEKAF1_INCLUDE_PATH)
+		" dekaf1(" #DEKAF1_INCLUDE_PATH ")"
+#endif
+	;
+
+	return sVersionInformation;
+}
+
+//---------------------------------------------------------------------------
+KStringView Dekaf::GetVersion() const
+//---------------------------------------------------------------------------
+{
+	constexpr KStringView sVersion = "dekaf-" DEKAF_VERSION ;
+
+	return sVersion;
 }
 
 //---------------------------------------------------------------------------

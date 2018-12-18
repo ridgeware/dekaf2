@@ -148,6 +148,16 @@ public:
 	//---------------------------------------------------------------------------
 
 	//---------------------------------------------------------------------------
+	/// Get verbose dekaf2 version information (build settings)
+	KStringView GetVersionInformation() const;
+	//---------------------------------------------------------------------------
+
+	//---------------------------------------------------------------------------
+	/// Get terse dekaf2 version string
+	KStringView GetVersion() const;
+	//---------------------------------------------------------------------------
+
+	//---------------------------------------------------------------------------
 	/// Returns Dekaf's main timing object so you can add more callbacks
 	/// without having to maintain another timer object
 	KTimer& GetTimer();

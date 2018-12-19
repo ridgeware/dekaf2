@@ -152,9 +152,9 @@ protected:
 	}
 
 	/// raw, unprocessed incoming POST data
-	void SetPostData(KStringView sData)
+	void SetPostData(KString&& sData)
 	{
-		m_sPostData = sData;
+		m_sPostData = std::move(sData);
 	}
 
 	/// add incoming request headers

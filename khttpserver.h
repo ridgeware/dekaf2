@@ -115,6 +115,22 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// Read POST/PUT content into string
+	size_t Read(KString& sBuffer, size_t len = KString::npos)
+	//-----------------------------------------------------------------------------
+	{
+		return Request.Read(sBuffer, len);
+	}
+
+	//-----------------------------------------------------------------------------
+	/// Read POST/PUT content line by line into string
+	bool ReadLine(KString& sBuffer)
+	//-----------------------------------------------------------------------------
+	{
+		return Request.ReadLine(sBuffer);
+	}
+
+	//-----------------------------------------------------------------------------
 	/// Stream from instream
 	size_t Write(KInStream& stream, size_t len = KString::npos)
 	//-----------------------------------------------------------------------------

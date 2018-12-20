@@ -379,6 +379,7 @@ set(PUBLIC_HEADERS
 	kcache.h
 	kcasestring.h
 	kcgi.h
+	kcgistream.h
 	kchildprocess.h
 	kchunkedtransfer.h
 	kcompression.h
@@ -407,6 +408,7 @@ set(PUBLIC_HEADERS
 	kinpipe.h
 	kinshell.h
 	kjson.h
+	klambdastream.h
 	klog.h
 	kmail.h
 	kmessagedigest.h
@@ -499,6 +501,7 @@ set (SOURCES
 	kbase64.cpp
 	kcasestring.cpp
 	kcgi.cpp
+	kcgistream.cpp
 	kchildprocess.cpp
 	kchunkedtransfer.cpp
 	kcompression.cpp
@@ -524,6 +527,7 @@ set (SOURCES
 	kinpipe.cpp
 	kinshell.cpp
 	kjson.cpp
+	klambdastream.cpp
 	klog.cpp
 	kmail.cpp
 	kmessagedigest.cpp

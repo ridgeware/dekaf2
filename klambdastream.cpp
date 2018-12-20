@@ -78,12 +78,8 @@ std::streamsize KLambdaStream::StreamReader(void* sBuffer, std::streamsize iCoun
 			sOutBuf += iCopy;
 		}
 
-		if (stream->istream->read(sOutBuf, iRemain))
-		{
-			return iCount;
-		}
-		kDebug(1, "cannot read from cgi input stream");
-
+		stream->istream->read(sOutBuf, iRemain);
+		return stream->istream->gcount();
 	}
 
 	return 0;

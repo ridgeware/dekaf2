@@ -79,28 +79,27 @@ std::streamsize KCGIIStream::StreamReader(void* sBuffer, std::streamsize iCount,
 
 		if (!stream->chCommentDelimiter)
 		{
-			if (stream->istream->read(sOutBuf, iRemain))
-			{
-				return iCount;
-			}
-			kDebug(1, "cannot read from cgi input stream");
+			stream->istream->read(sOutBuf, iRemain);
+			return stream->istream->gcount();
 		}
 		else
 		{
 			while (iRemain > 0)
 			{
-				if (!stream->istream->getline(sOutBuf, iRemain))
+				stream->istream->getline(sOutBuf, iRemain);
+				auto iRead = stream->istream->gcount();
+				if (!iRead)
 				{
-					kDebug(1, "cannot read from cgi input stream");
-					return 0;
+					// this is eof
+					return iCount - iRemain;
 				}
 
 				if (*sOutBuf != stream->chCommentDelimiter)
 				{
 					// valid line..
-					auto iLen = strnlen(sOutBuf, iRemain);
-					iRemain -= iLen;
-					sOutBuf += iLen;
+					iRemain -= iRead;
+					sOutBuf += iRead;
+					sOutBuf[-1] = '\n';
 				}
 			}
 

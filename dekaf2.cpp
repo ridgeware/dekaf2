@@ -219,7 +219,7 @@ KStringView Dekaf::GetVersionInformation() const
 		" deprecated_kstring_interface"
 #endif
 #if (DEKAF1_INCLUDE_PATH)
-		" dekaf1(" #DEKAF1_INCLUDE_PATH ")"
+		" with-dekaf1-compatibility"
 #endif
 	;
 
@@ -230,7 +230,7 @@ KStringView Dekaf::GetVersionInformation() const
 KStringView Dekaf::GetVersion() const
 //---------------------------------------------------------------------------
 {
-	constexpr KStringView sVersion = "dekaf-" DEKAF_VERSION ;
+	constexpr KStringView sVersion = "dekaf-" DEKAF_VERSION "-" DEKAF2_BUILD_TYPE ;
 
 	return sVersion;
 }

@@ -49,7 +49,7 @@
 namespace dekaf2 {
 
 //-----------------------------------------------------------------------------
-std::streamsize KLambdaStream::StreamReader(void* sBuffer, std::streamsize iCount, void* stream_)
+std::streamsize KLambdaInStream::StreamReader(void* sBuffer, std::streamsize iCount, void* stream_)
 //-----------------------------------------------------------------------------
 {
 	// we do not need to loop the reader, as the streambuf requests bytes in blocks
@@ -57,7 +57,7 @@ std::streamsize KLambdaStream::StreamReader(void* sBuffer, std::streamsize iCoun
 
 	if (stream_)
 	{
-		auto stream   = static_cast<KLambdaStream::Stream*>(stream_);
+		auto stream   = static_cast<KLambdaInStream::Stream*>(stream_);
 		char* sOutBuf = static_cast<char*>(sBuffer);
 		auto iRemain  = iCount;
 
@@ -78,8 +78,7 @@ std::streamsize KLambdaStream::StreamReader(void* sBuffer, std::streamsize iCoun
 			sOutBuf += iCopy;
 		}
 
-		stream->istream->read(sOutBuf, iRemain);
-		return stream->istream->gcount();
+		// when the prepared header is empty this stream is done..
 	}
 
 	return 0;
@@ -87,7 +86,7 @@ std::streamsize KLambdaStream::StreamReader(void* sBuffer, std::streamsize iCoun
 } // StreamReader
 
 //-----------------------------------------------------------------------------
-bool KLambdaStream::CreateHeader()
+bool KLambdaInStream::CreateHeader()
 //-----------------------------------------------------------------------------
 {
 	m_Stream.sHeader.clear();
@@ -189,6 +188,13 @@ bool KLambdaStream::CreateHeader()
 
 	m_sHeader += sHeaders;
 
+	if (!sPostData.empty())
+	{
+		m_sHeader += "Content-length: ";
+		m_sHeader += KString::to_string(sPostData.size());
+		m_sHeader += "\r\n";
+	}
+
 	// final end of header line
 	m_sHeader += "\r\n";
 
@@ -203,7 +209,7 @@ bool KLambdaStream::CreateHeader()
 } // CreateHeader
 
 //-----------------------------------------------------------------------------
-KLambdaStream::KLambdaStream(std::istream& istream)
+KLambdaInStream::KLambdaInStream(std::istream& istream)
 //-----------------------------------------------------------------------------
     : base_type(&m_StreamBuf)
 {

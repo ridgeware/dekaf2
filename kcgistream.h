@@ -42,7 +42,7 @@
 #pragma once
 
 /// @file kcgistream.h
-/// provides an implementation of std::iostreams for CGI inside a web server
+/// provides an implementation of a std::istream for CGI
 
 #include "kstring.h"
 #include "kstreambuf.h"
@@ -53,7 +53,7 @@ namespace dekaf2
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// std::istream CGI implementation
-class KCGIIStream : public std::istream
+class KCGIInStream : public std::istream
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 	using base_type = std::istream;
@@ -64,7 +64,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Construcs a CGI stream from an istream
-	KCGIIStream(std::istream& stream);
+	KCGIInStream(std::istream& stream);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -72,27 +72,6 @@ public:
 	//-----------------------------------------------------------------------------
 	{
 		return m_Stream.istream->good();
-	}
-
-	//-----------------------------------------------------------------------------
-	KString Error() const
-	//-----------------------------------------------------------------------------
-	{
-		if (!Good())
-		{
-			return "Unknown error";
-		}
-		else
-		{
-			return {};
-		}
-	}
-
-	//-----------------------------------------------------------------------------
-	void SetCommentDelimiter(char ch)
-	//-----------------------------------------------------------------------------
-	{
-		m_Stream.chCommentDelimiter = ch;
 	}
 
 	//-----------------------------------------------------------------------------
@@ -164,7 +143,7 @@ private:
 	static std::streamsize StreamReader(void* sBuffer, std::streamsize iCount, void* stream);
 	//-----------------------------------------------------------------------------
 
-};
+}; // KCGIInStream
 
 } // namespace dekaf2
 

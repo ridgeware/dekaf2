@@ -48,7 +48,7 @@
 namespace dekaf2 {
 
 //-----------------------------------------------------------------------------
-std::streamsize KCGIIStream::StreamReader(void* sBuffer, std::streamsize iCount, void* stream_)
+std::streamsize KCGIInStream::StreamReader(void* sBuffer, std::streamsize iCount, void* stream_)
 //-----------------------------------------------------------------------------
 {
 	// we do not need to loop the reader, as the streambuf requests bytes in blocks
@@ -56,7 +56,7 @@ std::streamsize KCGIIStream::StreamReader(void* sBuffer, std::streamsize iCount,
 
 	if (stream_)
 	{
-		auto stream   = static_cast<KCGIIStream::Stream*>(stream_);
+		auto stream   = static_cast<KCGIInStream::Stream*>(stream_);
 		char* sOutBuf = static_cast<char*>(sBuffer);
 		auto iRemain  = iCount;
 
@@ -99,6 +99,7 @@ std::streamsize KCGIIStream::StreamReader(void* sBuffer, std::streamsize iCount,
 					// valid line..
 					iRemain -= iRead;
 					sOutBuf += iRead;
+					// replace the 0 at the end of the buffer with the delimiter
 					sOutBuf[-1] = '\n';
 				}
 			}
@@ -112,16 +113,18 @@ std::streamsize KCGIIStream::StreamReader(void* sBuffer, std::streamsize iCount,
 } // StreamReader
 
 //-----------------------------------------------------------------------------
-bool KCGIIStream::CreateHeader()
+bool KCGIInStream::CreateHeader()
 //-----------------------------------------------------------------------------
 {
 	m_Stream.sHeader.clear();
 
-	KString sMethod = kGetEnv(KCGIIStream::REQUEST_METHOD);
+	KString sMethod = kGetEnv(KCGIInStream::REQUEST_METHOD);
 
 	if (sMethod.empty())
 	{
 		kDebugLog (1, "KCGIIStream: we are not running within a web server...");
+		// permitting for comment lines
+		m_Stream.chCommentDelimiter = '#';
 		return false;
 	}
 
@@ -130,27 +133,31 @@ bool KCGIIStream::CreateHeader()
 	// add method, resource and protocol from env vars
 	m_sHeader = sMethod;
 	m_sHeader += ' ';
-	m_sHeader += kGetEnv(KCGIIStream::REQUEST_URI);
+	m_sHeader += kGetEnv(KCGIInStream::REQUEST_URI);
 	m_sHeader += ' ';
-	m_sHeader += kGetEnv(KCGIIStream::SERVER_PROTOCOL);
+	m_sHeader += kGetEnv(KCGIInStream::SERVER_PROTOCOL);
 	m_sHeader += "\r\n";
 
 	struct CGIVars_t { KStringViewZ sVar; KStringViewZ sHeader; };
 	static constexpr CGIVars_t CGIVars[]
 	{
-		{ KCGIIStream::HTTP_HOST,      KHTTPHeaders::HOST            },
-		{ KCGIIStream::CONTENT_TYPE,   KHTTPHeaders::CONTENT_TYPE    },
-		{ KCGIIStream::CONTENT_LENGTH, KHTTPHeaders::CONTENT_LENGTH  },
-		{ KCGIIStream::REMOTE_ADDR,    KHTTPHeaders::X_FORWARDED_FOR }
+		{ KCGIInStream::HTTP_HOST,      KHTTPHeaders::HOST            },
+		{ KCGIInStream::CONTENT_TYPE,   KHTTPHeaders::CONTENT_TYPE    },
+		{ KCGIInStream::CONTENT_LENGTH, KHTTPHeaders::CONTENT_LENGTH  },
+		{ KCGIInStream::REMOTE_ADDR,    KHTTPHeaders::X_FORWARDED_FOR }
 	};
 
 	// add headers from env vars
 	for (const auto it : CGIVars)
 	{
-		m_sHeader += it.sHeader;
-		m_sHeader += ": ";
-		m_sHeader += kGetEnv(it.sVar);
-		m_sHeader += "\r\n";
+		KString sEnv = kGetEnv(it.sVar);
+		if (!sEnv.empty())
+		{
+			m_sHeader += it.sHeader;
+			m_sHeader += ": ";
+			m_sHeader += sEnv;
+			m_sHeader += "\r\n";
+		}
 	}
 
 	// final end of header line
@@ -164,7 +171,7 @@ bool KCGIIStream::CreateHeader()
 } // CreateHeader
 
 //-----------------------------------------------------------------------------
-KCGIIStream::KCGIIStream(std::istream& istream)
+KCGIInStream::KCGIInStream(std::istream& istream)
 //-----------------------------------------------------------------------------
     : base_type(&m_StreamBuf)
 {
@@ -177,51 +184,49 @@ KCGIIStream::KCGIIStream(std::istream& istream)
 
 #ifdef DEKAF2_REPEAT_CONSTEXPR_VARIABLE
 
-constexpr KStringViewZ KCGIIStream::AUTH_PASSWORD;
-constexpr KStringViewZ KCGIIStream::AUTH_TYPE;
-constexpr KStringViewZ KCGIIStream::AUTH_USER;
-constexpr KStringViewZ KCGIIStream::CERT_COOKIE;
-constexpr KStringViewZ KCGIIStream::CERT_FLAGS;
-constexpr KStringViewZ KCGIIStream::CERT_ISSUER;
-constexpr KStringViewZ KCGIIStream::CERT_KEYSIZE;
-constexpr KStringViewZ KCGIIStream::CERT_SECRETKEYSIZE;
-constexpr KStringViewZ KCGIIStream::CERT_SERIALNUMBER;
-constexpr KStringViewZ KCGIIStream::CERT_SERVER_ISSUER;
-constexpr KStringViewZ KCGIIStream::CERT_SERVER_SUBJECT;
-constexpr KStringViewZ KCGIIStream::CERT_SUBJECT;
-constexpr KStringViewZ KCGIIStream::CF_TEMPLATE_PATH;
-constexpr KStringViewZ KCGIIStream::CONTENT_LENGTH;
-constexpr KStringViewZ KCGIIStream::CONTENT_TYPE;
-constexpr KStringViewZ KCGIIStream::CONTEXT_PATH;
-constexpr KStringViewZ KCGIIStream::GATEWAY_INTERFACE;
-constexpr KStringViewZ KCGIIStream::HTTPS;
-constexpr KStringViewZ KCGIIStream::HTTPS_KEYSIZE;
-constexpr KStringViewZ KCGIIStream::HTTPS_SECRETKEYSIZE;
-constexpr KStringViewZ KCGIIStream::HTTPS_SERVER_ISSUER;
-constexpr KStringViewZ KCGIIStream::HTTPS_SERVER_SUBJECT;
-constexpr KStringViewZ KCGIIStream::HTTP_ACCEPT;
-constexpr KStringViewZ KCGIIStream::HTTP_ACCEPT_ENCODING;
-constexpr KStringViewZ KCGIIStream::HTTP_ACCEPT_LANGUAGE;
-constexpr KStringViewZ KCGIIStream::HTTP_CONNECTION;
-constexpr KStringViewZ KCGIIStream::HTTP_COOKIE;
-constexpr KStringViewZ KCGIIStream::HTTP_HOST;
-constexpr KStringViewZ KCGIIStream::HTTP_REFERER;
-constexpr KStringViewZ KCGIIStream::HTTP_USER_AGENT;
-constexpr KStringViewZ KCGIIStream::QUERY_STRING;
-constexpr KStringViewZ KCGIIStream::REMOTE_ADDR;
-constexpr KStringViewZ KCGIIStream::REMOTE_HOST;
-constexpr KStringViewZ KCGIIStream::REMOTE_USER;
-constexpr KStringViewZ KCGIIStream::REQUEST_METHOD;
-constexpr KStringViewZ KCGIIStream::REQUEST_URI;
-constexpr KStringViewZ KCGIIStream::SCRIPT_NAME;
-constexpr KStringViewZ KCGIIStream::SERVER_NAME;
-constexpr KStringViewZ KCGIIStream::SERVER_PORT;
-constexpr KStringViewZ KCGIIStream::SERVER_PORT_SECURE;
-constexpr KStringViewZ KCGIIStream::SERVER_PROTOCOL;
-constexpr KStringViewZ KCGIIStream::SERVER_SOFTWARE;
-constexpr KStringViewZ KCGIIStream::WEB_SERVER_API;
-
-constexpr KStringViewZ KCGIIStream::FCGI_WEB_SERVER_ADDRS;
+constexpr KStringViewZ KCGIInStream::AUTH_PASSWORD;
+constexpr KStringViewZ KCGIInStream::AUTH_TYPE;
+constexpr KStringViewZ KCGIInStream::AUTH_USER;
+constexpr KStringViewZ KCGIInStream::CERT_COOKIE;
+constexpr KStringViewZ KCGIInStream::CERT_FLAGS;
+constexpr KStringViewZ KCGIInStream::CERT_ISSUER;
+constexpr KStringViewZ KCGIInStream::CERT_KEYSIZE;
+constexpr KStringViewZ KCGIInStream::CERT_SECRETKEYSIZE;
+constexpr KStringViewZ KCGIInStream::CERT_SERIALNUMBER;
+constexpr KStringViewZ KCGIInStream::CERT_SERVER_ISSUER;
+constexpr KStringViewZ KCGIInStream::CERT_SERVER_SUBJECT;
+constexpr KStringViewZ KCGIInStream::CERT_SUBJECT;
+constexpr KStringViewZ KCGIInStream::CF_TEMPLATE_PATH;
+constexpr KStringViewZ KCGIInStream::CONTENT_LENGTH;
+constexpr KStringViewZ KCGIInStream::CONTENT_TYPE;
+constexpr KStringViewZ KCGIInStream::CONTEXT_PATH;
+constexpr KStringViewZ KCGIInStream::GATEWAY_INTERFACE;
+constexpr KStringViewZ KCGIInStream::HTTPS;
+constexpr KStringViewZ KCGIInStream::HTTPS_KEYSIZE;
+constexpr KStringViewZ KCGIInStream::HTTPS_SECRETKEYSIZE;
+constexpr KStringViewZ KCGIInStream::HTTPS_SERVER_ISSUER;
+constexpr KStringViewZ KCGIInStream::HTTPS_SERVER_SUBJECT;
+constexpr KStringViewZ KCGIInStream::HTTP_ACCEPT;
+constexpr KStringViewZ KCGIInStream::HTTP_ACCEPT_ENCODING;
+constexpr KStringViewZ KCGIInStream::HTTP_ACCEPT_LANGUAGE;
+constexpr KStringViewZ KCGIInStream::HTTP_CONNECTION;
+constexpr KStringViewZ KCGIInStream::HTTP_COOKIE;
+constexpr KStringViewZ KCGIInStream::HTTP_HOST;
+constexpr KStringViewZ KCGIInStream::HTTP_REFERER;
+constexpr KStringViewZ KCGIInStream::HTTP_USER_AGENT;
+constexpr KStringViewZ KCGIInStream::QUERY_STRING;
+constexpr KStringViewZ KCGIInStream::REMOTE_ADDR;
+constexpr KStringViewZ KCGIInStream::REMOTE_HOST;
+constexpr KStringViewZ KCGIInStream::REMOTE_USER;
+constexpr KStringViewZ KCGIInStream::REQUEST_METHOD;
+constexpr KStringViewZ KCGIInStream::REQUEST_URI;
+constexpr KStringViewZ KCGIInStream::SCRIPT_NAME;
+constexpr KStringViewZ KCGIInStream::SERVER_NAME;
+constexpr KStringViewZ KCGIInStream::SERVER_PORT;
+constexpr KStringViewZ KCGIInStream::SERVER_PORT_SECURE;
+constexpr KStringViewZ KCGIInStream::SERVER_PROTOCOL;
+constexpr KStringViewZ KCGIInStream::SERVER_SOFTWARE;
+constexpr KStringViewZ KCGIInStream::WEB_SERVER_API;
 
 #endif
 } // of namespace dekaf2

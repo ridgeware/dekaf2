@@ -479,21 +479,23 @@ typename std::istream::int_type KInStream::Read()
 } // Read
 
 //-----------------------------------------------------------------------------
-/// Read a range of characters. Returns count of successfully read charcters.
+/// Read a range of characters. Returns count of successfully read characters.
 size_t KInStream::Read(void* pAddress, size_t iCount)
 //-----------------------------------------------------------------------------
 {
-	std::streambuf* sb = InStream().rdbuf();
-
-	if (sb)
+	if (iCount)
 	{
-		auto iRead = sb->sgetn(static_cast<std::istream::char_type*>(pAddress), iCount);
-		if (iRead <= 0)
+		std::streambuf* sb = InStream().rdbuf();
+		if (sb)
 		{
-			InStream().setstate(std::ios::eofbit);
-			iRead = 0;
+			auto iRead = sb->sgetn(static_cast<std::istream::char_type*>(pAddress), iCount);
+			if (iRead <= 0)
+			{
+				InStream().setstate(std::ios::eofbit);
+				iRead = 0;
+			}
+			return static_cast<size_t>(iRead);
 		}
-		return static_cast<size_t>(iRead);
 	}
 
 	return 0;
@@ -501,7 +503,7 @@ size_t KInStream::Read(void* pAddress, size_t iCount)
 } // Read
 
 //-----------------------------------------------------------------------------
-/// Read a range of characters and append to sBuffer. Returns count of successfully read charcters.
+/// Read a range of characters and append to sBuffer. Returns count of successfully read characters.
 size_t KInStream::Read(KString& sBuffer, size_t iCount)
 //-----------------------------------------------------------------------------
 {
@@ -521,7 +523,7 @@ size_t KInStream::Read(KString& sBuffer, size_t iCount)
 } // Read
 
 //-----------------------------------------------------------------------------
-/// Read a range of characters and append to Stream. Returns count of successfully read charcters.
+/// Read a range of characters and append to Stream. Returns count of successfully read characters.
 size_t KInStream::Read(KOutStream& Stream, size_t iCount)
 //-----------------------------------------------------------------------------
 {

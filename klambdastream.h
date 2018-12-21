@@ -53,7 +53,7 @@ namespace dekaf2
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// std::istream implementation
-class KLambdaStream : public std::istream
+class KLambdaInStream : public std::istream
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 	using base_type = std::istream;
@@ -64,7 +64,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Construcs a CGI stream from an istream
-	KLambdaStream(std::istream& stream);
+	KLambdaInStream(std::istream& stream);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -72,20 +72,6 @@ public:
 	//-----------------------------------------------------------------------------
 	{
 		return m_Stream.istream->good();
-	}
-
-	//-----------------------------------------------------------------------------
-	KString Error() const
-	//-----------------------------------------------------------------------------
-	{
-		if (!Good())
-		{
-			return "Unknown error";
-		}
-		else
-		{
-			return {};
-		}
 	}
 
 	//-----------------------------------------------------------------------------
@@ -112,7 +98,7 @@ private:
 	static std::streamsize StreamReader(void* sBuffer, std::streamsize iCount, void* stream);
 	//-----------------------------------------------------------------------------
 
-};
+}; // KLambdaInStream
 
 } // namespace dekaf2
 

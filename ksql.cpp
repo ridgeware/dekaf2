@@ -2670,7 +2670,7 @@ bool KSQL::ParseQuery (KStringView sFormat, ...)
 		DoTranslations (m_sLastSQL, m_iDBType);
 	}
 
-	if (!IsFlag(F_IgnoreSelectKeyword) && !KASCII::strmatchN (m_sLastSQL.c_str(), "select") && !KASCII::strmatchN (m_sLastSQL.c_str(), "SELECT"))
+	if (!IsFlag(F_IgnoreSelectKeyword) && !m_sLastSQL.StartsWith("select") && !m_sLastSQL.StartsWith("SELECT"))
 	{
 		m_sLastError.Format ("{}ParseQuery: query does not start with keyword 'select' [see F_IgnoreSelectKeyword]", m_sErrorPrefix);
 		return (SQLError());
@@ -3749,35 +3749,38 @@ time_t KSQL::GetUnixTime (KROW::Index iOneBasedColNum)
 	// (we get away with this by fetching all results as strings, then
 	// using C routines to do data conversions)
 
-	struct tm   TimeStruct;
-	KString     sTmp (Get (iOneBasedColNum));
-	const char* val = sTmp.c_str();
+	KString sVal (Get (iOneBasedColNum));
 
-	if (!(*val) || KASCII::strmatch (val, "0") || KASCII::strmatchN (val, "00000")) {
+	if (sVal.empty() || sVal == "0" || sVal.StartsWith("00000"))
+	{
 		return (0);
 	}
-	else if (strstr (val, "ERR"))
+
+	if (sVal.Contains("ERR"))
 	{
-		m_sLastError.Format ("{}IntValue(row={},col={}): {}", m_sErrorPrefix, m_iRowNum, iOneBasedColNum+1, val);
+		m_sLastError.Format ("{}IntValue(row={},col={}): {}", m_sErrorPrefix, m_iRowNum, iOneBasedColNum+1, sVal);
 		SQLError();
 		return (0);
 	}
  
+	struct tm TimeStruct;
+
 	#ifndef DEKAF2_DO_NOT_HAVE_STRPTIME
 
 	int iSecs;
-	if (sscanf (val, "%*04d-%*02d-%*02d %*02d:%*02d:%02d", &iSecs) == 1) // e.g. "1965-03-31 12:00:00"
+
+	if (sscanf (sVal.c_str(), "%*04d-%*02d-%*02d %*02d:%*02d:%02d", &iSecs) == 1) // e.g. "1965-03-31 12:00:00"
 	{
-		strptime (val, "%Y-%m-{} %H:%M:{}", &TimeStruct);
+		strptime (sVal.c_str(), "%Y-%m-{} %H:%M:{}", &TimeStruct);
 	}
-	else if (strlen(val) == strlen ("20010302213436")) // e.g. "20010302213436"  which means 2001-03-02 21:34:36
+	else if (sVal.size() == std::strlen ("20010302213436")) // e.g. "20010302213436"  which means 2001-03-02 21:34:36
 	{
-		strptime (val, "%Y%m{}%H%M{}", &TimeStruct);
+		strptime (sVal.c_str(), "%Y%m{}%H%M{}", &TimeStruct);
 	}
 	else
 	{
-		m_sLastError.Format ("{}UnixTime({}): expected '{}' to look like '20010302213436' or '2001-03-21 06:18:33'", m_sErrorPrefix,
-			iOneBasedColNum, val);
+		m_sLastError.Format ("{}UnixTime({}): expected '{}' to look like '20010302213436' or '2001-03-21 06:18:33'",
+		                     m_sErrorPrefix, iOneBasedColNum, sVal);
 		SQLError();
 		return (0);
 	}
@@ -5147,7 +5150,7 @@ bool KSQL::_BindByName (KStringView sPlaceholder, dvoid* pValue, sb4 iValueSize,
 		return (false);
 	}
 
-	if (!sPlaceholder || !KASCII::strmatchN (sPlaceholder, ":"))
+	if (sPlaceholder.empty() || !sPlaceholder.front() == ':'))
 	{
 		m_sLastError.Format ("{}BindByName(): invalid placeholder (should start with ':').", m_sErrorPrefix);
 		return (false);
@@ -5157,8 +5160,8 @@ bool KSQL::_BindByName (KStringView sPlaceholder, dvoid* pValue, sb4 iValueSize,
 			(OCIStmt*)   m_dOCI8Statement,
 			(OCIBind**)  &(m_OCIBindArray[m_idxBindVar++]),
 			(OCIError*)  m_dOCI8ErrorHandle, 
-			(CONST text*)sPlaceholder,
-			(sb4)        strlen(sPlaceholder),
+			(CONST text*)sPlaceholder.data(),
+			(sb4)        sPlaceholder.size(),
 			(dvoid*)     pValue,
 			(sb4)        iValueSize,
 			(ub2)        iDataType,

@@ -91,7 +91,7 @@ IsSystemPackageInstalled ()
 	[[ $# -eq 1 ]] || Die "script error: expected one argument, $# provided: $@"
 	case "${DISTRIB}" in
 		darwin)
-			[[ "$(brew list | grep '$1')" != "" ]]
+			[[ $(brew list | grep "$1") != "" ]]
 			;;
 		debian)
 			[[ "$(dpkg -l $1 | grep '^ii')" != "" ]]
@@ -185,10 +185,10 @@ GetOS ()
 			# which derivate is this?
 			local derivate="$(cat /etc/redhat-release 2>/dev/null | tr '.' ' ' | awk '{print $1}')"
 
-			if [ "$derivate" == "Fedora" ]; then
+			if [[ "$derivate" == "Fedora" ]]; then
 				DISTRIB="fedora"
 				local RHEL="$(cat /etc/redhat-release 2>/dev/null | awk '{print $3}')"
-			elif [ "$derivate" == "CentOS" ]; then
+			elif [[ "$derivate" == "CentOS" ]]; then
 				DISTRIB="centos"
 				local RHEL="$(cat /etc/redhat-release 2>/dev/null | tr '.' ' ' | awk '{print $4}')"
 			else

@@ -130,7 +130,19 @@ private:
 	{
 		std::istream* istream;
 		KStringView   sHeader;
-		char          chCommentDelimiter { 0 };
+		char          chCommentDelimiter;
+		bool          bAtStartOfLine; // was the last character of the last buffer read an EOL?
+		bool          bIsComment;
+
+		void ClearFlagsAndHeader();
+		void SetHeader(const KString& _sHeader)
+		{
+			sHeader = _sHeader;
+		}
+		void SetCommentDelimiter(char chDel)
+		{
+			chCommentDelimiter = chDel;
+		}
 	};
 
 	Stream  m_Stream;

@@ -3,7 +3,7 @@
  //
  // DEKAF(tm): Lighter, Faster, Smarter (tm)
  //
- // Copyright (c) 2017, Ridgeware, Inc.
+ // Copyright (c) 2018, Ridgeware, Inc.
  //
  // +-------------------------------------------------------------------------+
  // | /\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\|
@@ -65,6 +65,7 @@ std::streamsize KCGIInStream::StreamReader(void* sBuffer, std::streamsize iCount
 			// copy from the header buffer into the stream buffer
 			auto iCopy = std::min(static_cast<KStringView::size_type>(iRemain), stream->sHeader.size());
 			std::memcpy(sOutBuf, stream->sHeader.data(), iCopy);
+
 			stream->sHeader.remove_prefix(iCopy);
 			iRemain -= iCopy;
 
@@ -79,32 +80,75 @@ std::streamsize KCGIInStream::StreamReader(void* sBuffer, std::streamsize iCount
 
 		if (!stream->chCommentDelimiter)
 		{
+			// we do not have to skip comment lines, so read all in one part
 			stream->istream->read(sOutBuf, iRemain);
 			return stream->istream->gcount();
 		}
 		else
 		{
+			// we have to skip comment lines, therefore buffer all in a temporary
+			// string and copy into the output if not a comment, and loop if by
+			// skipping comment lines we reduced the real output size
+
+			KString sBuf;
+
 			while (iRemain > 0)
 			{
-				stream->istream->getline(sOutBuf, iRemain);
-				auto iRead = stream->istream->gcount();
+				// make room for the requested buffer size
+				sBuf.resize_uninitialized(iRemain);
+
+				auto iRead = stream->istream->read(&sBuf[0], iRemain).gcount();
+
 				if (!iRead)
 				{
-					// this is eof
-					return iCount - iRemain;
+					// no more data - EOF
+					break;
 				}
 
-				if (*sOutBuf != stream->chCommentDelimiter)
+				if (iRead < iRemain)
 				{
-					// valid line..
-					iRemain -= iRead;
-					sOutBuf += iRead;
-					// replace the 0 at the end of the buffer with the delimiter
-					sOutBuf[-1] = '\n';
+					// shrink the buffer to the real input size
+					sBuf.resize(iRead);
 				}
+
+				KStringView svBuf(sBuf);
+
+				while (!svBuf.empty())
+				{
+					if (stream->bAtStartOfLine)
+					{
+						stream->bIsComment = (svBuf.front() == stream->chCommentDelimiter);
+					}
+
+					auto pos = svBuf.find('\n');
+
+					if (pos == KStringView::npos)
+					{
+						// last fragment, no EOL
+						stream->bAtStartOfLine = false;
+						pos = svBuf.size();
+					}
+					else
+					{
+						stream->bAtStartOfLine = true;
+						++pos;
+					}
+
+					if (!stream->bIsComment)
+					{
+						// copy the current line from the input sv
+						std::memcpy(sOutBuf, svBuf.data(), pos);
+						iRemain -= pos;
+						sOutBuf += pos;
+					}
+
+					// and remove the current line from the input sv
+					svBuf.remove_prefix(pos);
+				}
+
 			}
 
-			return iCount;
+			return iCount - iRemain;
 		}
 	}
 
@@ -113,22 +157,33 @@ std::streamsize KCGIInStream::StreamReader(void* sBuffer, std::streamsize iCount
 } // StreamReader
 
 //-----------------------------------------------------------------------------
+void KCGIInStream::Stream::ClearFlagsAndHeader()
+//-----------------------------------------------------------------------------
+{
+	sHeader.clear();
+	chCommentDelimiter = 0;
+	bAtStartOfLine = true;
+	bIsComment = false;
+
+} // Stream::clear
+
+//-----------------------------------------------------------------------------
 bool KCGIInStream::CreateHeader()
 //-----------------------------------------------------------------------------
 {
-	m_Stream.sHeader.clear();
+	m_Stream.ClearFlagsAndHeader();
 
 	KString sMethod = kGetEnv(KCGIInStream::REQUEST_METHOD);
 
 	if (sMethod.empty())
 	{
-		kDebugLog (1, "KCGIIStream: we are not running within a web server...");
+		kDebugLog (1, "KCGIInStream: we are not running within a web server...");
 		// permitting for comment lines
-		m_Stream.chCommentDelimiter = '#';
+		m_Stream.SetCommentDelimiter('#');
 		return false;
 	}
 
-	kDebugLog (1, "KCGI: we are running within a web server that sets the CGI variables...");
+	kDebugLog (1, "KCGIInStream: we are running within a web server that sets the CGI variables...");
 
 	// add method, resource and protocol from env vars
 	m_sHeader = sMethod;
@@ -164,7 +219,7 @@ bool KCGIInStream::CreateHeader()
 	m_sHeader += "\r\n";
 
 	// point string view into the constructed header
-	m_Stream.sHeader = m_sHeader;
+	m_Stream.SetHeader(m_sHeader);
 
 	return true;
 

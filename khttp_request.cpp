@@ -76,6 +76,7 @@ bool KHTTPRequestHeaders::Parse(KInStream& Stream)
 	{
 		// garbage, bail out
 		kDebugLog (1, "KHTTPRequestHeaders::parse(): first line (status) line of HTTP header is invalid: {} words instead of 3", Words.size());
+		kDebugLog (2, "KHTTPRequestHeaders::parse(): {}", sLine);
 		return SetError("invalid status line of HTTP header [1]");
 	}
 

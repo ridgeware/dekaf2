@@ -515,6 +515,7 @@ using KPort     = detail::URIComponent<URLEncodedString, URIPart::Port,     ':',
 using KPath     = detail::URIComponent<URLEncodedString, URIPart::Path,     '/',  false, false, true >;
 using KQuery    = detail::URIComponent<URLEncodedQuery,  URIPart::Query,    '?',  true,  false, false>;
 using KFragment = detail::URIComponent<URLEncodedString, URIPart::Fragment, '#',  true,  false, true >;
+using KQueryParms = URLEncodedQuery::value_type;
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 // The URL Schema is a bit different from the other URI components, therefore

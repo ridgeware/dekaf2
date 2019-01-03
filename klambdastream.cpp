@@ -67,15 +67,8 @@ std::streamsize KLambdaInStream::StreamReader(void* sBuffer, std::streamsize iCo
 			auto iCopy = std::min(static_cast<KStringView::size_type>(iRemain), stream->sHeader.size());
 			std::memcpy(sOutBuf, stream->sHeader.data(), iCopy);
 			stream->sHeader.remove_prefix(iCopy);
-			iRemain -= iCopy;
 
-			if (!iRemain)
-			{
-				return iCount;
-			}
-
-			// adjust output pointer
-			sOutBuf += iCopy;
+			return iCopy;
 		}
 
 		// when the prepared header is empty this stream is done..
@@ -102,6 +95,11 @@ bool KLambdaInStream::CreateHeader()
 
 	while (stream.ReadLine(sArg))
 	{
+		if (sArg.front() == '#')
+		{
+			continue;
+		}
+		
 		KStringView sValue;
 		KStringView sKey;
 
@@ -119,7 +117,8 @@ bool KLambdaInStream::CreateHeader()
 		}
 		else if (sKey == "path")
 		{
-			sPath = sValue;
+			sPath.clear();
+			kUrlEncode(kUrlDecode<KString>(sValue), sPath, URIPart::Path);
 		}
 		else if (sKey == "httpMethod")
 		{
@@ -149,9 +148,13 @@ bool KLambdaInStream::CreateHeader()
 				{
 					sQuery += '&';
 				}
-				sQuery += sFirst;
+				// this looks stupid at first (decoding, then encoding), but think of cases
+				// where spaces had not been encoded (which would break the request header
+				// later) or where percent encoding had already taken place (both are seen
+				// in real data..)
+				kUrlEncode(kUrlDecode<KString>(sFirst), sQuery, URIPart::Query);
 				sQuery += '=';
-				sQuery += sSecond;
+				kUrlEncode(kUrlDecode<KString>(sSecond), sQuery, URIPart::Query);
 			}
 		}
 		else if (sKey == "requestContext")

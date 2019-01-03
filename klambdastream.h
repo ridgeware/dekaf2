@@ -42,7 +42,7 @@
 #pragma once
 
 /// @file klambdastream.h
-/// provides an implementation of std::iostreams for lambda interface inside a web server
+/// provides an implementation of std::istreams for lambda interface inside a web server
 
 #include "kstring.h"
 #include "kstreambuf.h"

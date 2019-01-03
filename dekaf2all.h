@@ -53,7 +53,6 @@
 #include "kbase64.h"
 #include "kcache.h"
 #include "kcasestring.h"
-#include "kcgi.h"
 #include "kchunkedtransfer.h"
 #include "kcompression.h"
 #include "kconnection.h"

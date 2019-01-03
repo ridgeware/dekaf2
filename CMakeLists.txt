@@ -378,7 +378,6 @@ set(PUBLIC_HEADERS
 	kbitfields.h
 	kcache.h
 	kcasestring.h
-	kcgi.h
 	kcgistream.h
 	kchildprocess.h
 	kchunkedtransfer.h
@@ -500,7 +499,6 @@ set (SOURCES
 	dekaf2.cpp
 	kbase64.cpp
 	kcasestring.cpp
-	kcgi.cpp
 	kcgistream.cpp
 	kchildprocess.cpp
 	kchunkedtransfer.cpp

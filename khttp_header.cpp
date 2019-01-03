@@ -175,8 +175,22 @@ bool KHTTPHeaders::HasContent() const
 
 	if (iSize < 0)
 	{
-		return Headers.Get(KHTTPHeaders::transfer_encoding) == "chunked"
-		    || Headers.Get(KHTTPHeaders::connection) == "close";
+		if (Headers.Get(KHTTPHeaders::transfer_encoding) == "chunked")
+		{
+			return true;
+		}
+
+		auto& sConnection = Headers.Get(KHTTPHeaders::connection);
+
+		if (DEKAF2_LIKELY(sHTTPVersion != "HTTP/1.0"))
+		{
+			return sConnection == "close";
+		}
+		else
+		{
+			return sConnection.empty() // "close" is the default with HTTP/1.0!
+			    || sConnection == "close";
+		}
 	}
 	else
 	{

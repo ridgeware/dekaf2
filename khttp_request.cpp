@@ -57,6 +57,7 @@ bool KHTTPRequestHeaders::Parse(KInStream& Stream)
 	{
 		// this is simply a read timeout, probably on a keep-alive
 		// connection. Unset the error string and return false;
+		kDebugLog (1, "KHTTPRequestHeaders::Parse(): returning null error (timeout?)");
 		return SetError("");
 	}
 
@@ -75,8 +76,8 @@ bool KHTTPRequestHeaders::Parse(KInStream& Stream)
 	if (Words.size() != 3)
 	{
 		// garbage, bail out
-		kDebugLog (1, "KHTTPRequestHeaders::parse(): first line (status) line of HTTP header is invalid: {} words instead of 3", Words.size());
-		kDebugLog (2, "KHTTPRequestHeaders::parse(): {}", sLine);
+		kDebugLog (1, "KHTTPRequestHeaders::Parse(): first line (status) line of HTTP header is invalid: {} words instead of 3", Words.size());
+		kDebugLog (2, "KHTTPRequestHeaders::Parse(): {}", sLine);
 		return SetError("invalid status line of HTTP header [1]");
 	}
 
@@ -86,7 +87,7 @@ bool KHTTPRequestHeaders::Parse(KInStream& Stream)
 
 	if (!sHTTPVersion.StartsWith("HTTP/"))
 	{
-		kDebugLog (1, "KHTTPRequestHeaders::parse(): first line (status) line of HTTP header is invalid: expected 'HTTP/' not '{}'", sHTTPVersion);
+		kDebugLog (1, "KHTTPRequestHeaders::Parse(): first line (status) line of HTTP header is invalid: expected 'HTTP/' not '{}'", sHTTPVersion);
 		return SetError("invalid status line of HTTP header [2]");
 	}
 

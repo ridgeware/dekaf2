@@ -100,6 +100,7 @@ bool KHTTPServer::Parse()
 	
 	if (!Request.Parse())
 	{
+		kDebugLog (1, "KHTTPServer::Parse(): failed to parse incoming headers: {}", Request.Error());
 		SetError(Request.Error());
 		return false;
 	}

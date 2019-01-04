@@ -3,7 +3,7 @@
  //
  // DEKAF(tm): Lighter, Faster, Smarter (tm)
  //
- // Copyright (c) 2017, Ridgeware, Inc.
+ // Copyright (c) 2018, Ridgeware, Inc.
  //
  // +-------------------------------------------------------------------------+
  // | /\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\|
@@ -95,7 +95,7 @@ bool KLambdaInStream::CreateHeader()
 
 	while (stream.ReadLine(sArg))
 	{
-		if (sArg.front() == '#')
+		if (sArg.empty() || sArg.front() == '#')
 		{
 			continue;
 		}

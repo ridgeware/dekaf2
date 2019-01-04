@@ -82,7 +82,7 @@ std::streamsize KCGIInStream::StreamReader(void* sBuffer, std::streamsize iCount
 		{
 			// we do not have to skip comment lines, so read all in one part
 			stream->istream->read(sOutBuf, iRemain);
-			return stream->istream->gcount();
+			return stream->istream->gcount() + (iCount - iRemain);
 		}
 		else
 		{
@@ -191,6 +191,7 @@ bool KCGIInStream::CreateHeader()
 	m_sHeader += kGetEnv(KCGIInStream::REQUEST_URI);
 	m_sHeader += ' ';
 	m_sHeader += kGetEnv(KCGIInStream::SERVER_PROTOCOL);
+	kDebugLog(1, "KCGIInStream: {}", m_sHeader);
 	m_sHeader += "\r\n";
 
 	struct CGIVars_t { KStringViewZ sVar; KStringViewZ sHeader; };

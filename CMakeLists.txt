@@ -507,6 +507,7 @@ set (SOURCES
 	kcrashexit.cpp
 	kcrc.cpp
 	kencode.cpp
+	kbar.cpp
 	kfdstream.cpp
 	kfilesystem.cpp
 	kformat.cpp

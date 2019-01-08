@@ -374,6 +374,7 @@ set(PUBLIC_HEADERS
 	kaddrplus.h
 	kallocator.h
 	kassociative.h
+	kbar.h
 	kbase64.h
 	kbitfields.h
 	kcache.h
@@ -497,6 +498,7 @@ set (SOURCES
 	bits/kstringviewz.cpp
 	bits/simd/kfindfirstof.cpp
 	dekaf2.cpp
+	kbar.cpp
 	kbase64.cpp
 	kcasestring.cpp
 	kcgistream.cpp
@@ -507,7 +509,6 @@ set (SOURCES
 	kcrashexit.cpp
 	kcrc.cpp
 	kencode.cpp
-	kbar.cpp
 	kfdstream.cpp
 	kfilesystem.cpp
 	kformat.cpp

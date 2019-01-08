@@ -62,6 +62,7 @@ std::ostream& kfFormat(std::ostream& os, KStringView sFormat, fmt::format_args a
 	DEKAF2_TRY {
 		fmt::vprint(os, sFormat.operator fmt::string_view(), args);
 	} DEKAF2_CATCH (std::exception& e) {
+		kWarning("{}", sFormat);
 		kException(e);
 	}
 	return os;
@@ -77,6 +78,7 @@ KString kFormat(KStringView sFormat, fmt::format_args args)
 	DEKAF2_TRY {
 		fmt::vformat_to(std::back_inserter(sOut), sFormat.operator fmt::string_view(), args);
 	} DEKAF2_CATCH (std::exception& e) {
+		kWarning("{}", sFormat);
 		kException(e);
 	}
 	return sOut;
@@ -91,6 +93,7 @@ std::ostream& kfPrintf(std::ostream& os, KStringView sFormat, fmt::printf_args a
 	DEKAF2_TRY {
 		fmt::vfprintf(os, sFormat.operator fmt::string_view(), args);
 	} DEKAF2_CATCH (std::exception& e) {
+		kWarning("{}", sFormat);
 		kException(e);
 	}
 	return os;
@@ -106,6 +109,7 @@ KString kPrintf(KStringView sFormat, fmt::printf_args args)
 	DEKAF2_TRY {
 		fmt::printf(buffer, sFormat.operator fmt::string_view(), args);
 	} DEKAF2_CATCH (std::exception& e) {
+		kWarning("{}", sFormat);
 		kException(e);
 	}
 	return { buffer.data(), buffer.size() };

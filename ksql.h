@@ -247,7 +247,7 @@ public:
 		}
 
 		bool bOK = ExecRawSQL (m_sLastSQL, 0, "ExecSQL");
-		kDebugLog (GetDebugLevel(), "[{}] {} rows affected.", m_iNumRowsAffected);
+		kDebugLog (GetDebugLevel(), "{} rows affected.", m_iNumRowsAffected);
 		return (bOK);
 
 	} // KSQL::ExecSQL

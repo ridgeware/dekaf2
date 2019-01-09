@@ -375,6 +375,12 @@ int KOptions::Parse(int argc, char** argv, KOutStream& out)
 						KLog().SetDebugLog (m_sCliDebugTo);
 						kDebug (1, "debug level set to: {}", KLog().GetLevel());
 					}
+					else if (it->sArg == "d0")
+					{
+						it->bConsumed = true;
+						KLog().SetLevel (0);
+						KLog().SetDebugLog (m_sCliDebugTo);
+					}
 				}
 			}
 		}

@@ -77,6 +77,7 @@
 #include "ktcpstream.h"
 #include "kunixstream.h"
 #include "klog.h"
+#include "kfilesystem.h"
 
 namespace dekaf2
 {
@@ -328,9 +329,16 @@ void KTCPServer::UnixServer()
 //-----------------------------------------------------------------------------
 {
 	DEKAF2_TRY_EXCEPTION
-	::unlink(m_sSocketFile.c_str());
+
+	// remove an existing socket
+	kRemoveFile(m_sSocketFile);
+
 	boost::asio::local::stream_protocol::endpoint local_endpoint(m_sSocketFile.c_str());
 	boost::asio::local::stream_protocol::acceptor acceptor(m_asio, local_endpoint, true); // true == reuse addr
+
+	// make socket read/writeable for world
+	kChangeMode(m_sSocketFile, 0777);
+
 	if (!acceptor.is_open())
 	{
 		kWarning("listener for socket file {} could not open", m_sSocketFile);

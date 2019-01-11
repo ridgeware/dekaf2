@@ -106,6 +106,7 @@ bool kExists (KStringViewZ sPath, bool bAsFile, bool bAsDirectory, bool bTestFor
 	{
 		if (fs::is_directory(status))
 		{
+			kDebug(2, "entry exists, but is not a file: {}", sPath);
 			return false;
 		}
 	}
@@ -113,6 +114,7 @@ bool kExists (KStringViewZ sPath, bool bAsFile, bool bAsDirectory, bool bTestFor
 	{
 		if (!fs::is_directory(status))
 		{
+			kDebug(2, "entry exists, but is not a directory: {}", sPath);
 			return false;
 		}
 		else
@@ -129,6 +131,7 @@ bool kExists (KStringViewZ sPath, bool bAsFile, bool bAsDirectory, bool bTestFor
 
 	if (fs::is_empty(sPath.c_str(), ec))
 	{
+		kDebug(2, "entry exists, but is empty: {}", sPath);
 		return false;
 	}
 
@@ -149,15 +152,17 @@ bool kExists (KStringViewZ sPath, bool bAsFile, bool bAsDirectory, bool bTestFor
 	}
 	if (bAsFile)
 	{
-		if (StatStruct.st_mode & S_IFDIR)
+		if ((StatStruct.st_mode & S_IFREG) == 0)
 		{
-			return false;   // <-- exists, but is a directory
+			kDebug(2, "entry exists, but is not a file: {}", sPath);
+			return false;   // <-- exists, but is not a file
 		}
 	}
 	else if (bAsDirectory)
 	{
 		if ((StatStruct.st_mode & S_IFDIR) == 0)
 		{
+			kDebug(2, "entry exists, but is not a directory: {}", sPath);
 			return false;   // <-- exists, but is not a directory
 		}
 		else
@@ -171,6 +176,7 @@ bool kExists (KStringViewZ sPath, bool bAsFile, bool bAsDirectory, bool bTestFor
 	}
 	if (StatStruct.st_size <= 0)
 	{
+		kDebug(2, "entry exists, but is empty: {}", sPath);
 		return false;    // <-- exists, is a file but is zero length
 	}
 	return true;     // <-- exists, is a file and is non-zero length
@@ -333,11 +339,12 @@ bool kRemove (KStringViewZ sPath, bool bDir)
 			{
 				KString sCmd;
 				sCmd.Format ("rm -rf \"{}\"", sPath);
-				if (system (sCmd.c_str()) != 0)
+				if (system (sCmd.c_str()) == 0)
 				{
-					kDebugLog (1, "kRemove failed: {}: {}", sPath, strerror (errno));
+					return (true);
 				}
 			}
+			kDebugLog (1, "kRemove failed: {}: {}", sPath, strerror (errno));
 		}
 	}
 

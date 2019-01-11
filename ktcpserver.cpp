@@ -255,6 +255,9 @@ void KTCPServer::TCPServer(bool ipv6)
 		}
 	}
 
+	// give feadback to the starting thread that we are now ready to receive requests
+	m_bIsListening = true;
+
 	if (!acceptor.is_open())
 	{
 		kWarning("IPv{} listener for port {} could not open",
@@ -330,6 +333,8 @@ void KTCPServer::UnixServer()
 {
 	DEKAF2_TRY_EXCEPTION
 
+	kDebug(2, "opening listener on unix socket at {}", m_sSocketFile);
+
 	// remove an existing socket
 	kRemoveFile(m_sSocketFile);
 
@@ -338,6 +343,9 @@ void KTCPServer::UnixServer()
 
 	// make socket read/writeable for world
 	kChangeMode(m_sSocketFile, 0777);
+
+	// give feadback to the starting thread that we are now ready to receive requests
+	m_bIsListening = true;
 
 	if (!acceptor.is_open())
 	{
@@ -363,6 +371,9 @@ void KTCPServer::UnixServer()
 		{
 			kWarning("listener for socket file {} has closed", m_sSocketFile);
 		}
+
+		// remove the socket
+		kRemoveFile(m_sSocketFile);
 	}
 	DEKAF2_LOG_EXCEPTION
 
@@ -434,7 +445,11 @@ bool KTCPServer::Start(uint16_t iTimeoutInSeconds, bool bBlock)
 		}
 	}
 
-	std::this_thread::sleep_for(std::chrono::milliseconds(50));
+	uint16_t iCt { 0 };
+	while (!m_bIsListening && iCt++ < 100)
+	{
+		std::this_thread::sleep_for(std::chrono::milliseconds(10));
+	}
 
 	return IsRunning();
 
@@ -506,6 +521,8 @@ bool KTCPServer::Stop()
 			m_unix_server->join();
 			m_unix_server.reset();
 		}
+
+		m_bIsListening = false;
 	}
 
 	return true;

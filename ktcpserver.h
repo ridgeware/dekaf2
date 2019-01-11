@@ -302,6 +302,7 @@ private:
 	bool m_bStartIPv4 { true };
 	bool m_bStartIPv6 { true };
 	bool m_bIsSSL { false };
+	bool m_bIsListening { false };
 
 }; // KTCPServer
 

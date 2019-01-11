@@ -1346,7 +1346,7 @@ bool KSQL::ExecRawSQL (KStringView sSQL, Flags iFlags/*=0*/, KStringView sAPI/*=
 	CopyIfNotSame(m_sLastSQL, sSQL);
 	EndQuery();
 
-	bool   fOK          = false;
+	bool   bOK          = false;
 	int    iRetriesLeft = NUM_RETRIES;
 	int    iSleepFor    = 0;
 	time_t tStarted     = 0;
@@ -1356,7 +1356,7 @@ bool KSQL::ExecRawSQL (KStringView sSQL, Flags iFlags/*=0*/, KStringView sAPI/*=
 		tStarted = Dekaf().GetCurrentTime();
 	}
 
-	while (!fOK && iRetriesLeft && !m_bDisableRetries)
+	while (!bOK && iRetriesLeft && !m_bDisableRetries)
 	{
 		ResetErrorStatus ();
 
@@ -1407,7 +1407,7 @@ bool KSQL::ExecRawSQL (KStringView sSQL, Flags iFlags/*=0*/, KStringView sAPI/*=
 					kDebugLog (3, "no insert ID.");
 				}
 
-				fOK = true;
+				bOK = true;
 			}
 			while (false); // do once
 			break;
@@ -1444,7 +1444,7 @@ bool KSQL::ExecRawSQL (KStringView sSQL, Flags iFlags/*=0*/, KStringView sAPI/*=
 				m_iErrorNum = OCIAttrGet ((OCIStmt*)m_dOCI8Statement, OCI_HTYPE_STMT, &m_iNumRowsAffected,
 					0, OCI_ATTR_ROW_COUNT, (OCIError*)m_dOCI8ErrorHandle);
 
-				fOK = true;
+				bOK = true;
 			}
 			while (false); // do once
 			break;
@@ -1486,7 +1486,7 @@ bool KSQL::ExecRawSQL (KStringView sSQL, Flags iFlags/*=0*/, KStringView sAPI/*=
 
 				ocan ((Cda_Def*)m_dOCI6ConnectionDataArea);  // <-- let cursor free it's resources
 
-				fOK = true;
+				bOK = true;
 			}
 			while (false); // do once
 			break;
@@ -1496,8 +1496,8 @@ bool KSQL::ExecRawSQL (KStringView sSQL, Flags iFlags/*=0*/, KStringView sAPI/*=
 		// - - - - - - - - - - - - - - - - -
 		case API::CTLIB:
 		// - - - - - - - - - - - - - - - - -
-			fOK = ctlib_execsql (sSQL);
-			if (!fOK)
+			bOK = ctlib_execsql (sSQL);
+			if (!bOK)
 			{
 				kDebugLog (3, "ctlib_execsql returned false");
 			}
@@ -1515,7 +1515,7 @@ bool KSQL::ExecRawSQL (KStringView sSQL, Flags iFlags/*=0*/, KStringView sAPI/*=
 
 		} // switch
 
-		if (!fOK)
+		if (!bOK)
 		{
 			if (!(iRetriesLeft--) || !PreparedToRetry())
 			{
@@ -1546,7 +1546,7 @@ bool KSQL::ExecRawSQL (KStringView sSQL, Flags iFlags/*=0*/, KStringView sAPI/*=
 
 	ClearErrorPrefix();
 
-	if (!fOK) {
+	if (!bOK) {
 		return (SQLError());
 	}
 
@@ -1577,7 +1577,7 @@ bool KSQL::ExecRawSQL (KStringView sSQL, Flags iFlags/*=0*/, KStringView sAPI/*=
 		}
 	}
 
-	return (fOK);
+	return (bOK);
 
 } // ExecRawSQL
 
@@ -3291,15 +3291,15 @@ bool KSQL::NextRow ()
 		for (uint32_t ii=0; ii<m_iNumColumns; ++ii)
 		{
 			// first line is a sanity check and the strlen() of data size:
-			bool fOK = (fgets (szStatLine, 25+1, m_bpBufferedResults) != nullptr);
+			bool bOK = (fgets (szStatLine, 25+1, m_bpBufferedResults) != nullptr);
 
-			if (!fOK && !ii)
+			if (!bOK && !ii)
 			{
 				kDebugLog (3, "NextRow(): end of buffered results: fgets() returned nullptr");
 				return (false);  // <-- no more rows
 			}
 
-			else if (!fOK)
+			else if (!bOK)
 			{
 				m_sLastError.Format ("{}NextRow(): ran out of lines in buffered results file.", m_sErrorPrefix);
 				return (SQLError());
@@ -3359,10 +3359,10 @@ bool KSQL::NextRow ()
 			m_dBufferedColArray[ii] = (char*) kmalloc (iDataLen+3, "KSQL:NextRow");
 
 			// second line is the data value (could be one HUGE line of gobbly gook):
-			fOK = (fgets (m_dBufferedColArray[ii], iDataLen+2, m_bpBufferedResults) != nullptr);
+			bOK = (fgets (m_dBufferedColArray[ii], iDataLen+2, m_bpBufferedResults) != nullptr);
 
 			// sanity check: there should be a newline at exactly value[iDataLen]:
-			if (!fOK || ((m_dBufferedColArray[ii])[iDataLen] != '\n'))
+			if (!bOK || ((m_dBufferedColArray[ii])[iDataLen] != '\n'))
 			{
 				m_sLastError.Format ("{}NextRow(): buffered results corrupted data line for row={}, col={}", m_sErrorPrefix, 
 					(uint64_t)m_iRowNum, ii+1);
@@ -3467,11 +3467,11 @@ int64_t KSQL::SingleIntRawQuery (KStringView sSQL, Flags iFlags/*=0*/, KStringVi
 	Flags iHold = GetFlags();
 	m_iFlags |= F_IgnoreSQLErrors;
 
-	bool fOK = ExecRawQuery (sSQL, 0, sAPI);
+	bool bOK = ExecRawQuery (sSQL, 0, sAPI);
 
 	m_iFlags = iHold;
 
-	if (!fOK)
+	if (!bOK)
 	{
 		kDebugLog (GetDebugLevel(), "{}: sql error, so we return -1", sAPI);
 		return (-1);
@@ -4458,9 +4458,9 @@ bool KSQL::ListTables (KStringView sLike/*="%"*/, bool fIncludeViews/*=false*/, 
 			//uint32_t iFlags = GetFlags();
 			EndQuery ();
 			SetFlags (F_IgnoreSelectKeyword);
-			bool fOK = ExecQuery ("show table status");
+			bool bOK = ExecQuery ("show table status");
 			//SetFlags (iFlags);
-			return (fOK);
+			return (bOK);
 		}
 		break;
 
@@ -4563,9 +4563,9 @@ bool KSQL::ListProcedures (KStringView sLike/*="%"*/, bool fRestrictToMine/*=tru
 			//uint32_t iFlags = GetFlags();
 			EndQuery ();
 			SetFlags (F_IgnoreSelectKeyword);
-			bool fOK = ExecQuery ("show procedure status");
+			bool bOK = ExecQuery ("show procedure status");
 			//SetFlags (iFlags);
-			return (fOK);
+			return (bOK);
 		}
 		break;
 
@@ -4607,9 +4607,9 @@ bool KSQL::DescribeTable (KStringView sTablename)
 			//uint32_t iFlags = GetFlags();
 			EndQuery ();
 			SetFlags (F_IgnoreSelectKeyword);
-			bool fOK = ExecQuery ("desc {}", sTablename);
+			bool bOK = ExecQuery ("desc {}", sTablename);
 			//SetFlags (iFlags);
-			return (fOK);
+			return (bOK);
 		}
 		break;
 
@@ -4637,9 +4637,9 @@ bool KSQL::DescribeTable (KStringView sTablename)
 			//uint32_t iFlags = GetFlags();
 			EndQuery ();
 			SetFlags (F_IgnoreSelectKeyword);
-			bool fOK = ExecQuery ("sp_help {}", sTablename);
+			bool bOK = ExecQuery ("sp_help {}", sTablename);
 			//SetFlags (iFlags);
-			return (fOK);
+			return (bOK);
 		}
 		break;
 
@@ -4651,6 +4651,74 @@ bool KSQL::DescribeTable (KStringView sTablename)
 	}
 
 } // DescribeTable
+
+//-----------------------------------------------------------------------------
+KJSON KSQL::FindColumn (KStringView sColLike)
+//-----------------------------------------------------------------------------
+{
+	kDebugLog (3, "KSQL::FindColumn({})...", sColLike);
+	KJSON list = KJSON::array();
+
+	switch (m_iDBType)
+	{
+	// - - - - - - - - - - - - - - - - - - - - - - - -
+	case DBT::MYSQL:
+	// - - - - - - - - - - - - - - - - - - - - - - - -
+		if (!ExecQuery (
+			"select table_name\n"
+			"     , column_name\n"
+			"     , column_type\n"
+			"     , column_key\n"
+			"     , column_comment\n"
+			"     , is_nullable\n"
+			"     , column_default\n"
+			"  from INFORMATION_SCHEMA.COLUMNS\n"
+			" where upper(column_name) like upper('%s')\n"
+			"   and table_schema not in ('information_schema','master')\n"
+			" order by 1, 2, 3",
+				sColLike))
+		{
+			return list;
+		}
+		break;
+
+	// - - - - - - - - - - - - - - - - - - - - - - - -
+	case DBT::ORACLE7:
+	case DBT::ORACLE8:
+	case DBT::ORACLE:
+	// - - - - - - - - - - - - - - - - - - - - - - - -
+		m_sLastError = "KSQL::FindColumn() not coded yet for DBT::SQLSERVER";
+		kWarning ("{}", m_sLastError);
+		return list;
+		break;
+
+	// - - - - - - - - - - - - - - - - - - - - - - - -
+	case DBT::SQLSERVER:
+	// - - - - - - - - - - - - - - - - - - - - - - - -
+		m_sLastError = "KSQL::FindColumn() not coded yet for DBT::SQLSERVER";
+		kWarning ("{}", m_sLastError);
+		return list;
+		break;
+
+	// - - - - - - - - - - - - - - - - - - - - - - - -
+	default:
+	// - - - - - - - - - - - - - - - - - - - - - - - -
+		m_sLastError.Format ("{}DescribeTable(): {} not supported yet.", m_sErrorPrefix, TxDBType(m_iDBType));
+		kWarning ("{}", m_sLastError);
+		return list;
+		break;
+	}
+
+	KROW  row;
+	while (NextRow (row))
+	{
+		kDebugLog (3, "KSQL::FindColumn({}): found column {} in table {}", sColLike, row["column_name"], row["table_name"]);
+		list += row;
+	}
+
+	return list;
+
+} // FindColumn
 
 #if 0
 //-----------------------------------------------------------------------------
@@ -4841,34 +4909,34 @@ unsigned char* KSQL::DecodeData (unsigned char* sBlobData, BlobType iBlobType, u
 			szHexPair[2] = 0;
 
 			// sanity check:
-			bool fOK1 = false;
-			bool fOK2 = false;
+			bool bOK1 = false;
+			bool bOK2 = false;
 
 			if (!szHexPair[0])
-				fOK1 = true;
+				bOK1 = true;
 			else if ((szHexPair[0] >= '0') && (szHexPair[0] <= '9'))
-				fOK1 = true;
+				bOK1 = true;
 			else if ((szHexPair[0] >= 'a') && (szHexPair[0] <= 'f'))
-				fOK1 = true;
+				bOK1 = true;
 			else if ((szHexPair[0] >= 'A') && (szHexPair[0] <= 'F'))
-				fOK1 = true;
+				bOK1 = true;
 
 			if (!szHexPair[1])
-				fOK2 = true;
+				bOK2 = true;
 			else if ((szHexPair[1] >= '0') && (szHexPair[1] <= '9'))
-				fOK2 = true;
+				bOK2 = true;
 			else if ((szHexPair[1] >= 'a') && (szHexPair[1] <= 'f'))
-				fOK2 = true;
+				bOK2 = true;
 			else if ((szHexPair[1] >= 'A') && (szHexPair[1] <= 'F'))
-				fOK2 = true;
+				bOK2 = true;
 
-			if (!fOK1 || !fOK2)
+			if (!bOK1 || !bOK2)
 			{
 				if (kWouldLog(GetDebugLevel())
 				{
 					kDebugLog (GetDebugLevel(), "KSQL:DecodeData(): corrupted hex pair in encoded data:");
-					kDebugLog (GetDebugLevel(), "  szHexPair[{}+{}] = %3d ({})", ii, 0, szHexPair[0], fOK1 ? "valid hex digit" : "INVALID HEX DIGIT");
-					kDebugLog (GetDebugLevel(), "  szHexPair[{}+{}] = %3d ({})", ii, 1, szHexPair[1], fOK2 ? "valid hex digit" : "INVALID HEX DIGIT");
+					kDebugLog (GetDebugLevel(), "  szHexPair[{}+{}] = %3d ({})", ii, 0, szHexPair[0], bOK1 ? "valid hex digit" : "INVALID HEX DIGIT");
+					kDebugLog (GetDebugLevel(), "  szHexPair[{}+{}] = %3d ({})", ii, 1, szHexPair[1], bOK2 ? "valid hex digit" : "INVALID HEX DIGIT");
 					kDebugLog (GetDebugLevel(), "  EncodedLen={}", iEncodedLen);
 					kDebugLog (GetDebugLevel(), "  sBlobData     = {} (memory dump to follow)...", sBlobData);
 					kDebugLog (GetDebugLevel(), "  sBlobData+Len = {}", sBlobData+iEncodedLen);
@@ -4966,13 +5034,13 @@ bool KSQL::PutBlob (KStringView sBlobTable, KStringView sBlobKey, unsigned char*
 
 		kDebugLog (GetDebugLevel(), "PutBlob(): chunk '{}', part[{:02}]: encoding={}, datasize=%04lu", sBlobKey, iChunkNum, iBlobType, iDataLenChunk);
 
-		bool fOK = ExecSQL (
+		bool bOK = ExecSQL (
 			"insert into {} (BlobKey, ChunkNum, Chunk, Encoding, EncodedSize, DataSize)\n"
 			"values ('{}', {}, '{}', {}, {}, {})",
 				sBlobTable,
 				sBlobKey, iChunkNum, szChunk, iBlobType, iEncodedLenChunk, iDataLenChunk);
 
-		if (!fOK)
+		if (!bOK)
 		{
 			return (false);
 		}

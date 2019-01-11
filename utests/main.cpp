@@ -2,9 +2,23 @@
 #define CATCH_CONFIG_RUNNER
 #include "catch.hpp"
 #include <dekaf2/dekaf2.h>
+#include <dekaf2/klog.h>
+#include <dekaf2/kstringutils.h>
 
 #include <string>
 #include <iostream>
+
+using namespace dekaf2;
+
+KStringView g_Synopsis[] = {
+	"",
+	"dekaf2-utests - dekaf2 unit tests",
+	"",
+	"usage: dekaf2-utests [-d[d[d]]] ...see standard args below...",
+	"",
+	"where:",
+	"  -d[d[d]]        : debug levels (to stdout)",
+};
 
 #ifndef DEKAF2_DO_NOT_WARN_ABOUT_COW_STRING
 bool stdstring_supports_cow()
@@ -40,6 +54,37 @@ bool stdstring_supports_cow()
 int main( int argc, char* const argv[] )
 {
 	dekaf2::kInit("DEKAF", "", "", false, true, false);
+	KLog().SetDebugFlag("/tmp/unittest.dbg");
+
+	bool bSynopsis{false};
+	int  iLast{0};
+
+	for (int ii=1; ii < argc; ++ii)
+	{
+		if (kStrIn (argv[ii], "-d,-dd,-ddd"))
+		{
+			iLast = ii;
+			KLog().SetLevel( static_cast<int>(strlen(argv[ii]) - 1));
+			KLog().SetDebugLog(KLog::STDOUT);
+			kDebugLog (0, "{}: debug now set to {}", argv[ii], KLog().GetLevel());
+		}
+		else if (kStrIn (argv[ii], "-d0"))
+		{
+			iLast = ii;
+			KLog().SetLevel( 0 );
+			KLog().SetDebugLog(KLog::STDOUT);
+			kDebugLog (0, "{}: debug now set to {}", argv[ii], KLog().GetLevel());
+		}
+
+		// part of the generic CATCH framework:
+		//   -?, -h, --help                display usage information
+		//   -l, --list-tests              list all/matching test cases
+		//   -t, --list-tags               list all/matching tags
+		else if (kStrIn (argv[ii], "-?,-h,--help"))
+		{
+			bSynopsis = true;
+		}
+	}
 
 #ifndef DEKAF2_DO_NOT_WARN_ABOUT_COW_STRING
 #if _GLIBCXX_USE_CXX11_ABI
@@ -59,9 +104,18 @@ int main( int argc, char* const argv[] )
 	}
 #endif
 
-    int result = Catch::Session().run( argc, argv );
+	if (bSynopsis)
+	{
+		KOutStream out(std::cout);
+		for (unsigned long jj=0; jj < std::extent<decltype(g_Synopsis)>::value; ++jj)
+		{
+			KOut.WriteLine (g_Synopsis[jj]);
+		}
+	}
+
+	auto iResult = Catch::Session().run( argc - iLast, &argv[iLast] );
 
     // global clean-up...
 
-    return result;
+    return iResult;
 }

@@ -90,6 +90,12 @@ int main( int argc, char* const argv[] )
 			KLog().SetLevel( static_cast<int>(strlen(argv[ii]) - 1));
 			kDebugLog (0, "{}: debug now set to {}", argv[ii], KLog().GetLevel());
 		}
+		else if (!strcmp (argv[ii], "-d0"))
+		{
+			iLast = ii;
+			KLog().SetLevel( 0 );
+			kDebugLog (0, "{}: debug now set to {}", argv[ii], KLog().GetLevel());
+		}
 		else if (!strcmp(argv[ii], "-dbc"))
 		{
 			if (++ii < argc)
@@ -103,7 +109,7 @@ int main( int argc, char* const argv[] )
 		//   -?, -h, --help                display usage information
 		//   -l, --list-tests              list all/matching test cases
 		//   -t, --list-tags               list all/matching tags
-		else if (KASCII::kstrin (argv[ii], "-?,-h,--help"))
+		else if (kStrIn (argv[ii], "-?,-h,--help"))
 		{
 			bSynopsis = true;
 		}
@@ -120,10 +126,9 @@ int main( int argc, char* const argv[] )
 
 	if (bSynopsis)
 	{
-		KOutStream out(std::cout);
 		for (unsigned long jj=0; jj < std::extent<decltype(g_Synopsis)>::value; ++jj)
 		{
-			out.WriteLine (g_Synopsis[jj]);
+			KOut.WriteLine (g_Synopsis[jj]);
 		}
 	}
 

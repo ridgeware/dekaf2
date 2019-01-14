@@ -579,7 +579,7 @@ TEST_CASE("KStringUtils") {
 		}
 	}
 
-	SECTION("kIsDecimal on strings")
+	SECTION("kIsInteger on strings")
 	{
 		KString s;
 		s = "1";
@@ -598,7 +598,7 @@ TEST_CASE("KStringUtils") {
 		CHECK( !kIsInteger(s) );
 	}
 
-	SECTION("kIsDecimal on char*")
+	SECTION("kIsInteger on char*")
 	{
 		const char* s;
 		s = "1";
@@ -948,5 +948,13 @@ TEST_CASE("KStringUtils") {
 		CHECK ( kStrIn (sNeedle, sHaystack, ' ') == true  );
 		CHECK ( kStrIn (sNeedle, sHaystack, ',') == false );
 	}
+
+	SECTION("kStrIn 14")
+	{
+		const char* sNeedle = "a very large needle";
+		std::vector<KStringView> sHaystack = {"find","a","needle","in","a","haystack"};
+		CHECK ( kStrIn (sNeedle, sHaystack) == false  );
+	}
+
 
 }

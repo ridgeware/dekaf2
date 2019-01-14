@@ -502,8 +502,9 @@ bool KStringView::In (KStringView sHaystack, value_type iDelim/*=','*/) const
 		iNeedle = 0;
 
 		// Search for matching tokens
-		while ( (iNeedle < iNsize) &&
-			   (sNeedle[iNeedle] == sHaystack[iHaystack]))
+		while ( (iNeedle < iNsize)
+		     && (iHaystack < iHsize)
+		     && (sNeedle[iNeedle] == sHaystack[iHaystack]))
 		{
 			++iNeedle;
 			++iHaystack;
@@ -522,9 +523,10 @@ bool KStringView::In (KStringView sHaystack, value_type iDelim/*=','*/) const
 			++iHaystack;
 		}
 
-		// Pass by the delimiter if it exists
-		iHaystack += (iHaystack < iHsize);
+		// skip delimiter (if present, otherwise we are at end of string)
+		++iHaystack;
 	}
+
 	return false;
 
 } // In

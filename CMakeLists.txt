@@ -400,6 +400,7 @@ set(PUBLIC_HEADERS
 	khttpclient.h
 	khttpinputfilter.h
 	khttpoutputfilter.h
+	khttprouter.h
 	khttpserver.h
 	khttp_header.h
 	khttp_method.h
@@ -428,6 +429,8 @@ set(PUBLIC_HEADERS
 	kreader.h
 	kregex.h
 	kreplacer.h
+	krest.h
+	krestserver.h
 	krow.h
 	ksharedref.h
 	ksignals.h
@@ -519,6 +522,7 @@ set (SOURCES
 	khttpclient.cpp
 	khttpinputfilter.cpp
 	khttpoutputfilter.cpp
+	khttprouter.cpp
 	khttpserver.cpp
 	khttp_header.cpp
 	khttp_method.cpp
@@ -545,6 +549,8 @@ set (SOURCES
 	kreader.cpp
 	kregex.cpp
 	kreplacer.cpp
+	krest.cpp
+	krestserver.cpp
 	krow.cpp
 	ksignals.cpp
 	ksmtp.cpp

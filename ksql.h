@@ -50,6 +50,7 @@
 #include "kstring.h"
 #include "kstringview.h"
 #include "krow.h"
+#include "kjson.h"
 
 //
 // Note:
@@ -414,7 +415,14 @@ public:
 	                                                  // MYSQL  rtns: TableName, etc. (see "show table status")
 	bool   ListProcedures (KStringView sLike = "%", bool fRestrictToMine = true);
 	                                                  // MYSQL  rtns: ProcedureName, etc. (see "show procedure status")
-	bool   DescribeTable (KStringView sTablename);  // rtns: ColName, Datatype, Null, Key, Default, Extras..
+	/// search data dictionary and describe a table definition.
+	/// returns an open query with: ColName, Datatype, Null, Key, Default, Extras..
+	bool   DescribeTable (KStringView sTablename);
+
+	/// search data dictionary and find tables with the given column_name (or columns LIKE the given column_name if you include percent signs).
+	/// returns a JSON array: table_name, column_name, column_key, column_comment, is_nullable, column_default
+	/// empty array means column not found
+	KJSON  FindColumn    (KStringView sColLike);
 
 	bool   QueryStarted ()         { return (m_bQueryStarted); }
 	void   EndQuery ();

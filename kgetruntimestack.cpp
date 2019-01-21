@@ -367,11 +367,14 @@ KString kGetRuntimeStack (int iSkipStackLines /*=2*/)
 KJSON kGetRuntimeStackJSON (int iSkipStackLines /*=3*/)
 //-----------------------------------------------------------------------------
 {
-	KStack <KString> List;
-	kSplit (List, kGetRuntimeStack (iSkipStackLines), "\n");
+	auto sStack = kGetRuntimeStack (iSkipStackLines);
+
+	std::vector <KStringView> List;
+	kSplit (List, sStack, "\n");
 
 	KJSON aStack = KJSON::array();
-	for (auto& item : List)	{
+	for (auto item : List)
+	{
 		aStack += item;
 	}
 

@@ -355,7 +355,11 @@ protected:
 			size_t iNewLen = UTF8Bytes(m_Value);
 
 			// create an iterator pointing to the start of the current sequence
+#ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
 			typename NarrowString::iterator it = const_cast<typename NarrowString::iterator>(m_next) - iOrigLen;
+#else
+			typename NarrowString::iterator it = m_next - iOrigLen;
+#endif
 
 			if (KUTF8_UNLIKELY(iOrigLen < iNewLen))
 			{

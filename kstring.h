@@ -1501,7 +1501,7 @@ template<class... Args>
 KString& KString::Format(Args&&... args)
 //----------------------------------------------------------------------
 {
-	m_rep = kFormat(std::forward<Args>(args)...);
+	*this = kFormat(std::forward<Args>(args)...);
 	return *this;
 }
 
@@ -1511,7 +1511,7 @@ template<class... Args>
 KString& KString::Printf(Args&&... args)
 //----------------------------------------------------------------------
 {
-	m_rep = kPrintf(std::forward<Args>(args)...);
+	*this = kPrintf(std::forward<Args>(args)...);
 	return *this;
 }
 

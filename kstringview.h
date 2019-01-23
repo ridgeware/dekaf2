@@ -229,7 +229,13 @@ public:
 	constexpr
 	KStringView(const value_type* s, size_type count) noexcept
 	//-----------------------------------------------------------------------------
-	    : m_rep(s, count)
+#ifdef DEKAF2_USE_FOLLY_STRINGPIECE_AS_KSTRINGVIEW
+	: m_rep(s, count)
+#else
+	// folly is resilient to nullptr assignment, but std::string_view is not
+	// - therefore we protect it
+	: m_rep(s ? s : std::addressof(s_0ch), s ? count : 0)
+#endif
 	{
 	}
 
@@ -237,7 +243,13 @@ public:
 	constexpr
 	KStringView(const value_type* s) noexcept
 	//-----------------------------------------------------------------------------
+#ifdef DEKAF2_USE_FOLLY_STRINGPIECE_AS_KSTRINGVIEW
 	    : m_rep(s)
+#else
+	// folly is resilient to nullptr assignment, but std::string_view is not
+	// - therefore we protect it
+	: m_rep(s ? s : std::addressof(s_0ch))
+#endif
 	{
 	}
 

@@ -1,5 +1,4 @@
 /*
-//-----------------------------------------------------------------------------//
 //
 // DEKAF(tm): Lighter, Faster, Smarter (tm)
 //
@@ -41,54 +40,21 @@
 */
 
 #include "khttprouter.h"
+#include "khttperror.h"
 #include "klog.h"
 
 namespace dekaf2 {
 
 //-----------------------------------------------------------------------------
-KHTTPRouter::Route::Route(KHTTPMethod _Method, const KString& _sRoute, RouteCallback _Callback)
+KHTTPRoute::KHTTPRoute(KString _sRoute, HTTPCallback _Callback)
 //-----------------------------------------------------------------------------
-	: Method(_Method)
-	, sRoute(_sRoute)
+	: sRoute(std::move(_sRoute))
 	, Callback(_Callback)
 {
 }
 
 //-----------------------------------------------------------------------------
-KHTTPRouter::~KHTTPRouter()
-//-----------------------------------------------------------------------------
-{
-}
-
-//-----------------------------------------------------------------------------
-bool KHTTPRouter::Execute()
-//-----------------------------------------------------------------------------
-{
-
-	return false;
-
-} // Execute
-
-//-----------------------------------------------------------------------------
-bool KHTTPRouter::SetBaseRoute(KStringView sBaseRoute)
-//-----------------------------------------------------------------------------
-{
-	m_sBaseRoute = m_sBaseRoute;
-
-	return true;
-
-} // SetBaseRoute
-
-//-----------------------------------------------------------------------------
-void KHTTPRouter::SetStaticRouteTable(const StaticRoute* StaticRoutes)
-//-----------------------------------------------------------------------------
-{
-	m_StaticRoutes = StaticRoutes;
-
-} // SetStaticRouteTable
-
-//-----------------------------------------------------------------------------
-bool KHTTPRouter::AddRoute(const Route& _Route)
+bool KHTTPRoutes::AddRoute(const KHTTPRoute& _Route)
 //-----------------------------------------------------------------------------
 {
 	m_Routes.push_back(_Route);
@@ -97,35 +63,99 @@ bool KHTTPRouter::AddRoute(const Route& _Route)
 } // AddRoute
 
 //-----------------------------------------------------------------------------
-bool KHTTPRouter::AddRoute(KStringView sRoute, RouteCallback Callback, const KHTTPMethod& Method)
+bool KHTTPRoutes::AddRoute(KHTTPRoute&& _Route)
 //-----------------------------------------------------------------------------
 {
-	return AddRoute(Route(Method, sRoute, Callback));
+	m_Routes.push_back(std::move(_Route));
+	return true;
 
 } // AddRoute
 
 //-----------------------------------------------------------------------------
-void KHTTPRouter::SetDefaultRoute(RouteCallback Callback)
+void KHTTPRoutes::SetDefaultRoute(KHTTPRoute::HTTPCallback Callback)
 //-----------------------------------------------------------------------------
 {
-	m_DefaultRoute = Callback;
+	m_DefaultRoute.Callback = Callback;
 
 } // SetDefaultRoute
 
 //-----------------------------------------------------------------------------
-void KHTTPRouter::ErrorHandler()
+void KHTTPRoutes::clear()
+//-----------------------------------------------------------------------------
+{
+	m_Routes.clear();
+	m_DefaultRoute.Callback = nullptr;
+
+} // clear
+
+//-----------------------------------------------------------------------------
+const KHTTPRoute& KHTTPRoutes::FindRoute(const KHTTPRoute& Route) const
+//-----------------------------------------------------------------------------
+{
+	for (const auto& it : m_Routes)
+	{
+		if (DEKAF2_UNLIKELY(Route.sRoute == it.sRoute))
+		{
+			return it;
+		}
+	}
+
+	if (m_DefaultRoute.Callback)
+	{
+		return m_DefaultRoute;
+	}
+
+	throw KHTTPError { KHTTPError::H4xx_NOTFOUND, kFormat("unknown address {}", Route.sRoute) };
+
+} // FindRoute
+
+//-----------------------------------------------------------------------------
+KHTTPRouter::~KHTTPRouter()
+//-----------------------------------------------------------------------------
+{
+}
+
+//-----------------------------------------------------------------------------
+bool KHTTPRouter::Execute(const KHTTPRoutes& Routes, KStringView sBaseRoute)
+//-----------------------------------------------------------------------------
+{
+	try
+	{
+		KStringView sURLPath = Request.Resource.Path;
+
+		// remove_prefix is true when called with empty argument or with matching argument
+		if (!sURLPath.remove_prefix(sBaseRoute))
+		{
+			// bad prefix
+			throw KHTTPError { KHTTPError::H4xx_NOTFOUND, kFormat("url does not start with {}", sBaseRoute) };
+		}
+
+		auto Route = Routes.FindRoute(KHTTPRoute(sURLPath));
+
+		if (!Route.Callback)
+		{
+			throw KHTTPError { KHTTPError::H5xx_ERROR, kFormat("empty callback for {}", sURLPath) };
+		}
+
+		Route.Callback(*this);
+
+		return true;
+	}
+
+	catch (const std::exception& ex)
+	{
+		ErrorHandler(ex);
+	}
+
+	return false;
+
+} // Execute
+
+//-----------------------------------------------------------------------------
+void KHTTPRouter::ErrorHandler(const std::exception& ex)
 //-----------------------------------------------------------------------------
 {
 
 } // ErrorHandler
-
-//-----------------------------------------------------------------------------
-KHTTPRouter::Routes::const_iterator KHTTPRouter::FindRoute(KStringView sPath) const
-//-----------------------------------------------------------------------------
-{
-
-	return m_Routes.end();
-
-} // FindRoute
 
 } // end of namespace dekaf2

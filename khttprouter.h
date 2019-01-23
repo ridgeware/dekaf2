@@ -1,5 +1,4 @@
 /*
-//-----------------------------------------------------------------------------//
 //
 // DEKAF(tm): Lighter, Faster, Smarter (tm)
 //
@@ -42,6 +41,7 @@
 
 #pragma once
 
+#include <vector>
 #include "khttpserver.h"
 #include "khttp_method.h"
 #include "kstring.h"
@@ -54,6 +54,56 @@
 namespace dekaf2 {
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+class KHTTPRoute
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+//------
+public:
+//------
+
+	using HTTPCallback = std::function<void(KHTTPServer&)>;
+
+	KHTTPRoute(KString _sRoute, HTTPCallback _Callback = nullptr);
+
+	KString sRoute;       	// e.g. "/some/path/index.html" or "/help"
+	HTTPCallback Callback;
+
+//------
+private:
+//------
+
+}; // KHTTPRoute
+
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+class KHTTPRoutes
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+//------
+public:
+//------
+
+	bool AddRoute(const KHTTPRoute& _Route);
+	bool AddRoute(KHTTPRoute&& _Route);
+	void SetDefaultRoute(KHTTPRoute::HTTPCallback Callback);
+	void clear();
+
+	/// throws if no matching route found
+	const KHTTPRoute& FindRoute(const KHTTPRoute& Route) const;
+
+//------
+private:
+//------
+
+	using Routes = std::vector<KHTTPRoute>;
+
+	Routes m_Routes;
+	KHTTPRoute m_DefaultRoute;
+
+}; // KHTTPRoutes
+
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class KHTTPRouter : public KHTTPServer
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -64,58 +114,21 @@ public:
 
 	virtual ~KHTTPRouter();
 
-	using RouteCallback = std::function<void(void)>;
-
-	struct StaticRoute
-	{
-		KStringView Method;      // e.g. GET, or empty for all
-		KStringView sRoute;      // e.g. "/employee/:id/address" or "/help"
-		RouteCallback Callback;
-	};
-
-	struct Route
-	{
-		Route(KHTTPMethod _Method, const KString& _sRoute, RouteCallback _Callback);
-
-		KHTTPMethod Method;  	// e.g. GET, or empty for all
-		KString sRoute;       	// e.g. "/employee/:id/address" or "/help"
-		RouteCallback Callback;
-	};
-
 	// forward constructors
 	using KHTTPServer::KHTTPServer;
 
 	/// handler for one request
-	bool Execute();
-
-	bool SetBaseRoute(KStringView sBaseRoute);
-	void SetStaticRouteTable(const StaticRoute* StaticRoutes);
-	bool AddRoute(const Route& _Route);
-	bool AddRoute(KStringView sRoute, RouteCallback Callback, const KHTTPMethod& Method = KHTTPMethod(""));
-	void SetDefaultRoute(RouteCallback Callback);
-
-//------
-private:
-//------
-
-	KString m_sBaseRoute;    // e.g. "/HR/v1"
-
-	const StaticRoute* m_StaticRoutes;
-
-	using Routes = std::vector<Route>;
-
-	Routes m_Routes;
-
-	RouteCallback m_DefaultRoute;
+	bool Execute(const KHTTPRoutes& Routes, KStringView sBaseRoute);
 
 //------
 protected:
 //------
 
-	virtual void ErrorHandler();
+	virtual void ErrorHandler(const std::exception& ex);
 
-	Routes::const_iterator FindRoute(KStringView sPath) const;
-
+//------
+private:
+//------
 
 }; // KHTTPRouter
 

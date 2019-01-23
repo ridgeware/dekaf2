@@ -82,6 +82,13 @@ public:
 		return Serialize();
 	}
 
+	//-----------------------------------------------------------------------------
+	bool empty() const
+	//-----------------------------------------------------------------------------
+	{
+		return m_method.empty();
+	}
+
 	static constexpr KStringViewZ GET     = "GET";
 	static constexpr KStringViewZ HEAD    = "HEAD";
 	static constexpr KStringViewZ POST    = "POST";

@@ -398,6 +398,7 @@ set(PUBLIC_HEADERS
 	khtmlcontentblocks.h
 	khtmlparser.h
 	khttpclient.h
+	khttperror.h
 	khttpinputfilter.h
 	khttpoutputfilter.h
 	khttprouter.h
@@ -520,6 +521,7 @@ set (SOURCES
 	khtmlcontentblocks.cpp
 	khtmlparser.cpp
 	khttpclient.cpp
+	khttperror.cpp
 	khttpinputfilter.cpp
 	khttpoutputfilter.cpp
 	khttprouter.cpp

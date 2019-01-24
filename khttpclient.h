@@ -174,6 +174,24 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// evaluates the http status code after a request and returns true 200 >= code <= 299
+	bool HttpSuccess() const
+	//-----------------------------------------------------------------------------
+	{
+		//return ((GetStatusCode() >= 200) && (GetStatusCode() <= 299));
+		return Response.Good();
+	}
+
+	//-----------------------------------------------------------------------------
+	/// evaluates the http status code after a request and returns true if !HttpSuccess()
+	bool HttpFailure() const
+	//-----------------------------------------------------------------------------
+	{
+		//return (!HttpSuccess());
+		return !(Response.Good());
+	}
+
+	//-----------------------------------------------------------------------------
 	const KString& Error() const
 	//-----------------------------------------------------------------------------
 	{
@@ -212,37 +230,66 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Get from URL, store response body in return value KString
-	KString Get(const KURL& URL);
+	KString Get(const KURL& URL)
 	//-----------------------------------------------------------------------------
+	{
+		return HttpRequest (URL);
+	}
 
 	//-----------------------------------------------------------------------------
 	/// Get from URL, store response body in return value KString
-	KString Options(const KURL& URL);
+	KString Options(const KURL& URL)
 	//-----------------------------------------------------------------------------
+	{
+		return HttpRequest (URL, KHTTPMethod::OPTIONS);
+	}
 
 	//-----------------------------------------------------------------------------
 	/// Post to URL, store response body in return value KString
-	KString Post(const KURL& URL, KStringView svRequestBody, KMIME Mime);
+	KString Post(const KURL& URL, KStringView svRequestBody, KMIME Mime)
 	//-----------------------------------------------------------------------------
+	{
+		return HttpRequest (URL, KHTTPMethod::POST, svRequestBody, Mime);
+	}
 
 	//-----------------------------------------------------------------------------
 	/// Deletes URL, store response body in return value KString
-	KString Delete(const KURL& URL, KStringView svRequestBody, KMIME Mime);
+	KString Delete(const KURL& URL, KStringView svRequestBody, KMIME Mime)
 	//-----------------------------------------------------------------------------
+	{
+		return HttpRequest (URL, KHTTPMethod::DELETE, svRequestBody, Mime);
+	}
 
 	//-----------------------------------------------------------------------------
 	/// Head from URL - returns true if response is in the 2xx range
-	bool Head(const KURL& URL);
+	bool Head(const KURL& URL)
 	//-----------------------------------------------------------------------------
+	{
+		HttpRequest (URL, KHTTPMethod::HEAD);
+		return HttpSuccess();
+	}
 
 	//-----------------------------------------------------------------------------
 	/// Put to URL - returns true if response is in the 2xx range
-	bool Put(const KURL& URL, KStringView svRequestBody, KMIME Mime);
+	bool Put(const KURL& URL, KStringView svRequestBody, KMIME Mime)
 	//-----------------------------------------------------------------------------
+	{
+		HttpRequest (URL, KHTTPMethod::PUT, svRequestBody, Mime);
+		return HttpSuccess();
+	}
 
 	//-----------------------------------------------------------------------------
 	/// Patch URL - returns true if response is in the 2xx range
-	bool Patch(const KURL& URL, KStringView svRequestBody, KMIME Mime);
+	bool Patch(const KURL& URL, KStringView svRequestBody, KMIME Mime)
+	//-----------------------------------------------------------------------------
+	{
+		HttpRequest (URL, KHTTPMethod::PATCH, svRequestBody, Mime);
+		return HttpSuccess();
+	}
+
+	//-----------------------------------------------------------------------------
+	/// Send given request method and return raw response as a string
+	KString HttpRequest (const KURL& URL, KStringView sRequestMethod=KHTTPMethod::GET, KStringView svRequestBody="", KMIME Mime=KMIME::JSON);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------

@@ -58,6 +58,38 @@ class KREST
 public:
 //----------
 
+	enum ServerType { HTTP, UNIX, CGI, LAMBDA, SIMULATE_HTTP };
+
+	struct Options
+	{
+		ServerType Type;
+		uint16_t iPort { 0 };
+		uint16_t iMaxConnections { 20 };
+		KStringView sSocketFile;
+		KStringView sCert;
+		KStringView sKey;
+		KStringView sBaseRoute;
+	};
+
+	bool Execute(const Options& Params, const KRESTRoutes& Routes);
+	bool ExecuteFromFile(const Options& Params, const KRESTRoutes& Routes, KStringView sFilename);
+
+	bool Good() const;
+	const KString& Error() const;
+
+//----------
+protected:
+//----------
+
+	bool RealExecute(KStream& Stream, const Options& Params, const KRESTRoutes& Routes, KStringView sRemoteIP = "0.0.0.0");
+	bool SetError(KStringView sError);
+
+//----------
+private:
+//----------
+
+	KString m_sError;
+
 }; // KREST
 
 } // end of namespace dekaf2

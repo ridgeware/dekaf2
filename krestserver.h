@@ -93,6 +93,8 @@ public:
 
 	using Parameters = std::vector<std::pair<KStringView, KStringView>>;
 
+	KRESTRoutes(KRESTRoute::RESTCallback DefaultRoute = nullptr);
+
 	bool AddRoute(const KRESTRoute& _Route);
 	bool AddRoute(KRESTRoute&& _Route);
 	void SetDefaultRoute(KRESTRoute::RESTCallback Callback);

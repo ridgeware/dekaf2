@@ -121,6 +121,16 @@ bool KHTTPRouter::Execute(const KHTTPRoutes& Routes, KStringView sBaseRoute)
 {
 	try
 	{
+		Response.clear();
+
+		if (!KHTTPServer::Parse())
+		{
+			throw KHTTPError  { KHTTPError::H4xx_BADREQUEST, KHTTPServer::Error() };
+		}
+
+		Response.SetStatus(200, "OK");
+		Response.sHTTPVersion = Request.sHTTPVersion;
+
 		KStringView sURLPath = Request.Resource.Path;
 
 		// remove_prefix is true when called with empty argument or with matching argument

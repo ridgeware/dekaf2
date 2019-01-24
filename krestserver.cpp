@@ -69,6 +69,13 @@ size_t KRESTRoute::SplitURL(URLParts& Parts, KStringView sURLPath)
 } // SplitURL
 
 //-----------------------------------------------------------------------------
+KRESTRoutes::KRESTRoutes(KRESTRoute::RESTCallback DefaultRoute)
+//-----------------------------------------------------------------------------
+	: m_DefaultRoute(KRESTRoute(KHTTPMethod{}, KString{}, DefaultRoute))
+{
+}
+
+//-----------------------------------------------------------------------------
 bool KRESTRoutes::AddRoute(const KRESTRoute& _Route)
 //-----------------------------------------------------------------------------
 {
@@ -171,7 +178,7 @@ const KRESTRoute& KRESTRoutes::FindRoute(const KRESTRoute& Route, Parameters& Pa
 		return m_DefaultRoute;
 	}
 
-	throw KHTTPError { KHTTPError::H4xx_NOTFOUND, kFormat("unknown address {}", Route.sRoute) };
+	throw KHTTPError { KHTTPError::H4xx_NOTFOUND, kFormat("method: {}, unknown address {}", Route.Method.Serialize(), Route.sRoute) };
 
 } // FindRoute
 
@@ -201,6 +208,12 @@ bool KRESTServer::Execute(const KRESTRoutes& Routes, KStringView sBaseRoute, Out
 	{
 		json.clear();
 		Response.clear();
+
+		if (!KHTTPServer::Parse())
+		{
+			throw KHTTPError  { KHTTPError::H4xx_BADREQUEST, KHTTPServer::Error() };
+		}
+
 		Response.SetStatus(200, "OK");
 		Response.sHTTPVersion = Request.sHTTPVersion;
 

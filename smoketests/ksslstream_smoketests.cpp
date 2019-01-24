@@ -79,6 +79,20 @@ TEST_CASE("KSSLClient 3")
 	CHECK ( HTTP.Error() == "Host not found (authoritative)" );
 }
 
+TEST_CASE("KSSLClient 4")
+{
+	// we use github as a lickmus test to see if our SSL stack
+	// supports TLS 1.2/1.3 (as github removed support for older
+	// versions)
+	KString sURL {"https://github.com"};
+	KHTTPClient HTTP;
+	HTTP.SetTimeout(1);
+	KString sResponse = HTTP.Get (sURL);
+	INFO  ( "Verify TLS 1.2/1.3 support" );
+	CHECK ( !sResponse.empty() );
+	CHECK ( HTTP.Response.iStatusCode == 200 );
+}
+
 TEST_CASE("name resolution")
 {
 	auto sIP = kResolveHostIPV4("www.google.com");

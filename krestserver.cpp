@@ -46,16 +46,15 @@
 namespace dekaf2 {
 
 //-----------------------------------------------------------------------------
-KRESTRoute::KRESTRoute(KHTTPMethod _Method, KString _sRoute, RESTCallback _Callback)
+KRESTRoute::KRESTRoute(KHTTPMethod _Method, KStringView _sRoute, RESTCallback _Callback)
 //-----------------------------------------------------------------------------
-	: Method(_Method)
-	, sRoute(_sRoute)
-	, Callback(_Callback)
+	: Method(std::move(_Method))
+	, sRoute(std::move(_sRoute))
+	, Callback(std::move(_Callback))
 {
 	if (sRoute.front() != '/')
 	{
-		kDebug(1, "route does not start with a slash - will add it now: {}", sRoute);
-		sRoute.insert(sRoute.begin(), 1, '/');
+		kWarning("error: route does not start with a slash: {}", sRoute);
 	}
 	bHasParameters = sRoute.Contains("/:");
 	SplitURL(vURLParts, sRoute);
@@ -126,32 +125,28 @@ const KRESTRoute& KRESTRoutes::FindRoute(const KRESTRoute& Route, Parameters& Pa
 			if (!it.bHasParameters)
 			{
 				// this is a plain route - we do not check part by part
-				if (DEKAF2_UNLIKELY(Route.sRoute.StartsWith(it.sRoute)))
+				if (DEKAF2_UNLIKELY(Route.sRoute == it.sRoute))
 				{
-					// now check if this is a full match or if the match ends in a slash
-					if (it.sRoute.size() == Route.sRoute.size() || Route.sRoute[it.sRoute.size()] == '/')
-					{
-						return it;
-					}
+					return it;
 				}
 			}
 			else
 			{
 				// we have parameters, check part for part of the route
-				if (it.vURLParts.size() <= Route.vURLParts.size())
+				if (it.vURLParts.size() == Route.vURLParts.size())
 				{
 					Params.clear();
 					auto req = Route.vURLParts.cbegin();
 					bool bFound { true };
 
-					for (auto part : it.vURLParts)
+					for (auto& part : it.vURLParts)
 					{
 						if (DEKAF2_LIKELY(part != *req))
 						{
 							if (DEKAF2_UNLIKELY(part.front() == ':'))
 							{
 								// this is a variable
-								auto sName = part;
+								KStringView sName = part;
 								// remove the colon
 								sName.remove_prefix(1);
 								// and add the value to our temporary query parms

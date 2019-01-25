@@ -64,9 +64,11 @@ public:
 
 	using HTTPCallback = std::function<void(KHTTPServer&)>;
 
-	KHTTPRoute(KString _sRoute, HTTPCallback _Callback = nullptr);
+	/// Construct a HTTP route. Notice that _sRoute is a KStringView, and the pointed-to
+	/// string must stay visible during the lifetime of this class
+	KHTTPRoute(KStringView _sRoute, HTTPCallback _Callback = nullptr);
 
-	KString sRoute;       	// e.g. "/some/path/index.html" or "/help"
+	KStringView sRoute;      // e.g. "/some/path/index.html" or "/help"
 	HTTPCallback Callback;
 
 //------
@@ -84,8 +86,37 @@ class KHTTPRoutes
 public:
 //------
 
+	typedef void (*HTTPHandler)(KHTTPServer& REST);
+
+	struct RouteTable
+	{
+		KStringView sMethod;
+		KStringView sRoute;
+		HTTPHandler Handler;
+	};
+
+	/// Add a HTTP route. Notice that _Route contains a KStringView, of which the pointed-to
+	/// string must stay visible during the lifetime of this class
 	bool AddRoute(const KHTTPRoute& _Route);
+
+	/// Add a HTTP route. Notice that _Route contains a KStringView, of which the pointed-to
+	/// string must stay visible during the lifetime of this class
 	bool AddRoute(KHTTPRoute&& _Route);
+
+	template<std::size_t COUNT>
+	bool AddRouteTable(const RouteTable (&Routes)[COUNT])
+	{
+		m_Routes.reserve(m_Routes.size() + COUNT);
+		for (size_t i = 0; i < COUNT; ++i)
+		{
+			if (!AddRoute(KHTTPRoute(Routes[i].sRoute, Routes[i].Handler)))
+			{
+				return false;
+			}
+		}
+		return true;
+	}
+
 	void SetDefaultRoute(KHTTPRoute::HTTPCallback Callback);
 	void clear();
 

@@ -66,12 +66,14 @@ public:
 	using RESTCallback = std::function<void(KRESTServer&)>;
 	using URLParts = std::vector<KStringView>;
 
-	KRESTRoute(KHTTPMethod _Method, KString _sRoute, RESTCallback _Callback = nullptr);
+	/// Construct a REST route. Notice that _sRoute is a KStringView, and the pointed-to
+	/// string must stay visible during the lifetime of this class
+	KRESTRoute(KHTTPMethod _Method, KStringView _sRoute, RESTCallback _Callback = nullptr);
 
 	static size_t SplitURL(URLParts& Parts, KStringView sURLPath);
 
 	KHTTPMethod Method;  	// e.g. GET, or empty for all
-	KString sRoute;       	// e.g. "/employee/:id/address" or "/help"
+	KStringView sRoute;     // e.g. "/employee/:id/address" or "/help"
 	RESTCallback Callback;
 	URLParts vURLParts;
 	bool bHasParameters { false };
@@ -91,12 +93,41 @@ class KRESTRoutes
 public:
 //------
 
+	typedef void (*RESTHandler)(KRESTServer& REST);
+
+	struct RouteTable
+	{
+		KStringView sMethod;
+		KStringView sRoute;
+		RESTHandler Handler;
+	};
+
 	using Parameters = std::vector<std::pair<KStringView, KStringView>>;
 
 	KRESTRoutes(KRESTRoute::RESTCallback DefaultRoute = nullptr);
 
+	/// Add a REST route. Notice that _Route contains a KStringView, of which the pointed-to
+	/// string must stay visible during the lifetime of this class
 	bool AddRoute(const KRESTRoute& _Route);
+
+	/// Add a REST route. Notice that _Route contains a KStringView, of which the pointed-to
+	/// string must stay visible during the lifetime of this class
 	bool AddRoute(KRESTRoute&& _Route);
+
+	template<std::size_t COUNT>
+	bool AddRouteTable(const RouteTable (&Routes)[COUNT])
+	{
+		m_Routes.reserve(m_Routes.size() + COUNT);
+		for (size_t i = 0; i < COUNT; ++i)
+		{
+			if (!AddRoute(KRESTRoute(Routes[i].sMethod, Routes[i].sRoute, Routes[i].Handler)))
+			{
+				return false;
+			}
+		}
+		return true;
+	}
+
 	void SetDefaultRoute(KRESTRoute::RESTCallback Callback);
 	void clear();
 

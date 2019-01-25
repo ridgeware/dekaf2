@@ -5,6 +5,10 @@
 
 using namespace dekaf2;
 
+void rest_test(KRESTServer& REST)
+{
+}
+
 TEST_CASE("KREST")
 {
 	SECTION("HTTP SIM")
@@ -33,18 +37,18 @@ TEST_CASE("KREST")
 			bCalledNoSlashPath = true;
 		}});
 
-		KString sName;
-
-		Routes.AddRoute({ KHTTPMethod::GET, "/user/:NAME/address", [&](KRESTServer& http)
-		{
-			sName = http.Request.Resource.Query["NAME"];
-		}});
-
 		KString sUID;
 
 		Routes.AddRoute({ KHTTPMethod::GET, "/user/:UID", [&](KRESTServer& http)
 		{
 			sUID = http.Request.Resource.Query["UID"];
+		}});
+
+		KString sName;
+
+		Routes.AddRoute({ KHTTPMethod::GET, "/user/:NAME/address", [&](KRESTServer& http)
+		{
+			sName = http.Request.Resource.Query["NAME"];
 		}});
 
 		Routes.AddRoute({ KHTTPMethod::GET, "/throw", [&](KRESTServer& http)
@@ -83,10 +87,10 @@ TEST_CASE("KREST")
 		CHECK ( bCalledNoSlashPath == false );
 
 		sOut.clear();
-		CHECK ( REST.ExecuteFromFile(Options, Routes, "/noslashpath", oss) == true );
+		CHECK ( REST.ExecuteFromFile(Options, Routes, "/noslashpath", oss) == false );
 		CHECK ( bCalledTest == true  );
 		CHECK ( bCalledHelp == true  );
-		CHECK ( bCalledNoSlashPath == true );
+		CHECK ( bCalledNoSlashPath == false );
 		CHECK ( sUID == "" );
 		CHECK ( sName == "" );
 
@@ -94,7 +98,7 @@ TEST_CASE("KREST")
 		CHECK ( REST.ExecuteFromFile(Options, Routes, "/user/7654", oss) == true );
 		CHECK ( bCalledTest == true  );
 		CHECK ( bCalledHelp == true  );
-		CHECK ( bCalledNoSlashPath == true );
+		CHECK ( bCalledNoSlashPath == false );
 		CHECK ( sUID == "7654" );
 		CHECK ( sName == "" );
 
@@ -102,7 +106,7 @@ TEST_CASE("KREST")
 		CHECK ( REST.ExecuteFromFile(Options, Routes, "/user/Peter/address", oss) == true );
 		CHECK ( bCalledTest == true  );
 		CHECK ( bCalledHelp == true  );
-		CHECK ( bCalledNoSlashPath == true );
+		CHECK ( bCalledNoSlashPath == false );
 		CHECK ( sUID == "7654" );
 		CHECK ( sName == "Peter" );
 
@@ -116,7 +120,7 @@ TEST_CASE("KREST")
 		CHECK ( sOut == sCompare );
 		CHECK ( bCalledTest == true  );
 		CHECK ( bCalledHelp == true  );
-		CHECK ( bCalledNoSlashPath == true );
+		CHECK ( bCalledNoSlashPath == false );
 		CHECK ( sUID == "7654" );
 		CHECK ( sName == "Peter" );
 
@@ -130,9 +134,58 @@ TEST_CASE("KREST")
 		CHECK ( sOut == sCompare );
 		CHECK ( bCalledTest == true  );
 		CHECK ( bCalledHelp == true  );
-		CHECK ( bCalledNoSlashPath == true );
+		CHECK ( bCalledNoSlashPath == false );
 		CHECK ( sUID == "7654" );
 		CHECK ( sName == "Peter" );
+
+	}
+
+	SECTION("HTTP SIM STATIC TABLE")
+	{
+		constexpr KRESTRoutes::RouteTable RTable[]
+		{
+			{ "GET", "/test",               rest_test },
+			{ "GET", "/help",               rest_test },
+			{ "GET", "noslashpath",         rest_test },
+			{ "GET", "/user/:NAME/address", rest_test },
+			{ "GET", "/user/:UID",          rest_test },
+		};
+
+		KRESTRoutes Routes;
+
+		Routes.AddRouteTable(RTable);
+
+		KString sOut;
+		KOutStringStream oss(sOut);
+
+		KREST::Options Options;
+		Options.Type = KREST::SIMULATE_HTTP;
+
+		KREST REST;
+
+		sOut.clear();
+		CHECK ( REST.ExecuteFromFile(Options, Routes, "/test", oss) == true );
+
+		sOut.clear();
+		CHECK ( REST.ExecuteFromFile(Options, Routes, "/help", oss) == true );
+
+		sOut.clear();
+		CHECK ( REST.ExecuteFromFile(Options, Routes, "/noslashpath", oss) == false );
+
+		sOut.clear();
+		CHECK ( REST.ExecuteFromFile(Options, Routes, "/user/7654", oss) == true );
+
+		sOut.clear();
+		CHECK ( REST.ExecuteFromFile(Options, Routes, "/user/Peter/address", oss) == true );
+
+		sOut.clear();
+#ifdef NDEBUG
+		KString sCompare = "HTTP/1.0 404 NOT FOUND\r\nContent-Length: 44\r\nConnection: close\r\n\r\n{\"message\":\"unknown address: GET /unknown\"}\n";
+#else
+		KString sCompare = "HTTP/1.0 404 NOT FOUND\r\nContent-Length: 48\r\nConnection: close\r\n\r\n{\n\t\"message\": \"unknown address: GET /unknown\"\n}\n";
+#endif
+		CHECK ( REST.ExecuteFromFile(Options, Routes, "/unknown", oss) == false );
+		CHECK ( sOut == sCompare );
 
 	}
 

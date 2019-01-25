@@ -60,7 +60,7 @@ uint16_t KHTTPError::GetHTTPStatusCode() const
 	// differentiate the response for the various request types
 	if (iStatusCode >= 290 && iStatusCode <= 292)
 	{
-		return 201;
+		return (iStatusCode == 292) ? 200 : 201;
 	}
 	else
 	{

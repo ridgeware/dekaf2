@@ -183,7 +183,7 @@ const KRESTRoute& KRESTRoutes::FindRoute(const KRESTRoute& Route, Parameters& Pa
 		return m_DefaultRoute;
 	}
 
-	throw KHTTPError { KHTTPError::H4xx_NOTFOUND, kFormat("method: {}, unknown address {}", Route.Method.Serialize(), Route.sRoute) };
+	throw KHTTPError { KHTTPError::H4xx_NOTFOUND, kFormat("unknown address: {} {}", Route.Method.Serialize(), Route.sRoute) };
 
 } // FindRoute
 
@@ -391,7 +391,14 @@ void KRESTServer::ErrorHandler(const std::exception& ex, OutputType Out)
 {
 	const KHTTPError* xex = dynamic_cast<const KHTTPError*>(&ex);
 
-	SetStatus( xex ? xex->GetRawStatusCode() : KHTTPError::H5xx_ERROR);
+	if (xex)
+	{
+		Response.SetStatus(xex->GetHTTPStatusCode(), xex->GetHTTPStatusString());
+	}
+	else
+	{
+		Response.SetStatus(KHTTPError::H5xx_ERROR, "INTERNAL SERVER ERROR");
+	}
 
 	KStringView sError = ex.what();
 

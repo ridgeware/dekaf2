@@ -58,17 +58,32 @@ int16_t detail::KCommonSQLBase::m_iDebugLevel { 2 };
 KString KROW::ColumnInfoForLogOutput (const KCOLS::value_type& it, Index iCol) const
 //-----------------------------------------------------------------------------
 {
-	return kFormat("  col[{:>02}]: {:<25} {}{}{}{}{}{}",
+	return kFormat("  col[{:>02}]: {:<25} {}",
 		    iCol,
 		    it.first,
-		    !it.second.IsFlag (PKEY)       ? "" : " [PKEY]",
-		    !it.second.IsFlag (NONCOLUMN)  ? "" : " [NONCOLUMN]",
-		    !it.second.IsFlag (EXPRESSION) ? "" : " [EXPRESSION]",
-			!it.second.HasFlag(NUMERIC | INT64NUMERIC) ? "" : it.second.IsFlag(INT64NUMERIC) ? " [INT64NUMERIC]" : " [NUMERIC]",
-		    !it.second.IsFlag (JSON)       ? "" : " [JSON]",
-		    !it.second.IsFlag (BOOLEAN)    ? "" : " [BOOLEAN]");
+			FlagsToString(it.second.GetFlags()));
 
 } // ColumnInfoForLogOutput
+
+//-----------------------------------------------------------------------------
+KString KROW::FlagsToString (uint64_t iFlags)
+//-----------------------------------------------------------------------------
+{
+	KString sPretty;
+
+	if (iFlags & PKEY)            {  sPretty += "[PKEY]";            }
+	if (iFlags & NONCOLUMN)       {  sPretty += "[NONCOLUMN]";       }
+	if (iFlags & EXPRESSION)      {  sPretty += "[EXPRESSION]";      }
+	if (iFlags & INSERTONLY)      {  sPretty += "[INSERTONLY]";      }
+	if (iFlags & NUMERIC)         {  sPretty += "[NUMERIC]";         }
+	if (iFlags & NULL_IS_NOT_NIL) {  sPretty += "[NULL_IS_NOT_NIL]"; }
+	if (iFlags & BOOLEAN)         {  sPretty += "[BOOLEAN]";         }
+	if (iFlags & JSON)            {  sPretty += "[JSON]";            }
+	if (iFlags & INT64NUMERIC)    {  sPretty += "[INT64NUMERIC]";    }
+
+	return (sPretty);
+
+} // FlagsToString
 
 //-----------------------------------------------------------------------------
 void KROW::LogRowLayout(int iLogLevel) const
@@ -457,6 +472,8 @@ KJSON KROW::to_json () const
 
 	for (auto& col : *this)
 	{
+		kDebugLog (3, "KROW::to_json: {:35}: 0x{:08x} = {}", col.first, col.second.GetFlags(), KROW::FlagsToString(col.second.GetFlags()));
+
 		if (col.second.IsFlag(NONCOLUMN))
 		{
 			continue;
@@ -465,7 +482,16 @@ KJSON KROW::to_json () const
 		{
 			// large integers > 53 bits have no representation in JSON and need to
 			// be stored as string values..
-			json[col.first] = col.second.sValue;
+			json[col.first] = col.second.sValue; // FIX ME !!!!
+
+			// TODO: Joachim: we need to solved this "large int" problem in KJSON/LJSON
+			// Almost all the integer fields in the database that we care about (or compute)
+			// are being serialized as strings in JSON.
+			// Client-side JavaScript (i.e. UI code) is treating them as strings.
+			// Operations like "+" and "+=" end up doing string concatenation instead of math.
+			// Can we fix Lohmann's datatypes or some such?
+			// Maybe we need to reach out to him personally.
+			// We con consider a consulting fee for him if necessary.
 		}
 		else if (col.second.IsFlag(NUMERIC))
 		{
@@ -532,8 +558,7 @@ KJSON KROW::to_json () const
 
 	return json;
 
-} // json
-
+} // to_json
 
 //-----------------------------------------------------------------------------
 KROW& KROW::operator+=(const KJSON& json)

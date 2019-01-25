@@ -218,7 +218,7 @@ void* kmalloc (uint32_t iNumBytes, const char* pszContext, bool bClearMemory = t
 } // kmalloc 
 
 //-----------------------------------------------------------------------------
-void KSQL::KColInfo::SetColumnType(DBT iDBType, int iNativeDataType, KCOL::Len _iMaxDataLen)
+void KSQL::KColInfo::SetColumnType (DBT iDBType, int iNativeDataType, KCOL::Len _iMaxDataLen)
 //-----------------------------------------------------------------------------
 {
 	iMaxDataLen = _iMaxDataLen;
@@ -477,7 +477,7 @@ bool KSQL::SetConnect (DBT iDBType, KStringView sUsername, KStringView sPassword
 
 	SetAPISet (API::NONE); // <-- pick the default APIs for this DBType
 	FormatConnectSummary();
-	kDebug(1, "{}", ConnectSummary());
+	kDebugLog (1, "{}", ConnectSummary());
 
 	return (true);
 
@@ -1370,13 +1370,13 @@ bool KSQL::ExecRawSQL (KStringView sSQL, Flags iFlags/*=0*/, KStringView sAPI/*=
 			{
 				if (!m_dMYSQL)
 				{
-					kDebug (1, "KSQL::ExecRawSQL: lost m_dMYSQL pointer.  Reopening connection ...");
+					kDebugLog (1, "KSQL::ExecRawSQL: lost m_dMYSQL pointer.  Reopening connection ...");
 					CloseConnection();
 					OpenConnection();
 				}
 				if (!m_dMYSQL)
 				{
-					kDebug (1, "KSQL::ExecRawSQL: failed.  aborting query or SQL:\n{}", sSQL);
+					kDebugLog (1, "KSQL::ExecRawSQL: failed.  aborting query or SQL:\n{}", sSQL);
 					break; // once
 				}
 				kDebugLog (3, "mysql_query(): m_dMYSQL is {}, SQL is {} bytes long", m_dMYSQL ? "not null" : "nullptr", sSQL.size());
@@ -2179,7 +2179,9 @@ bool KSQL::ExecRawQuery (KStringView sSQL, Flags iFlags/*=0*/, KStringView sAPI/
 				KColInfo ColInfo;
 
 				ColInfo.sColName = pField->name;
-				ColInfo.SetColumnType(DBT::MYSQL, pField->type, pField->length);
+				ColInfo.SetColumnType (DBT::MYSQL, pField->type, pField->length);
+				kDebugLog (3, "KSQL: col {:35} mysql_datatype: {:4} => ksql_flags: 0x{:08x} = {}",
+					ColInfo.sColName, pField->type, ColInfo.iKSQLDataType, KROW::FlagsToString(ColInfo.iKSQLDataType));
 
 				m_dColInfo.push_back(std::move(ColInfo));
 			}

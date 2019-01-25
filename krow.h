@@ -361,11 +361,13 @@ public:
 		BOOLEAN          = 1 << 6,   ///< Indicates given column is a boolean (true/false)
 		JSON             = 1 << 7,   ///< Indicates given column is a JSON object
 		INT64NUMERIC     = 1 << 8    ///< Indicates given column is a NUMERIC, but would overflow in JSON - NUMERIC is also always set when this flag is true
+		// keep list of flags in synch with KROW::FlagsToString() helper function
 	};
 
 	// - - - - - - - - - - - - - - - -
 	// helper functions:
 	// - - - - - - - - - - - - - - - -
+	static KString FlagsToString (uint64_t iFlags);
 	static KString EscapeChars (const KROW::value_type& Col, KStringView sCharsToEscape,
 								KString::value_type iEscapeChar = 0);
 	static KString EscapeChars (const KROW::value_type& Col, DBT iDBType);

@@ -72,7 +72,7 @@ public:
 	};
 
 	bool Execute(const Options& Params, const KRESTRoutes& Routes);
-	bool ExecuteFromFile(const Options& Params, const KRESTRoutes& Routes, KStringView sFilename);
+	bool ExecuteFromFile(const Options& Params, const KRESTRoutes& Routes, KStringView sFilename, KOutStream& OutStream = KOut);
 
 	bool Good() const;
 	const KString& Error() const;

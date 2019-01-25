@@ -51,6 +51,11 @@ KHTTPRoute::KHTTPRoute(KString _sRoute, HTTPCallback _Callback)
 	: sRoute(std::move(_sRoute))
 	, Callback(_Callback)
 {
+	if (sRoute.front() != '/')
+	{
+		kDebug(1, "route does not start with a slash - will add it now: {}", sRoute);
+		sRoute.insert(sRoute.begin(), 1, '/');
+	}
 }
 
 //-----------------------------------------------------------------------------

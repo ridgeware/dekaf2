@@ -52,6 +52,11 @@ KRESTRoute::KRESTRoute(KHTTPMethod _Method, KString _sRoute, RESTCallback _Callb
 	, sRoute(_sRoute)
 	, Callback(_Callback)
 {
+	if (sRoute.front() != '/')
+	{
+		kDebug(1, "route does not start with a slash - will add it now: {}", sRoute);
+		sRoute.insert(sRoute.begin(), 1, '/');
+	}
 	bHasParameters = sRoute.Contains("/:");
 	SplitURL(vURLParts, sRoute);
 
@@ -292,10 +297,13 @@ void KRESTServer::Output(OutputType Out)
 					json.tx["message"] = std::move(m_sMessage);
 				}
 
-				sContent = json.tx.dump(json_pretty, '\t');
+				if (!json.tx.empty())
+				{
+					sContent = json.tx.dump(json_pretty, '\t');
 
-				// ensure that all JSON responses end in a newline:
-				sContent += '\n';
+					// ensure that all JSON responses end in a newline:
+					sContent += '\n';
+				}
 			}
 
 			// compute and set the Content-Length header:
@@ -355,7 +363,11 @@ void KRESTServer::Output(OutputType Out)
 				{
 					json.tx["message"] = std::move(m_sMessage);
 				}
-				Response.UnfilteredStream() << json.tx.dump(json_pretty, '\t');
+				
+				if (!json.tx.empty())
+				{
+					Response.UnfilteredStream() << json.tx.dump(json_pretty, '\t');
+				}
 			}
 		}
 		break;

@@ -183,13 +183,18 @@ bool KREST::Execute(const Options& Params, const KRESTRoutes& Routes)
 } // Execute
 
 //-----------------------------------------------------------------------------
-bool KREST::ExecuteFromFile(const Options& Params, const KRESTRoutes& Routes, KStringView sFilename)
+bool KREST::ExecuteFromFile(const Options& Params, const KRESTRoutes& Routes, KStringView sFilename, KOutStream& OutStream)
 //-----------------------------------------------------------------------------
 {
 	switch (Params.Type)
 	{
 		case SIMULATE_HTTP:
 			{
+				if (sFilename.front() != '/')
+				{
+					kWarning("sFilename does not start with a / - abort : {}", sFilename);
+					return false;
+				}
 				kDebug(3, "simulated CGI request: {}", sFilename);
 				KString sRequest;
 				auto iSplitPostBody = sFilename.find(' ');
@@ -216,7 +221,7 @@ bool KREST::ExecuteFromFile(const Options& Params, const KRESTRoutes& Routes, KS
 									   sFilename);
 				}
 				KInStringStream String(sRequest);
-				KStream Stream(String, KOut);
+				KStream Stream(String, OutStream);
 				return RealExecute(Stream, Params, Routes, "127.0.0.1");
 			}
 			break;
@@ -226,7 +231,7 @@ bool KREST::ExecuteFromFile(const Options& Params, const KRESTRoutes& Routes, KS
 				kDebug(3, "simulated CGI request with input file: {}", sFilename);
 				KInFile File(sFilename);
 				KCGIInStream CGI(File);
-				KStream Stream(CGI, KOut);
+				KStream Stream(CGI, OutStream);
 				return RealExecute(Stream, Params, Routes, "127.0.0.1");
 			}
 			break;
@@ -236,7 +241,7 @@ bool KREST::ExecuteFromFile(const Options& Params, const KRESTRoutes& Routes, KS
 				kDebug(3, "simulated Lambda request with input file: {}", sFilename);
 				KInFile File(sFilename);
 				KLambdaInStream Lambda(File);
-				KStream Stream(Lambda, KOut);
+				KStream Stream(Lambda, OutStream);
 				return RealExecute(Stream, Params, Routes, "127.0.0.1");
 			}
 			break;

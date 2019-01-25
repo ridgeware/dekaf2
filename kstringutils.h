@@ -571,4 +571,25 @@ Integer kToInt(const char* data, size_t size, bool bIsHex = false) noexcept
 	return iVal;
 }
 
+//-----------------------------------------------------------------------------
+template<class First>
+First kFirstNonEmpty(First sFirst)
+//-----------------------------------------------------------------------------
+{
+	return sFirst;
+}
+
+//-----------------------------------------------------------------------------
+/// return the first in a sequence of objects that is not .empty()
+template<class First, class...More, typename std::enable_if<sizeof...(More) != 0, int>::type = 0>
+First kFirstNonEmpty(First sFirst, More&&...more)
+//-----------------------------------------------------------------------------
+{
+	if (!sFirst.empty())
+	{
+		return sFirst;
+	}
+	return kFirstNonEmpty<First>(std::forward<More>(more)...);
+}
+
 } // end of namespace dekaf2

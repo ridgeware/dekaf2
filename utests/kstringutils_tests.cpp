@@ -956,5 +956,13 @@ TEST_CASE("KStringUtils") {
 		CHECK ( kStrIn (sNeedle, sHaystack) == false  );
 	}
 
+	SECTION("kFirstNonEmpty")
+	{
+		KString sEmpty;
+		KStringView svEmpty;
+		KString sRet = kFirstNonEmpty<KStringView>("", svEmpty, "", sEmpty, "hello", "again");
+		CHECK ( sRet == "hello" );
+	}
+
 
 }

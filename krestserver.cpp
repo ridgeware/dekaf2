@@ -358,7 +358,7 @@ void KRESTServer::Output(OutputType Out)
 				{
 					json.tx["message"] = std::move(m_sMessage);
 				}
-				
+
 				if (!json.tx.empty())
 				{
 					Response.UnfilteredStream() << json.tx.dump(json_pretty, '\t');
@@ -395,7 +395,7 @@ void KRESTServer::ErrorHandler(const std::exception& ex, OutputType Out)
 		Response.SetStatus(KHTTPError::H5xx_ERROR, "INTERNAL SERVER ERROR");
 	}
 
-	KStringView sError = ex.what();
+	KStringViewZ sError = ex.what();
 
 	switch (Out)
 	{

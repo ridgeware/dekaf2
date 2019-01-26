@@ -462,7 +462,8 @@ bool KROW::AddCol (KStringView sColName, const KJSON& Value, KCOL::Flags iFlags,
 		kDebugLog(2, "KROW: could not identify JSON type for {}", sColName);
 		return false;
 	}
-}
+
+} // AddCol
 
 //-----------------------------------------------------------------------------
 KJSON KROW::to_json () const

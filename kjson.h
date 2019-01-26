@@ -106,58 +106,58 @@ namespace kjson
 	KJSON GetObject (const KJSON& json, KStringView sKey);
 
 	/// returns true if the key exists
-	inline bool Exists(const KJSON& json, KStringView Key)
+	inline bool Exists(const KJSON& json, KStringView sKey)
 	{
-		auto it = json.find(Key);
+		auto it = json.find(sKey);
 		return (it != json.end());
 	}
 
 	/// returns true if the key exists and contains an object
-	inline bool IsObject(const KJSON& json, KStringView Key)
+	inline bool IsObject(const KJSON& json, KStringView sKey)
 	{
-		auto it = json.find(Key);
+		auto it = json.find(sKey);
 		return (it != json.end() && it->is_object());
 	}
 
 	/// returns true if the key exists and contains an array
-	inline bool IsArray(const KJSON& json, KStringView Key)
+	inline bool IsArray(const KJSON& json, KStringView sKey)
 	{
-		auto it = json.find(Key);
+		auto it = json.find(sKey);
 		return (it != json.end() && it->is_array());
 	}
 
 	/// returns true if the key exists and contains a string
-	inline bool IsString(const KJSON& json, KStringView Key)
+	inline bool IsString(const KJSON& json, KStringView sKey)
 	{
-		auto it = json.find(Key);
+		auto it = json.find(sKey);
 		return (it != json.end() && it->is_string());
 	}
 
 	/// returns true if the key exists and contains an integer
-	inline bool IsInteger(const KJSON& json, KStringView Key)
+	inline bool IsInteger(const KJSON& json, KStringView sKey)
 	{
-		auto it = json.find(Key);
+		auto it = json.find(sKey);
 		return (it != json.end() && it->is_number_integer());
 	}
 
 	/// returns true if the key exists and contains a float
-	inline bool IsFloat(const KJSON& json, KStringView Key)
+	inline bool IsFloat(const KJSON& json, KStringView sKey)
 	{
-		auto it = json.find(Key);
+		auto it = json.find(sKey);
 		return (it != json.end() && it->is_number_float());
 	}
 
 	/// returns true if the key exists and contains null
-	inline bool IsNull(const KJSON& json, KStringView Key)
+	inline bool IsNull(const KJSON& json, KStringView sKey)
 	{
-		auto it = json.find(Key);
+		auto it = json.find(sKey);
 		return (it != json.end() && it->is_null());
 	}
 
 	/// returns true if the key exists and contains a bool
-	inline bool IsBoolean(const KJSON& json, KStringView Key)
+	inline bool IsBoolean(const KJSON& json, KStringView sKey)
 	{
-		auto it = json.find(Key);
+		auto it = json.find(sKey);
 		return (it != json.end() && it->is_boolean());
 	}
 

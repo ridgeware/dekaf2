@@ -155,7 +155,7 @@ public:
 
 	/// Add routes from a table of route and handler object member function definitions
 	template<class Object, std::size_t COUNT>
-	bool AddMethodTable(Object& object, const MethodTable<Object> (&Routes)[COUNT])
+	bool AddMemberFunctionTable(Object& object, const MethodTable<Object> (&Routes)[COUNT])
 	{
 		m_Routes.reserve(m_Routes.size() + COUNT);
 		for (size_t i = 0; i < COUNT; ++i)

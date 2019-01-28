@@ -187,7 +187,7 @@ TEST_CASE("KREST")
 		KRESTRoutes Routes;
 
 		Routes.AddFunctionTable(RTable);
-		Routes.AddMethodTable(RR, MTable);
+		Routes.AddMemberFunctionTable(RR, MTable);
 
 		KString sOut;
 		KOutStringStream oss(sOut);

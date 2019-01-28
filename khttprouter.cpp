@@ -141,7 +141,7 @@ bool KHTTPRouter::Execute(const KHTTPRoutes& Routes, KStringView sBaseRoute)
 		if (!sURLPath.remove_prefix(sBaseRoute))
 		{
 			// bad prefix
-			throw KHTTPError { KHTTPError::H4xx_NOTFOUND, kFormat("url does not start with {}", sBaseRoute) };
+			throw KHTTPError { KHTTPError::H4xx_NOTFOUND, kFormat("url does not start with base route: {} <> {}", sBaseRoute, sURLPath) };
 		}
 
 		auto Route = Routes.FindRoute(KHTTPRoute(sURLPath));
@@ -169,6 +169,44 @@ bool KHTTPRouter::Execute(const KHTTPRoutes& Routes, KStringView sBaseRoute)
 void KHTTPRouter::ErrorHandler(const std::exception& ex)
 //-----------------------------------------------------------------------------
 {
+	const KHTTPError* xex = dynamic_cast<const KHTTPError*>(&ex);
+
+	if (xex)
+	{
+		Response.SetStatus(xex->GetHTTPStatusCode(), xex->GetHTTPStatusString());
+	}
+	else
+	{
+		Response.SetStatus(KHTTPError::H5xx_ERROR, "INTERNAL SERVER ERROR");
+	}
+
+	KStringViewZ sError = ex.what();
+
+	KString sContent = R"(<html><head>Error</head><body><h2>)";
+
+	if (sError.empty())
+	{
+		sContent += Response.sStatusString;
+	}
+	else
+	{
+		sContent += sError;
+	}
+
+	// close the html body
+	sContent += R"(</h2></body></html>\r\n)";
+
+	// compute and set the Content-Length header:
+	Response.Headers.Set(KHTTPHeaders::CONTENT_LENGTH, KString::to_string(sContent.length()));
+	Response.Headers.Set(KHTTPHeaders::CONTENT_TYPE, KMIME::HTML_UTF8);
+	Response.Headers.Set(KHTTPHeaders::CONNECTION, "close");
+
+	// write full response and headers to output
+	Response.Serialize();
+
+	// finally, output the content:
+	kDebug (2, "{}", sContent);
+	Response.Write (sContent);
 
 } // ErrorHandler
 

@@ -75,7 +75,7 @@ public:
 		KRESTServer Request;
 
 		Request.Accept(Stream, sRemoteEndpoint);
-		Request.Execute(m_Routes, m_sBaseRoute);
+		Request.Execute(m_Routes, m_sBaseRoute, KRESTServer::HTTP);
 		Request.Disconnect();
 
 	} // Session
@@ -93,13 +93,13 @@ protected:
 } // end of namespace detail
 
 //-----------------------------------------------------------------------------
-bool KREST::RealExecute(KStream& Stream, const Options& Params, const KRESTRoutes& Routes, KStringView sRemoteIP)
+bool KREST::RealExecute(KStream& Stream, KRESTServer::OutputType Type, KStringView sBaseRoute, const KRESTRoutes& Routes, KStringView sRemoteIP)
 //-----------------------------------------------------------------------------
 {
 	KRESTServer Request;
 	
 	Request.Accept(Stream, sRemoteIP);
-	bool bRet = Request.Execute(Routes, Params.sBaseRoute);
+	bool bRet = Request.Execute(Routes, sBaseRoute, Type);
 	Request.Disconnect();
 
 	return bRet;
@@ -119,7 +119,12 @@ bool KREST::Execute(const Options& Params, const KRESTRoutes& Routes)
 				{
 					if (Params.sCert.empty())
 					{
-						kDebug(0, "TLS mode requested, but no certificate");
+						kWarning("TLS mode requested, but no certificate");
+						return false;
+					}
+					if (!kFileExists(Params.sCert))
+					{
+						kWarning("TLS certificate does not exist: {}", Params.sCert);
 						return false;
 					}
 					if (Params.sKey.empty())
@@ -127,30 +132,35 @@ bool KREST::Execute(const Options& Params, const KRESTRoutes& Routes)
 						kDebug(0, "TLS mode requested, but no private key");
 						return false;
 					}
+					if (!kFileExists(Params.sKey))
+					{
+						kWarning("TLS private key file does not exist: {}", Params.sKey);
+						return false;
+					}
 				}
 
 				if (!detail::RESTServer::IsPortAvailable(Params.iPort))
 				{
-					SetError(kFormat("port {} is in use - abort.", Params.iPort));
-					kDebug(0, "{}", Error());
+					SetError(kFormat("port {} is in use - abort", Params.iPort));
+					kWarning("{}", Error());
 					return false;
 				}
 
-				kDebug(3, "starting standalone {} server on port {}...", bUseTLS ? "HTTPS" : "HTTP", Params.iPort);
+				kDebug(1, "starting standalone {} server on port {}...", bUseTLS ? "HTTPS" : "HTTP", Params.iPort);
 				detail::RESTServer Server(Params.sBaseRoute, Routes, Params.iPort, bUseTLS, Params.iMaxConnections);
 				if (bUseTLS)
 				{
 					Server.SetSSLCertificates(Params.sCert, Params.sKey);
 				}
-				Server.Start(5, true);
+				Server.Start(Params.iTimeout, true);
 			}
 			break;
 
 		case UNIX:
 			{
-				kDebug(3, "starting standalone HTTP server on socket file {}...", Params.sSocketFile);
+				kDebug(1, "starting standalone HTTP server on socket file {}...", Params.sSocketFile);
 				detail::RESTServer Server(Params.sBaseRoute, Routes, Params.sSocketFile, Params.iMaxConnections);
-				Server.Start(5, true);
+				Server.Start(Params.iTimeout, true);
 			}
 			break;
 
@@ -159,7 +169,7 @@ bool KREST::Execute(const Options& Params, const KRESTRoutes& Routes)
 				kDebug (3, "normal CGI request...");
 				KCGIInStream CGI(KIn);
 				KStream Stream(CGI, KOut);
-				return RealExecute(Stream, Params, Routes); // TODO get remote from env var
+				return RealExecute(Stream, KRESTServer::HTTP, Params.sBaseRoute, Routes); // TODO get remote from env var
 			}
 			break;
 
@@ -168,7 +178,15 @@ bool KREST::Execute(const Options& Params, const KRESTRoutes& Routes)
 				kDebug(3, "normal LAMBA request...");
 				KLambdaInStream Lambda(KIn);
 				KStream Stream(Lambda, KOut);
-				return RealExecute(Stream, Params, Routes); // TODO get remote from env var
+				return RealExecute(Stream, KRESTServer::LAMBDA, Params.sBaseRoute, Routes); // TODO get remote from env var
+			}
+			break;
+
+		case CLI:
+			{
+				kDebug (3, "normal CLI request...");
+				KStream Stream(KIn, KOut);
+				return RealExecute(Stream, KRESTServer::CLI, Params.sBaseRoute, Routes, "127.0.0.1");
 			}
 			break;
 
@@ -188,51 +206,13 @@ bool KREST::ExecuteFromFile(const Options& Params, const KRESTRoutes& Routes, KS
 {
 	switch (Params.Type)
 	{
-		case SIMULATE_HTTP:
-			{
-				if (sFilename.front() != '/')
-				{
-					kWarning("sFilename does not start with a / - abort : {}", sFilename);
-					return false;
-				}
-				kDebug(3, "simulated CGI request: {}", sFilename);
-				KString sRequest;
-				auto iSplitPostBody = sFilename.find(' ');
-				if (iSplitPostBody != KString::npos)
-				{
-					KStringView sURL = sFilename.ToView(0, iSplitPostBody);
-					KStringView sPostBody = sFilename.ToView(iSplitPostBody + 1);
-					sRequest += kFormat("POST {} HTTP/1.0\r\n"
-										"Host: whatever\r\n"
-										"User-Agent: cli sim agent\r\n"
-										"Connection: close\r\n"
-										"Content-Length: {}\r\n"
-										"\r\n",
-										sURL, sPostBody.size());
-					sRequest += sPostBody;
-				}
-				else
-				{
-					sRequest = kFormat("GET {} HTTP/1.0\r\n"
-									   "Host: whatever\r\n"
-									   "User-Agent: cli sim agent\r\n"
-									   "Connection: close\r\n"
-									   "\r\n",
-									   sFilename);
-				}
-				KInStringStream String(sRequest);
-				KStream Stream(String, OutStream);
-				return RealExecute(Stream, Params, Routes, "127.0.0.1");
-			}
-			break;
-
 		case CGI:
 			{
 				kDebug(3, "simulated CGI request with input file: {}", sFilename);
 				KInFile File(sFilename);
 				KCGIInStream CGI(File);
 				KStream Stream(CGI, OutStream);
-				return RealExecute(Stream, Params, Routes, "127.0.0.1");
+				return RealExecute(Stream, KRESTServer::HTTP, Params.sBaseRoute, Routes, "127.0.0.1");
 			}
 			break;
 
@@ -242,20 +222,67 @@ bool KREST::ExecuteFromFile(const Options& Params, const KRESTRoutes& Routes, KS
 				KInFile File(sFilename);
 				KLambdaInStream Lambda(File);
 				KStream Stream(Lambda, OutStream);
-				return RealExecute(Stream, Params, Routes, "127.0.0.1");
+				return RealExecute(Stream, KRESTServer::LAMBDA, Params.sBaseRoute, Routes, "127.0.0.1");
 			}
 			break;
 
 		case HTTP:
 		case UNIX:
+		case CLI:
 			// nothing to do here..
 			kDebug (3, "please use Execute() for HTTP or UNIX REST request types");
+			return false;
+
+		case SIMULATE_HTTP:
+			// nothing to do here..
+			kDebug (3, "please use Simulate() for SIMULATE_HTTP request types");
 			return false;
 	}
 
 	return true;
 
 } // ExecuteFromFile
+
+//-----------------------------------------------------------------------------
+bool KREST::Simulate(const Options& Params, const KRESTRoutes& Routes, KStringView sSimulate, KOutStream& OutStream)
+//-----------------------------------------------------------------------------
+{
+	if (sSimulate.front() != '/')
+	{
+		kWarning("sFilename does not start with a / - abort : {}", sSimulate);
+		return false;
+	}
+
+	kDebug(3, "simulated CGI request: {}", sSimulate);
+	KString sRequest;
+	auto iSplitPostBody = sSimulate.find(' ');
+	if (iSplitPostBody != KString::npos)
+	{
+		KStringView sURL = sSimulate.ToView(0, iSplitPostBody);
+		KStringView sPostBody = sSimulate.ToView(iSplitPostBody + 1);
+		sRequest += kFormat("POST {} HTTP/1.0\r\n"
+							"Host: whatever\r\n"
+							"User-Agent: cli sim agent\r\n"
+							"Connection: close\r\n"
+							"Content-Length: {}\r\n"
+							"\r\n",
+							sURL, sPostBody.size());
+		sRequest += sPostBody;
+	}
+	else
+	{
+		sRequest = kFormat("GET {} HTTP/1.0\r\n"
+						   "Host: whatever\r\n"
+						   "User-Agent: cli sim agent\r\n"
+						   "Connection: close\r\n"
+						   "\r\n",
+						   sSimulate);
+	}
+
+	KInStringStream String(sRequest);
+	KStream Stream(String, OutStream);
+	return RealExecute(Stream, KRESTServer::HTTP, Params.sBaseRoute, Routes, "127.0.0.1");
+}
 
 //-----------------------------------------------------------------------------
 const KString& KREST::Error() const

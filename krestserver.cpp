@@ -132,7 +132,7 @@ const KRESTRoute& KRESTRoutes::FindRoute(const KRESTRoute& Route, Parameters& Pa
 			}
 			else
 			{
-				// we have parameters, check part for part of the route
+				// we have parameters, check part by part of the route
 				if (it.vURLParts.size() == Route.vURLParts.size())
 				{
 					Params.clear();
@@ -223,7 +223,7 @@ bool KRESTServer::Execute(const KRESTRoutes& Routes, KStringView sBaseRoute, Out
 		if (!sURLPath.remove_prefix(sBaseRoute))
 		{
 			// bad prefix
-			throw KHTTPError { KHTTPError::H4xx_NOTFOUND, kFormat("url does not start with {}", sBaseRoute) };
+			throw KHTTPError { KHTTPError::H4xx_NOTFOUND, kFormat("url does not start with base route: {} <> {}", sBaseRoute, sURLPath) };
 		}
 
 		auto Route = Routes.FindRoute(KRESTRoute(Request.Method, sURLPath), Request.Resource.Query);
@@ -364,6 +364,8 @@ void KRESTServer::Output(OutputType Out)
 					Response.UnfilteredStream() << json.tx.dump(json_pretty, '\t');
 				}
 			}
+			// finish with a linefeed
+			Response.UnfilteredStream().WriteLine();
 		}
 		break;
 	}
@@ -424,7 +426,7 @@ void KRESTServer::ErrorHandler(const std::exception& ex, OutputType Out)
 			Response.Serialize();
 
 			// finally, output the content:
-			kDebug (1, "{}", sContent);
+			kDebug (2, "{}", sContent);
 			Response.Write (sContent);
 		}
 		break;

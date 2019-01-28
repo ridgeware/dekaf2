@@ -63,12 +63,28 @@ class KRESTRoute
 public:
 //------
 
+	using Function = void(*)(KRESTServer& REST);
+
+	template<class Object>
+	using MemberFunction = void(Object::*)(KRESTServer&);
+
 	using RESTCallback = std::function<void(KRESTServer&)>;
+
 	using URLParts = std::vector<KStringView>;
 
 	/// Construct a REST route. Notice that _sRoute is a KStringView, and the pointed-to
 	/// string must stay visible during the lifetime of this class
 	KRESTRoute(KHTTPMethod _Method, KStringView _sRoute, RESTCallback _Callback = nullptr);
+
+	/// Construct a REST route on an object member function. Notice that _sRoute is a KStringView, and the pointed-to
+	/// string must stay visible during the lifetime of this class. Also, the object reference
+	/// must stay valid throughout the lifetime of this class (it is a reference on a constructed
+	/// object which method will be called)
+	template<class Object>
+	KRESTRoute(KHTTPMethod _Method, KStringView _sRoute, Object& object, MemberFunction<Object> _Callback)
+	: KRESTRoute(_Method, _sRoute, std::bind(_Callback, &object, std::placeholders::_1))
+	{
+	}
 
 	static size_t SplitURL(URLParts& Parts, KStringView sURLPath);
 
@@ -93,13 +109,21 @@ class KRESTRoutes
 public:
 //------
 
-	typedef void (*RESTHandler)(KRESTServer& REST);
-
-	struct RouteTable
+	// prototype for a handler function table
+	struct FunctionTable
 	{
 		KStringView sMethod;
 		KStringView sRoute;
-		RESTHandler Handler;
+		KRESTRoute::Function Handler;
+	};
+
+	// prototype for a handler object member function table
+	template<class Object>
+	struct MethodTable
+	{
+		KStringView sMethod;
+		KStringView sRoute;
+		KRESTRoute::MemberFunction<Object> Handler;
 	};
 
 	using Parameters = std::vector<std::pair<KStringView, KStringView>>;
@@ -114,13 +138,29 @@ public:
 	/// string must stay visible during the lifetime of this class
 	bool AddRoute(KRESTRoute&& _Route);
 
+	/// Add routes from a table of route and handler function definitions
 	template<std::size_t COUNT>
-	bool AddRouteTable(const RouteTable (&Routes)[COUNT])
+	bool AddFunctionTable(const FunctionTable (&Routes)[COUNT])
 	{
 		m_Routes.reserve(m_Routes.size() + COUNT);
 		for (size_t i = 0; i < COUNT; ++i)
 		{
 			if (!AddRoute(KRESTRoute(Routes[i].sMethod, Routes[i].sRoute, Routes[i].Handler)))
+			{
+				return false;
+			}
+		}
+		return true;
+	}
+
+	/// Add routes from a table of route and handler object member function definitions
+	template<class Object, std::size_t COUNT>
+	bool AddMethodTable(Object& object, const MethodTable<Object> (&Routes)[COUNT])
+	{
+		m_Routes.reserve(m_Routes.size() + COUNT);
+		for (size_t i = 0; i < COUNT; ++i)
+		{
+			if (!AddRoute(KRESTRoute(Routes[i].sMethod, Routes[i].sRoute, object, Routes[i].Handler)))
 			{
 				return false;
 			}

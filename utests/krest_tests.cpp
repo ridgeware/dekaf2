@@ -74,20 +74,36 @@ TEST_CASE("KREST")
 #else
 		KString sCompare = "HTTP/1.0 200 OK\r\nContent-Type: application/json\r\nContent-Length: 31\r\n\r\n{\n\t\"response\": \"hello world\"\n}\n";
 #endif
-		CHECK ( REST.ExecuteFromFile(Options, Routes, "/test", oss) == true );
+		CHECK ( REST.Simulate(Options, Routes, "/test", oss) == true );
 		CHECK ( sOut == sCompare );
 		CHECK ( bCalledTest == true  );
 		CHECK ( bCalledHelp == false );
 		CHECK ( bCalledNoSlashPath == false );
 
 		sOut.clear();
-		CHECK ( REST.ExecuteFromFile(Options, Routes, "/help", oss) == true );
+		CHECK ( REST.Simulate(Options, Routes, "/help", oss) == true );
 		CHECK ( bCalledTest == true  );
 		CHECK ( bCalledHelp == true  );
 		CHECK ( bCalledNoSlashPath == false );
 
 		sOut.clear();
-		CHECK ( REST.ExecuteFromFile(Options, Routes, "/noslashpath", oss) == false );
+		Options.sBaseRoute = "/this/is/my/base/route";
+		CHECK ( REST.Simulate(Options, Routes, "/this/is/my/base/route/help", oss) == true );
+		Options.sBaseRoute.clear();
+		CHECK ( bCalledTest == true  );
+		CHECK ( bCalledHelp == true  );
+		CHECK ( bCalledNoSlashPath == false );
+
+		sOut.clear();
+		Options.sBaseRoute = "/this/is/my/base";
+		CHECK ( REST.Simulate(Options, Routes, "/this/is/my/base/route/help", oss) == false );
+		Options.sBaseRoute.clear();
+		CHECK ( bCalledTest == true  );
+		CHECK ( bCalledHelp == true  );
+		CHECK ( bCalledNoSlashPath == false );
+
+		sOut.clear();
+		CHECK ( REST.Simulate(Options, Routes, "/noslashpath", oss) == false );
 		CHECK ( bCalledTest == true  );
 		CHECK ( bCalledHelp == true  );
 		CHECK ( bCalledNoSlashPath == false );
@@ -95,7 +111,7 @@ TEST_CASE("KREST")
 		CHECK ( sName == "" );
 
 		sOut.clear();
-		CHECK ( REST.ExecuteFromFile(Options, Routes, "/user/7654", oss) == true );
+		CHECK ( REST.Simulate(Options, Routes, "/user/7654", oss) == true );
 		CHECK ( bCalledTest == true  );
 		CHECK ( bCalledHelp == true  );
 		CHECK ( bCalledNoSlashPath == false );
@@ -103,7 +119,7 @@ TEST_CASE("KREST")
 		CHECK ( sName == "" );
 
 		sOut.clear();
-		CHECK ( REST.ExecuteFromFile(Options, Routes, "/user/Peter/address", oss) == true );
+		CHECK ( REST.Simulate(Options, Routes, "/user/Peter/address", oss) == true );
 		CHECK ( bCalledTest == true  );
 		CHECK ( bCalledHelp == true  );
 		CHECK ( bCalledNoSlashPath == false );
@@ -116,7 +132,7 @@ TEST_CASE("KREST")
 #else
 		sCompare = "HTTP/1.0 400 BAD REQUEST\r\nContent-Length: 37\r\nConnection: close\r\n\r\n{\n\t\"message\": \"missing parameters\"\n}\n";
 #endif
-		CHECK ( REST.ExecuteFromFile(Options, Routes, "/throw", oss) == false );
+		CHECK ( REST.Simulate(Options, Routes, "/throw", oss) == false );
 		CHECK ( sOut == sCompare );
 		CHECK ( bCalledTest == true  );
 		CHECK ( bCalledHelp == true  );
@@ -130,7 +146,7 @@ TEST_CASE("KREST")
 #else
 		sCompare = "HTTP/1.0 404 NOT FOUND\r\nContent-Length: 48\r\nConnection: close\r\n\r\n{\n\t\"message\": \"unknown address: GET /unknown\"\n}\n";
 #endif
-		CHECK ( REST.ExecuteFromFile(Options, Routes, "/unknown", oss) == false );
+		CHECK ( REST.Simulate(Options, Routes, "/unknown", oss) == false );
 		CHECK ( sOut == sCompare );
 		CHECK ( bCalledTest == true  );
 		CHECK ( bCalledHelp == true  );
@@ -142,7 +158,7 @@ TEST_CASE("KREST")
 
 	SECTION("HTTP SIM STATIC TABLE")
 	{
-		constexpr KRESTRoutes::RouteTable RTable[]
+		constexpr KRESTRoutes::FunctionTable RTable[]
 		{
 			{ "GET", "/test",               rest_test },
 			{ "GET", "/help",               rest_test },
@@ -151,9 +167,27 @@ TEST_CASE("KREST")
 			{ "GET", "/user/:UID",          rest_test },
 		};
 
+		class RClass
+		{
+		public:
+			void rest_test2(KRESTServer& http) { }
+		};
+
+		RClass RR;
+
+		constexpr KRESTRoutes::MethodTable<RClass> MTable[]
+		{
+			{ "GET", "/rr/test",               &RClass::rest_test2 },
+			{ "GET", "/rr/help",               &RClass::rest_test2 },
+			{ "GET", "rr/noslashpath",         &RClass::rest_test2 },
+			{ "GET", "/rr/user/:NAME/address", &RClass::rest_test2 },
+			{ "GET", "/rr/user/:UID",          &RClass::rest_test2 },
+		};
+
 		KRESTRoutes Routes;
 
-		Routes.AddRouteTable(RTable);
+		Routes.AddFunctionTable(RTable);
+		Routes.AddMethodTable(RR, MTable);
 
 		KString sOut;
 		KOutStringStream oss(sOut);
@@ -164,19 +198,19 @@ TEST_CASE("KREST")
 		KREST REST;
 
 		sOut.clear();
-		CHECK ( REST.ExecuteFromFile(Options, Routes, "/test", oss) == true );
+		CHECK ( REST.Simulate(Options, Routes, "/test", oss) == true );
 
 		sOut.clear();
-		CHECK ( REST.ExecuteFromFile(Options, Routes, "/help", oss) == true );
+		CHECK ( REST.Simulate(Options, Routes, "/help", oss) == true );
 
 		sOut.clear();
-		CHECK ( REST.ExecuteFromFile(Options, Routes, "/noslashpath", oss) == false );
+		CHECK ( REST.Simulate(Options, Routes, "/noslashpath", oss) == false );
 
 		sOut.clear();
-		CHECK ( REST.ExecuteFromFile(Options, Routes, "/user/7654", oss) == true );
+		CHECK ( REST.Simulate(Options, Routes, "/user/7654", oss) == true );
 
 		sOut.clear();
-		CHECK ( REST.ExecuteFromFile(Options, Routes, "/user/Peter/address", oss) == true );
+		CHECK ( REST.Simulate(Options, Routes, "/user/Peter/address", oss) == true );
 
 		sOut.clear();
 #ifdef NDEBUG
@@ -184,8 +218,23 @@ TEST_CASE("KREST")
 #else
 		KString sCompare = "HTTP/1.0 404 NOT FOUND\r\nContent-Length: 48\r\nConnection: close\r\n\r\n{\n\t\"message\": \"unknown address: GET /unknown\"\n}\n";
 #endif
-		CHECK ( REST.ExecuteFromFile(Options, Routes, "/unknown", oss) == false );
+		CHECK ( REST.Simulate(Options, Routes, "/unknown", oss) == false );
 		CHECK ( sOut == sCompare );
+
+		sOut.clear();
+		CHECK ( REST.Simulate(Options, Routes, "/rr/test", oss) == true );
+
+		sOut.clear();
+		CHECK ( REST.Simulate(Options, Routes, "/rr/help", oss) == true );
+
+		sOut.clear();
+		CHECK ( REST.Simulate(Options, Routes, "/rr/noslashpath", oss) == false );
+
+		sOut.clear();
+		CHECK ( REST.Simulate(Options, Routes, "/rr/user/7654", oss) == true );
+
+		sOut.clear();
+		CHECK ( REST.Simulate(Options, Routes, "/rr/user/Peter/address", oss) == true );
 
 	}
 

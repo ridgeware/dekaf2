@@ -58,21 +58,23 @@ class KREST
 public:
 //----------
 
-	enum ServerType { HTTP, UNIX, CGI, LAMBDA, SIMULATE_HTTP };
+	enum ServerType { HTTP, UNIX, CGI, LAMBDA, CLI, SIMULATE_HTTP };
 
 	struct Options
 	{
 		ServerType Type;
 		uint16_t iPort { 0 };
 		uint16_t iMaxConnections { 20 };
-		KStringView sSocketFile;
-		KStringView sCert;
-		KStringView sKey;
+		uint16_t iTimeout { 5 };
+		KStringViewZ sSocketFile;
+		KStringViewZ sCert;
+		KStringViewZ sKey;
 		KStringView sBaseRoute;
 	};
 
 	bool Execute(const Options& Params, const KRESTRoutes& Routes);
 	bool ExecuteFromFile(const Options& Params, const KRESTRoutes& Routes, KStringView sFilename, KOutStream& OutStream = KOut);
+	bool Simulate(const Options& Params, const KRESTRoutes& Routes, KStringView sSimulate, KOutStream& OutStream = KOut);
 
 	bool Good() const;
 	const KString& Error() const;
@@ -81,7 +83,7 @@ public:
 protected:
 //----------
 
-	bool RealExecute(KStream& Stream, const Options& Params, const KRESTRoutes& Routes, KStringView sRemoteIP = "0.0.0.0");
+	bool RealExecute(KStream& Stream, KRESTServer::OutputType Type, KStringView sBaseRoute, const KRESTRoutes& Routes, KStringView sRemoteIP = "0.0.0.0");
 	bool SetError(KStringView sError);
 
 //----------

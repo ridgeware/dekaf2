@@ -55,6 +55,7 @@ namespace dekaf2 {
 class KRESTServer;
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// A route (request path) to a resource handler
 class KRESTRoute
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -72,21 +73,28 @@ public:
 
 	using URLParts = std::vector<KStringView>;
 
+	//-----------------------------------------------------------------------------
 	/// Construct a REST route on a function. Notice that _sRoute is a KStringView, and the pointed-to
 	/// string must stay visible during the lifetime of this class
 	KRESTRoute(KHTTPMethod _Method, KStringView _sRoute, RESTCallback _Callback = nullptr);
+	//-----------------------------------------------------------------------------
 
+	//-----------------------------------------------------------------------------
 	/// Construct a REST route on an object member function. Notice that _sRoute is a KStringView, and the pointed-to
 	/// string must stay visible during the lifetime of this class. Also, the object reference
 	/// must stay valid throughout the lifetime of this class (it is a reference on a constructed
 	/// object which method will be called)
 	template<class Object>
 	KRESTRoute(KHTTPMethod _Method, KStringView _sRoute, Object& object, MemberFunction<Object> _Callback)
+	//-----------------------------------------------------------------------------
 	: KRESTRoute(_Method, _sRoute, std::bind(_Callback, &object, std::placeholders::_1))
 	{
 	}
 
+	//-----------------------------------------------------------------------------
+	/// static method to split a URL into parts
 	static size_t SplitURL(URLParts& Parts, KStringView sURLPath);
+	//-----------------------------------------------------------------------------
 
 	KHTTPMethod Method;  	// e.g. GET, or empty for all
 	KStringView sRoute;     // e.g. "/employee/:id/address" or "/help"
@@ -101,6 +109,7 @@ private:
 }; // KRESTRoute
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// Storage object for all routes of a REST server
 class KRESTRoutes
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -109,17 +118,21 @@ class KRESTRoutes
 public:
 //------
 
-	// prototype for a handler function table
+	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	/// prototype for a handler function table
 	struct FunctionTable
+	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	{
 		KStringView sMethod;
 		KStringView sRoute;
 		KRESTRoute::Function Handler;
 	};
 
-	// prototype for a handler object member function table
+	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	/// prototype for a handler object member function table
 	template<class Object>
 	struct MemberFunctionTable
+	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	{
 		KStringView sMethod;
 		KStringView sRoute;
@@ -128,19 +141,28 @@ public:
 
 	using Parameters = std::vector<std::pair<KStringView, KStringView>>;
 
+	//-----------------------------------------------------------------------------
+	/// ctor
 	KRESTRoutes(KRESTRoute::RESTCallback DefaultRoute = nullptr);
+	//-----------------------------------------------------------------------------
 
+	//-----------------------------------------------------------------------------
 	/// Add a REST route. Notice that _Route contains a KStringView, of which the pointed-to
 	/// string must stay visible during the lifetime of this class
 	bool AddRoute(const KRESTRoute& _Route);
+	//-----------------------------------------------------------------------------
 
+	//-----------------------------------------------------------------------------
 	/// Add a REST route. Notice that _Route contains a KStringView, of which the pointed-to
 	/// string must stay visible during the lifetime of this class
 	bool AddRoute(KRESTRoute&& _Route);
+	//-----------------------------------------------------------------------------
 
+	//-----------------------------------------------------------------------------
 	/// Add routes from a table of route and handler function definitions
 	template<std::size_t COUNT>
 	bool AddFunctionTable(const FunctionTable (&Routes)[COUNT])
+	//-----------------------------------------------------------------------------
 	{
 		m_Routes.reserve(m_Routes.size() + COUNT);
 		for (size_t i = 0; i < COUNT; ++i)
@@ -153,9 +175,11 @@ public:
 		return true;
 	}
 
+	//-----------------------------------------------------------------------------
 	/// Add routes from a table of route and handler object member function definitions
 	template<class Object, std::size_t COUNT>
 	bool AddMemberFunctionTable(Object& object, const MemberFunctionTable<Object> (&Routes)[COUNT])
+	//-----------------------------------------------------------------------------
 	{
 		m_Routes.reserve(m_Routes.size() + COUNT);
 		for (size_t i = 0; i < COUNT; ++i)
@@ -168,13 +192,25 @@ public:
 		return true;
 	}
 
+	//-----------------------------------------------------------------------------
+	/// Set default route (matching all path requests not satisfied by other routes)
 	void SetDefaultRoute(KRESTRoute::RESTCallback Callback);
-	void clear();
+	//-----------------------------------------------------------------------------
 
-	/// throws KHTTPError if no matching route found - fills additonal params in Path into Params
+	//-----------------------------------------------------------------------------
+	/// Clear all routes
+	void clear();
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// Throws KHTTPError if no matching route found - fills additonal params in Path into Params
 	const KRESTRoute& FindRoute(const KRESTRoute& Route, Parameters& Params) const;
-	/// throws KHTTPError if no matching route found - fills additional params in Path into Params
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// Throws KHTTPError if no matching route found - fills additional params in Path into Params
 	const KRESTRoute& FindRoute(const KRESTRoute& Route, url::KQuery& Params) const;
+	//-----------------------------------------------------------------------------
 
 //------
 private:
@@ -197,6 +233,10 @@ class KRESTServer : public KHTTPServer
 public:
 //------
 
+	// supported output types:
+	// HTTP is standard,
+	// LAMBDA is AWS specific,
+	// CLI is a test console output
 	enum OutputType	{ HTTP, LAMBDA, CLI };
 
 	// forward constructors
@@ -208,6 +248,7 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	/// get request method as a string
 	const KString& GetRequestMethod() const
 	//-----------------------------------------------------------------------------
 	{
@@ -215,6 +256,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// get request path as a string
 	const KString& GetRequestPath() const
 	//-----------------------------------------------------------------------------
 	{
@@ -222,6 +264,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// get query parms as a map
 	const url::KQueryParms& GetQueryParms() const
 	//-----------------------------------------------------------------------------
 	{
@@ -229,12 +272,14 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// set status code and corresponding default status string
 	void SetStatus(int iCode);
 	//-----------------------------------------------------------------------------
 
 //	uint64_t GetMilliseconds() const { return (m_timer.elapsed() / (1000 * 1000)); }
 
 	//-----------------------------------------------------------------------------
+	/// set raw (non-json) output
 	void SetRawOutput(KStringView sRaw)
 	//-----------------------------------------------------------------------------
 	{
@@ -242,6 +287,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// add raw (non-json) output to existing output
 	void AddRawOutput(KStringView sRaw)
 	//-----------------------------------------------------------------------------
 	{
@@ -249,18 +295,24 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// set output json["message"] string
 	void SetMessage(KStringView sMessage)
 	//-----------------------------------------------------------------------------
 	{
 		m_sMessage = sMessage;
 	}
 
+	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	struct json_t
+	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	{
 		KJSON rx;
 		KJSON tx;
 
+		//-----------------------------------------------------------------------------
+		/// reset rx and tx JSON
 		void clear();
+		//-----------------------------------------------------------------------------
 	};
 
 	json_t json;
@@ -270,9 +322,15 @@ public:
 protected:
 //------
 
+	//-----------------------------------------------------------------------------
+	/// overwrite for your own output generation
 	virtual void Output(OutputType Out = HTTP);
+	//-----------------------------------------------------------------------------
 
+	//-----------------------------------------------------------------------------
+	/// overwrite for your own error handler
 	virtual void ErrorHandler(const std::exception& ex, OutputType Out = HTTP);
+	//-----------------------------------------------------------------------------
 
 //------
 private:

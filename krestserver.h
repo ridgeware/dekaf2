@@ -72,7 +72,7 @@ public:
 
 	using URLParts = std::vector<KStringView>;
 
-	/// Construct a REST route. Notice that _sRoute is a KStringView, and the pointed-to
+	/// Construct a REST route on a function. Notice that _sRoute is a KStringView, and the pointed-to
 	/// string must stay visible during the lifetime of this class
 	KRESTRoute(KHTTPMethod _Method, KStringView _sRoute, RESTCallback _Callback = nullptr);
 
@@ -119,7 +119,7 @@ public:
 
 	// prototype for a handler object member function table
 	template<class Object>
-	struct MethodTable
+	struct MemberFunctionTable
 	{
 		KStringView sMethod;
 		KStringView sRoute;
@@ -155,7 +155,7 @@ public:
 
 	/// Add routes from a table of route and handler object member function definitions
 	template<class Object, std::size_t COUNT>
-	bool AddMemberFunctionTable(Object& object, const MethodTable<Object> (&Routes)[COUNT])
+	bool AddMemberFunctionTable(Object& object, const MemberFunctionTable<Object> (&Routes)[COUNT])
 	{
 		m_Routes.reserve(m_Routes.size() + COUNT);
 		for (size_t i = 0; i < COUNT; ++i)

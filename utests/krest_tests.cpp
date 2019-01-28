@@ -175,7 +175,7 @@ TEST_CASE("KREST")
 
 		RClass RR;
 
-		constexpr KRESTRoutes::MethodTable<RClass> MTable[]
+		constexpr KRESTRoutes::MemberFunctionTable<RClass> MTable[]
 		{
 			{ "GET", "/rr/test",               &RClass::rest_test2 },
 			{ "GET", "/rr/help",               &RClass::rest_test2 },

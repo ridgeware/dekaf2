@@ -1,5 +1,4 @@
 /*
-//-----------------------------------------------------------------------------//
 //
 // DEKAF(tm): Lighter, Faster, Smarter (tm)
 //
@@ -58,11 +57,14 @@ class KREST
 public:
 //----------
 
-	enum ServerType { HTTP, UNIX, CGI, LAMBDA, CLI, SIMULATE_HTTP };
+	enum ServerType { UNDEFINED, HTTP, UNIX, CGI, FCGI, LAMBDA, CLI, SIMULATE_HTTP };
 
+	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	/// define options for the rest server
 	struct Options
+	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	{
-		ServerType Type;
+		ServerType Type { UNDEFINED };
 		uint16_t iPort { 0 };
 		uint16_t iMaxConnections { 20 };
 		uint16_t iTimeout { 5 };
@@ -70,13 +72,19 @@ public:
 		KStringViewZ sCert;
 		KStringViewZ sKey;
 		KStringView sBaseRoute;
-	};
 
+	}; // Options
+
+	/// handle one REST request, or start REST server in HTTP and UNIX modes
 	bool Execute(const Options& Params, const KRESTRoutes& Routes);
+	/// handle one REST request, read input from file, output to OutStream
 	bool ExecuteFromFile(const Options& Params, const KRESTRoutes& Routes, KStringView sFilename, KOutStream& OutStream = KOut);
+	/// simulate one REST request in HTTP/CGI mode, read input from sSimulate, output to OutStream
 	bool Simulate(const Options& Params, const KRESTRoutes& Routes, KStringView sSimulate, KOutStream& OutStream = KOut);
 
+	/// returns true if no error
 	bool Good() const;
+	/// returns error description
 	const KString& Error() const;
 
 //----------

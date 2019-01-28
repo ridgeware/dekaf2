@@ -112,6 +112,10 @@ bool KREST::Execute(const Options& Params, const KRESTRoutes& Routes)
 {
 	switch (Params.Type)
 	{
+		case UNDEFINED:
+			kWarning("undefined REST server mode");
+			return false;
+
 		case HTTP:
 			{
 				bool bUseTLS = !Params.sCert.empty() || !Params.sKey.empty();
@@ -172,6 +176,10 @@ bool KREST::Execute(const Options& Params, const KRESTRoutes& Routes)
 				return RealExecute(Stream, KRESTServer::HTTP, Params.sBaseRoute, Routes); // TODO get remote from env var
 			}
 			break;
+
+		case FCGI:
+			kWarning("FCGI mode not yet supported");
+			return false;
 
 		case LAMBDA:
 			{
@@ -236,6 +244,14 @@ bool KREST::ExecuteFromFile(const Options& Params, const KRESTRoutes& Routes, KS
 		case SIMULATE_HTTP:
 			// nothing to do here..
 			kDebug (3, "please use Simulate() for SIMULATE_HTTP request types");
+			return false;
+
+		case UNDEFINED:
+			kWarning("undefined REST server mode");
+			return false;
+
+		case FCGI:
+			kWarning("FCGI mode not yet supported");
 			return false;
 	}
 

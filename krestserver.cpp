@@ -80,20 +80,18 @@ KRESTRoutes::KRESTRoutes(KRESTRoute::RESTCallback DefaultRoute)
 }
 
 //-----------------------------------------------------------------------------
-bool KRESTRoutes::AddRoute(const KRESTRoute& _Route)
+void KRESTRoutes::AddRoute(const KRESTRoute& _Route)
 //-----------------------------------------------------------------------------
 {
 	m_Routes.push_back(_Route);
-	return true;
 
 } // AddRoute
 
 //-----------------------------------------------------------------------------
-bool KRESTRoutes::AddRoute(KRESTRoute&& _Route)
+void KRESTRoutes::AddRoute(KRESTRoute&& _Route)
 //-----------------------------------------------------------------------------
 {
 	m_Routes.push_back(std::move(_Route));
-	return true;
 
 } // AddRoute
 

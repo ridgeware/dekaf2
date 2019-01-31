@@ -149,47 +149,39 @@ public:
 	//-----------------------------------------------------------------------------
 	/// Add a REST route. Notice that _Route contains a KStringView, of which the pointed-to
 	/// string must stay visible during the lifetime of this class
-	bool AddRoute(const KRESTRoute& _Route);
+	void AddRoute(const KRESTRoute& _Route);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// Add a REST route. Notice that _Route contains a KStringView, of which the pointed-to
 	/// string must stay visible during the lifetime of this class
-	bool AddRoute(KRESTRoute&& _Route);
+	void AddRoute(KRESTRoute&& _Route);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// Add routes from a table of route and handler function definitions
 	template<std::size_t COUNT>
-	bool AddFunctionTable(const FunctionTable (&Routes)[COUNT])
+	void AddFunctionTable(const FunctionTable (&Routes)[COUNT])
 	//-----------------------------------------------------------------------------
 	{
 		m_Routes.reserve(m_Routes.size() + COUNT);
 		for (size_t i = 0; i < COUNT; ++i)
 		{
-			if (!AddRoute(KRESTRoute(Routes[i].sMethod, Routes[i].sRoute, Routes[i].Handler)))
-			{
-				return false;
-			}
+			AddRoute(KRESTRoute(Routes[i].sMethod, Routes[i].sRoute, Routes[i].Handler));
 		}
-		return true;
 	}
 
 	//-----------------------------------------------------------------------------
 	/// Add routes from a table of route and handler object member function definitions
 	template<class Object, std::size_t COUNT>
-	bool AddMemberFunctionTable(Object& object, const MemberFunctionTable<Object> (&Routes)[COUNT])
+	void AddMemberFunctionTable(Object& object, const MemberFunctionTable<Object> (&Routes)[COUNT])
 	//-----------------------------------------------------------------------------
 	{
 		m_Routes.reserve(m_Routes.size() + COUNT);
 		for (size_t i = 0; i < COUNT; ++i)
 		{
-			if (!AddRoute(KRESTRoute(Routes[i].sMethod, Routes[i].sRoute, object, Routes[i].Handler)))
-			{
-				return false;
-			}
+			AddRoute(KRESTRoute(Routes[i].sMethod, Routes[i].sRoute, object, Routes[i].Handler));
 		}
-		return true;
 	}
 
 	//-----------------------------------------------------------------------------
@@ -264,6 +256,14 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// get one query parm value as a const string ref
+	const KString& GetQueryParm(KStringView sKey) const
+	//-----------------------------------------------------------------------------
+	{
+		return Request.Resource.Query.get().Get(sKey);
+	}
+
+	//-----------------------------------------------------------------------------
 	/// get query parms as a map
 	const url::KQueryParms& GetQueryParms() const
 	//-----------------------------------------------------------------------------
@@ -292,6 +292,14 @@ public:
 	//-----------------------------------------------------------------------------
 	{
 		m_sRawOutput += sRaw;
+	}
+
+	//-----------------------------------------------------------------------------
+	/// get raw (non-json) output as const ref
+	const KString& GetRawOutput()
+	//-----------------------------------------------------------------------------
+	{
+		return m_sRawOutput;
 	}
 
 	//-----------------------------------------------------------------------------

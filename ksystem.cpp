@@ -356,6 +356,15 @@ KString kResolveHost (KStringViewZ sHostname, bool bIPv4, bool bIPv6)
 } // kResolveHostIPV4
 
 //-----------------------------------------------------------------------------
+uint64_t kRandom(uint64_t iMin, uint64_t iMax)
+//-----------------------------------------------------------------------------
+{
+	uint64_t iDiff = iMax - iMin;
+	return iMin + (rand() % iDiff);
+
+} // kRandom
+
+//-----------------------------------------------------------------------------
 void kSleepRandomMilliseconds (uint64_t iMin, uint64_t iMax)
 //-----------------------------------------------------------------------------
 {
@@ -363,8 +372,7 @@ void kSleepRandomMilliseconds (uint64_t iMin, uint64_t iMax)
 
 	if (iMax > iMin)
 	{
-		uint64_t iDiff = iMax - iMin;;
-		iSleep = iMin + (rand() % iDiff);
+		iSleep = kRandom(iMin, iMax);
 	}
 
 	kDebugLog (2, "sleeping {} miliseconds...", iSleep);

@@ -268,13 +268,21 @@ const KRESTRoute& KRESTRoutes::FindRoute(const KRESTPath& Path, url::KQuery& Par
 } // FindRoute
 
 //-----------------------------------------------------------------------------
-bool KRESTServer::Execute(const KRESTRoutes& Routes, KStringView sBaseRoute, OutputType Out)
+bool KRESTServer::Execute(const KRESTRoutes& Routes, KStringView sBaseRoute, OutputType Out, const ResponseHeaders& Headers)
 //-----------------------------------------------------------------------------
 {
 	try
 	{
-		json.clear();
-		Response.clear();
+		clear();
+
+		// we output JSON
+		Response.Headers.Add(KHTTPHeaders::CONTENT_TYPE, KMIME::JSON);
+
+		// add additional response headers
+		for (auto& it : Headers)
+		{
+			Response.Headers.Add(it.first, it.second);
+		}
 
 		if (!KHTTPServer::Parse())
 		{
@@ -283,6 +291,7 @@ bool KRESTServer::Execute(const KRESTRoutes& Routes, KStringView sBaseRoute, Out
 
 		Response.SetStatus(200, "OK");
 		Response.sHTTPVersion = Request.sHTTPVersion;
+		Response.sHTTPVersion = "HTTP/1.1";
 
 		KStringView sURLPath = Request.Resource.Path;
 
@@ -300,13 +309,29 @@ bool KRESTServer::Execute(const KRESTRoutes& Routes, KStringView sBaseRoute, Out
 			throw KHTTPError { KHTTPError::H5xx_ERROR, kFormat("empty callback for {}", sURLPath) };
 		}
 
-		if (Request.Headers.Get(KHTTPHeaders::CONTENT_TYPE) == KMIME::JSON)
+		if (Request.HasContent())
 		{
-			// parse the content into json.rx
-			KString sError;
-			if (!kjson::Parse(json.rx, Request.FilteredStream(), sError))
+			auto& sContentType = Request.Headers.Get(KHTTPHeaders::CONTENT_TYPE);
+			if (sContentType.empty() || sContentType == KMIME::JSON)
 			{
-				throw KHTTPError { KHTTPError::H4xx_BADREQUEST, sError };
+				// read body in temp buffer and parse into KJSON struct
+				KString sBuffer;
+				KHTTPServer::Read(sBuffer);
+				sBuffer.TrimRight();
+				if (!sBuffer.empty())
+				{
+					// parse the content into json.rx
+					KString sError;
+					if (!kjson::Parse(json.rx, sBuffer, sError))
+					{
+						throw KHTTPError { KHTTPError::H4xx_BADREQUEST, sError };
+					}
+				}
+			}
+			else
+			{
+				// read body and store for later access
+				KHTTPServer::Read(m_sRequestBody);
 			}
 		}
 
@@ -336,6 +361,7 @@ bool KRESTServer::Execute(const KRESTRoutes& Routes, KStringView sBaseRoute, Out
 void KRESTServer::Output(OutputType Out)
 //-----------------------------------------------------------------------------
 {
+	
 	switch (Out)
 	{
 		case HTTP:
@@ -350,9 +376,6 @@ void KRESTServer::Output(OutputType Out)
 			}
 			else
 			{
-				// we output JSON
-				Response.Headers.Set(KHTTPHeaders::CONTENT_TYPE, KMIME::JSON);
-
 				// the content:
 				if (!m_sMessage.empty())
 				{
@@ -371,6 +394,11 @@ void KRESTServer::Output(OutputType Out)
 			// compute and set the Content-Length header:
 			Response.Headers.Set(KHTTPHeaders::CONTENT_LENGTH, KString::to_string(sContent.length()));
 
+#ifndef NDEBUG
+			// TODO remove or make configurable
+			// enable for debug builds only
+			Response.Headers.Add ("X-XAPIS-Milliseconds", "1234");
+#endif
 			// writes full response and headers to output
 			Response.Serialize();
 
@@ -403,7 +431,7 @@ void KRESTServer::Output(OutputType Out)
 			{
 				if (!m_sMessage.empty())
 				{
-					tjson["message"] = std::move(m_sMessage);
+					json.tx["message"] = std::move(m_sMessage);
 				}
 
 				tjson["body"] = std::move(json.tx);
@@ -487,6 +515,11 @@ void KRESTServer::ErrorHandler(const std::exception& ex, OutputType Out)
 
 			// compute and set the Content-Length header:
 			Response.Headers.Set(KHTTPHeaders::CONTENT_LENGTH, KString::to_string(sContent.length()));
+#ifndef NDEBUG
+			// TODO remove or make configurable
+			// enable for debug builds only
+			Response.Headers.Add ("X-XAPIS-Milliseconds", "1234");
+#endif
 			Response.Headers.Set(KHTTPHeaders::CONNECTION, "close");
 
 			// writes full response and headers to output
@@ -550,5 +583,18 @@ void KRESTServer::SetStatus (int iCode)
 	}
 
 } // SetStatus
+
+//-----------------------------------------------------------------------------
+void KRESTServer::clear()
+//-----------------------------------------------------------------------------
+{
+	Request.clear();
+	Response.clear();
+	json.clear();
+	m_sRequestBody.clear();
+	m_sMessage.clear();
+	m_sRawOutput.clear();
+
+} // clear
 
 } // end of namespace dekaf2

@@ -256,9 +256,11 @@ public:
 	// forward constructors
 	using KHTTPServer::KHTTPServer;
 
+	using ResponseHeaders = KHTTPHeaders::KHeaderMap;
+
 	//-----------------------------------------------------------------------------
 	/// handler for one request
-	bool Execute(const KRESTRoutes& Routes, KStringView sBaseRoute = KStringView{}, OutputType Out = HTTP);
+	bool Execute(const KRESTRoutes& Routes, KStringView sBaseRoute = KStringView{}, OutputType Out = HTTP, const ResponseHeaders& Headers = ResponseHeaders{});
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -283,6 +285,14 @@ public:
 	//-----------------------------------------------------------------------------
 	{
 		return Request.Resource.Query.get().Get(sKey);
+	}
+
+	//-----------------------------------------------------------------------------
+	/// get the content body of a POST or PUT request
+	const KString& GetRequestBody() const
+	//-----------------------------------------------------------------------------
+	{
+		return m_sRequestBody;
 	}
 
 	//-----------------------------------------------------------------------------
@@ -347,7 +357,6 @@ public:
 
 	json_t json;
 
-
 //------
 protected:
 //------
@@ -362,10 +371,16 @@ protected:
 	virtual void ErrorHandler(const std::exception& ex, OutputType Out = HTTP);
 	//-----------------------------------------------------------------------------
 
+	//-----------------------------------------------------------------------------
+	/// clear all internal state
+	void clear();
+	//-----------------------------------------------------------------------------
+
 //------
 private:
 //------
 
+	KString m_sRequestBody;
 	KString m_sMessage;
 	KString m_sRawOutput;
 

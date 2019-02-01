@@ -64,6 +64,8 @@ public:
 	struct Options
 	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	{
+		void AddHeader(KStringView sHeader, KStringView sValue);
+
 		ServerType Type { UNDEFINED };
 		uint16_t iPort { 0 };
 		uint16_t iMaxConnections { 20 };
@@ -72,6 +74,7 @@ public:
 		KStringViewZ sCert;
 		KStringViewZ sKey;
 		KStringView sBaseRoute;
+		KRESTServer::ResponseHeaders ResponseHeaders;
 
 	}; // Options
 
@@ -91,7 +94,7 @@ public:
 protected:
 //----------
 
-	bool RealExecute(KStream& Stream, KRESTServer::OutputType Type, KStringView sBaseRoute, const KRESTRoutes& Routes, KStringView sRemoteIP = "0.0.0.0");
+	bool RealExecute(KStream& Stream, KRESTServer::OutputType Type, KStringView sBaseRoute, const KRESTRoutes& Routes, const KRESTServer::ResponseHeaders& Headers = KRESTServer::ResponseHeaders{}, KStringView sRemoteIP = "0.0.0.0");
 	bool SetError(KStringView sError);
 
 //----------

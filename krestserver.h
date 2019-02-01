@@ -55,8 +55,38 @@ namespace dekaf2 {
 class KRESTServer;
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// A route (request path) without resource handler
+class KRESTPath
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+//------
+public:
+//------
+
+	using URLParts = std::vector<KStringView>;
+
+	//-----------------------------------------------------------------------------
+	/// Construct a REST path. Typically used for the request path in a HTTP query.
+	/// Notice that _sRoute is a KStringView, and the pointed-to
+	/// string must stay visible during the lifetime of this class
+	KRESTPath(KHTTPMethod _Method, KStringView _sRoute);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// static method to split a URL into parts
+	static size_t SplitURL(URLParts& Parts, KStringView sURLPath);
+	//-----------------------------------------------------------------------------
+
+	KHTTPMethod Method;  	// e.g. GET, or empty for all
+	KStringView sRoute;     // e.g. "/employee/:id/address" or "/help"
+	URLParts vURLParts;
+
+}; // KRESTPath
+
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// A route (request path) to a resource handler
-class KRESTRoute
+class KRESTRoute : public KRESTPath
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -71,12 +101,10 @@ public:
 
 	using RESTCallback = std::function<void(KRESTServer&)>;
 
-	using URLParts = std::vector<KStringView>;
-
 	//-----------------------------------------------------------------------------
 	/// Construct a REST route on a function. Notice that _sRoute is a KStringView, and the pointed-to
 	/// string must stay visible during the lifetime of this class
-	KRESTRoute(KHTTPMethod _Method, KStringView _sRoute, RESTCallback _Callback = nullptr);
+	KRESTRoute(KHTTPMethod _Method, KStringView _sRoute, RESTCallback _Callback);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -91,16 +119,10 @@ public:
 	{
 	}
 
-	//-----------------------------------------------------------------------------
-	/// static method to split a URL into parts
-	static size_t SplitURL(URLParts& Parts, KStringView sURLPath);
-	//-----------------------------------------------------------------------------
-
-	KHTTPMethod Method;  	// e.g. GET, or empty for all
-	KStringView sRoute;     // e.g. "/employee/:id/address" or "/help"
 	RESTCallback Callback;
-	URLParts vURLParts;
 	bool bHasParameters { false };
+	bool bHasWildCardAtEnd { false };
+	bool bHasWildCardFragment { false };
 
 //------
 private:
@@ -196,12 +218,12 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Throws KHTTPError if no matching route found - fills additonal params in Path into Params
-	const KRESTRoute& FindRoute(const KRESTRoute& Route, Parameters& Params) const;
+	const KRESTRoute& FindRoute(const KRESTPath& Path, Parameters& Params) const;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// Throws KHTTPError if no matching route found - fills additional params in Path into Params
-	const KRESTRoute& FindRoute(const KRESTRoute& Route, url::KQuery& Params) const;
+	const KRESTRoute& FindRoute(const KRESTPath& Path, url::KQuery& Params) const;
 	//-----------------------------------------------------------------------------
 
 //------

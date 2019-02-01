@@ -46,23 +46,22 @@
 namespace dekaf2 {
 
 //-----------------------------------------------------------------------------
-KRESTRoute::KRESTRoute(KHTTPMethod _Method, KStringView _sRoute, RESTCallback _Callback)
+KRESTPath::KRESTPath(KHTTPMethod _Method, KStringView _sRoute)
 //-----------------------------------------------------------------------------
 	: Method(std::move(_Method))
 	, sRoute(std::move(_sRoute))
-	, Callback(std::move(_Callback))
 {
 	if (sRoute.front() != '/')
 	{
 		kWarning("error: route does not start with a slash: {}", sRoute);
 	}
-	bHasParameters = sRoute.Contains("/:");
+
 	SplitURL(vURLParts, sRoute);
 
-} // KRESTRoute
+} // KRESTPath
 
 //-----------------------------------------------------------------------------
-size_t KRESTRoute::SplitURL(URLParts& Parts, KStringView sURLPath)
+size_t KRESTPath::SplitURL(URLParts& Parts, KStringView sURLPath)
 //-----------------------------------------------------------------------------
 {
 	Parts.clear();
@@ -71,6 +70,41 @@ size_t KRESTRoute::SplitURL(URLParts& Parts, KStringView sURLPath)
 	return kSplit(Parts, sURLPath, "/", "");
 
 } // SplitURL
+
+//-----------------------------------------------------------------------------
+KRESTRoute::KRESTRoute(KHTTPMethod _Method, KStringView _sRoute, RESTCallback _Callback)
+//-----------------------------------------------------------------------------
+	: KRESTPath(std::move(_Method), std::move(_sRoute))
+	, Callback(std::move(_Callback))
+{
+	bHasParameters = sRoute.Contains("/:");
+
+	size_t iCount { 0 };
+
+	for (auto& it : vURLParts)
+	{
+		++iCount;
+
+		if (it == "*")
+		{
+			if (iCount == vURLParts.size())
+			{
+				bHasWildCardAtEnd = true;
+
+				if (!sRoute.remove_suffix("*"))
+				{
+					kWarning("cannot remove suffix '*' from '{}'", sRoute);
+				}
+			}
+			else
+			{
+				bHasWildCardFragment = true;
+			}
+			break;
+		}
+	}
+	
+} // KRESTRoute
 
 //-----------------------------------------------------------------------------
 KRESTRoutes::KRESTRoutes(KRESTRoute::RESTCallback DefaultRoute)
@@ -113,32 +147,55 @@ void KRESTRoutes::clear()
 } // clear
 
 //-----------------------------------------------------------------------------
-const KRESTRoute& KRESTRoutes::FindRoute(const KRESTRoute& Route, Parameters& Params) const
+const KRESTRoute& KRESTRoutes::FindRoute(const KRESTPath& Path, Parameters& Params) const
 //-----------------------------------------------------------------------------
 {
 	for (const auto& it : m_Routes)
 	{
-		if (it.Method.empty() || it.Method == Route.Method)
+		if (it.Method.empty() || it.Method == Path.Method)
 		{
-			if (!it.bHasParameters)
+			if (!it.bHasParameters && !it.bHasWildCardFragment)
 			{
-				// this is a plain route - we do not check part by part
-				if (DEKAF2_UNLIKELY(Route.sRoute == it.sRoute))
+				if (DEKAF2_UNLIKELY(it.bHasWildCardAtEnd))
 				{
-					return it;
+					// this is a plain route with a wildcard at the end
+					if (DEKAF2_UNLIKELY(Path.sRoute.StartsWith(it.sRoute)))
+					{
+						return it;
+					}
+				}
+				else
+				{
+					// this is a plain route - we do not check part by part
+					if (DEKAF2_UNLIKELY(Path.sRoute == it.sRoute))
+					{
+						return it;
+					}
 				}
 			}
 			else
 			{
-				// we have parameters, check part by part of the route
-				if (it.vURLParts.size() == Route.vURLParts.size())
+				// we have parameters or wildcard fragments, check part by part of the route
+				if (it.vURLParts.size() >= Path.vURLParts.size())
 				{
 					Params.clear();
-					auto req = Route.vURLParts.cbegin();
+					auto req = Path.vURLParts.cbegin();
 					bool bFound { true };
+					bool bOnlyParms { false };
 
 					for (auto& part : it.vURLParts)
 					{
+						if (DEKAF2_UNLIKELY(bOnlyParms))
+						{
+							// check remaining route fragments for being :parameters
+							if (part.front() != ':')
+							{
+								bFound = false;
+								break;
+							}
+							continue;
+						}
+
 						if (DEKAF2_LIKELY(part != *req))
 						{
 							if (DEKAF2_UNLIKELY(part.front() == ':'))
@@ -150,15 +207,23 @@ const KRESTRoute& KRESTRoutes::FindRoute(const KRESTRoute& Route, Parameters& Pa
 								// and add the value to our temporary query parms
 								Params.push_back({sName, *req});
 							}
-							else
+							else if (DEKAF2_LIKELY(part != "*"))
 							{
-								// not found
+								// this is not a wildcard
+								// therefore this route is not matching
 								bFound = false;
 								break;
 							}
 						}
+
 						// found, continue comparison
-						++req;
+						if (++req == Path.vURLParts.cend())
+						{
+							// end of Path reached, check if remaining Route
+							// fragments are parameters
+							bOnlyParms = true;
+						}
+
 					}
 
 					if (bFound)
@@ -176,17 +241,17 @@ const KRESTRoute& KRESTRoutes::FindRoute(const KRESTRoute& Route, Parameters& Pa
 		return m_DefaultRoute;
 	}
 
-	throw KHTTPError { KHTTPError::H4xx_NOTFOUND, kFormat("unknown address: {} {}", Route.Method.Serialize(), Route.sRoute) };
+	throw KHTTPError { KHTTPError::H4xx_NOTFOUND, kFormat("unknown address: {} {}", Path.Method.Serialize(), Path.sRoute) };
 
 } // FindRoute
 
 //-----------------------------------------------------------------------------
-const KRESTRoute& KRESTRoutes::FindRoute(const KRESTRoute& Route, url::KQuery& Params) const
+const KRESTRoute& KRESTRoutes::FindRoute(const KRESTPath& Path, url::KQuery& Params) const
 //-----------------------------------------------------------------------------
 {
 	Parameters parms;
 
-	auto& ret = FindRoute(Route, parms);
+	auto& ret = FindRoute(Path, parms);
 
 	// add all variables from the path into the request query
 	for (const auto& qp : parms)
@@ -224,7 +289,7 @@ bool KRESTServer::Execute(const KRESTRoutes& Routes, KStringView sBaseRoute, Out
 			throw KHTTPError { KHTTPError::H4xx_NOTFOUND, kFormat("url does not start with base route: {} <> {}", sBaseRoute, sURLPath) };
 		}
 
-		auto Route = Routes.FindRoute(KRESTRoute(Request.Method, sURLPath), Request.Resource.Query);
+		auto Route = Routes.FindRoute(KRESTPath(Request.Method, sURLPath), Request.Resource.Query);
 
 		if (!Route.Callback)
 		{

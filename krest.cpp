@@ -69,7 +69,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	void Session (KStream& Stream, KStringView sRemoteEndpoint)
+	void Session (KStream& Stream, KStringView sRemoteEndpoint) override final
 	//-----------------------------------------------------------------------------
 	{
 		KRESTServer Request;

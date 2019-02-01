@@ -91,9 +91,9 @@ KRESTRoute::KRESTRoute(KHTTPMethod _Method, KStringView _sRoute, RESTCallback _C
 			{
 				bHasWildCardAtEnd = true;
 
-				if (!sRoute.remove_suffix("*"))
+				if (!sRoute.remove_suffix("/*"))
 				{
-					kWarning("cannot remove suffix '*' from '{}'", sRoute);
+					kWarning("cannot remove suffix '/*' from '{}'", sRoute);
 				}
 			}
 			else
@@ -161,7 +161,11 @@ const KRESTRoute& KRESTRoutes::FindRoute(const KRESTPath& Path, Parameters& Para
 					// this is a plain route with a wildcard at the end
 					if (DEKAF2_UNLIKELY(Path.sRoute.StartsWith(it.sRoute)))
 					{
-						return it;
+						// take care that we only match full fragments, not parts of them
+						if (Path.sRoute.size() == it.sRoute.size() || Path.sRoute[it.sRoute.size()] == '/')
+						{
+							return it;
+						}
 					}
 				}
 				else

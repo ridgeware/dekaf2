@@ -56,6 +56,20 @@ TEST_CASE("KREST")
 			throw KHTTPError{ KHTTPError::H4xx_BADREQUEST, "missing parameters" };
 		}});
 
+		bool bMatchedWildcardAtEnd { false };
+
+		Routes.AddRoute({ KHTTPMethod::GET, "/wildcard/at/end/*", [&](KRESTServer& http)
+		{
+			bMatchedWildcardAtEnd = true;
+		}});
+
+		bool bMatchedWildcardFragment { false };
+
+		Routes.AddRoute({ KHTTPMethod::GET, "/wildcard/*/middle", [&](KRESTServer& http)
+		{
+			bMatchedWildcardFragment = true;
+		}});
+
 		KString sOut;
 		KOutStringStream oss(sOut);
 
@@ -111,6 +125,14 @@ TEST_CASE("KREST")
 		CHECK ( sName == "" );
 
 		sOut.clear();
+		CHECK ( REST.Simulate(Options, Routes, "/user", oss) == true );
+		CHECK ( bCalledTest == true  );
+		CHECK ( bCalledHelp == true  );
+		CHECK ( bCalledNoSlashPath == false );
+		CHECK ( sUID == "" );
+		CHECK ( sName == "" );
+
+		sOut.clear();
 		CHECK ( REST.Simulate(Options, Routes, "/user/7654", oss) == true );
 		CHECK ( bCalledTest == true  );
 		CHECK ( bCalledHelp == true  );
@@ -153,6 +175,36 @@ TEST_CASE("KREST")
 		CHECK ( bCalledNoSlashPath == false );
 		CHECK ( sUID == "7654" );
 		CHECK ( sName == "Peter" );
+
+		sOut.clear();
+		bMatchedWildcardAtEnd = false;
+		CHECK ( REST.Simulate(Options, Routes, "/wildcard/at/end/and/more", oss) == true );
+		CHECK ( bMatchedWildcardAtEnd == true  );
+
+		sOut.clear();
+		bMatchedWildcardAtEnd = false;
+		CHECK ( REST.Simulate(Options, Routes, "/wildcard/at/end", oss) == true );
+		CHECK ( bMatchedWildcardAtEnd == true  );
+
+		sOut.clear();
+		bMatchedWildcardAtEnd = false;
+		CHECK ( REST.Simulate(Options, Routes, "/wildcard/at/end/", oss) == true );
+		CHECK ( bMatchedWildcardAtEnd == true  );
+
+		sOut.clear();
+		bMatchedWildcardAtEnd = false;
+		CHECK ( REST.Simulate(Options, Routes, "/wildcard/at/ending", oss) == false );
+		CHECK ( bMatchedWildcardAtEnd == false  );
+
+		sOut.clear();
+		bMatchedWildcardFragment = false;
+		CHECK ( REST.Simulate(Options, Routes, "/wildcard/in/middle", oss) == true );
+		CHECK ( bMatchedWildcardFragment == true  );
+
+		sOut.clear();
+		bMatchedWildcardFragment = false;
+		CHECK ( REST.Simulate(Options, Routes, "/wildcard/in/the/middle", oss) == false );
+		CHECK ( bMatchedWildcardFragment == false  );
 
 	}
 

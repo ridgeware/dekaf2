@@ -60,12 +60,10 @@ public:
 	enum ServerType { UNDEFINED, HTTP, UNIX, CGI, FCGI, LAMBDA, CLI, SIMULATE_HTTP };
 
 	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-	/// define options for the rest server
-	struct Options
+	/// define options for the rest service
+	struct Options : public KRESTServer::Options
 	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	{
-		void AddHeader(KStringView sHeader, KStringView sValue);
-
 		ServerType Type { UNDEFINED };
 		uint16_t iPort { 0 };
 		uint16_t iMaxConnections { 20 };
@@ -73,17 +71,15 @@ public:
 		KStringViewZ sSocketFile;
 		KStringViewZ sCert;
 		KStringViewZ sKey;
-		KStringView sBaseRoute;
-		KRESTServer::ResponseHeaders ResponseHeaders;
 
 	}; // Options
 
 	/// handle one REST request, or start REST server in HTTP and UNIX modes
-	bool Execute(const Options& Params, const KRESTRoutes& Routes);
+	bool Execute(const Options& Options, const KRESTRoutes& Routes);
 	/// handle one REST request, read input from file, output to OutStream
-	bool ExecuteFromFile(const Options& Params, const KRESTRoutes& Routes, KStringView sFilename, KOutStream& OutStream = KOut);
+	bool ExecuteFromFile(const Options& Options, const KRESTRoutes& Routes, KStringView sFilename, KOutStream& OutStream = KOut);
 	/// simulate one REST request in HTTP/CGI mode, read input from sSimulate, output to OutStream
-	bool Simulate(const Options& Params, const KRESTRoutes& Routes, KStringView sSimulate, KOutStream& OutStream = KOut);
+	bool Simulate(const Options& Options, const KRESTRoutes& Routes, KStringView sSimulate, KOutStream& OutStream = KOut);
 
 	/// returns true if no error
 	bool Good() const;
@@ -94,7 +90,7 @@ public:
 protected:
 //----------
 
-	bool RealExecute(KStream& Stream, KRESTServer::OutputType Type, KStringView sBaseRoute, const KRESTRoutes& Routes, const KRESTServer::ResponseHeaders& Headers = KRESTServer::ResponseHeaders{}, KStringView sRemoteIP = "0.0.0.0");
+	bool RealExecute(const Options& Options, const KRESTRoutes& Routes, KStream& Stream, KStringView sRemoteIP = "0.0.0.0");
 	bool SetError(KStringView sError);
 
 //----------

@@ -46,6 +46,7 @@
 #include "kstringview.h"
 #include "kurl.h"
 #include "kjson.h"
+#include "ktimer.h"
 
 /// @file krestserver.h
 /// HTTP REST server implementation
@@ -55,7 +56,8 @@ namespace dekaf2 {
 class KRESTServer;
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// A route (request path) without resource handler
+/// A route (request path) without resource handler. Typically used for the
+/// request path in a HTTP query.
 class KRESTPath
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -256,11 +258,22 @@ public:
 	// forward constructors
 	using KHTTPServer::KHTTPServer;
 
-	using ResponseHeaders = KHTTPHeaders::KHeaderMap;
+	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	struct Options
+	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	{
+		void AddHeader(KStringView sHeader, KStringView sValue);
+
+		KStringView sBaseRoute;
+		KStringView sTimerHeader;
+		KHTTPHeaders::KHeaderMap ResponseHeaders;
+		mutable OutputType Out { HTTP };
+
+	}; // Options
 
 	//-----------------------------------------------------------------------------
 	/// handler for one request
-	bool Execute(const KRESTRoutes& Routes, KStringView sBaseRoute = KStringView{}, OutputType Out = HTTP, const ResponseHeaders& Headers = ResponseHeaders{});
+	bool Execute(const Options& Options, const KRESTRoutes& Routes);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -307,8 +320,6 @@ public:
 	/// set status code and corresponding default status string
 	void SetStatus(int iCode);
 	//-----------------------------------------------------------------------------
-
-//	uint64_t GetMilliseconds() const { return (m_timer.elapsed() / (1000 * 1000)); }
 
 	//-----------------------------------------------------------------------------
 	/// set raw (non-json) output
@@ -363,12 +374,12 @@ protected:
 
 	//-----------------------------------------------------------------------------
 	/// overwrite for your own output generation
-	virtual void Output(OutputType Out = HTTP);
+	virtual void Output(const Options& Options);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// overwrite for your own error handler
-	virtual void ErrorHandler(const std::exception& ex, OutputType Out = HTTP);
+	virtual void ErrorHandler(const std::exception& ex, const Options& Options);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -383,6 +394,7 @@ private:
 	KString m_sRequestBody;
 	KString m_sMessage;
 	KString m_sRawOutput;
+	KStopTime m_timer;
 
 }; // KRESTServer
 

@@ -60,12 +60,11 @@ public:
 
 	//-----------------------------------------------------------------------------
 	template<typename... Args>
-	RESTServer(KStringView sBaseRoute, const KRESTRoutes& Routes, const KRESTServer::ResponseHeaders& Headers, Args&&... args)
+	RESTServer(const KREST::Options& Options, const KRESTRoutes& Routes, Args&&... args)
 	//-----------------------------------------------------------------------------
 		: KTCPServer(std::forward<Args>(args)...)
+		, m_Options(Options)
 		, m_Routes(Routes)
-		, m_Headers(Headers)
-		, m_sBaseRoute(sBaseRoute)
 	{
 	}
 
@@ -76,7 +75,7 @@ public:
 		KRESTServer Request;
 
 		Request.Accept(Stream, sRemoteEndpoint);
-		Request.Execute(m_Routes, m_sBaseRoute, KRESTServer::HTTP, m_Headers);
+		Request.Execute(m_Options, m_Routes);
 		Request.Disconnect();
 
 	} // Session
@@ -86,30 +85,21 @@ public:
 protected:
 //----------
 
+	const KREST::Options& m_Options;
 	const KRESTRoutes& m_Routes;
-	const KRESTServer::ResponseHeaders& m_Headers;
-	KStringView m_sBaseRoute;
 
 }; // RESTServer
 
 } // end of namespace detail
 
 //-----------------------------------------------------------------------------
-void KREST::Options::AddHeader(KStringView sHeader, KStringView sValue)
-//-----------------------------------------------------------------------------
-{
-	ResponseHeaders.Add(sHeader, sValue);
-
-} // AddHeader
-
-//-----------------------------------------------------------------------------
-bool KREST::RealExecute(KStream& Stream, KRESTServer::OutputType Type, KStringView sBaseRoute, const KRESTRoutes& Routes, const KRESTServer::ResponseHeaders& Headers, KStringView sRemoteIP)
+bool KREST::RealExecute(const Options& Options, const KRESTRoutes& Routes, KStream& Stream, KStringView sRemoteIP)
 //-----------------------------------------------------------------------------
 {
 	KRESTServer Request;
 	
 	Request.Accept(Stream, sRemoteIP);
-	bool bRet = Request.Execute(Routes, sBaseRoute, Type, Headers);
+	bool bRet = Request.Execute(Options, Routes);
 	Request.Disconnect();
 
 	return bRet;
@@ -117,10 +107,10 @@ bool KREST::RealExecute(KStream& Stream, KRESTServer::OutputType Type, KStringVi
 } // Execute
 
 //-----------------------------------------------------------------------------
-bool KREST::Execute(const Options& Params, const KRESTRoutes& Routes)
+bool KREST::Execute(const Options& Options, const KRESTRoutes& Routes)
 //-----------------------------------------------------------------------------
 {
-	switch (Params.Type)
+	switch (Options.Type)
 	{
 		case UNDEFINED:
 			kWarning("undefined REST server mode");
@@ -128,53 +118,55 @@ bool KREST::Execute(const Options& Params, const KRESTRoutes& Routes)
 
 		case HTTP:
 			{
-				bool bUseTLS = !Params.sCert.empty() || !Params.sKey.empty();
+				bool bUseTLS = !Options.sCert.empty() || !Options.sKey.empty();
 				if (bUseTLS)
 				{
-					if (Params.sCert.empty())
+					if (Options.sCert.empty())
 					{
 						kWarning("TLS mode requested, but no certificate");
 						return false;
 					}
-					if (!kFileExists(Params.sCert))
+					if (!kFileExists(Options.sCert))
 					{
-						kWarning("TLS certificate does not exist: {}", Params.sCert);
+						kWarning("TLS certificate does not exist: {}", Options.sCert);
 						return false;
 					}
-					if (Params.sKey.empty())
+					if (Options.sKey.empty())
 					{
 						kDebug(0, "TLS mode requested, but no private key");
 						return false;
 					}
-					if (!kFileExists(Params.sKey))
+					if (!kFileExists(Options.sKey))
 					{
-						kWarning("TLS private key file does not exist: {}", Params.sKey);
+						kWarning("TLS private key file does not exist: {}", Options.sKey);
 						return false;
 					}
 				}
 
-				if (!detail::RESTServer::IsPortAvailable(Params.iPort))
+				if (!detail::RESTServer::IsPortAvailable(Options.iPort))
 				{
-					SetError(kFormat("port {} is in use - abort", Params.iPort));
+					SetError(kFormat("port {} is in use - abort", Options.iPort));
 					kWarning("{}", Error());
 					return false;
 				}
 
-				kDebug(1, "starting standalone {} server on port {}...", bUseTLS ? "HTTPS" : "HTTP", Params.iPort);
-				detail::RESTServer Server(Params.sBaseRoute, Routes, Params.ResponseHeaders, Params.iPort, bUseTLS, Params.iMaxConnections);
+				kDebug(1, "starting standalone {} server on port {}...", bUseTLS ? "HTTPS" : "HTTP", Options.iPort);
+				Options.Out = KRESTServer::HTTP;
+				detail::RESTServer Server(Options, Routes, Options.iPort, bUseTLS, Options.iMaxConnections);
 				if (bUseTLS)
 				{
-					Server.SetSSLCertificates(Params.sCert, Params.sKey);
+					Server.SetSSLCertificates(Options.sCert, Options.sKey);
 				}
-				Server.Start(Params.iTimeout, true);
+				Server.Start(Options.iTimeout, true);
 			}
 			break;
 
 		case UNIX:
 			{
-				kDebug(1, "starting standalone HTTP server on socket file {}...", Params.sSocketFile);
-				detail::RESTServer Server(Params.sBaseRoute, Routes, Params.ResponseHeaders, Params.sSocketFile, Params.iMaxConnections);
-				Server.Start(Params.iTimeout, true);
+				kDebug(1, "starting standalone HTTP server on socket file {}...", Options.sSocketFile);
+				Options.Out = KRESTServer::HTTP;
+				detail::RESTServer Server(Options, Routes, Options.sSocketFile, Options.iMaxConnections);
+				Server.Start(Options.iTimeout, true);
 			}
 			break;
 
@@ -183,7 +175,8 @@ bool KREST::Execute(const Options& Params, const KRESTRoutes& Routes)
 				kDebug (3, "normal CGI request...");
 				KCGIInStream CGI(KIn);
 				KStream Stream(CGI, KOut);
-				return RealExecute(Stream, KRESTServer::HTTP, Params.sBaseRoute, Routes, Params.ResponseHeaders); // TODO get remote from env var
+				Options.Out = KRESTServer::HTTP;
+				return RealExecute(Options, Routes, Stream); // TODO get remote IP from env var
 			}
 			break;
 
@@ -196,7 +189,8 @@ bool KREST::Execute(const Options& Params, const KRESTRoutes& Routes)
 				kDebug(3, "normal LAMBA request...");
 				KLambdaInStream Lambda(KIn);
 				KStream Stream(Lambda, KOut);
-				return RealExecute(Stream, KRESTServer::LAMBDA, Params.sBaseRoute, Routes, Params.ResponseHeaders); // TODO get remote from env var
+				Options.Out = KRESTServer::LAMBDA;
+				return RealExecute(Options, Routes, Stream); // TODO get remote IP from env var
 			}
 			break;
 
@@ -204,7 +198,8 @@ bool KREST::Execute(const Options& Params, const KRESTRoutes& Routes)
 			{
 				kDebug (3, "normal CLI request...");
 				KStream Stream(KIn, KOut);
-				return RealExecute(Stream, KRESTServer::CLI, Params.sBaseRoute, Routes, Params.ResponseHeaders, "127.0.0.1");
+				Options.Out = KRESTServer::CLI;
+				return RealExecute(Options, Routes, Stream, "127.0.0.1");
 			}
 			break;
 
@@ -219,10 +214,10 @@ bool KREST::Execute(const Options& Params, const KRESTRoutes& Routes)
 } // Execute
 
 //-----------------------------------------------------------------------------
-bool KREST::ExecuteFromFile(const Options& Params, const KRESTRoutes& Routes, KStringView sFilename, KOutStream& OutStream)
+bool KREST::ExecuteFromFile(const Options& Options, const KRESTRoutes& Routes, KStringView sFilename, KOutStream& OutStream)
 //-----------------------------------------------------------------------------
 {
-	switch (Params.Type)
+	switch (Options.Type)
 	{
 		case CGI:
 			{
@@ -230,7 +225,8 @@ bool KREST::ExecuteFromFile(const Options& Params, const KRESTRoutes& Routes, KS
 				KInFile File(sFilename);
 				KCGIInStream CGI(File);
 				KStream Stream(CGI, OutStream);
-				return RealExecute(Stream, KRESTServer::HTTP, Params.sBaseRoute, Routes, Params.ResponseHeaders, "127.0.0.1");
+				Options.Out = KRESTServer::HTTP;
+				return RealExecute(Options, Routes, Stream, "127.0.0.1");
 			}
 			break;
 
@@ -240,7 +236,8 @@ bool KREST::ExecuteFromFile(const Options& Params, const KRESTRoutes& Routes, KS
 				KInFile File(sFilename);
 				KLambdaInStream Lambda(File);
 				KStream Stream(Lambda, OutStream);
-				return RealExecute(Stream, KRESTServer::LAMBDA, Params.sBaseRoute, Routes, Params.ResponseHeaders, "127.0.0.1");
+				Options.Out = KRESTServer::LAMBDA;
+				return RealExecute(Options, Routes, Stream, "127.0.0.1");
 			}
 			break;
 
@@ -270,7 +267,7 @@ bool KREST::ExecuteFromFile(const Options& Params, const KRESTRoutes& Routes, KS
 } // ExecuteFromFile
 
 //-----------------------------------------------------------------------------
-bool KREST::Simulate(const Options& Params, const KRESTRoutes& Routes, KStringView sSimulate, KOutStream& OutStream)
+bool KREST::Simulate(const Options& Options, const KRESTRoutes& Routes, KStringView sSimulate, KOutStream& OutStream)
 //-----------------------------------------------------------------------------
 {
 	if (sSimulate.front() != '/')
@@ -307,7 +304,8 @@ bool KREST::Simulate(const Options& Params, const KRESTRoutes& Routes, KStringVi
 
 	KInStringStream String(sRequest);
 	KStream Stream(String, OutStream);
-	return RealExecute(Stream, KRESTServer::HTTP, Params.sBaseRoute, Routes, Params.ResponseHeaders, "127.0.0.1");
+	Options.Out = KRESTServer::HTTP;
+	return RealExecute(Options, Routes, Stream, "127.0.0.1");
 }
 
 //-----------------------------------------------------------------------------

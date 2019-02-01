@@ -268,7 +268,15 @@ const KRESTRoute& KRESTRoutes::FindRoute(const KRESTPath& Path, url::KQuery& Par
 } // FindRoute
 
 //-----------------------------------------------------------------------------
-bool KRESTServer::Execute(const KRESTRoutes& Routes, KStringView sBaseRoute, OutputType Out, const ResponseHeaders& Headers)
+void KRESTServer::Options::AddHeader(KStringView sHeader, KStringView sValue)
+//-----------------------------------------------------------------------------
+{
+	ResponseHeaders.Add(sHeader, sValue);
+
+} // AddHeader
+
+//-----------------------------------------------------------------------------
+bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 //-----------------------------------------------------------------------------
 {
 	try
@@ -279,7 +287,7 @@ bool KRESTServer::Execute(const KRESTRoutes& Routes, KStringView sBaseRoute, Out
 		Response.Headers.Add(KHTTPHeaders::CONTENT_TYPE, KMIME::JSON);
 
 		// add additional response headers
-		for (auto& it : Headers)
+		for (auto& it : Options.ResponseHeaders)
 		{
 			Response.Headers.Add(it.first, it.second);
 		}
@@ -290,16 +298,16 @@ bool KRESTServer::Execute(const KRESTRoutes& Routes, KStringView sBaseRoute, Out
 		}
 
 		Response.SetStatus(200, "OK");
-		Response.sHTTPVersion = Request.sHTTPVersion;
+//		Response.sHTTPVersion = Request.sHTTPVersion;
 		Response.sHTTPVersion = "HTTP/1.1";
 
 		KStringView sURLPath = Request.Resource.Path;
 
 		// remove_prefix is true when called with empty argument or with matching argument
-		if (!sURLPath.remove_prefix(sBaseRoute))
+		if (!sURLPath.remove_prefix(Options.sBaseRoute))
 		{
 			// bad prefix
-			throw KHTTPError { KHTTPError::H4xx_NOTFOUND, kFormat("url does not start with base route: {} <> {}", sBaseRoute, sURLPath) };
+			throw KHTTPError { KHTTPError::H4xx_NOTFOUND, kFormat("url does not start with base route: {} <> {}", Options.sBaseRoute, sURLPath) };
 		}
 
 		auto Route = Routes.FindRoute(KRESTPath(Request.Method, sURLPath), Request.Resource.Query);
@@ -311,12 +319,13 @@ bool KRESTServer::Execute(const KRESTRoutes& Routes, KStringView sBaseRoute, Out
 
 		if (Request.HasContent())
 		{
+			// read body and store for later access
+			KHTTPServer::Read(m_sRequestBody);
+
 			auto& sContentType = Request.Headers.Get(KHTTPHeaders::CONTENT_TYPE);
 			if (sContentType.empty() || sContentType == KMIME::JSON)
 			{
-				// read body in temp buffer and parse into KJSON struct
-				KString sBuffer;
-				KHTTPServer::Read(sBuffer);
+				KStringView sBuffer { m_sRequestBody };
 				sBuffer.TrimRight();
 				if (!sBuffer.empty())
 				{
@@ -328,23 +337,18 @@ bool KRESTServer::Execute(const KRESTRoutes& Routes, KStringView sBaseRoute, Out
 					}
 				}
 			}
-			else
-			{
-				// read body and store for later access
-				KHTTPServer::Read(m_sRequestBody);
-			}
 		}
 
 		Route.Callback(*this);
 
-		Output(Out);
+		Output(Options);
 
 		return true;
 	}
 
 	catch (const std::exception& ex)
 	{
-		ErrorHandler(ex, Out);
+		ErrorHandler(ex, Options);
 	}
 
 	return false;
@@ -352,17 +356,17 @@ bool KRESTServer::Execute(const KRESTRoutes& Routes, KStringView sBaseRoute, Out
 } // Execute
 
 #ifdef NDEBUG
-	static constexpr int json_pretty { -1 };
+	static constexpr int iJSONPretty { -1 };
 #else
-	static constexpr int json_pretty { 1 };
+	static constexpr int iJSONPretty { 1 };
 #endif
 
 //-----------------------------------------------------------------------------
-void KRESTServer::Output(OutputType Out)
+void KRESTServer::Output(const Options& Options)
 //-----------------------------------------------------------------------------
 {
 	
-	switch (Out)
+	switch (Options.Out)
 	{
 		case HTTP:
 		{
@@ -384,7 +388,7 @@ void KRESTServer::Output(OutputType Out)
 
 				if (!json.tx.empty())
 				{
-					sContent = json.tx.dump(json_pretty, '\t');
+					sContent = json.tx.dump(iJSONPretty, '\t');
 
 					// ensure that all JSON responses end in a newline:
 					sContent += '\n';
@@ -394,11 +398,11 @@ void KRESTServer::Output(OutputType Out)
 			// compute and set the Content-Length header:
 			Response.Headers.Set(KHTTPHeaders::CONTENT_LENGTH, KString::to_string(sContent.length()));
 
-#ifndef NDEBUG
-			// TODO remove or make configurable
-			// enable for debug builds only
-			Response.Headers.Add ("X-XAPIS-Milliseconds", "1234");
-#endif
+			if (!Options.sTimerHeader.empty())
+			{
+				Response.Headers.Add (Options.sTimerHeader, KString::to_string(m_timer.elapsed() / (1000 * 1000)));
+			}
+
 			// writes full response and headers to output
 			Response.Serialize();
 
@@ -436,7 +440,7 @@ void KRESTServer::Output(OutputType Out)
 
 				tjson["body"] = std::move(json.tx);
 			}
-			Response.UnfilteredStream() << tjson.dump(json_pretty, '\t') << "\n";
+			Response.UnfilteredStream() << tjson.dump(iJSONPretty, '\t') << "\n";
 
 		}
 		break;
@@ -456,7 +460,7 @@ void KRESTServer::Output(OutputType Out)
 
 				if (!json.tx.empty())
 				{
-					Response.UnfilteredStream() << json.tx.dump(json_pretty, '\t');
+					Response.UnfilteredStream() << json.tx.dump(iJSONPretty, '\t');
 				}
 			}
 			// finish with a linefeed
@@ -478,7 +482,7 @@ void KRESTServer::json_t::clear()
 }
 
 //-----------------------------------------------------------------------------
-void KRESTServer::ErrorHandler(const std::exception& ex, OutputType Out)
+void KRESTServer::ErrorHandler(const std::exception& ex, const Options& Options)
 //-----------------------------------------------------------------------------
 {
 	const KHTTPError* xex = dynamic_cast<const KHTTPError*>(&ex);
@@ -494,7 +498,7 @@ void KRESTServer::ErrorHandler(const std::exception& ex, OutputType Out)
 
 	KStringViewZ sError = ex.what();
 
-	switch (Out)
+	switch (Options.Out)
 	{
 		case HTTP:
 		{
@@ -508,7 +512,7 @@ void KRESTServer::ErrorHandler(const std::exception& ex, OutputType Out)
 				json.tx["message"] = sError;
 			}
 
-			KString sContent = json.tx.dump(json_pretty, '\t');
+			KString sContent = json.tx.dump(iJSONPretty, '\t');
 
 			// ensure that all JSON responses end in a newline:
 			sContent += '\n';
@@ -543,7 +547,7 @@ void KRESTServer::ErrorHandler(const std::exception& ex, OutputType Out)
 			json.tx["isBase64Encoded"] = false;
 			json.tx["body"] = KJSON::object();
 			json.tx["body"] += { "message", sError };
-			Response.UnfilteredStream() << json.tx.dump(json_pretty, '\t') << "\n";
+			Response.UnfilteredStream() << json.tx.dump(iJSONPretty, '\t') << "\n";
 		}
 		break;
 

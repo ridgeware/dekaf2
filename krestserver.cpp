@@ -400,6 +400,7 @@ void KRESTServer::Output(const Options& Options)
 
 			if (!Options.sTimerHeader.empty())
 			{
+				// add a custom header that marks execution time for this request
 				Response.Headers.Add (Options.sTimerHeader, KString::to_string(m_timer.elapsed() / (1000 * 1000)));
 			}
 

@@ -520,11 +520,13 @@ void KRESTServer::ErrorHandler(const std::exception& ex, const Options& Options)
 
 			// compute and set the Content-Length header:
 			Response.Headers.Set(KHTTPHeaders::CONTENT_LENGTH, KString::to_string(sContent.length()));
-#ifndef NDEBUG
-			// TODO remove or make configurable
-			// enable for debug builds only
-			Response.Headers.Add ("X-XAPIS-Milliseconds", "1234");
-#endif
+
+			if (!Options.sTimerHeader.empty())
+			{
+				// add a custom header that marks execution time for this request
+				Response.Headers.Add (Options.sTimerHeader, KString::to_string(m_timer.elapsed() / (1000 * 1000)));
+			}
+
 			Response.Headers.Set(KHTTPHeaders::CONNECTION, "close");
 
 			// writes full response and headers to output

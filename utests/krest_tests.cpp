@@ -84,9 +84,9 @@ TEST_CASE("KREST")
 
 		sOut.clear();
 #ifdef NDEBUG
-		KString sCompare = "HTTP/1.0 200 OK\r\nContent-Type: application/json\r\nContent-Length: 27\r\n\r\n{\"response\":\"hello world\"}\n";
+		KString sCompare = "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: 27\r\n\r\n{\"response\":\"hello world\"}\n";
 #else
-		KString sCompare = "HTTP/1.0 200 OK\r\nContent-Type: application/json\r\nContent-Length: 31\r\n\r\n{\n\t\"response\": \"hello world\"\n}\n";
+		KString sCompare = "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: 31\r\n\r\n{\n\t\"response\": \"hello world\"\n}\n";
 #endif
 		CHECK ( REST.Simulate(Options, Routes, "/test", oss) == true );
 		CHECK ( sOut == sCompare );
@@ -150,9 +150,9 @@ TEST_CASE("KREST")
 
 		sOut.clear();
 #ifdef NDEBUG
-		sCompare = "HTTP/1.0 400 BAD REQUEST\r\nContent-Length: 33\r\nConnection: close\r\n\r\n{\"message\":\"missing parameters\"}\n";
+		sCompare = "HTTP/1.1 400 BAD REQUEST\r\nContent-Type: application/json\r\nContent-Length: 33\r\nConnection: close\r\n\r\n{\"message\":\"missing parameters\"}\n";
 #else
-		sCompare = "HTTP/1.0 400 BAD REQUEST\r\nContent-Length: 37\r\nConnection: close\r\n\r\n{\n\t\"message\": \"missing parameters\"\n}\n";
+		sCompare = "HTTP/1.1 400 BAD REQUEST\r\nContent-Type: application/json\r\nContent-Length: 37\r\nConnection: close\r\n\r\n{\n\t\"message\": \"missing parameters\"\n}\n";
 #endif
 		CHECK ( REST.Simulate(Options, Routes, "/throw", oss) == false );
 		CHECK ( sOut == sCompare );
@@ -164,9 +164,9 @@ TEST_CASE("KREST")
 
 		sOut.clear();
 #ifdef NDEBUG
-		sCompare = "HTTP/1.0 404 NOT FOUND\r\nContent-Length: 44\r\nConnection: close\r\n\r\n{\"message\":\"unknown address: GET /unknown\"}\n";
+		sCompare = "HTTP/1.1 404 NOT FOUND\r\nContent-Type: application/json\r\nContent-Length: 44\r\nConnection: close\r\n\r\n{\"message\":\"unknown address: GET /unknown\"}\n";
 #else
-		sCompare = "HTTP/1.0 404 NOT FOUND\r\nContent-Length: 48\r\nConnection: close\r\n\r\n{\n\t\"message\": \"unknown address: GET /unknown\"\n}\n";
+		sCompare = "HTTP/1.1 404 NOT FOUND\r\nContent-Type: application/json\r\nContent-Length: 48\r\nConnection: close\r\n\r\n{\n\t\"message\": \"unknown address: GET /unknown\"\n}\n";
 #endif
 		CHECK ( REST.Simulate(Options, Routes, "/unknown", oss) == false );
 		CHECK ( sOut == sCompare );
@@ -266,9 +266,9 @@ TEST_CASE("KREST")
 
 		sOut.clear();
 #ifdef NDEBUG
-		KString sCompare = "HTTP/1.0 404 NOT FOUND\r\nContent-Length: 44\r\nConnection: close\r\n\r\n{\"message\":\"unknown address: GET /unknown\"}\n";
+		KString sCompare = "HTTP/1.1 404 NOT FOUND\r\nContent-Type: application/json\r\nContent-Length: 44\r\nConnection: close\r\n\r\n{\"message\":\"unknown address: GET /unknown\"}\n";
 #else
-		KString sCompare = "HTTP/1.0 404 NOT FOUND\r\nContent-Length: 48\r\nConnection: close\r\n\r\n{\n\t\"message\": \"unknown address: GET /unknown\"\n}\n";
+		KString sCompare = "HTTP/1.1 404 NOT FOUND\r\nContent-Type: application/json\r\nContent-Length: 48\r\nConnection: close\r\n\r\n{\n\t\"message\": \"unknown address: GET /unknown\"\n}\n";
 #endif
 		CHECK ( REST.Simulate(Options, Routes, "/unknown", oss) == false );
 		CHECK ( sOut == sCompare );

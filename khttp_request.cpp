@@ -227,6 +227,32 @@ KString KHTTPRequestHeaders::GetBrowserIP() const
 } // GetBrowserIP
 
 //-----------------------------------------------------------------------------
+KStringView KHTTPRequestHeaders::SupportedCompression() const
+//-----------------------------------------------------------------------------
+{
+	// for compression we need to switch to chunked transfer, as we do not know
+	// the size of the compressed content - however, chunking is only supported
+	// since HTTP/1.1
+	if (HasChunking())
+	{
+		// check the client's request headers for accepted compression encodings
+		auto& sCompression = Headers.Get(KHTTPHeaders::accept_encoding);
+
+		if (sCompression.find("gzip") != KString::npos)
+		{
+			return "gzip"_ksv;
+		}
+		else if (sCompression.find("deflate") != KString::npos)
+		{
+			return "deflate"_ksv;
+		}
+	}
+
+	return ""_ksv;
+
+} // SupportsCompression
+
+//-----------------------------------------------------------------------------
 void KHTTPRequestHeaders::clear()
 //-----------------------------------------------------------------------------
 {

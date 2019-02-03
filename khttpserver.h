@@ -162,6 +162,9 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// Automatically check if the output in this connection can be compressed, and
+	/// enable compression. This depends on the Accept-Encoding request header and
+	/// the client HTTP version. This option is active per default.
 	void SetCompression(bool bYesNo)
 	//-----------------------------------------------------------------------------
 	{
@@ -169,7 +172,8 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	/// uncompress incoming request?
+	/// Disable uncompress of incoming request, even if the respective request
+	/// headers are set.
 	void Uncompress(bool bYesNo)
 	//-----------------------------------------------------------------------------
 	{
@@ -177,7 +181,8 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	/// compress outgoing response?
+	/// Disable compression of outgoing response, even if the respective response
+	/// headers are set.
 	void Compress(bool bYesNo)
 	//-----------------------------------------------------------------------------
 	{
@@ -211,6 +216,10 @@ protected:
 //------
 private:
 //------
+
+	//-----------------------------------------------------------------------------
+	void EnableCompressionIfPossible();
+	//-----------------------------------------------------------------------------
 
 	mutable KString m_sError;
 	long m_Timeout { 30 };

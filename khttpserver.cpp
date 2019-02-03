@@ -113,6 +113,11 @@ bool KHTTPServer::Parse()
 bool KHTTPServer::Serialize()
 //-----------------------------------------------------------------------------
 {
+	if (m_bSetCompression)
+	{
+		EnableCompressionIfPossible();
+	}
+
 	if (!Response.Serialize())
 	{
 		SetError(Response.Error());
@@ -159,5 +164,31 @@ bool KHTTPServer::SetError(KStringView sError) const
 
 } // SetError
 
+//-----------------------------------------------------------------------------
+void KHTTPServer::EnableCompressionIfPossible()
+//-----------------------------------------------------------------------------
+{
+	auto sCompression = Request.SupportedCompression();
+
+	if (sCompression == "gzip")
+	{
+		Response.Headers.Set (KHTTPHeaders::CONTENT_ENCODING, "gzip");
+	}
+	else if (sCompression == "deflate")
+	{
+		Response.Headers.Set (KHTTPHeaders::CONTENT_ENCODING, "deflate");
+	}
+	else
+	{
+		return;
+	}
+	
+	// for compression we need to switch to chunked transfer, as we do not know
+	// the size of the compressed content
+	Response.Headers.Set (KHTTPHeaders::TRANSFER_ENCODING, "chunked");
+	// remove the content length
+	Response.Headers.Remove (KHTTPHeaders::content_length);
+
+} // EnableCompressionIfPossible
 
 } // end of namespace dekaf2

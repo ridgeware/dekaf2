@@ -108,9 +108,10 @@ inline bool kRemoveDir (KStringViewZ sPath)
 }
 
 //-----------------------------------------------------------------------------
-/// Read entire text file into a single string and convert DOS newlines. The base
-/// function (that is also called by this variant) is kReadAll().
-bool kReadFile (KStringViewZ sPath, KString& sContents);
+/// Read entire text file into a single string and convert DOS newlines if
+/// bToUnixLineFeeds is true. The base function (that is also called by this
+/// variant) is kReadAll().
+bool kReadFile (KStringViewZ sPath, KString& sContents, bool bToUnixLineFeeds);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------

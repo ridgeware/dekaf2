@@ -250,7 +250,7 @@ uint8_t ksystem (KStringView sCommand, KString& sOutput)
 	}
 	else
 	{
-		kReadFile (sTmp, sOutput);
+		kReadFile (sTmp, sOutput, true);
 		kDebugLog (3, "ksystem: output contained {} bytes", sOutput.size());
 		kRemoveFile (sTmp);
 	}

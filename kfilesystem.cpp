@@ -1001,7 +1001,7 @@ bool kWriteFile (KStringViewZ sPath, KStringView sContents, int iMode /* = DEKAF
 } // kWriteFile
 
 //-----------------------------------------------------------------------------
-bool kReadFile (KStringViewZ sPath, KString& sContents)
+bool kReadFile (KStringViewZ sPath, KString& sContents, bool bToUnixLineFeeds)
 //-----------------------------------------------------------------------------
 {
 	kDebugLog (2, "kReadFile: {}", sPath);
@@ -1011,7 +1011,10 @@ bool kReadFile (KStringViewZ sPath, KString& sContents)
 		return false;
 	}
 
-	sContents.Replace("\r\n","\n"); // DOS -> UNIX
+	if (bToUnixLineFeeds)
+	{
+		sContents.Replace("\r\n","\n"); // DOS -> UNIX
+	}
 	
 	return true;
 

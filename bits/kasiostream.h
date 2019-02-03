@@ -66,6 +66,39 @@ struct KAsioStream
 	}
 
 	//-----------------------------------------------------------------------------
+	~KAsioStream()
+	//-----------------------------------------------------------------------------
+	{
+		Disconnect();
+
+	} // dtor
+
+	//-----------------------------------------------------------------------------
+	/// disconnect the stream
+	bool Disconnect()
+	//-----------------------------------------------------------------------------
+	{
+		if (Socket.is_open())
+		{
+			boost::system::error_code ec;
+			Socket.shutdown(boost::asio::ip::tcp::socket::shutdown_both, ec);
+			if (ec)
+			{
+				kDebug(2, "error shutting down socket: {}", ec.message());
+				return false;
+			}
+			Socket.close(ec);
+			if (ec)
+			{
+				kDebug(2, "error closing socket: {}", ec.message());
+				return false;
+			}
+		}
+		return true;
+
+	} // Disconnect
+
+	//-----------------------------------------------------------------------------
 	void ResetTimer()
 	//-----------------------------------------------------------------------------
 	{

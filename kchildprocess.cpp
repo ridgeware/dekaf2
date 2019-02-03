@@ -116,19 +116,19 @@ void kDaemonize(bool bChangeDir)
 	int iStdIn = open("/dev/null", O_RDONLY);
 	if (iStdIn != 0)
 	{
-		kWarning("opening stdin failed, got fd {}", iStdIn);
+		kWarning("opening {} failed, got fd {}", "stdin", iStdIn);
 	}
 
 	int iStdOut = open("/dev/null", O_WRONLY);
 	if (iStdOut != 1)
 	{
-		kWarning("opening stdout failed, got fd {}", iStdOut);
+		kWarning("opening {} failed, got fd {}", "stdout", iStdOut);
 	}
 
 	int iStdErr = dup(iStdOut);
 	if (iStdErr != 2)
 	{
-		kWarning("opening stderr failed, got fd {}", iStdErr);
+		kWarning("opening {} failed, got fd {}", "stderr", iStdErr);
 	}
 
 } // kDaemonize
@@ -231,19 +231,19 @@ bool KChildProcess::Start(KStringView sCommand, KStringViewZ sChangeDirectory, b
 		int iStdIn = open("/dev/null", O_RDONLY);
 		if (iStdIn != 0)
 		{
-			kDebugLog(1, "KChildProcess: opening stdin failed, got fd {}", iStdIn);
+			kDebugLog(1, "KChildProcess: opening {} failed, got fd {}", "stdin", iStdIn);
 		}
 
 		int iStdOut = open("/dev/null", O_WRONLY);
 		if (iStdOut != 1)
 		{
-			kDebugLog(1, "KChildProcess: opening stdout failed, got fd {}", iStdOut);
+			kDebugLog(1, "KChildProcess: opening {} failed, got fd {}", "stdout", iStdOut);
 		}
 
 		int iStdErr = dup(iStdOut);
 		if (iStdErr != 2)
 		{
-			kDebugLog(1, "KChildProcess: opening stderr failed, got fd {}", iStdErr);
+			kDebugLog(1, "KChildProcess: opening {} failed, got fd {}", "stderr", iStdErr);
 		}
 
 		m_bIsDaemonized = true;

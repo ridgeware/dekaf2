@@ -241,6 +241,7 @@ private:
 
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// HTTP REST server with JSON input / output
 class KRESTServer : public KHTTPServer
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -262,12 +263,14 @@ public:
 	struct Options
 	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	{
+		/// Add one header to the list of fixed additional headers
 		void AddHeader(KStringView sHeader, KStringView sValue);
 
-		KStringView sBaseRoute;
-		KStringView sTimerHeader;
-		KHTTPHeaders::KHeaderMap ResponseHeaders;
-		mutable OutputType Out { HTTP };
+		KStringView sBaseRoute;                    // Fixed route prefix
+		KStringView sTimerHeader;                  // If non-empty creates a header with execution time
+		KHTTPHeaders::KHeaderMap ResponseHeaders;  // Fixed additional headers
+		uint16_t iMaxKeepaliveRounds { 10 };       // DoS prevention - max rounds in keep-alive
+		mutable OutputType Out { HTTP };           // Which of the three output formats?
 
 	}; // Options
 
@@ -373,17 +376,17 @@ protected:
 //------
 
 	//-----------------------------------------------------------------------------
-	/// overwrite for your own output generation
-	virtual void Output(const Options& Options);
+	/// generate success output
+	void Output(const Options& Options, bool bKeepAlive);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// overwrite for your own error handler
-	virtual void ErrorHandler(const std::exception& ex, const Options& Options);
+	/// generate error output
+	void ErrorHandler(const std::exception& ex, const Options& Options);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// clear all internal state
+	/// prepare for another round in keep-alive: clear previous request data
 	void clear();
 	//-----------------------------------------------------------------------------
 

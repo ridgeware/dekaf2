@@ -84,9 +84,9 @@ TEST_CASE("KREST")
 
 		sOut.clear();
 #ifdef NDEBUG
-		KString sCompare = "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: 27\r\n\r\n{\"response\":\"hello world\"}\n";
+		KString sCompare = "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: 27\r\nConnection: close\r\n\r\n{\"response\":\"hello world\"}\n";
 #else
-		KString sCompare = "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: 31\r\n\r\n{\n\t\"response\": \"hello world\"\n}\n";
+		KString sCompare = "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: 31\r\nConnection: close\r\n\r\n{\n\t\"response\": \"hello world\"\n}\n";
 #endif
 		CHECK ( REST.Simulate(Options, Routes, "/test", oss) == true );
 		CHECK ( sOut == sCompare );

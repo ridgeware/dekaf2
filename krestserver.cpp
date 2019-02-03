@@ -281,67 +281,107 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 {
 	try
 	{
-		clear();
+		uint16_t iRound { 0 };
 
-		// we output JSON
-		Response.Headers.Add(KHTTPHeaders::CONTENT_TYPE, KMIME::JSON);
-
-		// add additional response headers
-		for (auto& it : Options.ResponseHeaders)
+		for (;;)
 		{
-			Response.Headers.Add(it.first, it.second);
-		}
+			clear();
 
-		if (!KHTTPServer::Parse())
-		{
-			throw KHTTPError  { KHTTPError::H4xx_BADREQUEST, KHTTPServer::Error() };
-		}
+			// we output JSON
+			Response.Headers.Add(KHTTPHeaders::CONTENT_TYPE, KMIME::JSON);
 
-		Response.SetStatus(200, "OK");
-//		Response.sHTTPVersion = Request.sHTTPVersion;
-		Response.sHTTPVersion = "HTTP/1.1";
-
-		KStringView sURLPath = Request.Resource.Path;
-
-		// remove_prefix is true when called with empty argument or with matching argument
-		if (!sURLPath.remove_prefix(Options.sBaseRoute))
-		{
-			// bad prefix
-			throw KHTTPError { KHTTPError::H4xx_NOTFOUND, kFormat("url does not start with base route: {} <> {}", Options.sBaseRoute, sURLPath) };
-		}
-
-		auto Route = Routes.FindRoute(KRESTPath(Request.Method, sURLPath), Request.Resource.Query);
-
-		if (!Route.Callback)
-		{
-			throw KHTTPError { KHTTPError::H5xx_ERROR, kFormat("empty callback for {}", sURLPath) };
-		}
-
-		if (Request.HasContent())
-		{
-			// read body and store for later access
-			KHTTPServer::Read(m_sRequestBody);
-
-			auto& sContentType = Request.Headers.Get(KHTTPHeaders::CONTENT_TYPE);
-			if (sContentType.empty() || sContentType == KMIME::JSON)
+			// add additional response headers
+			for (auto& it : Options.ResponseHeaders)
 			{
-				KStringView sBuffer { m_sRequestBody };
-				sBuffer.TrimRight();
-				if (!sBuffer.empty())
+				Response.Headers.Add(it.first, it.second);
+			}
+
+			bool bOK = KHTTPServer::Parse();
+
+			if (iRound > 0 && !Options.sTimerHeader.empty())
+			{
+				// we can only start the timer after the input header
+				// parsing completes, as otherwise we would also count
+				// the keep-alive wait
+				m_timer.clear();
+			}
+
+			if (!bOK)
+			{
+				if (KHTTPServer::Error().empty())
 				{
-					// parse the content into json.rx
-					KString sError;
-					if (!kjson::Parse(json.rx, sBuffer, sError))
+					// this is a read timeout on a keepalive connection.
+					// close silently
+					return false;
+				}
+				else
+				{
+					throw KHTTPError  { KHTTPError::H4xx_BADREQUEST, KHTTPServer::Error() };
+				}
+			}
+
+			Response.SetStatus(200, "OK");
+			Response.sHTTPVersion = "HTTP/1.1";
+
+			KStringView sURLPath = Request.Resource.Path;
+
+			// remove_prefix is true when called with empty argument or with matching argument
+			if (!sURLPath.remove_prefix(Options.sBaseRoute))
+			{
+				// bad prefix
+				throw KHTTPError { KHTTPError::H4xx_NOTFOUND, kFormat("url does not start with base route: {} <> {}", Options.sBaseRoute, sURLPath) };
+			}
+
+			// find the right route
+			auto Route = Routes.FindRoute(KRESTPath(Request.Method, sURLPath), Request.Resource.Query);
+
+			if (!Route.Callback)
+			{
+				throw KHTTPError { KHTTPError::H5xx_ERROR, kFormat("empty callback for {}", sURLPath) };
+			}
+
+			if (Request.Method != KHTTPMethod::GET && Request.HasContent())
+			{
+				// read body and store for later access
+				KHTTPServer::Read(m_sRequestBody);
+
+				auto& sContentType = Request.Headers.Get(KHTTPHeaders::CONTENT_TYPE);
+				if (sContentType.empty() || sContentType == KMIME::JSON)
+				{
+					KStringView sBuffer { m_sRequestBody };
+					sBuffer.TrimRight();
+					if (!sBuffer.empty())
 					{
-						throw KHTTPError { KHTTPError::H4xx_BADREQUEST, sError };
+						// parse the content into json.rx
+						KString sError;
+						if (!kjson::Parse(json.rx, sBuffer, sError))
+						{
+							throw KHTTPError { KHTTPError::H4xx_BADREQUEST, sError };
+						}
 					}
 				}
 			}
+
+			// call the route handler
+			Route.Callback(*this);
+
+			// We offer a keep-alive if the client did not explicitly
+			// request a close. We only allow for a limited amount
+			// of keep-alive rounds, as this blocks one thread of
+			// execution and could lead to a DoS if an attacker would
+			// hold as many connections as we have simultaneous threads.
+			bool bKeepAlive = (Options.Out == HTTP)
+			               && (++iRound < Options.iMaxKeepaliveRounds)
+			               && Request.HasKeepAlive();
+
+			Output(Options, bKeepAlive);
+
+			if (!bKeepAlive)
+			{
+				// no keep-alive allowed, or not supported by client -> exit
+				return true;
+			}
 		}
-
-		Route.Callback(*this);
-
-		Output(Options);
 
 		return true;
 	}
@@ -362,10 +402,12 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 #endif
 
 //-----------------------------------------------------------------------------
-void KRESTServer::Output(const Options& Options)
+void KRESTServer::Output(const Options& Options, bool bKeepAlive)
 //-----------------------------------------------------------------------------
 {
-	
+	// only allow output compression if this is HTTP mode
+	SetCompression(Options.Out == HTTP);
+
 	switch (Options.Out)
 	{
 		case HTTP:
@@ -404,20 +446,19 @@ void KRESTServer::Output(const Options& Options)
 				Response.Headers.Add (Options.sTimerHeader, KString::to_string(m_timer.elapsed() / (1000 * 1000)));
 			}
 
-			// writes full response and headers to output
-			Response.Serialize();
+			Response.Headers.Set (KHTTPHeaders::CONNECTION, bKeepAlive ? "keep-alive" : "close");
+
+			// writes response headers to output
+			Serialize();
 
 			// finally, output the content:
 			kDebug(2, "{}", sContent);
-			Response.Write(sContent);
+			Write(sContent);
 		}
 		break;
 
 		case LAMBDA:
 		{
-			// we output JSON
-			Response.Headers.Set(KHTTPHeaders::CONTENT_TYPE, KMIME::JSON);
-
 			KJSON tjson;
 			tjson["statusCode"] = Response.iStatusCode;
 			tjson["headers"] = KJSON::object();
@@ -499,6 +540,9 @@ void KRESTServer::ErrorHandler(const std::exception& ex, const Options& Options)
 
 	KStringViewZ sError = ex.what();
 
+	// do not compress/chunk error messages
+	SetCompression(false);
+
 	switch (Options.Out)
 	{
 		case HTTP:
@@ -529,8 +573,8 @@ void KRESTServer::ErrorHandler(const std::exception& ex, const Options& Options)
 
 			Response.Headers.Set(KHTTPHeaders::CONNECTION, "close");
 
-			// writes full response and headers to output
-			Response.Serialize();
+			// writes response headers to output
+			Serialize();
 
 			// finally, output the content:
 			kDebug (2, "{}", sContent);

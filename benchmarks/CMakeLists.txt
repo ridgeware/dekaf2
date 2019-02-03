@@ -32,6 +32,9 @@ add_executable(benchmarks ${HEADERS} ${SOURCES})
 target_link_libraries(benchmarks dekaf2)
 target_compile_definitions(benchmarks PRIVATE DEKAF2_ENABLE_PROFILING)
 
+add_executable(restserver restserver.cpp)
+target_link_libraries(restserver dekaf2)
+
 set(ALL_INSTALLABLE_TARGETS
 	benchmarks
 )

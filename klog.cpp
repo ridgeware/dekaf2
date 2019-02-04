@@ -474,16 +474,16 @@ KLog::KLog()
 //---------------------------------------------------------------------------
     : m_sLogName     (kGetEnv(s_sEnvLog,  s_sDefaultLog))
     , m_sFlagfile    (kGetEnv(s_sEnvFlag, s_sDefaultFlag))
-    #ifdef NDEBUG
-    , m_iBackTrace   (std::atoi(kGetEnv(s_sEnvTrace, "-3")))
-    #else
-    , m_iBackTrace   (std::atoi(kGetEnv(s_sEnvTrace, "-2")))
-    #endif
+#ifdef NDEBUG
+    , m_iBackTrace   (kGetEnv(s_sEnvTrace, "-3").Int16())
+#else
+    , m_iBackTrace   (kGetEnv(s_sEnvTrace, "-2").Int16())
+#endif
 {
 #ifdef NDEBUG
-	s_kLogLevel = -1;
+	s_kLogLevel = kGetEnv(s_sEnvLevel, "-1").Int16();
 #else
-	s_kLogLevel = 0;
+	s_kLogLevel = kGetEnv(s_sEnvLevel, "0").Int16();
 #endif
 	m_sPathName =  Dekaf().GetProgPath();
 	m_sPathName += '/';

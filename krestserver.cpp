@@ -245,7 +245,7 @@ const KRESTRoute& KRESTRoutes::FindRoute(const KRESTPath& Path, Parameters& Para
 		return m_DefaultRoute;
 	}
 
-	throw KHTTPError { KHTTPError::H4xx_NOTFOUND, kFormat("unknown address: {} {}", Path.Method.Serialize(), Path.sRoute) };
+	throw KHTTPError { KHTTPError::H4xx_NOTFOUND, kFormat("invalid path: {} {}", Path.Method.Serialize(), Path.sRoute) };
 
 } // FindRoute
 

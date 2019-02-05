@@ -109,7 +109,7 @@ const KHTTPRoute& KHTTPRoutes::FindRoute(const KHTTPRoute& Route) const
 		return m_DefaultRoute;
 	}
 
-	throw KHTTPError { KHTTPError::H4xx_NOTFOUND, kFormat("unknown address {}", Route.sRoute) };
+	throw KHTTPError { KHTTPError::H4xx_NOTFOUND, kFormat("invalid path {}", Route.sRoute) };
 
 } // FindRoute
 

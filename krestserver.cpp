@@ -345,19 +345,16 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 				// read body and store for later access
 				KHTTPServer::Read(m_sRequestBody);
 
-				auto& sContentType = Request.Headers.Get(KHTTPHeaders::CONTENT_TYPE);
-				if (sContentType.empty() || sContentType == KMIME::JSON)
+				// try to read input as JSON - if it fails just skip
+				KStringView sBuffer { m_sRequestBody };
+				sBuffer.TrimRight();
+				if (!sBuffer.empty())
 				{
-					KStringView sBuffer { m_sRequestBody };
-					sBuffer.TrimRight();
-					if (!sBuffer.empty())
+					// parse the content into json.rx
+					KString sError;
+					if (!kjson::Parse(json.rx, sBuffer, sError))
 					{
-						// parse the content into json.rx
-						KString sError;
-						if (!kjson::Parse(json.rx, sBuffer, sError))
-						{
-							throw KHTTPError { KHTTPError::H4xx_BADREQUEST, sError };
-						}
+						json.rx.clear();
 					}
 				}
 			}

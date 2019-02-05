@@ -173,7 +173,7 @@ bool KCGIInStream::CreateHeader()
 {
 	m_Stream.ClearFlagsAndHeader();
 
-	KString sMethod = kGetEnv(KCGIInStream::REQUEST_METHOD);
+	auto sMethod = kGetEnv(KCGIInStream::REQUEST_METHOD);
 
 	if (sMethod.empty())
 	{

@@ -34,27 +34,19 @@ public:
 	SimpleServer(KREST::Options& Options)
 	: KTCPServer(Options.iPort, false, Options.iMaxConnections)
 	{
-
 	}
 
 	void Session(KStream& stream, KStringView sRemoteEndPoint) override final
 	{
-		KString sLine;
-
 		stream.SetReaderRightTrim("\r\n");
 
-		while (!stream.InStream().bad())
+		KString sLine;
+
+		while (stream.ReadLine(sLine))
 		{
-
-			if (!stream.ReadLine(sLine))
-			{
-				return;
-			}
-
 			if (sLine.empty())
 			{
 				// end of headers
-
 				stream.Write(sResponse).Flush();
 			}
 		}

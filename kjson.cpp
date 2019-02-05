@@ -43,6 +43,7 @@
 #include "kjson.h"
 #include "klog.h"
 #include "krow.h"
+#include "kutf8.h"
 
 namespace dekaf2 {
 
@@ -63,6 +64,29 @@ void from_json(const KJSON& j, KROW& row)
 }
 
 namespace kjson {
+
+//-----------------------------------------------------------------------------
+void SetStringFromUTF8orLatin1(KJSON& json, KStringView sInput)
+//-----------------------------------------------------------------------------
+{
+	if (Unicode::ValidUTF8(sInput))
+	{
+		json = sInput;
+	}
+	else
+	{
+		KString sUTF8;
+		sUTF8.reserve(sInput.size());
+
+		for (auto ch : sInput)
+		{
+			Unicode::ToUTF8(ch, sUTF8);
+		}
+
+		json = sUTF8;
+	}
+
+} // SetStringFromUTF8orLatin1
 
 //-----------------------------------------------------------------------------
 bool Parse (KJSON& json, KStringView sJSON, KString& sError)

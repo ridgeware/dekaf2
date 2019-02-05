@@ -527,7 +527,7 @@ KJSON KROW::to_json () const
 			DEKAF2_CATCH(const KJSON::exception& exc)
 			{
 				// not a valid json object / array, store it as a string
-				json[col.first] = col.second.sValue;
+				kjson::SetStringFromUTF8orLatin1(json[col.first], col.second.sValue);
 			}
 		}
 		else
@@ -547,12 +547,12 @@ KJSON KROW::to_json () const
 				DEKAF2_CATCH(const KJSON::exception& exc)
 				{
 					// not a valid json object / array, store it as a string
-					json[col.first] = col.second.sValue;
+					kjson::SetStringFromUTF8orLatin1(json[col.first], col.second.sValue);
 				}
 			}
 			else
 			{
-				json[col.first] = col.second.sValue;
+				kjson::SetStringFromUTF8orLatin1(json[col.first], col.second.sValue);
 			}
 		}
 	}

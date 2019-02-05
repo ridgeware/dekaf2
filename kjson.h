@@ -99,6 +99,13 @@ namespace kjson
 	/// returns a string representation for the KJSON object, never throws
 	KString Print (const KJSON& json);
 
+	/// Sets a JSON string from a KStringView, checks if the string was
+	/// valid UTF8 or converts from (assumed) Latin1 to UTF8. That is
+	/// needed to avoid throws from the KJSON serializer on invalid UTF8.
+	/// Use this whenever you add string data coming from unreliable
+	/// input.
+	void SetStringFromUTF8orLatin1(KJSON& json, KStringView sInput);
+
 	/// returns a value for a string key, does never throw
 	KString GetString(const KJSON& json, KStringView sKey);
 

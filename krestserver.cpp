@@ -325,12 +325,8 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 
 			KStringView sURLPath = Request.Resource.Path;
 
-			// remove_prefix is true when called with empty argument or with matching argument
-			if (!sURLPath.remove_prefix(Options.sBaseRoute))
-			{
-				// bad prefix
-				throw KHTTPError { KHTTPError::H4xx_NOTFOUND, kFormat("url does not start with base route: {} <> {}", Options.sBaseRoute, sURLPath) };
-			}
+			// try to remove_prefix, do not complain if not existing
+			sURLPath.remove_prefix(Options.sBaseRoute);
 
 			// find the right route
 			auto Route = Routes.FindRoute(KRESTPath(Request.Method, sURLPath), Request.Resource.Query);

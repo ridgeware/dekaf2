@@ -137,12 +137,8 @@ bool KHTTPRouter::Execute(const KHTTPRoutes& Routes, KStringView sBaseRoute)
 
 		KStringView sURLPath = Request.Resource.Path;
 
-		// remove_prefix is true when called with empty argument or with matching argument
-		if (!sURLPath.remove_prefix(sBaseRoute))
-		{
-			// bad prefix
-			throw KHTTPError { KHTTPError::H4xx_NOTFOUND, kFormat("url does not start with base route: {} <> {}", sBaseRoute, sURLPath) };
-		}
+		// try to remove_prefix, do not complain if not existing
+		sURLPath.remove_prefix(sBaseRoute);
 
 		auto Route = Routes.FindRoute(KHTTPRoute(sURLPath));
 

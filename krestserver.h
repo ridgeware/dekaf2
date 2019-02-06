@@ -42,6 +42,7 @@
 #pragma once
 
 #include "khttpserver.h"
+#include "khttppath.h"
 #include "kstring.h"
 #include "kstringview.h"
 #include "kurl.h"
@@ -57,8 +58,8 @@ class KRESTServer;
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// A route (request path) without resource handler. Typically used for the
-/// request path in a HTTP query.
-class KRESTPath
+/// request path in a REST query.
+class KRESTPath : public KHTTPPath
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -75,20 +76,39 @@ public:
 	KRESTPath(KHTTPMethod _Method, KStringView _sRoute);
 	//-----------------------------------------------------------------------------
 
-	//-----------------------------------------------------------------------------
-	/// static method to split a URL into parts
-	static size_t SplitURL(URLParts& Parts, KStringView sURLPath);
-	//-----------------------------------------------------------------------------
-
 	KHTTPMethod Method;  	// e.g. GET, or empty for all
-	KStringView sRoute;     // e.g. "/employee/:id/address" or "/help"
-	URLParts vURLParts;
+//	KStringView sRoute;     // e.g. "/employee/:id/address" or "/documents/*" or "/help"
 
 }; // KRESTPath
 
+namespace detail {
+
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+class KRESTAnalyzedPath : public KHTTPAnalyzedPath
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+//------
+public:
+//------
+
+	//-----------------------------------------------------------------------------
+	/// Construct a HTTP path. Notice that _sRoute is a KStringView, and the pointed-to
+	/// string must stay visible during the lifetime of this class
+	KRESTAnalyzedPath(KHTTPMethod _Method, KStringView _sRoute);
+	//-----------------------------------------------------------------------------
+
+	KHTTPMethod Method;  	// e.g. GET, or empty for all
+
+	bool bHasParameters { false };
+
+}; // KRESTAnalyzedPath
+
+} // end of namespace detail
+
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// A route (request path) to a resource handler
-class KRESTRoute : public KRESTPath
+class KRESTRoute : public detail::KRESTAnalyzedPath
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -122,13 +142,6 @@ public:
 	}
 
 	RESTCallback Callback;
-	bool bHasParameters { false };
-	bool bHasWildCardAtEnd { false };
-	bool bHasWildCardFragment { false };
-
-//------
-private:
-//------
 
 }; // KRESTRoute
 

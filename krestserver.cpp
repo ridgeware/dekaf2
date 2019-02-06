@@ -48,62 +48,30 @@ namespace dekaf2 {
 //-----------------------------------------------------------------------------
 KRESTPath::KRESTPath(KHTTPMethod _Method, KStringView _sRoute)
 //-----------------------------------------------------------------------------
-	: Method(std::move(_Method))
-	, sRoute(std::move(_sRoute))
+	: KHTTPPath(std::move(_sRoute))
+	, Method(std::move(_Method))
 {
-	if (sRoute.front() != '/')
-	{
-		kWarning("error: route does not start with a slash: {}", sRoute);
-	}
-
-	SplitURL(vURLParts, sRoute);
-
 } // KRESTPath
 
-//-----------------------------------------------------------------------------
-size_t KRESTPath::SplitURL(URLParts& Parts, KStringView sURLPath)
-//-----------------------------------------------------------------------------
-{
-	Parts.clear();
-	Parts.reserve(2);
-	sURLPath.remove_prefix("/");
-	return kSplit(Parts, sURLPath, "/", "");
-
-} // SplitURL
+namespace detail {
 
 //-----------------------------------------------------------------------------
-KRESTRoute::KRESTRoute(KHTTPMethod _Method, KStringView _sRoute, RESTCallback _Callback)
+KRESTAnalyzedPath::KRESTAnalyzedPath(KHTTPMethod _Method, KStringView _sRoute)
 //-----------------------------------------------------------------------------
-	: KRESTPath(std::move(_Method), std::move(_sRoute))
-	, Callback(std::move(_Callback))
+	: KHTTPAnalyzedPath(std::move(_sRoute))
 {
 	bHasParameters = sRoute.Contains("/:");
 
-	size_t iCount { 0 };
+} // KRESTAnalyzedPath
 
-	for (auto& it : vURLParts)
-	{
-		++iCount;
-
-		if (it == "*")
-		{
-			if (iCount == vURLParts.size())
-			{
-				bHasWildCardAtEnd = true;
-
-				if (!sRoute.remove_suffix("/*"))
-				{
-					kWarning("cannot remove suffix '/*' from '{}'", sRoute);
-				}
-			}
-			else
-			{
-				bHasWildCardFragment = true;
-			}
-			break;
-		}
-	}
+} // end of namespace detail
 	
+//-----------------------------------------------------------------------------
+KRESTRoute::KRESTRoute(KHTTPMethod _Method, KStringView _sRoute, RESTCallback _Callback)
+//-----------------------------------------------------------------------------
+	: detail::KRESTAnalyzedPath(std::move(_Method), std::move(_sRoute))
+	, Callback(std::move(_Callback))
+{
 } // KRESTRoute
 
 //-----------------------------------------------------------------------------
@@ -227,7 +195,6 @@ const KRESTRoute& KRESTRoutes::FindRoute(const KRESTPath& Path, Parameters& Para
 							// fragments are parameters
 							bOnlyParms = true;
 						}
-
 					}
 
 					if (bFound)

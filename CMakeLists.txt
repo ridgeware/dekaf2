@@ -402,6 +402,7 @@ set(PUBLIC_HEADERS
 	khttperror.h
 	khttpinputfilter.h
 	khttpoutputfilter.h
+	khttppath.h
 	khttprouter.h
 	khttpserver.h
 	khttp_header.h
@@ -525,6 +526,7 @@ set (SOURCES
 	khttperror.cpp
 	khttpinputfilter.cpp
 	khttpoutputfilter.cpp
+	khttppath.cpp
 	khttprouter.cpp
 	khttpserver.cpp
 	khttp_header.cpp

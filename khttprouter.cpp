@@ -48,13 +48,9 @@ namespace dekaf2 {
 //-----------------------------------------------------------------------------
 KHTTPRoute::KHTTPRoute(KStringView _sRoute, HTTPCallback _Callback)
 //-----------------------------------------------------------------------------
-	: sRoute(std::move(_sRoute))
+	: detail::KHTTPAnalyzedPath(std::move(_sRoute))
 	, Callback(std::move(_Callback))
 {
-	if (sRoute.front() != '/')
-	{
-		kWarning("error: route does not start with a slash: {}", sRoute);
-	}
 }
 
 //-----------------------------------------------------------------------------
@@ -93,14 +89,76 @@ void KHTTPRoutes::clear()
 } // clear
 
 //-----------------------------------------------------------------------------
-const KHTTPRoute& KHTTPRoutes::FindRoute(const KHTTPRoute& Route) const
+const KHTTPRoute& KHTTPRoutes::FindRoute(const KHTTPPath& Path) const
 //-----------------------------------------------------------------------------
 {
 	for (const auto& it : m_Routes)
 	{
-		if (DEKAF2_UNLIKELY(Route.sRoute == it.sRoute))
+		if (!it.bHasWildCardFragment)
 		{
-			return it;
+			if (DEKAF2_UNLIKELY(it.bHasWildCardAtEnd))
+			{
+				// this is a plain route with a wildcard at the end
+				if (DEKAF2_UNLIKELY(Path.sRoute.StartsWith(it.sRoute)))
+				{
+					// take care that we only match full fragments, not parts of them
+					if (Path.sRoute.size() == it.sRoute.size() || Path.sRoute[it.sRoute.size()] == '/')
+					{
+						return it;
+					}
+				}
+			}
+			else
+			{
+				// this is a plain route - we do not check part by part
+				if (DEKAF2_UNLIKELY(Path.sRoute == it.sRoute))
+				{
+					return it;
+				}
+			}
+		}
+		else
+		{
+			// we have wildcard fragments, check part by part of the route
+			if (it.vURLParts.size() >= Path.vURLParts.size())
+			{
+				auto req = Path.vURLParts.cbegin();
+				bool bFound { true };
+				bool bEndOfPath { false };
+
+				for (auto& part : it.vURLParts)
+				{
+					if (DEKAF2_UNLIKELY(bEndOfPath))
+					{
+						// route was longer than path
+						bFound = false;
+						break;
+					}
+
+					if (DEKAF2_LIKELY(part != *req))
+					{
+						if (DEKAF2_LIKELY(part != "*"))
+						{
+							// this is not a wildcard
+							// therefore this route is not matching
+							bFound = false;
+							break;
+						}
+					}
+
+					// found, continue comparison
+					if (++req == Path.vURLParts.cend())
+					{
+						// end of Path reached, check that no route fragment is missing
+						bEndOfPath = true;
+					}
+				}
+
+				if (bFound)
+				{
+					return it;
+				}
+			}
 		}
 	}
 
@@ -109,7 +167,7 @@ const KHTTPRoute& KHTTPRoutes::FindRoute(const KHTTPRoute& Route) const
 		return m_DefaultRoute;
 	}
 
-	throw KHTTPError { KHTTPError::H4xx_NOTFOUND, kFormat("invalid path {}", Route.sRoute) };
+	throw KHTTPError { KHTTPError::H4xx_NOTFOUND, kFormat("invalid path {}", Path.sRoute) };
 
 } // FindRoute
 
@@ -140,7 +198,7 @@ bool KHTTPRouter::Execute(const KHTTPRoutes& Routes, KStringView sBaseRoute)
 		// try to remove_prefix, do not complain if not existing
 		sURLPath.remove_prefix(sBaseRoute);
 
-		auto Route = Routes.FindRoute(KHTTPRoute(sURLPath));
+		auto Route = Routes.FindRoute(KHTTPPath(sURLPath));
 
 		if (!Route.Callback)
 		{

@@ -42,20 +42,16 @@
 #pragma once
 
 #include <vector>
-#include "khttpserver.h"
-#include "khttppath.h"
-#include "khttp_method.h"
 #include "kstring.h"
 #include "kstringview.h"
 
-/// @file khttprouter.h
-/// HTTP server router layer implementation - associating callbacks
-/// with specific URL paths
+/// @file khttpath.h
+/// Primitives for HTTP routing
 
 namespace dekaf2 {
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class KHTTPRoute : public detail::KHTTPAnalyzedPath
+class KHTTPPath
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -63,18 +59,28 @@ class KHTTPRoute : public detail::KHTTPAnalyzedPath
 public:
 //------
 
-	using HTTPCallback = std::function<void(KHTTPServer&)>;
+	using URLParts = std::vector<KStringView>;
 
-	/// Construct a HTTP route. Notice that _sRoute is a KStringView, and the pointed-to
+	//-----------------------------------------------------------------------------
+	/// Construct a HTTP path. Notice that _sRoute is a KStringView, and the pointed-to
 	/// string must stay visible during the lifetime of this class
-	KHTTPRoute(KStringView _sRoute, HTTPCallback _Callback);
+	KHTTPPath(KStringView _sRoute);
+	//-----------------------------------------------------------------------------
 
-	HTTPCallback Callback;
+	//-----------------------------------------------------------------------------
+	/// static method to split a URL into parts
+	static size_t SplitURL(URLParts& Parts, KStringView sURLPath);
+	//-----------------------------------------------------------------------------
 
-}; // KHTTPRoute
+	KStringView sRoute;      // e.g. "/some/path/index.html" or "/documents/*" or "/help"
+	URLParts vURLParts;
+
+}; // KHTTPPath
+
+namespace detail {
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class KHTTPRoutes
+class KHTTPAnalyzedPath : public KHTTPPath
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -82,78 +88,17 @@ class KHTTPRoutes
 public:
 //------
 
-	typedef void (*HTTPHandler)(KHTTPServer& REST);
-
-	struct RouteTable
-	{
-		KStringView sMethod;
-		KStringView sRoute;
-		HTTPHandler Handler;
-	};
-
-	/// Add a HTTP route. Notice that _Route contains a KStringView, of which the pointed-to
+	//-----------------------------------------------------------------------------
+	/// Construct a HTTP path. Notice that _sRoute is a KStringView, and the pointed-to
 	/// string must stay visible during the lifetime of this class
-	bool AddRoute(const KHTTPRoute& _Route);
+	KHTTPAnalyzedPath(KStringView _sRoute);
+	//-----------------------------------------------------------------------------
 
-	/// Add a HTTP route. Notice that _Route contains a KStringView, of which the pointed-to
-	/// string must stay visible during the lifetime of this class
-	bool AddRoute(KHTTPRoute&& _Route);
+	bool bHasWildCardAtEnd { false };
+	bool bHasWildCardFragment { false };
 
-	template<std::size_t COUNT>
-	bool AddRouteTable(const RouteTable (&Routes)[COUNT])
-	{
-		m_Routes.reserve(m_Routes.size() + COUNT);
-		for (size_t i = 0; i < COUNT; ++i)
-		{
-			if (!AddRoute(KHTTPRoute(Routes[i].sRoute, Routes[i].Handler)))
-			{
-				return false;
-			}
-		}
-		return true;
-	}
+}; // KHTTPAnalyzedPath
 
-	void SetDefaultRoute(KHTTPRoute::HTTPCallback Callback);
-	void clear();
-
-	/// throws if no matching route found
-	const KHTTPRoute& FindRoute(const KHTTPPath& Path) const;
-
-//------
-private:
-//------
-
-	using Routes = std::vector<KHTTPRoute>;
-
-	Routes m_Routes;
-	KHTTPRoute m_DefaultRoute;
-
-}; // KHTTPRoutes
-
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class KHTTPRouter : public KHTTPServer
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-{
-
-//------
-public:
-//------
-
-	virtual ~KHTTPRouter();
-
-	// forward constructors
-	using KHTTPServer::KHTTPServer;
-
-	/// handler for one request
-	bool Execute(const KHTTPRoutes& Routes, KStringView sBaseRoute);
-
-//------
-protected:
-//------
-
-	virtual void ErrorHandler(const std::exception& ex);
-
-}; // KHTTPRouter
-
+} // end of namespace detail
 
 } // end of namespace dekaf2

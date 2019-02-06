@@ -70,6 +70,13 @@ TEST_CASE("KREST")
 			bMatchedWildcardFragment = true;
 		}});
 
+		bool bMatchedMultiWildcards { false };
+
+		Routes.AddRoute({ KHTTPMethod::GET, "/wildcard/*/middle/and/*", [&](KRESTServer& http)
+		{
+			bMatchedMultiWildcards = true;
+		}});
+
 		KString sOut;
 		KOutStringStream oss(sOut);
 
@@ -101,6 +108,7 @@ TEST_CASE("KREST")
 		CHECK ( bCalledNoSlashPath == false );
 
 		sOut.clear();
+		bCalledHelp = false;
 		Options.sBaseRoute = "/this/is/my/base/route";
 		CHECK ( REST.Simulate(Options, Routes, "/this/is/my/base/route/help", oss) == true );
 		Options.sBaseRoute.clear();
@@ -205,6 +213,11 @@ TEST_CASE("KREST")
 		bMatchedWildcardFragment = false;
 		CHECK ( REST.Simulate(Options, Routes, "/wildcard/in/the/middle", oss) == false );
 		CHECK ( bMatchedWildcardFragment == false  );
+
+		sOut.clear();
+		bMatchedMultiWildcards = false;
+		CHECK ( REST.Simulate(Options, Routes, "/wildcard/in/middle/and/end", oss) == true );
+		CHECK ( bMatchedMultiWildcards == true  );
 
 	}
 

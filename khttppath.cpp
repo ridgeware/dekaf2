@@ -39,121 +39,71 @@
 // +-------------------------------------------------------------------------+
 */
 
-#pragma once
-
-#include <vector>
-#include "khttpserver.h"
 #include "khttppath.h"
-#include "khttp_method.h"
-#include "kstring.h"
-#include "kstringview.h"
-
-/// @file khttprouter.h
-/// HTTP server router layer implementation - associating callbacks
-/// with specific URL paths
+#include "ksplit.h"
+#include "klog.h"
 
 namespace dekaf2 {
 
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class KHTTPRoute : public detail::KHTTPAnalyzedPath
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+//-----------------------------------------------------------------------------
+KHTTPPath::KHTTPPath(KStringView _sRoute)
+//-----------------------------------------------------------------------------
+	: sRoute(std::move(_sRoute))
 {
-
-//------
-public:
-//------
-
-	using HTTPCallback = std::function<void(KHTTPServer&)>;
-
-	/// Construct a HTTP route. Notice that _sRoute is a KStringView, and the pointed-to
-	/// string must stay visible during the lifetime of this class
-	KHTTPRoute(KStringView _sRoute, HTTPCallback _Callback);
-
-	HTTPCallback Callback;
-
-}; // KHTTPRoute
-
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class KHTTPRoutes
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-{
-
-//------
-public:
-//------
-
-	typedef void (*HTTPHandler)(KHTTPServer& REST);
-
-	struct RouteTable
+	if (sRoute.front() != '/')
 	{
-		KStringView sMethod;
-		KStringView sRoute;
-		HTTPHandler Handler;
-	};
-
-	/// Add a HTTP route. Notice that _Route contains a KStringView, of which the pointed-to
-	/// string must stay visible during the lifetime of this class
-	bool AddRoute(const KHTTPRoute& _Route);
-
-	/// Add a HTTP route. Notice that _Route contains a KStringView, of which the pointed-to
-	/// string must stay visible during the lifetime of this class
-	bool AddRoute(KHTTPRoute&& _Route);
-
-	template<std::size_t COUNT>
-	bool AddRouteTable(const RouteTable (&Routes)[COUNT])
-	{
-		m_Routes.reserve(m_Routes.size() + COUNT);
-		for (size_t i = 0; i < COUNT; ++i)
-		{
-			if (!AddRoute(KHTTPRoute(Routes[i].sRoute, Routes[i].Handler)))
-			{
-				return false;
-			}
-		}
-		return true;
+		kWarning("error: route does not start with a slash: {}", sRoute);
 	}
 
-	void SetDefaultRoute(KHTTPRoute::HTTPCallback Callback);
-	void clear();
+	SplitURL(vURLParts, sRoute);
 
-	/// throws if no matching route found
-	const KHTTPRoute& FindRoute(const KHTTPPath& Path) const;
+} // KHTTPPath
 
-//------
-private:
-//------
-
-	using Routes = std::vector<KHTTPRoute>;
-
-	Routes m_Routes;
-	KHTTPRoute m_DefaultRoute;
-
-}; // KHTTPRoutes
-
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class KHTTPRouter : public KHTTPServer
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+//-----------------------------------------------------------------------------
+size_t KHTTPPath::SplitURL(URLParts& Parts, KStringView sURLPath)
+//-----------------------------------------------------------------------------
 {
+	Parts.clear();
+	Parts.reserve(2);
+	sURLPath.remove_prefix("/");
+	return kSplit(Parts, sURLPath, "/", "");
 
-//------
-public:
-//------
+} // SplitURL
 
-	virtual ~KHTTPRouter();
+namespace detail {
 
-	// forward constructors
-	using KHTTPServer::KHTTPServer;
+//-----------------------------------------------------------------------------
+KHTTPAnalyzedPath::KHTTPAnalyzedPath(KStringView _sRoute)
+//-----------------------------------------------------------------------------
+	: KHTTPPath(std::move(_sRoute))
+{
+	size_t iCount { 0 };
 
-	/// handler for one request
-	bool Execute(const KHTTPRoutes& Routes, KStringView sBaseRoute);
+	for (auto& it : vURLParts)
+	{
+		++iCount;
 
-//------
-protected:
-//------
+		if (it == "*")
+		{
+			if (iCount == vURLParts.size())
+			{
+				bHasWildCardAtEnd = true;
 
-	virtual void ErrorHandler(const std::exception& ex);
+				if (!sRoute.remove_suffix("/*"))
+				{
+					kWarning("cannot remove suffix '/*' from '{}'", sRoute);
+				}
+			}
+			else
+			{
+				bHasWildCardFragment = true;
+			}
+			break;
+		}
+	}
+	
+} // KHTTPAnalyzedPath
 
-}; // KHTTPRouter
-
+} // end of namespace detail
 
 } // end of namespace dekaf2

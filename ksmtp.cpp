@@ -106,7 +106,7 @@ bool KSMTP::Talk(KStringView sTx, KStringView sRx, ESMTPParms* parms, bool bDisc
 				continue;
 			}
 
-			if (!sLine.StartsWith(sRx))
+			if (!sLine.starts_with(sRx))
 			{
 				m_sError.Format("SMTP server responded with '{}' instead of '{}' on query '{}'", sLine, sRx, sTx);
 				if (bDisconnectOnFailure)

@@ -447,10 +447,10 @@ public:
 	/// does the string end with sChar?
 	bool ends_with(value_type ch) const noexcept;
 
-	/// does the string start with sPattern?
+	/// does the string start with sPattern? (Now deprecated, replace by starts_with())
 	bool StartsWith(KStringView sPattern) const noexcept;
 
-	/// does the string end with sPattern?
+	/// does the string end with sPattern? (Now deprecated, replace by ends_with())
 	bool EndsWith(KStringView sPattern) const noexcept;
 
 	/// does the string contain the sPattern?

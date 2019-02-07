@@ -233,8 +233,8 @@ TEST_CASE("KReader") {
 		{
 			++iCount;
 			CHECK( File.eof() == (iCount == 9)     );
-			CHECK( it.StartsWith("line ") == true  );
-			CHECK( it.EndsWith  ("\n")    == false );
+			CHECK( it.starts_with("line ") == true  );
+			CHECK( it.ends_with  ("\n")    == false );
 		}
 		CHECK( File.eof() == true );
 		CHECK( iCount == 9 );
@@ -351,8 +351,8 @@ TEST_CASE("KReader") {
 		{
 			++iCount;
 			CHECK( File.eof() == (iCount == 9)     );
-			CHECK( it.StartsWith("line ") == true  );
-			CHECK( it.EndsWith  ("\n")    == false );
+			CHECK( it.starts_with("line ") == true  );
+			CHECK( it.ends_with  ("\n")    == false );
 		}
 		CHECK( File.eof() == true );
 		CHECK( iCount == 9 );
@@ -414,8 +414,8 @@ TEST_CASE("KReader") {
 		{
 			++iCount;
 			CHECK( File.eof() == (iCount == 9)     );
-			CHECK( it.StartsWith("line ") == true  );
-			CHECK( it.EndsWith  ("\n")    == false );
+			CHECK( it.starts_with("line ") == true  );
+			CHECK( it.ends_with  ("\n")    == false );
 		}
 		CHECK( File.eof() == true );
 		CHECK( iCount == 9 );
@@ -462,7 +462,7 @@ TEST_CASE("KReader") {
 		KInFile File(sFile);
 		for (const auto& it : File)
 		{
-			CHECK( it.StartsWith("line ") == true );
+			CHECK( it.starts_with("line ") == true );
 		}
 	}
 

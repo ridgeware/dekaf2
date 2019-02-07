@@ -128,7 +128,7 @@ const KRESTRoute& KRESTRoutes::FindRoute(const KRESTPath& Path, Parameters& Para
 				if (DEKAF2_UNLIKELY(it.bHasWildCardAtEnd))
 				{
 					// this is a plain route with a wildcard at the end
-					if (DEKAF2_UNLIKELY(Path.sRoute.StartsWith(it.sRoute)))
+					if (DEKAF2_UNLIKELY(Path.sRoute.starts_with(it.sRoute)))
 					{
 						// take care that we only match full fragments, not parts of them
 						if (Path.sRoute.size() == it.sRoute.size() || Path.sRoute[it.sRoute.size()] == '/')

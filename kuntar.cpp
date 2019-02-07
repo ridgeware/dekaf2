@@ -377,7 +377,7 @@ bool KUnTar::Next()
         }
 
     } while ((m_header.Type() & m_AcceptedTypes) == 0
-			 || (m_bSkipAppleResourceForks && m_header.Filename().StartsWith("./._")));
+			 || (m_bSkipAppleResourceForks && m_header.Filename().starts_with("./._")));
 
     return true;
 

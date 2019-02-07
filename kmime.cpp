@@ -165,7 +165,7 @@ KMIME KMIME::CreateByExtension(KStringView sFilename, KMIME Default)
 bool KMIMEPart::IsMultiPart() const
 //-----------------------------------------------------------------------------
 {
-	return KStringView(m_MIME).StartsWith("multipart/");
+	return KStringView(m_MIME).starts_with("multipart/");
 
 } // IsMultiPart
 
@@ -173,7 +173,7 @@ bool KMIMEPart::IsMultiPart() const
 bool KMIMEPart::IsBinary() const
 //-----------------------------------------------------------------------------
 {
-	return !KStringView(m_MIME).StartsWith("text/");
+	return !KStringView(m_MIME).starts_with("text/");
 
 } // IsBinary
 

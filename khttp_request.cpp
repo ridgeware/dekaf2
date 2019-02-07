@@ -85,7 +85,7 @@ bool KHTTPRequestHeaders::Parse(KInStream& Stream)
 	Resource = Words[1];
 	sHTTPVersion = Words[2];
 
-	if (!sHTTPVersion.StartsWith("HTTP/"))
+	if (!sHTTPVersion.starts_with("HTTP/"))
 	{
 		kDebugLog (1, "KHTTPRequestHeaders::Parse(): first line (status) line of HTTP header is invalid: expected 'HTTP/' not '{}'", sHTTPVersion);
 		return SetError("invalid status line of HTTP header [2]");

@@ -272,7 +272,7 @@ public:
 			DoTranslations (m_sLastSQL, m_iDBType);
 		}
 
-		if (!IsFlag(F_IgnoreSelectKeyword) && !m_sLastSQL.StartsWith ("select") && !m_sLastSQL.StartsWith("SELECT"))
+		if (!IsFlag(F_IgnoreSelectKeyword) && !m_sLastSQL.starts_with ("select") && !m_sLastSQL.starts_with("SELECT"))
 		{
 			m_sLastError.Format ("{}ExecQuery: query does not start with keyword 'select' [see F_IgnoreSelectKeyword]", m_sErrorPrefix);
 			return (SQLError());

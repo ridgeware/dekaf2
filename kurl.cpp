@@ -91,7 +91,7 @@ KString kGetBaseDomain (KStringView sHostName)
 				KStringView svCheckForDotCo (sHostName);
 				svCheckForDotCo.remove_prefix (iDotStart);
 
-				if (svCheckForDotCo.StartsWith (".co."))
+				if (svCheckForDotCo.starts_with (".co."))
 				{
 					iDotEnd = iDotStart;
 					iDotStart = sHostName.rfind ('.', iDotStart - 1);

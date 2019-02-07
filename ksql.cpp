@@ -502,7 +502,7 @@ bool KSQL::SetDBType (KStringView sDBType)
 	NOT_IF_ALREADY_OPEN ("SetDBType");
 
 #ifdef DEKAF2_HAS_ORACLE
-	if (sDBType.StartsWith("oracle"))
+	if (sDBType.starts_with("oracle"))
 	{
 		return (SetDBType (DBT::ORACLE));
 	}
@@ -514,7 +514,7 @@ bool KSQL::SetDBType (KStringView sDBType)
 	}
 #endif
 #ifdef DEKAF2_HAS_SQLITE3
-	if (sDBType.StartsWith("sqlite"))
+	if (sDBType.starts_with("sqlite"))
 	{
 		return (SetDBType (DBT::SQLITE3));
 	}
@@ -648,7 +648,7 @@ bool KSQL::DecodeDBCData (KStringView sBuffer, KStringView sDBCFile)
 {
 	std::unique_ptr<DBCFileBase> dbc;
 
-	if (sBuffer.StartsWith("KSQLDBC1"))
+	if (sBuffer.starts_with("KSQLDBC1"))
 	{
 		#ifdef WIN32
 		m_sLastError.Format ("{}DecodeDBCData(): old format (DBC1) doesn't work on win32", m_sErrorPrefix);
@@ -659,17 +659,17 @@ bool KSQL::DecodeDBCData (KStringView sBuffer, KStringView sDBCFile)
 		dbc = std::make_unique<DBCFILEv1>();
 		#endif
 	}
-	else if (sBuffer.StartsWith("KSQLDBC2"))
+	else if (sBuffer.starts_with("KSQLDBC2"))
 	{
 		kDebugLog((GetDebugLevel() + 1), "KSQL:DecodeDBCData(): compact format (2)");
 		dbc = std::make_unique<DBCFILEv2>();
 	}
-	else if (sBuffer.StartsWith("KSQLDBC3"))
+	else if (sBuffer.starts_with("KSQLDBC3"))
 	{
 		kDebugLog((GetDebugLevel() + 1), "KSQL:DecodeDBCData(): current format (3)");
 		dbc = std::make_unique<DBCFILEv3>();
 	}
-	else if (sBuffer.StartsWith("KSQLDBC"))
+	else if (sBuffer.starts_with("KSQLDBC"))
 	{
 		/* It's an unrecognized header but it follows the same pattern as the others:
 		   This version of the software can't process the data, but it may be a future version of DBC,
@@ -1851,7 +1851,7 @@ bool KSQL::ExecSQLFile (KStringViewZ sFilename)
 		// remove all leading white space
 		sStart.TrimLeft();
 
-		if (sStart.StartsWith("#include"_ksv))
+		if (sStart.starts_with("#include"_ksv))
 		{
 			KStack<KStringView> Parts;
 			if (kSplit (Parts, sStart, "\""_ksv, ""_ksv) < 2)
@@ -1885,11 +1885,11 @@ bool KSQL::ExecSQLFile (KStringViewZ sFilename)
 		}
 
 		// look for special directives:
-		while (sStart.StartsWith("//"_ksv))
+		while (sStart.starts_with("//"_ksv))
 		{
 			kDebugLog (3, " line {}: seeing if this is a special directive or just a comment..", Parms.iLineNum);
 
-			if (sStart.StartsWith(sLeader))
+			if (sStart.starts_with(sLeader))
 			{
 				kDebugLog (GetDebugLevel()+1, " line {}: contains {}-specific code (included)", Parms.iLineNum, TxDBType(m_iDBType));
 
@@ -1897,7 +1897,7 @@ bool KSQL::ExecSQLFile (KStringViewZ sFilename)
 				sStart.TrimLeft();
 				fFoundSpecialLeader = true;
 			}
-			else if (sStart.StartsWith("//DROP|"_ksv))
+			else if (sStart.starts_with("//DROP|"_ksv))
 			{
 				kDebugLog (GetDebugLevel()+1, " line {}: is a drop statement", Parms.iLineNum);
 				sStart.remove_prefix(strlen("//DROP|"));
@@ -1905,13 +1905,13 @@ bool KSQL::ExecSQLFile (KStringViewZ sFilename)
 				fFoundSpecialLeader = true;
 				Parms.fDropStatement = true;
 			}
-			else if (sStart.StartsWith("//define"_ksv))
+			else if (sStart.starts_with("//define"_ksv))
 			{
 				kDebugLog (GetDebugLevel()+1, " line {}: is a macro definition", Parms.iLineNum);
 
 				sStart.remove_prefix(strlen("//define"));
 				sStart.TrimLeft();
-				if (!sStart.StartsWith("{{"_ksv))
+				if (!sStart.starts_with("{{"_ksv))
 				{
 					m_sLastError.Format ("{}:{}: malformed token: {}", sFilename, Parms.iLineNum, sStart);
 					return (false);
@@ -1940,18 +1940,18 @@ bool KSQL::ExecSQLFile (KStringViewZ sFilename)
 		}
 
 		// allow full-line comments (end of line comments are a pain because of quoted inserts and updates):
-		if (sStart.StartsWith("//")      // C++
-		 || sStart.StartsWith("#")       // MySQL
-		 || sStart.StartsWith("--")      // Oracle
-		 || sStart.StartsWith("rem ")    // Oracle
-		 || sStart.StartsWith("REM ")    // Oracle
+		if (sStart.starts_with("//")      // C++
+		 || sStart.starts_with("#")       // MySQL
+		 || sStart.starts_with("--")      // Oracle
+		 || sStart.starts_with("rem ")    // Oracle
+		 || sStart.starts_with("REM ")    // Oracle
 		)
 		{
 			continue; // <-- skip full line comment lines
 		}
 
 		// the "delimiter" is currently only used for stored procedure files
-		if (sStart.StartsWith("delimiter"))
+		if (sStart.starts_with("delimiter"))
 		{
 			sDelimiter = sStart.substr(strlen("delimiter"));
 			sDelimiter.Trim();
@@ -1972,9 +1972,9 @@ bool KSQL::ExecSQLFile (KStringViewZ sFilename)
 
 		while ((sStart.size()) >= sDelimiter.size() &&
 		    (  (sStart.back() <= ' ')
-		    || (sStart.EndsWith(sDelimiter))))
+		    || (sStart.ends_with(sDelimiter))))
 		{
-			if (sStart.EndsWith(sDelimiter))
+			if (sStart.ends_with(sDelimiter))
 			{
 				fFoundDelimiter = true;
 				sStart.remove_suffix(sDelimiter.size());
@@ -2053,7 +2053,7 @@ void KSQL::ExecSQLFileGo (KStringView sFilename, SQLFileParms& Parms)
 		kDebugLog (GetDebugLevel()+1, "ExecSQLFile({}): statement # {} is '{}' (stopping).", sFilename, Parms.iStatement, m_sLastSQL);
 		Parms.fOK = Parms.fDone = true;
 	}
-	else if (m_sLastSQL.StartsWith("select") || m_sLastSQL.StartsWith("SELECT"))
+	else if (m_sLastSQL.starts_with("select") || m_sLastSQL.starts_with("SELECT"))
 	{
 		kDebugLog (3, "ExecSQLFile({}): statement # {} is a QUERY...", sFilename, Parms.iStatement);
 
@@ -2672,7 +2672,7 @@ bool KSQL::ParseQuery (KStringView sFormat, ...)
 		DoTranslations (m_sLastSQL, m_iDBType);
 	}
 
-	if (!IsFlag(F_IgnoreSelectKeyword) && !m_sLastSQL.StartsWith("select") && !m_sLastSQL.StartsWith("SELECT"))
+	if (!IsFlag(F_IgnoreSelectKeyword) && !m_sLastSQL.starts_with("select") && !m_sLastSQL.starts_with("SELECT"))
 	{
 		m_sLastError.Format ("{}ParseQuery: query does not start with keyword 'select' [see F_IgnoreSelectKeyword]", m_sErrorPrefix);
 		return (SQLError());
@@ -3753,7 +3753,7 @@ time_t KSQL::GetUnixTime (KROW::Index iOneBasedColNum)
 
 	KString sVal (Get (iOneBasedColNum));
 
-	if (sVal.empty() || sVal == "0" || sVal.StartsWith("00000"))
+	if (sVal.empty() || sVal == "0" || sVal.starts_with("00000"))
 	{
 		return (0);
 	}

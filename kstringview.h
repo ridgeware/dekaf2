@@ -633,7 +633,7 @@ public:
 	bool remove_prefix(self_type other)
 	//-----------------------------------------------------------------------------
 	{
-		if (StartsWith(other))
+		if (starts_with(other))
 		{
 			unchecked_remove_prefix(other.size());
 			return true;
@@ -647,7 +647,7 @@ public:
 	bool remove_suffix(self_type other)
 	//-----------------------------------------------------------------------------
 	{
-		if (EndsWith(other))
+		if (ends_with(other))
 		{
 			unchecked_remove_suffix(other.size());
 			return true;
@@ -657,6 +657,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	// std::C++20
+	/// does the string start with sPattern?
 	constexpr
 	bool starts_with(self_type other) const noexcept
 	//-----------------------------------------------------------------------------
@@ -666,6 +667,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	// std::C++20
+	/// does the string start with ch?
 	constexpr
 	bool starts_with(value_type ch) const noexcept
 	//-----------------------------------------------------------------------------
@@ -675,6 +677,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	// std::C++20
+	/// does the string end with sPattern?
 	constexpr
 	bool ends_with(self_type other) const noexcept
 	//-----------------------------------------------------------------------------
@@ -684,6 +687,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	// std::C++20
+	/// does the string end with ch?
 	constexpr
 	bool ends_with(value_type ch) const noexcept
 	//-----------------------------------------------------------------------------
@@ -693,6 +697,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	// nonstandard
+	/// does the string start with sPattern? (Now deprecated, replace by starts_with())
 	constexpr
 	bool StartsWith(self_type other) const noexcept
 	//-----------------------------------------------------------------------------
@@ -702,6 +707,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	// nonstandard
+	/// does the string end with sPattern? (Now deprecated, replace by ends_with())
 	constexpr
 	bool EndsWith(self_type other) const noexcept
 	//-----------------------------------------------------------------------------

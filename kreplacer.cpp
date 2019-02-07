@@ -171,7 +171,7 @@ KString KReplacer::Replace(KStringView sIn) const
 			for (const auto& it : m_RepMap)
 			{
 				// variable found?
-				if (sIn.StartsWith(it.first))
+				if (sIn.starts_with(it.first))
 				{
 					// replace with this value
 					sOut += it.second;

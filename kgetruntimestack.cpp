@@ -146,7 +146,7 @@ std::vector<KString> Addr2LineMsg_ (const std::vector<KString>& vsAddress)
 						if (pipe.ReadLine (sLineBuf))
 						{
 							sLineBuf.TrimRight();
-							if (!sLineBuf.StartsWith("??:")) {
+							if (!sLineBuf.starts_with("??:")) {
 								sResult += " at ";
 								sResult += sLineBuf;
 							}
@@ -249,7 +249,7 @@ KString GetGDBAttachBased_Callstack_ ()
 				}
 
 				// Joe says to just skip these
-				if (sLineBuf.StartsWith ("warning: (Internal error:"))
+				if (sLineBuf.starts_with ("warning: (Internal error:"))
 				{
 					continue;			// skip blank lines
 				}

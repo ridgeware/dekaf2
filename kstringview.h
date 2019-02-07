@@ -149,12 +149,12 @@ size_t kFindLastNotOf(
 
 //----------------------------------------------------------------------
 constexpr
-bool kStartsWith(KStringView sInput, KStringView sPattern);
+bool kStartsWith(KStringView sInput, KStringView sPattern) noexcept;
 //----------------------------------------------------------------------
 
 //----------------------------------------------------------------------
 constexpr
-bool kEndsWith(KStringView sInput, KStringView sPattern);
+bool kEndsWith(KStringView sInput, KStringView sPattern) noexcept;
 //----------------------------------------------------------------------
 
 //----------------------------------------------------------------------
@@ -656,21 +656,57 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	// nonstandard
+	// std::C++20
 	constexpr
-	bool StartsWith(self_type other) const
+	bool starts_with(self_type other) const noexcept
 	//-----------------------------------------------------------------------------
 	{
 		return kStartsWith(*this, other);
 	}
 
 	//-----------------------------------------------------------------------------
-	// nonstandard
+	// std::C++20
 	constexpr
-	bool EndsWith(self_type other) const
+	bool starts_with(value_type ch) const noexcept
+	//-----------------------------------------------------------------------------
+	{
+		return starts_with(self_type(std::addressof(ch), 1));
+	}
+
+	//-----------------------------------------------------------------------------
+	// std::C++20
+	constexpr
+	bool ends_with(self_type other) const noexcept
 	//-----------------------------------------------------------------------------
 	{
 		return kEndsWith(*this, other);
+	}
+
+	//-----------------------------------------------------------------------------
+	// std::C++20
+	constexpr
+	bool ends_with(value_type ch) const noexcept
+	//-----------------------------------------------------------------------------
+	{
+		return ends_with(self_type(std::addressof(ch), 1));
+	}
+
+	//-----------------------------------------------------------------------------
+	// nonstandard
+	constexpr
+	bool StartsWith(self_type other) const noexcept
+	//-----------------------------------------------------------------------------
+	{
+		return starts_with(other);
+	}
+
+	//-----------------------------------------------------------------------------
+	// nonstandard
+	constexpr
+	bool EndsWith(self_type other) const noexcept
+	//-----------------------------------------------------------------------------
+	{
+		return ends_with(other);
 	}
 
 	//-----------------------------------------------------------------------------
@@ -1329,7 +1365,7 @@ size_t kFindUnescaped(KStringView haystack,
 //----------------------------------------------------------------------
 inline
 constexpr
-bool kStartsWith(KStringView sInput, KStringView sPattern)
+bool kStartsWith(KStringView sInput, KStringView sPattern) noexcept
 //----------------------------------------------------------------------
 {
 	if (DEKAF2_UNLIKELY(sInput.size() < sPattern.size()))
@@ -1349,7 +1385,7 @@ bool kStartsWith(KStringView sInput, KStringView sPattern)
 //----------------------------------------------------------------------
 inline
 constexpr
-bool kEndsWith(KStringView sInput, KStringView sPattern)
+bool kEndsWith(KStringView sInput, KStringView sPattern) noexcept
 //----------------------------------------------------------------------
 {
 	if (DEKAF2_UNLIKELY(sInput.size() < sPattern.size()))

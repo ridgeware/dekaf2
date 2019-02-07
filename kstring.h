@@ -431,11 +431,27 @@ public:
 	/// replace any of some chars of the string with another char
 	size_type Replace(KStringView sSearch, value_type sReplace, size_type pos = 0, bool bReplaceAll = true);
 
+	// std::C++20
 	/// does the string start with sPattern?
-	bool StartsWith(KStringView sPattern) const;
+	bool starts_with(KStringView sPattern) const noexcept;
+
+	// std::C++20
+	/// does the string start with sChar?
+	bool starts_with(value_type	ch) const noexcept;
+
+	// std::C++20
+	/// does the string end with sPattern?
+	bool ends_with(KStringView sPattern) const noexcept;
+
+	// std::C++20
+	/// does the string end with sChar?
+	bool ends_with(value_type ch) const noexcept;
+
+	/// does the string start with sPattern?
+	bool StartsWith(KStringView sPattern) const noexcept;
 
 	/// does the string end with sPattern?
-	bool EndsWith(KStringView sPattern) const;
+	bool EndsWith(KStringView sPattern) const noexcept;
 
 	/// does the string contain the sPattern?
 	bool Contains(KStringView sPattern) const;
@@ -1112,7 +1128,7 @@ inline void KString::remove_prefix(size_type n)
 inline bool KString::remove_suffix(KStringView suffix)
 //-----------------------------------------------------------------------------
 {
-	if DEKAF2_LIKELY(EndsWith(suffix))
+	if DEKAF2_LIKELY(ends_with(suffix))
 	{
 		remove_suffix(suffix.size());
 		return true;
@@ -1124,7 +1140,7 @@ inline bool KString::remove_suffix(KStringView suffix)
 inline bool KString::remove_prefix(KStringView prefix)
 //-----------------------------------------------------------------------------
 {
-	if DEKAF2_LIKELY(StartsWith(prefix))
+	if DEKAF2_LIKELY(starts_with(prefix))
 	{
 		remove_prefix(prefix.size());
 		return true;
@@ -1133,17 +1149,45 @@ inline bool KString::remove_prefix(KStringView prefix)
 }
 
 //-----------------------------------------------------------------------------
-inline bool KString::StartsWith(KStringView sPattern) const
+inline bool KString::starts_with(KStringView sPattern) const noexcept
 //-----------------------------------------------------------------------------
 {
 	return kStartsWith(*this, sPattern);
 }
 
 //-----------------------------------------------------------------------------
-inline bool KString::EndsWith(KStringView sPattern) const
+inline bool KString::ends_with(KStringView sPattern) const noexcept
 //-----------------------------------------------------------------------------
 {
 	return kEndsWith(*this, sPattern);
+}
+
+//-----------------------------------------------------------------------------
+inline bool KString::starts_with(value_type ch) const noexcept
+//-----------------------------------------------------------------------------
+{
+	return kStartsWith(*this, KStringView(std::addressof(ch), 1));
+}
+
+//-----------------------------------------------------------------------------
+inline bool KString::ends_with(value_type ch) const noexcept
+//-----------------------------------------------------------------------------
+{
+	return kEndsWith(*this, KStringView(std::addressof(ch), 1));
+}
+
+//-----------------------------------------------------------------------------
+inline bool KString::StartsWith(KStringView sPattern) const noexcept
+//-----------------------------------------------------------------------------
+{
+	return starts_with(sPattern);
+}
+
+//-----------------------------------------------------------------------------
+inline bool KString::EndsWith(KStringView sPattern) const noexcept
+//-----------------------------------------------------------------------------
+{
+	return ends_with(sPattern);
 }
 
 //-----------------------------------------------------------------------------

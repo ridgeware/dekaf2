@@ -1011,5 +1011,72 @@ TEST_CASE("KStringViewZ") {
 
 	}
 
+	SECTION ("starts_with")
+	{
+		KStringViewZ sLine = "This is a line with some data";
+
+		CHECK ( sLine.starts_with("This") == true );
+		CHECK ( sLine.starts_with("This is") == true );
+		CHECK ( sLine.starts_with("his") == false );
+		CHECK ( sLine.starts_with("is") == false );
+		CHECK ( sLine.starts_with("data") == false );
+		CHECK ( sLine.starts_with("") == true );
+		CHECK ( sLine.starts_with('T') == true );
+		CHECK ( sLine.starts_with('h') == false );
+	}
+
+	SECTION ("ends_with")
+	{
+		KStringViewZ sLine = "This is a line with some data";
+
+		CHECK ( sLine.ends_with("This") == false );
+		CHECK ( sLine.ends_with("This is") == false );
+		CHECK ( sLine.ends_with("his") == false );
+		CHECK ( sLine.ends_with("is") == false );
+		CHECK ( sLine.ends_with("data") == true );
+		CHECK ( sLine.ends_with("ome data") == true );
+		CHECK ( sLine.ends_with("") == true );
+		CHECK ( sLine.ends_with('a') == true );
+		CHECK ( sLine.ends_with('t') == false );
+	}
+
+	SECTION ("StartsWith")
+	{
+		KStringViewZ sLine = "This is a line with some data";
+
+		CHECK ( sLine.StartsWith("This") == true );
+		CHECK ( sLine.StartsWith("This is") == true );
+		CHECK ( sLine.StartsWith("his") == false );
+		CHECK ( sLine.StartsWith("is") == false );
+		CHECK ( sLine.StartsWith("data") == false );
+		CHECK ( sLine.StartsWith("") == true );
+	}
+
+	SECTION ("EndsWith")
+	{
+		KStringViewZ sLine = "This is a line with some data";
+
+		CHECK ( sLine.EndsWith("This") == false );
+		CHECK ( sLine.EndsWith("This is") == false );
+		CHECK ( sLine.EndsWith("his") == false );
+		CHECK ( sLine.EndsWith("is") == false );
+		CHECK ( sLine.EndsWith("data") == true );
+		CHECK ( sLine.EndsWith("ome data") == true );
+		CHECK ( sLine.EndsWith("") == true );
+	}
+
+	SECTION ("Contains")
+	{
+		KStringViewZ sLine = "This is a line with some data";
+
+		CHECK ( sLine.Contains("This") == true );
+		CHECK ( sLine.Contains("This is") == true );
+		CHECK ( sLine.Contains("his") == true );
+		CHECK ( sLine.Contains("is") == true );
+		CHECK ( sLine.Contains("data") == true );
+		CHECK ( sLine.Contains("nothing") == false );
+		CHECK ( sLine.Contains("") == true );
+	}
+
 }
 

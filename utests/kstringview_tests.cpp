@@ -1035,6 +1035,35 @@ TEST_CASE("KStringView") {
 
 	}
 
+	SECTION ("starts_with")
+	{
+		KStringView sLine = "This is a line with some data";
+
+		CHECK ( sLine.starts_with("This") == true );
+		CHECK ( sLine.starts_with("This is") == true );
+		CHECK ( sLine.starts_with("his") == false );
+		CHECK ( sLine.starts_with("is") == false );
+		CHECK ( sLine.starts_with("data") == false );
+		CHECK ( sLine.starts_with("") == true );
+		CHECK ( sLine.starts_with('T') == true );
+		CHECK ( sLine.starts_with('h') == false );
+	}
+
+	SECTION ("ends_with")
+	{
+		KStringView sLine = "This is a line with some data";
+
+		CHECK ( sLine.ends_with("This") == false );
+		CHECK ( sLine.ends_with("This is") == false );
+		CHECK ( sLine.ends_with("his") == false );
+		CHECK ( sLine.ends_with("is") == false );
+		CHECK ( sLine.ends_with("data") == true );
+		CHECK ( sLine.ends_with("ome data") == true );
+		CHECK ( sLine.ends_with("") == true );
+		CHECK ( sLine.ends_with('a') == true );
+		CHECK ( sLine.ends_with('t') == false );
+	}
+
 	SECTION ("StartsWith")
 	{
 		KStringView sLine = "This is a line with some data";

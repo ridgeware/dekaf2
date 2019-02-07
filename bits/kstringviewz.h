@@ -147,7 +147,8 @@ public:
 	using base_type::compare;
 	using base_type::find;
 	using base_type::rfind;
-	using base_type::Hash;
+	using base_type::starts_with;
+	using base_type::ends_with;
 
 #if defined(DEKAF2_USE_OPTIMIZED_STRING_FIND) && !defined(DEKAF2_NO_GCC)
 	// we have a super fast implementation for these signatures in GLIBC, let
@@ -162,6 +163,7 @@ public:
 	using base_type::find_last_not_of;
 	
 	// non standard
+	using base_type::Hash;
 	using base_type::ToRange;
 	using base_type::clear;
 	using base_type::StartsWith;

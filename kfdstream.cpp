@@ -1,5 +1,4 @@
 /*
-//-----------------------------------------------------------------------------//
 //
 // DEKAF(tm): Lighter, Faster, Smarter (tm)
 //
@@ -119,8 +118,7 @@ std::streamsize KInputFDStream::FileDescReader(void* sBuffer, std::streamsize iC
 
 	if (filedesc)
 	{
-		// it is more difficult than one would expect to convert a void* into an int..
-		int fd = static_cast<int>(*static_cast<int*>(filedesc));
+		int fd = *static_cast<int*>(filedesc);
 		iRead = ::read(fd, sBuffer, static_cast<size_t>(iCount));
 		if (iRead < 0)
 		{
@@ -291,8 +289,7 @@ std::streamsize KOutputFDStream::FileDescWriter(const void* sBuffer, std::stream
 
 	if (filedesc)
 	{
-		// it is more difficult than one would expect to convert a void* into an int..
-		int fd = static_cast<int>(*static_cast<int*>(filedesc));
+		int fd = *static_cast<int*>(filedesc);
 		iWrote = ::write(fd, sBuffer, static_cast<size_t>(iCount));
 		if (iWrote != iCount)
 		{
@@ -485,8 +482,7 @@ std::streamsize KInOutFDStream::FileDescReader(void* sBuffer, std::streamsize iC
 
 	if (filedesc)
 	{
-		// it is more difficult than one would expect to convert a void* into an int..
-		int fd = static_cast<int>(*static_cast<int*>(filedesc));
+		int fd = *static_cast<int*>(filedesc);
 		iRead = ::read(fd, sBuffer, static_cast<size_t>(iCount));
 		if (iRead < 0)
 		{
@@ -509,8 +505,7 @@ std::streamsize KInOutFDStream::FileDescWriter(const void* sBuffer, std::streams
 
 	if (filedesc)
 	{
-		// it is more difficult than one would expect to convert a void* into an int..
-		int fd = static_cast<int>(*static_cast<int*>(filedesc));
+		int fd = *static_cast<int*>(filedesc);
 		iWrote = ::write(fd, sBuffer, static_cast<size_t>(iCount));
 		if (iWrote != iCount)
 		{

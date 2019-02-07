@@ -212,7 +212,7 @@ bool KTCPServer::IsPortAvailable(uint16_t iPort)
 	{
 		// This exception is expected to happen if the port is already in use,
 		// we simply want to return with false from the check.
-		kException(e);
+		kDebug(1, "port {} is not available: {}", iPort, e.what());
 	}
 
 	return false;
@@ -261,8 +261,8 @@ void KTCPServer::TCPServer(bool ipv6)
 	if (!acceptor.is_open())
 	{
 		kWarning("IPv{} listener for port {} could not open",
-					   (ipv6) ? '6' : '4',
-					   m_iPort);
+		         (ipv6) ? '6' : '4',
+		         m_iPort);
 		return;
 	}
 

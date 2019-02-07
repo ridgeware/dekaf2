@@ -246,12 +246,27 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Constructs a client with default parameters (no certificate verification)
-	KSSLIOStream();
+	/// @param iSecondsTimeout
+	/// Timeout in seconds for any I/O. Defaults to 15.
+	/// @param bManualHandshake
+	/// if true the SSL handshake is only started on manual request. This allows to
+	/// start a communication without SSL, and then switch to SSL at a later time.
+	KSSLIOStream(int iSecondsTimeout = DEFAULT_TIMEOUT,
+				 bool bManualHandshake = false);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// Constructs an unconnected stream - KSSLContext holds most properties
-	KSSLIOStream(KSSLContext& Context);
+	/// @param Context
+	/// A KSSLContext which defines role (server/client) and cert verification
+	/// @param iSecondsTimeout
+	/// Timeout in seconds for any I/O. Defaults to 15.
+	/// @param bManualHandshake
+	/// if true the SSL handshake is only started on manual request. This allows to
+	/// start a communication without SSL, and then switch to SSL at a later time.
+	KSSLIOStream(KSSLContext& Context,
+				 int iSecondsTimeout = DEFAULT_TIMEOUT,
+				 bool bManualHandshake = false);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -262,6 +277,9 @@ public:
 	/// a variety of inputs, like strings or KURL
 	/// @param iSecondsTimeout
 	/// Timeout in seconds for any I/O. Defaults to 15.
+	/// @param bManualHandshake
+	/// if true the SSL handshake is only started on manual request. This allows to
+	/// start a communication without SSL, and then switch to SSL at a later time.
 	KSSLIOStream(const KTCPEndPoint& Endpoint,
 				 int iSecondsTimeout = DEFAULT_TIMEOUT,
 				 bool bManualHandshake = false);

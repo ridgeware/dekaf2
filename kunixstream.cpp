@@ -126,10 +126,10 @@ std::streamsize KUnixIOStream::UnixStreamWriter(const void* sBuffer, std::stream
 } // UnixStreamWriter
 
 //-----------------------------------------------------------------------------
-KUnixIOStream::KUnixIOStream()
+KUnixIOStream::KUnixIOStream(int iSecondsTimeout)
 //-----------------------------------------------------------------------------
     : base_type(&m_TCPStreamBuf)
-    , m_Stream(DEFAULT_TIMEOUT)
+    , m_Stream(iSecondsTimeout)
 {
 }
 

@@ -70,7 +70,9 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Construcs an unconnected stream
-	KUnixIOStream();
+	/// @param iSecondsTimeout
+	/// Timeout in seconds for any I/O. Defaults to 15.
+	KUnixIOStream(int iSecondsTimeout = DEFAULT_TIMEOUT);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------

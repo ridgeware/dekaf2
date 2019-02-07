@@ -71,7 +71,9 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Construcs an unconnected stream
-	KTCPIOStream();
+	/// @param iSecondsTimeout
+	/// Timeout in seconds for any I/O. Defaults to 15.
+	KTCPIOStream(int iSecondsTimeout = DEFAULT_TIMEOUT);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------

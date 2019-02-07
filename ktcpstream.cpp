@@ -124,10 +124,10 @@ std::streamsize KTCPIOStream::TCPStreamWriter(const void* sBuffer, std::streamsi
 } // TCPStreamWriter
 
 //-----------------------------------------------------------------------------
-KTCPIOStream::KTCPIOStream()
+KTCPIOStream::KTCPIOStream(int iSecondsTimeout)
 //-----------------------------------------------------------------------------
     : base_type(&m_TCPStreamBuf)
-    , m_Stream(DEFAULT_TIMEOUT)
+    , m_Stream(iSecondsTimeout)
 {
 }
 

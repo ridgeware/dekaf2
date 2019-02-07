@@ -356,18 +356,18 @@ std::streamsize KSSLIOStream::SSLStreamWriter(const void* sBuffer, std::streamsi
 } // SSLStreamWriter
 
 //-----------------------------------------------------------------------------
-KSSLIOStream::KSSLIOStream()
+KSSLIOStream::KSSLIOStream(int iSecondsTimeout, bool bManualHandshake)
 //-----------------------------------------------------------------------------
     : base_type(&m_SSLStreamBuf)
-	, m_Stream(s_KSSLContextNoVerification, DEFAULT_TIMEOUT, false)
+	, m_Stream(s_KSSLContextNoVerification, iSecondsTimeout, bManualHandshake)
 {
 }
 
 //-----------------------------------------------------------------------------
-KSSLIOStream::KSSLIOStream(KSSLContext& Context)
+KSSLIOStream::KSSLIOStream(KSSLContext& Context, int iSecondsTimeout, bool bManualHandshake)
 //-----------------------------------------------------------------------------
 	: base_type(&m_SSLStreamBuf)
-	, m_Stream(Context, DEFAULT_TIMEOUT, false)
+	, m_Stream(Context, iSecondsTimeout, bManualHandshake)
 {
 }
 

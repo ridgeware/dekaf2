@@ -1035,5 +1035,43 @@ TEST_CASE("KStringView") {
 
 	}
 
+	SECTION ("StartsWith")
+	{
+		KStringView sLine = "This is a line with some data";
+
+		CHECK ( sLine.StartsWith("This") == true );
+		CHECK ( sLine.StartsWith("This is") == true );
+		CHECK ( sLine.StartsWith("his") == false );
+		CHECK ( sLine.StartsWith("is") == false );
+		CHECK ( sLine.StartsWith("data") == false );
+		CHECK ( sLine.StartsWith("") == true );
+	}
+
+	SECTION ("EndsWith")
+	{
+		KStringView sLine = "This is a line with some data";
+
+		CHECK ( sLine.EndsWith("This") == false );
+		CHECK ( sLine.EndsWith("This is") == false );
+		CHECK ( sLine.EndsWith("his") == false );
+		CHECK ( sLine.EndsWith("is") == false );
+		CHECK ( sLine.EndsWith("data") == true );
+		CHECK ( sLine.EndsWith("ome data") == true );
+		CHECK ( sLine.EndsWith("") == true );
+	}
+
+	SECTION ("Contains")
+	{
+		KStringView sLine = "This is a line with some data";
+
+		CHECK ( sLine.Contains("This") == true );
+		CHECK ( sLine.Contains("This is") == true );
+		CHECK ( sLine.Contains("his") == true );
+		CHECK ( sLine.Contains("is") == true );
+		CHECK ( sLine.Contains("data") == true );
+		CHECK ( sLine.Contains("nothing") == false );
+		CHECK ( sLine.Contains("") == true );
+	}
+
 }
 

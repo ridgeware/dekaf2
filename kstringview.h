@@ -1337,6 +1337,11 @@ bool kStartsWith(KStringView sInput, KStringView sPattern)
 		return false;
 	}
 
+	if (DEKAF2_UNLIKELY(sPattern.empty()))
+	{
+		return true;
+	}
+
 	return !std::memcmp(sInput.data(), sPattern.data(), sPattern.size());
 
 } // kStartsWith
@@ -1352,6 +1357,11 @@ bool kEndsWith(KStringView sInput, KStringView sPattern)
 		return false;
 	}
 
+	if (DEKAF2_UNLIKELY(sPattern.empty()))
+	{
+		return true;
+	}
+
 	return !std::memcmp(sInput.data() + sInput.size() - sPattern.size(), sPattern.data(), sPattern.size());
 
 } // kEndsWith
@@ -1364,6 +1374,11 @@ bool kContains(KStringView sInput, KStringView sPattern)
 	if (DEKAF2_UNLIKELY(sInput.size() < sPattern.size()))
 	{
 		return false;
+	}
+
+	if (DEKAF2_UNLIKELY(sPattern.empty()))
+	{
+		return true;
 	}
 
 	return kFind(sInput, sPattern) != KStringView::npos;

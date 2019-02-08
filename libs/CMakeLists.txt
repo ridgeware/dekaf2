@@ -5,7 +5,7 @@ cmake_minimum_required(VERSION 3.8)
 include(ExternalProject)
 
 # add the format lib
-add_subdirectory(fmt-5.2.1)
+add_subdirectory(fmt-5.3.0)
 
 # add fast regular expressions
 if(CMAKE_COMPILER_IS_GNUCC OR (CMAKE_CXX_COMPILER_ID MATCHES "[cC][lL][aA][nN][gG]"))

@@ -177,10 +177,10 @@ void RE2::Init(const StringPiece& pattern, const Options& options) {
   entire_regexp_ = NULL;
   suffix_regexp_ = NULL;
   prog_ = NULL;
+  num_captures_ = -1;
   rprog_ = NULL;
   error_ = empty_string;
   error_code_ = NoError;
-  num_captures_ = -1;
   named_groups_ = NULL;
   group_names_ = NULL;
 
@@ -217,6 +217,11 @@ void RE2::Init(const StringPiece& pattern, const Options& options) {
     error_code_ = RE2::ErrorPatternTooLarge;
     return;
   }
+
+  // We used to compute this lazily, but it's used during the
+  // typical control flow for a match call, so we now compute
+  // it eagerly, which avoids the overhead of std::once_flag.
+  num_captures_ = suffix_regexp_->NumCaptures();
 
   // Could delay this until the first match call that
   // cares about submatch information, but the one-pass
@@ -262,11 +267,18 @@ int RE2::ProgramSize() const {
   return prog_->size();
 }
 
-int RE2::ProgramFanout(std::map<int, int>* histogram) const {
+int RE2::ReverseProgramSize() const {
   if (prog_ == NULL)
     return -1;
-  SparseArray<int> fanout(prog_->size());
-  prog_->Fanout(&fanout);
+  Prog* prog = ReverseProg();
+  if (prog == NULL)
+    return -1;
+  return prog->size();
+}
+
+static int Fanout(Prog* prog, std::map<int, int>* histogram) {
+  SparseArray<int> fanout(prog->size());
+  prog->Fanout(&fanout);
   histogram->clear();
   for (SparseArray<int>::iterator i = fanout.begin(); i != fanout.end(); ++i) {
     // TODO(junyer): Optimise this?
@@ -279,14 +291,19 @@ int RE2::ProgramFanout(std::map<int, int>* histogram) const {
   return histogram->rbegin()->first;
 }
 
-// Returns num_captures_, computing it if needed, or -1 if the
-// regexp wasn't valid on construction.
-int RE2::NumberOfCapturingGroups() const {
-  std::call_once(num_captures_once_, [](const RE2* re) {
-    if (re->suffix_regexp_ != NULL)
-      re->num_captures_ = re->suffix_regexp_->NumCaptures();
-  }, this);
-  return num_captures_;
+int RE2::ProgramFanout(std::map<int, int>* histogram) const {
+  if (prog_ == NULL)
+    return -1;
+  return Fanout(prog_, histogram);
+}
+
+int RE2::ReverseProgramFanout(std::map<int, int>* histogram) const {
+  if (prog_ == NULL)
+    return -1;
+  Prog* prog = ReverseProg();
+  if (prog == NULL)
+    return -1;
+  return Fanout(prog, histogram);
 }
 
 // Returns named_groups_, computing it if needed.
@@ -557,7 +574,7 @@ bool RE2::Match(const StringPiece& text,
                 Anchor re_anchor,
                 StringPiece* submatch,
                 int nsubmatch) const {
-  if (!ok() || suffix_regexp_ == NULL) {
+  if (!ok()) {
     if (options_.log_errors())
       LOG(ERROR) << "Invalid RE2: " << *error_;
     return false;
@@ -784,6 +801,11 @@ bool RE2::DoMatch(const StringPiece& text,
     return false;
   }
 
+  if (NumberOfCapturingGroups() < n) {
+    // RE has fewer capturing groups than number of Arg pointers passed in.
+    return false;
+  }
+
   // Count number of capture groups needed.
   int nvec;
   if (n == 0 && consumed == NULL)
@@ -814,13 +836,6 @@ bool RE2::DoMatch(const StringPiece& text,
     // We are not interested in results
     delete[] heapvec;
     return true;
-  }
-
-  int ncap = NumberOfCapturingGroups();
-  if (ncap < n) {
-    // RE has fewer capturing groups than number of arg pointers passed in
-    delete[] heapvec;
-    return false;
   }
 
   // If we got here, we must have matched the whole pattern.

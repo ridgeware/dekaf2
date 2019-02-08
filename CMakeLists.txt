@@ -173,8 +173,8 @@ if (CMAKE_COMPILER_IS_GNUCXX)
 	if (CPU_x86)
 
 		if (CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 6.0)
-			set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -msse4.2 -mavx2 -mfpmath=sse -maes")
-			set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse4.2 -mavx2 -mfpmath=sse -maes")
+			set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -msse4.2 -mfpmath=sse -maes")
+			set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse4.2 -mfpmath=sse -maes")
 		elseif (CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 4.5)
 			set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -msse4.2")
 			set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse4.2")
@@ -202,8 +202,8 @@ elseif (CMAKE_CXX_COMPILER_ID MATCHES "[cC][lL][aA][nN][gG]")
 	# configure cpu architecture dependant optimization
 	if (CPU_x86)
 
-		set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -msse4.2 -mavx2 -mfpmath=sse -maes")
-		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse4.2 -mavx2 -mfpmath=sse -maes")
+		set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -msse4.2 -mfpmath=sse -maes")
+		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse4.2 -mfpmath=sse -maes")
 
 	endif ()
 
@@ -329,8 +329,6 @@ add_subdirectory(libs EXCLUDE_FROM_ALL)
 
 # add partial third party libraries included in source control
 add_subdirectory(from EXCLUDE_FROM_ALL)
-
-# add externally installed third party libraries:
 
 # =============================== GENERATED FILES =================================
 
@@ -686,7 +684,7 @@ target_link_libraries(klog dekaf2)
 add_executable(createdbc createdbc.cpp)
 target_link_libraries(createdbc dekaf2)
 
-add_executable(getentities getentities.cpp)
+add_executable(getentities EXCLUDE_FROM_ALL getentities.cpp)
 target_link_libraries(getentities dekaf2)
 
 # ============================ UNIT AND SMOKE TESTS ==================================

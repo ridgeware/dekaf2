@@ -28,10 +28,11 @@ template <typename IteratorType> class iteration_proxy_value
     std::size_t array_index = 0;
     /// last stringified array index
     mutable std::size_t array_index_last = 0;
+	using string_t = typename IteratorType::string_t;
     /// a string representation of the array index
-    mutable std::string array_index_str = "0";
+    mutable string_t array_index_str = "0";
     /// an empty string (to return a reference for primitive values)
-    const std::string empty_str = "";
+    const string_t empty_str = "";
 
   public:
     explicit iteration_proxy_value(IteratorType it) noexcept : anchor(it) {}
@@ -64,7 +65,7 @@ template <typename IteratorType> class iteration_proxy_value
     }
 
     /// return key of the iterator
-    const std::string& key() const
+    const string_t& key() const
     {
         assert(anchor.m_object != nullptr);
 

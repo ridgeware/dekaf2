@@ -82,7 +82,7 @@
 namespace dekaf2
 {
 
-using asio::ip::tcp;
+using boost::asio::ip::tcp;
 using endpoint_type = boost::asio::ip::tcp::acceptor::endpoint_type;
 
 //-----------------------------------------------------------------------------
@@ -201,7 +201,7 @@ bool KTCPServer::IsPortAvailable(uint16_t iPort)
 {
 	DEKAF2_TRY
 	{
-		asio::io_service io_service;
+		boost::asio::io_service io_service;
 		tcp::endpoint local_endpoint(tcp::v4(), iPort);
 		tcp::acceptor acceptor(io_service, local_endpoint, true); // true means reuse_addr
 		acceptor.close();
@@ -225,7 +225,7 @@ void KTCPServer::TCPServer(bool ipv6)
 {
 	DEKAF2_TRY_EXCEPTION
 	
-	asio::ip::v6_only v6_only(false);
+	boost::asio::ip::v6_only v6_only(false);
 
 	tcp::endpoint local_endpoint((ipv6) ? tcp::v6() : tcp::v4(), m_iPort);
 	tcp::acceptor acceptor(m_asio, local_endpoint, true); // true means reuse_addr

@@ -40,13 +40,8 @@
 //
 */
 
-/*
-TODO: KLOG OVERHAUL NEEDED
-[ ] kDebug() and kWarning() macros should probably be kDebugFormat() and kDebugPrintf()
-*/
-
-#include <iostream>
 #include <mutex>
+#include <iostream>
 #include <syslog.h>
 #include "dekaf2.h"
 #include "klog.h"
@@ -54,21 +49,19 @@ TODO: KLOG OVERHAUL NEEDED
 #include "kgetruntimestack.h"
 #include "kstringutils.h"
 #include "ksystem.h"
-#include "kurl.h"
-#include "khttpclient.h"
-#include "kjson.h"
 #include "ksplit.h"
-#include "kconnection.h"
-#include "khttpclient.h"
-#include "kmime.h"
+#include "kfilesystem.h"
+
+#ifdef DEKAF2_KLOG_WITH_TCP
+	#include "kurl.h"
+	#include "khttpclient.h"
+	#include "kconnection.h"
+	#include "kmime.h"
+	#include "kjson.h"
+#endif
 
 namespace dekaf2
 {
-
-KOutStream KErr(std::cerr);
-KOutStream KOut(std::cout);
-KInStream  KIn(std::cin);
-KStream    KInOut(std::cin, std::cout);
 
 //---------------------------------------------------------------------------
 KLogWriter::~KLogWriter()
@@ -155,6 +148,8 @@ bool KLogSyslogWriter::Write(int iLevel, bool bIsMultiline, const KString& sOut)
 	return true;
 
 } // Write
+
+#ifdef DEKAF2_KLOG_WITH_TCP
 
 //---------------------------------------------------------------------------
 KLogTCPWriter::KLogTCPWriter(KStringView sURL)
@@ -253,7 +248,7 @@ bool KLogHTTPWriter::Write(int iLevel, bool bIsMultiline, const KString& sOut)
 
 } // Write
 
-
+#endif // of DEKAF2_KLOG_WITH_TCP
 
 //---------------------------------------------------------------------------
 void KLogData::Set(int level, KStringView sShortName, KStringView sPathName, KStringView sFunction, KStringView sMessage)
@@ -412,6 +407,8 @@ void KLogTTYSerializer::Serialize() const
 
 } // Serialize
 
+#ifdef DEKAF2_KLOG_WITH_TCP
+
 //---------------------------------------------------------------------------
 void KLogJSONSerializer::Serialize() const
 //---------------------------------------------------------------------------
@@ -433,6 +430,8 @@ void KLogJSONSerializer::Serialize() const
 	m_sBuffer = json.dump();
 
 } // Serialize
+
+#endif // of DEKAF2_KLOG_WITH_TCP
 
 //---------------------------------------------------------------------------
 void KLogSyslogSerializer::Serialize() const
@@ -612,10 +611,12 @@ std::unique_ptr<KLogWriter> KLog::CreateWriter(Writer writer, KStringView sLogna
 			return std::make_unique<KLogFileWriter>(sLogname);
 		case Writer::SYSLOG:
 			return std::make_unique<KLogSyslogWriter>();
+#ifdef DEKAF2_KLOG_WITH_TCP
 		case Writer::TCP:
 			return std::make_unique<KLogTCPWriter>(sLogname);
 		case Writer::HTTP:
 			return std::make_unique<KLogHTTPWriter>(sLogname);
+#endif
 	}
 
 } // CreateWriter
@@ -631,8 +632,10 @@ std::unique_ptr<KLogSerializer> KLog::CreateSerializer(Serializer serializer)
 			return std::make_unique<KLogTTYSerializer>();
 		case Serializer::SYSLOG:
 			return std::make_unique<KLogSyslogSerializer>();
+#ifdef DEKAF2_KLOG_WITH_TCP
 		case Serializer::JSON:
 			return std::make_unique<KLogJSONSerializer>();
+#endif
 	}
 
 } // Create Serializer
@@ -641,6 +644,7 @@ std::unique_ptr<KLogSerializer> KLog::CreateSerializer(Serializer serializer)
 bool KLog::IntOpenLog()
 //---------------------------------------------------------------------------
 {
+#ifdef DEKAF2_KLOG_WITH_TCP
 	KURL url(m_sLogName);
 	if (url.IsHttpURL())
 	{
@@ -653,7 +657,9 @@ bool KLog::IntOpenLog()
 		SetWriter(CreateWriter(Writer::TCP, m_sLogName));
 		SetSerializer(CreateSerializer(Serializer::TTY));
 	}
-	else if (m_sLogName == SYSLOG)
+	else
+#endif
+	if (m_sLogName == SYSLOG)
 	{
 		SetWriter(CreateWriter(Writer::SYSLOG));
 		SetSerializer(CreateSerializer(Serializer::SYSLOG));

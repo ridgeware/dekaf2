@@ -46,20 +46,13 @@
 /// Logging framework
 
 #include <exception>
-#include <fstream>
 #include "kstring.h"
-#include "kwriter.h"
+#include "kstream.h"
 #include "kformat.h"
-#include "kfilesystem.h"
 #include "bits/kcppcompat.h"
 
 namespace dekaf2
 {
-
-extern KOutStream KErr;
-extern KOutStream KOut;
-extern KInStream  KIn;
-extern KStream    KInOut;
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// ABC for the LogWriter object
@@ -138,6 +131,8 @@ public:
 
 class KConnection; // fwd decl - we do not want to include the kconnection header here
 
+#ifdef DEKAF2_KLOG_WITH_TCP
+
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Logwriter that writes to any TCP endpoint
 class KLogTCPWriter : public KLogWriter
@@ -184,6 +179,7 @@ protected:
 
 }; // KLogHTTPWriter
 
+#endif
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Base class for KLog serialization. Takes the data to be written someplace.
@@ -294,6 +290,8 @@ protected:
 
 }; // KLogSyslogSerializer
 
+#ifdef DEKAF2_KLOG_WITH_TCP
+
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Specialization of the serializer for JSON output: creates a serialized
 /// JSON object
@@ -313,7 +311,7 @@ protected:
 
 }; // KLogJSONSerializer
 
-
+#endif
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Primary logging facility for dekaf2.
@@ -406,13 +404,32 @@ public:
 	bool SetDebugLog(KStringView sLogfile);
 	//---------------------------------------------------------------------------
 
-	enum class Writer { STDOUT, STDERR, FILE, SYSLOG, TCP, HTTP };
+	enum class Writer
+	{
+		STDOUT,
+		STDERR,
+		FILE,
+		SYSLOG,
+#ifdef DEKAF2_KLOG_WITH_TCP
+		TCP,
+		HTTP
+#endif
+	};
+
 	//---------------------------------------------------------------------------
 	/// Create a Writer of specific type
 	static std::unique_ptr<KLogWriter> CreateWriter(Writer writer, KStringView sLogname = KStringView{});
 	//---------------------------------------------------------------------------
 
-	enum class Serializer { TTY, SYSLOG, JSON };
+	enum class Serializer
+	{
+		TTY,
+		SYSLOG,
+#ifdef DEKAF2_KLOG_WITH_TCP
+		JSON
+#endif
+	};
+
 	//---------------------------------------------------------------------------
 	/// Create a Serializer of specific type
 	static std::unique_ptr<KLogSerializer> CreateSerializer(Serializer serializer);

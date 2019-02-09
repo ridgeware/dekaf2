@@ -48,7 +48,6 @@
 #include <cinttypes>
 #include <vector>
 #include "kstringview.h"
-#include "kstream.h"
 
 namespace dekaf2
 {

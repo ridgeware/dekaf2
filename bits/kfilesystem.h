@@ -67,6 +67,7 @@
 	#include <unistd.h>
 	#include <cstdio>
 	#include <dirent.h>
+	#include <fcntl.h>
 #endif
 
 #ifdef DEKAF2_FS_NAMESPACE

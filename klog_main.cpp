@@ -44,6 +44,7 @@
 #include "kstring.h"
 #include "kstringutils.h"
 #include "kinshell.h"
+#include "kfilesystem.h"
 #include "ktcpserver.h"
 
 using namespace dekaf2;

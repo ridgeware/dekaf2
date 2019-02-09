@@ -56,6 +56,7 @@
 #include "kstack.h"
 #include "ksplit.h"
 #include "kstringutils.h"
+#include "kfilesystem.h"
 
 #ifndef DEKAF2_DO_NOT_HAVE_STRPTIME
 #include <time.h>   // for strptime()

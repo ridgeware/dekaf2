@@ -267,6 +267,9 @@ protected:
 
 }; // KOutStream
 
+extern KOutStream KErr;
+extern KOutStream KOut;
+
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// The general Writer abstraction for dekaf2. Can be constructed around any
 /// std::ostream.

@@ -47,12 +47,8 @@
 #include "kreader.h"
 #include "kwriter.h"
 
-#include <boost/asio/ip/tcp.hpp>
-
 namespace dekaf2
 {
-
-namespace asio = boost::asio;
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// The generalized bidirectional stream abstraction for dekaf2
@@ -109,6 +105,8 @@ public:
 	//-----------------------------------------------------------------------------
 
 };
+
+extern KStream KInOut;
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// The templatized bidirectional stream abstraction for dekaf2. Can be constructed

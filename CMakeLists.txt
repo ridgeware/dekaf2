@@ -60,6 +60,7 @@ OPTION(DEKAF2_ENABLE_DEBUG_RUNTIME_CHECKS "debug build with sanitizers and addit
 OPTION(DEKAF2_ENABLE_DEBUG_RUNTIME_CHECKS_IN_XCODE "debug build with sanitizers and additional runtime checks in Xcode" OFF)
 OPTION(DEKAF2_USE_FROZEN_HASH_FOR_LARGE_MAPS "use frozen constexpr hash for large maps (needs a lot of memory on comp)" ON)
 OPTION(DEKAF2_WITH_FCGI "build with FCGI" OFF)
+OPTION(DEKAF2_KLOG_WITH_TCP "enable KLOG to log on TCP/HTTP" ON)
 
 # =================================== C++ STANDARD =================================
 
@@ -102,7 +103,7 @@ endif ()
 message (STATUS "FBSTRING: ${DEKAF2_USE_FBSTRING_AS_KSTRING}")
 
 if (CPU_ARM)
-	message(STATUS "-- no ASAN/UBSAN support for ARM")
+	message(STATUS "no ASAN/UBSAN support for ARM")
 	set (DEKAF2_ENABLE_DEBUG_RUNTIME_CHECKS OFF)
 endif()
 
@@ -686,6 +687,9 @@ target_link_libraries(createdbc dekaf2)
 
 add_executable(getentities EXCLUDE_FROM_ALL getentities.cpp)
 target_link_libraries(getentities dekaf2)
+
+add_executable(sizetest EXCLUDE_FROM_ALL sizetest.cpp)
+target_link_libraries(sizetest dekaf2)
 
 # ============================ UNIT AND SMOKE TESTS ==================================
 

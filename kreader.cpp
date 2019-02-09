@@ -40,6 +40,9 @@
 // +-------------------------------------------------------------------------+
 */
 
+#include <iostream>
+#include <fcntl.h>
+
 #include "bits/kcppcompat.h"
 #include "bits/kfilesystem.h"
 
@@ -49,6 +52,8 @@
 
 namespace dekaf2
 {
+
+KInStream KIn(std::cin);
 
 //-----------------------------------------------------------------------------
 bool kRewind(std::istream& Stream)

@@ -43,6 +43,7 @@
 #include "ksmtp.h"
 #include "khttp_header.h"
 #include "kreader.h"
+#include "kfilesystem.h"
 #include "klog.h"
 
 namespace dekaf2 {

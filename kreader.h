@@ -525,6 +525,7 @@ protected:
 
 }; // KInStream
 
+extern KInStream KIn;
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// The templatized reader abstraction for dekaf2. Can be constructed around any

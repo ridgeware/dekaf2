@@ -42,6 +42,8 @@
 
 #include <thread>
 #include <sys/wait.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 #include <signal.h>
 #include "kchildprocess.h"
 #include "kstring.h"

@@ -1,5 +1,4 @@
 /*
-//-----------------------------------------------------------------------------//
 //
 // DEKAF(tm): Lighter, Faster, Smarter (tm)
 //
@@ -44,6 +43,7 @@
 #include "ktcpserver.h"
 #include "kcgistream.h"
 #include "klambdastream.h"
+#include "kfilesystem.h"
 
 namespace dekaf2 {
 

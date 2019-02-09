@@ -40,6 +40,7 @@
 // +-------------------------------------------------------------------------+
 */
 
+#include <iostream>
 #include <fstream>
 #include "kwriter.h"
 #include "kreader.h"
@@ -47,6 +48,9 @@
 
 namespace dekaf2
 {
+
+KOutStream KErr(std::cerr);
+KOutStream KOut(std::cout);
 
 //-----------------------------------------------------------------------------
 KOutStream::~KOutStream()

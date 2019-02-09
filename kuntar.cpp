@@ -85,6 +85,7 @@
 #include <boost/iostreams/filter/bzip2.hpp>
 
 #include "kuntar.h"
+#include "kfilesystem.h"
 #include "klog.h"
 
 namespace dekaf2 {

@@ -44,6 +44,7 @@
 #include "bits/kfilesystem.h"
 #include "ksystem.h"
 #include "kstring.h"
+#include "kfilesystem.h"
 #include "klog.h"
 
 #include <boost/asio.hpp>

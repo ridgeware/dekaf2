@@ -43,6 +43,7 @@
 #include "catch.hpp"
 #include <dekaf2/ksql.h>
 #include <dekaf2/ksystem.h>
+#include <dekaf2/kfilesystem.h>
 
 using namespace dekaf2;
 

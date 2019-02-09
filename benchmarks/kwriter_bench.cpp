@@ -6,6 +6,7 @@
 #include <dekaf2/kprof.h>
 #include <dekaf2/kfilesystem.h>
 #include <fstream>
+#include <fcntl.h>
 #include <unistd.h>
 
 using namespace dekaf2;

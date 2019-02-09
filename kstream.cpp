@@ -40,10 +40,13 @@
 //
 */
 
+#include <iostream>
 #include "kstream.h"
 
 namespace dekaf2
 {
+
+KStream KInOut(std::cin, std::cout);
 
 //-----------------------------------------------------------------------------
 KStream::~KStream()

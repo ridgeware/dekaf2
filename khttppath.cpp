@@ -50,7 +50,7 @@ KHTTPPath::KHTTPPath(KStringView _sRoute)
 //-----------------------------------------------------------------------------
 	: sRoute(std::move(_sRoute))
 {
-	if (sRoute.front() != '/')
+	if (sRoute.empty() || sRoute.front() != '/')
 	{
 		kWarning("error: route does not start with a slash: {}", sRoute);
 	}

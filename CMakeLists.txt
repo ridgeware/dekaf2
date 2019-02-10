@@ -688,9 +688,6 @@ target_link_libraries(createdbc dekaf2)
 add_executable(getentities EXCLUDE_FROM_ALL getentities.cpp)
 target_link_libraries(getentities dekaf2)
 
-add_executable(sizetest EXCLUDE_FROM_ALL sizetest.cpp)
-target_link_libraries(sizetest dekaf2)
-
 # ============================ UNIT AND SMOKE TESTS ==================================
 
 add_subdirectory(utests)

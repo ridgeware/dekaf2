@@ -80,7 +80,8 @@ public:
 	bool ExecuteFromFile(const Options& Options, const KRESTRoutes& Routes, KStringView sFilename, KOutStream& OutStream = KOut);
 	/// simulate one REST request in HTTP/CGI mode, read input from sSimulate, output to OutStream
 	bool Simulate(const Options& Options, const KRESTRoutes& Routes, KStringView sSimulate, KOutStream& OutStream = KOut);
-
+	/// call either of the three other execution methods depending on Options.Type and sFilenameOrSimulation
+	bool Execute(const Options& Options, const KRESTRoutes& Routes, KStringView sFilenameOrSimulation);
 	/// returns true if no error
 	bool Good() const;
 	/// returns error description

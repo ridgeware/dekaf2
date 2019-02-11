@@ -113,8 +113,7 @@ bool KREST::Execute(const Options& Options, const KRESTRoutes& Routes)
 	switch (Options.Type)
 	{
 		case UNDEFINED:
-			kWarning("undefined REST server mode");
-			return false;
+			return SetError("undefined REST server mode");
 
 		case HTTP:
 			{
@@ -123,31 +122,25 @@ bool KREST::Execute(const Options& Options, const KRESTRoutes& Routes)
 				{
 					if (Options.sCert.empty())
 					{
-						kWarning("TLS mode requested, but no certificate");
-						return false;
+						return SetError("TLS mode requested, but no certificate");
 					}
 					if (!kFileExists(Options.sCert))
 					{
-						kWarning("TLS certificate does not exist: {}", Options.sCert);
-						return false;
+						return SetError(kFormat("TLS certificate does not exist: {}", Options.sCert));
 					}
 					if (Options.sKey.empty())
 					{
-						kDebug(0, "TLS mode requested, but no private key");
-						return false;
+						return SetError("TLS mode requested, but no private key");
 					}
 					if (!kFileExists(Options.sKey))
 					{
-						kWarning("TLS private key file does not exist: {}", Options.sKey);
-						return false;
+						return SetError(kFormat("TLS private key file does not exist: {}", Options.sKey));
 					}
 				}
 
 				if (!detail::RESTServer::IsPortAvailable(Options.iPort))
 				{
-					SetError(kFormat("port {} is in use - abort", Options.iPort));
-					kWarning("{}", Error());
-					return false;
+					return SetError(kFormat("port {} is in use - abort", Options.iPort));
 				}
 
 				kDebug(1, "starting standalone {} server on port {}...", bUseTLS ? "HTTPS" : "HTTP", Options.iPort);
@@ -158,8 +151,8 @@ bool KREST::Execute(const Options& Options, const KRESTRoutes& Routes)
 					Server.SetSSLCertificates(Options.sCert, Options.sKey);
 				}
 				Server.Start(Options.iTimeout, true);
+				return true;
 			}
-			break;
 
 		case UNIX:
 			{
@@ -167,8 +160,8 @@ bool KREST::Execute(const Options& Options, const KRESTRoutes& Routes)
 				Options.Out = KRESTServer::HTTP;
 				detail::RESTServer Server(Options, Routes, Options.sSocketFile, Options.iMaxConnections);
 				Server.Start(Options.iTimeout, true);
+				return true;
 			}
-			break;
 
 		case CGI:
 			{
@@ -176,13 +169,12 @@ bool KREST::Execute(const Options& Options, const KRESTRoutes& Routes)
 				KCGIInStream CGI(KIn);
 				KStream Stream(CGI, KOut);
 				Options.Out = KRESTServer::HTTP;
-				return RealExecute(Options, Routes, Stream); // TODO get remote IP from env var
+				RealExecute(Options, Routes, Stream); // TODO get remote IP from env var
+				return true; // we return true because the request was served
 			}
-			break;
 
 		case FCGI:
-			kWarning("FCGI mode not yet supported");
-			return false;
+			return SetError("FCGI mode not yet supported");
 
 		case LAMBDA:
 			{
@@ -190,22 +182,22 @@ bool KREST::Execute(const Options& Options, const KRESTRoutes& Routes)
 				KLambdaInStream Lambda(KIn);
 				KStream Stream(Lambda, KOut);
 				Options.Out = KRESTServer::LAMBDA;
-				return RealExecute(Options, Routes, Stream); // TODO get remote IP from env var
+				RealExecute(Options, Routes, Stream); // TODO get remote IP from env var
+				return true; // we return true because the request was served
 			}
-			break;
 
 		case CLI:
 			{
 				kDebug (3, "normal CLI request...");
 				KStream Stream(KIn, KOut);
 				Options.Out = KRESTServer::CLI;
-				return RealExecute(Options, Routes, Stream, "127.0.0.1");
+				RealExecute(Options, Routes, Stream, "127.0.0.1");
+				return true; // we return true because the request was served
 			}
-			break;
 
 		case SIMULATE_HTTP:
 			// nothing to do here..
-			kDebug (3, "please use ExecuteFromFile() for SIMULATE_HTTP REST request type");
+			SetError ("please use Simulate() for SIMULATE_HTTP REST request type");
 			return false;
 	}
 
@@ -226,9 +218,9 @@ bool KREST::ExecuteFromFile(const Options& Options, const KRESTRoutes& Routes, K
 				KCGIInStream CGI(File);
 				KStream Stream(CGI, OutStream);
 				Options.Out = KRESTServer::HTTP;
-				return RealExecute(Options, Routes, Stream, "127.0.0.1");
+				RealExecute(Options, Routes, Stream, "127.0.0.1");
+				return true; // we return true because the request was served
 			}
-			break;
 
 		case LAMBDA:
 			{
@@ -237,29 +229,25 @@ bool KREST::ExecuteFromFile(const Options& Options, const KRESTRoutes& Routes, K
 				KLambdaInStream Lambda(File);
 				KStream Stream(Lambda, OutStream);
 				Options.Out = KRESTServer::LAMBDA;
-				return RealExecute(Options, Routes, Stream, "127.0.0.1");
+				RealExecute(Options, Routes, Stream, "127.0.0.1");
+				return true; // we return true because the request was served
 			}
-			break;
 
 		case HTTP:
 		case UNIX:
 		case CLI:
 			// nothing to do here..
-			kDebug (3, "please use Execute() for HTTP or UNIX REST request types");
-			return false;
+			return SetError ("please use Execute() for HTTP or UNIX REST request types");
 
 		case SIMULATE_HTTP:
 			// nothing to do here..
-			kDebug (3, "please use Simulate() for SIMULATE_HTTP request types");
-			return false;
+			return SetError ("please use Simulate() for SIMULATE_HTTP request types");
 
 		case UNDEFINED:
-			kWarning("undefined REST server mode");
-			return false;
+			return SetError ("undefined REST server mode");
 
 		case FCGI:
-			kWarning("FCGI mode not yet supported");
-			return false;
+			return SetError ("FCGI mode not yet supported");
 	}
 
 	return true;
@@ -272,8 +260,7 @@ bool KREST::Simulate(const Options& Options, const KRESTRoutes& Routes, KStringV
 {
 	if (sSimulate.front() != '/')
 	{
-		kWarning("sFilename does not start with a / - abort : {}", sSimulate);
-		return false;
+		return SetError(kFormat("sFilename does not start with a / - abort : {}", sSimulate));
 	}
 
 	kDebug(3, "simulated CGI request: {}", sSimulate);
@@ -306,29 +293,63 @@ bool KREST::Simulate(const Options& Options, const KRESTRoutes& Routes, KStringV
 	KStream Stream(String, OutStream);
 	Options.Out = KRESTServer::HTTP;
 	return RealExecute(Options, Routes, Stream, "127.0.0.1");
-}
+
+} // Simulate
+
+//-----------------------------------------------------------------------------
+bool KREST::Execute(const Options& Options, const KRESTRoutes& Routes, KStringView sFilenameOrSimulation)
+//-----------------------------------------------------------------------------
+{
+	switch (Options.Type)
+	{
+		default:
+			if (DEKAF2_LIKELY(sFilenameOrSimulation.empty()))
+			{
+				// execute real request
+				return Execute(Options, Routes);
+			}
+			else
+			{
+				// execute request from input file
+				return ExecuteFromFile(Options, Routes, sFilenameOrSimulation);
+			}
+
+		case KREST::SIMULATE_HTTP:
+			// simulate request from command line
+			return Simulate(Options, Routes, sFilenameOrSimulation);
+
+		case KREST::UNDEFINED:
+			return false;
+
+	} // switch (xOptions.Type)
+
+} // Execute
 
 //-----------------------------------------------------------------------------
 const KString& KREST::Error() const
 //-----------------------------------------------------------------------------
 {
 	return m_sError;
-}
+
+} // Error
 
 //-----------------------------------------------------------------------------
 bool KREST::SetError(KStringView sError)
 //-----------------------------------------------------------------------------
 {
 	m_sError = sError;
+	kWarning(m_sError);
 	return false;
-}
+
+} // SetError
 
 //-----------------------------------------------------------------------------
 bool KREST::Good() const
 //-----------------------------------------------------------------------------
 {
 	return m_sError.empty();
-}
+
+} // Good
 
 
 } // end of namespace dekaf2

@@ -57,6 +57,9 @@
 		#if __has_include(<string_view>)
 			#include <string_view>
 			#define KSQLITE_HAS_STRING_VIEW
+		#elif __has_include(<experimental/string_view>)
+			#include <experimental/string_view>
+			#define KSQLITE_HAS_EXPERIMENTAL_STRING_VIEW
 		#endif
 	#endif
 #endif
@@ -75,75 +78,80 @@ namespace KSQLite {
 	using StringView = KStringView;
 	using StringViewZ = KStringViewZ;
 #else
-	#if !defined(constexpr_2014)
-		#if __cplusplus >= 201402L
-			#define constexpr_2014 constexpr
-		#else
-			#define constexpr_2014
-		#endif
-	#endif
 	using String = std::string;
 	#ifdef KSQLITE_HAS_STRING_VIEW
 		using StringView = std::string_view;
+	#elif KSQLITE_HAS_EXPERIMENTAL_STRING_VIEW
+		using StringView = std::experimental::string_view;
 	#else
-	/// tiny but nearly complete string_view implementation - it only does not have rfind() nor reverse iterators nor find_first/last_(not)_of()
-	class StringView {
-	public:
-		using CharT = char; using Traits = std::char_traits<CharT>; using traits_type = Traits;
-		using value_type = CharT; using size_type = std::size_t; using const_pointer = const CharT*;
-		using const_reference = const CharT&; using const_iterator = const_pointer; using iterator = const_iterator;
-		static constexpr size_type npos = size_type(-1);
-		constexpr_2014 StringView() noexcept : m_pszString(std::addressof(m_chEmpty)), m_iSize(0) {}
-		constexpr_2014 StringView(const StringView& other) noexcept : m_pszString(other.m_pszString), m_iSize(other.m_iSize) {}
-		constexpr_2014 StringView(const std::string& strStr) : m_pszString(strStr.c_str()), m_iSize(strStr.size()) {}
-		constexpr_2014 StringView(const char* pszStr) : m_pszString(pszStr ? pszStr : std::addressof(m_chEmpty)), m_iSize(pszStr ? std::strlen(pszStr) : 0) {}
-		constexpr_2014 StringView(const char* pszStr, size_type iSize) : m_pszString(pszStr ? pszStr : std::addressof(m_chEmpty)), m_iSize(pszStr ? iSize : 0) {}
-		constexpr_2014 StringView& operator=(const StringView& other) noexcept { m_pszString = other.m_pszString; m_iSize = other.m_iSize; return *this; }
-		constexpr_2014 void clear() noexcept { m_pszString = std::addressof(m_chEmpty); m_iSize = 0; }
-		constexpr_2014 size_type max_size() const noexcept { return size_type(-1) - 1; }
-		constexpr_2014 size_type size() const noexcept { return m_iSize; } size_type length() const { return size(); }
-		constexpr_2014 bool empty() const noexcept { return !size(); }
-		constexpr_2014 iterator begin() const noexcept { return m_pszString; }
-		constexpr_2014 iterator end() const noexcept { return m_pszString + m_iSize; }
-		constexpr_2014 const_reference front() const noexcept { return *begin(); }
-		constexpr_2014 const_reference back() const noexcept { return *(end() - 1); }
-		constexpr_2014 const_pointer data() const noexcept { return begin(); }
-		constexpr_2014 const_reference operator[](size_type pos) const { return *(begin() + pos); }
-		constexpr_2014 const_reference at(size_type pos) const { if (pos >= size()) { throw std::out_of_range({}); } return operator[](pos); }
-		constexpr_2014 void remove_prefix(size_type n) { m_pszString += n; }
-		constexpr_2014 void remove_suffix(size_type n) { m_iSize -= n; }
-		void swap(StringView& other) noexcept { using std::swap; swap(*this, other); }
-		constexpr_2014 StringView substr(size_type pos = 0, size_type count = npos) const { return { m_pszString + pos, std::min(count, size() - pos) }; }
-		constexpr_2014 int compare(StringView other) const noexcept { auto cmp = Traits::compare(data(), other.data(), std::min(size(), other.size())); return (cmp) ? cmp : size() - other.size(); }
-		constexpr_2014 size_type find(StringView needle, size_type pos = 0) const noexcept { if (needle.size() == 1) { return find(needle.front(), pos); }
-			if (pos >= size() || needle.empty() || needle.size() > (size() - pos)) { return npos; }
-			auto found = static_cast<const char*>(::memmem(data() + pos, size() - pos, needle.data(), needle.size()));
-			return (found) ? static_cast<size_t>(found - data()) : npos; }
-		constexpr_2014 size_type find(CharT ch, size_type pos = 0) const noexcept { if (pos > size()) { return npos; }
-			auto found = static_cast<const char*>(::memchr(data() + pos, ch, size() - pos));
-			return (found) ? static_cast<size_t>(found - data()) : npos; }
-		constexpr_2014 size_type find(const CharT* s, size_type pos, size_type count) const { return find(StringView(s, count), pos); }
-		constexpr_2014 size_type find(const CharT* s, size_type pos) const { return find(StringView(s), pos); }
-	private:
-		static const char m_chEmpty = 0;
-		const char* m_pszString;
-		std::size_t m_iSize;
-	}; // StringView
-	constexpr_2014 inline bool operator==(StringView left, StringView right) noexcept { return left.size() == right.size() && (left.data() == right.data() || left.size() == 0 || left.compare(right) == 0); }
-	constexpr_2014 inline bool operator!=(StringView left, StringView right) noexcept { return !(left == right); }
-	constexpr_2014 inline bool operator< (StringView left, StringView right) noexcept { StringView::size_type min_size = std::min(left.size(), right.size()); int r = min_size == 0 ? 0 : left.compare(right); return (r < 0) || (r == 0 && left.size() < right.size()); }
-	constexpr_2014 inline bool operator> (StringView left, StringView right) noexcept { return right < left; }
-	constexpr_2014 inline bool operator<=(StringView left, StringView right) noexcept { return !(left > right); }
-	constexpr_2014 inline bool operator>=(StringView left, StringView right) noexcept { return !(left < right); }
+		/// tiny but nearly complete string_view implementation - it only does not have rfind() nor reverse iterators nor find_first/last_(not)_of()
+		#if !defined(constexpr_2014)
+			#if __cplusplus >= 201402L
+				#define constexpr_2014 constexpr
+			#else
+				#define constexpr_2014
+			#endif
+		#endif
+		class StringView {
+		public:
+			using CharT = char; using Traits = std::char_traits<CharT>; using traits_type = Traits;
+			using value_type = CharT; using size_type = std::size_t; using const_pointer = const CharT*;
+			using const_reference = const CharT&; using const_iterator = const_pointer; using iterator = const_iterator;
+			static constexpr size_type npos = size_type(-1);
+			constexpr_2014 StringView() noexcept : m_pszString(std::addressof(m_chEmpty)), m_iSize(0) {}
+			constexpr_2014 StringView(const StringView& other) noexcept : m_pszString(other.m_pszString), m_iSize(other.m_iSize) {}
+			constexpr_2014 StringView(const std::string& strStr) : m_pszString(strStr.c_str()), m_iSize(strStr.size()) {}
+			constexpr_2014 StringView(const char* pszStr) : m_pszString(pszStr ? pszStr : std::addressof(m_chEmpty)), m_iSize(pszStr ? std::strlen(pszStr) : 0) {}
+			constexpr_2014 StringView(const char* pszStr, size_type iSize) : m_pszString(pszStr ? pszStr : std::addressof(m_chEmpty)), m_iSize(pszStr ? iSize : 0) {}
+			constexpr_2014 StringView& operator=(const StringView& other) noexcept { m_pszString = other.m_pszString; m_iSize = other.m_iSize; return *this; }
+			constexpr_2014 void clear() noexcept { m_pszString = std::addressof(m_chEmpty); m_iSize = 0; }
+			constexpr_2014 size_type max_size() const noexcept { return size_type(-1) - 1; }
+			constexpr_2014 size_type size() const noexcept { return m_iSize; } size_type length() const { return size(); }
+			constexpr_2014 bool empty() const noexcept { return !size(); }
+			constexpr_2014 iterator begin() const noexcept { return m_pszString; }
+			constexpr_2014 iterator end() const noexcept { return m_pszString + m_iSize; }
+			constexpr_2014 const_reference front() const noexcept { return *begin(); }
+			constexpr_2014 const_reference back() const noexcept { return *(end() - 1); }
+			constexpr_2014 const_pointer data() const noexcept { return begin(); }
+			constexpr_2014 const_reference operator[](size_type pos) const { return *(begin() + pos); }
+			constexpr_2014 const_reference at(size_type pos) const { if (pos >= size()) { throw std::out_of_range({}); } return operator[](pos); }
+			constexpr_2014 void remove_prefix(size_type n) { m_pszString += n; }
+			constexpr_2014 void remove_suffix(size_type n) { m_iSize -= n; }
+			void swap(StringView& other) noexcept { using std::swap; swap(*this, other); }
+			constexpr_2014 StringView substr(size_type pos = 0, size_type count = npos) const { return { m_pszString + pos, std::min(count, size() - pos) }; }
+			constexpr_2014 int compare(StringView other) const noexcept { auto cmp = Traits::compare(data(), other.data(), std::min(size(), other.size())); return (cmp) ? cmp : size() - other.size(); }
+			constexpr_2014 size_type find(StringView needle, size_type pos = 0) const noexcept { if (needle.size() == 1) { return find(needle.front(), pos); }
+				if (pos >= size() || needle.empty() || needle.size() > (size() - pos)) { return npos; }
+				auto found = static_cast<const char*>(::memmem(data() + pos, size() - pos, needle.data(), needle.size()));
+				return (found) ? static_cast<size_t>(found - data()) : npos; }
+			constexpr_2014 size_type find(CharT ch, size_type pos = 0) const noexcept { if (pos > size()) { return npos; }
+				auto found = static_cast<const char*>(::memchr(data() + pos, ch, size() - pos));
+				return (found) ? static_cast<size_t>(found - data()) : npos; }
+			constexpr_2014 size_type find(const CharT* s, size_type pos, size_type count) const { return find(StringView(s, count), pos); }
+			constexpr_2014 size_type find(const CharT* s, size_type pos) const { return find(StringView(s), pos); }
+		private:
+			static const char m_chEmpty = 0;
+			const char* m_pszString;
+			std::size_t m_iSize;
+		}; // StringView
+		constexpr_2014 inline bool operator==(StringView left, StringView right) noexcept { return left.size() == right.size() && (left.data() == right.data() || left.size() == 0 || left.compare(right) == 0); }
+		constexpr_2014 inline bool operator!=(StringView left, StringView right) noexcept { return !(left == right); }
+		constexpr_2014 inline bool operator< (StringView left, StringView right) noexcept { StringView::size_type min_size = std::min(left.size(), right.size()); int r = min_size == 0 ? 0 : left.compare(right); return (r < 0) || (r == 0 && left.size() < right.size()); }
+		constexpr_2014 inline bool operator> (StringView left, StringView right) noexcept { return right < left; }
+		constexpr_2014 inline bool operator<=(StringView left, StringView right) noexcept { return !(left > right); }
+		constexpr_2014 inline bool operator>=(StringView left, StringView right) noexcept { return !(left < right); }
 	#endif
 	/// string view implementation that guarantees a trailing NUL
-	class StringViewZ : public StringView
+	class StringViewZ : private StringView
 	{
 	public:
-		using StringView::StringView;
-
+		constexpr2014 StringViewZ(const char* s = "") noexcept : StringView { s } {}
+		StringViewZ(const std::string& str) noexcept : StringView { str } {}
+		StringViewZ(const String& str) noexcept : StringView { str } {}
+		StringViewZ(StringView sv) = delete;
 		constexpr_2014 const_pointer c_str() const noexcept { return begin(); }
-
+		constexpr_2014 StringView substr(size_type pos, size_type count) const { return StringView::substr(pos, count); }
+		constexpr_2014 StringViewZ substr(size_type pos) const { if (pos < size()) { return { data() + pos, size() - pos }; } else { return {}; } }
 	}; // StringViewZ
 #endif
 

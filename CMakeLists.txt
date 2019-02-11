@@ -213,6 +213,9 @@ elseif (CMAKE_CXX_COMPILER_ID MATCHES "[cC][lL][aA][nN][gG]")
 	# increase amount of permitted constexpr depth (default is 512)
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fconstexpr-depth=2048")
 
+	# linux clang is way too picky at warnings, but it does not matter to disable
+	# these on MacOS too
+	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-mismatched-tags -Wno-return-std-move")
 endif ()
 
 message(STATUS "dekaf2 C++ compile flags for Release build : ${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_RELEASE}")

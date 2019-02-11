@@ -75,7 +75,6 @@ public:
 
 	using base_type::npos;
 
-	constexpr KStringViewZ() = default;
 	constexpr KStringViewZ(const self_type&) noexcept = default;
 	constexpr KStringViewZ& operator=(const self_type&) noexcept = default;
 
@@ -96,6 +95,14 @@ private:
 //----------
 public:
 //----------
+
+	//-----------------------------------------------------------------------------
+	constexpr
+	KStringViewZ()
+	//-----------------------------------------------------------------------------
+	: base_type { std::addressof(s_empty), 0 }
+	{
+	}
 
 	//-----------------------------------------------------------------------------
 	constexpr
@@ -244,7 +251,7 @@ public:
 
 	//----------------------------------------------------------------------
 	constexpr
-	KStringView ToView(size_type pos, size_type n) const
+	base_type ToView(size_type pos, size_type n) const
 	//----------------------------------------------------------------------
 	{
 		if (pos > size())
@@ -360,6 +367,10 @@ public:
 	}
 
 	// not using base_type::remove_suffix;
+
+private:
+
+	static constexpr value_type s_empty = '\0';
 
 }; // KStringViewZ
 

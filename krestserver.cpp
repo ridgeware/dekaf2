@@ -78,7 +78,7 @@ KRESTRoute::KRESTRoute(KHTTPMethod _Method, KStringView _sRoute, RESTCallback _C
 //-----------------------------------------------------------------------------
 KRESTRoutes::KRESTRoutes(KRESTRoute::RESTCallback DefaultRoute)
 //-----------------------------------------------------------------------------
-	: m_DefaultRoute(KRESTRoute(KHTTPMethod{}, KString{}, DefaultRoute))
+	: m_DefaultRoute(KRESTRoute(KHTTPMethod{}, "/", DefaultRoute))
 {
 }
 

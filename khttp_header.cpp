@@ -76,7 +76,7 @@ bool KHTTPHeaders::Parse(KInStream& Stream)
 		}
 		else if (sLine.size() > MAX_LINELENGTH)
 		{
-			kDebugLog(1, "KHTTPHeaders::Parse(): Header line too long: {} bytes", sLine.size());
+			kDebug(1, "Header line too long: {} bytes", sLine.size());
 			return SetError("HTTP header line too long");
 		}
 
@@ -90,7 +90,7 @@ bool KHTTPHeaders::Parse(KInStream& Stream)
 				{
 					if (last->second.size() + sLine.size() > MAX_LINELENGTH)
 					{
-						kDebugLog(1, "KHTTPHeaders::Parse(): Continuation header line too long: {} bytes",
+						kDebug(1, "Continuation header line too long: {} bytes",
 								  last->second.size() + sLine.size());
 						return SetError("HTTP header line too long");
 					}
@@ -124,7 +124,7 @@ bool KHTTPHeaders::Parse(KInStream& Stream)
 
 	}
 
-	kDebugLog (1, "KHTTPHeaders::Parse(): never found double newline to end headers");
+	kDebug (1, "never found double newline to end headers");
 
 	return SetError("HTTP header did not end with empty line");
 

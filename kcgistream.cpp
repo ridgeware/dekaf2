@@ -177,13 +177,13 @@ bool KCGIInStream::CreateHeader()
 
 	if (sMethod.empty())
 	{
-		kDebugLog (1, "KCGIInStream: we are not running within a web server...");
+		kDebug (1, "we are not running within a web server...");
 		// permitting for comment lines
 		m_Stream.SetCommentDelimiter('#');
 		return false;
 	}
 
-	kDebugLog (1, "KCGIInStream: we are running within a web server that sets the CGI variables...");
+	kDebug (1, "we are running within a web server that sets the CGI variables...");
 
 	// add method, resource and protocol from env vars
 	m_sHeader = sMethod;
@@ -191,7 +191,7 @@ bool KCGIInStream::CreateHeader()
 	m_sHeader += kGetEnv(KCGIInStream::REQUEST_URI);
 	m_sHeader += ' ';
 	m_sHeader += kGetEnv(KCGIInStream::SERVER_PROTOCOL);
-	kDebugLog(1, "KCGIInStream: {}", m_sHeader);
+	kDebug(1, "{}", m_sHeader);
 	m_sHeader += "\r\n";
 
 	struct CGIVars_t { KStringViewZ sVar; KStringViewZ sHeader; };

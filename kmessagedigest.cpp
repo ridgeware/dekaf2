@@ -98,7 +98,7 @@ void KMessageDigest::clear()
 
 	if (1 != EVP_DigestInit_ex(static_cast<EVP_MD_CTX*>(mdctx), md, nullptr))
 	{
-		kDebugLog(1, "MessageDigest: cannot clear digest");
+		kDebug(1, "failed");
 		Release();
 		return;
 	}
@@ -132,7 +132,7 @@ bool KMessageDigest::Update(KStringView sInput)
 
 	if (1 != EVP_DigestUpdate(static_cast<EVP_MD_CTX*>(mdctx), sInput.data(), sInput.size()))
 	{
-		kDebugLog(1, "MessageDigest: cannot update digest");
+		kDebug(1, "failed");
 		return false;
 	}
 
@@ -157,7 +157,7 @@ bool KMessageDigest::Update(KInStream& InputStream)
 		auto iReadChunk = InputStream.Read(sBuffer, BLOCKSIZE);
 		if (1 != EVP_DigestUpdate(static_cast<EVP_MD_CTX*>(mdctx), sBuffer, iReadChunk))
 		{
-			kDebugLog(1, "MessageDigest: cannot update digest");
+			kDebug(1, "failed");
 			return false;
 		}
 		if (iReadChunk < BLOCKSIZE)
@@ -188,7 +188,7 @@ const KString& KMessageDigest::Digest() const
 		unsigned char sBuffer[EVP_MAX_MD_SIZE];
 		if (1 != EVP_DigestFinal_ex(static_cast<EVP_MD_CTX*>(mdctx), sBuffer, &iDigestLen))
 		{
-			kDebugLog(1, "MessageDigest: cannot read digest");
+			kDebug(1, "cannot read digest");
 		}
 		else
 		{
@@ -215,7 +215,7 @@ KMD5::KMD5(KStringView sMessage)
 	{
 		if (1 != EVP_DigestInit_ex(static_cast<EVP_MD_CTX*>(mdctx), EVP_md5(), nullptr))
 		{
-			kDebugLog(1, "{}: cannot initialize digest context", "MD5");
+			kDebug(1, "cannot initialize context");
 			Release();
 		}
 		else if (!sMessage.empty())
@@ -234,7 +234,7 @@ KSHA1::KSHA1(KStringView sMessage)
 	{
 		if (1 != EVP_DigestInit_ex(static_cast<EVP_MD_CTX*>(mdctx), EVP_sha1(), nullptr))
 		{
-			kDebugLog(1, "{}: cannot initialize digest context", "SHA1");
+			kDebug(1, "cannot initialize context");
 			Release();
 		}
 		else if (!sMessage.empty())
@@ -253,7 +253,7 @@ KSHA224::KSHA224(KStringView sMessage)
 	{
 		if (1 != EVP_DigestInit_ex(static_cast<EVP_MD_CTX*>(mdctx), EVP_sha224(), nullptr))
 		{
-			kDebugLog(1, "{}: cannot initialize digest context", "SHA224");
+			kDebug(1, "cannot initialize context");
 			Release();
 		}
 		else if (!sMessage.empty())
@@ -272,7 +272,7 @@ KSHA256::KSHA256(KStringView sMessage)
 	{
 		if (1 != EVP_DigestInit_ex(static_cast<EVP_MD_CTX*>(mdctx), EVP_sha256(), nullptr))
 		{
-			kDebugLog(1, "{}: cannot initialize digest context", "SHA256");
+			kDebug(1, "cannot initialize context");
 			Release();
 		}
 		else if (!sMessage.empty())
@@ -291,7 +291,7 @@ KSHA384::KSHA384(KStringView sMessage)
 	{
 		if (1 != EVP_DigestInit_ex(static_cast<EVP_MD_CTX*>(mdctx), EVP_sha384(), nullptr))
 		{
-			kDebugLog(1, "{}: cannot initialize digest context", "SHA384");
+			kDebug(1, "cannot initialize context");
 			Release();
 		}
 		else if (!sMessage.empty())
@@ -310,7 +310,7 @@ KSHA512::KSHA512(KStringView sMessage)
 	{
 		if (1 != EVP_DigestInit_ex(static_cast<EVP_MD_CTX*>(mdctx), EVP_sha512(), nullptr))
 		{
-			kDebugLog(1, "{}: cannot initialize digest context", "SHA512");
+			kDebug(1, "cannot initialize context");
 			Release();
 		}
 		else if (!sMessage.empty())
@@ -330,7 +330,7 @@ KBLAKE2S::KBLAKE2S(KStringView sMessage)
 	{
 		if (1 != EVP_DigestInit_ex(static_cast<EVP_MD_CTX*>(mdctx), EVP_blake2s256(), nullptr))
 		{
-			kDebugLog(1, "{}: cannot initialize digest context", "BLAKE2S");
+			kDebug(1, "cannot initialize context");
 			Release();
 		}
 		else if (!sMessage.empty())
@@ -349,7 +349,7 @@ KBLAKE2B::KBLAKE2B(KStringView sMessage)
 	{
 		if (1 != EVP_DigestInit_ex(static_cast<EVP_MD_CTX*>(mdctx), EVP_blake2b512(), nullptr))
 		{
-			kDebugLog(1, "{}: cannot initialize digest context", "BLAKE2B");
+			kDebug(1, "cannot initialize context");
 			Release();
 		}
 		else if (!sMessage.empty())

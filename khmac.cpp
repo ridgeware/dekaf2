@@ -109,7 +109,7 @@ bool KHMAC::Update(KStringView sInput)
 
 	if (1 != HMAC_Update(static_cast<HMAC_CTX*>(hmacctx), reinterpret_cast<const unsigned char*>(sInput.data()), sInput.size()))
 	{
-		kDebugLog(1, "HMAC: cannot update HMAC");
+		kDebug(1, "failed");
 		return false;
 	}
 
@@ -134,7 +134,7 @@ bool KHMAC::Update(KInStream& InputStream)
 		auto iReadChunk = InputStream.Read(sBuffer, BLOCKSIZE);
 		if (1 != HMAC_Update(static_cast<HMAC_CTX*>(hmacctx), sBuffer, iReadChunk))
 		{
-			kDebugLog(1, "HMAC: cannot update HMAC");
+			kDebug(1, "failed");
 			return false;
 		}
 		if (iReadChunk < BLOCKSIZE)
@@ -165,7 +165,7 @@ const KString& KHMAC::HMAC() const
 		unsigned char sBuffer[EVP_MAX_MD_SIZE];
 		if (1 != HMAC_Final(static_cast<HMAC_CTX*>(hmacctx), sBuffer, &iDigestLen))
 		{
-			kDebugLog(1, "HMAC: cannot read HMAC");
+			kDebug(1, "cannot read HMAC");
 		}
 		else
 		{
@@ -192,7 +192,7 @@ KHMAC_MD5::KHMAC_MD5(KStringView sKey, KStringView sMessage)
 	{
 		if (1 != HMAC_Init_ex(static_cast<HMAC_CTX*>(hmacctx), sKey.data(), sKey.size(), EVP_md5(), nullptr))
 		{
-			kDebugLog(1, "{}: cannot initialize HMAC context", "KHMAC_MD5");
+			kDebug(1, "cannot initialize context");
 			Release();
 		}
 		else if (!sMessage.empty())
@@ -211,7 +211,7 @@ KHMAC_SHA1::KHMAC_SHA1(KStringView sKey, KStringView sMessage)
 	{
 		if (1 != HMAC_Init_ex(static_cast<HMAC_CTX*>(hmacctx), sKey.data(), sKey.size(), EVP_sha1(), nullptr))
 		{
-			kDebugLog(1, "{}: cannot initialize HMAC context", "KHMAC_SHA1");
+			kDebug(1, "cannot initialize context");
 			Release();
 		}
 		else if (!sMessage.empty())
@@ -230,7 +230,7 @@ KHMAC_SHA224::KHMAC_SHA224(KStringView sKey, KStringView sMessage)
 	{
 		if (1 != HMAC_Init_ex(static_cast<HMAC_CTX*>(hmacctx), sKey.data(), sKey.size(), EVP_sha224(), nullptr))
 		{
-			kDebugLog(1, "{}: cannot initialize HMAC context", "KHMAC_SHA224");
+			kDebug(1, "cannot initialize context");
 			Release();
 		}
 		else if (!sMessage.empty())
@@ -249,7 +249,7 @@ KHMAC_SHA256::KHMAC_SHA256(KStringView sKey, KStringView sMessage)
 	{
 		if (1 != HMAC_Init_ex(static_cast<HMAC_CTX*>(hmacctx), sKey.data(), sKey.size(), EVP_sha256(), nullptr))
 		{
-			kDebugLog(1, "{}: cannot initialize HMAC context", "KHMAC_SHA256");
+			kDebug(1, "cannot initialize context");
 			Release();
 		}
 		else if (!sMessage.empty())
@@ -268,7 +268,7 @@ KHMAC_SHA384::KHMAC_SHA384(KStringView sKey, KStringView sMessage)
 	{
 		if (1 != HMAC_Init_ex(static_cast<HMAC_CTX*>(hmacctx), sKey.data(), sKey.size(), EVP_sha384(), nullptr))
 		{
-			kDebugLog(1, "{}: cannot initialize HMAC context", "KHMAC_SHA384");
+			kDebug(1, "cannot initialize context");
 			Release();
 		}
 		else if (!sMessage.empty())
@@ -287,7 +287,7 @@ KHMAC_SHA512::KHMAC_SHA512(KStringView sKey, KStringView sMessage)
 	{
 		if (1 != HMAC_Init_ex(static_cast<HMAC_CTX*>(hmacctx), sKey.data(), sKey.size(), EVP_sha512(), nullptr))
 		{
-			kDebugLog(1, "{}: cannot initialize HMAC context", "KHMAC_SHA512");
+			kDebug(1, "cannot initialize context");
 			Release();
 		}
 		else if (!sMessage.empty())
@@ -307,7 +307,7 @@ KHMAC_BLAKE2S::KHMAC_BLAKE2S(KStringView sKey, KStringView sMessage)
 	{
 		if (1 != HMAC_Init_ex(static_cast<HMAC_CTX*>(hmacctx), sKey.data(), sKey.size(), EVP_blake2s256(), nullptr))
 		{
-			kDebugLog(1, "{}: cannot initialize HMAC context", "KHMAC_BLAKE2S");
+			kDebug(1, "cannot initialize context");
 			Release();
 		}
 		else if (!sMessage.empty())
@@ -326,7 +326,7 @@ KHMAC_BLAKE2B::KHMAC_BLAKE2B(KStringView sKey, KStringView sMessage)
 	{
 		if (1 != HMAC_Init_ex(static_cast<HMAC_CTX*>(hmacctx), sKey.data(), sKey.size(), EVP_blake2b512(), nullptr))
 		{
-			kDebugLog(1, "{}: cannot initialize HMAC context", "KHMAC_BLAKE2B");
+			kDebug(1, "cannot initialize context");
 			Release();
 		}
 		else if (!sMessage.empty())

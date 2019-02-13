@@ -655,7 +655,7 @@ void KRESTServer::RecordRequestForReplay (const Options& Options)
 
 		if (!RecordFile.is_open())
 		{
-			kDebugLog(3, "cannot open {} for request recording", Options.sRecordFile);
+			kDebug(3, "cannot open {}", Options.sRecordFile);
 			return;
 		}
 

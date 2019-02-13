@@ -65,14 +65,14 @@ bool kChangeMode(KStringViewZ sPath, int iMode)
 
 	if (ec)
 	{
-		kDebugLog(1, "KChangeMode: {}: {}", sPath, ec.message());
+		kDebug(1, "{}: {}", sPath, ec.message());
 		return false;
 	}
 
 #else
 	if (chmod(sPath.c_str(), iMode))
 	{
-		kDebugLog (1, "kChangeMode: {}: {}", sPath, strerror (errno));
+		kDebug (1, "{}: {}", sPath, strerror (errno));
 		return false;
 	}
 #endif
@@ -93,7 +93,7 @@ bool kExists (KStringViewZ sPath, bool bAsFile, bool bAsDirectory, bool bTestFor
 
 	if (ec)
 	{
-		kDebugLog(2, "KExists: {}: {}", sPath, ec.message());
+		kDebug(2, "{}: {}", sPath, ec.message());
 		return false;
 	}
 
@@ -291,7 +291,7 @@ bool kRemove (KStringViewZ sPath, bool bDir)
 	{
 		if (kFileExists (sPath))
 		{
-			kDebugLog (1, "cannot remove file with kRemoveDir: {}", sPath);
+			kDebug (1, "cannot remove file: {}", sPath);
 			return false;
 		}
 
@@ -324,7 +324,7 @@ bool kRemove (KStringViewZ sPath, bool bDir)
 	}
 	if (ec)
 	{
-		kDebugLog (1, "kRemove failed: {}: {}", sPath, ec.message());
+		kDebug (1, "failed: {}: {}", sPath, ec.message());
 	}
 
 #else
@@ -344,7 +344,7 @@ bool kRemove (KStringViewZ sPath, bool bDir)
 					return (true);
 				}
 			}
-			kDebugLog (1, "kRemove failed: {}: {}", sPath, strerror (errno));
+			kDebug (1, "failed: {}: {}", sPath, strerror (errno));
 		}
 	}
 
@@ -384,11 +384,11 @@ bool kCreateDir(KStringViewZ sPath, int iMode /* = DEKAF2_MODE_CREATE_DIR */)
 
 	if (ec)
 	{
-		kDebugLog(2, "kCreateDir: {}: {}", sPath, ec.message());
+		kDebug(2, "{}: {}", sPath, ec.message());
 	}
 	else
 	{
-		kDebugLog(2, "kCreateDir: failure creating '{}', but no errorcode", sPath);
+		kDebug(2, "failure creating '{}', but no errorcode", sPath);
 	}
 
 	return false;
@@ -431,7 +431,7 @@ bool kCreateDir(KStringViewZ sPath, int iMode /* = DEKAF2_MODE_CREATE_DIR */)
 			{
 				if (::mkdir(sNewPath.c_str(), iMode))
 				{
-					kDebugLog(2, "kCreateDir: {}: {}", sPath, strerror(errno));
+					kDebug(2, "{}: {}", sPath, strerror(errno));
 					return false;
 				}
 			}
@@ -499,7 +499,7 @@ time_t kGetLastMod(KStringViewZ sFilePath)
 	auto ftime = fs::last_write_time(sFilePath.c_str(), ec);
 	if (ec)
 	{
-		kDebugLog(2, "kGetLastMod: {}: {}", sFilePath, ec.message());
+		kDebug(2, "{}: {}", sFilePath, ec.message());
 		return -1;
 	}
 	return decltype(ftime)::clock::to_time_t(ftime);
@@ -522,7 +522,7 @@ time_t kGetLastMod(KStringViewZ sFilePath)
 } // kGetLastMod
 
 //-----------------------------------------------------------------------------
-size_t kGetNumBytes(KStringViewZ sFilePath)
+size_t kFileSize(KStringViewZ sFilePath)
 //-----------------------------------------------------------------------------
 {
 #ifdef DEKAF2_HAS_STD_FILESYSTEM
@@ -532,7 +532,7 @@ size_t kGetNumBytes(KStringViewZ sFilePath)
 	auto size = fs::file_size(sFilePath.c_str(), ec);
 	if (ec)
 	{
-		kDebugLog(2, "kGetSize: {}: {}", sFilePath, ec.message());
+		kDebug(2, "{}: {}", sFilePath, ec.message());
 		return npos;
 	}
 	return size;
@@ -548,7 +548,7 @@ size_t kGetNumBytes(KStringViewZ sFilePath)
 	
 #endif
 
-} // kGetNumBytes
+} // kFileSize
 
 //-----------------------------------------------------------------------------
 KDirectory::DirEntry::DirEntry(KStringView BasePath, KStringView Name, EntryType Type)
@@ -1004,7 +1004,7 @@ bool kWriteFile (KStringViewZ sPath, KStringView sContents, int iMode /* = DEKAF
 bool kReadFile (KStringViewZ sPath, KString& sContents, bool bToUnixLineFeeds)
 //-----------------------------------------------------------------------------
 {
-	kDebugLog (2, "kReadFile: {}", sPath);
+	kDebug (2, "{}", sPath);
 
 	if (!kReadAll(sPath, sContents))
 	{

@@ -165,15 +165,15 @@ time_t kGetLastMod(KStringViewZ sFilePath);
 
 //-----------------------------------------------------------------------------
 /// Get size in bytes of a file, returns npos if file not found
-size_t kGetNumBytes(KStringViewZ sFilePath);
+size_t kFileSize(KStringViewZ sFilePath);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
 /// Get size in bytes of a file, returns npos if file not found
-inline size_t kFileSize(KStringViewZ sFilePath)
+inline size_t kGetNumBytes(KStringViewZ sFilePath)
 //-----------------------------------------------------------------------------
 {
-	return kGetNumBytes(sFilePath);
+	return kFileSize(sFilePath);
 }
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::

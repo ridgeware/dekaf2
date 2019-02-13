@@ -233,19 +233,19 @@ bool KChildProcess::Start(KStringView sCommand, KStringViewZ sChangeDirectory, b
 		int iStdIn = open("/dev/null", O_RDONLY);
 		if (iStdIn != 0)
 		{
-			kDebugLog(1, "KChildProcess: opening {} failed, got fd {}", "stdin", iStdIn);
+			kDebug(1, "opening {} failed, got fd {}", "stdin", iStdIn);
 		}
 
 		int iStdOut = open("/dev/null", O_WRONLY);
 		if (iStdOut != 1)
 		{
-			kDebugLog(1, "KChildProcess: opening {} failed, got fd {}", "stdout", iStdOut);
+			kDebug(1, "opening {} failed, got fd {}", "stdout", iStdOut);
 		}
 
 		int iStdErr = dup(iStdOut);
 		if (iStdErr != 2)
 		{
-			kDebugLog(1, "KChildProcess: opening {} failed, got fd {}", "stderr", iStdErr);
+			kDebug(1, "opening {} failed, got fd {}", "stderr", iStdErr);
 		}
 
 		m_bIsDaemonized = true;
@@ -254,7 +254,7 @@ bool KChildProcess::Start(KStringView sCommand, KStringViewZ sChangeDirectory, b
 
 	::execvp(cArgs[0], const_cast<char* const*>(cArgs.data()));
 
-	kDebugLog(1, "execvp(): {}", strerror(errno));
+	kDebug(1, "execvp(): {}", strerror(errno));
 
 	exit(1);
 

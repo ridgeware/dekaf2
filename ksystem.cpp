@@ -169,7 +169,7 @@ KString kGetWhoAmI ()
 	}
 #endif
 
-	kDebugLog (2, "kGetWhoAmI(): {}", sWhoami);
+	kDebug (2, "{}", sWhoami);
 
 	return (sWhoami);
 
@@ -202,11 +202,11 @@ KStringViewZ kGetHostname ()
 	if (gethostname (szHostname, sizeof (szHostname)) != 0)
 #endif
 	{
-		kDebugLog (1, "CMD ERROR: hostname");
+		kDebug (1, "cannot get hostname");
 		return "hostname-error";
 	}
 
-	kDebugLog (2, "kGetHostname(): {}", szHostname);
+	kDebug (2, "{}", szHostname);
 	return szHostname;
 
 } // kGetHostname
@@ -235,24 +235,24 @@ uint8_t ksystem (KStringView sCommand, KString& sOutput)
 	KString sWrapped;
 	sWrapped.Format ("({} 2>&1) > {}", sCommand, sTmp);
 
-	kDebugLog (3, "ksystem: {}", sWrapped);
+	kDebug (3, "{}", sWrapped);
 
 	// - - - - - - - - - - - - - - - - - - - - - - - -
 	// shell out to run the command:
 	// - - - - - - - - - - - - - - - - - - - - - - - -
 	uint8_t iStatus = std::system (sWrapped.c_str());
-	kDebugLog (3, "ksystem: exit code: {}", iStatus);
+	kDebug (3, "exit code: {}", iStatus);
 
 	sOutput.clear();
 
 	if (!kFileExists (sTmp))
 	{
-		kDebugLog (1, "ksystem: outfile is missing: {}", sTmp);
+		kDebug (1, "outfile is missing: {}", sTmp);
 	}
 	else
 	{
 		kReadFile (sTmp, sOutput, true);
-		kDebugLog (3, "ksystem: output contained {} bytes", sOutput.size());
+		kDebug (3, "output contained {} bytes", sOutput.size());
 		kRemoveFile (sTmp);
 	}
 
@@ -292,7 +292,7 @@ KString kResolveHost (KStringViewZ sHostname, bool bIPv4, bool bIPv6)
 
 	if (ec)
 	{
-		kDebugLog (1, "kResolveHostIPV4: {} --> FAILED : {}", sHostname, ec.message());
+		kDebug (1, "{} --> FAILED : {}", sHostname, ec.message());
 	}
 	else
 	{
@@ -328,27 +328,27 @@ KString kResolveHost (KStringViewZ sHostname, bool bIPv4, bool bIPv6)
 		if (bIPv4 && !sIPV4.empty())
 		{
 			// success
-			kDebugLog (1, "kResolveHost: {} --> {}", sHostname, sIPV4);
+			kDebug (1, "{} --> {}", sHostname, sIPV4);
 			sRet = std::move(sIPV4);
 		}
 		else if (bIPv6 && !sIPV6.empty())
 		{
 			// success
-			kDebugLog (1, "kResolveHost: {} --> {}", sHostname, sIPV6);
+			kDebug (1, "{} --> {}", sHostname, sIPV6);
 			sRet = std::move(sIPV6);
 		}
 		else if (sIPV4.empty() && sIPV6.empty())
 		{
 			// unknown..
-			kDebugLog(1, "kResolveHost: {} --> FAILED", sHostname);
+			kDebug(1, "{} --> FAILED", sHostname);
 		}
 		else if (sIPV4.empty())
 		{
-			kDebugLog(1, "kResolveHost: {} --> FAILED, only has IPV6 {}", sHostname, sIPV6);
+			kDebug(1, "{} --> FAILED, only has IPV6 {}", sHostname, sIPV6);
 		}
 		else if (sIPV6.empty())
 		{
-			kDebugLog(1, "kResolveHost: {} --> FAILED, only has IPV4 {}", sHostname, sIPV4);
+			kDebug(1, "{} --> FAILED, only has IPV4 {}", sHostname, sIPV4);
 		}
 	}
 
@@ -376,7 +376,7 @@ void kSleepRandomMilliseconds (uint64_t iMin, uint64_t iMax)
 		iSleep = kRandom(iMin, iMax);
 	}
 
-	kDebugLog (2, "sleeping {} miliseconds...", iSleep);
+	kDebug (2, "sleeping {} miliseconds...", iSleep);
 	std::this_thread::sleep_for(std::chrono::milliseconds(iSleep));
 
 } // kSleepRandomMilliseconds

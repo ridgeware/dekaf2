@@ -203,7 +203,7 @@ KJSON GetObject (const KJSON& json, KStringView sKey)
 	}
 	DEKAF2_CATCH (const KJSON::exception& exc)
 	{
-		kDebugLog(1, "JSON[%03d]: %s", exc.id, exc.what());
+		kDebug(1, "JSON[%03d]: %s", exc.id, exc.what());
 	}
 
 	return (oReturnMe);
@@ -346,7 +346,7 @@ KString Print (const KJSON& Value)
 	}
 	DEKAF2_CATCH (const KJSON::exception& exc)
 	{
-		kDebugLog(1, "JSON[%03d]: %s", exc.id, exc.what());
+		kDebug(1, "JSON[%03d]: %s", exc.id, exc.what());
 		return "(ERROR)";
 	}
 
@@ -382,7 +382,7 @@ bool Contains (const KJSON& json, KStringView sString)
 
 	DEKAF2_CATCH (const KJSON::exception& exc)
 	{
-		kDebugLog(1, "JSON[%03d]: %s", exc.id, exc.what());
+		kDebug(1, "JSON[%03d]: %s", exc.id, exc.what());
 	}
 
 	return false;

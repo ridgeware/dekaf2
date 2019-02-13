@@ -389,12 +389,43 @@ void KLogTTYSerializer::Serialize() const
 
 	auto PrefixWithoutFunctionSize = sPrefix.size();
 
-	// print the function name only if this is a warning or exception
-	// - otherwise this is an intentional debug message that does not need it
-	if (!m_sFunctionName.empty() && m_Level < 0)
+	if (!m_sFunctionName.empty())
 	{
-		sPrefix += m_sFunctionName;
-		sPrefix += ": ";
+		if (m_Level < 0)
+		{
+			// print the full function signature only if this is a warning or exception
+			sPrefix += m_sFunctionName;
+			sPrefix += ": ";
+		}
+		else
+		{
+			// print shortened function name only, no signature
+			// - this is an intentional debug message that does not need the full signature
+			KStringView sFunctionName = m_sFunctionName;
+			auto iSig = sFunctionName.find('(');
+			if (iSig != KStringView::npos)
+			{
+				sFunctionName.erase(iSig);
+				auto iStart = sFunctionName.rfind("dekaf2::");
+				if (iStart == KStringView::npos)
+				{
+					iStart = sFunctionName.rfind(' ');
+					++iStart; // could overflow, but that is intended
+				}
+				else
+				{
+					iStart += 8;
+				}
+				sFunctionName.remove_prefix(iStart);
+				sPrefix += sFunctionName;
+				sPrefix += "(): ";
+			}
+			else
+			{
+				sPrefix += sFunctionName;
+				sPrefix += ": ";
+			}
+		}
 	}
 
 	AddMultiLineMessage(sPrefix, m_sMessage);

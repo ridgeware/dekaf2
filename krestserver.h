@@ -281,9 +281,11 @@ public:
 
 		KStringView sBaseRoute;                    // Fixed route prefix
 		KStringView sTimerHeader;                  // If non-empty creates a header with execution time
+		KStringViewZ sRecordFile;                  // File to record request into - filename may not change during execution
 		KHTTPHeaders::KHeaderMap ResponseHeaders;  // Fixed additional headers
 		uint16_t iMaxKeepaliveRounds { 10 };       // DoS prevention - max rounds in keep-alive
 		mutable OutputType Out { HTTP };           // Which of the three output formats?
+		bool bRecordRequest { false };             // Shall we record into the sRecordFile? Value is expected to change during execution (could be made an atomic, but we don't care for a few missing records)
 
 	}; // Options
 
@@ -339,10 +341,10 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// set raw (non-json) output
-	void SetRawOutput(KStringView sRaw)
+	void SetRawOutput(KString sRaw)
 	//-----------------------------------------------------------------------------
 	{
-		m_sRawOutput = sRaw;
+		m_sRawOutput = std::move(sRaw);
 	}
 
 	//-----------------------------------------------------------------------------
@@ -396,6 +398,11 @@ protected:
 	//-----------------------------------------------------------------------------
 	/// generate error output
 	void ErrorHandler(const std::exception& ex, const Options& Options);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// check if request shall be recorded, and doing it
+	void RecordRequestForReplay(const Options& Options);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------

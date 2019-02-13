@@ -191,7 +191,7 @@ KOpenIDProvider::KOpenIDProvider (KURL URL)
 			if (Validate(URL))
 			{
 				// only query keys if valid data
-				Keys = KOpenIDKeys(KStringView(Configuration["jwks_uri"]));
+				Keys = KOpenIDKeys(Configuration["jwks_uri"].get<KStringView>());
 			}
 			else
 			{

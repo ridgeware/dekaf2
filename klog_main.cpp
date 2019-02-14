@@ -46,24 +46,25 @@
 #include "kinshell.h"
 #include "kfilesystem.h"
 #include "ktcpserver.h"
+#include "koptions.h"
 
 using namespace dekaf2;
 
-KStringView g_Synopsis[] = {
+constexpr KStringView g_Synopsis[] = {
 	" ",
 	"klog -- command line interface to DEKAF2 logging features (aka 'the KLOG')",
 	" ",
 	"usage: klog [...]",
-	"  [-]<N>              : dump last <N> lines of log",
-	"  [-]f                : 'follow' feature (continuous output as log grows). ^C to break.",
-	"  [-]off              : set debug level to 0",
-	"  [-]on               : set debug level to 1",
-	"  [-]set <N>          : set debug level to 0, 1, 2, etc.",
-	"  [-]clear            : clear the log (no change to debug level)",
-	"  [-]log <localpath>  : override the default path for: {LOG}",
-	"  [-]flag <localpath> : override the default path for: {FLAG}",
-	"  [-]listen <port>    : start a klog listener (netcat) on given port",
-	" "
+	"  -log <localpath>  : override the default path for: {LOG}",
+	"  -flag <localpath> : override the default path for: {FLAG}",
+	"  f | follow        : 'follow' feature (continuous output as log grows). ^C to break.",
+	"  <N>               : dump last <N> lines of log",
+	"  off               : set debug level to 0",
+	"  on                : set debug level to 1",
+	"  set <N>           : set debug level to 0, 1, 2, etc.",
+	"  clear             : clear the log (no change to debug level)",
+	"  listen <port>     : start a klog listener (netcat) on given port",
+	""
 };
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -90,7 +91,7 @@ public:
 protected:
 //-------
 
-	virtual KString Request(KString& sLine, Parameters& parameters) override
+	virtual KString Request(KString& sLine, Parameters& parameters) override final
 	{
 		KOut.WriteLine (sLine).Flush();
 		return KString();
@@ -98,156 +99,153 @@ protected:
 
 };
 
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+struct Actions
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+	uint32_t   iDumpLines { 0 };
+	uint16_t   iPort { 0 };
+	bool       bFollowFlag { false };
+	bool       bCompleted { false };
+
+}; // Actions
 
 //-----------------------------------------------------------------------------
-void Synopsis ()
+void SetLevel(uint16_t iLevel)
 //-----------------------------------------------------------------------------
 {
-    auto iNumLines = sizeof(g_Synopsis)/sizeof(KStringView);
-    for (size_t ii=0; ii < iNumLines; ++ii) {
-		KString sLine = g_Synopsis[ii];
-		sLine.Replace ("{LOG}",  KLog().GetDebugLog());
-		sLine.Replace ("{FLAG}", KLog().GetDebugFlag());
-		KOut.WriteLine (sLine);
-	}
+	KErr.Format ("klog: set new debug level to {}.\n", iLevel);
+	KLog().SetLevel(iLevel);
 
-} // Synopsis
+} // SetLevel
+
+//-----------------------------------------------------------------------------
+void SetupOptions (KOptions& Options, Actions& Actions)
+//-----------------------------------------------------------------------------
+{
+	Options.RegisterOption("help", [&]()
+	{
+		auto iNumLines = sizeof(g_Synopsis)/sizeof(KStringView);
+		for (size_t ii=0; ii < iNumLines; ++ii)
+		{
+			KString sLine = g_Synopsis[ii];
+			sLine.Replace ("{LOG}",  KLog().GetDebugLog());
+			sLine.Replace ("{FLAG}", KLog().GetDebugFlag());
+			KOut.WriteLine (sLine);
+		}
+		Actions.bCompleted = true;
+	});
+
+	Options.RegisterOption("log", "need pathname for output log", [&](KStringViewZ sPath)
+	{
+		KLog().SetDebugLog (sPath);
+	});
+
+	Options.RegisterOption("flag", "need pathname for debug flag", [&](KStringViewZ sPath)
+	{
+		KLog().SetDebugFlag (sPath);
+	});
+
+	Options.RegisterCommand("f,follow", [&]()
+	{
+		Actions.bFollowFlag = true;
+	});
+
+	Options.RegisterCommand("listen", "need port number", [&](KStringViewZ sPort)
+	{
+		Actions.iPort = sPort.UInt16();
+		if (!Actions.iPort)
+		{
+			throw KOptions::WrongParameterError("klog: port number has to be between 1 and 65535");
+		}
+	});
+
+	Options.RegisterCommand("clear", [&]()
+	{
+		KString sLogFile = KLog().GetDebugLog();
+
+		if ((sLogFile == "stdout") || (sLogFile == "stderr") || (sLogFile == "null"))
+		{
+			KErr.Format ("klog: dekaf log is set to '{}' -- nothing to clear.\n", sLogFile);
+		}
+		else if (!kFileExists (sLogFile))
+		{
+			KErr.Format ("klog: log ({}) already cleared.\n", sLogFile);
+		}
+		else if (kRemoveFile (sLogFile))
+		{
+			KErr.Format ("klog: log ({}) cleared.\n", sLogFile);
+		}
+		else
+		{
+			KErr.Format ("klog: FAILED to clear log ({}).\n", sLogFile);
+		}
+	});
+
+	Options.RegisterCommand("off", [&]()
+	{
+		SetLevel(0);
+	});
+
+	Options.RegisterCommand("on", [&]()
+	{
+		SetLevel(1);
+	});
+
+	Options.RegisterCommand("set", "missing argument", [&](KStringViewZ sArg)
+	{
+		SetLevel(sArg.UInt16());
+	});
+
+	Options.RegisterOption("set", "missing argument", [&](KStringViewZ sArg)
+	{
+		SetLevel(sArg.UInt16());
+	});
+
+	Options.RegisterUnknownCommand([&](KOptions::ArgList& sArgs)
+	{
+		Actions.iDumpLines = sArgs.front().UInt32();
+		if (!Actions.iDumpLines)
+		{
+			throw KOptions::Error(kFormat("klog: argument not understood: {}", sArgs.front()));
+		}
+	});
+}
 
 //-----------------------------------------------------------------------------
 int main (int argc, char* argv[])
 //-----------------------------------------------------------------------------
 {
-	int        iErrors      = 0;
-	int        iDumpLines   = 0;
-	bool       bFollowFlag  = false;
-	int        iNewLevel    = -1;
-	bool       bClearLog    = false;
-	bool       bAbort       = false;
-	KString    sLogFile     = KLog().GetDebugLog();
-	KString    sFlagFile    = KLog().GetDebugFlag();
-	int        iPort        = 0;
+	Actions Actions;
+	KOptions Options(true);
+	SetupOptions (Options, Actions);
+	int iErrors = Options.Parse(argc, argv, KOut);
 
-	// just parse -dash style options:
-	for (int ii=1; ii < argc; ++ii)
+	if (Actions.bCompleted || iErrors)
 	{
-		const char* sArg = argv[ii];
-
-		if (kStrIn (sArg, "-off,off")) {
-			iNewLevel = 0;
-		}
-		else if (kStrIn (sArg, "-f,f")) {
-			bFollowFlag = true;
-		}
-		else if (kStrIn (sArg, "-on,on")) {
-			iNewLevel = 1;
-		}
-		else if (kStrIn (sArg, "-log,log"))
-		{
-			if (ii < (argc-1)) {
-				sLogFile = argv[++ii];
-				KLog().SetDebugLog (sLogFile);
-			}
-			else {
-				KErr.Format ("klog: missing argument after -log option.\n");
-				bAbort = true;
-			}
-		}
-		else if (kStrIn (sArg, "-flag,flag"))
-		{
-			if (ii < (argc-1)) {
-				sFlagFile = argv[++ii];
-				KLog().SetDebugFlag (sFlagFile);
-			}
-			else {
-				KErr.Format ("klog: missing argument after -flag option.\n");
-				bAbort = true;
-			}
-		}
-		else if (kStrIn (sArg, "-set,set"))
-		{
-			if (ii < (argc-1)) {
-				iNewLevel = atoi(argv[++ii]);
-			}
-			else
-			{
-				KErr.Format ("klog: missing argument after -set option.\n");
-				bAbort = true;
-			}
-		}
-		else if (kStrIn (sArg, "-clear,clear"))
-		{
-			bClearLog = true;
-		}
-		else if (kStrIn (sArg, "-listen,listen"))
-		{
-			if (ii < (argc-1)) {
-				iPort = atoi(argv[++ii]);
-			}
-			else
-			{
-				KErr.Format ("klog: missing argument after -set option.\n");
-				bAbort = true;
-			}
-		}
-		else
-		{
-			iDumpLines = atoi (argv[ii] + 1);
-			if (iDumpLines <= 0)
-			{
-				KErr.Format ("klog: argument '{}' not understood.\n", sArg);
-				bAbort = true;
-				break; // for
-			}
-		}
-
-	} // for args
-
-	if ((argc==1) || bAbort)
-	{
-		Synopsis ();
-		return (++iErrors);
+		return iErrors; // either error or completed
 	}
 
-	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-	// Take actions:
-	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-	if (bClearLog)
-	{
-		if ((sLogFile == "stdout") || (sLogFile == "stderr") || (sLogFile == "null"))
-			KErr.Format ("klog: dekaf log is set to '{}' -- nothing to clear.\n", sLogFile);
-		else if (!kFileExists (sLogFile))
-			KErr.Format ("klog: log ({}) already cleared.\n", sLogFile);
-		else if (kRemoveFile (sLogFile))
-			KErr.Format ("klog: log ({}) cleared.\n", sLogFile);
-		else
-			KErr.Format ("klog: FAILED to clear log ({}).\n", sLogFile);
-	}
+	KString sLogFile = KLog().GetDebugLog();
 
-	if (iNewLevel >= 0)
-	{
-		KErr.Format ("klog: set new debug level to {}.\n", iNewLevel);
-        KLog().SetLevel(iNewLevel);
-	}
-
-    if (sLogFile == "null")
-	{
-		return (iErrors);
-	}
-	else if ((bFollowFlag || iDumpLines) && ((sLogFile == "stdout") || (sLogFile == "stderr")))
+    if ((Actions.bFollowFlag || Actions.iDumpLines) && ((sLogFile == "stdout") || (sLogFile == "stderr")))
 	{
 		KErr.Format ("klog: dekaf log already set to '{}' -- no need to use this utility to dump it.\n", sLogFile);
 		return (++iErrors);
 	}
-	else if (bFollowFlag)
+
+	if (Actions.bFollowFlag)
 	{
 		KOut.Format ("klog: continuous log output ({}), ^C to break...\n", sLogFile);
 
 		KString sCmd;
 
-		if (iDumpLines) {
-			sCmd.Format ("tail -{}f {}", iDumpLines, sLogFile);
+		if (Actions.iDumpLines)
+		{
+			sCmd.Format ("tail -{}f {}", Actions.iDumpLines, sLogFile);
 		}
-		else {
+		else
+		{
 			sCmd.Format ("tail -f {}", sLogFile);
 		}
 
@@ -258,7 +256,7 @@ int main (int argc, char* argv[])
 			KOut.WriteLine (sLine);
 		}
 	}
-	else if (iDumpLines)
+	else if (Actions.iDumpLines)
 	{
 		if (!kFileExists (sLogFile))
 		{
@@ -266,10 +264,10 @@ int main (int argc, char* argv[])
 		}
 		else
 		{
-			KOut.Format ("klog: last {} lines of {}...\n", iDumpLines, sLogFile);
+			KOut.Format ("klog: last {} lines of {}...\n", Actions.iDumpLines, sLogFile);
 
 			KString sCmd;
-			sCmd.Format ("tail -{} {}", iDumpLines, sLogFile);
+			sCmd.Format ("tail -{} {}", Actions.iDumpLines, sLogFile);
 
             KInShell pipe (sCmd);
 			KString  sLine;
@@ -279,10 +277,10 @@ int main (int argc, char* argv[])
 			}
 		}
 	}
-	else if (iPort)
+	else if (Actions.iPort)
 	{
-		KOut.Format ("klog: listening to port {} ...\n", iPort);
-		KlogServer server (iPort, /*bSSL=*/false);
+		KOut.Format ("klog: listening to port {} ...\n", Actions.iPort);
+		KlogServer server (Actions.iPort, /*bSSL=*/false);
 		server.Start(/*iTimeoutInSeconds=*/static_cast<uint16_t>(-1), /*bBlocking=*/true);
 	}
 

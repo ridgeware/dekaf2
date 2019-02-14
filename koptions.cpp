@@ -125,12 +125,22 @@ void KOptions::Help(KOutStream& out)
 {
 	if (DEKAF2_UNLIKELY(m_sHelp == nullptr))
 	{
-		DEKAF2_THROW (Error("no help registered"));
+		// check if we have a help option registered
+		auto cbi = m_Options.find("help");
+		if (cbi == m_Options.end())
+		{
+			DEKAF2_THROW (Error("no help registered"));
+		}
+		// yes - call the function with empty args
+		ArgList Args;
+		cbi->second.func(Args);
 	}
-
-	for (size_t iCount = 0; iCount < m_iHelpSize; ++iCount)
+	else
 	{
-		out.WriteLine(m_sHelp[iCount]);
+		for (size_t iCount = 0; iCount < m_iHelpSize; ++iCount)
+		{
+			out.WriteLine(m_sHelp[iCount]);
+		}
 	}
 
 } // Help

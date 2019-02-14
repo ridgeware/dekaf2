@@ -6394,4 +6394,24 @@ void KSQL::ResetErrorStatus ()
 
 } // ResetErrorStatus
 
+//-----------------------------------------------------------------------------
+bool KSQL::BeginTransaction (KStringView sOptions/*=""*/)
+//-----------------------------------------------------------------------------
+{
+	// TODO: code for non-MySQL
+
+	return ExecSQL ("start transaction%s%s", sOptions.empty() ? "" : " ", sOptions.empty() ? KStringView("") : sOptions);
+
+} // BeginTransaction
+
+//-----------------------------------------------------------------------------
+bool KSQL::CommitTransaction (KStringView sOptions/*=""*/)
+//-----------------------------------------------------------------------------
+{
+	// TODO: code for non-MySQL
+
+	return ExecSQL ("commit%s%s", sOptions.empty() ? "" : " ", sOptions.empty() ? KStringView("") : sOptions);
+
+} // CommitTransaction
+
 } // namespace dekaf2

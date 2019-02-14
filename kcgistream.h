@@ -94,6 +94,7 @@ public:
 	static constexpr KStringViewZ CONTENT_LENGTH          = "CONTENT_LENGTH";
 	static constexpr KStringViewZ CONTENT_TYPE            = "CONTENT_TYPE";
 	static constexpr KStringViewZ CONTEXT_PATH            = "CONTEXT_PATH";
+	static constexpr KStringViewZ DOCUMENT_ROOT           = "DOCUMENT_ROOT";
 	static constexpr KStringViewZ GATEWAY_INTERFACE       = "GATEWAY_INTERFACE";
 	static constexpr KStringViewZ HTTPS                   = "HTTPS";
 	static constexpr KStringViewZ HTTPS_KEYSIZE           = "HTTPS_KEYSIZE";
@@ -108,9 +109,11 @@ public:
 	static constexpr KStringViewZ HTTP_HOST               = "HTTP_HOST";
 	static constexpr KStringViewZ HTTP_REFERER            = "HTTP_REFERER";
 	static constexpr KStringViewZ HTTP_USER_AGENT         = "HTTP_USER_AGENT";
+	static constexpr KStringViewZ PATH                    = "PATH";
 	static constexpr KStringViewZ QUERY_STRING            = "QUERY_STRING";
 	static constexpr KStringViewZ REMOTE_ADDR             = "REMOTE_ADDR";
 	static constexpr KStringViewZ REMOTE_HOST             = "REMOTE_HOST";
+	static constexpr KStringViewZ REMOTE_PORT             = "REMOTE_PORT";
 	static constexpr KStringViewZ REMOTE_USER             = "REMOTE_USER";
 	static constexpr KStringViewZ REQUEST_METHOD          = "REQUEST_METHOD";
 	static constexpr KStringViewZ REQUEST_URI             = "REQUEST_URI";

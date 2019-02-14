@@ -406,25 +406,65 @@ void KLogTTYSerializer::Serialize() const
 			if (iSig != KStringView::npos)
 			{
 				sFunctionName.erase(iSig);
-				auto iStart = sFunctionName.rfind("dekaf2::");
-				if (iStart == KStringView::npos)
+				// now scan back until first space, but take care to skip template types (<xyz<abc> >)
+				uint16_t iTLevel { 0 };
+				KStringView::size_type iTStart { 0 };
+				KStringView::size_type iTEnd { 0 };
+				bool bFound { false };
+				while (iSig && !bFound)
 				{
-					iStart = sFunctionName.rfind(' ');
-					++iStart; // could overflow, but that is intended
+					switch (sFunctionName[--iSig])
+					{
+						case '<':
+							if (iTLevel)
+							{
+								--iTLevel;
+								if (!iTLevel && iTEnd)
+								{
+									iTStart = iSig;
+								}
+							}
+							break;
+
+						case '>':
+							if (!iTLevel && !iTStart)
+							{
+								iTEnd = iSig;
+							}
+							++iTLevel;
+							break;
+
+						case ' ':
+							if (!iTLevel)
+							{
+								++iSig;
+								bFound = true;
+								// this ends the while loop
+							}
+							break;
+
+					}
+				}
+
+				auto pos = sFunctionName.find("dekaf2::", iSig);
+				if (pos != KStringView::npos)
+				{
+					iSig = pos + 8;
+				}
+
+				if (iTStart && iTEnd)
+				{
+					sPrefix += sFunctionName.Mid(iSig, iTStart - iSig);
+					sFunctionName.remove_prefix(iTEnd + 1);
 				}
 				else
 				{
-					iStart += 8;
+					sFunctionName.remove_prefix(iSig);
 				}
-				sFunctionName.remove_prefix(iStart);
-				sPrefix += sFunctionName;
-				sPrefix += "(): ";
 			}
-			else
-			{
-				sPrefix += sFunctionName;
-				sPrefix += ": ";
-			}
+			
+			sPrefix += sFunctionName;
+			sPrefix += "(): ";
 		}
 	}
 

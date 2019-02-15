@@ -441,6 +441,7 @@ set(PUBLIC_HEADERS
 	krest.h
 	krestserver.h
 	krow.h
+	krsasign.h
 	ksharedref.h
 	ksignals.h
 	ksmtp.h
@@ -563,6 +564,7 @@ set (SOURCES
 	krest.cpp
 	krestserver.cpp
 	krow.cpp
+	krsasign.cpp
 	ksignals.cpp
 	ksmtp.cpp
 	ksplit.cpp

@@ -427,6 +427,7 @@ set(PUBLIC_HEADERS
 	kmru.h
 	koptions.h
 	kstringstream.h
+	kopenid.h
 	koutpipe.h
 	koutputtemplate.h
 	koutshell.h
@@ -549,6 +550,7 @@ set (SOURCES
 	kmessagedigest.cpp
 	kmime.cpp
 	kmpsearch.cpp
+	kopenid.cpp
 	koptions.cpp
 	koutpipe.cpp
 	koutputtemplate.cpp

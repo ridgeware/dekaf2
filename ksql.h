@@ -433,6 +433,9 @@ public:
 	void   DisableRetries() { m_bDisableRetries = true;  }
 	void   EnableRetries()  { m_bDisableRetries = false; }
 
+	bool   BeginTransaction (KStringView sOptions="");
+	bool   CommitTransaction (KStringView sOptions="");
+
 	TXList  m_TxList;
 
 //----------

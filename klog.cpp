@@ -628,9 +628,9 @@ bool KLog::SetDebugLog(KStringView sLogfile)
 	// env values always override programmatic values, and at construction of
 	// KLog() we would have fetched the env value already if it is non-zero
 	KStringViewZ sEnv(kGetEnv(s_sEnvLog));
-	if (!sEnv.empty())
+	if (!sEnv.empty() && (sEnv != sLogfile))
 	{
-		kDebug(0, "prevented setting the debug {} file to '{}' because the environment variable '{}' is set to '{}'",
+		kDebug (0, "prevented setting the debug {} file to '{}' because the environment variable '{}' is set to '{}'",
 		       "log",
 			   sLogfile,
 		       s_sEnvLog,
@@ -769,7 +769,7 @@ bool KLog::SetDebugFlag(KStringViewZ sFlagfile)
 	// env values always override programmatic values, and at construction of
 	// KLog() we would have fetched the env value already if it is non-zero
 	KStringViewZ sEnv(kGetEnv(s_sEnvFlag));
-	if (!sEnv.empty())
+	if (!sEnv.empty() && (sEnv != sFlagfile))
 	{
 		kDebug(0, "prevented setting the debug {} file to '{}' because the environment variable '{}' is set to '{}'",
 		       "flag",

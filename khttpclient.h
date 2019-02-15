@@ -230,66 +230,66 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Get from URL, store response body in return value KString
-	KString Get(const KURL& URL)
+	KString Get(const KURL& URL, bool bVerifyCerts = false)
 	//-----------------------------------------------------------------------------
 	{
-		return HttpRequest (URL);
+		return HttpRequest (URL, KHTTPMethod::GET, {}, {}, bVerifyCerts);
 	}
 
 	//-----------------------------------------------------------------------------
 	/// Get from URL, store response body in return value KString
-	KString Options(const KURL& URL)
+	KString Options(const KURL& URL, bool bVerifyCerts = false)
 	//-----------------------------------------------------------------------------
 	{
-		return HttpRequest (URL, KHTTPMethod::OPTIONS);
+		return HttpRequest (URL, KHTTPMethod::OPTIONS, {}, {}, bVerifyCerts);
 	}
 
 	//-----------------------------------------------------------------------------
 	/// Post to URL, store response body in return value KString
-	KString Post(const KURL& URL, KStringView svRequestBody, KMIME Mime)
+	KString Post(const KURL& URL, KStringView svRequestBody, KMIME MIME, bool bVerifyCerts = false)
 	//-----------------------------------------------------------------------------
 	{
-		return HttpRequest (URL, KHTTPMethod::POST, svRequestBody, Mime);
+		return HttpRequest (URL, KHTTPMethod::POST, svRequestBody, MIME, bVerifyCerts);
 	}
 
 	//-----------------------------------------------------------------------------
 	/// Deletes URL, store response body in return value KString
-	KString Delete(const KURL& URL, KStringView svRequestBody, KMIME Mime)
+	KString Delete(const KURL& URL, KStringView svRequestBody, bool bVerifyCerts = false)
 	//-----------------------------------------------------------------------------
 	{
-		return HttpRequest (URL, KHTTPMethod::DELETE, svRequestBody, Mime);
+		return HttpRequest (URL, KHTTPMethod::DELETE, svRequestBody, {}, bVerifyCerts);
 	}
 
 	//-----------------------------------------------------------------------------
 	/// Head from URL - returns true if response is in the 2xx range
-	bool Head(const KURL& URL)
+	bool Head(const KURL& URL, bool bVerifyCerts = false)
 	//-----------------------------------------------------------------------------
 	{
-		HttpRequest (URL, KHTTPMethod::HEAD);
+		HttpRequest (URL, KHTTPMethod::HEAD, {}, {}, bVerifyCerts);
 		return HttpSuccess();
 	}
 
 	//-----------------------------------------------------------------------------
 	/// Put to URL - returns true if response is in the 2xx range
-	bool Put(const KURL& URL, KStringView svRequestBody, KMIME Mime)
+	bool Put(const KURL& URL, KStringView svRequestBody, KMIME MIME, bool bVerifyCerts = false)
 	//-----------------------------------------------------------------------------
 	{
-		HttpRequest (URL, KHTTPMethod::PUT, svRequestBody, Mime);
+		HttpRequest (URL, KHTTPMethod::PUT, svRequestBody, MIME, bVerifyCerts);
 		return HttpSuccess();
 	}
 
 	//-----------------------------------------------------------------------------
 	/// Patch URL - returns true if response is in the 2xx range
-	bool Patch(const KURL& URL, KStringView svRequestBody, KMIME Mime)
+	bool Patch(const KURL& URL, KStringView svRequestBody, KMIME MIME, bool bVerifyCerts = false)
 	//-----------------------------------------------------------------------------
 	{
-		HttpRequest (URL, KHTTPMethod::PATCH, svRequestBody, Mime);
+		HttpRequest (URL, KHTTPMethod::PATCH, svRequestBody, MIME, bVerifyCerts);
 		return HttpSuccess();
 	}
 
 	//-----------------------------------------------------------------------------
 	/// Send given request method and return raw response as a string
-	KString HttpRequest (const KURL& URL, KStringView sRequestMethod=KHTTPMethod::GET, KStringView svRequestBody="", KMIME Mime=KMIME::JSON);
+	KString HttpRequest (const KURL& URL, KStringView sRequestMethod = KHTTPMethod::GET, KStringView svRequestBody = KStringView{}, KMIME MIME = KMIME::JSON, bool bVerifyCerts = false);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------

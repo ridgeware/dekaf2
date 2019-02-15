@@ -310,16 +310,16 @@ bool KHTTPClient::ReadHeader()
 } // ReadHeader
 
 //-----------------------------------------------------------------------------
-KString KHTTPClient::HttpRequest (const KURL& URL, KStringView sRequestMethod/*=KHTTPMethod::GET*/, KStringView svRequestBody/*=""*/, KMIME Mime/*=KMIME::JSON*/)
+KString KHTTPClient::HttpRequest (const KURL& URL, KStringView sRequestMethod/* = KHTTPMethod::GET*/, KStringView svRequestBody/* = ""*/, KMIME MIME/* = KMIME::JSON*/, bool bVerifyCerts /* = false */)
 //-----------------------------------------------------------------------------
 {
 	KString sResponse;
 
-	if (Connect(URL))
+	if (Connect(URL, bVerifyCerts))
 	{
 		if (Resource(URL, sRequestMethod))
 		{
-			if (SendRequest (svRequestBody, Mime))
+			if (SendRequest (svRequestBody, MIME))
 			{
 				Read (sResponse);
 			}

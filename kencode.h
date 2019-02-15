@@ -84,6 +84,19 @@ public:
 		sBuffer.swap(sRet);
 	}
 
+	/// Wrapper around KBase64Url::Encode. Does the same.
+	static KString Base64Url(KStringView sIn)
+	{
+		return KBase64Url::Encode(sIn);
+	}
+
+	/// Wrapper around KBase64Url::Encode. Does the same with a different interface.
+	static void Base64UrlInPlace(KString& sBuffer)
+	{
+		KString sRet = Base64Url(sBuffer);
+		sBuffer.swap(sRet);
+	}
+
 	/// Wrapper around KQuotedPrintable::Encode. Does the same.
 	static KString QuotedPrintable(KStringView sIn, bool bForMailHeaders = false)
 	{
@@ -154,6 +167,19 @@ public:
 	static void Base64InPlace(KString& sBuffer)
 	{
 		KString sRet = Base64(sBuffer);
+		sBuffer.swap(sRet);
+	}
+
+	/// Wrapper around KBase64Url::Decode. Does the same.
+	static KString Base64Url(KStringView sIn)
+	{
+		return KBase64Url::Decode(sIn);
+	}
+
+	/// Wrapper around KBase64Url::Decode. Does the same with a different interface.
+	static void Base64UrlInPlace(KString& sBuffer)
+	{
+		KString sRet = Base64Url(sBuffer);
 		sBuffer.swap(sRet);
 	}
 

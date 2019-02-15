@@ -1,5 +1,4 @@
 /*
-//=============================================================================
 //
 // DEKAF(tm): Lighter, Faster, Smarter(tm)
 //
@@ -39,7 +38,6 @@
 // |\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/ |
 // +-------------------------------------------------------------------------+
 //
-//=============================================================================
 */
 
 #include <boost/archive/iterators/base64_from_binary.hpp>
@@ -49,6 +47,7 @@
 #include <boost/archive/iterators/remove_whitespace.hpp>
 
 #include "kbase64.h"
+#include "klog.h"
 
 namespace dekaf2 {
 
@@ -76,7 +75,8 @@ KString KBase64::Encode(KStringView sInput)
 	out.append((3 - sInput.size() % 3) % 3, '=');
 
 	return out;
-}
+
+} // Encode
 
 //-----------------------------------------------------------------------------
 KString KBase64::Decode(KStringView sInput)
@@ -87,6 +87,8 @@ KString KBase64::Decode(KStringView sInput)
 	using base64_dec    = transform_width<binary_from_base64<remove_whitespace<iterator_type> >, 8, 6>;
 
 	KString out;
+
+	DEKAF2_TRY_EXCEPTION
 
 	// calculate approximate size for decoded string (input may contain whitespace)
 	KString::size_type iSize = sInput.size() * 6 / 8;
@@ -114,8 +116,200 @@ KString KBase64::Decode(KStringView sInput)
 		}
 	}
 
+	DEKAF2_LOG_EXCEPTION
+
 	return out;
-}
+
+} // Decode
+
+
+// copied from boost, adapted for URL safe character set
+// https://www.boost.org/doc/libs/1_68_0/boost/archive/iterators/base64_from_binary.hpp
+
+namespace detail {
+
+template<class CharType>
+struct from_6_bit_url {
+    typedef CharType result_type;
+    CharType operator()(CharType t) const{
+        static const char * lookup_table =
+            "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+            "abcdefghijklmnopqrstuvwxyz"
+            "0123456789"
+            "-_";
+        BOOST_ASSERT(t < 64);
+        return lookup_table[static_cast<size_t>(t)];
+    }
+};
+
+template<
+    class Base,
+    class CharType = typename boost::iterator_value<Base>::type
+>
+class base64url_from_binary :
+	public boost::transform_iterator<
+        detail::from_6_bit_url<CharType>,
+        Base
+    >
+{
+    friend class boost::iterator_core_access;
+	typedef boost::transform_iterator<
+        typename detail::from_6_bit_url<CharType>,
+        Base
+    > super_t;
+
+public:
+    template<class T>
+    base64url_from_binary(T start) :
+        super_t(
+            Base(static_cast< T >(start)),
+            detail::from_6_bit_url<CharType>()
+        )
+    {}
+    base64url_from_binary(const base64url_from_binary & rhs) :
+        super_t(
+            Base(rhs.base_reference()),
+            detail::from_6_bit_url<CharType>()
+        )
+    {}
+};
+
+} // namespace detail (end of copy from boost)
+
+
+//-----------------------------------------------------------------------------
+KString KBase64Url::Encode(KStringView sInput)
+//-----------------------------------------------------------------------------
+{
+	using namespace boost::archive::iterators;
+	using iterator_type = KStringView::const_iterator;
+	using base64_enc    = detail::base64url_from_binary<transform_width<iterator_type, 6, 8> >;
+
+	KString out;
+
+	DEKAF2_TRY_EXCEPTION
+
+	// calculate final size for encoded string
+	KString::size_type iSize = sInput.size() * 8 / 6;
+	// and reserve buffer to avoid reallocations
+	out.reserve(iSize);
+
+	// transform to base64
+	out.assign(base64_enc(sInput.begin()), base64_enc(sInput.end()));
+
+	DEKAF2_LOG_EXCEPTION
+
+	return out;
+
+} // Encode
+
+// copied from boost, adapted for URL safe character set (works with
+// both character sets actually)
+// https://www.boost.org/doc/libs/1_68_0/boost/archive/iterators/binary_from_base64.hpp
+	
+namespace detail {
+
+template<class CharType>
+struct to_6_bit_url {
+    typedef CharType result_type;
+    CharType operator()(CharType t) const{
+        static const signed char lookup_table[] = {
+            -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
+            -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
+            -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,62,-1,62,-1,63,
+            52,53,54,55,56,57,58,59,60,61,-1,-1,-1, 0,-1,-1, // render '=' as 0
+            -1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9,10,11,12,13,14,
+            15,16,17,18,19,20,21,22,23,24,25,-1,-1,-1,-1,63,
+            -1,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,
+            41,42,43,44,45,46,47,48,49,50,51,-1,-1,-1,-1,-1
+        };
+        signed char value = -1;
+        if((unsigned)t <= 127)
+            value = lookup_table[(unsigned)t];
+        if(-1 == value)
+            boost::serialization::throw_exception(
+				boost::archive::iterators::dataflow_exception(boost::archive::iterators::dataflow_exception::invalid_base64_character)
+            );
+        return value;
+    }
+};
+
+template<
+    class Base,
+    class CharType = typename boost::iterator_value<Base>::type
+>
+class binary_from_base64url : public
+	boost::transform_iterator<
+        detail::to_6_bit_url<CharType>,
+        Base
+    >
+{
+    friend class boost::iterator_core_access;
+	typedef boost::transform_iterator<
+        detail::to_6_bit_url<CharType>,
+        Base
+    > super_t;
+public:
+    template<class T>
+    binary_from_base64url(T  start) :
+        super_t(
+            Base(static_cast< T >(start)),
+            detail::to_6_bit_url<CharType>()
+        )
+    {}
+    binary_from_base64url(const binary_from_base64url & rhs) :
+        super_t(
+            Base(rhs.base_reference()),
+            detail::to_6_bit_url<CharType>()
+        )
+    {}
+};
+
+} // namespace detail (end of copy from boost)
+
+//-----------------------------------------------------------------------------
+KString KBase64Url::Decode(KStringView sInput)
+//-----------------------------------------------------------------------------
+{
+	using namespace boost::archive::iterators;
+	using iterator_type = KStringView::const_iterator;
+	using base64_dec    = transform_width<detail::binary_from_base64url<remove_whitespace<iterator_type> >, 8, 6>;
+
+	KString out;
+
+	DEKAF2_TRY_EXCEPTION
+
+	// calculate approximate size for decoded string (input may contain whitespace)
+	KString::size_type iSize = sInput.size() * 6 / 8;
+	// and reserve buffer to avoid reallocations
+	out.reserve(iSize);
+
+	// transform from base64
+	out.assign(base64_dec(sInput.begin()), base64_dec(sInput.end()));
+
+	// remove the padding if any
+	KStringView::size_type len = sInput.size();
+	if (len > 2 && out.size() > 1)
+	{
+		// a padded sInput has at least 3 chars
+		if (sInput[len-1] == '=')
+		{
+			if (sInput[len-2] == '=')
+			{
+				out.erase(out.size()-2, 2);
+			}
+			else
+			{
+				out.erase(out.size()-1, 1);
+			}
+		}
+	}
+
+	DEKAF2_LOG_EXCEPTION
+
+	return out;
+
+} // Decode
 
 } // end of namespace dekaf2
 

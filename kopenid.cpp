@@ -49,7 +49,7 @@
 
 namespace dekaf2 {
 
-static constexpr KStringViewZ OpenID_Configuration = ".well-known/openid-configuration";
+static constexpr KStringViewZ OpenID_Configuration = "/.well-known/openid-configuration";
 
 //-----------------------------------------------------------------------------
 bool KOpenIDKeys::SetError(KString sError) const
@@ -106,11 +106,14 @@ KString KOpenIDKeys::GetPublicKey(KStringView sAlgorithm, KStringView sKID, KStr
 		{
 			for (auto& it : Keys["keys"])
 			{
-				if (it["alg"].get<KStringView>() == sAlgorithm
-					&& it["kid"].get<KStringView>() == sKID
-					&& it["x5t"].get<KStringView>() == sKeyDigest)
+				if (it["alg"].get<KString>() == sAlgorithm
+					&& it["kid"].get<KString>() == sKID
+					&& it["x5t"].get<KString>() == sKeyDigest)
 				{
-					sKey = it["x5c"];
+					if (it["kty"] == "RSA")
+					{
+						sKey = it["n"];
+					}
 					break;
 				}
 			}
@@ -188,10 +191,11 @@ KOpenIDProvider::KOpenIDProvider (KURL URL)
 			KHTTPClient Provider;
 			kjson::Parse(Configuration, Provider.Get(URL, true /* = bVerifyCerts */ )); // we have to verify the CERT!
 			// verify accuracy of information
+			URL.Path.clear();
 			if (Validate(URL))
 			{
 				// only query keys if valid data
-				Keys = KOpenIDKeys(Configuration["jwks_uri"].get<KStringView>());
+				Keys = KOpenIDKeys(Configuration["jwks_uri"].get<KString>());
 			}
 			else
 			{
@@ -256,12 +260,13 @@ KJWT::KJWT(KStringView sBase64Token, const KOpenIDProvider& Provider)
 
 	DEKAF2_TRY
 	{
-		kjson::Parse(Header, KBase64Url::Decode(Part[0]));
+		KString sHeader = KBase64Url::Decode(Part[0]);
+		kjson::Parse(Header, sHeader);
 		auto sSignature = KBase64Url::Decode(Part[2]);
 
-		if  (Header["typ"].get<KStringView>() != "JWT")
+		if  (Header["typ"] != "JWT")
 		{
-			SetError("not a JWT header");
+			SetError(kFormat("not a JWT header: {}", Header["typ"].get<KString>()));
 			return;
 		}
 		KString sAlgorithm = Header["alg"];

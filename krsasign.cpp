@@ -60,6 +60,18 @@ KRSABase::KRSABase(KRSABase&& other)
 } // move ctor
 
 //---------------------------------------------------------------------------
+KRSABase& KRSABase::operator=(KRSABase&& other)
+//---------------------------------------------------------------------------
+{
+	evpctx = other.evpctx;
+	other.evpctx = nullptr;
+	evppkey = other.evppkey;
+	other.evppkey = nullptr;
+	return *this;
+
+} // move ctor
+
+//---------------------------------------------------------------------------
 KRSABase::KRSABase(KStringView sPubKey, KStringView sPrivKey)
 //---------------------------------------------------------------------------
 {
@@ -143,7 +155,7 @@ KRSASign& KRSASign::operator=(KRSASign&& other)
 	m_sSignature = std::move(other.m_sSignature);
 	return *this;
 	
-} // move ctor
+} // move
 
 //---------------------------------------------------------------------------
 bool KRSASign::Update(KStringView sInput)

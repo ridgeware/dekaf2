@@ -160,7 +160,7 @@ bool KUnixIOStream::Timeout(int iSeconds)
 bool KUnixIOStream::Connect(KStringViewZ sSocketFile)
 //-----------------------------------------------------------------------------
 {
-	m_Stream.Socket.async_connect(boost::asio::local::stream_protocol::endpoint(sSocketFile),
+	m_Stream.Socket.async_connect(boost::asio::local::stream_protocol::endpoint(sSocketFile.c_str()),
 								  [&](const boost::system::error_code& ec)
 	{
 		m_Stream.sEndpoint = sSocketFile;

@@ -110,6 +110,22 @@ public:
 		return m_mime;
 	}
 
+	//-----------------------------------------------------------------------------
+	constexpr
+	bool operator==(const KMIME& other) const
+	//-----------------------------------------------------------------------------
+	{
+		return m_mime == other.m_mime;
+	}
+
+	//-----------------------------------------------------------------------------
+	constexpr
+	bool operator!=(const KMIME& other) const
+	//-----------------------------------------------------------------------------
+	{
+		return m_mime != other.m_mime;
+	}
+
 	static constexpr KStringViewZ NONE                   = "";
 
 	static constexpr KStringViewZ AAC                    = "audio/aac";
@@ -190,6 +206,40 @@ private:
 	KStringView m_mime{NONE};
 
 }; // KMIME
+
+//-----------------------------------------------------------------------------
+constexpr
+inline bool operator==(KStringView left, const KMIME& right)
+//-----------------------------------------------------------------------------
+{
+	return left.operator==(right);
+}
+
+//-----------------------------------------------------------------------------
+constexpr
+inline bool operator==(const KMIME& left, KStringView right)
+//-----------------------------------------------------------------------------
+{
+	return right.operator==(left);
+}
+
+//-----------------------------------------------------------------------------
+constexpr
+inline bool operator!=(KStringView left, const KMIME& right)
+//-----------------------------------------------------------------------------
+{
+	return left.operator!=(right);
+}
+
+//-----------------------------------------------------------------------------
+constexpr
+inline bool operator!=(const KMIME& left, KStringView right)
+//-----------------------------------------------------------------------------
+{
+	return right.operator!=(left);
+}
+
+
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// one part of a MIME structure

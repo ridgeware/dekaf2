@@ -218,7 +218,8 @@ public:
 
 #ifdef DEKAF2_HAS_STD_STRING_VIEW
 	//-----------------------------------------------------------------------------
-	KStringView(const sv::string_view& str) noexcept
+	constexpr
+	KStringView(sv::string_view str) noexcept
 	//-----------------------------------------------------------------------------
 		: m_rep(str.data(), str.size())
 	{
@@ -284,6 +285,26 @@ public:
 		*this = self_type(other);
 		return *this;
 	}
+
+	//-----------------------------------------------------------------------------
+	constexpr
+	self& operator=(const std::string& other)
+	//-----------------------------------------------------------------------------
+	{
+		*this = self_type(other);
+		return *this;
+	}
+
+#ifdef DEKAF2_HAS_STD_STRING_VIEW
+	//-----------------------------------------------------------------------------
+	constexpr
+	self& operator=(std::string_view other)
+	//-----------------------------------------------------------------------------
+	{
+		*this = self_type(other);
+		return *this;
+	}
+#endif
 
 	//-----------------------------------------------------------------------------
 	constexpr
@@ -1081,6 +1102,45 @@ public:
 	double Double() const noexcept;
 	//-----------------------------------------------------------------------------
 
+	//-----------------------------------------------------------------------------
+	constexpr
+	bool operator==(KStringView other) const
+	//-----------------------------------------------------------------------------
+	{
+		KStringView::size_type len = size();
+		if (len != other.size())
+		{
+			return false;
+		}
+		return data() == other.data()
+		|| len == 0
+		|| compare(other) == 0;
+	}
+
+	//-----------------------------------------------------------------------------
+	constexpr
+	bool operator!=(KStringView other) const
+	//-----------------------------------------------------------------------------
+	{
+		return !operator==(other);
+	}
+	
+	//-----------------------------------------------------------------------------
+	constexpr
+	bool operator==(const KString& other) const
+	//-----------------------------------------------------------------------------
+	{
+		return operator==(KStringView(other));
+	}
+
+	//-----------------------------------------------------------------------------
+	constexpr
+	bool operator!=(const KString& other) const
+	//-----------------------------------------------------------------------------
+	{
+		return operator!=(KStringView(other));
+	}
+
 //----------
 protected:
 //----------
@@ -1126,58 +1186,97 @@ using KStringViewPair = std::pair<KStringView, KStringView>;
 
 //-----------------------------------------------------------------------------
 constexpr
-inline bool operator==(KStringView left, KStringView right)
+inline bool operator==(const char* left, KStringView right)
 //-----------------------------------------------------------------------------
 {
-	KStringView::size_type len = left.size();
-	if (len != right.size())
-	{
-		return false;
-	}
-	return left.data() == right.data()
-	        || len == 0
-	        || left.compare(right) == 0;
+	return right.operator==(KStringView(left));
 }
 
 //-----------------------------------------------------------------------------
 constexpr
-inline bool operator==(const KStringView::value_type* left, KStringView right)
+inline bool operator==(KStringView left, const char* right)
 //-----------------------------------------------------------------------------
 {
-	return KStringView(left) == right;
+	return left.operator==(KStringView(right));
 }
 
 //-----------------------------------------------------------------------------
 constexpr
-inline bool operator==(KStringView left, const KStringView::value_type* right)
+inline bool operator!=(const char* left, KStringView right)
 //-----------------------------------------------------------------------------
 {
-	return right == left;
+	return right.operator!=(KStringView(left));
 }
 
 //-----------------------------------------------------------------------------
 constexpr
-inline bool operator!=(KStringView left, KStringView right)
+inline bool operator!=(KStringView left, const char* right)
 //-----------------------------------------------------------------------------
 {
-	return !(left == right);
+	return left.operator!=(KStringView(right));
+}
+
+//-----------------------------------------------------------------------------
+inline bool operator==(const std::string& left, KStringView right)
+//-----------------------------------------------------------------------------
+{
+	return right.operator==(KStringView(left));
+}
+
+//-----------------------------------------------------------------------------
+inline bool operator==(KStringView left, const std::string& right)
+//-----------------------------------------------------------------------------
+{
+	return left.operator==(KStringView(right));
+}
+
+//-----------------------------------------------------------------------------
+inline bool operator!=(const std::string& left, KStringView right)
+//-----------------------------------------------------------------------------
+{
+	return right.operator!=(KStringView(left));
+}
+
+//-----------------------------------------------------------------------------
+inline bool operator!=(KStringView left, const std::string& right)
+//-----------------------------------------------------------------------------
+{
+	return left.operator!=(KStringView(right));
+}
+
+#ifdef DEKAF2_HAS_STD_STRING_VIEW
+//-----------------------------------------------------------------------------
+constexpr
+inline bool operator==(std::string_view left, KStringView right)
+//-----------------------------------------------------------------------------
+{
+	return right.operator==(KStringView(left));
 }
 
 //-----------------------------------------------------------------------------
 constexpr
-inline bool operator!=(const KStringView::value_type* left, KStringView right)
+inline bool operator==(KStringView left, std::string_view right)
 //-----------------------------------------------------------------------------
 {
-	return !(left == right);
+	return left.operator==(KStringView(right));
 }
 
 //-----------------------------------------------------------------------------
 constexpr
-inline bool operator!=(KStringView left, const KStringView::value_type* right)
+inline bool operator!=(std::string_view left, KStringView right)
 //-----------------------------------------------------------------------------
 {
-	return !(left == right);
+	return right.operator!=(KStringView(left));
 }
+
+//-----------------------------------------------------------------------------
+constexpr
+inline bool operator!=(KStringView left, std::string_view right)
+//-----------------------------------------------------------------------------
+{
+	return left.operator!=(KStringView(right));
+}
+#endif
 
 //-----------------------------------------------------------------------------
 constexpr

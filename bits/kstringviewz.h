@@ -98,7 +98,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	constexpr
-	KStringViewZ()
+	KStringViewZ() noexcept
 	//-----------------------------------------------------------------------------
 	: base_type { std::addressof(s_empty), 0 }
 	{
@@ -117,6 +117,12 @@ public:
 	: base_type { str }
 	{}
 
+#ifdef DEKAF2_HAS_STD_STRING_VIEW
+	//-----------------------------------------------------------------------------
+	KStringViewZ(const std::string_view& str) = delete;
+	//-----------------------------------------------------------------------------
+#endif
+
 	//-----------------------------------------------------------------------------
 	KStringViewZ(const KString& str) noexcept
 	//-----------------------------------------------------------------------------
@@ -130,6 +136,44 @@ public:
 	/// Construction of KStringViewZ from KStringView is not allowed
 	KStringViewZ(KStringView sv) = delete;
 	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	constexpr
+	KStringViewZ& operator=(KStringView other) = delete;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	constexpr
+	KStringViewZ& operator=(const char* other)
+	//-----------------------------------------------------------------------------
+	{
+		*this = self_type(other);
+		return *this;
+	}
+
+	//-----------------------------------------------------------------------------
+	constexpr
+	KStringViewZ& operator=(const KString& other)
+	//-----------------------------------------------------------------------------
+	{
+		*this = self_type(other);
+		return *this;
+	}
+
+	//-----------------------------------------------------------------------------
+	constexpr
+	KStringViewZ& operator=(const std::string& other)
+	//-----------------------------------------------------------------------------
+	{
+		*this = self_type(other);
+		return *this;
+	}
+
+#ifdef DEKAF2_HAS_STD_STRING_VIEW
+	//-----------------------------------------------------------------------------
+	KStringViewZ& operator=(std::string_view other) = delete;
+	//-----------------------------------------------------------------------------
+#endif
 
 	using base_type::begin;
 	using base_type::cbegin;
@@ -278,14 +322,6 @@ public:
 		return data();
 	}
 
-	//-----------------------------------------------------------------------------
-	constexpr
-	operator const_iterator() const noexcept
-	//-----------------------------------------------------------------------------
-	{
-		return c_str();
-	}
-
 	// not using base_type::substr;
 	// but we can implement two versions, one returning self_type, the other base_type
 
@@ -368,6 +404,52 @@ public:
 
 	// not using base_type::remove_suffix;
 
+	//-----------------------------------------------------------------------------
+	constexpr
+	bool operator==(KStringViewZ other)
+	//-----------------------------------------------------------------------------
+	{
+		return KStringView::operator==(other);
+	}
+
+	//-----------------------------------------------------------------------------
+	constexpr
+	bool operator!=(KStringViewZ other)
+	//-----------------------------------------------------------------------------
+	{
+		return KStringView::operator!=(other);
+	}
+
+	//-----------------------------------------------------------------------------
+	constexpr
+	bool operator==(KStringView other)
+	//-----------------------------------------------------------------------------
+	{
+		return KStringView::operator==(other);
+	}
+
+	//-----------------------------------------------------------------------------
+	constexpr
+	bool operator!=(KStringView other)
+	//-----------------------------------------------------------------------------
+	{
+		return KStringView::operator!=(other);
+	}
+
+	//-----------------------------------------------------------------------------
+	bool operator==(const KString& other)
+	//-----------------------------------------------------------------------------
+	{
+		return KStringView::operator==(other);
+	}
+
+	//-----------------------------------------------------------------------------
+	bool operator!=(const KString& other)
+	//-----------------------------------------------------------------------------
+	{
+		return KStringView::operator!=(other);
+	}
+
 private:
 
 	static constexpr value_type s_empty = '\0';
@@ -375,6 +457,103 @@ private:
 }; // KStringViewZ
 
 using KStringViewZPair = std::pair<KStringViewZ, KStringViewZ>;
+
+
+//-----------------------------------------------------------------------------
+constexpr
+inline bool operator==(const char* left, KStringViewZ right)
+//-----------------------------------------------------------------------------
+{
+	return right.operator==(KStringView(left));
+}
+
+//-----------------------------------------------------------------------------
+constexpr
+inline bool operator==(KStringViewZ left, const char* right)
+//-----------------------------------------------------------------------------
+{
+	return left.operator==(KStringView(right));
+}
+
+//-----------------------------------------------------------------------------
+constexpr
+inline bool operator!=(const char* left, KStringViewZ right)
+//-----------------------------------------------------------------------------
+{
+	return right.operator!=(KStringView(left));
+}
+
+//-----------------------------------------------------------------------------
+constexpr
+inline bool operator!=(KStringViewZ left, const char* right)
+//-----------------------------------------------------------------------------
+{
+	return left.operator!=(KStringView(right));
+}
+
+//-----------------------------------------------------------------------------
+inline bool operator==(const std::string& left, KStringViewZ right)
+//-----------------------------------------------------------------------------
+{
+	return right.operator==(KStringView(left));
+}
+
+//-----------------------------------------------------------------------------
+inline bool operator==(KStringViewZ left, const std::string& right)
+//-----------------------------------------------------------------------------
+{
+	return left.operator==(KStringView(right));
+}
+
+//-----------------------------------------------------------------------------
+inline bool operator!=(const std::string& left, KStringViewZ right)
+//-----------------------------------------------------------------------------
+{
+	return right.operator!=(KStringView(left));
+}
+
+//-----------------------------------------------------------------------------
+inline bool operator!=(KStringViewZ left, const std::string& right)
+//-----------------------------------------------------------------------------
+{
+	return left.operator!=(KStringView(right));
+}
+
+#ifdef DEKAF2_HAS_STD_STRING_VIEW
+//-----------------------------------------------------------------------------
+constexpr
+inline bool operator==(std::string_view left, KStringViewZ right)
+//-----------------------------------------------------------------------------
+{
+	return right.operator==(KStringView(left));
+}
+
+//-----------------------------------------------------------------------------
+constexpr
+inline bool operator==(KStringViewZ left, std::string_view right)
+//-----------------------------------------------------------------------------
+{
+	return left.operator==(KStringView(right));
+}
+
+//-----------------------------------------------------------------------------
+constexpr
+inline bool operator!=(std::string_view left, KStringViewZ right)
+//-----------------------------------------------------------------------------
+{
+	return right.operator!=(KStringView(left));
+}
+
+//-----------------------------------------------------------------------------
+constexpr
+inline bool operator!=(KStringViewZ left, std::string_view right)
+//-----------------------------------------------------------------------------
+{
+	return left.operator!=(KStringView(right));
+}
+#endif
+
+
 
 inline namespace literals {
 

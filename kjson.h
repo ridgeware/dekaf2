@@ -72,12 +72,52 @@ void from_json(const KJSON& j, KROW& row);
 
 inline void from_json(const KJSON& j, dekaf2::KStringViewZ& s)
 {
-	s = j.get<KJSON::string_t>();
+	s = j.get_ref<const KJSON::string_t&>();
 }
 
 inline void from_json(const KJSON& j, dekaf2::KStringView& s)
 {
-	s = j.get<KJSON::string_t>();
+	s = j.get_ref<const KJSON::string_t&>();
+}
+
+inline bool operator==(KStringView left, const KJSON& right)
+{
+	return left == right.get_ref<const KJSON::string_t&>();
+}
+
+inline bool operator==(const KJSON& left, KStringView right)
+{
+	return operator==(right, left);
+}
+
+inline bool operator!=(KStringView left, const KJSON& right)
+{
+	return !operator==(left, right);
+}
+
+inline bool operator!=(const KJSON& left, KStringView right)
+{
+	return !operator==(right, left);
+}
+
+inline bool operator==(const KString& left, const KJSON& right)
+{
+	return left == right.get_ref<const KJSON::string_t&>();
+}
+
+inline bool operator==(const KJSON& left, const KString& right)
+{
+	return operator==(right, left);
+}
+
+inline bool operator!=(const KString& left, const KJSON& right)
+{
+	return !operator==(left, right);
+}
+
+inline bool operator!=(const KJSON& left, const KString& right)
+{
+	return !operator==(right, left);
 }
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::

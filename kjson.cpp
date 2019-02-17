@@ -366,7 +366,7 @@ bool Contains (const KJSON& json, KStringView sString)
 				{
 					for (auto& it : json)
 					{
-						if (it.get<KString>() == sString)
+						if (it == sString)
 						{
 							return true;
 						}

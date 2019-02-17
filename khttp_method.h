@@ -89,6 +89,20 @@ public:
 		return m_method.empty();
 	}
 
+	//-----------------------------------------------------------------------------
+	bool operator==(const KHTTPMethod& other) const
+	//-----------------------------------------------------------------------------
+	{
+		return m_method == other.m_method;
+	}
+
+	//-----------------------------------------------------------------------------
+	bool operator!=(const KHTTPMethod& other) const
+	//-----------------------------------------------------------------------------
+	{
+		return m_method != other.m_method;
+	}
+
 	static constexpr KStringViewZ GET     = "GET";
 	static constexpr KStringViewZ HEAD    = "HEAD";
 	static constexpr KStringViewZ POST    = "POST";
@@ -104,6 +118,66 @@ private:
 
 	KString m_method{GET};
 
-}; // KMethod
+}; // KHTTPMethod
+
+inline bool operator==(const char* left, const KHTTPMethod& right)
+{
+	return left == right.Serialize();
+}
+
+inline bool operator==(const KHTTPMethod& left, const char* right)
+{
+	return operator==(right, left);
+}
+
+inline bool operator!=(const char* left, const KHTTPMethod& right)
+{
+	return !operator==(left, right);
+}
+
+inline bool operator!=(const KHTTPMethod& left, const char* right)
+{
+	return !operator==(right, left);
+}
+
+inline bool operator==(KStringView left, const KHTTPMethod& right)
+{
+	return left == right.Serialize();
+}
+
+inline bool operator==(const KHTTPMethod& left, KStringView right)
+{
+	return operator==(right, left);
+}
+
+inline bool operator!=(KStringView left, const KHTTPMethod& right)
+{
+	return !operator==(left, right);
+}
+
+inline bool operator!=(const KHTTPMethod& left, KStringView right)
+{
+	return !operator==(right, left);
+}
+
+inline bool operator==(const KString& left, const KHTTPMethod& right)
+{
+	return left == right.Serialize();
+}
+
+inline bool operator==(const KHTTPMethod& left, const KString& right)
+{
+	return operator==(right, left);
+}
+
+inline bool operator!=(const KString& left, const KHTTPMethod& right)
+{
+	return !operator==(left, right);
+}
+
+inline bool operator!=(const KHTTPMethod& left, const KString& right)
+{
+	return !operator==(right, left);
+}
 
 } // end of namespace dekaf2

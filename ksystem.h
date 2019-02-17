@@ -57,7 +57,7 @@ namespace dekaf2
 inline KStringViewZ kGetEnv (KStringViewZ szEnvVar, KStringViewZ szDefault = "")
 //-----------------------------------------------------------------------------
 {
-	KStringViewZ sValue = ::getenv(szEnvVar);
+	KStringViewZ sValue = ::getenv(szEnvVar.c_str());
 	if (!sValue.empty())
 	{
 		return (sValue);
@@ -74,7 +74,7 @@ inline KStringViewZ kGetEnv (KStringViewZ szEnvVar, KStringViewZ szDefault = "")
 inline bool kSetEnv (KStringViewZ szEnvVar, KStringViewZ sValue)
 //-----------------------------------------------------------------------------
 {
-	bool bOK = (::setenv(szEnvVar, sValue, true) == 0);
+	bool bOK = (::setenv(szEnvVar.c_str(), sValue.c_str(), true) == 0);
 	if (!bOK)
 	{
 		kWarning("cannot set {} = {}, {}", szEnvVar, sValue, strerror(errno));
@@ -87,7 +87,7 @@ inline bool kSetEnv (KStringViewZ szEnvVar, KStringViewZ sValue)
 inline bool kUnsetEnv (KStringViewZ szEnvVar)
 //-----------------------------------------------------------------------------
 {
-	bool bOK = (::unsetenv(szEnvVar) == 0);
+	bool bOK = (::unsetenv(szEnvVar.c_str()) == 0);
 	if (!bOK)
 	{
 		kWarning("cannot unset {}, {}", szEnvVar, strerror(errno));

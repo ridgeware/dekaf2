@@ -79,11 +79,18 @@ KOpenIDKeys::KOpenIDKeys (KURL URL)
 {
 	DEKAF2_TRY
 	{
-		KHTTPClient ProviderKeys;
-		kjson::Parse(Keys, ProviderKeys.Get(URL, true /* = bVerifyCerts */ )); // we have to verify the CERT!
-		if (!Validate())
+		if (URL.Protocol != url::KProtocol::HTTPS)
 		{
-			Keys = KJSON{};
+			SetError(kFormat("key URL does not use HTTPS: {}", URL.Serialize()));
+		}
+		else
+		{
+			KHTTPClient ProviderKeys;
+			kjson::Parse(Keys, ProviderKeys.Get(URL, true /* = bVerifyCerts */ )); // we have to verify the CERT!
+			if (!Validate())
+			{
+				Keys = KJSON{};
+			}
 		}
 	}
 	DEKAF2_CATCH (const KJSON::exception& exc)
@@ -106,9 +113,9 @@ KString KOpenIDKeys::GetPublicKey(KStringView sAlgorithm, KStringView sKID, KStr
 		{
 			for (auto& it : Keys["keys"])
 			{
-				if (it["alg"].get<KString>() == sAlgorithm
-					&& it["kid"].get<KString>() == sKID
-					&& it["x5t"].get<KString>() == sKeyDigest)
+				if (it["alg"] == sAlgorithm
+					&& it["kid"] == sKID
+					&& it["x5t"] == sKeyDigest)
 				{
 					if (it["kty"] == "RSA")
 					{
@@ -142,10 +149,10 @@ bool KOpenIDProvider::SetError(KString sError) const
 bool KOpenIDProvider::Validate(const KURL& URL) const
 //-----------------------------------------------------------------------------
 {
-	if (Configuration["issuer"].get<KString>() != URL.Serialize())
+	if (Configuration["issuer"] != URL.Serialize())
 	{
 		return SetError(kFormat("issuer ({}) does not match URL ({})",
-								Configuration["issuer"].get<KString>(),
+								Configuration["issuer"].get_ref<const KString&>(),
 								URL.Serialize()));
 	}
 	if (Configuration["authorization_endpoint"].empty())
@@ -195,7 +202,7 @@ KOpenIDProvider::KOpenIDProvider (KURL URL)
 			if (Validate(URL))
 			{
 				// only query keys if valid data
-				Keys = KOpenIDKeys(Configuration["jwks_uri"].get<KString>());
+				Keys = KOpenIDKeys(Configuration["jwks_uri"].get_ref<const KString&>());
 			}
 			else
 			{
@@ -266,7 +273,7 @@ KJWT::KJWT(KStringView sBase64Token, const KOpenIDProvider& Provider)
 
 		if  (Header["typ"] != "JWT")
 		{
-			SetError(kFormat("not a JWT header: {}", Header["typ"].get<KString>()));
+			SetError(kFormat("not a JWT header: {}", Header["typ"].get_ref<const KString&>()));
 			return;
 		}
 		KString sAlgorithm = Header["alg"];

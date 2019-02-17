@@ -163,22 +163,24 @@ public:
 	KString (const KString& str) = default;
 	KString (KString&& str) noexcept = default;
 	KString (const KString& str, size_type pos, size_type len = npos) : m_rep(str.m_rep, (pos > str.size()) ? str.size() : pos, len) {}
-	KString (const string_type& sStr) : m_rep(sStr) {}
-	KString (size_type iCount, value_type ch) : m_rep(iCount, ch) {}
-	KString (const value_type* s) : m_rep(s?s:"") {}
-	KString (const value_type* pszString, size_type iCount) : m_rep(pszString?pszString:"", pszString?iCount:0) {}
-	KString (const value_type* pszString, size_type iRoff, size_type iCount) : m_rep(pszString?pszString:"", pszString?iRoff:0, pszString?iCount:0) {}
-	template<class _InputIterator>
-		KString (_InputIterator first, _InputIterator last) : m_rep(first, last) {}
-	KString (string_type&& sStr) noexcept : m_rep(std::move(sStr)) {}
-	KString (std::initializer_list<value_type> il) : m_rep(il) {}
 	KString (KStringView sv);
+	KString (KStringViewZ svz);
+	KString (const string_type& sStr) : m_rep(sStr) {}
+	KString (string_type&& sStr) : m_rep(std::move(sStr)) {}
 #ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
 	KString (const std::string& sStr) : m_rep(sStr) {}
 #endif
 #ifdef DEKAF2_HAS_STD_STRING_VIEW
 	KString (const sv::string_view& str) : m_rep(str.data(), str.size()) {}
 #endif
+	KString (const value_type* s) : m_rep(s?s:"") {}
+
+	KString (size_type iCount, value_type ch) : m_rep(iCount, ch) {}
+	KString (const value_type* pszString, size_type iCount) : m_rep(pszString?pszString:"", pszString?iCount:0) {}
+	KString (const value_type* pszString, size_type iRoff, size_type iCount) : m_rep(pszString?pszString:"", pszString?iRoff:0, pszString?iCount:0) {}
+	template<class _InputIterator>
+		KString (_InputIterator first, _InputIterator last) : m_rep(first, last) {}
+	KString (std::initializer_list<value_type> il) : m_rep(il) {}
 #ifdef DEKAF2_KSTRING_HAS_ACQUIRE_MALLOCATED
 	// nonstandard constructor to move an existing malloced buffer into the string
 	KString (value_type *s, size_type n, size_type c, AcquireMallocatedString a)
@@ -188,6 +190,12 @@ public:
 	KString (value_type *s, size_type n, size_type c, AcquireMallocatedString a)
 	: KString (s, n) { if (s) delete(s); }
 #endif
+
+	self& operator= (const KString& str) = default;
+	self& operator= (KString&& str) noexcept = default;
+	self& operator= (const value_type* str) { return assign(str); }
+	self& operator= (value_type ch) { assign(1, ch); return *this; }
+	self& operator= (std::initializer_list<value_type> il) { return assign(il); }
 
 	// operator+=
 	self& operator+= (const KString& str) { m_rep += str.m_rep; return *this; }
@@ -199,11 +207,9 @@ public:
 #ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
 	self& operator+= (const std::string& str) { m_rep += str; return *this; }
 #endif
-
-	// operator=
-	self& operator= (const KString& str) = default;
-	self& operator= (KString&& str) noexcept = default;
-	self& operator= (value_type ch) { assign(1, ch); return *this; }
+#ifdef DEKAF2_HAS_STD_STRING_VIEW
+	self& operator+= (std::string_view str) { return append(str); }
+#endif
 
 	// std methods
 	self& append(const KString& str) { m_rep.append(str.m_rep); return *this; }
@@ -221,6 +227,9 @@ public:
 	self& append(const std::string& str) { m_rep.append(str); return *this; }
 	self& append(const std::string& str, size_type pos, size_type n = npos);
 #endif
+#ifdef DEKAF2_HAS_STD_STRING_VIEW
+	self& append(std::string_view str) { return append(str.data(), str.size()); }
+#endif
 
 	self& push_back(const value_type chPushBack) { m_rep.push_back(chPushBack); return *this; }
 	void pop_back() { m_rep.pop_back(); }
@@ -229,6 +238,7 @@ public:
 	self& assign(const KString& str, size_type pos, size_type n = npos) { return assign(str.m_rep, pos, n); }
 	self& assign(const string_type& str) { m_rep.assign(str); return *this; }
 	self& assign(const string_type& str, size_type pos, size_type n = npos);
+	self& assign(string_type&& str) { m_rep.assign(std::move(str)); return *this; }
 	self& assign(const value_type* s, size_type n) { if (s) m_rep.assign(s, n); else m_rep.clear(); return *this; }
 	self& assign(const value_type* str) { if (str) m_rep.assign(str); else m_rep.clear(); return *this;}
 	self& assign(size_type n, value_type ch) { m_rep.assign(n, ch); return *this;}
@@ -237,9 +247,13 @@ public:
 	self& assign(std::initializer_list<value_type> il) { m_rep.assign(il); return *this; }
 	self& assign(KString&& str) { m_rep.assign(std::move(str.m_rep)); return *this; }
 	self& assign(KStringView sv);
+	self& assign(KStringViewZ sv);
 #ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
 	self& assign(const std::string& str) { m_rep.assign(str); return *this; }
 	self& assign(const std::string& str, size_type pos, size_type n = npos);
+#endif
+#ifdef DEKAF2_HAS_STD_STRING_VIEW
+	self& assign(std::string_view sv) { return assign(sv.data(), sv.size()); }
 #endif
 
 	int compare(const KString& str) const;
@@ -665,6 +679,36 @@ public:
 	static KString to_hexstring(uint64_t i, bool bZeroPad = true, bool bUpperCase = true);
 	//-----------------------------------------------------------------------------
 
+	//-----------------------------------------------------------------------------
+	bool operator==(const KString& other) const
+	//-----------------------------------------------------------------------------
+	{
+		return m_rep == other.m_rep;
+	}
+
+	//-----------------------------------------------------------------------------
+	bool operator!=(const KString& other) const
+	//-----------------------------------------------------------------------------
+	{
+		return m_rep != other.m_rep;
+	}
+
+	//-----------------------------------------------------------------------------
+	bool operator==(KStringView other) const;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	bool operator!=(KStringView other) const;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	bool operator==(KStringViewZ other) const;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	bool operator!=(KStringViewZ other) const;
+	//-----------------------------------------------------------------------------
+
 //----------
 protected:
 //----------
@@ -706,15 +750,13 @@ inline KString::KString(KStringView sv)
 {}
 
 //-----------------------------------------------------------------------------
-inline KString& KString::operator+= (KStringView sv)
+inline KString::KString(KStringViewZ sv)
 //-----------------------------------------------------------------------------
-{
-	m_rep.append(sv.data(), sv.size());
-	return *this;
-}
+	: m_rep(sv.data(), sv.size())
+{}
 
 //-----------------------------------------------------------------------------
-inline KString& KString::append(KStringView sv)
+inline KString& KString::operator+= (KStringView sv)
 //-----------------------------------------------------------------------------
 {
 	m_rep.append(sv.data(), sv.size());
@@ -726,6 +768,22 @@ inline KString& KString::assign(KStringView sv)
 //-----------------------------------------------------------------------------
 {
 	m_rep.assign(sv.data(), sv.size());
+	return *this;
+}
+
+//-----------------------------------------------------------------------------
+inline KString& KString::assign(KStringViewZ svz)
+//-----------------------------------------------------------------------------
+{
+	m_rep.assign(svz.data(), svz.size());
+	return *this;
+}
+
+//-----------------------------------------------------------------------------
+inline KString& KString::append(KStringView sv)
+//-----------------------------------------------------------------------------
+{
+	m_rep.append(sv.data(), sv.size());
 	return *this;
 }
 
@@ -1338,104 +1396,120 @@ inline std::vector<KStringView> KString::MatchRegexGroups(KStringView sRegEx, si
 
 
 
-
-
 //-----------------------------------------------------------------------------
-inline bool operator==(const KString& left, const KString& right)
+inline bool KString::operator==(KStringView other) const
 //-----------------------------------------------------------------------------
 {
-	return left.ToView() == right.ToView();
+	return other.operator==(*this);
+}
+
+//-----------------------------------------------------------------------------
+inline bool KString::operator!=(KStringView other) const
+//-----------------------------------------------------------------------------
+{
+	return other.operator!=(*this);
+}
+
+//-----------------------------------------------------------------------------
+inline bool KString::operator==(KStringViewZ other) const
+//-----------------------------------------------------------------------------
+{
+	return other.operator==(*this);
+}
+
+//-----------------------------------------------------------------------------
+inline bool KString::operator!=(KStringViewZ other) const
+//-----------------------------------------------------------------------------
+{
+	return other.operator!=(*this);
 }
 
 //-----------------------------------------------------------------------------
 inline bool operator==(const KString& left, const std::string& right)
 //-----------------------------------------------------------------------------
 {
-	return left.ToView() == KStringView(right.data(), right.size());
+	return left.ToView().operator==(KStringView(right));
 }
 
 //-----------------------------------------------------------------------------
 inline bool operator==(const std::string& left, const KString& right)
 //-----------------------------------------------------------------------------
 {
-	return right == left;
+	return right.ToView().operator==(KStringView(left));
+}
+
+#ifdef DEKAF2_HAS_STD_STRING_VIEW
+//-----------------------------------------------------------------------------
+inline bool operator==(const KString& left, const std::string_view& right)
+//-----------------------------------------------------------------------------
+{
+	return left.ToView().operator==(KStringView(right));
 }
 
 //-----------------------------------------------------------------------------
-inline bool operator==(const KString& left, KStringView right)
+inline bool operator==(const std::string_view& left, const KString& right)
 //-----------------------------------------------------------------------------
 {
-	return left.ToView() == right;
+	return right.ToView().operator==(KStringView(left));
+}
+#endif
+
+//-----------------------------------------------------------------------------
+inline bool operator==(const KString& left, const char* right)
+//-----------------------------------------------------------------------------
+{
+	return left.ToView().operator==(KStringView(right));
 }
 
 //-----------------------------------------------------------------------------
-inline bool operator==(KStringView left, const KString& right)
+inline bool operator==(const char* left, const KString& right)
 //-----------------------------------------------------------------------------
 {
-	return right == left;
-}
-
-//-----------------------------------------------------------------------------
-inline bool operator==(const KString& left, const KString::value_type* right)
-//-----------------------------------------------------------------------------
-{
-	return left.ToView() == KStringView(right);
-}
-
-//-----------------------------------------------------------------------------
-inline bool operator==(const KString::value_type* left, const KString& right)
-//-----------------------------------------------------------------------------
-{
-	return right == left;
-}
-
-//-----------------------------------------------------------------------------
-inline bool operator!=(const KString& left, const KString& right)
-//-----------------------------------------------------------------------------
-{
-	return !(left == right);
+	return right.ToView().operator==(KStringView(left));
 }
 
 //-----------------------------------------------------------------------------
 inline bool operator!=(const KString& left, const std::string& right)
 //-----------------------------------------------------------------------------
 {
-	return left.ToView() != KStringView(right.data(), right.size());
+	return left.ToView().operator!=(KStringView(right));
 }
 
 //-----------------------------------------------------------------------------
 inline bool operator!=(const std::string& left, const KString& right)
 //-----------------------------------------------------------------------------
 {
-	return right != left;
+	return right.ToView().operator!=(KStringView(left));
+}
+
+#ifdef DEKAF2_HAS_STD_STRING_VIEW
+//-----------------------------------------------------------------------------
+inline bool operator!=(const KString& left, const std::string_view& right)
+//-----------------------------------------------------------------------------
+{
+	return left.ToView().operator!=(KStringView(right));
 }
 
 //-----------------------------------------------------------------------------
-inline bool operator!=(const KString& left, KStringView right)
+inline bool operator!=(const std::string_view& left, const KString& right)
 //-----------------------------------------------------------------------------
 {
-	return left.ToView() != right;
+	return right.ToView().operator!=(KStringView(left));
+}
+#endif
+
+//-----------------------------------------------------------------------------
+inline bool operator!=(const KString& left, const char* right)
+//-----------------------------------------------------------------------------
+{
+	return left.ToView().operator!=(KStringView(right));
 }
 
 //-----------------------------------------------------------------------------
-inline bool operator!=(KStringView left, const KString& right)
+inline bool operator!=(const char* left, const KString& right)
 //-----------------------------------------------------------------------------
 {
-	return right != left;
-}
-
-//-----------------------------------------------------------------------------
-inline bool operator!=(const KString& left, const KString::value_type* right)
-//-----------------------------------------------------------------------------
-{
-	return left.ToView() != KStringView(right);
-}
-
-//-----------------------------------------------------------------------------
-inline bool operator!=(const KString::value_type* left, const KString& right)
-//-----------------------------------------------------------------------------
-{
-	return right != left;
+	return right.ToView().operator!=(KStringView(left));
 }
 
 //-----------------------------------------------------------------------------

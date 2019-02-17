@@ -385,6 +385,7 @@ public:
 
 	const KString& GetLastError ()       { return (m_sLastError);      }
 	int         GetLastErrorNum ()       { return (m_iErrorNum);       }
+	bool        WasDuplicateError()      { return (GetLastErrorNum() == 1062); /*TODO:MySQL only*/ }
 	int         GetLastOCIError ()       { return (GetLastErrorNum()); }
 	const KString& GetLastSQL ()         { return (m_sLastSQL);        }
 	bool        SetFlags (Flags iFlags);

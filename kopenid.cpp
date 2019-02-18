@@ -102,7 +102,7 @@ KOpenIDKeys::KOpenIDKeys (KURL URL)
 } // ctor
 
 //-----------------------------------------------------------------------------
-KString KOpenIDKeys::GetPublicKey(KStringView sAlgorithm, KStringView sKID, KStringView sKeyDigest) const
+KString KOpenIDKeys::GetPublicKey(KStringView sAlgorithm, KStringView sKeyID, KStringView sKeyDigest) const
 //-----------------------------------------------------------------------------
 {
 	KString sKey;
@@ -114,7 +114,7 @@ KString KOpenIDKeys::GetPublicKey(KStringView sAlgorithm, KStringView sKID, KStr
 			for (auto& it : Keys["keys"])
 			{
 				if (it["alg"] == sAlgorithm
-					&& it["kid"] == sKID
+					&& it["kid"] == sKeyID
 					&& it["x5t"] == sKeyDigest)
 				{
 					if (it["kty"] == "RSA")
@@ -231,10 +231,17 @@ void KJWT::ClearJSON()
 bool KJWT::SetError(KString sError)
 //-----------------------------------------------------------------------------
 {
-	ClearJSON();
 	m_sError = std::move(sError);
-	kDebug(1, m_sError);
-	return false;
+	if (!m_sError.empty())
+	{
+		ClearJSON();
+		kDebug(1, m_sError);
+		return false;
+	}
+	else
+	{
+		return true;
+	}
 
 } // SetError
 
@@ -248,77 +255,85 @@ bool KJWT::Validate(const KOpenIDProvider& Provider) const
 } // Validate
 
 //-----------------------------------------------------------------------------
-KJWT::KJWT(KStringView sBase64Token, const KOpenIDProvider& Provider)
+bool KJWT::Check(KStringView sBase64Token, const KOpenIDProviderList& Providers)
 //-----------------------------------------------------------------------------
 {
-	if (!Provider.IsValid())
-	{
-		SetError(kFormat("invalid provider: {}", Provider.Error()));
-		return;
-	}
-
 	std::vector<KStringView> Part;
 
 	if (kSplit(Part, sBase64Token, ".") != 3)
 	{
-		SetError(kFormat("wrong part count in token string, expected 3 parts, got {}", Part.size()));
-		return;
+		return SetError(kFormat("wrong part count in token string, expected 3 parts, got {}", Part.size()));
 	}
 
 	DEKAF2_TRY
 	{
-		KString sHeader = KBase64Url::Decode(Part[0]);
-		kjson::Parse(Header, sHeader);
-		auto sSignature = KBase64Url::Decode(Part[2]);
+		kjson::Parse(Header, KBase64Url::Decode(Part[0]));
 
 		if  (Header["typ"] != "JWT")
 		{
-			SetError(kFormat("not a JWT header: {}", Header["typ"].get_ref<const KString&>()));
-			return;
-		}
-		KString sAlgorithm = Header["alg"];
-		KString sKID       = Header["kid"];
-		KString sKeyDigest = Header["x5t"];
-
-		// find the public key
-		auto sPublicKey = Provider.Keys.GetPublicKey(sAlgorithm, sKID, sKeyDigest);
-
-		if (sPublicKey.empty())
-		{
-			SetError("no matching public key");
-			return;
-		}
-
-		if (sAlgorithm == "RS256")
-		{
-			KRSAVerify_SHA256 RSAVerify(sPublicKey);
-			RSAVerify.Update(Part[0]);
-			RSAVerify.Update(".");
-			RSAVerify.Update(Part[1]);
-			if (!RSAVerify.Verify(Part[2]))
-			{
-				SetError("bad signature");
-				return;
-			}
-		}
-		else if (sAlgorithm == "RS384")
-		{
-
-		}
-		else if (sAlgorithm == "RS512")
-		{
-		}
-		else
-		{
-			SetError(kFormat("signature algorithm not supported: {}", sAlgorithm));
-			return;
+			return SetError(kFormat("not a JWT header: {}", Header["typ"].get_ref<const KString&>()));
 		}
 
 		kjson::Parse(Payload, KBase64Url::Decode(Part[1]));
+		auto sSignature = KBase64Url::Decode(Part[2]);
 
-		if (!Validate(Provider))
+		KString sAlgorithm = Header["alg"];
+		KString sKeyID     = Header["kid"];
+		KString sKeyDigest = Header["x5t"];
+
+		for (auto& Provider : Providers)
 		{
-			return;
+			if (!Provider.IsValid())
+			{
+				SetError(kFormat("invalid provider: {}", Provider.Error()));
+				// try the next provider ..
+				break;
+			}
+
+			// find the public key
+			auto sPublicKey = Provider.Keys.GetPublicKey(sAlgorithm, sKeyID, sKeyDigest);
+
+			if (sPublicKey.empty())
+			{
+				SetError("no matching public key");
+				// try the next provider ..
+				break;
+			}
+
+			std::unique_ptr<KRSAVerify> Verifier;
+
+			if (sAlgorithm == "RS256")
+			{
+				Verifier = std::make_unique<KRSAVerify_SHA256>(sPublicKey);
+			}
+			else if (sAlgorithm == "RS384")
+			{
+				Verifier = std::make_unique<KRSAVerify_SHA384>(sPublicKey);
+			}
+			else if (sAlgorithm == "RS512")
+			{
+				Verifier = std::make_unique<KRSAVerify_SHA512>(sPublicKey);
+			}
+			else
+			{
+				// exit here if we do not support the key's algorithm
+				return SetError(kFormat("signature algorithm not supported: {}", sAlgorithm));
+			}
+
+			Verifier->Update(Part[0]);
+			Verifier->Update(".");
+			Verifier->Update(Part[1]);
+			if (!Verifier->Verify(Part[2]))
+			{
+				// exit here if the key is not matching the signature
+				return SetError("bad signature");
+			}
+
+			// clear error
+			SetError("");
+
+			// exit here if we cannot validate
+			return Validate(Provider);
 		}
 	}
 	DEKAF2_CATCH (const KJSON::exception& exc)
@@ -326,7 +341,9 @@ KJWT::KJWT(KStringView sBase64Token, const KOpenIDProvider& Provider)
 		SetError(kFormat("invalid JSON: {}", exc.what()));
  	}
 
-} // ctor
+	return false;
+
+} // Check
 
 } // end of namespace dekaf2
 

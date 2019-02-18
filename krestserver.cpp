@@ -43,6 +43,7 @@
 #include "khttperror.h"
 #include "dekaf2.h"
 #include "kfilesystem.h"
+#include "kopenid.h"
 
 namespace dekaf2 {
 
@@ -250,6 +251,48 @@ void KRESTServer::Options::AddHeader(KStringView sHeader, KStringView sValue)
 } // AddHeader
 
 //-----------------------------------------------------------------------------
+void KRESTServer::VerifyAuthentication(const Options& Options)
+//-----------------------------------------------------------------------------
+{
+	switch (Options.AuthLevel)
+	{
+		case Options::ALLOW_ALL:
+			break;
+
+		case Options::ALLOW_ALL_WITH_AUTH_HEADER:
+			if (Request.Headers[KHTTPHeaders::AUTHORIZATION].empty())
+			{
+				throw KHTTPError { KHTTPError::H4xx_BADREQUEST, "no authorization" };
+			}
+			break;
+
+		case Options::VERIFY_AUTH_HEADER:
+			{
+				if (Options.Authenticators.empty())
+				{
+					kWarning("authenticator list is empty");
+				}
+				else
+				{
+					auto& Authorization = Request.Headers[KHTTPHeaders::AUTHORIZATION];
+					if (!Authorization.empty())
+					{
+						if (m_AuthToken.Check(Authorization, Options.Authenticators))
+						{
+							// success
+							return;
+						}
+					}
+				}
+				// failure
+				throw KHTTPError { KHTTPError::H4xx_BADREQUEST, "no authorization" };
+			}
+			break;
+	}
+
+} // VerifyAuthentication
+
+//-----------------------------------------------------------------------------
 bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 //-----------------------------------------------------------------------------
 {
@@ -293,8 +336,13 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 				else
 				{
 					kDebug (1, "read error: {}", KHTTPServer::Error());
-					throw KHTTPError  { KHTTPError::H4xx_BADREQUEST, KHTTPServer::Error() };
+					throw KHTTPError { KHTTPError::H4xx_BADREQUEST, KHTTPServer::Error() };
 				}
+			}
+
+			if (Options.AuthLevel != Options::ALLOW_ALL)
+			{
+				VerifyAuthentication(Options);
 			}
 
 			Response.SetStatus(200, "OK");

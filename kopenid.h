@@ -45,6 +45,7 @@
 #include "kstring.h"
 #include "kurl.h"
 #include "kjson.h"
+#include <vector>
 
 namespace dekaf2 {
 
@@ -62,7 +63,7 @@ public:
 	/// query all known information about an OpenID provider
 	KOpenIDKeys (KURL URL);
 
-	KString GetPublicKey(KStringView sAlgorithm, KStringView sKID, KStringView sKeyDigest) const;
+	KString GetPublicKey(KStringView sAlgorithm, KStringView sKeyID, KStringView sKeyDigest) const;
 
 	/// return error string
 	const KString& Error() const { return m_sError; }
@@ -115,6 +116,8 @@ private:
 
 }; // KOpenIDProvider
 
+using KOpenIDProviderList = std::vector<KOpenIDProvider>;
+
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// holds an authentication token and validates it
 class KJWT
@@ -125,13 +128,22 @@ class KJWT
 public:
 //----------
 
+	/// default ctor
 	KJWT() = default;
 
-	KJWT(KStringView sBase64Token, const KOpenIDProvider& Provider);
+	/// construct with a token
+	KJWT(KStringView sBase64Token, const KOpenIDProviderList& Providers)
+	{
+		Check(sBase64Token, Providers);
+	}
+
+	/// check a new token
+	bool Check(KStringView sBase64Token, const KOpenIDProviderList& Providers);
 
 	/// return error string
 	const KString& Error() const { return m_sError; }
-	/// are all info valid?
+
+	/// is all info valid?
 	bool IsValid() const { return Error().empty(); }
 
 	KJSON Header;

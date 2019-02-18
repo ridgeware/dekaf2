@@ -48,6 +48,8 @@
 #include "kurl.h"
 #include "kjson.h"
 #include "ktimer.h"
+#include "kopenid.h"
+#include <vector>
 
 /// @file krestserver.h
 /// HTTP REST server implementation
@@ -276,6 +278,13 @@ public:
 	struct Options
 	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	{
+		enum AUTH_LEVEL
+		{
+			ALLOW_ALL,
+			ALLOW_ALL_WITH_AUTH_HEADER,
+			VERIFY_AUTH_HEADER
+		};
+
 		/// Add one header to the list of fixed additional headers
 		void AddHeader(KStringView sHeader, KStringView sValue);
 
@@ -283,8 +292,10 @@ public:
 		KStringView sTimerHeader;                  // If non-empty creates a header with execution time
 		KStringViewZ sRecordFile;                  // File to record request into - filename may not change during execution
 		KHTTPHeaders::KHeaderMap ResponseHeaders;  // Fixed additional headers
+		KOpenIDProviderList Authenticators;        // Valid authentication instances for user verification
 		uint16_t iMaxKeepaliveRounds { 10 };       // DoS prevention - max rounds in keep-alive
 		mutable OutputType Out { HTTP };           // Which of the three output formats?
+		AUTH_LEVEL AuthLevel { ALLOW_ALL };        // Which authentication level?
 		bool bRecordRequest { false };             // Shall we record into the sRecordFile? Value is expected to change during execution (could be made an atomic, but we don't care for a few missing records)
 
 	}; // Options
@@ -386,6 +397,14 @@ public:
 
 	json_t json;
 
+	//-----------------------------------------------------------------------------
+	/// get the JSON payload struct of the JWT auth token
+	const KJSON& GetAuthToken() const
+	//-----------------------------------------------------------------------------
+	{
+		return m_AuthToken.Payload;
+	}
+
 //------
 protected:
 //------
@@ -406,6 +425,11 @@ protected:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	/// check user's identity and access
+	void VerifyAuthentication(const Options& Options);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
 	/// prepare for another round in keep-alive: clear previous request data
 	void clear();
 	//-----------------------------------------------------------------------------
@@ -418,6 +442,8 @@ private:
 	KString m_sMessage;
 	KString m_sRawOutput;
 	KStopTime m_timer;
+	KJWT m_AuthToken;
+
 
 }; // KRESTServer
 

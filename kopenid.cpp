@@ -246,9 +246,15 @@ bool KJWT::SetError(KString sError)
 } // SetError
 
 //-----------------------------------------------------------------------------
-bool KJWT::Validate(const KOpenIDProvider& Provider) const
+bool KJWT::Validate(const KOpenIDProvider& Provider)
 //-----------------------------------------------------------------------------
 {
+	if (Payload["iss"] != Provider.Configuration["issuer"])
+	{
+		return SetError(kFormat("Payload issuer {} does not match Provider issuer {}",
+								Payload["iss"].get_ref<const KString&>(),
+								Provider.Configuration["issuer"].get_ref<const KString&>()));
+	}
 
 	return true;
 

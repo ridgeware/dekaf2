@@ -153,7 +153,7 @@ public:
 private:
 //----------
 
-	bool Validate(const KOpenIDProvider& Provider) const;
+	bool Validate(const KOpenIDProvider& Provider);
 	bool SetError(KString sError);
 	void ClearJSON();
 

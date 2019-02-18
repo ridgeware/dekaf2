@@ -45,6 +45,7 @@
 #include "klog.h"
 #include "kbase64.h"
 #include "krsasign.h"
+#include "dekaf2.h"
 #include <vector>
 
 namespace dekaf2 {
@@ -256,6 +257,18 @@ bool KJWT::Validate(const KOpenIDProvider& Provider)
 								Provider.Configuration["issuer"].get_ref<const KString&>()));
 	}
 
+	time_t now = Dekaf().GetCurrentTime();
+
+	if (Payload["nbf"].get_ref<const KString&>().Int64() > now)
+	{
+		return SetError("token not yet valid");
+	}
+
+	if (Payload["exp"].get_ref<const KString&>().Int64() < now)
+	{
+		return SetError("token has expired");
+	}
+
 	return true;
 
 } // Validate
@@ -264,6 +277,8 @@ bool KJWT::Validate(const KOpenIDProvider& Provider)
 bool KJWT::Check(KStringView sBase64Token, const KOpenIDProviderList& Providers)
 //-----------------------------------------------------------------------------
 {
+	sBase64Token.TrimLeft().remove_prefix("Bearer ");
+
 	std::vector<KStringView> Part;
 
 	if (kSplit(Part, sBase64Token, ".") != 3)
@@ -283,9 +298,9 @@ bool KJWT::Check(KStringView sBase64Token, const KOpenIDProviderList& Providers)
 		kjson::Parse(Payload, KBase64Url::Decode(Part[1]));
 		auto sSignature = KBase64Url::Decode(Part[2]);
 
-		KString sAlgorithm = Header["alg"];
-		KString sKeyID     = Header["kid"];
-		KString sKeyDigest = Header["x5t"];
+		const KString& sAlgorithm = Header["alg"];
+		const KString& sKeyID     = Header["kid"];
+		const KString& sKeyDigest = Header["x5t"];
 
 		for (auto& Provider : Providers)
 		{
@@ -350,6 +365,14 @@ bool KJWT::Check(KStringView sBase64Token, const KOpenIDProviderList& Providers)
 	return false;
 
 } // Check
+
+//-----------------------------------------------------------------------------
+const KString& KJWT::GetUser() const
+//-----------------------------------------------------------------------------
+ {
+	 return Payload["sub"].get_ref<const KString&>();
+
+ } // GetUser
 
 } // end of namespace dekaf2
 

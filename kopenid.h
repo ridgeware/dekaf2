@@ -146,6 +146,9 @@ public:
 	/// is all info valid?
 	bool IsValid() const { return Error().empty(); }
 
+	/// get user id ("subject")
+	const KString& GetUser() const;
+
 	KJSON Header;
 	KJSON Payload;
 

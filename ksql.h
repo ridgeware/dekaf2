@@ -215,7 +215,7 @@ public:
 	bool   SetAPISet        (API iAPISet);
 	bool   OpenConnection   ();
 	bool   OpenConnection   (KStringView sListOfHosts, KStringView sDelimiter = ",");
-	void   CloseConnection  ();
+	void   CloseConnection  (bool bDestructor=false);
 	bool   IsConnectionOpen ()      { return (m_bConnectionIsOpen); }
 
 	bool   Insert         (KROW& Row);
@@ -426,7 +426,7 @@ public:
 	KJSON  FindColumn    (KStringView sColLike);
 
 	bool   QueryStarted ()         { return (m_bQueryStarted); }
-	void   EndQuery ();
+	void   EndQuery (bool bDestructor=false);
 
 	size_t  OutputQuery     (KStringView sSQL, KStringView sFormat, FILE* fpout = stdout);
 	size_t  OutputQuery     (KStringView sSQL, OutputFormat iFormat = FORM_ASCII, FILE* fpout = stdout);
@@ -590,7 +590,7 @@ protected:
 	bool  SQLError (bool fForceError=false);
 	bool  WasOCICallOK (KStringView sContext);
 	bool  BufferResults ();
-	void  FreeAll ();
+	void  FreeAll (bool bDestructor=false);
 	void  FreeBufferedColArray (bool fValuesOnly=false);
 	void  FormatConnectSummary ();
 	bool  PreparedToRetry ();

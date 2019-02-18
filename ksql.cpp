@@ -349,16 +349,16 @@ KSQL::KSQL (KSQL& other)
 KSQL::~KSQL ()
 //-----------------------------------------------------------------------------
 {
-	EndQuery ();
-	CloseConnection ();  // <-- this calls FreeAll()
+	EndQuery (/*bDestructor=*/true);
+	CloseConnection (/*bDestructor=*/true);  // <-- this calls FreeAll()
 
 } // destructor
 
 //-----------------------------------------------------------------------------
-void KSQL::FreeAll ()
+void KSQL::FreeAll (bool bDestructor/*=false*/)
 //-----------------------------------------------------------------------------
 {
-	if (kWouldLog(3))
+	if (kWouldLog(3) && !bDestructor)
 	{
 		kDebugLog (3, "FreeAll()...");
 		kDebugLog (3, "  instance cleanup:");
@@ -1189,16 +1189,16 @@ bool KSQL::OpenConnection ()
 } // OpenConnection
 
 //-----------------------------------------------------------------------------
-void KSQL::CloseConnection ()
+void KSQL::CloseConnection (bool bDestructor/*=false*/)
 //-----------------------------------------------------------------------------
 {
-	kDebugLog (3, "KSQL::CloseConnection()...");
+	if (!bDestructor) { kDebugLog (3, "KSQL::CloseConnection()..."); }
 
 	m_sLastError.clear();
 
 	if (m_bConnectionIsOpen)
 	{
-		kDebugLog (GetDebugLevel(), "disconnecting from {}...", ConnectSummary());
+		if (!bDestructor) { kDebugLog (GetDebugLevel(), "disconnecting from {}...", ConnectSummary()); }
 
 		ResetErrorStatus ();
 
@@ -1208,7 +1208,7 @@ void KSQL::CloseConnection ()
 		// - - - - - - - - - - - - - - - - -
 		case API::MYSQL:
 		// - - - - - - - - - - - - - - - - -
-			kDebugLog (3, "mysql_close()...");
+			if (!bDestructor) { kDebugLog (3, "mysql_close()..."); }
 			mysql_close (m_dMYSQL);
 			break;
 		#endif
@@ -1259,7 +1259,7 @@ void KSQL::CloseConnection ()
 		}
 	}
 
-	FreeAll ();
+	FreeAll (bDestructor);
 
 	m_bConnectionIsOpen = false;
 
@@ -3540,7 +3540,7 @@ bool KSQL::ResetBuffer ()
 } // KSQL::ResetBuffer
 
 //-----------------------------------------------------------------------------
-void KSQL::EndQuery ()
+void KSQL::EndQuery (bool bDestructor/*=false*/)
 //-----------------------------------------------------------------------------
 {
 	if (!m_bQueryStarted)
@@ -3548,11 +3548,11 @@ void KSQL::EndQuery ()
 		return;
 	}
 
-	kDebugLog (3, "  KSQL::EndQuery()...");
+	if (!bDestructor) { kDebugLog (3, "  KSQL::EndQuery()..."); }
 
 	if (m_bQueryStarted)
 	{
-		kDebugLog (GetDebugLevel()+1, "  EndQuery: {} row{} fetched.", m_iRowNum, (m_iRowNum==1) ? " was" : "s were");
+		if (!bDestructor) { kDebugLog (GetDebugLevel()+1, "  EndQuery: {} row{} fetched.", m_iRowNum, (m_iRowNum==1) ? " was" : "s were"); }
 	}
 
     #ifdef DEKAF2_HAS_MYSQL
@@ -3580,7 +3580,7 @@ void KSQL::EndQuery ()
 	// - - - - - - - - - - - - - - - - - - - - - - - -
 	if (m_bFileIsOpen)
 	{
-		kDebugLog (3, "  fclose (m_bpBufferedResults)...");
+		if (!bDestructor) { kDebugLog (3, "  fclose (m_bpBufferedResults)..."); }
 		if (m_bpBufferedResults)
 		{
 			fclose (m_bpBufferedResults);

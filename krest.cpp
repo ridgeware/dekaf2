@@ -271,7 +271,7 @@ bool KREST::Simulate(const Options& Options, const KRESTRoutes& Routes, KStringV
 		KStringView sURL = sSimulate.ToView(0, iSplitPostBody);
 		KStringView sPostBody = sSimulate.ToView(iSplitPostBody + 1);
 		sRequest += kFormat("POST {} HTTP/1.0\r\n"
-							"Host: whatever\r\n"
+							"Host: localhost\r\n"
 							"User-Agent: cli sim agent\r\n"
 							"Connection: close\r\n"
 							"Content-Length: {}\r\n"
@@ -282,7 +282,7 @@ bool KREST::Simulate(const Options& Options, const KRESTRoutes& Routes, KStringV
 	else
 	{
 		sRequest = kFormat("GET {} HTTP/1.0\r\n"
-						   "Host: whatever\r\n"
+						   "Host: localhost\r\n"
 						   "User-Agent: cli sim agent\r\n"
 						   "Connection: close\r\n"
 						   "\r\n",

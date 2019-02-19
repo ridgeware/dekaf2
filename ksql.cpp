@@ -4072,23 +4072,24 @@ bool KSQL::SetAPISet (API iAPISet)
 } // SetAPISet
 
 //-----------------------------------------------------------------------------
-bool KSQL::SetFlags (Flags iFlags)
+uint64_t KSQL::SetFlags (Flags iFlags)
 //-----------------------------------------------------------------------------
 {
 	kDebugLog (3, "KSQL::SetFlags()...");
 
 	// FYI: there is nothing database specific in this member function
 
-	if (QueryStarted())
-	{
-		m_sLastError.Format ("{}SetFlags(): you cannot change flags while a query is in process.", m_sErrorPrefix);
-		SQLError();
-		return (false);
-	}
+	//if (QueryStarted())  KEEF: i dont care about this anymore.  let the flags apply to the next action
+	//{
+	//	m_sLastError.Format ("{}SetFlags(): you cannot change flags while a query is in process.", m_sErrorPrefix);
+	//	SQLError();
+	//	return (false);
+	//}
 
+	auto iSaved = m_iFlags;
 	m_iFlags = iFlags;
 
-	return (true);
+	return (iSaved);
 
 } // KSQL::SetFlags
 

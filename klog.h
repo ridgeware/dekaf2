@@ -519,28 +519,18 @@ public:
 	// have it inlined
 	static int s_kLogLevel;
 
+	/// Registered with Dekaf::AddToOneSecTimer() at construction, gets
+	/// called every second and reconfigures debug level, output, and format
+	/// if changed
+	void CheckDebugFlag (bool bForce=false);
+
 //----------
 private:
 //----------
 
-	//---------------------------------------------------------------------------
-	/// Registered with Dekaf::AddToOneSecTimer() at construction, gets
-	/// called every second and reconfigures debug level, output, and format
-	/// if changed
-	void CheckDebugFlag();
-	//---------------------------------------------------------------------------
-
-	//---------------------------------------------------------------------------
-	bool IntDebug(int level, KStringView sFunction, KStringView sMessage);
-	//---------------------------------------------------------------------------
-
-	//---------------------------------------------------------------------------
-	void IntException(KStringView sWhat, KStringView sFunction, KStringView sClass);
-	//---------------------------------------------------------------------------
-
-	//---------------------------------------------------------------------------
-	bool IntOpenLog();
-	//---------------------------------------------------------------------------
+	bool IntDebug (int level, KStringView sFunction, KStringView sMessage);
+	void IntException (KStringView sWhat, KStringView sFunction, KStringView sClass);
+	bool IntOpenLog ();
 
 	KString m_sPathName;
 	KString m_sShortName;

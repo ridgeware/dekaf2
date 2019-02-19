@@ -766,6 +766,10 @@ bool KLog::SetDebugFlag(KStringViewZ sFlagfile)
 		sFlagfile = s_sDefaultFlag; // restore default
 	}
 
+	#if 0
+	// KEEF removed all this optimization logic. Just trust the application programmer.
+	// If someone called KLog().SetDebugFlag() they are doing so for a reason.
+
 	// env values always override programmatic values, and at construction of
 	// KLog() we would have fetched the env value already if it is non-zero
 	KStringViewZ sEnv(kGetEnv(s_sEnvFlag));
@@ -783,24 +787,30 @@ bool KLog::SetDebugFlag(KStringViewZ sFlagfile)
 	{
 		return true;
 	}
+	#endif
 
 	m_sFlagfile = sFlagfile;
+
+	// Because the debug flag file might have changed, we must FORCE a refresh of the log level,
+	// even if it now points to an OLD file (the timestamp on the file is not relevant if we just
+	// switched to it):
+	CheckDebugFlag (/*bForce=*/true);
 
 	return true;
 
 } // SetDebugFlag
 
 //---------------------------------------------------------------------------
-void KLog::CheckDebugFlag()
+void KLog::CheckDebugFlag(bool bForce/*=false*/)
 //---------------------------------------------------------------------------
 {
 	// file format of the debug "flag" file:
 	// "level, target" where level is numeric (-1 .. 3) and target can be
 	// anything like a pathname or a domain:host or syslog, stderr, stdout
 
-	time_t TouchTime = kGetLastMod(GetDebugFlag());
+	time_t tTouchTime = kGetLastMod(GetDebugFlag());
 
-	if (TouchTime == -1)
+	if (tTouchTime == -1)
 	{
 		// no flagfile (anymore)
 		if (GetLevel() > 0)
@@ -808,9 +818,9 @@ void KLog::CheckDebugFlag()
 			SetLevel(0);
 		}
 	}
-	else if (TouchTime > m_sTimestampFlagfile)
+	else if (bForce || (tTouchTime > m_sTimestampFlagfile))
 	{
-		m_sTimestampFlagfile = TouchTime;
+		m_sTimestampFlagfile = tTouchTime;
 
 		KInFile file(GetDebugFlag());
 		if (file.is_open())

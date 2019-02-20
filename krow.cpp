@@ -573,3 +573,18 @@ KROW& KROW::operator+=(const KJSON& json)
 
 } // operator+=(KJSON)
 
+//-----------------------------------------------------------------------------
+bool KROW::Exists (KStringView sColName)
+//-----------------------------------------------------------------------------
+{
+	// linear search (sorry)
+	for (auto& col : *this)
+	{
+		if (sColName == col.first) {
+			return true;
+		}
+	}
+
+	return false;
+
+} // Exists

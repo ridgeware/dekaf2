@@ -513,11 +513,11 @@ uint16_t kFromHexChar(char ch) noexcept;
 /// Converts a character array starting at data with length size into an integer.
 /// If bIsHex is true input will be interpreted as hex string
 template<class Integer>
-Integer kToInt(const char* data, size_t size, bool bIsHex = false) noexcept
+int64_t kToInt(const char* data, size_t size, bool bIsHex = false) noexcept
 //-----------------------------------------------------------------------------
 {
-	Integer iVal{0};
-	bool bNeg{false};
+	int64_t iVal{0};
+	bool    bNeg{false};
 
 	while (size && std::isspace(*data))
 	{

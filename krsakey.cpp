@@ -41,7 +41,7 @@
  */
 
 #include <openssl/evp.h>
-#include <openssl/pem.h>
+#include <openssl/rsa.h>
 #include "krsakey.h"
 #include "kbase64.h"
 #include "klog.h"
@@ -102,32 +102,40 @@ bool KRSAKey::Create()
 		return false;
 	}
 
+#if OPENSSL_VERSION_NUMBER >= 0x010100000
+
+	RSA_set0_key(rsa, Base64ToBignum(n), Base64ToBignum(e), Base64ToBignum(d));
+
+	if (!p.empty() && !q.empty())
+	{
+		RSA_set0_factors(rsa, Base64ToBignum(p), Base64ToBignum(q));
+	}
+
+	if (!dp.empty() && !dq.empty() && !qi.empty())
+	{
+		RSA_set0_crt_params(rsa, Base64ToBignum(dp), Base64ToBignum(dq), Base64ToBignum(qi));
+	}
+
+#else
+
 	rsa->n = Base64ToBignum(n);
 	rsa->e = Base64ToBignum(e);
-	if (!d.empty())
-	{
-		rsa->d = Base64ToBignum(d);
-	}
-	if (!p.empty())
+	rsa->d = Base64ToBignum(d);
+
+	if (!p.empty() && !q.empty())
 	{
 		rsa->p = Base64ToBignum(p);
-	}
-	if (!q.empty())
-	{
 		rsa->q = Base64ToBignum(q);
 	}
-	if (!dp.empty())
+	
+	if (!dp.empty() && !dq.empty() && !qi.empty())
 	{
 		rsa->dmp1 = Base64ToBignum(dp);
-	}
-	if (!dq.empty())
-	{
 		rsa->dmq1 = Base64ToBignum(dq);
-	}
-	if (!qi.empty())
-	{
 		rsa->iqmp = Base64ToBignum(qi);
 	}
+
+#endif
 
 	m_EVPPKey = EVP_PKEY_new();
 	if (!m_EVPPKey)

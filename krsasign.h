@@ -48,6 +48,7 @@
 #include "kstream.h"
 #include "kstringview.h"
 #include "kstring.h"
+#include "krsakey.h"
 
 
 namespace dekaf2 {
@@ -61,6 +62,14 @@ class KRSABase
 //------
 public:
 //------
+
+	enum ALGORITHM
+	{
+		NONE,
+		SHA256,
+		SHA384,
+		SHA512
+	};
 
 	/// copy construction
 	KRSABase(const KRSABase&) = delete;
@@ -79,12 +88,21 @@ public:
 protected:
 //------
 
-	KRSABase(KStringView sPubKey, KStringView sPrivKey = KStringView{});
+	KRSABase(ALGORITHM Algorithm, KStringView sPubKey, KStringView sPrivKey = KStringView{});
+	KRSABase(ALGORITHM Algorithm, KRSAKey& Key);
 
 	void Release();
 
 	void* evpctx { nullptr }; // is a EVP_MD_CTX
 	void* evppkey { nullptr }; // is a EVP_PKEY
+
+//------
+private:
+//------
+
+	void InitAlgorithm(ALGORITHM Algorithm);
+
+	bool m_bOwnPointers { false };
 
 }; // KRSABase
 
@@ -98,6 +116,10 @@ class KRSASign : public KRSABase
 //------
 public:
 //------
+
+	KRSASign(ALGORITHM Algorithm, KStringView sPubKey, KStringView sPrivKey, KStringView sMessage = KStringView{});
+
+	KRSASign(ALGORITHM Algorithm, KRSAKey& Key, KStringView sMessage = KStringView{});
 
 	/// copy construction
 	KRSASign(const KRSASign&) = delete;
@@ -148,11 +170,6 @@ public:
 protected:
 //------
 
-	KRSASign(KStringView sPubKey, KStringView sPrivKey = KStringView{})
-	: KRSABase(sPubKey, sPrivKey)
-	{
-	}
-
 	mutable KString m_sSignature;
 
 }; // KRSASign
@@ -167,6 +184,10 @@ class KRSAVerify : public KRSABase
 //------
 public:
 //------
+
+	KRSAVerify(ALGORITHM Algorithm, KStringView sPubKey, KStringView sMessage = KStringView{});
+
+	KRSAVerify(ALGORITHM Algorithm, KRSAKey& Key, KStringView sMessage = KStringView{});
 
 	/// copy construction
 	KRSAVerify(const KRSAVerify&) = delete;
@@ -207,92 +228,9 @@ public:
 protected:
 //------
 
-	KRSAVerify(KStringView sPubKey)
-	: KRSABase(sPubKey, KStringView{})
-	{
-	}
-
 	mutable KString m_sSignature;
 
 }; // KRSASign
-
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class KRSASign_SHA256 : public KRSASign
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-{
-
-//------
-public:
-//------
-
-	KRSASign_SHA256(KStringView sPubKey, KStringView sPrivKey, KStringView sMessage = KStringView{});
-
-}; // KRSASign_SHA256
-
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class KRSASign_SHA384 : public KRSASign
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-{
-
-	//------
-public:
-	//------
-
-	KRSASign_SHA384(KStringView sPubKey, KStringView sPrivKey, KStringView sMessage = KStringView{});
-
-}; // KRSASign_SHA384
-
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class KRSASign_SHA512 : public KRSASign
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-{
-
-//------
-public:
-//------
-
-	KRSASign_SHA512(KStringView sPubKey, KStringView sPrivKey, KStringView sMessage = KStringView{});
-
-}; // KRSASign_SHA512
-
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class KRSAVerify_SHA256 : public KRSAVerify
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-{
-
-	//------
-public:
-	//------
-
-	KRSAVerify_SHA256(KStringView sPubKey, KStringView sMessage = KStringView{});
-
-}; // KRSAVerify_SHA256
-
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class KRSAVerify_SHA384 : public KRSAVerify
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-{
-
-	//------
-public:
-	//------
-
-	KRSAVerify_SHA384(KStringView sPubKey, KStringView sMessage = KStringView{});
-
-}; // KRSAVerify_SHA384
-
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class KRSAVerify_SHA512 : public KRSAVerify
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-{
-
-	//------
-public:
-	//------
-
-	KRSAVerify_SHA512(KStringView sPubKey, KStringView sMessage = KStringView{});
-
-}; // KRSAVerify_SHA512
 
 } // end of namespace dekaf2
 

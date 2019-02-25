@@ -72,11 +72,51 @@ KRSABase& KRSABase::operator=(KRSABase&& other)
 } // move ctor
 
 //---------------------------------------------------------------------------
-KRSABase::KRSABase(KStringView sPubKey, KStringView sPrivKey)
+void KRSABase::InitAlgorithm(ALGORITHM Algorithm)
 //---------------------------------------------------------------------------
 {
 	evpctx = EVP_MD_CTX_create();
 
+	if (!evpctx)
+	{
+		kDebug(1, "cannot create context");
+		Release();
+		return;
+	}
+
+	const EVP_MD*(*callback)(void) = nullptr;
+
+	switch (Algorithm)
+	{
+		case SHA256:
+			callback = EVP_sha256;
+			break;
+
+		case SHA384:
+			callback = EVP_sha384;
+			break;
+
+		case SHA512:
+			callback = EVP_sha512;
+			break;
+
+		case NONE:
+			break;
+	}
+
+	if (1 != EVP_SignInit(static_cast<EVP_MD_CTX*>(evpctx), callback()))
+	{
+		kDebug(1, "cannot initialize algorithm");
+		Release();
+	}
+
+} // InitAlgorithm
+
+//---------------------------------------------------------------------------
+KRSABase::KRSABase(ALGORITHM Algorithm, KStringView sPubKey, KStringView sPrivKey)
+//---------------------------------------------------------------------------
+	: m_bOwnPointers(true)
+{
 	std::unique_ptr<BIO, decltype(&BIO_free_all)> pubkey_bio(BIO_new(BIO_s_mem()), BIO_free_all);
 
 	if (static_cast<size_t>(BIO_write(pubkey_bio.get(), sPubKey.data(), sPubKey.size())) != sPubKey.size())
@@ -116,6 +156,18 @@ KRSABase::KRSABase(KStringView sPubKey, KStringView sPrivKey)
 		}
 	}
 
+	InitAlgorithm(Algorithm);
+
+} // ctor
+
+//---------------------------------------------------------------------------
+KRSABase::KRSABase(ALGORITHM Algorithm, KRSAKey& PubKey)
+//---------------------------------------------------------------------------
+	: evppkey(PubKey.GetEVPPKey())
+	, m_bOwnPointers(false)
+{
+	InitAlgorithm(Algorithm);
+
 } // ctor
 
 //---------------------------------------------------------------------------
@@ -124,20 +176,50 @@ void KRSABase::Release()
 {
 	if (evppkey)
 	{
-		EVP_PKEY_free(static_cast<EVP_PKEY*>(evppkey));
+		if (m_bOwnPointers)
+		{
+			EVP_PKEY_free(static_cast<EVP_PKEY*>(evppkey));
+		}
 		evppkey = nullptr;
 	}
 	if (evpctx)
 	{
+		if (m_bOwnPointers)
+		{
 #if OPENSSL_VERSION_NUMBER < 0x010100000
-		EVP_MD_CTX_destroy(static_cast<EVP_MD_CTX*>(evpctx));
+			EVP_MD_CTX_destroy(static_cast<EVP_MD_CTX*>(evpctx));
 #else
-		EVP_MD_CTX_free(static_cast<EVP_MD_CTX*>(evpctx));
+			EVP_MD_CTX_free(static_cast<EVP_MD_CTX*>(evpctx));
 #endif
+		}
 		evpctx = nullptr;
 	}
 
 } // Release
+
+//---------------------------------------------------------------------------
+KRSASign::KRSASign(ALGORITHM Algorithm, KStringView sPubKey, KStringView sPrivKey, KStringView sMessage)
+//---------------------------------------------------------------------------
+: KRSABase(Algorithm, sPubKey, sPrivKey)
+{
+	if (!sMessage.empty())
+	{
+		Update(sMessage);
+	}
+
+} // ctor
+
+//---------------------------------------------------------------------------
+KRSASign::KRSASign(ALGORITHM Algorithm, KRSAKey& Key, KStringView sMessage)
+//---------------------------------------------------------------------------
+: KRSABase(Algorithm, Key)
+{
+	if (!sMessage.empty())
+	{
+		Update(sMessage);
+	}
+
+} // ctor
 
 //---------------------------------------------------------------------------
 KRSASign::KRSASign(KRSASign&& other)
@@ -241,6 +323,30 @@ const KString& KRSASign::Signature() const
 } // Signature
 
 //---------------------------------------------------------------------------
+KRSAVerify::KRSAVerify(ALGORITHM Algorithm, KStringView sPubKey, KStringView sMessage)
+//---------------------------------------------------------------------------
+: KRSABase(Algorithm, sPubKey)
+{
+	if (!sMessage.empty())
+	{
+		Update(sMessage);
+	}
+
+} // ctor
+
+//---------------------------------------------------------------------------
+KRSAVerify::KRSAVerify(ALGORITHM Algorithm, KRSAKey& Key, KStringView sMessage)
+//---------------------------------------------------------------------------
+: KRSABase(Algorithm, Key)
+{
+	if (!sMessage.empty())
+	{
+		Update(sMessage);
+	}
+
+} // ctor
+
+//---------------------------------------------------------------------------
 KRSAVerify::KRSAVerify(KRSAVerify&& other)
 //---------------------------------------------------------------------------
 	: KRSABase(std::move(other))
@@ -339,126 +445,6 @@ bool KRSAVerify::Verify(KStringView sSignature) const
 	return m_sSignature == sSignature;
 
 } // Signature
-
-//---------------------------------------------------------------------------
-KRSASign_SHA256::KRSASign_SHA256(KStringView sPubKey, KStringView sPrivKey, KStringView sMessage)
-//---------------------------------------------------------------------------
-	: KRSASign(sPubKey, sPrivKey)
-{
-	if (evpctx)
-	{
-		if (1 != EVP_SignInit(static_cast<EVP_MD_CTX*>(evpctx), EVP_sha256()))
-		{
-			kDebug(1, "cannot initialize signature");
-			Release();
-		}
-		else if (!sMessage.empty())
-		{
-			Update(sMessage);
-		}
-	}
-
-} // ctor
-
-//---------------------------------------------------------------------------
-KRSASign_SHA384::KRSASign_SHA384(KStringView sPubKey, KStringView sPrivKey, KStringView sMessage)
-//---------------------------------------------------------------------------
-	: KRSASign(sPubKey, sPrivKey)
-{
-	if (evpctx)
-	{
-		if (1 != EVP_SignInit(static_cast<EVP_MD_CTX*>(evpctx), EVP_sha384()))
-		{
-			kDebug(1, "cannot initialize signature");
-			Release();
-		}
-		else if (!sMessage.empty())
-		{
-			Update(sMessage);
-		}
-	}
-
-} // ctor
-
-//---------------------------------------------------------------------------
-KRSASign_SHA512::KRSASign_SHA512(KStringView sPubKey, KStringView sPrivKey, KStringView sMessage)
-//---------------------------------------------------------------------------
-	: KRSASign(sPubKey, sPrivKey)
-{
-	if (evpctx)
-	{
-		if (1 != EVP_SignInit(static_cast<EVP_MD_CTX*>(evpctx), EVP_sha512()))
-		{
-			kDebug(1, "cannot initialize signature");
-			Release();
-		}
-		else if (!sMessage.empty())
-		{
-			Update(sMessage);
-		}
-	}
-
-} // ctor
-
-//---------------------------------------------------------------------------
-KRSAVerify_SHA256::KRSAVerify_SHA256(KStringView sPubKey, KStringView sMessage)
-//---------------------------------------------------------------------------
-	: KRSAVerify(sPubKey)
-{
-	if (evpctx)
-	{
-		if (1 != EVP_VerifyInit(static_cast<EVP_MD_CTX*>(evpctx), EVP_sha256()))
-		{
-			kDebug(1, "cannot initialize verification");
-			Release();
-		}
-		else if (!sMessage.empty())
-		{
-			Update(sMessage);
-		}
-	}
-
-} // ctor
-
-//---------------------------------------------------------------------------
-KRSAVerify_SHA384::KRSAVerify_SHA384(KStringView sPubKey, KStringView sMessage)
-//---------------------------------------------------------------------------
-	: KRSAVerify(sPubKey)
-{
-	if (evpctx)
-	{
-		if (1 != EVP_VerifyInit(static_cast<EVP_MD_CTX*>(evpctx), EVP_sha384()))
-		{
-			kDebug(1, "cannot initialize verification");
-			Release();
-		}
-		else if (!sMessage.empty())
-		{
-			Update(sMessage);
-		}
-	}
-
-} // ctor
-
-//---------------------------------------------------------------------------
-KRSAVerify_SHA512::KRSAVerify_SHA512(KStringView sPubKey, KStringView sMessage)
-//---------------------------------------------------------------------------
-	: KRSAVerify(sPubKey)
-{
-	if (evpctx)
-	{
-		if (1 != EVP_VerifyInit(static_cast<EVP_MD_CTX*>(evpctx), EVP_sha512()))
-		{
-			kDebug(1, "cannot initialize verification");
-			Release();
-		}
-		else if (!sMessage.empty())
-		{
-			Update(sMessage);
-		}
-	}
-
-} // ctor
 
 } // end of namespace dekaf2
 

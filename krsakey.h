@@ -42,128 +42,70 @@
 
 #pragma once
 
-#include "kstring.h"
-#include "kurl.h"
-#include "kjson.h"
-#include "krsakey.h"
-#include <vector>
+/// @file krsakey.h
+/// RSA key conversions
+
+#include "kstringview.h"
 
 namespace dekaf2 {
 
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// holds all keys from a validated OpenID provider
-class KOpenIDKeys
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// RSA key class to transform formats
+class KRSAKey
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
-//----------
+//------
 public:
-//----------
+//------
 
-	KOpenIDKeys () = default;
-	/// query all known information about an OpenID provider
-	KOpenIDKeys (KURL URL);
-
-	KRSAKey GetKey(KStringView sAlgorithm, KStringView sKeyID, KStringView sKeyDigest) const;
-
-	/// return error string
-	const KString& Error() const { return m_sError; }
-	/// are all info valid?
-	bool IsValid() const { return Error().empty(); }
-
-	KJSON Keys;
-
-//----------
-private:
-//----------
-
-	bool Validate() const;
-	bool SetError(KString sError) const;
-
-	mutable KString m_sError;
-
-}; // KOpenIDKeys
-
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// holds all data from a validated OpenID provider
-class KOpenIDProvider
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-{
-
-//----------
-public:
-//----------
-
-	KOpenIDProvider () = default;
-	/// query all known information about an OpenID provider
-	KOpenIDProvider (KURL URL);
-
-	/// return error string
-	const KString& Error() const { return m_sError; }
-	/// are all info valid?
-	bool IsValid() const { return Error().empty(); }
-
-	KJSON Configuration;
-	KOpenIDKeys Keys;
-
-//----------
-private:
-//----------
-
-	bool Validate(const KURL& URL) const;
-	bool SetError(KString sError) const;
-
-	mutable KString m_sError;
-
-}; // KOpenIDProvider
-
-using KOpenIDProviderList = std::vector<KOpenIDProvider>;
-
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// holds an authentication token and validates it
-class KJWT
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-{
-
-//----------
-public:
-//----------
-
-	/// default ctor
-	KJWT() = default;
-
-	/// construct with a token
-	KJWT(KStringView sBase64Token, const KOpenIDProviderList& Providers)
+	struct Parameters
 	{
-		Check(sBase64Token, Providers);
+	};
+
+	KRSAKey() = default;
+	/// copy construction
+	KRSAKey(const KRSAKey&) = delete;
+	/// move construction
+	KRSAKey(KRSAKey&&);
+	~KRSAKey()
+	{
+		Release();
 	}
 
-	/// check a new token
-	bool Check(KStringView sBase64Token, const KOpenIDProviderList& Providers);
+	/// copy assignment
+	KRSAKey& operator=(const KRSAKey&) = delete;
+	/// move assignment
+	KRSAKey& operator=(KRSAKey&&);
 
-	/// return error string
-	const KString& Error() const { return m_sError; }
+	void clear();
 
-	/// is all info valid?
-	bool IsValid() const { return Error().empty(); }
+	bool empty() { return n.empty() || e.empty(); }
 
-	/// get user id ("subject")
-	const KString& GetUser() const;
+	bool Create();
 
-	KJSON Header;
-	KJSON Payload;
+	void* GetEVPPKey() const;
 
-//----------
+	KString n;
+	KString e;
+	KString d;
+	KString p;
+	KString q;
+	KString dp;
+	KString dq;
+	KString qi;
+
+//------
 private:
-//----------
+//------
 
-	bool Validate(const KOpenIDProvider& Provider);
-	bool SetError(KString sError);
-	void ClearJSON();
+	void Release();
 
-	mutable KString m_sError;
+	void* m_EVPPKey { nullptr }; // is a EVP_PKEY
+	bool m_bCreated { false };
 
-}; // KJWT
+}; // KRSAKey
+
 
 } // end of namespace dekaf2
 

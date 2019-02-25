@@ -103,10 +103,10 @@ KOpenIDKeys::KOpenIDKeys (KURL URL)
 } // ctor
 
 //-----------------------------------------------------------------------------
-KString KOpenIDKeys::GetPublicKey(KStringView sAlgorithm, KStringView sKeyID, KStringView sKeyDigest) const
+KRSAKey KOpenIDKeys::GetKey(KStringView sAlgorithm, KStringView sKeyID, KStringView sKeyDigest) const
 //-----------------------------------------------------------------------------
 {
-	KString sKey;
+	KRSAKey Key;
 
 	DEKAF2_TRY
 	{
@@ -120,7 +120,16 @@ KString KOpenIDKeys::GetPublicKey(KStringView sAlgorithm, KStringView sKeyID, KS
 				{
 					if (it["kty"] == "RSA")
 					{
-						sKey = it["n"];
+						Key.n  = kjson::GetString(it, "n");
+						Key.e  = kjson::GetString(it, "e");
+						Key.d  = kjson::GetString(it, "d");
+						Key.p  = kjson::GetString(it, "p");
+						Key.q  = kjson::GetString(it, "q");
+						Key.dp = kjson::GetString(it, "dp");
+						Key.dq = kjson::GetString(it, "dq");
+						Key.qi = kjson::GetString(it, "qi");
+						Key.Create();
+						// TODO add cache for the created key
 					}
 					break;
 				}
@@ -132,7 +141,7 @@ KString KOpenIDKeys::GetPublicKey(KStringView sAlgorithm, KStringView sKeyID, KS
 		SetError(kFormat("invalid JSON: {}", exc.what()));
 	}
 
-	return sKey;
+	return Key;
 
 } // GetPublicKey
 
@@ -259,12 +268,12 @@ bool KJWT::Validate(const KOpenIDProvider& Provider)
 
 	time_t now = Dekaf().GetCurrentTime();
 
-	if (Payload["nbf"].get_ref<const KString&>().Int64() > now)
+	if (Payload["nbf"] > now)
 	{
 		return SetError("token not yet valid");
 	}
 
-	if (Payload["exp"].get_ref<const KString&>().Int64() < now)
+	if (Payload["exp"] < now)
 	{
 		return SetError("token has expired");
 	}
@@ -296,7 +305,6 @@ bool KJWT::Check(KStringView sBase64Token, const KOpenIDProviderList& Providers)
 		}
 
 		kjson::Parse(Payload, KBase64Url::Decode(Part[1]));
-		auto sSignature = KBase64Url::Decode(Part[2]);
 
 		const KString& sAlgorithm = Header["alg"];
 		const KString& sKeyID     = Header["kid"];
@@ -311,29 +319,29 @@ bool KJWT::Check(KStringView sBase64Token, const KOpenIDProviderList& Providers)
 				break;
 			}
 
-			// find the public key
-			auto sPublicKey = Provider.Keys.GetPublicKey(sAlgorithm, sKeyID, sKeyDigest);
+			// find the key
+			auto Key = Provider.Keys.GetKey(sAlgorithm, sKeyID, sKeyDigest);
 
-			if (sPublicKey.empty())
+			if (Key.empty())
 			{
-				SetError("no matching public key");
+				SetError("no matching key");
 				// try the next provider ..
 				break;
 			}
 
-			std::unique_ptr<KRSAVerify> Verifier;
+			KRSAVerify::ALGORITHM Algorithm = KRSAVerify::NONE;
 
 			if (sAlgorithm == "RS256")
 			{
-				Verifier = std::make_unique<KRSAVerify_SHA256>(sPublicKey);
+				Algorithm = KRSAVerify::SHA256;
 			}
 			else if (sAlgorithm == "RS384")
 			{
-				Verifier = std::make_unique<KRSAVerify_SHA384>(sPublicKey);
+				Algorithm = KRSAVerify::SHA384;
 			}
 			else if (sAlgorithm == "RS512")
 			{
-				Verifier = std::make_unique<KRSAVerify_SHA512>(sPublicKey);
+				Algorithm = KRSAVerify::SHA512;
 			}
 			else
 			{
@@ -341,10 +349,12 @@ bool KJWT::Check(KStringView sBase64Token, const KOpenIDProviderList& Providers)
 				return SetError(kFormat("signature algorithm not supported: {}", sAlgorithm));
 			}
 
-			Verifier->Update(Part[0]);
-			Verifier->Update(".");
-			Verifier->Update(Part[1]);
-			if (!Verifier->Verify(Part[2]))
+			KRSAVerify Verifier(Algorithm, Key);
+
+			Verifier.Update(Part[0]);
+			Verifier.Update(".");
+			Verifier.Update(Part[1]);
+			if (!Verifier.Verify(KBase64Url::Decode(Part[2])))
 			{
 				// exit here if the key is not matching the signature
 				return SetError("bad signature");

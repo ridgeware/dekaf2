@@ -40,130 +40,123 @@
  //
  */
 
-#pragma once
-
-#include "kstring.h"
-#include "kurl.h"
-#include "kjson.h"
+#include <openssl/evp.h>
+#include <openssl/pem.h>
 #include "krsakey.h"
-#include <vector>
+#include "kbase64.h"
+#include "klog.h"
 
 namespace dekaf2 {
 
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// holds all keys from a validated OpenID provider
-class KOpenIDKeys
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+//---------------------------------------------------------------------------
+BIGNUM* Base64ToBignum(KStringView sBase64)
+//---------------------------------------------------------------------------
 {
+	auto sBin = KBase64Url::Decode(sBase64);
 
-//----------
-public:
-//----------
+	return BN_bin2bn(reinterpret_cast<unsigned char*>(sBin.data()), sBin.size(), nullptr);
 
-	KOpenIDKeys () = default;
-	/// query all known information about an OpenID provider
-	KOpenIDKeys (KURL URL);
+} // Base64ToBignum
 
-	KRSAKey GetKey(KStringView sAlgorithm, KStringView sKeyID, KStringView sKeyDigest) const;
-
-	/// return error string
-	const KString& Error() const { return m_sError; }
-	/// are all info valid?
-	bool IsValid() const { return Error().empty(); }
-
-	KJSON Keys;
-
-//----------
-private:
-//----------
-
-	bool Validate() const;
-	bool SetError(KString sError) const;
-
-	mutable KString m_sError;
-
-}; // KOpenIDKeys
-
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// holds all data from a validated OpenID provider
-class KOpenIDProvider
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+//---------------------------------------------------------------------------
+void KRSAKey::Release()
+//---------------------------------------------------------------------------
 {
-
-//----------
-public:
-//----------
-
-	KOpenIDProvider () = default;
-	/// query all known information about an OpenID provider
-	KOpenIDProvider (KURL URL);
-
-	/// return error string
-	const KString& Error() const { return m_sError; }
-	/// are all info valid?
-	bool IsValid() const { return Error().empty(); }
-
-	KJSON Configuration;
-	KOpenIDKeys Keys;
-
-//----------
-private:
-//----------
-
-	bool Validate(const KURL& URL) const;
-	bool SetError(KString sError) const;
-
-	mutable KString m_sError;
-
-}; // KOpenIDProvider
-
-using KOpenIDProviderList = std::vector<KOpenIDProvider>;
-
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// holds an authentication token and validates it
-class KJWT
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-{
-
-//----------
-public:
-//----------
-
-	/// default ctor
-	KJWT() = default;
-
-	/// construct with a token
-	KJWT(KStringView sBase64Token, const KOpenIDProviderList& Providers)
+	if (m_EVPPKey)
 	{
-		Check(sBase64Token, Providers);
+		EVP_PKEY_free(static_cast<EVP_PKEY*>(m_EVPPKey));
+		m_EVPPKey = nullptr;
 	}
 
-	/// check a new token
-	bool Check(KStringView sBase64Token, const KOpenIDProviderList& Providers);
+	m_bCreated = false;
 
-	/// return error string
-	const KString& Error() const { return m_sError; }
+} // dtor
 
-	/// is all info valid?
-	bool IsValid() const { return Error().empty(); }
+//---------------------------------------------------------------------------
+void KRSAKey::clear()
+//---------------------------------------------------------------------------
+{
+	n.clear();
+	e.clear();
+	d.clear();
+	p.clear();
+	q.clear();
+	dp.clear();
+	dq.clear();
+	qi.clear();
 
-	/// get user id ("subject")
-	const KString& GetUser() const;
+	Release();
 
-	KJSON Header;
-	KJSON Payload;
+} // clear
 
-//----------
-private:
-//----------
+//---------------------------------------------------------------------------
+bool KRSAKey::Create()
+//---------------------------------------------------------------------------
+{
+	Release();
 
-	bool Validate(const KOpenIDProvider& Provider);
-	bool SetError(KString sError);
-	void ClearJSON();
+	auto rsa = RSA_new();
 
-	mutable KString m_sError;
+	if (!rsa)
+	{
+		return false;
+	}
 
-}; // KJWT
+	rsa->n = Base64ToBignum(n);
+	rsa->e = Base64ToBignum(e);
+	if (!d.empty())
+	{
+		rsa->d = Base64ToBignum(d);
+	}
+	if (!p.empty())
+	{
+		rsa->p = Base64ToBignum(p);
+	}
+	if (!q.empty())
+	{
+		rsa->q = Base64ToBignum(q);
+	}
+	if (!dp.empty())
+	{
+		rsa->dmp1 = Base64ToBignum(dp);
+	}
+	if (!dq.empty())
+	{
+		rsa->dmq1 = Base64ToBignum(dq);
+	}
+	if (!qi.empty())
+	{
+		rsa->iqmp = Base64ToBignum(qi);
+	}
+
+	m_EVPPKey = EVP_PKEY_new();
+	if (!m_EVPPKey)
+	{
+		RSA_free(rsa);
+		return false;
+	}
+
+	EVP_PKEY_assign(static_cast<EVP_PKEY*>(m_EVPPKey), EVP_PKEY_RSA, rsa);
+
+	m_bCreated = true;
+	
+	return true;
+
+} // Create
+
+//---------------------------------------------------------------------------
+void* KRSAKey::GetEVPPKey() const
+//---------------------------------------------------------------------------
+{
+	if (!m_bCreated)
+	{
+		kDebug(1, "EVP Key not yet created..");
+	}
+
+	return m_EVPPKey;
+
+} // GetEVPPKey
 
 } // end of namespace dekaf2
+
 

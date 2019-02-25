@@ -500,9 +500,16 @@ KJSON KROW::to_json () const
 			{
 				json[col.first] = col.second.sValue.Double();
 			}
-			else
+			// note: we need to split out signed and unsigned to avoid overflows on some platforms
+			// when the string represents a really large number (like an FNV hash):
+			// signed integer overflow: 1063188930240168165 * 10 cannot be represented in type 'long int'
+			else if (col.second.sValue.StartsWith("-"))
 			{
 				json[col.first] = col.second.sValue.Int64();
+			}
+			else
+			{
+				json[col.first] = col.second.sValue.UInt64();
 			}
 		}
 		else if (col.second.IsFlag(BOOLEAN))
@@ -573,3 +580,18 @@ KROW& KROW::operator+=(const KJSON& json)
 
 } // operator+=(KJSON)
 
+//-----------------------------------------------------------------------------
+bool KROW::Exists (KStringView sColName)
+//-----------------------------------------------------------------------------
+{
+	// linear search (sorry)
+	for (auto& col : *this)
+	{
+		if (sColName == col.first) {
+			return true;
+		}
+	}
+
+	return false;
+
+} // Exists

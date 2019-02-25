@@ -4072,23 +4072,24 @@ bool KSQL::SetAPISet (API iAPISet)
 } // SetAPISet
 
 //-----------------------------------------------------------------------------
-bool KSQL::SetFlags (Flags iFlags)
+uint64_t KSQL::SetFlags (Flags iFlags)
 //-----------------------------------------------------------------------------
 {
 	kDebugLog (3, "KSQL::SetFlags()...");
 
 	// FYI: there is nothing database specific in this member function
 
-	if (QueryStarted())
-	{
-		m_sLastError.Format ("{}SetFlags(): you cannot change flags while a query is in process.", m_sErrorPrefix);
-		SQLError();
-		return (false);
-	}
+	//if (QueryStarted())  KEEF: i dont care about this anymore.  let the flags apply to the next action
+	//{
+	//	m_sLastError.Format ("{}SetFlags(): you cannot change flags while a query is in process.", m_sErrorPrefix);
+	//	SQLError();
+	//	return (false);
+	//}
 
+	auto iSaved = m_iFlags;
 	m_iFlags = iFlags;
 
-	return (true);
+	return (iSaved);
 
 } // KSQL::SetFlags
 
@@ -6413,5 +6414,87 @@ bool KSQL::CommitTransaction (KStringView sOptions/*=""*/)
 	return ExecSQL ("commit%s%s", sOptions.empty() ? "" : " ", sOptions.empty() ? KStringView("") : sOptions);
 
 } // CommitTransaction
+
+//-----------------------------------------------------------------------------
+KString KSQL::FormAndClause (KStringView sDbCol, KString/*copy*/ sQueryParm, FAC_TYPE iType/*=FAC+NORMAL*/)
+//-----------------------------------------------------------------------------
+{
+	if (sQueryParm.empty())
+	{
+		return ""; // empty
+	}
+
+	sQueryParm.Replace("'",""); // insulation from embedded quotes (not expected)
+
+	// - - - - - - - - - - - - - - - - - - - - - - - - -
+	// "between" logic:
+	// - - - - - - - - - - - - - - - - - - - - - - - - -
+	if (iType == FAC_BETWEEN)
+	{
+		KStack <KString>Parts;
+		kSplit (Parts, sQueryParm, "-");
+		if (Parts.size() == 1)
+		{
+			return kFormat ("   and {} = {}\n", sDbCol, Parts[0].UInt16());
+		}
+		else
+		{
+			return kFormat ("   and {} between {} and {}\n", sDbCol, Parts[0].UInt16(), Parts[0].UInt16());
+		}
+	}
+
+	// - - - - - - - - - - - - - - - - - - - - - - - - -
+	// single value (no comma):
+	// - - - - - - - - - - - - - - - - - - - - - - - - -
+	else if (!sQueryParm.Contains(","))
+	{
+		if (iType == FAC_NUMERIC)
+		{
+			return kFormat ("   and {} = {}\n", sDbCol, sQueryParm.UInt64());
+		}
+		else if (iType == FAC_SUBSELECT)
+		{
+			return kFormat ("   and {} = '{}')\n", sDbCol, sQueryParm); // needs an extra close paren
+		}
+		else
+		{
+			return kFormat ("   and {} = '{}'\n", sDbCol, sQueryParm);
+		}
+	}
+
+	// - - - - - - - - - - - - - - - - - - - - - - - - -
+	// comma-delimed list:
+	// - - - - - - - - - - - - - - - - - - - - - - - - -
+	else
+	{
+		KString sList;
+		bool    bComma{false};
+		KStack  <KString>List;  kSplit (List, sQueryParm, ",");
+
+		for (auto& sOne : List)
+		{
+			if (iType == FAC_NUMERIC)
+			{
+				sList += kFormat ("{}{}", bComma ? "," : "", sOne.UInt64());
+			}
+			else
+			{
+				sList += kFormat ("{}'{}'", bComma ? "," : "", sOne);
+			}
+
+			bComma = true;
+		}
+
+		if (iType == FAC_SUBSELECT)
+		{
+			return kFormat ("   and {} in ({}))\n", sDbCol, sList); // needs an extra close paren
+		}
+		else
+		{
+			return kFormat ("   and {} in ({})\n", sDbCol, sList);
+		}
+	}
+
+} // FormAndClause
 
 } // namespace dekaf2

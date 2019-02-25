@@ -517,13 +517,19 @@ Integer kToInt(const char* data, size_t size, bool bIsHex = false) noexcept
 //-----------------------------------------------------------------------------
 {
 	Integer iVal{0};
-	bool bNeg{false};
+	bool    bNeg{false};
 
 	while (size && std::isspace(*data))
 	{
 		++data;
 		--size;
 	}
+
+	// Note: handy test case.  An FNV hash of this string:
+	// "7b0a09227370696465725f72756c6573223a207b0a0909227573655f736974656d617073223a2022796573222c0a090922636865636b5f6d6574615f726f626f7473223a2022796573222c0a09092273746172745f75726973223a205b0a09090922687474703a2f2f6b6f6c74756e62616c6c6574626f73746f6e2e636f6d220a09095d2c0a090922726f626f7473223a2022796573220a097d2c0a09227472616e736c6174696f6e5f72756c6573223a207b0a0909226e6f5f7472616e736c617465223a205b5d2c0a0909227365745f61735f626c6f636b5f746167223a205b5d2c0a0909227365745f61735f696e6c696e655f746167223a205b5d0a097d2c0a092276657273696f6e223a20320a7d0a"
+	// computes to this large integer: 10631889302401681659 which does not fit in signed 64 bit.
+	// So it's great for testing all the template code and methods to deal strictly
+	// with unsigned ints along the way.
 
 	if (size && *data == '-')
 	{

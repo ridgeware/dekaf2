@@ -383,6 +383,10 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 					{
 						kDebug (2, "request body is not JSON: {}", sError);
 						json.rx.clear();
+						if (Options.bThrowIfInvalidJson)
+						{
+							throw KHTTPError { KHTTPError::H4xx_BADREQUEST, kFormat ("invalid JSON: {}", sError) };
+						}
 					}
 					else
 					{

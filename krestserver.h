@@ -297,6 +297,7 @@ public:
 		mutable OutputType Out { HTTP };           // Which of the three output formats?
 		AUTH_LEVEL AuthLevel { ALLOW_ALL };        // Which authentication level?
 		bool bRecordRequest { false };             // Shall we record into the sRecordFile? Value is expected to change during execution (could be made an atomic, but we don't care for a few missing records)
+		bool bThrowIfInvalidJson {false };         // Shall we throw if the request body contains invalid JSON
 
 	}; // Options
 

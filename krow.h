@@ -349,6 +349,9 @@ public:
 	/// Returns the tablename of this KROW object (if set).
 	KStringView GetTablename() const { return (m_sTablename); }
 
+	/// Returns true if column is part of the row object.
+	bool Exists (KStringView sColName);
+
 	enum
 	{
 		NOFLAG           = 0,        ///< Reset flags, column will be seen as string value

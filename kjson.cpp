@@ -112,7 +112,7 @@ bool Parse (KJSON& json, KStringView sJSON, KString& sError)
 		return false;
 	}
 
-} // kParse
+} // Parse
 
 //-----------------------------------------------------------------------------
 void Parse (KJSON& json, KStringView sJSON)
@@ -168,7 +168,23 @@ void Parse (KJSON& json, KInStream& InStream)
 		InStream >> json;
 	}
 
-} // kParse
+} // Parse
+
+//-----------------------------------------------------------------------------
+const KString& GetStringRef(const KJSON& json, KStringView sKey)
+//-----------------------------------------------------------------------------
+{
+	static KString s_sEmpty{};
+
+	auto it = json.find(sKey);
+	if (it != json.end())
+	{
+		return it.value().get_ref<const KString&>();
+	}
+
+	return s_sEmpty;
+
+} // GetString
 
 //-----------------------------------------------------------------------------
 KString GetString(const KJSON& json, KStringView sKey)
@@ -185,7 +201,7 @@ KString GetString(const KJSON& json, KStringView sKey)
 
 	return sReturn;
 
-} // kGetString
+} // GetString
 
 //-----------------------------------------------------------------------------
 KJSON GetObject (const KJSON& json, KStringView sKey)
@@ -208,7 +224,7 @@ KJSON GetObject (const KJSON& json, KStringView sKey)
 
 	return (oReturnMe);
 
-} // kGetObject
+} // GetObject
 
 //-----------------------------------------------------------------------------
 void Escape (KStringView sInput, KString& sOutput)

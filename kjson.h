@@ -146,7 +146,12 @@ namespace kjson
 	/// input.
 	void SetStringFromUTF8orLatin1(KJSON& json, KStringView sInput);
 
-	/// returns a value for a string key, does never throw
+	/// Returns a ref for a string key, does never throw. Returns empty ref
+	/// for non-string values.
+	const KString& GetStringRef(const KJSON& json, KStringView sKey);
+
+	/// Returns a value for a string key, does never throw. Prints non-string
+	/// values into string representation.
 	KString GetString(const KJSON& json, KStringView sKey);
 
 	/// returns a value for an object key, does never throw

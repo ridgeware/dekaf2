@@ -224,9 +224,9 @@ public:
 	using base_type::ToLowerLocale;
 	using base_type::MatchRegex;
 	using base_type::MatchRegexGroups;
-
 	using base_type::Left;
 	using base_type::Mid;
+	using base_type::operator bool;
 
 	//-----------------------------------------------------------------------------
 	// nonstandard

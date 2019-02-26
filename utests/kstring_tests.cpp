@@ -1183,6 +1183,21 @@ TEST_CASE("KString") {
 		CHECK ( sLine.Contains("") == true );
 	}
 
+	SECTION ("operator bool()")
+	{
+		KString sString;
+		CHECK ( !sString );
+		if (sString)
+		{
+			CHECK( sString == "empty" );
+		}
 
+		sString = "abc";
+		CHECK ( sString );
+		if (!sString)
+		{
+			CHECK( sString == "non-empty" );
+		}
+	}
 }
 

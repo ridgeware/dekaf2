@@ -1102,5 +1102,21 @@ TEST_CASE("KStringView") {
 		CHECK ( sLine.Contains("") == true );
 	}
 
+	SECTION ("operator bool()")
+	{
+		KStringView sString;
+		CHECK ( !sString );
+		if (sString)
+		{
+			CHECK( sString == "empty" );
+		}
+
+		sString = "abc";
+		CHECK ( sString );
+		if (!sString)
+		{
+			CHECK( sString == "non-empty" );
+		}
+	}
 }
 

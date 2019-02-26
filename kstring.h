@@ -479,10 +479,10 @@ public:
 	/// changes the string to uppercase (UTF8)
 	self& MakeUpper();
 
-	/// changes the string to lowercase according to the current locale
+	/// changes the string to lowercase according to the current locale (does not work with UTF8 strings)
 	self& MakeLowerLocale();
 
-	/// changes the string to uppercase according to the current locale
+	/// changes the string to uppercase according to the current locale (does not work with UTF8 strings)
 	self& MakeUpperLocale();
 
 	/// returns a copy of the string in uppercase (UTF8)
@@ -491,10 +491,10 @@ public:
 	/// returns a copy of the string in lowercase (UTF8)
 	KString ToLower() const;
 
-	/// returns a copy of the string in uppercase according to the current locale
+	/// returns a copy of the string in uppercase according to the current locale (does not work with UTF8 strings)
 	KString ToUpperLocale() const;
 
-	/// returns a copy of the string in lowercase according to the current locale
+	/// returns a copy of the string in lowercase according to the current locale (does not work with UTF8 strings)
 	KString ToLowerLocale() const;
 
 	/// returns leftmost iCount chars of string
@@ -580,6 +580,9 @@ public:
 
 	/// return a KStringView much like a substr(), but without the cost
 	KStringView ToView(size_type pos, size_type n) const;
+
+	/// test if the string is non-empty
+	explicit operator bool() const { return !empty(); }
 
 	/// helper operator to allow KString as formatting arg of fmt::format
 	operator fmt::string_view() const;

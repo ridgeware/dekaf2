@@ -278,7 +278,8 @@ bool KJWT::Validate(const KOpenIDProvider& Provider)
 bool KJWT::Check(KStringView sBase64Token, const KOpenIDProviderList& Providers)
 //-----------------------------------------------------------------------------
 {
-	sBase64Token.TrimLeft().remove_prefix("Bearer ");
+	sBase64Token.TrimLeft();
+	sBase64Token.remove_prefix("Bearer ") || sBase64Token.remove_prefix("bearer ");
 
 	std::vector<KStringView> Part;
 
@@ -346,7 +347,7 @@ bool KJWT::Check(KStringView sBase64Token, const KOpenIDProviderList& Providers)
 			Verifier.Update(Part[0]);
 			Verifier.Update(".");
 			Verifier.Update(Part[1]);
-			
+
 			if (!Verifier.Verify(Key, KBase64Url::Decode(Part[2])))
 			{
 				// exit here if the key is not matching the signature

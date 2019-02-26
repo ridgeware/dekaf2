@@ -46,6 +46,7 @@
 /// RSA key conversions
 
 #include "kstringview.h"
+#include "kjson.h"
 
 namespace dekaf2 {
 
@@ -59,18 +60,48 @@ class KRSAKey
 public:
 //------
 
+	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	/// Parameter struct to create an RSA key
 	struct Parameters
+	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	{
+		/// constructs the parameter set from a json node
+		Parameters(const KJSON& json);
+
+		KStringView n;
+		KStringView e;
+		KStringView d;
+		KStringView p;
+		KStringView q;
+		KStringView dp;
+		KStringView dq;
+		KStringView qi;
 	};
 
 	KRSAKey() = default;
+	/// construct the key from parameters
+	KRSAKey(const Parameters& parms)
+	{
+		Create(parms);
+	}
+	/// construct the key from JSON
+	KRSAKey(const KJSON& json)
+	{
+		Create(json);
+	}
+	/// construct the key from PEM strings
+	KRSAKey(KStringView sPubKey, KStringView sPrivKey = KStringView{})
+	{
+		Create(sPubKey, sPrivKey);
+	}
+
 	/// copy construction
 	KRSAKey(const KRSAKey&) = delete;
 	/// move construction
 	KRSAKey(KRSAKey&&);
 	~KRSAKey()
 	{
-		Release();
+		clear();
 	}
 
 	/// copy assignment
@@ -78,31 +109,27 @@ public:
 	/// move assignment
 	KRSAKey& operator=(KRSAKey&&);
 
+	/// reset the key
 	void clear();
-
-	bool empty() { return n.empty() || e.empty(); }
-
-	bool Create();
-
+	/// test if key is set
+	bool empty() const { return !m_EVPPKey; }
+	/// create the key from parameters
+	bool Create(const Parameters& parms);
+	/// create the key from JSON
+	bool Create(const KJSON& json)
+	{
+		return Create(Parameters(json));
+	}
+	/// create the key from PEM strings
+	bool Create(KStringView sPubKey, KStringView sPrivKey = KStringView{});
+	/// get the key
 	void* GetEVPPKey() const;
-
-	KString n;
-	KString e;
-	KString d;
-	KString p;
-	KString q;
-	KString dp;
-	KString dq;
-	KString qi;
 
 //------
 private:
 //------
 
-	void Release();
-
 	void* m_EVPPKey { nullptr }; // is a EVP_PKEY
-	bool m_bCreated { false };
 
 }; // KRSAKey
 

@@ -55,51 +55,9 @@
 namespace dekaf2 {
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// RSA base class to init context and keys
-class KRSABase : public KMessageDigestBase
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-{
-
-//------
-public:
-//------
-
-	/// copy construction
-	KRSABase(const KRSABase&) = delete;
-	/// move construction
-	KRSABase(KRSABase&&);
-	~KRSABase()
-	{
-		Release();
-	}
-	/// copy assignment
-	KRSABase& operator=(const KRSABase&) = delete;
-	/// move assignment
-	KRSABase& operator=(KRSABase&&);
-
-//------
-protected:
-//------
-
-	KRSABase(ALGORITHM Algorithm, UpdateFunc _Updater, KStringView sPubKey, KStringView sPrivKey = KStringView{});
-	KRSABase(ALGORITHM Algorithm, UpdateFunc _Updater, KRSAKey& Key);
-
-	void Release();
-
-	void* evppkey { nullptr }; // is a EVP_PKEY
-
-//------
-private:
-//------
-
-	bool m_bOwnKeyPointer { false };
-
-}; // KRSABase
-
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// KRSASign gives the interface for all RSA signature algorithms. The
 /// framework allows to calculate signatures out of strings and streams.
-class KRSASign : public KRSABase
+class KRSASign : public KMessageDigestBase
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -107,44 +65,17 @@ class KRSASign : public KRSABase
 public:
 //------
 
-	KRSASign(ALGORITHM Algorithm, KStringView sPubKey, KStringView sPrivKey, KStringView sMessage = KStringView{});
-
-	KRSASign(ALGORITHM Algorithm, KRSAKey& Key, KStringView sMessage = KStringView{});
-
-	/// copy construction
-	KRSASign(const KRSASign&) = delete;
-	/// move construction
-	KRSASign(KRSASign&&);
-	/// copy assignment
-	KRSASign& operator=(const KRSASign&) = delete;
-	/// move assignment
-	KRSASign& operator=(KRSASign&&);
+	KRSASign(ALGORITHM Algorithm, KStringView sMessage = KStringView{});
 
 	/// returns the signature
-	const KString& Signature() const;
-	/// returns the signature
-	operator const KString&() const
-	{
-		return Signature();
-	}
-	/// returns the signature
-	const KString& operator()() const
-	{
-		return Signature();
-	}
-
-//------
-protected:
-//------
-
-	mutable KString m_sSignature;
+	KString Sign(KRSAKey& Key) const;
 
 }; // KRSASign
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// KRSAVerify gives the interface for all RSA signature verification algorithms. The
 /// framework allows to calculate signatures out of strings and streams.
-class KRSAVerify : public KRSABase
+class KRSAVerify : public KMessageDigestBase
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -152,27 +83,10 @@ class KRSAVerify : public KRSABase
 public:
 //------
 
-	KRSAVerify(ALGORITHM Algorithm, KStringView sPubKey, KStringView sMessage = KStringView{});
-
-	KRSAVerify(ALGORITHM Algorithm, KRSAKey& Key, KStringView sMessage = KStringView{});
-
-	/// copy construction
-	KRSAVerify(const KRSAVerify&) = delete;
-	/// move construction
-	KRSAVerify(KRSAVerify&&);
-	/// copy assignment
-	KRSAVerify& operator=(const KRSAVerify&) = delete;
-	/// move assignment
-	KRSAVerify& operator=(KRSAVerify&&);
+	KRSAVerify(ALGORITHM Algorithm, KStringView sMessage = KStringView{});
 
 	/// verifies the signature
-	bool Verify(KStringView sSignature) const;
-
-//------
-protected:
-//------
-
-	mutable KString m_sSignature;
+	bool Verify(KRSAKey& Key, KStringView sSignature) const;
 
 }; // KRSASign
 

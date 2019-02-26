@@ -41,6 +41,7 @@
  */
 
 #include <openssl/evp.h>
+#include <openssl/pem.h>
 #include <openssl/rsa.h>
 #include "krsakey.h"
 #include "kbase64.h"
@@ -59,7 +60,7 @@ BIGNUM* Base64ToBignum(KStringView sBase64)
 } // Base64ToBignum
 
 //---------------------------------------------------------------------------
-void KRSAKey::Release()
+void KRSAKey::clear()
 //---------------------------------------------------------------------------
 {
 	if (m_EVPPKey)
@@ -68,32 +69,18 @@ void KRSAKey::Release()
 		m_EVPPKey = nullptr;
 	}
 
-	m_bCreated = false;
-
-} // dtor
-
-//---------------------------------------------------------------------------
-void KRSAKey::clear()
-//---------------------------------------------------------------------------
-{
-	n.clear();
-	e.clear();
-	d.clear();
-	p.clear();
-	q.clear();
-	dp.clear();
-	dq.clear();
-	qi.clear();
-
-	Release();
-
 } // clear
 
 //---------------------------------------------------------------------------
-bool KRSAKey::Create()
+bool KRSAKey::Create(const Parameters& parms)
 //---------------------------------------------------------------------------
 {
-	Release();
+	clear();
+
+	if (parms.n.empty() || parms.e.empty())
+	{
+		return false;
+	}
 
 	auto rsa = RSA_new();
 
@@ -104,35 +91,35 @@ bool KRSAKey::Create()
 
 #if OPENSSL_VERSION_NUMBER >= 0x010100000
 
-	RSA_set0_key(rsa, Base64ToBignum(n), Base64ToBignum(e), Base64ToBignum(d));
+	RSA_set0_key(rsa, Base64ToBignum(parms.n), Base64ToBignum(parms.e), Base64ToBignum(parms.d));
 
-	if (!p.empty() && !q.empty())
+	if (!parms.p.empty() && !parms.q.empty())
 	{
-		RSA_set0_factors(rsa, Base64ToBignum(p), Base64ToBignum(q));
+		RSA_set0_factors(rsa, Base64ToBignum(parms.p), Base64ToBignum(parms.q));
 	}
 
-	if (!dp.empty() && !dq.empty() && !qi.empty())
+	if (!parms.dp.empty() && !parms.dq.empty() && !parms.qi.empty())
 	{
-		RSA_set0_crt_params(rsa, Base64ToBignum(dp), Base64ToBignum(dq), Base64ToBignum(qi));
+		RSA_set0_crt_params(rsa, Base64ToBignum(parms.dp), Base64ToBignum(parms.dq), Base64ToBignum(parms.qi));
 	}
 
 #else
 
-	rsa->n = Base64ToBignum(n);
-	rsa->e = Base64ToBignum(e);
-	rsa->d = Base64ToBignum(d);
+	rsa->n = Base64ToBignum(parms.n);
+	rsa->e = Base64ToBignum(parms.e);
+	rsa->d = Base64ToBignum(parms.d);
 
-	if (!p.empty() && !q.empty())
+	if (!parms.p.empty() && !parms.q.empty())
 	{
-		rsa->p = Base64ToBignum(p);
-		rsa->q = Base64ToBignum(q);
+		rsa->p = Base64ToBignum(parms.p);
+		rsa->q = Base64ToBignum(parms.q);
 	}
-	
-	if (!dp.empty() && !dq.empty() && !qi.empty())
+
+	if (!parms.dp.empty() && !parms.dq.empty() && !parms.qi.empty())
 	{
-		rsa->dmp1 = Base64ToBignum(dp);
-		rsa->dmq1 = Base64ToBignum(dq);
-		rsa->iqmp = Base64ToBignum(qi);
+		rsa->dmp1 = Base64ToBignum(parms.dp);
+		rsa->dmq1 = Base64ToBignum(parms.dq);
+		rsa->iqmp = Base64ToBignum(parms.qi);
 	}
 
 #endif
@@ -146,17 +133,62 @@ bool KRSAKey::Create()
 
 	EVP_PKEY_assign(static_cast<EVP_PKEY*>(m_EVPPKey), EVP_PKEY_RSA, rsa);
 
-	m_bCreated = true;
-	
 	return true;
 
 } // Create
 
 //---------------------------------------------------------------------------
+bool KRSAKey::Create(KStringView sPubKey, KStringView sPrivKey)
+//---------------------------------------------------------------------------
+{
+	std::unique_ptr<BIO, decltype(&BIO_free_all)> pubkey_bio(BIO_new(BIO_s_mem()), BIO_free_all);
+
+	if (static_cast<size_t>(BIO_write(pubkey_bio.get(), sPubKey.data(), sPubKey.size())) != sPubKey.size())
+	{
+		kWarning("cannot load public key");
+		return false;
+	}
+
+	m_EVPPKey = PEM_read_bio_PUBKEY(pubkey_bio.get(), nullptr, nullptr, nullptr); // last nullptr would be pubkey password
+	if (!m_EVPPKey)
+	{
+		kWarning("cannot load public key");
+		return false;
+	}
+
+	if (!sPrivKey.empty())
+	{
+		std::unique_ptr<BIO, decltype(&BIO_free_all)> privkey_bio(BIO_new(BIO_s_mem()), BIO_free_all);
+		if (static_cast<size_t>(BIO_write(privkey_bio.get(), sPrivKey.data(), sPrivKey.size())) != sPrivKey.size())
+		{
+			kWarning("cannot load private key");
+			return false;
+		}
+
+		RSA* privkey = PEM_read_bio_RSAPrivateKey(privkey_bio.get(), nullptr, nullptr, nullptr); // last parm would be privkey password
+		if (privkey == nullptr)
+		{
+			kWarning("cannot load private key");
+			return false;
+		}
+
+		if (EVP_PKEY_assign_RSA(static_cast<EVP_PKEY*>(m_EVPPKey), privkey) == 0)
+		{
+			RSA_free(privkey);
+			kWarning("cannot load private key");
+			return false;
+		}
+	}
+
+	return true;
+
+} // ctor
+
+//---------------------------------------------------------------------------
 void* KRSAKey::GetEVPPKey() const
 //---------------------------------------------------------------------------
 {
-	if (!m_bCreated)
+	if (!m_EVPPKey)
 	{
 		kDebug(1, "EVP Key not yet created..");
 	}
@@ -164,6 +196,20 @@ void* KRSAKey::GetEVPPKey() const
 	return m_EVPPKey;
 
 } // GetEVPPKey
+
+//---------------------------------------------------------------------------
+KRSAKey::Parameters::Parameters(const KJSON& json)
+//---------------------------------------------------------------------------
+	:  n(kjson::GetStringRef(json, "n"))
+	,  e(kjson::GetStringRef(json, "e"))
+	,  d(kjson::GetStringRef(json, "d"))
+	,  p(kjson::GetStringRef(json, "p"))
+	,  q(kjson::GetStringRef(json, "q"))
+	, dp(kjson::GetStringRef(json, "dp"))
+	, dq(kjson::GetStringRef(json, "dq"))
+	, qi(kjson::GetStringRef(json, "qi"))
+{
+}
 
 } // end of namespace dekaf2
 

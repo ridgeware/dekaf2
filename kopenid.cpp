@@ -120,15 +120,7 @@ KRSAKey KOpenIDKeys::GetKey(KStringView sAlgorithm, KStringView sKeyID, KStringV
 				{
 					if (it["kty"] == "RSA")
 					{
-						Key.n  = kjson::GetString(it, "n");
-						Key.e  = kjson::GetString(it, "e");
-						Key.d  = kjson::GetString(it, "d");
-						Key.p  = kjson::GetString(it, "p");
-						Key.q  = kjson::GetString(it, "q");
-						Key.dp = kjson::GetString(it, "dp");
-						Key.dq = kjson::GetString(it, "dq");
-						Key.qi = kjson::GetString(it, "qi");
-						Key.Create();
+						Key.Create(it);
 						// TODO add cache for the created key
 					}
 					break;
@@ -349,12 +341,13 @@ bool KJWT::Check(KStringView sBase64Token, const KOpenIDProviderList& Providers)
 				return SetError(kFormat("signature algorithm not supported: {}", sAlgorithm));
 			}
 
-			KRSAVerify Verifier(Algorithm, Key);
+			KRSAVerify Verifier(Algorithm);
 
 			Verifier.Update(Part[0]);
 			Verifier.Update(".");
 			Verifier.Update(Part[1]);
-			if (!Verifier.Verify(KBase64Url::Decode(Part[2])))
+			
+			if (!Verifier.Verify(Key, KBase64Url::Decode(Part[2])))
 			{
 				// exit here if the key is not matching the signature
 				return SetError("bad signature");

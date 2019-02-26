@@ -47,109 +47,14 @@
 
 namespace dekaf2 {
 
-
 //---------------------------------------------------------------------------
-KRSABase::KRSABase(KRSABase&& other)
-//---------------------------------------------------------------------------
-	: KMessageDigestBase(std::move(other))
-	, evppkey(other.evppkey)
-{
-	other.evppkey = nullptr;
-
-} // move ctor
-
-//---------------------------------------------------------------------------
-KRSABase& KRSABase::operator=(KRSABase&& other)
-//---------------------------------------------------------------------------
-{
-	KMessageDigestBase::operator=(std::move(other));
-	evppkey = other.evppkey;
-	other.evppkey = nullptr;
-	return *this;
-
-} // move assignment
-
-//---------------------------------------------------------------------------
-KRSABase::KRSABase(ALGORITHM Algorithm, UpdateFunc _Updater, KStringView sPubKey, KStringView sPrivKey)
-//---------------------------------------------------------------------------
-	: KMessageDigestBase(Algorithm, _Updater)
-	, m_bOwnKeyPointer(true)
-{
-	std::unique_ptr<BIO, decltype(&BIO_free_all)> pubkey_bio(BIO_new(BIO_s_mem()), BIO_free_all);
-
-	if (static_cast<size_t>(BIO_write(pubkey_bio.get(), sPubKey.data(), sPubKey.size())) != sPubKey.size())
-	{
-		kWarning("cannot load public key");
-		return;
-	}
-
-	evppkey = PEM_read_bio_PUBKEY(pubkey_bio.get(), nullptr, nullptr, nullptr); // last nullptr would be pubkey password
-	if (!evppkey)
-	{
-		kWarning("cannot load public key");
-		return;
-	}
-
-	if (!sPrivKey.empty())
-	{
-		std::unique_ptr<BIO, decltype(&BIO_free_all)> privkey_bio(BIO_new(BIO_s_mem()), BIO_free_all);
-		if (static_cast<size_t>(BIO_write(privkey_bio.get(), sPrivKey.data(), sPrivKey.size())) != sPrivKey.size())
-		{
-			kWarning("cannot load private key");
-			return;
-		}
-
-		RSA* privkey = PEM_read_bio_RSAPrivateKey(privkey_bio.get(), nullptr, nullptr, nullptr); // last parm would be privkey password
-		if (privkey == nullptr)
-		{
-			kWarning("cannot load private key");
-			return;
-		}
-
-		if (EVP_PKEY_assign_RSA(static_cast<EVP_PKEY*>(evppkey), privkey) == 0)
-		{
-			RSA_free(privkey);
-			kWarning("cannot load private key");
-			return;
-		}
-	}
-
-} // ctor
-
-//---------------------------------------------------------------------------
-KRSABase::KRSABase(ALGORITHM Algorithm, UpdateFunc _Updater, KRSAKey& PubKey)
-//---------------------------------------------------------------------------
-	: KMessageDigestBase(Algorithm, _Updater)
-	, evppkey(PubKey.GetEVPPKey())
-	, m_bOwnKeyPointer(false)
-{
-} // ctor
-
-//---------------------------------------------------------------------------
-void KRSABase::Release()
-//---------------------------------------------------------------------------
-{
-	if (evppkey)
-	{
-		if (m_bOwnKeyPointer)
-		{
-			EVP_PKEY_free(static_cast<EVP_PKEY*>(evppkey));
-		}
-		evppkey = nullptr;
-	}
-
-	KMessageDigestBase::Release();
-
-} // Release
-
-//---------------------------------------------------------------------------
-KRSASign::KRSASign(ALGORITHM Algorithm, KStringView sPubKey, KStringView sPrivKey, KStringView sMessage)
+KRSASign::KRSASign(ALGORITHM Algorithm, KStringView sMessage)
 //---------------------------------------------------------------------------
 // The real update function is EVP_SignUpdate, but as that is defined as a macro
 // (on EVP_DigestUpdate) the compiler cannot take it as a function argument. Therefore
 // we insert the aliased target directly. Needs changes should the alias change in
 // OpenSSL.
-: KRSABase(Algorithm, reinterpret_cast<UpdateFunc>(EVP_DigestUpdate), sPubKey, sPrivKey)
+: KMessageDigestBase(Algorithm, reinterpret_cast<UpdateFunc>(EVP_DigestUpdate))
 {
 	if (!sMessage.empty())
 	{
@@ -159,72 +64,40 @@ KRSASign::KRSASign(ALGORITHM Algorithm, KStringView sPubKey, KStringView sPrivKe
 } // ctor
 
 //---------------------------------------------------------------------------
-KRSASign::KRSASign(ALGORITHM Algorithm, KRSAKey& Key, KStringView sMessage)
+KString KRSASign::Sign(KRSAKey& Key) const
 //---------------------------------------------------------------------------
-// see comment about EVP_DigestUpdate in other constructor
-: KRSABase(Algorithm, reinterpret_cast<UpdateFunc>(EVP_DigestUpdate), Key)
 {
-	if (!sMessage.empty())
+	KString sSignature;
+
+	if (evpctx && !Key.empty())
 	{
-		Update(sMessage);
+		sSignature.resize(EVP_PKEY_size(static_cast<EVP_PKEY*>(Key.GetEVPPKey())));
+		unsigned int iDigestLen { 0 };
+
+		if (1 != EVP_SignFinal(static_cast<EVP_MD_CTX*>(evpctx), reinterpret_cast<unsigned char*>(sSignature.data()), &iDigestLen, static_cast<EVP_PKEY*>(Key.GetEVPPKey())))
+		{
+			kDebug(1, "cannot read signature");
+		}
+
+		sSignature.resize(iDigestLen);
+	}
+	else
+	{
+		kDebug(1, "no context");
 	}
 
-} // ctor
-
-//---------------------------------------------------------------------------
-KRSASign::KRSASign(KRSASign&& other)
-//---------------------------------------------------------------------------
-	: KRSABase(std::move(other))
-	, m_sSignature(std::move(other.m_sSignature))
-{
-} // move ctor
-
-//---------------------------------------------------------------------------
-KRSASign& KRSASign::operator=(KRSASign&& other)
-//---------------------------------------------------------------------------
-{
-	KRSABase::operator=(std::move(other));
-	m_sSignature = std::move(other.m_sSignature);
-	return *this;
-	
-} // move
-
-//---------------------------------------------------------------------------
-const KString& KRSASign::Signature() const
-//---------------------------------------------------------------------------
-{
-	if (m_sSignature.empty())
-	{
-		if (evpctx && evppkey)
-		{
-			m_sSignature.resize(EVP_PKEY_size(static_cast<EVP_PKEY*>(evppkey)));
-			unsigned int iDigestLen { 0 };
-
-			if (1 != EVP_SignFinal(static_cast<EVP_MD_CTX*>(evpctx), reinterpret_cast<unsigned char*>(m_sSignature.data()), &iDigestLen, static_cast<EVP_PKEY*>(evppkey)))
-			{
-				kDebug(1, "cannot read signature");
-			}
-
-			m_sSignature.resize(iDigestLen);
-		}
-		else
-		{
-			kDebug(1, "no context");
-		}
-	}
-
-	return m_sSignature;
+	return sSignature;
 
 } // Signature
 
 //---------------------------------------------------------------------------
-KRSAVerify::KRSAVerify(ALGORITHM Algorithm, KStringView sPubKey, KStringView sMessage)
+KRSAVerify::KRSAVerify(ALGORITHM Algorithm, KStringView sMessage)
 //---------------------------------------------------------------------------
 // The real update function is EVP_VerifyUpdate, but as that is defined as a macro
 // (on EVP_DigestUpdate) the compiler cannot take it as a function argument. Therefore
 // we insert the aliased target directly. Needs changes should the alias change in
 // OpenSSL.
-: KRSABase(Algorithm, reinterpret_cast<UpdateFunc>(EVP_DigestUpdate), sPubKey)
+: KMessageDigestBase(Algorithm, reinterpret_cast<UpdateFunc>(EVP_DigestUpdate))
 {
 	if (!sMessage.empty())
 	{
@@ -234,62 +107,27 @@ KRSAVerify::KRSAVerify(ALGORITHM Algorithm, KStringView sPubKey, KStringView sMe
 } // ctor
 
 //---------------------------------------------------------------------------
-KRSAVerify::KRSAVerify(ALGORITHM Algorithm, KRSAKey& Key, KStringView sMessage)
+bool KRSAVerify::Verify(KRSAKey& Key, KStringView _sSignature) const
 //---------------------------------------------------------------------------
-// see comment about EVP_DigestUpdate in other constructor
-: KRSABase(Algorithm, reinterpret_cast<UpdateFunc>(EVP_DigestUpdate), Key)
 {
-	if (!sMessage.empty())
+	if (evpctx && !Key.empty())
 	{
-		Update(sMessage);
+		if (1 != EVP_VerifyFinal(static_cast<EVP_MD_CTX*>(evpctx), reinterpret_cast<const unsigned char*>(_sSignature.data()), _sSignature.size(), static_cast<EVP_PKEY*>(Key.GetEVPPKey())))
+		{
+			kDebug(1, "cannot verify signature");
+			return false;
+		}
+		// this was the right signature
+		return true;
+	}
+	else
+	{
+		kDebug(1, "no context");
 	}
 
-} // ctor
+	return false;
 
-//---------------------------------------------------------------------------
-KRSAVerify::KRSAVerify(KRSAVerify&& other)
-//---------------------------------------------------------------------------
-	: KRSABase(std::move(other))
-	, m_sSignature(std::move(other.m_sSignature))
-{
-} // move ctor
-
-//---------------------------------------------------------------------------
-KRSAVerify& KRSAVerify::operator=(KRSAVerify&& other)
-//---------------------------------------------------------------------------
-{
-	KRSABase::operator=(std::move(other));
-	m_sSignature = std::move(other.m_sSignature);
-	return *this;
-
-} // move ctor
-
-//---------------------------------------------------------------------------
-bool KRSAVerify::Verify(KStringView sSignature) const
-//---------------------------------------------------------------------------
-{
-	if (m_sSignature.empty())
-	{
-		if (evpctx && evppkey)
-		{
-			if (1 != EVP_VerifyFinal(static_cast<EVP_MD_CTX*>(evpctx), reinterpret_cast<const unsigned char*>(sSignature.data()), sSignature.size(), static_cast<EVP_PKEY*>(evppkey)))
-			{
-				kDebug(1, "cannot verify signature");
-				m_sSignature = "fail";
-				return false;
-			}
-			// this was the right signature - we store it for future comparisons
-			m_sSignature = sSignature;
-		}
-		else
-		{
-			kDebug(1, "no context");
-		}
-	}
-
-	return m_sSignature == sSignature;
-
-} // Signature
+} // Verify
 
 } // end of namespace dekaf2
 

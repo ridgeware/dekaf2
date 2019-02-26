@@ -54,9 +54,9 @@
 namespace dekaf2 {
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// KMessageDigest gives the interface for all message digest algorithms. The
-/// framework allows to calculate digests out of strings and streams.
-class KMessageDigest
+/// KMessageDigestBase constructs the basic algorithms for message digest
+/// computations
+class KMessageDigestBase
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -64,18 +64,34 @@ class KMessageDigest
 public:
 //------
 
+	enum ALGORITHM
+	{
+		NONE,
+		MD5,
+		SHA1,
+		SHA224,
+		SHA256,
+		SHA384,
+		SHA512,
+#if OPENSSL_VERSION_NUMBER >= 0x010100000
+		BLAKE2S,
+		BLAKE2B,
+#endif
+	};
+
 	/// copy construction
-	KMessageDigest(const KMessageDigest&) = delete;
+	KMessageDigestBase(const KMessageDigestBase&) = delete;
 	/// move construction
-	KMessageDigest(KMessageDigest&&);
-	~KMessageDigest()
+	KMessageDigestBase(KMessageDigestBase&&);
+	// destruction
+	~KMessageDigestBase()
 	{
 		Release();
 	}
 	/// copy assignment
-	KMessageDigest& operator=(const KMessageDigest&) = delete;
+	KMessageDigestBase& operator=(const KMessageDigestBase&) = delete;
 	/// move assignment
-	KMessageDigest& operator=(KMessageDigest&&);
+	KMessageDigestBase& operator=(KMessageDigestBase&&);
 
 	/// appends a string to the digest
 	bool Update(KStringView sInput);
@@ -84,7 +100,7 @@ public:
 	/// appends a stream to the digest
 	bool Update(KInStream&& InputStream);
 	/// appends a string to the digest
-	KMessageDigest& operator+=(KStringView sInput)
+	KMessageDigestBase& operator+=(KStringView sInput)
 	{
 		Update(sInput);
 		return *this;
@@ -99,6 +115,51 @@ public:
 	{
 		Update(InputStream);
 	}
+
+//------
+protected:
+//------
+
+	// typedef for an EVP_Update function
+	using UpdateFunc = int(*)(void*, const void*, size_t);
+
+	/// construction
+	KMessageDigestBase(ALGORITHM Algorithm, UpdateFunc _Updater);
+
+	/// prepares for new computation
+	void clear();
+
+	/// releases context
+	void Release();
+
+	void* evpctx { nullptr };       // is a EVP_MD_CTX
+	UpdateFunc Updater { nullptr }; // is a EVP_Update function
+
+}; // KMessageDigest
+
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// KMessageDigest gives the interface for all message digest algorithms. The
+/// framework allows to calculate digests out of strings and streams.
+class KMessageDigest : public KMessageDigestBase
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+//------
+public:
+//------
+
+	/// construction
+	KMessageDigest(ALGORITHM Algorithm, KStringView sMessage = KStringView{});
+
+	/// copy construction
+	KMessageDigest(const KMessageDigest&) = delete;
+	/// move construction
+	KMessageDigest(KMessageDigest&&);
+
+	/// copy assignment
+	KMessageDigest& operator=(const KMessageDigest&) = delete;
+	/// move assignment
+	KMessageDigest& operator=(KMessageDigest&&);
 
 	/// returns the message digest
 	const KString& Digest() const;
@@ -120,12 +181,6 @@ public:
 protected:
 //------
 
-	/// default construction
-	KMessageDigest();
-
-	void Release();
-
-	void* mdctx { nullptr }; // is a EVP_MD_CTX
 	mutable KString m_sDigest;
 
 }; // KMessageDigest
@@ -139,13 +194,15 @@ class KMD5 : public KMessageDigest
 public:
 //------
 
-	KMD5(KStringView sMessage = KStringView{});
-	KMD5(const KString& sMessage)
-	: KMD5(KStringView(sMessage))
+	KMD5(KStringView sMessage = KStringView{})
+	: KMessageDigest(MD5, sMessage)
 	{}
-	KMD5(const char* sMessage)
-	: KMD5(KStringView(sMessage))
-	{}
+
+	KMD5& operator=(KStringView sMessage)
+	{
+		*this = KMD5(sMessage);
+		return *this;
+	}
 
 }; // KMD5
 
@@ -158,13 +215,15 @@ class KSHA1 : public KMessageDigest
 public:
 //------
 
-	KSHA1(KStringView sMessage = KStringView{});
-	KSHA1(const KString& sMessage)
-	: KSHA1(KStringView(sMessage))
+	KSHA1(KStringView sMessage = KStringView{})
+	: KMessageDigest(SHA1, sMessage)
 	{}
-	KSHA1(const char* sMessage)
-	: KSHA1(KStringView(sMessage))
-	{}
+
+	KSHA1& operator=(KStringView sMessage)
+	{
+		*this = KSHA1(sMessage);
+		return *this;
+	}
 
 }; // KSHA1
 
@@ -177,13 +236,15 @@ class KSHA224 : public KMessageDigest
 public:
 //------
 
-	KSHA224(KStringView sMessage = KStringView{});
-	KSHA224(const KString& sMessage)
-	: KSHA224(KStringView(sMessage))
+	KSHA224(KStringView sMessage = KStringView{})
+	: KMessageDigest(SHA224, sMessage)
 	{}
-	KSHA224(const char* sMessage)
-	: KSHA224(KStringView(sMessage))
-	{}
+
+	KSHA224& operator=(KStringView sMessage)
+	{
+		*this = KSHA224(sMessage);
+		return *this;
+	}
 
 }; // KSHA224
 
@@ -196,13 +257,15 @@ class KSHA256 : public KMessageDigest
 public:
 //------
 
-	KSHA256(KStringView sMessage = KStringView{});
-	KSHA256(const KString& sMessage)
-	: KSHA256(KStringView(sMessage))
+	KSHA256(KStringView sMessage = KStringView{})
+	: KMessageDigest(SHA256, sMessage)
 	{}
-	KSHA256(const char* sMessage)
-	: KSHA256(KStringView(sMessage))
-	{}
+
+	KSHA256& operator=(KStringView sMessage)
+	{
+		*this = KSHA256(sMessage);
+		return *this;
+	}
 
 }; // KSHA256
 
@@ -215,13 +278,15 @@ class KSHA384 : public KMessageDigest
 public:
 //------
 
-	KSHA384(KStringView sMessage = KStringView{});
-	KSHA384(const KString& sMessage)
-	: KSHA384(KStringView(sMessage))
+	KSHA384(KStringView sMessage = KStringView{})
+	: KMessageDigest(SHA384, sMessage)
 	{}
-	KSHA384(const char* sMessage)
-	: KSHA384(KStringView(sMessage))
-	{}
+
+	KSHA384& operator=(KStringView sMessage)
+	{
+		*this = KSHA384(sMessage);
+		return *this;
+	}
 
 }; // KSHA384
 
@@ -234,13 +299,15 @@ class KSHA512 : public KMessageDigest
 public:
 //------
 
-	KSHA512(KStringView sMessage = KStringView{});
-	KSHA512(const KString& sMessage)
-	: KSHA512(KStringView(sMessage))
+	KSHA512(KStringView sMessage = KStringView{})
+	: KMessageDigest(SHA512, sMessage)
 	{}
-	KSHA512(const char* sMessage)
-	: KSHA512(KStringView(sMessage))
-	{}
+
+	KSHA512& operator=(KStringView sMessage)
+	{
+		*this = KSHA512(sMessage);
+		return *this;
+	}
 
 }; // KSHA512
 
@@ -257,13 +324,15 @@ class KBLAKE2S : public KMessageDigest
 public:
 //------
 
-	KBLAKE2S(KStringView sMessage = KStringView{});
-	KBLAKE2S(const KString& sMessage)
-	: KBLAKE2S(KStringView(sMessage))
+	KBLAKE2S(KStringView sMessage = KStringView{})
+	: KMessageDigest(BLAKE2S, sMessage)
 	{}
-	KBLAKE2S(const char* sMessage)
-	: KBLAKE2S(KStringView(sMessage))
-	{}
+
+	KBLAKE2S& operator=(KStringView sMessage)
+	{
+		*this = KBLAKE2S(sMessage);
+		return *this;
+	}
 
 }; // KBLAKE2S
 
@@ -278,13 +347,15 @@ class KBLAKE2B : public KMessageDigest
 public:
 //------
 
-	KBLAKE2B(KStringView sMessage = KStringView{});
-	KBLAKE2B(const KString& sMessage)
-	: KBLAKE2B(KStringView(sMessage))
+	KBLAKE2B(KStringView sMessage = KStringView{})
+	: KMessageDigest(BLAKE2B, sMessage)
 	{}
-	KBLAKE2B(const char* sMessage)
-	: KBLAKE2B(KStringView(sMessage))
-	{}
+
+	KBLAKE2B& operator=(KStringView sMessage)
+	{
+		*this = KBLAKE2B(sMessage);
+		return *this;
+	}
 
 }; // KBLAKE2B
 

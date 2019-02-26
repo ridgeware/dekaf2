@@ -48,55 +48,102 @@ namespace dekaf2 {
 
 
 //---------------------------------------------------------------------------
-KMessageDigest::KMessageDigest()
+KMessageDigestBase::KMessageDigestBase(ALGORITHM Algorithm, UpdateFunc _Updater)
 //---------------------------------------------------------------------------
+	: Updater(_Updater)
 {
 	// 0x000906000 == 0.9.6 dev
 	// 0x010100000 == 1.1.0
 #if OPENSSL_VERSION_NUMBER < 0x010100000
-	mdctx = EVP_MD_CTX_create();
+	evpctx = EVP_MD_CTX_create();
 #else
-	mdctx = EVP_MD_CTX_new();
+	evpctx = EVP_MD_CTX_new();
 #endif
+
+	if (!evpctx)
+	{
+		kDebug(1, "cannot create context");
+		Release();
+		return;
+	}
+
+	const EVP_MD*(*callback)(void) = nullptr;
+
+	switch (Algorithm)
+	{
+		case MD5:
+			callback = EVP_md5;
+			break;
+
+		case SHA1:
+			callback = EVP_sha1;
+			break;
+
+		case SHA224:
+			callback = EVP_sha224;
+			break;
+
+		case SHA256:
+			callback = EVP_sha256;
+			break;
+
+		case SHA384:
+			callback = EVP_sha384;
+			break;
+
+		case SHA512:
+			callback = EVP_sha512;
+			break;
+
+#if OPENSSL_VERSION_NUMBER >= 0x010100000
+		case BLAKE2S:
+			callback = EVP_blake2s256;
+			break;
+
+		case BLAKE2B:
+			callback = EVP_blake2b512;
+			break;
+#endif
+		case NONE:
+			break;
+	}
+
+	if (1 != EVP_SignInit(static_cast<EVP_MD_CTX*>(evpctx), callback()))
+	{
+		kDebug(1, "cannot initialize algorithm");
+		Release();
+	}
 
 } // ctor
 
 //---------------------------------------------------------------------------
-KMessageDigest::KMessageDigest(KMessageDigest&& other)
-//---------------------------------------------------------------------------
-	: mdctx(other.mdctx)
-	, m_sDigest(std::move(other.m_sDigest))
-{
-	other.mdctx = nullptr;
-
-} // move ctor
-
-//---------------------------------------------------------------------------
-KMessageDigest& KMessageDigest::operator=(KMessageDigest&& other)
+void KMessageDigestBase::Release()
 //---------------------------------------------------------------------------
 {
-	Release();
-	mdctx = other.mdctx;
-	other.mdctx = nullptr;
-	m_sDigest = std::move(other.m_sDigest);
-	return *this;
-	
-} // move ctor
+	if (evpctx)
+	{
+#if OPENSSL_VERSION_NUMBER < 0x010100000
+		EVP_MD_CTX_destroy(static_cast<EVP_MD_CTX*>(evpctx));
+#else
+		EVP_MD_CTX_free(static_cast<EVP_MD_CTX*>(evpctx));
+#endif
+		evpctx = nullptr;
+	}
+
+} // Release
 
 //---------------------------------------------------------------------------
-void KMessageDigest::clear()
+void KMessageDigestBase::clear()
 //---------------------------------------------------------------------------
 {
-	m_sDigest.clear();
-
-	if (!mdctx)
+	if (!evpctx)
 	{
 		return;
 	}
 
-	const EVP_MD* md = EVP_MD_CTX_md(static_cast<EVP_MD_CTX*>(mdctx));
+	const EVP_MD* md = EVP_MD_CTX_md(static_cast<EVP_MD_CTX*>(evpctx));
 
-	if (1 != EVP_DigestInit_ex(static_cast<EVP_MD_CTX*>(mdctx), md, nullptr))
+	if (1 != EVP_DigestInit_ex(static_cast<EVP_MD_CTX*>(evpctx), md, nullptr))
 	{
 		kDebug(1, "failed");
 		Release();
@@ -106,31 +153,35 @@ void KMessageDigest::clear()
 } // clear
 
 //---------------------------------------------------------------------------
-void KMessageDigest::Release()
+KMessageDigestBase::KMessageDigestBase(KMessageDigestBase&& other)
 //---------------------------------------------------------------------------
+	: evpctx(other.evpctx)
 {
-	if (mdctx)
-	{
-#if OPENSSL_VERSION_NUMBER < 0x010100000
-		EVP_MD_CTX_destroy(static_cast<EVP_MD_CTX*>(mdctx));
-#else
-		EVP_MD_CTX_free(static_cast<EVP_MD_CTX*>(mdctx));
-#endif
-		mdctx = nullptr;
-	}
+	other.evpctx = nullptr;
 
-} // Release
+} // move ctor
 
 //---------------------------------------------------------------------------
-bool KMessageDigest::Update(KStringView sInput)
+KMessageDigestBase& KMessageDigestBase::operator=(KMessageDigestBase&& other)
 //---------------------------------------------------------------------------
 {
-	if (!mdctx)
+	Release();
+	evpctx = other.evpctx;
+	other.evpctx = nullptr;
+	return *this;
+
+} // move ctor
+
+//---------------------------------------------------------------------------
+bool KMessageDigestBase::Update(KStringView sInput)
+//---------------------------------------------------------------------------
+{
+	if (!evpctx)
 	{
 		return false;
 	}
 
-	if (1 != EVP_DigestUpdate(static_cast<EVP_MD_CTX*>(mdctx), sInput.data(), sInput.size()))
+	if (1 != Updater(evpctx, sInput.data(), sInput.size()))
 	{
 		kDebug(1, "failed");
 		return false;
@@ -141,10 +192,10 @@ bool KMessageDigest::Update(KStringView sInput)
 } // Update
 
 //---------------------------------------------------------------------------
-bool KMessageDigest::Update(KInStream& InputStream)
+bool KMessageDigestBase::Update(KInStream& InputStream)
 //---------------------------------------------------------------------------
 {
-	if (!mdctx)
+	if (!evpctx)
 	{
 		return false;
 	}
@@ -155,7 +206,7 @@ bool KMessageDigest::Update(KInStream& InputStream)
 	for (;;)
 	{
 		auto iReadChunk = InputStream.Read(sBuffer, BLOCKSIZE);
-		if (1 != EVP_DigestUpdate(static_cast<EVP_MD_CTX*>(mdctx), sBuffer, iReadChunk))
+		if (1 != Updater(evpctx, sBuffer, iReadChunk))
 		{
 			kDebug(1, "failed");
 			return false;
@@ -169,12 +220,50 @@ bool KMessageDigest::Update(KInStream& InputStream)
 } // Update
 
 //---------------------------------------------------------------------------
-bool KMessageDigest::Update(KInStream&& InputStream)
+bool KMessageDigestBase::Update(KInStream&& InputStream)
 //---------------------------------------------------------------------------
 {
 	return Update(InputStream);
 
 } // Update
+
+//---------------------------------------------------------------------------
+KMessageDigest::KMessageDigest(ALGORITHM Algorithm, KStringView sMessage)
+//---------------------------------------------------------------------------
+	: KMessageDigestBase(Algorithm, reinterpret_cast<UpdateFunc>(EVP_DigestUpdate))
+{
+	if (!sMessage.empty())
+	{
+		Update(sMessage);
+	}
+}
+
+//---------------------------------------------------------------------------
+KMessageDigest::KMessageDigest(KMessageDigest&& other)
+//---------------------------------------------------------------------------
+	: KMessageDigestBase(std::move(other))
+	, m_sDigest(std::move(other.m_sDigest))
+{
+} // move ctor
+
+//---------------------------------------------------------------------------
+KMessageDigest& KMessageDigest::operator=(KMessageDigest&& other)
+//---------------------------------------------------------------------------
+{
+	KMessageDigestBase::operator=(std::move(other));
+	m_sDigest = std::move(other.m_sDigest);
+	return *this;
+	
+} // move ctor
+
+//---------------------------------------------------------------------------
+void KMessageDigest::clear()
+//---------------------------------------------------------------------------
+{
+	KMessageDigestBase::clear();
+	m_sDigest.clear();
+
+} // clear
 
 //---------------------------------------------------------------------------
 const KString& KMessageDigest::Digest() const
@@ -186,7 +275,7 @@ const KString& KMessageDigest::Digest() const
 	{
 		unsigned int iDigestLen;
 		unsigned char sBuffer[EVP_MAX_MD_SIZE];
-		if (1 != EVP_DigestFinal_ex(static_cast<EVP_MD_CTX*>(mdctx), sBuffer, &iDigestLen))
+		if (1 != EVP_DigestFinal_ex(static_cast<EVP_MD_CTX*>(evpctx), sBuffer, &iDigestLen))
 		{
 			kDebug(1, "cannot read digest");
 		}
@@ -205,161 +294,6 @@ const KString& KMessageDigest::Digest() const
 	return m_sDigest;
 
 } // Digest
-
-
-//---------------------------------------------------------------------------
-KMD5::KMD5(KStringView sMessage)
-//---------------------------------------------------------------------------
-{
-	if (mdctx)
-	{
-		if (1 != EVP_DigestInit_ex(static_cast<EVP_MD_CTX*>(mdctx), EVP_md5(), nullptr))
-		{
-			kDebug(1, "cannot initialize context");
-			Release();
-		}
-		else if (!sMessage.empty())
-		{
-			Update(sMessage);
-		}
-	}
-
-} // ctor
-
-//---------------------------------------------------------------------------
-KSHA1::KSHA1(KStringView sMessage)
-//---------------------------------------------------------------------------
-{
-	if (mdctx)
-	{
-		if (1 != EVP_DigestInit_ex(static_cast<EVP_MD_CTX*>(mdctx), EVP_sha1(), nullptr))
-		{
-			kDebug(1, "cannot initialize context");
-			Release();
-		}
-		else if (!sMessage.empty())
-		{
-			Update(sMessage);
-		}
-	}
-
-} // ctor
-
-//---------------------------------------------------------------------------
-KSHA224::KSHA224(KStringView sMessage)
-//---------------------------------------------------------------------------
-{
-	if (mdctx)
-	{
-		if (1 != EVP_DigestInit_ex(static_cast<EVP_MD_CTX*>(mdctx), EVP_sha224(), nullptr))
-		{
-			kDebug(1, "cannot initialize context");
-			Release();
-		}
-		else if (!sMessage.empty())
-		{
-			Update(sMessage);
-		}
-	}
-
-} // ctor
-
-//---------------------------------------------------------------------------
-KSHA256::KSHA256(KStringView sMessage)
-//---------------------------------------------------------------------------
-{
-	if (mdctx)
-	{
-		if (1 != EVP_DigestInit_ex(static_cast<EVP_MD_CTX*>(mdctx), EVP_sha256(), nullptr))
-		{
-			kDebug(1, "cannot initialize context");
-			Release();
-		}
-		else if (!sMessage.empty())
-		{
-			Update(sMessage);
-		}
-	}
-
-} // ctor
-
-//---------------------------------------------------------------------------
-KSHA384::KSHA384(KStringView sMessage)
-//---------------------------------------------------------------------------
-{
-	if (mdctx)
-	{
-		if (1 != EVP_DigestInit_ex(static_cast<EVP_MD_CTX*>(mdctx), EVP_sha384(), nullptr))
-		{
-			kDebug(1, "cannot initialize context");
-			Release();
-		}
-		else if (!sMessage.empty())
-		{
-			Update(sMessage);
-		}
-	}
-
-} // ctor
-
-//---------------------------------------------------------------------------
-KSHA512::KSHA512(KStringView sMessage)
-//---------------------------------------------------------------------------
-{
-	if (mdctx)
-	{
-		if (1 != EVP_DigestInit_ex(static_cast<EVP_MD_CTX*>(mdctx), EVP_sha512(), nullptr))
-		{
-			kDebug(1, "cannot initialize context");
-			Release();
-		}
-		else if (!sMessage.empty())
-		{
-			Update(sMessage);
-		}
-	}
-
-} // ctor
-
-#if OPENSSL_VERSION_NUMBER >= 0x010100000
-//---------------------------------------------------------------------------
-KBLAKE2S::KBLAKE2S(KStringView sMessage)
-//---------------------------------------------------------------------------
-{
-	if (mdctx)
-	{
-		if (1 != EVP_DigestInit_ex(static_cast<EVP_MD_CTX*>(mdctx), EVP_blake2s256(), nullptr))
-		{
-			kDebug(1, "cannot initialize context");
-			Release();
-		}
-		else if (!sMessage.empty())
-		{
-			Update(sMessage);
-		}
-	}
-
-} // ctor
-
-//---------------------------------------------------------------------------
-KBLAKE2B::KBLAKE2B(KStringView sMessage)
-//---------------------------------------------------------------------------
-{
-	if (mdctx)
-	{
-		if (1 != EVP_DigestInit_ex(static_cast<EVP_MD_CTX*>(mdctx), EVP_blake2b512(), nullptr))
-		{
-			kDebug(1, "cannot initialize context");
-			Release();
-		}
-		else if (!sMessage.empty())
-		{
-			Update(sMessage);
-		}
-	}
-
-} // ctor
-#endif
 
 } // end of namespace dekaf2
 

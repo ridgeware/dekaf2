@@ -49,27 +49,20 @@
 #include "kstringview.h"
 #include "kstring.h"
 #include "krsakey.h"
+#include "kmessagedigest.h"
 
 
 namespace dekaf2 {
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// RSA base class to init context and keys
-class KRSABase
+class KRSABase : public KMessageDigestBase
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
 //------
 public:
 //------
-
-	enum ALGORITHM
-	{
-		NONE,
-		SHA256,
-		SHA384,
-		SHA512
-	};
 
 	/// copy construction
 	KRSABase(const KRSABase&) = delete;
@@ -88,21 +81,18 @@ public:
 protected:
 //------
 
-	KRSABase(ALGORITHM Algorithm, KStringView sPubKey, KStringView sPrivKey = KStringView{});
-	KRSABase(ALGORITHM Algorithm, KRSAKey& Key);
+	KRSABase(ALGORITHM Algorithm, UpdateFunc _Updater, KStringView sPubKey, KStringView sPrivKey = KStringView{});
+	KRSABase(ALGORITHM Algorithm, UpdateFunc _Updater, KRSAKey& Key);
 
 	void Release();
 
-	void* evpctx { nullptr }; // is a EVP_MD_CTX
 	void* evppkey { nullptr }; // is a EVP_PKEY
 
 //------
 private:
 //------
 
-	void InitAlgorithm(ALGORITHM Algorithm);
-
-	bool m_bOwnPointers { false };
+	bool m_bOwnKeyPointer { false };
 
 }; // KRSABase
 
@@ -129,29 +119,6 @@ public:
 	KRSASign& operator=(const KRSASign&) = delete;
 	/// move assignment
 	KRSASign& operator=(KRSASign&&);
-
-	/// appends a string to the digest
-	bool Update(KStringView sInput);
-	/// appends a stream to the digest
-	bool Update(KInStream& InputStream);
-	/// appends a stream to the digest
-	bool Update(KInStream&& InputStream);
-	/// appends a string to the digest
-	KRSASign& operator+=(KStringView sInput)
-	{
-		Update(sInput);
-		return *this;
-	}
-	/// appends a string to the digest
-	void operator()(KStringView sInput)
-	{
-		Update(sInput);
-	}
-	/// appends a stream to the digest
-	void operator()(KInStream& InputStream)
-	{
-		Update(InputStream);
-	}
 
 	/// returns the signature
 	const KString& Signature() const;
@@ -197,29 +164,6 @@ public:
 	KRSAVerify& operator=(const KRSAVerify&) = delete;
 	/// move assignment
 	KRSAVerify& operator=(KRSAVerify&&);
-
-	/// appends a string to the digest
-	bool Update(KStringView sInput);
-	/// appends a stream to the digest
-	bool Update(KInStream& InputStream);
-	/// appends a stream to the digest
-	bool Update(KInStream&& InputStream);
-	/// appends a string to the digest
-	KRSAVerify& operator+=(KStringView sInput)
-	{
-		Update(sInput);
-		return *this;
-	}
-	/// appends a string to the digest
-	void operator()(KStringView sInput)
-	{
-		Update(sInput);
-	}
-	/// appends a stream to the digest
-	void operator()(KInStream& InputStream)
-	{
-		Update(InputStream);
-	}
 
 	/// verifies the signature
 	bool Verify(KStringView sSignature) const;

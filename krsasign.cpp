@@ -51,10 +51,9 @@ namespace dekaf2 {
 //---------------------------------------------------------------------------
 KRSABase::KRSABase(KRSABase&& other)
 //---------------------------------------------------------------------------
-	: evpctx(other.evpctx)
+	: KMessageDigestBase(std::move(other))
 	, evppkey(other.evppkey)
 {
-	other.evpctx = nullptr;
 	other.evppkey = nullptr;
 
 } // move ctor
@@ -63,59 +62,18 @@ KRSABase::KRSABase(KRSABase&& other)
 KRSABase& KRSABase::operator=(KRSABase&& other)
 //---------------------------------------------------------------------------
 {
-	evpctx = other.evpctx;
-	other.evpctx = nullptr;
+	KMessageDigestBase::operator=(std::move(other));
 	evppkey = other.evppkey;
 	other.evppkey = nullptr;
 	return *this;
 
-} // move ctor
+} // move assignment
 
 //---------------------------------------------------------------------------
-void KRSABase::InitAlgorithm(ALGORITHM Algorithm)
+KRSABase::KRSABase(ALGORITHM Algorithm, UpdateFunc _Updater, KStringView sPubKey, KStringView sPrivKey)
 //---------------------------------------------------------------------------
-{
-	evpctx = EVP_MD_CTX_create();
-
-	if (!evpctx)
-	{
-		kDebug(1, "cannot create context");
-		Release();
-		return;
-	}
-
-	const EVP_MD*(*callback)(void) = nullptr;
-
-	switch (Algorithm)
-	{
-		case SHA256:
-			callback = EVP_sha256;
-			break;
-
-		case SHA384:
-			callback = EVP_sha384;
-			break;
-
-		case SHA512:
-			callback = EVP_sha512;
-			break;
-
-		case NONE:
-			break;
-	}
-
-	if (1 != EVP_SignInit(static_cast<EVP_MD_CTX*>(evpctx), callback()))
-	{
-		kDebug(1, "cannot initialize algorithm");
-		Release();
-	}
-
-} // InitAlgorithm
-
-//---------------------------------------------------------------------------
-KRSABase::KRSABase(ALGORITHM Algorithm, KStringView sPubKey, KStringView sPrivKey)
-//---------------------------------------------------------------------------
-	: m_bOwnPointers(true)
+	: KMessageDigestBase(Algorithm, _Updater)
+	, m_bOwnKeyPointer(true)
 {
 	std::unique_ptr<BIO, decltype(&BIO_free_all)> pubkey_bio(BIO_new(BIO_s_mem()), BIO_free_all);
 
@@ -156,18 +114,15 @@ KRSABase::KRSABase(ALGORITHM Algorithm, KStringView sPubKey, KStringView sPrivKe
 		}
 	}
 
-	InitAlgorithm(Algorithm);
-
 } // ctor
 
 //---------------------------------------------------------------------------
-KRSABase::KRSABase(ALGORITHM Algorithm, KRSAKey& PubKey)
+KRSABase::KRSABase(ALGORITHM Algorithm, UpdateFunc _Updater, KRSAKey& PubKey)
 //---------------------------------------------------------------------------
-	: evppkey(PubKey.GetEVPPKey())
-	, m_bOwnPointers(false)
+	: KMessageDigestBase(Algorithm, _Updater)
+	, evppkey(PubKey.GetEVPPKey())
+	, m_bOwnKeyPointer(false)
 {
-	InitAlgorithm(Algorithm);
-
 } // ctor
 
 //---------------------------------------------------------------------------
@@ -176,31 +131,25 @@ void KRSABase::Release()
 {
 	if (evppkey)
 	{
-		if (m_bOwnPointers)
+		if (m_bOwnKeyPointer)
 		{
 			EVP_PKEY_free(static_cast<EVP_PKEY*>(evppkey));
 		}
 		evppkey = nullptr;
 	}
-	if (evpctx)
-	{
-		if (m_bOwnPointers)
-		{
-#if OPENSSL_VERSION_NUMBER < 0x010100000
-			EVP_MD_CTX_destroy(static_cast<EVP_MD_CTX*>(evpctx));
-#else
-			EVP_MD_CTX_free(static_cast<EVP_MD_CTX*>(evpctx));
-#endif
-		}
-		evpctx = nullptr;
-	}
+
+	KMessageDigestBase::Release();
 
 } // Release
 
 //---------------------------------------------------------------------------
 KRSASign::KRSASign(ALGORITHM Algorithm, KStringView sPubKey, KStringView sPrivKey, KStringView sMessage)
 //---------------------------------------------------------------------------
-: KRSABase(Algorithm, sPubKey, sPrivKey)
+// The real update function is EVP_SignUpdate, but as that is defined as a macro
+// (on EVP_DigestUpdate) the compiler cannot take it as a function argument. Therefore
+// we insert the aliased target directly. Needs changes should the alias change in
+// OpenSSL.
+: KRSABase(Algorithm, reinterpret_cast<UpdateFunc>(EVP_DigestUpdate), sPubKey, sPrivKey)
 {
 	if (!sMessage.empty())
 	{
@@ -212,7 +161,8 @@ KRSASign::KRSASign(ALGORITHM Algorithm, KStringView sPubKey, KStringView sPrivKe
 //---------------------------------------------------------------------------
 KRSASign::KRSASign(ALGORITHM Algorithm, KRSAKey& Key, KStringView sMessage)
 //---------------------------------------------------------------------------
-: KRSABase(Algorithm, Key)
+// see comment about EVP_DigestUpdate in other constructor
+: KRSABase(Algorithm, reinterpret_cast<UpdateFunc>(EVP_DigestUpdate), Key)
 {
 	if (!sMessage.empty())
 	{
@@ -238,61 +188,6 @@ KRSASign& KRSASign::operator=(KRSASign&& other)
 	return *this;
 	
 } // move
-
-//---------------------------------------------------------------------------
-bool KRSASign::Update(KStringView sInput)
-//---------------------------------------------------------------------------
-{
-	if (!evpctx)
-	{
-		return false;
-	}
-
-	if (1 != EVP_SignUpdate(static_cast<EVP_MD_CTX*>(evpctx), reinterpret_cast<const unsigned char*>(sInput.data()), sInput.size()))
-	{
-		kDebug(1, "failed");
-		return false;
-	}
-
-	return true;
-
-} // Update
-
-//---------------------------------------------------------------------------
-bool KRSASign::Update(KInStream& InputStream)
-//---------------------------------------------------------------------------
-{
-	if (!evpctx)
-	{
-		return false;
-	}
-
-	enum { BLOCKSIZE = 4096 };
-	unsigned char sBuffer[BLOCKSIZE];
-
-	for (;;)
-	{
-		auto iReadChunk = InputStream.Read(sBuffer, BLOCKSIZE);
-		if (1 != EVP_SignUpdate(static_cast<EVP_MD_CTX*>(evpctx), sBuffer, iReadChunk))
-		{
-			kDebug(1, "failed");
-			return false;
-		}
-		if (iReadChunk < BLOCKSIZE)
-		{
-			return true;
-		}
-	}
-
-} // Update
-
-//---------------------------------------------------------------------------
-bool KRSASign::Update(KInStream&& InputStream)
-//---------------------------------------------------------------------------
-{
-	return Update(InputStream);
-
-} // Update
 
 //---------------------------------------------------------------------------
 const KString& KRSASign::Signature() const
@@ -325,7 +220,11 @@ const KString& KRSASign::Signature() const
 //---------------------------------------------------------------------------
 KRSAVerify::KRSAVerify(ALGORITHM Algorithm, KStringView sPubKey, KStringView sMessage)
 //---------------------------------------------------------------------------
-: KRSABase(Algorithm, sPubKey)
+// The real update function is EVP_VerifyUpdate, but as that is defined as a macro
+// (on EVP_DigestUpdate) the compiler cannot take it as a function argument. Therefore
+// we insert the aliased target directly. Needs changes should the alias change in
+// OpenSSL.
+: KRSABase(Algorithm, reinterpret_cast<UpdateFunc>(EVP_DigestUpdate), sPubKey)
 {
 	if (!sMessage.empty())
 	{
@@ -337,7 +236,8 @@ KRSAVerify::KRSAVerify(ALGORITHM Algorithm, KStringView sPubKey, KStringView sMe
 //---------------------------------------------------------------------------
 KRSAVerify::KRSAVerify(ALGORITHM Algorithm, KRSAKey& Key, KStringView sMessage)
 //---------------------------------------------------------------------------
-: KRSABase(Algorithm, Key)
+// see comment about EVP_DigestUpdate in other constructor
+: KRSABase(Algorithm, reinterpret_cast<UpdateFunc>(EVP_DigestUpdate), Key)
 {
 	if (!sMessage.empty())
 	{
@@ -363,61 +263,6 @@ KRSAVerify& KRSAVerify::operator=(KRSAVerify&& other)
 	return *this;
 
 } // move ctor
-
-//---------------------------------------------------------------------------
-bool KRSAVerify::Update(KStringView sInput)
-//---------------------------------------------------------------------------
-{
-	if (!evpctx)
-	{
-		return false;
-	}
-
-	if (1 != EVP_VerifyUpdate(static_cast<EVP_MD_CTX*>(evpctx), reinterpret_cast<const unsigned char*>(sInput.data()), sInput.size()))
-	{
-		kDebug(1, "failed");
-		return false;
-	}
-
-	return true;
-
-} // Update
-
-//---------------------------------------------------------------------------
-bool KRSAVerify::Update(KInStream& InputStream)
-//---------------------------------------------------------------------------
-{
-	if (!evpctx)
-	{
-		return false;
-	}
-
-	enum { BLOCKSIZE = 4096 };
-	unsigned char sBuffer[BLOCKSIZE];
-
-	for (;;)
-	{
-		auto iReadChunk = InputStream.Read(sBuffer, BLOCKSIZE);
-		if (1 != EVP_VerifyUpdate(static_cast<EVP_MD_CTX*>(evpctx), sBuffer, iReadChunk))
-		{
-			kDebug(1, "failed");
-			return false;
-		}
-		if (iReadChunk < BLOCKSIZE)
-		{
-			return true;
-		}
-	}
-
-} // Update
-
-//---------------------------------------------------------------------------
-bool KRSAVerify::Update(KInStream&& InputStream)
-//---------------------------------------------------------------------------
-{
-	return Update(InputStream);
-
-} // Update
 
 //---------------------------------------------------------------------------
 bool KRSAVerify::Verify(KStringView sSignature) const

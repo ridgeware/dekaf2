@@ -64,7 +64,7 @@ public:
 	/// query all known information about an OpenID provider
 	KOpenIDKeys (KURL URL);
 
-	KRSAKey GetKey(KStringView sAlgorithm, KStringView sKeyID, KStringView sKeyDigest) const;
+	KRSAKey GetRSAKey(KStringView sAlgorithm, KStringView sKeyID, KStringView sKeyDigest, KStringView sUseType = "sig") const;
 
 	/// return error string
 	const KString& Error() const { return m_sError; }
@@ -133,9 +133,9 @@ public:
 	KJWT() = default;
 
 	/// construct with a token
-	KJWT(KStringView sBase64Token, const KOpenIDProviderList& Providers)
+	KJWT(KStringView sBase64Token, const KOpenIDProviderList& Providers, time_t tClockLeeway = 5)
 	{
-		Check(sBase64Token, Providers);
+		Check(sBase64Token, Providers, tClockLeeway);
 	}
 
 	/// check a new token

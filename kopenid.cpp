@@ -87,6 +87,7 @@ KOpenIDKeys::KOpenIDKeys (KURL URL)
 		else
 		{
 			KHTTPClient ProviderKeys;
+			ProviderKeys.SetTimeout(5);
 			kjson::Parse(Keys, ProviderKeys.Get(URL, true /* = bVerifyCerts */ )); // we have to verify the CERT!
 			if (!Validate())
 			{
@@ -103,7 +104,7 @@ KOpenIDKeys::KOpenIDKeys (KURL URL)
 } // ctor
 
 //-----------------------------------------------------------------------------
-KRSAKey KOpenIDKeys::GetKey(KStringView sAlgorithm, KStringView sKeyID, KStringView sKeyDigest) const
+KRSAKey KOpenIDKeys::GetRSAKey(KStringView sAlgorithm, KStringView sKeyID, KStringView sKeyDigest, KStringView sUseType) const
 //-----------------------------------------------------------------------------
 {
 	KRSAKey Key;
@@ -116,7 +117,8 @@ KRSAKey KOpenIDKeys::GetKey(KStringView sAlgorithm, KStringView sKeyID, KStringV
 			{
 				if (it["alg"] == sAlgorithm
 					&& it["kid"] == sKeyID
-					&& it["x5t"] == sKeyDigest)
+					&& it["x5t"] == sKeyDigest
+					&& it["use"] == sUseType)
 				{
 					if (it["kty"] == "RSA")
 					{
@@ -198,6 +200,7 @@ KOpenIDProvider::KOpenIDProvider (KURL URL)
 		DEKAF2_TRY
 		{
 			KHTTPClient Provider;
+			Provider.SetTimeout(5);
 			kjson::Parse(Configuration, Provider.Get(URL, true /* = bVerifyCerts */ )); // we have to verify the CERT!
 			// verify accuracy of information
 			URL.Path.clear();
@@ -313,7 +316,7 @@ bool KJWT::Check(KStringView sBase64Token, const KOpenIDProviderList& Providers,
 			}
 
 			// find the key
-			auto Key = Provider.Keys.GetKey(sAlgorithm, sKeyID, sKeyDigest);
+			auto Key = Provider.Keys.GetRSAKey(sAlgorithm, sKeyID, sKeyDigest, "sig");
 
 			if (Key.empty())
 			{

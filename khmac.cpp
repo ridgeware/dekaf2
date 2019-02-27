@@ -48,7 +48,7 @@ namespace dekaf2 {
 
 
 //---------------------------------------------------------------------------
-KHMAC::KHMAC()
+KHMAC::KHMAC(ALGORITHM Algorithm, KStringView sKey, KStringView sMessage)
 //---------------------------------------------------------------------------
 {
 #if OPENSSL_VERSION_NUMBER < 0x010100000
@@ -56,6 +56,64 @@ KHMAC::KHMAC()
 #else
 	hmacctx = HMAC_CTX_new();
 #endif
+
+	if (!hmacctx)
+	{
+		kDebug(1, "cannot create context");
+		Release();
+		return;
+	}
+
+	const EVP_MD*(*callback)(void) = nullptr;
+
+	switch (Algorithm)
+	{
+		case MD5:
+			callback = EVP_md5;
+			break;
+
+		case SHA1:
+			callback = EVP_sha1;
+			break;
+
+		case SHA224:
+			callback = EVP_sha224;
+			break;
+
+		case SHA256:
+			callback = EVP_sha256;
+			break;
+
+		case SHA384:
+			callback = EVP_sha384;
+			break;
+
+		case SHA512:
+			callback = EVP_sha512;
+			break;
+
+#if OPENSSL_VERSION_NUMBER >= 0x010100000
+		case BLAKE2S:
+			callback = EVP_blake2s256;
+			break;
+
+		case BLAKE2B:
+			callback = EVP_blake2b512;
+			break;
+#endif
+		case NONE:
+			break;
+	}
+
+	if (1 != HMAC_Init_ex(static_cast<HMAC_CTX*>(hmacctx), sKey.data(), sKey.size(), callback(), nullptr))
+	{
+		kDebug(1, "cannot initialize algorithm");
+		Release();
+	}
+	else if (!sMessage.empty())
+	{
+		Update(sMessage);
+	}
 
 } // ctor
 
@@ -95,6 +153,7 @@ void KHMAC::Release()
 #endif
 		hmacctx = nullptr;
 	}
+	m_sHMAC.clear();
 
 } // Release
 
@@ -182,161 +241,6 @@ const KString& KHMAC::HMAC() const
 	return m_sHMAC;
 
 } // Digest
-
-
-//---------------------------------------------------------------------------
-KHMAC_MD5::KHMAC_MD5(KStringView sKey, KStringView sMessage)
-//---------------------------------------------------------------------------
-{
-	if (hmacctx)
-	{
-		if (1 != HMAC_Init_ex(static_cast<HMAC_CTX*>(hmacctx), sKey.data(), sKey.size(), EVP_md5(), nullptr))
-		{
-			kDebug(1, "cannot initialize context");
-			Release();
-		}
-		else if (!sMessage.empty())
-		{
-			Update(sMessage);
-		}
-	}
-
-} // ctor
-
-//---------------------------------------------------------------------------
-KHMAC_SHA1::KHMAC_SHA1(KStringView sKey, KStringView sMessage)
-//---------------------------------------------------------------------------
-{
-	if (hmacctx)
-	{
-		if (1 != HMAC_Init_ex(static_cast<HMAC_CTX*>(hmacctx), sKey.data(), sKey.size(), EVP_sha1(), nullptr))
-		{
-			kDebug(1, "cannot initialize context");
-			Release();
-		}
-		else if (!sMessage.empty())
-		{
-			Update(sMessage);
-		}
-	}
-
-} // ctor
-
-//---------------------------------------------------------------------------
-KHMAC_SHA224::KHMAC_SHA224(KStringView sKey, KStringView sMessage)
-//---------------------------------------------------------------------------
-{
-	if (hmacctx)
-	{
-		if (1 != HMAC_Init_ex(static_cast<HMAC_CTX*>(hmacctx), sKey.data(), sKey.size(), EVP_sha224(), nullptr))
-		{
-			kDebug(1, "cannot initialize context");
-			Release();
-		}
-		else if (!sMessage.empty())
-		{
-			Update(sMessage);
-		}
-	}
-
-} // ctor
-
-//---------------------------------------------------------------------------
-KHMAC_SHA256::KHMAC_SHA256(KStringView sKey, KStringView sMessage)
-//---------------------------------------------------------------------------
-{
-	if (hmacctx)
-	{
-		if (1 != HMAC_Init_ex(static_cast<HMAC_CTX*>(hmacctx), sKey.data(), sKey.size(), EVP_sha256(), nullptr))
-		{
-			kDebug(1, "cannot initialize context");
-			Release();
-		}
-		else if (!sMessage.empty())
-		{
-			Update(sMessage);
-		}
-	}
-
-} // ctor
-
-//---------------------------------------------------------------------------
-KHMAC_SHA384::KHMAC_SHA384(KStringView sKey, KStringView sMessage)
-//---------------------------------------------------------------------------
-{
-	if (hmacctx)
-	{
-		if (1 != HMAC_Init_ex(static_cast<HMAC_CTX*>(hmacctx), sKey.data(), sKey.size(), EVP_sha384(), nullptr))
-		{
-			kDebug(1, "cannot initialize context");
-			Release();
-		}
-		else if (!sMessage.empty())
-		{
-			Update(sMessage);
-		}
-	}
-
-} // ctor
-
-//---------------------------------------------------------------------------
-KHMAC_SHA512::KHMAC_SHA512(KStringView sKey, KStringView sMessage)
-//---------------------------------------------------------------------------
-{
-	if (hmacctx)
-	{
-		if (1 != HMAC_Init_ex(static_cast<HMAC_CTX*>(hmacctx), sKey.data(), sKey.size(), EVP_sha512(), nullptr))
-		{
-			kDebug(1, "cannot initialize context");
-			Release();
-		}
-		else if (!sMessage.empty())
-		{
-			Update(sMessage);
-		}
-	}
-
-} // ctor
-
-#if OPENSSL_VERSION_NUMBER >= 0x010100000
-//---------------------------------------------------------------------------
-KHMAC_BLAKE2S::KHMAC_BLAKE2S(KStringView sKey, KStringView sMessage)
-//---------------------------------------------------------------------------
-{
-	if (hmacctx)
-	{
-		if (1 != HMAC_Init_ex(static_cast<HMAC_CTX*>(hmacctx), sKey.data(), sKey.size(), EVP_blake2s256(), nullptr))
-		{
-			kDebug(1, "cannot initialize context");
-			Release();
-		}
-		else if (!sMessage.empty())
-		{
-			Update(sMessage);
-		}
-	}
-
-} // ctor
-
-//---------------------------------------------------------------------------
-KHMAC_BLAKE2B::KHMAC_BLAKE2B(KStringView sKey, KStringView sMessage)
-//---------------------------------------------------------------------------
-{
-	if (hmacctx)
-	{
-		if (1 != HMAC_Init_ex(static_cast<HMAC_CTX*>(hmacctx), sKey.data(), sKey.size(), EVP_blake2b512(), nullptr))
-		{
-			kDebug(1, "cannot initialize context");
-			Release();
-		}
-		else if (!sMessage.empty())
-		{
-			Update(sMessage);
-		}
-	}
-
-} // ctor
-#endif
 
 } // end of namespace dekaf2
 

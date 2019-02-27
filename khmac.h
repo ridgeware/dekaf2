@@ -64,6 +64,23 @@ class KHMAC
 public:
 //------
 
+	enum ALGORITHM
+	{
+		NONE,
+		MD5,
+		SHA1,
+		SHA224,
+		SHA256,
+		SHA384,
+		SHA512,
+#if OPENSSL_VERSION_NUMBER >= 0x010100000
+		BLAKE2S,
+		BLAKE2B,
+#endif
+	};
+
+	/// construction
+	KHMAC(ALGORITHM Algorithm, KStringView sKey, KStringView sMessage = KStringView{});
 	/// copy construction
 	KHMAC(const KHMAC&) = delete;
 	/// move construction
@@ -117,9 +134,6 @@ public:
 protected:
 //------
 
-	/// default construction
-	KHMAC();
-
 	void Release();
 
 	void* hmacctx { nullptr }; // is a HMAC_CTX
@@ -136,12 +150,8 @@ class KHMAC_MD5 : public KHMAC
 public:
 //------
 
-	KHMAC_MD5(KStringView sKey, KStringView sMessage = KStringView{});
-	KHMAC_MD5(const KString& sKey, const KString& sMessage)
-	: KHMAC_MD5(KStringView(sKey), KStringView(sMessage))
-	{}
-	KHMAC_MD5(const char* sKey, const char* sMessage)
-	: KHMAC_MD5(KStringView(sKey), KStringView(sMessage))
+	KHMAC_MD5(KStringView sKey, KStringView sMessage = KStringView{})
+	: KHMAC(MD5, sKey, sMessage)
 	{}
 
 }; // KHMAC_MD5
@@ -155,12 +165,8 @@ class KHMAC_SHA1 : public KHMAC
 public:
 //------
 
-	KHMAC_SHA1(KStringView sKey, KStringView sMessage = KStringView{});
-	KHMAC_SHA1(const KString& sKey, const KString& sMessage)
-	: KHMAC_SHA1(KStringView(sKey), KStringView(sMessage))
-	{}
-	KHMAC_SHA1(const char* sKey, const char* sMessage)
-	: KHMAC_SHA1(KStringView(sKey), KStringView(sMessage))
+	KHMAC_SHA1(KStringView sKey, KStringView sMessage = KStringView{})
+	: KHMAC(SHA1, sKey, sMessage)
 	{}
 
 }; // KSHA1
@@ -174,12 +180,8 @@ class KHMAC_SHA224 : public KHMAC
 public:
 //------
 
-	KHMAC_SHA224(KStringView sKey, KStringView sMessage = KStringView{});
-	KHMAC_SHA224(const KString& sKey, const KString& sMessage)
-	: KHMAC_SHA224(KStringView(sKey), KStringView(sMessage))
-	{}
-	KHMAC_SHA224(const char* sKey, const char* sMessage)
-	: KHMAC_SHA224(KStringView(sKey), KStringView(sMessage))
+	KHMAC_SHA224(KStringView sKey, KStringView sMessage = KStringView{})
+	: KHMAC(SHA224, sKey, sMessage)
 	{}
 
 }; // KHMAC_SHA224
@@ -193,12 +195,8 @@ class KHMAC_SHA256 : public KHMAC
 public:
 //------
 
-	KHMAC_SHA256(KStringView sKey, KStringView sMessage = KStringView{});
-	KHMAC_SHA256(const KString& sKey, const KString& sMessage)
-	: KHMAC_SHA256(KStringView(sKey), KStringView(sMessage))
-	{}
-	KHMAC_SHA256(const char* sKey, const char* sMessage)
-	: KHMAC_SHA256(KStringView(sKey), KStringView(sMessage))
+	KHMAC_SHA256(KStringView sKey, KStringView sMessage = KStringView{})
+	: KHMAC(SHA256, sKey, sMessage)
 	{}
 
 }; // KHMAC_SHA256
@@ -212,12 +210,8 @@ class KHMAC_SHA384 : public KHMAC
 public:
 	//------
 
-	KHMAC_SHA384(KStringView sKey, KStringView sMessage = KStringView{});
-	KHMAC_SHA384(const KString& sKey, const KString& sMessage)
-	: KHMAC_SHA384(KStringView(sKey), KStringView(sMessage))
-	{}
-	KHMAC_SHA384(const char* sKey, const char* sMessage)
-	: KHMAC_SHA384(KStringView(sKey), KStringView(sMessage))
+	KHMAC_SHA384(KStringView sKey, KStringView sMessage = KStringView{})
+	: KHMAC(SHA384, sKey, sMessage)
 	{}
 
 }; // KHMAC_SHA384
@@ -231,12 +225,8 @@ class KHMAC_SHA512 : public KHMAC
 public:
 //------
 
-	KHMAC_SHA512(KStringView sKey, KStringView sMessage = KStringView{});
-	KHMAC_SHA512(const KString& sKey, const KString& sMessage)
-	: KHMAC_SHA512(KStringView(sKey), KStringView(sMessage))
-	{}
-	KHMAC_SHA512(const char* sKey, const char* sMessage)
-	: KHMAC_SHA512(KStringView(sKey), KStringView(sMessage))
+	KHMAC_SHA512(KStringView sKey, KStringView sMessage = KStringView{})
+	: KHMAC(SHA512, sKey, sMessage)
 	{}
 
 }; // KHMAC_SHA512
@@ -254,12 +244,8 @@ class KHMAC_BLAKE2S : public KHMAC
 public:
 //------
 
-	KHMAC_BLAKE2S(KStringView sKey, KStringView sMessage = KStringView{});
-	KHMAC_BLAKE2S(const KString& sKey, const KString& sMessage)
-	: KHMAC_BLAKE2S(KStringView(sKey), KStringView(sMessage))
-	{}
-	KHMAC_BLAKE2S(const char* sKey, const char* sMessage)
-	: KHMAC_BLAKE2S(KStringView(sKey), KStringView(sMessage))
+	KHMAC_BLAKE2S(KStringView sKey, KStringView sMessage = KStringView{})
+	: KHMAC(BLAKE2S, sKey, sMessage)
 	{}
 
 }; // KHMAC_BLAKE2S
@@ -275,12 +261,8 @@ class KHMAC_BLAKE2B : public KHMAC
 public:
 //------
 
-	KHMAC_BLAKE2B(KStringView sKey, KStringView sMessage = KStringView{});
-	KHMAC_BLAKE2B(const KString& sKey, const KString& sMessage)
-	: KHMAC_BLAKE2B(KStringView(sKey), KStringView(sMessage))
-	{}
-	KHMAC_BLAKE2B(const char* sKey, const char* sMessage)
-	: KHMAC_BLAKE2B(KStringView(sKey), KStringView(sMessage))
+	KHMAC_BLAKE2B(KStringView sKey, KStringView sMessage = KStringView{})
+	: KHMAC(BLAKE2B, sKey, sMessage)
 	{}
 
 }; // KHMAC_BLAKE2B

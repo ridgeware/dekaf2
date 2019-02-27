@@ -285,7 +285,7 @@ set(Boost_USE_RELEASE_LIBS ON)
 set(Boost_USE_MULTITHREADED ON)
 set(Boost_USE_STATIC_RUNTIME ON)
 # we prefer the boost lib that we installed ourselves in /opt/lib ..
-if (${BOOST_ROOT} STREQUAL "")
+if ("${BOOST_ROOT}" STREQUAL "")
 	# only set BOOST_ROOT if not already done by caller
 	set(BOOST_ROOT "/opt/boost")
 endif ()

@@ -139,7 +139,7 @@ public:
 	}
 
 	/// check a new token
-	bool Check(KStringView sBase64Token, const KOpenIDProviderList& Providers);
+	bool Check(KStringView sBase64Token, const KOpenIDProviderList& Providers, time_t tClockLeeway = 5);
 
 	/// return error string
 	const KString& Error() const { return m_sError; }
@@ -157,7 +157,7 @@ public:
 private:
 //----------
 
-	bool Validate(const KOpenIDProvider& Provider);
+	bool Validate(const KOpenIDProvider& Provider, time_t tClockLeeway);
 	bool SetError(KString sError);
 	void ClearJSON();
 

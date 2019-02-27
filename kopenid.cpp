@@ -248,7 +248,7 @@ bool KJWT::SetError(KString sError)
 } // SetError
 
 //-----------------------------------------------------------------------------
-bool KJWT::Validate(const KOpenIDProvider& Provider)
+bool KJWT::Validate(const KOpenIDProvider& Provider, time_t tClockLeeway)
 //-----------------------------------------------------------------------------
 {
 	if (Payload["iss"] != Provider.Configuration["issuer"])
@@ -260,12 +260,12 @@ bool KJWT::Validate(const KOpenIDProvider& Provider)
 
 	time_t now = Dekaf().GetCurrentTime();
 
-	if (Payload["nbf"] > now)
+	if (Payload["nbf"] > (now + tClockLeeway))
 	{
 		return SetError("token not yet valid");
 	}
 
-	if (Payload["exp"] < now)
+	if (Payload["exp"] < (now - tClockLeeway))
 	{
 		return SetError("token has expired");
 	}
@@ -275,7 +275,7 @@ bool KJWT::Validate(const KOpenIDProvider& Provider)
 } // Validate
 
 //-----------------------------------------------------------------------------
-bool KJWT::Check(KStringView sBase64Token, const KOpenIDProviderList& Providers)
+bool KJWT::Check(KStringView sBase64Token, const KOpenIDProviderList& Providers, time_t tClockLeeway)
 //-----------------------------------------------------------------------------
 {
 	sBase64Token.TrimLeft();
@@ -358,7 +358,7 @@ bool KJWT::Check(KStringView sBase64Token, const KOpenIDProviderList& Providers)
 			SetError("");
 
 			// exit here if we cannot validate
-			return Validate(Provider);
+			return Validate(Provider, tClockLeeway);
 		}
 	}
 	DEKAF2_CATCH (const KJSON::exception& exc)

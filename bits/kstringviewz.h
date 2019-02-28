@@ -119,7 +119,7 @@ public:
 
 #ifdef DEKAF2_HAS_STD_STRING_VIEW
 	//-----------------------------------------------------------------------------
-	KStringViewZ(const std::string_view& str) = delete;
+	KStringViewZ(const sv::string_view& str) = delete;
 	//-----------------------------------------------------------------------------
 #endif
 
@@ -169,7 +169,7 @@ public:
 
 #ifdef DEKAF2_HAS_STD_STRING_VIEW
 	//-----------------------------------------------------------------------------
-	KStringViewZ& operator=(std::string_view other) = delete;
+	KStringViewZ& operator=(sv::string_view other) = delete;
 	//-----------------------------------------------------------------------------
 #endif
 
@@ -520,7 +520,7 @@ inline bool operator!=(KStringViewZ left, const std::string& right)
 #ifdef DEKAF2_HAS_STD_STRING_VIEW
 //-----------------------------------------------------------------------------
 constexpr
-inline bool operator==(std::string_view left, KStringViewZ right)
+inline bool operator==(sv::string_view left, KStringViewZ right)
 //-----------------------------------------------------------------------------
 {
 	return right.operator==(KStringView(left));
@@ -528,7 +528,7 @@ inline bool operator==(std::string_view left, KStringViewZ right)
 
 //-----------------------------------------------------------------------------
 constexpr
-inline bool operator==(KStringViewZ left, std::string_view right)
+inline bool operator==(KStringViewZ left, sv::string_view right)
 //-----------------------------------------------------------------------------
 {
 	return left.operator==(KStringView(right));
@@ -536,7 +536,7 @@ inline bool operator==(KStringViewZ left, std::string_view right)
 
 //-----------------------------------------------------------------------------
 constexpr
-inline bool operator!=(std::string_view left, KStringViewZ right)
+inline bool operator!=(sv::string_view left, KStringViewZ right)
 //-----------------------------------------------------------------------------
 {
 	return right.operator!=(KStringView(left));
@@ -544,7 +544,7 @@ inline bool operator!=(std::string_view left, KStringViewZ right)
 
 //-----------------------------------------------------------------------------
 constexpr
-inline bool operator!=(KStringViewZ left, std::string_view right)
+inline bool operator!=(KStringViewZ left, sv::string_view right)
 //-----------------------------------------------------------------------------
 {
 	return left.operator!=(KStringView(right));

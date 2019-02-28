@@ -297,7 +297,7 @@ public:
 #ifdef DEKAF2_HAS_STD_STRING_VIEW
 	//-----------------------------------------------------------------------------
 	constexpr
-	self& operator=(std::string_view other)
+	self& operator=(sv::string_view other)
 	//-----------------------------------------------------------------------------
 	{
 		*this = self_type(other);
@@ -1252,7 +1252,7 @@ inline bool operator!=(KStringView left, const std::string& right)
 #ifdef DEKAF2_HAS_STD_STRING_VIEW
 //-----------------------------------------------------------------------------
 constexpr
-inline bool operator==(std::string_view left, KStringView right)
+inline bool operator==(sv::string_view left, KStringView right)
 //-----------------------------------------------------------------------------
 {
 	return right.operator==(KStringView(left));
@@ -1260,7 +1260,7 @@ inline bool operator==(std::string_view left, KStringView right)
 
 //-----------------------------------------------------------------------------
 constexpr
-inline bool operator==(KStringView left, std::string_view right)
+inline bool operator==(KStringView left, sv::string_view right)
 //-----------------------------------------------------------------------------
 {
 	return left.operator==(KStringView(right));
@@ -1268,7 +1268,7 @@ inline bool operator==(KStringView left, std::string_view right)
 
 //-----------------------------------------------------------------------------
 constexpr
-inline bool operator!=(std::string_view left, KStringView right)
+inline bool operator!=(sv::string_view left, KStringView right)
 //-----------------------------------------------------------------------------
 {
 	return right.operator!=(KStringView(left));
@@ -1276,7 +1276,7 @@ inline bool operator!=(std::string_view left, KStringView right)
 
 //-----------------------------------------------------------------------------
 constexpr
-inline bool operator!=(KStringView left, std::string_view right)
+inline bool operator!=(KStringView left, sv::string_view right)
 //-----------------------------------------------------------------------------
 {
 	return left.operator!=(KStringView(right));

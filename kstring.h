@@ -208,7 +208,7 @@ public:
 	self& operator+= (const std::string& str) { m_rep += str; return *this; }
 #endif
 #ifdef DEKAF2_HAS_STD_STRING_VIEW
-	self& operator+= (std::string_view str) { return append(str); }
+	self& operator+= (sv::string_view str) { return append(str); }
 #endif
 
 	// std methods
@@ -228,7 +228,7 @@ public:
 	self& append(const std::string& str, size_type pos, size_type n = npos);
 #endif
 #ifdef DEKAF2_HAS_STD_STRING_VIEW
-	self& append(std::string_view str) { return append(str.data(), str.size()); }
+	self& append(sv::string_view str) { return append(str.data(), str.size()); }
 #endif
 
 	self& push_back(const value_type chPushBack) { m_rep.push_back(chPushBack); return *this; }
@@ -253,7 +253,7 @@ public:
 	self& assign(const std::string& str, size_type pos, size_type n = npos);
 #endif
 #ifdef DEKAF2_HAS_STD_STRING_VIEW
-	self& assign(std::string_view sv) { return assign(sv.data(), sv.size()); }
+	self& assign(sv::string_view sv) { return assign(sv.data(), sv.size()); }
 #endif
 
 	int compare(const KString& str) const;
@@ -1443,7 +1443,7 @@ inline bool operator==(const std::string& left, const KString& right)
 
 #ifdef DEKAF2_HAS_STD_STRING_VIEW
 //-----------------------------------------------------------------------------
-inline bool operator==(const KString& left, const std::string_view& right)
+inline bool operator==(const KString& left, const sv::string_view& right)
 //-----------------------------------------------------------------------------
 {
 	return left.ToView().operator==(KStringView(right));
@@ -1487,14 +1487,14 @@ inline bool operator!=(const std::string& left, const KString& right)
 
 #ifdef DEKAF2_HAS_STD_STRING_VIEW
 //-----------------------------------------------------------------------------
-inline bool operator!=(const KString& left, const std::string_view& right)
+inline bool operator!=(const KString& left, const sv::string_view& right)
 //-----------------------------------------------------------------------------
 {
 	return left.ToView().operator!=(KStringView(right));
 }
 
 //-----------------------------------------------------------------------------
-inline bool operator!=(const std::string_view& left, const KString& right)
+inline bool operator!=(const sv::string_view& left, const KString& right)
 //-----------------------------------------------------------------------------
 {
 	return right.ToView().operator!=(KStringView(left));

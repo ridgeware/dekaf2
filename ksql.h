@@ -190,17 +190,13 @@ public:
 		F_NoTranslations      = 1 << 3,      // <-- turn off {{token}} translations in SQL
 		F_IgnoreSelectKeyword = 1 << 4,      // <-- override check in ExecQuery() for "select..."
 		F_NoKlogDebug         = 1 << 5,      // <-- quietly: do not output the customary klog debug statements
-		F_AutoReset           = 1 << 6       // <-- For ctlib, refresh the connection to the server for each query
-	};
+		F_AutoReset           = 1 << 6,      // <-- For ctlib, refresh the connection to the server for each query
 
-	typedef enum
-	{
-		FAC_NORMAL            = 0,          /// FAC_NORMAL: handles empty string, single string and comma-delimed strings
-		FAC_NUMERIC           = 'N',        /// FAC_NUMERIC: handles empty string, single number and comma-delimed numbers
-		FAC_SUBSELECT         = 'S',        /// FAC_SUBSELECT: se code examples
-		FAC_BETWEEN           = 'B'         /// FAC_BETWEEN: handles empty string, single number and number range with a dash
-	}
-	FAC_TYPE;
+		FAC_NORMAL            = 1 << 0,      /// FAC_NORMAL: handles empty string, single string and comma-delimed strings
+		FAC_NUMERIC           = 1 << 1,      /// FAC_NUMERIC: handles empty string, single number and comma-delimed numbers
+		FAC_SUBSELECT         = 1 << 2,      /// FAC_SUBSELECT: se code examples
+		FAC_BETWEEN           = 1 << 3       /// FAC_BETWEEN: handles empty string, single number and number range with a dash
+	};
 
 	const char* BAR = "--------------------------------------------------------------------------------"; // for printf() so keep this const char*
 
@@ -447,7 +443,7 @@ public:
 	bool   CommitTransaction (KStringView sOptions="");
 
 	/// helper method to form AND clauses for dynamic SQL.
-	KString FormAndClause (KStringView sDbCol, KString/*copy*/ sQueryParm, FAC_TYPE iType=FAC_NORMAL);
+	KString FormAndClause (KStringView sDbCol, KString/*copy*/ sQueryParm, uint64_t iFlags=FAC_NORMAL);
 
 	TXList  m_TxList;
 

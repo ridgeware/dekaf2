@@ -6416,12 +6416,14 @@ bool KSQL::CommitTransaction (KStringView sOptions/*=""*/)
 } // CommitTransaction
 
 //-----------------------------------------------------------------------------
-KString KSQL::FormAndClause (KStringView sDbCol, KString/*copy*/ sQueryParm, FAC_TYPE iType/*=FAC+NORMAL*/)
+KString KSQL::FormAndClause (KStringView sDbCol, KString/*copy*/ sQueryParm, uint64_t iFlags/*=FAC+NORMAL*/)
 //-----------------------------------------------------------------------------
 {
+	KString sClause;
+
 	if (sQueryParm.empty())
 	{
-		return ""; // empty
+		return sClause; // empty
 	}
 
 	sQueryParm.Replace("'",""); // insulation from embedded quotes (not expected)
@@ -6429,17 +6431,17 @@ KString KSQL::FormAndClause (KStringView sDbCol, KString/*copy*/ sQueryParm, FAC
 	// - - - - - - - - - - - - - - - - - - - - - - - - -
 	// "between" logic:
 	// - - - - - - - - - - - - - - - - - - - - - - - - -
-	if (iType == FAC_BETWEEN)
+	if (iFlags & FAC_BETWEEN)
 	{
 		KStack <KString>Parts;
 		kSplit (Parts, sQueryParm, "-");
 		if (Parts.size() == 1)
 		{
-			return kFormat ("   and {} = {}\n", sDbCol, Parts[0].UInt16());
+			sClause = kFormat ("   and {} = {}", sDbCol, Parts[0].UInt16());
 		}
 		else
 		{
-			return kFormat ("   and {} between {} and {}\n", sDbCol, Parts[0].UInt16(), Parts[0].UInt16());
+			sClause = kFormat ("   and {} between {} and {}", sDbCol, Parts[0].UInt16(), Parts[1].UInt16());
 		}
 	}
 
@@ -6448,17 +6450,13 @@ KString KSQL::FormAndClause (KStringView sDbCol, KString/*copy*/ sQueryParm, FAC
 	// - - - - - - - - - - - - - - - - - - - - - - - - -
 	else if (!sQueryParm.Contains(","))
 	{
-		if (iType == FAC_NUMERIC)
+		if (iFlags & FAC_NUMERIC)
 		{
-			return kFormat ("   and {} = {}\n", sDbCol, sQueryParm.UInt64());
-		}
-		else if (iType == FAC_SUBSELECT)
-		{
-			return kFormat ("   and {} = '{}')\n", sDbCol, sQueryParm); // needs an extra close paren
+			sClause = kFormat ("   and {} = {}", sDbCol, sQueryParm.UInt64());
 		}
 		else
 		{
-			return kFormat ("   and {} = '{}'\n", sDbCol, sQueryParm);
+			sClause = kFormat ("   and {} = '{}'", sDbCol, sQueryParm);
 		}
 	}
 
@@ -6473,7 +6471,7 @@ KString KSQL::FormAndClause (KStringView sDbCol, KString/*copy*/ sQueryParm, FAC
 
 		for (auto& sOne : List)
 		{
-			if (iType == FAC_NUMERIC)
+			if (iFlags & FAC_NUMERIC)
 			{
 				sList += kFormat ("{}{}", bComma ? "," : "", sOne.UInt64());
 			}
@@ -6485,15 +6483,19 @@ KString KSQL::FormAndClause (KStringView sDbCol, KString/*copy*/ sQueryParm, FAC
 			bComma = true;
 		}
 
-		if (iType == FAC_SUBSELECT)
-		{
-			return kFormat ("   and {} in ({}))\n", sDbCol, sList); // needs an extra close paren
-		}
-		else
-		{
-			return kFormat ("   and {} in ({})\n", sDbCol, sList);
-		}
+		sClause = kFormat ("   and {} in ({})", sDbCol, sList);
 	}
+
+	if (sClause)
+	{
+		if (iFlags & FAC_SUBSELECT)
+		{
+			sClause += ")"; // needs an extra close paren
+		}
+		sClause += "\n";
+	}
+
+	return sClause;
 
 } // FormAndClause
 

@@ -223,7 +223,9 @@ bool KStringViewZ::ClipAtReverse(KStringView sClipAtReverse)
 
 } // ClipAtReverse
 
-
+#ifdef DEKAF2_REPEAT_CONSTEXPR_VARIABLE
+constexpr KStringViewZ::value_type KStringViewZ::s_empty;
+#endif
 
 } // end of namespace dekaf2
 

@@ -50,6 +50,7 @@
 #include "ksignals.h"
 #include "kcrashexit.h"
 #include "kparallel.h"
+#include "klog.h"
 
 namespace dekaf2
 {

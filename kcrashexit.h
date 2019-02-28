@@ -71,18 +71,19 @@ void kCrashExit (int iSignalNum=0);
 
 namespace detail {
 
-void kFailedAssert(KStringView sCrashMessage);
+void kFailedAssert(const char* sCrashMessage);
 
 }
 
 inline
-void kAssert (bool bMustBeTrue, KStringView sCrashMessage)
+void kAssert (bool bMustBeTrue, const char* sCrashMessage)
 {
-	// TODO should we disable the assert for release builds (NDEBUG) ?
+#ifndef NDEBUG
 	if (!bMustBeTrue)
 	{
 		detail::kFailedAssert(sCrashMessage);
 	}
+#endif
 }
 
 } // end of namespace dekaf2

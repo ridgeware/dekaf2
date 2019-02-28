@@ -40,6 +40,7 @@
 */
 
 #include "kparallel.h"
+#include "klog.h"
 
 namespace dekaf2 {
 
@@ -100,6 +101,14 @@ size_t KRunThreads::SetSize(size_t iNumThreads, size_t iMaxThreads)
 	return m_numThreads;
 
 } // SetSize
+
+//-----------------------------------------------------------------------------
+void KRunThreads::AnnounceNewThreads(size_t iCount)
+//-----------------------------------------------------------------------------
+{
+	kDebugLog(2, "KRunThreads::Create: started {} additional threads", iCount);
+
+} // AnnounceNewThreads
 
 //-----------------------------------------------------------------------------
 /// store (or detach) the new thread object

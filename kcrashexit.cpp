@@ -157,9 +157,13 @@ void kCrashExit (int iSignalNum)
 namespace detail {
 
 //-----------------------------------------------------------------------------
-void kFailedAssert (KStringView sCrashMessage)
+void kFailedAssert (const char* sCrashMessage)
 //-----------------------------------------------------------------------------
 {
+	if (!sCrashMessage || !*sCrashMessage)
+	{
+		sCrashMessage = "<empty>";
+	}
 	KLog().warning ("ASSERT FAILURE: {}", sCrashMessage);
 	kCrashExit (0);
 

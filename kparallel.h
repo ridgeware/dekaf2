@@ -50,7 +50,6 @@
 #include <vector>
 #include <map>
 #include <atomic>
-#include "klog.h"
 #include "bits/kcppcompat.h"
 
 namespace dekaf2
@@ -184,7 +183,7 @@ public:
 			++iCount;
 		}
 
-		kDebug(2, "started {} additional threads", iCount);
+		AnnounceNewThreads(iCount);
 
 		return iCount;
 	}
@@ -230,6 +229,9 @@ protected:
 //----------
 private:
 //----------
+
+	// this only exists to avoid including klog.h in the header
+	void AnnounceNewThreads(size_t iCount);
 
 	size_t                     m_numThreads;
 	std::chrono::microseconds  m_pause{0};

@@ -1,4 +1,5 @@
 #include <dekaf2/dekaf2.h>
+#include <dekaf2/klog.h>
 
 extern void other_bench();
 extern void kbitfields_bench();

@@ -268,7 +268,7 @@ bool KJWT::Validate(const KOpenIDProvider& Provider, time_t tClockLeeway)
 		return SetError("token not yet valid");
 	}
 
-	if (Payload["exp"] < (now - tClockLeeway))
+	if (Payload["exp"] > (now + tClockLeeway))
 	{
 		return SetError("token has expired");
 	}

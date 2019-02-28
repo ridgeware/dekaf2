@@ -100,7 +100,7 @@ public:
 	constexpr
 	KStringViewZ() noexcept
 	//-----------------------------------------------------------------------------
-	: base_type { std::addressof(s_empty), 0 }
+	: base_type { &s_empty, 0 }
 	{
 	}
 

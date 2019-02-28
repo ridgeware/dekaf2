@@ -50,6 +50,7 @@
 #include <vector>
 #include <map>
 #include <atomic>
+#include <functional>
 #include "bits/kcppcompat.h"
 
 namespace dekaf2

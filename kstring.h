@@ -1450,7 +1450,7 @@ inline bool operator==(const KString& left, const sv::string_view& right)
 }
 
 //-----------------------------------------------------------------------------
-inline bool operator==(const std::string_view& left, const KString& right)
+inline bool operator==(const sv::string_view& left, const KString& right)
 //-----------------------------------------------------------------------------
 {
 	return right.ToView().operator==(KStringView(left));

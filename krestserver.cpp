@@ -277,7 +277,7 @@ void KRESTServer::VerifyAuthentication(const Options& Options)
 					auto& Authorization = Request.Headers[KHTTPHeaders::AUTHORIZATION];
 					if (!Authorization.empty())
 					{
-						if (m_AuthToken.Check(Authorization, Options.Authenticators))
+						if (m_AuthToken.Check(Authorization, Options.Authenticators, Options.sAuthScope))
 						{
 							// success
 							return;

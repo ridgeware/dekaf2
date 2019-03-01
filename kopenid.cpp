@@ -150,7 +150,7 @@ bool KOpenIDProvider::SetError(KString sError) const
 } // SetError
 
 //-----------------------------------------------------------------------------
-bool KOpenIDProvider::Validate(const KURL& URL) const
+bool KOpenIDProvider::Validate(const KURL& URL, KStringView sScope) const
 //-----------------------------------------------------------------------------
 {
 	if (Configuration["issuer"] != URL.Serialize())
@@ -179,12 +179,24 @@ bool KOpenIDProvider::Validate(const KURL& URL) const
 	{
 		return SetError("no token signing algorithms");
 	}
+	if (!sScope.empty())
+	{
+		const auto& Scopes = Configuration["scopes_supported"];
+		if (Scopes.empty())
+		{
+			return SetError("no scopes supported");
+		}
+		if (!kjson::Contains(Scopes, sScope))
+		{
+			return SetError(kFormat("scope '{}' not supported", sScope));
+		}
+	}
 	return true;
 
 } // Validate
 
 //-----------------------------------------------------------------------------
-KOpenIDProvider::KOpenIDProvider (KURL URL)
+KOpenIDProvider::KOpenIDProvider (KURL URL, KStringView sScope)
 //-----------------------------------------------------------------------------
 {
 	if (URL.Protocol != url::KProtocol::HTTPS)
@@ -204,7 +216,7 @@ KOpenIDProvider::KOpenIDProvider (KURL URL)
 			kjson::Parse(Configuration, Provider.Get(URL, true /* = bVerifyCerts */ )); // we have to verify the CERT!
 			// verify accuracy of information
 			URL.Path.clear();
-			if (Validate(URL))
+			if (Validate(URL, sScope))
 			{
 				// only query keys if valid data
 				Keys = KOpenIDKeys(Configuration["jwks_uri"].get_ref<const KString&>());
@@ -251,7 +263,7 @@ bool KJWT::SetError(KString sError)
 } // SetError
 
 //-----------------------------------------------------------------------------
-bool KJWT::Validate(const KOpenIDProvider& Provider, time_t tClockLeeway)
+bool KJWT::Validate(const KOpenIDProvider& Provider, KStringView sScope, time_t tClockLeeway)
 //-----------------------------------------------------------------------------
 {
 	if (Payload["iss"] != Provider.Configuration["issuer"])
@@ -261,6 +273,19 @@ bool KJWT::Validate(const KOpenIDProvider& Provider, time_t tClockLeeway)
 								Provider.Configuration["issuer"].get_ref<const KString&>()));
 	}
 
+	if (!sScope.empty())
+	{
+		const auto& Scopes = Payload["scope"];
+		if (Scopes.empty())
+		{
+			return SetError("no scopes supported");
+		}
+		if (!kjson::Contains(Scopes, sScope))
+		{
+			return SetError(kFormat("scope '{}' not supported", sScope));
+		}
+	}
+
 	time_t now = Dekaf().GetCurrentTime();
 
 	if (Payload["nbf"] > (now + tClockLeeway))
@@ -268,7 +293,7 @@ bool KJWT::Validate(const KOpenIDProvider& Provider, time_t tClockLeeway)
 		return SetError("token not yet valid");
 	}
 
-	if (Payload["exp"] > (now + tClockLeeway))
+	if (Payload["exp"] < (now - tClockLeeway))
 	{
 		return SetError("token has expired");
 	}
@@ -278,7 +303,7 @@ bool KJWT::Validate(const KOpenIDProvider& Provider, time_t tClockLeeway)
 } // Validate
 
 //-----------------------------------------------------------------------------
-bool KJWT::Check(KStringView sBase64Token, const KOpenIDProviderList& Providers, time_t tClockLeeway)
+bool KJWT::Check(KStringView sBase64Token, const KOpenIDProviderList& Providers, KStringView sScope, time_t tClockLeeway)
 //-----------------------------------------------------------------------------
 {
 	sBase64Token.TrimLeft();
@@ -361,7 +386,7 @@ bool KJWT::Check(KStringView sBase64Token, const KOpenIDProviderList& Providers,
 			SetError("");
 
 			// exit here if we cannot validate
-			return Validate(Provider, tClockLeeway);
+			return Validate(Provider, sScope, tClockLeeway);
 		}
 	}
 	DEKAF2_CATCH (const KJSON::exception& exc)

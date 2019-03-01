@@ -293,6 +293,7 @@ public:
 		KStringViewZ sRecordFile;                  // File to record request into - filename may not change during execution
 		KHTTPHeaders::KHeaderMap ResponseHeaders;  // Fixed additional headers
 		KOpenIDProviderList Authenticators;        // Valid authentication instances for user verification
+		KStringView sAuthScope;                    // If non-empty, check that SSO token authorizes given scope
 		uint16_t iMaxKeepaliveRounds { 10 };       // DoS prevention - max rounds in keep-alive
 		mutable OutputType Out { HTTP };           // Which of the three output formats?
 		AUTH_LEVEL AuthLevel { ALLOW_ALL };        // Which authentication level?

@@ -95,8 +95,9 @@ public:
 //----------
 
 	KOpenIDProvider () = default;
-	/// query all known information about an OpenID provider
-	KOpenIDProvider (KURL URL);
+	/// query all known information about an OpenID provider, check if scope is
+	/// provided if not empty
+	KOpenIDProvider (KURL URL, KStringView sScope = KStringView{});
 
 	/// return error string
 	const KString& Error() const { return m_sError; }
@@ -110,7 +111,7 @@ public:
 private:
 //----------
 
-	bool Validate(const KURL& URL) const;
+	bool Validate(const KURL& URL, KStringView sScope) const;
 	bool SetError(KString sError) const;
 
 	mutable KString m_sError;
@@ -133,13 +134,13 @@ public:
 	KJWT() = default;
 
 	/// construct with a token
-	KJWT(KStringView sBase64Token, const KOpenIDProviderList& Providers, time_t tClockLeeway = 5)
+	KJWT(KStringView sBase64Token, const KOpenIDProviderList& Providers, KStringView sScope = KStringView{}, time_t tClockLeeway = 5)
 	{
-		Check(sBase64Token, Providers, tClockLeeway);
+		Check(sBase64Token, Providers, sScope, tClockLeeway);
 	}
 
 	/// check a new token
-	bool Check(KStringView sBase64Token, const KOpenIDProviderList& Providers, time_t tClockLeeway = 5);
+	bool Check(KStringView sBase64Token, const KOpenIDProviderList& Providers, KStringView sScope = KStringView{}, time_t tClockLeeway = 5);
 
 	/// return error string
 	const KString& Error() const { return m_sError; }
@@ -157,7 +158,7 @@ public:
 private:
 //----------
 
-	bool Validate(const KOpenIDProvider& Provider, time_t tClockLeeway);
+	bool Validate(const KOpenIDProvider& Provider, KStringView sScope, time_t tClockLeeway);
 	bool SetError(KString sError);
 	void ClearJSON();
 

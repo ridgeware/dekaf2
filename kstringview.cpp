@@ -50,7 +50,7 @@
 #ifdef DEKAF2_NO_GCC
 void* memrchr(const void* s, int c, size_t n)
 {
-#ifdef __x86_64__
+#ifdef DEKAF2_X86_64
 #ifdef DEKAF2_HAS_MINIFOLLY
 	static bool has_sse42 = dekaf2::Dekaf().GetCpuId().sse42();
 	if (DEKAF2_LIKELY(has_sse42))
@@ -250,7 +250,7 @@ size_t kFindFirstOfBool(
 		haystack.remove_prefix(pos);
 	}
 
-#ifdef __x86_64__
+#ifdef DEKAF2_X86_64
 #ifdef DEKAF2_HAS_MINIFOLLY
 	static bool has_sse42 = Dekaf().GetCpuId().sse42();
 	if (DEKAF2_LIKELY(has_sse42))
@@ -321,7 +321,7 @@ size_t kFindLastOfBool(
 		}
 	}
 
-#ifdef __x86_64__
+#ifdef DEKAF2_X86_64
 #ifdef DEKAF2_HAS_MINIFOLLY
 	static bool has_sse42 = Dekaf().GetCpuId().sse42();
 	if (DEKAF2_LIKELY(has_sse42))

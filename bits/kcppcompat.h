@@ -370,6 +370,18 @@ DEKAF2_LE_BE_CONSTEXPR void kFromLittleEndian(VALUE& value)
 
 } // end of namespace dekaf2
 
+#ifdef _MSC_VER
+	#ifdef _M_X64
+		#ifndef __x86_64__
+			#define __x86_64__
+		#endif
+	#endif
+	#ifdef _M_ARM
+		#ifndef __arm__
+			#define __arm__
+		#endif
+	#endif
+#endif
 
 #ifdef __i386__
 	#define DEKAF2_X86 1

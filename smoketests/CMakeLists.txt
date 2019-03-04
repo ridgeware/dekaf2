@@ -14,6 +14,7 @@ set (UHEADERS
 
 set (USOURCES
 	main.cpp
+	kopenid_smoketests.cpp
 	khttpclient_smoketests.cpp
 	kinshell_smoketests.cpp
 	ksslstream_smoketests.cpp

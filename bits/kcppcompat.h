@@ -398,9 +398,9 @@ DEKAF2_LE_BE_CONSTEXPR void kFromLittleEndian(VALUE& value)
 	#define DEKAF2_ARM 1
 #endif
 
-#ifdef __x86_64__
+#ifdef DEKAF2_X86_64
 
-	#if !defined(__clang__) || DEKAF2_IS_OSX
+	#if (!defined(__clang__) || DEKAF2_IS_OSX) && (!defined _MSC_VER)
 		// clang has severe issues with int128 and adress sanitizer symbols on Linux
 		#define DEKAF2_HAS_INT128 1
 

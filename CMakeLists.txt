@@ -691,6 +691,10 @@ endif ()
 # as belonging to the project. CMake would not need them here.
 add_library(dekaf2 ${HEADERS} ${SOURCES})
 
+if (DEKAF2_HAS_MINIFOLLY)
+	set (MINIFOLLY minifolly)
+endif ()
+
 target_link_libraries(dekaf2
 	PUBLIC
 		fmt
@@ -698,7 +702,7 @@ target_link_libraries(dekaf2
 		${Boost_LIBRARIES}
 		${OPENSSL_LIBRARIES}
 		frozen
-		minifolly
+		${MINIFOLLY}
 	PRIVATE
 		${FCGILIBS}
 		${FSLIB}

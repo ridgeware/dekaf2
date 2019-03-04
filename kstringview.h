@@ -1133,6 +1133,16 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	constexpr
+	bool operator==(KStringViewZ other) const;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	constexpr
+	bool operator!=(KStringViewZ other) const;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
 	bool operator==(const KString& other) const
 	//-----------------------------------------------------------------------------
 	{
@@ -1629,6 +1639,29 @@ KStringView& KStringView::operator=(KStringViewZ other)
 {
 	assign(other.begin(), other.end());
 	return *this;
+}
+
+//-----------------------------------------------------------------------------
+constexpr
+bool KStringView::operator==(KStringViewZ other) const
+//-----------------------------------------------------------------------------
+{
+	KStringView::size_type len = size();
+	if (len != other.size())
+	{
+		return false;
+	}
+	return data() == other.data()
+	|| len == 0
+	|| compare(KStringView(other)) == 0;
+}
+
+//-----------------------------------------------------------------------------
+constexpr
+bool KStringView::operator!=(KStringViewZ other) const
+//-----------------------------------------------------------------------------
+{
+	return !operator==(other);
 }
 
 } // end of namespace dekaf2

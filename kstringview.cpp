@@ -51,9 +51,10 @@
 void* memrchr(const void* s, int c, size_t n)
 {
 #ifdef __x86_64__
+#ifdef DEKAF2_HAS_MINIFOLLY
 	static bool has_sse42 = dekaf2::Dekaf().GetCpuId().sse42();
-
 	if (DEKAF2_LIKELY(has_sse42))
+#endif
 	{
 		const char* p = static_cast<const char*>(s);
 		char ch = static_cast<char>(c);
@@ -250,9 +251,10 @@ size_t kFindFirstOfBool(
 	}
 
 #ifdef __x86_64__
+#ifdef DEKAF2_HAS_MINIFOLLY
 	static bool has_sse42 = Dekaf().GetCpuId().sse42();
-
 	if (DEKAF2_LIKELY(has_sse42))
+#endif
 	{
 		if (DEKAF2_UNLIKELY(bNot))
 		{
@@ -320,9 +322,10 @@ size_t kFindLastOfBool(
 	}
 
 #ifdef __x86_64__
+#ifdef DEKAF2_HAS_MINIFOLLY
 	static bool has_sse42 = Dekaf().GetCpuId().sse42();
-
 	if (DEKAF2_LIKELY(has_sse42))
+#endif
 	{
 		if (DEKAF2_UNLIKELY(bNot))
 		{

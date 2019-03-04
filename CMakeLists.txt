@@ -100,11 +100,17 @@ if (DEKAF2_USE_STD_STRING_FOR_DEBUG_BUILDS)
 		SET(DEKAF2_USE_FOLLY_STRINGPIECE_AS_KSTRINGVIEW OFF)
 	endif ()
 endif ()
-message (STATUS "FBSTRING: ${DEKAF2_USE_FBSTRING_AS_KSTRING}")
 
 if (CPU_ARM)
 	message(STATUS "no ASAN/UBSAN support for ARM")
 	set (DEKAF2_ENABLE_DEBUG_RUNTIME_CHECKS OFF)
+endif()
+
+if (${CMAKE_SYSTEM_NAME} STREQUAL "Windows")
+	message(STATUS "no ASAN/UBSAN support for Windows")
+	SET(DEKAF2_ENABLE_DEBUG_RUNTIME_CHECKS OFF)
+	SET(DEKAF2_USE_FBSTRING_AS_KSTRING OFF)
+	SET(DEKAF2_USE_FOLLY_STRINGPIECE_AS_KSTRINGVIEW OFF)
 endif()
 
 math(EXPR NEEDED_FROZEN_MEMORY "7 * 1024")
@@ -112,6 +118,14 @@ if (TOTAL_PHYSICAL_MEMORY LESS NEEDED_FROZEN_MEMORY)
 	message(STATUS "switching FROZEN off for large maps - not enough RAM (${TOTAL_PHYSICAL_MEMORY} MB)")
 	# this is not enough RAM for compile time computation of large frozen maps
 	set (DEKAF2_USE_FROZEN_HASH_FOR_LARGE_MAPS OFF)
+endif()
+
+message (STATUS "FBSTRING: ${DEKAF2_USE_FBSTRING_AS_KSTRING}")
+
+if (DEKAF2_USE_FBSTRING_AS_KSTRING OR DEKAF2_USE_FOLLY_STRINGPIECE_AS_KSTRINGVIEW)
+	set(DEKAF2_HAS_MINIFOLLY ON)
+else()
+	set(DEKAF2_HAS_MINIFOLLY OFF)
 endif()
 
 # ================================ CMAKE INTERNALS =================================
@@ -271,11 +285,17 @@ endif()
 # ================================ OPENSSL ===================================
 
 # openssl (needed for boost asio)
-if (${CMAKE_SYSTEM_NAME} STREQUAL "Darwin")
-    # this is still needed to override an insufficient std OpenSSL on OSX
-	set(OPENSSL_ROOT_DIR /usr/local/opt/openssl)
+if ("${OPENSSL_ROOT_DIR}" STREQUAL "")
+	if (${CMAKE_SYSTEM_NAME} STREQUAL "Darwin")
+		# this is still needed to override an insufficient std OpenSSL on OSX
+		set(OPENSSL_ROOT_DIR /usr/local/opt/openssl)
+	elseif (${CMAKE_SYSTEM_NAME} STREQUAL "Windows")
+		set(OPENSSL_ROOT_DIR "C:\\Program Files\\OpenSSL\\lib")
+	endif ()
 endif ()
 find_package(OpenSSL REQUIRED)
+
+message(STATUS "CMAKE_SYSTEM_NAME: ${CMAKE_SYSTEM_NAME}")
 
 # ================================= BOOST ====================================
 
@@ -284,10 +304,14 @@ set(Boost_USE_DEBUG_LIBS OFF)
 set(Boost_USE_RELEASE_LIBS ON)
 set(Boost_USE_MULTITHREADED ON)
 set(Boost_USE_STATIC_RUNTIME ON)
-# we prefer the boost lib that we installed ourselves in /opt/lib ..
 if ("${BOOST_ROOT}" STREQUAL "")
 	# only set BOOST_ROOT if not already done by caller
-	set(BOOST_ROOT "/opt/boost")
+	if (${CMAKE_SYSTEM_NAME} STREQUAL "Windows")
+		set(BOOST_ROOT "C:\\boost")
+	else()
+		# we prefer the boost lib that we installed ourselves in /opt/lib ..
+		set(BOOST_ROOT "/opt/boost")
+	endif()
 endif ()
 # boost asio (header only) needs system
 # dekaf2's http part needs iostreams

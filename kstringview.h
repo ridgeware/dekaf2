@@ -361,7 +361,7 @@ public:
 	//-----------------------------------------------------------------------------
 	// nonstandard
 	constexpr
-	void assign(const_iterator start, size_type size)
+	void assign(const value_type* start, size_type size)
 	//-----------------------------------------------------------------------------
 	{
 		assign(start, start + size);
@@ -370,7 +370,7 @@ public:
 	//-----------------------------------------------------------------------------
 	// nonstandard
 	constexpr
-	void assign(const_iterator start, const_iterator end)
+	void assign(const value_type* start, const value_type* end)
 	//-----------------------------------------------------------------------------
 	{
 #ifdef DEKAF2_USE_FOLLY_STRINGPIECE_AS_KSTRINGVIEW
@@ -383,7 +383,7 @@ public:
 	//-----------------------------------------------------------------------------
 	// nonstandard
 	constexpr
-	void reset(const_iterator start, size_type size)
+	void reset(const value_type* start, size_type size)
 	//-----------------------------------------------------------------------------
 	{
 		assign(start, size);
@@ -431,7 +431,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	constexpr
-	const_iterator data() const
+	const value_type* data() const
 	//-----------------------------------------------------------------------------
 	{
 		return m_rep.data();
@@ -553,7 +553,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	constexpr
-	int compare(const const_iterator str) const
+	int compare(const value_type* str) const
 	//-----------------------------------------------------------------------------
 	{
 		return compare(self_type(str));
@@ -562,7 +562,7 @@ public:
 	//-----------------------------------------------------------------------------
 	constexpr
 	int compare(size_type pos1, size_type count1,
-	            const const_iterator str) const
+	            const value_type* str) const
 	//-----------------------------------------------------------------------------
 	{
 		return substr(pos1, count1).compare(self_type(str));
@@ -571,7 +571,7 @@ public:
 	//-----------------------------------------------------------------------------
 	constexpr
 	int compare(size_type pos1, size_type count1,
-	            const const_iterator str, size_type count2) const
+	            const value_type* str, size_type count2) const
 	//-----------------------------------------------------------------------------
 	{
 		return substr(pos1, count1).compare(self_type(str, count2));
@@ -617,7 +617,7 @@ public:
 			Warn("pos > size()");
 			pos = size();
 		}
-		return self_type(begin() + pos, std::min(count, size() - pos));
+		return self_type(data() + pos, std::min(count, size() - pos));
 	}
 
 	//-----------------------------------------------------------------------------
@@ -1344,8 +1344,11 @@ size_t kFind(
 	{
 		return KStringView::npos;
 	}
-	// TODO compiler conditionals
+#if defined(DEKAF2_IS_CLANG) || defined(DEKAF2_IS_GCC)
 	auto ret = static_cast<const char*>(__builtin_memchr(haystack.data()+pos, needle, haystack.size()-pos));
+#else
+	auto ret = static_cast<const char*>(memchr(haystack.data()+pos, needle, haystack.size()-pos));
+#endif
 	if (DEKAF2_UNLIKELY(ret == nullptr))
 	{
 		return KStringView::npos;
@@ -1637,7 +1640,7 @@ constexpr
 KStringView& KStringView::operator=(KStringViewZ other)
 //-----------------------------------------------------------------------------
 {
-	assign(other.begin(), other.end());
+	assign(other.data(), other.size());
 	return *this;
 }
 

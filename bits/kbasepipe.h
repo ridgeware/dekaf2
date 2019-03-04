@@ -41,11 +41,12 @@
 
 #pragma once
 // Dekaf Includes
-#include "../kstring.h"
-#include "../klog.h"
+#include "kcppcompat.h"
 
 // Generic Includes
+#ifndef DEKAF2_IS_WINDOWS
 #include <sys/wait.h>
+#endif
 
 namespace dekaf2 {
 

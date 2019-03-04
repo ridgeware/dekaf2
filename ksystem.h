@@ -146,6 +146,18 @@ inline KString kResolveHostIPV6 (KStringViewZ sHostname)
 	return kResolveHost (sHostname, false, true);
 }
 
+/// Sleep for the amount of nanoseconds
+void kNanoSleep(uint64_t iNanoSeconds);
+
+/// Sleep for the amount of microseconds
+void kMicroSleep(uint64_t iMicroSeconds);
+
+/// Sleep for the amount of milliseconds
+void kMilliSleep(uint64_t iMilliSeconds);
+
+/// Sleep for the amount of seconds
+void kSleep(uint64_t iSeconds);
+
 /// Return 64 bit unsigned random number in range [iMin - iMax]. Please check RAND_MAX for
 /// the actual upper bound.
 uint64_t kRandom(uint64_t iMin = 0, uint64_t iMax = UINT64_MAX);

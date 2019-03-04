@@ -41,6 +41,8 @@
 
 #include "kbasepipe.h"
 #include "../ksplit.h"
+#include "../ksystem.h"
+#include "../klog.h"
 
 namespace dekaf2
 {
@@ -114,7 +116,7 @@ bool KBasePipe::WaitForFinished(int msecs)
 		int counter = 0;
 		while (IsRunning())
 		{
-			usleep(1000);
+			kMilliSleep(1);
 			++counter;
 
 			if (counter == msecs)

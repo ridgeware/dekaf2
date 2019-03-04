@@ -42,6 +42,7 @@
 #include <signal.h>
 #include "koutpipe.h"
 #include "ksplit.h"
+#include "klog.h"
 
 namespace dekaf2
 {

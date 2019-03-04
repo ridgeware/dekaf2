@@ -1684,7 +1684,11 @@ namespace std
 namespace boost
 {
 	/// provide a boost::hash for KString
+#if (BOOST_VERSION < 106400)
 	template<> struct hash<dekaf2::KString> : public std::unary_function<dekaf2::KString, std::size_t>
+#else
+	template<> struct hash<dekaf2::KString>
+#endif
 	{
 		// we actually use a KStringView as the parameter, as this avoids
 		// accidentially constructing a KString if coming from a KStringView

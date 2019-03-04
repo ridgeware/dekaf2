@@ -89,6 +89,14 @@
 	#define DEKAF2_IS_UNIX 1
 #endif
 
+#if !defined(DEKAF2_IS_UNIX) && (defined(_MSC_VER))
+	#define DEKAF2_IS_WINDOWS 1
+ 	// works on < VS 2013
+	#define _CRT_SECURE_NO_WARNINGS
+	// works on >= VS 2013
+	#pragma warning(disable:4996)
+#endif
+
 #if (__cplusplus < 201103L && !DEKAF2_HAS_CPP_11)
 	#error "this version of dekaf needs at least a C++11 compiler"
 #endif
@@ -370,7 +378,7 @@ DEKAF2_LE_BE_CONSTEXPR void kFromLittleEndian(VALUE& value)
 
 } // end of namespace dekaf2
 
-#ifdef _MSC_VER
+#ifdef DEKAF2_IS_WINDOWS
 	#ifdef _M_X64
 		#ifndef __x86_64__
 			#define __x86_64__
@@ -381,6 +389,13 @@ DEKAF2_LE_BE_CONSTEXPR void kFromLittleEndian(VALUE& value)
 			#define __arm__
 		#endif
 	#endif
+
+	#include <BaseTsd.h>
+	using ssize_t = SSIZE_T;
+	using pid_t = int;
+	#include <cstdio>
+	#define popen _popen
+	#define pclose _pclose
 #endif
 
 #ifdef __i386__
@@ -400,7 +415,7 @@ DEKAF2_LE_BE_CONSTEXPR void kFromLittleEndian(VALUE& value)
 
 #ifdef DEKAF2_X86_64
 
-	#if (!defined(__clang__) || DEKAF2_IS_OSX) && (!defined _MSC_VER)
+	#if (!defined(__clang__) || DEKAF2_IS_OSX) && (!defined DEKAF2_IS_WINDOWS)
 		// clang has severe issues with int128 and adress sanitizer symbols on Linux
 		#define DEKAF2_HAS_INT128 1
 

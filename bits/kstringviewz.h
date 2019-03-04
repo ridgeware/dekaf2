@@ -314,7 +314,7 @@ public:
 	} // ToView
 	//-----------------------------------------------------------------------------
 	constexpr
-	const_iterator c_str() const noexcept
+	const value_type* c_str() const noexcept
 	//-----------------------------------------------------------------------------
 	{
 		return data();

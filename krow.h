@@ -350,7 +350,7 @@ public:
 	KStringView GetTablename() const { return (m_sTablename); }
 
 	/// Returns true if column is part of the row object.
-	bool Exists (KStringView sColName);
+	bool Exists (KStringView sColName) const;
 
 	enum
 	{

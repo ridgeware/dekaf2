@@ -89,6 +89,18 @@ public:
 	    : m_mime(sv)
 	{}
 
+#ifdef _MSC_VER
+	//-----------------------------------------------------------------------------
+	// MSC has issues with conversions from KStringViewZ to KStringView, therefore
+	// we add this constructor
+	/// Construct a MIME type with an arbitrary type
+	constexpr
+	KMIME(KStringViewZ svz)
+	//-----------------------------------------------------------------------------
+		: m_mime(svz)
+	{}
+#endif
+
 	//-----------------------------------------------------------------------------
 	/// Set MIME type according to the extension of sFilename. Use Default if no
 	/// association found.

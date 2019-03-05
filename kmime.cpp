@@ -46,6 +46,7 @@
 #include "kfilesystem.h"
 #include "klog.h"
 #include "kfrozen.h"
+#include "ksystem.h"
 
 namespace dekaf2 {
 
@@ -263,7 +264,7 @@ bool KMIMEPart::Serialize(KString& sOut, const KReplacer& Replacer, uint16_t rec
 		sOut += "Content-Type: ";
 		sOut += m_MIME;
 		KString sBoundary;
-		sBoundary.Format("----=_KMIME_Part_{}_{}.{}----", recursion, random(), random());
+		sBoundary.Format("----=_KMIME_Part_{}_{}.{}----", recursion, kRandom(), kRandom());
 		sOut += ";\r\n boundary=\"";
 		sOut += sBoundary;
 		sOut += "\"\r\n"; // End of headers (see the next \r\n at the begin of the boundaries)

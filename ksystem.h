@@ -92,10 +92,10 @@ inline pid_t kGetPid()
 uint64_t kGetTid();
 
 /// Execute the given command, redirect stdout and stderr into a temp file and then return in the given sOutput string.  Return code matches the exit code command that was run: 0 is normally an indication of success.
-uint8_t ksystem (KStringView sCommand, KString& sOutput);
+uint8_t kSystem (KStringView sCommand, KString& sOutput);
 
 /// Execute the given command, redirect stdout and stderr into /dev/null.  Return code matches the exit code command that was run: 0 is normally an indication of success.
-uint8_t ksystem (KStringView sCommand);
+uint8_t kSystem (KStringView sCommand);
 
 /// Resolve the given hostname into either an IPv4 IP address or an IPv6 address.  If hostname fails to resolve, return empty string.
 KString kResolveHost (KStringViewZ sHostname, bool bIPv4, bool bIPv6);

@@ -377,7 +377,7 @@ bool kCreateDir(KStringViewZ sPath, int iMode /* = DEKAF2_MODE_CREATE_DIR */)
 	}
 	else
 	{
-		if (fs::create_directories(kToFilesystemPath(Path), ec))
+		if (fs::create_directories(kToFilesystemPath(sPath), ec))
 		{
 			return true;
 		}
@@ -497,7 +497,7 @@ time_t kGetLastMod(KStringViewZ sFilePath)
 
 	std::error_code ec;
 
-	auto ftime = fs::last_write_time(kToFilesystemPath(FilePath), ec);
+	auto ftime = fs::last_write_time(kToFilesystemPath(sFilePath), ec);
 	if (ec)
 	{
 		kDebug(2, "{}: {}", sFilePath, ec.message());
@@ -538,7 +538,7 @@ size_t kFileSize(KStringViewZ sFilePath)
 
 	std::error_code ec;
 
-	auto size = fs::file_size(kToFilesystemPath(FilePath), ec);
+	auto size = fs::file_size(kToFilesystemPath(sFilePath), ec);
 	if (ec)
 	{
 		kDebug(2, "{}: {}", sFilePath, ec.message());

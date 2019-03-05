@@ -466,7 +466,7 @@ bool KROW::AddCol (KStringView sColName, const KJSON& Value, KCOL::Flags iFlags,
 } // AddCol
 
 //-----------------------------------------------------------------------------
-KJSON KROW::to_json () const
+KJSON KROW::to_json (uint64_t iFlags/*=0*/) const
 //-----------------------------------------------------------------------------
 {
 	KJSON json;
@@ -474,6 +474,16 @@ KJSON KROW::to_json () const
 	for (auto& col : *this)
 	{
 		kDebugLog (3, "KROW::to_json: {:35}: 0x{:08x} = {}", col.first, col.second.GetFlags(), KROW::FlagsToString(col.second.GetFlags()));
+
+		KString sKey = col.first;
+		if (iFlags & KEYS_TO_LOWER)
+		{
+			sKey.MakeLower();
+		}
+		else if (iFlags & KEYS_TO_UPPER)
+		{
+			sKey.MakeUpper();
+		}
 
 		if (col.second.IsFlag(NONCOLUMN))
 		{
@@ -483,7 +493,7 @@ KJSON KROW::to_json () const
 		{
 			// large integers > 53 bits have no representation in JSON and need to
 			// be stored as string values..
-			json[col.first] = col.second.sValue; // FIX ME !!!!
+			json[sKey] = col.second.sValue; // FIX ME !!!!
 
 			// TODO: Joachim: we need to solved this "large int" problem in KJSON/LJSON
 			// Almost all the integer fields in the database that we care about (or compute)
@@ -498,28 +508,28 @@ KJSON KROW::to_json () const
 		{
 			if (col.second.sValue.Contains('.'))
 			{
-				json[col.first] = col.second.sValue.Double();
+				json[sKey] = col.second.sValue.Double();
 			}
 			// note: we need to split out signed and unsigned to avoid overflows on some platforms
 			// when the string represents a really large number (like an FNV hash):
 			// signed integer overflow: 1063188930240168165 * 10 cannot be represented in type 'long int'
 			else if (col.second.sValue.StartsWith("-"))
 			{
-				json[col.first] = col.second.sValue.Int64();
+				json[sKey] = col.second.sValue.Int64();
 			}
 			else
 			{
-				json[col.first] = col.second.sValue.UInt64();
+				json[sKey] = col.second.sValue.UInt64();
 			}
 		}
 		else if (col.second.IsFlag(BOOLEAN))
 		{
-			json[col.first] = col.second.sValue.Bool();
+			json[sKey] = col.second.sValue.Bool();
 		}
 		#if 0
 		else if (/*(col.second.iFlags & KROW::NULL_IS_NOT_NIL) &&*/ col.second.sValue.empty())
 		{
-			json[col.first] = NULL;
+			json[sKey] = NULL;
 		}
 		#endif
 		else if (col.second.IsFlag(JSON))
@@ -529,12 +539,12 @@ KJSON KROW::to_json () const
 			{
 				KJSON object;
 				kjson::Parse(object, col.second.sValue);
-				json[col.first] = object;
+				json[sKey] = object;
 			}
 			DEKAF2_CATCH(const KJSON::exception& exc)
 			{
 				// not a valid json object / array, store it as a string
-				kjson::SetStringFromUTF8orLatin1(json[col.first], col.second.sValue);
+				kjson::SetStringFromUTF8orLatin1(json[sKey], col.second.sValue);
 			}
 		}
 		else
@@ -549,17 +559,17 @@ KJSON KROW::to_json () const
 				{
 					KJSON object;
 					kjson::Parse(object, col.second.sValue);
-					json[col.first] = object;
+					json[sKey] = object;
 				}
 				DEKAF2_CATCH(const KJSON::exception& exc)
 				{
 					// not a valid json object / array, store it as a string
-					kjson::SetStringFromUTF8orLatin1(json[col.first], col.second.sValue);
+					kjson::SetStringFromUTF8orLatin1(json[sKey], col.second.sValue);
 				}
 			}
 			else
 			{
-				kjson::SetStringFromUTF8orLatin1(json[col.first], col.second.sValue);
+				kjson::SetStringFromUTF8orLatin1(json[sKey], col.second.sValue);
 			}
 		}
 	}

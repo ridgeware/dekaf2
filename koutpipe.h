@@ -42,6 +42,9 @@
 #pragma once
 
 #include "bits/kbasepipe.h"
+
+#ifdef DEKAF2_HAS_PIPES
+
 #include "kfdstream.h"
 
 namespace dekaf2
@@ -105,3 +108,5 @@ private:
 }; // class KOutPipe
 
 } // end namespace dekaf2
+
+#endif

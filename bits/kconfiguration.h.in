@@ -80,3 +80,4 @@
 #cmakedefine DEKAF2_WITH_FCGI
 #cmakedefine DEKAF2_KLOG_WITH_TCP
 #cmakedefine DEKAF2_HAS_UNIX_SOCKETS
+#cmakedefine DEKAF2_HAS_PIPES

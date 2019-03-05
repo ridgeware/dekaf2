@@ -2,6 +2,8 @@
 #include <dekaf2/koutpipe.h>
 #include <dekaf2/kinpipe.h>
 
+#ifdef DEKAF2_HAS_PIPES
+
 #include <iostream>
 
 #define KOutPipeCleanup 1
@@ -122,3 +124,4 @@ TEST_CASE("KOutPipe")
 
 }
 
+#endif

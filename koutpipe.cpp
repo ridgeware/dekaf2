@@ -39,10 +39,13 @@
 // +-------------------------------------------------------------------------+
 */
 
-#include <signal.h>
 #include "koutpipe.h"
+
+#ifdef DEKAF2_HAS_PIPES
+
 #include "ksplit.h"
 #include "klog.h"
+#include <signal.h>
 
 namespace dekaf2
 {
@@ -195,3 +198,5 @@ bool KOutPipe::OpenWritePipe(KStringView sProgram)
 } // OpenReadPipe
 
 } // end namespace dekaf2
+
+#endif

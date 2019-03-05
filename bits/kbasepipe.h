@@ -40,13 +40,14 @@
 */
 
 #pragma once
+
 // Dekaf Includes
 #include "kcppcompat.h"
 
+#ifdef DEKAF2_HAS_PIPES
+
 // Generic Includes
-#ifndef DEKAF2_IS_WINDOWS
 #include <sys/wait.h>
-#endif
 
 namespace dekaf2 {
 
@@ -97,3 +98,5 @@ protected:
 }; // KBasePipe
 
 }
+
+#endif

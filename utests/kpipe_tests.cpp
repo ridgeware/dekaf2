@@ -1,6 +1,8 @@
 #include "catch.hpp"
 #include <dekaf2/kpipe.h>
 
+#ifdef DEKAF2_HAS_PIPES
+
 #include <iostream>
 
 #define KPipeCleanup 1
@@ -97,3 +99,5 @@ TEST_CASE("KPipe")
 #endif
 
 }
+
+#endif

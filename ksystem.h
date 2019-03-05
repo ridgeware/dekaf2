@@ -124,15 +124,14 @@ void kMilliSleep(uint64_t iMilliSeconds);
 /// Sleep for the amount of seconds
 void kSleep(uint64_t iSeconds);
 
-/// Return 64 bit unsigned random number in range [iMin - iMax]. Please check RAND_MAX for
-/// the actual upper bound.
-uint64_t kRandom(uint64_t iMin = 0, uint64_t iMax = UINT64_MAX);
+/// Returns 32 bit unsigned random number in range [iMin - iMax].
+uint32_t kRandom(uint32_t iMin = 0, uint32_t iMax = UINT32_MAX);
 
 /// Block program from running for random amount of time within the given min and max.
-void kSleepRandomMilliseconds (uint64_t iMinMilliseconds, uint64_t iMaxMilliseconds);
+void kSleepRandomMilliseconds (uint32_t iMinMilliseconds, uint32_t iMaxMilliseconds);
 
 /// Block program from running for random amount of time within the given min and max.
-inline void kSleepRandomSeconds (uint64_t iMinSeconds, uint64_t iMaxSeconds)
+inline void kSleepRandomSeconds (uint32_t iMinSeconds, uint32_t iMaxSeconds)
 {
 	kSleepRandomMilliseconds (iMinSeconds * 1000, iMaxSeconds * 1000);
 }

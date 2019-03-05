@@ -55,6 +55,7 @@
 #include "ksignals.h"
 #include <vector>
 #include <thread>
+#include <random>
 
 /// @namespace dekaf2 The basic dekaf2 library namespace. All functions,
 /// variables and classes are prefixed with this namespace.
@@ -111,9 +112,16 @@ public:
 	}
 
 	//---------------------------------------------------------------------------
-	/// Set random seed. If iSeed == 0 (the default), the current time is used as the seed value.
-	void SetRandomSeed(unsigned int iSeed = 0);
+	/// Set random seeds of various random number generators.
+	/// If available uses a hardware random device for the seeds.
+	void SetRandomSeed();
 	//---------------------------------------------------------------------------
+
+	//---------------------------------------------------------------------------
+	/// Get a random value in range [iMin - iMax].
+	uint32_t GetRandomValue(uint32_t iMin, uint32_t iMax);
+	//---------------------------------------------------------------------------
+
 
 #ifdef DEKAF2_HAS_MINIFOLLY
 	//---------------------------------------------------------------------------
@@ -248,6 +256,7 @@ private:
 	// readers
 	time_t m_iCurrentTime;
 	KTimer::Timepoint m_iCurrentTimepoint;
+	std::default_random_engine m_Random;
 	bool m_bInConstruction { true };
 	static bool s_bShutdown;
 

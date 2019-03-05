@@ -41,6 +41,7 @@
 
 #include "kcasestring.h"
 #include "kstringutils.h"
+#include <cctype>
 
 namespace dekaf2 {
 

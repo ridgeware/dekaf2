@@ -97,10 +97,12 @@ KUrlEncodingTables::KUrlEncodingTables()
 
 } // end of namespace detail
 
+#ifndef DEKAF2_IS_WINDOWS
 template void kUrlDecode(KString& sDecode, bool pPlusAsSpace = false);
 template void kUrlDecode(KStringView sSource, KString& sTarget, bool bPlusAsSpace = false);
 template KString kUrlDecode(KStringView sSource, bool bPlusAsSpace = false);
 template void kUrlEncode (KStringView sSource, KString& sTarget, const bool excludeTable[256], bool bSpaceAsPlus = false);
+#endif
 
 #ifndef __clang__
 template class KURLEncoded<KString>;

@@ -433,7 +433,7 @@ size_t kFindUnescaped(KStringView haystack,
 } // kFindUnescaped
 
 //-----------------------------------------------------------------------------
-KStringView::size_type KStringView::copy(iterator dest, size_type count, size_type pos) const
+KStringView::size_type KStringView::copy(value_type* dest, size_type count, size_type pos) const
 //-----------------------------------------------------------------------------
 {
 	if (DEKAF2_UNLIKELY(pos > size()))

@@ -396,6 +396,10 @@ DEKAF2_LE_BE_CONSTEXPR void kFromLittleEndian(VALUE& value)
 	#include <cstdio>
 	#define popen _popen
 	#define pclose _pclose
+	#include <process.h>
+	#define getpid _getpid
+	#define strncasecmp _strnicmp
+	#define strcasecmp _stricmp
 #endif
 
 #ifdef __i386__

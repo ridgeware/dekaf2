@@ -61,7 +61,7 @@ bool kChangeMode(KStringViewZ sPath, int iMode)
 #ifdef DEKAF2_HAS_STD_FILESYSTEM
 	std::error_code ec;
 
-	fs::permissions(sPath.c_str(), static_cast<fs::perms>(iMode), ec);
+	fs::permissions(kToFilesystemPath(sPath), static_cast<fs::perms>(iMode), ec);
 
 	if (ec)
 	{
@@ -89,7 +89,7 @@ bool kExists (KStringViewZ sPath, bool bAsFile, bool bAsDirectory, bool bTestFor
 
 	std::error_code ec;
 
-	fs::file_status status = fs::status(sPath.c_str(), ec);
+	fs::file_status status = fs::status(kToFilesystemPath(sPath), ec);
 
 	if (ec)
 	{
@@ -129,7 +129,7 @@ bool kExists (KStringViewZ sPath, bool bAsFile, bool bAsDirectory, bool bTestFor
 		return true;
 	}
 
-	if (fs::is_empty(sPath.c_str(), ec))
+	if (fs::is_empty(kToFilesystemPath(sPath), ec))
 	{
 		kDebug(2, "entry exists, but is empty: {}", sPath);
 		return false;
@@ -311,16 +311,17 @@ bool kRemove (KStringViewZ sPath, bool bDir)
 #ifdef DEKAF2_HAS_STD_FILESYSTEM
 
 	std::error_code ec;
-	fs::permissions (sPath.c_str(), fs::perms::all, ec); // chmod (ignore failures)
+	fs::path Path(kToFilesystemPath(sPath));
+	fs::permissions (Path, fs::perms::all, ec); // chmod (ignore failures)
 	ec.clear();
 
 	if (bDir)
 	{
-		fs::remove_all (sPath.c_str(), ec);
+		fs::remove_all (Path, ec);
 	}
 	else
 	{
-		fs::remove (sPath.c_str(), ec);
+		fs::remove (Path, ec);
 	}
 	if (ec)
 	{
@@ -367,16 +368,16 @@ bool kCreateDir(KStringViewZ sPath, int iMode /* = DEKAF2_MODE_CREATE_DIR */)
 		// unfortunately fs::create_directories chokes on a
 		// trailing slash, so we copy the KStringViewZ if it
 		// has one and remove it from the copy
-		KString sTmp = sPath;
-		sTmp.erase(sTmp.size() - 1, 1);
-		if (fs::create_directories(sTmp.c_str(), ec))
+		KStringView sTmp = sPath;
+		sTmp.remove_suffix(1);
+		if (fs::create_directories(kToFilesystemPath(sTmp), ec))
 		{
 			return true;
 		}
 	}
 	else
 	{
-		if (fs::create_directories(sPath.c_str(), ec))
+		if (fs::create_directories(kToFilesystemPath(Path), ec))
 		{
 			return true;
 		}
@@ -496,13 +497,21 @@ time_t kGetLastMod(KStringViewZ sFilePath)
 
 	std::error_code ec;
 
-	auto ftime = fs::last_write_time(sFilePath.c_str(), ec);
+	auto ftime = fs::last_write_time(kToFilesystemPath(FilePath), ec);
 	if (ec)
 	{
 		kDebug(2, "{}: {}", sFilePath, ec.message());
 		return -1;
 	}
+#if defined(DEKAF2_IS_WINDOWS) && !defined(DEKAF2_IS_CPP_20)
+	// unfortunately windows uses its own filetime ticks (100 nanoseconds since 1.1.1601)
+	// this will change with C++20!
+	static constexpr uint64_t WINDOWS_TICK = 10000000;
+	static constexpr uint64_t SEC_TO_UNIX_EPOCH = 11644473600LL;
+	return (ftime.time_since_epoch().count() / WINDOWS_TICK - SEC_TO_UNIX_EPOCH);
+#else
 	return decltype(ftime)::clock::to_time_t(ftime);
+#endif
 
 #else
 
@@ -529,7 +538,7 @@ size_t kFileSize(KStringViewZ sFilePath)
 
 	std::error_code ec;
 
-	auto size = fs::file_size(sFilePath.c_str(), ec);
+	auto size = fs::file_size(kToFilesystemPath(FilePath), ec);
 	if (ec)
 	{
 		kDebug(2, "{}: {}", sFilePath, ec.message());
@@ -584,7 +593,7 @@ size_t KDirectory::Open(KStringViewZ sDirectory, EntryType Type)
 
 	std::error_code ec;
 
-	for (const auto& Entry : fs::directory_iterator(sDirectory.c_str(), ec))
+	for (const auto& Entry : fs::directory_iterator(kToFilesystemPath(sDirectory), ec))
 	{
 		if (ec)
 		{
@@ -663,11 +672,11 @@ size_t KDirectory::Open(KStringViewZ sDirectory, EntryType Type)
 					ET = EntryType::OTHER;
 					break;
 			}
-			m_DirEntries.emplace_back(sDirectory, Entry.path().filename().c_str(), ET);
+			m_DirEntries.emplace_back(sDirectory, Entry.path().filename().u8string(), ET);
 		}
 		else if (Entry.symlink_status().type() == dtype)
 		{
-			m_DirEntries.emplace_back(sDirectory, Entry.path().filename().c_str(), Type);
+			m_DirEntries.emplace_back(sDirectory, Entry.path().filename().u8string(), Type);
 		}
 
 	}
@@ -884,7 +893,7 @@ KDiskStat& KDiskStat::Check(KStringViewZ sPath)
 
 	std::error_code ec;
 
-	fs::space_info fsinfo = fs::space(sPath.c_str(), ec);
+	fs::space_info fsinfo = fs::space(kToFilesystemPath(sPath), ec);
 
 	if (ec)
 	{

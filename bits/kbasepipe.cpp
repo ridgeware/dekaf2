@@ -64,6 +64,7 @@ void KBasePipe::wait()
 	// status can only be read ONCE
 	if (m_iExitCode == EXIT_CODE_NOT_SET)
 	{
+#ifndef DEKAF2_IS_WINDOWS
 		int iStatus = 0;
 		pid_t iPid = waitpid(m_pid, &iStatus, WNOHANG);
 
@@ -88,6 +89,7 @@ void KBasePipe::wait()
 			m_iExitCode = -1;
 		}
 		// if iPid == 0 the process is still running
+#endif
 	}
 
 } // wait

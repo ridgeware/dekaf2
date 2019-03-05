@@ -543,7 +543,11 @@ namespace std
 namespace boost
 {
 	/// provide a boost::hash for KCaseStringViewBase
+#if (BOOST_VERSION < 106400)
 	template<typename Trimming> struct hash<dekaf2::KCaseStringViewBase<Trimming>> : public std::unary_function<dekaf2::KCaseStringBase<Trimming>, std::size_t>
+#else
+	template<typename Trimming> struct hash<dekaf2::KCaseStringViewBase<Trimming>>
+#endif
 	{
 		std::size_t operator()(dekaf2::KStringView sv) const noexcept
 		{
@@ -552,7 +556,11 @@ namespace boost
 	};
 
 	/// provide a boost::hash for KCaseStringBase
+#if (BOOST_VERSION < 106400)
 	template<typename Trimming> struct hash<dekaf2::KCaseStringBase<Trimming>> : public std::unary_function<dekaf2::KCaseStringBase<Trimming>, std::size_t>
+#else
+	template<typename Trimming> struct hash<dekaf2::KCaseStringBase<Trimming>>
+#endif
 	{
 		std::size_t operator()(dekaf2::KStringView sv) const noexcept
 		{

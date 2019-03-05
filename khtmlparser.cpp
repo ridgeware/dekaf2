@@ -44,6 +44,7 @@
 #include "kstringstream.h"
 #include "klog.h"
 #include "kfrozen.h"
+#include <cctype>
 
 namespace dekaf2 {
 

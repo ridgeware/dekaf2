@@ -43,7 +43,11 @@
 #include "kfdstream.h"
 #include "klog.h"
 #include <sys/stat.h>
+#ifdef DEKAF2_IS_WINDOWS
+#include <io.h>
+#else
 #include <unistd.h>
+#endif
 
 namespace dekaf2
 {
@@ -119,7 +123,11 @@ std::streamsize KInputFDStream::FileDescReader(void* sBuffer, std::streamsize iC
 	if (filedesc)
 	{
 		int fd = *static_cast<int*>(filedesc);
+#ifdef DEKAF2_IS_WINDOWS
+		iRead = _read(fd, sBuffer, static_cast<uint32_t>(iCount));
+#else
 		iRead = ::read(fd, sBuffer, static_cast<size_t>(iCount));
+#endif
 		if (iRead < 0)
 		{
 			// do some logging
@@ -290,7 +298,11 @@ std::streamsize KOutputFDStream::FileDescWriter(const void* sBuffer, std::stream
 	if (filedesc)
 	{
 		int fd = *static_cast<int*>(filedesc);
+#ifdef DEKAF2_IS_WINDOWS
+		iWrote = _write(fd, sBuffer, static_cast<uint32_t>(iCount));
+#else
 		iWrote = ::write(fd, sBuffer, static_cast<size_t>(iCount));
+#endif
 		if (iWrote != iCount)
 		{
 			// do some logging
@@ -483,7 +495,11 @@ std::streamsize KInOutFDStream::FileDescReader(void* sBuffer, std::streamsize iC
 	if (filedesc)
 	{
 		int fd = *static_cast<int*>(filedesc);
+#ifdef DEKAF2_IS_WINDOWS
+		iRead = _read(fd, sBuffer, static_cast<uint32_t>(iCount));
+#else
 		iRead = ::read(fd, sBuffer, static_cast<size_t>(iCount));
+#endif
 		if (iRead < 0)
 		{
 			// do some logging
@@ -506,7 +522,11 @@ std::streamsize KInOutFDStream::FileDescWriter(const void* sBuffer, std::streams
 	if (filedesc)
 	{
 		int fd = *static_cast<int*>(filedesc);
+#ifdef DEKAF2_IS_WINDOWS
+		iWrote = _write(fd, sBuffer, static_cast<uint32_t>(iCount));
+#else
 		iWrote = ::write(fd, sBuffer, static_cast<size_t>(iCount));
+#endif
 		if (iWrote != iCount)
 		{
 			// do some logging

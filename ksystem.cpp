@@ -47,6 +47,7 @@
 #include "bits/kfilesystem.h"
 #include "kfilesystem.h"
 #include "klog.h"
+#include "dekaf2.h"
 
 #include <boost/asio.hpp>
 #include <boost/asio/ip/tcp.hpp>
@@ -112,7 +113,7 @@ bool kSetCWD (KStringViewZ sPath)
 {
 #ifdef DEKAF2_HAS_STD_FILESYSTEM
 	std::error_code ec;
-	fs::current_path(sPath.c_str(), ec);
+	fs::current_path(kToFilesystemPath(sPath), ec);
 	if (ec)
 	{
 		kWarning("cannot set current working directory: {}", ec.message());
@@ -136,7 +137,7 @@ KString kGetCWD ()
 {
 #ifdef DEKAF2_HAS_STD_FILESYSTEM
 	std::error_code ec;
-	KString sPath = fs::current_path(ec).string();
+	KString sPath = fs::current_path(ec).u8string();
 	if (ec)
 	{
 		kWarning("cannot get current working directory: {}", ec.message());
@@ -405,11 +406,10 @@ KString kResolveHost (KStringViewZ sHostname, bool bIPv4, bool bIPv6)
 } // kResolveHostIPV4
 
 //-----------------------------------------------------------------------------
-uint64_t kRandom(uint64_t iMin, uint64_t iMax)
+uint32_t kRandom(uint32_t iMin, uint32_t iMax)
 //-----------------------------------------------------------------------------
 {
-	uint64_t iDiff = iMax - iMin;
-	return iMin + (rand() % iDiff);
+	return Dekaf().GetRandomValue(iMin, iMax);
 
 } // kRandom
 
@@ -446,10 +446,10 @@ void kSleep (uint64_t iSeconds)
 } // kSleep
 
 //-----------------------------------------------------------------------------
-void kSleepRandomMilliseconds (uint64_t iMin, uint64_t iMax)
+void kSleepRandomMilliseconds (uint32_t iMin, uint32_t iMax)
 //-----------------------------------------------------------------------------
 {
-	uint64_t iSleep = iMin;
+	uint32_t iSleep = iMin;
 
 	if (iMax > iMin)
 	{

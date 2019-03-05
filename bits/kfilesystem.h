@@ -73,3 +73,29 @@
 #ifdef DEKAF2_FS_NAMESPACE
 	namespace fs = DEKAF2_FS_NAMESPACE;
 #endif
+
+namespace dekaf2 {
+
+#ifdef DEKAF2_HAS_STD_FILESYSTEM
+
+/// convert a UTF8 string into native path format
+template<class String>
+fs::path kToFilesystemPath(const String& sPath)
+{
+	return fs::u8path(sPath.begin(), sPath.end());
+}
+
+#else
+
+/// convert a UTF8 string into native path format
+/// (this is the fallback version if std::filesystem is not supported)
+template<class String>
+const char* kToFilesystemPath(const String& sPath)
+{
+	return sPath.c_str();
+}
+
+#endif
+
+} // of namespace dekaf2
+

@@ -50,6 +50,7 @@
 #include <sstream>
 #include <iterator>
 #include <type_traits>
+#include "bits/kfilesystem.h"
 #include "kstring.h"
 
 namespace dekaf2
@@ -604,14 +605,14 @@ public:
 
 	//-----------------------------------------------------------------------------
 	KInFile(KString str, ios_base::openmode mode = ios_base::in)
-	: base_type(str.c_str(), mode)
+	: base_type(kToFilesystemPath(str), mode)
 	//-----------------------------------------------------------------------------
 	{
 	}
 
 	//-----------------------------------------------------------------------------
 	KInFile(KStringViewZ sz, ios_base::openmode mode = ios_base::in)
-	: base_type(sz.c_str(), mode)
+	: base_type(kToFilesystemPath(sz), mode)
 	//-----------------------------------------------------------------------------
 	{
 	}
@@ -629,14 +630,14 @@ public:
 	void open(const KString& str, ios_base::openmode mode = ios_base::in)
 	//-----------------------------------------------------------------------------
 	{
-		base_type::open(str.c_str(), mode);
+		base_type::open(kToFilesystemPath(str), mode);
 	}
 
 	//-----------------------------------------------------------------------------
 	void open(const KStringViewZ sz, ios_base::openmode mode = ios_base::in)
 	//-----------------------------------------------------------------------------
 	{
-		base_type::open(sz.c_str(), mode);
+		base_type::open(kToFilesystemPath(sz), mode);
 	}
 
 	//-----------------------------------------------------------------------------

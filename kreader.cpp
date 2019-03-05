@@ -139,7 +139,7 @@ ssize_t kGetSize(KStringViewZ sFileName)
 {
 #ifdef DEKAF2_HAS_STD_FILESYSTEM
 	std::error_code ec;
-	ssize_t iSize = static_cast<ssize_t>(fs::file_size(sFileName.c_str(), ec));
+	ssize_t iSize = static_cast<ssize_t>(fs::file_size(kToFilesystemPath(sFileName), ec));
 	if (ec)
 	{
 		iSize = -1;

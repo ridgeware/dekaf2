@@ -41,6 +41,7 @@
  */
 
 #include "khtmlcontentblocks.h"
+#include <cctype>
 
 namespace dekaf2 {
 

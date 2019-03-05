@@ -40,6 +40,7 @@
 */
 
 #include "khttp_header.h"
+#include <cctype>
 
 namespace dekaf2 {
 

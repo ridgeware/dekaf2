@@ -40,15 +40,18 @@
 //
 */
 
+#include "kchildprocess.h"
+
+#ifndef DEKAF2_IS_WINDOWS
+
+#include "kstring.h"
+#include "klog.h"
+#include "ksplit.h"
 #include <thread>
 #include <sys/wait.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <signal.h>
-#include "kchildprocess.h"
-#include "kstring.h"
-#include "klog.h"
-#include "ksplit.h"
 
 namespace dekaf2
 {
@@ -384,3 +387,4 @@ KChildProcess::~KChildProcess()
 
 } // end of namespace dekaf2
 
+#endif // of !DEKAF2_IS_WINDOWS

@@ -49,6 +49,7 @@
 #include "bits/ktemplate.h"
 #include "kwriter.h"
 #include <cinttypes>
+#include <cctype>
 
 
 namespace dekaf2 {
@@ -176,8 +177,6 @@ void kUrlDecode (String& sDecode, bool bPlusAsSpace = false)
 
 } // kUrlDecode
 
-extern template void kUrlDecode(KString& sDecode, bool pPlusAsSpace = false);
-
 //-----------------------------------------------------------------------------
 /// decodes string on a copy
 template<class String>
@@ -220,8 +219,6 @@ void kUrlDecode (KStringView sSource, String& sTarget, bool bPlusAsSpace = false
 
 } // kUrlDecode copy
 
-extern template void kUrlDecode(KStringView sSource, KString& sTarget, bool bPlusAsSpace = false);
-
 //-----------------------------------------------------------------------------
 template<class String>
 String kUrlDecode (KStringView sSource, bool bPlusAsSpace = false)
@@ -231,8 +228,6 @@ String kUrlDecode (KStringView sSource, bool bPlusAsSpace = false)
 	kUrlDecode(sSource, sRet, bPlusAsSpace);
 	return sRet;
 }
-
-extern template KString kUrlDecode(KStringView sSource, bool bPlusAsSpace = false);
 
 //-----------------------------------------------------------------------------
 template<class String>
@@ -267,8 +262,6 @@ void kUrlEncode (KStringView sSource, String& sTarget, const bool excludeTable[2
 		}
 	}
 }
-
-extern template void kUrlEncode (KStringView sSource, KString& sTarget, const bool excludeTable[256], bool bSpaceAsPlus = false);
 
 //-----------------------------------------------------------------------------
 template<class String>
@@ -529,6 +522,13 @@ protected:
 	Decoded m_sDecoded {};
 
 }; // KURLEncoded
+
+#ifndef DEKAF2_IS_WINDOWS
+extern template void kUrlDecode(KString& sDecode, bool pPlusAsSpace = false);
+extern template void kUrlDecode(KStringView sSource, KString& sTarget, bool bPlusAsSpace = false);
+extern template KString kUrlDecode(KStringView sSource, bool bPlusAsSpace = false);
+extern template void kUrlEncode (KStringView sSource, KString& sTarget, const bool excludeTable[256], bool bSpaceAsPlus = false);
+#endif
 
 #ifndef __clang__
 extern template class KURLEncoded<KString>;

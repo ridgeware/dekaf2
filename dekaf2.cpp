@@ -42,7 +42,10 @@
 
 #include <clocale>
 #include <cstdlib>
+#include <cwctype>
+#include <ctime>
 #include <iostream>
+#include <random>
 #include "dekaf2.h"
 #include "klog.h"
 #include "kfilesystem.h"
@@ -163,21 +166,32 @@ bool Dekaf::SetUnicodeLocale(KStringView sName)
 }
 
 //---------------------------------------------------------------------------
-void Dekaf::SetRandomSeed(unsigned int iSeed)
+void Dekaf::SetRandomSeed()
 //---------------------------------------------------------------------------
 {
-	if (!iSeed)
-	{
-		iSeed = static_cast<unsigned int>(time(nullptr));
-	}
-	srand(iSeed);
-	srand48(iSeed);
+	std::random_device RandDevice;
+
+	m_Random.seed(RandDevice());
+
+	srand(RandDevice());
+#ifndef DEKAF2_IS_WINDOWS
+	srand48(RandDevice());
+#endif
 #ifdef DEKAF2_IS_OSX
 	srandomdev();
 #else
-	srandom(iSeed);
+	srandom(RandDevice());
 #endif
 }
+
+//-----------------------------------------------------------------------------
+uint32_t Dekaf::GetRandomValue(uint32_t iMin, uint32_t iMax)
+//-----------------------------------------------------------------------------
+{
+	std::uniform_int_distribution<uint32_t> uniform_dist(iMin, iMax);
+	return uniform_dist(m_Random);
+
+} // kRandom
 
 //---------------------------------------------------------------------------
 KStringView Dekaf::GetVersionInformation() const
@@ -348,6 +362,8 @@ bool Dekaf::AddToOneSecTimer(OneSecCallback CB)
 void Dekaf::Daemonize()
 //---------------------------------------------------------------------------
 {
+#ifndef DEKAF2_IS_WINDOWS
+
 	// we need to stop the thread with the default timer, otherwise
 	// parent will not return
 	StopDefaultTimer();
@@ -357,6 +373,13 @@ void Dekaf::Daemonize()
 
 	// and start the timer again
 	StartDefaultTimer();
+
+#else
+
+	kWarning("not supported on Windows");
+
+#endif
+
 }
 
 //---------------------------------------------------------------------------

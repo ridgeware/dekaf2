@@ -43,6 +43,7 @@
 #include "../kstringview.h"
 #include "../kstringutils.h"
 #include "../klog.h"
+#include <cctype>
 
 namespace dekaf2 {
 

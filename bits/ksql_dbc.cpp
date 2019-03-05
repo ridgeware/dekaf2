@@ -41,6 +41,7 @@
 */
 
 #include "ksql_dbc.h"
+#include "../ksystem.h"
 
 namespace dekaf2 {
 
@@ -174,7 +175,7 @@ void DBCFileBase::FillBufferWithNoise(void* pBuffer, std::size_t iSize)
 	auto iBuffer = static_cast<uint32_t*>(pBuffer);
 	for (std::size_t iCt = 0; iCt < iSize / sizeof(uint32_t); ++ iCt)
 	{
-		iBuffer[iCt] = random();
+		iBuffer[iCt] = static_cast<uint32_t>(kRandom(0, UINT32_MAX));
 	}
 
 } // DBCFileBase::FillBufferWithNoise

@@ -46,6 +46,10 @@
 /// class and utilities to daemonize a process and to start and control child
 /// processes
 
+#include "bits/kcppcompat.h"
+
+#ifndef DEKAF2_IS_WINDOWS
+
 #include <chrono>
 #include "kstring.h"
 
@@ -135,3 +139,4 @@ protected:
 
 } // end of namespace dekaf2
 
+#endif // of !DEKAF2_IS_WINDOWS

@@ -593,6 +593,7 @@ void KLog::SetLevel(int iLevel)
 	}
 	else
 	{
+		kDebugLog (1, "new klog level: 0, removing file: {}", GetDebugFlag());
 		kRemoveFile (GetDebugFlag());
 	}
 

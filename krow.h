@@ -363,7 +363,11 @@ public:
 		NULL_IS_NOT_NIL  = 1 << 5,   ///< Indicates given column is ???
 		BOOLEAN          = 1 << 6,   ///< Indicates given column is a boolean (true/false)
 		JSON             = 1 << 7,   ///< Indicates given column is a JSON object
-		INT64NUMERIC     = 1 << 8    ///< Indicates given column is a NUMERIC, but would overflow in JSON - NUMERIC is also always set when this flag is true
+		INT64NUMERIC     = 1 << 8,   ///< Indicates given column is a NUMERIC, but would overflow in JSON - NUMERIC is also always set when this flag is true
+
+		KEYS_TO_LOWER    = 1 << 9,   ///< Used in to_json to map json keys to lowercase in the event that columns are mixed
+		KEYS_TO_UPPER    = 1 << 10   ///< Used in to_json to map json keys to uppercase in the event that columns are mixed
+
 		// keep list of flags in synch with KROW::FlagsToString() helper function
 	};
 
@@ -379,10 +383,12 @@ public:
 	void LogRowLayout(int iLogLevel = 3) const;
 
 	/// Return row as a KJSON object
-	KJSON to_json() const;
+	KJSON to_json (uint64_t iFlags=0) const;
 
+	/// append a json object with a krow
 	KROW& operator+=(const KJSON& json);
 
+	/// assign a json object from a krow
 	KROW& operator=(const KJSON& json)
 	{
 		clear();

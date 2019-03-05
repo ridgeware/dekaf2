@@ -40,23 +40,71 @@
 //
 */
 
-#include <thread>
-#include "bits/kfilesystem.h"
 #include "ksystem.h"
-#include "kstring.h"
+#include <thread>
+#include <cstdlib>
+#include "bits/kcppcompat.h"
+#include "bits/kfilesystem.h"
 #include "kfilesystem.h"
 #include "klog.h"
 
 #include <boost/asio.hpp>
 #include <boost/asio/ip/tcp.hpp>
-#include <sys/types.h>    // for getpwuid()
-#include <pwd.h>          // for getpwuid()
-#ifndef DEKAF2_IS_OSX
-#include <sys/syscall.h>
+#ifndef DEKAF2_IS_WINDOWS
+	#include <sys/types.h>    // for getpwuid()
+	#include <pwd.h>          // for getpwuid()
+	#ifndef DEKAF2_IS_OSX
+		#include <sys/syscall.h>
+	#endif
 #endif
 
 namespace dekaf2
 {
+
+//-----------------------------------------------------------------------------
+/// Get environment variable. Return @p szDefault if not found.
+KStringViewZ kGetEnv (KStringViewZ szEnvVar, KStringViewZ szDefault)
+//-----------------------------------------------------------------------------
+{
+	KStringViewZ sValue = ::getenv(szEnvVar.c_str());
+	if (!sValue.empty())
+	{
+		return (sValue);
+	}
+	else
+	{
+		return (szDefault);
+	}
+
+} // kGetEnv
+
+//-----------------------------------------------------------------------------
+/// Set environment variable.
+bool kSetEnv (KStringViewZ szEnvVar, KStringViewZ sValue)
+//-----------------------------------------------------------------------------
+{
+	bool bOK = (::setenv(szEnvVar.c_str(), sValue.c_str(), true) == 0);
+	if (!bOK)
+	{
+		kWarning("cannot set {} = {}, {}", szEnvVar, sValue, strerror(errno));
+	}
+	return (bOK);
+
+} // kSetEnv
+
+//-----------------------------------------------------------------------------
+/// Unset environment variable.
+bool kUnsetEnv (KStringViewZ szEnvVar)
+//-----------------------------------------------------------------------------
+{
+	bool bOK = (::unsetenv(szEnvVar.c_str()) == 0);
+	if (!bOK)
+	{
+		kWarning("cannot unset {}, {}", szEnvVar, strerror(errno));
+	}
+	return (bOK);
+
+} // kUnsetEnv
 
 //-----------------------------------------------------------------------------
 bool kSetCWD (KStringViewZ sPath)
@@ -145,7 +193,7 @@ KString kGetWhoAmI ()
 {
 	KString sWhoami;
 
-#ifdef WIN32
+#ifdef DEKAF2_IS_WINDOWS
 	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 	// WINDOWS:
 	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -188,7 +236,7 @@ KStringViewZ kGetHostname ()
 		return szHostname;
 	}
 
-#ifdef WIN32
+#ifdef DEKAF2_IS_WINDOWS
 	*szHostname = 0;
 
 	DWORD nSize = MAXNAMELEN;

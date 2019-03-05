@@ -45,55 +45,21 @@
 /// @file ksystem.h
 /// general system utilities for dekaf2
 
-#include <cstdlib>
 #include "kstring.h"
-#include "klog.h"
+#include "kstringview.h"
+#include "bits/kstringviewz.h"
 
 namespace dekaf2
 {
 
-//-----------------------------------------------------------------------------
 /// Get environment variable. Return @p szDefault if not found.
-inline KStringViewZ kGetEnv (KStringViewZ szEnvVar, KStringViewZ szDefault = "")
-//-----------------------------------------------------------------------------
-{
-	KStringViewZ sValue = ::getenv(szEnvVar.c_str());
-	if (!sValue.empty())
-	{
-		return (sValue);
-	}
-	else
-	{
-		return (szDefault);
-	}
+KStringViewZ kGetEnv (KStringViewZ szEnvVar, KStringViewZ szDefault = "");
 
-} // kGetEnv
-
-//-----------------------------------------------------------------------------
 /// Set environment variable.
-inline bool kSetEnv (KStringViewZ szEnvVar, KStringViewZ sValue)
-//-----------------------------------------------------------------------------
-{
-	bool bOK = (::setenv(szEnvVar.c_str(), sValue.c_str(), true) == 0);
-	if (!bOK)
-	{
-		kWarning("cannot set {} = {}, {}", szEnvVar, sValue, strerror(errno));
-	}
-	return (bOK);
-}
+bool kSetEnv (KStringViewZ szEnvVar, KStringViewZ sValue);
 
-//-----------------------------------------------------------------------------
 /// Unset environment variable.
-inline bool kUnsetEnv (KStringViewZ szEnvVar)
-//-----------------------------------------------------------------------------
-{
-	bool bOK = (::unsetenv(szEnvVar.c_str()) == 0);
-	if (!bOK)
-	{
-		kWarning("cannot unset {}, {}", szEnvVar, strerror(errno));
-	}
-	return (bOK);
-}
+bool kUnsetEnv (KStringViewZ szEnvVar);
 
 /// Set operating system current working directory.
 bool kSetCWD (KStringViewZ sPath);

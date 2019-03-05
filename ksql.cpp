@@ -58,6 +58,26 @@
 #include "kstringutils.h"
 #include "kfilesystem.h"
 
+#if defined(DEKAF2_IS_WINDOWS) || defined(DEKAF2_DO_NOT_HAVE_STRPTIME)
+	#include <time.h>
+	#include <iomanip>
+	#include <sstream>
+
+	extern "C" char* strptime(const char* s,
+							  const char* f,
+							  struct tm* tm)
+	{
+		std::istringstream input(s);
+		input.imbue(std::locale(setlocale(LC_ALL, nullptr)));
+		input >> std::get_time(tm, f);
+		if (input.fail())
+		{
+			return nullptr;
+		}
+		return (char*)(s + input.tellg());
+	}
+#endif
+
 #ifndef DEKAF2_DO_NOT_HAVE_STRPTIME
 #include <time.h>   // for strptime()
 #endif
@@ -3768,8 +3788,6 @@ time_t KSQL::GetUnixTime (KROW::Index iOneBasedColNum)
  
 	struct tm TimeStruct;
 
-	#ifndef DEKAF2_DO_NOT_HAVE_STRPTIME
-
 	int iSecs;
 
 	if (sscanf (sVal.c_str(), "%*04d-%*02d-%*02d %*02d:%*02d:%02d", &iSecs) == 1) // e.g. "1965-03-31 12:00:00"
@@ -3793,31 +3811,6 @@ time_t KSQL::GetUnixTime (KROW::Index iOneBasedColNum)
 	// return the unix time (uint64_t):
 	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 	time_t iUnixTime = mktime (&TimeStruct);
-
-	#else
-	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-	// this was a noble effort to compute all this from scratch and it
-	// worked, but I did this because I could not find the mktime() API
-	// which handily converts a tm struct to a unix time (uint64_t):
-	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-	int Arr[] = { 0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31, 0 };
-	TimeStruct.tm_yday = TimeStruct.tm_mday - 1;
-	for (int ii=1; ii <= TimeStruct.tm_mon; ++ii)
-		TimeStruct.tm_yday += Arr[ii];
-
-	int iSince1970 = TimeStruct.tm_year - 70;
-	int iLeapYears = (TimeStruct.tm_yday > (31+28)) ? (iSince1970/4) : ((iSince1970-1)/4);
-
-	time_t iUnixTime = 
-		  (iSince1970 * 365 * 24 * 60 * 60)
-		+ ((TimeStruct.tm_yday + 1) * 24 * 60 * 60)
-		+ (iLeapYears    * 24 * 60 * 60)
-		+ (TimeStruct.tm_hour * 60 * 60)
-		+ (     5        * 60 * 60) // <-- hardcoded EST conversion
-		+ (TimeStruct.tm_min * 60)
-		+ (TimeStruct.tm_sec);
-	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-	#endif
 
 	//kDebugTmStruct ((char*)"KSQL:UnixTime()", &TimeStruct, /*iMinDebugLevel=*/2);
 	kDebugLog (GetDebugLevel()+1, "  unixtime = {}", iUnixTime);

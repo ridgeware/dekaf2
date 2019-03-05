@@ -41,6 +41,9 @@
  */
 
 #include "kunixstream.h"
+
+#ifdef DEKAF2_HAS_UNIX_SOCKETS
+
 #include "klog.h"
 #include "kurl.h"
 
@@ -196,4 +199,6 @@ std::unique_ptr<KUnixStream> CreateKUnixStream(KStringViewZ sSocketFile)
 }
 
 } // of namespace dekaf2
+
+#endif // DEKAF2_HAS_UNIX_SOCKETS
 

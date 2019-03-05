@@ -44,6 +44,10 @@
 /// @file kunixstream.h
 /// provides an implementation of std::iostreams for Unix stream sockets
 
+#include <kconfiguration.h>
+
+#ifdef DEKAF2_HAS_UNIX_SOCKETS
+
 #include <boost/asio.hpp>
 #include "bits/kasiostream.h"
 #include "kstringview.h"
@@ -204,3 +208,4 @@ std::unique_ptr<KUnixStream> CreateKUnixStream(KStringViewZ sSocketFile);
 
 } // namespace dekaf2
 
+#endif // DEKAF2_HAS_UNIX_SOCKETS

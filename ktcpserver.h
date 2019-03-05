@@ -100,11 +100,13 @@ public:
 	KTCPServer(uint16_t iPort, bool bSSL, uint16_t iMaxConnections = 50);
 	//-----------------------------------------------------------------------------
 
+#ifdef DEKAF2_HAS_UNIX_SOCKETS
 	//-----------------------------------------------------------------------------
 	/// Construct a server, but do not yet start it.
 	/// @param sSocketFile Unix domain socket to bind to
 	KTCPServer(KStringView sSocketFile, uint16_t iMaxConnections = 50);
 	//-----------------------------------------------------------------------------
+#endif
 
 	//-----------------------------------------------------------------------------
 	virtual ~KTCPServer();
@@ -181,7 +183,11 @@ public:
 	bool IsRunning() const
 	//-----------------------------------------------------------------------------
 	{
-		return m_ipv6_server || m_ipv4_server || m_unix_server;
+		return m_ipv6_server || m_ipv4_server
+#ifdef DEKAF2_HAS_UNIX_SOCKETS
+		    || m_unix_server
+#endif
+		;
 	}
 
 	//-----------------------------------------------------------------------------
@@ -267,16 +273,20 @@ private:
 	{
 		TCPv4,
 		TCPv6,
+#ifdef DEKAF2_HAS_UNIX_SOCKETS
 		Unix
+#endif
 	};
 
 	//-----------------------------------------------------------------------------
 	void TCPServer(bool ipv6);
 	//-----------------------------------------------------------------------------
 
+#ifdef DEKAF2_HAS_UNIX_SOCKETS
 	//-----------------------------------------------------------------------------
 	void UnixServer();
 	//-----------------------------------------------------------------------------
+#endif
 
 	//-----------------------------------------------------------------------------
 	void RunSession(KStream& stream, KString sRemoteEndPoint);
@@ -289,9 +299,11 @@ private:
 	boost::asio::io_service m_asio;
 	std::unique_ptr<std::thread> m_ipv4_server;
 	std::unique_ptr<std::thread> m_ipv6_server;
+#ifdef DEKAF2_HAS_UNIX_SOCKETS
 	std::unique_ptr<std::thread> m_unix_server;
-	std::unique_ptr<KThreadPool> m_ThreadPool;
 	KString m_sSocketFile;
+#endif
+	std::unique_ptr<KThreadPool> m_ThreadPool;
 	KString m_sCert;
 	KString m_sKey;
 	KString m_sPassword;

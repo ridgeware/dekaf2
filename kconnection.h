@@ -42,6 +42,7 @@
 
 #pragma once
 
+#include <kconfiguration.h>
 #include "kstream.h"
 #include "kstringstream.h"
 #include "kurl.h"
@@ -274,6 +275,8 @@ public:
 
 };
 
+#ifdef DEKAF2_HAS_UNIX_SOCKETS
+
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class KUnixConnection : public KConnection
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -300,6 +303,8 @@ public:
 	//-----------------------------------------------------------------------------
 
 };
+
+#endif
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class KSSLConnection : public KConnection

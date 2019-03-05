@@ -42,7 +42,9 @@
 
 #include "kconnection.h"
 #include "ksystem.h"
+#ifdef DEKAF2_HAS_UNIX_SOCKETS
 #include "kunixstream.h"
+#endif
 #include "ksslstream.h"
 #include "ktcpstream.h"
 
@@ -265,6 +267,8 @@ KString KTCPConnection::Error() const
 
 } // Error
 
+#ifdef DEKAF2_HAS_UNIX_SOCKETS
+
 //-----------------------------------------------------------------------------
 bool KUnixConnection::Connect(KStringViewZ sSocketFile)
 //-----------------------------------------------------------------------------
@@ -306,6 +310,8 @@ KString KUnixConnection::Error() const
 	return sError;
 
 } // Error
+
+#endif // DEKAF2_HAS_UNIX_SOCKETS
 
 
 //-----------------------------------------------------------------------------

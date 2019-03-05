@@ -397,17 +397,15 @@ bool KUnTar::Skip(size_t iSize)
 	char sBuffer[SKIP_BUFSIZE];
 	size_t iRead = 0;
 
-	for (;iSize;)
+	for (auto iRemain = iSize; iRemain;)
 	{
-		auto iChunk = std::min(static_cast<size_t>(SKIP_BUFSIZE), iSize);
-		auto iReadChunk = Read(sBuffer, iChunk);
-		iRead += iReadChunk;
-		iSize -= iReadChunk;
-
-		if (iReadChunk < iChunk)
+		auto iChunk = std::min(static_cast<size_t>(SKIP_BUFSIZE), iRemain);
+		if (!Read(sBuffer, iChunk))
 		{
 			break;
 		}
+		iRead += iChunk;
+		iRemain -= iChunk;
 	}
 
 	return iRead == iSize;

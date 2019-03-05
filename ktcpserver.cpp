@@ -75,7 +75,9 @@
 #include "ktcpserver.h"
 #include "ksslstream.h"
 #include "ktcpstream.h"
+#ifdef DEKAF2_HAS_UNIX_SOCKETS
 #include "kunixstream.h"
+#endif
 #include "klog.h"
 #include "kfilesystem.h"
 
@@ -153,16 +155,18 @@ void KTCPServer::Session(KStream& stream, KStringView sRemoteEndPoint)
 void KTCPServer::RunSession(KStream& stream, KString sRemoteEndPoint)
 //-----------------------------------------------------------------------------
 {
-	if (m_iPort)
-	{
-		kDebug(3, "accepting new TCP connection from {} on port {}",
-					 sRemoteEndPoint,
-					 m_iPort);
-	}
-	else
+#ifdef DEKAF2_HAS_UNIX_SOCKETS
+	if (!m_iPort)
 	{
 		kDebug(3, "accepting new unix socket connection from {}",
 			   sRemoteEndPoint);
+	}
+	else
+#endif
+	{
+		kDebug(3, "accepting new TCP connection from {} on port {}",
+			   sRemoteEndPoint,
+			   m_iPort);
 	}
 
 	DEKAF2_TRY
@@ -180,16 +184,18 @@ void KTCPServer::RunSession(KStream& stream, KString sRemoteEndPoint)
 		kException(e);
 	}
 
-	if (m_iPort)
-	{
-		kDebug(3, "closing TCP connection with {} on port {}",
-					 sRemoteEndPoint,
-					 m_iPort);
-	}
-	else
+#ifdef DEKAF2_HAS_UNIX_SOCKETS
+	if (!m_iPort)
 	{
 		kDebug(3, "closing unix socket connection with {}",
 			   sRemoteEndPoint);
+	}
+	else
+#endif
+	{
+		kDebug(3, "closing TCP connection with {} on port {}",
+			   sRemoteEndPoint,
+			   m_iPort);
 	}
 
 } // RunSession
@@ -335,6 +341,7 @@ void KTCPServer::TCPServer(bool ipv6)
 
 } // TCPServer
 
+#ifdef DEKAF2_HAS_UNIX_SOCKETS
 //-----------------------------------------------------------------------------
 void KTCPServer::UnixServer()
 //-----------------------------------------------------------------------------
@@ -388,8 +395,8 @@ void KTCPServer::UnixServer()
 		kRemoveFile(m_sSocketFile);
 	}
 	DEKAF2_LOG_EXCEPTION
-
 } // UnixServer
+#endif
 
 //-----------------------------------------------------------------------------
 bool KTCPServer::LoadSSLCertificates(KStringViewZ sCert, KStringViewZ sKey, KStringView sPassword)
@@ -436,24 +443,28 @@ bool KTCPServer::Start(uint16_t iTimeoutInSeconds, bool bBlock)
 
 	if (m_bBlock)
 	{
-		if (m_sSocketFile.empty())
-		{
-			TCPServer(m_bStartIPv6);
-		}
-		else
+#ifdef DEKAF2_HAS_UNIX_SOCKETS
+		if (!m_sSocketFile.empty())
 		{
 			UnixServer();
+		}
+		else
+#endif
+		{
+			TCPServer(m_bStartIPv6);
 		}
 	}
 	else
 	{
-		if (m_sSocketFile.empty())
-		{
-			m_ipv6_server = std::make_unique<std::thread>(&KTCPServer::TCPServer, this, m_bStartIPv6);
-		}
-		else
+#ifdef DEKAF2_HAS_UNIX_SOCKETS
+		if (!m_sSocketFile.empty())
 		{
 			m_unix_server = std::make_unique<std::thread>(&KTCPServer::UnixServer, this);
+		}
+		else
+#endif
+		{
+			m_ipv6_server = std::make_unique<std::thread>(&KTCPServer::TCPServer, this, m_bStartIPv6);
 		}
 	}
 
@@ -484,6 +495,7 @@ void KTCPServer::StopServerThread(ServerType SType)
 			localhost.from_string("127.0.0.1");
 			break;
 
+#ifdef DEKAF2_HAS_UNIX_SOCKETS
 		case Unix:
 			// connect to socket file
 			boost::asio::local::stream_protocol::socket s(m_asio);
@@ -491,6 +503,7 @@ void KTCPServer::StopServerThread(ServerType SType)
 			// wait a little to avoid acceptor exception
 			std::this_thread::sleep_for(std::chrono::milliseconds(1));
 			return;
+#endif
 	}
 
 	tcp::endpoint remote_endpoint(localhost, m_iPort);
@@ -527,13 +540,14 @@ bool KTCPServer::Stop()
 			m_ipv6_server.reset();
 		}
 
+#ifdef DEKAF2_HAS_UNIX_SOCKETS
 		if (m_unix_server)
 		{
 			StopServerThread(Unix);
 			m_unix_server->join();
 			m_unix_server.reset();
 		}
-
+#endif
 		m_bIsListening = false;
 	}
 
@@ -550,15 +564,17 @@ KTCPServer::KTCPServer(uint16_t iPort, bool bSSL, uint16_t iMaxConnections)
 {
 }
 
+#ifdef DEKAF2_HAS_UNIX_SOCKETS
 //-----------------------------------------------------------------------------
 KTCPServer::KTCPServer(KStringView sSocketFile, uint16_t iMaxConnections)
 //-----------------------------------------------------------------------------
-: m_ThreadPool(std::make_unique<KThreadPool>(iMaxConnections))
-, m_sSocketFile(sSocketFile)
+: m_sSocketFile(sSocketFile)
+, m_ThreadPool(std::make_unique<KThreadPool>(iMaxConnections))
 , m_iPort(0)
 , m_bIsSSL(false)
 {
 }
+#endif
 
 //-----------------------------------------------------------------------------
 KTCPServer::~KTCPServer()

@@ -154,6 +154,7 @@ bool KREST::Execute(const Options& Options, const KRESTRoutes& Routes)
 				return true;
 			}
 
+#ifdef DEKAF2_HAS_UNIX_SOCKETS
 		case UNIX:
 			{
 				kDebug(1, "starting standalone HTTP server on socket file {}...", Options.sSocketFile);
@@ -162,6 +163,7 @@ bool KREST::Execute(const Options& Options, const KRESTRoutes& Routes)
 				Server.Start(Options.iTimeout, true);
 				return true;
 			}
+#endif
 
 		case CGI:
 			{
@@ -233,8 +235,10 @@ bool KREST::ExecuteFromFile(const Options& Options, const KRESTRoutes& Routes, K
 				return true; // we return true because the request was served
 			}
 
-		case HTTP:
+#ifdef DEKAF2_HAS_UNIX_SOCKETS
 		case UNIX:
+#endif
+		case HTTP:
 		case CLI:
 			// nothing to do here..
 			return SetError ("please use Execute() for HTTP or UNIX REST request types");

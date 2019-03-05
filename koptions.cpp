@@ -381,7 +381,7 @@ int KOptions::Parse(int argc, char** argv, KOutStream& out)
 					else if (it->sArg.In("d,dd,ddd"))
 					{
 						it->bConsumed = true;
-						KLog().SetLevel (it->sArg.size());
+						KLog().SetLevel (static_cast<int>(it->sArg.size()));
 						KLog().SetDebugLog (m_sCliDebugTo);
 						kDebug (1, "debug level set to: {}", KLog().GetLevel());
 					}

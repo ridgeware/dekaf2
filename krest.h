@@ -57,7 +57,11 @@ class KREST
 public:
 //----------
 
-	enum ServerType { UNDEFINED, HTTP, UNIX, CGI, FCGI, LAMBDA, CLI, SIMULATE_HTTP };
+	enum ServerType { UNDEFINED, HTTP, CGI, FCGI, LAMBDA, CLI, SIMULATE_HTTP
+#ifdef DEKAF2_HAS_UNIX_SOCKETS
+	                  , UNIX
+#endif
+					};
 
 	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	/// define options for the rest service
@@ -68,7 +72,9 @@ public:
 		uint16_t iPort { 0 };
 		uint16_t iMaxConnections { 20 };
 		uint16_t iTimeout { 5 };
+#ifdef DEKAF2_HAS_UNIX_SOCKETS
 		KStringViewZ sSocketFile;
+#endif
 		KStringViewZ sCert;
 		KStringViewZ sKey;
 

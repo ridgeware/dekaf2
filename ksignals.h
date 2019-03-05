@@ -168,7 +168,11 @@ private:
 		bool bAsThread;
 	};
 
+#ifdef DEKAF2_IS_WINDOWS
+	static const std::array<int, 5> m_SettableSigs;
+#else
 	static const std::array<int, 11> m_SettableSigs;
+#endif
 
 	static std::mutex s_SigSetMutex;
 	static std::map<int, sigmap_t> s_SigFuncs;

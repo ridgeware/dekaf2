@@ -250,7 +250,11 @@ KString kFormTimestamp (time_t tTime, const char* szFormat)
 		tTime = Dekaf().GetCurrentTime();
 	}
 
+#ifdef DEKAF2_IS_WINDOWS
+	gmtime_s (&ptmStruct, &tTime);
+#else
 	gmtime_r (&tTime, &ptmStruct);
+#endif
 
 	strftime (szBuffer, iMaxBuf, szFormat, &ptmStruct);
 

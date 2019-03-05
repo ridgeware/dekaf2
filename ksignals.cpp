@@ -49,11 +49,11 @@
 #include "kcrashexit.h"
 #include "kparallel.h"
 #include "klog.h"
-#ifndef DEKAF2_IS_WINDOWS
-#include <pthread.h>
-#endif
 #include <chrono>
 #include <thread>
+#ifndef DEKAF2_IS_WINDOWS
+	#include <pthread.h>
+#endif
 
 namespace dekaf2
 {
@@ -221,20 +221,28 @@ std::mutex KSignals::s_SigSetMutex;
 std::map<int, KSignals::sigmap_t> KSignals::s_SigFuncs;
 KRunThreads KSignals::m_Threads;
 
-const std::array<int, 11> KSignals::m_SettableSigs
+const std::array<int,
+#ifdef DEKAF2_IS_WINDOWS
+                 5
+#else
+                 11
+#endif
+                > KSignals::m_SettableSigs
 {
 	{
 		SIGINT,
+		SIGTERM,
+		SIGILL,
+		SIGFPE,
+		SIGSEGV,
+#ifndef DEKAF2_IS_WINDOWS
 		SIGQUIT,
 		SIGPIPE,
 		SIGHUP,
-		SIGTERM,
 		SIGUSR1,
 		SIGUSR2,
-		SIGILL,
-		SIGFPE,
-		SIGBUS,
-		SIGSEGV
+		SIGBUS
+#endif
 	}
 };
 
@@ -247,7 +255,7 @@ const char* kTranslateSignal (int iSignalNum, bool bConcise/*=TRUE*/)
 	case 0:
 		return ("");
 
-	#ifdef WIN32
+	#ifdef DEKAF2_IS_WINDOWS
 		// taken from WINCON.H:
 		// #define CTRL_C_EVENT        0
 		// #define CTRL_BREAK_EVENT    1
@@ -260,11 +268,11 @@ const char* kTranslateSignal (int iSignalNum, bool bConcise/*=TRUE*/)
 		// We have to add an offset to them so that
 		// we can distinguish between 0 (internal crash detection)
 		// and CTRL_BREAK_EVENT (which windows defines as 0):
-		case 1000+CTRL_BREAK_EVENT:
-			return (fConcise ? "CTRL_BREAK_EVENT" : "CTRL_BREAK_EVENT: win32 interrupt");
-		case 1000+CTRL_C_EVENT:
-			return (fConcise ? "CTRL_C_EVENT"     : "CTRL_C_EVENT: win32 SERVICE_CONTROL_STOP interrupt");
-	#else
+		case 1000 + /* CTRL_BREAK_EVENT */ 1:
+			return (bConcise ? "CTRL_BREAK_EVENT" : "CTRL_BREAK_EVENT: win32 interrupt");
+		case 1000 + /* CTRL_C_EVENT */ 0:
+			return (bConcise ? "CTRL_C_EVENT"     : "CTRL_C_EVENT: win32 SERVICE_CONTROL_STOP interrupt");
+	#endif
 
 		#ifdef SIGHUP
 		case SIGHUP:
@@ -423,34 +431,33 @@ const char* kTranslateSignal (int iSignalNum, bool bConcise/*=TRUE*/)
 
 		#ifdef SIGWAITING
 		case SIGWAITING:
-			return (fConcise ? "SIGWAITING" : "SIGWAITING: process's lwps are blocked.");
+			return (bConcise ? "SIGWAITING" : "SIGWAITING: process's lwps are blocked.");
 		#endif
 
 		#ifdef SIGLWP
 		case SIGLWP:
-			return (fConcise ? "SIGLWP" : "SIGLWP: special signal used by thread library.");
+			return (bConcise ? "SIGLWP" : "SIGLWP: special signal used by thread library.");
 		#endif
 
 		#ifdef SIGFREEZE
 		case SIGFREEZE:
-			return (fConcise ? "SIGFREEZE" : "SIGFREEZE: special signal used by CPR.");
+			return (bConcise ? "SIGFREEZE" : "SIGFREEZE: special signal used by CPR.");
 		#endif
 
 		#ifdef SIGTHAW
 		case SIGTHAW:
-			return (fConcise ? "SIGTHAW" : "SIGTHAW: special signal used by CPR.");
+			return (bConcise ? "SIGTHAW" : "SIGTHAW: special signal used by CPR.");
 		#endif
 
 		#ifdef SIGCANCEL
 		case SIGCANCEL:
-			return (fConcise ? "SIGCANCEL" : "SIGCANCEL: thread cancellation signal used by libthread.");
+			return (bConcise ? "SIGCANCEL" : "SIGCANCEL: thread cancellation signal used by libthread.");
 		#endif
 
 		#ifdef SIGLOST
 		case SIGLOST:
-			return (fConcise ? "SIGLOST" : "SIGLOST: resource lost (eg, record-lock lost).");
+			return (bConcise ? "SIGLOST" : "SIGLOST: resource lost (eg, record-lock lost).");
 		#endif
-	#endif
 
 	default:
 		return ("UNKNOWN");

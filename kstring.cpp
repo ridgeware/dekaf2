@@ -40,14 +40,13 @@
 //
 */
 
-#include <stdio.h>
-#include <assert.h>
 #include "kstring.h"
 #include "kstringutils.h"
 #include "klog.h"
 #include "kregex.h"
 #include "kutf8.h"
 #include "kstack.h"
+#include <cctype>
 
 namespace dekaf2
 {

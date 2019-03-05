@@ -387,6 +387,7 @@ KString KSSLConnection::Error() const
 std::unique_ptr<KConnection> KConnection::Create(const KURL& URL, bool bForceSSL, bool bVerifyCerts)
 //-----------------------------------------------------------------------------
 {
+#ifdef DEKAF2_HAS_UNIX_SOCKETS
 	if (URL.Protocol == url::KProtocol::UNIX)
 	{
 		auto C = std::make_unique<KUnixConnection>();
@@ -394,6 +395,7 @@ std::unique_ptr<KConnection> KConnection::Create(const KURL& URL, bool bForceSSL
 		return C;
 	}
 	else
+#endif
 	{
 		url::KPort Port = URL.Port;
 

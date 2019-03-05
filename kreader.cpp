@@ -278,6 +278,10 @@ bool kReadAll(std::istream& Stream, KString& sContent, bool bFromStart)
 
 } // kReadAll
 
+#ifdef DEKAF2_IS_WINDOWS
+#define DEKAF2_READALL_USE_IOSTREAMS
+#endif
+
 //-----------------------------------------------------------------------------
 bool kReadAll(KStringViewZ sFileName, KString& sContent)
 //-----------------------------------------------------------------------------
@@ -302,6 +306,32 @@ bool kReadAll(KStringViewZ sFileName, KString& sContent)
 		// Current gcc implementations would not need this hack,
 		// there, the speed is the same with iostreams as with simple
 		// file descriptor reads. But it does not hurt there either.
+		//
+		// For Windows, we switch to iostreams however, as otherwise
+		// we could not open UTF8 file names
+
+#ifdef DEKAF2_READALL_USE_IOSTREAMS
+
+		KInFile File(sFileName);
+		if (File.is_open())
+		{
+			auto iContent = sContent.size();
+			sContent.resize_uninitialized(iContent + iSize);
+			auto iRead = File.Read(&sContent[iContent], iSize);
+
+			if (iRead < static_cast<size_t>(iSize))
+			{
+				sContent.resize(iContent + iRead);
+			}
+
+			return iRead == static_cast<size_t>(iSize);
+		}
+		else
+		{
+			kDebug(2, "cannot open file '{}'", sFileName);
+		}
+
+#else
 
 		auto fd = open(sFileName.c_str(), O_RDONLY);
 
@@ -324,6 +354,9 @@ bool kReadAll(KStringViewZ sFileName, KString& sContent)
 		{
 			kDebug(2, "cannot open file '{}': {}", sFileName, strerror(errno));
 		}
+
+#endif
+
 	}
 
 	return false;

@@ -44,13 +44,16 @@
 //-----------------------------------------------------------------------------//
 */
 
-#include <pthread.h>
-#include <chrono>
-#include <thread>
 #include "ksignals.h"
+#include "bits/kcppcompat.h"
 #include "kcrashexit.h"
 #include "kparallel.h"
 #include "klog.h"
+#ifndef DEKAF2_IS_WINDOWS
+#include <pthread.h>
+#endif
+#include <chrono>
+#include <thread>
 
 namespace dekaf2
 {

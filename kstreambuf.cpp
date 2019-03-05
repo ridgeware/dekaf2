@@ -40,8 +40,9 @@
 //
 */
 
-#include <cstring>
 #include "kstreambuf.h"
+#include <cstring>
+#include <algorithm>
 
 namespace dekaf2 {
 

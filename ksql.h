@@ -393,8 +393,8 @@ public:
 	bool        WasDuplicateError()      { return (GetLastErrorNum() == 1062); /*TODO:MySQL only*/ }
 	int         GetLastOCIError ()       { return (GetLastErrorNum()); }
 	const KString& GetLastSQL ()         { return (m_sLastSQL);        }
-	uint64_t    SetFlags (Flags iFlags);
-	uint64_t    GetFlags ()              { return (m_iFlags);          }
+	Flags       SetFlags (Flags iFlags);
+	Flags       GetFlags ()              { return (m_iFlags);          }
 	bool        IsFlag (Flags iBit)      { return ((m_iFlags & iBit) == iBit); }
 	uint64_t    GetNumRowsAffected ()    { return (m_iNumRowsAffected); }
 	uint64_t    GetLastInsertID ();

@@ -89,7 +89,7 @@ public:
 	{
 		if (m_print)
 		{
-#if defined(__APPLE__) || defined (__arm__)
+#if defined (__APPLE__) || defined (__arm__) || defined (_MSC_VER)
 			fprintf(stdout, "KQDProf::%-25.25s %10lli nsecs\n", m_label, (clock_t::now()-m_start).count());
 #else
 			fprintf(stdout, "KQDProf::%-25.25s %10li nsecs\n", m_label, (clock_t::now()-m_start).count());
@@ -271,7 +271,9 @@ public:
 	static void Force(void *p)
 	//-----------------------------------------------------------------------------
 	{
+#ifndef _MSC_VER
 		__asm__ __volatile__ ("" : "+g"(p) : "g"(p) : "memory");
+#endif
 	}
 
 	//-----------------------------------------------------------------------------
@@ -279,7 +281,9 @@ public:
 	static void Force()
 	//-----------------------------------------------------------------------------
 	{
+#ifndef _MSC_VER
 		__asm__ __volatile__ ("" : : : "memory");
+#endif
 	}
 
 #ifdef DEKAF2_DISABLE_AUTOMATIC_PROFILER

@@ -43,6 +43,7 @@
 #include "kwords.h"
 #include "kutf8.h"
 #include "khtmlentities.h"
+#include <cctype>
 
 
 namespace dekaf2 {

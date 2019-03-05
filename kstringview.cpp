@@ -46,6 +46,7 @@
 #include "klog.h"
 #include "dekaf2.h"
 #include "bits/simd/kfindfirstof.h"
+#include <cctype>
 
 #ifdef DEKAF2_NO_GCC
 void* memrchr(const void* s, int c, size_t n)

@@ -4072,7 +4072,7 @@ bool KSQL::SetAPISet (API iAPISet)
 } // SetAPISet
 
 //-----------------------------------------------------------------------------
-uint64_t KSQL::SetFlags (Flags iFlags)
+KSQL::Flags KSQL::SetFlags (Flags iFlags)
 //-----------------------------------------------------------------------------
 {
 	kDebugLog (3, "KSQL::SetFlags()...");

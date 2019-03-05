@@ -82,7 +82,6 @@ class KCache
 protected:
 //----------
 
-	enum { DEFAULT_MAX_CACHE_SIZE = 1000 };
 	using map_type = KMRUMap<Key, Value>;
 	map_type m_map;
 	size_t m_iMaxSize;
@@ -100,6 +99,8 @@ protected:
 //----------
 public:
 //----------
+
+	enum { DEFAULT_MAX_CACHE_SIZE = 1000 };
 
 	//-----------------------------------------------------------------------------
 	KCache(size_t iMaxSize = DEFAULT_MAX_CACHE_SIZE)

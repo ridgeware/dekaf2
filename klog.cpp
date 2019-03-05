@@ -40,9 +40,6 @@
 //
 */
 
-#include <mutex>
-#include <iostream>
-#include <syslog.h>
 #include "dekaf2.h"
 #include "klog.h"
 #include "kstring.h"
@@ -51,6 +48,12 @@
 #include "ksystem.h"
 #include "ksplit.h"
 #include "kfilesystem.h"
+#include <mutex>
+#include <iostream>
+
+#ifdef DEKAF2_HAS_SYSLOG
+	#include <syslog.h>
+#endif
 
 #ifdef DEKAF2_KLOG_WITH_TCP
 	#include "kurl.h"
@@ -96,6 +99,7 @@ bool KLogFileWriter::Write(int iLevel, bool bIsMultiline, const KString& sOut)
 
 } // Write
 
+#ifdef DEKAF2_HAS_SYSLOG
 //---------------------------------------------------------------------------
 bool KLogSyslogWriter::Write(int iLevel, bool bIsMultiline, const KString& sOut)
 //---------------------------------------------------------------------------
@@ -148,6 +152,7 @@ bool KLogSyslogWriter::Write(int iLevel, bool bIsMultiline, const KString& sOut)
 	return true;
 
 } // Write
+#endif
 
 #ifdef DEKAF2_KLOG_WITH_TCP
 
@@ -504,6 +509,8 @@ void KLogJSONSerializer::Serialize() const
 
 #endif // of DEKAF2_KLOG_WITH_TCP
 
+#ifdef DEKAF2_HAS_SYSLOG
+
 //---------------------------------------------------------------------------
 void KLogSyslogSerializer::Serialize() const
 //---------------------------------------------------------------------------
@@ -524,7 +531,7 @@ void KLogSyslogSerializer::Serialize() const
 
 } // Serialize
 
-
+#endif
 
 // "singleton"
 //---------------------------------------------------------------------------
@@ -681,8 +688,10 @@ std::unique_ptr<KLogWriter> KLog::CreateWriter(Writer writer, KStringView sLogna
 			return std::make_unique<KLogStdWriter>(std::cerr);
 		case Writer::FILE:
 			return std::make_unique<KLogFileWriter>(sLogname);
+#ifdef DEKAF2_HAS_SYSLOG
 		case Writer::SYSLOG:
 			return std::make_unique<KLogSyslogWriter>();
+#endif
 #ifdef DEKAF2_KLOG_WITH_TCP
 		case Writer::TCP:
 			return std::make_unique<KLogTCPWriter>(sLogname);
@@ -702,8 +711,10 @@ std::unique_ptr<KLogSerializer> KLog::CreateSerializer(Serializer serializer)
 		default:
 		case Serializer::TTY:
 			return std::make_unique<KLogTTYSerializer>();
+#ifdef DEKAF2_HAS_SYSLOG
 		case Serializer::SYSLOG:
 			return std::make_unique<KLogSyslogSerializer>();
+#endif
 #ifdef DEKAF2_KLOG_WITH_TCP
 		case Serializer::JSON:
 			return std::make_unique<KLogJSONSerializer>();
@@ -731,12 +742,14 @@ bool KLog::IntOpenLog()
 	}
 	else
 #endif
+#ifdef DEKAF2_HAS_SYSLOG
 	if (m_sLogName == SYSLOG)
 	{
 		SetWriter(CreateWriter(Writer::SYSLOG));
 		SetSerializer(CreateSerializer(Serializer::SYSLOG));
 	}
 	else
+#endif
 	{
 		// this is a regular file
 		if (m_sLogName == STDOUT)

@@ -44,13 +44,12 @@
 
 #pragma once
 
-#include <cinttypes>
-
 #include "kurlencode.h"
 #include "kstringview.h"
 #include "kstring.h"
 #include "kprops.h"
 #include "kstream.h"
+#include <cinttypes>
 
 
 namespace dekaf2 {

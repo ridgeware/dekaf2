@@ -43,6 +43,7 @@
 #include "kquotedprintable.h"
 #include "kstringutils.h"
 #include "klog.h"
+#include <cctype>
 
 namespace dekaf2 {
 
@@ -229,7 +230,7 @@ KString KQuotedPrintable::Decode(KStringView sInput, bool bDotStuffing)
 			{
 				uint16_t iValue = kFromHexChar(LeadChar) << 4;
 				iValue += kFromHexChar(ch);
-				out += iValue;
+				out += static_cast<KString::value_type>(iValue);
 			}
 		}
 		else

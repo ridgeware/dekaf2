@@ -51,6 +51,10 @@
 #include "kformat.h"
 #include "bits/kcppcompat.h"
 
+#ifndef DEKAF2_IS_WINDOWS
+	#define DEKAF2_HAS_SYSLOG
+#endif
+
 namespace dekaf2
 {
 
@@ -113,7 +117,7 @@ private:
 
 }; // KLogFileWriter
 
-
+#ifdef DEKAF2_HAS_SYSLOG
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Logwriter for the syslog
 class KLogSyslogWriter : public KLogWriter
@@ -128,10 +132,11 @@ public:
 	virtual bool Good() const override { return true; }
 
 }; // KLogSyslogWriter
-
-class KConnection; // fwd decl - we do not want to include the kconnection header here
+#endif
 
 #ifdef DEKAF2_KLOG_WITH_TCP
+
+class KConnection; // fwd decl - we do not want to include the kconnection header here
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Logwriter that writes to any TCP endpoint
@@ -271,6 +276,7 @@ protected:
 
 }; // KLogTTYSerializer
 
+#ifdef DEKAF2_HAS_SYSLOG
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Specialization of the serializer for the Syslog: creates simple text lines
 /// of output, but without the prefix like timestamp and warning level
@@ -289,6 +295,7 @@ protected:
 	virtual void Serialize() const;
 
 }; // KLogSyslogSerializer
+#endif
 
 #ifdef DEKAF2_KLOG_WITH_TCP
 
@@ -350,7 +357,9 @@ public:
 
 	static constexpr KStringViewZ STDOUT = "stdout";
 	static constexpr KStringViewZ STDERR = "stderr";
+#ifdef DEKAF2_HAS_SYSLOG
 	static constexpr KStringViewZ SYSLOG = "syslog";
+#endif
 	static constexpr KStringViewZ DBAR   = "================================================================================";
 	static constexpr KStringViewZ BAR    = "--------------------------------------------------------------------------------";
 	static constexpr KStringViewZ DASH   = "- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - ";
@@ -409,7 +418,9 @@ public:
 		STDOUT,
 		STDERR,
 		FILE,
+#ifdef DEKAF2_HAS_SYSLOG
 		SYSLOG,
+#endif
 #ifdef DEKAF2_KLOG_WITH_TCP
 		TCP,
 		HTTP
@@ -424,7 +435,9 @@ public:
 	enum class Serializer
 	{
 		TTY,
+#ifdef DEKAF2_HAS_SYSLOG
 		SYSLOG,
+#endif
 #ifdef DEKAF2_KLOG_WITH_TCP
 		JSON
 #endif

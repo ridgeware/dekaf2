@@ -593,7 +593,7 @@ void KRESTServer::ErrorHandler(const std::exception& ex, const Options& Options)
 
 	KStringViewZ sError = ex.what();
 
-	kDebug (1, "Error: {}, Response: {} {}", sError, Response.iStatusCode, Response.sStatusString);
+	kDebugLog (1, "HTTP-{}: {}\n{}",  Response.iStatusCode, Response.sStatusString, sError);
 
 	// do not compress/chunk error messages
 	SetCompression(false);

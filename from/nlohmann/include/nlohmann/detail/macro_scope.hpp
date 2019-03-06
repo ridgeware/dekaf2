@@ -3,6 +3,9 @@
 // This file contains all internal macro definitions
 // You MUST include macro_unscope.hpp at the end of json.hpp to undef all of them
 
+#include <dekaf2/dekaf2.h>
+#include <dekaf2/klog.h>
+
 // exclude unsupported compilers
 #if !defined(JSON_SKIP_UNSUPPORTED_COMPILER_CHECK)
     #if defined(__clang__)
@@ -39,12 +42,12 @@
 
 // allow to disable exceptions
 #if (defined(__cpp_exceptions) || defined(__EXCEPTIONS) || defined(_CPPUNWIND)) && !defined(JSON_NOEXCEPTION)
-    #define JSON_THROW(exception) throw exception
+    #define JSON_THROW(exception) { kDebugTrace("JSON exception"); throw exception; }
     #define JSON_TRY try
     #define JSON_CATCH(exception) catch(exception)
     #define JSON_INTERNAL_CATCH(exception) catch(exception)
 #else
-    #define JSON_THROW(exception) std::abort()
+    #define JSON_THROW(exception) { kDebugTrace("JSON exception"); std::abort(); }
     #define JSON_TRY if(true)
     #define JSON_CATCH(exception) if(false)
     #define JSON_INTERNAL_CATCH(exception) if(false)

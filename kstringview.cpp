@@ -447,10 +447,10 @@ KStringView::size_type KStringView::copy(value_type* dest, size_type count, size
 
 	count = std::min(size() - pos, count);
 
-	return static_cast<size_type>(std::copy(const_cast<char*>(begin() + pos),
-	                                        const_cast<char*>(begin() + pos + count),
-	                                        const_cast<char*>(dest))
-	                              - dest);
+	return static_cast<size_type>(std::copy(const_cast<char*>(data() + pos),
+											const_cast<char*>(data() + pos + count),
+											const_cast<char*>(dest))
+								  - dest);
 }
 
 //-----------------------------------------------------------------------------

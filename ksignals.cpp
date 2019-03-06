@@ -62,17 +62,23 @@ namespace dekaf2
 void kBlockAllSignals(bool bExceptSEGVandFPE)
 //-----------------------------------------------------------------------------
 {
+#ifdef DEKAF2_IS_WINDOWS
+	signal(SIGINT,  SIG_IGN);
+	signal(SIGTERM, SIG_IGN);
+#else
 	sigset_t signal_set;
 	sigfillset(&signal_set);
 	pthread_sigmask(SIG_BLOCK, &signal_set, nullptr);
+#endif
 
 	if (bExceptSEGVandFPE)
 	{
 		signal(SIGSEGV, kCrashExit);
-		signal(SIGFPE, kCrashExit);
+		signal(SIGFPE,  kCrashExit);
+		signal(SIGILL,  kCrashExit);
 	}
 
-} // kIgnoreAllSignals
+} // kBlockAllSignals
 
 //-----------------------------------------------------------------------------
 void KSignals::BlockAllSignals(bool bExceptSEGVandFPE)
@@ -82,8 +88,10 @@ void KSignals::BlockAllSignals(bool bExceptSEGVandFPE)
 
 	std::lock_guard<std::mutex> Lock(s_SigSetMutex);
 	s_SigFuncs.clear();
-}
 
+} // BlockAllSignals
+
+#ifndef DEKAF2_IS_WINDOWS
 //-----------------------------------------------------------------------------
 void KSignals::WaitForSignals()
 //-----------------------------------------------------------------------------
@@ -97,6 +105,7 @@ void KSignals::WaitForSignals()
 	sigfillset(&signal_set);
 	sigdelset(&signal_set, SIGSEGV);
 	sigdelset(&signal_set, SIGFPE);
+	sigdelset(&signal_set, SIGILL);
 
 	for (;;)
 	{
@@ -109,7 +118,9 @@ void KSignals::WaitForSignals()
 		// check if we have a function to call for
 		LookupFunc(sig);
 	}
-}
+
+} // WaitForSignals
+#endif
 
 //-----------------------------------------------------------------------------
 void KSignals::LookupFunc(int signal)
@@ -139,7 +150,8 @@ void KSignals::LookupFunc(int signal)
 	{
 		callable.func(signal);
 	}
-}
+
+} // LookupFunc
 
 //-----------------------------------------------------------------------------
 void KSignals::IntDelSignalHandler(int iSignal, signal_func_t func)
@@ -149,7 +161,8 @@ void KSignals::IntDelSignalHandler(int iSignal, signal_func_t func)
 		std::lock_guard<std::mutex> Lock(s_SigSetMutex);
 		s_SigFuncs.erase(iSignal);
 	}
-}
+
+} // IntDelSignalHandler
 
 //-----------------------------------------------------------------------------
 void KSignals::SetSignalHandler(int iSignal, std_func_t func, bool bAsThread)
@@ -157,7 +170,8 @@ void KSignals::SetSignalHandler(int iSignal, std_func_t func, bool bAsThread)
 {
 	std::lock_guard<std::mutex> Lock(s_SigSetMutex);
 	s_SigFuncs[iSignal] = {func, bAsThread};
-}
+
+} // SetSignalHandler
 
 //-----------------------------------------------------------------------------
 void KSignals::SetCSignalHandler(int iSignal, signal_func_t func, bool bAsThread)
@@ -172,7 +186,8 @@ void KSignals::SetCSignalHandler(int iSignal, signal_func_t func, bool bAsThread
 		std::lock_guard<std::mutex> Lock(s_SigSetMutex);
 		s_SigFuncs[iSignal] = {func, bAsThread};
 	}
-}
+
+} // SetCSignalHandler
 
 //-----------------------------------------------------------------------------
 void KSignals::SetAllSignalHandlers(std_func_t func, bool bAsThread)
@@ -182,7 +197,8 @@ void KSignals::SetAllSignalHandlers(std_func_t func, bool bAsThread)
 	{
 		SetSignalHandler(it, func, bAsThread);
 	}
-}
+
+} // SetAllSignalHandlers
 
 //-----------------------------------------------------------------------------
 KSignals::KSignals(bool bStartHandlerThread)
@@ -198,10 +214,20 @@ KSignals::KSignals(bool bStartHandlerThread)
 		SetSignalHandler(SIGINT,  [](int){ std::exit(0); });
 		SetSignalHandler(SIGTERM, [](int){ std::exit(0); });
 
-		// and start handler thread
+#ifdef DEKAF2_IS_WINDOWS
+		// On Windows place signal handlers for the settable signals
+		// that simply call our lookup function
+		for (auto it : m_SettableSigs)
+		{
+			signal(it, [](int signal){ LookupFunc(signal); } );
+		}
+#else
+		// On Unix systems start handler thread
 		m_Threads.CreateOne(&KSignals::WaitForSignals, this);
+#endif
 	}
-}
+
+} // ctor
 
 //-----------------------------------------------------------------------------
 KSignals::~KSignals()
@@ -215,7 +241,8 @@ KSignals::~KSignals()
 	// better to keep it hanging around as the signal
 	// handling for plain function pointers also continues
 	// to work after destruction..
-}
+
+} // dtor
 
 std::mutex KSignals::s_SigSetMutex;
 std::map<int, KSignals::sigmap_t> KSignals::s_SigFuncs;

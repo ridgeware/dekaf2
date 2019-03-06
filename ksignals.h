@@ -64,6 +64,8 @@ namespace dekaf2
 /// Permits to set callbacks for any signal that shall not be ignored. Can
 /// start these callbacks in threads of its own, to return as fast as possible
 /// from the signal handler.
+/// On Windows, this class is much less useful, as Windows only has very limited
+/// signal support. Only SIGTERM, SIGSEGV amd SIGABRT can be used for real purposes.
 class KSignals
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -154,9 +156,11 @@ private:
 	void IntDelSignalHandler(int iSignal, signal_func_t func);
 	//-----------------------------------------------------------------------------
 
+#ifndef DEKAF2_IS_WINDOWS
 	//-----------------------------------------------------------------------------
 	void WaitForSignals();
 	//-----------------------------------------------------------------------------
+#endif
 
 	//-----------------------------------------------------------------------------
 	static void LookupFunc(int signal);

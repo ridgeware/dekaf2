@@ -55,7 +55,7 @@ BIGNUM* Base64ToBignum(KStringView sBase64)
 {
 	auto sBin = KBase64Url::Decode(sBase64);
 
-	return BN_bin2bn(reinterpret_cast<unsigned char*>(sBin.data()), sBin.size(), nullptr);
+	return BN_bin2bn(reinterpret_cast<unsigned char*>(sBin.data()), static_cast<int>(sBin.size()), nullptr);
 
 } // Base64ToBignum
 
@@ -143,7 +143,7 @@ bool KRSAKey::Create(KStringView sPubKey, KStringView sPrivKey)
 {
 	std::unique_ptr<BIO, decltype(&BIO_free_all)> pubkey_bio(BIO_new(BIO_s_mem()), BIO_free_all);
 
-	if (static_cast<size_t>(BIO_write(pubkey_bio.get(), sPubKey.data(), sPubKey.size())) != sPubKey.size())
+	if (static_cast<size_t>(BIO_write(pubkey_bio.get(), sPubKey.data(), static_cast<int>(sPubKey.size()))) != sPubKey.size())
 	{
 		kWarning("cannot load public key");
 		return false;
@@ -159,7 +159,7 @@ bool KRSAKey::Create(KStringView sPubKey, KStringView sPrivKey)
 	if (!sPrivKey.empty())
 	{
 		std::unique_ptr<BIO, decltype(&BIO_free_all)> privkey_bio(BIO_new(BIO_s_mem()), BIO_free_all);
-		if (static_cast<size_t>(BIO_write(privkey_bio.get(), sPrivKey.data(), sPrivKey.size())) != sPrivKey.size())
+		if (static_cast<size_t>(BIO_write(privkey_bio.get(), sPrivKey.data(), static_cast<int>(sPrivKey.size()))) != sPrivKey.size())
 		{
 			kWarning("cannot load private key");
 			return false;

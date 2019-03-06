@@ -288,19 +288,19 @@ KString kTranslateSeconds(int64_t iNumSeconds, bool bLongForm)
 		SECS_PER_MIN   = (60)
 	};
 
-	int iYears = (iNumSeconds / SECS_PER_YEAR);
+	int iYears = static_cast<int>(iNumSeconds / SECS_PER_YEAR);
 	iNumSeconds -= (iYears * SECS_PER_YEAR);
 
-	int iWeeks = (iNumSeconds / SECS_PER_WEEK);
+	int iWeeks = static_cast<int>(iNumSeconds / SECS_PER_WEEK);
 	iNumSeconds -= (iWeeks * SECS_PER_WEEK);
 
-	int iDays = (iNumSeconds / SECS_PER_DAY);
+	int iDays = static_cast<int>(iNumSeconds / SECS_PER_DAY);
 	iNumSeconds -= (iDays * SECS_PER_DAY);
 
-	int iHours = (iNumSeconds / SECS_PER_HOUR);
+	int iHours = static_cast<int>(iNumSeconds / SECS_PER_HOUR);
 	iNumSeconds -= (iHours * SECS_PER_HOUR);
 
-	int iMins  = (iNumSeconds / SECS_PER_MIN);
+	int iMins  = static_cast<int>(iNumSeconds / SECS_PER_MIN);
 	iNumSeconds -= (iMins * SECS_PER_MIN);
 
 	if (bLongForm) // e.g. "1 yr, 2 wks, 3 days, 6 hrs, 23 min, 10 sec"

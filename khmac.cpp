@@ -105,7 +105,7 @@ KHMAC::KHMAC(ALGORITHM Algorithm, KStringView sKey, KStringView sMessage)
 			break;
 	}
 
-	if (1 != HMAC_Init_ex(static_cast<HMAC_CTX*>(hmacctx), sKey.data(), sKey.size(), callback(), nullptr))
+	if (1 != HMAC_Init_ex(static_cast<HMAC_CTX*>(hmacctx), sKey.data(), static_cast<int>(sKey.size()), callback(), nullptr))
 	{
 		kDebug(1, "cannot initialize algorithm");
 		Release();

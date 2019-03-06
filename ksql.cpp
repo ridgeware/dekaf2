@@ -218,7 +218,7 @@ static void*  kfree (void* dPointer, const char* sContext = nullptr )
 } // kfree
 
 //-----------------------------------------------------------------------------
-void* kmalloc (uint32_t iNumBytes, const char* pszContext, bool bClearMemory = true)
+void* kmalloc (size_t iNumBytes, const char* pszContext, bool bClearMemory = true)
 //-----------------------------------------------------------------------------
 {
 	kDebugLog (3, "{}: dynamic allocation of {} bytes", pszContext, iNumBytes);
@@ -3382,7 +3382,7 @@ bool KSQL::NextRow ()
 			m_dBufferedColArray[ii] = (char*) kmalloc (iDataLen+3, "KSQL:NextRow");
 
 			// second line is the data value (could be one HUGE line of gobbly gook):
-			bOK = (fgets (m_dBufferedColArray[ii], iDataLen+2, m_bpBufferedResults) != nullptr);
+			bOK = (fgets (m_dBufferedColArray[ii], static_cast<int>(iDataLen+2), m_bpBufferedResults) != nullptr);
 
 			// sanity check: there should be a newline at exactly value[iDataLen]:
 			if (!bOK || ((m_dBufferedColArray[ii])[iDataLen] != '\n'))
@@ -4254,7 +4254,7 @@ void KSQL::FormatConnectSummary ()
 			if (GetDBPort())
 			{
 				m_sConnectSummary += ":";
-				m_sConnectSummary += GetDBPort();
+				m_sConnectSummary += KString::to_string(GetDBPort());
 			}
 			m_sConnectSummary += " [Oracle:";
 			m_sConnectSummary += TxAPISet(m_iAPISet);
@@ -4273,7 +4273,7 @@ void KSQL::FormatConnectSummary ()
 				if (GetDBPort())
 				{
 					m_sConnectSummary += ":";
-					m_sConnectSummary += GetDBPort();
+					m_sConnectSummary += KString::to_string(GetDBPort());
 				}
 				m_sConnectSummary += ":";
 				m_sConnectSummary += m_sDatabase;
@@ -6271,7 +6271,7 @@ size_t KSQL::OutputQuery (KStringView sSQL, OutputFormat iFormat/*=FORM_ASCII*/,
 					for (const auto& it : Row)
 					{
 						const KString& sName = it.first;
-						int iMax = Widths.Get (sName);
+						int iMax = static_cast<int>(Widths.Get (sName));
 						fprintf (fpout, "%s%-*.*s-+", (bFirst) ? "+-" : "-", iMax, iMax, BAR);
 						bFirst = false;
 					}
@@ -6279,7 +6279,7 @@ size_t KSQL::OutputQuery (KStringView sSQL, OutputFormat iFormat/*=FORM_ASCII*/,
 					for (const auto& it : Row)
 					{
 						const KString& sName = it.first;
-						int iMax = Widths.Get (sName);
+						int iMax = static_cast<int>(Widths.Get (sName));
 						fprintf (fpout, "%s%-*.*s |", (bFirst) ? "| " : " ", iMax, iMax, sName.c_str());
 						bFirst = false;
 					}
@@ -6287,7 +6287,7 @@ size_t KSQL::OutputQuery (KStringView sSQL, OutputFormat iFormat/*=FORM_ASCII*/,
 					for (const auto& it : Row)
 					{
 						const KString& sName = it.first;
-						int iMax = Widths.Get (sName);
+						int iMax = static_cast<int>(Widths.Get (sName));
 						fprintf (fpout, "%s%-*.*s-+", (bFirst) ? "+-" : "-", iMax, iMax, BAR);
 						bFirst = false;
 					}
@@ -6324,7 +6324,7 @@ size_t KSQL::OutputQuery (KStringView sSQL, OutputFormat iFormat/*=FORM_ASCII*/,
 				{
 					const KString& sName  = it.first;
 					const KString& sValue = it.second.sValue;
-					int iMax = Widths.Get (sName);
+					int iMax = static_cast<int>(Widths.Get (sName));
 					fprintf (fpout, "%s%-*.*s |", (bFirst) ? "| " : " ", iMax, iMax, sValue.c_str());
 					bFirst = false;
 				}
@@ -6366,7 +6366,7 @@ size_t KSQL::OutputQuery (KStringView sSQL, OutputFormat iFormat/*=FORM_ASCII*/,
 				for (const auto& it : Row)
 				{
 					const KString& sName  = it.first;
-					int iMax  = Widths.Get (sName);
+					int iMax  = static_cast<int>(Widths.Get (sName));
 					fprintf (fpout, "%s%-*.*s-+", (bFirst) ? "+-" : "-", iMax, iMax, BAR);
 					bFirst = false;
 				}

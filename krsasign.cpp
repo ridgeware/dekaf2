@@ -112,7 +112,7 @@ bool KRSAVerify::Verify(KRSAKey& Key, KStringView _sSignature) const
 {
 	if (evpctx && !Key.empty())
 	{
-		if (1 != EVP_VerifyFinal(static_cast<EVP_MD_CTX*>(evpctx), reinterpret_cast<const unsigned char*>(_sSignature.data()), _sSignature.size(), static_cast<EVP_PKEY*>(Key.GetEVPPKey())))
+		if (1 != EVP_VerifyFinal(static_cast<EVP_MD_CTX*>(evpctx), reinterpret_cast<const unsigned char*>(_sSignature.data()), static_cast<int>(_sSignature.size()), static_cast<EVP_PKEY*>(Key.GetEVPPKey())))
 		{
 			kDebug(1, "cannot verify signature");
 			return false;

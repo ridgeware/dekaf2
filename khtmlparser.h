@@ -154,7 +154,7 @@ class KHTMLAttribute : public KHTMLObject
 public:
 //------
 
-#if (!DEKAF2_NO_GCC && DEKAF2_GCC_VERSION < 70000)
+#if (!DEKAF2_NO_GCC && DEKAF2_GCC_VERSION < 70000) || defined(_MSC_VER)
 	// older GCCs need a default constructor here as they do not honor the using directive below
 	KHTMLAttribute() = default;
 #endif
@@ -300,7 +300,7 @@ class KHTMLTag : public KHTMLObject
 public:
 //------
 
-#if (!DEKAF2_NO_GCC && DEKAF2_GCC_VERSION < 70000)
+#if (!DEKAF2_NO_GCC && DEKAF2_GCC_VERSION < 70000) || defined(_MSC_VER)
 	// older GCCs need a default constructor here as they do not honor the using directive below
 	KHTMLTag() = default;
 #endif

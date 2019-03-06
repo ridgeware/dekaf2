@@ -543,6 +543,9 @@ KJSON KROW::to_json (uint64_t iFlags/*=0*/) const
 			}
 			DEKAF2_CATCH(const KJSON::exception& exc)
 			{
+#ifdef _MSC_VER
+				exc.what();
+#endif
 				// not a valid json object / array, store it as a string
 				kjson::SetStringFromUTF8orLatin1(json[sKey], col.second.sValue);
 			}
@@ -563,6 +566,9 @@ KJSON KROW::to_json (uint64_t iFlags/*=0*/) const
 				}
 				DEKAF2_CATCH(const KJSON::exception& exc)
 				{
+#ifdef _MSC_VER
+					exc.what();
+#endif
 					// not a valid json object / array, store it as a string
 					kjson::SetStringFromUTF8orLatin1(json[sKey], col.second.sValue);
 				}

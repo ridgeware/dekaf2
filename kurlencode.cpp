@@ -97,7 +97,7 @@ KUrlEncodingTables::KUrlEncodingTables()
 
 } // end of namespace detail
 
-#ifndef DEKAF2_IS_WINDOWS
+#ifndef _MSC_VER
 template void kUrlDecode(KString& sDecode, bool pPlusAsSpace = false);
 template void kUrlDecode(KStringView sSource, KString& sTarget, bool bPlusAsSpace = false);
 template KString kUrlDecode(KStringView sSource, bool bPlusAsSpace = false);

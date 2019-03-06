@@ -500,20 +500,14 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
-	template<const char X = chPairSep, typename std::enable_if<X != '\0', int>::type = 0>
-	friend bool operator< (const self_type& left, const self_type& right)
-	//-------------------------------------------------------------------------
-	{
-		// this should rather be a comparison on the decoded version
-		return left.Serialize() < right.Serialize();
-	}
-
-	//-------------------------------------------------------------------------
+	template<const char X = chPairSep, typename std::enable_if<X == '\0', int>::type = 0>
 	friend bool operator> (const self_type& left, const self_type& right)
 	//-------------------------------------------------------------------------
 	{
 		return operator<(right, left);
 	}
+
+	// we do not have an operator< for the KProps variant
 
 //------
 protected:
@@ -523,7 +517,7 @@ protected:
 
 }; // KURLEncoded
 
-#ifndef DEKAF2_IS_WINDOWS
+#ifndef _MSC_VER
 extern template void kUrlDecode(KString& sDecode, bool pPlusAsSpace = false);
 extern template void kUrlDecode(KStringView sSource, KString& sTarget, bool bPlusAsSpace = false);
 extern template KString kUrlDecode(KStringView sSource, bool bPlusAsSpace = false);

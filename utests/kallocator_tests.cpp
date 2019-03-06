@@ -56,9 +56,10 @@ std::size_t memuse()
 // Note for vector it is possible to reduce the alignment requirements
 // down to alignof(T) because vector doesn't allocate anything but T's.
 // And if we're wrong about that guess, it is a compile-time error, not
-// a run time error.
+// a run time error. (JS: With MSC it is a compile time error, therefore we
+// increase the lower limit to 8 as well.)
 template <class T, std::size_t BufSize = 200>
-using SmallVector = std::vector<T, KStackAlloc<T, BufSize, alignof(T)>>;
+using SmallVector = std::vector<T, KStackAlloc<T, BufSize, alignof(T) < 8 ? 8 : alignof(T)>>;
 
 template <class T, std::size_t BufSize = 200>
 using SmallList = std::list<T, KStackAlloc<T, BufSize, alignof(T) < 8 ? 8 : alignof(T)>>;
@@ -78,7 +79,7 @@ TEST_CASE("KStackAlloc")
 		SmallVector<int> v{a};
 		// Exercise the vector and note that new/delete are not getting called.
 		v.push_back(1);
-		int allocations = 0;
+		std::size_t allocations = 0;
 		allocations += memuse();
 		v.push_back(2);
 		allocations += memuse();
@@ -95,7 +96,7 @@ TEST_CASE("KStackAlloc")
 		SmallList<int>::allocator_type::arena_type a;
 		SmallList<int> v{a};
 		v.push_back(1);
-		int allocations = 0;
+		std::size_t allocations = 0;
 		allocations += memuse();
 		v.push_back(2);
 		allocations += memuse();
@@ -112,7 +113,7 @@ TEST_CASE("KStackAlloc")
 		SmallSet<int>::allocator_type::arena_type a;
 		SmallSet<int> v{a};
 		v.insert(1);
-		int allocations = 0;
+		std::size_t allocations = 0;
 		allocations += memuse();
 		v.insert(2);
 		allocations += memuse();

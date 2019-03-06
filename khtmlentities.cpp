@@ -42,11 +42,12 @@
 #include "khtmlentities.h"
 #include "kutf8.h"
 #include "kstringutils.h"
-#if defined(DEKAF2_USE_FROZEN_HASH_FOR_LARGE_MAPS) || defined(DEKAF2_X86)
+#if !defined(_MSC_VER) && (defined(DEKAF2_USE_FROZEN_HASH_FOR_LARGE_MAPS) || defined(DEKAF2_X86))
 #include "kfrozen.h"
 #else
 #include <unordered_map>
 #endif
+#include <cctype>
 
 namespace dekaf2 {
 
@@ -57,7 +58,7 @@ struct codes_t
 };
 
 
-#if defined(DEKAF2_HAS_FROZEN) && (defined(DEKAF2_USE_FROZEN_HASH_FOR_LARGE_MAPS) || defined(DEKAF2_X86))
+#if defined(DEKAF2_HAS_FROZEN) && !defined(_MSC_VER) && (defined(DEKAF2_USE_FROZEN_HASH_FOR_LARGE_MAPS) || defined(DEKAF2_X86))
 	static constexpr std::pair<KStringView, codes_t> s_Entities[]
 #else
 	const std::unordered_map<KStringView, codes_t> s_NamedEntitiesHTML4
@@ -2190,7 +2191,7 @@ struct codes_t
     { "zwnj"                             , {   0x200C }},
 };
 
-#ifdef DEKAF2_HAS_FROZEN
+#if defined(DEKAF2_HAS_FROZEN) && !defined(_MSC_VER)
 	#ifdef DEKAF2_USE_FROZEN_HASH_FOR_LARGE_MAPS
 	static constexpr auto s_NamedEntitiesHTML4 = frozen::make_unordered_map(s_Entities);
 	#else
@@ -2404,7 +2405,11 @@ KString KHTMLEntity::Decode(KStringView sIn)
 					if (it != start)
 					{
 						// find entity
+#ifdef _MSC_VER
+						KStringView sEntity(&*start, it-start);
+#else
 						KStringView sEntity(start, it-start);
+#endif
 						if (it != ie && *it == ';')
 						{
 							++it;

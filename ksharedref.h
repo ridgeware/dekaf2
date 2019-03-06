@@ -87,6 +87,7 @@ public:
 		inc();
 	}
 
+#ifndef _MSC_VER
 	//-----------------------------------------------------------------------------
 	/// copy construction is allowed (need to repeat the non-const case because
 	/// of perfect forwarding in another constructor)
@@ -96,6 +97,7 @@ public:
 		m_ref = other.m_ref;
 		inc();
 	}
+#endif
 
 	//-----------------------------------------------------------------------------
 	/// move construction is allowed

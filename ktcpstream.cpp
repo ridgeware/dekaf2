@@ -40,6 +40,10 @@
  // +-------------------------------------------------------------------------+
  */
 
+#ifdef _MSC_VER
+	#define _SILENCE_CXX17_ALLOCATOR_VOID_DEPRECATION_WARNING
+#endif
+
 #include "ktcpstream.h"
 #include "klog.h"
 #include "kurl.h"

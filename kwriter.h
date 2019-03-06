@@ -359,7 +359,11 @@ public:
 	{
 	}
 
+#ifndef _MSC_VER
+	// MSC has issues with perfect forwarding of KWriter and does not catch the
+	// KStringView ctor above
 	using base_type::base_type;
+#endif
 
 	//-----------------------------------------------------------------------------
 	void open(const KString& str, ios_base::openmode mode = ios_base::out)

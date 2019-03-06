@@ -415,6 +415,9 @@ int KOptions::Parse(int argc, char** argv, KOutStream& out)
 
 	DEKAF2_CATCH (const NoError& error)
 	{
+#ifdef _MSC_VER
+		error.what();
+#endif
 	}
 
 	DEKAF2_CATCH (const KException& error)

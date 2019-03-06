@@ -296,8 +296,16 @@ void KTCPServer::TCPServer(bool ipv6)
 			acceptor.accept(stream->GetTCPSocket(), remote_endpoint);
 			if (!m_bQuit)
 			{
+#ifdef _MSC_VER
+				// unfortunately MSC does not know how to move a variable into a lambda scope
+				auto* Stream = stream.release();
+				m_ThreadPool->push([ this, Stream, remote_endpoint ]()
+				{
+					std::unique_ptr<KSSLStream> moved_stream { Stream };
+#else
 				m_ThreadPool->push([ this, moved_stream = std::move(stream), remote_endpoint ]()
 				{
+#endif
 					RunSession(*moved_stream, to_string(remote_endpoint));
 					// the thread pool keeps the object alive until it is
 					// overwritten in round robin, therefore we have to call
@@ -321,8 +329,16 @@ void KTCPServer::TCPServer(bool ipv6)
 			acceptor.accept(stream->GetTCPSocket(), remote_endpoint);
 			if (!m_bQuit)
 			{
+#ifdef _MSC_VER
+				// unfortunately MSC does not know how to move a variable into a lambda scope
+				auto* Stream = stream.release();
+				m_ThreadPool->push([ this, Stream, remote_endpoint ]()
+				{
+					std::unique_ptr<KTCPStream> moved_stream { Stream };
+#else
 				m_ThreadPool->push([ this, moved_stream = std::move(stream), remote_endpoint ]()
 				{
+#endif
 					RunSession(*moved_stream, to_string(remote_endpoint));
 					// the thread pool keeps the object alive until it is
 					// overwritten in round robin, therefore we have to call

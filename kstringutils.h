@@ -48,6 +48,7 @@
 #include <cinttypes>
 #include <algorithm>
 #include <cstring>
+#include <cctype>
 #include <map>
 #include "kstring.h"
 #include "kstringview.h"

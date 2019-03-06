@@ -3,10 +3,14 @@
 #include <dekaf2/kstream.h>
 #include <dekaf2/kfdstream.h>
 #include <vector>
-#include <unistd.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#ifdef DEKAF2_IS_WINDOWS
+	#include <io.h>
+#else
+	#include <unistd.h>
+#endif
 
 
 using namespace dekaf2;

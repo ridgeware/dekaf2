@@ -2,10 +2,7 @@
 
 #include <dekaf2/kinshell.h>
 #include <dekaf2/kstring.h>
-
-#include <iostream>
-#include <unistd.h>
-#include <sys/resource.h>
+#include <dekaf2/ksystem.h>
 
 #define kprPRINT 1
 
@@ -13,7 +10,7 @@ using namespace dekaf2;
 
 static size_t KPIPE_DELAY (1);
 
-KString KPipeReaderDelayCommand(unsigned int depth, unsigned int second, const KString sMessage1 = "", const KString sMessage2 = "")
+KString KPipeReaderDelayCommand(unsigned int depth, size_t second, const KString sMessage1 = "", const KString sMessage2 = "")
 {
     return fmt::format("$dekaf/utests/kpipe_delay_test.sh {} {} '{}' '{}' 2>&1",
                 depth, second/40, sMessage1, sMessage2);
@@ -81,7 +78,7 @@ TEST_CASE("KInShell")
         int iLoopCount = 10;
         while ((true == pipe.is_open()) && (0 < --iLoopCount))
         {
-            usleep(1);
+            kMicroSleep(1);
         }
 
         CHECK(pipe.is_open());

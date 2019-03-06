@@ -722,7 +722,7 @@ TEST_CASE("KStringView") {
 		ii = s.Int128();
 		CHECK( ii            == -1234567 );
 #endif
-		CHECK( s.UInt32()    == -1234567U );
+		CHECK( s.UInt32()    == static_cast<uint32_t>(-1234567) );
 		CHECK( s.UInt64()    == static_cast<uint64_t>(-1234567) );
 #ifdef DEKAF2_HAS_INT128
 		uii = s.UInt128();

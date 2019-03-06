@@ -1,4 +1,8 @@
 
+#ifdef _MSC_VER
+	#define _SILENCE_CXX17_UNCAUGHT_EXCEPTION_DEPRECATION_WARNING
+#endif
+
 #define CATCH_CONFIG_RUNNER
 #include "catch.hpp"
 #include <dekaf2/dekaf2.h>

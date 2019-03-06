@@ -114,7 +114,7 @@ SCENARIO ( "KURL unit tests on valid data" )
             THEN ( "Loop through all valid hex digits in both places" )
             {
                 KString iDigit{"0123456789ABCDEFabcdef"};
-                size_t iHi, iLo, iExpect;
+                size_t iHi, iLo;
                 KString sKey{"convert"};
                 KString sBase{sKey + "=%"};
                 for (iHi = 0; iHi < iDigit.size(); iHi++)
@@ -320,7 +320,7 @@ SCENARIO ( "KURL unit tests on invalid data")
         {
             THEN ( "Loop through all invalid hex digits in both places" )
             {
-                int i1, i2, iExpect;
+                int i1, i2;
                 char c1, c2;
                 KString sKey{"convert"};
                 size_t iLength = sKey.size() + 4;

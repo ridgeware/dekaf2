@@ -4,6 +4,7 @@
 #include <dekaf2/kstring.h>
 #include <dekaf2/bits/kcppcompat.h>
 #include <unordered_map>
+#include <map>
 using namespace dekaf2;
 
 

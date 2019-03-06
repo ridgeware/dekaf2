@@ -7,8 +7,6 @@
 #include <dekaf2/kfilesystem.h>
 #include <dekaf2/ktcpserver.h>
 #include <dekaf2/ksystem.h>
-#include <unistd.h>
-#include <iostream>
 
 
 using namespace dekaf2;
@@ -226,6 +224,7 @@ TEST_CASE("KWriter") {
 		}
 	}
 
+#ifndef DEKAF2_IS_WINDOWS
 	SECTION("Short write to Unix socket")
 	{
 		KString sLarge;
@@ -273,6 +272,7 @@ TEST_CASE("KWriter") {
 			CHECK ( sRx == sLarge );
 		}
 	}
+#endif
 
 	SECTION("short write to TLS socket")
 	{

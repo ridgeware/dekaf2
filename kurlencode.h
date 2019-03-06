@@ -522,12 +522,13 @@ extern template void kUrlDecode(KString& sDecode, bool pPlusAsSpace = false);
 extern template void kUrlDecode(KStringView sSource, KString& sTarget, bool bPlusAsSpace = false);
 extern template KString kUrlDecode(KStringView sSource, bool bPlusAsSpace = false);
 extern template void kUrlEncode (KStringView sSource, KString& sTarget, const bool excludeTable[256], bool bSpaceAsPlus = false);
-#endif
 
 #ifndef __clang__
 extern template class KURLEncoded<KString>;
 extern template class KURLEncoded<KProps<KString, KString>, '&', '='>;
 #endif
+
+#endif // of _MSC_VER
 
 using URLEncodedString = KURLEncoded<KString>;
 using URLEncodedQuery  = KURLEncoded<KProps<KString, KString>, '&', '='>;

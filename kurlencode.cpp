@@ -102,11 +102,12 @@ template void kUrlDecode(KString& sDecode, bool pPlusAsSpace = false);
 template void kUrlDecode(KStringView sSource, KString& sTarget, bool bPlusAsSpace = false);
 template KString kUrlDecode(KStringView sSource, bool bPlusAsSpace = false);
 template void kUrlEncode (KStringView sSource, KString& sTarget, const bool excludeTable[256], bool bSpaceAsPlus = false);
-#endif
 
 #ifndef __clang__
 template class KURLEncoded<KString>;
 template class KURLEncoded<KProps<KString, KString>, '&', '='>;
 #endif
+
+#endif // of _MSC_VER
 
 }// end of namespace dekaf2

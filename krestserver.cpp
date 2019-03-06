@@ -121,7 +121,7 @@ void KRESTRoutes::clear()
 const KRESTRoute& KRESTRoutes::FindRoute(const KRESTPath& Path, Parameters& Params) const
 //-----------------------------------------------------------------------------
 {
-	kDebug(2, "Looking up: {} {}" , Path.Method.Serialize(), Path.sRoute);
+	kDebugLog (2, "KREST: Looking up: {} {}" , Path.Method.Serialize(), Path.sRoute);
 
 	for (const auto& it : m_Routes)
 	{
@@ -204,7 +204,7 @@ const KRESTRoute& KRESTRoutes::FindRoute(const KRESTPath& Path, Parameters& Para
 
 					if (bFound)
 					{
-						kDebug(2, "Found: {} {}" , it.Method.Serialize(), it.sRoute);
+						kDebugLog (2, "KREST: Found: {} {}" , it.Method.Serialize(), it.sRoute);
 						return it;
 					}
 				}
@@ -215,11 +215,11 @@ const KRESTRoute& KRESTRoutes::FindRoute(const KRESTPath& Path, Parameters& Para
 
 	if (m_DefaultRoute.Callback)
 	{
-		kDebug(2, "not found, returning default route");
+		kDebugLog (2, "KREST: not found, returning default route");
 		return m_DefaultRoute;
 	}
 
-	kDebug(2, "invalid path: {} {}", Path.Method.Serialize(), Path.sRoute);
+	kDebugLog (2, "KREST: invalid path: {} {}", Path.Method.Serialize(), Path.sRoute);
 	throw KHTTPError { KHTTPError::H4xx_NOTFOUND, kFormat("invalid path: {} {}", Path.Method.Serialize(), Path.sRoute) };
 
 } // FindRoute
@@ -302,7 +302,7 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 
 		for (;;)
 		{
-			kDebug(2, "keepalive round {}", iRound + 1);
+			kDebugLog (3, "KREST: keepalive round {}", iRound + 1);
 
 			clear();
 
@@ -330,12 +330,12 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 				if (KHTTPServer::Error().empty())
 				{
 					// close silently
-					kDebug (2, "read timeout in keepalive round {}", iRound + 1);
+					kDebugLog (3, "KREST: read timeout in keepalive round {}", iRound + 1);
 					return false;
 				}
 				else
 				{
-					kDebug (1, "read error: {}", KHTTPServer::Error());
+					kDebugLog (1, "read error: {}", KHTTPServer::Error());
 					throw KHTTPError { KHTTPError::H4xx_BADREQUEST, KHTTPServer::Error() };
 				}
 			}
@@ -368,7 +368,7 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 				// read body and store for later access
 				KHTTPServer::Read(m_sRequestBody);
 
-				kDebug (2, "read request body with length {} and type {}",
+				kDebugLog (3, "KREST: read request body with length {} and type {}",
 						m_sRequestBody.size(),
 						Request.Headers[KHTTPHeaders::CONTENT_TYPE]);
 
@@ -381,7 +381,7 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 					KString sError;
 					if (!kjson::Parse(json.rx, sBuffer, sError))
 					{
-						kDebug (2, "request body is not JSON: {}", sError);
+						kDebugLog (3, "KREST: request body is not JSON: {}", sError);
 						json.rx.clear();
 						if (Options.bThrowIfInvalidJson)
 						{
@@ -390,7 +390,7 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 					}
 					else
 					{
-						kDebug (2, "request body successfully parsed as JSON");
+						kDebugLog (3, "KREST: request body successfully parsed as JSON");
 					}
 				}
 			}
@@ -418,7 +418,7 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 			{
 				if (Options.Out == HTTP)
 				{
-					kDebug (2, "no keep-alive allowed, or not supported by client - closing connection in round {}", iRound);
+					kDebugLog (3, "KREST: no keep-alive allowed, or not supported by client - closing connection in round {}", iRound);
 				}
 				return true;
 			}
@@ -454,7 +454,7 @@ void KRESTServer::Output(const Options& Options, bool bKeepAlive)
 	// only allow output compression if this is HTTP mode
 	SetCompression(Options.Out == HTTP);
 
-	kDebug (1, "Response: {} {}", Response.iStatusCode, Response.sStatusString);
+	kDebugLog (1, "HTTP-{}: {}", Response.iStatusCode, Response.sStatusString);
 
 	switch (Options.Out)
 	{
@@ -500,7 +500,7 @@ void KRESTServer::Output(const Options& Options, bool bKeepAlive)
 			Serialize();
 
 			// finally, output the content:
-			kDebug(3, "{}", sContent);
+			kDebugLog (3, "{}", sContent);
 			Write(sContent);
 		}
 		break;
@@ -560,7 +560,7 @@ void KRESTServer::Output(const Options& Options, bool bKeepAlive)
 
 	if (!Response.UnfilteredStream().Good())
 	{
-		kDebug(1, "write error, connection lost");
+		kDebugLog (2, "KREST: write error, connection lost");
 	}
 
 } // Output
@@ -632,7 +632,7 @@ void KRESTServer::ErrorHandler(const std::exception& ex, const Options& Options)
 			Serialize();
 
 			// finally, output the content:
-			kDebug (3, "{}", sContent);
+			kDebugLog (3, "KREST: {}", sContent);
 			Response.Write (sContent);
 		}
 		break;
@@ -665,7 +665,7 @@ void KRESTServer::ErrorHandler(const std::exception& ex, const Options& Options)
 
 	if (!Response.UnfilteredStream().Good())
 	{
-		kDebug(1, "write error, connection lost");
+		kDebugLog (1, "KREST: write error, connection lost");
 	}
 
 } // ErrorHandler
@@ -707,7 +707,7 @@ void KRESTServer::RecordRequestForReplay (const Options& Options)
 
 		if (!RecordFile.is_open())
 		{
-			kDebug(3, "cannot open {}", Options.sRecordFile);
+			kDebugLog (3, "KREST: cannot open {}", Options.sRecordFile);
 			return;
 		}
 

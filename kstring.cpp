@@ -87,7 +87,6 @@ void* memmem(void* _haystack, size_t haystack_len, const void* _needle, size_t n
 
 		++pos;
 	}
-
 }
 
 #endif

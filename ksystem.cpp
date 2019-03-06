@@ -84,11 +84,24 @@ KStringViewZ kGetEnv (KStringViewZ szEnvVar, KStringViewZ szDefault)
 bool kSetEnv (KStringViewZ szEnvVar, KStringViewZ sValue)
 //-----------------------------------------------------------------------------
 {
+#ifdef WIN32
+	errno_t errno = _putenv_s(szEnvVar.c_str(), sValue.c_str());
+	if (errno)
+	{
+		kWarning("cannot set {} = {}, {}", szEnvVar, sValue, strerror(errno));
+	}
+	bool bOK = !errno;
+#else
+	if (sValue.empty())
+	{
+		return kUnsetEnv(szEnvVar);
+	}
 	bool bOK = (::setenv(szEnvVar.c_str(), sValue.c_str(), true) == 0);
 	if (!bOK)
 	{
 		kWarning("cannot set {} = {}, {}", szEnvVar, sValue, strerror(errno));
 	}
+#endif  // WIN32
 	return (bOK);
 
 } // kSetEnv
@@ -98,12 +111,16 @@ bool kSetEnv (KStringViewZ szEnvVar, KStringViewZ sValue)
 bool kUnsetEnv (KStringViewZ szEnvVar)
 //-----------------------------------------------------------------------------
 {
+#ifdef WIN32
+	return kSetEnv(szEnvVar, "");
+#else
 	bool bOK = (::unsetenv(szEnvVar.c_str()) == 0);
 	if (!bOK)
 	{
 		kWarning("cannot unset {}, {}", szEnvVar, strerror(errno));
 	}
 	return (bOK);
+#endif
 
 } // kUnsetEnv
 
@@ -166,6 +183,9 @@ KString kGetHome()
 //-----------------------------------------------------------------------------
 {
 	// HOME var is always the authoritative source for the home directory
+#ifdef DEKAF2_IS_WINDOWS
+	KString sHome = kGetEnv("%USERPROFILE%");
+#else
 	KString sHome = kGetEnv("HOME");
 
 	if (sHome.empty())
@@ -183,6 +203,7 @@ KString kGetHome()
 			kWarning("cannot get home directory");
 		}
 	}
+#endif
 
 	return sHome;
 
@@ -264,10 +285,12 @@ KStringViewZ kGetHostname ()
 uint64_t kGetTid()
 //-----------------------------------------------------------------------------
 {
-#ifdef DEKAF2_IS_OSX
+#if defined(DEKAF2_IS_OSX)
 	uint64_t TID;
 	pthread_threadid_np(nullptr, &TID);
 	return TID;
+#elif defined(DEKAF2_IS_WINDOWS)
+	return GetCurrentThreadId();
 #else
 	return syscall(SYS_gettid);
 #endif
@@ -275,7 +298,7 @@ uint64_t kGetTid()
 } // kGetTid
 
 //-----------------------------------------------------------------------------
-uint8_t ksystem (KStringView sCommand, KString& sOutput)
+uint8_t kSystem (KStringView sCommand, KString& sOutput)
 //-----------------------------------------------------------------------------
 {
 	KString sTmp;
@@ -310,7 +333,7 @@ uint8_t ksystem (KStringView sCommand, KString& sOutput)
 } // ksystem
 
 //-----------------------------------------------------------------------------
-uint8_t ksystem (KStringView sCommand)
+uint8_t kSystem (KStringView sCommand)
 //-----------------------------------------------------------------------------
 {
 	KString sWrapped;

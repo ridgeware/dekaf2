@@ -500,7 +500,14 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
-	template<const char X = chPairSep, typename std::enable_if<X == '\0', int>::type = 0>
+	template<const char X = chPairSep, typename std::enable_if<X != '\0', int>::type = 0>
+	friend bool operator< (const self_type& left, const self_type& right)
+	//-------------------------------------------------------------------------
+	{
+		return left.Serialize(URIPart::Path) < right.Serialize(URIPart::Path);
+	}
+
+	//-------------------------------------------------------------------------
 	friend bool operator> (const self_type& left, const self_type& right)
 	//-------------------------------------------------------------------------
 	{

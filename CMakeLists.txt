@@ -211,7 +211,7 @@ if (CMAKE_COMPILER_IS_GNUCXX)
 	# increase amount of permitted constexpr depth (default is 512)
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fconstexpr-depth=2048")
 
-elseif (CMAKE_CXX_COMPILER_ID MATCHES "[cC][lL][aA][nN][gG]")
+elseif (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
 
 	# clang
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wno-unused-parameter -Werror")
@@ -237,6 +237,11 @@ elseif (CMAKE_CXX_COMPILER_ID MATCHES "[cC][lL][aA][nN][gG]")
 	if (NOT ${CMAKE_SYSTEM_NAME} STREQUAL "Darwin")
 		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-return-std-move")
 	endif()
+
+elseif (CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
+
+	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /Zc:__cplusplus -D_WIN32_WINNT=0x0501")
+
 endif ()
 
 message(STATUS "dekaf2 C++ compile flags for Release build : ${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_RELEASE}")

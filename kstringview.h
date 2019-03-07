@@ -254,10 +254,18 @@ public:
 	{
 	}
 
+#ifdef _MSC_VER
+	// MSC refuses base class conversion if we pass the extended class by value..
+	//-----------------------------------------------------------------------------
+	constexpr
+	KStringView(const KStringViewZ& svz) noexcept;
+	//-----------------------------------------------------------------------------
+#else
 	//-----------------------------------------------------------------------------
 	constexpr
 	KStringView(KStringViewZ svz) noexcept;
 	//-----------------------------------------------------------------------------
+#endif
 
 	//-----------------------------------------------------------------------------
 	KStringView(const KString& svz) noexcept;
@@ -268,10 +276,18 @@ public:
 	self& operator=(const self_type& other) noexcept = default;
 	//-----------------------------------------------------------------------------
 
+#ifdef _MSC_VER
+	// MSC refuses base class conversion if we pass the extended class by value..
+	//-----------------------------------------------------------------------------
+	constexpr
+	self& operator=(const KStringViewZ& other);
+	//-----------------------------------------------------------------------------
+#else
 	//-----------------------------------------------------------------------------
 	constexpr
 	self& operator=(KStringViewZ other);
 	//-----------------------------------------------------------------------------
+#endif
 
 	//-----------------------------------------------------------------------------
 	self& operator=(const KString& other);
@@ -1628,7 +1644,11 @@ namespace dekaf2 {
 //-----------------------------------------------------------------------------
 inline
 constexpr
+#ifdef _MSC_VER
+KStringView::KStringView(const KStringViewZ& svz) noexcept
+#else
 KStringView::KStringView(KStringViewZ svz) noexcept
+#endif
 //-----------------------------------------------------------------------------
 : KStringView(svz.data(), svz.size())
 {
@@ -1637,7 +1657,11 @@ KStringView::KStringView(KStringViewZ svz) noexcept
 //-----------------------------------------------------------------------------
 inline
 constexpr
+#ifdef _MSC_VER
+KStringView& KStringView::operator=(const KStringViewZ& other)
+#else
 KStringView& KStringView::operator=(KStringViewZ other)
+#endif
 //-----------------------------------------------------------------------------
 {
 	assign(other.data(), other.size());

@@ -85,12 +85,12 @@ bool kSetEnv (KStringViewZ szEnvVar, KStringViewZ sValue)
 //-----------------------------------------------------------------------------
 {
 #ifdef WIN32
-	errno_t errno = _putenv_s(szEnvVar.c_str(), sValue.c_str());
-	if (errno)
+	errno_t err = _putenv_s(szEnvVar.c_str(), sValue.c_str());
+	if (err)
 	{
-		kWarning("cannot set {} = {}, {}", szEnvVar, sValue, strerror(errno));
+		kWarning("cannot set {} = {}", szEnvVar, sValue);
 	}
-	bool bOK = !errno;
+	bool bOK = !err;
 #else
 	if (sValue.empty())
 	{

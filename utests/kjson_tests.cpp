@@ -1,8 +1,9 @@
 #include "catch.hpp"
-
 #include <dekaf2/kjson.h>
 #include <dekaf2/krow.h>
 #include <vector>
+
+#ifndef DEKAF2_IS_WINDOWS
 
 using namespace dekaf2;
 
@@ -268,3 +269,4 @@ TEST_CASE("KJSON")
 */
 
 }
+#endif

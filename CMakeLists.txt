@@ -43,6 +43,8 @@ set(CPACK_PACKAGE_VERSION_MAJOR ${PROJECT_VERSION_MAJOR})
 set(CPACK_PACKAGE_VERSION_MINOR ${PROJECT_VERSION_MINOR})
 set(CPACK_PACKAGE_VERSION_PATCH ${PROJECT_VERSION_PATCH})
 
+include(ExternalProject)
+
 # ================================= CONFIG OPTIONS =================================
 
 # these are all configurable project options
@@ -71,9 +73,21 @@ set(CMAKE_CXX_STANDARD 17)
 # ==================================== BUILD TYPE ==================================
 
 message(STATUS "CMake Generator: ${CMAKE_GENERATOR}")
-if (CMAKE_BUILD_TYPE STREQUAL "")
-	# Release is the default build type
-	set(CMAKE_BUILD_TYPE "Release")
+
+if (CMAKE_GENERATOR STREQUAL "Makefile")
+	set (IS_SINGLE_CONFIGURATION ON)
+endif()
+
+if (IS_SINGLE_CONFIGURATION)
+	if (NOT CMAKE_BUILD_TYPE)
+		# Release is the default build type
+		set(CMAKE_BUILD_TYPE "Release")
+	endif()
+	if (CMAKE_BUILD_TYPE STREQUAL "Release")
+		set (IS_RELEASE ON)
+	endif()
+else()
+	set(CMAKE_BUILD_TYPE "")
 endif()
 
 # =================================== ENVIRONMENT ==================================
@@ -86,6 +100,14 @@ elseif (${CMAKE_SYSTEM_PROCESSOR} MATCHES "arm")
 	set (CPU_ARM 1)
 endif()
 
+if (${CMAKE_SYSTEM_NAME} STREQUAL "Darwin")
+	set (IS_MACOS ON)
+elseif (${CMAKE_SYSTEM_NAME} STREQUAL "Windows")
+	set (IS_WINDOWS ON)
+else ()
+	set (IS_LINUX ON)
+endif()
+
 # these are supported by cmake 3.8 as well (but take care for other keys, they are
 # typically only supported starting with 3.10 and cause an error with lower versions)
 cmake_host_system_information(RESULT TOTAL_PHYSICAL_MEMORY QUERY TOTAL_PHYSICAL_MEMORY)
@@ -94,19 +116,21 @@ cmake_host_system_information(RESULT HOSTNAME QUERY HOSTNAME)
 
 # ========================= SWITCHING CONFIG ON ENVIRONMENT =========================
 
-if (DEKAF2_USE_STD_STRING_FOR_DEBUG_BUILDS)
-	if (CMAKE_BUILD_TYPE STREQUAL "Debug")
-		SET(DEKAF2_USE_FBSTRING_AS_KSTRING OFF)
-		SET(DEKAF2_USE_FOLLY_STRINGPIECE_AS_KSTRINGVIEW OFF)
+if (IS_SINGLE_CONFIGURATION)
+	if (DEKAF2_USE_STD_STRING_FOR_DEBUG_BUILDS)
+		if (NOT IS_RELEASE)
+			SET(DEKAF2_USE_FBSTRING_AS_KSTRING OFF)
+			SET(DEKAF2_USE_FOLLY_STRINGPIECE_AS_KSTRINGVIEW OFF)
+		endif ()
 	endif ()
-endif ()
+endif()
 
 if (CPU_ARM)
 	message(STATUS "no ASAN/UBSAN support for ARM")
 	set (DEKAF2_ENABLE_DEBUG_RUNTIME_CHECKS OFF)
 endif()
 
-if (${CMAKE_SYSTEM_NAME} STREQUAL "Windows")
+if (IS_WINDOWS)
 	message(STATUS "no ASAN/UBSAN support for Windows")
 	SET(DEKAF2_ENABLE_DEBUG_RUNTIME_CHECKS OFF)
 	SET(DEKAF2_USE_FBSTRING_AS_KSTRING OFF)
@@ -134,15 +158,15 @@ endif()
 # ================================ CMAKE INTERNALS =================================
 
 # suppress linker warnings for empty object files on OS X
-if (${CMAKE_SYSTEM_NAME} STREQUAL "Darwin")
+if (IS_MACOS)
 	SET(CMAKE_C_ARCHIVE_CREATE   "<CMAKE_AR> Scr <TARGET> <LINK_FLAGS> <OBJECTS>")
 	SET(CMAKE_CXX_ARCHIVE_CREATE "<CMAKE_AR> Scr <TARGET> <LINK_FLAGS> <OBJECTS>")
 	SET(CMAKE_C_ARCHIVE_FINISH   "<CMAKE_RANLIB> -no_warning_for_no_symbols -c <TARGET>")
 	SET(CMAKE_CXX_ARCHIVE_FINISH "<CMAKE_RANLIB> -no_warning_for_no_symbols -c <TARGET>")
-endif ()
 
-# variants only appeared in v10.14 of the MACOS SDK
-set(CMAKE_OSX_DEPLOYMENT_TARGET "10.14")
+	# variants only appeared in v10.14 of the MACOS SDK
+	set(CMAKE_OSX_DEPLOYMENT_TARGET "10.14")
+endif ()
 
 # Add local cmake modules to the module path (used to find libraries which do not have find modules provided by cmake)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules/")
@@ -173,10 +197,9 @@ if (CMAKE_GENERATOR STREQUAL "Xcode")
 		set(CMAKE_XCODE_SCHEME_UNDEFINED_BEHAVIOUR_SANITIZER ON)
 	endif()
 else ()
-	if (DEKAF2_ENABLE_DEBUG_RUNTIME_CHECKS)
-		message(STATUS "enabling ASAN/UBSAN runtime checks")
-		set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fsanitize=address -fsanitize=undefined -fsanitize-address-use-after-scope")
-		set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fstack-protector-strong -fstack-check")
+	if (DEKAF2_ENABLE_DEBUG_RUNTIME_CHECKS AND NOT MSVC)
+		message(STATUS "enabling ASAN/UBSAN runtime checks for debug builds")
+		add_compile_options($<$<CONFIG:DEBUG>:-fsanitize=address;-fsanitize=undefined;-fsanitize-address-use-after-scope;-fstack-protector-strong;-fstack-check>)
 	endif ()
 endif ()
 
@@ -184,63 +207,79 @@ endif ()
 
 if (CMAKE_COMPILER_IS_GNUCXX)
 
-	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wno-unused-parameter -Werror")
-	set(CMAKE_CXX_FLAGS_RELEASE "-O3 -DNDEBUG")
+	add_compile_options(-Wall -Wextra -Wno-unused-parameter -Werror)
+
+	add_compile_options($<$<CONFIG:RELEASE>:-O3>)
+	add_compile_definitions($<$<CONFIG:RELEASE>:NDEBUG>)
 
 	# configure cpu architecture dependant optimization
 	if (CPU_x86)
 
 		if (CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 6.0)
-			set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -msse4.2 -mfpmath=sse -maes")
-			set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse4.2 -mfpmath=sse -maes")
+			add_compile_options(-msse4.2 -mfpmath=sse -maes)
 		elseif (CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 4.5)
-			set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -msse4.2")
-			set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse4.2")
+			add_compile_options(-msse4.2)
 		else ()
-			set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -msse3")
-			set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse3")
+			add_compile_options(-msse3)
 		endif ()
 
 	endif ()
 
 	if (CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 6.0 AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 7.2)
 		# mute the annoying warning on changing abi with gcc 7.1
-		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-psabi")
+		add_compile_options(-Wno-psabi)
 	endif()
 
 	# increase amount of permitted constexpr depth (default is 512)
-	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fconstexpr-depth=2048")
+	add_compile_options(-fconstexpr-depth=2048)
 
 elseif (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
 
-	# clang
-	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wno-unused-parameter -Werror")
-	set(CMAKE_CXX_FLAGS_RELEASE "-O3 -DNDEBUG")
+	add_compile_options(-Wall -Wextra -Wno-unused-parameter -Werror)
+
+	add_compile_options($<$<CONFIG:RELEASE>:-O3>)
+	add_compile_definitions($<$<CONFIG:RELEASE>:NDEBUG>)
 
 	# configure cpu architecture dependant optimization
 	if (CPU_x86)
-
-		set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -msse4.2 -mfpmath=sse -maes")
-		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse4.2 -mfpmath=sse -maes")
-
+		add_compile_options(-msse4.2 -mfpmath=sse -maes)
 	endif ()
 
 	# increase amount of permitted constexpr steps (default is around 1.000.000)
-	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fconstexpr-steps=100000000")
+	add_compile_options(-fconstexpr-steps=100000000)
 	# increase amount of permitted constexpr depth (default is 512)
-	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fconstexpr-depth=2048")
+	add_compile_options(-fconstexpr-depth=2048)
 
 	# linux clang is way too picky at warnings, but it does not matter to disable
 	# this on MacOS too
-	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-mismatched-tags")
-	# that warning is unknown on Darwin
-	if (NOT ${CMAKE_SYSTEM_NAME} STREQUAL "Darwin")
-		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-return-std-move")
+	add_compile_options(-Wno-mismatched-tags)
+	if (NOT CMAKE_CXX_COMPILER_ID MATCHES "AppleClang")
+		# that warning is unknown for AppleClang
+		add_compile_options(-Wno-return-std-move)
 	endif()
 
-elseif (CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
+elseif (MSVC)
 
-	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /Zc:__cplusplus -D_WIN32_WINNT=0x0501")
+	add_compile_options(/Zc:__cplusplus)
+	add_compile_definitions(_WIN32_WINNT=0x0501)
+
+	# increase amount of permitted constexpr steps (default is 100.000)
+	add_compile_options(/constexpr:steps 100000000)
+	# increase amount of permitted constexpr depth (default is 512)
+	add_compile_options(/constexpr:depth 2048)
+
+	# make this a static build (see https://gitlab.kitware.com/cmake/community/wikis/FAQ#how-can-i-build-my-msvc-application-with-a-static-runtime)
+#	foreach(flag_var
+#        	CMAKE_CXX_FLAGS CMAKE_CXX_FLAGS_DEBUG CMAKE_CXX_FLAGS_RELEASE
+#        	CMAKE_CXX_FLAGS_MINSIZEREL CMAKE_CXX_FLAGS_RELWITHDEBINFO)
+#   		if(${flag_var} MATCHES "/MD")
+#      			string(REGEX REPLACE "/MD" "/MT" ${flag_var} "${${flag_var}}")
+#   		endif(${flag_var} MATCHES "/MD")
+#	endforeach(flag_var)
+
+else ()
+
+	message (STATUS "compiler type not detected, using default opions")
 
 endif ()
 
@@ -254,13 +293,53 @@ find_package(Threads REQUIRED)
 
 # ============================== ZLIB / BZIP2 =================================
 
-find_package(ZLIB REQUIRED)
-find_package(BZip2 REQUIRED)
+if (IS_WINDOWS)
+
+	# on windows we will build zlib and bz2lib ourselves
+ 
+	file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/include")
+
+	ExternalProject_Add(
+		ext_ZLIB
+		URL https://www.zlib.net/zlib-1.2.11.tar.gz
+		URL_HASH SHA256=c3e5e9fdd5004dcb542feda5ee4f0ff0744628baf8ed2dd5d66f8ca1197cb1a1
+		CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${CMAKE_CURRENT_BINARY_DIR} -DCMAKE_INSTALL_LIBDIR=lib
+	)
+
+	add_library(ZLIB STATIC IMPORTED GLOBAL)
+	set_target_properties(ZLIB PROPERTIES IMPORTED_LOCATION_RELEASE ${CMAKE_CURRENT_BINARY_DIR}/lib/zlibstatic.lib)
+	set_target_properties(ZLIB PROPERTIES IMPORTED_LOCATION_DEBUG ${CMAKE_CURRENT_BINARY_DIR}/lib/zlibstaticd.lib)
+	set_target_properties(ZLIB PROPERTIES INTERFACE_INCLUDE_DIRECTORIES ${CMAKE_CURRENT_BINARY_DIR}/include)
+	add_dependencies(ZLIB ext_ZLIB)
+
+	ExternalProject_Add(
+		ext_BZip2
+		GIT_REPOSITORY https://git.code.sf.net/p/bzip2/bzip2
+		GIT_TAG bzip2-1_0_6
+		GIT_SHALLOW ON
+		UPDATE_COMMAND ""
+		PATCH_COMMAND cmake -E copy_if_different ${CMAKE_CURRENT_SOURCE_DIR}/cmake/bzip2build/CMakeLists.txt ${CMAKE_CURRENT_BINARY_DIR}/ext_BZip2-prefix/src/ext_BZip2
+		CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${CMAKE_CURRENT_BINARY_DIR} -DCMAKE_INSTALL_LIBDIR=lib
+	)
+
+	add_library(BZip2 STATIC IMPORTED GLOBAL)
+	set_target_properties(BZip2 PROPERTIES IMPORTED_LOCATION_RELEASE ${CMAKE_CURRENT_BINARY_DIR}/lib/bz2.lib)
+	set_target_properties(BZip2 PROPERTIES IMPORTED_LOCATION_DEBUG ${CMAKE_CURRENT_BINARY_DIR}/lib/bz2d.lib)
+	set_target_properties(BZip2 PROPERTIES INTERFACE_INCLUDE_DIRECTORIES ${CMAKE_CURRENT_BINARY_DIR}/include)
+	add_dependencies(BZip2 ext_BZip2)
+
+else()
+
+	find_package(ZLIB REQUIRED)
+	find_package(BZip2 REQUIRED)
+
+endif()
 
 # ================================ LIBPROC ====================================
 
 # check if we have the libproc library (or at least its headers)
 find_package(libproc QUIET)
+
 if (libproc_FOUND)
 	set(DEKAF2_HAS_LIBPROC 1)
 endif ()
@@ -269,6 +348,7 @@ endif ()
 
 # MySQL (for KSQL) - if not available, KSQL will not build something meaningful
 find_package(MYSQL QUIET)
+
 if(MYSQL_FOUND)
 	set(DEKAF2_HAS_MYSQL "${MYSQL_VERSION_STRING}")
 	if(MYSQL_VERSION_STRING STREQUAL "")
@@ -293,37 +373,53 @@ endif()
 # ================================ OPENSSL ===================================
 
 # openssl (needed for boost asio)
-if ("${OPENSSL_ROOT_DIR}" STREQUAL "")
-	if (${CMAKE_SYSTEM_NAME} STREQUAL "Darwin")
+
+if (IS_WINDOWS)
+	set(OPENSSL_USE_STATIC_LIBS TRUE)
+endif()
+
+if (NOT OPENSSL_ROOT_DIR)
+	if (IS_MACOS)
 		# this is still needed to override an insufficient std OpenSSL on OSX
 		set(OPENSSL_ROOT_DIR /usr/local/opt/openssl)
-	elseif (${CMAKE_SYSTEM_NAME} STREQUAL "Windows")
+	elseif (IS_WINDOWS)
 		set(OPENSSL_ROOT_DIR "C:\\Program Files\\OpenSSL\\lib")
 	endif ()
 endif ()
+
 find_package(OpenSSL REQUIRED)
 
-message(STATUS "CMAKE_SYSTEM_NAME: ${CMAKE_SYSTEM_NAME}")
+if (IS_WINDOWS)
+	# unfortunately openssl forgets to link their static versions against Windows's crypt32.lib
+	# ( https://github.com/openssl/openssl/issues/1061 )
+	set(OPENSSL_LIBRARIES ${OPENSSL_LIBRARIES} crypt32)
+endif()
 
 # ================================= BOOST ====================================
 
 set(Boost_USE_STATIC_LIBS ON)
-set(Boost_USE_DEBUG_LIBS OFF)
-set(Boost_USE_RELEASE_LIBS ON)
-set(Boost_USE_MULTITHREADED ON)
-set(Boost_USE_STATIC_RUNTIME ON)
-if ("${BOOST_ROOT}" STREQUAL "")
+if (NOT IS_WINDOWS)
+	set(Boost_USE_DEBUG_LIBS OFF)
+	set(Boost_USE_RELEASE_LIBS ON)
+	set(Boost_USE_MULTITHREADED ON)
+	set(Boost_USE_STATIC_RUNTIME ON)
+endif()
+
+if (NOT BOOST_ROOT)
 	# only set BOOST_ROOT if not already done by caller
-	if (${CMAKE_SYSTEM_NAME} STREQUAL "Windows")
+	if (IS_WINDOWS)
 		set(BOOST_ROOT "C:\\boost")
 	else()
 		# we prefer the boost lib that we installed ourselves in /opt/lib ..
 		set(BOOST_ROOT "/opt/boost")
 	endif()
 endif ()
-# boost asio (header only) needs system
+
+message(STATUS "boost root: ${BOOST_ROOT}")
+
+# boost asio (header only) needs system and date_time
 # dekaf2's http part needs iostreams
-find_package(Boost 1.54 COMPONENTS system iostreams)
+find_package(Boost 1.54 COMPONENTS system iostreams date_time zlib bzip2)
 
 if (NOT Boost_FOUND)
 	EXECUTE_PROCESS(
@@ -703,6 +799,18 @@ if (DEKAF2_HAS_MINIFOLLY)
 	set (MINIFOLLY minifolly)
 endif ()
 
+if (IS_WINDOWS)
+	set (COMPRESSORS 
+		ZLIB
+		BZip2
+	)
+else()
+	set (COMPRESSORS
+		ZLIB::ZLIB
+		BZip2::BZip2
+	)
+endif()
+
 target_link_libraries(dekaf2
 	PUBLIC
 		fmt
@@ -719,8 +827,7 @@ target_link_libraries(dekaf2
 		${libproc_LIBRARIES}
 		Threads::Threads
 		re2
-		ZLIB::ZLIB
-		BZip2::BZip2
+		${COMPRESSORS}
 	)
 
 add_dependencies(dekaf2 lib-headers-dekaf2)

@@ -91,18 +91,6 @@ install (TARGETS libz2 bzip2 bzip2recover
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} COMPONENT Development
   ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR} COMPONENT Development)
 
-configure_package_config_file (bzip2-config.cmake.in
-  ${CMAKE_CURRENT_BINARY_DIR}/bzip2-config.cmake
-  INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake)
-write_basic_package_version_file (bzip2-config-version.cmake
-  VERSION ${VERSION} COMPATIBILITY SameMajorVersion)
-
-export (TARGETS libz2 NAMESPACE BZip2:: FILE bzip2-targets.cmake)
-export (PACKAGE bzip2)
-
-install (EXPORT bzip2-targets NAMESPACE BZip2::
-  DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake)
-
 install (FILES bzip2.1 bzgrep.1 bzmore.1 bzdiff.1
   DESTINATION ${CMAKE_INSTALL_MANDIR}/man1
   COMPONENT Runtime)
@@ -123,34 +111,3 @@ install (PROGRAMS bzdiff bzgrep bzmore
   DESTINATION ${CMAKE_INSTALL_BINDIR}
   COMPONENT Runtime
 )
-
-install (FILES LICENSE DESTINATION
-  ${CMAKE_INSTALL_DATAROOTDIR}/licenses/bzip2
-  COMPONENT Runtime)
-
-if (WIN32)
-  set (_COMPARE fc)
-else (WIN32)
-  set (_COMPARE cmp)
-endif (WIN32)
-
-add_test (NAME sample1 COMMAND ${CMAKE_COMMAND}
-  -DCOMPARE=${_COMPARE}
-  -DEXECUTABLE=$<TARGET_FILE:bzip2> -DARGS=-1
-  -DIN=${CMAKE_CURRENT_SOURCE_DIR}/sample1.ref
-  -DOUT=${CMAKE_CURRENT_SOURCE_DIR}/sample1.bz2
-  -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/runtest.cmake)
-
-add_test (NAME sample2 COMMAND ${CMAKE_COMMAND}
-  -DCOMPARE=${_COMPARE}
-  -DEXECUTABLE=$<TARGET_FILE:bzip2> -DARGS=-2
-  -DIN=${CMAKE_CURRENT_SOURCE_DIR}/sample2.ref
-  -DOUT=${CMAKE_CURRENT_SOURCE_DIR}/sample2.bz2
-  -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/runtest.cmake)
-
-add_test (NAME sample3 COMMAND ${CMAKE_COMMAND}
-  -DCOMPARE=${_COMPARE}
-  -DEXECUTABLE=$<TARGET_FILE:bzip2> -DARGS=-3
-  -DIN=${CMAKE_CURRENT_SOURCE_DIR}/sample3.ref
-  -DOUT=${CMAKE_CURRENT_SOURCE_DIR}/sample3.bz2
-  -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/runtest.cmake)

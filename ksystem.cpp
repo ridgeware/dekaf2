@@ -182,10 +182,20 @@ KString kGetCWD ()
 KString kGetHome()
 //-----------------------------------------------------------------------------
 {
-	// HOME var is always the authoritative source for the home directory
 #ifdef DEKAF2_IS_WINDOWS
-	KString sHome = kGetEnv("%USERPROFILE%");
+	KString sHome = kGetEnv("USERPROFILE");
+
+	if (sHome.empty())
+	{
+		sHome = kGetEnv("HOMEDRIVE");
+
+		if (!sHome.empty())
+		{
+			sHome += kGetEnv("HOMEPATH");
+		}
+	}
 #else
+	// HOME var is always the authoritative source for the home directory
 	KString sHome = kGetEnv("HOME");
 
 	if (sHome.empty())
@@ -197,15 +207,81 @@ KString kGetHome()
 		{
 			sHome = ent->pw_dir;
 		}
-
-		if (sHome.empty())
-		{
-			kWarning("cannot get home directory");
-		}
 	}
 #endif
 
+	if (sHome.empty())
+	{
+		kWarning("cannot get home directory");
+	}
+
 	return sHome;
+
+} // kGetHome
+
+//-----------------------------------------------------------------------------
+KString kGetTemp()
+//-----------------------------------------------------------------------------
+{
+#ifdef DEKAF2_HAS_STD_FILESYSTEM
+	KString sTemp = fs::temp_directory_path().u8string();
+#else
+	KString sTemp = kGetEnv("TMPDIR");
+
+	if (sTemp.empty())
+	{
+		sTemp = kGetEnv("TEMP");
+
+		if (sTemp.empty())
+		{
+			sTemp = kGetEnv("TMP");
+
+			if (sTemp.empty())
+			{
+#ifdef DEKAF2_IS_WINDOWS
+				if (kDirExists("C:\\TEMP"))
+				{
+					sTemp = "C:\\TEMP";
+				}
+				else if (kDirExists("C:\\TMP"))
+				{
+					sTemp = "C:\\TMP";
+				}
+				else if (kDirExists("\\TEMP"))
+				{
+					sTemp = "\\TEMP";
+				}
+				else if (kDirExists("\\TMP"))
+				{
+					sTemp = "\\TMP";
+				}
+#else
+				if (kDirExists("/tmp"))
+				{
+					sTemp = "/tmp";
+				}
+				else if (kDirExists("/var/tmp"))
+				{
+					sTemp = "/var/tmp";
+				}
+				else if (kDirExists("/usr/tmp"))
+				{
+					sTemp = "/usr/tmp";
+				}
+#endif
+			}
+		}
+
+	}
+#endif
+
+	if (sTemp.empty())
+	{
+		kWarning("cannot get temp directory, setting to current directory");
+		sTemp = kGetCWD();
+	}
+
+	return sTemp;
 
 } // kGetHome
 

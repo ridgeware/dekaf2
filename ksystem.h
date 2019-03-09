@@ -73,6 +73,9 @@ inline KString kcwd () { return kGetCWD(); }
 /// Return user's home directory
 KString kGetHome();
 
+/// Return the system's tmp directory
+KString kGetTemp();
+
 /// Return current operating system user as a string.
 KString kGetWhoAmI ();
 

@@ -552,7 +552,7 @@ public:
 	template<class... Args>
 	KReader(Args&&... args)
 	    : base_type(std::forward<Args>(args)...)
-	    , KInStream(reinterpret_cast<base_type&>(*this))
+	    , KInStream(static_cast<base_type&>(*this))
 	//-----------------------------------------------------------------------------
 	{
 	}

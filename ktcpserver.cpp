@@ -522,9 +522,10 @@ void KTCPServer::StopServerThread(ServerType SType)
 #endif
 	}
 
+	boost::system::error_code ec;
 	tcp::endpoint remote_endpoint(localhost, m_iPort);
 	boost::asio::ip::tcp::socket socket(m_asio);
-	socket.connect(remote_endpoint);
+	socket.connect(remote_endpoint, ec);
 	// wait a little to avoid acceptor exception
 	std::this_thread::sleep_for(std::chrono::milliseconds(1));
 

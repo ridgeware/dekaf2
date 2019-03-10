@@ -295,7 +295,7 @@ public:
 	template<class... Args>
 	KWriter(Args&&... args)
 	    : base_type(std::forward<Args>(args)...)
-	    , KOutStream(reinterpret_cast<base_type&>(*this))
+	    , KOutStream(static_cast<base_type&>(*this))
 	//-----------------------------------------------------------------------------
 	{
 	}

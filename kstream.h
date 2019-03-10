@@ -133,7 +133,7 @@ public:
 	template<class... Args>
 	KReaderWriter(Args&&... args)
 	    : base_type(std::forward<Args>(args)...)
-	    , k_rw_type(reinterpret_cast<base_type&>(*this))
+	    , k_rw_type(static_cast<base_type&>(*this))
 	//-----------------------------------------------------------------------------
 	{
 	}

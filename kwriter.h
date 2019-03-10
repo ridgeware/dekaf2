@@ -367,8 +367,12 @@ public:
 	// therefore we need to declare a few more constructors here
 	KOutFile() = default;
 	KOutFile(KOutFile&&) = default;
+	KOutFile(const std::string& s, ios_base::openmode mode = ios_base::out)
+	: base_type(kToFilesystemPath(s)) {}
 	KOutFile(const char* sz, ios_base::openmode mode = ios_base::out)
 	: base_type(kToFilesystemPath(KStringViewZ(sz))) {}
+	void open(const std::string& s, ios_base::openmode mode = ios_base::out)
+	{ base_type::open(kToFilesystemPath(s), mode); }
 	void open(const char* sz, ios_base::openmode mode = ios_base::out)
 	{ base_type::open(kToFilesystemPath(KStringViewZ(sz)), mode); }
 #endif

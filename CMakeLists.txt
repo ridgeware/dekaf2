@@ -268,6 +268,10 @@ elseif (MSVC)
 	add_link_options(/ignore:4221)
 	# make sure MSVC does not complain about a missing windows target definition
 	add_compile_definitions(_WIN32_WINNT=0x0501)
+	# silence the allocator warning for boost::asio
+	add_compile_definitions(_SILENCE_CXX17_ALLOCATOR_VOID_DEPRECATION_WARNING)
+	# silence uncaught_exception warning
+	add_compile_definitions(_SILENCE_CXX17_UNCAUGHT_EXCEPTION_DEPRECATION_WARNING)
 
 	# increase amount of permitted constexpr steps (default is 100.000)
 	add_compile_options(/constexpr:steps 100000000)

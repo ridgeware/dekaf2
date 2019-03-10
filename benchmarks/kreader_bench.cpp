@@ -1,6 +1,5 @@
 
 #include <stdio.h>
-#include <unistd.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -12,6 +11,11 @@
 #include <dekaf2/kfilesystem.h>
 #include <iostream>
 #include <fstream>
+#ifdef DEKAF2_IS_WINDOWS
+	#include <io.h>
+#else
+	#include <unistd.h>
+#endif
 
 using namespace dekaf2;
 
@@ -148,6 +152,7 @@ void compare_readers()
 		}
 		close(fd);
 	}
+#ifndef DEKAF2_IS_WINDOWS
 	{
 		FILE* fp = fopen(filename.c_str(), "r");
 		if (fp)
@@ -163,6 +168,8 @@ void compare_readers()
 		}
 		fclose(fp);
 	}
+#endif
+#ifndef DEKAF2_IS_WINDOWS
 	{
 		FILE* fp = fopen(filename.c_str(), "r");
 		if (fp)
@@ -181,6 +188,7 @@ void compare_readers()
 		}
 		fclose(fp);
 	}
+#endif
 	{
 		std::ifstream is(filename);
 		if (is.is_open())

@@ -45,6 +45,14 @@
 #include "kstringview.h"
 #include "kstring.h"
 
+#ifdef DEKAF2_IS_WINDOWS
+	// Windows has a DELETE macro somewhere which interferes with
+	// dekaf2::KHTTPMethod::DELETE (macros are evil!)
+	#ifdef DELETE
+		#undef DELETE
+	#endif
+#endif
+
 namespace dekaf2 {
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::

@@ -7,7 +7,14 @@
 #include <dekaf2/kfilesystem.h>
 #include <fstream>
 #include <fcntl.h>
-#include <unistd.h>
+#ifdef DEKAF2_IS_WINDOWS
+	#include <sys/stat.h>
+	#include <io.h>
+	#define S_IRUSR _S_IREAD
+	#define S_IWUSR _S_IWRITE
+#else
+	#include <unistd.h>
+#endif
 
 using namespace dekaf2;
 

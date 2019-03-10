@@ -71,10 +71,6 @@
 /// @file ktcpserver.h
 /// TCP server implementation with SSL/TLS
 
-#ifdef _MSC_VER
-	#define _SILENCE_CXX17_ALLOCATOR_VOID_DEPRECATION_WARNING
-#endif
-
 #include <cinttypes>
 #include <thread>
 #include <boost/asio/io_service.hpp>

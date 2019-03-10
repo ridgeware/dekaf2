@@ -77,7 +77,9 @@ int main( int argc, char* const argv[] )
 
 	signal (SIGILL,  &kCrashExit);
 	signal (SIGFPE,  &kCrashExit);
+#ifndef DEKAF2_IS_WINDOWS
 	signal (SIGBUS,  &kCrashExit);
+#endif
 	signal (SIGSEGV, &kCrashExit);
 
 	bool bSynopsis{false};

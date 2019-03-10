@@ -46,22 +46,7 @@
 #include "kwriter.h"
 #include "kreplacer.h"
 
-
 namespace dekaf2 {
-
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class KCharSet
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-{
-
-//------
-public:
-//------
-
-	static constexpr KStringViewZ ANY_ISO8859         = "ISO-8859"; /*-1...*/
-	static constexpr KStringViewZ DEFAULT_CHARSET     = "WINDOWS-1252";
-
-}; // KCharSet
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// a MIME type

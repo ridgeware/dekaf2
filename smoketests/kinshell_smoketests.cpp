@@ -4,8 +4,12 @@
 #include <dekaf2/kstring.h>
 
 #include <iostream>
-#include <unistd.h>
-#include <sys/resource.h>
+#ifdef DEKAF2_IS_WINDOWS
+	#include <io.h>
+#else
+	#include <unistd.h>
+	#include <sys/resource.h>
+#endif
 
 #define kprPRINT 0
 

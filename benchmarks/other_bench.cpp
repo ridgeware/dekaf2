@@ -6,6 +6,7 @@
 #include <cinttypes>
 #include <atomic>
 #include <thread>
+#include <cwctype>
 #include <dekaf2/kprof.h>
 #include <dekaf2/kstring.h>
 #include <dekaf2/kstringview.h>
@@ -22,7 +23,7 @@ void custom_alloc()
 
 	dekaf2::KProf ps("-Custom Alloc");
 
-	char* pos = store.begin();
+	char* pos = store.data();
 
 	dekaf2::KProf prof("1024 (0)");
 	prof.SetMultiplier(1024*1024);
@@ -31,14 +32,14 @@ void custom_alloc()
 	{
 		dekaf2::KProf::Force(pos);
 
-		if (pos == store.begin())
+		if (pos == store.data())
 		{
 			dekaf2::KProf::Force(pos);
 		}
 
 		dekaf2::KProf::Force(pos);
 
-		if (pos-store.begin() > 1024*1024)
+		if (pos - store.data() > 1024*1024)
 		{
 			dekaf2::KProf::Force(pos);
 		}

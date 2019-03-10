@@ -632,8 +632,12 @@ public:
 	// therefore we need to declare a few more constructors here
 	KInFile() = default;
 	KInFile(KInFile&&) = default;
+	KInFile(const std::string& s, ios_base::openmode mode = ios_base::in)
+	: base_type(kToFilesystemPath(s)) {}
 	KInFile(const char* sz, ios_base::openmode mode = ios_base::in)
 	: base_type(kToFilesystemPath(KStringViewZ(sz))) {}
+	void open(const std::string& s, ios_base::openmode mode = ios_base::in)
+	{ base_type::open(kToFilesystemPath(s), mode); }
 	void open(const char* sz, ios_base::openmode mode = ios_base::in)
 	{ base_type::open(kToFilesystemPath(KStringViewZ(sz)), mode); }
 #endif

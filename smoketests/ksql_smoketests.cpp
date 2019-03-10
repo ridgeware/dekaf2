@@ -731,7 +731,7 @@ TEST_CASE("KSQL")
 
 		kDebugLog (1, "KROW clipping");
 
-		Row.AddCol ("astring",   "clip me here -- all this should be GONE", 0, strlen("clip me here"));
+		Row.AddCol ("astring",   "clip me here -- all this should be GONE", 0, static_cast<KCOL::Len>(strlen("clip me here")));
 		db.Insert (Row);
 		db.ExecQuery ("select astring from TEST_KSQL where anum=100");
 		db.NextRow ();
@@ -744,7 +744,7 @@ TEST_CASE("KSQL")
 
 		kDebugLog (1, "KROW smart clipping on quote");
 
-		Row.AddCol ("astring",   "clip me here' -- all this should be GONE", 0, strlen("clip me here'"));
+		Row.AddCol ("astring",   "clip me here' -- all this should be GONE", 0, static_cast<KCOL::Len>(strlen("clip me here'")));
 		db.Update (Row);
 		db.ExecQuery ("select astring from TEST_KSQL where anum=100");
 		db.NextRow ();

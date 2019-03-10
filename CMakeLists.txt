@@ -74,20 +74,27 @@ set(CMAKE_CXX_STANDARD 17)
 
 message(STATUS "CMake Generator: ${CMAKE_GENERATOR}")
 
-if (CMAKE_GENERATOR STREQUAL "Makefile")
-	set (IS_SINGLE_CONFIGURATION ON)
-endif()
+if (CMAKE_GENERATOR MATCHES "Makefile")
 
-if (IS_SINGLE_CONFIGURATION)
+	# single configuration setup - make sure we have a build type
+
 	if (NOT CMAKE_BUILD_TYPE)
 		# Release is the default build type
 		set(CMAKE_BUILD_TYPE "Release")
 	endif()
-	if (CMAKE_BUILD_TYPE STREQUAL "Release")
-		set (IS_RELEASE ON)
+
+	if (NOT CMAKE_BUILD_TYPE STREQUAL "Release")
+		if (DEKAF2_USE_STD_STRING_FOR_DEBUG_BUILDS)
+			SET(DEKAF2_USE_FBSTRING_AS_KSTRING OFF)
+			SET(DEKAF2_USE_FOLLY_STRINGPIECE_AS_KSTRINGVIEW OFF)
+		endif()
 	endif()
+
 else()
+
+	# clear any build type to make understood we build a multi configuration setup
 	set(CMAKE_BUILD_TYPE "")
+
 endif()
 
 # =================================== ENVIRONMENT ==================================
@@ -116,26 +123,18 @@ cmake_host_system_information(RESULT HOSTNAME QUERY HOSTNAME)
 
 # ========================= SWITCHING CONFIG ON ENVIRONMENT =========================
 
-if (IS_SINGLE_CONFIGURATION)
-	if (DEKAF2_USE_STD_STRING_FOR_DEBUG_BUILDS)
-		if (NOT IS_RELEASE)
-			SET(DEKAF2_USE_FBSTRING_AS_KSTRING OFF)
-			SET(DEKAF2_USE_FOLLY_STRINGPIECE_AS_KSTRINGVIEW OFF)
-		endif ()
-	endif ()
-endif()
-
 if (CPU_ARM)
 	message(STATUS "no ASAN/UBSAN support for ARM")
 	set (DEKAF2_ENABLE_DEBUG_RUNTIME_CHECKS OFF)
 endif()
 
 if (IS_WINDOWS)
-	message(STATUS "no ASAN/UBSAN support for Windows")
+	# on Windows, disable asan/ubsan, and fbstrings/minifolly
 	SET(DEKAF2_ENABLE_DEBUG_RUNTIME_CHECKS OFF)
 	SET(DEKAF2_USE_FBSTRING_AS_KSTRING OFF)
 	SET(DEKAF2_USE_FOLLY_STRINGPIECE_AS_KSTRINGVIEW OFF)
 else ()
+	# on Unixes, enable unix sockets and pipes
 	SET(DEKAF2_HAS_UNIX_SOCKETS ON)
 	SET(DEKAF2_HAS_PIPES ON)
 endif()
@@ -199,7 +198,8 @@ if (CMAKE_GENERATOR STREQUAL "Xcode")
 else ()
 	if (DEKAF2_ENABLE_DEBUG_RUNTIME_CHECKS AND NOT MSVC)
 		message(STATUS "enabling ASAN/UBSAN runtime checks for debug builds")
-		add_compile_options($<$<CONFIG:DEBUG>:-fsanitize=address;-fsanitize=undefined;-fsanitize-address-use-after-scope;-fstack-protector-strong;-fstack-check>)
+		add_compile_options("$<$<CONFIG:DEBUG>:-fsanitize=address;-fsanitize=undefined;-fsanitize-address-use-after-scope;-fstack-protector-strong;-fstack-check>")
+		add_link_options("$<$<CONFIG:DEBUG>:-fsanitize=address;-fsanitize=undefined;-fsanitize-address-use-after-scope;-fstack-protector-strong;-fstack-check>")
 	endif ()
 endif ()
 
@@ -253,29 +253,26 @@ elseif (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
 	# linux clang is way too picky at warnings, but it does not matter to disable
 	# this on MacOS too
 	add_compile_options(-Wno-mismatched-tags)
-	if (NOT CMAKE_CXX_COMPILER_ID MATCHES "AppleClang")
-		# that warning is unknown for AppleClang
+
+	if (NOT IS_MACOS)
+		# this warning is unknown for AppleClang
 		add_compile_options(-Wno-return-std-move)
 	endif()
 
 elseif (MSVC)
 
+	# make sure MSVC adds a proper __cplusplus define that announces more than C++98
+	# (starting with VS2017)
 	add_compile_options(/Zc:__cplusplus)
+	# ignore warnings about empty object files
+	add_link_options(/ignore:4221)
+	# make sure MSVC does not complain about a missing windows target definition
 	add_compile_definitions(_WIN32_WINNT=0x0501)
 
 	# increase amount of permitted constexpr steps (default is 100.000)
 	add_compile_options(/constexpr:steps 100000000)
 	# increase amount of permitted constexpr depth (default is 512)
 	add_compile_options(/constexpr:depth 2048)
-
-	# make this a static build (see https://gitlab.kitware.com/cmake/community/wikis/FAQ#how-can-i-build-my-msvc-application-with-a-static-runtime)
-#	foreach(flag_var
-#        	CMAKE_CXX_FLAGS CMAKE_CXX_FLAGS_DEBUG CMAKE_CXX_FLAGS_RELEASE
-#        	CMAKE_CXX_FLAGS_MINSIZEREL CMAKE_CXX_FLAGS_RELWITHDEBINFO)
-#   		if(${flag_var} MATCHES "/MD")
-#      			string(REGEX REPLACE "/MD" "/MT" ${flag_var} "${${flag_var}}")
-#   		endif(${flag_var} MATCHES "/MD")
-#	endforeach(flag_var)
 
 else ()
 
@@ -295,38 +292,42 @@ find_package(Threads REQUIRED)
 
 if (IS_WINDOWS)
 
-	# on windows we will build zlib and bz2lib ourselves
- 
-	file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/include")
+	if (DEKAF2_BUILD_COMPRESSORS)
 
-	ExternalProject_Add(
-		ext_ZLIB
-		URL https://www.zlib.net/zlib-1.2.11.tar.gz
-		URL_HASH SHA256=c3e5e9fdd5004dcb542feda5ee4f0ff0744628baf8ed2dd5d66f8ca1197cb1a1
-		CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${CMAKE_CURRENT_BINARY_DIR} -DCMAKE_INSTALL_LIBDIR=lib
-	)
+		# on windows we will build zlib and bz2lib ourselves if wanted (but not per default)
 
-	add_library(ZLIB STATIC IMPORTED GLOBAL)
-	set_target_properties(ZLIB PROPERTIES IMPORTED_LOCATION_RELEASE ${CMAKE_CURRENT_BINARY_DIR}/lib/zlibstatic.lib)
-	set_target_properties(ZLIB PROPERTIES IMPORTED_LOCATION_DEBUG ${CMAKE_CURRENT_BINARY_DIR}/lib/zlibstaticd.lib)
-	set_target_properties(ZLIB PROPERTIES INTERFACE_INCLUDE_DIRECTORIES ${CMAKE_CURRENT_BINARY_DIR}/include)
-	add_dependencies(ZLIB ext_ZLIB)
+		file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/include")
 
-	ExternalProject_Add(
-		ext_BZip2
-		GIT_REPOSITORY https://git.code.sf.net/p/bzip2/bzip2
-		GIT_TAG bzip2-1_0_6
-		GIT_SHALLOW ON
-		UPDATE_COMMAND ""
-		PATCH_COMMAND cmake -E copy_if_different ${CMAKE_CURRENT_SOURCE_DIR}/cmake/bzip2build/CMakeLists.txt ${CMAKE_CURRENT_BINARY_DIR}/ext_BZip2-prefix/src/ext_BZip2
-		CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${CMAKE_CURRENT_BINARY_DIR} -DCMAKE_INSTALL_LIBDIR=lib
-	)
+		ExternalProject_Add(
+			ext_ZLIB
+			URL https://www.zlib.net/zlib-1.2.11.tar.gz
+			URL_HASH SHA256=c3e5e9fdd5004dcb542feda5ee4f0ff0744628baf8ed2dd5d66f8ca1197cb1a1
+			CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${CMAKE_CURRENT_BINARY_DIR} -DCMAKE_INSTALL_LIBDIR=lib
+		)
 
-	add_library(BZip2 STATIC IMPORTED GLOBAL)
-	set_target_properties(BZip2 PROPERTIES IMPORTED_LOCATION_RELEASE ${CMAKE_CURRENT_BINARY_DIR}/lib/bz2.lib)
-	set_target_properties(BZip2 PROPERTIES IMPORTED_LOCATION_DEBUG ${CMAKE_CURRENT_BINARY_DIR}/lib/bz2d.lib)
-	set_target_properties(BZip2 PROPERTIES INTERFACE_INCLUDE_DIRECTORIES ${CMAKE_CURRENT_BINARY_DIR}/include)
-	add_dependencies(BZip2 ext_BZip2)
+		add_library(ZLIB STATIC IMPORTED GLOBAL)
+		set_target_properties(ZLIB PROPERTIES IMPORTED_LOCATION_RELEASE ${CMAKE_CURRENT_BINARY_DIR}/lib/zlibstatic.lib)
+		set_target_properties(ZLIB PROPERTIES IMPORTED_LOCATION_DEBUG ${CMAKE_CURRENT_BINARY_DIR}/lib/zlibstaticd.lib)
+		set_target_properties(ZLIB PROPERTIES INTERFACE_INCLUDE_DIRECTORIES ${CMAKE_CURRENT_BINARY_DIR}/include)
+		add_dependencies(ZLIB ext_ZLIB)
+
+		ExternalProject_Add(
+			ext_BZip2
+			GIT_REPOSITORY https://git.code.sf.net/p/bzip2/bzip2
+			GIT_TAG bzip2-1_0_6
+			GIT_SHALLOW ON
+			UPDATE_COMMAND ""
+			PATCH_COMMAND cmake -E copy_if_different ${CMAKE_CURRENT_SOURCE_DIR}/cmake/bzip2build/CMakeLists.txt ${CMAKE_CURRENT_BINARY_DIR}/ext_BZip2-prefix/src/ext_BZip2
+			CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${CMAKE_CURRENT_BINARY_DIR} -DCMAKE_INSTALL_LIBDIR=lib
+		)
+
+		add_library(BZip2 STATIC IMPORTED GLOBAL)
+		set_target_properties(BZip2 PROPERTIES IMPORTED_LOCATION_RELEASE ${CMAKE_CURRENT_BINARY_DIR}/lib/bz2.lib)
+		set_target_properties(BZip2 PROPERTIES IMPORTED_LOCATION_DEBUG ${CMAKE_CURRENT_BINARY_DIR}/lib/bz2d.lib)
+		set_target_properties(BZip2 PROPERTIES INTERFACE_INCLUDE_DIRECTORIES ${CMAKE_CURRENT_BINARY_DIR}/include)
+		add_dependencies(BZip2 ext_BZip2)
+
+	endif()
 
 else()
 
@@ -419,7 +420,15 @@ message(STATUS "boost root: ${BOOST_ROOT}")
 
 # boost asio (header only) needs system and date_time
 # dekaf2's http part needs iostreams
-find_package(Boost 1.54 COMPONENTS system iostreams date_time zlib bzip2)
+
+if (IS_WINDOWS)
+	# Windows boost binary builds have zlib and bzip2 included, so we do not
+	# need external libs
+	find_package(Boost 1.54 COMPONENTS system iostreams date_time zlib bzip2)
+else()
+	# Unix boost packages do rely on external versions of zlib and bzip2
+	find_package(Boost 1.54 COMPONENTS system iostreams date_time)
+endif()
 
 if (NOT Boost_FOUND)
 	EXECUTE_PROCESS(
@@ -800,10 +809,12 @@ if (DEKAF2_HAS_MINIFOLLY)
 endif ()
 
 if (IS_WINDOWS)
-	set (COMPRESSORS 
-		ZLIB
-		BZip2
-	)
+	if (DEKAF2_BUILD_COMPRESSORS)
+		set (COMPRESSORS
+			ZLIB
+			BZip2
+		)
+	endif()
 else()
 	set (COMPRESSORS
 		ZLIB::ZLIB

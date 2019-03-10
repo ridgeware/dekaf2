@@ -19,7 +19,7 @@ EXECUTE_PROCESS(
 
 # =================================== UPDATE CMAKE =================================
 
-if(${CMAKE_VERSION} VERSION_LESS "3.8.0")
+if(CMAKE_VERSION VERSION_LESS "3.8.0")
 	message(STATUS "Please switch to CMake 3.8.0 or newer")
 	EXECUTE_PROCESS(
 		COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/scripts/cmakeinstall -ask
@@ -99,17 +99,17 @@ endif()
 
 # =================================== ENVIRONMENT ==================================
 
-if (${CMAKE_SYSTEM_PROCESSOR} MATCHES "x86")
+if (CMAKE_SYSTEM_PROCESSOR MATCHES "x86")
 	set (CPU_x86 1)
-elseif (${CMAKE_SYSTEM_PROCESSOR} MATCHES "x86_64")
+elseif (CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64")
 	set (CPU_x86 1)
-elseif (${CMAKE_SYSTEM_PROCESSOR} MATCHES "arm")
+elseif (CMAKE_SYSTEM_PROCESSOR MATCHES "arm")
 	set (CPU_ARM 1)
 endif()
 
-if (${CMAKE_SYSTEM_NAME} STREQUAL "Darwin")
+if (CMAKE_SYSTEM_NAME STREQUAL "Darwin")
 	set (IS_MACOS ON)
-elseif (${CMAKE_SYSTEM_NAME} STREQUAL "Windows")
+elseif (CMAKE_SYSTEM_NAME STREQUAL "Windows")
 	set (IS_WINDOWS ON)
 else ()
 	set (IS_LINUX ON)
@@ -264,14 +264,17 @@ elseif (MSVC)
 	# make sure MSVC adds a proper __cplusplus define that announces more than C++98
 	# (starting with VS2017)
 	add_compile_options(/Zc:__cplusplus)
-	# ignore warnings about empty object files
-	add_link_options(/ignore:4221)
 	# make sure MSVC does not complain about a missing windows target definition
 	add_compile_definitions(_WIN32_WINNT=0x0501)
 	# silence the allocator warning for boost::asio
 	add_compile_definitions(_SILENCE_CXX17_ALLOCATOR_VOID_DEPRECATION_WARNING)
 	# silence uncaught_exception warning
 	add_compile_definitions(_SILENCE_CXX17_UNCAUGHT_EXCEPTION_DEPRECATION_WARNING)
+
+	if(NOT CMAKE_VERSION VERSION_LESS "3.13.0")
+		# ignore warnings about empty object files
+		add_link_options(/ignore:4221)
+	endif()
 
 	# increase amount of permitted constexpr steps (default is 100.000)
 	add_compile_options(/constexpr:steps 100000000)
@@ -403,12 +406,6 @@ endif()
 # ================================= BOOST ====================================
 
 set(Boost_USE_STATIC_LIBS ON)
-if (NOT IS_WINDOWS)
-	set(Boost_USE_DEBUG_LIBS OFF)
-	set(Boost_USE_RELEASE_LIBS ON)
-	set(Boost_USE_MULTITHREADED ON)
-	set(Boost_USE_STATIC_RUNTIME ON)
-endif()
 
 if (NOT BOOST_ROOT)
 	# only set BOOST_ROOT if not already done by caller
@@ -435,10 +432,14 @@ else()
 endif()
 
 if (NOT Boost_FOUND)
-	EXECUTE_PROCESS(
-		COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/scripts/boostinstall -ask
-	)
-	message(FATAL_ERROR "Please restart the build now")
+	if (IS_WINDOWS)
+		message(FATAL_ERROR "please set BOOST_ROOT to the root directory of your boost install")
+	else()
+		EXECUTE_PROCESS(
+			COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/scripts/boostinstall -ask
+		)
+		message(FATAL_ERROR "Please restart the build now")
+	endif()
 endif()
 
 message(STATUS "boost-hdrs: ${Boost_INCLUDE_DIR}")

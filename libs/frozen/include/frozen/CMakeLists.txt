@@ -1,4 +1,6 @@
-cmake_policy(SET CMP0076 OLD)
+if(NOT CMAKE_VERSION VERSION_LESS "3.13.0")
+	cmake_policy(SET CMP0076 OLD)
+endif()
 
 target_sources(frozen INTERFACE
   $<BUILD_INTERFACE:

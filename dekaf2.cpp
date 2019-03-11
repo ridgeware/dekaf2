@@ -176,11 +176,9 @@ void Dekaf::SetRandomSeed()
 	srand(RandDevice());
 #ifndef DEKAF2_IS_WINDOWS
 	srand48(RandDevice());
-#endif
-#ifdef DEKAF2_IS_OSX
+	#ifdef DEKAF2_IS_OSX
 	srandomdev();
-#else
-	#ifndef DEKAF2_IS_WINDOWS
+	#else
 	srandom(RandDevice());
 	#endif
 #endif

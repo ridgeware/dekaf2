@@ -288,6 +288,7 @@ int KOptions::Parse(int argc, char** argv, KOutStream& out)
 				bool bIsUnknown { false };
 
 				auto& Store = it->IsOption() ? m_Options : m_Commands;
+				m_sCurrentArg = it->sArg;
 				auto cbi = Store.find(KStringView(it->sArg));
 				if (DEKAF2_UNLIKELY(cbi == Store.end()))
 				{

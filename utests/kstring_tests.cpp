@@ -4,6 +4,9 @@
 #include <dekaf2/kstringutils.h>
 #include <vector>
 #include <iostream>
+#include <cctype>
+#include <cwctype>
+#include <dekaf2/dekaf2.h>
 
 using namespace dekaf2;
 
@@ -993,6 +996,16 @@ TEST_CASE("KString") {
 			KStringView sv = s.Mid(it.start, it.count);
 			CHECK ( sv == it.output );
 		}
+	}
+
+	SECTION("TestLocale")
+	{
+		CHECK(KStringView(std::locale().name()).ends_with(".UTF-8"));
+		wint_t ch = 246; // oe
+		CHECK(std::islower(ch));
+		CHECK(std::toupper(ch) == 214);
+		CHECK (std::iswlower(ch));
+		CHECK (std::towupper(ch) == 214);
 	}
 
 	SECTION("MakeUpper")

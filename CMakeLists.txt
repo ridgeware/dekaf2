@@ -19,8 +19,8 @@ EXECUTE_PROCESS(
 
 # =================================== UPDATE CMAKE =================================
 
-if(CMAKE_VERSION VERSION_LESS "3.8.0")
-	message(STATUS "Please switch to CMake 3.8.0 or newer")
+if(CMAKE_VERSION VERSION_LESS "3.12.0")
+	message(STATUS "Please switch to CMake 3.12.0 or newer")
 	EXECUTE_PROCESS(
 		COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/scripts/cmakeinstall -ask
 	)

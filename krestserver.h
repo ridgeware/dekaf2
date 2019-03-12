@@ -47,9 +47,11 @@
 #include "kstringview.h"
 #include "kurl.h"
 #include "kjson.h"
+#include "kxml.h"
 #include "ktimer.h"
 #include "kopenid.h"
 #include <vector>
+#include <memory>
 
 /// @file krestserver.h
 /// HTTP REST server implementation
@@ -118,6 +120,8 @@ class KRESTRoute : public detail::KRESTAnalyzedPath
 public:
 //------
 
+	enum ParserType { PLAIN, JSON, XML, NOREAD };
+
 	using Function = void(*)(KRESTServer& REST);
 
 	template<class Object>
@@ -128,7 +132,7 @@ public:
 	//-----------------------------------------------------------------------------
 	/// Construct a REST route on a function. Notice that _sRoute is a KStringView, and the pointed-to
 	/// string must stay visible during the lifetime of this class
-	KRESTRoute(KHTTPMethod _Method, KStringView _sRoute, RESTCallback _Callback);
+	KRESTRoute(KHTTPMethod _Method, KStringView _sRoute, RESTCallback _Callback, ParserType _Parser = JSON);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -137,13 +141,14 @@ public:
 	/// must stay valid throughout the lifetime of this class (it is a reference on a constructed
 	/// object which method will be called)
 	template<class Object>
-	KRESTRoute(KHTTPMethod _Method, KStringView _sRoute, Object& object, MemberFunction<Object> _Callback)
+	KRESTRoute(KHTTPMethod _Method, KStringView _sRoute, Object& object, MemberFunction<Object> _Callback, ParserType _Parser = JSON)
 	//-----------------------------------------------------------------------------
-	: KRESTRoute(_Method, _sRoute, std::bind(_Callback, &object, std::placeholders::_1))
+	: KRESTRoute(_Method, _sRoute, std::bind(_Callback, &object, std::placeholders::_1), _Parser)
 	{
 	}
 
 	RESTCallback Callback;
+	ParserType Parser;
 
 }; // KRESTRoute
 
@@ -165,6 +170,7 @@ public:
 		KStringView sMethod;
 		KStringView sRoute;
 		KRESTRoute::Function Handler;
+		KRESTRoute::ParserType Parser = KRESTRoute::JSON;
 	};
 
 	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -176,6 +182,7 @@ public:
 		KStringView sMethod;
 		KStringView sRoute;
 		KRESTRoute::MemberFunction<Object> Handler;
+		KRESTRoute::ParserType Parser = KRESTRoute::JSON;
 	};
 
 	using Parameters = std::vector<std::pair<KStringView, KStringView>>;
@@ -206,7 +213,7 @@ public:
 		m_Routes.reserve(m_Routes.size() + COUNT);
 		for (size_t i = 0; i < COUNT; ++i)
 		{
-			AddRoute(KRESTRoute(Routes[i].sMethod, Routes[i].sRoute, Routes[i].Handler));
+			AddRoute(KRESTRoute(Routes[i].sMethod, Routes[i].sRoute, Routes[i].Handler, Routes[i].Parser));
 		}
 	}
 
@@ -219,13 +226,13 @@ public:
 		m_Routes.reserve(m_Routes.size() + COUNT);
 		for (size_t i = 0; i < COUNT; ++i)
 		{
-			AddRoute(KRESTRoute(Routes[i].sMethod, Routes[i].sRoute, object, Routes[i].Handler));
+			AddRoute(KRESTRoute(Routes[i].sMethod, Routes[i].sRoute, object, Routes[i].Handler, Routes[i].Parser));
 		}
 	}
 
 	//-----------------------------------------------------------------------------
 	/// Set default route (matching all path requests not satisfied by other routes)
-	void SetDefaultRoute(KRESTRoute::RESTCallback Callback);
+	void SetDefaultRoute(KRESTRoute::RESTCallback Callback, KRESTRoute::ParserType Parser = KRESTRoute::JSON);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -397,7 +404,21 @@ public:
 		//-----------------------------------------------------------------------------
 	};
 
+	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	struct xml_t
+	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	{
+		KXML rx;
+		KXML tx;
+
+		//-----------------------------------------------------------------------------
+		/// reset rx and tx XML
+		void clear();
+		//-----------------------------------------------------------------------------
+	};
+
 	json_t json;
+	std::unique_ptr<xml_t> xml;
 
 	//-----------------------------------------------------------------------------
 	/// get the JSON payload struct of the JWT auth token

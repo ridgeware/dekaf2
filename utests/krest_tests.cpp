@@ -28,7 +28,7 @@ TEST_CASE("KREST")
 		Routes.AddRoute({ KHTTPMethod::GET, "/help", [&](KRESTServer& http)
 		{
 			bCalledHelp = true;
-		}});
+		}, KRESTRoute::PLAIN });
 
 		bool bCalledNoSlashPath { false };
 
@@ -226,7 +226,7 @@ TEST_CASE("KREST")
 		constexpr KRESTRoutes::FunctionTable RTable[]
 		{
 			{ "GET", "/test",               rest_test },
-			{ "GET", "/help",               rest_test },
+			{ "GET", "/help",               rest_test, KRESTRoute::PLAIN },
 			{ "GET", "noslashpath",         rest_test },
 			{ "GET", "/user/:NAME/address", rest_test },
 			{ "GET", "/user/:UID",          rest_test },
@@ -243,8 +243,8 @@ TEST_CASE("KREST")
 		constexpr KRESTRoutes::MemberFunctionTable<RClass> MTable[]
 		{
 			{ "GET", "/rr/test",               &RClass::rest_test2 },
-			{ "GET", "/rr/help",               &RClass::rest_test2 },
-			{ "GET", "rr/noslashpath",         &RClass::rest_test2 },
+			{ "GET", "/rr/help",               &RClass::rest_test2, KRESTRoute::PLAIN },
+			{ "GET", "rr/noslashpath",         &RClass::rest_test2, KRESTRoute::JSON  },
 			{ "GET", "/rr/user/:NAME/address", &RClass::rest_test2 },
 			{ "GET", "/rr/user/:UID",          &RClass::rest_test2 },
 		};

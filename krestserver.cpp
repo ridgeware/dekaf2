@@ -70,10 +70,11 @@ KRESTAnalyzedPath::KRESTAnalyzedPath(KHTTPMethod _Method, KStringView _sRoute)
 } // end of namespace detail
 	
 //-----------------------------------------------------------------------------
-KRESTRoute::KRESTRoute(KHTTPMethod _Method, KStringView _sRoute, RESTCallback _Callback)
+KRESTRoute::KRESTRoute(KHTTPMethod _Method, KStringView _sRoute, RESTCallback _Callback, ParserType _Parser)
 //-----------------------------------------------------------------------------
 	: detail::KRESTAnalyzedPath(std::move(_Method), std::move(_sRoute))
 	, Callback(std::move(_Callback))
+	, Parser(_Parser)
 {
 } // KRESTRoute
 
@@ -101,10 +102,11 @@ void KRESTRoutes::AddRoute(KRESTRoute&& _Route)
 } // AddRoute
 
 //-----------------------------------------------------------------------------
-void KRESTRoutes::SetDefaultRoute(KRESTRoute::RESTCallback Callback)
+void KRESTRoutes::SetDefaultRoute(KRESTRoute::RESTCallback Callback, KRESTRoute::ParserType Parser)
 //-----------------------------------------------------------------------------
 {
 	m_DefaultRoute.Callback = Callback;
+	m_DefaultRoute.Parser = Parser;
 
 } // SetDefaultRoute
 
@@ -306,7 +308,7 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 
 			clear();
 
-			// we output JSON
+			// per default we output JSON
 			Response.Headers.Add(KHTTPHeaders::CONTENT_TYPE, KMIME::JSON);
 
 			// add additional response headers
@@ -363,7 +365,7 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 				throw KHTTPError { KHTTPError::H5xx_ERROR, kFormat("empty callback for {}", sURLPath) };
 			}
 
-			if (Request.Method != KHTTPMethod::GET && Request.HasContent())
+			if (Request.Method != KHTTPMethod::GET && Request.HasContent() && Route.Parser != KRESTRoute::NOREAD)
 			{
 				// read body and store for later access
 				KHTTPServer::Read(m_sRequestBody);
@@ -372,26 +374,33 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 						m_sRequestBody.size(),
 						Request.Headers[KHTTPHeaders::CONTENT_TYPE]);
 
-				// try to read input as JSON - if it fails just skip
-				KStringView sBuffer { m_sRequestBody };
-				sBuffer.TrimRight();
-				if (!sBuffer.empty())
+				if (Route.Parser == KRESTRoute::JSON)
 				{
-					// parse the content into json.rx
-					KString sError;
-					if (!kjson::Parse(json.rx, sBuffer, sError))
+					// try to read input as JSON - if it fails just skip
+					KStringView sBuffer { m_sRequestBody };
+					sBuffer.TrimRight();
+					if (!sBuffer.empty())
 					{
-						kDebugLog (3, "KREST: request body is not JSON: {}", sError);
-						json.rx.clear();
-						if (Options.bThrowIfInvalidJson)
+						// parse the content into json.rx
+						KString sError;
+						if (!kjson::Parse(json.rx, sBuffer, sError))
 						{
-							throw KHTTPError { KHTTPError::H4xx_BADREQUEST, kFormat ("invalid JSON: {}", sError) };
+							kDebugLog (3, "KREST: request body is not JSON: {}", sError);
+							json.rx.clear();
+							if (Options.bThrowIfInvalidJson)
+							{
+								throw KHTTPError { KHTTPError::H4xx_BADREQUEST, kFormat ("invalid JSON: {}", sError) };
+							}
+						}
+						else
+						{
+							kDebugLog (3, "KREST: request body successfully parsed as JSON");
 						}
 					}
-					else
-					{
-						kDebugLog (3, "KREST: request body successfully parsed as JSON");
-					}
+				}
+				else if (Route.Parser == KRESTRoute::XML)
+				{
+					throw KHTTPError { KHTTPError::H5xx_NOTIMPL, "XML not yet supported" };
 				}
 			}
 
@@ -573,6 +582,15 @@ void KRESTServer::json_t::clear()
 	// therefore we assign a fresh object
 	rx = KJSON{};
 	tx = KJSON{};
+
+} // clear
+
+//-----------------------------------------------------------------------------
+void KRESTServer::xml_t::clear()
+//-----------------------------------------------------------------------------
+{
+	rx.clear();
+	tx.clear();
 
 } // clear
 

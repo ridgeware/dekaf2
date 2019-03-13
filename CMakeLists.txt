@@ -610,6 +610,7 @@ set(PUBLIC_HEADERS
 	kstringview.h
 	ksubscribe.h
 	ksystem.h
+	ksystemstats.h
 	ktcpclient.h
 	ktcpserver.h
 	ktcpstream.h
@@ -732,6 +733,7 @@ set (SOURCES
 	kstringutils.cpp
 	kstringview.cpp
 	ksystem.cpp
+	ksystemstats.cpp
 	ktcpserver.cpp
 	ktcpstream.cpp
 	kthreadpool.cpp

@@ -493,6 +493,11 @@ bool kIsInteger(KStringView str) noexcept;
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
+/// Returns true if str contains a float, possibly with a leading + or -
+bool kIsFloat(KStringView str) noexcept;
+//-----------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
 /// Returns true if str contains a syntactically valid email address
 bool kIsEmail(KStringView str) noexcept;
 //-----------------------------------------------------------------------------

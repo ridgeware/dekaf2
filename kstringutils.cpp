@@ -250,11 +250,7 @@ KString kFormTimestamp (time_t tTime, const char* szFormat)
 		tTime = Dekaf().GetCurrentTime();
 	}
 
-#ifdef DEKAF2_IS_WINDOWS
-	gmtime_s (&ptmStruct, &tTime);
-#else
 	gmtime_r (&tTime, &ptmStruct);
-#endif
 
 	strftime (szBuffer, iMaxBuf, szFormat, &ptmStruct);
 
@@ -441,6 +437,45 @@ bool kIsInteger(KStringView str) noexcept
 	return true;
 
 } // kIsDecimal
+
+//-----------------------------------------------------------------------------
+bool kIsFloat(KStringView str) noexcept
+//-----------------------------------------------------------------------------
+{
+	if (str.empty())
+	{
+		return false;
+	}
+
+	const char* start = str.data();
+	const char* buf   = start;
+	size_t size       = str.size();
+	bool bDeciSeen = false;
+
+	while (size--)
+	{
+		if (!kIsDigit(*buf))
+		{
+			if (bDeciSeen)
+			{
+				return false;
+			}
+			else if ('.' == *buf)
+			{
+				bDeciSeen = true;
+			}
+			else if (buf != start || (*start != '-' && *start != '+'))
+			{
+				return false;
+			}
+		}
+		buf++;
+	}
+	return bDeciSeen;
+
+} // kIsFloat
+
+
 
 //-----------------------------------------------------------------------------
 bool kIsEmail(KStringView str) noexcept

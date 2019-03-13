@@ -13,6 +13,7 @@ using namespace dekaf2;
 
 TEST_CASE("KCType")
 {
+	/*
 	SECTION("IsSpace")
 	{
 		for (uint32_t cp = 0; cp < 80000; ++cp)
@@ -21,7 +22,7 @@ TEST_CASE("KCType")
 			CHECK ( kIsSpace(cp) == std::iswspace(cp) );
 		}
 	}
-/*
+
 	SECTION("ToLower")
 	{
 		for (uint32_t cp = 0; cp < 65535; ++cp)

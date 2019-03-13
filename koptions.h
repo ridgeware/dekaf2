@@ -147,6 +147,12 @@ public:
 	/// Output the registered help message
 	void Help(KOutStream& out);
 
+	/// Get the string representation of the current Argument
+	KStringViewZ GetCurrentArg() const
+	{
+		return m_sCurrentArg;
+	}
+
 //----------
 private:
 //----------
@@ -224,6 +230,7 @@ private:
 	CallbackParams     m_UnknownCommand;
 	CallbackParams     m_UnknownOption;
 	KStringView        m_sCliDebugTo;
+	KStringViewZ       m_sCurrentArg;
 	const KStringView* m_sHelp { nullptr };
 	size_t             m_iHelpSize { 0 };
 	bool               m_bEmptyParmsIsError { true };

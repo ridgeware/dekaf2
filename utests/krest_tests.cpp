@@ -223,7 +223,7 @@ TEST_CASE("KREST")
 
 	SECTION("HTTP SIM STATIC TABLE")
 	{
-		constexpr KRESTRoutes::FunctionTable RTable[]
+		KRESTRoutes::FunctionTable RTable[]
 		{
 			{ "GET", "/test",               rest_test },
 			{ "GET", "/help",               rest_test, KRESTRoute::PLAIN },
@@ -240,7 +240,7 @@ TEST_CASE("KREST")
 
 		RClass RR;
 
-		constexpr KRESTRoutes::MemberFunctionTable<RClass> MTable[]
+		KRESTRoutes::MemberFunctionTable<RClass> MTable[]
 		{
 			{ "GET", "/rr/test",               &RClass::rest_test2 },
 			{ "GET", "/rr/help",               &RClass::rest_test2, KRESTRoute::PLAIN },

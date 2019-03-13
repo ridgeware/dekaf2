@@ -19,8 +19,8 @@ EXECUTE_PROCESS(
 
 # =================================== UPDATE CMAKE =================================
 
-if(CMAKE_VERSION VERSION_LESS "3.8.0")
-	message(STATUS "Please switch to CMake 3.8.0 or newer")
+if(CMAKE_VERSION VERSION_LESS "3.12.0")
+	message(STATUS "Please switch to CMake 3.12.0 or newer")
 	EXECUTE_PROCESS(
 		COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/scripts/cmakeinstall -ask
 	)
@@ -543,6 +543,7 @@ set(PUBLIC_HEADERS
 	kconnection.h
 	kcrashexit.h
 	kcrc.h
+	kctype.h
 	kencode.h
 	kexception.h
 	kfdstream.h
@@ -673,6 +674,7 @@ set (SOURCES
 	kconnection.cpp
 	kcrashexit.cpp
 	kcrc.cpp
+	kctype.cpp
 	kencode.cpp
 	kfdstream.cpp
 	kfilesystem.cpp
@@ -867,6 +869,9 @@ target_link_libraries(createdbc dekaf2)
 
 add_executable(getentities EXCLUDE_FROM_ALL getentities.cpp)
 target_link_libraries(getentities dekaf2)
+
+add_executable(genunicodetables EXCLUDE_FROM_ALL genunicodetables.cpp)
+target_link_libraries(genunicodetables dekaf2)
 
 # ============================ UNIT AND SMOKE TESTS ==================================
 

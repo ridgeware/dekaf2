@@ -42,12 +42,12 @@
 #include "khtmlentities.h"
 #include "kutf8.h"
 #include "kstringutils.h"
+#include "kctype.h"
 #if !defined(_MSC_VER) && (defined(DEKAF2_USE_FROZEN_HASH_FOR_LARGE_MAPS) || defined(DEKAF2_X86))
 #include "kfrozen.h"
 #else
 #include <unordered_map>
 #endif
-#include <cctype>
 
 namespace dekaf2 {
 
@@ -2290,11 +2290,11 @@ KString KHTMLEntity::Encode(KStringView sIn)
 
 	Unicode::FromUTF8(sIn, [&sRet](uint32_t ch)
 	{
-		if (std::iswalnum(ch) || std::iswspace(ch))
+		if (kIsAlNum(ch) || kIsSpace(ch))
 		{
 			Unicode::ToUTF8(ch, sRet);
 		}
-		else if (std::iswpunct(ch))
+		else if (kIsPunct(ch))
 		{
 			ToMandatoryEntity(ch, sRet);
 		}

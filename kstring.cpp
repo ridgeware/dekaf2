@@ -742,7 +742,7 @@ KString& KString::MakeLower()
 	char* sOut { data() };
 	Unicode::FromUTF8(*this, [&](Unicode::codepoint_t ch)
 	{
-		return Unicode::ToUTF8(std::towlower(ch), sOut);
+		return Unicode::ToUTF8(kToLower(ch), sOut);
 	});
 	return *this;
 
@@ -755,7 +755,7 @@ KString& KString::MakeUpper()
 	char* sOut { data() };
 	Unicode::FromUTF8(*this, [&](Unicode::codepoint_t ch)
 	{
-		return Unicode::ToUTF8(std::towupper(ch), sOut);
+		return Unicode::ToUTF8(kToUpper(ch), sOut);
 	});
 	return *this;
 
@@ -1057,7 +1057,7 @@ KString kToUpper(KStringView sInput)
 
 	Unicode::FromUTF8(sInput, [&](Unicode::codepoint_t ch)
 	{
-		return Unicode::ToUTF8(std::towupper(ch), sTransformed);
+		return Unicode::ToUTF8(kToUpper(ch), sTransformed);
 	});
 
 	return sTransformed;
@@ -1072,7 +1072,7 @@ KString kToLower(KStringView sInput)
 
 	Unicode::FromUTF8(sInput, [&](Unicode::codepoint_t ch)
 	{
-		return Unicode::ToUTF8(std::towlower(ch), sTransformed);
+		return Unicode::ToUTF8(kToLower(ch), sTransformed);
 	});
 
 	return sTransformed;

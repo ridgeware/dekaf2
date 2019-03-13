@@ -47,51 +47,60 @@
 
 namespace dekaf2 {
 
-/////////////////////////////////////////////////////////////////////////////
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class KSystemStats
-/////////////////////////////////////////////////////////////////////////////
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
+
 //----------
 public:
 //----------
-	typedef enum  {
-		STRING = 1,
-		INTEGER = 2,
-		FLOAT = 3
-	} STAT_TYPE;
 
-	typedef int64_t int_t;
+	enum STAT_TYPE
+	{
+		STRING,
+		INTEGER,
+		FLOAT
+	};
 
-	struct StatValueType {
+	using int_t = int64_t;
+
+	struct StatValueType 
+	{
 		KString sValue;
 		KString sExtra1;
 		KString sExtra2;
 		STAT_TYPE type = STRING;
 
-		StatValueType(){}
-		~StatValueType(){}
+		StatValueType() {}
+		~StatValueType() {}
+
 		StatValueType(KString value)
 		{
 			this->sValue = value;
 			this->type = STRING;
 		}
+
 		StatValueType(KString value, STAT_TYPE iStatType)
 		{
 			this->sValue = value;
 			this->type = iStatType;
 		}
+
 		StatValueType(KString sValue, KString sExtra1)
 		{
 			this->sValue = sValue;
 			this->sExtra1 = sExtra1;
 			this->type = STRING;
 		}
+
 		StatValueType(KString sValue, KString sExtra1, STAT_TYPE iStatType)
 		{
 			this->sValue = sValue;
 			this->sExtra1 = sExtra1;
 			this->type = iStatType;
 		}
+
 		StatValueType(KString sValue, KString sExtra1, KString sExtra2)
 		{
 			this->sValue = sValue;
@@ -99,6 +108,7 @@ public:
 			this->sExtra2 = sExtra2;
 			this->type = STRING;
 		}
+
 		StatValueType(KString sValue, KString sExtra1, KString sExtra2, STAT_TYPE iStatType)
 		{
 			this->sValue = sValue;
@@ -106,22 +116,23 @@ public:
 			this->sExtra2 = sExtra2;
 			this->type = iStatType;
 		}
+
 	};
+
 	typedef struct StatValueType StatValueType;
 
-	typedef KProps <KString, StatValueType, /*order-matters=*/true, /*unique-keys*/true> StatType; // KProps type
+	using StatType = KProps <KString, StatValueType, /*order-matters=*/true, /*unique-keys*/true>; // KProps type
 
-	const KStringView CPUINFO_NUM_CORES = "cpuinfo_num_cores";
+	static KStringView CPUINFO_NUM_CORES;
 
-	enum DumpFormat{
-		DUMP_TEXT   = 'T',
-		DUMP_JSON   = 'J',
-		DUMP_SHELL  = 'S'
+	enum DumpFormat
+	{
+		DUMP_TEXT,
+		DUMP_JSON,
+		DUMP_SHELL
 	};
 
 	KStringView StatTypeToString(STAT_TYPE statType);
-
-	KSystemStats();
 
 	bool GatherProcInfo ();
 	bool GatherMiscInfo ();
@@ -146,6 +157,14 @@ public:
 
 	KStringView GetLastError () { return (m_sLastError.c_str()); }
 
+	bool Add (KStringView sStatName, KStringView  sStatValue, STAT_TYPE iStatType);
+	bool Add (KStringView sStatName, int64_t      iStatValue, STAT_TYPE iStatType);
+	bool Add (KStringView sStatName, double       dStatValue, STAT_TYPE iStatType);
+
+//----------
+protected:
+//----------
+
 	// we declare these as variables so that unit tests can override them:
 	static KStringViewZ PROC_VERSION;
 	static KStringViewZ PROC_LOADAVG;
@@ -159,23 +178,20 @@ public:
 	static KStringViewZ PROC_STAT;
 	static KStringViewZ PROC_MEMINFO;
 
-	bool Add        (KStringView sStatName, KStringView  sStatValue, STAT_TYPE iStatType);
-	bool Add        (KStringView sStatName, int64_t     iStatValue, STAT_TYPE iStatType);
-	bool Add        (KStringView sStatName, double       dStatValue, STAT_TYPE iStatType);
-
 //----------
 private:
 //----------
+
 	StatType  m_Stats;
 	StatType  m_Procs;
 	KString   m_sLastError;
 
-	void AddDiskStat            (KStringView sValue, KStringView sDevice, KStringView sStat);
-	void DumpPidTree            (KOutStream& stream, uint64_t iPPID, uint64_t iLevel);
+	void AddDiskStat (KStringView sValue, KStringView sDevice, KStringView sStat);
+	void DumpPidTree (KOutStream& stream, uint64_t iPPID, uint64_t iLevel);
 	void AddIntStatIfFileExists (KStringViewZ sStatName, KStringViewZ  sStatFilePath);
 
 	// For gathering CPU info
-	int m_iNumCores = 0;
+	int m_iNumCores { 0 };
 
 }; // KSystemStats
 

@@ -64,39 +64,23 @@ KStringViewZ KSystemStats::PROC_DISKUSAGEINFO = "/proc/mounts";
 KStringViewZ KSystemStats::PROC_CPUINFO       = "/proc/cpuinfo";
 KStringViewZ KSystemStats::PROC_STAT          = "/proc/stat";
 KStringViewZ KSystemStats::PROC_MEMINFO       = "/proc/meminfo";
-
-
+KStringView  KSystemStats::CPUINFO_NUM_CORES  = "cpuinfo_num_cores";
 
 //-----------------------------------------------------------------------------
 int64_t NeverNegative (int64_t iN)
 //-----------------------------------------------------------------------------
 {
-	if (iN < 0) {
+	if (iN < 0) 
+	{
 		return (0);
 	}
-	else {
+	else 
+	{
 		return (iN);
 	}
 
 } // NeverNegative
 
-
-//-----------------------------------------------------------------------------
-KSystemStats::KSystemStats()
-//-----------------------------------------------------------------------------
-{
-//	PROC_VERSION       = "/proc/version";
-//	PROC_LOADAVG       = "/proc/loadavg";
-//	PROC_UPTIME        = "/proc/uptime";
-//	PROC_MISC          = "/proc/misc";
-//	PROC_HOSTNAME      = "/proc/sys/kernel/hostname";
-//	PROC_VMSTAT        = "/proc/vmstat";
-//	PROC_DISKSTATS     = "/proc/diskstats";
-//	PROC_DISKUSAGEINFO = "/proc/mounts";
-//	PROC_CPUINFO       = "/proc/cpuinfo";
-//	PROC_STAT          = "/proc/stat";
-//	PROC_MEMINFO       = "/proc/meminfo";
-}
 //-----------------------------------------------------------------------------
 bool KSystemStats::GatherAll ()
 //-----------------------------------------------------------------------------
@@ -386,14 +370,16 @@ bool KSystemStats::GatherMiscInfo ()
 	file.close();
 	kDebugLog (3, "KSystemStats: reading {} ...", PROC_HOSTNAME);
 	file.open (PROC_HOSTNAME);
-	if (!file.is_open ()) {
+	if (!file.is_open ()) 
+	{
 		m_sLastError.Format ("fopen failed: {}", PROC_HOSTNAME);
 		return (false);
 	}
 
 	while (file.ReadLine(sLine))
 	{
-		if (!sLine.empty()) {
+		if (!sLine.empty()) 
+		{
 			Add ("hostname", sLine, STRING);
 		}
 	}
@@ -401,7 +387,8 @@ bool KSystemStats::GatherMiscInfo ()
 	file.close();
 	file.open("/etc/khostname");
 
-	if (file.ReadLine(sLine) && !sLine.empty()) {
+	if (file.ReadLine(sLine) && !sLine.empty()) 
+	{
 		Add ("khostname", sLine, STRING);
 	}
 
@@ -1027,8 +1014,13 @@ bool KSystemStats::AddCalculations ()
 
 	if (m_Stats.Contains ("meminfo_swapfree_kb") && m_Stats.Contains ("meminfo_swaptotal_kb"))
 	{
+#ifdef DEKAF2_HAS_INT128
 		int_t  iTotal   = m_Stats["meminfo_swaptotal_kb"].sValue.Int128();
 		int_t  iFree    = m_Stats["meminfo_swapfree_kb"].sValue.Int128();
+#else
+		int_t  iTotal   = m_Stats["meminfo_swaptotal_kb"].sValue.Int64();
+		int_t  iFree    = m_Stats["meminfo_swapfree_kb"].sValue.Int64();
+#endif
 		int_t  iUsed    = iTotal - iFree;
 		double nPctUsed = ((double)iUsed * 100.0) / ((double)iTotal);
 		double nPctFree = ((double)iFree * 100.0) / ((double)iTotal);
@@ -1067,9 +1059,12 @@ uint64_t KSystemStats::GatherProcs (KStringView sCommandRegex/*=""*/, bool bDoNo
 
 		sLine.clear();
 
-		uint64_t iMyPID  = (uint64_t)getpid();
-		uint64_t iMyPPID = (uint64_t)getppid();
-
+		pid_t iMyPID  = getpid();
+#ifdef DEKAF2_IS_WINDOWS
+		pid_t iMyPPID = 0;
+#else
+		pid_t iMyPPID = getppid();
+#endif
 		while (pipe.ReadLine (sLine))
 		{
 			//   PID  PPID COMMAND         COMMAND
@@ -1367,14 +1362,15 @@ KString KSystemStats::Backtrace (pid_t iPID)
 		//                ^
 		//                +---- ppid is the 4th word
 
-		uint64_t    iPPID = 0;
+		pid_t iPPID = 0;
 		KString sLine;
 		sPath.Format ("/proc/{}/stat", iPID);
 		if (kReadFile (sPath, sLine, true)) {
 			KStack<KStringView> Words;
 			kSplit(Words, sLine, " ");
-			iPPID = Words.at(4-1).UInt64();
-			if (!iPPID) {
+			iPPID = Words.at(4-1).UInt32();
+			if (!iPPID) 
+			{
 				break; // do..while
 			}
 		}

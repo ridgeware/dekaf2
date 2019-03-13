@@ -437,23 +437,20 @@ void kInit (KStringView sName, KStringViewZ sDebugLog, KStringViewZ sDebugFlag, 
 	// make sure KLog is instantiated
 	KLog();
 
-	if (sDebugLog)
+	if (!sDebugLog.empty())
 	{
 		KLog().SetDebugLog(sDebugLog);
 	}
 
-	if (sDebugFlag)
+	if (!sDebugFlag.empty())
 	{
 		KLog().SetDebugFlag(sDebugFlag);
 	}
 
-	if (sName)
+	if (!sName.empty())
 	{
 		KLog().SetName(sName);
 	}
-
-	// Because debug log or flag files might have changed, we must FORCE a refresh of all that:
-	KLog().CheckDebugFlag (/*bForce=*/true);
 
 } // kInit
 

@@ -250,7 +250,11 @@ KString kFormTimestamp (time_t tTime, const char* szFormat)
 		tTime = Dekaf().GetCurrentTime();
 	}
 
-	gmtime_r (&tTime, &ptmStruct);
+#ifdef DEKAF2_IS_WINDOWS
+	gmtime_s(&ptmStruct, &tTime);
+#else
+	gmtime_r(&tTime, &ptmStruct);
+#endif
 
 	strftime (szBuffer, iMaxBuf, szFormat, &ptmStruct);
 
@@ -450,7 +454,7 @@ bool kIsFloat(KStringView str) noexcept
 	const char* start = str.data();
 	const char* buf   = start;
 	size_t size       = str.size();
-	bool bDeciSeen = false;
+	bool bDeciSeen    = false;
 
 	while (size--)
 	{
@@ -460,6 +464,7 @@ bool kIsFloat(KStringView str) noexcept
 			{
 				return false;
 			}
+			// TODO make this work with locales that use a comma for decimal separation
 			else if ('.' == *buf)
 			{
 				bDeciSeen = true;
@@ -471,6 +476,7 @@ bool kIsFloat(KStringView str) noexcept
 		}
 		buf++;
 	}
+
 	return bDeciSeen;
 
 } // kIsFloat

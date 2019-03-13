@@ -543,6 +543,7 @@ set(PUBLIC_HEADERS
 	kconnection.h
 	kcrashexit.h
 	kcrc.h
+	kctype.h
 	kencode.h
 	kexception.h
 	kfdstream.h
@@ -673,6 +674,7 @@ set (SOURCES
 	kconnection.cpp
 	kcrashexit.cpp
 	kcrc.cpp
+	kctype.cpp
 	kencode.cpp
 	kfdstream.cpp
 	kfilesystem.cpp
@@ -867,6 +869,9 @@ target_link_libraries(createdbc dekaf2)
 
 add_executable(getentities EXCLUDE_FROM_ALL getentities.cpp)
 target_link_libraries(getentities dekaf2)
+
+add_executable(genunicodetables EXCLUDE_FROM_ALL genunicodetables.cpp)
+target_link_libraries(genunicodetables dekaf2)
 
 # ============================ UNIT AND SMOKE TESTS ==================================
 

@@ -45,7 +45,6 @@
 
 #include <cstdint>
 #include <cstddef>
-#include <cwctype>
 
 static_assert(__cplusplus >= 201103L, "The UTF code lib needs at least a C++11 compiler");
 
@@ -64,12 +63,17 @@ static_assert(__cplusplus >= 201103L, "The UTF code lib needs at least a C++11 c
 #endif
 
 #ifdef DEKAF2
+#include "kctype.h"
 namespace dekaf2 {
+#else
+#include <cwctype>
 #endif
 
 namespace Unicode {
 
+#ifndef DEKAF2
 using codepoint_t = uint32_t;
+#endif
 using utf16_t     = uint16_t;
 using utf8_t      = uint8_t;
 
@@ -739,7 +743,11 @@ bool ToLowerUTF8(const NarrowString& sInput, NarrowReturnString& sOutput)
 
 	return TransformUTF8(sInput, sOutput, [](codepoint_t uch, NarrowReturnString& sOut)
 	{
+#ifdef DEKAF2
+		return ToUTF8(kToLower(uch), sOut);
+#else
 		return ToUTF8(std::towlower(uch), sOut);
+#endif
 	});
 }
 
@@ -753,7 +761,11 @@ bool ToUpperUTF8(const NarrowString& sInput, NarrowReturnString& sOutput)
 
 	return TransformUTF8(sInput, sOutput, [](codepoint_t uch, NarrowReturnString& sOut)
 	{
+#ifdef DEKAF2
+		return ToUTF8(kToUpper(uch), sOut);
+#else
 		return ToUTF8(std::towupper(uch), sOut);
+#endif
 	});
 }
 

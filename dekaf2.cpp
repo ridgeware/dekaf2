@@ -144,11 +144,13 @@ bool Dekaf::SetUnicodeLocale(KStringView sName)
 		std::setlocale(LC_ALL, m_sLocale.c_str());
 		std::locale::global(std::locale(m_sLocale.c_str()));
 		m_sLocale = std::locale().name();
+#ifndef DEKAF2_IS_WINDOWS
 		if (!std::iswupper(0x53d) || std::towupper(0x17f) != 0x53)
 		{
 			std::cerr << "dekaf2: cannot set C++ locale to Unicode" << std::endl;
 			return false;
 		}
+#endif
 	}
 	DEKAF2_CATCH (std::exception& e) {
 		if (m_bInConstruction)

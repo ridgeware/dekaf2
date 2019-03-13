@@ -76,7 +76,11 @@ TEST_CASE("KSSLClient 3")
 	KString sResponse = HTTP.Get (sURL);
 	CHECK ( sResponse.empty() );
 	CHECK ( HTTP.Response.iStatusCode != 200 );
+#ifdef DEKAF2_IS_WINDOWS
+	CHECK ( HTTP.Error() == "No such host is known" );
+#else
 	CHECK ( HTTP.Error() == "Host not found (authoritative)" );
+#endif
 }
 
 TEST_CASE("KSSLClient 4")

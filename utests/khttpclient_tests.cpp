@@ -5,6 +5,8 @@
 #include <dekaf2/kstring.h>
 #include <dekaf2/ktimer.h>
 
+#ifndef DEKAF2_IS_WINDOWS
+
 using namespace dekaf2;
 
 class KTinyHTTPServer : public KTCPServer
@@ -123,3 +125,4 @@ TEST_CASE("KHTTPClient") {
 
 }
 
+#endif // !Windows

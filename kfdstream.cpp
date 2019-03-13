@@ -124,7 +124,10 @@ std::streamsize KInputFDStream::FileDescReader(void* sBuffer, std::streamsize iC
 	{
 		int fd = *static_cast<int*>(filedesc);
 #ifdef DEKAF2_IS_WINDOWS
-		iRead = _read(fd, sBuffer, static_cast<uint32_t>(iCount));
+		if (fd >= 0)
+		{
+			iRead = _read(fd, sBuffer, static_cast<uint32_t>(iCount));
+		}
 #else
 		iRead = ::read(fd, sBuffer, static_cast<size_t>(iCount));
 #endif
@@ -299,7 +302,10 @@ std::streamsize KOutputFDStream::FileDescWriter(const void* sBuffer, std::stream
 	{
 		int fd = *static_cast<int*>(filedesc);
 #ifdef DEKAF2_IS_WINDOWS
-		iWrote = _write(fd, sBuffer, static_cast<uint32_t>(iCount));
+		if (fd >= 0)
+		{
+			iWrote = _write(fd, sBuffer, static_cast<uint32_t>(iCount));
+		}
 #else
 		iWrote = ::write(fd, sBuffer, static_cast<size_t>(iCount));
 #endif
@@ -496,7 +502,10 @@ std::streamsize KInOutFDStream::FileDescReader(void* sBuffer, std::streamsize iC
 	{
 		int fd = *static_cast<int*>(filedesc);
 #ifdef DEKAF2_IS_WINDOWS
-		iRead = _read(fd, sBuffer, static_cast<uint32_t>(iCount));
+		if (fd >= 0)
+		{
+			iRead = _read(fd, sBuffer, static_cast<uint32_t>(iCount));
+		}
 #else
 		iRead = ::read(fd, sBuffer, static_cast<size_t>(iCount));
 #endif
@@ -523,7 +532,10 @@ std::streamsize KInOutFDStream::FileDescWriter(const void* sBuffer, std::streams
 	{
 		int fd = *static_cast<int*>(filedesc);
 #ifdef DEKAF2_IS_WINDOWS
-		iWrote = _write(fd, sBuffer, static_cast<uint32_t>(iCount));
+		if (fd >= 0)
+		{
+			iWrote = _write(fd, sBuffer, static_cast<uint32_t>(iCount));
+		}
 #else
 		iWrote = ::write(fd, sBuffer, static_cast<size_t>(iCount));
 #endif

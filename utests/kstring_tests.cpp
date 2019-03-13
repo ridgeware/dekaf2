@@ -1000,12 +1000,23 @@ TEST_CASE("KString") {
 
 	SECTION("TestLocale")
 	{
-		CHECK(KStringView(std::locale().name()).ends_with(".UTF-8"));
-		wint_t ch = 246; // oe
-		CHECK(std::islower(ch));
-		CHECK(std::toupper(ch) == 214);
-		CHECK (std::iswlower(ch));
-		CHECK (std::towupper(ch) == 214);
+#ifndef DEKAF2_IS_WINDOWS
+		{
+			CHECK(KStringView(std::locale().name()).ends_with(".UTF-8"));
+			wint_t ch = 246; // oe
+			CHECK(std::islower(ch));
+			CHECK(std::toupper(ch) == 214);
+			CHECK(std::iswlower(ch));
+			CHECK(std::towupper(ch) == 214);
+		}
+#endif
+		{
+			wint_t ch = 246; // oe
+			CHECK(std::islower(ch));
+			CHECK(std::toupper(ch) == 214);
+			CHECK(std::iswlower(ch));
+			CHECK(std::towupper(ch) == 214);
+		}
 	}
 
 	SECTION("MakeUpper")

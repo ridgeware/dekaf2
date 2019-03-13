@@ -176,6 +176,8 @@ TEST_CASE("KWriter") {
 		kRemoveFile(sFile);
 	}
 
+#ifndef DEKAF2_IS_WINDOWS
+
 	SECTION("Short write to TCP socket")
 	{
 		KString sLarge;
@@ -223,6 +225,7 @@ TEST_CASE("KWriter") {
 			CHECK ( sRx == sLarge );
 		}
 	}
+#endif
 
 #ifndef DEKAF2_IS_WINDOWS
 	SECTION("Short write to Unix socket")
@@ -274,6 +277,7 @@ TEST_CASE("KWriter") {
 	}
 #endif
 
+#ifndef DEKAF2_IS_WINDOWS
 	SECTION("short write to TLS socket")
 	{
 		KString sLarge;
@@ -323,5 +327,6 @@ TEST_CASE("KWriter") {
 			CHECK ( sRx == sLarge );
 		}
 	}
+#endif
 
 }

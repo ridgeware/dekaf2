@@ -44,6 +44,7 @@
 #include "kutf8.h"
 #include "khtmlentities.h"
 #include "kctype.h"
+#include <cctype>
 
 
 namespace dekaf2 {

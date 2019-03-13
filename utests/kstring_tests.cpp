@@ -7,6 +7,7 @@
 #include <cctype>
 #include <cwctype>
 #include <dekaf2/dekaf2.h>
+#include <dekaf2/kctype.h>
 
 using namespace dekaf2;
 
@@ -1000,7 +1001,7 @@ TEST_CASE("KString") {
 
 	SECTION("TestLocale")
 	{
-#ifndef DEKAF2_IS_WINDOWS
+#if defined(DEKAF2_IS_OSX) 
 		{
 			CHECK(KStringView(std::locale().name()).ends_with(".UTF-8"));
 			wint_t ch = 246; // oe
@@ -1012,10 +1013,10 @@ TEST_CASE("KString") {
 #endif
 		{
 			wint_t ch = 246; // oe
-			CHECK(std::islower(ch));
-			CHECK(std::toupper(ch) == 214);
-			CHECK(std::iswlower(ch));
-			CHECK(std::towupper(ch) == 214);
+			CHECK(kIsLower(ch));
+			CHECK(kToUpper(ch) == 214);
+			CHECK(kIsLower(ch));
+			CHECK(kToUpper(ch) == 214);
 		}
 	}
 

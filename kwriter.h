@@ -340,21 +340,21 @@ public:
 
 	//-----------------------------------------------------------------------------
 	KOutFile(KString str, ios_base::openmode mode = ios_base::out)
-	: base_type(kToFilesystemPath(str), mode)
+	: base_type(kToFilesystemPath(str), mode | ios_base::binary)
 	//-----------------------------------------------------------------------------
 	{
 	}
 
 	//-----------------------------------------------------------------------------
 	KOutFile(KStringViewZ sz, ios_base::openmode mode = ios_base::out)
-	: base_type(kToFilesystemPath(sz), mode)
+	: base_type(kToFilesystemPath(sz), mode | ios_base::binary)
 	//-----------------------------------------------------------------------------
 	{
 	}
 
 	//-----------------------------------------------------------------------------
 	KOutFile(KStringView sv, ios_base::openmode mode = ios_base::out)
-	: KOutFile(KString(sv), mode)
+	: KOutFile(KString(sv), mode | ios_base::binary)
 	//-----------------------------------------------------------------------------
 	{
 	}
@@ -368,34 +368,34 @@ public:
 	KOutFile() = default;
 	KOutFile(KOutFile&&) = default;
 	KOutFile(const std::string& s, ios_base::openmode mode = ios_base::out)
-	: base_type(kToFilesystemPath(s)) {}
+	: base_type(kToFilesystemPath(s), mode | ios_base::binary) {}
 	KOutFile(const char* sz, ios_base::openmode mode = ios_base::out)
-	: base_type(kToFilesystemPath(KStringViewZ(sz))) {}
+	: base_type(kToFilesystemPath(KStringViewZ(sz)), mode | ios_base::binary) {}
 	void open(const std::string& s, ios_base::openmode mode = ios_base::out)
-	{ base_type::open(kToFilesystemPath(s), mode); }
+	{ base_type::open(kToFilesystemPath(s), mode | ios_base::binary); }
 	void open(const char* sz, ios_base::openmode mode = ios_base::out)
-	{ base_type::open(kToFilesystemPath(KStringViewZ(sz)), mode); }
+	{ base_type::open(kToFilesystemPath(KStringViewZ(sz)), mode | ios_base::binary); }
 #endif
 
 	//-----------------------------------------------------------------------------
 	void open(const KString& str, ios_base::openmode mode = ios_base::out)
 	//-----------------------------------------------------------------------------
 	{
-		base_type::open(kToFilesystemPath(str), mode);
+		base_type::open(kToFilesystemPath(str), mode | ios_base::binary);
 	}
 
 	//-----------------------------------------------------------------------------
 	void open(const KStringViewZ sz, ios_base::openmode mode = ios_base::out)
 	//-----------------------------------------------------------------------------
 	{
-		base_type::open(kToFilesystemPath(sz), mode);
+		base_type::open(kToFilesystemPath(sz), mode | ios_base::binary);
 	}
 
 	//-----------------------------------------------------------------------------
 	void open(const KStringView sv, ios_base::openmode mode = ios_base::out)
 	//-----------------------------------------------------------------------------
 	{
-		open(KString(sv), mode);
+		open(KString(sv), mode | ios_base::binary);
 	}
 
 	using base_type::open;

@@ -58,6 +58,12 @@ enum DefaultFileCeateFlags
 	DEKAF2_MODE_CREATE_DIR  = 0777
 };
 
+#ifdef DEKAF2_IS_WINDOWS
+constexpr char kDirSep { '\\' };
+#else
+constexpr char kDirSep { '/' };
+#endif
+
 //-----------------------------------------------------------------------------
 /// Change file or directory permissions to value iMode. iMode can be set both by
 /// POSIX permission bits or std::filesystem::perms permission bits (as they use

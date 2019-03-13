@@ -2,6 +2,7 @@
 
 #include <dekaf2/kstream.h>
 #include <dekaf2/kfdstream.h>
+#include <dekaf2/ksystem.h>
 #include <vector>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -78,7 +79,8 @@ TEST_CASE("KReader") {
 
 	}
 
-	KString sFile("/tmp/KReader.test");
+	KString sFile = kGetTemp();
+	sFile += "KReader.test";
 
 	KString sOut {
 		"line 1\n"

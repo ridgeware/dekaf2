@@ -279,7 +279,15 @@ KString kGetTemp()
 	{
 		kWarning("cannot get temp directory, setting to current directory");
 		sTemp = kGetCWD();
+		sTemp += kDirSep;
 	}
+#ifndef DEKAF2_HAS_STD_FILESYSTEM
+	else
+	{
+		// we add a directory separator as the std::filesystem variant does that too
+		sTemp += kDirSep;
+	}
+#endif
 
 	return sTemp;
 

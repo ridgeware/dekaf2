@@ -187,21 +187,21 @@ public:
 
 	//-----------------------------------------------------------------------------
 	KFile(KString str, ios_base::openmode mode = ios_base::in | ios_base::out)
-	: base_type(kToFilesystemPath(str), mode)
+	: base_type(kToFilesystemPath(str), mode | ios_base::binary)
 	//-----------------------------------------------------------------------------
 	{
 	}
 
 	//-----------------------------------------------------------------------------
 	KFile(KStringViewZ sz, ios_base::openmode mode = ios_base::in | ios_base::out)
-	: base_type(kToFilesystemPath(sz), mode)
+	: base_type(kToFilesystemPath(sz), mode | ios_base::binary)
 	//-----------------------------------------------------------------------------
 	{
 	}
 
 	//-----------------------------------------------------------------------------
 	KFile(KStringView sv, ios_base::openmode mode = ios_base::in | ios_base::out)
-	: KFile(KString(sv), mode)
+	: KFile(KString(sv), mode | ios_base::binary)
 	//-----------------------------------------------------------------------------
 	{
 	}
@@ -212,21 +212,21 @@ public:
 	void open(const KString& str, ios_base::openmode mode = ios_base::in | ios_base::out)
 	//-----------------------------------------------------------------------------
 	{
-		base_type::open(kToFilesystemPath(str), mode);
+		base_type::open(kToFilesystemPath(str), mode | ios_base::binary);
 	}
 
 	//-----------------------------------------------------------------------------
 	void open(const KStringViewZ sz, ios_base::openmode mode = ios_base::in | ios_base::out)
 	//-----------------------------------------------------------------------------
 	{
-		base_type::open(kToFilesystemPath(sz), mode);
+		base_type::open(kToFilesystemPath(sz), mode | ios_base::binary);
 	}
 
 	//-----------------------------------------------------------------------------
 	void open(const KStringView sv, ios_base::openmode mode = ios_base::in | ios_base::out)
 	//-----------------------------------------------------------------------------
 	{
-		open(KString(sv), mode);
+		open(KString(sv), mode | ios_base::binary);
 	}
 
 	using base_type::open;

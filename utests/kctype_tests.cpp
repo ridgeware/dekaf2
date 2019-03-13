@@ -7,7 +7,9 @@
 #ifndef DEKAF2_IS_WINDOWS
 
 // These tests cannot work on Windows, which is basically the reason
-// why kctype.h was written..
+// why kctype.h was written.. And actually they do not work on any
+// system without failures, as every lib implements a different subset
+// of character properties..
 
 using namespace dekaf2;
 

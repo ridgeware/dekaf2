@@ -366,18 +366,7 @@ public:
 	bool IsDigit() const
 	//-----------------------------------------------------------------------------
 	{
-		if (DEKAF2_LIKELY(m_CodePoint <= MAX_TABLE))
-		{
-			return CodePoints[m_CodePoint].Category == NumberDecimalDigit;
-		}
-		else
-		{
-	#ifdef DEKAF2_IS_WINDOWS
-			return false;
-	#else
-			return std::iswdigit(m_CodePoint);
-	#endif
-		}
+		return m_CodePoint <= '9' && m_CodePoint >= '0';
 	}
 
 	//-----------------------------------------------------------------------------
@@ -385,10 +374,17 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	bool IsAsciiDigit() const
+	bool IsUnicodeDigit() const
 	//-----------------------------------------------------------------------------
 	{
-		return m_CodePoint <= '9' && m_CodePoint >= '0';
+		if (DEKAF2_LIKELY(m_CodePoint <= MAX_TABLE))
+		{
+			return CodePoints[m_CodePoint].Category == NumberDecimalDigit;
+		}
+		else
+		{
+			return false;
+		}
 	}
 
 	//-----------------------------------------------------------------------------
@@ -507,10 +503,10 @@ inline bool kIsDigit(Unicode::codepoint_t ch)
 }
 
 //-----------------------------------------------------------------------------
-inline bool kIsAsciiDigit(Unicode::codepoint_t ch)
+inline bool kIsUnicodeDigit(Unicode::codepoint_t ch)
 //-----------------------------------------------------------------------------
 {
-	return KCodePoint(ch).IsAsciiDigit();
+	return KCodePoint(ch).IsUnicodeDigit();
 }
 
 //-----------------------------------------------------------------------------

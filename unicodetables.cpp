@@ -240,7 +240,7 @@ const KCodePoint::Property KCodePoint::CodePoints[]
 	{ OtherControl            , Other       ,      0 }, //   130 
 	{ OtherControl            , Other       ,      0 }, //   131 
 	{ OtherControl            , Other       ,      0 }, //   132 
-	{ OtherControl            , Separator   ,      0 }, //   133 
+	{ OtherControl            , Other       ,      0 }, //   133 
 	{ OtherControl            , Other       ,      0 }, //   134 
 	{ OtherControl            , Other       ,      0 }, //   135 
 	{ OtherControl            , Other       ,      0 }, //   136 
@@ -267,7 +267,7 @@ const KCodePoint::Property KCodePoint::CodePoints[]
 	{ OtherControl            , Other       ,      0 }, //   157 
 	{ OtherControl            , Other       ,      0 }, //   158 
 	{ OtherControl            , Other       ,      0 }, //   159 
-	{ SeparatorSpace          , Separator   ,      0 }, //   160 
+	{ SeparatorSpace          , Mark        ,      0 }, //   160 
 	{ PunctuationOther        , Punctuation ,      0 }, //   161 
 	{ SymbolCurrency          , Symbol      ,      0 }, //   162 
 	{ SymbolCurrency          , Symbol      ,      0 }, //   163 
@@ -8310,7 +8310,7 @@ const KCodePoint::Property KCodePoint::CodePoints[]
 	{ SeparatorSpace          , Separator   ,      0 }, //  8200 
 	{ SeparatorSpace          , Separator   ,      0 }, //  8201 
 	{ SeparatorSpace          , Separator   ,      0 }, //  8202 
-	{ OtherFormat             , Separator   ,      0 }, //  8203 
+	{ OtherFormat             , Other       ,      0 }, //  8203 
 	{ OtherFormat             , Other       ,      0 }, //  8204 
 	{ OtherFormat             , Other       ,      0 }, //  8205 
 	{ OtherFormat             , Other       ,      0 }, //  8206 

@@ -153,7 +153,6 @@ private:
 //------
 
 	static constexpr size_t MAX_TABLE = 0xFFFF;
-//	static constexpr size_t MAX_TABLE = 0;
 
 	static const int32_t  CaseFolds[];
 	static const Property CodePoints[];

@@ -83,7 +83,7 @@ public:
 	void Write(KOutStream& File)
 	//-----------------------------------------------------------------------------
 	{
-		File.WriteLine("constexpr int32_t KCodePoint::CaseFolds[]");
+		File.WriteLine("const int32_t KCodePoint::CaseFolds[]");
 		File.WriteLine("{");
 
 		int iCount { 0 };
@@ -224,7 +224,7 @@ CodePoint::CodePoint(KStringView sLine)
 	{
 		sOriginalLine = sLine;
 	}
-	
+
 	std::vector<KStringView> Part;
 
 	if (kSplit(Part, sLine, ";") < 13)
@@ -344,7 +344,7 @@ bool WriteTables(KStringViewZ sFileName)
 
 	File.WriteLine();
 
-	File.WriteLine("constexpr KCodePoint::Property KCodePoint::CodePoints[]");
+	File.WriteLine("const KCodePoint::Property KCodePoint::CodePoints[]");
 	File.WriteLine("{");
 
 	int iCount { 0 };
@@ -396,7 +396,7 @@ int BuildTables(KStringViewZ sFileName)
 	KString sUnicodeData = kHTTPGet(sURL);
 
 	CodePoints.clear();
-	CodePoints.resize(CODEPOINT_MAX);
+	CodePoints.resize(CODEPOINT_MAX+1);
 
 	if (!sUnicodeData)
 	{

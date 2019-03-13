@@ -6,7 +6,7 @@
 #include <cinttypes>
 #include <atomic>
 #include <thread>
-#include <cwctype>
+#include <dekaf2/kctype.h>
 #include <dekaf2/kprof.h>
 #include <dekaf2/kstring.h>
 #include <dekaf2/kstringview.h>
@@ -86,7 +86,7 @@ void regex1()
 		{
 			dekaf2::KString sFirstPart{ sInit };
 			dekaf2::KProf::Force(&sFirstPart[0]);
-			if (std::iswspace(sFirstPart[0]) || ('-' == sFirstPart[0])) {
+			if (dekaf2::kIsSpace(sFirstPart[0]) || ('-' == sFirstPart[0])) {
 				sFirstPart.ReplaceRegex("^[ \f\n\r\t\v\b-]+", ""); // remove leading whitespace and dashes
 			}
 			dekaf2::KProf::Force(&sFirstPart);
@@ -103,7 +103,7 @@ void regex1()
 		{
 			dekaf2::KString sFirstPart{ sInit };
 			dekaf2::KProf::Force(&sFirstPart[0]);
-			if (std::iswspace(sFirstPart[0]) || ('-' == sFirstPart[0])) {
+			if (dekaf2::kIsSpace(sFirstPart[0]) || ('-' == sFirstPart[0])) {
 				dekaf2::KProf::Force();
 				sFirstPart.ReplaceRegex("^[ \f\n\r\t\v\b-]+", ""); // remove leading whitespace and dashes
 			}
@@ -165,7 +165,7 @@ void regex3()
 		{
 			dekaf2::KString sFirstPart{ sInit };
 			dekaf2::KProf::Force(&sFirstPart[0]);
-			if (std::iswspace(sFirstPart[0]) || ('-' == sFirstPart[0])) {
+			if (dekaf2::kIsSpace(sFirstPart[0]) || ('-' == sFirstPart[0])) {
 				sFirstPart.TrimLeft(" \f\n\r\t\v\b-"_ksv);
 			}
 			dekaf2::KProf::Force(&sFirstPart);
@@ -182,7 +182,7 @@ void regex3()
 		{
 			dekaf2::KString sFirstPart{ sInit };
 			dekaf2::KProf::Force(&sFirstPart[0]);
-			if (std::iswspace(sFirstPart[0]) || ('-' == sFirstPart[0])) {
+			if (dekaf2::kIsSpace(sFirstPart[0]) || ('-' == sFirstPart[0])) {
 				sFirstPart.TrimLeft(" \f\n\r\t\v\b-"_ksv);
 			}
 			dekaf2::KProf::Force(&sFirstPart);

@@ -43,7 +43,7 @@
 #include "kwords.h"
 #include "kutf8.h"
 #include "khtmlentities.h"
-#include <cctype>
+#include "kctype.h"
 
 
 namespace dekaf2 {
@@ -60,7 +60,7 @@ KStringViewPair SimpleText::NextPair()
 
 	Unicode::FromUTF8(m_sInput, [&](uint32_t ch)
 	{
-		if (!std::iswalnum(ch))
+		if (!kIsAlNum(ch))
 		{
 			if (iSizeWord)
 			{
@@ -139,7 +139,7 @@ std::pair<KString, KStringView> SimpleHTML::NextPair()
 		{
 			if (!bOpenTagHadSpace)
 			{
-				if (std::iswspace(ch))
+				if (kIsSpace(ch))
 				{
 					bOpenTagHadSpace = true;
 					if (sTagName == "script")
@@ -150,7 +150,7 @@ std::pair<KString, KStringView> SimpleHTML::NextPair()
 				else if (ch != '>')
 				{
 					// tag names may be ASCII only
-					sTagName += std::tolower(static_cast<KString::value_type>(ch));
+					sTagName += kToLower(static_cast<KString::value_type>(ch));
 				}
 			}
 			if (ch == '>')
@@ -165,7 +165,7 @@ std::pair<KString, KStringView> SimpleHTML::NextPair()
 		}
 		else if (bOpenEntity)
 		{
-			if (std::iswalnum(ch))
+			if (kIsAlNum(ch))
 			{
 				++iSizeWord;
 			}
@@ -202,7 +202,7 @@ std::pair<KString, KStringView> SimpleHTML::NextPair()
 				iStartEntity = iSizeSkel + iSizeWord;
 				++iSizeWord;
 			}
-			else if (!std::iswalnum(ch))
+			else if (!kIsAlNum(ch))
 			{
 				if (!sPair.first.empty())
 				{
@@ -312,7 +312,7 @@ std::pair<KString, KString> NormalizingHTML::NextPair()
 		{
 			if (!bOpenTagHadSpace)
 			{
-				if (std::iswspace(ch))
+				if (kIsSpace(ch))
 				{
 					bOpenTagHadSpace = true;
 					if (sTagName == "script")
@@ -323,7 +323,7 @@ std::pair<KString, KString> NormalizingHTML::NextPair()
 				else if (ch != '>')
 				{
 					// tag names may be ASCII only
-					sTagName += std::tolower(static_cast<KString::value_type>(ch));
+					sTagName += kToLower(static_cast<KString::value_type>(ch));
 				}
 			}
 			if (ch == '>')
@@ -340,7 +340,7 @@ std::pair<KString, KString> NormalizingHTML::NextPair()
 		}
 		else
 		{
-			if (!std::iswalnum(ch))
+			if (!kIsAlNum(ch))
 			{
 				if (iSizeWord)
 				{
@@ -355,7 +355,7 @@ std::pair<KString, KString> NormalizingHTML::NextPair()
 					sTagName.clear();
 					bLastWasSpace = false;
 				}
-				else if (std::iswspace(ch))
+				else if (kIsSpace(ch))
 				{
 					if (!bLastWasSpace)
 					{

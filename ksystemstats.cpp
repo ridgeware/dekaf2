@@ -1101,7 +1101,7 @@ uint64_t KSystemStats::GatherProcs (KStringView sCommandRegex/*=""*/, bool bDoNo
 			sFullCmd = Parts.at(3);
 
 			// convert PID to an integer
-			uint64_t iPID = sPID.UInt64();
+			int32_t iPID = sPID.Int32();
 
 			if (sShortCmd.compare("COMMAND") == 0)
 			{

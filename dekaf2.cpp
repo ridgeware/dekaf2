@@ -419,7 +419,7 @@ class Dekaf& Dekaf()
 }
 
 //---------------------------------------------------------------------------
-void kInit(KStringView sName, KStringViewZ sDebugLog, KStringViewZ sDebugFlag, bool bShouldDumpCore, bool bEnableMultiThreading, bool bStartSignalHandlerThread)
+void kInit (KStringView sName, KStringViewZ sDebugLog, KStringViewZ sDebugFlag, bool bShouldDumpCore/*=false*/, bool bEnableMultiThreading/*=false*/, bool bStartSignalHandlerThread/*=true*/)
 //---------------------------------------------------------------------------
 {
 	if (bStartSignalHandlerThread)
@@ -437,21 +437,25 @@ void kInit(KStringView sName, KStringViewZ sDebugLog, KStringViewZ sDebugFlag, b
 	// make sure KLog is instantiated
 	KLog();
 
-	if (!sDebugLog.empty())
+	if (sDebugLog)
 	{
 		KLog().SetDebugLog(sDebugLog);
 	}
 
-	if (!sDebugFlag.empty())
+	if (sDebugFlag)
 	{
 		KLog().SetDebugFlag(sDebugFlag);
 	}
 
-	if (!sName.empty())
+	if (sName)
 	{
 		KLog().SetName(sName);
 	}
-}
+
+	// Because debug log or flag files might have changed, we must FORCE a refresh of all that:
+	KLog().CheckDebugFlag (/*bForce=*/true);
+
+} // kInit
 
 } // end of namespace dekaf2
 

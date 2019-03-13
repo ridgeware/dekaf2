@@ -767,6 +767,9 @@ bool KLog::IntOpenLog()
 		SetSerializer(CreateSerializer(Serializer::TTY));
 	}
 
+	// Because debug log or flag files might have changed, we must FORCE a refresh of all that:
+	CheckDebugFlag (/*bForce=*/true);
+
 	return m_Logger && m_Logger->Good();
 
 } // SetDebugLog

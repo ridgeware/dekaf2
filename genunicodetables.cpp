@@ -378,10 +378,10 @@ void PatchTables()
 	CodePoints[0x0c].sType = "Separator";
 	CodePoints[0x0d].sType = "Separator";
 
-	// 133 is std::iswspace() as well
-	CodePoints[133].sType  = "Separator";
-	// 8203 is std::iswspace() as well
-	CodePoints[8203].sType = "Separator";
+	//  133 is std::iswspace() on the mac, but not on Linux. So we leave it as is
+	// 8203 is std::iswspace() on the mac, but not on Linux. So we leave it as is
+	//  160 is !std::iswspace() on Linux, but std::iswpunct()
+	CodePoints[160].sType = "Mark";
 
 	// The tab character also needs the Category SeparatorSpace, otherwise
 	// IsBlank() is incorrect

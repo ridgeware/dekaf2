@@ -344,7 +344,13 @@ public:
 	{
 		if (DEKAF2_LIKELY(m_CodePoint <= MAX_TABLE))
 		{
-			return CodePoints[m_CodePoint].Type == Punctuation;
+			auto Prop = CodePoints[m_CodePoint];
+			return Prop.Type == Punctuation
+			    || Prop.Type == Symbol
+			    || Prop.Type == Mark
+		        || Prop.Category == NumberOther
+				|| Prop.Category == OtherPrivateUse
+		        || Prop.Category == OtherFormat;
 		}
 		else
 		{

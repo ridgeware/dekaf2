@@ -959,6 +959,7 @@ constexpr KStringViewZ KLog::DASH;
 constexpr KStringViewZ KLog::s_sEnvLog;
 constexpr KStringViewZ KLog::s_sEnvFlag;
 constexpr KStringViewZ KLog::s_sEnvTrace;
+constexpr KStringViewZ KLog::s_sEnvLevel;
 constexpr KStringViewZ KLog::s_sDefaultLog;
 constexpr KStringViewZ KLog::s_sDefaultFlag;
 

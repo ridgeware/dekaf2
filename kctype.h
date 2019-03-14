@@ -176,11 +176,42 @@ class KCodePoint
 private:
 //------
 
+	enum CTYPE
+	{
+		CC = 1 << 0,       // Control
+		SP = 1 << 1,       // Space
+		BL = 1 << 2,       // Blank
+		NN = 1 << 3,       // Digit
+		XX = 1 << 4,       // XDigit
+		PP = 1 << 5,       // Punct
+		LL = 1 << 6,       // Lower
+		UU = 1 << 7,       // Upper
+
+		UX = UU | XX,      // Upper and XDigit
+		LX = LL | XX,      // Lower and XDigit
+		NX = NN | XX,      // Digit and XDigit
+
+		AA = LL | UU,      // Alpha == LL | UU
+		AN = LL | UU | NN, // Alnum == LL | UU | NN
+	};
+
+	static constexpr uint8_t ASCIITable[0x80]
+	{
+	 // 0x0 0x1 0x2 0x3 0x4 0x5 0x6 0x7 0x8 0x9 0xA 0xB 0xC 0xD 0xE 0xF
+		CC, CC, CC, CC, CC, CC, CC, CC, CC, BL, SP, SP, SP, SP, SP, CC, // 0x00
+		CC, CC, CC, CC, CC, CC, CC, CC, CC, CC, CC, CC, CC, CC, CC, CC, // 0x10
+		BL, PP, PP, PP, PP, PP, PP, PP, PP, PP, PP, PP, PP, PP, PP, PP, // 0x20
+		NX, NX, NX, NX, NX, NX, NX, NX, NX, NX, PP, PP, PP, PP, PP, PP, // 0x30
+		PP, UX, UX, UX, UX, UX, UX, UU, UU, UU, UU, UU, UU, UU, UU, UU, // 0x40
+		UU, UU, UU, UU, UU, UU, UU, UU, UU, UU, UU, PP, PP, PP, PP, PP, // 0x50
+		PP, LX, LX, LX, LX, LX, LX, LL, LL, LL, LL, LL, LL, LL, LL, LL, // 0x60
+		LL, LL, LL, LL, LL, LL, LL, LL, LL, LL, LL, PP, PP, PP, PP, CC, // 0x70
+	};
+
 	static constexpr size_t MAX_TABLE = 0xFFFF;
 
 	static const int32_t  CaseFolds[];
 	static const Property CodePoints[];
-
 
 	Unicode::codepoint_t m_CodePoint { 0 };
 
@@ -240,6 +271,14 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	constexpr
+	bool IsASCIISpace() const
+	//-----------------------------------------------------------------------------
+	{
+		return m_CodePoint < 0x80 && (ASCIITable[m_CodePoint] & (SP | BL));
+	}
+
+	//-----------------------------------------------------------------------------
 	bool IsSpace() const
 	//-----------------------------------------------------------------------------
 	{
@@ -255,6 +294,14 @@ public:
 			return std::iswspace(m_CodePoint);
 	#endif
 		}
+	}
+
+	//-----------------------------------------------------------------------------
+	constexpr
+	bool IsASCIIBlank() const
+	//-----------------------------------------------------------------------------
+	{
+		return m_CodePoint < 0x80 && (ASCIITable[m_CodePoint] & BL);
 	}
 
 	//-----------------------------------------------------------------------------
@@ -276,6 +323,14 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	constexpr
+	bool IsASCIILower() const
+	//-----------------------------------------------------------------------------
+	{
+		return m_CodePoint < 0x80 && (ASCIITable[m_CodePoint] & LL);
+	}
+
+	//-----------------------------------------------------------------------------
 	bool IsLower() const
 	//-----------------------------------------------------------------------------
 	{
@@ -291,6 +346,14 @@ public:
 			return std::iswlower(m_CodePoint);
 	#endif
 		}
+	}
+
+	//-----------------------------------------------------------------------------
+	constexpr
+	bool IsASCIIUpper() const
+	//-----------------------------------------------------------------------------
+	{
+		return m_CodePoint < 0x80 && (ASCIITable[m_CodePoint] & UU);
 	}
 
 	//-----------------------------------------------------------------------------
@@ -312,6 +375,14 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	constexpr
+	bool IsASCIITitle() const
+	//-----------------------------------------------------------------------------
+	{
+		return m_CodePoint < 0x80 && (ASCIITable[m_CodePoint] & UU);
+	}
+
+	//-----------------------------------------------------------------------------
 	bool IsTitle() const
 	//-----------------------------------------------------------------------------
 	{
@@ -323,6 +394,14 @@ public:
 		{
 			return false;
 		}
+	}
+
+	//-----------------------------------------------------------------------------
+	constexpr
+	bool IsASCIIAlpha() const
+	//-----------------------------------------------------------------------------
+	{
+		return m_CodePoint < 0x80 && (ASCIITable[m_CodePoint] & AA);
 	}
 
 	//-----------------------------------------------------------------------------
@@ -344,6 +423,14 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	constexpr
+	bool IsASCIIAlNum() const
+	//-----------------------------------------------------------------------------
+	{
+		return m_CodePoint < 0x80 && (ASCIITable[m_CodePoint] & AN);
+	}
+
+	//-----------------------------------------------------------------------------
 	bool IsAlNum() const
 	//-----------------------------------------------------------------------------
 	{
@@ -360,6 +447,14 @@ public:
 			return std::iswalnum(m_CodePoint);
 	#endif
 		}
+	}
+
+	//-----------------------------------------------------------------------------
+	constexpr
+	bool IsASCIIPunct() const
+	//-----------------------------------------------------------------------------
+	{
+		return m_CodePoint < 0x80 && (ASCIITable[m_CodePoint] & PP);
 	}
 
 	//-----------------------------------------------------------------------------
@@ -387,15 +482,36 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	bool IsDigit() const
+	constexpr
+	bool IsASCIIDigit() const
 	//-----------------------------------------------------------------------------
 	{
-		return m_CodePoint <= '9' && m_CodePoint >= '0';
+		return m_CodePoint < 0x80 && (ASCIITable[m_CodePoint] & NN);
 	}
 
 	//-----------------------------------------------------------------------------
-	bool IsXDigit() const;
+	constexpr
+	bool IsDigit() const
 	//-----------------------------------------------------------------------------
+	{
+		return IsASCIIDigit();
+	}
+
+	//-----------------------------------------------------------------------------
+	constexpr
+	bool IsASCIIXDigit() const
+	//-----------------------------------------------------------------------------
+	{
+		return m_CodePoint < 0x80 && (ASCIITable[m_CodePoint] & NX);
+	}
+
+	//-----------------------------------------------------------------------------
+	constexpr
+	bool IsXDigit() const
+	//-----------------------------------------------------------------------------
+	{
+		return IsASCIIXDigit();
+	}
 
 	//-----------------------------------------------------------------------------
 	bool IsUnicodeDigit() const
@@ -466,76 +582,80 @@ public:
 namespace KASCII {
 
 //-----------------------------------------------------------------------------
+constexpr
 inline bool kIsSpace(uint16_t ch)
 //-----------------------------------------------------------------------------
 {
-	return ch == 0x20 || (ch <= 0x0d && ch >= 0x09);
+	return KCodePoint(ch).IsASCIISpace();
 }
 
 //-----------------------------------------------------------------------------
+constexpr
 inline bool kIsBlank(uint16_t ch)
 //-----------------------------------------------------------------------------
 {
-	return ch == 0x20 || ch == 0x09;
+	return KCodePoint(ch).IsASCIIBlank();
 }
 
 //-----------------------------------------------------------------------------
+constexpr
 inline bool kIsDigit(uint16_t ch)
 //-----------------------------------------------------------------------------
 {
-	return ch <= '9' && ch >= '0';
+	return KCodePoint(ch).IsASCIIDigit();
 }
 
 //-----------------------------------------------------------------------------
+constexpr
 inline bool kIsXDigit(uint16_t ch)
 //-----------------------------------------------------------------------------
 {
-	return KCodePoint(ch).IsXDigit();
+	return KCodePoint(ch).IsASCIIXDigit();
 }
 
 //-----------------------------------------------------------------------------
-template<class CP>
-inline bool kIsAlpha(CP Ch)
+constexpr
+inline bool kIsAlpha(uint16_t ch)
 //-----------------------------------------------------------------------------
 {
-	auto ch = CodepointCast(Ch);
-	return ch < 0x80 && KCodePoint(ch).IsAlpha();
+	return KCodePoint(ch).IsASCIIAlpha();
 }
 
 //-----------------------------------------------------------------------------
-template<class CP>
-inline bool kIsAlNum(CP Ch)
+constexpr
+inline bool kIsAlNum(uint16_t ch)
 //-----------------------------------------------------------------------------
 {
-	auto ch = CodepointCast(Ch);
-	return ch < 0x80 && KCodePoint(ch).IsAlNum();
+	return KCodePoint(ch).IsASCIIAlNum();
 }
 
 //-----------------------------------------------------------------------------
-template<class CP>
-inline bool kIsPunct(CP Ch)
+constexpr
+inline bool kIsPunct(uint16_t ch)
 //-----------------------------------------------------------------------------
 {
-	auto ch = CodepointCast(Ch);
-	return ch < 0x80 && KCodePoint(ch).IsPunct();
+	return KCodePoint(ch).IsASCIIPunct();
 }
 
 //-----------------------------------------------------------------------------
+constexpr
 inline bool kIsLower(uint16_t ch)
 //-----------------------------------------------------------------------------
 {
-	return ch >= 'a' && ch <= 'z';
+	return KCodePoint(ch).IsASCIILower();
 }
 
 //-----------------------------------------------------------------------------
+constexpr
 inline bool kIsUpper(uint16_t ch)
 //-----------------------------------------------------------------------------
 {
-	return ch <= 'Z' && ch >= 'A';
+	return KCodePoint(ch).IsASCIIUpper();
 }
 
 //-----------------------------------------------------------------------------
 template<class CP>
+constexpr
 inline CP kToLower(CP ch)
 //-----------------------------------------------------------------------------
 {
@@ -551,6 +671,7 @@ inline CP kToLower(CP ch)
 
 //-----------------------------------------------------------------------------
 template<class CP>
+constexpr
 inline CP kToUpper(CP ch)
 //-----------------------------------------------------------------------------
 {
@@ -631,8 +752,8 @@ inline bool kIsPunct(CP ch)
 }
 
 //-----------------------------------------------------------------------------
-template<class CP>
-inline bool kIsDigit(CP ch)
+constexpr
+inline bool kIsDigit(uint16_t ch)
 //-----------------------------------------------------------------------------
 {
 	return KCodePoint(ch).IsDigit();
@@ -647,8 +768,8 @@ inline bool kIsUnicodeDigit(CP ch)
 }
 
 //-----------------------------------------------------------------------------
-template<class CP>
-inline bool kIsXDigit(CP ch)
+constexpr
+inline bool kIsXDigit(uint16_t ch)
 //-----------------------------------------------------------------------------
 {
 	return KCodePoint(ch).IsXDigit();

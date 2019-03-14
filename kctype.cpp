@@ -43,19 +43,6 @@
 
 namespace dekaf2 {
 
-//-----------------------------------------------------------------------------
-bool KCodePoint::IsXDigit() const
-//-----------------------------------------------------------------------------
-{
-	if (m_CodePoint <= 'f' && m_CodePoint >= 'A' && (m_CodePoint <= 'F' || m_CodePoint >= 'a'))
-	{
-		return true;
-	}
-
-	return IsDigit();
-
-} // IsXDigit
-
 // we need to patch the unicode table such that 0x09..0x0d are of Type Separator
 // (they are Control characters, but we don't care for that type)
 // otherwise IsSpace() is incorrect

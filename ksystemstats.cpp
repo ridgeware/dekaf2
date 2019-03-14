@@ -95,6 +95,7 @@ bool KSystemStats::GatherAll ()
 	if (!GatherNetstat())           bOK = false;
 	if (!AddCalculations())         bOK = false;
 	return (bOK);
+
 }
 
 //-----------------------------------------------------------------------------
@@ -144,11 +145,13 @@ bool KSystemStats::Add (KStringView sStatName, KStringView sStatValue, STAT_TYPE
 		kDebugLog (2, "KSystemStats::Add: Error: missing stat type for '{}' = '{}'", sStatName, sStatValue);
 		return false;;
 	}
-	else {
+	else
+	{
 		StatValueType addVal = StatValueType(sStatValue, iStatType);
 		/* bOK =*/ m_Stats.Add(sStatName, addVal); //, iStatType);
 		return true;
 	}
+
 } // Add
 
 //-----------------------------------------------------------------------------
@@ -203,6 +206,7 @@ bool KSystemStats::Add(KStringView sStatName, double iStatValue, STAT_TYPE iStat
 		/*bOK =*/ m_Stats.Add(sStatName, addVal); //, iStatType);
 		return (true);
 	}
+
 } // KSystemStats::Add
 
 //-----------------------------------------------------------------------------
@@ -218,7 +222,6 @@ KStringView KSystemStats::StatTypeToString(STAT_TYPE iStatType)
 		return "float";
 		break;
 	case STRING:
-	default:
 		return "string";
 		break;
 
@@ -340,7 +343,6 @@ bool KSystemStats::GatherMiscInfo ()
 	227 mcelog
 */
 
-	//bool  fOK = true;
 	KInFile file(PROC_MISC);
 	file.SetReaderRightTrim("\r\n\t ");
 
@@ -464,7 +466,8 @@ bool KSystemStats::GatherVmStatInfo ()
 	KString sLine;
 	while (file.ReadLine(sLine))
 	{
-		if (sLine.empty()) {
+		if (sLine.empty())
+		{
 			continue;
 		}
 
@@ -544,7 +547,8 @@ bool KSystemStats::GatherDiskStats ()
 	KString sLine;
 	while (file.ReadLine(sLine))
 	{
-		if (sLine.empty()) {
+		if (sLine.empty())
+		{
 			continue;
 		}
 
@@ -682,7 +686,8 @@ bool KSystemStats::GatherCpuInfo ()
 	KString sLine;
 	while (file.ReadLine(sLine))
 	{
-		if (sLine.empty()) {
+		if (sLine.empty())
+		{
 			continue;
 		}
 
@@ -701,7 +706,6 @@ bool KSystemStats::GatherCpuInfo ()
 
 		sName.Replace(' ', '_', 0/*from beginning*/, true/*globally*/);
 
-		//if (regex.Matches (sValue)) {
 		if (sValue.EndsWith(" KB"))
 		{
 			sName += "_kb";
@@ -743,7 +747,8 @@ bool KSystemStats::GatherCpuInfo ()
 
 	while (file.ReadLine(sLine))
 	{
-		if (sLine.empty()) {
+		if (sLine.empty())
+		{
 			continue;
 		}
 
@@ -849,7 +854,8 @@ bool KSystemStats::GatherMemInfo ()
 	KString sLine;
 	while(file.ReadLine(sLine))
 	{
-		if (sLine.empty()) {
+		if (sLine.empty())
+		{
 			continue;
 		}
 
@@ -947,7 +953,8 @@ bool KSystemStats::GatherNetstat ()
 			sName += Parts.at (Parts.size() - 1).ToLower();
 			Netstat[sName]++;
 		}
-		else if (Parts.at(0) == "unix") {
+		else if (Parts.at(0) == "unix")
+		{
 			sName += "unix_";
 			sName += Parts.at (5 - 1).ToLower();
 			Netstat[sName]++;
@@ -1040,9 +1047,9 @@ uint64_t KSystemStats::GatherProcs (KStringView sCommandRegex/*=""*/, bool bDoNo
 {
 	m_Procs.clear();
 
-	KRegex  kregex(sCommandRegex);
-	KInShell   pipe;
-	KStack<KStringView>  Parts;
+	KRegex kregex(sCommandRegex);
+	KInShell pipe;
+	KStack<KStringView> Parts;
 	KString sWhat;
 
 	KString sPID;
@@ -1054,7 +1061,7 @@ uint64_t KSystemStats::GatherProcs (KStringView sCommandRegex/*=""*/, bool bDoNo
 	kDebugLog (3, "GatherProcs: running ps ...");
 	if (pipe.Open ("ps -e -o pid,ppid,comm,command 2>&1"))
 	{
-		enum {MAX = 5000};
+		enum { MAX = 5000 };
 		enum { TIMEOUT_SEC = 10 };
 
 		sLine.clear();
@@ -1080,7 +1087,8 @@ uint64_t KSystemStats::GatherProcs (KStringView sCommandRegex/*=""*/, bool bDoNo
 			{
 				kDebugLog (1, "GatherProcs: ERROR: Unexpected number of parsed results. Expected four (4) elements got '{}' element(s)", Parts.size());
 
-				if (Parts.size() > 4) {
+				if (Parts.size() > 4)
+				{
 					// 4th part has spaces.
 					kDebugLog ( 3, "GatherProcs:        Parsed Line = '{}'", sLine);
 					// Here I need the 4th part merged with all the rest after
@@ -1088,7 +1096,8 @@ uint64_t KSystemStats::GatherProcs (KStringView sCommandRegex/*=""*/, bool bDoNo
 					Parts.at(3) = sLine;
 					Parts.at(3).ClipAtReverse(sTemp);
 				}
-				else {
+				else
+				{
 					// move on to the next line of input
 					kDebugLog ( 3, "GatherProcs:        SKIPPED Parsed Line = '{}'", sLine)
 					continue;
@@ -1101,7 +1110,7 @@ uint64_t KSystemStats::GatherProcs (KStringView sCommandRegex/*=""*/, bool bDoNo
 			sFullCmd = Parts.at(3);
 
 			// convert PID to an integer
-			int32_t iPID = sPID.Int32();
+			pid_t iPID = sPID.Int32();
 
 			if (sShortCmd.compare("COMMAND") == 0)
 			{
@@ -1141,7 +1150,6 @@ void KSystemStats::DumpStats (KOutStream& stream, DumpFormat iFormat/*=DUMP_TEXT
 //-----------------------------------------------------------------------------
 {
 	KRegex kregex(sGrepString);
-	//KJSON json;
 
 	switch (iFormat)
 	{
@@ -1162,22 +1170,25 @@ void KSystemStats::DumpStats (KOutStream& stream, DumpFormat iFormat/*=DUMP_TEXT
 		stream << js.dump(1, '\t') << "\n";
 		break;
 	}
+
 	case DUMP_SHELL:
 	{
 		for (const auto& it : m_Stats)
 		{
-			if (sGrepString.empty() || kregex.Matches (it.first)) {
+			if (sGrepString.empty() || kregex.Matches (it.first))
+			{
 				stream.FormatLine("{}='{}'", it.first, it.second.sValue);
 			}
 		}
 		break;
 	}
+
 	case DUMP_TEXT:
-	default:
 	{
 		for (const auto& it : m_Stats)
 		{
-			if (sGrepString.empty() || kregex.Matches (it.first)) {
+			if (sGrepString.empty() || kregex.Matches (it.first))
+			{
 				stream.FormatLine("{:<7} | {:<50} = {}", StatTypeToString(it.second.type), it.first, it.second.sValue);
 			}
 		}
@@ -1208,6 +1219,7 @@ void KSystemStats::DumpProcs (KOutStream& stream, DumpFormat iFormat/*=DUMP_TEXT
 		stream << js.dump(1, '\t') << 'n';
 		break;
 	}
+
 	case DUMP_SHELL:
 	{
 		for (const auto& it : m_Procs)
@@ -1216,8 +1228,8 @@ void KSystemStats::DumpProcs (KOutStream& stream, DumpFormat iFormat/*=DUMP_TEXT
 		}
 		break;
 	}
+
 	case DUMP_TEXT:
-	default:
 	{
 
 		stream.FormatLine("{:<6} {:<6} {}", "PID", "PPID", "FULL-COMMAND");
@@ -1250,7 +1262,8 @@ void KSystemStats::DumpPidTree (KOutStream& stream, uint64_t iFromPID, uint64_t 
 	if (iLevel > 0)
 	{
 		stream.Printf("  ");
-		for (uint64_t jj=1; jj < iLevel; ++jj) {
+		for (uint64_t jj=1; jj < iLevel; ++jj)
+		{
 			stream.Write ("|   ");
 		}
 		stream.Write("+-- ");
@@ -1258,16 +1271,20 @@ void KSystemStats::DumpPidTree (KOutStream& stream, uint64_t iFromPID, uint64_t 
 
 	// show this pid:
 	int idx = m_Procs[std::to_string(iFromPID)].sValue.Int32();
-	if (idx < 0) {
-		if (!iFromPID) {
+	if (idx < 0)
+	{
+		if (!iFromPID)
+		{
 			stream.Write("[boot]\n");
 		}
-		else {
+		else
+		{
 			stream.Printf("invalid pid: %lu\n", iFromPID);
 			return;
 		}
 	}
-	else {
+	else
+	{
 		KStringViewZ sCmd = m_Procs.at(idx).second.sValue;
 		stream.Printf ("%lu %s\n", iFromPID, sCmd);
 	}
@@ -1298,7 +1315,8 @@ uint16_t KSystemStats::PushStats (KStringView sURL, KStringView sMyUniqueIP, KSt
 	for (const auto& it : m_Stats)
 	{
 		KString sValue (it.second.sValue);
-		if (sValue.empty()) {
+		if (sValue.empty())
+		{
 			// blank numbers are a problem:
 			switch (it.second.type)
 			{
@@ -1325,11 +1343,13 @@ uint16_t KSystemStats::PushStats (KStringView sURL, KStringView sMyUniqueIP, KSt
 	KStringView svMime("application/x-www-form-urlencoded");
 	sResponse = HTTP.Post(sURL, sPostData.ToView(), svMime);
 
-	if (!sResponse.empty()) {
+	if (!sResponse.empty())
+	{
 		kDebugLog (2, "HTTP-{}: {}", HTTP.GetStatusCode(), sResponse.TrimRight());
 		return HTTP.GetStatusCode();
 	}
-	else {
+	else
+	{
 		sResponse = "(got timeout)";
 		kDebugLog (2, "got timeout");
 		return 0;
@@ -1365,7 +1385,8 @@ KString KSystemStats::Backtrace (pid_t iPID)
 		pid_t iPPID = 0;
 		KString sLine;
 		sPath.Format ("/proc/{}/stat", iPID);
-		if (kReadFile (sPath, sLine, true)) {
+		if (kReadFile (sPath, sLine, true))
+		{
 			KStack<KStringView> Words;
 			kSplit(Words, sLine, " ");
 			iPPID = Words.at(4-1).UInt32();

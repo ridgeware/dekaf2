@@ -53,6 +53,7 @@
 #include "kstring.h"
 #include "kstringview.h"
 #include "ksystem.h"
+#include "kctype.h"
 
 namespace dekaf2
 {
@@ -199,7 +200,7 @@ template<class String>
 String& kTrimLeft(String& string)
 //-----------------------------------------------------------------------------
 {
-	return kTrimLeft(string, [](typename String::value_type ch){ return std::isspace(ch) != 0; });
+	return kTrimLeft(string, [](typename String::value_type ch){ return KASCII::kIsSpace(ch); });
 }
 
 //-----------------------------------------------------------------------------
@@ -237,7 +238,7 @@ template<class String>
 String& kTrimRight(String& string)
 //-----------------------------------------------------------------------------
 {
-	return kTrimRight(string, [](typename String::value_type ch){ return std::isspace(ch) != 0; });
+	return kTrimRight(string, [](typename String::value_type ch){ return KASCII::kIsSpace(ch); });
 }
 
 //-----------------------------------------------------------------------------
@@ -266,7 +267,7 @@ template<class String>
 String& kTrim(String& string)
 //-----------------------------------------------------------------------------
 {
-	return kTrim(string, [](typename String::value_type ch){ return std::isspace(ch) != 0; });
+	return kTrim(string, [](typename String::value_type ch){ return KASCII::kIsSpace(ch); });
 }
 
 //-----------------------------------------------------------------------------
@@ -476,15 +477,6 @@ inline size_t kCountChar(KStringView str, const char ch) noexcept
 }
 
 //-----------------------------------------------------------------------------
-/// Returns true if ch is a digit
-template<class Char>
-inline bool kIsDigit(Char ch) noexcept
-//-----------------------------------------------------------------------------
-{
-	return std::isdigit(ch);
-}
-
-//-----------------------------------------------------------------------------
 /// Returns true if str contains an integer, possibly with a leading + or -
 bool kIsInteger(KStringView str) noexcept;
 //-----------------------------------------------------------------------------
@@ -522,7 +514,7 @@ Integer kToInt(const char* data, size_t size, bool bIsHex = false) noexcept
 	Integer iVal{0};
 	bool    bNeg{false};
 
-	while (size && std::isspace(*data))
+	while (size && KASCII::kIsSpace(*data))
 	{
 		++data;
 		--size;
@@ -547,7 +539,7 @@ Integer kToInt(const char* data, size_t size, bool bIsHex = false) noexcept
 		{
 			auto ch = *data++;
 
-			if (!std::isdigit(ch))
+			if (!KASCII::kIsDigit(ch))
 			{
 				break;
 			}

@@ -156,8 +156,8 @@ void kUrlDecode (String& sDecode, bool bPlusAsSpace = false)
 			}
 			else if (*current == '%'
 				&& end - current > 2
-				&& kIsXDigit(*(current + 1))
-				&& kIsXDigit(*(current + 2)))
+				&& KASCII::kIsXDigit(*(current + 1))
+				&& KASCII::kIsXDigit(*(current + 2)))
 			{
 				*insert++ = detail::kx2c(current + 1);
 				current += 3;
@@ -204,8 +204,8 @@ void kUrlDecode (KStringView sSource, String& sTarget, bool bPlusAsSpace = false
 			}
 			else if (*current == '%'
 				&& end - current > 2
-				&& kIsXDigit(*(current + 1))
-				&& kIsXDigit(*(current + 2)))
+				&& KASCII::kIsXDigit(*(current + 1))
+				&& KASCII::kIsXDigit(*(current + 2)))
 			{
 				sTarget += detail::kx2c(current + 1);
 				current += 3;
@@ -243,7 +243,7 @@ void kUrlEncode (KStringView sSource, String& sTarget, const bool excludeTable[2
 	{
 		unsigned char ch = static_cast<unsigned char>(sSource[iIndex]);
 		// Do not encode either alnum or encoding excluded characters.
-		if ((!(ch & ~0x7f) && std::isalnum (ch)) || excludeTable[ch])
+		if ((!(ch & ~0x7f) && KASCII::kIsAlNum (ch)) || excludeTable[ch])
 		{
 			sTarget += ch;
 		}

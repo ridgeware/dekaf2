@@ -59,6 +59,29 @@ using codepoint_t = uint32_t;
 
 } // end of namespace Unicode
 
+//-----------------------------------------------------------------------------
+/// Cast any integral type into a codepoint_t, without signed bit expansion.
+template<typename Ch>
+constexpr
+Unicode::codepoint_t CodepointCast(Ch sch)
+//-----------------------------------------------------------------------------
+{
+	static_assert(std::is_integral<Ch>::value, "can only convert integral types");
+
+	if (sizeof(Ch) == 1)
+	{
+		return static_cast<uint8_t>(sch);
+	}
+	else if (sizeof(Ch) == 2)
+	{
+		return static_cast<uint16_t>(sch);
+	}
+	else
+	{
+		return static_cast<uint32_t>(sch);
+	}
+}
+
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class KCodePoint
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -70,8 +93,9 @@ class KCodePoint
 	constexpr
 	KCodePoint() = default;
 
+	template<class CP>
 	constexpr
-	KCodePoint(Unicode::codepoint_t cp) : m_CodePoint(cp) {}
+	KCodePoint(CP cp) : m_CodePoint(CodepointCast(cp)) {}
 
 	constexpr
 	operator const Unicode::codepoint_t&() const { return m_CodePoint; }
@@ -470,10 +494,52 @@ inline bool kIsXDigit(uint16_t ch)
 }
 
 //-----------------------------------------------------------------------------
-inline uint16_t kToLower(uint16_t ch)
+template<class CP>
+inline bool kIsAlpha(CP Ch)
 //-----------------------------------------------------------------------------
 {
-	if (ch <= 'Z' && ch >= 'A')
+	auto ch = CodepointCast(Ch);
+	return ch < 0x80 && KCodePoint(ch).IsAlpha();
+}
+
+//-----------------------------------------------------------------------------
+template<class CP>
+inline bool kIsAlNum(CP Ch)
+//-----------------------------------------------------------------------------
+{
+	auto ch = CodepointCast(Ch);
+	return ch < 0x80 && KCodePoint(ch).IsAlNum();
+}
+
+//-----------------------------------------------------------------------------
+template<class CP>
+inline bool kIsPunct(CP Ch)
+//-----------------------------------------------------------------------------
+{
+	auto ch = CodepointCast(Ch);
+	return ch < 0x80 && KCodePoint(ch).IsPunct();
+}
+
+//-----------------------------------------------------------------------------
+inline bool kIsLower(uint16_t ch)
+//-----------------------------------------------------------------------------
+{
+	return ch >= 'a' && ch <= 'z';
+}
+
+//-----------------------------------------------------------------------------
+inline bool kIsUpper(uint16_t ch)
+//-----------------------------------------------------------------------------
+{
+	return ch <= 'Z' && ch >= 'A';
+}
+
+//-----------------------------------------------------------------------------
+template<class CP>
+inline CP kToLower(CP ch)
+//-----------------------------------------------------------------------------
+{
+	if (kIsUpper(ch))
 	{
 		return ch + ('a' - 'A');
 	}
@@ -484,10 +550,11 @@ inline uint16_t kToLower(uint16_t ch)
 }
 
 //-----------------------------------------------------------------------------
-inline uint16_t kToUpper(uint16_t ch)
+template<class CP>
+inline CP kToUpper(CP ch)
 //-----------------------------------------------------------------------------
 {
-	if (ch >= 'a' && ch <= 'z')
+	if (kIsLower(ch))
 	{
 		return ch - ('a' - 'A');
 	}
@@ -500,91 +567,106 @@ inline uint16_t kToUpper(uint16_t ch)
 } // end of namespace KASCII
 
 //-----------------------------------------------------------------------------
-inline bool kIsSpace(Unicode::codepoint_t ch)
+template<class CP>
+inline bool kIsSpace(CP ch)
 //-----------------------------------------------------------------------------
 {
 	return KCodePoint(ch).IsSpace();
 }
 
 //-----------------------------------------------------------------------------
-inline bool kIsBlank(Unicode::codepoint_t ch)
+template<class CP>
+inline bool kIsBlank(CP ch)
 //-----------------------------------------------------------------------------
 {
 	return KCodePoint(ch).IsBlank();
 }
 
 //-----------------------------------------------------------------------------
-inline bool kIsLower(Unicode::codepoint_t ch)
+template<class CP>
+inline bool kIsLower(CP ch)
 //-----------------------------------------------------------------------------
 {
 	return KCodePoint(ch).IsLower();
 }
 
 //-----------------------------------------------------------------------------
-inline bool kIsUpper(Unicode::codepoint_t ch)
+template<class CP>
+inline bool kIsUpper(CP ch)
 //-----------------------------------------------------------------------------
 {
 	return KCodePoint(ch).IsUpper();
 }
 
 //-----------------------------------------------------------------------------
-inline bool kIsTitle(Unicode::codepoint_t ch)
+template<class CP>
+inline bool kIsTitle(CP ch)
 //-----------------------------------------------------------------------------
 {
 	return KCodePoint(ch).IsTitle();
 }
 
 //-----------------------------------------------------------------------------
-inline bool kIsAlpha(Unicode::codepoint_t ch)
+template<class CP>
+inline bool kIsAlpha(CP ch)
 //-----------------------------------------------------------------------------
 {
 	return KCodePoint(ch).IsAlpha();
 }
 
 //-----------------------------------------------------------------------------
-inline bool kIsAlNum(Unicode::codepoint_t ch)
+template<class CP>
+inline bool kIsAlNum(CP ch)
 //-----------------------------------------------------------------------------
 {
 	return KCodePoint(ch).IsAlNum();
 }
 
 //-----------------------------------------------------------------------------
-inline bool kIsPunct(Unicode::codepoint_t ch)
+template<class CP>
+inline bool kIsPunct(CP ch)
 //-----------------------------------------------------------------------------
 {
 	return KCodePoint(ch).IsPunct();
 }
 
 //-----------------------------------------------------------------------------
-inline bool kIsDigit(Unicode::codepoint_t ch)
+template<class CP>
+inline bool kIsDigit(CP ch)
 //-----------------------------------------------------------------------------
 {
 	return KCodePoint(ch).IsDigit();
 }
 
 //-----------------------------------------------------------------------------
-inline bool kIsUnicodeDigit(Unicode::codepoint_t ch)
+template<class CP>
+inline bool kIsUnicodeDigit(CP ch)
 //-----------------------------------------------------------------------------
 {
 	return KCodePoint(ch).IsUnicodeDigit();
 }
 
 //-----------------------------------------------------------------------------
-inline bool kIsXDigit(Unicode::codepoint_t ch)
+template<class CP>
+inline bool kIsXDigit(CP ch)
 //-----------------------------------------------------------------------------
 {
 	return KCodePoint(ch).IsXDigit();
 }
 
 //-----------------------------------------------------------------------------
-inline Unicode::codepoint_t kToLower(Unicode::codepoint_t ch)
+template<class CP,
+	typename std::enable_if_t<std::is_integral<CP>::value>* = nullptr>
+inline CP kToLower(CP ch)
 //-----------------------------------------------------------------------------
 {
 	return KCodePoint(ch).ToLower();
 }
 
 //-----------------------------------------------------------------------------
-inline Unicode::codepoint_t kToUpper(Unicode::codepoint_t ch)
+template<class CP,
+	typename std::enable_if_t<std::is_integral<CP>::value>* = nullptr>
+inline CP kToUpper(CP ch)
 //-----------------------------------------------------------------------------
 {
 	return KCodePoint(ch).ToUpper();

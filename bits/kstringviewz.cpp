@@ -43,7 +43,7 @@
 #include "../kstringview.h"
 #include "../kstringutils.h"
 #include "../klog.h"
-#include <cctype>
+#include "../kctype.h"
 
 namespace dekaf2 {
 
@@ -186,7 +186,7 @@ KStringViewZ KStringViewZ::Right(size_type iCount) const
 KStringViewZ& KStringViewZ::TrimLeft()
 //----------------------------------------------------------------------
 {
-	dekaf2::kTrimLeft(*this, [](value_type ch){ return std::isspace(ch) != 0; } );
+	dekaf2::kTrimLeft(*this, [](value_type ch){ return KASCII::kIsSpace(ch) != 0; } );
 	return *this;
 }
 

@@ -209,7 +209,7 @@ KString KQuotedPrintable::Decode(KStringView sInput, bool bDotStuffing)
 					iDecode = 0;
 				}
 			}
-			else if (!std::isxdigit(ch))
+			else if (!KASCII::kIsXDigit(ch))
 			{
 				if (ch == '\r' || ch == '\n')
 				{

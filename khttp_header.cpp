@@ -40,7 +40,7 @@
 */
 
 #include "khttp_header.h"
-#include <cctype>
+#include "kctype.h"
 
 namespace dekaf2 {
 
@@ -81,9 +81,9 @@ bool KHTTPHeaders::Parse(KInStream& Stream)
 			return SetError("HTTP header line too long");
 		}
 
-		if (!std::isalpha(sLine.front()))
+		if (!KASCII::kIsAlpha(sLine.front()))
 		{
-			if (std::isspace(sLine.front()) && last != Headers.end())
+			if (KASCII::kIsSpace(sLine.front()) && last != Headers.end())
 			{
 				// continuation line, append trimmed line to last header, insert a space
 				kTrim(sLine);

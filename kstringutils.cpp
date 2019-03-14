@@ -113,7 +113,7 @@ char* KASCII::ktrimleft (const char* str)
 {
 	if (str)
 	{
-		while (std::isspace(*str))
+		while (KASCII::kIsSpace(*str))
 		{
 			++str;
 		}
@@ -132,7 +132,7 @@ char* KASCII::ktrimright (char* str)
 		auto ii = static_cast<ssize_t>(strlen (str)) - 1;
 		for (; (ii >= 0); --ii)
 		{
-			if (!std::isspace(str[ii]))
+			if (!KASCII::kIsSpace(str[ii]))
 			{
 				str[ii+1] = 0;
 				return (str);

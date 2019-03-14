@@ -279,6 +279,7 @@ TEST_CASE("KString") {
 				for (size_t iCount = 0; iCount < stest.size(); ++iCount)
 				{
 					stest[iCount].TrimLeft();
+					INFO ( iCount );
 					CHECK( stest[iCount] == sexpect[iCount] );
 				}
 
@@ -290,6 +291,7 @@ TEST_CASE("KString") {
 				for (size_t iCount = 0; iCount < stest.size(); ++iCount)
 				{
 					stest[iCount].TrimLeft(" \t\r\n");
+					INFO ( iCount );
 					CHECK( stest[iCount] == sexpect[iCount] );
 				}
 
@@ -329,6 +331,7 @@ TEST_CASE("KString") {
 				for (size_t iCount = 0; iCount < stest.size(); ++iCount)
 				{
 					stest[iCount].TrimRight();
+					INFO ( iCount );
 					CHECK( stest[iCount] == sexpect[iCount] );
 				}
 
@@ -340,6 +343,7 @@ TEST_CASE("KString") {
 				for (size_t iCount = 0; iCount < stest.size(); ++iCount)
 				{
 					stest[iCount].TrimRight(" \t\r\n");
+					INFO ( iCount );
 					CHECK( stest[iCount] == sexpect[iCount] );
 				}
 
@@ -379,6 +383,7 @@ TEST_CASE("KString") {
 				for (size_t iCount = 0; iCount < stest.size(); ++iCount)
 				{
 					stest[iCount].Trim();
+					INFO ( iCount );
 					CHECK( stest[iCount] == sexpect[iCount] );
 				}
 
@@ -390,6 +395,7 @@ TEST_CASE("KString") {
 				for (size_t iCount = 0; iCount < stest.size(); ++iCount)
 				{
 					stest[iCount].Trim(" \t\r\n");
+					INFO ( iCount );
 					CHECK( stest[iCount] == sexpect[iCount] );
 				}
 
@@ -1015,8 +1021,16 @@ TEST_CASE("KString") {
 			wint_t ch = 246; // oe
 			CHECK(kIsLower(ch));
 			CHECK(kToUpper(ch) == 214);
+		}
+		{
+			char ch = 246; // oe
 			CHECK(kIsLower(ch));
-			CHECK(kToUpper(ch) == 214);
+			CHECK(static_cast<unsigned char>(kToUpper(ch)) == 0xd6);
+		}
+		{
+			char ch = 246; // oe
+			CHECK(KASCII::kIsLower(ch) == false);
+			CHECK(static_cast<unsigned char>(KASCII::kToUpper(ch)) == 246);
 		}
 	}
 

@@ -2359,7 +2359,7 @@ KString KHTMLEntity::Decode(KStringView sIn)
 							// decimal
 							for (;it != ie; ++it)
 							{
-								if (!std::isdigit(*it))
+								if (!KASCII::kIsDigit(*it))
 								{
 									break;
 								}
@@ -2397,7 +2397,7 @@ KString KHTMLEntity::Decode(KStringView sIn)
 					auto start = it;
 					for (;it != ie; ++it)
 					{
-						if (!std::isalpha(*it))
+						if (!KASCII::kIsAlpha(*it))
 						{
 							break;
 						}
@@ -2485,7 +2485,7 @@ KString ConvertNumerical(KStringView sIn)
 			// decimal
 			for (;++it != ie;)
 			{
-				if (!std::isdigit(*it))
+				if (!KASCII::kIsDigit(*it))
 				{
 					sRet = sIn;
 					return sRet;

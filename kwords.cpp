@@ -114,7 +114,7 @@ std::pair<KString, KStringView> SimpleHTML::NextPair()
 			}
 			else if (pScriptEndTag != nullptr)
 			{
-				if (std::tolower(ch) == *pScriptEndTag)
+				if (KASCII::kToLower(ch) == static_cast<uint32_t>(*pScriptEndTag))
 				{
 					++pScriptEndTag;
 					if (!*pScriptEndTag)
@@ -286,7 +286,7 @@ std::pair<KString, KString> NormalizingHTML::NextPair()
 			}
 			else if (pScriptEndTag != nullptr)
 			{
-				if (std::tolower(ch) == *pScriptEndTag)
+				if (KASCII::kToLower(ch) == static_cast<uint32_t>(*pScriptEndTag))
 				{
 					++pScriptEndTag;
 					if (!*pScriptEndTag)

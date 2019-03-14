@@ -46,7 +46,7 @@
 #include "klog.h"
 #include "dekaf2.h"
 #include "bits/simd/kfindfirstof.h"
-#include <cctype>
+#include "kctype.h"
 
 #ifdef DEKAF2_NO_GCC
 void* memrchr(const void* s, int c, size_t n)
@@ -676,7 +676,7 @@ KStringView KStringView::Mid(size_type iStart, size_type iCount) const
 KStringView& KStringView::TrimLeft()
 //----------------------------------------------------------------------
 {
-	dekaf2::kTrimLeft(*this, [](value_type ch){ return std::isspace(ch) != 0; } );
+	dekaf2::kTrimLeft(*this, [](value_type ch){ return KASCII::kIsSpace(ch) != 0; } );
 	return *this;
 }
 
@@ -704,7 +704,7 @@ KStringView& KStringView::TrimLeft(KStringView sTrim)
 KStringView& KStringView::TrimRight()
 //----------------------------------------------------------------------
 {
-	dekaf2::kTrimRight(*this, [](value_type ch){ return std::isspace(ch) != 0; } );
+	dekaf2::kTrimRight(*this, [](value_type ch){ return KASCII::kIsSpace(ch) != 0; } );
 	return *this;
 }
 
@@ -732,7 +732,7 @@ KStringView& KStringView::TrimRight(KStringView sTrim)
 KStringView& KStringView::Trim()
 //----------------------------------------------------------------------
 {
-	dekaf2::kTrim(*this, [](value_type ch){ return std::isspace(ch) != 0; } );
+	dekaf2::kTrim(*this, [](value_type ch){ return KASCII::kIsSpace(ch) != 0; } );
 	return *this;
 }
 

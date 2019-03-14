@@ -41,7 +41,7 @@
  */
 
 #include "khtmlcontentblocks.h"
-#include <cctype>
+#include "kctype.h"
 
 namespace dekaf2 {
 
@@ -159,7 +159,7 @@ void KHTMLContentBlocks::Finished()
 void KHTMLContentBlocks::Content(char ch)
 //-----------------------------------------------------------------------------
 {
-	if (!std::isspace(ch))
+	if (!KASCII::kIsSpace(ch))
 	{
 		m_bHadTextContent = true;
 	}

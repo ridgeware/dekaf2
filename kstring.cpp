@@ -46,7 +46,7 @@
 #include "kregex.h"
 #include "kutf8.h"
 #include "kstack.h"
-#include <cctype>
+#include "kctype.h"
 
 namespace dekaf2
 {
@@ -831,7 +831,7 @@ KString& KString::PadRight(size_t iWidth, value_type chPad)
 KString& KString::TrimLeft()
 //----------------------------------------------------------------------
 {
-	dekaf2::kTrimLeft(m_rep, [](value_type ch){ return std::isspace(ch) != 0; } );
+	dekaf2::kTrimLeft(m_rep, [](value_type ch){ return KASCII::kIsSpace(ch) != 0; } );
 	return *this;
 }
 
@@ -859,7 +859,7 @@ KString& KString::TrimLeft(KStringView sTrim)
 KString& KString::TrimRight()
 //----------------------------------------------------------------------
 {
-	dekaf2::kTrimRight(m_rep, [](value_type ch){ return std::isspace(ch) != 0; } );
+	dekaf2::kTrimRight(m_rep, [](value_type ch){ return KASCII::kIsSpace(ch) != 0; } );
 	return *this;
 }
 
@@ -887,7 +887,7 @@ KString& KString::TrimRight(KStringView sTrim)
 KString& KString::Trim()
 //----------------------------------------------------------------------
 {
-	dekaf2::kTrim(m_rep, [](value_type ch){ return std::isspace(ch) != 0; } );
+	dekaf2::kTrim(m_rep, [](value_type ch){ return KASCII::kIsSpace(ch) != 0; } );
 	return *this;
 }
 

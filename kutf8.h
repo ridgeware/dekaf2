@@ -153,11 +153,6 @@ constexpr
 codepoint_t CodepointCast(Ch sch)
 //-----------------------------------------------------------------------------
 {
-	// All this code gets completely eliminated during
-	// compilation. All it does is to make sure we can
-	// expand any char type to a uint32_t without signed
-	// bit expansion, treating all char types as unsigned.
-
 	static_assert(std::is_integral<Ch>::value, "can only convert integral types");
 
 	if (sizeof(Ch) == 1)

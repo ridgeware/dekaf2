@@ -351,7 +351,7 @@ SCENARIO ( "KURL unit tests on invalid data")
                             // +    Special char used to convert to ' '
                             continue;
                         }
-                        if (kIsXDigit(c1) && kIsXDigit(c2))
+						if (KASCII::kIsXDigit(c1) && KASCII::kIsXDigit(c2))
                         {
                             continue;
                         }

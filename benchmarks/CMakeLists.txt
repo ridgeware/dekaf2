@@ -28,11 +28,11 @@ set (SOURCES
 set (HEADERS
 )
 
-add_executable(benchmarks ${HEADERS} ${SOURCES})
+add_executable(benchmarks EXCLUDE_FROM_ALL ${HEADERS} ${SOURCES})
 target_link_libraries(benchmarks dekaf2)
 target_compile_definitions(benchmarks PRIVATE DEKAF2_ENABLE_PROFILING)
 
-add_executable(restserver restserver.cpp)
+add_executable(restserver EXCLUDE_FROM_ALL restserver.cpp)
 target_link_libraries(restserver dekaf2)
 
 set(ALL_INSTALLABLE_TARGETS

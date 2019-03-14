@@ -66,6 +66,6 @@ set (USOURCES
 	kxml_tests.cpp
 )
 
-add_executable(dekaf2-utests ${UHEADERS} ${USOURCES})
+add_executable(dekaf2-utests EXCLUDE_FROM_ALL ${UHEADERS} ${USOURCES})
 target_link_libraries(dekaf2-utests dekaf2)
 

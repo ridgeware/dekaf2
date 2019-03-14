@@ -877,9 +877,9 @@ target_link_libraries(genunicodetables dekaf2)
 
 # ============================ UNIT AND SMOKE TESTS ==================================
 
-add_subdirectory(utests EXCLUDE_FROM_ALL)
-add_subdirectory(smoketests EXCLUDE_FROM_ALL)
-add_subdirectory(benchmarks EXCLUDE_FROM_ALL)
+add_subdirectory(utests)
+add_subdirectory(smoketests)
+add_subdirectory(benchmarks)
 
 # ================================= INSTALLATION =====================================
 

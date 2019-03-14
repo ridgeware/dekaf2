@@ -6422,19 +6422,64 @@ KString KSQL::FormAndClause (KStringView sDbCol, KString/*copy*/ sQueryParm, uin
 	sQueryParm.Replace("'",""); // insulation from embedded quotes (not expected)
 
 	// - - - - - - - - - - - - - - - - - - - - - - - - -
-	// "between" logic:
+	// BETWEEN logic:
 	// - - - - - - - - - - - - - - - - - - - - - - - - -
 	if (iFlags & FAC_BETWEEN)
 	{
 		KStack <KString>Parts;
 		kSplit (Parts, sQueryParm, "-");
-		if (Parts.size() == 1)
+		if (Parts.size() == 1) // single value
 		{
-			sClause = kFormat ("   and {} = {}", sDbCol, Parts[0].UInt16());
+			if (iFlags & FAC_NUMERIC)
+			{
+				sClause = kFormat ("   and {} = {}", sDbCol, Parts[0].UInt16());
+			}
+			else
+			{
+				sClause = kFormat ("   and {} = '{}'", sDbCol, Parts[0]);
+			}
 		}
-		else
+		else // two values
 		{
-			sClause = kFormat ("   and {} between {} and {}", sDbCol, Parts[0].UInt16(), Parts[1].UInt16());
+			if (iFlags & FAC_NUMERIC)
+			{
+				sClause = kFormat ("   and {} between {} and {}", sDbCol, Parts[0].UInt16(), Parts[1].UInt16());
+			}
+			else
+			{
+				sClause = kFormat ("   and {} between '{}' and '{}'", sDbCol, Parts[0], Parts[1]);
+			}
+		}
+	}
+
+	// - - - - - - - - - - - - - - - - - - - - - - - - -
+	// comma-delimed list of LIKE expressions
+	// - - - - - - - - - - - - - - - - - - - - - - - - -
+	else if (iFlags & FAC_LIKE)
+	{
+		KString sList;
+		KStack  <KString>List;  kSplit (List, sQueryParm, ",");
+
+		for (KString sOne : List)
+		{
+			sOne.Replace ('*','%',/*start=*/0,/*bAll=*/true); // allow * wildcards too
+			if (sClause)
+			{
+				if (iFlags & FAC_SUBSELECT)
+				{
+					sClause += ")"; // needs an extra close paren
+				}
+				sClause += "\n";
+				sClause += kFormat ("    or {} like '{}'", sDbCol, sOne); // OR and no parens
+			}
+			else
+			{
+				sClause += kFormat ("   and ({} like '{}'", sDbCol, sOne); // open paren
+			}
+		}
+		if (sClause)
+		{
+			sClause += ")"; // close paren for AND
 		}
 	}
 
@@ -6447,6 +6492,10 @@ KString KSQL::FormAndClause (KStringView sDbCol, KString/*copy*/ sQueryParm, uin
 		{
 			sClause = kFormat ("   and {} = {}", sDbCol, sQueryParm.UInt64());
 		}
+		else if (iFlags & FAC_LIKE)
+		{
+			sClause = kFormat ("   and {} like '{}'", sDbCol, sQueryParm);
+		}
 		else
 		{
 			sClause = kFormat ("   and {} = '{}'", sDbCol, sQueryParm);
@@ -6454,31 +6503,31 @@ KString KSQL::FormAndClause (KStringView sDbCol, KString/*copy*/ sQueryParm, uin
 	}
 
 	// - - - - - - - - - - - - - - - - - - - - - - - - -
-	// comma-delimed list:
+	// comma-delimed list using IN clause
 	// - - - - - - - - - - - - - - - - - - - - - - - - -
 	else
 	{
 		KString sList;
-		bool    bComma{false};
 		KStack  <KString>List;  kSplit (List, sQueryParm, ",");
 
 		for (auto& sOne : List)
 		{
 			if (iFlags & FAC_NUMERIC)
 			{
-				sList += kFormat ("{}{}", bComma ? "," : "", sOne.UInt64());
+				sList += kFormat ("{}{}", sList ? "," : "", sOne.UInt64());
 			}
 			else
 			{
-				sList += kFormat ("{}'{}'", bComma ? "," : "", sOne);
+				sList += kFormat ("{}'{}'", sList ? "," : "", sOne);
 			}
-
-			bComma = true;
 		}
 
 		sClause = kFormat ("   and {} in ({})", sDbCol, sList);
 	}
 
+	// - - - - - - - - - - - - - - - - - - - - - - - - -
+	// finish up AND clause
+	// - - - - - - - - - - - - - - - - - - - - - - - - -
 	if (sClause)
 	{
 		if (iFlags & FAC_SUBSELECT)

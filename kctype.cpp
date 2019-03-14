@@ -56,3 +56,8 @@ namespace dekaf2 {
 
 } // end of namespace dekaf2
 
+#ifdef DEKAF2_REPEAT_CONSTEXPR_VARIABLE
+
+constexpr uint8_t ASCIITable[0x80];
+
+#endif

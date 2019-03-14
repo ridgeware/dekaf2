@@ -442,28 +442,35 @@ public:
 namespace KASCII {
 
 //-----------------------------------------------------------------------------
-inline bool kIsSpace(int ch)
+inline bool kIsSpace(uint16_t ch)
 //-----------------------------------------------------------------------------
 {
-	return ch == 0x20 || (ch <= 0x0c && ch >= 0x09);
+	return ch == 0x20 || (ch <= 0x0d && ch >= 0x09);
 }
 
 //-----------------------------------------------------------------------------
-inline bool kIsBlank(int ch)
+inline bool kIsBlank(uint16_t ch)
 //-----------------------------------------------------------------------------
 {
 	return ch == 0x20 || ch == 0x09;
 }
 
 //-----------------------------------------------------------------------------
-inline bool kIsDigit(int ch)
+inline bool kIsDigit(uint16_t ch)
 //-----------------------------------------------------------------------------
 {
 	return ch <= '9' && ch >= '0';
 }
 
 //-----------------------------------------------------------------------------
-inline int kToLower(int ch)
+inline bool kIsXDigit(uint16_t ch)
+//-----------------------------------------------------------------------------
+{
+	return KCodePoint(ch).IsXDigit();
+}
+
+//-----------------------------------------------------------------------------
+inline uint16_t kToLower(uint16_t ch)
 //-----------------------------------------------------------------------------
 {
 	if (ch <= 'Z' && ch >= 'A')
@@ -477,7 +484,7 @@ inline int kToLower(int ch)
 }
 
 //-----------------------------------------------------------------------------
-inline int kToUpper(int ch)
+inline uint16_t kToUpper(uint16_t ch)
 //-----------------------------------------------------------------------------
 {
 	if (ch >= 'a' && ch <= 'z')
@@ -570,14 +577,14 @@ inline bool kIsXDigit(Unicode::codepoint_t ch)
 }
 
 //-----------------------------------------------------------------------------
-inline uint32_t kToLower(Unicode::codepoint_t ch)
+inline Unicode::codepoint_t kToLower(Unicode::codepoint_t ch)
 //-----------------------------------------------------------------------------
 {
 	return KCodePoint(ch).ToLower();
 }
 
 //-----------------------------------------------------------------------------
-inline uint32_t kToUpper(Unicode::codepoint_t ch)
+inline Unicode::codepoint_t kToUpper(Unicode::codepoint_t ch)
 //-----------------------------------------------------------------------------
 {
 	return KCodePoint(ch).ToUpper();

@@ -224,8 +224,8 @@ KStringView KSystemStats::StatTypeToString(STAT_TYPE iStatType)
 	case STRING:
 		return "string";
 		break;
-
 	}
+	return "";
 }
 
 //-----------------------------------------------------------------------------

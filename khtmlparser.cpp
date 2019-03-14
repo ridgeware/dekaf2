@@ -44,7 +44,7 @@
 #include "kstringstream.h"
 #include "klog.h"
 #include "kfrozen.h"
-#include <cctype>
+#include "kctype.h"
 
 namespace dekaf2 {
 
@@ -226,15 +226,15 @@ bool KHTMLAttribute::Parse(KInStream& InStream, KStringView sOpening)
 					InStream.UnRead();
 					return true;
 				}
-				else if (!std::isspace(ch))
+				else if (!KASCII::kIsSpace(ch))
 				{
-					Name.assign(1, std::tolower(ch));
+					Name.assign(1, KASCII::kToLower(ch));
 					state = KEY;
 				}
 				break;
 
 			case KEY:
-				if (std::isspace(ch))
+				if (KASCII::kIsSpace(ch))
 				{
 					state = BEFORE_EQUAL;
 				}
@@ -250,7 +250,7 @@ bool KHTMLAttribute::Parse(KInStream& InStream, KStringView sOpening)
 				}
 				else
 				{
-					Name += std::tolower(ch);
+					Name += KASCII::kToLower(ch);
 				}
 				break;
 
@@ -259,7 +259,7 @@ bool KHTMLAttribute::Parse(KInStream& InStream, KStringView sOpening)
 				{
 					state = AFTER_EQUAL;
 				}
-				else if (!std::isspace(ch))
+				else if (!KASCII::kIsSpace(ch))
 				{
 					// probably the next attribute - this one had no value
 					InStream.UnRead();
@@ -268,7 +268,7 @@ bool KHTMLAttribute::Parse(KInStream& InStream, KStringView sOpening)
 				break;
 
 			case AFTER_EQUAL:
-				if (!std::isspace(ch))
+				if (!KASCII::kIsSpace(ch))
 				{
 					if (ch == '\'' || ch == '"')
 					{
@@ -299,7 +299,7 @@ bool KHTMLAttribute::Parse(KInStream& InStream, KStringView sOpening)
 				else
 				{
 					// the no - quotes case
-					if (std::isspace(ch))
+					if (KASCII::kIsSpace(ch))
 					{
 						// normal exit
 						return true;
@@ -454,7 +454,7 @@ bool KHTMLAttributes::Parse(KInStream& InStream, KStringView sOpening)
 
 	while (DEKAF2_LIKELY((ch = InStream.Read()) != std::iostream::traits_type::eof()))
 	{
-		if (!std::isspace(ch))
+		if (!KASCII::kIsSpace(ch))
 		{
 			if (ch == '>' || ch == '/')
 			{
@@ -617,7 +617,7 @@ bool KHTMLTag::Parse(KInStream& InStream, KStringView sOpening)
 		switch (state)
 		{
 			case START:
-				if (!std::isspace(ch))
+				if (!KASCII::kIsSpace(ch))
 				{
 					if (ch == '<')
 					{
@@ -643,9 +643,9 @@ bool KHTMLTag::Parse(KInStream& InStream, KStringView sOpening)
 				{
 					bClosing = true;
 				}
-				else if (!std::isspace(ch))
+				else if (!KASCII::kIsSpace(ch))
 				{
-					Name.assign(1, std::tolower(ch));
+					Name.assign(1, KASCII::kToLower(ch));
 					state = NAME;
 				}
 				else
@@ -657,7 +657,7 @@ bool KHTMLTag::Parse(KInStream& InStream, KStringView sOpening)
 				break;
 
 			case NAME:
-				if (std::isspace(ch))
+				if (KASCII::kIsSpace(ch))
 				{
 					Attributes.Parse(InStream);
 					state = CLOSE;
@@ -669,12 +669,12 @@ bool KHTMLTag::Parse(KInStream& InStream, KStringView sOpening)
 				}
 				else
 				{
-					Name += std::tolower(ch);
+					Name += KASCII::kToLower(ch);
 				}
 				break;
 
 			case CLOSE:
-				if (!std::isspace(ch))
+				if (!KASCII::kIsSpace(ch))
 				{
 					if (ch == '>')
 					{
@@ -970,7 +970,7 @@ void KHTMLParser::SkipScript(KInStream& InStream)
 		}
 		else if (DEKAF2_UNLIKELY(pScriptEndTag != nullptr))
 		{
-			if (std::tolower(ch) == *pScriptEndTag)
+			if (KASCII::kToLower(ch) == *pScriptEndTag)
 			{
 				++pScriptEndTag;
 				if (!*pScriptEndTag)

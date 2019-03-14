@@ -49,7 +49,7 @@
 #include "bits/ktemplate.h"
 #include "kwriter.h"
 #include <cinttypes>
-#include <cctype>
+#include "kctype.h"
 
 
 namespace dekaf2 {
@@ -156,8 +156,8 @@ void kUrlDecode (String& sDecode, bool bPlusAsSpace = false)
 			}
 			else if (*current == '%'
 				&& end - current > 2
-				&& std::isxdigit(*(current + 1))
-				&& std::isxdigit(*(current + 2)))
+				&& kIsXDigit(*(current + 1))
+				&& kIsXDigit(*(current + 2)))
 			{
 				*insert++ = detail::kx2c(current + 1);
 				current += 3;
@@ -204,8 +204,8 @@ void kUrlDecode (KStringView sSource, String& sTarget, bool bPlusAsSpace = false
 			}
 			else if (*current == '%'
 				&& end - current > 2
-				&& std::isxdigit(*(current + 1))
-				&& std::isxdigit(*(current + 2)))
+				&& kIsXDigit(*(current + 1))
+				&& kIsXDigit(*(current + 2)))
 			{
 				sTarget += detail::kx2c(current + 1);
 				current += 3;

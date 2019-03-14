@@ -162,7 +162,6 @@ TEST_CASE("KHTMLParser")
 		KHTMLScanner HTMLScanner;
 		HTMLScanner.Parse(sHTML);
 		CHECK ( HTMLScanner.Found() == true );
-
 	}
 
 }

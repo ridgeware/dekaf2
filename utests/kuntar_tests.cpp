@@ -7,12 +7,17 @@
 #include <dekaf2/kinshell.h>
 #include <vector>
 
-using namespace dekaf2;
+#ifndef DEKAF2_IS_WINDOWS
 
-KString sBaseDir = "/tmp/test_tar_23498/";
+using namespace dekaf2;
 
 TEST_CASE("KUnTar")
 {
+	KString sBaseDir;
+	sBaseDir = kGetTemp();
+	sBaseDir += "test_tar_23498";
+	sBaseDir += kDirSep;
+
 	SECTION("Create archive")
 	{
 		KString sTarDir = sBaseDir + "myfolder";
@@ -21,7 +26,7 @@ TEST_CASE("KUnTar")
 
 		CHECK ( kCreateDir(sTarDir) == true );
 
-		sTarDir += '/';
+		sTarDir += kDirSep;
 
 		kSetCWD(sBaseDir);
 
@@ -41,7 +46,7 @@ TEST_CASE("KUnTar")
 		}
 		CHECK ( kFileExists(sTarDir + "file2.txt") );
 		{
-			KInShell Shell(kFormat("cd {} && tar -r -f {}test1.tar myfolder/file2.txt", sBaseDir, sBaseDir));
+			KInShell Shell(kFormat("cd {} && tar -r -f {}test1.tar myfolder{}file2.txt", sBaseDir, sBaseDir, kDirSep));
 		}
 		{
 			KOutFile File(sTarDir + "file3.txt");
@@ -50,7 +55,7 @@ TEST_CASE("KUnTar")
 		}
 		CHECK ( kFileExists(sTarDir + "file3.txt") );
 		{
-			KInShell Shell(kFormat("cd {} && tar -r -f {}test1.tar myfolder/file3.txt", sBaseDir, sBaseDir));
+			KInShell Shell(kFormat("cd {} && tar -r -f {}test1.tar myfolder{}file3.txt", sBaseDir, sBaseDir, kDirSep));
 		}
 		{
 			KInShell Shell(kFormat("cd {} && cp test1.tar test2.tar && cp test1.tar test3.tar", sBaseDir));
@@ -188,5 +193,12 @@ TEST_CASE("KUnTar")
 
 TEST_CASE("KUnTar cleanup")
 {
+	KString sBaseDir;
+	sBaseDir = kGetTemp();
+	sBaseDir += "test_tar_23498";
+	sBaseDir += kDirSep;
+
 	CHECK ( kRemoveDir(sBaseDir) );
 }
+
+#endif

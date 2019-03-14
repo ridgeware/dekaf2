@@ -195,7 +195,8 @@ public:
 		FAC_NORMAL            = 1 << 0,      /// FAC_NORMAL: handles empty string, single string and comma-delimed strings
 		FAC_NUMERIC           = 1 << 1,      /// FAC_NUMERIC: handles empty string, single number and comma-delimed numbers
 		FAC_SUBSELECT         = 1 << 2,      /// FAC_SUBSELECT: se code examples
-		FAC_BETWEEN           = 1 << 3       /// FAC_BETWEEN: handles empty string, single number and number range with a dash
+		FAC_BETWEEN           = 1 << 3,      /// FAC_BETWEEN: handles empty string, single number and number range with a dash
+		FAC_LIKE              = 1 << 4       /// FAC_LIKE: use LIKE operator instead of EQUALS
 	};
 
 	const char* BAR = "--------------------------------------------------------------------------------"; // for printf() so keep this const char*

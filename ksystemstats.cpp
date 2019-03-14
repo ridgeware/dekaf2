@@ -225,9 +225,7 @@ KStringView KSystemStats::StatTypeToString(STAT_TYPE iStatType)
 		return "string";
 		break;
 	}
-#ifdef _MSC_VER
 	return "";
-#endif
 }
 
 //-----------------------------------------------------------------------------

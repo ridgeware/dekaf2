@@ -193,6 +193,11 @@ TEST_CASE("KUnTar")
 
 TEST_CASE("KUnTar cleanup")
 {
+	KString sBaseDir;
+	sBaseDir = kGetTemp();
+	sBaseDir += "test_tar_23498";
+	sBaseDir += kDirSep;
+
 	CHECK ( kRemoveDir(sBaseDir) );
 }
 

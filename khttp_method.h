@@ -120,6 +120,8 @@ public:
 	static constexpr KStringViewZ PATCH   = "PATCH";
 	static constexpr KStringViewZ CONNECT = "CONNECT";
 
+	static constexpr KStringViewZ REQUEST_METHODS = "GET,HEAD,POST,PUT,DELETE,OPTIONS,PATCH,CONNECT";
+
 //------
 private:
 //------

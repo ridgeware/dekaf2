@@ -54,10 +54,10 @@ namespace dekaf2 {
 // constexpr KCodePoint::Property KCodePoint::CodePoints[] {};
 // constexpr int32_t KCodePoint::CaseFolds[] {};
 
-} // end of namespace dekaf2
-
 #ifdef DEKAF2_REPEAT_CONSTEXPR_VARIABLE
 
-constexpr uint8_t ASCIITable[0x80];
+constexpr uint8_t KCodePoint::ASCIITable[0x80];
 
 #endif
+
+} // end of namespace dekaf2

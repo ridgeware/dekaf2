@@ -471,9 +471,6 @@ KMIMEDirectory::KMIMEDirectory(KStringViewZ sPathname)
 
 #ifdef DEKAF2_REPEAT_CONSTEXPR_VARIABLE
 
-constexpr KStringViewZ KCharSet::ANY_ISO8859;
-constexpr KStringViewZ KCharSet::DEFAULT_CHARSET;
-
 constexpr KStringViewZ KMIME::NONE;
 constexpr KStringViewZ KMIME::AAC;
 constexpr KStringViewZ KMIME::MIDI;

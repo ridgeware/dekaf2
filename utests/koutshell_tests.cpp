@@ -2,6 +2,8 @@
 #include <dekaf2/koutshell.h>
 #include <dekaf2/kinshell.h>
 
+#ifndef DEKAF2_IS_WINDOWS
+
 #include <iostream>
 
 using namespace dekaf2;
@@ -67,3 +69,4 @@ TEST_CASE("KOutShell")
 	} // normal open close
 
 }
+#endif

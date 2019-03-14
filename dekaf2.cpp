@@ -139,6 +139,11 @@ bool Dekaf::SetUnicodeLocale(KStringView sName)
 		}
 		if (m_sLocale.empty() || m_sLocale == "C" || m_sLocale == "C.UTF-8")
 		{
+#ifdef DEKAF2_IS_WINDOWS
+			// on Windows, do not try to set the default locale (en_US.UTF-8),
+			// best stay in C, as otherwise even std::isspace() is broken
+			return false;
+#endif
 			m_sLocale = DefaultLocale;
 		}
 		std::setlocale(LC_ALL, m_sLocale.c_str());

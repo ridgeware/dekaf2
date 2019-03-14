@@ -4,6 +4,8 @@
 #include <dekaf2/kstring.h>
 #include <dekaf2/ksystem.h>
 
+#ifndef DEKAF2_IS_WINDOWS
+
 #define kprPRINT 1
 
 using namespace dekaf2;
@@ -191,3 +193,5 @@ TEST_CASE("KInShell")
     } // normal open close
 
 }
+
+#endif

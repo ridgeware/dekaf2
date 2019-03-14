@@ -224,8 +224,10 @@ KStringView KSystemStats::StatTypeToString(STAT_TYPE iStatType)
 	case STRING:
 		return "string";
 		break;
-
 	}
+#ifdef _MSC_VER
+	return "";
+#endif
 }
 
 //-----------------------------------------------------------------------------

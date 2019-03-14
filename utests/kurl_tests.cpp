@@ -4,6 +4,7 @@
 #include <iomanip>
 
 #include <dekaf2/dekaf2.h>
+#include <dekaf2/kctype.h>
 #include "catch.hpp"
 #include <dekaf2/kurl.h>
 
@@ -350,7 +351,7 @@ SCENARIO ( "KURL unit tests on invalid data")
                             // +    Special char used to convert to ' '
                             continue;
                         }
-                        if (isxdigit(c1) && isxdigit(c2))
+                        if (kIsXDigit(c1) && kIsXDigit(c2))
                         {
                             continue;
                         }

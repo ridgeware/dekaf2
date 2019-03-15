@@ -3,6 +3,7 @@
 #include <dekaf2/kstream.h>
 #include <dekaf2/kfdstream.h>
 #include <dekaf2/ksystem.h>
+#include <dekaf2/kfilesystem.h>
 #include <vector>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -80,6 +81,7 @@ TEST_CASE("KReader") {
 	}
 
 	KString sFile = kGetTemp();
+	sFile += kDirSep;
 	sFile += "KReader.test";
 
 	KString sOut {

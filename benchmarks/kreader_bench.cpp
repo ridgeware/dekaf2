@@ -369,37 +369,33 @@ void compare_readers()
 	{
 		for (int x = 0; x < 100; ++x)
 		{
-			KStreamParser is(FDFile(filename, O_RDONLY));
+			FDFile fd(filename, O_RDONLY);
+			KStreamParser is(fd);
 			KStringView line;
 			KProf prof("read KStreamParser on fd, single lines into views");
 			prof.SetMultiplier(10000);
-			int ect = 0;
 			for (int ct = 0; ct < 10000; ++ct)
 			{
 				line = is.ReadLine('\n', "");
-				if (line.empty()) ++ect;
 				prof.Force();
 			}
 			if (line != s && x == 0) { KErr.FormatLine("sv line != s: {}", line); }
-			if (ect) KErr.FormatLine("sv had {} empty lines!", ect);
 		}
 	}
 	{
 		for (int x = 0; x < 100; ++x)
 		{
-			KStreamParser is(FDFile(filename, O_RDONLY));
+			FDFile fd(filename, O_RDONLY);
+			KStreamParser is(fd);
 			KString line;
 			KProf prof("read KStreamParser on fd, single lines into strings");
 			prof.SetMultiplier(10000);
-			int ect = 0;
 			for (int ct = 0; ct < 10000; ++ct)
 			{
 				is.ReadLine(line, '\n', "");
-				if (line.empty()) ++ect;
 				prof.Force();
 			}
 			if (line != s && x == 0) { KErr.FormatLine("line != s: {}", line); }
-			if (ect) KErr.FormatLine("had {} empty lines!", ect);
 		}
 	}
 	{

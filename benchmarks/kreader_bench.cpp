@@ -373,16 +373,15 @@ void compare_readers()
 			KStringView line;
 			KProf prof("read KStreamParser on fd, single lines into views");
 			prof.SetMultiplier(10000);
+			int ect = 0;
 			for (int ct = 0; ct < 10000; ++ct)
 			{
 				line = is.ReadLine('\n', "");
-				if (line.empty())
-				{
-					KErr.WriteLine("line is empty");
-				}
+				if (line.empty()) ++ect;
 				prof.Force();
 			}
 			if (line != s && x == 0) { KErr.FormatLine("sv line != s: {}", line); }
+			if (ect) KErr.FormatLine("sv had {} empty lines!", ect);
 		}
 	}
 	{
@@ -392,12 +391,15 @@ void compare_readers()
 			KString line;
 			KProf prof("read KStreamParser on fd, single lines into strings");
 			prof.SetMultiplier(10000);
+			int ect = 0;
 			for (int ct = 0; ct < 10000; ++ct)
 			{
 				is.ReadLine(line, '\n', "");
+				if (line.empty()) ++ect;
 				prof.Force();
 			}
 			if (line != s && x == 0) { KErr.FormatLine("line != s: {}", line); }
+			if (ect) KErr.FormatLine("had {} empty lines!", ect);
 		}
 	}
 	{

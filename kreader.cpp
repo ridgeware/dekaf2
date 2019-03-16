@@ -363,6 +363,11 @@ bool kReadAll(KStringViewZ sFileName, KString& sContent)
 
 } // kReadAll
 
+
+#ifndef DEKAF2_IS_OSX
+#define DEKAF2_READLINE_USE_GETLINE
+#endif
+
 //-----------------------------------------------------------------------------
 bool kReadLine(std::istream& Stream,
                KString& sLine,

@@ -43,14 +43,10 @@
 #pragma once
 
 #include <istream>
+#include <fcntl.h>
 #include "kstringview.h"
 #include "kreader.h"
 
-#ifdef DEKAF2_IS_WINDOWS
-	#include <io.h>
-#else
-	#include <unistd.h>
-#endif
 
 namespace dekaf2 {
 

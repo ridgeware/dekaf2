@@ -45,6 +45,7 @@
 #include "kstringview.h"
 #include "kstring.h"
 #include "kstream.h"
+#include "kstreamparse.h"
 #include <set>
 
 namespace dekaf2 {
@@ -80,6 +81,7 @@ public:
 	virtual ~KHTMLObject();
 
 	virtual bool Parse(KInStream& InStream, KStringView sOpening = KStringView{});
+	virtual bool Parse(KStreamParser& InStream, KStringView sOpening = KStringView{});
 	virtual void Serialize(KOutStream& OutStream) const;
 
 	virtual bool Parse(KStringView sInput);
@@ -116,7 +118,7 @@ public:
 	// forward all base class constructors
 	using KHTMLObject::KHTMLObject;
 
-	virtual bool Parse(KInStream& InStream, KStringView sOpening = KStringView{}) override;
+	virtual bool Parse(KStreamParser& InStream, KStringView sOpening = KStringView{}) override;
 	virtual void Serialize(KOutStream& OutStream) const override;
 
 	virtual void clear() override;
@@ -138,7 +140,7 @@ public:
 protected:
 //------
 
-	virtual bool SearchForLeadOut(KInStream& InStream) = 0;
+	virtual bool SearchForLeadOut(KStreamParser& InStream) = 0;
 
 	KStringView m_sLeadIn {};
 	KStringView m_sLeadOut {};
@@ -168,7 +170,7 @@ public:
 
 	using KHTMLObject::KHTMLObject;
 
-	virtual bool Parse(KInStream& InStream, KStringView sOpening = KStringView{}) override;
+	virtual bool Parse(KStreamParser& InStream, KStringView sOpening = KStringView{}) override;
 	virtual void Serialize(KOutStream& OutStream) const override;
 	virtual void Serialize(KString& sOut) const override;
 
@@ -276,7 +278,7 @@ public:
 		return *this;
 	}
 
-	virtual bool Parse(KInStream& InStream, KStringView sOpening = KStringView{}) override;
+	virtual bool Parse(KStreamParser& InStream, KStringView sOpening = KStringView{}) override;
 	virtual void Serialize(KOutStream& OutStream) const override;
 	virtual void Serialize(KString& sOut) const override;
 
@@ -310,14 +312,14 @@ public:
 		KHTMLObject::Parse(sInput);
 	}
 
-	KHTMLTag(KInStream& InStream, KStringView sOpening = KStringView{})
+	KHTMLTag(KStreamParser& InStream, KStringView sOpening = KStringView{})
 	{
 		Parse(InStream, sOpening);
 	}
 
 	using KHTMLObject::KHTMLObject;
 
-	virtual bool Parse(KInStream& InStream, KStringView sOpening = KStringView{}) override;
+	virtual bool Parse(KStreamParser& InStream, KStringView sOpening = KStringView{}) override;
 	virtual void Serialize(KOutStream& OutStream) const override;
 	virtual void Serialize(KString& sOut) const override;
 
@@ -365,7 +367,7 @@ public:
 protected:
 //------
 
-	virtual bool SearchForLeadOut(KInStream& InStream) override;
+	virtual bool SearchForLeadOut(KStreamParser& InStream) override;
 
 }; // KHTMLComment
 
@@ -395,7 +397,7 @@ public:
 protected:
 //------
 
-	virtual bool SearchForLeadOut(KInStream& InStream) override;
+	virtual bool SearchForLeadOut(KStreamParser& InStream) override;
 
 }; // KHTMLDocumentType
 
@@ -425,7 +427,7 @@ public:
 protected:
 //------
 
-	virtual bool SearchForLeadOut(KInStream& InStream) override;
+	virtual bool SearchForLeadOut(KStreamParser& InStream) override;
 
 }; // KHTMLProcessingInstruction
 
@@ -455,7 +457,7 @@ public:
 protected:
 //------
 
-	virtual bool SearchForLeadOut(KInStream& InStream) override;
+	virtual bool SearchForLeadOut(KStreamParser& InStream) override;
 
 }; // KHTMLProcessingInstruction
 
@@ -479,6 +481,11 @@ public:
 		Parse(InStream);
 	}
 
+	KHTMLParser(KStreamParser& InStream)
+	{
+		Parse(InStream);
+	}
+
 	KHTMLParser(KStringView sInput)
 	{
 		Parse(sInput);
@@ -487,6 +494,7 @@ public:
 	virtual ~KHTMLParser();
 
 	virtual bool Parse(KInStream& InStream);
+	virtual bool Parse(KStreamParser& InStream);
 	virtual bool Parse(KStringView sInput);
 
 //------
@@ -505,8 +513,8 @@ private:
 
 	void Invalid(KStringView sInvalid);
 	void Invalid(const KHTMLStringObject& Object);
-	void SkipScript(KInStream& InStream);
-	void SkipInvalid(KInStream& InStream);
+	void SkipScript(KStreamParser& InStream);
+	void SkipInvalid(KStreamParser& InStream);
 
 }; // KHTMLParser
 

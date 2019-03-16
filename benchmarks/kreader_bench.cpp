@@ -9,6 +9,8 @@
 #include <dekaf2/kstring.h>
 #include <dekaf2/kprof.h>
 #include <dekaf2/kfilesystem.h>
+#include <dekaf2/kstreamparse.h>
+#include <dekaf2/kstringstream.h>
 #include <iostream>
 #include <fstream>
 #ifdef DEKAF2_IS_WINDOWS
@@ -45,6 +47,7 @@ void compare_readers()
 			for (int ct = 0; ct < 500000; ++ct)
 			{
 				::read(fd, &Ch, 1);
+				prof.Force();
 			}
 			if (Ch == 'x') std::cout << "nope";
 		}
@@ -60,40 +63,136 @@ void compare_readers()
 			for (int ct = 0; ct < 500000; ++ct)
 			{
 				Ch = fgetc(fp);
+				prof.Force();
 			}
 			if (Ch == 'x') std::cout << "nope";
 		}
 		fclose(fp);
 	}
 	{
-		std::ifstream is(filename);
-		if (is.is_open())
+		for (int x = 0; x < 100; ++x)
 		{
-			char Ch;
-			KProf prof("read std::ifstream, single chars");
-			prof.SetMultiplier(500000);
-			for (int ct = 0; ct < 500000; ++ct)
+			std::ifstream is(filename);
+			if (is.is_open())
 			{
-				Ch = is.get();
+				char Ch;
+				KProf prof("read std::ifstream, single chars");
+				prof.SetMultiplier(500000);
+				for (int ct = 0; ct < 500000; ++ct)
+				{
+					Ch = is.get();
+					prof.Force();
+				}
+				if (Ch == 'x') std::cout << "nope";
 			}
-			if (Ch == 'x') std::cout << "nope";
 		}
-		is.close();
 	}
 	{
-		KInFile is(filename);
-		if (is.is_open())
+		for (int x = 0; x < 100; ++x)
 		{
-			char Ch;
-			KProf prof("read KInFile, single chars");
+			KInFile is(filename);
+			if (is.is_open())
+			{
+				char Ch;
+				KProf prof("read KInFile, single chars");
+				prof.SetMultiplier(500000);
+				for (int ct = 0; ct < 500000; ++ct)
+				{
+					Ch = is.Read();
+					prof.Force();
+				}
+				if (Ch == 'x') std::cout << "nope";
+			}
+		}
+	}
+	{
+		for (int x = 0; x < 100; ++x)
+		{
+			KInFile is(filename);
+			if (is.is_open())
+			{
+				std::istream::int_type Ch;
+				std::streambuf* sb = is.InStream().rdbuf();
+				if (sb)
+				{
+					KProf prof("read std::streambuf, single chars");
+					prof.SetMultiplier(500000);
+					for (int ct = 0; ct < 500000; ++ct)
+					{
+						Ch = sb->sbumpc();
+						prof.Force();
+					}
+					if (Ch == 'x') std::cout << "nope";
+				}
+			}
+		}
+	}
+	{
+		for (int x = 0; x < 100; ++x)
+		{
+			KInFile File(filename);
+			KStreamParser is(File);
+			std::istream::int_type Ch;
+			KProf prof("read KStreamParser, single chars");
 			prof.SetMultiplier(500000);
 			for (int ct = 0; ct < 500000; ++ct)
 			{
 				Ch = is.Read();
+				prof.Force();
 			}
 			if (Ch == 'x') std::cout << "nope";
 		}
-		is.close();
+	}
+	{
+		KString sFile;
+		kReadAll(filename, sFile);
+		for (int x = 0; x < 100; ++x)
+		{
+			KInStringStream is(sFile);
+			std::istream::int_type Ch;
+			KProf prof("read KInStringStream, single chars");
+			prof.SetMultiplier(500000);
+			for (int ct = 0; ct < 500000; ++ct)
+			{
+				Ch = is.Read();
+				prof.Force();
+			}
+			if (Ch == 'x') std::cout << "nope";
+		}
+	}
+	{
+		KString sFile;
+		kReadAll(filename, sFile);
+		for (int x = 0; x < 100; ++x)
+		{
+			KStreamParser is(sFile);
+			std::istream::int_type Ch;
+			KProf prof("read KStreamParser on string, single chars");
+			prof.SetMultiplier(500000);
+			for (int ct = 0; ct < 500000; ++ct)
+			{
+				Ch = is.Read();
+				prof.Force();
+			}
+			if (Ch == 'x') std::cout << "nope";
+		}
+	}
+	{
+		for (int x = 0; x < 100; ++x)
+		{
+			int fd = open(filename.c_str(), O_RDONLY);
+			KStreamParser is(fd);
+			std::istream::int_type Ch;
+			KProf prof("read KStreamParser on fd, single chars");
+			prof.SetMultiplier(500000);
+			for (int ct = 0; ct < 500000; ++ct)
+			{
+				Ch = is.Read();
+				prof.Force();
+			}
+			if (Ch == 'x') std::cout << "nope";
+			close(fd);
+		}
 	}
 	{
 		FILE* fp = std::fopen(filename.c_str(), "r");
@@ -106,6 +205,7 @@ void compare_readers()
 			for (int ct = 0; ct < 500000; ++ct)
 			{
 				Ch = is.Read();
+				prof.Force();
 			}
 			if (Ch == 'x') std::cout << "nope";
 		}
@@ -122,6 +222,7 @@ void compare_readers()
 			for (int ct = 0; ct < 500000; ++ct)
 			{
 				Ch = is.Read();
+				prof.Force();
 			}
 			if (Ch == 'x') std::cout << "nope";
 		}
@@ -147,6 +248,7 @@ void compare_readers()
 					{
 						break;
 					}
+					prof.Force();
 				}
 			}
 		}
@@ -154,98 +256,187 @@ void compare_readers()
 	}
 #ifndef DEKAF2_IS_WINDOWS
 	{
-		FILE* fp = fopen(filename.c_str(), "r");
-		if (fp)
+		for (int x = 0; x < 100; ++x)
 		{
-			char* szLine = static_cast<char*>(malloc(1000));
-			KProf prof("read FILE*, single lines w/o copy");
-			prof.SetMultiplier(10000);
-			for (int ct = 0; ct < 10000; ++ct)
+			FILE* fp = fopen(filename.c_str(), "r");
+			if (fp)
 			{
-				size_t rb = 999;
-				::getline(&szLine, &rb, fp);
+				char* szLine = static_cast<char*>(malloc(1000));
+				KProf prof("read FILE*, single lines w/o copy");
+				prof.SetMultiplier(10000);
+				for (int ct = 0; ct < 10000; ++ct)
+				{
+					size_t rb = 999;
+					::getline(&szLine, &rb, fp);
+					prof.Force();
+				}
 			}
+			fclose(fp);
 		}
-		fclose(fp);
 	}
 #endif
 #ifndef DEKAF2_IS_WINDOWS
 	{
-		FILE* fp = fopen(filename.c_str(), "r");
-		if (fp)
+		for (int x = 0; x < 100; ++x)
 		{
-			KString line;
-			char* szLine = static_cast<char*>(malloc(1000));
-			KProf prof("read FILE*, single lines w/ copy");
-			prof.SetMultiplier(10000);
-			for (int ct = 0; ct < 10000; ++ct)
+			FILE* fp = fopen(filename.c_str(), "r");
+			if (fp)
 			{
-				line.clear();
-				size_t rb = 999;
-				::getline(&szLine, &rb, fp);
-				line = szLine;
+				KString line;
+				char* szLine = static_cast<char*>(malloc(1000));
+				KProf prof("read FILE*, single lines w/ copy");
+				prof.SetMultiplier(10000);
+				for (int ct = 0; ct < 10000; ++ct)
+				{
+					line.clear();
+					size_t rb = 999;
+					::getline(&szLine, &rb, fp);
+					line = szLine;
+					prof.Force();
+				}
 			}
+			fclose(fp);
 		}
-		fclose(fp);
 	}
 #endif
 	{
-		std::ifstream is(filename);
-		if (is.is_open())
+		for (int x = 0; x < 100; ++x)
 		{
-			KString line;
-			KProf prof("read std::ifstream, single lines");
-			prof.SetMultiplier(10000);
-			for (int ct = 0; ct < 10000; ++ct)
+			std::ifstream is(filename);
+			if (is.is_open())
 			{
-				std::getline(is, line);
+				KString line;
+				KProf prof("read std::ifstream, single lines");
+				prof.SetMultiplier(10000);
+				for (int ct = 0; ct < 10000; ++ct)
+				{
+					std::getline(is, line);
+					prof.Force();
+				}
 			}
+			is.close();
 		}
-		is.close();
 	}
 	{
-		KInFile is(filename);
-		if (is.is_open())
+		for (int x = 0; x < 100; ++x)
 		{
-			KString line;
-			KProf prof("read KInFile, single lines");
-			prof.SetMultiplier(10000);
-			for (int ct = 0; ct < 10000; ++ct)
+			KInFile is(filename);
+			if (is.is_open())
 			{
-				is.ReadLine(line);
+				is.SetReaderRightTrim("");
+				KString line;
+				KProf prof("read KInFile, single lines");
+				prof.SetMultiplier(10000);
+				for (int ct = 0; ct < 10000; ++ct)
+				{
+					is.ReadLine(line);
+					prof.Force();
+				}
 			}
+			is.close();
 		}
-		is.close();
 	}
 	{
-		FILE* fp = std::fopen(filename.c_str(), "r");
-		KFPReader is(fp);
-		if (is.is_open())
+		for (int x = 0; x < 100; ++x)
 		{
-			KString line;
-			KProf prof("read KFPReader, single lines");
+			KInFile File(filename);
+			KStreamParser is(File);
+			KStringView line;
+			KProf prof("read KStreamParser, single lines into views");
 			prof.SetMultiplier(10000);
 			for (int ct = 0; ct < 10000; ++ct)
 			{
-				is.ReadLine(line);
+				line = is.ReadLine('\n', "");
+				prof.Force();
 			}
 		}
-		is.close();
 	}
 	{
-		int fd = ::open(filename.c_str(), O_RDONLY);
-		KFDReader is(fd);
-		if (is.is_open())
+		for (int x = 0; x < 100; ++x)
 		{
+			KInFile File(filename);
+			KStreamParser is(File);
 			KString line;
-			KProf prof("read KFDReader, single lines");
+			KProf prof("read KStreamParser, single lines into strings");
 			prof.SetMultiplier(10000);
 			for (int ct = 0; ct < 10000; ++ct)
 			{
-				is.ReadLine(line);
+				is.ReadLine(line, '\n', "");
+				prof.Force();
 			}
 		}
-		is.close();
+	}
+	{
+		for (int x = 0; x < 100; ++x)
+		{
+			KStreamParser is(FDFile(filename, O_RDONLY));
+			KStringView line;
+			KProf prof("read KStreamParser on fd, single lines into views");
+			prof.SetMultiplier(10000);
+			for (int ct = 0; ct < 10000; ++ct)
+			{
+				line = is.ReadLine('\n', "");
+				if (line.empty())
+				{
+					KErr.WriteLine("line is empty");
+				}
+				prof.Force();
+			}
+			if (line != s && x == 0) { KErr.FormatLine("sv line != s: {}", line); }
+		}
+	}
+	{
+		for (int x = 0; x < 100; ++x)
+		{
+			KStreamParser is(FDFile(filename, O_RDONLY));
+			KString line;
+			KProf prof("read KStreamParser on fd, single lines into strings");
+			prof.SetMultiplier(10000);
+			for (int ct = 0; ct < 10000; ++ct)
+			{
+				is.ReadLine(line, '\n', "");
+				prof.Force();
+			}
+			if (line != s && x == 0) { KErr.FormatLine("line != s: {}", line); }
+		}
+	}
+	{
+		for (int x = 0; x < 100; ++x)
+		{
+			FILE* fp = std::fopen(filename.c_str(), "r");
+			KFPReader is(fp);
+			if (is.is_open())
+			{
+				KString line;
+				KProf prof("read KFPReader, single lines");
+				prof.SetMultiplier(10000);
+				for (int ct = 0; ct < 10000; ++ct)
+				{
+					is.ReadLine(line);
+					prof.Force();
+				}
+			}
+			is.close();
+		}
+	}
+	{
+		for (int x = 0; x < 100; ++x)
+		{
+			int fd = ::open(filename.c_str(), O_RDONLY);
+			KFDReader is(fd);
+			if (is.is_open())
+			{
+				KString line;
+				KProf prof("read KFDReader, single lines");
+				prof.SetMultiplier(10000);
+				for (int ct = 0; ct < 10000; ++ct)
+				{
+					is.ReadLine(line);
+					prof.Force();
+				}
+			}
+			is.close();
+		}
 	}
 	{
 		size_t fsize = kGetSize(filename.c_str());
@@ -260,6 +451,7 @@ void compare_readers()
 				read(fd, szBuffer, fsize);
 				KProf::Force(szBuffer);
 				close(fd);
+				prof.Force();
 				free(szBuffer);
 			}
 		}
@@ -279,6 +471,7 @@ void compare_readers()
 				KString str(szBuffer, fsize, fsize+1, KString::AcquireMallocatedString());
 				close(fd);
 				KProf::Force(&str);
+				prof.Force();
 			}
 		}
 	}
@@ -296,6 +489,7 @@ void compare_readers()
 				read(fd, str.data(), fsize);
 				close(fd);
 				KProf::Force(&str);
+				prof.Force();
 			}
 		}
 	}
@@ -313,6 +507,7 @@ void compare_readers()
 				read(fd, str.data(), fsize);
 				close(fd);
 				KProf::Force(&str);
+				prof.Force();
 			}
 		}
 	}
@@ -328,6 +523,7 @@ void compare_readers()
 				char* szBuffer = static_cast<char*>(malloc(fsize));
 				fread(szBuffer, fsize, 1, fp);
 				KProf::Force(szBuffer);
+				prof.Force();
 				free(szBuffer);
 				fclose(fp);
 			}
@@ -344,6 +540,7 @@ void compare_readers()
 				KString buffer;
 				is.ReadRemaining(buffer);
 				KProf::Force(&buffer);
+				prof.Force();
 			}
 		}
 	}
@@ -359,6 +556,7 @@ void compare_readers()
 				KString buffer(static_cast<char*>(malloc(fsize+1)), fsize, fsize+1, KString::AcquireMallocatedString());
 				is.Read(&buffer[0], fsize);
 				KProf::Force(&buffer);
+				prof.Force();
 			}
 		}
 	}
@@ -370,6 +568,7 @@ void compare_readers()
 			KString buffer;
 			kReadAll(filename, buffer);
 			KProf::Force(&buffer);
+			prof.Force();
 		}
 	}
 	{
@@ -381,6 +580,7 @@ void compare_readers()
 			KInFile is(filename);
 			kReadAll(is, buffer);
 			KProf::Force(&buffer);
+			prof.Force();
 		}
 	}
 

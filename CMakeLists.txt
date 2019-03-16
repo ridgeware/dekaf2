@@ -605,6 +605,7 @@ set(PUBLIC_HEADERS
 	kstack.h
 	kstream.h
 	kstreambuf.h
+	kstreamparse.h
 	kstring.h
 	kstringutils.h
 	kstringview.h
@@ -729,6 +730,7 @@ set (SOURCES
 	ksslstream.cpp
 	kstream.cpp
 	kstreambuf.cpp
+	kstreamparse.cpp
 	kstring.cpp
 	kstringutils.cpp
 	kstringview.cpp

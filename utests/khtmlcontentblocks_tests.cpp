@@ -71,9 +71,11 @@ TEST_CASE("KHTMLContentBlocks")
 
 		CHECK ( sHTML == sOutput );
 		CHECK ( HTMLSerializer.m_Blocks.size() == 2 );
-		CHECK ( HTMLSerializer.m_Blocks[0] == "A study of population dynamics" );
-		CHECK ( HTMLSerializer.m_Blocks[1] == "And finally <i class='shallow'>some</i> content" );
-
+		if (HTMLSerializer.m_Blocks.size() == 2)
+		{
+			CHECK ( HTMLSerializer.m_Blocks[0] == "A study of population dynamics" );
+			CHECK ( HTMLSerializer.m_Blocks[1] == "And finally <i class='shallow'>some</i> content" );
+		}
 	}
 
 }

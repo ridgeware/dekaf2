@@ -371,6 +371,72 @@ bool kReadLine(std::istream& Stream,
                KString::value_type delimiter)
 //-----------------------------------------------------------------------------
 {
+#ifndef DEKAF2_READLINE_USE_GETLINE
+	
+	sLine.clear();
+
+	std::streambuf* sb = Stream.rdbuf();
+
+	if (DEKAF2_UNLIKELY(!sb))
+	{
+		return false;
+	}
+	
+	for (;;)
+	{
+		auto ch = sb->sbumpc();
+
+		if (DEKAF2_UNLIKELY(std::istream::traits_type::eq_int_type(ch, std::istream::traits_type::eof())))
+		{
+			Stream.setstate(std::ios::eofbit);
+
+			return !sLine.empty();
+		}
+
+		if (DEKAF2_LIKELY(ch != delimiter))
+		{
+			sLine += ch;
+		}
+		else
+		{
+			// to avoid unnecessary reallocations do not add the delimiter to sLine
+			// if it is part of sTrimRight and would thus be removed right afterwards..
+
+			if (sTrimRight.empty())
+			{
+				if (!Stream.eof())
+				{
+					// std::getline does not store the EOL character, but we want to
+					sLine += delimiter;
+				}
+			}
+			else
+			{
+				// add the delimiter char only if it is not a member of sTrimRight
+				if (sTrimRight.find(delimiter) == KString::npos)
+				{
+					sLine += delimiter;
+
+					sLine.TrimRight(sTrimRight);
+				}
+				else if (sTrimRight.size() > 1)
+				{
+					// only trim if sTrimRight is > 1, as otherwise it only contains the delimiter
+					sLine.TrimRight(sTrimRight);
+				}
+			}
+
+			if (!sTrimLeft.empty())
+			{
+				sLine.TrimLeft(sTrimLeft);
+			}
+
+			return true;
+		}
+	}
+
+#else
+
 	if (DEKAF2_UNLIKELY(!Stream.good()))
 	{
 		sLine.clear();
@@ -422,6 +488,8 @@ bool kReadLine(std::istream& Stream,
 	}
 
 	return true;
+
+#endif
 
 } // kReadLine
 
@@ -497,7 +565,7 @@ bool KInStream::UnRead()
 
 //-----------------------------------------------------------------------------
 /// Read a character. Returns std::istream::traits_type::eof() (== -1) if no input available
-typename std::istream::int_type KInStream::Read()
+std::istream::int_type KInStream::Read()
 //-----------------------------------------------------------------------------
 {
 	std::streambuf* sb = InStream().rdbuf();

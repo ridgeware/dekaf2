@@ -51,6 +51,7 @@
 #include <iterator>
 #include <type_traits>
 #include "bits/kfilesystem.h"
+#include "kfilesystem.h"
 #include "kstring.h"
 
 namespace dekaf2
@@ -458,7 +459,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Set the right trim characters for line based reading (default to LF)
-	void SetReaderRightTrim(KStringView sTrimRight = "\n")
+	void SetReaderRightTrim(KStringView sTrimRight = detail::kLineRightTrims)
 	//-----------------------------------------------------------------------------
 	{
 		m_sTrimRight = sTrimRight;
@@ -466,7 +467,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Set the right and left trim characters for line based reading (default to LF for right, none for left)
-	void SetReaderTrim(KStringView sTrimRight = "\n", KStringView sTrimLeft = "")
+	void SetReaderTrim(KStringView sTrimRight = detail::kLineRightTrims, KStringView sTrimLeft = "")
 	//-----------------------------------------------------------------------------
 	{
 		SetReaderRightTrim(sTrimRight);
@@ -520,9 +521,9 @@ protected:
 	// m_sRef always has to be valid after construction
 	// - do not assign a nullptr per default
 	std::istream* m_InStream;
-	KString m_sTrimRight{"\n"};
+	KString m_sTrimRight { detail::kLineRightTrims };
 	KString m_sTrimLeft;
-	KString::value_type m_chDelimiter{'\n'};
+	KString::value_type m_chDelimiter { '\n' };
 
 }; // KInStream
 

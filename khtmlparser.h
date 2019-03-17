@@ -45,7 +45,7 @@
 #include "kstringview.h"
 #include "kstring.h"
 #include "kstream.h"
-#include "kstreamparse.h"
+#include "kbufferedreader.h"
 #include <set>
 
 namespace dekaf2 {
@@ -81,7 +81,7 @@ public:
 	virtual ~KHTMLObject();
 
 	virtual bool Parse(KInStream& InStream, KStringView sOpening = KStringView{});
-	virtual bool Parse(KStreamParser& InStream, KStringView sOpening = KStringView{});
+	virtual bool Parse(KBufferedReader& InStream, KStringView sOpening = KStringView{});
 	virtual void Serialize(KOutStream& OutStream) const;
 
 	virtual bool Parse(KStringView sInput);
@@ -118,7 +118,7 @@ public:
 	// forward all base class constructors
 	using KHTMLObject::KHTMLObject;
 
-	virtual bool Parse(KStreamParser& InStream, KStringView sOpening = KStringView{}) override;
+	virtual bool Parse(KBufferedReader& InStream, KStringView sOpening = KStringView{}) override;
 	virtual void Serialize(KOutStream& OutStream) const override;
 
 	virtual void clear() override;
@@ -140,7 +140,7 @@ public:
 protected:
 //------
 
-	virtual bool SearchForLeadOut(KStreamParser& InStream) = 0;
+	virtual bool SearchForLeadOut(KBufferedReader& InStream) = 0;
 
 	KStringView m_sLeadIn {};
 	KStringView m_sLeadOut {};
@@ -170,7 +170,7 @@ public:
 
 	using KHTMLObject::KHTMLObject;
 
-	virtual bool Parse(KStreamParser& InStream, KStringView sOpening = KStringView{}) override;
+	virtual bool Parse(KBufferedReader& InStream, KStringView sOpening = KStringView{}) override;
 	virtual void Serialize(KOutStream& OutStream) const override;
 	virtual void Serialize(KString& sOut) const override;
 
@@ -278,7 +278,7 @@ public:
 		return *this;
 	}
 
-	virtual bool Parse(KStreamParser& InStream, KStringView sOpening = KStringView{}) override;
+	virtual bool Parse(KBufferedReader& InStream, KStringView sOpening = KStringView{}) override;
 	virtual void Serialize(KOutStream& OutStream) const override;
 	virtual void Serialize(KString& sOut) const override;
 
@@ -312,14 +312,14 @@ public:
 		KHTMLObject::Parse(sInput);
 	}
 
-	KHTMLTag(KStreamParser& InStream, KStringView sOpening = KStringView{})
+	KHTMLTag(KBufferedReader& InStream, KStringView sOpening = KStringView{})
 	{
 		Parse(InStream, sOpening);
 	}
 
 	using KHTMLObject::KHTMLObject;
 
-	virtual bool Parse(KStreamParser& InStream, KStringView sOpening = KStringView{}) override;
+	virtual bool Parse(KBufferedReader& InStream, KStringView sOpening = KStringView{}) override;
 	virtual void Serialize(KOutStream& OutStream) const override;
 	virtual void Serialize(KString& sOut) const override;
 
@@ -367,7 +367,7 @@ public:
 protected:
 //------
 
-	virtual bool SearchForLeadOut(KStreamParser& InStream) override;
+	virtual bool SearchForLeadOut(KBufferedReader& InStream) override;
 
 }; // KHTMLComment
 
@@ -397,7 +397,7 @@ public:
 protected:
 //------
 
-	virtual bool SearchForLeadOut(KStreamParser& InStream) override;
+	virtual bool SearchForLeadOut(KBufferedReader& InStream) override;
 
 }; // KHTMLDocumentType
 
@@ -427,7 +427,7 @@ public:
 protected:
 //------
 
-	virtual bool SearchForLeadOut(KStreamParser& InStream) override;
+	virtual bool SearchForLeadOut(KBufferedReader& InStream) override;
 
 }; // KHTMLProcessingInstruction
 
@@ -457,7 +457,7 @@ public:
 protected:
 //------
 
-	virtual bool SearchForLeadOut(KStreamParser& InStream) override;
+	virtual bool SearchForLeadOut(KBufferedReader& InStream) override;
 
 }; // KHTMLProcessingInstruction
 
@@ -481,7 +481,7 @@ public:
 		Parse(InStream);
 	}
 
-	KHTMLParser(KStreamParser& InStream)
+	KHTMLParser(KBufferedReader& InStream)
 	{
 		Parse(InStream);
 	}
@@ -494,7 +494,7 @@ public:
 	virtual ~KHTMLParser();
 
 	virtual bool Parse(KInStream& InStream);
-	virtual bool Parse(KStreamParser& InStream);
+	virtual bool Parse(KBufferedReader& InStream);
 	virtual bool Parse(KStringView sInput);
 
 //------
@@ -513,8 +513,8 @@ private:
 
 	void Invalid(KStringView sInvalid);
 	void Invalid(const KHTMLStringObject& Object);
-	void SkipScript(KStreamParser& InStream);
-	void SkipInvalid(KStreamParser& InStream);
+	void SkipScript(KBufferedReader& InStream);
+	void SkipInvalid(KBufferedReader& InStream);
 
 }; // KHTMLParser
 

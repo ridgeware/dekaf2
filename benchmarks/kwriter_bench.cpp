@@ -39,6 +39,7 @@ void compare_writers()
 				prof.SetMultiplier(100000);
 				for (int ct = 0; ct < 100000; ++ct)
 				{
+					prof.Force();
 					write(fd, s.data(), 1);
 				}
 				close(fd);
@@ -56,6 +57,7 @@ void compare_writers()
 				prof.SetMultiplier(100000);
 				for (int ct = 0; ct < 100000; ++ct)
 				{
+					prof.Force();
 					fputc('A', fp);
 				}
 				fflush(fp);
@@ -74,6 +76,7 @@ void compare_writers()
 				prof.SetMultiplier(100000);
 				for (int ct = 0; ct < 100000; ++ct)
 				{
+					prof.Force();
 					os.put('A');
 				}
 				os.flush();
@@ -92,6 +95,7 @@ void compare_writers()
 				prof.SetMultiplier(100000);
 				for (int ct = 0; ct < 100000; ++ct)
 				{
+					prof.Force();
 					os.Write('A');
 				}
 				os.flush();
@@ -111,6 +115,7 @@ void compare_writers()
 				prof.SetMultiplier(100000);
 				for (int ct = 0; ct < 100000; ++ct)
 				{
+					prof.Force();
 					os.Write('A');
 				}
 				os.flush();
@@ -130,6 +135,7 @@ void compare_writers()
 				prof.SetMultiplier(100000);
 				for (int ct = 0; ct < 100000; ++ct)
 				{
+					prof.Force();
 					os.Write('A');
 				}
 				os.flush();
@@ -149,6 +155,7 @@ void compare_writers()
 				prof.SetMultiplier(100000);
 				for (int ct = 0; ct < 100000; ++ct)
 				{
+					prof.Force();
 					write(fd, s.data(), s.size());
 				}
 				close(fd);
@@ -166,6 +173,7 @@ void compare_writers()
 				prof.SetMultiplier(100000);
 				for (int ct = 0; ct < 100000; ++ct)
 				{
+					prof.Force();
 					fwrite(s.data(), 1, s.size(), fp);
 				}
 				fflush(fp);
@@ -184,6 +192,7 @@ void compare_writers()
 				prof.SetMultiplier(100000);
 				for (int ct = 0; ct < 100000; ++ct)
 				{
+					prof.Force();
 					os.write(s.data(), s.size());
 				}
 				os.flush();
@@ -202,6 +211,7 @@ void compare_writers()
 				prof.SetMultiplier(100000);
 				for (int ct = 0; ct < 100000; ++ct)
 				{
+					prof.Force();
 					os.Write(s.data(), s.size());
 				}
 				os.flush();
@@ -221,6 +231,7 @@ void compare_writers()
 				prof.SetMultiplier(100000);
 				for (int ct = 0; ct < 100000; ++ct)
 				{
+					prof.Force();
 					os.Write(s.data(), s.size());
 				}
 				os.flush();
@@ -240,6 +251,7 @@ void compare_writers()
 				prof.SetMultiplier(100000);
 				for (int ct = 0; ct < 100000; ++ct)
 				{
+					prof.Force();
 					os.Write(s.data(), s.size());
 				}
 				os.flush();
@@ -270,6 +282,7 @@ void compare_writers()
 				prof.SetMultiplier(1000);
 				for (int ct = 0; ct < 1000; ++ct)
 				{
+					prof.Force();
 					write(fd, s.data(), s.size());
 				}
 				close(fd);
@@ -287,6 +300,7 @@ void compare_writers()
 				prof.SetMultiplier(1000);
 				for (int ct = 0; ct < 1000; ++ct)
 				{
+					prof.Force();
 					fwrite(s.data(), 1, s.size(), fp);
 				}
 				fflush(fp);
@@ -305,6 +319,7 @@ void compare_writers()
 				prof.SetMultiplier(1000);
 				for (int ct = 0; ct < 1000; ++ct)
 				{
+					prof.Force();
 					os.write(s.data(), s.size());
 				}
 				os.flush();
@@ -323,6 +338,7 @@ void compare_writers()
 				prof.SetMultiplier(1000);
 				for (int ct = 0; ct < 1000; ++ct)
 				{
+					prof.Force();
 					os.Write(s.data(), s.size());
 				}
 				os.flush();
@@ -342,6 +358,7 @@ void compare_writers()
 				prof.SetMultiplier(1000);
 				for (int ct = 0; ct < 1000; ++ct)
 				{
+					prof.Force();
 					os.Write(s.data(), s.size());
 				}
 				os.flush();
@@ -361,6 +378,7 @@ void compare_writers()
 				prof.SetMultiplier(1000);
 				for (int ct = 0; ct < 1000; ++ct)
 				{
+					prof.Force();
 					os.Write(s.data(), s.size());
 				}
 				os.flush();
@@ -392,6 +410,7 @@ void compare_writers()
 				prof.SetMultiplier(100);
 				for (int ct = 0; ct < 100; ++ct)
 				{
+					prof.Force();
 					write(fd, s.data(), s.size());
 				}
 				close(fd);
@@ -409,6 +428,7 @@ void compare_writers()
 				prof.SetMultiplier(100);
 				for (int ct = 0; ct < 100; ++ct)
 				{
+					prof.Force();
 					fwrite(s.data(), 1, s.size(), fp);
 				}
 				fflush(fp);
@@ -427,6 +447,7 @@ void compare_writers()
 				prof.SetMultiplier(100);
 				for (int ct = 0; ct < 100; ++ct)
 				{
+					prof.Force();
 					os.write(s.data(), s.size());
 				}
 				os.flush();
@@ -445,6 +466,7 @@ void compare_writers()
 				prof.SetMultiplier(100);
 				for (int ct = 0; ct < 100; ++ct)
 				{
+					prof.Force();
 					os.Write(s.data(), s.size());
 				}
 				os.flush();
@@ -464,6 +486,7 @@ void compare_writers()
 				prof.SetMultiplier(100);
 				for (int ct = 0; ct < 100; ++ct)
 				{
+					prof.Force();
 					os.Write(s.data(), s.size());
 				}
 				os.flush();
@@ -483,6 +506,7 @@ void compare_writers()
 				prof.SetMultiplier(100);
 				for (int ct = 0; ct < 100; ++ct)
 				{
+					prof.Force();
 					os.Write(s.data(), s.size());
 				}
 				os.flush();

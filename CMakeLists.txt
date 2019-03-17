@@ -534,6 +534,7 @@ set(PUBLIC_HEADERS
 	kbar.h
 	kbase64.h
 	kbitfields.h
+	kbufferedreader.h
 	kcache.h
 	kcasestring.h
 	kcgistream.h
@@ -605,7 +606,6 @@ set(PUBLIC_HEADERS
 	kstack.h
 	kstream.h
 	kstreambuf.h
-	kstreamparse.h
 	kstring.h
 	kstringutils.h
 	kstringview.h
@@ -668,6 +668,7 @@ set (SOURCES
 	dekaf2.cpp
 	kbar.cpp
 	kbase64.cpp
+	kbufferedreader.cpp
 	kcasestring.cpp
 	kcgistream.cpp
 	kchildprocess.cpp
@@ -730,7 +731,6 @@ set (SOURCES
 	ksslstream.cpp
 	kstream.cpp
 	kstreambuf.cpp
-	kstreamparse.cpp
 	kstring.cpp
 	kstringutils.cpp
 	kstringview.cpp

@@ -71,13 +71,13 @@ KHTMLObject::ObjectType KHTMLObject::Type() const
 bool KHTMLObject::Parse(KInStream& InStream, KStringView sOpening)
 //-----------------------------------------------------------------------------
 {
-	KStreamParser ksp(InStream);
-	return Parse(ksp, sOpening);
+	KBufferedStreamReader kbr(InStream);
+	return Parse(kbr, sOpening);
 
 } // Parse
 
 //-----------------------------------------------------------------------------
-bool KHTMLObject::Parse(KStreamParser& InStream, KStringView sOpening)
+bool KHTMLObject::Parse(KBufferedReader& InStream, KStringView sOpening)
 //-----------------------------------------------------------------------------
 {
 	// it would not make sense to call the string parser, as
@@ -92,8 +92,8 @@ bool KHTMLObject::Parse(KStringView sInput)
 //-----------------------------------------------------------------------------
 {
 	// call the stream parser
-	KStreamParser ksp(sInput);
-	return Parse(ksp);
+	KBufferedStringReader kbr(sInput);
+	return Parse(kbr);
 
 } // Parse
 
@@ -136,7 +136,7 @@ bool KHTMLStringObject::empty() const
 }
 
 //-----------------------------------------------------------------------------
-bool KHTMLStringObject::Parse(KStreamParser& InStream, KStringView sOpening)
+bool KHTMLStringObject::Parse(KBufferedReader& InStream, KStringView sOpening)
 //-----------------------------------------------------------------------------
 {
 	// <!-- opens a comment until -->
@@ -208,7 +208,7 @@ bool KHTMLAttribute::empty() const
 }
 
 //-----------------------------------------------------------------------------
-bool KHTMLAttribute::Parse(KStreamParser& InStream, KStringView sOpening)
+bool KHTMLAttribute::Parse(KBufferedReader& InStream, KStringView sOpening)
 //-----------------------------------------------------------------------------
 {
 	clear();
@@ -454,7 +454,7 @@ void KHTMLAttributes::Replace(KHTMLAttribute&& Attribute)
 } // Replace
 
 //-----------------------------------------------------------------------------
-bool KHTMLAttributes::Parse(KStreamParser& InStream, KStringView sOpening)
+bool KHTMLAttributes::Parse(KBufferedReader& InStream, KStringView sOpening)
 //-----------------------------------------------------------------------------
 {
 	clear();
@@ -602,7 +602,7 @@ KHTMLObject::ObjectType KHTMLTag::Type() const
 }
 
 //-----------------------------------------------------------------------------
-bool KHTMLTag::Parse(KStreamParser& InStream, KStringView sOpening)
+bool KHTMLTag::Parse(KBufferedReader& InStream, KStringView sOpening)
 //-----------------------------------------------------------------------------
 {
 	clear();
@@ -777,7 +777,7 @@ KHTMLObject::ObjectType KHTMLComment::Type() const
 }
 
 //-----------------------------------------------------------------------------
-bool KHTMLComment::SearchForLeadOut(KStreamParser& InStream)
+bool KHTMLComment::SearchForLeadOut(KBufferedReader& InStream)
 //-----------------------------------------------------------------------------
 {
 	for (;;)
@@ -817,7 +817,7 @@ KHTMLObject::ObjectType KHTMLDocumentType::Type() const
 }
 
 //-----------------------------------------------------------------------------
-bool KHTMLDocumentType::SearchForLeadOut(KStreamParser& InStream)
+bool KHTMLDocumentType::SearchForLeadOut(KBufferedReader& InStream)
 //-----------------------------------------------------------------------------
 {
 	for (;;)
@@ -847,7 +847,7 @@ KHTMLObject::ObjectType KHTMLProcessingInstruction::Type() const
 }
 
 //-----------------------------------------------------------------------------
-bool KHTMLProcessingInstruction::SearchForLeadOut(KStreamParser& InStream)
+bool KHTMLProcessingInstruction::SearchForLeadOut(KBufferedReader& InStream)
 //-----------------------------------------------------------------------------
 {
 	for (;;)
@@ -883,7 +883,7 @@ KHTMLObject::ObjectType KHTMLCData::Type() const
 }
 
 //-----------------------------------------------------------------------------
-bool KHTMLCData::SearchForLeadOut(KStreamParser& InStream)
+bool KHTMLCData::SearchForLeadOut(KBufferedReader& InStream)
 //-----------------------------------------------------------------------------
 {
 	for (;;)
@@ -946,7 +946,7 @@ void KHTMLParser::Invalid(const KHTMLStringObject& Object)
 } // PushToInvalid
 
 //-----------------------------------------------------------------------------
-void KHTMLParser::SkipInvalid(KStreamParser& InStream)
+void KHTMLParser::SkipInvalid(KBufferedReader& InStream)
 //-----------------------------------------------------------------------------
 {
 	std::istream::int_type ch;
@@ -962,7 +962,7 @@ void KHTMLParser::SkipInvalid(KStreamParser& InStream)
 }
 
 //-----------------------------------------------------------------------------
-void KHTMLParser::SkipScript(KStreamParser& InStream)
+void KHTMLParser::SkipScript(KBufferedReader& InStream)
 //-----------------------------------------------------------------------------
 {
 	static const char ScriptEndTag[] = "/script>";
@@ -1003,7 +1003,7 @@ void KHTMLParser::SkipScript(KStreamParser& InStream)
 }
 
 //-----------------------------------------------------------------------------
-bool KHTMLParser::Parse(KStreamParser& InStream)
+bool KHTMLParser::Parse(KBufferedReader& InStream)
 //-----------------------------------------------------------------------------
 {
 	std::istream::int_type ch;
@@ -1128,8 +1128,8 @@ bool KHTMLParser::Parse(KStreamParser& InStream)
 bool KHTMLParser::Parse(KInStream& InStream)
 //-----------------------------------------------------------------------------
 {
-	KStreamParser ksp(InStream);
-	return Parse(ksp);
+	KBufferedStreamReader kbr(InStream);
+	return Parse(kbr);
 
 } // Parse
 
@@ -1137,8 +1137,8 @@ bool KHTMLParser::Parse(KInStream& InStream)
 bool KHTMLParser::Parse(KStringView sInput)
 //-----------------------------------------------------------------------------
 {
-	KStreamParser ksp(sInput);
-	return Parse(ksp);
+	KBufferedStringReader kbr(sInput);
+	return Parse(kbr);
 
 } // Parse
 

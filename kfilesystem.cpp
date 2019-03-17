@@ -1029,5 +1029,11 @@ bool kReadFile (KStringViewZ sPath, KString& sContents, bool bToUnixLineFeeds)
 
 } // kReadFile
 
+#ifdef DEKAF2_REPEAT_CONSTEXPR_VARS
+namespace detail {
+constexpr KStringView kLineRightTrims;
+}
+#endif
+
 } // end of namespace dekaf2
 

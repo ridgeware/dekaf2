@@ -47,6 +47,372 @@
 namespace dekaf2 {
 
 //-----------------------------------------------------------------------------
+KBufferedReader::~KBufferedReader()
+//-----------------------------------------------------------------------------
+{
+}
+
+//-----------------------------------------------------------------------------
+KStringView KBufferedReader::ReadLine(KStringView::value_type delimiter, KStringView sRightTrim)
+//-----------------------------------------------------------------------------
+{
+	KStringView sLine(m_Arena.pos, m_Arena.end - m_Arena.pos);
+
+	auto pos = sLine.find(delimiter);
+
+	if (pos == KStringView::npos)
+	{
+		if (m_bEOF)
+		{
+			m_Arena.pos = m_Arena.end;
+			return sLine;
+		}
+
+		auto iOldSize = sLine.size();
+
+		sLine = ReadMore(m_Arena.iBufferSize);
+
+		pos = sLine.find(delimiter, iOldSize);
+
+		if (pos == KStringView::npos)
+		{
+			m_Arena.pos = m_Arena.end;
+			return sLine;
+		}
+	}
+
+	++pos;
+	m_Arena.pos += pos;
+	sLine.remove_suffix(sLine.size() - pos);
+
+	if (!sRightTrim.empty())
+	{
+		sLine.TrimRight(sRightTrim);
+	}
+
+	return sLine;
+
+} // ReadLine
+
+//-----------------------------------------------------------------------------
+bool KBufferedReader::ReadLine(KString& sBuffer, KStringView::value_type delimiter, KStringView sRightTrim)
+//-----------------------------------------------------------------------------
+{
+	sBuffer.clear();
+
+	if (EndOfStream())
+	{
+		return false;
+	}
+
+	bool bComplete;
+
+	do {
+
+		auto sLine = ReadLine(delimiter, {});
+
+		sBuffer += sLine;
+
+		bComplete = sLine.back() == delimiter;
+
+	} while (!bComplete && !EndOfStream());
+
+	if (bComplete && !sRightTrim.empty())
+	{
+		sBuffer.TrimRight(sRightTrim);
+	}
+
+	return true;
+
+} // ReadLine
+
+//-----------------------------------------------------------------------------
+/// construct from any istream
+KBufferedStreamReader::KBufferedStreamReader(KInStream& istream, size_t iBufferSize)
+//-----------------------------------------------------------------------------
+	: m_istream(&istream.InStream())
+	, m_buffer(std::make_unique<char[]>(iBufferSize))
+{
+	m_Arena = Arena(m_buffer.get(), iBufferSize);
+}
+
+//-----------------------------------------------------------------------------
+std::istream::int_type KBufferedStreamReader::Fill()
+//-----------------------------------------------------------------------------
+{
+	ssize_t iRead;
+
+	if (DEKAF2_LIKELY(!m_bEOF))
+	{
+		m_istream->read(m_buffer.get(), m_Arena.iBufferSize);
+
+		iRead = m_istream->gcount();
+
+		if (static_cast<size_t>(iRead) < m_Arena.iBufferSize)
+		{
+			m_bEOF = true;
+			m_istream->setstate(std::ios::eofbit);
+		}
+
+		m_Arena.pos = m_Arena.start;
+		m_Arena.end = m_Arena.start + iRead;
+
+		if (DEKAF2_LIKELY(m_Arena.pos != m_Arena.end))
+		{
+			return *m_Arena.pos++;
+		}
+	}
+
+	return std::istream::traits_type::eof();
+
+} // Fill
+
+//-----------------------------------------------------------------------------
+KStringView KBufferedStreamReader::ReadMore(size_t iSize)
+//-----------------------------------------------------------------------------
+{
+	if (m_bEOF)
+	{
+		return KStringView { m_Arena.pos, static_cast<size_t>(m_Arena.end - m_Arena.pos) };
+	}
+
+	if (iSize > m_Arena.iBufferSize)
+	{
+		kWarning("request exceeds max size of {}", m_Arena.iBufferSize);
+		iSize = m_Arena.iBufferSize;
+	}
+
+	auto len = m_Arena.end - m_Arena.pos;
+
+	if (len)
+	{
+		std::memmove(m_buffer.get(), m_Arena.pos, len);
+	}
+
+	m_Arena.pos = m_Arena.start;
+	m_Arena.end = m_Arena.start + len;
+
+	// now fill buffer
+
+	auto iWant = m_Arena.iBufferSize - len;
+
+	ssize_t iRead;
+
+	m_istream->read(m_buffer.get() + len, iWant);
+
+	iRead = m_istream->gcount();
+
+	if (static_cast<size_t>(iRead) < iWant)
+	{
+		m_bEOF = true;
+		m_istream->setstate(std::ios::eofbit);
+	}
+
+	m_Arena.end += iRead;
+
+	return KStringView{ m_Arena.pos, std::min(iSize, static_cast<size_t>(m_Arena.end - m_Arena.pos)) };
+
+} // ReadMore
+
+//-----------------------------------------------------------------------------
+/// UnRead a character
+bool KBufferedStreamReader::UnReadStreamBuf(size_t iSize)
+//-----------------------------------------------------------------------------
+{
+	// we only get called when the internal buffer is too small for the unread
+	// which means we can be sure it has to be emptied
+	iSize -= m_Arena.pos - m_Arena.start;
+	m_Arena.pos = m_Arena.start;
+	m_Arena.end = m_Arena.start;
+
+	std::streambuf* sb = m_istream->rdbuf();
+
+	if (sb)
+	{
+		for (;iSize--;)
+		{
+			typename std::istream::int_type iCh = sb->sungetc();
+			if (std::istream::traits_type::eq_int_type(iCh, std::istream::traits_type::eof()))
+			{
+				return false;
+			}
+		}
+		return true;
+	}
+
+	return false;
+
+} // UnReadStreamBuf
+
+//-----------------------------------------------------------------------------
+/// construct from a string view
+KBufferedStringReader::KBufferedStringReader(KStringView sInput)
+//-----------------------------------------------------------------------------
+{
+	m_Arena = Arena { sInput };
+	m_bEOF = true;
+}
+
+//-----------------------------------------------------------------------------
+/// construct from a file descriptor
+KBufferedFileReader::KBufferedFileReader(int fd, size_t iBufferSize)
+//-----------------------------------------------------------------------------
+	: m_buffer(std::make_unique<char[]>(iBufferSize))
+	, m_fd(fd)
+{
+	m_Arena = Arena { m_buffer.get(), iBufferSize } ;
+}
+
+//-----------------------------------------------------------------------------
+/// construct from a file name
+KBufferedFileReader::KBufferedFileReader(KStringViewZ sFilename, size_t iBufferSize)
+//-----------------------------------------------------------------------------
+	: m_buffer(std::make_unique<char[]>(iBufferSize))
+	, m_fd(open(sFilename.c_str(), O_RDONLY))
+	, m_bOwnsFileDescriptor(true)
+{
+	m_Arena = Arena { m_buffer.get(), iBufferSize } ;
+
+	if (m_fd < 0)
+	{
+		kDebug(1, "cannot open {}: {}", sFilename, strerror(errno));
+	}
+
+}
+
+//-----------------------------------------------------------------------------
+KBufferedFileReader::~KBufferedFileReader()
+//-----------------------------------------------------------------------------
+{
+	if (m_bOwnsFileDescriptor)
+	{
+		if (close(m_fd))
+		{
+			kDebug(1, "cannot close: {}", strerror(errno));
+		}
+	}
+}
+
+//-----------------------------------------------------------------------------
+std::istream::int_type KBufferedFileReader::Fill()
+//-----------------------------------------------------------------------------
+{
+	ssize_t iRead;
+
+	if (!m_bEOF)
+	{
+
+		iRead = read(m_fd, m_buffer.get(), m_Arena.iBufferSize);
+
+		if (iRead < 0)
+		{
+			kDebug(1, "read(): {}", strerror(errno));
+			iRead = 0;
+		}
+
+		if (static_cast<size_t>(iRead) < m_Arena.iBufferSize)
+		{
+			m_bEOF = true;
+		}
+
+		m_Arena.pos = m_Arena.start;
+		m_Arena.end = m_Arena.start + iRead;
+
+		if (DEKAF2_LIKELY(m_Arena.pos != m_Arena.end))
+		{
+			return *m_Arena.pos++;
+		}
+	}
+
+	return std::istream::traits_type::eof();
+
+} // Fill
+
+//-----------------------------------------------------------------------------
+KStringView KBufferedFileReader::ReadMore(size_t iSize)
+//-----------------------------------------------------------------------------
+{
+	if (m_bEOF)
+	{
+		return KStringView { m_Arena.pos, static_cast<size_t>(m_Arena.end - m_Arena.pos) };
+	}
+
+	if (iSize > m_Arena.iBufferSize)
+	{
+		kWarning("request exceeds max size of {}", m_Arena.iBufferSize);
+		iSize = m_Arena.iBufferSize;
+	}
+
+	auto len = m_Arena.end - m_Arena.pos;
+
+	if (len)
+	{
+		std::memmove(m_buffer.get(), m_Arena.pos, len);
+	}
+
+	m_Arena.pos = m_Arena.start;
+	m_Arena.end = m_Arena.start + len;
+
+	// now fill buffer
+
+	auto iWant = m_Arena.iBufferSize - len;
+
+	ssize_t iRead;
+
+	iRead = read(m_fd, m_buffer.get() + len, iWant);
+
+	if (iRead < 0)
+	{
+		kDebug(1, "read(): {}", strerror(errno));
+		iRead = 0;
+	}
+
+	if (static_cast<size_t>(iRead) < iWant)
+	{
+		m_bEOF = true;
+	}
+
+	m_Arena.end += iRead;
+
+	return KStringView{ m_Arena.pos, std::min(iSize, static_cast<size_t>(m_Arena.end - m_Arena.pos)) };
+
+} // ReadMore
+
+//-----------------------------------------------------------------------------
+/// UnRead a character
+bool KBufferedFileReader::UnReadStreamBuf(size_t iSize)
+//-----------------------------------------------------------------------------
+{
+	// we only get called when the internal buffer is too small for the unread
+	// which means we can be sure it has to be emptied
+	iSize -= m_Arena.pos - m_Arena.start;
+	m_Arena.pos = m_Arena.start;
+	m_Arena.end = m_Arena.start;
+
+	// TODO seek back
+
+	return !iSize;
+
+} // UnReadStreamBuf
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+//-----------------------------------------------------------------------------
 FDFile::FDFile(KStringViewZ sFilename, int mode)
 //-----------------------------------------------------------------------------
 : m_fd(open(sFilename.c_str(), mode))

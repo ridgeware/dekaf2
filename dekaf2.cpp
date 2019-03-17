@@ -97,6 +97,9 @@ void local_split_in_path_and_name(const char* sFullPath, KString& sPath, KString
 Dekaf::Dekaf()
 //---------------------------------------------------------------------------
 {
+	// do not sync std i/o (cout, cerr, ...)
+	std::ios::sync_with_stdio(false);
+
 	SetUnicodeLocale();
 	SetRandomSeed();
 

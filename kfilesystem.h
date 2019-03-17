@@ -60,8 +60,14 @@ enum DefaultFileCeateFlags
 
 #ifdef DEKAF2_IS_WINDOWS
 constexpr char kDirSep { '\\' };
+namespace detail {
+constexpr KStringView kLineRightTrims { "\r\n" };
+}
 #else
 constexpr char kDirSep { '/' };
+namespace detail {
+constexpr KStringView kLineRightTrims { "\n" };
+}
 #endif
 
 //-----------------------------------------------------------------------------

@@ -9,6 +9,7 @@
 #include <dekaf2/kstring.h>
 #include <dekaf2/kprof.h>
 #include <dekaf2/kfilesystem.h>
+#include <dekaf2/ksystem.h>
 #include <dekaf2/kstreamparse.h>
 #include <dekaf2/kstringstream.h>
 #include <iostream>
@@ -23,8 +24,10 @@ using namespace dekaf2;
 
 void compare_readers()
 {
-	std::string filename("/tmp/dekaf2_reader_test");
-	std::string s("1234567890123456789012345678901234567890123456789\n");
+	KString filename = kGetTemp();
+	filename += kDirSep;
+	filename += "dekaf2_reader_test";
+	KString s("1234567890123456789012345678901234567890123456789\n");
 
 	KProf pp("-Readers");
 
@@ -72,7 +75,7 @@ void compare_readers()
 	{
 		for (int x = 0; x < 100; ++x)
 		{
-			std::ifstream is(filename);
+			std::ifstream is(filename.c_str());
 			if (is.is_open())
 			{
 				char Ch;
@@ -134,6 +137,21 @@ void compare_readers()
 			KStreamParser is(File);
 			std::istream::int_type Ch;
 			KProf prof("read KStreamParser, single chars");
+			prof.SetMultiplier(500000);
+			for (int ct = 0; ct < 500000; ++ct)
+			{
+				Ch = is.Read();
+				prof.Force();
+			}
+			if (Ch == 'x') std::cout << "nope";
+		}
+	}
+	{
+		for (int x = 0; x < 100; ++x)
+		{
+			KBufferedFileReader is(filename);
+			std::istream::int_type Ch;
+			KProf prof("read KBufferedFileReader, single chars");
 			prof.SetMultiplier(500000);
 			for (int ct = 0; ct < 500000; ++ct)
 			{
@@ -228,7 +246,6 @@ void compare_readers()
 		}
 		is.close();
 	}
-
 	{
 		int fd = ::open(filename.c_str(), O_RDONLY);
 		if (fd >= 0)
@@ -270,6 +287,7 @@ void compare_readers()
 					::getline(&szLine, &rb, fp);
 					prof.Force();
 				}
+				free(szLine);
 			}
 			fclose(fp);
 		}
@@ -294,6 +312,7 @@ void compare_readers()
 					line = szLine;
 					prof.Force();
 				}
+				free(szLine);
 			}
 			fclose(fp);
 		}
@@ -302,7 +321,7 @@ void compare_readers()
 	{
 		for (int x = 0; x < 100; ++x)
 		{
-			std::ifstream is(filename);
+			std::ifstream is(filename.c_str());
 			if (is.is_open())
 			{
 				KString line;
@@ -389,6 +408,36 @@ void compare_readers()
 			KStreamParser is(fd);
 			KString line;
 			KProf prof("read KStreamParser on fd, single lines into strings");
+			prof.SetMultiplier(10000);
+			for (int ct = 0; ct < 10000; ++ct)
+			{
+				is.ReadLine(line, '\n', "");
+				prof.Force();
+			}
+			if (line != s && x == 0) { KErr.FormatLine("line != s: {}", line); }
+		}
+	}
+	{
+		for (int x = 0; x < 100; ++x)
+		{
+			KBufferedFileReader is(filename);
+			KStringView line;
+			KProf prof("read KBufferedFileReader, single lines into views");
+			prof.SetMultiplier(10000);
+			for (int ct = 0; ct < 10000; ++ct)
+			{
+				line = is.ReadLine('\n', "");
+				prof.Force();
+			}
+			if (line != s && x == 0) { KErr.FormatLine("sv line != s: {}", line); }
+		}
+	}
+	{
+		for (int x = 0; x < 100; ++x)
+		{
+			KBufferedFileReader is(filename);
+			KString line;
+			KProf prof("read KBufferedFileReader, single lines into strings");
 			prof.SetMultiplier(10000);
 			for (int ct = 0; ct < 10000; ++ct)
 			{

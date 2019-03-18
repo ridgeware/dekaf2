@@ -488,11 +488,15 @@ KString& KString::erase(size_type pos, size_type n)
 //------------------------------------------------------------------------------
 {
 	DEKAF2_TRY_EXCEPTION
-	if (n > size() || pos + n > size())
+	auto len = size();
+	if (pos < len)
 	{
-		n = size() - pos;
+		if (n > len - pos)
+		{
+			n = len - pos;
+		}
+		m_rep.erase(pos, n);
 	}
-	m_rep.erase(pos, n);
 	DEKAF2_LOG_EXCEPTION
 	return *this;
 }

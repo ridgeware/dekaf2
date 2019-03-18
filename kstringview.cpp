@@ -439,10 +439,9 @@ KStringView::size_type KStringView::copy(value_type* dest, size_type count, size
 {
 	if (DEKAF2_UNLIKELY(pos > size()))
 	{
-		kWarning("attempt to copy from past the end of string view of size {}: pos {}",
+		kDebug(3, "attempt to copy from past the end of string view of size {}: pos {}",
 		         size(), pos);
-
-		pos = size();
+		return 0;
 	}
 
 	count = std::min(size() - pos, count);
@@ -460,9 +459,11 @@ KStringView::self_type& KStringView::erase(size_type pos, size_type n)
 {
 	if (DEKAF2_UNLIKELY(pos > size()))
 	{
-			kWarning("attempt to erase past end of string view of size {}: pos {}, n {}",
-			         size(), pos, n);
-			pos = size();
+		// this allows constructs like sStr.erase(sStr.find("clipme")) without
+		// having too much warnings
+		kDebug(3, "attempt to erase past end of string view of size {}: pos {}, n {}",
+				 size(), pos, n);
+		return *this;
 	}
 
 	n = std::min(n, size() - pos);

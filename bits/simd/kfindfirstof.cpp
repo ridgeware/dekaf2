@@ -267,7 +267,11 @@ static inline uintptr_t align16(T* addr)
 
 //-----------------------------------------------------------------------------
 // helper method for case where needles.size() <= 16
-DEKAF2_ALWAYS_INLINE DEKAF2_NO_ASAN
+#ifdef NDEBUG
+DEKAF2_ALWAYS_INLINE
+#else
+DEKAF2_NO_ASAN
+#endif
 size_t kFindFirstOfNeedles16(
         const KStringView haystack,
         const KStringView needles)
@@ -319,7 +323,11 @@ size_t kFindFirstOfNeedles16(
 
 //-----------------------------------------------------------------------------
 // helper method for case where needles.size() <= 16
-DEKAF2_ALWAYS_INLINE DEKAF2_NO_ASAN
+#ifdef NDEBUG
+DEKAF2_ALWAYS_INLINE
+#else
+DEKAF2_NO_ASAN
+#endif
 size_t kFindFirstNotOfNeedles16(
         const KStringView haystack,
         const KStringView needles)
@@ -372,7 +380,11 @@ size_t kFindFirstNotOfNeedles16(
 
 //-----------------------------------------------------------------------------
 // helper method for case where needles.size() <= 16
-DEKAF2_ALWAYS_INLINE DEKAF2_NO_ASAN
+#ifdef NDEBUG
+DEKAF2_ALWAYS_INLINE
+#else
+DEKAF2_NO_ASAN
+#endif
 size_t kFindLastNotOfNeedles16(
         const KStringView haystack,
         const KStringView needles)
@@ -425,7 +437,11 @@ size_t kFindLastNotOfNeedles16(
 
 //-----------------------------------------------------------------------------
 // helper method for case where needles.size() <= 16
-DEKAF2_ALWAYS_INLINE DEKAF2_NO_ASAN
+#ifdef NDEBUG
+DEKAF2_ALWAYS_INLINE
+#else
+DEKAF2_NO_ASAN
+#endif
 size_t kFindLastOfNeedles16(
         const KStringView haystack,
         const KStringView needles)
@@ -479,7 +495,11 @@ size_t kFindLastOfNeedles16(
 //-----------------------------------------------------------------------------
 // Scans a 16-byte block of haystack (starting at blockStartIdx) to find first
 // needle.
-DEKAF2_ALWAYS_INLINE DEKAF2_NO_ASAN
+#ifdef NDEBUG
+DEKAF2_ALWAYS_INLINE
+#else
+DEKAF2_NO_ASAN
+#endif
 size_t scanHaystackBlock(
         const KStringView haystack,
         const KStringView needles,
@@ -527,7 +547,11 @@ size_t scanHaystackBlock(
 }
 
 //-----------------------------------------------------------------------------
-DEKAF2_ALWAYS_INLINE DEKAF2_NO_ASAN
+#ifdef NDEBUG
+DEKAF2_ALWAYS_INLINE
+#else
+DEKAF2_NO_ASAN
+#endif
 size_t scanHaystackBlockNot(
         const KStringView haystack,
         const KStringView needles,
@@ -596,7 +620,11 @@ size_t scanHaystackBlockNot(
 //-----------------------------------------------------------------------------
 // Scans a 16-byte block of haystack (starting at blockStartIdx) to find first
 // needle.
-DEKAF2_ALWAYS_INLINE DEKAF2_NO_ASAN
+#ifdef NDEBUG
+DEKAF2_ALWAYS_INLINE
+#else
+DEKAF2_NO_ASAN
+#endif
 size_t reverseScanHaystackBlock(
         const KStringView haystack,
         const KStringView needles,
@@ -668,7 +696,11 @@ size_t reverseScanHaystackBlock(
 }
 
 //-----------------------------------------------------------------------------
-DEKAF2_ALWAYS_INLINE DEKAF2_NO_ASAN
+#ifdef NDEBUG
+DEKAF2_ALWAYS_INLINE
+#else
+DEKAF2_NO_ASAN
+#endif
 size_t reverseScanHaystackBlockNot(
         const KStringView haystack,
         const KStringView needles,

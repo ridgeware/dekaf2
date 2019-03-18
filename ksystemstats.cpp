@@ -1080,7 +1080,7 @@ uint64_t KSystemStats::GatherProcs (KStringView sCommandRegex/*=""*/, bool bDoNo
 			// 22463 13273 httpd           /usr/local/packages/onelink/apache.redhat64/bin/http
 
 			Parts.clear();
-			kSplit(Parts, sLine, " ", " \r\n\t\b ", '\0', false, false);
+			kSplit(Parts, sLine, " ", " \r\n\t\b", '\0', false, false);
 
 			// Did we get the correct number of parts?
 			if (4 != Parts.size())

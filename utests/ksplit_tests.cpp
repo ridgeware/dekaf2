@@ -511,6 +511,84 @@ TEST_CASE("kSplitPairs")
 
 }
 
+TEST_CASE("kSplitEmpty")
+{
+	SECTION("SplitEmptyElements")
+	{
+		std::vector<KStringView> Part;
+
+		kSplit(Part, "empty,  ");
+		CHECK ( Part.size() == 2 );
+		CHECK ( Part[1] == "" );
+		Part.clear();
+
+		kSplit(Part, "empty,  ", ",", "");
+		CHECK ( Part.size() == 2 );
+		CHECK ( Part[1] == "  " );
+		Part.clear();
+
+		kSplit(Part, ",empty,elements,,begin,middle,end,");
+		CHECK ( Part.size() == 8 );
+		CHECK ( Part[0].empty() );
+		CHECK ( Part[3].empty() );
+		CHECK ( Part[6] == "end" );
+		CHECK ( Part[7].empty() );
+		Part.clear();
+
+		kSplit(Part, "/empty/elements//begin/middle/end///", "/", "", 0, true, false);
+		CHECK ( Part.size() == 7 );
+		CHECK ( Part[0].empty() );
+		CHECK ( Part[1] == "empty" );
+		CHECK ( Part[5] == "end" );
+		CHECK ( Part[6].empty() );
+		Part.clear();
+
+		kSplit(Part, "/empty/elements//begin/middle/end///", "/", "/", 0, true, false);
+		CHECK ( Part.size() == 5 );
+		CHECK ( Part[0] == "empty" );
+		CHECK ( Part[4] == "end" );
+		Part.clear();
+
+		kSplit(Part, " empty\t    elements  \t  begin middle      end      ", " ", " \t", 0, false, false);
+		CHECK ( Part.size() == 5 );
+		CHECK ( Part[0] == "empty" );
+		CHECK ( Part[1] == "elements" );
+		CHECK ( Part[2] == "begin" );
+		CHECK ( Part[3] == "middle" );
+		CHECK ( Part[4] == "end" );
+		Part.clear();
+
+		kSplit(Part, " empty    elements\t    begin middle      end      ", " ", " \t", 0, true, false);
+		CHECK ( Part.size() == 5 );
+		CHECK ( Part[0] == "empty" );
+		CHECK ( Part[1] == "elements" );
+		CHECK ( Part[2] == "begin" );
+		CHECK ( Part[3] == "middle" );
+		CHECK ( Part[4] == "end" );
+		Part.clear();
+
+		kSplit(Part, " empty\t    elements  \t  begin middle      end      \t", " \t", " \t", 0, false, false);
+		CHECK ( Part.size() == 6 );
+		CHECK ( Part[0] == "empty" );
+		CHECK ( Part[1] == "elements" );
+		CHECK ( Part[2] == "begin" );
+		CHECK ( Part[3] == "middle" );
+		CHECK ( Part[4] == "end" );
+		CHECK ( Part[5].empty() );
+		Part.clear();
+
+		kSplit(Part, " empty    elements\t    begin middle      end      \t", " \t", " \t", 0, true, false);
+		CHECK ( Part.size() == 5 );
+		CHECK ( Part[0] == "empty" );
+		CHECK ( Part[1] == "elements" );
+		CHECK ( Part[2] == "begin" );
+		CHECK ( Part[3] == "middle" );
+		CHECK ( Part[4] == "end" );
+		Part.clear();
+	}
+}
+
+
 TEST_CASE("kSplitArgsInPlace")
 {
 	SECTION("split")

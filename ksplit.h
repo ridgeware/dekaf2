@@ -82,6 +82,7 @@ size_t kSplit (
 	// consider the string " a , b , c , d , e "
 
 	size_t iStartSize = ctContainer.size();
+	bool bAddLastEmptyElement { false };
 
 	while (!svBuffer.empty())
 	{
@@ -105,7 +106,7 @@ size_t kSplit (
 		}
 
 		KStringView element;
-		bool have_quotes{false};
+		bool have_quotes { false };
 
 		if (bQuotesAreEscapes && svBuffer.front() == '"')
 		{
@@ -129,7 +130,9 @@ size_t kSplit (
 				element = svBuffer.substr(0, iNext);
 			}
 
-			if (svBuffer[iNext] == ' ')
+			auto thisDelimiter = svBuffer[iNext];
+
+			if (thisDelimiter == ' ')
 			{
 				// if space is a delimiter we always treat consecutive spaces as one delimiter
 				iNext = svBuffer.find_first_not_of(' ', iNext + 1);
@@ -149,7 +152,14 @@ size_t kSplit (
 			{
 				iNext = svBuffer.size();
 			}
+
 			svBuffer.remove_prefix(iNext);
+
+			if (svBuffer.empty())
+			{
+				// add a last empty element if this delimiter is not a space and the trim sequence does not contain the delimiter either
+				bAddLastEmptyElement = thisDelimiter != ' ' && !svTrim.Contains(thisDelimiter);
+			}
 		}
 		else
 		{
@@ -165,6 +175,7 @@ size_t kSplit (
 		{
 			//  Strip suffix space characters.
 			auto iFound = element.find_last_not_of (svTrim);
+
 			if (iFound != KStringView::npos)
 			{
 				auto iRemove = element.size() - 1 - iFound;
@@ -179,6 +190,11 @@ size_t kSplit (
 		ctContainer.push_back(element);
 
 		// What remains is ready for the next parse round.
+	}
+
+	if (bAddLastEmptyElement)
+	{
+		ctContainer.push_back(KStringView{});
 	}
 
 	return ctContainer.size () - iStartSize;
@@ -266,7 +282,7 @@ private:
 /// @param chEscape Escape character for delimiters. Defaults to '\0' (disabled).
 /// @param bCombineDelimiters if true skips consecutive delimiters (an action always
 /// taken for found spaces if defined as delimiter). Defaults to false.
-/// @param bQuotesAreFrames if true, escape characters and delimiters inside
+/// @param bQuotesAreEscapes if true, escape characters and delimiters inside
 /// double quotes are treated as literal chars, and quotes themselves are removed.
 /// No trimming is applied inside the quotes (but outside). The quote has to be the
 /// first character after applied trimming, and trailing content after the closing quote
@@ -301,10 +317,10 @@ size_t kSplitPairs(
 /// @param svDelim a string view of delimiter characters. Defaults to " \t\r\n\b".
 /// @param svQuotes a string view of quote characters. Defaults to "\"'".
 /// @param chEscape Escape character for delimiters. Defaults to '\\'.
-template<typename Container>
+template<typename Container, typename String>
 bool kSplitArgsInPlace(
 	Container&  ctContainer,
-	KString&    sBuffer,
+	String&     sBuffer,
 	KStringView svDelim  = " \t\r\n\b",     // default: whitespace delimiter
 	KStringView svQuotes = "\"'",           // default: dequote
 	const char  chEscape = '\\'             // default: escape with backslash

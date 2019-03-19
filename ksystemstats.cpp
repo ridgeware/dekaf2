@@ -257,7 +257,9 @@ bool KSystemStats::GatherProcInfo ()
 		sLoadAvg.Replace('/', ' ',true);
 		kSplit(Parts, sLoadAvg, " ");
 
-		if (Parts.size() == 5) {
+		// 4th item had a slash and became 2 items with the Replace+kSplit above, and last field is just most recent PID (disregard)
+		if (Parts.size() == 6)
+		{
 			Add ("load_average_1min",  Parts.at(0), FLOAT);
 			Add ("load_average_5min",  Parts.at(1), FLOAT);
 			Add ("load_average_15min", Parts.at(2), FLOAT);

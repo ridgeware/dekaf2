@@ -48,6 +48,7 @@
 #include "ksystem.h"
 #include "ksplit.h"
 #include "kfilesystem.h"
+#include "kcgistream.h"
 #include <mutex>
 #include <iostream>
 
@@ -549,13 +550,16 @@ int KLog::s_kLogLevel;
 //---------------------------------------------------------------------------
 KLog::KLog()
 //---------------------------------------------------------------------------
-    : m_sLogName     (kGetEnv(s_sEnvLog,  s_sDefaultLog))
+	// if we do not start up in CGI mode, per default we log into stdout
+	: m_bIsCGI       (!kGetEnv(KCGIInStream::REQUEST_METHOD).empty())
+	, m_sLogName     (kGetEnv(s_sEnvLog, m_bIsCGI ? s_sDefaultLog : STDOUT))
     , m_sFlagfile    (kGetEnv(s_sEnvFlag, s_sDefaultFlag))
 #ifdef NDEBUG
     , m_iBackTrace   (kGetEnv(s_sEnvTrace, "-3").Int16())
 #else
     , m_iBackTrace   (kGetEnv(s_sEnvTrace, "-2").Int16())
 #endif
+	, m_Logmode      (m_bIsCGI ? SERVER : CLI)
 {
 #ifdef NDEBUG
 	s_kLogLevel = kGetEnv(s_sEnvLevel, "-1").Int16();
@@ -572,7 +576,8 @@ KLog::KLog()
 
 	CheckDebugFlag();
 
-	Dekaf().AddToOneSecTimer([this]() {
+	Dekaf().AddToOneSecTimer([this]()
+	{
 		this->CheckDebugFlag();
 	});
 
@@ -593,16 +598,11 @@ void KLog::SetLevel(int iLevel)
 
 	s_kLogLevel = iLevel;
 
-	if (iLevel)
-	{
-		KOutFile file (GetDebugFlag());
-		file.FormatLine("{}", iLevel);
-	}
-	else
-	{
-		kDebugLog (1, "new klog level: 0, removing file: {}", GetDebugFlag());
-		kRemoveFile (GetDebugFlag());
-	}
+/*
+ * don't write anymore to the flag file - let this be done by external
+ * application code
+ *
+ */
 
 } // SetLevel
 
@@ -771,6 +771,40 @@ bool KLog::IntOpenLog()
 
 } // SetDebugLog
 
+/*
+ * - new CLI MODE flag dekaf2::Klog() either has this set or not
+ * - users of the Klog() like KREST can alter the mode
+ * - application code should also have access to the mode switcher
+ * - if CLI mode, klog flag was taken from CLI and ignores global flag file
+ * - if SERVER mode, klog flag is taken from global flag file and managed with the timer
+ * - if CLI mode, log file is: stderr for kWarning[Log] and stdout for all else
+ * - if SERVER mode, log file is global setting (could be syslog api, a netcat socket or flat file, etc)
+ */
+
+//---------------------------------------------------------------------------
+void KLog::SetMode(LOGMODE logmode)
+//---------------------------------------------------------------------------
+{
+	if (m_Logmode != logmode)
+	{
+		m_Logmode = logmode;
+
+		if (logmode == SERVER)
+		{
+			// if new mode == SERVER, first set debug log
+			m_sLogName = kGetEnv(s_sEnvLog, s_sDefaultLog);
+			// then read the debug flag
+			CheckDebugFlag(true);
+		}
+		else
+		{
+			// if new mode == CLI set the output to stdout
+			SetDebugLog(STDOUT);
+		}
+	}
+
+} // SetMode
+
 //---------------------------------------------------------------------------
 bool KLog::SetDebugFlag(KStringViewZ sFlagfile)
 //---------------------------------------------------------------------------
@@ -818,6 +852,11 @@ bool KLog::SetDebugFlag(KStringViewZ sFlagfile)
 void KLog::CheckDebugFlag(bool bForce/*=false*/)
 //---------------------------------------------------------------------------
 {
+	if (m_Logmode == CLI)
+	{
+		return;
+	}
+
 	// file format of the debug "flag" file:
 	// "level, target" where level is numeric (-1 .. 3) and target can be
 	// anything like a pathname or a domain:host or syslog, stderr, stdout

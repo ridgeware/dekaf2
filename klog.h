@@ -364,6 +364,23 @@ public:
 	static constexpr KStringViewZ BAR    = "--------------------------------------------------------------------------------";
 	static constexpr KStringViewZ DASH   = "- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - ";
 
+	enum LOGMODE { CLI, SERVER };
+
+	//---------------------------------------------------------------------------
+	/// Sets the operation mode of the KLOG to either CLI or SERVER mode. Default
+	/// is CLI, but e.g. the REST server switches this to SERVER. This affects
+	/// log location and error output.
+	void SetMode(LOGMODE logmode);
+	//---------------------------------------------------------------------------
+
+	//---------------------------------------------------------------------------
+	/// Returns the current KLOG operation mode
+	LOGMODE GetMode() const
+	//---------------------------------------------------------------------------
+	{
+		return m_Logmode;
+	}
+
 	//---------------------------------------------------------------------------
 	/// Gets the current log level. Any log message that has a higher level than
 	/// this value is not output.
@@ -545,6 +562,7 @@ private:
 	void IntException (KStringView sWhat, KStringView sFunction, KStringView sClass);
 	bool IntOpenLog ();
 
+	bool m_bIsCGI { false }; // we need this bool on top for the constructor
 	KString m_sPathName;
 	KString m_sShortName;
 	KString m_sLogName;
@@ -553,6 +571,7 @@ private:
 	time_t m_sTimestampFlagfile{0};
 	std::unique_ptr<KLogSerializer> m_Serializer;
 	std::unique_ptr<KLogWriter> m_Logger;
+	LOGMODE m_Logmode { CLI };
 
 	static constexpr KStringViewZ s_sEnvLog      = "DEKAFLOG";
 	static constexpr KStringViewZ s_sEnvFlag     = "DEKAFDBG";

@@ -55,13 +55,16 @@ constexpr KStringView g_Synopsis[] = {
 	"klog -- command line interface to DEKAF2 logging features (aka 'the KLOG')",
 	" ",
 	"usage: klog [...]",
-	"  -log <localpath>  : override the default path for: {LOG}",
+	"  -log <localpath>  : override the default path for: {LOG} (readonly)",
 	"  -flag <localpath> : override the default path for: {FLAG}",
 	"  f | follow        : 'follow' feature (continuous output as log grows). ^C to break.",
 	"  <N>               : dump last <N> lines of log",
 	"  off               : set debug level to 0",
 	"  on                : set debug level to 1",
 	"  set <N>           : set debug level to 0, 1, 2, etc.",
+	"  get               : get debug level",
+	"  setlog            : set global debug log file",
+	"  getlog            : get global debug log file",
 	"  clear             : clear the log (no change to debug level)",
 	"  listen <port>     : start a klog listener (netcat) on given port",
 	""
@@ -111,11 +114,33 @@ struct Actions
 }; // Actions
 
 //-----------------------------------------------------------------------------
+void Persist()
+//-----------------------------------------------------------------------------
+{
+	KString sDebugFlag = KLog().GetDebugFlag();
+
+	if (KLog().GetLevel())
+	{
+		KString sOptions = kFormat("{}, {}", KLog().GetLevel(), KLog().GetDebugLog());
+		KErr.FormatLine ("persisting to {} as '{}'", sDebugFlag, sOptions);
+		KOutFile file (sDebugFlag, std::ios::trunc);
+		file.WriteLine(sOptions);
+	}
+	else
+	{
+		KErr.FormatLine ("removing file: {}", sDebugFlag);
+		kRemoveFile (sDebugFlag);
+	}
+
+} // SetLevel
+
+//-----------------------------------------------------------------------------
 void SetLevel(uint16_t iLevel)
 //-----------------------------------------------------------------------------
 {
-	KErr.Format ("klog: set new debug level to {}.\n", iLevel);
 	KLog().SetLevel(iLevel);
+	KErr.Format ("klog: set new debug level to {} - ", iLevel);
+	Persist();
 
 } // SetLevel
 
@@ -138,12 +163,18 @@ void SetupOptions (KOptions& Options, Actions& Actions)
 
 	Options.RegisterOption("log", "need pathname for output log", [&](KStringViewZ sPath)
 	{
-		KLog().SetDebugLog (sPath);
+		if (!KLog().SetDebugLog (sPath))
+		{
+			KErr.Format ("klog: error setting local debug log to {}.\n", sPath);
+		}
 	});
 
 	Options.RegisterOption("flag", "need pathname for debug flag", [&](KStringViewZ sPath)
 	{
-		KLog().SetDebugFlag (sPath);
+		if (!KLog().SetDebugFlag (sPath))
+		{
+			KErr.Format ("klog: error setting local debug flag to {}.\n", sPath);
+		}
 	});
 
 	Options.RegisterCommand("f,follow", [&]()
@@ -192,6 +223,29 @@ void SetupOptions (KOptions& Options, Actions& Actions)
 		SetLevel(1);
 	});
 
+	Options.RegisterCommand("get", [&]()
+	{
+		KErr.Format ("{}\n", KLog().GetLevel());
+	});
+
+	Options.RegisterCommand("getlog", [&]()
+	{
+		KErr.Format ("{}\n", KLog().GetDebugLog());
+	});
+
+	Options.RegisterCommand("setlog", "missing argument", [&](KStringViewZ sPath)
+	{
+		if (KLog().SetDebugLog (sPath))
+		{
+			KErr.Format ("klog: set new debug log to {} - ", sPath);
+			Persist();
+		}
+		else
+		{
+			KErr.Format ("klog: error setting new debug log to {}.\n", sPath);
+		}
+	});
+
 	Options.RegisterCommand("set", "missing argument", [&](KStringViewZ sArg)
 	{
 		SetLevel(sArg.UInt16());
@@ -216,6 +270,10 @@ void SetupOptions (KOptions& Options, Actions& Actions)
 int main (int argc, char* argv[])
 //-----------------------------------------------------------------------------
 {
+	// we have to act as a SERVER, as otherwise we would not read the
+	// flag file for the current settings..
+	KLog().SetMode(KLog::SERVER);
+
 	Actions Actions;
 	KOptions Options(true);
 	SetupOptions (Options, Actions);

@@ -44,6 +44,10 @@
 #include "klog.h"
 #include <algorithm>
 
+#ifdef DEKAF2_IS_WINDOWS
+	#include <io.h>
+#endif
+
 namespace dekaf2 {
 
 //-----------------------------------------------------------------------------
@@ -303,7 +307,11 @@ std::istream::int_type KBufferedFileReader::Fill()
 	if (!m_bEOF)
 	{
 
+#ifdef DEKAF2_IS_WINDOWS
+		iRead = read(m_fd, m_buffer.get(), static_cast<unsigned int>(m_Arena.iBufferSize));
+#else
 		iRead = read(m_fd, m_buffer.get(), m_Arena.iBufferSize);
+#endif
 
 		if (iRead < 0)
 		{
@@ -360,7 +368,11 @@ KStringView KBufferedFileReader::ReadMore(size_t iSize)
 
 	ssize_t iRead;
 
+#ifdef DEKAF2_IS_WINDOWS
+	iRead = read(m_fd, m_buffer.get() + len, static_cast<unsigned int>(iWant));
+#else
 	iRead = read(m_fd, m_buffer.get() + len, iWant);
+#endif
 
 	if (iRead < 0)
 	{

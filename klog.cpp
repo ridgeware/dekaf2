@@ -919,7 +919,6 @@ bool KLog::IntDebug(int level, KStringView sFunction, KStringView sMessage)
 
 	// we need a lock if we run in multithreading, as the serializers
 	// have data members
-	static std::recursive_mutex s_LogMutex;
 	std::lock_guard<std::recursive_mutex> Lock(s_LogMutex);
 
 	m_Serializer->Set(level, m_sShortName, m_sPathName, sFunction, sMessage);
@@ -981,7 +980,6 @@ void KLog::trace_json()
 
 	// we need a lock if we run in multithreading, as the serializers
 	// have data members
-	static std::recursive_mutex s_LogMutex;
 	std::lock_guard<std::recursive_mutex> Lock(s_LogMutex);
 
 	// we can protect the recursion without a mutex, as we

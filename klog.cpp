@@ -923,8 +923,6 @@ bool KLog::IntDebug(int iLevel, KStringView sFunction, KStringView sMessage)
 
 	m_Serializer->Set(iLevel, m_sShortName, m_sPathName, sFunction, sMessage);
 
-	static bool s_bBackTraceAlreadyCalled = false;
-
 	if (iLevel <= m_iBackTrace)
 	{
 		// we can protect the recursion without a mutex, as we

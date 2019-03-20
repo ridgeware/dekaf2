@@ -45,7 +45,7 @@
 	#ifdef NDEBUG
 		#define JSON_THROW(exception) { throw exception; }
 	#else
-		#define JSON_THROW(exception) { kDebugTrace("JSON exception"); throw exception; }
+		#define JSON_THROW(exception) { kDebugJSONTrace(); throw exception; }
 	#endif
     #define JSON_TRY try
     #define JSON_CATCH(exception) catch(exception)
@@ -54,7 +54,7 @@
 	#ifdef NDEBUG
 		#define JSON_THROW(exception) { std::abort(); }
 	#else
-		#define JSON_THROW(exception) { kDebugTrace("JSON exception"); std::abort(); }
+		#define JSON_THROW(exception) { kDebugJSONTrace(); std::abort(); }
 	#endif
     #define JSON_TRY if(true)
     #define JSON_CATCH(exception) if(false)

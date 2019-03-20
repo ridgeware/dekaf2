@@ -272,10 +272,10 @@ bool KLogHTTPWriter::Write(int iLevel, bool bIsMultiline, const KString& sOut)
 #endif // of DEKAF2_KLOG_WITH_TCP
 
 //---------------------------------------------------------------------------
-void KLogData::Set(int level, KStringView sShortName, KStringView sPathName, KStringView sFunction, KStringView sMessage)
+void KLogData::Set(int iLevel, KStringView sShortName, KStringView sPathName, KStringView sFunction, KStringView sMessage)
 //---------------------------------------------------------------------------
 {
-	m_Level = level;
+	m_iLevel = iLevel;
 	m_Pid = kGetPid();
 	m_Tid = kGetTid();
 	m_Time = Dekaf().GetCurrentTime();
@@ -334,12 +334,12 @@ KLogSerializer::operator KStringView() const
 } // operator KStringView
 
 //---------------------------------------------------------------------------
-void KLogSerializer::Set(int level, KStringView sShortName, KStringView sPathName, KStringView sFunction, KStringView sMessage)
+void KLogSerializer::Set(int iLevel, KStringView sShortName, KStringView sPathName, KStringView sFunction, KStringView sMessage)
 //---------------------------------------------------------------------------
 {
 	m_sBuffer.clear();
 	m_bIsMultiline = false;
-	KLogData::Set(level, sShortName, sPathName, sFunction, sMessage);
+	KLogData::Set(iLevel, sShortName, sPathName, sFunction, sMessage);
 
 } // Set
 
@@ -394,13 +394,13 @@ void KLogTTYSerializer::Serialize() const
 
 	KString sLevel;
 
-	if (m_Level < 0)
+	if (m_iLevel < 0)
 	{
 		sLevel = "WAR";
 	}
 	else
 	{
-		sLevel.Format("DB{}", m_Level > 3 ? 3 : m_Level);
+		sLevel.Format("DB{}", m_iLevel > 3 ? 3 : m_iLevel);
 	}
 
 	KString sPrefix;
@@ -412,7 +412,7 @@ void KLogTTYSerializer::Serialize() const
 
 	if (!m_sFunctionName.empty())
 	{
-		if (m_Level < 0)
+		if (m_iLevel < 0)
 		{
 			// print the full function signature only if this is a warning or exception
 			sPrefix += m_sFunctionName;
@@ -449,7 +449,7 @@ void KLogJSONSerializer::Serialize() const
 	                  + m_sMessage.size()
 	                  + 50);
 	KJSON json;
-	json["level"] = m_Level;
+	json["level"] = m_iLevel;
 	json["pid"] = m_Pid;
 	json["tid"] = m_Tid;
 	json["time_t"] = m_Time;
@@ -903,7 +903,7 @@ void KLog::CheckDebugFlag(bool bForce/*=false*/)
 } // CheckDebugFlag
 
 //---------------------------------------------------------------------------
-bool KLog::IntDebug(int level, KStringView sFunction, KStringView sMessage)
+bool KLog::IntDebug(int iLevel, KStringView sFunction, KStringView sMessage)
 //---------------------------------------------------------------------------
 {
 	// Moving this check to the first place helps avoiding
@@ -921,9 +921,11 @@ bool KLog::IntDebug(int level, KStringView sFunction, KStringView sMessage)
 	// have data members
 	std::lock_guard<std::recursive_mutex> Lock(s_LogMutex);
 
-	m_Serializer->Set(level, m_sShortName, m_sPathName, sFunction, sMessage);
+	m_Serializer->Set(iLevel, m_sShortName, m_sPathName, sFunction, sMessage);
 
-	if (level <= m_iBackTrace)
+	static bool s_bBackTraceAlreadyCalled = false;
+
+	if (iLevel <= m_iBackTrace)
 	{
 		// we can protect the recursion without a mutex, as we
 		// are already protected by a mutex..
@@ -931,7 +933,7 @@ bool KLog::IntDebug(int level, KStringView sFunction, KStringView sMessage)
 		{
 			s_bBackTraceAlreadyCalled = true;
 			int iSkipFromStack{4};
-			if (level == -2)
+			if (iLevel == -2)
 			{
 				// for exceptions we have to peel off one more stack frame
 				// (it is of course a brittle expectation of level == -2 == exception,
@@ -942,11 +944,11 @@ bool KLog::IntDebug(int level, KStringView sFunction, KStringView sMessage)
 			m_Serializer->SetBacktrace(sStack);
 			s_bBackTraceAlreadyCalled = false;
 
-			return m_Logger->Write(level, m_Serializer->IsMultiline(), m_Serializer->Get());
+			return m_Logger->Write(iLevel, m_Serializer->IsMultiline(), m_Serializer->Get());
 		}
 	}
 
-	return m_Logger->Write(level, m_Serializer->IsMultiline(), m_Serializer->Get());
+	return m_Logger->Write(iLevel, m_Serializer->IsMultiline(), m_Serializer->Get());
 
 } // IntDebug
 
@@ -969,6 +971,7 @@ void KLog::IntException(KStringView sWhat, KStringView sFunction, KStringView sC
 
 } // IntException
 
+#if 0 // no longer used
 //---------------------------------------------------------------------------
 void KLog::trace_json()
 //---------------------------------------------------------------------------
@@ -1004,6 +1007,7 @@ void KLog::trace_json()
 	}
 
 } // trace_json()
+#endif
 
 #ifdef DEKAF2_REPEAT_CONSTEXPR_VARIABLE
 

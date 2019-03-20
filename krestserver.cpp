@@ -383,6 +383,11 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 					{
 						// parse the content into json.rx
 						KString sError;
+
+						// nobody wants stack traces in the klog when hackers throw crappy json (and attacks)
+						// at their rest server.  so we need to turn off stack traces while we attempt to
+						// parse incoming json from the wire:
+						bool bResetFlag = KLog().ShowStackOnJsonError (false);
 						if (!kjson::Parse(json.rx, sBuffer, sError))
 						{
 							kDebugLog (3, "KREST: request body is not JSON: {}", sError);
@@ -396,6 +401,11 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 						{
 							kDebugLog (3, "KREST: request body successfully parsed as JSON");
 						}
+
+						// after we are done parsing the incoming json from the wire,
+						// restore stack traces for failures in the json that application may
+						// form while processing a request:
+						KLog().ShowStackOnJsonError (bResetFlag);
 					}
 				}
 				else if (Route.Parser == KRESTRoute::XML)

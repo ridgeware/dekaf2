@@ -195,23 +195,23 @@ class KLogData
 //----------
 public:
 //----------
-	KLogData(int level = 0,
+	KLogData(int iLevel = 0,
 	         KStringView sShortName = KStringView{},
 	         KStringView sPathName  = KStringView{},
 	         KStringView sFunction  = KStringView{},
 	         KStringView sMessage   = KStringView{})
 	{
-		Set(level, sShortName, sPathName, sFunction, sMessage);
+		Set(iLevel, sShortName, sPathName, sFunction, sMessage);
 	}
 
-	void Set(int level, KStringView sShortName, KStringView sPathName, KStringView sFunction, KStringView sMessage);
+	void Set(int iLevel, KStringView sShortName, KStringView sPathName, KStringView sFunction, KStringView sMessage);
 	void SetBacktrace(KStringView sBacktrace)
 	{
 		m_sBacktrace = sBacktrace;
 	}
 	int GetLevel() const
 	{
-		return m_Level;
+		return m_iLevel;
 	}
 
 //----------
@@ -219,7 +219,7 @@ protected:
 //----------
 	static KStringView SanitizeFunctionName(KStringView sFunction);
 
-	int         m_Level;
+	int         m_iLevel;
 	pid_t       m_Pid;
 	uint64_t    m_Tid; // tid is 64 bit on OSX
 	time_t      m_Time;
@@ -244,7 +244,7 @@ public:
 	virtual ~KLogSerializer() {}
 	const KString& Get() const;
 	virtual operator KStringView() const;
-	void Set(int level, KStringView sShortName, KStringView sPathName, KStringView sFunction, KStringView sMessage);
+	void Set(int iLevel, KStringView sShortName, KStringView sPathName, KStringView sFunction, KStringView sMessage);
 	bool IsMultiline() const { return m_bIsMultiline; }
 
 //----------
@@ -502,25 +502,27 @@ public:
 	//---------------------------------------------------------------------------
 	/// this function is deprecated - use kDebug() instead!
 	template<class... Args>
-	inline bool debug(int level, Args&&... args)
+	inline bool debug(int iLevel, Args&&... args)
 	//---------------------------------------------------------------------------
 	{
-		return (DEKAF2_LIKELY(level > s_kLogLevel)) || IntDebug(level, KStringView(), kFormat(std::forward<Args>(args)...));
+		return (DEKAF2_LIKELY(iLevel > s_kLogLevel)) || IntDebug(iLevel, KStringView(), kFormat(std::forward<Args>(args)...));
 	}
 
 	//---------------------------------------------------------------------------
 	/// this function is deprecated - use kDebug() instead!
 	template<class... Args>
-	inline bool debug_fun(int level, KStringView sFunction, Args&&... args)
+	inline bool debug_fun(int iLevel, KStringView sFunction, Args&&... args)
 	//---------------------------------------------------------------------------
 	{
-		return (DEKAF2_LIKELY(level > s_kLogLevel)) || IntDebug(level, sFunction, kFormat(std::forward<Args>(args)...));
+		return (DEKAF2_LIKELY(iLevel > s_kLogLevel)) || IntDebug(iLevel, sFunction, kFormat(std::forward<Args>(args)...));
 	}
 
+	#if 0 // no longer used
 	//---------------------------------------------------------------------------
 	/// use kDebugTraceJSON instead..
 	void trace_json();
 	//---------------------------------------------------------------------------
+	#endif
 
 	//---------------------------------------------------------------------------
 	/// Logs a warning. Takes any arguments that can be formatted through the
@@ -560,11 +562,25 @@ public:
 	/// if changed
 	void CheckDebugFlag (bool bForce=false);
 
+	/// indicates whether or not to show stack as klog warnings when JSON parse fails
+	inline bool ShouldShowStackOnJsonError()
+	{
+		return m_bShouldShowStackOnJsonError;
+	}
+
+	/// set whether or not to show stack as klog warnings when JSON parse fails
+	inline bool ShowStackOnJsonError (bool bNewValue)
+	{
+		bool bOldValue = m_bShouldShowStackOnJsonError;
+		m_bShouldShowStackOnJsonError = bNewValue;
+		return bOldValue;
+	};
+
 //----------
 private:
 //----------
 
-	bool IntDebug (int level, KStringView sFunction, KStringView sMessage);
+	bool IntDebug (int iLevel, KStringView sFunction, KStringView sMessage);
 	void IntException (KStringView sWhat, KStringView sFunction, KStringView sClass);
 	bool IntOpenLog ();
 
@@ -580,6 +596,7 @@ private:
 	static std::recursive_mutex s_LogMutex;
 	static bool s_bBackTraceAlreadyCalled;
 	LOGMODE m_Logmode { CLI };
+	bool m_bShouldShowStackOnJsonError{true};
 
 }; // KLog
 
@@ -607,11 +624,11 @@ KLog& KLog();
 #endif
 //---------------------------------------------------------------------------
 /// log a debug message, automatically provide function name.
-#define kDebug(level, ...) \
+#define kDebug(iLevel, ...) \
 { \
-	if (DEKAF2_UNLIKELY(level <= dekaf2::KLog::s_kLogLevel)) \
+	if (DEKAF2_UNLIKELY(iLevel <= dekaf2::KLog::s_kLogLevel)) \
 	{ \
-		dekaf2::KLog().debug_fun(level, DEKAF2_FUNCTION_NAME, __VA_ARGS__); \
+		dekaf2::KLog().debug_fun(iLevel, DEKAF2_FUNCTION_NAME, __VA_ARGS__); \
 	} \
 }
 //---------------------------------------------------------------------------
@@ -621,11 +638,11 @@ KLog& KLog();
 #endif
 //---------------------------------------------------------------------------
 /// log a debug message, do NOT automatically provide function name.
-#define kDebugLog(level, ...) \
+#define kDebugLog(iLevel, ...) \
 { \
-	if (DEKAF2_UNLIKELY(level <= dekaf2::KLog::s_kLogLevel)) \
+	if (DEKAF2_UNLIKELY(iLevel <= dekaf2::KLog::s_kLogLevel)) \
 	{ \
-		dekaf2::KLog().debug(level, __VA_ARGS__); \
+		dekaf2::KLog().debug(iLevel, __VA_ARGS__); \
 	} \
 }
 //---------------------------------------------------------------------------
@@ -686,14 +703,17 @@ KLog& KLog();
 }
 //---------------------------------------------------------------------------
 
-#ifdef kDebugJSONTrace
-#undef kDebugJSONTrace
+#ifdef kJSONTrace
+#undef kJSONTrace
 #endif
 //---------------------------------------------------------------------------
-/// force a stack trace, automatically provide function name.
-#define kDebugJSONTrace() \
+/// special stack dump handling just for KJSON (nlohmann)
+#define kJSONTrace() \
 { \
-	dekaf2::KLog().trace_json(); \
+	if (dekaf2::KLog().ShouldShowStackOnJsonError()) \
+	{ \
+		dekaf2::KLog().debug_fun(-2, DEKAF2_FUNCTION_NAME, "JSON Exception"); \
+	} \
 }
 //---------------------------------------------------------------------------
 
@@ -702,7 +722,7 @@ KLog& KLog();
 #endif
 //---------------------------------------------------------------------------
 /// test if a given log level would create output
-#define kWouldLog(level) (DEKAF2_UNLIKELY(level <= dekaf2::KLog::s_kLogLevel))
+#define kWouldLog(iLevel) (DEKAF2_UNLIKELY(iLevel <= dekaf2::KLog::s_kLogLevel))
 //---------------------------------------------------------------------------
 
 

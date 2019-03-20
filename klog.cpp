@@ -67,6 +67,18 @@
 namespace dekaf2
 {
 
+constexpr KStringViewZ s_sEnvLog      = "DEKAFLOG";
+constexpr KStringViewZ s_sEnvFlag     = "DEKAFDBG";
+constexpr KStringViewZ s_sEnvTrace    = "DEKAFTRC";
+constexpr KStringViewZ s_sEnvLevel    = "DEKAFLEV";
+
+constexpr KStringViewZ s_sLogName     = "dekaf.log";
+constexpr KStringViewZ s_sFlagName    = "dekaf.dbg";
+
+KString s_sDefaultLog;
+KString s_sDefaultFlag;
+KString s_sTempDir;
+
 //---------------------------------------------------------------------------
 KLogWriter::~KLogWriter()
 //---------------------------------------------------------------------------
@@ -552,20 +564,50 @@ KLog::KLog()
 //---------------------------------------------------------------------------
 	// if we do not start up in CGI mode, per default we log into stdout
 	: m_bIsCGI       (!kGetEnv(KCGIInStream::REQUEST_METHOD).empty())
-	, m_sLogName     (kGetEnv(s_sEnvLog, m_bIsCGI ? s_sDefaultLog : STDOUT))
-    , m_sFlagfile    (kGetEnv(s_sEnvFlag, s_sDefaultFlag))
+	, m_sLogName     (kGetEnv(s_sEnvLog, m_bIsCGI ? "" : STDOUT))
+	, m_sFlagfile    (kGetEnv(s_sEnvFlag))
 #ifdef NDEBUG
     , m_iBackTrace   (kGetEnv(s_sEnvTrace, "-3").Int16())
 #else
     , m_iBackTrace   (kGetEnv(s_sEnvTrace, "-2").Int16())
 #endif
 	, m_Logmode      (m_bIsCGI ? SERVER : CLI)
+
 {
 #ifdef NDEBUG
 	s_kLogLevel = kGetEnv(s_sEnvLevel, "-1").Int16();
 #else
 	s_kLogLevel = kGetEnv(s_sEnvLevel, "0").Int16();
 #endif
+
+	// find temp directory (which differs among systems and OSs)
+#ifdef DEKAF2_IS_OSX
+	// we do not want the /var/folders/wy/lz00g9_s27b2nmyfc52pjrjh0000gn/T - style temp dir on the Mac
+	s_sTempDir = "/tmp";
+#else
+	s_sTempDir = kGetTemp();
+#endif
+
+	// construct default name for log file
+	s_sDefaultLog = s_sTempDir;
+	s_sDefaultLog += kDirSep;
+	s_sDefaultLog += s_sLogName;
+
+	// construct default name for flag file
+	s_sDefaultFlag = s_sTempDir;
+	s_sDefaultFlag += kDirSep;
+	s_sDefaultFlag += s_sFlagName;
+
+	if (m_sLogName.empty())
+	{
+		m_sLogName = s_sDefaultLog;
+	}
+
+	if (m_sFlagfile.empty())
+	{
+		m_sFlagfile = s_sDefaultFlag;
+	}
+
 	m_sPathName =  Dekaf().GetProgPath();
 	m_sPathName += '/';
 	m_sPathName += Dekaf().GetProgName();
@@ -923,9 +965,12 @@ void KLog::CheckDebugFlag(bool bForce/*=false*/)
 bool KLog::IntDebug(int level, KStringView sFunction, KStringView sMessage)
 //---------------------------------------------------------------------------
 {
-	// moving this check to the first place helps avoiding
+	// Moving this check to the first place helps avoiding
 	// static deinitialization races with static instances of classes that will
-	// output to KLog in their destructor
+	// output to KLog in their destructor.
+	// It also allows to call functions with potential KLog output in the
+	// constructor of KLog, because the Logger and Serializer is only set at
+	// the end of construction. Until then, logging is disabled.
 	if (!m_Logger || !m_Serializer)
 	{
 		return false;
@@ -994,13 +1039,6 @@ constexpr KStringViewZ KLog::SYSLOG;
 constexpr KStringViewZ KLog::DBAR;
 constexpr KStringViewZ KLog::BAR;
 constexpr KStringViewZ KLog::DASH;
-
-constexpr KStringViewZ KLog::s_sEnvLog;
-constexpr KStringViewZ KLog::s_sEnvFlag;
-constexpr KStringViewZ KLog::s_sEnvTrace;
-constexpr KStringViewZ KLog::s_sEnvLevel;
-constexpr KStringViewZ KLog::s_sDefaultLog;
-constexpr KStringViewZ KLog::s_sDefaultFlag;
 
 #endif
 

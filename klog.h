@@ -573,13 +573,6 @@ private:
 	std::unique_ptr<KLogWriter> m_Logger;
 	LOGMODE m_Logmode { CLI };
 
-	static constexpr KStringViewZ s_sEnvLog      = "DEKAFLOG";
-	static constexpr KStringViewZ s_sEnvFlag     = "DEKAFDBG";
-	static constexpr KStringViewZ s_sEnvTrace    = "DEKAFTRC";
-	static constexpr KStringViewZ s_sEnvLevel    = "DEKAFLEV";
-	static constexpr KStringViewZ s_sDefaultLog  = "/tmp/dekaf.log";
-	static constexpr KStringViewZ s_sDefaultFlag = "/tmp/dekaf.dbg";
-
 }; // KLog
 
 //---------------------------------------------------------------------------

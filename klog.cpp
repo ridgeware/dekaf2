@@ -79,6 +79,9 @@ KString s_sDefaultLog;
 KString s_sDefaultFlag;
 KString s_sTempDir;
 
+std::recursive_mutex KLog::s_LogMutex;
+bool KLog::s_bBackTraceAlreadyCalled = false ;
+
 //---------------------------------------------------------------------------
 KLogWriter::~KLogWriter()
 //---------------------------------------------------------------------------
@@ -419,69 +422,7 @@ void KLogTTYSerializer::Serialize() const
 		{
 			// print shortened function name only, no signature
 			// - this is an intentional debug message that does not need the full signature
-			KStringView sFunctionName = m_sFunctionName;
-			auto iSig = sFunctionName.find('(');
-			if (iSig != KStringView::npos)
-			{
-				sFunctionName.erase(iSig);
-				// now scan back until first space, but take care to skip template types (<xyz<abc> >)
-				uint16_t iTLevel { 0 };
-				KStringView::size_type iTStart { 0 };
-				KStringView::size_type iTEnd { 0 };
-				bool bFound { false };
-				while (iSig && !bFound)
-				{
-					switch (sFunctionName[--iSig])
-					{
-						case '<':
-							if (iTLevel)
-							{
-								--iTLevel;
-								if (!iTLevel && iTEnd)
-								{
-									iTStart = iSig;
-								}
-							}
-							break;
-
-						case '>':
-							if (!iTLevel && !iTStart)
-							{
-								iTEnd = iSig;
-							}
-							++iTLevel;
-							break;
-
-						case ' ':
-							if (!iTLevel)
-							{
-								++iSig;
-								bFound = true;
-								// this ends the while loop
-							}
-							break;
-
-					}
-				}
-
-				auto pos = sFunctionName.find("dekaf2::", iSig);
-				if (pos != KStringView::npos)
-				{
-					iSig = pos + 8;
-				}
-
-				if (iTStart && iTEnd)
-				{
-					sPrefix += sFunctionName.Mid(iSig, iTStart - iSig);
-					sFunctionName.remove_prefix(iTEnd + 1);
-				}
-				else
-				{
-					sFunctionName.remove_prefix(iSig);
-				}
-			}
-			
-			sPrefix += sFunctionName;
+			sPrefix += kNormalizeFunctionName(m_sFunctionName);
 			sPrefix += "(): ";
 		}
 	}
@@ -978,12 +919,10 @@ bool KLog::IntDebug(int level, KStringView sFunction, KStringView sMessage)
 
 	// we need a lock if we run in multithreading, as the serializers
 	// have data members
-	static std::recursive_mutex mutex;
-	std::lock_guard<std::recursive_mutex> Lock(mutex);
+	static std::recursive_mutex s_LogMutex;
+	std::lock_guard<std::recursive_mutex> Lock(s_LogMutex);
 
 	m_Serializer->Set(level, m_sShortName, m_sPathName, sFunction, sMessage);
-
-	static bool s_bBackTraceAlreadyCalled = false;
 
 	if (level <= m_iBackTrace)
 	{
@@ -1030,6 +969,43 @@ void KLog::IntException(KStringView sWhat, KStringView sFunction, KStringView sC
 	}
 
 } // IntException
+
+//---------------------------------------------------------------------------
+void KLog::trace_json()
+//---------------------------------------------------------------------------
+{
+	if (!m_Logger || !m_Serializer)
+	{
+		return;
+	}
+
+	// we need a lock if we run in multithreading, as the serializers
+	// have data members
+	static std::recursive_mutex s_LogMutex;
+	std::lock_guard<std::recursive_mutex> Lock(s_LogMutex);
+
+	// we can protect the recursion without a mutex, as we
+	// are already protected by a mutex..
+	if (!s_bBackTraceAlreadyCalled)
+	{
+		s_bBackTraceAlreadyCalled = true;
+		auto Frame = kFilterTrace(5, "parser.hpp,json_sax.hpp,json.hpp,krow.cpp,to_json.hpp,from_json.hpp,adl_serializer.hpp,krow.h,kjson.hpp,kjson.cpp");
+		s_bBackTraceAlreadyCalled = false;
+		auto sFunction = kNormalizeFunctionName(Frame.sFunction);
+		if (!sFunction.empty())
+		{
+			sFunction += "()";
+		}
+		KString sFile = "JSON exception at ";
+		sFile += Frame.sFile;
+		sFile += ':';
+		sFile += Frame.sLineNumber;
+		m_Serializer->Set(-2, m_sShortName, m_sPathName, sFunction, sFile);
+
+		m_Logger->Write(-2, m_Serializer->IsMultiline(), m_Serializer->Get());
+	}
+
+} // trace_json()
 
 #ifdef DEKAF2_REPEAT_CONSTEXPR_VARIABLE
 

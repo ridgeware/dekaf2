@@ -46,6 +46,7 @@
 /// Logging framework
 
 #include <exception>
+#include <mutex>
 #include "kstring.h"
 #include "kstream.h"
 #include "kformat.h"
@@ -517,6 +518,11 @@ public:
 	}
 
 	//---------------------------------------------------------------------------
+	/// use kDebugTraceJSON instead..
+	void trace_json();
+	//---------------------------------------------------------------------------
+
+	//---------------------------------------------------------------------------
 	/// Logs a warning. Takes any arguments that can be formatted through the
 	/// standard formatter of the library. A warning is a debug message with
 	/// level -1.
@@ -571,6 +577,8 @@ private:
 	time_t m_sTimestampFlagfile{0};
 	std::unique_ptr<KLogSerializer> m_Serializer;
 	std::unique_ptr<KLogWriter> m_Logger;
+	static std::recursive_mutex s_LogMutex;
+	static bool s_bBackTraceAlreadyCalled;
 	LOGMODE m_Logmode { CLI };
 
 }; // KLog
@@ -675,6 +683,17 @@ KLog& KLog();
 #define kDebugTrace(...) \
 { \
 	dekaf2::KLog().debug_fun(-2, DEKAF2_FUNCTION_NAME, __VA_ARGS__); \
+}
+//---------------------------------------------------------------------------
+
+#ifdef kDebugJSONTrace
+#undef kDebugJSONTrace
+#endif
+//---------------------------------------------------------------------------
+/// force a stack trace, automatically provide function name.
+#define kDebugJSONTrace() \
+{ \
+	dekaf2::KLog().trace_json(); \
 }
 //---------------------------------------------------------------------------
 

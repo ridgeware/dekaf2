@@ -33,6 +33,9 @@ TEST_CASE("KString") {
 		}
 	}
 
+/*
+ * This blows up log output with a trace. Only test on request.
+ *
 	SECTION("Exception safety of KString")
 	{
 		KString s("12345");
@@ -48,6 +51,7 @@ TEST_CASE("KString") {
 		KString s3(s, 30, 10);
 		CHECK ( s3 == "" );
 	}
+*/
 
 	SECTION("Replace on KString")
 	{

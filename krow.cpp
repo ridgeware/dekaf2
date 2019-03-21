@@ -496,19 +496,33 @@ KJSON KROW::to_json (uint64_t iFlags/*=0*/) const
 		{
 			// large integers > 53 bits have no representation in JSON and need to
 			// be stored as string values..
-			json[sKey] = col.second.sValue; // FIX ME !!!!
+			json[sKey] = col.second.sValue;
 
-			// TODO: Joachim: we need to solved this "large int" problem in KJSON/LJSON
+			// JK: we need to solved this "large int" problem in KJSON/LJSON
 			// Almost all the integer fields in the database that we care about (or compute)
 			// are being serialized as strings in JSON.
 			// Client-side JavaScript (i.e. UI code) is treating them as strings.
 			// Operations like "+" and "+=" end up doing string concatenation instead of math.
 			// Can we fix Lohmann's datatypes or some such?
-			// Maybe we need to reach out to him personally.
-			// We con consider a consulting fee for him if necessary.
+
+			// JS: No, this is not a problem in nlohmann::json but in JavaScript itself.
+			// JSON can support 64 bit integers. If we were to support only other C++
+			// or Java or Python clients, then we could support 64 bit data.
+			// BUT:
+			// The MAX_SAFE_INTEGER constant of JavaScript has a value of 9007199254740991.
+			// The reasoning behind that number is that JavaScript uses double-precision
+			// floating-point format numbers as specified in IEEE 754 and can only safely
+			// represent numbers between -(2^53 - 1) and 2^53 - 1.
+			//
+			// Please see this SO topic (and skip the first, bad, reply):
+			// https://stackoverflow.com/questions/209869/what-is-the-accepted-way-to-send-64-bit-values-over-json
+			//
+			// This is why we have to convert 64 bit integers into strings.
 		}
 		else if (col.second.IsFlag(NUMERIC))
 		{
+			// TODO get a strategy as to how to and if to adapt to locales with other chars than . as the
+			// decimal separator
 			if (col.second.sValue.Contains('.'))
 			{
 				json[sKey] = col.second.sValue.Double();
@@ -516,7 +530,7 @@ KJSON KROW::to_json (uint64_t iFlags/*=0*/) const
 			// note: we need to split out signed and unsigned to avoid overflows on some platforms
 			// when the string represents a really large number (like an FNV hash):
 			// signed integer overflow: 1063188930240168165 * 10 cannot be represented in type 'long int'
-			else if (col.second.sValue.StartsWith("-"))
+			else if (col.second.sValue.front() == '-')
 			{
 				json[sKey] = col.second.sValue.Int64();
 			}

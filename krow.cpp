@@ -430,32 +430,35 @@ bool KROW::FormDelete (KString& sSQL, DBT iDBType) const
 bool KROW::AddCol (KStringView sColName, const KJSON& Value, KCOL::Flags iFlags, KCOL::Len iMaxLen)
 //-----------------------------------------------------------------------------
 {
+	// make sure all type flags are removed
+	iFlags &= MODE_FLAGS;
+
 	if (Value.is_object() || Value.is_array())
 	{
-		return AddCol(sColName, Value.dump(-1), iFlags ? iFlags : static_cast<uint16_t>(JSON), iMaxLen);
+		return AddCol(sColName, Value.dump(-1), iFlags | JSON, iMaxLen);
 	}
 	else if (Value.is_string())
 	{
-		return AddCol(sColName, Value.get<KJSON::string_t>(), iFlags, iMaxLen);
+		return AddCol(sColName, Value.get<KJSON::string_t>(), iFlags | NOFLAG, iMaxLen);
 	}
 	else if (Value.is_number())
 	{
 		if (Value.is_number_float())
 		{
-			return AddCol(sColName, Value.get<KJSON::number_float_t>(), iFlags ? iFlags : static_cast<uint16_t>(NUMERIC), iMaxLen);
+			return AddCol(sColName, Value.get<KJSON::number_float_t>(), iFlags | NUMERIC, iMaxLen);
 		}
 		else
 		{
-			return AddCol(sColName, Value.get<KJSON::number_integer_t>(), iFlags ? iFlags : static_cast<uint16_t>(NUMERIC), iMaxLen);
+			return AddCol(sColName, Value.get<KJSON::number_integer_t>(), iFlags | NUMERIC, iMaxLen);
 		}
 	}
 	else if (Value.is_boolean())
 	{
-		return AddCol(sColName, Value.get<KJSON::boolean_t>(), iFlags ? iFlags : static_cast<uint16_t>(BOOLEAN), iMaxLen);
+		return AddCol(sColName, Value.get<KJSON::boolean_t>(), iFlags | BOOLEAN, iMaxLen);
 	}
 	else if (Value.is_null())
 	{
-		return AddCol(sColName, "", iFlags ? iFlags : static_cast<uint16_t>(JSON), iMaxLen);
+		return AddCol(sColName, "", iFlags | JSON, iMaxLen);
 	}
 	else
 	{

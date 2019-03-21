@@ -71,6 +71,7 @@ constexpr KStringViewZ s_sEnvLog      = "DEKAFLOG";
 constexpr KStringViewZ s_sEnvFlag     = "DEKAFDBG";
 constexpr KStringViewZ s_sEnvTrace    = "DEKAFTRC";
 constexpr KStringViewZ s_sEnvLevel    = "DEKAFLEV";
+constexpr KStringViewZ s_sJSONTrace   = "DEKAFJSONTRACE";
 
 constexpr KStringViewZ s_sLogName     = "dekaf.log";
 constexpr KStringViewZ s_sFlagName    = "dekaf.dbg";
@@ -80,7 +81,16 @@ KString s_sDefaultFlag;
 KString s_sTempDir;
 
 std::recursive_mutex KLog::s_LogMutex;
-bool KLog::s_bBackTraceAlreadyCalled = false ;
+bool KLog::s_bBackTraceAlreadyCalled { false };
+#ifdef NDEBUG
+// per default JSON stack traces are switched off in release mode
+// but they can be switched on by env var "DEKAFJSONTRACE"
+bool KLog::s_bGlobalShouldShowStackOnJsonError { false };
+#else
+bool KLog::s_bGlobalShouldShowStackOnJsonError { true };
+#endif
+bool KLog::s_bGlobalShouldOnlyShowCallerOnJsonError { false };
+thread_local bool KLog::s_bShouldShowStackOnJsonError { true };
 
 //---------------------------------------------------------------------------
 KLogWriter::~KLogWriter()
@@ -520,6 +530,24 @@ KLog::KLog()
 #else
 	s_kLogLevel = kGetEnv(s_sEnvLevel, "0").Int16();
 #endif
+
+	auto sJSONTrace = kGetEnv(s_sJSONTrace);
+	if (!sJSONTrace.empty())
+	{
+		if (sJSONTrace.In("OFF,off,FALSE,false,NO,no,0"))
+		{
+			s_bGlobalShouldShowStackOnJsonError = false;
+		}
+		else
+		{
+			s_bGlobalShouldShowStackOnJsonError = true;
+
+			if (sJSONTrace.In("CALLER,caller,SHORT,short"))
+			{
+				s_bGlobalShouldOnlyShowCallerOnJsonError = true;
+			}
+		}
+	}
 
 	// find temp directory (which differs among systems and OSs)
 #ifdef DEKAF2_IS_OSX
@@ -969,9 +997,13 @@ void KLog::IntException(KStringView sWhat, KStringView sFunction, KStringView sC
 
 } // IntException
 
-#if 0 // no longer used
 //---------------------------------------------------------------------------
-void KLog::trace_json()
+// This was originally written to print the caller of throwing JSON code.
+// For JSON, the configuration would be:
+// iSkipStackLines = 5
+// sSkipFiles = "parser.hpp,json_sax.hpp,json.hpp,krow.cpp,to_json.hpp,from_json.hpp,adl_serializer.hpp,krow.h,kjson.hpp,kjson.cpp"
+// sMessage = "JSON exception"
+void KLog::TraceDownCaller(int iSkipStackLines, KStringView sSkipFiles, KStringView sMessage)
 //---------------------------------------------------------------------------
 {
 	if (!m_Logger || !m_Serializer)
@@ -988,24 +1020,45 @@ void KLog::trace_json()
 	if (!s_bBackTraceAlreadyCalled)
 	{
 		s_bBackTraceAlreadyCalled = true;
-		auto Frame = kFilterTrace(5, "parser.hpp,json_sax.hpp,json.hpp,krow.cpp,to_json.hpp,from_json.hpp,adl_serializer.hpp,krow.h,kjson.hpp,kjson.cpp");
+		auto Frame = kFilterTrace(iSkipStackLines, sSkipFiles);
 		s_bBackTraceAlreadyCalled = false;
 		auto sFunction = kNormalizeFunctionName(Frame.sFunction);
 		if (!sFunction.empty())
 		{
 			sFunction += "()";
 		}
-		KString sFile = "JSON exception at ";
+		KString sFile = sMessage;
+		sFile += " at ";
 		sFile += Frame.sFile;
 		sFile += ':';
 		sFile += Frame.sLineNumber;
-		m_Serializer->Set(-2, m_sShortName, m_sPathName, sFunction, sFile);
 
+		m_Serializer->Set(-2, m_sShortName, m_sPathName, sFunction, sFile);
 		m_Logger->Write(-2, m_Serializer->IsMultiline(), m_Serializer->Get());
 	}
 
-} // trace_json()
-#endif
+} // TraceDownCaller
+
+//---------------------------------------------------------------------------
+void KLog::JSONTrace(KStringView sFunction)
+//---------------------------------------------------------------------------
+{
+	if (s_bGlobalShouldShowStackOnJsonError && s_bShouldShowStackOnJsonError)
+	{
+		if (s_bGlobalShouldOnlyShowCallerOnJsonError)
+		{
+			static constexpr KStringView s_sJSONSkipFiles { "parser.hpp,json_sax.hpp,json.hpp,krow.cpp,"
+				               "to_json.hpp,from_json.hpp,adl_serializer.hpp,krow.h,kjson.hpp,kjson.cpp" };
+
+			TraceDownCaller(5, s_sJSONSkipFiles, "JSON Exception");
+		}
+		else
+		{
+			IntDebug(-2, sFunction, "JSON Exception");
+		}
+	}
+
+} // JSONTrace
 
 #ifdef DEKAF2_REPEAT_CONSTEXPR_VARIABLE
 

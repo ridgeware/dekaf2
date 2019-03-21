@@ -517,12 +517,10 @@ public:
 		return (DEKAF2_LIKELY(iLevel > s_kLogLevel)) || IntDebug(iLevel, sFunction, kFormat(std::forward<Args>(args)...));
 	}
 
-	#if 0 // no longer used
 	//---------------------------------------------------------------------------
-	/// use kDebugTraceJSON instead..
-	void trace_json();
+	/// print first frame from a file not in sSkipFiles (comma separated basenames)
+	void TraceDownCaller(int iSkipStackLines, KStringView sSkipFiles, KStringView sMessage);
 	//---------------------------------------------------------------------------
-	#endif
 
 	//---------------------------------------------------------------------------
 	/// Logs a warning. Takes any arguments that can be formatted through the
@@ -557,24 +555,41 @@ public:
 	// have it inlined
 	static int s_kLogLevel;
 
+	//---------------------------------------------------------------------------
 	/// Registered with Dekaf::AddToOneSecTimer() at construction, gets
 	/// called every second and reconfigures debug level, output, and format
 	/// if changed
 	void CheckDebugFlag (bool bForce=false);
+	//---------------------------------------------------------------------------
 
-	/// indicates whether or not to show stack as klog warnings when JSON parse fails
-	inline bool ShouldShowStackOnJsonError()
+	//---------------------------------------------------------------------------
+	/// set whether or not to show stack as klog warnings when JSON parse fails
+	/// - this is a thread local setting
+	bool ShowStackOnJsonError (bool bNewValue)
+	//---------------------------------------------------------------------------
 	{
-		return m_bShouldShowStackOnJsonError;
+		bool bOldValue = s_bShouldShowStackOnJsonError;
+		s_bShouldShowStackOnJsonError = bNewValue;
+		return bOldValue;
 	}
 
+	//---------------------------------------------------------------------------
 	/// set whether or not to show stack as klog warnings when JSON parse fails
-	inline bool ShowStackOnJsonError (bool bNewValue)
+	/// - this is a per-process setting
+	bool OnlyShowCallerOnJsonError (bool bNewValue)
+	//---------------------------------------------------------------------------
 	{
-		bool bOldValue = m_bShouldShowStackOnJsonError;
-		m_bShouldShowStackOnJsonError = bNewValue;
+		bool bOldValue = s_bGlobalShouldOnlyShowCallerOnJsonError;
+		s_bGlobalShouldOnlyShowCallerOnJsonError = bNewValue;
 		return bOldValue;
-	};
+	}
+
+	//---------------------------------------------------------------------------
+	/// Log either full trace or call place for JSON
+	void JSONTrace(KStringView sFunction);
+	//---------------------------------------------------------------------------
+
+	static KStringView s_sJSONSkipFiles;
 
 //----------
 private:
@@ -584,19 +599,22 @@ private:
 	void IntException (KStringView sWhat, KStringView sFunction, KStringView sClass);
 	bool IntOpenLog ();
 
+	static std::recursive_mutex s_LogMutex;
+	static bool s_bBackTraceAlreadyCalled;
+	static bool s_bGlobalShouldShowStackOnJsonError;
+	static bool s_bGlobalShouldOnlyShowCallerOnJsonError;
+	static thread_local bool s_bShouldShowStackOnJsonError;
+
 	bool m_bIsCGI { false }; // we need this bool on top for the constructor
 	KString m_sPathName;
 	KString m_sShortName;
 	KString m_sLogName;
 	KString m_sFlagfile;
 	int m_iBackTrace;
-	time_t m_sTimestampFlagfile{0};
+	time_t m_sTimestampFlagfile { 0 };
 	std::unique_ptr<KLogSerializer> m_Serializer;
 	std::unique_ptr<KLogWriter> m_Logger;
-	static std::recursive_mutex s_LogMutex;
-	static bool s_bBackTraceAlreadyCalled;
 	LOGMODE m_Logmode { CLI };
-	bool m_bShouldShowStackOnJsonError{true};
 
 }; // KLog
 
@@ -710,10 +728,18 @@ KLog& KLog();
 /// special stack dump handling just for KJSON (nlohmann)
 #define kJSONTrace() \
 { \
-	if (dekaf2::KLog().ShouldShowStackOnJsonError()) \
-	{ \
-		dekaf2::KLog().debug_fun(-2, DEKAF2_FUNCTION_NAME, "JSON Exception"); \
-	} \
+	dekaf2::KLog().JSONTrace(DEKAF2_FUNCTION_NAME); \
+}
+//---------------------------------------------------------------------------
+
+#ifdef kTraceDownCaller
+#undef kTraceDownCaller
+#endif
+//---------------------------------------------------------------------------
+/// print first frame from a file not in sSkipFiles (comma separated basenames)
+#define kTraceDownCaller(iSkipStackLines, sSkipFiles, sMessage) \
+{ \
+	dekaf2::KLog().TraceDownCaller(iSkipStackLines, sSkipFiles, sMessage); \
 }
 //---------------------------------------------------------------------------
 

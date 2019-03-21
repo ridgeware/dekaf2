@@ -388,6 +388,7 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 						// at their rest server.  so we need to turn off stack traces while we attempt to
 						// parse incoming json from the wire:
 						bool bResetFlag = KLog().ShowStackOnJsonError (false);
+
 						if (!kjson::Parse(json.rx, sBuffer, sError))
 						{
 							kDebugLog (3, "KREST: request body is not JSON: {}", sError);

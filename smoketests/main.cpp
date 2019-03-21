@@ -74,6 +74,7 @@ int main( int argc, char* const argv[] )
 	KLog().SetDebugFlag(".smoketest.dbg");
 	KLog().SetLevel(0);
 	KLog().SetDebugLog(KLog::STDOUT);
+	KLog().OnlyShowCallerOnJsonError(true);
 
 	signal (SIGILL,  &kCrashExit);
 	signal (SIGFPE,  &kCrashExit);

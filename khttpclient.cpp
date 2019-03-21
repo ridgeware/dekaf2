@@ -168,7 +168,21 @@ bool KHTTPClient::Resource(const KURL& url, KHTTPMethod method)
 	if (!url.Domain.empty())
 	{
 		// set the host header so that it overwrites a previously set one
-		RequestHeader(KHTTPHeaders::HOST, url.Domain.Serialize(), true);
+		if (url.Port.empty()
+			|| (url.Protocol == url::KProtocol::HTTP  && url.Port ==  "80")
+			|| (url.Protocol == url::KProtocol::HTTPS && url.Port == "443"))
+		{
+			// domain alone is sufficient for standard ports
+			RequestHeader(KHTTPHeaders::HOST, url.Domain.Serialize(), true);
+		}
+		else
+		{
+			// build "domain:port"
+			KString sHost = url.Domain.Serialize();
+			sHost += ':';
+			sHost += url.Port.Serialize();
+			RequestHeader(KHTTPHeaders::HOST, sHost, true);
+		}
 	}
 
 	return true;

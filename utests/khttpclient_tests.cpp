@@ -78,7 +78,7 @@ TEST_CASE("KHTTPClient") {
 		if (server.m_rx.size() == 4)
 		{
 			CHECK( server.m_rx[0] == "GET /path?query=val&another=here HTTP/1.1" );
-			CHECK( server.m_rx[1] == "Host: 127.0.0.1");
+			CHECK( server.m_rx[1] == "Host: 127.0.0.1:7654");
 			CHECK( server.m_rx[2] == "Accept-Encoding: gzip");
 			CHECK( server.m_rx[3] == "");
 		}
@@ -109,7 +109,7 @@ TEST_CASE("KHTTPClient") {
 		if (server.m_rx.size() == 3)
 		{
 			CHECK( server.m_rx[0] == "GET /path?query=val&another=here HTTP/1.1" );
-			CHECK( server.m_rx[1] == "Host: 127.0.0.1");
+			CHECK( server.m_rx[1] == "Host: 127.0.0.1:7654");
 			CHECK( server.m_rx[2] == "");
 		}
 	}

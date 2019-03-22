@@ -102,19 +102,31 @@ size_t kRFind(
 namespace detail { namespace stringview {
 
 //-----------------------------------------------------------------------------
-size_t kFindFirstOfBool(
+size_t kFindFirstOfInt(
         KStringView haystack,
         KStringView needle,
-        size_t pos,
-        bool bNot);
+        size_t pos);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
-size_t kFindLastOfBool(
+size_t kFindFirstNotOfInt(
         KStringView haystack,
         KStringView needle,
-        size_t pos,
-        bool bNot);
+        size_t pos);
+//-----------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
+size_t kFindLastOfInt(
+        KStringView haystack,
+        KStringView needle,
+        size_t pos);
+//-----------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
+size_t kFindLastNotOfInt(
+        KStringView haystack,
+        KStringView needle,
+        size_t pos);
 //-----------------------------------------------------------------------------
 
 } } // end of namespace detail::stringview
@@ -1432,7 +1444,7 @@ size_t kFindFirstOf(
 //-----------------------------------------------------------------------------
 {
 #if defined(DEKAF2_USE_OPTIMIZED_STRING_FIND)
-	return detail::stringview::kFindFirstOfBool(haystack, needle, pos, false);
+	return detail::stringview::kFindFirstOfInt(haystack, needle, pos);
 #else
 	return static_cast<KStringView::rep_type>(haystack).find_first_of(needle, pos);
 #endif
@@ -1447,7 +1459,7 @@ size_t kFindFirstNotOf(
 //-----------------------------------------------------------------------------
 {
 #if defined(DEKAF2_USE_OPTIMIZED_STRING_FIND) || defined(DEKAF2_USE_FOLLY_STRINGPIECE_AS_KSTRINGVIEW)
-	return detail::stringview::kFindFirstOfBool(haystack, needle, pos, true);
+	return detail::stringview::kFindFirstNotOfInt(haystack, needle, pos);
 #else
 	return static_cast<KStringView::rep_type>(haystack).find_first_not_of(needle, pos);
 #endif
@@ -1462,7 +1474,7 @@ size_t kFindLastOf(
 //-----------------------------------------------------------------------------
 {
 #if defined(DEKAF2_USE_OPTIMIZED_STRING_FIND) || defined(DEKAF2_USE_FOLLY_STRINGPIECE_AS_KSTRINGVIEW)
-	return detail::stringview::kFindLastOfBool(haystack, needle, pos, false);
+	return detail::stringview::kFindLastOfInt(haystack, needle, pos);
 #else
 	return static_cast<KStringView::rep_type>(haystack).find_last_of(needle, pos);
 #endif
@@ -1477,7 +1489,7 @@ size_t kFindLastNotOf(
 //-----------------------------------------------------------------------------
 {
 #if defined(DEKAF2_USE_OPTIMIZED_STRING_FIND) || defined(DEKAF2_USE_FOLLY_STRINGPIECE_AS_KSTRINGVIEW)
-	return detail::stringview::kFindLastOfBool(haystack, needle, pos, true);
+	return detail::stringview::kFindLastNotOfInt(haystack, needle, pos);
 #else
 	return static_cast<KStringView::rep_type>(haystack).find_last_not_of(needle, pos);
 #endif

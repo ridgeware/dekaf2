@@ -229,14 +229,13 @@ size_t kRFind(
 namespace detail { namespace stringview {
 
 //-----------------------------------------------------------------------------
-size_t kFindFirstOfBool(
+size_t kFindFirstOfInt(
         KStringView haystack,
         KStringView needle,
-        size_t pos,
-        bool bNot)
+        size_t pos)
 //-----------------------------------------------------------------------------
 {
-	if (DEKAF2_UNLIKELY(!bNot && needle.size() == 1))
+	if (DEKAF2_UNLIKELY(needle.size() == 1))
 	{
 		return kFind(haystack, needle[0], pos);
 	}
@@ -257,34 +256,19 @@ size_t kFindFirstOfBool(
 	if (DEKAF2_LIKELY(has_sse42))
 #endif
 	{
-		if (DEKAF2_UNLIKELY(bNot))
+		auto result = detail::kFindFirstOfSSE(haystack, needle);
+		if (DEKAF2_LIKELY(result == KStringView::npos || pos == 0))
 		{
-			auto result = detail::kFindFirstNotOfSSE(haystack, needle);
-			if (DEKAF2_LIKELY(result == KStringView::npos || pos == 0))
-			{
-				return result;
-			}
-			else
-			{
-				return result + pos;
-			}
+			return result;
 		}
 		else
 		{
-			auto result = detail::kFindFirstOfSSE(haystack, needle);
-			if (DEKAF2_LIKELY(result == KStringView::npos || pos == 0))
-			{
-				return result;
-			}
-			else
-			{
-				return result + pos;
-			}
+			return result + pos;
 		}
 	}
 #endif
 
-	auto result = detail::kFindFirstOfNoSSE(haystack, needle, bNot);
+	auto result = detail::kFindFirstOfNoSSE(haystack, needle, false);
 	if (DEKAF2_LIKELY(result == KStringView::npos || pos == 0))
 	{
 		return result;
@@ -297,14 +281,60 @@ size_t kFindFirstOfBool(
 }
 
 //-----------------------------------------------------------------------------
-size_t kFindLastOfBool(
+size_t kFindFirstNotOfInt(
         KStringView haystack,
         KStringView needle,
-        size_t pos,
-        bool bNot)
+        size_t pos)
 //-----------------------------------------------------------------------------
 {
-	if (DEKAF2_UNLIKELY(!bNot && needle.size() == 1))
+	if (DEKAF2_UNLIKELY(pos >= haystack.size()))
+	{
+		return KStringView::npos;
+	}
+
+	if (DEKAF2_UNLIKELY(pos > 0))
+	{
+		haystack.remove_prefix(pos);
+	}
+
+#ifdef DEKAF2_X86_64
+#ifdef DEKAF2_HAS_MINIFOLLY
+	static bool has_sse42 = Dekaf().GetCpuId().sse42();
+	if (DEKAF2_LIKELY(has_sse42))
+#endif
+	{
+		auto result = detail::kFindFirstNotOfSSE(haystack, needle);
+		if (DEKAF2_LIKELY(result == KStringView::npos || pos == 0))
+		{
+			return result;
+		}
+		else
+		{
+			return result + pos;
+		}
+	}
+#endif
+
+	auto result = detail::kFindFirstOfNoSSE(haystack, needle, true);
+	if (DEKAF2_LIKELY(result == KStringView::npos || pos == 0))
+	{
+		return result;
+	}
+	else
+	{
+		return result + pos;
+	}
+
+}
+
+//-----------------------------------------------------------------------------
+size_t kFindLastOfInt(
+        KStringView haystack,
+        KStringView needle,
+        size_t pos)
+//-----------------------------------------------------------------------------
+{
+	if (DEKAF2_UNLIKELY(needle.size() == 1))
 	{
 		return kRFind(haystack, needle[0], pos);
 	}
@@ -328,18 +358,45 @@ size_t kFindLastOfBool(
 	if (DEKAF2_LIKELY(has_sse42))
 #endif
 	{
-		if (DEKAF2_UNLIKELY(bNot))
-		{
-			return detail::kFindLastNotOfSSE(haystack, needle);
-		}
-		else
-		{
-			return detail::kFindLastOfSSE(haystack, needle);
-		}
+		return detail::kFindLastOfSSE(haystack, needle);
 	}
 #endif
 
-	return detail::kFindLastOfNoSSE(haystack, needle, bNot);
+	return detail::kFindLastOfNoSSE(haystack, needle, false);
+
+}
+
+//-----------------------------------------------------------------------------
+size_t kFindLastNotOfInt(
+        KStringView haystack,
+        KStringView needle,
+        size_t pos)
+//-----------------------------------------------------------------------------
+{
+	if (DEKAF2_UNLIKELY(haystack.empty()))
+	{
+		return KStringView::npos;
+	}
+
+	if (DEKAF2_UNLIKELY(pos != KStringView::npos))
+	{
+		if (pos < haystack.size() - 1)
+		{
+			haystack.remove_suffix((haystack.size() - 1) - pos);
+		}
+	}
+
+#ifdef DEKAF2_X86_64
+#ifdef DEKAF2_HAS_MINIFOLLY
+	static bool has_sse42 = Dekaf().GetCpuId().sse42();
+	if (DEKAF2_LIKELY(has_sse42))
+#endif
+	{
+		return detail::kFindLastNotOfSSE(haystack, needle);
+	}
+#endif
+
+	return detail::kFindLastOfNoSSE(haystack, needle, true);
 
 }
 

@@ -1336,7 +1336,7 @@ uint16_t KSystemStats::PushStats (KStringView sURL, KStringView sMyUniqueIP, KSt
 		KString sEncValue;
 		kUrlEncode(sValue.ToView(), sEncValue);
 		KString sPair;
-		sPair.Format ("&{}:{:<1}={}", it.first, StatTypeToString(it.second.type), sEncValue);
+		sPair.Format ("&{}:{:.1}={}", it.first, StatTypeToString(it.second.type), sEncValue);
 		sPostData += sPair;
 	}
 

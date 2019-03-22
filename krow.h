@@ -237,7 +237,7 @@ public:
 		m_sTablename = sTablename;
 	}
 
-	bool AddCol (KStringView sColName, const KJSON& Value, KCOL::Flags iFlags=JSON, KCOL::Len iMaxLen=0);
+	bool AddCol (KStringView sColName, const KJSON& Value, KCOL::Flags iFlags=NOFLAG, KCOL::Len iMaxLen=0);
 
 	bool AddCol (KStringView sColName, bool Value, KCOL::Flags iFlags=BOOLEAN, KCOL::Len iMaxLen=0)
 	{
@@ -366,7 +366,10 @@ public:
 		INT64NUMERIC     = 1 << 8,   ///< Indicates given column is a NUMERIC, but would overflow in JSON - NUMERIC is also always set when this flag is true
 
 		KEYS_TO_LOWER    = 1 << 9,   ///< Used in to_json to map json keys to lowercase in the event that columns are mixed
-		KEYS_TO_UPPER    = 1 << 10   ///< Used in to_json to map json keys to uppercase in the event that columns are mixed
+		KEYS_TO_UPPER    = 1 << 10,  ///< Used in to_json to map json keys to uppercase in the event that columns are mixed
+
+		TYPE_FLAGS       = NUMERIC | BOOLEAN | JSON | INT64NUMERIC,
+		MODE_FLAGS       = PKEY | NONCOLUMN | EXPRESSION | INSERTONLY | NULL_IS_NOT_NIL,
 
 		// keep list of flags in synch with KROW::FlagsToString() helper function
 	};

@@ -55,6 +55,7 @@ constexpr KStringView g_Synopsis[] = {
 	"klog -- command line interface to DEKAF2 logging features (aka 'the KLOG')",
 	" ",
 	"usage: klog [...]",
+	"",
 	"  -log <localpath>  : override the default path for: {LOG} (readonly)",
 	"  -flag <localpath> : override the default path for: {FLAG}",
 	"  f | follow        : 'follow' feature (continuous output as log grows). ^C to break.",

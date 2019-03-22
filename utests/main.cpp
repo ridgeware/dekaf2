@@ -55,6 +55,7 @@ int main( int argc, char* const argv[] )
 {
 	dekaf2::kInit("DEKAF", "", "", false, true, false);
 	KLog().SetDebugFlag("/tmp/unittest.dbg");
+	KLog().OnlyShowCallerOnJsonError(true);
 
 	bool bSynopsis{false};
 	int  iLast{0};

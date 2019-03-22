@@ -340,6 +340,79 @@ KString GetBacktraceBased_Callstack_ (int iSkipStackLines)
 #endif
 
 //-----------------------------------------------------------------------------
+KString kNormalizeFunctionName(KStringView sFunctionName)
+//-----------------------------------------------------------------------------
+{
+	KString sReturn;
+
+	auto iSig = sFunctionName.find('(');
+	if (iSig != KStringView::npos)
+	{
+		sFunctionName.erase(iSig);
+		// now scan back until first space, but take care to skip template types (<xyz<abc> >)
+		uint16_t iTLevel { 0 };
+		KStringView::size_type iTStart { 0 };
+		KStringView::size_type iTEnd { 0 };
+		bool bFound { false };
+		while (iSig && !bFound)
+		{
+			switch (sFunctionName[--iSig])
+			{
+				case '<':
+					if (iTLevel)
+					{
+						--iTLevel;
+						if (!iTLevel && iTEnd)
+						{
+							iTStart = iSig;
+						}
+					}
+					break;
+
+				case '>':
+					if (!iTLevel && !iTStart)
+					{
+						iTEnd = iSig;
+					}
+					++iTLevel;
+					break;
+
+				case ' ':
+					if (!iTLevel)
+					{
+						++iSig;
+						bFound = true;
+						// this ends the while loop
+					}
+					break;
+
+			}
+		}
+
+		auto pos = sFunctionName.find("dekaf2::", iSig);
+		if (pos != KStringView::npos)
+		{
+			iSig = pos + 8;
+		}
+
+		if (iTStart && iTEnd)
+		{
+			sReturn = sFunctionName.Mid(iSig, iTStart - iSig);
+			sFunctionName.remove_prefix(iTEnd + 1);
+		}
+		else
+		{
+			sFunctionName.remove_prefix(iSig);
+		}
+	}
+
+	sReturn += sFunctionName;
+
+	return sReturn;
+
+} // kNormalizeFunctionName
+
+//-----------------------------------------------------------------------------
 KString kGetRuntimeStack (int iSkipStackLines /*=2*/)
 //-----------------------------------------------------------------------------
 {
@@ -395,6 +468,75 @@ KString kGetBacktrace (int iSkipStackLines /*=2*/)
 	return sStack;
 
 } // kGetRuntimeStack
+
+//-----------------------------------------------------------------------------
+KStackFrame kFilterTrace (int iSkipStackLines, KStringView sSkipFiles)
+//-----------------------------------------------------------------------------
+{
+	KString sStack = kGetBacktrace(iSkipStackLines);
+
+	std::vector <KStringView> List;
+	kSplit (List, sStack, "\n");
+
+	for (auto it : List)
+	{
+#ifdef DEKAF2_IS_OSX
+		// parse atos-output
+		// isolate filename
+		if (!it.empty() && it.back() == ')')
+		{
+			auto pos = it.rfind('(');
+			if (pos != KStringView::npos)
+			{
+				++pos;
+				auto sFileAndLine = it.substr(pos, it.size()-(pos+1));
+#elif DEKAF2_IS_UNIX
+		// parse addr2line output
+		// isolate filename
+		if (!it.empty())
+		{
+			auto pos = it.rfind('/');
+			if (pos == KStringView::npos)
+			{
+				pos = it.rfind(" at ");
+				if (pos != KStringView::npos)
+				{
+					pos += 3;
+				}
+			}
+			if (pos != KStringView::npos)
+			{
+				++pos;
+				auto end = it.find(' ', pos);
+				if (end == KStringView::npos)
+				{
+					end = it.size();
+				}
+				auto sFileAndLine = it.substr(pos, end - pos);
+#else
+		{
+			{
+				break;
+#endif
+				auto sFile = sFileAndLine;
+				auto sLine = sFileAndLine;
+				pos = sFile.find(':');
+				if (pos != KStringView::npos)
+				{
+					sLine.remove_prefix(pos + 1);
+					sFile.remove_suffix(sFile.size() - pos);
+				}
+				if (!sFile.In(sSkipFiles))
+				{
+					return { it, sFile, sLine };
+				}
+			}
+		}
+	}
+
+	return {};
+
+} // kFilterTrace
 
 } // of namespace dekaf2
 

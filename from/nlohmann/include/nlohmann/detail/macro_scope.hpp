@@ -42,12 +42,12 @@
 
 // allow to disable exceptions
 #if (defined(__cpp_exceptions) || defined(__EXCEPTIONS) || defined(_CPPUNWIND)) && !defined(JSON_NOEXCEPTION)
-    #define JSON_THROW(exception) { kDebugTrace("JSON exception"); throw exception; }
+	#define JSON_THROW(exception) { kJSONTrace(); throw exception; }
     #define JSON_TRY try
     #define JSON_CATCH(exception) catch(exception)
     #define JSON_INTERNAL_CATCH(exception) catch(exception)
 #else
-    #define JSON_THROW(exception) { kDebugTrace("JSON exception"); std::abort(); }
+	#define JSON_THROW(exception) { kJSONTrace(); std::abort(); }
     #define JSON_TRY if(true)
     #define JSON_CATCH(exception) if(false)
     #define JSON_INTERNAL_CATCH(exception) if(false)

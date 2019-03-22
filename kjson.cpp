@@ -75,15 +75,13 @@ void SetStringFromUTF8orLatin1(KJSON& json, KStringView sInput)
 	}
 	else
 	{
-		KString sUTF8;
+		auto& sUTF8 = json.get_ref<KString&>();
 		sUTF8.reserve(sInput.size());
 
 		for (auto ch : sInput)
 		{
 			Unicode::ToUTF8(ch, sUTF8);
 		}
-
-		json = sUTF8;
 	}
 
 } // SetStringFromUTF8orLatin1

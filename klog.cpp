@@ -67,6 +67,31 @@
 namespace dekaf2
 {
 
+constexpr KStringViewZ s_sEnvLog      = "DEKAFLOG";
+constexpr KStringViewZ s_sEnvFlag     = "DEKAFDBG";
+constexpr KStringViewZ s_sEnvTrace    = "DEKAFTRC";
+constexpr KStringViewZ s_sEnvLevel    = "DEKAFLEV";
+constexpr KStringViewZ s_sJSONTrace   = "DEKAFJSONTRACE";
+
+constexpr KStringViewZ s_sLogName     = "dekaf.log";
+constexpr KStringViewZ s_sFlagName    = "dekaf.dbg";
+
+KString s_sDefaultLog;
+KString s_sDefaultFlag;
+KString s_sTempDir;
+
+std::recursive_mutex KLog::s_LogMutex;
+bool KLog::s_bBackTraceAlreadyCalled { false };
+#ifdef NDEBUG
+// per default JSON stack traces are switched off in release mode
+// but they can be switched on by env var "DEKAFJSONTRACE"
+bool KLog::s_bGlobalShouldShowStackOnJsonError { false };
+#else
+bool KLog::s_bGlobalShouldShowStackOnJsonError { true };
+#endif
+bool KLog::s_bGlobalShouldOnlyShowCallerOnJsonError { false };
+thread_local bool KLog::s_bShouldShowStackOnJsonError { true };
+
 //---------------------------------------------------------------------------
 KLogWriter::~KLogWriter()
 //---------------------------------------------------------------------------
@@ -257,10 +282,10 @@ bool KLogHTTPWriter::Write(int iLevel, bool bIsMultiline, const KString& sOut)
 #endif // of DEKAF2_KLOG_WITH_TCP
 
 //---------------------------------------------------------------------------
-void KLogData::Set(int level, KStringView sShortName, KStringView sPathName, KStringView sFunction, KStringView sMessage)
+void KLogData::Set(int iLevel, KStringView sShortName, KStringView sPathName, KStringView sFunction, KStringView sMessage)
 //---------------------------------------------------------------------------
 {
-	m_Level = level;
+	m_iLevel = iLevel;
 	m_Pid = kGetPid();
 	m_Tid = kGetTid();
 	m_Time = Dekaf().GetCurrentTime();
@@ -319,12 +344,12 @@ KLogSerializer::operator KStringView() const
 } // operator KStringView
 
 //---------------------------------------------------------------------------
-void KLogSerializer::Set(int level, KStringView sShortName, KStringView sPathName, KStringView sFunction, KStringView sMessage)
+void KLogSerializer::Set(int iLevel, KStringView sShortName, KStringView sPathName, KStringView sFunction, KStringView sMessage)
 //---------------------------------------------------------------------------
 {
 	m_sBuffer.clear();
 	m_bIsMultiline = false;
-	KLogData::Set(level, sShortName, sPathName, sFunction, sMessage);
+	KLogData::Set(iLevel, sShortName, sPathName, sFunction, sMessage);
 
 } // Set
 
@@ -379,13 +404,13 @@ void KLogTTYSerializer::Serialize() const
 
 	KString sLevel;
 
-	if (m_Level < 0)
+	if (m_iLevel < 0)
 	{
 		sLevel = "WAR";
 	}
 	else
 	{
-		sLevel.Format("DB{}", m_Level > 3 ? 3 : m_Level);
+		sLevel.Format("DB{}", m_iLevel > 3 ? 3 : m_iLevel);
 	}
 
 	KString sPrefix;
@@ -397,7 +422,7 @@ void KLogTTYSerializer::Serialize() const
 
 	if (!m_sFunctionName.empty())
 	{
-		if (m_Level < 0)
+		if (m_iLevel < 0)
 		{
 			// print the full function signature only if this is a warning or exception
 			sPrefix += m_sFunctionName;
@@ -407,69 +432,7 @@ void KLogTTYSerializer::Serialize() const
 		{
 			// print shortened function name only, no signature
 			// - this is an intentional debug message that does not need the full signature
-			KStringView sFunctionName = m_sFunctionName;
-			auto iSig = sFunctionName.find('(');
-			if (iSig != KStringView::npos)
-			{
-				sFunctionName.erase(iSig);
-				// now scan back until first space, but take care to skip template types (<xyz<abc> >)
-				uint16_t iTLevel { 0 };
-				KStringView::size_type iTStart { 0 };
-				KStringView::size_type iTEnd { 0 };
-				bool bFound { false };
-				while (iSig && !bFound)
-				{
-					switch (sFunctionName[--iSig])
-					{
-						case '<':
-							if (iTLevel)
-							{
-								--iTLevel;
-								if (!iTLevel && iTEnd)
-								{
-									iTStart = iSig;
-								}
-							}
-							break;
-
-						case '>':
-							if (!iTLevel && !iTStart)
-							{
-								iTEnd = iSig;
-							}
-							++iTLevel;
-							break;
-
-						case ' ':
-							if (!iTLevel)
-							{
-								++iSig;
-								bFound = true;
-								// this ends the while loop
-							}
-							break;
-
-					}
-				}
-
-				auto pos = sFunctionName.find("dekaf2::", iSig);
-				if (pos != KStringView::npos)
-				{
-					iSig = pos + 8;
-				}
-
-				if (iTStart && iTEnd)
-				{
-					sPrefix += sFunctionName.Mid(iSig, iTStart - iSig);
-					sFunctionName.remove_prefix(iTEnd + 1);
-				}
-				else
-				{
-					sFunctionName.remove_prefix(iSig);
-				}
-			}
-			
-			sPrefix += sFunctionName;
+			sPrefix += kNormalizeFunctionName(m_sFunctionName);
 			sPrefix += "(): ";
 		}
 	}
@@ -496,7 +459,7 @@ void KLogJSONSerializer::Serialize() const
 	                  + m_sMessage.size()
 	                  + 50);
 	KJSON json;
-	json["level"] = m_Level;
+	json["level"] = m_iLevel;
 	json["pid"] = m_Pid;
 	json["tid"] = m_Tid;
 	json["time_t"] = m_Time;
@@ -552,20 +515,68 @@ KLog::KLog()
 //---------------------------------------------------------------------------
 	// if we do not start up in CGI mode, per default we log into stdout
 	: m_bIsCGI       (!kGetEnv(KCGIInStream::REQUEST_METHOD).empty())
-	, m_sLogName     (kGetEnv(s_sEnvLog, m_bIsCGI ? s_sDefaultLog : STDOUT))
-    , m_sFlagfile    (kGetEnv(s_sEnvFlag, s_sDefaultFlag))
+	, m_sLogName     (kGetEnv(s_sEnvLog, m_bIsCGI ? "" : STDOUT))
+	, m_sFlagfile    (kGetEnv(s_sEnvFlag))
 #ifdef NDEBUG
     , m_iBackTrace   (kGetEnv(s_sEnvTrace, "-3").Int16())
 #else
     , m_iBackTrace   (kGetEnv(s_sEnvTrace, "-2").Int16())
 #endif
 	, m_Logmode      (m_bIsCGI ? SERVER : CLI)
+
 {
 #ifdef NDEBUG
 	s_kLogLevel = kGetEnv(s_sEnvLevel, "-1").Int16();
 #else
 	s_kLogLevel = kGetEnv(s_sEnvLevel, "0").Int16();
 #endif
+
+	auto sJSONTrace = kGetEnv(s_sJSONTrace);
+	if (!sJSONTrace.empty())
+	{
+		if (sJSONTrace.In("OFF,off,FALSE,false,NO,no,0"))
+		{
+			s_bGlobalShouldShowStackOnJsonError = false;
+		}
+		else
+		{
+			s_bGlobalShouldShowStackOnJsonError = true;
+
+			if (sJSONTrace.In("CALLER,caller,SHORT,short"))
+			{
+				s_bGlobalShouldOnlyShowCallerOnJsonError = true;
+			}
+		}
+	}
+
+	// find temp directory (which differs among systems and OSs)
+#ifdef DEKAF2_IS_OSX
+	// we do not want the /var/folders/wy/lz00g9_s27b2nmyfc52pjrjh0000gn/T - style temp dir on the Mac
+	s_sTempDir = "/tmp";
+#else
+	s_sTempDir = kGetTemp();
+#endif
+
+	// construct default name for log file
+	s_sDefaultLog = s_sTempDir;
+	s_sDefaultLog += kDirSep;
+	s_sDefaultLog += s_sLogName;
+
+	// construct default name for flag file
+	s_sDefaultFlag = s_sTempDir;
+	s_sDefaultFlag += kDirSep;
+	s_sDefaultFlag += s_sFlagName;
+
+	if (m_sLogName.empty())
+	{
+		m_sLogName = s_sDefaultLog;
+	}
+
+	if (m_sFlagfile.empty())
+	{
+		m_sFlagfile = s_sDefaultFlag;
+	}
+
 	m_sPathName =  Dekaf().GetProgPath();
 	m_sPathName += '/';
 	m_sPathName += Dekaf().GetProgName();
@@ -920,12 +931,15 @@ void KLog::CheckDebugFlag(bool bForce/*=false*/)
 } // CheckDebugFlag
 
 //---------------------------------------------------------------------------
-bool KLog::IntDebug(int level, KStringView sFunction, KStringView sMessage)
+bool KLog::IntDebug(int iLevel, KStringView sFunction, KStringView sMessage)
 //---------------------------------------------------------------------------
 {
-	// moving this check to the first place helps avoiding
+	// Moving this check to the first place helps avoiding
 	// static deinitialization races with static instances of classes that will
-	// output to KLog in their destructor
+	// output to KLog in their destructor.
+	// It also allows to call functions with potential KLog output in the
+	// constructor of KLog, because the Logger and Serializer is only set at
+	// the end of construction. Until then, logging is disabled.
 	if (!m_Logger || !m_Serializer)
 	{
 		return false;
@@ -933,14 +947,11 @@ bool KLog::IntDebug(int level, KStringView sFunction, KStringView sMessage)
 
 	// we need a lock if we run in multithreading, as the serializers
 	// have data members
-	static std::recursive_mutex mutex;
-	std::lock_guard<std::recursive_mutex> Lock(mutex);
+	std::lock_guard<std::recursive_mutex> Lock(s_LogMutex);
 
-	m_Serializer->Set(level, m_sShortName, m_sPathName, sFunction, sMessage);
+	m_Serializer->Set(iLevel, m_sShortName, m_sPathName, sFunction, sMessage);
 
-	static bool s_bBackTraceAlreadyCalled = false;
-
-	if (level <= m_iBackTrace)
+	if (iLevel <= m_iBackTrace)
 	{
 		// we can protect the recursion without a mutex, as we
 		// are already protected by a mutex..
@@ -948,7 +959,7 @@ bool KLog::IntDebug(int level, KStringView sFunction, KStringView sMessage)
 		{
 			s_bBackTraceAlreadyCalled = true;
 			int iSkipFromStack{4};
-			if (level == -2)
+			if (iLevel == -2)
 			{
 				// for exceptions we have to peel off one more stack frame
 				// (it is of course a brittle expectation of level == -2 == exception,
@@ -959,11 +970,11 @@ bool KLog::IntDebug(int level, KStringView sFunction, KStringView sMessage)
 			m_Serializer->SetBacktrace(sStack);
 			s_bBackTraceAlreadyCalled = false;
 
-			return m_Logger->Write(level, m_Serializer->IsMultiline(), m_Serializer->Get());
+			return m_Logger->Write(iLevel, m_Serializer->IsMultiline(), m_Serializer->Get());
 		}
 	}
 
-	return m_Logger->Write(level, m_Serializer->IsMultiline(), m_Serializer->Get());
+	return m_Logger->Write(iLevel, m_Serializer->IsMultiline(), m_Serializer->Get());
 
 } // IntDebug
 
@@ -986,6 +997,69 @@ void KLog::IntException(KStringView sWhat, KStringView sFunction, KStringView sC
 
 } // IntException
 
+//---------------------------------------------------------------------------
+// This was originally written to print the caller of throwing JSON code.
+// For JSON, the configuration would be:
+// iSkipStackLines = 5
+// sSkipFiles = "parser.hpp,json_sax.hpp,json.hpp,krow.cpp,to_json.hpp,from_json.hpp,adl_serializer.hpp,krow.h,kjson.hpp,kjson.cpp"
+// sMessage = "JSON exception"
+void KLog::TraceDownCaller(int iSkipStackLines, KStringView sSkipFiles, KStringView sMessage)
+//---------------------------------------------------------------------------
+{
+	if (!m_Logger || !m_Serializer)
+	{
+		return;
+	}
+
+	// we need a lock if we run in multithreading, as the serializers
+	// have data members
+	std::lock_guard<std::recursive_mutex> Lock(s_LogMutex);
+
+	// we can protect the recursion without a mutex, as we
+	// are already protected by a mutex..
+	if (!s_bBackTraceAlreadyCalled)
+	{
+		s_bBackTraceAlreadyCalled = true;
+		auto Frame = kFilterTrace(iSkipStackLines, sSkipFiles);
+		s_bBackTraceAlreadyCalled = false;
+		auto sFunction = kNormalizeFunctionName(Frame.sFunction);
+		if (!sFunction.empty())
+		{
+			sFunction += "()";
+		}
+		KString sFile = sMessage;
+		sFile += " at ";
+		sFile += Frame.sFile;
+		sFile += ':';
+		sFile += Frame.sLineNumber;
+
+		m_Serializer->Set(-2, m_sShortName, m_sPathName, sFunction, sFile);
+		m_Logger->Write(-2, m_Serializer->IsMultiline(), m_Serializer->Get());
+	}
+
+} // TraceDownCaller
+
+//---------------------------------------------------------------------------
+void KLog::JSONTrace(KStringView sFunction)
+//---------------------------------------------------------------------------
+{
+	if (s_bGlobalShouldShowStackOnJsonError && s_bShouldShowStackOnJsonError)
+	{
+		if (s_bGlobalShouldOnlyShowCallerOnJsonError)
+		{
+			static constexpr KStringView s_sJSONSkipFiles { "parser.hpp,json_sax.hpp,json.hpp,krow.cpp,"
+				               "to_json.hpp,from_json.hpp,adl_serializer.hpp,krow.h,kjson.hpp,kjson.cpp" };
+
+			TraceDownCaller(5, s_sJSONSkipFiles, "JSON Exception");
+		}
+		else
+		{
+			IntDebug(-2, sFunction, "JSON Exception");
+		}
+	}
+
+} // JSONTrace
+
 #ifdef DEKAF2_REPEAT_CONSTEXPR_VARIABLE
 
 constexpr KStringViewZ KLog::STDOUT;
@@ -994,13 +1068,6 @@ constexpr KStringViewZ KLog::SYSLOG;
 constexpr KStringViewZ KLog::DBAR;
 constexpr KStringViewZ KLog::BAR;
 constexpr KStringViewZ KLog::DASH;
-
-constexpr KStringViewZ KLog::s_sEnvLog;
-constexpr KStringViewZ KLog::s_sEnvFlag;
-constexpr KStringViewZ KLog::s_sEnvTrace;
-constexpr KStringViewZ KLog::s_sEnvLevel;
-constexpr KStringViewZ KLog::s_sDefaultLog;
-constexpr KStringViewZ KLog::s_sDefaultFlag;
 
 #endif
 

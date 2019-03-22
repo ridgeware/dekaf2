@@ -51,6 +51,9 @@
 namespace dekaf2
 {
 
+/// strips a fully qualified function name down to a minimum
+KString kNormalizeFunctionName(KStringView sFunctionName);
+
 /// get a full runtime stack trace (uses gdb if possible). The output
 /// of this function is as detailed as possible, and intended for crash
 /// situations.
@@ -64,5 +67,25 @@ KJSON kGetRuntimeStackJSON (int iSkipStackLines = 3);
 /// purposes during the runtime of the application.
 /// @param iSkipStackLines Number of top stack lines to drop. Defaults to 0.
 KString kGetBacktrace (int iSkipStackLines = 2);
+
+/// Struct to keep all details about one stack frame
+struct KStackFrame
+{
+	KStackFrame(KString _sFunction = {}, KString _sFile = {}, KString _sLineNumber = {})
+	: sFunction(std::move(_sFunction))
+	, sFile(std::move(_sFile))
+	, sLineNumber(std::move(_sLineNumber))
+	{
+	}
+
+	KString sFunction;
+	KString sFile;
+	KString sLineNumber;
+
+}; // KStackFrame
+
+/// get function name, filename and line number of the first stackframe that is not listed
+/// in sSkipFiles
+KStackFrame kFilterTrace (int iSkipStackLines, KStringView sSkipFiles);
 
 }

@@ -579,7 +579,10 @@ size_t kFindLastNotOfNeedles16(
 
 //-----------------------------------------------------------------------------
 // Scans a 16-byte block of haystack (starting at blockStartIdx) to find first
-// needle.
+// needle. If HAYSTACK_ALIGNED, then haystack must be 16byte aligned.
+// If !HAYSTACK_ALIGNED, then caller must ensure that it is safe to load the
+// block.
+template <bool HAYSTACK_ALIGNED>
 #ifdef NDEBUG
 DEKAF2_ALWAYS_INLINE
 #else
@@ -591,45 +594,40 @@ size_t scanHaystackBlock(
         size_t blockStartIdx)
 //-----------------------------------------------------------------------------
 {
-	// Calculate these once
-	//size_t haystackSize = haystack.size();
-	//size_t needleSize = needles.size();
-	const char * needleData = needles.data();
-	int useSize = std::min(16, static_cast<int>(haystack.size() - blockStartIdx));
+	__m128i arr1;
 
-	__m128i arr1 = _mm_lddqu_si128(reinterpret_cast<const __m128i*>(haystack.data() + blockStartIdx));
-
-	// This load is safe because needles.size() >= 16
-	__m128i arr2;
-	// Need to set b once before looping
-	int b = 16;
-	int j = needles.size() - 16;
-	for (; j > 0; j -= 16)
+	if (HAYSTACK_ALIGNED)
 	{
-		arr2 = _mm_lddqu_si128(reinterpret_cast<const __m128i*>(needleData + j));
-
-		auto index = _mm_cmpestri(
-		                 arr2, 16,
-		                 arr1, useSize,
-		                 0);
-		b = std::min(index, b); // with inline more efficient than if block
+		arr1 = _mm_load_si128(reinterpret_cast<const __m128i*>(haystack.data() + blockStartIdx));
+	}
+	else
+	{
+		arr1 = _mm_lddqu_si128(reinterpret_cast<const __m128i*>(haystack.data() + blockStartIdx));
 	}
 
-	arr2 = _mm_lddqu_si128(reinterpret_cast<const __m128i*>(needleData));
+	// factoring this out and adding the min to 16 makes a big difference, nearly twice the speed
+	int useSize = std::min(16, static_cast<int>(haystack.size() - blockStartIdx));
 
-	auto index = _mm_cmpestri(
-	                 arr2, 16,
-	                 arr1, useSize,
-	                 0);
-	b = std::min(index, b);
+	// This load is safe because needles.size() >= 16
+	auto arr2 = _mm_lddqu_si128(reinterpret_cast<const __m128i*>(needles.data()));
+	auto b = _mm_cmpestri(arr2, 16, arr1, useSize, 0);
 
-	if (b < useSize) {
-		return blockStartIdx + static_cast<size_t>(b);
+	size_t j = nextAlignedIndex(needles.data());
+	for (; j < needles.size(); j += 16)
+	{
+		arr2 = _mm_load_si128(reinterpret_cast<const __m128i*>(needles.data() + j));
+		auto index = _mm_cmpestri(arr2, needles.size() - j, arr1, useSize, 0);
+		b = std::min(index, b);
+	}
+
+	if (b < useSize)
+	{
+		return blockStartIdx + b;
 	}
 
 	return KStringView::npos;
 
-}
+} // scanHaystackBlock
 
 //-----------------------------------------------------------------------------
 #ifdef NDEBUG
@@ -875,6 +873,33 @@ size_t kFindFirstOfSSE(
 		// the common case of needles.size() <= 16
 		return kFindFirstOfNeedles16(haystack, needles);
 	}
+
+	if (haystack.size() < 16
+		&& page_for(haystack.end() - 1) != page_for(haystack.data() + 16))
+	{
+		// We can't safely SSE-load haystack. Use a different approach.
+		return kFindFirstOfNoSSE(haystack, needles, false);
+	}
+
+	auto ret = scanHaystackBlock<false>(haystack, needles, 0);
+	if (ret != KStringView::npos)
+	{
+		return ret;
+	}
+
+	size_t i = nextAlignedIndex(haystack.data());
+	for (; i < haystack.size(); i += 16)
+	{
+		ret = scanHaystackBlock<true>(haystack, needles, i);
+		if (ret != std::string::npos)
+		{
+			return ret;
+		}
+	}
+
+	return KStringView::npos;
+/*
+
 	size_t haystackSize = haystack.size();
 	for (size_t i = 0; i < haystackSize; i += 16)
 	{
@@ -886,6 +911,7 @@ size_t kFindFirstOfSSE(
 	}
 
 	return KStringView::npos;
+ */
 }
 
 //-----------------------------------------------------------------------------

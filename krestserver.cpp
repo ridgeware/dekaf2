@@ -79,6 +79,100 @@ KRESTRoute::KRESTRoute(KHTTPMethod _Method, KStringView _sRoute, RESTCallback _C
 } // KRESTRoute
 
 //-----------------------------------------------------------------------------
+bool KRESTRoute::Matches(const KRESTPath& Path, Parameters& Params, bool bCompareMethods) const
+//-----------------------------------------------------------------------------
+{
+	if (!bCompareMethods || Method.empty() || Method == Path.Method)
+	{
+		if (!bHasParameters && !bHasWildCardFragment)
+		{
+			if (DEKAF2_UNLIKELY(bHasWildCardAtEnd))
+			{
+				// this is a plain route with a wildcard at the end
+				if (DEKAF2_UNLIKELY(Path.sRoute.starts_with(sRoute)))
+				{
+					// take care that we only match full fragments, not parts of them
+					if (Path.sRoute.size() == sRoute.size() || Path.sRoute[sRoute.size()] == '/')
+					{
+						return true;
+					}
+				}
+			}
+			else
+			{
+				// this is a plain route - we do not check part by part
+				if (DEKAF2_UNLIKELY(Path.sRoute == sRoute))
+				{
+					return true;
+				}
+			}
+		}
+		else
+		{
+			// we have parameters or wildcard fragments, check part by part of the route
+			if (vURLParts.size() >= Path.vURLParts.size())
+			{
+				Params.clear();
+				auto req = Path.vURLParts.cbegin();
+				bool bFound { true };
+				bool bOnlyParms { false };
+
+				for (auto& part : vURLParts)
+				{
+					if (DEKAF2_UNLIKELY(bOnlyParms))
+					{
+						// check remaining route fragments for being :parameters
+						if (part.front() != ':')
+						{
+							bFound = false;
+							break;
+						}
+						continue;
+					}
+
+					if (DEKAF2_LIKELY(part != *req))
+					{
+						if (DEKAF2_UNLIKELY(part.front() == ':'))
+						{
+							// this is a variable
+							KStringView sName = part;
+							// remove the colon
+							sName.remove_prefix(1);
+							// and add the value to our temporary query parms
+							Params.push_back({sName, *req});
+						}
+						else if (DEKAF2_LIKELY(part != "*"))
+						{
+							// this is not a wildcard
+							// therefore this route is not matching
+							bFound = false;
+							break;
+						}
+					}
+
+					// found, continue comparison
+					if (++req == Path.vURLParts.cend())
+					{
+						// end of Path reached, check if remaining Route
+						// fragments are parameters
+						bOnlyParms = true;
+					}
+				}
+
+				if (bFound)
+				{
+					return true;
+				}
+			}
+		}
+	}
+
+	return false;
+
+} // Matches
+
+
+//-----------------------------------------------------------------------------
 KRESTRoutes::KRESTRoutes(KRESTRoute::RESTCallback DefaultRoute)
 //-----------------------------------------------------------------------------
 	: m_DefaultRoute(KRESTRoute(KHTTPMethod{}, "/", DefaultRoute))
@@ -120,119 +214,67 @@ void KRESTRoutes::clear()
 } // clear
 
 //-----------------------------------------------------------------------------
-const KRESTRoute& KRESTRoutes::FindRoute(const KRESTPath& Path, Parameters& Params) const
+const KRESTRoute& KRESTRoutes::FindRoute(const KRESTPath& Path, Parameters& Params, bool bCheckForWrongMethod) const
 //-----------------------------------------------------------------------------
 {
-	kDebugLog (2, "KREST: Looking up: {} {}" , Path.Method.Serialize(), Path.sRoute);
+	kDebug (2, "Looking up: {} {}" , Path.Method.Serialize(), Path.sRoute);
 
+	std::vector<const KRESTRoute*> Dropped;
+
+	if (m_DefaultRoute.Callback)
+	{
+		// we always have a route if we have a default route
+		bCheckForWrongMethod = false;
+	}
+
+	// check for a matching route
 	for (const auto& it : m_Routes)
 	{
 		if (it.Method.empty() || it.Method == Path.Method)
 		{
-			if (!it.bHasParameters && !it.bHasWildCardFragment)
+			if (it.Matches(Path, Params, false))
 			{
-				if (DEKAF2_UNLIKELY(it.bHasWildCardAtEnd))
-				{
-					// this is a plain route with a wildcard at the end
-					if (DEKAF2_UNLIKELY(Path.sRoute.starts_with(it.sRoute)))
-					{
-						// take care that we only match full fragments, not parts of them
-						if (Path.sRoute.size() == it.sRoute.size() || Path.sRoute[it.sRoute.size()] == '/')
-						{
-							return it;
-						}
-					}
-				}
-				else
-				{
-					// this is a plain route - we do not check part by part
-					if (DEKAF2_UNLIKELY(Path.sRoute == it.sRoute))
-					{
-						return it;
-					}
-				}
-			}
-			else
-			{
-				// we have parameters or wildcard fragments, check part by part of the route
-				if (it.vURLParts.size() >= Path.vURLParts.size())
-				{
-					Params.clear();
-					auto req = Path.vURLParts.cbegin();
-					bool bFound { true };
-					bool bOnlyParms { false };
-
-					for (auto& part : it.vURLParts)
-					{
-						if (DEKAF2_UNLIKELY(bOnlyParms))
-						{
-							// check remaining route fragments for being :parameters
-							if (part.front() != ':')
-							{
-								bFound = false;
-								break;
-							}
-							continue;
-						}
-
-						if (DEKAF2_LIKELY(part != *req))
-						{
-							if (DEKAF2_UNLIKELY(part.front() == ':'))
-							{
-								// this is a variable
-								KStringView sName = part;
-								// remove the colon
-								sName.remove_prefix(1);
-								// and add the value to our temporary query parms
-								Params.push_back({sName, *req});
-							}
-							else if (DEKAF2_LIKELY(part != "*"))
-							{
-								// this is not a wildcard
-								// therefore this route is not matching
-								bFound = false;
-								break;
-							}
-						}
-
-						// found, continue comparison
-						if (++req == Path.vURLParts.cend())
-						{
-							// end of Path reached, check if remaining Route
-							// fragments are parameters
-							bOnlyParms = true;
-						}
-					}
-
-					if (bFound)
-					{
-						kDebugLog (2, "KREST: Found: {} {}" , it.Method.Serialize(), it.sRoute);
-						return it;
-					}
-				}
+				kDebug (2, "Found: {} {}" , it.Method.Serialize(), it.sRoute);
+				return it;
 			}
 		}
-
+		else if (bCheckForWrongMethod && !it.Method.empty())
+		{
+			// append this route as a candidate for unmatching method checking
+			Dropped.push_back(&it);
+		}
 	}
 
+	// no matching route, return default route if available
 	if (m_DefaultRoute.Callback)
 	{
-		kDebugLog (2, "KREST: not found, returning default route");
+		kDebug (2, "not found, returning default route");
 		return m_DefaultRoute;
 	}
 
-	kDebugLog (2, "KREST: invalid path: {} {}", Path.Method.Serialize(), Path.sRoute);
+	// now check if we only missed a route because of a wrong request method
+	for (const auto it : Dropped)
+	{
+		if (it->Matches(Path, Params, false))
+		{
+			kDebug (2, "request method {} not supported", Path.Method.Serialize());
+			throw KHTTPError { KHTTPError::H4xx_BADREQUEST, kFormat("request method {} not supported", Path.Method.Serialize()) };
+		}
+	}
+
+	// no match at all
+	kDebug (2, "invalid path: {} {}", Path.Method.Serialize(), Path.sRoute);
 	throw KHTTPError { KHTTPError::H4xx_NOTFOUND, kFormat("invalid path: {} {}", Path.Method.Serialize(), Path.sRoute) };
 
 } // FindRoute
 
 //-----------------------------------------------------------------------------
-const KRESTRoute& KRESTRoutes::FindRoute(const KRESTPath& Path, url::KQuery& Params) const
+const KRESTRoute& KRESTRoutes::FindRoute(const KRESTPath& Path, url::KQuery& Params, bool bCheckForWrongMethod) const
 //-----------------------------------------------------------------------------
 {
 	Parameters parms;
 
-	auto& ret = FindRoute(Path, parms);
+	auto& ret = FindRoute(Path, parms, bCheckForWrongMethod);
 
 	// add all variables from the path into the request query
 	for (const auto& qp : parms)
@@ -304,7 +346,7 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 
 		for (;;)
 		{
-			kDebugLog (3, "KREST: keepalive round {}", iRound + 1);
+			kDebug (3, "keepalive round {}", iRound + 1);
 
 			clear();
 
@@ -332,12 +374,12 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 				if (KHTTPServer::Error().empty())
 				{
 					// close silently
-					kDebugLog (3, "KREST: read timeout in keepalive round {}", iRound + 1);
+					kDebug (3, "read timeout in keepalive round {}", iRound + 1);
 					return false;
 				}
 				else
 				{
-					kDebugLog (1, "read error: {}", KHTTPServer::Error());
+					kDebug (1, "read error: {}", KHTTPServer::Error());
 					throw KHTTPError { KHTTPError::H4xx_BADREQUEST, KHTTPServer::Error() };
 				}
 			}
@@ -358,7 +400,7 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 			sURLPath.remove_prefix(Options.sBaseRoute);
 
 			// find the right route
-			auto Route = Routes.FindRoute(KRESTPath(Request.Method, sURLPath), Request.Resource.Query);
+			auto Route = Routes.FindRoute(KRESTPath(Request.Method, sURLPath), Request.Resource.Query, Options.bCheckForWrongMethod);
 
 			if (!Route.Callback)
 			{
@@ -370,7 +412,7 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 				// read body and store for later access
 				KHTTPServer::Read(m_sRequestBody);
 
-				kDebugLog (3, "KREST: read request body with length {} and type {}",
+				kDebug (3, "read request body with length {} and type {}",
 						m_sRequestBody.size(),
 						Request.Headers[KHTTPHeaders::CONTENT_TYPE]);
 
@@ -391,7 +433,7 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 
 						if (!kjson::Parse(json.rx, sBuffer, sError))
 						{
-							kDebugLog (3, "KREST: request body is not JSON: {}", sError);
+							kDebug (3, "request body is not JSON: {}", sError);
 							json.rx.clear();
 							if (Options.bThrowIfInvalidJson)
 							{
@@ -400,7 +442,7 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 						}
 						else
 						{
-							kDebugLog (3, "KREST: request body successfully parsed as JSON");
+							kDebug (3, "request body successfully parsed as JSON");
 						}
 
 						// after we are done parsing the incoming json from the wire,
@@ -438,7 +480,7 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 			{
 				if (Options.Out == HTTP)
 				{
-					kDebugLog (3, "KREST: no keep-alive allowed, or not supported by client - closing connection in round {}", iRound);
+					kDebug (3, "no keep-alive allowed, or not supported by client - closing connection in round {}", iRound);
 				}
 				return true;
 			}
@@ -474,7 +516,7 @@ void KRESTServer::Output(const Options& Options, bool bKeepAlive)
 	// only allow output compression if this is HTTP mode
 	SetCompression(Options.Out == HTTP);
 
-	kDebugLog (1, "HTTP-{}: {}", Response.iStatusCode, Response.sStatusString);
+	kDebug (1, "HTTP-{}: {}", Response.iStatusCode, Response.sStatusString);
 
 	switch (Options.Out)
 	{
@@ -580,7 +622,7 @@ void KRESTServer::Output(const Options& Options, bool bKeepAlive)
 
 	if (!Response.UnfilteredStream().Good())
 	{
-		kDebugLog (2, "KREST: write error, connection lost");
+		kDebug (2, "write error, connection lost");
 	}
 
 } // Output
@@ -622,7 +664,7 @@ void KRESTServer::ErrorHandler(const std::exception& ex, const Options& Options)
 
 	KStringViewZ sError = ex.what();
 
-	kDebugLog (1, "HTTP-{}: {}\n{}",  Response.iStatusCode, Response.sStatusString, sError);
+	kDebug (1, "HTTP-{}: {}\n{}",  Response.iStatusCode, Response.sStatusString, sError);
 
 	// do not compress/chunk error messages
 	SetCompression(false);
@@ -694,7 +736,7 @@ void KRESTServer::ErrorHandler(const std::exception& ex, const Options& Options)
 
 	if (!Response.UnfilteredStream().Good())
 	{
-		kDebugLog (1, "KREST: write error, connection lost");
+		kDebug (1, "write error, connection lost");
 	}
 
 } // ErrorHandler

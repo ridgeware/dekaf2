@@ -129,6 +129,8 @@ public:
 
 	using RESTCallback = std::function<void(KRESTServer&)>;
 
+	using Parameters = std::vector<std::pair<KStringView, KStringView>>;
+
 	//-----------------------------------------------------------------------------
 	/// Construct a REST route on a function. Notice that _sRoute is a KStringView, and the pointed-to
 	/// string must stay visible during the lifetime of this class
@@ -146,6 +148,12 @@ public:
 	: KRESTRoute(_Method, _sRoute, std::bind(_Callback, &object, std::placeholders::_1), _Parser)
 	{
 	}
+
+	//-----------------------------------------------------------------------------
+	/// Compare this route part by part with a given path, and return true if matching.
+	/// Params returns the variables in the path.
+	bool Matches(const KRESTPath& Path, Parameters& Params, bool bCompareMethods = true) const;
+	//-----------------------------------------------------------------------------
 
 	RESTCallback Callback;
 	ParserType Parser;
@@ -185,7 +193,7 @@ public:
 		KRESTRoute::ParserType Parser = KRESTRoute::JSON;
 	};
 
-	using Parameters = std::vector<std::pair<KStringView, KStringView>>;
+	using Parameters = KRESTRoute::Parameters;
 
 	//-----------------------------------------------------------------------------
 	/// ctor
@@ -242,12 +250,12 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Throws KHTTPError if no matching route found - fills additonal params in Path into Params
-	const KRESTRoute& FindRoute(const KRESTPath& Path, Parameters& Params) const;
+	const KRESTRoute& FindRoute(const KRESTPath& Path, Parameters& Params, bool bCheckForWrongMethod) const;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// Throws KHTTPError if no matching route found - fills additional params in Path into Params
-	const KRESTRoute& FindRoute(const KRESTPath& Path, url::KQuery& Params) const;
+	const KRESTRoute& FindRoute(const KRESTPath& Path, url::KQuery& Params, bool bCheckForWrongMethod) const;
 	//-----------------------------------------------------------------------------
 
 //------
@@ -305,7 +313,8 @@ public:
 		mutable OutputType Out { HTTP };           // Which of the three output formats?
 		AUTH_LEVEL AuthLevel { ALLOW_ALL };        // Which authentication level?
 		bool bRecordRequest { false };             // Shall we record into the sRecordFile? Value is expected to change during execution (could be made an atomic, but we don't care for a few missing records)
-		bool bThrowIfInvalidJson {false };         // Shall we throw if the request body contains invalid JSON
+		bool bThrowIfInvalidJson { false };        // Shall we throw if the request body contains invalid JSON
+		bool bCheckForWrongMethod { true };        // If no route found, shall we check if that happened because of wrong request method?
 
 	}; // Options
 

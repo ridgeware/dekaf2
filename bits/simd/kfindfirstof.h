@@ -56,21 +56,21 @@ size_t kFindLastOfNoSSE(
         bool bNot);
 
 size_t kFindFirstOfSSE(
-        const KStringView haystack,
-        const KStringView needles);
+        KStringView haystack,
+        KStringView needles);
 
 size_t kFindFirstNotOfSSE(
-        const KStringView haystack,
-        const KStringView needles);
+        KStringView haystack,
+        KStringView needles);
 
 
 size_t kFindLastOfSSE(
-        const KStringView haystack,
-        const KStringView needles);
+        KStringView haystack,
+        KStringView needles);
 
 size_t kFindLastNotOfSSE(
-        const KStringView haystack,
-        const KStringView needles);
+        KStringView haystack,
+        KStringView needles);
 
 } // end of namespace detail
 } // end of namespace dekaf2

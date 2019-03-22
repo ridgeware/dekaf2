@@ -214,12 +214,18 @@ void KRESTRoutes::clear()
 } // clear
 
 //-----------------------------------------------------------------------------
-const KRESTRoute& KRESTRoutes::FindRoute(const KRESTPath& Path, Parameters& Params) const
+const KRESTRoute& KRESTRoutes::FindRoute(const KRESTPath& Path, Parameters& Params, bool bCheckForWrongMethod) const
 //-----------------------------------------------------------------------------
 {
 	kDebug (2, "Looking up: {} {}" , Path.Method.Serialize(), Path.sRoute);
 
 	std::vector<const KRESTRoute*> Dropped;
+
+	if (m_DefaultRoute.Callback)
+	{
+		// we always have a route if we have a default route
+		bCheckForWrongMethod = false;
+	}
 
 	// check for a matching route
 	for (const auto& it : m_Routes)
@@ -232,7 +238,7 @@ const KRESTRoute& KRESTRoutes::FindRoute(const KRESTPath& Path, Parameters& Para
 				return it;
 			}
 		}
-		else if (!m_DefaultRoute.Callback && !it.Method.empty())
+		else if (bCheckForWrongMethod && !it.Method.empty())
 		{
 			// append this route as a candidate for unmatching method checking
 			Dropped.push_back(&it);
@@ -263,12 +269,12 @@ const KRESTRoute& KRESTRoutes::FindRoute(const KRESTPath& Path, Parameters& Para
 } // FindRoute
 
 //-----------------------------------------------------------------------------
-const KRESTRoute& KRESTRoutes::FindRoute(const KRESTPath& Path, url::KQuery& Params) const
+const KRESTRoute& KRESTRoutes::FindRoute(const KRESTPath& Path, url::KQuery& Params, bool bCheckForWrongMethod) const
 //-----------------------------------------------------------------------------
 {
 	Parameters parms;
 
-	auto& ret = FindRoute(Path, parms);
+	auto& ret = FindRoute(Path, parms, bCheckForWrongMethod);
 
 	// add all variables from the path into the request query
 	for (const auto& qp : parms)
@@ -394,7 +400,7 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 			sURLPath.remove_prefix(Options.sBaseRoute);
 
 			// find the right route
-			auto Route = Routes.FindRoute(KRESTPath(Request.Method, sURLPath), Request.Resource.Query);
+			auto Route = Routes.FindRoute(KRESTPath(Request.Method, sURLPath), Request.Resource.Query, Options.bCheckForWrongMethod);
 
 			if (!Route.Callback)
 			{

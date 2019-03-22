@@ -494,7 +494,7 @@ KJSON KROW::to_json (uint64_t iFlags/*=0*/) const
 		}
 		else if (col.second.IsFlag(INT64NUMERIC))
 		{
-			// large integers > 53 bits have no representation in JSON and need to
+			// large integers > 53 bits have no representation in JavaScript and need to
 			// be stored as string values..
 			json[sKey] = col.second.sValue;
 
@@ -543,19 +543,21 @@ KJSON KROW::to_json (uint64_t iFlags/*=0*/) const
 		{
 			json[sKey] = col.second.sValue.Bool();
 		}
-		#if 0
+#if 0
 		else if (/*(col.second.iFlags & KROW::NULL_IS_NOT_NIL) &&*/ col.second.sValue.empty())
 		{
 			json[sKey] = NULL;
 		}
-		#endif
+#endif
 		else if (col.second.IsFlag(JSON))
 		{
 			// this is a json serialization
 			DEKAF2_TRY
 			{
 				KJSON object;
+				bool bOld = KLog().ShowStackOnJsonError(false);
 				kjson::Parse(object, col.second.sValue);
+				KLog().ShowStackOnJsonError(bOld);
 				json[sKey] = object;
 			}
 			DEKAF2_CATCH(const KJSON::exception& exc)
@@ -578,7 +580,9 @@ KJSON KROW::to_json (uint64_t iFlags/*=0*/) const
 				DEKAF2_TRY
 				{
 					KJSON object;
+					bool bOld = KLog().ShowStackOnJsonError(false);
 					kjson::Parse(object, col.second.sValue);
+					KLog().ShowStackOnJsonError(bOld);
 					json[sKey] = object;
 				}
 				DEKAF2_CATCH(const KJSON::exception& exc)

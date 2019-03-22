@@ -359,7 +359,7 @@ KStringViewZ kGetHostname ()
 		return "hostname-error";
 	}
 
-	kDebug (2, "{}", szHostname);
+	kDebug (3, "{}", szHostname);
 	return szHostname;
 
 } // kGetHostname

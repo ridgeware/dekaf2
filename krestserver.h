@@ -129,6 +129,8 @@ public:
 
 	using RESTCallback = std::function<void(KRESTServer&)>;
 
+	using Parameters = std::vector<std::pair<KStringView, KStringView>>;
+
 	//-----------------------------------------------------------------------------
 	/// Construct a REST route on a function. Notice that _sRoute is a KStringView, and the pointed-to
 	/// string must stay visible during the lifetime of this class
@@ -146,6 +148,12 @@ public:
 	: KRESTRoute(_Method, _sRoute, std::bind(_Callback, &object, std::placeholders::_1), _Parser)
 	{
 	}
+
+	//-----------------------------------------------------------------------------
+	/// Compare this route part by part with a given path, and return true if matching.
+	/// Params returns the variables in the path.
+	bool Matches(const KRESTPath& Path, Parameters& Params, bool bCompareMethods = true) const;
+	//-----------------------------------------------------------------------------
 
 	RESTCallback Callback;
 	ParserType Parser;
@@ -185,7 +193,7 @@ public:
 		KRESTRoute::ParserType Parser = KRESTRoute::JSON;
 	};
 
-	using Parameters = std::vector<std::pair<KStringView, KStringView>>;
+	using Parameters = KRESTRoute::Parameters;
 
 	//-----------------------------------------------------------------------------
 	/// ctor

@@ -363,7 +363,7 @@ bool kCreateDir(KStringViewZ sPath, int iMode /* = DEKAF2_MODE_CREATE_DIR */)
 
 	std::error_code ec;
 
-	if (!sPath.empty() && sPath.back() == '/')
+	if (!sPath.empty() && (sPath.back() == '/' || sPath.back() == '\\'))
 	{
 		// unfortunately fs::create_directories chokes on a
 		// trailing slash, so we copy the KStringViewZ if it
@@ -449,40 +449,34 @@ bool kCreateDir(KStringViewZ sPath, int iMode /* = DEKAF2_MODE_CREATE_DIR */)
 bool kTouchFile(KStringViewZ sPath, int iMode /* = DEKAF2_MODE_CREATE_FILE */)
 //-----------------------------------------------------------------------------
 {
-	FILE* fp = std::fopen(sPath.c_str(), "a");
+	// we need to use a KOutFile here, as FILE* on Windows does not understand
+	// UTF8 file names
+	KOutFile File(sPath, std::ios::app);
 
-	if (!fp)
+	if (!File.is_open())
 	{
-		if (errno != ENOENT)
-		{
-			return false;
-		}
 		// else we may miss a path component
 		KString sDir = kDirname(sPath);
 		if (kCreateDir(sDir))
 		{
-			fp = std::fopen(sPath.c_str(), "a");
-			if (!fp)
+			File.open(sPath, std::ios::app);
+			if (!File.is_open())
 			{
 				// give up
 				return false;
+			}
+
+			File.close();
+
+			if (iMode != DEKAF2_MODE_CREATE_FILE)
+			{
+				return kChangeMode(sPath, iMode);
 			}
 		}
 		else
 		{
 			return false;
 		}
-
-		std::fclose(fp);
-
-		if (iMode != DEKAF2_MODE_CREATE_FILE)
-		{
-			kChangeMode(sPath, iMode);
-		}
-	}
-	else
-	{
-		std::fclose(fp);
 	}
 
 	return true;

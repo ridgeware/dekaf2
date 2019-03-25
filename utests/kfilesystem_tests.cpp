@@ -1,6 +1,7 @@
 #include "catch.hpp"
 
 #include <dekaf2/kfilesystem.h>
+#include <dekaf2/ksystem.h>
 #include <vector>
 #include <fstream>
 #include <dekaf2/kreader.h>
@@ -10,9 +11,13 @@ using namespace dekaf2;
 
 TEST_CASE("KFilesystem") {
 
-	KString sDirectory("/tmp/filetests12r4948t5/depth/three");
+	KString sDirectory = kGetTemp();
+	sDirectory += kDirSep;
+	sDirectory += "filetests12r4948t5/depth/three";
 
-	KString sFile("/tmp/filetests12r4948t5/depth/three/KFilesystem.test");
+	KString sFile = kGetTemp();
+	sFile += kDirSep;
+	sFile += "filetests12r4948t5/depth/three/KFilesystem.test";
 
 	KString sOut {
 		"line 1\n"
@@ -145,6 +150,9 @@ TEST_CASE("KFilesystem") {
 
 TEST_CASE("KFilesystem cleanup")
 {
-	CHECK ( kRemoveDir("/tmp/filetests12r4948t5") == true );
-	CHECK ( kDirExists("/tmp/filetests12r4948t5") == false);
+	KString sDirectory = kGetTemp();
+	sDirectory += kDirSep;
+	sDirectory += "filetests12r4948t5";
+	CHECK ( kRemoveDir(sDirectory) == true );
+	CHECK ( kDirExists(sDirectory) == false);
 }

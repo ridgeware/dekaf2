@@ -219,8 +219,6 @@ const KRESTRoute& KRESTRoutes::FindRoute(const KRESTPath& Path, Parameters& Para
 {
 	kDebug (2, "Looking up: {} {}" , Path.Method.Serialize(), Path.sRoute);
 
-	std::vector<const KRESTRoute*> Dropped;
-
 	if (m_DefaultRoute.Callback)
 	{
 		// we always have a route if we have a default route
@@ -230,18 +228,10 @@ const KRESTRoute& KRESTRoutes::FindRoute(const KRESTPath& Path, Parameters& Para
 	// check for a matching route
 	for (const auto& it : m_Routes)
 	{
-		if (it.Method.empty() || it.Method == Path.Method)
+		if (it.Matches(Path, Params, true))
 		{
-			if (it.Matches(Path, Params, false))
-			{
-				kDebug (2, "Found: {} {}" , it.Method.Serialize(), it.sRoute);
-				return it;
-			}
-		}
-		else if (bCheckForWrongMethod && !it.Method.empty())
-		{
-			// append this route as a candidate for unmatching method checking
-			Dropped.push_back(&it);
+			kDebug (2, "Found: {} {}" , it.Method.Serialize(), it.sRoute);
+			return it;
 		}
 	}
 
@@ -252,13 +242,19 @@ const KRESTRoute& KRESTRoutes::FindRoute(const KRESTPath& Path, Parameters& Para
 		return m_DefaultRoute;
 	}
 
-	// now check if we only missed a route because of a wrong request method
-	for (const auto it : Dropped)
+	if (bCheckForWrongMethod)
 	{
-		if (it->Matches(Path, Params, false))
+		// now check if we only missed a route because of a wrong request method
+		for (const auto& it : m_Routes)
 		{
-			kDebug (2, "request method {} not supported", Path.Method.Serialize());
-			throw KHTTPError { KHTTPError::H4xx_BADREQUEST, kFormat("request method {} not supported", Path.Method.Serialize()) };
+			if (!it.Method.empty() && (it.Method != KHTTPMethod::OPTIONS))
+			{
+				if (it.Matches(Path, Params, false))
+				{
+					kDebug (2, "request method {} not supported for path: {}", Path.Method.Serialize(), Path.sRoute);
+					throw KHTTPError { KHTTPError::H4xx_BADREQUEST, kFormat("request method {} not supported for path: {}", Path.Method.Serialize(), Path.sRoute) };
+				}
+			}
 		}
 	}
 

@@ -160,6 +160,12 @@ public:
 		m_slept_for += clock_t::now() - m_sleeps_since;
 	}
 
+	//-----------------------------------------------------------------------------
+	/// we need to call this on Windows in user code because automatic result output
+	/// there comes too late in the process deinitialization
+	void finalize();
+	//-----------------------------------------------------------------------------
+
 //----------
 private:
 //----------
@@ -250,9 +256,20 @@ private:
 	duration_t                   m_slept_for;
 	map_t                        m_map;
 	uint32_t                     m_level{0};
+	bool                         m_bFinalized{false};
 
 }; // KSharedProfiler
 
+#ifdef _MSC_VER
+
+#pragma optimize("", off)
+
+	inline void KeepVar(const void*) {}
+	inline void KeepMe() {}
+
+#pragma optimize("", on)
+
+#endif
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// utility (RAII) class used to measure and count activity
@@ -271,7 +288,9 @@ public:
 	static void Force(void *p)
 	//-----------------------------------------------------------------------------
 	{
-#ifndef _MSC_VER
+#ifdef _MSC_VER
+		KeepVar(p);
+#else
 		__asm__ __volatile__ ("" : "+g"(p) : "g"(p) : "memory");
 #endif
 	}
@@ -281,7 +300,9 @@ public:
 	static void Force()
 	//-----------------------------------------------------------------------------
 	{
-#ifndef _MSC_VER
+#ifdef _MSC_VER
+		KeepMe();
+#else
 		__asm__ __volatile__ ("" : : : "memory");
 #endif
 	}
@@ -415,6 +436,12 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	void finalize()
+	//-----------------------------------------------------------------------------
+	{
+	}
+
+	//-----------------------------------------------------------------------------
 	void print()
 	//-----------------------------------------------------------------------------
 	{
@@ -506,6 +533,10 @@ inline void kProfWake()
 {
 	g_Prof.wake();
 }
+inline void kProfFinalize()
+{
+	g_Prof.finalize();
+}
 #endif // DEKAF2_DISABLE_AUTOMATIC_PROFILER
 
 #else // DEKAF2_ENABLE_PROFILING
@@ -518,6 +549,8 @@ typedef disabled::KProf KProf;
 inline void kProfSleep()
 {}
 inline void kProfWake()
+{}
+inline void kProfFinalize()
 {}
 #endif
 

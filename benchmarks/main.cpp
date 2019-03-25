@@ -1,5 +1,6 @@
 #include <dekaf2/dekaf2.h>
 #include <dekaf2/klog.h>
+#include <dekaf2/kprof.h>
 
 extern void other_bench();
 extern void kbitfields_bench();
@@ -33,7 +34,9 @@ int main()
 	kstring_bench();
 	kstringview_bench();
 	kcasestring_bench();
-	other_bench();
+ 	other_bench();
+
+	kProfFinalize();
 
 	return 0;
 }

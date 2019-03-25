@@ -73,18 +73,31 @@ KSharedProfiler::KSharedProfiler()
 KSharedProfiler::~KSharedProfiler()
 //-----------------------------------------------------------------------------
 {
-	m_profiled_runtime += (clock_t::now() - m_start) - m_slept_for;
+	finalize();
+}
 
-	std::lock_guard<std::mutex> Lock(s_constructor_mutex);
-	if (--s_refcount)
+//-----------------------------------------------------------------------------
+void KSharedProfiler::finalize()
+//-----------------------------------------------------------------------------
+{
+	if (!m_bFinalized)
 	{
-		*s_parent += *this;
-	}
-	else
-	{
-		print();
+		m_bFinalized = true;
+		
+		m_profiled_runtime += (clock_t::now() - m_start) - m_slept_for;
+
+		std::lock_guard<std::mutex> Lock(s_constructor_mutex);
+		if (--s_refcount)
+		{
+			*s_parent += *this;
+		}
+		else
+		{
+			print();
+		}
 	}
 }
+
 
 //-----------------------------------------------------------------------------
 KSharedProfiler& KSharedProfiler::operator+=(const KSharedProfiler& other)

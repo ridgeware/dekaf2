@@ -514,10 +514,10 @@ KStackFrame kFilterTrace (int iSkipStackLines, KStringView sSkipFiles)
 				}
 				auto sFileAndLine = it.substr(pos, end - pos);
 #else
-		{
-			{
-				break;
+		// this is Windows
+		break;
 #endif
+#ifdef DEKAF2_IS_UNIX // UNIX includes OSX
 				auto sFile = sFileAndLine;
 				auto sLine = sFileAndLine;
 				pos = sFile.find(':');
@@ -532,6 +532,7 @@ KStackFrame kFilterTrace (int iSkipStackLines, KStringView sSkipFiles)
 				}
 			}
 		}
+#endif
 	}
 
 	return {};

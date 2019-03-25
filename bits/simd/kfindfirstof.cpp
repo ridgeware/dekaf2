@@ -282,9 +282,9 @@ static inline const char* prevAlignedPointer(const char* buffer)
 	return align16(buffer - 1) - 16;
 }
 
-
 //-----------------------------------------------------------------------------
 // helper method for case where needles.size() <= 16
+template<bool bNot, int iOperation>
 #ifdef NDEBUG
 DEKAF2_ALWAYS_INLINE
 #else
@@ -300,7 +300,7 @@ size_t kFindFirstOfNeedles16(
 		// can't load needles into SSE register if it could cross page boundary
 		|| page_for(needles.end() - 1) != page_for(needles.data() + 15))
 	{
-		return kFindFirstOfNoSSE(haystack, needles, false);
+		return kFindFirstOfNoSSE(haystack, needles, bNot);
 	}
 
 	// load needles
@@ -310,71 +310,11 @@ size_t kFindFirstOfNeedles16(
 	auto arr1 = _mm_lddqu_si128(reinterpret_cast<const __m128i*>(haystack.data()));
 
 	// compare first block with needles
-	auto index = _mm_cmpestri(arr2, needles.size(), arr1, haystack.size(), 0);
+	auto index = _mm_cmpestri(arr2, needles.size(), arr1, haystack.size(), iOperation);
 
 	if (index < 16)
 	{
-		return index;
-	}
-
-	if (haystack.size() > 16)
-	{
-
-		// prepare for aligned loads
-		size_t i = nextAlignedIndex(haystack.data());
-
-		// and loop through the blocks
-
-		for (; i < haystack.size(); i += 16)
-		{
-			arr1 = _mm_load_si128(reinterpret_cast<const __m128i*>(haystack.data() + i));
-			index = _mm_cmpestri(arr2, needles.size(), arr1, haystack.size() - i, 0);
-
-			if (index < 16)
-			{
-				return i + index;
-			}
-		}
-
-	}
-
-	// not found
-	return KStringView::npos;
-
-} // kFindFirstOfNeedles16
-
-//-----------------------------------------------------------------------------
-// helper method for case where needles.size() <= 16
-#ifdef NDEBUG
-DEKAF2_ALWAYS_INLINE
-#else
-DEKAF2_NO_ASAN
-#endif
-size_t kFindFirstNotOfNeedles16(
-        KStringView haystack,
-        KStringView needles)
-//-----------------------------------------------------------------------------
-{
-	if (// must bail if we can't even SSE-load a single segment of haystack
-		(haystack.size() < 16 && page_for(haystack.data()) != page_for(haystack.data() + 15))
-		// can't load needles into SSE register if it could cross page boundary
-		|| page_for(needles.end() - 1) != page_for(needles.data() + 15))
-	{
-		return kFindFirstOfNoSSE(haystack, needles, true);
-	}
-
-	// load needles
-	auto arr2  = _mm_lddqu_si128(reinterpret_cast<const __m128i*>(needles.data()));
-
-	// do an unaligned load for first block of haystack
-	auto arr1 = _mm_lddqu_si128(reinterpret_cast<const __m128i*>(haystack.data()));
-
-	// compare first block with needles
-	auto index = _mm_cmpestri(arr2, needles.size(), arr1, haystack.size(), 0b00010000);
-
-	if (index < 16)
-	{
-		if (index < static_cast<int>(haystack.size()))
+		if (!bNot || index < static_cast<int>(haystack.size()))
 		{
 			return index;
 		}
@@ -392,11 +332,11 @@ size_t kFindFirstNotOfNeedles16(
 		for (; i < haystack.size(); i += 16)
 		{
 			arr1 = _mm_load_si128(reinterpret_cast<const __m128i*>(haystack.data() + i));
-			index = _mm_cmpestri(arr2, needles.size(), arr1, haystack.size() - i, 0b00010000);
+			index = _mm_cmpestri(arr2, needles.size(), arr1, haystack.size() - i, iOperation);
 
 			if (index < 16)
 			{
-				if (index < static_cast<int>(haystack.size() - i))
+				if (!bNot || index < static_cast<int>(haystack.size() - i))
 				{
 					return i + index;
 				}
@@ -413,6 +353,7 @@ size_t kFindFirstNotOfNeedles16(
 
 //-----------------------------------------------------------------------------
 // helper method for case where needles.size() <= 16
+template<bool bNot, int iOperation>
 #ifdef NDEBUG
 DEKAF2_ALWAYS_INLINE
 #else
@@ -430,7 +371,7 @@ size_t kFindLastOfNeedles16(
 		// can't load needles into SSE register if it could cross page boundary
 		|| page_for(needles.end() - 1) != page_for(needles.data() + 15))
 	{
-		return kFindLastOfNoSSE(haystack, needles, false);
+		return kFindLastOfNoSSE(haystack, needles, bNot);
 	}
 
 	// load needles
@@ -438,7 +379,7 @@ size_t kFindLastOfNeedles16(
 
 	// load first unaligned block
 	auto arr1  = _mm_lddqu_si128(reinterpret_cast<const __m128i*>(haystack.end() - 16));
-	auto index = _mm_cmpestri(arr2, needles.size(), arr1, 16, 0b01000000);
+	auto index = _mm_cmpestri(arr2, needles.size(), arr1, 16, iOperation);
 
 	if (index < 16)
 	{
@@ -463,7 +404,7 @@ size_t kFindLastOfNeedles16(
 		for (;;)
 		{
 			arr1  = _mm_load_si128(reinterpret_cast<const __m128i*>(p));
-			index = _mm_cmpestri(arr2, needles.size(), arr1, 16, 0b01000000);
+			index = _mm_cmpestri(arr2, needles.size(), arr1, 16, iOperation);
 
 			if (index < 16)
 			{
@@ -495,94 +436,11 @@ size_t kFindLastOfNeedles16(
 
 
 //-----------------------------------------------------------------------------
-// helper method for case where needles.size() <= 16
-#ifdef NDEBUG
-DEKAF2_ALWAYS_INLINE
-#else
-DEKAF2_NO_ASAN
-#endif
-size_t kFindLastNotOfNeedles16(
-        KStringView haystack,
-        KStringView needles)
-//-----------------------------------------------------------------------------
-{
-	if (// must bail if we can't even SSE-load a single segment of haystack
-		(haystack.size() < 16
-		 && page_for(haystack.end() - 1)
-		 != page_for(haystack.end() - 1 - 15))
-		// can't load needles into SSE register if it could cross page boundary
-		|| page_for(needles.end() - 1) != page_for(needles.data() + 15))
-	{
-		return kFindLastOfNoSSE(haystack, needles, true);
-	}
-
-	// load needles
-	auto arr2  = _mm_lddqu_si128(reinterpret_cast<const __m128i*>(needles.data()));
-
-	// load first unaligned block
-	auto arr1  = _mm_lddqu_si128(reinterpret_cast<const __m128i*>(haystack.end() - 16));
-	auto index = _mm_cmpestri(arr2, needles.size(), arr1, 16, 0b01110000);
-
-	if (index < 16)
-	{
-		// this time we need to take care that index does not point into something BELOW
-		// our string
-		size_t inv = 16 - index;
-
-		if (inv <= haystack.size())
-		{
-			return haystack.size() - inv;
-		}
-
-		return KStringView::npos;
-	}
-
-	if (haystack.size() > 16)
-	{
-		// prepare for aligned loads
-
-		const char* p = prevAlignedPointer(haystack.end());
-
-		for (;;)
-		{
-			arr1  = _mm_load_si128(reinterpret_cast<const __m128i*>(p));
-			index = _mm_cmpestri(arr2, needles.size(), arr1, 16, 0b01110000);
-
-			if (index < 16)
-			{
-				size_t inv = 16 - index;
-				size_t size = p + 16 - haystack.data();
-
-				// need to check for underflow in last round..
-				if (inv <= size)
-				{
-					// we're inside the string
-					return size - inv;
-				}
-				// out, go away
-				break;
-			}
-
-			if (p <= haystack.data())
-			{
-				break;
-			}
-
-			p -= 16;
-		}
-	}
-
-	return KStringView::npos;
-
-} // kFindLastNotOfNeedles16
-
-
-//-----------------------------------------------------------------------------
 // Scans a 16-byte block of haystack (starting at blockStartIdx) to find first
-// needle. If HAYSTACK_ALIGNED, then haystack must be 16byte aligned.
-// If !HAYSTACK_ALIGNED, then caller must ensure that it is safe to load the
+// needle. If bAligned, then haystack must be 16byte aligned.
+// If !bAligned, then caller must ensure that it is safe to load the
 // block.
-template <bool HAYSTACK_ALIGNED>
+template <bool bAligned>
 #ifdef NDEBUG
 DEKAF2_ALWAYS_INLINE
 #else
@@ -596,7 +454,7 @@ size_t scanHaystackBlock(
 {
 	__m128i arr1;
 
-	if (HAYSTACK_ALIGNED)
+	if (bAligned)
 	{
 		arr1 = _mm_load_si128(reinterpret_cast<const __m128i*>(haystack.data() + blockStartIdx));
 	}
@@ -871,7 +729,7 @@ size_t kFindFirstOfSSE(
 	{
 		// we can save some unnecessary load instructions by optimizing for
 		// the common case of needles.size() <= 16
-		return kFindFirstOfNeedles16(haystack, needles);
+		return kFindFirstOfNeedles16<false, 0>(haystack, needles);
 	}
 
 	if (haystack.size() < 16
@@ -898,20 +756,7 @@ size_t kFindFirstOfSSE(
 	}
 
 	return KStringView::npos;
-/*
 
-	size_t haystackSize = haystack.size();
-	for (size_t i = 0; i < haystackSize; i += 16)
-	{
-		size_t ret = scanHaystackBlock(haystack, needles, i);
-		if (ret != std::string::npos)
-		{
-			return ret;
-		}
-	}
-
-	return KStringView::npos;
- */
 }
 
 //-----------------------------------------------------------------------------
@@ -928,7 +773,7 @@ size_t kFindFirstNotOfSSE(
 	{
 		// we can save some unnecessary load instructions by optimizing for
 		// the common case of needles.size() <= 16
-		return kFindFirstNotOfNeedles16(haystack, needles);
+		return kFindFirstOfNeedles16<true, 0b00010000>(haystack, needles);
 	}
 
 	size_t haystackSize = haystack.size();
@@ -959,7 +804,7 @@ size_t kFindLastOfSSE(
 	else if (DEKAF2_LIKELY(needles.size() <= 16))
 	{
 		// For a 16 byte or less needle you don't need to cycle through it
-		return kFindLastOfNeedles16(haystack, needles);
+		return kFindLastOfNeedles16<false, 0b01000000>(haystack, needles);
 	}
 
 	// Account for haystack < 16
@@ -1003,7 +848,7 @@ size_t kFindLastNotOfSSE(
 	else if (DEKAF2_LIKELY(needles.size() <= 16))
 	{
 		// For a 16 byte or less needle you don't need to cycle through it
-		return kFindLastNotOfNeedles16(haystack, needles);
+		return kFindLastOfNeedles16<true, 0b01110000>(haystack, needles);
 	}
 
 	// Account for haystack < 16

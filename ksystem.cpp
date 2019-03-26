@@ -407,7 +407,7 @@ int kSystem (KStringView sCommand, KString& sOutput)
 	// Windows as well as on Linux)
 	
 	KString sWrapped;
-	sWrapped.Format ("({} 2>&1)", sCommand);
+	sWrapped.Format ("({}) 2>&1", sCommand);
 	KInShell Shell(sWrapped);
 
 	// read until EOF
@@ -427,7 +427,7 @@ int kSystem (KStringView sCommand, KString& sOutput)
 	sTmp.Format ("{}{}ksystem{}_{}.out", kGetTemp(), kDirSep, kGetPid(), kGetTid());
 
 	KString sWrapped;
-	sWrapped.Format ("({} 2>&1) > {}", sCommand, sTmp);
+	sWrapped.Format ("({}) > {} 2>&1", sCommand, sTmp);
 
 	kDebug (3, "{}", sWrapped);
 

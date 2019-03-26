@@ -44,7 +44,9 @@
 #include "../klog.h"
 #include "../ksignals.h"
 #include <errno.h>
-#include <sys/wait.h>
+#ifndef DEKAF2_IS_WINDOWS
+	#include <sys/wait.h>
+#endif
 
 
 namespace dekaf2
@@ -111,7 +113,7 @@ int KBaseShell::Close()
 		else if (WIFSIGNALED(iStatus))
 		{
 			m_iExitCode = 1;
-			int iSignal = WSTOPSIG(iStatus);
+			int iSignal = WTERMSIG(iStatus);
 			if (iSignal)
 			{
 				kDebug(1, "aborted by signal {}", kTranslateSignal(iSignal));

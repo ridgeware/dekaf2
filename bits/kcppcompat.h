@@ -400,6 +400,32 @@ DEKAF2_LE_BE_CONSTEXPR void kFromLittleEndian(VALUE& value)
 	#define getpid _getpid
 	#define strncasecmp _strnicmp
 	#define strcasecmp _stricmp
+
+	#ifndef WIFSIGNALED
+		#define WIFSIGNALED(x) ((x) == 3)
+	#endif
+	#ifndef WIFEXITED
+		#define WIFEXITED(x) ((x) != 3)
+	#endif
+	#ifndef WIFSTOPPED
+		#define WIFSTOPPED(x) 0
+	#endif
+	#ifndef WTERMSIG
+		#define WTERMSIG(x) SIGTERM
+	#endif
+	#ifndef WEXITSTATUS
+		#define WEXITSTATUS(x) (x)
+	#endif
+	#ifndef WCOREDUMP
+		#define WCOREDUMP(x) 0
+	#endif
+
+	#define DEKAF2_POPEN_COMMAND_NOT_FOUND 1
+
+#else
+
+	#define DEKAF2_POPEN_COMMAND_NOT_FOUND 127
+
 #endif
 
 #ifdef __i386__

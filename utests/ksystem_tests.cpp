@@ -5,20 +5,25 @@
 
 using namespace dekaf2;
 
-TEST_CASE("KSysytem")
+TEST_CASE("KSystem")
 {
 	SECTION("kSystem")
 	{
 		KString sOutput;
-		auto iRet = kSystem("echo \"this is some text\"", sOutput);
+		auto iRet = kSystem("echo this is some text", sOutput);
 
 		CHECK ( iRet == 0 );
 		CHECK ( sOutput == "this is some text\n" );
 
-		iRet = kSystem("echo \"this is some text\" && exit 123", sOutput);
+		iRet = kSystem("echo this is some text && exit 123", sOutput);
 
 		CHECK ( iRet == 123 );
+#ifdef DEKAF2_IS_WINDOWS
+		// Windows 'echo' includes any trailing space
+		CHECK(sOutput == "this is some text \n");
+#else
 		CHECK ( sOutput == "this is some text\n" );
+#endif
 
 #ifdef DEKAF2_IS_WINDOWS
 		iRet = kSystem("dir", sOutput);
@@ -35,7 +40,7 @@ TEST_CASE("KSysytem")
 
 		iRet = kSystem("abasdkhjfgbsarkjghvasgskufhse", sOutput);
 
-		CHECK ( iRet == 127 );
+		CHECK ( iRet == DEKAF2_POPEN_COMMAND_NOT_FOUND );
 		CHECK ( sOutput.Contains("abasdkhjfgbsarkjghvasgskufhse") );
 #ifdef DEKAF2_IS_WINDOWS
 		CHECK ( sOutput.Contains("not recognized") );
@@ -50,7 +55,7 @@ TEST_CASE("KSysytem")
 		CHECK ( iRet == 123 );
 
 		iRet = kSystem("abasdkhjfgbsarkjghvasgskufhse");
-		CHECK ( iRet == 127 );
+		CHECK ( iRet == DEKAF2_POPEN_COMMAND_NOT_FOUND);
 	}
 
 }

@@ -107,7 +107,7 @@ bool KLambdaInStream::CreateHeader()
 
 		if (DEKAF2_LIKELY(iColon != KString::npos))
 		{
-			sValue = sArg.ToView(iColon + 1).Trim();
+			sValue = sArg.ToView(iColon + 1, KString::npos).Trim();
 			sKey   = sArg.ToView(0, iColon);
 		}
 

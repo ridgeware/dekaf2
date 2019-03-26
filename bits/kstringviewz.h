@@ -252,10 +252,6 @@ public:
 	self& TrimLeft(KStringView sTrim);
 	//-----------------------------------------------------------------------------
 
-	using base_type::TrimRight;
-	using base_type::Trim;
-	using base_type::ClipAt;
-
 	//-----------------------------------------------------------------------------
 	// nonstandard
 	/// Clip removing everything to the left of sClipAtReverse so that sClipAtReverse becomes the beginning of the string;

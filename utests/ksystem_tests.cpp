@@ -7,6 +7,62 @@ using namespace dekaf2;
 
 TEST_CASE("KSystem")
 {
+	SECTION("EnvVars")
+	{
+		CHECK ( kUnsetEnv("DEKAF2_UTEST_VAR1") == true );
+		CHECK ( kSetEnv("DEKAF2_UTEST_VAR1", "ThisIsATest") == true );
+		CHECK ( kGetEnv("DEKAF2_UTEST_VAR1") == "ThisIsATest" );
+		CHECK ( kUnsetEnv("DEKAF2_UTEST_VAR1") == true );
+		CHECK ( kGetEnv("DEKAF2_UTEST_VAR1") == "" );
+	}
+
+	SECTION("CWD")
+	{
+		auto sTemp = kGetTemp();
+		CHECK ( sTemp != "" );
+		auto sDir = kGetCWD();
+		CHECK ( sDir != "" );
+		CHECK ( sTemp != sDir );
+		CHECK ( kSetCWD(sTemp) );
+		auto sCD = kGetCWD();
+#ifdef DEKAF2_IS_OSX
+		sCD.remove_prefix("/private");
+#endif
+		CHECK ( sTemp == sCD );
+		CHECK ( kSetCWD(sDir) );
+		CHECK ( kGetCWD() == sDir );
+	}
+
+	SECTION("Home")
+	{
+		auto sHome = kGetHome();
+		CHECK ( sHome != "" );
+	}
+
+	SECTION("WhoAmI")
+	{
+		auto sWho = kGetWhoAmI();
+		CHECK ( sWho != "" );
+	}
+
+	SECTION("Hostname")
+	{
+		auto sHostname = kGetHostname();
+		CHECK ( sHostname != "" );
+	}
+
+	SECTION("TID")
+	{
+		auto i = kGetTid();
+		CHECK ( i != 0 );
+	}
+
+	SECTION("Random")
+	{
+		auto i = kRandom(17, 43);
+		CHECK ( (i >= 17 && i <= 43) == true );
+	}
+
 	SECTION("kSystem")
 	{
 		KString sOutput;

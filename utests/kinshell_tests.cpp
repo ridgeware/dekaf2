@@ -192,47 +192,6 @@ TEST_CASE("KInShell")
         INFO("normal_open_close_test::Done:");
     } // normal open close
 
-	SECTION("kSystem")
-	{
-		KString sOutput;
-		auto iRet = kSystem("echo \"this is some text\"", sOutput);
-
-		CHECK ( iRet == 0 );
-		CHECK ( sOutput == "this is some text\n" );
-
-		iRet = kSystem("echo \"this is some text\" && exit 123", sOutput);
-
-		CHECK ( iRet == 123 );
-		CHECK ( sOutput == "this is some text\n" );
-
-		iRet = kSystem("ls -al ./", sOutput);
-
-		CHECK ( iRet == 0 );
-		CHECK ( sOutput != "" );
-
-		iRet = kSystem("", sOutput);
-
-		CHECK ( iRet == EINVAL );
-		CHECK ( sOutput == "" );
-
-		iRet = kSystem("abasdkhjfgbsarkjghvasgskufhse", sOutput);
-
-		CHECK ( iRet == 127 );
-		CHECK ( sOutput.Contains("abasdkhjfgbsarkjghvasgskufhse") );
-		CHECK ( sOutput.Contains("not found") );
-
-		iRet = kSystem("echo hello world");
-		CHECK ( iRet == 0 );
-
-		iRet = kSystem("exit 123");
-		CHECK ( iRet == 123 );
-
-		iRet = kSystem("abasdkhjfgbsarkjghvasgskufhse");
-		CHECK ( iRet == 127 );
-
-
-	}
-
 }
 
 #endif // DEKAF2_IS_WINDOWS

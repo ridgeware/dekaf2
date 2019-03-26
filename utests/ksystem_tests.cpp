@@ -1,0 +1,57 @@
+#include "catch.hpp"
+
+#include <dekaf2/kstring.h>
+#include <dekaf2/ksystem.h>
+
+using namespace dekaf2;
+
+TEST_CASE("KSysytem")
+{
+	SECTION("kSystem")
+	{
+		KString sOutput;
+		auto iRet = kSystem("echo \"this is some text\"", sOutput);
+
+		CHECK ( iRet == 0 );
+		CHECK ( sOutput == "this is some text\n" );
+
+		iRet = kSystem("echo \"this is some text\" && exit 123", sOutput);
+
+		CHECK ( iRet == 123 );
+		CHECK ( sOutput == "this is some text\n" );
+
+#ifdef DEKAF2_IS_WINDOWS
+		iRet = kSystem("dir", sOutput);
+#else
+		iRet = kSystem("ls -al ./", sOutput);
+#endif
+		CHECK ( iRet == 0 );
+		CHECK ( sOutput != "" );
+
+		iRet = kSystem("", sOutput);
+
+		CHECK ( iRet == EINVAL );
+		CHECK ( sOutput == "" );
+
+		iRet = kSystem("abasdkhjfgbsarkjghvasgskufhse", sOutput);
+
+		CHECK ( iRet == 127 );
+		CHECK ( sOutput.Contains("abasdkhjfgbsarkjghvasgskufhse") );
+#ifdef DEKAF2_IS_WINDOWS
+		CHECK ( sOutput.Contains("not recognized") );
+#else
+		CHECK ( sOutput.Contains("not found") );
+#endif
+
+		iRet = kSystem("echo hello world");
+		CHECK ( iRet == 0 );
+
+		iRet = kSystem("exit 123");
+		CHECK ( iRet == 123 );
+
+		iRet = kSystem("abasdkhjfgbsarkjghvasgskufhse");
+		CHECK ( iRet == 127 );
+	}
+
+}
+

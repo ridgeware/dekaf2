@@ -63,10 +63,11 @@ TEST_CASE("KOutShell")
 		// fail open the pipe with empty string
 		CHECK_FALSE(pipe.Open(""));
 
-		CHECK(pipe.Close() == 0);
+		CHECK(pipe.Close() == EINVAL);
 
 		INFO("KOutShell fail to open test::Done:");
 	} // normal open close
 
 }
-#endif
+
+#endif // DEKAF2_IS_WINDOWS

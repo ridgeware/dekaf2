@@ -96,7 +96,7 @@ protected:
 
 	//-----------------------------------------------------------------------------
 	/// Executes given command via a shell pipe saving FILE* pipe in class member
-	bool IntOpen (const KString& sCommand, bool bWrite);
+	bool IntOpen (KStringViewZ sCommand, bool bWrite);
 	//-----------------------------------------------------------------------------
 
 	FILE*        m_pipe{nullptr};

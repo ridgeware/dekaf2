@@ -40,8 +40,12 @@
 // +-------------------------------------------------------------------------+
 */
 
-#include "../klog.h"
 #include "kbaseshell.h"
+#include "../klog.h"
+#include "../ksignals.h"
+#include <errno.h>
+#include <sys/wait.h>
+
 
 namespace dekaf2
 {
@@ -54,13 +58,18 @@ KBaseShell::~KBaseShell()
 }
 
 //-----------------------------------------------------------------------------
-bool KBaseShell::IntOpen (const KString& sCommand, bool bWrite)
+bool KBaseShell::IntOpen (KStringViewZ sCommand, bool bWrite)
 //-----------------------------------------------------------------------------
 {
 	Close(); // ensure a previous pipe is closed
 
+	m_iExitCode = 0;
+
+	sCommand.TrimLeft();
+
 	if (sCommand.empty())
 	{
+		m_iExitCode = EINVAL;
 		return false;
 	}
 
@@ -86,20 +95,33 @@ int KBaseShell::Close()
 {
 	if (m_pipe)
 	{
-		/*int ret =*/ pclose(m_pipe);
+		// the return value is the exit status of the command as returned by wait4
+		int iStatus = pclose(m_pipe);
 
-		/*if (ret)
+		if (iStatus == -1)
 		{
-			// we see spurious errors here, but errno cannot reliably
-			// be used for pclose (see man pages). So we assume it's
-			// just noise, and log at a reduced level
-			kDebug(1, "could probably not close popen file");
-		}*/
+			m_iExitCode = errno;
+			kDebug(1, "cannot close pipe: {}", strerror(errno));
+		}
+		else if (WIFEXITED(iStatus))
+		{
+			m_iExitCode = WEXITSTATUS(iStatus);
+			kDebug(2, "exited with return value {}", m_iExitCode);
+		}
+		else if (WIFSIGNALED(iStatus))
+		{
+			m_iExitCode = 1;
+			int iSignal = WSTOPSIG(iStatus);
+			if (iSignal)
+			{
+				kDebug(1, "aborted by signal {}", kTranslateSignal(iSignal));
+			}
+		}
 
 		m_pipe = nullptr;
 	}
 
-	return 0;
+	return m_iExitCode;
 
 } // Close
 

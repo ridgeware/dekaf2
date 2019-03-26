@@ -48,6 +48,7 @@
 #include "kfilesystem.h"
 #include "klog.h"
 #include "dekaf2.h"
+#include "kinshell.h"
 
 #include <boost/asio.hpp>
 #include <boost/asio/ip/tcp.hpp>
@@ -335,6 +336,10 @@ KStringViewZ kGetHostname ()
 	enum { MAXNAMELEN = 50 };
 	static char szHostname[MAXNAMELEN+1] = "";
 
+	// no need for MT protection, as two racing
+	// gethostname calls would return the exact
+	// same string, and both would be copied into
+	// the target array without collision
 	if (*szHostname)
 	{
 		// hostname already queried
@@ -380,12 +385,46 @@ uint64_t kGetTid()
 
 } // kGetTid
 
+// it is preferable to use KInShell / popen for the call to system as it
+// avoids the creation of a temporary output file
+#define DEKAF2_USE_KSHELL_FOR_SYSTEM
 //-----------------------------------------------------------------------------
-uint8_t kSystem (KStringView sCommand, KString& sOutput)
+int kSystem (KStringView sCommand, KString& sOutput)
 //-----------------------------------------------------------------------------
 {
+	sOutput.clear();
+	sCommand.TrimRight();
+
+	if (sCommand.empty())
+	{
+		kDebug(2, "error: empty command, returning EINVAL ({})", EINVAL);
+		return EINVAL;
+	}
+
+#ifdef DEKAF2_USE_KSHELL_FOR_SYSTEM
+
+	// construct and execute a shell (this one works on
+	// Windows as well as on Linux)
+	
+	KString sWrapped;
+	sWrapped.Format ("({} 2>&1)", sCommand);
+	KInShell Shell(sWrapped);
+
+	// read until EOF
+	Shell.ReadRemaining(sOutput);
+
+	sOutput.Replace("\r\n", "\n"); // DOS -> UNIX
+
+	// close the shell and report the return value to the caller
+	return Shell.Close();
+
+#else // DEKAF2_USE_KSHELL_FOR_SYSTEM
+
+	// use shell output redirection to write into a temporary file
+	// and read it thereafter
+
 	KString sTmp;
-	sTmp.Format ("/tmp/ksystem{}_{}.out", kGetPid(), kGetTid());
+	sTmp.Format ("{}{}ksystem{}_{}.out", kGetTemp(), kDirSep, kGetPid(), kGetTid());
 
 	KString sWrapped;
 	sWrapped.Format ("({} 2>&1) > {}", sCommand, sTmp);
@@ -395,10 +434,22 @@ uint8_t kSystem (KStringView sCommand, KString& sOutput)
 	// - - - - - - - - - - - - - - - - - - - - - - - -
 	// shell out to run the command:
 	// - - - - - - - - - - - - - - - - - - - - - - - -
-	uint8_t iStatus = std::system (sWrapped.c_str());
-	kDebug (3, "exit code: {}", iStatus);
+	int iStatus = std::system (sWrapped.c_str());
 
-	sOutput.clear();
+	if (WIFEXITED(iStatus))
+	{
+		iStatus = WEXITSTATUS(iStatus);
+		kDebug(2, "exited with return value {}", iStatus);
+	}
+	else if (WIFSIGNALED(iStatus))
+	{
+		int iSignal = WSTOPSIG(iStatus);
+		if (iSignal)
+		{
+			kDebug(1, "aborted by signal {}", kTranslateSignal(iSignal));
+		}
+		iStatus = 1;
+	}
 
 	if (!kFileExists (sTmp))
 	{
@@ -413,21 +464,69 @@ uint8_t kSystem (KStringView sCommand, KString& sOutput)
 
 	return (iStatus);  // 0 => success
 
+#endif // DEKAF2_USE_KSHELL_FOR_SYSTEM
+
 } // ksystem
 
 //-----------------------------------------------------------------------------
-uint8_t kSystem (KStringView sCommand)
+int kSystem (KStringView sCommand)
 //-----------------------------------------------------------------------------
 {
+	sCommand.TrimRight();
+
+	if (sCommand.empty())
+	{
+		return EINVAL;
+	}
+
+#ifdef DEKAF2_USE_KSHELL_FOR_SYSTEM
+
+	// construct and execute a shell (this one works on
+	// Windows as well as on Linux)
+
 	KString sWrapped;
+#ifdef DEKAF2_IS_WINDOWS
+	sWrapped.Format ("({}) > {} 2>&1", sCommand, "NUL");
+#else
 	sWrapped.Format ("({}) > {} 2>&1", sCommand, "/dev/null");
+#endif
+	KInShell Shell(sWrapped);
+
+	// close the shell and report the return value to the caller
+	return Shell.Close();
+
+#else //DEKAF2_USE_KSHELL_FOR_SYSTEM
+
+	KString sWrapped;
+#ifdef DEKAF2_IS_WINDOWS
+	sWrapped.Format ("({}) > {} 2>&1", sCommand, "NUL");
+#else
+	sWrapped.Format ("({}) > {} 2>&1", sCommand, "/dev/null");
+#endif
 
 	// - - - - - - - - - - - - - - - - - - - - - - - -
 	// shell out to run the command:
 	// - - - - - - - - - - - - - - - - - - - - - - - -
-	uint8_t iStatus = std::system (sWrapped.c_str());
+	int iStatus = std::system (sWrapped.c_str());
+
+	if (WIFEXITED(iStatus))
+	{
+		iStatus = WEXITSTATUS(iStatus);
+		kDebug(2, "exited with return value {}", iStatus);
+	}
+	else if (WIFSIGNALED(iStatus))
+	{
+		int iSignal = WSTOPSIG(iStatus);
+		if (iSignal)
+		{
+			kDebug(1, "aborted by signal {}", kTranslateSignal(iSignal));
+		}
+		iStatus = 1;
+	}
 
 	return (iStatus);  // 0 => success
+
+#endif //DEKAF2_USE_KSHELL_FOR_SYSTEM
 
 } // ksystem
 

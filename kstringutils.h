@@ -483,7 +483,7 @@ bool kIsInteger(KStringView str) noexcept;
 
 //-----------------------------------------------------------------------------
 /// Returns true if str contains a float, possibly with a leading + or -
-bool kIsFloat(KStringView str) noexcept;
+bool kIsFloat(KStringView str, KStringView::value_type chDecimalSeparator = '.') noexcept;
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------

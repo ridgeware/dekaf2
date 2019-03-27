@@ -443,7 +443,7 @@ bool kIsInteger(KStringView str) noexcept
 } // kIsDecimal
 
 //-----------------------------------------------------------------------------
-bool kIsFloat(KStringView str) noexcept
+bool kIsFloat(KStringView str, KStringView::value_type chDecimalSeparator) noexcept
 //-----------------------------------------------------------------------------
 {
 	if (str.empty())
@@ -464,8 +464,7 @@ bool kIsFloat(KStringView str) noexcept
 			{
 				return false;
 			}
-			// TODO make this work with locales that use a comma for decimal separation
-			else if ('.' == *buf)
+			else if (chDecimalSeparator == *buf)
 			{
 				bDeciSeen = true;
 			}
@@ -474,7 +473,7 @@ bool kIsFloat(KStringView str) noexcept
 				return false;
 			}
 		}
-		buf++;
+		++buf;
 	}
 
 	return bDeciSeen;

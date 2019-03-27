@@ -50,6 +50,7 @@
 #include <type_traits>
 #include "../kstring.h"
 #include "../kstringview.h"
+#include "kstringviewz.h"
 
 namespace dekaf2
 {
@@ -85,12 +86,14 @@ template<class T>
 struct is_narrow_cpp_str
   : std::integral_constant<
       bool,
-      std::is_same<const KStringView, typename std::decay<T>::type>::value ||
-      std::is_same<KStringView,       typename std::decay<T>::type>::value ||
-      std::is_same<const KString,     typename std::decay<T>::type>::value ||
-      std::is_same<KString,           typename std::decay<T>::type>::value ||
-      std::is_same<const std::string, typename std::decay<T>::type>::value ||
-      std::is_same<std::string,       typename std::decay<T>::type>::value
+      std::is_same<const KStringViewZ, typename std::decay<T>::type>::value ||
+      std::is_same<KStringViewZ,       typename std::decay<T>::type>::value ||
+      std::is_same<const KStringView,  typename std::decay<T>::type>::value ||
+      std::is_same<KStringView,        typename std::decay<T>::type>::value ||
+      std::is_same<const KString,      typename std::decay<T>::type>::value ||
+      std::is_same<KString,            typename std::decay<T>::type>::value ||
+      std::is_same<const std::string,  typename std::decay<T>::type>::value ||
+      std::is_same<std::string,        typename std::decay<T>::type>::value
 > {};
 
 template<class T>

@@ -192,7 +192,7 @@ private:
 		NX = NN | XX,      // Digit and XDigit
 
 		AA = LL | UU,      // Alpha == LL | UU
-		AN = LL | UU | NN, // Alnum == LL | UU | NN
+		AN = AA | NN,      // Alnum == Alpha | NN
 	};
 
 	static constexpr uint8_t ASCIITable[0x80]

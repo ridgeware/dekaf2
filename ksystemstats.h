@@ -58,6 +58,7 @@ public:
 
 	enum class StatType
 	{
+		AUTO,
 		STRING,
 		INTEGER,
 		FLOAT
@@ -65,34 +66,55 @@ public:
 
 	using int_t = int64_t;
 
-	struct StatValueType 
+	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	class StatValueType
+	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	{
+
+	//----------
+	public:
+	//----------
+
 		KString sValue;
 		KString sExtra1;
 		KString sExtra2;
-		StatType type { StatType::STRING };
+		StatType type { StatType::AUTO };
 
 		StatValueType() = default;
 
-		StatValueType(KString _sValue, StatType iStatType = StatType::STRING)
+		StatValueType(KString _sValue, StatType iStatType = StatType::AUTO)
 		: sValue(std::move(_sValue))
 		, type(iStatType)
 		{
+			CheckType();
 		}
 
-		StatValueType(KString _sValue, KString _sExtra1, KString _sExtra2 = KString{}, StatType iStatType = StatType::STRING)
+		StatValueType(KString _sValue, KString _sExtra1, KString _sExtra2 = KString{}, StatType iStatType = StatType::AUTO)
 		: sValue(std::move(_sValue))
 		, sExtra1(std::move(_sExtra1))
 		, sExtra2(std::move(_sExtra2))
 		, type(iStatType)
 		{
+			CheckType();
+		}
+
+		static StatType SenseType(KStringView sValue);
+
+	//----------
+	private:
+	//----------
+
+		void CheckType()
+		{
+			if (type == StatType::AUTO)
+			{
+				type = SenseType(sValue);
+			}
 		}
 
 	};
 
 	using Stats = KProps <KString, StatValueType, /*order-matters=*/true, /*unique-keys*/true>; // KProps type
-
-	static KStringView CPUINFO_NUM_CORES;
 
 	enum class DumpFormat
 	{
@@ -122,13 +144,9 @@ public:
 	void      DumpProcTree (KOutStream& stream, uint64_t iStartWithPID=0);
 	Stats&    GetProcs     () { return m_Procs; }
 
-	static KString Backtrace    (pid_t iPID);
+	static KString Backtrace (pid_t iPID);
 
 	KStringView GetLastError () { return (m_sLastError.c_str()); }
-
-	bool Add (KStringView sStatName, KStringView  sStatValue, StatType iStatType);
-	bool Add (KStringView sStatName, int_t        iStatValue, StatType iStatType);
-	bool Add (KStringView sStatName, double       dStatValue, StatType iStatType);
 
 //----------
 protected:
@@ -146,6 +164,11 @@ protected:
 	static KStringViewZ PROC_CPUINFO;
 	static KStringViewZ PROC_STAT;
 	static KStringViewZ PROC_MEMINFO;
+	static KStringViewZ CPUINFO_NUM_CORES;
+
+	bool Add (KStringView sStatName, KStringView  sStatValue, StatType iStatType = StatType::AUTO);
+	bool Add (KStringView sStatName, int_t        iStatValue, StatType iStatType = StatType::AUTO);
+	bool Add (KStringView sStatName, double       dStatValue, StatType iStatType = StatType::AUTO);
 
 //----------
 private:
@@ -158,9 +181,6 @@ private:
 	void AddDiskStat (KStringView sValue, KStringView sDevice, KStringView sStat);
 	void DumpPidTree (KOutStream& stream, uint64_t iPPID, uint64_t iLevel);
 	void AddIntStatIfFileExists (KStringViewZ sStatName, KStringViewZ  sStatFilePath);
-
-	// For gathering CPU info
-	int m_iNumCores { 0 };
 
 }; // KSystemStats
 

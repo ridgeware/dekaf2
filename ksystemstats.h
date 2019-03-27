@@ -56,7 +56,7 @@ class KSystemStats
 public:
 //----------
 
-	enum STAT_TYPE
+	enum class StatType
 	{
 		STRING,
 		INTEGER,
@@ -70,69 +70,38 @@ public:
 		KString sValue;
 		KString sExtra1;
 		KString sExtra2;
-		STAT_TYPE type = STRING;
+		StatType type { StatType::STRING };
 
-		StatValueType() {}
-		~StatValueType() {}
+		StatValueType() = default;
 
-		StatValueType(KString value)
+		StatValueType(KString _sValue, StatType iStatType = StatType::STRING)
+		: sValue(std::move(_sValue))
+		, type(iStatType)
 		{
-			this->sValue = value;
-			this->type = STRING;
 		}
 
-		StatValueType(KString value, STAT_TYPE iStatType)
+		StatValueType(KString _sValue, KString _sExtra1, KString _sExtra2 = KString{}, StatType iStatType = StatType::STRING)
+		: sValue(std::move(_sValue))
+		, sExtra1(std::move(_sExtra1))
+		, sExtra2(std::move(_sExtra2))
+		, type(iStatType)
 		{
-			this->sValue = value;
-			this->type = iStatType;
-		}
-
-		StatValueType(KString sValue, KString sExtra1)
-		{
-			this->sValue = sValue;
-			this->sExtra1 = sExtra1;
-			this->type = STRING;
-		}
-
-		StatValueType(KString sValue, KString sExtra1, STAT_TYPE iStatType)
-		{
-			this->sValue = sValue;
-			this->sExtra1 = sExtra1;
-			this->type = iStatType;
-		}
-
-		StatValueType(KString sValue, KString sExtra1, KString sExtra2)
-		{
-			this->sValue = sValue;
-			this->sExtra1 = sExtra1;
-			this->sExtra2 = sExtra2;
-			this->type = STRING;
-		}
-
-		StatValueType(KString sValue, KString sExtra1, KString sExtra2, STAT_TYPE iStatType)
-		{
-			this->sValue = sValue;
-			this->sExtra1 = sExtra1;
-			this->sExtra2 = sExtra2;
-			this->type = iStatType;
 		}
 
 	};
 
-	typedef struct StatValueType StatValueType;
-
-	using StatType = KProps <KString, StatValueType, /*order-matters=*/true, /*unique-keys*/true>; // KProps type
+	using Stats = KProps <KString, StatValueType, /*order-matters=*/true, /*unique-keys*/true>; // KProps type
 
 	static KStringView CPUINFO_NUM_CORES;
 
-	enum DumpFormat
+	enum class DumpFormat
 	{
-		DUMP_TEXT,
-		DUMP_JSON,
-		DUMP_SHELL
+		TEXT,
+		JSON,
+		SHELL
 	};
 
-	KStringView StatTypeToString(STAT_TYPE statType);
+	KStringView StatTypeToString(StatType statType);
 
 	bool GatherProcInfo ();
 	bool GatherMiscInfo ();
@@ -144,22 +113,22 @@ public:
 	bool AddCalculations ();
 	bool GatherAll ();
 
-	void      DumpStats    (KOutStream& fp, DumpFormat iFormat=DUMP_TEXT, KStringView sGrepString="");
-	StatType& GetStats     ()   { return m_Stats; }
+	void      DumpStats    (KOutStream& fp, DumpFormat iFormat=DumpFormat::TEXT, KStringView sGrepString="");
+	Stats&    GetStats     () { return m_Stats; }
 	uint16_t  PushStats    (KStringView sURL, KStringView sMyUniqueIP, KString& sResponse);
 
-	uint64_t  GatherProcs  (KStringView sCommandRegex="", bool bDoNoShowMyself=true);
-	void      DumpProcs    (KOutStream& stream, DumpFormat DumpFormat=DUMP_TEXT);
+	size_t    GatherProcs  (KStringView sCommandRegex="", bool bDoNoShowMyself=true);
+	void      DumpProcs    (KOutStream& stream, DumpFormat DumpFormat=DumpFormat::TEXT);
 	void      DumpProcTree (KOutStream& stream, uint64_t iStartWithPID=0);
-	StatType& GetProcs     ()   { return m_Procs; }
+	Stats&    GetProcs     () { return m_Procs; }
 
 	static KString Backtrace    (pid_t iPID);
 
 	KStringView GetLastError () { return (m_sLastError.c_str()); }
 
-	bool Add (KStringView sStatName, KStringView  sStatValue, STAT_TYPE iStatType);
-	bool Add (KStringView sStatName, int64_t      iStatValue, STAT_TYPE iStatType);
-	bool Add (KStringView sStatName, double       dStatValue, STAT_TYPE iStatType);
+	bool Add (KStringView sStatName, KStringView  sStatValue, StatType iStatType);
+	bool Add (KStringView sStatName, int_t        iStatValue, StatType iStatType);
+	bool Add (KStringView sStatName, double       dStatValue, StatType iStatType);
 
 //----------
 protected:
@@ -182,8 +151,8 @@ protected:
 private:
 //----------
 
-	StatType  m_Stats;
-	StatType  m_Procs;
+	Stats     m_Stats;
+	Stats     m_Procs;
 	KString   m_sLastError;
 
 	void AddDiskStat (KStringView sValue, KStringView sDevice, KStringView sStat);

@@ -54,6 +54,7 @@
 #include "kstringview.h"
 #include "ksystem.h"
 #include "kctype.h"
+#include "bits/ktemplate.h"
 
 namespace dekaf2
 {
@@ -88,7 +89,8 @@ bool kStrIn (KStringView sNeedle, const char* Haystack[]);
 //----------------------------------------------------------------------
 
 //----------------------------------------------------------------------
-template<class Container>
+template<class Container,
+	typename std::enable_if_t<!detail::is_cpp_str<Container>::value>* = nullptr>
 bool kStrIn (KStringView sNeedle, const Container& Haystack)
 //----------------------------------------------------------------------
 {

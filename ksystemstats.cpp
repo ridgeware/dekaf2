@@ -64,7 +64,7 @@ KStringViewZ KSystemStats::PROC_DISKUSAGEINFO = "/proc/mounts";
 KStringViewZ KSystemStats::PROC_CPUINFO       = "/proc/cpuinfo";
 KStringViewZ KSystemStats::PROC_STAT          = "/proc/stat";
 KStringViewZ KSystemStats::PROC_MEMINFO       = "/proc/meminfo";
-KStringView  KSystemStats::CPUINFO_NUM_CORES  = "cpuinfo_num_cores";
+KStringViewZ KSystemStats::CPUINFO_NUM_CORES  = "cpuinfo_num_cores";
 
 //-----------------------------------------------------------------------------
 int64_t NeverNegative (int64_t iN)
@@ -99,6 +99,24 @@ bool KSystemStats::GatherAll ()
 } // GatherAll
 
 //-----------------------------------------------------------------------------
+KSystemStats::StatType KSystemStats::StatValueType::SenseType(KStringView sValue)
+//-----------------------------------------------------------------------------
+{
+	if (kIsInteger(sValue))
+	{
+		return StatType::INTEGER;
+	}
+
+	if (kIsFloat(sValue))
+	{
+		return StatType::FLOAT;
+	}
+
+	return StatType::STRING;
+
+} // SenseType
+
+//-----------------------------------------------------------------------------
 void KSystemStats::AddIntStatIfFileExists(KStringViewZ sStatName, KStringViewZ sStatFilePath)
 //-----------------------------------------------------------------------------
 {
@@ -110,12 +128,10 @@ void KSystemStats::AddIntStatIfFileExists(KStringViewZ sStatName, KStringViewZ s
 		KString sContents;
 		KInFile oStatFile(sStatFilePath);
 		size_t iRead = oStatFile.Read(sContents, 256);
-		if (iRead > 1)
-		{
-			sContents.Trim();
-		}
+		sContents.CollapseAndTrim();
+
 		kDebug (3, "Read {} bytes from stat file '{}' : '{}'", iRead, sStatFilePath, sContents);
-		Add(sStatName, sContents, StatType::INTEGER);
+		Add(sStatName, sContents, StatType::AUTO);
 	}
 	else
 	{
@@ -203,6 +219,7 @@ KStringView KSystemStats::StatTypeToString(StatType iStatType)
 			return "float";
 			break;
 
+		case StatType::AUTO:
 		case StatType::STRING:
 			return "string";
 			break;
@@ -361,17 +378,12 @@ bool KSystemStats::GatherMiscInfo ()
 		Add (sName, Parts.at(0), StatType::INTEGER);
 	}
 
-	// physical hostname and logical hostname:
 	file.close();
 
+	// physical hostname and logical hostname:
 	kDebug (3, "reading {} ...", PROC_HOSTNAME);
 
 	file.open (PROC_HOSTNAME);
-	if (!file.is_open ()) 
-	{
-		m_sLastError.Format ("fopen failed: {}", PROC_HOSTNAME);
-		return (false);
-	}
 
 	while (file.ReadLine(sLine))
 	{
@@ -380,6 +392,7 @@ bool KSystemStats::GatherMiscInfo ()
 			Add ("hostname", sLine, StatType::STRING);
 		}
 	}
+
 	file.close();
 
 	kDebug (3, "reading {} ...", "/etc/khostname");
@@ -679,6 +692,8 @@ bool KSystemStats::GatherCpuInfo ()
 */
 	kDebug (2, "reading {} ...", PROC_CPUINFO);
 
+	int_t m_iNumCores { 0 };
+
 	KInFile file(PROC_CPUINFO);
 	file.SetReaderRightTrim("\r\n\t ");
 
@@ -724,24 +739,13 @@ bool KSystemStats::GatherCpuInfo ()
 		}
 		else if (1 == m_iNumCores) // we only need to store CPU info for one core since every process is identical
 		{
-			StatType iType = StatType::STRING;
-			sName.insert(0,"cpuinfo_");
-
-			if (kIsInteger(sValue))
-			{
-				iType = StatType::INTEGER;
-			}
-			else if (kIsFloat(sValue))
-			{
-				iType = StatType::FLOAT;
-			}
-
+			sName.insert(0, "cpuinfo_");
 			kDebug (2, "{}:  ok: {}={}", PROC_CPUINFO, sName, sValue);
-			Add (sName, sValue, iType);
+			Add (sName, sValue);
 		}
 	}
 
-	Add (CPUINFO_NUM_CORES, std::to_string(m_iNumCores), StatType::STRING);
+	Add (CPUINFO_NUM_CORES, m_iNumCores, StatType::INTEGER);
 	file.close();
 
 	kDebug (3, "reading {} ...", PROC_STAT);
@@ -794,10 +798,10 @@ bool KSystemStats::GatherCpuInfo ()
 		{
 			time_t tBoot = Parts.at(1).Int64();
 			time_t tNow  = time(nullptr);
-			time_t tAgo  = tNow = tBoot;
+			time_t tAgo  = tNow - tBoot;
 
 			Add("boot_time_unix", static_cast<int_t>(tBoot), StatType::INTEGER);
-			Add("boot_time_dtm",  kFormTimestamp(tBoot),      StatType::STRING);
+			Add("boot_time_dtm",  kFormTimestamp(tBoot),     StatType::STRING);
 			Add("boot_time_ago",  static_cast<int_t>(tAgo),  StatType::INTEGER);
 		}
 	}
@@ -977,7 +981,7 @@ bool KSystemStats::GatherNetstat ()
 
 	// mentioned on http://www.outsystems.com/forums/discussion/6956/how-to-tune-the-tcp-ip-stack-for-high-volume-of-web-requests/
 	AddIntStatIfFileExists ("ipv4_tcp_fin_timeout",      "/proc/sys/net/ipv4/tcp_fin_timeout");
-	AddIntStatIfFileExists ("ipv4_ip_local_port_range", "/proc/sys/net/ipv4/ip_local_port_range");  //-- min max, see below
+	AddIntStatIfFileExists ("ipv4_ip_local_port_range",  "/proc/sys/net/ipv4/ip_local_port_range");  //-- min max, see below
 
 	// anything else that has the word "time" in it:
 	AddIntStatIfFileExists ("ipv4_inet_peer_gc_maxtime", "/proc/sys/net/ipv4/inet_peer_gc_maxtime");
@@ -985,16 +989,16 @@ bool KSystemStats::GatherNetstat ()
 	AddIntStatIfFileExists ("ipv4_ipfrag_time",          "/proc/sys/net/ipv4/ipfrag_time");
 	AddIntStatIfFileExists ("ipv4_tcp_keepalive_time",   "/proc/sys/net/ipv4/tcp_keepalive_time");
 
-	// the ip_local_port_range file has a min and max:
-	KString sContent;
-	kReadFile ("/proc/sys/net/ipv4/ip_local_port_range", sContent, true);
-	sContent.Replace ("\t", " ");
-	KStack<KStringView> Parts;
-	kSplit(Parts, sContent, " ");
-	// TODO re-examine logic here... converting atoi and then "AddNonEmpty" stat converts itoa...
-	// But there is also the NeverNegative logic
-	Add ("ipv4_ip_local_port_min", NeverNegative (Parts.at(0).Int32()), StatType::INTEGER);
-	Add ("ipv4_ip_local_port_max", NeverNegative (Parts.at(1).Int32()), StatType::INTEGER);
+	if (m_Stats.Contains("ipv4_ip_local_port_range"))
+	{
+		// the ip_local_port_range file has a min and max:
+		KStack<KStringView> Parts;
+		kSplit(Parts, m_Stats["ipv4_ip_local_port_range"].sValue, " ");
+		// TODO re-examine logic here... converting atoi and then "AddNonEmpty" stat converts itoa...
+		// But there is also the NeverNegative logic
+		Add ("ipv4_ip_local_port_min", NeverNegative (Parts.at(0).Int32()), StatType::INTEGER);
+		Add ("ipv4_ip_local_port_max", NeverNegative (Parts.at(1).Int32()), StatType::INTEGER);
+	}
 
 	return (true);
 
@@ -1332,6 +1336,7 @@ uint16_t KSystemStats::PushStats (KStringView sURL, KStringView sMyUniqueIP, KSt
 					sValue = "0.0";
 					break;
 
+				case StatType::AUTO:
 				case StatType::STRING: // already empty string...
 					break;
 			}

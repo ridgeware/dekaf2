@@ -78,7 +78,12 @@ bool KBaseShell::IntOpen (KStringViewZ sCommand, bool bWrite)
 	// - - - - - - - - - - - - - - - - - - - - - - - -
 	// shell out to run the command:
 	// - - - - - - - - - - - - - - - - - - - - - - - -
+#if defined(DEKAF2_IS_UNIX) && !defined(DEKAF2_IS_OSX)
+	// for a strange reason Apple has the CLOSE_ON_EXEC flag for fopen(), but not for popen()..
+	m_pipe = popen(sCommand.c_str(), bWrite ? "we" : "re");
+#else
 	m_pipe = popen(sCommand.c_str(), bWrite ? "w" : "r");
+#endif
 
 	if (!m_pipe)
 	{

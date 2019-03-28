@@ -273,7 +273,7 @@ KBufferedFileReader::KBufferedFileReader(int fd, size_t iBufferSize)
 KBufferedFileReader::KBufferedFileReader(KStringViewZ sFilename, size_t iBufferSize)
 //-----------------------------------------------------------------------------
 	: m_buffer(std::make_unique<char[]>(iBufferSize))
-	, m_fd(open(sFilename.c_str(), O_RDONLY))
+	, m_fd(open(sFilename.c_str(), O_RDONLY | DEKAF2_CLOSE_ON_EXEC_FLAG))
 	, m_bOwnsFileDescriptor(true)
 {
 	m_Arena = Arena { m_buffer.get(), iBufferSize } ;

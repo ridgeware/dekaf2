@@ -58,6 +58,7 @@ namespace dekaf2
 
 namespace detail {
 
+//-----------------------------------------------------------------------------
 /// Send this process into the background and detach from terminals. If bChangeDir
 /// is true, the child will chdir to /. The umask of the child is set to 022.
 /// WARNING: In a dekaf2 governed executable, this function should NOT be called
@@ -65,6 +66,17 @@ namespace detail {
 /// as early in the process as possible, best before any file and thread based
 /// activity. And best do not use it at all but let instead systemd do the work for you.
 void kDaemonize(bool bChangeDir = false);
+//-----------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
+/// On Unix, close all open file descriptors of this process to prepare for
+/// an exec of a different process image. If bIncludeStandardIO is true, even
+/// stdin, stdout and stderr are closed. We need this function as we have no
+/// control over the open flags of std::fstream and of included libraries. This
+/// function is to be called in a child after fork() and before exec(). Exempt
+/// is an array of file descriptors of iExemptSize that shall not be closed.
+void kCloseOwnFilesForExec(bool bIncludeStandardIO, int Exempt[] = nullptr, size_t iExemptSize = 0);
+//-----------------------------------------------------------------------------
 
 } // end of namespace detail
 

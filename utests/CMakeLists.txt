@@ -57,6 +57,7 @@ set (USOURCES
 	kstringviewz_tests.cpp
 	ksubscribe_tests.cpp
 	ksystem_tests.cpp
+	ksystemstats_tests.cpp
 	ktcpserver_tests.cpp
 	kuntar_tests.cpp
 	kurl_tests.cpp

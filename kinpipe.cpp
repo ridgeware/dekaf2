@@ -43,6 +43,7 @@
 
 #ifdef DEKAF2_HAS_PIPES
 
+#include "kchildprocess.h"
 #include "ksplit.h"
 #include "klog.h"
 #include <signal.h>
@@ -177,6 +178,8 @@ bool KInPipe::OpenReadPipe(KStringView sProgram)
 
 		case 0: /* child */
 		{
+			detail::kCloseOwnFilesForExec(false, m_readPdes, 2);
+
 			::close(m_readPdes[0]);
 			if (m_readPdes[1] != fileno(stdout))
 			{
@@ -187,7 +190,7 @@ bool KInPipe::OpenReadPipe(KStringView sProgram)
 			// execute the command
 			execvp(argV[0], const_cast<char* const*>(argV.data()));
 
-			_exit(127);
+			_exit(DEKAF2_POPEN_COMMAND_NOT_FOUND);
 		} // end case 0
 
 	} // end switch

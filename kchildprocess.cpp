@@ -52,9 +52,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <signal.h>
-#ifdef DEKAF2_IS_UNIX
 #include <dirent.h>
-#endif
 
 namespace dekaf2
 {
@@ -65,7 +63,6 @@ namespace detail {
 void kCloseOwnFilesForExec(bool bIncludeStandardIO, int Exempt[], size_t iExemptSize)
 //-----------------------------------------------------------------------------
 {
-#ifdef DEKAF2_IS_UNIX
 	const int iLowerBound = bIncludeStandardIO ? 0 : 3;
 
 	// try to read directory /proc/self/fd (does not exist everywhere...)
@@ -136,7 +133,6 @@ void kCloseOwnFilesForExec(bool bIncludeStandardIO, int Exempt[], size_t iExempt
 			close(fd);
 		}
 	}
-#endif
 
 } // kCloseOwnFilesForExec
 

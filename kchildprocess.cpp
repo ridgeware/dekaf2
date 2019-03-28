@@ -83,7 +83,11 @@ void kCloseOwnFilesForExec(bool bIncludeStandardIO, int Exempt[], size_t iExempt
 			{
 				break;
 			}
+#ifdef DEKAF2_IS_OSX
 			KStringView sFileDescriptor(entry->d_name, entry->d_namlen);
+#else
+			KStringView sFileDescriptor(entry->d_name);
+#endif
 			int fd = sFileDescriptor.Int32();
 			if (fd >= iLowerBound)
 			{

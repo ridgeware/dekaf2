@@ -102,8 +102,9 @@ private:
 	bool OpenPipeRW(KStringView sProgram);
 	//-----------------------------------------------------------------------------
 
-	int m_readPdes[2]{-1,-1};
-	int m_writePdes[2]{-1,-1};
+	// we use this nested arrangement to ensure we have all descriptors in one single array
+	int m_readPdes[4] { -1,-1,-1,-1 };
+	int* m_writePdes { &m_readPdes[2] };
 
 }; // class KPipe
 

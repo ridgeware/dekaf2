@@ -378,17 +378,12 @@ bool KSystemStats::GatherMiscInfo ()
 		Add (sName, Parts.at(0), StatType::INTEGER);
 	}
 
-	// physical hostname and logical hostname:
 	file.close();
 
+	// physical hostname and logical hostname:
 	kDebug (3, "reading {} ...", PROC_HOSTNAME);
 
 	file.open (PROC_HOSTNAME);
-	if (!file.is_open ()) 
-	{
-		m_sLastError.Format ("fopen failed: {}", PROC_HOSTNAME);
-		return (false);
-	}
 
 	while (file.ReadLine(sLine))
 	{
@@ -397,6 +392,7 @@ bool KSystemStats::GatherMiscInfo ()
 			Add ("hostname", sLine, StatType::STRING);
 		}
 	}
+
 	file.close();
 
 	kDebug (3, "reading {} ...", "/etc/khostname");

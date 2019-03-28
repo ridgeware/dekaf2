@@ -52,11 +52,89 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <signal.h>
+#ifdef DEKAF2_IS_UNIX
+#include <dirent.h>
+#endif
 
 namespace dekaf2
 {
 
 namespace detail {
+
+//-----------------------------------------------------------------------------
+void kCloseOwnFilesForExec(bool bIncludeStandardIO, int Exempt[], size_t iExemptSize)
+//-----------------------------------------------------------------------------
+{
+#ifdef DEKAF2_IS_UNIX
+	const int iLowerBound = bIncludeStandardIO ? 0 : 3;
+
+	// try to read directory /proc/self/fd (does not exist everywhere...)
+#ifdef DEKAF2_IS_OSX
+	auto* dir = opendir("/dev/fd");
+#else
+	auto* dir = opendir("/proc/self/fd");
+#endif
+	if (dir)
+	{
+		for (;;)
+		{
+			dirent* entry = readdir(dir);
+			if (!entry)
+			{
+				break;
+			}
+			KStringView sFileDescriptor(entry->d_name, entry->d_namlen);
+			int fd = sFileDescriptor.Int32();
+			if (fd >= iLowerBound)
+			{
+				if (Exempt)
+				{
+					bool bExempt { false };
+					for (size_t i = 0; i < iExemptSize; ++i)
+					{
+						if (Exempt[i] == fd)
+						{
+							bExempt = true;
+							break;
+						}
+					}
+					if (bExempt)
+					{
+						continue;
+					}
+				}
+				close(fd);
+			}
+		}
+		closedir(dir);
+	}
+	else
+	{
+		// just do a loop
+		for (int fd = iLowerBound; fd < 1024; ++fd)
+		{
+			if (Exempt)
+			{
+				bool bExempt { false };
+				for (size_t i = 0; i < iExemptSize; ++i)
+				{
+					if (Exempt[i] == fd)
+					{
+						bExempt = true;
+						break;
+					}
+				}
+				if (bExempt)
+				{
+					continue;
+				}
+			}
+			close(fd);
+		}
+	}
+#endif
+
+} // kCloseOwnFilesForExec
 
 //-----------------------------------------------------------------------------
 void kDaemonize(bool bChangeDir)
@@ -113,10 +191,7 @@ void kDaemonize(bool bChangeDir)
 	// umask never fails, and it returns the previous umask
 	umask(S_IWGRP | S_IWOTH);
 
-	for (int fd = 0; fd <= 255; ++fd)
-	{
-		close(fd);
-	}
+	kCloseOwnFilesForExec(true);
 
 	int iStdIn = open("/dev/null", O_RDONLY);
 	if (iStdIn != 0)
@@ -228,10 +303,7 @@ bool KChildProcess::Start(KStringView sCommand, KStringViewZ sChangeDirectory, b
 		// umask never fails, and it returns the previous umask
 		umask(S_IWGRP | S_IWOTH);
 
-		for (int fd = 0; fd <= 255; ++fd)
-		{
-			close(fd);
-		}
+		detail::kCloseOwnFilesForExec(true);
 
 		int iStdIn = open("/dev/null", O_RDONLY);
 		if (iStdIn != 0)
@@ -254,12 +326,16 @@ bool KChildProcess::Start(KStringView sCommand, KStringViewZ sChangeDirectory, b
 		m_bIsDaemonized = true;
 
 	} // of bDaemonized
+	else
+	{
+		detail::kCloseOwnFilesForExec(false);
+	}
 
 	::execvp(cArgs[0], const_cast<char* const*>(cArgs.data()));
 
 	kDebug(1, "execvp(): {}", strerror(errno));
 
-	exit(1);
+	exit(DEKAF2_POPEN_COMMAND_NOT_FOUND);
 
 } // Start
 

@@ -421,10 +421,12 @@ DEKAF2_LE_BE_CONSTEXPR void kFromLittleEndian(VALUE& value)
 	#endif
 
 	#define DEKAF2_POPEN_COMMAND_NOT_FOUND 1
+	#define DEKAF2_CLOSE_ON_EXEC_FLAG 0
 
 #else
 
 	#define DEKAF2_POPEN_COMMAND_NOT_FOUND 127
+	#define DEKAF2_CLOSE_ON_EXEC_FLAG O_CLOEXEC
 
 #endif
 

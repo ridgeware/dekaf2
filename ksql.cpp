@@ -3111,8 +3111,12 @@ bool KSQL::BufferResults ()
 		kWarningLog ("KSQL:BufferResults(): unsupported API Set ({})", TxAPISet(m_iAPISet));
 		kCrashExit (CRASHCODE_DEKAFUSAGE);
 	}
-	
+
+#ifdef DEKAF2_IS_UNIX
+	m_bpBufferedResults = fopen (m_sTmpResultsFile.c_str(), "re");
+#else
 	m_bpBufferedResults = fopen (m_sTmpResultsFile.c_str(), "r");
+#endif
 	if (!m_bpBufferedResults)
 	{
 		m_sLastError.Format ("{}BufferResults(): bizarre: {} could not read from '{}', right after creating it.", m_sErrorPrefix,
@@ -3543,7 +3547,11 @@ bool KSQL::ResetBuffer ()
 		m_bFileIsOpen = false;
 	}
 
+#ifdef DEKAF2_IS_UNIX
+	m_bpBufferedResults = fopen (m_sTmpResultsFile.c_str(), "re");
+#else
 	m_bpBufferedResults = fopen (m_sTmpResultsFile.c_str(), "r");
+#endif
 	if (!m_bpBufferedResults)
 	{
 		m_sLastError.Format ("{}ResetBuffer(): bizarre: {} could not read from '{}'.", m_sErrorPrefix,

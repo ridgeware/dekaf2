@@ -333,7 +333,7 @@ bool kReadAll(KStringViewZ sFileName, KString& sContent)
 
 #else
 
-		auto fd = open(sFileName.c_str(), O_RDONLY);
+		auto fd = open(sFileName.c_str(), O_RDONLY | DEKAF2_CLOSE_ON_EXEC_FLAG);
 
 		if (fd >= 0)
 		{

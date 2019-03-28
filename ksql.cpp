@@ -5463,6 +5463,42 @@ bool KSQL::Delete (KROW& Row)
 } // Delete
 
 //-----------------------------------------------------------------------------
+bool KSQL::PurgeKey (KStringView sPKEY, KStringView sValue, KJSON& ChangesMade)
+//-----------------------------------------------------------------------------
+{
+	ChangesMade = KJSON::array();
+	KJSON DataDict = FindColumn (sPKEY);
+
+	if (!BeginTransaction ())
+	{
+		return (false);
+	}
+
+	for (auto& table : DataDict)
+	{
+		KString sTableName = table["table_name"];
+
+		if (!ExecSQL ("delete from %s /*KSQL::DeleteCascading*/ where %s = binary '%s'", sTableName, sPKEY, sValue))
+		{
+			return (false);
+		}
+
+		KJSON obj;
+		obj["table_name"]   = sTableName;
+		obj["rows_deleted"] = GetNumRowsAffected();
+		ChangesMade += obj;
+	}
+
+	if (!CommitTransaction ())
+	{
+		return (false);
+	}
+
+	return (true);
+
+} // PurgeKey
+
+//-----------------------------------------------------------------------------
 bool KSQL::UpdateOrInsert (KROW& Row, KROW& AdditionalInsertCols, bool* pbInserted/*=nullptr*/)
 //-----------------------------------------------------------------------------
 {

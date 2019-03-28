@@ -224,10 +224,13 @@ public:
 	void   CloseConnection  (bool bDestructor=false);
 	bool   IsConnectionOpen ()      { return (m_bConnectionIsOpen); }
 
-	bool   Insert         (KROW& Row);
-	bool   Update         (KROW& Row);
-	bool   Delete         (KROW& Row);
-	bool   UpdateOrInsert (KROW& Row, KROW& AdditionalInsertCols, bool* pbInserted = nullptr);
+	bool   Insert          (KROW& Row);
+	bool   Update          (KROW& Row);
+	bool   Delete          (KROW& Row);
+	bool   UpdateOrInsert  (KROW& Row, KROW& AdditionalInsertCols, bool* pbInserted = nullptr);
+
+	/// cascading delete of a given key from the entire database (uses data dictionary tables). returns true/false and populates all changes made in given json array.
+	bool   PurgeKey        (KStringView sPKEY, KStringView sValue, KJSON& ChangesMade);
 
 	bool   FormInsert     (KROW& Row, KString& sSQL, bool fIdentityInsert=false)
 			{ bool fOK = Row.FormInsert (m_sLastSQL, m_iDBType, fIdentityInsert); sSQL = m_sLastSQL; return (fOK); }

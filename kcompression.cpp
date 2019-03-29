@@ -53,61 +53,30 @@ namespace dekaf2 {
 namespace bio = boost::iostreams;
 
 //-----------------------------------------------------------------------------
-KCompress::KCompress(KString& sTarget)
-//-----------------------------------------------------------------------------
-{
-	m_KOStringStream = std::make_unique<KOStringStream>(sTarget);
-	m_TargetStream = &*m_KOStringStream;
-
-} // ctor
-
-//-----------------------------------------------------------------------------
-KCompress::KCompress(std::ostream& TargetStream)
-//-----------------------------------------------------------------------------
-: m_TargetStream(&TargetStream)
-{
-}
-
-//-----------------------------------------------------------------------------
-KCompress::KCompress(KOutStream& TargetStream)
-//-----------------------------------------------------------------------------
-: m_TargetStream(&TargetStream.OutStream())
-{
-}
-
-//-----------------------------------------------------------------------------
-KCompress::~KCompress()
-//-----------------------------------------------------------------------------
-{
-	Close();
-
-} // dtor
-
-//-----------------------------------------------------------------------------
-bool KCompress::SetOutput(std::ostream& TargetStream)
+bool KCompress::Open(std::ostream& TargetStream)
 //-----------------------------------------------------------------------------
 {
 	m_TargetStream = &TargetStream;
 	return m_TargetStream->good();
 
-} // SetOutput
+} // Open
 
 //-----------------------------------------------------------------------------
-bool KCompress::SetOutput(KOutStream& TargetStream)
+bool KCompress::Open(KOutStream& TargetStream)
 //-----------------------------------------------------------------------------
 {
-	return SetOutput(TargetStream.OutStream());
+	return Open(TargetStream.OutStream());
 
-} // SetOutput
+} // Open
 
 //-----------------------------------------------------------------------------
-bool KCompress::SetOutput(KString& sTarget)
+bool KCompress::Open(KString& sTarget)
 //-----------------------------------------------------------------------------
 {
 	m_KOStringStream = std::make_unique<KOStringStream>(sTarget);
-	return SetOutput(*m_KOStringStream);
+	return Open(*m_KOStringStream);
 
-} // SetOutput
+} // Open
 
 //-----------------------------------------------------------------------------
 bool KCompress::Write(std::istream& InputStream)
@@ -195,61 +164,30 @@ void KCompress::Close()
 } // Close
 
 //-----------------------------------------------------------------------------
-KUnCompress::KUnCompress(KStringView sSource)
-//-----------------------------------------------------------------------------
-{
-	m_KIStringStream = std::make_unique<KIStringStream>(sSource);
-	m_SourceStream = &*m_KIStringStream;
-
-} // ctor
-
-//-----------------------------------------------------------------------------
-KUnCompress::KUnCompress(std::istream& SourceStream)
-//-----------------------------------------------------------------------------
-: m_SourceStream(&SourceStream)
-{
-}
-
-//-----------------------------------------------------------------------------
-KUnCompress::KUnCompress(KInStream& SourceStream)
-//-----------------------------------------------------------------------------
-: m_SourceStream(&SourceStream.InStream())
-{
-}
-
-//-----------------------------------------------------------------------------
-KUnCompress::~KUnCompress()
-//-----------------------------------------------------------------------------
-{
-	Close();
-
-} // dtor
-
-//-----------------------------------------------------------------------------
-bool KUnCompress::SetInput(std::istream& SourceStream)
+bool KUnCompress::Open(std::istream& SourceStream)
 //-----------------------------------------------------------------------------
 {
 	m_SourceStream = &SourceStream;
 	return m_SourceStream->good();
 
-} // SetInput
+} // Open
 
 //-----------------------------------------------------------------------------
-bool KUnCompress::SetInput(KInStream& SourceStream)
+bool KUnCompress::Open(KInStream& SourceStream)
 //-----------------------------------------------------------------------------
 {
-	return SetInput(SourceStream.InStream());
+	return Open(SourceStream.InStream());
 
-} // SetInput
+} // Open
 
 //-----------------------------------------------------------------------------
-bool KUnCompress::SetInput(KStringView sSource)
+bool KUnCompress::Open(KStringView sSource)
 //-----------------------------------------------------------------------------
 {
 	m_KIStringStream = std::make_unique<KIStringStream>(sSource);
-	return SetInput(*m_KIStringStream);
+	return Open(*m_KIStringStream);
 
-} // SetInput
+} // Open
 
 //-----------------------------------------------------------------------------
 size_t KUnCompress::Read(std::ostream& OutputStream, size_t iCount)

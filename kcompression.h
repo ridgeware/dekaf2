@@ -106,23 +106,35 @@ public:
 	/// before attempting to write to it
 	KCompress() = default;
 	/// constructs a compressor with a KString as the target
-	KCompress(KString& sTarget);
+	KCompress(KString& sTarget)
+	{
+		Open(sTarget);
+	}
 	/// constructs a compressor with a std::ostream as the target
-	KCompress(std::ostream& TargetStream);
+	KCompress(std::ostream& TargetStream)
+	{
+		Open(TargetStream);
+	}
 	/// constructs a compressor with a KOutStream as the target
-	KCompress(KOutStream& TargetStream);
+	KCompress(KOutStream& TargetStream)
+	{
+		Open(TargetStream);
+	}
 	/// copy construction is deleted
 	KCompress(const KCompress&) = delete;
 	/// move construction is permitted
 	KCompress(KCompress&&) = default;
-	~KCompress();
+	~KCompress()
+	{
+		Close();
+	}
 
 	/// sets a KString as the target
-	bool SetOutput(KString& sTarget);
+	bool Open(KString& sTarget);
 	/// sets a std::ostream as the target
-	bool SetOutput(std::ostream& TargetStream);
+	bool Open(std::ostream& TargetStream);
 	/// sets a KOutStream as the target
-	bool SetOutput(KOutStream& TargetStream);
+	bool Open(KOutStream& TargetStream);
 
 	/// writes a string into the compressor
 	bool Write(KStringView sInput);
@@ -172,23 +184,35 @@ public:
 	/// before attempting to write to it
 	KUnCompress() = default;
 	/// constructs an uncompressor with a KStringView as the source
-	KUnCompress(KStringView sSource);
+	KUnCompress(KStringView sSource)
+	{
+		Open(sSource);
+	}
 	/// constructs an uncompressor with a std::istream as the source
-	KUnCompress(std::istream& SourceStream);
+	KUnCompress(std::istream& SourceStream)
+	{
+		Open(SourceStream);
+	}
 	/// constructs an uncompressor with a KInStream as the source
-	KUnCompress(KInStream& SourceStream);
+	KUnCompress(KInStream& SourceStream)
+	{
+		Open(SourceStream);
+	}
 	/// copy construction is deleted
 	KUnCompress(const KUnCompress&) = delete;
 	/// move construction is permitted
 	KUnCompress(KUnCompress&&) = default;
-	~KUnCompress();
+	~KUnCompress()
+	{
+		Close();
+	}
 
 	/// sets a KStringView as the source
-	bool SetInput(KStringView sSource);
+	bool Open(KStringView sSource);
 	/// sets a std::istream as the source
-	bool SetInput(std::istream& SourceStream);
+	bool Open(std::istream& SourceStream);
 	/// sets a KInStream as the source
-	bool SetInput(KInStream& SourceStream);
+	bool Open(KInStream& SourceStream);
 
 	/// reads a string from the uncompressor
 	size_t Read(KString& sOutput, size_t len = KString::npos);

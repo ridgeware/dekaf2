@@ -60,51 +60,35 @@ class KPipe : public KBasePipe, public KFDStream
 public:
 //------
 
-	/*
-	 * The sProgram is a KString of this format:
-	 * path_to_program arg1 arg2 arg3...
-	 * where path_to_program will also be handed in as argv[0]
-	 * If spaces are needed within an arg, use " :
-	 * path_to_program arg1 "arg2 with spaces" arg3
-	 */
-
 	//-----------------------------------------------------------------------------
 	/// Default Constructor
-	KPipe();
+	KPipe() = default;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// Open Constructor
-	KPipe(KStringView sProgram);
+	KPipe(KString sCommand, bool bAsShellCommand = false)
+	//-----------------------------------------------------------------------------
+	{
+		Open(std::move(sCommand), bAsShellCommand);
+	}
+
+	//-----------------------------------------------------------------------------
+	~KPipe()
+	//-----------------------------------------------------------------------------
+	{
+		Close();
+	}
+
+	//-----------------------------------------------------------------------------
+	/// Opens a pipe
+	bool Open(KString sCommand, bool bAsShellCommand = false);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// Default Destructor
-	~KPipe();
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// Opens A WritePipe
-	bool Open(KStringView sProgram);
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// Closes A WritePipe
+	/// Closes a pipe
 	int Close();
 	//-----------------------------------------------------------------------------
-
-//--------
-private:
-//--------
-
-	//-----------------------------------------------------------------------------
-	/// Opens a pipe for writing
-	bool OpenPipeRW(KStringView sProgram);
-	//-----------------------------------------------------------------------------
-
-	// we use this nested arrangement to ensure we have all descriptors in one single array
-	int m_readPdes[4] { -1,-1,-1,-1 };
-	int* m_writePdes { &m_readPdes[2] };
 
 }; // class KPipe
 

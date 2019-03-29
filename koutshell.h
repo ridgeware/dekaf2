@@ -48,13 +48,25 @@
 #include "bits/kbaseshell.h"
 #include "kfdstream.h"
 
+#ifdef DEKAF2_IS_UNIX
+	#include "koutpipe.h"
+#endif
+
 namespace dekaf2
 {
 
+// For unixes we will use KPipe (with internal fork and exec) instead of popen,
+// as this permits us to close all open file descriptors before executing the
+// new process. It is only for Windows that we will use popen (as fork and exec
+// are not supported).
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Write to a shell instance
+#ifdef DEKAF2_IS_UNIX
+class KOutShell : public KOutPipe
+#else
 class KOutShell : public KBaseShell, public KFPWriter
+#endif
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -70,15 +82,15 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Constructor which takes and executes command immediately
-	KOutShell(const KString& sCommand)
+	KOutShell(KString sCommand)
 	//-----------------------------------------------------------------------------
 	{
-		Open(sCommand);
+		Open(std::move(sCommand));
 	}
 
 	//-----------------------------------------------------------------------------
 	/// Executes given command via a shell pipe which input can be written to
-	bool Open(const KString& sCommand);
+	bool Open(KString sCommand);
 	//-----------------------------------------------------------------------------
 
 }; // END KOutShell

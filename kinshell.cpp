@@ -41,21 +41,35 @@
 */
 
 #include "kinshell.h"
-#include "klog.h"
 
 namespace dekaf2
 {
 
+#ifdef DEKAF2_IS_UNIX
+
 //-----------------------------------------------------------------------------
-bool KInShell::Open(const KString& sCommand)
+bool KInShell::Open(KString sCommand)
 //-----------------------------------------------------------------------------
 {
-	if (!IntOpen(sCommand, false))
+	return KInPipe::Open(std::move(sCommand), true);
+
+} // Open
+
+#else
+
+//-----------------------------------------------------------------------------
+bool KInShell::Open(KString sCommand)
+//-----------------------------------------------------------------------------
+{
+	if (!IntOpen(std::move(sCommand), false))
 	{
 		return false;
 	}
 	KFPReader::open(m_pipe);
 	return KFPReader::good();
-}
+
+} // Open
+
+#endif
 
 } // END NAMESPACE dekaf2

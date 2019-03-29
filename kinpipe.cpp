@@ -43,68 +43,20 @@
 
 #ifdef DEKAF2_HAS_PIPES
 
-#include "kchildprocess.h"
-#include "ksplit.h"
-#include "klog.h"
-#include <signal.h>
-
 namespace dekaf2
 {
 
 //-----------------------------------------------------------------------------
-KInPipe::KInPipe()
-//-----------------------------------------------------------------------------
-{} // Default Constructor
-
-//-----------------------------------------------------------------------------
-KInPipe::KInPipe(KStringView sProgram)
+bool KInPipe::Open(KString sCommand, bool bAsShellCommand)
 //-----------------------------------------------------------------------------
 {
-	Open(sProgram);
-
-} // Immediate Open Constructor
-
-//-----------------------------------------------------------------------------
-KInPipe::~KInPipe()
-//-----------------------------------------------------------------------------
-{
-	Close();
-
-} // Default Destructor
-
-//-----------------------------------------------------------------------------
-bool KInPipe::Open(KStringView sProgram)
-//-----------------------------------------------------------------------------
-{
-	kDebug(3, "Program to be opened: {}", sProgram);
-
-	Close(); // ensure a previous pipe is closed
-
-	if (sProgram.empty())
+	if (!KBasePipe::Open(std::move(sCommand), bAsShellCommand, PipeRead))
 	{
 		return false;
 	}
 
-	// - - - - - - - - - - - - - - - - - - - - - - - -
-	// Use vfork()/execvp() to run the program:
-	// - - - - - - - - - - - - - - - - - - - - - - - -
-	OpenReadPipe(sProgram);
-
-	// - - - - - - - - - - - - - - - - - - - - - - - -
-	// interpret success:
-	// - - - - - - - - - - - - - - - - - - - - - - - -
-	if (m_readPdes[0] == -1)
-	{
-		kWarning("FAILED to open program: {} | ERROR: {}", sProgram, strerror(errno));
-		m_iExitCode = errno;
-		return false;
-	}
-	else
-	{
-		kDebug(3, "opened program {} successfully...", sProgram);
-		KFDReader::open(m_readPdes[0]);
-		return KFDReader::good();
-	}
+	KFDReader::open(m_readPdes[0]);
+	return KFDReader::good();
 
 } // Open
 
@@ -112,95 +64,12 @@ bool KInPipe::Open(KStringView sProgram)
 int KInPipe::Close ()
 //-----------------------------------------------------------------------------
 {
-	if (m_pid > 0)
-	{
-		// Close Stream
-		KFDReader::close();
-		// Close the pipe
-		::close(m_readPdes[1]);
-		// Child has been cut off from parent, let it terminate for up to a minute
-		WaitForFinished(60000);
+	// Close Stream
+	KFDReader::close();
 
-		// is the child still running?
-		if (IsRunning())
-		{
-			// the child process has been giving us trouble. Kill it
-			kill(m_pid, SIGKILL);
-			m_iExitCode = -1;
-		}
-
-		m_pid = -1;
-		m_readPdes[0] = -1;
-		m_readPdes[1] = -1;
-	}
-	
-	return (m_iExitCode == EXIT_CODE_NOT_SET) ? -1 : m_iExitCode;
+	return KBasePipe::Close(PipeRead);
 
 } // Close
-
-//-----------------------------------------------------------------------------
-bool KInPipe::OpenReadPipe(KStringView sProgram)
-//-----------------------------------------------------------------------------
-{
-	// Reset status vars and pipes.
-	m_pid       = -1;
-	m_iExitCode = EXIT_CODE_NOT_SET;
-
-	// try to open a pipe
-	if (pipe(m_readPdes) < 0)
-	{
-		return false;
-	} // could not create pipe
-
-	// we need to do the object allocations in the parent
-	// process as otherwise leak detectors would claim the
-	// child has lost allocated memory (as the child would
-	// never run the destructor)
-	KString sCmd(sProgram); // need non const for split
-	std::vector<const char*> argV;
-	kSplitArgsInPlace(argV, sCmd);
-	// terminate with nullptr
-	argV.push_back(nullptr);
-
-	// create a child
-	switch (m_pid = vfork())
-	{
-		case -1: /* error */
-		{
-			// could not create the child
-			::close(m_readPdes[0]);
-			::close(m_readPdes[1]);
-			m_pid = -1;
-			m_readPdes[0] = -1;
-			m_readPdes[1] = -1;
-			break;
-		}
-
-		case 0: /* child */
-		{
-			detail::kCloseOwnFilesForExec(false, m_readPdes, 2);
-
-			::close(m_readPdes[0]);
-			if (m_readPdes[1] != fileno(stdout))
-			{
-				::dup2(m_readPdes[1], fileno(stdout));
-				::close(m_readPdes[1]);
-			}
-
-			// execute the command
-			execvp(argV[0], const_cast<char* const*>(argV.data()));
-
-			_exit(DEKAF2_POPEN_COMMAND_NOT_FOUND);
-		} // end case 0
-
-	} // end switch
-
-	/* only parent gets here */
-	::close(m_readPdes[1]);
-
-	return true;
-
-} // OpenReadPipe
 
 } // end namespace dekaf2
 

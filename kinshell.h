@@ -48,12 +48,25 @@
 #include "bits/kbaseshell.h"
 #include "kfdstream.h"
 
+#ifdef DEKAF2_IS_UNIX
+	#include "kinpipe.h"
+#endif
+
 namespace dekaf2
 {
 
+// For unixes we will use KPipe (with internal fork and exec) instead of popen,
+// as this permits us to close all open file descriptors before executing the
+// new process. It is only for Windows that we will use popen (as fork and exec
+// are not supported).
+
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Read on a shell instance
+#ifdef DEKAF2_IS_UNIX
+class KInShell : public KInPipe
+#else
 class KInShell : public KBaseShell, public KFPReader
+#endif
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -63,21 +76,20 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Default KInShell Constructor
-	KInShell()
+	KInShell() = default;
 	//-----------------------------------------------------------------------------
-	{}
 
 	//-----------------------------------------------------------------------------
 	/// Constructor which takes and executes command immediately
-	KInShell(const KString& sCommand)
+	KInShell(KString sCommand)
 	//-----------------------------------------------------------------------------
 	{
-		Open(sCommand);
+		Open(std::move(sCommand));
 	}
 
 	//-----------------------------------------------------------------------------
 	/// Executes given command via a shell pipe from which output can be read
-	bool Open(const KString& sCommand);
+	bool Open(KString sCommand);
 	//-----------------------------------------------------------------------------
 
 }; // END KInShell

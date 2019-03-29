@@ -41,9 +41,13 @@
 */
 
 #include "kbaseshell.h"
+
+#ifndef DEKAF2_IS_UNIX
+
 #include "../klog.h"
 #include "../ksignals.h"
 #include <errno.h>
+
 #ifndef DEKAF2_IS_WINDOWS
 	#include <sys/wait.h>
 #endif
@@ -60,7 +64,7 @@ KBaseShell::~KBaseShell()
 }
 
 //-----------------------------------------------------------------------------
-bool KBaseShell::IntOpen (KStringViewZ sCommand, bool bWrite)
+bool KBaseShell::IntOpen (KString sCommand, bool bWrite)
 //-----------------------------------------------------------------------------
 {
 	Close(); // ensure a previous pipe is closed
@@ -87,7 +91,7 @@ bool KBaseShell::IntOpen (KStringViewZ sCommand, bool bWrite)
 
 	if (!m_pipe)
 	{
-		kDebug (0, "POPEN CMD FAILED: {} ERROR: {}", sCommand, strerror(errno));
+		kDebug (0, "popen() failed: {} - error: {}", sCommand, strerror(errno));
 		m_iExitCode = errno;
 		return false;
 	}
@@ -133,3 +137,5 @@ int KBaseShell::Close()
 } // Close
 
 } // end of namespace dekaf2
+
+#endif // of !DEKAF2_IS_UNIX

@@ -46,6 +46,8 @@
 
 #include "../kstring.h"
 
+#ifndef DEKAF2_IS_UNIX
+
 namespace dekaf2
 {
 
@@ -60,13 +62,12 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Default Constructor
-	KBaseShell ()
+	KBaseShell() = default;
 	//-----------------------------------------------------------------------------
-	{}
 
 	//-----------------------------------------------------------------------------
 	/// Destructor
-	~KBaseShell ();
+	~KBaseShell();
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -82,27 +83,21 @@ public:
 		return m_iExitCode;
 	}
 
-	//-----------------------------------------------------------------------------
-	/// Allows KPipeReader to be passed where File* can be.
-	operator FILE*()
-	//-----------------------------------------------------------------------------
-	{
-		return m_pipe;
-	}
-
 //--------
 protected:
 //--------
 
 	//-----------------------------------------------------------------------------
 	/// Executes given command via a shell pipe saving FILE* pipe in class member
-	bool IntOpen (KStringViewZ sCommand, bool bWrite);
+	bool IntOpen(KString sCommand, bool bWrite);
 	//-----------------------------------------------------------------------------
 
-	FILE*        m_pipe{nullptr};
-	int          m_iExitCode{0};
+	FILE* m_pipe { nullptr };
+	int m_iExitCode { 0 };
 
 
 }; // class KPIPE
 
 } // end of namespace DEKAF2
+
+#endif // !DEKAF2_IS_UNIX

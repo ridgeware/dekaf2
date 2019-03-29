@@ -43,6 +43,7 @@
 
 // Dekaf Includes
 #include "kcppcompat.h"
+#include "../kstring.h"
 
 #ifdef DEKAF2_HAS_PIPES
 
@@ -61,16 +62,6 @@ public:
 //------
 
 	//-----------------------------------------------------------------------------
-	/// Default Constructor
-	KBasePipe();
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// Default Destructor
-	~KBasePipe();
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
 	/// Checks if child on other side of pipe is still running
 	bool IsRunning();
 	//-----------------------------------------------------------------------------
@@ -78,21 +69,44 @@ public:
 	//-----------------------------------------------------------------------------
 	/// Waits up to the number of given milliseconds for the child to terminate
 	/// Will return early if child terminates
-	bool WaitForFinished(int msecs);
+	bool Wait(int msecs);
 	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// Get error code, 0 indicates no errors
+	int GetErrno()
+	//-----------------------------------------------------------------------------
+	{
+		return m_iExitCode;
+	}
 
 //--------
 protected:
 //--------
 
-	enum { EXIT_CODE_NOT_SET = INT_MIN };
+	enum OpenMode
+	{
+		PipeRead =  1 << 0,
+		PipeWrite = 1 << 1
+	};
 
-	pid_t m_pid { -1 };
-	int   m_iExitCode { EXIT_CODE_NOT_SET };
+	pid_t m_pid { 0 };
+	int m_iExitCode { 0 };
+
+	// we use this nested arrangement to ensure we have all descriptors in one single array
+	int m_readPdes[4] { -1,-1,-1,-1 };
+	int* m_writePdes { &m_readPdes[2] };
 
 	//-----------------------------------------------------------------------------
-	// waitpid wrapper to ensure it is called only once after child exits
 	void wait();
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	bool Open(KString sCommand, bool bAsShellCommand, int mode);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	int Close(int mode);
 	//-----------------------------------------------------------------------------
 
 }; // KBasePipe

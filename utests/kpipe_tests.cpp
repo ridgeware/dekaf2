@@ -14,8 +14,6 @@ TEST_CASE("KPipe")
 
 	SECTION("KOutPipe  write_pipe and confirm by reading")
 	{
-		INFO("KOutPipe  write_pipe and confirm by reading::Start:");
-
 		KPipe pipe("/bin/sh -c \"mkdir /tmp/kpipetests\"");
 		KString sCurrentLine;
 		KString str("rdoanm txet over 9000 \n line 2 \n line 3 \n line 4 \n SS level 3! \n line 6 \n line 7\n\n");
@@ -39,27 +37,19 @@ TEST_CASE("KPipe")
 		CHECK("rdoanm txet over 9000 \n" == sCurrentLine);
 		CHECK(0 == pipe.Close());
 		CHECK_FALSE(pipe.IsRunning());
-
-		INFO("KOutPipe  write_pipe and confirm by reading::Done:");
-
-	} // read and write pipe
+	}
 
 	SECTION("KPipe fail_to_open")
 	{
-		INFO("KPipe fail_to_open::Start:");
-
 		KPipe pipe;
 		CHECK_FALSE(pipe.Open(""));
 		CHECK_FALSE(pipe.IsRunning());
-		CHECK(-1 == pipe.Close());
-
-		INFO("KOutPipe fail_to_open::Done:");
-	} // fail_to_open
+		CHECK(EINVAL == pipe.Close());
+	}
 
 #if KPipeCleanup
 	SECTION("KOutPipe  cleanup test")
 	{
-		INFO("KOutPipe  write_pipe and confirm by reading::Start:");
 		// This really doesn't test KOutPipe, it kinda tests kinpipe, but the purpose is to remove test files after testing
 
 		KPipe pipe;
@@ -92,10 +82,7 @@ TEST_CASE("KPipe")
 		CHECK("0\n" == sCurrentLine);
 		CHECK(0 == pipe.Close());
 		CHECK_FALSE(pipe.IsRunning());
-
-		INFO("KOutPipe  write_pipe and confirm by reading::Done:");
-
-	} // cleanup test
+	}
 #endif
 
 }

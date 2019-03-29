@@ -45,50 +45,223 @@
 
 #include "../ksplit.h"
 #include "../ksystem.h"
+#include "../ksignals.h"
+#include "../kchildprocess.h"
 #include "../klog.h"
+#include <signal.h>
 
 namespace dekaf2
 {
 
 //-----------------------------------------------------------------------------
-KBasePipe::KBasePipe()
+bool KBasePipe::Open(KString sCommand, bool bAsShellCommand, int mode)
 //-----------------------------------------------------------------------------
-{} // Default Constructor
+{
+	Close(mode); // ensure a previous pipe is closed
+
+	if (m_pid)
+	{
+		kWarning("cannot open pipe '{}': {}", sCommand, "old one still running");
+		return false;
+	}
+
+	m_iExitCode = 0;
+
+	sCommand.TrimLeft();
+
+	if (sCommand.empty())
+	{
+		m_iExitCode = EINVAL;
+		return false;
+	}
+
+	if (mode & PipeRead)
+	{
+		if (pipe(m_readPdes) < 0)
+		{
+			kWarning("cannot open input pipe '{}': {}", sCommand, strerror(errno));
+			return false;
+		}
+	}
+
+	if (mode & PipeWrite)
+	{
+		if (pipe(m_writePdes) < 0)
+		{
+			kWarning("cannot open output pipe '{}': {}", sCommand, strerror(errno));
+			return false;
+		}
+	}
+
+	// we need to do the object allocations in the parent
+	// process as otherwise leak detectors would claim the
+	// child has lost allocated memory (as the child would
+	// never run the destructor)
+
+	std::vector<const char*> argV;
+
+	if (bAsShellCommand)
+	{
+		argV.push_back("/bin/sh");
+		argV.push_back("-c");
+		argV.push_back(sCommand.c_str());
+	}
+	else
+	{
+		kSplitArgsInPlace(argV, sCommand);
+	}
+
+	// terminate with nullptr
+	argV.push_back(nullptr);
+
+	// create a child
+	switch (m_pid = vfork())
+	{
+		case -1: /* error */
+		{
+			// could not create the child
+			if (mode & PipeRead)
+			{
+				::close(m_readPdes[0]);
+				::close(m_readPdes[1]);
+			}
+			if (mode & PipeWrite)
+			{
+				::close(m_writePdes[0]);
+				::close(m_writePdes[1]);
+			}
+			m_pid = 0;
+			break;
+		}
+
+		case 0: /* child */
+		{
+			detail::kCloseOwnFilesForExec(false, m_readPdes, 4);
+
+			if (mode & PipeWrite)
+			{
+				// Bind to Child's stdin
+				::close(m_writePdes[1]);
+				if (m_writePdes[0] != fileno(stdin))
+				{
+					::dup2(m_writePdes[0], fileno(stdin));
+					::close(m_writePdes[0]);
+				}
+			}
+
+			if (mode & PipeRead)
+			{
+				// Bind Child's stdout
+				::close(m_readPdes[0]);
+				if (m_readPdes[1] != fileno(stdout))
+				{
+					::dup2(m_readPdes[1], fileno(stdout));
+					::close(m_readPdes[1]);
+				}
+			}
+
+			// execute the command
+			execvp(argV[0], const_cast<char* const*>(argV.data()));
+
+			_exit(DEKAF2_POPEN_COMMAND_NOT_FOUND);
+		}
+
+	}
+
+	// only parent gets here
+
+	if (mode & PipeRead)
+	{
+		::close(m_readPdes[1]); // close write end of read pipe (for child use)
+	}
+
+	if (mode & PipeWrite)
+	{
+		::close(m_writePdes[0]); // close read end of write pipe (for child use)
+	}
+
+	return true;
+
+} // Open
 
 //-----------------------------------------------------------------------------
-KBasePipe::~KBasePipe()
+int KBasePipe::Close(int mode)
 //-----------------------------------------------------------------------------
-{} // Default Destructor
+{
+	if (m_pid > 0)
+	{
+		if (mode & PipeRead)
+		{
+			// Close read on of stdout pipe
+			::close(m_readPdes[0]); // << ????? 0 or 1 ??
+		}
+		if (mode & PipeWrite)
+		{
+			// Send EOF by closing write end of pipe
+			::close(m_writePdes[1]);
+		}
+
+		// Child has been cut off from parent, let it terminate
+		Wait(60000);
+
+		// Did the child terminate properly?
+		if (IsRunning())
+		{
+			// no
+			kill(m_pid, SIGKILL);
+			m_iExitCode = -1;
+		}
+
+		m_pid = 0;
+		m_writePdes[0] = -1;
+		m_writePdes[1] = -1;
+		m_readPdes[0] = -1;
+		m_readPdes[1] = -1;
+	}
+
+	return m_iExitCode;
+
+} // Close
 
 //-----------------------------------------------------------------------------
 void KBasePipe::wait()
 //-----------------------------------------------------------------------------
 {
-	// status can only be read ONCE
-	if (m_iExitCode == EXIT_CODE_NOT_SET)
+	if (m_pid)
 	{
-		int iStatus = 0;
+		int iStatus { 0 };
+
 		pid_t iPid = waitpid(m_pid, &iStatus, WNOHANG);
 
-		// did the process terminate?
-		if (iPid > 0)
+		if (iPid == -1)
 		{
-			// yes, check if return status is valid
+			m_iExitCode = errno;
+			kDebug(1, "cannot close pipe: {}", strerror(errno));
+			m_pid = 0;
+		}
+		else if (iPid == m_pid)
+		{
 			if (WIFEXITED(iStatus))
 			{
-				// yes, convert into exit code
 				m_iExitCode = WEXITSTATUS(iStatus);
+				kDebug(2, "exited with return value {}", m_iExitCode);
+			}
+			else if (WIFSIGNALED(iStatus))
+			{
+				m_iExitCode = 1;
+				int iSignal = WTERMSIG(iStatus);
+				if (iSignal)
+				{
+					kDebug(1, "aborted by signal {}", kTranslateSignal(iSignal));
+				}
 			}
 			else
 			{
-				// set a dummy exit code
-				m_iExitCode = -1;
+				m_iExitCode = iStatus;
+				kDebug(1, "exited with invalid status {}", iStatus);
 			}
-		}
-		else if ((iPid == -1) && (errno != EINTR))
-		{
-			kDebug(0, "Got an invalid status iPid = -1. Errno {} : {}", errno, strerror(errno));
-			m_iExitCode = -1;
+
+			m_pid = 0;
 		}
 		// if iPid == 0 the process is still running
 	}
@@ -106,12 +279,12 @@ bool KBasePipe::IsRunning()
 
 	wait();
 
-	return (m_pid > 0 && m_iExitCode == EXIT_CODE_NOT_SET);
+	return (m_pid > 0);
 
 } // IsRunning
 
 //-----------------------------------------------------------------------------
-bool KBasePipe::WaitForFinished(int msecs)
+bool KBasePipe::Wait(int msecs)
 //-----------------------------------------------------------------------------
 {
 	if (msecs >= 0)
@@ -131,7 +304,7 @@ bool KBasePipe::WaitForFinished(int msecs)
 	}
 	return false;
 
-} // WaitForFinished
+} // Wait
 
 } // end namespace dekaf2
 

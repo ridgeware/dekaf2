@@ -41,22 +41,35 @@
 */
 
 #include "koutshell.h"
-#include "klog.h"
 
 namespace dekaf2
 {
 
+#ifdef DEKAF2_IS_UNIX
+
 //-----------------------------------------------------------------------------
-/// Executes given command via a shell pipe which input can be written to
-bool KOutShell::Open(const KString& sCommand)
+bool KOutShell::Open(KString sCommand)
 //-----------------------------------------------------------------------------
 {
-	if (!IntOpen(sCommand, true))
+	return KOutPipe::Open(std::move(sCommand), true);
+
+} // Open
+
+#else
+
+//-----------------------------------------------------------------------------
+/// Executes given command via a shell pipe which input can be written to
+bool KOutShell::Open(KString sCommand)
+//-----------------------------------------------------------------------------
+{
+	if (!IntOpen(std::move(sCommand), true))
 	{
 		return false;
 	}
 	KFPWriter::open(m_pipe);
 	return KFPWriter::good();
 }
+
+#endif
 
 } // END NAMESPACE dekaf2

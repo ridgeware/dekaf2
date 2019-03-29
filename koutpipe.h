@@ -61,49 +61,36 @@ class KOutPipe : public KFDWriter, public KBasePipe
 public:
 //------
 
-	/*
-	 * The sProgram is a KString of this format:
-	 * path_to_program arg1 arg2 arg3...
-	 * where path_to_program will also be handed in as argv[0]
-	 * If spaces are needed within an arg, use " :
-	 * path_to_program arg1 "arg2 with spaces" arg3
-	 */
-
 	//-----------------------------------------------------------------------------
 	/// Default Constructor
-	KOutPipe();
+	KOutPipe() = default;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// Open Constructor
-	KOutPipe(KStringView sProgram);
+	KOutPipe(KString sCommand, bool bAsShellCommand = false)
 	//-----------------------------------------------------------------------------
+	{
+		Open(std::move(sCommand), bAsShellCommand);
+	}
 
 	//-----------------------------------------------------------------------------
 	/// Default Destructor
-	~KOutPipe();
+	~KOutPipe()
+	//-----------------------------------------------------------------------------
+	{
+		Close();
+	}
+
+	//-----------------------------------------------------------------------------
+	/// Opens a pipe
+	bool Open(KString sCommand, bool bAsShellCommand = false);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// Opens A WritePipe
-	bool Open(KStringView sProgram);
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// Closes A WritePipe
+	/// Closes a pipe
 	int Close();
 	//-----------------------------------------------------------------------------
-
-//--------
-private:
-//--------
-
-	//-----------------------------------------------------------------------------
-	/// Opens a pipe for writing
-	bool OpenWritePipe(KStringView sProgram);
-	//-----------------------------------------------------------------------------
-
-	int   m_writePdes[2]{-1,-1};
 
 }; // class KOutPipe
 

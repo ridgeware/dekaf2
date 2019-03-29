@@ -385,9 +385,14 @@ uint64_t kGetTid()
 
 } // kGetTid
 
-// it is preferable to use KInShell / popen for the call to system as it
-// avoids the creation of a temporary output file
+// It is preferable to use KInShell / popen for the call to system as it
+// avoids the creation of a temporary output file. Also, on Unixes, KInShell
+// actually is KInPipe, which uses fork and exec, and takes care to delete all
+// parent file descriptors in the child to prevent descriptor leaking (which
+// could lead to resource exhaustion or socket contention)
+
 #define DEKAF2_USE_KSHELL_FOR_SYSTEM
+
 //-----------------------------------------------------------------------------
 int kSystem (KStringView sCommand, KString& sOutput)
 //-----------------------------------------------------------------------------
@@ -418,7 +423,7 @@ int kSystem (KStringView sCommand, KString& sOutput)
 	// close the shell and report the return value to the caller
 	return Shell.Close();
 
-#else // DEKAF2_USE_KSHELL_FOR_SYSTEM
+#else // not DEKAF2_USE_KSHELL_FOR_SYSTEM
 
 	// use shell output redirection to write into a temporary file
 	// and read it thereafter

@@ -44,68 +44,21 @@
 
 #ifdef DEKAF2_HAS_PIPES
 
-#include "kchildprocess.h"
-#include "ksplit.h"
-#include "klog.h"
-#include <signal.h>
-
 namespace dekaf2
 {
 
 //-----------------------------------------------------------------------------
-KPipe::KPipe()
-//-----------------------------------------------------------------------------
-{} // Default Constructor
-
-//-----------------------------------------------------------------------------
-KPipe::KPipe(KStringView sProgram)
+bool KPipe::Open(KString sCommand, bool bAsShellCommand)
 //-----------------------------------------------------------------------------
 {
-	Open(sProgram);
-
-} // Immediate Open Constructor
-
-//-----------------------------------------------------------------------------
-KPipe::~KPipe()
-//-----------------------------------------------------------------------------
-{
-	Close();
-
-} // Default Destructor
-
-//-----------------------------------------------------------------------------
-bool KPipe::Open(KStringView sProgram)
-//-----------------------------------------------------------------------------
-{
-	kDebug(3, "Program to be opened: {}", sProgram);
-
-	Close(); // ensure a previous pipe is closed
-
-	if (sProgram.empty())
+	if (!KBasePipe::Open(std::move(sCommand), bAsShellCommand, PipeRead | PipeWrite))
 	{
 		return false;
 	}
 
-	// - - - - - - - - - - - - - - - - - - - - - - - -
-	// Use vfork()/execvp() to run the program:
-	// - - - - - - - - - - - - - - - - - - - - - - - -
-	OpenPipeRW(sProgram);
-
-	// - - - - - - - - - - - - - - - - - - - - - - - -
-	// interpret success:
-	// - - - - - - - - - - - - - - - - - - - - - - - -
-	if (m_writePdes[0] == -1)
-	{
-		kWarning("FAILED to open program: {} | ERROR: {}", sProgram, strerror(errno));
-		m_iExitCode = errno;
-		return false;
-	}
-	else
-	{
-		kDebug(3, "opened program successfully...");
-		KFDStream::open(m_readPdes[0], m_writePdes[1]);
-		return KFDStream::good();
-	}
+	KFDStream::open(m_readPdes[0], m_writePdes[1]);
+	
+	return KFDStream::good();
 
 } // Open
 
@@ -113,108 +66,12 @@ bool KPipe::Open(KStringView sProgram)
 int KPipe::Close()
 //-----------------------------------------------------------------------------
 {
-	if (m_pid > 0)
-	{
-		// Close reader/writer
-		KFDStream::close();
-		// Close read on of stdout pipe
-		::close(m_readPdes[0]);
-		// Send EOF by closing write end of pipe
-		::close(m_writePdes[1]);
-		// Child has been cut off from parent, let it terminate
-		WaitForFinished(60000);
+	// Close reader/writer
+	KFDStream::close();
 
-		// Did the child terminate properly?
-		if (IsRunning())
-		{
-			// no
-			kill(m_pid, SIGKILL);
-			m_iExitCode = -1;
-		}
-
-		m_pid = -1;
-		m_writePdes[0] = -1;
-		m_writePdes[1] = -1;
-		m_readPdes[0] = -1;
-		m_readPdes[1] = -1;
-	}
-
-	return (m_iExitCode == EXIT_CODE_NOT_SET) ? -1 : m_iExitCode;
+	return KBasePipe::Close(PipeRead | PipeWrite);
 
 } // Close
-
-//-----------------------------------------------------------------------------
-bool KPipe::OpenPipeRW(KStringView sProgram)
-//-----------------------------------------------------------------------------
-{
-	// Reset status vars and pipes.
-	m_pid       = -1;
-	m_iExitCode = EXIT_CODE_NOT_SET;
-
-	// try to open read and write pipes
-	if ((pipe(m_readPdes) < 0) || (pipe(m_writePdes) < 0))
-	{
-		return false;
-	} // could not create pipe
-
-	// we need to do the object allocations in the parent
-	// process as otherwise leak detectors would claim the
-	// child has lost allocated memory (as the child would
-	// never run the destructor)
-	KString sCmd(sProgram); // need non const for split
-	std::vector<const char*> argV;
-	kSplitArgsInPlace(argV, sCmd);
-	// terminate with nullptr
-	argV.push_back(nullptr);
-
-	// create a child
-	switch (m_pid = vfork())
-	{
-		case -1: /* error */
-		{
-			// could not create the child
-			::close(m_readPdes[0]);
-			::close(m_readPdes[1]);
-			::close(m_writePdes[0]);
-			::close(m_writePdes[1]);
-			m_pid = -2;
-			break;
-		}
-
-		case 0: /* child */
-		{
-			detail::kCloseOwnFilesForExec(false, m_readPdes, 4);
-
-			// Bind to Child's stdin
-			::close(m_writePdes[1]);
-			if (m_writePdes[0] != fileno(stdin))
-			{
-				::dup2(m_writePdes[0], fileno(stdin));
-				::close(m_writePdes[0]);
-			}
-
-			// Bind Child's stdout
-			::close(m_readPdes[0]);
-			if (m_readPdes[1] != fileno(stdout))
-			{
-				::dup2(m_readPdes[1], fileno(stdout));
-				::close(m_readPdes[1]);
-			}
-
-			// execute the command
-			execvp(argV[0], const_cast<char* const*>(argV.data()));
-
-			_exit(DEKAF2_POPEN_COMMAND_NOT_FOUND);
-		} // end case 0
-
-	} // end switch
-
-	/* only parent gets here; */
-	::close(m_readPdes[1]); // close write end of read pipe (for child use)
-	::close(m_writePdes[0]); // close read end of write pipe (for child use)
-
-	return true;
-} // OpenPipeRW
 
 } // end namespace dekaf2
 

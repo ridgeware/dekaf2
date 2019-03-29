@@ -19,13 +19,11 @@ TEST_CASE("KInPipe")
 {
 	SECTION("KInPipe normal Open and Close")
 	{
-		INFO("normal_open_close_test::Start:");
-
 		KInPipe pipe("/bin/sh -c \"mkdir /tmp/kinpipetests\"");
 		pipe.SetReaderTrim("");
 
 		CHECK(pipe.Open("/bin/sh -c \"echo 'some random datum' > /tmp/kinpipetests/kinpipetest.file\""));
-		pipe.WaitForFinished(10);
+		pipe.Wait(10);
 		CHECK_FALSE(pipe.IsRunning());
 		CHECK(0 == pipe.Close());
 		CHECK(pipe.Open("/bin/sh -c \"ls -al /tmp/kinpipetests/kinpipetest.file | grep kinpipetest | wc -l\""));
@@ -40,27 +38,19 @@ TEST_CASE("KInPipe")
 //		CHECK(pipe.IsRunning());  // this test fails nearly constantly on Linux builds
 		CHECK(pipe.is_open());
 		CHECK(0 == pipe.Close());
-
-		INFO("KInPipe normal_open_close_test::Done:");
-	} // normal open close
+	}
 
 	SECTION("KInPipe fail_to_open")
 	{
-		INFO("KInPipe fail_to_open::Start:");
-
 		KInPipe pipe;
 		CHECK_FALSE(pipe.Open(""));
 		CHECK_FALSE(pipe.IsRunning());
-		CHECK(-1 == pipe.Close());
-
-		INFO("KInPipe fail_to_open::Done:");
-	} // fail_to_open
+		CHECK(EINVAL == pipe.Close());
+	}
 
 #if KInPipeCleanup
-	SECTION("KInPipe  cleanup test")
+	SECTION("KInPipe cleanup test")
 	{
-		INFO("KInPipe  write_pipe and confirm by reading::Start:");
-
 		KInPipe pipe;
 		pipe.SetReaderTrim("");
 		KString sCurrentLine;
@@ -103,11 +93,7 @@ TEST_CASE("KInPipe")
 		CHECK("0\n" == sCurrentLine);
 		CHECK(0 == pipe.Close());
 		CHECK_FALSE(pipe.IsRunning());
-
-
-		INFO("KInPipe  write_pipe and confirm by reading::Done:");
-
-	} // cleanup test
+	}
 #endif
 
 }

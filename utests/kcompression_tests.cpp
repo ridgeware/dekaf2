@@ -25,8 +25,8 @@ TEST_CASE("KCompression") {
 		CHECK ( !o.empty() );
 		CHECK ( s != o );
 
-		KGUnZip gunzip(o2);
-		gunzip.Write(o);
+		KGUnZip gunzip(o);
+		gunzip.Read(o2);
 		gunzip.Close();
 
 		CHECK ( s == o2 );
@@ -45,8 +45,8 @@ TEST_CASE("KCompression") {
 		CHECK ( !o.empty() );
 		CHECK ( s != o );
 
-		KBUnZip2 bunzip(o2);
-		bunzip.Write(o);
+		KBUnZip2 bunzip(o);
+		bunzip.Read(o2);
 		bunzip.Close();
 
 		CHECK ( s == o2 );
@@ -65,8 +65,8 @@ TEST_CASE("KCompression") {
 		CHECK ( !o.empty() );
 		CHECK ( s != o );
 
-		KUnZlib unzlib(o2);
-		unzlib.Write(o);
+		KUnZlib unzlib(o);
+		unzlib.Read(o2);
 		unzlib.Close();
 
 		CHECK ( s == o2 );
@@ -93,8 +93,8 @@ TEST_CASE("KCompression") {
 		CHECK ( !o.empty() );
 		CHECK ( o3 != o );
 
-		KGUnZip gunzip(o2);
-		gunzip.Write(o);
+		KGUnZip gunzip(o);
+		gunzip.Read(o2);
 		gunzip.Close();
 
 		CHECK ( o3 == o2 );

@@ -116,7 +116,6 @@ KOutStream::self_type& KOutStream::Write(KInStream& Stream, size_t iCount)
 
 		Write(sBuffer, iReadChunk);
 		iCount -= iReadChunk;
-
 	}
 
 	return *this;

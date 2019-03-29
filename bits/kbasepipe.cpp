@@ -192,9 +192,10 @@ int KBasePipe::Close(int mode)
 	{
 		if (mode & PipeRead)
 		{
-			// Close read on of stdout pipe
-			::close(m_readPdes[0]); // << ????? 0 or 1 ??
+			// Close read on stdout pipe
+			::close(m_readPdes[0]);
 		}
+
 		if (mode & PipeWrite)
 		{
 			// Send EOF by closing write end of pipe

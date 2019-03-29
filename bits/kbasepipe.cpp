@@ -115,7 +115,7 @@ bool KBasePipe::Open(KString sCommand, bool bAsShellCommand, int mode)
 	argV.push_back(nullptr);
 
 	// create a child
-	switch (m_pid = vfork())
+	switch (m_pid = fork())
 	{
 		case -1: /* error */
 		{

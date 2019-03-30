@@ -63,6 +63,9 @@ class KCompressionBase
 public:
 //------
 
+	using compressor = boost::iostreams::filtering_ostream;
+	using uncompressor = boost::iostreams::filtering_istream;
+
 	enum COMPRESSION
 	{
 		NONE,
@@ -71,31 +74,15 @@ public:
 		ZLIB,
 	};
 
-	/// set compression method (only once..)
-	void SetCompressor(COMPRESSION compression)
-	{
-		if (m_compression == NONE)
-		{
-			m_compression = compression;
-		}
-	}
-
-//------
-protected:
-//------
-
-	COMPRESSION m_compression { NONE };
-
 };
 
-}
+} // end of namespace detail
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// KCompress gives the interface for all compression algorithms. The
-/// framework allows to compress in and out of strings and streams.
+/// KCompressOStream is a std::istream which allows to compress in and out of strings and streams.
 /// It is possible to construct the class without output target, in which case
 /// any attempt to compress will fail until an output is set.
-class KCompress : public detail::KCompressionBase
+class KCompressOStream : public detail::KCompressionBase, public detail::KCompressionBase::compressor
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 //------
@@ -104,55 +91,41 @@ public:
 
 	/// constructs a compressor without target writer - set one with SetOutput
 	/// before attempting to write to it
-	KCompress() = default;
+	KCompressOStream() = default;
 	/// constructs a compressor with a KString as the target
-	KCompress(KString& sTarget)
+	KCompressOStream(KString& sTarget, COMPRESSION compression)
 	{
-		Open(sTarget);
+		open(sTarget, compression);
 	}
 	/// constructs a compressor with a std::ostream as the target
-	KCompress(std::ostream& TargetStream)
+	KCompressOStream(std::ostream& TargetStream, COMPRESSION compression)
 	{
-		Open(TargetStream);
+		open(TargetStream, compression);
 	}
 	/// constructs a compressor with a KOutStream as the target
-	KCompress(KOutStream& TargetStream)
+	KCompressOStream(KOutStream& TargetStream, COMPRESSION compression)
 	{
-		Open(TargetStream);
+		open(TargetStream, compression);
 	}
 	/// copy construction is deleted
-	KCompress(const KCompress&) = delete;
+	KCompressOStream(const KCompressOStream&) = delete;
 	/// move construction is permitted
-	KCompress(KCompress&&) = default;
-	~KCompress()
+	KCompressOStream(KCompressOStream&&) = default;
+	~KCompressOStream()
 	{
-		Close();
+		close();
 	}
 
 	/// sets a KString as the target
-	bool Open(KString& sTarget);
+	bool open(KString& sTarget, COMPRESSION compression);
 	/// sets a std::ostream as the target
-	bool Open(std::ostream& TargetStream);
+	bool open(std::ostream& TargetStream, COMPRESSION compression);
 	/// sets a KOutStream as the target
-	bool Open(KOutStream& TargetStream);
-
-	/// writes a string into the compressor
-	bool Write(KStringView sInput);
-	/// writes a std::istream into the compressor
-	bool Write(std::istream& InputStream);
-	/// writes a KInStream into the compressor
-	bool Write(KInStream& InputStream);
+	bool open(KOutStream& TargetStream, COMPRESSION compression);
 
 	/// closes the output stream, calls finalizers of
 	/// encoders (also done by destructor)
-	void Close();
-
-	/// writes a string into the compressor
-	KCompress& operator+=(KStringView sInput)
-	{
-		Write(sInput);
-		return *this;
-	}
+	void close();
 
 //------
 private:
@@ -160,86 +133,85 @@ private:
 
 	using streamfilter = boost::iostreams::filtering_ostream;
 
-	bool CreateFilter();
+	bool CreateFilter(COMPRESSION compression);
 
 	std::ostream* m_TargetStream { nullptr };
 	std::unique_ptr<KOStringStream> m_KOStringStream;
-	std::unique_ptr<streamfilter> m_Filter;
 
-}; // KCompress
+}; // KCompressOStream
+
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// KUnCompress gives the interface for all uncompression algorithms. The
-/// framework allows to decompress in and out of strings and streams.
-/// It is possible to construct the class without output target, in which case
-/// any attempt to decompress will fail until an output is set.
-class KUnCompress : public detail::KCompressionBase
+/// KUnCompressIStream is a std::istream that allows to decompress in and out of strings and streams.
+/// It is possible to construct the class without input source, in which case
+/// any attempt to decompress will fail until an input is set.
+class KUnCompressIStream : public detail::KCompressionBase, public detail::KCompressionBase::uncompressor
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 //------
 public:
 //------
 
-	/// constructs an uncompressor without target writer - set one with SetOutput
-	/// before attempting to write to it
-	KUnCompress() = default;
+	/// constructs an uncompressor without target writer - set one with open()
+	/// before attempting to read from it
+	KUnCompressIStream() = default;
 	/// constructs an uncompressor with a KStringView as the source
-	KUnCompress(KStringView sSource)
+	KUnCompressIStream(KStringView sSource, COMPRESSION compression)
 	{
-		Open(sSource);
+		open(sSource, compression);
 	}
 	/// constructs an uncompressor with a std::istream as the source
-	KUnCompress(std::istream& SourceStream)
+	KUnCompressIStream(std::istream& SourceStream, COMPRESSION compression)
 	{
-		Open(SourceStream);
+		open(SourceStream, compression);
 	}
 	/// constructs an uncompressor with a KInStream as the source
-	KUnCompress(KInStream& SourceStream)
+	KUnCompressIStream(KInStream& SourceStream, COMPRESSION compression)
 	{
-		Open(SourceStream);
+		open(SourceStream, compression);
 	}
 	/// copy construction is deleted
-	KUnCompress(const KUnCompress&) = delete;
+	KUnCompressIStream(const KUnCompressIStream&) = delete;
 	/// move construction is permitted
-	KUnCompress(KUnCompress&&) = default;
-	~KUnCompress()
+	KUnCompressIStream(KUnCompressIStream&&) = default;
+	~KUnCompressIStream()
 	{
-		Close();
+		close();
 	}
 
 	/// sets a KStringView as the source
-	bool Open(KStringView sSource);
+	bool open(KStringView sSource, COMPRESSION compression);
 	/// sets a std::istream as the source
-	bool Open(std::istream& SourceStream);
+	bool open(std::istream& SourceStream, COMPRESSION compression);
 	/// sets a KInStream as the source
-	bool Open(KInStream& SourceStream);
-
-	/// reads a string from the uncompressor
-	size_t Read(KString& sOutput, size_t len = KString::npos);
-	/// reads a std::ostream from the uncompressor
-	size_t Read(std::ostream& OutputStream, size_t len = KString::npos);
-	/// reads a KOutStream from the uncompressor
-	size_t Read(KOutStream& OutputStream, size_t len = KString::npos);
+	bool open(KInStream& SourceStream, COMPRESSION compression);
 
 	/// closes the input stream, calls finalizers of
 	/// decoders (also done by destructor)
-	void Close();
+	void close();
 
 //------
 private:
 //------
 
-	using streamfilter = boost::iostreams::filtering_istream;
+	bool CreateFilter(COMPRESSION compression);
 
-	bool CreateFilter();
+	using streamfilter = boost::iostreams::filtering_istream;
 
 	std::istream* m_SourceStream { nullptr };
 	std::unique_ptr<KIStringStream> m_KIStringStream;
-	std::unique_ptr<streamfilter> m_Filter;
 
-}; // KUnCompress
+}; // KUnCompressIStream
+
+
+// the reader / writer typedefs for KCompress / KUnCompress
+
+using KCompress = KWriter<KCompressOStream>;
+using KUnCompress = KReader<KUnCompressIStream>;
+
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// GZIP compressor
 class KGZip : public KCompress
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -249,15 +221,21 @@ public:
 
 	template<class... Args>
 	KGZip(Args&&... args)
-	: KCompress(std::forward<Args>(args)...)
+	: KCompress(std::forward<Args>(args)..., GZIP)
 	{
-		SetCompressor(GZIP);
+	}
+
+	template<class... Args>
+	bool open(Args&&... args)
+	{
+		return KCompress::open(std::forward<Args>(args)..., GZIP);
 	}
 
 }; // KGZip
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class KGUnZip : public KUnCompress
+/// GZIP uncompressor
+class KUnGZip : public KUnCompress
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 //------
@@ -265,15 +243,21 @@ public:
 //------
 
 	template<class... Args>
-	KGUnZip(Args&&... args)
-	: KUnCompress(std::forward<Args>(args)...)
+	KUnGZip(Args&&... args)
+	: KUnCompress(std::forward<Args>(args)..., GZIP)
 	{
-		SetCompressor(GZIP);
 	}
 
-}; // KGUnZip
+	template<class... Args>
+	bool open(Args&&... args)
+	{
+		return KUnCompress::open(std::forward<Args>(args)..., GZIP);
+	}
+
+}; // KUnGZip
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// BZIP2 compressor
 class KBZip2 : public KCompress
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -283,15 +267,22 @@ public:
 
 	template<class... Args>
 	KBZip2(Args&&... args)
-	: KCompress(std::forward<Args>(args)...)
+	: KCompress(std::forward<Args>(args)..., BZIP2)
 	{
-		SetCompressor(BZIP2);
 	}
+
+	template<class... Args>
+	bool open(Args&&... args)
+	{
+		return KCompress::open(std::forward<Args>(args)..., BZIP2);
+	}
+
 
 }; // KBZip2
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class KBUnZip2 : public KUnCompress
+/// BZIP2 uncompressor
+class KUnBZip2 : public KUnCompress
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 //------
@@ -299,15 +290,21 @@ public:
 //------
 
 	template<class... Args>
-	KBUnZip2(Args&&... args)
-	: KUnCompress(std::forward<Args>(args)...)
+	KUnBZip2(Args&&... args)
+	: KUnCompress(std::forward<Args>(args)..., BZIP2)
 	{
-		SetCompressor(BZIP2);
 	}
 
-}; // KBUnZip2
+	template<class... Args>
+	bool open(Args&&... args)
+	{
+		return KUnCompress::open(std::forward<Args>(args)..., BZIP2);
+	}
+
+}; // KUnBZip2
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// ZLIB compressor
 class KZlib : public KCompress
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -317,14 +314,20 @@ public:
 
 	template<class... Args>
 	KZlib(Args&&... args)
-	: KCompress(std::forward<Args>(args)...)
+	: KCompress(std::forward<Args>(args)..., ZLIB)
 	{
-		SetCompressor(ZLIB);
+	}
+
+	template<class... Args>
+	bool open(Args&&... args)
+	{
+		return KCompress::open(std::forward<Args>(args)..., ZLIB);
 	}
 
 }; // KZlib
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// ZLIB uncompressor
 class KUnZlib : public KUnCompress
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -334,9 +337,14 @@ public:
 
 	template<class... Args>
 	KUnZlib(Args&&... args)
-	: KUnCompress(std::forward<Args>(args)...)
+	: KUnCompress(std::forward<Args>(args)..., ZLIB)
 	{
-		SetCompressor(ZLIB);
+	}
+
+	template<class... Args>
+	bool open(Args&&... args)
+	{
+		return KUnCompress::open(std::forward<Args>(args)..., ZLIB);
 	}
 
 }; // KUnZlib

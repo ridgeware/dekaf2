@@ -20,14 +20,14 @@ TEST_CASE("KCompression") {
 		KString o2;
 		KGZip gzip(o);
 		gzip.Write(s);
-		gzip.Close();
+		gzip.close();
 
 		CHECK ( !o.empty() );
 		CHECK ( s != o );
 
-		KGUnZip gunzip(o);
-		gunzip.Read(o2);
-		gunzip.Close();
+		KUnGZip gunzip(o);
+		gunzip.ReadRemaining(o2);
+		gunzip.close();
 
 		CHECK ( s == o2 );
 	}
@@ -40,14 +40,14 @@ TEST_CASE("KCompression") {
 		KString o2;
 		KBZip2 bzip(o);
 		bzip.Write(s);
-		bzip.Close();
+		bzip.close();
 
 		CHECK ( !o.empty() );
 		CHECK ( s != o );
 
-		KBUnZip2 bunzip(o);
-		bunzip.Read(o2);
-		bunzip.Close();
+		KUnBZip2 bunzip(o);
+		bunzip.ReadRemaining(o2);
+		bunzip.close();
 
 		CHECK ( s == o2 );
 	}
@@ -60,14 +60,14 @@ TEST_CASE("KCompression") {
 		KString o2;
 		KZlib zlib(o);
 		zlib.Write(s);
-		zlib.Close();
+		zlib.close();
 
 		CHECK ( !o.empty() );
 		CHECK ( s != o );
 
 		KUnZlib unzlib(o);
-		unzlib.Read(o2);
-		unzlib.Close();
+		unzlib.ReadRemaining(o2);
+		unzlib.close();
 
 		CHECK ( s == o2 );
 	}
@@ -84,18 +84,18 @@ TEST_CASE("KCompression") {
 		o3 += s2;
 		KGZip gzip(o);
 		gzip.Write(s);
-		if (!gzip.Write(s2))
+		if (!gzip.Write(s2).Good())
 		{
 			CHECK ( false == true );
 		}
-		gzip.Close();
+		gzip.close();
 
 		CHECK ( !o.empty() );
 		CHECK ( o3 != o );
 
-		KGUnZip gunzip(o);
-		gunzip.Read(o2);
-		gunzip.Close();
+		KUnGZip gunzip(o);
+		gunzip.ReadRemaining(o2);
+		gunzip.close();
 
 		CHECK ( o3 == o2 );
 	}

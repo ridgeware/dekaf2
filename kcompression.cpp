@@ -53,260 +53,144 @@ namespace dekaf2 {
 namespace bio = boost::iostreams;
 
 //-----------------------------------------------------------------------------
-bool KCompress::Open(std::ostream& TargetStream)
+bool KCompressOStream::open(std::ostream& TargetStream, COMPRESSION compression)
 //-----------------------------------------------------------------------------
 {
 	m_TargetStream = &TargetStream;
-	return m_TargetStream->good();
+	return CreateFilter(compression);
 
 } // Open
 
 //-----------------------------------------------------------------------------
-bool KCompress::Open(KOutStream& TargetStream)
+bool KCompressOStream::open(KOutStream& TargetStream, COMPRESSION compression)
 //-----------------------------------------------------------------------------
 {
-	return Open(TargetStream.OutStream());
+	return open(TargetStream.OutStream(), compression);
 
 } // Open
 
 //-----------------------------------------------------------------------------
-bool KCompress::Open(KString& sTarget)
+bool KCompressOStream::open(KString& sTarget, COMPRESSION compression)
 //-----------------------------------------------------------------------------
 {
 	m_KOStringStream = std::make_unique<KOStringStream>(sTarget);
-	return Open(*m_KOStringStream);
+	return open(*m_KOStringStream, compression);
 
 } // Open
 
 //-----------------------------------------------------------------------------
-bool KCompress::Write(std::istream& InputStream)
+bool KCompressOStream::CreateFilter(COMPRESSION compression)
 //-----------------------------------------------------------------------------
 {
-	DEKAF2_TRY_EXCEPTION
-	if (!m_Filter)
-	{
-		if (!CreateFilter())
-		{
-			return false;
-		}
-	}
+	compressor::reset();
 
-	// This operator<< is actually not trying to format.
-	*m_Filter << InputStream.rdbuf();
-
-	return true;
-	DEKAF2_LOG_EXCEPTION
-
-	return false;
-
-} // Write
-
-//-----------------------------------------------------------------------------
-bool KCompress::Write(KStringView sInput)
-//-----------------------------------------------------------------------------
-{
-	KIStringStream istream(sInput);
-	return Write(istream);
-
-} // Write
-
-//-----------------------------------------------------------------------------
-bool KCompress::Write(KInStream& InputStream)
-//-----------------------------------------------------------------------------
-{
-	return Write(InputStream.InStream());
-
-} // Write
-
-//-----------------------------------------------------------------------------
-bool KCompress::CreateFilter()
-//-----------------------------------------------------------------------------
-{
 	if (!m_TargetStream)
 	{
 		kWarning("no output stream");
 		return false;
 	}
 
-	m_Filter = std::make_unique<streamfilter>();
-
-	switch (m_compression)
+	switch (compression)
 	{
 		case NONE:
 			break;
 
 		case GZIP:
-			m_Filter->push(bio::gzip_compressor(bio::gzip_params(bio::gzip::default_compression)));
+			compressor::push(bio::gzip_compressor(bio::gzip_params(bio::gzip::default_compression)));
 			break;
 
 		case BZIP2:
-			m_Filter->push(bio::bzip2_compressor());
+			compressor::push(bio::bzip2_compressor());
 			break;
 
 		case ZLIB:
-			m_Filter->push(bio::zlib_compressor(bio::zlib_params(bio::zlib::default_compression)));
+			compressor::push(bio::zlib_compressor(bio::zlib_params(bio::zlib::default_compression)));
 			break;
 
 	}
 
-	m_Filter->push(*m_TargetStream);
+	compressor::push(*m_TargetStream);
 
 	return true;
 
 } // CreateFilter
 
 //-----------------------------------------------------------------------------
-void KCompress::Close()
+void KCompressOStream::close()
 //-----------------------------------------------------------------------------
 {
-	m_Filter.reset();
+	compressor::reset();
 
 } // Close
 
 //-----------------------------------------------------------------------------
-bool KUnCompress::Open(std::istream& SourceStream)
+bool KUnCompressIStream::open(std::istream& SourceStream, COMPRESSION compression)
 //-----------------------------------------------------------------------------
 {
 	m_SourceStream = &SourceStream;
-	return m_SourceStream->good();
+	return CreateFilter(compression);
 
 } // Open
 
 //-----------------------------------------------------------------------------
-bool KUnCompress::Open(KInStream& SourceStream)
+bool KUnCompressIStream::open(KInStream& SourceStream, COMPRESSION compression)
 //-----------------------------------------------------------------------------
 {
-	return Open(SourceStream.InStream());
+	return open(SourceStream.InStream(), compression);
 
 } // Open
 
 //-----------------------------------------------------------------------------
-bool KUnCompress::Open(KStringView sSource)
+bool KUnCompressIStream::open(KStringView sSource, COMPRESSION compression)
 //-----------------------------------------------------------------------------
 {
 	m_KIStringStream = std::make_unique<KIStringStream>(sSource);
-	return Open(*m_KIStringStream);
+	return open(*m_KIStringStream, compression);
 
 } // Open
 
 //-----------------------------------------------------------------------------
-size_t KUnCompress::Read(std::ostream& OutputStream, size_t iCount)
+bool KUnCompressIStream::CreateFilter(COMPRESSION compression)
 //-----------------------------------------------------------------------------
 {
-	DEKAF2_TRY_EXCEPTION
-	if (!m_Filter)
-	{
-		if (!CreateFilter())
-		{
-			return 0;
-		}
-	}
+	uncompressor::reset();
 
-	if (iCount == KString::npos)
-	{
-		// read until eof
-		// This operator<< is actually not trying to format.
-		OutputStream << m_Filter->rdbuf();
-	}
-	else
-	{
-		enum { COPY_BUFSIZE = 4096 };
-		char sBuffer[COPY_BUFSIZE];
-
-		auto* sb = m_Filter->rdbuf();
-
-		if (!sb)
-		{
-			return 0;
-		}
-
-		size_t iRead { 0 };
-
-		for (;iCount > iRead;)
-		{
-			auto iChunk = std::min(static_cast<size_t>(COPY_BUFSIZE), iCount - iRead);
-
-			auto iReadChunk = sb->sgetn(sBuffer, iChunk);
-
-			if (iReadChunk <= 0)
-			{
-				m_Filter->setstate(std::ios::eofbit);
-				break;
-			}
-
-			OutputStream.write(sBuffer, iReadChunk);
-			iRead += iReadChunk;
-		}
-
-		return iRead;
-	}
-
-	return iCount;
-	DEKAF2_LOG_EXCEPTION
-
-	return 0;
-
-} // Read
-
-//-----------------------------------------------------------------------------
-size_t KUnCompress::Read(KString& sOutput, size_t len)
-//-----------------------------------------------------------------------------
-{
-	KOStringStream ostream(sOutput);
-	return Read(ostream, len);
-
-} // Read
-
-//-----------------------------------------------------------------------------
-size_t KUnCompress::Read(KOutStream& OutputStream, size_t len)
-//-----------------------------------------------------------------------------
-{
-	return Read(OutputStream.OutStream(), len);
-
-} // Read
-
-//-----------------------------------------------------------------------------
-bool KUnCompress::CreateFilter()
-//-----------------------------------------------------------------------------
-{
 	if (!m_SourceStream)
 	{
 		kWarning("no input stream");
 		return false;
 	}
 
-	m_Filter = std::make_unique<streamfilter>();
-
-	switch (m_compression)
+	switch (compression)
 	{
 		case NONE:
 			break;
 
 		case GZIP:
-			m_Filter->push(bio::gzip_decompressor());
+			uncompressor::push(bio::gzip_decompressor());
 			break;
 
 		case BZIP2:
-			m_Filter->push(bio::bzip2_decompressor());
+			uncompressor::push(bio::bzip2_decompressor());
 			break;
 
 		case ZLIB:
-			m_Filter->push(bio::zlib_decompressor());
+			uncompressor::push(bio::zlib_decompressor());
 			break;
 
 	}
 
-	m_Filter->push(*m_SourceStream);
+	uncompressor::push(*m_SourceStream);
 
 	return true;
 
 } // CreateFilter
 
 //-----------------------------------------------------------------------------
-void KUnCompress::Close()
+void KUnCompressIStream::close()
 //-----------------------------------------------------------------------------
 {
-	m_Filter.reset();
+	uncompressor::reset();
 
 } // Close
 

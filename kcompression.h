@@ -79,7 +79,7 @@ public:
 } // end of namespace detail
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// KCompressOStream is a std::istream which allows to compress in and out of strings and streams.
+/// KCompressOStream is a std::ostream which allows to compress in and out of strings and streams.
 /// It is possible to construct the class without output target, in which case
 /// any attempt to compress will fail until an output is set.
 class KCompressOStream : public detail::KCompressionBase, public detail::KCompressionBase::compressor
@@ -130,8 +130,6 @@ public:
 //------
 private:
 //------
-
-	using streamfilter = boost::iostreams::filtering_ostream;
 
 	bool CreateFilter(COMPRESSION compression);
 
@@ -195,8 +193,6 @@ private:
 //------
 
 	bool CreateFilter(COMPRESSION compression);
-
-	using streamfilter = boost::iostreams::filtering_istream;
 
 	std::istream* m_SourceStream { nullptr };
 	std::unique_ptr<KIStringStream> m_KIStringStream;

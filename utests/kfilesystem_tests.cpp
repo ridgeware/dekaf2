@@ -103,6 +103,7 @@ TEST_CASE("KFilesystem") {
 		CHECK ( kRemoveExtension("/this.is/a./.name") == "/this.is/a./.name" );
 #ifdef DEKAF2_IS_WINDOWS
 		CHECK ( kNormalizePath("/this.is/a./.name") == "\\this.is\\a.\\.name" );
+		CHECK ( kRemoveExtension("//this.is/a./name") == "\\\\this.is\\a.\\name" );
 		CHECK ( kNormalizePath("/this..is////a/.././name") == "\\this..is\\name" );
 		CHECK ( kNormalizePath("/this.is/../../../wrong") == "\\wrong" );
 		auto sCWD = kGetCWD();
@@ -113,19 +114,15 @@ TEST_CASE("KFilesystem") {
 		CHECK ( kNormalizePath("\\this.is\\a.\\.name") == "\\this.is\\a.\\.name" );
 		CHECK ( kNormalizePath("\\this..is\\\\\\\\a\\..\\.\\name") == "\\this..is\\name" );
 		CHECK ( kNormalizePath("\\this.is\\..\\..\\..\\wrong") == "\\wrong" );
-		auto sCWD = kGetCWD();
-		KString sCompare (sCWD);
+		sCWD = kGetCWD();
+		sCompare = sCWD;
 		sCompare += "\\this..is\\name";
 		CHECK ( kNormalizePath("this..is\\\\\\\\a\\..\\.\\name") == sCompare );
 
 		CHECK ( kNormalizePath("C:\\this.is\\a.\\.name") == "C:\\this.is\\a.\\.name" );
 		CHECK ( kNormalizePath("c:\\this..is\\\\\\\\a\\..\\.\\name") == "C:\\this..is\\name" );
 		CHECK ( kNormalizePath("C:\\this.is\\..\\..\\..\\wrong") == "C:\\wrong" );
-		auto sCWD = kGetCWD();
-		sCompare = "C:";
-		sCompare += sCWD;
-		sCompare += "\\this..is\\name";
-		CHECK ( kNormalizePath("C:this..is\\\\\\\\a\\..\\.\\name") == sCompare );
+		sCWD = kGetCWD();
 #else
 		CHECK ( kNormalizePath("/this.is/a./.name") == "/this.is/a./.name" );
 		CHECK ( kNormalizePath("/this..is////a/.././name") == "/this..is/name" );

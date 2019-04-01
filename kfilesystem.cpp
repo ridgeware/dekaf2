@@ -1052,13 +1052,6 @@ KString kNormalizePath(KStringView sPath)
 
 #else
 
-	std::vector<KStringView> Component;
-
-	// split into path components
-	kSplit(Component, sPath, detail::kAllowedDirSep, "");
-
-	std::vector<KStringView> Normalized;
-
 #ifdef DEKAF2_IS_WINDOWS
 	char chHasDrive { 0 };
 	if (sPath.size() > 1 && sPath[1] == ':' && KASCII::kIsAlpha(sPath[0]))
@@ -1068,28 +1061,46 @@ KString kNormalizePath(KStringView sPath)
 	}
 #endif
 
+	std::vector<KStringView> Normalized;
+
 	KString sCWD;
 
 	if (!sPath.starts_with('/')
 #ifdef DEKAF2_IS_WINDOWS
 		&& !sPath.starts_with('\\')
-		&& !chHasDrive
 #endif
 		)
 	{
-		// This is a relative path. Get current working directory
-		std::vector<KStringView> CWD;
-		sCWD = kGetCWD();
-		kSplit(CWD, sCWD, detail::kAllowedDirSep, "");
-		// and add it to the normalized path
-		for (auto it : CWD)
+#ifdef DEKAF2_IS_WINDOWS
+		if (!chHasDrive)
+#endif
 		{
-			if (!it.empty())
+			// This is a relative path. Get current working directory
+			std::vector<KStringView> CWD;
+			sCWD = kGetCWD();
+			kSplit(CWD, sCWD, detail::kAllowedDirSep, "");
+			// and add it to the normalized path
+			for (auto it : CWD)
 			{
-				Normalized.push_back(it);
+				if (!it.empty())
+				{
+					Normalized.push_back(it);
+				}
 			}
 		}
 	}
+#ifdef DEKAF2_IS_WINDOWS
+	else
+	{
+		// sPath starts with a directory separator
+		sPath.remove_prefix(1);
+	}
+#endif
+
+	std::vector<KStringView> Component;
+
+	// split into path components
+	kSplit(Component, sPath, detail::kAllowedDirSep, "");
 
 	bool bWarned { false };
 
@@ -1098,7 +1109,7 @@ KString kNormalizePath(KStringView sPath)
 		if (it.empty())
 		{
 #ifdef DEKAF2_IS_WINDOWS
-			if (Normalized.empty())
+			if (Normalized.empty() && !chHasDrive)
 			{
 				// on Windows, we accept a path starting with "//" or "\\"
 				Normalized.push_back(it);

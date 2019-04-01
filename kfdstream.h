@@ -1,5 +1,4 @@
 /*
-//-----------------------------------------------------------------------------//
 //
 // DEKAF(tm): Lighter, Faster, Smarter (tm)
 //
@@ -50,12 +49,35 @@
 #include "kstreambuf.h"
 
 
-namespace dekaf2
-{
+namespace dekaf2 {
+
+namespace detail {
+
+//-----------------------------------------------------------------------------
+/// custom streambuf reader for file descriptors
+std::streamsize FileDescReader(void* sBuffer, std::streamsize iCount, void* filedesc);
+//-----------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
+/// custom streambuf writer for file descriptors
+std::streamsize FileDescWriter(const void* sBuffer, std::streamsize iCount, void* filedesc);
+//-----------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
+/// custom streambuf reader for file pointers
+std::streamsize FilePtrReader(void* sBuffer, std::streamsize iCount, void* fileptr);
+//-----------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
+/// custom streambuf writer for file pointers
+std::streamsize FilePtrWriter(const void* sBuffer, std::streamsize iCount, void* fileptr);
+//-----------------------------------------------------------------------------
+
+} // end of namespace detail
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// an unbuffered std::istream that is constructed around a unix file descriptor
-/// (mainly to allow its usage with pipes, for general file I/O use std::ofstream)
+/// (mainly to allow its usage with pipes, for general file I/O use std::ifstream)
 /// (really, do it - this one is really slow on small writes to files, on purpose,
 /// because pipes should not be buffered!)
 class KInputFDStream : public std::istream
@@ -67,11 +89,6 @@ protected:
 //----------
 
 	using base_type = std::istream;
-
-	//-----------------------------------------------------------------------------
-	/// this is the custom streambuf reader
-	static std::streamsize FileDescReader(void* sBuffer, std::streamsize iCount, void* filedesc);
-	//-----------------------------------------------------------------------------
 
 //----------
 public:
@@ -88,11 +105,9 @@ public:
 	KInputFDStream(const KInputFDStream&) = delete;
 	//-----------------------------------------------------------------------------
 
-#if defined(DEKAF2_NO_GCC) || (DEKAF2_GCC_VERSION >= 50000)
 	//-----------------------------------------------------------------------------
-	KInputFDStream(KInputFDStream&& other);
+	KInputFDStream(KInputFDStream&& other) = default;
 	//-----------------------------------------------------------------------------
-#endif
 
 	//-----------------------------------------------------------------------------
 	/// the main purpose of this class: allow construction from a standard unix
@@ -104,15 +119,12 @@ public:
 		open(iFileDesc);
 	}
 
-	//-----------------------------------------------------------------------------
-	virtual ~KInputFDStream();
-	//-----------------------------------------------------------------------------
+	// do not call close on destruction. This class did not open the file
+	// but just received a handle for it
 
-#if defined(DEKAF2_NO_GCC) || (DEKAF2_GCC_VERSION >= 50000)
 	//-----------------------------------------------------------------------------
-	KInputFDStream& operator=(KInputFDStream&& other);
+	KInputFDStream& operator=(KInputFDStream&& other) = default;
 	//-----------------------------------------------------------------------------
-#endif
 
 	//-----------------------------------------------------------------------------
 	KInputFDStream& operator=(const KInputFDStream&) = delete;
@@ -125,7 +137,7 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// test if a file is associated to this output stream
+	/// test if a file is associated to this stream
 	inline bool is_open() const
 	//-----------------------------------------------------------------------------
 	{
@@ -133,9 +145,17 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	/// close the output stream
+	/// close the stream
 	void close();
 	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// invalidate the file descriptor
+	void Cancel()
+	//-----------------------------------------------------------------------------
+	{
+		m_FileDesc = -1;
+	}
 
 	//-----------------------------------------------------------------------------
 	/// get the file descriptor
@@ -148,19 +168,22 @@ public:
 //----------
 protected:
 //----------
-	int m_FileDesc{-1};
+
+	int m_FileDesc { -1 };
 
 	// see comment in KOutputStream about the legality
 	// to only construct the KInStreamBuf here, but to use it in
 	// the constructor before
-	KInStreamBuf m_FPStreamBuf{&FileDescReader, &m_FileDesc};
+	KInStreamBuf m_FPStreamBuf { &detail::FileDescReader, &m_FileDesc };
+
 };
 
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// a buffered std::istream that is constructed around a FILE ptr
-/// (mainly to allow its usage with pipes, for general file I/O use std::ofstream)
-/// (really, do it - this one does not implement the full istream interface)
+/// (mainly to allow its usage with pipes, for general file I/O use std::ifstream)
+/// (really, do it - this one does not implement the full streambuf interface and
+/// may therefore be slower, and it is not seekable)
 class KInputFPStream : public std::istream
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -169,11 +192,6 @@ protected:
 //----------
 
 	using base_type = std::istream;
-
-	//-----------------------------------------------------------------------------
-	/// this is the custom streambuf reader
-	static std::streamsize FilePtrReader(void* sBuffer, std::streamsize iCount, void* filedesc);
-	//-----------------------------------------------------------------------------
 
 //----------
 public:
@@ -190,11 +208,9 @@ public:
 	KInputFPStream(const KInputFPStream&) = delete;
 	//-----------------------------------------------------------------------------
 
-#if defined(DEKAF2_NO_GCC) || (DEKAF2_GCC_VERSION >= 50000)
 	//-----------------------------------------------------------------------------
-	KInputFPStream(KInputFPStream&& other);
+	KInputFPStream(KInputFPStream&& other) = default;
 	//-----------------------------------------------------------------------------
-#endif
 
 	//-----------------------------------------------------------------------------
 	/// the main purpose of this class: allow construction from a FILE ptr
@@ -205,17 +221,16 @@ public:
 		open(iFilePtr);
 	}
 
+	// do not call close on destruction. This class did not open the file
+	// but just received a handle for it
+
 	//-----------------------------------------------------------------------------
-	virtual ~KInputFPStream();
+	KInputFPStream& operator=(KInputFPStream&& other) = default;
 	//-----------------------------------------------------------------------------
 
-#if defined(DEKAF2_NO_GCC) || (DEKAF2_GCC_VERSION >= 50000)
 	//-----------------------------------------------------------------------------
-	KInputFPStream& operator=(KInputFPStream&& other);
-	//-----------------------------------------------------------------------------
-#endif
-
 	KInputFPStream& operator=(const KInputFPStream&) = delete;
+	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// the main purpose of this class: open from a FILE ptr
@@ -231,9 +246,17 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	/// close the output stream
+	/// close the stream
 	void close();
 	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// invalidate the FILE ptr
+	void Cancel()
+	//-----------------------------------------------------------------------------
+	{
+		m_FilePtr = nullptr;
+	}
 
 	//-----------------------------------------------------------------------------
 	/// get the file ptr
@@ -246,12 +269,13 @@ public:
 //----------
 protected:
 //----------
-	FILE* m_FilePtr{nullptr};
+	FILE* m_FilePtr { nullptr };
 
 	// see comment in KOutputFDStream about the legality
 	// to only construct the KInStreamBuf here, but to use it in
 	// the constructor before
-	KInStreamBuf m_FPStreamBuf{&FilePtrReader, &m_FilePtr};
+	KInStreamBuf m_FPStreamBuf { &detail::FilePtrReader, &m_FilePtr };
+
 };
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -269,11 +293,6 @@ protected:
 
 	using base_type = std::ostream;
 
-	//-----------------------------------------------------------------------------
-	/// this is the custom streambuf writer
-	static std::streamsize FileDescWriter(const void* sBuffer, std::streamsize iCount, void* filedesc);
-	//-----------------------------------------------------------------------------
-
 //----------
 public:
 //----------
@@ -289,11 +308,9 @@ public:
 	KOutputFDStream(const KOutputFDStream&) = delete;
 	//-----------------------------------------------------------------------------
 
-#if defined(DEKAF2_NO_GCC) || (DEKAF2_GCC_VERSION >= 50000)
 	//-----------------------------------------------------------------------------
-	KOutputFDStream(KOutputFDStream&& other);
+	KOutputFDStream(KOutputFDStream&& other) = default;
 	//-----------------------------------------------------------------------------
-#endif
 
 	//-----------------------------------------------------------------------------
 	/// the main purpose of this class: allow construction from a standard unix
@@ -305,15 +322,12 @@ public:
 		open(iFileDesc);
 	}
 
-	//-----------------------------------------------------------------------------
-	virtual ~KOutputFDStream();
-	//-----------------------------------------------------------------------------
+	// do not call close on destruction. This class did not open the file
+	// but just received a handle for it
 
-#if defined(DEKAF2_NO_GCC) || (DEKAF2_GCC_VERSION >= 50000)
 	//-----------------------------------------------------------------------------
-	KOutputFDStream& operator=(KOutputFDStream&& other);
+	KOutputFDStream& operator=(KOutputFDStream&& other) = default;
 	//-----------------------------------------------------------------------------
-#endif
 
 	//-----------------------------------------------------------------------------
 	KOutputFDStream& operator=(const KOutputFDStream&) = delete;
@@ -339,6 +353,14 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	/// invalidate the file descriptor
+	void Cancel()
+	//-----------------------------------------------------------------------------
+	{
+		m_FileDesc = -1;
+	}
+
+	//-----------------------------------------------------------------------------
 	/// get the file descriptor
 	int GetDescriptor() const
 	//-----------------------------------------------------------------------------
@@ -350,7 +372,7 @@ public:
 protected:
 //----------
 
-	int m_FileDesc{-1};
+	int m_FileDesc { -1 };
 
 	// jschurig: The standard guarantees that the streambuf is neither used by
 	// constructors nor by destructors of base classes of a streambuf, nor by
@@ -363,14 +385,16 @@ protected:
 	// constructor order when declaring this class, and did not know that this was
 	// solved by the standard before reading her article:
 	// http://www.angelikalanger.com/Articles/C++Report/IOStreamsDerivation/IOStreamsDerivation.html
-	KOutStreamBuf m_FPStreamBuf{&FileDescWriter, &m_FileDesc};
+	KOutStreamBuf m_FPStreamBuf { &detail::FileDescWriter, &m_FileDesc };
+
 };
 
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// a buffered std::ostream that is constructed around a FILE ptr
 /// (mainly to allow its usage with pipes, for general file I/O use std::ofstream)
-/// (really, do it - this one does not implement the full ostream interface)
+/// (really, do it - this one does not implement the full streambuf interface and
+/// may therefore be slower, and it is not seekable)
 class KOutputFPStream : public std::ostream
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -380,11 +404,6 @@ protected:
 //----------
 
 	using base_type = std::ostream;
-
-	//-----------------------------------------------------------------------------
-	/// this is the custom streambuf writer
-	static std::streamsize FilePtrWriter(const void* sBuffer, std::streamsize iCount, void* fileptr);
-	//-----------------------------------------------------------------------------
 
 //----------
 public:
@@ -401,11 +420,9 @@ public:
 	KOutputFPStream(const KOutputFPStream&) = delete;
 	//-----------------------------------------------------------------------------
 
-#if defined(DEKAF2_NO_GCC) || (DEKAF2_GCC_VERSION >= 50000)
 	//-----------------------------------------------------------------------------
-	KOutputFPStream(KOutputFPStream&& other);
+	KOutputFPStream(KOutputFPStream&& other) = default;
 	//-----------------------------------------------------------------------------
-#endif
 
 	//-----------------------------------------------------------------------------
 	/// the main purpose of this class: allow construction from a standard unix
@@ -417,15 +434,12 @@ public:
 		open(iFilePtr);
 	}
 
-	//-----------------------------------------------------------------------------
-	virtual ~KOutputFPStream();
-	//-----------------------------------------------------------------------------
+	// do not call close on destruction. This class did not open the file
+	// but just received a handle for it
 
-#if defined(DEKAF2_NO_GCC) || (DEKAF2_GCC_VERSION >= 50000)
 	//-----------------------------------------------------------------------------
-	KOutputFPStream& operator=(KOutputFPStream&& other);
+	KOutputFPStream& operator=(KOutputFPStream&& other) = default;
 	//-----------------------------------------------------------------------------
-#endif
 
 	//-----------------------------------------------------------------------------
 	KOutputFPStream& operator=(const KOutputFPStream&) = delete;
@@ -451,6 +465,14 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	/// invalidate the file descriptor
+	void Cancel()
+	//-----------------------------------------------------------------------------
+	{
+		m_FilePtr = nullptr;
+	}
+
+	//-----------------------------------------------------------------------------
 	/// get the file ptr
 	FILE* GetPtr() const
 	//-----------------------------------------------------------------------------
@@ -462,9 +484,10 @@ public:
 protected:
 //----------
 
-	FILE* m_FilePtr{nullptr};
+	FILE* m_FilePtr { nullptr };
 
-	KOutStreamBuf m_FPStreamBuf{&FilePtrWriter, &m_FilePtr};
+	KOutStreamBuf m_FPStreamBuf { &detail::FilePtrWriter, &m_FilePtr };
+
 };
 
 
@@ -484,16 +507,6 @@ protected:
 
 	using base_type = std::iostream;
 
-	//-----------------------------------------------------------------------------
-	/// this is the custom streambuf reader
-	static std::streamsize FileDescReader(void* sBuffer, std::streamsize iCount, void* filedesc);
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// this is the custom streambuf writer
-	static std::streamsize FileDescWriter(const void* sBuffer, std::streamsize iCount, void* filedesc);
-	//-----------------------------------------------------------------------------
-
 //----------
 public:
 //----------
@@ -509,11 +522,9 @@ public:
 	KInOutFDStream(const KInOutFDStream&) = delete;
 	//-----------------------------------------------------------------------------
 
-#if defined(DEKAF2_NO_GCC) || (DEKAF2_GCC_VERSION >= 50000)
 	//-----------------------------------------------------------------------------
-	KInOutFDStream(KInOutFDStream&& other);
+	KInOutFDStream(KInOutFDStream&& other) = default;
 	//-----------------------------------------------------------------------------
-#endif
 
 	//-----------------------------------------------------------------------------
 	/// the main purpose of this class: allow construction from one or two standard
@@ -525,15 +536,12 @@ public:
 		open(iFileDescR, iFileDescW);
 	}
 
-	//-----------------------------------------------------------------------------
-	virtual ~KInOutFDStream();
-	//-----------------------------------------------------------------------------
+	// do not call close on destruction. This class did not open the file
+	// but just received a handle for it
 
-#if defined(DEKAF2_NO_GCC) || (DEKAF2_GCC_VERSION >= 50000)
 	//-----------------------------------------------------------------------------
-	KInOutFDStream& operator=(KInOutFDStream&& other);
+	KInOutFDStream& operator=(KInOutFDStream&& other) = default;
 	//-----------------------------------------------------------------------------
-#endif
 
 	//-----------------------------------------------------------------------------
 	KInOutFDStream& operator=(const KInOutFDStream&) = delete;
@@ -555,9 +563,17 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	/// close the output stream
+	/// close the stream
 	void close();
 	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// invalidate the FILE ptrs
+	void Cancel()
+	//-----------------------------------------------------------------------------
+	{
+		m_FileDescR = m_FileDescW = -1;
+	}
 
 //----------
 protected:
@@ -569,7 +585,7 @@ protected:
 	// see comment in KOutputFDStream about the legality
 	// to only construct the KIStreamBuf here, but to use it in
 	// the constructor before
-	KStreamBuf m_FPStreamBuf{&FileDescReader, &FileDescWriter, &m_FileDescR, &m_FileDescW};
+	KStreamBuf m_FPStreamBuf { &detail::FileDescReader, &detail::FileDescWriter, &m_FileDescR, &m_FileDescW };
 
 };
 

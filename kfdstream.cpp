@@ -49,43 +49,123 @@
 #include <unistd.h>
 #endif
 
-namespace dekaf2
-{
+namespace dekaf2 {
 
+namespace detail {
 
-#if defined(DEKAF2_NO_GCC) || (DEKAF2_GCC_VERSION >= 50000)
-// gcc 4.8.5 has troubles with moves..
 //-----------------------------------------------------------------------------
-KInputFDStream::KInputFDStream(KInputFDStream&& other)
+std::streamsize FileDescReader(void* sBuffer, std::streamsize iCount, void* filedesc)
 //-----------------------------------------------------------------------------
-	: base_type(&m_FPStreamBuf)
-	, m_FileDesc{other.m_FileDesc}
-	, m_FPStreamBuf{std::move(other.m_FPStreamBuf)}
 {
-	other.m_FileDesc = -1;
+	std::streamsize iRead { 0 };
 
-} // move ctor
+	if (filedesc)
+	{
+		int fd = *static_cast<int*>(filedesc);
+
+		if (fd >= 0)
+		{
+#ifdef DEKAF2_IS_WINDOWS
+			iRead = _read(fd, sBuffer, static_cast<uint32_t>(iCount));
+#else
+			iRead = ::read(fd, sBuffer, static_cast<size_t>(iCount));
 #endif
+		}
 
-//-----------------------------------------------------------------------------
-KInputFDStream::~KInputFDStream()
-//-----------------------------------------------------------------------------
-{
-	// do not call close on destruction. This class did not open the file
-	// but just received a handle for it
+		if (iRead < 0)
+		{
+			// do some logging
+			kWarning("cannot read from file: {} - requested {}, got {} bytes",
+			         strerror(errno),
+			         iCount,
+			         iRead);
+		}
+	}
+
+	return iRead;
 }
 
-#if defined(DEKAF2_NO_GCC) || (DEKAF2_GCC_VERSION >= 50000)
 //-----------------------------------------------------------------------------
-KInputFDStream& KInputFDStream::operator=(KInputFDStream&& other)
+std::streamsize FileDescWriter(const void* sBuffer, std::streamsize iCount, void* filedesc)
 //-----------------------------------------------------------------------------
 {
-	m_FileDesc = other.m_FileDesc;
-	m_FPStreamBuf = std::move(other.m_FPStreamBuf);
-	other.m_FileDesc = -1;
-	return *this;
-}
+	std::streamsize iWrote { 0 };
+
+	if (filedesc)
+	{
+		int fd = *static_cast<int*>(filedesc);
+
+		if (fd >= 0)
+		{
+#ifdef DEKAF2_IS_WINDOWS
+			iWrote = _write(fd, sBuffer, static_cast<uint32_t>(iCount));
+#else
+			iWrote = ::write(fd, sBuffer, static_cast<size_t>(iCount));
 #endif
+		}
+
+		if (iWrote != iCount)
+		{
+			// do some logging
+			kWarning("cannot write to file: {}", strerror(errno));
+		}
+	}
+
+	return iWrote;
+}
+
+//-----------------------------------------------------------------------------
+std::streamsize FilePtrReader(void* sBuffer, std::streamsize iCount, void* fileptr)
+//-----------------------------------------------------------------------------
+{
+	std::streamsize iRead { 0 };
+
+	if (fileptr)
+	{
+		FILE** fp = static_cast<FILE**>(fileptr);
+		if (fp && *fp)
+		{
+			iRead = static_cast<std::streamsize>(std::fread(sBuffer, 1, static_cast<size_t>(iCount), *fp));
+			if (iRead < 0)
+			{
+				// do some logging
+				kWarning("cannot read from file: {} - requested {}, got {} bytes",
+				         strerror(errno),
+				         iCount,
+				         iRead);
+			}
+		}
+	}
+
+	return iRead;
+}
+
+//-----------------------------------------------------------------------------
+std::streamsize FilePtrWriter(const void* sBuffer, std::streamsize iCount, void* fileptr)
+//-----------------------------------------------------------------------------
+{
+	std::streamsize iWrote { 0 };
+
+	if (fileptr)
+	{
+		FILE** fp = static_cast<FILE**>(fileptr);
+		if (fp && *fp)
+		{
+			iWrote = static_cast<std::streamsize>(std::fwrite(sBuffer, 1, static_cast<size_t>(iCount), *fp));
+			if (iWrote != iCount)
+			{
+				// do some logging
+				kWarning("cannot write to file: {}", strerror(errno));
+			}
+		}
+	}
+
+	return iWrote;
+}
+
+} // end of namespace detail
+
+
 
 //-----------------------------------------------------------------------------
 void KInputFDStream::open(int iFileDesc)
@@ -114,69 +194,6 @@ void KInputFDStream::close()
 
 } // close
 
-//-----------------------------------------------------------------------------
-std::streamsize KInputFDStream::FileDescReader(void* sBuffer, std::streamsize iCount, void* filedesc)
-//-----------------------------------------------------------------------------
-{
-	std::streamsize iRead{0};
-
-	if (filedesc)
-	{
-		int fd = *static_cast<int*>(filedesc);
-#ifdef DEKAF2_IS_WINDOWS
-		if (fd >= 0)
-		{
-			iRead = _read(fd, sBuffer, static_cast<uint32_t>(iCount));
-		}
-#else
-		iRead = ::read(fd, sBuffer, static_cast<size_t>(iCount));
-#endif
-		if (iRead < 0)
-		{
-			// do some logging
-			kWarning("cannot read from file: {} - requested {}, got {} bytes",
-			         strerror(errno),
-			         iCount,
-			         iRead);
-		}
-	}
-
-	return iRead;
-}
-
-
-#if defined(DEKAF2_NO_GCC) || (DEKAF2_GCC_VERSION >= 50000)
-//-----------------------------------------------------------------------------
-KInputFPStream::KInputFPStream(KInputFPStream&& other)
-//-----------------------------------------------------------------------------
-	: base_type(&m_FPStreamBuf)
-	, m_FilePtr{other.m_FilePtr}
-	, m_FPStreamBuf{std::move(other.m_FPStreamBuf)}
-{
-	other.m_FilePtr = nullptr;
-
-} // move ctor
-#endif
-
-//-----------------------------------------------------------------------------
-KInputFPStream::~KInputFPStream()
-//-----------------------------------------------------------------------------
-{
-	// do not call close on destruction. This class did not open the file
-	// but just received a handle for it
-}
-
-#if defined(DEKAF2_NO_GCC) || (DEKAF2_GCC_VERSION >= 50000)
-//-----------------------------------------------------------------------------
-KInputFPStream& KInputFPStream::operator=(KInputFPStream&& other)
-//-----------------------------------------------------------------------------
-{
-	m_FilePtr = other.m_FilePtr;
-	m_FPStreamBuf = std::move(other.m_FPStreamBuf);
-	other.m_FilePtr = nullptr;
-	return *this;
-}
-#endif
 
 //-----------------------------------------------------------------------------
 void KInputFPStream::open(FILE* iFilePtr)
@@ -205,64 +222,6 @@ void KInputFPStream::close()
 
 } // close
 
-//-----------------------------------------------------------------------------
-std::streamsize KInputFPStream::FilePtrReader(void* sBuffer, std::streamsize iCount, void* fileptr)
-//-----------------------------------------------------------------------------
-{
-	std::streamsize iRead{0};
-
-	if (fileptr)
-	{
-		FILE** fp = static_cast<FILE**>(fileptr);
-		if (fp && *fp)
-		{
-			iRead = static_cast<std::streamsize>(std::fread(sBuffer, 1, static_cast<size_t>(iCount), *fp));
-			if (iRead < 0)
-			{
-				// do some logging
-				kWarning("cannot read from file: {} - requested {}, got {} bytes",
-				         strerror(errno),
-				         iCount,
-				         iRead);
-			}
-		}
-	}
-
-	return iRead;
-}
-
-#if defined(DEKAF2_NO_GCC) || (DEKAF2_GCC_VERSION >= 50000)
-//-----------------------------------------------------------------------------
-KOutputFDStream::KOutputFDStream(KOutputFDStream&& other)
-//-----------------------------------------------------------------------------
-	: base_type(&m_FPStreamBuf)
-	, m_FileDesc{other.m_FileDesc}
-	, m_FPStreamBuf{std::move(other.m_FPStreamBuf)}
-{
-	other.m_FileDesc = -1;
-
-} // move ctor
-#endif
-
-//-----------------------------------------------------------------------------
-KOutputFDStream::~KOutputFDStream()
-//-----------------------------------------------------------------------------
-{
-	// do not call close on destruction. This class did not open the file
-	// but just received a handle for it
-}
-
-#if defined(DEKAF2_NO_GCC) || (DEKAF2_GCC_VERSION >= 50000)
-//-----------------------------------------------------------------------------
-KOutputFDStream& KOutputFDStream::operator=(KOutputFDStream&& other)
-//-----------------------------------------------------------------------------
-{
-	m_FileDesc = other.m_FileDesc;
-	m_FPStreamBuf = std::move(other.m_FPStreamBuf);
-	other.m_FileDesc = -1;
-	return *this;
-}
-#endif
 
 //-----------------------------------------------------------------------------
 void KOutputFDStream::open(int iFileDesc)
@@ -292,66 +251,6 @@ void KOutputFDStream::close()
 
 } // close
 
-//-----------------------------------------------------------------------------
-std::streamsize KOutputFDStream::FileDescWriter(const void* sBuffer, std::streamsize iCount, void* filedesc)
-//-----------------------------------------------------------------------------
-{
-	std::streamsize iWrote{0};
-
-	if (filedesc)
-	{
-		int fd = *static_cast<int*>(filedesc);
-#ifdef DEKAF2_IS_WINDOWS
-		if (fd >= 0)
-		{
-			iWrote = _write(fd, sBuffer, static_cast<uint32_t>(iCount));
-		}
-#else
-		iWrote = ::write(fd, sBuffer, static_cast<size_t>(iCount));
-#endif
-		if (iWrote != iCount)
-		{
-			// do some logging
-			kWarning("cannot write to file: {}", strerror(errno));
-		}
-	}
-
-	return iWrote;
-}
-
-
-#if defined(DEKAF2_NO_GCC) || (DEKAF2_GCC_VERSION >= 50000)
-//-----------------------------------------------------------------------------
-KOutputFPStream::KOutputFPStream(KOutputFPStream&& other)
-//-----------------------------------------------------------------------------
-	: base_type(&m_FPStreamBuf)
-	, m_FilePtr{other.m_FilePtr}
-	, m_FPStreamBuf{std::move(other.m_FPStreamBuf)}
-{
-	other.m_FilePtr = nullptr;
-
-} // move ctor
-#endif
-
-//-----------------------------------------------------------------------------
-KOutputFPStream::~KOutputFPStream()
-//-----------------------------------------------------------------------------
-{
-	// do not call close on destruction. This class did not open the file
-	// but just received a handle for it
-}
-
-#if defined(DEKAF2_NO_GCC) || (DEKAF2_GCC_VERSION >= 50000)
-//-----------------------------------------------------------------------------
-KOutputFPStream& KOutputFPStream::operator=(KOutputFPStream&& other)
-//-----------------------------------------------------------------------------
-{
-	m_FilePtr = other.m_FilePtr;
-	m_FPStreamBuf = std::move(other.m_FPStreamBuf);
-	other.m_FilePtr = nullptr;
-	return *this;
-}
-#endif
 
 //-----------------------------------------------------------------------------
 void KOutputFPStream::open(FILE* iFilePtr)
@@ -381,66 +280,6 @@ void KOutputFPStream::close()
 
 } // close
 
-//-----------------------------------------------------------------------------
-std::streamsize KOutputFPStream::FilePtrWriter(const void* sBuffer, std::streamsize iCount, void* fileptr)
-//-----------------------------------------------------------------------------
-{
-	std::streamsize iWrote{0};
-
-	if (fileptr)
-	{
-		FILE** fp = static_cast<FILE**>(fileptr);
-		if (fp && *fp)
-		{
-			iWrote = static_cast<std::streamsize>(std::fwrite(sBuffer, 1, static_cast<size_t>(iCount), *fp));
-			if (iWrote != iCount)
-			{
-				// do some logging
-				kWarning("cannot write to file: {}", strerror(errno));
-			}
-		}
-	}
-
-	return iWrote;
-}
-
-#if defined(DEKAF2_NO_GCC) || (DEKAF2_GCC_VERSION >= 50000)
-// gcc 4.8.5 has troubles with moves..
-//-----------------------------------------------------------------------------
-KInOutFDStream::KInOutFDStream(KInOutFDStream&& other)
-//-----------------------------------------------------------------------------
-	: base_type(&m_FPStreamBuf)
-	, m_FileDescR{other.m_FileDescR}
-	, m_FileDescW{other.m_FileDescW}
-	, m_FPStreamBuf{std::move(other.m_FPStreamBuf)}
-{
-	other.m_FileDescR = -1;
-	other.m_FileDescW = -1;
-
-} // move ctor
-#endif
-
-//-----------------------------------------------------------------------------
-KInOutFDStream::~KInOutFDStream()
-//-----------------------------------------------------------------------------
-{
-	// do not call close on destruction. This class did not open the file
-	// but just received a handle for it
-}
-
-#if defined(DEKAF2_NO_GCC) || (DEKAF2_GCC_VERSION >= 50000)
-//-----------------------------------------------------------------------------
-KInOutFDStream& KInOutFDStream::operator=(KInOutFDStream&& other)
-//-----------------------------------------------------------------------------
-{
-	m_FileDescR = other.m_FileDescR;
-	m_FileDescW = other.m_FileDescW;
-	m_FPStreamBuf = std::move(other.m_FPStreamBuf);
-	other.m_FileDescR = -1;
-	other.m_FileDescW = -1;
-	return *this;
-}
-#endif
 
 //-----------------------------------------------------------------------------
 void KInOutFDStream::open(int iFileDescR, int iFileDescW)
@@ -491,63 +330,6 @@ void KInOutFDStream::close()
 	m_FileDescW = -1;
 
 } // close
-
-//-----------------------------------------------------------------------------
-std::streamsize KInOutFDStream::FileDescReader(void* sBuffer, std::streamsize iCount, void* filedesc)
-//-----------------------------------------------------------------------------
-{
-	std::streamsize iRead{0};
-
-	if (filedesc)
-	{
-		int fd = *static_cast<int*>(filedesc);
-#ifdef DEKAF2_IS_WINDOWS
-		if (fd >= 0)
-		{
-			iRead = _read(fd, sBuffer, static_cast<uint32_t>(iCount));
-		}
-#else
-		iRead = ::read(fd, sBuffer, static_cast<size_t>(iCount));
-#endif
-		if (iRead < 0)
-		{
-			// do some logging
-			kWarning("cannot read from file: {} - requested {}, got {} bytes",
-			         strerror(errno),
-			         iCount,
-			         iRead);
-		}
-	}
-
-	return iRead;
-}
-
-//-----------------------------------------------------------------------------
-std::streamsize KInOutFDStream::FileDescWriter(const void* sBuffer, std::streamsize iCount, void* filedesc)
-//-----------------------------------------------------------------------------
-{
-	std::streamsize iWrote{0};
-
-	if (filedesc)
-	{
-		int fd = *static_cast<int*>(filedesc);
-#ifdef DEKAF2_IS_WINDOWS
-		if (fd >= 0)
-		{
-			iWrote = _write(fd, sBuffer, static_cast<uint32_t>(iCount));
-		}
-#else
-		iWrote = ::write(fd, sBuffer, static_cast<size_t>(iCount));
-#endif
-		if (iWrote != iCount)
-		{
-			// do some logging
-			kWarning("cannot write to file: {}", strerror(errno));
-		}
-	}
-
-	return iWrote;
-}
 
 template class KWriter<KOutputFDStream>;
 template class KWriter<KOutputFPStream>;

@@ -1068,6 +1068,8 @@ KString kNormalizePath(KStringView sPath)
 	}
 #endif
 
+	KString sCWD;
+
 	if (!sPath.starts_with('/')
 #ifdef DEKAF2_IS_WINDOWS
 		&& !sPath.starts_with('\\')
@@ -1077,7 +1079,7 @@ KString kNormalizePath(KStringView sPath)
 	{
 		// This is a relative path. Get current working directory
 		std::vector<KStringView> CWD;
-		auto sCWD = kGetCWD();
+		sCWD = kGetCWD();
 		kSplit(CWD, sCWD, detail::kAllowedDirSep, "");
 		// and add it to the normalized path
 		for (auto it : CWD)

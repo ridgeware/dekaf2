@@ -1,5 +1,4 @@
 /*
-//-----------------------------------------------------------------------------//
 //
 // DEKAF(tm): Lighter, Faster, Smarter (tm)
 //
@@ -43,35 +42,36 @@
 #pragma once
 
 /// @file kistringstream.h
-/// provides an input stream that can be constructed from KStringViews
+/// provides an input stream that reads from KStringViews
 
 #include <istream>
-#include "kcppcompat.h"
-#include "../kstreambuf.h"
-#include "../kstringview.h"
+#include "bits/kcppcompat.h"
+#include "kstreambuf.h"
+#include "kstringview.h"
+#include "kreader.h"
 
-namespace dekaf2
-{
+namespace dekaf2 {
+
+namespace detail {
+
+//-----------------------------------------------------------------------------
+/// this is the custom KString reader
+std::streamsize KStringReader(void* sBuffer, std::streamsize iCount, void* sTargetBuf);
+//-----------------------------------------------------------------------------
+
+} // end of namespace detail
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// This input stream class reads from a KStringView
 class KIStringStream : public std::istream
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
-//----------
-protected:
-//----------
-
-	using base_type = std::istream;
-
-	//-----------------------------------------------------------------------------
-	/// this is the custom KString reader
-	static std::streamsize KStringReader(void* sBuffer, std::streamsize iCount, void* sTargetBuf);
-	//-----------------------------------------------------------------------------
 
 //----------
 public:
 //----------
+
+	using base_type = std::istream;
 
 	//-----------------------------------------------------------------------------
 	KIStringStream()
@@ -83,11 +83,9 @@ public:
 	KIStringStream(const KIStringStream&) = delete;
 	//-----------------------------------------------------------------------------
 
-#if defined(DEKAF2_NO_GCC) || (DEKAF2_GCC_VERSION >= 50000)
 	//-----------------------------------------------------------------------------
-	KIStringStream(KIStringStream&& other);
+	KIStringStream(KIStringStream&& other) = default;
 	//-----------------------------------------------------------------------------
-#endif
 
 	//-----------------------------------------------------------------------------
 	KIStringStream(KStringView sView)
@@ -98,37 +96,30 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	virtual ~KIStringStream();
+	KIStringStream& operator=(KIStringStream&& other) = default;
 	//-----------------------------------------------------------------------------
-
-#if defined(DEKAF2_NO_GCC) || (DEKAF2_GCC_VERSION >= 50000)
-	//-----------------------------------------------------------------------------
-	KIStringStream& operator=(KIStringStream&& other);
-	//-----------------------------------------------------------------------------
-#endif
 
 	//-----------------------------------------------------------------------------
 	KIStringStream& operator=(const KIStringStream&) = delete;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// this "restarts" the buffer, like a call to the constructor
-	bool open(KStringView sView)
+	/// open a string for reading
+	void open(KStringView sView)
 	//-----------------------------------------------------------------------------
 	{
 		m_sView = sView;
+	}
+
+	//-----------------------------------------------------------------------------
+	bool is_open() const
+	//-----------------------------------------------------------------------------
+	{
 		return true;
 	}
 
 	//-----------------------------------------------------------------------------
-	inline bool is_open() const
-	//-----------------------------------------------------------------------------
-	{
-		return !m_sView.empty();
-	}
-
-	//-----------------------------------------------------------------------------
-	/// get the KStringView
+	/// get a copy of the string
 	KStringView str()
 	//-----------------------------------------------------------------------------
 	{
@@ -136,11 +127,11 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	/// set KString
-	bool str(KStringView newView)
+	/// set string
+	void str(KStringView newView)
 	//-----------------------------------------------------------------------------
 	{
-		return open(newView);
+		open(newView);
 	}
 
 //----------
@@ -149,8 +140,11 @@ protected:
 
 	KStringView m_sView;
 
-	KInStreamBuf m_KIStreamBuf{&KStringReader, &m_sView};
+	KInStreamBuf m_KIStreamBuf { &detail::KStringReader, &m_sView };
 
 }; // KIStringStream
+
+/// String stream that reads copy-free from a KStringView / KString
+using KInStringStream  = KReader<KIStringStream>;
 
 } // end of namespace dekaf2

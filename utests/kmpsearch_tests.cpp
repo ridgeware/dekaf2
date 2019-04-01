@@ -1,7 +1,7 @@
 #include "catch.hpp"
 
 #include <dekaf2/kmpsearch.h>
-#include <dekaf2/kstringstream.h>
+#include <dekaf2/kinstringstream.h>
 
 using namespace dekaf2;
 

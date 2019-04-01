@@ -152,6 +152,7 @@ private:
 
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// a customizable input / output stream buffer
 class KStreamBuf : public KInStreamBuf
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -279,6 +280,7 @@ private:
 
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// a customizable buffered input / output stream buffer
 class KBufferedStreamBuf : public KStreamBuf
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {

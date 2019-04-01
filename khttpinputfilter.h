@@ -47,7 +47,7 @@
 
 #include "kstringview.h"
 #include "khttp_header.h"
-#include "kstringstream.h"
+#include "kinstringstream.h"
 
 
 /// @file khttpinputfilter.h

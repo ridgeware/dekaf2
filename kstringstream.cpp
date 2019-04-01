@@ -1,9 +1,8 @@
 /*
-//-----------------------------------------------------------------------------//
 //
 // DEKAF(tm): Lighter, Faster, Smarter (tm)
 //
-// Copyright (c) 2017, Ridgeware, Inc.
+// Copyright (c) 2019, Ridgeware, Inc.
 //
 // +-------------------------------------------------------------------------+
 // | /\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\|
@@ -40,55 +39,57 @@
 // +-------------------------------------------------------------------------+
 */
 
-#include "kistringstream.h"
+#include "kstringstream.h"
+#include "klog.h"
 
-namespace dekaf2
-{
+namespace dekaf2 {
 
-#if defined(DEKAF2_NO_GCC) || (DEKAF2_GCC_VERSION >= 50000)
 //-----------------------------------------------------------------------------
-KIStringStream::KIStringStream(KIStringStream&& other)
-    : base_type{std::move(other)}
-    , m_sView{other.m_sView}
-    , m_KIStreamBuf{std::move(other.m_KIStreamBuf)}
+std::streamsize detail::KIOStringReader(void* sBuffer, std::streamsize iCount, void* sSourceBuf)
 //-----------------------------------------------------------------------------
 {
-} // move ctor
-#endif
-
-//-----------------------------------------------------------------------------
-KIStringStream::~KIStringStream()
-//-----------------------------------------------------------------------------
-{}
-
-#if defined(DEKAF2_NO_GCC) || (DEKAF2_GCC_VERSION >= 50000)
-//-----------------------------------------------------------------------------
-KIStringStream& KIStringStream::operator=(KIStringStream&& other)
-//-----------------------------------------------------------------------------
-{
-	m_sView = other.m_sView;
-	m_KIStreamBuf = std::move(other.m_KIStreamBuf);
-	return *this;
-}
-#endif
-
-//-----------------------------------------------------------------------------
-/// this is the custom KString reader
-std::streamsize KIStringStream::KStringReader(void* sBuffer, std::streamsize iCount, void* sSourceBuf)
-//-----------------------------------------------------------------------------
-{
-	std::streamsize iWrote{0};
+	std::streamsize iRead { 0 };
 
 	if (sSourceBuf != nullptr && sBuffer != nullptr)
 	{
 		char* pOutBuf = reinterpret_cast<char*>(sBuffer);
-		KStringView* pInBuf = reinterpret_cast<KStringView*>(sSourceBuf);
-		iWrote = std::min(static_cast<size_t>(iCount), pInBuf->size());
-		pInBuf->copy(pOutBuf, iWrote, 0);
-		pInBuf->remove_prefix(iWrote);
+		auto pBuf = reinterpret_cast<KIOStringStream::Buffer*>(sSourceBuf);
+		if (*pBuf->sBuffer && pBuf->iReadPos < pBuf->sBuffer->size())
+		{
+			KStringView sBuffer(*pBuf->sBuffer);
+			sBuffer.remove_prefix(pBuf->iReadPos);
+			iRead = std::min(static_cast<size_t>(iCount), sBuffer.size());
+			sBuffer.copy(pOutBuf, iRead, 0);
+			pBuf->iReadPos += iRead;
+		}
 	}
-	
-	return iWrote;
+
+	return iRead;
+
+} // detail::KStringReader
+
+
+//-----------------------------------------------------------------------------
+const KString& KIOStringStream::str() const
+//-----------------------------------------------------------------------------
+{
+	static const KString s_sEmpty{};
+
+	return (m_Buffer.sBuffer) ? *m_Buffer.sBuffer : s_sEmpty;
+}
+
+//-----------------------------------------------------------------------------
+void KIOStringStream::str(KStringView sView)
+//-----------------------------------------------------------------------------
+{
+	if (m_Buffer.sBuffer)
+	{
+		*m_Buffer.sBuffer = sView;
+	}
+	else
+	{
+		kWarning("no output string opened");
+	}
 }
 
 } // end namespace dekaf2

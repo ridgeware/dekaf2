@@ -360,10 +360,10 @@ public:
 	}
 
 #ifndef _MSC_VER
-	// MSC has issues with perfect forwarding of KWriter and does not catch the
-	// KStringView ctor above if we forward all base class constructors
 	using base_type::base_type;
 #else
+	// MSC has issues with perfect forwarding of KWriter and does not catch the
+	// KStringView ctor above if we forward all base class constructors
 	// therefore we need to declare a few more constructors here
 	KOutFile() = default;
 	KOutFile(KOutFile&&) = default;

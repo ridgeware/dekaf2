@@ -1,9 +1,8 @@
 /*
-//-----------------------------------------------------------------------------//
 //
 // DEKAF(tm): Lighter, Faster, Smarter (tm)
 //
-// Copyright (c) 2017, Ridgeware, Inc.
+// Copyright (c) 2019, Ridgeware, Inc.
 //
 // +-------------------------------------------------------------------------+
 // | /\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\|
@@ -43,19 +42,112 @@
 #pragma once
 
 /// @file kstringstream.h
-/// provides streams that can be constructed from KStrings
+/// provides a stream around a KString
 
-#include "bits/kistringstream.h"
-#include "bits/kostringstream.h"
+#include <iostream>
+#include "bits/kcppcompat.h"
+#include "kstreambuf.h"
+#include "kstring.h"
+#include "koutstringstream.h"
 #include "kstream.h"
-
 
 namespace dekaf2 {
 
-/// String streams based on KString
-using KInStringStream   = KReader<KIStringStream>;
-using KOutStringStream  = KWriter<KOStringStream>;
-// TODO make this a KString
-using KStringStream     = KReaderWriter<std::stringstream>;
+namespace detail {
+
+//-----------------------------------------------------------------------------
+/// this is the custom KString reader
+std::streamsize KIOStringReader(void* sBuffer, std::streamsize iCount, void* sTargetBuf);
+//-----------------------------------------------------------------------------
+
+} // end of namespace detail
+
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// This stream class reads and writes from / to KString
+class KIOStringStream : public std::iostream
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+//----------
+public:
+//----------
+
+	using base_type = std::iostream;
+
+	//-----------------------------------------------------------------------------
+	KIOStringStream()
+	//-----------------------------------------------------------------------------
+	: base_type(&m_KStreamBuf)
+	{}
+
+	//-----------------------------------------------------------------------------
+	KIOStringStream(const KIOStringStream&) = delete;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	KIOStringStream(KIOStringStream&& other) = default;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	KIOStringStream(KString& sBuffer)
+	//-----------------------------------------------------------------------------
+	: base_type(&m_KStreamBuf)
+	{
+		open(sBuffer);
+	}
+
+	//-----------------------------------------------------------------------------
+	KIOStringStream& operator=(KIOStringStream&& other) = default;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	KIOStringStream& operator=(const KIOStringStream&) = delete;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// open a string for reading
+	void open(KString& sBuffer)
+	//-----------------------------------------------------------------------------
+	{
+		m_Buffer.sBuffer = &sBuffer;
+		m_Buffer.iReadPos = 0;
+	}
+
+	//-----------------------------------------------------------------------------
+	bool is_open() const
+	//-----------------------------------------------------------------------------
+	{
+		return m_Buffer.sBuffer != nullptr;
+	}
+
+	//-----------------------------------------------------------------------------
+	/// get a const ref of the string
+	const KString& str() const;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// set string
+	void str(KStringView sView);
+	//-----------------------------------------------------------------------------
+
+	struct Buffer
+	{
+		KString* sBuffer { nullptr };
+		size_t iReadPos { 0 };
+	};
+
+//----------
+protected:
+//----------
+
+	Buffer m_Buffer;
+
+	KStreamBuf m_KStreamBuf { &detail::KIOStringReader, &detail::KStringWriter, &m_Buffer, &m_Buffer.sBuffer };
+
+}; // KIOStringStream
+
+
+/// String stream that reads and writes copy-free from and into a KString
+using KStringStream    = KReaderWriter<KIOStringStream>;
 
 } // end of namespace dekaf2

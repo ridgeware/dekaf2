@@ -1,5 +1,4 @@
 /*
-//-----------------------------------------------------------------------------//
 //
 // DEKAF(tm): Lighter, Faster, Smarter (tm)
 //
@@ -40,67 +39,28 @@
 // +-------------------------------------------------------------------------+
 */
 
-#include "kostringstream.h"
-#include "../kstring.h"
+#include "kinstringstream.h"
 
-namespace dekaf2
-{
+namespace dekaf2 {
 
-#if defined(DEKAF2_NO_GCC) || (DEKAF2_GCC_VERSION >= 50000)
 //-----------------------------------------------------------------------------
-KOStringStream::KOStringStream(KOStringStream&& other)
-    : base_type{std::move(other)}
-    , m_sBuf{other.m_sBuf}
-    , m_KOStreamBuf{std::move(other.m_KOStreamBuf)}
+/// this is the custom KString reader
+std::streamsize detail::KStringReader(void* sBuffer, std::streamsize iCount, void* sSourceBuf)
 //-----------------------------------------------------------------------------
 {
-} // move ctor
-#endif
+	std::streamsize iRead { 0 };
 
-//-----------------------------------------------------------------------------
-KOStringStream::~KOStringStream()
-//-----------------------------------------------------------------------------
-{}
-
-#if defined(DEKAF2_NO_GCC) || (DEKAF2_GCC_VERSION >= 50000)
-//-----------------------------------------------------------------------------
-KOStringStream& KOStringStream::operator=(KOStringStream&& other)
-//-----------------------------------------------------------------------------
-{
-	m_sBuf = other.m_sBuf;
-	m_KOStreamBuf = std::move(other.m_KOStreamBuf);
-	return *this;
-}
-#endif
-
-//-----------------------------------------------------------------------------
-/// this "restarts" the buffer, like a call to the constructor
-bool KOStringStream::open(KString& str)
-//-----------------------------------------------------------------------------
-{
-	*m_sBuf = str;
-	return true;
-}
-
-//-----------------------------------------------------------------------------
-/// this is the custom KString writer
-std::streamsize KOStringStream::KStringWriter(const void* sBuffer, std::streamsize iCount, void* sTargetBuf)
-//-----------------------------------------------------------------------------
-{
-	std::streamsize iWrote{0};
-
-	if (sTargetBuf != nullptr && sBuffer != nullptr)
+	if (sSourceBuf != nullptr && sBuffer != nullptr)
 	{
-		const KString::value_type* pInBuf = reinterpret_cast<const KString::value_type*>(sBuffer);
-		KString** pOutBuf = reinterpret_cast<KString**>(sTargetBuf);
-		if (*pOutBuf != nullptr)
-		{
-			(*pOutBuf)->append(pInBuf, static_cast<size_t>(iCount));
-			iWrote = iCount;
-		}
+		char* pOutBuf = reinterpret_cast<char*>(sBuffer);
+		KStringView* pInBuf = reinterpret_cast<KStringView*>(sSourceBuf);
+		iRead = std::min(static_cast<size_t>(iCount), pInBuf->size());
+		pInBuf->copy(pOutBuf, iRead, 0);
+		pInBuf->remove_prefix(iRead);
 	}
+	
+	return iRead;
 
-	return iWrote;
-}
+} // detail::KStringReader
 
 } // end namespace dekaf2

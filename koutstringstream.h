@@ -1,5 +1,4 @@
 /*
-//-----------------------------------------------------------------------------//
 //
 // DEKAF(tm): Lighter, Faster, Smarter (tm)
 //
@@ -43,16 +42,24 @@
 #pragma once
 
 /// @file kostringstream.h
-/// provides a output stream that can be constructed from KStrings
+/// provides an output stream that writes into a KString
 
 #include <ostream>
-#include "kcppcompat.h"
-#include "../kstreambuf.h"
+#include "bits/kcppcompat.h"
+#include "kstreambuf.h"
+#include "kstring.h"
+#include "kwriter.h"
 
-namespace dekaf2
-{
+namespace dekaf2 {
 
-class KString;
+namespace detail {
+
+//-----------------------------------------------------------------------------
+/// this is the custom KString writer
+std::streamsize KStringWriter(const void* sBuffer, std::streamsize iCount, void* sTargetBuf);
+//-----------------------------------------------------------------------------
+
+} // end of namespace detail
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// This output stream class stores into a KString
@@ -64,11 +71,6 @@ protected:
 //----------
 
 	using base_type = std::ostream;
-
-	//-----------------------------------------------------------------------------
-	/// this is the custom KString writer
-	static std::streamsize KStringWriter(const void* sBuffer, std::streamsize iCount, void* sTargetBuf);
-	//-----------------------------------------------------------------------------
 
 //----------
 public:
@@ -84,71 +86,63 @@ public:
 	KOStringStream(const KOStringStream&) = delete;
 	//-----------------------------------------------------------------------------
 
-#if defined(DEKAF2_NO_GCC) || (DEKAF2_GCC_VERSION >= 50000)
 	//-----------------------------------------------------------------------------
-	KOStringStream(KOStringStream&& other);
+	KOStringStream(KOStringStream&& other) = default;
 	//-----------------------------------------------------------------------------
-#endif
 
 	//-----------------------------------------------------------------------------
 	KOStringStream(KString& str)
 	//-----------------------------------------------------------------------------
 	: base_type(&m_KOStreamBuf)
 	{
-		m_sBuf = &str;
+		open(str);
 	}
 
 	//-----------------------------------------------------------------------------
-	virtual ~KOStringStream();
+	KOStringStream& operator=(KOStringStream&& other) = default;
 	//-----------------------------------------------------------------------------
-
-#if defined(DEKAF2_NO_GCC) || (DEKAF2_GCC_VERSION >= 50000)
-	//-----------------------------------------------------------------------------
-	KOStringStream& operator=(KOStringStream&& other);
-	//-----------------------------------------------------------------------------
-#endif
 
 	//-----------------------------------------------------------------------------
 	KOStringStream& operator=(const KOStringStream&) = delete;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// this "restarts" the buffer, like a call to the constructor
-	bool open(KString& str);
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// test if a there is data stored in constructed KString
-	inline bool is_open() const
+	/// set output string
+	void open(KString& str)
 	//-----------------------------------------------------------------------------
 	{
-		return m_sBuf != nullptr;
+		m_sBuffer = &str;
 	}
 
 	//-----------------------------------------------------------------------------
-	/// get the constructed KString
-	KString& str()
+	/// test if we can write
+	bool is_open() const
 	//-----------------------------------------------------------------------------
 	{
-		return *m_sBuf;
+		return m_sBuffer != nullptr;
 	}
 
 	//-----------------------------------------------------------------------------
-	/// set KString
-	bool str(KString& sBuffer)
+	/// gets a const ref of the string
+	const KString& str() const;
 	//-----------------------------------------------------------------------------
-	{
-		return open(sBuffer);
-	}
+
+	//-----------------------------------------------------------------------------
+	/// sets the string
+	void str(KStringView sView);
+	//-----------------------------------------------------------------------------
 
 //----------
 protected:
 //----------
 
-	KString* m_sBuf{nullptr};
+	KString* m_sBuffer { nullptr };
 
-	KOutStreamBuf m_KOStreamBuf{&KStringWriter, &m_sBuf};
+	KOutStreamBuf m_KOStreamBuf { &detail::KStringWriter, &m_sBuffer };
 
 }; // KOStringStream
+
+/// String stream that writes copy-free into a KString
+using KOutStringStream = KWriter<KOStringStream>;
 
 } // end of namespace dekaf2

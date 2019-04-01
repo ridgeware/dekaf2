@@ -506,12 +506,10 @@ set (BITS_HEADERS
 	bits/kbasepipe.h
 	bits/kcppcompat.h
 	bits/kfilesystem.h
-	bits/kistringstream.h
 	bits/kmake_unique.h
 	bits/kmru-std-vector.h
 	bits/kmru-multi-index.h
 	bits/kmutable_pair.h
-	bits/kostringstream.h
 	bits/kprops-multi-index.h
 	bits/kprops-std-map.h
 	bits/ksql_dbc.h
@@ -569,6 +567,7 @@ set(PUBLIC_HEADERS
 	khttp_response.h
 	kinpipe.h
 	kinshell.h
+	kinstringstream.h
 	kjson.h
 	klambdastream.h
 	klog.h
@@ -583,6 +582,7 @@ set(PUBLIC_HEADERS
 	koutpipe.h
 	koutputtemplate.h
 	koutshell.h
+	koutstringstream.h
 	kparallel.h
 	kpipe.h
 	kprof.h
@@ -607,6 +607,7 @@ set(PUBLIC_HEADERS
 	kstream.h
 	kstreambuf.h
 	kstring.h
+	kstringstream.h
 	kstringutils.h
 	kstringview.h
 	ksubscribe.h
@@ -660,8 +661,6 @@ set (SOURCES
 	# KEEP ALPHABETIZED
 	bits/kbasepipe.cpp
 	bits/kbaseshell.cpp
-	bits/kistringstream.cpp
-	bits/kostringstream.cpp
 	bits/ksql_dbc.cpp
 	bits/kstringviewz.cpp
 	bits/simd/kfindfirstof.cpp
@@ -699,6 +698,7 @@ set (SOURCES
 	khttp_response.cpp
 	kinpipe.cpp
 	kinshell.cpp
+	kinstringstream.cpp
 	kjson.cpp
 	klambdastream.cpp
 	klog.cpp
@@ -711,6 +711,7 @@ set (SOURCES
 	koutpipe.cpp
 	koutputtemplate.cpp
 	koutshell.cpp
+	koutstringstream.cpp
 	kparallel.cpp
 	kpipe.cpp
 	kprof.cpp
@@ -732,6 +733,7 @@ set (SOURCES
 	kstream.cpp
 	kstreambuf.cpp
 	kstring.cpp
+	kstringstream.cpp
 	kstringutils.cpp
 	kstringview.cpp
 	ksystem.cpp

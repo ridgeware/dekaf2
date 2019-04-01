@@ -119,17 +119,21 @@ bool KBasePipe::Open(KString sCommand, bool bAsShellCommand, int mode)
 	{
 		case -1: /* error */
 		{
+			kWarning("cannot fork '{}': {}", sCommand.c_str(), strerror(errno));
+
 			// could not create the child
 			if (mode & PipeRead)
 			{
-				::close(m_readPdes[0]);
-				::close(m_readPdes[1]);
+				CloseAndResetFileDescriptor(m_readPdes[0]);
+				// the other side gets closed anyway in the regular parent code
 			}
+
 			if (mode & PipeWrite)
 			{
-				::close(m_writePdes[0]);
-				::close(m_writePdes[1]);
+				CloseAndResetFileDescriptor(m_writePdes[1]);
+				// the other side gets closed anyway in the regular parent code
 			}
+
 			m_pid = 0;
 			break;
 		}
@@ -141,22 +145,22 @@ bool KBasePipe::Open(KString sCommand, bool bAsShellCommand, int mode)
 			if (mode & PipeWrite)
 			{
 				// Bind to Child's stdin
-				::close(m_writePdes[1]);
+				CloseAndResetFileDescriptor(m_writePdes[1]);
 				if (m_writePdes[0] != fileno(stdin))
 				{
 					::dup2(m_writePdes[0], fileno(stdin));
-					::close(m_writePdes[0]);
+					CloseAndResetFileDescriptor(m_writePdes[0]);
 				}
 			}
 
 			if (mode & PipeRead)
 			{
 				// Bind Child's stdout
-				::close(m_readPdes[0]);
+				CloseAndResetFileDescriptor(m_readPdes[0]);
 				if (m_readPdes[1] != fileno(stdout))
 				{
 					::dup2(m_readPdes[1], fileno(stdout));
-					::close(m_readPdes[1]);
+					CloseAndResetFileDescriptor(m_readPdes[1]);
 				}
 			}
 
@@ -172,12 +176,14 @@ bool KBasePipe::Open(KString sCommand, bool bAsShellCommand, int mode)
 
 	if (mode & PipeRead)
 	{
-		::close(m_readPdes[1]); // close write end of read pipe (for child use)
+		// close write end of read pipe (for child use)
+		CloseAndResetFileDescriptor(m_readPdes[1]);
 	}
 
 	if (mode & PipeWrite)
 	{
-		::close(m_writePdes[0]); // close read end of write pipe (for child use)
+		// close read end of write pipe (for child use)
+		CloseAndResetFileDescriptor(m_writePdes[0]);
 	}
 
 	return true;
@@ -185,7 +191,7 @@ bool KBasePipe::Open(KString sCommand, bool bAsShellCommand, int mode)
 } // Open
 
 //-----------------------------------------------------------------------------
-int KBasePipe::Close(int mode)
+int KBasePipe::Close(int mode, int iWaitMilliseconds)
 //-----------------------------------------------------------------------------
 {
 	if (m_pid > 0)
@@ -193,31 +199,36 @@ int KBasePipe::Close(int mode)
 		if (mode & PipeRead)
 		{
 			// Close read on stdout pipe
-			::close(m_readPdes[0]);
+			CloseAndResetFileDescriptor(m_readPdes[0]);
 		}
 
 		if (mode & PipeWrite)
 		{
-			// Send EOF by closing write end of pipe
-			::close(m_writePdes[1]);
+			// send EOF by closing write end of pipe
+			CloseAndResetFileDescriptor(m_writePdes[1]);
 		}
 
-		// Child has been cut off from parent, let it terminate
-		Wait(60000);
-
-		// Did the child terminate properly?
-		if (IsRunning())
+		// child has been cut off from parent, let it terminate
+		if (iWaitMilliseconds < 0)
 		{
-			// no
-			kill(m_pid, SIGKILL);
-			m_iExitCode = -1;
+			// wait until child terminates
+			wait(false);
+		}
+		else
+		{
+			// wait for given timeout, then kill child
+			Wait(iWaitMilliseconds);
+
+			// did the child terminate properly?
+			if (IsRunning())
+			{
+				// no
+				kill(m_pid, SIGKILL);
+				m_iExitCode = -1;
+			}
 		}
 
 		m_pid = 0;
-		m_writePdes[0] = -1;
-		m_writePdes[1] = -1;
-		m_readPdes[0] = -1;
-		m_readPdes[1] = -1;
 	}
 
 	return m_iExitCode;
@@ -225,18 +236,24 @@ int KBasePipe::Close(int mode)
 } // Close
 
 //-----------------------------------------------------------------------------
-void KBasePipe::wait()
+void KBasePipe::wait(bool bNoHang)
 //-----------------------------------------------------------------------------
 {
-	if (m_pid)
+	if (m_pid > 0)
 	{
 		int iStatus { 0 };
 
-		pid_t iPid = waitpid(m_pid, &iStatus, WNOHANG);
+		pid_t iPid;
+
+		do
+		{
+			iPid = waitpid(m_pid, &iStatus, bNoHang ? WNOHANG : 0);
+		}
+		while (iPid == -1 && errno == EINTR);
 
 		if (iPid == -1)
 		{
-			m_iExitCode = errno;
+			m_iExitCode = -1;
 			kDebug(1, "cannot close pipe: {}", strerror(errno));
 			m_pid = 0;
 		}
@@ -249,7 +266,7 @@ void KBasePipe::wait()
 			}
 			else if (WIFSIGNALED(iStatus))
 			{
-				m_iExitCode = 1;
+				m_iExitCode = -1;
 				int iSignal = WTERMSIG(iStatus);
 				if (iSignal)
 				{
@@ -258,7 +275,7 @@ void KBasePipe::wait()
 			}
 			else
 			{
-				m_iExitCode = iStatus;
+				m_iExitCode = -1;
 				kDebug(1, "exited with invalid status {}", iStatus);
 			}
 
@@ -278,7 +295,7 @@ bool KBasePipe::IsRunning()
 		return false;
 	}
 
-	wait();
+	wait(true);
 
 	return (m_pid > 0);
 
@@ -288,24 +305,45 @@ bool KBasePipe::IsRunning()
 bool KBasePipe::Wait(int msecs)
 //-----------------------------------------------------------------------------
 {
-	if (msecs >= 0)
+	if (m_pid <= 0)
 	{
-		int counter = 0;
-		while (IsRunning())
-		{
-			kMilliSleep(1);
-			++counter;
-
-			if (counter == msecs)
-            {
-				return false;
-            }
-		}
 		return true;
 	}
-	return false;
+
+	std::chrono::steady_clock::time_point tStart = std::chrono::steady_clock::now();
+
+	std::chrono::milliseconds timeout(msecs);
+
+	while (IsRunning())
+	{
+		std::chrono::steady_clock::time_point tNow = std::chrono::steady_clock::now();
+
+		if (tNow - tStart > timeout)
+		{
+			return false;
+		}
+
+		std::this_thread::sleep_for(std::chrono::milliseconds(1));
+	}
+
+	return true;
 
 } // Wait
+
+//-----------------------------------------------------------------------------
+void KBasePipe::CloseAndResetFileDescriptor(int& iFileDescriptor)
+//-----------------------------------------------------------------------------
+{
+	if (iFileDescriptor >= 0)
+	{
+		if (::close(iFileDescriptor))
+		{
+			kDebug(2, "error closing file descriptor {}: {}", iFileDescriptor, strerror(errno));
+		}
+		iFileDescriptor = -1;
+	}
+
+} // CloseAndResetFileDescriptor
 
 } // end namespace dekaf2
 

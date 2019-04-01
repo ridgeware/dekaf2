@@ -75,7 +75,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	/// Open Constructor
+	/// Opens a pipe. If bAsShellCommand is true will execute command in a sub shell.
 	KInPipe(KString sCommand, bool bAsShellCommand = false)
 	//-----------------------------------------------------------------------------
 	{
@@ -83,13 +83,14 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	/// Opens a pipe
+	/// Opens a pipe. If bAsShellCommand is true will execute command in a sub shell.
 	bool Open(KString sCommand, bool bAsShellCommand = false);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// Closes a pipe
-	int Close();
+	/// Closes a pipe, waits for iWaitMilliseconds then kills child process, if -1
+	/// waits until child terminates.
+	int Close(int iWaitMilliseconds = -1);
 	//-----------------------------------------------------------------------------
 
 }; // class KInPipe

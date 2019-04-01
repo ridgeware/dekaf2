@@ -63,13 +63,13 @@ bool KPipe::Open(KString sCommand, bool bAsShellCommand)
 } // Open
 
 //-----------------------------------------------------------------------------
-int KPipe::Close()
+int KPipe::Close(int iWaitMilliseconds)
 //-----------------------------------------------------------------------------
 {
-	// Close reader/writer
-	KFDStream::close();
+	// invalidate Stream - we close it in KBasePipe::Close
+	KFDStream::Cancel();
 
-	return KBasePipe::Close(PipeRead | PipeWrite);
+	return KBasePipe::Close(PipeRead | PipeWrite, iWaitMilliseconds);
 
 } // Close
 

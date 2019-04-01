@@ -58,15 +58,21 @@ enum DefaultFileCeateFlags
 	DEKAF2_MODE_CREATE_DIR  = 0777
 };
 
-#ifdef DEKAF2_IS_WINDOWS
+#ifdef _WIN32
 constexpr char kDirSep { '\\' };
 namespace detail {
-constexpr KStringView kLineRightTrims { "\r\n" };
+constexpr KStringViewZ kLineRightTrims { "\r\n" };
+constexpr KStringViewZ kAllowedDirSep { "/\\:" };
+constexpr KStringViewZ kCurrentDir { "." };
+constexpr KStringViewz kCurrentDirWithSep { ".\\" };
 }
 #else
 constexpr char kDirSep { '/' };
 namespace detail {
-constexpr KStringView kLineRightTrims { "\n" };
+constexpr KStringViewZ kLineRightTrims { "\n" };
+constexpr KStringViewZ kAllowedDirSep { "/" };
+constexpr KStringViewZ kCurrentDir { "." };
+constexpr KStringViewZ kCurrentDirWithSep { "./" };
 }
 #endif
 
@@ -121,7 +127,10 @@ inline bool kRemoveDir (KStringViewZ sPath)
 //-----------------------------------------------------------------------------
 /// Read entire text file into a single string and convert DOS newlines if
 /// bToUnixLineFeeds is true. The base function (that is also called by this
-/// variant) is kReadAll().
+/// variant) is kReadAll(). This function does not allow to read "special"
+/// files like those in /proc , because it tries to determine the file size
+/// in advance (which is 0 for virtual files). Please resort to KInFile.ReadRemaining()
+/// for such files.
 bool kReadFile (KStringViewZ sPath, KString& sContents, bool bToUnixLineFeeds);
 //-----------------------------------------------------------------------------
 
@@ -187,6 +196,11 @@ inline size_t kGetNumBytes(KStringViewZ sFilePath)
 {
 	return kFileSize(sFilePath);
 }
+
+//-----------------------------------------------------------------------------
+/// resolve .. and . parts of the input path, and make it an absolute path
+KString kNormalizePath(KStringView sPath);
+//-----------------------------------------------------------------------------
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Retrieve and filter directory listings

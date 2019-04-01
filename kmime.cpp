@@ -47,6 +47,7 @@
 #include "klog.h"
 #include "kfrozen.h"
 #include "ksystem.h"
+#include "kctype.h"
 
 namespace dekaf2 {
 
@@ -132,11 +133,21 @@ bool KMIME::ByExtension(KStringView sFilename, KMIME Default)
 	static constexpr auto s_Extension_Map = frozen::make_unordered_map(s_MIME_Extensions);
 #endif
 
-	KString sExtension = kExtension(sFilename).ToLowerLocale();
+	KString sExtension = kExtension(sFilename);
 
 	if (sExtension.empty())
 	{
 		sExtension = sFilename;
+		
+		if (sExtension.front() == '.')
+		{
+			sExtension.erase(0, 1);
+		}
+	}
+
+	for (auto& ch : sExtension)
+	{
+		ch = KASCII::kToLower(ch);
 	}
 
 	auto it = s_Extension_Map.find(sExtension);

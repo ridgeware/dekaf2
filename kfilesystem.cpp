@@ -43,12 +43,15 @@
 #include <algorithm>
 #include "bits/kfilesystem.h"
 #include "kfilesystem.h"
+#include "ksystem.h"
 #include "kstring.h"
+#include "kstringview.h"
 #include "klog.h"
 #include "kregex.h"
 #include "ksplit.h"
 #include "kinshell.h"
 #include "kwriter.h"
+#include "kctype.h"
 
 
 namespace dekaf2
@@ -200,7 +203,11 @@ KStringView kExtension(KStringView sFilePath)
 
 		if (pos != KStringView::npos && sFilePath[pos] == '.')
 		{
-			return sFilePath.substr(pos + 1);
+			// a file like ".hidden" or "tmp/.hidden" is not an extension
+			if (pos > 0 && detail::kAllowedDirSep.find(sFilePath[pos-1]) == KStringView::npos)
+			{
+				return sFilePath.substr(pos + 1);
+			}
 		}
 	}
 
@@ -223,7 +230,11 @@ KStringView kRemoveExtension(KStringView sFilePath)
 
 		if (pos != KStringView::npos && sFilePath[pos] == '.')
 		{
-			return sFilePath.substr(0, pos);
+			// a file like ".hidden" or "tmp/.hidden" is not an extension
+			if (pos > 0 && detail::kAllowedDirSep.find(sFilePath[pos-1]) == KStringView::npos)
+			{
+				return sFilePath.substr(0, pos);
+			}
 		}
 	}
 
@@ -239,11 +250,7 @@ KStringView kBasename(KStringView sFilePath)
 	// that is, just the filename itself without any directory elements
 	if (!sFilePath.empty())
 	{
-#ifdef _WIN32
-		auto pos = sFilePath.find_last_of("/\\:");
-#else
-		auto pos = sFilePath.rfind('/');
-#endif
+		auto pos = sFilePath.find_last_of(detail::kAllowedDirSep);
 
 		if (pos != KStringView::npos)
 		{
@@ -263,11 +270,7 @@ KStringView kDirname(KStringView sFilePath, bool bWithTrailingSlash)
 	// that is, the directory name component of the file path
 	if (!sFilePath.empty())
 	{
-#ifdef _WIN32
-		auto pos = sFilePath.find_last_of("/\\:");
-#else
-		auto pos = sFilePath.rfind('/');
-#endif
+		auto pos = sFilePath.find_last_of(detail::kAllowedDirSep);
 
 		if (pos != KStringView::npos)
 		{
@@ -275,11 +278,7 @@ KStringView kDirname(KStringView sFilePath, bool bWithTrailingSlash)
 		}
 	}
 
-#ifdef _WIN32
-	return (bWithTrailingSlash) ? ".\\" : ".";
-#else
-	return (bWithTrailingSlash) ? "./" : ".";
-#endif
+	return (bWithTrailingSlash) ? detail::kCurrentDirWithSep : detail::kCurrentDir;
 
 }  // kDirname()
 
@@ -363,7 +362,11 @@ bool kCreateDir(KStringViewZ sPath, int iMode /* = DEKAF2_MODE_CREATE_DIR */)
 
 	std::error_code ec;
 
-	if (!sPath.empty() && (sPath.back() == '/' || sPath.back() == '\\'))
+	if (!sPath.empty() && (sPath.back() == '/'
+#ifdef DEKAF2_IS_WINDOWS
+						   || sPath.back() == '\\'
+#endif
+		))
 	{
 		// unfortunately fs::create_directories chokes on a
 		// trailing slash, so we copy the KStringViewZ if it
@@ -408,7 +411,7 @@ bool kCreateDir(KStringViewZ sPath, int iMode /* = DEKAF2_MODE_CREATE_DIR */)
 
 	// else test each part of the directory chain
 	std::vector<KStringView> Parts;
-	kSplit(Parts, sPath, "/\\", "", 0, true, false);
+	kSplit(Parts, sPath, detail::kAllowedDirSep, "", 0, true, false);
 
 	KString sNewPath;
 	for (const auto& it : Parts)
@@ -417,14 +420,18 @@ bool kCreateDir(KStringViewZ sPath, int iMode /* = DEKAF2_MODE_CREATE_DIR */)
 		{
 			if (sNewPath.empty())
 			{
-				if (sPath.front() == '/')
+				if (sPath.front() == '/'
+#ifdef DEKAF2_IS_WINDOWS
+					|| sPath.front() == '\\'
+#endif
+					)
 				{
-					sNewPath += '/';
+					sNewPath += kDirSep;
 				}
 			}
 			else
 			{
-				sNewPath += '/';
+				sNewPath += kDirSep;
 			}
 			sNewPath += it;
 
@@ -561,7 +568,7 @@ KDirectory::DirEntry::DirEntry(KStringView BasePath, KStringView Name, EntryType
 {
 	if (!BasePath.empty())
 	{
-		m_Path += '/';
+		m_Path += kDirSep;
 	}
 	auto iPath = m_Path.size();
 	m_Path += Name;
@@ -1023,9 +1030,129 @@ bool kReadFile (KStringViewZ sPath, KString& sContents, bool bToUnixLineFeeds)
 
 } // kReadFile
 
+//-----------------------------------------------------------------------------
+KString kNormalizePath(KStringView sPath)
+//-----------------------------------------------------------------------------
+{
+	// "/user/./test/../peter/myfile" -> "/user/peter/myfile"
+	// "../peter/myfile" -> "/user/peter/myfile"
+
+	// remove any whitespace left and right
+	sPath.Trim();
+
+#ifdef DEKAF2_HAS_STD_FILESYSTEM
+
+	std::error_code ec;
+
+	return fs::weakly_canonical(kToFilesystemPath(sPath), ec).u8string();
+
+#else
+
+	std::vector<KStringView> Component;
+
+	// split into path components
+	kSplit(Component, sPath, detail::kAllowedDirSep, "");
+
+	std::vector<KStringView> Normalized;
+
+#ifdef DEKAF2_IS_WINDOWS
+	char chHasDrive { 0 };
+	if (sPath.size() > 1 && sPath[1] == ':' && KASCII::kIsAlpha(sPath[0]))
+	{
+		chHasDrive = sPath[0];
+	}
+#endif
+
+	if (!sPath.starts_with('/')
+#ifdef DEKAF2_IS_WINDOWS
+		&& !sPath.starts_with('\\')
+		&& !chHasDrive
+#endif
+		)
+	{
+		// This is a relative path. Get current working directory
+		std::vector<KStringView> CWD;
+		auto sCWD = kGetCWD();
+		kSplit(CWD, sCWD, detail::kAllowedDirSep, "");
+		// and add it to the normalized path
+		for (auto it : CWD)
+		{
+			if (!it.empty())
+			{
+				Normalized.push_back(it);
+			}
+		}
+	}
+
+	for (auto it : Component)
+	{
+		if (it.empty())
+		{
+#ifdef DEKAF2_IS_WINDOWS
+			if (Normalized.empty())
+			{
+				// on Windows, we accept a path starting with "//" or "\\"
+				Normalized.push_back(it);
+			}
+#endif
+		}
+		else if (it == ".")
+		{
+			// this is just junk
+			continue;
+		}
+		else if (it == "..")
+		{
+			if (!Normalized.empty())
+			{
+				Normalized.pop_back();
+			}
+			else
+			{
+				kDebug(1, "invalid normalization path: {}", sPath);
+				Normalized.clear();
+#ifdef DEKAF2_IS_WINDOWS
+				chHasDrive = 0;
+#endif
+				break;
+			}
+		}
+		else
+		{
+			// ordinary directory
+			Normalized.push_back(it);
+		}
+	}
+
+	KString sNormalized;
+	sNormalized.reserve(sPath.size());
+
+#ifdef DEKAF2_IS_WINDOWS
+	if (chHasDrive)
+	{
+		sNormalized = chHasDrive;
+		sNormalized += ':';
+	}
+#endif
+
+	for (auto it : Normalized)
+	{
+		sNormalized += kDirSep;
+		sNormalized += it;
+	}
+
+	return sNormalized;
+
+#endif
+	
+} // kNormalizePath
+
 #ifdef DEKAF2_REPEAT_CONSTEXPR_VARS
 namespace detail {
-constexpr KStringView kLineRightTrims;
+constexpr KStringViewZ kLineRightTrims;
+constexpr KStringViewZ kAllowedDirSep;
+constexpr KStringViewZ kCurrentDir;
+constexpr KStringViewZ kCurrentDirWithSep;
 }
 #endif
 

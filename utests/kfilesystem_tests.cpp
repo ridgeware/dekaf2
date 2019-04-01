@@ -94,11 +94,19 @@ TEST_CASE("KFilesystem") {
 		KStringView sPathname = "/this/is/a/name.txt";
 		CHECK ( kExtension(sPathname) == "txt" );
 		CHECK ( kExtension("/this.is/a./name") == "" );
+		CHECK ( kExtension("/this.is/a./.name") == "" );
 		CHECK ( kBasename(sPathname) == "name.txt" );
 		CHECK ( kDirname(sPathname) == "/this/is/a" );
 		CHECK ( kDirname(sPathname, true) == "/this/is/a/" );
 		CHECK ( kRemoveExtension(sPathname) == "/this/is/a/name" );
 		CHECK ( kRemoveExtension("/this.is/a./name") == "/this.is/a./name" );
+		CHECK ( kRemoveExtension("/this.is/a./.name") == "/this.is/a./.name" );
+		CHECK ( kNormalizePath("/this.is/a./.name") == "/this.is/a./.name" );
+		CHECK ( kNormalizePath("/this..is////a/.././name") == "/this..is/name" );
+		CHECK ( kNormalizePath("/this.is/../../wrong") == "" );
+		auto sCWD = kGetCWD();
+		sCWD += "/this..is/name";
+		CHECK ( kNormalizePath("this..is////a/.././name") == sCWD );
 	}
 
 	SECTION("KDirectory")

@@ -103,7 +103,7 @@ TEST_CASE("KFilesystem") {
 		CHECK ( kRemoveExtension("/this.is/a./.name") == "/this.is/a./.name" );
 #ifdef DEKAF2_IS_WINDOWS
 		CHECK ( kNormalizePath("/this.is/a./.name") == "\\this.is\\a.\\.name" );
-		CHECK ( kRemoveExtension("//this.is/a./name") == "\\\\this.is\\a.\\name" );
+		CHECK ( kNormalizePath("//this.is/a./name") == "\\\\this.is\\a.\\name" );
 		CHECK ( kNormalizePath("/this..is////a/.././name") == "\\this..is\\name" );
 		CHECK ( kNormalizePath("/this.is/../../../wrong") == "\\wrong" );
 		auto sCWD = kGetCWD();

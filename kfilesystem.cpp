@@ -1078,6 +1078,13 @@ KString kNormalizePath(KStringView sPath)
 			// This is a relative path. Get current working directory
 			std::vector<KStringView> CWD;
 			sCWD = kGetCWD();
+#ifdef DEKAF2_IS_WINDOWS
+			if (sCWD.size() > 1 && sCWD[1] == ':' && KASCII::kIsAlpha(sCWD[0]))
+			{
+				chHasDrive = KASCII::kToUpper(sCWD[0]);
+				sCWD.remove_prefix(2);
+			}
+#endif
 			kSplit(CWD, sCWD, detail::kAllowedDirSep, "");
 			// and add it to the normalized path
 			for (auto it : CWD)

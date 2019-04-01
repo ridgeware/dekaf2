@@ -213,7 +213,7 @@ public:
 	// KStringView ctor above if we forward all base class constructors
 	// therefore we need to declare a few more constructors here
 	KFile() = default;
-	KFile(File&&) = default;
+	KFile(KFile&&) = default;
 	KFile(const std::string& s, ios_base::openmode mode = ios_base::out)
 	: base_type(kToFilesystemPath(s), mode | ios_base::binary) {}
 	KFile(const char* sz, ios_base::openmode mode = ios_base::out)

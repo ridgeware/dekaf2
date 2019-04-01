@@ -11,7 +11,7 @@
 #include <dekaf2/kfilesystem.h>
 #include <dekaf2/ksystem.h>
 #include <dekaf2/kbufferedreader.h>
-#include <dekaf2/kstringstream.h>
+#include <dekaf2/kinstringstream.h>
 #include <iostream>
 #include <fstream>
 #ifdef DEKAF2_IS_WINDOWS

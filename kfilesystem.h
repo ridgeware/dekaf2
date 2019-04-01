@@ -64,7 +64,7 @@ namespace detail {
 constexpr KStringViewZ kLineRightTrims { "\r\n" };
 constexpr KStringViewZ kAllowedDirSep { "/\\:" };
 constexpr KStringViewZ kCurrentDir { "." };
-constexpr KStringViewz kCurrentDirWithSep { ".\\" };
+constexpr KStringViewZ kCurrentDirWithSep { ".\\" };
 }
 #else
 constexpr char kDirSep { '/' };

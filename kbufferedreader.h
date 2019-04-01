@@ -42,6 +42,13 @@
 
 #pragma once
 
+/// @file kbufferedreader.h
+/// Tiny implementation of an iostream and a streambuffer (but not in
+/// terms of std::iostream) that speeds up read operations in small chunks
+/// noticeably on Windows and MacOS. The gnu std::iostream implementation
+/// is however as fast as is this implementation, so if not needed for
+/// cross-platform performance this implementation is unneeded.
+
 #include <istream>
 #include <fcntl.h>
 #include "kstringview.h"
@@ -52,6 +59,11 @@
 namespace dekaf2 {
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// KBufferedReader speeds up read operations in small chunks noticeably on
+/// Windows and the Mac (up to 5 times as fast as std::istream).
+/// The GNU std::iostream library is however as fast standalone, so this
+/// additional layer would not be needed. But it does not cost performance
+/// either. This is an ABC.
 class KBufferedReader
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {

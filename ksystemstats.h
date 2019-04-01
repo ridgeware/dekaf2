@@ -42,6 +42,10 @@
 
 #pragma once
 
+/// @file ksystemstats.h
+/// Collects information about system parameters in domains like network,
+/// memory, cpu
+
 #include <dekaf2/kstring.h>
 #include <dekaf2/kprops.h>
 

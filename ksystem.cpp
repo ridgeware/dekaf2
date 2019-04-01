@@ -163,18 +163,18 @@ KString kGetCWD ()
 	return sPath;
 #else
 	enum { MAX_PATH = 1024 };
-	KString str(MAX_PATH, '\0');
-	if (::getcwd(&str[0], str.size()-1))
+	KString sPath(MAX_PATH, '\0');
+	if (::getcwd(&sPath[0], sPath.size()-1))
 	{
-		size_t iPathLen = ::strlen(str.c_str());
-		str.erase(iPathLen);
+		size_t iPathLen = ::strlen(sPath.c_str());
+		sPath.erase(iPathLen);
 	}
 	else
 	{
 		kWarning("cannot get current working directory: {}", ::strerror(errno));
-		str.erase();
+		sPath.erase();
 	}
-	return str;
+	return sPath;
 #endif
 
 } // kGetCWD

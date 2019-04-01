@@ -23,7 +23,7 @@ TEST_CASE("KInPipe")
 		pipe.SetReaderTrim("");
 
 		CHECK(pipe.Open("/bin/sh -c \"echo 'some random datum' > /tmp/kinpipetests/kinpipetest.file\""));
-		pipe.Wait(10);
+		pipe.Wait(1000);
 		CHECK_FALSE(pipe.IsRunning());
 		CHECK(0 == pipe.Close());
 		CHECK(pipe.Open("/bin/sh -c \"ls -al /tmp/kinpipetests/kinpipetest.file | grep kinpipetest | wc -l\""));
@@ -35,7 +35,6 @@ TEST_CASE("KInPipe")
 		sCurrentLine.TrimLeft();
 		CHECK(output);
 		CHECK("1\n" == sCurrentLine);
-//		CHECK(pipe.IsRunning());  // this test fails nearly constantly on Linux builds
 		CHECK(pipe.is_open());
 		CHECK(0 == pipe.Close());
 	}
@@ -56,21 +55,12 @@ TEST_CASE("KInPipe")
 		KString sCurrentLine;
 
 		// Double check test files are there
-		//CHECK(pipe.Open("/bin/sh -c \"ls /tmp/kinpipetests/ \""));
 		CHECK(pipe.Open("/bin/sh -c \"ls /tmp/kinpipetests/ | wc -l\""));
 		CHECK(pipe.is_open());
 		CHECK(pipe.IsRunning());
 		bool output = pipe.ReadLine(sCurrentLine);
 		sCurrentLine.TrimLeft();
 		CHECK(output);
-// If having problems on cleanup, just try printing ls output to see what files weren't generated
-//		std::cout << "current line: " << sCurrentLine << std::endl;
-//		while(output)
-//		{
-//			output = pipe.ReadLine(sCurrentLine);
-//			if (output) std::cout << "current line: " << sCurrentLine << std::endl;
-//		}
-
 		CHECK("1\n" == sCurrentLine);
 		CHECK(0 == pipe.Close());
 		CHECK_FALSE(pipe.IsRunning());

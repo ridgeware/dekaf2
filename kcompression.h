@@ -46,7 +46,8 @@
 /// Compression framework
 
 #include "kstream.h"
-#include "kstringstream.h"
+#include "kinstringstream.h"
+#include "koutstringstream.h"
 
 #include <boost/iostreams/filtering_stream.hpp>
 

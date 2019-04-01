@@ -1040,7 +1040,11 @@ KString kNormalizePath(KStringView sPath)
 	// remove any whitespace left and right
 	sPath.Trim();
 
-#ifdef DEKAF2_HAS_STD_FILESYSTEM
+#ifdef DEKAF2_HAS_STD_FILESYSTEM_NONONO
+	// for the time being fs::weakly_canonical() is not stable enough
+	// - it is missing on early gcc implementations of std::filesystem
+	// - it does not work with relative paths on VS 2017
+	// therefore we always use our discrete implementation
 
 	std::error_code ec;
 
@@ -1059,7 +1063,8 @@ KString kNormalizePath(KStringView sPath)
 	char chHasDrive { 0 };
 	if (sPath.size() > 1 && sPath[1] == ':' && KASCII::kIsAlpha(sPath[0]))
 	{
-		chHasDrive = sPath[0];
+		chHasDrive = KASCII::kToUpper(sPath[0]);
+		sPath.remove_prefix(2);
 	}
 #endif
 
@@ -1083,6 +1088,8 @@ KString kNormalizePath(KStringView sPath)
 			}
 		}
 	}
+
+	bool bWarned { false };
 
 	for (auto it : Component)
 	{
@@ -1109,12 +1116,12 @@ KString kNormalizePath(KStringView sPath)
 			}
 			else
 			{
-				kDebug(1, "invalid normalization path: {}", sPath);
-				Normalized.clear();
-#ifdef DEKAF2_IS_WINDOWS
-				chHasDrive = 0;
-#endif
-				break;
+				if (!bWarned)
+				{
+					// emit this warning only once
+					kDebug(1, "invalid normalization path: {}", sPath);
+					bWarned = true;
+				}
 			}
 		}
 		else

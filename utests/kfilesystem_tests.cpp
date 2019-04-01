@@ -101,12 +101,40 @@ TEST_CASE("KFilesystem") {
 		CHECK ( kRemoveExtension(sPathname) == "/this/is/a/name" );
 		CHECK ( kRemoveExtension("/this.is/a./name") == "/this.is/a./name" );
 		CHECK ( kRemoveExtension("/this.is/a./.name") == "/this.is/a./.name" );
+#ifdef DEKAF2_IS_WINDOWS
+		CHECK ( kNormalizePath("/this.is/a./.name") == "\\this.is\\a.\\.name" );
+		CHECK ( kNormalizePath("/this..is////a/.././name") == "\\this..is\\name" );
+		CHECK ( kNormalizePath("/this.is/../../../wrong") == "\\wrong" );
+		auto sCWD = kGetCWD();
+		KString sCompare (sCWD);
+		sCompare += "\\this..is\\name";
+		CHECK ( kNormalizePath("this..is////a/.././name") == sCompare );
+
+		CHECK ( kNormalizePath("\\this.is\\a.\\.name") == "\\this.is\\a.\\.name" );
+		CHECK ( kNormalizePath("\\this..is\\\\\\\\a\\..\\.\\name") == "\\this..is\\name" );
+		CHECK ( kNormalizePath("\\this.is\\..\\..\\..\\wrong") == "\\wrong" );
+		auto sCWD = kGetCWD();
+		KString sCompare (sCWD);
+		sCompare += "\\this..is\\name";
+		CHECK ( kNormalizePath("this..is\\\\\\\\a\\..\\.\\name") == sCompare );
+
+		CHECK ( kNormalizePath("C:\\this.is\\a.\\.name") == "C:\\this.is\\a.\\.name" );
+		CHECK ( kNormalizePath("c:\\this..is\\\\\\\\a\\..\\.\\name") == "C:\\this..is\\name" );
+		CHECK ( kNormalizePath("C:\\this.is\\..\\..\\..\\wrong") == "C:\\wrong" );
+		auto sCWD = kGetCWD();
+		sCompare = "C:";
+		sCompare += sCWD;
+		sCompare += "\\this..is\\name";
+		CHECK ( kNormalizePath("C:this..is\\\\\\\\a\\..\\.\\name") == sCompare );
+#else
 		CHECK ( kNormalizePath("/this.is/a./.name") == "/this.is/a./.name" );
 		CHECK ( kNormalizePath("/this..is////a/.././name") == "/this..is/name" );
-		CHECK ( kNormalizePath("/this.is/../../wrong") == "" );
+		CHECK ( kNormalizePath("/this.is/../../../wrong") == "/wrong" );
 		auto sCWD = kGetCWD();
-		sCWD += "/this..is/name";
-		CHECK ( kNormalizePath("this..is////a/.././name") == sCWD );
+		KString sCompare (sCWD);
+		sCompare += "/this..is/name";
+		CHECK ( kNormalizePath("this..is////a/.././name") == sCompare );
+#endif
 	}
 
 	SECTION("KDirectory")

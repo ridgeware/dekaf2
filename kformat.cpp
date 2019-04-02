@@ -59,10 +59,13 @@ namespace detail {
 std::ostream& kfFormat(std::ostream& os, KStringView sFormat, fmt::format_args args)
 //-----------------------------------------------------------------------------
 {
-	DEKAF2_TRY {
+	DEKAF2_TRY
+	{
 		fmt::vprint(os, sFormat.operator fmt::string_view(), args);
-	} DEKAF2_CATCH (std::exception& e) {
-		kWarning("{}", sFormat);
+	}
+	DEKAF2_CATCH (std::exception& e)
+	{
+		kWarning("bad format arguments for: \"{}\"", sFormat);
 		kException(e);
 	}
 	return os;
@@ -75,10 +78,13 @@ KString kFormat(KStringView sFormat, fmt::format_args args)
 //-----------------------------------------------------------------------------
 {
 	KString sOut;
-	DEKAF2_TRY {
+	DEKAF2_TRY
+	{
 		fmt::vformat_to(std::back_inserter(sOut), sFormat.operator fmt::string_view(), args);
-	} DEKAF2_CATCH (std::exception& e) {
-		kWarning("{}", sFormat);
+	}
+	DEKAF2_CATCH (std::exception& e)
+	{
+		kWarning("bad format arguments for: \"{}\"", sFormat);
 		kException(e);
 	}
 	return sOut;
@@ -90,10 +96,13 @@ KString kFormat(KStringView sFormat, fmt::format_args args)
 std::ostream& kfPrintf(std::ostream& os, KStringView sFormat, fmt::printf_args args)
 //-----------------------------------------------------------------------------
 {
-	DEKAF2_TRY {
+	DEKAF2_TRY
+	{
 		fmt::vfprintf(os, sFormat.operator fmt::string_view(), args);
-	} DEKAF2_CATCH (std::exception& e) {
-		kWarning("{}", sFormat);
+	}
+	DEKAF2_CATCH (std::exception& e)
+	{
+		kWarning("bad format arguments for: \"{}\"", sFormat);
 		kException(e);
 	}
 	return os;
@@ -106,10 +115,13 @@ KString kPrintf(KStringView sFormat, fmt::printf_args args)
 //-----------------------------------------------------------------------------
 {
 	fmt::memory_buffer buffer;
-	DEKAF2_TRY {
+	DEKAF2_TRY
+	{
 		fmt::printf(buffer, sFormat.operator fmt::string_view(), args);
-	} DEKAF2_CATCH (std::exception& e) {
-		kWarning("{}", sFormat);
+	}
+	DEKAF2_CATCH (std::exception& e)
+	{
+		kWarning("bad format arguments for: \"{}\"", sFormat);
 		kException(e);
 	}
 	return { buffer.data(), buffer.size() };

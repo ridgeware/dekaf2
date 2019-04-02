@@ -66,7 +66,7 @@ std::ostream& kfFormat(std::ostream& os, KStringView sFormat, fmt::format_args a
 	DEKAF2_CATCH (std::exception& e)
 	{
 		kWarning("bad format arguments for: \"{}\"", sFormat);
-		kException(e);
+		kTraceDownCaller(4, "klog.h,kformat.cpp,kformat.h", e.what());
 	}
 	return os;
 
@@ -85,7 +85,7 @@ KString kFormat(KStringView sFormat, fmt::format_args args)
 	DEKAF2_CATCH (std::exception& e)
 	{
 		kWarning("bad format arguments for: \"{}\"", sFormat);
-		kException(e);
+		kTraceDownCaller(4, "klog.h,kformat.cpp,kformat.h", e.what());
 	}
 	return sOut;
 
@@ -103,7 +103,7 @@ std::ostream& kfPrintf(std::ostream& os, KStringView sFormat, fmt::printf_args a
 	DEKAF2_CATCH (std::exception& e)
 	{
 		kWarning("bad format arguments for: \"{}\"", sFormat);
-		kException(e);
+		kTraceDownCaller(4, "klog.h,kformat.cpp,kformat.h", e.what());
 	}
 	return os;
 
@@ -122,7 +122,7 @@ KString kPrintf(KStringView sFormat, fmt::printf_args args)
 	DEKAF2_CATCH (std::exception& e)
 	{
 		kWarning("bad format arguments for: \"{}\"", sFormat);
-		kException(e);
+		kTraceDownCaller(4, "klog.h,kformat.cpp,kformat.h", e.what());
 	}
 	return { buffer.data(), buffer.size() };
 

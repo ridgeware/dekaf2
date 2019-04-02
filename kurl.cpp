@@ -298,7 +298,14 @@ uint16_t KProtocol::DefaultPort() const
 
 	if (!iPort)
 	{
-		kWarning("no default port - return 0");
+		if (m_eProto == UNKNOWN)
+		{
+			kWarning("no default port for protocol {} ('{}') - returning 0", m_eProto, m_sProto);
+		}
+		else
+		{
+			kDebug(2, "no default port for protocol {} ('{}') - returning 0", m_eProto, s_Canonical[m_eProto].sName);
+		}
 	}
 
 	return iPort;

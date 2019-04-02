@@ -65,11 +65,18 @@ std::streamsize FileDescReader(void* sBuffer, std::streamsize iCount, void* file
 
 		if (fd >= 0)
 		{
+			do
+			{
 #ifdef DEKAF2_IS_WINDOWS
-			iRead = _read(fd, sBuffer, static_cast<uint32_t>(iCount));
+				iRead = _read(fd, sBuffer, static_cast<uint32_t>(iCount));
 #else
-			iRead = ::read(fd, sBuffer, static_cast<size_t>(iCount));
+				iRead = ::read(fd, sBuffer, static_cast<size_t>(iCount));
 #endif
+			}
+			while (iRead == -1 && errno == EINTR);
+			// we use these readers and writers in pipes and shells
+			// which may die and generate a SIGCHLD, which interrupts
+			// file reads and writes..
 		}
 
 		if (iRead < 0)
@@ -83,7 +90,8 @@ std::streamsize FileDescReader(void* sBuffer, std::streamsize iCount, void* file
 	}
 
 	return iRead;
-}
+
+} // FileDescReader
 
 //-----------------------------------------------------------------------------
 std::streamsize FileDescWriter(const void* sBuffer, std::streamsize iCount, void* filedesc)
@@ -97,11 +105,18 @@ std::streamsize FileDescWriter(const void* sBuffer, std::streamsize iCount, void
 
 		if (fd >= 0)
 		{
+			do
+			{
 #ifdef DEKAF2_IS_WINDOWS
-			iWrote = _write(fd, sBuffer, static_cast<uint32_t>(iCount));
+				iWrote = _write(fd, sBuffer, static_cast<uint32_t>(iCount));
 #else
-			iWrote = ::write(fd, sBuffer, static_cast<size_t>(iCount));
+				iWrote = ::write(fd, sBuffer, static_cast<size_t>(iCount));
 #endif
+			}
+			while (iWrote == -1 && errno == EINTR);
+			// we use these readers and writers in pipes and shells
+			// which may die and generate a SIGCHLD, which interrupts
+			// file reads and writes..
 		}
 
 		if (iWrote != iCount)
@@ -112,7 +127,8 @@ std::streamsize FileDescWriter(const void* sBuffer, std::streamsize iCount, void
 	}
 
 	return iWrote;
-}
+
+} // FileDescWriter
 
 //-----------------------------------------------------------------------------
 std::streamsize FilePtrReader(void* sBuffer, std::streamsize iCount, void* fileptr)
@@ -125,7 +141,15 @@ std::streamsize FilePtrReader(void* sBuffer, std::streamsize iCount, void* filep
 		FILE** fp = static_cast<FILE**>(fileptr);
 		if (fp && *fp)
 		{
-			iRead = static_cast<std::streamsize>(std::fread(sBuffer, 1, static_cast<size_t>(iCount), *fp));
+			do
+			{
+				iRead = static_cast<std::streamsize>(std::fread(sBuffer, 1, static_cast<size_t>(iCount), *fp));
+			}
+			while (iRead == -1 && errno == EINTR);
+			// we use these readers and writers in pipes and shells
+			// which may die and generate a SIGCHLD, which interrupts
+			// file reads and writes..
+
 			if (iRead < 0)
 			{
 				// do some logging
@@ -138,7 +162,8 @@ std::streamsize FilePtrReader(void* sBuffer, std::streamsize iCount, void* filep
 	}
 
 	return iRead;
-}
+
+} // FilePtrReader
 
 //-----------------------------------------------------------------------------
 std::streamsize FilePtrWriter(const void* sBuffer, std::streamsize iCount, void* fileptr)
@@ -151,7 +176,15 @@ std::streamsize FilePtrWriter(const void* sBuffer, std::streamsize iCount, void*
 		FILE** fp = static_cast<FILE**>(fileptr);
 		if (fp && *fp)
 		{
-			iWrote = static_cast<std::streamsize>(std::fwrite(sBuffer, 1, static_cast<size_t>(iCount), *fp));
+			do
+			{
+				iWrote = static_cast<std::streamsize>(std::fwrite(sBuffer, 1, static_cast<size_t>(iCount), *fp));
+			}
+			while (iWrote == -1 && errno == EINTR);
+			// we use these readers and writers in pipes and shells
+			// which may die and generate a SIGCHLD, which interrupts
+			// file reads and writes..
+
 			if (iWrote != iCount)
 			{
 				// do some logging
@@ -161,7 +194,8 @@ std::streamsize FilePtrWriter(const void* sBuffer, std::streamsize iCount, void*
 	}
 
 	return iWrote;
-}
+
+} // FilePtrWriter
 
 } // end of namespace detail
 

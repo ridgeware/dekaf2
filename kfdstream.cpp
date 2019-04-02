@@ -82,10 +82,7 @@ std::streamsize FileDescReader(void* sBuffer, std::streamsize iCount, void* file
 		if (iRead < 0)
 		{
 			// do some logging
-			kWarning("cannot read from file: {} - requested {}, got {} bytes",
-			         strerror(errno),
-			         iCount,
-			         iRead);
+			kWarning("cannot read from file: {}", strerror(errno));
 		}
 	}
 
@@ -153,10 +150,7 @@ std::streamsize FilePtrReader(void* sBuffer, std::streamsize iCount, void* filep
 			if (iRead < 0)
 			{
 				// do some logging
-				kWarning("cannot read from file: {} - requested {}, got {} bytes",
-				         strerror(errno),
-				         iCount,
-				         iRead);
+				kWarning("cannot read from file: {}", strerror(errno));
 			}
 		}
 	}

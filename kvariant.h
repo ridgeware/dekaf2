@@ -115,7 +115,7 @@ namespace dekaf2 {
 	template <class ...Fs>
 	struct KVisitor : Fs..., KVisitorBase<void>
 	{
-		KVisitor(Fs const&... fs) : Fs{fs}..., KVisitorBase<void>{}
+		KVisitor(Fs const&... fs) : Fs{fs}..., KVisitorBase<void>()
 		{}
 
 		using Fs::operator()...;

@@ -11,7 +11,7 @@ add_subdirectory(fmt-5.3.0)
 if(CMAKE_COMPILER_IS_GNUCC OR (CMAKE_CXX_COMPILER_ID MATCHES "Clang"))
 	# re2 has a number of missing field initializers and unused parameters.
 	# we assume this is on purpose and disable the warning / error.
-	add_compile_options(-Wno-implicit-fallthrough -Wno-missing-field-initializers -Wno-unused-parameter)
+	add_compile_options(-Wno-implicit-fallthrough -Wno-missing-field-initializers -Wno-unused-parameter -Wno-unreachable-code)
 endif()
 add_subdirectory(re2)
 

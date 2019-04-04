@@ -265,8 +265,12 @@ private:
 
 //---------------------------------------------------------------------------
 /// Get unique instance of class Dekaf()
-class Dekaf& Dekaf();
+inline class Dekaf& Dekaf()
 //---------------------------------------------------------------------------
+{
+	static class Dekaf myDekaf;
+	return myDekaf;
+}
 
 //---------------------------------------------------------------------------
 /// Shortcut to initialize Dekaf and KLog in one call - however, not needed for

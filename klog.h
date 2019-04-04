@@ -641,8 +641,12 @@ private:
 }; // KLog
 
 //---------------------------------------------------------------------------
-KLog& KLog();
+inline KLog& KLog()
 //---------------------------------------------------------------------------
+{
+	static class KLog myKLog;
+	return myKLog;
+}
 
 // there is no way to convince gcc to inline a variadic template function
 // (and as "inline" is not imperative it may happen on other compilers as well)
@@ -657,7 +661,7 @@ KLog& KLog();
 // global static KLog::s_kLogLevel, which is not guaranteed to be initialized before KLog()
 // has been called for the first time. .debug_fun() then re-evaluates the level and
 // outputs appropriately. The only bad thing that can happen is that we miss
-// a debug output in the initialization phase of the program or have one too many.
+// a debug output in the initialization phase of the program.
 
 #ifdef kDebug
 #undef kDebug

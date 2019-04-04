@@ -235,8 +235,8 @@ KSignals::~KSignals()
 {
 	// clear the map if existing, so the signal thread
 	// cannot run into a destructing vector
-	std::lock_guard<std::mutex> Lock(s_SigSetMutex);
-	s_SigFuncs.clear();
+//	std::lock_guard<std::mutex> Lock(s_SigSetMutex);
+//	s_SigFuncs.clear();
 	// no need to clear s_SigFuncs - it is actually even
 	// better to keep it hanging around as the signal
 	// handling for plain function pointers also continues

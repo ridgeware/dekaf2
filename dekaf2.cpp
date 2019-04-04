@@ -418,13 +418,8 @@ void Dekaf::StartSignalHandlerThread()
 	}
 }
 
-//---------------------------------------------------------------------------
-class Dekaf& Dekaf()
-//---------------------------------------------------------------------------
-{
-	static class Dekaf myDekaf;
-	return myDekaf;
-}
+// the (single) instantiation of Dekaf
+class Dekaf myDekaf;
 
 //---------------------------------------------------------------------------
 void kInit (KStringView sName, KStringViewZ sDebugLog, KStringViewZ sDebugFlag, bool bShouldDumpCore/*=false*/, bool bEnableMultiThreading/*=false*/, bool bStartSignalHandlerThread/*=true*/)

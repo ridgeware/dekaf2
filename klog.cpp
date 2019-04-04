@@ -84,7 +84,8 @@ std::recursive_mutex KLog::s_LogMutex;
 bool KLog::s_bBackTraceAlreadyCalled { false };
 #ifdef NDEBUG
 // per default JSON stack traces are switched off in release mode
-// but they can be switched on by env var "DEKAFJSONTRACE"
+// but they can be switched on by env var "DEKAFJSONTRACE" or through the
+// settings in the flag file
 bool KLog::s_bGlobalShouldShowStackOnJsonError { false };
 #else
 bool KLog::s_bGlobalShouldShowStackOnJsonError { true };
@@ -133,6 +134,8 @@ bool KLogSyslogWriter::Write(int iLevel, bool bIsMultiline, const KString& sOut)
 	int priority;
 	switch (iLevel)
 	{
+		case -3:
+		case -2:
 		case -1:
 			priority = LOG_ERR;
 			break;
@@ -497,14 +500,8 @@ void KLogSyslogSerializer::Serialize() const
 
 #endif
 
-// "singleton"
-//---------------------------------------------------------------------------
-class KLog& KLog()
-//---------------------------------------------------------------------------
-{
-	static class KLog myKLog;
-	return myKLog;
-}
+// the (single) instantiation of KLog
+class KLog myKLog;
 
 // do not initialize this static var - it risks to override a value set by KLog()'s
 // initialization before..
@@ -516,7 +513,6 @@ KLog::KLog()
 	// if we do not start up in CGI mode, per default we log into stdout
 	: m_bIsCGI       (!kGetEnv(KCGIInStream::REQUEST_METHOD).empty())
 	, m_Logmode      (m_bIsCGI ? SERVER : CLI)
-
 {
 	// find temp directory (which differs among systems and OSs)
 #ifdef DEKAF2_IS_OSX
@@ -877,6 +873,9 @@ void KLog::CheckDebugFlag(bool bForce/*=false*/)
 		return;
 	}
 
+	static std::mutex s_DebugFlagMutex;
+	std::lock_guard<std::mutex> Lock(s_DebugFlagMutex);
+
 	// file format of the debug "flag" file:
 	// line #1: "level" where level is numeric (-1 .. 3)
 	// following lines are key-value pairs in ini style
@@ -910,6 +909,8 @@ void KLog::CheckDebugFlag(bool bForce/*=false*/)
 		KInFile file(GetDebugFlag());
 		if (file.is_open())
 		{
+			m_bHadConfigFromFlagFile = true;
+
 			KString sLine;
 			// read the first line
 			if (file.ReadLine(sLine))
@@ -937,7 +938,7 @@ void KLog::CheckDebugFlag(bool bForce/*=false*/)
 							break;
 							
 						case 1:
-							// this was the old format of "level, target" in the first line
+							// this was the old format of "level, log" in the first line
 							SetDebugLog(it);
 							break;
 					}
@@ -954,11 +955,29 @@ void KLog::CheckDebugFlag(bool bForce/*=false*/)
 						{
 							SetDebugLog(it.second);
 						}
+
 						else if (it.first == "trace")
 						{
 							std::lock_guard<std::recursive_mutex> Lock(s_LogMutex);
-							m_Traces.push_back(it.second);
+
+							bool bNewTrace { true };
+
+							for (const auto& sTrace : m_Traces)
+							{
+								if (it.second.find(sTrace) != KStringView::npos)
+								{
+									// this trace pattern or parts of it are already known
+									bNewTrace = false;
+									break;
+								}
+							}
+
+							if (bNewTrace)
+							{
+								m_Traces.push_back(it.second);
+							}
 						}
+
 						else if (it.first == "tracelevel")
 						{
 							if (kIsInteger(it.second))
@@ -966,6 +985,7 @@ void KLog::CheckDebugFlag(bool bForce/*=false*/)
 								SetBackTraceLevel(it.second.Int16());
 							}
 						}
+
 						else if (it.first == "tracejson")
 						{
 							SetJSONTrace(it.second);

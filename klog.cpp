@@ -515,40 +515,9 @@ KLog::KLog()
 //---------------------------------------------------------------------------
 	// if we do not start up in CGI mode, per default we log into stdout
 	: m_bIsCGI       (!kGetEnv(KCGIInStream::REQUEST_METHOD).empty())
-	, m_sLogName     (kGetEnv(s_sEnvLog, m_bIsCGI ? "" : STDOUT))
-	, m_sFlagfile    (kGetEnv(s_sEnvFlag))
-#ifdef NDEBUG
-    , m_iBackTrace   (kGetEnv(s_sEnvTrace, "-3").Int16())
-#else
-    , m_iBackTrace   (kGetEnv(s_sEnvTrace, "-2").Int16())
-#endif
 	, m_Logmode      (m_bIsCGI ? SERVER : CLI)
 
 {
-#ifdef NDEBUG
-	s_kLogLevel = kGetEnv(s_sEnvLevel, "-1").Int16();
-#else
-	s_kLogLevel = kGetEnv(s_sEnvLevel, "0").Int16();
-#endif
-
-	auto sJSONTrace = kGetEnv(s_sJSONTrace);
-	if (!sJSONTrace.empty())
-	{
-		if (sJSONTrace.In("OFF,off,FALSE,false,NO,no,0"))
-		{
-			s_bGlobalShouldShowStackOnJsonError = false;
-		}
-		else
-		{
-			s_bGlobalShouldShowStackOnJsonError = true;
-
-			if (sJSONTrace.In("CALLER,caller,SHORT,short"))
-			{
-				s_bGlobalShouldOnlyShowCallerOnJsonError = true;
-			}
-		}
-	}
-
 	// find temp directory (which differs among systems and OSs)
 #ifdef DEKAF2_IS_OSX
 	// we do not want the /var/folders/wy/lz00g9_s27b2nmyfc52pjrjh0000gn/T - style temp dir on the Mac
@@ -578,12 +547,12 @@ KLog::KLog()
 	}
 
 	m_sPathName =  Dekaf().GetProgPath();
-	m_sPathName += '/';
+	m_sPathName += kDirSep;
 	m_sPathName += Dekaf().GetProgName();
 
 	SetName(Dekaf().GetProgName());
 
-	IntOpenLog();
+	SetDefaults();
 
 	CheckDebugFlag();
 
@@ -593,6 +562,82 @@ KLog::KLog()
 	});
 
 } // ctor
+
+//---------------------------------------------------------------------------
+void KLog::SetDefaults()
+//---------------------------------------------------------------------------
+{
+	// reset to defaults
+
+	// resets to s_sDefaultLog if empty
+	SetDebugLog(kGetEnv(s_sEnvLog, m_bIsCGI ? "" : STDOUT));
+
+	// do not use SetDebugFlag() as it forces an immediate read of the flagfile,
+	// which would loop..
+	m_sFlagfile = kGetEnv(s_sEnvFlag);
+
+	if (m_sFlagfile.empty())
+	{
+		m_sFlagfile = s_sDefaultFlag;
+	}
+
+#ifdef NDEBUG
+	SetLevel(kGetEnv(s_sEnvLevel, "-1").Int16());
+	SetBackTraceLevel(kGetEnv(s_sEnvTrace, "-3").Int16());
+#else
+	SetLevel(kGetEnv(s_sEnvLevel, "0").Int16());
+	SetBackTraceLevel(kGetEnv(s_sEnvTrace, "-2").Int16());
+#endif
+
+	SetJSONTrace(kGetEnv(s_sJSONTrace));
+
+	std::lock_guard<std::recursive_mutex> Lock(s_LogMutex);
+
+	m_Traces.clear();
+
+} // SetDefaults
+
+//---------------------------------------------------------------------------
+void KLog::SetJSONTrace(KStringView sJSONTrace)
+//---------------------------------------------------------------------------
+{
+	if (!sJSONTrace.empty())
+	{
+		if (sJSONTrace.In("OFF,off,FALSE,false,NO,no,0"))
+		{
+			s_bGlobalShouldShowStackOnJsonError = false;
+		}
+		else
+		{
+			s_bGlobalShouldShowStackOnJsonError = true;
+
+			if (sJSONTrace.In("CALLER,caller,SHORT,short"))
+			{
+				s_bGlobalShouldOnlyShowCallerOnJsonError = true;
+			}
+		}
+	}
+
+} // SetJSONTrace
+
+//---------------------------------------------------------------------------
+KStringView KLog::GetJSONTrace() const
+//---------------------------------------------------------------------------
+{
+	if (!s_bGlobalShouldShowStackOnJsonError)
+	{
+		return "off";
+	}
+	else if (s_bGlobalShouldOnlyShowCallerOnJsonError)
+	{
+		return "short";
+	}
+	else
+	{
+		return "full";
+	}
+
+} // GetJSONTrace
 
 //---------------------------------------------------------------------------
 void KLog::SetLevel(int iLevel)
@@ -642,19 +687,6 @@ bool KLog::SetDebugLog(KStringView sLogfile)
 	if (sLogfile.empty())
 	{
 		sLogfile = s_sDefaultLog; // restore default
-	}
-
-	// env values always override programmatic values, and at construction of
-	// KLog() we would have fetched the env value already if it is non-zero
-	KStringViewZ sEnv(kGetEnv(s_sEnvLog));
-	if (!sEnv.empty() && (sEnv != sLogfile))
-	{
-		kDebug (0, "prevented setting the debug {} file to '{}' because the environment variable '{}' is set to '{}'",
-		       "log",
-			   sLogfile,
-		       s_sEnvLog,
-		       sEnv);
-		return false;
 	}
 
 	if (sLogfile == m_sLogName)
@@ -825,29 +857,6 @@ bool KLog::SetDebugFlag(KStringViewZ sFlagfile)
 		sFlagfile = s_sDefaultFlag; // restore default
 	}
 
-	#if 0
-	// KEEF removed all this optimization logic. Just trust the application programmer.
-	// If someone called KLog().SetDebugFlag() they are doing so for a reason.
-
-	// env values always override programmatic values, and at construction of
-	// KLog() we would have fetched the env value already if it is non-zero
-	KStringViewZ sEnv(kGetEnv(s_sEnvFlag));
-	if (!sEnv.empty() && (sEnv != sFlagfile))
-	{
-		kDebug(0, "prevented setting the debug {} file to '{}' because the environment variable '{}' is set to '{}'",
-		       "flag",
-			   sFlagfile,
-		       s_sEnvFlag,
-		       sEnv);
-		return false;
-	}
-
-	if (sFlagfile == m_sFlagfile)
-	{
-		return true;
-	}
-	#endif
-
 	m_sFlagfile = sFlagfile;
 
 	// Because the debug flag file might have changed, we must FORCE a refresh of the log level,
@@ -869,27 +878,40 @@ void KLog::CheckDebugFlag(bool bForce/*=false*/)
 	}
 
 	// file format of the debug "flag" file:
-	// "level, target" where level is numeric (-1 .. 3) and target can be
-	// anything like a pathname or a domain:host or syslog, stderr, stdout
+	// line #1: "level" where level is numeric (-1 .. 3)
+	// following lines are key-value pairs in ini style
+	// with the keys
+	// log=        :: a pathname or a domain:host or syslog, stderr, stdout
+	// trace=      :: a string that, if matched in any debug message, forces a stacktrace
+	// tracelevel= :: forces stacktraces for all warnings <= the numeric tracelevel
+	// tracejson=  :: "OFF,off,FALSE,false,NO,no,0" :: switches off
+	//             :: "CALLER,caller,SHORT,short"   :: switches to caller frame only
+	//             ::                               :: all else switches full trace on
+
+	// this format is compatible to the dekaf1 flag file format (which only reads the first line)
 
 	time_t tTouchTime = kGetLastMod(GetDebugFlag());
 
 	if (tTouchTime == -1)
 	{
 		// no flagfile (anymore)
-		if (GetLevel() > 0)
+		if (m_bHadConfigFromFlagFile)
 		{
-			SetLevel(0);
+			m_bHadConfigFromFlagFile = false;
+			SetDefaults();
 		}
 	}
 	else if (bForce || (tTouchTime > m_sTimestampFlagfile))
 	{
 		m_sTimestampFlagfile = tTouchTime;
 
+		SetDefaults();
+		
 		KInFile file(GetDebugFlag());
 		if (file.is_open())
 		{
 			KString sLine;
+			// read the first line
 			if (file.ReadLine(sLine))
 			{
 				std::vector<KStringView> parts;
@@ -902,9 +924,9 @@ void KLog::CheckDebugFlag(bool bForce/*=false*/)
 						case 0:
 							{
 								int iLvl = it.Int32();
-								if (iLvl < 1)
+								if (iLvl < 0)
 								{
-									iLvl = 1;
+									iLvl = 0;
 								}
 								else if (iLvl > 3)
 								{
@@ -913,11 +935,42 @@ void KLog::CheckDebugFlag(bool bForce/*=false*/)
 								SetLevel(iLvl);
 							}
 							break;
+							
 						case 1:
+							// this was the old format of "level, target" in the first line
 							SetDebugLog(it);
 							break;
 					}
 					++pos;
+				}
+
+				// now read all following lines
+				while (file.ReadLine(sLine))
+				{
+					auto it = kSplitToPair(sLine);
+					if (!it.first.empty())
+					{
+						if (it.first == "log")
+						{
+							SetDebugLog(it.second);
+						}
+						else if (it.first == "trace")
+						{
+							std::lock_guard<std::recursive_mutex> Lock(s_LogMutex);
+							m_Traces.push_back(it.second);
+						}
+						else if (it.first == "tracelevel")
+						{
+							if (kIsInteger(it.second))
+							{
+								SetBackTraceLevel(it.second.Int16());
+							}
+						}
+						else if (it.first == "tracejson")
+						{
+							SetJSONTrace(it.second);
+						}
+					}
 				}
 			}
 			else
@@ -950,6 +1003,20 @@ bool KLog::IntDebug(int iLevel, KStringView sFunction, KStringView sMessage)
 	std::lock_guard<std::recursive_mutex> Lock(s_LogMutex);
 
 	m_Serializer->Set(iLevel, m_sShortName, m_sPathName, sFunction, sMessage);
+
+	// check if we shall print a stacktrace on demand
+	if (iLevel > m_iBackTrace)
+	{
+		for (const auto& sTrace : m_Traces)
+		{
+			if (sFunction.Contains(sTrace) ||
+				sMessage.Contains(sTrace))
+			{
+				iLevel = m_iBackTrace;
+				break;
+			}
+		}
+	}
 
 	if (iLevel <= m_iBackTrace)
 	{

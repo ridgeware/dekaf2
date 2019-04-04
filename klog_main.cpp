@@ -44,15 +44,18 @@
 #include "kstring.h"
 #include "kstringutils.h"
 #include "kinshell.h"
+#include "kreader.h"
+#include "kwriter.h"
 #include "kfilesystem.h"
 #include "ktcpserver.h"
 #include "koptions.h"
+#include "kprops.h"
 
 using namespace dekaf2;
 
 constexpr KStringView g_Synopsis[] = {
 	" ",
-	"klog -- command line interface to DEKAF2 logging features (aka 'the KLOG')",
+	"klog -- command line interface to DEKAF logging features (aka 'the KLOG')",
 	" ",
 	"usage: klog [...]",
 	"",
@@ -64,10 +67,19 @@ constexpr KStringView g_Synopsis[] = {
 	"  on                : set debug level to 1",
 	"  set <N>           : set debug level to 0, 1, 2, etc.",
 	"  get               : get debug level",
+	"  clear             : clear the log (no change to debug level)",
+	"",
+	"dekaf2 extensions:",
+	"",
+	"  config            : print content of debug flag file",
 	"  setlog            : set global debug log file",
 	"  getlog            : get global debug log file",
-	"  clear             : clear the log (no change to debug level)",
 	"  listen <port>     : start a klog listener (netcat) on given port",
+	"  tracelevel <val>  : set the backtrace threshold to val",
+	"  tracejson <val>   : set JSON trace to either off, short, or full",
+	"  trace <val>       : set a debug message string that triggers a trace",
+	"  untrace <val>     : remove a string from the trace triggers",
+	"  notrace           : remove all trace trigger strings",
 	""
 };
 
@@ -115,35 +127,187 @@ struct Actions
 }; // Actions
 
 //-----------------------------------------------------------------------------
-void Persist()
+void PrintFlagFile()
 //-----------------------------------------------------------------------------
 {
-	KString sDebugFlag = KLog().GetDebugFlag();
-
-	if (KLog().GetLevel())
+	KInFile file(KLog().GetDebugFlag());
+	if (file.is_open())
 	{
-		KString sOptions = kFormat("{}, {}", KLog().GetLevel(), KLog().GetDebugLog());
-		KErr.FormatLine ("persisting to {} as '{}'", sDebugFlag, sOptions);
-		KOutFile file (sDebugFlag, std::ios::trunc);
-		file.WriteLine(sOptions);
+		KString sLine;
+		while (file.ReadLine(sLine))
+		{
+			KOut.WriteLine(sLine);
+		}
 	}
 	else
 	{
-		KErr.FormatLine ("removing file: {}", sDebugFlag);
-		kRemoveFile (sDebugFlag);
+		KErr.FormatLine("klog: cannot open file {}", KLog().GetDebugFlag());
 	}
 
-} // SetLevel
+} // PrintFlagFile
+
+//-----------------------------------------------------------------------------
+void RemoveFlagFile()
+//-----------------------------------------------------------------------------
+{
+	KLog().SetDefaults();
+
+	if (kRemoveFile(KLog().GetDebugFlag()))
+	{
+		KOut.WriteLine("logging and tracing switched off");
+	}
+	else
+	{
+		KErr.FormatLine("klog: cannot delete {}", KLog().GetDebugFlag());
+	}
+
+} // RemoveFlagFile
+
+using Properties = KProps<KString, KString, false, false>;
+
+//-----------------------------------------------------------------------------
+void WriteConfig(Properties& props, KStringView sKeyToList)
+//-----------------------------------------------------------------------------
+{
+	props.Set("log", KLog().GetDebugLog());
+	props.Set("tracelevel", KString::to_string(KLog().GetBackTraceLevel()));
+	props.Set("tracejson", KLog().GetJSONTrace());
+
+	KOutFile outfile (KLog().GetDebugFlag(), std::ios::trunc);
+
+	if (outfile.is_open())
+	{
+		outfile.FormatLine("{}", KLog().GetLevel());
+
+		for (auto& it : props)
+		{
+			KString sOut;
+			sOut = it.first;
+			sOut += '=';
+			sOut += it.second;
+
+			if (it.first == sKeyToList)
+			{
+				KOut.WriteLine(sOut);
+			}
+			outfile.WriteLine(sOut);
+		}
+	}
+	else
+	{
+		KErr.FormatLine("klog: cannot write to {}", KLog().GetDebugFlag());
+	}
+
+} // WriteConfig
+
+//-----------------------------------------------------------------------------
+Properties ReadConfig()
+//-----------------------------------------------------------------------------
+{
+	Properties props;
+
+	{
+		KInFile infile (KLog().GetDebugFlag());
+
+		if (infile.is_open())
+		{
+			KString sFirstLine;
+			if (infile.ReadLine(sFirstLine))
+			{
+				props.Load(infile);
+			}
+		}
+	}
+
+	return props;
+
+} // ReadConfig
+
+//-----------------------------------------------------------------------------
+void AddConfigKeyValue(KStringView sKey, KStringView sValue, bool bList)
+//-----------------------------------------------------------------------------
+{
+	auto props = ReadConfig();
+
+	// check if we have this key/value already
+	bool bExists { false };
+	const auto range = props.GetMulti(sKey);
+	for (auto it = range.first; it != range.second; ++it)
+	{
+		if (it->second == sValue)
+		{
+			bExists = true;
+			break;
+		}
+	}
+
+	if (!bExists)
+	{
+		props.Add(sKey, sValue);
+	}
+
+	WriteConfig(props, bList ? sKey : "");
+
+} //  AddConfigKeyValue
+
+//-----------------------------------------------------------------------------
+void DeleteConfigKeyValue(KStringView sKey, KStringView sValue, bool bList)
+//-----------------------------------------------------------------------------
+{
+	auto props = ReadConfig();
+
+	Properties filtered_props;
+
+	for (auto& it : props)
+	{
+		if (it.first != sKey || (!sValue.empty() && it.second != sValue))
+		{
+			filtered_props.push_back(it);
+		}
+	}
+
+	WriteConfig(filtered_props, bList ? sKey : "");
+
+} // DeleteExtendedKeyValue
+
+//-----------------------------------------------------------------------------
+void Persist()
+//-----------------------------------------------------------------------------
+{
+	auto props = ReadConfig();
+	WriteConfig(props, "");
+
+} // Persist
 
 //-----------------------------------------------------------------------------
 void SetLevel(uint16_t iLevel)
 //-----------------------------------------------------------------------------
 {
 	KLog().SetLevel(iLevel);
-	KErr.Format ("klog: set new debug level to {} - ", iLevel);
+	KErr.FormatLine ("klog: set new debug level to {}", KLog().GetLevel());
 	Persist();
 
 } // SetLevel
+
+//-----------------------------------------------------------------------------
+void SetBackTraceLevel(int16_t iLevel)
+//-----------------------------------------------------------------------------
+{
+	KLog().SetBackTraceLevel(iLevel);
+	KErr.FormatLine ("klog: set new back trace level to {}", KLog().GetBackTraceLevel());
+	Persist();
+
+} // SetBackTraceLevel
+
+//-----------------------------------------------------------------------------
+void SetJSONTraceLevel(KStringView sLevel)
+//-----------------------------------------------------------------------------
+{
+	KLog().SetJSONTrace(sLevel);
+	KErr.FormatLine ("klog: set new JSON trace mode to \"{}\"", KLog().GetJSONTrace());
+	Persist();
+
+} // SetJSONTraceLevel
 
 //-----------------------------------------------------------------------------
 void SetupOptions (KOptions& Options, Actions& Actions)
@@ -214,9 +378,14 @@ void SetupOptions (KOptions& Options, Actions& Actions)
 		}
 	});
 
+	Options.RegisterCommand("config", [&]()
+	{
+		PrintFlagFile();
+	});
+
 	Options.RegisterCommand("off", [&]()
 	{
-		SetLevel(0);
+		RemoveFlagFile();
 	});
 
 	Options.RegisterCommand("on", [&]()
@@ -255,6 +424,32 @@ void SetupOptions (KOptions& Options, Actions& Actions)
 	Options.RegisterOption("set", "missing argument", [&](KStringViewZ sArg)
 	{
 		SetLevel(sArg.UInt16());
+	});
+
+	Options.RegisterCommand("trace", "missing argument", [&](KStringViewZ sTrace)
+	{
+		AddConfigKeyValue("trace", sTrace, true);
+	});
+
+	Options.RegisterCommand("untrace", "missing argument - did you mean notrace?", [&](KStringViewZ sTrace)
+	{
+		DeleteConfigKeyValue("trace", sTrace, true);
+	});
+
+	Options.RegisterCommand("notrace", [&]()
+	{
+		DeleteConfigKeyValue("trace", "", true);
+		KOut.WriteLine("all trace strings removed");
+	});
+
+	Options.RegisterCommand("tracelevel", "missing argument", [&](KStringViewZ sArg)
+	{
+		SetBackTraceLevel(sArg.Int16());
+	});
+
+	Options.RegisterCommand("tracejson", "missing argument", [&](KStringViewZ sArg)
+	{
+		SetJSONTraceLevel(sArg);
 	});
 
 	Options.RegisterUnknownCommand([&](KOptions::ArgList& sArgs)

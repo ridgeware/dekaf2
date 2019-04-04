@@ -47,6 +47,7 @@
 
 #include <exception>
 #include <mutex>
+#include <vector>
 #include "kstring.h"
 #include "kstream.h"
 #include "kformat.h"
@@ -414,6 +415,19 @@ public:
 	}
 
 	//---------------------------------------------------------------------------
+	/// Set JSON trace mode:
+	/// "OFF,off,FALSE,false,NO,no,0" :: switches off
+	/// "CALLER,caller,SHORT,short"   :: switches to caller frame only
+	///                               :: all else switches full trace on
+	void SetJSONTrace(KStringView sJSONTrace);
+	//---------------------------------------------------------------------------
+
+	//---------------------------------------------------------------------------
+	/// Returns JSON trace mode, one of off,short,full
+	KStringView GetJSONTrace() const;
+	//---------------------------------------------------------------------------
+
+	//---------------------------------------------------------------------------
 	/// Set application name for logging.
 	void SetName(KStringView sName);
 	//---------------------------------------------------------------------------
@@ -498,6 +512,11 @@ public:
 	{
 		return m_sFlagfile;
 	}
+
+	//---------------------------------------------------------------------------
+	/// Reset configuration to default values
+	void SetDefaults();
+	//---------------------------------------------------------------------------
 
 	//---------------------------------------------------------------------------
 	/// this function is deprecated - use kDebug() instead!
@@ -610,11 +629,14 @@ private:
 	KString m_sShortName;
 	KString m_sLogName;
 	KString m_sFlagfile;
-	int m_iBackTrace;
+	int m_iBackTrace { -2 };
 	time_t m_sTimestampFlagfile { 0 };
 	std::unique_ptr<KLogSerializer> m_Serializer;
 	std::unique_ptr<KLogWriter> m_Logger;
+	// the m_Traces vector is protected by the s_LogMutex
+	std::vector<KString> m_Traces;
 	LOGMODE m_Logmode { CLI };
+	bool m_bHadConfigFromFlagFile { false };
 
 }; // KLog
 

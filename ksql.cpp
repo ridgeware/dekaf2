@@ -907,6 +907,8 @@ bool KSQL::OpenConnection ()
 			}
 			return (SQLError ());
 		}
+
+		mysql_set_character_set (m_dMYSQL, "utf8"); // by default
 		break;
 	#endif
 

@@ -511,6 +511,35 @@ TEST_CASE("kSplitPairs")
 
 }
 
+TEST_CASE("kSplit")
+{
+	SECTION("split lines")
+	{
+		std::vector<KStringView> Parts;
+
+		kSplit(Parts, "line 1\nline 2\nline 3", "\n", " \t\r\b");
+		CHECK ( Parts.size() == 3 );
+		CHECK ( Parts[0] == "line 1" );
+		CHECK ( Parts[1] == "line 2" );
+		CHECK ( Parts[2] == "line 3" );
+		Parts.clear();
+
+		kSplit(Parts, "line 1  \nline 2\r\nline 3", "\n", " \t\r\b");
+		CHECK ( Parts.size() == 3 );
+		CHECK ( Parts[0] == "line 1" );
+		CHECK ( Parts[1] == "line 2" );
+		CHECK ( Parts[2] == "line 3" );
+		Parts.clear();
+
+		kSplit(Parts, "line 1  \n\r\nline 3", "\n", " \t\r\b");
+		CHECK ( Parts.size() == 3 );
+		CHECK ( Parts[0] == "line 1" );
+		CHECK ( Parts[1] == "" );
+		CHECK ( Parts[2] == "line 3" );
+		Parts.clear();
+	}
+}
+
 TEST_CASE("kSplitEmpty")
 {
 	SECTION("SplitEmptyElements")

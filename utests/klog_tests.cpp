@@ -22,6 +22,6 @@ TEST_CASE("KLog") {
 
 	SECTION("Program name")
 	{
-		CHECK ( KLog().GetName().empty() == false );
+		CHECK ( KLog::getInstance().GetName().empty() == false );
 	}
 }

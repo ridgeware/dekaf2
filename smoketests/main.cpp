@@ -71,10 +71,10 @@ int main( int argc, char* const argv[] )
 //-----------------------------------------------------------------------------
 {
 	dekaf2::Dekaf::getInstance().SetMultiThreading();
-	KLog().SetDebugFlag(".smoketest.dbg");
-	KLog().SetLevel(0);
-	KLog().SetDebugLog(KLog::STDOUT);
-	KLog().OnlyShowCallerOnJsonError(true);
+	KLog::getInstance().SetDebugFlag(".smoketest.dbg");
+	KLog::getInstance().SetLevel(0);
+	KLog::getInstance().SetDebugLog(KLog::STDOUT);
+	KLog::getInstance().OnlyShowCallerOnJsonError(true);
 
 	signal (SIGILL,  &kCrashExit);
 	signal (SIGFPE,  &kCrashExit);
@@ -91,14 +91,14 @@ int main( int argc, char* const argv[] )
 		if (kStrIn (argv[ii], "-d,-dd,-ddd"))
 		{
 			iLast = ii;
-			KLog().SetLevel( static_cast<int>(strlen(argv[ii]) - 1));
-			kDebugLog (0, "{}: debug now set to {}", argv[ii], KLog().GetLevel());
+			KLog::getInstance().SetLevel( static_cast<int>(strlen(argv[ii]) - 1));
+			kDebugLog (0, "{}: debug now set to {}", argv[ii], KLog::getInstance().GetLevel());
 		}
 		else if (!strcmp (argv[ii], "-d0"))
 		{
 			iLast = ii;
-			KLog().SetLevel( 0 );
-			kDebugLog (0, "{}: debug now set to {}", argv[ii], KLog().GetLevel());
+			KLog::getInstance().SetLevel( 0 );
+			kDebugLog (0, "{}: debug now set to {}", argv[ii], KLog::getInstance().GetLevel());
 		}
 		else if (!strcmp(argv[ii], "-dbc"))
 		{

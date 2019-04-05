@@ -54,7 +54,7 @@ bool stdstring_supports_cow()
 int main( int argc, char* const argv[] )
 {
 	dekaf2::kInit("DEKAF", "", "/tmp/unittest.dbg", false, true, false);
-	KLog().OnlyShowCallerOnJsonError(true);
+	KLog::getInstance().OnlyShowCallerOnJsonError(true);
 
 	bool bSynopsis{false};
 	int  iLast{0};
@@ -64,16 +64,16 @@ int main( int argc, char* const argv[] )
 		if (kStrIn (argv[ii], "-d,-dd,-ddd"))
 		{
 			iLast = ii;
-			KLog().SetLevel( static_cast<int>(strlen(argv[ii]) - 1));
-			KLog().SetDebugLog(KLog::STDOUT);
-			kDebugLog (0, "{}: debug now set to {}", argv[ii], KLog().GetLevel());
+			KLog::getInstance().SetLevel( static_cast<int>(strlen(argv[ii]) - 1));
+			KLog::getInstance().SetDebugLog(KLog::STDOUT);
+			kDebugLog (0, "{}: debug now set to {}", argv[ii], KLog::getInstance().GetLevel());
 		}
 		else if (kStrIn (argv[ii], "-d0"))
 		{
 			iLast = ii;
-			KLog().SetLevel( 0 );
-			KLog().SetDebugLog(KLog::STDOUT);
-			kDebugLog (0, "{}: debug now set to {}", argv[ii], KLog().GetLevel());
+			KLog::getInstance().SetLevel( 0 );
+			KLog::getInstance().SetDebugLog(KLog::STDOUT);
+			kDebugLog (0, "{}: debug now set to {}", argv[ii], KLog::getInstance().GetLevel());
 		}
 
 		// part of the generic CATCH framework:

@@ -299,8 +299,8 @@ bool KSystemStats::GatherProcInfo ()
 		Add ("unix_version", sVersion, StatType::STRING);
 	}
 
-	kDebug (2, "sizing {} ...", KLog().GetDebugLog());
-	Add ("bytes_klog",             NeverNegative (kFileSize (KLog().GetDebugLog())),StatType::INTEGER);
+	kDebug (2, "sizing {} ...", KLog::getInstance().GetDebugLog());
+	Add ("bytes_klog",             NeverNegative (kFileSize (KLog::getInstance().GetDebugLog())),StatType::INTEGER);
 	kDebug (2, "sizing a bunch of files in /var/log ...");
 	Add ("bytes_var_log_cron",     NeverNegative (kFileSize ("/var/log/cron")),     StatType::INTEGER);
 	Add ("bytes_var_log_dmesg",    NeverNegative (kFileSize ("/var/log/dmesg")),    StatType::INTEGER);

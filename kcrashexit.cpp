@@ -58,20 +58,22 @@ namespace dekaf2
 void kCrashExit (int iSignalNum)
 //-----------------------------------------------------------------------------
 {
+	auto& klog = KLog::getInstance();
+
 	// switch automatic backtracing off
-	KLog().SetBackTraceLevel(100);
+	klog.SetBackTraceLevel(100);
 
 	// and start our own stackdump
 
-	KLog().warning ("|                 *      \n");
-	KLog().warning ("|            *    *    * \n");
-	KLog().warning ("|              *  *  *   \n");
+	klog.warning ("|                 *      \n");
+	klog.warning ("|            *    *    * \n");
+	klog.warning ("|              *  *  *   \n");
 
 	switch (iSignalNum)
 	{
 #ifdef UNIX
 	case SIGTERM:  // <-- [STOP] in browser causes apache to send SIGTERM to CGIs
-		KLog().warning ("|         * * * KILLED * * *%s\n",
+		klog.warning ("|         * * * KILLED * * *%s\n",
 			(getenv("REQUEST_METHOD")) ? "    -- web user hit [STOP] in browser" : "");
 		break;
 
@@ -80,23 +82,23 @@ void kCrashExit (int iSignalNum)
 	case SIGHUP:   // <-- sent from command line?
 	case SIGUSR1:  // <-- sent from command line?
 	case SIGUSR2:  // <-- sent from command line?
-		KLog().warning ("|       * * * CANCELLED * * *\n");
+		klog.warning ("|       * * * CANCELLED * * *\n");
 		break;
 
 	case SIGPIPE:
-		KLog().warning ("|       * * *  SIGPIPE  * * *\n");
+		klog.warning ("|       * * *  SIGPIPE  * * *\n");
 		break;
 
 #endif
 	case 0:
 	default:
-		KLog().warning ("|        * * * CRASHED * * *\n");
+		klog.warning ("|        * * * CRASHED * * *\n");
 		break;
 	}
 
-	KLog().warning ("|              *  *  *   \n");
-	KLog().warning ("|            *    *    * \n");
-	KLog().warning ("|                 *      \n");
+	klog.warning ("|              *  *  *   \n");
+	klog.warning ("|            *    *    * \n");
+	klog.warning ("|                 *      \n");
 
 	switch (iSignalNum)
 	{
@@ -104,52 +106,52 @@ void kCrashExit (int iSignalNum)
 	// self-detected crash conditions:
 	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 	case 0:
-		KLog().warning ("CRASHCODE=0: self-detected crash condition.");
+		klog.warning ("CRASHCODE=0: self-detected crash condition.");
 		break;
 	case CRASHCODE_MEMORY:
-		KLog().warning ("CRASHCODE_MEMORY: self-detected dynamic allocation error.");
+		klog.warning ("CRASHCODE_MEMORY: self-detected dynamic allocation error.");
 		break;
 	case CRASHCODE_TODO:
-		KLog().warning ("CRASHCODE_TODO: feature not implemented yet.");
+		klog.warning ("CRASHCODE_TODO: feature not implemented yet.");
 		break;
 	case CRASHCODE_DEKAFUSAGE:
-		KLog().warning ("CRASHCODE_DEKAFUSAGE: invalid DEKAF framework usage.");
+		klog.warning ("CRASHCODE_DEKAFUSAGE: invalid DEKAF framework usage.");
 		break;
 	case CRASHCODE_CORRUPT:
-		KLog().warning ("CRASHCODE_CORRUPT: self-detected memory corruption.");
+		klog.warning ("CRASHCODE_CORRUPT: self-detected memory corruption.");
 		break;
 	case CRASHCODE_DBERROR:
-		KLog().warning ("CRASHCODE_DBERROR: self-detected fatal database error.");
+		klog.warning ("CRASHCODE_DBERROR: self-detected fatal database error.");
 		break;
 	case CRASHCODE_DBINTEGRITY:
-		KLog().warning ("CRASHCODE_DBINTEGRITY: self-detected database integrity problem.");
+		klog.warning ("CRASHCODE_DBINTEGRITY: self-detected database integrity problem.");
 		break;
 	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 	// standard UNIX signals:
 	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 	default:
-		KLog().warning (kTranslateSignal (iSignalNum, /*fConcise=*/false));
+		klog.warning (kTranslateSignal (iSignalNum, /*fConcise=*/false));
 	}
 
 #ifndef WIN32
 	if (iSignalNum != SIGINT)
 	{
-		KLog().warning ("attempting to print a backtrace:");
+		klog.warning ("attempting to print a backtrace:");
 
-		KLog().warning(kGetRuntimeStack());
+		klog.warning(kGetRuntimeStack());
 
 		#if 0
-		KLog().warning ("enabling core dumps...");
+		klog.warning ("enabling core dumps...");
 		rlimit core_limit = { RLIM_INFINITY, RLIM_INFINITY };
 		setrlimit (RLIMIT_CORE, &core_limit); // enable core dumps
 
-		KLog().warning ("dumping core (assuming we can write to {0}})...", KFile::GetCWD());
+		klog.warning ("dumping core (assuming we can write to {0}})...", KFile::GetCWD());
 		abort();
 		#endif
 	}
 #endif
 
-	KLog().warning ("exiting program.");
+	klog.warning ("exiting program.");
 	exit (-1);
 
 } // kCrashExit
@@ -164,7 +166,7 @@ void kFailedAssert (const char* sCrashMessage)
 	{
 		sCrashMessage = "<empty>";
 	}
-	KLog().warning ("ASSERT FAILURE: {}", sCrashMessage);
+	KLog::getInstance().warning ("ASSERT FAILURE: {}", sCrashMessage);
 	kCrashExit (0);
 
 } // kFailedAssert

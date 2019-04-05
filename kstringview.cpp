@@ -53,7 +53,7 @@ void* memrchr(const void* s, int c, size_t n)
 {
 #ifdef DEKAF2_X86_64
 #ifdef DEKAF2_HAS_MINIFOLLY
-	static bool has_sse42 = dekaf2::Dekaf().GetCpuId().sse42();
+	static bool has_sse42 = dekaf2::Dekaf::getInstance().GetCpuId().sse42();
 	if (DEKAF2_LIKELY(has_sse42))
 #endif
 	{
@@ -252,7 +252,7 @@ size_t kFindFirstOfInt(
 
 #ifdef DEKAF2_X86_64
 #ifdef DEKAF2_HAS_MINIFOLLY
-	static bool has_sse42 = Dekaf().GetCpuId().sse42();
+	static bool has_sse42 = Dekaf::getInstance().GetCpuId().sse42();
 	if (DEKAF2_LIKELY(has_sse42))
 #endif
 	{
@@ -299,7 +299,7 @@ size_t kFindFirstNotOfInt(
 
 #ifdef DEKAF2_X86_64
 #ifdef DEKAF2_HAS_MINIFOLLY
-	static bool has_sse42 = Dekaf().GetCpuId().sse42();
+	static bool has_sse42 = Dekaf::getInstance().GetCpuId().sse42();
 	if (DEKAF2_LIKELY(has_sse42))
 #endif
 	{
@@ -354,7 +354,7 @@ size_t kFindLastOfInt(
 
 #ifdef DEKAF2_X86_64
 #ifdef DEKAF2_HAS_MINIFOLLY
-	static bool has_sse42 = Dekaf().GetCpuId().sse42();
+	static bool has_sse42 = Dekaf::getInstance().GetCpuId().sse42();
 	if (DEKAF2_LIKELY(has_sse42))
 #endif
 	{
@@ -388,7 +388,7 @@ size_t kFindLastNotOfInt(
 
 #ifdef DEKAF2_X86_64
 #ifdef DEKAF2_HAS_MINIFOLLY
-	static bool has_sse42 = Dekaf().GetCpuId().sse42();
+	static bool has_sse42 = Dekaf::getInstance().GetCpuId().sse42();
 	if (DEKAF2_LIKELY(has_sse42))
 #endif
 	{

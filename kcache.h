@@ -242,7 +242,7 @@ public:
 	//-----------------------------------------------------------------------------
 	{
 		std::unique_lock<std::shared_mutex> Lock(m_Mutex, std::defer_lock);
-		if (Dekaf().GetMultiThreading())
+		if (Dekaf::getInstance().GetMultiThreading())
 		{
 			Lock.lock();
 		}
@@ -259,7 +259,7 @@ public:
 	value_type& Get(const Key& key, Args&&...args)
 	//-----------------------------------------------------------------------------
 	{
-		if (!Dekaf().GetMultiThreading())
+		if (!Dekaf::getInstance().GetMultiThreading())
 		{
 			// we can use the lock free version
 			return base_type::Get(key, std::forward<Args>(args)...);
@@ -290,7 +290,7 @@ public:
 	value_type* Find(const Key& key)
 	//-----------------------------------------------------------------------------
 	{
-		if (!Dekaf().GetMultiThreading())
+		if (!Dekaf::getInstance().GetMultiThreading())
 		{
 			// we can use the lock free version
 			return base_type::Find(key);
@@ -315,7 +315,7 @@ public:
 	//-----------------------------------------------------------------------------
 	{
 		std::unique_lock<std::shared_mutex> Lock(m_Mutex, std::defer_lock);
-		if (Dekaf().GetMultiThreading())
+		if (Dekaf::getInstance().GetMultiThreading())
 		{
 			Lock.lock();
 		}
@@ -330,7 +330,7 @@ public:
 	//-----------------------------------------------------------------------------
 	{
 		std::unique_lock<std::shared_mutex> Lock(m_Mutex, std::defer_lock);
-		if (Dekaf().GetMultiThreading())
+		if (Dekaf::getInstance().GetMultiThreading())
 		{
 			Lock.lock();
 		}
@@ -343,7 +343,7 @@ public:
 	//-----------------------------------------------------------------------------
 	{
 		std::shared_lock<std::shared_mutex> Lock(m_Mutex, std::defer_lock);
-		if (Dekaf().GetMultiThreading())
+		if (Dekaf::getInstance().GetMultiThreading())
 		{
 			Lock.lock();
 		}
@@ -356,7 +356,7 @@ public:
 	//-----------------------------------------------------------------------------
 	{
 		std::unique_lock<std::shared_mutex> Lock(m_Mutex, std::defer_lock);
-		if (Dekaf().GetMultiThreading())
+		if (Dekaf::getInstance().GetMultiThreading())
 		{
 			Lock.lock();
 		}
@@ -369,7 +369,7 @@ public:
 	//-----------------------------------------------------------------------------
 	{
 		std::shared_lock<std::shared_mutex> Lock(m_Mutex, std::defer_lock);
-		if (Dekaf().GetMultiThreading())
+		if (Dekaf::getInstance().GetMultiThreading())
 		{
 			Lock.lock();
 		}

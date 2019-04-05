@@ -425,7 +425,7 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 						// nobody wants stack traces in the klog when hackers throw crappy json (and attacks)
 						// at their rest server.  so we need to turn off stack traces while we attempt to
 						// parse incoming json from the wire:
-						bool bResetFlag = KLog().ShowStackOnJsonError (false);
+						bool bResetFlag = KLog::getInstance().ShowStackOnJsonError (false);
 
 						if (!kjson::Parse(json.rx, sBuffer, sError))
 						{
@@ -444,7 +444,7 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 						// after we are done parsing the incoming json from the wire,
 						// restore stack traces for failures in the json that application may
 						// form while processing a request:
-						KLog().ShowStackOnJsonError (bResetFlag);
+						KLog::getInstance().ShowStackOnJsonError (bResetFlag);
 					}
 				}
 				else if (Route.Parser == KRESTRoute::XML)
@@ -723,7 +723,7 @@ void KRESTServer::ErrorHandler(const std::exception& ex, const Options& Options)
 		case CLI:
 		{
 			Response.UnfilteredStream().FormatLine("{}: {}",
-												   Dekaf().GetProgName(),
+												   Dekaf::getInstance().GetProgName(),
 												   sError.empty() ? Response.sStatusString.ToView()
 												                  : sError);
 		}

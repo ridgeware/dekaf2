@@ -247,7 +247,7 @@ KString kFormTimestamp (time_t tTime, const char* szFormat)
 
 	if (!tTime)
 	{
-		tTime = Dekaf().GetCurrentTime();
+		tTime = Dekaf::getInstance().GetCurrentTime();
 	}
 
 #ifdef DEKAF2_IS_WINDOWS

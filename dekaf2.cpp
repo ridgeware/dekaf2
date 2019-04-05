@@ -418,9 +418,6 @@ void Dekaf::StartSignalHandlerThread()
 	}
 }
 
-// the (single) instantiation of Dekaf
-class Dekaf myDekaf;
-
 //---------------------------------------------------------------------------
 void kInit (KStringView sName, KStringViewZ sDebugLog, KStringViewZ sDebugFlag, bool bShouldDumpCore/*=false*/, bool bEnableMultiThreading/*=false*/, bool bStartSignalHandlerThread/*=true*/)
 //---------------------------------------------------------------------------
@@ -432,27 +429,27 @@ void kInit (KStringView sName, KStringViewZ sDebugLog, KStringViewZ sDebugFlag, 
 		// thread would run with an enabled sigmask
 		kBlockAllSignals();
 
-		Dekaf().StartSignalHandlerThread();
+		Dekaf::getInstance().StartSignalHandlerThread();
 	}
 	
-	Dekaf().SetMultiThreading(bEnableMultiThreading);
+	Dekaf::getInstance().SetMultiThreading(bEnableMultiThreading);
 
 	// make sure KLog is instantiated
-	KLog();
+	KLog::getInstance();
 
 	if (!sDebugLog.empty())
 	{
-		KLog().SetDebugLog(sDebugLog);
+		KLog::getInstance().SetDebugLog(sDebugLog);
 	}
 
 	if (!sDebugFlag.empty())
 	{
-		KLog().SetDebugFlag(sDebugFlag);
+		KLog::getInstance().SetDebugFlag(sDebugFlag);
 	}
 
 	if (!sName.empty())
 	{
-		KLog().SetName(sName);
+		KLog::getInstance().SetName(sName);
 	}
 
 } // kInit

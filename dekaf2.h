@@ -72,7 +72,14 @@ class Dekaf
 public:
 //----------
 
-	Dekaf();
+	//---------------------------------------------------------------------------
+	static Dekaf& getInstance()
+	//---------------------------------------------------------------------------
+	{
+		static Dekaf myDekaf;
+		return myDekaf;
+	}
+
 	Dekaf(const Dekaf&) = delete;
 	Dekaf(Dekaf&&) = delete;
 	Dekaf& operator=(const Dekaf&) = delete;
@@ -225,6 +232,9 @@ public:
 private:
 //----------
 
+	/// private constructor
+	Dekaf();
+
 	//---------------------------------------------------------------------------
 	/// The core timer for dekaf, called every second
 	void OneSecTimer(KTimer::Timepoint tp);
@@ -262,15 +272,6 @@ private:
 
 
 }; // Dekaf
-
-//---------------------------------------------------------------------------
-/// Get unique instance of class Dekaf()
-inline class Dekaf& Dekaf()
-//---------------------------------------------------------------------------
-{
-	static class Dekaf myDekaf;
-	return myDekaf;
-}
 
 //---------------------------------------------------------------------------
 /// Shortcut to initialize Dekaf and KLog in one call - however, not needed for

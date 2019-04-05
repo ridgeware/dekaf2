@@ -53,8 +53,7 @@ bool stdstring_supports_cow()
 
 int main( int argc, char* const argv[] )
 {
-	dekaf2::kInit("DEKAF", "", "", false, true, false);
-	KLog().SetDebugFlag("/tmp/unittest.dbg");
+	dekaf2::kInit("DEKAF", "", "/tmp/unittest.dbg", false, true, false);
 	KLog().OnlyShowCallerOnJsonError(true);
 
 	bool bSynopsis{false};

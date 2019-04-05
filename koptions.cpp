@@ -382,15 +382,15 @@ int KOptions::Parse(int argc, char** argv, KOutStream& out)
 					else if (it->sArg.In("d,dd,ddd"))
 					{
 						it->bConsumed = true;
-						KLog().SetLevel (static_cast<int>(it->sArg.size()));
-						KLog().SetDebugLog (m_sCliDebugTo);
-						kDebug (1, "debug level set to: {}", KLog().GetLevel());
+						KLog::getInstance().SetLevel (static_cast<int>(it->sArg.size()));
+						KLog::getInstance().SetDebugLog (m_sCliDebugTo);
+						kDebug (1, "debug level set to: {}", KLog::getInstance().GetLevel());
 					}
 					else if (it->sArg == "d0")
 					{
 						it->bConsumed = true;
-						KLog().SetLevel (0);
-						KLog().SetDebugLog (m_sCliDebugTo);
+						KLog::getInstance().SetLevel (0);
+						KLog::getInstance().SetDebugLog (m_sCliDebugTo);
 					}
 				}
 			}

@@ -117,7 +117,7 @@ bool KREST::Execute(const Options& Options, const KRESTRoutes& Routes)
 
 		case HTTP:
 			{
-				KLog().SetMode(KLog::SERVER);
+				KLog::getInstance().SetMode(KLog::SERVER);
 
 				bool bUseTLS = !Options.sCert.empty() || !Options.sKey.empty();
 				if (bUseTLS)
@@ -159,7 +159,7 @@ bool KREST::Execute(const Options& Options, const KRESTRoutes& Routes)
 #ifdef DEKAF2_HAS_UNIX_SOCKETS
 		case UNIX:
 			{
-				KLog().SetMode(KLog::SERVER);
+				KLog::getInstance().SetMode(KLog::SERVER);
 				kDebug(1, "starting standalone HTTP server on socket file {}...", Options.sSocketFile);
 				Options.Out = KRESTServer::HTTP;
 				detail::RESTServer Server(Options, Routes, Options.sSocketFile, Options.iMaxConnections);
@@ -170,7 +170,7 @@ bool KREST::Execute(const Options& Options, const KRESTRoutes& Routes)
 
 		case CGI:
 			{
-				KLog().SetMode(KLog::SERVER);
+				KLog::getInstance().SetMode(KLog::SERVER);
 				kDebug (3, "normal CGI request...");
 				KCGIInStream CGI(KIn);
 				KStream Stream(CGI, KOut);
@@ -180,12 +180,12 @@ bool KREST::Execute(const Options& Options, const KRESTRoutes& Routes)
 			}
 
 		case FCGI:
-			KLog().SetMode(KLog::SERVER);
+			KLog::getInstance().SetMode(KLog::SERVER);
 			return SetError("FCGI mode not yet supported");
 
 		case LAMBDA:
 			{
-				KLog().SetMode(KLog::SERVER);
+				KLog::getInstance().SetMode(KLog::SERVER);
 				kDebug(3, "normal LAMBA request...");
 				KLambdaInStream Lambda(KIn);
 				KStream Stream(Lambda, KOut);
@@ -196,7 +196,7 @@ bool KREST::Execute(const Options& Options, const KRESTRoutes& Routes)
 
 		case CLI:
 			{
-				KLog().SetMode(KLog::CLI); // CLI mode is the default anyway..
+				KLog::getInstance().SetMode(KLog::CLI); // CLI mode is the default anyway..
 				kDebug (3, "normal CLI request...");
 				KStream Stream(KIn, KOut);
 				Options.Out = KRESTServer::CLI;

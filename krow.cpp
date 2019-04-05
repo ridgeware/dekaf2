@@ -555,9 +555,9 @@ KJSON KROW::to_json (uint64_t iFlags/*=0*/) const
 			DEKAF2_TRY
 			{
 				KJSON object;
-				bool bOld = KLog().ShowStackOnJsonError(false);
+				bool bOld = KLog::getInstance().ShowStackOnJsonError(false);
 				kjson::Parse(object, col.second.sValue);
-				KLog().ShowStackOnJsonError(bOld);
+				KLog::getInstance().ShowStackOnJsonError(bOld);
 				json[sKey] = object;
 			}
 			DEKAF2_CATCH(const KJSON::exception& exc)
@@ -580,9 +580,9 @@ KJSON KROW::to_json (uint64_t iFlags/*=0*/) const
 				DEKAF2_TRY
 				{
 					KJSON object;
-					bool bOld = KLog().ShowStackOnJsonError(false);
+					bool bOld = KLog::getInstance().ShowStackOnJsonError(false);
 					kjson::Parse(object, col.second.sValue);
-					KLog().ShowStackOnJsonError(bOld);
+					KLog::getInstance().ShowStackOnJsonError(bOld);
 					json[sKey] = object;
 				}
 				DEKAF2_CATCH(const KJSON::exception& exc)

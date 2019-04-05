@@ -619,7 +619,7 @@ KString kResolveHost (KStringViewZ sHostname, bool bIPv4, bool bIPv6)
 uint32_t kRandom(uint32_t iMin, uint32_t iMax)
 //-----------------------------------------------------------------------------
 {
-	return Dekaf().GetRandomValue(iMin, iMax);
+	return Dekaf::getInstance().GetRandomValue(iMin, iMax);
 
 } // kRandom
 

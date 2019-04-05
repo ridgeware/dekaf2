@@ -112,7 +112,7 @@ KString::value_type KString::s_0ch_v[2] = "\0";
 void KString::log_exception(const std::exception& e, const char* sWhere)
 //------------------------------------------------------------------------------
 {
-	KLog().Exception(e, sWhere);
+	KLog::getInstance().Exception(e, sWhere);
 }
 
 //------------------------------------------------------------------------------

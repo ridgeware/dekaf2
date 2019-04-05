@@ -286,7 +286,7 @@ bool KJWT::Validate(const KOpenIDProvider& Provider, KStringView sScope, time_t 
 		}
 	}
 
-	time_t now = Dekaf().GetCurrentTime();
+	time_t now = Dekaf::getInstance().GetCurrentTime();
 
 	if (Payload["nbf"] > (now + tClockLeeway))
 	{

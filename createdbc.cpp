@@ -64,9 +64,9 @@ int main (int argc, char* argv[])
 	for (int ii=1; ii < argc; ++ii)
 	{
 		if (kStrIn (argv[ii], "-d,-dd,-ddd")) {
-			KLog().SetLevel( static_cast<int>(strlen(argv[ii])) - 1 );
-			KLog().SetDebugLog("stdout");
-			kDebugLog (0, "{}: debug now set to {}", argv[ii], KLog().GetLevel());
+			KLog::getInstance().SetLevel( static_cast<int>(strlen(argv[ii])) - 1 );
+			KLog::getInstance().SetDebugLog("stdout");
+			kDebugLog (0, "{}: debug now set to {}", argv[ii], KLog::getInstance().GetLevel());
 		}
 		else if (!strcmp (argv[ii], "-n"))
 		{

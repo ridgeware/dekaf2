@@ -291,7 +291,7 @@ void KLogData::Set(int iLevel, KStringView sShortName, KStringView sPathName, KS
 	m_iLevel = iLevel;
 	m_Pid = kGetPid();
 	m_Tid = kGetTid();
-	m_Time = Dekaf().GetCurrentTime();
+	m_Time = Dekaf::getInstance().GetCurrentTime();
 	m_sFunctionName = SanitizeFunctionName(sFunction);
 	m_sShortName = sShortName;
 	m_sPathName = sPathName;
@@ -500,9 +500,6 @@ void KLogSyslogSerializer::Serialize() const
 
 #endif
 
-// the (single) instantiation of KLog
-class KLog myKLog;
-
 // do not initialize this static var - it risks to override a value set by KLog()'s
 // initialization before..
 int KLog::s_kLogLevel;
@@ -542,17 +539,17 @@ KLog::KLog()
 		m_sFlagfile = s_sDefaultFlag;
 	}
 
-	m_sPathName =  Dekaf().GetProgPath();
+	m_sPathName =  Dekaf::getInstance().GetProgPath();
 	m_sPathName += kDirSep;
-	m_sPathName += Dekaf().GetProgName();
+	m_sPathName += Dekaf::getInstance().GetProgName();
 
-	SetName(Dekaf().GetProgName());
+	SetName(Dekaf::getInstance().GetProgName());
 
 	SetDefaults();
 
 	CheckDebugFlag();
 
-	Dekaf().AddToOneSecTimer([this]()
+	Dekaf::getInstance().AddToOneSecTimer([this]()
 	{
 		this->CheckDebugFlag();
 	});

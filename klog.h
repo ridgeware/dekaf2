@@ -342,16 +342,25 @@ protected:
 /// to be logged - the comparison of the log level with the importance of
 /// the message.
 ///
-/// KLog is implemented as sort of a singleton. It is guaranteed to be
+/// KLog is implemented as a singleton. It is guaranteed to be
 /// instantiated whenever it is called, also in the early initialization
 /// phase of the program for e.g. static types.
 class KLog
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
+
 //----------
 public:
 //----------
-	KLog();
+
+	//---------------------------------------------------------------------------
+	static KLog& getInstance()
+	//---------------------------------------------------------------------------
+	{
+		static KLog myKLog;
+		return myKLog;
+	}
+
 	KLog(const KLog&) = delete;
 	KLog(KLog&&) = delete;
 	KLog& operator=(const KLog&) = delete;
@@ -593,8 +602,8 @@ public:
 	}
 
 	//---------------------------------------------------------------------------
-	/// set whether or not to show stack as klog warnings when JSON parse fails
-	/// - this is a per-process setting
+	/// set if only the call site should be shown in case of a JSON error or the
+	/// full stack - this is a per-process setting
 	bool OnlyShowCallerOnJsonError (bool bNewValue)
 	//---------------------------------------------------------------------------
 	{
@@ -613,6 +622,9 @@ public:
 //----------
 private:
 //----------
+
+	// private ctor
+	KLog();
 
 	bool IntDebug (int iLevel, KStringView sFunction, KStringView sMessage);
 	void IntException (KStringView sWhat, KStringView sFunction, KStringView sClass);
@@ -640,14 +652,6 @@ private:
 
 }; // KLog
 
-//---------------------------------------------------------------------------
-inline KLog& KLog()
-//---------------------------------------------------------------------------
-{
-	static class KLog myKLog;
-	return myKLog;
-}
-
 // there is no way to convince gcc to inline a variadic template function
 // (and as "inline" is not imperative it may happen on other compilers as well)
 // - so just fall back to using a macro. Remind that this creates problems
@@ -672,7 +676,7 @@ inline KLog& KLog()
 { \
 	if (DEKAF2_UNLIKELY(iLevel <= dekaf2::KLog::s_kLogLevel)) \
 	{ \
-		dekaf2::KLog().debug_fun(iLevel, DEKAF2_FUNCTION_NAME, __VA_ARGS__); \
+		dekaf2::KLog::getInstance().debug_fun(iLevel, DEKAF2_FUNCTION_NAME, __VA_ARGS__); \
 	} \
 }
 //---------------------------------------------------------------------------
@@ -686,7 +690,7 @@ inline KLog& KLog()
 { \
 	if (DEKAF2_UNLIKELY(iLevel <= dekaf2::KLog::s_kLogLevel)) \
 	{ \
-		dekaf2::KLog().debug(iLevel, __VA_ARGS__); \
+		dekaf2::KLog::getInstance().debug(iLevel, __VA_ARGS__); \
 	} \
 }
 //---------------------------------------------------------------------------
@@ -698,7 +702,7 @@ inline KLog& KLog()
 /// log a warning message, automatically provide function name.
 #define kWarning(...) \
 { \
-	dekaf2::KLog().debug_fun(-1, DEKAF2_FUNCTION_NAME, __VA_ARGS__); \
+	dekaf2::KLog::getInstance().debug_fun(-1, DEKAF2_FUNCTION_NAME, __VA_ARGS__); \
 }
 //---------------------------------------------------------------------------
 
@@ -709,7 +713,7 @@ inline KLog& KLog()
 /// log a warning message, do NOT automatically provide function name.
 #define kWarningLog(...) \
 { \
-	dekaf2::KLog().debug(-1, __VA_ARGS__); \
+	dekaf2::KLog::getInstance().debug(-1, __VA_ARGS__); \
 }
 //---------------------------------------------------------------------------
 
@@ -721,7 +725,7 @@ inline KLog& KLog()
 /// stacktrace at level -2
 #define kException(except) \
 { \
-	dekaf2::KLog().Exception(except, DEKAF2_FUNCTION_NAME); \
+	dekaf2::KLog::getInstance().Exception(except, DEKAF2_FUNCTION_NAME); \
 }
 //---------------------------------------------------------------------------
 
@@ -732,7 +736,7 @@ inline KLog& KLog()
 /// log an unknown exception, automatically provide function name.
 #define kUnknownException() \
 { \
-	dekaf2::KLog().Exception(DEKAF2_FUNCTION_NAME); \
+	dekaf2::KLog::getInstance().Exception(DEKAF2_FUNCTION_NAME); \
 }
 //---------------------------------------------------------------------------
 
@@ -743,7 +747,7 @@ inline KLog& KLog()
 /// force a stack trace, automatically provide function name.
 #define kDebugTrace(...) \
 { \
-	dekaf2::KLog().debug_fun(-2, DEKAF2_FUNCTION_NAME, __VA_ARGS__); \
+	dekaf2::KLog::getInstance().debug_fun(-2, DEKAF2_FUNCTION_NAME, __VA_ARGS__); \
 }
 //---------------------------------------------------------------------------
 
@@ -754,7 +758,7 @@ inline KLog& KLog()
 /// special stack dump handling just for KJSON (nlohmann)
 #define kJSONTrace() \
 { \
-	dekaf2::KLog().JSONTrace(DEKAF2_FUNCTION_NAME); \
+	dekaf2::KLog::getInstance().JSONTrace(DEKAF2_FUNCTION_NAME); \
 }
 //---------------------------------------------------------------------------
 
@@ -765,7 +769,7 @@ inline KLog& KLog()
 /// print first frame from a file not in sSkipFiles (comma separated basenames)
 #define kTraceDownCaller(iSkipStackLines, sSkipFiles, sMessage) \
 { \
-	dekaf2::KLog().TraceDownCaller(iSkipStackLines, sSkipFiles, sMessage); \
+	dekaf2::KLog::getInstance().TraceDownCaller(iSkipStackLines, sSkipFiles, sMessage); \
 }
 //---------------------------------------------------------------------------
 

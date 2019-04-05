@@ -130,7 +130,7 @@ struct Actions
 void PrintFlagFile()
 //-----------------------------------------------------------------------------
 {
-	KInFile file(KLog().GetDebugFlag());
+	KInFile file(KLog::getInstance().GetDebugFlag());
 	if (file.is_open())
 	{
 		KString sLine;
@@ -141,7 +141,7 @@ void PrintFlagFile()
 	}
 	else
 	{
-		KErr.FormatLine("klog: cannot open file {}", KLog().GetDebugFlag());
+		KErr.FormatLine("klog: cannot open file {}", KLog::getInstance().GetDebugFlag());
 	}
 
 } // PrintFlagFile
@@ -150,15 +150,15 @@ void PrintFlagFile()
 void RemoveFlagFile()
 //-----------------------------------------------------------------------------
 {
-	KLog().SetDefaults();
+	KLog::getInstance().SetDefaults();
 
-	if (kRemoveFile(KLog().GetDebugFlag()))
+	if (kRemoveFile(KLog::getInstance().GetDebugFlag()))
 	{
 		KOut.WriteLine("logging and tracing switched off");
 	}
 	else
 	{
-		KErr.FormatLine("klog: cannot delete {}", KLog().GetDebugFlag());
+		KErr.FormatLine("klog: cannot delete {}", KLog::getInstance().GetDebugFlag());
 	}
 
 } // RemoveFlagFile
@@ -169,15 +169,15 @@ using Properties = KProps<KString, KString, false, false>;
 void WriteConfig(Properties& props, KStringView sKeyToList)
 //-----------------------------------------------------------------------------
 {
-	props.Set("log", KLog().GetDebugLog());
-	props.Set("tracelevel", KString::to_string(KLog().GetBackTraceLevel()));
-	props.Set("tracejson", KLog().GetJSONTrace());
+	props.Set("log", KLog::getInstance().GetDebugLog());
+	props.Set("tracelevel", KString::to_string(KLog::getInstance().GetBackTraceLevel()));
+	props.Set("tracejson", KLog::getInstance().GetJSONTrace());
 
-	KOutFile outfile (KLog().GetDebugFlag(), std::ios::trunc);
+	KOutFile outfile (KLog::getInstance().GetDebugFlag(), std::ios::trunc);
 
 	if (outfile.is_open())
 	{
-		outfile.FormatLine("{}", KLog().GetLevel());
+		outfile.FormatLine("{}", KLog::getInstance().GetLevel());
 
 		for (auto& it : props)
 		{
@@ -195,7 +195,7 @@ void WriteConfig(Properties& props, KStringView sKeyToList)
 	}
 	else
 	{
-		KErr.FormatLine("klog: cannot write to {}", KLog().GetDebugFlag());
+		KErr.FormatLine("klog: cannot write to {}", KLog::getInstance().GetDebugFlag());
 	}
 
 } // WriteConfig
@@ -207,7 +207,7 @@ Properties ReadConfig()
 	Properties props;
 
 	{
-		KInFile infile (KLog().GetDebugFlag());
+		KInFile infile (KLog::getInstance().GetDebugFlag());
 
 		if (infile.is_open())
 		{
@@ -283,8 +283,8 @@ void Persist()
 void SetLevel(uint16_t iLevel)
 //-----------------------------------------------------------------------------
 {
-	KLog().SetLevel(iLevel);
-	KErr.FormatLine ("klog: set new debug level to {}", KLog().GetLevel());
+	KLog::getInstance().SetLevel(iLevel);
+	KErr.FormatLine ("klog: set new debug level to {}", KLog::getInstance().GetLevel());
 	Persist();
 
 } // SetLevel
@@ -293,8 +293,8 @@ void SetLevel(uint16_t iLevel)
 void SetBackTraceLevel(int16_t iLevel)
 //-----------------------------------------------------------------------------
 {
-	KLog().SetBackTraceLevel(iLevel);
-	KErr.FormatLine ("klog: set new back trace level to {}", KLog().GetBackTraceLevel());
+	KLog::getInstance().SetBackTraceLevel(iLevel);
+	KErr.FormatLine ("klog: set new back trace level to {}", KLog::getInstance().GetBackTraceLevel());
 	Persist();
 
 } // SetBackTraceLevel
@@ -303,8 +303,8 @@ void SetBackTraceLevel(int16_t iLevel)
 void SetJSONTraceLevel(KStringView sLevel)
 //-----------------------------------------------------------------------------
 {
-	KLog().SetJSONTrace(sLevel);
-	KErr.FormatLine ("klog: set new JSON trace mode to \"{}\"", KLog().GetJSONTrace());
+	KLog::getInstance().SetJSONTrace(sLevel);
+	KErr.FormatLine ("klog: set new JSON trace mode to \"{}\"", KLog::getInstance().GetJSONTrace());
 	Persist();
 
 } // SetJSONTraceLevel
@@ -319,8 +319,8 @@ void SetupOptions (KOptions& Options, Actions& Actions)
 		for (size_t ii=0; ii < iNumLines; ++ii)
 		{
 			KString sLine = g_Synopsis[ii];
-			sLine.Replace ("{LOG}",  KLog().GetDebugLog());
-			sLine.Replace ("{FLAG}", KLog().GetDebugFlag());
+			sLine.Replace ("{LOG}",  KLog::getInstance().GetDebugLog());
+			sLine.Replace ("{FLAG}", KLog::getInstance().GetDebugFlag());
 			KOut.WriteLine (sLine);
 		}
 		Actions.bCompleted = true;
@@ -328,7 +328,7 @@ void SetupOptions (KOptions& Options, Actions& Actions)
 
 	Options.RegisterOption("log", "need pathname for output log", [&](KStringViewZ sPath)
 	{
-		if (!KLog().SetDebugLog (sPath))
+		if (!KLog::getInstance().SetDebugLog (sPath))
 		{
 			KErr.Format ("klog: error setting local debug log to {}.\n", sPath);
 		}
@@ -336,7 +336,7 @@ void SetupOptions (KOptions& Options, Actions& Actions)
 
 	Options.RegisterOption("flag", "need pathname for debug flag", [&](KStringViewZ sPath)
 	{
-		if (!KLog().SetDebugFlag (sPath))
+		if (!KLog::getInstance().SetDebugFlag (sPath))
 		{
 			KErr.Format ("klog: error setting local debug flag to {}.\n", sPath);
 		}
@@ -358,7 +358,7 @@ void SetupOptions (KOptions& Options, Actions& Actions)
 
 	Options.RegisterCommand("clear", [&]()
 	{
-		KString sLogFile = KLog().GetDebugLog();
+		KString sLogFile = KLog::getInstance().GetDebugLog();
 
 		if ((sLogFile == "stdout") || (sLogFile == "stderr") || (sLogFile == "null"))
 		{
@@ -395,17 +395,17 @@ void SetupOptions (KOptions& Options, Actions& Actions)
 
 	Options.RegisterCommand("get", [&]()
 	{
-		KErr.Format ("{}\n", KLog().GetLevel());
+		KErr.Format ("{}\n", KLog::getInstance().GetLevel());
 	});
 
 	Options.RegisterCommand("getlog", [&]()
 	{
-		KErr.Format ("{}\n", KLog().GetDebugLog());
+		KErr.Format ("{}\n", KLog::getInstance().GetDebugLog());
 	});
 
 	Options.RegisterCommand("setlog", "missing argument", [&](KStringViewZ sPath)
 	{
-		if (KLog().SetDebugLog (sPath))
+		if (KLog::getInstance().SetDebugLog (sPath))
 		{
 			KErr.Format ("klog: set new debug log to {} - ", sPath);
 			Persist();
@@ -468,7 +468,7 @@ int main (int argc, char* argv[])
 {
 	// we have to act as a SERVER, as otherwise we would not read the
 	// flag file for the current settings..
-	KLog().SetMode(KLog::SERVER);
+	KLog::getInstance().SetMode(KLog::SERVER);
 
 	Actions Actions;
 	KOptions Options(true);
@@ -480,7 +480,7 @@ int main (int argc, char* argv[])
 		return iErrors; // either error or completed
 	}
 
-	KString sLogFile = KLog().GetDebugLog();
+	KString sLogFile = KLog::getInstance().GetDebugLog();
 
     if ((Actions.bFollowFlag || Actions.iDumpLines) && ((sLogFile == "stdout") || (sLogFile == "stderr")))
 	{

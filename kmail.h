@@ -246,7 +246,7 @@ private:
 
 	std::shared_ptr<KReplacer> m_Replacer;
 	mutable KString m_sError;
-	time_t m_Time { Dekaf().GetCurrentTime() };
+	time_t m_Time { Dekaf::getInstance().GetCurrentTime() };
 	mutable KMIMEMultiPart m_Parts;
 	mutable size_t m_iBody { 0 };
 

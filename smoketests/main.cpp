@@ -70,7 +70,7 @@ KStringView g_Synopsis[] = {
 int main( int argc, char* const argv[] )
 //-----------------------------------------------------------------------------
 {
-	dekaf2::Dekaf().SetMultiThreading();
+	dekaf2::Dekaf::getInstance().SetMultiThreading();
 	KLog().SetDebugFlag(".smoketest.dbg");
 	KLog().SetLevel(0);
 	KLog().SetDebugLog(KLog::STDOUT);

@@ -80,7 +80,7 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	bool LoadFromEnv(KStringViewZ svEnvVar = "http_proxy");
+	bool LoadFromEnv(KStringViewZ svEnvVar = "HTTP_PROXY");
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -113,9 +113,9 @@ public:
 	//-----------------------------------------------------------------------------
 	KConnection() = default;
 	KConnection(const KConnection&) = delete;
-	KConnection(KConnection&& Connection);
+	KConnection(KConnection&& other);
 	KConnection& operator=(const KConnection&) = delete;
-	KConnection& operator=(KConnection&& Connection);
+	KConnection& operator=(KConnection&& other);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -123,6 +123,14 @@ public:
 	//-----------------------------------------------------------------------------
 	    : m_Stream(&Stream)
 	    , m_bStreamIsNotOwned(true)
+	{
+	}
+
+	//-----------------------------------------------------------------------------
+	KConnection(KStream&& Stream) noexcept
+	//-----------------------------------------------------------------------------
+		: m_Stream(&Stream)
+		, m_bStreamIsNotOwned(false)
 	{
 	}
 
@@ -149,6 +157,10 @@ public:
 
 	//-----------------------------------------------------------------------------
 	KConnection& operator=(KStream& Stream);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	KConnection& operator=(KStream&& Stream);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -219,7 +231,7 @@ protected:
 
 	//-----------------------------------------------------------------------------
 	// returns true if connection is Good()
-	bool setConnection(std::unique_ptr<KStream>&& Stream, KStringView EndPoint);
+	bool setConnection(std::unique_ptr<KStream>&& Stream, KString EndPoint);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -243,7 +255,7 @@ private:
 //------
 
 	std::unique_ptr<KStream> m_Stream;
-	bool m_bStreamIsNotOwned{false};
+	bool m_bStreamIsNotOwned { false };
 
 }; // KConnection
 

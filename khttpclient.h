@@ -178,7 +178,6 @@ public:
 	bool HttpSuccess() const
 	//-----------------------------------------------------------------------------
 	{
-		//return ((GetStatusCode() >= 200) && (GetStatusCode() <= 299));
 		return Response.Good();
 	}
 
@@ -187,7 +186,6 @@ public:
 	bool HttpFailure() const
 	//-----------------------------------------------------------------------------
 	{
-		//return (!HttpSuccess());
 		return !(Response.Good());
 	}
 

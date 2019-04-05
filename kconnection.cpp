@@ -95,22 +95,22 @@ bool KProxy::LoadFromEnv(KStringViewZ svEnvVar)
 
 
 //-----------------------------------------------------------------------------
-KConnection::KConnection(KConnection&& Connection)
+KConnection::KConnection(KConnection&& other)
 //-----------------------------------------------------------------------------
 {
-	operator=(std::move(Connection));
+	operator=(std::move(other));
 }
 
 //-----------------------------------------------------------------------------
-KConnection& KConnection::operator=(KConnection&& Connection)
+KConnection& KConnection::operator=(KConnection&& other)
 //-----------------------------------------------------------------------------
 {
 	if (m_bStreamIsNotOwned)
 	{
 		m_Stream.release();
 	}
-	m_bStreamIsNotOwned = false;
-	m_Stream = std::move(Connection.m_Stream);
+	m_bStreamIsNotOwned = other.m_bStreamIsNotOwned;
+	m_Stream = std::move(other.m_Stream);
 	return *this;
 }
 
@@ -122,7 +122,23 @@ KConnection& KConnection::operator=(KStream& Stream)
 	{
 		m_Stream.release();
 	}
-	m_bStreamIsNotOwned = true;
+	else
+	{
+		m_bStreamIsNotOwned = true;
+	}
+	m_Stream.reset(&Stream);
+	return *this;
+}
+
+//-----------------------------------------------------------------------------
+KConnection& KConnection::operator=(KStream&& Stream)
+//-----------------------------------------------------------------------------
+{
+	if (m_bStreamIsNotOwned)
+	{
+		m_Stream.release();
+		m_bStreamIsNotOwned = false;
+	}
 	m_Stream.reset(&Stream);
 	return *this;
 }
@@ -135,16 +151,11 @@ void KConnection::Disconnect()
 	{
 		kDebug(3, "disconnecting");
 	}
-	else
-	{
-		kDebug(1, "disconnecting an unconnected stream");
-	}
 
 	if (m_bStreamIsNotOwned)
 	{
 		m_bStreamIsNotOwned = false;
 		m_Stream.release();
-		// TODO shall we call close() on the stream?
 	}
 	else
 	{
@@ -198,16 +209,16 @@ KString KConnection::Error() const
 } // Error
 
 //-----------------------------------------------------------------------------
-bool KConnection::setConnection(std::unique_ptr<KStream>&& Stream, KStringView EndPoint)
+bool KConnection::setConnection(std::unique_ptr<KStream>&& Stream, KString EndPoint)
 //-----------------------------------------------------------------------------
 {
 	if (m_bStreamIsNotOwned)
 	{
-		m_bStreamIsNotOwned = false;
 		m_Stream.release();
+		m_bStreamIsNotOwned = false;
 	}
 	m_Stream = std::move(Stream);
-	m_Endpoint = EndPoint;
+	m_Endpoint = std::move(EndPoint);
 
 	if (Good())
 	{
@@ -448,13 +459,13 @@ std::unique_ptr<KConnection> KConnection::Create(const KURL& URL, const KProxy& 
 	if (Port == "443" || URL.Protocol == url::KProtocol::HTTPS || bForceSSL)
 	{
 		auto C = std::make_unique<KSSLConnection>();
-		C->Connect(KTCPEndPoint(URL.Domain, Port), bVerifyCerts);
+		C->Connect(KTCPEndPoint(Domain, Port), bVerifyCerts);
 		return std::move(C);
 	}
 	else
 	{
 		auto C = std::make_unique<KTCPConnection>();
-		C->Connect(KTCPEndPoint(URL.Domain, Port));
+		C->Connect(KTCPEndPoint(Domain, Port));
 		return std::move(C);
 	}
 

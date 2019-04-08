@@ -101,7 +101,7 @@ public:
 
 	/// Parse arguments and call the registered callback functions. Returns 0
 	/// if valid, -1 if -help was called, and > 0 for error
-	int Parse(int argc, char** argv, KOutStream& out);
+	int Parse(int argc, char** argv, KOutStream& out = KOut);
 
 	using ArgList   = KStack<KStringViewZ>;
 	using Callback0 = std::function<void()>;

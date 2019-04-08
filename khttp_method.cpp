@@ -54,6 +54,7 @@ constexpr KStringViewZ KHTTPMethod::DELETE;
 constexpr KStringViewZ KHTTPMethod::OPTIONS;
 constexpr KStringViewZ KHTTPMethod::PATCH;
 constexpr KStringViewZ KHTTPMethod::CONNECT;
+constexpr KStringViewZ KHTTPMethod::REQUEST_METHODS;
 
 #endif
 

@@ -161,6 +161,7 @@ public:
 	static constexpr KStringViewZ PRAGMA                           = "Pragma";
 	static constexpr KStringViewZ PROXY_AUTHENTICATE               = "Proxy-Authenticate";
 	static constexpr KStringViewZ PROXY_AUTHORIZATION              = "Proxy-Authorization";
+	static constexpr KStringViewZ PROXY_CONNECTION                 = "Proxy-Connection";
 	static constexpr KStringViewZ PUBLIC_KEY_PINS                  = "Public-Key-Pins";
 	static constexpr KStringViewZ RANGE                            = "Range";
 	static constexpr KStringViewZ REFERER                          = "Referer";
@@ -241,6 +242,7 @@ public:
 	static constexpr KStringViewZ pragma                           = "pragma";
 	static constexpr KStringViewZ proxy_authenticate               = "proxy-authenticate";
 	static constexpr KStringViewZ proxy_authorization              = "proxy-authorization";
+	static constexpr KStringViewZ proxy_connection                 = "proxy-connection";
 	static constexpr KStringViewZ public_key_pins                  = "public-key-pins";
 	static constexpr KStringViewZ range                            = "range";
 	static constexpr KStringViewZ referer                          = "referer";

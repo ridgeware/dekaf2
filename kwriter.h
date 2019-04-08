@@ -257,6 +257,14 @@ public:
 		return OutStream().good();
 	}
 
+	//-----------------------------------------------------------------------------
+	/// Check if stream is good for output
+	explicit operator bool() const
+	//-----------------------------------------------------------------------------
+	{
+		return Good();
+	}
+
 //-------
 protected:
 //-------
@@ -325,6 +333,14 @@ public:
 	/// move assignment
 	self_type& operator=(self_type&& other) = default;
 	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// Check if stream is good for output
+	explicit operator bool() const
+	//-----------------------------------------------------------------------------
+	{
+		return base_type::good();
+	}
 
 }; // KWriter
 

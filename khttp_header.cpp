@@ -138,14 +138,19 @@ bool KHTTPHeaders::Serialize(KOutStream& Stream) const
 {
 	for (const auto& iter : Headers)
 	{
-		Stream.Write(iter.first);
-		Stream.Write(": ");
-		Stream.WriteLine(iter.second);
+		if (!Stream.Write(iter.first)
+			|| !Stream.Write(": ")
+			|| !Stream.WriteLine(iter.second))
+		{
+			return SetError("Cannot write headers");
+		}
 	}
 
-	Stream.WriteLine(); // blank line indicates end of headers
-
-	Stream.Flush();
+	if (!Stream.WriteLine() // blank line indicates end of headers
+		|| !Stream.Flush())
+	{
+		return SetError("Cannot write headers");
+	}
 
 	return true;
 
@@ -352,6 +357,7 @@ constexpr KStringViewZ KHTTPHeaders::P3P;
 constexpr KStringViewZ KHTTPHeaders::PRAGMA;
 constexpr KStringViewZ KHTTPHeaders::PROXY_AUTHENTICATE;
 constexpr KStringViewZ KHTTPHeaders::PROXY_AUTHORIZATION;
+constexpr KStringViewZ KHTTPHeaders::PROXY_CONNECTION;
 constexpr KStringViewZ KHTTPHeaders::PUBLIC_KEY_PINS;
 constexpr KStringViewZ KHTTPHeaders::RANGE;
 constexpr KStringViewZ KHTTPHeaders::REFERER;
@@ -428,6 +434,7 @@ constexpr KStringViewZ KHTTPHeaders::p3p;
 constexpr KStringViewZ KHTTPHeaders::pragma;
 constexpr KStringViewZ KHTTPHeaders::proxy_authenticate;
 constexpr KStringViewZ KHTTPHeaders::proxy_authorization;
+constexpr KStringViewZ KHTTPHeaders::proxy_connection;
 constexpr KStringViewZ KHTTPHeaders::public_key_pins;
 constexpr KStringViewZ KHTTPHeaders::range;
 constexpr KStringViewZ KHTTPHeaders::referer;

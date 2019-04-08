@@ -74,7 +74,7 @@ std::streamsize KUnixIOStream::UnixStreamReader(void* sBuffer, std::streamsize i
 
 		if (iRead == 0 || stream->ec.value() != 0 || !stream->Socket.is_open())
 		{
-			kDebug(3, "cannot read from unix stream {}: {}",
+			kDebug(1, "cannot read from unix stream {}: {}",
 				   stream->sEndpoint,
 				   stream->ec.message());
 		}
@@ -116,7 +116,7 @@ std::streamsize KUnixIOStream::UnixStreamWriter(const void* sBuffer, std::stream
 
 			if (iWrotePart == 0 || stream->ec.value() != 0 || !stream->Socket.is_open())
 			{
-				kDebug(3, "cannot write to unix stream {}: {}",
+				kDebug(1, "cannot write to unix stream {}: {}",
 					   stream->sEndpoint,
 					   stream->ec.message());
 				break;
@@ -174,7 +174,7 @@ bool KUnixIOStream::Connect(KStringViewZ sSocketFile)
 
 	if (!Good() || !m_Stream.Socket.is_open())
 	{
-		kDebug(2, "{}: {}", sSocketFile, Error());
+		kDebug(1, "{}: {}", sSocketFile, Error());
 		return false;
 	}
 

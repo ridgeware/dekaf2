@@ -198,7 +198,7 @@ bool KSSLIOStream::handshake(KAsioSSLStream<tcpstream>* stream)
 
 	if (stream->ec.value() != 0 || !stream->Socket.lowest_layer().is_open())
 	{
-		kDebug(2, "ssl handshake failed with {}: {}",
+		kDebug(1, "ssl handshake failed with {}: {}",
 			   stream->sEndpoint,
 			   stream->ec.message());
 		return false;
@@ -282,7 +282,7 @@ std::streamsize KSSLIOStream::SSLStreamReader(void* sBuffer, std::streamsize iCo
 
 		if (iRead == 0 || stream->ec.value() != 0 || !stream->Socket.lowest_layer().is_open())
 		{
-			kDebug(3, "cannot read from tls stream with {}: {}",
+			kDebug(1, "cannot read from tls stream with {}: {}",
 				   stream->sEndpoint,
 				   stream->ec.message());
 		}
@@ -343,7 +343,7 @@ std::streamsize KSSLIOStream::SSLStreamWriter(const void* sBuffer, std::streamsi
 
 			if (iWrotePart == 0 || stream->ec.value() != 0 || !stream->Socket.lowest_layer().is_open())
 			{
-				kDebug(3, "cannot write to tls stream with {}: {}",
+				kDebug(1, "cannot write to tls stream with {}: {}",
 					   stream->sEndpoint,
 					   stream->ec.message());
 				break;
@@ -441,7 +441,7 @@ bool KSSLIOStream::Connect(const KTCPEndPoint& Endpoint)
 
 	if (!Good() || !m_Stream.Socket.lowest_layer().is_open())
 	{
-		kDebug(2, "{}: {}", Endpoint.Serialize(), Error());
+		kDebug(1, "{}: {}", Endpoint.Serialize(), Error());
 		return false;
 	}
 

@@ -52,49 +52,6 @@
 namespace dekaf2 {
 
 //-----------------------------------------------------------------------------
-KProxy::KProxy(const url::KDomain& domain,
-               const url::KPort& port,
-               KStringView svUser,
-               KStringView svPassword)
-//-----------------------------------------------------------------------------
-    : Domain(domain)
-    , Port(port)
-    , User(svUser)
-    , Password(svPassword)
-{
-}
-
-//-----------------------------------------------------------------------------
-KProxy::KProxy(KStringView svDomainAndPort,
-               KStringView svUser,
-               KStringView svPassword)
-//-----------------------------------------------------------------------------
-    : User(svUser)
-    , Password(svPassword)
-{
-	Port.Parse(Domain.Parse(svDomainAndPort));
-}
-
-//-----------------------------------------------------------------------------
-void KProxy::clear()
-//-----------------------------------------------------------------------------
-{
-	Domain.clear();
-	Port.clear();
-	User.clear();
-	Password.clear();
-}
-
-//-----------------------------------------------------------------------------
-bool KProxy::LoadFromEnv(KStringViewZ svEnvVar)
-//-----------------------------------------------------------------------------
-{
-	Port.Parse(Domain.Parse(kGetEnv(svEnvVar)));
-	return !empty();
-}
-
-
-//-----------------------------------------------------------------------------
 KConnection::KConnection(KConnection&& other)
 //-----------------------------------------------------------------------------
 {
@@ -147,11 +104,6 @@ KConnection& KConnection::operator=(KStream&& Stream)
 void KConnection::Disconnect()
 //-----------------------------------------------------------------------------
 {
-	if (m_Stream)
-	{
-		kDebug(3, "disconnecting");
-	}
-
 	if (m_bStreamIsNotOwned)
 	{
 		m_bStreamIsNotOwned = false;
@@ -222,8 +174,6 @@ bool KConnection::setConnection(std::unique_ptr<KStream>&& Stream, KString EndPo
 
 	if (Good())
 	{
-
-		kDebug(3, "connected to {}", m_Endpoint);
 		return true;
 	}
 	else
@@ -428,48 +378,6 @@ std::unique_ptr<KConnection> KConnection::Create(const KURL& URL, bool bForceSSL
 			return C;
 		}
 	}
-
-} // Create
-
-//-----------------------------------------------------------------------------
-std::unique_ptr<KConnection> KConnection::Create(const KURL& URL, const KProxy& Proxy, bool bForceSSL, bool bVerifyCerts)
-//-----------------------------------------------------------------------------
-{
-	KConnection Connection;
-
-	url::KPort Port;
-	url::KDomain Domain;
-
-	if (Proxy.empty())
-	{
-		Port = URL.Port;
-		Domain = URL.Domain;
-	}
-	else
-	{
-		Port = Proxy.Port;
-		Domain = Proxy.Domain;
-	}
-
-	if (Port.empty())
-	{
-		Port = KString::to_string(URL.Protocol.DefaultPort());
-	}
-
-	if (Port == "443" || URL.Protocol == url::KProtocol::HTTPS || bForceSSL)
-	{
-		auto C = std::make_unique<KSSLConnection>();
-		C->Connect(KTCPEndPoint(Domain, Port), bVerifyCerts);
-		return std::move(C);
-	}
-	else
-	{
-		auto C = std::make_unique<KTCPConnection>();
-		C->Connect(KTCPEndPoint(Domain, Port));
-		return std::move(C);
-	}
-
-	return std::make_unique<KTCPConnection>();
 
 } // Create
 

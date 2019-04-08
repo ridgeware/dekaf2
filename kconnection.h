@@ -50,58 +50,6 @@
 namespace dekaf2 {
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class KProxy
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-{
-
-//------
-public:
-//------
-
-	//-----------------------------------------------------------------------------
-	KProxy() = default;
-	KProxy(const KProxy&) = default;
-	KProxy(KProxy&&) = default;
-	KProxy& operator=(const KProxy&) = default;
-	KProxy& operator=(KProxy&&) = default;
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	KProxy(const url::KDomain& domain,
-	       const url::KPort& port,
-	       KStringView svUser = KStringView{},
-	       KStringView svPassword = KStringView{});
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	KProxy(KStringView svDomainAndPort,
-	       KStringView svUser = KStringView{},
-	       KStringView svPassword = KStringView{});
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	bool LoadFromEnv(KStringViewZ svEnvVar = "HTTP_PROXY");
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	void clear();
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	bool empty() const
-	//-----------------------------------------------------------------------------
-	{
-		return Domain.empty();
-	}
-
-	url::KDomain Domain;
-	url::KPort Port;
-	KString User;
-	KString Password;
-
-}; // KProxy
-
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class KConnection
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -207,11 +155,6 @@ public:
 	//-----------------------------------------------------------------------------
 	// this interface uses KURL instead of KTCPEndPoint to allow construction like "https://www.abc.de" - otherwise the protocol would be lost..
 	static std::unique_ptr<KConnection> Create(const KURL& URL, bool bForceSSL = false, bool bVerifyCerts = false);
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	// this interface uses KURL instead of KTCPEndPoint to allow construction like "https://www.abc.de" - otherwise the protocol would be lost..
-	static std::unique_ptr<KConnection> Create(const KURL& URL, const KProxy& Proxy, bool bForceSSL = false, bool bVerifyCerts = false);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------

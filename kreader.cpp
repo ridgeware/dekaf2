@@ -1,5 +1,4 @@
 /*
-//-----------------------------------------------------------------------------//
 //
 // DEKAF(tm): Lighter, Faster, Smarter (tm)
 //
@@ -77,7 +76,7 @@ ssize_t kGetSize(std::istream& Stream, bool bFromStart)
 
 		if (!sb)
 		{
-			kDebug(1, "kGetSize: no streambuf");
+			kDebug(1, "no streambuf");
 			return -1;
 		}
 
@@ -85,7 +84,7 @@ ssize_t kGetSize(std::istream& Stream, bool bFromStart)
 
 		if (curPos == std::streambuf::pos_type(std::streambuf::off_type(-1)))
 		{
-			kDebug(3, "kGetSize: istream is not seekable ({})", 1);
+			kDebug(3, "istream is not seekable ({})", 1);
 			return curPos;
 		}
 
@@ -93,7 +92,7 @@ ssize_t kGetSize(std::istream& Stream, bool bFromStart)
 
 		if (endPos == std::streambuf::pos_type(std::streambuf::off_type(-1)))
 		{
-			kDebug(3, "kGetSize: istream is not seekable ({})", 2);
+			kDebug(3, "istream is not seekable ({})", 2);
 			return endPos;
 		}
 
@@ -167,7 +166,7 @@ bool kAppendAll(std::istream& Stream, KString& sContent, bool bFromStart)
 
 	if (!sb)
 	{
-		kDebug(1, "kReadAll: no streambuf");
+		kDebug(1, "no streambuf");
 		return false;
 	}
 
@@ -209,7 +208,7 @@ bool kAppendAll(std::istream& Stream, KString& sContent, bool bFromStart)
 
 				if (iTotal > iLimit)
 				{
-					kDebug(1, "kAppendAll: stepped over limit of {} MB for non-seekable input stream - aborted reading", iLimit / (1024*1024) );
+					kWarning("stepped over limit of {} MB for non-seekable input stream - aborted reading", iLimit / (1024*1024) );
 					break;
 				}
 			}
@@ -229,7 +228,7 @@ bool kAppendAll(std::istream& Stream, KString& sContent, bool bFromStart)
 	// position stream to the beginning
 	if (bFromStart && !kRewind(Stream))
 	{
-		kDebug(1, "kReadAll: cannot rewind stream");
+		kDebug(1, "cannot rewind stream");
 		return false;
 	}
 
@@ -256,12 +255,12 @@ bool kAppendAll(std::istream& Stream, KString& sContent, bool bFromStart)
 	}
 	else
 	{
-		kDebug (1, "kReadAll: stream grew during read, did not read all new content");
+		kDebug (1, "stream grew during read, did not read new content");
 	}
 
 	if (iRead != uiSize)
 	{
-		kWarning ("KReader: Unable to read full file, requested {0} bytes, got {1}", iSize, iRead);
+		kWarning ("Unable to read full file, requested {0} bytes, got {1}", iSize, iRead);
 		return false;
 	}
 
@@ -278,7 +277,7 @@ bool kReadAll(std::istream& Stream, KString& sContent, bool bFromStart)
 
 } // kReadAll
 
-#ifdef DEKAF2_IS_WINDOWS
+#ifndef DEKAF2_IS_OSX
 #define DEKAF2_READALL_USE_IOSTREAMS
 #endif
 
@@ -298,16 +297,17 @@ bool kReadAll(KStringViewZ sFileName, KString& sContent)
 
 	if (iSize > 0)
 	{
-		// We use an unbuffered file descriptor read because with
-		// sub-optimal iostream implementations like the one coming
+		// We use an unbuffered file descriptor read on MacOS because
+		// with sub-optimal iostream implementations like the one coming
 		// with clang on the mac it is about five times faster than
 		// reading from the iostream..
 		//
-		// Current gcc implementations would not need this hack,
+		// Current gcc implementations do not need this hack,
 		// there, the speed is the same with iostreams as with simple
-		// file descriptor reads. But it does not hurt there either.
+		// file descriptor reads. But they do not hurt there either.
+		// However, we do switch to iostreams on Linux now as well.
 		//
-		// For Windows, we switch to iostreams however, as otherwise
+		// For Windows, we switch to iostreams anyways, as otherwise
 		// we could not open UTF8 file names
 
 #ifdef DEKAF2_READALL_USE_IOSTREAMS
@@ -619,6 +619,12 @@ size_t KInStream::Read(KString& sBuffer, size_t iCount)
 //-----------------------------------------------------------------------------
 {
 	auto iOldLen = sBuffer.size();
+
+	if (iCount == npos)
+	{
+		kAppendAll(*this, sBuffer, false);
+		return sBuffer.size() - iOldLen;
+	}
 
 	sBuffer.resize_uninitialized(iOldLen + iCount);
 

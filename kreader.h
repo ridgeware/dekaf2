@@ -286,12 +286,12 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Read a range of characters and append to sBuffer. Returns count of successfully read charcters.
-	size_t Read(KString& sBuffer, size_t iCount);
+	size_t Read(KString& sBuffer, size_t iCount = npos);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// Read a range of characters and append to Stream. Returns count of successfully read charcters.
-	size_t Read(KOutStream& Stream, size_t iCount);
+	size_t Read(KOutStream& Stream, size_t iCount = npos);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -342,6 +342,7 @@ public:
 	//-----------------------------------------------------------------------------
 	{
 		auto iSize = kGetSize(InStream(), true);
+
 		if (iSize < 0)
 		{
 			return 0;
@@ -359,6 +360,7 @@ public:
 	//-----------------------------------------------------------------------------
 	{
 		auto iSize = kGetSize(InStream(), false);
+		
 		if (iSize < 0)
 		{
 			return 0;

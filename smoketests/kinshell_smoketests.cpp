@@ -3,6 +3,8 @@
 #include <dekaf2/kinshell.h>
 #include <dekaf2/kstring.h>
 
+#ifndef DEKAF2_IS_WINDOWS
+
 #include <iostream>
 #ifdef DEKAF2_IS_WINDOWS
 	#include <io.h>
@@ -11,23 +13,7 @@
 	#include <sys/resource.h>
 #endif
 
-#define kprPRINT 0
-
 using namespace dekaf2;
-
-#define KPIPE_DELAY (1)
-KString KPipeReaderDelayCommand(unsigned int depth, unsigned int second, const KString sMessage1 = "", const KString sMessage2 = "")
-{
-	    return fmt::format("$dekaf/utests/kpipe_delay_test.sh {} {} '{}' '{}' 2>&1",
-		            depth, second/40, sMessage1.c_str(), sMessage2.c_str());
-}
-
-void kpipereader_testKillDelayTask()
-{
-	    KString sCmd("pkill -f 'kpipe_delay_test' > /dev/null 2>&1");
-		system(sCmd.c_str());
-
-} // kpipe_testKillDelayTask
 
 TEST_CASE("KInShell")
 {
@@ -39,19 +25,16 @@ TEST_CASE("KInShell")
 		CHECK(pipe.Open(sCurlCMD));
 
 		KString sCurrentLine;
-		bool output = pipe.ReadLine(sCurrentLine);
-		CHECK(output);
-		//std::cout << "output is:\n" << std::endl;
-		while (output)
+		bool bOutput = pipe.ReadLine(sCurrentLine);
+		CHECK(bOutput);
+		while (bOutput)
 		{
-			//std::cout << sCurrentLine;
-			output = pipe.ReadLine(sCurrentLine);
-			//CHECK(output);
+			bOutput = pipe.ReadLine(sCurrentLine);
 
 		}
-		CHECK_FALSE(output);
+		CHECK_FALSE(bOutput);
 		CHECK(pipe.Close() == 0);
-	} // curl test
+	}
 
 	SECTION("KInShell Curl Iterator Test")
 	{
@@ -69,6 +52,8 @@ TEST_CASE("KInShell")
 
 		CHECK_FALSE(output.empty());
 		CHECK(pipe.Close() == 0);
-	} // Curl Iterator Test
+	}
 
-} // end test case KPipeReader
+}
+
+#endif // !DEKAF2_IS_WINDOWS

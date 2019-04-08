@@ -74,6 +74,11 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	/// Ctor, connects to a server via proxy and sets method and resource
+	KHTTPClient(const KURL& url, const KURL& Proxy, KHTTPMethod method = KHTTPMethod::GET, bool bVerifyCerts = false);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
 	/// Ctor, takes an existing connection to a server
 	KHTTPClient(std::unique_ptr<KConnection> stream);
 	//-----------------------------------------------------------------------------
@@ -95,11 +100,23 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	/// Set proxy server for all subsequent connects
+	void SetProxy(KURL Proxy)
+	//-----------------------------------------------------------------------------
+	{
+		m_Proxy = std::move(Proxy);
+	}
+
+	//-----------------------------------------------------------------------------
 	bool Connect(std::unique_ptr<KConnection> Connection);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	bool Connect(const KURL& url, bool bVerifyCerts = false);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	bool Connect(const KURL& url, const KURL& Proxy, bool bVerifyCerts = false);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -117,7 +134,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Adds a request header for the next request
-	bool RequestHeader(KStringView svName, KStringView svValue, bool bOverwrite = true);
+	bool SetRequestHeader(KStringView svName, KStringView svValue, bool bOverwrite = true);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -298,12 +315,24 @@ public:
 		return Response.iStatusCode;
 	}
 
+	//-----------------------------------------------------------------------------
+	/// Allow auto configuration of proxy server from environment variables?
+	void AutoConfigureProxy(bool bYes = true)
+	//-----------------------------------------------------------------------------
+	{
+		m_bAutoProxy = bYes;
+	}
+
 //------
 protected:
 //------
  
 	//-----------------------------------------------------------------------------
 	bool ReadHeader();
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	bool SetHostHeader(const KURL& url, bool bForcePort = false);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -315,14 +344,24 @@ protected:
 	bool AlreadyConnected(const KURL& URL) const;
 	//-----------------------------------------------------------------------------
 
+	//-----------------------------------------------------------------------------
+	/// Returns true if url is not exempt from proxying through the comma delimited
+	/// sNoProxy list. A leading dot means that only the end of the strings are
+	/// compared.
+	static bool FilterByNoProxyList(const KURL& url, KStringView sNoProxy);
+	//-----------------------------------------------------------------------------
+
 //------
 private:
 //------
 
 	std::unique_ptr<KConnection> m_Connection;
 	mutable KString m_sError;
+	KURL m_Proxy;
 	long m_Timeout { 30 };
 	bool m_bRequestCompression { true };
+	bool m_bAutoProxy { false };
+	bool m_bUseHTTPProxyProtocol { false };
 
 //------
 public:

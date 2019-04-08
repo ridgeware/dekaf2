@@ -53,13 +53,28 @@ void KHTTPClient::clear()
 	Response.clear();
 	m_sError.clear();
 	m_bRequestCompression = true;
-}
+
+	// do not reset m_bUseHTTPProxyProtocol here - it stays valid until
+	// the setup of a new connection
+
+} // clear
 
 //-----------------------------------------------------------------------------
 KHTTPClient::KHTTPClient(const KURL& url, KHTTPMethod method, bool bVerifyCerts)
 //-----------------------------------------------------------------------------
 {
 	if (Connect(url, bVerifyCerts))
+	{
+		Resource(url, method);
+	}
+
+} // Ctor
+
+//-----------------------------------------------------------------------------
+KHTTPClient::KHTTPClient(const KURL& url, const KURL& Proxy, KHTTPMethod method, bool bVerifyCerts)
+//-----------------------------------------------------------------------------
+{
+	if (Connect(url, Proxy, bVerifyCerts))
 	{
 		Resource(url, method);
 	}
@@ -92,6 +107,9 @@ bool KHTTPClient::Connect(std::unique_ptr<KConnection> Connection)
 		return SetError(m_Connection->Error());
 	}
 
+	// this is a new connection, so initially assume no proxying
+	m_bUseHTTPProxyProtocol	= false;
+
 	m_Connection->SetTimeout(m_Timeout);
 
 	(*m_Connection)->SetReaderEndOfLine('\n');
@@ -107,15 +125,170 @@ bool KHTTPClient::Connect(std::unique_ptr<KConnection> Connection)
 } // Connect
 
 //-----------------------------------------------------------------------------
+bool KHTTPClient::FilterByNoProxyList(const KURL& url, KStringView sNoProxy)
+//-----------------------------------------------------------------------------
+{
+	if (!sNoProxy.empty())
+	{
+		std::vector<KStringView> NoProxy;
+
+		kSplit(NoProxy, sNoProxy);
+
+		for (auto sDomain : NoProxy)
+		{
+			if (sDomain.front() == '.')
+			{
+				if (url.Domain.get().ends_with(sDomain))
+				{
+					return false;
+				}
+			}
+			else if (url.Domain.get() == sDomain)
+			{
+				return false;
+			}
+		}
+	}
+
+	return true;
+
+} // FilterByNoProxyList
+
+//-----------------------------------------------------------------------------
 bool KHTTPClient::Connect(const KURL& url, bool bVerifyCerts)
 //-----------------------------------------------------------------------------
 {
+	if (!m_Proxy.empty())
+	{
+		return Connect(url, m_Proxy, bVerifyCerts);
+	}
+
 	if (AlreadyConnected(url))
 	{
 		return true;
 	}
 
+	if (m_bAutoProxy)
+	{
+		// get a comma delimited list of domains that shall not be proxied,
+		// like "localhost,127.0.0.1,.example.com,www.nosite.org"
+
+		if (FilterByNoProxyList(url, kGetEnv("NO_PROXY")))
+		{
+			// which protocol?
+			bool bIsHTTPS = url.Protocol == url::KProtocol::HTTPS || url.Port == "443";
+
+			// try to read proxy setup from environment
+			KURL Proxy(kGetEnv(bIsHTTPS ? "HTTPS_PROXY" : "HTTP_PROXY"));
+
+			if (!Proxy.empty())
+			{
+				return Connect(url, Proxy, bVerifyCerts);
+			}
+		}
+	}
+
 	return Connect(KConnection::Create(url, false, bVerifyCerts));
+
+} // Connect
+
+//-----------------------------------------------------------------------------
+bool KHTTPClient::Connect(const KURL& url, const KURL& Proxy, bool bVerifyCerts)
+//-----------------------------------------------------------------------------
+{
+	if (Proxy.empty())
+	{
+		return Connect(KConnection::Create(url, false, bVerifyCerts));
+	}
+
+	// which protocol on which connection segment?
+	bool bTargetIsHTTPS = url.Protocol   == url::KProtocol::HTTPS || url.Port   == "443";
+	bool bProxyIsHTTPS  = Proxy.Protocol == url::KProtocol::HTTPS || Proxy.Port == "443";
+
+	if (!bTargetIsHTTPS && AlreadyConnected(Proxy))
+	{
+		// we can reuse an existing non-HTTPS proxy connection
+		return true;
+	}
+
+	// Connect the proxy. Use a TLS connection if either proxy or target is HTTPS.
+	if (!Connect(KConnection::Create(Proxy, bProxyIsHTTPS || bTargetIsHTTPS, bVerifyCerts)))
+	{
+		// error is already set
+		return false;
+	}
+
+	if (bTargetIsHTTPS && !bProxyIsHTTPS)
+	{
+		// Connect to the proxy in HTTP and request a transparent tunnel to
+		// the target with CONNECT, then start the TLS handshake
+		//
+		// In this type of configuration we can reuse the initially not yet
+		// handshaked TLS connection to the proxy to just do the TLS handshake
+		// once the proxy has established the tunnel
+		//
+		// This mode is supported for proxies inside the local network. Using
+		// it for proxies on the internet would be defeating the purpose.
+
+		// We first have to send our CONNECT request in plain text..
+		m_Connection->SetManualTLSHandshake(true);
+
+		// and here it comes:
+		if (!Resource(url, KHTTPMethod::CONNECT))
+		{
+			return false;
+		}
+
+		if (!SendRequest())
+		{
+			return false;
+		}
+
+		if (Response.iStatusCode != 200)
+		{
+			return SetError(kFormat("proxy server returned {} {}", Response.iStatusCode, Response.sStatusString));
+		}
+
+		// end of header, start TLS
+		if (!m_Connection->StartManualTLSHandshake())
+		{
+			return SetError(m_Connection->Error());
+		}
+
+		// remove all headers from the outer proxy connection
+		clear();
+
+		// that's it.. we do not have to set any special flag, as from now on
+		// all communication is simply passed through a transparent tunnel to
+		// the target server
+
+		return true;
+	}
+	else if (bTargetIsHTTPS && bProxyIsHTTPS)
+	{
+		// the most difficult case: connect the Proxy with TLS _and_ start a
+		// new TLS stream and handshake to the target server inside the proxy
+		// connection once it is established
+
+		return SetError("TLS tunneling through a TLS stream not yet supported");
+	}
+	else if (!bTargetIsHTTPS)
+	{
+		// for HTTP proxying we only have to modify the request a little bit
+		// - we pass this information on to the request methods by setting
+		// a flag
+		//
+		// Notice that in this mode the connection to the proxy server is
+		// automatically run in TLS mode if requested by the protocol part
+		// of the proxy URL
+
+		m_bUseHTTPProxyProtocol = true;
+
+		return true;
+	}
+
+	// this is unreachable code, but clang thinks differently
+	return false;
 
 } // Connect
 
@@ -139,6 +312,7 @@ void KHTTPClient::SetTimeout(long iSeconds)
 //-----------------------------------------------------------------------------
 {
 	m_Timeout = iSeconds;
+
 	if (m_Connection)
 	{
 		m_Connection->SetTimeout(iSeconds);
@@ -155,42 +329,74 @@ bool KHTTPClient::Resource(const KURL& url, KHTTPMethod method)
 		return SetError("URL is empty");
 	};
 
-	Request.Resource = url;
 	Request.Method = method;
 	Request.sHTTPVersion = "HTTP/1.1";
 
+	bool bIsConnect { false };
+
+	if (DEKAF2_UNLIKELY(method == KHTTPMethod::CONNECT))
+	{
+		// for HTTPS proxying the CONNECT query has the server
+		// domain and port
+		Request.Endpoint = url;
+		bIsConnect = true;
+		SetRequestHeader(KHTTPHeaders::PROXY_CONNECTION, "keep-alive", true);
+	}
+	else if (m_bUseHTTPProxyProtocol)
+	{
+		// for HTTP proxying the resource request string has to include
+		// the server domain and port
+		Request.Endpoint = url;
+		Request.Resource = url;
+		SetRequestHeader(KHTTPHeaders::PROXY_CONNECTION, "keep-alive", true);
+	}
+	else
+	{
+		// for everything else it's only the path and the query
+		Request.Resource = url;
+	}
+
 	// make sure we always have a valid path set
-	if (Request.Resource.Path.empty())
+	if (!bIsConnect && Request.Resource.Path.empty())
 	{
 		Request.Resource.Path.set("/");
 	}
 
-	if (!url.Domain.empty())
-	{
-		// set the host header so that it overwrites a previously set one
-		if (url.Port.empty()
-			|| (url.Protocol == url::KProtocol::HTTP  && url.Port ==  "80")
-			|| (url.Protocol == url::KProtocol::HTTPS && url.Port == "443"))
-		{
-			// domain alone is sufficient for standard ports
-			RequestHeader(KHTTPHeaders::HOST, url.Domain.Serialize(), true);
-		}
-		else
-		{
-			// build "domain:port"
-			KString sHost = url.Domain.Serialize();
-			sHost += ':';
-			sHost += url.Port.Serialize();
-			RequestHeader(KHTTPHeaders::HOST, sHost, true);
-		}
-	}
-
-	return true;
+	return SetHostHeader(url, bIsConnect);
 
 } // Resource
 
 //-----------------------------------------------------------------------------
-bool KHTTPClient::RequestHeader(KStringView svName, KStringView svValue, bool bOverwrite)
+bool KHTTPClient::SetHostHeader(const KURL& url, bool bForcePort)
+//-----------------------------------------------------------------------------
+{
+	if (url.Domain.empty())
+	{
+		return SetError("Domain is empty");
+	}
+
+	// set the host header so that it overwrites a previously set one
+	if (!bForcePort
+		&& (url.Port.empty()
+		|| (url.Protocol == url::KProtocol::HTTP  && url.Port ==  "80")
+		|| (url.Protocol == url::KProtocol::HTTPS && url.Port == "443")))
+	{
+		// domain alone is sufficient for standard ports
+		return SetRequestHeader(KHTTPHeaders::HOST, url.Domain.Serialize(), true);
+	}
+	else
+	{
+		// build "domain:port"
+		KString sHost;
+		url.Domain.Serialize(sHost);
+		url.Port.Serialize(sHost);
+		return SetRequestHeader(KHTTPHeaders::HOST, sHost, true);
+	}
+
+} // SetHostHeader
+
+//-----------------------------------------------------------------------------
+bool KHTTPClient::SetRequestHeader(KStringView svName, KStringView svValue, bool bOverwrite)
 //-----------------------------------------------------------------------------
 {
 	if (bOverwrite)
@@ -207,49 +413,12 @@ bool KHTTPClient::RequestHeader(KStringView svName, KStringView svValue, bool bO
 } // RequestHeader
 
 //-----------------------------------------------------------------------------
-bool KHTTPClient::Parse()
-//-----------------------------------------------------------------------------
-{
-	Request.close();
-
-	if (!Response.Parse())
-	{
-		if (!Response.Error().empty())
-		{
-			SetError(Response.Error());
-		}
-		else
-		{
-			SetError(m_Connection->Error());
-		}
-		return false;
-	}
-
-	return true;
-
-} // Parse
-
-//-----------------------------------------------------------------------------
-bool KHTTPClient::Serialize()
-//-----------------------------------------------------------------------------
-{
-	if (!Request.Serialize())
-	{
-		SetError(Request.Error());
-		return false;
-	}
-
-	return true;
-
-} // Serialize
-
-//-----------------------------------------------------------------------------
 bool KHTTPClient::SendRequest(KStringView svPostData, KMIME Mime)
 //-----------------------------------------------------------------------------
 {
 	Response.clear();
 
-	if (Request.Resource.empty())
+	if (Request.Resource.empty() && Request.Method != KHTTPMethod::CONNECT)
 	{
 		return SetError("no resource");
 	}
@@ -261,13 +430,14 @@ bool KHTTPClient::SendRequest(KStringView svPostData, KMIME Mime)
 
 	if (   Request.Method != KHTTPMethod::GET
 		&& Request.Method != KHTTPMethod::HEAD
-		&& Request.Method != KHTTPMethod::OPTIONS)
+		&& Request.Method != KHTTPMethod::OPTIONS
+		&& Request.Method != KHTTPMethod::CONNECT)
 	{
-		RequestHeader(KHTTPHeaders::CONTENT_LENGTH, KString::to_string(svPostData.size()));
+		SetRequestHeader(KHTTPHeaders::CONTENT_LENGTH, KString::to_string(svPostData.size()));
 
 		if (!svPostData.empty())
 		{
-			RequestHeader(KHTTPHeaders::CONTENT_TYPE, Mime);
+			SetRequestHeader(KHTTPHeaders::CONTENT_TYPE, Mime);
 		}
 	}
 	else
@@ -279,9 +449,9 @@ bool KHTTPClient::SendRequest(KStringView svPostData, KMIME Mime)
 		}
 	}
 
-	if (m_bRequestCompression)
+	if (m_bRequestCompression && Request.Method != KHTTPMethod::CONNECT)
 	{
-		RequestHeader(KHTTPHeaders::ACCEPT_ENCODING, "gzip");
+		SetRequestHeader(KHTTPHeaders::ACCEPT_ENCODING, "gzip");
 	}
 
 	if (!Request.Serialize()) // this sends the request headers to the remote server
@@ -308,6 +478,43 @@ bool KHTTPClient::SendRequest(KStringView svPostData, KMIME Mime)
 
 	return ReadHeader();
 }
+
+//-----------------------------------------------------------------------------
+bool KHTTPClient::Serialize()
+//-----------------------------------------------------------------------------
+{
+	if (!Request.Serialize())
+	{
+		SetError(Request.Error());
+		return false;
+	}
+
+	return true;
+
+} // Serialize
+
+//-----------------------------------------------------------------------------
+bool KHTTPClient::Parse()
+//-----------------------------------------------------------------------------
+{
+	Request.close();
+
+	if (!Response.Parse())
+	{
+		if (!Response.Error().empty())
+		{
+			SetError(Response.Error());
+		}
+		else
+		{
+			SetError(m_Connection->Error());
+		}
+		return false;
+	}
+
+	return true;
+
+} // Parse
 
 //-----------------------------------------------------------------------------
 bool KHTTPClient::ReadHeader()
@@ -345,7 +552,7 @@ KString KHTTPClient::HttpRequest (const KURL& URL, KStringView sRequestMethod/* 
 } // HttpRequest
 
 //-----------------------------------------------------------------------------
-bool KHTTPClient::AlreadyConnected(const KURL& URL) const
+bool KHTTPClient::AlreadyConnected(const KURL& EndPoint) const
 //-----------------------------------------------------------------------------
 {
 	if (!m_Connection || !m_Connection->Good())
@@ -353,7 +560,7 @@ bool KHTTPClient::AlreadyConnected(const KURL& URL) const
 		return false;
 	}
 
-	return URL == m_Connection->EndPoint();
+	return EndPoint == m_Connection->EndPoint();
 
 } // AlreadyConnected
 
@@ -373,6 +580,7 @@ KString kHTTPGet(const KURL& URL)
 //-----------------------------------------------------------------------------
 {
 	KHTTPClient HTTP;
+	HTTP.AutoConfigureProxy(true);
 	return HTTP.Get(URL);
 
 } // kHTTPGet
@@ -382,6 +590,7 @@ bool kHTTPHead(const KURL& URL)
 //-----------------------------------------------------------------------------
 {
 	KHTTPClient HTTP;
+	HTTP.AutoConfigureProxy(true);
 	return HTTP.Head(URL);
 
 } // kHTTPHead
@@ -391,6 +600,7 @@ KString kHTTPPost(const KURL& URL, KStringView svPostData, KStringView svMime)
 //-----------------------------------------------------------------------------
 {
 	KHTTPClient HTTP;
+	HTTP.AutoConfigureProxy(true);
 	return HTTP.Post(URL, svPostData, svMime);
 
 } // kHTTPPost

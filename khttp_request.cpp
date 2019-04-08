@@ -101,19 +101,41 @@ bool KHTTPRequestHeaders::Serialize(KOutStream& Stream) const
 {
 	if (!Resource.empty())
 	{
-		Stream.FormatLine("{} {} {}",
-						  Method.Serialize(),
-						  Resource.Serialize(),
-						  sHTTPVersion);
+		if (!Endpoint.empty())
+		{
+			Stream.FormatLine("{} http://{}{} {}",
+							  Method.Serialize(),
+							  Endpoint.Serialize(),
+							  Resource.Serialize(),
+							  sHTTPVersion);
+		}
+		else
+		{
+			Stream.FormatLine("{} {} {}",
+							  Method.Serialize(),
+							  Resource.Serialize(),
+							  sHTTPVersion);
+		}
 	}
 	else
 	{
-		// special case, insert a single slash for the resource to
-		// satisfy the HTTP protocol
-		kDebug(1, "resource is empty, inserting /");
-		Stream.FormatLine("{} / {}",
-						  Method.Serialize(),
-						  sHTTPVersion);
+		if (!Endpoint.empty() && Method == KHTTPMethod::CONNECT)
+		{
+			// this is a CONNECT request
+			Stream.FormatLine("{} {} {}",
+							  Method.Serialize(),
+							  Endpoint.Serialize(),
+							  sHTTPVersion);
+		}
+		else
+		{
+			// special case, insert a single slash for the resource to
+			// satisfy the HTTP protocol
+			kDebug(1, "resource is empty, inserting /");
+			Stream.FormatLine("{} / {}",
+							  Method.Serialize(),
+							  sHTTPVersion);
+		}
 	}
 
 	return KHTTPHeaders::Serialize(Stream);
@@ -259,6 +281,7 @@ void KHTTPRequestHeaders::clear()
 	KHTTPHeaders::clear();
 	sHTTPVersion.clear();
 	Resource.clear();
+	Endpoint.clear();
 
 } // clear
 

@@ -102,6 +102,9 @@ public:
 
 	KHTTPMethod Method;
 	KResource Resource;
+	// for HTTPS CONNECT and proxied HTTP requests we need the domain and port
+	// of the target server
+	KTCPEndPoint Endpoint;
 
 }; // KHTTPRequestHeaders
 

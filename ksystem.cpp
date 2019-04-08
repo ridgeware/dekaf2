@@ -334,38 +334,41 @@ KStringViewZ kGetHostname ()
 //-----------------------------------------------------------------------------
 {
 	enum { MAXNAMELEN = 50 };
-	static char szHostname[MAXNAMELEN+1] = "";
+	static bool s_bHostnameIsSet { false };
+	static char s_szHostname[MAXNAMELEN+1] = "";
 
 	// no need for MT protection, as two racing
 	// gethostname calls would return the exact
 	// same string, and both would be copied into
 	// the target array without collision
-	if (*szHostname)
+	// - it is however important to protect that
+	// process by a bool that is only set after the
+	// final 0 has been written into s_szHostname
+	if (s_bHostnameIsSet)
 	{
 		// hostname already queried
-		return szHostname;
+		return s_szHostname;
 	}
 
 #ifdef DEKAF2_IS_WINDOWS
-	*szHostname = 0;
-
 	DWORD nSize = MAXNAMELEN;
 	GetComputerName (
 		szHostname,         // name buffer
 		&nSize              // address of size of name buffer
 	);
 
-	if (!*szHostname)
+	if (!*s_szHostname)
 #else
-	if (gethostname (szHostname, sizeof (szHostname)) != 0)
+	if (gethostname (s_szHostname, sizeof (s_szHostname)) != 0)
 #endif
 	{
 		kDebug (1, "cannot get hostname");
-		return "hostname-error";
+		std::strncpy(s_szHostname, "hostname-error", MAXNAMELEN);
 	}
 
-	kDebug (3, "{}", szHostname);
-	return szHostname;
+	s_bHostnameIsSet = true;
+
+	return s_szHostname;
 
 } // kGetHostname
 

@@ -125,7 +125,7 @@ bool KConnection::Good() const
 }
 
 //-----------------------------------------------------------------------------
-bool KConnection::SetTimeout(long iSeconds)
+bool KConnection::SetTimeout(int iSeconds)
 //-----------------------------------------------------------------------------
 {
 	return false;
@@ -204,7 +204,7 @@ bool KTCPConnection::Good() const
 } // Good
 
 //-----------------------------------------------------------------------------
-bool KTCPConnection::SetTimeout(long iSeconds)
+bool KTCPConnection::SetTimeout(int iSeconds)
 //-----------------------------------------------------------------------------
 {
 	auto stream = static_cast<KTCPStream*>(StreamPtr());
@@ -248,7 +248,7 @@ bool KUnixConnection::Good() const
 } // Good
 
 //-----------------------------------------------------------------------------
-bool KUnixConnection::SetTimeout(long iSeconds)
+bool KUnixConnection::SetTimeout(int iSeconds)
 //-----------------------------------------------------------------------------
 {
 	auto stream = static_cast<KUnixStream*>(StreamPtr());
@@ -319,7 +319,7 @@ bool KSSLConnection::StartManualTLSHandshake()
 } // StartManualTLSHandshake
 
 //-----------------------------------------------------------------------------
-bool KSSLConnection::SetTimeout(long iSeconds)
+bool KSSLConnection::SetTimeout(int iSeconds)
 //-----------------------------------------------------------------------------
 {
 	auto stream = static_cast<KSSLStream*>(StreamPtr());

@@ -124,7 +124,7 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	void SetTimeout(long iSeconds);
+	void SetTimeout(int iSeconds);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -358,7 +358,7 @@ private:
 	std::unique_ptr<KConnection> m_Connection;
 	mutable KString m_sError;
 	KURL m_Proxy;
-	long m_Timeout { 30 };
+	int  m_Timeout { 30 };
 	bool m_bRequestCompression { true };
 	bool m_bAutoProxy { false };
 	bool m_bUseHTTPProxyProtocol { false };

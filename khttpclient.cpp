@@ -308,7 +308,7 @@ bool KHTTPClient::Disconnect()
 } // Disconnect
 
 //-----------------------------------------------------------------------------
-void KHTTPClient::SetTimeout(long iSeconds)
+void KHTTPClient::SetTimeout(int iSeconds)
 //-----------------------------------------------------------------------------
 {
 	m_Timeout = iSeconds;

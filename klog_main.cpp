@@ -360,7 +360,7 @@ void SetupOptions (KOptions& Options, Actions& Actions)
 	{
 		KString sLogFile = KLog::getInstance().GetDebugLog();
 
-		if ((sLogFile == "stdout") || (sLogFile == "stderr") || (sLogFile == "null"))
+		if ((sLogFile == "stdout") || (sLogFile == "stderr") || sLogFile == "syslog" || (sLogFile == "null"))
 		{
 			KErr.Format ("klog: dekaf log is set to '{}' -- nothing to clear.\n", sLogFile);
 		}

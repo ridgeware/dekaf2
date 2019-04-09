@@ -71,6 +71,7 @@ constexpr KStringViewZ s_sEnvLog      = "DEKAFLOG";
 constexpr KStringViewZ s_sEnvFlag     = "DEKAFDBG";
 constexpr KStringViewZ s_sEnvTrace    = "DEKAFTRC";
 constexpr KStringViewZ s_sEnvLevel    = "DEKAFLEV";
+constexpr KStringViewZ s_sEnvLogDir   = "DEKAFDIR";
 constexpr KStringViewZ s_sJSONTrace   = "DEKAFJSONTRACE";
 
 constexpr KStringViewZ s_sLogName     = "dekaf.log";
@@ -78,7 +79,7 @@ constexpr KStringViewZ s_sFlagName    = "dekaf.dbg";
 
 KString s_sDefaultLog;
 KString s_sDefaultFlag;
-KString s_sTempDir;
+KString s_sLogDir;
 
 std::recursive_mutex KLog::s_LogMutex;
 bool KLog::s_bBackTraceAlreadyCalled { false };
@@ -511,21 +512,49 @@ KLog::KLog()
 	: m_bIsCGI       (!kGetEnv(KCGIInStream::REQUEST_METHOD).empty())
 	, m_Logmode      (m_bIsCGI ? SERVER : CLI)
 {
-	// find temp directory (which differs among systems and OSs)
+	// check if we have an environment setting for the preferred output directory
+	s_sLogDir = kGetEnv(s_sEnvLogDir, "/shared");
+	if (!s_sLogDir.empty() && kDirExists(s_sLogDir))
+	{
+		// construct default name for log file
+		KString sTest = s_sLogDir;
+		sTest += kDirSep;
+		sTest += s_sLogName;
+
+		// test if the file already exists
+		bool bHaveExistingLog = kFileExists(sTest);
+
+		// check if we can write in this directory
+		if (!kTouchFile(sTest))
+		{
+			// no - fall back to the temp folder
+			s_sLogDir.clear();
+		}
+		else if (!bHaveExistingLog)
+		{
+			// clean up
+			kRemoveFile(sTest);
+		}
+	}
+
+	if (s_sLogDir.empty())
+	{
+		// find temp directory (which differs among systems and OSs)
 #ifdef DEKAF2_IS_OSX
-	// we do not want the /var/folders/wy/lz00g9_s27b2nmyfc52pjrjh0000gn/T - style temp dir on the Mac
-	s_sTempDir = "/tmp";
+		// we do not want the /var/folders/wy/lz00g9_s27b2nmyfc52pjrjh0000gn/T - style temp dir on the Mac
+		s_sLogDir = "/tmp";
 #else
-	s_sTempDir = kGetTemp();
+		s_sLogDir = kGetTemp();
 #endif
+	}
 
 	// construct default name for log file
-	s_sDefaultLog = s_sTempDir;
+	s_sDefaultLog = s_sLogDir;
 	s_sDefaultLog += kDirSep;
 	s_sDefaultLog += s_sLogName;
 
 	// construct default name for flag file
-	s_sDefaultFlag = s_sTempDir;
+	s_sDefaultFlag = s_sLogDir;
 	s_sDefaultFlag += kDirSep;
 	s_sDefaultFlag += s_sFlagName;
 

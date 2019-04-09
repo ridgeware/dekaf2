@@ -84,6 +84,13 @@ bool kChangeMode(KStringViewZ sPath, int iMode);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
+/// Query file or directory permissions. In case of failure 0 is returned (to
+/// avoid accidentially detecting permission bits set if not checked for negative
+/// value).
+int kGetMode(KStringViewZ sPath);
+//-----------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
 /// Checks if a file system entity exists
 bool kExists (KStringViewZ sPath, bool bAsFile, bool bAsDirectory, bool bTestForEmptyFile = false);
 //-----------------------------------------------------------------------------

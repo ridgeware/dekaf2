@@ -85,6 +85,40 @@ bool kChangeMode(KStringViewZ sPath, int iMode)
 }
 
 //-----------------------------------------------------------------------------
+int kGetMode(KStringViewZ sPath)
+//-----------------------------------------------------------------------------
+{
+#ifdef DEKAF2_HAS_STD_FILESYSTEM
+
+	std::error_code ec;
+
+	int mode = fs::status(kToFilesystemPath(sPath), ec).permissions()
+
+	if (ec)
+	{
+		kDebug(1, "{}: {}", sPath, ec.message());
+		mode = 0;
+	}
+
+	return mode;
+
+#else
+
+	struct stat StatStruct;
+
+	if (stat (sPath.c_str(), &StatStruct) < 0)
+	{
+		kDebug(1, "{}: {}", sPath, strerror(errno));
+		return 0;
+	}
+
+	return StatStruct.st_mode;
+
+#endif
+
+} // kGetMode
+
+//-----------------------------------------------------------------------------
 bool kExists (KStringViewZ sPath, bool bAsFile, bool bAsDirectory, bool bTestForEmptyFile)
 //-----------------------------------------------------------------------------
 {

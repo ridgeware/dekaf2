@@ -380,7 +380,10 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 				}
 			}
 
-			if (Options.AuthLevel != Options::ALLOW_ALL)
+			// OPTIONS method is allowed without Authorization header (it is used to request
+			// for Authorization permission)
+			if (Options.AuthLevel != Options::ALLOW_ALL
+				&& Request.Method != KHTTPMethod::OPTIONS)
 			{
 				VerifyAuthentication(Options);
 			}

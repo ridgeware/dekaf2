@@ -92,7 +92,7 @@ int kGetMode(KStringViewZ sPath)
 
 	std::error_code ec;
 
-	int mode = fs::status(kToFilesystemPath(sPath), ec).permissions()
+	int mode = static_cast<int>(fs::status(kToFilesystemPath(sPath), ec).permissions());
 
 	if (ec)
 	{

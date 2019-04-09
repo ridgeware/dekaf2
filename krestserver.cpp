@@ -658,6 +658,10 @@ void KRESTServer::ErrorHandler(const std::exception& ex, const Options& Options)
 		Response.SetStatus(KHTTPError::H5xx_ERROR, "INTERNAL SERVER ERROR");
 	}
 
+	// we need to set the HTTP version here explicitly, as we could throw as early
+	// that no version is set - which will corrupt headers and body..
+	Response.sHTTPVersion = "HTTP/1.1";
+
 	KStringViewZ sError = ex.what();
 
 	kDebug (1, "HTTP-{}: {}\n{}",  Response.iStatusCode, Response.sStatusString, sError);

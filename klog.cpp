@@ -514,26 +514,34 @@ KLog::KLog()
 {
 	// check if we have an environment setting for the preferred output directory
 	s_sLogDir = kGetEnv(s_sEnvLogDir, "/shared");
-	if (!s_sLogDir.empty() && kDirExists(s_sLogDir))
+	
+	if (!s_sLogDir.empty())
 	{
-		// construct default name for log file
-		KString sTest = s_sLogDir;
-		sTest += kDirSep;
-		sTest += s_sLogName;
-
-		// test if the file already exists
-		bool bHaveExistingLog = kFileExists(sTest);
-
-		// check if we can write in this directory
-		if (!kTouchFile(sTest))
+		if (kDirExists(s_sLogDir))
 		{
-			// no - fall back to the temp folder
-			s_sLogDir.clear();
+			// construct default name for log file
+			KString sTest = s_sLogDir;
+			sTest += kDirSep;
+			sTest += s_sLogName;
+
+			// test if the file already exists
+			bool bHaveExistingLog = kFileExists(sTest);
+
+			// check if we can write in this directory
+			if (!kTouchFile(sTest))
+			{
+				// no - fall back to the temp folder
+				s_sLogDir.clear();
+			}
+			else if (!bHaveExistingLog)
+			{
+				// clean up
+				kRemoveFile(sTest);
+			}
 		}
-		else if (!bHaveExistingLog)
+		else
 		{
-			// clean up
-			kRemoveFile(sTest);
+			s_sLogDir.clear();
 		}
 	}
 

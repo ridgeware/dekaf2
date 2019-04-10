@@ -64,6 +64,18 @@ public:
 					};
 
 	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	/// Options for simulation mode
+	struct SimulationParms
+	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	{
+		KStringViewZ sFilename;
+		KResource API;
+		KHTTPMethod Method { KHTTPMethod::GET };
+		KString sBody;
+
+	}; // SimulationParms
+
+	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	/// define options for the rest service
 	struct Options : public KRESTServer::Options
 	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -77,17 +89,18 @@ public:
 #endif
 		KStringViewZ sCert;
 		KStringViewZ sKey;
+		SimulationParms Simulate;
 
 	}; // Options
 
 	/// handle one REST request, or start REST server in HTTP and UNIX modes
-	bool Execute(const Options& Options, const KRESTRoutes& Routes);
+	bool ExecuteRequest(const Options& Options, const KRESTRoutes& Routes);
 	/// handle one REST request, read input from file, output to OutStream
-	bool ExecuteFromFile(const Options& Options, const KRESTRoutes& Routes, KStringView sFilename, KOutStream& OutStream = KOut);
-	/// simulate one REST request in HTTP/CGI mode, read input from sSimulate, output to OutStream
-	bool Simulate(const Options& Options, const KRESTRoutes& Routes, KStringView sSimulate, KOutStream& OutStream = KOut);
+	bool ExecuteFromFile(const Options& Options, const KRESTRoutes& Routes, KOutStream& OutStream = KOut);
+	/// simulate one REST request in HTTP/CGI mode, call API, output to OutStream
+	bool Simulate(const Options& Options, const KRESTRoutes& Routes, KResource API, KOutStream& OutStream = KOut);
 	/// call either of the three other execution methods depending on Options.Type and sFilenameOrSimulation
-	bool Execute(const Options& Options, const KRESTRoutes& Routes, KStringView sFilenameOrSimulation);
+	bool Execute(const Options& Options, const KRESTRoutes& Routes);
 	/// returns true if no error
 	bool Good() const;
 	/// returns error description

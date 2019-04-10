@@ -107,7 +107,7 @@ bool KREST::RealExecute(const Options& Options, const KRESTRoutes& Routes, KStre
 } // Execute
 
 //-----------------------------------------------------------------------------
-bool KREST::Execute(const Options& Options, const KRESTRoutes& Routes)
+bool KREST::ExecuteRequest(const Options& Options, const KRESTRoutes& Routes)
 //-----------------------------------------------------------------------------
 {
 	switch (Options.Type)
@@ -212,18 +212,18 @@ bool KREST::Execute(const Options& Options, const KRESTRoutes& Routes)
 
 	return true;
 
-} // Execute
+} // ExecuteRequest
 
 //-----------------------------------------------------------------------------
-bool KREST::ExecuteFromFile(const Options& Options, const KRESTRoutes& Routes, KStringView sFilename, KOutStream& OutStream)
+bool KREST::ExecuteFromFile(const Options& Options, const KRESTRoutes& Routes, KOutStream& OutStream)
 //-----------------------------------------------------------------------------
 {
 	switch (Options.Type)
 	{
 		case CGI:
 			{
-				kDebug(3, "simulated CGI request with input file: {}", sFilename);
-				KInFile File(sFilename);
+				kDebug(3, "simulated CGI request with input file: {}", Options.Simulate.sFilename);
+				KInFile File(Options.Simulate.sFilename);
 				KCGIInStream CGI(File);
 				KStream Stream(CGI, OutStream);
 				Options.Out = KRESTServer::HTTP;
@@ -233,8 +233,8 @@ bool KREST::ExecuteFromFile(const Options& Options, const KRESTRoutes& Routes, K
 
 		case LAMBDA:
 			{
-				kDebug(3, "simulated Lambda request with input file: {}", sFilename);
-				KInFile File(sFilename);
+				kDebug(3, "simulated Lambda request with input file: {}", Options.Simulate.sFilename);
+				KInFile File(Options.Simulate.sFilename);
 				KLambdaInStream Lambda(File);
 				KStream Stream(Lambda, OutStream);
 				Options.Out = KRESTServer::LAMBDA;
@@ -266,38 +266,41 @@ bool KREST::ExecuteFromFile(const Options& Options, const KRESTRoutes& Routes, K
 } // ExecuteFromFile
 
 //-----------------------------------------------------------------------------
-bool KREST::Simulate(const Options& Options, const KRESTRoutes& Routes, KStringView sSimulate, KOutStream& OutStream)
+bool KREST::Simulate(const Options& Options, const KRESTRoutes& Routes, KResource API, KOutStream& OutStream)
 //-----------------------------------------------------------------------------
 {
-	if (sSimulate.front() != '/')
+	if (API.empty())
 	{
-		return SetError(kFormat("sFilename does not start with a / - abort : {}", sSimulate));
+		return SetError(kFormat("invalid request - no API selected"));
 	}
 
-	kDebug(3, "simulated CGI request: {}", sSimulate);
+	kDebug(3, "simulated CGI request: {}", API.Serialize());
+
 	KString sRequest;
-	auto iSplitPostBody = sSimulate.find(' ');
-	if (iSplitPostBody != KString::npos)
+
+	if (!Options.Simulate.sBody.empty())
 	{
-		KStringView sURL = sSimulate.ToView(0, iSplitPostBody);
-		KStringView sPostBody = sSimulate.ToView(iSplitPostBody + 1);
-		sRequest += kFormat("POST {} HTTP/1.0\r\n"
-							"Host: localhost\r\n"
-							"User-Agent: cli sim agent\r\n"
-							"Connection: close\r\n"
-							"Content-Length: {}\r\n"
-							"\r\n",
-							sURL, sPostBody.size());
-		sRequest += sPostBody;
+		sRequest = kFormat("{} {} HTTP/1.0\r\n"
+						   "Host: localhost\r\n"
+						   "User-Agent: cli sim agent\r\n"
+						   "Connection: close\r\n"
+						   "Content-Length: {}\r\n"
+						   "\r\n",
+						   Options.Simulate.Method.Serialize(),
+						   API.Serialize(),
+						   Options.Simulate.sBody.size());
+
+		sRequest += Options.Simulate.sBody;
 	}
 	else
 	{
-		sRequest = kFormat("GET {} HTTP/1.0\r\n"
+		sRequest = kFormat("{} {} HTTP/1.0\r\n"
 						   "Host: localhost\r\n"
 						   "User-Agent: cli sim agent\r\n"
 						   "Connection: close\r\n"
 						   "\r\n",
-						   sSimulate);
+						   Options.Simulate.Method.Serialize(),
+						   API.Serialize());
 	}
 
 	KInStringStream String(sRequest);
@@ -308,26 +311,26 @@ bool KREST::Simulate(const Options& Options, const KRESTRoutes& Routes, KStringV
 } // Simulate
 
 //-----------------------------------------------------------------------------
-bool KREST::Execute(const Options& Options, const KRESTRoutes& Routes, KStringView sFilenameOrSimulation)
+bool KREST::Execute(const Options& Options, const KRESTRoutes& Routes)
 //-----------------------------------------------------------------------------
 {
 	switch (Options.Type)
 	{
 		default:
-			if (DEKAF2_LIKELY(sFilenameOrSimulation.empty()))
+			if (DEKAF2_LIKELY(Options.Simulate.sFilename.empty()))
 			{
 				// execute real request
-				return Execute(Options, Routes);
+				return ExecuteRequest(Options, Routes);
 			}
 			else
 			{
 				// execute request from input file
-				return ExecuteFromFile(Options, Routes, sFilenameOrSimulation);
+				return ExecuteFromFile(Options, Routes);
 			}
 
 		case KREST::SIMULATE_HTTP:
 			// simulate request from command line
-			return Simulate(Options, Routes, sFilenameOrSimulation);
+			return Simulate(Options, Routes, Options.Simulate.API);
 
 		case KREST::UNDEFINED:
 			return false;

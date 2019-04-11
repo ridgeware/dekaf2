@@ -81,6 +81,7 @@
 #include "klog.h"
 #include "kfilesystem.h"
 #include "dekaf2.h"
+#include "ksignals.h"
 
 namespace dekaf2
 {
@@ -651,7 +652,7 @@ bool KTCPServer::RegisterShutdownWithSignal(int iSignal)
 		}
 		else
 		{
-			kDebug(1, "cannot register with SIGTERM, no signal handler thread started");
+			kDebug(1, "cannot register with {}, no signal handler thread started", kTranslateSignal(iSignal));
 		}
 	}
 
@@ -663,9 +664,9 @@ bool KTCPServer::RegisterShutdownWithSignal(int iSignal)
 //-----------------------------------------------------------------------------
 KTCPServer::KTCPServer(uint16_t iPort, bool bSSL, uint16_t iMaxConnections)
 //-----------------------------------------------------------------------------
-: m_ThreadPool(std::make_unique<KThreadPool>(iMaxConnections))
-, m_iPort(iPort)
-, m_bIsSSL(bSSL)
+	: m_ThreadPool(std::make_unique<KThreadPool>(iMaxConnections))
+	, m_iPort(iPort)
+	, m_bIsSSL(bSSL)
 {
 }
 
@@ -673,10 +674,10 @@ KTCPServer::KTCPServer(uint16_t iPort, bool bSSL, uint16_t iMaxConnections)
 //-----------------------------------------------------------------------------
 KTCPServer::KTCPServer(KStringView sSocketFile, uint16_t iMaxConnections)
 //-----------------------------------------------------------------------------
-: m_sSocketFile(sSocketFile)
-, m_ThreadPool(std::make_unique<KThreadPool>(iMaxConnections))
-, m_iPort(0)
-, m_bIsSSL(false)
+	: m_sSocketFile(sSocketFile)
+	, m_ThreadPool(std::make_unique<KThreadPool>(iMaxConnections))
+	, m_iPort(0)
+	, m_bIsSSL(false)
 {
 }
 #endif

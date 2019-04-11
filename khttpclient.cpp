@@ -547,6 +547,11 @@ KString KHTTPClient::HttpRequest (const KURL& URL, KStringView sRequestMethod/* 
 		}
 	}
 
+	if (!HttpSuccess() && Error().empty())
+	{
+		SetError(Response.GetStatusString());
+	}
+
 	return sResponse;
 
 } // HttpRequest

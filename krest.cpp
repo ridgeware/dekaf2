@@ -152,6 +152,7 @@ bool KREST::ExecuteRequest(const Options& Options, const KRESTRoutes& Routes)
 				{
 					Server.SetSSLCertificates(Options.sCert, Options.sKey);
 				}
+				Server.RegisterShutdownWithSignal(Options.iRegisterSignalForShutdown);
 				Server.Start(Options.iTimeout, true);
 				return true;
 			}
@@ -163,6 +164,7 @@ bool KREST::ExecuteRequest(const Options& Options, const KRESTRoutes& Routes)
 				kDebug(1, "starting standalone HTTP server on socket file {}...", Options.sSocketFile);
 				Options.Out = KRESTServer::HTTP;
 				detail::RESTServer Server(Options, Routes, Options.sSocketFile, Options.iMaxConnections);
+				Server.RegisterShutdownWithSignal(Options.iRegisterSignalForShutdown);
 				Server.Start(Options.iTimeout, true);
 				return true;
 			}

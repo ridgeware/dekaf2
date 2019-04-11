@@ -183,16 +183,17 @@ public:
 	bool IsRunning() const
 	//-----------------------------------------------------------------------------
 	{
-		return m_ipv6_server || m_ipv4_server
-#ifdef DEKAF2_HAS_UNIX_SOCKETS
-		    || m_unix_server
-#endif
-		;
+		return m_iStarted;
 	}
 
 	//-----------------------------------------------------------------------------
 	/// Checks if the given port can be bound to
 	static bool IsPortAvailable(uint16_t iPort);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// Register to shut down on iSignal
+	bool RegisterShutdownWithSignal(int iSignal);
 	//-----------------------------------------------------------------------------
 
 //-------
@@ -271,10 +272,10 @@ private:
 
 	enum ServerType
 	{
-		TCPv4,
-		TCPv6,
+		TCPv4 = 1 << 0,
+		TCPv6 = 1 << 1,
 #ifdef DEKAF2_HAS_UNIX_SOCKETS
-		Unix
+		Unix  = 1 << 2
 #endif
 	};
 
@@ -304,6 +305,8 @@ private:
 	KString m_sSocketFile;
 #endif
 	std::unique_ptr<KThreadPool> m_ThreadPool;
+	std::atomic_int m_iStarted { 0 };
+
 	KString m_sCert;
 	KString m_sKey;
 	KString m_sPassword;

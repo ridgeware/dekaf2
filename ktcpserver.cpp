@@ -80,12 +80,34 @@
 #endif
 #include "klog.h"
 #include "kfilesystem.h"
+#include "dekaf2.h"
 
 namespace dekaf2
 {
 
 using boost::asio::ip::tcp;
 using endpoint_type = boost::asio::ip::tcp::acceptor::endpoint_type;
+
+class AtomicStarted
+{
+public:
+	AtomicStarted(std::atomic_int& iStarted, int iWhat)
+	: m_iStarted(iStarted)
+	, m_iWhat(iWhat)
+	{
+		m_iStarted |= m_iWhat;
+	}
+
+	~AtomicStarted()
+	{
+		m_iStarted &= ~m_iWhat;
+	}
+
+private:
+	std::atomic_int& m_iStarted;
+	int m_iWhat;
+
+}; // AtomicStarted
 
 //-----------------------------------------------------------------------------
 /// Converts an endpoint type into a human readable string. Could be used for
@@ -229,6 +251,8 @@ bool KTCPServer::IsPortAvailable(uint16_t iPort)
 void KTCPServer::TCPServer(bool ipv6)
 //-----------------------------------------------------------------------------
 {
+	AtomicStarted Started(m_iStarted, ipv6 ? ServerType::TCPv6 : ServerType::TCPv4);
+
 	DEKAF2_TRY_EXCEPTION
 	
 	boost::asio::ip::v6_only v6_only(false);
@@ -362,6 +386,8 @@ void KTCPServer::TCPServer(bool ipv6)
 void KTCPServer::UnixServer()
 //-----------------------------------------------------------------------------
 {
+	AtomicStarted Started(m_iStarted, ServerType::Unix);
+
 	DEKAF2_TRY_EXCEPTION
 
 	kDebug(2, "opening listener on unix socket at {}", m_sSocketFile);
@@ -411,6 +437,7 @@ void KTCPServer::UnixServer()
 		kRemoveFile(m_sSocketFile);
 	}
 	DEKAF2_LOG_EXCEPTION
+
 } // UnixServer
 #endif
 
@@ -482,12 +509,13 @@ bool KTCPServer::Start(uint16_t iTimeoutInSeconds, bool bBlock)
 		{
 			m_ipv6_server = std::make_unique<std::thread>(&KTCPServer::TCPServer, this, m_bStartIPv6);
 		}
-	}
 
-	uint16_t iCt { 0 };
-	while (!m_bIsListening && iCt++ < 100)
-	{
-		std::this_thread::sleep_for(std::chrono::milliseconds(10));
+		// give the thread time to start up before we return in non-blocking code
+		uint16_t iCt { 0 };
+		while (!m_bIsListening && iCt++ < 100)
+		{
+			std::this_thread::sleep_for(std::chrono::milliseconds(10));
+		}
 	}
 
 	return IsRunning();
@@ -545,14 +573,14 @@ bool KTCPServer::Stop()
 
 		if (m_ipv4_server)
 		{
-			StopServerThread(TCPv4);
+			StopServerThread(ServerType::TCPv4);
 			m_ipv4_server->join();
 			m_ipv4_server.reset();
 		}
 
 		if (m_ipv6_server)
 		{
-			StopServerThread(TCPv6);
+			StopServerThread(ServerType::TCPv6);
 			m_ipv6_server->join();
 			m_ipv6_server.reset();
 		}
@@ -560,17 +588,77 @@ bool KTCPServer::Stop()
 #ifdef DEKAF2_HAS_UNIX_SOCKETS
 		if (m_unix_server)
 		{
-			StopServerThread(Unix);
+			StopServerThread(ServerType::Unix);
 			m_unix_server->join();
 			m_unix_server.reset();
 		}
 #endif
+		// now check m_iStarted - we may have a blocking server
+		// that does not use the unique_ptrs
+		if (m_iStarted)
+		{
+			if (m_iStarted & ServerType::TCPv4)
+			{
+				StopServerThread(ServerType::TCPv4);
+			}
+
+			if (m_iStarted & ServerType::TCPv6)
+			{
+				StopServerThread(ServerType::TCPv6);
+			}
+
+			if (m_iStarted & ServerType::Unix)
+			{
+				StopServerThread(ServerType::Unix);
+			}
+		}
+
 		m_bIsListening = false;
 	}
 
 	return true;
 
 } // Stop
+
+
+//-----------------------------------------------------------------------------
+bool KTCPServer::RegisterShutdownWithSignal(int iSignal)
+//-----------------------------------------------------------------------------
+{
+	if (iSignal)
+	{
+		auto Signals = Dekaf::getInstance().Signals();
+
+		if (Signals)
+		{
+			// register with iSignal
+			Signals->SetSignalHandler(iSignal, [&](int signal)
+			{
+				this->Stop();
+
+				auto Signals = Dekaf::getInstance().Signals();
+
+				if (Signals)
+				{
+					Signals->SetSignalHandler(signal, [](int signal)
+					{
+						std::exit(0);
+					});
+				}
+			});
+
+			return true;
+		}
+		else
+		{
+			kDebug(1, "cannot register with SIGTERM, no signal handler thread started");
+		}
+	}
+
+	return false;
+
+} // RegisterWithSigTerm
+
 
 //-----------------------------------------------------------------------------
 KTCPServer::KTCPServer(uint16_t iPort, bool bSSL, uint16_t iMaxConnections)

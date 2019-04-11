@@ -40,6 +40,7 @@
 //
 */
 
+#include "dekaf2.h"
 #include "klog.h"
 #include "kstring.h"
 #include "kstringutils.h"
@@ -50,6 +51,7 @@
 #include "ktcpserver.h"
 #include "koptions.h"
 #include "kprops.h"
+#include <csignal>
 
 using namespace dekaf2;
 
@@ -466,6 +468,8 @@ void SetupOptions (KOptions& Options, Actions& Actions)
 int main (int argc, char* argv[])
 //-----------------------------------------------------------------------------
 {
+	kInit();
+	
 	// we have to act as a SERVER, as otherwise we would not read the
 	// flag file for the current settings..
 	KLog::getInstance().SetMode(KLog::SERVER);
@@ -535,6 +539,8 @@ int main (int argc, char* argv[])
 	{
 		KOut.Format ("klog: listening to port {} ...\n", Actions.iPort);
 		KlogServer server (Actions.iPort, /*bSSL=*/false);
+		server.RegisterShutdownWithSignal(SIGTERM);
+		server.RegisterShutdownWithSignal(SIGINT);
 		server.Start(/*iTimeoutInSeconds=*/static_cast<uint16_t>(-1), /*bBlocking=*/true);
 	}
 

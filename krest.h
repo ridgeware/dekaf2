@@ -42,6 +42,7 @@
 #pragma once
 
 #include "krestserver.h"
+#include <csignal>
 
 /// @file krest.h
 /// HTTP REST service implementation
@@ -84,6 +85,7 @@ public:
 		uint16_t iPort { 0 };
 		uint16_t iMaxConnections { 20 };
 		uint16_t iTimeout { 5 };
+		int iRegisterSignalForShutdown { SIGTERM };
 #ifdef DEKAF2_HAS_UNIX_SOCKETS
 		KStringViewZ sSocketFile;
 #endif

@@ -447,7 +447,19 @@ public:
 	bool   CommitTransaction (KStringView sOptions="");
 
 	/// helper method to form AND clauses for dynamic SQL.
-	KString FormAndClause (KStringView sDbCol, KString/*copy*/ sQueryParm, uint64_t iFlags=FAC_NORMAL);
+	KString FormAndClause (KStringView sDbCol, KStringView sQueryParm, uint64_t iFlags=FAC_NORMAL);
+
+	/// shortcut to KROW::EscapeChars that automatically adds the DBType
+	KString EscapeString (KStringView sCol)
+	{
+		return KROW::EscapeChars(sCol, m_iDBType);
+	}
+
+	/// shortcut to KROW::EscapeChars that automatically adds the DBType
+	bool NeedsEscape (KStringView sCol)
+	{
+		return KROW::NeedsEscape(sCol, m_iDBType);
+	}
 
 	TXList  m_TxList;
 

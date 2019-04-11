@@ -378,6 +378,15 @@ public:
 	// helper functions:
 	// - - - - - - - - - - - - - - - -
 	static KString FlagsToString (uint64_t iFlags);
+
+	static bool NeedsEscape (KStringView sCol, KStringView sCharsToEscape);
+	static bool NeedsEscape (KStringView sCol, DBT iDBType);
+	static bool NeedsEscape (KStringView sCol);
+
+	static KString EscapeChars (KStringView sCol, KStringView sCharsToEscape,
+								KString::value_type iEscapeChar = 0);
+	static KString EscapeChars (KStringView sCol, DBT iDBType);
+
 	static KString EscapeChars (const KROW::value_type& Col, KStringView sCharsToEscape,
 								KString::value_type iEscapeChar = 0);
 	static KString EscapeChars (const KROW::value_type& Col, DBT iDBType);

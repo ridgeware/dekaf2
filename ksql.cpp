@@ -6455,7 +6455,7 @@ bool KSQL::CommitTransaction (KStringView sOptions/*=""*/)
 } // CommitTransaction
 
 //-----------------------------------------------------------------------------
-KString KSQL::FormAndClause (KStringView sDbCol, KString/*copy*/ sQueryParm, uint64_t iFlags/*=FAC+NORMAL*/)
+KString KSQL::FormAndClause (KStringView sDbCol, KStringView sQueryParm, uint64_t iFlags/*=FAC+NORMAL*/)
 //-----------------------------------------------------------------------------
 {
 	KString sClause;
@@ -6465,36 +6465,48 @@ KString KSQL::FormAndClause (KStringView sDbCol, KString/*copy*/ sQueryParm, uin
 		return sClause; // empty
 	}
 
-	sQueryParm.Replace("'",""); // insulation from embedded quotes (not expected)
+	if (NeedsEscape(sQueryParm))
+	{
+		// we do not expect escapable characters here
+		kWarning("possible SQL injection attempt: {}", sQueryParm);
+		return sClause; // empty
+	}
 
 	// - - - - - - - - - - - - - - - - - - - - - - - - -
 	// BETWEEN logic:
 	// - - - - - - - - - - - - - - - - - - - - - - - - -
 	if (iFlags & FAC_BETWEEN)
 	{
-		KStack <KString>Parts;
+		std::vector<KStringView> Parts;
 		kSplit (Parts, sQueryParm, "-");
-		if (Parts.size() == 1) // single value
+
+		switch (Parts.size())
 		{
-			if (iFlags & FAC_NUMERIC)
-			{
-				sClause = kFormat ("   and {} = {}", sDbCol, Parts[0].UInt16());
-			}
-			else
-			{
-				sClause = kFormat ("   and {} = '{}'", sDbCol, Parts[0]);
-			}
-		}
-		else // two values
-		{
-			if (iFlags & FAC_NUMERIC)
-			{
-				sClause = kFormat ("   and {} between {} and {}", sDbCol, Parts[0].UInt16(), Parts[1].UInt16());
-			}
-			else
-			{
-				sClause = kFormat ("   and {} between '{}' and '{}'", sDbCol, Parts[0], Parts[1]);
-			}
+			case 1: // single value
+				if (iFlags & FAC_NUMERIC)
+				{
+					sClause = kFormat ("   and {} = {}", sDbCol, Parts[0].UInt16());
+				}
+				else
+				{
+					sClause = kFormat ("   and {} = '{}'", sDbCol, Parts[0]);
+				}
+				break;
+
+			case 2: // two values
+				if (iFlags & FAC_NUMERIC)
+				{
+					sClause = kFormat ("   and {} between {} and {}", sDbCol, Parts[0].UInt16(), Parts[1].UInt16());
+				}
+				else
+				{
+					sClause = kFormat ("   and {} between '{}' and '{}'", sDbCol, Parts[0], Parts[1]);
+				}
+				break;
+
+			default:
+				kDebug(1, "invalid Parms: {}", sQueryParm);
+				break;
 		}
 	}
 
@@ -6503,8 +6515,8 @@ KString KSQL::FormAndClause (KStringView sDbCol, KString/*copy*/ sQueryParm, uin
 	// - - - - - - - - - - - - - - - - - - - - - - - - -
 	else if (iFlags & FAC_LIKE)
 	{
-		KString sList;
-		KStack  <KString>List;  kSplit (List, sQueryParm, ",");
+		std::vector<KStringView> List;
+		kSplit (List, sQueryParm, ",");
 
 		for (KString sOne : List)
 		{
@@ -6513,9 +6525,9 @@ KString KSQL::FormAndClause (KStringView sDbCol, KString/*copy*/ sQueryParm, uin
 			{
 				if (iFlags & FAC_SUBSELECT)
 				{
-					sClause += ")"; // needs an extra close paren
+					sClause += ')'; // needs an extra close paren
 				}
-				sClause += "\n";
+				sClause += '\n';
 				sClause += kFormat ("    or {} like '{}'", sDbCol, sOne); // OR and no parens
 			}
 			else
@@ -6525,7 +6537,7 @@ KString KSQL::FormAndClause (KStringView sDbCol, KString/*copy*/ sQueryParm, uin
 		}
 		if (sClause)
 		{
-			sClause += ")"; // close paren for AND
+			sClause += ')'; // close paren for AND
 		}
 	}
 
@@ -6554,7 +6566,8 @@ KString KSQL::FormAndClause (KStringView sDbCol, KString/*copy*/ sQueryParm, uin
 	else
 	{
 		KString sList;
-		KStack  <KString>List;  kSplit (List, sQueryParm, ",");
+		std::vector<KStringView> List;
+		kSplit (List, sQueryParm, ",");
 
 		for (auto& sOne : List)
 		{
@@ -6574,13 +6587,13 @@ KString KSQL::FormAndClause (KStringView sDbCol, KString/*copy*/ sQueryParm, uin
 	// - - - - - - - - - - - - - - - - - - - - - - - - -
 	// finish up AND clause
 	// - - - - - - - - - - - - - - - - - - - - - - - - -
-	if (sClause)
+	if (!sClause.empty())
 	{
 		if (iFlags & FAC_SUBSELECT)
 		{
-			sClause += ")"; // needs an extra close paren
+			sClause += ')'; // needs an extra close paren
 		}
-		sClause += "\n";
+		sClause += '\n';
 	}
 
 	return sClause;

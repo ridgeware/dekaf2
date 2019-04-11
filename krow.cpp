@@ -101,26 +101,85 @@ void KROW::LogRowLayout(int iLogLevel) const
 } // LogRowLayout
 
 //-----------------------------------------------------------------------------
-KString KROW::EscapeChars (const KROW::value_type& Col, KStringView sCharsToEscape, KString::value_type iEscapeChar/*=0*/)
+bool KROW::NeedsEscape (KStringView sCol, KStringView sCharsToEscape)
+//-----------------------------------------------------------------------------
+{
+	return sCol.find_first_of(sCharsToEscape) != KStringView::npos;
+
+} // NeedsEscape
+
+//-----------------------------------------------------------------------------
+bool KROW::NeedsEscape (KStringView sCol, DBT iDBType)
+//-----------------------------------------------------------------------------
+{
+	switch (iDBType)
+	{
+		case DBT::SQLSERVER:
+		case DBT::SYBASE:
+			return NeedsEscape (sCol, ESCAPE_MSSQL);
+		case DBT::MYSQL:
+		default:
+			return NeedsEscape (sCol, ESCAPE_MYSQL);
+	}
+
+} // NeedsEscape
+
+//-----------------------------------------------------------------------------
+bool KROW::NeedsEscape (KStringView sCol)
+//-----------------------------------------------------------------------------
+{
+	// use the most restrictive charsToEscape if we do not know the DBType
+	return NeedsEscape(sCol, ESCAPE_MYSQL);
+
+} // NeedsEscape
+
+//-----------------------------------------------------------------------------
+KString KROW::EscapeChars (KStringView sCol, KStringView sCharsToEscape, KString::value_type iEscapeChar/*=0*/)
 //-----------------------------------------------------------------------------
 {
 	// Note: if iEscapeChar is ZERO, then the char is used as it's own escape char (i.e. it gets doubled up).
 	KString sEscaped;
-	KStringView sString (Col.second.sValue);
 
-	for (KStringView::size_type iStart; (iStart = sString.find_first_of(sCharsToEscape)) != KStringView::npos; )
+	for (KStringView::size_type iStart; (iStart = sCol.find_first_of(sCharsToEscape)) != KStringView::npos; )
 	{
-		sEscaped += sString.substr(0, iStart);
-		auto ch = sString[iStart];
+		sEscaped += sCol.substr(0, iStart);
+		auto ch = sCol[iStart];
 		if (!ch) ch = '0'; // NUL needs special treatment
 		sEscaped += (iEscapeChar) ? iEscapeChar : ch;
 		sEscaped += ch;
 		// prepare for next round
-		sString.remove_prefix(++iStart);
+		sCol.remove_prefix(++iStart);
 	}
 	// add the remainder of the input string
-	sEscaped += sString;
+	sEscaped += sCol;
 
+	return sEscaped;
+
+} // EscapeChars
+
+//-----------------------------------------------------------------------------
+KString KROW::EscapeChars (KStringView sCol, DBT iDBType)
+//-----------------------------------------------------------------------------
+{
+	switch (iDBType)
+	{
+		case DBT::SQLSERVER:
+		case DBT::SYBASE:
+			return EscapeChars (sCol, ESCAPE_MSSQL);
+		case DBT::MYSQL:
+		default:
+			return EscapeChars (sCol, ESCAPE_MYSQL, '\\');
+	}
+
+} // EscapeChars
+
+//-----------------------------------------------------------------------------
+KString KROW::EscapeChars (const KROW::value_type& Col, KStringView sCharsToEscape, KString::value_type iEscapeChar/*=0*/)
+//-----------------------------------------------------------------------------
+{
+	// Note: if iEscapeChar is ZERO, then the char is used as it's own escape char (i.e. it gets doubled up).
+	KString sEscaped = EscapeChars(Col.second.sValue, sCharsToEscape, iEscapeChar);
+	
 	// check if we shall clip the string
 	auto iMaxLen = Col.second.GetMaxLen();
 	if (iMaxLen)

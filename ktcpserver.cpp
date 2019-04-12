@@ -608,10 +608,12 @@ bool KTCPServer::Stop()
 				StopServerThread(ServerType::TCPv6);
 			}
 
+#ifdef DEKAF2_HAS_UNIX_SOCKETS
 			if (m_iStarted & ServerType::Unix)
 			{
 				StopServerThread(ServerType::Unix);
 			}
+#endif
 		}
 
 		m_bIsListening = false;

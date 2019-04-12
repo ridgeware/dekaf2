@@ -353,7 +353,7 @@ KStringViewZ kGetHostname ()
 #ifdef DEKAF2_IS_WINDOWS
 	DWORD nSize = MAXNAMELEN;
 	GetComputerName (
-		szHostname,         // name buffer
+		s_szHostname,       // name buffer
 		&nSize              // address of size of name buffer
 	);
 

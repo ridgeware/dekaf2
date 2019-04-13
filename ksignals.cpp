@@ -65,11 +65,6 @@ void kBlockAllSignals(bool bExceptSEGVandFPE)
 #ifdef DEKAF2_IS_WINDOWS
 	signal(SIGINT,  SIG_IGN);
 	signal(SIGTERM, SIG_IGN);
-#else
-	sigset_t signal_set;
-	sigfillset(&signal_set);
-	pthread_sigmask(SIG_BLOCK, &signal_set, nullptr);
-#endif
 
 	if (bExceptSEGVandFPE)
 	{
@@ -77,6 +72,33 @@ void kBlockAllSignals(bool bExceptSEGVandFPE)
 		signal(SIGFPE,  kCrashExit);
 		signal(SIGILL,  kCrashExit);
 	}
+#else
+	sigset_t signal_set;
+	sigfillset(&signal_set);
+
+	if (bExceptSEGVandFPE)
+	{
+		sigdelset(&signal_set, SIGSEGV);
+		sigdelset(&signal_set, SIGFPE);
+		sigdelset(&signal_set, SIGILL);
+		sigdelset(&signal_set, SIGBUS); // Windows does not have SIGBUS
+	}
+
+	pthread_sigmask(SIG_BLOCK, &signal_set, nullptr); // sigprocmask would set it for all threads
+
+	if (bExceptSEGVandFPE)
+	{
+		struct sigaction sa;
+		sa.sa_flags = SA_SIGINFO;
+		sa.sa_sigaction = kCrashExitExt;
+		sigemptyset( &sa.sa_mask );
+
+		sigaction(SIGSEGV, &sa, nullptr);
+		sigaction(SIGFPE,  &sa, nullptr);
+		sigaction(SIGILL,  &sa, nullptr);
+		sigaction(SIGBUS,  &sa, nullptr);
+	}
+#endif
 
 } // kBlockAllSignals
 
@@ -100,23 +122,34 @@ void KSignals::WaitForSignals()
 	// first set up the default handler
 
 	int sig;
+#ifndef DEKAF2_IS_OSX
+	siginfo_t siginfo;
+#endif
 
 	sigset_t signal_set;
 	sigfillset(&signal_set);
 	sigdelset(&signal_set, SIGSEGV);
 	sigdelset(&signal_set, SIGFPE);
 	sigdelset(&signal_set, SIGILL);
+	sigdelset(&signal_set, SIGBUS);
 
 	for (;;)
 	{
 		// wait for all signals
+#ifdef DEKAF2_IS_OSX
 		sigwait(&signal_set, &sig);
+#else
+		sig = sigwaitinfo(&signal_set, &siginfo);
+#endif
 
-		// we received a signal
-		kDebug(3, "received signal {}", kTranslateSignal(sig));
+		if (sig > 0)
+		{
+			// we received a signal
+			kDebug(2, "received signal {}", kTranslateSignal(sig));
 
-		// check if we have a function to call for
-		LookupFunc(sig);
+			// check if we have a function to call for
+			LookupFunc(sig);
+		}
 	}
 
 } // WaitForSignals
@@ -157,10 +190,8 @@ void KSignals::LookupFunc(int signal)
 void KSignals::IntDelSignalHandler(int iSignal, signal_func_t func)
 //-----------------------------------------------------------------------------
 {
-	{
-		std::lock_guard<std::mutex> Lock(s_SigSetMutex);
-		s_SigFuncs.erase(iSignal);
-	}
+	std::lock_guard<std::mutex> Lock(s_SigSetMutex);
+	s_SigFuncs.erase(iSignal);
 
 } // IntDelSignalHandler
 

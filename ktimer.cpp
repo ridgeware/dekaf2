@@ -215,6 +215,10 @@ bool KTimer::Cancel(ID_t ID)
 void KTimer::TimingLoop()
 //---------------------------------------------------------------------------
 {
+	// make sure we do not catch signals in this thread (this can happen if
+	// the signal handler thread had not been started at init of dekaf2)
+	kBlockAllSignals();
+
 	for (;;)
 	{
 		std::this_thread::sleep_for(std::chrono::seconds(1));

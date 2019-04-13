@@ -1021,14 +1021,15 @@ KDiskStat& KDiskStat::Check(KStringViewZ sPath)
 } // Check
 
 //-----------------------------------------------------------------------------
-bool kWriteFile (KStringViewZ sPath, KStringView sContents, int iMode /* = DEKAF2_MODE_CREATE_FILE */)
+bool IntWriteFile(KStringViewZ sPath, std::ios_base::openmode OpenMode, KStringView sContents, int iMode)
 //-----------------------------------------------------------------------------
 {
 	{
-		KOutFile file(sPath);
+		KOutFile file(sPath, OpenMode);
+
 		if (!file.is_open())
 		{
-			kWarning ("kWriteFile: cannot open file: {}", sPath);
+			kWarning ("cannot open file: {}", sPath);
 			return (false);
 		}
 
@@ -1042,7 +1043,23 @@ bool kWriteFile (KStringViewZ sPath, KStringView sContents, int iMode /* = DEKAF
 
 	return (true);
 
+} // IntWriteFile
+
+//-----------------------------------------------------------------------------
+bool kWriteFile (KStringViewZ sPath, KStringView sContents, int iMode /* = DEKAF2_MODE_CREATE_FILE */)
+//-----------------------------------------------------------------------------
+{
+	return IntWriteFile(sPath, std::ios_base::trunc, sContents, iMode);
+
 } // kWriteFile
+
+//-----------------------------------------------------------------------------
+bool kAppendFile (KStringViewZ sPath, KStringView sContents, int iMode /* = DEKAF2_MODE_CREATE_FILE */)
+//-----------------------------------------------------------------------------
+{
+	return IntWriteFile(sPath, std::ios_base::app, sContents, iMode);
+
+} // kAppendFile
 
 //-----------------------------------------------------------------------------
 bool kReadFile (KStringViewZ sPath, KString& sContents, bool bToUnixLineFeeds)

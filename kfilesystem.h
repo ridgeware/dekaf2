@@ -142,9 +142,14 @@ bool kReadFile (KStringViewZ sPath, KString& sContents, bool bToUnixLineFeeds);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
-/// Create (or recreate) a file with the given contents and then chmod the file if
+/// Create (or truncate) a file and write the given contents and then chmod the file if
 /// perms are different than 0666 (the default)
 bool kWriteFile (KStringViewZ sPath, KStringView sContents, int iMode = DEKAF2_MODE_CREATE_FILE);
+//-----------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
+/// If not existing, create a file. Append contents and close again.
+bool kAppendFile (KStringViewZ sPath, KStringView sContents, int iMode = DEKAF2_MODE_CREATE_FILE);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------

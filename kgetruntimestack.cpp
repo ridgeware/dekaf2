@@ -62,7 +62,9 @@ namespace dekaf2
 
 #define NUM_ELEMENTS(X) (sizeof(X)/sizeof((X)[0]))
 
-namespace kgetruntimestack_detail
+using StringVec = std::vector<KString>;
+
+namespace detail
 {
 
 //-----------------------------------------------------------------------------
@@ -70,14 +72,18 @@ namespace kgetruntimestack_detail
 // of hex process addresses to a vector of source file/line numbers. On Mac OS X
 // it will use atos instead of addr2line. It will return an empty vector upon
 // failure.
-std::vector<KString> Addr2LineMsg_ (const std::vector<KString>& vsAddress)
+StringVec Addr2Line (const std::vector<KStringView>& vsAddress)
 //-----------------------------------------------------------------------------
 {
-	std::vector<KString> vsResult;
-	if (!vsAddress.empty())
+	StringVec vsResult;
+
+	DEKAF2_TRY
 	{
+		if (!vsAddress.empty())
+		{
+
 #ifdef DEKAF2_IS_OSX
-		DEKAF2_TRY {
+
 			KString sCmdLine = "atos -p ";
 			sCmdLine += std::to_string(getpid());
 			for (const auto& it : vsAddress)
@@ -107,17 +113,10 @@ std::vector<KString> Addr2LineMsg_ (const std::vector<KString>& vsAddress)
 					vsResult.emplace_back(std::move(sLineBuf));
 				}
 
-				// add an empty line at the end of the stack trace
-				vsResult.push_back("");
-
 			}
-		}
 
-		DEKAF2_CATCH (...) {
-			// ignore - just do default - returning empty string
-		}
 #elif DEKAF2_IS_UNIX
-		DEKAF2_TRY {
+
 			char sMyExeName[512];
 			ssize_t n;
 			if ( (n = readlink ("/proc/self/exe", sMyExeName, NUM_ELEMENTS (sMyExeName)-1)) > 0)
@@ -151,58 +150,93 @@ std::vector<KString> Addr2LineMsg_ (const std::vector<KString>& vsAddress)
 								sResult += sLineBuf;
 							}
 						}
-
 						vsResult.emplace_back(std::move(sResult));
 					}
 
-					// add an empty line at the end of the stack trace
-					vsResult.push_back("");
-
 				}
 			}
-		}
-
-		DEKAF2_CATCH (...) {
-			// ignore - just do default - returning empty string
-		}
 #endif
+		}
+	}
+
+	DEKAF2_CATCH (...)
+	{
+		// ignore - just do default - returning empty string
 	}
 
 	return vsResult;
 }
 
+//-----------------------------------------------------------------------------
+KString PrintStackVector(const StringVec& vsFrames)
+//-----------------------------------------------------------------------------
+{
+	KString sStack;
+
+	// avoid unnecessary reallocations
+	size_t iFrameMax = 0;
+	for (const auto& it : vsFrames)
+	{
+		iFrameMax += it.size() + 5;
+	}
+
+	sStack.reserve(iFrameMax);
+
+	size_t ii = vsFrames.size();
+	for (auto& it : vsFrames)
+	{
+		KString sFrame;
+		sFrame = std::to_string(ii--);
+		sFrame.PadLeft(3);
+		sFrame += ' ';
+		sFrame += it;
+		sFrame += '\n';
+		sStack.append(sFrame);
+	}
+
+	return sStack;
+
+} // PrintStackVector
 
 //-----------------------------------------------------------------------------
-KString GetStackAddress (const KString& sBacktraceLine)
+KStringView GetStackAddress (KStringView sBacktraceLine)
 //-----------------------------------------------------------------------------
 {
 	size_t i = sBacktraceLine.find ("[0x");
 	char cCloser = ']';
+
 	if (i == KString::npos)
 	{
 		i = sBacktraceLine.find (" 0x");
 		cCloser = ' ';
 	}
+
 	if (i == KString::npos)
 	{
-		return KString();
+		return {};
 	}
+
 	size_t e = sBacktraceLine.find(cCloser, i+3);
+
 	if (e == KString::npos)
 	{
 		return KString();
 	}
-	return sBacktraceLine.substr(i + 1, e - i - 1);
-}
 
-} // namespace kgetruntimestack_detail
+	return sBacktraceLine.substr(i + 1, e - i - 1);
+
+} // GetStackAddress
+
+} // namespace detail
 
 #ifdef WIN32
 	#define SUPPORT_GDBATTACH_PRINTCALLSTACK 0
 	#define SUPPORT_BACKTRACE_PRINTCALLSTACK 0
 #else
-	#ifndef SUPPORT_GDBATTACH_PRINTCALLSTACK
-		#define SUPPORT_GDBATTACH_PRINTCALLSTACK 1
+	#ifndef DEKAF2_IS_OSX
+		#ifndef SUPPORT_GDBATTACH_PRINTCALLSTACK
+			#define SUPPORT_GDBATTACH_PRINTCALLSTACK 1
+		#endif
 	#endif
 	#ifndef SUPPORT_BACKTRACE_PRINTCALLSTACK
 		#define SUPPORT_BACKTRACE_PRINTCALLSTACK 1
@@ -211,11 +245,11 @@ KString GetStackAddress (const KString& sBacktraceLine)
 
 #if SUPPORT_GDBATTACH_PRINTCALLSTACK
 
-namespace kgetruntimestack_detail
+namespace detail
 {
 
 //-----------------------------------------------------------------------------
-KString GetGDBAttachBased_Callstack_ ()
+KString GetGDBCallstack ()
 //-----------------------------------------------------------------------------
 {
 	KString sStack;
@@ -283,61 +317,75 @@ KString GetGDBAttachBased_Callstack_ ()
 	return sStack;
 }
 
-} // namespace kgetruntimestack_detail
+} // namespace detail
 #endif
 
 #if SUPPORT_BACKTRACE_PRINTCALLSTACK
-namespace kgetruntimestack_detail
+namespace detail
 {
 
 //-----------------------------------------------------------------------------
-KString GetBacktraceBased_Callstack_ (int iSkipStackLines)
+StringVec GetBacktraceCallstack (int iSkipStackLines)
 //-----------------------------------------------------------------------------
 {
 	KString sStack;
 
-	enum   {MAXSTACK = 500};
+	enum   { MAXSTACK = 500 };
 	void*  Stack[MAXSTACK+1];
-	int    iStackSize = 0;
+	int    iStackSize { 0 };
 
 	iStackSize = backtrace (Stack, MAXSTACK);
 	char** Names = backtrace_symbols (Stack, iStackSize);
 
-	std::vector<KString> vsAddress;
+	std::vector<KStringView> Addresses;
+
 	for (int ii = iSkipStackLines; ii < iStackSize; ++ii)
 	{
-		vsAddress.emplace_back(kgetruntimestack_detail::GetStackAddress(Names[ii]));
+		Addresses.push_back(detail::GetStackAddress(Names[ii]));
 	}
+
+	auto result = Addr2Line(Addresses);
 
 	free (Names);
 
-	std::vector<KString> vsFrames = Addr2LineMsg_(vsAddress);
+	return result;
 
-	// avoid unnecessary reallocations
-	size_t iFrameMax = 0;
-	for (const auto& it : vsFrames)
-	{
-		iFrameMax += it.size() + 5;
-	}
-	sStack.reserve(iFrameMax);
+} // GetBacktraceCallstack
 
-	size_t ii = vsFrames.size();
-	for (auto& it : vsFrames)
-	{
-		KString sFrame;
-		sFrame = std::to_string(ii--);
-		sFrame.PadLeft(3);
-		sFrame += ' ';
-		sFrame += it;
-		sFrame += '\n';
-		sStack.append(sFrame);
-	}
+} // namespace detail
+#endif
+
+//-----------------------------------------------------------------------------
+StringVec kGetBacktraceVector (int iSkipStackLines /*=2*/)
+//-----------------------------------------------------------------------------
+{
+	StringVec Stack;
+
+#if SUPPORT_BACKTRACE_PRINTCALLSTACK
+
+	Stack = detail::GetBacktraceCallstack(iSkipStackLines);
+
+#endif
+
+	return Stack;
+
+} // kGetBacktraceVector
+
+//-----------------------------------------------------------------------------
+KString kGetBacktrace (int iSkipStackLines /*=2*/)
+//-----------------------------------------------------------------------------
+{
+	KString sStack;
+
+#if SUPPORT_BACKTRACE_PRINTCALLSTACK
+
+	sStack = detail::PrintStackVector(kGetBacktraceVector(iSkipStackLines));
+
+#endif
 
 	return sStack;
-}
 
-} // namespace kgetruntimestack_detail
-#endif
+} // kGetBacktrace
 
 //-----------------------------------------------------------------------------
 KString kNormalizeFunctionName(KStringView sFunctionName)
@@ -419,14 +467,14 @@ KString kGetRuntimeStack (int iSkipStackLines /*=2*/)
 	KString sStack;
 
 #if SUPPORT_GDBATTACH_PRINTCALLSTACK
-	sStack = kgetruntimestack_detail::GetGDBAttachBased_Callstack_();
+	sStack = detail::GetGDBCallstack();
 #endif
 
 #if SUPPORT_BACKTRACE_PRINTCALLSTACK
 	// fall back to libc based backtrace if GDB is not available
 	if (sStack.empty())
 	{
-		sStack = kgetruntimestack_detail::GetBacktraceBased_Callstack_(iSkipStackLines);
+		sStack = kGetBacktrace(iSkipStackLines);
 	}
 #endif
 
@@ -438,47 +486,28 @@ KString kGetRuntimeStack (int iSkipStackLines /*=2*/)
 KJSON kGetRuntimeStackJSON (int iSkipStackLines /*=3*/)
 //-----------------------------------------------------------------------------
 {
-	auto sStack = kGetRuntimeStack (iSkipStackLines);
-
-	std::vector <KStringView> List;
-	kSplit (List, sStack, "\n");
-
-	KJSON aStack = KJSON::array();
-	for (auto item : List)
-	{
-		aStack += item;
-	}
-
-	return aStack;
-
-} // kGetRuntimeStackJSON
-
-//-----------------------------------------------------------------------------
-KString kGetBacktrace (int iSkipStackLines /*=2*/)
-//-----------------------------------------------------------------------------
-{
-	KString sStack;
+	KJSON jStack = KJSON::array();
 
 #if SUPPORT_BACKTRACE_PRINTCALLSTACK
+	auto sStack = kGetBacktraceVector(iSkipStackLines);
 
-	sStack = kgetruntimestack_detail::GetBacktraceBased_Callstack_(iSkipStackLines);
-
+	for (auto& item : sStack)
+	{
+		jStack += std::move(item);
+	}
 #endif
 
-	return sStack;
+	return jStack;
 
-} // kGetRuntimeStack
+} // kGetRuntimeStackJSON
 
 //-----------------------------------------------------------------------------
 KStackFrame kFilterTrace (int iSkipStackLines, KStringView sSkipFiles)
 //-----------------------------------------------------------------------------
 {
-	KString sStack = kGetBacktrace(iSkipStackLines);
+	auto Stack = kGetBacktraceVector(iSkipStackLines);
 
-	std::vector <KStringView> List;
-	kSplit (List, sStack, "\n");
-
-	for (auto it : List)
+	for (auto& it : Stack)
 	{
 #ifdef DEKAF2_IS_OSX
 		// parse atos-output
@@ -538,6 +567,35 @@ KStackFrame kFilterTrace (int iSkipStackLines, KStringView sSkipFiles)
 	return {};
 
 } // kFilterTrace
+
+//-----------------------------------------------------------------------------
+KString kGetAddress2Line(KStringView sAddresses)
+//-----------------------------------------------------------------------------
+{
+	std::vector<KStringView> vAddresses;
+
+	kSplit(vAddresses, sAddresses, " ");
+
+	auto vResult = detail::Addr2Line(vAddresses);
+
+	if (vResult.size() == 1)
+	{
+		return vResult.front();
+	}
+	else
+	{
+		return detail::PrintStackVector(vResult);
+	}
+
+} // kGetAddress2Line
+
+//-----------------------------------------------------------------------------
+KString kGetAddress2Line(const void* pAddress)
+//-----------------------------------------------------------------------------
+{
+	return kGetAddress2Line(kFormat("{}", pAddress));
+
+} // kGetAddress2Line
 
 } // of namespace dekaf2
 

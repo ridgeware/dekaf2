@@ -55,13 +55,13 @@ namespace dekaf2
 {
 
 //-----------------------------------------------------------------------------
-void kCrashExit (int iSignalNum)
+void kCrashExitExt (int iSignalNum, siginfo_t* siginfo, void* context)
 //-----------------------------------------------------------------------------
 {
 	auto& klog = KLog::getInstance();
 
 	// switch automatic backtracing off
-	klog.SetBackTraceLevel(100);
+	klog.SetBackTraceLevel(-100);
 
 	// and start our own stackdump
 
@@ -134,11 +134,38 @@ void kCrashExit (int iSignalNum)
 	}
 
 #ifndef WIN32
+	if (siginfo != nullptr)
+	{
+		switch (iSignalNum)
+		{
+			case SIGSEGV:
+			case SIGILL:
+			case SIGBUS:
+			case SIGFPE:
+			case SIGTRAP:
+			{
+				// try to isolate the crashing line
+				void* address = siginfo->si_addr;
+
+				klog.warning("error at address {}:", address);
+
+				if (address)
+				{
+					klog.warning("{}", kGetAddress2Line(address));
+				}
+				break;
+			}
+
+			default:
+				break;
+		}
+	}
+
 	if (iSignalNum != SIGINT)
 	{
 		klog.warning ("attempting to print a backtrace:");
 
-		klog.warning(kGetRuntimeStack());
+		klog.warning(kGetRuntimeStack(5));
 
 		#if 0
 		klog.warning ("enabling core dumps...");
@@ -153,6 +180,14 @@ void kCrashExit (int iSignalNum)
 
 	klog.warning ("exiting program.");
 	exit (-1);
+
+} // kCrashExitExt
+
+//-----------------------------------------------------------------------------
+void kCrashExit (int iSignalNum)
+//-----------------------------------------------------------------------------
+{
+	kCrashExitExt(iSignalNum, nullptr, nullptr);
 
 } // kCrashExit
 

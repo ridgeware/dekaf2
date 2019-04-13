@@ -68,6 +68,11 @@ KJSON kGetRuntimeStackJSON (int iSkipStackLines = 3);
 /// @param iSkipStackLines Number of top stack lines to drop. Defaults to 0.
 KString kGetBacktrace (int iSkipStackLines = 2);
 
+/// resolve an address to the symbol and line number it represents
+KString kGetAddress2Line(const void* pAddress);
+/// resolve addresses in hexadecimal string ("0x1234 0x3456")
+KString kGetAddress2Line(KStringView sAddresses);
+
 /// Struct to keep all details about one stack frame
 struct KStackFrame
 {

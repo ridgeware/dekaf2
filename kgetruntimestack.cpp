@@ -145,7 +145,7 @@ StringVec Addr2Line (const std::vector<KStringView>& vsAddress)
 
 					while (Shell.ReadLine (sLineBuf))
 					{
-						sResult += sLineBuf;
+						sResult = sLineBuf;
 
 						if (Shell.ReadLine (sLineBuf))
 						{
@@ -372,6 +372,11 @@ FrameVec GetBacktraceCallstack (int iSkipStackLines)
 
 	// account for own stack frame
 	++iSkipStackLines;
+
+#ifndef DEKAF2_IS_OSX
+	// need to skip one more frame on Linux
+	++iSkipStackLines;
+#endif
 
 	for (int ii = iSkipStackLines; ii < iStackSize; ++ii)
 	{
@@ -667,9 +672,6 @@ KStackFrame::KStackFrame(KStringView sTraceline)
 				end = sTraceline.size();
 			}
 			auto sFileAndLine = sTraceline.ToView(pos, end - pos);
-#else
-			// this is Windows
-	break;
 #endif
 #ifdef DEKAF2_IS_UNIX // UNIX includes OSX
 			auto sFile = sFileAndLine;

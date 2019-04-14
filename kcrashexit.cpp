@@ -165,7 +165,7 @@ void kCrashExitExt (int iSignalNum, siginfo_t* siginfo, void* context)
 	{
 		klog.warning ("attempting to print a backtrace:");
 
-		klog.warning(kGetRuntimeStack(5));
+		klog.warning(kGetRuntimeStack(1));
 
 		#if 0
 		klog.warning ("enabling core dumps...");

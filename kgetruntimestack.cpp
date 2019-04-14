@@ -63,6 +63,7 @@ namespace dekaf2
 #define NUM_ELEMENTS(X) (sizeof(X)/sizeof((X)[0]))
 
 using StringVec = std::vector<KString>;
+using FrameVec  = std::vector<KStackFrame>;
 
 namespace detail
 {
@@ -91,14 +92,16 @@ StringVec Addr2Line (const std::vector<KStringView>& vsAddress)
 				sCmdLine += ' ';
 				sCmdLine += it;
 			}
-			KInShell pipe;
-			if (pipe.Open (sCmdLine))
+
+			KInShell Shell;
+			Shell.SetReaderRightTrim("\n\r\t ");
+
+			if (Shell.Open (sCmdLine))
 			{
 				KString sLineBuf;
 
-				while (pipe.ReadLine (sLineBuf))
+				while (Shell.ReadLine (sLineBuf))
 				{
-					sLineBuf.TrimRight();
 					// remove part of string "(in PROGRAM)"
 					auto pos = sLineBuf.find(" (in ");
 					if (pos != KString::npos)
@@ -110,7 +113,7 @@ StringVec Addr2Line (const std::vector<KStringView>& vsAddress)
 						}
 					}
 					// and report
-					vsResult.emplace_back(std::move(sLineBuf));
+					vsResult.push_back(sLineBuf);
 				}
 
 			}
@@ -131,26 +134,27 @@ StringVec Addr2Line (const std::vector<KStringView>& vsAddress)
 					sCmdLine += ' ';
 					sCmdLine += it;
 				}
-				KInShell pipe;
-				if (pipe.Open (sCmdLine))
+
+				KInShell Shell;
+				Shell.SetReaderRightTrim("\n\r\t ");
+
+				if (Shell.Open (sCmdLine))
 				{
 					KString sLineBuf;
 					KString sResult;
 
-					while (pipe.ReadLine (sLineBuf))
+					while (Shell.ReadLine (sLineBuf))
 					{
-						sLineBuf.TrimRight();
 						sResult += sLineBuf;
 
-						if (pipe.ReadLine (sLineBuf))
+						if (Shell.ReadLine (sLineBuf))
 						{
-							sLineBuf.TrimRight();
 							if (!sLineBuf.starts_with("??:")) {
 								sResult += " at ";
 								sResult += sLineBuf;
 							}
 						}
-						vsResult.emplace_back(std::move(sResult));
+						vsResult.push_back(sResult);
 					}
 
 				}
@@ -197,6 +201,31 @@ KString PrintStackVector(const StringVec& vsFrames)
 	return sStack;
 
 } // PrintStackVector
+
+//-----------------------------------------------------------------------------
+KString PrintFrameVector(const FrameVec& Frames, bool bNormalize)
+//-----------------------------------------------------------------------------
+{
+	KString sStack;
+
+	sStack.reserve(Frames.size() * 80);
+
+	size_t ii = Frames.size();
+	for (const auto& it : Frames)
+	{
+		KString sFrame;
+		sFrame = std::to_string(ii--);
+		sFrame.PadLeft(3);
+		sFrame += ' ';
+		sFrame += it.Serialize(bNormalize);
+		sFrame += '\n';
+
+		sStack.append(sFrame);
+	}
+
+	return sStack;
+
+} // PrintFrameVector
 
 //-----------------------------------------------------------------------------
 KStringView GetStackAddress (KStringView sBacktraceLine)
@@ -249,37 +278,39 @@ namespace detail
 {
 
 //-----------------------------------------------------------------------------
-KString GetGDBCallstack ()
+StringVec GetGDBCallstack (int iSkipStackLines)
 //-----------------------------------------------------------------------------
 {
-	KString sStack;
+	StringVec Stack;
 
 	DEKAF2_TRY
 	{
-		bool seenPrintGDBAttachedxxx = false;
 		char name_buf[512];
 		ssize_t iRead = readlink("/proc/self/exe", name_buf, NUM_ELEMENTS(name_buf)-1);
 		if (iRead < 0)
 		{
-			return sStack;
+			return Stack;
 		}
 		name_buf[iRead] = 0;
-		// don't use Format() inside the stacktrace
+
 		KString sCmdLine = "gdb --batch -n -ex thread -ex bt \"";
 		sCmdLine += name_buf;
 		sCmdLine += "\" ";
-		sCmdLine += std::to_string(getpid());
+		sCmdLine += KString::to_string(getpid());
 		sCmdLine += " 2>&1";
-		KInShell pipe;
 
-		if (pipe.Open (sCmdLine))
+		KInShell Shell;
+		Shell.SetReaderRightTrim("\n\r\t ");
+
+		if (Shell.Open (sCmdLine))
 		{
 			//enum {TIMEOUT_SEC=10};
 
 			KString	sLineBuf;
-			while (pipe.ReadLine(sLineBuf))
+			bool bSeenOwnStackFrame { false };
+
+			while (Shell.ReadLine(sLineBuf))
 			{
-				sLineBuf.TrimRight();
 				if (0 == sLineBuf.length())
 				{
 					continue;			// skip blank lines
@@ -291,30 +322,32 @@ KString GetGDBCallstack ()
 					continue;			// skip blank lines
 				}
 
-				if (!seenPrintGDBAttachedxxx)
+				if (!bSeenOwnStackFrame)
 				{
 					if (sLineBuf.find(__FUNCTION__) != KString::npos)
 					{
-						seenPrintGDBAttachedxxx = true;
+						bSeenOwnStackFrame = true;
 					}
-				}
-				if (!seenPrintGDBAttachedxxx)
-				{
 					continue;			// skip prefixing lines (from our call to gdb)
 				}
 
-				sStack += sLineBuf;
-				sStack += '\n';
+				if (iSkipStackLines > 0)
+				{
+					--iSkipStackLines;
+					continue;
+				}
+
+				Stack.push_back(sLineBuf);
 			}
 		}
 	}
 
 	DEKAF2_CATCH (...)
 	{
-		sStack.clear();
+		Stack.clear();
 	}
 
-	return sStack;
+	return Stack;
 }
 
 } // namespace detail
@@ -325,11 +358,9 @@ namespace detail
 {
 
 //-----------------------------------------------------------------------------
-StringVec GetBacktraceCallstack (int iSkipStackLines)
+FrameVec GetBacktraceCallstack (int iSkipStackLines)
 //-----------------------------------------------------------------------------
 {
-	KString sStack;
-
 	enum   { MAXSTACK = 500 };
 	void*  Stack[MAXSTACK+1];
 	int    iStackSize { 0 };
@@ -339,16 +370,26 @@ StringVec GetBacktraceCallstack (int iSkipStackLines)
 
 	std::vector<KStringView> Addresses;
 
+	// account for own stack frame
+	++iSkipStackLines;
+
 	for (int ii = iSkipStackLines; ii < iStackSize; ++ii)
 	{
 		Addresses.push_back(detail::GetStackAddress(Names[ii]));
 	}
 
-	auto result = Addr2Line(Addresses);
+	auto vStack = Addr2Line(Addresses);
 
 	free (Names);
 
-	return result;
+	FrameVec Frames;
+
+	for (const auto& it : vStack)
+	{
+		Frames.push_back(KStackFrame(it));
+	}
+
+	return Frames;
 
 } // GetBacktraceCallstack
 
@@ -356,12 +397,15 @@ StringVec GetBacktraceCallstack (int iSkipStackLines)
 #endif
 
 //-----------------------------------------------------------------------------
-StringVec kGetBacktraceVector (int iSkipStackLines /*=2*/)
+FrameVec kGetBacktraceVector (int iSkipStackLines)
 //-----------------------------------------------------------------------------
 {
-	StringVec Stack;
+	FrameVec Stack;
 
 #if SUPPORT_BACKTRACE_PRINTCALLSTACK
+
+	// account for own stack frame
+	++iSkipStackLines;
 
 	Stack = detail::GetBacktraceCallstack(iSkipStackLines);
 
@@ -372,14 +416,17 @@ StringVec kGetBacktraceVector (int iSkipStackLines /*=2*/)
 } // kGetBacktraceVector
 
 //-----------------------------------------------------------------------------
-KString kGetBacktrace (int iSkipStackLines /*=2*/)
+KString kGetBacktrace (int iSkipStackLines)
 //-----------------------------------------------------------------------------
 {
 	KString sStack;
 
 #if SUPPORT_BACKTRACE_PRINTCALLSTACK
 
-	sStack = detail::PrintStackVector(kGetBacktraceVector(iSkipStackLines));
+	// account for own stack frame
+	++iSkipStackLines;
+
+	sStack = detail::PrintFrameVector(kGetBacktraceVector(iSkipStackLines), true);
 
 #endif
 
@@ -388,86 +435,113 @@ KString kGetBacktrace (int iSkipStackLines /*=2*/)
 } // kGetBacktrace
 
 //-----------------------------------------------------------------------------
+KStringView RemoveFunctionParms(KStringView sFunction)
+//-----------------------------------------------------------------------------
+{
+	// scan forward until the first '(' on level 0. '<' increases level, '>' decreases
+
+	int iLevel = 0;
+	for (size_t i = 0; i < sFunction.size(); ++i)
+	{
+		switch (sFunction[i])
+		{
+			case '<':
+				++iLevel;
+				break;
+
+			case '>':
+				--iLevel;
+				break;
+
+			case '(':
+				if (!iLevel)
+				{
+					sFunction.erase(i);
+					return sFunction;
+				}
+				break;
+		}
+	}
+
+	return sFunction;
+
+} // RemoveFunctionParms
+
+//-----------------------------------------------------------------------------
 KString kNormalizeFunctionName(KStringView sFunctionName)
 //-----------------------------------------------------------------------------
 {
 	KString sReturn;
 
-	auto iSig = sFunctionName.find('(');
-	if (iSig != KStringView::npos)
+	sFunctionName = RemoveFunctionParms(sFunctionName);
+
+	auto iSig = sFunctionName.size();
+	// now scan back until first space, but take care to skip template types (<xyz<abc> >)
+	int iTLevel { 0 };
+	KStringView::size_type iTStart { 0 };
+	KStringView::size_type iTEnd { 0 };
+	bool bFound { false };
+	while (iSig && !bFound)
 	{
-		sFunctionName.erase(iSig);
-		// now scan back until first space, but take care to skip template types (<xyz<abc> >)
-		uint16_t iTLevel { 0 };
-		KStringView::size_type iTStart { 0 };
-		KStringView::size_type iTEnd { 0 };
-		bool bFound { false };
-		while (iSig && !bFound)
+		switch (sFunctionName[--iSig])
 		{
-			switch (sFunctionName[--iSig])
-			{
-				case '<':
-					if (iTLevel)
-					{
-						--iTLevel;
-						if (!iTLevel && iTEnd)
-						{
-							iTStart = iSig;
-						}
-					}
-					break;
+			case '<':
+				--iTLevel;
+				if (!iTLevel && iTEnd)
+				{
+					iTStart = iSig;
+				}
+				break;
 
-				case '>':
-					if (!iTLevel && !iTStart)
-					{
-						iTEnd = iSig;
-					}
-					++iTLevel;
-					break;
+			case '>':
+				if (!iTLevel && !iTStart)
+				{
+					iTEnd = iSig;
+				}
+				++iTLevel;
+				break;
 
-				case ' ':
-					if (!iTLevel)
-					{
-						++iSig;
-						bFound = true;
-						// this ends the while loop
-					}
-					break;
+			case ' ':
+				if (!iTLevel)
+				{
+					++iSig;
+					bFound = true;
+					// this ends the while loop
+				}
+				break;
 
-			}
-		}
-
-		auto pos = sFunctionName.find("dekaf2::", iSig);
-		if (pos != KStringView::npos)
-		{
-			iSig = pos + 8;
-		}
-
-		if (iTStart && iTEnd)
-		{
-			sReturn = sFunctionName.Mid(iSig, iTStart - iSig);
-			sFunctionName.remove_prefix(iTEnd + 1);
-		}
-		else
-		{
-			sFunctionName.remove_prefix(iSig);
 		}
 	}
 
+	if (iTStart && iTEnd)
+	{
+		sReturn = sFunctionName.Mid(iSig, iTStart - iSig);
+		sFunctionName.remove_prefix(iTEnd + 1);
+	}
+	else
+	{
+		sFunctionName.remove_prefix(iSig);
+	}
+
 	sReturn += sFunctionName;
+
+	sReturn.Replace("dekaf2::", "");
 
 	return sReturn;
 
 } // kNormalizeFunctionName
 
 //-----------------------------------------------------------------------------
-KString kGetRuntimeStack (int iSkipStackLines /*=2*/)
+KString kGetRuntimeStack (int iSkipStackLines)
 //-----------------------------------------------------------------------------
 {
 	KString sStack;
 
+	// account for own stack frame
+	++iSkipStackLines;
+
 #if SUPPORT_GDBATTACH_PRINTCALLSTACK
-	sStack = detail::GetGDBCallstack();
+	sStack = detail::PrintStackVector(detail::GetGDBCallstack(iSkipStackLines));
 #endif
 
 #if SUPPORT_BACKTRACE_PRINTCALLSTACK
@@ -483,17 +557,20 @@ KString kGetRuntimeStack (int iSkipStackLines /*=2*/)
 } // kGetRuntimeStack
 
 //-----------------------------------------------------------------------------
-KJSON kGetRuntimeStackJSON (int iSkipStackLines /*=3*/)
+KJSON kGetRuntimeStackJSON (int iSkipStackLines)
 //-----------------------------------------------------------------------------
 {
 	KJSON jStack = KJSON::array();
 
 #if SUPPORT_BACKTRACE_PRINTCALLSTACK
+	// account for own stack frame
+	++iSkipStackLines;
+
 	auto sStack = kGetBacktraceVector(iSkipStackLines);
 
 	for (auto& item : sStack)
 	{
-		jStack += std::move(item);
+		jStack += item.Serialize();
 	}
 #endif
 
@@ -505,63 +582,17 @@ KJSON kGetRuntimeStackJSON (int iSkipStackLines /*=3*/)
 KStackFrame kFilterTrace (int iSkipStackLines, KStringView sSkipFiles)
 //-----------------------------------------------------------------------------
 {
+	// account for own stack frame
+	++iSkipStackLines;
+
 	auto Stack = kGetBacktraceVector(iSkipStackLines);
 
-	for (auto& it : Stack)
+	for (auto& Frame : Stack)
 	{
-#ifdef DEKAF2_IS_OSX
-		// parse atos-output
-		// isolate filename
-		if (!it.empty() && it.back() == ')')
+		if (!Frame.sFile.In(sSkipFiles))
 		{
-			auto pos = it.rfind('(');
-			if (pos != KStringView::npos)
-			{
-				++pos;
-				auto sFileAndLine = it.substr(pos, it.size()-(pos+1));
-#elif DEKAF2_IS_UNIX
-		// parse addr2line output
-		// isolate filename
-		if (!it.empty())
-		{
-			auto pos = it.rfind('/');
-			if (pos == KStringView::npos)
-			{
-				pos = it.rfind(" at ");
-				if (pos != KStringView::npos)
-				{
-					pos += 3;
-				}
-			}
-			if (pos != KStringView::npos)
-			{
-				++pos;
-				auto end = it.find(' ', pos);
-				if (end == KStringView::npos)
-				{
-					end = it.size();
-				}
-				auto sFileAndLine = it.substr(pos, end - pos);
-#else
-		// this is Windows
-		break;
-#endif
-#ifdef DEKAF2_IS_UNIX // UNIX includes OSX
-				auto sFile = sFileAndLine;
-				auto sLine = sFileAndLine;
-				pos = sFile.find(':');
-				if (pos != KStringView::npos)
-				{
-					sLine.remove_prefix(pos + 1);
-					sFile.remove_suffix(sFile.size() - pos);
-				}
-				if (!sFile.In(sSkipFiles))
-				{
-					return { it, sFile, sLine };
-				}
-			}
+			return Frame;
 		}
-#endif
 	}
 
 	return {};
@@ -596,6 +627,109 @@ KString kGetAddress2Line(const void* pAddress)
 	return kGetAddress2Line(kFormat("{}", pAddress));
 
 } // kGetAddress2Line
+
+//-----------------------------------------------------------------------------
+KStackFrame::KStackFrame(KStringView sTraceline)
+//-----------------------------------------------------------------------------
+{
+#ifdef DEKAF2_IS_OSX
+	// parse atos-output
+	// isolate filename
+	if (!sTraceline.empty() && sTraceline.back() == ')')
+	{
+		auto fend = sTraceline.rfind('(');
+		auto pos = fend;
+		if (pos != KStringView::npos)
+		{
+			++pos;
+			auto sFileAndLine = sTraceline.ToView(pos, sTraceline.size()-(pos+1));
+#elif DEKAF2_IS_UNIX
+	// parse addr2line output
+	// isolate filename
+	if (!sTraceline.empty())
+	{
+		auto fend = sTraceline.rfind('/');
+		auto pos = fend;
+		if (pos == KStringView::npos)
+		{
+			pos = sTraceline.rfind(" at ");
+			if (pos != KStringView::npos)
+			{
+				pos += 3;
+			}
+		}
+		if (pos != KStringView::npos)
+		{
+			++pos;
+			auto end = sTraceline.find(' ', pos);
+			if (end == KStringView::npos)
+			{
+				end = sTraceline.size();
+			}
+			auto sFileAndLine = sTraceline.ToView(pos, end - pos);
+#else
+			// this is Windows
+	break;
+#endif
+#ifdef DEKAF2_IS_UNIX // UNIX includes OSX
+			auto sFile = sFileAndLine;
+			auto sLine = sFileAndLine;
+
+			pos = sFile.find(':');
+			if (pos != KStringView::npos)
+			{
+				sLine.remove_prefix(pos + 1);
+				sFile.remove_suffix(sFile.size() - pos);
+			}
+
+			sTraceline.remove_suffix(sTraceline.size() - fend);
+			sTraceline.TrimRight();
+			*this = { sTraceline, sFile, sLine };
+		}
+	}
+#endif
+
+} // ctor
+
+//-----------------------------------------------------------------------------
+KStackFrame::KStackFrame(KString _sFunction, KString _sFile, KString _sLineNumber)
+//-----------------------------------------------------------------------------
+	: sFunction(std::move(_sFunction))
+	, sFile(std::move(_sFile))
+	, sLineNumber(std::move(_sLineNumber))
+{
+} // ctor
+
+//-----------------------------------------------------------------------------
+KString KStackFrame::Serialize(bool bNormalize) const
+//-----------------------------------------------------------------------------
+{
+	KString sLine;
+
+	if (bNormalize)
+	{
+		sLine = kNormalizeFunctionName(sFunction);
+	}
+	else
+	{
+		sLine = sFunction;
+	}
+
+	if (!sLine.empty())
+	{
+		sLine += "()";
+	}
+
+	sLine += " (";
+	sLine += sFile;
+	sLine += ':';
+	sLine += sLineNumber;
+	sLine += ')';
+
+	return sLine;
+
+} // KStackFrame::Serialize
+
 
 } // of namespace dekaf2
 

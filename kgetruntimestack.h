@@ -46,6 +46,7 @@
 /// provides a stack tracer
 
 #include "kstring.h"
+#include "kstringview.h"
 #include "kjson.h"
 
 namespace dekaf2
@@ -57,16 +58,16 @@ KString kNormalizeFunctionName(KStringView sFunctionName);
 /// get a full runtime stack trace (uses gdb if possible). The output
 /// of this function is as detailed as possible, and intended for crash
 /// situations.
-KString kGetRuntimeStack (int iSkipStackLines = 2);
+KString kGetRuntimeStack (int iSkipStackLines = 0);
 
 /// kGetRuntimeStack() as a JSON array.
-KJSON kGetRuntimeStackJSON (int iSkipStackLines = 3);
+KJSON kGetRuntimeStackJSON (int iSkipStackLines = 0);
 
 /// get a stack trace (uses gdb if possible). The output of this one is
 /// shorter than the one of kGetRuntimeStack, and intended for logging
 /// purposes during the runtime of the application.
 /// @param iSkipStackLines Number of top stack lines to drop. Defaults to 0.
-KString kGetBacktrace (int iSkipStackLines = 2);
+KString kGetBacktrace (int iSkipStackLines = 0);
 
 /// resolve an address to the symbol and line number it represents
 KString kGetAddress2Line(const void* pAddress);
@@ -76,12 +77,12 @@ KString kGetAddress2Line(KStringView sAddresses);
 /// Struct to keep all details about one stack frame
 struct KStackFrame
 {
-	KStackFrame(KString _sFunction = {}, KString _sFile = {}, KString _sLineNumber = {})
-	: sFunction(std::move(_sFunction))
-	, sFile(std::move(_sFile))
-	, sLineNumber(std::move(_sLineNumber))
-	{
-	}
+	KStackFrame() = default;
+	KStackFrame(KStringView sTraceline);
+	KStackFrame(KString _sFunction, KString _sFile, KString _sLineNumber);
+
+	KString Serialize(bool bNormalize = true) const;
+	operator KString() const { return Serialize(); }
 
 	KString sFunction;
 	KString sFile;

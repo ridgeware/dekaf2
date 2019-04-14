@@ -51,6 +51,7 @@
 #include "ktcpserver.h"
 #include "koptions.h"
 #include "kprops.h"
+#include "kjson.h"
 #include <csignal>
 
 using namespace dekaf2;
@@ -312,6 +313,28 @@ void SetJSONTraceLevel(KStringView sLevel)
 } // SetJSONTraceLevel
 
 //-----------------------------------------------------------------------------
+void TestBacktraces()
+//-----------------------------------------------------------------------------
+{
+	// need to switch to CLI mode to print stack traces on the console
+	KLog::getInstance().SetMode(KLog::CLI);
+	KLog::getInstance().OnlyShowCallerOnJsonError(true);
+
+	DEKAF2_TRY_EXCEPTION
+	KJSON json;
+	json["hello"] = 42;
+	KString s = json["hello"];
+	DEKAF2_LOG_EXCEPTION
+
+	kException(KException{"just kidding!"});
+	kUnknownException();
+	kDebug(-3, "hello");
+	volatile bool* bang = 0;
+	if (*bang) {}
+
+} // TestBacktraces
+
+//-----------------------------------------------------------------------------
 void SetupOptions (KOptions& Options, Actions& Actions)
 //-----------------------------------------------------------------------------
 {
@@ -326,6 +349,11 @@ void SetupOptions (KOptions& Options, Actions& Actions)
 			KOut.WriteLine (sLine);
 		}
 		Actions.bCompleted = true;
+	});
+
+	Options.RegisterCommand("crash", [&]()
+	{
+		TestBacktraces();
 	});
 
 	Options.RegisterOption("log", "need pathname for output log", [&](KStringViewZ sPath)

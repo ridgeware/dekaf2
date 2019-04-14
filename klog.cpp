@@ -1079,7 +1079,7 @@ bool KLog::IntDebug(int iLevel, KStringView sFunction, KStringView sMessage)
 		if (!s_bBackTraceAlreadyCalled)
 		{
 			s_bBackTraceAlreadyCalled = true;
-			int iSkipFromStack{4};
+			int iSkipFromStack { 2 };
 			if (iLevel == -2)
 			{
 				// for exceptions we have to peel off one more stack frame
@@ -1121,7 +1121,7 @@ void KLog::IntException(KStringView sWhat, KStringView sFunction, KStringView sC
 //---------------------------------------------------------------------------
 // This was originally written to print the caller of throwing JSON code.
 // For JSON, the configuration would be:
-// iSkipStackLines = 5
+// iSkipStackLines = 3
 // sSkipFiles = "parser.hpp,json_sax.hpp,json.hpp,krow.cpp,to_json.hpp,from_json.hpp,adl_serializer.hpp,krow.h,kjson.hpp,kjson.cpp"
 // sMessage = "JSON exception"
 void KLog::TraceDownCaller(int iSkipStackLines, KStringView sSkipFiles, KStringView sMessage)
@@ -1171,7 +1171,7 @@ void KLog::JSONTrace(KStringView sFunction)
 			static constexpr KStringView s_sJSONSkipFiles { "parser.hpp,json_sax.hpp,json.hpp,krow.cpp,"
 				               "to_json.hpp,from_json.hpp,adl_serializer.hpp,krow.h,kjson.hpp,kjson.cpp" };
 
-			TraceDownCaller(5, s_sJSONSkipFiles, "JSON Exception");
+			TraceDownCaller(3, s_sJSONSkipFiles, "JSON Exception");
 		}
 		else
 		{

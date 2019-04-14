@@ -304,27 +304,25 @@ StringVec GetGDBCallstack (int iSkipStackLines)
 
 		if (Shell.Open (sCmdLine))
 		{
-			//enum {TIMEOUT_SEC=10};
-
-			KString	sLineBuf;
+			KString	sLine;
 			bool bSeenOwnStackFrame { false };
 
-			while (Shell.ReadLine(sLineBuf))
+			while (Shell.ReadLine(sLine))
 			{
-				if (0 == sLineBuf.length())
+				if (sLine.empty())
 				{
 					continue;			// skip blank lines
 				}
 
 				// Joe says to just skip these
-				if (sLineBuf.starts_with ("warning: (Internal error:"))
+				if (sLine.starts_with ("warning: (Internal error:"))
 				{
-					continue;			// skip blank lines
+					continue;			// skip bogus lines
 				}
 
 				if (!bSeenOwnStackFrame)
 				{
-					if (sLineBuf.find(__FUNCTION__) != KString::npos)
+					if (sLine.find(__FUNCTION__) != KString::npos)
 					{
 						bSeenOwnStackFrame = true;
 					}
@@ -337,7 +335,27 @@ StringVec GetGDBCallstack (int iSkipStackLines)
 					continue;
 				}
 
-				Stack.push_back(sLineBuf);
+				if (sLine.starts_with('#'))
+				{
+					sLine.erase(0, 4);
+				}
+
+				if (sLine.starts_with("0x"))
+				{
+					size_t pos = sLine.find(' ');
+
+					if (pos != KString::npos)
+					{
+						sLine.erase(0, pos+1);
+
+						if (sLine.starts_with("in "))
+						{
+							sLine.erase(0, 3);
+						}
+					}
+				}
+
+				Stack.push_back(sLine);
 			}
 		}
 	}
@@ -711,18 +729,18 @@ KString KStackFrame::Serialize(bool bNormalize) const
 	if (bNormalize)
 	{
 		sLine = kNormalizeFunctionName(sFunction);
+
+		if (!sLine.empty())
+		{
+			sLine += "() ";
+		}
 	}
 	else
 	{
 		sLine = sFunction;
 	}
 
-	if (!sLine.empty())
-	{
-		sLine += "()";
-	}
-
-	sLine += " (";
+	sLine += '(';
 	sLine += sFile;
 	sLine += ':';
 	sLine += sLineNumber;

@@ -45,6 +45,7 @@
 #include "klog.h"
 #include "ksplit.h"
 #include "kfilesystem.h"
+#include "kstringutils.h"
 
 namespace dekaf2 {
 
@@ -57,10 +58,9 @@ KOptions::CLIParms::Arg_t::Arg_t(KStringViewZ sArg_)
 {
 	if (sArg.front() == '-')
 	{
-		if (sArg.size() > 1)
+		if (sArg.size() > 1 && !KASCII::kIsDigit(sArg[1]))
 		{
-			// this equivalent for sArg[1] is necessary to satisfy gcc 6.3
-			if (sArg.operator[](1) == '-')
+			if (sArg[1] == '-')
 			{
 				if (sArg.size() > 2)
 				{
@@ -75,7 +75,7 @@ KOptions::CLIParms::Arg_t::Arg_t(KStringViewZ sArg_)
 				iDashes = 1;
 			}
 		}
-		// single dash, leave alone
+		// single dash or negative number, leave alone
 	}
 
 } // Arg_t ctor
@@ -123,7 +123,14 @@ KOptions::KOptions(bool bEmptyParmsIsError, KStringView sCliDebugTo/*=KLog::STDO
 void KOptions::Help(KOutStream& out)
 //---------------------------------------------------------------------------
 {
-	if (DEKAF2_UNLIKELY(m_sHelp == nullptr))
+	if (m_sHelp)
+	{
+		for (size_t iCount = 0; iCount < m_iHelpSize; ++iCount)
+		{
+			out.WriteLine(m_sHelp[iCount]);
+		}
+	}
+	else
 	{
 		// check if we have a help option registered
 		auto cbi = m_Options.find("help");
@@ -134,13 +141,6 @@ void KOptions::Help(KOutStream& out)
 		// yes - call the function with empty args
 		ArgList Args;
 		cbi->second.func(Args);
-	}
-	else
-	{
-		for (size_t iCount = 0; iCount < m_iHelpSize; ++iCount)
-		{
-			out.WriteLine(m_sHelp[iCount]);
-		}
 	}
 
 } // Help

@@ -56,8 +56,16 @@ bool KHTTPRequestHeaders::Parse(KInStream& Stream)
 	if (!Stream.ReadLine(sLine))
 	{
 		// this is simply a read timeout, probably on a keep-alive
-		// connection. Unset the error string and return false;
-		kDebug (1, "returning null error (timeout?)");
+		// connection, or the connection close in a CGI environment.
+		// Unset the error string and return false;
+		if (Stream.Good() == false)
+		{
+			kDebug (2, "input stream got closed");
+		}
+		else
+		{
+			kDebug (2, "cannot read from input stream");
+		}
 		return SetError("");
 	}
 

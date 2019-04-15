@@ -309,7 +309,7 @@ public:
 		KHTTPHeaders::KHeaderMap ResponseHeaders;  // Fixed additional headers
 		KOpenIDProviderList Authenticators;        // Valid authentication instances for user verification
 		KStringView sAuthScope;                    // If non-empty, check that SSO token authorizes given scope
-		uint16_t iMaxKeepaliveRounds { 10 };       // DoS prevention - max rounds in keep-alive
+		mutable uint16_t iMaxKeepaliveRounds { 10 }; // DoS prevention - max rounds in keep-alive
 		mutable OutputType Out { HTTP };           // Which of the three output formats?
 		AUTH_LEVEL AuthLevel { ALLOW_ALL };        // Which authentication level?
 		bool bRecordRequest { false };             // Shall we record into the sRecordFile? Value is expected to change during execution (could be made an atomic, but we don't care for a few missing records)

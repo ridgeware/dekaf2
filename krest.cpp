@@ -177,6 +177,7 @@ bool KREST::ExecuteRequest(const Options& Options, const KRESTRoutes& Routes)
 				KCGIInStream CGI(KIn);
 				KStream Stream(CGI, KOut);
 				Options.Out = KRESTServer::HTTP;
+				Options.iMaxKeepaliveRounds = 1; // no keepalive in CGI mode..
 				RealExecute(Options, Routes, Stream); // TODO get remote IP from env var
 				return true; // we return true because the request was served
 			}
@@ -192,6 +193,7 @@ bool KREST::ExecuteRequest(const Options& Options, const KRESTRoutes& Routes)
 				KLambdaInStream Lambda(KIn);
 				KStream Stream(Lambda, KOut);
 				Options.Out = KRESTServer::LAMBDA;
+				Options.iMaxKeepaliveRounds = 1; // no keepalive in Lambda mode..
 				RealExecute(Options, Routes, Stream); // TODO get remote IP from env var
 				return true; // we return true because the request was served
 			}

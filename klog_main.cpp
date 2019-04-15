@@ -57,6 +57,7 @@
 #include "kstringstream.h"
 #include "kreplacer.h"
 #include "kconfiguration.h"
+#include "khtmlentities.h"
 #include <csignal>
 
 using namespace dekaf2;
@@ -821,10 +822,7 @@ int main (int argc, char* argv[])
 			{
 				while (Shell.ReadLine(sLine))
 				{
-					KStringView style = "color='#E0E0E0'";
-
-					sLine.Replace("<", "&lt;");
-					sLine.Replace(">", "&gt;");
+					KStringView style = "color: #E0E0E0";
 
 					if (sLine.starts_with("| DB3 |"))
 					{
@@ -836,21 +834,21 @@ int main (int argc, char* argv[])
 					}
 					else if (sLine.starts_with("| DB1 |"))
 					{
-						style = "color: #FFFFFF";
+						style = "color: white";
 					}
 					else if (sLine.starts_with("| DBG |"))
 					{
-						style = "color: #FFFFFF";
+						style = "color: white";
 					}
 					else if (sLine.starts_with("| WAR |"))
 					{
-						style = "background-color: red; color: #FFFFFF";
+						style = "background-color: red; color: white";
 					}
 					else if (sLine.starts_with("| ERR |"))
 					{
-						style = "background-color: red; color: #FFFFFF";
+						style = "background-color: red; color: white";
 					}
-					out->FormatLine("<span style='{}'>{}</span>", style, sLine);
+					out->FormatLine("<span style='{}'>{}</span>", style, KHTMLEntity::Encode(sLine));
 				}
 			}
 		}

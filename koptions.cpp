@@ -46,6 +46,9 @@
 #include "ksplit.h"
 #include "kfilesystem.h"
 #include "kstringutils.h"
+#include "kcgistream.h"
+#include "kurl.h"
+#include "khttp_header.h"
 
 namespace dekaf2 {
 
@@ -101,6 +104,26 @@ void KOptions::CLIParms::Create(int argc, char** argv)
 	for (int ii = 0; ii < argc; ++ii)
 	{
 		m_ArgVec.push_back(KStringViewZ(*argv++));
+	}
+
+	if (!m_ArgVec.empty())
+	{
+		m_sProgramName = m_ArgVec.front().sArg;
+		m_ArgVec.front().bConsumed = true;
+	}
+
+} // CParms ctor
+
+//---------------------------------------------------------------------------
+void KOptions::CLIParms::Create(std::vector<KStringViewZ> parms)
+//---------------------------------------------------------------------------
+{
+	m_ArgVec.clear();
+	m_ArgVec.reserve(parms.size());
+
+	for (auto it : parms)
+	{
+		m_ArgVec.push_back(it);
 	}
 
 	if (!m_ArgVec.empty())
@@ -267,11 +290,54 @@ void KOptions::RegisterCommand(KStringView sCommand, KStringViewZ sMissingParm, 
 }
 
 //---------------------------------------------------------------------------
+bool KOptions::IsCGIEnvironment() const
+//---------------------------------------------------------------------------
+{
+	return kGetEnv(KCGIInStream::REQUEST_METHOD).empty() == false;
+}
+
+//---------------------------------------------------------------------------
+int KOptions::ParseCGI(KStringViewZ sProgramName, KOutStream& out)
+//---------------------------------------------------------------------------
+{
+	url::KQuery Query;
+
+	Query.Parse(kGetEnv(KCGIInStream::QUERY_STRING));
+
+	std::vector<KStringViewZ> QueryArgs;
+
+	QueryArgs.push_back(sProgramName);
+
+	for (auto& it : Query.get())
+	{
+		QueryArgs.push_back(it.first);
+		if (!it.second.empty())
+		{
+			QueryArgs.push_back(it.second);
+		}
+	}
+	m_CLIParms.Create(QueryArgs);
+
+	kDebug(2, "parsed {} arguments from CGI query string", QueryArgs.size() - 1);
+
+	return Execute(out);
+
+} // ParseCGI
+
+//---------------------------------------------------------------------------
 int KOptions::Parse(int argc, char** argv, KOutStream& out)
 //---------------------------------------------------------------------------
 {
 	m_CLIParms.Create(argc, argv);
 
+	return Execute(out);
+
+} // Parse
+
+//---------------------------------------------------------------------------
+int KOptions::Execute(KOutStream& out)
+//---------------------------------------------------------------------------
+{
 	CLIParms::iterator lastCommand;
 
 	DEKAF2_TRY
@@ -428,7 +494,7 @@ int KOptions::Parse(int argc, char** argv, KOutStream& out)
 
 	return 1;
 
-} // Parse
+} // Execute
 
 
 #ifdef DEKAF2_REPEAT_CONSTEXPR_VARIABLE

@@ -103,6 +103,9 @@ public:
 	/// if valid, -1 if -help was called, and > 0 for error
 	int Parse(int argc, char** argv, KOutStream& out = KOut);
 
+	/// Parse arguments from CGI QUERY_PARMS
+	int ParseCGI(KStringViewZ sProgramName, KOutStream& out = KOut);
+
 	using ArgList   = KStack<KStringViewZ>;
 	using Callback0 = std::function<void()>;
 	using Callback1 = std::function<void(KStringViewZ)>;
@@ -153,9 +156,14 @@ public:
 		return m_sCurrentArg;
 	}
 
+	/// Returns true if we are executed inside a CGI server
+	bool IsCGIEnvironment() const;
+
 //----------
 private:
 //----------
+
+	int Execute(KOutStream& out);
 
 	class CLIParms
 	{
@@ -191,6 +199,7 @@ private:
 		}
 
 		void Create(int argc, char** argv);
+		void Create(std::vector<KStringViewZ> parms);
 		size_t size() const  { return m_ArgVec.size();  }
 		size_t empty() const { return m_ArgVec.empty(); }
 		iterator begin()     { return m_ArgVec.begin(); }

@@ -49,6 +49,7 @@
 #include "ksplit.h"
 #include "kfilesystem.h"
 #include "kcgistream.h"
+#include "kfilesystem.h"
 #include <mutex>
 #include <iostream>
 
@@ -115,7 +116,7 @@ KLogFileWriter::KLogFileWriter(KStringView sFileName)
 {
 	KString sBuffer(sFileName);
 	// force mode 666 for the log file ...
-	kChangeMode(sBuffer, 0666);
+	kChangeMode(sBuffer, DEKAF2_MODE_CREATE_FILE);
 
 } // ctor
 
@@ -566,16 +567,6 @@ KLog::KLog()
 	s_sDefaultFlag += kDirSep;
 	s_sDefaultFlag += s_sFlagName;
 
-	if (m_sLogName.empty())
-	{
-		m_sLogName = s_sDefaultLog;
-	}
-
-	if (m_sFlagfile.empty())
-	{
-		m_sFlagfile = s_sDefaultFlag;
-	}
-
 	m_sPathName =  Dekaf::getInstance().GetProgPath();
 	m_sPathName += kDirSep;
 	m_sPathName += Dekaf::getInstance().GetProgName();
@@ -600,7 +591,7 @@ void KLog::SetDefaults()
 	// reset to defaults
 
 	// resets to s_sDefaultLog if empty
-	SetDebugLog(kGetEnv(s_sEnvLog, m_bIsCGI ? "" : STDOUT));
+	SetDebugLog(kGetEnv(s_sEnvLog, (m_bIsCGI || m_Logmode == LOGMODE::SERVER) ? "" : STDOUT));
 
 	// do not use SetDebugFlag() as it forces an immediate read of the flagfile,
 	// which would loop..
@@ -865,7 +856,7 @@ void KLog::SetMode(LOGMODE logmode)
 		if (logmode == SERVER)
 		{
 			// if new mode == SERVER, first set debug log
-			m_sLogName = kGetEnv(s_sEnvLog, s_sDefaultLog);
+			SetDebugLog(kGetEnv(s_sEnvLog, s_sDefaultLog));
 			// then read the debug flag
 			CheckDebugFlag(true);
 		}

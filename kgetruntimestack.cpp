@@ -464,6 +464,7 @@ KStringView RemoveFunctionParms(KStringView sFunction)
 	// scan forward until the first '(' on level 0. '<' increases level, '>' decreases
 
 	int iLevel = 0;
+
 	for (size_t i = 0; i < sFunction.size(); ++i)
 	{
 		switch (sFunction[i])
@@ -498,12 +499,13 @@ KString kNormalizeFunctionName(KStringView sFunctionName)
 
 	sFunctionName = RemoveFunctionParms(sFunctionName);
 
-	auto iSig = sFunctionName.size();
 	// now scan back until first space, but take care to skip template types (<xyz<abc> >)
 	int iTLevel { 0 };
 	KStringView::size_type iTStart { 0 };
 	KStringView::size_type iTEnd { 0 };
 	bool bFound { false };
+	auto iSig { sFunctionName.size() };
+
 	while (iSig && !bFound)
 	{
 		switch (sFunctionName[--iSig])
@@ -738,6 +740,11 @@ KString KStackFrame::Serialize(bool bNormalize) const
 	else
 	{
 		sLine = sFunction;
+
+		if (!sLine.empty())
+		{
+			sLine += ' ';
+		}
 	}
 
 	sLine += '(';

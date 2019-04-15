@@ -52,6 +52,11 @@
 #include "koptions.h"
 #include "kprops.h"
 #include "kjson.h"
+#include "kmime.h"
+#include "khttp_header.h"
+#include "kstringstream.h"
+#include "kreplacer.h"
+#include "kconfiguration.h"
 #include <csignal>
 
 using namespace dekaf2;
@@ -74,6 +79,7 @@ constexpr KStringView g_Synopsis[] = {
 	"",
 	"dekaf2 extensions:",
 	"",
+	"  grep <regex>      : filter output by regex",
 	"  config            : print content of debug flag file",
 	"  setlog            : set global debug log file",
 	"  getlog            : get global debug log file",
@@ -122,12 +128,19 @@ protected:
 struct Actions
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
-	uint32_t   iDumpLines { 0 };
-	uint16_t   iPort { 0 };
-	bool       bFollowFlag { false };
-	bool       bCompleted { false };
+	uint32_t    iDumpLines { 0 };
+	uint16_t    iPort { 0 };
+	bool        bFollowFlag { false };
+	bool        bCompleted { false };
+	KString     sGrepString;
 
 }; // Actions
+
+// output globals (in CGI mode we have to delay the output until after we wrote the header,
+// therefore we redirect temporarily into a stringstream)
+KOutStream* out = &KOut;
+KOutStream* err = &KErr;
+bool bIsCGI     = false;
 
 //-----------------------------------------------------------------------------
 void PrintFlagFile()
@@ -139,12 +152,12 @@ void PrintFlagFile()
 		KString sLine;
 		while (file.ReadLine(sLine))
 		{
-			KOut.WriteLine(sLine);
+			out->WriteLine(sLine);
 		}
 	}
 	else
 	{
-		KErr.FormatLine("klog: cannot open file {}", KLog::getInstance().GetDebugFlag());
+		err->FormatLine("klog: cannot open file {}", KLog::getInstance().GetDebugFlag());
 	}
 
 } // PrintFlagFile
@@ -157,11 +170,11 @@ void RemoveFlagFile()
 
 	if (kRemoveFile(KLog::getInstance().GetDebugFlag()))
 	{
-		KOut.WriteLine("logging and tracing switched off");
+		out->WriteLine("logging and tracing switched off");
 	}
 	else
 	{
-		KErr.FormatLine("klog: cannot delete {}", KLog::getInstance().GetDebugFlag());
+		err->FormatLine("klog: cannot delete {}", KLog::getInstance().GetDebugFlag());
 	}
 
 } // RemoveFlagFile
@@ -198,7 +211,7 @@ void WriteConfig(Properties& props, KStringView sKeyToList)
 	}
 	else
 	{
-		KErr.FormatLine("klog: cannot write to {}", KLog::getInstance().GetDebugFlag());
+		err->FormatLine("klog: cannot write to {}", KLog::getInstance().GetDebugFlag());
 	}
 
 } // WriteConfig
@@ -286,9 +299,20 @@ void Persist()
 void SetLevel(uint16_t iLevel)
 //-----------------------------------------------------------------------------
 {
-	KLog::getInstance().SetLevel(iLevel);
-	KErr.FormatLine ("klog: set new debug level to {}", KLog::getInstance().GetLevel());
-	Persist();
+
+	if (iLevel != KLog::getInstance().GetLevel())
+	{
+		if (!bIsCGI)
+		{
+			out->FormatLine ("klog: set new debug level to {}", KLog::getInstance().GetLevel());
+		}
+		KLog::getInstance().SetLevel(iLevel);
+		Persist();
+	}
+	else if (!bIsCGI)
+	{
+		out->FormatLine ("klog: debug level already set to {}", iLevel);
+	}
 
 } // SetLevel
 
@@ -296,9 +320,19 @@ void SetLevel(uint16_t iLevel)
 void SetBackTraceLevel(int16_t iLevel)
 //-----------------------------------------------------------------------------
 {
-	KLog::getInstance().SetBackTraceLevel(iLevel);
-	KErr.FormatLine ("klog: set new back trace level to {}", KLog::getInstance().GetBackTraceLevel());
-	Persist();
+	if (iLevel != KLog::getInstance().GetLevel())
+	{
+		if (!bIsCGI)
+		{
+			out->FormatLine ("klog: set new back trace level to {}", KLog::getInstance().GetBackTraceLevel());
+		}
+		KLog::getInstance().SetBackTraceLevel(iLevel);
+		Persist();
+	}
+	else if (!bIsCGI)
+	{
+		out->FormatLine ("klog: trace level already set to {}", iLevel);
+	}
 
 } // SetBackTraceLevel
 
@@ -306,9 +340,19 @@ void SetBackTraceLevel(int16_t iLevel)
 void SetJSONTraceLevel(KStringView sLevel)
 //-----------------------------------------------------------------------------
 {
-	KLog::getInstance().SetJSONTrace(sLevel);
-	KErr.FormatLine ("klog: set new JSON trace mode to \"{}\"", KLog::getInstance().GetJSONTrace());
-	Persist();
+	if (sLevel != KLog::getInstance().GetJSONTrace())
+	{
+		if (!bIsCGI)
+		{
+			out->FormatLine ("klog: set new JSON trace mode to \"{}\"", KLog::getInstance().GetJSONTrace());
+		}
+		KLog::getInstance().SetJSONTrace(sLevel);
+		Persist();
+	}
+	else if (!bIsCGI)
+	{
+		out->FormatLine ("klog: JSON trace mode already set to {}", sLevel);
+	}
 
 } // SetJSONTraceLevel
 
@@ -338,52 +382,61 @@ void TestBacktraces()
 void SetupOptions (KOptions& Options, Actions& Actions)
 //-----------------------------------------------------------------------------
 {
-	Options.RegisterOption("help", [&]()
+	if (!Options.IsCGIEnvironment())
 	{
-		auto iNumLines = sizeof(g_Synopsis)/sizeof(KStringView);
-		for (size_t ii=0; ii < iNumLines; ++ii)
+		Options.RegisterOption("help", [&]()
 		{
-			KString sLine = g_Synopsis[ii];
-			sLine.Replace ("{LOG}",  KLog::getInstance().GetDebugLog());
-			sLine.Replace ("{FLAG}", KLog::getInstance().GetDebugFlag());
-			KOut.WriteLine (sLine);
-		}
-		Actions.bCompleted = true;
-	});
+			auto iNumLines = sizeof(g_Synopsis)/sizeof(KStringView);
+			for (size_t ii=0; ii < iNumLines; ++ii)
+			{
+				KString sLine = g_Synopsis[ii];
+				sLine.Replace ("{LOG}",  KLog::getInstance().GetDebugLog());
+				sLine.Replace ("{FLAG}", KLog::getInstance().GetDebugFlag());
+				out->WriteLine (sLine);
+			}
+			Actions.bCompleted = true;
+		});
 
-	Options.RegisterCommand("crash", [&]()
-	{
-		TestBacktraces();
-	});
-
-	Options.RegisterOption("log", "need pathname for output log", [&](KStringViewZ sPath)
-	{
-		if (!KLog::getInstance().SetDebugLog (sPath))
+		Options.RegisterOption("log", "need pathname for output log", [&](KStringViewZ sPath)
 		{
-			KErr.Format ("klog: error setting local debug log to {}.\n", sPath);
-		}
-	});
+			if (!KLog::getInstance().SetDebugLog (sPath))
+			{
+				err->Format ("klog: error setting local debug log to {}.\n", sPath);
+			}
+		});
 
-	Options.RegisterOption("flag", "need pathname for debug flag", [&](KStringViewZ sPath)
-	{
-		if (!KLog::getInstance().SetDebugFlag (sPath))
+		Options.RegisterOption("flag", "need pathname for debug flag", [&](KStringViewZ sPath)
 		{
-			KErr.Format ("klog: error setting local debug flag to {}.\n", sPath);
-		}
-	});
+			if (!KLog::getInstance().SetDebugFlag (sPath))
+			{
+				err->Format ("klog: error setting local debug flag to {}.\n", sPath);
+			}
+		});
 
-	Options.RegisterCommand("f,follow", [&]()
-	{
-		Actions.bFollowFlag = true;
-	});
-
-	Options.RegisterCommand("listen", "need port number", [&](KStringViewZ sPort)
-	{
-		Actions.iPort = sPort.UInt16();
-		if (!Actions.iPort)
+		Options.RegisterCommand("f,follow", [&]()
 		{
-			throw KOptions::WrongParameterError("klog: port number has to be between 1 and 65535");
-		}
+			Actions.bFollowFlag = true;
+		});
+
+		Options.RegisterCommand("listen", "need port number", [&](KStringViewZ sPort)
+		{
+			Actions.iPort = sPort.UInt16();
+			if (!Actions.iPort)
+			{
+				throw KOptions::WrongParameterError("klog: port number has to be between 1 and 65535");
+			}
+		});
+
+		Options.RegisterCommand("crash", [&]()
+		{
+			TestBacktraces();
+		});
+
+	} // ! CGI environment
+
+	Options.RegisterCommand("grep", "need search string", [&](KStringViewZ sRegex)
+	{
+		Actions.sGrepString = sRegex;
 	});
 
 	Options.RegisterCommand("clear", [&]()
@@ -392,19 +445,19 @@ void SetupOptions (KOptions& Options, Actions& Actions)
 
 		if ((sLogFile == "stdout") || (sLogFile == "stderr") || sLogFile == "syslog" || (sLogFile == "null"))
 		{
-			KErr.Format ("klog: dekaf log is set to '{}' -- nothing to clear.\n", sLogFile);
+			out->Format ("klog: dekaf log is set to '{}' -- nothing to clear.\n", sLogFile);
 		}
 		else if (!kFileExists (sLogFile))
 		{
-			KErr.Format ("klog: log ({}) already cleared.\n", sLogFile);
+			out->Format ("klog: log ({}) already cleared.\n", sLogFile);
 		}
 		else if (kRemoveFile (sLogFile))
 		{
-			KErr.Format ("klog: log ({}) cleared.\n", sLogFile);
+			out->Format ("klog: log ({}) cleared.\n", sLogFile);
 		}
 		else
 		{
-			KErr.Format ("klog: FAILED to clear log ({}).\n", sLogFile);
+			err->Format ("klog: FAILED to clear log ({}).\n", sLogFile);
 		}
 	});
 
@@ -425,24 +478,24 @@ void SetupOptions (KOptions& Options, Actions& Actions)
 
 	Options.RegisterCommand("get", [&]()
 	{
-		KErr.Format ("{}\n", KLog::getInstance().GetLevel());
+		out->Format ("{}\n", KLog::getInstance().GetLevel());
 	});
 
 	Options.RegisterCommand("getlog", [&]()
 	{
-		KErr.Format ("{}\n", KLog::getInstance().GetDebugLog());
+		out->Format ("{}\n", KLog::getInstance().GetDebugLog());
 	});
 
 	Options.RegisterCommand("setlog", "missing argument", [&](KStringViewZ sPath)
 	{
 		if (KLog::getInstance().SetDebugLog (sPath))
 		{
-			KErr.Format ("klog: set new debug log to {} - ", sPath);
+			out->Format ("klog: set new debug log to {} - ", sPath);
 			Persist();
 		}
 		else
 		{
-			KErr.Format ("klog: error setting new debug log to {}.\n", sPath);
+			err->Format ("klog: error setting new debug log to {}.\n", sPath);
 		}
 	});
 
@@ -469,7 +522,7 @@ void SetupOptions (KOptions& Options, Actions& Actions)
 	Options.RegisterCommand("notrace", [&]()
 	{
 		DeleteConfigKeyValue("trace", "", true);
-		KOut.WriteLine("all trace strings removed");
+		out->WriteLine("all trace strings removed");
 	});
 
 	Options.RegisterCommand("tracelevel", "missing argument", [&](KStringViewZ sArg)
@@ -482,6 +535,11 @@ void SetupOptions (KOptions& Options, Actions& Actions)
 		SetJSONTraceLevel(sArg);
 	});
 
+	Options.RegisterCommand("show", "number of lines", [&](KStringViewZ sArg)
+	{
+		Actions.iDumpLines = sArg.UInt32();
+	});
+
 	Options.RegisterUnknownCommand([&](KOptions::ArgList& sArgs)
 	{
 		Actions.iDumpLines = sArgs.front().UInt32();
@@ -490,13 +548,179 @@ void SetupOptions (KOptions& Options, Actions& Actions)
 			throw KOptions::Error(kFormat("klog: argument not understood: {}", sArgs.front()));
 		}
 	});
-}
+
+} // SetupOptions
+
+//-----------------------------------------------------------------------------
+void PrintHTMLHeader(Actions& Actions)
+//-----------------------------------------------------------------------------
+{
+	constexpr KStringView sHeader = R"foo(Content-Type: text/html
+
+<html lang="en">
+<head>
+	<style>
+	body {
+		margin: 0;
+		padding: 0;
+		background-color: black;
+		color: white;
+	}
+	#bar {
+		overflow: hidden;
+		position: fixed;
+		top: 0;
+		width: 100%;
+		background-color: #C0C0C0;
+		border: 2px outset;
+		color: black;
+		vertical-align: middle;
+		font-family: Arial;
+		font-size: 14px;
+		padding: 5px 10px;
+		white-space: nowrap;
+   }
+   #colheads {
+		margin: 45px 0 10px 10px;
+		padding: 0;
+		overflow: hidden;
+		position: fixed;
+		top: 0;
+		width: 100%;
+		color: white:
+		font-weight: bold;
+		background-color: black;
+	}
+	#log {
+		margin: 90px 10px 10px 5px;
+		padding: 0;
+	}
+	em { /* button */
+		background-color: #C0C0C0;
+		color: black;
+		border: 2px outset;
+		margin: 4px 2px;
+		padding: 2px 15px;
+		font-style: normal;
+	}
+	em:hover, .on {
+		background-color: white;
+		color: black;
+		cursor: pointer;
+	}
+	i { /* tag line */
+		color: white;
+		font-style: normal;
+		text-shadow: rgba(0,0,0,0.5) -1px 0, rgba(0,0,0,0.3) 0 -1px, rgba(255,255,255,0.5) 0 1px, rgba(0,0,0,0.3) -1px -2px;
+   	}
+	input {
+		background-color: white;
+		color: black;
+		margin: 4px 2px;
+		padding: 2px 26px 2px 6px;
+		font-weight: bold;
+	}
+	b { /* clear search */
+		background-color: white;
+		color: black;
+		margin: 1px 6px 0 -18px;
+		padding: 1px 3px 2px 3px;
+	}
+    b:hover {
+		background-color: #C0C0C0;
+		color: black;
+		cursor: pointer;
+	}
+	span { /* spacer */
+		padding: 0 6px;
+	}
+
+	</style>
+	<script>
+		function go(sAction)
+		{
+			var sNew= document.location.pathname
+				+ "?show=" + document.forms[0]["show"].value;
+
+			if (document.forms[0]["grep"].value != "") {
+				sNew += "&grep=" + document.forms[0]["grep"].value;
+			}
+
+			if (sAction && (sAction != "")) {
+				sNew += "&" + sAction;
+			}
+
+			console.log (":: action: " + sNew);
+			document.location.href = sNew;
+		}
+   </script>
+</head>
+<body>
+<form><input type="submit" style="display: none" /><div id="bar">
+Last: <input size="6" name="show" value="{{iLines}}"/> lines
+<span>&bull;</span>
+Grep for: <input size="12" name="grep" placeholder="regex" value="{{grep}}"/><b onclick="document.forms[0]['grep'].value=''; go();">X</b>
+<span>&bull;</span>
+Set to:
+	<em {{set0}} onclick="go('set=0');">0</em>
+	<em {{set1}} onclick="go('set=1');">1</em>
+	<em {{set2}} onclick="go('set=2');">2</em>
+	<em {{set3}} onclick="go('set=3');">3</em>
+<span>&bull;</span>
+Trace:
+	<em {{tracelevel1}} onclick="go('tracelevel=-1');">War</em>
+	<em {{tracelevel2}} onclick="go('tracelevel=-2');">Exc</em>
+	<em {{tracelevel3}} onclick="go('tracelevel=-3');">Off</em>
+<span>&bull;</span>
+	<em onclick="go('clear=');">wipe klog</em>
+<span>&bull;</span>
+	<em onclick="go();">refresh</em>
+<span>&bull;</span>
+<i>Long live the KLOG! [{{VERSION}}]</i>
+</div>
+</form>
+<pre id="colheads">+-----+-------+-------+---------+---------------------+------------------------------------------------------------
+| LVL | APP   |  PID  | THREAD  | TIMESTAMP           | MESSAGE
++-----+-------+-------+---------+---------------------+------------------------------------------------------------</pre>
+<pre id="log">
+)foo";
+
+	KVariables Variables(true);
+
+	auto& klog = KLog::getInstance();
+	int iLevel = klog.GetLevel();
+	int iTraceLevel = klog.GetBackTraceLevel();
+	KStringView sJSON = klog.GetJSONTrace();
+
+	Variables.insert("VERSION", "v" DEKAF_VERSION);
+	Variables.insert("set0", iLevel == 0 ? "class=on" : "");
+	Variables.insert("set1", iLevel == 1 ? "class=on" : "");
+	Variables.insert("set2", iLevel == 2 ? "class=on" : "");
+	Variables.insert("set3", iLevel == 3 ? "class=on" : "");
+	Variables.insert("tracelevel1", iTraceLevel == -1 ? "class=on" : "");
+	Variables.insert("tracelevel2", iTraceLevel == -2 ? "class=on" : "");
+	Variables.insert("tracelevel3", iTraceLevel == -3 ? "class=on" : "");
+	Variables.insert("JSONTrace", sJSON);
+	Variables.insert("iLines", Actions.iDumpLines ? KString::to_string(Actions.iDumpLines) : "250");
+	Variables.insert("grep", Actions.sGrepString);
+
+	out->Write(Variables.Replace(sHeader));
+
+} // PrintHTMLHeader
+
+//-----------------------------------------------------------------------------
+void PrintHTMLFooter()
+//-----------------------------------------------------------------------------
+{
+	out->Write(R"(</pre></body></html>)");
+
+} // PrintHTMLFooter
 
 //-----------------------------------------------------------------------------
 int main (int argc, char* argv[])
 //-----------------------------------------------------------------------------
 {
-	kInit();
+	kInit("KLOG");
 	
 	// we have to act as a SERVER, as otherwise we would not read the
 	// flag file for the current settings..
@@ -504,11 +728,48 @@ int main (int argc, char* argv[])
 
 	Actions Actions;
 	KOptions Options(true);
-	SetupOptions (Options, Actions);
-	int iErrors = Options.Parse(argc, argv, KOut);
+	int iErrors { 0 };
+
+	if (Options.IsCGIEnvironment())
+	{
+		KString sOutput;
+		KOutStringStream OSS(sOutput);
+
+		// redirect all output into the stringstream
+		out = &OSS;
+		err = &OSS;
+		bIsCGI = true;
+
+		SetupOptions (Options, Actions);
+		iErrors = Options.ParseCGI(argv[0], OSS);
+
+		// redirect output into std again
+		out = &KOut;
+		err = &KErr;
+
+		// print page start, which is affected by the settings above
+		PrintHTMLHeader(Actions);
+
+		// only now print all additional output that might have occured during parsing of the options
+		out->Write(sOutput);
+
+		if (iErrors)
+		{
+			out->Write(R"(</pre><hr/><em style="margin-left: 50px;" onclick='go()'>Refresh</em><hr/><pre>)");
+		}
+	}
+	else
+	{
+		SetupOptions (Options, Actions);
+		iErrors = Options.Parse(argc, argv, KOut);
+	}
 
 	if (Actions.bCompleted || iErrors)
 	{
+		if (bIsCGI)
+		{
+			PrintHTMLFooter();
+		}
 		return iErrors; // either error or completed
 	}
 
@@ -516,60 +777,96 @@ int main (int argc, char* argv[])
 
     if ((Actions.bFollowFlag || Actions.iDumpLines) && ((sLogFile == "stdout") || (sLogFile == "stderr")))
 	{
-		KErr.Format ("klog: dekaf log already set to '{}' -- no need to use this utility to dump it.\n", sLogFile);
+		err->Format ("klog: dekaf log already set to '{}' -- no need to use this utility to dump it.\n", sLogFile);
 		return (++iErrors);
 	}
 
-	if (Actions.bFollowFlag)
+	if (Actions.iDumpLines || Actions.bFollowFlag)
 	{
-		KOut.Format ("klog: continuous log output ({}), ^C to break...\n", sLogFile);
-
-		KString sCmd;
-
-		if (Actions.iDumpLines)
+		if (!kFileExists (sLogFile) && !Actions.bFollowFlag)
 		{
-			sCmd.Format ("tail -{}f {}", Actions.iDumpLines, sLogFile);
+			err->Format ("klog: log ({}) is empty.\n", sLogFile);
 		}
 		else
 		{
-			sCmd.Format ("tail -f {}", sLogFile);
-		}
-
-		KInShell pipe (sCmd);
-		KString  sLine;
-		while (pipe.ReadLine(sLine))
-		{
-			KOut.WriteLine (sLine);
-		}
-	}
-	else if (Actions.iDumpLines)
-	{
-		if (!kFileExists (sLogFile))
-		{
-			KErr.Format ("klog: log ({}) is empty.\n", sLogFile);
-		}
-		else
-		{
-			KOut.Format ("klog: last {} lines of {}...\n", Actions.iDumpLines, sLogFile);
+			if (Actions.bFollowFlag)
+			{
+				out->Format ("klog: continuous log output ({}), ^C to break...\n", sLogFile);
+			}
 
 			KString sCmd;
-			sCmd.Format ("tail -{} {}", Actions.iDumpLines, sLogFile);
 
-            KInShell pipe (sCmd);
-			KString  sLine;
-			while (pipe.ReadLine(sLine))
+			if (Actions.sGrepString.empty())
 			{
-				KOut.WriteLine (sLine);
+				sCmd.Format ("tail {}-n {} {}", Actions.bFollowFlag ? "-f " : "", Actions.iDumpLines, sLogFile);
+			}
+			else
+			{
+				sCmd.Format ("grep -iE \"{}\" {} | tail {}-n {}", Actions.sGrepString, sLogFile, Actions.bFollowFlag ? "-f " : "", Actions.iDumpLines);
+			}
+
+			KInShell Shell (sCmd);
+			KString  sLine;
+
+			if (!bIsCGI)
+			{
+				out->Format ("klog: last {} lines of {}...\n", Actions.iDumpLines, sLogFile);
+
+				while (Shell.ReadLine(sLine))
+				{
+					out->WriteLine (sLine);
+				}
+			}
+			else
+			{
+				while (Shell.ReadLine(sLine))
+				{
+					KStringView style = "color='#E0E0E0'";
+
+					sLine.Replace("<", "&lt;");
+					sLine.Replace(">", "&gt;");
+
+					if (sLine.starts_with("| DB3 |"))
+					{
+						style = "color: #808080";
+					}
+					else if (sLine.starts_with("| DB2 |"))
+					{
+						style = "color: #C0C0C0";
+					}
+					else if (sLine.starts_with("| DB1 |"))
+					{
+						style = "color: #FFFFFF";
+					}
+					else if (sLine.starts_with("| DBG |"))
+					{
+						style = "color: #FFFFFF";
+					}
+					else if (sLine.starts_with("| WAR |"))
+					{
+						style = "background-color: red; color: #FFFFFF";
+					}
+					else if (sLine.starts_with("| ERR |"))
+					{
+						style = "background-color: red; color: #FFFFFF";
+					}
+					out->FormatLine("<span style='{}'>{}</span>", style, sLine);
+				}
 			}
 		}
 	}
 	else if (Actions.iPort)
 	{
-		KOut.Format ("klog: listening to port {} ...\n", Actions.iPort);
+		out->Format ("klog: listening to port {} ...\n", Actions.iPort);
 		KlogServer server (Actions.iPort, /*bSSL=*/false);
 		server.RegisterShutdownWithSignal(SIGTERM);
 		server.RegisterShutdownWithSignal(SIGINT);
 		server.Start(/*iTimeoutInSeconds=*/static_cast<uint16_t>(-1), /*bBlocking=*/true);
+	}
+
+	if (bIsCGI)
+	{
+		PrintHTMLFooter();
 	}
 
 	return (iErrors);

@@ -779,6 +779,12 @@ int main (int argc, char* argv[])
     if ((Actions.bFollowFlag || Actions.iDumpLines) && ((sLogFile == "stdout") || (sLogFile == "stderr")))
 	{
 		err->Format ("klog: dekaf log already set to '{}' -- no need to use this utility to dump it.\n", sLogFile);
+
+		if (bIsCGI)
+		{
+			PrintHTMLFooter();
+		}
+
 		return (++iErrors);
 	}
 
@@ -822,6 +828,12 @@ int main (int argc, char* argv[])
 			{
 				while (Shell.ReadLine(sLine))
 				{
+					if (sLine.starts_with("| DB2 |  KLOG |"))
+					{
+						// do not print own log lines
+						continue;
+					}
+
 					KStringView style = "color: #E0E0E0";
 
 					if (sLine.starts_with("| DB3 |"))
@@ -848,6 +860,7 @@ int main (int argc, char* argv[])
 					{
 						style = "background-color: red; color: white";
 					}
+
 					out->FormatLine("<span style='{}'>{}</span>", style, KHTMLEntity::Encode(sLine));
 				}
 			}

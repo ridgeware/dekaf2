@@ -696,6 +696,7 @@ set (SOURCES
 	kgetruntimestack.cpp
 	khmac.cpp
 	khtmlcontentblocks.cpp
+	khtmlentities.cpp
 	khtmlparser.cpp
 	khttpclient.cpp
 	khttperror.cpp
@@ -762,7 +763,7 @@ set (SOURCES
 	kwriter.cpp
 	kxml.cpp
 	# keep this one at the end
-	khtmlentities.cpp
+	khtmlentities5.cpp
 )
 
 if(SQLITE3_FOUND)

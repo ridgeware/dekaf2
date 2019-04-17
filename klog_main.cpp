@@ -658,7 +658,7 @@ void PrintHTMLHeader(Actions& Actions)
 </head>
 <body>
 <form><input type="submit" style="display: none" /><div id="bar">
-Last: <input size="6" name="show" value="{{iLines}}"/> lines
+Last: <input size="6" name="show" value="{{show}}"/> lines
 <span>&bull;</span>
 Grep for: <input size="12" name="grep" placeholder="regex" value="{{grep}}"/><b onclick="document.forms[0]['grep'].value=''; go();">X</b>
 <span>&bull;</span>
@@ -701,8 +701,8 @@ Trace:
 	Variables.insert("tracelevel1", iTraceLevel == -1 ? "class=on" : "");
 	Variables.insert("tracelevel2", iTraceLevel == -2 ? "class=on" : "");
 	Variables.insert("tracelevel3", iTraceLevel == -3 ? "class=on" : "");
-	Variables.insert("JSONTrace", sJSON);
-	Variables.insert("iLines", Actions.iDumpLines ? KString::to_string(Actions.iDumpLines) : "250");
+	Variables.insert("tracejson", sJSON);
+	Variables.insert("show", Actions.iDumpLines ? KString::to_string(Actions.iDumpLines) : "250");
 	Variables.insert("grep", Actions.sGrepString);
 
 	out->Write(Variables.Replace(sHeader));

@@ -42,6 +42,7 @@
 
 #include "kcompression.h"
 #include "klog.h"
+#include "kfilesystem.h"
 
 #include <boost/iostreams/copy.hpp>
 #include <boost/iostreams/filter/gzip.hpp>
@@ -51,6 +52,27 @@
 namespace dekaf2 {
 
 namespace bio = boost::iostreams;
+
+//-----------------------------------------------------------------------------
+detail::KCompressionBase::COMPRESSION detail::KCompressionBase::GetCompressionMethodFromFilename(KStringView sFilename)
+//-----------------------------------------------------------------------------
+{
+	auto sExt = kExtension(sFilename);
+
+	if (sExt == "gz" || sExt == "gzip" || sExt == "tgz")
+	{
+		return KCompressionBase::GZIP;
+	}
+	else if (sExt == "bz2" || sExt == "bzip2" || sExt == "tbz2")
+	{
+		return KCompressionBase::BZIP2;
+	}
+	else
+	{
+		return KCompressionBase::NONE;
+	}
+
+} // GetCompressionMethodFromFilename
 
 //-----------------------------------------------------------------------------
 bool KCompressOStream::open(std::ostream& TargetStream, COMPRESSION compression)
@@ -92,6 +114,7 @@ bool KCompressOStream::CreateFilter(COMPRESSION compression)
 
 	switch (compression)
 	{
+		case AUTO:
 		case NONE:
 			break;
 
@@ -163,6 +186,7 @@ bool KUnCompressIStream::CreateFilter(COMPRESSION compression)
 
 	switch (compression)
 	{
+		case AUTO:
 		case NONE:
 			break;
 

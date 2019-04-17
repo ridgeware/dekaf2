@@ -73,7 +73,10 @@ public:
 		GZIP,
 		BZIP2,
 		ZLIB,
+		AUTO
 	};
+
+	static COMPRESSION GetCompressionMethodFromFilename(KStringView sFilename);
 
 };
 

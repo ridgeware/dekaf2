@@ -3,7 +3,6 @@
 // This file contains all internal macro definitions
 // You MUST include macro_unscope.hpp at the end of json.hpp to undef all of them
 
-#include <dekaf2/dekaf2.h>
 #include <dekaf2/klog.h>
 
 // exclude unsupported compilers

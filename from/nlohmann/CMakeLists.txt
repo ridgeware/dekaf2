@@ -4,4 +4,9 @@ project(nlohmann)
 
 # providing an include path for nlohmann-json (#include <nlohmann/json.hpp>)
 add_library(nlohmann-json INTERFACE)
-set_target_properties(nlohmann-json PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}/include")
+
+target_include_directories(nlohmann-json
+	INTERFACE
+	$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+	$<INSTALL_INTERFACE:${dekaf2_include_dest}>
+)

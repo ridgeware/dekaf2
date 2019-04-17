@@ -99,17 +99,21 @@ if (NOT CMAKE_SYSTEM_PROCESSOR MATCHES "arm")
 )
 endif()
 
-set (MINIFOLLY_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
-
 # we add the HEADERS as well, as otherwise qtcreator would not see them
 # as belonging to the project. CMake would not need them here.
 add_library(minifolly ${HEADERS} ${SOURCES})
 
 target_include_directories(minifolly
-	PUBLIC "${MINIFOLLY_INCLUDE_DIR}" "${Boost_INCLUDE_DIR}"
+	PUBLIC
+	$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
+	$<INSTALL_INTERFACE:${dekaf2_include_dest}>
+	${Boost_INCLUDE_DIR}
 )
 
 target_link_libraries(minifolly
     ${Boost_LIBRARIES}
     Threads::Threads
 )
+
+#install(TARGETS minifolly EXPORT dekaf2 DESTINATION ${dekaf2_lib_dest})
+install(FILES ${HEADERS} DESTINATION ${dekaf2_include_dest})

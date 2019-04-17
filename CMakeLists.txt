@@ -97,6 +97,15 @@ else()
 
 endif()
 
+# prepare for install:
+# for testing
+set(CMAKE_INSTALL_PREFIX "/Users/jschurig/src/install")
+set(lib_version ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR})
+set(dekaf2_bin_dest "bin")
+set(dekaf2_include_dest "include/${PROJECT_NAME}-${lib_version}")
+set(dekaf2_main_lib_dest "lib/${PROJECT_NAME}-${lib_version}")
+set(dekaf2_lib_dest "${dekaf2_main_lib_dest}/${CMAKE_BUILD_TYPE}")
+
 # =================================== ENVIRONMENT ==================================
 
 if (CMAKE_SYSTEM_PROCESSOR MATCHES "x86")
@@ -509,6 +518,9 @@ file(MAKE_DIRECTORY "${GENERATED_FILES_DIR}")
 # create the configuration header file
 configure_file("bits/kconfiguration.h.in" "${GENERATED_FILES_DIR}/kconfiguration.h" @ONLY)
 
+# create the cmake version comparison file for find_package()
+configure_file("cmake/${PROJECT_NAME}-config-version.cmake.in" "${GENERATED_FILES_DIR}/${PROJECT_NAME}-config-version.cmake" @ONLY)
+
 # =============================== HEADER FILES ====================================
 
 set (BITS_HEADERS
@@ -772,39 +784,6 @@ if(SQLITE3_FOUND)
 	)
 endif()
 
-# =============================== PSEUDO INSTALL ====================================
-
-if (DEKAF2_INSTALL_HEADERS)
-
-	set (DEKAF2_INCLUDE_DIR "${CMAKE_CURRENT_BINARY_DIR}/include")
-	set (DEKAF2_INSTALL_DIR "${DEKAF2_INCLUDE_DIR}/dekaf2")
-	file(MAKE_DIRECTORY "${DEKAF2_INCLUDE_DIR}")
-	file(MAKE_DIRECTORY "${DEKAF2_INSTALL_DIR}")
-	file(MAKE_DIRECTORY "${DEKAF2_INSTALL_DIR}/bits")
-	if (DEKAF2_WITH_COMPATIBILITY_LAYER_TO_DEKAF1)
-		file(MAKE_DIRECTORY "${DEKAF2_INSTALL_DIR}/compat")
-	endif ()
-
-	foreach(HEADER ${HEADERS})
-		add_custom_command(
-			OUTPUT "${DEKAF2_INCLUDE_DIR}/${HEADER}"
-			DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/${HEADER}"
-			COMMAND ${CMAKE_COMMAND} -E copy_if_different "${CMAKE_CURRENT_SOURCE_DIR}/${HEADER}" "${DEKAF2_INSTALL_DIR}/${HEADER}"
-		)
-		set(header_deps	${header_deps}	"${DEKAF2_INCLUDE_DIR}/${HEADER}")
-	endforeach(HEADER dekaf_library_headers)
-
-	add_custom_target(lib-headers-dekaf2
-		DEPENDS ${header_deps}
-	)
-
-else ()
-
-	set (DEKAF2_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/..")
-	add_custom_target(lib-headers-dekaf2)
-
-endif (DEKAF2_INSTALL_HEADERS)
-
 # ============================= CONDITIONAL LIBS ==================================
 
 if (CMAKE_COMPILER_IS_GNUCC AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 6.0)
@@ -872,12 +851,21 @@ target_link_libraries(dekaf2
 		${COMPRESSORS}
 	)
 
-add_dependencies(dekaf2 lib-headers-dekaf2)
 target_include_directories(dekaf2
-	PUBLIC "${DEKAF2_INCLUDE_DIR}" "${GENERATED_FILES_DIR}" "${Boost_INCLUDE_DIR}" "${OPENSSL_INCLUDE_DIR}"
-	PRIVATE "${MYSQL_INCLUDE_DIRS}" "${SQLITE3_INCLUDE_DIRS}" "${libproc_INCLUDE_DIRS}"
-	INTERFACE
+	PUBLIC
+	$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/..>
+	$<BUILD_INTERFACE:${GENERATED_FILES_DIR}>
+	$<INSTALL_INTERFACE:${dekaf2_include_dest}>
+	$<INSTALL_INTERFACE:${dekaf2_lib_dest}>
+	${Boost_INCLUDE_DIR}
+	${OPENSSL_INCLUDE_DIR}
+	PRIVATE
+	$<BUILD_INTERFACE:${MYSQL_INCLUDE_DIRS}>
+	$<BUILD_INTERFACE:${SQLITE3_INCLUDE_DIRS}>
+	$<BUILD_INTERFACE:${libproc_INCLUDE_DIRS}>
+	#INTERFACE
 )
+
 target_compile_definitions(dekaf2 PRIVATE DEKAF2_LIBRARY_BUILD PUBLIC DEKAF2)
 
 add_executable(klog klog_main.cpp)
@@ -900,40 +888,34 @@ add_subdirectory(benchmarks)
 
 # ================================= INSTALLATION =====================================
 
-# for testing
-set(CMAKE_INSTALL_PREFIX "~/src/install")
-file(MAKE_DIRECTORY ${CMAKE_INSTALL_PREFIX})
+# create dummy exports to satisfy cmake for the statically and PRIVATE linked in libraries (this is a bug in cmake)
+install(TARGETS minifolly EXPORT dekaf2 DESTINATION ${dekaf2_lib_dest}/other)
+install(TARGETS fmt EXPORT dekaf2 DESTINATION ${dekaf2_lib_dest}/other)
+install(TARGETS nlohmann-json EXPORT dekaf2 DESTINATION ${dekaf2_lib_dest}/other)
+install(TARGETS re2 EXPORT dekaf2 DESTINATION ${dekaf2_lib_dest}/other)
+install(TARGETS frozen EXPORT dekaf2 DESTINATION ${dekaf2_lib_dest}/other)
 
-install(TARGETS dekaf2 DESTINATION lib)
-install(FILES ${PUBLIC_HEADERS} DESTINATION include/dekaf2)
-install(FILES ${BITS_HEADERS} DESTINATION include/dekaf2/bits)
-install(FILES ${BITS_SIMD_HEADERS} DESTINATION include/dekaf2/bits/simd)
-install(FILES "${GENERATED_FILES_DIR}/kconfiguration.h" DESTINATION include/dekaf2)
+install(TARGETS dekaf2 EXPORT dekaf2 DESTINATION ${dekaf2_lib_dest})
+install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/cmake/${PROJECT_NAME}-config.cmake DESTINATION ${dekaf2_main_lib_dest})
+install(FILES ${GENERATED_FILES_DIR}/${PROJECT_NAME}-config-version.cmake DESTINATION ${dekaf2_main_lib_dest})
+install(EXPORT ${PROJECT_NAME} DESTINATION "${dekaf2_lib_dest}")
+install(TARGETS klog DESTINATION ${dekaf2_bin_dest})
+install(TARGETS createdbc DESTINATION ${dekaf2_bin_dest})
+#install(TARGETS getentities DESTINATION ${dekaf2_bin_dest})
+#install(TARGETS genunicodetables DESTINATION ${dekaf2_bin_dest})
+
+install(FILES ${PUBLIC_HEADERS} DESTINATION ${dekaf2_include_dest})
+install(FILES ${BITS_HEADERS} DESTINATION ${dekaf2_include_dest}/bits)
+install(FILES ${BITS_SIMD_HEADERS} DESTINATION ${dekaf2_include_dest}/bits/simd)
+install(FILES "${GENERATED_FILES_DIR}/kconfiguration.h" DESTINATION ${dekaf2_lib_dest})
 if (DEKAF2_WITH_COMPATIBILITY_LAYER_TO_DEKAF1)
-	install(FILES ${COMPAT_HEADERS} DESTINATION include/dekaf2/compat)
+	install(FILES ${COMPAT_HEADERS} DESTINATION ${dekaf2_include_dest}/compat)
 endif()
 
-file (GLOB FMT_FILES "${CMAKE_CURRENT_SOURCE_DIR}/libs/fmt-4.0.0/fmt/*.h")
-install(FILES ${FMT_FILES} DESTINATION include/dekaf2/fmt)
-
-file (GLOB FOLLY_FILES "${CMAKE_CURRENT_SOURCE_DIR}/from/folly/folly/*.h")
-install(FILES ${FOLLY_FILES} DESTINATION include/dekaf2/folly)
-file (GLOB FOLLY_FILES "${CMAKE_CURRENT_SOURCE_DIR}/from/folly/folly/portability/*.h")
-install(FILES ${FOLLY_FILES} DESTINATION include/dekaf2/folly/portability)
-file (GLOB FOLLY_FILES "${CMAKE_CURRENT_SOURCE_DIR}/from/folly/folly/hash/*.h")
-install(FILES ${FOLLY_FILES} DESTINATION include/dekaf2/folly/hash)
-file (GLOB FOLLY_FILES "${CMAKE_CURRENT_SOURCE_DIR}/from/folly/folly/detail/*.h")
-install(FILES ${FOLLY_FILES} DESTINATION include/dekaf2/folly/detail)
-file (GLOB FOLLY_FILES "${CMAKE_CURRENT_SOURCE_DIR}/from/folly/folly/concurrency/*.h")
-install(FILES ${FOLLY_FILES} DESTINATION include/dekaf2/folly/concurrency)
-
-file (GLOB NLOHMANN_FILES "${CMAKE_CURRENT_SOURCE_DIR}/from/nlohmann/include/nlohmann/*.h")
-install(FILES ${NLOHMANN_FILES} DESTINATION include/dekaf2/nlohmann)
-
-file (GLOB FROZEN_FILES "${CMAKE_CURRENT_SOURCE_DIR}/libs/frozen/include/frozen/*.h")
-install(FILES ${FROZEN_FILES} DESTINATION include/dekaf2/frozen)
-file (GLOB FROZEN_FILES "${CMAKE_CURRENT_SOURCE_DIR}/libs/frozen/include/frozen/bits/*.h")
-install(FILES ${FROZEN_FILES} DESTINATION include/dekaf2/frozen/bits)
+install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/from/nlohmann/include/nlohmann/ DESTINATION ${dekaf2_include_dest}/nlohmann FILES_MATCHING PATTERN "*.hpp")
+install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/libs/frozen/include/frozen/ DESTINATION ${dekaf2_include_dest}/frozen FILES_MATCHING PATTERN "*.h")
+install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/libs/fmt-5.3.0/include/fmt/ DESTINATION ${dekaf2_include_dest}/fmt FILES_MATCHING PATTERN "*.h")
+install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/from/folly/folly/ DESTINATION ${dekaf2_include_dest}/folly FILES_MATCHING PATTERN "*.h")
 
 set(CPACK_SOURCE_GENERATOR ZIP)
 set(CPACK_SOURCE_IGNORE_FILES ${ignored_files})

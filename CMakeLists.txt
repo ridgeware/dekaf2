@@ -99,7 +99,7 @@ endif()
 
 # prepare for install:
 # for testing
-set(CMAKE_INSTALL_PREFIX "/Users/jschurig/src/install")
+#set(CMAKE_INSTALL_PREFIX "~/src/install")
 set(lib_version ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR})
 set(dekaf2_bin_dest "bin")
 set(dekaf2_include_dest "include/${PROJECT_NAME}-${lib_version}")
@@ -497,6 +497,7 @@ message(STATUS "dekaf2 C++ compile flags for Release build : ${CMAKE_CXX_FLAGS} 
 message(STATUS "dekaf2 C++ compile flags for Debug   build : ${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_DEBUG}")
 message(STATUS "CPU : ${CMAKE_SYSTEM_PROCESSOR}")
 
+# C++11 std::threads do not need this
 set(CMAKE_THREAD_PREFER_PTHREAD TRUE)
 set(THREADS_PREFER_PTHREAD_FLAG TRUE)
 find_package(Threads REQUIRED)
@@ -601,7 +602,6 @@ set(PUBLIC_HEADERS
 	kmpsearch.h
 	kmru.h
 	koptions.h
-	kstringstream.h
 	kopenid.h
 	koutpipe.h
 	koutputtemplate.h
@@ -827,8 +827,10 @@ if (IS_WINDOWS)
 	endif()
 else()
 	set (COMPRESSORS
-		ZLIB::ZLIB
-		BZip2::BZip2
+		${ZLIB_LIBRARIES}
+		${BZIP2_LIBRARIES}
+#		ZLIB::ZLIB
+#		BZip2::BZip2
 	)
 endif()
 
@@ -840,15 +842,15 @@ target_link_libraries(dekaf2
 		${OPENSSL_LIBRARIES}
 		frozen
 		${MINIFOLLY}
+		${COMPRESSORS}
+		Threads::Threads
 	PRIVATE
 		${FCGILIBS}
 		${FSLIB}
 		${MYSQL_LIBRARIES}
 		${SQLITE3_LIBRARIES}
 		${libproc_LIBRARIES}
-		Threads::Threads
 		re2
-		${COMPRESSORS}
 	)
 
 target_include_directories(dekaf2
@@ -863,7 +865,7 @@ target_include_directories(dekaf2
 	$<BUILD_INTERFACE:${MYSQL_INCLUDE_DIRS}>
 	$<BUILD_INTERFACE:${SQLITE3_INCLUDE_DIRS}>
 	$<BUILD_INTERFACE:${libproc_INCLUDE_DIRS}>
-	#INTERFACE
+	INTERFACE
 )
 
 target_compile_definitions(dekaf2 PRIVATE DEKAF2_LIBRARY_BUILD PUBLIC DEKAF2)
@@ -904,9 +906,9 @@ install(TARGETS createdbc DESTINATION ${dekaf2_bin_dest})
 #install(TARGETS getentities DESTINATION ${dekaf2_bin_dest})
 #install(TARGETS genunicodetables DESTINATION ${dekaf2_bin_dest})
 
-install(FILES ${PUBLIC_HEADERS} DESTINATION ${dekaf2_include_dest})
-install(FILES ${BITS_HEADERS} DESTINATION ${dekaf2_include_dest}/bits)
-install(FILES ${BITS_SIMD_HEADERS} DESTINATION ${dekaf2_include_dest}/bits/simd)
+install(FILES ${PUBLIC_HEADERS} DESTINATION ${dekaf2_include_dest}/dekaf2)
+install(FILES ${BITS_HEADERS} DESTINATION ${dekaf2_include_dest}/dekaf2/bits)
+install(FILES ${BITS_SIMD_HEADERS} DESTINATION ${dekaf2_include_dest}/dekaf2/bits/simd)
 install(FILES "${GENERATED_FILES_DIR}/kconfiguration.h" DESTINATION ${dekaf2_lib_dest})
 if (DEKAF2_WITH_COMPATIBILITY_LAYER_TO_DEKAF1)
 	install(FILES ${COMPAT_HEADERS} DESTINATION ${dekaf2_include_dest}/compat)
@@ -916,10 +918,24 @@ install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/from/nlohmann/include/nlohmann/ DE
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/libs/frozen/include/frozen/ DESTINATION ${dekaf2_include_dest}/frozen FILES_MATCHING PATTERN "*.h")
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/libs/fmt-5.3.0/include/fmt/ DESTINATION ${dekaf2_include_dest}/fmt FILES_MATCHING PATTERN "*.h")
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/from/folly/folly/ DESTINATION ${dekaf2_include_dest}/folly FILES_MATCHING PATTERN "*.h")
+install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/from/folly/glog/ DESTINATION ${dekaf2_include_dest}/glog FILES_MATCHING PATTERN "*.h")
 
 set(CPACK_SOURCE_GENERATOR ZIP)
 set(CPACK_SOURCE_IGNORE_FILES ${ignored_files})
 set(CPACK_SOURCE_PACKAGE_FILE_NAME ${PROJECT_NAME}-${CPACK_PACKAGE_VERSION})
 include(CPack)
+
+# ================================= UNINSTALL ========================================
+
+set(dekaf2_uninstall_lib "${CMAKE_INSTALL_PREFIX}/lib/${PROJECT_NAME}-${lib_version}")
+set(dekaf2_uninstall_include "${CMAKE_INSTALL_PREFIX}/include/${PROJECT_NAME}-${lib_version}")
+set(dekaf2_uninstall_bin "${CMAKE_INSTALL_PREFIX}/bin")
+
+add_custom_target(uninstall
+	COMMAND "${CMAKE_COMMAND}" -E remove_directory "${dekaf2_uninstall_lib}"
+	COMMAND "${CMAKE_COMMAND}" -E remove_directory "${dekaf2_uninstall_include}"
+	COMMAND "${CMAKE_COMMAND}" -E remove "${dekaf2_uninstall_bin}/klog"
+	COMMAND "${CMAKE_COMMAND}" -E remove "${dekaf2_uninstall_bin}/createdbc"
+)
 
 # =================================== THE END ========================================

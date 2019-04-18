@@ -60,7 +60,7 @@ endif()
 #
 target_include_directories(frozen INTERFACE
   $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>
-  $<INSTALL_INTERFACE:include>)
+  $<INSTALL_INTERFACE:${dekaf2_include_dest}>)
 
 add_subdirectory(include/frozen)
 

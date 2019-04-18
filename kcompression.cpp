@@ -75,7 +75,7 @@ detail::KCompressionBase::COMPRESSION detail::KCompressionBase::GetCompressionMe
 } // GetCompressionMethodFromFilename
 
 //-----------------------------------------------------------------------------
-bool KCompressOStream::open(std::ostream& TargetStream, COMPRESSION compression)
+bool KCompressOStream::open(KOutStream& TargetStream, COMPRESSION compression)
 //-----------------------------------------------------------------------------
 {
 	m_TargetStream = &TargetStream;
@@ -84,19 +84,11 @@ bool KCompressOStream::open(std::ostream& TargetStream, COMPRESSION compression)
 } // Open
 
 //-----------------------------------------------------------------------------
-bool KCompressOStream::open(KOutStream& TargetStream, COMPRESSION compression)
-//-----------------------------------------------------------------------------
-{
-	return open(TargetStream.OutStream(), compression);
-
-} // Open
-
-//-----------------------------------------------------------------------------
 bool KCompressOStream::open(KString& sTarget, COMPRESSION compression)
 //-----------------------------------------------------------------------------
 {
-	m_KOStringStream = std::make_unique<KOStringStream>(sTarget);
-	return open(*m_KOStringStream, compression);
+	m_KOutStringStream = std::make_unique<KOutStringStream>(sTarget);
+	return open(*m_KOutStringStream, compression);
 
 } // Open
 
@@ -132,7 +124,7 @@ bool KCompressOStream::CreateFilter(COMPRESSION compression)
 
 	}
 
-	compressor::push(*m_TargetStream);
+	compressor::push(m_TargetStream->OutStream());
 
 	return true;
 
@@ -147,7 +139,7 @@ void KCompressOStream::close()
 } // Close
 
 //-----------------------------------------------------------------------------
-bool KUnCompressIStream::open(std::istream& SourceStream, COMPRESSION compression)
+bool KUnCompressIStream::open(KInStream& SourceStream, COMPRESSION compression)
 //-----------------------------------------------------------------------------
 {
 	m_SourceStream = &SourceStream;
@@ -156,19 +148,11 @@ bool KUnCompressIStream::open(std::istream& SourceStream, COMPRESSION compressio
 } // Open
 
 //-----------------------------------------------------------------------------
-bool KUnCompressIStream::open(KInStream& SourceStream, COMPRESSION compression)
-//-----------------------------------------------------------------------------
-{
-	return open(SourceStream.InStream(), compression);
-
-} // Open
-
-//-----------------------------------------------------------------------------
 bool KUnCompressIStream::open(KStringView sSource, COMPRESSION compression)
 //-----------------------------------------------------------------------------
 {
-	m_KIStringStream = std::make_unique<KIStringStream>(sSource);
-	return open(*m_KIStringStream, compression);
+	m_KInStringStream = std::make_unique<KInStringStream>(sSource);
+	return open(*m_KInStringStream, compression);
 
 } // Open
 
@@ -204,7 +188,7 @@ bool KUnCompressIStream::CreateFilter(COMPRESSION compression)
 
 	}
 
-	uncompressor::push(*m_SourceStream);
+	uncompressor::push(m_SourceStream->InStream());
 
 	return true;
 

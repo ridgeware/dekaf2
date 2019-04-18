@@ -101,11 +101,6 @@ public:
 	{
 		open(sTarget, compression);
 	}
-	/// constructs a compressor with a std::ostream as the target
-	KCompressOStream(std::ostream& TargetStream, COMPRESSION compression)
-	{
-		open(TargetStream, compression);
-	}
 	/// constructs a compressor with a KOutStream as the target
 	KCompressOStream(KOutStream& TargetStream, COMPRESSION compression)
 	{
@@ -122,8 +117,6 @@ public:
 
 	/// sets a KString as the target
 	bool open(KString& sTarget, COMPRESSION compression);
-	/// sets a std::ostream as the target
-	bool open(std::ostream& TargetStream, COMPRESSION compression);
 	/// sets a KOutStream as the target
 	bool open(KOutStream& TargetStream, COMPRESSION compression);
 
@@ -137,8 +130,8 @@ private:
 
 	bool CreateFilter(COMPRESSION compression);
 
-	std::ostream* m_TargetStream { nullptr };
-	std::unique_ptr<KOStringStream> m_KOStringStream;
+	KOutStream* m_TargetStream { nullptr };
+	std::unique_ptr<KOutStringStream> m_KOutStringStream;
 
 }; // KCompressOStream
 
@@ -162,11 +155,6 @@ public:
 	{
 		open(sSource, compression);
 	}
-	/// constructs an uncompressor with a std::istream as the source
-	KUnCompressIStream(std::istream& SourceStream, COMPRESSION compression)
-	{
-		open(SourceStream, compression);
-	}
 	/// constructs an uncompressor with a KInStream as the source
 	KUnCompressIStream(KInStream& SourceStream, COMPRESSION compression)
 	{
@@ -183,8 +171,6 @@ public:
 
 	/// sets a KStringView as the source
 	bool open(KStringView sSource, COMPRESSION compression);
-	/// sets a std::istream as the source
-	bool open(std::istream& SourceStream, COMPRESSION compression);
 	/// sets a KInStream as the source
 	bool open(KInStream& SourceStream, COMPRESSION compression);
 
@@ -198,8 +184,8 @@ private:
 
 	bool CreateFilter(COMPRESSION compression);
 
-	std::istream* m_SourceStream { nullptr };
-	std::unique_ptr<KIStringStream> m_KIStringStream;
+	KInStream* m_SourceStream { nullptr };
+	std::unique_ptr<KInStringStream> m_KInStringStream;
 
 }; // KUnCompressIStream
 

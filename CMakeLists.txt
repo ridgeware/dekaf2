@@ -1,4 +1,4 @@
-# ===================================== THE BEGIN ==================================
+# =================================== THE BEGIN ====================================
 #
 # In reality we need cmake 3.8 (for C++17) but that would stop the automatic install
 # of a new cmake through the cmakeinstall script below. So we lower the required
@@ -48,7 +48,6 @@ include(ExternalProject)
 # ================================= CONFIG OPTIONS =================================
 
 # these are all configurable project options
-OPTION(DEKAF2_INSTALL_HEADERS "Install headers" OFF)
 OPTION(DEKAF2_USE_EXCEPTIONS "Use exceptions for error handling" OFF)
 OPTION(DEKAF2_USE_FBSTRING_AS_KSTRING "Use Folly::FBString for KString" ON)
 OPTION(DEKAF2_USE_FOLLY_STRINGPIECE_AS_KSTRINGVIEW "Use Folly::StringPiece for KStringView" ON)
@@ -522,6 +521,9 @@ configure_file("bits/kconfiguration.h.in" "${GENERATED_FILES_DIR}/kconfiguration
 # create the cmake version comparison file for find_package()
 configure_file("cmake/${PROJECT_NAME}-config-version.cmake.in" "${GENERATED_FILES_DIR}/${PROJECT_NAME}-config-version.cmake" @ONLY)
 
+# create the cmake version setup file for find_package()
+configure_file("cmake/${PROJECT_NAME}-setup.cmake.in" "${GENERATED_FILES_DIR}/${PROJECT_NAME}-setup.cmake" @ONLY)
+
 # =============================== HEADER FILES ====================================
 
 set (BITS_HEADERS
@@ -900,6 +902,7 @@ install(TARGETS frozen EXPORT dekaf2 DESTINATION ${dekaf2_lib_dest}/other)
 install(TARGETS dekaf2 EXPORT dekaf2 DESTINATION ${dekaf2_lib_dest})
 install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/cmake/${PROJECT_NAME}-config.cmake DESTINATION ${dekaf2_main_lib_dest})
 install(FILES ${GENERATED_FILES_DIR}/${PROJECT_NAME}-config-version.cmake DESTINATION ${dekaf2_main_lib_dest})
+install(FILES ${GENERATED_FILES_DIR}/${PROJECT_NAME}-setup.cmake DESTINATION ${dekaf2_lib_dest})
 install(EXPORT ${PROJECT_NAME} DESTINATION "${dekaf2_lib_dest}")
 install(TARGETS klog DESTINATION ${dekaf2_bin_dest})
 install(TARGETS createdbc DESTINATION ${dekaf2_bin_dest})

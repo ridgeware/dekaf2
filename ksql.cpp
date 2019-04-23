@@ -4682,7 +4682,7 @@ KJSON KSQL::FindColumn (KStringView sColLike)
 			"  from INFORMATION_SCHEMA.COLUMNS\n"
 			" where upper(column_name) like upper('%s')\n"
 			"   and table_schema not in ('information_schema','master')\n"
-			" order by 1, 2, 3",
+			" order by table_name desc, 2, 3",
 				sColLike))
 		{
 			return list;

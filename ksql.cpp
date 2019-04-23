@@ -5488,7 +5488,7 @@ bool KSQL::PurgeKey (KStringView sPKEY, KStringView sValue, KJSON& ChangesMade)
 	{
 		KString sTableName = table["table_name"];
 
-		if (!ExecSQL ("delete from %s /*KSQL::DeleteCascading*/ where %s = binary '%s'", sTableName, sPKEY, sValue))
+		if (!ExecSQL ("delete from %s /*KSQL::PurgeKey*/ where %s = binary '%s'", sTableName, sPKEY, sValue))
 		{
 			return (false);
 		}

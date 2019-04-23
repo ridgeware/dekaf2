@@ -87,6 +87,8 @@ if (CMAKE_GENERATOR MATCHES "Makefile")
 			SET(DEKAF2_USE_FBSTRING_AS_KSTRING OFF)
 			SET(DEKAF2_USE_FOLLY_STRINGPIECE_AS_KSTRINGVIEW OFF)
 		endif()
+	else()
+		SET(DEKAF2_ENABLE_DEBUG_RUNTIME_CHECKS OFF)
 	endif()
 
 else()
@@ -164,17 +166,6 @@ endif()
 
 # ================================ CMAKE INTERNALS =================================
 
-# suppress linker warnings for empty object files on OS X
-if (IS_MACOS)
-	SET(CMAKE_C_ARCHIVE_CREATE   "<CMAKE_AR> Scr <TARGET> <LINK_FLAGS> <OBJECTS>")
-	SET(CMAKE_CXX_ARCHIVE_CREATE "<CMAKE_AR> Scr <TARGET> <LINK_FLAGS> <OBJECTS>")
-	SET(CMAKE_C_ARCHIVE_FINISH   "<CMAKE_RANLIB> -no_warning_for_no_symbols -c <TARGET>")
-	SET(CMAKE_CXX_ARCHIVE_FINISH "<CMAKE_RANLIB> -no_warning_for_no_symbols -c <TARGET>")
-
-	# variants only appeared in v10.14 of the MACOS SDK
-	set(CMAKE_OSX_DEPLOYMENT_TARGET "10.14")
-endif ()
-
 # Add local cmake modules to the module path (used to find libraries which do not have find modules provided by cmake)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules/")
 
@@ -190,29 +181,6 @@ if (DEKAF2_WITH_COMPATIBILITY_LAYER_TO_DEKAF1)
 		set(DEKAF1_INCLUDE_PATH ${DPATH})
 	else ()
 		message(STATUS "Option to provide compatibility layer to dekaf1 is set, but dekaf1 can't be found. Option disabled.")
-	endif ()
-endif ()
-
-# ================================ ASAN / UBSAN =================================
-
-if (CMAKE_GENERATOR STREQUAL "Xcode")
-	if (DEKAF2_ENABLE_DEBUG_RUNTIME_CHECKS_IN_XCODE)
-		message(STATUS "enabling ASAN/UBSAN runtime checks for Xcode")
-		set(CMAKE_XCODE_GENERATE_SCHEME ON)
-		set(CMAKE_XCODE_SCHEME_ADDRESS_SANITIZER ON)
-		set(CMAKE_XCODE_SCHEME_ADDRESS_SANITIZER_USE_AFTER_RETURN ON)
-		set(CMAKE_XCODE_SCHEME_UNDEFINED_BEHAVIOUR_SANITIZER ON)
-	endif()
-else ()
-	if (DEKAF2_ENABLE_DEBUG_RUNTIME_CHECKS AND NOT MSVC)
-		message(STATUS "enabling ASAN/UBSAN runtime checks for debug builds")
-		if(NOT CMAKE_VERSION VERSION_LESS "3.13.0")
-			add_compile_options("$<$<CONFIG:DEBUG>:-fsanitize=address;-fsanitize=undefined;-fsanitize-address-use-after-scope;-fstack-protector-strong;-fstack-check>")
-			add_link_options("$<$<CONFIG:DEBUG>:-fsanitize=address;-fsanitize=undefined;-fsanitize-address-use-after-scope;-fstack-protector-strong;-fstack-check>")
-		else()
-			set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fsanitize=address -fsanitize=undefined -fsanitize-address-use-after-scope")
-			set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fstack-protector-strong -fstack-check")
-		endif()
 	endif ()
 endif ()
 
@@ -396,119 +364,6 @@ else ()
 
 endif (DOXYGEN_FOUND)
 
-# ============================= COMPILER FLAGS =================================
-
-if (CMAKE_COMPILER_IS_GNUCXX)
-
-	add_compile_options(-Wall -Wextra -Wno-unused-parameter -Werror)
-
-	add_compile_options($<$<CONFIG:RELEASE>:-O3>)
-	add_compile_definitions($<$<CONFIG:RELEASE>:NDEBUG>)
-
-	# configure cpu architecture dependant optimization
-	if (CPU_x86)
-
-		if (CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 6.0)
-			add_compile_options(-msse4.2 -mfpmath=sse -maes)
-		elseif (CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 4.5)
-			add_compile_options(-msse4.2)
-		else ()
-			add_compile_options(-msse3)
-		endif ()
-
-	endif ()
-
-	if (CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 6.0 AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 7.2)
-		# mute the annoying warning on changing abi with gcc 7.1
-		add_compile_options(-Wno-psabi)
-	endif()
-
-	# increase amount of permitted constexpr depth (default is 512)
-	add_compile_options(-fconstexpr-depth=2048)
-
-	if (Boost_VERSION VERSION_GREATER_EQUAL "1.69.00")
-		# satisfy new build mode of boost-1.69
-		add_compile_options(-fvisibility-inlines-hidden)
-		set(DEKAF2_VISIBILITY_INLINES_HIDDEN ON)
-	endif()
-
-elseif (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-
-	add_compile_options(-Wall -Wextra -Wno-unused-parameter -Werror)
-
-	add_compile_options($<$<CONFIG:RELEASE>:-O3>)
-	add_compile_definitions($<$<CONFIG:RELEASE>:NDEBUG>)
-
-	# configure cpu architecture dependant optimization
-	if (CPU_x86)
-		add_compile_options(-msse4.2 -mfpmath=sse -maes)
-	endif ()
-
-	# increase amount of permitted constexpr steps (default is around 1.000.000)
-	add_compile_options(-fconstexpr-steps=100000000)
-	# increase amount of permitted constexpr depth (default is 512)
-	add_compile_options(-fconstexpr-depth=2048)
-
-	if (Boost_VERSION VERSION_GREATER_EQUAL "1.69.00")
-		# satisfy new build mode of boost-1.69
-		add_compile_options(-fvisibility-inlines-hidden)
-		set(DEKAF2_VISIBILITY_INLINES_HIDDEN ON)
-	endif()
-
-	# linux clang is way too picky at warnings, but it does not matter to disable
-	# this on MacOS too
-	add_compile_options(-Wno-mismatched-tags)
-
-	if (NOT IS_MACOS)
-		# this warning is unknown for AppleClang
-		add_compile_options(-Wno-return-std-move)
-	endif()
-
-elseif (MSVC)
-
-	# make sure MSVC adds a proper __cplusplus define that announces more than C++98
-	# (starting with VS2017)
-	add_compile_options(/Zc:__cplusplus)
-	# make sure MSVC does not complain about a missing windows target definition
-	add_compile_definitions(_WIN32_WINNT=0x0501)
-	# silence the allocator warning for boost::asio
-	add_compile_definitions(_SILENCE_CXX17_ALLOCATOR_VOID_DEPRECATION_WARNING)
-	# silence uncaught_exception warning
-	add_compile_definitions(_SILENCE_CXX17_UNCAUGHT_EXCEPTION_DEPRECATION_WARNING)
-
-	if(NOT CMAKE_VERSION VERSION_LESS "3.13.0")
-		# ignore warnings about empty object files
-		add_link_options(/ignore:4221)
-	endif()
-
-	# increase amount of permitted constexpr steps (default is 100.000)
-	add_compile_options(/constexpr:steps 100000000)
-	# increase amount of permitted constexpr depth (default is 512)
-	add_compile_options(/constexpr:depth 2048)
-
-else ()
-
-	message (STATUS "compiler type not detected, using default opions")
-
-endif ()
-
-message(STATUS "dekaf2 C++ compile flags for Release build : ${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_RELEASE}")
-message(STATUS "dekaf2 C++ compile flags for Debug   build : ${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_DEBUG}")
-message(STATUS "CPU : ${CMAKE_SYSTEM_PROCESSOR}")
-
-# C++11 std::threads do not need this
-set(CMAKE_THREAD_PREFER_PTHREAD TRUE)
-set(THREADS_PREFER_PTHREAD_FLAG TRUE)
-find_package(Threads REQUIRED)
-
-# ========================= THIRD PARTY SOURCE LIBS ============================
-
-# add third party libraries included in source control
-add_subdirectory(libs EXCLUDE_FROM_ALL)
-
-# add partial third party libraries included in source control
-add_subdirectory(from EXCLUDE_FROM_ALL)
-
 # =============================== GENERATED FILES =================================
 
 # create and include the build directory for generated files
@@ -523,6 +378,20 @@ configure_file("cmake/${PROJECT_NAME}-config-version.cmake.in" "${GENERATED_FILE
 
 # create the cmake version setup file for find_package()
 configure_file("cmake/${PROJECT_NAME}-setup.cmake.in" "${GENERATED_FILES_DIR}/${PROJECT_NAME}-setup.cmake" @ONLY)
+
+# ======================== COMPILER AND LINKER OPTIONS ============================
+
+# eat our own dog food
+set (DEKAF2_INHERIT_BUILD_FLAGS ON)
+include ("${GENERATED_FILES_DIR}/${PROJECT_NAME}-setup.cmake")
+
+# ========================= THIRD PARTY SOURCE LIBS ============================
+
+# add third party libraries included in source control
+add_subdirectory(libs EXCLUDE_FROM_ALL)
+
+# add partial third party libraries included in source control
+add_subdirectory(from EXCLUDE_FROM_ALL)
 
 # =============================== HEADER FILES ====================================
 

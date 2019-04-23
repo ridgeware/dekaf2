@@ -1,0 +1,218 @@
+# dekaf2-setup.cmake - forwards library setup to includers (and is also used by dekaf2 itself)
+
+if (NOT DEKAF2_HAVE_INCLUDED_SETUP)
+
+	# avoid repeated includes
+	set (DEKAF2_HAVE_INCLUDED_SETUP ON)
+
+	if (NOT "${CMAKE_CXX_COMPILER_ID}" STREQUAL "@CMAKE_CXX_COMPILER_ID@")
+		message(STATUS "warning: dekaf2 was compiled with @CMAKE_CXX_COMPILER_ID@ but is linked against code compiled with ${CMAKE_CXX_COMPILER_ID}")
+	endif()
+
+	# ============================= BUILD FLAGS =================================
+
+	if (CMAKE_BUILD_TYPE)
+		message (STATUS "Build type: ${CMAKE_BUILD_TYPE}")
+	endif()
+
+	if (DEKAF2_INHERIT_BUILD_FLAGS)
+
+		set (CPU_x86 "@CPU_x86@")
+		set (CPU_ARM "@CPU_ARM@")
+		set (IS_MACOS "@IS_MACOS@")
+		set (IS_WINDOWS "@IS_WINDOWS@")
+		set (IS_LINUX "@IS_LINUX@")
+
+		# ================================ CMAKE INTERNALS =================================
+
+		if (IS_MACOS)
+
+			SET(CMAKE_C_ARCHIVE_CREATE   "<CMAKE_AR> Scr <TARGET> <LINK_FLAGS> <OBJECTS>")
+			SET(CMAKE_CXX_ARCHIVE_CREATE "<CMAKE_AR> Scr <TARGET> <LINK_FLAGS> <OBJECTS>")
+			SET(CMAKE_C_ARCHIVE_FINISH   "<CMAKE_RANLIB> -no_warning_for_no_symbols -c <TARGET>")
+			SET(CMAKE_CXX_ARCHIVE_FINISH "<CMAKE_RANLIB> -no_warning_for_no_symbols -c <TARGET>")
+
+			# variants only appeared in v10.14 of the MACOS SDK
+			set(CMAKE_OSX_DEPLOYMENT_TARGET "10.14")
+
+		endif()
+
+		# ================================ ASAN / UBSAN =================================
+
+		if (CMAKE_GENERATOR STREQUAL "Xcode")
+			if ("@DEKAF2_ENABLE_DEBUG_RUNTIME_CHECKS_IN_XCODE@" STREQUAL "ON")
+				message(STATUS "enabling ASAN/UBSAN runtime checks for Xcode")
+				set(CMAKE_XCODE_GENERATE_SCHEME ON)
+				set(CMAKE_XCODE_SCHEME_ADDRESS_SANITIZER ON)
+				set(CMAKE_XCODE_SCHEME_ADDRESS_SANITIZER_USE_AFTER_RETURN ON)
+				set(CMAKE_XCODE_SCHEME_UNDEFINED_BEHAVIOUR_SANITIZER ON)
+			endif()
+		else()
+			if (NOT MSVC)
+				if ("@DEKAF2_ENABLE_DEBUG_RUNTIME_CHECKS@" STREQUAL "ON")
+					message(STATUS "enabling ASAN/UBSAN runtime checks for debug builds")
+					if(NOT CMAKE_VERSION VERSION_LESS "3.13.0")
+						add_compile_options("$<$<CONFIG:DEBUG>:-fsanitize=address;-fsanitize=undefined;-fsanitize-address-use-after-scope;-fstack-protector-strong;-fstack-check>")
+						add_link_options("$<$<CONFIG:DEBUG>:-fsanitize=address;-fsanitize=undefined;-fsanitize-address-use-after-scope;-fstack-protector-strong;-fstack-check>")
+					else()
+						set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fsanitize=address -fsanitize=undefined -fsanitize-address-use-after-scope")
+						set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fstack-protector-strong -fstack-check")
+					endif()
+				endif()
+			endif()
+		endif()
+
+		# ================================= BOOST ====================================
+
+		# only search for boost if not already done (probably with different config options)
+
+		if (NOT Boost_FOUND)
+
+			# we only need to find boost to check its version, as we have to switch
+			# inline symbol visibility off if version is >= 1.69
+
+			set(Boost_USE_STATIC_LIBS ON)
+
+			if (NOT BOOST_ROOT)
+				# only set BOOST_ROOT if not already done by caller
+				if (IS_WINDOWS)
+					set(BOOST_ROOT "C:\\boost")
+				else()
+					# we prefer the boost lib that we installed ourselves in /opt/lib ..
+					set(BOOST_ROOT "/opt/boost")
+				endif()
+			endif ()
+
+			find_package(Boost 1.54 COMPONENTS system REQUIRED)
+
+		endif()
+
+		# ============================= COMPILER FLAGS =================================
+
+		if (CMAKE_COMPILER_IS_GNUCXX)
+
+			add_compile_options(-Wall -Wextra -Wno-unused-parameter -Werror)
+
+			add_compile_options($<$<CONFIG:RELEASE>:-O3>)
+			add_compile_definitions($<$<CONFIG:RELEASE>:NDEBUG>)
+
+			# configure cpu architecture dependant optimization
+			if (CPU_x86)
+
+				if (CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 6.0)
+					add_compile_options(-msse4.2 -mfpmath=sse -maes)
+				elseif (CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 4.5)
+					add_compile_options(-msse4.2)
+				else ()
+					add_compile_options(-msse3)
+				endif ()
+
+			endif ()
+
+			if (CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 6.0 AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 7.2)
+				# mute the annoying warning on changing abi with gcc 7.1
+				add_compile_options(-Wno-psabi)
+			endif()
+
+			# increase amount of permitted constexpr depth (default is 512)
+			add_compile_options(-fconstexpr-depth=2048)
+
+			if (Boost_VERSION VERSION_GREATER_EQUAL "1.69.00")
+				# satisfy new build mode of boost-1.69
+				add_compile_options(-fvisibility-inlines-hidden)
+			endif()
+
+		elseif (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+
+			add_compile_options(-Wall -Wextra -Wno-unused-parameter -Werror)
+
+			add_compile_options($<$<CONFIG:RELEASE>:-O3>)
+			add_compile_definitions($<$<CONFIG:RELEASE>:NDEBUG>)
+
+			# configure cpu architecture dependant optimization
+			if (CPU_x86)
+				add_compile_options(-msse4.2 -mfpmath=sse -maes)
+			endif ()
+
+			# increase amount of permitted constexpr steps (default is around 1.000.000)
+			add_compile_options(-fconstexpr-steps=400000000)
+			# increase amount of permitted constexpr depth (default is 512)
+			add_compile_options(-fconstexpr-depth=2048)
+
+			if (Boost_VERSION VERSION_GREATER_EQUAL "1.69.00")
+				# satisfy new build mode of boost-1.69
+				add_compile_options(-fvisibility-inlines-hidden)
+			endif()
+
+			# linux clang is way too picky at warnings, but it does not matter to disable
+			# this on MacOS too
+			add_compile_options(-Wno-mismatched-tags)
+
+			if (NOT IS_MACOS)
+				# this warning is unknown for AppleClang
+				add_compile_options(-Wno-return-std-move)
+			endif()
+
+		elseif (MSVC)
+
+			# make sure MSVC adds a proper __cplusplus define that announces more than C++98
+			# (starting with VS2017)
+			add_compile_options(/Zc:__cplusplus)
+			# ignore warnings about empty object files
+			add_link_options(/ignore:4221)
+			# make sure MSVC does not complain about a missing windows target definition
+			add_compile_definitions(_WIN32_WINNT=0x0501)
+
+			# increase amount of permitted constexpr steps (default is 100.000)
+			add_compile_options(/constexpr:steps 400000000)
+			# increase amount of permitted constexpr depth (default is 512)
+			add_compile_options(/constexpr:depth 2048)
+
+		else ()
+
+			message (STATUS "compiler type not detected, using default opions")
+
+		endif ()
+
+		message(STATUS "${PROJECT_NAME} C++ compile flags for Release build : ${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_RELEASE}")
+		message(STATUS "${PROJECT_NAME} C++ compile flags for Debug   build : ${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_DEBUG}")
+
+		# C++11 std::threads do not need this
+		set(CMAKE_THREAD_PREFER_PTHREAD TRUE)
+		set(THREADS_PREFER_PTHREAD_FLAG TRUE)
+		find_package(Threads REQUIRED)
+
+	else()
+
+		# even if not inheriting the rest of the build flags we must make sure that the linker
+		# binds ASAN/UBSAN libs if dekaf2 was built against them
+
+		if (CMAKE_GENERATOR STREQUAL "Xcode")
+			if ("@DEKAF2_ENABLE_DEBUG_RUNTIME_CHECKS_IN_XCODE@" STREQUAL "ON")
+				# don't know how to selectively adding ASAN/UBSAN to linker settings in old cmakes,
+				# therefore adding it to the compile stage as well
+				message(STATUS "enabling ASAN/UBSAN runtime checks for Xcode")
+				set(CMAKE_XCODE_GENERATE_SCHEME ON)
+				set(CMAKE_XCODE_SCHEME_ADDRESS_SANITIZER ON)
+				set(CMAKE_XCODE_SCHEME_ADDRESS_SANITIZER_USE_AFTER_RETURN ON)
+				set(CMAKE_XCODE_SCHEME_UNDEFINED_BEHAVIOUR_SANITIZER ON)
+			endif()
+		else()
+			if (NOT MSVC)
+				if ("@DEKAF2_ENABLE_DEBUG_RUNTIME_CHECKS@" STREQUAL "ON")
+					if(NOT CMAKE_VERSION VERSION_LESS "3.13.0")
+						add_link_options("$<$<CONFIG:DEBUG>:-fsanitize=address;-fsanitize=undefined;-fsanitize-address-use-after-scope;-fstack-protector-strong;-fstack-check>")
+					else()
+						# don't know how to selectively add ASAN/UBSAN to linker settings in old cmakes,
+						# therefore adding it to the compile stage as well
+						message(STATUS "enabling ASAN/UBSAN runtime checks for debug builds")
+						set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fsanitize=address -fsanitize=undefined -fsanitize-address-use-after-scope")
+						set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fstack-protector-strong -fstack-check")
+					endif()
+				endif()
+			endif()
+		endif()
+
+	endif()
+
+endif()

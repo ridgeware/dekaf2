@@ -930,9 +930,9 @@ include(CPack)
 
 # ================================= UNINSTALL ========================================
 
-set(dekaf2_uninstall_lib "${CMAKE_INSTALL_PREFIX}/lib/${PROJECT_NAME}-${lib_version}")
-set(dekaf2_uninstall_include "${CMAKE_INSTALL_PREFIX}/include/${PROJECT_NAME}-${lib_version}")
-set(dekaf2_uninstall_bin "${CMAKE_INSTALL_PREFIX}/bin")
+set(dekaf2_uninstall_lib "${CMAKE_INSTALL_PREFIX}/${dekaf2_main_lib_dest}")
+set(dekaf2_uninstall_include "${CMAKE_INSTALL_PREFIX}/${dekaf2_include_dest}")
+set(dekaf2_uninstall_bin "${CMAKE_INSTALL_PREFIX}/${dekaf2_bin_dest}")
 
 add_custom_target(uninstall
 	COMMAND "${CMAKE_COMMAND}" -E remove_directory "${dekaf2_uninstall_lib}"

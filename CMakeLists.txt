@@ -782,6 +782,7 @@ install(FILES ${PUBLIC_HEADERS} DESTINATION ${dekaf2_include_dest}/dekaf2)
 install(FILES ${BITS_HEADERS} DESTINATION ${dekaf2_include_dest}/dekaf2/bits)
 install(FILES ${BITS_SIMD_HEADERS} DESTINATION ${dekaf2_include_dest}/dekaf2/bits/simd)
 install(FILES "${GENERATED_FILES_DIR}/kconfiguration.h" DESTINATION ${dekaf2_lib_dest})
+install(PROGRAMS "${CMAKE_CURRENT_SOURCE_DIR}/scripts/mysql-newuser" DESTINATION ${dekaf2_bin_dest})
 if (DEKAF2_WITH_COMPATIBILITY_LAYER_TO_DEKAF1)
 	install(FILES ${COMPAT_HEADERS} DESTINATION ${dekaf2_include_dest}/compat)
 endif()
@@ -808,6 +809,7 @@ add_custom_target(uninstall
 	COMMAND "${CMAKE_COMMAND}" -E remove_directory "${dekaf2_uninstall_include}"
 	COMMAND "${CMAKE_COMMAND}" -E remove "${dekaf2_uninstall_bin}/klog"
 	COMMAND "${CMAKE_COMMAND}" -E remove "${dekaf2_uninstall_bin}/createdbc"
+	COMMAND "${CMAKE_COMMAND}" -E remove "${dekaf2_uninstall_bin}/mysql-newuser"
 )
 
 # =================================== THE END ========================================

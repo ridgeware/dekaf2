@@ -5,7 +5,7 @@
 # version to 2.6, then install 3.13, and initially run into a cmake error in the
 # running instance. At the next run, the new cmake then will complete without error..
 #
-# Note: C++20 is supported starting with 3.12
+# Note: C++20 is supported starting with 3.12, targets from subdirectories with 3.13
 #
 cmake_minimum_required(VERSION 2.6)
 #
@@ -19,8 +19,8 @@ EXECUTE_PROCESS(
 
 # =================================== UPDATE CMAKE =================================
 
-if(CMAKE_VERSION VERSION_LESS "3.12.0")
-	message(STATUS "Please switch to CMake 3.12.0 or newer")
+if(CMAKE_VERSION VERSION_LESS "3.13.0")
+	message(STATUS "Please switch to CMake 3.13.0 or newer")
 	EXECUTE_PROCESS(
 		COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/scripts/cmakeinstall -ask
 	)
@@ -29,8 +29,8 @@ endif()
 
 # ==================================== PROJECT =====================================
 
-# When arriving here we guarantee at least cmake 3.8 being used
-# cmake_minimum_required(VERSION 3.8)
+# When arriving here we guarantee at least cmake 3.13 being installed
+cmake_minimum_required(VERSION 3.13)
 
 # allow version number in project command
 cmake_policy(SET CMP0048 NEW)

@@ -761,6 +761,9 @@ add_subdirectory(benchmarks)
 
 # ================================= INSTALLATION =====================================
 
+# always put this first, otherwise it risks to remove other already installed cmake config files
+install(EXPORT ${PROJECT_NAME} DESTINATION "${dekaf2_lib_dest}")
+
 # create dummy exports to satisfy cmake for the statically and PRIVATE linked in libraries (this is a bug in cmake)
 install(TARGETS minifolly EXPORT dekaf2 DESTINATION ${dekaf2_lib_dest}/other)
 install(TARGETS fmt EXPORT dekaf2 DESTINATION ${dekaf2_lib_dest}/other)
@@ -772,7 +775,6 @@ install(TARGETS dekaf2 EXPORT dekaf2 DESTINATION ${dekaf2_lib_dest})
 install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/cmake/${PROJECT_NAME}-config.cmake DESTINATION ${dekaf2_main_lib_dest})
 install(FILES ${GENERATED_FILES_DIR}/${PROJECT_NAME}-config-version.cmake DESTINATION ${dekaf2_main_lib_dest})
 install(FILES ${GENERATED_FILES_DIR}/${PROJECT_NAME}-setup.cmake DESTINATION ${dekaf2_lib_dest})
-install(EXPORT ${PROJECT_NAME} DESTINATION "${dekaf2_lib_dest}")
 install(TARGETS klog DESTINATION ${dekaf2_bin_dest})
 install(TARGETS createdbc DESTINATION ${dekaf2_bin_dest})
 #install(TARGETS getentities DESTINATION ${dekaf2_bin_dest})

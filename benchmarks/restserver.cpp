@@ -137,7 +137,7 @@ int main(int argc, char** argv)
 		KRESTRoutes Routes;
 
 		// add our rest route to it: we listen for all requests
-		Routes.AddRoute({ KHTTPMethod(""), "/*", [&](KRESTServer& http)
+		Routes.AddRoute({ KHTTPMethod(), "/*", [&](KRESTServer& http)
 		{
 			http.SetRawOutput("{\"message\":\"hello world\"}\n");
 //			http.json.tx["message"] = "hello world";

@@ -19,9 +19,9 @@ using namespace dekaf2;
 
 int main()
 {
-	KLog().SetName("bench");
-	Dekaf().SetMultiThreading();
-	Dekaf().SetUnicodeLocale();
+	KLog::getInstance().SetName("bench");
+	Dekaf::getInstance().SetMultiThreading();
+	Dekaf::getInstance().SetUnicodeLocale();
 
 	kxml_bench();
 	khtmlparser_bench();

@@ -62,6 +62,10 @@ enum
 
 extern "C" {
 
+#ifdef DEKAF2_IS_WINDOWS
+	struct siginfo_t {};
+#endif
+
 /// display signal that led to crash (if any) and force a stackdump
 /// @param iSignalNum The caught signal or one of the special signal
 /// numbers to indicate library internal failures.

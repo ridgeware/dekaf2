@@ -359,6 +359,7 @@ bool kRemove (KStringViewZ sPath, bool bDir)
 	if (ec)
 	{
 		kDebug (1, "failed: {}: {}", sPath, ec.message());
+		return false;
 	}
 
 #else
@@ -378,7 +379,9 @@ bool kRemove (KStringViewZ sPath, bool bDir)
 					return (true);
 				}
 			}
+
 			kDebug (1, "failed: {}: {}", sPath, strerror (errno));
+			return false;
 		}
 	}
 

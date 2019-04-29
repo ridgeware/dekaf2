@@ -63,7 +63,7 @@ KRESTAnalyzedPath::KRESTAnalyzedPath(KHTTPMethod _Method, KStringView _sRoute)
 	: KHTTPAnalyzedPath(std::move(_sRoute))
 	, Method(std::move(_Method))
 {
-	bHasParameters = sRoute.Contains("/:");
+	bHasParameters = sRoute.Contains("/:") || sRoute.Contains("/=");
 
 } // KRESTAnalyzedPath
 
@@ -121,8 +121,8 @@ bool KRESTRoute::Matches(const KRESTPath& Path, Parameters& Params, bool bCompar
 				{
 					if (DEKAF2_UNLIKELY(bOnlyParms))
 					{
-						// check remaining route fragments for being :parameters
-						if (part.front() != ':')
+						// check remaining route fragments for being :parameters or =parameters
+						if (part.front() != ':' && part.front() != '=')
 						{
 							bFound = false;
 							break;
@@ -136,7 +136,14 @@ bool KRESTRoute::Matches(const KRESTPath& Path, Parameters& Params, bool bCompar
 						{
 							// this is a variable
 							KStringView sName = part;
-							// remove the colon
+							// and add the value to our temporary query parms
+							Params.push_back({sName, *req});
+						}
+						else if (DEKAF2_UNLIKELY(part.front() == '='))
+						{
+							// this is a variable
+							KStringView sName = part;
+							// remove the '='
 							sName.remove_prefix(1);
 							// and add the value to our temporary query parms
 							Params.push_back({sName, *req});

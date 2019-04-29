@@ -41,12 +41,12 @@ TEST_CASE("KREST")
 
 		Routes.AddRoute({ KHTTPMethod::GET, "/user/:UID", [&](KRESTServer& http)
 		{
-			sUID = http.Request.Resource.Query["UID"];
+			sUID = http.Request.Resource.Query[":UID"];
 		}});
 
 		KString sName;
 
-		Routes.AddRoute({ KHTTPMethod::GET, "/user/:NAME/address", [&](KRESTServer& http)
+		Routes.AddRoute({ KHTTPMethod::GET, "/user/=NAME/address", [&](KRESTServer& http)
 		{
 			sName = http.Request.Resource.Query["NAME"];
 		}});

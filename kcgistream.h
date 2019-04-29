@@ -46,6 +46,7 @@
 
 #include "kstring.h"
 #include "kstreambuf.h"
+#include <vector>
 
 namespace dekaf2
 {
@@ -73,6 +74,12 @@ public:
 	{
 		return m_Stream.istream->good();
 	}
+
+	//-----------------------------------------------------------------------------
+	/// Add custom translations from a CGI var to a HTTP header. Has to be set before
+	/// any call to CreateHeader().
+	void AddCGIVar(KStringViewZ sCGIVar, KStringView sHTTPHeader);
+	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	bool CreateHeader();
@@ -151,6 +158,7 @@ private:
 
 	Stream  m_Stream;
 	KString m_sHeader;
+	std::vector<std::pair<KStringViewZ, KStringView> > m_AdditionalCGIVars;
 
 	KInStreamBuf m_StreamBuf{&StreamReader, &m_Stream};
 

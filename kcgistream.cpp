@@ -168,6 +168,14 @@ void KCGIInStream::Stream::ClearFlagsAndHeader()
 } // Stream::clear
 
 //-----------------------------------------------------------------------------
+void KCGIInStream::AddCGIVar(KStringViewZ sCGIVar, KStringView sHTTPHeader)
+//-----------------------------------------------------------------------------
+{
+	m_AdditionalCGIVars.push_back({sCGIVar, sHTTPHeader});
+
+} // AddTranslation
+
+//-----------------------------------------------------------------------------
 bool KCGIInStream::CreateHeader()
 //-----------------------------------------------------------------------------
 {
@@ -219,6 +227,19 @@ bool KCGIInStream::CreateHeader()
 		if (!sEnv.empty())
 		{
 			m_sHeader += it.sHeader;
+			m_sHeader += ": ";
+			m_sHeader += sEnv;
+			m_sHeader += "\r\n";
+		}
+	}
+
+	// add non-standard headers from env vars
+	for (const auto it : m_AdditionalCGIVars)
+	{
+		KString sEnv = kGetEnv(it.first);
+		if (!sEnv.empty())
+		{
+			m_sHeader += it.second;
 			m_sHeader += ": ";
 			m_sHeader += sEnv;
 			m_sHeader += "\r\n";

@@ -197,11 +197,19 @@ bool KCGIInStream::CreateHeader()
 	struct CGIVars_t { KStringViewZ sVar; KStringViewZ sHeader; };
 	static constexpr CGIVars_t CGIVars[]
 	{
-		{ KCGIInStream::HTTP_HOST,      KHTTPHeaders::HOST            },
-		{ KCGIInStream::CONTENT_TYPE,   KHTTPHeaders::CONTENT_TYPE    },
-		{ KCGIInStream::CONTENT_LENGTH, KHTTPHeaders::CONTENT_LENGTH  },
-		{ KCGIInStream::REMOTE_ADDR,    KHTTPHeaders::X_FORWARDED_FOR },
-		{ "HTTP_X_KLOG",    			"x-klog"                      }
+		{ KCGIInStream::HTTP_ACCEPT,          KHTTPHeaders::ACCEPT          },
+		{ KCGIInStream::HTTP_ACCEPT_ENCODING, KHTTPHeaders::ACCEPT_ENCODING },
+		{ KCGIInStream::HTTP_ACCEPT_LANGUAGE, KHTTPHeaders::ACCEPT_LANGUAGE },
+		{ KCGIInStream::HTTP_AUTHORIZATION,   KHTTPHeaders::AUTHORIZATION   },
+		{ KCGIInStream::HTTP_CONNECTION,      KHTTPHeaders::CONNECTION      },
+		{ KCGIInStream::HTTP_COOKIE,          KHTTPHeaders::COOKIE          },
+		{ KCGIInStream::HTTP_HOST,            KHTTPHeaders::HOST            },
+		{ KCGIInStream::HTTP_REFERER,         KHTTPHeaders::REFERER         },
+		{ KCGIInStream::HTTP_USER_AGENT,      KHTTPHeaders::USER_AGENT      },
+		{ KCGIInStream::CONTENT_TYPE,         KHTTPHeaders::CONTENT_TYPE    },
+		{ KCGIInStream::CONTENT_LENGTH,       KHTTPHeaders::CONTENT_LENGTH  },
+		{ KCGIInStream::REMOTE_ADDR,          KHTTPHeaders::X_FORWARDED_FOR },
+		{ "HTTP_X_KLOG",    			      "x-klog"                      }
 	};
 
 	// add headers from env vars
@@ -266,6 +274,7 @@ constexpr KStringViewZ KCGIInStream::HTTPS_SERVER_SUBJECT;
 constexpr KStringViewZ KCGIInStream::HTTP_ACCEPT;
 constexpr KStringViewZ KCGIInStream::HTTP_ACCEPT_ENCODING;
 constexpr KStringViewZ KCGIInStream::HTTP_ACCEPT_LANGUAGE;
+constexpr KStringViewZ KCGIInStream::HTTP_AUTHORIZATION;
 constexpr KStringViewZ KCGIInStream::HTTP_CONNECTION;
 constexpr KStringViewZ KCGIInStream::HTTP_COOKIE;
 constexpr KStringViewZ KCGIInStream::HTTP_HOST;

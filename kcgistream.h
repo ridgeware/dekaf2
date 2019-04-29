@@ -104,6 +104,7 @@ public:
 	static constexpr KStringViewZ HTTP_ACCEPT             = "HTTP_ACCEPT";
 	static constexpr KStringViewZ HTTP_ACCEPT_ENCODING    = "HTTP_ACCEPT_ENCODING";
 	static constexpr KStringViewZ HTTP_ACCEPT_LANGUAGE    = "HTTP_ACCEPT_LANGUAGE";
+	static constexpr KStringViewZ HTTP_AUTHORIZATION      = "HTTP_AUTHORIZATION";
 	static constexpr KStringViewZ HTTP_CONNECTION         = "HTTP_CONNECTION";
 	static constexpr KStringViewZ HTTP_COOKIE             = "HTTP_COOKIE";
 	static constexpr KStringViewZ HTTP_HOST               = "HTTP_HOST";

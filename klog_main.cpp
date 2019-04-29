@@ -143,47 +143,10 @@ KOutStream* out = &KOut;
 KOutStream* err = &KErr;
 bool bIsCGI     = false;
 
-//-----------------------------------------------------------------------------
-void PrintFlagFile()
-//-----------------------------------------------------------------------------
-{
-	KInFile file(KLog::getInstance().GetDebugFlag());
-	if (file.is_open())
-	{
-		KString sLine;
-		while (file.ReadLine(sLine))
-		{
-			out->WriteLine(sLine);
-		}
-	}
-	else
-	{
-		err->FormatLine("klog: cannot open file {}", KLog::getInstance().GetDebugFlag());
-	}
-
-} // PrintFlagFile
-
-//-----------------------------------------------------------------------------
-void RemoveFlagFile()
-//-----------------------------------------------------------------------------
-{
-	KLog::getInstance().SetDefaults();
-
-	if (kRemoveFile(KLog::getInstance().GetDebugFlag()))
-	{
-		out->WriteLine("logging and tracing switched off");
-	}
-	else
-	{
-		err->FormatLine("klog: cannot delete {}", KLog::getInstance().GetDebugFlag());
-	}
-
-} // RemoveFlagFile
-
 using Properties = KProps<KString, KString, false, false>;
 
 //-----------------------------------------------------------------------------
-void WriteConfig(Properties& props, KStringView sKeyToList)
+bool WriteConfig(Properties& props, KStringView sKeyToList)
 //-----------------------------------------------------------------------------
 {
 	props.Set("log", KLog::getInstance().GetDebugLog());
@@ -194,6 +157,9 @@ void WriteConfig(Properties& props, KStringView sKeyToList)
 
 	if (outfile.is_open())
 	{
+		// force mode 666 for the flag file ...
+		kChangeMode(KLog::getInstance().GetDebugFlag(), DEKAF2_MODE_CREATE_FILE);
+		
 		outfile.FormatLine("{}", KLog::getInstance().GetLevel());
 
 		for (auto& it : props)
@@ -209,11 +175,16 @@ void WriteConfig(Properties& props, KStringView sKeyToList)
 			}
 			outfile.WriteLine(sOut);
 		}
+
+		if (outfile.Good())
+		{
+			return true;
+		}
 	}
-	else
-	{
-		err->FormatLine("klog: cannot write to {}", KLog::getInstance().GetDebugFlag());
-	}
+
+	err->FormatLine("klog: cannot write to {}", KLog::getInstance().GetDebugFlag());
+
+	return false;
 
 } // WriteConfig
 
@@ -288,11 +259,12 @@ void DeleteConfigKeyValue(KStringView sKey, KStringView sValue, bool bList)
 } // DeleteExtendedKeyValue
 
 //-----------------------------------------------------------------------------
-void Persist()
+bool Persist()
 //-----------------------------------------------------------------------------
 {
 	auto props = ReadConfig();
-	WriteConfig(props, "");
+
+	return WriteConfig(props, "");
 
 } // Persist
 
@@ -303,11 +275,13 @@ void SetLevel(uint16_t iLevel)
 
 	if (iLevel != KLog::getInstance().GetLevel())
 	{
+		KLog::getInstance().SetLevel(iLevel);
+
 		if (!bIsCGI)
 		{
 			out->FormatLine ("klog: set new debug level to {}", KLog::getInstance().GetLevel());
 		}
-		KLog::getInstance().SetLevel(iLevel);
+
 		Persist();
 	}
 	else if (!bIsCGI)
@@ -323,11 +297,13 @@ void SetBackTraceLevel(int16_t iLevel)
 {
 	if (iLevel != KLog::getInstance().GetLevel())
 	{
+		KLog::getInstance().SetBackTraceLevel(iLevel);
+
 		if (!bIsCGI)
 		{
 			out->FormatLine ("klog: set new back trace level to {}", KLog::getInstance().GetBackTraceLevel());
 		}
-		KLog::getInstance().SetBackTraceLevel(iLevel);
+
 		Persist();
 	}
 	else if (!bIsCGI)
@@ -343,11 +319,13 @@ void SetJSONTraceLevel(KStringView sLevel)
 {
 	if (sLevel != KLog::getInstance().GetJSONTrace())
 	{
+		KLog::getInstance().SetJSONTrace(sLevel);
+
 		if (!bIsCGI)
 		{
 			out->FormatLine ("klog: set new JSON trace mode to \"{}\"", KLog::getInstance().GetJSONTrace());
 		}
-		KLog::getInstance().SetJSONTrace(sLevel);
+
 		Persist();
 	}
 	else if (!bIsCGI)
@@ -356,6 +334,55 @@ void SetJSONTraceLevel(KStringView sLevel)
 	}
 
 } // SetJSONTraceLevel
+
+//-----------------------------------------------------------------------------
+void PrintFlagFile()
+//-----------------------------------------------------------------------------
+{
+	KInFile file(KLog::getInstance().GetDebugFlag());
+	if (file.is_open())
+	{
+		KString sLine;
+		while (file.ReadLine(sLine))
+		{
+			out->WriteLine(sLine);
+		}
+	}
+	else
+	{
+		err->FormatLine("klog: cannot open file {}", KLog::getInstance().GetDebugFlag());
+	}
+
+} // PrintFlagFile
+
+//-----------------------------------------------------------------------------
+void RemoveFlagFile()
+//-----------------------------------------------------------------------------
+{
+	KLog::getInstance().SetDefaults();
+
+	if (kRemoveFile(KLog::getInstance().GetDebugFlag()))
+	{
+		out->WriteLine("logging and tracing switched off");
+	}
+	else
+	{
+		// instead try to set default values
+		KLog::getInstance().SetDefaults();
+
+		// we may not have write permissions for the parent directory (for the delete),
+		// but maybe we have them for the file itself, so we can write default parms
+		if (Persist())
+		{
+			out->WriteLine("logging and tracing set to default values");
+		}
+		else
+		{
+			err->FormatLine("klog: cannot delete {}", KLog::getInstance().GetDebugFlag());
+		}
+	}
+
+} // RemoveFlagFile
 
 //-----------------------------------------------------------------------------
 void TestBacktraces()
@@ -444,7 +471,7 @@ void SetupOptions (KOptions& Options, Actions& Actions)
 	{
 		KString sLogFile = KLog::getInstance().GetDebugLog();
 
-		if ((sLogFile == "stdout") || (sLogFile == "stderr") || sLogFile == "syslog" || (sLogFile == "null"))
+		if (sLogFile == "stdout" || sLogFile == "stderr" || sLogFile == "syslog")
 		{
 			out->Format ("klog: dekaf log is set to '{}' -- nothing to clear.\n", sLogFile);
 		}
@@ -828,15 +855,13 @@ int main (int argc, char* argv[])
 			{
 				while (Shell.ReadLine(sLine))
 				{
-					if (sLine.starts_with("| DB2 |  KLOG |"))
-					{
-						// do not print own log lines
-						continue;
-					}
-
 					KStringView style = "color: #E0E0E0";
 
-					if (sLine.starts_with("| DB3 |"))
+					if (sLine.starts_with("| DB2 |  KLOG |"))
+					{
+ 						style = "color: #505050";
+					}
+					else if (sLine.starts_with("| DB3 |"))
 					{
 						style = "color: #808080";
 					}

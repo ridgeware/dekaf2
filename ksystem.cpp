@@ -590,13 +590,13 @@ KString kResolveHost (KStringViewZ sHostname, bool bIPv4, bool bIPv6)
 		if (bIPv4 && !sIPV4.empty())
 		{
 			// success
-			kDebug (1, "{} --> {}", sHostname, sIPV4);
+			kDebug (2, "{} --> {}", sHostname, sIPV4);
 			sRet = std::move(sIPV4);
 		}
 		else if (bIPv6 && !sIPV6.empty())
 		{
 			// success
-			kDebug (1, "{} --> {}", sHostname, sIPV6);
+			kDebug (2, "{} --> {}", sHostname, sIPV6);
 			sRet = std::move(sIPV6);
 		}
 		else if (sIPV4.empty() && sIPV6.empty())

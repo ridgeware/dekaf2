@@ -200,7 +200,8 @@ bool KCGIInStream::CreateHeader()
 		{ KCGIInStream::HTTP_HOST,      KHTTPHeaders::HOST            },
 		{ KCGIInStream::CONTENT_TYPE,   KHTTPHeaders::CONTENT_TYPE    },
 		{ KCGIInStream::CONTENT_LENGTH, KHTTPHeaders::CONTENT_LENGTH  },
-		{ KCGIInStream::REMOTE_ADDR,    KHTTPHeaders::X_FORWARDED_FOR }
+		{ KCGIInStream::REMOTE_ADDR,    KHTTPHeaders::X_FORWARDED_FOR },
+		{ "HTTP_X_KLOG",    			"x-klog"                      }
 	};
 
 	// add headers from env vars

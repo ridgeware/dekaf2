@@ -303,18 +303,32 @@ public:
 		/// Add one header to the list of fixed additional headers
 		void AddHeader(KStringView sHeader, KStringView sValue);
 
-		KStringView sBaseRoute;                    // Fixed route prefix
-		KStringView sTimerHeader;                  // If non-empty creates a header with execution time
-		KStringViewZ sRecordFile;                  // File to record request into - filename may not change during execution
-		KHTTPHeaders::KHeaderMap ResponseHeaders;  // Fixed additional headers
-		KOpenIDProviderList Authenticators;        // Valid authentication instances for user verification
-		KStringView sAuthScope;                    // If non-empty, check that SSO token authorizes given scope
-		mutable uint16_t iMaxKeepaliveRounds { 10 }; // DoS prevention - max rounds in keep-alive
-		mutable OutputType Out { HTTP };           // Which of the three output formats?
-		AUTH_LEVEL AuthLevel { ALLOW_ALL };        // Which authentication level?
-		bool bRecordRequest { false };             // Shall we record into the sRecordFile? Value is expected to change during execution (could be made an atomic, but we don't care for a few missing records)
-		bool bThrowIfInvalidJson { false };        // Shall we throw if the request body contains invalid JSON
-		bool bCheckForWrongMethod { true };        // If no route found, shall we check if that happened because of wrong request method?
+		/// Fixed route prefix
+		KStringView sBaseRoute;
+		/// If non-empty creates a header with execution time
+		KStringView sTimerHeader;
+		/// File to record request into - filename may not change during execution
+		KStringViewZ sRecordFile;
+		/// Fixed additional headers
+		KHTTPHeaders::KHeaderMap ResponseHeaders;
+		/// Valid authentication instances for user verification
+		KOpenIDProviderList Authenticators;
+		/// If non-empty, check that SSO token authorizes given scope
+		KStringView sAuthScope;
+		/// Allow KLog profiling triggered by a KLOG header?
+		KStringView sKLogHeader;
+		/// DoS prevention - max rounds in keep-alive
+		mutable uint16_t iMaxKeepaliveRounds { 10 };
+		/// Which of the three output formats?
+		mutable OutputType Out { HTTP };
+		/// Which authentication level?
+		AUTH_LEVEL AuthLevel { ALLOW_ALL };
+		/// Shall we record into the sRecordFile? Value is expected to change during execution (could be made an atomic, but we don't care for a few missing records)
+		bool bRecordRequest { false };
+		/// Shall we throw if the request body contains invalid JSON?
+		bool bThrowIfInvalidJson { false };
+		/// If no route found, shall we check if that happened because of a wrong request method?
+		bool bCheckForWrongMethod { true };
 
 	}; // Options
 
@@ -459,6 +473,11 @@ protected:
 	//-----------------------------------------------------------------------------
 	/// check user's identity and access
 	void VerifyAuthentication(const Options& Options);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// check if we shall log this thread's logging output into the response headers
+	void VerifyPerThreadKLogToHeader(const Options& Options);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------

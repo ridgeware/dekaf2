@@ -40,8 +40,8 @@
 //
 */
 
-#include "dekaf2.h"
 #include "klog.h"
+#include "dekaf2.h"
 #include "kstring.h"
 #include "kgetruntimestack.h"
 #include "kstringutils.h"
@@ -63,6 +63,7 @@
 	#include "kconnection.h"
 	#include "kmime.h"
 	#include "kjson.h"
+	#include "khttp_header.h" // for LogToRESTResponse()
 #endif
 
 namespace dekaf2
@@ -94,6 +95,8 @@ bool KLog::s_bGlobalShouldShowStackOnJsonError { true };
 #endif
 bool KLog::s_bGlobalShouldOnlyShowCallerOnJsonError { false };
 thread_local bool KLog::s_bShouldShowStackOnJsonError { true };
+thread_local std::unique_ptr<KLogSerializer> KLog::s_PerThreadSerializer;
+thread_local std::unique_ptr<KLogWriter> KLog::s_PerThreadWriter;
 
 //---------------------------------------------------------------------------
 KLogWriter::~KLogWriter()
@@ -125,6 +128,28 @@ bool KLogFileWriter::Write(int iLevel, bool bIsMultiline, const KString& sOut)
 //---------------------------------------------------------------------------
 {
 	return m_OutFile.Write(sOut).Flush().Good();
+
+} // Write
+
+//---------------------------------------------------------------------------
+KLogStringWriter::KLogStringWriter(KString& sOutString, KString sConcat)
+//---------------------------------------------------------------------------
+    : m_OutString(sOutString)
+	, m_sConcat(std::move(sConcat))
+{
+} // ctor
+
+//---------------------------------------------------------------------------
+bool KLogStringWriter::Write(int iLevel, bool bIsMultiline, const KString& sOut)
+//---------------------------------------------------------------------------
+{
+	if (!m_sConcat.empty() && !m_OutString.empty())
+	{
+		m_OutString += m_sConcat;
+	}
+	m_OutString += sOut;
+
+	return true;
 
 } // Write
 
@@ -280,7 +305,50 @@ bool KLogHTTPWriter::Write(int iLevel, bool bIsMultiline, const KString& sOut)
 
 	m_OutStream->Post(m_sURL, sOut, KMIME::JSON);
 
-	return m_OutStream->Good();
+	return m_OutStream->HttpSuccess();
+
+} // Write
+
+//---------------------------------------------------------------------------
+KLogHTTPHeaderWriter::KLogHTTPHeaderWriter(KHTTPHeaders& HTTPHeaders, KStringView sHeader)
+//---------------------------------------------------------------------------
+    : m_Headers(HTTPHeaders)
+	, m_sHeader(sHeader)
+{
+} // ctor
+
+//---------------------------------------------------------------------------
+KLogHTTPHeaderWriter::~KLogHTTPHeaderWriter()
+//---------------------------------------------------------------------------
+{
+} // dtor
+
+//---------------------------------------------------------------------------
+bool KLogHTTPHeaderWriter::Good() const
+//---------------------------------------------------------------------------
+{
+	return true;
+
+} // Good
+
+//---------------------------------------------------------------------------
+bool KLogHTTPHeaderWriter::Write(int iLevel, bool bIsMultiline, const KString& sOut)
+//---------------------------------------------------------------------------
+{
+	std::vector<KStringView> Lines;
+	kSplit(Lines, sOut, "\n", "");
+
+	for (auto sLine : Lines)
+	{
+		if (!sLine.empty())
+		{
+			// it is a bug that we cannot use a KString as the key to add a new
+			// header but have to convert it into a KStringView first..
+			m_Headers.Headers.Add(m_sHeader.ToView(), sLine);
+		}
+	}
+
+	return true;
 
 } // Write
 
@@ -504,7 +572,11 @@ void KLogSyslogSerializer::Serialize() const
 
 // do not initialize this static var - it risks to override a value set by KLog()'s
 // initialization before..
-int KLog::s_kLogLevel;
+int KLog::s_iLogLevel;
+
+// this one however has to be initialized for every new thread to the value of
+// the current global log level
+thread_local int KLog::s_iThreadLogLevel { s_iLogLevel };
 
 //---------------------------------------------------------------------------
 KLog::KLog()
@@ -619,6 +691,64 @@ void KLog::SetDefaults()
 } // SetDefaults
 
 //---------------------------------------------------------------------------
+void KLog::LogThisThreadToKLog(int iLevel)
+//---------------------------------------------------------------------------
+{
+	if (iLevel > 0)
+	{
+		s_iThreadLogLevel = iLevel;
+	}
+	else
+	{
+		s_iThreadLogLevel = s_iLogLevel;
+	}
+
+	s_PerThreadWriter.reset();
+	s_PerThreadSerializer.reset();
+
+} // LogThisThreadToKLog
+
+#ifdef DEKAF2_KLOG_WITH_TCP
+//---------------------------------------------------------------------------
+void KLog::LogThisThreadToResponseHeaders(int iLevel, KHTTPHeaders& Response, KStringView sHeader)
+//---------------------------------------------------------------------------
+{
+	if (iLevel > 0)
+	{
+		s_iThreadLogLevel = iLevel;
+		s_PerThreadWriter = std::make_unique<KLogHTTPHeaderWriter>(Response, sHeader);
+		s_PerThreadSerializer = std::make_unique<KLogTTYSerializer>();
+	}
+	else
+	{
+		s_iThreadLogLevel = s_iLogLevel;
+		s_PerThreadWriter.reset();
+		s_PerThreadSerializer.reset();
+	}
+
+} // LogThisThreadToResponseHeaders
+
+//---------------------------------------------------------------------------
+void KLog::LogThisThreadToJSON(int iLevel, KString& sJSON)
+//---------------------------------------------------------------------------
+{
+	if (iLevel > 0)
+	{
+		s_iThreadLogLevel = iLevel;
+		s_PerThreadWriter = std::make_unique<KLogStringWriter>(sJSON, ",");
+		s_PerThreadSerializer = std::make_unique<KLogJSONSerializer>();
+	}
+	else
+	{
+		s_iThreadLogLevel = s_iLogLevel;
+		s_PerThreadWriter.reset();
+		s_PerThreadSerializer.reset();
+	}
+
+} // LogThisThreadToJSON
+#endif
+
+//---------------------------------------------------------------------------
 void KLog::SetJSONTrace(KStringView sJSONTrace)
 //---------------------------------------------------------------------------
 {
@@ -673,7 +803,8 @@ void KLog::SetLevel(int iLevel)
 		iLevel = 3;
 	}
 
-	s_kLogLevel = iLevel;
+	s_iLogLevel = iLevel;
+	s_iThreadLogLevel = iLevel;
 
 /*
  * don't write anymore to the flag file - let this be done by external
@@ -682,6 +813,14 @@ void KLog::SetLevel(int iLevel)
  */
 
 } // SetLevel
+
+//---------------------------------------------------------------------------
+void KLog::SyncLevel()
+//---------------------------------------------------------------------------
+{
+	s_iThreadLogLevel = s_iLogLevel;
+
+} // SyncLevel
 
 //---------------------------------------------------------------------------
 void KLog::SetName(KStringView sName)
@@ -791,6 +930,8 @@ std::unique_ptr<KLogSerializer> KLog::CreateSerializer(Serializer serializer)
 bool KLog::IntOpenLog()
 //---------------------------------------------------------------------------
 {
+	m_bLogIsRegularFile = false;
+	
 #ifdef DEKAF2_KLOG_WITH_TCP
 	KURL url(m_sLogName);
 	if (url.IsHttpURL())
@@ -815,7 +956,7 @@ bool KLog::IntOpenLog()
 	else
 #endif
 	{
-		// this is a regular file
+		// this is a file
 		if (m_sLogName == STDOUT)
 		{
 			SetWriter(CreateWriter(Writer::STDOUT));
@@ -827,6 +968,7 @@ bool KLog::IntOpenLog()
 		else
 		{
 			SetWriter(CreateWriter(Writer::FILE, m_sLogName));
+			m_bLogIsRegularFile = true;
 		}
 		SetSerializer(CreateSerializer(Serializer::TTY));
 	}
@@ -900,6 +1042,27 @@ void KLog::CheckDebugFlag(bool bForce/*=false*/)
 
 	static std::mutex s_DebugFlagMutex;
 	std::lock_guard<std::mutex> Lock(s_DebugFlagMutex);
+
+	// we periodically check if our log file was removed (e.g. by the klog cli),
+	// in which case we have to close and reopen it, as otherwise we would
+	// continue to write into a deleted file descriptor.
+	if (m_bLogIsRegularFile)
+	{
+		if (!kFileExists(m_sLogName))
+		{
+			// file was removed.. reopen
+			SetWriter(CreateWriter(Writer::FILE, m_sLogName));
+		}
+		// check if file grew too big
+		else if (kFileSize(m_sLogName) > 10 * 1024 * 1024)
+		{
+			if (GetLevel() > 1)
+			{
+				kDebug(1, "Logfile now too large, reducing log level from {} to 1", GetLevel());
+				SetLevel(1);
+			}
+		}
+	}
 
 	// file format of the debug "flag" file:
 	// line #1: "level" where level is numeric (-1 .. 3)
@@ -1043,50 +1206,72 @@ bool KLog::IntDebug(int iLevel, KStringView sFunction, KStringView sMessage)
 		return false;
 	}
 
+	if (DEKAF2_UNLIKELY(iLevel > s_iLogLevel && iLevel > s_iThreadLogLevel))
+	{
+		// bail out early if this method was called without checking the
+		// log levels before (which should be really rare thanks to the
+		// debug macros)
+		return false;
+	}
+
 	// we need a lock if we run in multithreading, as the serializers
 	// have data members
 	std::lock_guard<std::recursive_mutex> Lock(s_LogMutex);
 
-	m_Serializer->Set(iLevel, m_sShortName, m_sPathName, sFunction, sMessage);
-
-	// check if we shall print a stacktrace on demand
-	if (iLevel > m_iBackTrace)
+	if (DEKAF2_LIKELY(iLevel <= s_iLogLevel) || iLevel <= s_iThreadLogLevel)
 	{
-		for (const auto& sTrace : m_Traces)
+		// this is the regular logging, with a per-thread adaptable iLevel
+
+		m_Serializer->Set(iLevel, m_sShortName, m_sPathName, sFunction, sMessage);
+
+		// check if we shall print a stacktrace on demand
+		if (iLevel > m_iBackTrace)
 		{
-			if (sFunction.Contains(sTrace) ||
-				sMessage.Contains(sTrace))
+			for (const auto& sTrace : m_Traces)
 			{
-				iLevel = m_iBackTrace;
-				break;
+				if (sFunction.Contains(sTrace) ||
+					sMessage.Contains(sTrace))
+				{
+					iLevel = m_iBackTrace;
+					break;
+				}
 			}
 		}
-	}
 
-	if (iLevel <= m_iBackTrace)
-	{
-		// we can protect the recursion without a mutex, as we
-		// are already protected by a mutex..
-		if (!s_bBackTraceAlreadyCalled)
+		if (iLevel <= m_iBackTrace)
 		{
-			s_bBackTraceAlreadyCalled = true;
-			int iSkipFromStack { 2 };
-			if (iLevel == -2)
+			// we can protect the recursion without a mutex, as we
+			// are already protected by a mutex..
+			if (!s_bBackTraceAlreadyCalled)
 			{
-				// for exceptions we have to peel off one more stack frame
-				// (it is of course a brittle expectation of level == -2 == exception,
-				// but for now it is true)
-				iSkipFromStack += 1;
+				s_bBackTraceAlreadyCalled = true;
+				int iSkipFromStack { 2 };
+				if (iLevel == -2)
+				{
+					// for exceptions we have to peel off one more stack frame
+					// (it is of course a brittle expectation of level == -2 == exception,
+					// but for now it is true)
+					iSkipFromStack += 1;
+				}
+				KString sStack = kGetBacktrace(iSkipFromStack);
+				m_Serializer->SetBacktrace(sStack);
+				s_bBackTraceAlreadyCalled = false;
 			}
-			KString sStack = kGetBacktrace(iSkipFromStack);
-			m_Serializer->SetBacktrace(sStack);
-			s_bBackTraceAlreadyCalled = false;
-
-			return m_Logger->Write(iLevel, m_Serializer->IsMultiline(), m_Serializer->Get());
 		}
+
+		m_Logger->Write(iLevel, m_Serializer->IsMultiline(), m_Serializer->Get());
 	}
 
-	return m_Logger->Write(iLevel, m_Serializer->IsMultiline(), m_Serializer->Get());
+	if (DEKAF2_UNLIKELY(iLevel <= s_iThreadLogLevel &&
+						s_PerThreadSerializer &&
+						s_PerThreadWriter))
+	{
+		// this is the individual per-thread-logging
+		s_PerThreadSerializer->Set(iLevel, m_sShortName, m_sPathName, sFunction, sMessage);
+		s_PerThreadWriter->Write(iLevel, s_PerThreadSerializer->IsMultiline(), s_PerThreadSerializer->Get());
+	}
+
+	return true;
 
 } // IntDebug
 

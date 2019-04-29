@@ -69,9 +69,13 @@ public:
 	struct SimulationParms
 	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	{
+		/// filename to read HTTP request from
 		KStringViewZ sFilename;
+		/// API to call
 		KResource API;
+		/// HTTP method to use
 		KHTTPMethod Method { KHTTPMethod::GET };
+		/// Post body if not read from file
 		KString sBody;
 
 	}; // SimulationParms
@@ -81,16 +85,25 @@ public:
 	struct Options : public KRESTServer::Options
 	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	{
+		/// Server type (UNDEFINED, HTTP, CGI, FCGI, LAMBDA, CLI, SIMULATE_HTTP, UNIX)
 		ServerType Type { UNDEFINED };
+		/// listen port (default none)
 		uint16_t iPort { 0 };
+		/// max simultaneous connections (default 20)
 		uint16_t iMaxConnections { 20 };
+		/// timeout in seconds (default 5)
 		uint16_t iTimeout { 5 };
+		/// signal that will shutdown the server (default SIGTERM)
 		int iRegisterSignalForShutdown { SIGTERM };
 #ifdef DEKAF2_HAS_UNIX_SOCKETS
+		/// unix socket file to listen
 		KStringViewZ sSocketFile;
 #endif
+		/// the PEM certificate
 		KStringViewZ sCert;
+		/// the PEM private key
 		KStringViewZ sKey;
+		/// Parameters controling the simulation mode
 		SimulationParms Simulate;
 
 	}; // Options

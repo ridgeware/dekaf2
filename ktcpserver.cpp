@@ -178,6 +178,10 @@ void KTCPServer::Session(KStream& stream, KStringView sRemoteEndPoint)
 void KTCPServer::RunSession(KStream& stream, KString sRemoteEndPoint)
 //-----------------------------------------------------------------------------
 {
+	// make sure we adjust this thread's log level to the global log level,
+	// even when running repeatedly over a long time
+	KLog::getInstance().SyncLevel();
+
 #ifdef DEKAF2_HAS_UNIX_SOCKETS
 	if (!m_iPort)
 	{
@@ -637,12 +641,14 @@ bool KTCPServer::RegisterShutdownWithSignal(int iSignal)
 			// register with iSignal
 			Signals->SetSignalHandler(iSignal, [&](int signal)
 			{
+				// stop the tcp server
 				this->Stop();
 
 				auto Signals = Dekaf::getInstance().Signals();
 
 				if (Signals)
 				{
+					// reset signal handler to call exit()
 					Signals->SetSignalHandler(signal, [](int signal)
 					{
 						std::exit(0);
@@ -660,7 +666,7 @@ bool KTCPServer::RegisterShutdownWithSignal(int iSignal)
 
 	return false;
 
-} // RegisterWithSigTerm
+} // RegisterShutdownWithSignal
 
 
 //-----------------------------------------------------------------------------

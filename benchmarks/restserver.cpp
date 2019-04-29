@@ -22,6 +22,7 @@ static constexpr KStringView g_sHelp[]
 	"  -t <timeout>               :: request timeout in seconds (1)",
 	"  -k <max keepalive rounds>  :: max keepalive rounds     (100)",
 	"  --simple                   :: SIMPLE server instead of REST",
+	"  --klog <header>            :: set klog debug header (for REST)",
 	""
 };
 
@@ -68,6 +69,7 @@ private:
 
 int main(int argc, char** argv)
 {
+	kInit();
 	// create Options
 	KREST::Options Options;
 	Options.Type = KREST::HTTP;
@@ -106,6 +108,11 @@ int main(int argc, char** argv)
 	CLI.RegisterOption("simple", [&]()
 	{
 		bSimpleServer = true;
+	});
+
+	CLI.RegisterOption("klog", "klog header", [&](KStringViewZ sArg)
+	{
+		Options.sKLogHeader = sArg;
 	});
 
 	bool bRun { false };

@@ -332,6 +332,54 @@ void KRESTServer::VerifyAuthentication(const Options& Options)
 
 } // VerifyAuthentication
 
+
+//-----------------------------------------------------------------------------
+void KRESTServer::VerifyPerThreadKLogToHeader(const Options& Options)
+//-----------------------------------------------------------------------------
+{
+	auto it = Request.Headers.find(Options.sKLogHeader);
+
+	if (it != Request.Headers.end())
+	{
+		bool bValid { false };
+
+		std::vector<KStringView> parts;
+		kSplit(parts, it->second, ", ");
+
+		if (parts.size() > 0)
+		{
+			int iKLogLevel = parts[0].Int16();
+			bool bToKLog { false };
+
+			if (parts.size() > 1)
+			{
+				bToKLog = (parts[1].ToLower() == "log");
+			}
+
+			if (iKLogLevel > 0 && iKLogLevel < 4)
+			{
+				if (bToKLog)
+				{
+					KLog::getInstance().LogThisThreadToKLog(iKLogLevel);
+					kDebug(2, "switching per-thread klog logging for this thread on at level {}", iKLogLevel);
+				}
+				else
+				{
+					KLog::getInstance().LogThisThreadToResponseHeaders(iKLogLevel, Response, Options.sKLogHeader);
+					kDebug(2, "switching per-thread response header logging for this thread on at level {}", iKLogLevel);
+				}
+				bValid = true;
+			}
+		}
+
+		if (!bValid)
+		{
+			kDebug(2, "invalid klog header: {}: {}", it->first, it->second);
+		}
+	}
+
+} // VerifyPerThreadKLogToHeader
+
 //-----------------------------------------------------------------------------
 bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 //-----------------------------------------------------------------------------
@@ -386,6 +434,13 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 				&& Request.Method != KHTTPMethod::OPTIONS)
 			{
 				VerifyAuthentication(Options);
+			}
+
+			// switch logging only after authorization (but not for OPTIONS, as it is
+			// not authenticated..)
+			if (!Options.sKLogHeader.empty() && Request.Method != KHTTPMethod::OPTIONS)
+			{
+				VerifyPerThreadKLogToHeader(Options);
 			}
 
 			Response.SetStatus(200, "OK");
@@ -516,6 +571,12 @@ void KRESTServer::Output(const Options& Options, bool bKeepAlive)
 	SetCompression(Options.Out == HTTP);
 
 	kDebug (1, "HTTP-{}: {}", Response.iStatusCode, Response.sStatusString);
+
+	if (!Options.sKLogHeader.empty())
+	{
+		// finally switch logging off if enabled
+		KLog::getInstance().LogThisThreadToResponseHeaders(-1, Response);
+	}
 
 	switch (Options.Out)
 	{
@@ -671,6 +732,12 @@ void KRESTServer::ErrorHandler(const std::exception& ex, const Options& Options)
 
 	// do not compress/chunk error messages
 	SetCompression(false);
+
+	if (!Options.sKLogHeader.empty())
+	{
+		// finally switch logging off if enabled
+		KLog::getInstance().LogThisThreadToResponseHeaders(-1, Response);
+	}
 
 	switch (Options.Out)
 	{

@@ -119,6 +119,31 @@ private:
 
 }; // KLogFileWriter
 
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// Logwriter that writes into a string, possibly with concatenation chars
+class KLogStringWriter : public KLogWriter
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+//----------
+public:
+//----------
+	/// The sConcat will be written between individual log messages.
+	/// It will not be written after the last message
+	KLogStringWriter(KString& sOutString, KString sConcat = "\n");
+	virtual ~KLogStringWriter() {}
+	virtual bool Write(int iLevel, bool bIsMultiline, const KString& sOut) override;
+	virtual bool Good() const override { return true; }
+
+//----------
+private:
+//----------
+	KString& m_OutString;
+	KString m_sConcat;
+
+}; // KLogStringWriter
+
+
+
 #ifdef DEKAF2_HAS_SYSLOG
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Logwriter for the syslog
@@ -185,6 +210,30 @@ protected:
 	KString m_sURL;
 
 }; // KLogHTTPWriter
+
+class KHTTPHeaders;
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// Logwriter that writes into a HTTP header
+class KLogHTTPHeaderWriter : public KLogWriter
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+//----------
+public:
+//----------
+	KLogHTTPHeaderWriter(KHTTPHeaders& HTTPHeaders, KStringView sHeader = "x-klog");
+	virtual ~KLogHTTPHeaderWriter();
+	virtual bool Write(int iLevel, bool bIsMultiline, const KString& sOut) override;
+	virtual bool Good() const override;
+
+//----------
+protected:
+//----------
+
+	KHTTPHeaders& m_Headers;
+	KString m_sHeader;
+
+}; // KLogHTTPHeaderWriter
 
 #endif
 
@@ -398,12 +447,18 @@ public:
 	static inline int GetLevel()
 	//---------------------------------------------------------------------------
 	{
-		return s_kLogLevel;
+		return s_iLogLevel;
 	}
 
 	//---------------------------------------------------------------------------
 	/// Sets a new log level.
 	void SetLevel(int iLevel);
+	//---------------------------------------------------------------------------
+
+	//---------------------------------------------------------------------------
+	/// For long running threads, sync the per-thread log level to the global
+	/// log level (it may have changed through the Dekaf() timing thread)
+	void SyncLevel();
 	//---------------------------------------------------------------------------
 
 	//---------------------------------------------------------------------------
@@ -533,7 +588,7 @@ public:
 	inline bool debug(int iLevel, Args&&... args)
 	//---------------------------------------------------------------------------
 	{
-		return (DEKAF2_LIKELY(iLevel > s_kLogLevel)) || IntDebug(iLevel, KStringView(), kFormat(std::forward<Args>(args)...));
+		return IntDebug(iLevel, KStringView(), kFormat(std::forward<Args>(args)...));
 	}
 
 	//---------------------------------------------------------------------------
@@ -542,7 +597,7 @@ public:
 	inline bool debug_fun(int iLevel, KStringView sFunction, Args&&... args)
 	//---------------------------------------------------------------------------
 	{
-		return (DEKAF2_LIKELY(iLevel > s_kLogLevel)) || IntDebug(iLevel, sFunction, kFormat(std::forward<Args>(args)...));
+		return IntDebug(iLevel, sFunction, kFormat(std::forward<Args>(args)...));
 	}
 
 	//---------------------------------------------------------------------------
@@ -576,12 +631,6 @@ public:
 	{
 		IntException("unknown", sFunction, sClass);
 	}
-
-	// do _not_ initialize s_kLoglevel - see implementation note. Also, it needs
-	// to be publicly visible as gcc does _not_ optimize a static inline GetLevel()
-	// into an inline. We have to test the static var directly from kDebug to
-	// have it inlined
-	static int s_kLogLevel;
 
 	//---------------------------------------------------------------------------
 	/// Registered with Dekaf::AddToOneSecTimer() at construction, gets
@@ -617,7 +666,36 @@ public:
 	void JSONTrace(KStringView sFunction);
 	//---------------------------------------------------------------------------
 
+	//---------------------------------------------------------------------------
+	/// Log messages of this thread of execution with level <= iLevel into the
+	/// current klog. This can be used to force more logging for a particular thread
+	/// than for other threads.
+	void LogThisThreadToKLog(int iLevel);
+	//---------------------------------------------------------------------------
+
+#ifdef DEKAF2_KLOG_WITH_TCP
+	//---------------------------------------------------------------------------
+	/// Log messages of this thread of execution with level <= iLevel into a
+	/// HTTP Response header.
+	void LogThisThreadToResponseHeaders(int iLevel, KHTTPHeaders& Response, KStringView sHeader = "x-klog");
+	//---------------------------------------------------------------------------
+
+	//---------------------------------------------------------------------------
+	/// Log messages of this thread of execution with level <= iLevel into a
+	/// JSON string buffer.
+	void LogThisThreadToJSON(int iLevel, KString& sJSON);
+	//---------------------------------------------------------------------------
+#endif
+
 	static KStringView s_sJSONSkipFiles;
+
+	// do _not_ initialize s_kLoglevel - see implementation note. Also, it needs
+	// to be publicly visible as gcc does _not_ optimize a static inline GetLevel()
+	// into an inline. We have to test the static var directly from kDebug to
+	// have it inlined
+	static int s_iLogLevel;
+
+	static thread_local int s_iThreadLogLevel;
 
 //----------
 private:
@@ -633,10 +711,11 @@ private:
 	static std::recursive_mutex s_LogMutex;
 	static bool s_bBackTraceAlreadyCalled;
 	static bool s_bGlobalShouldShowStackOnJsonError;
-	static bool s_bGlobalShouldOnlyShowCallerOnJsonError;
+	static bool s_bGlobalShouldOnlyShowCallerOnJsonError; 
 	static thread_local bool s_bShouldShowStackOnJsonError;
+	static thread_local std::unique_ptr<KLogSerializer> s_PerThreadSerializer;
+	static thread_local std::unique_ptr<KLogWriter> s_PerThreadWriter;
 
-	bool m_bIsCGI { false }; // we need this bool on top for the constructor
 	KString m_sPathName;
 	KString m_sShortName;
 	KString m_sLogName;
@@ -647,8 +726,10 @@ private:
 	std::unique_ptr<KLogWriter> m_Logger;
 	// the m_Traces vector is protected by the s_LogMutex
 	std::vector<KString> m_Traces;
-	LOGMODE m_Logmode { CLI };
 	bool m_bHadConfigFromFlagFile { false };
+	bool m_bLogIsRegularFile { false };
+	bool m_bIsCGI { false }; // we need this bool on top of m_Logmode for the constructor
+	LOGMODE m_Logmode { CLI };
 
 }; // KLog
 
@@ -674,7 +755,7 @@ private:
 /// log a debug message, automatically provide function name.
 #define kDebug(iLevel, ...) \
 { \
-	if (DEKAF2_UNLIKELY(iLevel <= dekaf2::KLog::s_kLogLevel)) \
+	if (DEKAF2_UNLIKELY(iLevel <= dekaf2::KLog::s_iThreadLogLevel)) \
 	{ \
 		dekaf2::KLog::getInstance().debug_fun(iLevel, DEKAF2_FUNCTION_NAME, __VA_ARGS__); \
 	} \
@@ -688,7 +769,7 @@ private:
 /// log a debug message, do NOT automatically provide function name.
 #define kDebugLog(iLevel, ...) \
 { \
-	if (DEKAF2_UNLIKELY(iLevel <= dekaf2::KLog::s_kLogLevel)) \
+	if (DEKAF2_UNLIKELY(iLevel <= dekaf2::KLog::s_iThreadLogLevel)) \
 	{ \
 		dekaf2::KLog::getInstance().debug(iLevel, __VA_ARGS__); \
 	} \
@@ -778,7 +859,7 @@ private:
 #endif
 //---------------------------------------------------------------------------
 /// test if a given log level would create output
-#define kWouldLog(iLevel) (DEKAF2_UNLIKELY(iLevel <= dekaf2::KLog::s_kLogLevel))
+#define kWouldLog(iLevel) (DEKAF2_UNLIKELY(iLevel <= dekaf2::KLog::s_iThreadLogLevel))
 //---------------------------------------------------------------------------
 
 

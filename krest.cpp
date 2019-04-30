@@ -175,6 +175,10 @@ bool KREST::ExecuteRequest(const Options& Options, const KRESTRoutes& Routes)
 				KLog::getInstance().SetMode(KLog::SERVER);
 				kDebug (3, "normal CGI request...");
 				KCGIInStream CGI(KIn);
+				if (!Options.sKLogHeader.empty())
+				{
+					CGI.AddCGIVar(KCGIInStream::ConvertHTTPHeaderNameToCGIVar(Options.sKLogHeader), Options.sKLogHeader);
+				}
 				KStream Stream(CGI, KOut);
 				Options.Out = KRESTServer::HTTP;
 				Options.iMaxKeepaliveRounds = 1; // no keepalive in CGI mode..
@@ -229,6 +233,10 @@ bool KREST::ExecuteFromFile(const Options& Options, const KRESTRoutes& Routes, K
 				kDebug(3, "simulated CGI request with input file: {}", Options.Simulate.sFilename);
 				KInFile File(Options.Simulate.sFilename);
 				KCGIInStream CGI(File);
+				if (!Options.sKLogHeader.empty())
+				{
+					CGI.AddCGIVar(KCGIInStream::ConvertHTTPHeaderNameToCGIVar(Options.sKLogHeader), Options.sKLogHeader);
+				}
 				KStream Stream(CGI, OutStream);
 				Options.Out = KRESTServer::HTTP;
 				RealExecute(Options, Routes, Stream, "127.0.0.1");

@@ -77,12 +77,23 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Add custom translations from a CGI var to a HTTP header. Has to be set before
-	/// any call to CreateHeader().
-	void AddCGIVar(KStringViewZ sCGIVar, KStringView sHTTPHeader);
+	/// any read from the stream.
+	void AddCGIVar(KString sCGIVar, KString sHTTPHeader)
+	//-----------------------------------------------------------------------------
+	{
+		m_Stream.AddCGIVar(std::move(sCGIVar), std::move(sHTTPHeader));
+	}
+
+	//-----------------------------------------------------------------------------
+	/// Converts a HTTP header name into a CGI var name, like "Accept-Encoding" ->
+	/// "HTTP_ACCEPT_ENCODING"
+	static KString ConvertHTTPHeaderNameToCGIVar(KStringView sHeadername);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	bool CreateHeader();
+	/// Converts a CGI var name into a HTTP header name, like "HTTP_ACCEPT_ENCODING"
+	/// -> "Accept-Encoding"
+	static KString ConvertCGIVarToHTTPHeaderName(KStringView sCGIVar);
 	//-----------------------------------------------------------------------------
 
 	static constexpr KStringViewZ AUTH_PASSWORD           = "AUTH_PASSWORD";
@@ -137,28 +148,38 @@ public:
 private:
 //----------
 
-	struct Stream
+	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	class Stream
+	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	{
+	//----------
+	public:
+	//----------
+
+		Stream(std::istream* _istream)
+		: istream(_istream)
+		{}
+
+		void CreateHeader();
+		void AddCGIVar(KString sCGIVar, KString sHTTPHeader);
+
 		std::istream* istream;
 		KStringView   sHeader;
-		char          chCommentDelimiter;
-		bool          bAtStartOfLine; // was the last character of the last buffer read an EOL?
-		bool          bIsComment;
+		char          chCommentDelimiter { 0 };
+		bool          bAtStartOfLine { true }; // was the last character of the last buffer read an EOL?
+		bool          bIsComment { false };
+		bool          bIsCreated { false };
 
-		void ClearFlagsAndHeader();
-		void SetHeader(const KString& _sHeader)
-		{
-			sHeader = _sHeader;
-		}
-		void SetCommentDelimiter(char chDel)
-		{
-			chCommentDelimiter = chDel;
-		}
-	};
+	//----------
+	private:
+	//----------
 
-	Stream  m_Stream;
-	KString m_sHeader;
-	std::vector<std::pair<KStringViewZ, KStringView> > m_AdditionalCGIVars;
+		std::vector<std::pair<KString, KString> > m_AdditionalCGIVars;
+		KString m_sHeader;
+
+	}; // Stream
+
+	Stream m_Stream;
 
 	KInStreamBuf m_StreamBuf{&StreamReader, &m_Stream};
 

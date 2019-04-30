@@ -44,6 +44,7 @@
 #include "klog.h"
 #include "ksystem.h"
 #include "khttp_header.h"
+#include "kctype.h"
 
 namespace dekaf2 {
 
@@ -59,6 +60,9 @@ std::streamsize KCGIInStream::StreamReader(void* sBuffer, std::streamsize iCount
 		auto stream   = static_cast<KCGIInStream::Stream*>(stream_);
 		char* sOutBuf = static_cast<char*>(sBuffer);
 		auto iRemain  = iCount;
+
+		// lazy creation of header from CGI env vars
+		stream->CreateHeader();
 
 		if (!stream->sHeader.empty())
 		{
@@ -157,29 +161,85 @@ std::streamsize KCGIInStream::StreamReader(void* sBuffer, std::streamsize iCount
 } // StreamReader
 
 //-----------------------------------------------------------------------------
-void KCGIInStream::Stream::ClearFlagsAndHeader()
+KString KCGIInStream::ConvertHTTPHeaderNameToCGIVar(KStringView sHeadername)
 //-----------------------------------------------------------------------------
 {
-	sHeader.clear();
-	chCommentDelimiter = 0;
-	bAtStartOfLine = true;
-	bIsComment = false;
+	KString sCGI;
+	sCGI.reserve(sHeadername.size() + 5);
 
-} // Stream::clear
+	sCGI = "HTTP_";
+
+	for (auto ch : sHeadername)
+	{
+		if (KASCII::kIsAlNum(ch))
+		{
+			sCGI += KASCII::kToUpper(ch);
+		}
+		else if (ch == '-')
+		{
+			sCGI += '_';
+		}
+	}
+
+	return sCGI;
+
+} // ConvertHTTPHeaderNameToCGIVar
 
 //-----------------------------------------------------------------------------
-void KCGIInStream::AddCGIVar(KStringViewZ sCGIVar, KStringView sHTTPHeader)
+KString KCGIInStream::ConvertCGIVarToHTTPHeaderName(KStringView sCGIVar)
 //-----------------------------------------------------------------------------
 {
-	m_AdditionalCGIVars.push_back({sCGIVar, sHTTPHeader});
+	KString sHeaderName;
 
-} // AddTranslation
+	sCGIVar.remove_prefix("HTTP_");
+
+	sHeaderName.reserve(sCGIVar.size());
+
+	bool bIsFirst { true };
+
+	for (auto ch : sCGIVar)
+	{
+		if (KASCII::kIsAlNum(ch))
+		{
+			if (bIsFirst)
+			{
+				sHeaderName += KASCII::kToUpper(ch);
+				bIsFirst = false;
+			}
+			else
+			{
+				sHeaderName += KASCII::kToLower(ch);
+			}
+		}
+		else if (ch == '_')
+		{
+			sHeaderName += '-';
+			bIsFirst = true;
+		}
+	}
+
+	return sHeaderName;
+
+} // ConvertCGIVarToHTTPHeaderName
 
 //-----------------------------------------------------------------------------
-bool KCGIInStream::CreateHeader()
+void KCGIInStream::Stream::AddCGIVar(KString sCGIVar, KString sHTTPHeader)
 //-----------------------------------------------------------------------------
 {
-	m_Stream.ClearFlagsAndHeader();
+	m_AdditionalCGIVars.push_back({std::move(sCGIVar), std::move(sHTTPHeader)});
+
+} // AddCGIVar
+
+//-----------------------------------------------------------------------------
+void KCGIInStream::Stream::CreateHeader()
+//-----------------------------------------------------------------------------
+{
+	if (bIsCreated)
+	{
+		return;
+	}
+
+	bIsCreated = true;
 
 	auto sMethod = kGetEnv(KCGIInStream::REQUEST_METHOD);
 
@@ -187,8 +247,8 @@ bool KCGIInStream::CreateHeader()
 	{
 		kDebug (1, "we are not running within a web server...");
 		// permitting for comment lines
-		m_Stream.SetCommentDelimiter('#');
-		return false;
+		chCommentDelimiter = '#';
+		return;
 	}
 
 	kDebug (1, "we are running within a web server that sets the CGI variables...");
@@ -217,7 +277,6 @@ bool KCGIInStream::CreateHeader()
 		{ KCGIInStream::CONTENT_TYPE,         KHTTPHeaders::CONTENT_TYPE    },
 		{ KCGIInStream::CONTENT_LENGTH,       KHTTPHeaders::CONTENT_LENGTH  },
 		{ KCGIInStream::REMOTE_ADDR,          KHTTPHeaders::X_FORWARDED_FOR },
-		{ "HTTP_X_KLOG",    			      "x-klog"                      }
 	};
 
 	// add headers from env vars
@@ -234,7 +293,7 @@ bool KCGIInStream::CreateHeader()
 	}
 
 	// add non-standard headers from env vars
-	for (const auto it : m_AdditionalCGIVars)
+	for (const auto& it : m_AdditionalCGIVars)
 	{
 		KString sEnv = kGetEnv(it.first);
 		if (!sEnv.empty())
@@ -250,9 +309,7 @@ bool KCGIInStream::CreateHeader()
 	m_sHeader += "\r\n";
 
 	// point string view into the constructed header
-	m_Stream.SetHeader(m_sHeader);
-
-	return true;
+	sHeader = m_sHeader;
 
 } // CreateHeader
 
@@ -260,11 +317,8 @@ bool KCGIInStream::CreateHeader()
 KCGIInStream::KCGIInStream(std::istream& istream)
 //-----------------------------------------------------------------------------
     : base_type(&m_StreamBuf)
+	, m_Stream(&istream)
 {
-	m_Stream.istream = &istream;
-
-	CreateHeader();
-
 } // ctor
 
 

@@ -381,7 +381,7 @@ void KRESTServer::VerifyPerThreadKLogToHeader(const Options& Options)
 
 		if (!bValid)
 		{
-			kDebug(2, "invalid klog header: {}: {}", it->first, it->second);
+			kDebug(2, "ignoring invalid klog header: {}: {}", it->first, it->second);
 		}
 	}
 

@@ -134,10 +134,8 @@ bool KRESTRoute::Matches(const KRESTPath& Path, Parameters& Params, bool bCompar
 					{
 						if (DEKAF2_UNLIKELY(part.front() == ':'))
 						{
-							// this is a variable
-							KStringView sName = part;
-							// and add the value to our temporary query parms
-							Params.push_back({sName, *req});
+							// this is a variable, add the value to our temporary query parms
+							Params.push_back({part, *req});
 						}
 						else if (DEKAF2_UNLIKELY(part.front() == '='))
 						{
@@ -225,12 +223,6 @@ const KRESTRoute& KRESTRoutes::FindRoute(const KRESTPath& Path, Parameters& Para
 //-----------------------------------------------------------------------------
 {
 	kDebug (2, "Looking up: {} {}" , Path.Method.Serialize(), Path.sRoute);
-
-	if (m_DefaultRoute.Callback)
-	{
-		// we always have a route if we have a default route
-		bCheckForWrongMethod = false;
-	}
 
 	// check for a matching route
 	for (const auto& it : m_Routes)

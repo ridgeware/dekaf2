@@ -99,12 +99,10 @@ else()
 endif()
 
 # prepare for install:
-# for testing
-#set(CMAKE_INSTALL_PREFIX "~/src/install")
 set(lib_version ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR})
-set(dekaf2_bin_dest "bin")
-set(dekaf2_include_dest "include/${PROJECT_NAME}-${lib_version}")
-set(dekaf2_main_lib_dest "lib/${PROJECT_NAME}-${lib_version}")
+set(dekaf2_bin_dest ${CMAKE_INSTALL_PREFIX}/bin)
+set(dekaf2_include_dest "${CMAKE_INSTALL_PREFIX}/include/${PROJECT_NAME}-${lib_version}")
+set(dekaf2_main_lib_dest "${CMAKE_INSTALL_PREFIX}/lib/${PROJECT_NAME}-${lib_version}")
 set(dekaf2_lib_dest "${dekaf2_main_lib_dest}/${CMAKE_BUILD_TYPE}")
 
 # =================================== ENVIRONMENT ==================================
@@ -766,12 +764,12 @@ install(EXPORT ${PROJECT_NAME} DESTINATION "${dekaf2_lib_dest}")
 
 # create dummy exports to satisfy cmake for the statically and PRIVATE linked in libraries (this is a bug in cmake)
 if (DEKAF2_HAS_MINIFOLLY)
-	install(TARGETS minifolly EXPORT dekaf2 DESTINATION ${dekaf2_lib_dest}/other)
+	install(TARGETS minifolly EXPORT dekaf2 DESTINATION ${dekaf2_lib_dest})
 endif()
-install(TARGETS fmt EXPORT dekaf2 DESTINATION ${dekaf2_lib_dest}/other)
-install(TARGETS nlohmann-json EXPORT dekaf2 DESTINATION ${dekaf2_lib_dest}/other)
-install(TARGETS re2 EXPORT dekaf2 DESTINATION ${dekaf2_lib_dest}/other)
-install(TARGETS frozen EXPORT dekaf2 DESTINATION ${dekaf2_lib_dest}/other)
+install(TARGETS fmt EXPORT dekaf2 DESTINATION ${dekaf2_lib_dest})
+install(TARGETS nlohmann-json EXPORT dekaf2 DESTINATION ${dekaf2_lib_dest})
+install(TARGETS re2 EXPORT dekaf2 DESTINATION ${dekaf2_lib_dest})
+install(TARGETS frozen EXPORT dekaf2 DESTINATION ${dekaf2_lib_dest})
 
 install(TARGETS dekaf2 EXPORT dekaf2 DESTINATION ${dekaf2_lib_dest})
 install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/cmake/${PROJECT_NAME}-config.cmake DESTINATION ${dekaf2_main_lib_dest})
@@ -806,16 +804,12 @@ include(CPack)
 
 # ================================= UNINSTALL ========================================
 
-set(dekaf2_uninstall_lib "${CMAKE_INSTALL_PREFIX}/${dekaf2_main_lib_dest}")
-set(dekaf2_uninstall_include "${CMAKE_INSTALL_PREFIX}/${dekaf2_include_dest}")
-set(dekaf2_uninstall_bin "${CMAKE_INSTALL_PREFIX}/${dekaf2_bin_dest}")
-
 add_custom_target(uninstall
-	COMMAND "${CMAKE_COMMAND}" -E remove_directory "${dekaf2_uninstall_lib}"
-	COMMAND "${CMAKE_COMMAND}" -E remove_directory "${dekaf2_uninstall_include}"
-	COMMAND "${CMAKE_COMMAND}" -E remove "${dekaf2_uninstall_bin}/klog"
-	COMMAND "${CMAKE_COMMAND}" -E remove "${dekaf2_uninstall_bin}/createdbc"
-	COMMAND "${CMAKE_COMMAND}" -E remove "${dekaf2_uninstall_bin}/mysql-newuser"
+	COMMAND "${CMAKE_COMMAND}" -E remove_directory "${dekaf2_main_lib_dest}"
+	COMMAND "${CMAKE_COMMAND}" -E remove_directory "${dekaf2_include_dest}"
+	COMMAND "${CMAKE_COMMAND}" -E remove "${dekaf2_bin_dest}/klog"
+	COMMAND "${CMAKE_COMMAND}" -E remove "${dekaf2_bin_dest}/createdbc"
+	COMMAND "${CMAKE_COMMAND}" -E remove "${dekaf2_bin_dest}/mysql-newuser"
 )
 
 # =================================== THE END ========================================

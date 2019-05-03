@@ -44,6 +44,7 @@
 #include <boost/container/vector.hpp>
 #include "kstringview.h"
 #include "kwriter.h"
+#include "kreader.h"
 #include "kreplacer.h"
 
 namespace dekaf2 {

@@ -400,6 +400,8 @@ set (BITS_HEADERS
 	bits/kbasepipe.h
 	bits/kcppcompat.h
 	bits/kfilesystem.h
+	bits/klogwriter.h
+	bits/klogserializer.h
 	bits/kmake_unique.h
 	bits/kmru-std-vector.h
 	bits/kmru-multi-index.h
@@ -554,6 +556,8 @@ set (SOURCES
 	# KEEP ALPHABETIZED
 	bits/kbasepipe.cpp
 	bits/kbaseshell.cpp
+	bits/klogwriter.cpp
+	bits/klogserializer.cpp
 	bits/ksql_dbc.cpp
 	bits/kstringviewz.cpp
 	bits/simd/kfindfirstof.cpp

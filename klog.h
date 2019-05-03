@@ -45,11 +45,11 @@
 /// @file klog.h
 /// Logging framework
 
+#include <memory>
 #include <exception>
 #include <mutex>
 #include <vector>
 #include "kstring.h"
-#include "kstream.h"
 #include "kformat.h"
 #include "bits/kcppcompat.h"
 
@@ -60,315 +60,11 @@
 namespace dekaf2
 {
 
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// ABC for the LogWriter object
-class KLogWriter
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-{
-//----------
-public:
-//----------
-	KLogWriter() {}
-	virtual ~KLogWriter();
-	virtual bool Write(int iLevel, bool bIsMultiline, const KString& sOut) = 0;
-	virtual bool Good() const = 0;
-
-}; // KLogWriter
-
-
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// Logwriter that instantiates around any std::ostream
-class KLogStdWriter : public KLogWriter
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-{
-//----------
-public:
-//----------
-	KLogStdWriter(std::ostream& iostream)
-	    : m_OutStream(iostream)
-	{}
-	virtual ~KLogStdWriter() {}
-	virtual bool Write(int iLevel, bool bIsMultiline, const KString& sOut) override;
-	virtual bool Good() const override { return m_OutStream.good(); }
-
-//----------
-private:
-//----------
-	std::ostream& m_OutStream;
-
-}; // KLogStdWriter
-
-
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// Logwriter that opens a file
-class KLogFileWriter : public KLogWriter
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-{
-//----------
-public:
-//----------
-	KLogFileWriter(KStringView sFileName);
-	virtual ~KLogFileWriter() {}
-	virtual bool Write(int iLevel, bool bIsMultiline, const KString& sOut) override;
-	virtual bool Good() const override { return m_OutFile.good(); }
-
-//----------
-private:
-//----------
-	KOutFile m_OutFile;
-
-}; // KLogFileWriter
-
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// Logwriter that writes into a string, possibly with concatenation chars
-class KLogStringWriter : public KLogWriter
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-{
-//----------
-public:
-//----------
-	/// The sConcat will be written between individual log messages.
-	/// It will not be written after the last message
-	KLogStringWriter(KString& sOutString, KString sConcat = "\n");
-	virtual ~KLogStringWriter() {}
-	virtual bool Write(int iLevel, bool bIsMultiline, const KString& sOut) override;
-	virtual bool Good() const override { return true; }
-
-//----------
-private:
-//----------
-	KString& m_OutString;
-	KString m_sConcat;
-
-}; // KLogStringWriter
-
-
-
-#ifdef DEKAF2_HAS_SYSLOG
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// Logwriter for the syslog
-class KLogSyslogWriter : public KLogWriter
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-{
-//----------
-public:
-//----------
-	KLogSyslogWriter() {}
-	virtual ~KLogSyslogWriter() {}
-	virtual bool Write(int iLevel, bool bIsMultiline, const KString& sOut) override;
-	virtual bool Good() const override { return true; }
-
-}; // KLogSyslogWriter
-#endif
+class KLogWriter;
+class KLogSerializer;
 
 #ifdef DEKAF2_KLOG_WITH_TCP
-
-class KConnection; // fwd decl - we do not want to include the kconnection header here
-
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// Logwriter that writes to any TCP endpoint
-class KLogTCPWriter : public KLogWriter
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-{
-//----------
-public:
-//----------
-	KLogTCPWriter(KStringView sURL);
-	virtual ~KLogTCPWriter();
-	virtual bool Write(int iLevel, bool bIsMultiline, const KString& sOut) override;
-	virtual bool Good() const override;
-
-//----------
-protected:
-//----------
-
-	std::unique_ptr<KConnection> m_OutStream;
-	KString m_sURL;
-
-}; // KLogTCPWriter
-
-class KHTTPClient; // fwd decl - we do not want to include the khttpclient header here
-
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// Logwriter that writes to any TCP endpoint using the HTTP(s) protocol
-class KLogHTTPWriter : public KLogWriter
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-{
-//----------
-public:
-//----------
-	KLogHTTPWriter(KStringView sURL);
-	virtual ~KLogHTTPWriter();
-	virtual bool Write(int iLevel, bool bIsMultiline, const KString& sOut) override;
-	virtual bool Good() const override;
-
-//----------
-protected:
-//----------
-
-	std::unique_ptr<KHTTPClient> m_OutStream;
-	KString m_sURL;
-
-}; // KLogHTTPWriter
-
 class KHTTPHeaders;
-
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// Logwriter that writes into a HTTP header
-class KLogHTTPHeaderWriter : public KLogWriter
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-{
-//----------
-public:
-//----------
-	KLogHTTPHeaderWriter(KHTTPHeaders& HTTPHeaders, KStringView sHeader = "x-klog");
-	virtual ~KLogHTTPHeaderWriter();
-	virtual bool Write(int iLevel, bool bIsMultiline, const KString& sOut) override;
-	virtual bool Good() const override;
-
-//----------
-protected:
-//----------
-
-	KHTTPHeaders& m_Headers;
-	KString m_sHeader;
-
-}; // KLogHTTPHeaderWriter
-
-#endif
-
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// Base class for KLog serialization. Takes the data to be written someplace.
-class KLogData
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-{
-//----------
-public:
-//----------
-	KLogData(int iLevel = 0,
-	         KStringView sShortName = KStringView{},
-	         KStringView sPathName  = KStringView{},
-	         KStringView sFunction  = KStringView{},
-	         KStringView sMessage   = KStringView{})
-	{
-		Set(iLevel, sShortName, sPathName, sFunction, sMessage);
-	}
-
-	void Set(int iLevel, KStringView sShortName, KStringView sPathName, KStringView sFunction, KStringView sMessage);
-	void SetBacktrace(KStringView sBacktrace)
-	{
-		m_sBacktrace = sBacktrace;
-	}
-	int GetLevel() const
-	{
-		return m_iLevel;
-	}
-
-//----------
-protected:
-//----------
-	static KStringView SanitizeFunctionName(KStringView sFunction);
-
-	int         m_iLevel;
-	pid_t       m_Pid;
-	uint64_t    m_Tid; // tid is 64 bit on OSX
-	time_t      m_Time;
-	KStringView m_sShortName;
-	KStringView m_sPathName;
-	KStringView m_sFunctionName;
-	KStringView m_sMessage;
-	KStringView m_sBacktrace;
-
-}; // KLogData
-
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// Extension of the data base class. Adds the generic serialization methods
-/// as virtual functions.
-class KLogSerializer : public KLogData
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-{
-//----------
-public:
-//----------
-	KLogSerializer() {}
-	virtual ~KLogSerializer() {}
-	const KString& Get() const;
-	virtual operator KStringView() const;
-	void Set(int iLevel, KStringView sShortName, KStringView sPathName, KStringView sFunction, KStringView sMessage);
-	bool IsMultiline() const { return m_bIsMultiline; }
-
-//----------
-protected:
-//----------
-	virtual void Serialize() const = 0;
-
-	mutable KString m_sBuffer;
-	mutable bool m_bIsMultiline;
-
-}; // KLogSerializer
-
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// Specialization of the serializer for TTY like output devices: creates
-/// simple text lines of output
-class KLogTTYSerializer : public KLogSerializer
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-{
-//----------
-public:
-//----------
-	KLogTTYSerializer() {}
-	virtual ~KLogTTYSerializer() {}
-
-//----------
-protected:
-//----------
-	void AddMultiLineMessage(KStringView sPrefix, KStringView sMessage) const;
-	virtual void Serialize() const;
-
-}; // KLogTTYSerializer
-
-#ifdef DEKAF2_HAS_SYSLOG
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// Specialization of the serializer for the Syslog: creates simple text lines
-/// of output, but without the prefix like timestamp and warning level
-class KLogSyslogSerializer : public KLogTTYSerializer
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-{
-//----------
-public:
-//----------
-	KLogSyslogSerializer() {}
-	virtual ~KLogSyslogSerializer() {}
-
-//----------
-protected:
-//----------
-	virtual void Serialize() const;
-
-}; // KLogSyslogSerializer
-#endif
-
-#ifdef DEKAF2_KLOG_WITH_TCP
-
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// Specialization of the serializer for JSON output: creates a serialized
-/// JSON object
-class KLogJSONSerializer : public KLogSerializer
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-{
-//----------
-public:
-//----------
-	KLogJSONSerializer() {}
-	virtual ~KLogJSONSerializer() {}
-
-//----------
-protected:
-//----------
-	virtual void Serialize() const;
-
-}; // KLogJSONSerializer
-
 #endif
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -379,7 +75,8 @@ protected:
 /// It can also be changed during runtime of the application by
 /// changing a "flagfile" in the file system. This setting change will be
 /// picked up by the running application within a second.
-/// log messages that have a "level" equal or lower than the value of the
+///
+/// Log messages that have a "level" equal or lower than the value of the
 /// set "debug level" will be output.
 ///
 /// In addition to this, the present logging implementation provides automated
@@ -414,13 +111,13 @@ public:
 	KLog(KLog&&) = delete;
 	KLog& operator=(const KLog&) = delete;
 	KLog& operator=(KLog&&) = delete;
+	~KLog();
 
 	static constexpr KStringViewZ STDOUT = "stdout";
 	static constexpr KStringViewZ STDERR = "stderr";
 #ifdef DEKAF2_HAS_SYSLOG
 	static constexpr KStringViewZ SYSLOG = "syslog";
 #endif
-	static constexpr KStringViewZ DBAR   = "================================================================================";
 	static constexpr KStringViewZ BAR    = "--------------------------------------------------------------------------------";
 	static constexpr KStringViewZ DASH   = "- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - ";
 
@@ -669,7 +366,8 @@ public:
 	//---------------------------------------------------------------------------
 	/// Log messages of this thread of execution with level <= iLevel into the
 	/// current klog. This can be used to force more logging for a particular thread
-	/// than for other threads.
+	/// than for other threads. If iLevel is <= 0, the global log level is applied
+	/// and this method resets all thread specific logging.
 	void LogThisThreadToKLog(int iLevel);
 	//---------------------------------------------------------------------------
 
@@ -682,7 +380,7 @@ public:
 
 	//---------------------------------------------------------------------------
 	/// Log messages of this thread of execution with level <= iLevel into a
-	/// JSON string buffer.
+	/// JSON array
 	void LogThisThreadToJSON(int iLevel, KString& sJSON);
 	//---------------------------------------------------------------------------
 #endif

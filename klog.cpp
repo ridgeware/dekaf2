@@ -41,15 +41,15 @@
 */
 
 #include "klog.h"
+#include "bits/klogwriter.h"
+#include "bits/klogserializer.h"
 #include "dekaf2.h"
 #include "kstring.h"
 #include "kgetruntimestack.h"
 #include "kstringutils.h"
 #include "ksystem.h"
-#include "ksplit.h"
 #include "kfilesystem.h"
 #include "kcgistream.h"
-#include "kfilesystem.h"
 #include <mutex>
 #include <iostream>
 
@@ -59,11 +59,6 @@
 
 #ifdef DEKAF2_KLOG_WITH_TCP
 	#include "kurl.h"
-	#include "khttpclient.h"
-	#include "kconnection.h"
-	#include "kmime.h"
-	#include "kjson.h"
-	#include "khttp_header.h" // for LogToRESTResponse()
 #endif
 
 namespace dekaf2
@@ -97,478 +92,6 @@ bool KLog::s_bGlobalShouldOnlyShowCallerOnJsonError { false };
 thread_local bool KLog::s_bShouldShowStackOnJsonError { true };
 thread_local std::unique_ptr<KLogSerializer> KLog::s_PerThreadSerializer;
 thread_local std::unique_ptr<KLogWriter> KLog::s_PerThreadWriter;
-
-//---------------------------------------------------------------------------
-KLogWriter::~KLogWriter()
-//---------------------------------------------------------------------------
-{
-}
-
-//---------------------------------------------------------------------------
-bool KLogStdWriter::Write(int iLevel, bool bIsMultiline, const KString& sOut)
-//---------------------------------------------------------------------------
-{
-	return m_OutStream.write(sOut.data(), static_cast<std::streamsize>(sOut.size())).flush().good();
-
-} // Write
-
-//---------------------------------------------------------------------------
-KLogFileWriter::KLogFileWriter(KStringView sFileName)
-//---------------------------------------------------------------------------
-    : m_OutFile(sFileName, std::ios_base::app)
-{
-	KString sBuffer(sFileName);
-	// force mode 666 for the log file ...
-	kChangeMode(sBuffer, DEKAF2_MODE_CREATE_FILE);
-
-} // ctor
-
-//---------------------------------------------------------------------------
-bool KLogFileWriter::Write(int iLevel, bool bIsMultiline, const KString& sOut)
-//---------------------------------------------------------------------------
-{
-	return m_OutFile.Write(sOut).Flush().Good();
-
-} // Write
-
-//---------------------------------------------------------------------------
-KLogStringWriter::KLogStringWriter(KString& sOutString, KString sConcat)
-//---------------------------------------------------------------------------
-    : m_OutString(sOutString)
-	, m_sConcat(std::move(sConcat))
-{
-} // ctor
-
-//---------------------------------------------------------------------------
-bool KLogStringWriter::Write(int iLevel, bool bIsMultiline, const KString& sOut)
-//---------------------------------------------------------------------------
-{
-	if (!m_sConcat.empty() && !m_OutString.empty())
-	{
-		m_OutString += m_sConcat;
-	}
-	m_OutString += sOut;
-
-	return true;
-
-} // Write
-
-#ifdef DEKAF2_HAS_SYSLOG
-//---------------------------------------------------------------------------
-bool KLogSyslogWriter::Write(int iLevel, bool bIsMultiline, const KString& sOut)
-//---------------------------------------------------------------------------
-{
-	int priority;
-	switch (iLevel)
-	{
-		case -3:
-		case -2:
-		case -1:
-			priority = LOG_ERR;
-			break;
-		case 0:
-			priority = LOG_WARNING;
-			break;
-		case 1:
-			priority = LOG_NOTICE;
-			break;
-		case 2:
-			priority = LOG_INFO;
-			break;
-		default:
-			priority = LOG_DEBUG;
-			break;
-	}
-
-	if (!bIsMultiline)
-	{
-		syslog(priority, "%s", sOut.c_str());
-	}
-	else
-	{
-		KStringView svMessage = sOut;
-		KString sPart;
-
-		while (!svMessage.empty())
-		{
-			auto pos = svMessage.find('\n');
-			sPart = svMessage.substr(0, pos);
-			if (!sPart.empty())
-			{
-				syslog(priority, "%s", sPart.c_str());
-			}
-			svMessage.remove_prefix(pos);
-			if (pos != KStringView::npos)
-			{
-				svMessage.remove_prefix(1);
-			}
-		}
-	}
-
-	return true;
-
-} // Write
-#endif
-
-#ifdef DEKAF2_KLOG_WITH_TCP
-
-//---------------------------------------------------------------------------
-KLogTCPWriter::KLogTCPWriter(KStringView sURL)
-//---------------------------------------------------------------------------
-    : m_sURL(sURL)
-{
-} // ctor
-
-//---------------------------------------------------------------------------
-KLogTCPWriter::~KLogTCPWriter()
-//---------------------------------------------------------------------------
-{
-} // dtor
-
-//---------------------------------------------------------------------------
-bool KLogTCPWriter::Good() const
-//---------------------------------------------------------------------------
-{
-	// this is special: we always return true if we have not (yet) created
-	// the tcp client
-	return !m_OutStream || m_OutStream->Good();
-
-} // Good
-
-//---------------------------------------------------------------------------
-bool KLogTCPWriter::Write(int iLevel, bool bIsMultiline, const KString& sOut)
-//---------------------------------------------------------------------------
-{
-	if (!Good())
-	{
-		// we try one reconnect should the connection have gone stale
-		m_OutStream.reset();
-	}
-
-	if (!m_OutStream)
-	{
-		m_OutStream = KConnection::Create(m_sURL);
-
-		if (!m_OutStream->Good())
-		{
-			return false;
-		}
-	}
-
-	return m_OutStream != nullptr
-	        && m_OutStream->Stream().Write(sOut).Flush().Good();
-
-} // Write
-
-//---------------------------------------------------------------------------
-KLogHTTPWriter::KLogHTTPWriter(KStringView sURL)
-//---------------------------------------------------------------------------
-    : m_sURL(sURL)
-{
-} // ctor
-
-//---------------------------------------------------------------------------
-KLogHTTPWriter::~KLogHTTPWriter()
-//---------------------------------------------------------------------------
-{
-} // dtor
-
-//---------------------------------------------------------------------------
-bool KLogHTTPWriter::Good() const
-//---------------------------------------------------------------------------
-{
-	// this is special: we always return true if we have not (yet) created
-	// the http client
-	return !m_OutStream || m_OutStream->Good();
-
-} // Good
-
-//---------------------------------------------------------------------------
-bool KLogHTTPWriter::Write(int iLevel, bool bIsMultiline, const KString& sOut)
-//---------------------------------------------------------------------------
-{
-	if (!Good())
-	{
-		// we try one reconnect should the connection have gone stale
-		m_OutStream.reset();
-	}
-
-	if (!m_OutStream)
-	{
-		m_OutStream = std::make_unique<KHTTPClient>(m_sURL);
-
-		if (!m_OutStream->Good())
-		{
-			return false;
-		}
-	}
-
-	m_OutStream->Post(m_sURL, sOut, KMIME::JSON);
-
-	return m_OutStream->HttpSuccess();
-
-} // Write
-
-//---------------------------------------------------------------------------
-KLogHTTPHeaderWriter::KLogHTTPHeaderWriter(KHTTPHeaders& HTTPHeaders, KStringView sHeader)
-//---------------------------------------------------------------------------
-    : m_Headers(HTTPHeaders)
-	, m_sHeader(sHeader)
-{
-} // ctor
-
-//---------------------------------------------------------------------------
-KLogHTTPHeaderWriter::~KLogHTTPHeaderWriter()
-//---------------------------------------------------------------------------
-{
-} // dtor
-
-//---------------------------------------------------------------------------
-bool KLogHTTPHeaderWriter::Good() const
-//---------------------------------------------------------------------------
-{
-	return true;
-
-} // Good
-
-//---------------------------------------------------------------------------
-bool KLogHTTPHeaderWriter::Write(int iLevel, bool bIsMultiline, const KString& sOut)
-//---------------------------------------------------------------------------
-{
-	std::vector<KStringView> Lines;
-	kSplit(Lines, sOut, "\n", "");
-
-	for (auto sLine : Lines)
-	{
-		if (!sLine.empty())
-		{
-			// it is a bug that we cannot use a KString as the key to add a new
-			// header but have to convert it into a KStringView first..
-			m_Headers.Headers.Add(m_sHeader.ToView(), sLine);
-		}
-	}
-
-	return true;
-
-} // Write
-
-#endif // of DEKAF2_KLOG_WITH_TCP
-
-//---------------------------------------------------------------------------
-void KLogData::Set(int iLevel, KStringView sShortName, KStringView sPathName, KStringView sFunction, KStringView sMessage)
-//---------------------------------------------------------------------------
-{
-	m_iLevel = iLevel;
-	m_Pid = kGetPid();
-	m_Tid = kGetTid();
-	m_Time = Dekaf::getInstance().GetCurrentTime();
-	m_sFunctionName = SanitizeFunctionName(sFunction);
-	m_sShortName = sShortName;
-	m_sPathName = sPathName;
-	m_sMessage = sMessage;
-	kTrimRight(m_sMessage);
-	m_sBacktrace.clear();
-
-} // Set
-
-//---------------------------------------------------------------------------
-KStringView KLogData::SanitizeFunctionName(KStringView sFunction)
-//---------------------------------------------------------------------------
-{
-	if (!sFunction.empty())
-	{
-		if (*sFunction.rbegin() == ']')
-		{
-			// try to remove template arguments from function name
-			auto pos = sFunction.rfind('[');
-			if (pos != KStringView::npos)
-			{
-				if (pos > 0 && sFunction[pos-1] == ' ')
-				{
-					--pos;
-				}
-				sFunction.remove_suffix(sFunction.size() - pos);
-			}
-		}
-	}
-
-	return sFunction;
-
-} // SanitizeFunctionName
-
-//---------------------------------------------------------------------------
-const KString& KLogSerializer::Get() const
-//---------------------------------------------------------------------------
-{
-	if (m_sBuffer.empty())
-	{
-		Serialize();
-	}
-	return m_sBuffer;
-
-} // Get
-
-//---------------------------------------------------------------------------
-KLogSerializer::operator KStringView() const
-//---------------------------------------------------------------------------
-{
-	return Get();
-
-} // operator KStringView
-
-//---------------------------------------------------------------------------
-void KLogSerializer::Set(int iLevel, KStringView sShortName, KStringView sPathName, KStringView sFunction, KStringView sMessage)
-//---------------------------------------------------------------------------
-{
-	m_sBuffer.clear();
-	m_bIsMultiline = false;
-	KLogData::Set(iLevel, sShortName, sPathName, sFunction, sMessage);
-
-} // Set
-
-//---------------------------------------------------------------------------
-void KLogTTYSerializer::AddMultiLineMessage(KStringView sPrefix, KStringView sMessage) const
-//---------------------------------------------------------------------------
-{
-	if (sMessage.empty())
-	{
-		return;
-	}
-
-	int iFragments{0};
-
-	if (!m_sBuffer.empty())
-	{
-		++iFragments;
-	}
-
-	while (!sMessage.empty())
-	{
-		auto pos = sMessage.find('\n');
-		KStringView sLine = sMessage.substr(0, pos);
-		kTrimRight(sLine);
-		if (!sLine.empty())
-		{
-			++iFragments;
-			m_sBuffer += sPrefix;
-			m_sBuffer += sLine;
-			m_sBuffer += '\n';
-		}
-		if (pos != KStringView::npos)
-		{
-			sMessage.remove_prefix(pos+1);
-		}
-		else
-		{
-			sMessage.clear();
-		}
-	}
-
-	m_bIsMultiline = iFragments > 1;
-
-} // HandleMultiLineMessages
-
-//---------------------------------------------------------------------------
-void KLogTTYSerializer::Serialize() const
-//---------------------------------------------------------------------------
-{
-	// desired format:
-	// | WAR | MYPRO | 17202 | 12345 | 2001-08-24 10:37:04 | Function: select count(*) from foo
-
-	KString sLevel;
-
-	if (m_iLevel < 0)
-	{
-		sLevel = "WAR";
-	}
-	else
-	{
-		sLevel.Format("DB{}", m_iLevel > 3 ? 3 : m_iLevel);
-	}
-
-	KString sPrefix;
-
-	sPrefix.Printf("| %3.3s | %5.5s | %5u | %5u | %s | ",
-	               sLevel, m_sShortName, m_Pid, m_Tid, kFormTimestamp());
-
-	auto PrefixWithoutFunctionSize = sPrefix.size();
-
-	if (!m_sFunctionName.empty())
-	{
-		if (m_iLevel < 0)
-		{
-			// print the full function signature only if this is a warning or exception
-			sPrefix += m_sFunctionName;
-			sPrefix += ": ";
-		}
-		else
-		{
-			// print shortened function name only, no signature
-			// - this is an intentional debug message that does not need the full signature
-			sPrefix += kNormalizeFunctionName(m_sFunctionName);
-			sPrefix += "(): ";
-		}
-	}
-
-	AddMultiLineMessage(sPrefix, m_sMessage);
-
-	if (!m_sBacktrace.empty())
-	{
-		AddMultiLineMessage(sPrefix.ToView(0, PrefixWithoutFunctionSize), m_sBacktrace);
-		AddMultiLineMessage(sPrefix.ToView(0, PrefixWithoutFunctionSize), KLog::DASH);
-	}
-
-} // Serialize
-
-#ifdef DEKAF2_KLOG_WITH_TCP
-
-//---------------------------------------------------------------------------
-void KLogJSONSerializer::Serialize() const
-//---------------------------------------------------------------------------
-{
-	m_sBuffer.reserve(m_sShortName.size()
-	                  + m_sFunctionName.size()
-	                  + m_sPathName.size()
-	                  + m_sMessage.size()
-	                  + 50);
-	KJSON json;
-	json["level"] = m_iLevel;
-	json["pid"] = m_Pid;
-	json["tid"] = m_Tid;
-	json["time_t"] = m_Time;
-	json["short_name"] = m_sShortName;
-	json["path_name"] = m_sPathName;
-	json["function_name"] = m_sFunctionName;
-	json["message"] = m_sMessage;
-	m_sBuffer = json.dump();
-
-} // Serialize
-
-#endif // of DEKAF2_KLOG_WITH_TCP
-
-#ifdef DEKAF2_HAS_SYSLOG
-
-//---------------------------------------------------------------------------
-void KLogSyslogSerializer::Serialize() const
-//---------------------------------------------------------------------------
-{
-	KString sPrefix(m_sFunctionName);
-	if (!sPrefix.empty())
-	{
-		sPrefix += ": ";
-	}
-
-	AddMultiLineMessage(sPrefix, m_sMessage);
-
-	if (!m_sBacktrace.empty())
-	{
-		AddMultiLineMessage(sPrefix, m_sBacktrace);
-		AddMultiLineMessage(sPrefix, KLog::DASH);
-	}
-
-} // Serialize
-
-#endif
 
 // do not initialize this static var - it risks to override a value set by KLog()'s
 // initialization before..
@@ -657,6 +180,12 @@ KLog::KLog()
 } // ctor
 
 //---------------------------------------------------------------------------
+KLog::~KLog()
+//---------------------------------------------------------------------------
+{
+} // dtor
+
+//---------------------------------------------------------------------------
 void KLog::SetDefaults()
 //---------------------------------------------------------------------------
 {
@@ -709,6 +238,7 @@ void KLog::LogThisThreadToKLog(int iLevel)
 } // LogThisThreadToKLog
 
 #ifdef DEKAF2_KLOG_WITH_TCP
+
 //---------------------------------------------------------------------------
 void KLog::LogThisThreadToResponseHeaders(int iLevel, KHTTPHeaders& Response, KStringView sHeader)
 //---------------------------------------------------------------------------
@@ -746,7 +276,8 @@ void KLog::LogThisThreadToJSON(int iLevel, KString& sJSON)
 	}
 
 } // LogThisThreadToJSON
-#endif
+
+#endif // DEKAF2_KLOG_WITH_TCP
 
 //---------------------------------------------------------------------------
 void KLog::SetJSONTrace(KStringView sJSONTrace)
@@ -1361,8 +892,9 @@ void KLog::JSONTrace(KStringView sFunction)
 
 constexpr KStringViewZ KLog::STDOUT;
 constexpr KStringViewZ KLog::STDERR;
+#ifdef DEKAF2_HAS_SYSLOG
 constexpr KStringViewZ KLog::SYSLOG;
-constexpr KStringViewZ KLog::DBAR;
+#endif
 constexpr KStringViewZ KLog::BAR;
 constexpr KStringViewZ KLog::DASH;
 

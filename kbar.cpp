@@ -42,6 +42,7 @@
 
 #include "kstring.h"
 #include "kbar.h"
+#include "kwriter.h"
 #include "klog.h"
 
 namespace dekaf2 {

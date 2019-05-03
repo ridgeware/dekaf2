@@ -40,6 +40,11 @@
 //
 */
 
+#pragma once
+
+/// @file klogserializer.h
+/// Data serializers for the logging framework
+
 #include <memory>
 #include <dekaf2/kstring.h>
 #include <dekaf2/kstringview.h>

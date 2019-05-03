@@ -47,6 +47,7 @@
 #include <dekaf2/kfilesystem.h>
 #include <dekaf2/kstringutils.h>
 #include <dekaf2/kcrashexit.h>
+#include <dekaf2/kwriter.h>
 
 #include <string>
 #include <iostream>

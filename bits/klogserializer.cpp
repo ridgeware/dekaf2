@@ -96,7 +96,7 @@ KStringView KLogData::SanitizeFunctionName(KStringView sFunction)
 } // SanitizeFunctionName
 
 //---------------------------------------------------------------------------
-const KString& KLogSerializer::Get() const
+const KString& KLogSerializer::Get()
 //---------------------------------------------------------------------------
 {
 	if (m_sBuffer.empty())
@@ -108,7 +108,7 @@ const KString& KLogSerializer::Get() const
 } // Get
 
 //---------------------------------------------------------------------------
-KLogSerializer::operator KStringView() const
+KLogSerializer::operator KStringView()
 //---------------------------------------------------------------------------
 {
 	return Get();
@@ -126,7 +126,7 @@ void KLogSerializer::Set(int iLevel, KStringView sShortName, KStringView sPathNa
 } // Set
 
 //---------------------------------------------------------------------------
-void KLogTTYSerializer::AddMultiLineMessage(KStringView sPrefix, KStringView sMessage) const
+void KLogTTYSerializer::AddMultiLineMessage(KStringView sPrefix, KStringView sMessage)
 //---------------------------------------------------------------------------
 {
 	if (sMessage.empty())
@@ -163,12 +163,15 @@ void KLogTTYSerializer::AddMultiLineMessage(KStringView sPrefix, KStringView sMe
 		}
 	}
 
-	m_bIsMultiline = iFragments > 1;
+	if (!m_bIsMultiline)
+	{
+		m_bIsMultiline = iFragments > 1;
+	}
 
 } // HandleMultiLineMessages
 
 //---------------------------------------------------------------------------
-void KLogTTYSerializer::Serialize() const
+void KLogTTYSerializer::Serialize()
 //---------------------------------------------------------------------------
 {
 	// desired format:
@@ -222,15 +225,11 @@ void KLogTTYSerializer::Serialize() const
 #ifdef DEKAF2_KLOG_WITH_TCP
 
 //---------------------------------------------------------------------------
-void KLogJSONSerializer::Serialize() const
+KJSON KLogJSONSerializer::CreateObject() const
 //---------------------------------------------------------------------------
 {
-	m_sBuffer.reserve(m_sShortName.size()
-	                  + m_sFunctionName.size()
-	                  + m_sPathName.size()
-	                  + m_sMessage.size()
-	                  + 50);
 	KJSON json;
+
 	json["level"] = m_iLevel;
 	json["pid"] = m_Pid;
 	json["tid"] = m_Tid;
@@ -239,7 +238,35 @@ void KLogJSONSerializer::Serialize() const
 	json["path_name"] = m_sPathName;
 	json["function_name"] = m_sFunctionName;
 	json["message"] = m_sMessage;
-	m_sBuffer = json.dump();
+
+	return json;
+
+} // Serialize
+
+//---------------------------------------------------------------------------
+void KLogJSONSerializer::Serialize()
+//---------------------------------------------------------------------------
+{
+	m_sBuffer.reserve(m_sShortName.size()
+	                  + m_sFunctionName.size()
+	                  + m_sPathName.size()
+	                  + m_sMessage.size()
+	                  + 50);
+
+	m_sBuffer = CreateObject().dump();
+
+} // Serialize
+
+//---------------------------------------------------------------------------
+void KLogJSONArraySerializer::Serialize()
+//---------------------------------------------------------------------------
+{
+	if (m_json.is_array())
+	{
+		m_json.push_back(CreateObject());
+		// add only once per set()
+		m_sBuffer = "1";
+	}
 
 } // Serialize
 
@@ -248,7 +275,7 @@ void KLogJSONSerializer::Serialize() const
 #ifdef DEKAF2_HAS_SYSLOG
 
 //---------------------------------------------------------------------------
-void KLogSyslogSerializer::Serialize() const
+void KLogSyslogSerializer::Serialize()
 //---------------------------------------------------------------------------
 {
 	KString sPrefix(m_sFunctionName);

@@ -348,26 +348,51 @@ void KRESTServer::VerifyPerThreadKLogToHeader(const Options& Options)
 		if (parts.size() > 0)
 		{
 			int iKLogLevel = parts[0].Int16();
-			bool bToKLog { false };
-
-			if (parts.size() > 1)
-			{
-				bToKLog = (parts[1].ToLower() == "log");
-			}
 
 			if (iKLogLevel > 0 && iKLogLevel < 4)
+			{
+				bValid = true;
+			}
+
+			bool bToKLog { false };
+			bool bToJSON { false };
+
+			if (bValid && parts.size() > 1)
+			{
+				auto sOpt = parts[1].ToLower();
+				
+				if (sOpt == "log")
+				{
+					bToKLog = true;
+				}
+				else if (sOpt == "json")
+				{
+					bToJSON = true;
+				}
+				else
+				{
+					bValid = false;
+				}
+			}
+
+			if (bValid)
 			{
 				if (bToKLog)
 				{
 					KLog::getInstance().LogThisThreadToKLog(iKLogLevel);
 					kDebug(2, "switching per-thread klog logging for this thread on at level {}", iKLogLevel);
 				}
+				else if (bToJSON)
+				{
+					json.tx["klog"] = KJSON::array();
+					KLog::getInstance().LogThisThreadToJSON(iKLogLevel, &json.tx["klog"]);
+					kDebug(2, "switching per-thread JSON logging for this thread on at level {}", iKLogLevel);
+				}
 				else
 				{
 					KLog::getInstance().LogThisThreadToResponseHeaders(iKLogLevel, Response, Options.sKLogHeader);
 					kDebug(2, "switching per-thread response header logging for this thread on at level {}", iKLogLevel);
 				}
-				bValid = true;
 			}
 		}
 
@@ -574,7 +599,7 @@ void KRESTServer::Output(const Options& Options, bool bKeepAlive)
 	if (!Options.sKLogHeader.empty())
 	{
 		// finally switch logging off if enabled
-		KLog::getInstance().LogThisThreadToResponseHeaders(-1, Response);
+		KLog::getInstance().LogThisThreadToKLog(-1);
 	}
 
 	switch (Options.Out)
@@ -732,17 +757,27 @@ void KRESTServer::ErrorHandler(const std::exception& ex, const Options& Options)
 	// do not compress/chunk error messages
 	SetCompression(false);
 
+	KJSON EmptyJSON;
+
 	if (!Options.sKLogHeader.empty())
 	{
 		// finally switch logging off if enabled
-		KLog::getInstance().LogThisThreadToResponseHeaders(-1, Response);
+		KLog::getInstance().LogThisThreadToKLog(-1);
+
+		auto it = json.tx.find("klog");
+		if (it != json.tx.end())
+		{
+			// save the klog
+			EmptyJSON["klog"] = std::move(*it);
+		}
 	}
+
+	json.tx = EmptyJSON;
 
 	switch (Options.Out)
 	{
 		case HTTP:
 		{
-			json.tx = KJSON{};
 			if (sError.empty())
 			{
 				json.tx["message"] = Response.sStatusString;
@@ -779,7 +814,6 @@ void KRESTServer::ErrorHandler(const std::exception& ex, const Options& Options)
 
 		case LAMBDA:
 		{
-			json.tx = KJSON{};
 			json.tx["statusCode"] = Response.iStatusCode;
 			json.tx["headers"] = KJSON::object();
 			for (const auto& header : Response.Headers)

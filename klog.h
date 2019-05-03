@@ -208,6 +208,7 @@ public:
 
 	enum class Writer
 	{
+		NONE,
 		STDOUT,
 		STDERR,
 		FILE,
@@ -232,7 +233,7 @@ public:
 		SYSLOG,
 #endif
 #ifdef DEKAF2_KLOG_WITH_TCP
-		JSON
+		JSON,
 #endif
 	};
 
@@ -381,7 +382,7 @@ public:
 	//---------------------------------------------------------------------------
 	/// Log messages of this thread of execution with level <= iLevel into a
 	/// JSON array
-	void LogThisThreadToJSON(int iLevel, KString& sJSON);
+	void LogThisThreadToJSON(int iLevel, void* pjson);
 	//---------------------------------------------------------------------------
 #endif
 

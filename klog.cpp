@@ -259,14 +259,15 @@ void KLog::LogThisThreadToResponseHeaders(int iLevel, KHTTPHeaders& Response, KS
 } // LogThisThreadToResponseHeaders
 
 //---------------------------------------------------------------------------
-void KLog::LogThisThreadToJSON(int iLevel, KString& sJSON)
+void KLog::LogThisThreadToJSON(int iLevel, void* pjson)
 //---------------------------------------------------------------------------
 {
-	if (iLevel > 0)
+	if (iLevel > 0 && pjson)
 	{
+		KJSON* json = static_cast<KJSON*>(pjson);
 		s_iThreadLogLevel = iLevel;
-		s_PerThreadWriter = std::make_unique<KLogStringWriter>(sJSON, ",");
-		s_PerThreadSerializer = std::make_unique<KLogJSONSerializer>();
+		s_PerThreadWriter = std::make_unique<KLogNullWriter>();
+		s_PerThreadSerializer = std::make_unique<KLogJSONArraySerializer>(*json);
 	}
 	else
 	{
@@ -416,6 +417,8 @@ std::unique_ptr<KLogWriter> KLog::CreateWriter(Writer writer, KStringView sLogna
 	switch (writer)
 	{
 		default:
+		case Writer::NONE:
+			return std::make_unique<KLogNullWriter>();
 		case Writer::STDOUT:
 			return std::make_unique<KLogStdWriter>(std::cout);
 		case Writer::STDERR:

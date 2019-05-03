@@ -48,6 +48,7 @@
 #include <memory>
 #include <dekaf2/kstring.h>
 #include <dekaf2/kstringview.h>
+#include <dekaf2/kjson.h>
 
 #ifndef DEKAF2_IS_WINDOWS
 	#define DEKAF2_HAS_SYSLOG
@@ -61,9 +62,11 @@ namespace dekaf2
 class KLogData
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
+
 //----------
 public:
 //----------
+
 	KLogData(int iLevel = 0,
 	         KStringView sShortName = KStringView{},
 	         KStringView sPathName  = KStringView{},
@@ -86,6 +89,7 @@ public:
 //----------
 protected:
 //----------
+
 	static KStringView SanitizeFunctionName(KStringView sFunction);
 
 	int         m_iLevel;
@@ -106,23 +110,26 @@ protected:
 class KLogSerializer : public KLogData
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
+
 //----------
 public:
 //----------
+
 	KLogSerializer() {}
 	virtual ~KLogSerializer() {}
-	const KString& Get() const;
-	virtual operator KStringView() const;
+	const KString& Get();
+	virtual operator KStringView();
 	void Set(int iLevel, KStringView sShortName, KStringView sPathName, KStringView sFunction, KStringView sMessage);
 	bool IsMultiline() const { return m_bIsMultiline; }
 
 //----------
 protected:
 //----------
-	virtual void Serialize() const = 0;
 
-	mutable KString m_sBuffer;
-	mutable bool m_bIsMultiline;
+	virtual void Serialize() = 0;
+
+	KString m_sBuffer;
+	bool m_bIsMultiline;
 
 }; // KLogSerializer
 
@@ -132,17 +139,20 @@ protected:
 class KLogTTYSerializer : public KLogSerializer
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
+
 //----------
 public:
 //----------
+
 	KLogTTYSerializer() {}
 	virtual ~KLogTTYSerializer() {}
 
 //----------
 protected:
 //----------
-	void AddMultiLineMessage(KStringView sPrefix, KStringView sMessage) const;
-	virtual void Serialize() const;
+
+	virtual void Serialize() override;
+	void AddMultiLineMessage(KStringView sPrefix, KStringView sMessage);
 
 }; // KLogTTYSerializer
 
@@ -154,17 +164,20 @@ protected:
 class KLogSyslogSerializer : public KLogTTYSerializer
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
+
 //----------
 public:
 //----------
+
 	KLogSyslogSerializer() {}
 	virtual ~KLogSyslogSerializer() {}
 
 //----------
 protected:
 //----------
-	virtual void Serialize() const;
 
+	virtual void Serialize() override;
+	
 }; // KLogSyslogSerializer
 
 #endif // of DEKAF2_HAS_SYSLOG
@@ -177,18 +190,45 @@ protected:
 class KLogJSONSerializer : public KLogSerializer
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
+
 //----------
 public:
 //----------
+
 	KLogJSONSerializer() {}
 	virtual ~KLogJSONSerializer() {}
 
 //----------
 protected:
 //----------
-	virtual void Serialize() const;
+
+	virtual void Serialize() override;
+	KJSON CreateObject() const;
 
 }; // KLogJSONSerializer
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// Specialization of the serializer for JSON output: creates a JSON array
+class KLogJSONArraySerializer : public KLogJSONSerializer
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+//----------
+public:
+//----------
+
+	KLogJSONArraySerializer(KJSON& json) : m_json(json) {}
+	virtual ~KLogJSONArraySerializer() {}
+
+//----------
+protected:
+//----------
+
+	virtual void Serialize() override;
+
+	KJSON& m_json;
+
+}; // KLogJSONObjectSerializer
 
 #endif // of DEKAF2_KLOG_WITH_TCP
 

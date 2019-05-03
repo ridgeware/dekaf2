@@ -84,6 +84,21 @@ public:
 }; // KLogWriter
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// LogWriter to /dev/null
+class KLogNullWriter : public KLogWriter
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+//----------
+public:
+//----------
+	KLogNullWriter() {}
+	virtual ~KLogNullWriter();
+	virtual bool Write(int iLevel, bool bIsMultiline, const KString& sOut) override { return true; }
+	virtual bool Good() const override { return true; }
+
+}; // KLogNullWriter
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Logwriter that instantiates around any std::ostream
 class KLogStdWriter : public KLogWriter
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::

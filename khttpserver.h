@@ -165,28 +165,28 @@ public:
 	/// Automatically check if the output in this connection can be compressed, and
 	/// enable compression. This depends on the Accept-Encoding request header and
 	/// the client HTTP version. This option is active per default.
-	void SetCompression(bool bYesNo)
+	void ConfigureCompression(bool bYesNo)
 	//-----------------------------------------------------------------------------
 	{
-		m_bSetCompression = bYesNo;
+		m_bConfigureCompression = bYesNo;
 	}
 
 	//-----------------------------------------------------------------------------
 	/// Disable uncompress of incoming request, even if the respective request
 	/// headers are set.
-	void Uncompress(bool bYesNo)
+	void AllowUncompression(bool bYesNo)
 	//-----------------------------------------------------------------------------
 	{
-		Request.Uncompress(bYesNo);
+		Request.AllowUncompression(bYesNo);
 	}
 
 	//-----------------------------------------------------------------------------
 	/// Disable compression of outgoing response, even if the respective response
 	/// headers are set.
-	void Compress(bool bYesNo)
+	void AllowCompression(bool bYesNo)
 	//-----------------------------------------------------------------------------
 	{
-		Response.Compress(bYesNo);
+		Response.AllowCompression(bYesNo);
 	}
 
 	//-----------------------------------------------------------------------------
@@ -223,7 +223,7 @@ private:
 
 	mutable KString m_sError;
 	long m_Timeout { 30 };
-	bool m_bSetCompression { true };
+	bool m_bConfigureCompression { true };
 
 //------
 public:

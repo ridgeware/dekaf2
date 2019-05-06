@@ -53,7 +53,7 @@ void KHTTPServer::clear()
 	Response.clear();
 	m_sError.clear();
 	RemoteEndpoint.clear();
-	m_bSetCompression = true;
+	m_bConfigureCompression = true;
 }
 
 //-----------------------------------------------------------------------------
@@ -120,7 +120,7 @@ bool KHTTPServer::Parse()
 bool KHTTPServer::Serialize()
 //-----------------------------------------------------------------------------
 {
-	if (m_bSetCompression)
+	if (m_bConfigureCompression)
 	{
 		EnableCompressionIfPossible();
 	}
@@ -191,7 +191,7 @@ void KHTTPServer::EnableCompressionIfPossible()
 	}
 	
 	// for compression we need to switch to chunked transfer, as we do not know
-	// the size of the compressed content
+	// the size of the compressed content in advance
 	Response.Headers.Set (KHTTPHeaders::TRANSFER_ENCODING, "chunked");
 	// remove the content length
 	Response.Headers.Remove (KHTTPHeaders::content_length);

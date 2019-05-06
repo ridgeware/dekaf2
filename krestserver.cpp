@@ -592,7 +592,7 @@ void KRESTServer::Output(const Options& Options, bool bKeepAlive)
 //-----------------------------------------------------------------------------
 {
 	// only allow output compression if this is HTTP mode
-	SetCompression(Options.Out == HTTP);
+	ConfigureCompression(Options.Out == HTTP);
 
 	kDebug (1, "HTTP-{}: {}", Response.iStatusCode, Response.sStatusString);
 
@@ -755,7 +755,7 @@ void KRESTServer::ErrorHandler(const std::exception& ex, const Options& Options)
 	kDebug (1, "HTTP-{}: {}\n{}",  Response.iStatusCode, Response.sStatusString, sError);
 
 	// do not compress/chunk error messages
-	SetCompression(false);
+	ConfigureCompression(false);
 
 	KJSON EmptyJSON;
 

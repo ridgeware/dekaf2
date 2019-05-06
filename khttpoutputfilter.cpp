@@ -87,7 +87,7 @@ bool KOutHTTPFilter::SetupOutputFilter()
 	// the user the chance to switch off compression AFTER reading
 	// the headers
 
-	if (m_bPerformCompression)
+	if (m_bAllowCompression)
 	{
 		if (m_Compression == GZIP)
 		{
@@ -193,7 +193,7 @@ void KOutHTTPFilter::close()
 		}
 		m_Compression = NONE;
 		m_bChunked = false;
-		m_bPerformCompression = true;
+		m_bAllowCompression = true;
 		m_iContentSize = -1;
 	}
 

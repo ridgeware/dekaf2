@@ -222,18 +222,18 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// uncompress incoming response?
-	void Uncompress(bool bYesNo)
+	void AllowUncompression(bool bYesNo)
 	//-----------------------------------------------------------------------------
 	{
-		Response.Uncompress(bYesNo);
+		Response.AllowUncompression(bYesNo);
 	}
 
 	//-----------------------------------------------------------------------------
 	/// compress outgoing request?
-	void Compress(bool bYesNo)
+	void AllowCompression(bool bYesNo)
 	//-----------------------------------------------------------------------------
 	{
-		Request.Compress(bYesNo);
+		Request.AllowCompression(bYesNo);
 	}
 
 	//-----------------------------------------------------------------------------

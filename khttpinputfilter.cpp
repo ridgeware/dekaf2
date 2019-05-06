@@ -87,7 +87,7 @@ bool KInHTTPFilter::SetupInputFilter()
 	// the user the chance to switch off compression AFTER reading
 	// the headers
 
-	if (m_bPerformUncompression)
+	if (m_bAllowUncompression)
 	{
 		if (m_Compression == GZIP)
 		{
@@ -195,7 +195,7 @@ void KInHTTPFilter::close()
 		m_Filter.reset();
 		m_Compression = NONE;
 		m_bChunked = false;
-		m_bPerformUncompression = true;
+		m_bAllowUncompression = true;
 		m_iContentSize = -1;
 	}
 	

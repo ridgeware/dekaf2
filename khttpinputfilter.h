@@ -125,10 +125,10 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	void Uncompress(bool bYesNo)
+	void AllowUncompression(bool bYesNo)
 	//-----------------------------------------------------------------------------
 	{
-		m_bPerformUncompression = bYesNo;
+		m_bAllowUncompression = bYesNo;
 	}
 
 	//-----------------------------------------------------------------------------
@@ -165,7 +165,7 @@ private:
 	KInStream m_FilteredInStream { m_Filter };
 	COMP m_Compression { NONE };
 	bool m_bChunked { false };
-	bool m_bPerformUncompression { true };
+	bool m_bAllowUncompression { true };
 	std::streamsize m_iContentSize { -1 };
 
 };

@@ -124,10 +124,10 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	void Compress(bool bYesNo)
+	void AllowCompression(bool bYesNo)
 	//-----------------------------------------------------------------------------
 	{
-		m_bPerformCompression = bYesNo;
+		m_bAllowCompression = bYesNo;
 	}
 
 	//-----------------------------------------------------------------------------
@@ -156,7 +156,7 @@ private:
 	KOutStream m_FilteredOutStream { m_Filter };
 	COMP m_Compression { NONE };
 	bool m_bChunked { false };
-	bool m_bPerformCompression { true };
+	bool m_bAllowCompression { true };
 	std::streamsize m_iContentSize { -1 };
 
 }; // KHTTPOutputFilter

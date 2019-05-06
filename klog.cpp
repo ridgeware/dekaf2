@@ -74,21 +74,6 @@ constexpr KStringViewZ s_sJSONTrace   = "DEKAFJSONTRACE";
 constexpr KStringViewZ s_sLogName     = "dekaf.log";
 constexpr KStringViewZ s_sFlagName    = "dekaf.dbg";
 
-KString s_sDefaultLog;
-KString s_sDefaultFlag;
-KString s_sLogDir;
-
-std::recursive_mutex KLog::s_LogMutex;
-bool KLog::s_bBackTraceAlreadyCalled { false };
-#ifdef NDEBUG
-// per default JSON stack traces are switched off in release mode
-// but they can be switched on by env var "DEKAFJSONTRACE" or through the
-// settings in the flag file
-bool KLog::s_bGlobalShouldShowStackOnJsonError { false };
-#else
-bool KLog::s_bGlobalShouldShowStackOnJsonError { true };
-#endif
-bool KLog::s_bGlobalShouldOnlyShowCallerOnJsonError { false };
 thread_local bool KLog::s_bShouldShowStackOnJsonError { true };
 thread_local std::unique_ptr<KLogSerializer> KLog::s_PerThreadSerializer;
 thread_local std::unique_ptr<KLogWriter> KLog::s_PerThreadWriter;
@@ -109,14 +94,14 @@ KLog::KLog()
 	, m_Logmode      (m_bIsCGI ? SERVER : CLI)
 {
 	// check if we have an environment setting for the preferred output directory
-	s_sLogDir = kGetEnv(s_sEnvLogDir, "/shared");
+	m_sLogDir = kGetEnv(s_sEnvLogDir, "/shared");
 	
-	if (!s_sLogDir.empty())
+	if (!m_sLogDir.empty())
 	{
-		if (kDirExists(s_sLogDir))
+		if (kDirExists(m_sLogDir))
 		{
 			// construct default name for log file
-			KString sTest = s_sLogDir;
+			KString sTest = m_sLogDir;
 			sTest += kDirSep;
 			sTest += s_sLogName;
 
@@ -127,7 +112,7 @@ KLog::KLog()
 			if (!kTouchFile(sTest))
 			{
 				// no - fall back to the temp folder
-				s_sLogDir.clear();
+				m_sLogDir.clear();
 			}
 			else if (!bHaveExistingLog)
 			{
@@ -137,30 +122,30 @@ KLog::KLog()
 		}
 		else
 		{
-			s_sLogDir.clear();
+			m_sLogDir.clear();
 		}
 	}
 
-	if (s_sLogDir.empty())
+	if (m_sLogDir.empty())
 	{
 		// find temp directory (which differs among systems and OSs)
 #ifdef DEKAF2_IS_OSX
 		// we do not want the /var/folders/wy/lz00g9_s27b2nmyfc52pjrjh0000gn/T - style temp dir on the Mac
-		s_sLogDir = "/tmp";
+		m_sLogDir = "/tmp";
 #else
 		s_sLogDir = kGetTemp();
 #endif
 	}
 
 	// construct default name for log file
-	s_sDefaultLog = s_sLogDir;
-	s_sDefaultLog += kDirSep;
-	s_sDefaultLog += s_sLogName;
+	m_sDefaultLog = m_sLogDir;
+	m_sDefaultLog += kDirSep;
+	m_sDefaultLog += s_sLogName;
 
 	// construct default name for flag file
-	s_sDefaultFlag = s_sLogDir;
-	s_sDefaultFlag += kDirSep;
-	s_sDefaultFlag += s_sFlagName;
+	m_sDefaultFlag = m_sLogDir;
+	m_sDefaultFlag += kDirSep;
+	m_sDefaultFlag += s_sFlagName;
 
 	m_sPathName =  Dekaf::getInstance().GetProgPath();
 	m_sPathName += kDirSep;
@@ -200,7 +185,7 @@ void KLog::SetDefaults()
 
 	if (m_sFlagfile.empty())
 	{
-		m_sFlagfile = s_sDefaultFlag;
+		m_sFlagfile = m_sDefaultFlag;
 	}
 
 #ifdef NDEBUG
@@ -213,7 +198,7 @@ void KLog::SetDefaults()
 
 	SetJSONTrace(kGetEnv(s_sJSONTrace));
 
-	std::lock_guard<std::recursive_mutex> Lock(s_LogMutex);
+	std::lock_guard<std::recursive_mutex> Lock(m_LogMutex);
 
 	m_Traces.clear();
 
@@ -288,15 +273,15 @@ void KLog::SetJSONTrace(KStringView sJSONTrace)
 	{
 		if (sJSONTrace.In("OFF,off,FALSE,false,NO,no,0"))
 		{
-			s_bGlobalShouldShowStackOnJsonError = false;
+			m_bGlobalShouldShowStackOnJsonError = false;
 		}
 		else
 		{
-			s_bGlobalShouldShowStackOnJsonError = true;
+			m_bGlobalShouldShowStackOnJsonError = true;
 
 			if (sJSONTrace.In("CALLER,caller,SHORT,short"))
 			{
-				s_bGlobalShouldOnlyShowCallerOnJsonError = true;
+				m_bGlobalShouldOnlyShowCallerOnJsonError = true;
 			}
 		}
 	}
@@ -307,11 +292,11 @@ void KLog::SetJSONTrace(KStringView sJSONTrace)
 KStringView KLog::GetJSONTrace() const
 //---------------------------------------------------------------------------
 {
-	if (!s_bGlobalShouldShowStackOnJsonError)
+	if (!m_bGlobalShouldShowStackOnJsonError)
 	{
 		return "off";
 	}
-	else if (s_bGlobalShouldOnlyShowCallerOnJsonError)
+	else if (m_bGlobalShouldOnlyShowCallerOnJsonError)
 	{
 		return "short";
 	}
@@ -378,7 +363,7 @@ bool KLog::SetDebugLog(KStringView sLogfile)
 {
 	if (sLogfile.empty())
 	{
-		sLogfile = s_sDefaultLog; // restore default
+		sLogfile = m_sDefaultLog; // restore default
 	}
 
 	if (sLogfile == m_sLogName)
@@ -532,7 +517,7 @@ void KLog::SetMode(LOGMODE logmode)
 		if (logmode == SERVER)
 		{
 			// if new mode == SERVER, first set debug log
-			SetDebugLog(kGetEnv(s_sEnvLog, s_sDefaultLog));
+			SetDebugLog(kGetEnv(s_sEnvLog, m_sDefaultLog));
 			// then read the debug flag
 			CheckDebugFlag(true);
 		}
@@ -551,7 +536,7 @@ bool KLog::SetDebugFlag(KStringViewZ sFlagfile)
 {
 	if (sFlagfile.empty())
 	{
-		sFlagfile = s_sDefaultFlag; // restore default
+		sFlagfile = m_sDefaultFlag; // restore default
 	}
 
 	m_sFlagfile = sFlagfile;
@@ -680,7 +665,7 @@ void KLog::CheckDebugFlag(bool bForce/*=false*/)
 
 						else if (it.first == "trace")
 						{
-							std::lock_guard<std::recursive_mutex> Lock(s_LogMutex);
+							std::lock_guard<std::recursive_mutex> Lock(m_LogMutex);
 
 							bool bNewTrace { true };
 
@@ -750,7 +735,7 @@ bool KLog::IntDebug(int iLevel, KStringView sFunction, KStringView sMessage)
 
 	// we need a lock if we run in multithreading, as the serializers
 	// have data members
-	std::lock_guard<std::recursive_mutex> Lock(s_LogMutex);
+	std::lock_guard<std::recursive_mutex> Lock(m_LogMutex);
 
 	if (DEKAF2_LIKELY(iLevel <= s_iLogLevel) || iLevel <= s_iThreadLogLevel)
 	{
@@ -776,9 +761,9 @@ bool KLog::IntDebug(int iLevel, KStringView sFunction, KStringView sMessage)
 		{
 			// we can protect the recursion without a mutex, as we
 			// are already protected by a mutex..
-			if (!s_bBackTraceAlreadyCalled)
+			if (!m_bBackTraceAlreadyCalled)
 			{
-				s_bBackTraceAlreadyCalled = true;
+				m_bBackTraceAlreadyCalled = true;
 				int iSkipFromStack { 2 };
 				if (iLevel == -2)
 				{
@@ -789,7 +774,7 @@ bool KLog::IntDebug(int iLevel, KStringView sFunction, KStringView sMessage)
 				}
 				KString sStack = kGetBacktrace(iSkipFromStack);
 				m_Serializer->SetBacktrace(sStack);
-				s_bBackTraceAlreadyCalled = false;
+				m_bBackTraceAlreadyCalled = false;
 			}
 		}
 
@@ -844,15 +829,15 @@ void KLog::TraceDownCaller(int iSkipStackLines, KStringView sSkipFiles, KStringV
 
 	// we need a lock if we run in multithreading, as the serializers
 	// have data members
-	std::lock_guard<std::recursive_mutex> Lock(s_LogMutex);
+	std::lock_guard<std::recursive_mutex> Lock(m_LogMutex);
 
 	// we can protect the recursion without a mutex, as we
 	// are already protected by a mutex..
-	if (!s_bBackTraceAlreadyCalled)
+	if (!m_bBackTraceAlreadyCalled)
 	{
-		s_bBackTraceAlreadyCalled = true;
+		m_bBackTraceAlreadyCalled = true;
 		auto Frame = kFilterTrace(iSkipStackLines, sSkipFiles);
-		s_bBackTraceAlreadyCalled = false;
+		m_bBackTraceAlreadyCalled = false;
 		auto sFunction = kNormalizeFunctionName(Frame.sFunction);
 		if (!sFunction.empty())
 		{
@@ -874,9 +859,9 @@ void KLog::TraceDownCaller(int iSkipStackLines, KStringView sSkipFiles, KStringV
 void KLog::JSONTrace(KStringView sFunction)
 //---------------------------------------------------------------------------
 {
-	if (s_bGlobalShouldShowStackOnJsonError && s_bShouldShowStackOnJsonError)
+	if (m_bGlobalShouldShowStackOnJsonError && s_bShouldShowStackOnJsonError)
 	{
-		if (s_bGlobalShouldOnlyShowCallerOnJsonError)
+		if (m_bGlobalShouldOnlyShowCallerOnJsonError)
 		{
 			static constexpr KStringView s_sJSONSkipFiles { "parser.hpp,json_sax.hpp,json.hpp,krow.cpp,"
 				               "to_json.hpp,from_json.hpp,adl_serializer.hpp,krow.h,kjson.hpp,kjson.cpp" };

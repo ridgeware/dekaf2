@@ -354,8 +354,8 @@ public:
 	bool OnlyShowCallerOnJsonError (bool bNewValue)
 	//---------------------------------------------------------------------------
 	{
-		bool bOldValue = s_bGlobalShouldOnlyShowCallerOnJsonError;
-		s_bGlobalShouldOnlyShowCallerOnJsonError = bNewValue;
+		bool bOldValue = m_bGlobalShouldOnlyShowCallerOnJsonError;
+		m_bGlobalShouldOnlyShowCallerOnJsonError = bNewValue;
 		return bOldValue;
 	}
 
@@ -400,11 +400,7 @@ private:
 	void IntException (KStringView sWhat, KStringView sFunction, KStringView sClass);
 	bool IntOpenLog ();
 
-	static std::recursive_mutex s_LogMutex;
 	static int s_iLogLevel;
-	static bool s_bBackTraceAlreadyCalled;
-	static bool s_bGlobalShouldShowStackOnJsonError;
-	static bool s_bGlobalShouldOnlyShowCallerOnJsonError; 
 	static thread_local bool s_bShouldShowStackOnJsonError;
 	static thread_local std::unique_ptr<KLogSerializer> s_PerThreadSerializer;
 	static thread_local std::unique_ptr<KLogWriter> s_PerThreadWriter;
@@ -413,15 +409,33 @@ private:
 	KString m_sShortName;
 	KString m_sLogName;
 	KString m_sFlagfile;
+	KString m_sDefaultLog;
+	KString m_sDefaultFlag;
+	KString m_sLogDir;
+
+	std::recursive_mutex m_LogMutex;
+
 	int m_iBackTrace { -2 };
 	time_t m_sTimestampFlagfile { 0 };
 	std::unique_ptr<KLogSerializer> m_Serializer;
 	std::unique_ptr<KLogWriter> m_Logger;
 	// the m_Traces vector is protected by the s_LogMutex
 	std::vector<KString> m_Traces;
+
+	bool m_bBackTraceAlreadyCalled { false };
+#ifdef NDEBUG
+	// per default JSON stack traces are switched off in release mode
+	// but they can be switched on by env var "DEKAFJSONTRACE" or through the
+	// settings in the flag file
+	bool m_bGlobalShouldShowStackOnJsonError { false };
+#else
+	bool m_bGlobalShouldShowStackOnJsonError { true };
+#endif
+	bool m_bGlobalShouldOnlyShowCallerOnJsonError { false };
 	bool m_bHadConfigFromFlagFile { false };
 	bool m_bLogIsRegularFile { false };
 	bool m_bIsCGI { false }; // we need this bool on top of m_Logmode for the constructor
+
 	LOGMODE m_Logmode { CLI };
 
 }; // KLog

@@ -529,7 +529,7 @@ set(PUBLIC_HEADERS
 )
 
 if(SQLITE3_FOUND)
-	set(HEADERS ${HEADERS}
+	set(PUBLIC_HEADERS ${PUBLIC_HEADERS}
 		ksqlite.h
 	)
 endif()
@@ -745,15 +745,19 @@ target_compile_definitions(dekaf2 PRIVATE DEKAF2_LIBRARY_BUILD PUBLIC DEKAF2)
 
 add_executable(klog klog_main.cpp)
 target_link_libraries(klog dekaf2)
+add_dependencies(klog dekaf2)
 
 add_executable(createdbc createdbc.cpp)
 target_link_libraries(createdbc dekaf2)
+add_dependencies(createdbc dekaf2)
 
 add_executable(getentities EXCLUDE_FROM_ALL getentities.cpp)
 target_link_libraries(getentities dekaf2)
+add_dependencies(getentities dekaf2)
 
 add_executable(genunicodetables EXCLUDE_FROM_ALL genunicodetables.cpp)
 target_link_libraries(genunicodetables dekaf2)
+add_dependencies(genunicodetables dekaf2)
 
 # ============================ UNIT AND SMOKE TESTS ==================================
 

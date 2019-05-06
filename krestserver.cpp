@@ -772,7 +772,7 @@ void KRESTServer::ErrorHandler(const std::exception& ex, const Options& Options)
 		}
 	}
 
-	json.tx = EmptyJSON;
+	json.tx = std::move(EmptyJSON);
 
 	switch (Options.Out)
 	{

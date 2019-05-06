@@ -147,7 +147,6 @@ namespace KSQLite {
 	public:
 		constexpr2014 StringViewZ(const char* s = "") noexcept : StringView { s } {}
 		StringViewZ(const std::string& str) noexcept : StringView { str } {}
-		StringViewZ(const String& str) noexcept : StringView { str } {}
 		StringViewZ(StringView sv) = delete;
 		constexpr_2014 const_pointer c_str() const noexcept { return begin(); }
 		constexpr_2014 StringView substr(size_type pos, size_type count) const { return StringView::substr(pos, count); }

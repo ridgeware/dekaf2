@@ -365,12 +365,12 @@ private:
 //----------
 
 	Storage_Type m_Storage;
-	value_type m_EmptyValue{}; // for operator[] only
+	value_type m_EmptyValue{}; // for operator[] and front() and back() if empty
 	static const value_type s_cEmptyValue;
 
 }; // KStack
 
-/// Defines the Templates static const
+/// Defines the Template's static const
 template<typename Stack_Type>
 const Stack_Type KStack<Stack_Type>::s_cEmptyValue = Stack_Type{};
 

@@ -387,13 +387,6 @@ public:
 #endif
 
 	static KStringView s_sJSONSkipFiles;
-
-	// do _not_ initialize s_kLoglevel - see implementation note. Also, it needs
-	// to be publicly visible as gcc does _not_ optimize a static inline GetLevel()
-	// into an inline. We have to test the static var directly from kDebug to
-	// have it inlined
-	static int s_iLogLevel;
-
 	static thread_local int s_iThreadLogLevel;
 
 //----------
@@ -408,6 +401,7 @@ private:
 	bool IntOpenLog ();
 
 	static std::recursive_mutex s_LogMutex;
+	static int s_iLogLevel;
 	static bool s_bBackTraceAlreadyCalled;
 	static bool s_bGlobalShouldShowStackOnJsonError;
 	static bool s_bGlobalShouldOnlyShowCallerOnJsonError; 

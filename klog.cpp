@@ -133,7 +133,7 @@ KLog::KLog()
 		// we do not want the /var/folders/wy/lz00g9_s27b2nmyfc52pjrjh0000gn/T - style temp dir on the Mac
 		m_sLogDir = "/tmp";
 #else
-		s_sLogDir = kGetTemp();
+		m_sLogDir = kGetTemp();
 #endif
 	}
 

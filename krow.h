@@ -251,14 +251,14 @@ public:
 		return (KCOLS::Add (sColName, std::move(col)) != KCOLS::end());
 	}
 
-	template<typename COLTYPE, typename std::enable_if<detail::is_narrow_cpp_str<COLTYPE>::value, int>::type = 0>
+	template<typename COLTYPE, typename std::enable_if_t<detail::is_narrow_cpp_str<COLTYPE>::value, int> = 0>
 	bool AddCol (KStringView sColName, COLTYPE Value, KCOL::Flags iFlags=0, KCOL::Len iMaxLen=0)
 	{
 		KCOL col (Value, iFlags, iMaxLen);
 		return (KCOLS::Add (sColName, std::move(col)) != KCOLS::end());
 	}
 
-	template<typename COLTYPE, typename std::enable_if<!detail::is_narrow_cpp_str<COLTYPE>::value, int>::type = 0>
+	template<typename COLTYPE, typename std::enable_if_t<!detail::is_narrow_cpp_str<COLTYPE>::value, int> = 0>
 	bool AddCol (KStringView sColName, COLTYPE Value, KCOL::Flags iFlags=NUMERIC, KCOL::Len iMaxLen=0)
 	{
 		KCOL col (kFormat("{}", Value), iFlags, iMaxLen);

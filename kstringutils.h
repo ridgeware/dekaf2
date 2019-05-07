@@ -584,7 +584,7 @@ First kFirstNonEmpty(First sFirst)
 
 //-----------------------------------------------------------------------------
 /// return the first in a sequence of objects that is not .empty()
-template<class First, class...More, typename std::enable_if<sizeof...(More) != 0, int>::type = 0>
+template<class First, class...More, typename std::enable_if_t<sizeof...(More) != 0, int> = 0>
 First kFirstNonEmpty(First sFirst, More&&...more)
 //-----------------------------------------------------------------------------
 {

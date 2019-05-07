@@ -518,7 +518,7 @@ public:
 	/// Bind a NULL value.
 	bool Bind(ParIndex iOneBasedIndex);
 	/// Bind any integral value.
-	template<class Integer, typename std::enable_if<std::is_integral<Integer>::value, int>::type = 0>
+	template<class Integer, typename std::enable_if_t<std::is_integral<Integer>::value, int> = 0>
 	bool Bind(ParIndex iOneBasedIndex, Integer iValue)
 	{ return Bind(iOneBasedIndex, static_cast<int64_t>(iValue)); }
 

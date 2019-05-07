@@ -127,7 +127,7 @@ private:
 	/// Finally get the bitfield after all offsets have been computed. Specializes
 	/// into three access methods by simple if/else.
 	template<unsigned pos, unsigned b4, unsigned _size, unsigned... _sizes,
-	typename std::enable_if<pos == 0, int>::type = 0>
+	typename std::enable_if_t<pos == 0, int> = 0>
 	type getImpl() const
 	//-----------------------------------------------------------------------------
 	{
@@ -148,7 +148,7 @@ private:
 	//-----------------------------------------------------------------------------
 	/// Recursive calculation of access offsets into the internal storage.
 	template<unsigned pos, unsigned b4, unsigned _size, unsigned... _sizes,
-	typename std::enable_if<pos != 0, int>::type = 0>
+	typename std::enable_if_t<pos != 0, int> = 0>
 	type getImpl() const
 	//-----------------------------------------------------------------------------
 	{
@@ -160,7 +160,7 @@ private:
 	/// Finally set the bitfield after all offsets have been computed. Specializes
 	/// into two access methods by simple if/else.
 	template<unsigned pos, unsigned b4, unsigned _size, unsigned... _sizes,
-	typename std::enable_if<pos == 0, int>::type = 0>
+	typename std::enable_if_t<pos == 0, int> = 0>
 	void setImpl(type value)
 	//-----------------------------------------------------------------------------
 	{
@@ -179,7 +179,7 @@ private:
 	//-----------------------------------------------------------------------------
 	/// Recursive calculation of access offsets into the internal storage.
 	template<unsigned pos, unsigned b4, unsigned _size, unsigned... _sizes,
-	typename std::enable_if<pos != 0, int>::type = 0>
+	typename std::enable_if_t<pos != 0, int> = 0>
 	void setImpl(type value)
 	//-----------------------------------------------------------------------------
 	{

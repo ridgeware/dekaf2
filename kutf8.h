@@ -225,7 +225,7 @@ public:
 //-----------------------------------------------------------------------------
 /// Convert a codepoint into a UTF8 sequence written at iterator it
 template<typename Ch, typename Iterator,
-		 typename std::enable_if_t<std::is_integral<Ch>::value
+         typename std::enable_if_t<std::is_integral<Ch>::value
 							&& !detail::HasSize<Iterator>::value>* = nullptr>
 constexpr
 bool ToUTF8(Ch sch, Iterator& it)
@@ -268,7 +268,7 @@ bool ToUTF8(Ch sch, Iterator& it)
 //-----------------------------------------------------------------------------
 /// Convert a codepoint into a UTF8 sequence appended to string sNarrow.
 template<typename Ch, typename NarrowString,
-		 typename std::enable_if_t<std::is_integral<Ch>::value
+         typename std::enable_if_t<std::is_integral<Ch>::value
 	                            && detail::HasSize<NarrowString>::value>* = nullptr>
 constexpr
 bool ToUTF8(Ch sch, NarrowString& sNarrow)
@@ -324,7 +324,7 @@ NarrowString ToUTF8(Ch sch)
 //-----------------------------------------------------------------------------
 /// Convert a wide string (UTF16 or UTF32) into a UTF8 string
 template<typename WideString, typename NarrowString,
-		 typename std::enable_if_t<!std::is_integral<WideString>::value>* = nullptr>
+         typename std::enable_if_t<!std::is_integral<WideString>::value>* = nullptr>
 constexpr
 bool ToUTF8(const WideString& sWide, NarrowString& sNarrow)
 //-----------------------------------------------------------------------------

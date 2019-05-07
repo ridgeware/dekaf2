@@ -47,6 +47,7 @@
 /// Unixes profit as well, as these routines assume the Unicode codepage without
 /// checking the current locale.
 
+#include <type_traits>
 #include <cstdint>
 #include <cwctype>
 #include "bits/kcppcompat.h"
@@ -777,7 +778,8 @@ inline bool kIsXDigit(uint16_t ch)
 
 //-----------------------------------------------------------------------------
 template<class CP,
-	typename std::enable_if_t<std::is_integral<CP>::value>* = nullptr>
+         typename = std::enable_if_t<std::is_integral<CP>::value>
+>
 inline CP kToLower(CP ch)
 //-----------------------------------------------------------------------------
 {
@@ -786,7 +788,8 @@ inline CP kToLower(CP ch)
 
 //-----------------------------------------------------------------------------
 template<class CP,
-	typename std::enable_if_t<std::is_integral<CP>::value>* = nullptr>
+         typename = std::enable_if_t<std::is_integral<CP>::value>
+>
 inline CP kToUpper(CP ch)
 //-----------------------------------------------------------------------------
 {

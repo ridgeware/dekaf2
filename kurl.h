@@ -368,7 +368,7 @@ public:
 
 	//-------------------------------------------------------------------------
 	/// return the key-value value
-	template<bool X = IsString, typename std::enable_if<!X, int>::type = 0 >
+	template<bool X = IsString, typename std::enable_if_t<!X, int> = 0 >
 	const KString& operator[] (KStringView sv) const
 	//-------------------------------------------------------------------------
 	{
@@ -377,7 +377,7 @@ public:
 
 	//-------------------------------------------------------------------------
 	/// return the key-value value
-	template<bool X = IsString, typename std::enable_if<!X, int>::type = 0 >
+	template<bool X = IsString, typename std::enable_if_t<!X, int> = 0 >
 	KString& operator[] (KStringView sv)
 	//-------------------------------------------------------------------------
 	{
@@ -386,7 +386,7 @@ public:
 
 	//-------------------------------------------------------------------------
 	/// modify member by setting argument
-	template<bool X = IsString, typename std::enable_if<X, int>::type = 0 >
+	template<bool X = IsString, typename std::enable_if_t<X, int> = 0 >
 	void set (KStringView sv)
 	//-------------------------------------------------------------------------
 	{
@@ -395,7 +395,7 @@ public:
 
 	//-------------------------------------------------------------------------
 	/// operator const KString& () returns the decoded string
-	template<bool X = IsString, typename std::enable_if<X, int>::type = 0 >
+	template<bool X = IsString, typename std::enable_if_t<X, int> = 0 >
 	operator KStringView () const
 	//-------------------------------------------------------------------------
 	{
@@ -412,7 +412,7 @@ public:
 
 	//-------------------------------------------------------------------------
 	/// return percent-decoded content (for query part)
-	template<bool X = IsString, typename std::enable_if<!X, int>::type = 0 >
+	template<bool X = IsString, typename std::enable_if_t<!X, int> = 0 >
 	KString Decoded() const
 	//-------------------------------------------------------------------------
 	{
@@ -423,7 +423,7 @@ public:
 
 	//-------------------------------------------------------------------------
 	/// return percent-decoded content (for string parts)
-	template<bool X = IsString, typename std::enable_if<X, int>::type = 0 >
+	template<bool X = IsString, typename std::enable_if_t<X, int> = 0 >
 	const typename Storage::value_type& Decoded() const
 	//-------------------------------------------------------------------------
 	{
@@ -432,7 +432,7 @@ public:
 
 	//-------------------------------------------------------------------------
 	/// operator=(KStringView) for the query part parses the encoded string
-	template<bool X = IsString, typename std::enable_if<!X, int>::type = 0 >
+	template<bool X = IsString, typename std::enable_if_t<!X, int> = 0 >
 	URIComponent& operator=(KStringView sv)
 	//-------------------------------------------------------------------------
 	{
@@ -442,7 +442,7 @@ public:
 
 	//-------------------------------------------------------------------------
 	/// operator=(KStringView) sets the decoded string
-	template<bool X = IsString, typename std::enable_if<X, int>::type = 0 >
+	template<bool X = IsString, typename std::enable_if_t<X, int> = 0 >
 	URIComponent& operator=(KStringView sv)
 	//-------------------------------------------------------------------------
 	{

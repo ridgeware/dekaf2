@@ -512,7 +512,7 @@ public:
 	// perfect forwarding and SFINAE for unique instances
 	/// Set a new value for an existing key. If the key is not existing it is created.
 	template <class K, class V = Value, bool Uq = Unique,
-			typename std::enable_if<Uq == true>::type* = nullptr>
+			typename std::enable_if_t<Uq == true>* = nullptr>
 	iterator Set(K&& key, V&& newValue = V{})
 	//-----------------------------------------------------------------------------
 	{
@@ -533,7 +533,7 @@ public:
 	// perfect forwarding and SFINAE for non-unique instances
 	/// Set a new value for an existing key. If the key is not existing it is created.
 	template <class K, class V = Value, bool Uq = Unique,
-			typename std::enable_if<Uq == false>::type* = nullptr>
+			typename std::enable_if_t<Uq == false>* = nullptr>
 	iterator Set(K&& key, V&& newValue = V{})
 	//-----------------------------------------------------------------------------
 	{
@@ -558,7 +558,7 @@ public:
 	// perfect forwarding and SFINAE for unique instances
 	/// Set a new value for an existing key. If the key is not existing it is created.
 	template <class K, class V1, class V2, bool Uq = Unique,
-			typename std::enable_if<Uq == true>::type* = nullptr>
+			typename std::enable_if_t<Uq == true>* = nullptr>
 	iterator Set(K&& key, V1&& value, V2&& newValue)
 	//-----------------------------------------------------------------------------
 	{
@@ -571,7 +571,7 @@ public:
 	// perfect forwarding and SFINAE for non-unique instances
 	/// Set a new value for existing key/value pairs. If the key/value pair is not existing it is created.
 	template <class K, class V1, class V2, bool Uq = Unique,
-			typename std::enable_if<Uq == false>::type* = nullptr>
+			typename std::enable_if_t<Uq == false>* = nullptr>
 	iterator Set(K&& key, V1&& value, V2&& newValue)
 	//-----------------------------------------------------------------------------
 	{
@@ -727,7 +727,7 @@ public:
 	// SFINAE for Unique instances
 	/// remove a Key/Value pair with a given key. Returns count of removed elements.
 	template<bool Uq = Unique,
-			typename std::enable_if<Uq == true>::type* = nullptr>
+			typename std::enable_if_t<Uq == true>* = nullptr>
 	size_t Remove(const Key& key)
 	//-----------------------------------------------------------------------------
 	{
@@ -746,7 +746,7 @@ public:
 	// SFINAE for non Unique instances
 	/// remove Key/Value pairs with a given key. Returns count of removed elements.
 	template<bool Uq = Unique,
-			typename std::enable_if<Uq == false>::type* = nullptr>
+			typename std::enable_if_t<Uq == false>* = nullptr>
 	size_t Remove(const Key& key)
 	//-----------------------------------------------------------------------------
 	{
@@ -862,7 +862,7 @@ public:
 	// SFINAE, only active for Sequential instances
 	/// Gets the element at index position. Returns empty element if out of range.
 	template<bool Seq = Sequential,
-			typename std::enable_if<Seq == true>::type* = nullptr>
+			typename std::enable_if_t<Seq == true>* = nullptr>
 	const Element& at(size_t index) const
 	//-----------------------------------------------------------------------------
 	{

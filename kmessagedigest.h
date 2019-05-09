@@ -50,7 +50,12 @@
 #include "kstringview.h"
 #include "kstring.h"
 
+
+#if OPENSSL_VERSION_NUMBER >= 0x010100000
+struct evp_md_ctx_st;
+#else
 struct env_md_ctx_st;
+#endif
 
 namespace dekaf2 {
 
@@ -133,7 +138,11 @@ protected:
 	/// releases context
 	void Release() noexcept;
 
+#if OPENSSL_VERSION_NUMBER >= 0x010100000
+	evp_md_ctx_st* evpctx { nullptr }; // is a EVP_MD_CTX
+#else
 	env_md_ctx_st* evpctx { nullptr }; // is a EVP_MD_CTX
+#endif
 	UpdateFunc Updater { nullptr }; // is a EVP_Update function
 
 }; // KMessageDigest

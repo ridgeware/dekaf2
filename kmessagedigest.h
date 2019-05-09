@@ -50,6 +50,7 @@
 #include "kstringview.h"
 #include "kstring.h"
 
+struct env_md_ctx_st;
 
 namespace dekaf2 {
 
@@ -82,7 +83,7 @@ public:
 	/// copy construction
 	KMessageDigestBase(const KMessageDigestBase&) = delete;
 	/// move construction
-	KMessageDigestBase(KMessageDigestBase&&);
+	KMessageDigestBase(KMessageDigestBase&&) noexcept;
 	// destruction
 	~KMessageDigestBase()
 	{
@@ -91,7 +92,7 @@ public:
 	/// copy assignment
 	KMessageDigestBase& operator=(const KMessageDigestBase&) = delete;
 	/// move assignment
-	KMessageDigestBase& operator=(KMessageDigestBase&&);
+	KMessageDigestBase& operator=(KMessageDigestBase&&) noexcept;
 
 	/// appends a string to the digest
 	bool Update(KStringView sInput);
@@ -130,9 +131,9 @@ protected:
 	void clear();
 
 	/// releases context
-	void Release();
+	void Release() noexcept;
 
-	void* evpctx { nullptr };       // is a EVP_MD_CTX
+	env_md_ctx_st* evpctx { nullptr }; // is a EVP_MD_CTX
 	UpdateFunc Updater { nullptr }; // is a EVP_Update function
 
 }; // KMessageDigest
@@ -154,12 +155,12 @@ public:
 	/// copy construction
 	KMessageDigest(const KMessageDigest&) = delete;
 	/// move construction
-	KMessageDigest(KMessageDigest&&);
+	KMessageDigest(KMessageDigest&&) = default;
 
 	/// copy assignment
 	KMessageDigest& operator=(const KMessageDigest&) = delete;
 	/// move assignment
-	KMessageDigest& operator=(KMessageDigest&&);
+	KMessageDigest& operator=(KMessageDigest&&) = default;
 
 	/// returns the message digest
 	const KString& Digest() const;

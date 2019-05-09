@@ -105,7 +105,7 @@ KHMAC::KHMAC(ALGORITHM Algorithm, KStringView sKey, KStringView sMessage)
 			break;
 	}
 
-	if (1 != HMAC_Init_ex(static_cast<HMAC_CTX*>(hmacctx), sKey.data(), static_cast<int>(sKey.size()), callback(), nullptr))
+	if (1 != HMAC_Init_ex(hmacctx, sKey.data(), static_cast<int>(sKey.size()), callback(), nullptr))
 	{
 		kDebug(1, "cannot initialize algorithm");
 		Release();
@@ -146,10 +146,10 @@ void KHMAC::Release()
 	if (hmacctx)
 	{
 #if OPENSSL_VERSION_NUMBER < 0x010100000
-		HMAC_CTX_cleanup(static_cast<HMAC_CTX*>(hmacctx));
-		delete static_cast<HMAC_CTX*>(hmacctx);
+		HMAC_CTX_cleanup(hmacctx);
+		delete hmacctx;
 #else
-		HMAC_CTX_free(static_cast<HMAC_CTX*>(hmacctx));
+		HMAC_CTX_free(hmacctx);
 #endif
 		hmacctx = nullptr;
 	}
@@ -166,7 +166,7 @@ bool KHMAC::Update(KStringView sInput)
 		return false;
 	}
 
-	if (1 != HMAC_Update(static_cast<HMAC_CTX*>(hmacctx), reinterpret_cast<const unsigned char*>(sInput.data()), sInput.size()))
+	if (1 != HMAC_Update(hmacctx, reinterpret_cast<const unsigned char*>(sInput.data()), sInput.size()))
 	{
 		kDebug(1, "failed");
 		return false;
@@ -191,7 +191,7 @@ bool KHMAC::Update(KInStream& InputStream)
 	for (;;)
 	{
 		auto iReadChunk = InputStream.Read(sBuffer, BLOCKSIZE);
-		if (1 != HMAC_Update(static_cast<HMAC_CTX*>(hmacctx), sBuffer, iReadChunk))
+		if (1 != HMAC_Update(hmacctx, sBuffer, iReadChunk))
 		{
 			kDebug(1, "failed");
 			return false;
@@ -222,7 +222,7 @@ const KString& KHMAC::HMAC() const
 	{
 		unsigned int iDigestLen;
 		unsigned char sBuffer[EVP_MAX_MD_SIZE];
-		if (1 != HMAC_Final(static_cast<HMAC_CTX*>(hmacctx), sBuffer, &iDigestLen))
+		if (1 != HMAC_Final(hmacctx, sBuffer, &iDigestLen))
 		{
 			kDebug(1, "cannot read HMAC");
 		}

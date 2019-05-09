@@ -65,7 +65,7 @@ void KRSAKey::clear()
 {
 	if (m_EVPPKey)
 	{
-		EVP_PKEY_free(static_cast<EVP_PKEY*>(m_EVPPKey));
+		EVP_PKEY_free(m_EVPPKey);
 		m_EVPPKey = nullptr;
 	}
 
@@ -131,7 +131,7 @@ bool KRSAKey::Create(const Parameters& parms)
 		return false;
 	}
 
-	EVP_PKEY_assign(static_cast<EVP_PKEY*>(m_EVPPKey), EVP_PKEY_RSA, rsa);
+	EVP_PKEY_assign(m_EVPPKey, EVP_PKEY_RSA, rsa);
 
 	return true;
 
@@ -172,7 +172,7 @@ bool KRSAKey::Create(KStringView sPubKey, KStringView sPrivKey)
 			return false;
 		}
 
-		if (EVP_PKEY_assign_RSA(static_cast<EVP_PKEY*>(m_EVPPKey), privkey) == 0)
+		if (EVP_PKEY_assign_RSA(m_EVPPKey, privkey) == 0)
 		{
 			RSA_free(privkey);
 			kWarning("cannot load private key");
@@ -185,7 +185,7 @@ bool KRSAKey::Create(KStringView sPubKey, KStringView sPrivKey)
 } // ctor
 
 //---------------------------------------------------------------------------
-void* KRSAKey::GetEVPPKey() const
+evp_pkey_st* KRSAKey::GetEVPPKey() const
 //---------------------------------------------------------------------------
 {
 	if (!m_EVPPKey)

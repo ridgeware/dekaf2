@@ -51,6 +51,8 @@
 #include "kstring.h"
 
 
+struct hmac_ctx_st;
+
 namespace dekaf2 {
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -136,7 +138,7 @@ protected:
 
 	void Release();
 
-	void* hmacctx { nullptr }; // is a HMAC_CTX
+	hmac_ctx_st* hmacctx { nullptr };
 	mutable KString m_sHMAC;
 
 }; // KHMAC

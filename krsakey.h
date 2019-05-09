@@ -48,6 +48,8 @@
 #include "kstringview.h"
 #include "kjson.h"
 
+struct evp_pkey_st;
+
 namespace dekaf2 {
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -123,13 +125,13 @@ public:
 	/// create the key from PEM strings
 	bool Create(KStringView sPubKey, KStringView sPrivKey = KStringView{});
 	/// get the key
-	void* GetEVPPKey() const;
+	evp_pkey_st* GetEVPPKey() const;
 
 //------
 private:
 //------
 
-	void* m_EVPPKey { nullptr }; // is a EVP_PKEY
+	evp_pkey_st* m_EVPPKey { nullptr }; // is a EVP_PKEY
 
 }; // KRSAKey
 

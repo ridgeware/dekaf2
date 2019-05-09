@@ -108,7 +108,7 @@ KMessageDigestBase::KMessageDigestBase(ALGORITHM Algorithm, UpdateFunc _Updater)
 			break;
 	}
 
-	if (1 != EVP_SignInit(static_cast<EVP_MD_CTX*>(evpctx), callback()))
+	if (1 != EVP_SignInit(evpctx, callback()))
 	{
 		kDebug(1, "cannot initialize algorithm");
 		Release();
@@ -117,18 +117,22 @@ KMessageDigestBase::KMessageDigestBase(ALGORITHM Algorithm, UpdateFunc _Updater)
 } // ctor
 
 //---------------------------------------------------------------------------
-void KMessageDigestBase::Release()
+void KMessageDigestBase::Release() noexcept
 //---------------------------------------------------------------------------
 {
+	DEKAF2_TRY_EXCEPTION
+
 	if (evpctx)
 	{
 #if OPENSSL_VERSION_NUMBER < 0x010100000
-		EVP_MD_CTX_destroy(static_cast<EVP_MD_CTX*>(evpctx));
+		EVP_MD_CTX_destroy(evpctx);
 #else
-		EVP_MD_CTX_free(static_cast<EVP_MD_CTX*>(evpctx));
+		EVP_MD_CTX_free(evpctx);
 #endif
 		evpctx = nullptr;
 	}
+
+	DEKAF2_LOG_EXCEPTION
 
 } // Release
 
@@ -141,9 +145,9 @@ void KMessageDigestBase::clear()
 		return;
 	}
 
-	const EVP_MD* md = EVP_MD_CTX_md(static_cast<EVP_MD_CTX*>(evpctx));
+	const EVP_MD* md = EVP_MD_CTX_md(evpctx);
 
-	if (1 != EVP_DigestInit_ex(static_cast<EVP_MD_CTX*>(evpctx), md, nullptr))
+	if (1 != EVP_DigestInit_ex(evpctx, md, nullptr))
 	{
 		kDebug(1, "failed");
 		Release();
@@ -153,7 +157,7 @@ void KMessageDigestBase::clear()
 } // clear
 
 //---------------------------------------------------------------------------
-KMessageDigestBase::KMessageDigestBase(KMessageDigestBase&& other)
+KMessageDigestBase::KMessageDigestBase(KMessageDigestBase&& other) noexcept
 //---------------------------------------------------------------------------
 	: evpctx(other.evpctx)
 {
@@ -162,7 +166,7 @@ KMessageDigestBase::KMessageDigestBase(KMessageDigestBase&& other)
 } // move ctor
 
 //---------------------------------------------------------------------------
-KMessageDigestBase& KMessageDigestBase::operator=(KMessageDigestBase&& other)
+KMessageDigestBase& KMessageDigestBase::operator=(KMessageDigestBase&& other) noexcept
 //---------------------------------------------------------------------------
 {
 	Release();
@@ -239,24 +243,6 @@ KMessageDigest::KMessageDigest(ALGORITHM Algorithm, KStringView sMessage)
 }
 
 //---------------------------------------------------------------------------
-KMessageDigest::KMessageDigest(KMessageDigest&& other)
-//---------------------------------------------------------------------------
-	: KMessageDigestBase(std::move(other))
-	, m_sDigest(std::move(other.m_sDigest))
-{
-} // move ctor
-
-//---------------------------------------------------------------------------
-KMessageDigest& KMessageDigest::operator=(KMessageDigest&& other)
-//---------------------------------------------------------------------------
-{
-	KMessageDigestBase::operator=(std::move(other));
-	m_sDigest = std::move(other.m_sDigest);
-	return *this;
-	
-} // move ctor
-
-//---------------------------------------------------------------------------
 void KMessageDigest::clear()
 //---------------------------------------------------------------------------
 {
@@ -275,7 +261,7 @@ const KString& KMessageDigest::Digest() const
 	{
 		unsigned int iDigestLen;
 		unsigned char sBuffer[EVP_MAX_MD_SIZE];
-		if (1 != EVP_DigestFinal_ex(static_cast<EVP_MD_CTX*>(evpctx), sBuffer, &iDigestLen))
+		if (1 != EVP_DigestFinal_ex(evpctx, sBuffer, &iDigestLen))
 		{
 			kDebug(1, "cannot read digest");
 		}
@@ -294,6 +280,15 @@ const KString& KMessageDigest::Digest() const
 	return m_sDigest;
 
 } // Digest
+
+static_assert(std::is_nothrow_move_constructible<KMessageDigestBase>::value,
+			  "KMessageDigestBase is intended to be nothrow move constructible, but is not!");
+
+static_assert(std::is_nothrow_move_constructible<KMessageDigest>::value,
+			  "KMessageDigest is intended to be nothrow move constructible, but is not!");
+
+static_assert(std::is_nothrow_move_constructible<KMD5>::value,
+			  "KMD5 is intended to be nothrow move constructible, but is not!");
 
 } // end of namespace dekaf2
 

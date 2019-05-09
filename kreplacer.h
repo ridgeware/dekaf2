@@ -51,7 +51,8 @@
 namespace dekaf2 {
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// Replace variables with values
+/// Replace variables with values, with configurable lead-in and lead-out
+/// sequences like "{{" "}}"
 class KReplacer
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -63,26 +64,45 @@ public:
 	using RepMap = std::map<KString, KString>;
 	using const_iterator = RepMap::const_iterator;
 
+	/// make sure we have all 5 special class methods
 	KReplacer() = default;
 
+	/// ctor: sLeadIn and sLeadOut form the frame for a replaceable variable like "{{"
+	/// "}}", bRemoveAllVariables if true removes variables which had not been found
+	/// in the replace list
 	KReplacer(KStringView sLeadIn, KStringView sLeadOut, bool bRemoveAllVariables = false)
 	: m_sLeadIn(sLeadIn)
 	, m_sLeadOut(sLeadOut)
 	, m_bRemoveAllVariables((sLeadIn.empty() || sLeadOut.empty()) ? false : bRemoveAllVariables)
 	{}
 
+	/// do we have a replace list?
 	bool empty() const;
+
+	/// how many variables in the replace list?
 	size_t size() const;
+
+	/// clear replace list
 	void clear();
+
+	/// get begin iterator on first variable in the replace list
 	const_iterator begin() const { return m_RepMap.begin(); }
-	const_iterator end() const { return m_RepMap.end(); }
+	/// get end iterator after last variable in the replace list
+ 	const_iterator end() const { return m_RepMap.end(); }
+
+	/// find variable in the replace list
 	const_iterator find(KStringView sKey) const { return m_RepMap.find(sKey); }
 
+	/// add a search and replace value to the replace list (without lead-in/lead-out)
 	bool insert(KStringView sSearch, KStringView sReplace);
+
+	/// remove a replacement from the replace list
 	bool erase(KStringView sSearch);
 
+	/// returns true if all unfound variables should be removed from the input text
 	bool GetRemoveAllVariables() const { return m_bRemoveAllVariables; }
 
+	/// inserts all key/value pairs from a map type into the replace list
 	template<class MapType>
 	void insert(const MapType& map)
 	{
@@ -92,6 +112,7 @@ public:
 		}
 	}
 
+	/// inserts all key/value pairs from a map type into the replace list
 	template<class MapType>
 	KReplacer& operator+=(const MapType& map)
 	{
@@ -99,8 +120,10 @@ public:
 		return *this;
 	}
 
+	/// inserts (copies) another replace list into this
 	void insert(const KReplacer& other);
 
+	/// inserts (copies) another replace list into this
 	KReplacer& operator+=(const KReplacer& other)
 	{
 		insert(other);
@@ -125,7 +148,7 @@ private:
 }; // KReplacer
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// Replace variables with values
+/// Replace variables with values, using "{{" and "}}" as the lead-in/out
 class KVariables : public KReplacer
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -134,6 +157,8 @@ class KVariables : public KReplacer
 public:
 //----------
 
+	/// ctor, bRemoveAllVariables if true removes variables which had not been found
+	/// in the replace list
 	KVariables(bool bRemoveAllVariables = false)
 	: KReplacer("{{", "}}", bRemoveAllVariables)
 	{}

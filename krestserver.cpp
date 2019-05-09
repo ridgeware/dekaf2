@@ -955,12 +955,12 @@ static_assert(std::is_nothrow_move_constructible<KRESTPath>::value,
 static_assert(std::is_nothrow_move_constructible<detail::KRESTAnalyzedPath>::value,
 			  "KRESTAnalyzedPath is intended to be nothrow move constructible, but is not!");
 
-#ifndef _MSC_VER
-static_assert(std::is_nothrow_move_constructible<KRESTRoute>::value,
+// if std::function is not yet supported by this lib to be nothrow, don't test dependant class
+static_assert(!std::is_nothrow_move_constructible<std::function<void(int)>>::value || std::is_nothrow_move_constructible<KRESTRoute>::value,
 			  "KRESTRoute is intended to be nothrow move constructible, but is not!");
 
-static_assert(std::is_nothrow_move_constructible<KRESTRoutes>::value,
+// if std::function is not yet supported by this lib to be nothrow, don't test dependant class
+static_assert(!std::is_nothrow_move_constructible<std::function<void(int)>>::value || std::is_nothrow_move_constructible<KRESTRoutes>::value,
 			  "KRESTRoutes is intended to be nothrow move constructible, but is not!");
-#endif
 
 } // end of namespace dekaf2

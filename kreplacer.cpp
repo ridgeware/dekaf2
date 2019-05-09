@@ -218,13 +218,13 @@ void KReplacer::ReplaceInPlace(KString& sIn) const
 
 } // clear
 
-#ifndef _MSC_VER
-static_assert(std::is_nothrow_move_constructible<KReplacer>::value,
+// if std::map is not yet supported by this lib to be nothrow, don't test dependant class
+static_assert(!std::is_nothrow_move_constructible<std::map<int, int>>::value || std::is_nothrow_move_constructible<KReplacer>::value,
 			  "KReplacer is intended to be nothrow move constructible, but is not!");
 
-static_assert(std::is_nothrow_move_constructible<KVariables>::value,
+// if std::map is not yet supported by this lib to be nothrow, don't test dependant class
+static_assert(!std::is_nothrow_move_constructible<std::map<int, int>>::value || std::is_nothrow_move_constructible<KVariables>::value,
 			  "KVariables is intended to be nothrow move constructible, but is not!");
-#endif
 
 } // of namespace dekaf2
 

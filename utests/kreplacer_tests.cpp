@@ -68,6 +68,26 @@ TEST_CASE("KReplacer")
 		CHECK ( sOut == "This {{IS}} a test with a verylongvaluevariable" );
 	}
 
+	SECTION("LeadIn/Out missing closer")
+	{
+		KReplacer Replacer("{{", "}}");
+		Replacer.insert("TEST", "test");
+		Replacer.insert("VARIABLE", "variable");
+		Replacer.insert("SHORT", "verylongvalue");
+		CHECK ( Replacer.size() == 3 );
+
+		KString sIn = "This {{IS}} a {{TEST.. with a {{SHORT}}{{VARIABLE}}";
+
+		KString sOut = Replacer.Replace(sIn);
+		CHECK ( sOut == "This {{IS}} a {{TEST.. with a verylongvaluevariable" );
+
+		sOut.clear();
+
+		sOut = sIn;
+		Replacer.ReplaceInPlace(sOut);
+		CHECK ( sOut == "This {{IS}} a {{TEST.. with a verylongvaluevariable" );
+	}
+
 	SECTION("Tricky")
 	{
 		KReplacer Replacer("{{", "}}");

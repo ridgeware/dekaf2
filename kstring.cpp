@@ -1199,6 +1199,9 @@ KString KString::to_hexstring(uint64_t i, bool bZeroPad, bool bUpperCase)
 	return sResult;
 }
 
+static_assert(std::is_nothrow_move_constructible<KString>::value,
+			  "KString is intended to be nothrow move constructible, but is not!");
+
 } // end of namespace dekaf2
 
 

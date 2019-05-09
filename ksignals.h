@@ -65,7 +65,7 @@ namespace dekaf2
 /// start these callbacks in threads of its own, to return as fast as possible
 /// from the signal handler.
 /// On Windows, this class is much less useful, as Windows only has very limited
-/// signal support. Only SIGTERM, SIGSEGV amd SIGABRT can be used for real purposes.
+/// signal support. Only SIGTERM, SIGSEGV and SIGABRT can be used for real purposes.
 class KSignals
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {

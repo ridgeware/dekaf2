@@ -49,39 +49,39 @@
 namespace dekaf2 {
 
 //-----------------------------------------------------------------------------
-void KMail::To(KStringView sTo, KStringView sPretty)
+void KMail::To(KString sTo, KString sPretty)
 //-----------------------------------------------------------------------------
 {
-	Add("To", m_To, sTo, sPretty);
+	Add("To", m_To, std::move(sTo), std::move(sPretty));
 }
 
 //-----------------------------------------------------------------------------
-void KMail::Cc(KStringView sCc, KStringView sPretty)
+void KMail::Cc(KString sCc, KString sPretty)
 //-----------------------------------------------------------------------------
 {
-	Add("Cc", m_Cc, sCc, sPretty);
+	Add("Cc", m_Cc, std::move(sCc), std::move(sPretty));
 }
 
 //-----------------------------------------------------------------------------
-void KMail::Bcc(KStringView sBcc, KStringView sPretty)
+void KMail::Bcc(KString sBcc, KString sPretty)
 //-----------------------------------------------------------------------------
 {
-	Add("Bcc", m_Bcc, sBcc, sPretty);
+	Add("Bcc", m_Bcc, std::move(sBcc), std::move(sPretty));
 }
 
 //-----------------------------------------------------------------------------
-void KMail::From(KStringView sFrom, KStringView sPretty)
+void KMail::From(KString sFrom, KString sPretty)
 //-----------------------------------------------------------------------------
 {
 	m_From.clear();
-	Add("From", m_From, sFrom, sPretty);
+	Add("From", m_From, std::move(sFrom), std::move(sPretty));
 }
 
 //-----------------------------------------------------------------------------
-void KMail::Subject(KStringView sSubject)
+void KMail::Subject(KString sSubject)
 //-----------------------------------------------------------------------------
 {
-	m_Subject = sSubject;
+	m_Subject = std::move(sSubject);
 }
 
 //-----------------------------------------------------------------------------
@@ -103,12 +103,12 @@ bool KMail::AsHTML()
 } // AsHTML
 
 //-----------------------------------------------------------------------------
-void KMail::Message(KString&& sMessage)
+void KMail::Message(KString sMessage)
 //-----------------------------------------------------------------------------
 {
 	if (m_iBody)
 	{
-		m_Parts[m_iBody-1] = sMessage;
+		m_Parts[m_iBody-1] = std::move(sMessage);
 	}
 	else
 	{
@@ -117,14 +117,6 @@ void KMail::Message(KString&& sMessage)
 	}
 
 } // Message
-
-//-----------------------------------------------------------------------------
-KMail& KMail::operator=(KStringView sMessage)
-//-----------------------------------------------------------------------------
-{
-	Message(sMessage);
-	return *this;
-}
 
 //-----------------------------------------------------------------------------
 KMail& KMail::operator+=(KStringView sMessage)
@@ -144,10 +136,10 @@ KMail& KMail::operator+=(KStringView sMessage)
 } // operator+=
 
 //-----------------------------------------------------------------------------
-KMail& KMail::Body(KMIMEMultiPart&& parts)
+KMail& KMail::Body(KMIMEMultiPart parts)
 //-----------------------------------------------------------------------------
 {
-	m_Parts = parts;
+	m_Parts = std::move(parts);
 	m_iBody = 0;
 	return *this;
 
@@ -304,7 +296,7 @@ bool KMail::Attach(KStringView sFilename, KMIME MIME)
 } // Attach
 
 //-----------------------------------------------------------------------------
-KMail& KMail::Attach(KMIMEPart&& part)
+KMail& KMail::Attach(KMIMEPart part)
 //-----------------------------------------------------------------------------
 {
 	if (m_Parts.empty())
@@ -318,7 +310,7 @@ KMail& KMail::Attach(KMIMEPart&& part)
 } // Attach
 
 //-----------------------------------------------------------------------------
-void KMail::Add(KStringView sWhich, map_t& map, KStringView Key, KStringView Value)
+void KMail::Add(KStringView sWhich, map_t& map, KString Key, KString Value)
 //-----------------------------------------------------------------------------
 {
 	if (!kIsEmail(Key))
@@ -327,7 +319,7 @@ void KMail::Add(KStringView sWhich, map_t& map, KStringView Key, KStringView Val
 	}
 	else
 	{
-		map.insert({Key, Value});
+		map.insert({std::move(Key), std::move(Value)});
 	}
 
 } // Add
@@ -406,7 +398,7 @@ const KMail::map_t& KMail::From() const
 }
 
 //-----------------------------------------------------------------------------
-KStringView KMail::Subject() const
+const KString& KMail::Subject() const
 //-----------------------------------------------------------------------------
 {
 	return m_Subject;
@@ -464,5 +456,8 @@ bool KMail::Send(const KURL& URL, KStringView sUsername, KStringView sPassword)
 	return true;
 
 } // Send
+
+static_assert(std::is_nothrow_move_constructible<KMail>::value,
+			  "KMail is intended to be nothrow move constructible, but is not!");
 
 } // end of namespace dekaf2

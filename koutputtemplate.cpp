@@ -148,5 +148,8 @@ KString KOutputTemplate::Write(KStringView sFrom,
 
 } // Write
 
+static_assert(std::is_nothrow_move_constructible<KOutputTemplate>::value,
+			  "KOutputTemplate is intended to be nothrow move constructible, but is not!");
+
 } // of namespace dekaf2
 

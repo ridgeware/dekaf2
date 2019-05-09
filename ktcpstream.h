@@ -163,14 +163,14 @@ public:
 	KString Error() const
 	//-----------------------------------------------------------------------------
 	{
+		KString sError;
+
 		if (!Good())
 		{
-			return m_Stream.ec.message();
+			sError = m_Stream.ec.message();
 		}
-		else
-		{
-			return {};
-		}
+
+		return sError;
 	}
 
 //----------

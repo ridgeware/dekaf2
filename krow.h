@@ -419,6 +419,7 @@ private:
 	
 	KString m_sTablename;
 	mutable KString m_sLastError;
-};
+
+}; // KROW
 
 } // namespace dekaf2

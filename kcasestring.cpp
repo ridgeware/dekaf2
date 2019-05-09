@@ -272,4 +272,10 @@ template class KCaseStringBase<detail::casestring::NoTrim>;
 template class KCaseStringViewBase<detail::casestring::TrimWhiteSpaces>;
 template class KCaseStringBase<detail::casestring::TrimWhiteSpaces>;
 
+static_assert(std::is_nothrow_move_constructible<KCaseStringViewBase<>>::value,
+			  "KCaseStringViewBase is intended to be nothrow move constructible, but is not!");
+
+static_assert(std::is_nothrow_move_constructible<KCaseStringBase<>>::value,
+			  "KCaseStringBase is intended to be nothrow move constructible, but is not!");
+
 } // end of namespace dekaf2

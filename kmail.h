@@ -65,39 +65,33 @@ class KMail
 public:
 //----------
 
-	using map_t = KMap<KString, KString>;
+	using map_t = std::map<KString, KString>;
 
 	/// Add one recipient to the To list, first arg is the email,
 	/// second arg is the full name or nothing
-	void To(KStringView sTo, KStringView sPretty = KStringView{});
+	void To(KString sTo, KString sPretty = KString{});
 
 	/// Add one recipient to the Cc list, first arg is the email,
 	/// second arg is the full name or nothing
-	void Cc(KStringView sCc, KStringView sPretty = KStringView{});
+	void Cc(KString sCc, KString sPretty = KString{});
 
 	/// Add one recipient to the Bcc list, first arg is the email,
 	/// second arg is the full name or nothing
-	void Bcc(KStringView sBcc, KStringView sPretty = KStringView{});
+	void Bcc(KString sBcc, KString sPretty = KString{});
 
 	/// Set the sender for the From field, first arg is the email,
 	/// second arg is the full name or nothing
-	void From(KStringView sFrom, KStringView sPretty = KStringView{});
+	void From(KString sFrom, KString sPretty = KString{});
 
 	/// Set the subject
-	void Subject(KStringView sSubject);
+	void Subject(KString sSubject);
 
 	/// Set the MIME type for the main content part to HTML/UTF-8. Returns false
 	/// if content was added before.
 	bool AsHTML();
 
 	/// Set the text message (UTF-8, or HTML/UTF-8 if AsHTML() was called before)
-	void Message(KString&& sMessage);
-
-	/// Set the text message (UTF-8, or HTML/UTF-8 if AsHTML() was called before)
-	void Message(KStringView sMessage)
-	{
-		Message(KString(sMessage));
-	}
+	void Message(KString sMessage);
 
 	/// Returns true if this mail has all elements needed for expedition
 	bool Good() const;
@@ -108,34 +102,24 @@ public:
 	bool Send(const KURL& URL, KStringView sUsername = KStringView{}, KStringView sPassword = KStringView{});
 
 	/// Set the text message (UTF-8, or HTML/UTF-8 if AsHTML() was called before)
-	KMail& operator=(KStringView sMessage);
+	KMail& operator=(KString sMessage)
+	{
+		Message(std::move(sMessage));
+		return *this;
+	}
 
 	/// Append to text message (UTF-8, or HTML/UTF-8 if AsHTML() was called before)
 	KMail& operator+=(KStringView sMessage);
 
 	/// Set the mail body to a multipart structure (or to a single part). This voids
 	/// any previously set content.
-	KMail& Body(KMIMEMultiPart&& part);
+	KMail& Body(KMIMEMultiPart part);
 
 	/// Set the mail body to a multipart structure (or to a single part). This voids
 	/// any previously set content.
-	KMail& Body(const KMIMEMultiPart& part)
-	{
-		return Body(KMIMEMultiPart(part));
-	}
-
-	/// Set the mail body to a multipart structure (or to a single part). This voids
-	/// any previously set content.
-	KMail& operator=(KMIMEMultiPart&& part)
+	KMail& operator=(KMIMEMultiPart part)
 	{
 		return Body(std::move(part));
-	}
-
-	/// Set the mail body to a multipart structure (or to a single part). This voids
-	/// any previously set content.
-	KMail& operator=(const KMIMEMultiPart& part)
-	{
-		return Body(part);
 	}
 
 	/// Create mail body by reading the files in a directory or from a single file,
@@ -171,9 +155,9 @@ public:
 	}
 
 	/// Add a KReplacer to substitute text in all text/* parts of the mail
-	void VariableReplacer(const KReplacer& Replacer)
+	void VariableReplacer(KReplacer Replacer)
 	{
-		m_Replacer = std::make_shared<KReplacer>(Replacer);
+		m_Replacer = std::make_shared<KReplacer>(std::move(Replacer));
 	}
 
 	/// Add a key/value pair to substitute text in all text/* parts of the mail
@@ -185,27 +169,13 @@ public:
 
 	/// Attach KMIMEParts, automatically creating a multipart structure if not yet
 	/// set
-	KMail& Attach(KMIMEPart&& part);
+	KMail& Attach(KMIMEPart part);
 
 	/// Attach KMIMEParts, automatically creating a multipart structure if not yet
 	/// set
-	KMail& Attach(const KMIMEPart& part)
-	{
-		return Attach(KMIMEPart(part));
-	}
-
-	/// Attach KMIMEParts, automatically creating a multipart structure if not yet
-	/// set
-	KMail& operator+=(KMIMEPart&& part)
+	KMail& operator+=(KMIMEPart part)
 	{
 		return Attach(std::move(part));
-	}
-
-	/// Attach KMIMEParts, automatically creating a multipart structure if not yet
-	/// set
-	KMail& operator+=(const KMIMEPart& part)
-	{
-		return Attach(part);
 	}
 
 	/// Returns the To recipients
@@ -221,7 +191,7 @@ public:
 	const map_t& From() const;
 
 	/// Returns the subject
-	KStringView Subject() const;
+	const KString& Subject() const;
 
 	/// Returns the message
 	KString Serialize() const;
@@ -236,7 +206,7 @@ public:
 private:
 //----------
 
-	void Add(KStringView sWhich, map_t& map, KStringView Key, KStringView Value = KStringView{});
+	void Add(KStringView sWhich, map_t& map, KString Key, KString Value = KString{});
 
 	map_t m_To;
 	map_t m_Cc;

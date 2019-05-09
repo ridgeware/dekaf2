@@ -117,6 +117,9 @@ void Header::reset()
 void Header::clear()
 //-----------------------------------------------------------------------------
 {
+	static_assert(sizeof(tar::Header::raw) == 512, "tar header struct has to be 512 bytes of size");
+	static_assert(sizeof(tar::Header::header) <= 512, "tar header struct has to be 512 bytes of size");
+
 	std::memset(raw.header, 0, HeaderLen);
 	m_keep_members_once = false;
     reset();

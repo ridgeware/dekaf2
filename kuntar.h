@@ -172,9 +172,9 @@ private:
     uint64_t m_modification_time;
     KString m_filename;
     KString m_linkname;
-    bool m_is_end;
-    bool m_is_ustar;
     EntryType m_entrytype;
+	bool m_is_end;
+	bool m_is_ustar;
     bool m_keep_members_once;
 
 }; // Header

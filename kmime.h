@@ -251,7 +251,7 @@ public:
 
 	KMIMEPart(KMIME MIME = KMIME::NONE) : m_MIME(MIME) {}
 	KMIMEPart(KStringView sMessage, KMIME MIME) : m_MIME(MIME), m_Data(sMessage) {}
-	KMIMEPart& operator=(KStringView sv)  { m_Data = sv;  return *this; }
+	KMIMEPart& operator=(KString str)  { m_Data = std::move(str); return *this; }
 	KMIMEPart& operator+=(KStringView sv) { m_Data += sv; return *this; }
 	/// Add content of file sFileName to MIME part, use sDispName as attachment name
 	/// else basename of sFileName
@@ -265,16 +265,9 @@ public:
 	bool IsBinary() const;
 
 	/// Attach another part to this multipart structure - returns false if this->MIME type is not multipart
-	bool Attach(KMIMEPart&& part);
-	/// Attach another part to this multipart structure - returns false if this->MIME type is not multipart
-	bool Attach(const KMIMEPart& part)
-	{
-		return Attach(KMIMEPart(part));
-	}
+	bool Attach(KMIMEPart part);
 	/// Attach another part to this multipart structure - fails if this->MIME type is not multipart
-	KMIMEPart& operator+=(KMIMEPart&& part) { Attach(std::move(part)); return *this; }
-	/// Attach another part to this multipart structure - fails if this->MIME type is not multipart
-	KMIMEPart& operator+=(const KMIMEPart& part) { Attach(part); return *this; }
+	KMIMEPart& operator+=(KMIMEPart part) { Attach(std::move(part)); return *this; }
 
 	bool Serialize(KString& sOut, const KReplacer& Replacer = KReplacer{}, uint16_t recursion = 0, bool bIsMultipartRelated = false) const;
 	bool Serialize(KOutStream& Stream, const KReplacer& Replacer = KReplacer{}, uint16_t recursion = 0) const;

@@ -180,35 +180,6 @@ bool KSMTP::PrettyPrint(KStringView sHeader, const KMail::map_t& map)
 } // PrettyPrint
 
 //-----------------------------------------------------------------------------
-bool KSMTP::SendDottedMessage(KStringView sMessage)
-//-----------------------------------------------------------------------------
-{
-	for (;!sMessage.empty();)
-	{
-		auto pos = sMessage.find("\n.");
-		if (pos != KStringView::npos)
-		{
-			pos += 2;
-			if (!(*m_Connection)->Write(sMessage.substr(0, pos)).Good())
-			{
-				return false;
-			}
-			sMessage.remove_prefix(pos);
-			if (!(*m_Connection)->Write('.').Good())
-			{
-				return false;
-			}
-		}
-		else
-		{
-			return (*m_Connection)->Write(sMessage).Good();
-		}
-	}
-	return true;
-
-} // SendDottedMessage
-
-//-----------------------------------------------------------------------------
 bool KSMTP::Send(const KMail& Mail)
 //-----------------------------------------------------------------------------
 {
@@ -354,6 +325,7 @@ bool KSMTP::Connect(const KURL& Relay, KStringView sUsername, KStringView sPassw
 
 	// try ESMTP
 	ESMTPParms Parms;
+	
 	if (!Talk(kFormat("EHLO {}", "localhost"), "250", &Parms, false))
 	{
 		// failed. try SMTP

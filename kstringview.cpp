@@ -842,6 +842,8 @@ bool KStringView::ClipAtReverse(KStringView sClipAtReverse)
 
 } // ClipAtReverse
 
+static_assert(std::is_nothrow_move_constructible<KStringView>::value,
+			  "KStringView is intended to be nothrow move constructible, but is not!");
 
 } // end of namespace dekaf2
 

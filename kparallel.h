@@ -176,7 +176,7 @@ public:
 	size_t Create(Function&& f, Args&&... args)
 	//-----------------------------------------------------------------------------
 	{
-		size_t iCount{0};
+		size_t iCount { 0 };
 
 		for (size_t ct=size(); ct < m_numThreads; ++ct)
 		{
@@ -235,8 +235,8 @@ private:
 	void AnnounceNewThreads(size_t iCount);
 
 	size_t                     m_numThreads;
-	std::chrono::microseconds  m_pause{0};
-	bool                       m_start_detached{false};
+	std::chrono::microseconds  m_pause { 0 };
+	bool                       m_start_detached { false };
 
 	static bool                s_bHasThreadsStarted;
 	static thread_local size_t s_iThreadNum;
@@ -245,7 +245,7 @@ private:
 }; // KRunThreads
 
 //-----------------------------------------------------------------------------
-/// Default implementation of the progress printer for parallel_for_each()
+/// Default implementation of the progress printer for kParallelForEach()
 void kParallelForEachPrintProgress(size_t iMax, size_t iDone, size_t iRunning);
 //-----------------------------------------------------------------------------
 
@@ -256,10 +256,10 @@ template<typename InputIterator,
          typename Func,
          typename Progress = decltype(kParallelForEachPrintProgress)>
 void kParallelForEach(size_t size,
-                       InputIterator first, InputIterator last,
-                       Func&& f,
-                       size_t max_threads = std::thread::hardware_concurrency(),
-                       const Progress& fProgress = kParallelForEachPrintProgress)
+                      InputIterator first, InputIterator last,
+                      Func&& f,
+                      size_t max_threads = std::thread::hardware_concurrency(),
+                      const Progress& fProgress = kParallelForEachPrintProgress)
 //-----------------------------------------------------------------------------
 {
 	switch (size)
@@ -273,11 +273,12 @@ void kParallelForEach(size_t size,
 
 		default:
 			std::mutex m_IterMutex;
-			size_t m_iDone{0};
-			size_t m_iRunning{0};
+			size_t m_iDone { 0 };
+			size_t m_iRunning { 0 };
 
-			auto loop = [&](){
-				bool m_bFirstLoop{true};
+			auto loop = [&]()
+			{
+				bool m_bFirstLoop { true };
 				for (;;)
 				{
 					InputIterator it;
@@ -324,7 +325,7 @@ void kParallelForEach(size_t size,
 /// type is not a RandomAccessIterator, the count of elements from first to last
 /// is determined by incrementing first until it is equal to last. As this is a
 /// linear operation you should avoid it for larger ranges by calling the sister
-/// template parallel_for_each() that accepts the size of the range as the first
+/// template kParallelForEach() that accepts the size of the range as the first
 /// parameter.
 template<typename InputIterator,
          typename Func,
@@ -379,13 +380,6 @@ public:
 	//----------
 
 		//-----------------------------------------------------------------------------
-		/// ctor. Initializes locks.
-		Data()
-		//-----------------------------------------------------------------------------
-		{
-		}
-
-		//-----------------------------------------------------------------------------
 		/// Tests if an actual ID would block right now.
 		bool WouldBlock(size_t ID);
 		//-----------------------------------------------------------------------------
@@ -408,12 +402,11 @@ public:
 	private:
 	//----------
 
-		typedef std::unique_ptr<std::mutex> unique_mutex_t;
-		typedef std::map<size_t, unique_mutex_t> lockmap_t;
-		lockmap_t   m_id_mutexes;
-		std::mutex  m_map_mutex;
+		using lockmap_t = std::map<size_t, std::unique_ptr<std::mutex>>;
+		lockmap_t m_id_mutexes;
+		std::mutex m_map_mutex;
 
-	};
+	}; // Data
 
 	//-----------------------------------------------------------------------------
 	/// Constructor.

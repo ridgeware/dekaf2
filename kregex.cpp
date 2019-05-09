@@ -552,5 +552,8 @@ KString kWildCard2Regex(KStringView sInput)
 
 } // kWildCard2Regex
 
+static_assert(std::is_nothrow_move_constructible<KRegex>::value,
+			  "KRegex is intended to be nothrow move constructible, but is not!");
+
 } // of namespace dekaf2
 

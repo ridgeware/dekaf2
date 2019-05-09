@@ -326,7 +326,7 @@ KString KMIMEPart::Serialize(const KReplacer& Replacer, uint16_t recursion) cons
 } // Serialize
 
 //-----------------------------------------------------------------------------
-bool KMIMEPart::Attach(KMIMEPart&& part)
+bool KMIMEPart::Attach(KMIMEPart part)
 //-----------------------------------------------------------------------------
 {
 	if (IsMultiPart())
@@ -549,5 +549,11 @@ constexpr KStringViewZ KMIME::OGV;
 constexpr KStringViewZ KMIME::WEBM;
 
 #endif
+
+static_assert(std::is_nothrow_move_constructible<KMIMEPart>::value,
+			  "KMIMEPart is intended to be nothrow move constructible, but is not!");
+
+static_assert(std::is_nothrow_move_constructible<KMIMEText>::value,
+			  "KMIMEText is intended to be nothrow move constructible, but is not!");
 
 } // end of namespace dekaf2

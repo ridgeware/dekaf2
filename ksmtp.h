@@ -105,14 +105,12 @@ private:
 	bool Talk(KStringView sTX, KStringView sRx, ESMTPParms* parms = nullptr, bool bDisconnectOnFailure = true);
 	/// Pretty print and send to MTA one set of addresses
 	bool PrettyPrint(KStringView sHeader, const KMail::map_t& map);
-	/// Insert dots if needed
-	bool SendDottedMessage(KStringView sMessage);
 
 	mutable KString m_sError;
 	// The TCP stream class
 	std::unique_ptr<KConnection> m_Connection;
 	// Ten seconds for the timeout per default
-	uint16_t m_iTimeout{ 10 };
+	uint16_t m_iTimeout { 10 };
 
 }; // KSMTP
 

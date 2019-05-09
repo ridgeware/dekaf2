@@ -106,7 +106,7 @@ size_t KRunThreads::SetSize(size_t iNumThreads, size_t iMaxThreads)
 void KRunThreads::AnnounceNewThreads(size_t iCount)
 //-----------------------------------------------------------------------------
 {
-	kDebugLog(2, "KRunThreads::Create: started {} additional threads", iCount);
+	kDebugLog(2, "KRunThreads::Create(): started {} additional threads", iCount);
 
 } // AnnounceNewThreads
 
@@ -144,10 +144,10 @@ void KBlockOnID::Data::Lock(size_t ID)
 		std::lock_guard<std::mutex> lock(m_map_mutex);
 
 		it = m_id_mutexes.find(ID);
+		
 		if (it == m_id_mutexes.end())
 		{
-			unique_mutex_t umu(new(std::mutex));
-			it = m_id_mutexes.emplace(ID, std::move(umu)).first;
+			it = m_id_mutexes.emplace(ID, std::make_unique<std::mutex>()).first;
 		}
 	}
 

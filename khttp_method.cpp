@@ -58,5 +58,8 @@ constexpr KStringViewZ KHTTPMethod::REQUEST_METHODS;
 
 #endif
 
+static_assert(std::is_nothrow_move_constructible<KHTTPMethod>::value,
+			  "KHTTPMethod is intended to be nothrow move constructible, but is not!");
+	
 } // end of namespace dekaf2
 

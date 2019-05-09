@@ -949,4 +949,16 @@ void KRESTServer::clear()
 
 } // clear
 
+static_assert(std::is_nothrow_move_constructible<KRESTPath>::value,
+			  "KRESTPath is intended to be nothrow move constructible, but is not!");
+
+static_assert(std::is_nothrow_move_constructible<detail::KRESTAnalyzedPath>::value,
+			  "KRESTAnalyzedPath is intended to be nothrow move constructible, but is not!");
+
+static_assert(std::is_nothrow_move_constructible<KRESTRoute>::value,
+			  "KRESTRoute is intended to be nothrow move constructible, but is not!");
+
+static_assert(std::is_nothrow_move_constructible<KRESTRoutes>::value,
+			  "KRESTRoutes is intended to be nothrow move constructible, but is not!");
+
 } // end of namespace dekaf2

@@ -228,5 +228,8 @@ bool KStringViewZ::ClipAtReverse(KStringView sClipAtReverse)
 constexpr KStringViewZ::value_type KStringViewZ::s_empty;
 #endif
 
+static_assert(std::is_nothrow_move_constructible<KStringViewZ>::value,
+			  "KStringViewZ is intended to be nothrow move constructible, but is not!");
+
 } // end of namespace dekaf2
 

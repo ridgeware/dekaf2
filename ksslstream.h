@@ -137,7 +137,8 @@ struct KAsioSSLStream
 	{
 		ClearTimer();
 		CheckTimer();
-	}
+
+	} // ctor
 
 	//-----------------------------------------------------------------------------
 	~KAsioSSLStream()
@@ -155,19 +156,24 @@ struct KAsioSSLStream
 		if (Socket.lowest_layer().is_open())
 		{
 			boost::system::error_code ec;
+
 			Socket.lowest_layer().shutdown(boost::asio::ip::tcp::socket::shutdown_both, ec);
+
 			if (ec)
 			{
 				kDebug(2, "error shutting down socket: {}", ec.message());
 				return false;
 			}
+
 			Socket.lowest_layer().close(ec);
+
 			if (ec)
 			{
 				kDebug(2, "error closing socket: {}", ec.message());
 				return false;
 			}
 		}
+
 		return true;
 
 	} // Disconnect
@@ -200,7 +206,8 @@ struct KAsioSSLStream
 		}
 
 		Timer.async_wait(boost::bind(&KAsioSSLStream<StreamType>::CheckTimer, this));
-	}
+
+	} // CheckTimer
 
 	//-----------------------------------------------------------------------------
 	void RunTimed()
@@ -216,7 +223,8 @@ struct KAsioSSLStream
 		while (ec == boost::asio::error::would_block);
 
 		ClearTimer();
-	}
+
+	} // RunTimed
 
 	KSSLContext& SSLContext;
 	boost::asio::io_service IOService;
@@ -374,14 +382,14 @@ public:
 	KString Error() const
 	//-----------------------------------------------------------------------------
 	{
+		KString sError;
+
 		if (!Good())
 		{
-			return m_Stream.ec.message();
+			sError = m_Stream.ec.message();
 		}
-		else
-		{
-			return {};
-		}
+
+		return sError;
 	}
 
 //----------

@@ -41,7 +41,7 @@
 #pragma once
 
 /// @file kreplacer.h
-/// adds a class that replaces variables
+/// adds a class that replaces variables in a string
 
 #include <map>
 #include "kstringview.h"
@@ -60,7 +60,7 @@ class KReplacer
 public:
 //----------
 
-	using RepMap = KMap<KString, KString>;
+	using RepMap = std::map<KString, KString>;
 	using const_iterator = RepMap::const_iterator;
 
 	KReplacer() = default;

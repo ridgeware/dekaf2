@@ -457,7 +457,9 @@ bool KMail::Send(const KURL& URL, KStringView sUsername, KStringView sPassword)
 
 } // Send
 
+#ifndef _MSC_VER
 static_assert(std::is_nothrow_move_constructible<KMail>::value,
 			  "KMail is intended to be nothrow move constructible, but is not!");
+#endif
 
 } // end of namespace dekaf2

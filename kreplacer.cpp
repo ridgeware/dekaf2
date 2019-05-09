@@ -218,11 +218,13 @@ void KReplacer::ReplaceInPlace(KString& sIn) const
 
 } // clear
 
+#ifndef _MSC_VER
 static_assert(std::is_nothrow_move_constructible<KReplacer>::value,
 			  "KReplacer is intended to be nothrow move constructible, but is not!");
 
 static_assert(std::is_nothrow_move_constructible<KVariables>::value,
 			  "KVariables is intended to be nothrow move constructible, but is not!");
+#endif
 
 } // of namespace dekaf2
 

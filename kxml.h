@@ -247,12 +247,18 @@ public:
 	/// Add a child node to current node. Only works if the current node is
 	/// not empty (= part of a KXML tree).
 	KXMLNode AddNode(KStringView sName, KStringView sValue = KStringView{});
+	/// When printing, do not indent nor add linefeed for all children of this node,
+	/// thus preserve space. Only valid for Element nodes.
+	KXMLNode& SetInlineRoot(bool bInlineRoot = true);
 	/// Set name of current node. Only works if the current node is
 	/// not empty (= part of a KXML tree).
 	KXMLNode& SetName(KStringView sName);
 	/// Set value of current node. Only works if the current node is
-	/// not empty (= part of a KXML tree).
+	/// not empty (= part of a KXML tree). This sets the first data child node.
 	KXMLNode& SetValue(KStringView sValue);
+	/// Add value to current node. Only works if the current node is
+	/// not empty (= part of a KXML tree). This adds another data child node.
+	KXMLNode& AddValue(KStringView sValue);
 
 	/// Add an attribute to current node. Only works if the current node is
 	/// not empty (= part of a KXML tree).
@@ -289,6 +295,8 @@ class KXML
 public:
 //------
 
+	enum PrintFlags { Default = 0, NoIndents = 1, NoLinefeeds = 2 };
+
 	using const_iterator    = KXMLNode;
 	using iterator          = const_iterator;
 
@@ -306,11 +314,11 @@ public:
 	KXML& operator=(KXML&&) = default;
 
 	/// Print DOM into OutStream
-	void Serialize(KOutStream& OutStream, bool bIndented = true) const;
+	void Serialize(KOutStream& OutStream, int iPrintFlags = PrintFlags::Default) const;
 	/// Print DOM into string
-	void Serialize(KString& string, bool bIndented = true) const;
+	void Serialize(KString& string, int iPrintFlags = PrintFlags::Default) const;
 	/// Print DOM into string
-	KString Serialize(bool bIndented = true) const;
+	KString Serialize(int iPrintFlags = PrintFlags::Default) const;
 
 	/// Parse DOM from InStream
 	bool Parse(KInStream& InStream, bool bPreserveWhiteSpace = false);

@@ -21,6 +21,7 @@ namespace rapidxml
     // Printing flags
 
     const int print_no_indenting = 0x1;   //!< Printer flag instructing the printer to suppress indenting of XML. See print() function.
+	const int print_no_linefeeds = 0x2;   //!< Printer flag instructing the printer to suppress linefeeds of XML. See print() function.
 
     ///////////////////////////////////////////////////////////////////////
     // Internal
@@ -131,6 +132,7 @@ namespace rapidxml
 
             // Element
             case node_element:
+			case node_element_inline_root:
                 out = print_element_node(out, node, flags, indent);
                 break;
             
@@ -170,8 +172,8 @@ namespace rapidxml
                 break;
             }
             
-            // If indenting not disabled, add line break after node
-            if (!(flags & print_no_indenting))
+            // If linefeeds are not disabled, add line break after node
+            if (!(flags & print_no_linefeeds))
                 *out = Ch('\n'), ++out;
 
             // Return modified iterator
@@ -255,11 +257,19 @@ namespace rapidxml
         template<class OutIt, class Ch>
         inline OutIt print_element_node(OutIt out, const xml_node<Ch> *node, int flags, int indent)
         {
-            assert(node->type() == node_element);
+            assert(node->type() == node_element || node->type() == node_element_inline_root);
 
             // Print element name and attributes, if any
             if (!(flags & print_no_indenting))
                 out = fill_chars(out, indent, Ch('\t'));
+
+			if (node->type() == node_element_inline_root)
+			{
+				// switch indenting and linefeeds off for all children
+				flags |= print_no_indenting;
+				flags |= print_no_linefeeds;
+			}
+
             *out = Ch('<'), ++out;
             out = copy_chars(node->name(), node->name() + node->name_size(), out);
             out = print_attributes(out, node, flags);
@@ -291,7 +301,7 @@ namespace rapidxml
                 else
                 {
                     // Print all children with full indenting
-                    if (!(flags & print_no_indenting))
+                    if (!(flags & print_no_linefeeds))
                         *out = Ch('\n'), ++out;
                     out = print_children(out, node, flags, indent + 1);
                     if (!(flags & print_no_indenting))

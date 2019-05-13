@@ -492,37 +492,33 @@ bool KROW::AddCol (KStringView sColName, const KJSON& Value, KCOL::Flags iFlags,
 	// make sure all type flags are removed
 	iFlags &= MODE_FLAGS;
 
-	if (Value.is_object() || Value.is_array())
+	switch (Value.type())
 	{
-		return AddCol(sColName, Value.dump(-1), iFlags | JSON, iMaxLen);
-	}
-	else if (Value.is_string())
-	{
-		return AddCol(sColName, Value.get<KJSON::string_t>(), iFlags | NOFLAG, iMaxLen);
-	}
-	else if (Value.is_number())
-	{
-		if (Value.is_number_float())
-		{
-			return AddCol(sColName, Value.get<KJSON::number_float_t>(), iFlags | NUMERIC, iMaxLen);
-		}
-		else
-		{
+		case KJSON::value_t::object:
+		case KJSON::value_t::array:
+			return AddCol(sColName, Value.dump(-1), iFlags | JSON, iMaxLen);
+
+		case KJSON::value_t::string:
+			return AddCol(sColName, Value.get<KJSON::string_t>(), iFlags | NOFLAG, iMaxLen);
+
+		case KJSON::value_t::number_integer:
 			return AddCol(sColName, Value.get<KJSON::number_integer_t>(), iFlags | NUMERIC, iMaxLen);
-		}
-	}
-	else if (Value.is_boolean())
-	{
-		return AddCol(sColName, Value.get<KJSON::boolean_t>(), iFlags | BOOLEAN, iMaxLen);
-	}
-	else if (Value.is_null())
-	{
-		return AddCol(sColName, "", iFlags | JSON, iMaxLen);
-	}
-	else
-	{
-		kDebugLog(2, "KROW: could not identify JSON type for {}", sColName);
-		return false;
+
+		case KJSON::value_t::number_unsigned:
+			return AddCol(sColName, Value.get<KJSON::number_unsigned_t>(), iFlags | NUMERIC, iMaxLen);
+
+		case KJSON::value_t::number_float:
+			return AddCol(sColName, Value.get<KJSON::number_float_t>(), iFlags | NUMERIC, iMaxLen);
+
+		case KJSON::value_t::boolean:
+			return AddCol(sColName, Value.get<KJSON::boolean_t>(), iFlags | BOOLEAN, iMaxLen);
+
+		case KJSON::value_t::null:
+			return AddCol(sColName, "", iFlags | JSON, iMaxLen);
+
+		case KJSON::value_t::discarded:
+			kDebugLog(2, "KROW: could not identify JSON type for {}", sColName);
+			return false;
 	}
 
 } // AddCol

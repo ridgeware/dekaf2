@@ -326,36 +326,32 @@ KString Print (const KJSON& Value)
 {
 	DEKAF2_TRY
 	{
-		if (Value.is_object() || Value.is_array())
+		switch (Value.type())
 		{
-			return Value.dump(-1);
-		}
-		else if (Value.is_string())
-		{
-			return Value.get<dekaf2::KJSON::string_t>();
-		}
-		else if (Value.is_number())
-		{
-			if (Value.is_number_float())
-			{
-				return KString::to_string(Value.get<KJSON::number_float_t>());
-			}
-			else
-			{
+			case KJSON::value_t::object:
+			case KJSON::value_t::array:
+				return Value.dump(-1);
+
+			case KJSON::value_t::string:
+				return Value.get<dekaf2::KJSON::string_t>();
+
+			case KJSON::value_t::number_integer:
 				return KString::to_string(Value.get<KJSON::number_integer_t>());
-			}
-		}
-		else if (Value.is_boolean())
-		{
-			return Value.get<dekaf2::KJSON::boolean_t>() ? "true" : "false";
-		}
-		else if (Value.is_null())
-		{
-			return "NULL";
-		}
-		else
-		{
-			return "(UNKNOWN)";
+
+			case KJSON::value_t::number_unsigned:
+				return KString::to_string(Value.get<KJSON::number_unsigned_t>());
+
+			case KJSON::value_t::number_float:
+				return KString::to_string(Value.get<KJSON::number_float_t>());
+
+			case KJSON::value_t::boolean:
+				return Value.get<dekaf2::KJSON::boolean_t>() ? "true" : "false";
+
+			case KJSON::value_t::null:
+				return "NULL";
+
+			case KJSON::value_t::discarded:
+				return "(UNKNOWN)";
 		}
 	}
 	DEKAF2_CATCH (const KJSON::exception& exc)

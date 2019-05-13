@@ -8,8 +8,7 @@ using namespace dekaf2;
 
 TEST_CASE("KHTMLParser")
 {
-	KStringView sHTML;
-	sHTML = (R"(
+	constexpr KStringView sHTML = (R"(
 	<?xml-stylesheet type="text/xsl" href="style.xsl"?>
 	<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN"
 	"http://www.w3.org/TR/html4/strict.dtd">
@@ -25,6 +24,16 @@ TEST_CASE("KHTMLParser")
 			 <p class='fancy' id=self style="curly">And finally <i class='shallow'>some</i> content</p>
 	</body>
 	</html>
+	)");
+
+	constexpr KStringView sScript = " this is <a <new <a href=\"www.w3c.org\">scripting</a> language> ";
+
+	constexpr KStringView sEntities_in = (R"(
+	&amp; &aring;&oslash; &amp &amp! &amp< i &am</i &<i<mg> &am<body>some content</body>
+	)");
+
+	constexpr KStringView sEntities_out = (R"(
+	& åø & &! &< i &am</i &<i<mg> &am<body>some content</body>
 	)");
 
 	SECTION("basic parsing")
@@ -128,14 +137,69 @@ TEST_CASE("KHTMLParser")
 		CHECK ( sHTML == sOutput );
 
 	}
+
+	SECTION("transforming entities")
+	{
+		class KHTMLSerializer : public KHTMLParser
+		{
+		public:
+
+			KHTMLSerializer(KString& OutString)
+			: m_OutString(OutString)
+			{}
+
+			bool Found() const { return m_bFound; }
+
+		protected:
+
+			virtual void Object(KHTMLObject& Object) override
+			{
+				if (Object.Type() == KHTMLObject::TAG)
+				{
+					KHTMLTag& tag = static_cast<KHTMLTag&>(Object);
+					if (tag.Name == "body" && tag.IsOpening())
+					{
+						m_bFound = true;
+					}
+				}
+				Object.Serialize(m_OutString);
+			}
+
+			virtual void Content(char ch) override
+			{
+				m_OutString += ch;
+			}
+
+			virtual void Script(char ch) override
+			{
+				m_OutString += ch;
+			}
+
+			virtual void Invalid(char ch) override
+			{
+				m_OutString += ch;
+			}
+
+		private:
+
+			bool m_bFound { false };
+			KString& m_OutString;
+
+		};
+
+		KString sOutput;
+		KHTMLSerializer HTMLSerializer(sOutput);
+		HTMLSerializer.EmitEntitiesAsUTF8();
+		HTMLSerializer.Parse(sEntities_in);
+		CHECK ( sEntities_out == sOutput );
+		CHECK ( HTMLSerializer.Found() == true );
+	}
+
 	SECTION("attribute extraction")
 	{
 		class KHTMLScanner : public KHTMLParser
 		{
 		public:
-
-			KHTMLScanner()
-			{}
 
 			bool Found() const { return m_bFound; }
 
@@ -164,4 +228,29 @@ TEST_CASE("KHTMLParser")
 		CHECK ( HTMLScanner.Found() == true );
 	}
 
+	SECTION("script extraction")
+	{
+		class KHTMLScanner : public KHTMLParser
+		{
+		public:
+
+			const KString& GetScript() const { return m_sScript; }
+
+		protected:
+
+			virtual void Script(char ch) override
+			{
+				m_sScript += ch;
+			}
+
+		private:
+
+			KString m_sScript;
+
+		};
+
+		KHTMLScanner HTMLScanner;
+		HTMLScanner.Parse(sHTML);
+		CHECK ( HTMLScanner.GetScript() == sScript );
+	}
 }

@@ -1,5 +1,4 @@
 /*
- //-----------------------------------------------------------------------------//
  //
  // DEKAF(tm): Lighter, Faster, Smarter (tm)
  //
@@ -302,6 +301,8 @@ class KHTMLTag : public KHTMLObject
 public:
 //------
 
+	enum TagType { NONE, OPEN, CLOSE, STANDALONE };
+
 #if (!DEKAF2_NO_GCC && DEKAF2_GCC_VERSION < 70000) || defined(_MSC_VER)
 	// older GCCs need a default constructor here as they do not honor the using directive below
 	KHTMLTag() = default;
@@ -328,6 +329,9 @@ public:
 	virtual ObjectType Type() const override;
 
 	bool IsInline() const;
+	bool IsOpening() const    { return TagType == OPEN;       }
+	bool IsClosing() const    { return TagType == CLOSE;      }
+	bool IsStandalone() const { return TagType == STANDALONE; }
 
 //------
 public:
@@ -335,8 +339,7 @@ public:
 
 	KString         Name;
 	KHTMLAttributes Attributes;
-	bool            bSelfClosing { false };
-	bool            bClosing { false };
+	TagType         TagType { NONE };
 
 }; // KHTMLTag
 
@@ -462,6 +465,8 @@ protected:
 }; // KHTMLProcessingInstruction
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// Streaming HTML parser that isolates HTML objects and content and allows
+/// child classes to override output methods
 class KHTMLParser
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -476,26 +481,17 @@ public:
 	KHTMLParser& operator=(const KHTMLParser&) = default;
 	KHTMLParser& operator=(KHTMLParser&&) = default;
 
-	KHTMLParser(KInStream& InStream)
-	{
-		Parse(InStream);
-	}
-
-	KHTMLParser(KBufferedReader& InStream)
-	{
-		Parse(InStream);
-	}
-
-	KHTMLParser(KStringView sInput)
-	{
-		Parse(sInput);
-	}
+	KHTMLParser(KInStream& InStream);
+	KHTMLParser(KBufferedReader& InStream);
+	KHTMLParser(KStringView sInput);
 
 	virtual ~KHTMLParser();
 
 	virtual bool Parse(KInStream& InStream);
 	virtual bool Parse(KBufferedReader& InStream);
 	virtual bool Parse(KStringView sInput);
+
+	KHTMLParser& EmitEntitiesAsUTF8() { m_bEmitEntitiesAsUTF8 = true; return *this; }
 
 //------
 protected:
@@ -511,10 +507,15 @@ protected:
 private:
 //------
 
+	void Script(KStringView sScript);
 	void Invalid(KStringView sInvalid);
 	void Invalid(const KHTMLStringObject& Object);
+	void Invalid(const KHTMLTag& Tag);
 	void SkipScript(KBufferedReader& InStream);
 	void SkipInvalid(KBufferedReader& InStream);
+	void EmitEntityAsUTF8(KBufferedReader& InStream);
+
+	bool m_bEmitEntitiesAsUTF8 { false };
 
 }; // KHTMLParser
 

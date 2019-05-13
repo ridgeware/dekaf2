@@ -2221,6 +2221,7 @@ bool KHTMLEntity::FromNamedEntity(KStringView sEntity, uint32_t& cp1, uint32_t& 
 	if (DEKAF2_LIKELY(sEntity.front() == '&'))
 	{
 		sEntity.remove_prefix(1);
+		
 		if (sEntity.empty())
 		{
 			return false;
@@ -2230,6 +2231,7 @@ bool KHTMLEntity::FromNamedEntity(KStringView sEntity, uint32_t& cp1, uint32_t& 
 	if (DEKAF2_LIKELY(sEntity.back() == ';'))
 	{
 		sEntity.remove_suffix(1);
+
 		if (sEntity.empty())
 		{
 			return false;
@@ -2256,7 +2258,7 @@ KString KHTMLEntity::Decode(KStringView sIn)
 	KString sRet;
 	sRet.reserve(sIn.size());
 
-	for (KStringView::const_iterator it = sIn.cbegin(), ie = sIn.cend(); it != ie; )
+	for (auto it = sIn.cbegin(), ie = sIn.cend(); it != ie; )
 	{
 		if (*it != '&')
 		{
@@ -2279,9 +2281,11 @@ KString KHTMLEntity::Decode(KStringView sIn)
 						{
 							// hex
 							++it;
+
 							for (;it != ie; ++it)
 							{
 								auto iCh = kFromHexChar(*it);
+
 								if (iCh > 15)
 								{
 									break;
@@ -2310,7 +2314,6 @@ KString KHTMLEntity::Decode(KStringView sIn)
 
 						if (DEKAF2_LIKELY(bValid))
 						{
-
 							Unicode::ToUTF8(iChar, sRet);
 
 							if (it != ie && *it  == ';')
@@ -2322,6 +2325,7 @@ KString KHTMLEntity::Decode(KStringView sIn)
 						{
 							// this &# sequence was invalid
 							sRet += "&#";
+
 							for (; start_it != it; ++start_it)
 							{
 								sRet += *start_it;
@@ -2333,6 +2337,7 @@ KString KHTMLEntity::Decode(KStringView sIn)
 				{
 					// named entities
 					auto start = it;
+
 					for (;it != ie; ++it)
 					{
 						if (!KASCII::kIsAlpha(*it))
@@ -2352,10 +2357,13 @@ KString KHTMLEntity::Decode(KStringView sIn)
 						{
 							++it;
 						}
+
 						uint32_t cp1, cp2;
+
 						if (FromNamedEntity(sEntity, cp1, cp2))
 						{
 							Unicode::ToUTF8(cp1, sRet);
+
 							if (cp2)
 							{
 								Unicode::ToUTF8(cp2, sRet);
@@ -2371,6 +2379,7 @@ KString KHTMLEntity::Decode(KStringView sIn)
 					else
 					{
 						sRet += '&';
+
 						if (it != ie)
 						{
 							sRet += *it;
@@ -2403,11 +2412,13 @@ KString ConvertNumerical(KStringView sIn)
 
 		if (*it == 'x' || *it == 'X')
 		{
-			++it;
 			// hex
+			++it;
+
 			for (;++it != ie;)
 			{
 				auto iCh = kFromHexChar(*it);
+
 				if (iCh > 15)
 				{
 					sRet = sIn;
@@ -2463,6 +2474,7 @@ KString KHTMLEntity::DecodeOne(KStringView sIn)
 		if (sEntity.front() == '&')
 		{
 			sEntity.remove_prefix(1);
+
 			if (sEntity.empty())
 			{
 				sRet = sIn;
@@ -2473,6 +2485,7 @@ KString KHTMLEntity::DecodeOne(KStringView sIn)
 		if (sEntity.back() == ';')
 		{
 			sEntity.remove_suffix(1);
+
 			if (sEntity.empty())
 			{
 				sRet = sIn;
@@ -2489,9 +2502,11 @@ KString KHTMLEntity::DecodeOne(KStringView sIn)
 		{
 			// convert entity name
 			auto it = s_NamedEntitiesHTML5.find(sEntity);
+
 			if (DEKAF2_LIKELY(it != s_NamedEntitiesHTML5.end()))
 			{
 				Unicode::ToUTF8(it->second.iCodepoint1, sRet);
+
 				if (it->second.iCodepoint2)
 				{
 					Unicode::ToUTF8(it->second.iCodepoint2, sRet);

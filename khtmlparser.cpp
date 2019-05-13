@@ -41,6 +41,7 @@
  */
 
 #include "khtmlparser.h"
+#include "khtmlentities.h"
 #include "kstringstream.h"
 #include "klog.h"
 #include "kfrozen.h"
@@ -581,8 +582,7 @@ void KHTMLTag::clear()
 {
 	Name.clear();
 	Attributes.clear();
-	bSelfClosing = false;
-	bClosing = false;
+	TagType = NONE;
 
 } // clear
 
@@ -621,6 +621,8 @@ bool KHTMLTag::Parse(KBufferedReader& InStream, KStringView sOpening)
 		state = OPEN;
 	}
 
+	TagType = TagType::OPEN;
+
 	while (DEKAF2_LIKELY((ch = InStream.Read()) != std::iostream::traits_type::eof()))
 	{
 		switch (state)
@@ -648,18 +650,19 @@ bool KHTMLTag::Parse(KBufferedReader& InStream, KStringView sOpening)
 					InStream.UnRead();
 					return false;
 				}
-				else if (ch == '/' && !bClosing)
+				else if (ch == '/' && !IsClosing())
 				{
-					bClosing = true;
+					TagType = TagType::CLOSE;
 				}
-				else if (!KASCII::kIsSpace(ch))
+				else if (KASCII::kIsAlNum(ch))
 				{
 					Name.assign(1, KASCII::kToLower(ch));
 					state = NAME;
 				}
 				else
 				{
-					// no spaces are allowed in front of tag names
+					// no spaces are allowed in front of tag names,
+					// and only ASCII alnums are permitted
 					InStream.UnRead();
 					return false;
 				}
@@ -694,7 +697,7 @@ bool KHTMLTag::Parse(KBufferedReader& InStream, KStringView sOpening)
 					{
 						// it would be good to check for !bClosing here as well,
 						// but - garbage in, garbage out
-						bSelfClosing = true;
+						TagType = TagType::STANDALONE;
 					}
 				}
 				break;
@@ -714,7 +717,7 @@ void KHTMLTag::Serialize(KString& sOut) const
 	{
 		sOut += '<';
 
-		if (bClosing)
+		if (IsClosing())
 		{
 			sOut += '/';
 		}
@@ -723,7 +726,7 @@ void KHTMLTag::Serialize(KString& sOut) const
 
 		Attributes.Serialize(sOut);
 
-		if (DEKAF2_UNLIKELY(bSelfClosing))
+		if (DEKAF2_UNLIKELY(IsStandalone()))
 		{
 			if (!Attributes.empty())
 			{
@@ -745,7 +748,7 @@ void KHTMLTag::Serialize(KOutStream& OutStream) const
 	{
 		OutStream.Write('<');
 
-		if (bClosing)
+		if (IsClosing())
 		{
 			OutStream.Write('/');
 		}
@@ -754,7 +757,7 @@ void KHTMLTag::Serialize(KOutStream& OutStream) const
 
 		Attributes.Serialize(OutStream);
 
-		if (DEKAF2_UNLIKELY(bSelfClosing))
+		if (DEKAF2_UNLIKELY(IsStandalone()))
 		{
 			if (!Attributes.empty())
 			{
@@ -917,6 +920,30 @@ bool KHTMLCData::SearchForLeadOut(KBufferedReader& InStream)
 
 
 //-----------------------------------------------------------------------------
+KHTMLParser::KHTMLParser(KInStream& InStream)
+//-----------------------------------------------------------------------------
+{
+	Parse(InStream);
+
+} // ctor
+
+//-----------------------------------------------------------------------------
+KHTMLParser::KHTMLParser(KBufferedReader& InStream)
+//-----------------------------------------------------------------------------
+{
+	Parse(InStream);
+
+} // ctor
+
+//-----------------------------------------------------------------------------
+KHTMLParser::KHTMLParser(KStringView sInput)
+//-----------------------------------------------------------------------------
+{
+	Parse(sInput);
+
+} // ctor
+
+//-----------------------------------------------------------------------------
 KHTMLParser::~KHTMLParser()
 //-----------------------------------------------------------------------------
 {
@@ -926,12 +953,9 @@ KHTMLParser::~KHTMLParser()
 void KHTMLParser::Invalid(KStringView sInvalid)
 //-----------------------------------------------------------------------------
 {
-	if (!sInvalid.empty())
+	for (auto ch : sInvalid)
 	{
-		for (auto ch : sInvalid)
-		{
-			Invalid(ch);
-		}
+		Invalid(ch);
 	}
 
 } // Invalid
@@ -943,7 +967,28 @@ void KHTMLParser::Invalid(const KHTMLStringObject& Object)
 	Invalid(Object.LeadIn());
 	Invalid(Object.Value);
 
-} // PushToInvalid
+} // Invalid
+
+//-----------------------------------------------------------------------------
+void KHTMLParser::Invalid(const KHTMLTag& Tag)
+//-----------------------------------------------------------------------------
+{
+	KString sOut;
+	Tag.Serialize(sOut);
+
+	if (!sOut.empty())
+	{
+		// remove the closing >
+		sOut.remove_suffix(1);
+	}
+	else
+	{
+		sOut = '<';
+	}
+
+	Invalid(sOut);
+
+} // Invalid
 
 //-----------------------------------------------------------------------------
 void KHTMLParser::SkipInvalid(KBufferedReader& InStream)
@@ -959,48 +1004,115 @@ void KHTMLParser::SkipInvalid(KBufferedReader& InStream)
 			break;
 		}
 	}
-}
+
+} // SkipInvalid
 
 //-----------------------------------------------------------------------------
 void KHTMLParser::SkipScript(KBufferedReader& InStream)
 //-----------------------------------------------------------------------------
 {
-	static const char ScriptEndTag[] = "/script>";
+	static const char ScriptEndTag[] = "</script>";
 
-	const char* pScriptEndTag = nullptr;
+	const char* pScriptEndTag;
 	std::istream::int_type ch;
+	KString sFailedEnd;
 
 	while (DEKAF2_LIKELY((ch = InStream.Read()) != std::istream::traits_type::eof()))
 	{
-		Script(ch);
 		if (DEKAF2_UNLIKELY(ch == '<'))
 		{
-			pScriptEndTag = ScriptEndTag;
-		}
-		else if (DEKAF2_UNLIKELY(pScriptEndTag != nullptr))
-		{
-			if (KASCII::kToLower(ch) == *pScriptEndTag)
+			sFailedEnd = ch;
+			pScriptEndTag = ScriptEndTag + 1;
+
+			for (;;)
 			{
-				++pScriptEndTag;
-				if (!*pScriptEndTag)
+				ch = InStream.Read();
+				if (ch == std::istream::traits_type::eof())
 				{
-					break;
+					Script(sFailedEnd);
+					return;
 				}
-			}
-			else
-			{
-				if (ch == '<')
+
+				sFailedEnd += ch;
+
+				if (KASCII::kToLower(ch) == *pScriptEndTag)
 				{
-					pScriptEndTag = ScriptEndTag;
+					++pScriptEndTag;
+					if (!*pScriptEndTag)
+					{
+						// create a </script> object
+						KHTMLTag ScriptTag(ScriptEndTag);
+						// and emit it
+						Object(ScriptTag);
+						return;
+					}
 				}
 				else
 				{
-					pScriptEndTag = nullptr;
+					if (ch == '<')
+					{
+						pScriptEndTag = ScriptEndTag;
+					}
+					else
+					{
+						Script(sFailedEnd);
+						break;
+					}
 				}
 			}
 		}
+		else
+		{
+			Script(ch);
+		}
 	}
-}
+
+} // SkipScript
+
+//-----------------------------------------------------------------------------
+void KHTMLParser::EmitEntityAsUTF8(KBufferedReader& InStream)
+//-----------------------------------------------------------------------------
+{
+	KString sEntity;
+
+	sEntity += '&';
+
+	for(;;)
+	{
+		auto ch = InStream.Read();
+
+		if (DEKAF2_UNLIKELY(ch == std::istream::traits_type::eof()))
+		{
+			break;
+		}
+		else
+		{
+			if (ch == ';')
+			{
+				// normal end of entity
+				sEntity = KHTMLEntity::DecodeOne(sEntity);
+				break;
+			}
+
+			if (!(ch == '#' && sEntity.size() == 2) && !KASCII::kIsAlNum(ch))
+			{
+				// this runs into the next tag or whatever, restore the last char
+				InStream.UnRead();
+				// try to decode the entity - will return the input string on failure
+				sEntity = KHTMLEntity::DecodeOne(sEntity);
+				break;
+			}
+
+			sEntity += ch;
+		}
+	}
+
+	for (auto ch : sEntity)
+	{
+		Content(ch);
+	}
+
+} // EmitEntityAsUTF8
 
 //-----------------------------------------------------------------------------
 bool KHTMLParser::Parse(KBufferedReader& InStream)
@@ -1098,7 +1210,7 @@ bool KHTMLParser::Parse(KBufferedReader& InStream)
 				if (!tag.empty())
 				{
 					Object(tag);
-					if (DEKAF2_UNLIKELY(tag.Name == "script" && !tag.bClosing))
+					if (DEKAF2_UNLIKELY(tag.Name == "script" && !tag.IsClosing()))
 					{
 						SkipScript(InStream);
 					}
@@ -1107,9 +1219,13 @@ bool KHTMLParser::Parse(KBufferedReader& InStream)
 			else
 			{
 				// print to Invalid() until next '>'
-				Invalid('<');
+				Invalid(tag);
 				SkipInvalid(InStream);
 			}
+		}
+		else if (ch == '&' && m_bEmitEntitiesAsUTF8)
+		{
+			EmitEntityAsUTF8(InStream);
 		}
 		else
 		{
@@ -1166,6 +1282,18 @@ void KHTMLParser::Script(char ch)
 	Invalid(ch);
 
 } // Script
+
+//-----------------------------------------------------------------------------
+void KHTMLParser::Script(KStringView sScript)
+//-----------------------------------------------------------------------------
+{
+	for (auto ch : sScript)
+	{
+		Script(ch);
+	}
+
+} // Script
+
 
 //-----------------------------------------------------------------------------
 void KHTMLParser::Invalid(char ch)

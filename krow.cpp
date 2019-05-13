@@ -521,6 +521,8 @@ bool KROW::AddCol (KStringView sColName, const KJSON& Value, KCOL::Flags iFlags,
 			return false;
 	}
 
+	return false;
+
 } // AddCol
 
 //-----------------------------------------------------------------------------

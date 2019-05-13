@@ -360,6 +360,8 @@ KString Print (const KJSON& Value)
 		return "(ERROR)";
 	}
 
+	return "";
+
 } // Print
 
 //-----------------------------------------------------------------------------

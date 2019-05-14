@@ -348,7 +348,7 @@ KSQL::KSQL (DBT iDBType/*=DBT::MYSQL*/, KStringView sUsername/*=nullptr*/, KStri
 } // KSQL - default constructor
 
 //-----------------------------------------------------------------------------
-KSQL::KSQL (KSQL& other)
+KSQL::KSQL (const KSQL& other)
 //-----------------------------------------------------------------------------
 {
 	kDebugLog (3, "KSQL::KSQL()...");

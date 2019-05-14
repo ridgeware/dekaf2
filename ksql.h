@@ -202,7 +202,8 @@ public:
 	const char* BAR = "--------------------------------------------------------------------------------"; // for printf() so keep this const char*
 
 	KSQL (DBT iDBType = DBT::MYSQL, KStringView sUsername = {}, KStringView sPassword = {}, KStringView sDatabase = {}, KStringView sHostname = {}, uint16_t iDBPortNum = 0);
-	KSQL (KSQL& other);
+	KSQL (const KSQL& other);
+	KSQL (KSQL&&) = default;
 
 	~KSQL ();
 
@@ -383,24 +384,24 @@ public:
 	}
 	#endif
 
-	DBT         GetDBType ()             { return (m_iDBType);         }
-	const KString& GetDBUser ()          { return (m_sUsername);       }
-	const KString& GetDBPass ()          { return (m_sPassword);       }
-	const KString& GetDBHost ()          { return (m_sHostname);       }
-	const KString& GetDBName ()          { return (m_sDatabase);       }
-	uint16_t    GetDBPort ()             { return (m_iDBPortNum);      }
-	const KString& ConnectSummary ()     { return (m_sConnectSummary); }
-	const KString& GetTempDir()          { return (m_sTempDir);        }
+	DBT         GetDBType ()       const { return (m_iDBType);         }
+	const KString& GetDBUser ()    const { return (m_sUsername);       }
+	const KString& GetDBPass ()    const { return (m_sPassword);       }
+	const KString& GetDBHost ()    const { return (m_sHostname);       }
+	const KString& GetDBName ()    const { return (m_sDatabase);       }
+	uint16_t    GetDBPort ()       const { return (m_iDBPortNum);      }
+	const KString& ConnectSummary () const { return (m_sConnectSummary); }
+	const KString& GetTempDir()    const { return (m_sTempDir);        }
 
-	const KString& GetLastError ()       { return (m_sLastError);      }
-	int         GetLastErrorNum ()       { return (m_iErrorNum);       }
-	bool        WasDuplicateError()      { return (GetLastErrorNum() == 1062); /*TODO:MySQL only*/ }
-	int         GetLastOCIError ()       { return (GetLastErrorNum()); }
-	const KString& GetLastSQL ()         { return (m_sLastSQL);        }
+	const KString& GetLastError () const { return (m_sLastError);      }
+	int         GetLastErrorNum () const { return (m_iErrorNum);       }
+	bool        WasDuplicateError() const { return (GetLastErrorNum() == 1062); /*TODO:MySQL only*/ }
+	int         GetLastOCIError () const { return (GetLastErrorNum()); }
+	const KString& GetLastSQL ()   const { return (m_sLastSQL);        }
 	Flags       SetFlags (Flags iFlags);
-	Flags       GetFlags ()              { return (m_iFlags);          }
-	bool        IsFlag (Flags iBit)      { return ((m_iFlags & iBit) == iBit); }
-	uint64_t    GetNumRowsAffected ()    { return (m_iNumRowsAffected); }
+	Flags       GetFlags ()         const { return (m_iFlags);          }
+	bool        IsFlag (Flags iBit) const { return ((m_iFlags & iBit) == iBit); }
+	uint64_t    GetNumRowsAffected () const { return (m_iNumRowsAffected); }
 	uint64_t    GetLastInsertID ();
 	KString     GetLastInfo ();
 

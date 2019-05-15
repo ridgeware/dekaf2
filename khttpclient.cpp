@@ -550,6 +550,18 @@ KString KHTTPClient::HttpRequest (const KURL& URL, KStringView sRequestMethod/* 
 	if (!HttpSuccess() && Error().empty())
 	{
 		SetError(Response.GetStatusString());
+
+		if (svRequestBody)
+		{
+			kDebug(2, "{} {}\n{}", sRequestMethod, URL.KResource::Serialize(), svRequestBody);
+		}
+
+		kDebug(2, "{} {} from URL {}", Response.iStatusCode, Response.sStatusString, URL.Serialize());
+
+		if (!sResponse.empty())
+		{
+			kDebug(2, "{}", sResponse);
+		}
 	}
 
 	return sResponse;

@@ -275,6 +275,8 @@ void KBAR::_SliderAction (int iAction, uint64_t iSoFarLast, uint64_t iSoFarNow)
 		KOut.Format("|\n");
 	}
 
+	KOut.Flush();
+
 } // _SliderAction
 
 } // of namespace dekaf2

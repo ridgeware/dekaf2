@@ -904,6 +904,41 @@ TEST_CASE("KSQL")
 
 	} // SECTION
 
+	SECTION("KSQLLocks")
+	{
+		KSQL db;
+		bool b;
+		{
+			b = db.GetLock("TestLock", 1);
+			INFO ( "GetLock()" );
+			CHECK ( b );
+		}
+
+		{
+			b = db.IsLocked("TestLock");
+			INFO ( "IsLocked()" );
+			CHECK ( b );
+		}
+
+		{
+			b = db.ReleaseLock("TestLock");
+			INFO ( "ReleaseLock()" );
+			CHECK ( b );
+		}
+
+		{
+			b = db.IsLocked("TestLock");
+			INFO ( "IsLocked()" );
+			CHECK ( b == false );
+		}
+
+		{
+			b = db.ReleaseLock("TestLock");
+			INFO ( "ReleaseLock()" );
+			CHECK ( b == false );
+		}
+	}
+
 } // TEST_CASE("ksql")
 
 //-----------------------------------------------------------------------------

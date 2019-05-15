@@ -462,6 +462,10 @@ public:
 		return KROW::NeedsEscape(sCol, m_iDBType);
 	}
 
+	bool GetLock (KStringView sName, int16_t iTimeoutSeconds = -1);
+	bool ReleaseLock (KStringView sName);
+	bool IsLocked (KStringView sName);
+
 	TXList  m_TxList;
 
 //----------

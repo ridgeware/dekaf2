@@ -757,6 +757,9 @@ bool KLog::IntDebug(int iLevel, KStringView sFunction, KStringView sMessage)
 			}
 		}
 
+		// need to keep this buffer until the log record is written
+		KString sStack;
+
 		if (iLevel <= m_iBackTrace)
 		{
 			// we can protect the recursion without a mutex, as we
@@ -772,7 +775,7 @@ bool KLog::IntDebug(int iLevel, KStringView sFunction, KStringView sMessage)
 					// but for now it is true)
 					iSkipFromStack += 1;
 				}
-				KString sStack = kGetBacktrace(iSkipFromStack);
+				sStack = kGetBacktrace(iSkipFromStack);
 				m_Serializer->SetBacktrace(sStack);
 				m_bBackTraceAlreadyCalled = false;
 			}

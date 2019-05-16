@@ -52,14 +52,17 @@ namespace dekaf2 {
 namespace detail {
 namespace splitting_parser {
 
+static constexpr KStringViewPair s_Pair_Empty { "", "" };
+static constexpr KStringViewPair s_Pair_Word { "a", "" };
+
 //-----------------------------------------------------------------------------
 KStringViewPair CountText::NextPair()
 //-----------------------------------------------------------------------------
 {
 	size_t iSizeConsumed { 0 };
-	bool bEmpty { true };
+	bool bIsEmpty { true };
 
-	Unicode::FromUTF8(m_sInput, [&iSizeConsumed, &bEmpty](uint32_t ch)
+	Unicode::FromUTF8(m_sInput, [&iSizeConsumed, &bIsEmpty](uint32_t ch)
 	{
 		if (!kIsAlNum(ch))
 		{
@@ -73,17 +76,14 @@ KStringViewPair CountText::NextPair()
 		else
 		{
 			iSizeConsumed += Unicode::UTF8Bytes(ch);
-			bEmpty = false;
+			bIsEmpty = false;
 		}
 		return true;
 	});
 
 	m_sInput.remove_prefix(iSizeConsumed);
 
-	static constexpr KStringViewPair s_Pair_Empty { "", "" };
-	static constexpr KStringViewPair s_Pair_Word { "a", "" };
-
-	return bEmpty ? s_Pair_Empty : s_Pair_Word;
+	return bIsEmpty ? s_Pair_Empty : s_Pair_Word;
 
 } // CountText::NextPair
 
@@ -121,6 +121,156 @@ KStringViewPair SimpleText::NextPair()
 	return sPair;
 
 } // SimpleText::NextPair
+
+//-----------------------------------------------------------------------------
+std::pair<KStringView, KStringView> CountHTML::NextPair()
+//-----------------------------------------------------------------------------
+{
+	size_t iSizeConsumed { 0 };
+	size_t iStartEntity { 0 };
+	KString sTagName;
+	static const char ScriptEndTag[] = "/script>";
+	const char* pScriptEndTag = nullptr;
+	bool bOpenTag { false };
+	bool bOpenTagHadSpace { false };
+	bool bOpenScript { false };
+	bool bOpenEntity { false };
+	bool bIsEmpty { true };
+
+	Unicode::FromUTF8(m_sInput, [&](uint32_t ch)
+	{
+		if (bOpenScript)
+		{
+			// push everything into the skeleton until we had </script>
+			if (ch == '<')
+			{
+				pScriptEndTag = ScriptEndTag;
+			}
+			else if (pScriptEndTag != nullptr)
+			{
+				if (KASCII::kToLower(ch) == static_cast<uint32_t>(*pScriptEndTag))
+				{
+					++pScriptEndTag;
+					if (!*pScriptEndTag)
+					{
+						bOpenScript = false;
+					}
+				}
+				else
+				{
+					if (ch == '<')
+					{
+						pScriptEndTag = ScriptEndTag;
+					}
+					else
+					{
+						pScriptEndTag = nullptr;
+					}
+				}
+			}
+			iSizeConsumed += Unicode::UTF8Bytes(ch);
+		}
+		else if (bOpenTag)
+		{
+			if (!bOpenTagHadSpace)
+			{
+				if (kIsSpace(ch))
+				{
+					bOpenTagHadSpace = true;
+					if (sTagName == "script")
+					{
+						bOpenScript = true;
+					}
+				}
+				else if (ch != '>')
+				{
+					// tag names may be ASCII only
+					sTagName += kToLower(static_cast<KString::value_type>(ch));
+				}
+			}
+			if (ch == '>')
+			{
+				bOpenTag = false;
+				if (sTagName == "script")
+				{
+					bOpenScript = true;
+				}
+			}
+			iSizeConsumed += Unicode::UTF8Bytes(ch);
+		}
+		else if (bOpenEntity)
+		{
+			if (kIsAlNum(ch))
+			{
+				++iSizeConsumed;
+			}
+			else
+			{
+				bOpenEntity = false;
+				if (ch == ';')
+				{
+					++iSizeConsumed;
+				}
+				bIsEmpty = false;
+				if (ch != ';')
+				{
+					if (ch == '&')
+					{
+						bOpenEntity = true;
+						iStartEntity = iSizeConsumed;
+						++iSizeConsumed;
+					}
+					else
+					{
+						bIsEmpty = false;
+						iSizeConsumed += Unicode::UTF8Bytes(ch);
+					}
+				}
+			}
+		}
+		else
+		{
+			if (ch == '&')
+			{
+				// start of entity
+				bOpenEntity = true;
+				iStartEntity = iSizeConsumed;
+				++iSizeConsumed;
+			}
+			else if (!kIsAlNum(ch))
+			{
+				if (!bIsEmpty)
+				{
+					// abort scanning here, this is the trailing skeleton
+					return false;
+				}
+				if (ch == '<')
+				{
+					bOpenTag = true;
+					bOpenTagHadSpace = false;
+					sTagName.clear();
+				}
+				iSizeConsumed += Unicode::UTF8Bytes(ch);
+			}
+			else
+			{
+				bIsEmpty = false;
+				iSizeConsumed += Unicode::UTF8Bytes(ch);
+			}
+		}
+		return true;
+	});
+
+	if (bOpenEntity)
+	{
+		bIsEmpty = false;
+	}
+
+	m_sInput.remove_prefix(iSizeConsumed);
+
+	return bIsEmpty ? s_Pair_Empty : s_Pair_Word;
+
+} // CountHTML::NextPair
 
 //-----------------------------------------------------------------------------
 std::pair<KString, KStringView> SimpleHTML::NextPair()

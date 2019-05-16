@@ -147,6 +147,34 @@ TEST_CASE("KWords") {
 		}
 	}
 
+	SECTION("KSimpleHTMLWordCounter")
+	{
+		struct test_t
+		{
+			KStringView sInput;
+			size_t iCount;
+		};
+
+		// source, target
+		std::vector<test_t> stest
+		{
+			{ "a few words", 3 },
+			{ "a<a href = \"test\">tad<b>.@more</b>?7ee1", 4 },
+			{ "a<sCript> some stuff here, x<a>c + \"</a>\" </scrIpt><a href = \"test\">tad<b>.@more</b>?7ee1", 4 },
+			{ "Hello <span attr=\"something\">World.</span>  It is 'cold' outside.", 6 },
+			{ "   , ", 0 },
+			{ "", 0 }
+		};
+
+		for (auto& it : stest)
+		{
+			KSimpleHTMLWordCounter Words(it.sInput);
+
+			INFO (it.sInput);
+			CHECK ( it.iCount == Words->size() );
+		}
+	}
+
 	SECTION("KSimpleHTMLSkeletonWords")
 	{
 		struct test_t

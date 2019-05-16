@@ -57,6 +57,34 @@ namespace detail {
 namespace splitting_parser {
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+class CountText
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+//------
+public:
+//------
+
+	CountText(KStringView sInput)
+	    : m_sInput(sInput)
+	{}
+
+	bool empty()
+	{
+		return m_sInput.empty();
+	}
+
+	KStringViewPair NextPair();
+
+//------
+private:
+//------
+
+	KStringView m_sInput;
+
+}; // CountText
+
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class SimpleText
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -141,6 +169,44 @@ private:
 }; // NormalizingHTML
 
 } // of namespace splitting_parser
+
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// A helper type that emulates a container, but is in fact only a counter.
+/// For use with KWords. Returns count of added (emulated) elements via size()
+template<typename ValueType = KStringView>
+class KCountingContainer
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+//------
+public:
+//------
+
+	using value_type = ValueType;
+	using iterator = KCountingContainer*;
+	using const_iterator = const KCountingContainer*;
+
+	void clear() { m_iCounter = 0; }
+	size_t size() const { return m_iCounter; }
+	iterator begin() { return this; }
+	iterator end() { return nullptr; }
+	const_iterator begin() const { return this; }
+	const_iterator end() const { return nullptr; }
+	void reserve(size_t) {}
+	void push_back(value_type) { inc(); }
+	iterator insert(value_type) { inc(); return this; }
+	iterator insert(const_iterator pos, const_iterator first, const_iterator last) { m_iCounter += first->size(); return this; }
+
+//------
+private:
+//------
+
+	void inc() { ++m_iCounter; }
+
+	size_t m_iCounter { 0 };
+
+}; // KCountingContainer
+
 } // of namespace detail
 
 
@@ -287,6 +353,7 @@ private:
 
 }; // KWords
 
+using KSimpleWordCounter = KWords<detail::KCountingContainer<KStringView>, detail::splitting_parser::CountText>;
 using KSimpleWords = KWords<std::vector<KStringView>, detail::splitting_parser::SimpleText>;
 using KSimpleSkeletonWords = KWords<std::vector<KStringViewPair>, detail::splitting_parser::SimpleText>;
 using KSimpleHTMLWords = KWords<std::vector<KString>, detail::splitting_parser::SimpleHTML>;

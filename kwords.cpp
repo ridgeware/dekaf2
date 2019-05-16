@@ -53,13 +53,48 @@ namespace detail {
 namespace splitting_parser {
 
 //-----------------------------------------------------------------------------
+KStringViewPair CountText::NextPair()
+//-----------------------------------------------------------------------------
+{
+	size_t iSizeConsumed { 0 };
+	bool bEmpty { true };
+
+	Unicode::FromUTF8(m_sInput, [&iSizeConsumed, &bEmpty](uint32_t ch)
+	{
+		if (!kIsAlNum(ch))
+		{
+			if (iSizeConsumed)
+			{
+				// abort scanning here, this is the trailing skeleton
+				return false;
+			}
+			iSizeConsumed += Unicode::UTF8Bytes(ch);
+		}
+		else
+		{
+			iSizeConsumed += Unicode::UTF8Bytes(ch);
+			bEmpty = false;
+		}
+		return true;
+	});
+
+	m_sInput.remove_prefix(iSizeConsumed);
+
+	static constexpr KStringViewPair s_Pair_Empty { "", "" };
+	static constexpr KStringViewPair s_Pair_Word { "a", "" };
+
+	return bEmpty ? s_Pair_Empty : s_Pair_Word;
+
+} // CountText::NextPair
+
+//-----------------------------------------------------------------------------
 KStringViewPair SimpleText::NextPair()
 //-----------------------------------------------------------------------------
 {
 	size_t iSizeSkel { 0 };
 	size_t iSizeWord { 0 };
 
-	Unicode::FromUTF8(m_sInput, [&](uint32_t ch)
+	Unicode::FromUTF8(m_sInput, [&iSizeSkel, &iSizeWord](uint32_t ch)
 	{
 		if (!kIsAlNum(ch))
 		{

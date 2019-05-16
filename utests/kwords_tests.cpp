@@ -8,6 +8,37 @@ using namespace dekaf2;
 
 TEST_CASE("KWords") {
 
+	SECTION("KSimpleWordCounter")
+	{
+		struct test_t
+		{
+			KStringView sInput;
+			size_t iCount;
+		};
+
+		// source, target
+		std::vector<test_t> stest
+		{
+			{ "a few words", 3 },
+			{ "a<>tad.@more?7ee1", 4 },
+			{ "   , ", 0 },
+			{ "", 0 }
+		};
+
+		for (auto& it : stest)
+		{
+			KSimpleWordCounter Words(it.sInput);
+			INFO (it.sInput);
+			CHECK ( it.iCount == Words->size() );
+		}
+		{
+			KSimpleWordCounter A("one two three");
+			KSimpleWordCounter B("four five six");
+			A += B;
+			CHECK ( A->size() == 6 );
+		}
+	}
+
 	SECTION("KSimpleWords")
 	{
 		struct test_t

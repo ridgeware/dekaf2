@@ -6606,7 +6606,7 @@ bool KSQL::GetLock (KStringView sName, int16_t iTimeoutSeconds)
 {
 	if (m_iDBType == DBT::MYSQL)
 	{
-		return SingleIntQuery("SELECT GET_LOCK(\"%s\", %d)", sName, iTimeoutSeconds);
+		return SingleIntQuery("SELECT GET_LOCK(\"%s\", %d)", EscapeString(sName), iTimeoutSeconds);
 	}
 
 	kDebug(1, "not supported for {}", TxDBType(m_iDBType));
@@ -6621,7 +6621,7 @@ bool KSQL::ReleaseLock (KStringView sName)
 {
 	if (m_iDBType == DBT::MYSQL)
 	{
-		return SingleIntQuery("SELECT RELEASE_LOCK(\"%s\")", sName);
+		return SingleIntQuery("SELECT RELEASE_LOCK(\"%s\")", EscapeString(sName));
 	}
 
 	kDebug(1, "not supported for {}", TxDBType(m_iDBType));
@@ -6636,7 +6636,7 @@ bool KSQL::IsLocked (KStringView sName)
 {
 	if (m_iDBType == DBT::MYSQL)
 	{
-		return SingleIntQuery("SELECT IS_USED_LOCK(\"%s\")", sName);
+		return SingleIntQuery("SELECT IS_USED_LOCK(\"%s\")", EscapeString(sName));
 	}
 
 	kDebug(1, "not supported for {}", TxDBType(m_iDBType));

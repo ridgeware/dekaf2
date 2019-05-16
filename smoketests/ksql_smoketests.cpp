@@ -902,11 +902,6 @@ TEST_CASE("KSQL")
 			FAIL_CHECK (db.GetLastError());
 		}
 
-	} // SECTION
-
-	SECTION("KSQLLocks")
-	{
-		KSQL db;
 		bool b;
 		{
 			b = db.GetLock("TestLock", 1);

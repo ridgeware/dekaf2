@@ -399,6 +399,7 @@ public:
 	int         GetLastOCIError () const { return (GetLastErrorNum()); }
 	const KString& GetLastSQL ()   const { return (m_sLastSQL);        }
 	Flags       SetFlags (Flags iFlags);
+	Flags       SetFlag (Flags iFlag) { return SetFlags (GetFlags() | iFlag); }
 	Flags       GetFlags ()         const { return (m_iFlags);          }
 	bool        IsFlag (Flags iBit) const { return ((m_iFlags & iBit) == iBit); }
 	uint64_t    GetNumRowsAffected () const { return (m_iNumRowsAffected); }

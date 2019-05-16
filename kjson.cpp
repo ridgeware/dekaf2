@@ -87,7 +87,7 @@ void SetStringFromUTF8orLatin1(KJSON& json, KStringView sInput)
 } // SetStringFromUTF8orLatin1
 
 //-----------------------------------------------------------------------------
-bool Parse (KJSON& json, KStringView sJSON, KString& sError)
+bool Parse (KJSON& json, KStringView sJSON, KString& sError) noexcept
 //-----------------------------------------------------------------------------
 {
 	json.clear();
@@ -128,7 +128,7 @@ void Parse (KJSON& json, KStringView sJSON)
 } // kParse
 
 //-----------------------------------------------------------------------------
-bool Parse (KJSON& json, KInStream& InStream, KString& sError)
+bool Parse (KJSON& json, KInStream& InStream, KString& sError) noexcept
 //-----------------------------------------------------------------------------
 {
 	json.clear();
@@ -169,7 +169,7 @@ void Parse (KJSON& json, KInStream& InStream)
 } // Parse
 
 //-----------------------------------------------------------------------------
-const KString& GetStringRef(const KJSON& json, KStringView sKey)
+const KString& GetStringRef(const KJSON& json, KStringView sKey) noexcept
 //-----------------------------------------------------------------------------
 {
 	static KString s_sEmpty{};
@@ -185,7 +185,7 @@ const KString& GetStringRef(const KJSON& json, KStringView sKey)
 } // GetString
 
 //-----------------------------------------------------------------------------
-KString GetString(const KJSON& json, KStringView sKey)
+KString GetString(const KJSON& json, KStringView sKey) noexcept
 //-----------------------------------------------------------------------------
 {
 	KString sReturn;
@@ -202,7 +202,7 @@ KString GetString(const KJSON& json, KStringView sKey)
 } // GetString
 
 //-----------------------------------------------------------------------------
-KJSON GetObject (const KJSON& json, KStringView sKey)
+KJSON GetObject (const KJSON& json, KStringView sKey) noexcept
 //-----------------------------------------------------------------------------
 {
 	KJSON oReturnMe;
@@ -321,7 +321,7 @@ KString Escape (KStringView sInput)
 } // Escape
 
 //-----------------------------------------------------------------------------
-KString Print (const KJSON& Value)
+KString Print (const KJSON& Value) noexcept
 //-----------------------------------------------------------------------------
 {
 	DEKAF2_TRY
@@ -365,7 +365,7 @@ KString Print (const KJSON& Value)
 } // Print
 
 //-----------------------------------------------------------------------------
-bool Contains (const KJSON& json, KStringView sString)
+bool Contains (const KJSON& json, KStringView sString) noexcept
 //-----------------------------------------------------------------------------
 {
 	DEKAF2_TRY

@@ -128,16 +128,16 @@ namespace kjson
 	void Parse (KJSON& json, KStringView sJSON);
 
 	/// Parse a string, returns error in sError if any (does not throw)
-	bool Parse (KJSON& json, KStringView sJSON, KString& sError);
+	bool Parse (KJSON& json, KStringView sJSON, KString& sError) noexcept;
 
 	/// Parse a stream, throws with KJSON::exception in case of error
 	void Parse (KJSON& json, KInStream& InStream);
 
 	/// Parse a stream, returns error in sError if any (does not throw)
-	bool Parse (KJSON& json, KInStream& InStream, KString& sError);
+	bool Parse (KJSON& json, KInStream& InStream, KString& sError) noexcept;
 
 	/// returns a string representation for the KJSON object, never throws
-	KString Print (const KJSON& json);
+	KString Print (const KJSON& json) noexcept;
 
 	/// Sets a JSON string from a KStringView, checks if the string was
 	/// valid UTF8 or converts from (assumed) Latin1 to UTF8. That is
@@ -148,66 +148,66 @@ namespace kjson
 
 	/// Returns a ref for a string key, does never throw. Returns empty ref
 	/// for non-string values.
-	const KString& GetStringRef(const KJSON& json, KStringView sKey);
+	const KString& GetStringRef(const KJSON& json, KStringView sKey) noexcept;
 
 	/// Returns a value for a string key, does never throw. Prints non-string
 	/// values into string representation.
-	KString GetString(const KJSON& json, KStringView sKey);
+	KString GetString(const KJSON& json, KStringView sKey) noexcept;
 
 	/// returns a value for an object key, does never throw
-	KJSON GetObject (const KJSON& json, KStringView sKey);
+	KJSON GetObject (const KJSON& json, KStringView sKey) noexcept;
 
 	/// returns true if the key exists
-	inline bool Exists(const KJSON& json, KStringView sKey)
+	inline bool Exists(const KJSON& json, KStringView sKey) noexcept
 	{
 		auto it = json.find(sKey);
 		return (it != json.end());
 	}
 
 	/// returns true if the key exists and contains an object
-	inline bool IsObject(const KJSON& json, KStringView sKey)
+	inline bool IsObject(const KJSON& json, KStringView sKey) noexcept
 	{
 		auto it = json.find(sKey);
 		return (it != json.end() && it->is_object());
 	}
 
 	/// returns true if the key exists and contains an array
-	inline bool IsArray(const KJSON& json, KStringView sKey)
+	inline bool IsArray(const KJSON& json, KStringView sKey) noexcept
 	{
 		auto it = json.find(sKey);
 		return (it != json.end() && it->is_array());
 	}
 
 	/// returns true if the key exists and contains a string
-	inline bool IsString(const KJSON& json, KStringView sKey)
+	inline bool IsString(const KJSON& json, KStringView sKey) noexcept
 	{
 		auto it = json.find(sKey);
 		return (it != json.end() && it->is_string());
 	}
 
 	/// returns true if the key exists and contains an integer
-	inline bool IsInteger(const KJSON& json, KStringView sKey)
+	inline bool IsInteger(const KJSON& json, KStringView sKey) noexcept
 	{
 		auto it = json.find(sKey);
 		return (it != json.end() && it->is_number_integer());
 	}
 
 	/// returns true if the key exists and contains a float
-	inline bool IsFloat(const KJSON& json, KStringView sKey)
+	inline bool IsFloat(const KJSON& json, KStringView sKey) noexcept
 	{
 		auto it = json.find(sKey);
 		return (it != json.end() && it->is_number_float());
 	}
 
 	/// returns true if the key exists and contains null
-	inline bool IsNull(const KJSON& json, KStringView sKey)
+	inline bool IsNull(const KJSON& json, KStringView sKey) noexcept
 	{
 		auto it = json.find(sKey);
 		return (it != json.end() && it->is_null());
 	}
 
 	/// returns true if the key exists and contains a bool
-	inline bool IsBoolean(const KJSON& json, KStringView sKey)
+	inline bool IsBoolean(const KJSON& json, KStringView sKey) noexcept
 	{
 		auto it = json.find(sKey);
 		return (it != json.end() && it->is_boolean());
@@ -220,7 +220,7 @@ namespace kjson
 	KString Escape (KStringView sInput);
 
 	/// returns true if object is a string array or an object and contains the given string
-	bool Contains (const KJSON& json, KStringView sString);
+	bool Contains (const KJSON& json, KStringView sString) noexcept;
 
 }; // end of namespace kjson
 

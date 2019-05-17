@@ -5418,11 +5418,23 @@ bool KSQL::Insert (KROW& Row, bool bIgnoreDupes/*=false*/)
 		DoTranslations (m_sLastSQL, m_iDBType);
 	}
 
+	auto iSavedFlags = 0;
+
+	if (bIgnoreDupes)
+	{
+		iSavedFlags = SetFlags (KSQL::F_IgnoreSQLErrors);
+	}
+
 	bool bOK = ExecRawSQL (m_sLastSQL, 0, "Insert");
 
 	if (!bOK && bIgnoreDupes && WasDuplicateError())
 	{
 		bOK = true;
+	}
+
+	if (bIgnoreDupes)
+	{
+		SetFlags (iSavedFlags);
 	}
 
 	kDebugLog (GetDebugLevel(), "{} rows affected.", m_iNumRowsAffected);

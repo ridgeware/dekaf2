@@ -225,7 +225,7 @@ public:
 	void   CloseConnection  (bool bDestructor=false);
 	bool   IsConnectionOpen ()      { return (m_bConnectionIsOpen); }
 
-	bool   Insert          (KROW& Row);
+	bool   Insert          (KROW& Row, bool bIgnoreDupes=false);
 	bool   Update          (KROW& Row);
 	bool   Delete          (KROW& Row);
 	bool   UpdateOrInsert  (KROW& Row, KROW& AdditionalInsertCols, bool* pbInserted = nullptr);

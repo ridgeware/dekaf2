@@ -5404,7 +5404,7 @@ bool KSQL::BindByPos (uint32_t iPosition, uint64_t* piValue)
 #endif
 
 //-----------------------------------------------------------------------------
-bool KSQL::Insert (KROW& Row)
+bool KSQL::Insert (KROW& Row, bool bIgnoreDupes/*=false*/)
 //-----------------------------------------------------------------------------
 {
 	if (!Row.FormInsert (m_sLastSQL, m_iDBType))
@@ -5419,6 +5419,11 @@ bool KSQL::Insert (KROW& Row)
 	}
 
 	bool bOK = ExecRawSQL (m_sLastSQL, 0, "Insert");
+
+	if (!bOK && bIgnoreDupes && WasDuplicateError())
+	{
+		bOK = true;
+	}
 
 	kDebugLog (GetDebugLevel(), "{} rows affected.", m_iNumRowsAffected);
 

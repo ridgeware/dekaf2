@@ -6623,6 +6623,7 @@ bool KSQL::GetLock (KStringView sName, int16_t iTimeoutSeconds)
 {
 	if (m_iDBType == DBT::MYSQL)
 	{
+		kDebug(2, "trying to acquire named lock '{}', timeout {}s", sName, iTimeoutSeconds);
 		m_sLastSQL = kFormat("SELECT GET_LOCK(\"{}\", {})", EscapeString(sName), iTimeoutSeconds);
 		return SingleIntRawQuery (m_sLastSQL, 0, "GetLock");
 	}
@@ -6639,6 +6640,7 @@ bool KSQL::ReleaseLock (KStringView sName)
 {
 	if (m_iDBType == DBT::MYSQL)
 	{
+		kDebug(2, "trying to release named lock '{}'", sName);
 		m_sLastSQL = kFormat("SELECT RELEASE_LOCK(\"{}\")", EscapeString(sName));
 		return SingleIntRawQuery (m_sLastSQL, 0, "ReleaseLock");
 	}
@@ -6664,5 +6666,123 @@ bool KSQL::IsLocked (KStringView sName)
 	return false;
 
 } // IsLocked
+
+static constexpr KStringView sColName = "schema_rev";
+
+//-----------------------------------------------------------------------------
+bool KSQL::EnsureSchema (KStringView sTablename, uint16_t iInitialRev, uint16_t iCurrentRev, KStringView sSchemaFileFormat, bool bForce)
+//-----------------------------------------------------------------------------
+{
+	kDebug (1, "...");
+
+	KString sEscapedTablename = EscapeString(sTablename);
+
+	uint16_t iSchemaRev = (bForce) ? -1 : SingleIntQuery ("select %s from %s", sColName, sEscapedTablename);
+	KString sError;
+
+	kDebug (2, "current rev in db determined to be: {}", iSchemaRev);
+	kDebug (2, "current rev that code expected is:  {}", iCurrentRev);
+
+	if (iSchemaRev >= iCurrentRev)
+	{
+		return true; // all set
+	}
+
+	if (!GetLock(sTablename, 120))
+	{
+		kWarning("Could not acquire schema update lock within 120 seconds. Another process may be updating the schema. Abort.");
+		m_sLastError = kFormat("schema updater for table {} is locked", sTablename);
+		return false;
+	}
+
+	// query rev again after acquiring the lock
+	iSchemaRev = (bForce) ? -1 : SingleIntQuery ("select %s from %s", sColName, sEscapedTablename);
+
+	if (iSchemaRev < iCurrentRev)
+	{
+		if (!BeginTransaction())
+		{
+			return false;
+		}
+
+		for (auto ii = std::max(++iSchemaRev, iInitialRev); ii <= iCurrentRev; ++ii)
+		{
+			kDebugLog (1, "{}", KLog::DASH);
+			kDebugLog (1, "attempting to apply schema version {} ...", ii);
+			kDebugLog (1, "{}", KLog::DASH);
+
+			KString sFile = kFormat(sSchemaFileFormat, ii);
+
+			if (!kFileExists (sFile))
+			{
+				sError = kFormat ("missing schema file: {}", sFile);
+				break; // for
+			}
+
+			if (!ExecSQLFile (sFile))
+			{
+				sError= GetLastError();
+				break; // for
+			}
+
+			else if (!ExecSQL ("update %s set %s=%u", sColName, sEscapedTablename, ii))
+			{
+				sError= GetLastError();
+				break; // for
+			}
+
+			int iUpdated = GetNumRowsAffected();
+
+			if (!iUpdated && !ExecSQL ("insert into %s values (%u)", sEscapedTablename, ii))
+			{
+				sError= GetLastError();
+				break; // for
+			}
+			else if (iUpdated > 1)
+			{
+				ExecSQL ("truncate table %s", sEscapedTablename);
+
+				if (!ExecSQL ("insert into %s values (%u)", sEscapedTablename, ii))
+				{
+					sError= GetLastError();
+					break; // for
+				}
+			}
+
+		} // for each schema upgrade
+
+		if (sError)
+		{
+			kDebug (1, "{}", sError);
+			ExecSQL ("rollback");
+			m_sLastError = sError;
+			return false;
+		}
+		else
+		{
+			if (!CommitTransaction())
+			{
+				return false;
+			}
+		}
+
+	} // if upgrade was needed
+
+	ReleaseLock(sTablename);
+
+	kDebugLog (2, "schema should be all set at version {} now", iCurrentRev);
+
+	return true;
+
+} // EnsureSchema
+
+//-----------------------------------------------------------------------------
+uint16_t KSQL::GetSchema (KStringView sTablename)
+//-----------------------------------------------------------------------------
+{
+	m_sLastSQL = kFormat("SELECT {} FROM {}", sColName, EscapeString(sTablename));
+	return SingleIntRawQuery (m_sLastSQL, 0, "GetSchema");
+
+} // GetSchema
 
 } // namespace dekaf2

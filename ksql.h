@@ -467,6 +467,9 @@ public:
 	bool ReleaseLock (KStringView sName);
 	bool IsLocked (KStringView sName);
 
+	bool EnsureSchema (KStringView sTablename, uint16_t iInitialRev, uint16_t iCurrentRev, KStringView sSchemaFileFormat, bool bForce = false);
+	uint16_t GetSchema (KStringView sTablename);
+
 	TXList  m_TxList;
 
 //----------

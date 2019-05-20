@@ -6723,7 +6723,18 @@ bool KSQL::EnsureSchema (KStringView sTablename, uint16_t iInitialRev, uint16_t 
 				break; // for
 			}
 
-			else if (!ExecSQL ("update %s set %s=%u", sEscapedTablename, sColName, ii))
+			if (ii == iInitialRev)
+			{
+				ExecSQL ("DROP TABLE IF EXISTS %s", sEscapedTablename);
+
+				if (!ExecSQL ("CREATE TABLE %s ( %s smallint not null primary key )", sEscapedTablename, sColName))
+				{
+					sError= GetLastError();
+					break; // for
+				}
+			}
+
+			if (!ExecSQL ("update %s set %s=%u", sEscapedTablename, sColName, ii))
 			{
 				sError= GetLastError();
 				break; // for

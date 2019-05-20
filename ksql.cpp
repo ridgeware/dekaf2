@@ -6623,7 +6623,6 @@ bool KSQL::GetLock (KStringView sName, int16_t iTimeoutSeconds)
 {
 	if (m_iDBType == DBT::MYSQL)
 	{
-		kDebug(2, "trying to acquire named lock '{}', timeout {}s", sName, iTimeoutSeconds);
 		m_sLastSQL = kFormat("SELECT GET_LOCK(\"{}\", {})", EscapeString(sName), iTimeoutSeconds);
 		return SingleIntRawQuery (m_sLastSQL, 0, "GetLock");
 	}
@@ -6640,7 +6639,6 @@ bool KSQL::ReleaseLock (KStringView sName)
 {
 	if (m_iDBType == DBT::MYSQL)
 	{
-		kDebug(2, "trying to release named lock '{}'", sName);
 		m_sLastSQL = kFormat("SELECT RELEASE_LOCK(\"{}\")", EscapeString(sName));
 		return SingleIntRawQuery (m_sLastSQL, 0, "ReleaseLock");
 	}
@@ -6725,7 +6723,7 @@ bool KSQL::EnsureSchema (KStringView sTablename, uint16_t iInitialRev, uint16_t 
 				break; // for
 			}
 
-			else if (!ExecSQL ("update %s set %s=%u", sColName, sEscapedTablename, ii))
+			else if (!ExecSQL ("update %s set %s=%u", sEscapedTablename, sColName, ii))
 			{
 				sError= GetLastError();
 				break; // for

@@ -370,6 +370,11 @@ bool KHTTPClient::Resource(const KURL& url, KHTTPMethod method)
 bool KHTTPClient::SetHostHeader(const KURL& url, bool bForcePort)
 //-----------------------------------------------------------------------------
 {
+	if (!m_sForcedHost.empty())
+	{
+		return SetRequestHeader(KHTTPHeaders::HOST, m_sForcedHost, true);
+	}
+
 	if (url.Domain.empty())
 	{
 		return SetError("Domain is empty");
@@ -433,11 +438,11 @@ bool KHTTPClient::SendRequest(KStringView svPostData, KMIME Mime)
 		&& Request.Method != KHTTPMethod::OPTIONS
 		&& Request.Method != KHTTPMethod::CONNECT)
 	{
-		SetRequestHeader(KHTTPHeaders::CONTENT_LENGTH, KString::to_string(svPostData.size()));
+		SetRequestHeader(KHTTPHeaders::CONTENT_LENGTH, KString::to_string(svPostData.size()), true);
 
 		if (!svPostData.empty())
 		{
-			SetRequestHeader(KHTTPHeaders::CONTENT_TYPE, Mime);
+			SetRequestHeader(KHTTPHeaders::CONTENT_TYPE, Mime, true);
 		}
 	}
 	else
@@ -476,7 +481,7 @@ bool KHTTPClient::SendRequest(KStringView svPostData, KMIME Mime)
 		return SetError("write error");
 	}
 
-	return ReadHeader();
+	return ReadHeaders();
 }
 
 //-----------------------------------------------------------------------------
@@ -517,7 +522,7 @@ bool KHTTPClient::Parse()
 } // Parse
 
 //-----------------------------------------------------------------------------
-bool KHTTPClient::ReadHeader()
+bool KHTTPClient::ReadHeaders()
 //-----------------------------------------------------------------------------
 {
 	if (!Response.Parse())

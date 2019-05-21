@@ -6705,9 +6705,9 @@ bool KSQL::EnsureSchema (KStringView sTablename, uint16_t iInitialRev, uint16_t 
 
 		for (auto ii = std::max(++iSchemaRev, iInitialRev); ii <= iCurrentRev; ++ii)
 		{
-			kDebugLog (1, "{}", KLog::DASH);
-			kDebugLog (1, "attempting to apply schema version {} ...", ii);
-			kDebugLog (1, "{}", KLog::DASH);
+			kDebug (1, "{}", KLog::DASH);
+			kDebug (1, "attempting to apply schema version {} ...", ii);
+			kDebug (1, "{}", KLog::DASH);
 
 			KString sFile = kFormat(sSchemaFileFormat, ii);
 
@@ -6779,7 +6779,7 @@ bool KSQL::EnsureSchema (KStringView sTablename, uint16_t iInitialRev, uint16_t 
 
 	ReleaseLock(sTablename);
 
-	kDebugLog (2, "schema should be all set at version {} now", iCurrentRev);
+	kDebug (2, "schema should be all set at version {} now", iCurrentRev);
 
 	return true;
 

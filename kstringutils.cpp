@@ -506,5 +506,22 @@ bool kIsURL(KStringView str) noexcept
 	return KURL(str).IsURL();
 }
 
+//-----------------------------------------------------------------------------
+void kAdd(int64_t iAdd, KString& sString, bool bIsHex)
+//-----------------------------------------------------------------------------
+{
+	int64_t iValue = kToInt<int64_t>(sString.data(), sString.size(), bIsHex) + iAdd;
+
+	if (!bIsHex)
+	{
+		sString = KString::to_string(iValue);
+	}
+	else
+	{
+		sString = KString::to_hexstring(iValue);
+	}
+
+} // kAdd
+
 } // end of namespace dekaf2
 

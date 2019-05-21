@@ -144,7 +144,7 @@ bool KBAR::Move (int64_t iDelta)
 	{
 		if (KLog::getInstance().GetLevel())
 		{
-			kDebugLog (1, "kbar[{}]: {} of {}", GetBar (), m_iSoFar+iDelta, m_iExpected);
+			kDebugLog (3, "kbar[{}]: {} of {}", GetBar (), m_iSoFar+iDelta, m_iExpected);
 		}
 		else {
 			_SliderAction (KPS_ADD, m_iSoFar, m_iSoFar+iDelta);

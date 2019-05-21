@@ -370,6 +370,11 @@ bool KHTTPClient::Resource(const KURL& url, KHTTPMethod method)
 bool KHTTPClient::SetHostHeader(const KURL& url, bool bForcePort)
 //-----------------------------------------------------------------------------
 {
+	if (Request.Headers[KHTTPHeaders::HOST])
+	{
+		return true; // aleadey set
+	}
+
 	if (url.Domain.empty())
 	{
 		return SetError("Domain is empty");
@@ -399,13 +404,9 @@ bool KHTTPClient::SetHostHeader(const KURL& url, bool bForcePort)
 bool KHTTPClient::SetRequestHeader(KStringView svName, KStringView svValue, bool bOverwrite)
 //-----------------------------------------------------------------------------
 {
-	if (bOverwrite)
+	if (bOverwrite || Request.Headers[svName].empty())
 	{
 		Request.Headers.Set(svName, svValue);
-	}
-	else
-	{
-		Request.Headers.Add(svName, svValue);
 	}
 
 	return true;

@@ -56,6 +56,7 @@ void KHTTPClient::clear()
 
 	// do not reset m_bUseHTTPProxyProtocol here - it stays valid until
 	// the setup of a new connection
+	// same for m_sForcedHost
 
 } // clear
 

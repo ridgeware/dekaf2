@@ -807,7 +807,7 @@ void KRESTServer::ErrorHandler(const std::exception& ex, const Options& Options)
 			Serialize();
 
 			// finally, output the content:
-			kDebugLog (3, "KREST: {}", sContent);
+			kDebug (3, "{}", sContent);
 			Response.Write (sContent);
 		}
 		break;
@@ -881,7 +881,7 @@ void KRESTServer::RecordRequestForReplay (const Options& Options)
 
 		if (!RecordFile.is_open())
 		{
-			kDebugLog (3, "KREST: cannot open {}", Options.sRecordFile);
+			kDebug (3, "cannot open {}", Options.sRecordFile);
 			return;
 		}
 

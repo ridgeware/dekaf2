@@ -630,21 +630,19 @@ KString KHTTPClient::HttpRequest (KURL URL, KStringView sRequestMethod/* = KHTTP
 			}
 		}
 
-		if (CheckForRedirect(URL, sRequestMethod))
-		{
-			if (iHadRedirects++ >= m_iMaxRedirects)
-			{
-				SetError(kFormat("number of redirects ({}) exceeds max redirection limit of {}",
-								 iHadRedirects,
-								 m_iMaxRedirects));
-				break;
-			}
-			// else loop into the redirection
-		}
-		else
+		if (!CheckForRedirect(URL, sRequestMethod))
 		{
 			break;
 		}
+
+		if (iHadRedirects++ >= m_iMaxRedirects)
+		{
+			SetError(kFormat("number of redirects ({}) exceeds max redirection limit of {}",
+							 iHadRedirects,
+							 m_iMaxRedirects));
+			break;
+		}
+		// else loop into the redirection
 	}
 
 	if (!HttpSuccess() && Error().empty())

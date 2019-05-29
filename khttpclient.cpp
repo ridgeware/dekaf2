@@ -57,6 +57,7 @@ void KHTTPClient::clear()
 	// do not reset m_bUseHTTPProxyProtocol here - it stays valid until
 	// the setup of a new connection
 	// same for m_sForcedHost
+	// same for m_iMaxRedirects
 
 } // clear
 
@@ -537,20 +538,97 @@ bool KHTTPClient::ReadHeaders()
 } // ReadHeader
 
 //-----------------------------------------------------------------------------
-KString KHTTPClient::HttpRequest (const KURL& URL, KStringView sRequestMethod/* = KHTTPMethod::GET*/, KStringView svRequestBody/* = ""*/, KMIME MIME/* = KMIME::JSON*/, bool bVerifyCerts /* = false */)
+KString KHTTPClient::HttpRequest (KURL URL, KStringView sRequestMethod/* = KHTTPMethod::GET*/, KStringView svRequestBody/* = ""*/, KMIME MIME/* = KMIME::JSON*/, bool bVerifyCerts /* = false */)
 //-----------------------------------------------------------------------------
 {
 	KString sResponse;
 
-	if (Connect(URL, bVerifyCerts))
+	uint16_t iHadRedirects = 0;
+
+	for(;;)
 	{
-		if (Resource(URL, sRequestMethod))
+		if (Connect(URL, bVerifyCerts))
 		{
-			if (SendRequest (svRequestBody, MIME))
+			if (Resource(URL, sRequestMethod))
 			{
-				Read (sResponse);
+				if (SendRequest (svRequestBody, MIME))
+				{
+					Read (sResponse);
+				}
 			}
 		}
+
+		// check for redirections
+		switch (Response.GetStatusCode())
+		{
+			case 303:
+				// a 303 response always forces a method change to GET
+				if (sRequestMethod != KHTTPMethod::GET)
+				{
+					kDebug(1, "303 redirect changes method from {} to GET", sRequestMethod);
+					sRequestMethod = KHTTPMethod::GET;
+				}
+				DEKAF2_FALLTHROUGH;
+
+			case 301: // other than some browsers we do not switch the method to
+			case 302: // GET when receiving a 301 or 302 response
+			case 307:
+			case 308:
+				if (iHadRedirects < m_iMaxRedirects)
+				{
+					KURL Redirect = Response.Headers[KHTTPHeaders::location];
+
+					if (!Redirect.empty())
+					{
+						if (Redirect.Query.empty())
+						{
+							Redirect.Query = URL.Query;
+						}
+						if (Redirect.Protocol.empty())
+						{
+							Redirect.Protocol = URL.Protocol;
+						}
+						if (Redirect.Port.empty() && !URL.Port.empty() && Redirect.Domain.empty())
+						{
+							Redirect.Port = URL.Port;
+						}
+						if (Redirect.Domain.empty())
+						{
+							Redirect.Domain = URL.Domain;
+						}
+						// we deliberately drop username and password in a redirection
+
+						kDebug(1, "{} redirect from {} to {}",
+							   Response.GetStatusCode(),
+							   URL.Serialize(),
+							   Redirect.Serialize());
+
+						URL = std::move(Redirect);
+
+						// and follow the redirection
+						++iHadRedirects;
+						continue;
+					}
+					else
+					{
+						SetError(kFormat("invalid {} header in {} redirection: {}",
+										 KHTTPHeaders::LOCATION,
+										 Response.GetStatusCode(),
+										 Response.Headers[KHTTPHeaders::location]));
+					}
+				}
+				else
+				{
+					SetError(kFormat("number of redirects ({}) exceeds max redirection limit of {}",
+									 iHadRedirects,
+									 m_iMaxRedirects));
+				}
+
+			default:
+				break;
+		}
+
+		break;
 	}
 
 	if (!HttpSuccess() && Error().empty())
@@ -599,32 +677,32 @@ bool KHTTPClient::SetError(KStringView sError) const
 
 
 //-----------------------------------------------------------------------------
-KString kHTTPGet(const KURL& URL)
+KString kHTTPGet(KURL URL)
 //-----------------------------------------------------------------------------
 {
 	KHTTPClient HTTP;
 	HTTP.AutoConfigureProxy(true);
-	return HTTP.Get(URL);
+	return HTTP.Get(std::move(URL));
 
 } // kHTTPGet
 
 //-----------------------------------------------------------------------------
-bool kHTTPHead(const KURL& URL)
+bool kHTTPHead(KURL URL)
 //-----------------------------------------------------------------------------
 {
 	KHTTPClient HTTP;
 	HTTP.AutoConfigureProxy(true);
-	return HTTP.Head(URL);
+	return HTTP.Head(std::move(URL));
 
 } // kHTTPHead
 
 //-----------------------------------------------------------------------------
-KString kHTTPPost(const KURL& URL, KStringView svPostData, KStringView svMime)
+KString kHTTPPost(KURL URL, KStringView svPostData, KStringView svMime)
 //-----------------------------------------------------------------------------
 {
 	KHTTPClient HTTP;
 	HTTP.AutoConfigureProxy(true);
-	return HTTP.Post(URL, svPostData, svMime);
+	return HTTP.Post(std::move(URL), svPostData, svMime);
 
 } // kHTTPPost
 

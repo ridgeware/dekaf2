@@ -245,66 +245,66 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Get from URL, store response body in return value KString
-	KString Get(const KURL& URL, bool bVerifyCerts = false)
+	KString Get(KURL URL, bool bVerifyCerts = false)
 	//-----------------------------------------------------------------------------
 	{
-		return HttpRequest (URL, KHTTPMethod::GET, {}, {}, bVerifyCerts);
+		return HttpRequest (std::move(URL), KHTTPMethod::GET, {}, {}, bVerifyCerts);
 	}
 
 	//-----------------------------------------------------------------------------
 	/// Get from URL, store response body in return value KString
-	KString Options(const KURL& URL, bool bVerifyCerts = false)
+	KString Options(KURL URL, bool bVerifyCerts = false)
 	//-----------------------------------------------------------------------------
 	{
-		return HttpRequest (URL, KHTTPMethod::OPTIONS, {}, {}, bVerifyCerts);
+		return HttpRequest (std::move(URL), KHTTPMethod::OPTIONS, {}, {}, bVerifyCerts);
 	}
 
 	//-----------------------------------------------------------------------------
 	/// Post to URL, store response body in return value KString
-	KString Post(const KURL& URL, KStringView svRequestBody, KMIME MIME, bool bVerifyCerts = false)
+	KString Post(KURL URL, KStringView svRequestBody, KMIME MIME, bool bVerifyCerts = false)
 	//-----------------------------------------------------------------------------
 	{
-		return HttpRequest (URL, KHTTPMethod::POST, svRequestBody, MIME, bVerifyCerts);
+		return HttpRequest (std::move(URL), KHTTPMethod::POST, svRequestBody, MIME, bVerifyCerts);
 	}
 
 	//-----------------------------------------------------------------------------
 	/// Deletes URL, store response body in return value KString
-	KString Delete(const KURL& URL, KStringView svRequestBody, bool bVerifyCerts = false)
+	KString Delete(KURL URL, KStringView svRequestBody, bool bVerifyCerts = false)
 	//-----------------------------------------------------------------------------
 	{
-		return HttpRequest (URL, KHTTPMethod::DELETE, svRequestBody, {}, bVerifyCerts);
+		return HttpRequest (std::move(URL), KHTTPMethod::DELETE, svRequestBody, {}, bVerifyCerts);
 	}
 
 	//-----------------------------------------------------------------------------
 	/// Head from URL - returns true if response is in the 2xx range
-	bool Head(const KURL& URL, bool bVerifyCerts = false)
+	bool Head(KURL URL, bool bVerifyCerts = false)
 	//-----------------------------------------------------------------------------
 	{
-		HttpRequest (URL, KHTTPMethod::HEAD, {}, {}, bVerifyCerts);
+		HttpRequest (std::move(URL), KHTTPMethod::HEAD, {}, {}, bVerifyCerts);
 		return HttpSuccess();
 	}
 
 	//-----------------------------------------------------------------------------
 	/// Put to URL - returns true if response is in the 2xx range
-	bool Put(const KURL& URL, KStringView svRequestBody, KMIME MIME, bool bVerifyCerts = false)
+	bool Put(KURL URL, KStringView svRequestBody, KMIME MIME, bool bVerifyCerts = false)
 	//-----------------------------------------------------------------------------
 	{
-		HttpRequest (URL, KHTTPMethod::PUT, svRequestBody, MIME, bVerifyCerts);
+		HttpRequest (std::move(URL), KHTTPMethod::PUT, svRequestBody, MIME, bVerifyCerts);
 		return HttpSuccess();
 	}
 
 	//-----------------------------------------------------------------------------
 	/// Patch URL - returns true if response is in the 2xx range
-	bool Patch(const KURL& URL, KStringView svRequestBody, KMIME MIME, bool bVerifyCerts = false)
+	bool Patch(KURL URL, KStringView svRequestBody, KMIME MIME, bool bVerifyCerts = false)
 	//-----------------------------------------------------------------------------
 	{
-		HttpRequest (URL, KHTTPMethod::PATCH, svRequestBody, MIME, bVerifyCerts);
+		HttpRequest (std::move(URL), KHTTPMethod::PATCH, svRequestBody, MIME, bVerifyCerts);
 		return HttpSuccess();
 	}
 
 	//-----------------------------------------------------------------------------
 	/// Send given request method and return raw response as a string
-	KString HttpRequest (const KURL& URL, KStringView sRequestMethod = KHTTPMethod::GET, KStringView svRequestBody = KStringView{}, KMIME MIME = KMIME::JSON, bool bVerifyCerts = false);
+	KString HttpRequest (KURL URL, KStringView sRequestMethod = KHTTPMethod::GET, KStringView svRequestBody = KStringView{}, KMIME MIME = KMIME::JSON, bool bVerifyCerts = false);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -321,6 +321,14 @@ public:
 	//-----------------------------------------------------------------------------
 	{
 		m_bAutoProxy = bYes;
+	}
+
+	//-----------------------------------------------------------------------------
+	/// Set count of allowed redirects (default 3, 0 disables)
+	void AllowRedirects(uint16_t iMaxRedirects = 3)
+	//-----------------------------------------------------------------------------
+	{
+		m_iMaxRedirects = iMaxRedirects;
 	}
 
 	//-----------------------------------------------------------------------------
@@ -371,6 +379,7 @@ private:
 	KString m_sForcedHost;
 	KURL m_Proxy;
 	int  m_Timeout { 30 };
+	uint16_t m_iMaxRedirects { 3 };
 	bool m_bRequestCompression { true };
 	bool m_bAutoProxy { false };
 	bool m_bUseHTTPProxyProtocol { false };
@@ -386,17 +395,17 @@ public:
 
 //-----------------------------------------------------------------------------
 /// Get from URL, store body in return value KString
-KString kHTTPGet(const KURL& URL);
+KString kHTTPGet(KURL URL);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
 /// Head from URL - returns true if response is in the 2xx range
-bool kHTTPHead(const KURL& URL);
+bool kHTTPHead(KURL URL);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
 /// Post to URL, store body in return value KString
-KString kHTTPPost(const KURL& URL, KStringView svPostData, KStringView svMime);
+KString kHTTPPost(KURL URL, KStringView svPostData, KStringView svMime);
 //-----------------------------------------------------------------------------
 
 

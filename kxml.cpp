@@ -171,6 +171,13 @@ void KXML::Serialize(KOutStream& OutStream, int iPrintFlags) const
 }
 
 //-----------------------------------------------------------------------------
+void KXML::Serialize(KOutStream&& OutStream, int iPrintFlags) const
+//-----------------------------------------------------------------------------
+{
+	Serialize(OutStream, iPrintFlags);
+}
+
+//-----------------------------------------------------------------------------
 void KXML::Serialize(KString& string, int iPrintFlags) const
 //-----------------------------------------------------------------------------
 {
@@ -193,6 +200,13 @@ bool KXML::Parse(KInStream& InStream, bool bPreserveWhiteSpace)
 	clear();
 	kReadAll(InStream, XMLData, false);
 	return Parse(bPreserveWhiteSpace);
+}
+
+//-----------------------------------------------------------------------------
+bool KXML::Parse(KInStream&& InStream, bool bPreserveWhiteSpace)
+//-----------------------------------------------------------------------------
+{
+	return Parse(InStream, bPreserveWhiteSpace);
 }
 
 //-----------------------------------------------------------------------------

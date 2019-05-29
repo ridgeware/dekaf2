@@ -315,6 +315,8 @@ public:
 
 	/// Print DOM into OutStream
 	void Serialize(KOutStream& OutStream, int iPrintFlags = PrintFlags::Default) const;
+	/// Print DOM into OutStream
+	void Serialize(KOutStream&& OutStream, int iPrintFlags = PrintFlags::Default) const;
 	/// Print DOM into string
 	void Serialize(KString& string, int iPrintFlags = PrintFlags::Default) const;
 	/// Print DOM into string
@@ -322,6 +324,8 @@ public:
 
 	/// Parse DOM from InStream
 	bool Parse(KInStream& InStream, bool bPreserveWhiteSpace = false);
+	/// Parse DOM from InStream
+	bool Parse(KInStream&& InStream, bool bPreserveWhiteSpace = false);
 	/// Parse DOM from string
 	bool Parse(KStringView string, bool bPreserveWhiteSpace = false);
 

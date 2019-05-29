@@ -44,6 +44,7 @@
 #include "dekaf2.h"
 #include "kfilesystem.h"
 #include "kopenid.h"
+#include "kstringstream.h"
 
 namespace dekaf2 {
 
@@ -875,29 +876,24 @@ void KRESTServer::RecordRequestForReplay (const Options& Options)
 {
 	if (!Options.sRecordFile.empty())
 	{
-		bool bWriteHeader = !kFileExists(Options.sRecordFile);
+		KString sRecord;
+		KOutStringStream oss(sRecord);
 
-		KOutFile RecordFile(Options.sRecordFile, std::ios::app);
-
-		if (!RecordFile.is_open())
+		if (!kFileExists(Options.sRecordFile))
 		{
-			kDebug (3, "cannot open {}", Options.sRecordFile);
-			return;
-		}
-
-		if (bWriteHeader)
-		{
-			RecordFile.WriteLine("#! /bin/bash");
-			RecordFile.WriteLine();
+			// there is a chance that this test races at initial creation of the
+			// record file, but it wouldn't matter as the bang header then simply
+			// becomes a comment
+			oss.WriteLine("#! /bin/bash");
 		}
 
 		// we can now write the request into the recording file
-		RecordFile.WriteLine();
-		RecordFile.FormatLine("# {} :: from IP {}", kFormTimestamp(), Request.GetBrowserIP());
+		oss.WriteLine();
+		oss.FormatLine("# {} :: from IP {}", kFormTimestamp(), Request.GetBrowserIP());
 
 		if (Response.GetStatusCode() > 299)
 		{
-			RecordFile.Format("#{}#", Response.GetStatusCode());
+			oss.Format("#{}#", Response.GetStatusCode());
 		}
 
 		KURL URL { Request.Resource };
@@ -916,7 +912,7 @@ void KRESTServer::RecordRequestForReplay (const Options& Options)
 			sAdditionalHeader.Format(" -H '{}: {}'", KHTTPHeaders::CONTENT_TYPE, sContentType);
 		}
 
-		RecordFile.Format("curl -i{} -X \"{}\" \"{}\"",
+		oss.Format("curl -i{} -X \"{}\" \"{}\"",
 						  sAdditionalHeader,
 						  Request.Method.Serialize(),
 						  URL.Serialize());
@@ -926,12 +922,24 @@ void KRESTServer::RecordRequestForReplay (const Options& Options)
 		if (!sPost.empty())
 		{
 			sPost.Collapse("\n\r", ' ');
-			RecordFile.Write(" -d '");
-			RecordFile.Write(sPost);
-			RecordFile.Write('\'');
+			oss.Write(" -d '");
+			oss.Write(sPost);
+			oss.Write('\'');
 		}
 
-		RecordFile.WriteLine();
+		oss.WriteLine();
+		oss.Flush();
+
+		KOutFile RecordFile(Options.sRecordFile, std::ios::app);
+
+		if (!RecordFile.is_open())
+		{
+			kDebug (3, "cannot open {}", Options.sRecordFile);
+			return;
+		}
+
+		// write the output in one run to avoid thread segmentation
+		RecordFile.Write(sRecord).Flush();
 	}
 
 } // RecordRequestForReplay

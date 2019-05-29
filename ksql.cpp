@@ -6675,7 +6675,7 @@ bool KSQL::EnsureSchema (KStringView sTablename, uint16_t iInitialRev, uint16_t 
 
 	KString sEscapedTablename = EscapeString(sTablename);
 
-	uint16_t iSchemaRev = (bForce) ? -1 : SingleIntQuery ("select %s from %s", sColName, sEscapedTablename);
+	uint16_t iSchemaRev = (bForce) ? 0 : SingleIntQuery ("select %s from %s", sColName, sEscapedTablename);
 	KString sError;
 
 	kDebug (2, "current rev in db determined to be: {}", iSchemaRev);
@@ -6694,7 +6694,7 @@ bool KSQL::EnsureSchema (KStringView sTablename, uint16_t iInitialRev, uint16_t 
 	}
 
 	// query rev again after acquiring the lock
-	iSchemaRev = (bForce) ? -1 : SingleIntQuery ("select %s from %s", sColName, sEscapedTablename);
+	iSchemaRev = (bForce) ? 0 : SingleIntQuery ("select %s from %s", sColName, sEscapedTablename);
 
 	if (iSchemaRev < iCurrentRev)
 	{

@@ -373,6 +373,9 @@ private:
 	bool SetHostHeader(const KURL& url, bool bForcePort = false);
 	//-----------------------------------------------------------------------------
 
+	//-----------------------------------------------------------------------------
+	bool CheckForRedirect(KURL& URL, KStringView& sRequestMethod);
+	//-----------------------------------------------------------------------------
 
 	std::unique_ptr<KConnection> m_Connection;
 	mutable KString m_sError;

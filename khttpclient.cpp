@@ -538,6 +538,78 @@ bool KHTTPClient::ReadHeaders()
 } // ReadHeader
 
 //-----------------------------------------------------------------------------
+bool KHTTPClient::CheckForRedirect(KURL& URL, KStringView& sRequestMethod)
+//-----------------------------------------------------------------------------
+{
+	// check for redirections
+	switch (Response.GetStatusCode())
+	{
+		case 303:
+			// a 303 response always forces a method change to GET
+			if (sRequestMethod != KHTTPMethod::GET)
+			{
+				kDebug(1, "303 redirect changes method from {} to GET", sRequestMethod);
+				sRequestMethod = KHTTPMethod::GET;
+			}
+			DEKAF2_FALLTHROUGH;
+
+		case 301: // other than some browsers we do not switch the method to
+		case 302: // GET when receiving a 301 or 302 response
+		case 307:
+		case 308:
+			{
+				KURL Redirect = Response.Headers[KHTTPHeaders::location];
+
+				if (!Redirect.empty())
+				{
+					if (Redirect.Query.empty())
+					{
+						Redirect.Query = URL.Query;
+					}
+					if (Redirect.Protocol.empty())
+					{
+						Redirect.Protocol = URL.Protocol;
+					}
+					if (Redirect.Port.empty() && !URL.Port.empty() && Redirect.Domain.empty())
+					{
+						Redirect.Port = URL.Port;
+					}
+					if (Redirect.Domain.empty())
+					{
+						Redirect.Domain = URL.Domain;
+					}
+					// we deliberately drop username and password in a redirection
+
+					kDebug(1, "{} redirect from {} to {}",
+						   Response.GetStatusCode(),
+						   URL.Serialize(),
+						   Redirect.Serialize());
+
+					URL = std::move(Redirect);
+
+					// and follow the redirection
+					return true;
+				}
+				else
+				{
+					SetError(kFormat("invalid {} header in {} redirection: {}",
+									 KHTTPHeaders::LOCATION,
+									 Response.GetStatusCode(),
+									 Response.Headers[KHTTPHeaders::location]));
+				}
+			}
+			break;
+
+		default:
+			break;
+	}
+
+	// no redirection
+	return false;
+
+} // CheckForRedirect
+
+//-----------------------------------------------------------------------------
 KString KHTTPClient::HttpRequest (KURL URL, KStringView sRequestMethod/* = KHTTPMethod::GET*/, KStringView svRequestBody/* = ""*/, KMIME MIME/* = KMIME::JSON*/, bool bVerifyCerts /* = false */)
 //-----------------------------------------------------------------------------
 {
@@ -558,77 +630,21 @@ KString KHTTPClient::HttpRequest (KURL URL, KStringView sRequestMethod/* = KHTTP
 			}
 		}
 
-		// check for redirections
-		switch (Response.GetStatusCode())
+		if (CheckForRedirect(URL, sRequestMethod))
 		{
-			case 303:
-				// a 303 response always forces a method change to GET
-				if (sRequestMethod != KHTTPMethod::GET)
-				{
-					kDebug(1, "303 redirect changes method from {} to GET", sRequestMethod);
-					sRequestMethod = KHTTPMethod::GET;
-				}
-				DEKAF2_FALLTHROUGH;
-
-			case 301: // other than some browsers we do not switch the method to
-			case 302: // GET when receiving a 301 or 302 response
-			case 307:
-			case 308:
-				if (iHadRedirects < m_iMaxRedirects)
-				{
-					KURL Redirect = Response.Headers[KHTTPHeaders::location];
-
-					if (!Redirect.empty())
-					{
-						if (Redirect.Query.empty())
-						{
-							Redirect.Query = URL.Query;
-						}
-						if (Redirect.Protocol.empty())
-						{
-							Redirect.Protocol = URL.Protocol;
-						}
-						if (Redirect.Port.empty() && !URL.Port.empty() && Redirect.Domain.empty())
-						{
-							Redirect.Port = URL.Port;
-						}
-						if (Redirect.Domain.empty())
-						{
-							Redirect.Domain = URL.Domain;
-						}
-						// we deliberately drop username and password in a redirection
-
-						kDebug(1, "{} redirect from {} to {}",
-							   Response.GetStatusCode(),
-							   URL.Serialize(),
-							   Redirect.Serialize());
-
-						URL = std::move(Redirect);
-
-						// and follow the redirection
-						++iHadRedirects;
-						continue;
-					}
-					else
-					{
-						SetError(kFormat("invalid {} header in {} redirection: {}",
-										 KHTTPHeaders::LOCATION,
-										 Response.GetStatusCode(),
-										 Response.Headers[KHTTPHeaders::location]));
-					}
-				}
-				else
-				{
-					SetError(kFormat("number of redirects ({}) exceeds max redirection limit of {}",
-									 iHadRedirects,
-									 m_iMaxRedirects));
-				}
-
-			default:
+			if (iHadRedirects++ >= m_iMaxRedirects)
+			{
+				SetError(kFormat("number of redirects ({}) exceeds max redirection limit of {}",
+								 iHadRedirects,
+								 m_iMaxRedirects));
 				break;
+			}
+			// else loop into the redirection
 		}
-
-		break;
+		else
+		{
+			break;
+		}
 	}
 
 	if (!HttpSuccess() && Error().empty())

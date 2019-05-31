@@ -23,7 +23,7 @@ TEST_CASE("KXML")
 		auto segment1 = unit1.AddNode("segment");
 		segment1.AddAttribute("id", "s1");
 		segment1.SetValue("some contents");
-		auto segment2 = unit1.AddNode("segment", "there is a lot of value in this node").AddAttribute("id", "s2");
+		/* auto segment2 = */ unit1.AddNode("segment", "there is a lot of value in this node").AddAttribute("id", "s2");
 		auto segment3 = unit1.AddNode("segment", "another ");
 		segment3.AddNode("ph", "short");
 		segment3.AddValue(" segment");

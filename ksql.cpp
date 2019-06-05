@@ -6675,7 +6675,7 @@ bool KSQL::EnsureSchema (KStringView sTablename, uint16_t iInitialRev, uint16_t 
 
 	KString sEscapedTablename = EscapeString(sTablename);
 
-	uint16_t iSchemaRev = (bForce) ? 0 : SingleIntQuery ("select %s from %s", sColName, sEscapedTablename);
+	uint16_t iSchemaRev = static_cast<uint16_t>((bForce) ? 0 : SingleIntQuery ("select %s from %s", sColName, sEscapedTablename));
 	KString sError;
 
 	kDebug (2, "current rev in db determined to be: {}", iSchemaRev);
@@ -6694,7 +6694,7 @@ bool KSQL::EnsureSchema (KStringView sTablename, uint16_t iInitialRev, uint16_t 
 	}
 
 	// query rev again after acquiring the lock
-	iSchemaRev = (bForce) ? 0 : SingleIntQuery ("select %s from %s", sColName, sEscapedTablename);
+	iSchemaRev = static_cast<uint16_t>((bForce) ? 0 : SingleIntQuery ("select %s from %s", sColName, sEscapedTablename));
 
 	if (iSchemaRev < iCurrentRev)
 	{
@@ -6740,7 +6740,7 @@ bool KSQL::EnsureSchema (KStringView sTablename, uint16_t iInitialRev, uint16_t 
 				break; // for
 			}
 
-			int iUpdated = GetNumRowsAffected();
+			auto iUpdated = GetNumRowsAffected();
 
 			if (!iUpdated && !ExecSQL ("insert into %s values (%u)", sEscapedTablename, ii))
 			{
@@ -6790,7 +6790,7 @@ uint16_t KSQL::GetSchema (KStringView sTablename)
 //-----------------------------------------------------------------------------
 {
 	m_sLastSQL = kFormat("SELECT {} FROM {}", sColName, EscapeString(sTablename));
-	return SingleIntRawQuery (m_sLastSQL, 0, "GetSchema");
+	return static_cast<uint16_t>(SingleIntRawQuery (m_sLastSQL, 0, "GetSchema"));
 
 } // GetSchema
 

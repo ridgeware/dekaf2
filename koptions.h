@@ -159,6 +159,12 @@ public:
 	/// Returns true if we are executed inside a CGI server
 	bool IsCGIEnvironment() const;
 
+	/// Returns arg[0] / the path and name of the called executable
+	KStringViewZ GetProgramPath() const;
+
+	/// Returns basename of arg[0] / the name of the called executable
+	KStringView GetProgramName() const;
+
 //----------
 private:
 //----------

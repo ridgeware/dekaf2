@@ -467,12 +467,12 @@ int KOptions::Execute(KOutStream& out)
 
 	DEKAF2_CATCH (const MissingParameterError& error)
 	{
-		out.FormatLine("{}: missing parameter after {}{}: {}", kBasename(m_CLIParms.m_sProgramName), lastCommand->Dashes(), lastCommand->sArg, error.what());
+		out.FormatLine("{}: missing parameter after {}{}: {}", GetProgramName(), lastCommand->Dashes(), lastCommand->sArg, error.what());
 	}
 
 	DEKAF2_CATCH (const WrongParameterError& error)
 	{
-		out.FormatLine("{}: wrong parameter after {}{}: {}", kBasename(m_CLIParms.m_sProgramName), lastCommand->Dashes(), lastCommand->sArg, error.what());
+		out.FormatLine("{}: wrong parameter after {}{}: {}", GetProgramName(), lastCommand->Dashes(), lastCommand->sArg, error.what());
 	}
 
 	DEKAF2_CATCH (const Error& error)
@@ -495,6 +495,24 @@ int KOptions::Execute(KOutStream& out)
 	return 1;
 
 } // Execute
+
+
+//---------------------------------------------------------------------------
+KStringViewZ KOptions::GetProgramPath() const
+//---------------------------------------------------------------------------
+{
+	return m_CLIParms.m_sProgramName;
+
+} // GetProgramPath
+
+//---------------------------------------------------------------------------
+KStringView KOptions::GetProgramName() const
+//---------------------------------------------------------------------------
+{
+	return kBasename(GetProgramPath());
+
+} // GetProgramName
+
 
 
 #ifdef DEKAF2_REPEAT_CONSTEXPR_VARIABLE

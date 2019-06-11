@@ -87,9 +87,10 @@ Unicode::codepoint_t CodepointCast(Ch sch)
 class KCodePoint
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
-	//------
-	public:
-	//------
+
+//------
+public:
+//------
 
 	constexpr
 	KCodePoint() = default;
@@ -171,6 +172,77 @@ class KCodePoint
 		uint8_t Category : 5;
 		uint8_t Type     : 3;
 		uint8_t CaseFold;
+
+		//-----------------------------------------------------------------------------
+		bool IsSpace() const
+		//-----------------------------------------------------------------------------
+		{
+			return Type == Separator;
+		}
+
+		//-----------------------------------------------------------------------------
+		bool IsBlank() const
+		//-----------------------------------------------------------------------------
+		{
+			return Category == SeparatorSpace;
+		}
+
+		//-----------------------------------------------------------------------------
+		bool IsLower() const
+		//-----------------------------------------------------------------------------
+		{
+			return Category == LetterLowercase;
+		}
+
+		//-----------------------------------------------------------------------------
+		bool IsUpper() const
+		//-----------------------------------------------------------------------------
+		{
+			return Category == LetterUppercase;
+		}
+
+		//-----------------------------------------------------------------------------
+		bool IsTitle() const
+		//-----------------------------------------------------------------------------
+		{
+			return Category == LetterTitlecase;
+		}
+
+		//-----------------------------------------------------------------------------
+		bool IsAlpha() const
+		//-----------------------------------------------------------------------------
+		{
+			return Type == Letter;
+		}
+
+		//-----------------------------------------------------------------------------
+		bool IsAlNum() const
+		//-----------------------------------------------------------------------------
+		{
+			return Type == Letter || Category == NumberDecimalDigit;
+		}
+
+		//-----------------------------------------------------------------------------
+		bool IsPunct() const
+		//-----------------------------------------------------------------------------
+		{
+			return Type == Punctuation
+				|| Type == Symbol
+				|| Type == Mark
+				|| Category == NumberOther
+				|| Category == OtherPrivateUse
+				|| Category == OtherFormat;
+		}
+
+		//-----------------------------------------------------------------------------
+		bool IsUnicodeDigit() const
+		//-----------------------------------------------------------------------------
+		{
+			return Category == NumberDecimalDigit;
+		}
+
+
+
 	};
 
 //------
@@ -285,7 +357,7 @@ public:
 	{
 		if (DEKAF2_LIKELY(m_CodePoint <= MAX_TABLE))
 		{
-			return CodePoints[m_CodePoint].Type == Separator;
+			return CodePoints[m_CodePoint].IsSpace();
 		}
 		else
 		{
@@ -311,7 +383,7 @@ public:
 	{
 		if (DEKAF2_LIKELY(m_CodePoint <= MAX_TABLE))
 		{
-			return CodePoints[m_CodePoint].Category == SeparatorSpace;
+			return CodePoints[m_CodePoint].IsBlank();
 		}
 		else
 		{
@@ -337,7 +409,7 @@ public:
 	{
 		if (DEKAF2_LIKELY(m_CodePoint <= MAX_TABLE))
 		{
-			return CodePoints[m_CodePoint].Category == LetterLowercase;
+			return CodePoints[m_CodePoint].IsLower();
 		}
 		else
 		{
@@ -363,7 +435,7 @@ public:
 	{
 		if (DEKAF2_LIKELY(m_CodePoint <= MAX_TABLE))
 		{
-			return CodePoints[m_CodePoint].Category == LetterUppercase;
+			return CodePoints[m_CodePoint].IsUpper();
 		}
 		else
 		{
@@ -389,7 +461,7 @@ public:
 	{
 		if (DEKAF2_LIKELY(m_CodePoint <= MAX_TABLE))
 		{
-			return CodePoints[m_CodePoint].Category == LetterTitlecase;
+			return CodePoints[m_CodePoint].IsTitle();
 		}
 		else
 		{
@@ -411,7 +483,7 @@ public:
 	{
 		if (DEKAF2_LIKELY(m_CodePoint <= MAX_TABLE))
 		{
-			return CodePoints[m_CodePoint].Type == Letter;
+			return CodePoints[m_CodePoint].IsAlpha();
 		}
 		else
 		{
@@ -437,8 +509,7 @@ public:
 	{
 		if (DEKAF2_LIKELY(m_CodePoint <= MAX_TABLE))
 		{
-			Property p = CodePoints[m_CodePoint];
-			return p.Type == Letter || p.Category == NumberDecimalDigit;
+			return CodePoints[m_CodePoint].IsAlNum();
 		}
 		else
 		{
@@ -464,13 +535,7 @@ public:
 	{
 		if (DEKAF2_LIKELY(m_CodePoint <= MAX_TABLE))
 		{
-			auto Prop = CodePoints[m_CodePoint];
-			return Prop.Type == Punctuation
-			    || Prop.Type == Symbol
-			    || Prop.Type == Mark
-		        || Prop.Category == NumberOther
-				|| Prop.Category == OtherPrivateUse
-		        || Prop.Category == OtherFormat;
+			return CodePoints[m_CodePoint].IsPunct();
 		}
 		else
 		{
@@ -520,7 +585,7 @@ public:
 	{
 		if (DEKAF2_LIKELY(m_CodePoint <= MAX_TABLE))
 		{
-			return CodePoints[m_CodePoint].Category == NumberDecimalDigit;
+			return CodePoints[m_CodePoint].IsUnicodeDigit();
 		}
 		else
 		{

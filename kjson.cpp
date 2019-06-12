@@ -175,7 +175,7 @@ const KString& GetStringRef(const KJSON& json, KStringView sKey) noexcept
 	static KString s_sEmpty{};
 
 	auto it = json.find(sKey);
-	if (it != json.end())
+	if (it != json.end() && it.value().is_string())
 	{
 		return it.value().get_ref<const KString&>();
 	}

@@ -478,6 +478,9 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 			// try to remove_prefix, do not complain if not existing
 			sURLPath.remove_prefix(Options.sBaseRoute);
 
+			// try to remove a trailing / - we treat /path and /path/ as the same address
+			sURLPath.remove_suffix("/");
+
 			// find the right route
 			auto Route = Routes.FindRoute(KRESTPath(Request.Method, sURLPath), Request.Resource.Query, Options.bCheckForWrongMethod);
 

@@ -266,6 +266,9 @@ TEST_CASE("KREST")
 		CHECK ( REST.Simulate(Options, Routes, "/test", oss) == true );
 
 		sOut.clear();
+		CHECK ( REST.Simulate(Options, Routes, "/test/", oss) == true );
+
+		sOut.clear();
 		CHECK ( REST.Simulate(Options, Routes, "/help", oss) == true );
 
 		sOut.clear();

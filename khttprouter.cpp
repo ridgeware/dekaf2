@@ -198,6 +198,9 @@ bool KHTTPRouter::Execute(const KHTTPRoutes& Routes, KStringView sBaseRoute)
 		// try to remove_prefix, do not complain if not existing
 		sURLPath.remove_prefix(sBaseRoute);
 
+		// try to remove a trailing / - we treat /path and /path/ as the same address
+		sURLPath.remove_suffix("/");
+
 		auto Route = Routes.FindRoute(KHTTPPath(sURLPath));
 
 		if (!Route.Callback)

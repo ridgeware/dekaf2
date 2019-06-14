@@ -95,6 +95,7 @@ bool KBAR::Start (uint64_t iExpected)
 
 	if (m_iExpected && (m_iFlags & SLIDER))
 	{
+		m_iSoFar = 0;
 		_SliderAction (KPS_START, 0, 0);
 		m_bSliding = true;
 	}

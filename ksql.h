@@ -467,7 +467,9 @@ public:
 	bool ReleaseLock (KStringView sName);
 	bool IsLocked (KStringView sName);
 
-	bool EnsureSchema (KStringView sTablename, uint16_t iInitialRev, uint16_t iCurrentRev, KStringView sSchemaFileFormat, bool bForce = false);
+	using SchemaCallback = std::function<bool(uint16_t iFrom, uint16_t iTo)>;
+
+	bool EnsureSchema (KStringView sTablename, uint16_t iInitialRev, uint16_t iCurrentRev, KStringView sSchemaFileFormat, bool bForce = false, SchemaCallback Callback = nullptr);
 	uint16_t GetSchema (KStringView sTablename);
 
 	TXList  m_TxList;

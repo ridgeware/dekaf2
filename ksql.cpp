@@ -6668,7 +6668,7 @@ bool KSQL::IsLocked (KStringView sName)
 static constexpr KStringView sColName = "schema_rev";
 
 //-----------------------------------------------------------------------------
-bool KSQL::EnsureSchema (KStringView sTablename, uint16_t iInitialRev, uint16_t iCurrentRev, KStringView sSchemaFileFormat, bool bForce)
+bool KSQL::EnsureSchema (KStringView sTablename, uint16_t iInitialRev, uint16_t iCurrentRev, KStringView sSchemaFileFormat, bool bForce, SchemaCallback Callback)
 //-----------------------------------------------------------------------------
 {
 	kDebug (1, "...");
@@ -6703,6 +6703,8 @@ bool KSQL::EnsureSchema (KStringView sTablename, uint16_t iInitialRev, uint16_t 
 			return false;
 		}
 
+		uint16_t iFromRev = iSchemaRev;
+
 		for (auto ii = std::max(++iSchemaRev, iInitialRev); ii <= iCurrentRev; ++ii)
 		{
 			kDebug (1, "{}", KLog::DASH);
@@ -6721,6 +6723,15 @@ bool KSQL::EnsureSchema (KStringView sTablename, uint16_t iInitialRev, uint16_t 
 			{
 				sError= GetLastError();
 				break; // for
+			}
+
+			if (Callback)
+			{
+				if (!Callback(iFromRev++, ii))
+				{
+					sError = "Callback returned with abort request";
+					break;
+				}
 			}
 
 			if (ii == iInitialRev)

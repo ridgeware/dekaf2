@@ -464,6 +464,7 @@ set(PUBLIC_HEADERS
 	kinpipe.h
 	kinshell.h
 	kinstringstream.h
+	kjoin.h
 	kjson.h
 	klambdastream.h
 	klog.h

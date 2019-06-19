@@ -33,6 +33,7 @@ set (USOURCES
 	khttpserver_tests.cpp
 	kinpipe_tests.cpp
 	kinshell_tests.cpp
+	kjoin_tests.cpp
 	kjson_tests.cpp
 	klog_tests.cpp
 	kmessagedigest_tests.cpp

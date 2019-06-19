@@ -215,6 +215,12 @@ public:
 	using range              = std::pair<map_iterator, map_iterator>;
 	using const_range        = std::pair<const_map_iterator, const_map_iterator>;
 	using value_type         = Element;
+	using key_type           = Key;
+
+	KProps() = default;
+	KProps (std::initializer_list<value_type> il) : m_Storage(il) {}
+	template<class _InputIterator>
+	KProps (_InputIterator first, _InputIterator last) : m_Storage(first, last) {}
 
 	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	class Parser

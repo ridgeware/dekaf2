@@ -2,6 +2,7 @@
 
 #include <dekaf2/kstringview.h>
 #include <dekaf2/kstringutils.h>
+#include <dekaf2/kprops.h>
 #include <vector>
 #include <iostream>
 
@@ -994,5 +995,96 @@ TEST_CASE("KStringViewZ") {
 			CHECK( sString == "non-empty" );
 		}
 	}
+
+	SECTION("split vector")
+	{
+		std::vector<KStringView> vec {
+			"one",
+			"two",
+			"three",
+			"four"
+		};
+
+		KStringViewZ sString = "one,two,three,four";
+		auto rvec = sString.Split();
+
+		CHECK (rvec == vec );
+	}
+
+	SECTION("split list")
+	{
+		std::list<KStringView> list {
+			"one",
+			"two",
+			"three",
+			"four"
+		};
+
+		KStringViewZ sString = "one,two,three,four";
+		auto rlist = sString.Split<std::list<KStringView>>();
+
+		CHECK (rlist == list );
+	}
+
+	SECTION("split map")
+	{
+		std::map<KStringView, KStringView> map {
+			{ "1" , "one"   },
+			{ "2" , "two"   },
+			{ "3" , "three" },
+			{ "4" , "four"  }
+		};
+
+		KStringViewZ sString = "1=one,2=two,3=three,4=four";
+		auto rmap = sString.SplitPairs<std::map<KStringView, KStringView>>();
+
+		CHECK (rmap == map );
+	}
+
+	SECTION("split map with non-default limiters")
+	{
+		std::map<KStringView, KStringView> map {
+			{ "1" , "one"   },
+			{ "2" , "two"   },
+			{ "3" , "three" },
+			{ "4" , "four"  }
+		};
+
+		KStringViewZ sString = "1-one 2-two 3-three 4-four";
+		auto rmap = sString.SplitPairs<std::map<KStringView, KStringView>>('-', " ");
+
+		CHECK (rmap == map );
+	}
+
+	SECTION("split map with non-default limiters and trim")
+	{
+		std::map<KStringView, KStringView> map {
+			{ "1" , "one"   },
+			{ "2" , "two"   },
+			{ "3" , "three" },
+			{ "4" , "four"  }
+		};
+
+		KStringViewZ sString = "1-one **2-two 3-three** **4-four**";
+		auto rmap = sString.SplitPairs<std::map<KStringView, KStringView>>('-', " ", "*");
+
+		CHECK (rmap == map );
+	}
+
+	SECTION("split kprops")
+	{
+		KProps<KStringView, KStringView, true, true> map {
+			{ "1" , "one"   },
+			{ "2" , "two"   },
+			{ "3" , "three" },
+			{ "4" , "four"  }
+		};
+
+		KStringViewZ sString = "1=one,2=two,3=three,4=four";
+		auto rmap = sString.SplitPairs<KProps<KStringView, KStringView, true, true>>();
+
+		CHECK (rmap == map );
+	}
+
 }
 

@@ -258,7 +258,8 @@ public:
 	/// otherwise do not alter the string
 	bool ClipAtReverse(KStringView sClipAtReverse);
 	//-----------------------------------------------------------------------------
-
+	using base_type::Split;
+	using base_type::SplitPairs;
 	using base_type::Bool;
 	using base_type::Int16;
 	using base_type::UInt16;

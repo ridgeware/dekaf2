@@ -43,6 +43,7 @@
 #pragma once
 
 #include "kstringview.h"
+#include "kstring.h"
 #include <type_traits>
 
 /// @file kjoin.h
@@ -53,7 +54,7 @@ namespace dekaf2
 
 namespace detail {
 
-	// primary template handles types that have no key_type member:
+// primary template handles types that have no key_type member:
 template< class, class = std::void_t<> >
 struct has_key_type : std::false_type { };
 
@@ -61,7 +62,7 @@ struct has_key_type : std::false_type { };
 template< class T >
 struct has_key_type<T, std::void_t<typename T::key_type>> : std::true_type { };
 
-}
+} // end of namespace detail
 
 //-----------------------------------------------------------------------------
 /// join for sequential containers
@@ -119,6 +120,40 @@ void kJoin (Result& sBuffer,
 
 		sBuffer += svDelim;
 	}
+}
+
+//-----------------------------------------------------------------------------
+/// join for sequential containers, returns result
+template<typename Container, typename Result = KString,
+	typename std::enable_if_t<detail::has_key_type<Container>::value == false, int> = 0 >
+Result kJoined (
+			const Container& ctContainer,
+			KStringView svDelim = ",",
+			// we add the svPairDelim here to give the same interface as for
+			// the associative containers - the value is not used
+			KStringView svPairDelim = "="
+)
+//-----------------------------------------------------------------------------
+{
+	Result result;
+	kJoin(result, ctContainer, svDelim, svPairDelim);
+	return result;
+}
+
+//-----------------------------------------------------------------------------
+/// join for associative containers, returns result
+template<typename Container, typename Result = KString,
+	typename std::enable_if_t<detail::has_key_type<Container>::value == true, int> = 0 >
+Result kJoined (
+			const Container& ctContainer,
+			KStringView svDelim = ",",
+			KStringView svPairDelim = "="
+)
+//-----------------------------------------------------------------------------
+{
+	Result result;
+	kJoin(result, ctContainer, svDelim, svPairDelim);
+	return result;
 }
 
 } // namespace dekaf2

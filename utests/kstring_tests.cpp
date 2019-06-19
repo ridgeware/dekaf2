@@ -8,6 +8,7 @@
 #include <cwctype>
 #include <dekaf2/dekaf2.h>
 #include <dekaf2/kctype.h>
+#include <dekaf2/kprops.h>
 
 using namespace dekaf2;
 
@@ -1242,5 +1243,241 @@ TEST_CASE("KString") {
 			CHECK( sString == "non-empty" );
 		}
 	}
+
+	SECTION("join vector")
+	{
+		std::vector<KStringView> vec {
+			"one",
+			"two",
+			"three",
+			"four"
+		};
+
+		KString sResult;
+		sResult.Join(vec);
+
+		CHECK (sResult == "one,two,three,four" );
+	}
+
+	SECTION("join list")
+	{
+		std::list<KStringView> list {
+			"one",
+			"two",
+			"three",
+			"four"
+		};
+
+		KString sResult;
+		sResult.Join(list);
+
+		CHECK (sResult == "one,two,three,four" );
+	}
+
+	SECTION("join map")
+	{
+		std::map<KStringView, KStringView> map {
+			{ "1" , "one"   },
+			{ "2" , "two"   },
+			{ "3" , "three" },
+			{ "4" , "four"  }
+		};
+
+		KString sResult;
+		sResult.Join(map);
+
+		CHECK (sResult == "1=one,2=two,3=three,4=four" );
+	}
+
+	SECTION("join map with non-default limiters")
+	{
+		std::map<KStringView, KStringView> map {
+			{ "1" , "one"   },
+			{ "2" , "two"   },
+			{ "3" , "three" },
+			{ "4" , "four"  }
+		};
+
+		KString sResult;
+		sResult.Join(map, " and ", " is ");
+
+		CHECK (sResult == "1 is one and 2 is two and 3 is three and 4 is four" );
+	}
+
+	SECTION("join kprops")
+	{
+		KProps<KStringView, KStringView, true, true> map {
+			{ "1" , "one"   },
+			{ "2" , "two"   },
+			{ "3" , "three" },
+			{ "4" , "four"  }
+		};
+
+		KString sResult;
+		sResult.Join(map);
+
+		CHECK (sResult == "1=one,2=two,3=three,4=four" );
+	}
+
+	SECTION("join vector")
+	{
+		std::vector<KStringView> vec {
+			"one",
+			"two",
+			"three",
+			"four"
+		};
+
+		KString sResult = kJoined(vec);
+
+		CHECK (sResult == "one,two,three,four" );
+	}
+
+	SECTION("join list")
+	{
+		std::list<KStringView> list {
+			"one",
+			"two",
+			"three",
+			"four"
+		};
+
+		KString sResult = kJoined(list);
+
+		CHECK (sResult == "one,two,three,four" );
+	}
+
+	SECTION("join map")
+	{
+		std::map<KStringView, KStringView> map {
+			{ "1" , "one"   },
+			{ "2" , "two"   },
+			{ "3" , "three" },
+			{ "4" , "four"  }
+		};
+
+		KString sResult = kJoined(map);
+
+		CHECK (sResult == "1=one,2=two,3=three,4=four" );
+	}
+
+	SECTION("join map with non-default limiters")
+	{
+		std::map<KStringView, KStringView> map {
+			{ "1" , "one"   },
+			{ "2" , "two"   },
+			{ "3" , "three" },
+			{ "4" , "four"  }
+		};
+
+		KString sResult = kJoined(map, " and ", " is ");
+
+		CHECK (sResult == "1 is one and 2 is two and 3 is three and 4 is four" );
+	}
+
+	SECTION("join kprops")
+	{
+		KProps<KStringView, KStringView, true, true> map {
+			{ "1" , "one"   },
+			{ "2" , "two"   },
+			{ "3" , "three" },
+			{ "4" , "four"  }
+		};
+
+		KString sResult = kJoined(map);
+
+		CHECK (sResult == "1=one,2=two,3=three,4=four" );
+	}
+
+	SECTION("split vector")
+	{
+		std::vector<KStringView> vec {
+			"one",
+			"two",
+			"three",
+			"four"
+		};
+
+		KString sString = "one,two,three,four";
+		auto rvec = sString.Split();
+
+		CHECK (rvec == vec );
+	}
+
+	SECTION("split list")
+	{
+		std::list<KStringView> list {
+			"one",
+			"two",
+			"three",
+			"four"
+		};
+
+		KString sString = "one,two,three,four";
+		auto rlist = sString.Split<std::list<KStringView>>();
+
+		CHECK (rlist == list );
+	}
+
+	SECTION("split map")
+	{
+		std::map<KStringView, KStringView> map {
+			{ "1" , "one"   },
+			{ "2" , "two"   },
+			{ "3" , "three" },
+			{ "4" , "four"  }
+		};
+
+		KString sString = "1=one,2=two,3=three,4=four";
+		auto rmap = sString.SplitPairs<std::map<KStringView, KStringView>>();
+
+		CHECK (rmap == map );
+	}
+
+	SECTION("split map with non-default limiters")
+	{
+		std::map<KStringView, KStringView> map {
+			{ "1" , "one"   },
+			{ "2" , "two"   },
+			{ "3" , "three" },
+			{ "4" , "four"  }
+		};
+
+		KString sString = "1-one 2-two 3-three 4-four";
+		auto rmap = sString.SplitPairs<std::map<KStringView, KStringView>>('-', " ");
+
+		CHECK (rmap == map );
+	}
+
+	SECTION("split map with non-default limiters and trim")
+	{
+		std::map<KStringView, KStringView> map {
+			{ "1" , "one"   },
+			{ "2" , "two"   },
+			{ "3" , "three" },
+			{ "4" , "four"  }
+		};
+
+		KString sString = "1-one **2-two 3-three** **4-four**";
+		auto rmap = sString.SplitPairs<std::map<KStringView, KStringView>>('-', " ", "*");
+
+		CHECK (rmap == map );
+	}
+
+	SECTION("split kprops")
+	{
+		KProps<KStringView, KStringView, true, true> map {
+			{ "1" , "one"   },
+			{ "2" , "two"   },
+			{ "3" , "three" },
+			{ "4" , "four"  }
+		};
+
+		KString sString = "1=one,2=two,3=three,4=four";
+		auto rmap = sString.SplitPairs<KProps<KStringView, KStringView, true, true>>();
+
+		CHECK (rmap == map );
+	}
+
 }
 

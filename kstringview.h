@@ -905,6 +905,20 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	// nonstandard
+	/// return a sequence of split tokens with default delimiter ',' and default trim white space
+	template<typename T = std::vector<KStringView>, typename... Parms>
+	T Split(Parms&&... parms) const;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	// nonstandard
+	/// return a map of split tokens with default delimiters '=' and ',' and default trim
+	template<typename T, typename... Parms>
+	T SplitPairs(Parms&&... parms) const;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
 	void swap(self_type& other)
 	//-----------------------------------------------------------------------------
 	{
@@ -1650,6 +1664,7 @@ inline constexpr std::size_t dekaf2::KStringView::Hash() const
 }
 
 #include "bits/kstringviewz.h"
+#include "ksplit.h"
 
 namespace dekaf2 {
 
@@ -1756,6 +1771,26 @@ KString KStringView::ToLowerLocale() const
 //-----------------------------------------------------------------------------
 {
 	return kToLowerLocale(*this);
+}
+
+//-----------------------------------------------------------------------------
+template<typename T, typename...Parms>
+T KStringView::Split(Parms&&... parms) const
+//-----------------------------------------------------------------------------
+{
+	T Container;
+	kSplit(Container, *this, std::forward<Parms>(parms)...);
+	return Container;
+}
+
+//-----------------------------------------------------------------------------
+template<typename T, typename...Parms>
+T KStringView::SplitPairs(Parms&&... parms) const
+//-----------------------------------------------------------------------------
+{
+	T Container;
+	kSplitPairs(Container, *this, std::forward<Parms>(parms)...);
+	return Container;
 }
 
 } // end of namespace dekaf2

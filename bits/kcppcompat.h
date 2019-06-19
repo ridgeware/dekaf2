@@ -268,6 +268,16 @@ using decay_t = typename decay<T>::type;
 }
 #endif
 
+#ifndef DEKAF2_HAS_CPP_17
+namespace std
+{
+
+template <typename...>
+using void_t = void;
+
+}
+#endif
+
 // define macros to teach the compiler which branch is more likely
 // to be taken - the effects are actually minimal to nonexisting,
 // so do not bother for code that is not really core

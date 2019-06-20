@@ -566,7 +566,7 @@ public:
 
 	/// append a sequence of tokens with default delimiters
 	template<typename T, typename... Parms>
-	self& Join(T Container, Parms&&... parms);
+	self& Join(const T& Container, Parms&&... parms);
 
 	/// convert to representation type
 #ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
@@ -1353,7 +1353,7 @@ T KString::SplitPairs(Parms&&... parms) const
 
 //-----------------------------------------------------------------------------
 template<typename T, typename...Parms>
-KString::self& KString::Join(T Container, Parms&&... parms)
+KString::self& KString::Join(const T& Container, Parms&&... parms)
 //-----------------------------------------------------------------------------
 {
 	kJoin(*this, Container, std::forward<Parms>(parms)...);

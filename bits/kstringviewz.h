@@ -237,8 +237,15 @@ public:
 		return ToView(iStart);
 	}
 
-	// for the remaining signature
-	using base_type::Mid;
+	//-----------------------------------------------------------------------------
+	// nonstandard
+	/// returns substring starting at iStart with size iCount
+	constexpr
+	KStringView Mid(size_type iStart, size_type iCount) const noexcept
+	//-----------------------------------------------------------------------------
+	{
+		return ToView(iStart, iCount);
+	}
 
 	//-----------------------------------------------------------------------------
 	// nonstandard

@@ -715,22 +715,6 @@ KStringView KStringView::Right(size_type iCount) const
 } // Right
 
 //----------------------------------------------------------------------
-KStringView KStringView::Mid(size_type iStart, size_type iCount) const
-//----------------------------------------------------------------------
-{
-	if (iStart + iCount > size())
-	{
-		if (iStart > size())
-		{
-			iStart = size();
-		}
-		iCount = size() - iStart;
-	}
-	return KStringView(data() + iStart, iCount);
-
-} // Mid
-
-//----------------------------------------------------------------------
 KStringView& KStringView::TrimLeft()
 //----------------------------------------------------------------------
 {

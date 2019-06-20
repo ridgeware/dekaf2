@@ -827,18 +827,13 @@ public:
 
 	//-----------------------------------------------------------------------------
 	// nonstandard
-	/// returns substring starting at iStart until end of string
-	KStringView Mid(size_type iStart) const
+	/// returns substring starting at iStart for iCount chars
+	constexpr
+	KStringView Mid(size_type iStart, size_type iCount = npos) const
 	//-----------------------------------------------------------------------------
 	{
-		return ToView(iStart);
+		return ToView(iStart, iCount);
 	}
-
-	//-----------------------------------------------------------------------------
-	// nonstandard
-	/// returns substring starting at iStart for iCount chars
-	KStringView Mid(size_type iStart, size_type iCount) const;
-	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	// nonstandard

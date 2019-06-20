@@ -622,8 +622,7 @@ void KLog::CheckDebugFlag(bool bForce/*=false*/)
 			// read the first line
 			if (file.ReadLine(sLine))
 			{
-				std::vector<KStringView> parts;
-				kSplit(parts, sLine, ", ");
+				auto parts = sLine.Split(", ");
 				size_t pos = 0;
 				for (auto it : parts)
 				{

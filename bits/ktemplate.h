@@ -1,5 +1,4 @@
 /*
-//-----------------------------------------------------------------------------//
 //
 // DEKAF(tm): Lighter, Faster, Smarter (tm)
 //
@@ -48,6 +47,42 @@
 #include <functional>
 #include <cwctype>
 #include <type_traits>
+
+// we do general algorithms before including kstring.h / kstringview.h below
+
+namespace dekaf2
+{
+
+namespace detail
+{
+
+template <template <typename> class F>
+struct conversion_tester
+{
+    template <typename T>
+    conversion_tester (const F<T> &);
+};
+
+template <class From, template <typename> class To>
+struct is_instance_of
+{
+    static const bool value = std::is_convertible<From, conversion_tester<To>>::value;
+};
+
+// primary template handles types that have no key_type member:
+template< class, class = std::void_t<> >
+struct has_key_type : std::false_type { };
+
+// specialization recognizes types that do have a key_type member:
+template< class T >
+struct has_key_type<T, std::void_t<typename T::key_type>> : std::true_type { };
+
+} // of namespace detail
+
+} // of namespace dekaf2
+
+// now include kstring / view.h for the string tests
+
 #include "../kstring.h"
 #include "../kstringview.h"
 #include "kstringviewz.h"
@@ -135,19 +170,6 @@ struct is_str
       is_cpp_str<T>::value ||
       is_c_str<T>::value
 > {};
-
-template <template <typename> class F>
-struct conversion_tester
-{
-    template <typename T>
-    conversion_tester (const F<T> &);
-};
-
-template <class From, template <typename> class To>
-struct is_instance_of
-{
-    static const bool value = std::is_convertible<From, conversion_tester<To>>::value;
-};
 
 } // of namespace detail
 

@@ -628,9 +628,7 @@ KStackFrame kFilterTrace (int iSkipStackLines, KStringView sSkipFiles)
 KString kGetAddress2Line(KStringView sAddresses)
 //-----------------------------------------------------------------------------
 {
-	std::vector<KStringView> vAddresses;
-
-	kSplit(vAddresses, sAddresses, " ");
+	auto vAddresses = sAddresses.Split(" ");
 
 	auto vResult = detail::Addr2Line(vAddresses);
 

@@ -354,7 +354,7 @@ TEST_CASE("kSplitToPair")
 
 }
 
-TEST_CASE("kSplitPairs")
+TEST_CASE("kSplit for maps")
 {
 
 	SECTION("split default map")
@@ -375,7 +375,7 @@ TEST_CASE("kSplitPairs")
 		{
 			INFO(it[0]);
 			std::map<KStringView, KStringView> aMap;
-			auto iCount = kSplitPairs(aMap, it[0]);
+			auto iCount = kSplit(aMap, it[0]);
 			if (ct == 0) CHECK (iCount == 0);
 			else
 			{
@@ -406,7 +406,7 @@ TEST_CASE("kSplitPairs")
 		{
 			INFO(it[0]);
 			KProps<KStringView, KStringView> aMap;
-			auto iCount = kSplitPairs(aMap, it[0]);
+			auto iCount = kSplit(aMap, it[0]);
 			if (ct == 0) CHECK (iCount == 0);
 			else
 			{
@@ -437,7 +437,7 @@ TEST_CASE("kSplitPairs")
 		{
 			INFO(it[0]);
 			KProps<KStringView, KStringView> aMap;
-			auto iCount = kSplitPairs(aMap, it[0],'=', ",", "");
+			auto iCount = kSplit(aMap, it[0],'=', ",", "");
 			if (ct == 0) CHECK (iCount == 0);
 			else
 			{
@@ -468,7 +468,7 @@ TEST_CASE("kSplitPairs")
 		{
 			INFO(it[0]);
 			KProps<KStringView, KStringView> aMap;
-			auto iCount = kSplitPairs(aMap, it[0], '=', ",", " \t\r\n", '-');
+			auto iCount = kSplit(aMap, it[0], '=', ",", " \t\r\n", '-');
 			if (ct == 0) CHECK (iCount == 0);
 			else
 			{
@@ -494,7 +494,7 @@ TEST_CASE("kSplitPairs")
 		{
 			INFO(it[0]);
 			std::map<KStringView, KStringView> aMap;
-			auto iCount = kSplitPairs(aMap, it[0], '=', "&");
+			auto iCount = kSplit(aMap, it[0], '=', "&");
 			CHECK( iCount == 3 );
 			CHECK( aMap.size() == 3 );
 			auto i = aMap.begin();

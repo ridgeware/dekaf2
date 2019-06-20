@@ -258,9 +258,8 @@ bool KSystemStats::GatherProcInfo ()
 	{
 		sVersion.TrimRight();
 		kDebug (2, "LOADAVG: {}", sLoadAvg);
-		KStack<KStringView> Parts;
 		sLoadAvg.Replace('/', ' ',true);
-		kSplit(Parts, sLoadAvg, " ");
+		auto Parts = sLoadAvg.Split(" ");
 
 		// 4th item had a slash and became 2 items with the Replace+kSplit above, and last field is just most recent PID (disregard)
 		if (Parts.size() == 6)
@@ -277,8 +276,7 @@ bool KSystemStats::GatherProcInfo ()
 	{
 		sUptime.TrimRight();
 		kDebug (2, "UPTIME: {}", sUptime);
-		KStack<KStringView> Parts;
-		kSplit(Parts, sUptime, " ");
+		auto Parts = sUptime.Split(" ");
 		if (Parts.size() == 2)
 		{
 			double nTotal = Parts.at(0).Double();
@@ -363,8 +361,7 @@ bool KSystemStats::GatherMiscInfo ()
 	{
 		kDebug (3, "{}: raw: {}", PROC_MISC, sLine);
 
-		KStack<KStringView> Parts;
-		kSplit(Parts, sLine, " ");
+		auto Parts = sLine.Split(" ");
 		if (Parts.size() != 2)
 		{
 			kDebug (3, "Got an unexpected line: {}", sLine);
@@ -483,8 +480,7 @@ bool KSystemStats::GatherVmStatInfo ()
 
 		kDebug (2, "{}: raw: {}", PROC_VMSTAT, sLine);
 
-		KStack<KStringView> Parts;
-		kSplit(Parts, sLine, " ");
+		auto Parts = sLine.Split(" ");
 
 		if (Parts.size() != 2)
 		{
@@ -568,8 +564,7 @@ bool KSystemStats::GatherDiskStats ()
 		sLine.TrimLeft();
 		sLine.ReplaceRegex("[ ]{2,}", " ", true);
 
-		KStack<KStringView> Parts;
-		kSplit (Parts, sLine, " ");
+		auto Parts = sLine.Split(" ");
 		if (Parts.size() != 14)
 		{
 			kDebug(3, "Got unexpected line from {}", PROC_DISKSTATS);
@@ -707,8 +702,7 @@ bool KSystemStats::GatherCpuInfo ()
 
 		kDebug (2, "{}: raw: {}", PROC_CPUINFO, sLine);
 
-		KStack<KStringView> Parts;
-		kSplit(Parts, sLine, ":");
+		auto Parts = sLine.Split(":");
 		if (Parts.size() != 2)
 		{
 			kDebug(2, "Got unexpected line from {}", PROC_CPUINFO);
@@ -775,8 +769,7 @@ bool KSystemStats::GatherCpuInfo ()
 
 		kDebug (3, "{}: raw: {}", PROC_STAT, sLine);
 
-		KStack<KStringView> Parts;
-		kSplit(Parts, sLine, " ");
+		auto Parts = sLine.Split(" ");
 
 		if (Parts.at(0) == "cpu")
 		{
@@ -868,8 +861,7 @@ bool KSystemStats::GatherMemInfo ()
 
 		kDebug (3, "{}: raw: {}", PROC_MEMINFO, sLine);
 
-		KStack<KStringView> Parts;
-		kSplit(Parts, sLine, ":");
+		auto Parts = sLine.Split(":");
 
 		KString sName  (Parts.at(0).ToLower());
 		KStringView sValue (Parts.at(1));
@@ -951,8 +943,7 @@ bool KSystemStats::GatherNetstat ()
 		// unix  2      [ ]         DGRAM                    1739   @/org/kernel/udev/udevd
 		// unix  3      [ ]         STREAM     CONNECTED     27941272
 
-		KStack<KStringView> Parts;
-		kSplit(Parts, sLine, " ");
+		auto Parts = sLine.Split(" ");
 
 		KString sName("netstat_");
 
@@ -992,8 +983,7 @@ bool KSystemStats::GatherNetstat ()
 	if (m_Stats.Contains("ipv4_ip_local_port_range"))
 	{
 		// the ip_local_port_range file has a min and max:
-		KStack<KStringView> Parts;
-		kSplit(Parts, m_Stats["ipv4_ip_local_port_range"].sValue, " ");
+		auto Parts = m_Stats["ipv4_ip_local_port_range"].sValue.Split(" ");
 		// TODO re-examine logic here... converting atoi and then "AddNonEmpty" stat converts itoa...
 		// But there is also the NeverNegative logic
 		Add ("ipv4_ip_local_port_min", NeverNegative (Parts.at(0).Int32()), StatType::INTEGER);
@@ -1058,7 +1048,6 @@ size_t KSystemStats::GatherProcs (KStringView sCommandRegex/*=""*/, bool bDoNoSh
 
 	KRegex kregex(sCommandRegex);
 	KInShell pipe;
-	KStack<KStringView> Parts;
 	KString sWhat;
 
 	KStringView sPID;
@@ -1089,8 +1078,7 @@ size_t KSystemStats::GatherProcs (KStringView sCommandRegex/*=""*/, bool bDoNoSh
 			//  2742     1 automount       automount --pid-file /var/run/autofs.pid
 			// 22463 13273 httpd           /usr/local/packages/onelink/apache.redhat64/bin/http
 
-			Parts.clear();
-			kSplit(Parts, sLine, " ", " \r\n\t\b", '\0', false, false);
+			auto Parts = sLine.Split(" ", " \r\n\t\b", '\0', false, false);
 
 			// Did we get the correct number of parts?
 			if (4 != Parts.size())
@@ -1397,8 +1385,7 @@ KString KSystemStats::Backtrace (pid_t iPID)
 		sPath.Format ("/proc/{}/stat", iPID);
 		if (kReadFile (sPath, sLine, true))
 		{
-			KStack<KStringView> Words;
-			kSplit(Words, sLine, " ");
+			auto Words = sLine.Split(" ");
 			iPPID = Words.at(4-1).UInt32();
 			if (!iPPID) 
 			{

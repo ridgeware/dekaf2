@@ -560,10 +560,6 @@ public:
 	template<typename T = std::vector<KStringView>, typename... Parms>
 	T Split(Parms&&... parms) const;
 
-	/// return a map of split tokens with default delimiters '=' and ',' and default trim
-	template<typename T, typename... Parms>
-	T SplitPairs(Parms&&... parms) const;
-
 	/// append a sequence of tokens with default delimiters
 	template<typename T, typename... Parms>
 	self& Join(const T& Container, Parms&&... parms);
@@ -1338,16 +1334,6 @@ T KString::Split(Parms&&... parms) const
 {
 	T Container;
 	kSplit(Container, *this, std::forward<Parms>(parms)...);
-	return Container;
-}
-
-//-----------------------------------------------------------------------------
-template<typename T, typename...Parms>
-T KString::SplitPairs(Parms&&... parms) const
-//-----------------------------------------------------------------------------
-{
-	T Container;
-	kSplitPairs(Container, *this, std::forward<Parms>(parms)...);
 	return Container;
 }
 

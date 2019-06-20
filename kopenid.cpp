@@ -309,9 +309,9 @@ bool KJWT::Check(KStringView sBase64Token, const KOpenIDProviderList& Providers,
 	sBase64Token.TrimLeft();
 	sBase64Token.remove_prefix("Bearer ") || sBase64Token.remove_prefix("bearer ");
 
-	std::vector<KStringView> Part;
+	auto Part = sBase64Token.Split(".");
 
-	if (kSplit(Part, sBase64Token, ".") != 3)
+	if (Part.size() != 3)
 	{
 		return SetError(kFormat("wrong part count in token string, expected 3 parts, got {}", Part.size()));
 	}

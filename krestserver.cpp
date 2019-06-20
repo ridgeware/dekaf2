@@ -343,8 +343,7 @@ void KRESTServer::VerifyPerThreadKLogToHeader(const Options& Options)
 	{
 		bool bValid { false };
 
-		std::vector<KStringView> parts;
-		kSplit(parts, it->second, ", ");
+		auto parts = it->second.Split(", ");
 
 		if (parts.size() > 0)
 		{

@@ -132,9 +132,7 @@ bool KHTTPClient::FilterByNoProxyList(const KURL& url, KStringView sNoProxy)
 {
 	if (!sNoProxy.empty())
 	{
-		std::vector<KStringView> NoProxy;
-
-		kSplit(NoProxy, sNoProxy);
+		auto NoProxy = sNoProxy.Split();
 
 		for (auto sDomain : NoProxy)
 		{

@@ -309,8 +309,7 @@ bool KLogHTTPHeaderWriter::Good() const
 bool KLogHTTPHeaderWriter::Write(int iLevel, bool bIsMultiline, const KString& sOut)
 //---------------------------------------------------------------------------
 {
-	std::vector<KStringView> Lines;
-	kSplit(Lines, sOut, "\n", "");
+	auto Lines = sOut.Split("\n", "");
 
 	for (auto sLine : Lines)
 	{

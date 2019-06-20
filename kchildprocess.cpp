@@ -226,8 +226,7 @@ bool KChildProcess::Start(KStringView sCommand, KStringViewZ sChangeDirectory, b
 
 	// Build command args. Do this before forking for the first time, as otherwise
 	// ASAN would complain about memory leaks
-	std::vector<KString> sArgs;
-	kSplit(sArgs, sCommand, " \t", "", 0, true, true);
+	auto sArgs = sCommand.Split<std::vector<KString>>(" \t", "", 0, true, true);
 
 	if (sArgs.empty())
 	{

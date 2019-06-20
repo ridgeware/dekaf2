@@ -916,13 +916,6 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	// nonstandard
-	/// return a map of split tokens with default delimiters '=' and ',' and default trim
-	template<typename T, typename... Parms>
-	T SplitPairs(Parms&&... parms) const;
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
 	void swap(self_type& other)
 	//-----------------------------------------------------------------------------
 	{
@@ -1784,16 +1777,6 @@ T KStringView::Split(Parms&&... parms) const
 {
 	T Container;
 	kSplit(Container, *this, std::forward<Parms>(parms)...);
-	return Container;
-}
-
-//-----------------------------------------------------------------------------
-template<typename T, typename...Parms>
-T KStringView::SplitPairs(Parms&&... parms) const
-//-----------------------------------------------------------------------------
-{
-	T Container;
-	kSplitPairs(Container, *this, std::forward<Parms>(parms)...);
 	return Container;
 }
 

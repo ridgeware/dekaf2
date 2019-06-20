@@ -426,7 +426,7 @@ public:
 				sLine.Trim();
 				if (svDelim != "\n" || (!sLine.empty() && sLine.front() != '#'))
 				{
-					iNewElements += kSplitPairs(*this, sLine, chPairDelim, svDelim);
+					iNewElements += kSplit(*this, sLine, chPairDelim, svDelim);
 				}
 			}
 

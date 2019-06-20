@@ -777,8 +777,7 @@ bool KSQL::LoadConnect (KString sDBCFile)
 bool KSQL::OpenConnection (KStringView sListOfHosts, KStringView sDelimeter/* = ","*/)
 //-----------------------------------------------------------------------------
 {
-	std::vector<KStringView> Hosts;
-	kSplit (Hosts, sListOfHosts, sDelimeter);
+	auto Hosts = sListOfHosts.Split(sDelimeter);
 
 	for (auto sDBHost : Hosts)
 	{
@@ -1876,8 +1875,8 @@ bool KSQL::ExecSQLFile (KStringViewZ sFilename)
 
 		if (sStart.starts_with("#include"_ksv))
 		{
-			KStack<KStringView> Parts;
-			if (kSplit (Parts, sStart, "\""_ksv, ""_ksv) < 2)
+			auto Parts = sStart.Split("\""_ksv, ""_ksv);
+			if (Parts.size() < 2)
 			{
 				m_sLastError.Format ("{}:{}: malformed include directive (file should be enclosed in double quotes).", sFilename, Parms.iLineNum);
 				return (SQLError());
@@ -6494,8 +6493,7 @@ KString KSQL::FormAndClause (KStringView sDbCol, KStringView sQueryParm, uint64_
 	// - - - - - - - - - - - - - - - - - - - - - - - - -
 	if (iFlags & FAC_BETWEEN)
 	{
-		std::vector<KStringView> Parts;
-		kSplit (Parts, sQueryParm, "-");
+		auto Parts = sQueryParm.Split("-");
 
 		switch (Parts.size())
 		{
@@ -6532,8 +6530,7 @@ KString KSQL::FormAndClause (KStringView sDbCol, KStringView sQueryParm, uint64_
 	// - - - - - - - - - - - - - - - - - - - - - - - - -
 	else if (iFlags & FAC_LIKE)
 	{
-		std::vector<KStringView> List;
-		kSplit (List, sQueryParm, ",");
+		auto List = sQueryParm.Split(",");
 
 		for (KString sOne : List)
 		{
@@ -6583,8 +6580,7 @@ KString KSQL::FormAndClause (KStringView sDbCol, KStringView sQueryParm, uint64_
 	else
 	{
 		KString sList;
-		std::vector<KStringView> List;
-		kSplit (List, sQueryParm, ",");
+		auto List = sQueryParm.Split(",");
 
 		for (auto& sOne : List)
 		{

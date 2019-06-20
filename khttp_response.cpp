@@ -70,7 +70,7 @@ bool KHTTPResponseHeaders::Parse(KInStream& Stream)
 
 	std::vector<KStringView> Words;
 	Words.reserve(2);
-	kSplit(Words, sLine, " ");
+	Words = sLine.Split(" ");
 
 	if (Words.size() < 2)
 	{

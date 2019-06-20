@@ -42,6 +42,7 @@
 
 #pragma once
 
+#include "bits/ktemplate.h"
 #include "kstringview.h"
 #include "kstring.h"
 #include <type_traits>
@@ -51,18 +52,6 @@
 
 namespace dekaf2
 {
-
-namespace detail {
-
-// primary template handles types that have no key_type member:
-template< class, class = std::void_t<> >
-struct has_key_type : std::false_type { };
-
-// specialization recognizes types that do have a key_type member:
-template< class T >
-struct has_key_type<T, std::void_t<typename T::key_type>> : std::true_type { };
-
-} // end of namespace detail
 
 //-----------------------------------------------------------------------------
 /// join for sequential containers

@@ -447,8 +447,7 @@ bool kCreateDir(KStringViewZ sPath, int iMode /* = DEKAF2_MODE_CREATE_DIR */)
 	}
 
 	// else test each part of the directory chain
-	std::vector<KStringView> Parts;
-	kSplit(Parts, sPath, detail::kAllowedDirSep, "", 0, true, false);
+	auto Parts = sPath.Split(detail::kAllowedDirSep, "", 0, true, false);
 
 	KString sNewPath;
 	for (const auto& it : Parts)
@@ -996,8 +995,7 @@ KDiskStat& KDiskStat::Check(KStringViewZ sPath)
 			}
 		}
 
-		std::vector<KStringView> Words;
-		kSplit(Words, sLine, " \t");
+		auto Words = sLine.Split(" \t");
 
 		if (Words.size() < 6)
 		{
@@ -1139,7 +1137,7 @@ KString kNormalizePath(KStringView sPath)
 				sCWD.remove_prefix(2);
 			}
 #endif
-			kSplit(CWD, sCWD, detail::kAllowedDirSep, "");
+			CWD = sCWD.Split(detail::kAllowedDirSep, "");
 			// and add it to the normalized path
 			for (auto it : CWD)
 			{
@@ -1158,10 +1156,8 @@ KString kNormalizePath(KStringView sPath)
 	}
 #endif
 
-	std::vector<KStringView> Component;
-
 	// split into path components
-	kSplit(Component, sPath, detail::kAllowedDirSep, "");
+	auto Component = sPath.Split(detail::kAllowedDirSep, "");
 
 	bool bWarned { false };
 

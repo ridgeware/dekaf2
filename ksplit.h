@@ -1,5 +1,4 @@
 /*
-//////////////////////////////////////////////////////////////////////////////
 //
 // DEKAF(tm): Lighter, Faster, Smarter(tm)
 //
@@ -39,11 +38,11 @@
 // |\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/ |
 // +-------------------------------------------------------------------------+
 //
-//////////////////////////////////////////////////////////////////////////////
 */
 
 #pragma once
 
+#include "bits/ktemplate.h"
 #include "kstringview.h"
 
 /// @file ksplit.h
@@ -67,7 +66,8 @@ namespace dekaf2
 /// No trimming is applied inside the quotes (but outside). The quote has to be the
 /// first character after applied trimming, and trailing content after the closing quote
 /// is not considered part of the token. Defaults to false.
-template<typename Container>
+template<typename Container,
+	typename std::enable_if_t<detail::has_key_type<Container>::value == false, int> = 0 >
 size_t kSplit (
         Container&  ctContainer,
         KStringView svBuffer,
@@ -287,8 +287,9 @@ private:
 /// No trimming is applied inside the quotes (but outside). The quote has to be the
 /// first character after applied trimming, and trailing content after the closing quote
 /// is not considered part of the token. Defaults to false.
-template<typename Container>
-size_t kSplitPairs(
+template<typename Container,
+	typename std::enable_if_t<detail::has_key_type<Container>::value == true, int> = 0 >
+size_t kSplit(
         Container&  ctContainer,
         KStringView svBuffer,
         const char  chPairDelim = '=',

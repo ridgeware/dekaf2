@@ -79,7 +79,7 @@ bool KHTTPRequestHeaders::Parse(KInStream& Stream)
 
 	std::vector<KStringView> Words;
 	Words.reserve(3);
-	kSplit(Words, sLine, " ");
+	Words = sLine.Split(" ");
 
 	if (Words.size() != 3)
 	{

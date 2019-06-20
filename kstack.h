@@ -76,6 +76,18 @@ public:
 	template<typename... Args>
 	KStack(Args&&... args) : m_Storage(std::forward<Args>(args)...) {}
 
+	// ===== Comparison =====
+
+	bool operator==(const KStack& other) const
+	{
+		return m_Storage == other.m_Storage;
+	}
+
+	bool operator!=(const KStack& other) const
+	{
+		return m_Storage != other.m_Storage;
+	}
+
 	// ===== STANDARD STACK INTERACTIONS =====
 
 	//-----------------------------------------------------------------------------

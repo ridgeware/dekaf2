@@ -9,6 +9,7 @@
 #include <dekaf2/dekaf2.h>
 #include <dekaf2/kctype.h>
 #include <dekaf2/kprops.h>
+#include <dekaf2/kstack.h>
 
 using namespace dekaf2;
 
@@ -1301,6 +1302,21 @@ TEST_CASE("KString") {
 		CHECK (sResult == "one,two,three,four" );
 	}
 
+	SECTION("join kstack")
+	{
+		KStack<KStringView> stack {
+			"one",
+			"two",
+			"three",
+			"four"
+		};
+
+		KString sResult;
+		sResult.Join(stack);
+
+		CHECK (sResult == "one,two,three,four" );
+	}
+
 	SECTION("join map")
 	{
 		std::map<KStringView, KStringView> map {
@@ -1346,76 +1362,6 @@ TEST_CASE("KString") {
 		CHECK (sResult == "1=one,2=two,3=three,4=four" );
 	}
 
-	SECTION("join vector")
-	{
-		std::vector<KStringView> vec {
-			"one",
-			"two",
-			"three",
-			"four"
-		};
-
-		KString sResult = kJoined(vec);
-
-		CHECK (sResult == "one,two,three,four" );
-	}
-
-	SECTION("join list")
-	{
-		std::list<KStringView> list {
-			"one",
-			"two",
-			"three",
-			"four"
-		};
-
-		KString sResult = kJoined(list);
-
-		CHECK (sResult == "one,two,three,four" );
-	}
-
-	SECTION("join map")
-	{
-		std::map<KStringView, KStringView> map {
-			{ "1" , "one"   },
-			{ "2" , "two"   },
-			{ "3" , "three" },
-			{ "4" , "four"  }
-		};
-
-		KString sResult = kJoined(map);
-
-		CHECK (sResult == "1=one,2=two,3=three,4=four" );
-	}
-
-	SECTION("join map with non-default limiters")
-	{
-		std::map<KStringView, KStringView> map {
-			{ "1" , "one"   },
-			{ "2" , "two"   },
-			{ "3" , "three" },
-			{ "4" , "four"  }
-		};
-
-		KString sResult = kJoined(map, " and ", " is ");
-
-		CHECK (sResult == "1 is one and 2 is two and 3 is three and 4 is four" );
-	}
-
-	SECTION("join kprops")
-	{
-		KProps<KStringView, KStringView, true, true> map {
-			{ "1" , "one"   },
-			{ "2" , "two"   },
-			{ "3" , "three" },
-			{ "4" , "four"  }
-		};
-
-		KString sResult = kJoined(map);
-
-		CHECK (sResult == "1=one,2=two,3=three,4=four" );
-	}
-
 	SECTION("split vector")
 	{
 		std::vector<KStringView> vec {
@@ -1442,6 +1388,21 @@ TEST_CASE("KString") {
 
 		KString sString = "one,two,three,four";
 		auto rlist = sString.Split<std::list<KStringView>>();
+
+		CHECK (rlist == list );
+	}
+
+	SECTION("split kstack")
+	{
+		KStack<KStringView> list {
+			"one",
+			"two",
+			"three",
+			"four"
+		};
+
+		KString sString = "one,two,three,four";
+		auto rlist = sString.Split<KStack<KStringView>>();
 
 		CHECK (rlist == list );
 	}

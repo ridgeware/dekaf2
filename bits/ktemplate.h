@@ -47,6 +47,7 @@
 #include <functional>
 #include <cwctype>
 #include <type_traits>
+#include "kcppcompat.h"
 
 // we do general algorithms before including kstring.h / kstringview.h below
 

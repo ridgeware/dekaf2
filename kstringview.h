@@ -827,6 +827,15 @@ public:
 
 	//-----------------------------------------------------------------------------
 	// nonstandard
+	/// returns substring starting at iStart until end of string
+	KStringView Mid(size_type iStart) const
+	//-----------------------------------------------------------------------------
+	{
+		return ToView(iStart);
+	}
+
+	//-----------------------------------------------------------------------------
+	// nonstandard
 	/// returns substring starting at iStart for iCount chars
 	KStringView Mid(size_type iStart, size_type iCount) const;
 	//-----------------------------------------------------------------------------

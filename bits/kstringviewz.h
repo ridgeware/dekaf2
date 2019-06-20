@@ -225,13 +225,25 @@ public:
 	using base_type::MatchRegex;
 	using base_type::MatchRegexGroups;
 	using base_type::Left;
-	using base_type::Mid;
 	using base_type::operator bool;
 
 	//-----------------------------------------------------------------------------
 	// nonstandard
+	/// returns substring starting at iStart until end of string
+	constexpr
+	self_type Mid(size_type iStart) const noexcept
+	//-----------------------------------------------------------------------------
+	{
+		return ToView(iStart);
+	}
+
+	// for the remaining signature
+	using base_type::Mid;
+
+	//-----------------------------------------------------------------------------
+	// nonstandard
 	/// returns rightmost iCount chars of string
-	self_type Right(size_type iCount) const;
+	self_type Right(size_type iCount) const noexcept;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -258,6 +270,7 @@ public:
 	/// otherwise do not alter the string
 	bool ClipAtReverse(KStringView sClipAtReverse);
 	//-----------------------------------------------------------------------------
+
 	using base_type::Split;
 	using base_type::SplitPairs;
 	using base_type::Bool;
@@ -290,7 +303,7 @@ public:
 
 	//----------------------------------------------------------------------
 	constexpr
-	base_type ToView(size_type pos, size_type n) const
+	base_type ToView(size_type pos, size_type n) const noexcept
 	//----------------------------------------------------------------------
 	{
 		if (pos > size())

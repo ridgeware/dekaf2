@@ -803,6 +803,13 @@ KStringView KString::Left(size_type iCount) const
 } // Left
 
 //----------------------------------------------------------------------
+KStringViewZ KString::Mid(size_type iStart) const
+//----------------------------------------------------------------------
+{
+	return ToView(iStart);
+}
+
+//----------------------------------------------------------------------
 KStringViewZ KString::Right(size_type iCount) const
 //----------------------------------------------------------------------
 {

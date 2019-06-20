@@ -912,6 +912,133 @@ TEST_CASE("KStringViewZ") {
 
 	}
 
+	SECTION("Left")
+	{
+		struct parms_t
+		{
+			KStringViewZ input;
+			KStringViewZ output;
+			size_t  count;
+		};
+
+		std::vector<parms_t> pvector = {
+			{ "1234567890",        "123" ,  3 },
+			{ "1234567890",          "1" ,  1 },
+			{ "1234567890",           "" ,  0 },
+			{ "1234567890", "1234567890" , 13 },
+			{           "",           "" ,  3 },
+			{           "",           "" ,  1 },
+			{           "",           "" ,  0 },
+			{           "",           "" , 13 },
+		};
+
+		for (const auto& it : pvector)
+		{
+			KStringViewZ s(it.input);
+			KStringView sv = s.Left(it.count);
+			CHECK ( sv == it.output );
+		}
+	}
+
+	SECTION("Right")
+	{
+		struct parms_t
+		{
+			KStringViewZ input;
+			KStringViewZ output;
+			size_t  count;
+		};
+
+		std::vector<parms_t> pvector = {
+			{ "1234567890",        "890" ,  3 },
+			{ "1234567890",          "0" ,  1 },
+			{ "1234567890",           "" ,  0 },
+			{ "1234567890", "1234567890" , 13 },
+			{           "",           "" ,  3 },
+			{           "",           "" ,  1 },
+			{           "",           "" ,  0 },
+			{           "",           "" , 13 },
+		};
+
+		for (const auto& it : pvector)
+		{
+			KStringViewZ s(it.input);
+			KStringViewZ sv = s.Right(it.count);
+			CHECK ( sv == it.output );
+		}
+	}
+
+	SECTION("Mid")
+	{
+		struct parms_t
+		{
+			KStringViewZ input;
+			KStringViewZ output;
+			size_t  start;
+			size_t  count;
+		};
+
+		std::vector<parms_t> pvector = {
+			{ "1234567890",        "123" ,  0,  3 },
+			{ "1234567890",          "1" ,  0,  1 },
+			{ "1234567890",           "" ,  0,  0 },
+			{ "1234567890", "1234567890" ,  0, 13 },
+			{ "1234567890",        "890" ,  7,  3 },
+			{ "1234567890",          "0" ,  9,  1 },
+			{ "1234567890",           "" , 10,  0 },
+			{ "1234567890",           "" , 13, 13 },
+			{ "1234567890",        "456" ,  3,  3 },
+			{ "1234567890",          "4" ,  3,  1 },
+			{ "1234567890",           "" ,  3,  0 },
+			{ "1234567890",    "4567890" ,  3, 13 },
+			{           "",           "" ,  0,  3 },
+			{           "",           "" ,  0,  1 },
+			{           "",           "" ,  0,  0 },
+			{           "",           "" ,  0, 13 },
+			{           "",           "" ,  7,  3 },
+			{           "",           "" ,  9,  1 },
+			{           "",           "" , 10,  0 },
+			{           "",           "" , 13, 13 },
+			{           "",           "" ,  3,  3 },
+			{           "",           "" ,  3,  1 },
+			{           "",           "" ,  3,  0 },
+			{           "",           "" ,  3, 13 },
+		};
+
+		for (const auto& it : pvector)
+		{
+			KStringViewZ s(it.input);
+			KStringView sv = s.Mid(it.start, it.count);
+			CHECK ( sv == it.output );
+		}
+	}
+
+	SECTION("Mid with one parm")
+	{
+		struct parms_t
+		{
+			KStringViewZ input;
+			KStringViewZ output;
+			size_t  start;
+		};
+
+		std::vector<parms_t> pvector {
+			{ "1234567890", "1234567890" ,  0 },
+			{ "1234567890",  "234567890" ,  1 },
+			{ "1234567890",   "34567890" ,  2 },
+			{ "1234567890",        "890" ,  7 },
+			{ "1234567890",          "0" ,  9 },
+			{ "1234567890",           "" , 10 },
+			{ "1234567890",           "" , 13 },
+		};
+
+		for (const auto& it : pvector)
+		{
+			KStringViewZ s(it.input);
+			KStringViewZ sv = s.Mid(it.start);
+			CHECK ( sv == it.output );
+		}
+	}
 	SECTION ("starts_with")
 	{
 		KStringViewZ sLine = "This is a line with some data";

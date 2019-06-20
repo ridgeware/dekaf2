@@ -500,6 +500,9 @@ public:
 	/// returns leftmost iCount chars of string
 	KStringView Left(size_type iCount) const;
 
+	/// returns substring starting at iStart until end of string
+	KStringViewZ Mid(size_type iStart) const;
+
 	/// returns substring starting at iStart for iCount chars
 	KStringView Mid(size_type iStart, size_type iCount) const;
 

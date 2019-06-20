@@ -1010,6 +1010,33 @@ TEST_CASE("KString") {
 		}
 	}
 
+	SECTION("Mid with one parm")
+	{
+		struct parms_t
+		{
+			KStringView input;
+			KStringView output;
+			size_t  start;
+		};
+
+		std::vector<parms_t> pvector {
+			{ "1234567890", "1234567890" ,  0 },
+			{ "1234567890",  "234567890" ,  1 },
+			{ "1234567890",   "34567890" ,  2 },
+			{ "1234567890",        "890" ,  7 },
+			{ "1234567890",          "0" ,  9 },
+			{ "1234567890",           "" , 10 },
+			{ "1234567890",           "" , 13 },
+		};
+
+		for (const auto& it : pvector)
+		{
+			KString s(it.input);
+			KStringView sv = s.Mid(it.start);
+			CHECK ( sv == it.output );
+		}
+	}
+
 	SECTION("TestLocale")
 	{
 #if defined(DEKAF2_IS_OSX) 

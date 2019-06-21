@@ -538,6 +538,21 @@ TEST_CASE("kSplit")
 		CHECK ( Parts[2] == "line 3" );
 		Parts.clear();
 	}
+
+	SECTION("split auto range")
+	{
+		std::vector<KStringView> vresult {
+			"line 1",
+			"line 2",
+			"line 3"
+		};
+
+		auto rit = vresult.begin();
+		for (auto it : kSplits("line 1\nline 2\nline 3", "\n", " \t\r\b"))
+		{
+			CHECK ( it == *rit++);
+		}
+	}
 }
 
 TEST_CASE("kSplitEmpty")

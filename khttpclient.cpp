@@ -130,23 +130,18 @@ bool KHTTPClient::Connect(std::unique_ptr<KConnection> Connection)
 bool KHTTPClient::FilterByNoProxyList(const KURL& url, KStringView sNoProxy)
 //-----------------------------------------------------------------------------
 {
-	if (!sNoProxy.empty())
+	for (auto sDomain : sNoProxy.Split())
 	{
-		auto NoProxy = sNoProxy.Split();
-
-		for (auto sDomain : NoProxy)
+		if (sDomain.front() == '.')
 		{
-			if (sDomain.front() == '.')
-			{
-				if (url.Domain.get().ends_with(sDomain))
-				{
-					return false;
-				}
-			}
-			else if (url.Domain.get() == sDomain)
+			if (url.Domain.get().ends_with(sDomain))
 			{
 				return false;
 			}
+		}
+		else if (url.Domain.get() == sDomain)
+		{
+			return false;
 		}
 	}
 

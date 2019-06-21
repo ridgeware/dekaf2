@@ -446,11 +446,10 @@ bool kCreateDir(KStringViewZ sPath, int iMode /* = DEKAF2_MODE_CREATE_DIR */)
 		return true;
 	}
 
-	// else test each part of the directory chain
-	auto Parts = sPath.Split(detail::kAllowedDirSep, "", 0, true, false);
-
 	KString sNewPath;
-	for (const auto& it : Parts)
+
+	// else test each part of the directory chain
+	for (const auto& it : sPath.Split(detail::kAllowedDirSep, "", 0, true, false))
 	{
 		if (!it.empty())
 		{
@@ -1137,9 +1136,8 @@ KString kNormalizePath(KStringView sPath)
 				sCWD.remove_prefix(2);
 			}
 #endif
-			CWD = sCWD.Split(detail::kAllowedDirSep, "");
 			// and add it to the normalized path
-			for (auto it : CWD)
+			for (auto it : sCWD.Split(detail::kAllowedDirSep, ""))
 			{
 				if (!it.empty())
 				{
@@ -1156,12 +1154,10 @@ KString kNormalizePath(KStringView sPath)
 	}
 #endif
 
-	// split into path components
-	auto Component = sPath.Split(detail::kAllowedDirSep, "");
-
 	bool bWarned { false };
 
-	for (auto it : Component)
+	// split into path components
+	for (auto it : sPath.Split(detail::kAllowedDirSep, ""))
 	{
 		if (it.empty())
 		{

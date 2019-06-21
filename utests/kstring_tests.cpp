@@ -1467,5 +1467,21 @@ TEST_CASE("KString") {
 		CHECK (rmap == map );
 	}
 
+	SECTION("split auto range")
+	{
+		std::vector<KStringView> vresult {
+			"line 1",
+			"line 2",
+			"line 3"
+		};
+
+		auto rit = vresult.begin();
+		KString sInput { "line 1\nline 2\nline 3" };
+		for (auto it : sInput.Split("\n", " \t\r\b"))
+		{
+			CHECK ( it == *rit++);
+		}
+	}
+
 }
 

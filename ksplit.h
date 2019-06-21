@@ -79,8 +79,6 @@ size_t kSplit (
 )
 //-----------------------------------------------------------------------------
 {
-	// consider the string " a , b , c , d , e "
-
 	size_t iStartSize = ctContainer.size();
 	bool bAddLastEmptyElement { false };
 
@@ -201,6 +199,24 @@ size_t kSplit (
 
 } // kSplit with string of delimiters
 
+//-----------------------------------------------------------------------------
+template<typename Container = std::vector<KStringView>,
+	typename std::enable_if_t<detail::has_key_type<Container>::value == false, int> = 0 >
+Container kSplits(
+//-----------------------------------------------------------------------------
+			  KStringView svBuffer,
+			  KStringView svDelim  = ",",             // default: comma delimiter
+			  KStringView svTrim   = " \t\r\n\b",     // default: trim all whitespace
+			  const char  chEscape = '\0',            // default: ignore escapes
+			  bool        bCombineDelimiters = false, // default: create an element for each delimiter char found
+			  bool        bQuotesAreEscapes  = false  // default: treat double quotes like any other char
+)
+{
+	Container ctContainer;
+	kSplit(ctContainer, svBuffer, svDelim, svTrim, chEscape, bCombineDelimiters, bQuotesAreEscapes);
+	return ctContainer;
+}
+
 
 //-----------------------------------------------------------------------------
 /// Splits one element into a key value pair separated by chDelim, and trims on request
@@ -308,6 +324,24 @@ size_t kSplit(
 	              bCombineDelimiters, bQuotesAreEscapes);
 }
 
+//-----------------------------------------------------------------------------
+template<typename Container,
+	typename std::enable_if_t<detail::has_key_type<Container>::value == true, int> = 0 >
+Container kSplits(
+			  KStringView svBuffer,
+			  const char  chPairDelim = '=',
+			  KStringView svDelim  = ",",             // default: comma delimiter
+			  KStringView svTrim   = " \t\r\n\b",     // default: trim all whitespace
+			  const char  chEscape = '\0',            // default: ignore escapes
+			  bool        bCombineDelimiters = false, // default: create an element for each delimiter char found
+			  bool        bQuotesAreEscapes  = false  // default: treat double quotes like any other char
+//-----------------------------------------------------------------------------
+)
+{
+	Container ctContainer;
+	kSplit(ctContainer, svBuffer, chPairDelim, svDelim, svTrim, chEscape, bCombineDelimiters, bQuotesAreEscapes);
+	return ctContainer;
+}
 
 //-----------------------------------------------------------------------------
 /// Splitting a command line style string into token container, modifying the source buffer

@@ -68,9 +68,7 @@ bool KHTTPResponseHeaders::Parse(KInStream& Stream)
 	// analyze protocol and status
 	// HTTP/1.1 200 Message with arbitrary words
 
-	std::vector<KStringView> Words;
-	Words.reserve(2);
-	Words = sLine.Split(" ");
+	auto Words = sLine.Split(" ");
 
 	if (Words.size() < 2)
 	{

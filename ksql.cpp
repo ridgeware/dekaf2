@@ -777,9 +777,7 @@ bool KSQL::LoadConnect (KString sDBCFile)
 bool KSQL::OpenConnection (KStringView sListOfHosts, KStringView sDelimeter/* = ","*/)
 //-----------------------------------------------------------------------------
 {
-	auto Hosts = sListOfHosts.Split(sDelimeter);
-
-	for (auto sDBHost : Hosts)
+	for (auto sDBHost : sListOfHosts.Split(sDelimeter))
 	{
 		SetDBHost (sDBHost);
 
@@ -6530,9 +6528,7 @@ KString KSQL::FormAndClause (KStringView sDbCol, KStringView sQueryParm, uint64_
 	// - - - - - - - - - - - - - - - - - - - - - - - - -
 	else if (iFlags & FAC_LIKE)
 	{
-		auto List = sQueryParm.Split(",");
-
-		for (KString sOne : List)
+		for (KString sOne : sQueryParm.Split(","))
 		{
 			sOne.Replace ('*','%',/*start=*/0,/*bAll=*/true); // allow * wildcards too
 			if (sClause)
@@ -6580,9 +6576,8 @@ KString KSQL::FormAndClause (KStringView sDbCol, KStringView sQueryParm, uint64_
 	else
 	{
 		KString sList;
-		auto List = sQueryParm.Split(",");
 
-		for (auto& sOne : List)
+		for (const auto& sOne : sQueryParm.Split(","))
 		{
 			if (iFlags & FAC_NUMERIC)
 			{

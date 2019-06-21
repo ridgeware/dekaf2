@@ -309,9 +309,7 @@ bool KLogHTTPHeaderWriter::Good() const
 bool KLogHTTPHeaderWriter::Write(int iLevel, bool bIsMultiline, const KString& sOut)
 //---------------------------------------------------------------------------
 {
-	auto Lines = sOut.Split("\n", "");
-
-	for (auto sLine : Lines)
+	for (auto sLine : sOut.Split("\n", ""))
 	{
 		if (!sLine.empty())
 		{

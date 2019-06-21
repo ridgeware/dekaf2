@@ -84,12 +84,16 @@ struct has_key_type<T, std::void_t<typename T::key_type>> : std::true_type { };
 
 // now include kstring / view.h for the string tests
 
-#include "../kstring.h"
-#include "../kstringview.h"
-#include "kstringviewz.h"
+//#include "../kstring.h"
+//#include "../kstringview.h"
+//#include "kstringviewz.h"
 
 namespace dekaf2
 {
+
+class KString;
+class KStringView;
+class KStringViewZ;
 
 namespace detail
 {

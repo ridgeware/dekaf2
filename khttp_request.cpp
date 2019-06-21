@@ -77,9 +77,7 @@ bool KHTTPRequestHeaders::Parse(KInStream& Stream)
 	// analyze method and resource
 	// GET /some/page?query=search#fragment HTTP/1.1
 
-	std::vector<KStringView> Words;
-	Words.reserve(3);
-	Words = sLine.Split(" ");
+	auto Words = sLine.Split(" ");
 
 	if (Words.size() != 3)
 	{

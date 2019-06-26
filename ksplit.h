@@ -2,7 +2,7 @@
 //
 // DEKAF(tm): Lighter, Faster, Smarter(tm)
 //
-// Copyright (c) 2000-2017, Ridgeware, Inc.
+// Copyright (c) 2000-2019, Ridgeware, Inc.
 //
 // +-------------------------------------------------------------------------+
 // | /\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\|
@@ -52,7 +52,9 @@ namespace dekaf2
 {
 
 //-----------------------------------------------------------------------------
-/// Splits string into token container using delimiters, trim, and escape.
+/// Splits string into token container using delimiters, trim, and escape. Container is
+/// a sequence, like a vector.
+/// @return count of added tokens.
 /// @param ctContainer needs to have a push_back() that can construct an element from
 /// a KStringView.
 /// @param svBuffer the source char sequence.
@@ -200,6 +202,21 @@ size_t kSplit (
 } // kSplit with string of delimiters
 
 //-----------------------------------------------------------------------------
+/// Splits string into token container using delimiters, trim, and escape. Returned
+/// Container is a sequence, like a vector.
+/// @return a new Container, its type needs to have a push_back() that can construct
+/// an element from a KStringView.
+/// @param svBuffer the source char sequence.
+/// @param svDelim a string view of delimiter characters. Defaults to ",".
+/// @param svTrim a string containing chars to remove from token ends. Defaults to " \t\r\n\b".
+/// @param chEscape Escape character for delimiters. Defaults to '\0' (disabled).
+/// @param bCombineDelimiters if true skips consecutive delimiters (an action always
+/// taken for found spaces if defined as delimiter). Defaults to false.
+/// @param bQuotesAreEscapes if true, escape characters and delimiters inside
+/// double quotes are treated as literal chars, and quotes themselves are removed.
+/// No trimming is applied inside the quotes (but outside). The quote has to be the
+/// first character after applied trimming, and trailing content after the closing quote
+/// is not considered part of the token. Defaults to false.
 template<typename Container = std::vector<KStringView>,
 	typename std::enable_if_t<detail::has_key_type<Container>::value == false, int> = 0 >
 Container kSplits(
@@ -219,7 +236,11 @@ Container kSplits(
 
 
 //-----------------------------------------------------------------------------
-/// Splits one element into a key value pair separated by chDelim, and trims on request
+/// Splits one element into a key value pair separated by chDelim, and trims on request.
+/// @return the split key/value pair (KStringViewPair)
+/// @param svDelim a string view of delimiter characters. Defaults to ",".
+/// @param svTrim a string containing chars to remove from token ends. Defaults to " \t\r\n\b".
+/// @param chEscape Escape character for delimiters. Defaults to '\0' (disabled).
 KStringViewPair kSplitToPair(
         KStringView svBuffer,
 		const char chDelim   = '=',             // default: equal delimiter
@@ -288,9 +309,10 @@ private:
 } // end of namespace detail
 
 //-----------------------------------------------------------------------------
-/// Splitting strings into a series of key value pairs.
+/// Splitting strings into a series of key value pairs (container is a map).
 /// @param ctContainer needs to have a insert() that can construct an element from
 /// a KStringViewPair (std::pair<KStringView, KStringView>).
+/// @return count of added key/value pairs.
 /// @param svBuffer the source char sequence.
 /// @param chPairDelim the char that is used to separate keys and values in the sequence. Defaults to "=".
 /// @param svDelim a string view of delimiter characters. Defaults to ",".
@@ -325,6 +347,21 @@ size_t kSplit(
 }
 
 //-----------------------------------------------------------------------------
+/// Splitting strings into a series of key value pairs (container is a map).
+/// @return A new Container, its type needs to have an insert() that can construct
+/// an element from a KStringViewPair (std::pair<KStringView, KStringView>).
+/// @param svBuffer the source char sequence.
+/// @param chPairDelim the char that is used to separate keys and values in the sequence. Defaults to "=".
+/// @param svDelim a string view of delimiter characters. Defaults to ",".
+/// @param svTrim a string containing chars to remove from token ends. Defaults to " \t\r\n\b".
+/// @param chEscape Escape character for delimiters. Defaults to '\0' (disabled).
+/// @param bCombineDelimiters if true skips consecutive delimiters (an action always
+/// taken for found spaces if defined as delimiter). Defaults to false.
+/// @param bQuotesAreEscapes if true, escape characters and delimiters inside
+/// double quotes are treated as literal chars, and quotes themselves are removed.
+/// No trimming is applied inside the quotes (but outside). The quote has to be the
+/// first character after applied trimming, and trailing content after the closing quote
+/// is not considered part of the token. Defaults to false.
 template<typename Container,
 	typename std::enable_if_t<detail::has_key_type<Container>::value == true, int> = 0 >
 Container kSplits(

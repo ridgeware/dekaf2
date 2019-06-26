@@ -2,7 +2,7 @@
 //
 // DEKAF(tm): Lighter, Faster, Smarter(tm)
 //
-// Copyright (c) 2017, Ridgeware, Inc.
+// Copyright (c) 2017-2019, Ridgeware, Inc.
 //
 // +-------------------------------------------------------------------------+
 // | /\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\|
@@ -420,14 +420,13 @@ size_t kFindFirstOfUnescaped(KStringView haystack,
 
 	while (iFound != KStringView::npos)
 	{
-		size_t iEscapes = 0;
-		size_t iStart = iFound;
+		size_t iEscapes { 0 };
+		size_t iStart { iFound };
 
 		while (iStart)
 		{
 			// count number of escape characters
-			--iStart;
-			if (haystack[iStart] != chEscape)
+			if (haystack[--iStart] != chEscape)
 			{
 				break;
 			}
@@ -464,14 +463,13 @@ size_t kFindUnescaped(KStringView haystack,
 
 	while (iFound != KStringView::npos)
 	{
-		size_t iEscapes = 0;
-		size_t iStart = iFound;
+		size_t iEscapes { 0 };
+		size_t iStart { iFound };
 
 		while (iStart)
 		{
 			// count number of escape characters
-			--iStart;
-			if (haystack[iStart] != chEscape)
+			if (haystack[--iStart] != chEscape)
 			{
 				break;
 			}

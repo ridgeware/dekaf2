@@ -556,11 +556,29 @@ public:
 	/// remove any occurence of the characters in sIllegalChars
 	void RemoveIllegalChars(KStringView sIllegalChars);
 
-	/// return a sequence of split tokens with default delimiter ',' and default trim white space
+	/// Splits string into token container using delimiters, trim, and escape. Returned
+	/// Container is a sequence, like a vector, or an associative container like a map.
+	/// @return a new Container. Default is a std::vector<KStringView>.
+	/// @param chPairDelim exists only for associative containers: the char that is used to separate keys and values in the sequence. Defaults to "=".
+	/// @param svDelim a string view of delimiter characters. Defaults to ",".
+	/// @param svTrim a string containing chars to remove from token ends. Defaults to " \t\r\n\b".
+	/// @param chEscape Escape character for delimiters. Defaults to '\0' (disabled).
+	/// @param bCombineDelimiters if true skips consecutive delimiters (an action always
+	/// taken for found spaces if defined as delimiter). Defaults to false.
+	/// @param bQuotesAreEscapes if true, escape characters and delimiters inside
+	/// double quotes are treated as literal chars, and quotes themselves are removed.
+	/// No trimming is applied inside the quotes (but outside). The quote has to be the
+	/// first character after applied trimming, and trailing content after the closing quote
+	/// is not considered part of the token. Defaults to false.
 	template<typename T = std::vector<KStringView>, typename... Parms>
 	T Split(Parms&&... parms) const;
 
-	/// append a sequence of tokens with default delimiters
+	/// Append a sequence of tokens. If the container is an associative type (e.g. a map),
+	/// key-value pairs are added.
+	/// @return *this
+	/// @param svDelim a stringview that is inserted between elements
+	/// @param svPairDelim a stringview that is inserted between key and value of an
+	/// associative element
 	template<typename T, typename... Parms>
 	self& Join(const T& Container, Parms&&... parms);
 

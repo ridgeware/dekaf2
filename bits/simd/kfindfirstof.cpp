@@ -250,14 +250,14 @@ size_t portableCTZ(uint32_t value)
 DEKAF2_ALWAYS_INLINE
 void OperatorOrEqual(__m128i& a, __m128i b)
 //-----------------------------------------------------------------------------
-#ifdef _MSC_VER
 {
+#ifdef _MSC_VER
 	a.m128i_i64[0] |= b.m128i_i64[0];
 	a.m128i_i64[1] |= b.m128i_i64[1];
-}
 #else
 	a |= b;
 #endif
+}
 
 static constexpr size_t kMinPageSize = 4096;
 
@@ -527,8 +527,7 @@ size_t scanHaystackBlockNot(
 	// Calculate these once
 	const char * needleData = needles.data();
 	auto needleSize = needles.size();
-	//size_t haystackSize = haystack.size(); // Only more efficient if used more than once
-	auto useSize = std::min(16, static_cast<int>(haystack.size() - blockStartIdx));
+	size_t useSize = std::min(16, static_cast<int>(haystack.size() - blockStartIdx));
 
 	__m128i arr1 = _mm_lddqu_si128(reinterpret_cast<const __m128i*>(haystack.data() + blockStartIdx));
 	__m128i arr2 = _mm_lddqu_si128(reinterpret_cast<const __m128i*>(needleData + needleSize - 16));
@@ -657,7 +656,7 @@ size_t reverseScanHaystackBlockNot(
 	size_t haystackSize = haystack.size();
 	const char * needleData = needles.data();
 	size_t needleSize = needles.size();
-	auto useSize = std::min(16, static_cast<int>(haystackSize - blockStartIdx));
+	size_t useSize = std::min(16, static_cast<int>(haystackSize - blockStartIdx));
 	__m128i arr1 = _mm_lddqu_si128(reinterpret_cast<const __m128i*>(haystack.data() + blockStartIdx));
 
 
@@ -797,7 +796,7 @@ size_t kFindLastOfSSE(
 	}
 
 	// Account for haystack < 16
-	int useSize = std::min(16, static_cast<int>(haystackSize));
+	size_t useSize = std::min(16, static_cast<int>(haystackSize));
 
 	size_t ret;
 
@@ -848,7 +847,7 @@ size_t kFindLastNotOfSSE(
 	}
 
 	// Account for haystack < 16
-	int useSize = std::min(16, static_cast<int>(haystackSize));
+	size_t useSize = std::min(16, static_cast<int>(haystackSize));
 
 	size_t ret;
 

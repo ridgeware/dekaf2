@@ -61,19 +61,6 @@
  * limitations under the License.
  */
 
-/*
- * NOTE ON THE LACK OF ALIGNED LOADS IN THE DEKAF2 CODE
- *
- * Originally we looked for aligned memory locations and did aligned loading
- * whenever possible. However, in performance testing, the same code with all
- * ifs still in there was just as fast if not faster if all load calls were
- * swapped for unaligned loads.
- *
- * Therefore it seems for our purposes aligned loading doesn't gain us anything.
- * To make the code simpler, easier to understand, and more maintainable we
- * opted to just use unaligned loading.
- */
-
 #include <algorithm>
 #include "kfindfirstof.h"
 #include "../kcppcompat.h"
@@ -220,7 +207,7 @@ size_t portableCLZ(uint32_t value)
 		return 8 * sizeof(value);
 	}
 #else
-	abort();
+	static_assert(false, "portableCLZ: compiler not supported")
 #endif
 }
 
@@ -243,7 +230,7 @@ size_t portableCTZ(uint32_t value)
 		return 8 * sizeof(value);
 	}
 #else
-	abort();
+	static_assert(false, "portableCTZ: compiler not supported")
 #endif
 }
 
@@ -488,6 +475,7 @@ size_t scanHaystackBlock(
 } // scanHaystackBlock
 
 //-----------------------------------------------------------------------------
+// this implementation still can overrun memory pages and cause a bus error
 #ifdef NDEBUG
 DEKAF2_ALWAYS_INLINE
 #else
@@ -559,6 +547,7 @@ size_t scanHaystackBlockNot(
 }
 
 //-----------------------------------------------------------------------------
+// this implementation still can overrun memory pages and cause a bus error
 // Scans a 16-byte block of haystack (starting at blockStartIdx) to find first
 // needle.
 #ifdef NDEBUG
@@ -637,6 +626,7 @@ size_t reverseScanHaystackBlock(
 }
 
 //-----------------------------------------------------------------------------
+// this implementation still can overrun memory pages and cause a bus error
 #ifdef NDEBUG
 DEKAF2_ALWAYS_INLINE
 #else

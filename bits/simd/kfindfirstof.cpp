@@ -327,6 +327,14 @@ bool UnalignedPageOverflowReverse(const KStringView& sv)
 }
 
 //-----------------------------------------------------------------------------
+DEKAF2_ALWAYS_INLINE
+KStringView ShiftStringView(KStringView& sv, ssize_t iChars)
+//-----------------------------------------------------------------------------
+{
+	return KStringView(sv.data() + iChars, sv.size());
+}
+
+//-----------------------------------------------------------------------------
 // helper method for case where needles.size() <= 16
 // caller must guarantee that short haystacks and needles don't cross page boundary
 template<bool bNot, int iOperation>
@@ -491,7 +499,6 @@ size_t scanHaystackBlock(
 		arr1 = _mm_lddqu_si128(reinterpret_cast<const __m128i*>(haystack.data() + blockStartIdx));
 	}
 
-	// factoring this out and adding the min to 16 makes a big difference, nearly twice the speed
 	int useSize = std::min(16, static_cast<int>(haystack.size() - blockStartIdx));
 
 	// This load is safe because needles.size() >= 16
@@ -578,9 +585,11 @@ size_t scanHaystackBlockNot(
 } // scanHaystackBlockNot
 
 //-----------------------------------------------------------------------------
-// this implementation still can overrun memory pages and cause a bus error
-// Scans a 16-byte block of haystack (starting at blockStartIdx) to find first
-// needle.
+// Scans a 16-byte block of haystack (starting at blockStartIdx) to find last
+// needle. If bAligned, then haystack must be 16byte aligned.
+// If !bAligned, then caller must ensure that it is safe to load the
+// block.
+template <bool bAligned>
 #ifdef NDEBUG
 DEKAF2_ALWAYS_INLINE
 #else
@@ -592,64 +601,51 @@ size_t reverseScanHaystackBlock(
         size_t blockStartIdx)
 //-----------------------------------------------------------------------------
 {
-	// Calculate once, instead of multiple times
-	auto haystackSize = haystack.size();
-	const char * needleData = needles.data();
-	auto needleSize = needles.size();
-	// Calculating this once, instead of in every loop
-	int useSize = std::min(16, static_cast<int>(haystackSize - blockStartIdx));
+	__m128i arr1;
 
-	__m128i arr1 = _mm_lddqu_si128(reinterpret_cast<const __m128i*>(haystack.data() + blockStartIdx));
-
-	// This load is safe because needles.size() > 16
-	__m128i arr2;// = _mm_lddqu_si128(reinterpret_cast<const __m128i*>(needleData + needleSize - 16));
-	// Initialize b before looping
-	int b = 16;// = _mm_cmpestri(arr2, 16, arr1, useSize, 0b01000000);
-
-	// maximum reasonable needle size for a 8 bit value type is 256,
-	// converting to int (for signedness) is sufficient
-	int j = static_cast<int>(needleSize) - 16;
-
-	for (; j > 0; j -= 16)
+	if (bAligned)
 	{
-		arr2 = _mm_lddqu_si128(reinterpret_cast<const __m128i*>(needleData + j));
+		arr1 = _mm_load_si128(reinterpret_cast<const __m128i*>(haystack.data() + blockStartIdx));
+	}
+	else
+	{
+		arr1 = _mm_lddqu_si128(reinterpret_cast<const __m128i*>(haystack.data() + blockStartIdx));
+	}
 
-		auto index = _mm_cmpestri(arr2, 16, arr1, useSize, 0b01000000);
-		if (index >= useSize) continue;
-		if (b >= useSize) // if b is initially 16, then I won't get the largest value smaller
+	int useSize = std::min(16, static_cast<int>(haystack.size() - blockStartIdx));
+
+	// This load is safe because needles.size() >= 16
+	auto arr2 = _mm_lddqu_si128(reinterpret_cast<const __m128i*>(needles.data()));
+	auto b = _mm_cmpestri(arr2, 16, arr1, useSize, 0b01000000);
+
+	size_t j = nextAlignedIndex(needles.data());
+
+	for (; j < needles.size(); j += 16)
+	{
+		arr2 = _mm_load_si128(reinterpret_cast<const __m128i*>(needles.data() + j));
+		auto index = _mm_cmpestri(arr2, needles.size() - j, arr1, useSize, 0b01000000);
+
+		if (index < useSize)
 		{
-			b = index;
-		}
-		else
-		{
-			b = std::max(index, b);
+			if (b >= useSize) // if b is initially 16, then I won't get the largest value smaller
+			{
+				b = index;
+			}
+			else
+			{
+				b = std::max(index, b);
+			}
 		}
 	}
 
-	arr2 = _mm_lddqu_si128(reinterpret_cast<const __m128i*>(needleData));
-
-	auto index = _mm_cmpestri(arr2, 16, arr1, useSize, 0b01000000);
-
-	if (index < useSize)
+	if (b < useSize)
 	{
-		if (b >= useSize) // if b is initially 16, then I won't get the largest value smaller
-		{
-			b = index;
-		}
-		else
-		{
-			b = std::max(index, b);
-		}
-	}
-
-	if (b < 16)
-	{
-		return blockStartIdx + static_cast<size_t>(b);
+		return blockStartIdx + b;
 	}
 
 	return KStringView::npos;
 
-}
+} // reverseScanHaystackBlock
 
 //-----------------------------------------------------------------------------
 // this implementation still can overrun memory pages and cause a bus error
@@ -826,8 +822,6 @@ size_t kFindLastOfSSE(
         KStringView needles)
 //-----------------------------------------------------------------------------
 {	
-	size_t haystackSize = haystack.size();
-
 	if (DEKAF2_UNLIKELY(needles.empty() || haystack.empty()))
 	{
 		return KStringView::npos;
@@ -843,43 +837,48 @@ size_t kFindLastOfSSE(
 		// For a 16 byte or less needle you don't need to cycle through it
 		return kFindLastOfNeedles16<false, 0b01000000>(haystack, needles);
 	}
+//	const char* p = prevAlignedPointer(EndAsCharPtr(haystack));
 
 	// Account for haystack < 16
-	size_t useSize = std::min(16, static_cast<int>(haystackSize));
+	size_t useSize = std::min(16, static_cast<int>(haystack.size()));
 
-	size_t ret;
-
-	if (haystackSize > useSize)
-	{
-		auto i = haystackSize - useSize;
-		for (;;)
-		{
-			ret = reverseScanHaystackBlock(haystack, needles, i);
-
-			if (ret != KStringView::npos)
-			{
-				return ret;
-			}
-
-			if (i <= 16)
-			{
-				break;
-			}
-
-			i -= 16;
-		}
-	}
-
-	// Scan the first haystack block
-	ret = reverseScanHaystackBlock(haystack, needles, 0);
+	auto ret = reverseScanHaystackBlock<false>(haystack, needles, haystack.size() - useSize);
 
 	if (ret != KStringView::npos)
 	{
 		return ret;
 	}
 
+	if (haystack.size() > 16)
+	{
+		auto p = prevAlignedPointer(EndAsCharPtr(haystack));
+
+		for (;;)
+		{
+			ret = reverseScanHaystackBlock<true>(haystack, needles, p - haystack.data());
+
+			if (ret != KStringView::npos)
+			{
+				return ret;
+			}
+
+			if (p <= haystack.data())
+			{
+				break;
+			}
+
+			p -= 16;
+
+			if (p < haystack.data())
+			{
+				return reverseScanHaystackBlock<false>(haystack, needles, 0);
+			}
+		}
+	}
+
 	return KStringView::npos;
-}
+
+} // kFindLastOfSSE
 
 //-----------------------------------------------------------------------------
 size_t kFindLastNotOfSSE(

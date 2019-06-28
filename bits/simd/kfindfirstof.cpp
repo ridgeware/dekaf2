@@ -781,7 +781,7 @@ size_t kFindFirstNotOfSSE(
 		return kFindFirstOfNoSSE(haystack, needles, true);
 	}
 
-	if (needles.size() <= 16)
+	if (DEKAF2_LIKELY(needles.size() <= 16))
 	{
 		if (UnalignedPageOverflow16(needles))
 		{
@@ -827,7 +827,7 @@ size_t kFindLastOfSSE(
 		return KStringView::npos;
 	}
 
-	if (UnalignedPageOverflowReverse(haystack))
+	if (DEKAF2_UNLIKELY(UnalignedPageOverflowReverse(haystack)))
 	{
 		kFindLastOfNoSSE(haystack, needles, false);
 	}
@@ -837,7 +837,6 @@ size_t kFindLastOfSSE(
 		// For a 16 byte or less needle you don't need to cycle through it
 		return kFindLastOfNeedles16<false, 0b01000000>(haystack, needles);
 	}
-//	const char* p = prevAlignedPointer(EndAsCharPtr(haystack));
 
 	// Account for haystack < 16
 	size_t useSize = std::min(16, static_cast<int>(haystack.size()));
@@ -893,7 +892,7 @@ size_t kFindLastNotOfSSE(
 		return KStringView::npos;
 	}
 
-	if (UnalignedPageOverflowReverse(haystack))
+	if (DEKAF2_UNLIKELY(UnalignedPageOverflowReverse(haystack)))
 	{
 		kFindLastOfNoSSE(haystack, needles, true);
 	}

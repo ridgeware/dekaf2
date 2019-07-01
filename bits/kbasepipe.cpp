@@ -142,6 +142,9 @@ bool KBasePipe::Open(KString sCommand, bool bAsShellCommand, int mode)
 		{
 			detail::kCloseOwnFilesForExec(false, m_readPdes, 4);
 
+			// enable SIGPIPE!
+			signal(SIGPIPE, SIG_DFL);
+
 			if (mode & PipeWrite)
 			{
 				// Bind to Child's stdin

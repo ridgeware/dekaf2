@@ -109,7 +109,7 @@ if (NOT DEKAF2_HAVE_INCLUDED_SETUP)
 
 			endif ()
 
-			if (CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 6.0 AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 7.2)
+			if (CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 6.0) # AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 7.2) : gcc 8.3 warns again..
 				# mute the annoying warning on changing abi with gcc 7.1
 				add_compile_options(-Wno-psabi)
 			endif()

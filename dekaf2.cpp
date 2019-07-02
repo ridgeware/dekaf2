@@ -2,7 +2,7 @@
 //
 // DEKAF(tm): Lighter, Faster, Smarter(tm)
 //
-// Copyright (c) 2017, Ridgeware, Inc.
+// Copyright (c) 2017-2019, Ridgeware, Inc.
 //
 // +-------------------------------------------------------------------------+
 // | /\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\|
@@ -40,13 +40,14 @@
 //
 */
 
+#include "dekaf2.h"
 #include <clocale>
 #include <cstdlib>
 #include <cwctype>
 #include <ctime>
 #include <iostream>
+#include <fstream>
 #include <random>
-#include "dekaf2.h"
 #include "klog.h"
 #include "kfilesystem.h"
 #include "kcrashexit.h"
@@ -62,7 +63,7 @@
 namespace dekaf2
 {
 
-const char DefaultLocale[] = "en_US.UTF-8";
+constexpr KStringViewZ DefaultLocale = "en_US.UTF-8";
 bool Dekaf::s_bShutdown = false;
 
 #if defined(DEKAF2_HAS_LIBPROC) || defined(DEKAF2_IS_UNIX)
@@ -75,6 +76,7 @@ void local_split_in_path_and_name(const char* sFullPath, KString& sPath, KString
 	// would invoke kRFind(), which on non-Linux platforms would call into Dekaf().GetCpuId() and hence
 	// into a not yet constructed instance
 	size_t pos = strlen(sFullPath);
+
 	while (pos)
 	{
 		--pos;
@@ -84,11 +86,14 @@ void local_split_in_path_and_name(const char* sFullPath, KString& sPath, KString
 			break;
 		}
 	}
+
 	sName = &sFullPath[pos];
+
 	while (pos > 0 && sFullPath[pos-1] == '/')
 	{
 		--pos;
 	}
+
 	sPath.assign(sFullPath, pos);
 }
 #endif
@@ -104,22 +109,28 @@ Dekaf::Dekaf()
 	SetRandomSeed();
 
 #ifdef DEKAF2_HAS_LIBPROC
+
 	// get the own executable's path and name through the libproc abstraction
 	// which has the advantage that it also works on systems without /proc file system
 	char path[PROC_PIDPATHINFO_MAXSIZE+1];
+
 	if (proc_pidpath(getpid(), path, PROC_PIDPATHINFO_MAXSIZE) > 0)
 	{
 		local_split_in_path_and_name(path, m_sProgPath, m_sProgName);
 	}
+
 #elif DEKAF2_IS_UNIX
+
 	// get the own executable's path and name through the /proc file system
 	char path[PATH_MAX+1];
 	ssize_t len;
+
 	if ((len = readlink("/proc/self/exe", path, PATH_MAX)) > 0)
 	{
 		path[len] = 0;
 		local_split_in_path_and_name(path, m_sProgPath, m_sProgName);
 	}
+
 #endif
 
 	StartDefaultTimer();
@@ -138,20 +149,64 @@ bool Dekaf::SetUnicodeLocale(KStringView sName)
 	{
 		if (m_sLocale.empty())
 		{
-			m_sLocale = std::locale().name();
-		}
-		if (m_sLocale.empty() || m_sLocale == "C" || m_sLocale == "C.UTF-8")
-		{
 #ifdef DEKAF2_IS_WINDOWS
 			// on Windows, do not try to set the default locale (en_US.UTF-8),
 			// best stay in C, as otherwise even std::isspace() is broken
 			return false;
 #endif
 			m_sLocale = DefaultLocale;
+
+			// try to set our default locale (en_US.UTF-8)
+			if (!std::setlocale(LC_ALL, m_sLocale.c_str()))
+			{
+				// our default locale is not installed on this system,
+				// query the user locale instead (remember, POSIX requires
+				// the startup locale of any program to be "C" - which does
+				// not support Unicode char types, so if we do not set a
+				// Unicode enabled locale all ctype functions will fail on
+				// non-ASCII chars)
+				m_sLocale = kGetEnv("LANG", "");
+
+				// set user locale
+				if (m_sLocale.empty() || !std::setlocale(LC_ALL, m_sLocale.c_str()))
+				{
+#ifndef DEKAF2_IS_WINDOWS
+					{
+						// last resort, slow:
+						// we will try to query all installed locales and
+						// pick the first one with UTF-8 support..
+						std::system("locale -a | grep -v -e ^C | grep -m 1 -i -s UTF-*8 > /tmp/dekaf2init.txt");
+						std::ifstream file("/tmp/dekaf2init.txt");
+						char szUnicodeLocale[51];
+						file.getline(szUnicodeLocale, 50, '\n');
+						szUnicodeLocale[50] = '\0';
+						m_sLocale = szUnicodeLocale;
+						std::setlocale(LC_ALL, m_sLocale.c_str());
+					}
+					std::system("rm -f /tmp/dekaf2init.txt");
+#endif
+				}
+
+				// make sure we have the decimal digits as with English
+				// (it is an aberration to think that internet connected
+				// code should flip its floating point conversion functions
+				// depending on a user set locale, while processing data
+				// from around the world..)
+				std::setlocale(LC_NUMERIC, "C");
+				std::setlocale(LC_MONETARY, "C");
+			}
 		}
-		std::setlocale(LC_ALL, m_sLocale.c_str());
-		std::locale::global(std::locale(m_sLocale.c_str()));
-		m_sLocale = std::locale().name();
+		else
+		{
+			if (!std::setlocale(LC_ALL, m_sLocale.c_str()))
+			{
+				std::cerr << "dekaf2: cannot set locale to " << m_sLocale << std::endl;
+			}
+
+			m_sLocale = std::locale().name();
+			std::locale::global(std::locale(m_sLocale.c_str()));
+		}
+
 #ifndef DEKAF2_IS_WINDOWS
 		if (!std::iswupper(0x53d) || std::towupper(0x17f) != 0x53)
 		{
@@ -160,16 +215,19 @@ bool Dekaf::SetUnicodeLocale(KStringView sName)
 		}
 #endif
 	}
-	DEKAF2_CATCH (std::exception& e) {
+
+	DEKAF2_CATCH (std::exception& e)
+	{
 		if (m_bInConstruction)
 		{
-			std::cerr << e.what() << std::endl;
+			std::cerr << "dekaf2: " << e.what() << " (trying to set locale to " << m_sLocale << ')' << std::endl;
 		}
 		else
 		{
 			kException(e);
 		}
-		m_sLocale.erase();
+
+		m_sLocale.clear();
 	}
 
 	return !m_sLocale.empty();

@@ -64,8 +64,7 @@ namespace dekaf2
 class KString;
 class KStringView;
 class KStringViewZ;
-template<class Value> class KStack;
-
+template <class Value> class KStack;
 
 //----------------------------------------------------------------------
 KString kToUpper(KStringView sInput);
@@ -433,17 +432,22 @@ public:
 	/// match with regular expression and return all match groups
 	std::vector<KStringView> MatchRegexGroups(KStringView sRegEx, size_type pos = 0) const;
 
-	/// replace with regular expression, sReplaceWith may address sub-groups with \\1 etc.
+	/// replace with regular expression, sReplaceWith may address sub-groups with \\1 etc., modifies string and returns number of replacements made
 	size_type ReplaceRegex(KStringView sRegEx, KStringView sReplaceWith, bool bReplaceAll = true);
 
-	/// replace one part of the string with another string
+	/// replace one part of the string with another string, modifies string
 	size_type Replace(KStringView sSearch, KStringView sReplace, size_type pos = 0, bool bReplaceAll = true);
 
-	/// replace one char of the string with another char
+	/// replace one char of the string with another char, modifies string and returns number of replacements made
 	size_type Replace(value_type chSearch, value_type chReplace, size_type pos = 0, bool bReplaceAll = true);
 
-	/// replace any of some chars of the string with another char
+	/// replace any of some chars of the string with another char, modifies string and returns number of replacements made
 	size_type Replace(KStringView sSearch, value_type sReplace, size_type pos = 0, bool bReplaceAll = true);
+
+	#if 0
+	/// replace a list of strings (usually placeholders or tokens) in the given string (usually a template), modifies string and returns number of replacements made
+	size_type Replace(KProps<KString, KString, /*order-matters=*/true, /*unique-keys=*/true> Tokens);
+	#endif
 
 	// std::C++20
 	/// does the string start with sPattern?

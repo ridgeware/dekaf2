@@ -708,6 +708,26 @@ KString::size_type KString::ReplaceRegex(KStringView sRegEx, KStringView sReplac
 #endif
 }
 
+#if 0
+//----------------------------------------------------------------------
+size_type Replace (KProps<KString, KString, /*order-matters=*/true, /*unique-keys=*/true> Tokens)
+//----------------------------------------------------------------------
+{
+	size_type iReplacements{0};
+
+	for (auto& token : Tokens)
+	{
+		KStringView sToken = token.first;
+		KStringView sValue = token.second;
+
+		iReplacements += KString::Replace (sToken, sValue, 0, /*bReplaceAll=*/true);
+	}
+
+	return iReplacements;
+
+} // Replace
+#endif
+
 //----------------------------------------------------------------------
 KStringViewZ KString::ToView(size_type pos) const
 //----------------------------------------------------------------------

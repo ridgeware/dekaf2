@@ -1042,7 +1042,7 @@ TEST_CASE("KString") {
 	{
 #if defined(DEKAF2_IS_OSX) 
 		{
-			CHECK(KStringView(std::locale().name()).ends_with(".UTF-8"));
+			INFO(std::locale().name());
 			wint_t ch = 246; // oe
 			CHECK(std::islower(ch));
 			CHECK(std::toupper(ch) == 214);

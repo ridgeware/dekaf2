@@ -496,7 +496,6 @@ set(PUBLIC_HEADERS
 	ksignals.h
 	ksmtp.h
 	ksplit.h
-	ksql.h
 	ksslclient.h
 	ksslstream.h
 	kstack.h
@@ -528,12 +527,6 @@ set(PUBLIC_HEADERS
 	# keep this one at the end
 	khtmlentities.h
 )
-
-if(SQLITE3_FOUND)
-	set(PUBLIC_HEADERS ${PUBLIC_HEADERS}
-		ksqlite.h
-	)
-endif()
 
 if (DEKAF2_WITH_COMPATIBILITY_LAYER_TO_DEKAF1)
 	set(COMPAT_HEADERS
@@ -627,7 +620,6 @@ set (SOURCES
 	ksignals.cpp
 	ksmtp.cpp
 	ksplit.cpp
-	ksql.cpp
 	ksslstream.cpp
 	kstream.cpp
 	kstreambuf.cpp
@@ -651,12 +643,6 @@ set (SOURCES
 	# keep this one at the end
 	khtmlentities5.cpp
 )
-
-if(SQLITE3_FOUND)
-	set(SOURCES ${SOURCES}
-		ksqlite.cpp
-	)
-endif()
 
 # ============================= CONDITIONAL LIBS ==================================
 
@@ -721,8 +707,6 @@ target_link_libraries(dekaf2
 	PRIVATE
 		${FCGILIBS}
 		${FSLIB}
-		${MYSQL_LIBRARIES}
-		${SQLITE3_LIBRARIES}
 		${libproc_LIBRARIES}
 		re2
 	)
@@ -736,21 +720,43 @@ target_include_directories(dekaf2
 	${Boost_INCLUDE_DIR}
 	${OPENSSL_INCLUDE_DIR}
 	PRIVATE
-	$<BUILD_INTERFACE:${MYSQL_INCLUDE_DIRS}>
 	$<BUILD_INTERFACE:${SQLITE3_INCLUDE_DIRS}>
 	$<BUILD_INTERFACE:${libproc_INCLUDE_DIRS}>
-	INTERFACE
 )
 
 target_compile_definitions(dekaf2 PRIVATE DEKAF2_LIBRARY_BUILD PUBLIC DEKAF2)
+
+add_library(ksql2 ksql.cpp ksql.h)
+target_link_libraries(ksql2
+	PUBLIC
+		dekaf2
+	PRIVATE
+		${MYSQL_LIBRARIES}
+	)
+target_include_directories(ksql2
+	PRIVATE
+	$<BUILD_INTERFACE:${MYSQL_INCLUDE_DIRS}>
+)
+add_dependencies(ksql2 dekaf2)
+
+if(SQLITE3_FOUND)
+	add_library(ksqlite ksqlite.cpp ksqlite.h)
+	target_link_libraries(ksqlite
+		PUBLIC
+			dekaf2
+		PRIVATE
+			${SQLITE3_LIBRARIES}
+		)
+	add_dependencies(ksqlite dekaf2)
+endif()
 
 add_executable(klog klog_main.cpp)
 target_link_libraries(klog dekaf2)
 add_dependencies(klog dekaf2)
 
 add_executable(createdbc createdbc.cpp)
-target_link_libraries(createdbc dekaf2)
-add_dependencies(createdbc dekaf2)
+target_link_libraries(createdbc dekaf2 ksql2)
+add_dependencies(createdbc dekaf2 ksql2)
 
 add_executable(getentities EXCLUDE_FROM_ALL getentities.cpp)
 target_link_libraries(getentities dekaf2)
@@ -780,7 +786,7 @@ install(TARGETS nlohmann-json EXPORT dekaf2 DESTINATION ${dekaf2_lib_dest})
 install(TARGETS re2 EXPORT dekaf2 DESTINATION ${dekaf2_lib_dest})
 install(TARGETS frozen EXPORT dekaf2 DESTINATION ${dekaf2_lib_dest})
 
-install(TARGETS dekaf2 EXPORT dekaf2 DESTINATION ${dekaf2_lib_dest})
+install(TARGETS dekaf2 ksql2 EXPORT dekaf2 DESTINATION ${dekaf2_lib_dest})
 install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/cmake/${PROJECT_NAME}-config.cmake DESTINATION ${dekaf2_main_lib_dest})
 install(FILES ${GENERATED_FILES_DIR}/${PROJECT_NAME}-config-version.cmake DESTINATION ${dekaf2_main_lib_dest})
 install(FILES ${GENERATED_FILES_DIR}/${PROJECT_NAME}-setup.cmake DESTINATION ${dekaf2_lib_dest})
@@ -790,6 +796,11 @@ install(TARGETS createdbc DESTINATION ${dekaf2_bin_dest})
 #install(TARGETS genunicodetables DESTINATION ${dekaf2_bin_dest})
 
 install(FILES ${PUBLIC_HEADERS} DESTINATION ${dekaf2_include_dest}/dekaf2)
+install(FILES ksql.h DESTINATION ${dekaf2_include_dest}/dekaf2)
+if(SQLITE3_FOUND)
+	install(TARGETS ksqlite EXPORT dekaf2 DESTINATION ${dekaf2_lib_dest})
+	install(FILES ksqlite.h DESTINATION ${dekaf2_include_dest}/dekaf2)
+endif()
 install(FILES ${BITS_HEADERS} DESTINATION ${dekaf2_include_dest}/dekaf2/bits)
 install(FILES ${BITS_SIMD_HEADERS} DESTINATION ${dekaf2_include_dest}/dekaf2/bits/simd)
 install(FILES "${GENERATED_FILES_DIR}/kconfiguration.h" DESTINATION ${dekaf2_lib_dest})

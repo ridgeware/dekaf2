@@ -70,5 +70,5 @@ set (USOURCES
 )
 
 add_executable(dekaf2-utests EXCLUDE_FROM_ALL ${UHEADERS} ${USOURCES})
-target_link_libraries(dekaf2-utests dekaf2)
+target_link_libraries(dekaf2-utests dekaf2 ksqlite)
 

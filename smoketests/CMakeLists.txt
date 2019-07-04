@@ -21,5 +21,5 @@ set (USOURCES
 )
 
 add_executable(dekaf2-smoketests EXCLUDE_FROM_ALL ${UHEADERS} ${USOURCES})
-target_link_libraries(dekaf2-smoketests dekaf2)
+target_link_libraries(dekaf2-smoketests dekaf2 ksql2)
 

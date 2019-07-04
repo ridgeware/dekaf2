@@ -76,6 +76,8 @@ public:
 
 	KStringViewPair NextPair();
 
+	KStringView GetRemaining() const { return m_sInput; }
+
 //------
 private:
 //------
@@ -103,6 +105,8 @@ public:
 	}
 
 	KStringViewPair NextPair();
+
+	KStringView GetRemaining() const { return m_sInput; }
 
 //------
 private:
@@ -132,6 +136,8 @@ public:
 
 	std::pair<KStringView, KStringView> NextPair();
 
+	KStringView GetRemaining() const { return m_sInput; }
+
 //------
 private:
 //------
@@ -160,6 +166,8 @@ public:
 
 	std::pair<KString, KStringView> NextPair();
 
+	KStringView GetRemaining() const { return m_sInput; }
+
 //------
 private:
 //------
@@ -187,6 +195,8 @@ public:
 	}
 
 	std::pair<KString, KString> NextPair();
+
+	KStringView GetRemaining() const { return m_sInput; }
 
 //------
 private:

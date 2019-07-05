@@ -76,6 +76,8 @@ public:
 
 	KStringViewPair NextPair();
 
+	void SkipInput(size_t iCount) { m_sInput.remove_prefix(iCount); }
+
 	KStringView GetRemaining() const { return m_sInput; }
 
 //------
@@ -105,6 +107,8 @@ public:
 	}
 
 	KStringViewPair NextPair();
+
+	void SkipInput(size_t iCount) { m_sInput.remove_prefix(iCount); }
 
 	KStringView GetRemaining() const { return m_sInput; }
 
@@ -136,6 +140,8 @@ public:
 
 	std::pair<KStringView, KStringView> NextPair();
 
+	void SkipInput(size_t iCount) { m_sInput.remove_prefix(iCount); }
+
 	KStringView GetRemaining() const { return m_sInput; }
 
 //------
@@ -166,6 +172,8 @@ public:
 
 	std::pair<KString, KStringView> NextPair();
 
+	void SkipInput(size_t iCount) { m_sInput.remove_prefix(iCount); }
+
 	KStringView GetRemaining() const { return m_sInput; }
 
 //------
@@ -193,6 +201,8 @@ public:
 	{
 		return m_sInput.empty();
 	}
+
+	void SkipInput(size_t iCount) { m_sInput.remove_prefix(iCount); }
 
 	std::pair<KString, KString> NextPair();
 

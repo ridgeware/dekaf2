@@ -277,12 +277,22 @@ bool kReadAll(std::istream& Stream, KString& sContent, bool bFromStart)
 
 } // kReadAll
 
+//-----------------------------------------------------------------------------
+KString kReadAll(std::istream& Stream, bool bFromStart)
+//-----------------------------------------------------------------------------
+{
+	KString sContent;
+	kAppendAll(Stream, sContent, bFromStart);
+	return sContent;
+
+} // kReadAll
+
 #ifndef DEKAF2_IS_OSX
 #define DEKAF2_READALL_USE_IOSTREAMS
 #endif
 
 //-----------------------------------------------------------------------------
-bool kReadAll(KStringViewZ sFileName, KString& sContent)
+bool kAppendAll(KStringViewZ sFileName, KString& sContent)
 //-----------------------------------------------------------------------------
 {
 	sContent.clear();
@@ -361,8 +371,26 @@ bool kReadAll(KStringViewZ sFileName, KString& sContent)
 
 	return false;
 
+} // kAppendAll
+
+//-----------------------------------------------------------------------------
+bool kReadAll(KStringViewZ sFileName, KString& sContent)
+//-----------------------------------------------------------------------------
+{
+	sContent.clear();
+	return kAppendAll(sFileName, sContent);
+
 } // kReadAll
 
+//-----------------------------------------------------------------------------
+KString kReadAll(KStringViewZ sFileName)
+//-----------------------------------------------------------------------------
+{
+	KString sContent;
+	kAppendAll(sFileName, sContent);
+	return sContent;
+
+} // kReadAll
 
 #ifndef DEKAF2_IS_OSX
 #define DEKAF2_READLINE_USE_GETLINE

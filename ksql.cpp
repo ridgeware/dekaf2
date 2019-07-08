@@ -750,8 +750,7 @@ bool KSQL::LoadConnect (KString sDBCFile)
 
 	kDebugLog (GetDebugLevel(), "KSQL:LoadConnect(): opening '{}'...", sDBCFile);
 
-	KString sBuffer;
-	kReadAll(sDBCFile, sBuffer);
+	auto sBuffer = kReadAll(sDBCFile);
 
 	if (sBuffer.empty())
 	{

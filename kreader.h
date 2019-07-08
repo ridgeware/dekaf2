@@ -75,8 +75,19 @@ bool kAppendAll(std::istream& Stream, KString& sContent, bool bFromStart = true)
 /// Reads directly in the underlying streambuf
 bool kReadAll(std::istream& Stream, KString& sContent, bool bFromStart = true);
 
+/// Read all content of a std::istream device into a string. Fails on non-seekable
+/// istreams if bFromStart is true, otherwise tries to read as much as possible.
+/// Reads directly in the underlying streambuf
+KString kReadAll(std::istream& Stream, bool bFromStart = true);
+
+/// Read all content of a file with name sFileName into a string, append to sContent
+bool kAppendAll(KStringViewZ sFileName, KString& sContent);
+
 /// Read all content of a file with name sFileName into a string
 bool kReadAll(KStringViewZ sFileName, KString& sContent);
+
+/// Read all content of a file with name sFileName into a string
+KString kReadAll(KStringViewZ sFileName);
 
 /// Get the total size of a std::istream device. Returns -1 on Failure. Fails on non-seekable istreams.
 ssize_t kGetSize(std::istream& Stream, bool bFromStart = true);

@@ -194,27 +194,59 @@ KString KXML::Serialize(int iPrintFlags) const
 }
 
 //-----------------------------------------------------------------------------
-bool KXML::Parse(KInStream& InStream, bool bPreserveWhiteSpace)
+bool KXML::Parse(KInStream& InStream, bool bPreserveWhiteSpace, KStringView sCreateRoot)
 //-----------------------------------------------------------------------------
 {
 	clear();
-	kReadAll(InStream, XMLData, false);
+
+	if (!sCreateRoot.empty())
+	{
+		XMLData += '<';
+		XMLData += sCreateRoot;
+		XMLData += '>';
+	}
+
+	kAppendAll(InStream, XMLData, false);
+
+	if (!sCreateRoot.empty())
+	{
+		XMLData += "</";
+		XMLData += sCreateRoot;
+		XMLData += '>';
+	}
+
 	return Parse(bPreserveWhiteSpace);
 }
 
 //-----------------------------------------------------------------------------
-bool KXML::Parse(KInStream&& InStream, bool bPreserveWhiteSpace)
+bool KXML::Parse(KInStream&& InStream, bool bPreserveWhiteSpace, KStringView sCreateRoot)
 //-----------------------------------------------------------------------------
 {
-	return Parse(InStream, bPreserveWhiteSpace);
+	return Parse(InStream, bPreserveWhiteSpace, sCreateRoot);
 }
 
 //-----------------------------------------------------------------------------
-bool KXML::Parse(KStringView string, bool bPreserveWhiteSpace)
+bool KXML::Parse(KStringView string, bool bPreserveWhiteSpace, KStringView sCreateRoot)
 //-----------------------------------------------------------------------------
 {
 	clear();
-	XMLData = string;
+
+	if (!sCreateRoot.empty())
+	{
+		XMLData += '<';
+		XMLData += sCreateRoot;
+		XMLData += '>';
+	}
+
+	XMLData += string;
+
+	if (!sCreateRoot.empty())
+	{
+		XMLData += "</";
+		XMLData += sCreateRoot;
+		XMLData += '>';
+	}
+
 	return Parse(bPreserveWhiteSpace);
 }
 

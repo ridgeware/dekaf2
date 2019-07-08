@@ -323,11 +323,11 @@ public:
 	KString Serialize(int iPrintFlags = PrintFlags::Default) const;
 
 	/// Parse DOM from InStream
-	bool Parse(KInStream& InStream, bool bPreserveWhiteSpace = false);
+	bool Parse(KInStream& InStream, bool bPreserveWhiteSpace = false, KStringView sCreateRoot = {});
 	/// Parse DOM from InStream
-	bool Parse(KInStream&& InStream, bool bPreserveWhiteSpace = false);
+	bool Parse(KInStream&& InStream, bool bPreserveWhiteSpace = false, KStringView sCreateRoot = {});
 	/// Parse DOM from string
-	bool Parse(KStringView string, bool bPreserveWhiteSpace = false);
+	bool Parse(KStringView string, bool bPreserveWhiteSpace = false, KStringView sCreateRoot = {});
 
 	/// Clear all content
 	void clear();

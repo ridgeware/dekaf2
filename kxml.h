@@ -303,10 +303,10 @@ public:
 	/// Construct an empty KXML DOM
 	KXML();
 	/// Construct a KXML DOM by parsing sDocument - content gets copied
-	KXML(KStringView sDocument, bool bPreserveWhiteSpace = false);
+	KXML(KStringView sDocument, bool bPreserveWhiteSpace = false, KStringView sCreateRoot = {});
 	/// Construct a KXML DOM by parsing InStream
-	KXML(KInStream& InStream, bool bPreserveWhiteSpace = false);
-	KXML(KInStream&& InStream, bool bPreserveWhiteSpace = false);
+	KXML(KInStream& InStream, bool bPreserveWhiteSpace = false, KStringView sCreateRoot = {});
+	KXML(KInStream&& InStream, bool bPreserveWhiteSpace = false, KStringView sCreateRoot = {});
 
 	KXML(const KXML&) = delete;
 	KXML(KXML&&) = default;

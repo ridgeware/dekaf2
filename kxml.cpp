@@ -140,27 +140,27 @@ KXML::KXML()
 }
 
 //-----------------------------------------------------------------------------
-KXML::KXML(KStringView sDocument, bool bPreserveWhiteSpace)
+KXML::KXML(KStringView sDocument, bool bPreserveWhiteSpace, KStringView sCreateRoot)
 //-----------------------------------------------------------------------------
 : KXML()
 {
-	Parse(sDocument, bPreserveWhiteSpace);
+	Parse(sDocument, bPreserveWhiteSpace, sCreateRoot);
 }
 
 //-----------------------------------------------------------------------------
-KXML::KXML(KInStream& InStream, bool bPreserveWhiteSpace)
+KXML::KXML(KInStream& InStream, bool bPreserveWhiteSpace, KStringView sCreateRoot)
 //-----------------------------------------------------------------------------
 : KXML()
 {
-	Parse(InStream, bPreserveWhiteSpace);
+	Parse(InStream, bPreserveWhiteSpace, sCreateRoot);
 }
 
 //-----------------------------------------------------------------------------
-KXML::KXML(KInStream&& InStream, bool bPreserveWhiteSpace)
+KXML::KXML(KInStream&& InStream, bool bPreserveWhiteSpace, KStringView sCreateRoot)
 //-----------------------------------------------------------------------------
 : KXML()
 {
-	Parse(InStream, bPreserveWhiteSpace);
+	Parse(InStream, bPreserveWhiteSpace, sCreateRoot);
 }
 
 //-----------------------------------------------------------------------------

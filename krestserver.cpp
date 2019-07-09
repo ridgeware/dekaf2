@@ -71,11 +71,12 @@ KRESTAnalyzedPath::KRESTAnalyzedPath(KHTTPMethod _Method, KStringView _sRoute)
 } // end of namespace detail
 	
 //-----------------------------------------------------------------------------
-KRESTRoute::KRESTRoute(KHTTPMethod _Method, KStringView _sRoute, RESTCallback _Callback, ParserType _Parser)
+KRESTRoute::KRESTRoute(KHTTPMethod _Method, bool _bAuth, KStringView _sRoute, RESTCallback _Callback, ParserType _Parser)
 //-----------------------------------------------------------------------------
 	: detail::KRESTAnalyzedPath(std::move(_Method), std::move(_sRoute))
 	, Callback(std::move(_Callback))
 	, Parser(_Parser)
+	, bAuth(_bAuth)
 {
 } // KRESTRoute
 
@@ -179,9 +180,9 @@ bool KRESTRoute::Matches(const KRESTPath& Path, Parameters& Params, bool bCompar
 
 
 //-----------------------------------------------------------------------------
-KRESTRoutes::KRESTRoutes(KRESTRoute::RESTCallback DefaultRoute)
+KRESTRoutes::KRESTRoutes(KRESTRoute::RESTCallback DefaultRoute, bool _bAuth)
 //-----------------------------------------------------------------------------
-	: m_DefaultRoute(KRESTRoute(KHTTPMethod{}, "/", DefaultRoute))
+	: m_DefaultRoute(KRESTRoute(KHTTPMethod{}, _bAuth, "/", DefaultRoute))
 {
 }
 
@@ -202,11 +203,12 @@ void KRESTRoutes::AddRoute(KRESTRoute&& _Route)
 } // AddRoute
 
 //-----------------------------------------------------------------------------
-void KRESTRoutes::SetDefaultRoute(KRESTRoute::RESTCallback Callback, KRESTRoute::ParserType Parser)
+void KRESTRoutes::SetDefaultRoute(KRESTRoute::RESTCallback Callback, bool bAuth, KRESTRoute::ParserType Parser)
 //-----------------------------------------------------------------------------
 {
 	m_DefaultRoute.Callback = Callback;
 	m_DefaultRoute.Parser = Parser;
+	m_DefaultRoute.bAuth = bAuth;
 
 } // SetDefaultRoute
 
@@ -452,21 +454,6 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 				}
 			}
 
-			// OPTIONS method is allowed without Authorization header (it is used to request
-			// for Authorization permission)
-			if (Options.AuthLevel != Options::ALLOW_ALL
-				&& Request.Method != KHTTPMethod::OPTIONS)
-			{
-				VerifyAuthentication(Options);
-			}
-
-			// switch logging only after authorization (but not for OPTIONS, as it is
-			// not authenticated..)
-			if (!Options.sKLogHeader.empty() && Request.Method != KHTTPMethod::OPTIONS)
-			{
-				VerifyPerThreadKLogToHeader(Options);
-			}
-
 			Response.SetStatus(200, "OK");
 			Response.sHTTPVersion = "HTTP/1.1";
 
@@ -482,6 +469,22 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 
 			// find the right route
 			route = &Routes.FindRoute(KRESTPath(Request.Method, sURLPath), Request.Resource.Query, Options.bCheckForWrongMethod);
+
+			// OPTIONS method is allowed without Authorization header (it is used to request
+			// for Authorization permission)
+			if (Options.AuthLevel != Options::ALLOW_ALL
+				&& route->bAuth   != false
+				&& Request.Method != KHTTPMethod::OPTIONS)
+			{
+				VerifyAuthentication(Options);
+			}
+
+			// switch logging only after authorization (but not for OPTIONS, as it is
+			// not authenticated..)
+			if (!Options.sKLogHeader.empty() && Request.Method != KHTTPMethod::OPTIONS)
+			{
+				VerifyPerThreadKLogToHeader(Options);
+			}
 
 			if (!route->Callback)
 			{
@@ -1012,7 +1015,7 @@ void KRESTServer::clear()
 } // clear
 
 // our empty route..
-const KRESTRoute KRESTServer::s_EmptyRoute({}, "/empty", nullptr, KRESTRoute::NOREAD);
+const KRESTRoute KRESTServer::s_EmptyRoute({}, false, "/empty", nullptr, KRESTRoute::NOREAD);
 
 static_assert(std::is_nothrow_move_constructible<KRESTPath>::value,
 			  "KRESTPath is intended to be nothrow move constructible, but is not!");

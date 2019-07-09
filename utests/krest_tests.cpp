@@ -17,7 +17,7 @@ TEST_CASE("KREST")
 
 		bool bCalledTest { false };
 
-		Routes.AddRoute({ KHTTPMethod::GET, "/test", [&](KRESTServer& http)
+		Routes.AddRoute({ KHTTPMethod::GET, false, "/test", [&](KRESTServer& http)
 		{
 			bCalledTest = true;
 			http.json.tx["response"] = "hello world";
@@ -25,54 +25,54 @@ TEST_CASE("KREST")
 
 		bool bCalledHelp { false };
 
-		Routes.AddRoute({ KHTTPMethod::GET, "/help", [&](KRESTServer& http)
+		Routes.AddRoute({ KHTTPMethod::GET, false, "/help", [&](KRESTServer& http)
 		{
 			bCalledHelp = true;
 		}, KRESTRoute::PLAIN });
 
 		bool bCalledNoSlashPath { false };
 
-		Routes.AddRoute({ KHTTPMethod::GET, "noslashpath", [&](KRESTServer& http)
+		Routes.AddRoute({ KHTTPMethod::GET, false, "noslashpath", [&](KRESTServer& http)
 		{
 			bCalledNoSlashPath = true;
 		}});
 
 		KString sUID;
 
-		Routes.AddRoute({ KHTTPMethod::GET, "/user/:UID", [&](KRESTServer& http)
+		Routes.AddRoute({ KHTTPMethod::GET, false, "/user/:UID", [&](KRESTServer& http)
 		{
 			sUID = http.Request.Resource.Query[":UID"];
 		}});
 
 		KString sName;
 
-		Routes.AddRoute({ KHTTPMethod::GET, "/user/=NAME/address", [&](KRESTServer& http)
+		Routes.AddRoute({ KHTTPMethod::GET, false, "/user/=NAME/address", [&](KRESTServer& http)
 		{
 			sName = http.Request.Resource.Query["NAME"];
 		}});
 
-		Routes.AddRoute({ KHTTPMethod::GET, "/throw", [&](KRESTServer& http)
+		Routes.AddRoute({ KHTTPMethod::GET, false, "/throw", [&](KRESTServer& http)
 		{
 			throw KHTTPError{ KHTTPError::H4xx_BADREQUEST, "missing parameters" };
 		}});
 
 		bool bMatchedWildcardAtEnd { false };
 
-		Routes.AddRoute({ KHTTPMethod::GET, "/wildcard/at/end/*", [&](KRESTServer& http)
+		Routes.AddRoute({ KHTTPMethod::GET, false, "/wildcard/at/end/*", [&](KRESTServer& http)
 		{
 			bMatchedWildcardAtEnd = true;
 		}});
 
 		bool bMatchedWildcardFragment { false };
 
-		Routes.AddRoute({ KHTTPMethod::GET, "/wildcard/*/middle", [&](KRESTServer& http)
+		Routes.AddRoute({ KHTTPMethod::GET, false, "/wildcard/*/middle", [&](KRESTServer& http)
 		{
 			bMatchedWildcardFragment = true;
 		}});
 
 		bool bMatchedMultiWildcards { false };
 
-		Routes.AddRoute({ KHTTPMethod::GET, "/wildcard/*/middle/and/*", [&](KRESTServer& http)
+		Routes.AddRoute({ KHTTPMethod::GET, false, "/wildcard/*/middle/and/*", [&](KRESTServer& http)
 		{
 			bMatchedMultiWildcards = true;
 		}});
@@ -225,11 +225,11 @@ TEST_CASE("KREST")
 	{
 		KRESTRoutes::FunctionTable RTable[]
 		{
-			{ "GET", "/test",               rest_test },
-			{ "GET", "/help",               rest_test, KRESTRoute::PLAIN },
-			{ "GET", "noslashpath",         rest_test },
-			{ "GET", "/user/:NAME/address", rest_test },
-			{ "GET", "/user/:UID",          rest_test },
+			{ "GET", false, "/test",               rest_test },
+			{ "GET", false, "/help",               rest_test, KRESTRoute::PLAIN },
+			{ "GET", false, "noslashpath",         rest_test },
+			{ "GET", false, "/user/:NAME/address", rest_test },
+			{ "GET", false, "/user/:UID",          rest_test },
 		};
 
 		class RClass
@@ -242,11 +242,11 @@ TEST_CASE("KREST")
 
 		KRESTRoutes::MemberFunctionTable<RClass> MTable[]
 		{
-			{ "GET", "/rr/test",               &RClass::rest_test2 },
-			{ "GET", "/rr/help",               &RClass::rest_test2, KRESTRoute::PLAIN },
-			{ "GET", "rr/noslashpath",         &RClass::rest_test2, KRESTRoute::JSON  },
-			{ "GET", "/rr/user/:NAME/address", &RClass::rest_test2 },
-			{ "GET", "/rr/user/:UID",          &RClass::rest_test2 },
+			{ "GET", false, "/rr/test",               &RClass::rest_test2 },
+			{ "GET", false, "/rr/help",               &RClass::rest_test2, KRESTRoute::PLAIN },
+			{ "GET", false, "rr/noslashpath",         &RClass::rest_test2, KRESTRoute::JSON  },
+			{ "GET", false, "/rr/user/:NAME/address", &RClass::rest_test2 },
+			{ "GET", false, "/rr/user/:UID",          &RClass::rest_test2 },
 		};
 
 		KRESTRoutes Routes;

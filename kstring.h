@@ -441,14 +441,6 @@ public:
 	/// replace one char of the string with another char, modifies string and returns number of replacements made
 	size_type Replace(value_type chSearch, value_type chReplace, size_type pos = 0, bool bReplaceAll = true);
 
-	/// replace any of some chars of the string with another char, modifies string and returns number of replacements made
-	size_type Replace(KStringView sSearch, value_type sReplace, size_type pos = 0, bool bReplaceAll = true);
-
-	#if 0
-	/// replace a list of strings (usually placeholders or tokens) in the given string (usually a template), modifies string and returns number of replacements made
-	size_type Replace(KProps<KString, KString, /*order-matters=*/true, /*unique-keys=*/true> Tokens);
-	#endif
-
 	// std::C++20
 	/// does the string start with sPattern?
 	bool starts_with(KStringView sPattern) const noexcept;

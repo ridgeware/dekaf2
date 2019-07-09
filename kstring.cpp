@@ -672,32 +672,6 @@ KString::size_type KString::Replace(
 } // Replace
 
 //----------------------------------------------------------------------
-KString::size_type KString::Replace(
-        KStringView sSearch,
-        value_type chReplace,
-        size_type pos,
-        bool bReplaceAll)
-//----------------------------------------------------------------------
-{
-	size_type iReplaced{0};
-
-	while ((pos = find_first_of(sSearch, pos)) != npos)
-	{
-		m_rep[pos] = chReplace;
-		++pos;
-		++iReplaced;
-
-		if (!bReplaceAll)
-		{
-			break;
-		}
-	}
-
-	return iReplaced;
-
-} // Replace
-
-//----------------------------------------------------------------------
 KString::size_type KString::ReplaceRegex(KStringView sRegEx, KStringView sReplaceWith, bool bReplaceAll)
 //----------------------------------------------------------------------
 {
@@ -707,26 +681,6 @@ KString::size_type KString::ReplaceRegex(KStringView sRegEx, KStringView sReplac
 	return dekaf2::KRegex::Replace(m_rep, sRegEx, sReplaceWith, bReplaceAll);
 #endif
 }
-
-#if 0
-//----------------------------------------------------------------------
-size_type Replace (KProps<KString, KString, /*order-matters=*/true, /*unique-keys=*/true> Tokens)
-//----------------------------------------------------------------------
-{
-	size_type iReplacements{0};
-
-	for (auto& token : Tokens)
-	{
-		KStringView sToken = token.first;
-		KStringView sValue = token.second;
-
-		iReplacements += KString::Replace (sToken, sValue, 0, /*bReplaceAll=*/true);
-	}
-
-	return iReplacements;
-
-} // Replace
-#endif
 
 //----------------------------------------------------------------------
 KStringViewZ KString::ToView(size_type pos) const

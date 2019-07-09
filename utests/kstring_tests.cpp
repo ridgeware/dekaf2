@@ -163,70 +163,6 @@ TEST_CASE("KString") {
 
 	}
 
-	SECTION("Replace range of chars on KString")
-	{
-		// source, search, replace, target
-		std::vector<std::vector<KString>> stest
-		{
-			{ "", "abc", "def", "" },
-			{ " ", "abc", "def", " " },
-			{ "   ", "abc", "def", "   " },
-			{ "    ", "abc", "def", "    " },
-			{ "    ", "abc", "defgh", "    " },
-
-			{ "0123abcdefghijklmnopqrstuvwxyz", "0123", "56", "5555abcdefghijklmnopqrstuvwxyz" },
-
-			{ "abcd0123efghijklmnopqrstuvwxyz", "0123", "56", "abcd5555efghijklmnopqrstuvwxyz" },
-
-			{ "abcdefghijklmnopqrstuvwxyz0120", "0123", "56", "abcdefghijklmnopqrstuvwxyz5555" },
-
-			{ "0123abcdefg0123hij01230123klmnopqrstuvwxyz0120", "0123", "56", "5555abcdefg5555hij55555555klmnopqrstuvwxyz5555" },
-
-			{ "0123", "0123", "56", "5555" },
-
-			{ "01230123", "0123", "56", "55555555" },
-		};
-
-		for (auto& it : stest)
-		{
-			it[0].Replace(it[1], it[2][0], 0, true);
-			CHECK( it[0] == it[3] );
-		}
-
-	}
-
-	SECTION("Replace range of chars with offset on KString")
-	{
-		// source, search, replace, target
-		std::vector<std::vector<KString>> stest
-		{
-			{ "", "abc", "def", "" },
-			{ " ", "abc", "def", " " },
-			{ "   ", "abc", "def", "   " },
-			{ "    ", "abc", "def", "    " },
-			{ "    ", "abc", "defgh", "    " },
-
-			{ "0123abcdefghijklmnopqrstuvwxyz", "0123", "56", "0155abcdefghijklmnopqrstuvwxyz" },
-
-			{ "abcd0123efghijklmnopqrstuvwxyz", "0123", "56", "abcd5555efghijklmnopqrstuvwxyz" },
-
-			{ "abcdefghijklmnopqrstuvwxyz0120", "0123", "56", "abcdefghijklmnopqrstuvwxyz5555" },
-
-			{ "0123abcdefg0123hij01230123klmnopqrstuvwxyz0120", "0123", "56", "0155abcdefg5555hij55555555klmnopqrstuvwxyz5555" },
-
-			{ "0123", "0123", "56", "0155" },
-
-			{ "01230123", "0123", "56", "01555555" },
-		};
-
-		for (auto& it : stest)
-		{
-			it[0].Replace(it[1], it[2][0], 2, true);
-			CHECK( it[0] == it[3] );
-		}
-
-	}
-
 	SECTION("KString Trimming")
 	{
 		std::vector<KString> stest
@@ -1481,6 +1417,12 @@ TEST_CASE("KString") {
 		{
 			CHECK ( it == *rit++);
 		}
+	}
+
+	SECTION("hash")
+	{
+		KString sEmpty;
+		CHECK ( sEmpty.Hash() == 14695981039346656037ULL );
 	}
 
 }

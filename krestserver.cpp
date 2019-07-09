@@ -481,38 +481,33 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 			sURLPath.remove_suffix("/");
 
 			// find the right route
-			auto Route = Routes.FindRoute(KRESTPath(Request.Method, sURLPath), Request.Resource.Query, Options.bCheckForWrongMethod);
+			route = &Routes.FindRoute(KRESTPath(Request.Method, sURLPath), Request.Resource.Query, Options.bCheckForWrongMethod);
 
-			if (!Route.Callback)
+			if (!route->Callback)
 			{
 				throw KHTTPError { KHTTPError::H5xx_ERROR, kFormat("empty callback for {}", sURLPath) };
 			}
 
-			if (Request.Method != KHTTPMethod::GET && Request.HasContent() && Route.Parser != KRESTRoute::NOREAD)
+			if (Request.Method != KHTTPMethod::GET && Request.HasContent())
 			{
-				// read body and store for later access
-				KHTTPServer::Read(m_sRequestBody);
-
-				kDebug (3, "read request body with length {} and type {}",
-						m_sRequestBody.size(),
-						Request.Headers[KHTTPHeaders::CONTENT_TYPE]);
-
-				if (Route.Parser == KRESTRoute::JSON)
+				switch (route->Parser)
 				{
-					// try to read input as JSON - if it fails just skip
-					KStringView sBuffer { m_sRequestBody };
-					sBuffer.TrimRight();
-					if (!sBuffer.empty())
+					case KRESTRoute::NOREAD:
+						break;
+
+					case KRESTRoute::JSON:
 					{
-						// parse the content into json.rx
-						KString sError;
+						// try to read input as JSON - if it fails just skip
 
 						// nobody wants stack traces in the klog when hackers throw crappy json (and attacks)
 						// at their rest server.  so we need to turn off stack traces while we attempt to
 						// parse incoming json from the wire:
 						bool bResetFlag = KLog::getInstance().ShowStackOnJsonError (false);
 
-						if (!kjson::Parse(json.rx, sBuffer, sError))
+						// parse the content into json.rx
+						KString sError;
+
+						if (!kjson::Parse(json.rx, KHTTPServer::InStream(), sError))
 						{
 							kDebug (3, "request body is not JSON: {}", sError);
 							json.rx.clear();
@@ -531,15 +526,38 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 						// form while processing a request:
 						KLog::getInstance().ShowStackOnJsonError (bResetFlag);
 					}
-				}
-				else if (Route.Parser == KRESTRoute::XML)
-				{
-					throw KHTTPError { KHTTPError::H5xx_NOTIMPL, "XML not yet supported" };
+					break;
+
+					case KRESTRoute::XML:
+						// read input as XML
+						if (!xml.rx.Parse(KHTTPServer::InStream(), true))
+						{
+							kDebug (3, "request body is not XML");
+							xml.rx.clear();
+							if (Options.bThrowIfInvalidJson)
+							{
+								throw KHTTPError { KHTTPError::H4xx_BADREQUEST, "invalid XML" };
+							}
+						}
+						else
+						{
+							kDebug (3, "request body successfully parsed as XML");
+						}
+						break;
+
+					case KRESTRoute::PLAIN:
+						// read body and store for later access
+						KHTTPServer::Read(m_sRequestBody);
+
+						kDebug (3, "read request body with length {} and type {}",
+								m_sRequestBody.size(),
+								Request.Headers[KHTTPHeaders::CONTENT_TYPE]);
+						break;
 				}
 			}
 
 			// call the route handler
-			Route.Callback(*this);
+			route->Callback(*this);
 
 			// We offer a keep-alive if the client did not explicitly
 			// request a close. We only allow for a limited amount
@@ -586,8 +604,10 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 
 #ifdef NDEBUG
 	static constexpr int iJSONPretty { -1 };
+	static constexpr int iXMLPretty { KXML::NoIndents | KXML::NoLinefeeds };
 #else
 	static constexpr int iJSONPretty { 1 };
+	static constexpr int iXMLPretty { KXML::Default };
 #endif
 
 //-----------------------------------------------------------------------------
@@ -622,7 +642,10 @@ void KRESTServer::Output(const Options& Options, bool bKeepAlive)
 				// the content:
 				if (!m_sMessage.empty())
 				{
-					json.tx["message"] = std::move(m_sMessage);
+					if (!json.tx.empty() || route->Parser == KRESTRoute::JSON)
+					{
+						json.tx["message"] = std::move(m_sMessage);
+					}
 				}
 
 				if (!json.tx.empty())
@@ -630,6 +653,15 @@ void KRESTServer::Output(const Options& Options, bool bKeepAlive)
 					sContent = json.tx.dump(iJSONPretty, '\t');
 
 					// ensure that all JSON responses end in a newline:
+					sContent += '\n';
+				}
+				else if (!xml.tx.empty())
+				{
+					Response.Headers.Set(KHTTPHeaders::CONTENT_TYPE, KMIME::XML);
+
+					xml.tx.Serialize(sContent, iXMLPretty);
+
+					// ensure that all XML responses end in a newline:
 					sContent += '\n';
 				}
 			}
@@ -658,12 +690,6 @@ void KRESTServer::Output(const Options& Options, bool bKeepAlive)
 		{
 			KJSON tjson;
 			tjson["statusCode"] = Response.iStatusCode;
-			tjson["headers"] = KJSON::object();
-			for (const auto& header : Response.Headers)
-			{
-				tjson["headers"] += { header.first, header.second };
-			}
-
 			tjson["isBase64Encoded"] = false;
 
 			if (DEKAF2_UNLIKELY(!m_sRawOutput.empty()))
@@ -677,8 +703,26 @@ void KRESTServer::Output(const Options& Options, bool bKeepAlive)
 					json.tx["message"] = std::move(m_sMessage);
 				}
 
-				tjson["body"] = std::move(json.tx);
+				if (!json.tx.empty())
+				{
+					tjson["body"] = std::move(json.tx);
+				}
+				else if (!xml.tx.empty())
+				{
+					Response.Headers.Set(KHTTPHeaders::CONTENT_TYPE, KMIME::XML);
+
+					KString sContent;
+					xml.tx.Serialize(sContent, iXMLPretty);
+					tjson["body"] = std::move(sContent);
+				}
 			}
+
+			KJSON& jheaders = tjson["headers"] = KJSON::object();
+			for (const auto& header : Response.Headers)
+			{
+				jheaders += { header.first, header.second };
+			}
+
 			Response.UnfilteredStream() << tjson.dump(iJSONPretty, '\t') << "\n";
 		}
 		break;
@@ -693,12 +737,19 @@ void KRESTServer::Output(const Options& Options, bool bKeepAlive)
 			{
 				if (!m_sMessage.empty())
 				{
-					json.tx["message"] = std::move(m_sMessage);
+					if (!json.tx.empty() || route->Parser == KRESTRoute::JSON)
+					{
+						json.tx["message"] = std::move(m_sMessage);
+					}
 				}
 
 				if (!json.tx.empty())
 				{
 					Response.UnfilteredStream() << json.tx.dump(iJSONPretty, '\t');
+				}
+				else if (!xml.tx.empty())
+				{
+					xml.tx.Serialize(Response.UnfilteredStream(), iXMLPretty);
 				}
 			}
 			// finish with a linefeed
@@ -953,11 +1004,15 @@ void KRESTServer::clear()
 	Request.clear();
 	Response.clear();
 	json.clear();
+	xml.clear();
 	m_sRequestBody.clear();
 	m_sMessage.clear();
 	m_sRawOutput.clear();
 
 } // clear
+
+// our empty route..
+const KRESTRoute KRESTServer::s_EmptyRoute({}, "/empty", nullptr, KRESTRoute::NOREAD);
 
 static_assert(std::is_nothrow_move_constructible<KRESTPath>::value,
 			  "KRESTPath is intended to be nothrow move constructible, but is not!");

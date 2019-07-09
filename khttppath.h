@@ -89,8 +89,8 @@ public:
 //------
 
 	//-----------------------------------------------------------------------------
-	/// Construct a HTTP path. Notice that _sRoute is a KStringView, and the pointed-to
-	/// string must stay visible during the lifetime of this class
+	/// Construct an analyzed HTTP path. Notice that _sRoute is a KStringView, and
+	/// the pointed-to string must stay visible during the lifetime of this class.
 	KHTTPAnalyzedPath(KStringView _sRoute);
 	//-----------------------------------------------------------------------------
 

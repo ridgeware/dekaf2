@@ -97,8 +97,8 @@ public:
 //------
 
 	//-----------------------------------------------------------------------------
-	/// Construct a HTTP path. Notice that _sRoute is a KStringView, and the pointed-to
-	/// string must stay visible during the lifetime of this class
+	/// Construct an analyzed REST path. Notice that _sRoute is a KStringView, and
+	/// the pointed-to string must stay visible during the lifetime of this class.
 	KRESTAnalyzedPath(KHTTPMethod _Method, KStringView _sRoute);
 	//-----------------------------------------------------------------------------
 
@@ -441,7 +441,8 @@ public:
 	};
 
 	json_t json;
-	std::unique_ptr<xml_t> xml;
+	xml_t  xml;
+	const KRESTRoute* route { &s_EmptyRoute };
 
 	//-----------------------------------------------------------------------------
 	/// get the JSON payload struct of the JWT auth token
@@ -489,6 +490,7 @@ protected:
 private:
 //------
 
+	static const KRESTRoute s_EmptyRoute;
 	KString m_sRequestBody;
 	KString m_sMessage;
 	KString m_sRawOutput;

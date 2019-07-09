@@ -98,7 +98,7 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	// build the filter if it is not yet created, and return a KOutStream reference to it
+	// build the filter if it is not yet created, and return a KInStream reference to it
 	KInStream& FilteredStream();
 	//-----------------------------------------------------------------------------
 
@@ -110,7 +110,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	/// Stream into outstream
+	/// Stream into OutStream
 	size_t Read(KOutStream& OutStream, size_t len = KString::npos);
 	//-----------------------------------------------------------------------------
 

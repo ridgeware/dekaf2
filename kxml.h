@@ -332,6 +332,12 @@ public:
 	/// Clear all content
 	void clear();
 
+	/// No content?
+	bool empty() const
+	{
+		return begin() == end();
+	}
+
 	/// Add a default XML declaration to the start of DOM
 	void AddXMLDeclaration();
 

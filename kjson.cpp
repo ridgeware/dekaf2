@@ -44,6 +44,7 @@
 #include "klog.h"
 #include "krow.h"
 #include "kutf8.h"
+#include "kctype.h"
 
 namespace dekaf2 {
 
@@ -92,6 +93,8 @@ bool Parse (KJSON& json, KStringView sJSON, KString& sError) noexcept
 {
 	json.clear();
 
+	sJSON.TrimLeft();
+
 	if (sJSON.empty())
 	{
 		// avoid throwing an exception for empty input - JSON will simply
@@ -118,6 +121,8 @@ void Parse (KJSON& json, KStringView sJSON)
 {
 	json.clear();
 
+	sJSON.TrimLeft();
+
 	if (!sJSON.empty())
 	{
 		// avoid throwing an exception for empty input - JSON will simply
@@ -128,15 +133,40 @@ void Parse (KJSON& json, KStringView sJSON)
 } // kParse
 
 //-----------------------------------------------------------------------------
+bool SkipLeadingSpace(KInStream& InStream)
+//-----------------------------------------------------------------------------
+{
+	for (;;)
+	{
+		auto ch = InStream.Read();
+
+		if (ch == std::istream::traits_type::eof())
+		{
+			// avoid throwing an exception for empty input - JSON will simply
+			// be empty too, so no error.
+			return false;
+		}
+
+		if (!KASCII::kIsSpace(ch))
+		{
+			if (!InStream.UnRead())
+			{
+				kWarning("cannot un-read first char");
+			}
+			return true;
+		}
+	}
+}
+
+//-----------------------------------------------------------------------------
 bool Parse (KJSON& json, KInStream& InStream, KString& sError) noexcept
 //-----------------------------------------------------------------------------
 {
 	json.clear();
 
-	if (InStream.InStream().eof())
+	if (!SkipLeadingSpace(InStream))
 	{
-		// avoid throwing an exception for empty input - JSON will simply
-		// be empty too, so no error.
+		// empty input == empty json
 		return true;
 	}
 
@@ -159,10 +189,8 @@ void Parse (KJSON& json, KInStream& InStream)
 {
 	json.clear();
 
-	if (!InStream.InStream().eof())
+	if (SkipLeadingSpace(InStream))
 	{
-		// avoid throwing an exception for empty input - JSON will simply
-		// be empty too, so no error.
 		InStream >> json;
 	}
 

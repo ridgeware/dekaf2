@@ -1,9 +1,8 @@
 /*
- //-----------------------------------------------------------------------------//
  //
  // DEKAF(tm): Lighter, Faster, Smarter (tm)
  //
- // Copyright (c) 2018, Ridgeware, Inc.
+ // Copyright (c) 2018-2019, Ridgeware, Inc.
  //
  // +-------------------------------------------------------------------------+
  // | /\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\|
@@ -93,7 +92,7 @@ private:
 
 #ifdef DEKAF2_HAS_CPP_17
 
-namespace frozen {
+namespace kfrozen {
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 template <std::size_t SIZE>
@@ -210,7 +209,7 @@ private:
 	KStringView m_sPattern {};
 	std::array<int16_t, SIZE+1> FSA {};
 
-}; // frozen::KMPSearch
+}; // kfrozen::KMPSearch
 
 template <std::size_t SIZE>
 constexpr KMPSearch<SIZE-1> CreateKMPSearch(const char (&sPattern)[SIZE])
@@ -224,14 +223,14 @@ constexpr KMPSearch<SIZE> CreateKMPSearch(KStringView sPattern)
 	return {sPattern};
 }
 
-} // end of namespace frozen
+} // end of namespace kfrozen
 
 /*
 static constexpr KStringView sv { "hello world" };
-static constexpr frozen::KMPSearch<sv.size()> a( sv );
+static constexpr kfrozen::KMPSearch<sv.size()> a( sv );
 
-constexpr static auto xy { frozen::CreateKMPSearch("hello") };
-constexpr static auto bb { frozen::CreateKMPSearch<sv.size()>(sv) };
+constexpr static auto xy { kfrozen::CreateKMPSearch("hello") };
+constexpr static auto bb { kfrozen::CreateKMPSearch<sv.size()>(sv) };
 */
 
 #endif // of DEKAF2_HAS_CPP_17

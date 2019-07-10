@@ -11,47 +11,49 @@ TEST_CASE("KMPSearch") {
 // std::array is not constexpr
 #if (defined(DEKAF2_NO_GCC) || DEKAF2_GCC_VERSION >= 70000) && defined(DEKAF2_HAS_CPP_17)
 
-	SECTION("frozen::KMPSearch char* found search")
+	SECTION("kfrozen::KMPSearch char* found search")
 	{
 		constexpr const char sHaystack[] { "abcderfghrsijklmnopqrstuvwxyz" };
 
-		constexpr auto KMP = frozen::CreateKMPSearch("rst");
+		constexpr auto KMP = kfrozen::CreateKMPSearch("rst");
 		constexpr auto iFound = KMP.Match(sHaystack);
 
 		CHECK ( iFound != KStringView::npos );
 		CHECK ( sHaystack[iFound] == 'r' );
+		CHECK ( sHaystack[iFound + 3] == 'u' );
 	}
 
-	SECTION("frozen::KMPSearch char* unfound search")
+	SECTION("kfrozen::KMPSearch char* unfound search")
 	{
 		constexpr const char sHaystack[] { "abcderfghrsijklmnopqrstuvwxyz" };
 
-		constexpr auto KMP = frozen::CreateKMPSearch("ret");
+		constexpr auto KMP = kfrozen::CreateKMPSearch("ret");
 		constexpr auto iFound = KMP.Match(sHaystack);
 
 		CHECK ( iFound == KStringView::npos );
 	}
 
-	SECTION("frozen::KMPSearch found search")
+	SECTION("kfrozen::KMPSearch found search")
 	{
 		constexpr KStringView sHaystack { "abcderfghrsijklmnopqrstuvwxyz" };
 		constexpr KStringView sNeedle   { "rst" };
 
-		constexpr frozen::KMPSearch<sNeedle.size()> KMP(sNeedle);
+		constexpr kfrozen::KMPSearch<sNeedle.size()> KMP(sNeedle);
 		constexpr auto iFound = KMP.Match(sHaystack);
 
 		CHECK ( iFound != KStringView::npos );
 		CHECK ( sHaystack[iFound] == 'r' );
+		CHECK ( sHaystack[iFound + 3] == 'u' );
 	}
 
-	SECTION("frozen::KMPSearch unfound search")
+	SECTION("kfrozen::KMPSearch unfound search")
 	{
 		constexpr KStringView sHaystack { "abcderfghrsijklmnopqrstuvwxyz" };
 		constexpr KStringView sNeedle   { "ret" };
 
 		KInStringStream iss(sHaystack);
 
-		constexpr frozen::KMPSearch<sNeedle.size()> KMP(sNeedle);
+		constexpr kfrozen::KMPSearch<sNeedle.size()> KMP(sNeedle);
 		bool bFound = KMP.Match(iss);
 
 		CHECK ( bFound == false );
@@ -68,6 +70,7 @@ TEST_CASE("KMPSearch") {
 
 		CHECK ( iFound != KStringView::npos );
 		CHECK ( sHaystack[iFound] == 'r' );
+		CHECK ( sHaystack[iFound + 3] == 'u' );
 	}
 
 	SECTION("KMPSearch char * unfound search")
@@ -91,6 +94,7 @@ TEST_CASE("KMPSearch") {
 
 		CHECK ( iFound != KStringView::npos );
 		CHECK ( sHaystack[iFound] == 'r' );
+		CHECK ( sHaystack[iFound + 3] == 'u' );
 	}
 
 	SECTION("KMPSearch unfound search")

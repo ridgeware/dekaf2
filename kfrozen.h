@@ -2,7 +2,7 @@
 //
 // DEKAF(tm): Lighter, Faster, Smarter(tm)
 //
-// Copyright (c) 2018, Ridgeware, Inc.
+// Copyright (c) 2018-2019, Ridgeware, Inc.
 //
 // +-------------------------------------------------------------------------+
 // | /\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\|
@@ -67,6 +67,7 @@
 #include <frozen/unordered_map.h>
 #include <frozen/unordered_set.h>
 #include "kstringview.h"
+#include "khash.h"
 
 namespace frozen {
 
@@ -78,28 +79,13 @@ struct elsa<dekaf2::KStringView>
 {
 	constexpr std::size_t operator()(dekaf2::KStringView value) const
 	{
-#ifdef DEKAF2_HAS_CPP_14
-		return value.Hash();
-#else
-		std::size_t d = 5381;
-		for (std::size_t i = 0; i < value.size(); ++i)
-		{
-			d = d * 33 + value[i];
-		}
-		return d;
-#endif
+		return dekaf2::kfrozen::kHash(value.data(), value.size());
 	}
 
 	constexpr std::size_t operator()(dekaf2::KStringView value, std::size_t seed) const
 	{
-		std::size_t d = seed;
-		for (std::size_t i = 0; i < value.size(); ++i)
-		{
-			d = (d * 0x01000193) ^ value[i];
-		}
-		return d;
+		return dekaf2::kfrozen::kHash(value.data(), value.size(), seed);
 	}
-
 };
 
 template <>
@@ -107,28 +93,13 @@ struct elsa<dekaf2::KStringViewZ>
 {
 	constexpr std::size_t operator()(dekaf2::KStringViewZ value) const
 	{
-#ifdef DEKAF2_HAS_CPP_14
-		return value.Hash();
-#else
-		std::size_t d = 5381;
-		for (std::size_t i = 0; i < value.size(); ++i)
-		{
-			d = d * 33 + value[i];
-		}
-		return d;
-#endif
+		return dekaf2::kfrozen::kHash(value.data(), value.size());
 	}
 
 	constexpr std::size_t operator()(dekaf2::KStringViewZ value, std::size_t seed) const
 	{
-		std::size_t d = seed;
-		for (std::size_t i = 0; i < value.size(); ++i)
-		{
-			d = (d * 0x01000193) ^ value[i];
-		}
-		return d;
+		return dekaf2::kfrozen::kHash(value.data(), value.size(), seed);
 	}
-
 };
 
 }

@@ -95,7 +95,7 @@ constexpr
 std::size_t kCalcCaseHash(KStringView sv)
 //-----------------------------------------------------------------------------
 {
-	std::size_t hash = kHashBasis;
+	auto hash = kHashBasis;
 	for (auto ch : sv)
 	{
 		hash = kHash(KASCII::kToLower(ch), hash);

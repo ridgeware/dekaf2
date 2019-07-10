@@ -1419,11 +1419,5 @@ TEST_CASE("KString") {
 		}
 	}
 
-	SECTION("hash")
-	{
-		KString sEmpty;
-		CHECK ( sEmpty.Hash() == 14695981039346656037ULL );
-	}
-
 }
 

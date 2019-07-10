@@ -75,9 +75,8 @@ std::size_t hash(const char data, std::size_t hash = basis) noexcept
 #ifdef DEKAF2_HAS_CPP_14
 constexpr
 #endif
-std::size_t hash(const char* data, std::size_t size) noexcept
+std::size_t hash(const char* data, std::size_t size, std::size_t hash = basis) noexcept
 {
-	std::size_t hash = basis;
 	for (;size-- > 0;)
 	{
 		// we previously implemented the FNV hash with unsigned bytes,
@@ -99,9 +98,9 @@ std::size_t hash_one_constexpr(const char* data, std::size_t size, std::size_t v
 }
 
 constexpr
-std::size_t hash_constexpr(const char* data, std::size_t size) noexcept
+std::size_t hash_constexpr(const char* data, std::size_t size, std::size_t hash = basis) noexcept
 {
-	return hash_one(data, size, basis);
+	return hash_one(data, size, hash);
 }
 #endif
 
@@ -124,14 +123,14 @@ std::size_t operator"" _hash(const char* data, std::size_t size) noexcept
 constexpr size_t kHashBasis = hash::fnv1a::basis;
 
 //---------------------------------------------------------------------------
-/// hash function for arbitrary data
+/// hash function for arbitrary data, feed back hash value for consecutive calls
 #ifdef DEKAF2_HAS_CPP_14
 constexpr
 #endif
-std::size_t kHash(const char* const data, const std::size_t size) noexcept
+std::size_t kHash(const char* const data, const std::size_t size, std::size_t hash = kHashBasis) noexcept
 //---------------------------------------------------------------------------
 {
-	return size != 0 ? hash::fnv1a::hash(data, size) : 0;
+	return size != 0 ? hash::fnv1a::hash(data, size, hash) : 0;
 }
 
 //---------------------------------------------------------------------------

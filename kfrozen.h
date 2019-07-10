@@ -78,12 +78,16 @@ struct elsa<dekaf2::KStringView>
 {
 	constexpr std::size_t operator()(dekaf2::KStringView value) const
 	{
+#ifdef DEKAF2_HAS_CPP_14
+		return value.Hash();
+#else
 		std::size_t d = 5381;
 		for (std::size_t i = 0; i < value.size(); ++i)
 		{
 			d = d * 33 + value[i];
 		}
 		return d;
+#endif
 	}
 
 	constexpr std::size_t operator()(dekaf2::KStringView value, std::size_t seed) const
@@ -103,12 +107,16 @@ struct elsa<dekaf2::KStringViewZ>
 {
 	constexpr std::size_t operator()(dekaf2::KStringViewZ value) const
 	{
+#ifdef DEKAF2_HAS_CPP_14
+		return value.Hash();
+#else
 		std::size_t d = 5381;
 		for (std::size_t i = 0; i < value.size(); ++i)
 		{
 			d = d * 33 + value[i];
 		}
 		return d;
+#endif
 	}
 
 	constexpr std::size_t operator()(dekaf2::KStringViewZ value, std::size_t seed) const

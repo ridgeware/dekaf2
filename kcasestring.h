@@ -43,6 +43,7 @@
 
 #include "kstring.h"
 #include "kstringutils.h"
+#include "khash.h"
 
 namespace dekaf2 {
 
@@ -90,8 +91,17 @@ bool kCaseEqualTrimLeft(KStringView left, KStringView right, KStringView svTrim 
 
 //-----------------------------------------------------------------------------
 /// calculates a hash for case insensitive string
-std::size_t kCalcCaseHash(KStringView);
+constexpr
+std::size_t kCalcCaseHash(KStringView sv)
 //-----------------------------------------------------------------------------
+{
+	std::size_t hash = kHashBasis;
+	for (auto ch : sv)
+	{
+		hash = kHash(KASCII::kToLower(ch), hash);
+	}
+	return hash;
+}
 
 //-----------------------------------------------------------------------------
 /// calculates a hash for case insensitive trimmed string

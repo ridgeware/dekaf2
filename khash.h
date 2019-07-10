@@ -49,139 +49,100 @@
 #include <climits>
 #include "bits/kcppcompat.h"
 
-#ifdef DEKAF2_HAS_CPP_14
-	#define DEKAF2_FNV_CONSTEXPR constexpr
+namespace dekaf2 {
+
+namespace hash {
+namespace fnv1a {
+
+#ifdef DEKAF2_IS_64_BITS
+// FNV-1a constants for 64 bit size
+static constexpr size_t basis = UINT64_C(14695981039346656037);
+static constexpr size_t prime = UINT64_C(1099511628211);
 #else
-	#define DEKAF2_FNV_CONSTEXPR inline
+// FNV-1a constants for 32 bit size
+static constexpr size_t basis = UINT32_C(2166136261);
+static constexpr size_t prime = UINT32_C(16777619);
 #endif
 
-namespace dekaf2
+constexpr
+std::size_t hash(const char data, std::size_t hash = basis) noexcept
 {
-
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// a Fowler-Noll-Vo hash function (FNV)
-// from: https://stackoverflow.com/questions/34597260/stdhash-value-on-char-value-and-not-on-memory-address
-// actually, this implementation is not constexpr, despite the various qualifiers.. it has
-// a modified member variable and needs a reinterpret cast, and casting from void*, all of
-// which do not qualify for constexpr functions and classes
-template <typename ResultT, ResultT OffsetBasis, ResultT Prime>
-class basic_fnv1a final
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-{
-
-	static_assert(std::is_unsigned<ResultT>::value, "need unsigned integer");
-
-//----------
-public:
-//----------
-
-	using result_type = ResultT;
-
-//----------
-private:
-//----------
-
-	result_type m_State {};
-
-//----------
-public:
-//----------
-
-	//---------------------------------------------------------------------------
-	DEKAF2_FNV_CONSTEXPR
-	basic_fnv1a() noexcept
-	//---------------------------------------------------------------------------
-	    : m_State {OffsetBasis}
-	{
-	}
-
-	//---------------------------------------------------------------------------
-	DEKAF2_FNV_CONSTEXPR
-	void update(const void* const data, const std::size_t size) noexcept
-	//---------------------------------------------------------------------------
-	{
-		const auto cdata = static_cast<const unsigned char*>(data);
-		auto& acc = this->m_State;
-		for (auto i = std::size_t {}; i < size; ++i)
-		{
-			const auto next = std::size_t {cdata[i]};
-			acc = (acc ^ next) * Prime;
-		}
-	}
-
-	//---------------------------------------------------------------------------
-	template<typename Type>
-	DEKAF2_FNV_CONSTEXPR
-	void update(const Type ch) noexcept
-	//---------------------------------------------------------------------------
-	{
-		static_assert(sizeof(ch) == 1, "only byte sized values allowed");
-
-		const auto cdata = static_cast<const unsigned char>(ch);
-		auto& acc = this->m_State;
-		const auto next = std::size_t {cdata};
-		acc = (acc ^ next) * Prime;
-	}
-
-	//---------------------------------------------------------------------------
-	DEKAF2_FNV_CONSTEXPR
-	result_type digest() const noexcept
-	//---------------------------------------------------------------------------
-	{
-		return this->m_State;
-	}
-
-};
-
-/// the 32 bit instance
-using fnv1a_32 = basic_fnv1a<std::uint32_t,
-                             UINT32_C(2166136261),
-                             UINT32_C(16777619)>;
-
-/// the 64 bit instance
-using fnv1a_64 = basic_fnv1a<std::uint64_t,
-                             UINT64_C(14695981039346656037),
-                             UINT64_C(1099511628211)>;
-
-/// generic FNV hash template
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-template <std::size_t Bits>
-struct fnv1a;
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-
-/// 32 bit FNV hash template specialization
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-template <>
-struct fnv1a<32>
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-{
-	using type = fnv1a_32;
-};
-
-/// 64 bit FNV hash template specialization
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-template <>
-struct fnv1a<64>
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-{
-	using type = fnv1a_64;
-};
-
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-template <std::size_t Bits>
-using fnv1a_t = typename fnv1a<Bits>::type;
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-
-//---------------------------------------------------------------------------
-/// Fowler-Noll-Vo hash function for arbitrary data
-DEKAF2_FNV_CONSTEXPR
-std::size_t hash_bytes_FNV(const void* const data, const std::size_t size) noexcept
-//---------------------------------------------------------------------------
-{
-	auto hashfn = fnv1a_t<CHAR_BIT * sizeof(std::size_t)> {};
-	hashfn.update(data, size);
-	return hashfn.digest();
+	hash ^= (unsigned char)data;
+	hash *= prime;
+	return hash;
 }
+
+#ifdef DEKAF2_HAS_CPP_14
+constexpr
+#endif
+std::size_t hash(const char* data, std::size_t size) noexcept
+{
+	std::size_t hash = basis;
+	for (;size-- > 0;)
+	{
+		// we previously implemented the FNV hash with unsigned bytes,
+		// and because we want to keep data compatibility we continue
+		// to do so
+		hash ^= (unsigned char)data++[0];
+		hash *= prime;
+	}
+	return hash;
+}
+
+#ifndef DEKAF2_HAS_CPP_14
+// C++11 version of constexpr fnv computation - not well suited for runtime computation
+// because of the recursive approach
+constexpr
+std::size_t hash_one_constexpr(const char* data, std::size_t size, std::size_t value) noexcept
+{
+	return size == 0 ? value : hash_one(data + 1, size - 1, (value ^ (unsigned char)data[0]) * prime);
+}
+
+constexpr
+std::size_t hash_constexpr(const char* data, std::size_t size) noexcept
+{
+	return hash_one(data, size, basis);
+}
+#endif
+
+} // end of namespace fnv1a
+} // end of namespace hash
+
+//---------------------------------------------------------------------------
+/// literal type for constexpr hash computations, e.g. for switch statements
+constexpr
+std::size_t operator"" _hash(const char* data, std::size_t size) noexcept
+//---------------------------------------------------------------------------
+{
+#ifdef DEKAF2_HAS_CPP_14
+	return size != 0 ? hash::fnv1a::hash(data, size) : 0;
+#else
+	return size != 0 ? hash::fnv1a::hash_constexpr(data, size) : 0;
+#endif
+}
+
+constexpr size_t kHashBasis = hash::fnv1a::basis;
+
+//---------------------------------------------------------------------------
+/// hash function for arbitrary data
+#ifdef DEKAF2_HAS_CPP_14
+constexpr
+#endif
+std::size_t kHash(const char* const data, const std::size_t size) noexcept
+//---------------------------------------------------------------------------
+{
+	return size != 0 ? hash::fnv1a::hash(data, size) : 0;
+}
+
+//---------------------------------------------------------------------------
+/// hash function for one char, feed back hash value for consecutive calls
+constexpr
+std::size_t kHash(char data, std::size_t hash = kHashBasis) noexcept
+{
+	return hash::fnv1a::hash(data, hash);
+}
+
+//---------------------------------------------------------------------------
 
 } // end of namespace dekaf2
 

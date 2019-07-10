@@ -239,18 +239,6 @@ bool kCaseEqualTrimLeft(KStringView left, KStringView right, KStringView svTrim)
 }
 
 //-----------------------------------------------------------------------------
-std::size_t kCalcCaseHash(KStringView sv)
-//-----------------------------------------------------------------------------
-{
-	auto hashfn = fnv1a_t<CHAR_BIT * sizeof(std::size_t)> {};
-	for (auto ch : sv)
-	{
-		hashfn.update(static_cast<unsigned char>(KASCII::kToLower(ch)));
-	}
-	return hashfn.digest();
-}
-
-//-----------------------------------------------------------------------------
 std::size_t kCalcCaseHashTrim(KStringView sv, KStringView svTrim)
 //-----------------------------------------------------------------------------
 {

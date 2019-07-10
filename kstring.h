@@ -1697,7 +1697,7 @@ namespace std
 		// or char* in a template that uses KString as elements
 		constexpr std::size_t operator()(dekaf2::KStringView sv) const noexcept
 		{
-			return dekaf2::hash_bytes_FNV(sv.data(), sv.size());
+			return dekaf2::kHash(sv.data(), sv.size());
 		}
 	};
 
@@ -1741,7 +1741,7 @@ namespace boost
 		// or char* in a template that uses KString as elements
 		constexpr std::size_t operator()(dekaf2::KStringView s) const noexcept
 		{
-			return dekaf2::hash_bytes_FNV(s.data(), s.size());
+			return dekaf2::kHash(s.data(), s.size());
 		}
 };
 

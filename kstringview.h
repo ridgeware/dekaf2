@@ -1642,7 +1642,7 @@ namespace std
 		typedef std::size_t result_type;
 		constexpr result_type operator()(argument_type s) const
 		{
-			return dekaf2::hash_bytes_FNV(s.data(), s.size());
+			return dekaf2::kHash(s.data(), s.size());
 		}
 	};
 
@@ -1660,7 +1660,7 @@ namespace boost
 		typedef std::size_t result_type;
 		constexpr result_type operator()(argument_type s) const
 		{
-			return dekaf2::hash_bytes_FNV(s.data(), s.size());
+			return dekaf2::kHash(s.data(), s.size());
 		}
 	};
 

@@ -65,7 +65,7 @@ static constexpr size_t prime = UINT32_C(16777619);
 #endif
 
 constexpr
-std::size_t hash(const char data, std::size_t hash = basis) noexcept
+std::size_t hash(const char data, std::size_t hash) noexcept
 {
 	hash ^= (unsigned char)data;
 	hash *= prime;
@@ -75,14 +75,31 @@ std::size_t hash(const char data, std::size_t hash = basis) noexcept
 #ifdef DEKAF2_HAS_CPP_14
 constexpr
 #endif
-std::size_t hash(const char* data, std::size_t size, std::size_t hash = basis) noexcept
+std::size_t hash(const char* data, std::size_t size, std::size_t hash) noexcept
 {
-	for (;size-- > 0;)
+	while (size-- > 0)
 	{
 		// we previously implemented the FNV hash with unsigned bytes,
 		// and because we want to keep data compatibility we continue
 		// to do so
-		hash ^= (unsigned char)data++[0];
+		hash ^= static_cast<unsigned char>(*data++);
+		hash *= prime;
+	}
+	return hash;
+}
+
+// zero terminated strings
+#ifdef DEKAF2_HAS_CPP_14
+constexpr
+#endif
+std::size_t hash(const char* data, std::size_t hash) noexcept
+{
+	while (*data)
+	{
+		// we previously implemented the FNV hash with unsigned bytes,
+		// and because we want to keep data compatibility we continue
+		// to do so
+		hash ^= static_cast<unsigned char>(*data++);
 		hash *= prime;
 	}
 	return hash;
@@ -107,6 +124,8 @@ std::size_t hash_constexpr(const char* data, std::size_t size, std::size_t hash 
 } // end of namespace fnv1a
 } // end of namespace hash
 
+constexpr size_t kHashBasis = hash::fnv1a::basis;
+
 //---------------------------------------------------------------------------
 /// literal type for constexpr hash computations, e.g. for switch statements
 constexpr
@@ -114,23 +133,42 @@ std::size_t operator"" _hash(const char* data, std::size_t size) noexcept
 //---------------------------------------------------------------------------
 {
 #ifdef DEKAF2_HAS_CPP_14
-	return size != 0 ? hash::fnv1a::hash(data, size) : 0;
+	return size != 0 ? hash::fnv1a::hash(data, size, kHashBasis) : 0;
 #else
-	return size != 0 ? hash::fnv1a::hash_constexpr(data, size) : 0;
+	return size != 0 ? hash::fnv1a::hash_constexpr(data, size, kHashBasis) : 0;
 #endif
 }
 
-constexpr size_t kHashBasis = hash::fnv1a::basis;
-
 //---------------------------------------------------------------------------
 /// hash function for arbitrary data, feed back hash value for consecutive calls
+template<typename T>
+std::size_t kHash(const T* data, std::size_t size, std::size_t hash = kHashBasis) noexcept
+//---------------------------------------------------------------------------
+{
+	return size != 0 ? hash::fnv1a::hash(reinterpret_cast<const char*>(data), size, hash) : 0;
+}
+
+//---------------------------------------------------------------------------
+// constexpr specialisation
+template<>
 #ifdef DEKAF2_HAS_CPP_14
 constexpr
 #endif
-std::size_t kHash(const char* const data, const std::size_t size, std::size_t hash = kHashBasis) noexcept
+std::size_t kHash(const char* data, std::size_t size, std::size_t hash) noexcept
 //---------------------------------------------------------------------------
 {
 	return size != 0 ? hash::fnv1a::hash(data, size, hash) : 0;
+}
+
+//---------------------------------------------------------------------------
+/// hash function for zero terminated strings
+#ifdef DEKAF2_HAS_CPP_14
+constexpr
+#endif
+std::size_t kHash(const char* data) noexcept
+//---------------------------------------------------------------------------
+{
+	return data[0] != 0 ? hash::fnv1a::hash(data, kHashBasis) : 0;
 }
 
 //---------------------------------------------------------------------------

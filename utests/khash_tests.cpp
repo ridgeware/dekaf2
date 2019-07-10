@@ -22,6 +22,22 @@ TEST_CASE("KHash")
 
 	SECTION("Literals")
 	{
+		constexpr const char huhu[] = "huhu";
+
+		constexpr uint64_t iVal = 3823873453456;
+
+		if (kHash(&iVal, sizeof(iVal)) == 0)
+		{
+			CHECK (false);
+		}
+
+		auto i1 = kHash("hällo");
+		auto i2 = kHash("hällo", strlen("hällo")); // be careful, the umlaut consists of 2 chars..
+		auto i3 = "hällo"_hash;
+
+		CHECK ( i1 == i2 );
+		CHECK ( i2 == i3 );
+
 		KStringView sHello("hällo");
 
 		switch (sHello.Hash())
@@ -30,7 +46,7 @@ TEST_CASE("KHash")
 				CHECK ( false );
 				break;
 
-			case KStringView("halo").Hash():
+			case kHash("helo"_ksv.data(), 4):
 				CHECK ( false );
 				break;
 
@@ -39,6 +55,18 @@ TEST_CASE("KHash")
 				break;
 
 			case "hello"_hash:
+				CHECK ( false );
+				break;
+
+			case kHash("hihi", 4):
+				CHECK ( false );
+				break;
+
+			case kHash("hehe"):
+				CHECK ( false );
+				break;
+
+			case kHash(huhu, 4):
 				CHECK ( false );
 				break;
 

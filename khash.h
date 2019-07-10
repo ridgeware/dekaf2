@@ -65,7 +65,6 @@ static constexpr size_t prime = UINT32_C(16777619);
 #endif
 
 constexpr
-inline
 std::size_t hash(const char data, std::size_t hash) noexcept
 {
 	hash ^= static_cast<unsigned char>(data);
@@ -76,7 +75,6 @@ std::size_t hash(const char data, std::size_t hash) noexcept
 #ifdef DEKAF2_HAS_CPP_14
 constexpr
 #endif
-inline
 std::size_t hash(const char* data, std::size_t size, std::size_t hash) noexcept
 {
 	while (size-- > 0)
@@ -94,7 +92,6 @@ std::size_t hash(const char* data, std::size_t size, std::size_t hash) noexcept
 #ifdef DEKAF2_HAS_CPP_14
 constexpr
 #endif
-inline
 std::size_t hash(const char* data, std::size_t hash) noexcept
 {
 	while (auto ch = *data++)
@@ -112,14 +109,12 @@ std::size_t hash(const char* data, std::size_t hash) noexcept
 // C++11 version of constexpr fnv computation - not well suited for runtime computation
 // because of the recursive approach
 constexpr
-inline
 std::size_t hash_constexpr(const char* data, std::size_t size, std::size_t hash) noexcept
 {
 	return size == 0 ? hash : hash_one(data + 1, size - 1, (hash ^ static_cast<unsigned char>(*data)) * prime);
 }
 
 constexpr
-inline
 std::size_t hash_constexpr(char c, const char* data, std::size_t hash) noexcept
 {
 	return c == 0 ? hash : hash_constexpr(data[0], data + 1, (hash ^ static_cast<unsigned char>(c)) * prime);
@@ -135,7 +130,6 @@ constexpr std::size_t kHashBasis = hash::fnv1a::basis;
 //---------------------------------------------------------------------------
 /// literal type for constexpr hash computations, e.g. for switch statements
 constexpr
-inline
 std::size_t operator"" _hash(const char* data, std::size_t size) noexcept
 //---------------------------------------------------------------------------
 {
@@ -149,7 +143,6 @@ std::size_t operator"" _hash(const char* data, std::size_t size) noexcept
 //---------------------------------------------------------------------------
 /// hash function for arbitrary data, feed back hash value for consecutive calls
 template<typename T>
-inline
 std::size_t kHash(const T* data, std::size_t size, std::size_t hash = kHashBasis) noexcept
 //---------------------------------------------------------------------------
 {
@@ -162,7 +155,6 @@ template<>
 #ifdef DEKAF2_HAS_CPP_14
 constexpr
 #endif
-inline
 std::size_t kHash(const char* data, std::size_t size, std::size_t hash) noexcept
 //---------------------------------------------------------------------------
 {
@@ -172,7 +164,6 @@ std::size_t kHash(const char* data, std::size_t size, std::size_t hash) noexcept
 //---------------------------------------------------------------------------
 /// hash function for zero terminated strings
 constexpr
-inline
 std::size_t kHash(const char* data) noexcept
 //---------------------------------------------------------------------------
 {
@@ -186,7 +177,6 @@ std::size_t kHash(const char* data) noexcept
 //---------------------------------------------------------------------------
 /// hash function for one char, feed back hash value for consecutive calls
 constexpr
-inline
 std::size_t kHash(char data, std::size_t hash = kHashBasis) noexcept
 //---------------------------------------------------------------------------
 {
@@ -199,7 +189,6 @@ namespace kfrozen {
 /// compile time evaluation - for C++11 and later. Do not use it for runtime
 /// computations with C++11.
 constexpr
-inline
 std::size_t kHash(const char* data, std::size_t size, std::size_t hash = kHashBasis) noexcept
 //---------------------------------------------------------------------------
 {

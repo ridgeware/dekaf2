@@ -179,6 +179,7 @@ public:
 		FunctionTable() = default;
 
 		// C++11 needs constructor for initializer list initialization
+		constexpr
 		FunctionTable(KStringView _sMethod, bool _bAuth, KStringView _sRoute, KRESTRoute::Function _Handler, KRESTRoute::ParserType _Parser = KRESTRoute::JSON)
 		: sMethod(_sMethod)
 		, bAuth(_bAuth)
@@ -203,6 +204,7 @@ public:
 		MemberFunctionTable() = default;
 
 		// C++11 needs constructor for initializer list initialization
+		constexpr
 		MemberFunctionTable(KStringView _sMethod, bool _bAuth, KStringView _sRoute, KRESTRoute::MemberFunction<Object> _Handler, KRESTRoute::ParserType _Parser = KRESTRoute::JSON)
 		: sMethod(_sMethod)
 		, bAuth(_bAuth)

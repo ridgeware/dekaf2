@@ -117,7 +117,7 @@
 	#define DEKAF2_HAS_CPP_17 1
 #endif
 
-#ifdef DEKAF2_HAS_CPP14
+#ifdef DEKAF2_HAS_CPP_14
 	#define DEKAF2_CONSTEXPR_14 constexpr
 #else
 	#define DEKAF2_CONSTEXPR_14

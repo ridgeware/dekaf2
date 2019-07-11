@@ -176,6 +176,17 @@ public:
 	struct FunctionTable
 	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	{
+		FunctionTable() = default;
+
+		// C++11 needs constructor for initializer list initialization
+		FunctionTable(KStringView _sMethod, bool _bAuth, KStringView _sRoute, KRESTRoute::Function _Handler, KRESTRoute::ParserType _Parser = KRESTRoute::JSON)
+		: sMethod(_sMethod)
+		, bAuth(_bAuth)
+		, sRoute(_sRoute)
+		, Handler(_Handler)
+		, Parser(_Parser)
+		{}
+
 		KStringView sMethod;
 		bool bAuth;
 		KStringView sRoute;
@@ -189,6 +200,17 @@ public:
 	struct MemberFunctionTable
 	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	{
+		MemberFunctionTable() = default;
+
+		// C++11 needs constructor for initializer list initialization
+		MemberFunctionTable(KStringView _sMethod, bool _bAuth, KStringView _sRoute, KRESTRoute::MemberFunction<Object> _Handler, KRESTRoute::ParserType _Parser = KRESTRoute::JSON)
+		: sMethod(_sMethod)
+		, bAuth(_bAuth)
+		, sRoute(_sRoute)
+		, Handler(_Handler)
+		, Parser(_Parser)
+		{}
+
 		KStringView sMethod;
 		bool bAuth;
 		KStringView sRoute;

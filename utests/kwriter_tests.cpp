@@ -30,7 +30,7 @@ protected:
 };
 
 
-#if defined(DEKAF2_NO_GCC) || (DEKAF2_GCC_VERSION >= 80000)
+#if defined(DEKAF2_HAS_CPP_14) && (defined(DEKAF2_NO_GCC) || (DEKAF2_GCC_VERSION >= 80000))
 constexpr
 #endif
 KStringView sCert = R"(-----BEGIN CERTIFICATE-----
@@ -62,7 +62,7 @@ CBw53UppWW98e2rXKWXTtU6rEL1ctGz135WgBrqmkJ58n2pjd4jLDQ==
 -----END CERTIFICATE-----
 )";
 
-#if defined(DEKAF2_NO_GCC) || (DEKAF2_GCC_VERSION >= 80000)
+#if defined(DEKAF2_HAS_CPP_14) && (defined(DEKAF2_NO_GCC) || (DEKAF2_GCC_VERSION >= 80000))
 constexpr 
 #endif
 KStringView sKey = R"(-----BEGIN PRIVATE KEY-----

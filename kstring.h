@@ -1695,7 +1695,7 @@ namespace std
 		// we actually use a KStringView as the parameter, as this avoids
 		// accidentially constructing a KString if coming from a KStringView
 		// or char* in a template that uses KString as elements
-		constexpr std::size_t operator()(dekaf2::KStringView sv) const noexcept
+		DEKAF2_CONSTEXPR_14 std::size_t operator()(dekaf2::KStringView sv) const noexcept
 		{
 			return dekaf2::kHash(sv.data(), sv.size());
 		}
@@ -1739,7 +1739,7 @@ namespace boost
 		// we actually use a KStringView as the parameter, as this avoids
 		// accidentially constructing a KString if coming from a KStringView
 		// or char* in a template that uses KString as elements
-		constexpr std::size_t operator()(dekaf2::KStringView s) const noexcept
+		DEKAF2_CONSTEXPR_14 std::size_t operator()(dekaf2::KStringView s) const noexcept
 		{
 			return dekaf2::kHash(s.data(), s.size());
 		}

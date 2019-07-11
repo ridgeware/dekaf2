@@ -91,7 +91,8 @@ bool kCaseEqualTrimLeft(KStringView left, KStringView right, KStringView svTrim 
 
 //-----------------------------------------------------------------------------
 /// calculates a hash for case insensitive string
-constexpr
+DEKAF2_CONSTEXPR_14
+inline
 std::size_t kCalcCaseHash(KStringView sv)
 //-----------------------------------------------------------------------------
 {

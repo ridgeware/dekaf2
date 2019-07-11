@@ -321,8 +321,8 @@ void KTCPServer::TCPServer(bool ipv6)
 			acceptor.accept(stream->GetTCPSocket(), remote_endpoint);
 			if (!m_bQuit)
 			{
-#ifdef _MSC_VER
-				// unfortunately MSC does not know how to move a variable into a lambda scope
+#if defined(_MSC_VER) || !defined(DEKAF2_HAS_CPP_14)
+				// unfortunately MSC and C++11 does not know how to move a variable into a lambda scope
 				auto* Stream = stream.release();
 				m_ThreadPool->push([ this, Stream, remote_endpoint ]()
 				{
@@ -354,8 +354,8 @@ void KTCPServer::TCPServer(bool ipv6)
 			acceptor.accept(stream->GetTCPSocket(), remote_endpoint);
 			if (!m_bQuit)
 			{
-#ifdef _MSC_VER
-				// unfortunately MSC does not know how to move a variable into a lambda scope
+#if defined(_MSC_VER) || !defined(DEKAF2_HAS_CPP_14)
+				// unfortunately MSC and C++11 does not know how to move a variable into a lambda scope
 				auto* Stream = stream.release();
 				m_ThreadPool->push([ this, Stream, remote_endpoint ]()
 				{
@@ -422,8 +422,16 @@ void KTCPServer::UnixServer()
 			if (!m_bQuit)
 			{
 				stream->Timeout(m_iTimeout);
+#if defined(_MSC_VER) || !defined(DEKAF2_HAS_CPP_14)
+				// unfortunately C++11 does not know how to move a variable into a lambda scope
+				auto* Stream = stream.release();
+				m_ThreadPool->push([ this, Stream ]()
+				{
+					std::unique_ptr<KUnixStream> moved_stream { Stream };
+#else
 				m_ThreadPool->push([ this, moved_stream = std::move(stream) ]()
 				{
+#endif
 					RunSession(*moved_stream, m_sSocketFile);
 					// the thread pool keeps the object alive until it is
 					// overwritten in round robin, therefore we have to call

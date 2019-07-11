@@ -38,6 +38,7 @@
 
 
 #include "kthreadpool.h"
+#include "bits/kmake_unique.h"
 
 namespace dekaf2 {
 

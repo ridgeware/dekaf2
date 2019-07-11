@@ -69,18 +69,9 @@ Unicode::codepoint_t CodepointCast(Ch sch)
 {
 	static_assert(std::is_integral<Ch>::value, "can only convert integral types");
 
-	if (sizeof(Ch) == 1)
-	{
-		return static_cast<uint8_t>(sch);
-	}
-	else if (sizeof(Ch) == 2)
-	{
-		return static_cast<uint16_t>(sch);
-	}
-	else
-	{
-		return static_cast<uint32_t>(sch);
-	}
+	return (sizeof(Ch) == 1) ? static_cast<uint8_t>(sch)
+		:  (sizeof(Ch) == 2) ? static_cast<uint16_t>(sch)
+		:  static_cast<uint32_t>(sch);
 }
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -102,7 +93,7 @@ public:
 	constexpr
 	operator const Unicode::codepoint_t&() const { return m_CodePoint; }
 
-	constexpr
+	DEKAF2_CONSTEXPR_14
 	operator Unicode::codepoint_t&() { return m_CodePoint; }
 
 	enum Categories
@@ -732,14 +723,7 @@ constexpr
 inline CP kToLower(CP ch)
 //-----------------------------------------------------------------------------
 {
-	if (kIsUpper(ch))
-	{
-		return ch + ('a' - 'A');
-	}
-	else
-	{
-		return ch;
-	}
+	return (kIsUpper(ch)) ? (ch + ('a' - 'A')) : ch;
 }
 
 //-----------------------------------------------------------------------------
@@ -748,14 +732,7 @@ constexpr
 inline CP kToUpper(CP ch)
 //-----------------------------------------------------------------------------
 {
-	if (kIsLower(ch))
-	{
-		return ch - ('a' - 'A');
-	}
-	else
-	{
-		return ch;
-	}
+	return (kIsLower(ch)) ? (ch - ('a' - 'A')) : ch;
 }
 
 } // end of namespace KASCII

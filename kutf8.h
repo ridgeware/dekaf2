@@ -56,6 +56,12 @@ static_assert(__cplusplus >= 201103L, "The UTF code lib needs at least a C++11 c
 	#define KUTF8_UNLIKELY(expression) (expression)
 #endif
 
+#if __cplusplus >= 201402L
+	#define KUTF8_CONSTEXPR_14 constexpr
+#else
+	#define KUTF8_CONSTEXPR_14
+#endif
+
 #if __cplusplus > 201402L
 	#if __has_include("kconfiguration.h")
 		#include "kconfiguration.h"
@@ -155,24 +161,15 @@ codepoint_t CodepointCast(Ch sch)
 {
 	static_assert(std::is_integral<Ch>::value, "can only convert integral types");
 
-	if (sizeof(Ch) == 1)
-	{
-		return static_cast<uint8_t>(sch);
-	}
-	else if (sizeof(Ch) == 2)
-	{
-		return static_cast<uint16_t>(sch);
-	}
-	else
-	{
-		return static_cast<uint32_t>(sch);
-	}
+	return (sizeof(Ch) == 1) ? static_cast<uint8_t>(sch)
+		:  (sizeof(Ch) == 2) ? static_cast<uint16_t>(sch)
+		:  static_cast<uint32_t>(sch);
 }
 
 //-----------------------------------------------------------------------------
 /// Returns the count of bytes that a UTF8 representation for a given codepoint would need
 template<typename Ch>
-constexpr
+KUTF8_CONSTEXPR_14
 size_t UTF8Bytes(Ch sch)
 //-----------------------------------------------------------------------------
 {
@@ -227,7 +224,7 @@ public:
 template<typename Ch, typename Iterator,
          typename std::enable_if_t<std::is_integral<Ch>::value
 							&& !detail::HasSize<Iterator>::value>* = nullptr>
-constexpr
+KUTF8_CONSTEXPR_14
 bool ToUTF8(Ch sch, Iterator& it)
 //-----------------------------------------------------------------------------
 {
@@ -270,7 +267,7 @@ bool ToUTF8(Ch sch, Iterator& it)
 template<typename Ch, typename NarrowString,
          typename std::enable_if_t<std::is_integral<Ch>::value
 	                            && detail::HasSize<NarrowString>::value>* = nullptr>
-constexpr
+KUTF8_CONSTEXPR_14
 bool ToUTF8(Ch sch, NarrowString& sNarrow)
 //-----------------------------------------------------------------------------
 {
@@ -312,7 +309,7 @@ bool ToUTF8(Ch sch, NarrowString& sNarrow)
 /// Convert a codepoint into a UTF8 sequence returned as string of type NarrowString.
 template<typename Ch, typename NarrowString,
          typename = std::enable_if_t<std::is_integral<Ch>::value> >
-constexpr
+KUTF8_CONSTEXPR_14
 NarrowString ToUTF8(Ch sch)
 //-----------------------------------------------------------------------------
 {
@@ -325,7 +322,7 @@ NarrowString ToUTF8(Ch sch)
 /// Convert a wide string (UTF16 or UTF32) into a UTF8 string
 template<typename WideString, typename NarrowString,
          typename std::enable_if_t<!std::is_integral<WideString>::value>* = nullptr>
-constexpr
+KUTF8_CONSTEXPR_14
 bool ToUTF8(const WideString& sWide, NarrowString& sNarrow)
 //-----------------------------------------------------------------------------
 {
@@ -386,7 +383,7 @@ bool ToUTF8(const WideString& sWide, NarrowString& sNarrow)
 //-----------------------------------------------------------------------------
 /// Check if a UTF8 string uses only valid sequences
 template<typename Iterator>
-constexpr
+KUTF8_CONSTEXPR_14
 bool ValidUTF8(Iterator it, Iterator ie)
 //-----------------------------------------------------------------------------
 {
@@ -470,7 +467,7 @@ bool ValidUTF8(Iterator it, Iterator ie)
 //-----------------------------------------------------------------------------
 /// Check if a UTF8 string uses only valid sequences
 template<typename NarrowString>
-constexpr
+KUTF8_CONSTEXPR_14
 bool ValidUTF8(const NarrowString& sNarrow)
 //-----------------------------------------------------------------------------
 {
@@ -480,7 +477,7 @@ bool ValidUTF8(const NarrowString& sNarrow)
 //-----------------------------------------------------------------------------
 /// Count number of codepoints in UTF8 range
 template<typename Iterator>
-constexpr
+KUTF8_CONSTEXPR_14
 size_t CountUTF8(Iterator it, Iterator ie)
 //-----------------------------------------------------------------------------
 {
@@ -525,7 +522,7 @@ size_t CountUTF8(Iterator it, Iterator ie)
 //-----------------------------------------------------------------------------
 /// Count number of codepoints in UTF8 string
 template<typename NarrowString>
-constexpr
+KUTF8_CONSTEXPR_14
 size_t CountUTF8(const NarrowString& sNarrow)
 //-----------------------------------------------------------------------------
 {
@@ -536,7 +533,7 @@ size_t CountUTF8(const NarrowString& sNarrow)
 /// Return next codepoint at position it in range it-ie, increment it to point
 /// to the begin of the following codepoint
 template<typename Iterator>
-constexpr
+KUTF8_CONSTEXPR_14
 codepoint_t NextCodepointFromUTF8(Iterator& it, Iterator ie)
 //-----------------------------------------------------------------------------
 {
@@ -620,7 +617,7 @@ codepoint_t NextCodepointFromUTF8(Iterator& it, Iterator ie)
 /// Return codepoint before position it in range ibegin-it, decrement it to point
 /// to the begin of the new (previous) codepoint
 template<typename Iterator>
-constexpr
+KUTF8_CONSTEXPR_14
 codepoint_t PrevCodepointFromUTF8(Iterator& it, Iterator ibegin)
 //-----------------------------------------------------------------------------
 {
@@ -653,7 +650,7 @@ codepoint_t PrevCodepointFromUTF8(Iterator& it, Iterator ibegin)
 template<typename Iterator, class Functor,
          typename std::enable_if_t<std::is_class<Functor>::value
 		                        || std::is_function<Functor>::value>* = nullptr>
-constexpr
+KUTF8_CONSTEXPR_14
 bool FromUTF8(Iterator it, Iterator ie, Functor func)
 //-----------------------------------------------------------------------------
 {
@@ -680,7 +677,7 @@ bool FromUTF8(Iterator it, Iterator ie, Functor func)
 template<typename NarrowString, class Functor,
 		 typename std::enable_if_t<std::is_class<Functor>::value
 								|| std::is_function<Functor>::value>* = nullptr>
-constexpr
+KUTF8_CONSTEXPR_14
 bool FromUTF8(const NarrowString& sNarrow, Functor func)
 //-----------------------------------------------------------------------------
 {

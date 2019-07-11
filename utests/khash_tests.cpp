@@ -46,26 +46,25 @@ TEST_CASE("KHash")
 				CHECK ( false );
 				break;
 
-			case kHash("helo"_ksv.data(), 4):
-				CHECK ( false );
-				break;
-
-			case KStringViewZ("hällo").Hash():
+			case "hällo"_hash:
 				CHECK ( true );
-				break;
-
-			case "hello"_hash:
-				CHECK ( false );
-				break;
-
-			case kHash("hihi", 4):
-				CHECK ( false );
 				break;
 
 			case kHash("hehe"):
 				CHECK ( false );
 				break;
 
+#ifdef DEKAF2_HAS_CPP_14
+			case kHash("helo"_ksv.data(), 4):
+				CHECK ( false );
+				break;
+
+			case KStringViewZ("hillo").Hash():
+				CHECK ( true );
+				break;
+			case kHash("hihi", 4):
+				CHECK ( false );
+				break;
 			case kHash(huhu, 4):
 				CHECK ( false );
 				break;
@@ -73,7 +72,7 @@ TEST_CASE("KHash")
 			case "hollo"_ksv.Hash():
 				CHECK ( false );
 				break;
-
+#endif
 		}
 	}
 
@@ -87,22 +86,23 @@ TEST_CASE("KHash")
 				CHECK ( false );
 				break;
 
+			case "hällo"_hash:
+				CHECK ( true );
+				break;
+
+#ifdef DEKAF2_HAS_CPP_14
 			case KStringView("halo").Hash():
 				CHECK ( false );
 				break;
 
-			case KStringViewZ("hällo").Hash():
-				CHECK ( true );
-				break;
-
-			case "hello"_hash:
+			case KStringViewZ("hello").Hash():
 				CHECK ( false );
 				break;
 
 			case "hollo"_ksv.Hash():
 				CHECK ( false );
 				break;
-
+#endif
 		}
 	}
 

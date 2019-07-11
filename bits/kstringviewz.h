@@ -75,8 +75,8 @@ public:
 
 	using base_type::npos;
 
-	constexpr KStringViewZ(const self_type&) noexcept = default;
-	constexpr KStringViewZ& operator=(const self_type&) noexcept = default;
+	DEKAF2_CONSTEXPR_14 KStringViewZ(const self_type&) noexcept = default;
+	DEKAF2_CONSTEXPR_14 KStringViewZ& operator=(const self_type&) noexcept = default;
 
 //----------
 private:
@@ -138,12 +138,11 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	constexpr
 	KStringViewZ& operator=(KStringView other) = delete;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	constexpr
+	DEKAF2_CONSTEXPR_14
 	KStringViewZ& operator=(const char* other)
 	//-----------------------------------------------------------------------------
 	{
@@ -213,7 +212,6 @@ public:
 	
 	// non standard
 	using base_type::Hash;
-	using base_type::ToRange;
 	using base_type::clear;
 	using base_type::StartsWith;
 	using base_type::EndsWith;
@@ -295,7 +293,7 @@ public:
 	using base_type::In;
 
 	//-----------------------------------------------------------------------------
-	constexpr
+	DEKAF2_CONSTEXPR_14
 	self_type ToView(size_type pos = 0) const noexcept
 	//-----------------------------------------------------------------------------
 	{
@@ -308,7 +306,7 @@ public:
 	}
 
 	//----------------------------------------------------------------------
-	constexpr
+	DEKAF2_CONSTEXPR_14
 	base_type ToView(size_type pos, size_type n) const noexcept
 	//----------------------------------------------------------------------
 	{
@@ -348,7 +346,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	constexpr
+	DEKAF2_CONSTEXPR_14
 	self_type substr(size_type pos) const
 	//-----------------------------------------------------------------------------
 	{
@@ -419,7 +417,7 @@ public:
 	// not using base_type::remove_suffix;
 
 	//-----------------------------------------------------------------------------
-	constexpr
+	DEKAF2_CONSTEXPR_14
 	bool operator==(KStringViewZ other)
 	//-----------------------------------------------------------------------------
 	{
@@ -427,7 +425,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	constexpr
+	DEKAF2_CONSTEXPR_14
 	bool operator!=(KStringViewZ other)
 	//-----------------------------------------------------------------------------
 	{
@@ -435,7 +433,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	constexpr
+	DEKAF2_CONSTEXPR_14
 	bool operator==(KStringView other)
 	//-----------------------------------------------------------------------------
 	{
@@ -443,7 +441,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	constexpr
+	DEKAF2_CONSTEXPR_14
 	bool operator!=(KStringView other)
 	//-----------------------------------------------------------------------------
 	{
@@ -474,7 +472,7 @@ using KStringViewZPair = std::pair<KStringViewZ, KStringViewZ>;
 
 
 //-----------------------------------------------------------------------------
-constexpr
+DEKAF2_CONSTEXPR_14
 inline bool operator==(const char* left, KStringViewZ right)
 //-----------------------------------------------------------------------------
 {
@@ -482,7 +480,7 @@ inline bool operator==(const char* left, KStringViewZ right)
 }
 
 //-----------------------------------------------------------------------------
-constexpr
+DEKAF2_CONSTEXPR_14
 inline bool operator==(KStringViewZ left, const char* right)
 //-----------------------------------------------------------------------------
 {
@@ -490,7 +488,7 @@ inline bool operator==(KStringViewZ left, const char* right)
 }
 
 //-----------------------------------------------------------------------------
-constexpr
+DEKAF2_CONSTEXPR_14
 inline bool operator!=(const char* left, KStringViewZ right)
 //-----------------------------------------------------------------------------
 {
@@ -498,7 +496,7 @@ inline bool operator!=(const char* left, KStringViewZ right)
 }
 
 //-----------------------------------------------------------------------------
-constexpr
+DEKAF2_CONSTEXPR_14
 inline bool operator!=(KStringViewZ left, const char* right)
 //-----------------------------------------------------------------------------
 {
@@ -535,7 +533,7 @@ inline bool operator!=(KStringViewZ left, const std::string& right)
 
 #ifdef DEKAF2_HAS_STD_STRING_VIEW
 //-----------------------------------------------------------------------------
-constexpr
+DEKAF2_CONSTEXPR_14
 inline bool operator==(sv::string_view left, KStringViewZ right)
 //-----------------------------------------------------------------------------
 {
@@ -543,7 +541,7 @@ inline bool operator==(sv::string_view left, KStringViewZ right)
 }
 
 //-----------------------------------------------------------------------------
-constexpr
+DEKAF2_CONSTEXPR_14
 inline bool operator==(KStringViewZ left, sv::string_view right)
 //-----------------------------------------------------------------------------
 {
@@ -551,7 +549,7 @@ inline bool operator==(KStringViewZ left, sv::string_view right)
 }
 
 //-----------------------------------------------------------------------------
-constexpr
+DEKAF2_CONSTEXPR_14
 inline bool operator!=(sv::string_view left, KStringViewZ right)
 //-----------------------------------------------------------------------------
 {
@@ -559,7 +557,7 @@ inline bool operator!=(sv::string_view left, KStringViewZ right)
 }
 
 //-----------------------------------------------------------------------------
-constexpr
+DEKAF2_CONSTEXPR_14
 inline bool operator!=(KStringViewZ left, sv::string_view right)
 //-----------------------------------------------------------------------------
 {
@@ -593,7 +591,7 @@ namespace std
 	{
 		typedef dekaf2::KStringViewZ argument_type;
 		typedef std::size_t result_type;
-		constexpr result_type operator()(argument_type s) const
+		DEKAF2_CONSTEXPR_14 result_type operator()(argument_type s) const
 		{
 			return dekaf2::kHash(s.data(), s.size());
 		}
@@ -611,7 +609,7 @@ namespace boost
 	{
 		typedef dekaf2::KStringViewZ argument_type;
 		typedef std::size_t result_type;
-		constexpr result_type operator()(argument_type s) const
+		DEKAF2_CONSTEXPR_14 result_type operator()(argument_type s) const
 		{
 			return dekaf2::kHash(s.data(), s.size());
 		}

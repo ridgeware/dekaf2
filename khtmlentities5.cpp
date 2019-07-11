@@ -57,8 +57,17 @@ namespace dekaf2 {
 
 struct codes_t
 {
-	uint32_t iCodepoint1;
-	uint32_t iCodepoint2{0};
+	codes_t() = default;
+
+	// C++11 needs this constructor to properly generate the initializer
+	// list for the std::unordered_map
+	constexpr codes_t(uint32_t cp1, uint32_t cp2 = 0)
+	: iCodepoint1(cp1)
+	, iCodepoint2(cp2)
+	{}
+
+	uint32_t iCodepoint1 { 0 };
+	uint32_t iCodepoint2 { 0 };
 };
 
 // The named entities from HTML5

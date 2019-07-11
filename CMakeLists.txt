@@ -49,8 +49,8 @@ include(ExternalProject)
 
 # these are all configurable project options
 OPTION(DEKAF2_USE_EXCEPTIONS "Use exceptions for error handling" OFF)
-OPTION(DEKAF2_USE_FBSTRING_AS_KSTRING "Use Folly::FBString for KString" ON)
-OPTION(DEKAF2_USE_FOLLY_STRINGPIECE_AS_KSTRINGVIEW "Use Folly::StringPiece for KStringView" ON)
+OPTION(DEKAF2_USE_FBSTRING_AS_KSTRING "Use Folly::FBString for KString" OFF)
+OPTION(DEKAF2_USE_FOLLY_STRINGPIECE_AS_KSTRINGVIEW "Use Folly::StringPiece for KStringView" OFF)
 OPTION(DEKAF2_USE_STD_STRING_FOR_DEBUG_BUILDS "Use std::string for debug builds" OFF)
 OPTION(DEKAF2_USE_BOOST_MULTI_INDEX "Use Boost::Multi_Index" ON)
 OPTION(DEKAF2_USE_OPTIMIZED_STRING_FIND "Use optimized string::find" ON)
@@ -65,7 +65,7 @@ OPTION(DEKAF2_KLOG_WITH_TCP "enable KLOG to log on TCP/HTTP" ON)
 
 # =================================== C++ STANDARD =================================
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 11)
 # we do not force C++17 if not available, cmake will pick the highest available
 # set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
@@ -553,6 +553,7 @@ set (SOURCES
 	bits/klogwriter.cpp
 	bits/klogserializer.cpp
 	bits/ksql_dbc.cpp
+	bits/kstring_view.cpp
 	bits/kstringviewz.cpp
 	bits/simd/kfindfirstof.cpp
 	dekaf2.cpp

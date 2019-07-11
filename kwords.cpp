@@ -44,6 +44,7 @@
 #include "kutf8.h"
 #include "khtmlentities.h"
 #include "kctype.h"
+#include "bits/kcppcompat.h"
 #include <cctype>
 
 
@@ -52,8 +53,8 @@ namespace dekaf2 {
 namespace detail {
 namespace splitting_parser {
 
-static constexpr KStringViewPair s_Pair_Empty { "", "" };
-static constexpr KStringViewPair s_Pair_Word { "a", "" };
+static DEKAF2_CONSTEXPR_14 KStringViewPair s_Pair_Empty { "", "" };
+static DEKAF2_CONSTEXPR_14 KStringViewPair s_Pair_Word { "a", "" };
 
 //-----------------------------------------------------------------------------
 KStringViewPair CountText::NextPair()

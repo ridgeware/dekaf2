@@ -59,6 +59,7 @@
 
 #include <cinttypes>
 #include <type_traits> // std::enable_if
+#include "bits/kcppcompat.h" // enable_if_t < C++14
 
 namespace dekaf2 {
 namespace detail {
@@ -73,14 +74,12 @@ namespace bitfields {
 	static constexpr unsigned alignSum(unsigned sum)
 	{
 		// keep this a C++11 constexpr (which only allows one return statement)
-		if (sum > 0 && sum < 64)
-		{
-			if (sum <= 8) sum = 8;
-			else if (sum <= 16) sum = 16;
-			else if (sum <= 32) sum = 32;
-			else if (sum <= 64) sum = 64;
-		}
-		return sum;
+		return (sum == 0) ? 0
+			: (sum <=  8) ? 8
+			: (sum <= 16) ? 16
+			: (sum <= 32) ? 32
+			: (sum <= 64) ? 64
+			: sum;
 	}
 
 	template<unsigned bits> struct Store;

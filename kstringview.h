@@ -53,7 +53,7 @@
 #include "khash.h"
 #include <fmt/format.h>
 
-#if !defined(DEKAF2_HAS_CPP_17) && !defined(DEKAF2_USE_FOLLY_STRINGPIECE_AS_KSTRINGVIEW)
+#if !defined(DEKAF2_HAS_STD_STRING_VIEW) && !defined(DEKAF2_USE_FOLLY_STRINGPIECE_AS_KSTRINGVIEW)
 	// we have to use folly's stringpiece if we do not have C++17..
 	#define DEKAF2_USE_FOLLY_STRINGPIECE_AS_KSTRINGVIEW 1
 #endif
@@ -85,7 +85,7 @@ size_t kRFind(
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
-constexpr
+DEKAF2_CONSTEXPR_14
 size_t kFind(
         KStringView haystack,
         const char needle,
@@ -160,12 +160,12 @@ size_t kFindLastNotOf(
 //-----------------------------------------------------------------------------
 
 //----------------------------------------------------------------------
-constexpr
+DEKAF2_CONSTEXPR_14
 bool kStartsWith(KStringView sInput, KStringView sPattern) noexcept;
 //----------------------------------------------------------------------
 
 //----------------------------------------------------------------------
-constexpr
+DEKAF2_CONSTEXPR_14
 bool kEndsWith(KStringView sInput, KStringView sPattern) noexcept;
 //----------------------------------------------------------------------
 
@@ -212,11 +212,13 @@ public:
 	static constexpr size_type npos = std::string::npos;
 
 	//-----------------------------------------------------------------------------
+	//		DEKAF2_CONSTEXPR_14
 	constexpr
 	KStringView() = default;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	//		DEKAF2_CONSTEXPR_14
 	constexpr
 	KStringView(const self_type& other) noexcept = default;
 	//-----------------------------------------------------------------------------
@@ -230,7 +232,7 @@ public:
 
 #ifdef DEKAF2_HAS_STD_STRING_VIEW
 	//-----------------------------------------------------------------------------
-	constexpr
+	DEKAF2_CONSTEXPR_14
 	KStringView(sv::string_view str) noexcept
 	//-----------------------------------------------------------------------------
 		: m_rep(str.data(), str.size())
@@ -239,6 +241,7 @@ public:
 #endif
 
 	//-----------------------------------------------------------------------------
+	//		DEKAF2_CONSTEXPR_14
 	constexpr
 	KStringView(const value_type* s, size_type count) noexcept
 	//-----------------------------------------------------------------------------
@@ -253,6 +256,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	//		DEKAF2_CONSTEXPR_14
 	constexpr
 	KStringView(const value_type* s) noexcept
 	//-----------------------------------------------------------------------------
@@ -269,12 +273,12 @@ public:
 #ifdef _MSC_VER
 	// MSC refuses base class conversion if we pass the extended class by value..
 	//-----------------------------------------------------------------------------
-	constexpr
+	DEKAF2_CONSTEXPR_14
 	KStringView(const KStringViewZ& svz) noexcept;
 	//-----------------------------------------------------------------------------
 #else
 	//-----------------------------------------------------------------------------
-	constexpr
+	DEKAF2_CONSTEXPR_14
 	KStringView(KStringViewZ svz) noexcept;
 	//-----------------------------------------------------------------------------
 #endif
@@ -284,19 +288,19 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	constexpr
+	DEKAF2_CONSTEXPR_14
 	self& operator=(const self_type& other) noexcept = default;
 	//-----------------------------------------------------------------------------
 
 #ifdef _MSC_VER
 	// MSC refuses base class conversion if we pass the extended class by value..
 	//-----------------------------------------------------------------------------
-	constexpr
+	DEKAF2_CONSTEXPR_14
 	self& operator=(const KStringViewZ& other);
 	//-----------------------------------------------------------------------------
 #else
 	//-----------------------------------------------------------------------------
-	constexpr
+	DEKAF2_CONSTEXPR_14
 	self& operator=(KStringViewZ other);
 	//-----------------------------------------------------------------------------
 #endif
@@ -306,7 +310,7 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	constexpr
+	DEKAF2_CONSTEXPR_14
 	self& operator=(const value_type* other)
 	//-----------------------------------------------------------------------------
 	{
@@ -324,7 +328,7 @@ public:
 
 #ifdef DEKAF2_HAS_STD_STRING_VIEW
 	//-----------------------------------------------------------------------------
-	constexpr
+	DEKAF2_CONSTEXPR_14
 	self& operator=(sv::string_view other)
 	//-----------------------------------------------------------------------------
 	{
@@ -334,39 +338,23 @@ public:
 #endif
 
 	//-----------------------------------------------------------------------------
-	constexpr
-	const rep_type& ToRange() const
-	//-----------------------------------------------------------------------------
-	{
-		return m_rep;
-	}
-
-	//-----------------------------------------------------------------------------
-	constexpr
-	rep_type& ToRange()
-	//-----------------------------------------------------------------------------
-	{
-		return m_rep;
-	}
-
-	//-----------------------------------------------------------------------------
-	constexpr
+	DEKAF2_CONSTEXPR_14
 	operator const rep_type&() const
 	//-----------------------------------------------------------------------------
 	{
-		return ToRange();
+		return m_rep;
 	}
 
 	//-----------------------------------------------------------------------------
-	constexpr
+	DEKAF2_CONSTEXPR_14
 	operator rep_type&()
 	//-----------------------------------------------------------------------------
 	{
-		return ToRange();
+		return m_rep;
 	}
 
 	//-----------------------------------------------------------------------------
-	constexpr
+	DEKAF2_CONSTEXPR_14
 	operator fmt::string_view() const
 	//-----------------------------------------------------------------------------
 	{
@@ -375,7 +363,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	// nonstandard
-	constexpr
+	DEKAF2_CONSTEXPR_14
 	void clear()
 	//-----------------------------------------------------------------------------
 	{
@@ -388,7 +376,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	// nonstandard
-	constexpr
+	DEKAF2_CONSTEXPR_14
 	void assign(const value_type* start, size_type size)
 	//-----------------------------------------------------------------------------
 	{
@@ -397,7 +385,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	// nonstandard
-	constexpr
+	DEKAF2_CONSTEXPR_14
 	void assign(const value_type* start, const value_type* end)
 	//-----------------------------------------------------------------------------
 	{
@@ -410,7 +398,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	// nonstandard
-	constexpr
+	DEKAF2_CONSTEXPR_14
 	void reset(const value_type* start, size_type size)
 	//-----------------------------------------------------------------------------
 	{
@@ -426,7 +414,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	constexpr
+	DEKAF2_CONSTEXPR_14
 	size_type size() const
 	//-----------------------------------------------------------------------------
 	{
@@ -434,7 +422,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	constexpr
+	DEKAF2_CONSTEXPR_14
 	size_type length() const
 	//-----------------------------------------------------------------------------
 	{
@@ -442,7 +430,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	constexpr
+	DEKAF2_CONSTEXPR_14
 	bool empty() const
 	//-----------------------------------------------------------------------------
 	{
@@ -451,6 +439,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// test if the string is non-empty
+	DEKAF2_CONSTEXPR_14
 	explicit operator bool() const
 	//-----------------------------------------------------------------------------
 	{
@@ -458,7 +447,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	constexpr
+	DEKAF2_CONSTEXPR_14
 	const value_type* data() const
 	//-----------------------------------------------------------------------------
 	{
@@ -466,7 +455,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	constexpr
+	DEKAF2_CONSTEXPR_14
 	iterator begin() const
 	//-----------------------------------------------------------------------------
 	{
@@ -474,7 +463,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	constexpr
+	DEKAF2_CONSTEXPR_14
 	iterator end() const
 	//-----------------------------------------------------------------------------
 	{
@@ -496,7 +485,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	constexpr
+	DEKAF2_CONSTEXPR_14
 	const_iterator cbegin() const
 	//-----------------------------------------------------------------------------
 	{
@@ -504,7 +493,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	constexpr
+	DEKAF2_CONSTEXPR_14
 	const_iterator cend() const
 	//-----------------------------------------------------------------------------
 	{
@@ -526,7 +515,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	constexpr
+	DEKAF2_CONSTEXPR_14
 	const value_type& front() const
 	//-----------------------------------------------------------------------------
 	{
@@ -539,7 +528,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	constexpr
+	DEKAF2_CONSTEXPR_14
 	const value_type& back() const
 	//-----------------------------------------------------------------------------
 	{
@@ -552,7 +541,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	constexpr
+	DEKAF2_CONSTEXPR_14
 	int compare(const self_type& other) const
 	//-----------------------------------------------------------------------------
 	{
@@ -561,7 +550,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	constexpr
+	DEKAF2_CONSTEXPR_14
 	int compare(size_type pos1, size_type count1,
 	            self_type other) const
 	//-----------------------------------------------------------------------------
@@ -570,7 +559,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	constexpr
+	DEKAF2_CONSTEXPR_14
 	int compare(size_type pos1, size_type count1,
 	            self_type other,
 	            size_type pos2, size_type count2) const
@@ -580,7 +569,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	constexpr
+	DEKAF2_CONSTEXPR_14
 	int compare(const value_type* str) const
 	//-----------------------------------------------------------------------------
 	{
@@ -588,7 +577,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	constexpr
+	DEKAF2_CONSTEXPR_14
 	int compare(size_type pos1, size_type count1,
 	            const value_type* str) const
 	//-----------------------------------------------------------------------------
@@ -597,7 +586,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	constexpr
+	DEKAF2_CONSTEXPR_14
 	int compare(size_type pos1, size_type count1,
 	            const value_type* str, size_type count2) const
 	//-----------------------------------------------------------------------------
@@ -610,7 +599,7 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	constexpr
+	DEKAF2_CONSTEXPR_14
 	const value_type& operator[](size_t index) const
 	//-----------------------------------------------------------------------------
 	{
@@ -623,7 +612,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	constexpr
+	DEKAF2_CONSTEXPR_14
 	const value_type& at(size_t index) const
 	//-----------------------------------------------------------------------------
 	{
@@ -636,7 +625,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	constexpr
+	DEKAF2_CONSTEXPR_14
 	self_type substr(size_type pos = 0, size_type count = npos) const
 	//-----------------------------------------------------------------------------
 	{
@@ -650,7 +639,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	// nonstandard
-	constexpr
+	DEKAF2_CONSTEXPR_14
 	self_type ToView(size_type pos = 0, size_type count = npos) const
 	//-----------------------------------------------------------------------------
 	{
@@ -658,7 +647,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	constexpr
+	DEKAF2_CONSTEXPR_14
 	void remove_prefix(size_type n)
 	//-----------------------------------------------------------------------------
 	{
@@ -671,7 +660,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	constexpr
+	DEKAF2_CONSTEXPR_14
 	void remove_suffix(size_type n)
 	//-----------------------------------------------------------------------------
 	{
@@ -685,7 +674,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	// nonstandard
-	constexpr
+	DEKAF2_CONSTEXPR_14
 	bool remove_prefix(self_type other)
 	//-----------------------------------------------------------------------------
 	{
@@ -699,7 +688,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	// nonstandard
-	constexpr
+	DEKAF2_CONSTEXPR_14
 	bool remove_suffix(self_type other)
 	//-----------------------------------------------------------------------------
 	{
@@ -714,7 +703,7 @@ public:
 	//-----------------------------------------------------------------------------
 	// std::C++20
 	/// does the string start with sPattern?
-	constexpr
+	DEKAF2_CONSTEXPR_14
 	bool starts_with(self_type other) const noexcept
 	//-----------------------------------------------------------------------------
 	{
@@ -724,7 +713,7 @@ public:
 	//-----------------------------------------------------------------------------
 	// std::C++20
 	/// does the string start with ch?
-	constexpr
+	DEKAF2_CONSTEXPR_14
 	bool starts_with(value_type ch) const noexcept
 	//-----------------------------------------------------------------------------
 	{
@@ -734,7 +723,7 @@ public:
 	//-----------------------------------------------------------------------------
 	// std::C++20
 	/// does the string end with sPattern?
-	constexpr
+	DEKAF2_CONSTEXPR_14
 	bool ends_with(self_type other) const noexcept
 	//-----------------------------------------------------------------------------
 	{
@@ -744,7 +733,7 @@ public:
 	//-----------------------------------------------------------------------------
 	// std::C++20
 	/// does the string end with ch?
-	constexpr
+	DEKAF2_CONSTEXPR_14
 	bool ends_with(value_type ch) const noexcept
 	//-----------------------------------------------------------------------------
 	{
@@ -754,7 +743,7 @@ public:
 	//-----------------------------------------------------------------------------
 	// nonstandard
 	/// does the string start with sPattern? (Now deprecated, replace by starts_with())
-	constexpr
+	DEKAF2_CONSTEXPR_14
 	bool StartsWith(self_type other) const noexcept
 	//-----------------------------------------------------------------------------
 	{
@@ -764,7 +753,7 @@ public:
 	//-----------------------------------------------------------------------------
 	// nonstandard
 	/// does the string end with sPattern? (Now deprecated, replace by ends_with())
-	constexpr
+	DEKAF2_CONSTEXPR_14
 	bool EndsWith(self_type other) const noexcept
 	//-----------------------------------------------------------------------------
 	{
@@ -828,7 +817,7 @@ public:
 	//-----------------------------------------------------------------------------
 	// nonstandard
 	/// returns substring starting at iStart for iCount chars
-	constexpr
+	DEKAF2_CONSTEXPR_14
 	KStringView Mid(size_type iStart, size_type iCount = npos) const
 	//-----------------------------------------------------------------------------
 	{
@@ -937,7 +926,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// nonstandard: output the hash value of instance by calling std::hash() for the type
-	constexpr
+	DEKAF2_CONSTEXPR_14
 	std::size_t Hash() const;
 	//-----------------------------------------------------------------------------
 
@@ -974,7 +963,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	constexpr
+	DEKAF2_CONSTEXPR_14
 	size_type find(value_type ch, size_type pos = 0) const noexcept
 	//-----------------------------------------------------------------------------
 	{
@@ -1162,7 +1151,7 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	constexpr
+	DEKAF2_CONSTEXPR_14
 	bool operator==(KStringView other) const
 	//-----------------------------------------------------------------------------
 	{
@@ -1177,7 +1166,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	constexpr
+	DEKAF2_CONSTEXPR_14
 	bool operator!=(KStringView other) const
 	//-----------------------------------------------------------------------------
 	{
@@ -1185,12 +1174,12 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	constexpr
+	DEKAF2_CONSTEXPR_14
 	bool operator==(KStringViewZ other) const;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	constexpr
+	DEKAF2_CONSTEXPR_14
 	bool operator!=(KStringViewZ other) const;
 	//-----------------------------------------------------------------------------
 
@@ -1214,7 +1203,7 @@ protected:
 
 	//-----------------------------------------------------------------------------
 	DEKAF2_ALWAYS_INLINE
-	constexpr
+	DEKAF2_CONSTEXPR_14
 	void unchecked_remove_prefix(size_type n)
 	//-----------------------------------------------------------------------------
 	{
@@ -1227,7 +1216,7 @@ protected:
 
 	//-----------------------------------------------------------------------------
 	DEKAF2_ALWAYS_INLINE
-	constexpr
+	DEKAF2_CONSTEXPR_14
 	void unchecked_remove_suffix(size_type n)
 	//-----------------------------------------------------------------------------
 	{
@@ -1252,7 +1241,7 @@ using KStringViewPair = std::pair<KStringView, KStringView>;
 
 
 //-----------------------------------------------------------------------------
-constexpr
+DEKAF2_CONSTEXPR_14
 inline bool operator==(const char* left, KStringView right)
 //-----------------------------------------------------------------------------
 {
@@ -1260,7 +1249,7 @@ inline bool operator==(const char* left, KStringView right)
 }
 
 //-----------------------------------------------------------------------------
-constexpr
+DEKAF2_CONSTEXPR_14
 inline bool operator==(KStringView left, const char* right)
 //-----------------------------------------------------------------------------
 {
@@ -1268,7 +1257,7 @@ inline bool operator==(KStringView left, const char* right)
 }
 
 //-----------------------------------------------------------------------------
-constexpr
+DEKAF2_CONSTEXPR_14
 inline bool operator!=(const char* left, KStringView right)
 //-----------------------------------------------------------------------------
 {
@@ -1276,7 +1265,7 @@ inline bool operator!=(const char* left, KStringView right)
 }
 
 //-----------------------------------------------------------------------------
-constexpr
+DEKAF2_CONSTEXPR_14
 inline bool operator!=(KStringView left, const char* right)
 //-----------------------------------------------------------------------------
 {
@@ -1313,7 +1302,7 @@ inline bool operator!=(KStringView left, const std::string& right)
 
 #ifdef DEKAF2_HAS_STD_STRING_VIEW
 //-----------------------------------------------------------------------------
-constexpr
+DEKAF2_CONSTEXPR_14
 inline bool operator==(sv::string_view left, KStringView right)
 //-----------------------------------------------------------------------------
 {
@@ -1321,7 +1310,7 @@ inline bool operator==(sv::string_view left, KStringView right)
 }
 
 //-----------------------------------------------------------------------------
-constexpr
+DEKAF2_CONSTEXPR_14
 inline bool operator==(KStringView left, sv::string_view right)
 //-----------------------------------------------------------------------------
 {
@@ -1329,7 +1318,7 @@ inline bool operator==(KStringView left, sv::string_view right)
 }
 
 //-----------------------------------------------------------------------------
-constexpr
+DEKAF2_CONSTEXPR_14
 inline bool operator!=(sv::string_view left, KStringView right)
 //-----------------------------------------------------------------------------
 {
@@ -1337,7 +1326,7 @@ inline bool operator!=(sv::string_view left, KStringView right)
 }
 
 //-----------------------------------------------------------------------------
-constexpr
+DEKAF2_CONSTEXPR_14
 inline bool operator!=(KStringView left, sv::string_view right)
 //-----------------------------------------------------------------------------
 {
@@ -1346,7 +1335,7 @@ inline bool operator!=(KStringView left, sv::string_view right)
 #endif
 
 //-----------------------------------------------------------------------------
-constexpr
+DEKAF2_CONSTEXPR_14
 inline bool operator<(KStringView left, KStringView right)
 //-----------------------------------------------------------------------------
 {
@@ -1356,7 +1345,7 @@ inline bool operator<(KStringView left, KStringView right)
 }
 
 //-----------------------------------------------------------------------------
-constexpr
+DEKAF2_CONSTEXPR_14
 inline bool operator>(KStringView left, KStringView right)
 //-----------------------------------------------------------------------------
 {
@@ -1364,7 +1353,7 @@ inline bool operator>(KStringView left, KStringView right)
 }
 
 //-----------------------------------------------------------------------------
-constexpr
+DEKAF2_CONSTEXPR_14
 inline bool operator<=(KStringView left, KStringView right)
 //-----------------------------------------------------------------------------
 {
@@ -1372,7 +1361,7 @@ inline bool operator<=(KStringView left, KStringView right)
 }
 
 //-----------------------------------------------------------------------------
-constexpr
+DEKAF2_CONSTEXPR_14
 inline bool operator>=(KStringView left, KStringView right)
 //-----------------------------------------------------------------------------
 {
@@ -1382,7 +1371,7 @@ inline bool operator>=(KStringView left, KStringView right)
 
 //-----------------------------------------------------------------------------
 inline
-constexpr
+DEKAF2_CONSTEXPR_14
 size_t kFind(
         KStringView haystack,
         const char needle,
@@ -1539,7 +1528,7 @@ size_t kFindUnescaped(KStringView haystack,
 
 //----------------------------------------------------------------------
 inline
-constexpr
+DEKAF2_CONSTEXPR_14
 bool kStartsWith(KStringView sInput, KStringView sPattern) noexcept
 //----------------------------------------------------------------------
 {
@@ -1559,7 +1548,7 @@ bool kStartsWith(KStringView sInput, KStringView sPattern) noexcept
 
 //----------------------------------------------------------------------
 inline
-constexpr
+DEKAF2_CONSTEXPR_14
 bool kEndsWith(KStringView sInput, KStringView sPattern) noexcept
 //----------------------------------------------------------------------
 {
@@ -1640,7 +1629,7 @@ namespace std
 	{
 		typedef dekaf2::KStringView argument_type;
 		typedef std::size_t result_type;
-		constexpr result_type operator()(argument_type s) const
+		DEKAF2_CONSTEXPR_14 result_type operator()(argument_type s) const
 		{
 			return dekaf2::kHash(s.data(), s.size());
 		}
@@ -1658,7 +1647,7 @@ namespace boost
 	{
 		typedef dekaf2::KStringView argument_type;
 		typedef std::size_t result_type;
-		constexpr result_type operator()(argument_type s) const
+		DEKAF2_CONSTEXPR_14 result_type operator()(argument_type s) const
 		{
 			return dekaf2::kHash(s.data(), s.size());
 		}
@@ -1667,7 +1656,7 @@ namespace boost
 } // namespace boost
 
 //----------------------------------------------------------------------
-inline constexpr std::size_t dekaf2::KStringView::Hash() const
+inline DEKAF2_CONSTEXPR_14 std::size_t dekaf2::KStringView::Hash() const
 //----------------------------------------------------------------------
 {
 	return std::hash<dekaf2::KStringView>()(*this);
@@ -1680,7 +1669,7 @@ namespace dekaf2 {
 
 //-----------------------------------------------------------------------------
 inline
-constexpr
+DEKAF2_CONSTEXPR_14
 #ifdef _MSC_VER
 KStringView::KStringView(const KStringViewZ& svz) noexcept
 #else
@@ -1693,7 +1682,7 @@ KStringView::KStringView(KStringViewZ svz) noexcept
 
 //-----------------------------------------------------------------------------
 inline
-constexpr
+DEKAF2_CONSTEXPR_14
 #ifdef _MSC_VER
 KStringView& KStringView::operator=(const KStringViewZ& other)
 #else
@@ -1706,7 +1695,8 @@ KStringView& KStringView::operator=(KStringViewZ other)
 }
 
 //-----------------------------------------------------------------------------
-constexpr
+DEKAF2_CONSTEXPR_14
+inline
 bool KStringView::operator==(KStringViewZ other) const
 //-----------------------------------------------------------------------------
 {
@@ -1721,7 +1711,8 @@ bool KStringView::operator==(KStringViewZ other) const
 }
 
 //-----------------------------------------------------------------------------
-constexpr
+DEKAF2_CONSTEXPR_14
+inline
 bool KStringView::operator!=(KStringViewZ other) const
 //-----------------------------------------------------------------------------
 {

@@ -115,7 +115,7 @@ namespace KSQLite {
 			constexpr_2014 const_pointer data() const noexcept { return begin(); }
 			constexpr_2014 const_reference operator[](size_type pos) const { return *(begin() + pos); }
 			constexpr_2014 const_reference at(size_type pos) const { if (pos >= size()) { throw std::out_of_range({}); } return operator[](pos); }
-			constexpr_2014 void remove_prefix(size_type n) { m_pszString += n; }
+			constexpr_2014 void remove_prefix(size_type n) { m_pszString += n; m_iSize -= n; }
 			constexpr_2014 void remove_suffix(size_type n) { m_iSize -= n; }
 			void swap(StringView& other) noexcept { using std::swap; swap(*this, other); }
 			constexpr_2014 StringView substr(size_type pos = 0, size_type count = npos) const { return { m_pszString + pos, std::min(count, size() - pos) }; }

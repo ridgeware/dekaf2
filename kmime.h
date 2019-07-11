@@ -206,7 +206,7 @@ private:
 }; // KMIME
 
 //-----------------------------------------------------------------------------
-constexpr
+DEKAF2_CONSTEXPR_14
 inline bool operator==(KStringView left, const KMIME& right)
 //-----------------------------------------------------------------------------
 {
@@ -214,7 +214,7 @@ inline bool operator==(KStringView left, const KMIME& right)
 }
 
 //-----------------------------------------------------------------------------
-constexpr
+DEKAF2_CONSTEXPR_14
 inline bool operator==(const KMIME& left, KStringView right)
 //-----------------------------------------------------------------------------
 {
@@ -222,7 +222,7 @@ inline bool operator==(const KMIME& left, KStringView right)
 }
 
 //-----------------------------------------------------------------------------
-constexpr
+DEKAF2_CONSTEXPR_14
 inline bool operator!=(KStringView left, const KMIME& right)
 //-----------------------------------------------------------------------------
 {
@@ -230,7 +230,7 @@ inline bool operator!=(KStringView left, const KMIME& right)
 }
 
 //-----------------------------------------------------------------------------
-constexpr
+DEKAF2_CONSTEXPR_14
 inline bool operator!=(const KMIME& left, KStringView right)
 //-----------------------------------------------------------------------------
 {
@@ -248,6 +248,10 @@ class KMIMEPart
 //----------
 public:
 //----------
+
+	// boost::container allows use of incomplete types
+	using Storage = boost::container::vector<KMIMEPart>;
+	using iterator = Storage::iterator;
 
 	KMIMEPart(KMIME MIME = KMIME::NONE) : m_MIME(MIME) {}
 	KMIMEPart(KStringView sMessage, KMIME MIME) : m_MIME(MIME), m_Data(sMessage) {}
@@ -275,8 +279,8 @@ public:
 
 	bool empty() const { return m_Parts.empty(); }
 	bool size()  const { return m_Parts.size();  }
-	auto begin() { return m_Parts.begin(); }
-	auto end() { return m_Parts.end(); }
+	iterator begin() { return m_Parts.begin(); }
+	iterator end() { return m_Parts.end(); }
 	KMIMEPart& operator[](size_t pos) { return m_Parts[pos]; }
 	const KMIMEPart& operator[](size_t pos) const { return m_Parts[pos]; }
 
@@ -294,8 +298,7 @@ protected:
 	KString m_Data;
 	KString m_sName;
 
-	// boost::container allows use of incomplete types
-	boost::container::vector<KMIMEPart> m_Parts;
+	Storage m_Parts;
 
 }; // KMIMEPart
 

@@ -79,12 +79,17 @@ struct elsa<dekaf2::KStringView>
 {
 	constexpr std::size_t operator()(dekaf2::KStringView value) const
 	{
-		return dekaf2::kfrozen::kHash(value.data(), value.size());
+		return value.Hash();
 	}
 
 	constexpr std::size_t operator()(dekaf2::KStringView value, std::size_t seed) const
 	{
-		return dekaf2::kfrozen::kHash(value.data(), value.size(), seed);
+		std::size_t hash = seed;
+		for (std::size_t i = 0; i < value.size(); ++i)
+		{
+			hash = (hash ^ static_cast<unsigned char>(value[i])) * 1099511628211;
+		}
+		return hash;
 	}
 };
 
@@ -93,12 +98,17 @@ struct elsa<dekaf2::KStringViewZ>
 {
 	constexpr std::size_t operator()(dekaf2::KStringViewZ value) const
 	{
-		return dekaf2::kfrozen::kHash(value.data(), value.size());
+		return value.Hash();
 	}
 
 	constexpr std::size_t operator()(dekaf2::KStringViewZ value, std::size_t seed) const
 	{
-		return dekaf2::kfrozen::kHash(value.data(), value.size(), seed);
+		std::size_t hash = seed;
+		for (std::size_t i = 0; i < value.size(); ++i)
+		{
+			hash = (hash ^ static_cast<unsigned char>(value[i])) * 1099511628211;
+		}
+		return hash;
 	}
 };
 

@@ -71,9 +71,7 @@ std::size_t hash(const char data, std::size_t hash) noexcept
 	return (hash ^ static_cast<unsigned char>(data)) * prime;
 }
 
-#ifdef DEKAF2_HAS_CPP_14
-constexpr
-#endif
+DEKAF2_CONSTEXPR_14
 inline
 std::size_t hash(const char* data, std::size_t size, std::size_t hash) noexcept
 {
@@ -89,9 +87,7 @@ std::size_t hash(const char* data, std::size_t size, std::size_t hash) noexcept
 }
 
 // zero terminated strings
-#ifdef DEKAF2_HAS_CPP_14
-constexpr
-#endif
+DEKAF2_CONSTEXPR_14
 inline
 std::size_t hash(const char* data, std::size_t hash) noexcept
 {
@@ -155,9 +151,7 @@ std::size_t kHash(const T* data, std::size_t size, std::size_t hash = kHashBasis
 //---------------------------------------------------------------------------
 // constexpr specialisation
 template<>
-#ifdef DEKAF2_HAS_CPP_14
-constexpr
-#endif
+DEKAF2_CONSTEXPR_14
 inline
 std::size_t kHash(const char* data, std::size_t size, std::size_t hash) noexcept
 //---------------------------------------------------------------------------

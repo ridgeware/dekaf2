@@ -60,7 +60,7 @@ TEST_CASE("KHash")
 				break;
 
 			case KStringViewZ("hillo").Hash():
-				CHECK ( true );
+				CHECK ( false );
 				break;
 			case kHash("hihi", 4):
 				CHECK ( false );

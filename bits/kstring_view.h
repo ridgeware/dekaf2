@@ -47,6 +47,7 @@
 /// available
 
 #include "kcppcompat.h"
+#include <cstring>
 
 #if DEKAF2_HAS_CPP_17
 	#if DEKAF2_HAS_INCLUDE(<string_view>)
@@ -298,7 +299,6 @@ namespace sv = DEKAF2_SV_NAMESPACE;
 			return (cmp) ? cmp : size() - other.size();
 		}
 
-		DEKAF2_CONSTEXPR_14
 		size_type find(string_view needle, size_type pos = 0) const noexcept
 		{
 			if (needle.size() == 1)
@@ -313,7 +313,6 @@ namespace sv = DEKAF2_SV_NAMESPACE;
 			return (found) ? static_cast<size_t>(found - data()) : npos;
 		}
 
-		DEKAF2_CONSTEXPR_14
 		size_type find(CharT ch, size_type pos = 0) const noexcept
 		{
 			if (pos > size())
@@ -324,45 +323,61 @@ namespace sv = DEKAF2_SV_NAMESPACE;
 			return (found) ? static_cast<size_t>(found - data()) : npos;
 		}
 
-		DEKAF2_CONSTEXPR_14
 		size_type find(const CharT* s, size_type pos, size_type count) const
 		{
 			return find(string_view(s, count), pos);
 		}
 
-		DEKAF2_CONSTEXPR_14
 		size_type find(const CharT* s, size_type pos) const
 		{
 			return find(string_view(s), pos);
 		}
 
-	#if (DEKAF2_HAS_CPP_14)
-		static
-		constexpr
-		size_type constexpr_strlen(const CharT* s)
+#ifndef DEKAF2_HAS_CPP_17
+		static constexpr inline
+		size_t constexpr_strlen(const CharT* s)
+		{
+		#if defined(__clang__)
+			return s ? __builtin_strlen(s) : 0;
+		#elif defined(_MSC_VER)
+			return s ? constexpr_strlen_manually(s) : 0;
+		#elif defined(__GNUC__)
+			#if (__GNUC__ > 7)
+			return s ? std::char_traits<char>::length(s) : 0;
+			#else
+			return s ? constexpr_strlen_manually(s) : 0;
+		#endif
+		#else
+			return std::strlen(s);
+		#endif
+		}
+#endif
+
+	private:
+
+#ifndef DEKAF2_HAS_CPP_17
+#if (DEKAF2_HAS_CPP_14)
+		static constexpr inline
+		size_type constexpr_strlen_manually(const CharT* s)
 		{
 			const CharT* start = s;
 			while (*s++);
 			return s - start - 1;
 		}
-	#else
-		static
-		constexpr
-		size_type constexpr_strlen_1(const CharT* s, size_type len)
+#else
+		static constexpr inline
+		size_type constexpr_strlen_manually_1(const CharT* s, size_type len)
 		{
-			return *s == 0 ? len : constexpr_strlen_1(s + 1, len + 1);
+			return *s == 0 ? len : constexpr_strlen_manually_1(s + 1, len + 1);
 		}
 
-		static
-		constexpr
-		size_t constexpr_strlen(const CharT* s)
+		static constexpr inline
+		size_t constexpr_strlen_manually(const CharT* s)
 		{
-			return constexpr_strlen_1(s, 0);
+			return constexpr_strlen_manually_1(s, 0);
 		}
-	#endif
-
-	private:
-
+#endif
+#endif
 		static constexpr char m_chEmpty = 0;
 		const char* m_pszString;
 		std::size_t m_iSize;
@@ -415,4 +430,5 @@ namespace sv = DEKAF2_SV_NAMESPACE;
 	} // end of namespace dekaf2
 
 #endif
+
 

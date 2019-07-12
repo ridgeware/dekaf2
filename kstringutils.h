@@ -91,6 +91,7 @@ bool kStrIn (KStringView sNeedle, const char* Haystack[]);
 //----------------------------------------------------------------------
 template<class Container,
 	typename std::enable_if_t<!detail::is_cpp_str<Container>::value>* = nullptr>
+DEKAF2_CONSTEXPR_14
 bool kStrIn (KStringView sNeedle, const Container& Haystack)
 //----------------------------------------------------------------------
 {
@@ -594,37 +595,5 @@ First kFirstNonEmpty(First sFirst, More&&...more)
 	}
 	return kFirstNonEmpty<First>(std::forward<More>(more)...);
 }
-
-//-----------------------------------------------------------------------------
-/// Add an integer to a KString representation. The empty string represents 0.
-void kAdd(int64_t iAdd, KString& sString, bool bIsHex = false);
-//-----------------------------------------------------------------------------
-
-//-----------------------------------------------------------------------------
-/// Subtract an integer from a KString representation. The empty string represents 0.
-inline void kSub(int64_t iAdd, KString& sString, bool bIsHex = false)
-//-----------------------------------------------------------------------------
-{
-	kAdd(iAdd * (-1), sString, bIsHex);
-
-} // kSub
-
-//-----------------------------------------------------------------------------
-/// Increment a KString integer representation. The empty string represents 0.
-inline void kIncrement(KString& sString, bool bIsHex = false)
-//-----------------------------------------------------------------------------
-{
-	kAdd(1, sString, bIsHex);
-
-} // kIncrement
-
-//-----------------------------------------------------------------------------
-/// Decrement a KString integer representation. The empty string represents 0.
-inline void kDecrement(KString& sString, bool bIsHex = false)
-//-----------------------------------------------------------------------------
-{
-	kAdd((-1), sString, bIsHex);
-
-} // kDecrement
 
 } // end of namespace dekaf2

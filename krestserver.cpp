@@ -386,14 +386,22 @@ void KRESTServer::VerifyPerThreadKLogToHeader(const Options& Options)
 				}
 				else if (bToJSON)
 				{
+#ifdef DEKAF2_KLOG_WITH_TCP
 					json.tx["klog"] = KJSON::array();
 					KLog::getInstance().LogThisThreadToJSON(iKLogLevel, &json.tx["klog"]);
 					kDebug(2, "switching per-thread JSON logging for this thread on at level {}", iKLogLevel);
+#else
+					kDebug(2, "request to switch {} logging on, but compiled without support", "json response");
+#endif
 				}
 				else
 				{
+#ifdef DEKAF2_KLOG_WITH_TCP
 					KLog::getInstance().LogThisThreadToResponseHeaders(iKLogLevel, Response, Options.sKLogHeader);
 					kDebug(2, "switching per-thread response header logging for this thread on at level {}", iKLogLevel);
+#else
+					kDebug(2, "request to switch {} logging on, but compiled without support", "response header");
+#endif
 				}
 			}
 		}

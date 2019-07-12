@@ -43,6 +43,7 @@
 #include "klogwriter.h"
 #include <dekaf2/kstring.h>
 #include <dekaf2/ksplit.h>
+#include <dekaf2/kfilesystem.h>
 
 #ifndef DEKAF2_IS_WINDOWS
 	#define DEKAF2_HAS_SYSLOG

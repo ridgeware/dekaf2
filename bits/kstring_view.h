@@ -60,12 +60,16 @@
 	#endif
 #endif
 
-#if !defined(DEKAF2_HAS_STD_STRING_VIEW) && !defined(DEKAF2_USE_FOLLY_STRINGPIECE_AS_KSTRINGVIEW)
+#ifdef DEKAF2_SV_NAMESPACE
+namespace sv = DEKAF2_SV_NAMESPACE;
+#endif
 
-	/// tiny but nearly complete string_view implementation - it only does not have rfind() nor find_first/last_(not)_of() (the latter are supplied through KStringView though)
+#if defined(DEKAF2_USE_DEKAF2_STRINGVIEW_AS_KSTRINGVIEW) \
+	|| (!defined(DEKAF2_HAS_STD_STRING_VIEW) \
+		&& !defined(DEKAF2_USE_FOLLY_STRINGPIECE_AS_KSTRINGVIEW))
 
-	#define DEKAF2_SV_NAMESPACE dekaf2::detail::stringview
-	#define DEKAF2_HAS_STD_STRING_VIEW 1
+	/// tiny but nearly complete string_view implementation - it only does not have rfind() nor find_first/last_(not)_of() (but those are supplied through KStringView)
+
 	#define DEKAF2_HAS_OWN_STRING_VIEW 1
 
 	namespace dekaf2 {
@@ -242,7 +246,7 @@
 
 		// non-standard
 		DEKAF2_CONSTEXPR_14
-		void remove_prefix_unchecked(size_type n)
+		void unchecked_remove_prefix(size_type n)
 		{
 			m_pszString += n;
 			m_iSize -= n;
@@ -250,7 +254,7 @@
 
 		// non-standard
 		DEKAF2_CONSTEXPR_14
-		void remove_suffix_unchecked(size_type n)
+		void unchecked_remove_suffix(size_type n)
 		{
 			m_iSize -= n;
 		}
@@ -262,7 +266,7 @@
 			{
 				n = m_iSize;
 			}
-			remove_prefix_unchecked(n);
+			unchecked_remove_prefix(n);
 		}
 
 		DEKAF2_CONSTEXPR_14
@@ -272,7 +276,7 @@
 			{
 				n = m_iSize;
 			}
-			remove_suffix_unchecked(n);
+			unchecked_remove_suffix(n);
 		}
 
 		void swap(string_view& other) noexcept
@@ -412,6 +416,3 @@
 
 #endif
 
-#ifdef DEKAF2_SV_NAMESPACE
-namespace sv = DEKAF2_SV_NAMESPACE;
-#endif

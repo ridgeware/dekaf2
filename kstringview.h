@@ -53,9 +53,11 @@
 #include "khash.h"
 #include <fmt/format.h>
 
-#if !defined(DEKAF2_HAS_STD_STRING_VIEW) && !defined(DEKAF2_USE_FOLLY_STRINGPIECE_AS_KSTRINGVIEW)
-	// we have to use folly's stringpiece if we do not have C++17..
-	#define DEKAF2_USE_FOLLY_STRINGPIECE_AS_KSTRINGVIEW 1
+#if !defined(DEKAF2_HAS_STD_STRING_VIEW) \
+	&& !defined(DEKAF2_USE_FOLLY_STRINGPIECE_AS_KSTRINGVIEW) \
+	&& !defined(DEKAF2_USE_DEKAF2_STRINGVIEW_AS_KSTRINGVIEW)
+	// we have to use our own string_view if we do not have C++17..
+	#define DEKAF2_USE_DEKAF2_STRINGVIEW_AS_KSTRINGVIEW 1
 #endif
 
 #ifdef DEKAF2_USE_FOLLY_STRINGPIECE_AS_KSTRINGVIEW
@@ -189,8 +191,10 @@ class KStringView {
 public:
 //----------
 
-#ifdef DEKAF2_USE_FOLLY_STRINGPIECE_AS_KSTRINGVIEW
+#if defined(DEKAF2_USE_FOLLY_STRINGPIECE_AS_KSTRINGVIEW)
 	using rep_type               = folly::StringPiece;
+#elif defined(DEKAF2_USE_DEKAF2_STRINGVIEW_AS_KSTRINGVIEW)
+	using rep_type               = dekaf2::detail::stringview::string_view;
 #else
 	using rep_type               = DEKAF2_SV_NAMESPACE::string_view;
 #endif
@@ -242,7 +246,8 @@ public:
 	constexpr
 	KStringView(const value_type* s, size_type count) noexcept
 	//-----------------------------------------------------------------------------
-#ifdef DEKAF2_USE_FOLLY_STRINGPIECE_AS_KSTRINGVIEW
+#if defined(DEKAF2_USE_FOLLY_STRINGPIECE_AS_KSTRINGVIEW) \
+	|| defined(DEKAF2_USE_DEKAF2_STRINGVIEW_AS_KSTRINGVIEW)
 	: m_rep(s, count)
 #else
 	// folly is resilient to nullptr assignment, but std::string_view is not
@@ -256,7 +261,8 @@ public:
 	constexpr
 	KStringView(const value_type* s) noexcept
 	//-----------------------------------------------------------------------------
-#ifdef DEKAF2_USE_FOLLY_STRINGPIECE_AS_KSTRINGVIEW
+#if defined(DEKAF2_USE_FOLLY_STRINGPIECE_AS_KSTRINGVIEW) \
+	|| defined(DEKAF2_USE_DEKAF2_STRINGVIEW_AS_KSTRINGVIEW)
 	    : m_rep(s)
 #else
 	// folly is resilient to nullptr assignment, but std::string_view is not
@@ -355,7 +361,8 @@ public:
 	void clear()
 	//-----------------------------------------------------------------------------
 	{
-#ifdef DEKAF2_USE_FOLLY_STRINGPIECE_AS_KSTRINGVIEW
+#if defined(DEKAF2_USE_FOLLY_STRINGPIECE_AS_KSTRINGVIEW) \
+	|| defined(DEKAF2_USE_DEKAF2_STRINGVIEW_AS_KSTRINGVIEW)
 		m_rep.clear();
 #else
 		m_rep.remove_prefix(size());
@@ -1196,8 +1203,10 @@ protected:
 	void unchecked_remove_prefix(size_type n)
 	//-----------------------------------------------------------------------------
 	{
-#ifdef DEKAF2_USE_FOLLY_STRINGPIECE_AS_KSTRINGVIEW
+#if defined(DEKAF2_USE_FOLLY_STRINGPIECE_AS_KSTRINGVIEW)
 		m_rep.uncheckedAdvance(n);
+#elif defined(DEKAF2_USE_DEKAF2_STRINGVIEW_AS_KSTRINGVIEW)
+		m_rep.unchecked_remove_prefix(n);
 #else
 		m_rep.remove_prefix(n);
 #endif
@@ -1209,8 +1218,10 @@ protected:
 	void unchecked_remove_suffix(size_type n)
 	//-----------------------------------------------------------------------------
 	{
-#ifdef DEKAF2_USE_FOLLY_STRINGPIECE_AS_KSTRINGVIEW
+#if defined(DEKAF2_USE_FOLLY_STRINGPIECE_AS_KSTRINGVIEW)
 		m_rep.uncheckedSubtract(n);
+#elif defined(DEKAF2_USE_DEKAF2_STRINGVIEW_AS_KSTRINGVIEW)
+		m_rep.unchecked_remove_suffix(n);
 #else
 		m_rep.remove_suffix(n);
 #endif
@@ -1445,7 +1456,8 @@ size_t kFindFirstOf(
         size_t pos)
 //-----------------------------------------------------------------------------
 {
-#if defined(DEKAF2_USE_OPTIMIZED_STRING_FIND)
+#if defined(DEKAF2_USE_OPTIMIZED_STRING_FIND) \
+	|| defined(DEKAF2_USE_DEKAF2_STRINGVIEW_AS_KSTRINGVIEW)
 	return detail::stringview::kFindFirstOfInt(haystack, needle, pos);
 #else
 	return static_cast<KStringView::rep_type>(haystack).find_first_of(needle, pos);
@@ -1460,7 +1472,9 @@ size_t kFindFirstNotOf(
         size_t pos)
 //-----------------------------------------------------------------------------
 {
-#if defined(DEKAF2_USE_OPTIMIZED_STRING_FIND) || defined(DEKAF2_USE_FOLLY_STRINGPIECE_AS_KSTRINGVIEW)
+#if defined(DEKAF2_USE_OPTIMIZED_STRING_FIND) \
+	|| defined(DEKAF2_USE_FOLLY_STRINGPIECE_AS_KSTRINGVIEW) \
+	|| defined(DEKAF2_USE_DEKAF2_STRINGVIEW_AS_KSTRINGVIEW)
 	return detail::stringview::kFindFirstNotOfInt(haystack, needle, pos);
 #else
 	return static_cast<KStringView::rep_type>(haystack).find_first_not_of(needle, pos);
@@ -1475,7 +1489,9 @@ size_t kFindLastOf(
         size_t pos)
 //-----------------------------------------------------------------------------
 {
-#if defined(DEKAF2_USE_OPTIMIZED_STRING_FIND) || defined(DEKAF2_USE_FOLLY_STRINGPIECE_AS_KSTRINGVIEW)
+#if defined(DEKAF2_USE_OPTIMIZED_STRING_FIND) \
+	|| defined(DEKAF2_USE_FOLLY_STRINGPIECE_AS_KSTRINGVIEW) \
+	|| defined(DEKAF2_USE_DEKAF2_STRINGVIEW_AS_KSTRINGVIEW)
 	return detail::stringview::kFindLastOfInt(haystack, needle, pos);
 #else
 	return static_cast<KStringView::rep_type>(haystack).find_last_of(needle, pos);
@@ -1490,7 +1506,9 @@ size_t kFindLastNotOf(
         size_t pos)
 //-----------------------------------------------------------------------------
 {
-#if defined(DEKAF2_USE_OPTIMIZED_STRING_FIND) || defined(DEKAF2_USE_FOLLY_STRINGPIECE_AS_KSTRINGVIEW)
+#if defined(DEKAF2_USE_OPTIMIZED_STRING_FIND) \
+	|| defined(DEKAF2_USE_FOLLY_STRINGPIECE_AS_KSTRINGVIEW) \
+	|| defined(DEKAF2_USE_DEKAF2_STRINGVIEW_AS_KSTRINGVIEW)
 	return detail::stringview::kFindLastNotOfInt(haystack, needle, pos);
 #else
 	return static_cast<KStringView::rep_type>(haystack).find_last_not_of(needle, pos);

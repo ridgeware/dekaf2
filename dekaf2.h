@@ -46,10 +46,10 @@
 /// basic initialization of the library
 
 #include <atomic>
+#include "kconfiguration.h"
 #ifdef DEKAF2_HAS_MINIFOLLY
 #include <folly/CpuId.h>
 #endif
-#include "kconfiguration.h"
 #include "kstring.h"
 #include "ktimer.h"
 #include "ksignals.h"

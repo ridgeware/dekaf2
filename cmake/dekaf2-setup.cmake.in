@@ -91,7 +91,7 @@ if (NOT DEKAF2_HAVE_INCLUDED_SETUP)
 
 		if (CMAKE_COMPILER_IS_GNUCXX)
 
-			add_compile_options(-Wall -Wextra -Wno-unused-parameter -Werror -Wno-constexpr-not-const)
+			add_compile_options(-Wall -Wextra -Wno-unused-parameter -Werror)
 
 			add_compile_options($<$<CONFIG:RELEASE>:-O3>)
 			add_compile_definitions($<$<CONFIG:RELEASE>:NDEBUG>)
@@ -124,7 +124,7 @@ if (NOT DEKAF2_HAVE_INCLUDED_SETUP)
 
 		elseif (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
 
-			add_compile_options(-Wall -Wextra -Wno-unused-parameter -Werror -Wno-constexpr-not-const)
+			add_compile_options(-Wall -Wextra -Wno-unused-parameter -Werror)
 
 			add_compile_options($<$<CONFIG:RELEASE>:-O3>)
 			add_compile_definitions($<$<CONFIG:RELEASE>:NDEBUG>)

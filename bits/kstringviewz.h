@@ -338,7 +338,7 @@ public:
 	// but we can implement two versions, one returning self_type, the other base_type
 
 	//-----------------------------------------------------------------------------
-	constexpr
+	DEKAF2_CONSTEXPR_14
 	base_type substr(size_type pos, size_type count) const
 	//-----------------------------------------------------------------------------
 	{

@@ -123,6 +123,12 @@
 	#define DEKAF2_CONSTEXPR_14
 #endif
 
+#ifdef DEKAF2_HAS_CPP_17
+	#define DEKAF2_CONSTEXPR_17 constexpr
+#else
+	#define DEKAF2_CONSTEXPR_17
+#endif
+
 // unfortunately GCC < 7 require the repetition of a constexpr variable
 // in the .cpp even if in c++17 mode
 #if !defined(DEKAF2_HAS_CPP_17) || (defined(DEKAF2_IS_GCC) && DEKAF2_GCC_VERSION < 70000)

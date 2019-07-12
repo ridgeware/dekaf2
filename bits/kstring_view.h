@@ -62,7 +62,7 @@
 
 #if !defined(DEKAF2_HAS_STD_STRING_VIEW) && !defined(DEKAF2_USE_FOLLY_STRINGPIECE_AS_KSTRINGVIEW)
 
-	/// tiny but nearly complete string_view implementation - it only does not have rfind() nor reverse iterators nor find_first/last_(not)_of()
+	/// tiny but nearly complete string_view implementation - it only does not have rfind() nor find_first/last_(not)_of() (the latter are supplied through KStringView though)
 
 	#define DEKAF2_SV_NAMESPACE dekaf2::detail::stringview
 	#define DEKAF2_HAS_STD_STRING_VIEW 1
@@ -74,17 +74,20 @@
 
 	class string_view {
 	public:
-		using CharT = char;
-		using Traits = std::char_traits<CharT>;
-		using traits_type = Traits;
-		using value_type = CharT;
-		using size_type = std::size_t;
-		using const_pointer = const CharT*;
-		using const_reference = const CharT&;
-		using const_iterator = const_pointer;
-		using iterator = const_iterator;
-		using difference_type = typename std::iterator_traits<const char*>::difference_type;
-		using reference = typename std::iterator_traits<const char*>::reference;
+		using CharT                  = char;
+		using Traits                 = std::char_traits<CharT>;
+		using traits_type            = Traits;
+		using value_type             = CharT;
+		using size_type              = std::size_t;
+		using const_pointer          = const CharT*;
+		using reference              = CharT&;
+		using const_reference        = const CharT&;
+		using const_iterator         = const_pointer;
+		using iterator               = const_iterator;
+		using reverse_iterator       = std::reverse_iterator<iterator>;
+		using const_reverse_iterator = reverse_iterator;
+		using difference_type        = typename std::iterator_traits<const_pointer>::difference_type;
+
 		static constexpr size_type npos = size_type(-1);
 
 		constexpr
@@ -105,13 +108,17 @@
 		{}
 
 		constexpr
-		string_view(const char* pszStr)
+		string_view(const CharT* pszStr)
 		: m_pszString(pszStr ? pszStr : &m_chEmpty)
+#ifdef DEKAF2_HAS_CPP_17
+		, m_iSize(pszStr ? Traits::length(pszStr) : 0)
+#else
 		, m_iSize(pszStr ? constexpr_strlen(pszStr) : 0)
+#endif
 		{}
 
 		constexpr
-		string_view(const char* pszStr, size_type iSize)
+		string_view(const CharT* pszStr, size_type iSize)
 		: m_pszString(pszStr ? pszStr : &m_chEmpty)
 		, m_iSize(pszStr ? iSize : 0)
 		{}
@@ -127,77 +134,97 @@
 		DEKAF2_CONSTEXPR_14
 		void clear() noexcept
 		{
-			m_pszString = std::addressof(m_chEmpty);
+			m_pszString = &m_chEmpty;
 			m_iSize = 0;
 		}
 
-		DEKAF2_CONSTEXPR_14
+		constexpr
 		size_type max_size() const noexcept
 		{
 			return size_type(-1) - 1;
 		}
 
-		DEKAF2_CONSTEXPR_14
+		constexpr
 		size_type size() const noexcept
 		{
 			return m_iSize;
 		}
 
-		DEKAF2_CONSTEXPR_14
+		constexpr
 		size_type length() const
 		{
 			return size();
 		}
 
-		DEKAF2_CONSTEXPR_14
+		constexpr
 		bool empty() const noexcept
 		{
 			return !size();
 		}
 
-		DEKAF2_CONSTEXPR_14
+		constexpr
 		iterator begin() const noexcept
 		{
 			return m_pszString;
 		}
 
-		DEKAF2_CONSTEXPR_14
+		constexpr
 		iterator end() const noexcept
 		{
 			return m_pszString + m_iSize;
 		}
 
-		DEKAF2_CONSTEXPR_14
+		constexpr
 		iterator cbegin() const noexcept
 		{
 			return begin();
 		}
 
-		DEKAF2_CONSTEXPR_14
+		constexpr
 		iterator cend() const noexcept
 		{
 			return end();
 		}
 
-		DEKAF2_CONSTEXPR_14
+		reverse_iterator rbegin() const
+		{
+			return reverse_iterator(end());
+		}
+
+		reverse_iterator rend() const
+		{
+			return reverse_iterator(begin());
+		}
+
+		const_reverse_iterator crbegin() const
+		{
+			return const_reverse_iterator(cend());
+		}
+
+		const_reverse_iterator crend() const
+		{
+			return const_reverse_iterator(cbegin());
+		}
+
+		constexpr
 		const_reference front() const noexcept
 		{
 			return *begin();
 		}
 
-		DEKAF2_CONSTEXPR_14
+		constexpr
 		const_reference back() const noexcept
 		{
 			return *(end() - 1);
 		}
 
-		DEKAF2_CONSTEXPR_14
+		constexpr
 		const_pointer data() const noexcept
 		{
 			return begin();
 		}
 
-		DEKAF2_CONSTEXPR_14
+		constexpr
 		const_reference operator[](size_type pos) const
 		{
 			return *(begin() + pos);
@@ -213,6 +240,21 @@
 			return operator[](pos);
 		}
 
+		// non-standard
+		DEKAF2_CONSTEXPR_14
+		void remove_prefix_unchecked(size_type n)
+		{
+			m_pszString += n;
+			m_iSize -= n;
+		}
+
+		// non-standard
+		DEKAF2_CONSTEXPR_14
+		void remove_suffix_unchecked(size_type n)
+		{
+			m_iSize -= n;
+		}
+
 		DEKAF2_CONSTEXPR_14
 		void remove_prefix(size_type n)
 		{
@@ -220,22 +262,23 @@
 			{
 				n = m_iSize;
 			}
-			m_pszString += n;
-			m_iSize -= n;
+			remove_prefix_unchecked(n);
 		}
 
-		DEKAF2_CONSTEXPR_14 void remove_suffix(size_type n)
+		DEKAF2_CONSTEXPR_14
+		void remove_suffix(size_type n)
 		{
 			if (n > m_iSize)
 			{
 				n = m_iSize;
 			}
-			m_iSize -= n;
+			remove_suffix_unchecked(n);
 		}
 
 		void swap(string_view& other) noexcept
 		{
-			using std::swap; swap(*this, other);
+			using std::swap;
+			swap(*this, other);
 		}
 
 		DEKAF2_CONSTEXPR_14
@@ -244,7 +287,7 @@
 			return { m_pszString + pos, std::min(count, size() - pos) };
 		}
 
-		DEKAF2_CONSTEXPR_14
+		DEKAF2_CONSTEXPR_17
 		int compare(string_view other) const noexcept
 		{
 			auto cmp = Traits::compare(data(), other.data(), std::min(size(), other.size()));

@@ -964,20 +964,4 @@ TEST_CASE("KStringUtils") {
 		CHECK ( sRet == "hello" );
 	}
 
-	SECTION("kAdd")
-	{
-		KString sCounter;
-
-		kAdd(3, sCounter);
-		CHECK ( sCounter.Int64() == 3 );
-		kAdd(3, sCounter);
-		CHECK ( sCounter.Int64() == 6 );
-		kSub(8, sCounter);
-		CHECK ( sCounter.Int64() == -2 );
-		kIncrement(sCounter);
-		CHECK ( sCounter.Int64() == -1 );
-		kDecrement(sCounter);
-		CHECK ( sCounter.Int64() == -2 );
-	}
-
 }

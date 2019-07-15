@@ -378,14 +378,12 @@ private:
 
 	Storage_Type m_Storage;
 	value_type m_EmptyValue{}; // for operator[] and front() and back() if empty
-	static constexpr value_type s_cEmptyValue {};
+	static const value_type s_cEmptyValue;
 
 }; // KStack
 
-#ifdef DEKAF2_REPEAT_CONSTEXPR_VARIABLE
 // defines the template's static const for c++ < 17
 template<typename Stack_Type>
-const Stack_Type KStack<Stack_Type>::s_cEmptyValue;
-#endif
+const Stack_Type KStack<Stack_Type>::s_cEmptyValue = Stack_Type{};
 
 } // END NAMESPACE DEKAF2

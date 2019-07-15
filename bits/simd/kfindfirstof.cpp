@@ -733,7 +733,7 @@ size_t kFindFirstOfSSE(
 	{
 		if (UnalignedPageOverflow16(needles))
 		{
-			return kFindFirstOfNoSSE(haystack, needles, true);
+			return kFindFirstOfNoSSE(haystack, needles, false);
 		}
 
 		// we can save some unnecessary load instructions by optimizing for

@@ -267,6 +267,15 @@ KStringView Dekaf::GetVersionInformation() const
 {
 	constexpr KStringView sVersionInformation =
 		"dekaf-" DEKAF_VERSION "-" DEKAF2_BUILD_TYPE
+#ifdef DEKAF2_HAS_CPP_20
+		" c++20"
+#elif DEKAF2_HAS_CPP_17
+		" c++17"
+#elif defined(DEKAF_HAS_CPP_14)
+		" c++14"
+#elif defined(DEKAF_HAS_CPP_11)
+		" c++11"
+#endif
 #ifdef DEKAF2_USE_EXCEPTIONS
 		" exceptions"
 #endif

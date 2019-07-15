@@ -77,11 +77,10 @@ namespace sv = DEKAF2_SV_NAMESPACE;
 	namespace detail {
 	namespace stringview {
 
-	class string_view {
+	template<typename CharT>
+	class basic_string_view {
 	public:
-		using CharT                  = char;
-		using Traits                 = std::char_traits<CharT>;
-		using traits_type            = Traits;
+		using traits_type            = std::char_traits<CharT>;
 		using value_type             = CharT;
 		using size_type              = std::size_t;
 		using const_pointer          = const CharT*;
@@ -89,47 +88,43 @@ namespace sv = DEKAF2_SV_NAMESPACE;
 		using const_reference        = const CharT&;
 		using const_iterator         = const_pointer;
 		using iterator               = const_iterator;
-		using reverse_iterator       = std::reverse_iterator<iterator>;
-		using const_reverse_iterator = reverse_iterator;
+		using const_reverse_iterator = std::reverse_iterator<const_iterator>;
+		using reverse_iterator       = const_reverse_iterator;
 		using difference_type        = typename std::iterator_traits<const_pointer>::difference_type;
 
 		static constexpr size_type npos = size_type(-1);
 
 		constexpr
-		string_view() noexcept
-		: m_pszString(&m_chEmpty)
+		basic_string_view() noexcept
+		: m_pszString(&s_chEmpty)
 		, m_iSize(0)
 		{}
 
 		constexpr
-		string_view(const string_view& other) noexcept
+		basic_string_view(const basic_string_view& other) noexcept
 		: m_pszString(other.m_pszString)
 		, m_iSize(other.m_iSize)
 		{}
 
-		string_view(const std::string& strStr)
+		basic_string_view(const std::string& strStr) noexcept
 		: m_pszString(strStr.c_str())
 		, m_iSize(strStr.size())
 		{}
 
 		constexpr
-		string_view(const CharT* pszStr)
-		: m_pszString(pszStr ? pszStr : &m_chEmpty)
-#ifdef DEKAF2_HAS_CPP_17
-		, m_iSize(pszStr ? Traits::length(pszStr) : 0)
-#else
-		, m_iSize(pszStr ? constexpr_strlen(pszStr) : 0)
-#endif
+		basic_string_view(const CharT* pszStr) noexcept
+		: m_pszString(pszStr ? pszStr : &s_chEmpty)
+		, m_iSize(constexpr_strlen(pszStr))
 		{}
 
 		constexpr
-		string_view(const CharT* pszStr, size_type iSize)
-		: m_pszString(pszStr ? pszStr : &m_chEmpty)
+		basic_string_view(const CharT* pszStr, size_type iSize) noexcept
+		: m_pszString(pszStr ? pszStr : &s_chEmpty)
 		, m_iSize(pszStr ? iSize : 0)
 		{}
 
 		DEKAF2_CONSTEXPR_14
-		string_view& operator=(const string_view& other) noexcept
+		basic_string_view& operator=(const basic_string_view& other) noexcept
 		{
 			m_pszString = other.m_pszString;
 			m_iSize = other.m_iSize;
@@ -139,7 +134,7 @@ namespace sv = DEKAF2_SV_NAMESPACE;
 		DEKAF2_CONSTEXPR_14
 		void clear() noexcept
 		{
-			m_pszString = &m_chEmpty;
+			m_pszString = &s_chEmpty;
 			m_iSize = 0;
 		}
 
@@ -156,7 +151,7 @@ namespace sv = DEKAF2_SV_NAMESPACE;
 		}
 
 		constexpr
-		size_type length() const
+		size_type length() const noexcept
 		{
 			return size();
 		}
@@ -191,21 +186,25 @@ namespace sv = DEKAF2_SV_NAMESPACE;
 			return end();
 		}
 
+		DEKAF2_CONSTEXPR_17
 		reverse_iterator rbegin() const
 		{
 			return reverse_iterator(end());
 		}
 
+		DEKAF2_CONSTEXPR_17
 		reverse_iterator rend() const
 		{
 			return reverse_iterator(begin());
 		}
 
+		DEKAF2_CONSTEXPR_17
 		const_reverse_iterator crbegin() const
 		{
 			return const_reverse_iterator(cend());
 		}
 
+		DEKAF2_CONSTEXPR_17
 		const_reverse_iterator crend() const
 		{
 			return const_reverse_iterator(cbegin());
@@ -230,7 +229,7 @@ namespace sv = DEKAF2_SV_NAMESPACE;
 		}
 
 		constexpr
-		const_reference operator[](size_type pos) const
+		const_reference operator[](size_type pos) const noexcept
 		{
 			return *(begin() + pos);
 		}
@@ -247,7 +246,7 @@ namespace sv = DEKAF2_SV_NAMESPACE;
 
 		// non-standard
 		DEKAF2_CONSTEXPR_14
-		void unchecked_remove_prefix(size_type n)
+		void unchecked_remove_prefix(size_type n) noexcept
 		{
 			m_pszString += n;
 			m_iSize -= n;
@@ -255,13 +254,13 @@ namespace sv = DEKAF2_SV_NAMESPACE;
 
 		// non-standard
 		DEKAF2_CONSTEXPR_14
-		void unchecked_remove_suffix(size_type n)
+		void unchecked_remove_suffix(size_type n) noexcept
 		{
 			m_iSize -= n;
 		}
 
 		DEKAF2_CONSTEXPR_14
-		void remove_prefix(size_type n)
+		void remove_prefix(size_type n) noexcept
 		{
 			if (n > m_iSize)
 			{
@@ -271,7 +270,7 @@ namespace sv = DEKAF2_SV_NAMESPACE;
 		}
 
 		DEKAF2_CONSTEXPR_14
-		void remove_suffix(size_type n)
+		void remove_suffix(size_type n) noexcept
 		{
 			if (n > m_iSize)
 			{
@@ -280,26 +279,30 @@ namespace sv = DEKAF2_SV_NAMESPACE;
 			unchecked_remove_suffix(n);
 		}
 
-		void swap(string_view& other) noexcept
+		DEKAF2_CONSTEXPR_14
+		void swap(basic_string_view& other) noexcept
 		{
 			using std::swap;
 			swap(*this, other);
 		}
 
 		DEKAF2_CONSTEXPR_14
-		string_view substr(size_type pos = 0, size_type count = npos) const
+		basic_string_view substr(size_type pos = 0, size_type count = npos) const noexcept
 		{
 			return { m_pszString + pos, std::min(count, size() - pos) };
 		}
 
 		DEKAF2_CONSTEXPR_17
-		int compare(string_view other) const noexcept
+		int compare(basic_string_view other) const noexcept
 		{
-			auto cmp = Traits::compare(data(), other.data(), std::min(size(), other.size()));
+			auto cmp = traits_type::compare(data(), other.data(), std::min(size(), other.size()));
 			return (cmp) ? cmp : size() - other.size();
 		}
 
-		size_type find(string_view needle, size_type pos = 0) const noexcept
+		// this find() is constexpr only if it has a needle size of less than 2
+		// for any other size another solution needs to be found still
+		DEKAF2_CONSTEXPR_17 inline
+		size_type find(basic_string_view needle, size_type pos = 0) const noexcept
 		{
 			if (needle.size() == 1)
 			{
@@ -313,79 +316,84 @@ namespace sv = DEKAF2_SV_NAMESPACE;
 			return (found) ? static_cast<size_t>(found - data()) : npos;
 		}
 
+		DEKAF2_CONSTEXPR_17 inline
 		size_type find(CharT ch, size_type pos = 0) const noexcept
 		{
-			if (pos > size())
+			if (pos >= size())
 			{
 				return npos;
 			}
-			auto found = static_cast<const char*>(::memchr(data() + pos, ch, size() - pos));
+			auto found = traits_type::find(data() + pos, size() - pos, ch);
 			return (found) ? static_cast<size_t>(found - data()) : npos;
 		}
 
-		size_type find(const CharT* s, size_type pos, size_type count) const
+		DEKAF2_CONSTEXPR_17 inline
+		size_type find(const CharT* s, size_type pos, size_type count) const noexcept
 		{
 			return find(string_view(s, count), pos);
 		}
 
-		size_type find(const CharT* s, size_type pos) const
+		DEKAF2_CONSTEXPR_17 inline
+		size_type find(const CharT* s, size_type pos) const noexcept
 		{
 			return find(string_view(s), pos);
 		}
 
-#ifndef DEKAF2_HAS_CPP_17
-		static constexpr inline
-		size_t constexpr_strlen(const CharT* s)
+		static constexpr DEKAF2_ALWAYS_INLINE
+		size_type constexpr_strlen(const CharT* s) noexcept
 		{
+	#ifdef DEKAF2_HAS_CPP_17
+			return s ? traits_type::length(s) : 0;
+	#else
 		#if defined(__clang__)
 			return s ? __builtin_strlen(s) : 0;
-		#elif defined(_MSC_VER)
-			return s ? constexpr_strlen_manually(s) : 0;
-		#elif defined(__GNUC__)
-			#if (__GNUC__ > 7)
-			return s ? std::char_traits<char>::length(s) : 0;
-			#else
-			return s ? constexpr_strlen_manually(s) : 0;
-		#endif
 		#else
-			return std::strlen(s);
+			#define DEKAF2_NEED_LOCAL_CONSTEXPR_STRLEN 1
+			return s ? local_constexpr_strlen(s) : 0;
 		#endif
+	#endif
 		}
-#endif
 
 	private:
 
-#ifndef DEKAF2_HAS_CPP_17
-#if (DEKAF2_HAS_CPP_14)
-		static constexpr inline
-		size_type constexpr_strlen_manually(const CharT* s)
+#ifdef DEKAF2_NEED_LOCAL_CONSTEXPR_STRLEN
+	#if (DEKAF2_HAS_CPP_14)
+		static constexpr DEKAF2_ALWAYS_INLINE
+		size_type local_constexpr_strlen(const CharT* s) noexcept
 		{
 			const CharT* start = s;
 			while (*s++);
 			return s - start - 1;
 		}
-#else
-		static constexpr inline
-		size_type constexpr_strlen_manually_1(const CharT* s, size_type len)
+	#else
+		static constexpr DEKAF2_ALWAYS_INLINE
+		size_type local_constexpr_strlen_1(const CharT* s, size_type len) noexcept
 		{
-			return *s == 0 ? len : constexpr_strlen_manually_1(s + 1, len + 1);
+			return *s == 0 ? len : local_constexpr_strlen_1(s + 1, len + 1);
 		}
 
 		static constexpr inline
-		size_t constexpr_strlen_manually(const CharT* s)
+		size_t local_constexpr_strlen(const CharT* s) noexcept
 		{
-			return constexpr_strlen_manually_1(s, 0);
+			return local_constexpr_strlen_1(s, 0);
 		}
+	#endif
 #endif
-#endif
-		static constexpr char m_chEmpty = 0;
-		const char* m_pszString;
+		static constexpr CharT s_chEmpty { 0 };
+		const CharT* m_pszString;
 		std::size_t m_iSize;
 
 	}; // string_view
 
-	DEKAF2_CONSTEXPR_14
-	inline bool operator==(string_view left, string_view right) noexcept
+#ifdef DEKAF2_REPEAT_CONSTEXPR_VARIABLE
+	// defines the template's static const for c++ < 17
+	template<typename CharT>
+	const CharT basic_string_view<CharT>::s_chEmpty;
+#endif
+
+	template<typename CharT>
+	DEKAF2_CONSTEXPR_17
+	inline bool operator==(basic_string_view<CharT> left, basic_string_view<CharT> right) noexcept
 	{
 		return left.size() == right.size()
 			&& (left.data() == right.data()
@@ -393,37 +401,52 @@ namespace sv = DEKAF2_SV_NAMESPACE;
 				|| left.compare(right) == 0);
 	}
 
-	DEKAF2_CONSTEXPR_14
-	inline bool operator!=(string_view left, string_view right) noexcept
+	template<typename CharT>
+	DEKAF2_CONSTEXPR_17
+	inline bool operator!=(basic_string_view<CharT> left, basic_string_view<CharT> right) noexcept
 	{
 		return !(left == right);
 	}
 
-	DEKAF2_CONSTEXPR_14
-	inline bool operator< (string_view left, string_view right) noexcept
+	template<typename CharT>
+	DEKAF2_CONSTEXPR_17
+	inline bool operator< (basic_string_view<CharT> left, basic_string_view<CharT> right) noexcept
 	{
-		string_view::size_type min_size = std::min(left.size(), right.size());
+		auto min_size = std::min(left.size(), right.size());
 		int r = min_size == 0 ? 0 : left.compare(right);
 		return (r < 0) || (r == 0 && left.size() < right.size());
 	}
 
-	DEKAF2_CONSTEXPR_14
-	inline bool operator> (string_view left, string_view right) noexcept
+	template<typename CharT>
+	DEKAF2_CONSTEXPR_17
+	inline bool operator> (basic_string_view<CharT> left, basic_string_view<CharT> right) noexcept
 	{
 		return right < left;
 	}
 
-	DEKAF2_CONSTEXPR_14
-	inline bool operator<=(string_view left, string_view right) noexcept
+	template<typename CharT>
+	DEKAF2_CONSTEXPR_17
+	inline bool operator<=(basic_string_view<CharT> left, basic_string_view<CharT> right) noexcept
 	{
 		return !(left > right);
 	}
 
-	DEKAF2_CONSTEXPR_14
-	inline bool operator>=(string_view left, string_view right) noexcept
+	template<typename CharT>
+	DEKAF2_CONSTEXPR_17
+	inline bool operator>=(basic_string_view<CharT> left, basic_string_view<CharT> right) noexcept
 	{
 		return !(left < right);
 	}
+
+	using string_view    = basic_string_view<char>;
+	using wstring_view   = basic_string_view<wchar_t>;
+#ifdef DEKAF2_HAS_CPP_20
+	using u8string_view  = basic_string_view<char8_t>;
+#else
+	using u8string_view  = basic_string_view<char>;
+#endif
+	using u16string_view = basic_string_view<char16_t>;
+	using u32string_view = basic_string_view<char32_t>;
 
 	} // end of namespace stringview
 	} // end of namespace detail

@@ -554,7 +554,6 @@ set (SOURCES
 	bits/klogwriter.cpp
 	bits/klogserializer.cpp
 	bits/ksql_dbc.cpp
-	bits/kstring_view.cpp
 	bits/kstringviewz.cpp
 	bits/simd/kfindfirstof.cpp
 	dekaf2.cpp

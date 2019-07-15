@@ -483,11 +483,6 @@ int KOptions::Execute(KOutStream& out)
 #endif
 	}
 
-	DEKAF2_CATCH (const KException& error)
-	{
-		out.WriteLine(error.what());
-	}
-
 	return 1;
 
 } // Execute

@@ -91,7 +91,7 @@ void SetStringFromUTF8orLatin1(KJSON& json, KStringView sInput)
 bool Parse (KJSON& json, KStringView sJSON, KString& sError) noexcept
 //-----------------------------------------------------------------------------
 {
-	json.clear();
+	json = KJSON{};
 
 	sJSON.TrimLeft();
 
@@ -119,7 +119,7 @@ bool Parse (KJSON& json, KStringView sJSON, KString& sError) noexcept
 void Parse (KJSON& json, KStringView sJSON)
 //-----------------------------------------------------------------------------
 {
-	json.clear();
+	json = KJSON{};
 
 	sJSON.TrimLeft();
 
@@ -162,7 +162,7 @@ bool SkipLeadingSpace(KInStream& InStream)
 bool Parse (KJSON& json, KInStream& InStream, KString& sError) noexcept
 //-----------------------------------------------------------------------------
 {
-	json.clear();
+	json = KJSON{};
 
 	if (!SkipLeadingSpace(InStream))
 	{
@@ -187,7 +187,7 @@ bool Parse (KJSON& json, KInStream& InStream, KString& sError) noexcept
 void Parse (KJSON& json, KInStream& InStream)
 //-----------------------------------------------------------------------------
 {
-	json.clear();
+	json = KJSON{};
 
 	if (SkipLeadingSpace(InStream))
 	{

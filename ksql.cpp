@@ -360,6 +360,7 @@ KSQL::KSQL (const KSQL& other)
 
 	if (!other.GetDBUser().empty())
 	{
+		m_sDBCFile = other.m_sDBCFile;
 		SetConnect (other.GetDBType(), other.GetDBUser(), other.GetDBPass(), other.GetDBName(), other.GetDBHost(), other.GetDBPort());
 	}
 

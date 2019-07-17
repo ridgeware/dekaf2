@@ -428,8 +428,18 @@ String kFormNumber(Arithmetic i, typename String::value_type separator = ',', ty
 
 	DEKAF2_TRY
 	{
-		// TODO specialize on KString::to_string()..
+#ifdef DEKAF2_HAS_CPP_17
+		if constexpr (std::is_same<String, KString>::value)
+		{
+			result = KString::to_string(i);
+		}
+		else
+		{
+			result = std::to_string(i);
+		}
+#else
 		result = std::to_string(i);
+#endif
 	}
 	DEKAF2_CATCH (...)
 	{

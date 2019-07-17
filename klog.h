@@ -402,6 +402,7 @@ private:
 
 	static int s_iLogLevel;
 	static thread_local bool s_bShouldShowStackOnJsonError;
+	static thread_local bool s_bPrintTimeStampOnClose;
 	static thread_local std::unique_ptr<KLogSerializer> s_PerThreadSerializer;
 	static thread_local std::unique_ptr<KLogWriter> s_PerThreadWriter;
 

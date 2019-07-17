@@ -75,6 +75,7 @@ constexpr KStringViewZ s_sLogName     = "dekaf.log";
 constexpr KStringViewZ s_sFlagName    = "dekaf.dbg";
 
 thread_local bool KLog::s_bShouldShowStackOnJsonError { true };
+thread_local bool KLog::s_bPrintTimeStampOnClose { false };
 thread_local std::unique_ptr<KLogSerializer> KLog::s_PerThreadSerializer;
 thread_local std::unique_ptr<KLogWriter> KLog::s_PerThreadWriter;
 
@@ -217,6 +218,16 @@ void KLog::LogThisThreadToKLog(int iLevel)
 		s_iThreadLogLevel = s_iLogLevel;
 	}
 
+	if (s_bPrintTimeStampOnClose)
+	{
+		if (s_PerThreadSerializer && s_PerThreadWriter)
+		{
+			auto pSerializerInstance = static_cast<KLogHTTPHeaderSerializer*>(s_PerThreadSerializer.get());
+			s_PerThreadWriter->Write(0, false, pSerializerInstance->GetTimeStamp("Stop"));
+			s_PerThreadWriter->Write(0, true,  KLogHTTPHeaderSerializer::GetFooter());
+		}
+	}
+
 	s_PerThreadWriter.reset();
 	s_PerThreadSerializer.reset();
 
@@ -232,7 +243,11 @@ void KLog::LogThisThreadToResponseHeaders(int iLevel, KHTTPHeaders& Response, KS
 	{
 		s_iThreadLogLevel = iLevel;
 		s_PerThreadWriter = std::make_unique<KLogHTTPHeaderWriter>(Response, sHeader);
-		s_PerThreadSerializer = std::make_unique<KLogTTYSerializer>();
+		s_PerThreadSerializer = std::make_unique<KLogHTTPHeaderSerializer>();
+		auto pSerializerInstance = static_cast<KLogHTTPHeaderSerializer*>(s_PerThreadSerializer.get());
+		s_PerThreadWriter->Write(0, true,  KLogHTTPHeaderSerializer::GetHeader());
+		s_PerThreadWriter->Write(0, false, pSerializerInstance->GetTimeStamp("Start"));
+		s_bPrintTimeStampOnClose = true;
 	}
 	else
 	{

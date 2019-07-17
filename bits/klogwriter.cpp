@@ -78,7 +78,7 @@ KLogNullWriter::~KLogNullWriter()
 }
 
 //---------------------------------------------------------------------------
-bool KLogStdWriter::Write(int iLevel, bool bIsMultiline, const KString& sOut)
+bool KLogStdWriter::Write(int iLevel, bool bIsMultiline, KStringViewZ sOut)
 //---------------------------------------------------------------------------
 {
 	return m_OutStream.write(sOut.data(), static_cast<std::streamsize>(sOut.size())).flush().good();
@@ -97,7 +97,7 @@ KLogFileWriter::KLogFileWriter(KStringView sFileName)
 } // ctor
 
 //---------------------------------------------------------------------------
-bool KLogFileWriter::Write(int iLevel, bool bIsMultiline, const KString& sOut)
+bool KLogFileWriter::Write(int iLevel, bool bIsMultiline, KStringViewZ sOut)
 //---------------------------------------------------------------------------
 {
 	return m_OutFile.Write(sOut).Flush().Good();
@@ -113,7 +113,7 @@ KLogStringWriter::KLogStringWriter(KString& sOutString, KString sConcat)
 } // ctor
 
 //---------------------------------------------------------------------------
-bool KLogStringWriter::Write(int iLevel, bool bIsMultiline, const KString& sOut)
+bool KLogStringWriter::Write(int iLevel, bool bIsMultiline, KStringViewZ sOut)
 //---------------------------------------------------------------------------
 {
 	if (!m_sConcat.empty() && !m_OutString.empty())
@@ -129,7 +129,7 @@ bool KLogStringWriter::Write(int iLevel, bool bIsMultiline, const KString& sOut)
 #ifdef DEKAF2_HAS_SYSLOG
 
 //---------------------------------------------------------------------------
-bool KLogSyslogWriter::Write(int iLevel, bool bIsMultiline, const KString& sOut)
+bool KLogSyslogWriter::Write(int iLevel, bool bIsMultiline, KStringViewZ sOut)
 //---------------------------------------------------------------------------
 {
 	int priority;
@@ -211,7 +211,7 @@ bool KLogTCPWriter::Good() const
 } // Good
 
 //---------------------------------------------------------------------------
-bool KLogTCPWriter::Write(int iLevel, bool bIsMultiline, const KString& sOut)
+bool KLogTCPWriter::Write(int iLevel, bool bIsMultiline, KStringViewZ sOut)
 //---------------------------------------------------------------------------
 {
 	if (!Good())
@@ -259,7 +259,7 @@ bool KLogHTTPWriter::Good() const
 } // Good
 
 //---------------------------------------------------------------------------
-bool KLogHTTPWriter::Write(int iLevel, bool bIsMultiline, const KString& sOut)
+bool KLogHTTPWriter::Write(int iLevel, bool bIsMultiline, KStringViewZ sOut)
 //---------------------------------------------------------------------------
 {
 	if (!Good())
@@ -307,7 +307,7 @@ bool KLogHTTPHeaderWriter::Good() const
 } // Good
 
 //---------------------------------------------------------------------------
-bool KLogHTTPHeaderWriter::Write(int iLevel, bool bIsMultiline, const KString& sOut)
+bool KLogHTTPHeaderWriter::Write(int iLevel, bool bIsMultiline, KStringViewZ sOut)
 //---------------------------------------------------------------------------
 {
 	for (auto sLine : sOut.Split("\n", ""))

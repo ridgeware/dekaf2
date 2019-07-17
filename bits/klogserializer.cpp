@@ -188,10 +188,7 @@ void KLogTTYSerializer::Serialize()
 		sLevel.Format("DB{}", m_iLevel > 3 ? 3 : m_iLevel);
 	}
 
-	KString sPrefix;
-
-	sPrefix.Printf("| %3.3s | %5.5s | %5u | %5u | %s | ",
-	               sLevel, m_sShortName, m_Pid, m_Tid, kFormTimestamp(m_Time));
+	auto sPrefix = PrintStatus(sLevel);
 
 	auto PrefixWithoutFunctionSize = sPrefix.size();
 
@@ -222,7 +219,74 @@ void KLogTTYSerializer::Serialize()
 
 } // Serialize
 
+//---------------------------------------------------------------------------
+KString KLogTTYSerializer::PrintStatus(KStringView sLevel)
+//---------------------------------------------------------------------------
+{
+	// desired format:
+	// | WAR | MYPRO | 17202 | 12345 | 2001-08-24 10:37:04 |
+
+	KString sPrefix;
+
+	sPrefix.Printf("| %3.3s | %5.5s | %5u | %5u | %s | ",
+				   sLevel, m_sShortName, m_Pid, m_Tid, kFormTimestamp(m_Time));
+
+	return sPrefix;
+
+} // Serialize
+
 #ifdef DEKAF2_KLOG_WITH_TCP
+
+//---------------------------------------------------------------------------
+void KLogHTTPHeaderSerializer::Set(int iLevel, KStringView sShortName, KStringView sPathName, KStringView sFunction, KStringView sMessage)
+//---------------------------------------------------------------------------
+{
+	m_iElapsedNanoSeconds = m_Clock.elapsed();
+	KLogSerializer::Set(iLevel, sShortName, sPathName, sFunction, sMessage);
+
+} // Set
+
+//---------------------------------------------------------------------------
+KStringViewZ KLogHTTPHeaderSerializer::GetHeader()
+//---------------------------------------------------------------------------
+{
+	return "+-----+------------+--------------------------------------------------------------------\n"
+		   "| LVL |  MicroSecs | Messsage\n"
+		   "+-----+------------+--------------------------------------------------------------------\n";
+
+} // GetHeader
+
+//---------------------------------------------------------------------------
+KStringViewZ KLogHTTPHeaderSerializer::GetFooter()
+//---------------------------------------------------------------------------
+{
+	return "+-----+------------+--------------------------------------------------------------------\n";;
+
+} // GetFooter
+
+//---------------------------------------------------------------------------
+KString KLogHTTPHeaderSerializer::GetTimeStamp(KStringView sWhat)
+//---------------------------------------------------------------------------
+{
+	Set(1, "", "", sWhat, kFormTimestamp());
+	return Get();
+
+} // GetTimeStamp
+
+//---------------------------------------------------------------------------
+KString KLogHTTPHeaderSerializer::PrintStatus(KStringView sLevel)
+//---------------------------------------------------------------------------
+{
+	// desired format:
+	// | WAR |      12345 |
+
+	KString sPrefix;
+
+	sPrefix.Printf("| %3.3s | %10.10s | ", sLevel, kFormNumber(m_iElapsedNanoSeconds / 1000));
+
+	return sPrefix;
+
+} // Serialize
 
 //---------------------------------------------------------------------------
 KJSON KLogJSONSerializer::CreateObject() const

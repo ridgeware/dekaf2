@@ -78,7 +78,7 @@ public:
 //----------
 	KLogWriter() {}
 	virtual ~KLogWriter();
-	virtual bool Write(int iLevel, bool bIsMultiline, const KString& sOut) = 0;
+	virtual bool Write(int iLevel, bool bIsMultiline, KStringViewZ sOut) = 0;
 	virtual bool Good() const = 0;
 
 }; // KLogWriter
@@ -93,7 +93,7 @@ public:
 //----------
 	KLogNullWriter() {}
 	virtual ~KLogNullWriter();
-	virtual bool Write(int iLevel, bool bIsMultiline, const KString& sOut) override { return true; }
+	virtual bool Write(int iLevel, bool bIsMultiline, KStringViewZ sOut) override { return true; }
 	virtual bool Good() const override { return true; }
 
 }; // KLogNullWriter
@@ -110,7 +110,7 @@ public:
 	    : m_OutStream(iostream)
 	{}
 	virtual ~KLogStdWriter() {}
-	virtual bool Write(int iLevel, bool bIsMultiline, const KString& sOut) override;
+	virtual bool Write(int iLevel, bool bIsMultiline, KStringViewZ sOut) override;
 	virtual bool Good() const override { return m_OutStream.good(); }
 
 //----------
@@ -131,7 +131,7 @@ public:
 //----------
 	KLogFileWriter(KStringView sFileName);
 	virtual ~KLogFileWriter() {}
-	virtual bool Write(int iLevel, bool bIsMultiline, const KString& sOut) override;
+	virtual bool Write(int iLevel, bool bIsMultiline, KStringViewZ sOut) override;
 	virtual bool Good() const override { return m_OutFile.good(); }
 
 //----------
@@ -153,7 +153,7 @@ public:
 	/// It will not be written after the last message
 	KLogStringWriter(KString& sOutString, KString sConcat = "\n");
 	virtual ~KLogStringWriter() {}
-	virtual bool Write(int iLevel, bool bIsMultiline, const KString& sOut) override;
+	virtual bool Write(int iLevel, bool bIsMultiline, KStringViewZ sOut) override;
 	virtual bool Good() const override { return true; }
 
 //----------
@@ -176,7 +176,7 @@ public:
 //----------
 	KLogJSONWriter(KJSON& json);
 	virtual ~KLogJSONWriter();
-	virtual bool Write(int iLevel, bool bIsMultiline, const KString& sOut) override;
+	virtual bool Write(int iLevel, bool bIsMultiline, KStringViewZ sOut) override;
 	virtual bool Good() const override;
 
 //----------
@@ -200,7 +200,7 @@ public:
 //----------
 	KLogSyslogWriter() {}
 	virtual ~KLogSyslogWriter() {}
-	virtual bool Write(int iLevel, bool bIsMultiline, const KString& sOut) override;
+	virtual bool Write(int iLevel, bool bIsMultiline, KStringViewZ sOut) override;
 	virtual bool Good() const override { return true; }
 
 }; // KLogSyslogWriter
@@ -219,7 +219,7 @@ public:
 //----------
 	KLogTCPWriter(KStringView sURL);
 	virtual ~KLogTCPWriter();
-	virtual bool Write(int iLevel, bool bIsMultiline, const KString& sOut) override;
+	virtual bool Write(int iLevel, bool bIsMultiline, KStringViewZ sOut) override;
 	virtual bool Good() const override;
 
 //----------
@@ -241,7 +241,7 @@ public:
 //----------
 	KLogHTTPWriter(KStringView sURL);
 	virtual ~KLogHTTPWriter();
-	virtual bool Write(int iLevel, bool bIsMultiline, const KString& sOut) override;
+	virtual bool Write(int iLevel, bool bIsMultiline, KStringViewZ sOut) override;
 	virtual bool Good() const override;
 
 //----------
@@ -263,7 +263,7 @@ public:
 //----------
 	KLogHTTPHeaderWriter(KHTTPHeaders& HTTPHeaders, KStringView sHeader = "x-klog");
 	virtual ~KLogHTTPHeaderWriter();
-	virtual bool Write(int iLevel, bool bIsMultiline, const KString& sOut) override;
+	virtual bool Write(int iLevel, bool bIsMultiline, KStringViewZ sOut) override;
 	virtual bool Good() const override;
 
 //----------

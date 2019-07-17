@@ -49,6 +49,7 @@
 #include <dekaf2/kstring.h>
 #include <dekaf2/kstringview.h>
 #include <dekaf2/kjson.h>
+#include <dekaf2/ktimer.h>
 
 #ifndef DEKAF2_IS_WINDOWS
 	#define DEKAF2_HAS_SYSLOG
@@ -67,16 +68,9 @@ class KLogData
 public:
 //----------
 
-	KLogData(int iLevel = 0,
-	         KStringView sShortName = KStringView{},
-	         KStringView sPathName  = KStringView{},
-	         KStringView sFunction  = KStringView{},
-	         KStringView sMessage   = KStringView{})
-	{
-		Set(iLevel, sShortName, sPathName, sFunction, sMessage);
-	}
+	virtual ~KLogData() {}
 
-	void Set(int iLevel, KStringView sShortName, KStringView sPathName, KStringView sFunction, KStringView sMessage);
+	virtual void Set(int iLevel, KStringView sShortName, KStringView sPathName, KStringView sFunction, KStringView sMessage);
 	void SetBacktrace(KStringView sBacktrace)
 	{
 		m_sBacktrace = sBacktrace;
@@ -92,10 +86,10 @@ protected:
 
 	static KStringView SanitizeFunctionName(KStringView sFunction);
 
-	int         m_iLevel;
-	pid_t       m_Pid;
-	uint64_t    m_Tid; // tid is 64 bit on OSX
-	time_t      m_Time;
+	int         m_iLevel { 0 };
+	pid_t       m_Pid { 0 };
+	uint64_t    m_Tid { 0 }; // tid is 64 bit on OSX
+	time_t      m_Time { 0 };
 	KStringView m_sShortName;
 	KStringView m_sPathName;
 	KStringView m_sFunctionName;
@@ -115,11 +109,9 @@ class KLogSerializer : public KLogData
 public:
 //----------
 
-	KLogSerializer() {}
-	virtual ~KLogSerializer() {}
 	const KString& Get();
 	virtual operator KStringView();
-	void Set(int iLevel, KStringView sShortName, KStringView sPathName, KStringView sFunction, KStringView sMessage);
+	virtual void Set(int iLevel, KStringView sShortName, KStringView sPathName, KStringView sFunction, KStringView sMessage) override;
 	bool IsMultiline() const { return m_bIsMultiline; }
 
 //----------
@@ -141,17 +133,12 @@ class KLogTTYSerializer : public KLogSerializer
 {
 
 //----------
-public:
-//----------
-
-	KLogTTYSerializer() {}
-	virtual ~KLogTTYSerializer() {}
-
-//----------
 protected:
 //----------
 
 	virtual void Serialize() override;
+	virtual KString PrintStatus(KStringView sLevel);
+
 	void AddMultiLineMessage(KStringView sPrefix, KStringView sMessage);
 
 }; // KLogTTYSerializer
@@ -166,13 +153,6 @@ class KLogSyslogSerializer : public KLogTTYSerializer
 {
 
 //----------
-public:
-//----------
-
-	KLogSyslogSerializer() {}
-	virtual ~KLogSyslogSerializer() {}
-
-//----------
 protected:
 //----------
 
@@ -185,9 +165,10 @@ protected:
 #ifdef DEKAF2_KLOG_WITH_TCP
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// Specialization of the serializer for JSON output: creates a serialized
-/// JSON object
-class KLogJSONSerializer : public KLogSerializer
+/// Specialization of the serializer for HTTP headers: creates simple text lines
+/// of output, but without the prefix like timestamp, pid, tid, program name,
+/// but with an upcounting microsecond time stamp
+class KLogHTTPHeaderSerializer : public KLogTTYSerializer
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -195,8 +176,30 @@ class KLogJSONSerializer : public KLogSerializer
 public:
 //----------
 
-	KLogJSONSerializer() {}
-	virtual ~KLogJSONSerializer() {}
+	virtual void Set(int iLevel, KStringView sShortName, KStringView sPathName, KStringView sFunction, KStringView sMessage) override;
+
+	KString GetTimeStamp(KStringView sWhat);
+
+	static KStringViewZ GetHeader();
+	static KStringViewZ GetFooter();
+
+//----------
+protected:
+//----------
+
+	virtual KString PrintStatus(KStringView sLevel) override;
+
+	KStopTime m_Clock;
+	size_t m_iElapsedNanoSeconds { 0 };
+
+}; // KLogHTTPHeaderSerializer
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// Specialization of the serializer for JSON output: creates a serialized
+/// JSON object
+class KLogJSONSerializer : public KLogSerializer
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
 
 //----------
 protected:
@@ -218,7 +221,6 @@ public:
 //----------
 
 	KLogJSONArraySerializer(KJSON& json) : m_json(json) {}
-	virtual ~KLogJSONArraySerializer() {}
 
 //----------
 protected:

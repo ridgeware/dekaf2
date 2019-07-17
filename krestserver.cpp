@@ -518,9 +518,10 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 						// parse the content into json.rx
 						KString sError;
 
+						kDebug (2, "parsing JSON request");
 						if (!kjson::Parse(json.rx, KHTTPServer::InStream(), sError))
 						{
-							kDebug (3, "request body is not JSON: {}", sError);
+							kDebug (2, "request body is not JSON: {}", sError);
 							json.rx.clear();
 							if (Options.bThrowIfInvalidJson)
 							{
@@ -529,7 +530,7 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 						}
 						else
 						{
-							kDebug (3, "request body successfully parsed as JSON");
+							kDebug (2, "request body successfully parsed as JSON");
 						}
 
 						// after we are done parsing the incoming json from the wire,
@@ -541,9 +542,10 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 
 					case KRESTRoute::XML:
 						// read input as XML
+						kDebug (2, "parsing XML request");
 						if (!xml.rx.Parse(KHTTPServer::InStream(), true))
 						{
-							kDebug (3, "request body is not XML");
+							kDebug (2, "request body is not XML");
 							xml.rx.clear();
 							if (Options.bThrowIfInvalidJson)
 							{
@@ -552,15 +554,15 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 						}
 						else
 						{
-							kDebug (3, "request body successfully parsed as XML");
+							kDebug (2, "request body successfully parsed as XML");
 						}
 						break;
 
 					case KRESTRoute::PLAIN:
 						// read body and store for later access
+						kDebug (2, "reading request body");
 						KHTTPServer::Read(m_sRequestBody);
-
-						kDebug (3, "read request body with length {} and type {}",
+						kDebug (2, "read request body with length {} and type {}",
 								m_sRequestBody.size(),
 								Request.Headers[KHTTPHeaders::CONTENT_TYPE]);
 						break;
@@ -630,12 +632,6 @@ void KRESTServer::Output(const Options& Options, bool bKeepAlive)
 
 	kDebug (1, "HTTP-{}: {}", Response.iStatusCode, Response.sStatusString);
 
-	if (!Options.sKLogHeader.empty())
-	{
-		// finally switch logging off if enabled
-		KLog::getInstance().LogThisThreadToKLog(-1);
-	}
-
 	switch (Options.Out)
 	{
 		case HTTP:
@@ -661,20 +657,28 @@ void KRESTServer::Output(const Options& Options, bool bKeepAlive)
 
 				if (!json.tx.empty())
 				{
+					kDebug (2, "serializing JSON response");
 					sContent = json.tx.dump(iJSONPretty, '\t');
-
 					// ensure that all JSON responses end in a newline:
 					sContent += '\n';
+					kDebug (2, "JSON response has {} bytes", sContent.length());
 				}
 				else if (!xml.tx.empty())
 				{
 					Response.Headers.Set(KHTTPHeaders::CONTENT_TYPE, KMIME::XML);
 
+					kDebug (2, "serializing XML response");
 					xml.tx.Serialize(sContent, iXMLPretty);
-
 					// ensure that all XML responses end in a newline:
 					sContent += '\n';
+					kDebug (2, "XML response has {} bytes", sContent.length());
 				}
+			}
+
+			if (!Options.sKLogHeader.empty())
+			{
+				// finally switch logging off if enabled
+				KLog::getInstance().LogThisThreadToKLog(-1);
 			}
 
 			// compute and set the Content-Length header:
@@ -728,6 +732,12 @@ void KRESTServer::Output(const Options& Options, bool bKeepAlive)
 				}
 			}
 
+			if (!Options.sKLogHeader.empty())
+			{
+				// finally switch logging off if enabled
+				KLog::getInstance().LogThisThreadToKLog(-1);
+			}
+
 			KJSON& jheaders = tjson["headers"] = KJSON::object();
 			for (const auto& header : Response.Headers)
 			{
@@ -763,6 +773,13 @@ void KRESTServer::Output(const Options& Options, bool bKeepAlive)
 					xml.tx.Serialize(Response.UnfilteredStream(), iXMLPretty);
 				}
 			}
+
+			if (!Options.sKLogHeader.empty())
+			{
+				// finally switch logging off if enabled
+				KLog::getInstance().LogThisThreadToKLog(-1);
+			}
+
 			// finish with a linefeed
 			Response.UnfilteredStream().WriteLine();
 		}

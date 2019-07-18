@@ -45,18 +45,26 @@
 namespace dekaf2 {
 
 //-----------------------------------------------------------------------------
-KString KEnc::Hex(KStringView sIn)
+void KEnc::HexAppend(KString& sOut, char ch)
 //-----------------------------------------------------------------------------
 {
 	static constexpr KStringView hexify { "0123456789abcdef" };
 
+	sOut += hexify[(ch / 16) & 0x0f];
+	sOut += hexify[ch & 0x0f];
+
+} // KEnc::Hex
+
+//-----------------------------------------------------------------------------
+KString KEnc::Hex(KStringView sIn)
+//-----------------------------------------------------------------------------
+{
 	KString sRet;
 	sRet.reserve(sIn.size() * 2);
 
 	for (auto ch : sIn)
 	{
-		sRet += hexify[(ch / 16) & 0x0f];
-		sRet += hexify[ch & 0x0f];
+		HexAppend(sRet, ch);
 	}
 
 	return sRet;

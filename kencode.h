@@ -63,6 +63,8 @@ public:
 //----------
 
 
+	static void HexAppend(KString& sOut, char chIn);
+	
 	static KString Hex(KStringView sIn);
 
 	static void HexInPlace(KString& sBuffer)

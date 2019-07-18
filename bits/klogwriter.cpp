@@ -326,15 +326,15 @@ bool KLogHTTPHeaderWriter::Write(int iLevel, bool bIsMultiline, KStringViewZ sOu
 					sValue += '\\';
 					sValue += '\\';
 				}
-				else if (DEKAF2_LIKELY(KASCII::kIsPrint(ch)))
-				{
-					sValue += ch;
-				}
-				else
+				else if (DEKAF2_UNLIKELY(!ch || KASCII::kIsCntrl(ch)))
 				{
 					sValue += '\\';
 					sValue += 'x';
 					KEnc::HexAppend(sValue, ch);
+				}
+				else
+				{
+					sValue += ch;
 				}
 			}
 

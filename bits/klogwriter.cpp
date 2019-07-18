@@ -44,6 +44,7 @@
 #include <dekaf2/kstring.h>
 #include <dekaf2/ksplit.h>
 #include <dekaf2/kfilesystem.h>
+#include <dekaf2/kencode.h>
 
 #ifndef DEKAF2_IS_WINDOWS
 	#define DEKAF2_HAS_SYSLOG
@@ -312,13 +313,36 @@ bool KLogHTTPHeaderWriter::Write(int iLevel, bool bIsMultiline, KStringViewZ sOu
 {
 	for (auto sLine : sOut.Split("\n", ""))
 	{
-		if (!sLine.empty())
+		// it is a bug that we cannot use a KString as the key to add a new
+		// header but have to convert it into a KStringView first..
+		KString sValue;
+		sValue.reserve(sLine.size());
+
+		for (auto ch : sLine)
 		{
-			// it is a bug that we cannot use a KString as the key to add a new
-			// header but have to convert it into a KStringView first..
-			m_Headers.Headers.Add(m_sHeader.ToView(), sLine);
+			// escape non-printable characters..
+			if (DEKAF2_UNLIKELY(ch == '\\'))
+			{
+				sValue += '\\';
+				sValue += '\\';
+			}
+			else if (DEKAF2_LIKELY(KASCII::kIsPrint(ch)))
+			{
+				sValue += ch;
+			}
+			else
+			{
+				sValue += '\\';
+				sValue += 'x';
+				KEnc::HexAppend(sValue, ch);
+			}
 		}
-	}
+
+		if (!sValue.empty())
+		{
+			m_Headers.Headers.Add(kPrintf("%s-%5.5u", m_sHeader, m_iCounter++).ToView(), std::move(sValue));
+		}
+}
 
 	return true;
 

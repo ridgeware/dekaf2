@@ -570,6 +570,7 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 			}
 
 			// call the route handler
+			kDebug (1, "{}: {}", GetRequestMethod(), GetRequestPath());
 			route->Callback(*this);
 
 			// We offer a keep-alive if the client did not explicitly

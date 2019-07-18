@@ -272,6 +272,7 @@ protected:
 
 	KHTTPHeaders& m_Headers;
 	KString m_sHeader;
+	size_t m_iCounter { 0 };
 
 }; // KLogHTTPHeaderWriter
 

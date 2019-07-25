@@ -277,7 +277,7 @@ bool KROW::FormInsert (KString& sSQL, DBT iDBType, bool fIdentityInsert/*=false*
 		KString sHack = (it.second.sValue.empty()) ? "" : it.second.sValue; // TODO:JOACHIM: REMOVE ME
 		sHack.MakeLower();
 		sHack.Replace(" ","");
-		bool    bHack = ((sHack == “now()“) || (sHack == “now(6)“) || (sHack == “{{now}}“));
+		bool    bHack = ((sHack == "now()") || (sHack == "now(6)") || (sHack == "{{now}}"));
 
 		if (it.second.sValue.empty() && !it.second.IsFlag (NULL_IS_NOT_NIL))
 		{

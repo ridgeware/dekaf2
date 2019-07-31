@@ -156,9 +156,10 @@ size_t kFind(
 
 		pos = static_cast<size_t>(found - haystack.data());
 
-		if (std::memcmp(haystack.data() + pos + 1,
-						needle.data() + 1,
-						needle.size() - 1) == 0)
+		// due to aligned loads it is faster to compare the full needle again
+		if (std::memcmp(haystack.data() + pos,
+						needle.data(),
+						needle.size()) == 0)
 		{
 			return pos;
 		}

@@ -202,13 +202,13 @@ public:
 	using self                   = KStringView;
 	using size_type              = std::size_t;
 	using iterator               = rep_type::iterator;
-	using const_iterator         = rep_type::iterator;
+	using const_iterator         = iterator;
 	using reverse_iterator       = std::reverse_iterator<iterator>;
 	using const_reverse_iterator = reverse_iterator;
 	using value_type             = rep_type::value_type;
 	using difference_type        = rep_type::difference_type;
 	using reference              = rep_type::reference;
-	using const_reference        = rep_type::reference;
+	using const_reference        = reference;
 	using pointer                = value_type*;
 	using const_pointer          = const pointer;
 	using traits_type            = rep_type::traits_type;
@@ -628,7 +628,7 @@ public:
 	self_type substr(size_type pos = 0, size_type count = npos) const
 	//-----------------------------------------------------------------------------
 	{
-		if (pos > size())
+		if (DEKAF2_UNLIKELY(pos > size()))
 		{
 			Warn("pos > size()");
 			pos = size();
@@ -650,7 +650,7 @@ public:
 	void remove_prefix(size_type n)
 	//-----------------------------------------------------------------------------
 	{
-		if (n > size())
+		if (DEKAF2_UNLIKELY(n > size()))
 		{
 			Warn("n > size()");
 			n = size();
@@ -663,7 +663,7 @@ public:
 	void remove_suffix(size_type n)
 	//-----------------------------------------------------------------------------
 	{
-		if (n > size())
+		if (DEKAF2_UNLIKELY(n > size()))
 		{
 			Warn("n > size()");
 			n = size();
@@ -677,7 +677,7 @@ public:
 	bool remove_prefix(self_type other)
 	//-----------------------------------------------------------------------------
 	{
-		if (starts_with(other))
+		if (DEKAF2_LIKELY(starts_with(other)))
 		{
 			unchecked_remove_prefix(other.size());
 			return true;
@@ -691,7 +691,7 @@ public:
 	bool remove_suffix(self_type other)
 	//-----------------------------------------------------------------------------
 	{
-		if (ends_with(other))
+		if (DEKAF2_LIKELY(ends_with(other)))
 		{
 			unchecked_remove_suffix(other.size());
 			return true;
@@ -1155,14 +1155,7 @@ public:
 	bool operator==(KStringView other) const
 	//-----------------------------------------------------------------------------
 	{
-		KStringView::size_type len = size();
-		if (len != other.size())
-		{
-			return false;
-		}
-		return data() == other.data()
-		|| len == 0
-		|| compare(other) == 0;
+		return size() == other.size() && !compare(other);
 	}
 
 	//-----------------------------------------------------------------------------
@@ -1343,9 +1336,7 @@ DEKAF2_CONSTEXPR_17
 inline bool operator<(KStringView left, KStringView right)
 //-----------------------------------------------------------------------------
 {
-	KStringView::size_type min_size = std::min(left.size(), right.size());
-	int r = min_size == 0 ? 0 : left.compare(right);
-	return (r < 0) || (r == 0 && left.size() < right.size());
+	return left.compare(right) < 0;
 }
 
 //-----------------------------------------------------------------------------
@@ -1711,14 +1702,7 @@ inline
 bool KStringView::operator==(KStringViewZ other) const
 //-----------------------------------------------------------------------------
 {
-	KStringView::size_type len = size();
-	if (len != other.size())
-	{
-		return false;
-	}
-	return data() == other.data()
-	|| len == 0
-	|| compare(KStringView(other)) == 0;
+	return size() == other.size() && !compare(KStringView(other));
 }
 
 //-----------------------------------------------------------------------------

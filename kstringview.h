@@ -252,7 +252,7 @@ public:
 #else
 	// folly is resilient to nullptr assignment, but std::string_view is not
 	// - therefore we protect it
-	: m_rep(s ? s : std::addressof(s_0ch), s ? count : 0)
+	: m_rep(s ? s : &s_0ch, s ? count : 0)
 #endif
 	{
 	}
@@ -267,7 +267,7 @@ public:
 #else
 	// folly is resilient to nullptr assignment, but std::string_view is not
 	// - therefore we protect it
-	: m_rep(s ? s : std::addressof(s_0ch))
+	: m_rep(s ? s : &s_0ch)
 #endif
 	{
 	}
@@ -716,7 +716,7 @@ public:
 	bool starts_with(value_type ch) const noexcept
 	//-----------------------------------------------------------------------------
 	{
-		return starts_with(self_type(std::addressof(ch), 1));
+		return starts_with(self_type(&ch, 1));
 	}
 
 	//-----------------------------------------------------------------------------
@@ -736,7 +736,7 @@ public:
 	bool ends_with(value_type ch) const noexcept
 	//-----------------------------------------------------------------------------
 	{
-		return ends_with(self_type(std::addressof(ch), 1));
+		return ends_with(self_type(&ch, 1));
 	}
 
 	//-----------------------------------------------------------------------------

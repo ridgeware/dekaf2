@@ -303,7 +303,7 @@ bool UnalignedPageOverflow16(const KStringView& sv)
 
 //-----------------------------------------------------------------------------
 DEKAF2_ALWAYS_INLINE
-bool UnalignedPageOverflow16Reverse(const KStringView& sv)
+bool UnalignedPageUnderflow16(const KStringView& sv)
 //-----------------------------------------------------------------------------
 {
 	auto Addr = EndAsCharPtr(sv) - 1;
@@ -320,18 +320,10 @@ bool UnalignedPageOverflow(const KStringView& sv)
 
 //-----------------------------------------------------------------------------
 DEKAF2_ALWAYS_INLINE
-bool UnalignedPageOverflowReverse(const KStringView& sv)
+bool UnalignedPageUnderflow(const KStringView& sv)
 //-----------------------------------------------------------------------------
 {
-	return sv.size() < 16 && UnalignedPageOverflow16Reverse(sv);
-}
-
-//-----------------------------------------------------------------------------
-DEKAF2_ALWAYS_INLINE
-KStringView ShiftStringView(KStringView& sv, ssize_t iChars)
-//-----------------------------------------------------------------------------
-{
-	return KStringView(sv.data() + iChars, sv.size());
+	return sv.size() < 16 && UnalignedPageUnderflow16(sv);
 }
 
 //-----------------------------------------------------------------------------
@@ -732,7 +724,7 @@ size_t kFindFirstOfSSE(
 
 	if (DEKAF2_LIKELY(needles.size() <= 16))
 	{
-		if (UnalignedPageOverflow16(needles))
+		if (DEKAF2_UNLIKELY(UnalignedPageOverflow16(needles)))
 		{
 			return kFindFirstOfNoSSE(haystack, needles, false);
 		}
@@ -784,7 +776,7 @@ size_t kFindFirstNotOfSSE(
 
 	if (DEKAF2_LIKELY(needles.size() <= 16))
 	{
-		if (UnalignedPageOverflow16(needles))
+		if (DEKAF2_UNLIKELY(UnalignedPageOverflow16(needles)))
 		{
 			return kFindFirstOfNoSSE(haystack, needles, true);
 		}
@@ -828,13 +820,18 @@ size_t kFindLastOfSSE(
 		return KStringView::npos;
 	}
 
-	if (DEKAF2_UNLIKELY(UnalignedPageOverflowReverse(haystack)))
+	if (DEKAF2_UNLIKELY(UnalignedPageUnderflow(haystack)))
 	{
 		kFindLastOfNoSSE(haystack, needles, false);
 	}
 
 	if (DEKAF2_LIKELY(needles.size() <= 16))
 	{
+		if (DEKAF2_UNLIKELY(UnalignedPageOverflow16(needles)))
+		{
+			return kFindLastOfNoSSE(haystack, needles, false);
+		}
+
 		// For a 16 byte or less needle you don't need to cycle through it
 		return kFindLastOfNeedles16<false, 0b01000000>(haystack, needles);
 	}
@@ -891,15 +888,28 @@ size_t kFindLastNotOfSSE(
 		return KStringView::npos;
 	}
 
-	if (DEKAF2_UNLIKELY(UnalignedPageOverflowReverse(haystack)))
+	// test for underflow on haystack
+	if (DEKAF2_UNLIKELY(UnalignedPageUnderflow(haystack)))
 	{
 		kFindLastOfNoSSE(haystack, needles, true);
 	}
 
 	if (DEKAF2_LIKELY(needles.size() <= 16))
 	{
+		if (DEKAF2_UNLIKELY(UnalignedPageOverflow16(needles)))
+		{
+			return kFindLastOfNoSSE(haystack, needles, true);
+		}
+
 		// For a 16 byte or less needle you don't need to cycle through it
 		return kFindLastOfNeedles16<true, 0b01110000>(haystack, needles);
+	}
+
+	// we have a different search strategy for the large needle case, therefore
+	// we need to test for an overflow on haystack as well
+	if (DEKAF2_UNLIKELY(UnalignedPageOverflow(haystack)))
+	{
+		kFindLastOfNoSSE(haystack, needles, true);
 	}
 
 	// Account for haystack < 16

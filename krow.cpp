@@ -576,6 +576,10 @@ KJSON KROW::to_json (uint64_t iFlags/*=0*/) const
 			//
 			// This is why we have to convert 64 bit integers into strings.
 		}
+		else if (col.second.IsFlag(BOOLEAN) || sKey.StartsWith("is_"))
+		{
+			json[sKey] = col.second.sValue.Bool();
+		}
 		else if (col.second.IsFlag(NUMERIC))
 		{
 			// TODO get a strategy as to how to and if to adapt to locales with other chars than . as the
@@ -595,10 +599,6 @@ KJSON KROW::to_json (uint64_t iFlags/*=0*/) const
 			{
 				json[sKey] = col.second.sValue.UInt64();
 			}
-		}
-		else if (col.second.IsFlag(BOOLEAN))
-		{
-			json[sKey] = col.second.sValue.Bool();
 		}
 #if 0
 		else if (/*(col.second.iFlags & KROW::NULL_IS_NOT_NIL) &&*/ col.second.sValue.empty())

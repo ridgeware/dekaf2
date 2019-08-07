@@ -45,6 +45,8 @@
 #include "kfilesystem.h"
 #include "kopenid.h"
 #include "kstringstream.h"
+#include "kstringutils.h"
+#include "kfrozen.h"
 
 namespace dekaf2 {
 
@@ -343,72 +345,171 @@ void KRESTServer::VerifyPerThreadKLogToHeader(const Options& Options)
 
 	if (it != Request.Headers.end())
 	{
-		bool bValid { false };
+		enum PARTYPE { NONE, START, LEVEL, OUT, GREP, EGREP };
 
-		auto parts = it->second.Split(", ");
-
-		if (parts.size() > 0)
+#ifdef DEKAF2_HAS_FROZEN
+		static constexpr auto s_Option = frozen::make_unordered_map<KStringView, PARTYPE>(
+#else
+		static const std::unordered_map<KStringView, PARTYPE> s_Option
+#endif
 		{
-			int iKLogLevel = parts[0].Int16();
+			{ "-level", LEVEL },
+			{ "-out"  , OUT },
+			{ "-E"    , EGREP },
+			{ "-egrep", EGREP },
+			{ "-grep" , GREP }
+		}
+#ifdef DEKAF2_HAS_FROZEN
+		)
+#endif
+		; // do not erase..
 
-			if (iKLogLevel > 0 && iKLogLevel < 4)
+		PARTYPE iPType { START };
+
+		int  iKLogLevel { 0 };
+		bool bToKLog    { false };
+		bool bToJSON    { false };
+		bool bEGrep     { false };
+		KString sGrep;
+
+		auto sParts = it->second.Split(", ");
+
+		bool bValid { !sParts.empty() };
+
+		for (auto sArg : sParts)
+		{
+			if (iPType == START && kIsInteger(sArg))
 			{
-				bValid = true;
+				iPType = LEVEL;
 			}
 
-			bool bToKLog { false };
-			bool bToJSON { false };
-
-			if (bValid && parts.size() > 1)
+			switch (iPType)
 			{
-				auto sOpt = parts[1].ToLower();
-				
-				if (sOpt == "log")
+				case START:
+				case NONE:
 				{
-					bToKLog = true;
+					auto itArg = s_Option.find(sArg);
+					if (itArg == s_Option.end())
+					{
+						if (sGrep.empty())
+						{
+							// this is the naked grep value
+							bEGrep = false;
+							sGrep = sArg.ToLower();
+						}
+						else
+						{
+							bValid = false;
+						}
+
+					}
+					iPType = itArg->second;
+					break;
 				}
-				else if (sOpt == "json")
+
+				case LEVEL:
+					iKLogLevel = sArg.UInt16();
+
+					if (iKLogLevel <= 0 || iKLogLevel > 3)
+					{
+						bValid = false;
+					}
+					iPType = NONE;
+					break;
+
+				case OUT:
 				{
-					bToJSON = true;
+					auto sOpt = sArg.ToLower();
+
+					if (sOpt == "log")
+					{
+						bToKLog = true;
+					}
+					else if (sOpt == "json")
+					{
+						bToJSON = true;
+					}
+					else if (sOpt == "headers")
+					{
+						bToKLog = false;
+						bToJSON = false;
+					}
+					else
+					{
+						bValid = false;
+					}
+					break;
 				}
-				else
-				{
-					bValid = false;
-				}
+
+				case EGREP:
+					bEGrep = true;
+
+					if (sGrep.empty())
+					{
+						sGrep = sArg;
+					}
+					else
+					{
+						bValid = false;
+					}
+					break;
+
+				case GREP:
+					bEGrep = false;
+
+					if (sGrep.empty())
+					{
+						sGrep = sArg.ToLower();
+					}
+					else
+					{
+						bValid = false;
+					}
+					break;
 			}
 
-			if (bValid)
+			if (!bValid)
 			{
-				if (bToKLog)
-				{
-					KLog::getInstance().LogThisThreadToKLog(iKLogLevel);
-					kDebug(2, "switching per-thread {} logging for this thread on at level {}", "klog", iKLogLevel);
-				}
-				else if (bToJSON)
-				{
-#ifdef DEKAF2_KLOG_WITH_TCP
-					json.tx["klog"] = KJSON::array();
-					KLog::getInstance().LogThisThreadToJSON(iKLogLevel, &json.tx["klog"]);
-					kDebug(2, "switching per-thread {} logging for this thread on at level {}", "JSON", iKLogLevel);
-#else
-					kDebug(2, "request to switch {} logging on, but compiled without support", "json response");
-#endif
-				}
-				else
-				{
-#ifdef DEKAF2_KLOG_WITH_TCP
-					KLog::getInstance().LogThisThreadToResponseHeaders(iKLogLevel, Response, Options.sKLogHeader);
-					kDebug(2, "switching per-thread {} logging for this thread on at level {}", "response header", iKLogLevel);
-#else
-					kDebug(2, "request to switch {} logging on, but compiled without support", "response header");
-#endif
-				}
+				break;
 			}
 		}
 
 		if (!bValid)
 		{
 			kDebug(2, "ignoring invalid klog header: {}: {}", it->first, it->second);
+			return;
+		}
+
+		if (bToKLog)
+		{
+			KLog::getInstance().LogThisThreadToKLog(iKLogLevel);
+			kDebug(2, "per-thread {} logging, level {}", "klog", iKLogLevel);
+		}
+		else if (bToJSON)
+		{
+#ifdef DEKAF2_KLOG_WITH_TCP
+			json.tx["klog"] = KJSON::array();
+			KLog::getInstance().LogThisThreadToJSON(iKLogLevel, &json.tx["klog"]);
+			kDebug(2, "per-thread {} logging, level {}", "JSON", iKLogLevel);
+#else
+			bValid = false;
+			kDebug(2, "request to switch {} logging on, but compiled without support", "json response");
+#endif
+		}
+		else
+		{
+#ifdef DEKAF2_KLOG_WITH_TCP
+			KLog::getInstance().LogThisThreadToResponseHeaders(iKLogLevel, Response, Options.sKLogHeader);
+			kDebug(2, "per-thread {} logging, level {}", "response header", iKLogLevel);
+#else
+			bValid = false;
+			kDebug(2, "request to switch {} logging on, but compiled without support", "response header");
+#endif
+		}
+
+		if (sGrep && bValid)
+		{
+			KLog::getInstance().LogThisThreadWithGrepExpression(bEGrep, sGrep);
 		}
 	}
 

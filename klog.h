@@ -386,6 +386,12 @@ public:
 	//---------------------------------------------------------------------------
 #endif
 
+	//---------------------------------------------------------------------------
+	/// When per-thread logging is active, only log messages that contain the sGrepExpression,
+	/// either in egrep (regular expression) modus or plain string search
+	void LogThisThreadWithGrepExpression(bool bEGrep, KString sGrepExpression);
+	//---------------------------------------------------------------------------
+
 	static KStringView s_sJSONSkipFiles;
 	static thread_local int s_iThreadLogLevel;
 
@@ -403,8 +409,10 @@ private:
 	static int s_iLogLevel;
 	static thread_local bool s_bShouldShowStackOnJsonError;
 	static thread_local bool s_bPrintTimeStampOnClose;
+	static thread_local bool s_bPerThreadEGrep;
 	static thread_local std::unique_ptr<KLogSerializer> s_PerThreadSerializer;
 	static thread_local std::unique_ptr<KLogWriter> s_PerThreadWriter;
+	static thread_local KString s_sPerThreadGrepExpression;
 
 	KString m_sPathName;
 	KString m_sShortName;

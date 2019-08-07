@@ -76,8 +76,10 @@ constexpr KStringViewZ s_sFlagName    = "dekaf.dbg";
 
 thread_local bool KLog::s_bShouldShowStackOnJsonError { true };
 thread_local bool KLog::s_bPrintTimeStampOnClose { false };
+thread_local bool KLog::s_bPerThreadEGrep { false };
 thread_local std::unique_ptr<KLogSerializer> KLog::s_PerThreadSerializer;
 thread_local std::unique_ptr<KLogWriter> KLog::s_PerThreadWriter;
+thread_local KString KLog::s_sPerThreadGrepExpression;
 
 // do not initialize this static var - it risks to override a value set by KLog()'s
 // initialization before..
@@ -279,6 +281,17 @@ void KLog::LogThisThreadToJSON(int iLevel, void* pjson)
 } // LogThisThreadToJSON
 
 #endif // DEKAF2_KLOG_WITH_TCP
+
+
+//---------------------------------------------------------------------------
+void KLog::LogThisThreadWithGrepExpression(bool bEGrep, KString sGrepExpression)
+//---------------------------------------------------------------------------
+{
+	s_sPerThreadGrepExpression = std::move(sGrepExpression);
+	s_bPerThreadEGrep = bEGrep;
+	kDebug(2, "using {}grep expression '{}'", bEGrep ? "e" : "", s_sPerThreadGrepExpression);
+
+} //  LogThisThreadWithGrepExpression
 
 //---------------------------------------------------------------------------
 void KLog::SetJSONTrace(KStringView sJSONTrace)
@@ -801,9 +814,36 @@ bool KLog::IntDebug(int iLevel, KStringView sFunction, KStringView sMessage)
 						s_PerThreadSerializer &&
 						s_PerThreadWriter))
 	{
-		// this is the individual per-thread-logging
-		s_PerThreadSerializer->Set(iLevel, m_sShortName, m_sPathName, sFunction, sMessage);
-		s_PerThreadWriter->Write(iLevel, s_PerThreadSerializer->IsMultiline(), s_PerThreadSerializer->Get());
+		do
+		{
+			// this is the individual per-thread-logging
+			s_PerThreadSerializer->Set(iLevel, m_sShortName, m_sPathName, sFunction, sMessage);
+			auto& sMessage = s_PerThreadSerializer->Get();
+
+			if (!s_sPerThreadGrepExpression.empty())
+			{
+				// filter by grep expression
+				if (s_bPerThreadEGrep)
+				{
+					if (sMessage.MatchRegex(s_sPerThreadGrepExpression).empty())
+					{
+						// do not log
+						break;
+					}
+				}
+				else
+				{
+					if (!sMessage.ToLower().Contains(s_sPerThreadGrepExpression))
+					{
+						// do not log
+						break;
+					}
+				}
+			}
+
+			s_PerThreadWriter->Write(iLevel, s_PerThreadSerializer->IsMultiline(), sMessage);
+		}
+		while (false);
 	}
 
 	return true;

@@ -288,7 +288,7 @@ namespace sv = DEKAF2_SV_NAMESPACE;
 		{
 			if (pos > size())
 			{
-				std::out_of_range("string_view::copy");
+				throw std::out_of_range("string_view::copy");
 			}
 			size_type rlen = std::min(n, size() - pos);
 			traits_type::copy(s, data() + pos, rlen);

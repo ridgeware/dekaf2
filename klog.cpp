@@ -287,9 +287,9 @@ void KLog::LogThisThreadToJSON(int iLevel, void* pjson)
 void KLog::LogThisThreadWithGrepExpression(bool bEGrep, KString sGrepExpression)
 //---------------------------------------------------------------------------
 {
+	kDebug(2, "using {}grep expression '{}'", bEGrep ? "e" : "", sGrepExpression);
 	s_sPerThreadGrepExpression = std::move(sGrepExpression);
 	s_bPerThreadEGrep = bEGrep;
-	kDebug(2, "using {}grep expression '{}'", bEGrep ? "e" : "", s_sPerThreadGrepExpression);
 
 } //  LogThisThreadWithGrepExpression
 
@@ -299,7 +299,9 @@ void KLog::SetJSONTrace(KStringView sJSONTrace)
 {
 	if (!sJSONTrace.empty())
 	{
-		if (sJSONTrace.In("OFF,off,FALSE,false,NO,no,0"))
+		auto sJSONTraceLower = sJSONTrace.ToLower();
+		
+		if (sJSONTraceLower.In("off,false,no,0"))
 		{
 			m_bGlobalShouldShowStackOnJsonError = false;
 		}
@@ -307,7 +309,7 @@ void KLog::SetJSONTrace(KStringView sJSONTrace)
 		{
 			m_bGlobalShouldShowStackOnJsonError = true;
 
-			if (sJSONTrace.In("CALLER,caller,SHORT,short"))
+			if (sJSONTraceLower.In("caller,short"))
 			{
 				m_bGlobalShouldOnlyShowCallerOnJsonError = true;
 			}

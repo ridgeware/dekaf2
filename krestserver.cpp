@@ -438,6 +438,7 @@ void KRESTServer::VerifyPerThreadKLogToHeader(const Options& Options)
 					{
 						bValid = false;
 					}
+					iPType = NONE;
 					break;
 				}
 
@@ -452,6 +453,7 @@ void KRESTServer::VerifyPerThreadKLogToHeader(const Options& Options)
 					{
 						bValid = false;
 					}
+					iPType = NONE;
 					break;
 
 				case GREP:
@@ -465,6 +467,7 @@ void KRESTServer::VerifyPerThreadKLogToHeader(const Options& Options)
 					{
 						bValid = false;
 					}
+					iPType = NONE;
 					break;
 			}
 
@@ -492,8 +495,8 @@ void KRESTServer::VerifyPerThreadKLogToHeader(const Options& Options)
 			KLog::getInstance().LogThisThreadToJSON(iKLogLevel, &json.tx["klog"]);
 			kDebug(2, "per-thread {} logging, level {}", "JSON", iKLogLevel);
 #else
-			bValid = false;
 			kDebug(2, "request to switch {} logging on, but compiled without support", "json response");
+			return;
 #endif
 		}
 		else
@@ -502,12 +505,12 @@ void KRESTServer::VerifyPerThreadKLogToHeader(const Options& Options)
 			KLog::getInstance().LogThisThreadToResponseHeaders(iKLogLevel, Response, Options.sKLogHeader);
 			kDebug(2, "per-thread {} logging, level {}", "response header", iKLogLevel);
 #else
-			bValid = false;
 			kDebug(2, "request to switch {} logging on, but compiled without support", "response header");
+			return;
 #endif
 		}
 
-		if (sGrep && bValid)
+		if (sGrep)
 		{
 			KLog::getInstance().LogThisThreadWithGrepExpression(bEGrep, sGrep);
 		}

@@ -130,7 +130,7 @@ bool kExists (KStringViewZ sPath, bool bAsFile, bool bAsDirectory, bool bTestFor
 
 	if (ec)
 	{
-		kDebug(2, "{}: {}", sPath, ec.message());
+		kDebug (3, "{}: {}", sPath, ec.message());
 		return false;
 	}
 
@@ -143,7 +143,7 @@ bool kExists (KStringViewZ sPath, bool bAsFile, bool bAsDirectory, bool bTestFor
 	{
 		if (fs::is_directory(status))
 		{
-			kDebug(2, "entry exists, but is not a file: {}", sPath);
+			kDebug (3, "entry exists, but is not a file: {}", sPath);
 			return false;
 		}
 	}
@@ -151,7 +151,7 @@ bool kExists (KStringViewZ sPath, bool bAsFile, bool bAsDirectory, bool bTestFor
 	{
 		if (!fs::is_directory(status))
 		{
-			kDebug(2, "entry exists, but is not a directory: {}", sPath);
+			kDebug (3, "entry exists, but is not a directory: {}", sPath);
 			return false;
 		}
 		else
@@ -168,13 +168,13 @@ bool kExists (KStringViewZ sPath, bool bAsFile, bool bAsDirectory, bool bTestFor
 
 	if (fs::is_empty(kToFilesystemPath(sPath), ec))
 	{
-		kDebug(2, "entry exists, but is empty: {}", sPath);
+		kDebug (3, "entry exists, but is empty: {}", sPath);
 		return false;
 	}
 
 	if (ec)
 	{
-		kDebug(2, ec.message());
+		kDebug (3, ec.message());
 		return false;
 	}
 
@@ -191,7 +191,7 @@ bool kExists (KStringViewZ sPath, bool bAsFile, bool bAsDirectory, bool bTestFor
 	{
 		if ((StatStruct.st_mode & S_IFREG) == 0)
 		{
-			kDebug(2, "entry exists, but is not a file: {}", sPath);
+			kDebug (3, "entry exists, but is not a file: {}", sPath);
 			return false;   // <-- exists, but is not a file
 		}
 	}
@@ -199,7 +199,7 @@ bool kExists (KStringViewZ sPath, bool bAsFile, bool bAsDirectory, bool bTestFor
 	{
 		if ((StatStruct.st_mode & S_IFDIR) == 0)
 		{
-			kDebug(2, "entry exists, but is not a directory: {}", sPath);
+			kDebug (3, "entry exists, but is not a directory: {}", sPath);
 			return false;   // <-- exists, but is not a directory
 		}
 		else
@@ -213,9 +213,10 @@ bool kExists (KStringViewZ sPath, bool bAsFile, bool bAsDirectory, bool bTestFor
 	}
 	if (StatStruct.st_size <= 0)
 	{
-		kDebug(2, "entry exists, but is empty: {}", sPath);
+		kDebug (3, "entry exists, but is empty: {}", sPath);
 		return false;    // <-- exists, is a file but is zero length
 	}
+
 	return true;     // <-- exists, is a file and is non-zero length
 
 #endif

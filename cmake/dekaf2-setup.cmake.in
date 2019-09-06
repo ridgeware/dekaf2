@@ -115,11 +115,14 @@ if (NOT DEKAF2_HAVE_INCLUDED_SETUP)
 			endif()
 
 			# increase amount of permitted constexpr depth (default is 512)
-			add_compile_options(-fconstexpr-depth=2048)
+			# we have to use the flags default and not add_compile_options() because
+			# gcc does not make a difference for C (which does not know this option
+			# and C++ and -Werrors out
+			set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fconstexpr-depth=2048")
 
 			if (Boost_VERSION VERSION_GREATER_EQUAL "1.69.00")
 				# satisfy new build mode of boost-1.69
-				add_compile_options(-fvisibility-inlines-hidden)
+				add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-fvisibility-inlines-hidden>)
 			endif()
 
 		elseif (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
@@ -141,7 +144,7 @@ if (NOT DEKAF2_HAVE_INCLUDED_SETUP)
 
 			if (Boost_VERSION VERSION_GREATER_EQUAL "1.69.00")
 				# satisfy new build mode of boost-1.69
-				add_compile_options(-fvisibility-inlines-hidden)
+				add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-fvisibility-inlines-hidden>)
 			endif()
 
 			# linux clang is way too picky at warnings, but it does not matter to disable

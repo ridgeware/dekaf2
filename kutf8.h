@@ -648,7 +648,7 @@ codepoint_t PrevCodepointFromUTF8(Iterator& it, Iterator ibegin)
 /// Convert range between it and ie from UTF8, calling functor func for every
 /// codepoint
 template<typename Iterator, class Functor,
-         typename std::enable_if_t<std::is_class<Functor>::value
+         typename std::enable_if_t<(std::is_class<Functor>::value && !detail::HasSize<Functor>::value)
 		                        || std::is_function<Functor>::value>* = nullptr>
 KUTF8_CONSTEXPR_14
 bool FromUTF8(Iterator it, Iterator ie, Functor func)
@@ -675,7 +675,7 @@ bool FromUTF8(Iterator it, Iterator ie, Functor func)
 //-----------------------------------------------------------------------------
 /// Convert string from UTF8, calling functor func for every codepoint
 template<typename NarrowString, class Functor,
-		 typename std::enable_if_t<std::is_class<Functor>::value
+		 typename std::enable_if_t<(std::is_class<Functor>::value && !detail::HasSize<Functor>::value)
 								|| std::is_function<Functor>::value>* = nullptr>
 KUTF8_CONSTEXPR_14
 bool FromUTF8(const NarrowString& sNarrow, Functor func)
@@ -688,7 +688,7 @@ bool FromUTF8(const NarrowString& sNarrow, Functor func)
 /// Convert string from UTF8 to wide string (either UTF16 or UTF32)
 template<typename NarrowString, typename WideString,
          typename std::enable_if_t<!std::is_function<WideString>::value
-		                        && !std::is_class<WideString>::value>* = nullptr>
+		                        && (!std::is_class<WideString>::value || detail::HasSize<WideString>::value)>* = nullptr>
 bool FromUTF8(const NarrowString& sNarrow, WideString& sWide)
 //-----------------------------------------------------------------------------
 {

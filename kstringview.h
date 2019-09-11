@@ -837,8 +837,7 @@ public:
 	KStringView LeftUTF8(size_type iCount) const
 	//-----------------------------------------------------------------------------
 	{
-		auto ie = Unicode::LeftUTF8(begin(), end(), iCount);
-		return KStringView(begin(), ie - begin());
+		return Unicode::LeftUTF8(*this, iCount);
 	}
 
 	//-----------------------------------------------------------------------------
@@ -848,9 +847,7 @@ public:
 	KStringView MidUTF8(size_type iStart, size_type iCount = npos) const
 	//-----------------------------------------------------------------------------
 	{
-		auto it = Unicode::LeftUTF8(begin(), end(), iStart);
-		auto ie = Unicode::LeftUTF8(it, end(), iCount);
-		return KStringView(it, ie - it);
+		return Unicode::MidUTF8(*this, iStart, iCount);
 	}
 
 	//-----------------------------------------------------------------------------
@@ -860,8 +857,7 @@ public:
 	KStringView RightUTF8(size_type iCount) const
 	//-----------------------------------------------------------------------------
 	{
-		auto it = Unicode::RightUTF8(begin(), end(), iCount);
-		return KStringView(it, end() - it);
+		return Unicode::RightUTF8(*this, iCount);
 	}
 
 	//-----------------------------------------------------------------------------

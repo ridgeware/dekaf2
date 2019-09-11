@@ -139,12 +139,12 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	KStringViewZ& operator=(KStringView other) = delete;
+	self& operator=(KStringView other) = delete;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	DEKAF2_CONSTEXPR_14
-	KStringViewZ& operator=(const char* other)
+	self& operator=(const char* other)
 	//-----------------------------------------------------------------------------
 	{
 		*this = self_type(other);
@@ -152,7 +152,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	KStringViewZ& operator=(const KString& other)
+	self& operator=(const KString& other)
 	//-----------------------------------------------------------------------------
 	{
 		*this = self_type(other);
@@ -160,7 +160,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	KStringViewZ& operator=(const std::string& other)
+	self& operator=(const std::string& other)
 	//-----------------------------------------------------------------------------
 	{
 		*this = self_type(other);
@@ -169,7 +169,7 @@ public:
 
 #ifdef DEKAF2_HAS_STD_STRING_VIEW
 	//-----------------------------------------------------------------------------
-	KStringViewZ& operator=(sv::string_view other) = delete;
+	self& operator=(sv::string_view other) = delete;
 	//-----------------------------------------------------------------------------
 #endif
 
@@ -241,7 +241,7 @@ public:
 	// nonstandard
 	/// returns substring starting at iStart with size iCount
 	constexpr
-	KStringView Mid(size_type iStart, size_type iCount) const noexcept
+	base_type Mid(size_type iStart, size_type iCount) const noexcept
 	//-----------------------------------------------------------------------------
 	{
 		return ToView(iStart, iCount);
@@ -268,7 +268,7 @@ public:
 	// nonstandard
 	/// returns substring starting at iStart with size iCount
 	DEKAF2_CONSTEXPR_14
-	KStringView MidUTF8(size_type iStart, size_type iCount) const noexcept
+	base_type MidUTF8(size_type iStart, size_type iCount) const noexcept
 	//-----------------------------------------------------------------------------
 	{
 		return base_type::MidUTF8(iStart, iCount);

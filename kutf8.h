@@ -482,7 +482,7 @@ KUTF8_CONSTEXPR_14
 Iterator LeftUTF8(Iterator it, Iterator ie, size_t n)
 //-----------------------------------------------------------------------------
 {
-	for (; KUTF8_LIKELY(it != ie && n > 0) ;)
+	for (; KUTF8_LIKELY(it != ie && n-- > 0) ;)
 	{
 		codepoint_t ch = CodepointCast(*it);
 
@@ -510,8 +510,6 @@ Iterator LeftUTF8(Iterator it, Iterator ie, size_t n)
 		{
 			break; // invalid..
 		}
-
-		--n;
 	}
 
 	return it;
@@ -525,7 +523,7 @@ ReturnString LeftUTF8(const NarrowString& sNarrow, size_t n)
 //-----------------------------------------------------------------------------
 {
 	auto it = LeftUTF8(sNarrow.begin(), sNarrow.end(), n);
-	return ReturnString(sNarrow.begin(), it);
+	return ReturnString(sNarrow.begin(), it - sNarrow.begin());
 }
 
 //-----------------------------------------------------------------------------
@@ -564,18 +562,19 @@ ReturnString RightUTF8(const NarrowString& sNarrow, size_t n)
 //-----------------------------------------------------------------------------
 {
 	auto it = RightUTF8(sNarrow.begin(), sNarrow.end(), n);
-	return ReturnString(it, sNarrow.end());
+	return ReturnString(it, sNarrow.end() - it);
 }
 
 //-----------------------------------------------------------------------------
 /// Return string with max n UTF8 codepoints in sNarrow, starting after pos UTF8 codepoints
 template<typename NarrowString, typename ReturnString = NarrowString>
+KUTF8_CONSTEXPR_14
 ReturnString MidUTF8(const NarrowString& sNarrow, size_t pos, size_t n)
 //-----------------------------------------------------------------------------
 {
 	auto it = LeftUTF8(sNarrow.begin(), sNarrow.end(), pos);
 	auto ie = LeftUTF8(it, sNarrow.end(), n);
-	return ReturnString(it, ie);
+	return ReturnString(it, ie - it);
 }
 
 //-----------------------------------------------------------------------------

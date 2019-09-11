@@ -475,6 +475,110 @@ bool ValidUTF8(const NarrowString& sNarrow)
 }
 
 //-----------------------------------------------------------------------------
+/// Return iterator after max n UTF8 codepoints, begin (it) should not point inside
+/// a UTF8 sequence
+template<typename Iterator>
+KUTF8_CONSTEXPR_14
+Iterator LeftUTF8(Iterator it, Iterator ie, size_t n)
+//-----------------------------------------------------------------------------
+{
+	for (; KUTF8_LIKELY(it != ie && n > 0) ;)
+	{
+		codepoint_t ch = CodepointCast(*it);
+
+		++it;
+
+		if (KUTF8_LIKELY(ch < 128))
+		{
+		}
+		else if ((ch & 0x0e0) == 0x0c0)
+		{
+			if (it != ie) ++it;
+		}
+		else if ((ch & 0x0f0) == 0x0e0)
+		{
+			if (it != ie) ++it;
+			if (it != ie) ++it;
+		}
+		else if ((ch & 0x0f8) == 0x0f0)
+		{
+			if (it != ie) ++it;
+			if (it != ie) ++it;
+			if (it != ie) ++it;
+		}
+		else
+		{
+			break; // invalid..
+		}
+
+		--n;
+	}
+
+	return it;
+}
+
+//-----------------------------------------------------------------------------
+/// Return string with max n left UTF8 codepoints in sNarrow
+template<typename NarrowString, typename ReturnString = NarrowString>
+KUTF8_CONSTEXPR_14
+ReturnString LeftUTF8(const NarrowString& sNarrow, size_t n)
+//-----------------------------------------------------------------------------
+{
+	auto it = LeftUTF8(sNarrow.begin(), sNarrow.end(), n);
+	return ReturnString(sNarrow.begin(), it);
+}
+
+//-----------------------------------------------------------------------------
+/// Return iterator max n UTF8 codepoints before ie, end (ie) should not point inside
+/// a UTF8 sequence
+template<typename Iterator>
+KUTF8_CONSTEXPR_14
+Iterator RightUTF8(Iterator it, Iterator ie, size_t n)
+//-----------------------------------------------------------------------------
+{
+	while (KUTF8_LIKELY(ie != it && n > 0))
+	{
+		// check if this char starts a UTF8 sequence
+		codepoint_t ch = CodepointCast(*--ie);
+
+		if (KUTF8_LIKELY(ch < 128))
+		{
+			--n;
+		}
+		else if (   (ch & 0x0e0) == 0x0c0
+				 || (ch & 0x0f0) == 0x0e0
+				 || (ch & 0x0f8) == 0x0f0 )
+		{
+			--n;
+		}
+	}
+
+	return ie;
+}
+
+//-----------------------------------------------------------------------------
+/// Return string with max n right UTF8 codepoints in sNarrow
+template<typename NarrowString, typename ReturnString = NarrowString>
+KUTF8_CONSTEXPR_14
+ReturnString RightUTF8(const NarrowString& sNarrow, size_t n)
+//-----------------------------------------------------------------------------
+{
+	auto it = RightUTF8(sNarrow.begin(), sNarrow.end(), n);
+	return ReturnString(it, sNarrow.end());
+}
+
+//-----------------------------------------------------------------------------
+/// Return string with max n UTF8 codepoints in sNarrow, starting after pos UTF8 codepoints
+template<typename NarrowString, typename ReturnString = NarrowString>
+ReturnString MidUTF8(const NarrowString& sNarrow, size_t pos, size_t n)
+//-----------------------------------------------------------------------------
+{
+	auto it = LeftUTF8(sNarrow.begin(), sNarrow.end(), pos);
+	auto ie = LeftUTF8(it, sNarrow.end(), n);
+	return ReturnString(it, ie);
+}
+
+//-----------------------------------------------------------------------------
 /// Count number of codepoints in UTF8 range
 template<typename Iterator>
 KUTF8_CONSTEXPR_14

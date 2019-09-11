@@ -764,39 +764,6 @@ KString& KString::MakeUpperLocale()
 } // MakeUpper
 
 //----------------------------------------------------------------------
-KStringView KString::Left(size_type iCount) const
-//----------------------------------------------------------------------
-{
-	if (iCount > size())
-	{
-		kWarning("count ({}) exceeds size ({})", iCount, size());
-		iCount = size();
-	}
-	return KStringView(m_rep.data(), iCount);
-
-} // Left
-
-//----------------------------------------------------------------------
-KStringViewZ KString::Mid(size_type iStart) const
-//----------------------------------------------------------------------
-{
-	return ToView(iStart);
-}
-
-//----------------------------------------------------------------------
-KStringViewZ KString::Right(size_type iCount) const
-//----------------------------------------------------------------------
-{
-	if (iCount > size())
-	{
-		kWarning("count ({}) exceeds size ({})", iCount, size());
-		iCount = size();
-	}
-	return ToView(size() - iCount);
-
-} // Right
-
-//----------------------------------------------------------------------
 KString& KString::PadLeft(size_t iWidth, value_type chPad)
 //----------------------------------------------------------------------
 {

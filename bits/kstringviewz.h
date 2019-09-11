@@ -45,6 +45,7 @@
 /// string view implementation with a trailing zero
 
 #include "../kstringview.h"
+#include "../kutf8.h"
 
 namespace dekaf2 {
 
@@ -223,6 +224,7 @@ public:
 	using base_type::MatchRegex;
 	using base_type::MatchRegexGroups;
 	using base_type::Left;
+	using base_type::LeftUTF8;
 	using base_type::operator bool;
 
 	//-----------------------------------------------------------------------------
@@ -250,6 +252,38 @@ public:
 	/// returns rightmost iCount chars of string
 	self_type Right(size_type iCount) const noexcept;
 	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	// nonstandard
+	/// returns substring starting at iStart until end of string
+	DEKAF2_CONSTEXPR_14
+	self_type MidUTF8(size_type iStart) const noexcept
+	//-----------------------------------------------------------------------------
+	{
+		auto it = Unicode::LeftUTF8(begin(), end(), iStart);
+		return self_type(it, end() - it);
+	}
+
+	//-----------------------------------------------------------------------------
+	// nonstandard
+	/// returns substring starting at iStart with size iCount
+	DEKAF2_CONSTEXPR_14
+	KStringView MidUTF8(size_type iStart, size_type iCount) const noexcept
+	//-----------------------------------------------------------------------------
+	{
+		return base_type::MidUTF8(iStart, iCount);
+	}
+
+	//-----------------------------------------------------------------------------
+	// nonstandard
+	/// returns rightmost iCount UTF8 chars of string
+	DEKAF2_CONSTEXPR_14
+	self_type RightUTF8(size_type iCount) const noexcept
+	//-----------------------------------------------------------------------------
+	{
+		auto it = Unicode::RightUTF8(begin(), end(), iCount);
+		return self_type(it, end() - it);
+	}
 
 	//-----------------------------------------------------------------------------
 	// nonstandard

@@ -497,13 +497,31 @@ public:
 	KStringView Left(size_type iCount) const;
 
 	/// returns substring starting at iStart until end of string
+	DEKAF2_CONSTEXPR_14
 	KStringViewZ Mid(size_type iStart) const;
 
 	/// returns substring starting at iStart for iCount chars
+	DEKAF2_CONSTEXPR_14
 	KStringView Mid(size_type iStart, size_type iCount) const;
 
 	/// returns rightmost iCount chars of string
 	KStringViewZ Right(size_type iCount) const;
+
+	/// returns leftmost iCount chars of string
+	DEKAF2_CONSTEXPR_14
+	KStringView LeftUTF8(size_type iCount) const;
+
+	/// returns substring starting at iStart until end of string
+	DEKAF2_CONSTEXPR_14
+	KStringViewZ MidUTF8(size_type iStart) const;
+
+	/// returns substring starting at iStart for iCount chars
+	DEKAF2_CONSTEXPR_14
+	KStringView MidUTF8(size_type iStart, size_type iCount) const;
+
+	/// returns rightmost iCount chars of string
+	DEKAF2_CONSTEXPR_14
+	KStringViewZ RightUTF8(size_type iCount) const;
 
 	/// pads string at the left up to iWidth size with chPad
 	self& PadLeft(size_t iWidth, value_type chPad = ' ');
@@ -1321,10 +1339,65 @@ inline KString KString::ToLowerLocale() const
 }
 
 //-----------------------------------------------------------------------------
-inline KStringView KString::Mid(size_type iStart, size_type iCount) const
+inline KStringView KString::Left(size_type iCount) const
 //-----------------------------------------------------------------------------
 {
-	return ToView(iStart, iCount);
+	return ToView().Left(iCount);
+}
+
+//-----------------------------------------------------------------------------
+inline DEKAF2_CONSTEXPR_14
+KStringViewZ KString::Mid(size_type iStart) const
+//-----------------------------------------------------------------------------
+{
+	return ToView().Mid(iStart);
+}
+
+//-----------------------------------------------------------------------------
+inline DEKAF2_CONSTEXPR_14
+KStringView KString::Mid(size_type iStart, size_type iCount) const
+//-----------------------------------------------------------------------------
+{
+	return ToView().Mid(iStart, iCount);
+}
+
+//-----------------------------------------------------------------------------
+inline KStringViewZ KString::Right(size_type iCount) const
+//-----------------------------------------------------------------------------
+{
+	return ToView().Right(iCount);
+}
+
+//-----------------------------------------------------------------------------
+inline DEKAF2_CONSTEXPR_14
+KStringView KString::LeftUTF8(size_type iCount) const
+//-----------------------------------------------------------------------------
+{
+	return ToView().LeftUTF8(iCount);
+}
+
+//-----------------------------------------------------------------------------
+inline DEKAF2_CONSTEXPR_14
+KStringViewZ KString::MidUTF8(size_type iStart) const
+//-----------------------------------------------------------------------------
+{
+	return ToView().MidUTF8(iStart);
+}
+
+//-----------------------------------------------------------------------------
+inline DEKAF2_CONSTEXPR_14
+KStringView KString::MidUTF8(size_type iStart, size_type iCount) const
+//-----------------------------------------------------------------------------
+{
+	return ToView().MidUTF8(iStart, iCount);
+}
+
+//-----------------------------------------------------------------------------
+inline DEKAF2_CONSTEXPR_14
+KStringViewZ KString::RightUTF8(size_type iCount) const
+//-----------------------------------------------------------------------------
+{
+	return ToView().RightUTF8(iCount);
 }
 
 //-----------------------------------------------------------------------------

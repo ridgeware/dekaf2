@@ -974,6 +974,129 @@ TEST_CASE("KString") {
 		}
 	}
 
+	SECTION("LeftUTF8")
+	{
+		struct parms_t
+		{
+			KString input;
+			KString output;
+			size_t  count;
+		};
+
+		std::vector<parms_t> pvector = {
+			{ "test日本語abc中文Русский",              "test日本語" ,  7 },
+			{ "test日本語abc中文Русский",                      "t" ,  1 },
+			{ "test日本語abc中文Русский",                       "" ,  0 },
+			{ "test日本語abc中文Русский", "test日本語abc中文Русский" , 25 },
+			{                       "",                       "" ,  3 },
+			{                       "",                       "" ,  1 },
+			{                       "",                       "" ,  0 },
+			{                       "",                       "" , 13 },
+		};
+
+		for (const auto& it : pvector)
+		{
+			KString s(it.input);
+			KStringView sv = s.LeftUTF8(it.count);
+			CHECK ( sv == it.output );
+		}
+	}
+
+	SECTION("RightUTF8")
+	{
+		struct parms_t
+		{
+			KString input;
+			KString output;
+			size_t  count;
+		};
+
+		std::vector<parms_t> pvector = {
+			{ "test日本語abc中文Русский",             "中文Русский" ,  9 },
+			{ "test日本語abc中文Русский",                      "й" ,  1 },
+			{ "test日本語abc中文Русский",                       "" ,  0 },
+			{ "test日本語abc中文Русский", "test日本語abc中文Русский" , 25 },
+			{                       "",                       "" ,  3 },
+			{                       "",                       "" ,  1 },
+			{                       "",                       "" ,  0 },
+			{                       "",                       "" , 13 },
+		};
+
+		for (const auto& it : pvector)
+		{
+			KString s(it.input);
+			KStringViewZ sv = s.RightUTF8(it.count);
+			CHECK ( sv == it.output );
+		}
+	}
+
+	SECTION("MidUTF8")
+	{
+		struct parms_t
+		{
+			KString input;
+			KString output;
+			size_t  start;
+			size_t  count;
+		};
+
+		std::vector<parms_t> pvector = {
+			{ "test日本語abc中文Русский",              "test日本語" ,  0,  7 },
+			{ "test日本語abc中文Русский",                      "t" ,  0,  1 },
+			{ "test日本語abc中文Русский",                       "" ,  0,  0 },
+			{ "test日本語abc中文Русский", "test日本語abc中文Русский" ,  0, 25 },
+			{ "test日本語abc中文Русский",             "t日本語abc中" ,  3,  8 },
+			{ "test日本語abc中文Русский",                      "日" ,  4,  1 },
+			{ "test日本語abc中文Русский",                       "" ,  3,  0 },
+			{ "test日本語abc中文Русский",    "t日本語abc中文Русский" ,  3, 25 },
+			{                       "",                       "" ,  0,  3 },
+			{                       "",                       "" ,  0,  1 },
+			{                       "",                       "" ,  0,  0 },
+			{                       "",                       "" ,  0, 13 },
+			{                       "",                       "" ,  7,  3 },
+			{                       "",                       "" ,  9,  1 },
+			{                       "",                       "" , 10,  0 },
+			{                       "",                       "" , 13, 13 },
+			{                       "",                       "" ,  3,  3 },
+			{                       "",                       "" ,  3,  1 },
+			{                       "",                       "" ,  3,  0 },
+			{                       "",                       "" ,  3, 13 },
+		};
+
+		for (const auto& it : pvector)
+		{
+			KString s(it.input);
+			KStringView sv = s.MidUTF8(it.start, it.count);
+			CHECK ( sv == it.output );
+		}
+	}
+
+	SECTION("MidUTF8 with one parm")
+	{
+		struct parms_t
+		{
+			KString input;
+			KString output;
+			size_t  start;
+		};
+
+		std::vector<parms_t> pvector {
+			{ "test日本語abc中文Русский", "test日本語abc中文Русский" ,  0 },
+			{ "test日本語abc中文Русский",  "est日本語abc中文Русский" ,  1 },
+			{ "test日本語abc中文Русский",       "本語abc中文Русский" ,  5 },
+			{ "test日本語abc中文Русский",            "c中文Русский" ,  9 },
+			{ "test日本語abc中文Русский",                       "" , 19 },
+			{ "test日本語abc中文Русский",                       "" , 27 },
+		};
+
+		for (const auto& it : pvector)
+		{
+			KString s(it.input);
+			KStringView sv = s.MidUTF8(it.start);
+			CHECK ( sv == it.output );
+		}
+	}
+
 	SECTION("TestLocale")
 	{
 #if defined(DEKAF2_IS_OSX) 

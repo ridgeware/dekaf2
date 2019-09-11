@@ -75,6 +75,26 @@ TEST_CASE("UTF8") {
 		CHECK( Unicode::CountUTF8(sStr.begin()+2, sStr.end()) == 25 );
 	}
 
+	SECTION("LeftUTF8")
+	{
+		KString sStr("testäöü test日本語abc中文Русский");
+		CHECK(                sStr.size() == 47       );
+		CHECK( Unicode::LeftUTF8(sStr, 7) == "testäöü");
+	}
+
+	SECTION("RightUTF8")
+	{
+		KString sStr("testäöü test日本語abc中文Русский");
+		CHECK(                  sStr.size() == 47           );
+		CHECK( Unicode::RightUTF8(sStr, 10) == "c中文Русский");
+	}
+
+	SECTION("MidUTF8")
+	{
+		KString sStr("testäöü test日本語abc中文Русский");
+		CHECK(                  sStr.size() == 47         );
+		CHECK( Unicode::MidUTF8(sStr, 8, 7) == "test日本語");
+	}
 
 }
 

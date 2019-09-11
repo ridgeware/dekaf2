@@ -51,6 +51,7 @@
 #include "bits/kcppcompat.h"
 #include "bits/kstring_view.h"
 #include "khash.h"
+#include "kutf8.h"
 #include <fmt/format.h>
 
 #if !defined(DEKAF2_HAS_STD_STRING_VIEW) \
@@ -828,6 +829,40 @@ public:
 	/// returns rightmost iCount chars of string
 	KStringView Right(size_type iCount) const;
 	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	// nonstandard
+	/// returns leftmost iCount chars of string
+	DEKAF2_CONSTEXPR_14
+	KStringView LeftUTF8(size_type iCount) const
+	//-----------------------------------------------------------------------------
+	{
+		auto ie = Unicode::LeftUTF8(begin(), end(), iCount);
+		return KStringView(begin(), ie - begin());
+	}
+
+	//-----------------------------------------------------------------------------
+	// nonstandard
+	/// returns substring starting at iStart for iCount chars
+	DEKAF2_CONSTEXPR_14
+	KStringView MidUTF8(size_type iStart, size_type iCount = npos) const
+	//-----------------------------------------------------------------------------
+	{
+		auto it = Unicode::LeftUTF8(begin(), end(), iStart);
+		auto ie = Unicode::LeftUTF8(it, end(), iCount);
+		return KStringView(it, ie - it);
+	}
+
+	//-----------------------------------------------------------------------------
+	// nonstandard
+	/// returns rightmost iCount chars of string
+	DEKAF2_CONSTEXPR_14
+	KStringView RightUTF8(size_type iCount) const
+	//-----------------------------------------------------------------------------
+	{
+		auto it = Unicode::RightUTF8(begin(), end(), iCount);
+		return KStringView(it, end() - it);
+	}
 
 	//-----------------------------------------------------------------------------
 	// nonstandard

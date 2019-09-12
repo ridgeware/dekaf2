@@ -69,6 +69,16 @@
 	extern void* memrchr(const void* s, int c, size_t n);
 #endif
 
+// older gcc versions have the cpp17 flag, but their libstdc++ does not
+// support the constexpr reverse iterators
+#define DEKAF2_CONSTEXPR_REVERSE_ITERATORS
+#if defined(DEKAF2_HAS_CPP_17)
+	#if (DEKAF2_NO_GCC || DEKAF2_GCC_VERSION >= 80000)
+		#undef DEKAF2_CONSTEXPR_REVERSE_ITERATORS
+		#define DEKAF2_CONSTEXPR_REVERSE_ITERATORS constexpr
+	#endif
+#endif
+
 namespace dekaf2 {
 
 class KStringView;
@@ -467,7 +477,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	DEKAF2_CONSTEXPR_17
+	DEKAF2_CONSTEXPR_REVERSE_ITERATORS
 	reverse_iterator rbegin() const
 	//-----------------------------------------------------------------------------
 	{
@@ -475,7 +485,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	DEKAF2_CONSTEXPR_17
+	DEKAF2_CONSTEXPR_REVERSE_ITERATORS
 	reverse_iterator rend() const
 	//-----------------------------------------------------------------------------
 	{
@@ -499,7 +509,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	DEKAF2_CONSTEXPR_17
+	DEKAF2_CONSTEXPR_REVERSE_ITERATORS
 	const_reverse_iterator crbegin() const
 	//-----------------------------------------------------------------------------
 	{
@@ -507,7 +517,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	DEKAF2_CONSTEXPR_17
+	DEKAF2_CONSTEXPR_REVERSE_ITERATORS
 	const_reverse_iterator crend() const
 	//-----------------------------------------------------------------------------
 	{

@@ -261,7 +261,11 @@ public:
 	//-----------------------------------------------------------------------------
 	{
 		auto it = Unicode::LeftUTF8(begin(), end(), iStart);
+#ifndef _MSC_VER
 		return self_type(it, end() - it);
+#else
+		return self_type(data() + (it - begin()), end() - it);
+#endif
 	}
 
 	//-----------------------------------------------------------------------------
@@ -282,7 +286,11 @@ public:
 	//-----------------------------------------------------------------------------
 	{
 		auto it = Unicode::RightUTF8(begin(), end(), iCount);
+#ifndef _MSC_VER
 		return self_type(it, end() - it);
+#else
+		return self_type(data() + (it - begin()), end() - it);
+#endif
 	}
 
 	//-----------------------------------------------------------------------------

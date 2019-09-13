@@ -13,11 +13,23 @@ TEST_CASE("KHash")
 	SECTION("Values")
 	{
 		KStringView sv;
+#ifdef DEKAF2_IS_64_BITS
 		CHECK ( sv.Hash() == UINT64_C(0) );
+#else
+		CHECK ( sv.Hash() == UINT32_C(0) );
+#endif
 		sv = "hello";
+#ifdef DEKAF2_IS_64_BITS
 		CHECK ( sv.Hash() == UINT64_C(11831194018420276491) );
+#else
+		CHECK ( sv.Hash() == UINT32_C(1335831723) );
+#endif
 		sv = "hällo";
+#ifdef DEKAF2_IS_64_BITS
 		CHECK ( sv.Hash() == UINT64_C(4976760422236553373) );
+#else
+		CHECK ( sv.Hash() == UINT32_C(1372156989) );
+#endif
 	}
 
 	SECTION("Literals")

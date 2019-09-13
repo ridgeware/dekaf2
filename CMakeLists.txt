@@ -409,7 +409,6 @@ set (BITS_HEADERS
 	bits/kmutable_pair.h
 	bits/kprops-multi-index.h
 	bits/kprops-std-map.h
-	bits/ksql_dbc.h
 	bits/kstring_view.h
 	bits/kstringviewz.h
 	bits/ktemplate.h
@@ -553,7 +552,6 @@ set (SOURCES
 	bits/kbaseshell.cpp
 	bits/klogwriter.cpp
 	bits/klogserializer.cpp
-	bits/ksql_dbc.cpp
 	bits/kstringviewz.cpp
 	bits/simd/kfindfirstof.cpp
 	dekaf2.cpp
@@ -727,7 +725,7 @@ target_include_directories(dekaf2
 
 target_compile_definitions(dekaf2 PRIVATE DEKAF2_LIBRARY_BUILD PUBLIC DEKAF2)
 
-add_library(ksql2 ksql.cpp ksql.h)
+add_library(ksql2 ksql.cpp ksql.h bits/ksql_dbc.cpp bits/ksql_dbc.h)
 target_link_libraries(ksql2
 	PUBLIC
 		dekaf2
@@ -798,6 +796,7 @@ install(TARGETS createdbc DESTINATION ${dekaf2_bin_dest})
 
 install(FILES ${PUBLIC_HEADERS} DESTINATION ${dekaf2_include_dest}/dekaf2)
 install(FILES ksql.h DESTINATION ${dekaf2_include_dest}/dekaf2)
+install(FILES bits/ksql_dbc.h DESTINATION ${dekaf2_include_dest}/dekaf2/bits)
 if(SQLITE3_FOUND)
 	install(TARGETS ksqlite EXPORT dekaf2 DESTINATION ${dekaf2_lib_dest})
 	install(FILES ksqlite.h DESTINATION ${dekaf2_include_dest}/dekaf2)

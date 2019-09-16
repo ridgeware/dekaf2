@@ -175,15 +175,24 @@ bool Dekaf::SetUnicodeLocale(KStringView sName)
 						// last resort, slow:
 						// we will try to query all installed locales and
 						// pick the first one with UTF-8 support..
-						std::system("locale -a | grep -v -e ^C | grep -m 1 -i -s UTF-*8 > /tmp/dekaf2init.txt");
-						std::ifstream file("/tmp/dekaf2init.txt");
-						char szUnicodeLocale[51];
-						file.getline(szUnicodeLocale, 50, '\n');
-						szUnicodeLocale[50] = '\0';
-						m_sLocale = szUnicodeLocale;
-						std::setlocale(LC_ALL, m_sLocale.c_str());
+						if (std::system("locale -a | grep -v -e ^C | grep -m 1 -i -s UTF-*8 > /tmp/dekaf2init.txt") >= 0)
+						{
+							std::ifstream file("/tmp/dekaf2init.txt");
+							char szUnicodeLocale[51];
+							file.getline(szUnicodeLocale, 50, '\n');
+							szUnicodeLocale[50] = '\0';
+							m_sLocale = szUnicodeLocale;
+							std::setlocale(LC_ALL, m_sLocale.c_str());
+						}
+						else
+						{
+							std::cerr << "dekaf2: call to std::system failed when selecting locales" << std::endl;
+						}
 					}
-					std::system("rm -f /tmp/dekaf2init.txt");
+					if (std::system("rm -f /tmp/dekaf2init.txt") < 0)
+					{
+						std::cerr << "dekaf2: call to std::system failed when selecting locales" << std::endl;
+					}
 #endif
 				}
 

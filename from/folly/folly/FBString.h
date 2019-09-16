@@ -136,6 +136,10 @@ inline std::pair<InIt, OutIt> copy_n(
   return std::make_pair(b, d);
 }
 
+#if (__GNUC__ > 4)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wstringop-overflow"
+#endif
 template <class Pod, class T>
 inline void podFill(Pod* b, Pod* e, T c) {
   FBSTRING_ASSERT(b && e && b <= e);
@@ -160,6 +164,9 @@ inline void podFill(Pod* b, Pod* e, T c) {
     }
   }
 }
+#if (__GNUC__ > 4)
+#pragma GCC diagnostic pop
+#endif
 
 /*
  * Lightly structured memcpy, simplifies copying PODs and introduces

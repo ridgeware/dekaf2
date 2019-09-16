@@ -53,6 +53,11 @@
 #include "kwriter.h"
 #include "kctype.h"
 
+#if (!DEKAF2_NO_GCC && DEKAF2_GCC_MAJOR_VERSION < 10)
+#include <sys/stat.h>
+#endif
+
+
 
 namespace dekaf2
 {
@@ -530,7 +535,7 @@ bool kTouchFile(KStringViewZ sPath, int iMode /* = DEKAF2_MODE_CREATE_FILE */)
 time_t kGetLastMod(KStringViewZ sFilePath)
 //-----------------------------------------------------------------------------
 {
-#ifdef DEKAF2_HAS_STD_FILESYSTEM
+#if defined(DEKAF2_HAS_STD_FILESYSTEM) && (DEKAF2_NO_GCC || DEKAF2_GCC_MAJOR_VERSION > 9)
 
 	std::error_code ec;
 

@@ -114,6 +114,9 @@ if (NOT DEKAF2_HAVE_INCLUDED_SETUP)
 				add_compile_options(-Wno-psabi)
 			endif()
 
+			if (CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 8.9)
+				add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-fconstexpr-ops-limit=400000000>)
+			endif()
 			# increase amount of permitted constexpr depth (default is 512)
 			add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-fconstexpr-depth=2048>)
 

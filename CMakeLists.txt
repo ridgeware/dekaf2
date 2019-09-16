@@ -13,9 +13,11 @@ cmake_minimum_required(VERSION 2.6)
 
 # Make sure the build system is properly setup
 
-EXECUTE_PROCESS(
-	COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/scripts/buildsetup -quiet -go
-)
+if (NOT WIN32 AND NOT CYGWIN)
+	EXECUTE_PROCESS(
+		COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/scripts/buildsetup -quiet -go
+	)
+endif()
 
 # =================================== UPDATE CMAKE =================================
 

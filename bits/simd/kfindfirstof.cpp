@@ -559,7 +559,7 @@ size_t scanHaystackBlockNot(
 		OperatorOrEqual(mask, _mm_cmpestrm(arr2, needles.size() - j, arr1, useSize, 0b00000000));
 	}
 
-	uint16_t val = *reinterpret_cast<uint16_t*>(&mask);
+	uint16_t val = mask[0];
 
 	// What this does is find the first 0, which means
 	// we need to count trailing 1's
@@ -680,7 +680,7 @@ size_t reverseScanHaystackBlockNot(
 		OperatorOrEqual(mask, _mm_cmpestrm(arr2, needles.size() - j, arr1, useSize, 0));
 	}
 
-	uint16_t val = *reinterpret_cast<uint16_t*>(&mask);
+	uint16_t val = mask[0];
 
 	// What this does is find the last 0, which means
 	// we need to count leading 1's

@@ -91,11 +91,11 @@ bool KOutHTTPFilter::SetupOutputFilter()
 	{
 		if (m_Compression == GZIP)
 		{
-			m_Filter.push(boost::iostreams::gzip_compressor());
+			m_Filter->push(boost::iostreams::gzip_compressor());
 		}
 		else if (m_Compression == ZLIB)
 		{
-			m_Filter.push(boost::iostreams::zlib_compressor());
+			m_Filter->push(boost::iostreams::zlib_compressor());
 		}
 	}
 
@@ -104,7 +104,7 @@ bool KOutHTTPFilter::SetupOutputFilter()
 	KChunkedSink Sink(UnfilteredStream(), m_bChunked);
 
 	// and finally add our source stream to the filtering_istream
-	m_Filter.push(Sink);
+	m_Filter->push(Sink);
 
 	return true;
 
@@ -115,7 +115,7 @@ bool KOutHTTPFilter::SetupOutputFilter()
 KOutStream& KOutHTTPFilter::FilteredStream()
 //-----------------------------------------------------------------------------
 {
-	if (m_Filter.empty())
+	if (m_Filter->empty())
 	{
 		SetupOutputFilter();
 	}
@@ -184,9 +184,9 @@ bool KOutHTTPFilter::WriteLine(KStringView sBuffer)
 void KOutHTTPFilter::close()
 //-----------------------------------------------------------------------------
 {
-	if (!m_Filter.empty())
+	if (!m_Filter->empty())
 	{
-		m_Filter.reset();
+		m_Filter->reset();
 		if (m_OutStream)
 		{
 			m_OutStream->Flush();

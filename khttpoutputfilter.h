@@ -152,8 +152,8 @@ private:
 	static KOutStringStream s_Empty;
 
 	KOutStream* m_OutStream { &s_Empty };
-	boost::iostreams::filtering_ostream m_Filter;
-	KOutStream m_FilteredOutStream { m_Filter };
+	std::unique_ptr<boost::iostreams::filtering_ostream> m_Filter { std::make_unique<boost::iostreams::filtering_ostream>() };
+	KOutStream m_FilteredOutStream { *m_Filter };
 	COMP m_Compression { NONE };
 	bool m_bChunked { false };
 	bool m_bAllowCompression { true };

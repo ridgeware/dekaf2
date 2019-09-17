@@ -91,11 +91,11 @@ bool KInHTTPFilter::SetupInputFilter()
 	{
 		if (m_Compression == GZIP)
 		{
-			m_Filter.push(boost::iostreams::gzip_decompressor());
+			m_Filter->push(boost::iostreams::gzip_decompressor());
 		}
 		else if (m_Compression == ZLIB)
 		{
-			m_Filter.push(boost::iostreams::zlib_decompressor());
+			m_Filter->push(boost::iostreams::zlib_decompressor());
 		}
 	}
 
@@ -107,7 +107,7 @@ bool KInHTTPFilter::SetupInputFilter()
 						  m_iContentSize);
 
 	// and finally add our source stream to the filtering_istream
-	m_Filter.push(Source);
+	m_Filter->push(Source);
 
 	return true;
 
@@ -118,7 +118,7 @@ bool KInHTTPFilter::SetupInputFilter()
 KInStream& KInHTTPFilter::FilteredStream()
 //-----------------------------------------------------------------------------
 {
-	if (m_Filter.empty())
+	if (m_Filter->empty())
 	{
 		SetupInputFilter();
 	}
@@ -190,15 +190,15 @@ bool KInHTTPFilter::ReadLine(KString& sBuffer)
 void KInHTTPFilter::close()
 //-----------------------------------------------------------------------------
 {
-	if (!m_Filter.empty())
+	if (!m_Filter->empty())
 	{
-		m_Filter.reset();
+		m_Filter->reset();
 		m_Compression = NONE;
 		m_bChunked = false;
 		m_bAllowUncompression = true;
 		m_iContentSize = -1;
 	}
-	
+
 } // reset
 
 KInStringStream KInHTTPFilter::s_Empty;

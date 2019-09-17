@@ -136,7 +136,7 @@ public:
 	bool eof()
 	//-----------------------------------------------------------------------------
 	{
-		return m_Filter.eof();
+		return m_Filter->eof();
 	}
 
 	//-----------------------------------------------------------------------------
@@ -161,8 +161,8 @@ private:
 	static KInStringStream s_Empty;
 
 	KInStream* m_InStream { &s_Empty };
-	boost::iostreams::filtering_istream m_Filter;
-	KInStream m_FilteredInStream { m_Filter };
+	std::unique_ptr<boost::iostreams::filtering_istream> m_Filter { std::make_unique<boost::iostreams::filtering_istream>() };
+	KInStream m_FilteredInStream { *m_Filter };
 	COMP m_Compression { NONE };
 	bool m_bChunked { false };
 	bool m_bAllowUncompression { true };

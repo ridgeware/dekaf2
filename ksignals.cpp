@@ -512,7 +512,7 @@ const char* kTranslateSignal (int iSignalNum, bool bConcise/*=TRUE*/)
 			return (bConcise ? "SIGCANCEL" : "SIGCANCEL: thread cancellation signal used by libthread.");
 		#endif
 
-		#ifdef SIGLOST
+		#if defined(SIGLOST) && (!defined(SIGPWR) || SIGPWR != SIGLOST)
 		case SIGLOST:
 			return (bConcise ? "SIGLOST" : "SIGLOST: resource lost (eg, record-lock lost).");
 		#endif

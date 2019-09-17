@@ -63,4 +63,12 @@ std::streamsize detail::KStringReader(void* sBuffer, std::streamsize iCount, voi
 
 } // detail::KStringReader
 
+//-----------------------------------------------------------------------------
+KIStringStream::KIStringStream(KIStringStream&& other)
+//-----------------------------------------------------------------------------
+: base_type(&m_KIStreamBuf)
+{
+	m_sView = other.m_sView;
+}
+
 } // end namespace dekaf2

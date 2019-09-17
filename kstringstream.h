@@ -85,7 +85,11 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	KIOStringStream(KIOStringStream&& other) = default;
+	// we cannot simply use a defaulted move constructor here, as the ones in the
+	// parent classes std::istream and std::basic_ios are protected (they do not
+	// move the streambuffer, as they would not know how to do that properly for
+	// specialized classes)
+	KIOStringStream(KIOStringStream&& other);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------

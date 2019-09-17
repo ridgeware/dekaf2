@@ -87,7 +87,11 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	KOStringStream(KOStringStream&& other) = default;
+	// we cannot simply use a defaulted move constructor here, as the ones in the
+	// parent classes std::ostream and std::basic_ios are protected (they do not
+	// move the streambuffer, as they would not know how to do that properly for
+	// specialized classes)
+	KOStringStream(KOStringStream&& other);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------

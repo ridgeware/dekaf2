@@ -79,6 +79,15 @@ const KString& KOStringStream::str() const
 }
 
 //-----------------------------------------------------------------------------
+KOStringStream::KOStringStream(KOStringStream&& other)
+//-----------------------------------------------------------------------------
+: base_type(&m_KOStreamBuf)
+{
+	m_sBuffer = other.m_sBuffer;
+	other.m_sBuffer = nullptr;
+}
+
+//-----------------------------------------------------------------------------
 void KOStringStream::str(KStringView sView)
 //-----------------------------------------------------------------------------
 {

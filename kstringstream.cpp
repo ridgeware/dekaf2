@@ -68,6 +68,13 @@ std::streamsize detail::KIOStringReader(void* sBuffer, std::streamsize iCount, v
 
 } // detail::KStringReader
 
+//-----------------------------------------------------------------------------
+KIOStringStream::KIOStringStream(KIOStringStream&& other)
+//-----------------------------------------------------------------------------
+: base_type(&m_KStreamBuf)
+{
+	m_Buffer = other.m_Buffer;
+}
 
 //-----------------------------------------------------------------------------
 const KString& KIOStringStream::str() const

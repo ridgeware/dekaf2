@@ -108,8 +108,8 @@ public:
 	}
 	/// copy construction is deleted
 	KCompressOStream(const KCompressOStream&) = delete;
-	/// move construction is permitted
-	KCompressOStream(KCompressOStream&&) = default;
+	/// move construction is deleted
+	KCompressOStream(KCompressOStream&&) = delete;
 	~KCompressOStream()
 	{
 		close();
@@ -162,8 +162,8 @@ public:
 	}
 	/// copy construction is deleted
 	KUnCompressIStream(const KUnCompressIStream&) = delete;
-	/// move construction is permitted
-	KUnCompressIStream(KUnCompressIStream&&) = default;
+	/// move construction is deleted
+	KUnCompressIStream(KUnCompressIStream&&) = delete;
 	~KUnCompressIStream()
 	{
 		close();

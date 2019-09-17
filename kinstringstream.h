@@ -88,8 +88,11 @@ public:
 	// parent classes std::istream and std::basic_ios are protected (they do not
 	// move the streambuffer, as they would not know how to do that properly for
 	// specialized classes)
-	KIStringStream(KIStringStream&& other);
+	KIStringStream(KIStringStream&& other)
 	//-----------------------------------------------------------------------------
+	: KIStringStream(other.m_sView)
+	{
+	}
 
 	//-----------------------------------------------------------------------------
 	KIStringStream(KStringView sView)

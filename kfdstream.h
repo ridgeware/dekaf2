@@ -106,8 +106,15 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	KInputFDStream(KInputFDStream&& other) = default;
+	// we cannot simply use a defaulted move constructor here, as the ones in the
+	// parent classes std::istream and std::basic_ios are protected (they do not
+	// move the streambuffer, as they would not know how to do that properly for
+	// specialized classes)
+	KInputFDStream(KInputFDStream&& other)
 	//-----------------------------------------------------------------------------
+	: KInputFDStream(other.m_FileDesc)
+	{
+	}
 
 	//-----------------------------------------------------------------------------
 	/// the main purpose of this class: allow construction from a standard unix
@@ -209,8 +216,15 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	KInputFPStream(KInputFPStream&& other) = default;
+	// we cannot simply use a defaulted move constructor here, as the ones in the
+	// parent classes std::istream and std::basic_ios are protected (they do not
+	// move the streambuffer, as they would not know how to do that properly for
+	// specialized classes)
+	KInputFPStream(KInputFPStream&& other)
 	//-----------------------------------------------------------------------------
+	: KInputFPStream(other.m_FilePtr)
+	{
+	}
 
 	//-----------------------------------------------------------------------------
 	/// the main purpose of this class: allow construction from a FILE ptr
@@ -309,8 +323,15 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	KOutputFDStream(KOutputFDStream&& other) = default;
+	// we cannot simply use a defaulted move constructor here, as the ones in the
+	// parent classes std::istream and std::basic_ios are protected (they do not
+	// move the streambuffer, as they would not know how to do that properly for
+	// specialized classes)
+	KOutputFDStream(KOutputFDStream&& other)
 	//-----------------------------------------------------------------------------
+	: KOutputFDStream(other.m_FileDesc)
+	{
+	}
 
 	//-----------------------------------------------------------------------------
 	/// the main purpose of this class: allow construction from a standard unix
@@ -421,8 +442,15 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	KOutputFPStream(KOutputFPStream&& other) = default;
+	// we cannot simply use a defaulted move constructor here, as the ones in the
+	// parent classes std::istream and std::basic_ios are protected (they do not
+	// move the streambuffer, as they would not know how to do that properly for
+	// specialized classes)
+	KOutputFPStream(KOutputFPStream&& other)
 	//-----------------------------------------------------------------------------
+	: KOutputFPStream(other.m_FilePtr)
+	{
+	}
 
 	//-----------------------------------------------------------------------------
 	/// the main purpose of this class: allow construction from a standard unix
@@ -523,8 +551,15 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	KInOutFDStream(KInOutFDStream&& other) = default;
+	// we cannot simply use a defaulted move constructor here, as the ones in the
+	// parent classes std::istream and std::basic_ios are protected (they do not
+	// move the streambuffer, as they would not know how to do that properly for
+	// specialized classes)
+	KInOutFDStream(KInOutFDStream&& other)
 	//-----------------------------------------------------------------------------
+	: KInOutFDStream(other.m_FileDescR, other.m_FileDescW)
+	{
+	}
 
 	//-----------------------------------------------------------------------------
 	/// the main purpose of this class: allow construction from one or two standard

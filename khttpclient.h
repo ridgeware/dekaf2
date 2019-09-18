@@ -64,6 +64,79 @@ class KHTTPClient
 public:
 //------
 
+	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	/// ABC for authenticators
+	class Authenticator
+	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	{
+
+	//------
+	public:
+	//------
+
+		virtual ~Authenticator();
+		virtual const KString& GetAuthHeader(const KOutHTTPRequest& Request, KStringView sBody) = 0;
+
+	}; // Authenticator
+
+	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	/// Basic authentication method
+	class BasicAuthenticator : public Authenticator
+	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	{
+
+	//------
+	public:
+	//------
+
+		BasicAuthenticator() = default;
+		BasicAuthenticator(KString _sUsername, KString _sPassword);
+		virtual const KString& GetAuthHeader(const KOutHTTPRequest& Request, KStringView sBody) override;
+
+		KString sUsername;
+		KString sPassword;
+
+
+	//------
+	protected:
+	//------
+
+		KString sResponse;
+
+	}; // BasicAuthenticator
+
+	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	/// Digest access authentication method
+	class DigestAuthenticator : public BasicAuthenticator
+	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	{
+
+	//------
+	public:
+	//------
+
+		DigestAuthenticator() = default;
+		DigestAuthenticator(KString _sUsername,
+							KString _sPassword,
+							KString _sRealm,
+							KString _sNonce,
+							KString _sOpaque,
+							KString _sQoP);
+		virtual const KString& GetAuthHeader(const KOutHTTPRequest& Request, KStringView sBody) override;
+
+		KString sRealm;
+		KString sNonce;
+		KString sOpaque;
+		KString sQoP { "auth" };
+
+	//------
+	protected:
+	//------
+
+		uint16_t iNonceCount { 0 };
+
+	}; // DigestAuthenticator
+
 	//-----------------------------------------------------------------------------
 	KHTTPClient() = default;
 	//-----------------------------------------------------------------------------
@@ -340,6 +413,35 @@ public:
 		m_sForcedHost = sHost;
 	}
 
+	//-----------------------------------------------------------------------------
+	/// Create a derived authentication object that shall be used for authentication
+	void Authentication(std::unique_ptr<Authenticator> _Authenticator)
+	//-----------------------------------------------------------------------------
+	{
+		m_Authenticator = std::move(_Authenticator);
+	}
+
+	//-----------------------------------------------------------------------------
+	/// Forces basic authentication header
+	void BasicAuthentication(KString sUsername,
+							 KString sPassword);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// Forces digest authentication header
+	void DigestAuthentication(KString sUsername,
+							  KString sPassword,
+							  KString sRealm,
+							  KString sNonce,
+							  KString sOpaque,
+							  KString sQoP = "auth");
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// Removes previously set authentication header
+	void ClearAuthentication();
+	//-----------------------------------------------------------------------------
+
 //------
 protected:
 //------
@@ -378,6 +480,7 @@ private:
 	//-----------------------------------------------------------------------------
 
 	std::unique_ptr<KConnection> m_Connection;
+	std::unique_ptr<Authenticator> m_Authenticator;
 	mutable KString m_sError;
 	KString m_sForcedHost;
 	KURL m_Proxy;

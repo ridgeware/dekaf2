@@ -1,5 +1,4 @@
 /*
-//-----------------------------------------------------------------------------//
 //
 // DEKAF(tm): Lighter, Faster, Smarter (tm)
 //
@@ -41,8 +40,160 @@
 */
 
 #include "khttpclient.h"
+#include "kbase64.h"
+#include "kmessagedigest.h"
 
 namespace dekaf2 {
+
+//-----------------------------------------------------------------------------
+KHTTPClient::Authenticator::~Authenticator()
+//-----------------------------------------------------------------------------
+{
+} // virtual dtor
+
+//-----------------------------------------------------------------------------
+KHTTPClient::BasicAuthenticator::BasicAuthenticator(KString _sUsername, KString _sPassword)
+//-----------------------------------------------------------------------------
+: sUsername(std::move(_sUsername))
+, sPassword(std::move(_sPassword))
+{
+}
+
+//-----------------------------------------------------------------------------
+const KString& KHTTPClient::BasicAuthenticator::GetAuthHeader(const KOutHTTPRequest& Request, KStringView sBody)
+//-----------------------------------------------------------------------------
+{
+	if (sResponse.empty())
+	{
+		sResponse = "Basic ";
+		sResponse += KBase64::Encode(sUsername + ":" + sPassword);
+	}
+	return sResponse;
+
+} // BasicAuthenticator::GetAuthHeader
+
+//-----------------------------------------------------------------------------
+KHTTPClient::DigestAuthenticator::DigestAuthenticator(KString _sUsername,
+													  KString _sPassword,
+													  KString _sRealm,
+													  KString _sNonce,
+													  KString _sOpaque,
+													  KString _sQoP)
+//-----------------------------------------------------------------------------
+: BasicAuthenticator(std::move(_sUsername), std::move(_sPassword))
+, sRealm(std::move(_sRealm))
+, sNonce(std::move(_sNonce))
+, sOpaque(std::move(_sOpaque))
+, sQoP(std::move(_sQoP))
+{
+}
+
+//-----------------------------------------------------------------------------
+const KString& KHTTPClient::DigestAuthenticator::GetAuthHeader(const KOutHTTPRequest& Request, KStringView sBody)
+//-----------------------------------------------------------------------------
+{
+	/*
+	 Authorization: Digest username="Mufasa",
+		 realm="testrealm@host.com",
+		 nonce="dcd98b7102dd2f0e8b11d0f600bfb0c093",
+		 uri="/dir/index.html",
+		 qop=auth,
+		 nc=00000001,
+		 cnonce="0a4f113b",
+		 response="6629fae49393a05397450978507c4ef1",
+		 opaque="5ccc069c403ebaf9f0171e9517f40e41"
+	 */
+
+	uint32_t iCNonce    = kRandom();
+	KString sCNonce     = KString::to_hexstring(iCNonce, true, false);
+	KString sNonceCount = KString::to_hexstring(++iNonceCount);
+	sNonceCount.PadLeft(8, '0');
+
+	KMD5 HA1, HA2, Response;
+
+	HA1 = sUsername;
+	HA1 += ":";
+	HA1 += sPassword;
+
+	// different calculation for auth-int
+	// auth or any: HA2 = MD5(method:digestURI)
+	// auth-int:    HA2 = MD5(method:digestURI:MD5(entityBody))
+
+	HA2 = Request.Method.Serialize();
+	HA2 += ":";
+	HA2 += Request.Resource.Path;
+
+	if (sQoP == "auth-int")
+	{
+		HA2 += ":";
+		HA2 += KMD5(sBody).Digest();
+	}
+
+	bool bSimpleResponse = sQoP != "auth" && sQoP != "auth-int";
+
+	Response = HA1.Digest();
+	Response += ":";
+	Response += sNonce;
+	Response += ":";
+
+	if (!bSimpleResponse)
+	{
+		Response += sNonceCount;
+		Response += ":";
+		Response += sCNonce;
+		Response += ":";
+		Response += sQoP;
+		Response += ":";
+	}
+
+	Response += HA2.Digest();
+
+	if (bSimpleResponse)
+	{
+		sResponse = kFormat(
+				   "Digest"
+				   " username=\"{}\","
+				   " realm=\"{}\","
+				   " nonce=\"{}\","
+				   " uri=\"{}\","
+				   " response=\"{}\","
+				   " opaque=\"{}\"",
+				   sUsername,
+				   sRealm,
+				   sNonce,
+				   Request.Resource.Path, // uri
+				   Response.Digest(),
+				   sOpaque
+				);
+	}
+	else
+	{
+		sResponse = kFormat(
+				   "Digest"
+				   " username=\"{}\","
+				   " realm=\"{}\","
+				   " nonce=\"{}\","
+				   " uri=\"{}\","
+				   " qop={},"
+				   " nc={},"
+				   " cnonce=\"{}\","
+				   " response=\"{}\","
+				   " opaque=\"{}\"",
+				   sUsername,
+				   sRealm,
+				   sNonce,
+				   Request.Resource.Path, // uri
+				   sQoP,
+				   sNonceCount, // nc
+				   sCNonce,
+				   Response.Digest(),
+				   sOpaque
+				);
+	}
+
+	return sResponse;
+
+} // DigestAuthenticator::GetAuthHeader
 
 
 //-----------------------------------------------------------------------------
@@ -53,6 +204,7 @@ void KHTTPClient::clear()
 	Response.clear();
 	m_sError.clear();
 	m_bRequestCompression = true;
+	m_Authenticator.reset();
 
 	// do not reset m_bUseHTTPProxyProtocol here - it stays valid until
 	// the setup of a new connection
@@ -413,6 +565,42 @@ bool KHTTPClient::SetRequestHeader(KStringView svName, KStringView svValue, bool
 } // RequestHeader
 
 //-----------------------------------------------------------------------------
+void KHTTPClient::BasicAuthentication(KString sUsername,
+									  KString sPassword)
+//-----------------------------------------------------------------------------
+{
+	m_Authenticator = std::make_unique<BasicAuthenticator>(std::move(sUsername),
+														   std::move(sPassword));
+
+} // BasicAuthentication
+
+//-----------------------------------------------------------------------------
+void KHTTPClient::DigestAuthentication(KString sUsername,
+									   KString sPassword,
+									   KString sRealm,
+									   KString sNonce,
+									   KString sOpaque,
+									   KString sQoP)
+//-----------------------------------------------------------------------------
+{
+	m_Authenticator = std::make_unique<DigestAuthenticator>(std::move(sUsername),
+															std::move(sPassword),
+															std::move(sRealm),
+															std::move(sNonce),
+															std::move(sOpaque),
+															std::move(sQoP));
+
+} // DigestAuthentication
+
+//-----------------------------------------------------------------------------
+void KHTTPClient::ClearAuthentication()
+//-----------------------------------------------------------------------------
+{
+	Request.Headers.Remove(KHTTPHeaders::AUTHORIZATION);
+
+} // ClearAuthentication
+
+//-----------------------------------------------------------------------------
 bool KHTTPClient::SendRequest(KStringView svPostData, KMIME Mime)
 //-----------------------------------------------------------------------------
 {
@@ -452,6 +640,11 @@ bool KHTTPClient::SendRequest(KStringView svPostData, KMIME Mime)
 			kDebug(1, "cannot send body data with {} request, data removed", Request.Method.Serialize())
 			svPostData.clear();
 		}
+	}
+
+	if (m_Authenticator)
+	{
+		SetRequestHeader(KHTTPHeaders::AUTHORIZATION, m_Authenticator->GetAuthHeader(Request, svPostData));
 	}
 
 	if (m_bRequestCompression && Request.Method != KHTTPMethod::CONNECT)

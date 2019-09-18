@@ -428,16 +428,21 @@ bool KHTTPClient::SendRequest(KStringView svPostData, KMIME Mime)
 		return SetError("no stream");
 	}
 
-	if (   Request.Method != KHTTPMethod::GET
-		&& Request.Method != KHTTPMethod::HEAD
-		&& Request.Method != KHTTPMethod::OPTIONS
-		&& Request.Method != KHTTPMethod::CONNECT)
+	if (Request.Method != KHTTPMethod::HEAD &&
+		Request.Method != KHTTPMethod::OPTIONS &&
+		Request.Method != KHTTPMethod::CONNECT)
 	{
-		SetRequestHeader(KHTTPHeaders::CONTENT_LENGTH, KString::to_string(svPostData.size()), true);
-
-		if (!svPostData.empty())
+		if (Request.Method != KHTTPMethod::GET || !svPostData.empty())
 		{
-			SetRequestHeader(KHTTPHeaders::CONTENT_TYPE, Mime, true);
+			// We allow sending body data for GET requests as well, as a few
+			// applications expect doing so. It is not generally advisable due
+			// to proxy issues though.
+			SetRequestHeader(KHTTPHeaders::CONTENT_LENGTH, KString::to_string(svPostData.size()), true);
+
+			if (!svPostData.empty())
+			{
+				SetRequestHeader(KHTTPHeaders::CONTENT_TYPE, Mime, true);
+			}
 		}
 	}
 	else

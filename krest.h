@@ -74,7 +74,7 @@ public:
 		/// API to call
 		KResource API;
 		/// HTTP method to use
-		KHTTPMethod Method { KHTTPMethod::GET };
+		KHTTPMethod Method;
 		/// Post body if not read from file
 		KString sBody;
 

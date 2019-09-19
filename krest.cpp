@@ -288,6 +288,13 @@ bool KREST::Simulate(const Options& Options, const KRESTRoutes& Routes, KResourc
 
 	kDebug(3, "simulated CGI request: {}", API.Serialize());
 
+	KString sMethod = Options.Simulate.Method;
+
+	if (sMethod.empty())
+	{
+		sMethod = Options.Simulate.sBody.empty() ? KHTTPMethod::GET : KHTTPMethod::POST;
+	}
+
 	KString sRequest;
 
 	if (!Options.Simulate.sBody.empty())
@@ -298,7 +305,7 @@ bool KREST::Simulate(const Options& Options, const KRESTRoutes& Routes, KResourc
 						   "Connection: close\r\n"
 						   "Content-Length: {}\r\n"
 						   "\r\n",
-						   Options.Simulate.Method.Serialize(),
+						   sMethod,
 						   API.Serialize(),
 						   Options.Simulate.sBody.size());
 
@@ -311,7 +318,7 @@ bool KREST::Simulate(const Options& Options, const KRESTRoutes& Routes, KResourc
 						   "User-Agent: cli sim agent\r\n"
 						   "Connection: close\r\n"
 						   "\r\n",
-						   Options.Simulate.Method.Serialize(),
+						   sMethod,
 						   API.Serialize());
 	}
 

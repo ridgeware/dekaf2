@@ -325,6 +325,14 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// Get from URL, with request body, store response body in return value KString
+	KString Get(KURL URL, KStringView svRequestBody, KMIME MIME, bool bVerifyCerts = false)
+	//-----------------------------------------------------------------------------
+	{
+		return HttpRequest (std::move(URL), KHTTPMethod::GET, svRequestBody, MIME, bVerifyCerts);
+	}
+
+	//-----------------------------------------------------------------------------
 	/// Get from URL, store response body in return value KString
 	KString Options(KURL URL, bool bVerifyCerts = false)
 	//-----------------------------------------------------------------------------

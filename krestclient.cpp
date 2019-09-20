@@ -96,6 +96,24 @@ KJSON KJsonRestClient::Request (KStringView sPath, KStringView sVerb, const KJSO
 		throw KHTTPError { KHTTPError::H5xx_ERROR, kFormat("bad json: {}", sError) };
 	}
 
+	if (!Good())
+	{
+		KString sError;
+
+		if (!Error().empty())
+		{
+			sError = Error();
+			sError += " - ";
+		}
+
+		if (m_ErrorCallback)
+		{
+			sError += m_ErrorCallback(jResponse);
+
+		}
+
+		throw KHTTPError { KHTTPError::H5xx_ERROR, kFormat("{} {}: {}", sVerb, sPath, sError) };
+	}
 	return jResponse;
 
 } // Request

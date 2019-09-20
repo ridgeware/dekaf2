@@ -122,9 +122,17 @@ class KJsonRestClient : public KRestClient
 public:
 //----------
 
-	KJsonRestClient(KURL URL, bool bVerifyCerts = false)
+	using ErrorCallback = std::function<KStringView(const KJSON&)>;
+
+	KJsonRestClient(KURL URL, bool bVerifyCerts = false, ErrorCallback ecb = nullptr)
 	: KRestClient(std::move(URL), bVerifyCerts)
+	, m_ErrorCallback(ecb)
 	{
+	}
+
+	void SetErrorCallback(ErrorCallback ecb)
+	{
+		m_ErrorCallback = ecb;
 	}
 
 	KJSON Request (KStringView sPath, KStringView sVerb, const KJSON& json);
@@ -153,6 +161,12 @@ public:
 	{
 		return Request(sPath, KHTTPMethod::DELETE, KJSON{});
 	}
+
+//----------
+private:
+//----------
+
+	ErrorCallback m_ErrorCallback;
 
 }; // KJsonRestClient
 

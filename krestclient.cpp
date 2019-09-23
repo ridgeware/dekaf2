@@ -55,15 +55,16 @@ constexpr int iPretty = 1;
 //-----------------------------------------------------------------------------
 KRestClient::KRestClient(KURL URL, bool bVerifyCerts)
 //-----------------------------------------------------------------------------
-: m_URL(std::move(URL))
-, m_bVerifyCerts(bVerifyCerts)
+: KWebClient(bVerifyCerts)
+, m_URL(std::move(URL))
 {
 	// check that path ends with a slash
 	if (m_URL.Path.get().back() != '/')
 	{
 		m_URL.Path.get() += '/';
 	}
-	m_URL.Query.clear();
+	// do not clear the query part - we will use it if it is set
+
 	m_URL.Fragment.clear();
 
 	// per default, allow proxy configuration through environment
@@ -78,7 +79,7 @@ KString KRestClient::Request(KStringView sPath, KStringView sVerb, KStringView s
 	KURL URL { m_URL };
 	URL.Path.get() += sPath;
 
-	return KHTTPClient::HttpRequest(URL, sVerb, sBody, mime, m_bVerifyCerts);
+	return KWebClient::HttpRequest(URL, sVerb, sBody, mime);
 
 } // Request
 

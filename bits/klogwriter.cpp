@@ -56,7 +56,7 @@
 
 #ifdef DEKAF2_KLOG_WITH_TCP
 	#include <dekaf2/kurl.h>
-	#include <dekaf2/khttpclient.h>
+	#include <dekaf2/kwebclient.h>
 	#include <dekaf2/kconnection.h>
 	#include <dekaf2/kmime.h>
 	#include <dekaf2/kjson.h>
@@ -271,7 +271,7 @@ bool KLogHTTPWriter::Write(int iLevel, bool bIsMultiline, KStringViewZ sOut)
 
 	if (!m_OutStream)
 	{
-		m_OutStream = std::make_unique<KHTTPClient>(m_sURL);
+		m_OutStream = std::make_unique<KWebClient>();
 
 		if (!m_OutStream->Good())
 		{

@@ -1,5 +1,4 @@
 /*
-//-----------------------------------------------------------------------------//
 //
 // DEKAF(tm): Lighter, Faster, Smarter (tm)
 //
@@ -51,7 +50,7 @@
 #include "kurl.h"
 
 /// @file khttpclient.h
-/// HTTP client implementation
+/// HTTP client implementation - low level
 
 namespace dekaf2 {
 
@@ -138,7 +137,7 @@ public:
 	}; // DigestAuthenticator
 
 	//-----------------------------------------------------------------------------
-	KHTTPClient() = default;
+	KHTTPClient(bool bVerifyCerts = false);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -181,15 +180,23 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// Shall the server Certs be verified?
+	void VerifyCerts(bool bYesNo)
+	//-----------------------------------------------------------------------------
+	{
+		m_bVerifyCerts = bYesNo;
+	}
+
+	//-----------------------------------------------------------------------------
 	bool Connect(std::unique_ptr<KConnection> Connection);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	bool Connect(const KURL& url, bool bVerifyCerts = false);
+	bool Connect(const KURL& url);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	bool Connect(const KURL& url, const KURL& Proxy, bool bVerifyCerts = false);
+	bool Connect(const KURL& url, const KURL& Proxy);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -317,78 +324,6 @@ public:
 	// alternative interface
 
 	//-----------------------------------------------------------------------------
-	/// Get from URL, store response body in return value KString
-	KString Get(KURL URL, bool bVerifyCerts = false)
-	//-----------------------------------------------------------------------------
-	{
-		return HttpRequest (std::move(URL), KHTTPMethod::GET, {}, {}, bVerifyCerts);
-	}
-
-	//-----------------------------------------------------------------------------
-	/// Get from URL, with request body, store response body in return value KString
-	KString Get(KURL URL, KStringView svRequestBody, KMIME MIME, bool bVerifyCerts = false)
-	//-----------------------------------------------------------------------------
-	{
-		return HttpRequest (std::move(URL), KHTTPMethod::GET, svRequestBody, MIME, bVerifyCerts);
-	}
-
-	//-----------------------------------------------------------------------------
-	/// Get from URL, store response body in return value KString
-	KString Options(KURL URL, bool bVerifyCerts = false)
-	//-----------------------------------------------------------------------------
-	{
-		return HttpRequest (std::move(URL), KHTTPMethod::OPTIONS, {}, {}, bVerifyCerts);
-	}
-
-	//-----------------------------------------------------------------------------
-	/// Post to URL, store response body in return value KString
-	KString Post(KURL URL, KStringView svRequestBody, KMIME MIME, bool bVerifyCerts = false)
-	//-----------------------------------------------------------------------------
-	{
-		return HttpRequest (std::move(URL), KHTTPMethod::POST, svRequestBody, MIME, bVerifyCerts);
-	}
-
-	//-----------------------------------------------------------------------------
-	/// Deletes URL, store response body in return value KString
-	KString Delete(KURL URL, KStringView svRequestBody, bool bVerifyCerts = false)
-	//-----------------------------------------------------------------------------
-	{
-		return HttpRequest (std::move(URL), KHTTPMethod::DELETE, svRequestBody, {}, bVerifyCerts);
-	}
-
-	//-----------------------------------------------------------------------------
-	/// Head from URL - returns true if response is in the 2xx range
-	bool Head(KURL URL, bool bVerifyCerts = false)
-	//-----------------------------------------------------------------------------
-	{
-		HttpRequest (std::move(URL), KHTTPMethod::HEAD, {}, {}, bVerifyCerts);
-		return HttpSuccess();
-	}
-
-	//-----------------------------------------------------------------------------
-	/// Put to URL - returns true if response is in the 2xx range
-	bool Put(KURL URL, KStringView svRequestBody, KMIME MIME, bool bVerifyCerts = false)
-	//-----------------------------------------------------------------------------
-	{
-		HttpRequest (std::move(URL), KHTTPMethod::PUT, svRequestBody, MIME, bVerifyCerts);
-		return HttpSuccess();
-	}
-
-	//-----------------------------------------------------------------------------
-	/// Patch URL - returns true if response is in the 2xx range
-	bool Patch(KURL URL, KStringView svRequestBody, KMIME MIME, bool bVerifyCerts = false)
-	//-----------------------------------------------------------------------------
-	{
-		HttpRequest (std::move(URL), KHTTPMethod::PATCH, svRequestBody, MIME, bVerifyCerts);
-		return HttpSuccess();
-	}
-
-	//-----------------------------------------------------------------------------
-	/// Send given request method and return raw response as a string
-	KString HttpRequest (KURL URL, KStringView sRequestMethod = KHTTPMethod::GET, KStringView svRequestBody = KStringView{}, KMIME MIME = KMIME::JSON, bool bVerifyCerts = false);
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
 	/// Return HTTP status code from last request
 	uint16_t GetStatusCode() const
 	//-----------------------------------------------------------------------------
@@ -402,14 +337,6 @@ public:
 	//-----------------------------------------------------------------------------
 	{
 		m_bAutoProxy = bYes;
-	}
-
-	//-----------------------------------------------------------------------------
-	/// Set count of allowed redirects (default 3, 0 disables)
-	void AllowRedirects(uint16_t iMaxRedirects = 3)
-	//-----------------------------------------------------------------------------
-	{
-		m_iMaxRedirects = iMaxRedirects;
 	}
 
 	//-----------------------------------------------------------------------------
@@ -471,6 +398,10 @@ protected:
 	static bool FilterByNoProxyList(const KURL& url, KStringView sNoProxy);
 	//-----------------------------------------------------------------------------
 
+	//-----------------------------------------------------------------------------
+	bool CheckForRedirect(KURL& URL, KStringView& sRequestMethod);
+	//-----------------------------------------------------------------------------
+
 //------
 private:
 //------
@@ -483,17 +414,13 @@ private:
 	bool SetHostHeader(const KURL& url, bool bForcePort = false);
 	//-----------------------------------------------------------------------------
 
-	//-----------------------------------------------------------------------------
-	bool CheckForRedirect(KURL& URL, KStringView& sRequestMethod);
-	//-----------------------------------------------------------------------------
-
 	std::unique_ptr<KConnection> m_Connection;
 	std::unique_ptr<Authenticator> m_Authenticator;
 	mutable KString m_sError;
 	KString m_sForcedHost;
 	KURL m_Proxy;
 	int  m_Timeout { 30 };
-	uint16_t m_iMaxRedirects { 3 };
+	bool m_bVerifyCerts { false };
 	bool m_bRequestCompression { true };
 	bool m_bAutoProxy { false };
 	bool m_bUseHTTPProxyProtocol { false };
@@ -506,21 +433,5 @@ public:
 	KInHTTPResponse Response;
 
 }; // KHTTPClient
-
-//-----------------------------------------------------------------------------
-/// Get from URL, store body in return value KString
-KString kHTTPGet(KURL URL);
-//-----------------------------------------------------------------------------
-
-//-----------------------------------------------------------------------------
-/// Head from URL - returns true if response is in the 2xx range
-bool kHTTPHead(KURL URL);
-//-----------------------------------------------------------------------------
-
-//-----------------------------------------------------------------------------
-/// Post to URL, store body in return value KString
-KString kHTTPPost(KURL URL, KStringView svPostData, KStringView svMime);
-//-----------------------------------------------------------------------------
-
 
 } // end of namespace dekaf2

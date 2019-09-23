@@ -46,7 +46,7 @@
 #include <dekaf2/kinshell.h>
 #include <dekaf2/kregex.h>
 #include <dekaf2/kurlencode.h>
-#include <dekaf2/khttpclient.h>
+#include <dekaf2/kwebclient.h>
 #include <dekaf2/kstream.h>
 #include <dekaf2/kjson.h>
 #include <dekaf2/kfilesystem.h>
@@ -1338,7 +1338,7 @@ uint16_t KSystemStats::PushStats (KStringView sURL, KStringView sMyUniqueIP, KSt
 	}
 
 	kDebug (2, "sending POST to: {}", sURL);
-	KHTTPClient HTTP;
+	KWebClient HTTP;
 	sResponse = HTTP.Post(sURL, sPostData, KMIME::WWW_FORM_URLENCODED);
 
 	if (!sResponse.empty())

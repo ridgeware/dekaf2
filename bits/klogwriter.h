@@ -61,7 +61,7 @@
 namespace dekaf2
 {
 
-class KHTTPClient;
+class KWebClient;
 class KHTTPHeaders;
 
 #ifdef DEKAF2_KLOG_WITH_TCP
@@ -248,7 +248,7 @@ public:
 protected:
 //----------
 
-	std::unique_ptr<KHTTPClient> m_OutStream;
+	std::unique_ptr<KWebClient> m_OutStream;
 	KString m_sURL;
 
 }; // KLogHTTPWriter

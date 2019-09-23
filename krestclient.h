@@ -43,13 +43,13 @@
 
 #include "kstring.h"
 #include "kstringview.h"
-#include "khttpclient.h"
+#include "kwebclient.h"
 #include "kjson.h"
 
 using namespace dekaf2;
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class KRestClient : private KHTTPClient
+class KRestClient : private KWebClient
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -57,7 +57,7 @@ class KRestClient : private KHTTPClient
 public:
 //----------
 
-	using base_type = KHTTPClient;
+	using base_type = KWebClient;
 
 	KRestClient(KURL URL, bool bVerifyCerts = false);
 
@@ -103,13 +103,13 @@ public:
 	using base_type::AutoConfigureProxy;
 	using base_type::AllowRedirects;
 	using base_type::AllowCompression;
+	using base_type::VerifyCerts;
 
 //----------
 private:
 //----------
 
 	KURL m_URL;
-	bool m_bVerifyCerts { false };
 
 }; // KRestClient
 

@@ -214,10 +214,18 @@ void KHTTPClient::clear()
 } // clear
 
 //-----------------------------------------------------------------------------
+KHTTPClient::KHTTPClient(bool bVerifyCerts)
+//-----------------------------------------------------------------------------
+: m_bVerifyCerts(bVerifyCerts)
+{
+} // Ctor
+
+//-----------------------------------------------------------------------------
 KHTTPClient::KHTTPClient(const KURL& url, KHTTPMethod method, bool bVerifyCerts)
 //-----------------------------------------------------------------------------
+: m_bVerifyCerts(bVerifyCerts)
 {
-	if (Connect(url, bVerifyCerts))
+	if (Connect(url))
 	{
 		Resource(url, method);
 	}
@@ -227,8 +235,9 @@ KHTTPClient::KHTTPClient(const KURL& url, KHTTPMethod method, bool bVerifyCerts)
 //-----------------------------------------------------------------------------
 KHTTPClient::KHTTPClient(const KURL& url, const KURL& Proxy, KHTTPMethod method, bool bVerifyCerts)
 //-----------------------------------------------------------------------------
+: m_bVerifyCerts(bVerifyCerts)
 {
-	if (Connect(url, Proxy, bVerifyCerts))
+	if (Connect(url, Proxy))
 	{
 		Resource(url, method);
 	}
@@ -302,12 +311,12 @@ bool KHTTPClient::FilterByNoProxyList(const KURL& url, KStringView sNoProxy)
 } // FilterByNoProxyList
 
 //-----------------------------------------------------------------------------
-bool KHTTPClient::Connect(const KURL& url, bool bVerifyCerts)
+bool KHTTPClient::Connect(const KURL& url)
 //-----------------------------------------------------------------------------
 {
 	if (!m_Proxy.empty())
 	{
-		return Connect(url, m_Proxy, bVerifyCerts);
+		return Connect(url, m_Proxy);
 	}
 
 	if (AlreadyConnected(url))
@@ -330,22 +339,22 @@ bool KHTTPClient::Connect(const KURL& url, bool bVerifyCerts)
 
 			if (!Proxy.empty())
 			{
-				return Connect(url, Proxy, bVerifyCerts);
+				return Connect(url, Proxy);
 			}
 		}
 	}
 
-	return Connect(KConnection::Create(url, false, bVerifyCerts));
+	return Connect(KConnection::Create(url, false, m_bVerifyCerts));
 
 } // Connect
 
 //-----------------------------------------------------------------------------
-bool KHTTPClient::Connect(const KURL& url, const KURL& Proxy, bool bVerifyCerts)
+bool KHTTPClient::Connect(const KURL& url, const KURL& Proxy)
 //-----------------------------------------------------------------------------
 {
 	if (Proxy.empty())
 	{
-		return Connect(KConnection::Create(url, false, bVerifyCerts));
+		return Connect(KConnection::Create(url, false, m_bVerifyCerts));
 	}
 
 	// which protocol on which connection segment?
@@ -359,7 +368,7 @@ bool KHTTPClient::Connect(const KURL& url, const KURL& Proxy, bool bVerifyCerts)
 	}
 
 	// Connect the proxy. Use a TLS connection if either proxy or target is HTTPS.
-	if (!Connect(KConnection::Create(Proxy, bProxyIsHTTPS || bTargetIsHTTPS, bVerifyCerts)))
+	if (!Connect(KConnection::Create(Proxy, bProxyIsHTTPS || bTargetIsHTTPS, m_bVerifyCerts)))
 	{
 		// error is already set
 		return false;
@@ -644,12 +653,12 @@ bool KHTTPClient::SendRequest(KStringView svPostData, KMIME Mime)
 
 	if (m_Authenticator)
 	{
-		SetRequestHeader(KHTTPHeaders::AUTHORIZATION, m_Authenticator->GetAuthHeader(Request, svPostData));
+		SetRequestHeader(KHTTPHeaders::AUTHORIZATION, m_Authenticator->GetAuthHeader(Request, svPostData), true);
 	}
 
 	if (m_bRequestCompression && Request.Method != KHTTPMethod::CONNECT)
 	{
-		SetRequestHeader(KHTTPHeaders::ACCEPT_ENCODING, "gzip");
+		SetRequestHeader(KHTTPHeaders::ACCEPT_ENCODING, "gzip", true);
 	}
 
 	if (!Request.Serialize()) // this sends the request headers to the remote server
@@ -801,63 +810,6 @@ bool KHTTPClient::CheckForRedirect(KURL& URL, KStringView& sRequestMethod)
 } // CheckForRedirect
 
 //-----------------------------------------------------------------------------
-KString KHTTPClient::HttpRequest (KURL URL, KStringView sRequestMethod/* = KHTTPMethod::GET*/, KStringView svRequestBody/* = ""*/, KMIME MIME/* = KMIME::JSON*/, bool bVerifyCerts /* = false */)
-//-----------------------------------------------------------------------------
-{
-	KString sResponse;
-
-	uint16_t iHadRedirects = 0;
-
-	for(;;)
-	{
-		if (Connect(URL, bVerifyCerts))
-		{
-			if (Resource(URL, sRequestMethod))
-			{
-				if (SendRequest (svRequestBody, MIME))
-				{
-					Read (sResponse);
-				}
-			}
-		}
-
-		if (!CheckForRedirect(URL, sRequestMethod))
-		{
-			break;
-		}
-
-		if (iHadRedirects++ >= m_iMaxRedirects)
-		{
-			SetError(kFormat("number of redirects ({}) exceeds max redirection limit of {}",
-							 iHadRedirects,
-							 m_iMaxRedirects));
-			break;
-		}
-		// else loop into the redirection
-	}
-
-	if (!HttpSuccess() && Error().empty())
-	{
-		SetError(Response.GetStatusString());
-
-		if (svRequestBody)
-		{
-			kDebug(2, "{} {}\n{}", sRequestMethod, URL.KResource::Serialize(), svRequestBody);
-		}
-
-		kDebug(2, "{} {} from URL {}", Response.iStatusCode, Response.sStatusString, URL.Serialize());
-
-		if (!sResponse.empty())
-		{
-			kDebug(2, "{}", sResponse);
-		}
-	}
-
-	return sResponse;
-
-} // HttpRequest
-
-//-----------------------------------------------------------------------------
 bool KHTTPClient::AlreadyConnected(const KURL& EndPoint) const
 //-----------------------------------------------------------------------------
 {
@@ -879,37 +831,5 @@ bool KHTTPClient::SetError(KStringView sError) const
 	return false;
 
 } // SetError
-
-
-//-----------------------------------------------------------------------------
-KString kHTTPGet(KURL URL)
-//-----------------------------------------------------------------------------
-{
-	KHTTPClient HTTP;
-	HTTP.AutoConfigureProxy(true);
-	return HTTP.Get(std::move(URL));
-
-} // kHTTPGet
-
-//-----------------------------------------------------------------------------
-bool kHTTPHead(KURL URL)
-//-----------------------------------------------------------------------------
-{
-	KHTTPClient HTTP;
-	HTTP.AutoConfigureProxy(true);
-	return HTTP.Head(std::move(URL));
-
-} // kHTTPHead
-
-//-----------------------------------------------------------------------------
-KString kHTTPPost(KURL URL, KStringView svPostData, KStringView svMime)
-//-----------------------------------------------------------------------------
-{
-	KHTTPClient HTTP;
-	HTTP.AutoConfigureProxy(true);
-	return HTTP.Post(std::move(URL), svPostData, svMime);
-
-} // kHTTPPost
-
 
 } // end of namespace dekaf2

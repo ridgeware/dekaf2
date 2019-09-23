@@ -41,7 +41,7 @@
  */
 
 #include "kopenid.h"
-#include "khttpclient.h"
+#include "kwebclient.h"
 #include "klog.h"
 #include "kbase64.h"
 #include "krsasign.h"
@@ -86,9 +86,10 @@ KOpenIDKeys::KOpenIDKeys (KURL URL)
 		}
 		else
 		{
-			KHTTPClient ProviderKeys;
+			KWebClient ProviderKeys;
+			ProviderKeys.VerifyCerts(true); // we have to verify the CERT!
 			ProviderKeys.SetTimeout(5);
-			kjson::Parse(Keys, ProviderKeys.Get(URL, true /* = bVerifyCerts */ )); // we have to verify the CERT!
+			kjson::Parse(Keys, ProviderKeys.Get(URL));
 			if (!Validate())
 			{
 				Keys = KJSON{};
@@ -211,9 +212,10 @@ KOpenIDProvider::KOpenIDProvider (KURL URL, KStringView sScope)
 
 		DEKAF2_TRY
 		{
-			KHTTPClient Provider;
+			KWebClient Provider;
+			Provider.VerifyCerts(true); // we have to verify the CERT!
 			Provider.SetTimeout(5);
-			kjson::Parse(Configuration, Provider.Get(URL, true /* = bVerifyCerts */ )); // we have to verify the CERT!
+			kjson::Parse(Configuration, Provider.Get(URL));
 			// verify accuracy of information
 			URL.Path.clear();
 			if (Validate(URL, sScope))

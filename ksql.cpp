@@ -6469,7 +6469,7 @@ bool KSQL::CommitTransaction (KStringView sOptions/*=""*/)
 } // CommitTransaction
 
 //-----------------------------------------------------------------------------
-KString KSQL::FormAndClause (KStringView sDbCol, KStringView sQueryParm, uint64_t iFlags/*=FAC+NORMAL*/)
+KString KSQL::FormAndClause (KStringView sDbCol, KStringView sQueryParm, uint64_t iFlags/*=FAC+NORMAL*/, KStringView sSplitBy/*=","*/)
 //-----------------------------------------------------------------------------
 {
 	KString sClause;
@@ -6528,7 +6528,7 @@ KString KSQL::FormAndClause (KStringView sDbCol, KStringView sQueryParm, uint64_
 	// - - - - - - - - - - - - - - - - - - - - - - - - -
 	else if (iFlags & FAC_LIKE)
 	{
-		for (KString sOne : sQueryParm.Split(","))
+		for (KString sOne : sQueryParm.Split(sSplitBy))
 		{
 			sOne.Replace ('*','%',/*start=*/0,/*bAll=*/true); // allow * wildcards too
 			if (sClause)
@@ -6554,7 +6554,7 @@ KString KSQL::FormAndClause (KStringView sDbCol, KStringView sQueryParm, uint64_
 	// - - - - - - - - - - - - - - - - - - - - - - - - -
 	// single value (no comma):
 	// - - - - - - - - - - - - - - - - - - - - - - - - -
-	else if (!sQueryParm.Contains(","))
+	else if (!sQueryParm.Contains(sSplitBy))
 	{
 		if (iFlags & FAC_NUMERIC)
 		{
@@ -6577,7 +6577,7 @@ KString KSQL::FormAndClause (KStringView sDbCol, KStringView sQueryParm, uint64_
 	{
 		KString sList;
 
-		for (const auto& sOne : sQueryParm.Split(","))
+		for (const auto& sOne : sQueryParm.Split(sSplitBy))
 		{
 			if (iFlags & FAC_NUMERIC)
 			{

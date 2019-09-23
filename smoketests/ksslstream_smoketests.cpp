@@ -2,7 +2,7 @@
 
 #include <dekaf2/ksslclient.h>
 #include <dekaf2/ktcpclient.h>
-#include <dekaf2/khttpclient.h>
+#include <dekaf2/kwebclient.h>
 #include <dekaf2/kstring.h>
 #include <dekaf2/ksystem.h>
 #include <iostream>
@@ -61,7 +61,7 @@ TEST_CASE("KSSLClient")
 TEST_CASE("KSSLClient 2")
 {
 	KString sURL {"https://www.google.com"};
-	KHTTPClient HTTP;
+	KWebClient HTTP;
 	HTTP.SetTimeout(1);
 	KString sResponse = HTTP.Get (sURL);
 	CHECK ( !sResponse.empty() );
@@ -71,7 +71,7 @@ TEST_CASE("KSSLClient 2")
 TEST_CASE("KSSLClient 3")
 {
 	KString sURL {"https://www.dfggooglesdkjfhsjuhkjlgrsisfugkhvij.com"};
-	KHTTPClient HTTP;
+	KWebClient HTTP;
 	HTTP.SetTimeout(1);
 	KString sResponse = HTTP.Get (sURL);
 	CHECK ( sResponse.empty() );
@@ -89,7 +89,7 @@ TEST_CASE("KSSLClient 4")
 	// supports TLS 1.2/1.3 (as github removed support for older
 	// versions)
 	KString sURL {"https://github.com"};
-	KHTTPClient HTTP;
+	KWebClient HTTP;
 	HTTP.SetTimeout(1);
 	KString sResponse = HTTP.Get (sURL);
 	INFO  ( "Verify TLS 1.2/1.3 support" );

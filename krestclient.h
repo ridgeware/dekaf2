@@ -49,6 +49,7 @@
 namespace dekaf2 {
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// REST client implementation with string input/output
 class KRestClient : private KWebClient
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -60,22 +61,38 @@ public:
 	using base_type = KWebClient;
 	using self = KRestClient;
 
-	KRestClient(KURL URL, bool bVerifyCerts = false);
+	/// Construct with URL to connect to, including basic REST path and basic query parms.
+	/// The individual request path will be added to the basic path, same for query parms.
+	KRestClient     (KURL URL, bool bVerifyCerts = false);
 
+	/// Send the REST request including an eventual body to the target and return the response.
 	KString Request (KStringView sBody = KStringView{}, KMIME mime = {});
 
-	self& Verb     (KString sVerb);
-	self& Path     (KString sPath);
-	self& SetQuery (url::KQuery Query);
-	self& AddQuery (url::KQuery Query);
-	self& AddQuery (KString sName, KString sValue);
-	self& Get      (KString sPath)   { return Path(sPath).Verb(KHTTPMethod::GET    ); }
-	self& Post     (KString sPath)   { return Path(sPath).Verb(KHTTPMethod::POST   ); }
-	self& Put      (KString sPath)   { return Path(sPath).Verb(KHTTPMethod::PUT    ); }
-	self& Patch    (KString sPath)   { return Path(sPath).Verb(KHTTPMethod::PATCH  ); }
-	self& Delete   (KString sPath)   { return Path(sPath).Verb(KHTTPMethod::DELETE ); }
+	/// Set the 'Verb' (HTTP method) for the next request - can also be done implicitly
+	/// through one of the Get/Post/Put/Patch/Delete methods
+	self& Verb      (KString sVerb);
+	/// Set the Path for the next request - will be appended to a base path set at the constructor
+	self& Path      (KString sPath);
+	/// Set the Query part for the next request
+	self& SetQuery  (url::KQuery Query);
+	/// Add a Query part to existing queries
+	self& AddQuery  (url::KQuery Query);
+	/// Add a name/value query part to existing queries
+	self& AddQuery  (KString sName, KString sValue);
 
-	void clear();
+	/// Set a Get method with path to call
+	self& Get       (KString sPath) { return Path(std::move(sPath)).Verb(KHTTPMethod::GET    ); }
+	/// Set a Post method with path to call
+	self& Post      (KString sPath) { return Path(std::move(sPath)).Verb(KHTTPMethod::POST   ); }
+	/// Set a Put method with path to call
+	self& Put       (KString sPath) { return Path(std::move(sPath)).Verb(KHTTPMethod::PUT    ); }
+	/// Set a Patch method with path to call
+	self& Patch     (KString sPath) { return Path(std::move(sPath)).Verb(KHTTPMethod::PATCH  ); }
+	/// Set a Delete method with path to call
+	self& Delete    (KString sPath) { return Path(std::move(sPath)).Verb(KHTTPMethod::DELETE ); }
+
+	/// clear all state except the ctor parameters
+	void clear ();
 
 	using base_type::Good;
 	using base_type::HttpSuccess;
@@ -118,31 +135,50 @@ public:
 	using self = KJsonRestClient;
 	using base = KRestClient;
 
-	KJsonRestClient(KURL URL, bool bVerifyCerts = false, ErrorCallback ecb = nullptr)
+	/// Construct with URL to connect to, including basic REST path and basic query parms.
+	/// The individual request path will be added to the basic path, same for query parms.
+	/// The ErrorCallback will be called on non-200 responses with valid JSON response and
+	/// should be used to identify the error text in the JSON.
+	KJsonRestClient (KURL URL, bool bVerifyCerts = false, ErrorCallback ecb = nullptr)
 	: KRestClient(std::move(URL), bVerifyCerts)
 	, m_ErrorCallback(ecb)
 	{
 	}
 
-	self& SetErrorCallback(ErrorCallback ecb)
+	/// The ErrorCallback will be called on non-200 responses with valid JSON response and
+	/// should be used to identify the error text in the JSON.
+	self& SetErrorCallback (ErrorCallback ecb)
 	{
 		m_ErrorCallback = ecb;
 		return *this;
 	}
 
-	KJSON Request (const KJSON& json);
+	/// Send the REST request including an eventual JSON body to the target and return the response.
+	KJSON Request  (const KJSON& json);
 
-	self& Verb     (KString sVerb)     { base::Verb(sVerb);             return *this; }
-	self& Path     (KString sPath)     { base::Path(sPath);             return *this; }
-	self& SetQuery (url::KQuery Query) { base::SetQuery(Query);         return *this; }
-	self& AddQuery (url::KQuery Query) { base::AddQuery(Query);         return *this; }
+	/// Set the 'Verb' (HTTP method) for the next request - can also be done implicitly
+	/// through one of the Get/Post/Put/Patch/Delete methods
+	self& Verb     (KString sVerb)     { base::Verb(std::move(sVerb));     return *this; }
+	/// Set the Path for the next request - will be appended to a base path set at the constructor
+	self& Path     (KString sPath)     { base::Path(std::move(sPath));     return *this; }
+	/// Set the Query part for the next request
+	self& SetQuery (url::KQuery Query) { base::SetQuery(std::move(Query)); return *this; }
+	/// Add a Query part to existing queries
+	self& AddQuery (url::KQuery Query) { base::AddQuery(std::move(Query)); return *this; }
+	/// Add a name/value query part to existing queries
 	self& AddQuery (KString sName, KString sValue)
-	                                   { base::AddQuery(sName, sValue); return *this; }
-	self& Get      (KString sPath)     { base::Get(sPath);              return *this; }
-	self& Post     (KString sPath)     { base::Post(sPath);             return *this; }
-	self& Put      (KString sPath)     { base::Put(sPath);              return *this; }
-	self& Patch    (KString sPath)     { base::Patch(sPath);            return *this; }
-	self& Delete   (KString sPath)     { base::Delete(sPath);           return *this; }
+	                                   { base::AddQuery(std::move(sName), std::move(sValue));
+										   return *this; }
+	/// Set a Get method with path to call
+	self& Get      (KString sPath)     { base::Get(std::move(sPath));      return *this; }
+	/// Set a Post method with path to call
+	self& Post     (KString sPath)     { base::Post(std::move(sPath));     return *this; }
+	/// Set a Put method with path to call
+	self& Put      (KString sPath)     { base::Put(std::move(sPath));      return *this; }
+	/// Set a Patch method with path to call
+	self& Patch    (KString sPath)     { base::Patch(std::move(sPath));    return *this; }
+	/// Set a Delete method with path to call
+	self& Delete   (KString sPath)     { base::Delete(std::move(sPath));   return *this; }
 
 //----------
 private:

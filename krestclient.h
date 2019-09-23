@@ -46,7 +46,7 @@
 #include "kwebclient.h"
 #include "kjson.h"
 
-using namespace dekaf2;
+namespace dekaf2 {
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class KRestClient : private KWebClient
@@ -58,35 +58,24 @@ public:
 //----------
 
 	using base_type = KWebClient;
+	using self = KRestClient;
 
 	KRestClient(KURL URL, bool bVerifyCerts = false);
 
-	KString Request (KStringView sPath, KStringView sVerb, KStringView sBody, KMIME mime);
+	KString Request (KStringView sBody = KStringView{}, KMIME mime = {});
 
-	KString Get (KStringView sPath, KStringView sBody = KStringView{}, KMIME mime = {})
-	{
-		return Request(sPath, KHTTPMethod::GET, sBody, mime);
-	}
+	self& Verb     (KString sVerb);
+	self& Path     (KString sPath);
+	self& SetQuery (url::KQuery Query);
+	self& AddQuery (url::KQuery Query);
+	self& AddQuery (KString sName, KString sValue);
+	self& Get      (KString sPath)   { return Path(sPath).Verb(KHTTPMethod::GET    ); }
+	self& Post     (KString sPath)   { return Path(sPath).Verb(KHTTPMethod::POST   ); }
+	self& Put      (KString sPath)   { return Path(sPath).Verb(KHTTPMethod::PUT    ); }
+	self& Patch    (KString sPath)   { return Path(sPath).Verb(KHTTPMethod::PATCH  ); }
+	self& Delete   (KString sPath)   { return Path(sPath).Verb(KHTTPMethod::DELETE ); }
 
-	KString Post (KStringView sPath, KStringView sBody, KMIME mime)
-	{
-		return Request(sPath, KHTTPMethod::POST, sBody, mime);
-	}
-
-	KString Put (KStringView sPath, KStringView sBody, KMIME mime)
-	{
-		return Request(sPath, KHTTPMethod::PUT, sBody, mime);
-	}
-
-	KString Patch (KStringView sPath, KStringView sBody, KMIME mime)
-	{
-		return Request(sPath, KHTTPMethod::PATCH, sBody, mime);
-	}
-
-	KString Delete (KStringView sPath)
-	{
-		return Request(sPath, KHTTPMethod::DELETE, KStringView{}, KMIME{});
-	}
+	void clear();
 
 	using base_type::Good;
 	using base_type::HttpSuccess;
@@ -106,10 +95,13 @@ public:
 	using base_type::VerifyCerts;
 
 //----------
-private:
+protected:
 //----------
 
 	KURL m_URL;
+	KString m_sVerb;
+	KString m_sPath;
+	url::KQuery m_Query;
 
 }; // KRestClient
 
@@ -123,6 +115,8 @@ public:
 //----------
 
 	using ErrorCallback = std::function<KStringView(const KJSON&)>;
+	using self = KJsonRestClient;
+	using base = KRestClient;
 
 	KJsonRestClient(KURL URL, bool bVerifyCerts = false, ErrorCallback ecb = nullptr)
 	: KRestClient(std::move(URL), bVerifyCerts)
@@ -130,37 +124,25 @@ public:
 	{
 	}
 
-	void SetErrorCallback(ErrorCallback ecb)
+	self& SetErrorCallback(ErrorCallback ecb)
 	{
 		m_ErrorCallback = ecb;
+		return *this;
 	}
 
-	KJSON Request (KStringView sPath, KStringView sVerb, const KJSON& json);
+	KJSON Request (const KJSON& json);
 
-	KJSON Get (KStringView sPath, const KJSON& json = KJSON{})
-	{
-		return Request(sPath, KHTTPMethod::GET, json);
-	}
-
-	KJSON Post (KStringView sPath, const KJSON& json)
-	{
-		return Request(sPath, KHTTPMethod::POST, json);
-	}
-
-	KJSON Put (KStringView sPath, const KJSON& json)
-	{
-		return Request(sPath, KHTTPMethod::PUT, json);
-	}
-
-	KJSON Patch (KStringView sPath, const KJSON& json)
-	{
-		return Request(sPath, KHTTPMethod::PATCH, json);
-	}
-
-	KJSON Delete (KStringView sPath)
-	{
-		return Request(sPath, KHTTPMethod::DELETE, KJSON{});
-	}
+	self& Verb     (KString sVerb)     { base::Verb(sVerb);             return *this; }
+	self& Path     (KString sPath)     { base::Path(sPath);             return *this; }
+	self& SetQuery (url::KQuery Query) { base::SetQuery(Query);         return *this; }
+	self& AddQuery (url::KQuery Query) { base::AddQuery(Query);         return *this; }
+	self& AddQuery (KString sName, KString sValue)
+	                                   { base::AddQuery(sName, sValue); return *this; }
+	self& Get      (KString sPath)     { base::Get(sPath);              return *this; }
+	self& Post     (KString sPath)     { base::Post(sPath);             return *this; }
+	self& Put      (KString sPath)     { base::Put(sPath);              return *this; }
+	self& Patch    (KString sPath)     { base::Patch(sPath);            return *this; }
+	self& Delete   (KString sPath)     { base::Delete(sPath);           return *this; }
 
 //----------
 private:
@@ -170,3 +152,4 @@ private:
 
 }; // KJsonRestClient
 
+} // end of namespace dekaf2

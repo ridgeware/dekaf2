@@ -63,6 +63,8 @@ class KHTTPClient
 public:
 //------
 
+	using self = KHTTPClient;
+
 	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	/// ABC for authenticators
 	class Authenticator
@@ -94,7 +96,6 @@ public:
 
 		KString sUsername;
 		KString sPassword;
-
 
 	//------
 	protected:
@@ -172,22 +173,6 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// Set proxy server for all subsequent connects
-	void SetProxy(KURL Proxy)
-	//-----------------------------------------------------------------------------
-	{
-		m_Proxy = std::move(Proxy);
-	}
-
-	//-----------------------------------------------------------------------------
-	/// Shall the server Certs be verified?
-	void VerifyCerts(bool bYesNo)
-	//-----------------------------------------------------------------------------
-	{
-		m_bVerifyCerts = bYesNo;
-	}
-
-	//-----------------------------------------------------------------------------
 	bool Connect(std::unique_ptr<KConnection> Connection);
 	//-----------------------------------------------------------------------------
 
@@ -201,10 +186,6 @@ public:
 
 	//-----------------------------------------------------------------------------
 	bool Disconnect();
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	void SetTimeout(int iSeconds);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -294,34 +275,9 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	void RequestCompression(bool bYesNo)
-	//-----------------------------------------------------------------------------
-	{
-		m_bRequestCompression = bYesNo;
-	}
-
-	//-----------------------------------------------------------------------------
-	/// uncompress incoming response?
-	void AllowUncompression(bool bYesNo)
-	//-----------------------------------------------------------------------------
-	{
-		Response.AllowUncompression(bYesNo);
-	}
-
-	//-----------------------------------------------------------------------------
-	/// compress outgoing request?
-	void AllowCompression(bool bYesNo)
-	//-----------------------------------------------------------------------------
-	{
-		Request.AllowCompression(bYesNo);
-	}
-
-	//-----------------------------------------------------------------------------
 	/// Clear all headers, resource, and error. Keep connection
 	void clear();
 	//-----------------------------------------------------------------------------
-
-	// alternative interface
 
 	//-----------------------------------------------------------------------------
 	/// Return HTTP status code from last request
@@ -332,49 +288,100 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// Set proxy server for all subsequent connects
+	self& SetProxy(KURL Proxy)
+	//-----------------------------------------------------------------------------
+	{
+		m_Proxy = std::move(Proxy);
+		return *this;
+	}
+
+	//-----------------------------------------------------------------------------
+	/// Shall the server Certs be verified?
+	self& VerifyCerts(bool bYesNo)
+	//-----------------------------------------------------------------------------
+	{
+		m_bVerifyCerts = bYesNo;
+		return *this;
+	}
+
+	//-----------------------------------------------------------------------------
+	self& SetTimeout(int iSeconds);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	self& RequestCompression(bool bYesNo)
+	//-----------------------------------------------------------------------------
+	{
+		m_bRequestCompression = bYesNo;
+		return *this;
+	}
+
+	//-----------------------------------------------------------------------------
+	/// uncompress incoming response?
+	self& AllowUncompression(bool bYesNo)
+	//-----------------------------------------------------------------------------
+	{
+		Response.AllowUncompression(bYesNo);
+		return *this;
+	}
+
+	//-----------------------------------------------------------------------------
+	/// compress outgoing request?
+	self& AllowCompression(bool bYesNo)
+	//-----------------------------------------------------------------------------
+	{
+		Request.AllowCompression(bYesNo);
+		return *this;
+	}
+
+	//-----------------------------------------------------------------------------
 	/// Allow auto configuration of proxy server from environment variables?
-	void AutoConfigureProxy(bool bYes = true)
+	self& AutoConfigureProxy(bool bYes = true)
 	//-----------------------------------------------------------------------------
 	{
 		m_bAutoProxy = bYes;
+		return *this;
 	}
 
 	//-----------------------------------------------------------------------------
 	/// Allows to manually configure a host header that is not derived from the
 	/// connected URL
-	void ForceHostHeader(KStringView sHost)
+	self& ForceHostHeader(KStringView sHost)
 	//-----------------------------------------------------------------------------
 	{
 		m_sForcedHost = sHost;
+		return *this;
 	}
 
 	//-----------------------------------------------------------------------------
 	/// Create a derived authentication object that shall be used for authentication
-	void Authentication(std::unique_ptr<Authenticator> _Authenticator)
+	self& Authentication(std::unique_ptr<Authenticator> _Authenticator)
 	//-----------------------------------------------------------------------------
 	{
 		m_Authenticator = std::move(_Authenticator);
+		return *this;
 	}
 
 	//-----------------------------------------------------------------------------
 	/// Forces basic authentication header
-	void BasicAuthentication(KString sUsername,
-							 KString sPassword);
+	self& BasicAuthentication(KString sUsername,
+							  KString sPassword);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// Forces digest authentication header
-	void DigestAuthentication(KString sUsername,
-							  KString sPassword,
-							  KString sRealm,
-							  KString sNonce,
-							  KString sOpaque,
-							  KString sQoP = "auth");
+	self& DigestAuthentication(KString sUsername,
+							   KString sPassword,
+							   KString sRealm,
+							   KString sNonce,
+							   KString sOpaque,
+							   KString sQoP = "auth");
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// Removes previously set authentication header
-	void ClearAuthentication();
+	self& ClearAuthentication();
 	//-----------------------------------------------------------------------------
 
 //------

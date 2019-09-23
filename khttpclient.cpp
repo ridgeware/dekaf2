@@ -464,7 +464,7 @@ bool KHTTPClient::Disconnect()
 } // Disconnect
 
 //-----------------------------------------------------------------------------
-void KHTTPClient::SetTimeout(int iSeconds)
+KHTTPClient::self& KHTTPClient::SetTimeout(int iSeconds)
 //-----------------------------------------------------------------------------
 {
 	m_Timeout = iSeconds;
@@ -473,6 +473,8 @@ void KHTTPClient::SetTimeout(int iSeconds)
 	{
 		m_Connection->SetTimeout(iSeconds);
 	}
+
+	return *this;
 
 } // SetTimeout
 
@@ -574,22 +576,23 @@ bool KHTTPClient::SetRequestHeader(KStringView svName, KStringView svValue, bool
 } // RequestHeader
 
 //-----------------------------------------------------------------------------
-void KHTTPClient::BasicAuthentication(KString sUsername,
-									  KString sPassword)
+KHTTPClient::self& KHTTPClient::BasicAuthentication(KString sUsername,
+													KString sPassword)
 //-----------------------------------------------------------------------------
 {
 	m_Authenticator = std::make_unique<BasicAuthenticator>(std::move(sUsername),
 														   std::move(sPassword));
+	return *this;
 
 } // BasicAuthentication
 
 //-----------------------------------------------------------------------------
-void KHTTPClient::DigestAuthentication(KString sUsername,
-									   KString sPassword,
-									   KString sRealm,
-									   KString sNonce,
-									   KString sOpaque,
-									   KString sQoP)
+KHTTPClient::self& KHTTPClient::DigestAuthentication(KString sUsername,
+													 KString sPassword,
+													 KString sRealm,
+													 KString sNonce,
+													 KString sOpaque,
+													 KString sQoP)
 //-----------------------------------------------------------------------------
 {
 	m_Authenticator = std::make_unique<DigestAuthenticator>(std::move(sUsername),
@@ -598,14 +601,17 @@ void KHTTPClient::DigestAuthentication(KString sUsername,
 															std::move(sNonce),
 															std::move(sOpaque),
 															std::move(sQoP));
+	return *this;
 
 } // DigestAuthentication
 
 //-----------------------------------------------------------------------------
-void KHTTPClient::ClearAuthentication()
+KHTTPClient::self& KHTTPClient::ClearAuthentication()
 //-----------------------------------------------------------------------------
 {
 	Request.Headers.Remove(KHTTPHeaders::AUTHORIZATION);
+	m_Authenticator.reset();
+	return *this;
 
 } // ClearAuthentication
 

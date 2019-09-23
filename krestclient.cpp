@@ -43,14 +43,13 @@
 #include "khttperror.h"
 #include "kjson.h"
 
-using namespace dekaf2;
+namespace dekaf2 {
 
 #ifdef NDEBUG
 constexpr int iPretty = -1;
 #else
 constexpr int iPretty = 1;
 #endif
-
 
 //-----------------------------------------------------------------------------
 KRestClient::KRestClient(KURL URL, bool bVerifyCerts)
@@ -73,21 +72,88 @@ KRestClient::KRestClient(KURL URL, bool bVerifyCerts)
 } // ctor
 
 //-----------------------------------------------------------------------------
-KString KRestClient::Request(KStringView sPath, KStringView sVerb, KStringView sBody, KMIME mime)
+void KRestClient::clear()
+//-----------------------------------------------------------------------------
+{
+	m_sVerb.clear();
+	m_sPath.clear();
+	m_Query.clear();
+
+} // clear
+
+//-----------------------------------------------------------------------------
+KRestClient& KRestClient::Verb(KString sVerb)
+//-----------------------------------------------------------------------------
+{
+	m_sVerb = std::move(sVerb);
+	return *this;
+
+} // Verb
+
+//-----------------------------------------------------------------------------
+KRestClient& KRestClient::Path(KString sPath)
+//-----------------------------------------------------------------------------
+{
+	m_sPath = std::move(sPath);
+	return *this;
+
+} // Path
+
+//-----------------------------------------------------------------------------
+KRestClient& KRestClient::SetQuery(url::KQuery Query)
+//-----------------------------------------------------------------------------
+{
+	m_Query = std::move(Query);
+	return *this;
+
+} // SetQuery
+
+//-----------------------------------------------------------------------------
+KRestClient& KRestClient::AddQuery(url::KQuery Query)
+//-----------------------------------------------------------------------------
+{
+	for (auto& it : Query.get())
+	{
+		m_Query.get().Add(std::move(it.first), std::move(it.second));
+	}
+	return *this;
+
+} // AddQuery
+
+//-----------------------------------------------------------------------------
+KRestClient& KRestClient::AddQuery(KString sName, KString sValue)
+//-----------------------------------------------------------------------------
+{
+	m_Query.get().Add(std::move(sName), std::move(sValue));
+	return *this;
+
+} // AddQuery
+
+//-----------------------------------------------------------------------------
+KString KRestClient::Request (KStringView sBody, KMIME mime)
 //-----------------------------------------------------------------------------
 {
 	KURL URL { m_URL };
-	URL.Path.get() += sPath;
+	URL.Path.get() += m_sPath;
 
-	return KWebClient::HttpRequest(URL, sVerb, sBody, mime);
+	for (const auto& it : m_Query.get())
+	{
+		URL.Query.get().Add(it.first, it.second);
+	}
+
+	auto sResponse = KWebClient::HttpRequest(URL, m_sVerb, sBody, mime);
+
+	clear();
+
+	return sResponse;
 
 } // Request
 
 //-----------------------------------------------------------------------------
-KJSON KJsonRestClient::Request (KStringView sPath, KStringView sVerb, const KJSON& json)
+KJSON KJsonRestClient::Request (const KJSON& json)
 //-----------------------------------------------------------------------------
 {
-	auto sResponse = KRestClient::Request(sPath, sVerb, json.empty() ? "" : json.dump(iPretty), KMIME::JSON);
+	auto sResponse = KRestClient::Request(json.empty() ? "" : json.dump(iPretty), KMIME::JSON);
 
 	KJSON jResponse;
 	KString sError;
@@ -113,10 +179,10 @@ KJSON KJsonRestClient::Request (KStringView sPath, KStringView sVerb, const KJSO
 
 		}
 
-		throw KHTTPError { KHTTPError::H5xx_ERROR, kFormat("{} {}: {}", sVerb, sPath, sError) };
+		throw KHTTPError { KHTTPError::H5xx_ERROR, kFormat("{} {}: {}", m_sVerb, m_sPath, sError) };
 	}
 	return jResponse;
 
 } // Request
 
-
+} // end of namespace dekaf2

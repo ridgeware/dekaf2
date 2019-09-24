@@ -449,7 +449,7 @@ public:
 	bool   CommitTransaction (KStringView sOptions="");
 
 	/// helper method to form AND clauses for dynamic SQL.
-	KString FormAndClause (KStringView sDbCol, KStringView sQueryParm, uint64_t iFlags=FAC_NORMAL);
+	KString FormAndClause (KStringView sDbCol, KStringView sQueryParm, uint64_t iFlags=FAC_NORMAL, KStringView sSplitBy=",");
 
 	/// shortcut to KROW::EscapeChars that automatically adds the DBType
 	KString EscapeString (KStringView sCol)

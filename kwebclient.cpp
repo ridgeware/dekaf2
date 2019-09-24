@@ -59,6 +59,25 @@ KString KWebClient::HttpRequest (KURL URL, KStringView sRequestMethod/* = KHTTPM
 
 	uint16_t iHadRedirects = 0;
 
+	// placeholder for a web form we may generate from query parms
+	KString sWWWForm;
+
+	if (svRequestBody.empty() &&
+		!URL.Query.empty() &&
+		sRequestMethod != KHTTPMethod::GET &&
+		sRequestMethod != KHTTPMethod::OPTIONS &&
+		sRequestMethod != KHTTPMethod::HEAD &&
+		sRequestMethod != KHTTPMethod::CONNECT)
+	{
+		// we automatically create a www form as body data if there are
+		// query parms but no post data (and the method is not GET)
+		URL.Query.Serialize(sWWWForm);
+		URL.Query.clear();
+		// now point post data into the form
+		svRequestBody = sWWWForm;
+		MIME = KMIME::WWW_FORM_URLENCODED;
+	}
+
 	for(;;)
 	{
 		if (Connect(URL))

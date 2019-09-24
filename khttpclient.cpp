@@ -621,7 +621,8 @@ bool KHTTPClient::SendRequest(KStringView svPostData, KMIME Mime)
 {
 	Response.clear();
 
-	if (Request.Resource.empty() && Request.Method != KHTTPMethod::CONNECT)
+	if (Request.Resource.empty() &&
+		Request.Method != KHTTPMethod::CONNECT)
 	{
 		return SetError("no resource");
 	}
@@ -635,7 +636,8 @@ bool KHTTPClient::SendRequest(KStringView svPostData, KMIME Mime)
 		Request.Method != KHTTPMethod::OPTIONS &&
 		Request.Method != KHTTPMethod::CONNECT)
 	{
-		if (Request.Method != KHTTPMethod::GET || !svPostData.empty())
+		if (Request.Method != KHTTPMethod::GET ||
+			!svPostData.empty())
 		{
 			// We allow sending body data for GET requests as well, as a few
 			// applications expect doing so. It is not generally advisable due

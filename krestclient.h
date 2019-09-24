@@ -123,6 +123,7 @@ protected:
 }; // KRestClient
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// REST client implementation with JSON input/output
 class KJsonRestClient : public KRestClient
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {

@@ -232,6 +232,7 @@ const KRESTRoute& KRESTRoutes::FindRoute(const KRESTPath& Path, Parameters& Para
 	// check for a matching route
 	for (const auto& it : m_Routes)
 	{
+		kDebug (3, "evaluating: {} {}" , it.Method.Serialize(), it.sRoute);
 		if (it.Matches(Path, Params, true))
 		{
 			kDebug (2, "Found: {} {}" , it.Method.Serialize(), it.sRoute);

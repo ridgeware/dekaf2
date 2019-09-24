@@ -6474,6 +6474,7 @@ KString KSQL::FormAndClause (KStringView sDbCol, KStringView sQueryParm, uint64_
 {
 	KString sClause;
 
+	m_sLastError.clear();
 	if (sQueryParm.empty())
 	{
 		return sClause; // empty
@@ -6482,9 +6483,13 @@ KString KSQL::FormAndClause (KStringView sDbCol, KStringView sQueryParm, uint64_
 	if (NeedsEscape(sQueryParm))
 	{
 		// we do not expect escapable characters here
-		kWarning("possible SQL injection attempt: {}", sQueryParm);
+		kWarning ("possible SQL injection attempt: {}", sQueryParm);
+		// note: probably leave m_sLastError alone
 		return sClause; // empty
 	}
+
+	KString sLowerParm (sQueryParm);
+	sLowerParm.MakeLower();
 
 	// - - - - - - - - - - - - - - - - - - - - - - - - -
 	// BETWEEN logic:
@@ -6549,6 +6554,28 @@ KString KSQL::FormAndClause (KStringView sDbCol, KStringView sQueryParm, uint64_
 		{
 			sClause += ')'; // close paren for AND
 		}
+	}
+
+	// - - - - - - - - - - - - - - - - - - - - - - - - -
+	// full-text search using SQL tolower and like operator
+	// - - - - - - - - - - - - - - - - - - - - - - - - -
+	else if (iFlags & FAC_TEXT_CONTAINS)
+	{
+		sClause = kFormat ("   and lower({}) like '%{}%'", sDbCol, sLowerParm);
+	}
+
+	// - - - - - - - - - - - - - - - - - - - - - - - - -
+	// time intervals >= 'day', 'week', 'month' and 'year'
+	// - - - - - - - - - - - - - - - - - - - - - - - - -
+	else if (iFlags & FAC_TIME_PERIODS)
+	{
+		if (!kStrIn (sLowerParm, "minute,hour,day,week,month,quarter,year"))
+		{
+			m_sLastError.Format ("invalid time period: {}, should be one of: minute,hour,day,week,month,quarter,year", sQueryParm);
+			return sClause; // empty
+		}
+
+		sClause = kFormat ("   and {} >= date_sub(now(), interval 1 {})", sDbCol, sLowerParm);
 	}
 
 	// - - - - - - - - - - - - - - - - - - - - - - - - -

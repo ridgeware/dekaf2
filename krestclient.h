@@ -58,8 +58,8 @@ class KRestClient : private KWebClient
 public:
 //----------
 
-	using base_type = KWebClient;
 	using self = KRestClient;
+	using base = KWebClient;
 
 	/// Construct with URL to connect to, including basic REST path and basic query parms.
 	/// The individual request path will be added to the basic path, same for query parms.
@@ -79,37 +79,40 @@ public:
 	self& AddQuery  (url::KQuery Query);
 	/// Add a name/value query part to existing queries
 	self& AddQuery  (KString sName, KString sValue);
+	/// Add (overwrite) a request header to existing headers
+	self& AddHeader (KStringView sName, KStringView sValue)
+									{ base::SetRequestHeader(sName, sValue, true); return *this; }
 
 	/// Set a Get method with path to call
-	self& Get       (KString sPath) { return Path(std::move(sPath)).Verb(KHTTPMethod::GET    ); }
+	self& Get       (KString sPath) { return Path(std::move(sPath)).Verb(KHTTPMethod::GET    );  }
 	/// Set a Post method with path to call
-	self& Post      (KString sPath) { return Path(std::move(sPath)).Verb(KHTTPMethod::POST   ); }
+	self& Post      (KString sPath) { return Path(std::move(sPath)).Verb(KHTTPMethod::POST   );  }
 	/// Set a Put method with path to call
-	self& Put       (KString sPath) { return Path(std::move(sPath)).Verb(KHTTPMethod::PUT    ); }
+	self& Put       (KString sPath) { return Path(std::move(sPath)).Verb(KHTTPMethod::PUT    );  }
 	/// Set a Patch method with path to call
-	self& Patch     (KString sPath) { return Path(std::move(sPath)).Verb(KHTTPMethod::PATCH  ); }
+	self& Patch     (KString sPath) { return Path(std::move(sPath)).Verb(KHTTPMethod::PATCH  );  }
 	/// Set a Delete method with path to call
-	self& Delete    (KString sPath) { return Path(std::move(sPath)).Verb(KHTTPMethod::DELETE ); }
+	self& Delete    (KString sPath) { return Path(std::move(sPath)).Verb(KHTTPMethod::DELETE );  }
 
 	/// clear all state except the ctor parameters
 	void clear ();
 
-	using base_type::Good;
-	using base_type::HttpSuccess;
-	using base_type::HttpFailure;
-	using base_type::GetStatusCode;
-	using base_type::Error;
-	using base_type::Authentication;
-	using base_type::BasicAuthentication;
-	using base_type::DigestAuthentication;
-	using base_type::ClearAuthentication;
-	using base_type::SetRequestHeader;
-	using base_type::SetTimeout;
-	using base_type::SetProxy;
-	using base_type::AutoConfigureProxy;
-	using base_type::AllowRedirects;
-	using base_type::AllowCompression;
-	using base_type::VerifyCerts;
+	using base::Good;
+	using base::HttpSuccess;
+	using base::HttpFailure;
+	using base::GetStatusCode;
+	using base::Error;
+	using base::Authentication;
+	using base::BasicAuthentication;
+	using base::DigestAuthentication;
+	using base::ClearAuthentication;
+	using base::SetRequestHeader;
+	using base::SetTimeout;
+	using base::SetProxy;
+	using base::AutoConfigureProxy;
+	using base::AllowRedirects;
+	using base::AllowCompression;
+	using base::VerifyCerts;
 
 //----------
 protected:
@@ -170,6 +173,10 @@ public:
 	self& AddQuery (KString sName, KString sValue)
 	                                   { base::AddQuery(std::move(sName), std::move(sValue));
 										   return *this; }
+	/// Add (overwrite) a request header to existing headers
+	self& AddHeader (KStringView sName, KStringView sValue)
+									   { base::AddHeader(sName, sValue);   return *this; }
+
 	/// Set a Get method with path to call
 	self& Get      (KString sPath)     { base::Get(std::move(sPath));      return *this; }
 	/// Set a Post method with path to call

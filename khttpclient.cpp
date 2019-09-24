@@ -464,7 +464,7 @@ bool KHTTPClient::Disconnect()
 } // Disconnect
 
 //-----------------------------------------------------------------------------
-KHTTPClient::self& KHTTPClient::SetTimeout(int iSeconds)
+KHTTPClient& KHTTPClient::SetTimeout(int iSeconds)
 //-----------------------------------------------------------------------------
 {
 	m_Timeout = iSeconds;
@@ -576,8 +576,8 @@ bool KHTTPClient::SetRequestHeader(KStringView svName, KStringView svValue, bool
 } // RequestHeader
 
 //-----------------------------------------------------------------------------
-KHTTPClient::self& KHTTPClient::BasicAuthentication(KString sUsername,
-													KString sPassword)
+KHTTPClient& KHTTPClient::BasicAuthentication(KString sUsername,
+											  KString sPassword)
 //-----------------------------------------------------------------------------
 {
 	m_Authenticator = std::make_unique<BasicAuthenticator>(std::move(sUsername),
@@ -587,12 +587,12 @@ KHTTPClient::self& KHTTPClient::BasicAuthentication(KString sUsername,
 } // BasicAuthentication
 
 //-----------------------------------------------------------------------------
-KHTTPClient::self& KHTTPClient::DigestAuthentication(KString sUsername,
-													 KString sPassword,
-													 KString sRealm,
-													 KString sNonce,
-													 KString sOpaque,
-													 KString sQoP)
+KHTTPClient& KHTTPClient::DigestAuthentication(KString sUsername,
+											   KString sPassword,
+											   KString sRealm,
+											   KString sNonce,
+											   KString sOpaque,
+											   KString sQoP)
 //-----------------------------------------------------------------------------
 {
 	m_Authenticator = std::make_unique<DigestAuthenticator>(std::move(sUsername),
@@ -606,7 +606,7 @@ KHTTPClient::self& KHTTPClient::DigestAuthentication(KString sUsername,
 } // DigestAuthentication
 
 //-----------------------------------------------------------------------------
-KHTTPClient::self& KHTTPClient::ClearAuthentication()
+KHTTPClient& KHTTPClient::ClearAuthentication()
 //-----------------------------------------------------------------------------
 {
 	Request.Headers.Remove(KHTTPHeaders::AUTHORIZATION);

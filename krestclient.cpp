@@ -78,6 +78,7 @@ void KRestClient::clear()
 	m_sVerb.clear();
 	m_sPath.clear();
 	m_Query.clear();
+	base::clear();
 
 } // clear
 

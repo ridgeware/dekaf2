@@ -196,7 +196,9 @@ public:
 		FAC_NUMERIC           = 1 << 1,      /// FAC_NUMERIC: handles empty string, single number and comma-delimed numbers
 		FAC_SUBSELECT         = 1 << 2,      /// FAC_SUBSELECT: se code examples
 		FAC_BETWEEN           = 1 << 3,      /// FAC_BETWEEN: handles empty string, single number and number range with a dash
-		FAC_LIKE              = 1 << 4       /// FAC_LIKE: use LIKE operator instead of EQUALS
+		FAC_LIKE              = 1 << 4,      /// FAC_LIKE: use LIKE operator instead of EQUALS
+		FAC_TEXT_CONTAINS     = 1 << 5,      /// FAC_TEXT_CONTAINS: full-text search using SQL tolower and like operator
+		FAC_TIME_PERIODS      = 1 << 6       /// FAC_TIME_PERIODS: time intervals >= 'hour', 'day', 'week', 'month' or 'year'
 	};
 
 	const char* BAR = "--------------------------------------------------------------------------------"; // for printf() so keep this const char*

@@ -98,11 +98,17 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
-	/// parses source into members of instance
-	KStringView Parse (KStringView svSource, bool bRequiresPrefix = false)
+	/// parses source into members of instance. bAppend is only used for Query
+	/// components.
+	KStringView Parse (KStringView svSource, bool bRequiresPrefix = false, bool bAppend = false)
 	//-------------------------------------------------------------------------
 	{
-		clear();
+		if (Component != URIPart::Query || !bAppend)
+		{
+			// Query component can be appended through multiple parse runs if bAppend == true,
+			// other components can't
+			clear();
+		}
 
 		if (!svSource.empty())
 		{
@@ -428,6 +434,17 @@ public:
 	//-------------------------------------------------------------------------
 	{
 		return get();
+	}
+
+	//-------------------------------------------------------------------------
+	/// operator+=(KStringView) for the query part parses the encoded string
+	/// and appends to existing query parms
+	template<bool X = IsString, typename std::enable_if_t<!X, int> = 0 >
+	URIComponent& operator+=(KStringView sv)
+	//-------------------------------------------------------------------------
+	{
+		Parse (sv, false, true);
+		return *this;
 	}
 
 	//-------------------------------------------------------------------------

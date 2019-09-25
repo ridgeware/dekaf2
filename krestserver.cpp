@@ -664,12 +664,30 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 
 					case KRESTRoute::PLAIN:
 						// read body and store for later access
-						kDebug (2, "reading request body");
-						KHTTPServer::Read(m_sRequestBody);
-						kDebug (2, "read request body with length {} and type {}",
+						kDebug (2, "reading {} request body", "plain");
+						m_sRequestBody = KHTTPServer::Read();
+						kDebug (2, "read {} request body with length {} and type {}",
+								"plain",
 								m_sRequestBody.size(),
 								Request.Headers[KHTTPHeaders::CONTENT_TYPE]);
 						break;
+
+					case KRESTRoute::WWWFORM:
+					{
+						// read input as urlencoded www form data and append it to the
+						// received query parms in the URL
+						kDebug (2, "reading {} request body", "www form");
+						m_sRequestBody = KHTTPServer::Read();
+						kDebug (2, "read {} request body with length {} and type {}",
+								"www form",
+								m_sRequestBody.size(),
+								Request.Headers[KHTTPHeaders::CONTENT_TYPE]);
+						m_sRequestBody.Trim();
+						// operator+=() causes additive parsing for a query component
+						Request.Resource.Query += m_sRequestBody;
+					}
+					break;
+
 				}
 			}
 

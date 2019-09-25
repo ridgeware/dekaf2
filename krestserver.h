@@ -120,7 +120,7 @@ class KRESTRoute : public detail::KRESTAnalyzedPath
 public:
 //------
 
-	enum ParserType { PLAIN, JSON, XML, NOREAD };
+	enum ParserType { PLAIN, JSON, XML, WWWFORM, NOREAD };
 
 	using Function = void(*)(KRESTServer& REST);
 

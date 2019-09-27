@@ -514,7 +514,14 @@ bool KROW::AddCol (KStringView sColName, const KJSON& Value, KCOL::Flags iFlags,
 			return AddCol(sColName, Value.get<KJSON::boolean_t>(), iFlags | BOOLEAN, iMaxLen);
 
 		case KJSON::value_t::null:
-			return AddCol(sColName, "", iFlags | JSON, iMaxLen);
+			if (iFlags & KROW::NULL_IS_NOT_NIL)
+			{
+				return AddCol(sColName, "null", KROW::EXPRESSION);
+			}
+			else
+			{
+				return AddCol(sColName, "", iFlags | JSON, iMaxLen);
+			}
 
 		case KJSON::value_t::discarded:
 			kDebugLog(2, "KROW: could not identify JSON type for {}", sColName);

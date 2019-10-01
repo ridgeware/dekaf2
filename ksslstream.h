@@ -201,8 +201,7 @@ struct KAsioSSLStream
 			boost::system::error_code ignored_ec;
 			Socket.lowest_layer().close(ignored_ec);
 			Timer.expires_at(boost::posix_time::pos_infin);
-			kDebug(2, "Connection timeout ({} seconds): {}:{}",
-				   iSecondsTimeout, sEndpoint);
+			kDebug (1, "Connection timeout ({} seconds): {}", iSecondsTimeout, sEndpoint);
 		}
 
 		Timer.async_wait(boost::bind(&KAsioSSLStream<StreamType>::CheckTimer, this));

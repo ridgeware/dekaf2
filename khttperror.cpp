@@ -80,6 +80,7 @@ void KHTTPError::SetStatusString()
 		// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 		case H4xx_BADREQUEST:   sStatusString = "BAD REQUEST";            break;
 		case H4xx_FORBIDDEN:    sStatusString = "FORBIDDEN";              break;
+		case H4xx_NOTAUTH:      sStatusString = "NOT AUTHORIZED";         break;
 		case H4xx_NOTFOUND:     sStatusString = "NOT FOUND";              break;
 		case H4xx_CONFLICT:     sStatusString = "CONFLICT";               break;
 

@@ -66,6 +66,7 @@ public:
 		H2xx_ALREADY    = 292,
 
 		H4xx_BADREQUEST = 400,
+		H4xx_NOTAUTH    = 401,
 		H4xx_FORBIDDEN  = 403,
 		H4xx_NOTFOUND   = 404,
 		H4xx_CONFLICT   = 409,

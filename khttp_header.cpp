@@ -138,6 +138,7 @@ bool KHTTPHeaders::Serialize(KOutStream& Stream) const
 {
 	for (const auto& iter : Headers)
 	{
+		kDebug (2, "{}: {}", iter.first, iter.second);
 		if (!Stream.Write(iter.first)
 			|| !Stream.Write(": ")
 			|| !Stream.WriteLine(iter.second))

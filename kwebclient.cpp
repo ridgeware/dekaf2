@@ -76,6 +76,7 @@ KString KWebClient::HttpRequest (KURL URL, KStringView sRequestMethod/* = KHTTPM
 		// now point post data into the form
 		svRequestBody = sWWWForm;
 		MIME = KMIME::WWW_FORM_URLENCODED;
+		kDebug(2, "created urlencoded form body from query parms: {}", sWWWForm);
 	}
 
 	for(;;)

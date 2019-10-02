@@ -621,6 +621,12 @@ bool KHTTPClient::SendRequest(KStringView svPostData, KMIME Mime)
 {
 	Response.clear();
 
+	// remove remaining automatic headers from previous requests
+	Request.Headers.Remove(KHTTPHeaders::CONTENT_LENGTH);
+	Request.Headers.Remove(KHTTPHeaders::CONTENT_TYPE);
+
+	kDebug(2, "send {} bytes of body with mime {}", svPostData.size(), Mime);
+
 	if (Request.Resource.empty() &&
 		Request.Method != KHTTPMethod::CONNECT)
 	{

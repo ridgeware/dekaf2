@@ -739,6 +739,18 @@ void KLog::CheckDebugFlag(bool bForce/*=false*/)
 } // CheckDebugFlag
 
 //---------------------------------------------------------------------------
+void KLog::LogWithGrepExpression(bool bEGrep, bool bInverted, KString sGrepExpression)
+//---------------------------------------------------------------------------
+{
+	// change string values in multithreading only with a mutex
+	std::lock_guard<std::recursive_mutex> Lock(m_LogMutex);
+	m_bEGrep = bEGrep;
+	m_bInvertedGrep = bInverted;
+	m_sGrepExpression = sGrepExpression;
+
+} // LogWithGrepExpression
+
+//---------------------------------------------------------------------------
 bool KLog::IntDebug(int iLevel, KStringView sFunction, KStringView sMessage)
 //---------------------------------------------------------------------------
 {
@@ -809,7 +821,10 @@ bool KLog::IntDebug(int iLevel, KStringView sFunction, KStringView sMessage)
 			}
 		}
 
-		m_Logger->Write(iLevel, m_Serializer->IsMultiline(), m_Serializer->Get());
+		if (m_Serializer->Matches(m_bEGrep, m_bInvertedGrep, m_sGrepExpression))
+		{
+			m_Logger->Write(iLevel, m_Serializer->IsMultiline(), m_Serializer->Get());
+		}
 	}
 
 	if (DEKAF2_UNLIKELY(iLevel <= s_iThreadLogLevel &&
@@ -820,30 +835,11 @@ bool KLog::IntDebug(int iLevel, KStringView sFunction, KStringView sMessage)
 		{
 			// this is the individual per-thread-logging
 			s_PerThreadSerializer->Set(iLevel, m_sShortName, m_sPathName, sFunction, sMessage);
-			auto& sMessage = s_PerThreadSerializer->Get();
 
-			if (!s_sPerThreadGrepExpression.empty())
+			if (s_PerThreadSerializer->Matches(s_bPerThreadEGrep, false, s_sPerThreadGrepExpression))
 			{
-				// filter by grep expression
-				if (s_bPerThreadEGrep)
-				{
-					if (sMessage.MatchRegex(s_sPerThreadGrepExpression).empty())
-					{
-						// do not log
-						break;
-					}
-				}
-				else
-				{
-					if (!sMessage.ToLower().Contains(s_sPerThreadGrepExpression))
-					{
-						// do not log
-						break;
-					}
-				}
+				s_PerThreadWriter->Write(iLevel, s_PerThreadSerializer->IsMultiline(), s_PerThreadSerializer->Get());
 			}
-
-			s_PerThreadWriter->Write(iLevel, s_PerThreadSerializer->IsMultiline(), sMessage);
 		}
 		while (false);
 	}

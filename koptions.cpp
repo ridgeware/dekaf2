@@ -454,6 +454,29 @@ int KOptions::Execute(KOutStream& out)
 						KLog::getInstance().SetLevel (0);
 						KLog::getInstance().SetDebugLog (m_sCliDebugTo);
 					}
+					else if (it->sArg.In("dgrep,dgrepv"))
+					{
+						it->bConsumed = true;
+
+						bool bIsInverted = it->sArg == "dgrepv";
+
+						// check if we have a followup argument (the grep string)
+						if (++it == m_CLIParms.end())
+						{
+							DEKAF2_THROW(MissingParameterError("need argument (grep expression)"));
+						}
+						it->bConsumed = true;
+
+						// if no -d option has been applied yet switch to -ddd
+						if (KLog::getInstance().GetLevel() <= 0)
+						{
+							KLog::getInstance().SetLevel (3);
+							kDebug (1, "debug level set to: {}", KLog::getInstance().GetLevel());
+						}
+						KLog::getInstance().SetDebugLog (m_sCliDebugTo);
+						kDebug (1, "debug {} set to: '{}'", bIsInverted	? "egrep -v" : "egrep", it->sArg);
+						KLog::getInstance().LogWithGrepExpression(true, bIsInverted, it->sArg);
+					}
 				}
 			}
 		}

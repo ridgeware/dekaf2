@@ -76,6 +76,22 @@ int main( int argc, char* const argv[] )
 			KLog::getInstance().SetDebugLog(KLog::STDOUT);
 			kDebugLog (0, "{}: debug now set to {}", argv[ii], KLog::getInstance().GetLevel());
 		}
+		else if (kStrIn (argv[ii], "-dgrep,-dgrepv"))
+		{
+			if (ii < argc-1)
+			{
+				++iLast;
+				++ii;
+				iLast = ii;
+				// if no -d option has been applied yet switch to -ddd
+				if (KLog::getInstance().GetLevel() <= 0)
+				{
+					KLog::getInstance().SetLevel (3);
+				}
+				KLog::getInstance().SetDebugLog (KLog::STDOUT);
+				KLog::getInstance().LogWithGrepExpression(true, KStringView(argv[ii-1]) == "-dgrepv"_ksv, argv[ii]);
+			}
+		}
 
 		// part of the generic CATCH framework:
 		//   -?, -h, --help                display usage information

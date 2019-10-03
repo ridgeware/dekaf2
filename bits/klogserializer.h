@@ -113,6 +113,9 @@ public:
 	virtual operator KStringView();
 	virtual void Set(int iLevel, KStringView sShortName, KStringView sPathName, KStringView sFunction, KStringView sMessage) override;
 	bool IsMultiline() const { return m_bIsMultiline; }
+	/// returns true if either function name or message contain or do not contain (bInverted)
+	/// the grep expression
+	bool Matches(bool bEgrep, bool bInverted, KStringView sGrepExpression);
 
 //----------
 protected:

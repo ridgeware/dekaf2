@@ -126,6 +126,43 @@ void KLogSerializer::Set(int iLevel, KStringView sShortName, KStringView sPathNa
 } // Set
 
 //---------------------------------------------------------------------------
+bool KLogSerializer::Matches(bool bEgrep, bool bInverted, KStringView sGrepExpression)
+//---------------------------------------------------------------------------
+{
+	bool bMatches { true };
+
+	if (!sGrepExpression.empty())
+	{
+		if (bEgrep)
+		{
+			bMatches = !m_sFunctionName.MatchRegex(sGrepExpression).empty();
+
+			if (!bMatches)
+			{
+				bMatches = !m_sMessage.MatchRegex(sGrepExpression).empty();
+			}
+		}
+		else
+		{
+			bMatches = m_sFunctionName.ToLower().Contains(sGrepExpression);
+
+			if (!bMatches)
+			{
+				bMatches = m_sMessage.ToLower().Contains(sGrepExpression);
+			}
+		}
+
+		if (bInverted)
+		{
+			bMatches = !bMatches;
+		}
+	}
+
+	return bMatches;
+
+} // Matches
+
+//---------------------------------------------------------------------------
 void KLogTTYSerializer::AddMultiLineMessage(KStringView sPrefix, KStringView sMessage)
 //---------------------------------------------------------------------------
 {

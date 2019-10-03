@@ -392,6 +392,12 @@ public:
 	void LogThisThreadWithGrepExpression(bool bEGrep, KString sGrepExpression);
 	//---------------------------------------------------------------------------
 
+	//---------------------------------------------------------------------------
+	/// Only log messages that contain or do not contain (bInverted) the sGrepExpression
+	/// either in egrep (regular expression) modus or plain string search
+	void LogWithGrepExpression(bool bEGrep, bool bInverted, KString sGrepExpression);
+	//---------------------------------------------------------------------------
+
 	static KStringView s_sJSONSkipFiles;
 	static thread_local int s_iThreadLogLevel;
 
@@ -421,6 +427,7 @@ private:
 	KString m_sDefaultLog;
 	KString m_sDefaultFlag;
 	KString m_sLogDir;
+	KString m_sGrepExpression;
 
 	std::recursive_mutex m_LogMutex;
 
@@ -444,6 +451,8 @@ private:
 	bool m_bHadConfigFromFlagFile { false };
 	bool m_bLogIsRegularFile { false };
 	bool m_bIsCGI { false }; // we need this bool on top of m_Logmode for the constructor
+	bool m_bEGrep { false };
+	bool m_bInvertedGrep { false };
 
 	LOGMODE m_Logmode { CLI };
 

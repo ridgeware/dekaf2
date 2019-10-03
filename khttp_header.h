@@ -272,10 +272,10 @@ protected:
 //------
 
 	//-----------------------------------------------------------------------------
-	bool SetError(KStringView sError) const
+	bool SetError(KString sError) const
 	//-----------------------------------------------------------------------------
 	{
-		m_sError = sError;
+		m_sError = std::move(sError);
 		return false;
 	}
 

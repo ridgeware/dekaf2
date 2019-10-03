@@ -6536,6 +6536,10 @@ KString KSQL::FormAndClause (KStringView sDbCol, KStringView sQueryParm, uint64_
 		for (KString sOne : sQueryParm.Split(sSplitBy))
 		{
 			sOne.Replace ('*','%',/*start=*/0,/*bAll=*/true); // allow * wildcards too
+			if (!sOne.Contains ("%"))
+			{
+				sOne = kFormat ("{}{}{}", "%", sOne, "%");
+			}
 			if (sClause)
 			{
 				if (iFlags & FAC_SUBSELECT)
@@ -6543,11 +6547,11 @@ KString KSQL::FormAndClause (KStringView sDbCol, KStringView sQueryParm, uint64_
 					sClause += ')'; // needs an extra close paren
 				}
 				sClause += '\n';
-				sClause += kFormat ("    or {} like '{}'", sDbCol, sOne); // OR and no parens
+				sClause += kFormat ("    or upper({}) like upper('{}')", sDbCol, sOne); // OR and no parens
 			}
 			else
 			{
-				sClause += kFormat ("   and ({} like '{}'", sDbCol, sOne); // open paren
+				sClause += kFormat ("   and (upper({}) like upper('{}')", sDbCol, sOne); // open paren
 			}
 		}
 		if (sClause)
@@ -6589,7 +6593,14 @@ KString KSQL::FormAndClause (KStringView sDbCol, KStringView sQueryParm, uint64_
 		}
 		else if (iFlags & FAC_LIKE)
 		{
-			sClause = kFormat ("   and {} like '{}'", sDbCol, sQueryParm);
+			KString sOne (sQueryParm);
+			sOne.Replace ('*','%',/*start=*/0,/*bAll=*/true); // allow * wildcards too
+			if (!sOne.Contains ("%"))
+			{
+				sOne = kFormat ("{}{}{}", "%", sOne, "%");
+			}
+
+			sClause = kFormat ("   and upper({}) like upper('{}')", sDbCol, sOne);
 		}
 		else
 		{

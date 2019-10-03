@@ -6547,11 +6547,11 @@ KString KSQL::FormAndClause (KStringView sDbCol, KStringView sQueryParm, uint64_
 					sClause += ')'; // needs an extra close paren
 				}
 				sClause += '\n';
-				sClause += kFormat ("    or upper({}) like upper('{}')", sDbCol, sOne); // OR and no parens
+				sClause += kFormat ("    or {} like '{}'", sDbCol, sOne); // OR and no parens
 			}
 			else
 			{
-				sClause += kFormat ("   and (upper({}) like upper('{}')", sDbCol, sOne); // open paren
+				sClause += kFormat ("   and ({} like '{}'", sDbCol, sOne); // open paren
 			}
 		}
 		if (sClause)
@@ -6600,7 +6600,7 @@ KString KSQL::FormAndClause (KStringView sDbCol, KStringView sQueryParm, uint64_
 				sOne = kFormat ("{}{}{}", "%", sOne, "%");
 			}
 
-			sClause = kFormat ("   and upper({}) like upper('{}')", sDbCol, sOne);
+			sClause = kFormat ("   and {} like '{}'", sDbCol, sOne);
 		}
 		else
 		{

@@ -625,7 +625,10 @@ bool KHTTPClient::SendRequest(KStringView svPostData, KMIME Mime)
 	Request.Headers.Remove(KHTTPHeaders::CONTENT_LENGTH);
 	Request.Headers.Remove(KHTTPHeaders::CONTENT_TYPE);
 
-	kDebug(2, "send {} bytes of body with mime {}", svPostData.size(), Mime);
+	if (svPostData.size())
+	{
+		kDebug(2, "send {} bytes of body with mime '{}'", svPostData.size(), Mime);
+	}
 
 	if (Request.Resource.empty() &&
 		Request.Method != KHTTPMethod::CONNECT)
@@ -682,14 +685,8 @@ bool KHTTPClient::SendRequest(KStringView svPostData, KMIME Mime)
 
 	if (!svPostData.empty())
 	{
-		kDebug(2, "sending {} bytes of {} data", svPostData.size(), KStringView(Mime));
+		kDebug(2, "sending {} bytes of '{}' data", svPostData.size(), KStringView(Mime));
 		Request.Write(svPostData);
-		// We only need to flush if we have content data, as Request.Serialize()
-		// already flushes after the headers are written.
-		// Request.close() closes the output transformations, which flushes their
-		// pipeline into the output stream, and then calls flush() on the output
-		// stream.
-		Request.close();
 	}
 
 	if (!m_Connection->Good())
@@ -697,7 +694,7 @@ bool KHTTPClient::SendRequest(KStringView svPostData, KMIME Mime)
 		return SetError("write error");
 	}
 
-	return ReadHeaders();
+	return Parse();
 }
 
 //-----------------------------------------------------------------------------
@@ -733,23 +730,11 @@ bool KHTTPClient::Parse()
 		return false;
 	}
 
+	kDebug(2, "HTTP-{} {}", Response.GetStatusCode(), Response.GetStatusString());
+
 	return true;
 
 } // Parse
-
-//-----------------------------------------------------------------------------
-bool KHTTPClient::ReadHeaders()
-//-----------------------------------------------------------------------------
-{
-	if (!Response.Parse())
-	{
-		SetError(Response.Error());
-		return false;
-	}
-
-	return true;
-
-} // ReadHeader
 
 //-----------------------------------------------------------------------------
 bool KHTTPClient::CheckForRedirect(KURL& URL, KStringView& sRequestMethod)

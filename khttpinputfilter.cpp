@@ -51,7 +51,7 @@
 namespace dekaf2 {
 
 //-----------------------------------------------------------------------------
-bool KInHTTPFilter::Parse(const KHTTPHeaders& headers)
+bool KInHTTPFilter::Parse(const KHTTPHeaders& headers, uint16_t iStatusCode)
 //-----------------------------------------------------------------------------
 {
 	close();
@@ -61,6 +61,10 @@ bool KInHTTPFilter::Parse(const KHTTPHeaders& headers)
 	if (!sRemainingContentSize.empty())
 	{
 		m_iContentSize = sRemainingContentSize.UInt64();
+	}
+	else if (iStatusCode == 204)
+	{
+		m_iContentSize = 0;
 	}
 
 	m_bChunked = headers.Headers.Get(KHTTPHeaders::transfer_encoding) == "chunked";

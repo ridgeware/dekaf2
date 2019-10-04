@@ -135,6 +135,7 @@ public:
 	static constexpr KStringViewZ BINARY                 = "application/octet-stream";
 	static constexpr KStringViewZ JAVASCRIPT             = "application/javascript";
 	static constexpr KStringViewZ JSON                   = "application/json";
+	static constexpr KStringViewZ JSON_PATCH             = "application/json-patch+json";
 	static constexpr KStringViewZ XML                    = "application/xml";
 	static constexpr KStringViewZ SWF                    = "application/x-shockwave-flash";
 	static constexpr KStringViewZ WWW_FORM_URLENCODED    = "application/x-www-form-urlencoded";

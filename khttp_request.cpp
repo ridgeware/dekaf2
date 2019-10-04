@@ -321,7 +321,7 @@ bool KInHTTPRequest::Parse()
 //-----------------------------------------------------------------------------
 {
 	// set up the chunked reader
-	return KHTTPRequestHeaders::Parse(UnfilteredStream()) && KInHTTPFilter::Parse(*this);
+	return KHTTPRequestHeaders::Parse(UnfilteredStream()) && KInHTTPFilter::Parse(*this, 0);
 
 } // Parse
 

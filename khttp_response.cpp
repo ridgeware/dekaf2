@@ -140,7 +140,7 @@ bool KInHTTPResponse::Parse()
 //-----------------------------------------------------------------------------
 {
 	// set up the chunked reader
-	return KHTTPResponseHeaders::Parse(UnfilteredStream()) && KInHTTPFilter::Parse(*this);
+	return KHTTPResponseHeaders::Parse(UnfilteredStream()) && KInHTTPFilter::Parse(*this, iStatusCode);
 
 } // Parse
 

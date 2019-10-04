@@ -94,7 +94,7 @@ public:
 	//-----------------------------------------------------------------------------
 	/// read input configuration from existing set of headers, but do not
 	/// yet build the filter.
-	bool Parse(const KHTTPHeaders& headers);
+	bool Parse(const KHTTPHeaders& headers, uint16_t iStatusCode);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------

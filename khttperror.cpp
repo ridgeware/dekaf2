@@ -82,6 +82,7 @@ void KHTTPError::SetStatusString()
 		case H4xx_FORBIDDEN:    sStatusString = "FORBIDDEN";              break;
 		case H4xx_NOTAUTH:      sStatusString = "NOT AUTHORIZED";         break;
 		case H4xx_NOTFOUND:     sStatusString = "NOT FOUND";              break;
+		case H4xx_BADMETHOD:    sStatusString = "METHOD NOT ALLOWED";     break;
 		case H4xx_CONFLICT:     sStatusString = "CONFLICT";               break;
 
 		// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -89,6 +90,7 @@ void KHTTPError::SetStatusString()
 		// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 		case H5xx_ERROR:        sStatusString = "INTERNAL SERVER ERROR";  break;
 		case H5xx_NOTIMPL:      sStatusString = "NOT IMPLEMENTED";        break;
+		case H5xx_READTIMEOUT:  sStatusString = "NETWORK READ TIMEOUT ERROR"; break;
 
 		// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 		// FALL THROUGH: blow up with a 500 error

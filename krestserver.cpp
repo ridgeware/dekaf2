@@ -257,7 +257,7 @@ const KRESTRoute& KRESTRoutes::FindRoute(const KRESTPath& Path, Parameters& Para
 				if (it.Matches(Path, Params, false))
 				{
 					kDebug (2, "request method {} not supported for path: {}", Path.Method.Serialize(), Path.sRoute);
-					throw KHTTPError { KHTTPError::H4xx_BADREQUEST, kFormat("request method {} not supported for path: {}", Path.Method.Serialize(), Path.sRoute) };
+					throw KHTTPError { KHTTPError::H4xx_BADMETHOD, kFormat("request method {} not supported for path: {}", Path.Method.Serialize(), Path.sRoute) };
 				}
 			}
 		}

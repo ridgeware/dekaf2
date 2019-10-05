@@ -136,7 +136,7 @@ inline std::pair<InIt, OutIt> copy_n(
   return std::make_pair(b, d);
 }
 
-#if (!defined __clang__) && (__GNUC__ > 4)
+#if (!defined __clang__) && (__GNUC__ > 6)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wstringop-overflow"
 #endif
@@ -164,7 +164,7 @@ inline void podFill(Pod* b, Pod* e, T c) {
     }
   }
 }
-#if (!defined __clang__) && (__GNUC__ > 4)
+#if (!defined __clang__) && (__GNUC__ > 6)
 #pragma GCC diagnostic pop
 #endif
 

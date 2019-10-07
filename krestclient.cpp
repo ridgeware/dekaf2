@@ -151,14 +151,14 @@ KString KRestClient::Request (KStringView sBody, KMIME mime)
 } // Request
 
 //-----------------------------------------------------------------------------
-KJSON KJsonRestClient::Request (const KJSON& json)
+KJSON KJsonRestClient::Request (const KJSON& json, KMIME Mime)
 //-----------------------------------------------------------------------------
 {
 	KString sResponse;
 
 	try
 	{
-		sResponse = KRestClient::Request(json.empty() ? "" : json.dump(iPretty), KMIME::JSON);
+		sResponse = KRestClient::Request(json.empty() ? "" : json.dump(iPretty), Mime);
 	}
 	catch (const KJSON::exception& ex)
 	{

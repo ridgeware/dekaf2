@@ -85,6 +85,8 @@ public:
 
 	/// Set a Get method with path to call
 	self& Get       (KString sPath) { return Path(std::move(sPath)).Verb(KHTTPMethod::GET    );  }
+	/// Set a Head method with path to call
+	self& Head      (KString sPath) { return Path(std::move(sPath)).Verb(KHTTPMethod::HEAD   );  }
 	/// Set a Post method with path to call
 	self& Post      (KString sPath) { return Path(std::move(sPath)).Verb(KHTTPMethod::POST   );  }
 	/// Set a Put method with path to call
@@ -158,7 +160,7 @@ public:
 	}
 
 	/// Send the REST request including an eventual JSON body to the target and return the response.
-	KJSON Request  (const KJSON& json);
+	KJSON Request  (const KJSON& json = KJSON{}, KMIME = KMIME::JSON);
 
 	/// Set the 'Verb' (HTTP method) for the next request - can also be done implicitly
 	/// through one of the Get/Post/Put/Patch/Delete methods
@@ -179,6 +181,8 @@ public:
 
 	/// Set a Get method with path to call
 	self& Get      (KString sPath)     { base::Get(std::move(sPath));      return *this; }
+	/// Set a Head method with path to call
+	self& Head     (KString sPath)     { base::Head(std::move(sPath));     return *this; }
 	/// Set a Post method with path to call
 	self& Post     (KString sPath)     { base::Post(std::move(sPath));     return *this; }
 	/// Set a Put method with path to call

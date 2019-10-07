@@ -1,5 +1,5 @@
 #include <dekaf2/kstream.h>
-#include <dekaf2/khttpclient.h>
+#include <dekaf2/kwebclient.h>
 #include <dekaf2/koptions.h>
 #include <dekaf2/kstring.h>
 #include <dekaf2/kstringstream.h>
@@ -103,7 +103,7 @@ private:
 
 }; // CaseFold
 
-CaseFold CaseFold;
+class CaseFold CaseFold;
 
 constexpr uint32_t CODEPOINT_MAX = 0xFFFF;
 

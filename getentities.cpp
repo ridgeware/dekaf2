@@ -1,6 +1,6 @@
 #include <dekaf2/kjson.h>
 #include <dekaf2/kstream.h>
-#include <dekaf2/khttpclient.h>
+#include <dekaf2/kwebclient.h>
 
 
 using namespace dekaf2;

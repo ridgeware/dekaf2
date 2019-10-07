@@ -144,6 +144,25 @@ bool KInHTTPResponse::Parse()
 
 } // Parse
 
+//-----------------------------------------------------------------------------
+bool KInHTTPResponse::Fail() const
+//-----------------------------------------------------------------------------
+{
+	if (KInHTTPFilter::Fail())
+	{
+		// check if we have to set an appropriate error code, maybe
+		// we had a timeout after already receiving a bad status code
+		if (KHTTPResponseHeaders::GetStatusCode() == 0 || KHTTPResponseHeaders::Good())
+		{
+			// set a read error - we cast the const away..
+			const_cast<KInHTTPResponse*>(this)->KHTTPResponseHeaders::SetStatus(598, "NETWORK READ ERROR");
+		}
+		
+		return true;
+	}
 
+	return false;
+
+} // Fail
 
 } // end of namespace dekaf2

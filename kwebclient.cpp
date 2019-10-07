@@ -88,6 +88,11 @@ KString KWebClient::HttpRequest (KURL URL, KStringView sRequestMethod/* = KHTTPM
 				if (SendRequest (svRequestBody, MIME))
 				{
 					Read (sResponse);
+
+					if (Response.Fail())
+					{
+						break;
+					}
 				}
 			}
 		}

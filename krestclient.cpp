@@ -154,14 +154,23 @@ KString KRestClient::Request (KStringView sBody, KMIME mime)
 KJSON KJsonRestClient::Request (const KJSON& json)
 //-----------------------------------------------------------------------------
 {
-	auto sResponse = KRestClient::Request(json.empty() ? "" : json.dump(iPretty), KMIME::JSON);
+	KString sResponse;
+
+	try
+	{
+		sResponse = KRestClient::Request(json.empty() ? "" : json.dump(iPretty), KMIME::JSON);
+	}
+	catch (const KJSON::exception& ex)
+	{
+		throw KHTTPError { KHTTPError::H5xx_ERROR, kFormat("bad tx json: {}", ex.what()) };
+	}
 
 	KJSON jResponse;
 	KString sError;
 
 	if (!kjson::Parse(jResponse, sResponse, sError))
 	{
-		throw KHTTPError { KHTTPError::H5xx_ERROR, kFormat("bad json: {}", sError) };
+		throw KHTTPError { KHTTPError::H5xx_ERROR, kFormat("bad rx json: {}", sError) };
 	}
 
 	if (!Good())
@@ -171,17 +180,21 @@ KJSON KJsonRestClient::Request (const KJSON& json)
 		if (!Error().empty())
 		{
 			sError = Error();
-			sError += " - ";
 		}
 
 		if (m_ErrorCallback)
 		{
-			sError += m_ErrorCallback(jResponse);
+			if (!sError.empty())
+			{
+				sError += " - ";
+			}
 
+			sError += m_ErrorCallback(jResponse);
 		}
 
 		throw KHTTPError { KHTTPError::H5xx_ERROR, kFormat("{} {}: {}", m_sVerb, m_sPath, sError) };
 	}
+
 	return jResponse;
 
 } // Request

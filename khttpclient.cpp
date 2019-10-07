@@ -730,6 +730,10 @@ bool KHTTPClient::Parse()
 		return false;
 	}
 
+	// make sure also a network read error triggers a meaningful
+	// status code / string
+	Response.Fail();
+
 	kDebug(2, "HTTP-{} {}", Response.GetStatusCode(), Response.GetStatusString());
 
 	return true;

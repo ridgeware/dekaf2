@@ -254,6 +254,21 @@ public:
 	bool Parse();
 	//-----------------------------------------------------------------------------
 
+	//-----------------------------------------------------------------------------
+	// overwrite the KInHTTPFilter version of Fail(), we need to manipulate the
+	// status code in KHTTPResponseHeaders
+	bool Fail() const;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	// overwrite the KHTTPResponseHeaders version of Good(), we need to combine
+	// our Fail() and the Good() of KHTTPResponseHeaders
+	bool Good() const
+	//-----------------------------------------------------------------------------
+	{
+		return !Fail() && KHTTPResponseHeaders::Good();
+	}
+
 protected:
 
 	//-----------------------------------------------------------------------------

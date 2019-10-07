@@ -110,7 +110,7 @@ public:
 
 	explicit operator bool() const
 	{
-		return value() >= 300 || value() < 200;
+		return value() >= 300 && value() < 200;
 	}
 
 //----------

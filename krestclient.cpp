@@ -78,6 +78,7 @@ void KRestClient::clear()
 	m_sVerb.clear();
 	m_sPath.clear();
 	m_Query.clear();
+	m_ec = nullptr;
 	base::clear();
 
 } // clear
@@ -151,6 +152,22 @@ KString KRestClient::Request (KStringView sBody, KMIME mime)
 } // Request
 
 //-----------------------------------------------------------------------------
+KString KRestClient::ThrowOrReturn(KHTTPError&& ec)
+//-----------------------------------------------------------------------------
+{
+	if (m_ec)
+	{
+		*m_ec = std::move(ec);
+		return KString{};
+	}
+	else
+	{
+		throw std::move(ec);
+	}
+
+} // ThrowOrReturn
+
+//-----------------------------------------------------------------------------
 KJSON KJsonRestClient::Request (const KJSON& json, KMIME Mime)
 //-----------------------------------------------------------------------------
 {
@@ -162,7 +179,7 @@ KJSON KJsonRestClient::Request (const KJSON& json, KMIME Mime)
 	}
 	catch (const KJSON::exception& ex)
 	{
-		throw KHTTPError { KHTTPError::H5xx_ERROR, kFormat("bad tx json: {}", ex.what()) };
+		return ThrowOrReturn (KHTTPError { KHTTPError::H5xx_ERROR, kFormat("bad tx json: {}", ex.what()) });
 	}
 
 	KJSON jResponse;
@@ -170,7 +187,7 @@ KJSON KJsonRestClient::Request (const KJSON& json, KMIME Mime)
 
 	if (!kjson::Parse(jResponse, sResponse, sError))
 	{
-		throw KHTTPError { KHTTPError::H5xx_ERROR, kFormat("bad rx json: {}", sError) };
+		return ThrowOrReturn (KHTTPError { KHTTPError::H5xx_ERROR, kFormat("bad rx json: {}", sError) });
 	}
 
 	if (!Good())
@@ -192,7 +209,7 @@ KJSON KJsonRestClient::Request (const KJSON& json, KMIME Mime)
 			sError += m_ErrorCallback(jResponse);
 		}
 
-		throw KHTTPError { KHTTPError::H5xx_ERROR, kFormat("{} {}: {}", m_sVerb, m_sPath, sError) };
+		return ThrowOrReturn (KHTTPError { KHTTPError::H5xx_ERROR, kFormat("{} {}: {}", m_sVerb, m_sPath, sError) });
 	}
 
 	return jResponse;

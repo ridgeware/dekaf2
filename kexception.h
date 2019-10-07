@@ -49,8 +49,11 @@
 namespace dekaf2
 {
 
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class KException : public std::runtime_error
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
+
 //----------
 public:
 //----------
@@ -60,13 +63,41 @@ public:
 	{
 	}
 
-	KException(KStringViewZ sWhat)
+	KException(KStringViewZ sWhat, uint16_t iErrorCode = -1)
 	: runtime_error(sWhat.c_str())
+	, m_iErrorCode(iErrorCode)
 	{
 	}
 
-	using runtime_error::runtime_error;
-};
+	void clear()
+	{
+		*this = KException();
+	}
+
+	uint16_t value() const
+	{
+		return m_iErrorCode;
+	}
+
+	const char* message() const
+	{
+		return what();
+	}
+
+	explicit operator bool() const
+	{
+		return value() != 0;
+	}
+
+//----------
+protected:
+//----------
+
+	uint16_t m_iErrorCode { 0 };
+
+}; // KException
+
+using KError = KException;
 
 } // end of namespace dekaf2
 

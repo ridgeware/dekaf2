@@ -48,8 +48,8 @@
 namespace dekaf2 {
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-// an error to throw
-class KHTTPError : public KException
+// an error to throw or to return
+class KHTTPError : public KError
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -61,6 +61,7 @@ public:
 	{
 		H2xx_OK         = 200,  // each new code needs logic in SetStatusString()
 		H2xx_CREATED    = 201,
+		H2xx_NO_CONTENT = 204,
 		H2xx_UPDATED    = 290,
 		H2xx_DELETED    = 291,
 		H2xx_ALREADY    = 292,
@@ -81,17 +82,15 @@ public:
 	
 	template<class S1>
 	KHTTPError(uint16_t _iStatusCode, S1&& _sError)
-	: KException(std::forward<S1>(_sError))
-	, iStatusCode(_iStatusCode)
+	: KError(std::forward<S1>(_sError), _iStatusCode)
 	{
 		SetStatusString();
 	}
 
 	template<class S1, class S2>
 	KHTTPError(uint16_t _iStatusCode, S1&& _sStatusString, S2&& _sError)
-	: KException(std::forward<S2>(_sError))
-	, sStatusString(std::forward<S1>(_sStatusString))
-	, iStatusCode(_iStatusCode)
+	: KError(std::forward<S2>(_sError), _iStatusCode)
+	, m_sStatusString(std::forward<S1>(_sStatusString))
 	{
 	}
 
@@ -99,14 +98,19 @@ public:
 
 	uint16_t GetRawStatusCode() const
 	{
-		return iStatusCode;
+		return value();
 	}
 
 	uint16_t GetHTTPStatusCode() const;
 
 	const KString& GetHTTPStatusString() const
 	{
-		return sStatusString;
+		return m_sStatusString;
+	}
+
+	explicit operator bool() const
+	{
+		return value() >= 300 || value() < 200;
 	}
 
 //----------
@@ -115,8 +119,7 @@ protected:
 
 	void SetStatusString();
 
-	KString  sStatusString;
-	uint16_t iStatusCode { 0 };
+	KString m_sStatusString;
 
 }; // KHTTPError
 

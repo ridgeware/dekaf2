@@ -45,6 +45,7 @@
 #include "kstringview.h"
 #include "kwebclient.h"
 #include "kjson.h"
+#include "khttperror.h"
 
 namespace dekaf2 {
 
@@ -64,6 +65,9 @@ public:
 	/// Construct with URL to connect to, including basic REST path and basic query parms.
 	/// The individual request path will be added to the basic path, same for query parms.
 	KRestClient     (KURL URL, bool bVerifyCerts = false);
+
+	/// Register an error code object and switch off exceptions
+	self& SetError(KHTTPError& ec)  { m_ec = &ec; return *this; }
 
 	/// Send the REST request including an eventual body to the target and return the response.
 	KString Request (KStringView sBody = KStringView{}, KMIME mime = {});
@@ -120,10 +124,13 @@ public:
 protected:
 //----------
 
+	KString ThrowOrReturn(KHTTPError&& ec);
+
 	KURL m_URL;
 	KString m_sVerb;
 	KString m_sPath;
 	url::KQuery m_Query;
+	KHTTPError* m_ec { nullptr };
 
 }; // KRestClient
 
@@ -158,6 +165,9 @@ public:
 		m_ErrorCallback = ecb;
 		return *this;
 	}
+
+	/// Register an error code object and switch off exceptions
+	self& SetError(KHTTPError& ec)     { base::SetError(ec);               return *this; }
 
 	/// Send the REST request including an eventual JSON body to the target and return the response.
 	KJSON Request  (const KJSON& json = KJSON{}, KMIME = KMIME::JSON);

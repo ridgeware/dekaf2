@@ -48,7 +48,8 @@ using namespace dekaf2;
 void KHTTPError::clear()
 //-----------------------------------------------------------------------------
 {
-	*this = KHTTPError { 0, "", "" };
+	m_sStatusString.clear();
+	KError::clear();
 
 } // clear
 
@@ -58,13 +59,13 @@ uint16_t KHTTPError::GetHTTPStatusCode() const
 {
 	// We make a special exception for status codes 290..292 to
 	// differentiate the response for the various request types
-	if (iStatusCode >= 290 && iStatusCode <= 292)
+	if (value() >= 290 && value() <= 292)
 	{
-		return (iStatusCode == 292) ? 200 : 201;
+		return (value() == 292) ? 200 : 201;
 	}
 	else
 	{
-		return iStatusCode;
+		return value();
 	}
 
 } // GetHTTPStatusCode
@@ -73,30 +74,40 @@ uint16_t KHTTPError::GetHTTPStatusCode() const
 void KHTTPError::SetStatusString()
 //-----------------------------------------------------------------------------
 {
-	switch (iStatusCode)
+	switch (value())
 	{
+		// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+		// HTTP 200s: ok
+		// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+		case H2xx_OK:           m_sStatusString = "OK";                     break;
+		case H2xx_CREATED:      m_sStatusString = "CREATED";                break;
+		case H2xx_NO_CONTENT:   m_sStatusString = "NO CONTENT";             break;
+		case H2xx_UPDATED:      m_sStatusString = "UPDATED";                break;
+		case H2xx_DELETED:      m_sStatusString = "DELETED";                break;
+		case H2xx_ALREADY:      m_sStatusString = "ALREADY DONE";           break;
+
 		// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 		// HTTP 400s: client invocation problems
 		// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-		case H4xx_BADREQUEST:   sStatusString = "BAD REQUEST";            break;
-		case H4xx_FORBIDDEN:    sStatusString = "FORBIDDEN";              break;
-		case H4xx_NOTAUTH:      sStatusString = "NOT AUTHORIZED";         break;
-		case H4xx_NOTFOUND:     sStatusString = "NOT FOUND";              break;
-		case H4xx_BADMETHOD:    sStatusString = "METHOD NOT ALLOWED";     break;
-		case H4xx_CONFLICT:     sStatusString = "CONFLICT";               break;
+		case H4xx_BADREQUEST:   m_sStatusString = "BAD REQUEST";            break;
+		case H4xx_FORBIDDEN:    m_sStatusString = "FORBIDDEN";              break;
+		case H4xx_NOTAUTH:      m_sStatusString = "NOT AUTHORIZED";         break;
+		case H4xx_NOTFOUND:     m_sStatusString = "NOT FOUND";              break;
+		case H4xx_BADMETHOD:    m_sStatusString = "METHOD NOT ALLOWED";     break;
+		case H4xx_CONFLICT:     m_sStatusString = "CONFLICT";               break;
 
 		// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 		// HTTP 500s: server-side problems
 		// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-		case H5xx_ERROR:        sStatusString = "INTERNAL SERVER ERROR";  break;
-		case H5xx_NOTIMPL:      sStatusString = "NOT IMPLEMENTED";        break;
-		case H5xx_READTIMEOUT:  sStatusString = "NETWORK READ TIMEOUT ERROR"; break;
+		case H5xx_ERROR:        m_sStatusString = "INTERNAL SERVER ERROR";  break;
+		case H5xx_NOTIMPL:      m_sStatusString = "NOT IMPLEMENTED";        break;
+		case H5xx_READTIMEOUT:  m_sStatusString = "NETWORK READ TIMEOUT ERROR"; break;
 
 		// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 		// FALL THROUGH: blow up with a 500 error
 		// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-		default:                sStatusString = "INTERNAL SERVER ERROR";
-			kWarning ("BUG: called with code {}", iStatusCode);
+		default:                m_sStatusString = "INTERNAL SERVER ERROR";
+			kWarning ("BUG: called with code {}", value());
 			break;
 	}
 

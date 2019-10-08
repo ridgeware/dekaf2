@@ -143,11 +143,7 @@ KString KRestClient::NoExceptRequest (KStringView sBody, KMIME mime) noexcept
 		URL.Query.get().Add(it.first, it.second);
 	}
 
-	auto sResponse = KWebClient::HttpRequest(URL, m_sVerb, sBody, mime);
-
-	clear();
-
-	return sResponse;
+	return KWebClient::HttpRequest(URL, m_sVerb, sBody, mime);
 
 } // NoExceptRequest
 
@@ -168,6 +164,8 @@ KString KRestClient::Request (KStringView sBody, KMIME mime)
 
 		return ThrowOrReturn (KHTTPError { GetStatusCode(), kFormat("{} {}: HTTP-{} {}", m_sVerb, m_sPath, GetStatusCode(), sError) }, std::move(sResponse));
 	}
+
+	clear();
 
 	return sResponse;
 
@@ -233,6 +231,8 @@ KJSON KJsonRestClient::Request (const KJSON& json, KMIME Mime)
 
 		return ThrowOrReturn (KHTTPError { GetStatusCode(), kFormat("{} {}: HTTP-{} {}", m_sVerb, m_sPath, GetStatusCode(), sError) }, std::move(jResponse));
 	}
+
+	clear();
 
 	return jResponse;
 

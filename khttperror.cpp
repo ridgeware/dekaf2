@@ -76,7 +76,10 @@ void KHTTPError::SetStatusString()
 {
 	switch (value())
 	{
-		// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+		// reset
+		case 0: m_sStatusString.clear();
+
+			// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 		// HTTP 200s: ok
 		// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 		case H2xx_OK:           m_sStatusString = "OK";                     break;

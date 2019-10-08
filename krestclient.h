@@ -66,11 +66,16 @@ public:
 	/// The individual request path will be added to the basic path, same for query parms.
 	KRestClient     (KURL URL, bool bVerifyCerts = false);
 
-	/// Register an error code object and switch off exceptions
-	self& SetError(KHTTPError& ec)  { m_ec = &ec; return *this; }
+	/// Register an error code object and switch off exceptions - this setting is only valid
+	/// for the next request
+	self& SetError  (KHTTPError& ec) { m_ec = &ec; return *this;                                 }
 
-	/// Send the REST request including an eventual body to the target and return the response.
-	KString Request (KStringView sBody = KStringView{}, KMIME mime = {});
+	/// Send the REST request including body to the target and return the response.
+	/// Throws or sets error object for non-200 responses.
+	KString Request (KStringView sBody, KMIME mime);
+	/// Send the REST request without body to the target and return the response.
+	/// Throws or sets error object for non-200 responses.
+	KString Request ()              { return Request(KStringView{}, KMIME{});                    }
 
 	/// Set the 'Verb' (HTTP method) for the next request - can also be done implicitly
 	/// through one of the Get/Post/Put/Patch/Delete methods
@@ -124,7 +129,12 @@ public:
 protected:
 //----------
 
-	KString ThrowOrReturn(KHTTPError&& ec);
+	/// Send the REST request including an eventual body to the target and return the response.
+	/// Does not throw
+	KString NoExceptRequest (KStringView sBody, KMIME mime) noexcept;
+	/// Throws the error if no error object is set, otherwise sets the error object and
+	/// returns the retval
+	KString ThrowOrReturn (KHTTPError&& ec, KString&& retval = KString{});
 
 	KURL m_URL;
 	KString m_sVerb;
@@ -166,10 +176,12 @@ public:
 		return *this;
 	}
 
-	/// Register an error code object and switch off exceptions
-	self& SetError(KHTTPError& ec)     { base::SetError(ec);               return *this; }
+	/// Register an error code object and switch off exceptions - this setting is only valid
+	/// for the next request
+	self& SetError (KHTTPError& ec)    { base::SetError(ec);               return *this; }
 
 	/// Send the REST request including an eventual JSON body to the target and return the response.
+	/// Throws or sets error object for non-200 responses.
 	KJSON Request  (const KJSON& json = KJSON{}, KMIME = KMIME::JSON);
 
 	/// Set the 'Verb' (HTTP method) for the next request - can also be done implicitly
@@ -201,6 +213,14 @@ public:
 	self& Patch    (KString sPath)     { base::Patch(std::move(sPath));    return *this; }
 	/// Set a Delete method with path to call
 	self& Delete   (KString sPath)     { base::Delete(std::move(sPath));   return *this; }
+
+//----------
+protected:
+//----------
+
+	/// Throws the error if no error object is set, otherwise sets the error object and
+	/// returns the retval
+	KJSON ThrowOrReturn (KHTTPError&& ec, KJSON&& retval = KJSON{});
 
 //----------
 private:

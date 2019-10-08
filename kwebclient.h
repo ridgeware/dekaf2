@@ -103,10 +103,10 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Deletes URL, store response body in return value KString
-	KString Delete(KURL URL, KStringView svRequestBody)
+	KString Delete(KURL URL, KStringView svRequestBody = KStringView{}, KMIME MIME = KMIME{})
 	//-----------------------------------------------------------------------------
 	{
-		return HttpRequest (std::move(URL), KHTTPMethod::DELETE, svRequestBody, {});
+		return HttpRequest (std::move(URL), KHTTPMethod::DELETE, svRequestBody, MIME);
 	}
 
 	//-----------------------------------------------------------------------------
@@ -128,12 +128,11 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	/// Patch URL - returns true if response is in the 2xx range
-	bool Patch(KURL URL, KStringView svRequestBody, KMIME MIME)
+	/// Patch URL - store response body in return value KString
+	KString Patch(KURL URL, KStringView svRequestBody, KMIME MIME)
 	//-----------------------------------------------------------------------------
 	{
-		HttpRequest (std::move(URL), KHTTPMethod::PATCH, svRequestBody, MIME);
-		return HttpSuccess();
+		return HttpRequest (std::move(URL), KHTTPMethod::PATCH, svRequestBody, MIME);
 	}
 
 	//-----------------------------------------------------------------------------

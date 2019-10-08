@@ -41,7 +41,7 @@
 #pragma once
 
 /// @file kexceptions.h
-/// provides basic dekaf2 exception class
+/// provides basic dekaf2 exception / error class
 
 #include <exception>
 #include "kstringview.h"
@@ -50,6 +50,8 @@ namespace dekaf2
 {
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// Basic dekaf2 exception class inheriting from std::runtime_error, and adding
+/// a uint16_t error code. Can also be used for error returns.
 class KException : public std::runtime_error
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -63,27 +65,32 @@ public:
 	{
 	}
 
+	/// constructs with error message and error code (default UINT16_MAX)
 	KException(KStringViewZ sWhat, uint16_t iErrorCode = -1)
 	: runtime_error(sWhat.c_str())
 	, m_iErrorCode(iErrorCode)
 	{
 	}
 
+	/// clears state and resets error code to 0
 	void clear()
 	{
 		*this = KException();
 	}
 
+	/// returns error code
 	uint16_t value() const
 	{
 		return m_iErrorCode;
 	}
 
+	/// returns error message, alias for what()
 	const char* message() const
 	{
 		return what();
 	}
 
+	/// returns true when state is an error
 	explicit operator bool() const
 	{
 		return value() != 0;
@@ -97,6 +104,7 @@ protected:
 
 }; // KException
 
+/// Alias for KException
 using KError = KException;
 
 } // end of namespace dekaf2

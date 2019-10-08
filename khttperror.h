@@ -41,6 +41,10 @@
 
 #pragma once
 
+/// @file khttperror.h
+/// provides HTTP exception / error class
+
+
 #include "kstring.h"
 #include "kstringview.h"
 #include "kexception.h"
@@ -48,7 +52,7 @@
 namespace dekaf2 {
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-// an error to throw or to return
+/// A HTTP error to throw or to return
 class KHTTPError : public KError
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -94,20 +98,28 @@ public:
 	{
 	}
 
+	/// clears state (and resets status code to 0)
 	void clear();
 
+	/// our internal status code that makes a difference for
+	/// UPDATED / DELETED / ALREADY DONE, but maps those
+	/// onto OK / CREATED
 	uint16_t GetRawStatusCode() const
 	{
 		return value();
 	}
 
+	/// maps UPDATED / DELETED / ALREADY DONE onto OK / CREATED,
+	/// returns all other verbatim
 	uint16_t GetHTTPStatusCode() const;
 
+	/// returns the fixed status string
 	const KString& GetHTTPStatusString() const
 	{
 		return m_sStatusString;
 	}
 
+	/// returns true when state is an error
 	explicit operator bool() const
 	{
 		return value() >= 300 && value() < 200;
@@ -117,6 +129,7 @@ public:
 protected:
 //----------
 
+	/// sets the status string depending on the status code
 	void SetStatusString();
 
 	KString m_sStatusString;

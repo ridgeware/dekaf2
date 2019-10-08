@@ -132,7 +132,7 @@ KRestClient& KRestClient::AddQuery(KString sName, KString sValue)
 } // AddQuery
 
 //-----------------------------------------------------------------------------
-KString KRestClient::Request (KStringView sBody, KMIME mime)
+KString KRestClient::NoExceptRequest (KStringView sBody, KMIME mime) noexcept
 //-----------------------------------------------------------------------------
 {
 	KURL URL { m_URL };
@@ -149,16 +149,38 @@ KString KRestClient::Request (KStringView sBody, KMIME mime)
 
 	return sResponse;
 
+} // NoExceptRequest
+
+//-----------------------------------------------------------------------------
+KString KRestClient::Request (KStringView sBody, KMIME mime)
+//-----------------------------------------------------------------------------
+{
+	auto sResponse = NoExceptRequest(sBody, mime);
+
+	if (!HttpSuccess())
+	{
+		KString sError;
+
+		if (!Error().empty())
+		{
+			sError = Error();
+		}
+
+		return ThrowOrReturn (KHTTPError { GetStatusCode(), kFormat("{} {}: HTTP-{} {}", m_sVerb, m_sPath, GetStatusCode(), sError) }, std::move(sResponse));
+	}
+
+	return sResponse;
+
 } // Request
 
 //-----------------------------------------------------------------------------
-KString KRestClient::ThrowOrReturn(KHTTPError&& ec)
+KString KRestClient::ThrowOrReturn(KHTTPError&& ec, KString&& retval)
 //-----------------------------------------------------------------------------
 {
 	if (m_ec)
 	{
 		*m_ec = std::move(ec);
-		return KString{};
+		return std::move(retval);
 	}
 	else
 	{
@@ -175,7 +197,7 @@ KJSON KJsonRestClient::Request (const KJSON& json, KMIME Mime)
 
 	try
 	{
-		sResponse = KRestClient::Request(json.empty() ? "" : json.dump(iPretty), Mime);
+		sResponse = KRestClient::NoExceptRequest(json.empty() ? "" : json.dump(iPretty), Mime);
 	}
 	catch (const KJSON::exception& ex)
 	{
@@ -190,7 +212,7 @@ KJSON KJsonRestClient::Request (const KJSON& json, KMIME Mime)
 		return ThrowOrReturn (KHTTPError { KHTTPError::H5xx_ERROR, kFormat("bad rx json: {}", sError) });
 	}
 
-	if (!Good())
+	if (!HttpSuccess())
 	{
 		KString sError;
 
@@ -209,11 +231,27 @@ KJSON KJsonRestClient::Request (const KJSON& json, KMIME Mime)
 			sError += m_ErrorCallback(jResponse);
 		}
 
-		return ThrowOrReturn (KHTTPError { KHTTPError::H5xx_ERROR, kFormat("{} {}: {}", m_sVerb, m_sPath, sError) });
+		return ThrowOrReturn (KHTTPError { GetStatusCode(), kFormat("{} {}: HTTP-{} {}", m_sVerb, m_sPath, GetStatusCode(), sError) }, std::move(jResponse));
 	}
 
 	return jResponse;
 
 } // Request
+
+//-----------------------------------------------------------------------------
+KJSON KJsonRestClient::ThrowOrReturn(KHTTPError&& ec, KJSON&& retval)
+//-----------------------------------------------------------------------------
+{
+	if (m_ec)
+	{
+		*m_ec = std::move(ec);
+		return std::move(retval);
+	}
+	else
+	{
+		throw std::move(ec);
+	}
+
+} // ThrowOrReturn
 
 } // end of namespace dekaf2

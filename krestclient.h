@@ -105,7 +105,8 @@ public:
 	/// Set a Delete method with path to call
 	self& Delete    (KString sPath) { return Path(std::move(sPath)).Verb(KHTTPMethod::DELETE );  }
 
-	/// clear all state except the ctor parameters
+	/// clear all state except the ctor parameters - will be called automatically after a
+	/// Request() and before the next setup of a request
 	void clear ();
 
 	using base::Good;
@@ -135,12 +136,15 @@ protected:
 	/// Throws the error if no error object is set, otherwise sets the error object and
 	/// returns the retval
 	KString ThrowOrReturn (KHTTPError&& ec, KString&& retval = KString{});
+	/// Calls clear once after a Request() to reset all state and setup except from ctor
+	void ResetAfterRequest();
 
 	KURL m_URL;
 	KString m_sVerb;
 	KString m_sPath;
 	url::KQuery m_Query;
 	KHTTPError* m_ec { nullptr };
+	bool m_bNeedReset { false };
 
 }; // KRestClient
 

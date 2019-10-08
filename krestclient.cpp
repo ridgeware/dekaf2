@@ -79,14 +79,26 @@ void KRestClient::clear()
 	m_sPath.clear();
 	m_Query.clear();
 	m_ec = nullptr;
+	m_bNeedReset = false;
 	base::clear();
 
 } // clear
 
 //-----------------------------------------------------------------------------
+void KRestClient::ResetAfterRequest()
+//-----------------------------------------------------------------------------
+{
+	if (m_bNeedReset)
+	{
+		clear();
+	}
+}
+
+//-----------------------------------------------------------------------------
 KRestClient& KRestClient::Verb(KString sVerb)
 //-----------------------------------------------------------------------------
 {
+	ResetAfterRequest();
 	m_sVerb = std::move(sVerb);
 	return *this;
 
@@ -96,6 +108,7 @@ KRestClient& KRestClient::Verb(KString sVerb)
 KRestClient& KRestClient::Path(KString sPath)
 //-----------------------------------------------------------------------------
 {
+	ResetAfterRequest();
 	m_sPath = std::move(sPath);
 	return *this;
 
@@ -105,6 +118,7 @@ KRestClient& KRestClient::Path(KString sPath)
 KRestClient& KRestClient::SetQuery(url::KQuery Query)
 //-----------------------------------------------------------------------------
 {
+	ResetAfterRequest();
 	m_Query = std::move(Query);
 	return *this;
 
@@ -114,6 +128,7 @@ KRestClient& KRestClient::SetQuery(url::KQuery Query)
 KRestClient& KRestClient::AddQuery(url::KQuery Query)
 //-----------------------------------------------------------------------------
 {
+	ResetAfterRequest();
 	for (auto& it : Query.get())
 	{
 		m_Query.get().Add(std::move(it.first), std::move(it.second));
@@ -126,6 +141,7 @@ KRestClient& KRestClient::AddQuery(url::KQuery Query)
 KRestClient& KRestClient::AddQuery(KString sName, KString sValue)
 //-----------------------------------------------------------------------------
 {
+	ResetAfterRequest();
 	m_Query.get().Add(std::move(sName), std::move(sValue));
 	return *this;
 
@@ -142,6 +158,8 @@ KString KRestClient::NoExceptRequest (KStringView sBody, KMIME mime) noexcept
 	{
 		URL.Query.get().Add(it.first, it.second);
 	}
+
+	m_bNeedReset = true;
 
 	return KWebClient::HttpRequest(URL, m_sVerb, sBody, mime);
 
@@ -164,8 +182,6 @@ KString KRestClient::Request (KStringView sBody, KMIME mime)
 
 		return ThrowOrReturn (KHTTPError { GetStatusCode(), kFormat("{} {}: HTTP-{} {}", m_sVerb, m_sPath, GetStatusCode(), sError) }, std::move(sResponse));
 	}
-
-	clear();
 
 	return sResponse;
 

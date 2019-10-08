@@ -89,8 +89,7 @@ public:
 	/// Add a name/value query part to existing queries
 	self& AddQuery  (KString sName, KString sValue);
 	/// Add (overwrite) a request header to existing headers
-	self& AddHeader (KStringView sName, KStringView sValue)
-									{ base::SetRequestHeader(sName, sValue, true); return *this; }
+	self& AddHeader (KStringView sName, KStringView sValue);
 
 	/// Set a Get method with path to call
 	self& Get       (KString sPath) { return Path(std::move(sPath)).Verb(KHTTPMethod::GET    );  }

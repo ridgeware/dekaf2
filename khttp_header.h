@@ -272,12 +272,8 @@ protected:
 //------
 
 	//-----------------------------------------------------------------------------
-	bool SetError(KString sError) const
+	bool SetError(KString sError) const;
 	//-----------------------------------------------------------------------------
-	{
-		m_sError = std::move(sError);
-		return false;
-	}
 
 	//-----------------------------------------------------------------------------
 	void SplitContentType() const;

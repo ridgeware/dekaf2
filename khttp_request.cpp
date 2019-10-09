@@ -82,19 +82,19 @@ bool KHTTPRequestHeaders::Parse(KInStream& Stream)
 	if (Words.size() != 3)
 	{
 		// garbage, bail out
-		kDebug (1, "first line (status) of HTTP header is invalid: {} words instead of 3", Words.size());
 		kDebug (2, "{}", sLine);
-		return SetError("invalid status line of HTTP header [1]");
+		return SetError(kFormat("invalid status line of HTTP header: {} words instead of 3", Words.size()));
 	}
 
 	Method = Words[0];
 	Resource = Words[1];
 	sHTTPVersion = Words[2];
 
+	kDebug(2, "{} {} {}", Words[0], Words[1], Words[2]);
+
 	if (!sHTTPVersion.starts_with("HTTP/"))
 	{
-		kDebug (1, "first line (status) of HTTP header is invalid: expected 'HTTP/' not '{}'", sHTTPVersion);
-		return SetError("invalid status line of HTTP header [2]");
+		return SetError(kFormat("invalid status line of HTTP header: expected 'HTTP/' not '{}'", sHTTPVersion));
 	}
 
 	return KHTTPHeaders::Parse(Stream);
@@ -187,7 +187,7 @@ KString KHTTPRequestHeaders::GetBrowserIP() const
 
 	{
 		// check the Forwarded: header
-		auto sHeader = Headers.Get(KHTTPHeaders::forwarded).ToLower();
+		auto sHeader = Headers.Get(KHTTPHeaders::forwarded).ToLowerASCII();
 		if (!sHeader.empty())
 		{
 			auto iStart = sHeader.find("for=");

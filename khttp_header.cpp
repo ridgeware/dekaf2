@@ -77,8 +77,7 @@ bool KHTTPHeaders::Parse(KInStream& Stream)
 		}
 		else if (sLine.size() > MAX_LINELENGTH)
 		{
-			kDebug(1, "Header line too long: {} bytes", sLine.size());
-			return SetError("HTTP header line too long");
+			return SetError(kFormat("HTTP header line too long: {} bytes", sLine.size()));
 		}
 
 		if (!KASCII::kIsAlpha(sLine.front()))
@@ -91,9 +90,8 @@ bool KHTTPHeaders::Parse(KInStream& Stream)
 				{
 					if (last->second.size() + sLine.size() > MAX_LINELENGTH)
 					{
-						kDebug(1, "Continuation header line too long: {} bytes",
-								  last->second.size() + sLine.size());
-						return SetError("HTTP header line too long");
+						return SetError(kFormat("HTTP continuation header line too long: {} bytes",
+												last->second.size() + sLine.size()));
 					}
 					last->second += ' ';
 					last->second += sLine;
@@ -111,7 +109,7 @@ bool KHTTPHeaders::Parse(KInStream& Stream)
 
 		if (pos == npos)
 		{
-			// drop invalid header
+			kDebug(2, "dropping invalid header: {}", sLine);
 			continue;
 		}
 
@@ -124,8 +122,6 @@ bool KHTTPHeaders::Parse(KInStream& Stream)
 		last = Headers.Add(sKey, sValue);
 
 	}
-
-	kDebug (1, "never found double newline to end headers");
 
 	return SetError("HTTP header did not end with empty line");
 
@@ -182,7 +178,7 @@ bool KHTTPHeaders::HasContent() const
 
 	if (iSize < 0)
 	{
-		if (Headers.Get(KHTTPHeaders::transfer_encoding) == "chunked")
+		if (Headers.Get(KHTTPHeaders::transfer_encoding).ToLowerASCII() == "chunked")
 		{
 			return true;
 		}
@@ -302,6 +298,16 @@ bool KHTTPHeaders::HasKeepAlive() const
 	}
 
 } // HasKeepAlive
+
+//-----------------------------------------------------------------------------
+bool KHTTPHeaders::SetError(KString sError) const
+//-----------------------------------------------------------------------------
+{
+	kDebug(1, "{}", sError);
+	m_sError = std::move(sError);
+	return false;
+
+} // SetError
 
 #ifdef DEKAF2_REPEAT_CONSTEXPR_VARIABLE
 

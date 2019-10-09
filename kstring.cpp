@@ -749,7 +749,7 @@ KString& KString::MakeLowerLocale()
 	}
 	return *this;
 
-} // MakeLower
+} // MakeLowerLocale
 
 //----------------------------------------------------------------------
 KString& KString::MakeUpperLocale()
@@ -761,7 +761,31 @@ KString& KString::MakeUpperLocale()
 	}
 	return *this;
 
-} // MakeUpper
+} // MakeUpperLocale
+
+//----------------------------------------------------------------------
+KString& KString::MakeLowerASCII()
+//----------------------------------------------------------------------
+{
+	for (auto& it : m_rep)
+	{
+		it = KASCII::kToLower(it);
+	}
+	return *this;
+
+} // MakeLowerASCII
+
+//----------------------------------------------------------------------
+KString& KString::MakeUpperASCII()
+//----------------------------------------------------------------------
+{
+	for (auto& it : m_rep)
+	{
+		it = KASCII::kToUpper(it);
+	}
+	return *this;
+
+} // MakeUpperASCII
 
 //----------------------------------------------------------------------
 KString& KString::PadLeft(size_t iWidth, value_type chPad)
@@ -1050,6 +1074,36 @@ KString kToLowerLocale(KStringView sInput)
 	for (const auto& it : sInput)
 	{
 		sTransformed += static_cast<KString::value_type>(std::tolower(static_cast<unsigned char>(it)));
+	}
+
+	return sTransformed;
+}
+
+//----------------------------------------------------------------------
+KString kToUpperASCII(KStringView sInput)
+//----------------------------------------------------------------------
+{
+	KString sTransformed;
+	sTransformed.reserve(sInput.size());
+
+	for (const auto& it : sInput)
+	{
+		sTransformed += KASCII::kToUpper(it);
+	}
+
+	return sTransformed;
+}
+
+//----------------------------------------------------------------------
+KString kToLowerASCII(KStringView sInput)
+//----------------------------------------------------------------------
+{
+	KString sTransformed;
+	sTransformed.reserve(sInput.size());
+
+	for (const auto& it : sInput)
+	{
+		sTransformed += KASCII::kToLower(it);
 	}
 
 	return sTransformed;

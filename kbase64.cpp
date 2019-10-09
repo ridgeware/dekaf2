@@ -52,12 +52,13 @@
 namespace dekaf2 {
 
 //-----------------------------------------------------------------------------
-KString KBase64::Encode(KStringView sInput)
+KString KBase64::Encode(KStringView sInput, bool bWithLinebreaks)
 //-----------------------------------------------------------------------------
 {
 	using namespace boost::archive::iterators;
 	using iterator_type = KStringView::const_iterator;
-	using base64_enc    = insert_linebreaks<base64_from_binary<transform_width<iterator_type, 6, 8> >, 76>;
+	using base64_enc_lf = insert_linebreaks<base64_from_binary<transform_width<iterator_type, 6, 8> >, 76>;
+	using base64_enc    = base64_from_binary<transform_width<iterator_type, 6, 8> >;
 
 	KString out;
 
@@ -69,7 +70,14 @@ KString KBase64::Encode(KStringView sInput)
 	out.reserve(iSize);
 
 	// transform to base64
-	out.assign(base64_enc(sInput.begin()), base64_enc(sInput.end()));
+	if (bWithLinebreaks)
+	{
+		out.assign(base64_enc_lf(sInput.begin()), base64_enc_lf(sInput.end()));
+	}
+	else
+	{
+		out.assign(base64_enc(sInput.begin()), base64_enc(sInput.end()));
+	}
 
 	// append the padding
 	out.append((3 - sInput.size() % 3) % 3, '=');

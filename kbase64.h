@@ -59,7 +59,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Encode as base64, linebreaks, padding
-	static KString Encode(KStringView sInput);
+	static KString Encode(KStringView sInput, bool bWithLinebreaks = true);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------

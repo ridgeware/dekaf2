@@ -66,7 +66,7 @@ const KString& KHTTPClient::BasicAuthenticator::GetAuthHeader(const KOutHTTPRequ
 	if (sResponse.empty())
 	{
 		sResponse = "Basic ";
-		sResponse += KBase64::Encode(sUsername + ":" + sPassword);
+		sResponse += KBase64::Encode(sUsername + ":" + sPassword, false /* == no linebreaks */);
 	}
 	return sResponse;
 

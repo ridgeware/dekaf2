@@ -307,7 +307,7 @@ void KRESTServer::VerifyAuthentication(const Options& Options)
 		case Options::ALLOW_ALL_WITH_AUTH_HEADER:
 			if (Request.Headers[KHTTPHeaders::AUTHORIZATION].empty())
 			{
-				throw KHTTPError { KHTTPError::H4xx_BADREQUEST, "no authorization" };
+				throw KHTTPError { KHTTPError::H4xx_NOTAUTH, "no authorization" };
 			}
 			break;
 

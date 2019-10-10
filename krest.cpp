@@ -40,57 +40,11 @@
 */
 
 #include "krest.h"
-#include "ktcpserver.h"
 #include "kcgistream.h"
 #include "klambdastream.h"
 #include "kfilesystem.h"
 
 namespace dekaf2 {
-
-namespace detail {
-
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class RESTServer : public KTCPServer
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-{
-
-//----------
-public:
-//----------
-
-	//-----------------------------------------------------------------------------
-	template<typename... Args>
-	RESTServer(const KREST::Options& Options, const KRESTRoutes& Routes, Args&&... args)
-	//-----------------------------------------------------------------------------
-		: KTCPServer(std::forward<Args>(args)...)
-		, m_Options(Options)
-		, m_Routes(Routes)
-	{
-	}
-
-	//-----------------------------------------------------------------------------
-	void Session (KStream& Stream, KStringView sRemoteEndpoint) override final
-	//-----------------------------------------------------------------------------
-	{
-		KRESTServer Request;
-
-		Request.Accept(Stream, sRemoteEndpoint);
-		Request.Execute(m_Options, m_Routes);
-		Request.Disconnect();
-
-	} // Session
-
-
-//----------
-protected:
-//----------
-
-	const KREST::Options& m_Options;
-	const KRESTRoutes& m_Routes;
-
-}; // RESTServer
-
-} // end of namespace detail
 
 //-----------------------------------------------------------------------------
 bool KREST::RealExecute(const Options& Options, const KRESTRoutes& Routes, KStream& Stream, KStringView sRemoteIP)
@@ -140,20 +94,20 @@ bool KREST::ExecuteRequest(const Options& Options, const KRESTRoutes& Routes)
 					}
 				}
 
-				if (!detail::RESTServer::IsPortAvailable(Options.iPort))
+				if (!RESTServer::IsPortAvailable(Options.iPort))
 				{
 					return SetError(kFormat("port {} is in use - abort", Options.iPort));
 				}
 
 				kDebug(1, "starting standalone {} server on port {}...", bUseTLS ? "HTTPS" : "HTTP", Options.iPort);
 				Options.Out = KRESTServer::HTTP;
-				detail::RESTServer Server(Options, Routes, Options.iPort, bUseTLS, Options.iMaxConnections);
+				m_Server = std::make_unique<RESTServer>(Options, Routes, Options.iPort, bUseTLS, Options.iMaxConnections);
 				if (bUseTLS)
 				{
-					Server.SetSSLCertificates(Options.sCert, Options.sKey);
+					m_Server->SetSSLCertificates(Options.sCert, Options.sKey);
 				}
-				Server.RegisterShutdownWithSignal(Options.iRegisterSignalForShutdown);
-				Server.Start(Options.iTimeout, true);
+				m_Server->RegisterShutdownWithSignal(Options.iRegisterSignalForShutdown);
+				m_Server->Start(Options.iTimeout, Options.bBlocking);
 				return true;
 			}
 
@@ -163,9 +117,9 @@ bool KREST::ExecuteRequest(const Options& Options, const KRESTRoutes& Routes)
 				KLog::getInstance().SetMode(KLog::SERVER);
 				kDebug(1, "starting standalone HTTP server on socket file {}...", Options.sSocketFile);
 				Options.Out = KRESTServer::HTTP;
-				detail::RESTServer Server(Options, Routes, Options.sSocketFile, Options.iMaxConnections);
-				Server.RegisterShutdownWithSignal(Options.iRegisterSignalForShutdown);
-				Server.Start(Options.iTimeout, true);
+				m_Server = std::make_unique<RESTServer>(Options, Routes, Options.sSocketFile, Options.iMaxConnections);
+				m_Server->RegisterShutdownWithSignal(Options.iRegisterSignalForShutdown);
+				m_Server->Start(Options.iTimeout, Options.bBlocking);
 				return true;
 			}
 #endif

@@ -54,7 +54,7 @@ bool stdstring_supports_cow()
 
 int main( int argc, char* const argv[] )
 {
-	dekaf2::kInit("DEKAF", "", "/tmp/unittest.dbg", false, true, false);
+	dekaf2::kInit("DEKAF", "", "/tmp/unittest.dbg", false, true, true);
 	KLog::getInstance().OnlyShowCallerOnJsonError(true);
 
 	bool bSynopsis{false};
@@ -123,7 +123,6 @@ int main( int argc, char* const argv[] )
 
 	if (bSynopsis)
 	{
-		KOutStream out(std::cout);
 		for (unsigned long jj=0; jj < std::extent<decltype(g_Synopsis)>::value; ++jj)
 		{
 			KOut.WriteLine (g_Synopsis[jj]);

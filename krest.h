@@ -42,6 +42,7 @@
 #pragma once
 
 #include "krestserver.h"
+#include "ktcpserver.h"
 #include <csignal>
 
 /// @file krest.h
@@ -99,6 +100,8 @@ public:
 		/// unix socket file to listen
 		KStringViewZ sSocketFile;
 #endif
+		/// start as blocking server in same thread or unblocking in separate thread
+		bool bBlocking { true };
 		/// the PEM certificate
 		KStringViewZ sCert;
 		/// the PEM private key
@@ -132,7 +135,49 @@ protected:
 private:
 //----------
 
+	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	class RESTServer : public KTCPServer
+	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	{
+
+	//----------
+	public:
+	//----------
+
+		//-----------------------------------------------------------------------------
+		template<typename... Args>
+		RESTServer(const KREST::Options& Options, const KRESTRoutes& Routes, Args&&... args)
+		//-----------------------------------------------------------------------------
+			: KTCPServer(std::forward<Args>(args)...)
+			, m_Options(Options)
+			, m_Routes(Routes)
+		{
+		}
+
+		//-----------------------------------------------------------------------------
+		void Session (KStream& Stream, KStringView sRemoteEndpoint) override final
+		//-----------------------------------------------------------------------------
+		{
+			KRESTServer Request;
+
+			Request.Accept(Stream, sRemoteEndpoint);
+			Request.Execute(m_Options, m_Routes);
+			Request.Disconnect();
+
+		} // Session
+
+
+	//----------
+	protected:
+	//----------
+
+		const KREST::Options& m_Options;
+		const KRESTRoutes& m_Routes;
+
+	}; // RESTServer
+
 	KString m_sError;
+	std::unique_ptr<RESTServer> m_Server;
 
 }; // KREST
 

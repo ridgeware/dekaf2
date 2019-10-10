@@ -84,14 +84,15 @@ public:
 		return m_iErrorCode;
 	}
 
-	/// returns error message, alias for what()
-	const char* message() const
+	/// returns error message, alias for what() that returns a KStringViewZ and
+	/// not a const char*
+	KStringViewZ message() const
 	{
 		return what();
 	}
 
 	/// returns true when state is an error
-	explicit operator bool() const
+	operator bool() const
 	{
 		return value() != 0;
 	}

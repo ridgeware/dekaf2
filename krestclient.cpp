@@ -258,8 +258,6 @@ KJSON KJsonRestClient::Request (const KJSON& json, KMIME Mime)
 		return ThrowOrReturn (KHTTPError { GetStatusCode(), kFormat("{} {}: HTTP-{} {}", m_sVerb, m_sPath, GetStatusCode(), sError) }, std::move(jResponse));
 	}
 
-	clear();
-
 	return jResponse;
 
 } // Request

@@ -68,7 +68,7 @@ public:
 
 	/// Register an error code object and switch off exceptions - this setting is only valid
 	/// for the next request
-	self& SetError  (KHTTPError& ec) { m_ec = &ec; return *this;                                 }
+	self& SetError  (KHTTPError& ec) { m_ec = &ec; m_ec->clear(); return *this;                  }
 
 	/// Send the REST request including body to the target and return the response.
 	/// Throws or sets error object for non-200 responses.

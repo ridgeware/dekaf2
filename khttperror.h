@@ -120,9 +120,9 @@ public:
 	}
 
 	/// returns true when state is an error
-	explicit operator bool() const
+	operator bool() const
 	{
-		return value() >= 300 && value() < 200;
+		return value() != 0 && (value() >= 300 || value() < 200);
 	}
 
 //----------

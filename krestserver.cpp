@@ -330,7 +330,7 @@ void KRESTServer::VerifyAuthentication(const Options& Options)
 					}
 				}
 				// failure
-				throw KHTTPError { KHTTPError::H4xx_BADREQUEST, "no authorization" };
+				throw KHTTPError { KHTTPError::H4xx_NOTAUTH, "no authorization" };
 			}
 			break;
 	}

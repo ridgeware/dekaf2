@@ -284,7 +284,7 @@ bool KROW::FormInsert (KString& sSQL, DBT iDBType, bool fIdentityInsert/*=false*
 			// Note: this is the default handling for NIL values: to place them in SQL as SQL null
 			sSQL += kFormat ("\t{}null\n", (bComma) ? "," : "");
 		}
-		else if (bHack || it.second.HasFlag (NUMERIC | BOOLEAN /*| EXPRESSION*/)) // TODO:JOACHIM: remove temp hack to quote everything
+		else if (bHack || it.second.HasFlag (NUMERIC | BOOLEAN | EXPRESSION))
 		{
 			sSQL += kFormat ("\t{}{}\n", (bComma) ? "," : "", it.second.sValue); // raw value, no quotes and no processing
 		}

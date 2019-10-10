@@ -52,7 +52,13 @@ TEST_CASE("KRESTCLIENT")
 		KREST Server;
 		CHECK( Server.Execute(Options, Routes) );
 
-		KJsonRestClient Host("http://localhost:6780/", false);
+		KJsonRestClient Host("http://localhost:6780/");
+
+		Host.SetErrorCallback([](const KJSON& json) -> KStringView
+		{
+			return kjson::GetStringRef(json, "message");
+		});
+
 		KHTTPError ec;
 
 		auto oResponse = Host.Get("login")
@@ -64,11 +70,26 @@ TEST_CASE("KRESTCLIENT")
 		CHECK ( ec.value() == 401 );
 		CHECK ( ec == true );
 		CHECK ( true == ec );
-		CHECK ( ec.message() == "GET login: HTTP-401 NOT AUTHORIZED" );
+		CHECK ( ec.message() == "GET login: HTTP-401 NOT AUTHORIZED - bad user or pass" );
 		CHECK ( Host.HttpSuccess() == false );
 		CHECK ( Host.HttpFailure() == true  );
 		CHECK ( oResponse.empty()  == false );
 		CHECK ( kjson::GetStringRef(oResponse, "message") == "bad user or pass" );
+
+		oResponse = Host.Post("login")
+						 .SetError(ec)
+						 .AddQuery("user", "Tom")
+						 .AddQuery("pass", "Jerry")
+						 .Request();
+
+		CHECK ( ec.value() == 405 );
+		CHECK ( ec == true );
+		CHECK ( true == ec );
+		CHECK ( ec.message() == "POST login: HTTP-405 METHOD NOT ALLOWED - request method POST not supported for path: /login" );
+		CHECK ( Host.HttpSuccess() == false );
+		CHECK ( Host.HttpFailure() == true  );
+		CHECK ( oResponse.empty()  == false );
+		CHECK ( kjson::GetStringRef(oResponse, "message") == "request method POST not supported for path: /login" );
 
 		oResponse = Host.Get("login")
 						 .SetError(ec)

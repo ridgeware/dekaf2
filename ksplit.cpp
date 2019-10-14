@@ -66,15 +66,6 @@ KStringViewPair kSplitToPair(
 					if (iFound > 0)
 					{
 						svBuffer.remove_prefix (iFound);
-
-						// actually it is a bug in our SSE implementation
-						// that find_first_not_of() returns size()+x
-						// instead of npos if not found. We have to
-						// fix it and then we can remove this check.
-						if (svBuffer.empty())
-						{
-							break;
-						}
 					}
 				}
 				else

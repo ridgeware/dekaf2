@@ -479,6 +479,12 @@ public:
 		return m_AuthToken.Payload;
 	}
 
+	//-----------------------------------------------------------------------------
+	/// check user's identity and access - throws if not permitted
+	/// (normally called automatically for routes flagged with SSO)
+	void VerifyAuthentication(const Options& Options);
+	//-----------------------------------------------------------------------------
+
 //------
 protected:
 //------
@@ -496,11 +502,6 @@ protected:
 	//-----------------------------------------------------------------------------
 	/// check if request shall be recorded, and doing it
 	void RecordRequestForReplay(const Options& Options);
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// check user's identity and access
-	void VerifyAuthentication(const Options& Options);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------

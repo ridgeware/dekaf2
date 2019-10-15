@@ -48,6 +48,7 @@
 #include <functional>
 #include <boost/functional/hash.hpp>
 #include <string>
+#include <cstring>
 #include "bits/kcppcompat.h"
 #include "bits/kstring_view.h"
 #include "khash.h"
@@ -1156,7 +1157,11 @@ public:
 	bool Bool() const noexcept
 	//-----------------------------------------------------------------------------
 	{
-		return Int16() != 0;
+		// be careful: this is not just a nice version of atoi():
+		// * we need to map literal "true" --> true 
+		// * and literal "false" --> false
+		// otherwise conversions from JSON to DB and C++ will get fouled up
+		return (!strncasecmp(this->data(),"true",this->size()) || (Int16() != 0));
 	}
 
 	//-----------------------------------------------------------------------------

@@ -602,6 +602,17 @@ bool KStringView::In (KStringView sHaystack, value_type iDelim/*=','*/) const
 } // In
 
 //-----------------------------------------------------------------------------
+bool KStringView::Bool() const noexcept
+//-----------------------------------------------------------------------------
+{
+	// * we need to map literal "true" --> true
+	// * and literal "false" --> false
+	// * as well as non-0 --> true
+	// the literal version is needed for conversions between JSON and KSQL
+	return Int16() != 0 || In("true,TRUE,on,ON");
+}
+
+//-----------------------------------------------------------------------------
 int16_t KStringView::Int16(bool bIsHex) const noexcept
 //-----------------------------------------------------------------------------
 {

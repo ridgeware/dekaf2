@@ -1403,7 +1403,7 @@ KString::self& KString::Join(const T& Container, Parms&&... parms)
 inline bool KString::Bool() const noexcept
 //-----------------------------------------------------------------------------
 {
-	return (ToView().Bool());
+	return ToView().Bool();
 }
 
 //-----------------------------------------------------------------------------

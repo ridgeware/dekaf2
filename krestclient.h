@@ -62,9 +62,18 @@ public:
 	using self = KRestClient;
 	using base = KWebClient;
 
+	/// Default ctor - call SetURL() before any request
+	KRestClient     ();
 	/// Construct with URL to connect to, including basic REST path and basic query parms.
 	/// The individual request path will be added to the basic path, same for query parms.
 	KRestClient     (KURL URL, bool bVerifyCerts = false);
+
+	/// Set URL to connect to, including basic REST path and basic query parms.
+	/// The individual request path will be added to the basic path, same for query parms.
+	self& SetURL    (KURL URL, bool bVerifyCerts = false);
+
+	/// Get the API URL
+	const KURL& GetURL() const      { return m_URL;                                              }
 
 	/// Register an error code object and switch off exceptions - this setting is only valid
 	/// for the next request
@@ -124,6 +133,7 @@ public:
 	using base::AllowRedirects;
 	using base::AllowCompression;
 	using base::VerifyCerts;
+	using base::GetVerifyCerts;
 
 //----------
 protected:
@@ -161,6 +171,8 @@ public:
 	using self = KJsonRestClient;
 	using base = KRestClient;
 
+	/// Default ctor - call SetURL() before any request
+	KJsonRestClient () = default;
 	/// Construct with URL to connect to, including basic REST path and basic query parms.
 	/// The individual request path will be added to the basic path, same for query parms.
 	/// The ErrorCallback will be called on non-200 responses with valid JSON response and
@@ -170,6 +182,11 @@ public:
 	, m_ErrorCallback(ecb)
 	{
 	}
+
+	/// Set URL to connect to, including basic REST path and basic query parms.
+	/// The individual request path will be added to the basic path, same for query parms.
+	self& SetURL    (KURL URL, bool bVerifyCerts = false)
+									   { base::SetURL(URL, bVerifyCerts);  return *this; }
 
 	/// The ErrorCallback will be called on non-200 responses with valid JSON response and
 	/// should be used to identify the error text in the JSON.

@@ -52,11 +52,29 @@ constexpr int iPretty = 1;
 #endif
 
 //-----------------------------------------------------------------------------
+KRestClient::KRestClient()
+//-----------------------------------------------------------------------------
+{
+	// per default, allow proxy configuration through environment
+	KHTTPClient::AutoConfigureProxy(true);
+
+} // ctor
+
+//-----------------------------------------------------------------------------
 KRestClient::KRestClient(KURL URL, bool bVerifyCerts)
 //-----------------------------------------------------------------------------
-: KWebClient(bVerifyCerts)
-, m_URL(std::move(URL))
+: KRestClient()
 {
+	SetURL(std::move(URL), bVerifyCerts);
+
+} // ctor
+
+//-----------------------------------------------------------------------------
+KRestClient& KRestClient::SetURL(KURL URL, bool bVerifyCerts)
+//-----------------------------------------------------------------------------
+{
+	m_URL = std::move(URL);
+
 	// check that path ends with a slash
 	if (m_URL.Path.get().back() != '/')
 	{
@@ -66,10 +84,11 @@ KRestClient::KRestClient(KURL URL, bool bVerifyCerts)
 
 	m_URL.Fragment.clear();
 
-	// per default, allow proxy configuration through environment
-	KHTTPClient::AutoConfigureProxy(true);
+	KHTTPClient::VerifyCerts(bVerifyCerts);
 
-} // ctor
+	return *this;
+
+} // SetURL
 
 //-----------------------------------------------------------------------------
 void KRestClient::clear()

@@ -273,6 +273,34 @@ private:
 
 }; // Dekaf
 
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// Helper class to initialize Dekaf and KLog with named parameters - just an
+/// alternative to kInit with its anonymous parms..
+class KInit
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+//----------
+public:
+//----------
+
+	using self = KInit;
+
+	/// Start with own signal handler thread? Advisable for servers..
+	KInit(bool bStartSignalHandlerThread = true);
+
+	self& SetName(KStringView sName);
+	self& SetDebugLog(KStringView sDebugLog);
+	self& SetDebugFlag(KStringView sDebugFlag);
+	self& SetMultiThreading(bool bYesNo = true);
+	self& SetOnlyShowCallerOnJsonError(bool bYesNo = true);
+	self& SetLevel(int iLevel);
+
+}; // KInit
+
+// use like:
+// KInit(true).SetName("MyName").SetMultiThreading();
+
 //---------------------------------------------------------------------------
 /// Shortcut to initialize Dekaf and KLog in one call - however, not needed for
 /// default settings as those are automatically set at startup

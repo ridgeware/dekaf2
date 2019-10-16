@@ -495,7 +495,7 @@ void Dekaf::StartSignalHandlerThread()
 }
 
 //---------------------------------------------------------------------------
-void kInit (KStringView sName, KStringViewZ sDebugLog, KStringViewZ sDebugFlag, bool bShouldDumpCore/*=false*/, bool bEnableMultiThreading/*=false*/, bool bStartSignalHandlerThread/*=true*/)
+KInit::KInit(bool bStartSignalHandlerThread)
 //---------------------------------------------------------------------------
 {
 	if (bStartSignalHandlerThread)
@@ -507,25 +507,90 @@ void kInit (KStringView sName, KStringViewZ sDebugLog, KStringViewZ sDebugFlag, 
 
 		Dekaf::getInstance().StartSignalHandlerThread();
 	}
-	
-	Dekaf::getInstance().SetMultiThreading(bEnableMultiThreading);
 
 	// make sure KLog is instantiated
 	KLog::getInstance();
 
+} // ctor
+
+//---------------------------------------------------------------------------
+KInit& KInit::SetName(KStringView sName)
+//---------------------------------------------------------------------------
+{
+	KLog::getInstance().SetName(sName);
+	return *this;
+
+} // SetName
+
+//---------------------------------------------------------------------------
+KInit& KInit::SetDebugLog(KStringView sDebugLog)
+//---------------------------------------------------------------------------
+{
+	KLog::getInstance().SetDebugLog(sDebugLog);
+	return *this;
+
+} // SetDebugLog
+
+//---------------------------------------------------------------------------
+KInit& KInit::SetDebugFlag(KStringView sDebugFlag)
+//---------------------------------------------------------------------------
+{
+	KLog::getInstance().SetDebugFlag(sDebugFlag);
+	return *this;
+
+} // SetDebugFlag
+
+//---------------------------------------------------------------------------
+KInit& KInit::SetLevel(int iLevel)
+//---------------------------------------------------------------------------
+{
+	KLog::getInstance().SetLevel(iLevel);
+	return *this;
+
+} // SetDebugFlag
+
+//---------------------------------------------------------------------------
+KInit& KInit::SetMultiThreading(bool bYesNo)
+//---------------------------------------------------------------------------
+{
+	Dekaf::getInstance().SetMultiThreading(bYesNo);
+	return *this;
+
+} // SetMultiThreading
+
+//---------------------------------------------------------------------------
+KInit& KInit::SetOnlyShowCallerOnJsonError(bool bYesNo)
+//---------------------------------------------------------------------------
+{
+	KLog::getInstance().OnlyShowCallerOnJsonError(bYesNo);
+	return *this;
+
+} // SetOnlyShowCallerOnJsonError
+
+//---------------------------------------------------------------------------
+void kInit (KStringView sName, KStringViewZ sDebugLog, KStringViewZ sDebugFlag, bool bShouldDumpCore/*=false*/, bool bEnableMultiThreading/*=false*/, bool bStartSignalHandlerThread/*=true*/)
+//---------------------------------------------------------------------------
+{
+	KInit Init(bStartSignalHandlerThread);
+
+	if (bEnableMultiThreading)
+	{
+		Init.SetMultiThreading();
+	}
+
 	if (!sDebugLog.empty())
 	{
-		KLog::getInstance().SetDebugLog(sDebugLog);
+		Init.SetDebugLog(sDebugLog);
 	}
 
 	if (!sDebugFlag.empty())
 	{
-		KLog::getInstance().SetDebugFlag(sDebugFlag);
+		Init.SetDebugFlag(sDebugFlag);
 	}
 
 	if (!sName.empty())
 	{
-		KLog::getInstance().SetName(sName);
+		Init.SetName(sName);
 	}
 
 } // kInit

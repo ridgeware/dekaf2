@@ -264,7 +264,7 @@ public:
 	/// Sets the file name of the flag file. The flag file is monitored in
 	/// regular intervals, and if changed its content is read and interpreted
 	/// as the new log level.
-	bool SetDebugFlag(KStringViewZ sFlagfile);
+	bool SetDebugFlag(KStringView sFlagfile);
 	//---------------------------------------------------------------------------
 
 	//---------------------------------------------------------------------------

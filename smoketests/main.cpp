@@ -71,11 +71,11 @@ KStringView g_Synopsis[] = {
 int main( int argc, char* const argv[] )
 //-----------------------------------------------------------------------------
 {
-	dekaf2::Dekaf::getInstance().SetMultiThreading();
-	KLog::getInstance().SetDebugFlag(".smoketest.dbg");
-	KLog::getInstance().SetLevel(0);
-	KLog::getInstance().SetDebugLog(KLog::STDOUT);
-	KLog::getInstance().OnlyShowCallerOnJsonError(true);
+	KInit(true).SetMultiThreading(true)
+	           .SetDebugLog(KLog::STDOUT)
+	           .SetDebugFlag(".smoketest.dbg")
+	           .SetLevel(0)
+	           .SetOnlyShowCallerOnJsonError(true);
 
 	signal (SIGILL,  &kCrashExit);
 	signal (SIGFPE,  &kCrashExit);

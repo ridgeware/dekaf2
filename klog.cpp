@@ -561,7 +561,7 @@ void KLog::SetMode(LOGMODE logmode)
 } // SetMode
 
 //---------------------------------------------------------------------------
-bool KLog::SetDebugFlag(KStringViewZ sFlagfile)
+bool KLog::SetDebugFlag(KStringView sFlagfile)
 //---------------------------------------------------------------------------
 {
 	if (sFlagfile.empty())

@@ -54,8 +54,9 @@ bool stdstring_supports_cow()
 
 int main( int argc, char* const argv[] )
 {
-	dekaf2::kInit("DEKAF", "", "/tmp/unittest.dbg", false, true, true);
-	KLog::getInstance().OnlyShowCallerOnJsonError(true);
+	KInit(true).SetDebugFlag("/tmp/unittest.dbg")
+	           .SetMultiThreading(true)
+	           .SetOnlyShowCallerOnJsonError(true);
 
 	bool bSynopsis{false};
 	int  iLast{0};

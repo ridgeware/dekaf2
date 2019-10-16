@@ -186,7 +186,7 @@ public:
 	/// Set URL to connect to, including basic REST path and basic query parms.
 	/// The individual request path will be added to the basic path, same for query parms.
 	self& SetURL    (KURL URL, bool bVerifyCerts = false)
-									   { base::SetURL(URL, bVerifyCerts);  return *this; }
+	                         { base::SetURL(std::move(URL), bVerifyCerts); return *this; }
 
 	/// The ErrorCallback will be called on non-200 responses with valid JSON response and
 	/// should be used to identify the error text in the JSON.

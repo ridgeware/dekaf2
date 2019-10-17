@@ -307,6 +307,19 @@ protected:
 using KMIMEMultiPart = KMIMEPart;
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+class KMIMEMultiPartFormData : public KMIMEMultiPart
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+//----------
+public:
+//----------
+
+	KMIMEMultiPartFormData() : KMIMEPart(KMIME::MULTIPART_FORM_DATA) {}
+
+}; // KMIMEMultiPartFormData
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class KMIMEMultiPartMixed : public KMIMEMultiPart
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {

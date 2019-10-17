@@ -182,7 +182,7 @@ KRestClient& KRestClient::AddHeader (KStringView sName, KStringView sValue)
 //-----------------------------------------------------------------------------
 {
 	ResetAfterRequest();
-	base::SetRequestHeader(sName, sValue, true);
+	base::SetRequestHeader(sName, sValue);
 	return *this;
 
 } // AddHeader
@@ -228,6 +228,14 @@ KString KRestClient::Request (KStringView sBody, KMIME mime)
 } // Request
 
 //-----------------------------------------------------------------------------
+KString KRestClient::Request (const KMIMEMultiPart& MultiPart)
+//-----------------------------------------------------------------------------
+{
+	return Request(MultiPart.Serialize(&(KHTTPClient::Request)), MultiPart.MIME());
+
+} // Request
+
+//-----------------------------------------------------------------------------
 KString KRestClient::ThrowOrReturn(KHTTPError&& ec, KString&& retval)
 //-----------------------------------------------------------------------------
 {
@@ -244,19 +252,10 @@ KString KRestClient::ThrowOrReturn(KHTTPError&& ec, KString&& retval)
 } // ThrowOrReturn
 
 //-----------------------------------------------------------------------------
-KJSON KJsonRestClient::Request (const KJSON& json, KMIME Mime)
+KJSON KJsonRestClient::RequestAndParseResponse (KStringView sRequest, KMIME Mime)
 //-----------------------------------------------------------------------------
 {
-	KString sResponse;
-
-	try
-	{
-		sResponse = KRestClient::NoExceptRequest(json.empty() ? "" : json.dump(iPretty), Mime);
-	}
-	catch (const KJSON::exception& ex)
-	{
-		return ThrowOrReturn (KHTTPError { KHTTPError::H5xx_ERROR, kFormat("bad tx json: {}", ex.what()) });
-	}
+	KString sResponse = KRestClient::NoExceptRequest(sRequest, Mime);
 
 	KJSON jResponse;
 	KString sError;
@@ -289,6 +288,29 @@ KJSON KJsonRestClient::Request (const KJSON& json, KMIME Mime)
 	}
 
 	return jResponse;
+
+} // RequestAndParseResponse
+
+//-----------------------------------------------------------------------------
+KJSON KJsonRestClient::Request (const KJSON& json, KMIME Mime)
+//-----------------------------------------------------------------------------
+{
+	try
+	{
+		return RequestAndParseResponse(json.empty() ? "" : json.dump(iPretty), Mime);
+	}
+	catch (const KJSON::exception& ex)
+	{
+		return ThrowOrReturn (KHTTPError { KHTTPError::H5xx_ERROR, kFormat("bad tx json: {}", ex.what()) });
+	}
+
+} // Request
+
+//-----------------------------------------------------------------------------
+KJSON KJsonRestClient::Request (const KMIMEMultiPart& MultiPart)
+//-----------------------------------------------------------------------------
+{
+	return RequestAndParseResponse(MultiPart.Serialize(&(KHTTPClient::Request)), MultiPart.MIME());
 
 } // Request
 

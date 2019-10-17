@@ -195,7 +195,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Adds a request header for the next request
-	bool SetRequestHeader(KStringView svName, KStringView svValue, bool bOverwrite = true);
+	bool SetRequestHeader(KStringView svName, KStringView svValue);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------

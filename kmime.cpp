@@ -41,6 +41,7 @@
 */
 
 #include "kmime.h"
+#include "khttp_header.h"
 #include "kbase64.h"
 #include "kquotedprintable.h"
 #include "kfilesystem.h"
@@ -190,57 +191,68 @@ bool KMIMEPart::IsBinary() const
 } // IsBinary
 
 //-----------------------------------------------------------------------------
-bool KMIMEPart::Serialize(KString& sOut, const KReplacer& Replacer, uint16_t recursion, bool bIsMultipartRelated) const
+bool KMIMEPart::Serialize(KString& sOut, KHTTPHeaders* Headers, const KReplacer& Replacer, uint16_t recursion, bool bIsMultipartRelated) const
 //-----------------------------------------------------------------------------
 {
 	if (!IsMultiPart())
 	{
 		if (!m_Data.empty())
 		{
-			sOut += "Content-Type: ";
-			sOut += m_MIME;
-			sOut += "\r\n";
-
-			if (bIsMultipartRelated && !m_sName.empty())
+			if (Headers && recursion == 0)
 			{
-				sOut += "Content-ID: ";
-				sOut += KQuotedPrintable::Encode(m_sName, true);
-				sOut += "\r\n";
-			}
-
-			sOut += "Content-Transfer-Encoding: ";
-			if (IsBinary())
-			{
-				sOut += "base64";
+				Headers->Headers.Set(KHTTPHeaders::CONTENT_TYPE, m_MIME.operator KStringView());
 			}
 			else
 			{
-				sOut += "quoted-printable";
-			}
+				sOut += "Content-Type: ";
+				sOut += m_MIME;
+				sOut += "\r\n";
 
-			sOut += "\r\nContent-Disposition: ";
-			if (!m_sName.empty() && !bIsMultipartRelated)
-			{
-				if (m_MIME == KMIME::MULTIPART_FORM_DATA)
+				if (bIsMultipartRelated && !m_sName.empty())
 				{
-					sOut += "form-data; name=\"";
-					sOut += m_sName;
-					sOut += '"';
+					sOut += "Content-ID: ";
+					sOut += KQuotedPrintable::Encode(m_sName, true);
+					sOut += "\r\n";
+				}
+
+				sOut += "Content-Transfer-Encoding: ";
+				if (IsBinary())
+				{
+					sOut += "base64";
 				}
 				else
 				{
-					sOut += "attachment;\r\n filename=";
-					sOut += KQuotedPrintable::Encode(m_sName, true);
+					sOut += "quoted-printable";
 				}
+
+				sOut += "\r\nContent-Disposition: ";
+				if (!m_sName.empty() && !bIsMultipartRelated)
+				{
+					if (m_MIME == KMIME::MULTIPART_FORM_DATA)
+					{
+						sOut += "form-data; name=\"";
+						sOut += m_sName;
+						sOut += '"';
+					}
+					else
+					{
+						sOut += "attachment;\r\n filename=";
+						sOut += KQuotedPrintable::Encode(m_sName, true);
+					}
+				}
+				else
+				{
+					sOut += "inline";
+				}
+
+				sOut += "\r\n\r\n"; // End of headers
 			}
-			else
+
+			if (Headers)
 			{
-				sOut += "inline";
+				sOut += m_Data;
 			}
-
-			sOut += "\r\n\r\n"; // End of headers
-
-			if (IsBinary())
+			else if (IsBinary())
 			{
 				sOut += KBase64::Encode(m_Data);
 			}
@@ -263,32 +275,41 @@ bool KMIMEPart::Serialize(KString& sOut, const KReplacer& Replacer, uint16_t rec
 	{
 		return false;
 	}
-	else if (m_Parts.size() == 1)
+	else if (m_Parts.size() == 1 && !Headers)
 	{
-		// serialize the single part directly, do not embed it into a multipart structure
-		return m_Parts.front().Serialize(sOut, Replacer, recursion);
+		// for non-HTTP, serialize the single part directly, do not embed it into a multipart structure
+		return m_Parts.front().Serialize(sOut, Headers, Replacer, recursion);
 	}
 	else
 	{
 		++recursion;
 
-		sOut += "Content-Type: ";
-		sOut += m_MIME;
 		KString sBoundary;
 		sBoundary.Format("----=_KMIME_Part_{}_{}.{}----", recursion, kRandom(), kRandom());
-		sOut += ";\r\n boundary=\"";
-		sOut += sBoundary;
-		sOut += "\"\r\n"; // End of headers (see the next \r\n at the begin of the boundaries)
+
+		if (Headers && recursion == 1)
+		{
+			Headers->Headers.Set(KHTTPHeaders::CONTENT_TYPE, kFormat("{}; boundary={}", m_MIME, sBoundary));
+		}
+		else
+		{
+			sOut += "Content-Type: ";
+			sOut += m_MIME;
+			sOut += ";\r\n boundary=\"";
+			sOut += sBoundary;
+			sOut += "\"\r\n\r\n"; // End of headers
+		}
 
 		for (auto& it : m_Parts)
 		{
-			sOut += "\r\n--";
+			sOut += "--";
 			sOut += sBoundary;
 			sOut += "\r\n";
-			it.Serialize(sOut, Replacer, recursion, m_MIME == KMIME::MULTIPART_RELATED);
+			it.Serialize(sOut, Headers, Replacer, recursion, m_MIME == KMIME::MULTIPART_RELATED);
+			sOut += "\r\n";
 		}
 
-		sOut += "\r\n--";
+		sOut += "--";
 		sOut += sBoundary;
 		sOut += "--\r\n";
 
@@ -300,11 +321,11 @@ bool KMIMEPart::Serialize(KString& sOut, const KReplacer& Replacer, uint16_t rec
 } // Serialize
 
 //-----------------------------------------------------------------------------
-bool KMIMEPart::Serialize(KOutStream& Stream, const KReplacer& Replacer, uint16_t recursion) const
+bool KMIMEPart::Serialize(KOutStream& Stream, KHTTPHeaders* Headers, const KReplacer& Replacer, uint16_t recursion) const
 //-----------------------------------------------------------------------------
 {
 	KString sOut;
-	if (Serialize(sOut, Replacer, recursion))
+	if (Serialize(sOut, Headers, Replacer, recursion))
 	{
 		return Stream.Write(sOut).Good();
 	}
@@ -316,11 +337,11 @@ bool KMIMEPart::Serialize(KOutStream& Stream, const KReplacer& Replacer, uint16_
 } // Serialize
 
 //-----------------------------------------------------------------------------
-KString KMIMEPart::Serialize(const KReplacer& Replacer, uint16_t recursion) const
+KString KMIMEPart::Serialize(KHTTPHeaders* Headers, const KReplacer& Replacer, uint16_t recursion) const
 //-----------------------------------------------------------------------------
 {
 	KString sOut;
-	Serialize(sOut, Replacer, recursion);
+	Serialize(sOut, Headers, Replacer, recursion);
 	return sOut;
 
 } // Serialize

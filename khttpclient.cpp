@@ -498,7 +498,7 @@ bool KHTTPClient::Resource(const KURL& url, KHTTPMethod method)
 		// domain and port
 		Request.Endpoint = url;
 		bIsConnect = true;
-		SetRequestHeader(KHTTPHeaders::PROXY_CONNECTION, "keep-alive", true);
+		SetRequestHeader(KHTTPHeaders::PROXY_CONNECTION, "keep-alive");
 	}
 	else if (m_bUseHTTPProxyProtocol)
 	{
@@ -506,7 +506,7 @@ bool KHTTPClient::Resource(const KURL& url, KHTTPMethod method)
 		// the server domain and port
 		Request.Endpoint = url;
 		Request.Resource = url;
-		SetRequestHeader(KHTTPHeaders::PROXY_CONNECTION, "keep-alive", true);
+		SetRequestHeader(KHTTPHeaders::PROXY_CONNECTION, "keep-alive");
 	}
 	else
 	{
@@ -530,7 +530,7 @@ bool KHTTPClient::SetHostHeader(const KURL& url, bool bForcePort)
 {
 	if (!m_sForcedHost.empty())
 	{
-		return SetRequestHeader(KHTTPHeaders::HOST, m_sForcedHost, true);
+		return SetRequestHeader(KHTTPHeaders::HOST, m_sForcedHost);
 	}
 
 	if (url.Domain.empty())
@@ -545,7 +545,7 @@ bool KHTTPClient::SetHostHeader(const KURL& url, bool bForcePort)
 		|| (url.Protocol == url::KProtocol::HTTPS && url.Port == "443")))
 	{
 		// domain alone is sufficient for standard ports
-		return SetRequestHeader(KHTTPHeaders::HOST, url.Domain.Serialize(), true);
+		return SetRequestHeader(KHTTPHeaders::HOST, url.Domain.Serialize());
 	}
 	else
 	{
@@ -553,23 +553,16 @@ bool KHTTPClient::SetHostHeader(const KURL& url, bool bForcePort)
 		KString sHost;
 		url.Domain.Serialize(sHost);
 		url.Port.Serialize(sHost);
-		return SetRequestHeader(KHTTPHeaders::HOST, sHost, true);
+		return SetRequestHeader(KHTTPHeaders::HOST, sHost);
 	}
 
 } // SetHostHeader
 
 //-----------------------------------------------------------------------------
-bool KHTTPClient::SetRequestHeader(KStringView svName, KStringView svValue, bool bOverwrite)
+bool KHTTPClient::SetRequestHeader(KStringView svName, KStringView svValue)
 //-----------------------------------------------------------------------------
 {
-	if (bOverwrite)
-	{
-		Request.Headers.Set(svName, svValue);
-	}
-	else
-	{
-		Request.Headers.Add(svName, svValue);
-	}
+	Request.Headers.Set(svName, svValue);
 
 	return true;
 
@@ -651,11 +644,11 @@ bool KHTTPClient::SendRequest(KStringView svPostData, KMIME Mime)
 			// We allow sending body data for GET requests as well, as a few
 			// applications expect doing so. It is not generally advisable due
 			// to proxy issues though.
-			SetRequestHeader(KHTTPHeaders::CONTENT_LENGTH, KString::to_string(svPostData.size()), true);
+			SetRequestHeader(KHTTPHeaders::CONTENT_LENGTH, KString::to_string(svPostData.size()));
 
 			if (!svPostData.empty())
 			{
-				SetRequestHeader(KHTTPHeaders::CONTENT_TYPE, Mime, true);
+				SetRequestHeader(KHTTPHeaders::CONTENT_TYPE, Mime);
 			}
 		}
 	}
@@ -670,12 +663,12 @@ bool KHTTPClient::SendRequest(KStringView svPostData, KMIME Mime)
 
 	if (m_Authenticator)
 	{
-		SetRequestHeader(KHTTPHeaders::AUTHORIZATION, m_Authenticator->GetAuthHeader(Request, svPostData), true);
+		SetRequestHeader(KHTTPHeaders::AUTHORIZATION, m_Authenticator->GetAuthHeader(Request, svPostData));
 	}
 
 	if (m_bRequestCompression && Request.Method != KHTTPMethod::CONNECT)
 	{
-		SetRequestHeader(KHTTPHeaders::ACCEPT_ENCODING, "gzip", true);
+		SetRequestHeader(KHTTPHeaders::ACCEPT_ENCODING, "gzip");
 	}
 
 	if (!Request.Serialize()) // this sends the request headers to the remote server

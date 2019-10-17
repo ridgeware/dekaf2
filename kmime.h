@@ -46,6 +46,7 @@
 #include "kwriter.h"
 #include "kreader.h"
 #include "kreplacer.h"
+#include "khttp_header.h"
 
 namespace dekaf2 {
 
@@ -274,9 +275,9 @@ public:
 	/// Attach another part to this multipart structure - fails if this->MIME type is not multipart
 	KMIMEPart& operator+=(KMIMEPart part) { Attach(std::move(part)); return *this; }
 
-	bool Serialize(KString& sOut, const KReplacer& Replacer = KReplacer{}, uint16_t recursion = 0, bool bIsMultipartRelated = false) const;
-	bool Serialize(KOutStream& Stream, const KReplacer& Replacer = KReplacer{}, uint16_t recursion = 0) const;
-	KString Serialize(const KReplacer& Replacer = KReplacer{}, uint16_t recursion = 0) const;
+	bool Serialize(KString& sOut, KHTTPHeaders* Headers = nullptr, const KReplacer& Replacer = KReplacer{}, uint16_t recursion = 0, bool bIsMultipartRelated = false) const;
+	bool Serialize(KOutStream& Stream, KHTTPHeaders* Headers = nullptr, const KReplacer& Replacer = KReplacer{}, uint16_t recursion = 0) const;
+	KString Serialize(KHTTPHeaders* Headers = nullptr, const KReplacer& Replacer = KReplacer{}, uint16_t recursion = 0) const;
 
 	bool empty() const { return m_Parts.empty(); }
 	bool size()  const { return m_Parts.size();  }

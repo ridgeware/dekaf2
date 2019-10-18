@@ -130,6 +130,7 @@ KString KQuotedPrintable::Encode(KStringView sInput, bool bForMailHeaders)
 					++iLineLen;
 					continue;
 				}
+				// yes, encode
 				break;
 
 			case LF:
@@ -146,10 +147,11 @@ KString KQuotedPrintable::Encode(KStringView sInput, bool bForMailHeaders)
 					++iLineLen;
 					continue;
 				}
+				// yes, encode
 				break;
 
 			case YY:
-				// encode
+				// yes, encode
 				break;
 		}
 

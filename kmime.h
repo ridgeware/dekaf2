@@ -275,7 +275,7 @@ public:
 	/// Attach another part to this multipart structure - fails if this->MIME type is not multipart
 	KMIMEPart& operator+=(KMIMEPart part) { Attach(std::move(part)); return *this; }
 
-	bool Serialize(KString& sOut, KHTTPHeaders* Headers = nullptr, const KReplacer& Replacer = KReplacer{}, uint16_t recursion = 0, bool bIsMultipartRelated = false) const;
+	bool Serialize(KString& sOut, KHTTPHeaders* Headers = nullptr, const KReplacer& Replacer = KReplacer{}, uint16_t recursion = 0, KMIME ParentMIME = KMIME::NONE) const;
 	bool Serialize(KOutStream& Stream, KHTTPHeaders* Headers = nullptr, const KReplacer& Replacer = KReplacer{}, uint16_t recursion = 0) const;
 	KString Serialize(KHTTPHeaders* Headers = nullptr, const KReplacer& Replacer = KReplacer{}, uint16_t recursion = 0) const;
 
@@ -401,6 +401,8 @@ public:
 	/// sFilename is loaded as data for this part. MIME type is automatically detected,
 	/// or can be set explicitly through the MIME parameter
 	KMIMEFile(KStringView sFilename, KMIME MIME = KMIME::NONE) : KMIMEPart(MIME) { File(sFilename); }
+	/// set a KMIMEFile from sData, with sDispname and MIME MIME type
+	KMIMEFile(KStringView sData, KStringView sDispname, KMIME MIME = KMIME::NONE);
 
 }; // KMIMEFile
 

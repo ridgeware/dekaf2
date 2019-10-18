@@ -191,7 +191,7 @@ bool KMIMEPart::IsBinary() const
 } // IsBinary
 
 //-----------------------------------------------------------------------------
-bool KMIMEPart::Serialize(KString& sOut, KHTTPHeaders* Headers, const KReplacer& Replacer, uint16_t recursion, bool bIsMultipartRelated) const
+bool KMIMEPart::Serialize(KString& sOut, KHTTPHeaders* Headers, const KReplacer& Replacer, uint16_t recursion, KMIME ParentMIME) const
 //-----------------------------------------------------------------------------
 {
 	if (!IsMultiPart())
@@ -208,29 +208,34 @@ bool KMIMEPart::Serialize(KString& sOut, KHTTPHeaders* Headers, const KReplacer&
 				sOut += m_MIME;
 				sOut += "\r\n";
 
-				if (bIsMultipartRelated && !m_sName.empty())
+				if (ParentMIME == KMIME::MULTIPART_RELATED && !m_sName.empty())
 				{
 					sOut += "Content-ID: ";
 					sOut += KQuotedPrintable::Encode(m_sName, true);
 					sOut += "\r\n";
 				}
 
-				sOut += "Content-Transfer-Encoding: ";
-				if (IsBinary())
+				if (!Headers)
 				{
-					sOut += "base64";
-				}
-				else
-				{
-					sOut += "quoted-printable";
+					sOut += "Content-Transfer-Encoding: ";
+					if (IsBinary())
+					{
+						sOut += "base64";
+					}
+					else
+					{
+						sOut += "quoted-printable";
+					}
+					sOut += "\r\n";
 				}
 
-				sOut += "\r\nContent-Disposition: ";
-				if (!m_sName.empty() && !bIsMultipartRelated)
+				sOut += "Content-Disposition: ";
+				if (!m_sName.empty() && ParentMIME != KMIME::MULTIPART_RELATED)
 				{
-					if (m_MIME == KMIME::MULTIPART_FORM_DATA)
+					if (ParentMIME == KMIME::MULTIPART_FORM_DATA)
 					{
-						sOut += "form-data; name=\"";
+						sOut += "form-data; filename=\"";
+						// TODO check if we should better use QuotedPrintable for UTF8 file names
 						sOut += m_sName;
 						sOut += '"';
 					}
@@ -250,7 +255,14 @@ bool KMIMEPart::Serialize(KString& sOut, KHTTPHeaders* Headers, const KReplacer&
 
 			if (Headers)
 			{
-				sOut += m_Data;
+				if (IsBinary() || (Replacer.empty() && !Replacer.GetRemoveAllVariables()))
+				{
+					sOut += m_Data;
+				}
+				else
+				{
+					sOut += Replacer.Replace(m_Data);
+				}
 			}
 			else if (IsBinary())
 			{
@@ -285,7 +297,7 @@ bool KMIMEPart::Serialize(KString& sOut, KHTTPHeaders* Headers, const KReplacer&
 		++recursion;
 
 		KString sBoundary;
-		sBoundary.Format("----=_KMIME_Part_{}_{}.{}----", recursion, kRandom(), kRandom());
+		sBoundary.Format("----!_KMIME_Part_{}_{}.{}----", recursion, kRandom(), kRandom());
 
 		if (Headers && recursion == 1)
 		{
@@ -305,7 +317,7 @@ bool KMIMEPart::Serialize(KString& sOut, KHTTPHeaders* Headers, const KReplacer&
 			sOut += "--";
 			sOut += sBoundary;
 			sOut += "\r\n";
-			it.Serialize(sOut, Headers, Replacer, recursion, m_MIME == KMIME::MULTIPART_RELATED);
+			it.Serialize(sOut, Headers, Replacer, recursion, m_MIME);
 			sOut += "\r\n";
 		}
 
@@ -404,6 +416,25 @@ bool KMIMEPart::File(KStringView sFilename, KStringView sDispname)
 	return false;
 
 } // File
+
+//-----------------------------------------------------------------------------
+KMIMEFile::KMIMEFile(KStringView sData, KStringView sDispname, KMIME MIME)
+//-----------------------------------------------------------------------------
+: KMIMEPart(MIME)
+{
+	m_Data = sData;
+	m_sName = sDispname;
+
+	if (MIME == KMIME::NONE)
+	{
+		m_MIME.ByExtension(sDispname, KMIME::BINARY);
+	}
+	else
+	{
+		m_MIME = MIME;
+	}
+
+} // ctor
 
 //-----------------------------------------------------------------------------
 KMIMEDirectory::KMIMEDirectory(KStringViewZ sPathname)

@@ -240,7 +240,7 @@ bool KREST::Simulate(const Options& Options, const KRESTRoutes& Routes, KResourc
 		return SetError(kFormat("invalid request - no API selected"));
 	}
 
-	kDebug(3, "simulated CGI request: {}", API.Serialize());
+	kDebug(2, "simulated CGI request: {}", API.Serialize());
 
 	KString sMethod = Options.Simulate.Method;
 

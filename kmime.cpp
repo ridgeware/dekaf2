@@ -297,11 +297,13 @@ bool KMIMEPart::Serialize(KString& sOut, KHTTPHeaders* Headers, const KReplacer&
 		++recursion;
 
 		KString sBoundary;
-		sBoundary.Format("----!_KMIME_Part_{}_{}.{}----", recursion, kRandom(), kRandom());
+		// having the '=' in the boundary guarantees for base64 and quoted printable encoding
+		// that the boundary is unique
+		sBoundary.Format("----=_KMIME_Part_{}_{}.{}----", recursion, kRandom(), kRandom());
 
 		if (Headers && recursion == 1)
 		{
-			Headers->Headers.Set(KHTTPHeaders::CONTENT_TYPE, kFormat("{}; boundary={}", m_MIME, sBoundary));
+			Headers->Headers.Set(KHTTPHeaders::CONTENT_TYPE, kFormat("{}; boundary=\"{}\"", m_MIME, sBoundary));
 		}
 		else
 		{

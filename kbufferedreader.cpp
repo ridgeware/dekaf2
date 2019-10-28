@@ -104,7 +104,7 @@ bool KBufferedReader::ReadLine(KString& sBuffer, KStringView::value_type delimit
 {
 	sBuffer.clear();
 
-	if (EndOfStream())
+	if (DEKAF2_UNLIKELY(EndOfStream()))
 	{
 		return false;
 	}
@@ -122,6 +122,8 @@ bool KBufferedReader::ReadLine(KString& sBuffer, KStringView::value_type delimit
 
 	} while (!bComplete && !EndOfStream());
 
+	// bComplete depends on the KStringView version of ReadLine, and has already
+	// executed the right trim if not "complete"
 	if (bComplete && !sRightTrim.empty())
 	{
 		sBuffer.TrimRight(sRightTrim);
@@ -153,7 +155,7 @@ std::istream::int_type KBufferedStreamReader::Fill()
 
 		iRead = m_istream->gcount();
 
-		if (static_cast<size_t>(iRead) < m_Arena.iBufferSize)
+		if (DEKAF2_UNLIKELY(static_cast<size_t>(iRead) < m_Arena.iBufferSize))
 		{
 			m_bEOF = true;
 			m_istream->setstate(std::ios::eofbit);
@@ -181,7 +183,7 @@ KStringView KBufferedStreamReader::ReadMore(size_t iSize)
 		return KStringView { m_Arena.pos, static_cast<size_t>(m_Arena.end - m_Arena.pos) };
 	}
 
-	if (iSize > m_Arena.iBufferSize)
+	if (DEKAF2_UNLIKELY(iSize > m_Arena.iBufferSize))
 	{
 		kWarning("request exceeds max size of {}", m_Arena.iBufferSize);
 		iSize = m_Arena.iBufferSize;
@@ -189,7 +191,7 @@ KStringView KBufferedStreamReader::ReadMore(size_t iSize)
 
 	auto len = m_Arena.end - m_Arena.pos;
 
-	if (len)
+	if (DEKAF2_LIKELY(len))
 	{
 		std::memmove(m_buffer.get(), m_Arena.pos, len);
 	}
@@ -207,7 +209,7 @@ KStringView KBufferedStreamReader::ReadMore(size_t iSize)
 
 	iRead = m_istream->gcount();
 
-	if (static_cast<size_t>(iRead) < iWant)
+	if (DEKAF2_UNLIKELY(static_cast<size_t>(iRead) < iWant))
 	{
 		m_bEOF = true;
 		m_istream->setstate(std::ios::eofbit);
@@ -215,7 +217,7 @@ KStringView KBufferedStreamReader::ReadMore(size_t iSize)
 
 	m_Arena.end += iRead;
 
-	return KStringView{ m_Arena.pos, std::min(iSize, static_cast<size_t>(m_Arena.end - m_Arena.pos)) };
+	return KStringView { m_Arena.pos, std::min(iSize, static_cast<size_t>(m_Arena.end - m_Arena.pos)) };
 
 } // ReadMore
 
@@ -232,12 +234,12 @@ bool KBufferedStreamReader::UnReadStreamBuf(size_t iSize)
 
 	std::streambuf* sb = m_istream->rdbuf();
 
-	if (sb)
+	if (DEKAF2_LIKELY(sb != nullptr))
 	{
 		for (;iSize--;)
 		{
 			typename std::istream::int_type iCh = sb->sungetc();
-			if (std::istream::traits_type::eq_int_type(iCh, std::istream::traits_type::eof()))
+			if (DEKAF2_UNLIKELY(std::istream::traits_type::eq_int_type(iCh, std::istream::traits_type::eof())))
 			{
 				return false;
 			}
@@ -278,7 +280,7 @@ KBufferedFileReader::KBufferedFileReader(KStringViewZ sFilename, size_t iBufferS
 {
 	m_Arena = Arena { m_buffer.get(), iBufferSize } ;
 
-	if (m_fd < 0)
+	if (DEKAF2_UNLIKELY(m_fd < 0))
 	{
 		kDebug(1, "cannot open {}: {}", sFilename, strerror(errno));
 	}
@@ -304,7 +306,7 @@ std::istream::int_type KBufferedFileReader::Fill()
 {
 	ssize_t iRead;
 
-	if (!m_bEOF)
+	if (DEKAF2_LIKELY(!m_bEOF))
 	{
 
 #ifdef DEKAF2_IS_WINDOWS
@@ -313,13 +315,13 @@ std::istream::int_type KBufferedFileReader::Fill()
 		iRead = read(m_fd, m_buffer.get(), m_Arena.iBufferSize);
 #endif
 
-		if (iRead < 0)
+		if (DEKAF2_UNLIKELY(iRead < 0))
 		{
 			kDebug(1, "read(): {}", strerror(errno));
 			iRead = 0;
 		}
 
-		if (static_cast<size_t>(iRead) < m_Arena.iBufferSize)
+		if (DEKAF2_UNLIKELY(static_cast<size_t>(iRead) < m_Arena.iBufferSize))
 		{
 			m_bEOF = true;
 		}
@@ -341,12 +343,12 @@ std::istream::int_type KBufferedFileReader::Fill()
 KStringView KBufferedFileReader::ReadMore(size_t iSize)
 //-----------------------------------------------------------------------------
 {
-	if (m_bEOF)
+	if (DEKAF2_UNLIKELY(m_bEOF))
 	{
 		return KStringView { m_Arena.pos, static_cast<size_t>(m_Arena.end - m_Arena.pos) };
 	}
 
-	if (iSize > m_Arena.iBufferSize)
+	if (DEKAF2_UNLIKELY(iSize > m_Arena.iBufferSize))
 	{
 		kWarning("request exceeds max size of {}", m_Arena.iBufferSize);
 		iSize = m_Arena.iBufferSize;
@@ -354,7 +356,7 @@ KStringView KBufferedFileReader::ReadMore(size_t iSize)
 
 	auto len = m_Arena.end - m_Arena.pos;
 
-	if (len)
+	if (DEKAF2_LIKELY(len))
 	{
 		std::memmove(m_buffer.get(), m_Arena.pos, len);
 	}
@@ -374,13 +376,13 @@ KStringView KBufferedFileReader::ReadMore(size_t iSize)
 	iRead = read(m_fd, m_buffer.get() + len, iWant);
 #endif
 
-	if (iRead < 0)
+	if (DEKAF2_UNLIKELY(iRead < 0))
 	{
 		kDebug(1, "read(): {}", strerror(errno));
 		iRead = 0;
 	}
 
-	if (static_cast<size_t>(iRead) < iWant)
+	if (DEKAF2_UNLIKELY(static_cast<size_t>(iRead) < iWant))
 	{
 		m_bEOF = true;
 	}
@@ -402,9 +404,14 @@ bool KBufferedFileReader::UnReadStreamBuf(size_t iSize)
 	m_Arena.pos = m_Arena.start;
 	m_Arena.end = m_Arena.start;
 
-	// TODO seek back
+	if (DEKAF2_UNLIKELY(iSize))
+	{
+		kWarning("cannot unread size {}", iSize);
+		// TODO: seek back
+		return false;
+	}
 
-	return !iSize;
+	return true;
 
 } // UnReadStreamBuf
 

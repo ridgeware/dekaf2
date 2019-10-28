@@ -53,7 +53,8 @@ KChunkedSource::KChunkedSource(KInStream& src, bool bIsChunked, std::streamsize 
     : m_src { src }
     , m_iContentLen(iContentLen)
     , m_State { bIsChunked ? StartingUp : IsNotChunked }
-{}
+{
+} // ctor
 
 //-----------------------------------------------------------------------------
 std::streamsize KChunkedSource::read(char* s, std::streamsize n)
@@ -63,7 +64,7 @@ std::streamsize KChunkedSource::read(char* s, std::streamsize n)
 
 	if (n <= 0)
 	{
-		kDebug(2, "invalid read request of size {} deferred", n);
+		kDebug(1, "invalid read request of size {} deferred", n);
 		return !n ? 0 : -1;
 	}
 
@@ -224,7 +225,7 @@ std::streamsize KChunkedSource::read(char* s, std::streamsize n)
 					{
 						kDebug(1, "invalid chunk start, not a hex character - transfer will fail");
 						m_State = IsNotChunked;
-						// TODO try to put back the hex chars read so far
+						// TODO: try to put back the hex chars read so far (or throw)
 					}
 				}
 				break;
@@ -262,7 +263,7 @@ std::streamsize KChunkedSource::read(char* s, std::streamsize n)
 
 	} // for (;;)
 
-}
+} // read
 
 //-----------------------------------------------------------------------------
 KString KChunkedSource::read()
@@ -288,14 +289,16 @@ KString KChunkedSource::read()
 	}
 
 	return sBuffer;
-}
+
+} // read
 
 //-----------------------------------------------------------------------------
 KChunkedSink::KChunkedSink(KOutStream& sink, bool bIsChunked)
 //-----------------------------------------------------------------------------
     : m_sink { sink }
     , m_bIsChunked { bIsChunked }
-{}
+{
+} // ctor
 
 //-----------------------------------------------------------------------------
 std::streamsize KChunkedSink::write(const char* s, std::streamsize n)
@@ -321,7 +324,8 @@ std::streamsize KChunkedSink::write(const char* s, std::streamsize n)
 	}
 
 	return n;
-}
+
+} // write
 
 //-----------------------------------------------------------------------------
 void KChunkedSink::close()
@@ -333,7 +337,8 @@ void KChunkedSink::close()
 		m_sink.Write("0\r\n\r\n");
 		m_bIsChunked = false;
 	}
-}
+
+} // close
 
 } // end of namespace dekaf2
 

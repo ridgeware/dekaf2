@@ -101,14 +101,14 @@ size_t kRFind(
 DEKAF2_CONSTEXPR_14
 size_t kFind(
         KStringView haystack,
-        const char needle,
+        char needle,
         size_t pos = 0);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
 size_t kRFind(
         KStringView haystack,
-        const char needle,
+        char needle,
         size_t pos = std::string::npos);
 //-----------------------------------------------------------------------------
 
@@ -187,7 +187,7 @@ bool kContains(KStringView sInput, KStringView sPattern);
 //----------------------------------------------------------------------
 
 //----------------------------------------------------------------------
-bool kContains(KStringView sInput, const char ch);
+bool kContains(KStringView sInput, char ch);
 //----------------------------------------------------------------------
 
 // forward declarations
@@ -297,7 +297,7 @@ public:
 #endif
 
 	//-----------------------------------------------------------------------------
-	KStringView(const KString& svz) noexcept;
+	KStringView(const KString& str) noexcept;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -1276,6 +1276,10 @@ protected:
 	void Warn(KStringView sWhat) const;
 	//-----------------------------------------------------------------------------
 
+//----------
+private:
+//----------
+
 	rep_type m_rep;
 
 	static constexpr value_type s_0ch = '\0';
@@ -1437,10 +1441,7 @@ size_t kFind(
 	{
 		return KStringView::npos;
 	}
-	else
-	{
-		return static_cast<size_t>(ret - haystack.data());
-	}
+	return static_cast<size_t>(ret - haystack.data());
 #else
 	return static_cast<KStringView::rep_type>(haystack).find(needle, pos);
 #endif
@@ -1484,10 +1485,7 @@ size_t kRFind(
 	{
 		return KStringView::npos;
 	}
-	else
-	{
-		return static_cast<size_t>(found - haystack.data());
-	}
+	return static_cast<size_t>(found - haystack.data());
 #endif
 }
 

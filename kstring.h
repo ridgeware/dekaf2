@@ -172,8 +172,7 @@ public:
 	KString (const KString& str, size_type pos, size_type len = npos) : m_rep(str.m_rep, (pos > str.size()) ? str.size() : pos, len) {}
 	KString (KStringView sv);
 	KString (KStringViewZ svz);
-	KString (const string_type& sStr) : m_rep(sStr) {}
-	KString (string_type&& sStr) : m_rep(std::move(sStr)) {}
+	KString (string_type sStr) : m_rep(std::move(sStr)) {}
 #ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
 	KString (const std::string& sStr) : m_rep(sStr) {}
 #endif
@@ -208,7 +207,7 @@ public:
 	self& operator+= (const KString& str) { m_rep += str.m_rep; return *this; }
 	self& operator+= (const string_type& str) { m_rep += str; return *this; }
 	self& operator+= (const value_type ch) { m_rep += ch; return *this; }
-	self& operator+= (const value_type *s) { if (s) m_rep += s; return *this; }
+	self& operator+= (const value_type *s) { if (s) { m_rep += s; } return *this; }
 	self& operator+= (std::initializer_list<value_type> il) { m_rep += il; return *this; }
 	self& operator+= (KStringView sv);
 #ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
@@ -223,8 +222,8 @@ public:
 	self& append(const KString& str, size_type pos, size_type n = npos) { return append(str.m_rep, pos, n); }
 	self& append(const string_type& str) { m_rep.append(str); return *this; }
 	self& append(const string_type& str, size_type pos, size_type n = npos);
-	self& append(const value_type* str) { if (str) m_rep.append(str); return *this; }
-	self& append(const value_type* str, size_type n) { if (str) m_rep.append(str, n); return *this; }
+	self& append(const value_type* str) { if (str) { m_rep.append(str); } return *this; }
+	self& append(const value_type* str, size_type n) { if (str) { m_rep.append(str, n); } return *this; }
 	self& append(size_type n, value_type ch) { m_rep.append(n, ch); return *this; }
 	template<class _InputIterator>
 		self& append(_InputIterator first, _InputIterator last) { m_rep.append(first, last); return *this; }
@@ -246,8 +245,8 @@ public:
 	self& assign(const string_type& str) { m_rep.assign(str); return *this; }
 	self& assign(const string_type& str, size_type pos, size_type n = npos);
 	self& assign(string_type&& str) { m_rep.assign(std::move(str)); return *this; }
-	self& assign(const value_type* s, size_type n) { if (s) m_rep.assign(s, n); else m_rep.clear(); return *this; }
-	self& assign(const value_type* str) { if (str) m_rep.assign(str); else m_rep.clear(); return *this;}
+	self& assign(const value_type* s, size_type n) { if (s) { m_rep.assign(s, n); } else m_rep.clear(); return *this; }
+	self& assign(const value_type* str) { if (str) { m_rep.assign(str); } else { m_rep.clear(); } return *this;}
 	self& assign(size_type n, value_type ch) { m_rep.assign(n, ch); return *this;}
 	template<class _InputIterator>
 		self& assign(_InputIterator first, _InputIterator last) { m_rep.assign(first, last); return *this; }
@@ -475,7 +474,7 @@ public:
 	bool Contains(KStringView sPattern) const;
 
 	/// does the string contain the ch?
-	bool Contains(const value_type ch) const;
+	bool Contains(value_type ch) const;
 
 	/// changes the string to lowercase (UTF8)
 	self& MakeLower();
@@ -714,10 +713,7 @@ public:
 		{
 			return signed_to_string(static_cast<int64_t>(i));
 		}
-		else
-		{
-			return unsigned_to_string(static_cast<uint64_t>(i));
-		}
+		return unsigned_to_string(static_cast<uint64_t>(i));
 	}
 
 	//-----------------------------------------------------------------------------
@@ -785,6 +781,10 @@ protected:
 	static void log_exception(const std::exception& e, const char* sWhere);
 	//-----------------------------------------------------------------------------
 
+//----------
+private:
+//----------
+
 	static constexpr value_type s_0ch = '\0';
 	static value_type s_0ch_v[2];
 
@@ -800,6 +800,7 @@ protected:
 // KStringView and / or KStringViewZ being complete as well
 
 #include "kstringview.h"
+#include "bits/kstringviewz.h"
 #include "ksplit.h"
 #include "kjoin.h"
 

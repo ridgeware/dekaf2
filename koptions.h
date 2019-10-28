@@ -205,7 +205,7 @@ private:
 		}
 
 		void Create(int argc, char** argv);
-		void Create(std::vector<KStringViewZ> parms);
+		void Create(const std::vector<KStringViewZ>& parms);
 		size_t size() const  { return m_ArgVec.size();  }
 		size_t empty() const { return m_ArgVec.empty(); }
 		iterator begin()     { return m_ArgVec.begin(); }

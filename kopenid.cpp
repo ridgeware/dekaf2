@@ -51,6 +51,7 @@
 namespace dekaf2 {
 
 static constexpr KStringViewZ OpenID_Configuration = "/.well-known/openid-configuration";
+static constexpr int DEFAULT_TIMEOUT = 5;
 
 //-----------------------------------------------------------------------------
 bool KOpenIDKeys::SetError(KString sError) const
@@ -75,7 +76,7 @@ bool KOpenIDKeys::Validate() const
 } // Validate
 
 //-----------------------------------------------------------------------------
-KOpenIDKeys::KOpenIDKeys (KURL URL)
+KOpenIDKeys::KOpenIDKeys (const KURL& URL)
 //-----------------------------------------------------------------------------
 {
 	DEKAF2_TRY
@@ -88,7 +89,7 @@ KOpenIDKeys::KOpenIDKeys (KURL URL)
 		{
 			KWebClient ProviderKeys;
 			ProviderKeys.VerifyCerts(true); // we have to verify the CERT!
-			ProviderKeys.SetTimeout(5);
+			ProviderKeys.SetTimeout(DEFAULT_TIMEOUT);
 			kjson::Parse(Keys, ProviderKeys.Get(URL));
 			if (!Validate())
 			{
@@ -214,7 +215,7 @@ KOpenIDProvider::KOpenIDProvider (KURL URL, KStringView sScope)
 		{
 			KWebClient Provider;
 			Provider.VerifyCerts(true); // we have to verify the CERT!
-			Provider.SetTimeout(5);
+			Provider.SetTimeout(DEFAULT_TIMEOUT);
 			kjson::Parse(Configuration, Provider.Get(URL));
 			// verify accuracy of information
 			URL.Path.clear();
@@ -257,10 +258,8 @@ bool KJWT::SetError(KString sError)
 		kDebug(1, m_sError);
 		return false;
 	}
-	else
-	{
-		return true;
-	}
+
+	return true;
 
 } // SetError
 

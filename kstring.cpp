@@ -130,8 +130,10 @@ void KString::resize_uninitialized(size_type n)
 //------------------------------------------------------------------------------
 {
 #ifdef DEKAF2_KSTRING_HAS_ACQUIRE_MALLOCATED
+	static constexpr size_type LARGEST_SSO = 23;
+
 	// never do this optimization for SSO strings
-	if (n > 23)
+	if (n > LARGEST_SSO)
 	{
 		auto iSize = size();
 
@@ -556,7 +558,7 @@ KString::size_type KString::Replace(
 	value_type* haystack = &m_rep[pos];
 	size_type haystackSize = size() - pos;
 
-	value_type* pszFound = static_cast<value_type*>(memmem(haystack, haystackSize, sSearch.data(), sSearch.size()));
+	auto pszFound = static_cast<value_type*>(memmem(haystack, haystackSize, sSearch.data(), sSearch.size()));
 
 	if (DEKAF2_LIKELY(pszFound != nullptr))
 	{
@@ -564,7 +566,7 @@ KString::size_type KString::Replace(
 		if (sReplace.size() <= sSearch.size())
 		{
 			// execute an in-place substitution (C++17 actually has a non-const string.data())
-			value_type* pszTarget = const_cast<value_type*>(haystack);
+			auto pszTarget = const_cast<value_type*>(haystack);
 
 			while (pszFound)
 			{
@@ -1165,6 +1167,8 @@ KStringViewZ KString::RightUTF8(size_type iCount) const
 	return ToView().RightUTF8(iCount);
 }
 
+constexpr int BASE_DEC = 10;
+
 //-----------------------------------------------------------------------------
 KString KString::signed_to_string(int64_t i)
 //-----------------------------------------------------------------------------
@@ -1179,8 +1183,8 @@ KString KString::signed_to_string(int64_t i)
 	}
 	while (i)
 	{
-		sResult += static_cast<value_type>(i % 10) + '0';
-		i /= 10;
+		sResult += static_cast<value_type>(i % BASE_DEC) + '0';
+		i /= BASE_DEC;
 	}
 	if (sResult.empty())
 	{
@@ -1206,8 +1210,8 @@ KString KString::unsigned_to_string(uint64_t i)
 	KString sResult;
 	while (i)
 	{
-		sResult += static_cast<value_type>(i % 10) + '0';
-		i /= 10;
+		sResult += static_cast<value_type>(i % BASE_DEC) + '0';
+		i /= BASE_DEC;
 	}
 	if (sResult.empty())
 	{
@@ -1221,6 +1225,8 @@ KString KString::unsigned_to_string(uint64_t i)
 #endif
 }
 
+constexpr int BASE_HEX = 16;
+
 //-----------------------------------------------------------------------------
 KString KString::to_hexstring(uint64_t i, bool bZeroPad, bool bUpperCase)
 //-----------------------------------------------------------------------------
@@ -1228,16 +1234,16 @@ KString KString::to_hexstring(uint64_t i, bool bZeroPad, bool bUpperCase)
 	KString sResult;
 	while (i)
 	{
-		auto ch = i % 16;
-		if (ch <= 9)
+		auto ch = i % BASE_HEX;
+		if (ch < BASE_DEC)
 		{
 			sResult += static_cast<value_type>(ch + '0');
 		}
 		else
 		{
-			sResult += static_cast<value_type>(ch + 'a' - 10 - (bUpperCase * ('a' - 'A')));
+			sResult += static_cast<value_type>(ch + 'a' - BASE_DEC - (bUpperCase * ('a' - 'A')));
 		}
-		i /= 16;
+		i /= BASE_HEX;
 	}
 	if (sResult.empty())
 	{

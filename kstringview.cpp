@@ -64,14 +64,11 @@ void* memrchr(const void* s, int c, size_t n)
 		{
 			return const_cast<char*>(p + pos);
 		}
-		else
-		{
-			return nullptr;
-		}
+		return nullptr;
 	}
 #endif
 
-	const unsigned char* p = static_cast<const unsigned char*>(s);
+	auto p = static_cast<const unsigned char*>(s);
 	for (p += n; n > 0; --n)
 	{
 		if (*--p == c)
@@ -271,10 +268,7 @@ size_t kFindFirstOfInt(
 		{
 			return result;
 		}
-		else
-		{
-			return result + pos;
-		}
+		return result + pos;
 	}
 #endif
 
@@ -283,12 +277,9 @@ size_t kFindFirstOfInt(
 	{
 		return result;
 	}
-	else
-	{
-		return result + pos;
-	}
+	return result + pos;
 
-}
+} // kFindFirstOfInt
 
 //-----------------------------------------------------------------------------
 size_t kFindFirstNotOfInt(
@@ -318,10 +309,7 @@ size_t kFindFirstNotOfInt(
 		{
 			return result;
 		}
-		else
-		{
-			return result + pos;
-		}
+		return result + pos;
 	}
 #endif
 
@@ -330,12 +318,9 @@ size_t kFindFirstNotOfInt(
 	{
 		return result;
 	}
-	else
-	{
-		return result + pos;
-	}
+	return result + pos;
 
-}
+} // kFindFirstNotOfInt
 
 //-----------------------------------------------------------------------------
 size_t kFindLastOfInt(
@@ -374,7 +359,7 @@ size_t kFindLastOfInt(
 
 	return detail::kFindLastOfNoSSE(haystack, needle, false);
 
-}
+} // kFindLastOfInt
 
 //-----------------------------------------------------------------------------
 size_t kFindLastNotOfInt(
@@ -408,7 +393,7 @@ size_t kFindLastNotOfInt(
 
 	return detail::kFindLastOfNoSSE(haystack, needle, true);
 
-}
+} // kFindLastNotOfInt
 
 } } // end of namespace detail::stringview
 
@@ -563,7 +548,8 @@ bool KStringView::In (KStringView sHaystack, value_type iDelim/*=','*/) const
 	// gcc 4.8.5 needs the non-brace initialization here..
 	auto& sNeedle(m_rep);
 
-	size_t iNeedle = 0, iHaystack = 0; // Beginning indices
+	size_t iNeedle = 0;
+	size_t iHaystack = 0; // Beginning indices
 	size_t iNsize = sNeedle.size ();
 	size_t iHsize = sHaystack.size (); // Ending
 

@@ -115,7 +115,7 @@ void KOptions::CLIParms::Create(int argc, char** argv)
 } // CParms ctor
 
 //---------------------------------------------------------------------------
-void KOptions::CLIParms::Create(std::vector<KStringViewZ> parms)
+void KOptions::CLIParms::Create(const std::vector<KStringViewZ>& parms)
 //---------------------------------------------------------------------------
 {
 	m_ArgVec.clear();
@@ -215,14 +215,14 @@ int KOptions::Evaluate(KOutStream& out)
 void KOptions::RegisterUnknownOption(CallbackN Function)
 //---------------------------------------------------------------------------
 {
-	m_UnknownOption.func = Function;
+	m_UnknownOption.func = std::move(Function);
 }
 
 //---------------------------------------------------------------------------
 void KOptions::RegisterUnknownCommand(CallbackN Function)
 //---------------------------------------------------------------------------
 {
-	m_UnknownCommand.func = Function;
+	m_UnknownCommand.func = std::move(Function);
 }
 
 //---------------------------------------------------------------------------
@@ -231,7 +231,7 @@ void KOptions::RegisterOption(KStringView sOptions, uint16_t iMinArgs, KStringVi
 {
 	for (auto sOption : sOptions.Split())
 	{
-		m_Options.insert({sOption, {iMinArgs, sMissingParms, Function}});
+		m_Options.insert({sOption, { iMinArgs, sMissingParms, std::move(Function) }});
 	}
 }
 
@@ -241,7 +241,7 @@ void KOptions::RegisterCommand(KStringView sCommands, uint16_t iMinArgs, KString
 {
 	for (auto sCommand : sCommands.Split())
 	{
-		m_Commands.insert({sCommand, {iMinArgs, sMissingParms, Function}});
+		m_Commands.insert({sCommand, { iMinArgs, sMissingParms, std::move(Function) }});
 	}
 }
 
@@ -249,7 +249,7 @@ void KOptions::RegisterCommand(KStringView sCommands, uint16_t iMinArgs, KString
 void KOptions::RegisterOption(KStringView sOption, Callback0 Function)
 //---------------------------------------------------------------------------
 {
-	RegisterOption(sOption, 0, "", [Function](ArgList&)
+	RegisterOption(sOption, 0, "", [Function](ArgList& unused)
 	{
 		Function();
 	});
@@ -259,7 +259,7 @@ void KOptions::RegisterOption(KStringView sOption, Callback0 Function)
 void KOptions::RegisterCommand(KStringView sCommand, Callback0 Function)
 //---------------------------------------------------------------------------
 {
-	RegisterCommand(sCommand, 0, "", [Function](ArgList&)
+	RegisterCommand(sCommand, 0, "", [Function](ArgList& unused)
 	{
 		Function();
 	});
@@ -289,7 +289,7 @@ void KOptions::RegisterCommand(KStringView sCommand, KStringViewZ sMissingParm, 
 bool KOptions::IsCGIEnvironment() const
 //---------------------------------------------------------------------------
 {
-	return kGetEnv(KCGIInStream::REQUEST_METHOD).empty() == false;
+	return !kGetEnv(KCGIInStream::REQUEST_METHOD).empty();
 }
 
 //---------------------------------------------------------------------------
@@ -306,10 +306,10 @@ int KOptions::ParseCGI(KStringViewZ sProgramName, KOutStream& out)
 
 	for (auto& it : Query.get())
 	{
-		QueryArgs.push_back(it.first);
+		QueryArgs.emplace_back(it.first);
 		if (!it.second.empty())
 		{
-			QueryArgs.push_back(it.second);
+			QueryArgs.emplace_back(it.second);
 		}
 	}
 	m_CLIParms.Create(QueryArgs);
@@ -403,10 +403,7 @@ int KOptions::Execute(KOutStream& out)
 						{
 							DEKAF2_THROW(MissingParameterError(CBP->sMissingParms.c_str()));
 						}
-						else
-						{
-							DEKAF2_THROW(MissingParameterError(kFormat("{} arguments required, but only {} found", CBP->iMinArgs, Args.size())));
-						}
+						DEKAF2_THROW(MissingParameterError(kFormat("{} arguments required, but only {} found", CBP->iMinArgs, Args.size())));
 					}
 
 					// keep record of the initial args count
@@ -441,7 +438,8 @@ int KOptions::Execute(KOutStream& out)
 						it->bConsumed = true;
 						return -1;
 					}
-					else if (it->sArg.In("d,dd,ddd"))
+
+					if (it->sArg.In("d,dd,ddd"))
 					{
 						it->bConsumed = true;
 						KLog::getInstance().SetLevel (static_cast<int>(it->sArg.size()));

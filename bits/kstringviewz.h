@@ -398,10 +398,7 @@ public:
 		{
 			return { data() + pos, size() - pos };
 		}
-		else
-		{
-			return {};
-		}
+		return {};
 	}
 
 	// not using base_type::erase;
@@ -434,11 +431,8 @@ public:
 			Warn("impossible to erase past the begin in a KStringViewZ");
 			return end();
 		}
-		else
-		{
-			erase(static_cast<size_type>(position - begin()), 1);
-			return begin();
-		}
+		erase(static_cast<size_type>(position - begin()), 1);
+		return begin();
 	}
 
 	//-----------------------------------------------------------------------------
@@ -451,11 +445,8 @@ public:
 			Warn("impossible to erase past the begin in a KStringViewZ");
 			return end();
 		}
-		else
-		{
-			erase(static_cast<size_type>(first - begin()), static_cast<size_type>(last - first));
-			return begin();
-		}
+		erase(static_cast<size_type>(first - begin()), static_cast<size_type>(last - first));
+		return begin();
 	}
 
 	// not using base_type::remove_suffix;
@@ -614,11 +605,11 @@ inline bool operator!=(KStringViewZ left, sv::string_view right)
 inline namespace literals {
 
 	/// provide a string literal for KStringViewZ
-	constexpr dekaf2::KStringViewZ operator"" _ksz(const char *data, std::size_t size)
+	constexpr dekaf2::KStringViewZ operator"" _ksz(const char *data, std::size_t size) // NOLINT
 	{
 		// literals are always 0-terminated, therefore we can construct via a char*
 		// (and strlen will be called as a compile-time constant expression..)
-		return {data};
+		return { data };
 	}
 
 } // namespace literals

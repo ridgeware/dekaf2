@@ -62,7 +62,7 @@ public:
 
 	KOpenIDKeys () = default;
 	/// query all known information about an OpenID provider
-	KOpenIDKeys (KURL URL);
+	KOpenIDKeys (const KURL& URL);
 
 	KRSAKey GetRSAKey(KStringView sAlgorithm, KStringView sKeyID, KStringView sKeyDigest, KStringView sUseType = "sig") const;
 

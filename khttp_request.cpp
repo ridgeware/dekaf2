@@ -187,7 +187,7 @@ KString KHTTPRequestHeaders::GetBrowserIP() const
 
 	{
 		// check the Forwarded: header
-		auto sHeader = Headers.Get(KHTTPHeaders::forwarded).ToLowerASCII();
+		const auto sHeader = Headers.Get(KHTTPHeaders::forwarded).ToLowerASCII();
 		if (!sHeader.empty())
 		{
 			auto iStart = sHeader.find("for=");
@@ -242,7 +242,7 @@ KString KHTTPRequestHeaders::GetBrowserIP() const
 	if (sBrowserIP.empty())
 	{
 		// check the X-Forwarded-For: header
-		auto& sHeader = Headers.Get(KHTTPHeaders::x_forwarded_for);
+		const auto& sHeader = Headers.Get(KHTTPHeaders::x_forwarded_for);
 		if (!sHeader.empty())
 		{
 			auto iEnd = sHeader.find(',');
@@ -250,20 +250,22 @@ KString KHTTPRequestHeaders::GetBrowserIP() const
 			sBrowserIP = sHeader.substr(0, iEnd);
 			sBrowserIP.Trim();
 		}
-	}
 
-	if (sBrowserIP.empty())
-	{
-		// check the X-ProxyUser-IP: header
-		// (mozilla claims this is used by some google services)
-		auto& sHeader = Headers.Get("x-proxyuser-ip");
-		if (!sHeader.empty())
+		if (sBrowserIP.empty())
 		{
-			auto iEnd = sHeader.find(',');
-			// KString is immune against npos in substr()
-			sBrowserIP = sHeader.substr(0, iEnd);
-			sBrowserIP.Trim();
+			// check the X-ProxyUser-IP: header
+			// (mozilla claims this is used by some google services)
+			const auto& sHeader = Headers.Get("x-proxyuser-ip");
+			if (!sHeader.empty())
+			{
+				auto iEnd = sHeader.find(',');
+				// KString is immune against npos in substr()
+				sBrowserIP = sHeader.substr(0, iEnd);
+				sBrowserIP.Trim();
+			}
 		}
+
+		sBrowserIP.ToLowerASCII();
 	}
 
 	return sBrowserIP;

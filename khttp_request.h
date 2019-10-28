@@ -87,6 +87,8 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	/// Searches for the original requester's IP address in the Forwarded,
+	/// X-Forwarded-For and X-ProxyUser-IP headers (in that order, first found wins)
 	KString GetBrowserIP() const;
 	//-----------------------------------------------------------------------------
 

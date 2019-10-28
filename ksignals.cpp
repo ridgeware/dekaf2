@@ -200,7 +200,7 @@ void KSignals::SetSignalHandler(int iSignal, std_func_t func, bool bAsThread)
 //-----------------------------------------------------------------------------
 {
 	std::lock_guard<std::mutex> Lock(s_SigSetMutex);
-	s_SigFuncs[iSignal] = {func, bAsThread};
+	s_SigFuncs[iSignal] = { std::move(func), bAsThread };
 
 } // SetSignalHandler
 
@@ -215,7 +215,7 @@ void KSignals::SetCSignalHandler(int iSignal, signal_func_t func, bool bAsThread
 	else
 	{
 		std::lock_guard<std::mutex> Lock(s_SigSetMutex);
-		s_SigFuncs[iSignal] = {func, bAsThread};
+		s_SigFuncs[iSignal] = { func, bAsThread };
 	}
 
 } // SetCSignalHandler
@@ -226,7 +226,7 @@ void KSignals::SetAllSignalHandlers(std_func_t func, bool bAsThread)
 {
 	for (auto it : m_SettableSigs)
 	{
-		SetSignalHandler(it, func, bAsThread);
+		SetSignalHandler(it, std::move(func), bAsThread);
 	}
 
 } // SetAllSignalHandlers
@@ -242,8 +242,8 @@ KSignals::KSignals(bool bStartHandlerThread)
 		BlockAllSignals();
 
 		// terminate gracefully on SIGINT and SIGTERM
-		SetSignalHandler(SIGINT,  [](int){ std::exit(0); });
-		SetSignalHandler(SIGTERM, [](int){ std::exit(0); });
+		SetSignalHandler(SIGINT,  [](int unused){ std::exit(0); });
+		SetSignalHandler(SIGTERM, [](int unused){ std::exit(0); });
 
 #ifdef DEKAF2_IS_WINDOWS
 		// On Windows place signal handlers for the settable signals

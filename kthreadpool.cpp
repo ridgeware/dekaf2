@@ -130,11 +130,11 @@ void KThreadPool::stop( bool kill )
 	m_cond_var.notify_all();  // stop all waiting threads
 
 	// wait for the computing threads to finish
-	for (size_t i = 0; i < m_threads.size(); ++i)
+	for (auto& m_thread : m_threads)
 	{
-		if (m_threads[i]->joinable())
+		if (m_thread->joinable())
 		{
-			m_threads[i]->join();
+			m_thread->join();
 		}
 	}
 

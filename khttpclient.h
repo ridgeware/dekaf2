@@ -75,7 +75,7 @@ public:
 	public:
 	//------
 
-		virtual ~Authenticator();
+		virtual ~Authenticator() = default;
 		virtual const KString& GetAuthHeader(const KOutHTTPRequest& Request, KStringView sBody) = 0;
 
 	}; // Authenticator

@@ -46,12 +46,6 @@
 namespace dekaf2 {
 
 //-----------------------------------------------------------------------------
-KHTTPClient::Authenticator::~Authenticator()
-//-----------------------------------------------------------------------------
-{
-} // virtual dtor
-
-//-----------------------------------------------------------------------------
 KHTTPClient::BasicAuthenticator::BasicAuthenticator(KString _sUsername, KString _sPassword)
 //-----------------------------------------------------------------------------
 : sUsername(std::move(_sUsername))
@@ -109,7 +103,9 @@ const KString& KHTTPClient::DigestAuthenticator::GetAuthHeader(const KOutHTTPReq
 	KString sNonceCount = KString::to_hexstring(++iNonceCount);
 	sNonceCount.PadLeft(8, '0');
 
-	KMD5 HA1, HA2, Response;
+	KMD5 HA1;
+	KMD5 HA2;
+	KMD5 Response;
 
 	HA1 = sUsername;
 	HA1 += ":";
@@ -227,7 +223,7 @@ KHTTPClient::KHTTPClient(const KURL& url, KHTTPMethod method, bool bVerifyCerts)
 {
 	if (Connect(url))
 	{
-		Resource(url, method);
+		Resource(url, std::move(method));
 	}
 
 } // Ctor
@@ -239,7 +235,7 @@ KHTTPClient::KHTTPClient(const KURL& url, const KURL& Proxy, KHTTPMethod method,
 {
 	if (Connect(url, Proxy))
 	{
-		Resource(url, method);
+		Resource(url, std::move(method));
 	}
 
 } // Ctor
@@ -420,7 +416,8 @@ bool KHTTPClient::Connect(const KURL& url, const KURL& Proxy)
 
 		return true;
 	}
-	else if (bTargetIsHTTPS && bProxyIsHTTPS)
+
+	if (bTargetIsHTTPS && bProxyIsHTTPS)
 	{
 		// the most difficult case: connect the Proxy with TLS _and_ start a
 		// new TLS stream and handshake to the target server inside the proxy
@@ -428,7 +425,8 @@ bool KHTTPClient::Connect(const KURL& url, const KURL& Proxy)
 
 		return SetError("TLS tunneling through a TLS stream not yet supported");
 	}
-	else if (!bTargetIsHTTPS)
+
+	if (!bTargetIsHTTPS)
 	{
 		// for HTTP proxying we only have to modify the request a little bit
 		// - we pass this information on to the request methods by setting
@@ -547,14 +545,12 @@ bool KHTTPClient::SetHostHeader(const KURL& url, bool bForcePort)
 		// domain alone is sufficient for standard ports
 		return SetRequestHeader(KHTTPHeaders::HOST, url.Domain.Serialize());
 	}
-	else
-	{
-		// build "domain:port"
-		KString sHost;
-		url.Domain.Serialize(sHost);
-		url.Port.Serialize(sHost);
-		return SetRequestHeader(KHTTPHeaders::HOST, sHost);
-	}
+
+	// build "domain:port"
+	KString sHost;
+	url.Domain.Serialize(sHost);
+	url.Port.Serialize(sHost);
+	return SetRequestHeader(KHTTPHeaders::HOST, sHost);
 
 } // SetHostHeader
 
@@ -618,7 +614,7 @@ bool KHTTPClient::SendRequest(KStringView svPostData, KMIME Mime)
 	Request.Headers.Remove(KHTTPHeaders::CONTENT_LENGTH);
 	Request.Headers.Remove(KHTTPHeaders::CONTENT_TYPE);
 
-	if (svPostData.size())
+	if (!svPostData.empty())
 	{
 		kDebug(2, "send {} bytes of body with mime '{}'", svPostData.size(), Mime);
 	}
@@ -786,13 +782,11 @@ bool KHTTPClient::CheckForRedirect(KURL& URL, KStringView& sRequestMethod)
 					// and follow the redirection
 					return true;
 				}
-				else
-				{
-					SetError(kFormat("invalid {} header in {} redirection: {}",
-									 KHTTPHeaders::LOCATION,
-									 Response.GetStatusCode(),
-									 Response.Headers[KHTTPHeaders::location]));
-				}
+
+				SetError(kFormat("invalid {} header in {} redirection: {}",
+								 KHTTPHeaders::LOCATION,
+								 Response.GetStatusCode(),
+								 Response.Headers[KHTTPHeaders::location]));
 			}
 			break;
 
@@ -806,7 +800,7 @@ bool KHTTPClient::CheckForRedirect(KURL& URL, KStringView& sRequestMethod)
 } // CheckForRedirect
 
 //-----------------------------------------------------------------------------
-bool KHTTPClient::AlreadyConnected(const KURL& EndPoint) const
+bool KHTTPClient::AlreadyConnected(const KURL& URL) const
 //-----------------------------------------------------------------------------
 {
 	if (!m_Connection || !m_Connection->Good())
@@ -814,7 +808,7 @@ bool KHTTPClient::AlreadyConnected(const KURL& EndPoint) const
 		return false;
 	}
 
-	return EndPoint == m_Connection->EndPoint();
+	return URL == m_Connection->EndPoint();
 
 } // AlreadyConnected
 

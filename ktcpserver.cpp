@@ -89,9 +89,15 @@ namespace dekaf2
 using boost::asio::ip::tcp;
 using endpoint_type = boost::asio::ip::tcp::acceptor::endpoint_type;
 
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class AtomicStarted
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
+
+//-------
 public:
+//-------
+
 	AtomicStarted(std::atomic_int& iStarted, int iWhat)
 	: m_iStarted(iStarted)
 	, m_iWhat(iWhat)
@@ -104,7 +110,10 @@ public:
 		m_iStarted &= ~m_iWhat;
 	}
 
+//-------
 private:
+//-------
+
 	std::atomic_int& m_iStarted;
 	int m_iWhat;
 
@@ -200,11 +209,10 @@ void KTCPServer::RunSession(KStream& stream, KString sRemoteEndPoint)
 	{
 		// run the actual Session code protected by
 		// an exception handler
-
 		Session(stream, sRemoteEndPoint);
 	}
 	
-	DEKAF2_CATCH(std::exception& e)
+	DEKAF2_CATCH(const std::exception& e)
 	{
 		// This is the lowest stack level of a new thread. If we would
 		// not catch the exception here the whole program would abort.
@@ -555,8 +563,9 @@ void KTCPServer::StopServerThread(ServerType SType)
 #ifdef DEKAF2_HAS_UNIX_SOCKETS
 		case Unix:
 			// connect to socket file
+			boost::system::error_code ec;
 			boost::asio::local::stream_protocol::socket s(m_asio);
-			s.connect(boost::asio::local::stream_protocol::endpoint(m_sSocketFile.c_str()));
+			s.connect(boost::asio::local::stream_protocol::endpoint(m_sSocketFile.c_str()), ec);
 			// wait a little to avoid acceptor exception
 			std::this_thread::sleep_for(std::chrono::milliseconds(1));
 			return;
@@ -666,10 +675,8 @@ bool KTCPServer::RegisterShutdownWithSignal(int iSignal)
 
 			return true;
 		}
-		else
-		{
-			kDebug(1, "cannot register with {}, no signal handler thread started", kTranslateSignal(iSignal));
-		}
+
+		kDebug(1, "cannot register with {}, no signal handler thread started", kTranslateSignal(iSignal));
 	}
 
 	return false;
@@ -693,7 +700,6 @@ KTCPServer::KTCPServer(KStringView sSocketFile, uint16_t iMaxConnections)
 	: m_sSocketFile(sSocketFile)
 	, m_ThreadPool(std::make_unique<KThreadPool>(iMaxConnections))
 	, m_iPort(0)
-	, m_bIsSSL(false)
 {
 }
 #endif
@@ -710,12 +716,6 @@ KTCPServer::param_t KTCPServer::CreateParameters()
 //-----------------------------------------------------------------------------
 {
 	return std::make_unique<Parameters>();
-}
-
-//-----------------------------------------------------------------------------
-KTCPServer::Parameters::~Parameters()
-//-----------------------------------------------------------------------------
-{
 }
 
 } // end of namespace dekaf2

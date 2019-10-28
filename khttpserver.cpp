@@ -104,7 +104,7 @@ bool KHTTPServer::Parse()
 		{
 			kDebug (1, "failed to parse incoming headers: {}", Request.Error());
 		}
-		else if (Request.UnfilteredStream().Good() == false)
+		else if (!Request.UnfilteredStream().Good())
 		{
 			kDebug (2, "input stream got closed");
 		}

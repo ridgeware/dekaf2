@@ -1276,13 +1276,9 @@ protected:
 	void Warn(KStringView sWhat) const;
 	//-----------------------------------------------------------------------------
 
-//----------
-private:
-//----------
+	rep_type m_rep; // NOLINT: clang-tidy wants us to make this private, but it does not know that we need it protected for KStringViewZ
 
-	rep_type m_rep;
-
-	static constexpr value_type s_0ch = '\0';
+	static constexpr value_type s_0ch = '\0'; // NOLINT: same as above
 
 };
 

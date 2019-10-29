@@ -1269,6 +1269,32 @@ TEST_CASE("KStringView") {
 		}
 	}
 
+	SECTION ("operator ==()")
+	{
+		KStringView sv { "test" };
+		CHECK ( "test" == sv );
+		CHECK ( sv == "test" );
+		CHECK ( ("rest" == sv) == false );
+		CHECK ( (sv == "rest") == false );
+		KString s { "test" };
+		CHECK ( s == sv );
+		CHECK ( sv == s );
+		s = "rest";
+		CHECK ( (s == sv) == false );
+		CHECK ( (sv == s) == false );
+
+	}
+
+	SECTION ("operator !=()")
+	{
+		KStringView sv { "test" };
+		CHECK ( "rest" != sv );
+		CHECK ( sv != "rest" );
+		KString s { "rest" };
+		CHECK ( s != sv );
+		CHECK ( sv != s );
+	}
+
 	SECTION("split vector")
 	{
 		std::vector<KStringView> vec {
@@ -1375,5 +1401,16 @@ TEST_CASE("KStringView") {
 		}
 	}
 
+	SECTION("ToLowerASCII")
+	{
+		KStringView sv { "TeS@t中文Русский" };
+		CHECK ( sv.ToLowerASCII() == "tes@t中文Русский" );
+	}
+
+	SECTION("ToUpperASCII")
+	{
+		KStringView sv { "TeS@t中文Русский" };
+		CHECK ( sv.ToUpperASCII() == "TES@T中文Русский" );
+	}
 }
 

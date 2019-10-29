@@ -918,31 +918,6 @@ bool KHTMLCData::SearchForLeadOut(KBufferedReader& InStream)
 
 } // SearchForLeadOut
 
-
-//-----------------------------------------------------------------------------
-KHTMLParser::KHTMLParser(KInStream& InStream)
-//-----------------------------------------------------------------------------
-{
-	Parse(InStream);
-
-} // ctor
-
-//-----------------------------------------------------------------------------
-KHTMLParser::KHTMLParser(KBufferedReader& InStream)
-//-----------------------------------------------------------------------------
-{
-	Parse(InStream);
-
-} // ctor
-
-//-----------------------------------------------------------------------------
-KHTMLParser::KHTMLParser(KStringView sInput)
-//-----------------------------------------------------------------------------
-{
-	Parse(sInput);
-
-} // ctor
-
 //-----------------------------------------------------------------------------
 KHTMLParser::~KHTMLParser()
 //-----------------------------------------------------------------------------
@@ -1041,7 +1016,8 @@ void KHTMLParser::SkipScript(KBufferedReader& InStream)
 					if (!*pScriptEndTag)
 					{
 						// create a </script> object
-						KHTMLTag ScriptTag(ScriptEndTag);
+						KHTMLTag ScriptTag;
+						ScriptTag.Parse(ScriptEndTag);
 						// and emit it
 						Object(ScriptTag);
 						return;

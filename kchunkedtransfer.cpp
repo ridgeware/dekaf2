@@ -160,11 +160,11 @@ std::streamsize KChunkedSource::read(char* s, std::streamsize n)
 
 			case ReadingChunkEnd:
 			{
-				if (c == 0x0d)
+				if (c == CARRIAGE_RETURN)
 				{
 					// skip CR
 				}
-				else if (c == 0x0a)
+				else if (c == LINEFEED)
 				{
 					// switch state to next chunk header
 					m_State = StartingUp;
@@ -182,11 +182,11 @@ std::streamsize KChunkedSource::read(char* s, std::streamsize n)
 			case StartingUp:
 			case ReadingSize:
 			{
-				if (c == 0x0d)
+				if (c == CARRIAGE_RETURN)
 				{
 					// skip CR
 				}
-				else if (c == 0x0a)
+				else if (c == LINEFEED)
 				{
 					// stop reading the size on LF
 					if (m_iRemainingInChunk == 0)
@@ -214,8 +214,8 @@ std::streamsize KChunkedSource::read(char* s, std::streamsize n)
 				else
 				{
 					// convert next nibble
-					auto iNibble = kFromHexChar(c);
-					if (iNibble < 16)
+					auto iNibble = kFromHexChar(c); // NOLINT: conversion from int to char is OK for hex chars
+					if (iNibble <= MAX_HEX)
 					{
 						m_iRemainingInChunk <<= 4;
 						m_iRemainingInChunk += iNibble;
@@ -233,11 +233,11 @@ std::streamsize KChunkedSource::read(char* s, std::streamsize n)
 
 			case SkipUntilEmptyLine:
 			{
-				if (c == 0x0d)
+				if (c == CARRIAGE_RETURN)
 				{
 					// skip CR
 				}
-				else if (c == 0x0a)
+				else if (c == LINEFEED)
 				{
 					// this was an empty line
 					m_State = Finished;
@@ -252,7 +252,7 @@ std::streamsize KChunkedSource::read(char* s, std::streamsize n)
 
 			case HadNonEmptyLine:
 			{
-				if (c == 0x0a)
+				if (c == LINEFEED)
 				{
 					m_State = SkipUntilEmptyLine;
 				}
@@ -272,15 +272,15 @@ KString KChunkedSource::read()
 	KString sBuffer;
 
 	enum { BUFSIZE = 4096 };
-	char buffer[BUFSIZE];
+	std::array<char, BUFSIZE> buffer;
 
 	for (;;)
 	{
-		auto iRead = read(buffer, BUFSIZE);
+		auto iRead = read(buffer.data(), buffer.size());
 
 		if (iRead > 0)
 		{
-			sBuffer.append(buffer, iRead);
+			sBuffer.append(buffer.data(), iRead);
 		}
 		if (iRead < BUFSIZE)
 		{

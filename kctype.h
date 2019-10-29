@@ -280,6 +280,7 @@ private:
 	};
 
 	static constexpr size_t MAX_TABLE = 0xFFFF;
+	static constexpr Unicode::codepoint_t MAX_ASCII = 0x7F;
 
 	static const int32_t  CaseFolds[];
 	static const Property CodePoints[];
@@ -346,7 +347,7 @@ public:
 	bool IsASCIISpace() const
 	//-----------------------------------------------------------------------------
 	{
-		return m_CodePoint < 0x80 && (ASCIITable[m_CodePoint] & (SP | BL));
+		return m_CodePoint <= MAX_ASCII && (ASCIITable[m_CodePoint] & (SP | BL));
 	}
 
 	//-----------------------------------------------------------------------------
@@ -372,7 +373,7 @@ public:
 	bool IsASCIIBlank() const
 	//-----------------------------------------------------------------------------
 	{
-		return m_CodePoint < 0x80 && (ASCIITable[m_CodePoint] & BL);
+		return m_CodePoint <= MAX_ASCII && (ASCIITable[m_CodePoint] & BL);
 	}
 
 	//-----------------------------------------------------------------------------
@@ -398,7 +399,7 @@ public:
 	bool IsASCIILower() const
 	//-----------------------------------------------------------------------------
 	{
-		return m_CodePoint < 0x80 && (ASCIITable[m_CodePoint] & LL);
+		return m_CodePoint <= MAX_ASCII && (ASCIITable[m_CodePoint] & LL);
 	}
 
 	//-----------------------------------------------------------------------------
@@ -424,7 +425,7 @@ public:
 	bool IsASCIIUpper() const
 	//-----------------------------------------------------------------------------
 	{
-		return m_CodePoint < 0x80 && (ASCIITable[m_CodePoint] & UU);
+		return m_CodePoint <= MAX_ASCII && (ASCIITable[m_CodePoint] & UU);
 	}
 
 	//-----------------------------------------------------------------------------
@@ -450,7 +451,7 @@ public:
 	bool IsASCIITitle() const
 	//-----------------------------------------------------------------------------
 	{
-		return m_CodePoint < 0x80 && (ASCIITable[m_CodePoint] & UU);
+		return m_CodePoint <= MAX_ASCII && (ASCIITable[m_CodePoint] & UU);
 	}
 
 	//-----------------------------------------------------------------------------
@@ -472,7 +473,7 @@ public:
 	bool IsASCIIAlpha() const
 	//-----------------------------------------------------------------------------
 	{
-		return m_CodePoint < 0x80 && (ASCIITable[m_CodePoint] & AA);
+		return m_CodePoint <= MAX_ASCII && (ASCIITable[m_CodePoint] & AA);
 	}
 
 	//-----------------------------------------------------------------------------
@@ -498,7 +499,7 @@ public:
 	bool IsASCIIAlNum() const
 	//-----------------------------------------------------------------------------
 	{
-		return m_CodePoint < 0x80 && (ASCIITable[m_CodePoint] & AN);
+		return m_CodePoint <= MAX_ASCII && (ASCIITable[m_CodePoint] & AN);
 	}
 
 	//-----------------------------------------------------------------------------
@@ -524,7 +525,7 @@ public:
 	bool IsASCIIPunct() const
 	//-----------------------------------------------------------------------------
 	{
-		return m_CodePoint < 0x80 && (ASCIITable[m_CodePoint] & PP);
+		return m_CodePoint <= MAX_ASCII && (ASCIITable[m_CodePoint] & PP);
 	}
 
 	//-----------------------------------------------------------------------------
@@ -550,7 +551,7 @@ public:
 	bool IsASCIIDigit() const
 	//-----------------------------------------------------------------------------
 	{
-		return m_CodePoint < 0x80 && (ASCIITable[m_CodePoint] & NN);
+		return m_CodePoint <= MAX_ASCII && (ASCIITable[m_CodePoint] & NN);
 	}
 
 	//-----------------------------------------------------------------------------
@@ -566,7 +567,7 @@ public:
 	bool IsASCIIXDigit() const
 	//-----------------------------------------------------------------------------
 	{
-		return m_CodePoint < 0x80 && (ASCIITable[m_CodePoint] & NX);
+		return m_CodePoint <= MAX_ASCII && (ASCIITable[m_CodePoint] & NX);
 	}
 
 	//-----------------------------------------------------------------------------
@@ -596,7 +597,7 @@ public:
 	bool IsASCIIPrint() const
 	//-----------------------------------------------------------------------------
 	{
-		return m_CodePoint < 0x80 && (ASCIITable[m_CodePoint] & (BL | NN | PP | AA));
+		return m_CodePoint <= MAX_ASCII && (ASCIITable[m_CodePoint] & (BL | NN | PP | AA));
 	}
 
 	//-----------------------------------------------------------------------------
@@ -604,7 +605,7 @@ public:
 	bool IsASCIICntrl() const
 	//-----------------------------------------------------------------------------
 	{
-		return m_CodePoint < 0x80 && (ASCIITable[m_CodePoint] & (CC | SP));
+		return m_CodePoint <= MAX_ASCII && (ASCIITable[m_CodePoint] & (CC | SP));
 	}
 
 	//-----------------------------------------------------------------------------

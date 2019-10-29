@@ -52,14 +52,14 @@
 namespace dekaf2 {
 
 //-----------------------------------------------------------------------------
-KConnection::KConnection(KConnection&& other)
+KConnection::KConnection(KConnection&& other) noexcept
 //-----------------------------------------------------------------------------
 {
 	operator=(std::move(other));
 }
 
 //-----------------------------------------------------------------------------
-KConnection& KConnection::operator=(KConnection&& other)
+KConnection& KConnection::operator=(KConnection&& other) noexcept
 //-----------------------------------------------------------------------------
 {
 	if (m_bStreamIsNotOwned)
@@ -119,7 +119,7 @@ void KConnection::Disconnect()
 bool KConnection::Good() const
 //-----------------------------------------------------------------------------
 {
-	return m_Stream.get() != nullptr
+	return m_Stream != nullptr
 	    && m_Stream->KOutStream::Good()
 	    && m_Stream->KInStream::Good();
 }
@@ -172,15 +172,13 @@ bool KConnection::setConnection(std::unique_ptr<KStream>&& Stream, KString EndPo
 	m_Stream = std::move(Stream);
 	m_Endpoint = std::move(EndPoint);
 
-	if (Good())
-	{
-		return true;
-	}
-	else
+	if (!Good())
 	{
 		kDebug(1, "failed to connect to {}: {}", m_Endpoint, Error());
 		return false;
 	}
+
+	return true;
 
 } // setConnection
 
@@ -355,28 +353,26 @@ std::unique_ptr<KConnection> KConnection::Create(const KURL& URL, bool bForceSSL
 		C->Connect(URL.Path.get());
 		return C;
 	}
-	else
 #endif
+
+	url::KPort Port = URL.Port;
+
+	if (Port.empty())
 	{
-		url::KPort Port = URL.Port;
+		Port = KString::to_string(URL.Protocol.DefaultPort());
+	}
 
-		if (Port.empty())
-		{
-			Port = KString::to_string(URL.Protocol.DefaultPort());
-		}
-
-		if (Port == "443" || URL.Protocol == url::KProtocol::HTTPS || bForceSSL)
-		{
-			auto C = std::make_unique<KSSLConnection>();
-			C->Connect(KTCPEndPoint(URL.Domain, Port), bVerifyCerts);
-			return C;
-		}
-		else
-		{
-			auto C = std::make_unique<KTCPConnection>();
-			C->Connect(KTCPEndPoint(URL.Domain, Port));
-			return C;
-		}
+	if (Port == "443" || URL.Protocol == url::KProtocol::HTTPS || bForceSSL)
+	{
+		auto C = std::make_unique<KSSLConnection>();
+		C->Connect(KTCPEndPoint(URL.Domain, Port), bVerifyCerts);
+		return C;
+	}
+	else // NOLINT: we want the else after return..
+	{
+		auto C = std::make_unique<KTCPConnection>();
+		C->Connect(KTCPEndPoint(URL.Domain, Port));
+		return C;
 	}
 
 } // Create

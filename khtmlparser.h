@@ -308,17 +308,8 @@ public:
 	KHTMLTag() = default;
 #endif
 
-	KHTMLTag(KStringView sInput)
-	{
-		KHTMLObject::Parse(sInput);
-	}
-
-	KHTMLTag(KBufferedReader& InStream, KStringView sOpening = KStringView{})
-	{
-		Parse(InStream, sOpening);
-	}
-
 	using KHTMLObject::KHTMLObject;
+	using KHTMLObject::Parse;
 
 	virtual bool Parse(KBufferedReader& InStream, KStringView sOpening = KStringView{}) override;
 	virtual void Serialize(KOutStream& OutStream) const override;
@@ -480,10 +471,6 @@ public:
 	KHTMLParser(KHTMLParser&&) = default;
 	KHTMLParser& operator=(const KHTMLParser&) = default;
 	KHTMLParser& operator=(KHTMLParser&&) = default;
-
-	KHTMLParser(KInStream& InStream);
-	KHTMLParser(KBufferedReader& InStream);
-	KHTMLParser(KStringView sInput);
 
 	virtual ~KHTMLParser();
 

@@ -41,6 +41,7 @@
  */
 
 #include "kcrc.h"
+#include <array>
 
 namespace dekaf2 {
 
@@ -49,12 +50,12 @@ bool KCRC32::Update(KInStream& InputStream)
 //---------------------------------------------------------------------------
 {
 	enum { BLOCKSIZE = 4096 };
-	char sBuffer[BLOCKSIZE];
+	std::array<char, BLOCKSIZE> Buffer;
 
 	for (;;)
 	{
-		auto iReadChunk = InputStream.Read(sBuffer, BLOCKSIZE);
-		m_crc.process_bytes(sBuffer, iReadChunk);
+		auto iReadChunk = InputStream.Read(Buffer.data(), Buffer.size());
+		m_crc.process_bytes(Buffer.data(), iReadChunk);
 		if (iReadChunk < BLOCKSIZE)
 		{
 			return true;

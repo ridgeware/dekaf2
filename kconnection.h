@@ -61,9 +61,9 @@ public:
 	//-----------------------------------------------------------------------------
 	KConnection() = default;
 	KConnection(const KConnection&) = delete;
-	KConnection(KConnection&& other);
+	KConnection(KConnection&& other) noexcept;
 	KConnection& operator=(const KConnection&) = delete;
-	KConnection& operator=(KConnection&& other);
+	KConnection& operator=(KConnection&& other) noexcept;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -133,7 +133,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	virtual void Disconnect();
+	void Disconnect();
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------

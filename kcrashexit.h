@@ -45,6 +45,8 @@
 /// @file kcrashexit.h
 /// show reason for a program crash
 
+#include <csignal>
+
 namespace dekaf2
 {
 

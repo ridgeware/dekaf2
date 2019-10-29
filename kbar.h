@@ -43,6 +43,9 @@
 /// @file kbar.h
 /// provides ascii-style progress bar
 
+#include "kstring.h"
+#include "kstringview.h"
+
 namespace dekaf2
 {
 

@@ -92,8 +92,9 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// dtor. Does not stop the running signal handler.
-	~KSignals();
+	/// dtor. Deliberately does not stop the running signal handler to avoid
+	/// having it running into a destructed vector.
+	~KSignals() = default;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------

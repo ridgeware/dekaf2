@@ -105,10 +105,8 @@ ssize_t kGetSize(std::istream& Stream, bool bFromStart)
 		{
 			return endPos;
 		}
-		else
-		{
-			return endPos - curPos;
-		}
+
+		return endPos - curPos;
 	}
 
 	DEKAF2_CATCH (std::exception& e)
@@ -150,10 +148,8 @@ ssize_t kGetSize(KStringViewZ sFileName)
 	{
 		return buf.st_size;
 	}
-	else
-	{
-		return -1;
-	}
+
+	return -1;
 #endif
 
 } // kGetSize
@@ -186,7 +182,7 @@ bool kAppendAll(std::istream& Stream, KString& sContent, bool bFromStart)
 		// max size.
 
 		enum { BUFSIZE = 4096 };
-		char buf[BUFSIZE];
+		std::array<char, BUFSIZE> buf;
 
 		// This approach can be really dangerous on endless input streams,
 		// therefore we do wrap it into a try-catch block and limit the
@@ -198,11 +194,11 @@ bool kAppendAll(std::istream& Stream, KString& sContent, bool bFromStart)
 		DEKAF2_TRY_EXCEPTION
 		for (;;)
 		{
-			auto iRead = static_cast<size_t>(sb->sgetn(buf, BUFSIZE));
+			auto iRead = static_cast<size_t>(sb->sgetn(buf.data(), BUFSIZE));
 
 			if (iRead > 0)
 			{
-				sContent.append(buf, iRead);
+				sContent.append(buf.data(), iRead);
 
 				iTotal += iRead;
 
@@ -336,10 +332,8 @@ bool kAppendAll(KStringViewZ sFileName, KString& sContent)
 
 			return iRead == static_cast<size_t>(iSize);
 		}
-		else
-		{
-			kDebug(2, "cannot open file '{}'", sFileName);
-		}
+
+		kDebug(2, "cannot open file '{}'", sFileName);
 
 #else
 
@@ -360,10 +354,8 @@ bool kAppendAll(KStringViewZ sFileName, KString& sContent)
 
 			return iRead == iSize;
 		}
-		else
-		{
-			kDebug(2, "cannot open file '{}': {}", sFileName, strerror(errno));
-		}
+
+		kDebug(2, "cannot open file '{}': {}", sFileName, strerror(errno));
 
 #endif
 
@@ -673,17 +665,17 @@ size_t KInStream::Read(KOutStream& Stream, size_t iCount)
 //-----------------------------------------------------------------------------
 {
 	enum { COPY_BUFSIZE = 4096 };
-	char sBuffer[COPY_BUFSIZE];
+	std::array<char, COPY_BUFSIZE> Buffer;
 	size_t iRead = 0;
 
 	for (;iCount;)
 	{
 		auto iChunk = std::min(static_cast<size_t>(COPY_BUFSIZE), iCount);
-		auto iReadChunk = Read(sBuffer, iChunk);
+		auto iReadChunk = Read(Buffer.data(), iChunk);
 		iRead  += iReadChunk;
 		iCount -= iReadChunk;
 
-		if (!Stream.Write(sBuffer, iReadChunk).OutStream().good() || iReadChunk < iChunk)
+		if (!Stream.Write(Buffer.data(), iReadChunk).OutStream().good() || iReadChunk < iChunk)
 		{
 			break;
 		}

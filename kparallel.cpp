@@ -86,7 +86,7 @@ KThreadWait::~KThreadWait()
 //-----------------------------------------------------------------------------
 /// sets number of threads to #cpu if numThreads == 0, but
 /// not higher than maxThreads if maxThreads > 0.
-size_t KRunThreads::SetSize(size_t iNumThreads, size_t iMaxThreads)
+size_t KRunThreads::SetSize(size_t iNumThreads, size_t iMaxThreads) noexcept
 //-----------------------------------------------------------------------------
 {
 	m_numThreads = iNumThreads;

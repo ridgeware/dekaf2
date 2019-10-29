@@ -226,7 +226,7 @@ void KSignals::SetAllSignalHandlers(std_func_t func, bool bAsThread)
 {
 	for (auto it : m_SettableSigs)
 	{
-		SetSignalHandler(it, std::move(func), bAsThread);
+		SetSignalHandler(it, func, bAsThread);
 	}
 
 } // SetAllSignalHandlers
@@ -259,21 +259,6 @@ KSignals::KSignals(bool bStartHandlerThread)
 	}
 
 } // ctor
-
-//-----------------------------------------------------------------------------
-KSignals::~KSignals()
-//-----------------------------------------------------------------------------
-{
-	// clear the map if existing, so the signal thread
-	// cannot run into a destructing vector
-//	std::lock_guard<std::mutex> Lock(s_SigSetMutex);
-//	s_SigFuncs.clear();
-	// no need to clear s_SigFuncs - it is actually even
-	// better to keep it hanging around as the signal
-	// handling for plain function pointers also continues
-	// to work after destruction..
-
-} // dtor
 
 std::mutex KSignals::s_SigSetMutex;
 std::map<int, KSignals::sigmap_t> KSignals::s_SigFuncs;

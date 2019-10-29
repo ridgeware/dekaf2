@@ -1132,7 +1132,8 @@ bool KHTMLParser::Parse(KBufferedReader& InStream)
 				Invalid('<');
 				return false;
 			}
-			else if (DEKAF2_UNLIKELY(ch == '!'))
+
+			if (DEKAF2_UNLIKELY(ch == '!'))
 			{
 				ch = InStream.Read();
 

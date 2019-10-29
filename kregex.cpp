@@ -101,7 +101,7 @@ bool Rewrite(KString& out,
 				return false;
 			}
 			re2::StringPiece snip = vec[n];
-			if (snip.size() > 0)
+			if (!snip.empty())
 			{
 				out.append(snip.data(), snip.size());
 			}

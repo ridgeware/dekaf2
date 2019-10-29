@@ -121,7 +121,7 @@ public:
 	//-----------------------------------------------------------------------------
 	/// Constructor. Sets number of threads to #cpu if numThreads == 0, but
 	/// not higher than maxThreads if maxThreads > 0.
-	KRunThreads(size_t iNumThreads = 0, size_t iMaxThreads = 0)
+	KRunThreads(size_t iNumThreads = 0, size_t iMaxThreads = 0) noexcept
 	//-----------------------------------------------------------------------------
 	{
 		SetSize(iNumThreads, iMaxThreads);
@@ -130,7 +130,7 @@ public:
 	//-----------------------------------------------------------------------------
 	/// sets number of threads to #cpu if numThreads == 0, but
 	/// not higher than maxThreads if maxThreads > 0.
-	size_t SetSize(size_t iNumThreads, size_t iMaxThreads = 0);
+	size_t SetSize(size_t iNumThreads, size_t iMaxThreads = 0) noexcept;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------

@@ -192,6 +192,7 @@ bool kExists (KStringViewZ sPath, bool bAsFile, bool bAsDirectory, bool bTestFor
 	{
 		return false;  // <-- file/dir doesn't exist
 	}
+
 	if (bAsFile)
 	{
 		if ((StatStruct.st_mode & S_IFREG) == 0)
@@ -207,15 +208,14 @@ bool kExists (KStringViewZ sPath, bool bAsFile, bool bAsDirectory, bool bTestFor
 			kDebug (3, "entry exists, but is not a directory: {}", sPath);
 			return false;   // <-- exists, but is not a directory
 		}
-		else
-		{
-			return true;
-		}
+		return true;
 	}
+
 	if (!bTestForEmptyFile)
 	{
 		return true;    // <-- exists and is a file
 	}
+
 	if (StatStruct.st_size <= 0)
 	{
 		kDebug (3, "entry exists, but is empty: {}", sPath);
@@ -762,7 +762,7 @@ size_t KDirectory::Open(KStringViewZ sDirectory, EntryType Type)
 		while ((dir = ::readdir(d)) != nullptr)
 		{
 			// exclude . and .. as std::filesystem excludes them, too
-			if (strcmp(dir->d_name, ".") && strcmp(dir->d_name, ".."))
+			if (strcmp(dir->d_name, ".") != 0 && strcmp(dir->d_name, "..") != 0)
 			{
 				if (Type == EntryType::ALL)
 				{
@@ -935,7 +935,7 @@ KDiskStat& KDiskStat::Check(KStringViewZ sPath)
 
 	std::error_code ec;
 
-	fs::space_info fsinfo = fs::space(kToFilesystemPath(sPath), ec);
+	auto fsinfo = fs::space(kToFilesystemPath(sPath), ec);
 
 	if (ec)
 	{
@@ -958,7 +958,7 @@ KDiskStat& KDiskStat::Check(KStringViewZ sPath)
 		return *this;
 	}
 
-	uint64_t bsize = static_cast<uint64_t>(fsinfo.f_frsize);
+	auto bsize     = static_cast<uint64_t>(fsinfo.f_frsize);
 	m_Total        = bsize * fsinfo.f_blocks;
 	m_Free         = bsize * fsinfo.f_bavail;
 	m_SystemFree   = bsize * fsinfo.f_bfree;
@@ -1002,7 +1002,9 @@ KDiskStat& KDiskStat::Check(KStringViewZ sPath)
 
 		auto Words = sLine.Split(" \t");
 
-		if (Words.size() < 6)
+		static constexpr size_t MIN_DF_WORDS = 6;
+
+		if (Words.size() < MIN_DF_WORDS)
 		{
 			SetError(kFormat("unexpected output format: {}", sLine));
 			return *this;

@@ -85,7 +85,7 @@ KOutStream::self_type& KOutStream::Write(const void* pAddress, size_t iCount)
 		std::streambuf* sb = OutStream().rdbuf();
 		if (sb != nullptr)
 		{
-			size_t iWrote = static_cast<size_t>(sb->sputn(static_cast<const std::ostream::char_type*>(pAddress), iCount));
+			auto iWrote = static_cast<size_t>(sb->sputn(static_cast<const std::ostream::char_type*>(pAddress), iCount));
 			if (iWrote != iCount)
 			{
 				OutStream().setstate(std::ios_base::badbit);
@@ -101,20 +101,20 @@ KOutStream::self_type& KOutStream::Write(KInStream& Stream, size_t iCount)
 //-----------------------------------------------------------------------------
 {
 	enum { COPY_BUFSIZE = 4096 };
-	char sBuffer[COPY_BUFSIZE];
+	std::array<char, COPY_BUFSIZE> Buffer;
 
 	for (;iCount;)
 	{
 		auto iChunk = std::min(static_cast<size_t>(COPY_BUFSIZE), iCount);
 
-		auto iReadChunk = Stream.Read(sBuffer, iChunk);
+		auto iReadChunk = Stream.Read(Buffer.data(), iChunk);
 
 		if (iReadChunk != iChunk)
 		{
 			break;
 		}
 
-		Write(sBuffer, iReadChunk);
+		Write(Buffer.data(), iReadChunk);
 		iCount -= iReadChunk;
 	}
 

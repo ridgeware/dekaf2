@@ -218,8 +218,8 @@ public:
 	bool   SetDBName (KStringView sDatabase);
 	bool   SetDBPort (int iDBPortNum);
 
-	bool   LoadConnect      (KString sDBCFile);
-	bool   SaveConnect      (KString sDBCFile);
+	bool   LoadConnect      (const KString& sDBCFile);
+	bool   SaveConnect      (const KString& sDBCFile);
 	API    GetAPISet        ()      { return (m_iAPISet); }
 	bool   SetAPISet        (API iAPISet);
 	bool   OpenConnection   ();
@@ -275,12 +275,16 @@ public:
 		kDebugLog (3, "KSQL::ExecQuery()...");
 
 		EndQuery ();
+		
 		if (!OpenConnection())
+		{
 			return (false);
+		}
 
 		m_sLastSQL = kPrintf(std::forward<Args>(args)...);
 
-		if (!IsFlag(F_NoTranslations)) {
+		if (!IsFlag(F_NoTranslations))
+		{
 			DoTranslations (m_sLastSQL, m_iDBType);
 		}
 
@@ -396,7 +400,7 @@ public:
 	const KString& GetTempDir()    const { return (m_sTempDir);        }
 
 	const KString& GetLastError () const { return (m_sLastError);      }
-	int         GetLastErrorNum () const { return (m_iErrorNum);       }
+	uint32_t    GetLastErrorNum () const { return (m_iErrorNum);       }
 	bool        WasDuplicateError() const { return (GetLastErrorNum() == 1062); /*TODO:MySQL only*/ }
 	int         GetLastOCIError () const { return (GetLastErrorNum()); }
 	const KString& GetLastSQL ()   const { return (m_sLastSQL);        }
@@ -471,7 +475,7 @@ public:
 
 	using SchemaCallback = std::function<bool(uint16_t iFrom, uint16_t iTo)>;
 
-	bool EnsureSchema (KStringView sTablename, uint16_t iInitialRev, uint16_t iCurrentRev, KStringView sSchemaFileFormat, bool bForce = false, SchemaCallback Callback = nullptr);
+	bool EnsureSchema (KStringView sTablename, uint16_t iInitialRev, uint16_t iCurrentRev, KStringView sSchemaFileFormat, bool bForce = false, const SchemaCallback& Callback = nullptr);
 	uint16_t GetSchema (KStringView sTablename);
 
 	TXList  m_TxList;
@@ -532,7 +536,7 @@ protected:
 //----------
 
 	Flags      m_iFlags { 0 };                  // set by calling SetFlags()
-	int        m_iErrorNum { 0 };               // db error number (e.g. ORA code)
+	uint32_t   m_iErrorNum { 0 };               // db error number (e.g. ORA code)
 #if defined(DEKAF2_HAS_MYSQL)
 	DBT        m_iDBType { DBT::MYSQL };
 	API        m_iAPISet { API::MYSQL };

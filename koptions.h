@@ -226,7 +226,7 @@ private:
 
 		CallbackParams() = default;
 		CallbackParams(uint16_t _iMinArgs, KStringViewZ _sMissingParms, CallbackN _func)
-		: func(_func)
+		: func(std::move(_func))
 		, sMissingParms(_sMissingParms)
 		, iMinArgs(_iMinArgs)
 		{}

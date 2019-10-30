@@ -256,6 +256,15 @@ KJSON GetObject (const KJSON& json, KStringView sKey) noexcept
 void Escape (KStringView sInput, KString& sOutput)
 //-----------------------------------------------------------------------------
 {
+	static constexpr KStringView::value_type BACKSPACE         = 0x08;
+	static constexpr KStringView::value_type HORIZONTAL_TAB    = 0x09;
+	static constexpr KStringView::value_type NEWLINE           = 0x0a;
+	static constexpr KStringView::value_type FORMFEED          = 0x0c;
+	static constexpr KStringView::value_type CARRIAGE_RETURN   = 0x0d;
+	static constexpr KStringView::value_type DOUBLEQUOTE       = 0x22;
+	static constexpr KStringView::value_type BACKSLASH         = 0x5c;
+	static constexpr KStringView::value_type MAX_CONTROL_CHARS = 0x1f;
+
 	// reserve at least the bare size of sInput in sOutput
 	sOutput.reserve(sOutput.size() + sInput.size());
 
@@ -263,49 +272,49 @@ void Escape (KStringView sInput, KString& sOutput)
 	{
 		switch (ch)
 		{
-			case 0x08: // backspace
+			case BACKSPACE:
 			{
 				sOutput += '\\';
 				sOutput += 'b';
 				break;
 			}
 
-			case 0x09: // horizontal tab
+			case HORIZONTAL_TAB:
 			{
 				sOutput += '\\';
 				sOutput += 't';
 				break;
 			}
 
-			case 0x0A: // newline
+			case NEWLINE:
 			{
 				sOutput += '\\';
 				sOutput += 'n';
 				break;
 			}
 
-			case 0x0C: // formfeed
+			case FORMFEED:
 			{
 				sOutput += '\\';
 				sOutput += 'f';
 				break;
 			}
 
-			case 0x0D: // carriage return
+			case CARRIAGE_RETURN:
 			{
 				sOutput += '\\';
 				sOutput += 'r';
 				break;
 			}
 
-			case 0x22: // quotation mark
+			case DOUBLEQUOTE:
 			{
 				sOutput += '\\';
 				sOutput += '\"';
 				break;
 			}
 
-			case 0x5C: // reverse solidus
+			case BACKSLASH:
 			{
 				sOutput += '\\';
 				sOutput += '\\';
@@ -315,7 +324,7 @@ void Escape (KStringView sInput, KString& sOutput)
 			default:
 			{
 				// escape control characters (0x00..0x1F)
-				if (Unicode::CodepointCast(ch) <= 0x1F)
+				if (Unicode::CodepointCast(ch) <= MAX_CONTROL_CHARS)
 				{
 					sOutput += "\\u00";
 					sOutput += KString::to_hexstring(Unicode::CodepointCast(ch));
@@ -344,31 +353,31 @@ KString Escape (KStringView sInput)
 } // Escape
 
 //-----------------------------------------------------------------------------
-KString Print (const KJSON& Value) noexcept
+KString Print (const KJSON& json) noexcept
 //-----------------------------------------------------------------------------
 {
 	DEKAF2_TRY
 	{
-		switch (Value.type())
+		switch (json.type())
 		{
 			case KJSON::value_t::object:
 			case KJSON::value_t::array:
-				return Value.dump(-1);
+				return json.dump(-1);
 
 			case KJSON::value_t::string:
-				return Value.get<dekaf2::KJSON::string_t>();
+				return json.get<dekaf2::KJSON::string_t>();
 
 			case KJSON::value_t::number_integer:
-				return KString::to_string(Value.get<KJSON::number_integer_t>());
+				return KString::to_string(json.get<KJSON::number_integer_t>());
 
 			case KJSON::value_t::number_unsigned:
-				return KString::to_string(Value.get<KJSON::number_unsigned_t>());
+				return KString::to_string(json.get<KJSON::number_unsigned_t>());
 
 			case KJSON::value_t::number_float:
-				return KString::to_string(Value.get<KJSON::number_float_t>());
+				return KString::to_string(json.get<KJSON::number_float_t>());
 
 			case KJSON::value_t::boolean:
-				return Value.get<dekaf2::KJSON::boolean_t>() ? "true" : "false";
+				return json.get<dekaf2::KJSON::boolean_t>() ? "true" : "false";
 
 			case KJSON::value_t::null:
 				return "NULL";

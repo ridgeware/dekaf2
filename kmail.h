@@ -151,7 +151,7 @@ public:
 	/// Add a KReplacer to substitute text in all text/* parts of the mail
 	void VariableReplacer(std::shared_ptr<KReplacer> Replacer)
 	{
-		m_Replacer = Replacer;
+		m_Replacer = std::move(Replacer);
 	}
 
 	/// Add a KReplacer to substitute text in all text/* parts of the mail

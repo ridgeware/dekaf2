@@ -110,7 +110,7 @@ public:
 	// parent classes std::istream and std::basic_ios are protected (they do not
 	// move the streambuffer, as they would not know how to do that properly for
 	// specialized classes)
-	KInputFDStream(KInputFDStream&& other)
+	KInputFDStream(KInputFDStream&& other) noexcept
 	//-----------------------------------------------------------------------------
 	: KInputFDStream(other.m_FileDesc)
 	{
@@ -220,7 +220,7 @@ public:
 	// parent classes std::istream and std::basic_ios are protected (they do not
 	// move the streambuffer, as they would not know how to do that properly for
 	// specialized classes)
-	KInputFPStream(KInputFPStream&& other)
+	KInputFPStream(KInputFPStream&& other) noexcept
 	//-----------------------------------------------------------------------------
 	: KInputFPStream(other.m_FilePtr)
 	{
@@ -327,7 +327,7 @@ public:
 	// parent classes std::istream and std::basic_ios are protected (they do not
 	// move the streambuffer, as they would not know how to do that properly for
 	// specialized classes)
-	KOutputFDStream(KOutputFDStream&& other)
+	KOutputFDStream(KOutputFDStream&& other) noexcept
 	//-----------------------------------------------------------------------------
 	: KOutputFDStream(other.m_FileDesc)
 	{
@@ -446,7 +446,7 @@ public:
 	// parent classes std::istream and std::basic_ios are protected (they do not
 	// move the streambuffer, as they would not know how to do that properly for
 	// specialized classes)
-	KOutputFPStream(KOutputFPStream&& other)
+	KOutputFPStream(KOutputFPStream&& other) noexcept
 	//-----------------------------------------------------------------------------
 	: KOutputFPStream(other.m_FilePtr)
 	{
@@ -555,7 +555,7 @@ public:
 	// parent classes std::istream and std::basic_ios are protected (they do not
 	// move the streambuffer, as they would not know how to do that properly for
 	// specialized classes)
-	KInOutFDStream(KInOutFDStream&& other)
+	KInOutFDStream(KInOutFDStream&& other) noexcept
 	//-----------------------------------------------------------------------------
 	: KInOutFDStream(other.m_FileDescR, other.m_FileDescW)
 	{

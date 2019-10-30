@@ -114,7 +114,7 @@ void KHTMLContentBlocks::Object(KHTMLObject& Object)
 	{
 		case KHTMLObject::TAG:
 		{
-			KHTMLTag& Tag = reinterpret_cast<KHTMLTag&>(Object);
+			auto& Tag = reinterpret_cast<KHTMLTag&>(Object);
 			if (!Tag.IsInline())
 			{
 				FlushContentBlock();

@@ -256,7 +256,7 @@ public:
 	using iterator = Storage::iterator;
 
 	KMIMEPart(KMIME MIME = KMIME::NONE) : m_MIME(MIME) {}
-	KMIMEPart(KStringView sMessage, KMIME MIME) : m_MIME(MIME), m_Data(sMessage) {}
+	KMIMEPart(KString sMessage, KMIME MIME) : m_MIME(MIME), m_Data(std::move(sMessage)) {}
 	KMIMEPart& operator=(KString str)  { m_Data = std::move(str); return *this; }
 	KMIMEPart& operator+=(KStringView sv) { m_Data += sv; return *this; }
 	/// Add content of file sFileName to MIME part, use sDispName as attachment name
@@ -280,7 +280,7 @@ public:
 	KString Serialize(KHTTPHeaders* Headers = nullptr, const KReplacer& Replacer = KReplacer{}, uint16_t recursion = 0) const;
 
 	bool empty() const { return m_Parts.empty(); }
-	bool size()  const { return m_Parts.size();  }
+	Storage::size_type size() const { return m_Parts.size(); }
 	iterator begin() { return m_Parts.begin(); }
 	iterator end() { return m_Parts.end(); }
 	KMIMEPart& operator[](size_t pos) { return m_Parts[pos]; }

@@ -59,7 +59,7 @@
 #include "kfilesystem.h"
 
 #if defined(DEKAF2_IS_WINDOWS) || defined(DEKAF2_DO_NOT_HAVE_STRPTIME)
-	#include <time.h>
+	#include <ctime>
 	#include <iomanip>
 	#include <sstream>
 
@@ -79,7 +79,7 @@
 #endif
 
 #ifndef DEKAF2_DO_NOT_HAVE_STRPTIME
-#include <time.h>   // for strptime()
+#include <ctime>   // for strptime()
 #endif
 
 #ifndef _WIN32
@@ -613,7 +613,7 @@ bool KSQL::SetDBPort (int iDBPortNum)
 } // SetDBPort
 
 //-----------------------------------------------------------------------------
-bool KSQL::SaveConnect (KString sDBCFile)
+bool KSQL::SaveConnect (const KString& sDBCFile)
 //-----------------------------------------------------------------------------
 {
 	kDebugLog (3, "KSQL::SaveConnect()...");
@@ -728,7 +728,7 @@ bool KSQL::DecodeDBCData (KStringView sBuffer, KStringView sDBCFile)
 } // DecodeDBCData
 
 //-----------------------------------------------------------------------------
-bool KSQL::LoadConnect (KString sDBCFile)
+bool KSQL::LoadConnect (const KString& sDBCFile)
 //-----------------------------------------------------------------------------
 {
 	kDebugLog (3, "KSQL::LoadConnect()...");
@@ -774,10 +774,10 @@ bool KSQL::LoadConnect (KString sDBCFile)
 } // LoadConnect
 
 //-----------------------------------------------------------------------------
-bool KSQL::OpenConnection (KStringView sListOfHosts, KStringView sDelimeter/* = ","*/)
+bool KSQL::OpenConnection (KStringView sListOfHosts, KStringView sDelimiter/* = ","*/)
 //-----------------------------------------------------------------------------
 {
-	for (auto sDBHost : sListOfHosts.Split(sDelimeter))
+	for (auto sDBHost : sListOfHosts.Split(sDelimiter))
 	{
 		SetDBHost (sDBHost);
 
@@ -2143,7 +2143,7 @@ bool KSQL::ExecRawQuery (KStringView sSQL, Flags iFlags/*=0*/, KStringView sAPI/
 	
 #ifndef _WIN32
 	timeval startTime;
-	gettimeofday (&startTime, 0);
+	gettimeofday (&startTime, nullptr);
 #endif
 
 	ResetErrorStatus ();
@@ -2965,7 +2965,7 @@ bool KSQL::BufferResults ()
 		while ((m_MYSQLRow = mysql_fetch_row (m_dMYSQLResult)))
 		{
 			++m_iNumRowsBuffered;
-			for (uint32_t ii=0; ii<m_iNumColumns; ++ii)
+			for (KROW::Index ii=0; ii<m_iNumColumns; ++ii)
 			{
 				char* colval = (m_MYSQLRow)[ii];
 				if (!colval)
@@ -3305,7 +3305,7 @@ bool KSQL::NextRow ()
 		if (!m_dBufferedColArray)
 		{
 			m_dBufferedColArray = (char**) kmalloc (m_iNumColumns * sizeof(char*), "KSQL:NextRow()"); // <-- array of char* ptrs
-			for (uint32_t ii=0; ii<m_iNumColumns; ++ii)
+			for (KROW::Index ii=0; ii<m_iNumColumns; ++ii)
 			{
 				m_dBufferedColArray[ii] = nullptr;
 			}
@@ -3314,7 +3314,7 @@ bool KSQL::NextRow ()
 		++m_iRowNum;
 
 		char szStatLine[25+1];
-		for (uint32_t ii=0; ii<m_iNumColumns; ++ii)
+		for (KROW::Index ii=0; ii<m_iNumColumns; ++ii)
 		{
 			// first line is a sanity check and the strlen() of data size:
 			bool bOK = (fgets (szStatLine, 25+1, m_bpBufferedResults) != nullptr);
@@ -3432,7 +3432,7 @@ bool KSQL::NextRow (KROW& Row, bool fTrimRight)
 
 	// load up a property sheet so we can lookup values by column name:
 	// (we can do this even if we didn't get a row back)
-	for (uint32_t ii=1; ii <= GetNumCols(); ++ii)
+	for (KROW::Index ii=1; ii <= GetNumCols(); ++ii)
 	{
 		const KColInfo& pInfo = GetColProps (ii);
 		Row.AddCol (pInfo.sColName, (bGotOne ? Get (ii, fTrimRight) : ""), pInfo.iKSQLDataType, pInfo.iMaxDataLen);
@@ -3458,7 +3458,7 @@ void KSQL::FreeBufferedColArray (bool fValuesOnly/*=false*/)
 
 	//kDebugMemory (3, (const char*)m_dBufferedColArray, 0);
 
-	for (uint32_t ii=0; ii<m_iNumColumns; ++ii)
+	for (KROW::Index ii=0; ii<m_iNumColumns; ++ii)
 	{
 		if (m_dBufferedColArray[ii])
 		{
@@ -3541,7 +3541,9 @@ bool KSQL::ResetBuffer ()
 	if (m_bFileIsOpen)
 	{
 		if (m_bpBufferedResults)
+		{
 			fclose (m_bpBufferedResults);
+		}
 		m_bpBufferedResults = nullptr;
 		m_bFileIsOpen = false;
 	}
@@ -6697,7 +6699,7 @@ bool KSQL::IsLocked (KStringView sName)
 static constexpr KStringView sColName = "schema_rev";
 
 //-----------------------------------------------------------------------------
-bool KSQL::EnsureSchema (KStringView sTablename, uint16_t iInitialRev, uint16_t iCurrentRev, KStringView sSchemaFileFormat, bool bForce, SchemaCallback Callback)
+bool KSQL::EnsureSchema (KStringView sTablename, uint16_t iInitialRev, uint16_t iCurrentRev, KStringView sSchemaFileFormat, bool bForce, const SchemaCallback& Callback)
 //-----------------------------------------------------------------------------
 {
 	kDebug (1, "...");

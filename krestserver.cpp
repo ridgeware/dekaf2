@@ -184,7 +184,7 @@ bool KRESTRoute::Matches(const KRESTPath& Path, Parameters& Params, bool bCompar
 //-----------------------------------------------------------------------------
 KRESTRoutes::KRESTRoutes(KRESTRoute::RESTCallback DefaultRoute, bool _bAuth)
 //-----------------------------------------------------------------------------
-	: m_DefaultRoute(KRESTRoute(KHTTPMethod{}, _bAuth, "/", DefaultRoute))
+	: m_DefaultRoute(KRESTRoute(KHTTPMethod{}, _bAuth, "/", std::move(DefaultRoute)))
 {
 }
 
@@ -208,7 +208,7 @@ void KRESTRoutes::AddRoute(KRESTRoute&& _Route)
 void KRESTRoutes::SetDefaultRoute(KRESTRoute::RESTCallback Callback, bool bAuth, KRESTRoute::ParserType Parser)
 //-----------------------------------------------------------------------------
 {
-	m_DefaultRoute.Callback = Callback;
+	m_DefaultRoute.Callback = std::move(Callback);
 	m_DefaultRoute.Parser = Parser;
 	m_DefaultRoute.bAuth = bAuth;
 
@@ -586,7 +586,7 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 			// OPTIONS method is allowed without Authorization header (it is used to request
 			// for Authorization permission)
 			if (Options.AuthLevel != Options::ALLOW_ALL
-				&& route->bAuth   != false
+				&& route->bAuth
 				&& Request.Method != KHTTPMethod::OPTIONS)
 			{
 				VerifyAuthentication(Options);
@@ -941,7 +941,7 @@ void KRESTServer::xml_t::clear()
 void KRESTServer::ErrorHandler(const std::exception& ex, const Options& Options)
 //-----------------------------------------------------------------------------
 {
-	const KHTTPError* xex = dynamic_cast<const KHTTPError*>(&ex);
+	auto xex = dynamic_cast<const KHTTPError*>(&ex);
 
 	if (xex)
 	{
@@ -1117,7 +1117,7 @@ void KRESTServer::RecordRequestForReplay (const Options& Options)
 			sAdditionalHeader.Format(" -H '{}: {}'", KHTTPHeaders::CONTENT_TYPE, sContentType);
 		}
 
-		oss.Format("curl -i{} -X \"{}\" \"{}\"",
+		oss.Format(R"(curl -i{} -X "{}" "{}")",
 						  sAdditionalHeader,
 						  Request.Method.Serialize(),
 						  URL.Serialize());

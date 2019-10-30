@@ -160,8 +160,8 @@ public:
 		, CaseFold(_CaseFold)
 		{}
 
-		uint8_t Category : 5;
-		uint8_t Type     : 3;
+		uint8_t Category : 5; // NOLINT: we do not need to specify a label here, it is a bit value
+		uint8_t Type     : 3; // NOLINT: we do not need to specify a label here, it is a bit value
 		uint8_t CaseFold;
 
 		//-----------------------------------------------------------------------------

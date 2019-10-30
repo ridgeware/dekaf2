@@ -145,7 +145,7 @@ public:
 	template<class Object>
 	KRESTRoute(KHTTPMethod _Method, bool _bAuth, KStringView _sRoute, Object& object, MemberFunction<Object> _Callback, ParserType _Parser = JSON)
 	//-----------------------------------------------------------------------------
-	: KRESTRoute(_Method, _bAuth, _sRoute, std::bind(_Callback, &object, std::placeholders::_1), _Parser)
+	: KRESTRoute(std::move(_Method), _bAuth, _sRoute, std::bind(_Callback, &object, std::placeholders::_1), _Parser)
 	{
 	}
 

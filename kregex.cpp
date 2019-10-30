@@ -185,7 +185,7 @@ int GlobalReplace(KString& str,
 		{
 			out.append(p, vec[0].begin() - p);
 		}
-		if (vec[0].begin() == lastend && vec[0].size() == 0)
+		if (vec[0].begin() == lastend && vec[0].empty())
 		{
 			// Disallow empty match at end of last match: skip ahead.
 			//

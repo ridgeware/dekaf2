@@ -532,7 +532,7 @@ KInStream::const_kreader_line_iterator::const_kreader_line_iterator(base_iterato
 KInStream::const_kreader_line_iterator::self_type& KInStream::const_kreader_line_iterator::operator++()
 //-----------------------------------------------------------------------------
 {
-	if (m_it != nullptr)
+	if (DEKAF2_LIKELY(m_it != nullptr))
 	{
 		if (!kReadLine(m_it->InStream(),
 		               m_sBuffer,
@@ -549,23 +549,16 @@ KInStream::const_kreader_line_iterator::self_type& KInStream::const_kreader_line
 } // prefix
 
 //-----------------------------------------------------------------------------
-KInStream::const_kreader_line_iterator::self_type KInStream::const_kreader_line_iterator::operator++(int)
+const KInStream::const_kreader_line_iterator::self_type KInStream::const_kreader_line_iterator::operator++(int)
 //-----------------------------------------------------------------------------
 {
-	self_type i = *this;
+	const self_type i = *this;
 
 	operator++();
 
 	return i;
 
 } // postfix
-
-
-//-----------------------------------------------------------------------------
-KInStream::~KInStream()
-//-----------------------------------------------------------------------------
-{
-}
 
 //-----------------------------------------------------------------------------
 /// UnRead a character
@@ -574,17 +567,14 @@ bool KInStream::UnRead()
 {
 	std::streambuf* sb = InStream().rdbuf();
 
-	if (sb)
+	if (DEKAF2_UNLIKELY(!sb))
 	{
-		typename std::istream::int_type iCh = sb->sungetc();
-		if (std::istream::traits_type::eq_int_type(iCh, std::istream::traits_type::eof()))
-		{
-			return false;
-		}
-		return true;
+		return false;
 	}
 
-	return false;
+	typename std::istream::int_type iCh = sb->sungetc();
+
+	return !std::istream::traits_type::eq_int_type(iCh, std::istream::traits_type::eof());
 
 } // UnRead
 
@@ -593,19 +583,21 @@ bool KInStream::UnRead()
 std::istream::int_type KInStream::Read()
 //-----------------------------------------------------------------------------
 {
-	std::streambuf* sb = InStream().rdbuf();
+	auto sb = InStream().rdbuf();
 
-	if (sb)
+	if (DEKAF2_UNLIKELY(sb == nullptr))
 	{
-		typename std::istream::int_type iCh = sb->sbumpc();
-		if (std::istream::traits_type::eq_int_type(iCh, std::istream::traits_type::eof()))
-		{
-			InStream().setstate(std::ios::eofbit);
-		}
-		return iCh;
+		return std::istream::traits_type::eof();
 	}
 
-	return std::istream::traits_type::eof();
+	auto iCh = sb->sbumpc();
+
+	if (std::istream::traits_type::eq_int_type(iCh, std::istream::traits_type::eof()))
+	{
+		InStream().setstate(std::ios::eofbit);
+	}
+
+	return iCh;
 
 } // Read
 
@@ -616,15 +608,18 @@ size_t KInStream::Read(void* pAddress, size_t iCount)
 {
 	if (iCount)
 	{
-		std::streambuf* sb = InStream().rdbuf();
-		if (sb)
+		auto sb = InStream().rdbuf();
+
+		if (DEKAF2_LIKELY(sb != nullptr))
 		{
 			auto iRead = sb->sgetn(static_cast<std::istream::char_type*>(pAddress), iCount);
-			if (iRead <= 0)
+
+			if (DEKAF2_UNLIKELY(iRead <= 0))
 			{
 				InStream().setstate(std::ios::eofbit);
 				iRead = 0;
 			}
+
 			return static_cast<size_t>(iRead);
 		}
 	}
@@ -670,7 +665,7 @@ size_t KInStream::Read(KOutStream& Stream, size_t iCount)
 
 	for (;iCount;)
 	{
-		auto iChunk = std::min(static_cast<size_t>(COPY_BUFSIZE), iCount);
+		auto iChunk = std::min(Buffer.size(), iCount);
 		auto iReadChunk = Read(Buffer.data(), iChunk);
 		iRead  += iReadChunk;
 		iCount -= iReadChunk;

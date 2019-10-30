@@ -189,7 +189,7 @@ String& kTrimLeft(String& string, Compare cmp)
 //-----------------------------------------------------------------------------
 {
 	auto it = std::find_if_not(string.begin(), string.end(), cmp);
-	typename String::size_type iDelete = static_cast<typename String::size_type>(it - string.begin());
+	auto iDelete = static_cast<typename String::size_type>(it - string.begin());
 	if (iDelete)
 	{
 		string.erase(static_cast<typename String::size_type>(0), iDelete);

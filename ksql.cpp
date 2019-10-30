@@ -4121,37 +4121,37 @@ void KSQL::BuildTranslationList (TXList& pList, DBT iDBType)
 	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 	// build the translation array:
 	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-	for (size_t jj=0; jj < std::extent<decltype(g_Translations)>::value; ++jj)
+	for (const auto& g_Translation : g_Translations)
 	{
-		KStringView sName = g_Translations[jj].sOriginal;
+		KStringView sName = g_Translation.sOriginal;
 
 		switch (iDBType)
 		{
 			case DBT::MYSQL:
-				pList.Add (sName, g_Translations[jj].sMySQL);
+				pList.Add (sName, g_Translation.sMySQL);
 				break;
 
 			case DBT::SQLITE3:
-				pList.Add (sName, g_Translations[jj].sSQLite3);
+				pList.Add (sName, g_Translation.sSQLite3);
 				break;
 
 			case DBT::ORACLE6:
 			case DBT::ORACLE7:
-				pList.Add (sName, g_Translations[jj].sOraclePre8);
+				pList.Add (sName, g_Translation.sOraclePre8);
 				break;
 
 			case DBT::ORACLE8:
 			case DBT::ORACLE:
-				pList.Add (sName, g_Translations[jj].sOracle);
+				pList.Add (sName, g_Translation.sOracle);
 				break;
 
 			case DBT::SYBASE:
 			case DBT::SQLSERVER:
-				pList.Add (sName, g_Translations[jj].sSybase);
+				pList.Add (sName, g_Translation.sSybase);
 				break;
 
 			case DBT::INFORMIX:
-				pList.Add (sName, g_Translations[jj].sInformix);
+				pList.Add (sName, g_Translation.sInformix);
 				break;
 
 			case DBT::NONE:

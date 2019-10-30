@@ -310,10 +310,10 @@ KXMLNode& KXMLNode::operator++()
 }
 
 //-----------------------------------------------------------------------------
-KXMLNode KXMLNode::operator++(int)
+const KXMLNode KXMLNode::operator++(int)
 //-----------------------------------------------------------------------------
 {
-	KXMLNode it = *this;
+	const KXMLNode it = *this;
 
 	operator++();
 
@@ -333,10 +333,10 @@ KXMLNode& KXMLNode::operator--()
 }
 
 //-----------------------------------------------------------------------------
-KXMLNode KXMLNode::operator--(int)
+const KXMLNode KXMLNode::operator--(int)
 //-----------------------------------------------------------------------------
 {
-	KXMLNode it = *this;
+	const KXMLNode it = *this;
 
 	operator--();
 
@@ -470,14 +470,14 @@ KXMLNode KXMLNode::AddNode(KStringView sName, KStringView sValue)
 }
 
 //-----------------------------------------------------------------------------
-KXMLNode& KXMLNode::SetInlineRoot(bool bNoIndent)
+KXMLNode& KXMLNode::SetInlineRoot(bool bInlineRoot)
 //-----------------------------------------------------------------------------
 {
 	if (m_node)
 	{
 		auto* node = pNode(m_node);
 
-		if (bNoIndent)
+		if (bInlineRoot)
 		{
 			if (node->type() == rapidxml::node_element)
 			{
@@ -589,10 +589,10 @@ KXMLAttribute& KXMLAttribute::operator++()
 }
 
 //-----------------------------------------------------------------------------
-KXMLAttribute KXMLAttribute::operator++(int)
+const KXMLAttribute KXMLAttribute::operator++(int)
 //-----------------------------------------------------------------------------
 {
-	KXMLAttribute it = *this;
+	const KXMLAttribute it = *this;
 
 	operator++();
 
@@ -612,10 +612,10 @@ KXMLAttribute& KXMLAttribute::operator--()
 }
 
 //-----------------------------------------------------------------------------
-KXMLAttribute KXMLAttribute::operator--(int)
+const KXMLAttribute KXMLAttribute::operator--(int)
 //-----------------------------------------------------------------------------
 {
-	KXMLAttribute it = *this;
+	const KXMLAttribute it = *this;
 
 	operator--();
 

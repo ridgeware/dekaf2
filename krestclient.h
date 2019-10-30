@@ -182,7 +182,7 @@ public:
 	/// should be used to identify the error text in the JSON.
 	KJsonRestClient (KURL URL, bool bVerifyCerts = false, ErrorCallback ecb = nullptr)
 	: KRestClient(std::move(URL), bVerifyCerts)
-	, m_ErrorCallback(ecb)
+	, m_ErrorCallback(std::move(ecb))
 	{
 	}
 
@@ -195,7 +195,7 @@ public:
 	/// should be used to identify the error text in the JSON.
 	self& SetErrorCallback (ErrorCallback ecb)
 	{
-		m_ErrorCallback = ecb;
+		m_ErrorCallback = std::move(ecb);
 		return *this;
 	}
 

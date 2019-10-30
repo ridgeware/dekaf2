@@ -53,8 +53,8 @@ std::streamsize detail::KStringWriter(const void* sBuffer, std::streamsize iCoun
 
 	if (sTargetBuf != nullptr && sBuffer != nullptr)
 	{
-		const KString::value_type* pInBuf = reinterpret_cast<const KString::value_type*>(sBuffer);
-		KString** pOutBuf = reinterpret_cast<KString**>(sTargetBuf);
+		auto pInBuf = reinterpret_cast<const KString::value_type*>(sBuffer);
+		auto pOutBuf = reinterpret_cast<KString**>(sTargetBuf);
 		if (*pOutBuf != nullptr)
 		{
 			(*pOutBuf)->append(pInBuf, static_cast<size_t>(iCount));
@@ -79,7 +79,7 @@ const KString& KOStringStream::str() const
 }
 
 //-----------------------------------------------------------------------------
-KOStringStream::KOStringStream(KOStringStream&& other)
+KOStringStream::KOStringStream(KOStringStream&& other) noexcept
 //-----------------------------------------------------------------------------
 : base_type(&m_KOStreamBuf)
 {

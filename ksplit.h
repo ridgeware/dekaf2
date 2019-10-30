@@ -243,9 +243,9 @@ Container kSplits(
 /// @param chEscape Escape character for delimiters. Defaults to '\0' (disabled).
 KStringViewPair kSplitToPair(
         KStringView svBuffer,
-		const char chDelim   = '=',             // default: equal delimiter
-        KStringView svTrim   = " \t\r\n\b",     // default: trim all whitespace
-        const char  chEscape = '\0'             // default: ignore escapes
+		char chDelim         = '=',         // default: equal delimiter
+        KStringView svTrim   = " \t\r\n\b", // default: trim all whitespace
+        char chEscape        = '\0'         // default: ignore escapes
         );
 //-----------------------------------------------------------------------------
 

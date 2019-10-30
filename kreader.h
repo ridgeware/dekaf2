@@ -128,18 +128,17 @@ public:
 		using value_type = KString;
 
 		using reference = value_type&;
+		using const_reference = const value_type&;
 		using pointer = value_type*;
+		using const_pointer = const value_type*;
 		using difference_type = std::ptrdiff_t;
 		using self_type = const_kreader_line_iterator;
 		using base_iterator = KInStream;
 
 		//-----------------------------------------------------------------------------
 		/// standalone ctor
-		inline const_kreader_line_iterator()
+		const_kreader_line_iterator() = default;
 		//-----------------------------------------------------------------------------
-		{
-			// beware, m_it is a nullptr now
-		}
 
 		//-----------------------------------------------------------------------------
 		/// ctor for KReaders
@@ -148,41 +147,23 @@ public:
 
 		//-----------------------------------------------------------------------------
 		/// copy constructor
-		inline const_kreader_line_iterator(const self_type& other)
+		const_kreader_line_iterator(const self_type& other) = default;
 		//-----------------------------------------------------------------------------
-		    : m_it(other.m_it)
-		    , m_sBuffer(other.m_sBuffer)
-		{
-		}
 
 		//-----------------------------------------------------------------------------
 		/// move constructor
-		inline const_kreader_line_iterator(self_type&& other)
+		const_kreader_line_iterator(self_type&& other) noexcept = default;
 		//-----------------------------------------------------------------------------
-		    : m_it(std::move(other.m_it))
-		    , m_sBuffer(std::move(other.m_sBuffer))
-		{
-		}
 
 		//-----------------------------------------------------------------------------
 		/// copy assignment
-		inline self_type& operator=(const self_type& other)
+		self_type& operator=(const self_type& other) = default;
 		//-----------------------------------------------------------------------------
-		{
-			m_it = other.m_it;
-			m_sBuffer = other.m_sBuffer;
-			return *this;
-		}
 
 		//-----------------------------------------------------------------------------
 		/// move assignment
-		inline self_type& operator=(self_type&& other)
+		self_type& operator=(self_type&& other) noexcept = default;
 		//-----------------------------------------------------------------------------
-		{
-			m_it = std::move(other.m_it);
-			m_sBuffer = std::move(other.m_sBuffer);
-			return *this;
-		}
 
 		//-----------------------------------------------------------------------------
 		/// postfix increment
@@ -191,8 +172,16 @@ public:
 
 		//-----------------------------------------------------------------------------
 		/// prefix increment
-		self_type operator++(int);
+		const self_type operator++(int);
 		//-----------------------------------------------------------------------------
+
+		//-----------------------------------------------------------------------------
+		/// returns the current string
+		inline const_reference operator*() const
+		//-----------------------------------------------------------------------------
+		{
+			return m_sBuffer;
+		}
 
 		//-----------------------------------------------------------------------------
 		/// returns the current string
@@ -200,6 +189,14 @@ public:
 		//-----------------------------------------------------------------------------
 		{
 			return m_sBuffer;
+		}
+
+		//-----------------------------------------------------------------------------
+		/// returns the current string
+		inline const_pointer operator->() const
+		//-----------------------------------------------------------------------------
+		{
+			return &m_sBuffer;
 		}
 
 		//-----------------------------------------------------------------------------
@@ -212,7 +209,7 @@ public:
 
 		//-----------------------------------------------------------------------------
 		/// equality operator
-		inline bool operator==(const self_type& rhs)
+		inline bool operator==(const self_type& rhs) const
 		//-----------------------------------------------------------------------------
 		{
 			return m_it == rhs.m_it;
@@ -220,7 +217,7 @@ public:
 
 		//-----------------------------------------------------------------------------
 		/// inequality operator
-		inline bool operator!=(const self_type& rhs)
+		inline bool operator!=(const self_type& rhs) const
 		//-----------------------------------------------------------------------------
 		{
 			return !operator==(rhs);
@@ -230,7 +227,7 @@ public:
 	protected:
 	//-------
 
-		base_iterator* m_it{nullptr};
+		base_iterator* m_it { nullptr };
 		KString m_sBuffer;
 
 	}; // const_kreader_line_iterator
@@ -268,7 +265,7 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	virtual ~KInStream();
+	virtual ~KInStream() = default;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------

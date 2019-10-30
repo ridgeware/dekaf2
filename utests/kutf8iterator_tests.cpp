@@ -80,7 +80,8 @@ TEST_CASE("UTF8Iterator") {
 		CHECK ( *it++ == 0xe4);
 		CHECK (    it != ie  );
 		CHECK (   *it == 0xf6);
-		*it++ = 'o';
+		*it = 'o';
+		++it;
 		CHECK (    it != ie  );
 		CHECK ( *it++ == 0xfc);
 		CHECK (    it != ie  );

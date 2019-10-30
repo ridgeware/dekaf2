@@ -53,12 +53,6 @@ KOutStream KErr(std::cerr);
 KOutStream KOut(std::cout);
 
 //-----------------------------------------------------------------------------
-KOutStream::~KOutStream()
-//-----------------------------------------------------------------------------
-{
-}
-
-//-----------------------------------------------------------------------------
 /// Write a character. Returns stream reference that resolves to false on failure
 KOutStream::self_type& KOutStream::Write(KString::value_type ch)
 //-----------------------------------------------------------------------------

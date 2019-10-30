@@ -91,7 +91,7 @@ public:
 	// parent classes std::ostream and std::basic_ios are protected (they do not
 	// move the streambuffer, as they would not know how to do that properly for
 	// specialized classes)
-	KOStringStream(KOStringStream&& other);
+	KOStringStream(KOStringStream&& other) noexcept;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------

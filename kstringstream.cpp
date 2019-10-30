@@ -52,7 +52,7 @@ std::streamsize detail::KIOStringReader(void* sBuffer, std::streamsize iCount, v
 
 	if (sSourceBuf != nullptr && sBuffer != nullptr)
 	{
-		char* pOutBuf = reinterpret_cast<char*>(sBuffer);
+		auto pOutBuf = reinterpret_cast<char*>(sBuffer);
 		auto pBuf = reinterpret_cast<KIOStringStream::Buffer*>(sSourceBuf);
 		if (*pBuf->sBuffer && pBuf->iReadPos < pBuf->sBuffer->size())
 		{
@@ -69,7 +69,7 @@ std::streamsize detail::KIOStringReader(void* sBuffer, std::streamsize iCount, v
 } // detail::KStringReader
 
 //-----------------------------------------------------------------------------
-KIOStringStream::KIOStringStream(KIOStringStream&& other)
+KIOStringStream::KIOStringStream(KIOStringStream&& other) noexcept
 //-----------------------------------------------------------------------------
 : base_type(&m_KStreamBuf)
 {

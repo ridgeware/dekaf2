@@ -56,7 +56,7 @@ namespace detail {
 
 //-----------------------------------------------------------------------------
 /// this is the custom KString reader
-std::streamsize KStringReader(void* sBuffer, std::streamsize iCount, void* sTargetBuf);
+std::streamsize KStringReader(void* sBuffer, std::streamsize iCount, void* sSourceBuf);
 //-----------------------------------------------------------------------------
 
 } // end of namespace detail
@@ -88,7 +88,7 @@ public:
 	// parent classes std::istream and std::basic_ios are protected (they do not
 	// move the streambuffer, as they would not know how to do that properly for
 	// specialized classes)
-	KIStringStream(KIStringStream&& other)
+	KIStringStream(KIStringStream&& other) noexcept
 	//-----------------------------------------------------------------------------
 	: KIStringStream(other.m_sView)
 	{

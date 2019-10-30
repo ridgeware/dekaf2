@@ -725,7 +725,7 @@ public:
 
 		if (DEKAF2_UNLIKELY(left.m_eProto == UNKNOWN))
 		{
-			return left.m_sProto == left.m_sProto;
+			return left.m_sProto == right.m_sProto;
 		}
 
 		return true;
@@ -1122,10 +1122,10 @@ public:
 	//-------------------------------------------------------------------------
 
 	//-------------------------------------------------------------------------
-	KTCPEndPoint(const url::KDomain& domain, const url::KPort& port)
+	KTCPEndPoint(url::KDomain domain, url::KPort port)
 	//-------------------------------------------------------------------------
-	    : Domain(domain)
-	    , Port(port)
+	    : Domain(std::move(domain))
+	    , Port(std::move(port))
 	{}
 
 	//-------------------------------------------------------------------------

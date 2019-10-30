@@ -65,8 +65,8 @@ public:
 
 	using iterator_category = std::bidirectional_iterator_tag;
 	using value_type = codepoint_t;
-	using reference = const value_type&;
-	using pointer = const value_type*;
+	using const_reference = const value_type&;
+	using const_pointer = const value_type*;
 	using difference_type = std::ptrdiff_t;
 	using self_type = UTF8ConstIterator;
 
@@ -102,10 +102,10 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// postfix increment
-	self_type operator++(int)
+	const self_type operator++(int)
 	//-----------------------------------------------------------------------------
 	{
-		self_type i = *this;
+		const self_type i = *this;
 		operator++();
 		return i;
 	}
@@ -128,17 +128,17 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// postfix decrement
-	self_type operator--(int)
+	const self_type operator--(int)
 	//-----------------------------------------------------------------------------
 	{
-		self_type i = *this;
+		const self_type i = *this;
 		operator--();
 		return i;
 	}
 
 	//-----------------------------------------------------------------------------
 	/// returns the current value
-	reference operator*() const
+	const_reference operator*() const
 	//-----------------------------------------------------------------------------
 	{
 		return m_Value;
@@ -146,7 +146,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// returns the current value
-	pointer operator->() const
+	const_pointer operator->() const
 	//-----------------------------------------------------------------------------
 	{
 		return &m_Value;
@@ -198,6 +198,8 @@ public:
 	using value_type = codepoint_t;
 	using reference = value_type&;
 	using pointer = value_type*;
+	using const_reference = const value_type&;
+	using const_pointer = const value_type*;
 	using difference_type = std::ptrdiff_t;
 	using self_type = UTF8Iterator;
 
@@ -206,7 +208,7 @@ public:
 	UTF8Iterator(NarrowString& String, bool bToEnd = false)
 	//-----------------------------------------------------------------------------
 	: m_String(&String)
-	, m_next(bToEnd ? String.end() : String.begin())
+	, m_next(bToEnd ? nullptr : String.begin())
 	{
 		operator++();
 	}
@@ -218,7 +220,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// move constructor
-	UTF8Iterator(self_type&& other) = default;
+	UTF8Iterator(self_type&& other) noexcept = default;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -239,7 +241,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// move assignment
-	self_type& operator=(self_type&& other) = default;
+	self_type& operator=(self_type&& other) noexcept = default;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -253,20 +255,31 @@ public:
 			{
 				SaveChangedValue();
 			}
-			m_Value = m_OrigValue = NextCodepointFromUTF8(m_next, m_String->end());
+
+			if (KUTF8_UNLIKELY(m_next != nullptr))
+			{
+				if (KUTF8_UNLIKELY(m_next == m_String->end()))
+				{
+					m_next = nullptr;
+				}
+				else
+				{
+					m_Value = m_OrigValue = NextCodepointFromUTF8(m_next, m_String->end());
+				}
+			}
 		}
+
 		return *this;
 	}
 
 	//-----------------------------------------------------------------------------
 	/// postfix increment
-	self_type operator++(int)
+	const self_type operator++(int)
 	//-----------------------------------------------------------------------------
 	{
 		self_type i = *this;
 		operator++();
 		i.m_OrigValue = i.m_Value;
-		i.m_postfix = this;
 		return i;
 	}
 
@@ -282,29 +295,39 @@ public:
 				SaveChangedValue();
 			}
 
-			// stay at .end() if value is invalid
-			if (KUTF8_LIKELY(m_Value != INVALID_CODEPOINT))
+			if (KUTF8_UNLIKELY(m_next != nullptr))
 			{
-				m_next -= UTF8Bytes(m_Value);
-			}
+				// stay at .end() if value is invalid
+				if (KUTF8_LIKELY(m_Value != INVALID_CODEPOINT))
+				{
+					m_next -= UTF8Bytes(m_Value);
+				}
 
-			auto hit = m_next;
-			m_Value = m_OrigValue = PrevCodepointFromUTF8(m_next, m_String->begin());
-			m_next = hit;
+				auto hit = m_next;
+				m_Value = m_OrigValue = PrevCodepointFromUTF8(m_next, m_String->begin());
+				m_next = hit;
+			}
 		}
 		return *this;
 	}
 
 	//-----------------------------------------------------------------------------
 	/// postfix decrement
-	self_type operator--(int)
+	const self_type operator--(int)
 	//-----------------------------------------------------------------------------
 	{
 		self_type i = *this;
 		operator--();
 		i.m_OrigValue = i.m_Value;
-		i.m_postfix = this;
 		return i;
+	}
+
+	//-----------------------------------------------------------------------------
+	/// returns the current value
+	const_reference operator*() const
+	//-----------------------------------------------------------------------------
+	{
+		return m_Value;
 	}
 
 	//-----------------------------------------------------------------------------
@@ -313,6 +336,14 @@ public:
 	//-----------------------------------------------------------------------------
 	{
 		return m_Value;
+	}
+
+	//-----------------------------------------------------------------------------
+	/// returns the current value
+	const_pointer operator->() const
+	//-----------------------------------------------------------------------------
+	{
+		return &m_Value;
 	}
 
 	//-----------------------------------------------------------------------------
@@ -328,9 +359,7 @@ public:
 	bool operator==(const self_type& other) const
 	//-----------------------------------------------------------------------------
 	{
-		// need to check for same value as well, as the end iterator points
-		// to the same address, but has an invalid value (-1)
-		return m_next == other.m_next && m_Value == other.m_Value;
+		return m_next == other.m_next;
 	}
 
 	//-----------------------------------------------------------------------------
@@ -374,13 +403,6 @@ protected:
 			// adjust m_next to point after end of replaced sequence
 			m_next += iAdjust;
 
-			if (m_postfix)
-			{
-				// adjust the next iter in the original iterator
-				m_postfix->m_next += iAdjust;
-				m_postfix = nullptr;
-			}
-
 			// and finally write the replacement sequence
 			ToUTF8(m_Value, it);
 
@@ -392,7 +414,6 @@ protected:
 
 	NarrowString* m_String { nullptr };
 	typename NarrowString::iterator m_next;
-	self_type* m_postfix { 0 };
 	value_type m_Value { 0 };
 	value_type m_OrigValue { 0 };
 

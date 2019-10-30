@@ -80,13 +80,14 @@
 //  code, particularly because this is a pure C++11 implementation for untar.
 //  So please do not blame those for any errors this code may cause or have.
 
-#include <cstring>
-#include <boost/iostreams/filter/gzip.hpp>
-#include <boost/iostreams/filter/bzip2.hpp>
-
 #include "kuntar.h"
 #include "kfilesystem.h"
 #include "klog.h"
+
+#include <cstring>
+#include <array>
+#include <boost/iostreams/filter/gzip.hpp>
+#include <boost/iostreams/filter/bzip2.hpp>
 
 namespace dekaf2 {
 
@@ -397,13 +398,13 @@ bool KUnTar::Skip(size_t iSize)
 	}
 
 	enum { SKIP_BUFSIZE = 4096 };
-	char sBuffer[SKIP_BUFSIZE];
+	std::array<char, SKIP_BUFSIZE> sBuffer;
 	size_t iRead = 0;
 
 	for (auto iRemain = iSize; iRemain;)
 	{
-		auto iChunk = std::min(static_cast<size_t>(SKIP_BUFSIZE), iRemain);
-		if (!Read(sBuffer, iChunk))
+		auto iChunk = std::min(sBuffer.size(), iRemain);
+		if (!Read(sBuffer.data(), iChunk))
 		{
 			break;
 		}

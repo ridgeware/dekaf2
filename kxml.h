@@ -111,11 +111,11 @@ public:
 	/// iterate to next attribute
 	KXMLAttribute& operator++();     // prefix
 	/// iterate to next attribute
-	KXMLAttribute  operator++(int);  // postfix
+	const KXMLAttribute  operator++(int);  // postfix
 	/// iterate to previous attribute
 	KXMLAttribute& operator--();     // prefix
 	/// iterate to previous attribute
-	KXMLAttribute  operator--(int);  // postfix
+	const KXMLAttribute  operator--(int);  // postfix
 
 	/// Get next attribute of parent node
 	KXMLAttribute Next() const
@@ -226,11 +226,11 @@ public:
 	/// iterate to next node
 	KXMLNode& operator++();     // prefix
 	/// iterate to next node
-	KXMLNode  operator++(int);  // postfix
+	const KXMLNode  operator++(int);  // postfix
 	/// iterate to previous node
 	KXMLNode& operator--();     // prefix
 	/// iterate to previous node
-	KXMLNode  operator--(int);  // postfix
+	const KXMLNode  operator--(int);  // postfix
 
 	/// Get name of current node
 	KStringView GetName() const;

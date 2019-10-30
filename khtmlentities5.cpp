@@ -2475,11 +2475,6 @@ KString KHTMLEntity::DecodeOne(KStringView sIn)
 			break;
 		}
 
-		if (!sEntity.size())
-		{
-			break;
-		}
-
 		if (sEntity.front() == '&')
 		{
 			sEntity.remove_prefix(1);

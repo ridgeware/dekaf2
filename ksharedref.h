@@ -354,10 +354,8 @@ public:
 	//-----------------------------------------------------------------------------
 	/// default constructor. Constructs an empty instance with no reference to a
 	/// shared type.
-	KDependant()
+	KDependant() = default;
 	//-----------------------------------------------------------------------------
-	{
-	}
 
 	//-----------------------------------------------------------------------------
 	/// copy construction is allowed

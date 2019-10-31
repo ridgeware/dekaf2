@@ -231,7 +231,7 @@ bool KROW::FormInsert (KString& sSQL, DBT iDBType, bool fIdentityInsert/*=false*
 
 	kDebugLog (3, "KROW:FormInsert: before: {}", sSQL);
 	
-	if (!size())
+	if (empty())
 	{
 		m_sLastError.Format("KROW::FormInsert(): no columns defined.");
 		kDebugLog (1, "{}", m_sLastError);
@@ -427,7 +427,7 @@ bool KROW::FormDelete (KString& sSQL, DBT iDBType) const
 
 	kDebugLog (3, "KROW:FormDelete: before: {}", sSQL);
 
-	if (!size())
+	if (empty())
 	{
 		m_sLastError.Format("KROW::FormDelete(): no columns defined.");
 		kDebugLog (1, "{}", m_sLastError);

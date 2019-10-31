@@ -116,7 +116,7 @@ public:
 	/// handle one REST request, read input from file, output to OutStream
 	bool ExecuteFromFile(const Options& Options, const KRESTRoutes& Routes, KOutStream& OutStream = KOut);
 	/// simulate one REST request in HTTP/CGI mode, call API, output to OutStream
-	bool Simulate(const Options& Options, const KRESTRoutes& Routes, KResource API, KOutStream& OutStream = KOut);
+	bool Simulate(const Options& Options, const KRESTRoutes& Routes, const KResource& API, KOutStream& OutStream = KOut);
 	/// call either of the three other execution methods depending on Options.Type and sFilenameOrSimulation
 	bool Execute(const Options& Options, const KRESTRoutes& Routes);
 	/// returns true if no error

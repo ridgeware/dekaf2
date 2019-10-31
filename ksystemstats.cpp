@@ -961,7 +961,7 @@ bool KSystemStats::GatherNetstat ()
 		}
 	}
 
-	for (auto stat : Netstat)
+	for (const auto& stat : Netstat)
 	{
 		Add(stat.first, stat.second, StatType::INTEGER);
 	}
@@ -1369,7 +1369,7 @@ KString KSystemStats::Backtrace (pid_t iPID)
 		kReadFile (sPath, sCMD, true);
 
 		KString sAdd;
-		sAdd.Format ("{}{}:{}", sChain.size() ? " <- " : "", iPID, sCMD);
+		sAdd.Format ("{}{}:{}", sChain.empty() ? "" : " <- ", iPID, sCMD);
 		sChain += sAdd;
 
 		// recurse to parent pid:

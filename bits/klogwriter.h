@@ -76,7 +76,7 @@ class KLogWriter
 //----------
 public:
 //----------
-	KLogWriter() {}
+	KLogWriter() = default;
 	virtual ~KLogWriter();
 	virtual bool Write(int iLevel, bool bIsMultiline, KStringViewZ sOut) = 0;
 	virtual bool Good() const = 0;
@@ -91,7 +91,7 @@ class KLogNullWriter : public KLogWriter
 //----------
 public:
 //----------
-	KLogNullWriter() {}
+	KLogNullWriter() = default;
 	virtual ~KLogNullWriter();
 	virtual bool Write(int iLevel, bool bIsMultiline, KStringViewZ sOut) override { return true; }
 	virtual bool Good() const override { return true; }
@@ -109,7 +109,6 @@ public:
 	KLogStdWriter(std::ostream& iostream)
 	    : m_OutStream(iostream)
 	{}
-	virtual ~KLogStdWriter() {}
 	virtual bool Write(int iLevel, bool bIsMultiline, KStringViewZ sOut) override;
 	virtual bool Good() const override { return m_OutStream.good(); }
 
@@ -130,7 +129,6 @@ class KLogFileWriter : public KLogWriter
 public:
 //----------
 	KLogFileWriter(KStringView sFileName);
-	virtual ~KLogFileWriter() {}
 	virtual bool Write(int iLevel, bool bIsMultiline, KStringViewZ sOut) override;
 	virtual bool Good() const override { return m_OutFile.good(); }
 
@@ -152,7 +150,6 @@ public:
 	/// The sConcat will be written between individual log messages.
 	/// It will not be written after the last message
 	KLogStringWriter(KString& sOutString, KString sConcat = "\n");
-	virtual ~KLogStringWriter() {}
 	virtual bool Write(int iLevel, bool bIsMultiline, KStringViewZ sOut) override;
 	virtual bool Good() const override { return true; }
 

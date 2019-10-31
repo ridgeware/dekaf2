@@ -232,7 +232,7 @@ bool KREST::ExecuteFromFile(const Options& Options, const KRESTRoutes& Routes, K
 } // ExecuteFromFile
 
 //-----------------------------------------------------------------------------
-bool KREST::Simulate(const Options& Options, const KRESTRoutes& Routes, KResource API, KOutStream& OutStream)
+bool KREST::Simulate(const Options& Options, const KRESTRoutes& Routes, const KResource& API, KOutStream& OutStream)
 //-----------------------------------------------------------------------------
 {
 	if (API.empty())

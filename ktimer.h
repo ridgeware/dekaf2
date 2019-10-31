@@ -336,7 +336,9 @@ public:
 				epsilon = delta;
 			}
 			if (++itercnt >= limit)
+			{
 				break;
+			}
 		}
 		while (epsilon > tolerance);
 		return dst_now + (tp - src_now);

@@ -108,7 +108,7 @@ KTimer::ID_t KTimer::CallEvery(Interval intv, Callback CB)
 	Timer timer;
 	timer.ExpiresAt = Clock::now() + intv;
 	timer.IVal = intv;
-	timer.CB = CB;
+	timer.CB = std::move(CB);
 	timer.Flags = NONE;
 
 	return AddTimer(std::move(timer));
@@ -121,7 +121,7 @@ KTimer::ID_t KTimer::CallOnce(Timepoint tp, Callback CB)
 {
 	Timer timer;
 	timer.ExpiresAt = tp;
-	timer.CB = CB;
+	timer.CB = std::move(CB);
 	timer.Flags = ONCE;
 
 	return AddTimer(std::move(timer));
@@ -136,7 +136,7 @@ KTimer::ID_t KTimer::CallEvery(time_t intv, CallbackTimeT CBT)
 	Interval iv = std::chrono::seconds(intv);
 	timer.ExpiresAt = Clock::now() + iv;
 	timer.IVal = iv;
-	timer.CBT = CBT;
+	timer.CBT = std::move(CBT);
 	timer.Flags = TIMET;
 
 	return AddTimer(std::move(timer));
@@ -151,7 +151,7 @@ KTimer::ID_t KTimer::CallOnce(time_t tp, CallbackTimeT CBT)
 	timer.ExpiresAt = Clock::now();
 	time_t now = ToTimeT(timer.ExpiresAt);
 	timer.ExpiresAt += std::chrono::seconds(tp - now);
-	timer.CBT = CBT;
+	timer.CBT = std::move(CBT);
 	timer.Flags = ONCE | TIMET;
 
 	return AddTimer(std::move(timer));

@@ -80,7 +80,7 @@ public:
 //------
 
 	//-----------------------------------------------------------------------------
-	KUrlEncodingTables();
+	KUrlEncodingTables() noexcept;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -241,7 +241,7 @@ void kUrlEncode (KStringView sSource, String& sTarget, const bool excludeTable[2
 	sTarget.reserve (sTarget.size () + sSource.size ());
 	for (size_t iIndex = 0; iIndex < iSize; ++iIndex)
 	{
-		unsigned char ch = static_cast<unsigned char>(sSource[iIndex]);
+		auto ch = static_cast<unsigned char>(sSource[iIndex]);
 		// Do not encode either alnum or encoding excluded characters.
 		if ((!(ch & ~0x7f) && KASCII::kIsAlNum (ch)) || excludeTable[ch])
 		{
@@ -435,7 +435,7 @@ public:
 			KStringView svValEncoded (iEquals < svEncoded.size() ? svEncoded.substr (iEquals + 1) : KStringView{});
 
 			// we can have empty values
-			if (svKeyEncoded.size () /* && svValEncoded.size () */ )
+			if (!svKeyEncoded.empty () /* && svValEncoded.size () */ )
 			{
 				// decoding may only happen AFTER '=' '&' detections
 				KString sKey, sVal;

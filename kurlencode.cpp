@@ -70,14 +70,14 @@ bool* KUrlEncodingTables::EncodingTable[TABLECOUNT];
 bool KUrlEncodingTables::Tables[INT_TABLECOUNT][256];
 
 //-----------------------------------------------------------------------------
-KUrlEncodingTables::KUrlEncodingTables()
+KUrlEncodingTables::KUrlEncodingTables() noexcept
 //-----------------------------------------------------------------------------
 {
 	// set up the encoding tables
 	for (auto table = 0; table < INT_TABLECOUNT; ++table)
 	{
 		std::memset(&Tables[table], false, 256);
-		const unsigned char* p = reinterpret_cast<const unsigned char*>(s_sExcludes[table]);
+		auto p = reinterpret_cast<const unsigned char*>(s_sExcludes[table]);
 		while (auto ch = *p++)
 		{
 			Tables[table][ch] = true;

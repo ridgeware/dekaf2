@@ -62,7 +62,8 @@ KString KWebClient::HttpRequest (KURL URL, KStringView sRequestMethod/* = KHTTPM
 	// placeholder for a web form we may generate from query parms
 	KString sWWWForm;
 
-	if (svRequestBody.empty() &&
+	if (m_bQueryToWWWFormConversion &&
+		svRequestBody.empty() &&
 		!URL.Query.empty() &&
 		sRequestMethod != KHTTPMethod::GET &&
 		sRequestMethod != KHTTPMethod::OPTIONS &&

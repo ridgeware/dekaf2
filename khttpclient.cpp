@@ -813,11 +813,11 @@ bool KHTTPClient::AlreadyConnected(const KURL& URL) const
 } // AlreadyConnected
 
 //-----------------------------------------------------------------------------
-bool KHTTPClient::SetError(KStringView sError) const
+bool KHTTPClient::SetError(KString sError) const
 //-----------------------------------------------------------------------------
 {
-	kDebug(1, "{}", sError);
-	m_sError = sError;
+	m_sError = std::move(sError);
+	kDebug(1, m_sError);
 	return false;
 
 } // SetError

@@ -137,10 +137,21 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Set count of allowed redirects (default 3, 0 disables)
-	void AllowRedirects(uint16_t iMaxRedirects = 3)
+	self& AllowRedirects(uint16_t iMaxRedirects = 3)
 	//-----------------------------------------------------------------------------
 	{
 		m_iMaxRedirects = iMaxRedirects;
+		return *this;
+	}
+
+	//-----------------------------------------------------------------------------
+	/// Allow or forbid automatic conversion of query parms into a form body when there is no
+	/// other body - allowed per default
+	self& QueryToWWWFormConversion(bool bYesNo = true)
+	//-----------------------------------------------------------------------------
+	{
+		m_bQueryToWWWFormConversion = bYesNo;
+		return *this;
 	}
 
 //------
@@ -148,6 +159,7 @@ protected:
 //------
 
 	uint16_t m_iMaxRedirects { 3 };
+	bool m_bQueryToWWWFormConversion { true };
 
 }; // KWebClient
 

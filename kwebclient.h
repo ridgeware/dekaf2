@@ -147,7 +147,7 @@ public:
 	//-----------------------------------------------------------------------------
 	/// Allow or forbid automatic conversion of query parms into a form body when there is no
 	/// other body - allowed per default
-	self& QueryToWWWFormConversion(bool bYesNo = true)
+	self& AllowQueryToWWWFormConversion(bool bYesNo = true)
 	//-----------------------------------------------------------------------------
 	{
 		m_bQueryToWWWFormConversion = bYesNo;

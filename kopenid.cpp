@@ -155,6 +155,8 @@ bool KOpenIDProvider::SetError(KString sError) const
 bool KOpenIDProvider::Validate(const KURL& URL, KStringView sScope) const
 //-----------------------------------------------------------------------------
 {
+	kDebug(3, Configuration.dump(1, '\t'));
+
 	if (Configuration["issuer"] != URL.Serialize())
 	{
 		return SetError(kFormat("issuer ({}) does not match URL ({})",
@@ -267,6 +269,8 @@ bool KJWT::SetError(KString sError)
 bool KJWT::Validate(const KOpenIDProvider& Provider, KStringView sScope, time_t tClockLeeway)
 //-----------------------------------------------------------------------------
 {
+	kDebug(3, Payload.dump(1, '\t'));
+
 	if (Payload["iss"] != Provider.Configuration["issuer"])
 	{
 		return SetError(kFormat("Payload issuer {} does not match Provider issuer {}",
@@ -283,7 +287,16 @@ bool KJWT::Validate(const KOpenIDProvider& Provider, KStringView sScope, time_t 
 		}
 		if (!kjson::Contains(Scopes, sScope))
 		{
-			return SetError(kFormat("scope '{}' not supported", sScope));
+			KString sScopes;
+			for (const auto& Scope : Scopes)
+			{
+				if (!sScopes.empty())
+				{
+					sScopes += ',';
+				}
+				sScopes += Scope.get_ref<const KString&>();
+			}
+			return SetError(kFormat("scope '{}' not supported, known scopes: '{}'", sScope, sScopes));
 		}
 	}
 

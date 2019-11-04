@@ -731,12 +731,12 @@ bool KSQL::DecodeDBCData (KStringView sBuffer, KStringView sDBCFile)
 bool KSQL::LoadConnect (const KString& sDBCFile)
 //-----------------------------------------------------------------------------
 {
-	kDebugLog (3, "KSQL::LoadConnect()...");
+	kDebug (3, sDBCFile);
 
 	if (IsConnectionOpen())
 	{
-		m_sLastError.Format ("{}LoadConnect(): can't call LoadConnect on an OPEN DATABASE.", m_sErrorPrefix);
-		kDebugLog (GetDebugLevel(), "{}", m_sLastError);
+		m_sLastError.Format ("can't call LoadConnect on an OPEN DATABASE");
+		kDebug (GetDebugLevel(), m_sLastError);
 		return (false);
 	}
 
@@ -747,16 +747,21 @@ bool KSQL::LoadConnect (const KString& sDBCFile)
 	m_sPassword.clear();
 	m_sDatabase.clear();
 	m_sHostname.clear();
-	m_sDBCFile.clear();
 
-	kDebugLog (GetDebugLevel(), "KSQL:LoadConnect(): opening '{}'...", sDBCFile);
+	// take care that the new instance is not a ref on the old one
+	if (sDBCFile.data() != m_sDBCFile.data())
+	{
+		m_sDBCFile.clear();
+	}
+
+	kDebug (GetDebugLevel(), "opening '{}'...", sDBCFile);
 
 	auto sBuffer = kReadAll(sDBCFile);
 
 	if (sBuffer.empty())
 	{
-		m_sLastError.Format ("{}LoadConnect(): empty DBC file '{}'.", m_sErrorPrefix, sDBCFile);
-		kDebugLog (GetDebugLevel(), "{}", m_sLastError);
+		m_sLastError.Format ("empty DBC file '{}'", sDBCFile);
+		kDebug (GetDebugLevel(), m_sLastError);
 		return (false);
 	}
 

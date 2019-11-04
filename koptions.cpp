@@ -231,7 +231,8 @@ void KOptions::RegisterOption(KStringView sOptions, uint16_t iMinArgs, KStringVi
 {
 	for (auto sOption : sOptions.Split())
 	{
-		m_Options.insert({sOption, { iMinArgs, sMissingParms, std::move(Function) }});
+		// we cannot move Function here as it may get stored multiple times
+		m_Options.insert({sOption, { iMinArgs, sMissingParms, Function }});
 	}
 }
 
@@ -241,7 +242,8 @@ void KOptions::RegisterCommand(KStringView sCommands, uint16_t iMinArgs, KString
 {
 	for (auto sCommand : sCommands.Split())
 	{
-		m_Commands.insert({sCommand, { iMinArgs, sMissingParms, std::move(Function) }});
+		// we cannot move Function here as it may get stored multiple times
+		m_Commands.insert({sCommand, { iMinArgs, sMissingParms, Function }});
 	}
 }
 

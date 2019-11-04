@@ -400,24 +400,7 @@ bool KSMTP::Connect(const KURL& Relay, KStringView sUsername, KStringView sPassw
 
 	// check for SMTP-Auth
 	const KString& sAuth = Parms["AUTH"];
-/*
- * somehow PLAIN auth does not work properly
- *
-	if (sAuth.find("PLAIN") != KString::npos)
-	{
-		// try a PLAIN style authentication
-		KString sCmd;
-		sCmd += '\0';
-		sCmd += sUsername;
-		sCmd += '\0';
-		sCmd += sPassword;
-		sCmd += '\0';
-		if (Talk(kFormat("AUTH PLAIN {}", KBase64::Encode(sCmd)), "235"))
-		{
-			return true;
-		}
-	}
-*/
+
 	if (sAuth.find("LOGIN") != KString::npos)
 	{
 		// try a LOGIN style authentication
@@ -430,6 +413,20 @@ bool KSMTP::Connect(const KURL& Relay, KStringView sUsername, KStringView sPassw
 			return false;
 		}
 		if (Talk(KBase64::Encode(sPassword), "235"))
+		{
+			return true;
+		}
+	}
+	else if (sAuth.find("PLAIN") != KString::npos)
+	{
+		// try a PLAIN style authentication
+		KString sCmd;
+		sCmd += sUsername;
+		sCmd += '\0';
+		sCmd += sUsername;
+		sCmd += '\0';
+		sCmd += sPassword;
+		if (Talk(kFormat("AUTH PLAIN {}", KBase64::Encode(sCmd)), "235"))
 		{
 			return true;
 		}

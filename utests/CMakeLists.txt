@@ -26,6 +26,7 @@ set (USOURCES
 	khtmlcontentblocks_tests.cpp
 	kencode_tests.cpp
 	kfilesystem_tests.cpp
+	kgetruntimestack_tests.cpp
 	khmac_tests.cpp
 	khtmlparser_tests.cpp
 	khtmlcontentblocks_tests.cpp

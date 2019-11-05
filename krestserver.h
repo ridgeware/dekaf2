@@ -45,7 +45,6 @@
 #include "krestroute.h"
 #include "kstring.h"
 #include "kstringview.h"
-#include "kurl.h"
 #include "kjson.h"
 #include "kxml.h"
 #include "ktimer.h"
@@ -285,7 +284,6 @@ private:
 	KString m_sRawOutput;
 	KStopTime m_timer;
 	KJWT m_AuthToken;
-
 
 }; // KRESTServer
 

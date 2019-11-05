@@ -491,6 +491,7 @@ set(PUBLIC_HEADERS
 	kreplacer.h
 	krest.h
 	krestclient.h
+	krestroute.h
 	krestserver.h
 	krow.h
 	krsakey.h
@@ -617,6 +618,7 @@ set (SOURCES
 	kreplacer.cpp
 	krest.cpp
 	krestclient.cpp
+	krestroute.cpp
 	krestserver.cpp
 	krow.cpp
 	krsakey.cpp

@@ -305,7 +305,8 @@ KStringViewZ KLogHTTPHeaderSerializer::GetFooter()
 KString KLogHTTPHeaderSerializer::GetTimeStamp(KStringView sWhat)
 //---------------------------------------------------------------------------
 {
-	Set(1, "", "", sWhat, kFormTimestamp());
+	auto sTimestamp = kFormTimestamp();
+	Set(1, "", "", sWhat, sTimestamp);
 	return Get();
 
 } // GetTimeStamp

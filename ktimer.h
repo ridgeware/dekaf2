@@ -66,6 +66,24 @@ public:
 
 	using clock_t = std::chrono::steady_clock;
 
+	/// tag to force construction without starting the timer
+	static struct ConstructHalted {} Halted;
+
+	//-----------------------------------------------------------------------------
+	/// constructs and starts counting
+	KStopTime()
+	//-----------------------------------------------------------------------------
+	: m_Start(clock_t::now())
+	{
+	}
+
+	//-----------------------------------------------------------------------------
+	/// constructs without starting - use clear() to start counting
+	explicit KStopTime(ConstructHalted)
+	//-----------------------------------------------------------------------------
+	{
+	}
+
 	//-----------------------------------------------------------------------------
 	/// returns elapsed time in nanoseconds
 	size_t elapsed() const
@@ -86,7 +104,7 @@ public:
 protected:
 //----------
 
-	clock_t::time_point m_Start { clock_t::now() };
+	clock_t::time_point m_Start;
 
 }; // KStopTime
 
@@ -102,7 +120,25 @@ class KStopWatch : public KStopTime
 public:
 //----------
 
+	/// tag to force construction without starting the timer
+	static struct ConstructHalted {} Halted;
+
 	//-----------------------------------------------------------------------------
+	/// constructs and starts counting
+	KStopWatch() = default;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// constructs without starting
+	explicit KStopWatch(ConstructHalted)
+	//-----------------------------------------------------------------------------
+	: KStopTime(KStopTime::Halted)
+	, m_bIsHalted(true)
+	{
+	}
+
+	//-----------------------------------------------------------------------------
+	/// returns elapsed (active) time in nanoseconds
 	size_t elapsed() const
 	//-----------------------------------------------------------------------------
 	{
@@ -117,6 +153,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// halts elapsed time counting
 	void halt()
 	//-----------------------------------------------------------------------------
 	{
@@ -125,6 +162,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// resumes elapsed time counting
 	void resume()
 	//-----------------------------------------------------------------------------
 	{
@@ -136,6 +174,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// resets elapsed time, stops counter - call resume() to continue
 	void clear()
 	//-----------------------------------------------------------------------------
 	{

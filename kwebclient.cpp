@@ -40,6 +40,7 @@
 */
 
 #include "kwebclient.h"
+#include "ktimer.h"
 
 namespace dekaf2 {
 
@@ -80,21 +81,42 @@ KString KWebClient::HttpRequest (KURL URL, KStringView sRequestMethod/* = KHTTPM
 		kDebug(2, "created urlencoded form body from query parms");
 	}
 
+	KStopWatch TransferTime(KStopWatch::Halted);
+	KStopWatch ConnectTime(KStopWatch::Halted);
+
 	for(;;)
 	{
+		ConnectTime.resume();
+
 		if (Connect(URL))
 		{
+			ConnectTime.halt();
+
 			if (Resource(URL, sRequestMethod))
 			{
+				TransferTime.resume();
+				
 				if (SendRequest (svRequestBody, MIME))
 				{
 					Read (sResponse);
+
+					TransferTime.halt();
+
+					kDebug(3, sResponse);
 
 					if (Response.Fail())
 					{
 						break;
 					}
 				}
+				else
+				{
+					TransferTime.halt();
+				}
+			}
+			else
+			{
+				ConnectTime.halt();
 			}
 		}
 
@@ -111,6 +133,13 @@ KString KWebClient::HttpRequest (KURL URL, KStringView sRequestMethod/* = KHTTPM
 			break;
 		}
 		// else loop into the redirection
+	}
+
+	if (kWouldLog(2))
+	{
+		auto iConnectTime  = ConnectTime.elapsed()  / 1000 / 1000;
+		auto iTransferTime = TransferTime.elapsed() / 1000 / 1000;
+		kDebug(2, "connect {} ms, transfer {} ms, total {} ms", iConnectTime, iTransferTime, iConnectTime + iTransferTime);
 	}
 
 	if (!HttpSuccess() && Error().empty())

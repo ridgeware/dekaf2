@@ -93,6 +93,7 @@ bool KHTTPHeaders::Parse(KInStream& Stream)
 						return SetError(kFormat("HTTP continuation header line too long: {} bytes",
 												last->second.size() + sLine.size()));
 					}
+					kDebug(2, "continuation header: {}", sLine);
 					last->second += ' ';
 					last->second += sLine;
 				}
@@ -118,7 +119,7 @@ bool KHTTPHeaders::Parse(KInStream& Stream)
 		KStringView sValue(sLine.ToView(pos + 1, npos));
 		kTrimRight(sKey);
 		kTrim(sValue);
-
+		kDebug(2, "{}: {}", sKey, sValue);
 		last = Headers.Add(sKey, sValue);
 
 	}

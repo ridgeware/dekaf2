@@ -614,11 +614,6 @@ bool KHTTPClient::SendRequest(KStringView svPostData, KMIME Mime)
 	Request.Headers.Remove(KHTTPHeaders::CONTENT_LENGTH);
 	Request.Headers.Remove(KHTTPHeaders::CONTENT_TYPE);
 
-	if (!svPostData.empty())
-	{
-		kDebug(2, "send {} bytes of body with mime '{}'", svPostData.size(), Mime);
-	}
-
 	if (Request.Resource.empty() &&
 		Request.Method != KHTTPMethod::CONNECT)
 	{
@@ -674,7 +669,8 @@ bool KHTTPClient::SendRequest(KStringView svPostData, KMIME Mime)
 
 	if (!svPostData.empty())
 	{
-		kDebug(2, "sending {} bytes of '{}' data", svPostData.size(), KStringView(Mime));
+		kDebug(2, "sending {} bytes of body with mime '{}'", svPostData.size(), Mime);
+		kDebug(3, svPostData);
 		Request.Write(svPostData);
 	}
 

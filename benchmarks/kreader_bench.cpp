@@ -466,7 +466,7 @@ void compare_readers()
 				char* szBuffer = static_cast<char*>(malloc(fsize+1));
 				read(fd, szBuffer, fsize);
 				KProf::Force(szBuffer);
-				KString str(szBuffer, fsize, fsize+1, KString::AcquireMallocatedString());
+				KString str(szBuffer, fsize, fsize+1, KString::AcquireMallocatedString{});
 				close(fd);
 				KProf::Force(&str);
 				prof.Force();
@@ -551,7 +551,7 @@ void compare_readers()
 			KInFile is(filename);
 			if (is.is_open())
 			{
-				KString buffer(static_cast<char*>(malloc(fsize+1)), fsize, fsize+1, KString::AcquireMallocatedString());
+				KString buffer(static_cast<char*>(malloc(fsize+1)), fsize, fsize+1, KString::AcquireMallocatedString{});
 				is.Read(&buffer[0], fsize);
 				KProf::Force(&buffer);
 				prof.Force();

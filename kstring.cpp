@@ -157,7 +157,7 @@ void KString::resize_uninitialized(size_type n)
 					// set 0 at end of buffer
 					buf[iSize + iUninitialized] = 0;
 					// construct string on the buffer
-					KString sNew(buf, iSize + iUninitialized, iSize + iUninitialized + 1, AcquireMallocatedString());
+					KString sNew(buf, iSize + iUninitialized, iSize + iUninitialized + 1, AcquireMallocatedString{});
 					// and swap it in for the existing string
 					this->swap(sNew);
 					// that's it

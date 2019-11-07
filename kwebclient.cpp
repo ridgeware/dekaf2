@@ -137,9 +137,9 @@ KString KWebClient::HttpRequest (KURL URL, KStringView sRequestMethod/* = KHTTPM
 
 	if (kWouldLog(2))
 	{
-		auto iConnectTime  = ConnectTime.elapsed()  / 1000 / 1000;
-		auto iTransferTime = TransferTime.elapsed() / 1000 / 1000;
-		kDebug(2, "connect {} ms, transfer {} ms, total {} ms", iConnectTime, iTransferTime, iConnectTime + iTransferTime);
+		auto iConnectTime  = ConnectTime.elapsed<std::chrono::milliseconds>();
+		auto iTransferTime = TransferTime.elapsed<std::chrono::milliseconds>();
+		kDebug(2, "connect {} ms, transfer {} ms, total {} ms", iConnectTime.count(), iTransferTime.count(), iConnectTime.count() + iTransferTime.count());
 	}
 
 	if (!HttpSuccess() && Error().empty())

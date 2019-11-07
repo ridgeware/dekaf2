@@ -575,7 +575,7 @@ void KRESTServer::Output(const Options& Options, bool bKeepAlive)
 			if (!Options.sTimerHeader.empty())
 			{
 				// add a custom header that marks execution time for this request
-				Response.Headers.Add (Options.sTimerHeader, KString::to_string(m_timer.elapsed() / (1000 * 1000)));
+				Response.Headers.Add (Options.sTimerHeader, KString::to_string(m_timer.elapsed<std::chrono::milliseconds>().count()));
 			}
 
 			Response.Headers.Set (KHTTPHeaders::CONNECTION, bKeepAlive ? "keep-alive" : "close");
@@ -768,7 +768,7 @@ void KRESTServer::ErrorHandler(const std::exception& ex, const Options& Options)
 			if (!Options.sTimerHeader.empty())
 			{
 				// add a custom header that marks execution time for this request
-				Response.Headers.Add (Options.sTimerHeader, KString::to_string(m_timer.elapsed() / (1000 * 1000)));
+				Response.Headers.Add (Options.sTimerHeader, KString::to_string(m_timer.elapsed<std::chrono::milliseconds>().count()));
 			}
 
 			Response.Headers.Set(KHTTPHeaders::CONNECTION, "close");

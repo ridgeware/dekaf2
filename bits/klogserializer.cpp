@@ -278,7 +278,7 @@ KString KLogTTYSerializer::PrintStatus(KStringView sLevel)
 void KLogHTTPHeaderSerializer::Set(int iLevel, KStringView sShortName, KStringView sPathName, KStringView sFunction, KStringView sMessage)
 //---------------------------------------------------------------------------
 {
-	m_iElapsedNanoSeconds = m_Clock.elapsed();
+	m_iElapsedMicroSeconds = m_Clock.elapsed<std::chrono::microseconds>();
 	KLogSerializer::Set(iLevel, sShortName, sPathName, sFunction, sMessage);
 
 } // Set
@@ -320,7 +320,7 @@ KString KLogHTTPHeaderSerializer::PrintStatus(KStringView sLevel)
 
 	KString sPrefix;
 
-	sPrefix.Printf("| %3.3s | %10.10s | ", sLevel, kFormNumber(m_iElapsedNanoSeconds / 1000));
+	sPrefix.Printf("| %3.3s | %10.10s | ", sLevel, kFormNumber(m_iElapsedMicroSeconds.count()));
 
 	return sPrefix;
 

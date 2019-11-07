@@ -193,7 +193,7 @@ protected:
 	virtual KString PrintStatus(KStringView sLevel) override;
 
 	KStopTime m_Clock;
-	size_t m_iElapsedNanoSeconds { 0 };
+	std::chrono::microseconds m_iElapsedMicroSeconds { 0 };
 
 }; // KLogHTTPHeaderSerializer
 

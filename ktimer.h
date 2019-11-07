@@ -85,11 +85,12 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	/// returns elapsed time in nanoseconds
-	size_t elapsed() const
+	/// returns elapsed time (converted into any duration type, per default nanoseconds)
+	template<typename DurationType = std::chrono::nanoseconds>
+	DurationType elapsed() const
 	//-----------------------------------------------------------------------------
 	{
-		return (clock_t::now() - m_Start).count();
+		return std::chrono::duration_cast<DurationType>(clock_t::now() - m_Start);
 	}
 
 	//-----------------------------------------------------------------------------
@@ -138,18 +139,12 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	/// returns elapsed (active) time in nanoseconds
-	size_t elapsed() const
+	/// returns elapsed time (converted into any duration type, default is nanoseconds)
+	template<typename DurationType = std::chrono::nanoseconds>
+	DurationType elapsed() const
 	//-----------------------------------------------------------------------------
 	{
-		if (!m_bIsHalted)
-		{
-			return (clock_t::now() - m_Start).count() + m_iNanoSoFar;
-		}
-		else
-		{
-			return m_iNanoSoFar;
-		}
+		return std::chrono::duration_cast<DurationType>(elapsed_int());
 	}
 
 	//-----------------------------------------------------------------------------
@@ -157,7 +152,7 @@ public:
 	void halt()
 	//-----------------------------------------------------------------------------
 	{
-		m_iNanoSoFar += (clock_t::now() - m_Start).count();
+		m_iDurationSoFar += clock_t::now() - m_Start;
 		m_bIsHalted = true;
 	}
 
@@ -178,7 +173,7 @@ public:
 	void clear()
 	//-----------------------------------------------------------------------------
 	{
-		m_iNanoSoFar = 0;
+		m_iDurationSoFar = clock_t::duration::zero();
 		m_bIsHalted = true;
 	}
 
@@ -186,8 +181,23 @@ public:
 private:
 //----------
 
+	//-----------------------------------------------------------------------------
+	/// returns elapsed (active) time based on clock_t's duration type
+	clock_t::duration elapsed_int() const
+	//-----------------------------------------------------------------------------
+	{
+		if (!m_bIsHalted)
+		{
+			return (clock_t::now() - m_Start) + m_iDurationSoFar;
+		}
+		else
+		{
+			return m_iDurationSoFar;
+		}
+	}
+
 	bool m_bIsHalted { false };
-	size_t m_iNanoSoFar { 0 };
+	clock_t::duration m_iDurationSoFar { clock_t::duration::zero() };
 
 }; // KStopWatch
 

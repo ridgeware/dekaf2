@@ -96,34 +96,6 @@ public:
 		m_Version = il;
 	}
 
-	/// assignment from an initializer list
-	KVersion& operator=(std::initializer_list<value_type> il)
-	{
-		m_Version = il;
-		return *this;
-	}
-
-	/// assignment from a string
-	KVersion& operator=(const KStringView sVersion)
-	{
-		Parse(sVersion);
-		return *this;
-	}
-
-	/// assignment from a string
-	KVersion& operator=(const KString& sVersion)
-	{
-		Parse(sVersion);
-		return *this;
-	}
-
-	/// assignment from a char*
-	KVersion& operator=(const char* sVersion)
-	{
-		Parse(sVersion);
-		return *this;
-	}
-
 	/// reset version
 	void clear()
 	{

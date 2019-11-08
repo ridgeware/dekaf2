@@ -525,6 +525,7 @@ set(PUBLIC_HEADERS
 	kutf8.h
 	kutf8iterator.h
 	kvariant.h
+	kversion.h
 	kwebclient.h
 	kwords.h
 	kwriter.h
@@ -643,6 +644,7 @@ set (SOURCES
 	kuntar.cpp
 	kurl.cpp
 	kurlencode.cpp
+	kversion.cpp
 	kwebclient.cpp
 	kwords.cpp
 	kwriter.cpp

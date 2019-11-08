@@ -67,6 +67,7 @@ set (USOURCES
 	kurl_tests.cpp
 	kutf8_tests.cpp
 	kutf8iterator_tests.cpp
+	kversion_tests.cpp
 	kwords_tests.cpp
 	kwriter_tests.cpp
 	kxml_tests.cpp

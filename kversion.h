@@ -73,13 +73,13 @@ public:
 	KVersion() = default;
 
 	/// construct from a string
-	KVersion(KStringView sVersion, KStringView sSeparators = sDefaultSeparators)
+	explicit KVersion(KStringView sVersion, KStringView sSeparators = sDefaultSeparators)
 	{
 		Parse(sVersion, sSeparators);
 	}
 
 	/// construct from a string
-	KVersion(const KString& sVersion, KStringView sSeparators = sDefaultSeparators)
+	explicit KVersion(const KString& sVersion, KStringView sSeparators = sDefaultSeparators)
 	{
 		Parse(sVersion, sSeparators);
 	}
@@ -92,8 +92,8 @@ public:
 
 	/// construct from a list of ints
 	KVersion(std::initializer_list<value_type> il)
+	: m_Version(std::move(il))
 	{
-		m_Version = il;
 	}
 
 	/// reset version

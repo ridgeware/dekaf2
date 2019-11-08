@@ -42,9 +42,9 @@ TEST_CASE("KVersion")
 		CHECK ( Version <  "1.3"       );
 		CHECK ( Version >  "1.2"       );
 		CHECK ( Version >  "1.2.0.100" );
-		CHECK ( Version >= "1.2.1"_ks  );
+		CHECK ( Version >= "1.2.1"     );
 		CHECK ( Version >= "1.2.1.0.0" );
-		CHECK ( Version == "1.2.1"_ksv );
+		CHECK ( Version == "1.2.1"     );
 		CHECK ( Version == "1.2.1.0"   );
 		CHECK ( Version != "1.2.1.1"   );
 		CHECK ( Version == (KVersion { 1, 2, 1 }) );

@@ -296,6 +296,10 @@ endif()
 # ================================= BOOST ====================================
 
 set(Boost_USE_STATIC_LIBS ON)
+set(Boost_USE_MULTITHREADED ON)
+# to workaround a broken boost cmake config with boost 1.71 disable
+# the boost cmake files
+set(Boost_NO_BOOST_CMAKE 1)
 
 if (NOT BOOST_ROOT)
 	# only set BOOST_ROOT if not already done by caller

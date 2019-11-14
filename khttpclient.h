@@ -402,8 +402,8 @@ protected:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// Returns true if we are already connected to the endpoint in URL
-	bool AlreadyConnected(const KURL& URL) const;
+	/// Returns true if we are already connected to the endpoint
+	bool AlreadyConnected(const KTCPEndPoint& EndPoint) const;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------

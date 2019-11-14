@@ -196,6 +196,7 @@ const KString& KHTTPClient::DigestAuthenticator::GetAuthHeader(const KOutHTTPReq
 void KHTTPClient::clear()
 //-----------------------------------------------------------------------------
 {
+	kDebug(2, "...");
 	Request.clear();
 	Response.clear();
 	m_sError.clear();
@@ -796,7 +797,7 @@ bool KHTTPClient::CheckForRedirect(KURL& URL, KStringView& sRequestMethod)
 } // CheckForRedirect
 
 //-----------------------------------------------------------------------------
-bool KHTTPClient::AlreadyConnected(const KURL& URL) const
+bool KHTTPClient::AlreadyConnected(const KTCPEndPoint& EndPoint) const
 //-----------------------------------------------------------------------------
 {
 	if (!m_Connection || !m_Connection->Good())
@@ -804,7 +805,7 @@ bool KHTTPClient::AlreadyConnected(const KURL& URL) const
 		return false;
 	}
 
-	return URL == m_Connection->EndPoint();
+	return EndPoint == m_Connection->EndPoint();
 
 } // AlreadyConnected
 

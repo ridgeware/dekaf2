@@ -314,10 +314,12 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// Set a connection timeout in seconds
 	self& SetTimeout(int iSeconds);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	/// Request response compression. Default is true.
 	self& RequestCompression(bool bYesNo)
 	//-----------------------------------------------------------------------------
 	{
@@ -326,7 +328,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	/// uncompress incoming response?
+	/// Uncompress incoming response if compressed? Default is true
 	self& AllowUncompression(bool bYesNo)
 	//-----------------------------------------------------------------------------
 	{
@@ -335,7 +337,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	/// compress outgoing request?
+	/// Compress outgoing request? Default is true
 	self& AllowCompression(bool bYesNo)
 	//-----------------------------------------------------------------------------
 	{
@@ -402,6 +404,11 @@ protected:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	/// Mark an IO error
+	bool SetNetworkError(bool bRead, KString sError);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
 	/// Returns true if we are already connected to the endpoint
 	bool AlreadyConnected(const KTCPEndPoint& EndPoint) const;
 	//-----------------------------------------------------------------------------
@@ -414,6 +421,8 @@ protected:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	/// sets a redirect target depending on the returned status code and location
+	/// header
 	bool CheckForRedirect(KURL& URL, KStringView& sRequestMethod);
 	//-----------------------------------------------------------------------------
 
@@ -422,6 +431,7 @@ private:
 //------
 
 	//-----------------------------------------------------------------------------
+	/// sets the Host: header, leaves port out if standard and bForcePort is false
 	bool SetHostHeader(const KURL& url, bool bForcePort = false);
 	//-----------------------------------------------------------------------------
 
@@ -435,7 +445,7 @@ private:
 	bool m_bRequestCompression { true };
 	bool m_bAutoProxy { false };
 	bool m_bUseHTTPProxyProtocol { false };
-	bool m_bLastResponseFailed { false };
+	bool m_bKeepAlive { true };
 
 //------
 public:

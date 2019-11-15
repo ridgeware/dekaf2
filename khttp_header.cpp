@@ -284,18 +284,9 @@ bool KHTTPHeaders::HasKeepAlive() const
 	}
 	else
 	{
-		KStringView sValue = Headers.Get(KHTTPHeaders::connection);
-
-		if (!sValue.empty())
-		{
-			KString sLower = sValue.ToLower();
-			return sLower == "keep-alive" || sLower == "keepalive";
-		}
-		else
-		{
-			// keepalive is default with HTTP/1.1
-			return true;
-		}
+		auto sValue = Headers.Get(KHTTPHeaders::connection).ToLowerASCII();
+		// keepalive is default with HTTP/1.1
+		return sValue.empty() || sValue == "keep-alive" || sValue == "keepalive";
 	}
 
 } // HasKeepAlive

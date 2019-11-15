@@ -83,6 +83,7 @@ KString KWebClient::HttpRequest (KURL URL, KStringView sRequestMethod/* = KHTTPM
 
 	KStopWatch TransferTime(KStopWatch::Halted);
 	KStopWatch ConnectTime(KStopWatch::Halted);
+	uint16_t iRetry { 0 };
 
 	for(;;)
 	{
@@ -112,6 +113,19 @@ KString KWebClient::HttpRequest (KURL URL, KStringView sRequestMethod/* = KHTTPM
 				else
 				{
 					TransferTime.halt();
+
+					if (Response.Fail())
+					{
+						// check for error 598 - NETWORK READ/WRITE ERROR
+						if (Response.GetStatusCode() == 598 && !iRetry++)
+						{
+							kDebug(2, "retrying connection");
+							// allow one connection retry - we might have run into
+							// an open connection and the other end shut it down
+							// just before we sent data
+							continue;
+						}
+					}
 				}
 			}
 			else

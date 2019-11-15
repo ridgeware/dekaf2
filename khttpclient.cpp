@@ -196,7 +196,6 @@ const KString& KHTTPClient::DigestAuthenticator::GetAuthHeader(const KOutHTTPReq
 void KHTTPClient::clear()
 //-----------------------------------------------------------------------------
 {
-	kDebug(2, "...");
 	Request.clear();
 	Response.clear();
 	m_sError.clear();
@@ -625,7 +624,7 @@ bool KHTTPClient::SendRequest(KStringView svPostData, KMIME Mime)
 
 	if (!m_Connection || !m_Connection->Good())
 	{
-		return SetError("no stream");
+		return SetNetworkError(false, "no stream");
 	}
 
 	if (Request.Method != KHTTPMethod::HEAD &&
@@ -667,19 +666,24 @@ bool KHTTPClient::SendRequest(KStringView svPostData, KMIME Mime)
 
 	if (!Request.Serialize()) // this sends the request headers to the remote server
 	{
-		return SetError(Request.Error());
+		kDebugLog(2, "cannot write header");
+		return SetNetworkError(false, Request.Error());
 	}
 
 	if (!svPostData.empty())
 	{
 		kDebug(2, "sending {} bytes of body with mime '{}'", svPostData.size(), Mime);
 		kDebug(3, svPostData);
-		Request.Write(svPostData);
+		if (Request.Write(svPostData) != svPostData.size())
+		{
+			kDebug(2, "cannot write body");
+			return SetNetworkError(false, Request.Error());
+		}
 	}
 
 	if (!m_Connection->Good())
 	{
-		return SetError("write error");
+		return SetNetworkError(false, "write error");
 	}
 
 	return Parse();
@@ -691,8 +695,7 @@ bool KHTTPClient::Serialize()
 {
 	if (!Request.Serialize())
 	{
-		SetError(Request.Error());
-		return false;
+		return SetNetworkError(false, Request.Error());
 	}
 
 	return true;
@@ -705,20 +708,11 @@ bool KHTTPClient::Parse()
 {
 	Request.close();
 
-	m_bLastResponseFailed = false;
+	m_bKeepAlive = true;
 
 	if (!Response.Parse())
 	{
-		if (!Response.Error().empty())
-		{
-			SetError(Response.Error());
-		}
-		else
-		{
-			SetError(m_Connection->Error());
-		}
-		Disconnect();
-		return false;
+		return SetNetworkError(true, Response.Error().empty() ? m_Connection->Error() : Response.Error());
 	}
 
 	// make sure also a network read error triggers a meaningful status
@@ -728,8 +722,13 @@ bool KHTTPClient::Parse()
 		// we do not close the connection right here because inheriting
 		// classes may still want to read the response body, but we mark
 		// the failure and will not allow a reuse of the connection
-		m_bLastResponseFailed = true;
+		m_bKeepAlive = false;
 		kDebug(2, "mark instance as failed");
+	}
+	else
+	{
+		// check Response for keepalive
+		m_bKeepAlive = Response.HasKeepAlive();
 	}
 
 	kDebug(2, "HTTP-{} {}", Response.GetStatusCode(), Response.GetStatusString());
@@ -812,7 +811,7 @@ bool KHTTPClient::CheckForRedirect(KURL& URL, KStringView& sRequestMethod)
 bool KHTTPClient::AlreadyConnected(const KTCPEndPoint& EndPoint) const
 //-----------------------------------------------------------------------------
 {
-	if (m_bLastResponseFailed || !m_Connection || !m_Connection->Good())
+	if (!m_bKeepAlive || !m_Connection || !m_Connection->Good())
 	{
 		return false;
 	}
@@ -830,5 +829,20 @@ bool KHTTPClient::SetError(KString sError) const
 	return false;
 
 } // SetError
+
+//-----------------------------------------------------------------------------
+bool KHTTPClient::SetNetworkError(bool bRead, KString sError)
+//-----------------------------------------------------------------------------
+{
+	if (!Response.GetStatusCode() || Response.Good())
+	{
+		Response.SetStatus(598, kFormat("NETWORK {} ERROR", bRead ? "READ" : "WRITE"));
+	}
+
+	m_bKeepAlive = false;
+
+	return SetError(std::move(sError));
+
+} // SetNetworkError
 
 } // end of namespace dekaf2

@@ -157,11 +157,9 @@ bool KInHTTPResponse::Fail() const
 			// set a read error - we cast the const away..
 			const_cast<KInHTTPResponse*>(this)->KHTTPResponseHeaders::SetStatus(598, "NETWORK READ ERROR");
 		}
-		
-		return true;
 	}
 
-	return false;
+	return !KHTTPResponseHeaders::Good();
 
 } // Fail
 

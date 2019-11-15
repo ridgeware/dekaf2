@@ -258,10 +258,11 @@ public:
 	KStringView(const value_type* s, size_type count) noexcept
 	//-----------------------------------------------------------------------------
 #if defined(DEKAF2_USE_FOLLY_STRINGPIECE_AS_KSTRINGVIEW) \
-	|| defined(DEKAF2_USE_DEKAF2_STRINGVIEW_AS_KSTRINGVIEW)
+	|| defined(DEKAF2_USE_DEKAF2_STRINGVIEW_AS_KSTRINGVIEW) \
+	|| defined(DEKAF2_IS_GCC)
 	: m_rep(s, count)
 #else
-	// folly is resilient to nullptr assignment, but std::string_view is not
+	// std::string_view in clang libc++ is not resilient to nullptr assignment
 	// - therefore we protect it
 	: m_rep(s ? s : &s_0ch, s ? count : 0)
 #endif
@@ -273,10 +274,11 @@ public:
 	KStringView(const value_type* s) noexcept
 	//-----------------------------------------------------------------------------
 #if defined(DEKAF2_USE_FOLLY_STRINGPIECE_AS_KSTRINGVIEW) \
-	|| defined(DEKAF2_USE_DEKAF2_STRINGVIEW_AS_KSTRINGVIEW)
+	|| defined(DEKAF2_USE_DEKAF2_STRINGVIEW_AS_KSTRINGVIEW) \
+	|| defined(DEKAF2_IS_GCC)
 	    : m_rep(s)
 #else
-	// folly is resilient to nullptr assignment, but std::string_view is not
+	// std::string_view in clang libc++ is not resilient to nullptr assignment
 	// - therefore we protect it
 	: m_rep(s ? s : &s_0ch)
 #endif

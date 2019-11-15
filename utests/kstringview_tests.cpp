@@ -10,6 +10,14 @@ using namespace dekaf2;
 
 TEST_CASE("KStringView") {
 
+	SECTION("nullptr")
+	{
+		static constexpr KStringView sv1 { nullptr };
+		static constexpr KStringView sv2 = nullptr;
+		CHECK ( sv1.empty() );
+		CHECK ( sv2.empty() );
+	}
+
 	SECTION("find")
 	{
 		KStringView sv("0123456  9abcdef h");

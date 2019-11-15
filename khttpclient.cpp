@@ -207,6 +207,7 @@ void KHTTPClient::clear()
 	// the setup of a new connection
 	// same for m_sForcedHost
 	// same for m_iMaxRedirects
+	// same for m_bLastResponseFailed
 
 } // clear
 
@@ -318,6 +319,7 @@ bool KHTTPClient::Connect(const KURL& url)
 
 	if (AlreadyConnected(url))
 	{
+		kDebug(2, "reusing existing connection to {}", m_Connection->EndPoint());
 		return true;
 	}
 
@@ -703,6 +705,8 @@ bool KHTTPClient::Parse()
 {
 	Request.close();
 
+	m_bLastResponseFailed = false;
+
 	if (!Response.Parse())
 	{
 		if (!Response.Error().empty())
@@ -713,12 +717,20 @@ bool KHTTPClient::Parse()
 		{
 			SetError(m_Connection->Error());
 		}
+		Disconnect();
 		return false;
 	}
 
-	// make sure also a network read error triggers a meaningful
-	// status code / string
-	Response.Fail();
+	// make sure also a network read error triggers a meaningful status
+	// code / string (Response.Good() calls Response.Fail() and ensures this)
+	if (!Response.Good())
+	{
+		// we do not close the connection right here because inheriting
+		// classes may still want to read the response body, but we mark
+		// the failure and will not allow a reuse of the connection
+		m_bLastResponseFailed = true;
+		kDebug(2, "mark instance as failed");
+	}
 
 	kDebug(2, "HTTP-{} {}", Response.GetStatusCode(), Response.GetStatusString());
 
@@ -800,7 +812,7 @@ bool KHTTPClient::CheckForRedirect(KURL& URL, KStringView& sRequestMethod)
 bool KHTTPClient::AlreadyConnected(const KTCPEndPoint& EndPoint) const
 //-----------------------------------------------------------------------------
 {
-	if (!m_Connection || !m_Connection->Good())
+	if (m_bLastResponseFailed || !m_Connection || !m_Connection->Good())
 	{
 		return false;
 	}

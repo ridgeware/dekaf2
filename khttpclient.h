@@ -435,6 +435,7 @@ private:
 	bool m_bRequestCompression { true };
 	bool m_bAutoProxy { false };
 	bool m_bUseHTTPProxyProtocol { false };
+	bool m_bLastResponseFailed { false };
 
 //------
 public:

@@ -66,8 +66,9 @@ int main( int argc, char* const argv[] )
 		if (kStrIn (argv[ii], "-d,-dd,-ddd"))
 		{
 			iLast = ii;
-			KLog::getInstance().SetLevel( static_cast<int>(strlen(argv[ii]) - 1));
+			KLog::getInstance().SetLevel(static_cast<int>(strlen(argv[ii]) - 1));
 			KLog::getInstance().SetDebugLog(KLog::STDOUT);
+			KLog::getInstance().KeepCLIMode(true);
 			kDebugLog (0, "{}: debug now set to {}", argv[ii], KLog::getInstance().GetLevel());
 		}
 		else if (kStrIn (argv[ii], "-d0"))
@@ -75,6 +76,7 @@ int main( int argc, char* const argv[] )
 			iLast = ii;
 			KLog::getInstance().SetLevel( 0 );
 			KLog::getInstance().SetDebugLog(KLog::STDOUT);
+			KLog::getInstance().KeepCLIMode(true);
 			kDebugLog (0, "{}: debug now set to {}", argv[ii], KLog::getInstance().GetLevel());
 		}
 		else if (kStrIn (argv[ii], "-dgrep,-dgrepv"))
@@ -91,6 +93,7 @@ int main( int argc, char* const argv[] )
 				}
 				KLog::getInstance().SetDebugLog (KLog::STDOUT);
 				KLog::getInstance().LogWithGrepExpression(true, KStringView(argv[ii-1]) == "-dgrepv"_ksv, argv[ii]);
+				KLog::getInstance().KeepCLIMode(true);
 			}
 		}
 

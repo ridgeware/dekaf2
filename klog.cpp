@@ -174,7 +174,7 @@ KLog::~KLog()
 } // dtor
 
 //---------------------------------------------------------------------------
-void KLog::SetDefaults()
+KLog& KLog::SetDefaults()
 //---------------------------------------------------------------------------
 {
 	// reset to defaults
@@ -205,10 +205,12 @@ void KLog::SetDefaults()
 
 	m_Traces.clear();
 
+	return *this;
+
 } // SetDefaults
 
 //---------------------------------------------------------------------------
-void KLog::LogThisThreadToKLog(int iLevel)
+KLog& KLog::LogThisThreadToKLog(int iLevel)
 //---------------------------------------------------------------------------
 {
 	if (iLevel > 0)
@@ -233,12 +235,14 @@ void KLog::LogThisThreadToKLog(int iLevel)
 	s_PerThreadWriter.reset();
 	s_PerThreadSerializer.reset();
 
+	return *this;
+
 } // LogThisThreadToKLog
 
 #ifdef DEKAF2_KLOG_WITH_TCP
 
 //---------------------------------------------------------------------------
-void KLog::LogThisThreadToResponseHeaders(int iLevel, KHTTPHeaders& Response, KStringView sHeader)
+KLog& KLog::LogThisThreadToResponseHeaders(int iLevel, KHTTPHeaders& Response, KStringView sHeader)
 //---------------------------------------------------------------------------
 {
 	if (iLevel > 0)
@@ -258,10 +262,12 @@ void KLog::LogThisThreadToResponseHeaders(int iLevel, KHTTPHeaders& Response, KS
 		s_PerThreadSerializer.reset();
 	}
 
+	return *this;
+
 } // LogThisThreadToResponseHeaders
 
 //---------------------------------------------------------------------------
-void KLog::LogThisThreadToJSON(int iLevel, void* pjson)
+KLog& KLog::LogThisThreadToJSON(int iLevel, void* pjson)
 //---------------------------------------------------------------------------
 {
 	if (iLevel > 0 && pjson)
@@ -278,23 +284,27 @@ void KLog::LogThisThreadToJSON(int iLevel, void* pjson)
 		s_PerThreadSerializer.reset();
 	}
 
+	return *this;
+
 } // LogThisThreadToJSON
 
 #endif // DEKAF2_KLOG_WITH_TCP
 
 
 //---------------------------------------------------------------------------
-void KLog::LogThisThreadWithGrepExpression(bool bEGrep, KString sGrepExpression)
+KLog& KLog::LogThisThreadWithGrepExpression(bool bEGrep, KString sGrepExpression)
 //---------------------------------------------------------------------------
 {
 	kDebug(2, "using {}grep expression '{}'", bEGrep ? "e" : "", sGrepExpression);
 	s_sPerThreadGrepExpression = std::move(sGrepExpression);
 	s_bPerThreadEGrep = bEGrep;
 
+	return *this;
+
 } //  LogThisThreadWithGrepExpression
 
 //---------------------------------------------------------------------------
-void KLog::SetJSONTrace(KStringView sJSONTrace)
+KLog& KLog::SetJSONTrace(KStringView sJSONTrace)
 //---------------------------------------------------------------------------
 {
 	if (!sJSONTrace.empty())
@@ -315,6 +325,8 @@ void KLog::SetJSONTrace(KStringView sJSONTrace)
 			}
 		}
 	}
+
+	return *this;
 
 } // SetJSONTrace
 
@@ -338,7 +350,7 @@ KStringView KLog::GetJSONTrace() const
 } // GetJSONTrace
 
 //---------------------------------------------------------------------------
-void KLog::SetLevel(int iLevel)
+KLog& KLog::SetLevel(int iLevel)
 //---------------------------------------------------------------------------
 {
 	if (iLevel <= 0)
@@ -359,6 +371,8 @@ void KLog::SetLevel(int iLevel)
  *
  */
 
+	return *this;
+
 } // SetLevel
 
 //---------------------------------------------------------------------------
@@ -370,7 +384,7 @@ void KLog::SyncLevel()
 } // SyncLevel
 
 //---------------------------------------------------------------------------
-void KLog::SetName(KStringView sName)
+KLog& KLog::SetName(KStringView sName)
 //---------------------------------------------------------------------------
 {
 	if (sName.size() > 5)
@@ -379,6 +393,8 @@ void KLog::SetName(KStringView sName)
 	}
 
 	m_sShortName = kToUpper(sName);
+
+	return *this;
 
 } // SetName
 
@@ -537,7 +553,7 @@ bool KLog::IntOpenLog()
  */
 
 //---------------------------------------------------------------------------
-void KLog::SetMode(LOGMODE logmode)
+KLog& KLog::SetMode(LOGMODE logmode)
 //---------------------------------------------------------------------------
 {
 	if (m_Logmode != logmode)
@@ -546,10 +562,13 @@ void KLog::SetMode(LOGMODE logmode)
 
 		if (logmode == SERVER)
 		{
-			// if new mode == SERVER, first set debug log
-			SetDebugLog(kGetEnv(s_sEnvLog, m_sDefaultLog));
-			// then read the debug flag
-			CheckDebugFlag(true);
+			if (!m_bKeepCLIMode)
+			{
+				// if new mode == SERVER, first set debug log
+				SetDebugLog(kGetEnv(s_sEnvLog, m_sDefaultLog));
+				// then read the debug flag
+				CheckDebugFlag(true);
+			}
 		}
 		else
 		{
@@ -557,6 +576,8 @@ void KLog::SetMode(LOGMODE logmode)
 			SetDebugLog(STDOUT);
 		}
 	}
+
+	return *this;
 
 } // SetMode
 
@@ -739,7 +760,7 @@ void KLog::CheckDebugFlag(bool bForce/*=false*/)
 } // CheckDebugFlag
 
 //---------------------------------------------------------------------------
-void KLog::LogWithGrepExpression(bool bEGrep, bool bInverted, KString sGrepExpression)
+KLog& KLog::LogWithGrepExpression(bool bEGrep, bool bInverted, KString sGrepExpression)
 //---------------------------------------------------------------------------
 {
 	// change string values in multithreading only with a mutex
@@ -747,6 +768,8 @@ void KLog::LogWithGrepExpression(bool bEGrep, bool bInverted, KString sGrepExpre
 	m_bEGrep = bEGrep;
 	m_bInvertedGrep = bInverted;
 	m_sGrepExpression = sGrepExpression;
+
+	return *this;
 
 } // LogWithGrepExpression
 

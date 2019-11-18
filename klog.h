@@ -99,6 +99,8 @@ class KLog
 public:
 //----------
 
+	using self = KLog;
+
 	//---------------------------------------------------------------------------
 	static KLog& getInstance()
 	//---------------------------------------------------------------------------
@@ -124,10 +126,22 @@ public:
 	enum LOGMODE { CLI, SERVER };
 
 	//---------------------------------------------------------------------------
+	/// If the logging shall not leave the initial CLI mode and switch to SERVER
+	/// mode on upstart of e.g. the REST server, call with true. This is useful
+	/// if a command line option like -dd was given, with redirection to stderr
+	/// or stdout.
+	self& KeepCLIMode(bool bYesNo)
+	//---------------------------------------------------------------------------
+	{
+		m_bKeepCLIMode = bYesNo;
+		return *this;
+	}
+
+	//---------------------------------------------------------------------------
 	/// Sets the operation mode of the KLOG to either CLI or SERVER mode. Default
 	/// is CLI, but e.g. the REST server switches this to SERVER. This affects
 	/// log location and error output.
-	void SetMode(LOGMODE logmode);
+	self& SetMode(LOGMODE logmode);
 	//---------------------------------------------------------------------------
 
 	//---------------------------------------------------------------------------
@@ -149,7 +163,7 @@ public:
 
 	//---------------------------------------------------------------------------
 	/// Sets a new log level.
-	void SetLevel(int iLevel);
+	self& SetLevel(int iLevel);
 	//---------------------------------------------------------------------------
 
 	//---------------------------------------------------------------------------
@@ -180,7 +194,7 @@ public:
 	/// "OFF,off,FALSE,false,NO,no,0" :: switches off
 	/// "CALLER,caller,SHORT,short"   :: switches to caller frame only
 	///                               :: all else switches full trace on
-	void SetJSONTrace(KStringView sJSONTrace);
+	self& SetJSONTrace(KStringView sJSONTrace);
 	//---------------------------------------------------------------------------
 
 	//---------------------------------------------------------------------------
@@ -190,7 +204,7 @@ public:
 
 	//---------------------------------------------------------------------------
 	/// Set application name for logging.
-	void SetName(KStringView sName);
+	self& SetName(KStringView sName);
 	//---------------------------------------------------------------------------
 
 	//---------------------------------------------------------------------------
@@ -277,7 +291,7 @@ public:
 
 	//---------------------------------------------------------------------------
 	/// Reset configuration to default values
-	void SetDefaults();
+	self& SetDefaults();
 	//---------------------------------------------------------------------------
 
 	//---------------------------------------------------------------------------
@@ -398,33 +412,33 @@ public:
 	/// current klog. This can be used to force more logging for a particular thread
 	/// than for other threads. If iLevel is <= 0, the global log level is applied
 	/// and this method resets all thread specific logging.
-	void LogThisThreadToKLog(int iLevel);
+	self& LogThisThreadToKLog(int iLevel);
 	//---------------------------------------------------------------------------
 
 #ifdef DEKAF2_KLOG_WITH_TCP
 	//---------------------------------------------------------------------------
 	/// Log messages of this thread of execution with level <= iLevel into a
 	/// HTTP Response header.
-	void LogThisThreadToResponseHeaders(int iLevel, KHTTPHeaders& Response, KStringView sHeader = "x-klog");
+	self& LogThisThreadToResponseHeaders(int iLevel, KHTTPHeaders& Response, KStringView sHeader = "x-klog");
 	//---------------------------------------------------------------------------
 
 	//---------------------------------------------------------------------------
 	/// Log messages of this thread of execution with level <= iLevel into a
 	/// JSON array
-	void LogThisThreadToJSON(int iLevel, void* pjson);
+	self& LogThisThreadToJSON(int iLevel, void* pjson);
 	//---------------------------------------------------------------------------
 #endif
 
 	//---------------------------------------------------------------------------
 	/// When per-thread logging is active, only log messages that contain the sGrepExpression,
 	/// either in egrep (regular expression) modus or plain string search
-	void LogThisThreadWithGrepExpression(bool bEGrep, KString sGrepExpression);
+	self& LogThisThreadWithGrepExpression(bool bEGrep, KString sGrepExpression);
 	//---------------------------------------------------------------------------
 
 	//---------------------------------------------------------------------------
 	/// Only log messages that contain or do not contain (bInverted) the sGrepExpression
 	/// either in egrep (regular expression) modus or plain string search
-	void LogWithGrepExpression(bool bEGrep, bool bInverted, KString sGrepExpression);
+	self& LogWithGrepExpression(bool bEGrep, bool bInverted, KString sGrepExpression);
 	//---------------------------------------------------------------------------
 
 	static KStringView s_sJSONSkipFiles;
@@ -482,6 +496,7 @@ private:
 	bool m_bIsCGI { false }; // we need this bool on top of m_Logmode for the constructor
 	bool m_bEGrep { false };
 	bool m_bInvertedGrep { false };
+	bool m_bKeepCLIMode { false };
 
 	LOGMODE m_Logmode { CLI };
 

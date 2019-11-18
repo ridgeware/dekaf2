@@ -446,6 +446,7 @@ int KOptions::Execute(KOutStream& out)
 						it->bConsumed = true;
 						KLog::getInstance().SetLevel (static_cast<int>(it->sArg.size()));
 						KLog::getInstance().SetDebugLog (m_sCliDebugTo);
+						KLog::getInstance().KeepCLIMode (true);
 						kDebug (1, "debug level set to: {}", KLog::getInstance().GetLevel());
 					}
 					else if (it->sArg == "d0")
@@ -453,6 +454,7 @@ int KOptions::Execute(KOutStream& out)
 						it->bConsumed = true;
 						KLog::getInstance().SetLevel (0);
 						KLog::getInstance().SetDebugLog (m_sCliDebugTo);
+						KLog::getInstance().KeepCLIMode (true);
 					}
 					else if (it->sArg.In("dgrep,dgrepv"))
 					{
@@ -476,6 +478,7 @@ int KOptions::Execute(KOutStream& out)
 						KLog::getInstance().SetDebugLog (m_sCliDebugTo);
 						kDebug (1, "debug {} set to: '{}'", bIsInverted	? "egrep -v" : "egrep", it->sArg);
 						KLog::getInstance().LogWithGrepExpression(true, bIsInverted, it->sArg);
+						KLog::getInstance().KeepCLIMode (true);
 					}
 				}
 			}

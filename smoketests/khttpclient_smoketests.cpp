@@ -6,7 +6,7 @@
 
 using namespace dekaf2;
 
-TEST_CASE("KHTTPCLient")
+TEST_CASE("KHTTPClient")
 {
 	SECTION("TLS Get")
 	{

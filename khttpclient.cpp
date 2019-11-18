@@ -373,17 +373,29 @@ bool KHTTPClient::Connect(const KURL& url, const KURL& Proxy)
 		return false;
 	}
 
-	if (bTargetIsHTTPS && !bProxyIsHTTPS)
+	if (bTargetIsHTTPS)
 	{
-		// Connect to the proxy in HTTP and request a transparent tunnel to
-		// the target with CONNECT, then start the TLS handshake
+		// Connect to the proxy in either HTTP or HTTPS and request a transparent
+		// tunnel to the target with CONNECT, then start the TLS handshake.
 		//
-		// In this type of configuration we can reuse the initially not yet
+		// For a HTTP proxy connection we can reuse the initially not yet
 		// handshaked TLS connection to the proxy to just do the TLS handshake
-		// once the proxy has established the tunnel
+		// once the proxy has established the tunnel.
 		//
 		// This mode is supported for proxies inside the local network. Using
 		// it for proxies on the internet would be defeating the purpose.
+		//
+		// For a HTTPS proxy we have to wrap a new TLS connection to the target
+		// into the outer TLS connection to the proxy, and also use late TLS
+		// handshaking to first talk to the proxy server.
+
+		if (bProxyIsHTTPS)
+		{
+			// Make the existing connect to the proxy the tunnel for the inner
+			// connection to the target TLS server (and let it own the outer
+			// stream for later release)
+			m_Connection = std::make_unique<KSSLConnection>(m_Connection.release()->Stream());
+		}
 
 		// We first have to send our CONNECT request in plain text..
 		m_Connection->SetManualTLSHandshake(true);
@@ -420,32 +432,17 @@ bool KHTTPClient::Connect(const KURL& url, const KURL& Proxy)
 		return true;
 	}
 
-	if (bTargetIsHTTPS && bProxyIsHTTPS)
-	{
-		// the most difficult case: connect the Proxy with TLS _and_ start a
-		// new TLS stream and handshake to the target server inside the proxy
-		// connection once it is established
+	// Target is not HTTPS - we can simply use the proxy extension of the HTTP
+	// protocol - we only have to modify the request a little bit - we pass this
+	// information on to the request methods by setting a flag
+	//
+	// Notice that in this mode the connection to the proxy server is
+	// automatically run in TLS mode if requested by the protocol part
+	// of the proxy URL
 
-		return SetError("TLS tunneling through a TLS stream not yet supported");
-	}
+	m_bUseHTTPProxyProtocol = true;
 
-	if (!bTargetIsHTTPS)
-	{
-		// for HTTP proxying we only have to modify the request a little bit
-		// - we pass this information on to the request methods by setting
-		// a flag
-		//
-		// Notice that in this mode the connection to the proxy server is
-		// automatically run in TLS mode if requested by the protocol part
-		// of the proxy URL
-
-		m_bUseHTTPProxyProtocol = true;
-
-		return true;
-	}
-
-	// this is unreachable code, but clang thinks differently
-	return false;
+	return true;
 
 } // Connect
 

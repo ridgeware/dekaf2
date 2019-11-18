@@ -212,6 +212,8 @@ class KTCPConnection : public KConnection
 public:
 //------
 
+	using KConnection::KConnection;
+
 	//-----------------------------------------------------------------------------
 	virtual bool Good() const override;
 	//-----------------------------------------------------------------------------
@@ -241,6 +243,8 @@ class KUnixConnection : public KConnection
 public:
 //------
 
+	using KConnection::KConnection;
+
 	//-----------------------------------------------------------------------------
 	virtual bool Good() const override;
 	//-----------------------------------------------------------------------------
@@ -269,6 +273,8 @@ class KSSLConnection : public KConnection
 //------
 public:
 //------
+
+	using KConnection::KConnection;
 
 	//-----------------------------------------------------------------------------
 	virtual bool Good() const override;

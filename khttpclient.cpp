@@ -40,6 +40,7 @@
 */
 
 #include "khttpclient.h"
+#include "khttperror.h"
 #include "kbase64.h"
 #include "kmessagedigest.h"
 
@@ -836,7 +837,8 @@ bool KHTTPClient::SetNetworkError(bool bRead, KString sError)
 {
 	if (!Response.GetStatusCode() || Response.Good())
 	{
-		Response.SetStatus(598, kFormat("NETWORK {} ERROR", bRead ? "READ" : "WRITE"));
+		Response.SetStatus(KHTTPError::H5xx_READTIMEOUT,
+						   kFormat("NETWORK {} ERROR", bRead ? "READ" : "WRITE"));
 	}
 
 	m_bKeepAlive = false;

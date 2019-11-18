@@ -40,6 +40,7 @@
  */
 
 #include "khttp_response.h"
+#include "khttperror.h"
 
 namespace dekaf2 {
 
@@ -155,7 +156,7 @@ bool KInHTTPResponse::Fail() const
 		if (KHTTPResponseHeaders::GetStatusCode() == 0 || KHTTPResponseHeaders::Good())
 		{
 			// set a read error - we cast the const away..
-			const_cast<KInHTTPResponse*>(this)->KHTTPResponseHeaders::SetStatus(598, "NETWORK READ ERROR");
+			const_cast<KInHTTPResponse*>(this)->KHTTPResponseHeaders::SetStatus(KHTTPError::H5xx_READTIMEOUT, "NETWORK READ ERROR");
 		}
 	}
 

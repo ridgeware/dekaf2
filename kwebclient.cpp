@@ -40,6 +40,7 @@
 */
 
 #include "kwebclient.h"
+#include "khttperror.h"
 #include "ktimer.h"
 
 namespace dekaf2 {
@@ -89,7 +90,9 @@ KString KWebClient::HttpRequest (KURL URL, KStringView sRequestMethod/* = KHTTPM
 	{
 		ConnectTime.resume();
 
-		if (Connect(URL))
+		bool bReuseConnection = AlreadyConnected(URL);
+
+		if (bReuseConnection || Connect(URL))
 		{
 			ConnectTime.halt();
 
@@ -116,12 +119,15 @@ KString KWebClient::HttpRequest (KURL URL, KStringView sRequestMethod/* = KHTTPM
 
 					if (Response.Fail())
 					{
-						// check for error 598 - NETWORK READ/WRITE ERROR
-						if (Response.GetStatusCode() == 598 && !iRetry++)
+						// check for error 598 - NETWORK READ/WRITE ERROR,
+						// allow one retry, but only if it was a reused connection
+						if (Response.GetStatusCode() == KHTTPError::H5xx_READTIMEOUT &&
+							!iRetry++ &&
+							bReuseConnection)
 						{
 							kDebug(2, "retrying connection");
 							// allow one connection retry - we might have run into
-							// an open connection and the other end shut it down
+							// a keepalive connection and the other end shut it down
 							// just before we sent data
 							continue;
 						}

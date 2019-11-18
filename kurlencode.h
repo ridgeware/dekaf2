@@ -530,11 +530,8 @@ extern template void kUrlDecode(KStringView sSource, KString& sTarget, bool bPlu
 extern template KString kUrlDecode(KStringView sSource, bool bPlusAsSpace = false);
 extern template void kUrlEncode (KStringView sSource, KString& sTarget, const bool excludeTable[256], bool bSpaceAsPlus = false);
 
-#ifndef __clang__
 extern template class KURLEncoded<KString>;
 extern template class KURLEncoded<KProps<KString, KString>, '&', '='>;
-#endif
-
 #endif // of _MSC_VER
 
 using URLEncodedString = KURLEncoded<KString>;

@@ -103,11 +103,8 @@ template void kUrlDecode(KStringView sSource, KString& sTarget, bool bPlusAsSpac
 template KString kUrlDecode(KStringView sSource, bool bPlusAsSpace = false);
 template void kUrlEncode (KStringView sSource, KString& sTarget, const bool excludeTable[256], bool bSpaceAsPlus = false);
 
-#ifndef __clang__
 template class KURLEncoded<KString>;
 template class KURLEncoded<KProps<KString, KString>, '&', '='>;
-#endif
-
 #endif // of _MSC_VER
 
 }// end of namespace dekaf2

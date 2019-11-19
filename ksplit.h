@@ -42,6 +42,7 @@
 
 #pragma once
 
+#include "bits/kcppcompat.h"
 #include "bits/ktemplate.h"
 #include "kstringview.h"
 
@@ -71,7 +72,7 @@ namespace dekaf2
 template<typename Container,
 	typename std::enable_if_t<detail::has_key_type<Container>::value == false, int> = 0 >
 size_t kSplit (
-        Container&  ctContainer,
+        Container&  cContainer,
         KStringView svBuffer,
         KStringView svDelim  = ",",             // default: comma delimiter
         KStringView svTrim   = " \t\r\n\b",     // default: trim all whitespace
@@ -81,12 +82,12 @@ size_t kSplit (
 )
 //-----------------------------------------------------------------------------
 {
-	size_t iStartSize = ctContainer.size();
+	size_t iStartSize = cContainer.size();
 	bool bAddLastEmptyElement { false };
 
-	while (!svBuffer.empty())
+	while (DEKAF2_LIKELY(!svBuffer.empty()))
 	{
-		if (!svTrim.empty())
+		if (DEKAF2_LIKELY(!svTrim.empty()))
 		{
 			// Strip prefix space characters.
 			auto iFound = svBuffer.find_first_not_of (svTrim);
@@ -100,7 +101,7 @@ size_t kSplit (
 			else
 			{
 				// input was all trimmable chars
-				ctContainer.push_back(KStringView());
+				cContainer.push_back(KStringView());
 				break;
 			}
 		}
@@ -108,10 +109,10 @@ size_t kSplit (
 		KStringView element;
 		bool have_quotes { false };
 
-		if (bQuotesAreEscapes && svBuffer.front() == '"')
+		if (DEKAF2_UNLIKELY(bQuotesAreEscapes && svBuffer.front() == '"'))
 		{
 			auto iQuote = kFindUnescaped(svBuffer, '"', chEscape, 1);
-			if (iQuote != KStringView::npos)
+			if (DEKAF2_LIKELY(iQuote != KStringView::npos))
 			{
 				// only treat this as a quoted token if we have a closing quote
 				element = svBuffer.substr(1, iQuote - 1);
@@ -123,16 +124,16 @@ size_t kSplit (
 		// Look for delimiter character, respect escapes
 		auto iNext = kFindFirstOfUnescaped (svBuffer, svDelim, chEscape);
 
-		if (iNext != KStringView::npos)
+		if (DEKAF2_LIKELY(iNext != KStringView::npos))
 		{
-			if (!have_quotes)
+			if (DEKAF2_LIKELY(!have_quotes))
 			{
 				element = svBuffer.substr(0, iNext);
 			}
 
 			auto thisDelimiter = svBuffer[iNext];
 
-			if (thisDelimiter == ' ')
+			if (DEKAF2_UNLIKELY(thisDelimiter == ' '))
 			{
 				// if space is a delimiter we always treat consecutive spaces as one delimiter
 				iNext = svBuffer.find_first_not_of(' ', iNext + 1);
@@ -142,7 +143,7 @@ size_t kSplit (
 				++iNext;
 			}
 
-			if (bCombineDelimiters && !(svDelim.size() == 1 && svDelim.front() == ' '))
+			if (DEKAF2_UNLIKELY(bCombineDelimiters && DEKAF2_LIKELY(!(svDelim.size() == 1 && svDelim.front() == ' '))))
 			{
 				// skip all adjacent delimiters
 				iNext = svBuffer.find_first_not_of(svDelim, iNext);
@@ -155,7 +156,7 @@ size_t kSplit (
 
 			svBuffer.remove_prefix(iNext);
 
-			if (svBuffer.empty())
+			if (DEKAF2_UNLIKELY(svBuffer.empty()))
 			{
 				// add a last empty element if this delimiter is not a space and the trim sequence does not contain the delimiter either
 				bAddLastEmptyElement = thisDelimiter != ' ' && !svTrim.Contains(thisDelimiter);
@@ -163,7 +164,7 @@ size_t kSplit (
 		}
 		else
 		{
-			if (!have_quotes)
+			if (DEKAF2_LIKELY(!have_quotes))
 			{
 				element = svBuffer;
 			}
@@ -171,7 +172,7 @@ size_t kSplit (
 			svBuffer.clear();
 		}
 
-		if (!svTrim.empty() && !have_quotes)
+		if (DEKAF2_LIKELY(!svTrim.empty() && !have_quotes))
 		{
 			//  Strip suffix space characters.
 			auto iFound = element.find_last_not_of (svTrim);
@@ -187,17 +188,17 @@ size_t kSplit (
 			}
 		}
 
-		ctContainer.push_back(element);
+		cContainer.push_back(element);
 
 		// What remains is ready for the next parse round.
 	}
 
-	if (bAddLastEmptyElement)
+	if (DEKAF2_UNLIKELY(bAddLastEmptyElement))
 	{
-		ctContainer.push_back(KStringView{});
+		cContainer.push_back(KStringView{});
 	}
 
-	return ctContainer.size () - iStartSize;
+	return cContainer.size () - iStartSize;
 
 } // kSplit with string of delimiters
 

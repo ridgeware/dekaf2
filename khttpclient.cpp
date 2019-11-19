@@ -319,7 +319,6 @@ bool KHTTPClient::Connect(const KURL& url)
 
 	if (AlreadyConnected(url))
 	{
-		kDebug(2, "reusing existing connection to {}", m_Connection->EndPoint());
 		return true;
 	}
 
@@ -360,11 +359,27 @@ bool KHTTPClient::Connect(const KURL& url, const KURL& Proxy)
 	bool bTargetIsHTTPS = url.Protocol   == url::KProtocol::HTTPS || (url::KProtocol::UNDEFINED && url.Port   == "443");
 	bool bProxyIsHTTPS  = Proxy.Protocol == url::KProtocol::HTTPS || (url::KProtocol::UNDEFINED && Proxy.Port == "443");
 
-	if (!bTargetIsHTTPS && AlreadyConnected(Proxy))
+	if (!bTargetIsHTTPS)
 	{
-		// we can reuse an existing non-HTTPS proxy connection
-		return true;
+		// check if we are already connected to this proxy (for all HTTP targets
+		// it is our connection endpoint)
+		if (AlreadyConnected(Proxy))
+		{
+			// we can reuse an existing non-HTTPS proxy connection
+			return true;
+		}
 	}
+	else
+	{
+		// check if we are already connected to the target server (for all CONNECTed
+		// targets it is our connection endpoint)
+		if (AlreadyConnected(url))
+		{
+			return true;
+		}
+	}
+
+	kDebug(2, "connecting via proxy {}", Proxy.Serialize());
 
 	// Connect the proxy. Use a TLS connection if either proxy or target is HTTPS.
 	if (!Connect(KConnection::Create(Proxy, bProxyIsHTTPS || bTargetIsHTTPS, m_bVerifyCerts)))
@@ -382,8 +397,8 @@ bool KHTTPClient::Connect(const KURL& url, const KURL& Proxy)
 		// handshaked TLS connection to the proxy to just do the TLS handshake
 		// once the proxy has established the tunnel.
 		//
-		// This mode is supported for proxies inside the local network. Using
-		// it for proxies on the internet would be defeating the purpose.
+		// This mode is supported for proxies inside a local and protected network.
+		// Using it for proxies on the internet would be defeating the purpose.
 		//
 		// For a HTTPS proxy we have to wrap a new TLS connection to the target
 		// into the outer TLS connection to the proxy, and also use late TLS
@@ -393,8 +408,11 @@ bool KHTTPClient::Connect(const KURL& url, const KURL& Proxy)
 		{
 			// Make the existing connect to the proxy the tunnel for the inner
 			// connection to the target TLS server (and let it own the outer
-			// stream for later release)
-			m_Connection = std::make_unique<KSSLConnection>(m_Connection.release()->Stream());
+			// stream for later release).
+			//
+			// We are optimistic and already mark the target URL as our new
+			// connection endpoint.
+			m_Connection = std::make_unique<KSSLConnection>(m_Connection.release()->Stream(), url);
 		}
 
 		// We first have to send our CONNECT request in plain text..
@@ -428,7 +446,6 @@ bool KHTTPClient::Connect(const KURL& url, const KURL& Proxy)
 		// that's it.. we do not have to set any special flag, as from now on
 		// all communication is simply passed through a transparent tunnel to
 		// the target server
-
 		return true;
 	}
 
@@ -814,7 +831,13 @@ bool KHTTPClient::AlreadyConnected(const KTCPEndPoint& EndPoint) const
 		return false;
 	}
 
-	return EndPoint == m_Connection->EndPoint();
+	if (EndPoint == m_Connection->EndPoint())
+	{
+		kDebug(2, "already connected to {}", m_Connection->EndPoint().Serialize());
+		return true;
+	}
+
+	return false;
 
 } // AlreadyConnected
 

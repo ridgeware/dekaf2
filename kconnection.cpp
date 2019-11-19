@@ -161,7 +161,7 @@ KString KConnection::Error() const
 } // Error
 
 //-----------------------------------------------------------------------------
-bool KConnection::setConnection(std::unique_ptr<KStream>&& Stream, KString EndPoint)
+bool KConnection::setConnection(std::unique_ptr<KStream>&& Stream, KTCPEndPoint EndPoint)
 //-----------------------------------------------------------------------------
 {
 	if (m_bStreamIsNotOwned)
@@ -174,7 +174,7 @@ bool KConnection::setConnection(std::unique_ptr<KStream>&& Stream, KString EndPo
 
 	if (!Good())
 	{
-		kDebug(1, "failed to connect to {}: {}", m_Endpoint, Error());
+		kDebug(1, "failed to connect to {}: {}", m_Endpoint.Serialize(), Error());
 		return false;
 	}
 
@@ -182,13 +182,11 @@ bool KConnection::setConnection(std::unique_ptr<KStream>&& Stream, KString EndPo
 
 } // setConnection
 
-
-
 //-----------------------------------------------------------------------------
 bool KTCPConnection::Connect(const KTCPEndPoint& Endpoint)
 //-----------------------------------------------------------------------------
 {
-	return setConnection(CreateKTCPStream(Endpoint), Endpoint.Serialize());
+	return setConnection(CreateKTCPStream(Endpoint), Endpoint);
 
 } // Connect
 

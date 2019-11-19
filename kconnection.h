@@ -67,18 +67,20 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	KConnection(KStream& Stream) noexcept
+	explicit KConnection(KStream& Stream, KTCPEndPoint EndPoint = KTCPEndPoint{}) noexcept
 	//-----------------------------------------------------------------------------
-	    : m_Stream(&Stream)
-	    , m_bStreamIsNotOwned(true)
+	: m_Endpoint(std::move(EndPoint))
+	, m_Stream(&Stream)
+    , m_bStreamIsNotOwned(true)
 	{
 	}
 
 	//-----------------------------------------------------------------------------
-	KConnection(KStream&& Stream) noexcept
+	explicit KConnection(KStream&& Stream, KTCPEndPoint EndPoint = KTCPEndPoint{}) noexcept
 	//-----------------------------------------------------------------------------
-		: m_Stream(&Stream)
-		, m_bStreamIsNotOwned(false)
+	: m_Endpoint(std::move(EndPoint))
+	, m_Stream(&Stream)
+	, m_bStreamIsNotOwned(false)
 	{
 	}
 
@@ -133,22 +135,27 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// disconnect the connection
 	void Disconnect();
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	/// always returns false, has no effect in this class
 	virtual bool SetTimeout(int iSeconds);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	/// always returns false, has no effect in this class
 	virtual bool IsTLS() const;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	/// always returns false, has no effect in this class
 	virtual bool SetManualTLSHandshake(bool bYes = true);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	/// always returns false, has no effect in this class
 	virtual bool StartManualTLSHandshake();
 	//-----------------------------------------------------------------------------
 
@@ -158,11 +165,13 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	/// always returns nothing
 	virtual KString Error() const;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	const KString& EndPoint() const
+	/// returns the TCP endpoint
+	const KTCPEndPoint& EndPoint() const
 	//-----------------------------------------------------------------------------
 	{
 		return m_Endpoint;
@@ -174,7 +183,7 @@ protected:
 
 	//-----------------------------------------------------------------------------
 	// returns true if connection is Good()
-	bool setConnection(std::unique_ptr<KStream>&& Stream, KString EndPoint);
+	bool setConnection(std::unique_ptr<KStream>&& Stream, KTCPEndPoint sEndPoint);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -191,7 +200,7 @@ protected:
 		return m_Stream.get();
 	}
 
-	KString m_Endpoint;
+	KTCPEndPoint m_Endpoint;
 
 //------
 private:
@@ -223,10 +232,12 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	/// set IO timeout in seconds
 	virtual bool SetTimeout(int iSeconds) override;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	/// returns an error string if any
 	virtual KString Error() const override;
 	//-----------------------------------------------------------------------------
 
@@ -254,10 +265,12 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	/// set IO timeout in seconds
 	virtual bool SetTimeout(int iSeconds) override;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	/// returns an error string if any
 	virtual KString Error() const override;
 	//-----------------------------------------------------------------------------
 
@@ -285,22 +298,27 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	/// set IO timeout in seconds
 	virtual bool SetTimeout(int iSeconds) override;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	/// is this a TLS connection
 	virtual bool IsTLS() const override;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	/// force manual TLS handshake mode
 	virtual bool SetManualTLSHandshake(bool bYes = true) override;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	/// start the manual TLS handshake
 	virtual bool StartManualTLSHandshake() override;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	/// returns an error string if any
 	virtual KString Error() const override;
 	//-----------------------------------------------------------------------------
 

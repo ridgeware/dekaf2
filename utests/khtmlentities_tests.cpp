@@ -21,14 +21,20 @@ TEST_CASE("KHTMLEntities")
 
 	SECTION("Encode")
 	{
-		KString sIn = "This <i>is</i> a test™!";
-		CHECK ( KHTMLEntity::Encode(sIn) == "This &lt;i&gt;is&lt;/i&gt; a test™!" );
+		KString sIn = "This <i>'is\"</i> &a test™!⇐ⅇℰ";
+		CHECK ( KHTMLEntity::Encode(sIn) == "This &lt;i&gt;&apos;is&quot;&lt;/i&gt; &amp;a test™!⇐ⅇℰ" );
+	}
+
+	SECTION("EncodeMandatory")
+	{
+		KString sIn = "This <i>'is\"</i> &a test™!⇐ⅇℰ";
+		CHECK ( KHTMLEntity::EncodeMandatory(sIn) == "This &lt;i&gt;&apos;is&quot;&lt;/i&gt; &amp;a test™!⇐ⅇℰ" );
 	}
 
 	SECTION("Decode")
 	{
-		KString sIn = "This &lt;i&gt;is&lt;/i&gt;&#32;a&#x20;test&trade;!";
-		CHECK ( KHTMLEntity::Decode(sIn) == "This <i>is</i> a test™!" );
+		KString sIn = "This &lt;i&gt;is&lt;/i&gt;&#32;a&#x20;test&trade;!&DoubleLeftArrow;&exponentiale;&expectation;";
+		CHECK ( KHTMLEntity::Decode(sIn) == "This <i>is</i> a test™!⇐ⅇℰ" );
 	}
 
 	SECTION("Decode lazy")

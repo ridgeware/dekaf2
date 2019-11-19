@@ -65,6 +65,12 @@ public:
 	/// otherwise appends input char to output (and converts into UTF8)
 	static void ToMandatoryEntity(uint32_t ch, KString& sOut);
 
+	/// Escapes utf8 input with mandatory HTML entities (<>'"&) and appends to sAppendTo
+	static void AppendMandatory(KString& sAppendTo, KStringView sIn);
+
+	/// Escapes utf8 input with mandatory HTML entities (<>'"&)
+	static KString EncodeMandatory(KStringView sIn);
+
 	/// Converts utf8 input into HTML entities for non-alnum/space/punct characters
 	static KString Encode(KStringView sIn);
 

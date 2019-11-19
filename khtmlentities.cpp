@@ -87,6 +87,49 @@ void KHTMLEntity::ToMandatoryEntity(uint32_t ch, KString& sOut)
 } // kMandatoryEntity
 
 //-----------------------------------------------------------------------------
+void KHTMLEntity::AppendMandatory(KString& sAppendTo, KStringView sIn)
+//-----------------------------------------------------------------------------
+{
+	sAppendTo.reserve(sAppendTo.size() + (sIn.size() * 5 / 4));
+
+	for (auto ch : sIn)
+	{
+		switch (ch)
+		{
+			case '"':
+				sAppendTo += "&quot;";
+				break;
+			case '&':
+				sAppendTo += "&amp;";
+				break;
+			case '\'':
+				sAppendTo += "&apos;";
+				break;
+			case '<':
+				sAppendTo += "&lt;";
+				break;
+			case '>':
+				sAppendTo += "&gt;";
+				break;
+			default:
+				sAppendTo += ch;
+				break;
+		}
+	}
+
+} // AppendMandatory
+
+//-----------------------------------------------------------------------------
+KString KHTMLEntity::EncodeMandatory(KStringView sIn)
+//-----------------------------------------------------------------------------
+{
+	KString sOut;
+	AppendMandatory(sOut, sIn);
+	return sOut;
+
+} // EncodeMandatory
+
+//-----------------------------------------------------------------------------
 KString KHTMLEntity::Encode(KStringView sIn)
 //-----------------------------------------------------------------------------
 {

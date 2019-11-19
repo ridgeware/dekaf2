@@ -66,32 +66,33 @@ public:
 //----------
 
 	using map_t = std::map<KString, KString>;
+	using self  = KMail;
 
 	/// Add one recipient to the To list, first arg is the email,
 	/// second arg is the full name or nothing
-	void To(KString sTo, KString sPretty = KString{});
+	self& To(KString sTo, KString sPretty = KString{});
 
 	/// Add one recipient to the Cc list, first arg is the email,
 	/// second arg is the full name or nothing
-	void Cc(KString sCc, KString sPretty = KString{});
+	self& Cc(KString sCc, KString sPretty = KString{});
 
 	/// Add one recipient to the Bcc list, first arg is the email,
 	/// second arg is the full name or nothing
-	void Bcc(KString sBcc, KString sPretty = KString{});
+	self& Bcc(KString sBcc, KString sPretty = KString{});
 
 	/// Set the sender for the From field, first arg is the email,
 	/// second arg is the full name or nothing
-	void From(KString sFrom, KString sPretty = KString{});
+	self& From(KString sFrom, KString sPretty = KString{});
 
 	/// Set the subject
-	void Subject(KString sSubject);
+	self& Subject(KString sSubject);
 
 	/// Set the MIME type for the main content part to HTML/UTF-8. Returns false
 	/// if content was added before.
 	bool AsHTML();
 
 	/// Set the text message (UTF-8, or HTML/UTF-8 if AsHTML() was called before)
-	void Message(KString sMessage);
+	self& Message(KString sMessage);
 
 	/// Returns true if this mail has all elements needed for expedition
 	bool Good() const;
@@ -102,22 +103,22 @@ public:
 	bool Send(const KURL& URL, KStringView sUsername = KStringView{}, KStringView sPassword = KStringView{});
 
 	/// Set the text message (UTF-8, or HTML/UTF-8 if AsHTML() was called before)
-	KMail& operator=(KString sMessage)
+	self& operator=(KString sMessage)
 	{
 		Message(std::move(sMessage));
 		return *this;
 	}
 
 	/// Append to text message (UTF-8, or HTML/UTF-8 if AsHTML() was called before)
-	KMail& operator+=(KStringView sMessage);
+	self& operator+=(KStringView sMessage);
 
 	/// Set the mail body to a multipart structure (or to a single part). This voids
 	/// any previously set content.
-	KMail& Body(KMIMEMultiPart part);
+	self& Body(KMIMEMultiPart part);
 
 	/// Set the mail body to a multipart structure (or to a single part). This voids
 	/// any previously set content.
-	KMail& operator=(KMIMEMultiPart part)
+	self& operator=(KMIMEMultiPart part)
 	{
 		return Body(std::move(part));
 	}
@@ -126,21 +127,21 @@ public:
 	/// creating either a multipart/related mail with inline images, or a
 	/// multipart/mixed mail with attachments, or in case of a single file a mime
 	/// type deduced from the file extension. This voids any previously set content.
-	KMail& LoadBodyFrom(KStringViewZ sPath);
+	self& LoadBodyFrom(KStringViewZ sPath);
 
 	/// Read a manifest.ini file or try to load the manifest from an index.html/.txt
 	/// in the folder sPath, and set or add key/values to the Replacer. If sPath is a
 	/// regular file, try to read the key/values from the head of it
-	KMail& LoadManifestFrom(KStringViewZ sPath);
+	self& LoadManifestFrom(KStringViewZ sPath);
 
 	/// Read manifest and body in one call
-	KMail& LoadManifestAndBodyFrom(KStringViewZ sPath)
+	self& LoadManifestAndBodyFrom(KStringViewZ sPath)
 	{
 		return LoadManifestFrom(sPath).LoadBodyFrom(sPath);
 	}
 
 	/// Read manifest and body in one call, compose path from sBasePath and sName
-	KMail& LoadManifestAndBodyFrom(KStringView sBasePath, KStringView sName)
+	self& LoadManifestAndBodyFrom(KStringView sBasePath, KStringView sName)
 	{
 		KString sPath { sBasePath };
 		sPath += '/';
@@ -149,19 +150,21 @@ public:
 	}
 
 	/// Add a KReplacer to substitute text in all text/* parts of the mail
-	void VariableReplacer(std::shared_ptr<KReplacer> Replacer)
+	self& VariableReplacer(std::shared_ptr<KReplacer> Replacer)
 	{
 		m_Replacer = std::move(Replacer);
+		return *this;
 	}
 
 	/// Add a KReplacer to substitute text in all text/* parts of the mail
-	void VariableReplacer(KReplacer Replacer)
+	self& VariableReplacer(KReplacer Replacer)
 	{
 		m_Replacer = std::make_shared<KReplacer>(std::move(Replacer));
+		return *this;
 	}
 
 	/// Add a key/value pair to substitute text in all text/* parts of the mail
-	void AddReplaceVar(KStringView sKey, KStringView sValue);
+	self& AddReplaceVar(KStringView sKey, KStringView sValue);
 
 	/// Attach a file, automatically creating a multipart structure if not yet
 	/// set
@@ -169,11 +172,11 @@ public:
 
 	/// Attach KMIMEParts, automatically creating a multipart structure if not yet
 	/// set
-	KMail& Attach(KMIMEPart part);
+	self& Attach(KMIMEPart part);
 
 	/// Attach KMIMEParts, automatically creating a multipart structure if not yet
 	/// set
-	KMail& operator+=(KMIMEPart part)
+	self& operator+=(KMIMEPart part)
 	{
 		return Attach(std::move(part));
 	}
@@ -206,7 +209,7 @@ public:
 private:
 //----------
 
-	void Add(KStringView sWhich, map_t& map, KString Key, KString Value = KString{});
+	self& Add(KStringView sWhich, map_t& map, KString Key, KString Value = KString{});
 
 	map_t m_To;
 	map_t m_Cc;

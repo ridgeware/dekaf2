@@ -49,39 +49,40 @@
 namespace dekaf2 {
 
 //-----------------------------------------------------------------------------
-void KMail::To(KString sTo, KString sPretty)
+KMail& KMail::To(KString sTo, KString sPretty)
 //-----------------------------------------------------------------------------
 {
-	Add("To", m_To, std::move(sTo), std::move(sPretty));
+	return Add("To", m_To, std::move(sTo), std::move(sPretty));
 }
 
 //-----------------------------------------------------------------------------
-void KMail::Cc(KString sCc, KString sPretty)
+KMail& KMail::Cc(KString sCc, KString sPretty)
 //-----------------------------------------------------------------------------
 {
-	Add("Cc", m_Cc, std::move(sCc), std::move(sPretty));
+	return Add("Cc", m_Cc, std::move(sCc), std::move(sPretty));
 }
 
 //-----------------------------------------------------------------------------
-void KMail::Bcc(KString sBcc, KString sPretty)
+KMail& KMail::Bcc(KString sBcc, KString sPretty)
 //-----------------------------------------------------------------------------
 {
-	Add("Bcc", m_Bcc, std::move(sBcc), std::move(sPretty));
+	return Add("Bcc", m_Bcc, std::move(sBcc), std::move(sPretty));
 }
 
 //-----------------------------------------------------------------------------
-void KMail::From(KString sFrom, KString sPretty)
+KMail& KMail::From(KString sFrom, KString sPretty)
 //-----------------------------------------------------------------------------
 {
 	m_From.clear();
-	Add("From", m_From, std::move(sFrom), std::move(sPretty));
+	return Add("From", m_From, std::move(sFrom), std::move(sPretty));
 }
 
 //-----------------------------------------------------------------------------
-void KMail::Subject(KString sSubject)
+KMail& KMail::Subject(KString sSubject)
 //-----------------------------------------------------------------------------
 {
 	m_Subject = std::move(sSubject);
+	return *this;
 }
 
 //-----------------------------------------------------------------------------
@@ -103,7 +104,7 @@ bool KMail::AsHTML()
 } // AsHTML
 
 //-----------------------------------------------------------------------------
-void KMail::Message(KString sMessage)
+KMail& KMail::Message(KString sMessage)
 //-----------------------------------------------------------------------------
 {
 	if (m_iBody)
@@ -115,6 +116,7 @@ void KMail::Message(KString sMessage)
 		Attach(KMIMEText(std::move(sMessage)));
 		m_iBody = m_Parts.size();
 	}
+	return *this;
 
 } // Message
 
@@ -263,7 +265,7 @@ KMail& KMail::LoadManifestFrom(KStringViewZ sPath)
 } // LoadManifestFrom
 
 //-----------------------------------------------------------------------------
-void KMail::AddReplaceVar(KStringView sKey, KStringView sValue)
+KMail& KMail::AddReplaceVar(KStringView sKey, KStringView sValue)
 //-----------------------------------------------------------------------------
 {
 	// check if we already have a KReplacer instance attached:
@@ -275,6 +277,8 @@ void KMail::AddReplaceVar(KStringView sKey, KStringView sValue)
 
 	// add key / value
 	m_Replacer->insert(sKey, sValue);
+
+	return *this;
 
 } // AddReplaceVar
 
@@ -310,7 +314,7 @@ KMail& KMail::Attach(KMIMEPart part)
 } // Attach
 
 //-----------------------------------------------------------------------------
-void KMail::Add(KStringView sWhich, map_t& map, KString Key, KString Value)
+KMail& KMail::Add(KStringView sWhich, map_t& map, KString Key, KString Value)
 //-----------------------------------------------------------------------------
 {
 	if (!kIsEmail(Key))
@@ -321,6 +325,7 @@ void KMail::Add(KStringView sWhich, map_t& map, KString Key, KString Value)
 	{
 		map.insert({std::move(Key), std::move(Value)});
 	}
+	return *this;
 
 } // Add
 

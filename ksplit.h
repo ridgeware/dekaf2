@@ -42,6 +42,7 @@
 
 #pragma once
 
+#include <vector>
 #include "bits/kcppcompat.h"
 #include "bits/ktemplate.h"
 #include "kstringview.h"
@@ -56,7 +57,7 @@ namespace dekaf2
 /// Splits string into token container using delimiters, trim, and escape. Container is
 /// a sequence, like a vector.
 /// @return count of added tokens.
-/// @param ctContainer needs to have a push_back() that can construct an element from
+/// @param cContainer needs to have a push_back() that can construct an element from
 /// a KStringView.
 /// @param svBuffer the source char sequence.
 /// @param svDelim a string view of delimiter characters. Defaults to ",".
@@ -71,7 +72,7 @@ namespace dekaf2
 /// is not considered part of the token. Defaults to false.
 template<typename Container,
 	typename std::enable_if_t<detail::has_key_type<Container>::value == false, int> = 0 >
-size_t kSplit (
+std::size_t kSplit (
         Container&  cContainer,
         KStringView svBuffer,
         KStringView svDelim  = ",",             // default: comma delimiter
@@ -82,7 +83,7 @@ size_t kSplit (
 )
 //-----------------------------------------------------------------------------
 {
-	size_t iStartSize = cContainer.size();
+	std::size_t iStartSize = cContainer.size();
 	bool bAddLastEmptyElement { false };
 
 	while (DEKAF2_LIKELY(!svBuffer.empty()))
@@ -106,8 +107,8 @@ size_t kSplit (
 			}
 		}
 
-		KStringView element;
-		bool have_quotes { false };
+		KStringView sElement;
+		bool bHaveQuotes { false };
 
 		if (DEKAF2_UNLIKELY(bQuotesAreEscapes && svBuffer.front() == '"'))
 		{
@@ -115,9 +116,9 @@ size_t kSplit (
 			if (DEKAF2_LIKELY(iQuote != KStringView::npos))
 			{
 				// only treat this as a quoted token if we have a closing quote
-				element = svBuffer.substr(1, iQuote - 1);
+				sElement = svBuffer.substr(1, iQuote - 1);
 				svBuffer.remove_prefix(iQuote + 1);
-				have_quotes = true;
+				bHaveQuotes = true;
 			}
 		}
 
@@ -126,9 +127,9 @@ size_t kSplit (
 
 		if (DEKAF2_LIKELY(iNext != KStringView::npos))
 		{
-			if (DEKAF2_LIKELY(!have_quotes))
+			if (DEKAF2_LIKELY(!bHaveQuotes))
 			{
-				element = svBuffer.substr(0, iNext);
+				sElement = svBuffer.substr(0, iNext);
 			}
 
 			auto thisDelimiter = svBuffer[iNext];
@@ -164,31 +165,31 @@ size_t kSplit (
 		}
 		else
 		{
-			if (DEKAF2_LIKELY(!have_quotes))
+			if (DEKAF2_LIKELY(!bHaveQuotes))
 			{
-				element = svBuffer;
+				sElement = svBuffer;
 			}
 
 			svBuffer.clear();
 		}
 
-		if (DEKAF2_LIKELY(!svTrim.empty() && !have_quotes))
+		if (DEKAF2_LIKELY(!svTrim.empty() && !bHaveQuotes))
 		{
 			//  Strip suffix space characters.
-			auto iFound = element.find_last_not_of (svTrim);
+			auto iFound = sElement.find_last_not_of (svTrim);
 
 			if (iFound != KStringView::npos)
 			{
-				auto iRemove = element.size() - 1 - iFound;
-				element.remove_suffix(iRemove);
+				auto iRemove = sElement.size() - 1 - iFound;
+				sElement.remove_suffix(iRemove);
 			}
 			else
 			{
-				element.clear();
+				sElement.clear();
 			}
 		}
 
-		cContainer.push_back(element);
+		cContainer.push_back(sElement);
 
 		// What remains is ready for the next parse round.
 	}
@@ -198,9 +199,23 @@ size_t kSplit (
 		cContainer.push_back(KStringView{});
 	}
 
-	return cContainer.size () - iStartSize;
+	return cContainer.size() - iStartSize;
 
 } // kSplit with string of delimiters
+
+#ifndef _MSC_VER
+// precompile for std::vector<KStringView>
+extern template
+std::size_t kSplit(
+		std::vector<KStringView>& cContainer,
+        KStringView svBuffer,
+        KStringView svDelim  = ",",             // default: comma delimiter
+        KStringView svTrim   = " \t\r\n\b",     // default: trim all whitespace
+        const char  chEscape = '\0',            // default: ignore escapes
+        bool        bCombineDelimiters = false, // default: create an element for each delimiter char found
+        bool        bQuotesAreEscapes  = false  // default: treat double quotes like any other char
+);
+#endif // of _MSC_VER
 
 //-----------------------------------------------------------------------------
 /// Splits string into token container using delimiters, trim, and escape. Returned
@@ -235,6 +250,26 @@ Container kSplits(
 	return ctContainer;
 }
 
+namespace detail {
+
+//-----------------------------------------------------------------------------
+KStringViewPair kSplitToPairInt(
+        KStringView svBuffer,
+        const char chDelim
+	);
+//-----------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
+KStringViewPair kSplitToPairInt(
+        KStringView svBuffer,
+        const char chDelim,
+        KStringView svTrim,
+        const char  chEscape
+	);
+//-----------------------------------------------------------------------------
+
+} // of namespace detail
+
 
 //-----------------------------------------------------------------------------
 /// Splits one element into a key value pair separated by chDelim, and trims on request.
@@ -242,13 +277,19 @@ Container kSplits(
 /// @param svDelim a string view of delimiter characters. Defaults to ",".
 /// @param svTrim a string containing chars to remove from token ends. Defaults to " \t\r\n\b".
 /// @param chEscape Escape character for delimiters. Defaults to '\0' (disabled).
+inline
 KStringViewPair kSplitToPair(
         KStringView svBuffer,
 		char chDelim         = '=',         // default: equal delimiter
         KStringView svTrim   = " \t\r\n\b", // default: trim all whitespace
-        char chEscape        = '\0'         // default: ignore escapes
-        );
+        const char chEscape  = '\0'         // default: ignore escapes
+        )
 //-----------------------------------------------------------------------------
+{
+	return (!chEscape && svTrim.empty())
+		? detail::kSplitToPairInt(svBuffer, chDelim)
+		: detail::kSplitToPairInt(svBuffer, chDelim, svTrim, chEscape);
+}
 
 namespace detail {
 namespace container_adaptor {
@@ -267,13 +308,13 @@ public:
 
 	//-----------------------------------------------------------------------------
 	InsertPair(
-	        Container& ctContainer,
+	        Container& cContainer,
 	        KStringView svTrim,
 	        const char chPairDelim,
 	        const char chEscape
 	        )
 	//-----------------------------------------------------------------------------
-	    : m_Container(ctContainer)
+	    : m_Container(cContainer)
 	    , m_svTrim(svTrim)
 	    , m_chPairDelim(chPairDelim)
 	    , m_chEscape(chEscape)
@@ -289,7 +330,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	size_t size() const
+	std::size_t size() const
 	//-----------------------------------------------------------------------------
 	{
 		return m_Container.size();
@@ -311,7 +352,7 @@ private:
 
 //-----------------------------------------------------------------------------
 /// Splitting strings into a series of key value pairs (container is a map).
-/// @param ctContainer needs to have a insert() that can construct an element from
+/// @param cContainer needs to have a insert() that can construct an element from
 /// a KStringViewPair (std::pair<KStringView, KStringView>).
 /// @return count of added key/value pairs.
 /// @param svBuffer the source char sequence.
@@ -328,8 +369,8 @@ private:
 /// is not considered part of the token. Defaults to false.
 template<typename Container,
 	typename std::enable_if_t<detail::has_key_type<Container>::value == true, int> = 0 >
-size_t kSplit(
-        Container&  ctContainer,
+std::size_t kSplit(
+        Container&  cContainer,
         KStringView svBuffer,
         const char  chPairDelim = '=',
         KStringView svDelim  = ",",             // default: comma delimiter
@@ -341,7 +382,7 @@ size_t kSplit(
 //-----------------------------------------------------------------------------
 {
 	detail::container_adaptor::InsertPair<Container>
-	        cAdaptor(ctContainer, svTrim, chPairDelim, chEscape);
+	        cAdaptor(cContainer, svTrim, chPairDelim, chEscape);
 
 	return kSplit(cAdaptor, svBuffer, svDelim, svTrim, chEscape,
 	              bCombineDelimiters, bQuotesAreEscapes);
@@ -376,15 +417,15 @@ Container kSplits(
 //-----------------------------------------------------------------------------
 )
 {
-	Container ctContainer;
-	kSplit(ctContainer, svBuffer, chPairDelim, svDelim, svTrim, chEscape, bCombineDelimiters, bQuotesAreEscapes);
-	return ctContainer;
+	Container cContainer;
+	kSplit(cContainer, svBuffer, chPairDelim, svDelim, svTrim, chEscape, bCombineDelimiters, bQuotesAreEscapes);
+	return cContainer;
 }
 
 //-----------------------------------------------------------------------------
 /// Splitting a command line style string into token container, modifying the source buffer
 /// so that each token is followed by a null char, much like strtok()
-/// @param ctContainer needs to have a push_back() that can construct an element from
+/// @param cContainer needs to have a push_back() that can construct an element from
 /// a char*.
 /// @param sBuffer the source char sequence - will be modified.
 /// @param svDelim a string view of delimiter characters. Defaults to " \t\r\n\b".
@@ -392,7 +433,7 @@ Container kSplits(
 /// @param chEscape Escape character for delimiters. Defaults to '\\'.
 template<typename Container, typename String>
 bool kSplitArgsInPlace(
-	Container&  ctContainer,
+	Container&  cContainer,
 	String&     sBuffer,
 	KStringView svDelim  = " \t\r\n\b",     // default: whitespace delimiter
 	KStringView svQuotes = "\"'",           // default: dequote
@@ -400,70 +441,70 @@ bool kSplitArgsInPlace(
 	)
 //-----------------------------------------------------------------------------
 {
-	char* Start { nullptr };
+	char* pStart { nullptr };
 	char quoteChar { 0 };
 	bool bEscaped { false };
 
 	for (auto& ch : sBuffer)
 	{
-		if (bEscaped)
+		if (DEKAF2_UNLIKELY(bEscaped))
 		{
 			bEscaped = false;
-			if (!Start)
+			if (DEKAF2_UNLIKELY(pStart == nullptr))
 			{
-				Start = &ch;
+				pStart = &ch;
 			}
 			continue;
 		}
 
-		if (ch == chEscape)
+		if (DEKAF2_UNLIKELY(ch == chEscape))
 		{
 			bEscaped = true;
 		}
-		else if (quoteChar)
+		else if (DEKAF2_UNLIKELY(quoteChar))
 		{
-			if (ch == quoteChar)
+			if (DEKAF2_UNLIKELY(ch == quoteChar))
 			{
 				ch = quoteChar = 0;
 
-				if (Start)
+				if (DEKAF2_LIKELY(pStart != nullptr))
 				{
-					ctContainer.push_back(Start);
-					Start = nullptr;
+					cContainer.push_back(pStart);
+					pStart = nullptr;
 				}
 			}
 		}
 		else
 		{
-			if (svDelim.find(ch) != KStringView::npos)
+			if (DEKAF2_UNLIKELY(svDelim.find(ch) != KStringView::npos))
 			{
 				ch = 0;
 
-				if (Start)
+				if (pStart)
 				{
-					ctContainer.push_back(Start);
-					Start = nullptr;
+					cContainer.push_back(pStart);
+					pStart = nullptr;
 				}
 			}
-			else if (svQuotes.find(ch) != KStringView::npos)
+			else if (DEKAF2_UNLIKELY(svQuotes.find(ch) != KStringView::npos))
 			{
 				quoteChar = ch;
-				Start = &ch + 1;
+				pStart = &ch + 1;
 			}
-			else if (!Start)
+			else if (DEKAF2_UNLIKELY(pStart == nullptr))
 			{
-				Start = &ch;
+				pStart = &ch;
 			}
 		}
 	}
 
-	if (Start)
+	if (DEKAF2_LIKELY(pStart != nullptr))
 	{
 		// last fragment if not quoted
-		ctContainer.push_back(Start);
+		cContainer.push_back(pStart);
 	}
 
-	return !ctContainer.empty();
+	return !cContainer.empty();
 
 } // kSplitArgsInPlace
 

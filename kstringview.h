@@ -48,6 +48,7 @@
 #include <functional>
 #include <boost/functional/hash.hpp>
 #include <string>
+#include <vector>
 #include "bits/kcppcompat.h"
 #include "bits/kstring_view.h"
 #include "khash.h"

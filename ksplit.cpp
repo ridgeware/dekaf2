@@ -44,94 +44,161 @@
 
 namespace dekaf2 {
 
-KStringViewPair kSplitToPair(
+namespace detail {
+
+//-----------------------------------------------------------------------------
+DEKAF2_ALWAYS_INLINE
+bool StripPrefix(KStringView& svBuffer, const KStringView& svTrim)
+//-----------------------------------------------------------------------------
+{
+	if (DEKAF2_UNLIKELY(svBuffer.empty()))
+	{
+		return false;
+	}
+
+	if (DEKAF2_UNLIKELY(svTrim.empty()))
+	{
+		return true;
+	}
+
+	// Strip prefix space characters.
+	auto iFound = svBuffer.find_first_not_of (svTrim);
+
+	if (DEKAF2_UNLIKELY(iFound == KStringView::npos))
+	{
+		return false;
+	}
+
+	if (iFound > 0)
+	{
+		svBuffer.remove_prefix (iFound);
+	}
+
+	return true;
+
+} // StripPrefix
+
+//-----------------------------------------------------------------------------
+DEKAF2_ALWAYS_INLINE
+void StripSuffix(KStringView& svElement, const KStringView& svTrim)
+//-----------------------------------------------------------------------------
+{
+	if (DEKAF2_LIKELY(!svTrim.empty()))
+	{
+		//  Strip suffix space characters.
+		auto iFound = svElement.find_last_not_of (svTrim);
+		if (iFound != KStringView::npos)
+		{
+			auto iRemove = svElement.size() - 1 - iFound;
+			svElement.remove_suffix(iRemove);
+		}
+		else
+		{
+			svElement.clear();
+		}
+	}
+
+} // StripSuffix
+
+//-----------------------------------------------------------------------------
+KStringViewPair kSplitToPairInt(
         KStringView svBuffer,
-        const char chDelim,
-        KStringView svTrim,
-        const char  chEscape
-        )
+        const char chDelim
+	)
+//-----------------------------------------------------------------------------
 {
 	KStringViewPair svPair;
 
-	for (int iElement = 1; iElement < 3; ++iElement)
+	if (DEKAF2_LIKELY(!svBuffer.empty()))
 	{
-		if (!svBuffer.empty())
+		// Look for delimiter character
+		auto iNext = svBuffer.find(chDelim);
+
+		if (DEKAF2_LIKELY(iNext != KStringView::npos))
 		{
-			if (!svTrim.empty())
-			{
-				// Strip prefix space characters.
-				auto iFound = svBuffer.find_first_not_of (svTrim);
-				if (iFound != KStringView::npos)
-				{
-					if (iFound > 0)
-					{
-						svBuffer.remove_prefix (iFound);
-					}
-				}
-				else
-				{
-					break;
-				}
-			}
+			svPair.first = svBuffer.substr(0, iNext);
 
-			KStringView svElement;
+			svBuffer.remove_prefix(++iNext);
 
-			if (iElement == 1)
-			{
-				// Look for delimiter character, but only in round 1, respect escapes
-				auto iNext = kFindUnescaped (svBuffer, chDelim, chEscape);
+			svPair.second = svBuffer;
+		}
+		else
+		{
+			svPair.first = svBuffer;
 
-				if (iNext != KStringView::npos)
-				{
-					svElement = svBuffer.substr(0, iNext);
-
-					++iNext;
-
-					svBuffer.remove_prefix(iNext);
-				}
-				else
-				{
-					svElement = svBuffer;
-
-					svBuffer.clear();
-				}
-			}
-			else
-			{
-				svElement = svBuffer;
-
-				svBuffer.clear();
-			}
-
-			if (!svTrim.empty())
-			{
-				//  Strip suffix space characters.
-				auto iFound = svElement.find_last_not_of (svTrim);
-				if (iFound != KStringView::npos)
-				{
-					auto iRemove = svElement.size() - 1 - iFound;
-					svElement.remove_suffix(iRemove);
-				}
-				else
-				{
-					svElement.clear();
-				}
-			}
-
-			// What remains is ready for the next parse round.
-			if (iElement == 1)
-			{
-				svPair.first = svElement;
-			}
-			else
-			{
-				svPair.second = svElement;
-			}
+			// there is no second element
 		}
 	}
 
 	return svPair;
 
-}  // kSplitToPair
+}  // detail::kSplitToPairInt
+
+//-----------------------------------------------------------------------------
+KStringViewPair kSplitToPairInt(
+        KStringView svBuffer,
+        const char chDelim,
+        KStringView svTrim,
+        const char  chEscape
+	)
+//-----------------------------------------------------------------------------
+{
+	KStringViewPair svPair;
+
+	if (DEKAF2_LIKELY(StripPrefix(svBuffer, svTrim)))
+	{
+		// Look for delimiter character, respect escapes
+		auto iNext = kFindUnescaped (svBuffer, chDelim, chEscape);
+
+		if (DEKAF2_LIKELY(iNext != KStringView::npos))
+		{
+			svPair.first = svBuffer.substr(0, iNext);
+
+			svBuffer.remove_prefix(++iNext);
+
+			StripSuffix(svPair.first, svTrim);
+
+			if (DEKAF2_LIKELY(!svBuffer.empty()))
+			{
+				if (!StripPrefix(svBuffer, svTrim))
+				{
+					// empty input
+					return svPair;
+				}
+
+				svPair.second = svBuffer;
+
+				StripSuffix(svPair.second, svTrim);
+			}
+		}
+		else
+		{
+			svPair.first = svBuffer;
+
+			StripSuffix(svPair.first, svTrim);
+
+			// there is no second element
+		}
+	}
+
+	return svPair;
+
+}  // kSplitToPairInt
+
+} // of namespace detail
+
+#ifndef _MSC_VER
+// precompile for std::vector<KStringView>
+template
+std::size_t kSplit(
+		std::vector<KStringView>& cContainer,
+        KStringView svBuffer,
+        KStringView svDelim  = ",",             // default: comma delimiter
+        KStringView svTrim   = " \t\r\n\b",     // default: trim all whitespace
+        const char  chEscape = '\0',            // default: ignore escapes
+        bool        bCombineDelimiters = false, // default: create an element for each delimiter char found
+        bool        bQuotesAreEscapes  = false  // default: treat double quotes like any other char
+);
+#endif // of _MSC_VER
 
 } // end of namespace dekaf2

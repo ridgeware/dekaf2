@@ -166,6 +166,17 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// Erase a vector of keys and their corresponding values from the cache.
+	void Erase(const std::vector<Key>& keys)
+	//-----------------------------------------------------------------------------
+	{
+		for (const auto& key : keys)
+		{
+			m_map.erase(key);
+		}
+	}
+
+	//-----------------------------------------------------------------------------
 	/// Set a new maximum cache size. When the cache was filled with more elements,
 	/// it is reduced by the amount of excess elements that were the least recently
 	/// used.
@@ -320,6 +331,19 @@ public:
 			Lock.lock();
 		}
 		return base_type::Erase(key);
+	}
+
+	//-----------------------------------------------------------------------------
+	/// Erase a vector of keys and their corresponding values from the cache.
+	void Erase(const std::vector<Key>& keys)
+	//-----------------------------------------------------------------------------
+	{
+		std::unique_lock<std::shared_mutex> Lock(m_Mutex, std::defer_lock);
+		if (Dekaf::getInstance().GetMultiThreading())
+		{
+			Lock.lock();
+		}
+		base_type::Erase(keys);
 	}
 
 	//-----------------------------------------------------------------------------

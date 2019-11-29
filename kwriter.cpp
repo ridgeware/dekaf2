@@ -1,5 +1,4 @@
 /*
-//-----------------------------------------------------------------------------//
 //
 // DEKAF(tm): Lighter, Faster, Smarter (tm)
 //
@@ -57,17 +56,20 @@ KOutStream KOut(std::cout);
 KOutStream::self_type& KOutStream::Write(KString::value_type ch)
 //-----------------------------------------------------------------------------
 {
-	std::streambuf* sb = OutStream().rdbuf();
-	if (sb != nullptr)
+	auto streambuf = OutStream().rdbuf();
+
+	if (streambuf != nullptr)
 	{
-		typename std::ostream::int_type iCh = sb->sputc(ch);
+		typename std::ostream::int_type iCh = streambuf->sputc(ch);
 		if (std::ostream::traits_type::eq_int_type(iCh, std::ostream::traits_type::eof()))
 		{
 			OutStream().setstate(std::ios_base::badbit);
 		}
 	}
+
 	return *this;
-}
+
+} // Write
 
 //-----------------------------------------------------------------------------
 /// Write a range of characters. Returns stream reference that resolves to false on failure
@@ -76,18 +78,21 @@ KOutStream::self_type& KOutStream::Write(const void* pAddress, size_t iCount)
 {
 	if (iCount)
 	{
-		std::streambuf* sb = OutStream().rdbuf();
-		if (sb != nullptr)
+		auto streambuf = OutStream().rdbuf();
+
+		if (streambuf != nullptr)
 		{
-			auto iWrote = static_cast<size_t>(sb->sputn(static_cast<const std::ostream::char_type*>(pAddress), iCount));
+			auto iWrote = static_cast<size_t>(streambuf->sputn(static_cast<const std::ostream::char_type*>(pAddress), iCount));
 			if (iWrote != iCount)
 			{
 				OutStream().setstate(std::ios_base::badbit);
 			}
 		}
 	}
+
 	return *this;
-}
+
+} // Write
 
 //-----------------------------------------------------------------------------
 /// Read a range of characters and append to Stream. Returns count of successfully read charcters.
@@ -99,7 +104,7 @@ KOutStream::self_type& KOutStream::Write(KInStream& Stream, size_t iCount)
 
 	for (;iCount;)
 	{
-		auto iChunk = std::min(static_cast<size_t>(COPY_BUFSIZE), iCount);
+		auto iChunk = std::min(Buffer.size(), iCount);
 
 		auto iReadChunk = Stream.Read(Buffer.data(), iChunk);
 
@@ -113,7 +118,8 @@ KOutStream::self_type& KOutStream::Write(KInStream& Stream, size_t iCount)
 	}
 
 	return *this;
-}
+
+} // Write
 
 template class KWriter<std::ofstream>;
 

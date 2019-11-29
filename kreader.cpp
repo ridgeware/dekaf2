@@ -72,15 +72,15 @@ ssize_t kGetSize(std::istream& Stream, bool bFromStart)
 {
 	DEKAF2_TRY {
 
-		std::streambuf* sb = Stream.rdbuf();
+		auto streambuf = Stream.rdbuf();
 
-		if (!sb)
+		if (!streambuf)
 		{
 			kDebug(1, "no streambuf");
 			return -1;
 		}
 
-		std::streambuf::pos_type curPos = sb->pubseekoff(0, std::ios_base::cur);
+		auto curPos = streambuf->pubseekoff(0, std::ios_base::cur);
 
 		if (curPos == std::streambuf::pos_type(std::streambuf::off_type(-1)))
 		{
@@ -88,7 +88,7 @@ ssize_t kGetSize(std::istream& Stream, bool bFromStart)
 			return curPos;
 		}
 
-		std::streambuf::pos_type endPos = sb->pubseekoff(0, std::ios_base::end);
+		auto endPos = streambuf->pubseekoff(0, std::ios_base::end);
 
 		if (endPos == std::streambuf::pos_type(std::streambuf::off_type(-1)))
 		{
@@ -98,7 +98,7 @@ ssize_t kGetSize(std::istream& Stream, bool bFromStart)
 
 		if (endPos != curPos)
 		{
-			sb->pubseekoff(curPos, std::ios_base::beg);
+			streambuf->pubseekoff(curPos, std::ios_base::beg);
 		}
 
 		if (bFromStart)
@@ -136,7 +136,7 @@ ssize_t kGetSize(KStringViewZ sFileName)
 {
 #ifdef DEKAF2_HAS_STD_FILESYSTEM
 	std::error_code ec;
-	ssize_t iSize = static_cast<ssize_t>(fs::file_size(kToFilesystemPath(sFileName), ec));
+	auto iSize = static_cast<ssize_t>(fs::file_size(kToFilesystemPath(sFileName), ec));
 	if (ec)
 	{
 		iSize = -1;
@@ -158,9 +158,9 @@ ssize_t kGetSize(KStringViewZ sFileName)
 bool kAppendAll(std::istream& Stream, KString& sContent, bool bFromStart)
 //-----------------------------------------------------------------------------
 {
-	std::streambuf* sb = Stream.rdbuf();
+	auto streambuf = Stream.rdbuf();
 
-	if (!sb)
+	if (!streambuf)
 	{
 		kDebug(1, "no streambuf");
 		return false;
@@ -188,13 +188,13 @@ bool kAppendAll(std::istream& Stream, KString& sContent, bool bFromStart)
 		// therefore we do wrap it into a try-catch block and limit the
 		// rx size to ~1 GB.
 
-		size_t iTotal { 0 };
-		static constexpr size_t iLimit = 1*1024*1024*1024;
+		std::size_t iTotal { 0 };
+		static constexpr std::size_t iLimit = 1*1024*1024*1024;
 
 		DEKAF2_TRY_EXCEPTION
 		for (;;)
 		{
-			auto iRead = static_cast<size_t>(sb->sgetn(buf.data(), BUFSIZE));
+			auto iRead = static_cast<size_t>(streambuf->sgetn(buf.data(), buf.size()));
 
 			if (iRead > 0)
 			{
@@ -209,7 +209,7 @@ bool kAppendAll(std::istream& Stream, KString& sContent, bool bFromStart)
 				}
 			}
 
-			if (iRead < BUFSIZE)
+			if (iRead < buf.size())
 			{
 				break;
 			}
@@ -237,7 +237,7 @@ bool kAppendAll(std::istream& Stream, KString& sContent, bool bFromStart)
 	// This saves one run of unnecessary construction.
 	sContent.resize_uninitialized(uiContentSize + uiSize);
 
-	auto iRead = static_cast<size_t>(sb->sgetn(&sContent[uiContentSize], iSize));
+	auto iRead = static_cast<size_t>(streambuf->sgetn(&sContent[uiContentSize], iSize));
 
 	if (iRead < uiSize)
 	{
@@ -245,7 +245,7 @@ bool kAppendAll(std::istream& Stream, KString& sContent, bool bFromStart)
 	}
 
 	// we should now be at the end of the input..
-	if (std::istream::traits_type::eq_int_type(sb->sgetc(), std::istream::traits_type::eof()))
+	if (std::istream::traits_type::eq_int_type(streambuf->sgetc(), std::istream::traits_type::eof()))
 	{
 		Stream.setstate(std::ios_base::eofbit);
 	}
@@ -400,16 +400,16 @@ bool kReadLine(std::istream& Stream,
 	
 	sLine.clear();
 
-	std::streambuf* sb = Stream.rdbuf();
+	auto streambuf = Stream.rdbuf();
 
-	if (DEKAF2_UNLIKELY(!sb))
+	if (DEKAF2_UNLIKELY(!streambuf))
 	{
 		return false;
 	}
 	
 	for (;;)
 	{
-		auto ch = sb->sbumpc();
+		auto ch = streambuf->sbumpc();
 
 		if (DEKAF2_UNLIKELY(std::istream::traits_type::eq_int_type(ch, std::istream::traits_type::eof())))
 		{
@@ -565,14 +565,14 @@ const KInStream::const_kreader_line_iterator::self_type KInStream::const_kreader
 bool KInStream::UnRead()
 //-----------------------------------------------------------------------------
 {
-	std::streambuf* sb = InStream().rdbuf();
+	auto streambuf = InStream().rdbuf();
 
-	if (DEKAF2_UNLIKELY(!sb))
+	if (DEKAF2_UNLIKELY(!streambuf))
 	{
 		return false;
 	}
 
-	typename std::istream::int_type iCh = sb->sungetc();
+	auto iCh = streambuf->sungetc();
 
 	return !std::istream::traits_type::eq_int_type(iCh, std::istream::traits_type::eof());
 
@@ -583,14 +583,14 @@ bool KInStream::UnRead()
 std::istream::int_type KInStream::Read()
 //-----------------------------------------------------------------------------
 {
-	auto sb = InStream().rdbuf();
+	auto streambuf = InStream().rdbuf();
 
-	if (DEKAF2_UNLIKELY(sb == nullptr))
+	if (DEKAF2_UNLIKELY(streambuf == nullptr))
 	{
 		return std::istream::traits_type::eof();
 	}
 
-	auto iCh = sb->sbumpc();
+	auto iCh = streambuf->sbumpc();
 
 	if (std::istream::traits_type::eq_int_type(iCh, std::istream::traits_type::eof()))
 	{
@@ -608,11 +608,11 @@ size_t KInStream::Read(void* pAddress, size_t iCount)
 {
 	if (iCount)
 	{
-		auto sb = InStream().rdbuf();
+		auto streambuf = InStream().rdbuf();
 
-		if (DEKAF2_LIKELY(sb != nullptr))
+		if (DEKAF2_LIKELY(streambuf != nullptr))
 		{
-			auto iRead = sb->sgetn(static_cast<std::istream::char_type*>(pAddress), iCount);
+			auto iRead = streambuf->sgetn(static_cast<std::istream::char_type*>(pAddress), iCount);
 
 			if (DEKAF2_UNLIKELY(iRead <= 0))
 			{

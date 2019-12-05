@@ -404,7 +404,8 @@ void html_parse()
 
 		for (size_t count = 0; count < 1000; ++ count)
 		{
-			KHTMLParser doc(sHTML);
+			KHTMLParser doc;
+			doc.Parse(sHTML);
 			KProf::Force(&doc);
 		}
 	}
@@ -415,7 +416,8 @@ void html_parse()
 		for (size_t count = 0; count < 100; ++ count)
 		{
 			KInFile InFile("mondial-3.0.xml");
-			KHTMLParser doc(InFile);
+			KHTMLParser doc;
+			doc.Parse(InFile);
 			KProf::Force(&doc);
 		}
 	}

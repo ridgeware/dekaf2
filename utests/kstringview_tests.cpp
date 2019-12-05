@@ -12,10 +12,16 @@ TEST_CASE("KStringView") {
 
 	SECTION("nullptr")
 	{
+#ifndef _MSC_VER
+		// MSC outputs this on the nullptr constructor/assignment:
+		// fatal error C1001: An internal error has occurred in the compiler.
+		// (compiler file 'msc1.cpp', line 1518)
+		// To work around this problem, try simplifying or changing the program near the locations listed above.
 		static constexpr KStringView sv1 { nullptr };
+		CHECK(sv1.empty());
 		static constexpr KStringView sv2 = nullptr;
-		CHECK ( sv1.empty() );
 		CHECK ( sv2.empty() );
+#endif
 	}
 
 	SECTION("find")

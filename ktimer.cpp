@@ -46,6 +46,11 @@
 
 namespace dekaf2 {
 
+#ifdef _MSC_VER
+KStopTime::ConstructHalted KStopTime::Halted;
+KStopWatch::ConstructHalted KStopWatch::Halted;
+#endif
+
 //---------------------------------------------------------------------------
 KTimer::KTimer()
 //---------------------------------------------------------------------------

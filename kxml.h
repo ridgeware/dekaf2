@@ -164,6 +164,7 @@ class KXMLNode
 {
 
 	friend class KXMLAttribute;
+	friend class KXML;
 
 //------
 public:
@@ -295,7 +296,7 @@ class KXML
 public:
 //------
 
-	enum PrintFlags { Default = 0, NoIndents = 1, NoLinefeeds = 2 };
+	enum PrintFlags { Default = 0, NoIndents = 1, NoLinefeeds = 2, Terse = NoIndents | NoLinefeeds };
 
 	using const_iterator    = KXMLNode;
 	using iterator          = const_iterator;
@@ -303,10 +304,10 @@ public:
 	/// Construct an empty KXML DOM
 	KXML();
 	/// Construct a KXML DOM by parsing sDocument - content gets copied
-	KXML(KStringView sDocument, bool bPreserveWhiteSpace = false, KStringView sCreateRoot = {});
+	KXML(KStringView sDocument, bool bPreserveWhiteSpace = false, KStringView sCreateRoot = KStringView{});
 	/// Construct a KXML DOM by parsing InStream
-	KXML(KInStream& InStream, bool bPreserveWhiteSpace = false, KStringView sCreateRoot = {});
-	KXML(KInStream&& InStream, bool bPreserveWhiteSpace = false, KStringView sCreateRoot = {});
+	KXML(KInStream& InStream, bool bPreserveWhiteSpace = false, KStringView sCreateRoot = KStringView{});
+	KXML(KInStream&& InStream, bool bPreserveWhiteSpace = false, KStringView sCreateRoot = KStringView{});
 
 	KXML(const KXML&) = delete;
 	KXML(KXML&&) = default;
@@ -314,20 +315,20 @@ public:
 	KXML& operator=(KXML&&) = default;
 
 	/// Print DOM into OutStream
-	void Serialize(KOutStream& OutStream, int iPrintFlags = PrintFlags::Default) const;
+	void Serialize(KOutStream& OutStream, int iPrintFlags = PrintFlags::Default, KStringView sDropRoot = KStringView{}) const;
 	/// Print DOM into OutStream
-	void Serialize(KOutStream&& OutStream, int iPrintFlags = PrintFlags::Default) const;
+	void Serialize(KOutStream&& OutStream, int iPrintFlags = PrintFlags::Default, KStringView sDropRoot = KStringView{}) const;
 	/// Print DOM into string
-	void Serialize(KString& string, int iPrintFlags = PrintFlags::Default) const;
+	void Serialize(KString& string, int iPrintFlags = PrintFlags::Default, KStringView sDropRoot = KStringView{}) const;
 	/// Print DOM into string
-	KString Serialize(int iPrintFlags = PrintFlags::Default) const;
+	KString Serialize(int iPrintFlags = PrintFlags::Default, KStringView sDropRoot = KStringView{}) const;
 
 	/// Parse DOM from InStream
-	bool Parse(KInStream& InStream, bool bPreserveWhiteSpace = false, KStringView sCreateRoot = {});
+	bool Parse(KInStream& InStream, bool bPreserveWhiteSpace = false, KStringView sCreateRoot = KStringView{});
 	/// Parse DOM from InStream
-	bool Parse(KInStream&& InStream, bool bPreserveWhiteSpace = false, KStringView sCreateRoot = {});
+	bool Parse(KInStream&& InStream, bool bPreserveWhiteSpace = false, KStringView sCreateRoot = KStringView{});
 	/// Parse DOM from string
-	bool Parse(KStringView string, bool bPreserveWhiteSpace = false, KStringView sCreateRoot = {});
+	bool Parse(KStringView string, bool bPreserveWhiteSpace = false, KStringView sCreateRoot = KStringView{});
 
 	/// Clear all content
 	void clear();

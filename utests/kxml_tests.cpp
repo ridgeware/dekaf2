@@ -92,4 +92,12 @@ R"(<?xml version="1.0" encoding="utf-8" standalone="yes"?>
 		CHECK ( sOut == sExpectedNoIndent );
 	}
 
+	SECTION("Serialize")
+	{
+		static constexpr KStringViewZ sSource = (R"(<sc id="1"/>This<ec startRef="1"/> is the first sentence. Here comes the <sc id="2"/>second<ec startRef="2"/> sentence. <ph id="3"/>And one more!)");
+		KXML Source(sSource, true, "source");
+		CHECK ( Source.Serialize(KXML::Terse) == (R"(<source><sc id="1"/>This<ec startRef="1"/> is the first sentence. Here comes the <sc id="2"/>second<ec startRef="2"/> sentence. <ph id="3"/>And one more!</source>)") );
+		CHECK ( Source.Serialize(KXML::Terse, "source") == (R"(<sc id="1"/>This<ec startRef="1"/> is the first sentence. Here comes the <sc id="2"/>second<ec startRef="2"/> sentence. <ph id="3"/>And one more!)") );
+	}
+
 }

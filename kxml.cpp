@@ -128,8 +128,7 @@ rapidXMLAttribute* CreateAttribute(rapidXMLDoc* Document, KStringView sName, KSt
 auto rapidXMLDocDeleter = [](void* data)
 //-----------------------------------------------------------------------------
 {
-	auto p = static_cast<rapidXMLDoc*>(data);
-	delete p;
+	delete static_cast<rapidXMLDoc*>(data);
 };
 
 //-----------------------------------------------------------------------------
@@ -164,32 +163,97 @@ KXML::KXML(KInStream&& InStream, bool bPreserveWhiteSpace, KStringView sCreateRo
 }
 
 //-----------------------------------------------------------------------------
-void KXML::Serialize(KOutStream& OutStream, int iPrintFlags) const
+void KXML::Serialize(KOutStream& OutStream, int iPrintFlags, KStringView sDropRoot) const
 //-----------------------------------------------------------------------------
 {
+	if (!sDropRoot.empty())
+	{
+		KXMLNode root = begin();
+
+		if (!sDropRoot.empty() && !root.empty())
+		{
+			// check if this is a XML declaration
+			if (pNode(root.m_node)->type() == rapidxml::node_declaration)
+			{
+				// yes, go to sibling
+				root = root.Next();
+			}
+
+			// check if this root has the name we want to drop
+			if (root.GetName() == sDropRoot)
+			{
+				// yes - make the node the temporary document root node
+				// create temporary document root out of the root node
+				auto node = pNode(root.m_node);
+				auto oldtype = node->type();
+				// make this a document node..
+				node->type(rapidxml::node_document);
+				// and print from there
+				print(OutStream.OutStream(), *node, iPrintFlags);
+				// and restore the original type
+				node->type(oldtype);
+				// and return
+				return;
+			}
+		}
+	}
+
+	// in all other cases print the whole document
 	print(OutStream.OutStream(), *pDocument(D.get()), iPrintFlags);
 }
 
 //-----------------------------------------------------------------------------
-void KXML::Serialize(KOutStream&& OutStream, int iPrintFlags) const
+void KXML::Serialize(KOutStream&& OutStream, int iPrintFlags, KStringView sDropRoot) const
 //-----------------------------------------------------------------------------
 {
-	Serialize(OutStream, iPrintFlags);
+	Serialize(OutStream, iPrintFlags, sDropRoot);
 }
 
 //-----------------------------------------------------------------------------
-void KXML::Serialize(KString& string, int iPrintFlags) const
+void KXML::Serialize(KString& string, int iPrintFlag, KStringView sDropRoot) const
 //-----------------------------------------------------------------------------
 {
-	print(std::back_inserter(string), *pDocument(D.get()), iPrintFlags);
+	if (!sDropRoot.empty())
+	{
+		KXMLNode root = begin();
+
+		if (!sDropRoot.empty() && !root.empty())
+		{
+			// check if this is a XML declaration
+			if (pNode(root.m_node)->type() == rapidxml::node_declaration)
+			{
+				// yes, go to sibling
+				root = root.Next();
+			}
+
+			// check if this root has the name we want to drop
+			if (root.GetName() == sDropRoot)
+			{
+				// yes - make the node the temporary document root node
+				auto node = pNode(root.m_node);
+				auto oldtype = node->type();
+				// make this a document node..
+				node->type(rapidxml::node_document);
+				// and print from there
+				print(std::back_inserter(string), *node, iPrintFlag);
+				// and restore the original type
+				node->type(oldtype);
+				// and return
+				return;
+			}
+		}
+	}
+
+	// in all other cases print the whole document
+	print(std::back_inserter(string), *pDocument(D.get()), iPrintFlag);
 }
 
 //-----------------------------------------------------------------------------
-KString KXML::Serialize(int iPrintFlags) const
+KString KXML::Serialize(int iPrintFlags, KStringView sDropRoot) const
 //-----------------------------------------------------------------------------
 {
 	KString string;
-	Serialize(string, iPrintFlags);
+	Serialize(string, iPrintFlags, sDropRoot);
 	return string;
 }
 

@@ -421,6 +421,11 @@ protected:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	/// is response status code one of those we accept for redirection?
+	bool StatusIsRedirect() const;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
 	/// sets a redirect target depending on the returned status code and location
 	/// header
 	bool CheckForRedirect(KURL& URL, KStringView& sRequestMethod);

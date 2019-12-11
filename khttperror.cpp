@@ -79,7 +79,7 @@ void KHTTPError::SetStatusString()
 		// reset
 		case 0:                 m_sStatusString.clear();                    break;
 
-			// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+		// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 		// HTTP 200s: ok
 		// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 		case H2xx_OK:           m_sStatusString = "OK";                     break;
@@ -88,6 +88,17 @@ void KHTTPError::SetStatusString()
 		case H2xx_UPDATED:      m_sStatusString = "UPDATED";                break;
 		case H2xx_DELETED:      m_sStatusString = "DELETED";                break;
 		case H2xx_ALREADY:      m_sStatusString = "ALREADY DONE";           break;
+
+		// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+		// HTTP 300s: redirects
+		// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+		case H301_MOVED_PERMANENTLY:  m_sStatusString = "MOVED PERMANENTLY";  break;
+		case H302_MOVED_TEMPORARILY:  m_sStatusString = "MOVED TEMPORARILY";  break;
+		case H303_SEE_OTHER:          m_sStatusString = "SEE OTHER";          break;
+		case H304_NOT_MODIFIED:       m_sStatusString = "NOT MODIFIED";       break;
+		case H305_USE_PROXY:          m_sStatusString = "USE PROXY";          break;
+		case H307_TEMPORARY_REDIRECT: m_sStatusString = "TEMPORARY REDIRECT"; break;
+		case H308_PERMANENT_REDIRECT: m_sStatusString = "PERMANENT REDIRECT"; break;
 
 		// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 		// HTTP 400s: client invocation problems

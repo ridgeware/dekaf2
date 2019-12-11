@@ -718,6 +718,26 @@ bool KHTTPClient::Serialize()
 } // Serialize
 
 //-----------------------------------------------------------------------------
+bool KHTTPClient::StatusIsRedirect() const
+//-----------------------------------------------------------------------------
+{
+	switch (Response.GetStatusCode())
+	{
+		case KHTTPError::H303_SEE_OTHER:
+		case KHTTPError::H301_MOVED_PERMANENTLY:
+		case KHTTPError::H302_MOVED_TEMPORARILY:
+		case KHTTPError::H307_TEMPORARY_REDIRECT:
+		case KHTTPError::H308_PERMANENT_REDIRECT:
+			return true;
+
+		default:
+			return false;
+	}
+	return false;
+
+} // StatusIsRedirect
+
+//-----------------------------------------------------------------------------
 bool KHTTPClient::Parse()
 //-----------------------------------------------------------------------------
 {
@@ -732,7 +752,7 @@ bool KHTTPClient::Parse()
 
 	// make sure also a network read error triggers a meaningful status
 	// code / string (Response.Good() calls Response.Fail() and ensures this)
-	if (!Response.Good())
+	if (!Response.Good() && !StatusIsRedirect())
 	{
 		// we do not close the connection right here because inheriting
 		// classes may still want to read the response body, but we mark
@@ -759,7 +779,7 @@ bool KHTTPClient::CheckForRedirect(KURL& URL, KStringView& sRequestMethod)
 	// check for redirections
 	switch (Response.GetStatusCode())
 	{
-		case 303:
+		case KHTTPError::H303_SEE_OTHER:
 			// a 303 response always forces a method change to GET
 			if (sRequestMethod != KHTTPMethod::GET)
 			{
@@ -768,10 +788,10 @@ bool KHTTPClient::CheckForRedirect(KURL& URL, KStringView& sRequestMethod)
 			}
 			DEKAF2_FALLTHROUGH;
 
-		case 301: // other than some browsers we do not switch the method to
-		case 302: // GET when receiving a 301 or 302 response
-		case 307:
-		case 308:
+		case KHTTPError::H301_MOVED_PERMANENTLY: // other than some browsers we do not switch the method to
+		case KHTTPError::H302_MOVED_TEMPORARILY: // GET when receiving a 301 or 302 response
+		case KHTTPError::H307_TEMPORARY_REDIRECT:
+		case KHTTPError::H308_PERMANENT_REDIRECT:
 			{
 				KURL Redirect = Response.Headers[KHTTPHeaders::location];
 

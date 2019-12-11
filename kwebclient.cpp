@@ -107,11 +107,6 @@ KString KWebClient::HttpRequest (KURL URL, KStringView sRequestMethod/* = KHTTPM
 					TransferTime.halt();
 
 					kDebug(3, sResponse);
-
-					if (Response.Fail())
-					{
-						break;
-					}
 				}
 				else
 				{

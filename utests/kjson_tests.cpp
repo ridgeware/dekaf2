@@ -257,6 +257,31 @@ TEST_CASE("KJSON")
 		CHECK ( Contains(json, "key9") == false );
 	}
 
+	SECTION("GetObjectRef")
+	{
+		KJSON json = {
+			{"pi", 3.141529},
+			{"happy", true},
+			{"key1", "val1"},
+			{"key2", "val2"},
+			{"days", 365 },
+			{"nothing", nullptr},
+			{"answer", {
+				{"everything", 42}
+			}},
+			{"list", {1, 0, 2}},
+			{"object", {
+				{"currency", "USD"},
+				{"value", 42.99}
+			}}
+		};
+
+		const KJSON& object = kjson::GetObjectRef(json, "object");
+
+		CHECK ( object["currency"] == "USD" );
+		CHECK ( object["value"]    == 42.99 );
+	}
+
 /*
 		KJSON obj2;
 		obj2["fourth"] = 87654;

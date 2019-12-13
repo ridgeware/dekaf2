@@ -154,6 +154,10 @@ namespace kjson
 	/// values into string representation.
 	KString GetString(const KJSON& json, KStringView sKey) noexcept;
 
+	/// Returns a ref for an object key, does never throw. Returns empty ref
+	/// for non-object values.
+	const KJSON& GetObjectRef (const KJSON& json, KStringView sKey) noexcept;
+
 	/// returns a value for an object key, does never throw
 	KJSON GetObject (const KJSON& json, KStringView sKey) noexcept;
 

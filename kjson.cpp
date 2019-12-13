@@ -230,6 +230,22 @@ KString GetString(const KJSON& json, KStringView sKey) noexcept
 } // GetString
 
 //-----------------------------------------------------------------------------
+const KJSON& GetObjectRef (const KJSON& json, KStringView sKey) noexcept
+//-----------------------------------------------------------------------------
+{
+	static KJSON s_oEmpty;
+
+	auto it = json.find(sKey);
+	if (it != json.end() && it.value().is_object())
+	{
+		return it.value();
+	}
+
+	return s_oEmpty;
+
+} // GetObject
+
+//-----------------------------------------------------------------------------
 KJSON GetObject (const KJSON& json, KStringView sKey) noexcept
 //-----------------------------------------------------------------------------
 {

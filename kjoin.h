@@ -69,16 +69,19 @@ void kJoin (Result& sBuffer,
 	auto it = ctContainer.begin();
 	auto ie = ctContainer.end();
 
-	for (;;)
+	if (!ctContainer.empty())
 	{
-		sBuffer += *it;
-
-		if (++it == ie)
+		for (;;)
 		{
-			break;
-		}
+			sBuffer += *it;
 
-		sBuffer += svDelim;
+			if (++it == ie)
+			{
+				break;
+			}
+
+			sBuffer += svDelim;
+		}
 	}
 }
 
@@ -96,18 +99,21 @@ void kJoin (Result& sBuffer,
 	auto it = ctContainer.begin();
 	auto ie = ctContainer.end();
 
-	for (;;)
+	if (!ctContainer.empty())
 	{
-		sBuffer += it->first;
-		sBuffer += svPairDelim;
-		sBuffer += it->second;
-
-		if (++it == ie)
+		for (;;)
 		{
-			break;
-		}
+			sBuffer += it->first;
+			sBuffer += svPairDelim;
+			sBuffer += it->second;
 
-		sBuffer += svDelim;
+			if (++it == ie)
+			{
+				break;
+			}
+
+			sBuffer += svDelim;
+		}
 	}
 }
 

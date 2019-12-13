@@ -12,6 +12,16 @@ using namespace dekaf2;
 
 TEST_CASE("kJoin")
 {
+	SECTION("empty")
+	{
+		std::vector<KStringView> vec;
+
+		KString sResult;
+		kJoin(sResult, vec);
+
+		CHECK (sResult == "" );
+	}
+
 	SECTION("vector")
 	{
 		std::vector<KStringView> vec {

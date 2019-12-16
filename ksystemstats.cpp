@@ -281,13 +281,20 @@ bool KSystemStats::GatherProcInfo ()
 		{
 			double nTotal = Parts.at(0).Double();
 			double nIdle  = Parts.at(1).Double();
-			KStringView sTotal (Parts.at(0));
-			sTotal.ClipAt(".");
-			KStringView sIdle (Parts.at(1));
-			sIdle.ClipAt(".");
-			Add ("uptime_seconds",      sTotal,                   StatType::INTEGER);
-			Add ("uptime_idle_seconds", sIdle,                    StatType::INTEGER);
-			Add ("uptime_idle_percent", ((nIdle * 100) / nTotal), StatType::INTEGER);
+			if (nTotal > 0.0)
+			{
+				KStringView sTotal (Parts.at(0));
+				sTotal.ClipAt(".");
+				KStringView sIdle (Parts.at(1));
+				sIdle.ClipAt(".");
+				Add ("uptime_seconds",      sTotal,                   StatType::INTEGER);
+				Add ("uptime_idle_seconds", sIdle,                    StatType::INTEGER);
+				Add ("uptime_idle_percent", ((nIdle * 100) / nTotal), StatType::INTEGER);
+			}
+			else
+			{
+				kDebug(1, "invalid value for {}: {}", "uptime_seconds", nTotal);
+			}
 		}
 	}
 
@@ -1009,13 +1016,21 @@ bool KSystemStats::AddCalculations ()
 		int_t  iBuffers   = m_Stats["meminfo_buffers_kb"].sValue.Int64();
 		int_t  iCached    = m_Stats["meminfo_cached_kb"].sValue.Int64();
 		int_t  iTotalFree = iFree + iBuffers + iCached;
-		int_t  iUsed      = iTotal - iTotalFree;
-		double nPctUsed   = ((double)iUsed * 100.0) / ((double)iTotal);
-		double nPctFree   = ((double)iTotalFree * 100.0) / ((double)iTotal);
 
-		Add ("meminfo_memused_kb",      iUsed,    StatType::INTEGER);
-		Add ("meminfo_memused_percent", nPctUsed, StatType::FLOAT);
-		Add ("meminfo_memfree_percent", nPctFree, StatType::FLOAT);
+		if (iTotal > 0)
+		{
+			int_t  iUsed      = iTotal - iTotalFree;
+			double nPctUsed   = ((double)iUsed * 100.0) / ((double)iTotal);
+			double nPctFree   = ((double)iTotalFree * 100.0) / ((double)iTotal);
+
+			Add ("meminfo_memused_kb",      iUsed,    StatType::INTEGER);
+			Add ("meminfo_memused_percent", nPctUsed, StatType::FLOAT);
+			Add ("meminfo_memfree_percent", nPctFree, StatType::FLOAT);
+		}
+		else
+		{
+			kDebug(1, "invalid value for {}: {}", "meminfo_memtotal_kb", iTotal);
+		}
 	}
 
 	if (m_Stats.Contains ("meminfo_swapfree_kb") && m_Stats.Contains ("meminfo_swaptotal_kb"))
@@ -1027,13 +1042,20 @@ bool KSystemStats::AddCalculations ()
 		int_t  iTotal   = m_Stats["meminfo_swaptotal_kb"].sValue.Int64();
 		int_t  iFree    = m_Stats["meminfo_swapfree_kb"].sValue.Int64();
 #endif
-		int_t  iUsed    = iTotal - iFree;
-		double nPctUsed = ((double)iUsed * 100.0) / ((double)iTotal);
-		double nPctFree = ((double)iFree * 100.0) / ((double)iTotal);
+		if (iTotal > 0)
+		{
+			int_t  iUsed    = iTotal - iFree;
+			double nPctUsed = ((double)iUsed * 100.0) / ((double)iTotal);
+			double nPctFree = ((double)iFree * 100.0) / ((double)iTotal);
 
-		Add ("meminfo_swapused_kb",      iUsed,    StatType::INTEGER);
-		Add ("meminfo_swapused_percent", nPctUsed, StatType::FLOAT);
-		Add ("meminfo_swapfree_percent", nPctFree, StatType::FLOAT);
+			Add ("meminfo_swapused_kb",      iUsed,    StatType::INTEGER);
+			Add ("meminfo_swapused_percent", nPctUsed, StatType::FLOAT);
+			Add ("meminfo_swapfree_percent", nPctFree, StatType::FLOAT);
+		}
+		else
+		{
+			kDebug(1, "invalid value for {}: {}", "meminfo_swaptotal_kb", iTotal);
+		}
 	}
 
 	return (true);

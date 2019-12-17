@@ -54,52 +54,61 @@ namespace dekaf2
 {
 
 //-----------------------------------------------------------------------------
-/// join for sequential containers
+/// join for sequential containers, outputs to string
 template<typename Container, typename Result,
-	typename std::enable_if_t<detail::has_key_type<Container>::value == false, int> = 0 >
+	typename std::enable_if_t<detail::has_key_type<Container>::value == false
+								&& detail::has_size<Result>::value == true, int> = 0 >
 void kJoin (Result& sBuffer,
 			const Container& ctContainer,
 			KStringView svDelim = ",",
 			// we add the svPairDelim here to give the same interface as for
 			// the associative containers - the value is not used
-			KStringView svPairDelim = "="
+			KStringView svPairDelim = "=",
+			bool bWriteLastDelimiter = false
 )
 //-----------------------------------------------------------------------------
 {
 	auto it = ctContainer.begin();
 	auto ie = ctContainer.end();
 
-	if (!ctContainer.empty())
+	if (DEKAF2_LIKELY(!ctContainer.empty()))
 	{
 		for (;;)
 		{
 			sBuffer += *it;
 
-			if (++it == ie)
+			if (DEKAF2_UNLIKELY(++it == ie))
 			{
+				if (bWriteLastDelimiter)
+				{
+					sBuffer += svDelim;
+				}
 				break;
 			}
 
 			sBuffer += svDelim;
 		}
 	}
-}
+
+} // kJoin
 
 //-----------------------------------------------------------------------------
-/// join for associative containers
+/// join for associative containers, outputs to string
 template<typename Container, typename Result,
-	typename std::enable_if_t<detail::has_key_type<Container>::value == true, int> = 0 >
+	typename std::enable_if_t<detail::has_key_type<Container>::value == true
+								&& detail::has_size<Result>::value == true, int> = 0 >
 void kJoin (Result& sBuffer,
 			const Container& ctContainer,
 			KStringView svDelim = ",",
-			KStringView svPairDelim = "="
+			KStringView svPairDelim = "=",
+			bool bWriteLastDelimiter = false
 )
 //-----------------------------------------------------------------------------
 {
 	auto it = ctContainer.begin();
 	auto ie = ctContainer.end();
 
-	if (!ctContainer.empty())
+	if (DEKAF2_LIKELY(!ctContainer.empty()))
 	{
 		for (;;)
 		{
@@ -107,15 +116,102 @@ void kJoin (Result& sBuffer,
 			sBuffer += svPairDelim;
 			sBuffer += it->second;
 
-			if (++it == ie)
+			if (DEKAF2_UNLIKELY(++it == ie))
 			{
+				if (bWriteLastDelimiter)
+				{
+					sBuffer += svDelim;
+				}
 				break;
 			}
 
 			sBuffer += svDelim;
 		}
 	}
-}
+
+} // kJoin
+
+//-----------------------------------------------------------------------------
+/// join for sequential containers, outputs to stream
+template<typename Container, typename Result,
+	typename std::enable_if_t<detail::has_key_type<Container>::value == false
+							&& detail::has_size<Result>::value == false, int> = 0 >
+Result& kJoin (Result& Output,
+			const Container& ctContainer,
+			KStringView svDelim = ",",
+			// we add the svPairDelim here to give the same interface as for
+			// the associative containers - the value is not used
+			KStringView svPairDelim = "=",
+			bool bWriteLastDelimiter = false
+)
+//-----------------------------------------------------------------------------
+{
+	auto it = ctContainer.begin();
+	auto ie = ctContainer.end();
+
+	if (DEKAF2_LIKELY(!ctContainer.empty()))
+	{
+		for (;;)
+		{
+			if (!Output.Write(*it)) break;
+
+			if (DEKAF2_UNLIKELY(++it == ie))
+			{
+				if (bWriteLastDelimiter)
+				{
+					Output.Write(svDelim);
+				}
+				break;
+			}
+
+			if (!Output.Write(svDelim)) break;
+		}
+	}
+
+	return Output;
+
+} // kJoin
+
+//-----------------------------------------------------------------------------
+/// join for associative containers, outputs to stream
+template<typename Container, typename Result,
+	typename std::enable_if_t<detail::has_key_type<Container>::value == true
+							&& detail::has_size<Result>::value == false, int> = 0 >
+Result& kJoin (Result& Output,
+			const Container& ctContainer,
+			KStringView svDelim = ",",
+			KStringView svPairDelim = "=",
+			bool bWriteLastDelimiter = false
+)
+//-----------------------------------------------------------------------------
+{
+	auto it = ctContainer.begin();
+	auto ie = ctContainer.end();
+
+	if (DEKAF2_LIKELY(!ctContainer.empty()))
+	{
+		for (;;)
+		{
+			if (!Output.Write(it->first  )) break;
+			if (!Output.Write(svPairDelim)) break;
+			if (!Output.Write(it->second )) break;
+
+			if (DEKAF2_UNLIKELY(++it == ie))
+			{
+				if (bWriteLastDelimiter)
+				{
+					Output.Write(svDelim);
+				}
+				break;
+			}
+
+			if (!Output.Write(svDelim)) break;
+		}
+	}
+
+	return Output;
+
+} // kJoin
 
 //-----------------------------------------------------------------------------
 /// join for sequential containers, returns result
@@ -126,12 +222,13 @@ Result kJoined (
 			KStringView svDelim = ",",
 			// we add the svPairDelim here to give the same interface as for
 			// the associative containers - the value is not used
-			KStringView svPairDelim = "="
+			KStringView svPairDelim = "=",
+			bool bWriteLastDelimiter = false
 )
 //-----------------------------------------------------------------------------
 {
 	Result result;
-	kJoin(result, ctContainer, svDelim, svPairDelim);
+	kJoin(result, ctContainer, svDelim, svPairDelim, bWriteLastDelimiter);
 	return result;
 }
 
@@ -142,12 +239,13 @@ template<typename Container, typename Result = KString,
 Result kJoined (
 			const Container& ctContainer,
 			KStringView svDelim = ",",
-			KStringView svPairDelim = "="
+			KStringView svPairDelim = "=",
+			bool bWriteLastDelimiter = false
 )
 //-----------------------------------------------------------------------------
 {
 	Result result;
-	kJoin(result, ctContainer, svDelim, svPairDelim);
+	kJoin(result, ctContainer, svDelim, svPairDelim, bWriteLastDelimiter);
 	return result;
 }
 

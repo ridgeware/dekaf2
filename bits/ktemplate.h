@@ -78,6 +78,23 @@ struct has_key_type : std::false_type { };
 template< class T >
 struct has_key_type<T, std::void_t<typename T::key_type>> : std::true_type { };
 
+// returns has_size<T>::value == true when type has a size() member function
+template <typename T>
+class has_size
+{
+private:
+	typedef char Yes;
+	typedef char No[2];
+
+	template<typename C> static auto Test(void*)
+	-> decltype(size_t{std::declval<C const>().size()}, Yes{});
+
+	template<typename> static No& Test(...);
+
+public:
+	static constexpr bool const value = sizeof(Test<T>(0)) == sizeof(Yes);
+};
+
 } // of namespace detail
 
 } // of namespace dekaf2

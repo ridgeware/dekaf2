@@ -1491,7 +1491,7 @@ TEST_CASE("KString") {
 		};
 
 		KString sString = "1-one 2-two 3-three 4-four";
-		auto rmap = sString.Split<std::map<KStringView, KStringView>>('-', " ");
+		auto rmap = sString.Split<std::map<KStringView, KStringView>>(" ", "-");
 
 		CHECK (rmap == map );
 	}
@@ -1506,7 +1506,7 @@ TEST_CASE("KString") {
 		};
 
 		KString sString = "1-one **2-two 3-three** **4-four**";
-		auto rmap = sString.Split<std::map<KStringView, KStringView>>('-', " ", "*");
+		auto rmap = sString.Split<std::map<KStringView, KStringView>>(" ", "-", "*");
 
 		CHECK (rmap == map );
 	}

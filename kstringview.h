@@ -1566,9 +1566,18 @@ size_t kFindFirstOfUnescaped(KStringView haystack,
 
 //-----------------------------------------------------------------------------
 /// Find delimiter char prefixed by even number of escape characters (0, 2, ...).
-/// Ignore delimiter charsprefixed by odd number of escapes.
+/// Ignore delimiter chars prefixed by odd number of escapes.
 size_t kFindUnescaped(KStringView haystack,
                       KStringView::value_type needle,
+                      KStringView::value_type chEscape,
+                      KStringView::size_type pos = 0);
+//-----------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
+/// Find delimiter string prefixed by even number of escape characters (0, 2, ...).
+/// Ignore delimiter string prefixed by odd number of escapes.
+size_t kFindUnescaped(KStringView haystack,
+                      KStringView needle,
                       KStringView::value_type chEscape,
                       KStringView::size_type pos = 0);
 //-----------------------------------------------------------------------------

@@ -103,7 +103,7 @@ void StripSuffix(KStringView& svElement, const KStringView& svTrim)
 //-----------------------------------------------------------------------------
 KStringViewPair kSplitToPairInt(
         KStringView svBuffer,
-        const char chDelim
+        KStringView svPairDelim
 	)
 //-----------------------------------------------------------------------------
 {
@@ -112,13 +112,13 @@ KStringViewPair kSplitToPairInt(
 	if (DEKAF2_LIKELY(!svBuffer.empty()))
 	{
 		// Look for delimiter character
-		auto iNext = svBuffer.find(chDelim);
+		auto iNext = svBuffer.find(svPairDelim);
 
 		if (DEKAF2_LIKELY(iNext != KStringView::npos))
 		{
 			svPair.first = svBuffer.substr(0, iNext);
 
-			svBuffer.remove_prefix(++iNext);
+			svBuffer.remove_prefix(iNext + svPairDelim.size());
 
 			svPair.second = svBuffer;
 		}
@@ -137,7 +137,7 @@ KStringViewPair kSplitToPairInt(
 //-----------------------------------------------------------------------------
 KStringViewPair kSplitToPairInt(
         KStringView svBuffer,
-        const char chDelim,
+        KStringView svPairDelim,
         KStringView svTrim,
         const char  chEscape
 	)
@@ -148,13 +148,13 @@ KStringViewPair kSplitToPairInt(
 	if (DEKAF2_LIKELY(StripPrefix(svBuffer, svTrim)))
 	{
 		// Look for delimiter character, respect escapes
-		auto iNext = kFindUnescaped (svBuffer, chDelim, chEscape);
+		auto iNext = kFindUnescaped (svBuffer, svPairDelim, chEscape);
 
 		if (DEKAF2_LIKELY(iNext != KStringView::npos))
 		{
 			svPair.first = svBuffer.substr(0, iNext);
 
-			svBuffer.remove_prefix(++iNext);
+			svBuffer.remove_prefix(iNext + svPairDelim.size());
 
 			StripSuffix(svPair.first, svTrim);
 

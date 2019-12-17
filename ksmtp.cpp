@@ -100,7 +100,7 @@ bool KSMTP::Talk(KStringView sTx, KStringView sRx, ESMTPParms* parms, bool bDisc
 					KStringView sParms = sLine;
 					sParms.remove_prefix(4);
 					// add key and value to parms
-					kSplit(*parms, sParms, ' ', "\r\n");
+					kSplit(*parms, sParms, "\r\n", " ");
 				}
 				// this is a continuation line.. skip it
 				continue;
@@ -122,7 +122,7 @@ bool KSMTP::Talk(KStringView sTx, KStringView sRx, ESMTPParms* parms, bool bDisc
 				KStringView sParms = sLine;
 				sParms.remove_prefix(4);
 				// add key and value to parms
-				kSplit(*parms, sLine, ' ', "\r\n");
+				kSplit(*parms, sLine, "\r\n", " ");
 			}
 
 			break;

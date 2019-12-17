@@ -131,7 +131,7 @@ bool NeedsSurrogates(codepoint_t ch)
 //-----------------------------------------------------------------------------
 /// Convert a codepoint into a surrogate pair. Check before calling that the
 /// input needs surrogate separation.
-inline
+inline KUTF8_CONSTEXPR_14
 SurrogatePair CodepointToSurrogates(codepoint_t ch)
 //-----------------------------------------------------------------------------
 {

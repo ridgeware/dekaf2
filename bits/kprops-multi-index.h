@@ -53,6 +53,7 @@
 #include "kcppcompat.h"
 #include "kmutable_pair.h"
 #include "../ksplit.h"
+#include "../kjoin.h"
 #include "../klog.h"
 #include "../kstream.h"
 
@@ -409,10 +410,10 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	size_t Load(KInStream& Input, const char chPairDelim = '=', KStringView svDelim = "\n")
+	size_t Load(KInStream& Input, KStringView svDelim = "\n", KStringView svPairDelim = "=")
 	//-----------------------------------------------------------------------------
 	{
-		size_t iNewElements{0};
+		size_t iNewElements { 0 };
 
 		if (Input.InStream().good())
 		{
@@ -426,7 +427,7 @@ public:
 				sLine.Trim();
 				if (svDelim != "\n" || (!sLine.empty() && sLine.front() != '#'))
 				{
-					iNewElements += kSplit(*this, sLine, chPairDelim, svDelim);
+					iNewElements += kSplit(*this, sLine, svDelim, svPairDelim);
 				}
 			}
 		}
@@ -436,48 +437,45 @@ public:
 	} // Load
 
 	//-----------------------------------------------------------------------------
-	size_t Load(KStringView sInput, const char chPairDelim = '=', KStringView svDelim = "\n")
+	size_t Load(KStringView sInput, KStringView svDelim = "\n", KStringView svPairDelim = "=")
 	//-----------------------------------------------------------------------------
 	{
 		KInFile fin(sInput);
-		return Load(fin, chPairDelim, svDelim);
+		return Load(fin, svDelim, svPairDelim);
 
 	} // Load
 
 	//-----------------------------------------------------------------------------
-	size_t Store(KOutStream& Output, const char chPairDelim = '=', KStringView svDelim = "\n")
+	size_t Store(KOutStream& Output, KStringView svDelim = "\n", KStringView svPairDelim = "=")
 	//-----------------------------------------------------------------------------
 	{
-		size_t iNewElements{0};
+		size_t iNewElements { 0 };
 
-		if (Output.OutStream().good())
+		do
 		{
 			if (svDelim == "\n")
 			{
-				Output.Write("#! KPROPS");
-				Output.Write(svDelim);
+				if (!Output.Write("#! KPROPS")) break;
+				if (!Output.Write(svDelim)) break;
 			}
 
-			for (const auto& it : *this)
+			if (kJoin(Output, *this, svDelim, svPairDelim, true))
 			{
-				Output.Write(it.first);
-				Output.Write(chPairDelim);
-				Output.Write(it.second);
-				Output.Write(svDelim);
-				++iNewElements;
+				iNewElements = size();
 			}
-		}
+
+		} while (false);
 
 		return iNewElements;
 
 	} // Store
 
 	//-----------------------------------------------------------------------------
-	size_t Store(KStringView sOutput, const char chPairDelim = '=', KStringView svDelim = "\n")
+	size_t Store(KStringView sOutput, KStringView svDelim = "\n", KStringView svPairDelim = "=")
 	//-----------------------------------------------------------------------------
 	{
 		KOutFile fout(sOutput);
-		return Store(fout, chPairDelim, svDelim);
+		return Store(fout, svDelim, svPairDelim);
 
 	} // Store
 

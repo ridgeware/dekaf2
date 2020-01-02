@@ -184,5 +184,10 @@ bool operator<(const KVersion& left, const KVersion& right)
 
 } // operator<()
 
+
+#ifdef DEKAF2_REPEAT_CONSTEXPR_VARIABLE
+constexpr KStringView KVersion::sDefaultSeparators;
+#endif
+
 } // end of namespace dekaf2
 

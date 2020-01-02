@@ -449,6 +449,56 @@ bool Contains (const KJSON& json, KStringView sString) noexcept
 
 } // Contains
 
+//-----------------------------------------------------------------------------
+bool RecursiveMatchValue (const KJSON& json, KStringView sSearch)
+//-----------------------------------------------------------------------------
+{
+	if (json.empty())
+	{
+		return false;  // empty json matches nothing
+	}
+	else if (!sSearch)
+	{
+		return true;  // empty string matches anything
+	}
+
+	KString sLower (sSearch);
+	sLower.MakeLower();
+
+	if (json.is_primitive())
+	{
+		KString sLowerValue = json.dump();
+		sLowerValue.MakeLower();
+		if (sLowerValue.Contains (sSearch))
+		{
+			return true; // this value contains the string
+		}
+	}
+	else if (json.is_array())
+	{
+		for (const auto& it : json.items())
+		{
+			if (kjson::RecursiveMatchValue (it.value(), sLower))
+			{
+				return true; // found a value that contains string
+			}
+		}
+	}
+	else if (json.is_object())
+	{
+	    for (auto it = json.begin(); it != json.end(); ++it)
+	    {
+			if (RecursiveMatchValue (it.value(), sLower))
+			{
+				return true; // found a value that contains string
+			}
+	    }
+	}
+
+	return false; // no value contains the string
+
+} // RecursiveMatchValue
+
 } // end of namespace kjson
 
 } // end of namespace dekaf2

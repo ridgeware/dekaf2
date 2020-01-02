@@ -118,6 +118,32 @@ RemoveSystemPackages ()
 
 } # RemoveSystemPackages
 
+setx=CheckInstallBrew
+#==============================
+CheckInstallBrew ()
+#==============================
+{
+	local HasBrew=$(which brew)
+
+	if [[ "$HasBrew" == "" ]]; then
+
+		echo "The homebrew packet manager seems not to be installed.\nDo you want to install it now? (Y/n)"
+		read -n 1 Ch
+		if [ "$Ch" == "n" ]; then
+			Die "need homebrew to run installs"
+		fi
+
+		/usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
+
+		HasBrew=$(which brew)
+
+		if [[ "$HasBrew" == "" ]]; then
+			Die "failed to install homebrew"
+		fi
+	fi
+
+} # CheckInstallBrew
+
 setx=GetOS
 #==================
 GetOS ()
@@ -149,6 +175,8 @@ GetOS ()
 	DEVPKG="-devel"
 
 	if [[ "${OS}" == "Darwin" ]]; then
+
+		CheckInstallBrew
 
 		BINDIR="darwin-${ARCH}"
 		INSTALLER="brew"

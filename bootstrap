@@ -1,0 +1,138 @@
+#!/bin/bash
+
+#% bootstrap - create initial dekaf2 install
+#%
+#% usage: bootstrap [-with-debug] -go
+#%
+#% where -with_debug will install both debug and release versions
+#%
+
+# are we in test mode?
+if [ "$1" = "-x" ]; then
+	set -x
+	shift
+fi # end check test mode
+
+setx=Synopsis
+#==================
+Synopsis ()
+#==================
+{
+	awk '/^#%/ {print substr($0,3)}' "${ME_FULLPATH}"
+
+} # Synopsis
+
+setx=Install
+#==================
+Install ()
+#==================
+{
+	BuildType="$1"
+
+	cd ${BuildType} || Die "Cannot cd into build directory ${BuildType}"
+
+	# install
+
+	Info "now installing dekaf2 ${BuildType} project (may need root password)"
+	sudo make install
+
+	Info "dekaf2 ${BuildType} build successfully installed"
+
+	cd ..
+
+} # Install
+
+setx=Build
+#==================
+Build ()
+#==================
+{
+	BuildType="$1"
+
+	cd ${BuildType} || Die "Cannot cd into build directory ${BuildType}"
+
+	# build
+
+	make -j4 all || Die "Cannot build ${BuildType} project"
+
+	cd ..
+
+} # Build
+
+setx=Configure
+#==================
+Configure ()
+#==================
+{
+	BuildType="$1"
+
+	cd ${BuildType} || Die "Cannot cd into build directory ${BuildType}"
+
+	# configure CMake
+
+	cmake -DCMAKE_BUILD_TYPE=${BuildType} "${ME_ONLYPATH}" || Die "Cannot configure CMake project"
+
+	cd ..
+
+} # Configure
+
+
+setx=Setup
+#==================
+Setup ()
+#==================
+{
+
+	# create a pristine build directory
+
+	rm -rf "${BuildDir}" || Die "Cannot remove build directory ${BuildDir}"
+	mkdir "${BuildDir}"  || Die "Cannot create build directory ${BuildDir}"
+	cd "${BuildDir}"     || Die "Cannot cd into build directory ${BuildDir}"
+
+	mkdir "Debug"        || Die "Cannot create Debug build directory"
+	mkdir "Release"      || Die "Cannot create Release build directory"
+
+	[[ ! -z "${bWithDebug}" ]] && Configure "Debug"
+	Configure "Release"
+
+	[[ ! -z "${bWithDebug}" ]] && Build "Debug"
+	Build "Release"
+
+	[[ ! -z "${bWithDebug}" ]] && Install "Debug"
+	Install "Release"
+
+} # Setup
+
+
+#==================
+setx=Main_Body
+#==================
+
+ME=$(basename "${BASH_SOURCE}")
+ME_ONLYPATH="$(cd $(dirname ${BASH_SOURCE}) && pwd)"
+ME_FULLPATH="$ME_ONLYPATH/$ME"
+ScriptLib="${ME_ONLYPATH}/scripts/scriptlib"
+BuildSetup="${ME_ONLYPATH}/scripts/buildsetup"
+BuildDir="${ME_ONLYPATH}/build"
+
+[[ ! -f "${ScriptLib}" ]] && Die "Cannot check OS version, script '${ScriptLib}' not found"
+[[ ! -f "${BuildSetup}" ]] && Die "Cannot setup build, script '${BuildSetup}' not found"
+
+source ${ScriptLib}
+
+if [[ "$1" == "-with-debug" ]]; then
+	bWithDebug="1"
+	shift
+fi
+
+if [ "$1" != "-go" ]; then
+	Synopsis
+	exit 1
+fi
+
+SetupColors
+GetOS
+
+"${BuildSetup}" -go || Die "could not configure target machine"
+
+Setup

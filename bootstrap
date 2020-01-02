@@ -1,10 +1,11 @@
 #!/bin/bash
 
+#%
 #% bootstrap - create initial dekaf2 install
 #%
 #% usage: bootstrap [-with-debug] -go
 #%
-#% where -with_debug will install both debug and release versions
+#% where -with-debug will install both debug and release versions
 #%
 
 # are we in test mode?

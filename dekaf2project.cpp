@@ -55,9 +55,9 @@ using namespace dekaf2;
 
 constexpr KStringView g_Synopsis[] = {
 	" ",
-	"dekaf2generator -- generate dekaf2 based project setups",
+	"dekaf2project -- generate dekaf2 based project setups",
 	" ",
-	"usage: dekaf2generator [...]",
+	"usage: dekaf2project [...]",
 	"",
 	" where:"
 	"",

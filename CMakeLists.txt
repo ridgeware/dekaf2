@@ -771,6 +771,10 @@ add_executable(createdbc createdbc.cpp)
 target_link_libraries(createdbc dekaf2 ksql2)
 add_dependencies(createdbc dekaf2 ksql2)
 
+add_executable(dekaf2project dekaf2project.cpp)
+target_link_libraries(dekaf2project dekaf2)
+add_dependencies(dekaf2project dekaf2)
+
 add_executable(getentities EXCLUDE_FROM_ALL getentities.cpp)
 target_link_libraries(getentities dekaf2)
 add_dependencies(getentities dekaf2)
@@ -805,6 +809,7 @@ install(FILES ${GENERATED_FILES_DIR}/${PROJECT_NAME}-config-version.cmake DESTIN
 install(FILES ${GENERATED_FILES_DIR}/${PROJECT_NAME}-setup.cmake DESTINATION ${dekaf2_lib_dest})
 install(TARGETS klog DESTINATION ${dekaf2_bin_dest})
 install(TARGETS createdbc DESTINATION ${dekaf2_bin_dest})
+install(TARGETS dekaf2project DESTINATION ${dekaf2_bin_dest})
 #install(TARGETS getentities DESTINATION ${dekaf2_bin_dest})
 #install(TARGETS genunicodetables DESTINATION ${dekaf2_bin_dest})
 
@@ -843,6 +848,7 @@ add_custom_target(uninstall
 	COMMAND "${CMAKE_COMMAND}" -E remove_directory "${dekaf2_include_dest}"
 	COMMAND "${CMAKE_COMMAND}" -E remove "${dekaf2_bin_dest}/klog"
 	COMMAND "${CMAKE_COMMAND}" -E remove "${dekaf2_bin_dest}/createdbc"
+	COMMAND "${CMAKE_COMMAND}" -E remove "${dekaf2_bin_dest}/dekaf2project"
 	COMMAND "${CMAKE_COMMAND}" -E remove "${dekaf2_bin_dest}/mysql-newuser"
 )
 

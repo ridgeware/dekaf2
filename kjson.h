@@ -226,7 +226,7 @@ namespace kjson
 	/// returns true if object is a string array or an object and contains the given string
 	bool Contains (const KJSON& json, KStringView sString) noexcept;
 
-	/// RecursiveMatchValue (json, m_sSearch);
+	/// RecursiveMatchValue (json, m_sSearchX);
 	bool RecursiveMatchValue (const KJSON& json, KStringView sSearch);
 
 }; // end of namespace kjson

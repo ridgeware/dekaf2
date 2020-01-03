@@ -68,8 +68,31 @@ constexpr KStringView g_Synopsis[] = {
 	"  -version <Version>   :: version string, default = 0.0.1"
 };
 
-class Config;
-void ShowAllTemplates(const Config& Config);
+//-----------------------------------------------------------------------------
+void ShowAllTemplates()
+//-----------------------------------------------------------------------------
+{
+	KDirectory Templates(kFormat("{}{}templates", DEKAF2_SHARED_DIRECTORY, kDirSep), KDirectory::EntryType::DIRECTORY);
+	Templates.Sort();
+
+	KOut.WriteLine();
+	KOut.WriteLine("available project types for the -type parameter:");
+	KOut.WriteLine();
+
+	for (const auto& Template : Templates)
+	{
+		// check if the template directory is empty - then ignore it
+		KDirectory Target(Template.Path(), KDirectory::EntryType::REGULAR);
+
+		if (!Target.empty())
+		{
+			KOut.FormatLine(" {}", Template.Filename());
+		}
+	}
+
+	KOut.WriteLine();
+
+} // ShowAllTemplates
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class Config
@@ -147,7 +170,7 @@ public:
 
 		if (!Directory.Open(sTemplateDir) || Directory.empty())
 		{
-			ShowAllTemplates(*this);
+			ShowAllTemplates();
 			throw KException(kFormat("cannot open template type: {}", sProjectType));
 		}
 
@@ -182,30 +205,6 @@ public:
 }; // Config
 
 //-----------------------------------------------------------------------------
-void ShowAllTemplates(const Config& Config)
-//-----------------------------------------------------------------------------
-{
-	KDirectory Templates(kFormat("{}{}templates", DEKAF2_SHARED_DIRECTORY, kDirSep), KDirectory::EntryType::DIRECTORY);
-	Templates.Sort();
-
-	KOut.WriteLine();
-	KOut.WriteLine("available project types for the -type parameter:");
-	KOut.WriteLine();
-
-	for (const auto& Template : Templates)
-	{
-		// check if the template directory is empty - then ignore it
-		KDirectory Target(Template.Path(), KDirectory::EntryType::REGULAR);
-		if (!Target.empty())
-		{
-			KOut.FormatLine(" {}", Template.Filename());
-		}
-	}
-
-	KOut.WriteLine();
-}
-
-//-----------------------------------------------------------------------------
 void SetupOptions (KOptions& Options, Config& Config)
 //-----------------------------------------------------------------------------
 {
@@ -234,7 +233,7 @@ void SetupOptions (KOptions& Options, Config& Config)
 		{
 			KOut.WriteLine(it);
 		}
-		ShowAllTemplates(Config);
+		ShowAllTemplates();
 		Config.bIsDone = true;
 	});
 

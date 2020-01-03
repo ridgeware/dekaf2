@@ -50,6 +50,7 @@
 #include "kjson.h"
 #include "kreplacer.h"
 #include "kurl.h"
+#include "ksystem.h"
 
 using namespace dekaf2;
 
@@ -78,15 +79,134 @@ enum class ProjectType
 };
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-struct Config
+class Config
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
+
+//----------
+public:
+//----------
+
+	//-----------------------------------------------------------------------------
+	/// set fixed variables
+	void SetupVariables()
+	//-----------------------------------------------------------------------------
+	{
+		Variables.insert("Dekaf2Version"        , "v" DEKAF_VERSION);
+		Variables.insert("ProjectVersion"       , sProjectVersion);
+		Variables.insert("ProjectName"          , sProjectName);
+		Variables.insert("LowerProjectName"     , sProjectName.ToLower());
+		Variables.insert("ProjectPath"          , sProjectPath);
+		Variables.insert("SSOServer"            , SSOServer.Serialize());
+
+		// create lists of source and header files
+
+		KString sSourceFiles;
+		KString sHeaderFiles;
+
+		for (const auto& File : Directory)
+		{
+			bool bIsHeader = File.Filename().ends_with(".h");
+			bool bIsSource = File.Filename().ends_with(".cpp");
+
+			if (!File.Filename().starts_with("main."))
+			{
+				if (bIsSource)
+				{
+					sSourceFiles += kFormat("    {}\n", File.Filename());
+				}
+				else if (bIsHeader)
+				{
+					sHeaderFiles += kFormat("    {}\n", File.Filename());
+				}
+			}
+			else
+			{
+				// main - replace with project name
+				if (bIsSource)
+				{
+					sSourceFiles += kFormat("    {}.cpp\n", sProjectName.ToLower());
+				}
+				else if (bIsHeader)
+				{
+					sHeaderFiles += kFormat("    {}.h\n", sProjectName.ToLower());
+				}
+			}
+		}
+
+		Variables.insert("SourceFiles", sSourceFiles);
+		Variables.insert("HeaderFiles", sHeaderFiles);
+
+	} // SetupVariables
+
+	//-----------------------------------------------------------------------------
+	/// compute remaining values from set values
+	void Finish()
+	//-----------------------------------------------------------------------------
+	{
+		sTemplateDir = DEKAF2_SHARED_DIRECTORY;
+		sTemplateDir += kDirSep;
+		sTemplateDir += "templates";
+		sTemplateDir += kDirSep;
+
+		switch (pType)
+		{
+			case ProjectType::CLI:
+				sTemplateDir += "cli";
+				break;
+
+			case ProjectType::HTTP:
+				sTemplateDir += AddServerOrClient("http");
+				break;
+
+			case ProjectType::REST:
+				sTemplateDir += AddServerOrClient("rest");
+				break;
+		}
+
+		if (!Directory.Open(sTemplateDir))
+		{
+			throw KException(kFormat("cannot open template directory: {}", sTemplateDir));
+		}
+
+		if (sProjectPath.empty())
+		{
+			sProjectPath = kGetCWD();
+		}
+
+		sOutputDir = sProjectPath;
+		sOutputDir += kDirSep;
+		sOutputDir += sProjectName;
+
+		SetupVariables();
+
+	} // Finish
+
 	ProjectType pType;
 	KString sProjectName;
 	KString sProjectPath;
-	KString sVersion { "0.0.1" };
+	KString sProjectVersion { "0.0.1" };
 	KURL SSOServer;
 	bool bIsServer { false };
+
+	KString sOutputDir;
+	KString sTemplateDir;
+	KVariables Variables { true };
+	KDirectory Directory;
+
+//----------
+private:
+//----------
+
+	//-----------------------------------------------------------------------------
+	KString AddServerOrClient(KStringView sName)
+	//-----------------------------------------------------------------------------
+	{
+		KString sRet = sName;
+		sRet += (bIsServer) ? "server" : "client";
+		return sRet;
+
+	} // AddServerOrClient
 
 }; // Config
 
@@ -106,7 +226,7 @@ void SetupOptions (KOptions& Options, Config& Config)
 
 	Options.RegisterOption("version", "missing version string", [&](KStringViewZ sVersion)
 	{
-		Config.sVersion = sVersion;
+		Config.sProjectVersion = sVersion;
 	});
 
 	Options.RegisterOption("type", "missing project type", [&](KStringViewZ sType)
@@ -160,94 +280,87 @@ void PrintReplacedFile(KStringViewZ sOutFile, const KVariables& Variables, KStri
 
 	if (!OutFile.is_open())
 	{
-		throw KException(kFormat("cannot open output file: {}", sOutFile));
+		throw KException(kFormat("cannot create output file: {}", sOutFile));
 	}
 
+	KOut.FormatLine(":: creating file              : {}", kBasename(sOutFile));
+	
 	OutFile.Write(Variables.Replace(kReadAll(sInFile)));
 
 } // PrintReplacedFile
 
 //-----------------------------------------------------------------------------
-void InstallTemplateDir(const KString& sTemplateDir, const KVariables& Variables, KStringViewZ sOutDir)
+void InstallTemplateDir(const Config& Config)
 //-----------------------------------------------------------------------------
 {
-	if (!kDirExists(sTemplateDir))
+	KOut.FormatLine(":: reading configuration from : {}", Config.sTemplateDir);
+	KOut.FormatLine(":: creating project at        : {}", Config.sOutputDir);
+
+	if (!kMakeDir(Config.sOutputDir))
 	{
-		throw KException(kFormat("template directory does not exist: {}", sTemplateDir));
+		throw KException(kFormat("cannot create output directory: {}", Config.sOutputDir));
 	}
 
-	if (!kMakeDir(sOutDir))
+	for (const auto& File : Config.Directory)
 	{
-		throw KException(kFormat("cannot create output directory: {}", sOutDir));
-	}
-
-	KDirectory Directory(sTemplateDir);
-
-	for (const auto& File : Directory)
-	{
-		KString sInFile = sTemplateDir;
-		sInFile += kDirSep;
-		sInFile += File.Filename();
-
-		KString sOutFile = sOutDir;
+		KString sOutFile = Config.sOutputDir;
 		sOutFile += kDirSep;
-		sOutFile += File.Filename();
 
-		PrintReplacedFile(sOutFile, Variables, sInFile);
+		if (File.Filename() == "main.h")
+		{
+			sOutFile += Config.sProjectName.ToLower();
+			sOutFile += ".h";
+		}
+		else if (File.Filename() == "main.cpp")
+		{
+			sOutFile += Config.sProjectName.ToLower();
+			sOutFile += ".cpp";
+		}
+		else
+		{
+			sOutFile += File.Filename();
+		}
+
+		PrintReplacedFile(sOutFile, Config.Variables, File.Path());
 	}
 
 } // InstallTemplateDir
 
 //-----------------------------------------------------------------------------
-KString AddServerOrClient(bool bIsServer, KStringView sName)
+void CreateBuildSystem(const Config& Config, KStringView sBuildType)
 //-----------------------------------------------------------------------------
 {
-	KString sRet = sName;
-	sRet += (bIsServer) ? "server" : "client";
-	return sRet;
+	KOut.FormatLine(":: creating build system      : build{}{}", kDirSep, sBuildType);
 
-} // AddServerOrClient
+	KString sBuildDir = Config.sOutputDir;
+	sBuildDir += kDirSep;
+	sBuildDir += "build";
+	sBuildDir += kDirSep;
+	sBuildDir += sBuildType;
 
-//-----------------------------------------------------------------------------
-KString GetTemplateDir(const Config& Config)
-//-----------------------------------------------------------------------------
-{
-	KString sDir;
+	if (!kCreateDir(sBuildDir)) throw KException { kFormat("cannot create directory: {}", sBuildDir) };
 
-	switch (Config.pType)
+	// call cmake
+
+	KString sShellOutput;
+
+	if (sBuildType == "Xcode")
 	{
-		case ProjectType::CLI:
-			sDir = "cli";
-			break;
-
-		case ProjectType::HTTP:
-			sDir = AddServerOrClient(Config.bIsServer, "http");
-			break;
-
-		case ProjectType::REST:
-			sDir = AddServerOrClient(Config.bIsServer, "rest");
-			break;
+		kSystem(kFormat("cmake -G Xcode -S {} -B {}", Config.sOutputDir, sBuildDir), sShellOutput);
+	}
+	else
+	{
+		kSystem(kFormat("cmake -DCMAKE_BUILD_TYPE={} -S {} -B {}", sBuildType, Config.sOutputDir, sBuildDir), sShellOutput);
 	}
 
-	return sDir;
+	if (sShellOutput.ToLowerASCII().Contains("error"))
+	{
+		KErr.WriteLine();
+		KErr.WriteLine(sShellOutput);
+		KErr.WriteLine();
+	}
 
-} // GetTemplateDir
-
-//-----------------------------------------------------------------------------
-KVariables SetupVariables(const Config& Config)
-//-----------------------------------------------------------------------------
-{
-	KVariables Variables(true);
-
-	Variables.insert("Dekaf2Version", "v" DEKAF_VERSION);
-	Variables.insert("Version"      , Config.sVersion);
-	Variables.insert("ProjectName"  , Config.sProjectName);
-	Variables.insert("ProjectPath"  , Config.sProjectPath);
-	Variables.insert("SSOServer"    , Config.SSOServer.Serialize());
-
-	return Variables;
-
-} // SetupVariables
+} // CreateBuildSystem
 
 //-----------------------------------------------------------------------------
 int main (int argc, char* argv[])
@@ -269,10 +382,21 @@ int main (int argc, char* argv[])
 			{
 				throw KException("project name is empty");
 			}
-			KString sOutDir = Config.sProjectPath;
-			sOutDir += kDirSep;
-			sOutDir += Config.sProjectName;
-			InstallTemplateDir(GetTemplateDir(Config), SetupVariables(Config), sOutDir);
+			Config.Finish();
+
+			if (kDirExists(Config.sOutputDir))
+			{
+				throw KException(kFormat("output directory already exists: {}", Config.sOutputDir));
+			}
+
+			InstallTemplateDir(Config);
+
+			CreateBuildSystem(Config, "Release");
+			CreateBuildSystem(Config, "Debug");
+#ifdef DEKAF2_IS_OSX
+			CreateBuildSystem(Config, "Xcode");
+#endif
+			KOut.WriteLine(":: done");
 		}
 
 		return (iErrors);

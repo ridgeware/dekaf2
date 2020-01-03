@@ -310,6 +310,8 @@ public:
 
 	const_iterator cbegin() const { return m_DirEntries.begin(); }
 	const_iterator cend() const { return m_DirEntries.end(); }
+	const_iterator begin() const { return m_DirEntries.begin(); }
+	const_iterator end() const { return m_DirEntries.end(); }
 	iterator begin() { return m_DirEntries.begin(); }
 	iterator end() { return m_DirEntries.end(); }
 	size_t size() const { return m_DirEntries.size(); }

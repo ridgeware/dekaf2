@@ -107,6 +107,7 @@ set(dekaf2_bin_dest ${CMAKE_INSTALL_PREFIX}/bin)
 set(dekaf2_include_dest "${CMAKE_INSTALL_PREFIX}/include/${PROJECT_NAME}-${lib_version}")
 set(dekaf2_main_lib_dest "${CMAKE_INSTALL_PREFIX}/lib/${PROJECT_NAME}-${lib_version}")
 set(dekaf2_lib_dest "${dekaf2_main_lib_dest}/${CMAKE_BUILD_TYPE}")
+set(dekaf2_share_dest "${CMAKE_INSTALL_PREFIX}/share/${PROJECT_NAME}-${lib_version}")
 
 # =================================== ENVIRONMENT ==================================
 
@@ -828,6 +829,7 @@ if (DEKAF2_WITH_COMPATIBILITY_LAYER_TO_DEKAF1)
 	install(FILES ${COMPAT_HEADERS} DESTINATION ${dekaf2_include_dest}/compat)
 endif()
 
+install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/templates DESTINATION ${dekaf2_share_dest})
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/from/nlohmann/include/nlohmann/ DESTINATION ${dekaf2_include_dest}/nlohmann FILES_MATCHING PATTERN "*.hpp")
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/libs/frozen/include/frozen/ DESTINATION ${dekaf2_include_dest}/frozen FILES_MATCHING PATTERN "*.h")
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/libs/fmt-5.3.0/include/fmt/ DESTINATION ${dekaf2_include_dest}/fmt FILES_MATCHING PATTERN "*.h")
@@ -846,6 +848,7 @@ include(CPack)
 add_custom_target(uninstall
 	COMMAND "${CMAKE_COMMAND}" -E remove_directory "${dekaf2_main_lib_dest}"
 	COMMAND "${CMAKE_COMMAND}" -E remove_directory "${dekaf2_include_dest}"
+	COMMAND "${CMAKE_COMMAND}" -E remove_directory "${dekaf2_share_dest}"
 	COMMAND "${CMAKE_COMMAND}" -E remove "${dekaf2_bin_dest}/klog"
 	COMMAND "${CMAKE_COMMAND}" -E remove "${dekaf2_bin_dest}/createdbc"
 	COMMAND "${CMAKE_COMMAND}" -E remove "${dekaf2_bin_dest}/dekaf2project"

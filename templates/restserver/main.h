@@ -49,7 +49,7 @@ public:
 protected:
 //----------
 
-	void ShowVersion ();
+	void SetupInputFile(KOptions::ArgList& ArgList);
 
 	ServerOptions m_ServerOptions;
 

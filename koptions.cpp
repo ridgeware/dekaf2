@@ -135,10 +135,11 @@ void KOptions::CLIParms::Create(const std::vector<KStringViewZ>& parms)
 } // CParms ctor
 
 //---------------------------------------------------------------------------
-KOptions::KOptions(bool bEmptyParmsIsError, KStringView sCliDebugTo/*=KLog::STDOUT*/)
+KOptions::KOptions(bool bEmptyParmsIsError, KStringView sCliDebugTo/*=KLog::STDOUT*/, bool bThrow/*=false*/)
 //---------------------------------------------------------------------------
 	: m_sCliDebugTo(sCliDebugTo)
 	, m_bEmptyParmsIsError(bEmptyParmsIsError)
+	, m_bThrow(bThrow)
 {
 } // KOptions ctor
 
@@ -306,7 +307,7 @@ int KOptions::ParseCGI(KStringViewZ sProgramName, KOutStream& out)
 
 	QueryArgs.push_back(sProgramName);
 
-	for (auto& it : Query.get())
+	for (const auto& it : Query.get())
 	{
 		QueryArgs.emplace_back(it.first);
 		if (!it.second.empty())
@@ -314,6 +315,7 @@ int KOptions::ParseCGI(KStringViewZ sProgramName, KOutStream& out)
 			QueryArgs.emplace_back(it.second);
 		}
 	}
+
 	m_CLIParms.Create(QueryArgs);
 
 	kDebug(2, "parsed {} arguments from CGI query string", QueryArgs.size() - 1);
@@ -337,6 +339,7 @@ int KOptions::Execute(KOutStream& out)
 //---------------------------------------------------------------------------
 {
 	CLIParms::iterator lastCommand;
+	KString sError;
 
 	DEKAF2_TRY
 	{
@@ -348,7 +351,7 @@ int KOptions::Execute(KOutStream& out)
 			{
 				lastCommand = it;
 				ArgList Args;
-				CallbackParams* CBP { nullptr };
+				CallbackParams* Callback { nullptr };
 				bool bIsUnknown { false };
 
 				auto& Store = it->IsOption() ? m_Options : m_Commands;
@@ -361,7 +364,7 @@ int KOptions::Execute(KOutStream& out)
 					{
 						if (m_UnknownOption.func)
 						{
-							CBP = &m_UnknownOption;
+							Callback = &m_UnknownOption;
 							// we pass the current Arg as the first arg of Args,
 							// but we need to take care to not take it into account
 							// when we readjust the remaining args after calling the
@@ -374,7 +377,7 @@ int KOptions::Execute(KOutStream& out)
 					{
 						if (m_UnknownCommand.func)
 						{
-							CBP = &m_UnknownCommand;
+							Callback = &m_UnknownCommand;
 							// we pass the current Arg as the first arg of Args,
 							// but we need to take care to not take it into account
 							// when we readjust the remaining args after calling the
@@ -386,33 +389,33 @@ int KOptions::Execute(KOutStream& out)
 				}
 				else
 				{
-					CBP = &cbi->second;
+					Callback = &cbi->second;
 				}
 
-				if (CBP)
+				if (Callback)
 				{
 					it->bConsumed = true;
+
 					// isolate parms until next command and add them to the ArgList
-					auto it2 = it + 1;
-					for (; it2 != m_CLIParms.end() && !it2->IsOption(); ++it2)
+					for (auto it2 = it + 1; it2 != m_CLIParms.end() && !it2->IsOption(); ++it2)
 					{
 						Args.push_front(it2->sArg);
 					}
 
-					if (CBP->iMinArgs > Args.size())
+					if (Callback->iMinArgs > Args.size())
 					{
-						if (!CBP->sMissingParms.empty())
+						if (!Callback->sMissingParms.empty())
 						{
-							DEKAF2_THROW(MissingParameterError(CBP->sMissingParms.c_str()));
+							DEKAF2_THROW(MissingParameterError(Callback->sMissingParms));
 						}
-						DEKAF2_THROW(MissingParameterError(kFormat("{} arguments required, but only {} found", CBP->iMinArgs, Args.size())));
+						DEKAF2_THROW(MissingParameterError(kFormat("{} arguments required, but only {} found", Callback->iMinArgs, Args.size())));
 					}
 
 					// keep record of the initial args count
 					auto iOldSize = Args.size();
 
 					// finally call the callback
-					CBP->func(Args);
+					Callback->func(Args);
 
 					if (iOldSize < Args.size())
 					{
@@ -489,17 +492,17 @@ int KOptions::Execute(KOutStream& out)
 
 	DEKAF2_CATCH (const MissingParameterError& error)
 	{
-		out.FormatLine("{}: missing parameter after {}{}: {}", GetProgramName(), lastCommand->Dashes(), lastCommand->sArg, error.what());
+		sError.Format("{}: missing parameter after {}{}: {}", GetProgramName(), lastCommand->Dashes(), lastCommand->sArg, error.what());
 	}
 
 	DEKAF2_CATCH (const WrongParameterError& error)
 	{
-		out.FormatLine("{}: wrong parameter after {}{}: {}", GetProgramName(), lastCommand->Dashes(), lastCommand->sArg, error.what());
+		sError.Format("{}: wrong parameter after {}{}: {}", GetProgramName(), lastCommand->Dashes(), lastCommand->sArg, error.what());
 	}
 
 	DEKAF2_CATCH (const Error& error)
 	{
-		out.WriteLine(error.what());
+		sError = error.what();
 	}
 
 	DEKAF2_CATCH (const NoError& error)
@@ -508,6 +511,8 @@ int KOptions::Execute(KOutStream& out)
 		error.what();
 #endif
 	}
+
+	m_bThrow ? throw KException(sError) : out.WriteLine(sError);
 
 	return 1;
 

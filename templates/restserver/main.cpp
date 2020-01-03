@@ -54,9 +54,27 @@ constexpr KStringView g_Help[] = {
 };
 
 //-----------------------------------------------------------------------------
+void {{ProjectName}}::SetupInputFile (KOptions::ArgList& ArgList)
+//-----------------------------------------------------------------------------
+{
+	if (!ArgList.empty())
+	{
+		m_ServerOptions.Simulate.sFilename = ArgList.pop();
+
+		if (!kFileExists(m_ServerOptions.Simulate.sFilename))
+		{
+			throw KOptions::WrongParameterError(kFormat("input file not existing: {}", m_ServerOptions.Simulate.sFilename));
+		}
+	}
+
+} // SetupInputFile
+
+//-----------------------------------------------------------------------------
 {{ProjectName}}::{{ProjectName}} ()
 //-----------------------------------------------------------------------------
 {
+	m_CLI.Throw();
+
 	m_CLI.RegisterHelp(g_Help);
 
 	m_CLI.RegisterOption("cgi", [&]()
@@ -67,6 +85,7 @@ constexpr KStringView g_Help[] = {
 		}
 
 		m_ServerOptions.Type = KREST::CGI;
+		SetupInputFile(sArgs);
 	});
 
 	m_CLI.RegisterOption("fcgi", [&]()
@@ -77,6 +96,7 @@ constexpr KStringView g_Help[] = {
 		}
 
 		m_ServerOptions.Type = KREST::FCGI;
+		SetupInputFile(sArgs);
 	});
 
 	m_CLI.RegisterOption("lambda", 0, "", [&](KOptions::ArgList& sArgs)
@@ -87,6 +107,7 @@ constexpr KStringView g_Help[] = {
 		}
 
 		m_ServerOptions.Type = KREST::LAMBDA;
+		SetupInputFile(sArgs);
 	});
 
 	m_CLI.RegisterOption("http,port", "port number", [&](KStringViewZ sPort)
@@ -185,7 +206,7 @@ constexpr KStringView g_Help[] = {
 		sReqMethod.MakeUpper();
 		if (!sReqMethod.In(KHTTPMethod::REQUEST_METHODS))
 		{
-			throw KOptions::WrongParameterError(kFormat("invalid request method '{}' after -X, legal ones are: {}", sReqMethod, KHTTPMethod::REQUEST_METHODS));
+			throw KOptions::WrongParameterError(kFormat("invalid request method '{}', legal ones are: {}", sReqMethod, KHTTPMethod::REQUEST_METHODS));
 		}
 		m_ServerOptions.Simulate.Method = std::move(sReqMethod);
 	});
@@ -198,7 +219,7 @@ constexpr KStringView g_Help[] = {
 			sArg.TrimLeft('@');
 			if (!kReadAll (sArg, sReqBody))
 			{
-				throw KOptions::WrongParameterError(kFormat("invalid filename following -D option: {}", sArg));
+				throw KOptions::WrongParameterError(kFormat("invalid filename: {}", sArg));
 			}
 		}
 		m_ServerOptions.Simulate.sBody = std::move(sReqBody);
@@ -230,7 +251,7 @@ constexpr KStringView g_Help[] = {
 } // ctor
 
 //-----------------------------------------------------------------------------
-void {{ProjectName}}::ApiOptions(KRESTServer& HTTP)
+void {{ProjectName}}::ApiOptions (KRESTServer& HTTP)
 //-----------------------------------------------------------------------------
 {
 	// required headers for callers making preflight requests
@@ -241,7 +262,7 @@ void {{ProjectName}}::ApiOptions(KRESTServer& HTTP)
 } // ApiOptions
 
 //-----------------------------------------------------------------------------
-int {{ProjectName}}::Main(int argc, char** argv)
+int {{ProjectName}}::Main (int argc, char** argv)
 //-----------------------------------------------------------------------------
 {
 	// ---------------- parse CLI ------------------

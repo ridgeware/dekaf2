@@ -58,15 +58,14 @@ constexpr KStringView g_Synopsis[] = {
 	" ",
 	"dekaf2project -- generate dekaf2 based project setups",
 	" ",
-	"usage: dekaf2project [...]",
+	"usage: dekaf2project [<Options>] <ProjectName>",
 	"",
-	" where:"
+	" where options are:"
 	"",
-	"  -name <ProjectName>  :: name of the project",
-	"  -path <ProjectPath>  :: relative or absolute path to the project root, name is added",
-	"  -version <Version>   :: version string, default = 0.0.1",
 	"  -type <ProjectType>  :: type of project, default = cli",
-	"  -sso  <ServerURL>    :: URL of SSO server if any",
+	"  -path <ProjectPath>  :: path to project root, name is added, default = current directory",
+	"  -sso  <URL> <Scope>  :: URL and scope of SSO server, default = none",
+	"  -version <Version>   :: version string, default = 0.0.1"
 };
 
 class Config;
@@ -210,6 +209,15 @@ void ShowAllTemplates(const Config& Config)
 void SetupOptions (KOptions& Options, Config& Config)
 //-----------------------------------------------------------------------------
 {
+	Options.RegisterUnknownCommand([&](KOptions::ArgList& Commands)
+	{
+		if (!Config.sProjectName.empty() || Commands.size() > 1)
+		{
+			throw KOptions::Error("project name defined multiple times");
+		}
+		Config.sProjectName = Commands.pop();
+	});
+
 	Options.RegisterOption("help",[&]()
 	{
 		for (const auto& it : g_Synopsis)
@@ -319,7 +327,10 @@ void CreateBuildSystem(const Config& Config, KStringView sBuildType)
 	sBuildDir += kDirSep;
 	sBuildDir += sBuildType;
 
-	if (!kCreateDir(sBuildDir)) throw KException { kFormat("cannot create directory: {}", sBuildDir) };
+	if (!kCreateDir(sBuildDir))
+	{
+		throw KException { kFormat("cannot create directory: {}", sBuildDir) };
+	}
 
 	// call cmake
 
@@ -353,6 +364,7 @@ int main (int argc, char* argv[])
 
 		Config Config;
 		KOptions Options(true);
+		Options.Throw();
 		SetupOptions(Options, Config);
 		auto iErrors = Options.Parse(argc, argv, KOut);
 
@@ -389,7 +401,7 @@ int main (int argc, char* argv[])
 	}
 	catch (const KException& ex)
 	{
-		KErr.FormatLine(">> {}", ex.what());
+		KErr.FormatLine(">> {}: {}", argv[0], ex.what());
 	}
 
 	return 1;

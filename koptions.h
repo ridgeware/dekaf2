@@ -97,7 +97,12 @@ public:
 	KOptions& operator=(KOptions&&) = default;
 
 	/// ctor, requiring basic initialization
-	explicit KOptions (bool bEmptyParmsIsError, KStringView sCliDebugTo = KLog::STDOUT);
+	explicit KOptions (bool bEmptyParmsIsError, KStringView sCliDebugTo = KLog::STDOUT, bool bThrow = false);
+
+	void Throw(bool bYesNo = true)
+	{
+		m_bThrow = bYesNo;
+	}
 
 	/// Parse arguments and call the registered callback functions. Returns 0
 	/// if valid, -1 if -help was called, and > 0 for error
@@ -249,6 +254,7 @@ private:
 	const KStringView* m_sHelp { nullptr };
 	size_t             m_iHelpSize { 0 };
 	bool               m_bEmptyParmsIsError { true };
+	bool               m_bThrow { false };
 
 }; // KOptions
 

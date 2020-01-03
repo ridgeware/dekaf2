@@ -62,20 +62,14 @@ constexpr KStringView g_Synopsis[] = {
 	"",
 	" where:"
 	"",
-	"  -name <ProjectName>        :: name of the project",
-	"  -path <ProjectPath>        :: relative or absolute path to the project root, name is added",
-	"  -version <Version>         :: version string, default = 0.0.1",
-	"  -type <cli | rest | http>  :: type of project, default = cli, see also -client/-server",
-	"  -client | -server          :: default = client",
-	"  -sso  <ServerURL>          :: URL of SSO server if any",
+	"  -name <ProjectName>  :: name of the project",
+	"  -path <ProjectPath>  :: relative or absolute path to the project root, name is added",
+	"  -version <Version>   :: version string, default = 0.0.1",
+	"  -type <ProjectType>  :: type of project, default = cli",
+	"  -sso  <ServerURL>    :: URL of SSO server if any",
+	"",
+	"call \"dekaf2project types\" to see all available project types",
 	""
-};
-
-enum class ProjectType
-{
-	CLI,
-	REST,
-	HTTP,
 };
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -148,26 +142,14 @@ public:
 		sTemplateDir += kDirSep;
 		sTemplateDir += "templates";
 		sTemplateDir += kDirSep;
-
-		switch (pType)
-		{
-			case ProjectType::CLI:
-				sTemplateDir += "cli";
-				break;
-
-			case ProjectType::HTTP:
-				sTemplateDir += AddServerOrClient("http");
-				break;
-
-			case ProjectType::REST:
-				sTemplateDir += AddServerOrClient("rest");
-				break;
-		}
+		sTemplateDir += sProjectType;
 
 		if (!Directory.Open(sTemplateDir))
 		{
 			throw KException(kFormat("cannot open template directory: {}", sTemplateDir));
 		}
+
+		Directory.Sort();
 
 		if (sProjectPath.empty())
 		{
@@ -182,38 +164,49 @@ public:
 
 	} // Finish
 
-	ProjectType pType;
+	KString sProjectType;
 	KString sProjectName;
 	KString sProjectPath;
 	KString sProjectVersion { "0.0.1" };
 	KURL SSOServer;
-	bool bIsServer { false };
+	bool bIsDone { false };
 
 	KString sOutputDir;
 	KString sTemplateDir;
 	KVariables Variables { true };
 	KDirectory Directory;
 
-//----------
-private:
-//----------
-
-	//-----------------------------------------------------------------------------
-	KString AddServerOrClient(KStringView sName)
-	//-----------------------------------------------------------------------------
-	{
-		KString sRet = sName;
-		sRet += (bIsServer) ? "server" : "client";
-		return sRet;
-
-	} // AddServerOrClient
-
 }; // Config
+
+//-----------------------------------------------------------------------------
+void ShowAllTemplates(const Config& Config)
+//-----------------------------------------------------------------------------
+{
+	KDirectory Templates(kFormat("{}{}templates", DEKAF2_SHARED_DIRECTORY, kDirSep), KDirectory::EntryType::DIRECTORY);
+	Templates.Sort();
+
+	KOut.WriteLine();
+	KOut.WriteLine("available project types for the -type parameter:");
+	KOut.WriteLine();
+
+	for (const auto& Template : Templates)
+	{
+		KOut.FormatLine(" {}", Template.Filename());
+	}
+
+	KOut.WriteLine();
+}
 
 //-----------------------------------------------------------------------------
 void SetupOptions (KOptions& Options, Config& Config)
 //-----------------------------------------------------------------------------
 {
+	Options.RegisterCommand("types",[&]()
+	{
+		ShowAllTemplates(Config);
+		Config.bIsDone = true;
+	});
+
 	Options.RegisterOption("name", "missing project name", [&](KStringViewZ sName)
 	{
 		Config.sProjectName = sName;
@@ -231,33 +224,7 @@ void SetupOptions (KOptions& Options, Config& Config)
 
 	Options.RegisterOption("type", "missing project type", [&](KStringViewZ sType)
 	{
-		switch (sType.ToLowerASCII().Hash())
-		{
-			case "cli"_hash:
-				Config.pType = ProjectType::CLI;
-				break;
-
-			case "rest"_hash:
-				Config.pType = ProjectType::REST;
-				break;
-
-			case "http"_hash:
-				Config.pType = ProjectType::HTTP;
-				break;
-
-			default:
-				throw KOptions::WrongParameterError();
-		}
-	});
-
-	Options.RegisterOption("client", [&]()
-	{
-		Config.bIsServer = false;
-	});
-
-	Options.RegisterOption("server", [&]()
-	{
-		Config.bIsServer = true;
+		Config.sProjectType = sType;
 	});
 
 	Options.RegisterOption("sso", "missing SSO server URL", [&](KStringViewZ sURL)
@@ -378,10 +345,16 @@ int main (int argc, char* argv[])
 
 		if (!iErrors)
 		{
+			if (Config.bIsDone)
+			{
+				return 0;
+			}
+
 			if (Config.sProjectName.empty())
 			{
 				throw KException("project name is empty");
 			}
+
 			Config.Finish();
 
 			if (kDirExists(Config.sOutputDir))

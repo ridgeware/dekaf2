@@ -77,7 +77,7 @@ void {{ProjectName}}::SetupInputFile (KOptions::ArgList& ArgList)
 
 	m_CLI.RegisterHelp(g_Help);
 
-	m_CLI.RegisterOption("cgi", [&]()
+	m_CLI.RegisterOption("cgi", 0, "", [&](KOptions::ArgList& sArgs)
 	{
 		if (m_ServerOptions.Type != KREST::UNDEFINED)
 		{
@@ -88,7 +88,7 @@ void {{ProjectName}}::SetupInputFile (KOptions::ArgList& ArgList)
 		SetupInputFile(sArgs);
 	});
 
-	m_CLI.RegisterOption("fcgi", [&]()
+	m_CLI.RegisterOption("fcgi", 0, "", [&](KOptions::ArgList& sArgs)
 	{
 		if (m_ServerOptions.Type != KREST::UNDEFINED)
 		{

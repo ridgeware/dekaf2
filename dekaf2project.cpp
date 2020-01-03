@@ -88,6 +88,7 @@ public:
 	{
 		Variables.insert("Dekaf2Version"        , "v" DEKAF_VERSION);
 		Variables.insert("ProjectVersion"       , sProjectVersion);
+		Variables.insert("ProjectType"          , sProjectType);
 		Variables.insert("ProjectName"          , sProjectName);
 		Variables.insert("LowerProjectName"     , sProjectName.ToLower());
 		Variables.insert("ProjectPath"          , sProjectPath);

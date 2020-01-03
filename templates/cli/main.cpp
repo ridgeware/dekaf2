@@ -24,9 +24,9 @@ constexpr KStringView g_Help[] = {
 {{ProjectName}}::{{ProjectName}} ()
 //-----------------------------------------------------------------------------
 {
-	Options.RegisterHelp(g_Help);
+	m_CLI.RegisterHelp(g_Help);
 
-	Options.RegisterOption("version,rev,revision", [&]()
+	m_CLI.RegisterOption("version,rev,revision", [&]()
 	{
 		ShowVersion();
 	});
@@ -37,7 +37,7 @@ constexpr KStringView g_Help[] = {
 void {{ProjectName}}::ShowVersion()
 //-----------------------------------------------------------------------------
 {
-	KOut.FormatLine(":: {} v{}", sProjectName, sProjectVersion);
+	KOut.FormatLine(":: {} v{}", s_sProjectName, s_sProjectVersion);
 
 } // ShowVersion
 
@@ -45,9 +45,7 @@ void {{ProjectName}}::ShowVersion()
 int {{ProjectName}}::Main(int argc, char** argv)
 //-----------------------------------------------------------------------------
 {
-	int iRetval = Options.Parse(argc, argv, KOut);
-
-	return iRetval;
+	return m_CLI.Parse(argc, argv, KOut);
 
 } // Main
 
@@ -57,15 +55,16 @@ int main (int argc, char** argv)
 {
 	try
 	{
-		{{ProjectName}} {{ProjectName}};
-		return {{ProjectName}}.Main (argc, argv);
+		return {{ProjectName}}().Main (argc, argv);
 	}
 	catch (const KException& ex)
 	{
-		KErr.FormatLine(">> {}: {}", ex.what());
-		return 1;
+		KErr.FormatLine(">> {}: {}", {{ProjectName}}::s_sProjectName, ex.what());
 	}
-
-	return 0;
+	catch (const std::exception& ex)
+	{
+		KErr.FormatLine(">> {}: {}", {{ProjectName}}::s_sProjectName, ex.what());
+	}
+	return 1;
 
 } // main

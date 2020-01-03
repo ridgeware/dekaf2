@@ -1,3 +1,6 @@
+
+// dekaf2 generated project using the {{ProjectType}} template
+
 #pragma once
 
 #include <dekaf2/kstring.h>
@@ -6,24 +9,32 @@
 
 using namespace dekaf2;
 
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class {{ProjectName}}
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
+//----------
 public:
+//----------
 
 	{{ProjectName}} ();
 
 	int Main (int argc, char** argv);
 
-	static constexpr KStringViewZ sProjectName { "{{ProjectName}}" };
-	static constexpr KStringViewZ sProjectVersion { "{{ProjectVersion}}" };
+	static constexpr KStringViewZ s_sProjectName    { "{{ProjectName}}" };
+	static constexpr KStringViewZ s_sProjectVersion { "{{ProjectVersion}}" };
 
+//----------
 protected:
+//----------
 
 	void ShowVersion ();
 
+//----------
 private:
+//----------
 
-	KOptions Options { true };
+	KOptions m_CLI { true };
 
 }; // {{ProjectName}}

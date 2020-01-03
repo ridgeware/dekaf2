@@ -218,6 +218,16 @@ void SetupOptions (KOptions& Options, Config& Config)
 		Config.sProjectName = Commands.pop();
 	});
 
+	// keep the -name option, it was the previous way to set the name
+	Options.RegisterOption("name", "missing project name", [&](KStringViewZ sName)
+	{
+		if (!Config.sProjectName.empty())
+		{
+			throw KOptions::Error("project name defined multiple times");
+		}
+		Config.sProjectName = sName;
+	});
+
 	Options.RegisterOption("help",[&]()
 	{
 		for (const auto& it : g_Synopsis)
@@ -226,11 +236,6 @@ void SetupOptions (KOptions& Options, Config& Config)
 		}
 		ShowAllTemplates(Config);
 		Config.bIsDone = true;
-	});
-
-	Options.RegisterOption("name", "missing project name", [&](KStringViewZ sName)
-	{
-		Config.sProjectName = sName;
 	});
 
 	Options.RegisterOption("path", "missing project path", [&](KStringViewZ sPath)

@@ -67,10 +67,10 @@ constexpr KStringView g_Synopsis[] = {
 	"  -version <Version>   :: version string, default = 0.0.1",
 	"  -type <ProjectType>  :: type of project, default = cli",
 	"  -sso  <ServerURL>    :: URL of SSO server if any",
-	"",
-	"call \"dekaf2project types\" to see all available project types",
-	""
 };
+
+class Config;
+void ShowAllTemplates(const Config& Config);
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class Config
@@ -86,7 +86,7 @@ public:
 	void SetupVariables()
 	//-----------------------------------------------------------------------------
 	{
-		Variables.insert("Dekaf2Version"        , "v" DEKAF_VERSION);
+		Variables.insert("Dekaf2Version"        , DEKAF_VERSION);
 		Variables.insert("ProjectVersion"       , sProjectVersion);
 		Variables.insert("ProjectType"          , sProjectType);
 		Variables.insert("ProjectName"          , sProjectName);
@@ -146,9 +146,10 @@ public:
 		sTemplateDir += kDirSep;
 		sTemplateDir += sProjectType;
 
-		if (!Directory.Open(sTemplateDir))
+		if (!Directory.Open(sTemplateDir) || Directory.empty())
 		{
-			throw KException(kFormat("cannot open template directory: {}", sTemplateDir));
+			ShowAllTemplates(*this);
+			throw KException(kFormat("cannot open template type: {}", sProjectType));
 		}
 
 		Directory.Sort();
@@ -166,7 +167,7 @@ public:
 
 	} // Finish
 
-	KString sProjectType;
+	KString sProjectType { "cli" };
 	KString sProjectName;
 	KString sProjectPath;
 	KString sProjectVersion { "0.0.1" };
@@ -194,7 +195,12 @@ void ShowAllTemplates(const Config& Config)
 
 	for (const auto& Template : Templates)
 	{
-		KOut.FormatLine(" {}", Template.Filename());
+		// check if the template directory is empty - then ignore it
+		KDirectory Target(Template.Path(), KDirectory::EntryType::REGULAR);
+		if (!Target.empty())
+		{
+			KOut.FormatLine(" {}", Template.Filename());
+		}
 	}
 
 	KOut.WriteLine();
@@ -204,8 +210,12 @@ void ShowAllTemplates(const Config& Config)
 void SetupOptions (KOptions& Options, Config& Config)
 //-----------------------------------------------------------------------------
 {
-	Options.RegisterCommand("types",[&]()
+	Options.RegisterOption("help",[&]()
 	{
+		for (const auto& it : g_Synopsis)
+		{
+			KOut.WriteLine(it);
+		}
 		ShowAllTemplates(Config);
 		Config.bIsDone = true;
 	});
@@ -343,7 +353,6 @@ int main (int argc, char* argv[])
 
 		Config Config;
 		KOptions Options(true);
-		Options.RegisterHelp(g_Synopsis);
 		SetupOptions(Options, Config);
 		auto iErrors = Options.Parse(argc, argv, KOut);
 

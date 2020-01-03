@@ -92,7 +92,8 @@ public:
 		Variables.insert("ProjectName"          , sProjectName);
 		Variables.insert("LowerProjectName"     , sProjectName.ToLower());
 		Variables.insert("ProjectPath"          , sProjectPath);
-		Variables.insert("SSOServer"            , SSOServer.Serialize());
+		Variables.insert("SSOProvider"          , SSOProvider.Serialize());
+		Variables.insert("SSOScope"             , SSOScope);
 
 		// create lists of source and header files
 
@@ -169,7 +170,8 @@ public:
 	KString sProjectName;
 	KString sProjectPath;
 	KString sProjectVersion { "0.0.1" };
-	KURL SSOServer;
+	KURL SSOProvider;
+	KString SSOScope;
 	bool bIsDone { false };
 
 	KString sOutputDir;
@@ -228,9 +230,10 @@ void SetupOptions (KOptions& Options, Config& Config)
 		Config.sProjectType = sType;
 	});
 
-	Options.RegisterOption("sso", "missing SSO server URL", [&](KStringViewZ sURL)
+	Options.RegisterOption("sso", 2, "missing SSO server URL and scope", [&](KOptions::ArgList& SSO)
 	{
-		Config.SSOServer = sURL;
+		Config.SSOProvider = SSO.pop();
+		Config.SSOScope    = SSO.pop();
 	});
 
 } // SetupOptions

@@ -9,7 +9,7 @@ using namespace dekaf2;
 
 constexpr KStringView g_Help[] = {
 	"",
-	"{{LowerProjectName}} -- dekaf2 CLI template",
+	"{{LowerProjectName}} -- dekaf2 {{ProjectType}} template",
 	"",
 	"usage: {{LowerProjectName}} [<options>]",
 	"",

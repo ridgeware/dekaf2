@@ -54,7 +54,7 @@ KWebClient::KWebClient(bool bVerifyCerts)
 }
 
 //-----------------------------------------------------------------------------
-KString KWebClient::HttpRequest (KURL URL, KStringView sRequestMethod/* = KHTTPMethod::GET*/, KStringView svRequestBody/* = ""*/, KMIME MIME/* = KMIME::JSON*/)
+KString KWebClient::HttpRequest (KURL URL, KHTTPMethod RequestMethod/* = KHTTPMethod::GET*/, KStringView svRequestBody/* = ""*/, KMIME MIME/* = KMIME::JSON*/)
 //-----------------------------------------------------------------------------
 {
 	KString sResponse;
@@ -67,10 +67,10 @@ KString KWebClient::HttpRequest (KURL URL, KStringView sRequestMethod/* = KHTTPM
 	if (m_bQueryToWWWFormConversion &&
 		svRequestBody.empty() &&
 		!URL.Query.empty() &&
-		sRequestMethod != KHTTPMethod::GET &&
-		sRequestMethod != KHTTPMethod::OPTIONS &&
-		sRequestMethod != KHTTPMethod::HEAD &&
-		sRequestMethod != KHTTPMethod::CONNECT)
+		RequestMethod != KHTTPMethod::GET &&
+		RequestMethod != KHTTPMethod::OPTIONS &&
+		RequestMethod != KHTTPMethod::HEAD &&
+		RequestMethod != KHTTPMethod::CONNECT)
 	{
 		// we automatically create a www form as body data if there are
 		// query parms but no post data (and the method is not GET)
@@ -96,7 +96,7 @@ KString KWebClient::HttpRequest (KURL URL, KStringView sRequestMethod/* = KHTTPM
 		{
 			ConnectTime.halt();
 
-			if (Resource(URL, sRequestMethod))
+			if (Resource(URL, RequestMethod))
 			{
 				TransferTime.resume();
 				
@@ -135,7 +135,7 @@ KString KWebClient::HttpRequest (KURL URL, KStringView sRequestMethod/* = KHTTPM
 			}
 		}
 
-		if (!CheckForRedirect(URL, sRequestMethod))
+		if (!CheckForRedirect(URL, RequestMethod))
 		{
 			break;
 		}
@@ -163,7 +163,7 @@ KString KWebClient::HttpRequest (KURL URL, KStringView sRequestMethod/* = KHTTPM
 
 		if (svRequestBody)
 		{
-			kDebug(2, "{} {}\n{}", sRequestMethod, URL.KResource::Serialize(), svRequestBody);
+			kDebug(2, "{} {}\n{}", RequestMethod.Serialize(), URL.KResource::Serialize(), svRequestBody);
 		}
 
 		kDebug(2, "{} {} from URL {}", Response.iStatusCode, Response.sStatusString, URL.Serialize());
@@ -197,11 +197,11 @@ bool kHTTPHead(KURL URL)
 } // kHTTPHead
 
 //-----------------------------------------------------------------------------
-KString kHTTPPost(KURL URL, KStringView svPostData, KStringView svMime)
+KString kHTTPPost(KURL URL, KStringView svPostData, KMIME Mime)
 //-----------------------------------------------------------------------------
 {
 	KWebClient HTTP(/* bVerifyCerts = */ true);
-	return HTTP.Post(std::move(URL), svPostData, svMime);
+	return HTTP.Post(std::move(URL), svPostData, std::move(Mime));
 
 } // kHTTPPost
 

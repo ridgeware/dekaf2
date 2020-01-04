@@ -182,7 +182,7 @@ KRestClient& KRestClient::AddHeader (KStringView sName, KStringView sValue)
 //-----------------------------------------------------------------------------
 {
 	ResetAfterRequest();
-	base::SetRequestHeader(sName, sValue);
+	base::AddHeader(sName, sValue);
 	return *this;
 
 } // AddHeader

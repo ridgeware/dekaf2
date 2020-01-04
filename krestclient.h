@@ -129,7 +129,7 @@ public:
 	using base::BasicAuthentication;
 	using base::DigestAuthentication;
 	using base::ClearAuthentication;
-	using base::SetRequestHeader;
+	using base::AddHeader;
 	using base::SetTimeout;
 	using base::SetProxy;
 	using base::AutoConfigureProxy;

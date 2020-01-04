@@ -513,7 +513,7 @@ bool KHTTPClient::Resource(const KURL& url, KHTTPMethod method)
 		// domain and port
 		Request.Endpoint = url;
 		bIsConnect = true;
-		SetRequestHeader(KHTTPHeaders::PROXY_CONNECTION, "keep-alive");
+		AddHeader(KHTTPHeaders::PROXY_CONNECTION, "keep-alive");
 	}
 	else if (m_bUseHTTPProxyProtocol)
 	{
@@ -521,7 +521,7 @@ bool KHTTPClient::Resource(const KURL& url, KHTTPMethod method)
 		// the server domain and port
 		Request.Endpoint = url;
 		Request.Resource = url;
-		SetRequestHeader(KHTTPHeaders::PROXY_CONNECTION, "keep-alive");
+		AddHeader(KHTTPHeaders::PROXY_CONNECTION, "keep-alive");
 	}
 	else
 	{
@@ -545,41 +545,33 @@ bool KHTTPClient::SetHostHeader(const KURL& url, bool bForcePort)
 {
 	if (!m_sForcedHost.empty())
 	{
-		return SetRequestHeader(KHTTPHeaders::HOST, m_sForcedHost);
+		AddHeader(KHTTPHeaders::HOST, m_sForcedHost);
 	}
-
-	if (url.Domain.empty())
+	else if (url.Domain.empty())
 	{
 		return SetError("Domain is empty");
 	}
-
-	// set the host header so that it overwrites a previously set one
-	if (!bForcePort
+	else if (!bForcePort
 		&& (url.Port.empty()
 		|| (url.Protocol == url::KProtocol::HTTP  && url.Port ==  "80")
 		|| (url.Protocol == url::KProtocol::HTTPS && url.Port == "443")))
 	{
 		// domain alone is sufficient for standard ports
-		return SetRequestHeader(KHTTPHeaders::HOST, url.Domain.Serialize());
+		AddHeader(KHTTPHeaders::HOST, url.Domain.Serialize());
 	}
+	else
+	{
+		// build "domain:port"
+		KString sHost;
+		url.Domain.Serialize(sHost);
+		url.Port.Serialize(sHost);
 
-	// build "domain:port"
-	KString sHost;
-	url.Domain.Serialize(sHost);
-	url.Port.Serialize(sHost);
-	return SetRequestHeader(KHTTPHeaders::HOST, sHost);
-
-} // SetHostHeader
-
-//-----------------------------------------------------------------------------
-bool KHTTPClient::SetRequestHeader(KStringView svName, KStringView svValue)
-//-----------------------------------------------------------------------------
-{
-	Request.Headers.Set(svName, svValue);
+		AddHeader(KHTTPHeaders::HOST, sHost);
+	}
 
 	return true;
 
-} // RequestHeader
+} // SetHostHeader
 
 //-----------------------------------------------------------------------------
 KHTTPClient& KHTTPClient::BasicAuthentication(KString sUsername,
@@ -652,11 +644,11 @@ bool KHTTPClient::SendRequest(KStringView svPostData, KMIME Mime)
 			// We allow sending body data for GET requests as well, as a few
 			// applications expect doing so. It is not generally advisable due
 			// to proxy issues though.
-			SetRequestHeader(KHTTPHeaders::CONTENT_LENGTH, KString::to_string(svPostData.size()));
+			AddHeader(KHTTPHeaders::CONTENT_LENGTH, KString::to_string(svPostData.size()));
 
 			if (!svPostData.empty())
 			{
-				SetRequestHeader(KHTTPHeaders::CONTENT_TYPE, Mime);
+				AddHeader(KHTTPHeaders::CONTENT_TYPE, Mime);
 			}
 		}
 	}
@@ -671,12 +663,12 @@ bool KHTTPClient::SendRequest(KStringView svPostData, KMIME Mime)
 
 	if (m_Authenticator)
 	{
-		SetRequestHeader(KHTTPHeaders::AUTHORIZATION, m_Authenticator->GetAuthHeader(Request, svPostData));
+		AddHeader(KHTTPHeaders::AUTHORIZATION, m_Authenticator->GetAuthHeader(Request, svPostData));
 	}
 
 	if (m_bRequestCompression && Request.Method != KHTTPMethod::CONNECT)
 	{
-		SetRequestHeader(KHTTPHeaders::ACCEPT_ENCODING, "gzip");
+		AddHeader(KHTTPHeaders::ACCEPT_ENCODING, "gzip");
 	}
 
 	if (!Request.Serialize()) // this sends the request headers to the remote server
@@ -773,7 +765,7 @@ bool KHTTPClient::Parse()
 } // Parse
 
 //-----------------------------------------------------------------------------
-bool KHTTPClient::CheckForRedirect(KURL& URL, KStringView& sRequestMethod)
+bool KHTTPClient::CheckForRedirect(KURL& URL, KHTTPMethod& RequestMethod)
 //-----------------------------------------------------------------------------
 {
 	// check for redirections
@@ -781,10 +773,10 @@ bool KHTTPClient::CheckForRedirect(KURL& URL, KStringView& sRequestMethod)
 	{
 		case KHTTPError::H303_SEE_OTHER:
 			// a 303 response always forces a method change to GET
-			if (sRequestMethod != KHTTPMethod::GET)
+			if (RequestMethod != KHTTPMethod::GET)
 			{
-				kDebug(1, "303 redirect changes method from {} to GET", sRequestMethod);
-				sRequestMethod = KHTTPMethod::GET;
+				kDebug(1, "303 redirect changes method from {} to GET", RequestMethod.Serialize());
+				RequestMethod = KHTTPMethod::GET;
 			}
 			DEKAF2_FALLTHROUGH;
 

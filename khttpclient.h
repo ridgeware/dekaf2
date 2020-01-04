@@ -195,8 +195,21 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Adds a request header for the next request
-	bool SetRequestHeader(KStringView svName, KStringView svValue);
+	KHTTPClient& AddHeader(KStringView svName, KStringView svValue)
 	//-----------------------------------------------------------------------------
+	{
+		Request.Headers.Set(svName, svValue);
+		return *this;
+	}
+
+	//-----------------------------------------------------------------------------
+	/// Adds a request header for the next request (DEPRECATED, use AddHeader() instead)
+	bool SetRequestHeader(KStringView svName, KStringView svValue)
+	//-----------------------------------------------------------------------------
+	{
+		AddHeader(svName, svValue);
+		return true;
+	}
 
 	//-----------------------------------------------------------------------------
 	bool SendRequest(KStringView svPostData = KStringView{}, KMIME Mime = KMIME::TEXT_PLAIN);
@@ -427,8 +440,8 @@ protected:
 
 	//-----------------------------------------------------------------------------
 	/// sets a redirect target depending on the returned status code and location
-	/// header
-	bool CheckForRedirect(KURL& URL, KStringView& sRequestMethod);
+	/// header, possibly changing RequestMethod
+	bool CheckForRedirect(KURL& URL, KHTTPMethod& RequestMethod);
 	//-----------------------------------------------------------------------------
 
 //------

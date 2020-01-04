@@ -68,3 +68,8 @@ int main (int argc, char** argv)
 	return 1;
 
 } // main
+
+#ifdef DEKAF2_REPEAT_CONSTEXPR_VARIABLE
+static constexpr KStringViewZ {{ProjectName}}::s_sProjectName;
+static constexpr KStringViewZ {{ProjectName}}::s_sProjectVersion;
+#endif

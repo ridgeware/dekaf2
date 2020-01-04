@@ -512,7 +512,14 @@ int KOptions::Execute(KOutStream& out)
 #endif
 	}
 
-	m_bThrow ? throw KException(sError) : out.WriteLine(sError);
+	if (m_bThrow)
+	{
+		 throw KException(sError);
+	}
+	else
+	{
+		out.WriteLine(sError);
+	}
 
 	return 1;
 

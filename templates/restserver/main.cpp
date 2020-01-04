@@ -217,14 +217,14 @@ void {{ProjectName}}::SetupInputFile (KOptions::ArgList& ArgList)
 		{
 			sArg.TrimLeft('@');
 
-			if (!kReadAll (sArg, m_Config.sBody))
+			if (!kReadAll (sArg, m_ServerOptions.Simulate.sBody))
 			{
 				throw KOptions::WrongParameterError(kFormat("invalid filename: {}", sArg));
 			}
 		}
 		else
 		{
-			m_Config.sBody = sArg;
+			m_ServerOptions.Simulate.sBody = sArg;
 		}
 	});
 

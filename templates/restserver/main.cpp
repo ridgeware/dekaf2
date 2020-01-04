@@ -201,28 +201,31 @@ void {{ProjectName}}::SetupInputFile (KOptions::ArgList& ArgList)
 		m_ServerOptions.Type = KREST::SIMULATE_HTTP;
 	});
 
-	m_CLI.RegisterOption("X,request", "request_method", [&](KString sReqMethod)
+	m_CLI.RegisterOption("X,request", "request_method", [&](KStringViewZ sMethod)
 	{
-		sReqMethod.MakeUpper();
-		if (!sReqMethod.In(KHTTPMethod::REQUEST_METHODS))
+		m_ServerOptions.Simulate.Method = sMethod.ToUpperASCII();
+
+		if (!m_ServerOptions.Simulate.Method.Serialize().In(KHTTPMethod::REQUEST_METHODS))
 		{
-			throw KOptions::WrongParameterError(kFormat("invalid request method '{}', legal ones are: {}", sReqMethod, KHTTPMethod::REQUEST_METHODS));
+			throw KOptions::WrongParameterError(kFormat("invalid request method '{}', legal ones are: {}", sMethod, KHTTPMethod::REQUEST_METHODS));
 		}
-		m_ServerOptions.Simulate.Method = std::move(sReqMethod);
 	});
 
 	m_CLI.RegisterOption("D,data", "request_body", [&](KStringViewZ sArg)
 	{
-		KString sReqBody(sArg);
 		if (sArg.StartsWith("@"))
 		{
 			sArg.TrimLeft('@');
-			if (!kReadAll (sArg, sReqBody))
+
+			if (!kReadAll (sArg, m_Config.sBody))
 			{
 				throw KOptions::WrongParameterError(kFormat("invalid filename: {}", sArg));
 			}
 		}
-		m_ServerOptions.Simulate.sBody = std::move(sReqBody);
+		else
+		{
+			m_Config.sBody = sArg;
+		}
 	});
 
 	m_CLI.RegisterOption("version,rev,revision", [&]()

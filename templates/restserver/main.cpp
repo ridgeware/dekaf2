@@ -398,10 +398,10 @@ int main (int argc, char** argv)
 } // main
 
 #ifdef DEKAF2_REPEAT_CONSTEXPR_VARIABLE
-static constexpr KStringViewZ {{ProjectName}}::s_sProjectName;
-static constexpr KStringViewZ {{ProjectName}}::s_sProjectVersion;
-static constexpr KStringView  {{ProjectName}}::s_SSOProvider;
-static constexpr KStringView  {{ProjectName}}::s_SSOScope;
-static constexpr KStringViewZ {{ProjectName}}::s_sRecordFlag;
-static constexpr KStringViewZ {{ProjectName}}::s_sRecordFile;
+constexpr KStringViewZ {{ProjectName}}::s_sProjectName;
+constexpr KStringViewZ {{ProjectName}}::s_sProjectVersion;
+constexpr KStringView  {{ProjectName}}::s_SSOProvider;
+constexpr KStringView  {{ProjectName}}::s_SSOScope;
+constexpr KStringViewZ {{ProjectName}}::s_sRecordFlag;
+constexpr KStringViewZ {{ProjectName}}::s_sRecordFile;
 #endif

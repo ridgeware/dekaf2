@@ -131,7 +131,7 @@ TEST_CASE("KInShell")
 
         KString sCurrentLine;
 
-        bool output = pipe.ReadAll(sCurrentLine);
+        bool output = pipe.ReadRemaining(sCurrentLine);
         CHECK(output);
         sCurrentLine.TrimLeft();
         CHECK("1\n" == sCurrentLine);

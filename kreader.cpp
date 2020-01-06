@@ -243,14 +243,11 @@ bool kAppendAll(std::istream& Stream, KString& sContent, bool bFromStart)
 	{
 		// We could not determine the input size - this might be a
 		// minimalistic input stream buffer, or a non-seekable stream.
-		if (!bFromStart)
-		{
-			return kAppendAllUnseekable(Stream, sContent);
-		}
 
-		// bFromStart option was set, but this stream is not seekable
-		kWarning("cannot rewind stream");
-		return false;
+		// Note that we do not err out when bFromStart was set, because
+		// semantically, doing a ReadAll or AppendAll on an unseekable
+		// input stream means: return all that is available
+		return kAppendAllUnseekable(Stream, sContent);
 	}
 
 	// position stream to the beginning

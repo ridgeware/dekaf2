@@ -67,12 +67,10 @@ TEST_CASE("KSystem")
 	{
 		KString sOutput;
 		auto iRet = kSystem("echo this is some text", sOutput);
-
 		CHECK ( iRet == 0 );
 		CHECK ( sOutput == "this is some text\n" );
 
 		iRet = kSystem("echo this is some text && exit 123", sOutput);
-
 		CHECK ( iRet == 123 );
 #ifdef DEKAF2_IS_WINDOWS
 		// Windows 'echo' includes any trailing space
@@ -80,6 +78,10 @@ TEST_CASE("KSystem")
 #else
 		CHECK ( sOutput == "this is some text\n" );
 #endif
+
+		iRet = kSystem("echo 'this is some\nmultiline text\noutput'", sOutput);
+		CHECK ( iRet == 0 );
+		CHECK ( sOutput == "this is some\nmultiline text\noutput\n" );
 
 #ifdef DEKAF2_IS_WINDOWS
 		iRet = kSystem("dir", sOutput);
@@ -90,7 +92,6 @@ TEST_CASE("KSystem")
 		CHECK ( sOutput != "" );
 
 		iRet = kSystem("", sOutput);
-
 		CHECK ( iRet == EINVAL );
 		CHECK ( sOutput == "" );
 

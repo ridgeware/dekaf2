@@ -75,7 +75,12 @@ std::streamsize KInStreamBuf::xsgetn(char_type* s, std::streamsize n)
 	if (n > 0)
 	{
 		// read remaining chars directly from the callbacḱ function
-		iExtracted += m_CallbackR(s, n, m_CustomPointerR);
+		auto iRead = m_CallbackR(s, n, m_CustomPointerR);
+		// iRead is -1 on error
+		if (iRead > 0)
+		{
+			iExtracted += iRead;
+		}
 	}
 
 	return iExtracted;

@@ -155,6 +155,70 @@ ssize_t kGetSize(KStringViewZ sFileName)
 } // kGetSize
 
 //-----------------------------------------------------------------------------
+bool kAppendAllUnseekable(std::istream& Stream, KString& sContent)
+//-----------------------------------------------------------------------------
+{
+	if (!Stream.good())
+	{
+		return false;
+	}
+
+	auto streambuf = Stream.rdbuf();
+
+	if (!streambuf)
+	{
+		kDebug(1, "no streambuf");
+		return false;
+	}
+
+	// We will simply try to read blocks until we fail or reach a
+	// max size.
+
+	enum { BUFSIZE = 4096 };
+	std::array<char, BUFSIZE> buf;
+
+	// This approach can be really dangerous on endless input streams,
+	// therefore we do wrap it into a try-catch block and limit the
+	// rx size to ~1 GB.
+
+	std::size_t iTotal { 0 };
+	static constexpr std::size_t iLimit = 1*1024*1024*1024;
+
+	DEKAF2_TRY_EXCEPTION
+	for (;;)
+	{
+		auto iRead = streambuf->sgetn(buf.data(), buf.size());
+
+		if (iRead > 0)
+		{
+			auto uiRead = static_cast<std::size_t>(iRead);
+
+			sContent.append(buf.data(), uiRead);
+
+			iTotal += uiRead;
+
+			if (iTotal > iLimit)
+			{
+				kWarning("stepped over limit of {} MB for non-seekable input stream - aborted reading", iLimit / (1024*1024) );
+				break;
+			}
+		}
+
+		if (iRead <= 0)
+		{
+			// either eof or other error
+			break;
+		}
+	}
+	DEKAF2_LOG_EXCEPTION
+
+	Stream.setstate(std::ios_base::eofbit);
+
+	return true;
+
+} // kAppendAllUnseekable
+
+//-----------------------------------------------------------------------------
 bool kAppendAll(std::istream& Stream, KString& sContent, bool bFromStart)
 //-----------------------------------------------------------------------------
 {
@@ -171,6 +235,7 @@ bool kAppendAll(std::istream& Stream, KString& sContent, bool bFromStart)
 
 	if (!iSize)
 	{
+		// empty file
 		return true;
 	}
 
@@ -178,47 +243,14 @@ bool kAppendAll(std::istream& Stream, KString& sContent, bool bFromStart)
 	{
 		// We could not determine the input size - this might be a
 		// minimalistic input stream buffer, or a non-seekable stream.
-		// We will simply try to read blocks until we fail or reach a
-		// max size.
-
-		enum { BUFSIZE = 4096 };
-		std::array<char, BUFSIZE> buf;
-
-		// This approach can be really dangerous on endless input streams,
-		// therefore we do wrap it into a try-catch block and limit the
-		// rx size to ~1 GB.
-
-		std::size_t iTotal { 0 };
-		static constexpr std::size_t iLimit = 1*1024*1024*1024;
-
-		DEKAF2_TRY_EXCEPTION
-		for (;;)
+		if (!bFromStart)
 		{
-			auto iRead = static_cast<size_t>(streambuf->sgetn(buf.data(), buf.size()));
-
-			if (iRead > 0)
-			{
-				sContent.append(buf.data(), iRead);
-
-				iTotal += iRead;
-
-				if (iTotal > iLimit)
-				{
-					kWarning("stepped over limit of {} MB for non-seekable input stream - aborted reading", iLimit / (1024*1024) );
-					break;
-				}
-			}
-
-			if (iRead < buf.size())
-			{
-				break;
-			}
+			return kAppendAllUnseekable(Stream, sContent);
 		}
-		DEKAF2_LOG_EXCEPTION
 
-		Stream.setstate(std::ios_base::eofbit);
-
-		return iTotal > 0;
+		// bFromStart option was set, but this stream is not seekable
+		kWarning("cannot rewind stream");
+		return false;
 	}
 
 	// position stream to the beginning

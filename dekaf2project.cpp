@@ -276,8 +276,8 @@ void PrintReplacedFile(KStringViewZ sOutFile, const KVariables& Variables, KStri
 		throw KException(kFormat("cannot create output file: {}", sOutFile));
 	}
 
-	KOut.FormatLine(":: creating file              : {}", kBasename(sOutFile));
-	
+	KOut.FormatLine(":: creating file              : {}", kBasename(sOutFile)).Flush();
+
 	OutFile.Write(Variables.Replace(kReadAll(sInFile)));
 
 } // PrintReplacedFile
@@ -323,7 +323,7 @@ void InstallTemplateDir(const Config& Config)
 void CreateBuildSystem(const Config& Config, KStringView sBuildType)
 //-----------------------------------------------------------------------------
 {
-	KOut.FormatLine(":: creating build system      : build{}{}", kDirSep, sBuildType);
+	KOut.FormatLine(":: creating build system      : build{}{}", kDirSep, sBuildType).Flush();
 
 	KString sBuildDir = Config.sOutputDir;
 	sBuildDir += kDirSep;

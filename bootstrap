@@ -84,10 +84,24 @@ Setup ()
 #==================
 {
 
-	# create a pristine build directory
+	cd "${ME_ONLYPATH}"  || Die "Cannot cd into source directory ${ME_ONLYPATH}"
 
-	rm -rf "${BuildDir}" || Die "Cannot remove build directory ${BuildDir}"
-	mkdir "${BuildDir}"  || Die "Cannot create build directory ${BuildDir}"
+	if [[ -d "${BuildDir}" ]]; then
+
+		Info "Build directory ${BuildDir} already setup."
+		Info "Remove it before calling ${ME} to have a fresh build from scratch."
+		Info "Checking for updates.."
+
+		git pull         || Die "Cannot pull source code changes"
+
+	else
+
+		# create a pristine build directory
+
+		mkdir "${BuildDir}" || Die "Cannot create build directory ${BuildDir}"
+
+	fi
+
 	cd "${BuildDir}"     || Die "Cannot cd into build directory ${BuildDir}"
 
 	mkdir "Debug"        || Die "Cannot create Debug build directory"
@@ -137,3 +151,5 @@ GetOS
 "${BuildSetup}" -go || Die "could not configure target machine"
 
 Setup
+
+Info "dekaf2 successfully installed!"

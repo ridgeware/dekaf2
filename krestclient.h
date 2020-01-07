@@ -225,7 +225,7 @@ public:
 										   return *this; }
 	/// Add (overwrite) a request header to existing headers
 	self& AddHeader (KStringView sName, KStringView sValue)
-									   { KHTTPClient::AddHeader(sName, sValue); 
+									   { KRestClient::AddHeader(sName, sValue);
 									      return *this; }
 
 	/// Set a Get method with path to call

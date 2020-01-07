@@ -67,6 +67,7 @@ public:
 	using value_type = codepoint_t;
 	using const_reference = const value_type&;
 	using const_pointer = const value_type*;
+	using size_type = std::size_t;
 	using difference_type = std::ptrdiff_t;
 	using self_type = UTF8ConstIterator;
 
@@ -185,6 +186,9 @@ protected:
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// A modifying bidirectional iterator over a utf8 string - new codepoints do not need to
 /// have the same size in utf8-bytes as the codepoint they are replacing
+// To adapt to changing string buffer addresses through inserts of UTF8 codepoints,
+// this iterator has to work on character indexes, not on pointers to characters.
+// Also, any string length manipulation outside of this iterator would invalidate it.
 template<class NarrowString>
 class UTF8Iterator
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -200,6 +204,7 @@ public:
 	using pointer = value_type*;
 	using const_reference = const value_type&;
 	using const_pointer = const value_type*;
+	using size_type = std::size_t;
 	using difference_type = std::ptrdiff_t;
 	using self_type = UTF8Iterator;
 
@@ -208,7 +213,7 @@ public:
 	UTF8Iterator(NarrowString& String, bool bToEnd = false)
 	//-----------------------------------------------------------------------------
 	: m_String(&String)
-	, m_next(bToEnd ? nullptr : String.begin())
+	, m_next(bToEnd ? NarrowString::npos : 0)
 	{
 		operator++();
 	}
@@ -256,15 +261,17 @@ public:
 				SaveChangedValue();
 			}
 
-			if (KUTF8_UNLIKELY(m_next != nullptr))
+			if (KUTF8_UNLIKELY(m_next != NarrowString::npos))
 			{
-				if (KUTF8_UNLIKELY(m_next == m_String->end()))
+				if (KUTF8_UNLIKELY(m_next == m_String->size()))
 				{
-					m_next = nullptr;
+					m_next = NarrowString::npos;
 				}
 				else
 				{
-					m_Value = m_OrigValue = NextCodepointFromUTF8(m_next, m_String->end());
+					typename NarrowString::iterator it = m_String->begin() + m_next;
+					m_Value = m_OrigValue = NextCodepointFromUTF8(it, m_String->end());
+					m_next = it - m_String->begin();
 				}
 			}
 		}
@@ -295,7 +302,7 @@ public:
 				SaveChangedValue();
 			}
 
-			if (KUTF8_UNLIKELY(m_next != nullptr))
+			if (KUTF8_UNLIKELY(m_next != NarrowString::npos))
 			{
 				// stay at .end() if value is invalid
 				if (KUTF8_LIKELY(m_Value != INVALID_CODEPOINT))
@@ -303,9 +310,8 @@ public:
 					m_next -= UTF8Bytes(m_Value);
 				}
 
-				auto hit = m_next;
-				m_Value = m_OrigValue = PrevCodepointFromUTF8(m_next, m_String->begin());
-				m_next = hit;
+				typename NarrowString::iterator it = m_String->begin() + m_next;
+				m_Value = m_OrigValue = PrevCodepointFromUTF8(it, m_String->begin());
 			}
 		}
 		return *this;
@@ -359,7 +365,7 @@ public:
 	bool operator==(const self_type& other) const
 	//-----------------------------------------------------------------------------
 	{
-		return m_next == other.m_next;
+		return m_String->begin() == other.m_String->begin() && m_next == other.m_next;
 	}
 
 	//-----------------------------------------------------------------------------
@@ -384,7 +390,7 @@ protected:
 			size_t iNewLen = UTF8Bytes(m_Value);
 
 			// create an iterator pointing to the start of the current sequence
-			typename NarrowString::iterator it = m_next - iOrigLen;
+			typename NarrowString::iterator it = m_String->begin() + m_next - iOrigLen;
 
 			if (KUTF8_UNLIKELY(iOrigLen < iNewLen))
 			{
@@ -396,6 +402,9 @@ protected:
 				// shorten the string
 				m_String->erase(it - m_String->begin(), iOrigLen - iNewLen);
 			}
+
+			// calc it again (the string buffer might have changed)
+			it = m_String->begin() + m_next - iOrigLen;
 
 			// calculate size difference
 			ssize_t iAdjust = iNewLen - iOrigLen;
@@ -413,7 +422,7 @@ protected:
 	}
 
 	NarrowString* m_String { nullptr };
-	typename NarrowString::iterator m_next;
+	size_type m_next;
 	value_type m_Value { 0 };
 	value_type m_OrigValue { 0 };
 

@@ -225,7 +225,8 @@ public:
 										   return *this; }
 	/// Add (overwrite) a request header to existing headers
 	self& AddHeader (KStringView sName, KStringView sValue)
-									   { base::AddHeader(sName, sValue);   return *this; }
+									   { KHTTPClient::AddHeader(sName, sValue); 
+									      return *this; }
 
 	/// Set a Get method with path to call
 	self& Get      (KString sPath)     { base::Get(std::move(sPath));      return *this; }

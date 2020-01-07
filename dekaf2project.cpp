@@ -353,7 +353,6 @@ void CreateBuildSystem(const Config& Config, KStringView sBuildType)
 	{
 		KErr.WriteLine();
 		KErr.WriteLine(sShellOutput);
-		KErr.WriteLine();
 	}
 
 } // CreateBuildSystem

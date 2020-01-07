@@ -104,8 +104,8 @@ Setup ()
 
 	cd "${BuildDir}"     || Die "Cannot cd into build directory ${BuildDir}"
 
-	mkdir "Debug"        || Die "Cannot create Debug build directory"
-	mkdir "Release"      || Die "Cannot create Release build directory"
+	mkdir -p "Debug"     || Die "Cannot create Debug build directory"
+	mkdir -p "Release"   || Die "Cannot create Release build directory"
 
 	[[ ! -z "${bWithDebug}" ]] && Configure "Debug"
 	Configure "Release"

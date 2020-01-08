@@ -112,8 +112,15 @@ inline bool kDirExists (KStringViewZ sPath)
 	return kExists(sPath, false, true, false);
 }
 
+//-----------------------------------------------------------------------------
+/// rename a file or directory
+bool kRename (KStringViewZ sOldPath, KStringViewZ sNewPath);
+//-----------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
 /// Remove (unlink) a file or directory tree
 bool kRemove (KStringViewZ sPath, bool bDir);
+//-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
 /// Remove (unlink) a file

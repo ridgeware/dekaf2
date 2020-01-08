@@ -179,6 +179,36 @@ TEST_CASE("KFilesystem") {
 		CHECK ( kFileExists(sNested)  );
 	}
 
+	SECTION("kRename")
+	{
+		KString sBaseDir = kGetTemp();
+		sBaseDir += kDirSep;
+		sBaseDir += "fs9238w78";
+
+		KString sNested { sBaseDir };
+		sNested += "/farer/down/here.txt";
+
+		KString sRenamed { kDirname(sNested) + "/new.txt" };
+
+		KString sNestedDir { sBaseDir };
+		sNestedDir += "/farer/down";
+
+		KString sRenamedDir { sBaseDir };
+		sRenamedDir += "/farer/up";
+
+		KString sFileinRenamedDir { sBaseDir };
+		sFileinRenamedDir += "/farer/up/new.txt";
+
+
+		CHECK ( kTouchFile(sNested)              );
+		CHECK ( kFileExists(sNested)             );
+		CHECK ( kRename(sNested, sRenamed)       );
+		CHECK ( kFileExists(sRenamed)            );
+		CHECK ( kRename(sNestedDir, sRenamedDir) );
+		CHECK ( kFileExists(sFileinRenamedDir)   );
+		CHECK ( kRemoveDir(sBaseDir) == true     );
+	}
+
 }
 
 TEST_CASE("KFilesystem cleanup")

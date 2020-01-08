@@ -323,6 +323,39 @@ KStringView kDirname(KStringView sFilePath, bool bWithTrailingSlash)
 }  // kDirname()
 
 //-----------------------------------------------------------------------------
+/// rename a file or directory
+bool kRename (KStringViewZ sOldPath, KStringViewZ sNewPath)
+//-----------------------------------------------------------------------------
+{
+#ifdef DEKAF2_HAS_STD_FILESYSTEM
+
+	std::error_code ec;
+
+	fs::rename(kToFilesystemPath(sOldPath), kToFilesystemPath(sNewPath), ec);
+
+	if (ec)
+	{
+		kDebug(2, ec.message());
+		return false;
+	}
+
+	return true;
+
+#else
+
+	if (std::rename(sOldPath.c_str(), sNewPath.c_str()))
+	{
+		kDebug (1, "failed: {} > {}: {}", sOldPath, sNewPath, strerror (errno));
+		return false;
+	}
+
+	return true;
+
+#endif
+
+} // kRename
+
+//-----------------------------------------------------------------------------
 bool kRemove (KStringViewZ sPath, bool bDir)
 //-----------------------------------------------------------------------------
 {

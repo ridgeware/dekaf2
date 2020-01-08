@@ -68,6 +68,92 @@ TEST_CASE("KReplacer")
 		CHECK ( sOut == "This {{IS}} a test with a verylongvaluevariable" );
 	}
 
+	SECTION("LeadIn/no LeadOut")
+	{
+		KReplacer Replacer("__", "");
+		Replacer.insert("TEST", "test");
+		Replacer.insert("VARIABLE", "variable");
+		Replacer.insert("SHORT", "verylongvalue");
+		CHECK ( Replacer.size() == 3 );
+
+		KString sIn = "This __IS a __TEST with a __SHORT__VARIABLE";
+
+		KString sOut = Replacer.Replace(sIn);
+		CHECK ( sOut == "This __IS a test with a verylongvaluevariable" );
+
+		sOut.clear();
+
+		sOut = sIn;
+		Replacer.ReplaceInPlace(sOut);
+		CHECK ( sOut == "This __IS a test with a verylongvaluevariable" );
+	}
+
+	SECTION("LeadIn/no LeadOut, longer matches")
+	{
+		KReplacer Replacer("__", "");
+		Replacer.insert("TEST", "test");
+		Replacer.insert("VARIABLE", "variable");
+		Replacer.insert("SHORT__VARIABLE", "short value");
+		Replacer.insert("SHORT", "verylongvalue");
+		CHECK ( Replacer.size() == 4 );
+
+		KString sIn = "This __IS a __TEST with a __SHORT__VARIABLE";
+
+		KString sOut = Replacer.Replace(sIn);
+		CHECK ( sOut == "This __IS a test with a short value" );
+	}
+
+SECTION("LeadIn/no LeadOut, delete all")
+	{
+		// Delete is only valid when there is both a lead in/out.
+		// This test checks if the delete is ignored if not.
+		KReplacer Replacer("__", "", true);
+		Replacer.insert("TEST", "test");
+		Replacer.insert("VARIABLE", "variable");
+		Replacer.insert("SHORT", "verylongvalue");
+		CHECK ( Replacer.size() == 3 );
+
+		KString sIn = "This __IS a __TEST with a __SHORT__VARIABLE";
+
+		KString sOut = Replacer.Replace(sIn);
+		CHECK ( sOut == "This __IS a test with a verylongvaluevariable" );
+	}
+
+	SECTION("no LeadIn/Lead Out")
+	{
+		KReplacer Replacer("", "__");
+		Replacer.insert("TEST", "test");
+		Replacer.insert("VARIABLE", "variable");
+		Replacer.insert("SHORT", "verylongvalue");
+		CHECK ( Replacer.size() == 3 );
+
+		KString sIn = "This IS__ a TEST__ with a SHORT__VARIABLE__";
+
+		KString sOut = Replacer.Replace(sIn);
+		CHECK ( sOut == "This IS__ a test with a verylongvaluevariable" );
+
+		sOut.clear();
+
+		sOut = sIn;
+		Replacer.ReplaceInPlace(sOut);
+		CHECK ( sOut == "This IS__ a test with a verylongvaluevariable" );
+	}
+
+	SECTION("no LeadIn/Lead Out, longer matches")
+	{
+		KReplacer Replacer("", "__");
+		Replacer.insert("TEST", "test");
+		Replacer.insert("RIABLE", "riable");
+		Replacer.insert("XVARIABLE", "xvariable");
+		Replacer.insert("VARIABLE", "variable");
+		CHECK ( Replacer.size() == 4 );
+
+		KString sIn = "This IS__ a TEST__ with a VARIABLE__ XVARIABLE__";
+
+		KString sOut = Replacer.Replace(sIn);
+		CHECK ( sOut == "This IS__ a test with a variable xvariable" );
+	}
+
 	SECTION("LeadIn/Out missing closer")
 	{
 		KReplacer Replacer("{{", "}}");
@@ -96,16 +182,16 @@ TEST_CASE("KReplacer")
 		Replacer.insert("SHORT", "verylongvalue");
 		CHECK ( Replacer.size() == 3 );
 
-		KString sIn = "This {{IS}} a {{{TEST}} with a {{{{SHORT}}{{VARIABLE}}";
+		KString sIn = "This {{IS}} a {{SHORT {{{TEST}} with a {{{{SHORT}}{{VARIABLE}}";
 
 		KString sOut = Replacer.Replace(sIn);
-		CHECK ( sOut == "This {{IS}} a {test with a {{verylongvaluevariable" );
+		CHECK ( sOut == "This {{IS}} a {{SHORT {test with a {{verylongvaluevariable" );
 
 		sOut.clear();
 
 		sOut = sIn;
 		Replacer.ReplaceInPlace(sOut);
-		CHECK ( sOut == "This {{IS}} a {test with a {{verylongvaluevariable" );
+		CHECK ( sOut == "This {{IS}} a {{SHORT {test with a {{verylongvaluevariable" );
 	}
 
 	SECTION("LeadIn/Out delete all")

@@ -199,7 +199,7 @@ public:
 
 	KString sOutputDir;
 	KString sTemplateDir;
-	KVariables Variables { true };
+	KReplacer Variables { "__", "__", false };
 	KDirectory Directory;
 
 }; // Config
@@ -261,7 +261,7 @@ void SetupOptions (KOptions& Options, Config& Config)
 } // SetupOptions
 
 //-----------------------------------------------------------------------------
-void PrintReplacedFile(KStringViewZ sOutFile, const KVariables& Variables, KStringViewZ sInFile)
+void PrintReplacedFile(KStringViewZ sOutFile, const KReplacer& Variables, KStringViewZ sInFile)
 //-----------------------------------------------------------------------------
 {
 	if (!kFileExists(sInFile))

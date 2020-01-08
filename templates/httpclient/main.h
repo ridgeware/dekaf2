@@ -1,5 +1,5 @@
 
-// dekaf2 generated project using the {{ProjectType}} template
+// dekaf2 generated project using the __ProjectType__ template
 
 #pragma once
 
@@ -14,7 +14,7 @@
 using namespace dekaf2;
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class {{ProjectName}}
+class __ProjectName__
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -22,12 +22,12 @@ class {{ProjectName}}
 public:
 //----------
 
-	{{ProjectName}} ();
+	__ProjectName__ ();
 
 	int Main (int argc, char** argv);
 
-	static constexpr KStringViewZ s_sProjectName    { "{{ProjectName}}" };
-	static constexpr KStringViewZ s_sProjectVersion { "{{ProjectVersion}}" };
+	static constexpr KStringViewZ s_sProjectName    { "__ProjectName__" };
+	static constexpr KStringViewZ s_sProjectVersion { "__ProjectVersion__" };
 
 //----------
 protected:
@@ -56,4 +56,4 @@ private:
 
 	KOptions m_CLI { true };
 
-}; // {{ProjectName}}
+}; // __ProjectName__

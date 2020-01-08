@@ -1,5 +1,5 @@
 
-// dekaf2 generated project using the {{ProjectType}} template
+// dekaf2 generated project using the __ProjectType__ template
 
 #pragma once
 
@@ -11,7 +11,7 @@
 using namespace dekaf2;
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// Config options for {{ProjectName}}
+/// Config options for __ProjectName__
 class ServerOptions : public KREST::Options
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -27,7 +27,7 @@ public:
 }; // ServerOptions
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class {{ProjectName}}
+class __ProjectName__
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -35,15 +35,15 @@ class {{ProjectName}}
 public:
 //----------
 
-	{{ProjectName}} ();
+	__ProjectName__ ();
 
 	int Main (int argc, char** argv);
 
 	void ApiOptions (KRESTServer& HTTP);
 	void ApiVersion (KRESTServer& HTTP);
 
-	static constexpr KStringViewZ s_sProjectName    { "{{ProjectName}}" };
-	static constexpr KStringViewZ s_sProjectVersion { "{{ProjectVersion}}" };
+	static constexpr KStringViewZ s_sProjectName    { "__ProjectName__" };
+	static constexpr KStringViewZ s_sProjectVersion { "__ProjectVersion__" };
 
 //----------
 protected:
@@ -57,12 +57,12 @@ protected:
 private:
 //----------
 
-	static constexpr KStringView s_SSOProvider  = "{{SSOURL}}";
-	static constexpr KStringView s_SSOScope     = "{{SSOSCOPE}}";
+	static constexpr KStringView s_SSOProvider  = "__SSOProvider__";
+	static constexpr KStringView s_SSOScope     = "__SSOScope__";
 
-	static constexpr KStringViewZ s_sRecordFlag = "/tmp/{{LowerProjectName}}.record";
-	static constexpr KStringViewZ s_sRecordFile = "/tmp/{{LowerProjectName}}.log";
+	static constexpr KStringViewZ s_sRecordFlag = "/tmp/__LowerProjectName__.record";
+	static constexpr KStringViewZ s_sRecordFile = "/tmp/__LowerProjectName__.log";
 
 	KOptions m_CLI { false };
 
-}; // {{ProjectName}}
+}; // __ProjectName__

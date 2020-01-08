@@ -1,16 +1,16 @@
 
-#include "{{LowerProjectName}}.h"
+#include "__LowerProjectName__.h"
 
 using namespace dekaf2;
 
 //-----------------------------------------------------------------------------
-void {{ProjectName}}::ApiVersion(KRESTServer& HTTP)
+void __ProjectName__::ApiVersion(KRESTServer& HTTP)
 //-----------------------------------------------------------------------------
 {
 	KJSON json
 	{
-		{ "Project", "{{ProjectName}}" },
-		{ "Version", "{{ProjectVersion}}" },
+		{ "Project", "__ProjectName__" },
+		{ "Version", "__ProjectVersion__" },
 	};
 
 	HTTP.json.tx = std::move(json);

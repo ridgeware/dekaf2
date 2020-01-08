@@ -1,5 +1,5 @@
 
-#include "{{LowerProjectName}}.h"
+#include "__LowerProjectName__.h"
 #include <dekaf2/kstring.h>
 #include <dekaf2/kstringview.h>
 #include <dekaf2/kstream.h>
@@ -8,13 +8,13 @@
 #include <dekaf2/kjson.h>
 
 constexpr
-KRESTRoutes::MemberFunctionTable<{{ProjectName}}> {{ProjectName}}Routes[]
+KRESTRoutes::MemberFunctionTable<__ProjectName__> __ProjectName__Routes[]
 {
 	// --------- ------ ------------------------------------------------------  -----------------------------
 	// REQ.METH  SSO?   PATH PATTERN                                            API TO CALL[, FLAGS]
 	// --------- ------ ------------------------------------------------------  -----------------------------
-	{ "OPTIONS", false, "/*",                                                   &{{ProjectName}}::ApiOptions          },
-	{ "GET",     false, "/Version",                                             &{{ProjectName}}::ApiVersion          },
+	{ "OPTIONS", false, "/*",                                                   &__ProjectName__::ApiOptions          },
+	{ "GET",     false, "/Version",                                             &__ProjectName__::ApiVersion          },
 	// --------- ------ ------------------------------------------------------  -----------------------------
 };
 
@@ -22,9 +22,9 @@ using namespace dekaf2;
 
 constexpr KStringView g_Help[] = {
 	"",
-	"{{LowerProjectName}} -- dekaf2 {{ProjectType}} template",
+	"__LowerProjectName__ -- dekaf2 __ProjectType__ template",
 	"",
-	"usage: {{LowerProjectName}} [<options>]",
+	"usage: __LowerProjectName__ [<options>]",
 	"",
 	"where <options> are:",
 	"   -version               :: show software version and exit",
@@ -39,22 +39,22 @@ constexpr KStringView g_Help[] = {
 	"   -cert <file>           :: TLS certificate filepath",
 	"   -key <file>            :: TLS private key filepath",
 	"   -n <max>               :: max parallel connections (default 5, only for HTTP mode)",
-	"   -baseroute </path>     :: route prefix, e.g. '/{{LowerProjectName}}'",
-	"   -sim <url>             :: simulate request to a {{LowerProjectName}} method (will use GET unless -X is used)",
+	"   -baseroute </path>     :: route prefix, e.g. '/__LowerProjectName__'",
+	"   -sim <url>             :: simulate request to a __LowerProjectName__ method (will use GET unless -X is used)",
 	"   -X, --request <method> :: use with -sim: change request method of simulated request",
 	"   -D, --data [@]<data>   :: use with -sim: add literal request body, or with @ take contents of file",
 	"",
 	"cgi cli usage:",
-	"   {{LowerProjectName}} -cgi <file> :: where <file> contains requests headers + post data",
+	"   __LowerProjectName__ -cgi <file> :: where <file> contains requests headers + post data",
 	"",
 	"aws-lambda usage:",
 	"   (note: all environment is ignored)",
-	"   {{LowerProjectName}} [<options>] <lambda-arg> [<lambda-arg> ...]",
+	"   __LowerProjectName__ [<options>] <lambda-arg> [<lambda-arg> ...]",
 	""
 };
 
 //-----------------------------------------------------------------------------
-void {{ProjectName}}::SetupInputFile (KOptions::ArgList& ArgList)
+void __ProjectName__::SetupInputFile (KOptions::ArgList& ArgList)
 //-----------------------------------------------------------------------------
 {
 	if (!ArgList.empty())
@@ -70,7 +70,7 @@ void {{ProjectName}}::SetupInputFile (KOptions::ArgList& ArgList)
 } // SetupInputFile
 
 //-----------------------------------------------------------------------------
-{{ProjectName}}::{{ProjectName}} ()
+__ProjectName__::__ProjectName__ ()
 //-----------------------------------------------------------------------------
 {
 	m_CLI.Throw();
@@ -254,7 +254,7 @@ void {{ProjectName}}::SetupInputFile (KOptions::ArgList& ArgList)
 } // ctor
 
 //-----------------------------------------------------------------------------
-void {{ProjectName}}::ApiOptions (KRESTServer& HTTP)
+void __ProjectName__::ApiOptions (KRESTServer& HTTP)
 //-----------------------------------------------------------------------------
 {
 	// required headers for callers making preflight requests
@@ -265,7 +265,7 @@ void {{ProjectName}}::ApiOptions (KRESTServer& HTTP)
 } // ApiOptions
 
 //-----------------------------------------------------------------------------
-int {{ProjectName}}::Main (int argc, char** argv)
+int __ProjectName__::Main (int argc, char** argv)
 //-----------------------------------------------------------------------------
 {
 	// ---------------- parse CLI ------------------
@@ -343,7 +343,7 @@ int {{ProjectName}}::Main (int argc, char** argv)
 	if (m_ServerOptions.sBaseRoute.empty())
 	{
 		// the base route is optional - if it is there it will be removed
-		m_ServerOptions.sBaseRoute = "/{{LowerProjectName}}";
+		m_ServerOptions.sBaseRoute = "/__LowerProjectName__";
 	}
 
 	// bypass CORS
@@ -362,7 +362,7 @@ int {{ProjectName}}::Main (int argc, char** argv)
 	// create a REST router
 	KRESTRoutes Routes;
 	// add our REST routes to it
-	Routes.AddMemberFunctionTable(*this, {{ProjectName}}Routes);
+	Routes.AddMemberFunctionTable(*this, __ProjectName__Routes);
 	// create the REST service itself
 	KREST REST;
 
@@ -383,25 +383,25 @@ int main (int argc, char** argv)
 {
 	try
 	{
-		return {{ProjectName}}().Main (argc, argv);
+		return __ProjectName__().Main (argc, argv);
 	}
 	catch (const KException& ex)
 	{
-		KErr.FormatLine(">> {}: {}", {{ProjectName}}::s_sProjectName, ex.what());
+		KErr.FormatLine(">> {}: {}", __ProjectName__::s_sProjectName, ex.what());
 	}
 	catch (const std::exception& ex)
 	{
-		KErr.FormatLine(">> {}: {}", {{ProjectName}}::s_sProjectName, ex.what());
+		KErr.FormatLine(">> {}: {}", __ProjectName__::s_sProjectName, ex.what());
 	}
 	return 1;
 
 } // main
 
 #ifdef DEKAF2_REPEAT_CONSTEXPR_VARIABLE
-constexpr KStringViewZ {{ProjectName}}::s_sProjectName;
-constexpr KStringViewZ {{ProjectName}}::s_sProjectVersion;
-constexpr KStringView  {{ProjectName}}::s_SSOProvider;
-constexpr KStringView  {{ProjectName}}::s_SSOScope;
-constexpr KStringViewZ {{ProjectName}}::s_sRecordFlag;
-constexpr KStringViewZ {{ProjectName}}::s_sRecordFile;
+constexpr KStringViewZ __ProjectName__::s_sProjectName;
+constexpr KStringViewZ __ProjectName__::s_sProjectVersion;
+constexpr KStringView  __ProjectName__::s_SSOProvider;
+constexpr KStringView  __ProjectName__::s_SSOScope;
+constexpr KStringViewZ __ProjectName__::s_sRecordFlag;
+constexpr KStringViewZ __ProjectName__::s_sRecordFile;
 #endif

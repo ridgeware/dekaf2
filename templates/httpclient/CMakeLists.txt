@@ -8,7 +8,7 @@ cmake_minimum_required(VERSION 3.13)
 cmake_policy(SET CMP0048 NEW)
 
 # declare the project
-project({{LowerProjectName}} VERSION {{ProjectVersion}} DESCRIPTION "{{ProjectName}} based on dekaf2")
+project(__LowerProjectName__ VERSION __ProjectVersion__ DESCRIPTION "__ProjectName__ based on dekaf2")
 
 set(CMAKE_CXX_STANDARD 17)
 
@@ -43,14 +43,14 @@ find_package(dekaf2 2.0 REQUIRED)
 # ==================================== FILES ========================================
 
 set (SOURCES
-{{SourceFiles}})
+__SourceFiles__)
 
 set (HEADERS
-{{HeaderFiles}})
+__HeaderFiles__)
 
-# ================================ {{ProjectName}} =====================================
+# ================================ __ProjectName__ =====================================
 
-# Compile all {{LowerProjectName}} objects
+# Compile all __LowerProjectName__ objects
 add_executable(${PROJECT_NAME} ${HEADERS} ${SOURCES})
 target_link_libraries(${PROJECT_NAME} dekaf2)
 

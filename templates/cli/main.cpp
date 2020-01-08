@@ -1,5 +1,5 @@
 
-#include "{{LowerProjectName}}.h"
+#include "__LowerProjectName__.h"
 #include <dekaf2/kstring.h>
 #include <dekaf2/kstringview.h>
 #include <dekaf2/kstream.h>
@@ -9,9 +9,9 @@ using namespace dekaf2;
 
 constexpr KStringView g_Help[] = {
 	"",
-	"{{LowerProjectName}} -- dekaf2 {{ProjectType}} template",
+	"__LowerProjectName__ -- dekaf2 __ProjectType__ template",
 	"",
-	"usage: {{LowerProjectName}} [<options>]",
+	"usage: __LowerProjectName__ [<options>]",
 	"",
 	"where <options> are:",
 	"   -help                  :: this text",
@@ -21,7 +21,7 @@ constexpr KStringView g_Help[] = {
 };
 
 //-----------------------------------------------------------------------------
-{{ProjectName}}::{{ProjectName}} ()
+__ProjectName__::__ProjectName__ ()
 //-----------------------------------------------------------------------------
 {
 	m_CLI.RegisterHelp(g_Help);
@@ -34,7 +34,7 @@ constexpr KStringView g_Help[] = {
 } // ctor
 
 //-----------------------------------------------------------------------------
-void {{ProjectName}}::ShowVersion()
+void __ProjectName__::ShowVersion()
 //-----------------------------------------------------------------------------
 {
 	KOut.FormatLine(":: {} v{}", s_sProjectName, s_sProjectVersion);
@@ -42,7 +42,7 @@ void {{ProjectName}}::ShowVersion()
 } // ShowVersion
 
 //-----------------------------------------------------------------------------
-int {{ProjectName}}::Main(int argc, char** argv)
+int __ProjectName__::Main(int argc, char** argv)
 //-----------------------------------------------------------------------------
 {
 	return m_CLI.Parse(argc, argv, KOut);
@@ -55,21 +55,21 @@ int main (int argc, char** argv)
 {
 	try
 	{
-		return {{ProjectName}}().Main (argc, argv);
+		return __ProjectName__().Main (argc, argv);
 	}
 	catch (const KException& ex)
 	{
-		KErr.FormatLine(">> {}: {}", {{ProjectName}}::s_sProjectName, ex.what());
+		KErr.FormatLine(">> {}: {}", __ProjectName__::s_sProjectName, ex.what());
 	}
 	catch (const std::exception& ex)
 	{
-		KErr.FormatLine(">> {}: {}", {{ProjectName}}::s_sProjectName, ex.what());
+		KErr.FormatLine(">> {}: {}", __ProjectName__::s_sProjectName, ex.what());
 	}
 	return 1;
 
 } // main
 
 #ifdef DEKAF2_REPEAT_CONSTEXPR_VARIABLE
-constexpr KStringViewZ {{ProjectName}}::s_sProjectName;
-constexpr KStringViewZ {{ProjectName}}::s_sProjectVersion;
+constexpr KStringViewZ __ProjectName__::s_sProjectName;
+constexpr KStringViewZ __ProjectName__::s_sProjectVersion;
 #endif

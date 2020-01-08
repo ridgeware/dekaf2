@@ -101,7 +101,7 @@ public:
 	/// Add a name/value query part to existing queries
 	self& AddQuery  (KString sName, KString sValue);
 	/// Add (overwrite) a request header to existing headers
-	self& AddHeader (KStringView sName, KStringView sValue);
+	self& AddHeader(KStringView sName, KStringView sValue) { return RestAddHeader(sName, sValue); }
 
 	/// Set a Get method with path to call
 	self& Get       (KString sPath) { return Path(std::move(sPath)).Verb(KHTTPMethod::GET    );  }
@@ -150,6 +150,8 @@ protected:
 	KString ThrowOrReturn (KHTTPError&& ec, KString&& retval = KString{});
 	/// Calls clear once after a Request() to reset all state and setup except from ctor
 	void ResetAfterRequest();
+	// MSC claims ambiguities when not internally using a unique name for AddHeader
+	self& RestAddHeader(KStringView sName, KStringView sValue);
 
 	KURL m_URL;
 	KString m_sVerb;
@@ -225,7 +227,7 @@ public:
 										   return *this; }
 	/// Add (overwrite) a request header to existing headers
 	self& AddHeader (KStringView sName, KStringView sValue)
-									   { KRestClient::AddHeader(sName, sValue);
+									   { base::RestAddHeader(sName, sValue);
 									      return *this; }
 
 	/// Set a Get method with path to call

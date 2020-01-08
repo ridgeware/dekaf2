@@ -178,14 +178,14 @@ KRestClient& KRestClient::AddQuery(KString sName, KString sValue)
 } // AddQuery
 
 //-----------------------------------------------------------------------------
-KRestClient& KRestClient::AddHeader (KStringView sName, KStringView sValue)
+KRestClient& KRestClient::RestAddHeader (KStringView sName, KStringView sValue)
 //-----------------------------------------------------------------------------
 {
 	ResetAfterRequest();
 	base::AddHeader(sName, sValue);
 	return *this;
 
-} // AddHeader
+} // RestAddHeader
 
 //-----------------------------------------------------------------------------
 KString KRestClient::NoExceptRequest (KStringView sBody, KMIME mime) noexcept

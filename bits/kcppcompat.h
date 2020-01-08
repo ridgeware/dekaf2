@@ -61,11 +61,9 @@
 	#define DEKAF2_CLANG_VERSION 0
 #endif
 
-#if defined __GNUC__
+#if defined __GNUC__ && !defined DEKAF2_IS_CLANG
 	#define DEKAF2_GCC_VERSION __GNUC__ * 10000 + __GNUC_MINOR__ * 100 + __GNUC_PATCHLEVEL__
-	#ifndef DEKAF2_IS_CLANG
-		#define DEKAF2_IS_GCC 1
-	#endif
+	#define DEKAF2_IS_GCC 1
 #else
 	#define DEKAF2_GCC_VERSION 0
 	#ifndef DEKAF2_NO_GCC

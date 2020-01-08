@@ -49,7 +49,8 @@
 #include "kcppcompat.h"
 #include <cstring>
 
-#if DEKAF2_HAS_CPP_17
+#if defined(DEKAF2_HAS_CPP_17) \
+  && (defined(DEKAF2_NO_GCC) || (DEKAF2_GCC_VERSION_MAJOR > 6))
 	#if DEKAF2_HAS_INCLUDE(<string_view>)
 		#include <string_view>
 		#define DEKAF2_HAS_STD_STRING_VIEW 1
@@ -418,16 +419,17 @@ namespace sv = DEKAF2_SV_NAMESPACE;
 		static constexpr DEKAF2_ALWAYS_INLINE
 		size_type constexpr_strlen(const CharT* s) noexcept
 		{
-	#ifdef DEKAF2_HAS_CPP_17
+#if defined(DEKAF2_HAS_CPP_17) \
+	&& (DEKAF2_NO_GCC || (DEKAF2_GCC_VERSION_MAJOR > 6))
 			return s ? traits_type::length(s) : 0;
-	#else
-		#if defined(__clang__)
+#else
+	#if defined(__clang__)
 			return s ? __builtin_strlen(s) : 0;
-		#else
-			#define DEKAF2_NEED_LOCAL_CONSTEXPR_STRLEN 1
+	#else
+		#define DEKAF2_NEED_LOCAL_CONSTEXPR_STRLEN 1
 			return s ? local_constexpr_strlen(s) : 0;
-		#endif
 	#endif
+#endif
 		}
 
 	private:

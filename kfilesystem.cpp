@@ -53,7 +53,7 @@
 #include "kwriter.h"
 #include "kctype.h"
 
-#if (!DEKAF2_NO_GCC && DEKAF2_GCC_MAJOR_VERSION < 10)
+#if (DEKAF2_IS_GCC && DEKAF2_GCC_MAJOR_VERSION < 10)
 #include <sys/stat.h>
 #endif
 

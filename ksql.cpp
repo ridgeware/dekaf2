@@ -6707,7 +6707,7 @@ static constexpr KStringView sColName = "schema_rev";
 bool KSQL::EnsureSchema (KStringView sTablename, uint16_t iInitialRev, uint16_t iCurrentRev, KStringView sSchemaFileFormat, bool bForce, const SchemaCallback& Callback)
 //-----------------------------------------------------------------------------
 {
-	kDebug (1, "...");
+	kDebug (1, "tbl={}, force={} ...", sTablename, bForce ? "true" : "false");
 
 	KString sEscapedTablename = EscapeString(sTablename);
 

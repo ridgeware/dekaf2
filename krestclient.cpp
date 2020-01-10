@@ -178,7 +178,7 @@ KRestClient& KRestClient::AddQuery(KString sName, KString sValue)
 } // AddQuery
 
 //-----------------------------------------------------------------------------
-KRestClient& KRestClient::RestAddHeader (KStringView sName, KStringView sValue)
+KRestClient& KRestClient::AddHeader (KStringView sName, KStringView sValue)
 //-----------------------------------------------------------------------------
 {
 	ResetAfterRequest();

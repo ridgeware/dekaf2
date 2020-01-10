@@ -101,7 +101,7 @@ public:
 	/// Add a name/value query part to existing queries
 	self& AddQuery  (KString sName, KString sValue);
 	/// Add (overwrite) a request header to existing headers
-	self& AddHeader(KStringView sName, KStringView sValue) { return RestAddHeader(sName, sValue); }
+	self& AddHeader(KStringView sName, KStringView sValue);
 
 	/// Set a Get method with path to call
 	self& Get       (KString sPath) { return Path(std::move(sPath)).Verb(KHTTPMethod::GET    );  }
@@ -129,7 +129,6 @@ public:
 	using base::BasicAuthentication;
 	using base::DigestAuthentication;
 	using base::ClearAuthentication;
-	using base::AddHeader;
 	using base::SetTimeout;
 	using base::SetProxy;
 	using base::AutoConfigureProxy;
@@ -150,8 +149,6 @@ protected:
 	KString ThrowOrReturn (KHTTPError&& ec, KString&& retval = KString{});
 	/// Calls clear once after a Request() to reset all state and setup except from ctor
 	void ResetAfterRequest();
-	// MSC claims ambiguities when not internally using a unique name for AddHeader
-	self& RestAddHeader(KStringView sName, KStringView sValue);
 
 	KURL m_URL;
 	KString m_sVerb;
@@ -227,8 +224,7 @@ public:
 										   return *this; }
 	/// Add (overwrite) a request header to existing headers
 	self& AddHeader (KStringView sName, KStringView sValue)
-									   { base::RestAddHeader(sName, sValue);
-									      return *this; }
+									   { base::AddHeader(sName, sValue); return *this;   }
 
 	/// Set a Get method with path to call
 	self& Get      (KString sPath)     { base::Get(std::move(sPath));      return *this; }

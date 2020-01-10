@@ -339,7 +339,7 @@ namespace sv = DEKAF2_SV_NAMESPACE;
 															    ((size() - pos - needle.size()) + 1) * CharSize));
 				if (DEKAF2_UNLIKELY(!pFound))
 				{
-					return KStringView::npos;
+					return npos;
 				}
 
 				pos = static_cast<size_t>(pFound - pHaystackBytes) / CharSize;

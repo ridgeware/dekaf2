@@ -91,7 +91,7 @@ public:
 
 	/// Set the 'Verb' (HTTP method) for the next request - can also be done implicitly
 	/// through one of the Get/Post/Put/Patch/Delete methods
-	self& Verb      (KString sVerb);
+	self& Verb      (KHTTPMethod sVerb);
 	/// Set the Path for the next request - will be appended to a base path set at the constructor
 	self& Path      (KString sPath);
 	/// Set the Query part for the next request
@@ -151,7 +151,7 @@ protected:
 	void ResetAfterRequest();
 
 	KURL m_URL;
-	KString m_sVerb;
+	KHTTPMethod m_sVerb;
 	KString m_sPath;
 	url::KQuery m_Query;
 	KHTTPError* m_ec { nullptr };

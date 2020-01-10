@@ -400,7 +400,7 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
-	/// operator const KString& () returns the decoded string
+	/// operator KStringView () returns the decoded string
 	template<bool X = IsString, typename std::enable_if_t<X, int> = 0 >
 	operator KStringView () const
 	//-------------------------------------------------------------------------
@@ -444,6 +444,19 @@ public:
 	//-------------------------------------------------------------------------
 	{
 		Parse (sv, false, true);
+		return *this;
+	}
+
+	//-------------------------------------------------------------------------
+	/// operator+=(url::KQuery) appends to existing query parms
+	template<bool X = IsString, typename std::enable_if_t<!X, int> = 0 >
+	URIComponent& operator+=(self_type Query)
+	//-------------------------------------------------------------------------
+	{
+		for (auto& it : Query.get())
+		{
+			get().Add(std::move(it.first), std::move(it.second));
+		}
 		return *this;
 	}
 

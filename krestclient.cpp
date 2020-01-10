@@ -125,7 +125,7 @@ KRestClient& KRestClient::SetError(KHTTPError& ec)
 } // SetError
 
 //-----------------------------------------------------------------------------
-KRestClient& KRestClient::Verb(KString sVerb)
+KRestClient& KRestClient::Verb(KHTTPMethod sVerb)
 //-----------------------------------------------------------------------------
 {
 	ResetAfterRequest();
@@ -159,10 +159,7 @@ KRestClient& KRestClient::AddQuery(url::KQuery Query)
 //-----------------------------------------------------------------------------
 {
 	ResetAfterRequest();
-	for (auto& it : Query.get())
-	{
-		m_Query.get().Add(std::move(it.first), std::move(it.second));
-	}
+	m_Query += std::move(Query);
 	return *this;
 
 } // AddQuery
@@ -172,7 +169,7 @@ KRestClient& KRestClient::AddQuery(KString sName, KString sValue)
 //-----------------------------------------------------------------------------
 {
 	ResetAfterRequest();
-	m_Query.get().Add(std::move(sName), std::move(sValue));
+ 	m_Query.get().Add(std::move(sName), std::move(sValue));
 	return *this;
 
 } // AddQuery
@@ -193,12 +190,7 @@ KString KRestClient::NoExceptRequest (KStringView sBody, KMIME mime) noexcept
 {
 	KURL URL { m_URL };
 	URL.Path.get() += m_sPath;
-
-	for (const auto& it : m_Query.get())
-	{
-		URL.Query.get().Add(it.first, it.second);
-	}
-
+	URL.Query += m_Query;
 	m_bNeedReset = true;
 
 	return KWebClient::HttpRequest(URL, m_sVerb, sBody, mime);
@@ -220,7 +212,7 @@ KString KRestClient::Request (KStringView sBody, KMIME mime)
 			sError = Error();
 		}
 
-		return ThrowOrReturn (KHTTPError { GetStatusCode(), kFormat("{} {}: HTTP-{} {}", m_sVerb, m_sPath, GetStatusCode(), sError) }, std::move(sResponse));
+		return ThrowOrReturn (KHTTPError { GetStatusCode(), kFormat("{} {}: HTTP-{} {}", m_sVerb.Serialize(), m_sPath, GetStatusCode(), sError) }, std::move(sResponse));
 	}
 
 	return sResponse;
@@ -284,7 +276,7 @@ KJSON KJsonRestClient::RequestAndParseResponse (KStringView sRequest, KMIME Mime
 			sError += m_ErrorCallback(jResponse);
 		}
 
-		return ThrowOrReturn (KHTTPError { GetStatusCode(), kFormat("{} {}: HTTP-{} {}", m_sVerb, m_sPath, GetStatusCode(), sError) }, std::move(jResponse));
+		return ThrowOrReturn (KHTTPError { GetStatusCode(), kFormat("{} {}: HTTP-{} {}", m_sVerb.Serialize(), m_sPath, GetStatusCode(), sError) }, std::move(jResponse));
 	}
 
 	return jResponse;

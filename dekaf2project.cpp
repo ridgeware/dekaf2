@@ -113,6 +113,7 @@ public:
 		Variables.insert("ProjectType"          , sProjectType);
 		Variables.insert("ProjectName"          , sProjectName);
 		Variables.insert("LowerProjectName"     , sProjectName.ToLower());
+		Variables.insert("UpperProjectName"     , sProjectName.ToUpper());
 		Variables.insert("ProjectPath"          , sProjectPath);
 		Variables.insert("SSOProvider"          , SSOProvider.Serialize());
 		Variables.insert("SSOScope"             , SSOScope);

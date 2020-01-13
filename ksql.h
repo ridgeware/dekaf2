@@ -51,6 +51,7 @@
 #include "kstringview.h"
 #include "krow.h"
 #include "kjson.h"
+#include "kcache.h"
 
 //
 // Note:
@@ -479,11 +480,34 @@ public:
 	bool EnsureSchema (KStringView sTablename, uint16_t iInitialRev, uint16_t iCurrentRev, KStringView sSchemaFileFormat, bool bForce = false, const SchemaCallback& Callback = nullptr);
 	uint16_t GetSchema (KStringView sTablename);
 
+	using IniParms = KProps<KString, KString, false, true>;
+
+	/// check for valid DB connection
+	bool EnsureConnected(KStringView sProgramName, KString sDBCFile, const IniParms& INI = IniParms{});
+
+	/// check for updates of the DB schema
+	bool EnsureSchema (KStringView sProgramName, uint16_t iCurrentSchema, uint16_t iInitialSchema = 100, const IniParms& INI = IniParms{}, bool bForce = false);
+
 	TXList  m_TxList;
 
 //----------
 private:
 //----------
+
+	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	struct DBCLoader
+	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	{
+		KString operator()(const KString& s)
+		{
+			return kReadAll(s);
+		}
+	};
+
+	using DBCCache = KCache<KString, KString, DBCLoader>;
+
+	static DBCCache s_DBCCache;
+
 
 	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	/// keeps column information
@@ -554,8 +578,6 @@ protected:
 	KString    m_sHostname;
 	KString    m_sDatabase;
 	KString    m_sConnectSummary;
-
-	static     uint16_t  m_iDebugLevel;
 
 #ifdef DEKAF2_HAS_MYSQL
 	MYSQL*     m_dMYSQL { nullptr };                   // MYSQL      m_mysql;

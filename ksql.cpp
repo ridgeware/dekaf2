@@ -192,8 +192,6 @@ constexpr SQLTX g_Translations[] = {
 	// ---------------  ----------------  ----------------  ---------------  --------------  ---------------  ----------------------------
 };
 
-uint16_t KSQL::m_iDebugLevel = 1;
-
 //-----------------------------------------------------------------------------
 static void*  kfree (void* dPointer, const char* sContext = nullptr )
 //-----------------------------------------------------------------------------
@@ -6869,5 +6867,123 @@ uint16_t KSQL::GetSchema (KStringView sTablename)
 	}
 
 } // GetSchema
+
+//-----------------------------------------------------------------------------
+bool KSQL::EnsureConnected (KStringView sProgramName, KString sDBCFile, const IniParms& INI)
+//-----------------------------------------------------------------------------
+{
+	if (IsConnectionOpen())
+	{
+		kDebug (2, "already connected to: {}", ConnectSummary());
+		return true; // already connected
+	}
+
+	kDebug (1, "looks like we need to connect...");
+
+	//   1. environment vars        -- overrides all others
+	//   2. -dbc on command line    -- handled by SetDBCFile() from option parsing
+	//   3. /etc/dbrestserver.dbc
+	//   4. /etc/dbrestserver.ini
+
+	if (sDBCFile.empty())
+	{
+		sDBCFile.Format("/etc/{}.dbc", sProgramName.ToLower());
+	}
+
+	const auto& sDBCContent = s_DBCCache.Get(sDBCFile);
+
+	if (!sDBCContent.empty())
+	{
+		kDebug (1, "loading: {}", sDBCFile);
+		if (!SetConnect (sDBCFile, sDBCContent))
+		{
+			return false;
+		}
+	}
+
+	KString sInitialConfig = ConnectSummary();
+
+	kDebug (1, "checking for environment overrides (piecemeal acceptable)");
+
+	KString sUpperProgramName = sProgramName.ToUpper();
+
+	KString sDBType (kFormat("{}_DBTYPE", sUpperProgramName));
+	KString sDBUser (kFormat("{}_DBUSER", sUpperProgramName));
+	KString sDBPass (kFormat("{}_DBPASS", sUpperProgramName));
+	KString sDBHost (kFormat("{}_DBHOST", sUpperProgramName));
+	KString sDBName (kFormat("{}_DBNAME", sUpperProgramName));
+	KString sDBPort (kFormat("{}_DBPORT", sUpperProgramName));
+
+	SetDBType (kFirstNonEmpty<KStringView>(kGetEnv (sDBType), INI.Get (sDBType), TxDBType(GetDBType())));
+	SetDBUser (kFirstNonEmpty<KStringView>(kGetEnv (sDBUser), INI.Get (sDBUser), GetDBUser()));
+	SetDBPass (kFirstNonEmpty<KStringView>(kGetEnv (sDBPass), INI.Get (sDBPass), GetDBPass()));
+	SetDBHost (kFirstNonEmpty<KStringView>(kGetEnv (sDBHost), INI.Get (sDBHost), GetDBHost()));
+	SetDBName (kFirstNonEmpty<KStringView>(kGetEnv (sDBName), INI.Get (sDBName), GetDBName()));
+	SetDBPort (kFirstNonEmpty<KStringView>(kGetEnv (sDBPort), INI.Get (sDBPort), KString::to_string(GetDBPort())).UInt32());
+
+	if (kWouldLog(1))
+	{
+		KString sChanged = ConnectSummary();
+		if (sInitialConfig != sChanged)
+		{
+			kDebug (1, "db configuration changed through ini file or env vars\n  from: {}\n    to: {}",
+					sInitialConfig, sChanged);
+		}
+	}
+
+	kDebug (1, "attempting to connect ...");
+
+	if (!OpenConnection())
+	{
+		return false;
+	}
+
+	kDebug (1, "connected to: {}", ConnectSummary());
+
+	// we have an open database connection
+	return true;
+
+} // DB::EnsureConnected
+
+//-----------------------------------------------------------------------------
+bool KSQL::EnsureSchema (KStringView sProgramName, uint16_t iCurrentSchema, uint16_t iInitialSchema /* = 100 */, const IniParms& INI /* = IniParms{} */, bool bForce /* = false */)
+//-----------------------------------------------------------------------------
+{
+	kDebug (2, "program={} cur={} force={}", sProgramName, iCurrentSchema, bForce ? "true" : "false");
+
+	KString sLowerProgramName = sProgramName.ToLower();
+	KString sUpperProgramName = sProgramName.ToUpper();
+
+	KString sSchemaDir = INI.Get (kFormat("{}_SCHEMA_DIR", sUpperProgramName));
+
+	if (sSchemaDir.empty())
+	{
+		sSchemaDir.Format("/usr/local/share/{}/schema", sLowerProgramName);
+		if (!kDirExists(sSchemaDir))
+		{
+			sSchemaDir.Format("/usr/share/{}/schema", sLowerProgramName);
+		}
+	}
+
+	if (!kGetEnv(kFormat("{}_SCHEMA_DIR", sUpperProgramName)).empty())
+	{
+		// override schema from environment
+		sSchemaDir = kGetEnv (kFormat("{}_SCHEMA_DIR", sUpperProgramName));
+	}
+
+	sSchemaDir += kFormat("/{}-{{}}.ksql", sLowerProgramName);
+
+	if (!KSQL::EnsureSchema (kFormat("{}_SCHEMA", sUpperProgramName), iInitialSchema, iCurrentSchema, sSchemaDir, bForce))
+	{
+		return false;
+	}
+
+	// schema is up to date
+	return true;
+
+} // EnsureSchema
+
+
+KSQL::DBCCache KSQL::s_DBCCache;
 
 } // namespace dekaf2

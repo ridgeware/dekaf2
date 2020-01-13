@@ -220,6 +220,7 @@ public:
 
 	bool   LoadConnect      (const KString& sDBCFile);
 	bool   SaveConnect      (const KString& sDBCFile);
+	bool   SetConnect       (const KString& sDBCFile, const KString& sDBCFileContent);
 	API    GetAPISet        ()      { return (m_iAPISet); }
 	bool   SetAPISet        (API iAPISet);
 	bool   OpenConnection   ();

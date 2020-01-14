@@ -477,16 +477,37 @@ public:
 
 	using SchemaCallback = std::function<bool(uint16_t iFrom, uint16_t iTo)>;
 
-	bool EnsureSchema (KStringView sTablename, uint16_t iInitialRev, uint16_t iCurrentRev, KStringView sSchemaFileFormat, bool bForce = false, const SchemaCallback& Callback = nullptr);
-	uint16_t GetSchema (KStringView sTablename);
+	/// lower level schema check, pick schema files manually
+	bool EnsureSchemaExecute (KStringView sTablename,
+							  uint16_t iCurrentSchema,
+							  uint16_t iInitialSchema,
+							  KStringView sSchemaFileFormat,
+							  bool bForce = false,
+							  const SchemaCallback& Callback = nullptr);
 
 	using IniParms = KProps<KString, KString, false, true>;
 
-	/// check for valid DB connection
-	bool EnsureConnected(KStringView sProgramName, KString sDBCFile, const IniParms& INI = IniParms{});
+	/// check for updates of the DB schema, try to setup params automatically
+	bool EnsureSchema (KStringView sProgramName,
+					   uint16_t iCurrentSchema,
+					   uint16_t iInitialSchema = 100,
+					   const IniParms& INI = IniParms{},
+					   bool bForce = false,
+					   const SchemaCallback& Callback = nullptr);
 
-	/// check for updates of the DB schema
-	bool EnsureSchema (KStringView sProgramName, uint16_t iCurrentSchema, uint16_t iInitialSchema = 100, const IniParms& INI = IniParms{}, bool bForce = false);
+	/// get current schema version
+	uint16_t GetSchema (KStringView sTablename);
+
+	/// check for valid DB connection
+	bool EnsureConnected(KStringView sProgramName,
+						 KString sDBCFile,
+						 const IniParms& INI = IniParms{});
+
+	/// is this a production database
+	bool IsLive() const { return m_bLiveDB; }
+
+	void SetDBC (KStringView sFile) { m_sDBCFile = sFile; }
+	const KString& GetDBC () const { return m_sDBCFile;  }
 
 	TXList  m_TxList;
 
@@ -507,7 +528,6 @@ private:
 	using DBCCache = KCache<KString, KString, DBCLoader>;
 
 	static DBCCache s_DBCCache;
-
 
 	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	/// keeps column information
@@ -650,6 +670,7 @@ protected:
 	time_t     m_iWarnIfOverNumSeconds { 0 };
 	FILE*      m_bpWarnIfOverNumSeconds { nullptr };
 	KString    m_sTempDir { "/tmp" };
+	bool       m_bLiveDB { false };
 
 	bool  SQLError (bool fForceError=false);
 	bool  WasOCICallOK (KStringView sContext);

@@ -6719,10 +6719,21 @@ bool KSQL::IsLocked (KStringView sName)
 static constexpr KStringView sColName = "schema_rev";
 
 //-----------------------------------------------------------------------------
-bool KSQL::EnsureSchema (KStringView sTablename, uint16_t iInitialRev, uint16_t iCurrentRev, KStringView sSchemaFileFormat, bool bForce, const SchemaCallback& Callback)
+bool KSQL::EnsureSchemaExecute (KStringView sTablename,
+								uint16_t iCurrentSchema,
+								uint16_t iInitialSchema,
+								KStringView sSchemaFileFormat,
+								bool bForce,
+								const SchemaCallback& Callback)
 //-----------------------------------------------------------------------------
 {
 	kDebug (1, "tbl={}, force={} ...", sTablename, bForce ? "true" : "false");
+
+	if (iCurrentSchema < iInitialSchema)
+	{
+		kWarning("requested schema {} is lower than the initial schema {}", iCurrentSchema, iInitialSchema);
+		return false;
+	}
 
 	KString sEscapedTablename = EscapeString(sTablename);
 
@@ -6731,9 +6742,9 @@ bool KSQL::EnsureSchema (KStringView sTablename, uint16_t iInitialRev, uint16_t 
 	KString sError;
 
 	kDebug (2, "current rev in db determined to be: {}", iSchemaRev);
-	kDebug (2, "current rev that code expected is:  {}", iCurrentRev);
+	kDebug (2, "current rev that code expected is:  {}", iCurrentSchema);
 
-	if (iSchemaRev >= iCurrentRev)
+	if (iSchemaRev >= iCurrentSchema)
 	{
 		return true; // all set
 	}
@@ -6749,7 +6760,7 @@ bool KSQL::EnsureSchema (KStringView sTablename, uint16_t iInitialRev, uint16_t 
 	iSigned    = (bForce) ? 0 : SingleIntQuery ("select %s from %s", sColName, sEscapedTablename);
 	iSchemaRev = (iSigned < 0) ? 0 : iSigned;
 
-	if (iSchemaRev < iCurrentRev)
+	if (iSchemaRev < iCurrentSchema)
 	{
 		if (!BeginTransaction())
 		{
@@ -6758,7 +6769,7 @@ bool KSQL::EnsureSchema (KStringView sTablename, uint16_t iInitialRev, uint16_t 
 
 		uint16_t iFromRev = iSchemaRev;
 
-		for (auto ii = std::max(++iSchemaRev, iInitialRev); ii <= iCurrentRev; ++ii)
+		for (auto ii = std::max(++iSchemaRev, iInitialSchema); ii <= iCurrentSchema; ++ii)
 		{
 			kDebug (1, "{}", KLog::DASH);
 			kDebug (1, "attempting to apply schema version {} ...", ii);
@@ -6787,7 +6798,7 @@ bool KSQL::EnsureSchema (KStringView sTablename, uint16_t iInitialRev, uint16_t 
 				}
 			}
 
-			if (ii == iInitialRev)
+			if (ii == iInitialSchema)
 			{
 				ExecSQL ("DROP TABLE IF EXISTS %s", sEscapedTablename);
 
@@ -6843,9 +6854,57 @@ bool KSQL::EnsureSchema (KStringView sTablename, uint16_t iInitialRev, uint16_t 
 
 	ReleaseLock(sTablename);
 
-	kDebug (2, "schema should be all set at version {} now", iCurrentRev);
+	kDebug (2, "schema should be all set at version {} now", iCurrentSchema);
 
 	return true;
+
+} // EnsureSchemaExecute
+
+//-----------------------------------------------------------------------------
+bool KSQL::EnsureSchema (KStringView sProgramName,
+						 uint16_t iCurrentSchema,
+						 uint16_t iInitialSchema /* = 100 */,
+						 const IniParms& INI /* = IniParms{} */,
+						 bool bForce /* = false */,
+						 const SchemaCallback& Callback /* = nullptr */)
+//-----------------------------------------------------------------------------
+{
+	kDebug (2, "program={} schema={} force={}", sProgramName, iCurrentSchema, bForce ? "true" : "false");
+
+	if (iCurrentSchema < iInitialSchema)
+	{
+		kWarning("requested schema {} is lower than the initial schema {}", iCurrentSchema, iInitialSchema);
+		return false;
+	}
+
+	KString sLowerProgramName = sProgramName.ToLower();
+	KString sUpperProgramName = sProgramName.ToUpper();
+
+	KString sSchemaDir = INI.Get (kFormat("{}_SCHEMA_DIR", sUpperProgramName));
+
+	if (sSchemaDir.empty())
+	{
+		sSchemaDir.Format("/usr/local/share/{}/schema", sLowerProgramName);
+		if (!kDirExists(sSchemaDir))
+		{
+			sSchemaDir.Format("/usr/share/{}/schema", sLowerProgramName);
+		}
+	}
+
+	if (!kGetEnv(kFormat("{}_SCHEMA_DIR", sUpperProgramName)).empty())
+	{
+		// override schema from environment
+		sSchemaDir = kGetEnv (kFormat("{}_SCHEMA_DIR", sUpperProgramName));
+	}
+
+	sSchemaDir += kFormat("/{}-{{}}.ksql", sLowerProgramName);
+
+	return KSQL::EnsureSchemaExecute (kFormat("{}_SCHEMA", sUpperProgramName),
+									  iCurrentSchema,
+									  iInitialSchema,
+									  sSchemaDir,
+									  bForce,
+									  Callback);
 
 } // EnsureSchema
 
@@ -6913,6 +6972,7 @@ bool KSQL::EnsureConnected (KStringView sProgramName, KString sDBCFile, const In
 	KString sDBHost (kFormat("{}_DBHOST", sUpperProgramName));
 	KString sDBName (kFormat("{}_DBNAME", sUpperProgramName));
 	KString sDBPort (kFormat("{}_DBPORT", sUpperProgramName));
+	KString sLiveDB (kFormat("{}_DBLIVE", sUpperProgramName));
 
 	SetDBType (kFirstNonEmpty<KStringView>(kGetEnv (sDBType), INI.Get (sDBType), TxDBType(GetDBType())));
 	SetDBUser (kFirstNonEmpty<KStringView>(kGetEnv (sDBUser), INI.Get (sDBUser), GetDBUser()));
@@ -6920,6 +6980,7 @@ bool KSQL::EnsureConnected (KStringView sProgramName, KString sDBCFile, const In
 	SetDBHost (kFirstNonEmpty<KStringView>(kGetEnv (sDBHost), INI.Get (sDBHost), GetDBHost()));
 	SetDBName (kFirstNonEmpty<KStringView>(kGetEnv (sDBName), INI.Get (sDBName), GetDBName()));
 	SetDBPort (kFirstNonEmpty<KStringView>(kGetEnv (sDBPort), INI.Get (sDBPort), KString::to_string(GetDBPort())).UInt32());
+	m_bLiveDB= kFirstNonEmpty<KStringView>(kGetEnv (sLiveDB), INI.Get (sLiveDB)).Bool();
 
 	if (kWouldLog(1))
 	{
@@ -6944,44 +7005,6 @@ bool KSQL::EnsureConnected (KStringView sProgramName, KString sDBCFile, const In
 	return true;
 
 } // DB::EnsureConnected
-
-//-----------------------------------------------------------------------------
-bool KSQL::EnsureSchema (KStringView sProgramName, uint16_t iCurrentSchema, uint16_t iInitialSchema /* = 100 */, const IniParms& INI /* = IniParms{} */, bool bForce /* = false */)
-//-----------------------------------------------------------------------------
-{
-	kDebug (2, "program={} cur={} force={}", sProgramName, iCurrentSchema, bForce ? "true" : "false");
-
-	KString sLowerProgramName = sProgramName.ToLower();
-	KString sUpperProgramName = sProgramName.ToUpper();
-
-	KString sSchemaDir = INI.Get (kFormat("{}_SCHEMA_DIR", sUpperProgramName));
-
-	if (sSchemaDir.empty())
-	{
-		sSchemaDir.Format("/usr/local/share/{}/schema", sLowerProgramName);
-		if (!kDirExists(sSchemaDir))
-		{
-			sSchemaDir.Format("/usr/share/{}/schema", sLowerProgramName);
-		}
-	}
-
-	if (!kGetEnv(kFormat("{}_SCHEMA_DIR", sUpperProgramName)).empty())
-	{
-		// override schema from environment
-		sSchemaDir = kGetEnv (kFormat("{}_SCHEMA_DIR", sUpperProgramName));
-	}
-
-	sSchemaDir += kFormat("/{}-{{}}.ksql", sLowerProgramName);
-
-	if (!KSQL::EnsureSchema (kFormat("{}_SCHEMA", sUpperProgramName), iInitialSchema, iCurrentSchema, sSchemaDir, bForce))
-	{
-		return false;
-	}
-
-	// schema is up to date
-	return true;
-
-} // EnsureSchema
 
 
 KSQL::DBCCache KSQL::s_DBCCache;

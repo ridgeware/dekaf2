@@ -71,7 +71,7 @@ void KRESTServer::VerifyAuthentication(const Options& Options)
 		case Options::ALLOW_ALL_WITH_AUTH_HEADER:
 			if (Request.Headers[KHTTPHeaders::AUTHORIZATION].empty())
 			{
-				throw KHTTPError { KHTTPError::H4xx_NOTAUTH, "no authorization" };
+				throw KHTTPError { KHTTPError::H4xx_NOTAUTH, "no authorization header" };
 			}
 			break;
 
@@ -84,13 +84,17 @@ void KRESTServer::VerifyAuthentication(const Options& Options)
 				else
 				{
 					auto& Authorization = Request.Headers[KHTTPHeaders::AUTHORIZATION];
-					if (!Authorization.empty())
+
+					if (Authorization.empty())
 					{
-						if (m_AuthToken.Check(Authorization, Options.Authenticators, Options.sAuthScope))
-						{
-							// success
-							return;
-						}
+						// failure
+						throw KHTTPError { KHTTPError::H4xx_NOTAUTH, "no authorization header" };
+					}
+
+					if (m_AuthToken.Check(Authorization, Options.Authenticators, Options.sAuthScope))
+					{
+						// success
+						return;
 					}
 				}
 				// failure

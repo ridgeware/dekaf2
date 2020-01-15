@@ -6974,12 +6974,24 @@ bool KSQL::EnsureConnected (KStringView sProgramName, KString sDBCFile, const In
 	KString sDBPort (kFormat("{}_DBPORT", sUpperProgramName));
 	KString sLiveDB (kFormat("{}_DBLIVE", sUpperProgramName));
 
-	SetDBType (kFirstNonEmpty<KStringView>(kGetEnv (sDBType), INI.Get (sDBType), TxDBType(GetDBType())));
-	SetDBUser (kFirstNonEmpty<KStringView>(kGetEnv (sDBUser), INI.Get (sDBUser), GetDBUser()));
-	SetDBPass (kFirstNonEmpty<KStringView>(kGetEnv (sDBPass), INI.Get (sDBPass), GetDBPass()));
-	SetDBHost (kFirstNonEmpty<KStringView>(kGetEnv (sDBHost), INI.Get (sDBHost), GetDBHost()));
-	SetDBName (kFirstNonEmpty<KStringView>(kGetEnv (sDBName), INI.Get (sDBName), GetDBName()));
-	SetDBPort (kFirstNonEmpty<KStringView>(kGetEnv (sDBPort), INI.Get (sDBPort), KString::to_string(GetDBPort())).UInt32());
+	KString sSetDBType;
+	if (GetDBType() != DBT::NONE)
+	{
+		sSetDBType = TxDBType(GetDBType());
+	}
+
+	KString sSetDBPort;
+	if (GetDBPort() != 0)
+	{
+		sSetDBPort = KString::to_string(GetDBPort());
+	}
+
+	SetDBType (kFirstNonEmpty<KStringView>(kGetEnv (sDBType), sSetDBType  , INI.Get (sDBType)));
+	SetDBUser (kFirstNonEmpty<KStringView>(kGetEnv (sDBUser), GetDBUser() , INI.Get (sDBUser)));
+	SetDBPass (kFirstNonEmpty<KStringView>(kGetEnv (sDBPass), GetDBPass() , INI.Get (sDBPass)));
+	SetDBHost (kFirstNonEmpty<KStringView>(kGetEnv (sDBHost), GetDBHost() , INI.Get (sDBHost)));
+	SetDBName (kFirstNonEmpty<KStringView>(kGetEnv (sDBName), GetDBName() , INI.Get (sDBName)));
+	SetDBPort (kFirstNonEmpty<KStringView>(kGetEnv (sDBPort), sSetDBPort  , INI.Get (sDBPort)).UInt32());
 	m_bLiveDB= kFirstNonEmpty<KStringView>(kGetEnv (sLiveDB), INI.Get (sLiveDB)).Bool();
 
 	if (kWouldLog(1))

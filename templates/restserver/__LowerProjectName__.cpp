@@ -1,6 +1,5 @@
 
 #include "__LowerProjectName__.h"
-#include "db.h"
 #include <dekaf2/kstring.h>
 #include <dekaf2/kstringview.h>
 #include <dekaf2/kstream.h>
@@ -41,15 +40,12 @@ constexpr KStringView g_Help[] = {
 	"   -key <file>            :: TLS private key filepath",
 	"   -n <max>               :: max parallel connections (default 5, only for HTTP mode)",
 	"   -baseroute </path>     :: route prefix, e.g. '/__LowerProjectName__'",
-	"   -dbc <file>            :: set database connection",
-	"   -schema                :: check (possibly upgrade) the database schema",
-	"   -schemaforce           :: force recreation of the schema (be careful)",
 	"   -sim <url>             :: simulate request to a __LowerProjectName__ method (will use GET unless -X is used)",
 	"   -X, --request <method> :: use with -sim: change request method of simulated request",
 	"   -D, --data [@]<data>   :: use with -sim: add literal request body, or with @ take contents of file",
 	"",
 	"cgi cli usage:",
-	"   __LowerProjectName__ -cgi <file> :: where <file> contains requests headers + post data",
+	"   __LowerProjectName__ -cgi <file> :: where <file> contains request + headers + post data",
 	"",
 	"aws-lambda usage:",
 	"   (note: all environment is ignored)",
@@ -74,27 +70,11 @@ void __ProjectName__::SetupInputFile (KOptions::ArgList& ArgList)
 } // SetupInputFile
 
 //-----------------------------------------------------------------------------
-const __ProjectName__::IniParms& __ProjectName__::GetIniParms ()
-//-----------------------------------------------------------------------------
-{
-	if (!s_bINILoaded)
-	{
-		static std::mutex Mutex;
-		std::lock_guard Lock(Mutex);
-
-		s_INI.Load (__UpperProjectName___INI);
-
-		s_bINILoaded = true;
-	}
-
-	return s_INI;
-
-} // GetIniParms
-
-//-----------------------------------------------------------------------------
 __ProjectName__::__ProjectName__ ()
 //-----------------------------------------------------------------------------
 {
+	KInit().SetName(s_sProjectName).SetMultiThreading().SetOnlyShowCallerOnJsonError();
+
 	m_CLI.Throw();
 
 	m_CLI.RegisterHelp(g_Help);
@@ -215,35 +195,6 @@ __ProjectName__::__ProjectName__ ()
 	m_CLI.RegisterOption("ssolevel", "SSO level", [&](KStringViewZ sSSOLevel)
 	{
 		m_ServerOptions.iSSOLevel = sSSOLevel.UInt16();
-	});
-
-	m_CLI.RegisterOption("dbc", "dbc file name", [&](KStringViewZ sFileName)
-	{
-		if (!kFileExists (sFileName))
-		{
-			throw KOptions::WrongParameterError(kFormat("dbc file does not exist: {}", sFileName));
-		}
-		DB::SetDBCFile (sFileName);
-	});
-
-	m_CLI.RegisterOption("schema", [&]()
-	{
-		auto pdb = DB::Get ();
-
-		uint16_t iAt   = pdb->GetSchema ("__UpperProjectName___SCHEMA");
-		uint16_t iWant = DB::CURRENT_SCHEMA;
-		if (iAt != iWant)
-		{
-			pdb->EnsureSchema (/*bForce=*/false);
-		}
-		m_ServerOptions.bTerminate = true;
-	});
-
-	m_CLI.RegisterOption("schemaforce", [&]()
-	{
-		kDebug (1, "schema FORCE logic");
-		DB::Get ()->EnsureSchema (/*bForce=*/true);
-		m_ServerOptions.bTerminate = true;
 	});
 
 	m_CLI.RegisterOption("sim", "url", [&](KStringViewZ sArg)
@@ -447,11 +398,6 @@ int main (int argc, char** argv)
 	return 1;
 
 } // main
-
-
-// static variables
-bool __ProjectName__::s_bINILoaded { false };
-__ProjectName__::IniParms __ProjectName__::s_INI;
 
 #ifdef DEKAF2_REPEAT_CONSTEXPR_VARIABLE
 constexpr KStringViewZ __ProjectName__::s_sProjectName;

@@ -1,0 +1,10 @@
+// sample schema file for project __ProjectName__
+
+drop table if exists __UpperProjectName___SCHEMA;
+// ----------------------------------------------------------------------
+create table __UpperProjectName___SCHEMA
+// ----------------------------------------------------------------------
+(
+	schema_rev                smallint              not null primary key
+);
+

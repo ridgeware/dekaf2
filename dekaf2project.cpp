@@ -68,8 +68,111 @@ constexpr KStringView g_Synopsis[] = {
 	"  -version <Version>   :: version string, default = 0.0.1"
 };
 
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+class CreateProject
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+//----------
+public:
+//----------
+
+	CreateProject();
+	int Main (int argc, char* argv[]);
+
+	static void ShowAllTemplates();
+
+//----------
+private:
+//----------
+
+	/// set fixed variables
+	void SetupVariables();
+	/// compute remaining values from set values
+	void FinishSetup();
+	void PrintReplacedFile (KStringViewZ sOutFile, KStringViewZ sInFile);
+	void CreateBuildSystem (KStringView sBuildType);
+	void InstallTemplateDir();
+	void CopyDirRecursive(KStringViewZ sOutputDir, KStringViewZ sFromDir);
+
+	KString m_sProjectType { "cli" };
+	KString m_sProjectName;
+	KString m_sProjectPath;
+	KString m_sProjectVersion { "0.0.1" };
+	KURL m_SSOProvider;
+	KString m_SSOScope;
+	bool m_bIsDone { false };
+
+	KString m_sOutputDir;
+	KString m_sTemplateDir;
+	KReplacer m_Variables { "__", "__", false };
+
+	KOptions m_Options { true };
+
+}; // CreateProject
+
 //-----------------------------------------------------------------------------
-void ShowAllTemplates()
+CreateProject::CreateProject ()
+//-----------------------------------------------------------------------------
+{
+	kInit("D2PROJECT");
+
+	m_Options.Throw();
+
+	m_Options.RegisterUnknownCommand([&](KOptions::ArgList& Commands)
+	{
+		if (!m_sProjectName.empty() || Commands.size() > 1)
+		{
+			throw KOptions::Error("project name defined multiple times");
+		}
+		m_sProjectName = Commands.pop();
+	});
+
+	// keep the -name option, it was the previous way to set the name
+	m_Options.RegisterOption("name", "missing project name", [&](KStringViewZ sName)
+	{
+		if (!m_sProjectName.empty())
+		{
+			throw KOptions::Error("project name defined multiple times");
+		}
+		m_sProjectName = sName;
+	});
+
+	m_Options.RegisterOption("help",[&]()
+	{
+		for (const auto& it : g_Synopsis)
+		{
+			KOut.WriteLine(it);
+		}
+		ShowAllTemplates();
+		m_bIsDone = true;
+	});
+
+	m_Options.RegisterOption("path", "missing project path", [&](KStringViewZ sPath)
+	{
+		m_sProjectPath = sPath;
+	});
+
+	m_Options.RegisterOption("version", "missing version string", [&](KStringViewZ sVersion)
+	{
+		m_sProjectVersion = sVersion;
+	});
+
+	m_Options.RegisterOption("type", "missing project type", [&](KStringViewZ sType)
+	{
+		m_sProjectType = sType;
+	});
+
+	m_Options.RegisterOption("sso", 2, "missing SSO server URL and scope", [&](KOptions::ArgList& SSO)
+	{
+		m_SSOProvider = SSO.pop();
+		m_SSOScope    = SSO.pop();
+	});
+
+} // ctor
+
+//-----------------------------------------------------------------------------
+void CreateProject::ShowAllTemplates()
 //-----------------------------------------------------------------------------
 {
 	KDirectory Templates(kFormat("{}{}templates", DEKAF2_SHARED_DIRECTORY, kDirSep), KDirectory::EntryType::DIRECTORY);
@@ -94,175 +197,78 @@ void ShowAllTemplates()
 
 } // ShowAllTemplates
 
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class Config
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+//-----------------------------------------------------------------------------
+void CreateProject::SetupVariables()
+//-----------------------------------------------------------------------------
 {
+	m_Variables.insert("Dekaf2Version"        , DEKAF_VERSION);
+	m_Variables.insert("ProjectVersion"       , m_sProjectVersion);
+	m_Variables.insert("ProjectType"          , m_sProjectType);
+	m_Variables.insert("ProjectName"          , m_sProjectName);
+	m_Variables.insert("LowerProjectName"     , m_sProjectName.ToLower());
+	m_Variables.insert("UpperProjectName"     , m_sProjectName.ToUpper());
+	m_Variables.insert("ProjectPath"          , m_sProjectPath);
+	m_Variables.insert("SSOProvider"          , m_SSOProvider.Serialize());
+	m_Variables.insert("SSOScope"             , m_SSOScope);
 
-//----------
-public:
-//----------
+	// create lists of source and header files
 
-	//-----------------------------------------------------------------------------
-	/// set fixed variables
-	void SetupVariables()
-	//-----------------------------------------------------------------------------
-	{
-		Variables.insert("Dekaf2Version"        , DEKAF_VERSION);
-		Variables.insert("ProjectVersion"       , sProjectVersion);
-		Variables.insert("ProjectType"          , sProjectType);
-		Variables.insert("ProjectName"          , sProjectName);
-		Variables.insert("LowerProjectName"     , sProjectName.ToLower());
-		Variables.insert("UpperProjectName"     , sProjectName.ToUpper());
-		Variables.insert("ProjectPath"          , sProjectPath);
-		Variables.insert("SSOProvider"          , SSOProvider.Serialize());
-		Variables.insert("SSOScope"             , SSOScope);
+	KString sSourceFiles;
+	KString sHeaderFiles;
 
-		// create lists of source and header files
-
-		KString sSourceFiles;
-		KString sHeaderFiles;
-
-		for (const auto& File : Directory)
-		{
-			bool bIsHeader = File.Filename().ends_with(".h");
-			bool bIsSource = File.Filename().ends_with(".cpp");
-
-			if (!File.Filename().starts_with("main."))
-			{
-				if (bIsSource)
-				{
-					sSourceFiles += kFormat("    {}\n", File.Filename());
-				}
-				else if (bIsHeader)
-				{
-					sHeaderFiles += kFormat("    {}\n", File.Filename());
-				}
-			}
-			else
-			{
-				// main - replace with project name
-				if (bIsSource)
-				{
-					sSourceFiles += kFormat("    {}.cpp\n", sProjectName.ToLower());
-				}
-				else if (bIsHeader)
-				{
-					sHeaderFiles += kFormat("    {}.h\n", sProjectName.ToLower());
-				}
-			}
-		}
-
-		Variables.insert("SourceFiles", sSourceFiles);
-		Variables.insert("HeaderFiles", sHeaderFiles);
-
-	} // SetupVariables
-
-	//-----------------------------------------------------------------------------
-	/// compute remaining values from set values
-	void Finish()
-	//-----------------------------------------------------------------------------
-	{
-		sTemplateDir = DEKAF2_SHARED_DIRECTORY;
-		sTemplateDir += kDirSep;
-		sTemplateDir += "templates";
-		sTemplateDir += kDirSep;
-		sTemplateDir += sProjectType;
-
-		if (!Directory.Open(sTemplateDir) || Directory.empty())
-		{
-			ShowAllTemplates();
-			throw KException(kFormat("cannot open template type: {}", sProjectType));
-		}
-
-		Directory.Sort();
-
-		if (sProjectPath.empty())
-		{
-			sProjectPath = kGetCWD();
-		}
-
-		sOutputDir = sProjectPath;
-		sOutputDir += kDirSep;
-		sOutputDir += sProjectName;
-
-		SetupVariables();
-
-	} // Finish
-
-	KString sProjectType { "cli" };
-	KString sProjectName;
-	KString sProjectPath;
-	KString sProjectVersion { "0.0.1" };
-	KURL SSOProvider;
-	KString SSOScope;
-	bool bIsDone { false };
-
-	KString sOutputDir;
-	KString sTemplateDir;
-	KReplacer Variables { "__", "__", false };
 	KDirectory Directory;
 
-}; // Config
+	if (!Directory.Open(m_sTemplateDir) || Directory.empty())
+	{
+		ShowAllTemplates();
+		throw KException(kFormat("cannot open template type: {}", m_sProjectType));
+	}
+
+	Directory.Sort();
+
+	for (const auto& File : Directory)
+	{
+		if (File.Filename().ends_with(".cpp"))
+		{
+			sSourceFiles += kFormat("    {}\n", m_Variables.Replace(File.Filename()));
+		}
+		else if (File.Filename().ends_with(".h"))
+		{
+			sHeaderFiles += kFormat("    {}\n", m_Variables.Replace(File.Filename()));
+		}
+	}
+
+	m_Variables.insert("SourceFiles", sSourceFiles);
+	m_Variables.insert("HeaderFiles", sHeaderFiles);
+
+} // SetupVariables
 
 //-----------------------------------------------------------------------------
-void SetupOptions (KOptions& Options, Config& Config)
+/// compute remaining values from set values
+void CreateProject::FinishSetup()
 //-----------------------------------------------------------------------------
 {
-	Options.RegisterUnknownCommand([&](KOptions::ArgList& Commands)
-	{
-		if (!Config.sProjectName.empty() || Commands.size() > 1)
-		{
-			throw KOptions::Error("project name defined multiple times");
-		}
-		Config.sProjectName = Commands.pop();
-	});
+	m_sTemplateDir = DEKAF2_SHARED_DIRECTORY;
+	m_sTemplateDir += kDirSep;
+	m_sTemplateDir += "templates";
+	m_sTemplateDir += kDirSep;
+	m_sTemplateDir += m_sProjectType;
 
-	// keep the -name option, it was the previous way to set the name
-	Options.RegisterOption("name", "missing project name", [&](KStringViewZ sName)
+	if (m_sProjectPath.empty())
 	{
-		if (!Config.sProjectName.empty())
-		{
-			throw KOptions::Error("project name defined multiple times");
-		}
-		Config.sProjectName = sName;
-	});
+		m_sProjectPath = kGetCWD();
+	}
 
-	Options.RegisterOption("help",[&]()
-	{
-		for (const auto& it : g_Synopsis)
-		{
-			KOut.WriteLine(it);
-		}
-		ShowAllTemplates();
-		Config.bIsDone = true;
-	});
+	m_sOutputDir = m_sProjectPath;
+	m_sOutputDir += kDirSep;
+	m_sOutputDir += m_sProjectName;
 
-	Options.RegisterOption("path", "missing project path", [&](KStringViewZ sPath)
-	{
-		Config.sProjectPath = sPath;
-	});
+	SetupVariables();
 
-	Options.RegisterOption("version", "missing version string", [&](KStringViewZ sVersion)
-	{
-		Config.sProjectVersion = sVersion;
-	});
-
-	Options.RegisterOption("type", "missing project type", [&](KStringViewZ sType)
-	{
-		Config.sProjectType = sType;
-	});
-
-	Options.RegisterOption("sso", 2, "missing SSO server URL and scope", [&](KOptions::ArgList& SSO)
-	{
-		Config.SSOProvider = SSO.pop();
-		Config.SSOScope    = SSO.pop();
-	});
-
-} // SetupOptions
+} // FinishSetup
 
 //-----------------------------------------------------------------------------
-void PrintReplacedFile(KStringViewZ sOutFile, const KReplacer& Variables, KStringViewZ sInFile)
+void CreateProject::PrintReplacedFile(KStringViewZ sOutFile, KStringViewZ sInFile)
 //-----------------------------------------------------------------------------
 {
 	if (!kFileExists(sInFile))
@@ -279,54 +285,67 @@ void PrintReplacedFile(KStringViewZ sOutFile, const KReplacer& Variables, KStrin
 
 	KOut.FormatLine(":: creating file              : {}", kBasename(sOutFile)).Flush();
 
-	OutFile.Write(Variables.Replace(kReadAll(sInFile)));
+	OutFile.Write(m_Variables.Replace(kReadAll(sInFile)));
 
 } // PrintReplacedFile
 
 //-----------------------------------------------------------------------------
-void InstallTemplateDir(const Config& Config)
+void CreateProject::CopyDirRecursive(KStringViewZ sOutputDir, KStringViewZ sFromDir)
 //-----------------------------------------------------------------------------
 {
-	KOut.FormatLine(":: reading configuration from : {}", Config.sTemplateDir);
-	KOut.FormatLine(":: creating project at        : {}", Config.sOutputDir);
+	KOut.FormatLine(":: entering directory         : {}", sOutputDir);
 
-	if (!kMakeDir(Config.sOutputDir))
+	if (!kMakeDir(sOutputDir))
 	{
-		throw KException(kFormat("cannot create output directory: {}", Config.sOutputDir));
+		throw KException(kFormat("cannot create directory: {}", sOutputDir));
 	}
 
-	for (const auto& File : Config.Directory)
-	{
-		KString sOutFile = Config.sOutputDir;
-		sOutFile += kDirSep;
+	KDirectory Directory(sFromDir);
 
-		if (File.Filename() == "main.h")
+	Directory.Sort();
+
+	for (const auto& File : Directory)
+	{
+		if (File.Type() == KDirectory::EntryType::DIRECTORY)
 		{
-			sOutFile += Config.sProjectName.ToLower();
-			sOutFile += ".h";
-		}
-		else if (File.Filename() == "main.cpp")
-		{
-			sOutFile += Config.sProjectName.ToLower();
-			sOutFile += ".cpp";
+			KString sNewOut = sOutputDir;
+			sNewOut += kDirSep;
+			sNewOut += File.Filename();
+			KString sNewFrom = sFromDir;
+			sNewFrom += kDirSep;
+			sNewFrom += File.Filename();
+			CopyDirRecursive(sNewOut, sNewFrom);
 		}
 		else
 		{
-			sOutFile += File.Filename();
-		}
+			KString sOutFile = sOutputDir;
+			sOutFile += kDirSep;
+			sOutFile += m_Variables.Replace(File.Filename());
 
-		PrintReplacedFile(sOutFile, Config.Variables, File.Path());
+			PrintReplacedFile(sOutFile, File.Path());
+		}
 	}
+
+} // CopyDirRecursive
+
+//-----------------------------------------------------------------------------
+void CreateProject::InstallTemplateDir()
+//-----------------------------------------------------------------------------
+{
+	KOut.FormatLine(":: reading configuration from : {}", m_sTemplateDir);
+	KOut.FormatLine(":: creating project at        : {}", m_sOutputDir);
+
+	CopyDirRecursive(m_sOutputDir, m_sTemplateDir);
 
 } // InstallTemplateDir
 
 //-----------------------------------------------------------------------------
-void CreateBuildSystem(const Config& Config, KStringView sBuildType)
+void CreateProject::CreateBuildSystem(KStringView sBuildType)
 //-----------------------------------------------------------------------------
 {
 	KOut.FormatLine(":: creating build system      : build{}{}", kDirSep, sBuildType).Flush();
 
-	KString sBuildDir = Config.sOutputDir;
+	KString sBuildDir = m_sOutputDir;
 	sBuildDir += kDirSep;
 	sBuildDir += "build";
 	sBuildDir += kDirSep;
@@ -343,11 +362,11 @@ void CreateBuildSystem(const Config& Config, KStringView sBuildType)
 
 	if (sBuildType == "Xcode")
 	{
-		kSystem(kFormat("cmake -G Xcode -S {} -B {}", Config.sOutputDir, sBuildDir), sShellOutput);
+		kSystem(kFormat("cmake -G Xcode -S {} -B {}", m_sOutputDir, sBuildDir), sShellOutput);
 	}
 	else
 	{
-		kSystem(kFormat("cmake -DCMAKE_BUILD_TYPE={} -S {} -B {}", sBuildType, Config.sOutputDir, sBuildDir), sShellOutput);
+		kSystem(kFormat("cmake -DCMAKE_BUILD_TYPE={} -S {} -B {}", sBuildType, m_sOutputDir, sBuildDir), sShellOutput);
 	}
 
 	if (sShellOutput.ToLowerASCII().Contains("error"))
@@ -359,49 +378,48 @@ void CreateBuildSystem(const Config& Config, KStringView sBuildType)
 } // CreateBuildSystem
 
 //-----------------------------------------------------------------------------
+int CreateProject::Main(int argc, char* argv[])
+//-----------------------------------------------------------------------------
+{
+	auto iErrors = m_Options.Parse(argc, argv, KOut);
+
+	if (iErrors || m_bIsDone)
+	{
+		return iErrors;
+	}
+
+	if (m_sProjectName.empty())
+	{
+		throw KException("project name is empty");
+	}
+
+	FinishSetup();
+
+	if (kDirExists(m_sOutputDir))
+	{
+		throw KException(kFormat("output directory already exists: {}", m_sOutputDir));
+	}
+
+	InstallTemplateDir();
+
+	CreateBuildSystem("Release");
+	CreateBuildSystem("Debug");
+#ifdef DEKAF2_IS_OSX
+	CreateBuildSystem("Xcode");
+#endif
+	KOut.WriteLine(":: done");
+
+	return (iErrors);
+
+} // Main
+
+//-----------------------------------------------------------------------------
 int main (int argc, char* argv[])
 //-----------------------------------------------------------------------------
 {
 	try
 	{
-		kInit("D2PROJECT");
-
-		Config Config;
-		KOptions Options(true);
-		Options.Throw();
-		SetupOptions(Options, Config);
-		auto iErrors = Options.Parse(argc, argv, KOut);
-
-		if (!iErrors)
-		{
-			if (Config.bIsDone)
-			{
-				return 0;
-			}
-
-			if (Config.sProjectName.empty())
-			{
-				throw KException("project name is empty");
-			}
-
-			Config.Finish();
-
-			if (kDirExists(Config.sOutputDir))
-			{
-				throw KException(kFormat("output directory already exists: {}", Config.sOutputDir));
-			}
-
-			InstallTemplateDir(Config);
-
-			CreateBuildSystem(Config, "Release");
-			CreateBuildSystem(Config, "Debug");
-#ifdef DEKAF2_IS_OSX
-			CreateBuildSystem(Config, "Xcode");
-#endif
-			KOut.WriteLine(":: done");
-		}
-
-		return (iErrors);
+		return CreateProject().Main(argc, argv);
 	}
 	catch (const KException& ex)
 	{

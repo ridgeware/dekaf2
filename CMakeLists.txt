@@ -829,6 +829,7 @@ if (DEKAF2_WITH_COMPATIBILITY_LAYER_TO_DEKAF1)
 	install(FILES ${COMPAT_HEADERS} DESTINATION ${dekaf2_include_dest}/compat)
 endif()
 
+install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove_directory ${dekaf2_share_dest}/templates)") # remove in a few weeks
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/templates DESTINATION ${dekaf2_share_dest})
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/from/nlohmann/include/nlohmann/ DESTINATION ${dekaf2_include_dest}/nlohmann FILES_MATCHING PATTERN "*.hpp")
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/libs/frozen/include/frozen/ DESTINATION ${dekaf2_include_dest}/frozen FILES_MATCHING PATTERN "*.h")

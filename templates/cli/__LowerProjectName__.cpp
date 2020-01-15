@@ -24,11 +24,16 @@ constexpr KStringView g_Help[] = {
 __ProjectName__::__ProjectName__ ()
 //-----------------------------------------------------------------------------
 {
+	KInit().SetName(s_sProjectName).SetMultiThreading().SetOnlyShowCallerOnJsonError();
+
+	m_CLI.Throw();
+
 	m_CLI.RegisterHelp(g_Help);
 
 	m_CLI.RegisterOption("version,rev,revision", [&]()
 	{
 		ShowVersion();
+		m_bTerminate = true;
 	});
 
 } // ctor
@@ -45,7 +50,20 @@ void __ProjectName__::ShowVersion()
 int __ProjectName__::Main(int argc, char** argv)
 //-----------------------------------------------------------------------------
 {
-	return m_CLI.Parse(argc, argv, KOut);
+	// ---------------- parse CLI ------------------
+	{
+		auto iRetVal = m_CLI.Parse(argc, argv, KOut);
+
+		if (iRetVal	|| m_Config.bTerminate)
+		{
+			// either error or completed
+			return iRetVal;
+		}
+	}
+
+	// ---- insert project code here ----
+
+	return 0;
 
 } // Main
 

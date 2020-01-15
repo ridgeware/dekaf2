@@ -57,8 +57,10 @@ target_link_libraries(${PROJECT_NAME} dekaf2 ksql2)
 # ================================= INSTALLATION =====================================
 
 set(bin_dest "${CMAKE_INSTALL_PREFIX}/bin")
+set(share_dest "${CMAKE_INSTALL_PREFIX}/share/${PROJECT_NAME}")
 
 install(TARGETS ${PROJECT_NAME} DESTINATION ${bin_dest})
+install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/schema DESTINATION ${share_dest} FILES_MATCHING PATTERN "*.ksql")
 
 if (NOT CPACK_SOURCE_GENERATOR)
 	set(CPACK_SOURCE_GENERATOR ZIP)
@@ -70,6 +72,7 @@ include(CPack)
 # ================================= UNINSTALL ========================================
 
 add_custom_target(uninstall
+	COMMAND "${CMAKE_COMMAND}" -E remove_directory "${share_dest}"
 	COMMAND "${CMAKE_COMMAND}" -E remove "${bin_dest}/${PROJECT_NAME}"
 )
 

@@ -5,7 +5,7 @@
 #include <dekaf2/kstream.h>
 #include <dekaf2/kexception.h>
 #include <dekaf2/ksplit.h>
-#include <dekaf2/krestclient.h>
+#include <dekaf2/kwebclient.h>
 
 using namespace dekaf2;
 
@@ -21,6 +21,7 @@ constexpr KStringView g_Help[] = {
 	"   -d[d[d]]               :: different levels of debug messages",
 	"   -X, --request <method> :: set request method of simulated request (default = GET)",
 	"   -D, --data [@]<data>   :: add literal request body, or with @ take contents of file",
+	"   -M, --mime <mimetype>  :: set mime type for request body (default = application/json)",
 	"   -H, --header <header>  :: add HTTP header to the request (can be used multiple times)",
 	""
 };
@@ -29,6 +30,10 @@ constexpr KStringView g_Help[] = {
 __ProjectName__::__ProjectName__ ()
 //-----------------------------------------------------------------------------
 {
+	KInit().SetName(s_sProjectName).SetMultiThreading().SetOnlyShowCallerOnJsonError();
+
+	m_CLI.Throw();
+
 	m_CLI.RegisterHelp(g_Help);
 
 	m_CLI.RegisterUnknownCommand([&](KOptions::ArgList& Commands)
@@ -58,27 +63,24 @@ __ProjectName__::__ProjectName__ ()
 
 	m_CLI.RegisterOption("D,data", "request_body", [&](KStringViewZ sArg)
 	{
-		KString sJSON;
-
 		if (sArg.StartsWith("@"))
 		{
 			sArg.TrimLeft('@');
 
-			if (!kReadAll (sArg, sJSON))
+			if (!kReadAll (sArg, m_Config.sBody))
 			{
 				throw KOptions::WrongParameterError(kFormat("invalid filename: {}", sArg));
 			}
 		}
 		else
 		{
-			sJSON = sArg;
+			m_Config.sBody = sArg;
 		}
+	});
 
-		KString sError;
-		if (!kjson::Parse(m_Config.jBody, sJSON, sError))
-		{
-			throw KException("input is not valid JSON");
-		}
+	m_CLI.RegisterOption("M,mime", "mime type", [&](KStringViewZ sMimeType)
+	{
+		m_Config.MimeType = sMimeType;
 	});
 
 	m_CLI.RegisterOption("H,header", "header with key:value", [&](KStringViewZ sHeader)
@@ -93,18 +95,25 @@ __ProjectName__::__ProjectName__ ()
 void __ProjectName__::ServerQuery ()
 //-----------------------------------------------------------------------------
 {
-	KJsonRestClient HTTP (m_Config.URL);
+	KWebClient HTTP;
 
 	for (const auto& Header : m_Config.Headers)
 	{
 		HTTP.AddHeader (Header.first, Header.second);
 	}
 
-	// returns JSON, may throw
-	auto sResponse = HTTP.Verb(m_Config.Method)
-	                     .Request(m_Config.jBody);
+	// does not throw, returns string (page)
+	auto sResponse = HTTP.HttpRequest (m_Config.URL, m_Config.Method, m_Config.sBody, m_Config.MimeType);
 
-	KOut.WriteLine (sResponse.dump());
+	// check success
+	if (!HTTP.HttpSuccess())
+	{
+		KErr.WriteLine (HTTP.Error());
+	}
+	else
+	{
+		KOut.WriteLine (sResponse);
+	}
 
 } // ServerQuery
 
@@ -112,7 +121,7 @@ void __ProjectName__::ServerQuery ()
 void __ProjectName__::ShowVersion ()
 //-----------------------------------------------------------------------------
 {
-	KOut.FormatLine(":: {} v{}", s_sProjectName, s_sProjectVersion);
+	KOut.FormatLine (":: {} v{}", s_sProjectName, s_sProjectVersion);
 
 } // ShowVersion
 
@@ -120,12 +129,18 @@ void __ProjectName__::ShowVersion ()
 int __ProjectName__::Main (int argc, char** argv)
 //-----------------------------------------------------------------------------
 {
-	auto iResult = m_CLI.Parse(argc, argv, KOut);
-
-	if (iResult || m_Config.bTerminate)
+	// ---------------- parse CLI ------------------
 	{
-		return iResult;
+		auto iRetVal = m_CLI.Parse(argc, argv, KOut);
+
+		if (iRetVal	|| m_Config.bTerminate)
+		{
+			// either error or completed
+			return iRetVal;
+		}
 	}
+
+	// ---- insert project code here ----
 
 	if (m_Config.URL.empty())
 	{
@@ -145,10 +160,6 @@ int main (int argc, char** argv)
 	try
 	{
 		return __ProjectName__().Main (argc, argv);
-	}
-	catch (const KException& ex)
-	{
-		KErr.FormatLine(">> {}: {}", __ProjectName__::s_sProjectName, ex.what());
 	}
 	catch (const std::exception& ex)
 	{

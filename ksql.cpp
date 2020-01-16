@@ -219,12 +219,12 @@ static void*  kfree (void* dPointer, const char* sContext = nullptr )
 void* kmalloc (size_t iNumBytes, const char* pszContext, bool bClearMemory = true)
 //-----------------------------------------------------------------------------
 {
-	kDebugLog (3, "{}: dynamic allocation of {} bytes", pszContext, iNumBytes);
+	kDebug (3, "{}: dynamic allocation of {} bytes", pszContext, iNumBytes);
 
 	char* pszRawMemory = (char*) malloc (iNumBytes);
 	if (!pszRawMemory)
 	{
-		kWarningLog ("{}: server ran out of memory!  Could not grab {} bytes", pszContext, iNumBytes);
+		kWarning ("{}: server ran out of memory!  Could not grab {} bytes", pszContext, iNumBytes);
 		kCrashExit (CRASHCODE_MEMORY);
 	}
 	else if (bClearMemory)
@@ -332,7 +332,7 @@ void KSQL::KColInfo::SetColumnType (DBT iDBType, int iNativeDataType, KCOL::Len 
 KSQL::KSQL (DBT iDBType/*=DBT::MYSQL*/, KStringView sUsername/*=nullptr*/, KStringView sPassword/*=nullptr*/, KStringView sDatabase/*=nullptr*/, KStringView sHostname/*=nullptr*/, uint16_t iDBPortNum/*=0*/)
 //-----------------------------------------------------------------------------
 {
-	kDebugLog (3, "KSQL::KSQL()...");
+	kDebug (3, "...");
 
 	// this tmp file is used to hold buffered results (if flag F_BufferResults is set):
 	m_sTmpResultsFile.Format ("{}/ksql-{}-{}.res", GetTempDir(), kGetPid(), kGetTid());
@@ -349,7 +349,7 @@ KSQL::KSQL (DBT iDBType/*=DBT::MYSQL*/, KStringView sUsername/*=nullptr*/, KStri
 KSQL::KSQL (const KSQL& other)
 //-----------------------------------------------------------------------------
 {
-	kDebugLog (3, "KSQL::KSQL()...");
+	kDebug (3, "...");
 
 	m_iFlags = other.GetFlags();
 
@@ -379,31 +379,31 @@ void KSQL::FreeAll (bool bDestructor/*=false*/)
 {
 	if (kWouldLog(3) && !bDestructor)
 	{
-		kDebugLog (3, "FreeAll()...");
-		kDebugLog (3, "  instance cleanup:");
-		kDebugLog (3, "    m_bConnectionIsOpen        = {}", (m_bConnectionIsOpen) ? "true" : "false");
-		kDebugLog (3, "    m_bFileIsOpen              = {}", (m_bFileIsOpen) ? "true" : "false");
-		kDebugLog (3, "    m_bQueryStarted            = {}", (m_bQueryStarted) ? "true" : "false");
+		kDebug (3, "FreeAll()...");
+		kDebug (3, "  instance cleanup:");
+		kDebug (3, "    m_bConnectionIsOpen        = {}", (m_bConnectionIsOpen) ? "true" : "false");
+		kDebug (3, "    m_bFileIsOpen              = {}", (m_bFileIsOpen) ? "true" : "false");
+		kDebug (3, "    m_bQueryStarted            = {}", (m_bQueryStarted) ? "true" : "false");
 
-		kDebugLog (3, "  dynamic memory outlook:");
+		kDebug (3, "  dynamic memory outlook:");
 #ifdef DEKAF2_HAS_MYSQL
-		kDebugLog (3, "    m_dMYSQL                   = {}{}", (void*)m_dMYSQL, (m_dMYSQL) ? " (needs to be freed)" : "");
-		kDebugLog (3, "    m_MYSQLRow                 = {}{}", (void*)m_MYSQLRow, (m_MYSQLRow) ? " (needs to be freed)" : "");
-		kDebugLog (3, "    m_dMYSQLResult             = {}{}", (void*)m_dMYSQLResult, (m_dMYSQLResult) ? " (needs to be freed)" : "");
+		kDebug (3, "    m_dMYSQL                   = {}{}", (void*)m_dMYSQL, (m_dMYSQL) ? " (needs to be freed)" : "");
+		kDebug (3, "    m_MYSQLRow                 = {}{}", (void*)m_MYSQLRow, (m_MYSQLRow) ? " (needs to be freed)" : "");
+		kDebug (3, "    m_dMYSQLResult             = {}{}", (void*)m_dMYSQLResult, (m_dMYSQLResult) ? " (needs to be freed)" : "");
 #endif
 #ifdef DEKAF2_HAS_ORACLE
-		kDebugLog (3, "    m_dOCI6LoginDataArea       = {}{}", m_dOCI6LoginDataArea, (m_dOCI6LoginDataArea) ? " (needs to be freed)" : "");
-		kDebugLog (3, "    m_dOCI6ConnectionDataArea  = {}{}", m_dOCI6ConnectionDataArea, (m_dOCI6ConnectionDataArea) ? " (needs to be freed)" : "");
-		kDebugLog (3, "    m_dOCI8EnvHandle           = {}{}", m_dOCI8EnvHandle, (m_dOCI8EnvHandle) ? " (needs to be freed)" : "");
-		kDebugLog (3, "    m_dOCI8ErrorHandle         = {}{}", m_dOCI8ErrorHandle, (m_dOCI8ErrorHandle) ? " (needs to be freed)" : "");
-		kDebugLog (3, "    m_dOCI8ServerContext       = {}{}", m_dOCI8ServerContext, (m_dOCI8ServerContext) ? " (needs to be freed)" : "");
+		kDebug (3, "    m_dOCI6LoginDataArea       = {}{}", m_dOCI6LoginDataArea, (m_dOCI6LoginDataArea) ? " (needs to be freed)" : "");
+		kDebug (3, "    m_dOCI6ConnectionDataArea  = {}{}", m_dOCI6ConnectionDataArea, (m_dOCI6ConnectionDataArea) ? " (needs to be freed)" : "");
+		kDebug (3, "    m_dOCI8EnvHandle           = {}{}", m_dOCI8EnvHandle, (m_dOCI8EnvHandle) ? " (needs to be freed)" : "");
+		kDebug (3, "    m_dOCI8ErrorHandle         = {}{}", m_dOCI8ErrorHandle, (m_dOCI8ErrorHandle) ? " (needs to be freed)" : "");
+		kDebug (3, "    m_dOCI8ServerContext       = {}{}", m_dOCI8ServerContext, (m_dOCI8ServerContext) ? " (needs to be freed)" : "");
 #if USE_SERVER_ATTACH
-		kDebugLog (3, "    m_dOCI8ServerHandle        = {}{}", m_dOCI8ServerHandle, (m_dOCI8ServerHandle) ? " (needs to be freed)" : "");
-		kDebugLog (3, "    m_dOCI8Session             = {}{}", m_dOCI8Session, (m_dOCI8Session) ? " (needs to be freed)" : "");
+		kDebug (3, "    m_dOCI8ServerHandle        = {}{}", m_dOCI8ServerHandle, (m_dOCI8ServerHandle) ? " (needs to be freed)" : "");
+		kDebug (3, "    m_dOCI8Session             = {}{}", m_dOCI8Session, (m_dOCI8Session) ? " (needs to be freed)" : "");
 #endif
-		kDebugLog (3, "    m_dOCI8Statement           = {}{}", m_dOCI8Statement, (m_dOCI8Statement) ? " (needs to be freed)" : "");
+		kDebug (3, "    m_dOCI8Statement           = {}{}", m_dOCI8Statement, (m_dOCI8Statement) ? " (needs to be freed)" : "");
 #endif
-//		kDebugLog (3, "    m_dBufferedColArray        = {}{}", m_dBufferedColArray, (m_dBufferedColArray) ? " (needs to be freed)" : "");
+//		kDebug (3, "    m_dBufferedColArray        = {}{}", m_dBufferedColArray, (m_dBufferedColArray) ? " (needs to be freed)" : "");
 	}
 
 #ifdef DEKAF2_HAS_MYSQL
@@ -474,10 +474,10 @@ void KSQL::FreeAll (bool bDestructor/*=false*/)
 } // FreeAll
 
 #define NOT_IF_ALREADY_OPEN(FUNC) \
-	kDebugLog (3, "KSQL::{}()...", FUNC); \
+	kDebug (3, "..."); \
 	if (IsConnectionOpen()) \
 	{ \
-		m_sLastError.Format ("{} cannot change database connection when it's already open", m_sErrorPrefix); \
+		m_sLastError.Format ("{}{} cannot change database connection when it's already open", m_sErrorPrefix, FUNC); \
 		return (false); \
 	}
 
@@ -497,7 +497,7 @@ bool KSQL::SetConnect (DBT iDBType, KStringView sUsername, KStringView sPassword
 
 	SetAPISet (API::NONE); // <-- pick the default APIs for this DBType
 	InvalidateConnectSummary();
-	kDebugLog (1, "{}", ConnectSummary());
+	kDebug (1, "{}", ConnectSummary());
 
 	return (true);
 
@@ -614,7 +614,7 @@ bool KSQL::SetDBPort (int iDBPortNum)
 bool KSQL::SaveConnect (const KString& sDBCFile)
 //-----------------------------------------------------------------------------
 {
-	kDebugLog (3, "KSQL::SaveConnect()...");
+	kDebug (3, "...");
 
 	{
 		DBCFILEv2 dbc_v2;
@@ -672,21 +672,21 @@ bool KSQL::DecodeDBCData (KStringView sBuffer, KStringView sDBCFile)
 	{
 		#ifdef WIN32
 		m_sLastError.Format ("{}DecodeDBCData(): old format (DBC1) doesn't work on win32", m_sErrorPrefix);
-		kDebugLog(GetDebugLevel(), "{}", m_sLastError);
+		kDebugLog(GetDebugLevel(), m_sLastError);
 		return (false);
 		#else
-		kDebugLog((GetDebugLevel() + 1), "KSQL:DecodeDBCData(): old format (1)");
+		kDebug((GetDebugLevel() + 1), "old format (1)");
 		dbc = std::make_unique<DBCFILEv1>();
 		#endif
 	}
 	else if (sBuffer.starts_with("KSQLDBC2"))
 	{
-		kDebugLog((GetDebugLevel() + 1), "KSQL:DecodeDBCData(): compact format (2)");
+		kDebug((GetDebugLevel() + 1), "compact format (2)");
 		dbc = std::make_unique<DBCFILEv2>();
 	}
 	else if (sBuffer.starts_with("KSQLDBC3"))
 	{
-		kDebugLog((GetDebugLevel() + 1), "KSQL:DecodeDBCData(): current format (3)");
+		kDebug((GetDebugLevel() + 1), "current format (3)");
 		dbc = std::make_unique<DBCFILEv3>();
 	}
 	else if (sBuffer.starts_with("KSQLDBC"))
@@ -696,20 +696,20 @@ bool KSQL::DecodeDBCData (KStringView sBuffer, KStringView sDBCFile)
 		   so provide a helpful error message.
 		*/
 		m_sLastError.Format("{}DecodeDBCData(): unrecognized DBC version in DBC file '{}'.", m_sErrorPrefix, sDBCFile);
-		kDebugLog(GetDebugLevel(), "{}", m_sLastError);
+		kDebugLog(GetDebugLevel(), m_sLastError);
 		return false;
 	}
 	else
 	{
 		m_sLastError.Format ("{}DecodeDBCData(): invalid header on DBC file '{}'.", m_sErrorPrefix, sDBCFile);
-		kDebugLog(GetDebugLevel(), "{}", m_sLastError);
+		kDebugLog(GetDebugLevel(), m_sLastError);
 		return (false);
 	}
 
 	if (!dbc->SetBuffer(sBuffer))
 	{
 		m_sLastError.Format ("{}DecodeDBCData(): corrupted DBC file '{}'.", m_sErrorPrefix, sDBCFile);
-		kDebugLog(GetDebugLevel(), "{}", m_sLastError);
+		kDebugLog(GetDebugLevel(), m_sLastError);
 		return (false);
 	}
 
@@ -803,12 +803,12 @@ bool KSQL::OpenConnection (KStringView sListOfHosts, KStringView sDelimiter/* = 
 
 		if (OpenConnection())
 		{
-			kDebugLog (2,"DbEnsureConnected: host {} is up", sDBHost);
+			kDebug (2, "host {} is up", sDBHost);
 			return true;
 		}
 		else
 		{
-			kDebugLog (2,"DbEnsureConnected: host {} is down", sDBHost);
+			kDebug (2, "host {} is down", sDBHost);
 		}
 	}
 
@@ -1394,7 +1394,7 @@ bool KSQL::ExecRawSQL (KStringView sSQL, Flags iFlags/*=0*/, KStringView sAPI/*=
 {
 	if (!(iFlags & F_NoKlogDebug) && !(m_iFlags & F_NoKlogDebug))
 	{
-		kDebugLog (GetDebugLevel(), "{}: {}\n", sAPI, sSQL);
+		kDebugLog (GetDebugLevel(), "KSQL::{}(): {}\n", sAPI, sSQL);
 	}
 
 	m_iNumRowsAffected = 0;
@@ -1425,16 +1425,16 @@ bool KSQL::ExecRawSQL (KStringView sSQL, Flags iFlags/*=0*/, KStringView sAPI/*=
 			{
 				if (!m_dMYSQL)
 				{
-					kDebugLog (1, "KSQL::ExecRawSQL: lost m_dMYSQL pointer.  Reopening connection ...");
+					kDebug (1, "lost m_dMYSQL pointer.  Reopening connection ...");
 					CloseConnection();
 					OpenConnection();
 				}
 				if (!m_dMYSQL)
 				{
-					kDebugLog (1, "KSQL::ExecRawSQL: failed.  aborting query or SQL:\n{}", sSQL);
+					kDebug (1, "failed.  aborting query or SQL:\n{}", sSQL);
 					break; // once
 				}
-				kDebugLog (3, "mysql_query(): m_dMYSQL is {}, SQL is {} bytes long", m_dMYSQL ? "not null" : "nullptr", sSQL.size());
+				kDebug (3, "mysql_query(): m_dMYSQL is {}, SQL is {} bytes long", m_dMYSQL ? "not null" : "nullptr", sSQL.size());
 				if (mysql_query (m_dMYSQL, m_sLastSQL.c_str()))
 				{
 					m_iErrorNum = mysql_errno (m_dMYSQL);
@@ -1442,24 +1442,24 @@ bool KSQL::ExecRawSQL (KStringView sSQL, Flags iFlags/*=0*/, KStringView sAPI/*=
 					break; // inner do once
 				}
 				m_iNumRowsAffected = 0;
-				kDebugLog (3, "mysql_affected_rows()...");
+				kDebug (3, "mysql_affected_rows()...");
 				my_ulonglong iNumRows = mysql_affected_rows (m_dMYSQL);
 				if ((uint64_t)iNumRows != (uint64_t)(-1))
 				{
 					m_iNumRowsAffected = (uint64_t) iNumRows;
 				}
 
-				kDebugLog (3, "mysql_insert_id()...");
+				kDebug (3, "mysql_insert_id()...");
 				my_ulonglong iNewID = mysql_insert_id (m_dMYSQL);
 				m_iLastInsertID = (uint64_t) iNewID;
 		
 				if (m_iLastInsertID)
 				{
-					kDebugLog (GetDebugLevel(), "ExecSQL: last insert ID = {}", m_iLastInsertID);
+					kDebug (GetDebugLevel(), "last insert ID = {}", m_iLastInsertID);
 				}
 				else
 				{
-					kDebugLog (3, "no insert ID.");
+					kDebug (3, "no insert ID.");
 				}
 
 				bOK = true;
@@ -1474,7 +1474,7 @@ bool KSQL::ExecRawSQL (KStringView sSQL, Flags iFlags/*=0*/, KStringView sAPI/*=
 		// - - - - - - - - - - - - - - - - -
 			do // once
 			{
-				kDebugLog (3, "OCIStmtPrepare...");
+				kDebug (3, "OCIStmtPrepare...");
 				m_iErrorNum = OCIStmtPrepare ((OCIStmt*)m_dOCI8Statement, (OCIError*)m_dOCI8ErrorHandle, 
 				                             (text*)sSQL.data(), sSQL.size(), OCI_NTV_SYNTAX, OCI_DEFAULT);
 
@@ -1486,7 +1486,7 @@ bool KSQL::ExecRawSQL (KStringView sSQL, Flags iFlags/*=0*/, KStringView sAPI/*=
 				// Note: Using the OCI_COMMIT_ON_SUCCESS mode of the OCIExecute() call, the 
 				// application can selectively commit transactions at the end of each 
 				// statement execution, saving an extra roundtrip by calling OCITransCommit().
-				kDebugLog (3, "OCIStmtExecute...");
+				kDebug (3, "OCIStmtExecute...");
 				m_iErrorNum = OCIStmtExecute ((OCISvcCtx*)m_dOCI8ServerContext, (OCIStmt*)m_dOCI8Statement, (OCIError*)m_dOCI8ErrorHandle, 1, 0,
 								 (CONST OCISnapshot *) nullptr, (OCISnapshot *) nullptr, IsFlag(F_NoAutoCommit) ? 0 : OCI_COMMIT_ON_SUCCESS);
 
@@ -1510,7 +1510,7 @@ bool KSQL::ExecRawSQL (KStringView sSQL, Flags iFlags/*=0*/, KStringView sAPI/*=
 			do // once
 			{
 				// let the RDBMS parse the SQL expression:
-				kDebugLog (3, "oparse...");
+				kDebug (3, "oparse...");
 				m_iErrorNum = oparse ((Cda_Def*)m_dOCI6ConnectionDataArea, (text *)m_sLastSQL.c_str(), (sb4) -1, (sword) PARSE_NO_DEFER, (ub4) PARSE_V7_LNG);
 				if (!WasOCICallOK("ExecSQL:oparse"))
 				{
@@ -1518,7 +1518,7 @@ bool KSQL::ExecRawSQL (KStringView sSQL, Flags iFlags/*=0*/, KStringView sAPI/*=
 				}
 		
 				// execute it:
-				kDebugLog (3, "oexec...");
+				kDebug (3, "oexec...");
 				m_iErrorNum = oexec ((Cda_Def*)m_dOCI6ConnectionDataArea);
 				if (!WasOCICallOK("ExecSQL:oexec"))
 				{
@@ -1554,7 +1554,7 @@ bool KSQL::ExecRawSQL (KStringView sSQL, Flags iFlags/*=0*/, KStringView sAPI/*=
 			bOK = ctlib_execsql (sSQL);
 			if (!bOK)
 			{
-				kDebugLog (3, "ctlib_execsql returned false");
+				kDebug (3, "ctlib_execsql returned false");
 			}
 			break;
 		#endif
@@ -1581,7 +1581,7 @@ bool KSQL::ExecRawSQL (KStringView sSQL, Flags iFlags/*=0*/, KStringView sAPI/*=
 				// the first retry should have no delay:
 				if (iSleepFor)
 				{
-					kDebugLog (GetDebugLevel(), "sleeping {} seconds...", iSleepFor);
+					kDebug (GetDebugLevel(), "sleeping {} seconds...", iSleepFor);
 					std::this_thread::sleep_for(std::chrono::seconds(iSleepFor));
 				}
 
@@ -1689,13 +1689,13 @@ bool KSQL::PreparedToRetry ()
 	{
 		if (IsFlag(F_IgnoreSQLErrors))
 		{
-			kDebugLog (GetDebugLevel(), "{}", GetLastError());
-			kDebugLog (GetDebugLevel(), "automatic retry now in progress...");
+			kDebug (GetDebugLevel(), "{}", GetLastError());
+			kDebug (GetDebugLevel(), "automatic retry now in progress...");
 		}
 		else
 		{
-			kWarningLog ("{}", GetLastError());
-			kWarningLog ("automatic retry now in progress...");
+			kWarning ("{}", GetLastError());
+			kWarning ("automatic retry now in progress...");
 		}
 
 		CloseConnection ();
@@ -1703,14 +1703,14 @@ bool KSQL::PreparedToRetry ()
 
 		if (IsConnectionOpen())
 		{
-			kDebugLog (GetDebugLevel(), "new connection looks good.");
+			kDebug (GetDebugLevel(), "new connection looks good.");
 		}
 		else if (IsFlag(F_IgnoreSQLErrors)) {
-			kDebugLog (GetDebugLevel(), "NEW CONNECTION FAILED.");
+			kDebug (GetDebugLevel(), "NEW CONNECTION FAILED.");
 		}
 		else
 		{
-			kWarningLog ("NEW CONNECTION FAILED.");
+			kWarning ("NEW CONNECTION FAILED.");
 		}
 
 		return (true); // <-- we are now prepare for automatic retry
@@ -1718,7 +1718,7 @@ bool KSQL::PreparedToRetry ()
 	else
 	{
 #ifdef DEKAF2_HAS_MYSQL
-		kDebugLog (3, "FYI: cannot retry: {} [{},{}]: {}", GetLastErrorNum(), 2006, 2013, GetLastError());
+		kDebug (3, "FYI: cannot retry: {} [{},{}]: {}", GetLastErrorNum(), 2006, 2013, GetLastError());
 #endif
 		return (false); // <-- no not retry
 	}
@@ -1730,7 +1730,7 @@ bool KSQL::PreparedToRetry ()
 bool KSQL::ParseSQL (KStringView sFormat, ...)
 //-----------------------------------------------------------------------------
 {
-	kDebugLog (3, "KSQL::ParseSQL()...");
+	kDebug (3, "...");
 
 	m_iLastInsertID = 0;
 	EndQuery ();
@@ -1739,7 +1739,7 @@ bool KSQL::ParseSQL (KStringView sFormat, ...)
 		return (false);
 	}
 
-	kDebugLog (3, "ParseSQL: format={}", sFormat);
+	kDebug (3, "format={}", sFormat);
 
 	va_list vaArgList;
 	va_start (vaArgList, sFormat);
@@ -1761,7 +1761,7 @@ bool KSQL::ParseRawSQL (KStringView sSQL, int64_t iFlags/*=0*/, KStringView sAPI
 {
 	if (!(iFlags & F_NoKlogDebug) && !(m_iFlags & F_NoKlogDebug))
 	{
-		kDebugLog (GetDebugLevel(), "{}: {}{}\n", sAPI, (sSQL.Contains("\n")) ? "\n" : "", sSQL);
+		kDebugLog (GetDebugLevel(), "KSQL::{}(): {}{}\n", sAPI, (sSQL.Contains("\n")) ? "\n" : "", sSQL);
 	}
 
 	CopyIfNotSame(m_sLastSQL, sSQL);
@@ -1787,7 +1787,7 @@ bool KSQL::ParseRawSQL (KStringView sSQL, int64_t iFlags/*=0*/, KStringView sAPI
 		// - - - - - - - - - - - - - - - - -
 		default:
 		// - - - - - - - - - - - - - - - - -
-			kWarningLog ("KSQL::ParseSQL(): unsupported API Set ({}={})", m_iAPISet, TxAPISet(m_iAPISet));
+			kWarning ("unsupported API Set ({}={})", m_iAPISet, TxAPISet(m_iAPISet));
 			kCrashExit (CRASHCODE_DEKAFUSAGE);
 	}
 
@@ -1803,7 +1803,7 @@ bool KSQL::ExecParsedSQL ()
 {
 	if (!m_bStatementParsed)
 	{
-		kWarningLog ("KSQL::ExecParsedSQL(): ParseSQL() or ParseQuery() was not called yet.");
+		kWarning ("ParseSQL() or ParseQuery() was not called yet.");
 		kCrashExit (CRASHCODE_DEKAFUSAGE);
 		return (false);
 	}
@@ -1831,7 +1831,7 @@ bool KSQL::ExecParsedSQL ()
 		// - - - - - - - - - - - - - - - - -
 		default:
 		// - - - - - - - - - - - - - - - - -
-			kWarningLog ("KSQL::ExecParseSQL(): unsupported API Set ({}={})", m_iAPISet, TxAPISet(m_iAPISet));
+			kWarning ("unsupported API Set ({}={})", m_iAPISet, TxAPISet(m_iAPISet));
 			kCrashExit (CRASHCODE_DEKAFUSAGE);
 	}
 
@@ -1848,7 +1848,7 @@ bool KSQL::ExecParsedSQL ()
 bool KSQL::ExecSQLFile (KStringViewZ sFilename)
 //-----------------------------------------------------------------------------
 {
-	kDebugLog (3, "KSQL::ExecSQLFile()...");
+	kDebug (3, "...");
 
 	EndQuery ();
 	if (!OpenConnection())
@@ -1856,7 +1856,7 @@ bool KSQL::ExecSQLFile (KStringViewZ sFilename)
 		return (false);
 	}
 
-	kDebugLog (GetDebugLevel(), "ExecSQLFile: {}\n", sFilename);
+	kDebug (GetDebugLevel(), "{}\n", sFilename);
 
 	if (!kFileExists (sFilename))
 	{
@@ -1900,7 +1900,7 @@ bool KSQL::ExecSQLFile (KStringViewZ sFilename)
 		bool fFoundSpecialLeader = false;
 		++Parms.iLineNum;
 
-		kDebugLog (GetDebugLevel()+1, "[{}] {}", Parms.iLineNum, sLine);
+		kDebug (GetDebugLevel()+1, "[{}] {}", Parms.iLineNum, sLine);
 
 		KStringView sStart(sLine);
 		// remove all leading white space
@@ -1930,7 +1930,7 @@ bool KSQL::ExecSQLFile (KStringViewZ sFilename)
 				m_sLastError.Format ("{}:{}: missing include file: {}", sFilename, Parms.iLineNum, sIncludedFile);
 				return (SQLError());
 			}
-			kDebugLog (GetDebugLevel(), "{}, line {}: recursing to include file: {}", sFilename, Parms.iLineNum, sIncludedFile);
+			kDebug (GetDebugLevel(), "{}, line {}: recursing to include file: {}", sFilename, Parms.iLineNum, sIncludedFile);
 			if (!ExecSQLFile (sIncludedFile))
 			{
 				// m_sLastError is already set
@@ -1942,11 +1942,11 @@ bool KSQL::ExecSQLFile (KStringViewZ sFilename)
 		// look for special directives:
 		while (sStart.starts_with("//"_ksv))
 		{
-			kDebugLog (3, " line {}: seeing if this is a special directive or just a comment..", Parms.iLineNum);
+			kDebug (3, " line {}: seeing if this is a special directive or just a comment..", Parms.iLineNum);
 
 			if (sStart.starts_with(sLeader))
 			{
-				kDebugLog (GetDebugLevel()+1, " line {}: contains {}-specific code (included)", Parms.iLineNum, TxDBType(m_iDBType));
+				kDebug (GetDebugLevel()+1, " line {}: contains {}-specific code (included)", Parms.iLineNum, TxDBType(m_iDBType));
 
 				sStart.remove_prefix(sLeader.size());
 				sStart.TrimLeft();
@@ -1954,7 +1954,7 @@ bool KSQL::ExecSQLFile (KStringViewZ sFilename)
 			}
 			else if (sStart.starts_with("//DROP|"_ksv))
 			{
-				kDebugLog (GetDebugLevel()+1, " line {}: is a drop statement", Parms.iLineNum);
+				kDebug (GetDebugLevel()+1, " line {}: is a drop statement", Parms.iLineNum);
 				sStart.remove_prefix(strlen("//DROP|"));
 				sStart.TrimLeft();
 				fFoundSpecialLeader = true;
@@ -1962,7 +1962,7 @@ bool KSQL::ExecSQLFile (KStringViewZ sFilename)
 			}
 			else if (sStart.starts_with("//define"_ksv))
 			{
-				kDebugLog (GetDebugLevel()+1, " line {}: is a macro definition", Parms.iLineNum);
+				kDebug (GetDebugLevel()+1, " line {}: is a macro definition", Parms.iLineNum);
 
 				sStart.remove_prefix(strlen("//define"));
 				sStart.TrimLeft();
@@ -1984,7 +1984,7 @@ bool KSQL::ExecSQLFile (KStringViewZ sFilename)
 			}
 			else
 			{
-				kDebugLog (3, " line {}: done processing directive[s]", Parms.iLineNum);
+				kDebug (3, " line {}: done processing directive[s]", Parms.iLineNum);
 				break; // quit processing directives
 			}
 		}
@@ -2014,7 +2014,7 @@ bool KSQL::ExecSQLFile (KStringViewZ sFilename)
 			{
 				sDelimiter = sDefaultDelimiter;
 			}
-			kDebugLog (GetDebugLevel(), "line {} setting delimiter={}\n", Parms.iLineNum, sDelimiter);
+			kDebug (GetDebugLevel(), "line {} setting delimiter={}\n", Parms.iLineNum, sDelimiter);
 			continue; // <-- skip delimiter statement after extracting the delimiter
 		}
 
@@ -2072,7 +2072,7 @@ bool KSQL::ExecSQLFile (KStringViewZ sFilename)
 		ExecSQLFileGo (sFilename, Parms);
 	}
 
-	kDebugLog (GetDebugLevel(), "ExecSQLFile({}): TotalRowsAffected = {}", sFilename, Parms.iTotalRowsAffected);
+	kDebug (GetDebugLevel(), "{}: TotalRowsAffected = {}", sFilename, Parms.iTotalRowsAffected);
 	m_iNumRowsAffected = Parms.iTotalRowsAffected;
 
 	ClearErrorPrefix ();
@@ -2091,26 +2091,26 @@ void KSQL::ExecSQLFileGo (KStringView sFilename, SQLFileParms& Parms)
 
 	if (Parms.fDropStatement)
 	{
-		kDebugLog (GetDebugLevel(), "setting F_IgnoreSQLErrors");
+		kDebug (GetDebugLevel(), "setting F_IgnoreSQLErrors");
 		SetFlags (F_IgnoreSQLErrors);
 	}
 
 	SetErrorPrefix (sFilename, Parms.iLineNumStart);
 
-	kDebugLog (GetDebugLevel()+1, "ExecSQLFileGo({}): statement # {}:\n{}\n", sFilename, Parms.iStatement, m_sLastSQL);
+	kDebug (GetDebugLevel()+1, "{}: statement # {}:\n{}\n", sFilename, Parms.iStatement, m_sLastSQL);
 
 	if (m_sLastSQL.empty())
 	{
-		kDebugLog (GetDebugLevel()+1, "ExecSQLFile({}): statement # {} is EMPTY.", sFilename, Parms.iStatement);
+		kDebug (GetDebugLevel()+1, "{}: statement # {} is EMPTY.", sFilename, Parms.iStatement);
 	}
 	else if (m_sLastSQL == "exit\n"   || m_sLastSQL == "quit\n")
 	{
-		kDebugLog (GetDebugLevel()+1, "ExecSQLFile({}): statement # {} is '{}' (stopping).", sFilename, Parms.iStatement, m_sLastSQL);
+		kDebug (GetDebugLevel()+1, "{}: statement # {} is '{}' (stopping).", sFilename, Parms.iStatement, m_sLastSQL);
 		Parms.fOK = Parms.fDone = true;
 	}
 	else if (m_sLastSQL.starts_with("select") || m_sLastSQL.starts_with("SELECT"))
 	{
-		kDebugLog (3, "ExecSQLFile({}): statement # {} is a QUERY...", sFilename, Parms.iStatement);
+		kDebug (3, "{}: statement # {} is a QUERY...", sFilename, Parms.iStatement);
 
 		if (!IsFlag(F_NoTranslations))
 		{
@@ -2125,7 +2125,7 @@ void KSQL::ExecSQLFileGo (KStringView sFilename, SQLFileParms& Parms)
 	}
 	else
 	{
-		kDebugLog (3, "ExecSQLFile({}): statement # {} is not a query...", sFilename, Parms.iStatement);
+		kDebug (3, "{}: statement # {} is not a query...", sFilename, Parms.iStatement);
 
 		if (!IsFlag(F_NoTranslations))
 		{
@@ -2160,7 +2160,7 @@ bool KSQL::ExecRawQuery (KStringView sSQL, Flags iFlags/*=0*/, KStringView sAPI/
 {
 	if (!(iFlags & F_NoKlogDebug) && !(m_iFlags & F_NoKlogDebug))
 	{
-		kDebugLog (GetDebugLevel(), "{}: {}{}\n", sAPI, (sSQL.Contains("\n")) ? "\n" : "", sSQL);
+		kDebugLog (GetDebugLevel(), "KSQL::{}(): {}{}\n", sAPI, (sSQL.Contains("\n")) ? "\n" : "", sSQL);
 	}
 
 	CopyIfNotSame(m_sLastSQL, sSQL);
@@ -2198,11 +2198,11 @@ bool KSQL::ExecRawQuery (KStringView sSQL, Flags iFlags/*=0*/, KStringView sAPI/
 				return (false);
 			}
 
-			kDebugLog (3, "mysql_use_result()...");
+			kDebug (3, "mysql_use_result()...");
 			m_dMYSQLResult = mysql_use_result (m_dMYSQL);
 			if (!m_dMYSQLResult)
 			{
-				kDebugLog(1, "KSQL: expected query results but got none. Did you intend to use ExecSQL() instead of ExecQuery() ?");
+				kDebug(1, "expected query results but got none. Did you intend to use ExecSQL() instead of ExecQuery() ?");
 				m_iErrorNum = mysql_errno (m_dMYSQL);
 				if (m_iErrorNum == 0)
 				{
@@ -2215,17 +2215,17 @@ bool KSQL::ExecRawQuery (KStringView sSQL, Flags iFlags/*=0*/, KStringView sAPI/
 				return (SQLError());
 			}
 
-			kDebugLog (3, "getting col info from mysql...");
-			kDebugLog (3, "mysql_field_count()...");
+			kDebug (3, "getting col info from mysql...");
+			kDebug (3, "mysql_field_count()...");
 
 			m_iNumColumns = mysql_field_count (m_dMYSQL);
 
-			kDebugLog (3, "num columns: {}", m_iNumColumns);
+			kDebug (3, "num columns: {}", m_iNumColumns);
 
 			m_dColInfo.clear();
 			m_dColInfo.reserve(m_iNumColumns);
 
-			kDebugLog (3, "mysql_fetch_field() X N ...");
+			kDebug (3, "mysql_fetch_field() X N ...");
 
 			MYSQL_FIELD* pField;
 
@@ -2235,7 +2235,7 @@ bool KSQL::ExecRawQuery (KStringView sSQL, Flags iFlags/*=0*/, KStringView sAPI/
 
 				ColInfo.sColName = pField->name;
 				ColInfo.SetColumnType (DBT::MYSQL, pField->type, pField->length);
-				kDebugLog (3, "KSQL: col {:35} mysql_datatype: {:4} => ksql_flags: 0x{:08x} = {}",
+				kDebug (3, "col {:35} mysql_datatype: {:4} => ksql_flags: 0x{:08x} = {}",
 					ColInfo.sColName, pField->type, ColInfo.iKSQLDataType, KROW::FlagsToString(ColInfo.iKSQLDataType));
 
 				m_dColInfo.push_back(std::move(ColInfo));
@@ -2298,7 +2298,7 @@ bool KSQL::ExecRawQuery (KStringView sSQL, Flags iFlags/*=0*/, KStringView sAPI/
 			// go through the column list and retrieve the data type of each column:
 			for (uint32_t ii = 1; ii <= m_iNumColumns; ++ii)
 			{
-				kDebugLog (3, "  retrieving info about col # {}", ii);
+				kDebug (3, "  retrieving info about col # {}", ii);
 
 				// get parameter for column ii:
 				m_iErrorNum = OCIParamGet ((OCIStmt*)m_dOCI8Statement, OCI_HTYPE_STMT, (OCIError*)m_dOCI8ErrorHandle, (void**)&pColParam, ii);
@@ -2309,7 +2309,7 @@ bool KSQL::ExecRawQuery (KStringView sSQL, Flags iFlags/*=0*/, KStringView sAPI/
 
 				if (!pColParam)
 				{
-					kDebugLog (GetDebugLevel(), "OCI: pColParam is nullptr but was supposed to get allocated by OCIParamGet");
+					kDebug (GetDebugLevel(), "OCI: pColParam is nullptr but was supposed to get allocated by OCIParamGet");
 				}
 
 				// Retrieve the data type attribute:
@@ -2345,7 +2345,7 @@ bool KSQL::ExecRawQuery (KStringView sSQL, Flags iFlags/*=0*/, KStringView sAPI/
 				ColInfo.sColName.assign((char* )dszColName, iLenColName);
 				ColInfo.dszValue = std::make_unique<char>(ColInfo.iMaxDataLen + 1);
 
-				kDebugLog (GetDebugLevel()+1, "  oci8:column[{}]={}, namelen={}, datatype={}, maxwidth={}, willuse={}", 
+				kDebug (GetDebugLevel()+1, "  oci8:column[{}]={}, namelen={}, datatype={}, maxwidth={}, willuse={}",
 					ii, ColInfo.sColName, iLenColName, iDataType, iMaxDataSize, ColInfo.iMaxDataLen);
 
 				OCIDefine* dDefine;
@@ -2392,7 +2392,7 @@ bool KSQL::ExecRawQuery (KStringView sSQL, Flags iFlags/*=0*/, KStringView sAPI/
 			// -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -
 			// 1. Parse the statement: do not defer the parse, so that errors come back right away
 			// -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -
-			kDebugLog (3, "  calling oparse() to parse SQL statement...");
+			kDebug (3, "  calling oparse() to parse SQL statement...");
 
 			//  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -
 			m_iErrorNum = oparse((Cda_Def*)m_dOCI6ConnectionDataArea, (text *)m_sLastSQL.c_str(), -1, PARSE_NO_DEFER, PARSE_V7_LNG);
@@ -2412,7 +2412,7 @@ bool KSQL::ExecRawQuery (KStringView sSQL, Flags iFlags/*=0*/, KStringView sAPI/
 			// -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -
 			// 2. determine number of columns in results set (oracle lets you do this *before* the query)
 			// -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -
-			kDebugLog (3, "  determining number of columns in result set...");
+			kDebug (3, "  determining number of columns in result set...");
 			m_iNumColumns = 0;
 			while (1)
 			{
@@ -2455,7 +2455,7 @@ bool KSQL::ExecRawQuery (KStringView sSQL, Flags iFlags/*=0*/, KStringView sAPI/
 				else
 				{
 					++m_iNumColumns;
-					kDebugLog (3, "    col[{}] = {}", m_iNumColumns, tmpColName);
+					kDebug (3, "    col[{}] = {}", m_iNumColumns, tmpColName);
 				}
 
 			} // while counting cols
@@ -2469,7 +2469,7 @@ bool KSQL::ExecRawQuery (KStringView sSQL, Flags iFlags/*=0*/, KStringView sAPI/
 			// -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -
 			// 4. loop through result columns, and bind the memory:
 			// -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -
-			kDebugLog (3, "  calling odescr() to bind each column...");
+			kDebug (3, "  calling odescr() to bind each column...");
 			for (uint32_t ii=1; ii<=m_iNumColumns; ++ii)
 			{
 				iColNameLen        = 50;
@@ -2481,7 +2481,7 @@ bool KSQL::ExecRawQuery (KStringView sSQL, Flags iFlags/*=0*/, KStringView sAPI/
 
 				// now that we have proper allocation for m_Columns[], repeat
 				// the odescr() calls and fill in m_Columns[]:
-				kDebugLog (3, "    col[{}]: filling in my m_Columns[] struct...", ii);
+				kDebug (3, "    col[{}]: filling in my m_Columns[] struct...", ii);
 
 				//  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -
 				m_iErrorNum = odescr((Cda_Def*)m_dOCI6ConnectionDataArea, ii,
@@ -2510,7 +2510,7 @@ bool KSQL::ExecRawQuery (KStringView sSQL, Flags iFlags/*=0*/, KStringView sAPI/
 				ColInfo.SetColumnType(DBT::ORACLE6, iDataType, std::max(iMaxDataSize+2, 22+2)); // <-- always malloc at least 24 bytes
 				ColInfo.sColName = sColName;
 
-				kDebugLog (GetDebugLevel(), "  oci6:column[{}]={}, namelen={}, datatype={}, maxwidth={}, dsize={}, using={} -- OCI6 BUG [TODO]", 
+				kDebug (GetDebugLevel(), "  oci6:column[{}]={}, namelen={}, datatype={}, maxwidth={}, dsize={}, using={} -- OCI6 BUG [TODO]",
 						ii, ColInfo.sColName, iColNameLen, iDataType,
 						iMaxWidth, iMaxDataSize, ColInfo.iMaxDataLen);
 
@@ -2519,7 +2519,7 @@ bool KSQL::ExecRawQuery (KStringView sSQL, Flags iFlags/*=0*/, KStringView sAPI/
 				ColInfo.dszValue    = std::make_unique<char>(ColInfo.iMaxDataLen + 1);
 
 				// bind some memory to each column to hold the results which will be coming back:
-				kDebugLog (3, "    col[{}]: calling odefin() to bind memory...", ii);
+				kDebug (3, "    col[{}]: calling odefin() to bind memory...", ii);
 				//  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -
 				m_iErrorNum = odefin ((Cda_Def*)m_dOCI6ConnectionDataArea,
 							ii,
@@ -2546,7 +2546,7 @@ bool KSQL::ExecRawQuery (KStringView sSQL, Flags iFlags/*=0*/, KStringView sAPI/
 			// -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -
 			// 5. start the select statement...
 			// -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -
-			kDebugLog (3, "  calling oexec() to actually begin the SQL statement...");
+			kDebug (3, "  calling oexec() to actually begin the SQL statement...");
 			//  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -
 			m_iErrorNum = oexec ((Cda_Def*)m_dOCI6ConnectionDataArea);
 			//  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -
@@ -2565,7 +2565,7 @@ bool KSQL::ExecRawQuery (KStringView sSQL, Flags iFlags/*=0*/, KStringView sAPI/
 	// - - - - - - - - - - - - - - - - -
 		do // once
 		{
-			kDebugLog (CTDEBUG, "ensuring that no dangling messages are in the ct queue...");
+			kDebug (CTDEBUG, "ensuring that no dangling messages are in the ct queue...");
 			
 			if(IsFlag(F_AutoReset))
 			{
@@ -2575,7 +2575,7 @@ bool KSQL::ExecRawQuery (KStringView sSQL, Flags iFlags/*=0*/, KStringView sAPI/
 			ctlib_flush_results ();
 			ctlib_clear_errors ();
 
-			kDebugLog (CTDEBUG, "calling ct_command()...");
+			kDebug (CTDEBUG, "calling ct_command()...");
 
 			if (ct_command (m_pCtCommand, CS_LANG_CMD, sSQL, CS_NULLTERM, CS_UNUSED) != CS_SUCCEED)
 			{
@@ -2587,7 +2587,7 @@ bool KSQL::ExecRawQuery (KStringView sSQL, Flags iFlags/*=0*/, KStringView sAPI/
 				return (SQLError());
 			}
 
-			kDebugLog (CTDEBUG, "calling ct_send()...");
+			kDebug (CTDEBUG, "calling ct_send()...");
 
 			if (ct_send(m_pCtCommand) != CS_SUCCEED)
 			{
@@ -2627,7 +2627,7 @@ bool KSQL::ExecRawQuery (KStringView sSQL, Flags iFlags/*=0*/, KStringView sAPI/
 	case API::ODBC:
 	default:
 	// - - - - - - - - - - - - - - - - -
-		kWarningLog ("KSQL::ExecQuery(): unsupported API Set ({})", TxAPISet(m_iAPISet));
+		kWarning ("unsupported API Set ({})", TxAPISet(m_iAPISet));
 		kCrashExit (CRASHCODE_DEKAFUSAGE);
 	}
 
@@ -2644,7 +2644,7 @@ bool KSQL::ExecRawQuery (KStringView sSQL, Flags iFlags/*=0*/, KStringView sAPI/
 		if (it.sColName.empty())
 		{
 			it.sColName.Format("col:{}", cct);
-			kDebugLog (GetDebugLevel(), "column was missing a name: {}", it.sColName);
+			kDebug (GetDebugLevel(), "column was missing a name: {}", it.sColName);
 		}
 	}
 
@@ -2664,7 +2664,7 @@ bool KSQL::ExecRawQuery (KStringView sSQL, Flags iFlags/*=0*/, KStringView sAPI/
 	
 	if (!(iFlags & F_NoKlogDebug) && !(m_iFlags & F_NoKlogDebug))
 	{
-		kDebugLog (GetDebugLevel(), "[DB Query Time]: {} mls", iMicrSecs);
+		kDebug (GetDebugLevel(), "[DB Query Time]: {} mls", iMicrSecs);
 	}
 #endif
 
@@ -2675,7 +2675,7 @@ bool KSQL::ExecRawQuery (KStringView sSQL, Flags iFlags/*=0*/, KStringView sAPI/
 		{
 			KString sWarning;
 			sWarning.Format (
-				"KSQL: warning: query took longer than {} seconds (took {}):\n"
+				"warning: query took longer than {} seconds (took {}):\n"
 				"{}\n",
 					m_iWarnIfOverNumSeconds,
 					kTranslateSeconds(tTook),
@@ -2688,7 +2688,7 @@ bool KSQL::ExecRawQuery (KStringView sSQL, Flags iFlags/*=0*/, KStringView sAPI/
 			}
 			else
 			{
-				kWarningLog ("{}", sWarning);
+				kWarning ("{}", sWarning);
 			}
 		}
 	}
@@ -2709,7 +2709,7 @@ bool KSQL::ExecRawQuery (KStringView sSQL, Flags iFlags/*=0*/, KStringView sAPI/
 bool KSQL::ParseQuery (KStringView sFormat, ...)
 //-----------------------------------------------------------------------------
 {
-	kDebugLog (3, "KSQL::ParseQuery()...");
+	kDebug (3, "...");
 
 	EndQuery ();
 	if (!OpenConnection())
@@ -2745,7 +2745,7 @@ bool KSQL::ParseRawQuery (KStringView sSQL, int64_t iFlags/*=0*/, KStringView sA
 {
 	if (!(iFlags & F_NoKlogDebug) && !(m_iFlags & F_NoKlogDebug))
 	{
-		kDebugLog (GetDebugLevel(), "{}: {}{}\n", sAPI, (sSQL.Contains("\n")) ? "\n" : "", sSQL);
+		kDebugLog (GetDebugLevel(), "KSQL::{}(): {}{}\n", sAPI, (sSQL.Contains("\n")) ? "\n" : "", sSQL);
 	}
 
 	CopyIfNotSame(m_sLastSQL, sSQL);
@@ -2791,7 +2791,7 @@ bool KSQL::ExecParsedQuery ()
 {
 	if (!m_bStatementParsed)
 	{
-		kWarningLog ("KSQL::ExecParsedQuery(): ParseQuery() was not called yet.");
+		kWarning ("ParseQuery() was not called yet.");
 		kCrashExit (CRASHCODE_DEKAFUSAGE);
 		return (false);
 	}
@@ -2839,7 +2839,7 @@ bool KSQL::ExecParsedQuery ()
 			// go through the column list and retrieve the data type of each column:
 			for (uint32_t ii = 1; ii <= m_iNumColumns; ++ii)
 			{
-				kDebugLog (3, "  retrieving info about col # {}", ii);
+				kDebug (3, "  retrieving info about col # {}", ii);
 
 				// get parameter for column ii:
 				m_iErrorNum = OCIParamGet ((OCIStmt*)m_dOCI8Statement, OCI_HTYPE_STMT, (OCIError*)m_dOCI8ErrorHandle, (void**)&pColParam, ii);
@@ -2847,7 +2847,7 @@ bool KSQL::ExecParsedQuery ()
 					return (SQLError());
 
 				if (!pColParam)
-					kDebugLog (GetDebugLevel(), "OCI: pColParam is nullptr but was supposed to get allocated by OCIParamGet");
+					kDebug (GetDebugLevel(), "OCI: pColParam is nullptr but was supposed to get allocated by OCIParamGet");
 
 				// Retrieve the data type attribute:
 				m_iErrorNum = OCIAttrGet ((dvoid*) pColParam, OCI_DTYPE_PARAM, 
@@ -2876,7 +2876,7 @@ bool KSQL::ExecParsedQuery ()
 				ColInfo.sColName.assign(dszColName, iLenColName);
 				ColInfo.dszValue = std::make_unique<char>(ColInfo.iMaxDataLen + 1);
 
-				kDebugLog (GetDebugLevel()+1, "  oci8:column[{}]={}, namelen={}, datatype={}, maxwidth={}, willuse={}", 
+				kDebug (GetDebugLevel()+1, "  oci8:column[{}]={}, namelen={}, datatype={}, maxwidth={}, willuse={}",
 						ii, ColInfo.sColName, iLenColName, iDataType, iMaxDataSize, ColInfo.iMaxDataLen);
 
 				OCIDefine* dDefine;
@@ -2919,7 +2919,7 @@ bool KSQL::ExecParsedQuery ()
 	// - - - - - - - - - - - - - - - - -
 	default:
 	// - - - - - - - - - - - - - - - - -
-		kWarningLog ("KSQL::ExecParsedQuery(): unsupported API Set ({}={})", m_iAPISet, TxAPISet(m_iAPISet));
+		kWarning ("unsupported API Set ({}={})", m_iAPISet, TxAPISet(m_iAPISet));
 		kCrashExit (CRASHCODE_DEKAFUSAGE);
 	}
 
@@ -2944,7 +2944,7 @@ bool KSQL::ExecParsedQuery ()
 KROW::Index KSQL::GetNumCols ()
 //-----------------------------------------------------------------------------
 {
-	kDebugLog (3, "KSQL::GetNumCols()...");
+	kDebug (3, "...");
 
 	// FYI: there is nothing database specific in this member function
 
@@ -2963,7 +2963,7 @@ KROW::Index KSQL::GetNumCols ()
 bool KSQL::BufferResults ()
 //-----------------------------------------------------------------------------
 {
-	kDebugLog (3, "KSQL::BufferResults()...");
+	kDebug (3, "...");
 
 	if (!QueryStarted())
 	{
@@ -2995,7 +2995,7 @@ bool KSQL::BufferResults ()
 	// - - - - - - - - - - - - - - - - -
 	case API::MYSQL:
 	// - - - - - - - - - - - - - - - - -
-		kDebugLog (3, "mysql_fetch_row() X N ...");
+		kDebug (3, "mysql_fetch_row() X N ...");
 
 		while ((m_MYSQLRow = mysql_fetch_row (m_dMYSQLResult)))
 		{
@@ -3017,11 +3017,11 @@ bool KSQL::BufferResults ()
 				}
 				if (strlen(colval) > 50)
 				{
-					kDebugLog (3, "  buffered: row[{}]col[{}]: strlen()={}", m_iNumRowsBuffered, ii+1, strlen(colval));
+					kDebug (3, "  buffered: row[{}]col[{}]: strlen()={}", m_iNumRowsBuffered, ii+1, strlen(colval));
 				}
 				else
 				{
-					kDebugLog (3, "  buffered: row[{}]col[{}]: '{}'", m_iNumRowsBuffered, ii+1, colval);
+					kDebug (3, "  buffered: row[{}]col[{}]: '{}'", m_iNumRowsBuffered, ii+1, colval);
 				}
 
 				file.FormatLine ("{}|{}|{}", m_iNumRowsBuffered, ii+1, strlen(colval));
@@ -3041,7 +3041,7 @@ bool KSQL::BufferResults ()
 			{
 				if (m_iOCI8FirstRowStat == OCI_NO_DATA)
 				{
-					kDebugLog (3, "OCIStmtExecute() said we were done");
+					kDebug (3, "OCIStmtExecute() said we were done");
 					break; // while
 				}
 
@@ -3049,7 +3049,7 @@ bool KSQL::BufferResults ()
 				m_iErrorNum = m_iOCI8FirstRowStat;
 				m_sLastError.clear();
 
-				kDebugLog (3, "  OCI8: first row was already fetched by OCIStmtExecute()");
+				kDebug (3, "  OCI8: first row was already fetched by OCIStmtExecute()");
 			}
 			else
 			{
@@ -3064,7 +3064,7 @@ bool KSQL::BufferResults ()
 				//  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -
 				if (!WasOCICallOK("BufferResults::OCIStmtFetch"))
 				{
-					kDebugLog (3, "OCIStmtFetch() says we're done");
+					kDebug (3, "OCIStmtFetch() says we're done");
 					break; // end of data from select
 				}
 			}
@@ -3074,9 +3074,9 @@ bool KSQL::BufferResults ()
 			for (uint32_t ii=0; ii<m_iNumColumns; ++ii)
 			{
 				if (strlen(m_dColInfo[ii].dszValue.get() > 50)
-					kDebugLog (3, "  buffered: row[{}]col[{}]: strlen()={}", m_iNumRowsBuffered, ii+1, strlen(m_dColInfo[ii].dszValue.get());
+					kDebug (3, "  buffered: row[{}]col[{}]: strlen()={}", m_iNumRowsBuffered, ii+1, strlen(m_dColInfo[ii].dszValue.get());
 				else
-					kDebugLog (3, "  buffered: row[{}]col[{}]: '{}'", m_iNumRowsBuffered, ii+1, m_dColInfo[ii].dszValue.get());
+					kDebug (3, "  buffered: row[{}]col[{}]: '{}'", m_iNumRowsBuffered, ii+1, m_dColInfo[ii].dszValue.get());
 
 				// we need to assure that no newlines are in buffered data:
 				char* spot = strchr (m_dColInfo[ii].dszValue.get(), '\n');
@@ -3096,13 +3096,13 @@ bool KSQL::BufferResults ()
 	// - - - - - - - - - - - - - - - - -
 		while (1)
 		{
-			kDebugLog (3, "calling ofetch() to grab the next row...");
+			kDebug (3, "calling ofetch() to grab the next row...");
 			//  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -
 			m_iErrorNum = ofetch ((Cda_Def*)m_dOCI6ConnectionDataArea);
 			//  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -
 			if (!WasOCICallOK("BufferResults:ofetch"))
 			{
-				kDebugLog (3, "ofetch() says we're done");
+				kDebug (3, "ofetch() says we're done");
 				break; // end of data from select
 			}
 
@@ -3117,9 +3117,9 @@ bool KSQL::BufferResults ()
 				}
 
 				if (strlen(m_dColInfo[ii].dszValue.get() > 50)
-					kDebugLog (3, "  buffered: row[{}]col[{}]: strlen()={}", m_iNumRowsBuffered, ii+1, strlen(m_dColInfo[ii].dszValue.get()));
+					kDebug (3, "  buffered: row[{}]col[{}]: strlen()={}", m_iNumRowsBuffered, ii+1, strlen(m_dColInfo[ii].dszValue.get()));
 				else
-					kDebugLog (3, "  buffered: row[{}]col[{}]: '{}'", m_iNumRowsBuffered, ii+1, m_dColInfo[ii].dszValue.get());
+					kDebug (3, "  buffered: row[{}]col[{}]: '{}'", m_iNumRowsBuffered, ii+1, m_dColInfo[ii].dszValue.get());
 
 				// we need to assure that no newlines are in buffered data:
 				char* spot = strchr (m_dColInfo[ii].dszValue.get(), '\n');
@@ -3142,7 +3142,7 @@ bool KSQL::BufferResults ()
 	case API::ODBC:
 	default:
 	// - - - - - - - - - - - - - - - - -
-		kWarningLog ("KSQL:BufferResults(): unsupported API Set ({})", TxAPISet(m_iAPISet));
+		kWarning ("unsupported API Set ({})", TxAPISet(m_iAPISet));
 		kCrashExit (CRASHCODE_DEKAFUSAGE);
 	}
 
@@ -3181,7 +3181,7 @@ bool KSQL::BufferResults ()
 bool KSQL::NextRow ()
 //-----------------------------------------------------------------------------
 {
-	kDebugLog (3, "KSQL::NextRow()...");
+	kDebug (3, "...");
 
 	if (DEKAF2_UNLIKELY(!QueryStarted()))
 	{
@@ -3197,7 +3197,7 @@ bool KSQL::NextRow ()
 		// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 		// normal operation: return results in real time:
 		// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-		kDebugLog (3, "NextRow(): fetching row...");
+		kDebug (3, "fetching row...");
 
 		ResetErrorStatus ();
 
@@ -3207,18 +3207,18 @@ bool KSQL::NextRow ()
 				// - - - - - - - - - - - - - - - - -
 			case API::MYSQL:
 				// - - - - - - - - - - - - - - - - -
-				kDebugLog (3, "mysql_fetch_row()...");
+				kDebug (3, "mysql_fetch_row()...");
 
 				m_MYSQLRow = mysql_fetch_row (m_dMYSQLResult);
 				if (DEKAF2_LIKELY(m_MYSQLRow != nullptr))
 				{
 					++m_iRowNum;
-					kDebugLog (3, "NextRow(): mysql_fetch_row gave us row {}", m_iRowNum);
+					kDebug (3, "mysql_fetch_row gave us row {}", m_iRowNum);
 					return true;
 				}
 				else
 				{
-					kDebugLog (3, "NextRow(): {} row{} fetched (end was hit)", m_iRowNum, (m_iRowNum==1) ? " was" : "s were");
+					kDebug (3, "{} row{} fetched (end was hit)", m_iRowNum, (m_iRowNum==1) ? " was" : "s were");
 					return false;
 				}
 				break;
@@ -3232,7 +3232,7 @@ bool KSQL::NextRow ()
 				{
 					if (m_iOCI8FirstRowStat == OCI_NO_DATA)
 					{
-						kDebugLog (3, "OCIStmtExecute() said we were done");
+						kDebug (3, "OCIStmtExecute() said we were done");
 						return (false); // end of data from select
 					}
 
@@ -3240,7 +3240,7 @@ bool KSQL::NextRow ()
 					m_iErrorNum = m_iOCI8FirstRowStat;
 					m_sLastError.clear();
 
-					kDebugLog (3, "OCI8: first row was already fetched by OCIStmtExecute()");
+					kDebug (3, "OCI8: first row was already fetched by OCIStmtExecute()");
 				}
 				else
 				{
@@ -3255,10 +3255,10 @@ bool KSQL::NextRow ()
 					//  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -
 					if (!WasOCICallOK("NextRow:OCIStmtFetch"))
 					{
-						kDebugLog (3, "OCIStmtFetch() says we're done");
+						kDebug (3, "OCIStmtFetch() says we're done");
 						return (false); // end of data from select
 					}
-					kDebugLog (3, "OCIStmtFetch() says we got row # {}", m_iRowNum+1);
+					kDebug (3, "OCIStmtFetch() says we got row # {}", m_iRowNum+1);
 				}
 
 				++m_iRowNum;
@@ -3269,27 +3269,27 @@ bool KSQL::NextRow ()
 			case API::OCI6:
 				// - - - - - - - - - - - - - - - - -
 			{
-				kDebugLog (3, "calling ofetch() to grab the next row...");
+				kDebug (3, "calling ofetch() to grab the next row...");
 
 				//  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -
 				m_iErrorNum = ofetch ((Cda_Def*)m_dOCI6ConnectionDataArea);
 				//  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -
 				if (!WasOCICallOK("NextRow:ofetch"))
 				{
-					kDebugLog (3, "ofetch() says we're done");
+					kDebug (3, "ofetch() says we're done");
 					return (false); // end of data from select
 				}
 
 				++m_iRowNum;
 
-				kDebugLog (3, "ofetch() says we got row # {}", m_iRowNum);
+				kDebug (3, "ofetch() says we got row # {}", m_iRowNum);
 
 				// map SQL nullptr values to zero-terminated C strings:
 				for (uint32_t ii=0; ii<m_iNumColumns; ++ii)
 				{
 					if (m_dColInfo[ii].indp < 0)
 					{
-						kDebugLog (3, "  fyi: row[{}]col[{}]: nullptr value from database changed to NIL (\"\")",
+						kDebug (3, "  fyi: row[{}]col[{}]: nullptr value from database changed to NIL (\"\")",
 								   m_iRowNum, m_dColInfo[ii].szColName);
 						m_dColInfo[ii].dszValue.get()[0] = 0;
 					}
@@ -3313,7 +3313,7 @@ bool KSQL::NextRow ()
 			case API::ODBC:
 			default:
 				// - - - - - - - - - - - - - - - - -
-				kWarningLog ("KSQL:NextRow(): unsupported API Set ({})", TxAPISet(m_iAPISet));
+				kWarning ("unsupported API Set ({})", TxAPISet(m_iAPISet));
 				kCrashExit (CRASHCODE_DEKAFUSAGE);
 		}
 	}
@@ -3322,7 +3322,7 @@ bool KSQL::NextRow ()
 		// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 		// results were placed in a tmp file
 		// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-		kDebugLog (3, "NextRow(): fetching buffered row...");
+		kDebug (3, "fetching buffered row...");
 
 		if (!m_bFileIsOpen)
 		{
@@ -3356,7 +3356,7 @@ bool KSQL::NextRow ()
 
 			if (!bOK && !ii)
 			{
-				kDebugLog (3, "NextRow(): end of buffered results: fgets() returned nullptr");
+				kDebug (3, "end of buffered results: fgets() returned nullptr");
 				return (false);  // <-- no more rows
 			}
 
@@ -3393,13 +3393,13 @@ bool KSQL::NextRow ()
 			{
 				if (IsFlag(F_IgnoreSQLErrors))
 				{
-					kDebugLog (GetDebugLevel(), "NextRow(): CheckRowNum = {} [should be {}]", iCheckRowNum, m_iRowNum);
-					kDebugLog (GetDebugLevel(), "NextRow(): CheckColNum = {} [should be {}]", iCheckColNum, ii+1);
+					kDebug (GetDebugLevel(), "CheckRowNum = {} [should be {}]", iCheckRowNum, m_iRowNum);
+					kDebug (GetDebugLevel(), "CheckColNum = {} [should be {}]", iCheckColNum, ii+1);
 				}
 				else
 				{
-					kWarningLog ("NextRow(): CheckRowNum = {} [should be {}]", iCheckRowNum, m_iRowNum);
-					kWarningLog ("NextRow(): CheckColNum = {} [should be {}]", iCheckColNum, ii+1);
+					kWarning ("CheckRowNum = {} [should be {}]", iCheckRowNum, m_iRowNum);
+					kWarning ("CheckColNum = {} [should be {}]", iCheckColNum, ii+1);
 				}
 				m_sLastError.Format ("{}NextRow(): buffered results stat line out of sync for row={}, col={}", m_sErrorPrefix, 
 					(uint64_t)m_iRowNum, ii+1);
@@ -3408,11 +3408,11 @@ bool KSQL::NextRow ()
 
 			if (iDataLen > 50)
 			{
-				kDebugLog (3, "  from-buffer: row[{}]col[{}]: strlen()={}", m_iRowNum, ii+1, iDataLen);
+				kDebug (3, "  from-buffer: row[{}]col[{}]: strlen()={}", m_iRowNum, ii+1, iDataLen);
 			}
 			else
 			{
-				kDebugLog (3, "  from-buffer: row[{}]col[{}]: '{}'", m_iRowNum, ii+1, szStatLine);
+				kDebug (3, "  from-buffer: row[{}]col[{}]: '{}'", m_iRowNum, ii+1, szStatLine);
 			}
 
 			// now we know how big the data value is, so we can malloc for it:
@@ -3458,11 +3458,11 @@ bool KSQL::NextRow (KROW& Row, bool fTrimRight)
 
 	if (bGotOne)
 	{
-		kDebugLog (3, "  data: got row {}, now loading property sheet with {} column values...", m_iRowNum, GetNumCols());
+		kDebug (3, "  data: got row {}, now loading property sheet with {} column values...", m_iRowNum, GetNumCols());
 	}
 	else
 	{
-		kDebugLog (3, "  data: no more rows.");
+		kDebug (3, "  data: no more rows.");
 	}
 
 	// load up a property sheet so we can lookup values by column name:
@@ -3481,7 +3481,7 @@ bool KSQL::NextRow (KROW& Row, bool fTrimRight)
 void KSQL::FreeBufferedColArray (bool fValuesOnly/*=false*/)
 //-----------------------------------------------------------------------------
 {
-	//kDebugLog (3, "KSQL::FreeBufferedColArray({})...", m_dBufferedColArray);
+	//kDebug (3, "{}...", m_dBufferedColArray);
 
 	// FYI: the m_dBufferedColArray is only used with the F_BufferResults flag
 	// FYI: there is nothing database specific in this member function
@@ -3497,7 +3497,7 @@ void KSQL::FreeBufferedColArray (bool fValuesOnly/*=false*/)
 	{
 		if (m_dBufferedColArray[ii])
 		{
-			//kDebugLog (3, "  free(m_dBufferedColArray[ii]= {}[{}] = {})", m_dBufferedColArray, ii, m_dBufferedColArray+ii);
+			//kDebug (3, "  free(m_dBufferedColArray[ii]= {}[{}] = {})", m_dBufferedColArray, ii, m_dBufferedColArray+ii);
 			kfree (m_dBufferedColArray[ii], "KSQL:FreeBufferedColArray[ii]");  // <-- frees the result of strdup() in NextRow()
 			m_dBufferedColArray[ii] = nullptr;
 		}
@@ -3508,7 +3508,7 @@ void KSQL::FreeBufferedColArray (bool fValuesOnly/*=false*/)
 		return;
 	}
 
-	//kDebugLog (3, "  free(m_dBufferedColArray = {})", m_dBufferedColArray);
+	//kDebug (3, "  free(m_dBufferedColArray = {})", m_dBufferedColArray);
 	kfree (m_dBufferedColArray, "KSQL:m_dBufferedColArray");  // <-- frees the result of malloc() in NextRow()
 
 	m_dBufferedColArray = nullptr;
@@ -3534,19 +3534,19 @@ int64_t KSQL::SingleIntRawQuery (KStringView sSQL, Flags iFlags/*=0*/, KStringVi
 
 	if (!bOK)
 	{
-		kDebugLog (GetDebugLevel(), "{}: sql error, so we return -1", sAPI);
+		kDebugLog (GetDebugLevel(), "KSQL::{}(): sql error, so we return -1", sAPI);
 		return (-1);
 	}
 
 	if (!NextRow())
 	{
-		kDebugLog (GetDebugLevel(), "{}: expected one row back and didn't get it, so we return -1", sAPI);
+		kDebugLog (GetDebugLevel(), "KSQL::{}(): expected one row back and didn't get it, so we return -1", sAPI);
 		EndQuery();
 		return (-1);
 	}
 
 	int64_t iValue = Get (1).Int64();
-	kDebugLog (GetDebugLevel(), "{}: got {}\n", sAPI, iValue);
+	kDebugLog (GetDebugLevel(), "KSQL::{}(): got {}\n", sAPI, iValue);
 
 	EndQuery();
 	return (iValue);
@@ -3557,7 +3557,7 @@ int64_t KSQL::SingleIntRawQuery (KStringView sSQL, Flags iFlags/*=0*/, KStringVi
 bool KSQL::ResetBuffer ()
 //-----------------------------------------------------------------------------
 {
-	kDebugLog (GetDebugLevel(), "ResetBuffer");
+	kDebug (GetDebugLevel(), "ResetBuffer");
 
 	// FYI: there is nothing database specific in this member function
 
@@ -3612,11 +3612,17 @@ void KSQL::EndQuery (bool bDestructor/*=false*/)
 		return;
 	}
 
-	if (!bDestructor) { kDebugLog (3, "  KSQL::EndQuery()..."); }
+	if (!bDestructor)
+	{
+		kDebug (3, "  ...");
+	}
 
 	if (m_bQueryStarted)
 	{
-		if (!bDestructor) { kDebugLog (GetDebugLevel()+1, "  EndQuery: {} row{} fetched.", m_iRowNum, (m_iRowNum==1) ? " was" : "s were"); }
+		if (!bDestructor)
+		{
+			kDebug (GetDebugLevel()+1, "  {} row{} fetched.", m_iRowNum, (m_iRowNum==1) ? " was" : "s were");
+		}
 	}
 
     #ifdef DEKAF2_HAS_MYSQL
@@ -3644,7 +3650,10 @@ void KSQL::EndQuery (bool bDestructor/*=false*/)
 	// - - - - - - - - - - - - - - - - - - - - - - - -
 	if (m_bFileIsOpen)
 	{
-		if (!bDestructor) { kDebugLog (3, "  fclose (m_bpBufferedResults)..."); }
+		if (!bDestructor)
+		{
+			kDebug (3, "  fclose (m_bpBufferedResults)...");
+		}
 		if (m_bpBufferedResults)
 		{
 			fclose (m_bpBufferedResults);
@@ -3676,7 +3685,7 @@ const KSQL::KColInfo& KSQL::GetColProps (KROW::Index iOneBasedColNum)
 {
 	static KColInfo s_NullResult;
 
-	kDebugLog (3, "KSQL::GetColProps()...");
+	kDebug (3, "...");
 
 	if (!QueryStarted())
 	{
@@ -3706,7 +3715,7 @@ const KSQL::KColInfo& KSQL::GetColProps (KROW::Index iOneBasedColNum)
 KStringView KSQL::Get (KROW::Index iOneBasedColNum, bool fTrimRight/*=true*/)
 //-----------------------------------------------------------------------------
 {
-	kDebugLog (3, "KSQL::Get()...");
+	kDebug (3, "...");
 
 	if (!QueryStarted())
 	{
@@ -3779,7 +3788,7 @@ KStringView KSQL::Get (KROW::Index iOneBasedColNum, bool fTrimRight/*=true*/)
 			case API::ODBC:
 			default:
 			// - - - - - - - - - - - - - - - - -
-				kWarningLog ("KSQL: unsupported API Set ({})", TxAPISet(m_iAPISet));
+				kWarning ("unsupported API Set ({})", TxAPISet(m_iAPISet));
 				kCrashExit (CRASHCODE_DEKAFUSAGE);
 		}
 
@@ -3794,11 +3803,11 @@ KStringView KSQL::Get (KROW::Index iOneBasedColNum, bool fTrimRight/*=true*/)
 	{
 		if (sRtnValue.size() > 50)
 		{
-			kDebugLog (3, "  data: row[{}]col[{}]: strlen()={}", m_iRowNum, iOneBasedColNum, sRtnValue.size());
+			kDebug (3, "  data: row[{}]col[{}]: strlen()={}", m_iRowNum, iOneBasedColNum, sRtnValue.size());
 		}
 		else
 		{
-			kDebugLog (3, "  data: row[{}]col[{}]: '{}'", m_iRowNum, iOneBasedColNum, sRtnValue);
+			kDebug (3, "  data: row[{}]col[{}]: '{}'", m_iRowNum, iOneBasedColNum, sRtnValue);
 		}
 	}
 
@@ -3810,7 +3819,7 @@ KStringView KSQL::Get (KROW::Index iOneBasedColNum, bool fTrimRight/*=true*/)
 time_t KSQL::GetUnixTime (KROW::Index iOneBasedColNum)
 //-----------------------------------------------------------------------------
 {
-	kDebugLog (3, "KSQL::UnixTime()...");
+	kDebug (3, "...");
 
 	// FYI: there is nothing database specific in this member function
 	// (we get away with this by fetching all results as strings, then
@@ -3857,7 +3866,7 @@ time_t KSQL::GetUnixTime (KROW::Index iOneBasedColNum)
 	time_t iUnixTime = mktime (&TimeStruct);
 
 	//kDebugTmStruct ((char*)"KSQL:UnixTime()", &TimeStruct, /*iMinDebugLevel=*/2);
-	kDebugLog (GetDebugLevel()+1, "  unixtime = {}", iUnixTime);
+	kDebug (GetDebugLevel()+1, "  unixtime = {}", iUnixTime);
 
 	return (iUnixTime);
 
@@ -3867,26 +3876,26 @@ time_t KSQL::GetUnixTime (KROW::Index iOneBasedColNum)
 bool KSQL::SQLError (bool fForceError/*=false*/)
 //-----------------------------------------------------------------------------
 {
-	kDebugLog (3, "KSQL::SQLError()...");
+	kDebug (3, "...");
 
 	// FYI: there is nothing database specific in this member function
 
 	if (m_sLastError.empty())
 	{
-		kDebugLog (GetDebugLevel(), "KSQL: something is amuck.  SQLError() called, but m_sLastError is empty.");
+		kDebug (GetDebugLevel(), "something is amuck.  SQLError() called, but m_sLastError is empty.");
 		m_sLastError.Format("unknown SQL error");
 	}
 	
 	if (IsFlag(F_IgnoreSQLErrors) && !fForceError)
 	{
-		kDebugLog (GetDebugLevel(), "IGNORED: {}", m_sLastError);
+		kDebug (GetDebugLevel(), "IGNORED: {}", m_sLastError);
 	}
 	else
 	{			
-		kWarningLog ("{}", m_sLastError);
+		kWarning ("{}", m_sLastError);
 		if (!m_sLastSQL.empty())
 		{
-			kWarningLog ("{}", m_sLastSQL);
+			kWarning ("{}", m_sLastSQL);
 		}
 	}
 
@@ -4059,7 +4068,7 @@ bool KSQL::SetAPISet (API iAPISet)
 	if (iAPISet != API::NONE)
 	{
 		m_iAPISet = iAPISet;
-		kDebugLog (GetDebugLevel(), "APISet set to {}", TxAPISet(m_iAPISet));
+		kDebug (GetDebugLevel(), "set to {}", TxAPISet(m_iAPISet));
 		return (true);
 	}
 
@@ -4070,7 +4079,7 @@ bool KSQL::SetAPISet (API iAPISet)
 	if (iEnv)
 	{
 		m_iAPISet = static_cast<API>(iEnv);
-		kDebugLog (GetDebugLevel(), "APISet (from $KSQL_APISET) set to {}", TxAPISet(m_iAPISet));
+		kDebug (GetDebugLevel(), "(from $KSQL_APISET) set to {}", TxAPISet(m_iAPISet));
 		return (true);
 	}
 
@@ -4112,7 +4121,7 @@ bool KSQL::SetAPISet (API iAPISet)
 KSQL::Flags KSQL::SetFlags (Flags iFlags)
 //-----------------------------------------------------------------------------
 {
-	kDebugLog (3, "KSQL::SetFlags()...");
+	kDebug (3, "...");
 
 	// FYI: there is nothing database specific in this member function
 
@@ -4146,7 +4155,7 @@ KString KSQL::GetLastInfo()
 void KSQL::BuildTranslationList (TXList& pList, DBT iDBType)
 //-----------------------------------------------------------------------------
 {
-	kDebugLog (3, "KSQL::BuildTranslationList()...");
+	kDebug (3, "...");
 
 	if (iDBType == DBT::NONE)
 	{
@@ -4210,8 +4219,7 @@ void KSQL::BuildTranslationList (TXList& pList, DBT iDBType)
 void KSQL::DoTranslations (KString& sSQL, DBT iDBType)
 //-----------------------------------------------------------------------------
 {
-	kDebugLog (3,
-			   "KSQL::DoTranslations():\n"
+	kDebug (3,
 			   "BEFORE:\n"
 			   "{}",
 				   sSQL);
@@ -4229,11 +4237,11 @@ void KSQL::DoTranslations (KString& sSQL, DBT iDBType)
 
 	if (!kReplaceVariables(sSQL, s_sOpen, s_sClose, true, m_TxList))
 	{
-		kDebugLog (3, " --> no SQL translations.");
+		kDebug (3, " --> no SQL translations.");
 	}
 	else
 	{
-		kDebugLog (3, "AFTER:\n{}", sSQL);
+		kDebug (3, "AFTER:\n{}", sSQL);
 	}
 
 } // DoTranslations
@@ -4505,7 +4513,7 @@ bool KSQL::ListTables (KStringView sLike/*="%"*/, bool fIncludeViews/*=false*/, 
 		// fRestrictToMine: the MySQL "show table status" command only does exactly that
 		if (sLike != "%"_ksv)
 		{
-			kDebugLog (GetDebugLevel(), "warning: KSQL::ListTables({}): MySQL 'show table status' does not support arguments", sLike);
+			kDebug (GetDebugLevel(), "warning: {}: MySQL 'show table status' does not support arguments", sLike);
 		}
 		{
 			//uint32_t iFlags = GetFlags();
@@ -4610,7 +4618,7 @@ bool KSQL::ListProcedures (KStringView sLike/*="%"*/, bool fRestrictToMine/*=tru
 		// fRestrictToMine: the MySQL "show procedure status" command only does exactly that
 		if (sLike != "%"_ksv)
 		{
-			kDebugLog (GetDebugLevel(), "warning: KSQL::ListProcedures({}): MySQL 'show procedure status' does not support arguments", sLike);
+			kDebug (GetDebugLevel(), "warning: {}: MySQL 'show procedure status' does not support arguments", sLike);
 		}
 		{
 			//uint32_t iFlags = GetFlags();
@@ -4709,7 +4717,7 @@ bool KSQL::DescribeTable (KStringView sTablename)
 KJSON KSQL::FindColumn (KStringView sColLike)
 //-----------------------------------------------------------------------------
 {
-	kDebugLog (3, "KSQL::FindColumn({})...", sColLike);
+	kDebug (3, "{}...", sColLike);
 	KJSON list = KJSON::array();
 
 	switch (m_iDBType)
@@ -4741,7 +4749,7 @@ KJSON KSQL::FindColumn (KStringView sColLike)
 	case DBT::ORACLE:
 	// - - - - - - - - - - - - - - - - - - - - - - - -
 		m_sLastError = "KSQL::FindColumn() not coded yet for DBT::SQLSERVER";
-		kWarning ("{}", m_sLastError);
+		kWarningLog ("{}", m_sLastError);
 		return list;
 		break;
 
@@ -4749,7 +4757,7 @@ KJSON KSQL::FindColumn (KStringView sColLike)
 	case DBT::SQLSERVER:
 	// - - - - - - - - - - - - - - - - - - - - - - - -
 		m_sLastError = "KSQL::FindColumn() not coded yet for DBT::SQLSERVER";
-		kWarning ("{}", m_sLastError);
+		kWarningLog ("{}", m_sLastError);
 		return list;
 		break;
 
@@ -4765,7 +4773,7 @@ KJSON KSQL::FindColumn (KStringView sColLike)
 	KROW  row;
 	while (NextRow (row))
 	{
-		kDebugLog (3, "KSQL::FindColumn({}): found column {} in table {}", sColLike, row["column_name"], row["table_name"]);
+		kDebug (3, "{}: found column {} in table {}", sColLike, row["column_name"], row["table_name"]);
 		list += row;
 	}
 
@@ -4778,7 +4786,7 @@ KJSON KSQL::FindColumn (KStringView sColLike)
 unsigned char* KSQL::EncodeData (unsigned char* sBlobData, BlobType iBlobType, uint64_t iBlobDataLen/*=0*/, bool fInPlace/*=false*/)
 //-----------------------------------------------------------------------------
 {
-	kDebugLog (3, "EncodeData()...");
+	kDebug (3, "...");
 
 	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 	// NOTE: this routine returns NEW MEMORY (upon success) 
@@ -4836,7 +4844,7 @@ unsigned char* KSQL::EncodeData (unsigned char* sBlobData, BlobType iBlobType, u
 
 		if (iBlobDataLen < 40)
 		{
-			kDebugLog (GetDebugLevel(), "EncodeData(ASCII): '{}' --> '{}'", sBlobData, dszEncodedBlob);
+			kDebug (GetDebugLevel(), "(ASCII): '{}' --> '{}'", sBlobData, dszEncodedBlob);
 		}
 
 		return (dszEncodedBlob); // <-- new memory
@@ -4863,7 +4871,7 @@ unsigned char* KSQL::EncodeData (unsigned char* sBlobData, BlobType iBlobType, u
 
 		if (iBlobDataLen < 40)
 		{
-			kDebugLog (GetDebugLevel(), "EncodeData(BINARY): '{}' --> '{}'", sBlobData, dszEncodedBlob);
+			kDebug (GetDebugLevel(), "(BINARY): '{}' --> '{}'", sBlobData, dszEncodedBlob);
 		}
 
 		return (dszEncodedBlob); // <-- new memory
@@ -4879,7 +4887,7 @@ unsigned char* KSQL::EncodeData (unsigned char* sBlobData, BlobType iBlobType, u
 unsigned char* KSQL::DecodeData (unsigned char* sBlobData, BlobType iBlobType, uint64_t iEncodedLen/*=0*/, bool fInPlace/*=false*/)
 //-----------------------------------------------------------------------------
 {
-	kDebugLog (GetDebugLevel(), "DecodeData()...");
+	kDebug (GetDebugLevel(), "...");
 
 	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 	// NOTE: this routine returns NEW MEMORY (upon success) 
@@ -4938,7 +4946,7 @@ unsigned char* KSQL::DecodeData (unsigned char* sBlobData, BlobType iBlobType, u
 
 		if (iEncodedLen < 40)
 		{
-			kDebugLog (GetDebugLevel(), "DecodeData(ASCII): '{}' --> '{}'", sBlobData, dszDecodedBlob);
+			kDebug (GetDebugLevel(), "(ASCII): '{}' --> '{}'", sBlobData, dszDecodedBlob);
 		}
 
 		return (dszDecodedBlob); // <-- new memory
@@ -4987,12 +4995,12 @@ unsigned char* KSQL::DecodeData (unsigned char* sBlobData, BlobType iBlobType, u
 			{
 				if (kWouldLog(GetDebugLevel())
 				{
-					kDebugLog (GetDebugLevel(), "KSQL:DecodeData(): corrupted hex pair in encoded data:");
-					kDebugLog (GetDebugLevel(), "  szHexPair[{}+{}] = %3d ({})", ii, 0, szHexPair[0], bOK1 ? "valid hex digit" : "INVALID HEX DIGIT");
-					kDebugLog (GetDebugLevel(), "  szHexPair[{}+{}] = %3d ({})", ii, 1, szHexPair[1], bOK2 ? "valid hex digit" : "INVALID HEX DIGIT");
-					kDebugLog (GetDebugLevel(), "  EncodedLen={}", iEncodedLen);
-					kDebugLog (GetDebugLevel(), "  sBlobData     = {} (memory dump to follow)...", sBlobData);
-					kDebugLog (GetDebugLevel(), "  sBlobData+Len = {}", sBlobData+iEncodedLen);
+					kDebug (GetDebugLevel(), "corrupted hex pair in encoded data:");
+					kDebug (GetDebugLevel(), "  szHexPair[{}+{}] = %3d ({})", ii, 0, szHexPair[0], bOK1 ? "valid hex digit" : "INVALID HEX DIGIT");
+					kDebug (GetDebugLevel(), "  szHexPair[{}+{}] = %3d ({})", ii, 1, szHexPair[1], bOK2 ? "valid hex digit" : "INVALID HEX DIGIT");
+					kDebug (GetDebugLevel(), "  EncodedLen={}", iEncodedLen);
+					kDebug (GetDebugLevel(), "  sBlobData     = {} (memory dump to follow)...", sBlobData);
+					kDebug (GetDebugLevel(), "  sBlobData+Len = {}", sBlobData+iEncodedLen);
 				}
 
 				//kDebugMemory ((const char*) sBlobData, 0, /*iLinesBefore=*/0, /*iLinesAfter=*/iEncodedLen/8);
@@ -5005,7 +5013,7 @@ unsigned char* KSQL::DecodeData (unsigned char* sBlobData, BlobType iBlobType, u
 			int iValue = 0;
 			sscanf ((char*)szHexPair, "%x", &iValue);
 
-			kDebugLog (GetDebugLevel()+1, "  HexPair[%04lu/%04lu]: '{}' ==> %03d ==> '%c'", ii, iEncodedLen, szHexPair, iValue, iValue);
+			kDebug (GetDebugLevel()+1, "  HexPair[%04lu/%04lu]: '{}' ==> %03d ==> '%c'", ii, iEncodedLen, szHexPair, iValue, iValue);
 
 			dszDecodedBlob[jj++] = iValue;
 		}
@@ -5024,7 +5032,7 @@ unsigned char* KSQL::DecodeData (unsigned char* sBlobData, BlobType iBlobType, u
 bool KSQL::PutBlob (KStringView sBlobTable, KStringView sBlobKey, unsigned char* sBlobData, BlobType iBlobType, uint64_t iBlobDataLen/*=0*/)
 //-----------------------------------------------------------------------------
 {
-	kDebugLog (3, "PutBlob()...");
+	kDebug (3, "...");
 
 	if (!sBlobTable || !sBlobKey || !sBlobData)
 	{
@@ -5085,7 +5093,7 @@ bool KSQL::PutBlob (KStringView sBlobTable, KStringView sBlobKey, unsigned char*
 		memcpy (szChunk, sSpot, iEncodedLenChunk);
 		szChunk[iEncodedLenChunk] = 0;
 
-		kDebugLog (GetDebugLevel(), "PutBlob(): chunk '{}', part[{:02}]: encoding={}, datasize=%04lu", sBlobKey, iChunkNum, iBlobType, iDataLenChunk);
+		kDebug (GetDebugLevel(), "chunk '{}', part[{:02}]: encoding={}, datasize=%04lu", sBlobKey, iChunkNum, iBlobType, iDataLenChunk);
 
 		bool bOK = ExecSQL (
 			"insert into {} (BlobKey, ChunkNum, Chunk, Encoding, EncodedSize, DataSize)\n"
@@ -5114,7 +5122,7 @@ bool KSQL::PutBlob (KStringView sBlobTable, KStringView sBlobKey, unsigned char*
 unsigned char* KSQL::GetBlob (KStringView sBlobTable, KStringView sBlobKey, uint64_t* piBlobDataLen/*=nullptr*/)
 //-----------------------------------------------------------------------------
 {
-	kDebugLog (3, "GetBlob()...");
+	kDebug (3, "...");
 
 	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 	// NOTE: this routine returns NEW MEMORY (upon success) 
@@ -5136,7 +5144,7 @@ unsigned char* KSQL::GetBlob (KStringView sBlobTable, KStringView sBlobKey, uint
 		return (nullptr); // db error
 	}
 
-	kDebugLog (GetDebugLevel(), "KSQL:GetBlob(): expecting %lld bytes for BlobKey='{}'", iBlobDataLen, sBlobKey);
+	kDebug (GetDebugLevel(), "expecting %lld bytes for BlobKey='{}'", iBlobDataLen, sBlobKey);
 
 	if (!iBlobDataLen)
 	{
@@ -5159,19 +5167,19 @@ unsigned char* KSQL::GetBlob (KStringView sBlobTable, KStringView sBlobKey, uint
 		uint64_t    iEncodedSize    = ULongValue (4);
 		uint64_t    iDataSize       = ULongValue (5);
 
-		kDebugLog (GetDebugLevel(), "GetBlob(): chunk '{}', part[{:02}]: encoding={}, datasize=%04lu", sBlobKey, iChunkNum, iEncoding, iDataSize);
+		kDebug (GetDebugLevel(), "chunk '{}', part[{:02}]: encoding={}, datasize=%04lu", sBlobKey, iChunkNum, iEncoding, iDataSize);
 
 		// 1. decode this chunk:
-		kDebugLog (GetDebugLevel()+1, "KSQL:GetBlob(1): decoding this chunk...");
+		kDebug (GetDebugLevel()+1, "(1): decoding this chunk...");
 		unsigned char* dszChunk        = DecodeData (sEncodedChunk, iEncoding, iEncodedSize); // malloc
 
 		// 2. add this chunk on to our return memory:
-		kDebugLog (GetDebugLevel()+1, "KSQL:GetBlob(2): adding decoded chunk to Spot={} (BlobData={})",
+		kDebug (GetDebugLevel()+1, "(2): adding decoded chunk to Spot={} (BlobData={})",
 				sSpot, dszBlobData);
 		memcpy (sSpot, dszChunk, iDataSize);
 
 		// 3. position the pointer:
-		kDebugLog (GetDebugLevel()+1, "KSQL:GetBlob(3): moving Spot from {} to {}...",
+		kDebug (GetDebugLevel()+1, "(3): moving Spot from {} to {}...",
 				sSpot, sSpot + iDataSize);
 		sSpot += iDataSize;
 
@@ -5182,32 +5190,32 @@ unsigned char* KSQL::GetBlob (KStringView sBlobTable, KStringView sBlobKey, uint
 		}
 	}
 
-	kDebugLog (GetDebugLevel()+1, "KSQL:GetBlob(): checking result...");
+	kDebug (GetDebugLevel()+1, "checking result...");
 
 	if (sSpot != (dszBlobData + iBlobDataLen))
 	{
-		kDebugLog (GetDebugLevel(), "GetBlob(): sanity check failed:");
-		kDebugLog (GetDebugLevel(), "    dszBlobData   = {}", dszBlobData);
-		kDebugLog (GetDebugLevel(), "  + iBlobDataLen  = + %8lld", iBlobDataLen);
-		kDebugLog (GetDebugLevel(), "  --------------    ----------");
-		kDebugLog (GetDebugLevel(), "                  = {}", dszBlobData + iBlobDataLen);
-		kDebugLog (GetDebugLevel(), "    but sSpot   = {}", sSpot);
+		kDebug (GetDebugLevel(), "sanity check failed:");
+		kDebug (GetDebugLevel(), "    dszBlobData   = {}", dszBlobData);
+		kDebug (GetDebugLevel(), "  + iBlobDataLen  = + %8lld", iBlobDataLen);
+		kDebug (GetDebugLevel(), "  --------------    ----------");
+		kDebug (GetDebugLevel(), "                  = {}", dszBlobData + iBlobDataLen);
+		kDebug (GetDebugLevel(), "    but sSpot   = {}", sSpot);
 	}
 
 	*sSpot = 0;                       // <-- terminate the blob (in case its ascii)
 
 	if (piBlobDataLen)
 	{
-		kDebugLog (GetDebugLevel(), "KSQL:GetBlob(): return length set to %lld", iBlobDataLen);
+		kDebug (GetDebugLevel(), "return length set to %lld", iBlobDataLen);
 
 		*piBlobDataLen = (uint64_t) iBlobDataLen;  // <-- for truly binary data, this data length is essential
 	}
 	else
 	{
-		kDebugLog (GetDebugLevel(), "KSQL:GetBlob(): return length (%lld) not passed back", iBlobDataLen);
+		kDebug (GetDebugLevel(), "return length (%lld) not passed back", iBlobDataLen);
 	}
 
-	kDebugLog (GetDebugLevel(), "KSQL:GetBlob(): return data pointer sBlobData = {}", dszBlobData);
+	kDebug (GetDebugLevel(), "return data pointer sBlobData = {}", dszBlobData);
 
 	return (dszBlobData);               // <-- new memory which must be freed
 
@@ -5296,7 +5304,7 @@ bool KSQL::_BindByName (KStringView sPlaceholder, dvoid* pValue, sb4 iValueSize,
 
 	if (!WasOCICallOK("BindByName"))
 	{
-		kDebugLog (GetDebugLevel(), "{}", m_sLastError);
+		kDebug (GetDebugLevel(), "{}", m_sLastError);
 		return (false);
 	}
 
@@ -5398,7 +5406,7 @@ bool KSQL::_BindByPos (uint32_t iPosition, dvoid* pValue, sb4 iValueSize, ub2 iD
 
 	if (!WasOCICallOK("BindByPos"))
 	{
-		kDebugLog (GetDebugLevel(), "{}", m_sLastError);
+		kDebug (GetDebugLevel(), "{}", m_sLastError);
 		return (false);
 	}
 
@@ -5483,7 +5491,7 @@ bool KSQL::Insert (KROW& Row, bool bIgnoreDupes/*=false*/)
 		SetFlags (iSavedFlags);
 	}
 
-	kDebugLog (GetDebugLevel(), "{} rows affected.", m_iNumRowsAffected);
+	kDebug (GetDebugLevel(), "{} rows affected.", m_iNumRowsAffected);
 
 	return (bOK);
 
@@ -5506,7 +5514,7 @@ bool KSQL::Update (KROW& Row)
 
 	bool bOK = ExecRawSQL (m_sLastSQL, 0, "Update");
 
-	kDebugLog (GetDebugLevel(), "{} rows affected.", m_iNumRowsAffected);
+	kDebug (GetDebugLevel(), "{} rows affected.", m_iNumRowsAffected);
 
 	return (bOK);
 
@@ -5529,7 +5537,7 @@ bool KSQL::Delete (KROW& Row)
 
 	bool bOK = ExecRawSQL (m_sLastSQL, 0, "Delete");
 
-	kDebugLog (GetDebugLevel(), "{} rows affected.", m_iNumRowsAffected);
+	kDebug (GetDebugLevel(), "{} rows affected.", m_iNumRowsAffected);
 
 	return (bOK);
 
@@ -5579,7 +5587,7 @@ bool KSQL::UpdateOrInsert (KROW& Row, KROW& AdditionalInsertCols, bool* pbInsert
 		*pbInserted = false;
 	}
 
-	kDebugLog (GetDebugLevel()+1, "InsertOrUpdate: trying update first...");
+	kDebug (GetDebugLevel()+1, "trying update first...");
 	if (!Update (Row))
 	{
 		return (false); // syntax error in SQL
@@ -5590,14 +5598,14 @@ bool KSQL::UpdateOrInsert (KROW& Row, KROW& AdditionalInsertCols, bool* pbInsert
 		return (true); // update caught something
 	}
 
-	kDebugLog (GetDebugLevel(), "InsertOrUpdate: update caught no rows: proceed to insert...");
+	kDebug (GetDebugLevel(), "update caught no rows: proceed to insert...");
 
 	if (pbInserted)
 	{
 		*pbInserted = true;
 	}
 
-	kDebugLog (GetDebugLevel()+1, "InsertOrUpdate: attempting insert...");
+	kDebug (GetDebugLevel()+1, "attempting insert...");
 
 	Row += AdditionalInsertCols;
 

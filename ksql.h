@@ -262,7 +262,7 @@ public:
 		}
 
 		bool bOK = ExecRawSQL (m_sLastSQL, 0, "ExecSQL");
-		kDebugLog (GetDebugLevel(), "{} rows affected.", m_iNumRowsAffected);
+		kDebug (GetDebugLevel(), "{} rows affected.", m_iNumRowsAffected);
 		return (bOK);
 
 	} // KSQL::ExecSQL
@@ -274,7 +274,7 @@ public:
 	template<class... Args>
 	bool ExecQuery (Args&&... args)
 	{
-		kDebugLog (3, "KSQL::ExecQuery()...");
+		kDebug (3, "...");
 
 		EndQuery ();
 		
@@ -305,7 +305,7 @@ public:
 	template<class... Args>
 	int64_t SingleIntQuery (Args&&... args)
 	{
-		kDebugLog (3, "KSQL::SingleIntQuery()...");
+		kDebug (3, "...");
 
 		m_sLastSQL = kPrintf(std::forward<Args>(args)...);
 

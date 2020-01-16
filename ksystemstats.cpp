@@ -293,7 +293,7 @@ bool KSystemStats::GatherProcInfo ()
 			}
 			else
 			{
-				kDebug(1, "invalid value for {}: {}", "uptime_seconds", nTotal);
+				kDebug(2, "invalid value for {}: {}", "uptime_seconds", nTotal);
 			}
 		}
 	}
@@ -1029,7 +1029,7 @@ bool KSystemStats::AddCalculations ()
 		}
 		else
 		{
-			kDebug(1, "invalid value for {}: {}", "meminfo_memtotal_kb", iTotal);
+			kDebug(2, "invalid value for {}: {}", "meminfo_memtotal_kb", iTotal);
 		}
 	}
 
@@ -1054,7 +1054,7 @@ bool KSystemStats::AddCalculations ()
 		}
 		else
 		{
-			kDebug(1, "invalid value for {}: {}", "meminfo_swaptotal_kb", iTotal);
+			kDebug(2, "invalid value for {}: {}", "meminfo_swaptotal_kb", iTotal);
 		}
 	}
 
@@ -1105,7 +1105,7 @@ size_t KSystemStats::GatherProcs (KStringView sCommandRegex/*=""*/, bool bDoNoSh
 			// Did we get the correct number of parts?
 			if (4 != Parts.size())
 			{
-				kDebug (1, "ERROR: Unexpected number of parsed results. Expected four (4) elements got '{}' element(s)", Parts.size());
+				kDebug (2, "ERROR: Unexpected number of parsed results. Expected four (4) elements got '{}' element(s)", Parts.size());
 
 				if (Parts.size() > 4)
 				{

@@ -340,7 +340,7 @@ KSQL::KSQL (DBT iDBType/*=DBT::MYSQL*/, KStringView sUsername/*=nullptr*/, KStri
 	if (!sUsername.empty())
 	{
 		SetConnect (iDBType, sUsername, sPassword, sDatabase, sHostname, iDBPortNum);
-		// already calls SetAPISet() and FormatConnectSummary()
+		// already calls SetAPISet() and InvalidateConnectSummary()
 	}
 
 } // KSQL - default constructor
@@ -496,7 +496,7 @@ bool KSQL::SetConnect (DBT iDBType, KStringView sUsername, KStringView sPassword
 	m_sHostname  = sHostname;
 
 	SetAPISet (API::NONE); // <-- pick the default APIs for this DBType
-	FormatConnectSummary();
+	InvalidateConnectSummary();
 	kDebugLog (1, "{}", ConnectSummary());
 
 	return (true);
@@ -510,7 +510,7 @@ bool KSQL::SetDBType (DBT iDBType)
 	NOT_IF_ALREADY_OPEN ("SetDBType");
 	m_iDBType    = iDBType;
 	SetAPISet (API::NONE); // <-- pick the default APIs for this DBType
-	FormatConnectSummary();
+	InvalidateConnectSummary();
 	return (true);
 
 } // SetDBType
@@ -561,7 +561,7 @@ bool KSQL::SetDBUser (KStringView sUsername)
 {
 	NOT_IF_ALREADY_OPEN ("SetDBUser");
 	m_sUsername = sUsername;
-	FormatConnectSummary();
+	InvalidateConnectSummary();
 	return (true);
 
 } // SetDBUser
@@ -572,7 +572,7 @@ bool KSQL::SetDBPass (KStringView sPassword)
 {
 	NOT_IF_ALREADY_OPEN ("SetDBPass");
 	m_sPassword = sPassword;
-	FormatConnectSummary();
+	InvalidateConnectSummary();
 	return (true);
 
 } // SetDBPass
@@ -583,7 +583,7 @@ bool KSQL::SetDBHost (KStringView sHostname)
 {
 	NOT_IF_ALREADY_OPEN ("SetDBHost");
 	m_sHostname = sHostname;
-	FormatConnectSummary();
+	InvalidateConnectSummary();
 	return (true);
 
 } // SetDBHost
@@ -594,7 +594,7 @@ bool KSQL::SetDBName (KStringView sDatabase)
 {
 	NOT_IF_ALREADY_OPEN ("SetDBName");
 	m_sDatabase = sDatabase;
-	FormatConnectSummary();
+	InvalidateConnectSummary();
 	return (true);
 
 } // SetDBName
@@ -605,7 +605,7 @@ bool KSQL::SetDBPort (int iDBPortNum)
 {
 	NOT_IF_ALREADY_OPEN ("SetDBPort");
 	m_iDBPortNum = static_cast<uint32_t>(iDBPortNum);
-	FormatConnectSummary();
+	InvalidateConnectSummary();
 	return (true);
 
 } // SetDBPort
@@ -764,7 +764,7 @@ bool KSQL::SetConnect (const KString& sDBCFile, const KString& sDBCFileContent)
 		return false;
 	}
 
-	FormatConnectSummary();
+	InvalidateConnectSummary();
 
 	m_sDBCFile = sDBCFile;
 
@@ -824,7 +824,7 @@ bool KSQL::OpenConnection ()
 	static bool s_fOCI8Initialized = false;
 	#endif
 
-	kDebugLog (3, "KSQL::OpenConnection()...");
+	kDebug (3, "...");
 
 	if (m_bConnectionIsOpen)
 	{
@@ -837,19 +837,19 @@ bool KSQL::OpenConnection ()
 		SetAPISet (API::NONE); // <-- pick the default APIs for this DBType
 	}
 
-	FormatConnectSummary ();
+	InvalidateConnectSummary ();
 
 	if (kWouldLog(GetDebugLevel() + 1))
 	{
-		kDebugLog (GetDebugLevel() + 1, "connect info:");
-		kDebugLog (GetDebugLevel() + 1, "  Summary  = {}", m_sConnectSummary);
-		kDebugLog (GetDebugLevel() + 1, "  DBType   = {}", TxDBType(m_iDBType));
-		kDebugLog (GetDebugLevel() + 1, "  APISet   = {}", TxAPISet(m_iAPISet));
-		kDebugLog (GetDebugLevel() + 1, "  DBUser   = {}", m_sUsername);
-		kDebugLog (GetDebugLevel() + 1, "  DBHost   = {}", m_sHostname);
-		kDebugLog (GetDebugLevel() + 1, "  DBPort   = {}", m_iDBPortNum);
-		kDebugLog (GetDebugLevel() + 1, "  DBName   = {}", m_sDatabase);
-		kDebugLog (GetDebugLevel() + 1, "  Flags    = {} ( {}{}{}{})",
+		kDebug (GetDebugLevel() + 1, "connect info:");
+		kDebug (GetDebugLevel() + 1, "  Summary  = {}", ConnectSummary());
+		kDebug (GetDebugLevel() + 1, "  DBType   = {}", TxDBType(m_iDBType));
+		kDebug (GetDebugLevel() + 1, "  APISet   = {}", TxAPISet(m_iAPISet));
+		kDebug (GetDebugLevel() + 1, "  DBUser   = {}", m_sUsername);
+		kDebug (GetDebugLevel() + 1, "  DBHost   = {}", m_sHostname);
+		kDebug (GetDebugLevel() + 1, "  DBPort   = {}", m_iDBPortNum);
+		kDebug (GetDebugLevel() + 1, "  DBName   = {}", m_sDatabase);
+		kDebug (GetDebugLevel() + 1, "  Flags    = {} ( {}{}{}{})",
 			m_iFlags,
 			IsFlag(F_IgnoreSQLErrors)  ? "IgnoreSQLErrors "  : "",
 			IsFlag(F_BufferResults)    ? "BufferResults "    : "",
@@ -857,7 +857,7 @@ bool KSQL::OpenConnection ()
 			IsFlag(F_NoTranslations)   ? "NoTranslations "   : "");
 	}
 
-	kDebugLog (GetDebugLevel(), "connecting to {}...", m_sConnectSummary);
+	kDebug (GetDebugLevel(), "connecting to {}...", ConnectSummary());
 
     #ifdef DEKAF2_HAS_ORACLE
 	char*  sOraHome = kGetEnv("ORACLE_HOME","");
@@ -902,16 +902,16 @@ bool KSQL::OpenConnection ()
 			std::lock_guard<std::mutex> Lock(s_OnceInitMutex);
 			if (!s_fOnceInitFlag)
 			{
-				kDebugLog (3, "mysql_library_init()...");
+				kDebug (3, "mysql_library_init()...");
 				mysql_library_init(0, nullptr, nullptr);
 				s_fOnceInitFlag = true;
 			}
 		}
 
-		kDebugLog (3, "mysql_init()...");
+		kDebug (3, "mysql_init()...");
 		m_dMYSQL = mysql_init (nullptr);
 
-		kDebugLog (3, "mysql_real_connect()...");
+		kDebug (3, "mysql_real_connect()...");
 
 		if (!mysql_real_connect (m_dMYSQL, m_sHostname.c_str(), m_sUsername.c_str(), m_sPassword.c_str(), m_sDatabase.c_str(), /*port*/ iPortNum, /*sock*/nullptr,
 			/*flag*/CLIENT_FOUND_ROWS)) // <-- this flag corrects the behavior of GetNumRowsAffected()
@@ -982,9 +982,9 @@ bool KSQL::OpenConnection ()
 
 		if (strcmp ((char* )m_sConnectString, (char* )m_sConnectOutput))
 		{
-			kDebugLog (2, "KSQL(warning): connection string was tailored by odbc driver.");
-			kDebugLog (2, "KSQL(warning): orig connect string: '{}'\n", m_sConnectString);
-			kDebugLog (2, "KSQL(warning):  new connect string: '{}'\n", m_sConnectOutput);
+			kDebug (2, "(warning): connection string was tailored by odbc driver.");
+			kDebug (2, "(warning): orig connect string: '{}'\n", m_sConnectString);
+			kDebug (2, "(warning):  new connect string: '{}'\n", m_sConnectOutput);
 		}
 		break;
 	#endif
@@ -993,10 +993,10 @@ bool KSQL::OpenConnection ()
 	// - - - - - - - - - - - - - - - - -
 	case API::OCI8:
 	// - - - - - - - - - - - - - - - - -
-		kDebugLog (2, "ORACLE_HOME='{}'", sOraHome);
+		kDebug (2, "ORACLE_HOME='{}'", sOraHome);
 		if (!*sOraHome)
 		{
-			kDebugLog (2, "KSQL::OpenConnection(): $ORACLE_HOME not set");
+			kDebug (2, "$ORACLE_HOME not set");
 		}
 
 		if (!s_fOCI8Initialized)
@@ -1111,10 +1111,10 @@ bool KSQL::OpenConnection ()
 	// - - - - - - - - - - - - - - - - -
 	case API::OCI6:
 	// - - - - - - - - - - - - - - - - -
-		kDebugLog (GetDebugLevel(), "ORACLE_HOME='{}'", sOraHome);
+		kDebug (GetDebugLevel(), "ORACLE_HOME='{}'", sOraHome);
 		if (!*sOraHome)
 		{
-			kDebugLog (GetDebugLevel(), "KSQL::OpenConnection(): $ORACLE_HOME not set");
+			kDebug (GetDebugLevel(), "$ORACLE_HOME not set");
 		}
 
 		m_dOCI6LoginDataArea      = (Lda_Def*) kmalloc (sizeof(Lda_Def), "KSQL:m_dOCI6LoginDataArea");  // <-- oracle login data area
@@ -1136,7 +1136,7 @@ bool KSQL::OpenConnection ()
 			return (SQLError());
 		}
 
-		kDebugLog (GetDebugLevel()+1, "OCI6: connect through olog() succeeded.\n");
+		kDebug (GetDebugLevel()+1, "OCI6: connect through olog() succeeded.\n");
 	
 		// Only one cursor is associated with each KSQL instance, so open it now:
 		//  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -
@@ -1177,7 +1177,7 @@ bool KSQL::OpenConnection ()
 
 		if (!GetDBName().empty())
 		{
-			kDebugLog (GetDebugLevel()+1, "use {}", GetDBName());
+			kDebug (GetDebugLevel()+1, "use {}", GetDBName());
 			dbuse(m_pDBPROC, GetDBName());
 		}
 		break;
@@ -1231,13 +1231,19 @@ bool KSQL::OpenConnection ()
 void KSQL::CloseConnection (bool bDestructor/*=false*/)
 //-----------------------------------------------------------------------------
 {
-	if (!bDestructor) { kDebugLog (3, "KSQL::CloseConnection()..."); }
+	if (!bDestructor)
+	{
+		kDebug (3, "...");
+	}
 
 	m_sLastError.clear();
 
 	if (m_bConnectionIsOpen)
 	{
-		if (!bDestructor) { kDebugLog (GetDebugLevel(), "disconnecting from {}...", ConnectSummary()); }
+		if (!bDestructor)
+		{
+			kDebug (GetDebugLevel(), "disconnecting from {}...", ConnectSummary());
+		}
 
 		ResetErrorStatus ();
 
@@ -1247,7 +1253,10 @@ void KSQL::CloseConnection (bool bDestructor/*=false*/)
 		// - - - - - - - - - - - - - - - - -
 		case API::MYSQL:
 		// - - - - - - - - - - - - - - - - -
-			if (!bDestructor) { kDebugLog (3, "mysql_close()..."); }
+			if (!bDestructor)
+			{
+				kDebug (3, "mysql_close()...");
+			}
 			mysql_close (m_dMYSQL);
 			break;
 		#endif
@@ -1293,7 +1302,7 @@ void KSQL::CloseConnection (bool bDestructor/*=false*/)
 		case API::ODBC:
 		default:
 		// - - - - - - - - - - - - - - - - -
-			kWarningLog ("KSQL::CloseConnection(): unsupported API Set ({})", TxAPISet(m_iAPISet));
+			kWarning ("unsupported API Set ({})", TxAPISet(m_iAPISet));
 			kCrashExit (CRASHCODE_DEKAFUSAGE);
 		}
 	}
@@ -1331,7 +1340,9 @@ enum ViewInString
 	Substring
 };
 
+//-----------------------------------------------------------------------------
 ViewInString kSameBuffer(const KString& sStr, KStringView svView)
+//-----------------------------------------------------------------------------
 {
 	if (svView.data() >= sStr.data() + sStr.size())
 	{
@@ -1358,14 +1369,18 @@ ViewInString kSameBuffer(const KString& sStr, KStringView svView)
 	}
 }
 
+//-----------------------------------------------------------------------------
 inline
 bool kSameBufferStart(const KString& sStr, KStringView svView)
+//-----------------------------------------------------------------------------
 {
 	return (sStr.data() == svView.data());
 }
 
+//-----------------------------------------------------------------------------
 inline
 void CopyIfNotSame(KString& sTarget, KStringView svView)
+//-----------------------------------------------------------------------------
 {
 	if (!kSameBufferStart(sTarget, svView))
 	{
@@ -4036,6 +4051,8 @@ bool KSQL::SetAPISet (API iAPISet)
 		return (SQLError());
 	}
 
+	InvalidateConnectSummary ();
+
 	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 	// explicit API selection:
 	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -4086,8 +4103,6 @@ bool KSQL::SetAPISet (API iAPISet)
 			m_sLastError.Format ("{}SetAPISet(): unsupported database type ({})", m_sErrorPrefix, TxDBType(m_iDBType));
 			return (SQLError());
 	}
-
-	FormatConnectSummary ();
 
 	return (true);
 
@@ -4264,7 +4279,7 @@ KStringView KSQL::TxAPISet (API iAPISet) const
 } // TxAPISet
 
 //-----------------------------------------------------------------------------
-void KSQL::FormatConnectSummary ()
+void KSQL::FormatConnectSummary () const
 //-----------------------------------------------------------------------------
 {
 	m_sConnectSummary.clear();
@@ -4328,6 +4343,18 @@ void KSQL::FormatConnectSummary ()
 	}
 
 } // FormatConnectSummary
+
+//-----------------------------------------------------------------------------
+const KString& KSQL::ConnectSummary () const
+//-----------------------------------------------------------------------------
+{
+	if (m_sConnectSummary.empty())
+	{
+		FormatConnectSummary();
+	}
+	return (m_sConnectSummary);
+
+} // ConnectSummary
 
 #if 0
 -----------------------------------------------------------------------------

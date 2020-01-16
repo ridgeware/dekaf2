@@ -398,7 +398,7 @@ public:
 	const KString& GetDBHost ()    const { return (m_sHostname);       }
 	const KString& GetDBName ()    const { return (m_sDatabase);       }
 	uint16_t    GetDBPort ()       const { return (m_iDBPortNum);      }
-	const KString& ConnectSummary () const { return (m_sConnectSummary); }
+	const KString& ConnectSummary () const;
 	const KString& GetTempDir()    const { return (m_sTempDir);        }
 
 	const KString& GetLastError () const { return (m_sLastError);      }
@@ -597,7 +597,7 @@ protected:
 	KString    m_sPassword;
 	KString    m_sHostname;
 	KString    m_sDatabase;
-	KString    m_sConnectSummary;
+	mutable KString m_sConnectSummary;
 
 #ifdef DEKAF2_HAS_MYSQL
 	MYSQL*     m_dMYSQL { nullptr };                   // MYSQL      m_mysql;
@@ -677,7 +677,8 @@ protected:
 	bool  BufferResults ();
 	void  FreeAll (bool bDestructor=false);
 	void  FreeBufferedColArray (bool fValuesOnly=false);
-	void  FormatConnectSummary ();
+	void  FormatConnectSummary () const;
+	void  InvalidateConnectSummary () const { m_sConnectSummary.clear(); }
 	bool  PreparedToRetry ();
 
     #ifdef DEKAF2_HAS_ORACLE

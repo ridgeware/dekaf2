@@ -308,20 +308,13 @@ void CreateProject::CopyDirRecursive(KStringViewZ sOutputDir, KStringViewZ sFrom
 	{
 		if (File.Type() == KDirectory::EntryType::DIRECTORY)
 		{
-			KString sNewOut = sOutputDir;
-			sNewOut += kDirSep;
-			sNewOut += File.Filename();
-			KString sNewFrom = sFromDir;
-			sNewFrom += kDirSep;
-			sNewFrom += File.Filename();
+			KString sNewOut  = kFormat("{}{}{}", sOutputDir, kDirSep, File.Filename());
+			KString sNewFrom = kFormat("{}{}{}", sFromDir,   kDirSep, File.Filename());
 			CopyDirRecursive(sNewOut, sNewFrom);
 		}
 		else
 		{
-			KString sOutFile = sOutputDir;
-			sOutFile += kDirSep;
-			sOutFile += m_Variables.Replace(File.Filename());
-
+			KString sOutFile = kFormat("{}{}{}", sOutputDir, kDirSep, m_Variables.Replace(File.Filename()));
 			PrintReplacedFile(sOutFile, File.Path());
 		}
 	}

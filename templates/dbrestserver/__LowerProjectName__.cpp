@@ -1,6 +1,7 @@
 
 #include "__LowerProjectName__.h"
 #include "db.h"
+#include <dekaf2/dekaf2.h>
 #include <dekaf2/kstring.h>
 #include <dekaf2/kstringview.h>
 #include <dekaf2/kstream.h>

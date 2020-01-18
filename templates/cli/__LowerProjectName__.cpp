@@ -1,5 +1,6 @@
 
 #include "__LowerProjectName__.h"
+#include <dekaf2/dekaf2.h>
 #include <dekaf2/kstring.h>
 #include <dekaf2/kstringview.h>
 #include <dekaf2/kstream.h>
@@ -33,7 +34,7 @@ __ProjectName__::__ProjectName__ ()
 	m_CLI.RegisterOption("version,rev,revision", [&]()
 	{
 		ShowVersion();
-		m_bTerminate = true;
+		m_Config.bTerminate = true;
 	});
 
 } // ctor

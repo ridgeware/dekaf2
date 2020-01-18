@@ -43,6 +43,5 @@ private:
 //----------
 
 	KOptions m_CLI { true };
-	bool     m_Config;
 
 }; // __ProjectName__

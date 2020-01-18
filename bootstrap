@@ -90,9 +90,6 @@ Setup ()
 
 		Info "Build directory ${BuildDir} already setup."
 		Info "Remove it before calling ${ME} to have a fresh build from scratch."
-		Info "Checking for updates.."
-
-		git pull         || Die "Cannot pull source code changes"
 
 	else
 
@@ -101,6 +98,9 @@ Setup ()
 		mkdir "${BuildDir}" || Die "Cannot create build directory ${BuildDir}"
 
 	fi
+
+	Info "Checking for updates.."
+	git pull             || Die "Cannot pull source code changes"
 
 	cd "${BuildDir}"     || Die "Cannot cd into build directory ${BuildDir}"
 

@@ -110,11 +110,19 @@ void KRESTServer::VerifyAuthentication(const Options& Options)
 void KRESTServer::VerifyPerThreadKLogToHeader(const Options& Options)
 //-----------------------------------------------------------------------------
 {
+	static constexpr KStringView s_sHeaderLoggingHelp {
+		"supported header logging commands:\n"
+		" -level <n> (or only <n>) :: set logging level (1..3)\n"
+		" -E, -egrep <expression>  :: match regular expression to log\n"
+		" -grep <substring>        :: match substring to log\n"
+		" -out <headers|log|json>  :: output target for this thread, default = headers\n"
+	};
+
 	auto it = Request.Headers.find(Options.sKLogHeader);
 
 	if (it != Request.Headers.end())
 	{
-		enum PARTYPE { NONE, START, LEVEL, OUT, GREP, EGREP };
+		enum PARTYPE { NONE, START, LEVEL, OUT, GREP, EGREP, HELP };
 
 #ifdef DEKAF2_HAS_FROZEN
 		static constexpr auto s_Option = frozen::make_unordered_map<KStringView, PARTYPE>(
@@ -123,10 +131,11 @@ void KRESTServer::VerifyPerThreadKLogToHeader(const Options& Options)
 #endif
 		{
 			{ "-level", LEVEL },
-			{ "-out"  , OUT },
+			{ "-out"  , OUT   },
 			{ "-E"    , EGREP },
 			{ "-egrep", EGREP },
-			{ "-grep" , GREP }
+			{ "-grep" , GREP  },
+			{ "-help" , HELP  }
 		}
 #ifdef DEKAF2_HAS_FROZEN
 		)
@@ -139,6 +148,7 @@ void KRESTServer::VerifyPerThreadKLogToHeader(const Options& Options)
 		bool bToKLog    { false };
 		bool bToJSON    { false };
 		bool bEGrep     { false };
+		bool bHelp      { false };
 		KString sGrep;
 
 		auto sParts = it->second.Split(", ");
@@ -154,6 +164,7 @@ void KRESTServer::VerifyPerThreadKLogToHeader(const Options& Options)
 
 			switch (iPType)
 			{
+				case HELP:
 				case START:
 				case NONE:
 				{
@@ -172,7 +183,18 @@ void KRESTServer::VerifyPerThreadKLogToHeader(const Options& Options)
 						}
 
 					}
-					iPType = itArg->second;
+					else if (itArg->second == HELP)
+					{
+						bHelp = true;
+						if (!iKLogLevel)
+						{
+							iKLogLevel = 1;
+						}
+					}
+					else
+					{
+						iPType = itArg->second;
+					}
 					break;
 				}
 
@@ -260,8 +282,8 @@ void KRESTServer::VerifyPerThreadKLogToHeader(const Options& Options)
 		else if (bToJSON)
 		{
 #ifdef DEKAF2_KLOG_WITH_TCP
-			json.tx["klog"] = KJSON::array();
-			KLog::getInstance().LogThisThreadToJSON(iKLogLevel, &json.tx["klog"]);
+			m_JsonLogger = std::make_unique<KJSON>(KJSON::array());
+			KLog::getInstance().LogThisThreadToJSON(iKLogLevel, m_JsonLogger.get());
 			kDebug(2, "per-thread {} logging, level {}", "JSON", iKLogLevel);
 #else
 			kDebug(2, "request to switch {} logging on, but compiled without support", "json response");
@@ -273,6 +295,10 @@ void KRESTServer::VerifyPerThreadKLogToHeader(const Options& Options)
 #ifdef DEKAF2_KLOG_WITH_TCP
 			KLog::getInstance().LogThisThreadToResponseHeaders(iKLogLevel, Response, Options.sKLogHeader);
 			kDebug(2, "per-thread {} logging, level {}", "response header", iKLogLevel);
+			if (bHelp)
+			{
+				kDebugLog(1, s_sHeaderLoggingHelp);
+			}
 #else
 			kDebug(2, "request to switch {} logging on, but compiled without support", "response header");
 			return;
@@ -544,6 +570,19 @@ void KRESTServer::Output(const Options& Options, bool bKeepAlive)
 					if (!json.tx.empty() || route->Parser == KRESTRoute::JSON)
 					{
 						json.tx["message"] = std::move(m_sMessage);
+					}
+				}
+
+				if (m_JsonLogger && !m_JsonLogger->empty() && !Options.sKLogHeader.empty())
+				{
+					if ((!json.tx.empty() || route->Parser == KRESTRoute::JSON)
+						&& json.tx.is_object())
+					{
+						json.tx[Options.sKLogHeader] = std::move(*m_JsonLogger);
+					}
+					else
+					{
+						kDebug(1, "cannot log to json output as output is not a json object");
 					}
 				}
 
@@ -928,6 +967,7 @@ void KRESTServer::clear()
 	m_sRequestBody.clear();
 	m_sMessage.clear();
 	m_sRawOutput.clear();
+	m_JsonLogger.reset();
 
 } // clear
 

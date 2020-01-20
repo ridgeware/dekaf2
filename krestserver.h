@@ -284,6 +284,7 @@ private:
 	KString m_sRawOutput;
 	KStopTime m_timer;
 	KJWT m_AuthToken;
+	std::unique_ptr<KJSON> m_JsonLogger;
 
 }; // KRESTServer
 

@@ -49,6 +49,7 @@
 
 #include "kconfiguration.h"
 #include <climits>
+#include <cinttypes>
 
 #define DEKAF2_xstringify(x) #x
 #define DEKAF2_stringify(x) DEKAF2_xstringify(x)
@@ -118,13 +119,13 @@
 #ifdef DEKAF2_HAS_CPP_14
 	#define DEKAF2_CONSTEXPR_14 constexpr
 #else
-	#define DEKAF2_CONSTEXPR_14
+	#define DEKAF2_CONSTEXPR_14 inline
 #endif
 
 #ifdef DEKAF2_HAS_CPP_17
 	#define DEKAF2_CONSTEXPR_17 constexpr
 #else
-	#define DEKAF2_CONSTEXPR_17
+	#define DEKAF2_CONSTEXPR_17 inline
 #endif
 
 // unfortunately GCC < 7 require the repetition of a constexpr variable
@@ -213,24 +214,34 @@
 	#define DEKAF2_NO_ASAN
 #endif
 
-#if (UINTPTR_MAX == 0xffffffffffffffff)
-	#define DEKAF2_IS_64_BITS = 1
-	#define DEKAF2_BITS = 64
+namespace dekaf2 {
+#if (UINTPTR_MAX == 0xffff)
+	#define DEKAF2_IS_16_BITS = 1
+	#define DEKAF2_BITS = 16
+	static constexpr uint16_t KiBits = 16;
 #elif (UINTPTR_MAX == 0xffffffff)
 	#define DEKAF2_IS_32_BITS = 1
 	#define DEKAF2_BITS = 32
-#elif (UINTPTR_MAX == 0xffff)
-	#define DEKAF2_IS_16_BITS = 1
-	#define DEKAF2_BITS = 16
+	static constexpr uint16_t KiBits = 32;
+#elif (UINTPTR_MAX == 0xffffffffffffffff)
+	#define DEKAF2_IS_64_BITS = 1
+	#define DEKAF2_BITS = 64
+	static constexpr uint16_t KiBits = 64;
+#else
+	#error "unsupported maximum pointer type"
 #endif
+	static constexpr bool kIs16Bits() { return KiBits == 16; }
+	static constexpr bool kIs32Bits() { return KiBits == 32; }
+	static constexpr bool kIs64Bits() { return KiBits == 64; }
+} // end of namespace dekaf2
 
 // prepare for the shared_mutex enabler below - this has to go into
 // the base namespace
 #ifdef DEKAF2_HAS_CPP_14
 #include <shared_mutex>
-#include <mutex> // to be balanced with the C++11 case below
+	#include <mutex> // to be balanced with the C++11 case below
 #else
-#include <mutex>
+	#include <mutex>
 #endif
 
 namespace std
@@ -348,7 +359,8 @@ DEKAF2_LE_BE_CONSTEXPR bool kIsLittleEndian()
 {
 	// this is theoretically wrong, as there may be other
 	// byte orders than big or little, but we ignore that
-	// until DEC resurrects..
+	// until DEC resurrects.. and as dekaf2's home is at
+	// the former DEC headquarter building we should notice!
 	return !kIsBigEndian();
 }
 
@@ -360,7 +372,7 @@ DEKAF2_LE_BE_CONSTEXPR void kSwapBytes(VALUE& value)
 	if (DEKAF2_LIKELY(len > 1))
 	{
 		uint8_t* cp = (uint8_t*)&value;
-		for (std::size_t i = 0, e = len-1; i < len/2; ++i, --e)
+		for (std::size_t i = 0, e = len-1, lc = len/2; i < lc; ++i, --e)
 		{
 			std::swap(cp[i], cp[e]);
 		}

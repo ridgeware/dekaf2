@@ -72,7 +72,6 @@ std::size_t hash(const char data, std::size_t hash) noexcept
 }
 
 DEKAF2_CONSTEXPR_14
-inline
 std::size_t hash(const char* data, std::size_t size, std::size_t hash) noexcept
 {
 	while (size-- > 0)
@@ -88,7 +87,6 @@ std::size_t hash(const char* data, std::size_t size, std::size_t hash) noexcept
 
 // zero terminated strings
 DEKAF2_CONSTEXPR_14
-inline
 std::size_t hash(const char* data, std::size_t hash) noexcept
 {
 	while (auto ch = *data++)
@@ -152,7 +150,6 @@ std::size_t kHash(const T* data, std::size_t size, std::size_t hash = kHashBasis
 // constexpr specialisation
 template<>
 DEKAF2_CONSTEXPR_14
-inline
 std::size_t kHash(const char* data, std::size_t size, std::size_t hash) noexcept
 //---------------------------------------------------------------------------
 {

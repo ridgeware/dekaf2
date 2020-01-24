@@ -99,7 +99,7 @@ public:
 
 	//---------------------------------------------------------------------------
 	/// Shall we be prepared for multithrading?
-	inline bool GetMultiThreading() const
+	bool GetMultiThreading() const
 	//---------------------------------------------------------------------------
 	{
 		return m_bIsMultiThreading.load(std::memory_order_relaxed);

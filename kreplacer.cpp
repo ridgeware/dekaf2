@@ -119,9 +119,7 @@ bool KReplacer::erase(KStringView sSearch)
 		sKey += sSearch;
 		sKey += m_sLeadOut;
 
-		m_RepMap.erase(sKey);
-
-		return true;
+		return m_RepMap.erase(sKey) > 0;
 	}
 
 	return false;

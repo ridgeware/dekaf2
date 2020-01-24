@@ -309,7 +309,14 @@ using void_t = void;
 	#define DEKAF2_ALWAYS_INLINE inline
 #endif
 
-#if !DEKAF_NO_GCC && DEKAF2_GCC_VERSION >= 50000 && DEKAF2_HAS_CPP_11
+#if defined(__BYTE_ORDER__)
+	// we can use the preprocessor defines, which is constant
+	#define DEKAF2_LE_BE_CONSTEXPR constexpr
+#elif DEKAF_HAS_CPP_20
+	// we can use the std::endian enum, which is constant
+	#define DEKAF2_LE_BE_CONSTEXPR constexpr
+	#include <bit>
+#elif !DEKAF_NO_GCC && DEKAF2_GCC_VERSION >= 50000 && DEKAF2_HAS_CPP_11
 	// this causes an error message in clang, gcc >= 5 takes it
 	#define DEKAF2_LE_BE_CONSTEXPR constexpr
 #else
@@ -322,6 +329,11 @@ namespace dekaf2
 
 DEKAF2_LE_BE_CONSTEXPR bool kIsBigEndian()
 {
+#if defined(__BYTE_ORDER__)
+	return __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__;
+#elif DEKAF_HAS_CPP_20
+	return std::endian::native == std::endian::big;
+#else
 	union endian_t
 	{
 		const uint32_t i;
@@ -329,10 +341,14 @@ DEKAF2_LE_BE_CONSTEXPR bool kIsBigEndian()
 	};
 	const endian_t endian{0x01020304};
 	return endian.ch[0] == 1;
+#endif
 }
 
 DEKAF2_LE_BE_CONSTEXPR bool kIsLittleEndian()
 {
+	// this is theoretically wrong, as there may be other
+	// byte orders than big or little, but we ignore that
+	// until DEC resurrects..
 	return !kIsBigEndian();
 }
 

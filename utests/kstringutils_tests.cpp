@@ -617,6 +617,35 @@ TEST_CASE("KStringUtils") {
 		CHECK( !kIsInteger(s) );
 	}
 
+	SECTION("kIsFloat on strings")
+	{
+		KString s;
+		s = "1";
+		CHECK( !kIsFloat(s) );
+		s = "123456";
+		CHECK( !kIsFloat(s) );
+		s = "-123456";
+		CHECK( !kIsFloat(s) );
+		s = "+123456";
+		CHECK( !kIsFloat(s) );
+		s = "123a456";
+		CHECK( !kIsFloat(s) );
+		s = "aa";
+		CHECK( !kIsFloat(s) );
+		s = "";
+		CHECK( !kIsFloat(s) );
+		s = "1.1";
+		CHECK( kIsFloat(s) );
+		s = "123.456";
+		CHECK( kIsFloat(s) );
+		s = "-123.456";
+		CHECK( kIsFloat(s) );
+		s = "+123.456";
+		CHECK( kIsFloat(s) );
+		s = "12.3a456";
+		CHECK( !kIsFloat(s) );
+	}
+
 	SECTION("kCountChar on strings")
 	{
 		KString s;

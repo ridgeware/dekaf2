@@ -424,13 +424,13 @@ bool kIsInteger(KStringView str) noexcept
 		return false;
 	}
 
-	const char* start = str.data();
-	const char* buf   = start;
+	const auto* start = str.data();
+	const auto* buf   = start;
 	size_t size       = str.size();
 
 	while (size--)
 	{
-		if (!kIsDigit(*buf++))
+		if (!KASCII::kIsDigit(*buf++))
 		{
 			if (buf != start + 1 || (*start != '-' && *start != '+'))
 			{
@@ -438,9 +438,10 @@ bool kIsInteger(KStringView str) noexcept
 			}
 		}
 	}
+
 	return true;
 
-} // kIsDecimal
+} // kIsInteger
 
 //-----------------------------------------------------------------------------
 bool kIsFloat(KStringView str, KStringView::value_type chDecimalSeparator) noexcept
@@ -451,14 +452,14 @@ bool kIsFloat(KStringView str, KStringView::value_type chDecimalSeparator) noexc
 		return false;
 	}
 
-	const char* start = str.data();
-	const char* buf   = start;
+	const auto* start = str.data();
+	const auto* buf   = start;
 	size_t size       = str.size();
 	bool bDeciSeen    = false;
 
 	while (size--)
 	{
-		if (!kIsDigit(*buf))
+		if (!KASCII::kIsDigit(*buf))
 		{
 			if (bDeciSeen)
 			{
@@ -476,6 +477,7 @@ bool kIsFloat(KStringView str, KStringView::value_type chDecimalSeparator) noexc
 		++buf;
 	}
 
+	// to qualify as a float we need a decimal separator (we do not accept exponential representations)
 	return bDeciSeen;
 
 } // kIsFloat

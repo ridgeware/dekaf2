@@ -237,10 +237,13 @@ endif()
 # ================================ LIBPROC ====================================
 
 # check if we have the libproc library (or at least its headers)
-find_package(libproc QUIET)
+# Warning: QUIET option is not supported and leads to failed search
+find_package(libproc)
 
 if (libproc_FOUND)
 	set(DEKAF2_HAS_LIBPROC 1)
+elseif (IS_MACOS)
+	message(STATUS "Cannot find libproc. Automatic application name setup for logging will not work")
 endif ()
 
 # ================================= MYSQL ====================================

@@ -500,6 +500,11 @@ int KOptions::Execute(KOutStream& out)
 		sError.Format("{}: wrong parameter after {}{}: {}", GetProgramName(), lastCommand->Dashes(), lastCommand->sArg, error.what());
 	}
 
+	DEKAF2_CATCH (const BadOptionError& error)
+	{
+		sError.Format("{}: {}{}: {}", GetProgramName(), lastCommand->Dashes(), lastCommand->sArg, error.what());
+	}
+
 	DEKAF2_CATCH (const Error& error)
 	{
 		sError = error.what();

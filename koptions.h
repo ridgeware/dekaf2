@@ -78,6 +78,12 @@ public:
 		using KException::KException;
 	};
 
+	/// throw in case of a bad option that is not allowed in a context - it will report the param it got called with
+	class BadOptionError : public KException
+	{
+		using KException::KException;
+	};
+
 	/// throw in case of a general error - it will not report a specific param it got called with
 	class Error : public KException
 	{

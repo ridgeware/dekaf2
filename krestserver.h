@@ -149,6 +149,19 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// get one query parm value with default value if missing
+	KString GetQueryParm(KStringView sKey, KStringView sDefault) const
+	//-----------------------------------------------------------------------------
+	{
+		KString sValue = Request.Resource.Query.get().Get(sKey);
+		if (!sValue)
+		{
+			sValue = sDefault;
+		}
+		return sValue;
+	}
+
+	//-----------------------------------------------------------------------------
 	/// get the content body of a POST or PUT request
 	const KString& GetRequestBody() const
 	//-----------------------------------------------------------------------------

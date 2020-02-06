@@ -216,6 +216,12 @@ public:
 		return KHTMLEntity::Decode(sIn);
 	}
 
+	/// Wrapper around KHTMLEntity::Decode. Does the same.
+	static KString XML(KStringView sIn)
+	{
+		return KHTMLEntity::Decode(sIn);
+	}
+
 	/// Wrapper around KHTMLEntity::Decode. Does the same with a different interface.
 	static void HTMLInPlace(KString& sBuffer)
 	{

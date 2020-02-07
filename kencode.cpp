@@ -50,10 +50,11 @@ void KEnc::HexAppend(KString& sOut, char ch)
 {
 	static constexpr KStringView hexify { "0123456789abcdef" };
 
-	sOut += hexify[(ch / 16) & 0x0f];
-	sOut += hexify[ch & 0x0f];
+	auto i = static_cast<uint16_t>(ch);
+	sOut += hexify[(i / 16) & 0x0f];
+	sOut += hexify[i & 0x0f];
 
-} // KEnc::Hex
+} // KEnc::HexAppend
 
 //-----------------------------------------------------------------------------
 KString KEnc::Hex(KStringView sIn)

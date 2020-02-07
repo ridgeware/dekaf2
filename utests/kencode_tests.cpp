@@ -10,11 +10,24 @@ TEST_CASE("KEncoding") {
 
 	SECTION("KEnc / KDec")
 	{
+		SECTION("AllHex")
+		{
+			for (uint16_t i = 0; i < 256; ++i)
+			{
+				char ch = static_cast<char>(i);
+				KStringView s(&ch, 1);
+				KString sEncoded = KEnc::Hex(s);
+				CHECK ( sEncoded == KString::to_hexstring(i, true, false) );
+				KString sDecoded = KDec::Hex(sEncoded);
+				CHECK ( sDecoded == s );
+			}
+		}
 
 		SECTION("Hex")
 		{
-			KString s = "This is a test";
+			KString s = "This is ä test";
 			KString sEncoded = KEnc::Hex(s);
+			CHECK ( sEncoded == "5468697320697320c3a42074657374" );
 			KString sDecoded = KDec::Hex(sEncoded);
 			CHECK ( sDecoded == s );
 		}
@@ -111,6 +124,33 @@ TEST_CASE("KEncoding") {
 				KEnc::HTMLInPlace(sEncoded);
 				CHECK ( sEncoded == it[1] );
 				KDec::HTMLInPlace(sEncoded);
+				CHECK ( sEncoded == it[0] );
+			}
+
+		}
+
+		SECTION("XML")
+		{
+			std::vector<std::vector<KString>> tests = {
+			    { "", "" },
+			    { "abcdefghijklmnopqrstuvwxyz .,:;/", "abcdefghijklmnopqrstuvwxyz .,:;/" },
+			    { "test<ab>&", "test&lt;ab&gt;&amp;" }
+			};
+
+			for (const auto& it : tests)
+			{
+				KString sEncoded = KEnc::XML(it[0]);
+				CHECK ( sEncoded == it[1] );
+				KString sDecoded = KDec::XML(it[1]);
+				CHECK ( sDecoded == it[0] );
+			}
+
+			for (const auto& it : tests)
+			{
+				KString sEncoded = it[0];
+				KEnc::XMLInPlace(sEncoded);
+				CHECK ( sEncoded == it[1] );
+				KDec::XMLInPlace(sEncoded);
 				CHECK ( sEncoded == it[0] );
 			}
 

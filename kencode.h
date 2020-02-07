@@ -54,6 +54,7 @@
 namespace dekaf2 {
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// Collection of string encoders
 class KEnc
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -63,10 +64,13 @@ public:
 //----------
 
 
+	/// Append a char in hexadecimal to sOut
 	static void HexAppend(KString& sOut, char chIn);
-	
+
+	/// Convert an input string to hexadecimal
 	static KString Hex(KStringView sIn);
 
+	/// Convert an input string to hexadecimal
 	static void HexInPlace(KString& sBuffer)
 	{
 		KString sRet = Hex(sBuffer);
@@ -140,9 +144,23 @@ public:
 		sBuffer.swap(sRet);
 	}
 
+	/// Wrapper around kHTMLEntityEncode. Does the same.
+	static KString XML(KStringView sIn)
+	{
+		return KHTMLEntity::Encode(sIn);
+	}
+
+	/// Wrapper around kHTMLEntityEncode. Does the same with a different interface.
+	static void XMLInPlace(KString& sBuffer)
+	{
+		KString sRet = HTML(sBuffer);
+		sBuffer.swap(sRet);
+	}
+
 }; // KEnc
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// Collection of string decoders
 class KDec
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -151,8 +169,10 @@ class KDec
 public:
 //----------
 
+	/// Decode a hexadecimal input string
 	static KString Hex(KStringView sIn);
 
+	/// Decode a hexadecimal input string
 	static void HexInPlace(KString& sBuffer)
 	{
 		KString sRet = Hex(sBuffer);
@@ -216,6 +236,13 @@ public:
 		return KHTMLEntity::Decode(sIn);
 	}
 
+	/// Wrapper around KHTMLEntity::Decode. Does the same with a different interface.
+	static void HTMLInPlace(KString& sBuffer)
+	{
+		KString sRet = HTML(sBuffer);
+		sBuffer.swap(sRet);
+	}
+
 	/// Wrapper around KHTMLEntity::Decode. Does the same.
 	static KString XML(KStringView sIn)
 	{
@@ -223,7 +250,7 @@ public:
 	}
 
 	/// Wrapper around KHTMLEntity::Decode. Does the same with a different interface.
-	static void HTMLInPlace(KString& sBuffer)
+	static void XMLInPlace(KString& sBuffer)
 	{
 		KString sRet = HTML(sBuffer);
 		sBuffer.swap(sRet);

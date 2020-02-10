@@ -596,12 +596,20 @@ void KRESTServer::Output(const Options& Options, bool bKeepAlive)
 				}
 				else if (!xml.tx.empty())
 				{
-					Response.Headers.Set(KHTTPHeaders::CONTENT_TYPE, KMIME::XML);
+					if (Response.Headers.Get(KHTTPHeaders::CONTENT_TYPE) == KMIME::JSON)
+					{
+						// only set content-type to flat XML if it has not already been
+						// changed by the caller from the default JSON
+						Response.Headers.Set(KHTTPHeaders::CONTENT_TYPE, KMIME::XML);
+					}
 
 					kDebug (2, "serializing XML response");
 					xml.tx.Serialize(sContent, iXMLPretty);
 					// ensure that all XML responses end in a newline:
-					sContent += '\n';
+					if (sContent.back() != '\n')
+					{
+						sContent += '\n';
+					}
 					kDebug (2, "XML response has {} bytes", sContent.length());
 				}
 			}
@@ -655,7 +663,12 @@ void KRESTServer::Output(const Options& Options, bool bKeepAlive)
 				}
 				else if (!xml.tx.empty())
 				{
-					Response.Headers.Set(KHTTPHeaders::CONTENT_TYPE, KMIME::XML);
+					if (Response.Headers.Get(KHTTPHeaders::CONTENT_TYPE) == KMIME::JSON)
+					{
+						// only set content-type to flat XML if it has not already been
+						// changed by the caller from the default JSON
+						Response.Headers.Set(KHTTPHeaders::CONTENT_TYPE, KMIME::XML);
+					}
 
 					KString sContent;
 					xml.tx.Serialize(sContent, iXMLPretty);
@@ -683,7 +696,7 @@ void KRESTServer::Output(const Options& Options, bool bKeepAlive)
 		{
 			if (DEKAF2_UNLIKELY(!m_sRawOutput.empty()))
 			{
-				Response.UnfilteredStream().Write(m_sRawOutput);
+				Response.UnfilteredStream().WriteLine(m_sRawOutput);
 			}
 			else
 			{
@@ -698,10 +711,17 @@ void KRESTServer::Output(const Options& Options, bool bKeepAlive)
 				if (!json.tx.empty())
 				{
 					Response.UnfilteredStream() << json.tx.dump(iJSONPretty, '\t');
+					// finish with a linefeed (the json serializer does not add one)
+					Response.UnfilteredStream().WriteLine();
 				}
 				else if (!xml.tx.empty())
 				{
 					xml.tx.Serialize(Response.UnfilteredStream(), iXMLPretty);
+					// the xml serializer adds a linefeed in default mode, add another one if not
+					if (iXMLPretty & KXML::NoLinefeeds)
+					{
+						Response.UnfilteredStream().WriteLine();
+					}
 				}
 			}
 
@@ -710,9 +730,6 @@ void KRESTServer::Output(const Options& Options, bool bKeepAlive)
 				// finally switch logging off if enabled
 				KLog::getInstance().LogThisThreadToKLog(-1);
 			}
-
-			// finish with a linefeed
-			Response.UnfilteredStream().WriteLine();
 		}
 		break;
 	}

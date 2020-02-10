@@ -173,7 +173,7 @@ namespace rapidxml
             }
             
             // If linefeeds are not disabled, add line break after node
-            if (!(flags & print_no_linefeeds))
+			if (!(flags & print_no_linefeeds) && node->type() != node_document)
                 *out = Ch('\n'), ++out;
 
             // Return modified iterator

@@ -170,18 +170,18 @@ void KXML::Serialize(KOutStream& OutStream, int iPrintFlags, KStringView sDropRo
 
 	if (!TempRoot.empty())
 	{
-		// create temporary document root out of the root node
-		auto node = pNode(TempRoot.m_node);
-		// store original type
-		auto oldtype = node->type();
-		// make this a document node..
-		node->type(rapidxml::node_document);
 		// check if the new root was an inline root
 		if (TempRoot.IsInlineRoot())
 		{
 			// switch to terse print flags immediately
 			iPrintFlags = KXML::Terse;
 		}
+		// create temporary document root out of the root node
+		auto node = pNode(TempRoot.m_node);
+		// store original type
+		auto oldtype = node->type();
+		// make this a document node..
+		node->type(rapidxml::node_document);
 		// and print from there
 		print(OutStream.OutStream(), *node, iPrintFlags);
 		// and restore the original type
@@ -209,18 +209,18 @@ void KXML::Serialize(KString& string, int iPrintFlags, KStringView sDropRoot) co
 
 	if (!TempRoot.empty())
 	{
-		// create temporary document root out of the root node
-		auto node = pNode(TempRoot.m_node);
-		// store original type
-		auto oldtype = node->type();
-		// make this a document node..
-		node->type(rapidxml::node_document);
 		// check if the new root was an inline root
 		if (TempRoot.IsInlineRoot())
 		{
 			// switch to terse print flags immediately
 			iPrintFlags = KXML::Terse;
 		}
+		// create temporary document root out of the root node
+		auto node = pNode(TempRoot.m_node);
+		// store original type
+		auto oldtype = node->type();
+		// make this a document node..
+		node->type(rapidxml::node_document);
 		// and print from there
 		print(std::back_inserter(string), *node, iPrintFlags);
 		// and restore the original type

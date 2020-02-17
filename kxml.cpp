@@ -176,6 +176,12 @@ void KXML::Serialize(KOutStream& OutStream, int iPrintFlags, KStringView sDropRo
 		auto oldtype = node->type();
 		// make this a document node..
 		node->type(rapidxml::node_document);
+		// check if the new root was an inline root
+		if (TempRoot.IsInlineRoot())
+		{
+			// switch to terse print flags immediately
+			iPrintFlags = KXML::Terse;
+		}
 		// and print from there
 		print(OutStream.OutStream(), *node, iPrintFlags);
 		// and restore the original type
@@ -209,6 +215,12 @@ void KXML::Serialize(KString& string, int iPrintFlags, KStringView sDropRoot) co
 		auto oldtype = node->type();
 		// make this a document node..
 		node->type(rapidxml::node_document);
+		// check if the new root was an inline root
+		if (TempRoot.IsInlineRoot())
+		{
+			// switch to terse print flags immediately
+			iPrintFlags = KXML::Terse;
+		}
 		// and print from there
 		print(std::back_inserter(string), *node, iPrintFlags);
 		// and restore the original type
@@ -531,6 +543,20 @@ KXMLNode& KXMLNode::SetInlineRoot(bool bInlineRoot)
 	}
 
 	return *this;
+}
+
+//-----------------------------------------------------------------------------
+bool KXMLNode::IsInlineRoot() const
+//-----------------------------------------------------------------------------
+{
+	if (m_node)
+	{
+		return (pNode(m_node)->type() == rapidxml::node_element_inline_root);
+	}
+	else
+	{
+		return false;
+	}
 }
 
 //-----------------------------------------------------------------------------

@@ -251,6 +251,8 @@ public:
 	/// When printing, do not indent nor add linefeed for all children of this node,
 	/// thus preserve space. Only valid for Element nodes.
 	KXMLNode& SetInlineRoot(bool bInlineRoot = true);
+	/// Is the InlineRoot property set for this element?
+	bool IsInlineRoot() const;
 	/// Set name of current node. Only works if the current node is
 	/// not empty (= part of a KXML tree).
 	KXMLNode& SetName(KStringView sName);

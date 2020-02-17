@@ -102,14 +102,18 @@ bool Parse (KJSON& json, KStringView sJSON, KString& sError) noexcept
 		return true;
 	}
 
+	bool bResetFlag = KLog::getInstance().ShowStackOnJsonError(false);
+
 	DEKAF2_TRY
 	{
 		json = KJSON::parse(sJSON.cbegin(), sJSON.cend());
+		KLog::getInstance().ShowStackOnJsonError(bResetFlag);
 		return true;
 	}
 	DEKAF2_CATCH (const KJSON::exception& exc)
 	{
 		sError.Printf ("JSON[%03d]: %s", exc.id, exc.what());
+		KLog::getInstance().ShowStackOnJsonError(bResetFlag);
 		return false;
 	}
 

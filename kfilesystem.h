@@ -434,5 +434,45 @@ private:
 
 }; // KDiskStat
 
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// generate a temp directory, and remove it with the destructor if requested to
+class KTempDir
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+//----------
+public:
+//----------
+
+	/// create temp directory
+	KTempDir(bool bDeleteOnDestruction);
+	~KTempDir();
+
+	/// get the name of the temp directory
+	const KString& Name() const
+	{
+		return m_sTempDirName;
+	}
+
+	/// do we have a temp directory?
+	operator bool() const
+	{
+		return !m_sTempDirName.empty();
+	}
+
+	operator const KString&() const
+	{
+		return m_sTempDirName;
+	}
+
+//----------
+private:
+//----------
+
+	KString m_sTempDirName;
+	bool m_bDeleteOnDestruction;
+
+}; // KTempDir
+
 } // end of namespace dekaf2
 

@@ -41,10 +41,12 @@
 */
 
 #include <algorithm>
+#include "dekaf2.h"
 #include "bits/kfilesystem.h"
 #include "kfilesystem.h"
 #include "ksystem.h"
 #include "kstring.h"
+#include "kstringutils.h"
 #include "kstringview.h"
 #include "klog.h"
 #include "kregex.h"
@@ -1269,6 +1271,38 @@ constexpr KStringViewZ kCurrentDir;
 constexpr KStringViewZ kCurrentDirWithSep;
 }
 #endif
+
+
+//-----------------------------------------------------------------------------
+KTempDir::KTempDir(bool bDeleteOnDestruction)
+//-----------------------------------------------------------------------------
+: m_bDeleteOnDestruction(bDeleteOnDestruction)
+{
+	m_sTempDirName = kFormat ("{}{}{}-{}",
+							  kGetTemp(),
+							  kDirSep,
+							  kFirstNonEmpty(Dekaf::getInstance().GetProgName(), "dekaf"),
+							  kRandom (10000, 99999));
+
+	if (!kCreateDir (m_sTempDirName))
+	{
+		kWarning("could not create temp dir: {}", m_sTempDirName);
+		m_sTempDirName.clear();
+		m_bDeleteOnDestruction = false;
+	}
+
+} // KTempDir ctor
+
+//-----------------------------------------------------------------------------
+KTempDir::~KTempDir()
+//-----------------------------------------------------------------------------
+{
+	if (m_bDeleteOnDestruction && !m_sTempDirName.empty())
+	{
+		kRemoveDir(m_sTempDirName);
+	}
+
+} // KTempDir dtor
 
 } // end of namespace dekaf2
 

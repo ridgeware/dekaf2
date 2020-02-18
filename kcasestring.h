@@ -43,7 +43,7 @@
 
 #include "kstring.h"
 #include "kstringutils.h"
-#include "khash.h"
+#include "bits/khash.h"
 
 namespace dekaf2 {
 

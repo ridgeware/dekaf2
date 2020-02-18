@@ -51,7 +51,7 @@
 #include <vector>
 #include "bits/kcppcompat.h"
 #include "bits/kstring_view.h"
-#include "khash.h"
+#include "bits/khash.h"
 #include "kutf8.h"
 #include <fmt/format.h>
 

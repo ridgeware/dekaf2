@@ -67,7 +67,7 @@
 #include <frozen/unordered_map.h>
 #include <frozen/unordered_set.h>
 #include "kstringview.h"
-#include "khash.h"
+#include "bits/khash.h"
 
 namespace frozen {
 

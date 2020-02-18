@@ -411,6 +411,7 @@ set (BITS_HEADERS
 	bits/kbasepipe.h
 	bits/kcppcompat.h
 	bits/kfilesystem.h
+	bits/khash.h
 	bits/klogwriter.h
 	bits/klogserializer.h
 	bits/kmake_unique.h
@@ -586,6 +587,7 @@ set (SOURCES
 	kfilesystem.cpp
 	kformat.cpp
 	kgetruntimestack.cpp
+	khash.cpp
 	khmac.cpp
 	khtmlcontentblocks.cpp
 	khtmlentities.cpp

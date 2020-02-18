@@ -46,6 +46,7 @@
 
 #include "../kstringview.h"
 #include "../kutf8.h"
+#include "khash.h"
 
 namespace dekaf2 {
 

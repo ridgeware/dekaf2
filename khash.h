@@ -75,11 +75,7 @@ public:
 	}
 
 	/// appends a string to the hash
-	bool Update(KStringView sInput)
-	{
-		kHash(sInput.data(), sInput.size(), m_iHash);
-		return true;
-	}
+	bool Update(KStringView sInput);
 
 	/// appends a stream to the hash
 	bool Update(KInStream& InputStream);

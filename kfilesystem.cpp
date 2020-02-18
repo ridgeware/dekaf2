@@ -1263,16 +1263,6 @@ KString kNormalizePath(KStringView sPath)
 	
 } // kNormalizePath
 
-#ifdef DEKAF2_REPEAT_CONSTEXPR_VARS
-namespace detail {
-constexpr KStringViewZ kLineRightTrims;
-constexpr KStringViewZ kAllowedDirSep;
-constexpr KStringViewZ kCurrentDir;
-constexpr KStringViewZ kCurrentDirWithSep;
-}
-#endif
-
-
 //-----------------------------------------------------------------------------
 KTempDir::KTempDir(bool bDeleteOnDestruction)
 //-----------------------------------------------------------------------------
@@ -1303,6 +1293,15 @@ KTempDir::~KTempDir()
 	}
 
 } // KTempDir dtor
+
+#ifdef DEKAF2_REPEAT_CONSTEXPR_VARS
+namespace detail {
+constexpr KStringViewZ kLineRightTrims;
+constexpr KStringViewZ kAllowedDirSep;
+constexpr KStringViewZ kCurrentDir;
+constexpr KStringViewZ kCurrentDirWithSep;
+}
+#endif
 
 } // end of namespace dekaf2
 

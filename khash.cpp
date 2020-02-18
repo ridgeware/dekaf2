@@ -46,6 +46,14 @@
 namespace dekaf2 {
 
 //---------------------------------------------------------------------------
+bool KHash::Update(KStringView sInput)
+//---------------------------------------------------------------------------
+{
+	m_iHash = kHash(sInput.data(), sInput.size(), m_iHash);
+	return true;
+}
+
+//---------------------------------------------------------------------------
 bool KHash::Update(KInStream& InputStream)
 //---------------------------------------------------------------------------
 {
@@ -55,7 +63,7 @@ bool KHash::Update(KInStream& InputStream)
 	for (;;)
 	{
 		auto iReadChunk = InputStream.Read(Buffer.data(), Buffer.size());
-		kHash(Buffer.data(), iReadChunk, m_iHash);
+		m_iHash = kHash(Buffer.data(), iReadChunk, m_iHash);
 		if (iReadChunk < BLOCKSIZE)
 		{
 			return true;

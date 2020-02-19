@@ -706,15 +706,15 @@ public:
 	//-----------------------------------------------------------------------------
 	/// convert any integer to KString
 	template<typename Integer>
-	static KString to_string(Integer i)
+	static KString to_string(Integer i, uint16_t iBase = 10, bool bZeroPad = false, bool bUppercase = true)
 	//-----------------------------------------------------------------------------
 	{
 		static_assert(std::is_integral<Integer>::value, "need integral type");
 		if (std::is_signed<Integer>::value)
 		{
-			return signed_to_string(static_cast<int64_t>(i));
+			return signed_to_string(static_cast<int64_t>(i), iBase, bZeroPad, bUppercase);
 		}
-		return unsigned_to_string(static_cast<uint64_t>(i));
+		return unsigned_to_string(static_cast<uint64_t>(i), iBase, bZeroPad, bUppercase);
 	}
 
 	//-----------------------------------------------------------------------------
@@ -733,8 +733,11 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// convert integer into a hex string
-	static KString to_hexstring(uint64_t i, bool bZeroPad = true, bool bUpperCase = true);
+	static KString to_hexstring(uint64_t i, bool bZeroPad = true, bool bUpperCase = true)
 	//-----------------------------------------------------------------------------
+	{
+		return unsigned_to_string(i, 16, bZeroPad, bUpperCase);
+	}
 
 	//-----------------------------------------------------------------------------
 	bool operator==(const KString& other) const
@@ -771,11 +774,11 @@ protected:
 //----------
 
 	//-----------------------------------------------------------------------------
-	static KString signed_to_string(int64_t i);
+	static KString signed_to_string(int64_t i, uint16_t iBase, bool bZeroPad, bool bUppercase);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	static KString unsigned_to_string(uint64_t i);
+	static KString unsigned_to_string(uint64_t i, uint16_t iBase, bool bZeroPad, bool bUppercase);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------

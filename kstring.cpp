@@ -1167,95 +1167,18 @@ KStringViewZ KString::RightUTF8(size_type iCount) const
 	return ToView().RightUTF8(iCount);
 }
 
-constexpr int BASE_DEC = 10;
-
 //-----------------------------------------------------------------------------
-KString KString::signed_to_string(int64_t i)
+KString KString::signed_to_string(int64_t i, uint16_t iBase, bool bZeroPad, bool bUppercase)
 //-----------------------------------------------------------------------------
 {
-#ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
-	KString sResult;
-	bool bIsNeg{false};
-	if (i < 0)
-	{
-		bIsNeg = true;
-		i *= -1;
-	}
-	while (i)
-	{
-		sResult += static_cast<value_type>(i % BASE_DEC) + '0';
-		i /= BASE_DEC;
-	}
-	if (sResult.empty())
-	{
-		sResult += '0';
-	}
-	if (bIsNeg)
-	{
-		sResult += '-';
-	}
-	// revert the string
-	std::reverse(sResult.begin(), sResult.end());
-	return sResult;
-#else
-	return std::to_string(i);
-#endif
+	return kSignedToString<KString>(i, iBase, bZeroPad, bUppercase);
 }
 
 //-----------------------------------------------------------------------------
-KString KString::unsigned_to_string(uint64_t i)
+KString KString::unsigned_to_string(uint64_t i, uint16_t iBase, bool bZeroPad, bool bUppercase)
 //-----------------------------------------------------------------------------
 {
-#ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
-	KString sResult;
-	while (i)
-	{
-		sResult += static_cast<value_type>(i % BASE_DEC) + '0';
-		i /= BASE_DEC;
-	}
-	if (sResult.empty())
-	{
-		sResult += '0';
-	}
-	// revert the string
-	std::reverse(sResult.begin(), sResult.end());
-	return sResult;
-#else
-	return std::to_string(i);
-#endif
-}
-
-constexpr int BASE_HEX = 16;
-
-//-----------------------------------------------------------------------------
-KString KString::to_hexstring(uint64_t i, bool bZeroPad, bool bUpperCase)
-//-----------------------------------------------------------------------------
-{
-	KString sResult;
-	while (i)
-	{
-		auto ch = i % BASE_HEX;
-		if (ch < BASE_DEC)
-		{
-			sResult += static_cast<value_type>(ch + '0');
-		}
-		else
-		{
-			sResult += static_cast<value_type>(ch + 'a' - BASE_DEC - (bUpperCase * ('a' - 'A')));
-		}
-		i /= BASE_HEX;
-	}
-	if (sResult.empty())
-	{
-		sResult = "0";
-	}
-	if (bZeroPad && (sResult.size() & 1) == 1)
-	{
-		sResult += '0';
-	}
-	// revert the string
-	std::reverse(sResult.begin(), sResult.end());
-	return sResult;
+	return kUnsignedToString<KString>(i, iBase, bZeroPad, bUppercase);
 }
 
 static_assert(std::is_nothrow_move_constructible<KString>::value,

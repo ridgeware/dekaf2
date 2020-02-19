@@ -789,6 +789,21 @@ TEST_CASE("KString") {
 		}
 	}
 
+	SECTION("to_string(base36)")
+	{
+		using stype = KString;
+		std::vector<std::pair<stype, int64_t>> svector = {
+		    {          "0",  0         },
+		    {     "21I3V9",  123456789 },
+		    {    "-21I3V9", -123456789 },
+		};
+
+		for (const auto& it : svector)
+		{
+			CHECK ( KString::to_string(it.second, 36) == it.first );
+		}
+	}
+
 	SECTION("to_hexstring()")
 	{
 		using stype = KString;

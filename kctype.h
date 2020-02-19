@@ -90,11 +90,19 @@ public:
 	constexpr
 	KCodePoint(CP cp) : m_CodePoint(CodepointCast(cp)) {}
 
+	/// explicit conversion to const Unicode::codepoint_t
 	constexpr
-	operator const Unicode::codepoint_t&() const { return m_CodePoint; }
+	const Unicode::codepoint_t& value() const { return m_CodePoint; }
+
+	/// explicit conversion to Unicode::codepoint_t
+	DEKAF2_CONSTEXPR_14
+	Unicode::codepoint_t& value() { return m_CodePoint; }
+
+	constexpr
+	operator const Unicode::codepoint_t&() const { return value(); }
 
 	DEKAF2_CONSTEXPR_14
-	operator Unicode::codepoint_t&() { return m_CodePoint; }
+	operator Unicode::codepoint_t&() { return value(); }
 
 	enum Categories
 	{

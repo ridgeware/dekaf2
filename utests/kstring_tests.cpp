@@ -841,11 +841,28 @@ TEST_CASE("KString") {
 	SECTION("to_string(base36)")
 	{
 		using stype = KString;
+		std::vector<std::pair<stype, uint64_t>> svector = {
+		    {              "0", 0                     },
+		    {         "21i3v9", 123456789             },
+		    {  "3w5e11243acx7", -123456789            },
+			{ "1hch7n7gak72b" , 7021572290552076995   },
+			{ "28rxu7q22x6gr" , 10631889302401681659u },
+		};
+
+		for (const auto& it : svector)
+		{
+			CHECK ( KString::to_string(it.second, 36, false, false) == it.first );
+		}
+	}
+
+	SECTION("to_string(base36) signed")
+	{
+		using stype = KString;
 		std::vector<std::pair<stype, int64_t>> svector = {
-		    {              "0", 0                   },
-		    {         "21i3v9", 123456789           },
-		    {        "-21i3v9", -123456789          },
-			{ "1hch7n7gak72b" , 7021572290552076995 }
+		    {              "0", 0                     },
+		    {         "21i3v9", 123456789             },
+		    {        "-21i3v9", -123456789            },
+			{ "1hch7n7gak72b" , 7021572290552076995   },
 		};
 
 		for (const auto& it : svector)

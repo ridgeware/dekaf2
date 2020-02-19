@@ -611,6 +611,8 @@ namespace detail {
 static constexpr KStringView s_sLookupLower { "0123456789abcdefghijklmnopqrstuvwxyz" };
 static constexpr KStringView s_sLookupUpper { "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ" };
 
+}
+
 //-----------------------------------------------------------------------------
 template<class String>
 String kUnsignedToString(uint64_t i, uint16_t iBase = 10, bool bZeroPad = false, bool bUppercase = false, bool bIsNeg = false)
@@ -621,11 +623,11 @@ String kUnsignedToString(uint64_t i, uint16_t iBase = 10, bool bZeroPad = false,
 
 	if (bUppercase)
 	{
-		sLookup = s_sLookupUpper;
+		sLookup = detail::s_sLookupUpper;
 	}
 	else
 	{
-		sLookup = s_sLookupLower;
+		sLookup = detail::s_sLookupLower;
 	}
 
 	do
@@ -651,8 +653,6 @@ String kUnsignedToString(uint64_t i, uint16_t iBase = 10, bool bZeroPad = false,
 
 } // detail::kUnsignedToString
 
-} // of namespace detail
-
 //-----------------------------------------------------------------------------
 template<class String = KString>
 String kSignedToString(int64_t i, uint16_t iBase = 10, bool bZeroPad = false, bool bUppercase = false)
@@ -666,17 +666,8 @@ String kSignedToString(int64_t i, uint16_t iBase = 10, bool bZeroPad = false, bo
 		i *= -1;
 	}
 
-	return detail::kUnsignedToString<String>(i, iBase, bZeroPad, bUppercase, bIsNeg);
+	return kUnsignedToString<String>(i, iBase, bZeroPad, bUppercase, bIsNeg);
 
 } // kSignedToString
-
-//-----------------------------------------------------------------------------
-template<class String = KString>
-String kUnsignedToString(uint64_t i, uint16_t iBase = 10, bool bZeroPad = false, bool bUppercase = false)
-//-----------------------------------------------------------------------------
-{
-	return detail::kUnsignedToString<String>(i, iBase, bZeroPad, bUppercase, false);
-
-} // kUnsignedToString
 
 } // end of namespace dekaf2

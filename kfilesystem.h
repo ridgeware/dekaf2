@@ -76,6 +76,16 @@ constexpr KStringViewZ kCurrentDirWithSep { "./" };
 }
 #endif
 
+namespace detail {
+constexpr KStringView kUnsafeFilenameChars { "#%&{}<>*? $!'\":@+`|=\\/" };
+#ifdef DEKAF2_HAS_CPP_14
+constexpr KStringView kUnsafePathnameChars = kUnsafeFilenameChars.ToView(0, kUnsafeFilenameChars.size() - 2);
+#else
+constexpr KStringView kUnsafeFilenameChars { "#%&{}<>*? $!'\":@+`|=" };
+#endif
+constexpr KStringView kUnsafeLimiterChars  { " .-_" };
+}
+
 //-----------------------------------------------------------------------------
 /// Change file or directory permissions to value iMode. iMode can be set both by
 /// POSIX permission bits or std::filesystem::perms permission bits (as they use
@@ -215,6 +225,19 @@ inline size_t kGetNumBytes(KStringViewZ sFilePath)
 {
 	return kFileSize(sFilePath);
 }
+
+//-----------------------------------------------------------------------------
+/// Returns true if a file name is safe to use, means it cannot escape from a
+/// directory or uses problematic characters
+bool kIsSafeFilename(KStringView sName);
+//-----------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
+/// Returns a file name that is safe to use, means it cannot escape from a
+/// directory or uses problematic characters. The input string is the base for
+/// the file name
+KString kMakeSafeFilename(KStringView sName, bool bToLowercase = true, KStringView sEmptyName = "none");
+//-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
 /// resolve .. and . parts of the input path, and make it an absolute path

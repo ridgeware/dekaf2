@@ -43,6 +43,7 @@
 #include <algorithm>
 #include "dekaf2.h"
 #include "bits/kfilesystem.h"
+#include "bits/kcppcompat.h"
 #include "kfilesystem.h"
 #include "ksystem.h"
 #include "kstring.h"
@@ -54,6 +55,7 @@
 #include "kinshell.h"
 #include "kwriter.h"
 #include "kctype.h"
+#include "kutf8.h"
 
 #if (DEKAF2_IS_GCC && DEKAF2_GCC_MAJOR_VERSION < 10)
 #include <sys/stat.h>
@@ -1262,6 +1264,109 @@ KString kNormalizePath(KStringView sPath)
 #endif
 	
 } // kNormalizePath
+
+//-----------------------------------------------------------------------------
+bool kIsSafeFilename(KStringView sName)
+//-----------------------------------------------------------------------------
+{
+	return kMakeSafeFilename(sName, false) == sName;
+
+} // kIsSafeFilename
+
+//-----------------------------------------------------------------------------
+KString kMakeSafeFilename(KStringView sName, bool bToLowercase, KStringView sEmptyName)
+//-----------------------------------------------------------------------------
+{
+#ifdef DEKAF2_IS_WINDOWS
+	// try to get rid of the drive prefix, if any
+	auto iPos = sName.find_first_of(detail::kAllowedDirSep);
+
+	if (iPos != KStringView::npos && sName[iPos] == ':')
+	{
+		sName.remove_prefix(iPos + 1);
+	}
+#endif
+
+	KString sSafe;
+	sSafe.reserve(sName.size());
+
+	for (auto Part : sName.Split(detail::kAllowedDirSep, detail::kUnsafeLimiterChars))
+	{
+		if (Part.empty())
+		{
+			// drop empty fragments
+			continue;
+		}
+
+		for (auto Dotted : Part.Split(".", detail::kUnsafeLimiterChars))
+		{
+			if (Dotted.empty())
+			{
+				// drop empty fragments
+				continue;
+			}
+
+			KCodePoint lastCp { 0 };
+
+			Unicode::TransformUTF8(Dotted, sSafe, [bToLowercase, &lastCp](Unicode::codepoint_t uch, KString& sOut)
+			{
+				KCodePoint Cp(uch);
+
+				if (!Cp.IsAlNum())
+				{
+					if (lastCp == 0)
+					{
+						// drop it..
+						return true;
+					}
+					if (lastCp == '-')
+					{
+						// drop it
+						return true;
+					}
+					// replace it (once)
+					Cp = '-';
+				}
+
+				lastCp = Cp;
+
+				if (bToLowercase)
+				{
+					return Unicode::ToUTF8(Cp.ToLower().value(), sOut);
+				}
+				else
+				{
+					return Unicode::ToUTF8(Cp.value(), sOut);
+				}
+			});
+
+			// make sure there is no trailing dash
+			sSafe.TrimRight('-');
+
+			if (!sSafe.empty() && sSafe.back() != '.')
+			{
+				sSafe += '.';
+			}
+		}
+
+		sSafe.TrimRight('.');
+
+		if (!sSafe.empty() && sSafe.back() != kDirSep)
+		{
+			sSafe += kDirSep;
+		}
+	}
+
+	sSafe.TrimRight(kDirSep);
+
+	if (sSafe.empty())
+	{
+		sSafe = sEmptyName;
+	}
+
+	return sSafe;
+
+} // kMakeSafeFilename
 
 //-----------------------------------------------------------------------------
 KTempDir::KTempDir(bool bDeleteOnDestruction)

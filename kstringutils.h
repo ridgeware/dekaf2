@@ -614,7 +614,7 @@ static constexpr KStringView s_sLookupUpper { "0123456789ABCDEFGHIJKLMNOPQRSTUVW
 }
 
 //-----------------------------------------------------------------------------
-template<class String>
+template<class String = KString>
 String kUnsignedToString(uint64_t i, uint16_t iBase = 10, bool bZeroPad = false, bool bUppercase = false, bool bIsNeg = false)
 //-----------------------------------------------------------------------------
 {

@@ -240,6 +240,19 @@ KString kMakeSafeFilename(KStringView sName, bool bToLowercase = true, KStringVi
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
+/// Returns true if a path name is safe to use, means it cannot escape from a
+/// directory or uses problematic characters
+bool kIsSafePathname(KStringView sName);
+//-----------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
+/// Returns a path name that is safe to use, means it cannot escape from a
+/// directory or uses problematic characters. The input string is the base for
+/// the path name
+KString kMakeSafePathname(KStringView sName, bool bToLowercase = true, KStringView sEmptyName = "none");
+//-----------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
 /// resolve .. and . parts of the input path, and make it an absolute path
 KString kNormalizePath(KStringView sPath);
 //-----------------------------------------------------------------------------

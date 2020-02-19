@@ -211,8 +211,10 @@ TEST_CASE("KFilesystem") {
 
 	SECTION("kIsSafeFilename")
 	{
-		CHECK ( kIsSafeFilename("hello/world.txt")       == true  );
-		CHECK ( kIsSafeFilename("hel.l-o/wor-ld.txt")    == true  );
+		CHECK ( kIsSafeFilename("hello-world.txt")       == true  );
+		CHECK ( kIsSafeFilename("hel.l-o-wor-ld.txt")    == true  );
+		CHECK ( kIsSafeFilename("hello/world.txt")       == false );
+		CHECK ( kIsSafeFilename("hel.l-o/wor-ld.txt")    == false );
 		CHECK ( kIsSafeFilename("hel.l-o/wor_ld.txt")    == false );
 		CHECK ( kIsSafeFilename("hel.-lo/wor-ld.txt")    == false );
 		CHECK ( kIsSafeFilename("")                      == false );
@@ -223,26 +225,42 @@ TEST_CASE("KFilesystem") {
 		CHECK ( kIsSafeFilename("world.txt..")           == false );
 	}
 
+	SECTION("kIsSafePathname")
+	{
+		CHECK ( kIsSafePathname("hello-world.txt")       == true  );
+		CHECK ( kIsSafePathname("hel.l-o-wor-ld.txt")    == true  );
+		CHECK ( kIsSafePathname("hello/world.txt")       == true  );
+		CHECK ( kIsSafePathname("hel.l-o/wor-ld.txt")    == true  );
+		CHECK ( kIsSafePathname("hel.l-o/wor_ld.txt")    == false );
+		CHECK ( kIsSafePathname("hel.-lo/wor-ld.txt")    == false );
+		CHECK ( kIsSafePathname("")                      == false );
+		CHECK ( kIsSafePathname("/hello/world.txt")      == false );
+		CHECK ( kIsSafePathname("hello/../../world.txt") == false );
+		CHECK ( kIsSafePathname("../../world.txt")       == false );
+		CHECK ( kIsSafePathname("world.txt/")            == false );
+		CHECK ( kIsSafePathname("world.txt..")           == false );
+	}
+
 	SECTION("kMakeSafeFilename")
 	{
 #ifdef DEKAF2_IS_WINDOWS
-		CHECK ( kMakeSafeFilename("C:hello/world.txt")     == "hello\\world.txt"     );
-		CHECK ( kMakeSafeFilename("C:\\hello\\world.txt")  == "hello\\world.txt"     );
-		CHECK ( kMakeSafeFilename("hello/world.txt")       == "hello\\world.txt"     );
-		CHECK ( kMakeSafeFilename("C:/hello/world.txt")    == "hello\\world.txt"     );
-		CHECK ( kMakeSafeFilename("hel.-lo/wÖr_ld.txt")    == "hel.lo\\wör-ld.txt"   );
-		CHECK ( kMakeSafeFilename("?hel.-lo/wo?r_ld.txt")  == "hel.lo\\wo-r-ld.txt"  );
-		CHECK ( kMakeSafeFilename("/hello/world.txt")      == "hello\\world.txt"     );
-		CHECK ( kMakeSafeFilename("///hello/world.txt")    == "hello\\world.txt"     );
-		CHECK ( kMakeSafeFilename("hello/../../world.txt") == "hello\\world.txt"     );
+		CHECK ( kMakeSafeFilename("C:hello/world.txt")     == "hello-world.txt"     );
+		CHECK ( kMakeSafeFilename("C:\\hello\\world.txt")  == "hello-world.txt"     );
+		CHECK ( kMakeSafeFilename("hello/world.txt")       == "hello-world.txt"     );
+		CHECK ( kMakeSafeFilename("C:/hello/world.txt")    == "hello-world.txt"     );
+		CHECK ( kMakeSafeFilename("hel.-lo/wÖr_ld.txt")    == "hel.lo-wör-ld.txt"   );
+		CHECK ( kMakeSafeFilename("?hel.-lo/wo?r_ld.txt")  == "hel.lo-wo-r-ld.txt"  );
+		CHECK ( kMakeSafeFilename("/hello/world.txt")      == "hello-world.txt"     );
+		CHECK ( kMakeSafeFilename("///hello/world.txt")    == "hello-world.txt"     );
+		CHECK ( kMakeSafeFilename("hello/../../world.txt") == "hello-world.txt"     );
 #else
-		CHECK ( kMakeSafeFilename("hello/world.txt")       == "hello/world.txt"      );
-		CHECK ( kMakeSafeFilename("C:/hello/world.txt")    == "c/hello/world.txt"    );
-		CHECK ( kMakeSafeFilename("hel.-lo/wÖr_ld.txt")    == "hel.lo/wör-ld.txt"    );
-		CHECK ( kMakeSafeFilename("?hel.-lo/wo?r_ld.txt")  == "hel.lo/wo-r-ld.txt"   );
-		CHECK ( kMakeSafeFilename("/hello/world.txt")      == "hello/world.txt"      );
-		CHECK ( kMakeSafeFilename("///hello/world.txt")    == "hello/world.txt"      );
-		CHECK ( kMakeSafeFilename("hello/../../world.txt") == "hello/world.txt"      );
+		CHECK ( kMakeSafeFilename("hello/world.txt")       == "hello-world.txt"      );
+		CHECK ( kMakeSafeFilename("C:/hello/world.txt")    == "c-hello-world.txt"    );
+		CHECK ( kMakeSafeFilename("hel.-lo/wÖr_ld.txt")    == "hel.lo-wör-ld.txt"    );
+		CHECK ( kMakeSafeFilename("?hel.-lo/wo?r_ld.txt")  == "hel.lo-wo-r-ld.txt"   );
+		CHECK ( kMakeSafeFilename("/hello/world.txt")      == "hello-world.txt"      );
+		CHECK ( kMakeSafeFilename("///hello/world.txt")    == "hello-world.txt"      );
+		CHECK ( kMakeSafeFilename("hello/../../world.txt") == "hello.world.txt"      );
 #endif
 		CHECK ( kMakeSafeFilename("")                      == "none"                 );
 		CHECK ( kMakeSafeFilename("&*&^%$#")               == "none"                 );
@@ -253,6 +271,38 @@ TEST_CASE("KFilesystem") {
 		CHECK ( kMakeSafeFilename("world.txt.*.")          == "world.txt"            );
 		CHECK ( kMakeSafeFilename("world.txt..")           == "world.txt"            );
 		CHECK ( kMakeSafeFilename("WÖRLD.txt..", false)    == "WÖRLD.txt"            );
+	}
+
+	SECTION("kMakeSafePathname")
+	{
+#ifdef DEKAF2_IS_WINDOWS
+		CHECK ( kMakeSafePathname("C:hello/world.txt")     == "hello\\world.txt"     );
+		CHECK ( kMakeSafePathname("C:\\hello\\world.txt")  == "hello\\world.txt"     );
+		CHECK ( kMakeSafePathname("hello/world.txt")       == "hello\\world.txt"     );
+		CHECK ( kMakeSafePathname("C:/hello/world.txt")    == "hello\\world.txt"     );
+		CHECK ( kMakeSafePathname("hel.-lo/wÖr_ld.txt")    == "hel.lo\\wör-ld.txt"   );
+		CHECK ( kMakeSafePathname("?hel.-lo/wo?r_ld.txt")  == "hel.lo\\wo-r-ld.txt"  );
+		CHECK ( kMakeSafePathname("/hello/world.txt")      == "hello\\world.txt"     );
+		CHECK ( kMakeSafePathname("///hello/world.txt")    == "hello\\world.txt"     );
+		CHECK ( kMakeSafePathname("hello/../../world.txt") == "hello\\world.txt"     );
+#else
+		CHECK ( kMakeSafePathname("hello/world.txt")       == "hello/world.txt"      );
+		CHECK ( kMakeSafePathname("C:/hello/world.txt")    == "c/hello/world.txt"    );
+		CHECK ( kMakeSafePathname("hel.-lo/wÖr_ld.txt")    == "hel.lo/wör-ld.txt"    );
+		CHECK ( kMakeSafePathname("?hel.-lo/wo?r_ld.txt")  == "hel.lo/wo-r-ld.txt"   );
+		CHECK ( kMakeSafePathname("/hello/world.txt")      == "hello/world.txt"      );
+		CHECK ( kMakeSafePathname("///hello/world.txt")    == "hello/world.txt"      );
+		CHECK ( kMakeSafePathname("hello/../../world.txt") == "hello/world.txt"      );
+#endif
+		CHECK ( kMakeSafePathname("")                      == "none"                 );
+		CHECK ( kMakeSafePathname("&*&^%$#")               == "none"                 );
+		CHECK ( kMakeSafePathname("&*&^%$#", false, "default") == "default"          );
+		CHECK ( kMakeSafePathname("../../world.txt")       == "world.txt"            );
+		CHECK ( kMakeSafePathname("world.txt/")            == "world.txt"            );
+		CHECK ( kMakeSafePathname("WÖRLD.txt..")           == "wörld.txt"            );
+		CHECK ( kMakeSafePathname("world.txt.*.")          == "world.txt"            );
+		CHECK ( kMakeSafePathname("world.txt..")           == "world.txt"            );
+		CHECK ( kMakeSafePathname("WÖRLD.txt..", false)    == "WÖRLD.txt"            );
 	}
 
 }

@@ -606,18 +606,14 @@ First kFirstNonEmpty(First sFirst, More&&...more)
 	return kFirstNonEmpty<First>(std::forward<More>(more)...);
 }
 
-namespace detail {
-
-static constexpr KStringView s_sLookupLower { "0123456789abcdefghijklmnopqrstuvwxyz" };
-static constexpr KStringView s_sLookupUpper { "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ" };
-
-}
-
 //-----------------------------------------------------------------------------
 template<class String = KString>
 String kUnsignedToString(uint64_t i, uint16_t iBase = 10, bool bZeroPad = false, bool bUppercase = false, bool bIsNeg = false)
 //-----------------------------------------------------------------------------
 {
+	static constexpr KStringView s_sLookupLower { "0123456789abcdefghijklmnopqrstuvwxyz" };
+	static constexpr KStringView s_sLookupUpper { "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ" };
+
 	String sResult;
 
 	if (iBase >=2 && iBase <= 36)
@@ -626,11 +622,11 @@ String kUnsignedToString(uint64_t i, uint16_t iBase = 10, bool bZeroPad = false,
 
 		if (bUppercase)
 		{
-			sLookup = detail::s_sLookupUpper;
+			sLookup = s_sLookupUpper;
 		}
 		else
 		{
-			sLookup = detail::s_sLookupLower;
+			sLookup = s_sLookupLower;
 		}
 
 		do

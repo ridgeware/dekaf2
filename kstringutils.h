@@ -619,35 +619,39 @@ String kUnsignedToString(uint64_t i, uint16_t iBase = 10, bool bZeroPad = false,
 //-----------------------------------------------------------------------------
 {
 	String sResult;
-	KStringView sLookup;
 
-	if (bUppercase)
+	if (iBase >=2 && iBase <= 36)
 	{
-		sLookup = detail::s_sLookupUpper;
-	}
-	else
-	{
-		sLookup = detail::s_sLookupLower;
-	}
+		KStringView sLookup;
 
-	do
-	{
-		sResult += sLookup[i % iBase];
-	}
-	while (i /= iBase);
+		if (bUppercase)
+		{
+			sLookup = detail::s_sLookupUpper;
+		}
+		else
+		{
+			sLookup = detail::s_sLookupLower;
+		}
 
-	if (bZeroPad && (sResult.size() & 1) == 1)
-	{
-		sResult += '0';
-	}
+		do
+		{
+			sResult += sLookup[i % iBase];
+		}
+		while (i /= iBase);
 
-	if (bIsNeg)
-	{
-		sResult += '-';
-	}
+		if (bZeroPad && (sResult.size() & 1) == 1)
+		{
+			sResult += '0';
+		}
 
-	// revert the string
-	std::reverse(sResult.begin(), sResult.end());
+		if (bIsNeg)
+		{
+			sResult += '-';
+		}
+
+		// revert the string
+		std::reverse(sResult.begin(), sResult.end());
+	}
 
 	return sResult;
 
@@ -660,13 +664,15 @@ String kSignedToString(int64_t i, uint16_t iBase = 10, bool bZeroPad = false, bo
 {
 	bool bIsNeg { false };
 
+	auto ui = static_cast<uint64_t>(i);
+
 	if (i < 0)
 	{
 		bIsNeg = true;
-		i *= -1;
+		ui = (~ui + 1);
 	}
 
-	return kUnsignedToString<String>(i, iBase, bZeroPad, bUppercase, bIsNeg);
+	return kUnsignedToString<String>(ui, iBase, bZeroPad, bUppercase, bIsNeg);
 
 } // kSignedToString
 

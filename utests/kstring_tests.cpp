@@ -789,6 +789,55 @@ TEST_CASE("KString") {
 		}
 	}
 
+	SECTION("to_string(base1)")
+	{
+		using stype = KString;
+		std::vector<std::pair<stype, int64_t>> svector = {
+		    { "", 0                   },
+		    { "", 123456789           },
+		    { "", -123456789          },
+			{ "", 7021572290552076995 }
+		};
+
+		for (const auto& it : svector)
+		{
+			CHECK ( KString::to_string(it.second, 1, false, false) == it.first );
+		}
+	}
+
+	SECTION("to_string(base37)")
+	{
+		using stype = KString;
+		std::vector<std::pair<stype, int64_t>> svector = {
+		    { "", 0                   },
+		    { "", 123456789           },
+		    { "", -123456789          },
+			{ "", 7021572290552076995 }
+		};
+
+		for (const auto& it : svector)
+		{
+			CHECK ( KString::to_string(it.second, 37, false, false) == it.first );
+		}
+	}
+
+	SECTION("to_string(base2)")
+	{
+		using stype = KString;
+		std::vector<std::pair<stype, int64_t>> svector = {
+		    {                                   "0", 0                   },
+		    {         "111010110111100110100010101", 123456789           },
+		    {        "-111010110111100110100010101", -123456789          },
+			{ "110000101110001101000101100101111011111000101010001101011000011" ,
+				                                     7021572290552076995 }
+		};
+
+		for (const auto& it : svector)
+		{
+			CHECK ( KString::to_string(it.second, 2, false, false) == it.first );
+		}
+	}
+
 	SECTION("to_string(base36)")
 	{
 		using stype = KString;

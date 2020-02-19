@@ -793,14 +793,15 @@ TEST_CASE("KString") {
 	{
 		using stype = KString;
 		std::vector<std::pair<stype, int64_t>> svector = {
-		    {          "0",  0         },
-		    {     "21I3V9",  123456789 },
-		    {    "-21I3V9", -123456789 },
+		    {              "0", 0                   },
+		    {         "21i3v9", 123456789           },
+		    {        "-21i3v9", -123456789          },
+			{ "1hch7n7gak72b" , 7021572290552076995 }
 		};
 
 		for (const auto& it : svector)
 		{
-			CHECK ( KString::to_string(it.second, 36) == it.first );
+			CHECK ( KString::to_string(it.second, 36, false, false) == it.first );
 		}
 	}
 

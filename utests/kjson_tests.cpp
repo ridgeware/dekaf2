@@ -7,6 +7,11 @@
 
 using namespace dekaf2;
 
+KJSON jsonAsPar(const KJSON& json = KJSON{})
+{
+	return json;
+}
+
 TEST_CASE("KJSON")
 {
 	SECTION("Basic construction")
@@ -282,16 +287,38 @@ TEST_CASE("KJSON")
 		CHECK ( object["value"]    == 42.99 );
 	}
 
-/*
-		KJSON obj2;
-		obj2["fourth"] = 87654;
- 		// this does not work because KJSON does not know how to merge two objects
-		obj2 += row;
-		CHECK( obj2["first"] == "value1" );
-		CHECK( obj2["second"] == "value2" );
-		CHECK( obj2["third"] == 12345 );
-		CHECK( obj2["fourth"] == 87654 );
-*/
+	SECTION("implicit instantiation")
+	{
+		KString sVal1 { "val1" };
+		auto json = jsonAsPar(
+		{
+			{"pi", 3.141529},
+			{"happy", true},
+			{"key1", sVal1},
+			{"key2", "val2"},
+			{"days", 365 }
+		});
+
+		CHECK ( json.dump() == R"({"days":365,"happy":true,"key1":"val1","key2":"val2","pi":3.141529})" );
+
+		json = jsonAsPar(
+		{{
+			{"pi", 3.141529},
+			{"happy", true},
+			{"key1", sVal1},
+			{"key2", "val2"},
+			{"days", 365 }
+		},
+		{
+			{"pa", 3.141529},
+			{"happy", false},
+			{"key1", "val3"},
+			{"key2", "val4"},
+			{"days", 180 }
+		}});
+
+		CHECK ( json.dump() == R"([{"days":365,"happy":true,"key1":"val1","key2":"val2","pi":3.141529},{"days":180,"happy":false,"key1":"val3","key2":"val4","pa":3.141529}])" );
+	}
 
 }
 #endif

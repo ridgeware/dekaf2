@@ -9,7 +9,7 @@ TEST_CASE("KCSV")
 {
 	SECTION("Vectors")
 	{
-		std::vector<std::pair<KCSV::Record, KStringView>> tests
+		std::vector<std::pair<std::vector<KString>, KStringView>> tests
 		{
 			{
 				{ },

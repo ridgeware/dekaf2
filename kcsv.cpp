@@ -62,8 +62,6 @@ KCSV::KCSV(char chRecordLimiter,
 bool KCSV::WriteColumn(KOutStream& Out, KStringView sColumn, bool bIsFirst)
 //-----------------------------------------------------------------------------
 {
-	bool bIsStartOfColumn { true };
-
 	if (!bIsFirst)
 	{
 		Out += m_chColumnLimiter;
@@ -83,7 +81,6 @@ bool KCSV::WriteColumn(KOutStream& Out, KStringView sColumn, bool bIsFirst)
 			Out += ch;
 		}
 		Out += ch;
-		bIsStartOfColumn = false;
 	}
 
 	if (bUseFieldLimiter)

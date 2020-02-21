@@ -65,8 +65,6 @@ class KCSV
 public:
 //------
 
-	using Record = std::vector<KString>;
-
 	/// construct a CSV reader/writer with record, column and field delimiters (defaulted)
 	KCSV(char chRecordLimiter = '\n',
 		 char chColumnLimiter = ',',
@@ -116,7 +114,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// read a vector of strings with correct escaping from an input stream, appending to Record
-	template<class Columns = Record>
+	template<class Columns = std::vector<KString>>
 	bool Read(KInStream& In, Columns& Record)
 	//-----------------------------------------------------------------------------
 	{
@@ -142,7 +140,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// read a vector of strings with correct escaping from an input stream
-	template<class Columns = Record>
+	template<class Columns = std::vector<KString>>
 	Columns Read(KInStream& In)
 	//-----------------------------------------------------------------------------
 	{
@@ -153,7 +151,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// read a vector of strings with correct escaping from an input string
-	template<class Columns = Record>
+	template<class Columns = std::vector<KString>>
 	Columns Read(KStringView In)
 	//-----------------------------------------------------------------------------
 	{

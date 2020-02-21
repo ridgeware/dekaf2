@@ -65,14 +65,16 @@ class KCSV
 public:
 //------
 
+	//-----------------------------------------------------------------------------
 	/// construct a CSV reader/writer with record, column and field delimiters (defaulted)
 	KCSV(char chRecordLimiter = '\n',
 		 char chColumnLimiter = ',',
 		 char chFieldLimiter  = '"');
+	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// write any iterable type with elements that are convertible into a string view with correct escaping into an output stream
-	template<class Columns>
+	template<class Columns = std::vector<KString>>
 	bool Write(KOutStream& Out, const Columns& Record)
 	//-----------------------------------------------------------------------------
 	{
@@ -102,7 +104,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// write any iterable type with elements that are convertible into a string view with correct escaping into an output string
-	template<class Columns>
+	template<class Columns = std::vector<KString>>
 	KString Write(const Columns& Record)
 	//-----------------------------------------------------------------------------
 	{
@@ -178,5 +180,81 @@ private:
 	char    m_chFieldLimiter;
 
 }; // KCSV
+
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+class KInCSV : protected KCSV
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+//------
+public:
+//------
+
+	//-----------------------------------------------------------------------------
+	/// construct a CSV reader with stream, record, column and field delimiters (defaulted)
+	KInCSV(KInStream& In,
+			char chRecordLimiter = '\n',
+			char chColumnLimiter = ',',
+			char chFieldLimiter  = '"')
+	//-----------------------------------------------------------------------------
+	:	KCSV(chRecordLimiter, chColumnLimiter, chFieldLimiter)
+	,	m_In(In)
+	{
+	}
+
+	//-----------------------------------------------------------------------------
+	/// read a vector of strings with correct escaping from an input stream
+	template<class Columns = std::vector<KString>>
+	Columns Read()
+	//-----------------------------------------------------------------------------
+	{
+		return KCSV::Read<Columns>(m_In);
+	}
+
+//------
+protected:
+//------
+
+	KInStream& m_In;
+
+}; // KInCSV
+
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+class KOutCSV : protected KCSV
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+//------
+public:
+//------
+
+	//-----------------------------------------------------------------------------
+	/// construct a CSV writer with stream, record, column and field delimiters (defaulted)
+	KOutCSV(KOutStream& Out,
+			char chRecordLimiter = '\n',
+			char chColumnLimiter = ',',
+			char chFieldLimiter  = '"')
+	//-----------------------------------------------------------------------------
+	:	KCSV(chRecordLimiter, chColumnLimiter, chFieldLimiter)
+	,	m_Out(Out)
+	{
+	}
+
+	//-----------------------------------------------------------------------------
+	/// write any iterable type with elements that are convertible into a string view with correct escaping into the output stream
+	template<class Columns = std::vector<KString>>
+	bool Write(const Columns& Record)
+	//-----------------------------------------------------------------------------
+	{
+		return KCSV::Write(m_Out, Record);
+	}
+
+//------
+protected:
+//------
+
+	KOutStream& m_Out;
+
+}; // KOutCSV
 
 } // end of namespace dekaf2

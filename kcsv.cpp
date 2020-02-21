@@ -67,24 +67,24 @@ bool KCSV::WriteColumn(KOutStream& Out, KStringView sColumn, bool bIsFirst)
 		Out += m_chColumnLimiter;
 	}
 
-	bool bUseFieldLimiter = sColumn.find_first_of(m_sLimiters) != KString::npos;
-
-	if (bUseFieldLimiter)
+	if (sColumn.find_first_of(m_sLimiters) == KString::npos)
+	{
+		// the fast path - no escapes needed
+		Out += sColumn;
+	}
+	else
 	{
 		Out += m_chFieldLimiter;
-	}
 
-	for (auto ch : sColumn)
-	{
-		if (ch == m_chFieldLimiter && bUseFieldLimiter)
+		for (auto ch : sColumn)
 		{
+			if (ch == m_chFieldLimiter)
+			{
+				Out += ch;
+			}
 			Out += ch;
 		}
-		Out += ch;
-	}
 
-	if (bUseFieldLimiter)
-	{
 		Out += m_chFieldLimiter;
 	}
 
@@ -109,12 +109,12 @@ KCSV::STATE KCSV::ReadColumn(KInStream& In, KString& sColumn)
 			// return with success
 			return STATE::EndOfRecord;
 		}
-		else if (ch == '\r' && m_chRecordLimiter == '\n' && (!bUseFieldLimiter || bLastWasFieldLimiter))
+		else if (DEKAF2_UNLIKELY(ch == '\r' && m_chRecordLimiter == '\n' && (!bUseFieldLimiter || bLastWasFieldLimiter)))
 		{
 			// skip the CR when LF is the record limiter
 			continue;
 		}
-		else if (ch == m_chFieldLimiter)
+		else if (DEKAF2_UNLIKELY(ch == m_chFieldLimiter))
 		{
 			if (bIsStartofColumn)
 			{

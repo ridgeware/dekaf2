@@ -22,6 +22,7 @@ set (USOURCES
 	kcasestring_tests.cpp
 	kcompression_tests.cpp
 	kcrc_tests.cpp
+	kcsv_tests.cpp
 	khash_tests.cpp
 	khtmlcontentblocks_tests.cpp
 	kencode_tests.cpp

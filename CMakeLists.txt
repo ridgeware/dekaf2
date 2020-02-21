@@ -449,6 +449,7 @@ set(PUBLIC_HEADERS
 	kconnection.h
 	kcrashexit.h
 	kcrc.h
+	kcsv.h
 	kctype.h
 	kencode.h
 	kexception.h
@@ -581,6 +582,7 @@ set (SOURCES
 	kconnection.cpp
 	kcrashexit.cpp
 	kcrc.cpp
+	kcsv.cpp
 	kctype.cpp
 	kencode.cpp
 	kfdstream.cpp

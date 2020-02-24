@@ -120,10 +120,10 @@ public:
 	bool Read(KInStream& In, Columns& Record)
 	//-----------------------------------------------------------------------------
 	{
-		KString sColumn;
-
 		for (;;)
 		{
+			KString sColumn;
+
 			switch (ReadColumn(In, sColumn))
 			{
 				case STATE::EndOfColumn:

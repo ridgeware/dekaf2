@@ -195,7 +195,7 @@
 		#define DEKAF2_LOG_EXCEPTION }
 	#else
 		#define DEKAF2_TRY_EXCEPTION try {
-		#define DEKAF2_LOG_EXCEPTION } catch (std::exception& e) { kException(e); }
+		#define DEKAF2_LOG_EXCEPTION } catch (const std::exception& e) { kException(e); }
 	#endif
 #else
 	// no exception handling capabilities available

@@ -41,6 +41,7 @@
 
 #include "kxml.h"
 #include "klog.h"
+#include "kexception.h"
 #include "libs/rapidxml-1.13/rapidxml.hpp"
 #include "libs/rapidxml-1.13/rapidxml_print.hpp"
 
@@ -311,23 +312,32 @@ void KXML::clear()
 bool KXML::Parse(bool bPreserveWhiteSpace)
 //-----------------------------------------------------------------------------
 {
-	DEKAF2_TRY_EXCEPTION
+	try {
 
-	if (bPreserveWhiteSpace)
-	{
-		pDocument(D.get())->parse<rapidxml::parse_no_string_terminators
-		                        | rapidxml::parse_preserve_whitespace>(&XMLData.front());
+		if (bPreserveWhiteSpace)
+		{
+			pDocument(D.get())->parse<rapidxml::parse_no_string_terminators
+									| rapidxml::parse_preserve_whitespace>(&XMLData.front());
+		}
+		else
+		{
+			pDocument(D.get())->parse<rapidxml::parse_no_string_terminators>(&XMLData.front());
+		}
+
+		return true;
+
 	}
-	else
+	catch (const rapidxml::parse_error& ex)
 	{
-		pDocument(D.get())->parse<rapidxml::parse_no_string_terminators>(&XMLData.front());
+		clear();
+
+		// build our own exception to include the information from
+		// rapidxml's .where() funtion
+		KException kEx( kFormat("{}, input: '{}'",
+								 ex.what(),
+								 KStringView(ex.where<char>()).substr(0, 20)));
+		kException(kEx);
 	}
-
-	return true;
-
-	DEKAF2_LOG_EXCEPTION
-
-	clear();
 
 	return false;
 }

@@ -333,9 +333,14 @@ bool KXML::Parse(bool bPreserveWhiteSpace)
 
 		// build our own exception to include the information from
 		// rapidxml's .where() funtion
-		KException kEx( kFormat("{}, input: '{}'",
-								 ex.what(),
-								 KStringView(ex.where<char>()).substr(0, 20)));
+
+		KStringView sWhere { ex.where<char>() };
+		auto iPos = XMLData.find(sWhere);
+
+		KException kEx( kFormat("{} at pos {}, next input: '{}'",
+								ex.what(),
+								iPos,
+								sWhere.substr(0, 20)));
 		kException(kEx);
 	}
 

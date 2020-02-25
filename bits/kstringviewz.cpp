@@ -175,7 +175,7 @@ KStringViewZ KStringViewZ::Right(size_type iCount) const noexcept
 {
 	if (iCount > size())
 	{
-		kWarning("count ({}) exceeds size ({})", iCount, size());
+		// do not warn
 		iCount = size();
 	}
 	return KStringViewZ(data() + size() - iCount, iCount);

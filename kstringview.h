@@ -834,8 +834,11 @@ public:
 	//-----------------------------------------------------------------------------
 	// nonstandard
 	/// returns leftmost iCount chars of string
-	KStringView Left(size_type iCount) const;
+	KStringView Left(size_type iCount) const
 	//-----------------------------------------------------------------------------
+	{
+		return substr(0, iCount);
+	}
 
 	//-----------------------------------------------------------------------------
 	// nonstandard
@@ -844,7 +847,7 @@ public:
 	KStringView Mid(size_type iStart, size_type iCount = npos) const
 	//-----------------------------------------------------------------------------
 	{
-		return ToView(iStart, iCount);
+		return substr(iStart, iCount);
 	}
 
 	//-----------------------------------------------------------------------------

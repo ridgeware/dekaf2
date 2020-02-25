@@ -737,25 +737,12 @@ std::vector<KStringView> KStringView::MatchRegexGroups(KStringView sRegEx, size_
 }
 
 //----------------------------------------------------------------------
-KStringView KStringView::Left(size_type iCount) const
-//----------------------------------------------------------------------
-{
-	if (iCount > size())
-	{
-		kWarning("count ({}) exceeds size ({})", iCount, size());
-		iCount = size();
-	}
-	return KStringView(data(), iCount);
-
-} // Left
-
-//----------------------------------------------------------------------
 KStringView KStringView::Right(size_type iCount) const
 //----------------------------------------------------------------------
 {
 	if (iCount > size())
 	{
-		kWarning("count ({}) exceeds size ({})", iCount, size());
+		// do not warn
 		iCount = size();
 	}
 	return KStringView(data() + size() - iCount, iCount);

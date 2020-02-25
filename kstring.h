@@ -1483,6 +1483,62 @@ inline std::vector<KStringView> KString::MatchRegexGroups(KStringView sRegEx, si
 	return ToView().MatchRegexGroups(sRegEx, pos);
 }
 
+//-----------------------------------------------------------------------------
+inline KStringView KString::Left(size_type iCount) const
+//-----------------------------------------------------------------------------
+{
+	return ToView().Left(iCount);
+}
+
+//-----------------------------------------------------------------------------
+inline KStringViewZ KString::Mid(size_type iStart) const
+//-----------------------------------------------------------------------------
+{
+	return ToView().Mid(iStart);
+}
+
+//-----------------------------------------------------------------------------
+inline KStringView KString::Mid(size_type iStart, size_type iCount) const
+//-----------------------------------------------------------------------------
+{
+	return ToView().Mid(iStart, iCount);
+}
+
+//-----------------------------------------------------------------------------
+inline KStringViewZ KString::Right(size_type iCount) const
+//-----------------------------------------------------------------------------
+{
+	return ToView().Right(iCount);
+}
+
+//-----------------------------------------------------------------------------
+inline KStringView KString::LeftUTF8(size_type iCount) const
+//-----------------------------------------------------------------------------
+{
+	return ToView().LeftUTF8(iCount);
+}
+
+//-----------------------------------------------------------------------------
+inline KStringViewZ KString::MidUTF8(size_type iStart) const
+//-----------------------------------------------------------------------------
+{
+	return ToView().MidUTF8(iStart);
+}
+
+//-----------------------------------------------------------------------------
+inline KStringView KString::MidUTF8(size_type iStart, size_type iCount) const
+//-----------------------------------------------------------------------------
+{
+	return ToView().MidUTF8(iStart, iCount);
+}
+
+//-----------------------------------------------------------------------------
+inline KStringViewZ KString::RightUTF8(size_type iCount) const
+//-----------------------------------------------------------------------------
+{
+	return ToView().RightUTF8(iCount);
+}
+
 // KString inline methods until here
 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 

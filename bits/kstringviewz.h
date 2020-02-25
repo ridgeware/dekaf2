@@ -359,7 +359,7 @@ public:
 	{
 		if (pos > size())
 		{
-			Warn("pos exceeds size");
+			// do not warn
 			pos = size();
 		}
 		if (n > size())

@@ -260,16 +260,22 @@ bool KHTTPClient::Connect(std::unique_ptr<KConnection> Connection)
 
 	if (!m_Connection)
 	{
+		// Reset the streams in the filters, as they may now
+		// point into a deleted connection object from a
+		// previous connection!
+		Response.ResetInputStream();
+		Request.ResetOutputStream();
+
 		return SetError("KConnection is invalid");
 	}
 
-	if (!m_Connection->Good())
-	{
-		return SetError(m_Connection->Error());
-	}
+	// reset status code and string
+	Response.SetStatus(0, "");
 
-	// this is a new connection, so initially assume no proxying
-	m_bUseHTTPProxyProtocol	= false;
+	// immediately set the filter streams to the new object
+	// (see comment above)
+	Response.SetInputStream(m_Connection->Stream());
+	Request.SetOutputStream(m_Connection->Stream());
 
 	m_Connection->SetTimeout(m_Timeout);
 
@@ -278,8 +284,13 @@ bool KHTTPClient::Connect(std::unique_ptr<KConnection> Connection)
 	(*m_Connection)->SetReaderRightTrim("\r\n");
 	(*m_Connection)->SetWriterEndOfLine("\r\n");
 
-	Response.SetInputStream(m_Connection->Stream());
-	Request.SetOutputStream(m_Connection->Stream());
+	// this is a new connection, so initially assume no proxying
+	m_bUseHTTPProxyProtocol	= false;
+
+	if (!m_Connection->Good())
+	{
+		return SetError(m_Connection->Error());
+	}
 
 	return true;
 

@@ -52,4 +52,15 @@ TEST_CASE("KHTTPClient")
 		CHECK ( sHTML.empty() == false );
 		CHECK ( HTTP.GetStatusCode() == 200 );
 	}
+
+	SECTION("No DNS")
+	{
+		KWebClient HTTP;
+		auto sResult = HTTP.Get("https://www.google.fr");
+		CHECK ( HTTP.HttpSuccess() == true );
+		CHECK ( sResult.empty() == false );
+		sResult = HTTP.Get("https://wxy.judgvbdfasjh.skjhgds.org");
+		CHECK ( HTTP.HttpSuccess() == false );
+		CHECK ( sResult.empty() == true );
+	}
 }

@@ -91,6 +91,14 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// Reset the output stream for the filter to nil
+	void ResetOutputStream()
+	//-----------------------------------------------------------------------------
+	{
+		m_OutStream = &s_Empty;
+	}
+
+	//-----------------------------------------------------------------------------
 	/// read input configuration from existing set of headers, but do not
 	/// yet build the filter.
 	bool Parse(const KHTTPHeaders& headers);

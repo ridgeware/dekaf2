@@ -5544,7 +5544,7 @@ bool KSQL::Delete (KROW& Row)
 } // Delete
 
 //-----------------------------------------------------------------------------
-bool KSQL::PurgeKey (KStringView sPKEY, KStringView sValue, KJSON& ChangesMade)
+bool KSQL::PurgeKey (KStringView sPKEY, KStringView sValue, KJSON& ChangesMade, KStringView sIgnoreRegex/*=""*/)
 //-----------------------------------------------------------------------------
 {
 	ChangesMade = KJSON::array();
@@ -5557,16 +5557,27 @@ bool KSQL::PurgeKey (KStringView sPKEY, KStringView sValue, KJSON& ChangesMade)
 
 	for (auto& table : DataDict)
 	{
-		KString sTableName = table["table_name"];
+		KJSON    obj;
+		KString  sTableName = table["table_name"];
+		uint32_t iChanged{0};
 
-		if (!ExecSQL ("delete from %s /*KSQL::PurgeKey*/ where %s = binary '%s'", sTableName, sPKEY, sValue))
+		obj["table_name"] = sTableName;
+
+		if (sIgnoreRegex && sTableName.ToUpper().MatchRegex (sIgnoreRegex.ToUpper()))
 		{
-			return (false);
+			obj["ignored"] = true;
+			iChanged = 0;
+		}
+		else
+		{
+			if (!ExecSQL ("delete from %s /*KSQL::PurgeKey*/ where %s = binary '%s'", sTableName, sPKEY, sValue))
+			{
+				return (false);
+			}
+			iChanged = GetNumRowsAffected();
 		}
 
-		KJSON obj;
-		obj["table_name"]   = sTableName;
-		obj["rows_deleted"] = GetNumRowsAffected();
+		obj["rows_deleted"] = iChanged;
 		ChangesMade += obj;
 	}
 

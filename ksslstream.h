@@ -153,11 +153,11 @@ struct KAsioSSLStream
 	bool Disconnect()
 	//-----------------------------------------------------------------------------
 	{
-		if (Socket.lowest_layer().is_open())
+		if (Socket.next_layer().is_open())
 		{
 			boost::system::error_code ec;
 
-			Socket.lowest_layer().shutdown(boost::asio::ip::tcp::socket::shutdown_both, ec);
+			Socket.next_layer().shutdown(boost::asio::ip::tcp::socket::shutdown_both, ec);
 
 			if (ec)
 			{
@@ -165,7 +165,7 @@ struct KAsioSSLStream
 				return false;
 			}
 
-			Socket.lowest_layer().close(ec);
+			Socket.next_layer().close(ec);
 
 			if (ec)
 			{
@@ -177,6 +177,33 @@ struct KAsioSSLStream
 		return true;
 
 	} // Disconnect
+
+	//-----------------------------------------------------------------------------
+	/// tests for a closed connection of the remote side by trying to peek one byte
+	bool IsDisconnected()
+	//-----------------------------------------------------------------------------
+	{
+		uint16_t buffer;
+
+		Socket.next_layer().receive(boost::asio::buffer(&buffer, 1), Socket.next_layer().message_peek, ec);
+
+		if (ec == boost::asio::error::would_block)
+		{
+			// open but no data
+			ec.clear();
+			return false;
+		}
+		else if (!ec)
+		{
+			// open and data
+			return false;
+		}
+
+		// ec == boost::asio::error::eof would signal a closed socket,
+		// but we treat all other errors as disconnected as well
+		return true;
+
+	} // IsDisconnected
 
 	//-----------------------------------------------------------------------------
 	void ResetTimer()
@@ -199,7 +226,7 @@ struct KAsioSSLStream
 		if (Timer.expires_at() <= boost::asio::deadline_timer::traits_type::now())
 		{
 			boost::system::error_code ignored_ec;
-			Socket.lowest_layer().close(ignored_ec);
+			Socket.next_layer().close(ignored_ec);
 			Timer.expires_at(boost::posix_time::pos_infin);
 			kDebug (1, "Connection timeout ({} seconds): {}", iSecondsTimeout, sEndpoint);
 		}
@@ -342,6 +369,14 @@ public:
 	//-----------------------------------------------------------------------------
 	{
 		return m_Stream.Socket.next_layer().is_open();
+	}
+
+	//-----------------------------------------------------------------------------
+	/// tests for a closed connection of the remote side by trying to peek one byte
+	bool IsDisconnected()
+	//-----------------------------------------------------------------------------
+	{
+		return m_Stream.IsDisconnected();
 	}
 
 	//-----------------------------------------------------------------------------

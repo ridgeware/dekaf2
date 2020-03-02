@@ -99,6 +99,33 @@ struct KAsioStream
 	} // Disconnect
 
 	//-----------------------------------------------------------------------------
+	/// tests for a closed connection of the remote side by trying to peek one byte
+	bool IsDisconnected()
+	//-----------------------------------------------------------------------------
+	{
+		uint16_t buffer;
+
+		Socket.receive(boost::asio::buffer(&buffer, 1), Socket.message_peek, ec);
+
+		if (ec == boost::asio::error::would_block)
+		{
+			// open but no data
+			ec.clear();
+			return false;
+		}
+		else if (!ec)
+		{
+			// open and data
+			return false;
+		}
+
+		// ec == boost::asio::error::eof would signal a closed socket,
+		// but we treat all other errors as disconnected as well
+		return true;
+
+	} // IsDisconnected
+
+	//-----------------------------------------------------------------------------
 	void ResetTimer()
 	//-----------------------------------------------------------------------------
 	{

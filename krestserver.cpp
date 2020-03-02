@@ -135,7 +135,9 @@ void KRESTServer::VerifyPerThreadKLogToHeader(const Options& Options)
 			{ "-E"    , EGREP },
 			{ "-egrep", EGREP },
 			{ "-grep" , GREP  },
-			{ "-help" , HELP  }
+			{ "-h"    , HELP  },
+			{ "-help" , HELP  },
+			{ "--help", HELP  }
 		}
 #ifdef DEKAF2_HAS_FROZEN
 		)

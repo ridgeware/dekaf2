@@ -139,6 +139,14 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// tests for a closed connection of the remote side by trying to peek one byte
+	bool IsDisconnected()
+	//-----------------------------------------------------------------------------
+	{
+		return m_Stream.IsDisconnected();
+	}
+
+	//-----------------------------------------------------------------------------
 	/// Gets the underlying socket of the stream
 	/// @return
 	/// The socket of the stream (wrapped into ASIO's basic_socket<> template)

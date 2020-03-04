@@ -597,6 +597,7 @@ constexpr KStringViewZ KMIME::HTML_UTF8;
 constexpr KStringViewZ KMIME::CSS;
 constexpr KStringViewZ KMIME::CSV;
 constexpr KStringViewZ KMIME::CALENDAR;
+constexpr KStringViewZ KMIME::PO;
 constexpr KStringViewZ KMIME::AVI;
 constexpr KStringViewZ KMIME::MPEG;
 constexpr KStringViewZ KMIME::OGV;

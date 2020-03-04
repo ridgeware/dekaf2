@@ -193,6 +193,7 @@ public:
 	static constexpr KStringViewZ CSS                    = "text/css; charset=UTF-8";
 	static constexpr KStringViewZ CSV                    = "text/csv";
 	static constexpr KStringViewZ CALENDAR               = "text/calendar";
+	static constexpr KStringViewZ PO                     = "text/x-gettext-translation";
 
 	static constexpr KStringViewZ AVI                    = "video/x-msvideo";
 	static constexpr KStringViewZ MPEG                   = "video/mpeg";

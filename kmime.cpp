@@ -123,6 +123,7 @@ bool KMIME::ByExtension(KStringView sFilename, KMIME Default)
 		{ "css"_ksv,   CSS },
 		{ "csv"_ksv,   CSV },
 		{ "ics"_ksv,   CALENDAR },
+		{ "po"_ksv,    PO },
 
 		{ "avi"_ksv,   AVI },
 		{ "mpeg"_ksv,  MPEG },
@@ -146,10 +147,7 @@ bool KMIME::ByExtension(KStringView sFilename, KMIME Default)
 		}
 	}
 
-	for (auto& ch : sExtension)
-	{
-		ch = KASCII::kToLower(ch);
-	}
+	sExtension.MakeLowerASCII();
 
 	auto it = s_Extension_Map.find(sExtension);
 

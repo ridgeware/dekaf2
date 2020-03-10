@@ -1624,5 +1624,29 @@ TEST_CASE("KString") {
 		}
 	}
 
+	SECTION("split temporary")
+	{
+		KProps<KString, KString> Props;
+		Props["column"] = "simple";
+
+		for (auto& sCol : KStringView("test,some,column,names,to,happily,split,here").Split(","))
+		{
+			Props.Remove (sCol);
+		}
+	}
+
+	SECTION("split constexpr")
+	{
+		KProps<KString, KString> Props;
+		Props["column"] = "simple";
+
+		static constexpr KStringView sNames("test,some,column,names,to,happily,split,here");
+
+		for (auto& sCol : sNames.Split(","))
+		{
+			Props.Remove (sCol);
+		}
+	}
+
 }
 

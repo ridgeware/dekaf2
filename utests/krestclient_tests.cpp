@@ -4,6 +4,8 @@
 #include <dekaf2/krest.h>
 #include <dekaf2/kmessagedigest.h>
 
+#ifndef DEKAF2_IS_WINDOWS
+
 using namespace dekaf2;
 
 void rest_login(KRESTServer& REST)
@@ -218,3 +220,4 @@ TEST_CASE("KRESTCLIENT")
 	}
 }
 
+#endif // of DEKAF2_IS_WINDOWS

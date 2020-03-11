@@ -5559,7 +5559,7 @@ bool KSQL::PurgeKey (KStringView sPKEY, KStringView sValue, KJSON& ChangesMade, 
 	{
 		KJSON    obj;
 		KString  sTableName = table["table_name"];
-		uint32_t iChanged{0};
+		uint64_t iChanged{0};
 
 		obj["table_name"] = sTableName;
 
@@ -5606,7 +5606,7 @@ bool KSQL::PurgeKeyList (KStringView sPKEY, KStringView sInClause, KJSON& Change
 	{
 		KJSON    obj;
 		KString  sTableName = table["table_name"];
-		uint32_t iChanged{0};
+		uint64_t iChanged{0};
 
 		obj["table_name"] = sTableName;
 
@@ -6830,8 +6830,8 @@ bool KSQL::EnsureSchemaExecute (KStringView sTablename,
 
 	KString sEscapedTablename = EscapeString(sTablename);
 
-	int16_t  iSigned    = (bForce) ? 0 : SingleIntQuery ("select %s from %s", sColName, sEscapedTablename);
-	uint16_t iSchemaRev = (iSigned < 0) ? 0 : iSigned;
+	auto     iSigned    = (bForce) ? 0 : SingleIntQuery ("select %s from %s", sColName, sEscapedTablename);
+	uint16_t iSchemaRev = (iSigned < 0) ? 0 : static_cast<uint16_t>(iSigned);
 	KString sError;
 
 	kDebug (2, "current rev in db determined to be: {}", iSchemaRev);
@@ -6851,7 +6851,7 @@ bool KSQL::EnsureSchemaExecute (KStringView sTablename,
 
 	// query rev again after acquiring the lock
 	iSigned    = (bForce) ? 0 : SingleIntQuery ("select %s from %s", sColName, sEscapedTablename);
-	iSchemaRev = (iSigned < 0) ? 0 : iSigned;
+	iSchemaRev = (iSigned < 0) ? 0 : static_cast<uint16_t>(iSigned);
 
 	if (iSchemaRev < iCurrentSchema)
 	{
@@ -7007,7 +7007,7 @@ uint16_t KSQL::GetSchema (KStringView sTablename)
 {
 	m_sLastSQL = kFormat("SELECT {} FROM {}", sColName, EscapeString(sTablename));
 
-	int16_t iSigned = SingleIntQuery ("select %s from %s", sColName, EscapeString(sTablename));
+	auto iSigned = SingleIntQuery ("select %s from %s", sColName, EscapeString(sTablename));
 
 	if (iSigned <= 0)
 	{

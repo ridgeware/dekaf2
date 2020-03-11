@@ -113,7 +113,7 @@ public:
 	}
 
 	/// returns the hash as integer
-	uint32_t operator()() const
+	std::size_t operator()() const
 	{
 		return Hash();
 	}

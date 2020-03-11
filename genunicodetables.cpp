@@ -122,7 +122,7 @@ struct CodePoint
 	KStringView            sCategory  { "OtherNotAssigned" };
 	KStringView            sType      { "Other" };
 	KString                sOriginalLine {};
-	uint16_t               iCaseFold  { 0 };
+	std::size_t            iCaseFold  { 0 };
 	bool                   bIsFirst   { false };
 	bool                   bIsLast    { false };
 

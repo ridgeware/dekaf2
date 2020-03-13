@@ -210,6 +210,9 @@ public:
 
 	~KSQL ();
 
+	bool operator== (const KSQL& other) const { return (GetHash() == other.GetHash()); }
+	bool operator!= (const KSQL& other) const { return (GetHash() != other.GetHash()); }
+
 	bool   SetConnect (DBT iDBType, KStringView sUsername, KStringView sPassword, KStringView sDatabase, KStringView sHostname = {}, uint16_t iDBPortNum = 0);
 	bool   SetDBType (DBT iDBType);
 	bool   SetDBType (KStringView sDBType);
@@ -395,12 +398,13 @@ public:
 	}
 	#endif
 
-	DBT         GetDBType ()       const { return (m_iDBType);         }
+	DBT            GetDBType ()    const { return (m_iDBType);         }
 	const KString& GetDBUser ()    const { return (m_sUsername);       }
 	const KString& GetDBPass ()    const { return (m_sPassword);       }
 	const KString& GetDBHost ()    const { return (m_sHostname);       }
 	const KString& GetDBName ()    const { return (m_sDatabase);       }
-	uint16_t    GetDBPort ()       const { return (m_iDBPortNum);      }
+	uint16_t       GetDBPort ()    const { return (m_iDBPortNum);      }
+	uint64_t       GetHash ()      const { return kFormat("{}:{}:{}:{}:{}:{}", TxAPISet(m_iAPISet), m_sUsername, m_sPassword, m_sHostname, m_sDatabase, m_iDBPortNum).Hash(); }
 	const KString& ConnectSummary () const;
 	const KString& GetTempDir()    const { return (m_sTempDir);        }
 

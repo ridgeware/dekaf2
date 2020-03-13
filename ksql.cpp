@@ -6762,6 +6762,25 @@ KString KSQL::FormAndClause (KStringView sDbCol, KStringView sQueryParm, uint64_
 } // FormAndClause
 
 //-----------------------------------------------------------------------------
+KString KSQL::FormGroupBy (uint8_t iNumCols)
+//-----------------------------------------------------------------------------
+{
+	KString sGroupBy;
+	for (uint8_t ii{1}; ii <= iNumCols; ++ii)
+	{
+		sGroupBy += kFormat ("{}{}", sGroupBy ? "," : " group by ", ii);
+	}
+
+	if (sGroupBy)
+	{
+		sGroupBy += "\n";
+	}
+
+	return sGroupBy;
+
+} // FormGroupBy
+
+//-----------------------------------------------------------------------------
 bool KSQL::GetLock (KStringView sName, int16_t iTimeoutSeconds)
 //-----------------------------------------------------------------------------
 {

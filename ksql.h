@@ -466,6 +466,8 @@ public:
 	/// helper method to form AND clauses for dynamic SQL.
 	KString FormAndClause (KStringView sDbCol, KStringView sQueryParm, uint64_t iFlags=FAC_NORMAL, KStringView sSplitBy=",");
 
+	static KString FormGroupBy (uint8_t iNumCols);
+
 	/// shortcut to KROW::EscapeChars that automatically adds the DBType
 	KString EscapeString (KStringView sCol)
 	{

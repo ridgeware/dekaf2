@@ -222,15 +222,15 @@ void KRESTRoutes::clear()
 const KRESTRoute& KRESTRoutes::FindRoute(const KRESTPath& Path, Parameters& Params, bool bCheckForWrongMethod) const
 //-----------------------------------------------------------------------------
 {
-	kDebug (2, "Looking up: {} {}" , Path.Method.Serialize(), Path.sRoute);
+	kDebug (2, "looking up: [{:<7}] {}" , Path.Method.Serialize(), Path.sRoute);
 
 	// check for a matching route
 	for (const auto& it : m_Routes)
 	{
-		kDebug (3, "evaluating: {} {}" , it.Method.Serialize(), it.sRoute);
+		kDebug (3, "evaluating: [{:<7}] {}" , it.Method.Serialize(), it.sRoute);
 		if (it.Matches(Path, Params, true))
 		{
-			kDebug (2, "Found: {} {}" , it.Method.Serialize(), it.sRoute);
+			kDebug (2, "     found: [{:<7}] {}" , it.Method.Serialize(), it.sRoute);
 			return it;
 		}
 	}

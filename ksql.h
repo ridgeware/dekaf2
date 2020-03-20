@@ -264,7 +264,7 @@ public:
 		m_sLastSQL = kPrintf(std::forward<Args>(args)...);
 
 		if (!IsFlag(F_NoTranslations)) {
-			DoTranslations (m_sLastSQL, m_iDBType);
+			DoTranslations (m_sLastSQL);
 		}
 
 		bool bOK = ExecRawSQL (m_sLastSQL, 0, "ExecSQL");
@@ -293,7 +293,7 @@ public:
 
 		if (!IsFlag(F_NoTranslations))
 		{
-			DoTranslations (m_sLastSQL, m_iDBType);
+			DoTranslations (m_sLastSQL);
 		}
 
 		if (!IsFlag(F_IgnoreSelectKeyword) && !m_sLastSQL.starts_with ("select") && !m_sLastSQL.starts_with("SELECT"))
@@ -317,7 +317,7 @@ public:
 
 		if (!IsFlag(F_NoTranslations))
 		{
-			DoTranslations (m_sLastSQL, m_iDBType);
+			DoTranslations (m_sLastSQL);
 		}
 
 		return (SingleIntRawQuery (m_sLastSQL, 0, "SingleIntQuery"));
@@ -424,7 +424,7 @@ public:
 	void        SetTempDir (KStringView sTempDir)  { m_sTempDir = sTempDir; }
 
 	void        BuildTranslationList (TXList& pList, DBT iDBType = DBT::NONE);
-	void        DoTranslations (KString& sSQL, DBT iDBType = DBT::NONE);
+	void        DoTranslations (KString& sSQL);
 	KStringView TxDBType (DBT iDBType) const;
 	KStringView TxAPISet (API iAPISet) const;
 

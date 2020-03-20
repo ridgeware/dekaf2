@@ -2114,7 +2114,7 @@ void KSQL::ExecSQLFileGo (KStringView sFilename, SQLFileParms& Parms)
 
 		if (!IsFlag(F_NoTranslations))
 		{
-			DoTranslations (m_sLastSQL, m_iDBType);
+			DoTranslations (m_sLastSQL);
 		}
 	
 		if (!ExecRawQuery (m_sLastSQL, 0, "ExecSQLFile") && !Parms.fDropStatement)
@@ -2129,7 +2129,7 @@ void KSQL::ExecSQLFileGo (KStringView sFilename, SQLFileParms& Parms)
 
 		if (!IsFlag(F_NoTranslations))
 		{
-			DoTranslations (m_sLastSQL, m_iDBType);
+			DoTranslations (m_sLastSQL);
 		}
 
 		if (!ExecRawSQL (m_sLastSQL, 0, "ExecSQLFile") && !Parms.fDropStatement)
@@ -2724,7 +2724,7 @@ bool KSQL::ParseQuery (KStringView sFormat, ...)
 
 	if (!IsFlag(F_NoTranslations))
 	{
-		DoTranslations (m_sLastSQL, m_iDBType);
+		DoTranslations (m_sLastSQL);
 	}
 
 	if (!IsFlag(F_IgnoreSelectKeyword) && !m_sLastSQL.starts_with("select") && !m_sLastSQL.starts_with("SELECT"))
@@ -4216,7 +4216,7 @@ void KSQL::BuildTranslationList (TXList& pList, DBT iDBType)
 } // BuildTranslationList
 
 //-----------------------------------------------------------------------------
-void KSQL::DoTranslations (KString& sSQL, DBT iDBType)
+void KSQL::DoTranslations (KString& sSQL)
 //-----------------------------------------------------------------------------
 {
 	kDebug (3,
@@ -4224,18 +4224,13 @@ void KSQL::DoTranslations (KString& sSQL, DBT iDBType)
 			   "{}",
 				   sSQL);
 
-	if (iDBType == DBT::NONE)
-	{
-		iDBType = m_iDBType;
-	}
-
 	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 	// do the translations on the string (in place):
 	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 	static constexpr KStringView s_sOpen  = "{{";
 	static constexpr KStringView s_sClose = "}}";
 
-	if (!kReplaceVariables(sSQL, s_sOpen, s_sClose, true, m_TxList))
+	if (!kReplaceVariables(sSQL, s_sOpen, s_sClose, /*bQueryEnvironment=*/false, m_TxList))
 	{
 		kDebug (3, " --> no SQL translations.");
 	}
@@ -5469,7 +5464,7 @@ bool KSQL::Insert (KROW& Row, bool bIgnoreDupes/*=false*/)
 
 	if (!IsFlag(F_NoTranslations))
 	{
-		DoTranslations (m_sLastSQL, m_iDBType);
+		DoTranslations (m_sLastSQL);
 	}
 
 	auto iSavedFlags = 0;
@@ -5509,7 +5504,7 @@ bool KSQL::Update (KROW& Row)
 
 	if (!IsFlag(F_NoTranslations))
 	{
-		DoTranslations (m_sLastSQL, m_iDBType);
+		DoTranslations (m_sLastSQL);
 	}
 
 	bool bOK = ExecRawSQL (m_sLastSQL, 0, "Update");
@@ -5532,7 +5527,7 @@ bool KSQL::Delete (KROW& Row)
 
 	if (!IsFlag(F_NoTranslations))
 	{
-		DoTranslations (m_sLastSQL, m_iDBType);
+		DoTranslations (m_sLastSQL);
 	}
 
 	bool bOK = ExecRawSQL (m_sLastSQL, 0, "Delete");

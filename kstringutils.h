@@ -55,6 +55,7 @@
 #include "ksystem.h"
 #include "kctype.h"
 #include "bits/ktemplate.h"
+#include "klog.h"
 
 namespace dekaf2
 {
@@ -357,6 +358,8 @@ template<class String, class StringView, class ReplaceMap = std::map<StringView,
 std::size_t kReplaceVariables (String& sString, StringView sOpen, StringView sClose, bool bQueryEnvironment, const ReplaceMap& Variables = ReplaceMap{})
 //-----------------------------------------------------------------------------
 {
+	kDebug (3, "...");
+
 	std::size_t iNumReplacements { 0 };
 	auto iOpen = sOpen.size();
 
@@ -385,14 +388,24 @@ std::size_t kReplaceVariables (String& sString, StringView sOpen, StringView sCl
 				KString strValue(sValue);
 				sReplace = kGetEnv(strValue);
 			}
-			if (!sReplace.empty())
+			if (sReplace)
 			{
+				kDebug (2, "doing replacement: {} --> {}", sValue, sReplace);
 				// found one - replace it
 				sString.replace(iPos, sValue.size() + iOpen + sClose.size(), sReplace);
+
 				// readjust start position
 				iStart = iPos + sReplace.size();
+
 				// increase replace counter
 				++iNumReplacements;
+			}
+			else
+			{
+				kDebug (3, "no replacement: {}, iStart={}, iEnd={}", sValue, iStart, iEnd);
+
+				// readjust start position
+				iStart += iEnd;
 			}
 		}
 		else

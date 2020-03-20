@@ -7049,18 +7049,66 @@ bool KSQL::EnsureConnected (KStringView sProgramName, KString sDBCFile, const In
 		return true; // already connected
 	}
 
-	kDebug (1, "looks like we need to connect...");
-
-	//   1. environment vars        -- overrides all others
-	//   2. -dbc on command line    -- handled by SetDBCFile() from option parsing
-	//   3. /etc/dbrestserver.dbc
-	//   4. /etc/dbrestserver.ini
+	KString sUpperProgramName = sProgramName.ToUpper();
+	KString sDBType (kFormat("{}_DBTYPE", sUpperProgramName));
+	KString sDBUser (kFormat("{}_DBUSER", sUpperProgramName));
+	KString sDBPass (kFormat("{}_DBPASS", sUpperProgramName));
+	KString sDBHost (kFormat("{}_DBHOST", sUpperProgramName));
+	KString sDBName (kFormat("{}_DBNAME", sUpperProgramName));
+	KString sDBPort (kFormat("{}_DBPORT", sUpperProgramName));
+	KString sLiveDB (kFormat("{}_DBLIVE", sUpperProgramName));
 
 	if (sDBCFile.empty())
 	{
 		sDBCFile.Format("/etc/{}.dbc", sProgramName.ToLower());
 	}
 
+	if (kWouldLog(2))
+	{
+		kDebug (1, "looks like we need to connect...");
+
+		kDebug (1, 
+			" 1. environment vars:\n"
+			"    {:<18} : {}\n"
+			"    {:<18} : {}\n"
+			"    {:<18} : {}\n"
+			"    {:<18} : {}\n"
+			"    {:<18} : {}\n"
+			"    {:<18} : {}\n"
+			"    {:<18} : {}",
+				sDBType, kGetEnv(sDBType),
+				sDBUser, kGetEnv(sDBUser),
+				sDBPass, kGetEnv(sDBPass),
+				sDBHost, kGetEnv(sDBHost),
+				sDBName, kGetEnv(sDBName),
+				sDBPort, kGetEnv(sDBPort),
+				sLiveDB, kGetEnv(sLiveDB));
+
+		kDebug (1, 
+			" 2. DBC FILE:\n"
+			"    {:<18} : {} ({})",
+					"dbcfile",
+					sDBCFile,
+					kFileExists(sDBCFile) ? "exists" : "does not exist");
+
+		kDebug (1, 
+			" 3. INI PARMS:\n"
+			"    {:<18} : {}\n"
+			"    {:<18} : {}\n"
+			"    {:<18} : {}\n"
+			"    {:<18} : {}\n"
+			"    {:<18} : {}\n"
+			"    {:<18} : {}\n"
+			"    {:<18} : {}",
+				sDBType, INI.Get(sDBType),
+				sDBUser, INI.Get(sDBUser),
+				sDBPass, INI.Get(sDBPass),
+				sDBHost, INI.Get(sDBHost),
+				sDBName, INI.Get(sDBName),
+				sDBPort, INI.Get(sDBPort),
+				sLiveDB, INI.Get(sLiveDB));
+	}
+	
 	const auto& sDBCContent = s_DBCCache.Get(sDBCFile);
 
 	if (!sDBCContent.empty())
@@ -7075,16 +7123,6 @@ bool KSQL::EnsureConnected (KStringView sProgramName, KString sDBCFile, const In
 	KString sInitialConfig = ConnectSummary();
 
 	kDebug (1, "checking for environment overrides (piecemeal acceptable)");
-
-	KString sUpperProgramName = sProgramName.ToUpper();
-
-	KString sDBType (kFormat("{}_DBTYPE", sUpperProgramName));
-	KString sDBUser (kFormat("{}_DBUSER", sUpperProgramName));
-	KString sDBPass (kFormat("{}_DBPASS", sUpperProgramName));
-	KString sDBHost (kFormat("{}_DBHOST", sUpperProgramName));
-	KString sDBName (kFormat("{}_DBNAME", sUpperProgramName));
-	KString sDBPort (kFormat("{}_DBPORT", sUpperProgramName));
-	KString sLiveDB (kFormat("{}_DBLIVE", sUpperProgramName));
 
 	KString sSetDBType;
 	if (GetDBType() != DBT::NONE)
@@ -7114,6 +7152,12 @@ bool KSQL::EnsureConnected (KStringView sProgramName, KString sDBCFile, const In
 			kDebug (1, "db configuration changed through ini file or env vars\n  from: {}\n    to: {}",
 					sInitialConfig, sChanged);
 		}
+	}
+
+	if (!GetDBUser() && !GetDBPass() && !GetDBName())
+	{
+		m_sLastError.Format ("no db connection defined");
+		return false;
 	}
 
 	kDebug (1, "attempting to connect ...");

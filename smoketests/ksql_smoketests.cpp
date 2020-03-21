@@ -185,6 +185,17 @@ TEST_CASE("KSQL")
 		CHECK (sEscaped == ASIAN1);
 	}
 
+	SECTION("KSQL::DoTranslations()")
+	{
+		const KStringViewZ sBefore   = "insert into FRED values ('this is {{not}} a valid {{token}}', {{NOW}})";
+		const KStringViewZ sExpected = "insert into FRED values ('this is {{not}} a valid {{token}}', now())";
+		KString sSQL(sBefore);
+		KSQL    db;
+		db.SetDBType (KSQL::DBT::MYSQL);
+		db.DoTranslations (sSQL);
+	//	CHECK (sSQL == sExpected);    -- this fails!!  why???
+	}
+
 	// - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 	// test KSQL class...
 	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - 

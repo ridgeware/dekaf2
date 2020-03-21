@@ -185,17 +185,6 @@ TEST_CASE("KSQL")
 		CHECK (sEscaped == ASIAN1);
 	}
 
-	SECTION("KSQL::DoTranslations()")
-	{
-		const KStringViewZ sBefore   = "insert into FRED values ('this is {{not}} a valid {{token}}', {{NOW}})";
-		const KStringViewZ sExpected = "insert into FRED values ('this is {{not}} a valid {{token}}', now())";
-		KString sSQL(sBefore);
-		KSQL    db;
-		db.SetDBType (KSQL::DBT::MYSQL);
-		db.DoTranslations (sSQL);
-	//	CHECK (sSQL == sExpected);    -- this fails!!  why???
-	}
-
 	// - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 	// test KSQL class...
 	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
@@ -232,7 +221,7 @@ TEST_CASE("KSQL")
 			FAIL (db.GetLastError());  // <-- all other tests will be useless so ABORT
 		}
 
-		// establish BASE STATE by dropping tables from possibl prior runs
+		// establish BASE STATE by dropping tables from possible prior runs
 		kDebugLog (1, " ");
 		kDebugLog (1, "flag test: F_IgnoreSQLErrors (should only produce DBG output)...");
 		db.SetFlags (KSQL::F_IgnoreSQLErrors);
@@ -249,6 +238,14 @@ TEST_CASE("KSQL")
 		if (!db.IsConnectionOpen())
 		{
 			return; // bail now --> all the rest of the tests will just blow up anyway
+		}
+
+		{
+			const KStringViewZ sBefore   = "insert into FRED values ('this is {{not}} a valid {{token}}', {{NOW}})";
+			const KStringViewZ sExpected = "insert into FRED values ('this is {{not}} a valid {{token}}', now())";
+			KString sSQL(sBefore);
+			db.DoTranslations (sSQL);
+			CHECK (sSQL == sExpected);
 		}
 
 		kDebugLog (1, "NEGATIVE TEST: exception handling for bad ojbect");

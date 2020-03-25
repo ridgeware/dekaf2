@@ -7060,9 +7060,9 @@ bool KSQL::EnsureConnected (KStringView sProgramName, KString sDBCFile, const In
 
 	if (kWouldLog(2))
 	{
-		kDebug (1, "looks like we need to connect...");
+		kDebug (3, "looks like we need to connect...");
 
-		kDebug (1, 
+		kDebug (3, 
 			" 1. environment vars:\n"
 			"    {:<18} : {}\n"
 			"    {:<18} : {}\n"
@@ -7079,14 +7079,14 @@ bool KSQL::EnsureConnected (KStringView sProgramName, KString sDBCFile, const In
 				sDBPort, kGetEnv(sDBPort),
 				sLiveDB, kGetEnv(sLiveDB));
 
-		kDebug (1, 
+		kDebug (3, 
 			" 2. DBC FILE:\n"
 			"    {:<18} : {} ({})",
 					"dbcfile",
 					sDBCFile,
 					kFileExists(sDBCFile) ? "exists" : "does not exist");
 
-		kDebug (1, 
+		kDebug (3, 
 			" 3. INI PARMS:\n"
 			"    {:<18} : {}\n"
 			"    {:<18} : {}\n"
@@ -7108,7 +7108,7 @@ bool KSQL::EnsureConnected (KStringView sProgramName, KString sDBCFile, const In
 
 	if (!sDBCContent.empty())
 	{
-		kDebug (1, "loading: {}", sDBCFile);
+		kDebug (3, "loading: {}", sDBCFile);
 		if (!SetConnect (sDBCFile, sDBCContent))
 		{
 			return false;
@@ -7117,7 +7117,7 @@ bool KSQL::EnsureConnected (KStringView sProgramName, KString sDBCFile, const In
 
 	KString sInitialConfig = ConnectSummary();
 
-	kDebug (1, "checking for environment overrides (piecemeal acceptable)");
+	kDebug (3, "checking for environment overrides (piecemeal acceptable)");
 
 	KString sSetDBType;
 	if (GetDBType() != DBT::NONE)
@@ -7144,7 +7144,7 @@ bool KSQL::EnsureConnected (KStringView sProgramName, KString sDBCFile, const In
 		KString sChanged = ConnectSummary();
 		if (sInitialConfig != sChanged)
 		{
-			kDebug (1, "db configuration changed through ini file or env vars\n  from: {}\n    to: {}",
+			kDebug (2, "db configuration changed through ini file or env vars\n  from: {}\n    to: {}",
 					sInitialConfig, sChanged);
 		}
 	}
@@ -7152,10 +7152,11 @@ bool KSQL::EnsureConnected (KStringView sProgramName, KString sDBCFile, const In
 	if (!GetDBUser() && !GetDBPass() && !GetDBName())
 	{
 		m_sLastError.Format ("no db connection defined");
+		kDebug (1, m_sLastError);
 		return false;
 	}
 
-	kDebug (1, "attempting to connect ...");
+	kDebug (3, "attempting to connect ...");
 
 	if (!OpenConnection())
 	{

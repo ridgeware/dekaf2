@@ -5539,6 +5539,61 @@ bool KSQL::Delete (KROW& Row)
 } // Delete
 
 //-----------------------------------------------------------------------------
+bool KSQL::PurgeKey (KROW& OtherKeys, KStringView sPKEY, KStringView sValue, KJSON& ChangesMade, KStringView sIgnoreRegex/*=""*/)
+//-----------------------------------------------------------------------------
+{
+	KROW row = OtherKeys;
+	for (auto col : OtherKeys)
+	{
+		row.AddCol (col.first, col.second.sValue, col.second.GetFlags() | KROW::PKEY);
+	}
+
+	ChangesMade = KJSON::array();
+	KJSON DataDict = FindColumn (sPKEY);
+
+	if (!BeginTransaction ())
+	{
+		return (false);
+	}
+
+	for (auto& table : DataDict)
+	{
+		KJSON    obj;
+		KString  sTableName = table["table_name"];
+		uint64_t iChanged{0};
+
+		obj["table_name"] = sTableName;
+
+		if (sIgnoreRegex && sTableName.ToUpper().MatchRegex (sIgnoreRegex.ToUpper()))
+		{
+			obj["ignored"] = true;
+			iChanged = 0;
+		}
+		else
+		{
+			row.SetTablename (kFormat ("{} /*KSQL::PurgeKey*/", sTableName));
+			row.AddCol (sPKEY, sValue, KROW::PKEY);
+			if (!Delete (row))
+			{
+				return (false);
+			}
+			iChanged = GetNumRowsAffected();
+		}
+
+		obj["rows_deleted"] = iChanged;
+		ChangesMade += obj;
+	}
+
+	if (!CommitTransaction ())
+	{
+		return (false);
+	}
+
+	return (true);
+
+} // PurgeKey
+
+//-----------------------------------------------------------------------------
 bool KSQL::PurgeKey (KStringView sPKEY, KStringView sValue, KJSON& ChangesMade, KStringView sIgnoreRegex/*=""*/)
 //-----------------------------------------------------------------------------
 {

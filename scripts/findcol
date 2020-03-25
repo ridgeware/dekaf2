@@ -1,0 +1,31 @@
+#! /bin/bash
+
+#%
+#% findcol - find a column by naming pattern in a MySQL database
+#%
+#% usage: findcol <grepfor> -u<username> -p<password> [-h<hostname>] [<dbname>]
+#%
+#% history:
+#%   keef
+#%
+
+if [ $# -lt 3 ]; then
+	awk '/^#%/ {print substr($0,3)}' $0
+	exit 1
+fi
+
+GREPFOR=$(echo "$1" | tr '[a-z]' '[A-Z]'); shift
+LOGIN="$*"
+
+cat <<-EOF | sed -e 's/^|//' | mysql --table $LOGIN
+	|select table_schema dbname
+	|	  , table_name
+	|	  , column_name
+	|	  , data_type
+	|	  , is_nullable
+	|	  , column_default
+	|  from INFORMATION_SCHEMA.COLUMNS
+	| where upper(column_name) like '%${GREPFOR}%'
+	|	and table_schema not in ('information_schema','master')
+	| order by 1, 2, 3;
+EOF

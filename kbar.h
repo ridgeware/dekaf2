@@ -91,7 +91,6 @@ class KBAR
 		uint32_t m_iWidth;
 		uint64_t m_iExpected;
 		uint64_t m_iSoFar;
-		KString  m_sStatic;
 		int      m_chDone;
 		bool     m_bSliding;
 };

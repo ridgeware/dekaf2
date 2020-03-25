@@ -81,7 +81,6 @@ void KBAR::_init()
 	m_iWidth = 0;
 	m_iExpected = 0;
 	m_iSoFar = 0;
-	m_sStatic.clear();
 	m_chDone = '%';
 	m_bSliding = false;
 
@@ -145,7 +144,7 @@ bool KBAR::Move (int64_t iDelta)
 	{
 		if (KLog::getInstance().GetLevel())
 		{
-			kDebugLog (3, "kbar[{}]: {} of {}", GetBar (), m_iSoFar+iDelta, m_iExpected);
+			kDebugLog (1, "kbar: {:3}%, {} of {}", ((m_iSoFar+iDelta))*100/m_iExpected, m_iSoFar+iDelta, m_iExpected);
 		}
 		else {
 			_SliderAction (KPS_ADD, m_iSoFar, m_iSoFar+iDelta);
@@ -162,12 +161,14 @@ bool KBAR::Move (int64_t iDelta)
 KString KBAR::GetBar (int chBlank/*=' '*/)
 //-----------------------------------------------------------------------------
 {
+	KString sBar;
+
 	// initialize bar;
 	for (uint32_t ii=0; ii<m_iWidth; ++ii)
 	{
-		m_sStatic[ii] = chBlank;
+		sBar[ii] = chBlank;
 	}
-	m_sStatic[m_iWidth] = 0;
+	sBar[m_iWidth] = 0;
 
 	double nPercent = ((double)m_iSoFar / (double)m_iExpected);
 	if (nPercent > 100.0)
@@ -180,10 +181,10 @@ KString KBAR::GetBar (int chBlank/*=' '*/)
 	// show progress:
 	for (uint32_t jj=0; jj<iNumBars; ++jj)
 	{
-		m_sStatic[jj] = m_chDone;
+		sBar[jj] = m_chDone;
 	}
 
-	return (m_sStatic);
+	return (sBar);
 
 } // GetBar
 

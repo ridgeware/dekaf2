@@ -8,7 +8,7 @@
 using namespace dekaf2;
 
 
-TEST_CASE("KProp") {
+TEST_CASE("KProps") {
 
 	SECTION("basic instantiation tests for KProps")
 	{
@@ -682,4 +682,55 @@ TEST_CASE("KProp") {
 		CHECK ( map["key1"] == "value1" );
 		CHECK ( map[sv] == "value1" );
 	}
+
+	SECTION("insert")
+	{
+		KProps<KString, KString, false, true> props1;
+		auto pair1 = props1.insert( { "key1", "value1" });
+		CHECK ( pair1.second == true );
+
+		KProps<KString, KString, false, false> props2;
+		auto pair2 = props2.insert( { "key1", "value1" });
+		CHECK ( pair2.second == true );
+
+		KProps<KString, KString, true, true> props3;
+		auto pair3 = props3.insert( { "key1", "value1" });
+		CHECK ( pair3.second == true );
+
+		KProps<KString, KString, true, false> props4;
+		auto pair4 = props4.insert( { "key1", "value1" });
+		CHECK ( pair4.second == true );
+	}
+
+	SECTION("insert_or_assign")
+	{
+		KProps<KString, KString, false, true> props1;
+		auto pair1 = props1.insert_or_assign("key1", "value1");
+		CHECK ( pair1.second == true );
+		pair1 = props1.insert_or_assign("key1", "value2");
+		CHECK ( pair1.second == false );
+		CHECK ( pair1.first->second == "value2" );
+
+		KProps<KString, KString, false, false> props2;
+		auto pair2 = props2.insert_or_assign("key1", "value1");
+		CHECK ( pair2.second == true );
+		pair2 = props2.insert_or_assign("key1", "value2");
+		CHECK ( pair2.second == true );
+		CHECK ( pair2.first->second == "value2" );
+
+		KProps<KString, KString, true, true> props3;
+		auto pair3 = props3.insert_or_assign("key1", "value1");
+		CHECK ( pair3.second == true );
+		pair3 = props3.insert_or_assign("key1", "value2");
+		CHECK ( pair3.second == false );
+		CHECK ( pair3.first->second == "value2" );
+
+		KProps<KString, KString, true, false> props4;
+		auto pair4 = props4.insert_or_assign("key1", "value1");
+		CHECK ( pair4.second == true );
+		pair4 = props4.insert_or_assign("key1", "value2");
+		CHECK ( pair4.second == true );
+		CHECK ( pair4.first->second == "value2" );
+	}
+
 }

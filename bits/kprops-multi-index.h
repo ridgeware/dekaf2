@@ -201,6 +201,13 @@ protected:
 		return m_Storage.template get<IndexBySeq>();
 	}
 
+	//-----------------------------------------------------------------------------
+	inline IndexBySeq_t& SeqIndex()
+	//-----------------------------------------------------------------------------
+	{
+		return m_Storage.template get<IndexBySeq>();
+	}
+
 	static const Element s_EmptyElement;
 	static Element s_EmptyElement_v;
 
@@ -512,6 +519,191 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	// perfect forwarding and SFINAE for sequential instances
+	template<class ValueType = value_type, bool Sq = Sequential,
+	         typename std::enable_if_t<Sq == true>* = nullptr>
+	std::pair<iterator, bool> insert(ValueType&& value)
+	//-----------------------------------------------------------------------------
+	{
+		return SeqIndex().push_back(std::forward<ValueType>(value));
+	}
+
+	//-----------------------------------------------------------------------------
+	// perfect forwarding and SFINAE for non-sequential instances
+	template<class ValueType = value_type, bool Sq = Sequential,
+	         typename std::enable_if_t<Sq == false>* = nullptr>
+	std::pair<iterator, bool> insert(ValueType&& value)
+	//-----------------------------------------------------------------------------
+	{
+		return KeyIndex().insert(std::forward<ValueType>(value));
+	}
+
+	//-----------------------------------------------------------------------------
+	// perfect forwarding and SFINAE for unique instances
+	template<class K, class V, bool Uq = Unique,
+	         typename std::enable_if_t<Uq == true>* = nullptr>
+	std::pair<iterator, bool> insert_or_assign(K&& key, V&& value)
+	//-----------------------------------------------------------------------------
+	{
+		auto it = KeyIndex().find(key);
+		if (it != KeyIndex().end())
+		{
+			it->second = std::forward<V>(value);
+			// if this is not a sequential instance, IndexBySeq is aliased to IndexByKey
+			return { m_Storage.template project<IndexBySeq>(it), false };
+		}
+		else
+		{
+			return insert(value_type(std::forward<K>(key), std::forward<V>(value)));
+		}
+	}
+
+	//-----------------------------------------------------------------------------
+	// perfect forwarding and SFINAE for non-unique instances
+	template<class K, class V, bool Uq = Unique,
+	         typename std::enable_if_t<Uq == false>* = nullptr>
+	std::pair<iterator, bool> insert_or_assign(K&& key, V&& value)
+	//-----------------------------------------------------------------------------
+	{
+		return insert(value_type(std::forward<K>(key), std::forward<V>(value)));
+	}
+
+	//-----------------------------------------------------------------------------
+	/// Inserts one element at the end. (InsertIterator interface)
+	template<class K, class V>
+	std::pair<iterator, bool> emplace(K&& key, V&& value)
+	//-----------------------------------------------------------------------------
+	{
+		return insert(value_type(std::forward<K>(key), std::forward<V>(value)));
+	}
+
+	//-----------------------------------------------------------------------------
+	/// returns iterator on the element with the given key.
+	template<class K>
+	iterator find(const K& key)
+	//-----------------------------------------------------------------------------
+	{
+		auto it = KeyIndex().find(key);
+		return m_Storage.template project<IndexBySeq>(it);
+	}
+
+	//-----------------------------------------------------------------------------
+	/// returns const_iterator on the element with the given key.
+	template<class K>
+	const_iterator find(const K& key) const
+	//-----------------------------------------------------------------------------
+	{
+		auto it = KeyIndex().find(key);
+		return m_Storage.template project<IndexBySeq>(it);
+	}
+
+	//-----------------------------------------------------------------------------
+	/// Returns iterator range of the elements with the given key.
+	template<class K>
+	const_range equal_range(const K& key) const
+	//-----------------------------------------------------------------------------
+	{
+		return KeyIndex().equal_range(key);
+	}
+
+	//-----------------------------------------------------------------------------
+	/// Returns iterator range of the elements with the given key.
+	template<class K>
+	range equal_range(const K& key)
+	//-----------------------------------------------------------------------------
+	{
+		return KeyIndex().equal_range(key);
+	}
+
+	//-----------------------------------------------------------------------------
+	// SFINAE for Unique instances
+	/// remove a Key/Value pair with a given key. Returns count of removed elements.
+	template<class K, bool Uq = Unique,
+			typename std::enable_if_t<Uq == true>* = nullptr>
+	size_t erase(const K& key)
+	//-----------------------------------------------------------------------------
+	{
+		auto it = KeyIndex().find(key);
+		if (it == KeyIndex().end())
+		{
+			return 0;
+		}
+
+		KeyIndex().erase(it);
+
+		return 1;
+	}
+
+	//-----------------------------------------------------------------------------
+	// SFINAE for non Unique instances
+	/// remove Key/Value pairs with a given key. Returns count of removed elements.
+	template<class K, bool Uq = Unique,
+			typename std::enable_if_t<Uq == false>* = nullptr>
+	size_t erase(const K& key)
+	//-----------------------------------------------------------------------------
+	{
+		auto range = KeyIndex().equal_range(key);
+		auto iErased = std::distance(range.first, range.second);
+
+		if (iErased)
+		{
+			KeyIndex().erase(range.first, range.second);
+		}
+
+		return iErased;
+	}
+
+	//-----------------------------------------------------------------------------
+	/// Returns count of elements with the given key.
+	template<class K>
+	size_t count(const K& key) const
+	//-----------------------------------------------------------------------------
+	{
+		return KeyIndex().count(key);
+	}
+
+	//-----------------------------------------------------------------------------
+	/// Returns true if at least one element with the given key exists.
+	template<class K>
+	bool contains(const K& key) const
+	//-----------------------------------------------------------------------------
+	{
+		return KeyIndex().find(key) != KeyIndex().end();
+	}
+
+	//-----------------------------------------------------------------------------
+	/// Deletes all elements.
+	void clear()
+	//-----------------------------------------------------------------------------
+	{
+		m_Storage.clear();
+	}
+
+	//-----------------------------------------------------------------------------
+	/// Returns count of all stored elements.
+	size_t size() const noexcept
+	//-----------------------------------------------------------------------------
+	{
+		return m_Storage.size();
+	}
+
+	//-----------------------------------------------------------------------------
+	/// Returns maximum size.
+	size_t max_size() const noexcept
+	//-----------------------------------------------------------------------------
+	{
+		return m_Storage.max_size();
+	}
+
+	//-----------------------------------------------------------------------------
+	/// Returns true if no elements are stored.
+	bool empty() const noexcept
+	//-----------------------------------------------------------------------------
+	{
+		return m_Storage.empty();
+	}
+
+	//-----------------------------------------------------------------------------
 	// perfect forwarding and SFINAE for unique instances
 	/// Set a new value for an existing key. If the key is not existing it is created.
 	template <class K, class V = Value, bool Uq = Unique,
@@ -519,22 +711,12 @@ public:
 	iterator Set(K&& key, V&& newValue = V{})
 	//-----------------------------------------------------------------------------
 	{
-		auto it = KeyIndex().find(key);
-		if (it != KeyIndex().end())
-		{
-			it->second = std::forward<V>(newValue);
-			// if this is not a sequential instance, IndexBySeq is aliased to IndexByKey
-			return m_Storage.template project<IndexBySeq>(it);
-		}
-		else
-		{
-			return Add(std::forward<K>(key), std::forward<V>(newValue));
-		}
+		return insert_or_assign(std::forward<K>(key), std::forward<V>(newValue)).first;
 	}
 
 	//-----------------------------------------------------------------------------
 	// perfect forwarding and SFINAE for non-unique instances
-	/// Set a new value for an existing key. If the key is not existing it is created.
+	/// Set a new value for all existing keys. If the key is not existing it is created.
 	template <class K, class V = Value, bool Uq = Unique,
 			typename std::enable_if_t<Uq == false>* = nullptr>
 	iterator Set(K&& key, V&& newValue = V{})
@@ -553,7 +735,7 @@ public:
 		}
 		else
 		{
-			return Add(std::forward<K>(key), std::forward<V>(newValue));
+			return insert(value_type(std::forward<K>(key), std::forward<V>(newValue))).first;
 		}
 	}
 
@@ -567,7 +749,7 @@ public:
 	{
 		// this is actually the same as a Set(key, newValue) as we can only have one
 		// record with this key
-		return Set(std::forward<K>(key), std::forward<V2>(newValue));
+		return insert_or_assign(std::forward<K>(key), std::forward<V2>(newValue)).first;
 	}
 
 	//-----------------------------------------------------------------------------
@@ -605,183 +787,27 @@ public:
 		}
 		else
 		{
-			return Add(std::forward<K>(key), std::forward<V2>(newValue));
+			return insert(value_type(std::forward<K>(key), std::forward<V2>(newValue))).first;
 		}
 	}
 
-//----------
-protected:
-//----------
-
 	//-----------------------------------------------------------------------------
-	// SFINAE && perfect forwarding for Sequential or non-unique instances
-	/// Replace the value of an existing key
-	template<class K, class V, bool Sq = Sequential, bool Uq = Unique,
-			typename std::enable_if_t<Sq == true || Uq == false>* = nullptr>
-	iterator Replace(K&& key, V&& value)
-	//-----------------------------------------------------------------------------
-	{
-		return Set(std::forward<K>(key), std::forward<V>(value));
-	}
-
-	//-----------------------------------------------------------------------------
-	// SFINAE && perfect forwarding for Unique non-Sequential instances
-	/// Replace the value of an existing key
-	template<class V, bool Sq = Sequential, bool Uq = Unique,
-			typename std::enable_if_t<Sq == false && Uq == true>* = nullptr>
-	iterator Replace(iterator it, V&& value)
-	//-----------------------------------------------------------------------------
-	{
-		it->second = std::forward<V>(value);
-		return it;
-	}
-
-//----------
-public:
-//----------
-
-	//-----------------------------------------------------------------------------
-	// perfect forwarding and SFINAE for unique sequential instances
+	// perfect forwarding
 	/// Add a new Key/Value pair. If the key is already existing, its value is replaced.
-	template<class K, class V = Value, bool Uq = Unique, bool Sq = Sequential,
-			typename std::enable_if_t<Uq == true && Sq == true>* = nullptr >
+	template<class K, class V = Value>
 	iterator Add(K&& key, V&& value = V{})
 	//-----------------------------------------------------------------------------
 	{
-		// boost::multi_index does not know try_emplace, so we have to do value
-		// copies for the emplace anyway, as we could not call Replace() otherwise
-#if (BOOST_VERSION < 105900)
-		auto pair = KeyIndex().insert({key, value});
-#else
-		auto pair = KeyIndex().emplace(key, value);
-#endif
-		if (pair.second)
-		{
-			return m_Storage.template project<IndexBySeq>(pair.first);
-		}
-		else
-		{
-			return Replace(std::forward<K>(key), std::forward<V>(value));
-		}
+		return insert_or_assign(std::forward<K>(key), std::forward<V>(value)).first;
 	}
 
 	//-----------------------------------------------------------------------------
-	// perfect forwarding and SFINAE for unique non-sequential instances
-	/// Add a new Key/Value pair. If the key is already existing, its value is replaced.
-	template<class K, class V = Value, bool Uq = Unique, bool Sq = Sequential,
-			typename std::enable_if_t<Uq == true && Sq == false>* = nullptr >
-	iterator Add(K&& key, V&& value = V{})
-	//-----------------------------------------------------------------------------
-	{
-		// boost::multi_index does not know try_emplace, so we have to do value
-		// copies for the emplace anyway, as we could not call Replace() otherwise
-#if (BOOST_VERSION < 105900)
-		auto pair = KeyIndex().insert({key, value});
-#else
-		auto pair = KeyIndex().emplace(key, value);
-#endif
-		if (pair.second)
-		{
-			return pair.first;
-		}
-		else
-		{
-			return Replace(pair.first, std::forward<V>(value));
-		}
-	}
-
-	//-----------------------------------------------------------------------------
-	// perfect forwarding and SFINAE for non-unique sequential instances
-	/// Add a new Key/Value pair.
-	template<class K, class V = Value, bool Uq = Unique, bool Sq = Sequential,
-			typename std::enable_if_t<Uq == false && Sq == true>* = nullptr >
-	iterator Add(K&& key, V&& value = V{})
-	//-----------------------------------------------------------------------------
-	{
-		// boost::multi_index does not know try_emplace, so we have to do value
-		// copies for the emplace anyway, as we could not call Replace() otherwise
-#if (BOOST_VERSION < 105900)
-		auto pair = KeyIndex().insert({std::forward<K>(key), std::forward<V>(value)});
-#else
-		auto pair = KeyIndex().emplace(std::forward<K>(key), std::forward<V>(value));
-#endif
-		return m_Storage.template project<IndexBySeq>(pair.first);
-	}
-
-	//-----------------------------------------------------------------------------
-	// perfect forwarding and SFINAE for non-unique non-sequential instances
-	/// Add a new Key/Value pair.
-	template<class K, class V = Value, bool Uq = Unique, bool Sq = Sequential,
-			typename std::enable_if_t<Uq == false && Sq == false>* = nullptr >
-	iterator Add(K&& key, V&& value = V{})
-	//-----------------------------------------------------------------------------
-	{
-		// boost::multi_index does not know try_emplace, so we have to do value
-		// copies for the emplace anyway, as we could not call Replace() otherwise
-#if (BOOST_VERSION < 105900)
-		auto pair = KeyIndex().insert({std::forward<K>(key), std::forward<V>(value)});
-#else
-		auto pair = KeyIndex().emplace(std::forward<K>(key), std::forward<V>(value));
-#endif
-		return pair.first;
-	}
-
-	//-----------------------------------------------------------------------------
-	// SFINAE for Unique instances
 	/// remove a Key/Value pair with a given key. Returns count of removed elements.
-	template<bool Uq = Unique,
-			typename std::enable_if_t<Uq == true>* = nullptr>
-	size_t Remove(const Key& key)
-	//-----------------------------------------------------------------------------
-	{
-		auto it = KeyIndex().find(key);
-		if (it == KeyIndex().end())
-		{
-			return 0;
-		}
-
-		KeyIndex().erase(it);
-
-		return 1;
-	}
-
-	//-----------------------------------------------------------------------------
-	// SFINAE for non Unique instances
-	/// remove Key/Value pairs with a given key. Returns count of removed elements.
-	template<bool Uq = Unique,
-			typename std::enable_if_t<Uq == false>* = nullptr>
-	size_t Remove(const Key& key)
-	//-----------------------------------------------------------------------------
-	{
-		auto range = KeyIndex().equal_range(key);
-		auto iErased = std::distance(range.first, range.second);
-
-		if (iErased)
-		{
-			KeyIndex().erase(range.first, range.second);
-		}
-
-		return iErased;
-	}
-
-	//-----------------------------------------------------------------------------
-	/// returns iterator on the element with the given key.
 	template<class K>
-	iterator find(const K& key)
+	size_t Remove(const K& key)
 	//-----------------------------------------------------------------------------
 	{
-		auto it = KeyIndex().find(key);
-		return m_Storage.template project<IndexBySeq>(it);
-	}
-
-	//-----------------------------------------------------------------------------
-	/// returns const_iterator on the element with the given key.
-	template<class K>
-	const_iterator find(const K& key) const
-	//-----------------------------------------------------------------------------
-	{
-		auto it = KeyIndex().find(key);
-		return m_Storage.template project<IndexBySeq>(it);
+		return erase(key);
 	}
 
 	//-----------------------------------------------------------------------------
@@ -820,7 +846,7 @@ public:
 	const_range GetMulti(const K& key) const
 	//-----------------------------------------------------------------------------
 	{
-		return KeyIndex().equal_range(key);
+		return equal_range(key);
 	}
 
 	//-----------------------------------------------------------------------------
@@ -829,7 +855,7 @@ public:
 	range GetMulti(const K& key)
 	//-----------------------------------------------------------------------------
 	{
-		return KeyIndex().equal_range(key);
+		return equal_range(key);
 	}
 
 	//-----------------------------------------------------------------------------
@@ -838,7 +864,7 @@ public:
 	size_t Count(const K& key) const
 	//-----------------------------------------------------------------------------
 	{
-		return KeyIndex().count(key);
+		return count(key);
 	}
 
 	//-----------------------------------------------------------------------------
@@ -847,9 +873,7 @@ public:
 	bool Contains(const K& key) const
 	//-----------------------------------------------------------------------------
 	{
-		// TODO switch to find() once we have unified the end() for sequential
-		// and non sequential KProps
-		return Count(key) > 0;
+		return contains(key);
 	}
 
 	//-----------------------------------------------------------------------------
@@ -858,7 +882,7 @@ public:
 	bool IsMulti(const K& key) const
 	//-----------------------------------------------------------------------------
 	{
-		return Count(key) > 1;
+		return count(key) > 1;
 	}
 
 	//-----------------------------------------------------------------------------
@@ -918,99 +942,35 @@ public:
 		else
 		{
 			// create new element and return it
-			return Add(std::forward<K>(key))->second;
+			return insert(value_type(std::forward<K>(key), Value{})).first->second;
 		}
 	}
 
 	//-----------------------------------------------------------------------------
-	/// Deletes all elements.
-	void clear()
-	//-----------------------------------------------------------------------------
-	{
-		m_Storage.clear();
-	}
-
-	//-----------------------------------------------------------------------------
-	/// Returns count of all stored elements.
-	size_t size() const
-	//-----------------------------------------------------------------------------
-	{
-		return m_Storage.size();
-	}
-
-	//-----------------------------------------------------------------------------
-	/// Returns true if no elements are stored.
-	bool empty() const
-	//-----------------------------------------------------------------------------
-	{
-		return m_Storage.empty();
-	}
-
-	//-----------------------------------------------------------------------------
-	/// test if the container is non-empty
-	explicit operator bool() const
+	/// test if the container is non-empty.
+	explicit operator bool() const noexcept
 	//-----------------------------------------------------------------------------
 	{
 		return !empty();
 	}
 
 	//-----------------------------------------------------------------------------
-	/// Inserts one element at the end. (InsertIterator interface)
-	void push_back(const Element& element)
+	/// Inserts one element at the end.
+	template<class E>
+	void push_back(E&& element)
 	//-----------------------------------------------------------------------------
 	{
-		Add(element.first, element.second);
+		insert(std::forward<E>(element));
 	}
 
 	//-----------------------------------------------------------------------------
-	/// Move-inserts one element at the end. (InsertIterator interface)
-	void push_back(Element&& element)
+	/// Inserts one key at the end.
+	template<class K, class V = Value>
+	void push_back(K&& key, V&& value = V{})
 	//-----------------------------------------------------------------------------
 	{
-		Add(std::move(element.first), std::move(element.second));
+		insert(value_type(std::forward<K>(key), std::forward<V>(value)));
 	}
-
-	//-----------------------------------------------------------------------------
-	/// Inserts one key at the end. (InsertIterator interface)
-	void push_back(const Key& key)
-	//-----------------------------------------------------------------------------
-	{
-		Add(key);
-	}
-
-	//-----------------------------------------------------------------------------
-	/// Move-inserts one key at the end. (InsertIterator interface)
-	void push_back(Key&& key)
-	//-----------------------------------------------------------------------------
-	{
-		Add(std::move(key));
-	}
-
-	//-----------------------------------------------------------------------------
-	/// Inserts one element at the end. (InsertIterator interface)
-	void insert(const Element& element)
-	//-----------------------------------------------------------------------------
-	{
-		push_back(element);
-	}
-
-	//-----------------------------------------------------------------------------
-	/// Move-inserts one element at the end. (InsertIterator interface)
-	void insert(Element&& element)
-	//-----------------------------------------------------------------------------
-	{
-		push_back(std::move(element));
-	}
-
-	//-----------------------------------------------------------------------------
-	/// Inserts one element at the end. (InsertIterator interface)
-	template<class K, class V>
-	void emplace(K&& key, V&& value)
-	//-----------------------------------------------------------------------------
-	{
-		push_back(Element(std::forward<K>(key), std::forward<V>(value)));
-	}
-
 
 }; // KProps
 

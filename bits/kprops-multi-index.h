@@ -964,9 +964,9 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	/// Inserts one key at the end.
-	template<class K, class V = Value>
-	void push_back(K&& key, V&& value = V{})
+	/// Inserts one key / value pair at the end.
+	template<class K, class V>
+	void push_back(K&& key, V&& value)
 	//-----------------------------------------------------------------------------
 	{
 		insert(value_type(std::forward<K>(key), std::forward<V>(value)));

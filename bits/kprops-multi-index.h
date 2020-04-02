@@ -569,7 +569,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	/// Inserts one element at the end. (InsertIterator interface)
+	/// Inserts one element.
 	template<class K, class V>
 	std::pair<iterator, bool> emplace(K&& key, V&& value)
 	//-----------------------------------------------------------------------------

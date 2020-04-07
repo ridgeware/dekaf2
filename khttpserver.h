@@ -227,6 +227,51 @@ public:
 	KString GetBrowserIP() const;
 	//-----------------------------------------------------------------------------
 
+	//-----------------------------------------------------------------------------
+	/// get request method as a string
+	const KString& GetRequestMethod() const
+	//-----------------------------------------------------------------------------
+	{
+		return Request.Method;
+	}
+
+	//-----------------------------------------------------------------------------
+	/// get request path as a string
+	const KString& GetRequestPath() const
+	//-----------------------------------------------------------------------------
+	{
+		return Request.Resource.Path.get();
+	}
+
+	//-----------------------------------------------------------------------------
+	/// get one query parm value as a const string ref
+	const KString& GetQueryParm(KStringView sKey) const
+	//-----------------------------------------------------------------------------
+	{
+		return Request.Resource.Query.get().Get(sKey);
+	}
+
+	//-----------------------------------------------------------------------------
+	/// get one query parm value with default value if missing
+	KString GetQueryParm(KStringView sKey, KStringView sDefault) const;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// get query parms as a map
+	const url::KQueryParms& GetQueryParms() const
+	//-----------------------------------------------------------------------------
+	{
+		return Request.Resource.Query.get();
+	}
+
+	//-----------------------------------------------------------------------------
+	/// set one query key/value parm
+	void SetQueryParm(KStringView sKey, KStringView sValue)
+	//-----------------------------------------------------------------------------
+	{
+		Request.Resource.Query.get().Add(sKey, sValue);
+	}
+
 //------
 protected:
 //------

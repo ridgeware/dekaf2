@@ -125,56 +125,11 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// get request method as a string
-	const KString& GetRequestMethod() const
-	//-----------------------------------------------------------------------------
-	{
-		return Request.Method;
-	}
-
-	//-----------------------------------------------------------------------------
-	/// get request path as a string
-	const KString& GetRequestPath() const
-	//-----------------------------------------------------------------------------
-	{
-		return Request.Resource.Path.get();
-	}
-
-	//-----------------------------------------------------------------------------
-	/// get one query parm value as a const string ref
-	const KString& GetQueryParm(KStringView sKey) const
-	//-----------------------------------------------------------------------------
-	{
-		return Request.Resource.Query.get().Get(sKey);
-	}
-
-	//-----------------------------------------------------------------------------
-	/// get one query parm value with default value if missing
-	KString GetQueryParm(KStringView sKey, KStringView sDefault) const
-	//-----------------------------------------------------------------------------
-	{
-		KString sValue = Request.Resource.Query.get().Get(sKey);
-		if (!sValue)
-		{
-			sValue = sDefault;
-		}
-		return sValue;
-	}
-
-	//-----------------------------------------------------------------------------
 	/// get the content body of a POST or PUT request
 	const KString& GetRequestBody() const
 	//-----------------------------------------------------------------------------
 	{
 		return m_sRequestBody;
-	}
-
-	//-----------------------------------------------------------------------------
-	/// get query parms as a map
-	const url::KQueryParms& GetQueryParms() const
-	//-----------------------------------------------------------------------------
-	{
-		return Request.Resource.Query.get();
 	}
 
 	//-----------------------------------------------------------------------------

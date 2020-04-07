@@ -162,6 +162,21 @@ KString KHTTPServer::GetBrowserIP() const
 } // GetBrowserIP
 
 //-----------------------------------------------------------------------------
+KString KHTTPServer::GetQueryParm(KStringView sKey, KStringView sDefault) const
+//-----------------------------------------------------------------------------
+{
+	KString sValue = Request.Resource.Query.get().Get(sKey);
+
+	if (sValue.empty())
+	{
+		sValue = sDefault;
+	}
+
+	return sValue;
+
+} // GetQueryParm
+
+//-----------------------------------------------------------------------------
 bool KHTTPServer::SetError(KStringView sError) const
 //-----------------------------------------------------------------------------
 {

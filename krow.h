@@ -397,6 +397,9 @@ public:
 	/// Return row as a KJSON object
 	KJSON to_json (uint64_t iFlags=0) const;
 
+	/// convert one row to CSV format (or just column headers):
+	KString to_csv (bool bheaders=false, uint64_t iFlags=0);
+
 	/// append a json object with a krow
 	KROW& operator+=(const KJSON& json);
 

@@ -670,6 +670,81 @@ KJSON KROW::to_json (uint64_t iFlags/*=0*/) const
 } // to_json
 
 //-----------------------------------------------------------------------------
+KString KROW::to_csv (bool bHeaders/*=false*/, uint64_t iFlags/*=0*/)
+//-----------------------------------------------------------------------------
+{
+	kDebug (1, "...");
+	KString sRow;
+
+	for (auto& col : *this)
+	{
+		kDebugLog (3, "KROW::to_csv: {:35}: 0x{:08x} = {}", col.first, col.second.GetFlags(), KROW::FlagsToString(col.second.GetFlags()));
+		if (sRow)
+		{
+			sRow += ",";
+		}
+
+		KString sKey = col.first;
+		KString sValue;
+		bool    bQuoteValue{true};
+
+		if (iFlags & KEYS_TO_LOWER)
+		{
+			sKey.MakeLower();
+		}
+		else if (iFlags & KEYS_TO_UPPER)
+		{
+			sKey.MakeUpper();
+		}
+
+		if (col.second.IsFlag(NONCOLUMN))
+		{
+			continue;
+		}
+		else if (col.second.IsFlag(INT64NUMERIC))
+		{
+			sValue = col.second.sValue;
+			bQuoteValue = false;
+		}
+		else if (col.second.IsFlag(NUMERIC))
+		{
+			sValue = col.second.sValue;
+			bQuoteValue = false;
+		}
+		else if (col.second.IsFlag(BOOLEAN))
+		{
+			sValue = col.second.sValue.Bool() ? "1" : "0";
+			bQuoteValue = false;
+		}
+		else
+		{
+			sValue = col.second.sValue;
+			bQuoteValue = true;
+		}
+
+		if (bHeaders)
+		{
+			sKey.Replace ("\"", "\\\"", /*all=*/true); // escape double quotes
+			sRow += kFormat ("\"{}\"", sKey);
+		}
+		else if (bQuoteValue)
+		{
+			sValue.Replace ("\"", "\\\"", /*all=*/true); // escape double quotes
+			sRow += kFormat ("\"{}\"", sValue);
+		}
+		else
+		{
+			sRow += kFormat ("{}", sValue);
+		}
+	}
+
+	sRow += "\n";
+
+	return sRow;	
+
+} // to_csv
+
+//-----------------------------------------------------------------------------
 KROW& KROW::operator+=(const KJSON& json)
 //-----------------------------------------------------------------------------
 {
@@ -688,3 +763,4 @@ bool KROW::Exists (KStringView sColName) const
 	return find(sColName) != end();
 
 } // Exists
+

@@ -42,6 +42,7 @@
 
 #include "krow.h"
 #include "klog.h"
+#include "kcsv.h"
 
 using namespace dekaf2;
 
@@ -674,73 +675,71 @@ KString KROW::to_csv (bool bHeaders/*=false*/, uint64_t iFlags/*=0*/)
 //-----------------------------------------------------------------------------
 {
 	kDebug (1, "...");
-	KString sRow;
 
-	for (auto& col : *this)
+	// shall we print modified header columns?
+	if (DEKAF2_UNLIKELY(bHeaders && (iFlags & (KEYS_TO_LOWER | KEYS_TO_UPPER))))
 	{
-		kDebugLog (3, "KROW::to_csv: {:35}: 0x{:08x} = {}", col.first, col.second.GetFlags(), KROW::FlagsToString(col.second.GetFlags()));
-		if (sRow)
+		// yes -> use a vector of KStrings
+		std::vector<KString> Columns;
+		Columns.reserve(this->size());
+
+		for (const auto& col : *this)
 		{
-			sRow += ",";
+			kDebugLog (3, "KROW::to_csv: {:35}: 0x{:08x} = {}", col.first, col.second.GetFlags(), KROW::FlagsToString(col.second.GetFlags()));
+
+			if (col.second.IsFlag(NONCOLUMN))
+			{
+				continue;
+			}
+
+			Columns.push_back(col.first);
+
+			if (iFlags & KEYS_TO_LOWER)
+			{
+				Columns.back().MakeLower();
+			}
+			else if (iFlags & KEYS_TO_UPPER)
+			{
+				Columns.back().MakeUpper();
+			}
 		}
 
-		KString sKey = col.first;
-		KString sValue;
-		bool    bQuoteValue{true};
-
-		if (iFlags & KEYS_TO_LOWER)
-		{
-			sKey.MakeLower();
-		}
-		else if (iFlags & KEYS_TO_UPPER)
-		{
-			sKey.MakeUpper();
-		}
-
-		if (col.second.IsFlag(NONCOLUMN))
-		{
-			continue;
-		}
-		else if (col.second.IsFlag(INT64NUMERIC))
-		{
-			sValue = col.second.sValue;
-			bQuoteValue = false;
-		}
-		else if (col.second.IsFlag(NUMERIC))
-		{
-			sValue = col.second.sValue;
-			bQuoteValue = false;
-		}
-		else if (col.second.IsFlag(BOOLEAN))
-		{
-			sValue = col.second.sValue.Bool() ? "1" : "0";
-			bQuoteValue = false;
-		}
-		else
-		{
-			sValue = col.second.sValue;
-			bQuoteValue = true;
-		}
-
-		if (bHeaders)
-		{
-			sKey.Replace ("\"", "\\\"", /*all=*/true); // escape double quotes
-			sRow += kFormat ("\"{}\"", sKey);
-		}
-		else if (bQuoteValue)
-		{
-			sValue.Replace ("\"", "\\\"", /*all=*/true); // escape double quotes
-			sRow += kFormat ("\"{}\"", sValue);
-		}
-		else
-		{
-			sRow += kFormat ("{}", sValue);
-		}
+		return KCSV().Write(Columns);
 	}
+	else
+	{
+		// use a vector of KStringViews, no column modifications needed
+		std::vector<KStringView> Columns;
+		Columns.reserve(this->size());
 
-	sRow += "\n";
+		for (const auto& col : *this)
+		{
+			kDebugLog (3, "KROW::to_csv: {:35}: 0x{:08x} = {}", col.first, col.second.GetFlags(), KROW::FlagsToString(col.second.GetFlags()));
 
-	return sRow;	
+			if (col.second.IsFlag(NONCOLUMN))
+			{
+				continue;
+			}
+
+			if (DEKAF2_UNLIKELY(bHeaders))
+			{
+				Columns.push_back(col.first);
+			}
+			else
+			{
+				if (DEKAF2_UNLIKELY(col.second.IsFlag(BOOLEAN)))
+				{
+					Columns.push_back(col.second.sValue.Bool() ? "1" : "0");
+				}
+				else
+				{
+					Columns.push_back(col.second.sValue);
+				}
+			}
+		}
+
+		return KCSV().Write(Columns);
+	}
 
 } // to_csv
 

@@ -53,6 +53,7 @@ set (USOURCES
 	krest_tests.cpp
 	krestclient_tests.cpp
 	krestserver_tests.cpp
+	krow_tests.cpp
 	ksplit_tests.cpp
 	ksqlite_tests.cpp
 	kstack_tests.cpp

@@ -161,27 +161,32 @@ bool KBAR::Move (int64_t iDelta)
 KString KBAR::GetBar (int chBlank/*=' '*/)
 //-----------------------------------------------------------------------------
 {
-	KString sBar;
-
-	// initialize bar;
-	for (uint32_t ii=0; ii<m_iWidth; ++ii)
+	if (!m_iExpected)
 	{
-		sBar[ii] = chBlank;
+		return "";
 	}
-	sBar[m_iWidth] = 0;
 
-	double nPercent = ((double)m_iSoFar / (double)m_iExpected);
-	if (nPercent > 100.0)
+	double nPercentNow = ((double)m_iSoFar / (double)m_iExpected);
+	if (nPercentNow > 100.0)
 	{
-		nPercent = 100.0;
+		nPercentNow = 100.0;
 	}
-	
-	uint32_t iNumBars = (uint32_t) (nPercent * (double)(m_iWidth));
 
-	// show progress:
-	for (uint32_t jj=0; jj<iNumBars; ++jj)
+	uint32_t iNumBarsNow  = (int) (nPercentNow  * (double)(m_iWidth));
+	KString  sBar;
+
+	kDebug (1, "{} out of {}, {}%, {} out of {} bars", m_iSoFar, m_iExpected, nPercentNow, iNumBarsNow, m_iWidth);
+
+	for (uint32_t ii=1; ii<=m_iWidth; ++ii)
 	{
-		sBar[jj] = m_chDone;
+		if (ii <= iNumBarsNow)
+		{
+			sBar += kPrintf ("%c", m_chDone);
+		}
+		else
+		{
+			sBar += kPrintf ("%c", chBlank);
+		}
 	}
 
 	return (sBar);

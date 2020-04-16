@@ -91,7 +91,7 @@ class KBAR
 		uint32_t m_iWidth;
 		uint64_t m_iExpected;
 		uint64_t m_iSoFar;
-		int      m_chDone;
+		int      m_chDone{DEFAULT_DONE_CHAR};
 		bool     m_bSliding;
 };
 

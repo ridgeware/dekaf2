@@ -413,8 +413,52 @@ KString kReadAll(KStringViewZ sFileName)
 
 } // kReadAll
 
-#ifndef DEKAF2_IS_OSX
-#define DEKAF2_READLINE_USE_GETLINE
+#ifdef DEKAF2_IS_OSX
+#define DEKAF2_USE_OWN_GETLINE
+#endif
+
+#ifdef DEKAF2_USE_OWN_GETLINE
+//-----------------------------------------------------------------------------
+void myLocalGetline(std::istream& Stream, KString& sLine, KString::value_type delimiter)
+//-----------------------------------------------------------------------------
+{
+	sLine.clear();
+
+	auto streambuf = Stream.rdbuf();
+
+	if (DEKAF2_UNLIKELY(!streambuf))
+	{
+		Stream.setstate(std::ios::failbit);
+
+		return;
+	}
+
+	for (;;)
+	{
+		auto ch = streambuf->sbumpc();
+
+		if (DEKAF2_UNLIKELY(std::istream::traits_type::eq_int_type(ch, std::istream::traits_type::eof())))
+		{
+			Stream.setstate(std::ios::eofbit);
+
+			if (sLine.empty())
+			{
+				Stream.setstate(std::ios::failbit);
+			}
+
+			return;
+		}
+
+		if (DEKAF2_LIKELY(ch != delimiter))
+		{
+			sLine += ch;
+		}
+		else
+		{
+			return;
+		}
+	}
+}
 #endif
 
 //-----------------------------------------------------------------------------
@@ -425,80 +469,18 @@ bool kReadLine(std::istream& Stream,
                KString::value_type delimiter)
 //-----------------------------------------------------------------------------
 {
-#ifndef DEKAF2_READLINE_USE_GETLINE
-	
-	sLine.clear();
-
-	auto streambuf = Stream.rdbuf();
-
-	if (DEKAF2_UNLIKELY(!streambuf))
-	{
-		return false;
-	}
-	
-	for (;;)
-	{
-		auto ch = streambuf->sbumpc();
-
-		if (DEKAF2_UNLIKELY(std::istream::traits_type::eq_int_type(ch, std::istream::traits_type::eof())))
-		{
-			Stream.setstate(std::ios::eofbit);
-
-			return !sLine.empty();
-		}
-
-		if (DEKAF2_LIKELY(ch != delimiter))
-		{
-			sLine += ch;
-		}
-		else
-		{
-			// to avoid unnecessary reallocations do not add the delimiter to sLine
-			// if it is part of sTrimRight and would thus be removed right afterwards..
-
-			if (sTrimRight.empty())
-			{
-				if (!Stream.eof())
-				{
-					// std::getline does not store the EOL character, but we want to
-					sLine += delimiter;
-				}
-			}
-			else
-			{
-				// add the delimiter char only if it is not a member of sTrimRight
-				if (sTrimRight.find(delimiter) == KString::npos)
-				{
-					sLine += delimiter;
-
-					sLine.TrimRight(sTrimRight);
-				}
-				else if (sTrimRight.size() > 1)
-				{
-					// only trim if sTrimRight is > 1, as otherwise it only contains the delimiter
-					sLine.TrimRight(sTrimRight);
-				}
-			}
-
-			if (!sTrimLeft.empty())
-			{
-				sLine.TrimLeft(sTrimLeft);
-			}
-
-			return true;
-		}
-	}
-
-#else
-
 	if (DEKAF2_UNLIKELY(!Stream.good()))
 	{
 		sLine.clear();
 		return false;
 	}
 
+#ifdef DEKAF2_USE_OWN_GETLINE
+	myLocalGetline(Stream, sLine, delimiter);
+#else
 	// do not implement your own version of std::getline without performance checks ..
 	std::getline(Stream, sLine, delimiter);
+#endif
 
 	if (DEKAF2_UNLIKELY(Stream.fail()))
 	{
@@ -542,8 +524,6 @@ bool kReadLine(std::istream& Stream,
 	}
 
 	return true;
-
-#endif
 
 } // kReadLine
 

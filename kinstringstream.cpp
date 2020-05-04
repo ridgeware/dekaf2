@@ -40,6 +40,7 @@
 */
 
 #include "kinstringstream.h"
+#include "klog.h"
 
 namespace dekaf2 {
 
@@ -48,6 +49,8 @@ namespace dekaf2 {
 std::streamsize detail::KStringReader(void* sBuffer, std::streamsize iCount, void* sSourceBuf)
 //-----------------------------------------------------------------------------
 {
+	kDebug (3, "...");
+
 	std::streamsize iRead { 0 };
 
 	if (sSourceBuf != nullptr && sBuffer != nullptr)

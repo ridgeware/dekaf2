@@ -55,6 +55,8 @@ namespace dekaf2 {
 void KRESTServer::Options::AddHeader(KStringView sHeader, KStringView sValue)
 //-----------------------------------------------------------------------------
 {
+	kDebug (3, "...");
+
 	ResponseHeaders.Add(sHeader, sValue);
 
 } // AddHeader
@@ -63,6 +65,8 @@ void KRESTServer::Options::AddHeader(KStringView sHeader, KStringView sValue)
 void KRESTServer::VerifyAuthentication(const Options& Options)
 //-----------------------------------------------------------------------------
 {
+	kDebug (3, "...");
+
 	switch (Options.AuthLevel)
 	{
 		case Options::ALLOW_ALL:
@@ -319,6 +323,8 @@ void KRESTServer::VerifyPerThreadKLogToHeader(const Options& Options)
 bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 //-----------------------------------------------------------------------------
 {
+	kDebug (3, "...");
+
 	try
 	{
 		uint16_t iRound { 0 };
@@ -547,6 +553,8 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 void KRESTServer::Output(const Options& Options, bool bKeepAlive)
 //-----------------------------------------------------------------------------
 {
+	kDebug (3, "...");
+
 	// only allow output compression if this is HTTP mode
 	ConfigureCompression(Options.Out == HTTP);
 
@@ -747,6 +755,8 @@ void KRESTServer::Output(const Options& Options, bool bKeepAlive)
 void KRESTServer::json_t::clear()
 //-----------------------------------------------------------------------------
 {
+	kDebug (3, "...");
+
 	// a .clear() would not erase the json type information (which is IMHO a bug),
 	// therefore we assign a fresh object
 	rx = KJSON{};
@@ -758,6 +768,8 @@ void KRESTServer::json_t::clear()
 void KRESTServer::xml_t::clear()
 //-----------------------------------------------------------------------------
 {
+	kDebug (3, "...");
+
 	rx.clear();
 	tx.clear();
 
@@ -767,6 +779,8 @@ void KRESTServer::xml_t::clear()
 void KRESTServer::ErrorHandler(const std::exception& ex, const Options& Options)
 //-----------------------------------------------------------------------------
 {
+	kDebug (3, "...");
+
 	auto xex = dynamic_cast<const KHTTPError*>(&ex);
 
 	if (xex)
@@ -880,6 +894,8 @@ void KRESTServer::ErrorHandler(const std::exception& ex, const Options& Options)
 void KRESTServer::SetStatus (int iCode)
 //-----------------------------------------------------------------------------
 {
+	kDebug (3, "...");
+
 	switch (iCode)
 	{
 		// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -905,6 +921,8 @@ void KRESTServer::SetStatus (int iCode)
 void KRESTServer::RecordRequestForReplay (const Options& Options)
 //-----------------------------------------------------------------------------
 {
+	kDebug (3, "...");
+
 	if (!Options.sRecordFile.empty())
 	{
 		KString sRecord;
@@ -979,6 +997,8 @@ void KRESTServer::RecordRequestForReplay (const Options& Options)
 void KRESTServer::clear()
 //-----------------------------------------------------------------------------
 {
+	kDebug (3, "...");
+
 	Request.clear();
 	Response.clear();
 	json.clear();

@@ -54,6 +54,8 @@ namespace dekaf2 {
 bool KInHTTPFilter::Parse(const KHTTPHeaders& headers, uint16_t iStatusCode)
 //-----------------------------------------------------------------------------
 {
+	kDebug (3, "...");
+
 	close();
 
 	// find the content length
@@ -87,6 +89,8 @@ bool KInHTTPFilter::Parse(const KHTTPHeaders& headers, uint16_t iStatusCode)
 bool KInHTTPFilter::SetupInputFilter()
 //-----------------------------------------------------------------------------
 {
+	kDebug (3, "...");
+
 	// we lazy-create the input filter chain because we want to give
 	// the user the chance to switch off compression AFTER reading
 	// the headers
@@ -122,6 +126,8 @@ bool KInHTTPFilter::SetupInputFilter()
 KInStream& KInHTTPFilter::FilteredStream()
 //-----------------------------------------------------------------------------
 {
+	kDebug (3, "...");
+
 	if (m_Filter->empty())
 	{
 		SetupInputFilter();
@@ -134,6 +140,8 @@ KInStream& KInHTTPFilter::FilteredStream()
 size_t KInHTTPFilter::Read(KOutStream& OutStream, size_t len)
 //-----------------------------------------------------------------------------
 {
+	kDebug (3, "...");
+
 	auto& In(FilteredStream());
 
 	if (len == KString::npos)
@@ -155,6 +163,8 @@ size_t KInHTTPFilter::Read(KOutStream& OutStream, size_t len)
 size_t KInHTTPFilter::Read(KString& sBuffer, size_t len)
 //-----------------------------------------------------------------------------
 {
+	kDebug (3, "...");
+
 	auto& In(FilteredStream());
 
 	if (len == KString::npos)
@@ -177,6 +187,8 @@ size_t KInHTTPFilter::Read(KString& sBuffer, size_t len)
 bool KInHTTPFilter::ReadLine(KString& sBuffer)
 //-----------------------------------------------------------------------------
 {
+	kDebug (3, "...");
+
 	sBuffer.clear();
 
 	auto& In(FilteredStream());
@@ -194,6 +206,8 @@ bool KInHTTPFilter::ReadLine(KString& sBuffer)
 void KInHTTPFilter::close()
 //-----------------------------------------------------------------------------
 {
+	kDebug (3, "...");
+
 	if (!m_Filter->empty())
 	{
 		m_Filter->reset();

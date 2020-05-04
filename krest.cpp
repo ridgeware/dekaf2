@@ -50,6 +50,8 @@ namespace dekaf2 {
 bool KREST::RealExecute(const Options& Options, const KRESTRoutes& Routes, KStream& Stream, KStringView sRemoteIP)
 //-----------------------------------------------------------------------------
 {
+	kDebug (3, "...");
+
 	KRESTServer Request;
 	
 	Request.Accept(Stream, sRemoteIP);
@@ -64,6 +66,8 @@ bool KREST::RealExecute(const Options& Options, const KRESTRoutes& Routes, KStre
 bool KREST::ExecuteRequest(const Options& Options, const KRESTRoutes& Routes)
 //-----------------------------------------------------------------------------
 {
+	kDebug (3, "...");
+
 	switch (Options.Type)
 	{
 		case UNDEFINED:
@@ -180,6 +184,8 @@ bool KREST::ExecuteRequest(const Options& Options, const KRESTRoutes& Routes)
 bool KREST::ExecuteFromFile(const Options& Options, const KRESTRoutes& Routes, KOutStream& OutStream)
 //-----------------------------------------------------------------------------
 {
+	kDebug (3, "...");
+
 	switch (Options.Type)
 	{
 		case CGI:
@@ -235,6 +241,8 @@ bool KREST::ExecuteFromFile(const Options& Options, const KRESTRoutes& Routes, K
 bool KREST::Simulate(const Options& Options, const KRESTRoutes& Routes, const KResource& API, KOutStream& OutStream)
 //-----------------------------------------------------------------------------
 {
+	kDebug (3, "...");
+
 	if (API.empty())
 	{
 		return SetError(kFormat("invalid request - no API selected"));
@@ -287,6 +295,8 @@ bool KREST::Simulate(const Options& Options, const KRESTRoutes& Routes, const KR
 bool KREST::Execute(const Options& Options, const KRESTRoutes& Routes)
 //-----------------------------------------------------------------------------
 {
+	kDebug (3, "...");
+
 	switch (Options.Type)
 	{
 		default:
@@ -324,6 +334,7 @@ const KString& KREST::Error() const
 bool KREST::SetError(KStringView sError)
 //-----------------------------------------------------------------------------
 {
+	kDebug (1, "{}", sError);
 	m_sError = sError;
 	kWarning(m_sError);
 	return false;

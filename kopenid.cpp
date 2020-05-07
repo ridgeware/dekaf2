@@ -285,7 +285,18 @@ bool KJWT::Validate(const KOpenIDProvider& Provider, KStringView sScope, time_t 
 		{
 			return SetError("no scopes supported");
 		}
-		if (!kjson::Contains(Scopes, sScope))
+
+		bool bScopeIsValid = false;
+		auto ScopeList     = sScope.Split (",");
+		for (auto sScopeName : ScopeList)
+		{
+			if (kjson::Contains(Scopes, sScopeName))
+			{
+				bScopeIsValid = true;
+			}
+		}
+
+		if (!bScopeIsValid)
 		{
 			KString sScopes;
 			for (const auto& Scope : Scopes)

@@ -100,7 +100,7 @@ public:
 		KHTTPHeaders::KHeaderMap ResponseHeaders;
 		/// Valid authentication instances for user verification
 		KOpenIDProviderList Authenticators;
-		/// If non-empty, check that SSO token authorizes given scope
+		/// If non-empty, check that SSO token authorizes one of thse given scopes (comma separated list)
 		KStringView sAuthScope;
 		/// Allow KLog profiling triggered by a KLOG header?
 		KStringView sKLogHeader;

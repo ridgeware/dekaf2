@@ -247,12 +247,12 @@ KString& KString::replace(size_type pos1, size_type n1, const std::string& str, 
 	// avoid segfaults
 	if (pos2 > str.size())
 	{
-		kWarning("pos2 ({}) exceeds size ({})", pos2, str.size());
+		kDebug (1, "pos2 ({}) exceeds size ({})", pos2, str.size());
 		pos2 = str.size();
 	}
 	if (pos2 + n2 > str.size())
 	{
-		kWarning("pos2 ({}) + n ({}) exceeds size ({})", pos2, n2, str.size());
+		kDebug (1, "pos2 ({}) + n ({}) exceeds size ({})", pos2, n2, str.size());
 		n2 = str.size() - pos2;
 	}
 	m_rep.replace(pos1, n1, str.data()+pos2, n2);
@@ -411,12 +411,12 @@ KString& KString::insert(size_type pos1, const std::string& str, size_type pos2,
 	// avoid segfaults
 	if (pos2 > str.size())
 	{
-		kWarning("pos2 ({}) exceeds size ({})", pos2, str.size());
+		kDebug (1, "pos2 ({}) exceeds size ({})", pos2, str.size());
 		pos2 = str.size();
 	}
 	if (pos2 + n > str.size())
 	{
-		kWarning("pos2 ({}) + n ({}) exceeds size ({})", pos2, n, str.size());
+		kDebug (1, "pos2 ({}) + n ({}) exceeds size ({})", pos2, n, str.size());
 		n = str.size() - pos2;
 	}
 	m_rep.insert(pos1, str.data()+pos2, n);
@@ -700,7 +700,7 @@ KStringView KString::ToView(size_type pos, size_type n) const
 {
 	if (pos > size())
 	{
-		kWarning("pos ({}) exceeds size ({})", pos, size());
+		kDebug (1, "pos ({}) exceeds size ({})", pos, size());
 		pos = size();
 	}
 	if (n > size())

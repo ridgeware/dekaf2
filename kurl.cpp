@@ -294,15 +294,15 @@ uint16_t KProtocol::DefaultPort() const
 {
 	uint16_t iPort = s_Canonical[m_eProto].iPort;
 
-	if (!iPort)
+	if (! iPort)
 	{
 		if (m_eProto == UNKNOWN)
 		{
-			kWarning("no default port for protocol {} ('{}') - returning 0", m_eProto, m_sProto);
+			kDebug (1, "no default port for protocol {} ('{}') - returning 0", m_eProto, m_sProto);
 		}
 		else
 		{
-			kDebug(2, "no default port for protocol {} ('{}') - returning 0", m_eProto, s_Canonical[m_eProto].sName);
+			kDebug (1, "no default port for protocol {} ('{}') - returning 0", m_eProto, s_Canonical[m_eProto].sName);
 		}
 	}
 

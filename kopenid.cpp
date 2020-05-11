@@ -293,6 +293,7 @@ bool KJWT::Validate(const KOpenIDProvider& Provider, KStringView sScope, time_t 
 			if (kjson::Contains(Scopes, sScopeName))
 			{
 				bScopeIsValid = true;
+				break;
 			}
 		}
 

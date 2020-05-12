@@ -5902,7 +5902,6 @@ bool KSQL::ctlib_execsql (KStringView sSQL)
 
 	CS_RETCODE iApiRtn;
 	CS_INT     iResultType;
-	bool       fError = false;
 
 	kDebug (KSQL2_CTDEBUG, sSQL);
 	kDebug (KSQL2_CTDEBUG, "ensuring that no dangling messages are in the ct queue...");
@@ -5935,11 +5934,9 @@ bool KSQL::ctlib_execsql (KStringView sSQL)
 			case CS_CMD_DONE:
 				break; // switch
 			case CS_CMD_FAIL:
-				fError = true;
 				kDebug (KSQL2_CTDEBUG, "iResultType CS_CMD_FAIL");
 				break; // switch
 			default:
-				fError = true;
 				kDebug (KSQL2_CTDEBUG, "iResultType ???");
 				break; // switch
 		}

@@ -102,6 +102,8 @@ public:
 #endif
 		/// start as blocking server in same thread or unblocking in separate thread
 		bool bBlocking { true };
+		/// are the PEM cert and key filenames (default) or buffers with the actual PEMs?
+		bool bPEMsAreFilenames { true };
 		/// the PEM certificate
 		KStringViewZ sCert;
 		/// the PEM private key

@@ -84,7 +84,7 @@ bool KREST::ExecuteRequest(const Options& Options, const KRESTRoutes& Routes)
 					{
 						return SetError("TLS mode requested, but no certificate");
 					}
-					if (!kFileExists(Options.sCert))
+					if (Options.bPEMsAreFilenames && !kFileExists(Options.sCert))
 					{
 						return SetError(kFormat("TLS certificate does not exist: {}", Options.sCert));
 					}
@@ -92,7 +92,7 @@ bool KREST::ExecuteRequest(const Options& Options, const KRESTRoutes& Routes)
 					{
 						return SetError("TLS mode requested, but no private key");
 					}
-					if (!kFileExists(Options.sKey))
+					if (Options.bPEMsAreFilenames && !kFileExists(Options.sKey))
 					{
 						return SetError(kFormat("TLS private key file does not exist: {}", Options.sKey));
 					}
@@ -108,7 +108,14 @@ bool KREST::ExecuteRequest(const Options& Options, const KRESTRoutes& Routes)
 				m_Server = std::make_unique<RESTServer>(Options, Routes, Options.iPort, bUseTLS, Options.iMaxConnections);
 				if (bUseTLS)
 				{
-					m_Server->SetSSLCertificates(Options.sCert, Options.sKey);
+					if (Options.bPEMsAreFilenames)
+					{
+						m_Server->LoadSSLCertificates(Options.sCert, Options.sKey);
+					}
+					else
+					{
+						m_Server->SetSSLCertificates(Options.sCert, Options.sKey);
+					}
 				}
 				m_Server->RegisterShutdownWithSignal(Options.iRegisterSignalForShutdown);
 				m_Server->Start(Options.iTimeout, Options.bBlocking);

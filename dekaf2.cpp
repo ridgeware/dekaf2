@@ -306,6 +306,9 @@ KStringView Dekaf::GetVersionInformation() const
 #ifdef DEKAF2_HAS_MYSQL
 		" mysql"
 #endif
+#ifdef DEKAF2_HAS_FREETDS
+		" freetds"
+#endif
 #ifdef DEKAF2_HAS_SQLITE3
 		" sqlite"
 #endif

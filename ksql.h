@@ -47,6 +47,7 @@
 
 #include <cinttypes>
 #include <vector>
+#include "kconfiguration.h"
 #include "kstring.h"
 #include "kstringview.h"
 #include "krow.h"
@@ -558,7 +559,7 @@ private:
 #if defined(DEKAF2_HAS_ORACLE) || defined(DEKAF2_HAS_CTLIB) || defined(DEKAF2_HAS_DBLIB)
 		std::unique_ptr<char> dszValue;
 #endif
-		KString  sColName;
+		KString     sColName;
 		KCOL::Flags iKSQLDataType   { 0 };
 		KCOL::Len   iMaxDataLen     { 0 };
 #if defined(DEKAF2_HAS_ORACLE) || defined(DEKAF2_HAS_CTLIB)

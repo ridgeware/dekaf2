@@ -275,6 +275,18 @@ if(SQLITE3_FOUND)
 	set(DEKAF2_HAS_SQLITE3 1)
 endif()
 
+# ================================ FreeTDS ====================================
+
+# FreeTDS (for KSQL) - if not available it's simply skipped
+find_package(FreeTDS QUIET)
+if(FREETDS_FOUND)
+	message(STATUS "configuring with FreeTDS/CTLIB")
+	set(DEKAF2_HAS_FREETDS 1)
+	set(DEKAF2_HAS_CTLIB 1)
+else()
+	message(STATUS "No MS SQL support. Install FreeTDS package if needed")
+endif()
+
 # ================================ OPENSSL ===================================
 
 # openssl (needed for boost asio)
@@ -756,10 +768,12 @@ target_link_libraries(ksql2
 		dekaf2
 	PRIVATE
 		${MYSQL_LIBRARIES}
+		${FREETDS_LIBRARIES}
 	)
 target_include_directories(ksql2
 	PRIVATE
 	$<BUILD_INTERFACE:${MYSQL_INCLUDE_DIRS}>
+	$<BUILD_INTERFACE:${FREETDS_INCLUDE_DIRS}>
 )
 add_dependencies(ksql2 dekaf2)
 

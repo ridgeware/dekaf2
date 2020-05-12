@@ -57,6 +57,7 @@
 #include "ksplit.h"
 #include "kstringutils.h"
 #include "kfilesystem.h"
+#include <cstdint>
 
 #if defined(DEKAF2_IS_WINDOWS) || defined(DEKAF2_DO_NOT_HAVE_STRPTIME)
 	#include <ctime>
@@ -102,8 +103,13 @@
 #endif
 
 #ifdef DEKAF2_HAS_DBLIB
+  #ifndef __STDC_VERSION__
+	// FreeTDS depends on __STDC_VERSION__ to _not_ redefine standard types
+	// C++ unfortunately does not require to set it, so we match it with the
+	// value of __cplusplus
+	#define __STDC_VERSION__ __cplusplus
+  #endif
   // dependent headers when building DBLIB (these are *not* part of our distribution):
-  #include <config_freetds.h>  // will be taken from: ksql/src/3p-XXXXX, produced by gnu "configure" on each platform
   #include <sqlfront.h>        // dblib top level include
   #include <sqldb.h>           // dblib top level include
 
@@ -112,9 +118,15 @@
 #endif
 
 #ifdef DEKAF2_HAS_CTLIB
-  #include <config_freetds.h>  // will be taken from: ksql/src/3p-XXXXX, produced by gnu "configure" on each platform
-  #include <ctpublic.h>        // CTLIB, alternative to DBLIB for Sybase and SQLServer
-  #define CTDEBUG 2
+	#ifndef __STDC_VERSION__
+	  // FreeTDS depends on __STDC_VERSION__ to _not_ redefine standard types
+	  // C++ unfortunately does not require to set it, so we match it with the
+	  // value of __cplusplus
+	  #define __STDC_VERSION__ __cplusplus
+	#endif
+  #include <ctpublic.h>        // CTLIB, alternative to DBLIB for Sybase and MS SQL Server
+  #include <sybdb.h>	       // "sybdb.h is the only other file you need" (FreeTDS doc) -- ctpublic.h should actually already include it
+  #define KSQL2_CTDEBUG 2
 #endif
 
 // FYI: from ocidfn.h
@@ -204,7 +216,7 @@ static void*  kfree (void* dPointer, const char* sContext = nullptr )
 			free (dPointer);
 		}
 		DEKAF2_CATCH (EX) {
-			kWarningLog ("kfree: would have crashed on free() of 0x{} {}", 
+			kWarning ("would have crashed on free() of 0x{} {}",
 				dPointer,
 				(sContext) ? " : "    : "",
 				(sContext) ? sContext : "");
@@ -671,8 +683,8 @@ bool KSQL::DecodeDBCData (KStringView sBuffer, KStringView sDBCFile)
 	if (sBuffer.starts_with("KSQLDBC1"))
 	{
 		#ifdef WIN32
-		m_sLastError.Format ("{}DecodeDBCData(): old format (DBC1) doesn't work on win32", m_sErrorPrefix);
-		kDebugLog(GetDebugLevel(), m_sLastError);
+		m_sLastError.Format ("old format (DBC1) doesn't work on win32");
+		kDebug(GetDebugLevel(), m_sLastError);
 		return (false);
 		#else
 		kDebug((GetDebugLevel() + 1), "old format (1)");
@@ -695,21 +707,21 @@ bool KSQL::DecodeDBCData (KStringView sBuffer, KStringView sDBCFile)
 		   This version of the software can't process the data, but it may be a future version of DBC,
 		   so provide a helpful error message.
 		*/
-		m_sLastError.Format("{}DecodeDBCData(): unrecognized DBC version in DBC file '{}'.", m_sErrorPrefix, sDBCFile);
-		kDebugLog(GetDebugLevel(), m_sLastError);
+		m_sLastError.Format("unrecognized DBC version in DBC file '{}'.", sDBCFile);
+		kDebug(GetDebugLevel(), m_sLastError);
 		return false;
 	}
 	else
 	{
-		m_sLastError.Format ("{}DecodeDBCData(): invalid header on DBC file '{}'.", m_sErrorPrefix, sDBCFile);
-		kDebugLog(GetDebugLevel(), m_sLastError);
+		m_sLastError.Format ("invalid header on DBC file '{}'.", sDBCFile);
+		kDebug(GetDebugLevel(), m_sLastError);
 		return (false);
 	}
 
 	if (!dbc->SetBuffer(sBuffer))
 	{
-		m_sLastError.Format ("{}DecodeDBCData(): corrupted DBC file '{}'.", m_sErrorPrefix, sDBCFile);
-		kDebugLog(GetDebugLevel(), m_sLastError);
+		m_sLastError.Format ("corrupted DBC file '{}'.", sDBCFile);
+		kDebug(GetDebugLevel(), m_sLastError);
 		return (false);
 	}
 
@@ -1062,11 +1074,11 @@ bool KSQL::OpenConnection ()
 		{
 			if (IsFlag(F_IgnoreSQLErrors))
 			{
-				kDebugLog (GetDebugLevel(), "{}", m_sLastError);
+				kDebug (GetDebugLevel(), m_sLastError);
 			}
 			else
 			{
-				kWarningLog ("{}", m_sLastError);
+				kWarning(m_sLastError);
 			}
 			return (false);
 		}
@@ -1565,7 +1577,7 @@ bool KSQL::ExecRawSQL (KStringView sSQL, Flags iFlags/*=0*/, KStringView sAPI/*=
 		case API::ODBC:
 		default:
 		// - - - - - - - - - - - - - - - - -
-			kWarningLog ("KSQL::ExecSQL(): unsupported API Set ({})", TxAPISet(m_iAPISet));
+			kWarning ("unsupported API Set ({})", TxAPISet(m_iAPISet));
 			kCrashExit (CRASHCODE_DEKAFUSAGE);
 
 		} // switch
@@ -2352,7 +2364,7 @@ bool KSQL::ExecRawQuery (KStringView sSQL, Flags iFlags/*=0*/, KStringView sAPI/
 				//  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -
 				m_iErrorNum = OCIDefineByPos ((OCIStmt*)m_dOCI8Statement, &dDefine, (OCIError*)m_dOCI8ErrorHandle,
 							ii,                                   // column number
-							(dvoid *)(ColInfo.dszValue),          // data pointer
+							(dvoid *)(ColInfo.dszValue.get()),    // data pointer
 							ColInfo.iMaxDataLen,                  // max data length
 							SQLT_STR,                             // always bind as a zero-terminated string
 							(dvoid *) 0, (ub2 *) 0, (ub2 *) 0, OCI_DEFAULT);
@@ -2565,7 +2577,7 @@ bool KSQL::ExecRawQuery (KStringView sSQL, Flags iFlags/*=0*/, KStringView sAPI/
 	// - - - - - - - - - - - - - - - - -
 		do // once
 		{
-			kDebug (CTDEBUG, "ensuring that no dangling messages are in the ct queue...");
+			kDebug (KSQL2_CTDEBUG, "ensuring that no dangling messages are in the ct queue...");
 			
 			if(IsFlag(F_AutoReset))
 			{
@@ -2575,9 +2587,9 @@ bool KSQL::ExecRawQuery (KStringView sSQL, Flags iFlags/*=0*/, KStringView sAPI/
 			ctlib_flush_results ();
 			ctlib_clear_errors ();
 
-			kDebug (CTDEBUG, "calling ct_command()...");
+			kDebug (KSQL2_CTDEBUG, "calling ct_command()...");
 
-			if (ct_command (m_pCtCommand, CS_LANG_CMD, sSQL, CS_NULLTERM, CS_UNUSED) != CS_SUCCEED)
+			if (ct_command (m_pCtCommand, CS_LANG_CMD, sSQL.data(), sSQL.size(), CS_UNUSED) != CS_SUCCEED)
 			{
 				ctlib_api_error ("KSQL>ExecQuery>ct_command");
 				if (--iRetriesLeft && PreparedToRetry())
@@ -2587,7 +2599,7 @@ bool KSQL::ExecRawQuery (KStringView sSQL, Flags iFlags/*=0*/, KStringView sAPI/
 				return (SQLError());
 			}
 
-			kDebug (CTDEBUG, "calling ct_send()...");
+			kDebug (KSQL2_CTDEBUG, "calling ct_send()...");
 
 			if (ct_send(m_pCtCommand) != CS_SUCCEED)
 			{
@@ -2771,7 +2783,7 @@ bool KSQL::ParseRawQuery (KStringView sSQL, int64_t iFlags/*=0*/, KStringView sA
 		// - - - - - - - - - - - - - - - - -
 		default:
 		// - - - - - - - - - - - - - - - - -
-			kWarningLog ("KSQL::ParseQuery(): unsupported API Set ({}={})", m_iAPISet, TxAPISet(m_iAPISet));
+			kWarning ("unsupported API Set ({}={})", m_iAPISet, TxAPISet(m_iAPISet));
 			kCrashExit (CRASHCODE_DEKAFUSAGE);
 	}
 
@@ -2883,7 +2895,7 @@ bool KSQL::ExecParsedQuery ()
 				//  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -
 				m_iErrorNum = OCIDefineByPos ((OCIStmt*)m_dOCI8Statement, &dDefine, (OCIError*)m_dOCI8ErrorHandle,
 							ii,                                   // column number
-							(dvoid *)(ColInfo.dszValue),          // data pointer
+							(dvoid *)(ColInfo.dszValue.get()),    // data pointer
 							ColInfo.iMaxDataLen,                  // max data length
 							SQLT_STR,                             // always bind as a zero-terminated string
 							(dvoid *) 0, (ub2 *) 0, (ub2 *) 0, OCI_DEFAULT);
@@ -3073,11 +3085,14 @@ bool KSQL::BufferResults ()
 
 			for (uint32_t ii=0; ii<m_iNumColumns; ++ii)
 			{
-				if (strlen(m_dColInfo[ii].dszValue.get() > 50)
+				if (strlen(m_dColInfo[ii].dszValue.get()) > 50)
+				{
 					kDebug (3, "  buffered: row[{}]col[{}]: strlen()={}", m_iNumRowsBuffered, ii+1, strlen(m_dColInfo[ii].dszValue.get());
+				}
 				else
+				{
 					kDebug (3, "  buffered: row[{}]col[{}]: '{}'", m_iNumRowsBuffered, ii+1, m_dColInfo[ii].dszValue.get());
-
+				}
 				// we need to assure that no newlines are in buffered data:
 				char* spot = strchr (m_dColInfo[ii].dszValue.get(), '\n');
 				while (spot)
@@ -3116,10 +3131,14 @@ bool KSQL::BufferResults ()
 					m_dColInfo[ii].dszValue.get()[0] = 0;
 				}
 
-				if (strlen(m_dColInfo[ii].dszValue.get() > 50)
+				if (strlen(m_dColInfo[ii].dszValue.get()) > 50)
+				{
 					kDebug (3, "  buffered: row[{}]col[{}]: strlen()={}", m_iNumRowsBuffered, ii+1, strlen(m_dColInfo[ii].dszValue.get()));
+				}
 				else
+				{
 					kDebug (3, "  buffered: row[{}]col[{}]: '{}'", m_iNumRowsBuffered, ii+1, m_dColInfo[ii].dszValue.get());
+				}
 
 				// we need to assure that no newlines are in buffered data:
 				char* spot = strchr (m_dColInfo[ii].dszValue.get(), '\n');
@@ -5751,7 +5770,7 @@ bool KSQL::ctlib_login ()
 {
 	m_sLastError.clear();
 
-	kDebugLog (CTDEBUG, "cs_ctx_alloc()");
+	kDebug (KSQL2_CTDEBUG, "cs_ctx_alloc()");
 	if (cs_ctx_alloc (CS_VERSION_100, &m_pCtContext) != CS_SUCCEED)
 	{
 		ctlib_api_error ("ctlib_login>cs_ctx_alloc");
@@ -5769,69 +5788,72 @@ bool KSQL::ctlib_login ()
 	}
 	#endif
 
-	kDebugLog (CTDEBUG, "ct_init()");
+	kDebug (KSQL2_CTDEBUG, "ct_init()");
 	if (ct_init (m_pCtContext, CS_VERSION_100) != CS_SUCCEED)
 	{
 		ctlib_api_error ("ctlib_login>ct_init failed");
 		return (SQLError());
 	}
 
-	kDebugLog (CTDEBUG, "ct_con_alloc()");
+	kDebug (KSQL2_CTDEBUG, "ct_con_alloc()");
 	if (ct_con_alloc (m_pCtContext, &m_pCtConnection) != CS_SUCCEED)
 	{
 		ctlib_api_error ("ctlib_login>ct_con_alloc");
 		return (SQLError());
 	}
 
-	kDebugLog (2, "ct_con_props() set username");
-	if (ct_con_props (m_pCtConnection, CS_SET, CS_USERNAME, GetDBUser(), CS_NULLTERM, nullptr) != CS_SUCCEED)
+	kDebug (KSQL2_CTDEBUG, "ct_con_props() set username");
+	auto sUser = GetDBUser();
+	if (ct_con_props (m_pCtConnection, CS_SET, CS_USERNAME, sUser.data(), sUser.size(), nullptr) != CS_SUCCEED)
 	{
 		ctlib_api_error ("ctlib_login>set username");
 		return (SQLError());
 	}
 
-	kDebugLog (2, "ct_con_props() set password");
-	if (ct_con_props (m_pCtConnection, CS_SET, CS_PASSWORD, GetDBPass(), CS_NULLTERM, nullptr) != CS_SUCCEED)
+	kDebug (KSQL2_CTDEBUG, "ct_con_props() set password");
+	auto sPass = GetDBPass();
+	if (ct_con_props (m_pCtConnection, CS_SET, CS_PASSWORD, sPass.data(), sPass.size(), nullptr) != CS_SUCCEED)
 	{
 		ctlib_api_error ("ctlib_login>set password");
 		return (SQLError());
 	}
 
-	kDebugLog (2, "ct_connect(): connecting as {} to {}.{}\n", m_sUsername, GetDBHost(), m_sDatabase);
+	kDebug (KSQL2_CTDEBUG, "connecting as {} to {}.{}\n", GetDBUser(), GetDBHost(), GetDBName());
 	int iTryConnect = 0;
-	while(true) {
-		if (ct_connect (m_pCtConnection, GetDBHost(), CS_NULLTERM) == CS_SUCCEED)
+	while(true)
+	{
+		auto sHost = GetDBHost();
+		if (ct_connect (m_pCtConnection, sHost.data(), sHost.size()) == CS_SUCCEED)
 		{
 			break;
 		}
 		else if (++iTryConnect >= 3)
-		{ //try to connect 3 times.
+		{
+			//try to connect 3 times.
 			ctlib_api_error ("ctlib_login>ct_connect");
 			return (SQLError());
 		}
 	}
 
-	kDebugLog (CTDEBUG, "ct_cmd_alloc()");
+	kDebug (KSQL2_CTDEBUG, "ct_cmd_alloc()");
 	if (ct_cmd_alloc (m_pCtConnection, &m_pCtCommand) != CS_SUCCEED)
 	{
 		ctlib_api_error ("ctlib_login>ct_cmd_alloc");
 		return (SQLError());
 	}
 
-	const char* _dbname = GetDBName();
-	if (*_dbname) {
-		char szSQL[MAXLEN_PATH+1];
-		snprintf (szSQL, MAXLEN_PATH, "use {}", _dbname);
-		if (ctlib_execsql(szSQL) != CS_SUCCEED)
+	if (!GetDBName().empty())
+	{
+		if (ctlib_execsql(kFormat("use {}", GetDBName())) != CS_SUCCEED)
 		{
-			m_sLastError.Format ("{}CTLIB: login ok, could not attach to database: {}", m_sErrorPrefix, _dbname);
+			m_sLastError.Format ("{}CTLIB: login ok, could not attach to database: {}", m_sErrorPrefix, GetDBName());
 			return (false);
 		}
 	}
 
-	kDebugLog (GetDebugLevel()+1, "ensuring that we can process error messages 'inline' instead of using callbacks...");
+	kDebug (GetDebugLevel()+1, "ensuring that we can process error messages 'inline' instead of using callbacks...");
 
-	kDebugLog (CTDEBUG, "ct_diag(CS_INIT)");
+	kDebug (KSQL2_CTDEBUG, "ct_diag(CS_INIT)");
 	if (ct_diag (m_pCtConnection, CS_INIT, CS_UNUSED, CS_UNUSED, nullptr) != CS_SUCCEED)
 	{
 		ctlib_api_error ("ctlib_login>ct_init(CS_INIT) failed");
@@ -5846,26 +5868,26 @@ bool KSQL::ctlib_login ()
 bool KSQL::ctlib_logout ()
 //-----------------------------------------------------------------------------
 {
-	kDebugLog (CTDEBUG, "ctlib_logout: calling {}...", "ct_cancel");
+	kDebug (KSQL2_CTDEBUG, "calling ct_cancel...");
 	if (ct_cancel(m_pCtConnection, nullptr, CS_CANCEL_ALL) != CS_SUCCEED)
 	{
 		ctlib_api_error ("ctlib_logout>ct_cancel");
 		return (SQLError());
 	}
 
-	kDebugLog (CTDEBUG, "ctlib_logout: calling {}...", "ct_cmd_drop");
+	kDebug (KSQL2_CTDEBUG, "calling ct_cmd_drop...");
 	ct_cmd_drop (m_pCtCommand);
 
-	kDebugLog (CTDEBUG, "ctlib_logout: calling {}...", "ct_close   ");
+	kDebug (KSQL2_CTDEBUG, "calling ct_close...");
 	ct_close    (m_pCtConnection, CS_UNUSED);
 
-	kDebugLog (CTDEBUG, "ctlib_logout: calling {}...", "ct_con_drop");
+	kDebug (KSQL2_CTDEBUG, "calling ct_con_drop...");
 	ct_con_drop (m_pCtConnection);
 
-	kDebugLog (CTDEBUG, "ctlib_logout: calling {}...", "ct_exit    ");
+	kDebug (KSQL2_CTDEBUG, "calling ct_exit...");
 	ct_exit     (m_pCtContext, CS_UNUSED);
 
-	kDebugLog (CTDEBUG, "ctlib_logout: calling {}...", "cs_ctx_drop");
+	kDebug (KSQL2_CTDEBUG, "calling cs_ctx_drop...");
 	cs_ctx_drop (m_pCtContext);
 
 	return (true);
@@ -5882,29 +5904,29 @@ bool KSQL::ctlib_execsql (KStringView sSQL)
 	CS_INT     iResultType;
 	bool       fError = false;
 
-	kDebugLog (CTDEBUG, "ctlib_execsql: {}", sSQL);
-	kDebugLog (CTDEBUG, "ensuring that no dangling messages are in the ct queue...");
+	kDebug (KSQL2_CTDEBUG, sSQL);
+	kDebug (KSQL2_CTDEBUG, "ensuring that no dangling messages are in the ct queue...");
 	ctlib_flush_results ();
 	ctlib_clear_errors ();
 
-	kDebugLog (CTDEBUG, "calling ct_command()...");
-	if (ct_command (m_pCtCommand, CS_LANG_CMD, sSQL, CS_NULLTERM, CS_UNUSED) != CS_SUCCEED)
+	kDebug (KSQL2_CTDEBUG, "calling ct_command()...");
+	if (ct_command (m_pCtCommand, CS_LANG_CMD, sSQL.data(), sSQL.size(), CS_UNUSED) != CS_SUCCEED)
 	{
 		ctlib_api_error ("ctlib_execsql>ct_command");
 		return (SQLError());
 	}
 
-	kDebugLog (CTDEBUG, "calling ct_send()...");
+	kDebug (KSQL2_CTDEBUG, "calling ct_send()...");
 	if (ct_send (m_pCtCommand) != CS_SUCCEED)
 	{
 		ctlib_api_error ("ctlib_execsql>ct_send");
 		return (SQLError());
 	}
 
-	kDebugLog (CTDEBUG, "calling ct_results()...");
+	kDebug (KSQL2_CTDEBUG, "calling ct_results()...");
 	while ((iApiRtn = ct_results (m_pCtCommand, &iResultType)) == CS_SUCCEED)
 	{
-		kDebugLog (CTDEBUG, "ct_results said iResultsType={} and returned {}", iResultType, iApiRtn);
+		kDebug (KSQL2_CTDEBUG, "ct_results said iResultsType={} and returned {}", iResultType, iApiRtn);
 
 		switch (iResultType)
 		{
@@ -5914,11 +5936,11 @@ bool KSQL::ctlib_execsql (KStringView sSQL)
 				break; // switch
 			case CS_CMD_FAIL:
 				fError = true;
-				kDebugLog (CTDEBUG, "ctlib_execsql>ct_results>iResultType CS_CMD_FAIL");
+				kDebug (KSQL2_CTDEBUG, "iResultType CS_CMD_FAIL");
 				break; // switch
 			default:
 				fError = true;
-				kDebugLog (CTDEBUG, "ctlib_execsql>ct_results>iResultType ???");
+				kDebug (KSQL2_CTDEBUG, "iResultType ???");
 				break; // switch
 		}
 	}
@@ -5936,25 +5958,25 @@ bool KSQL::ctlib_execsql (KStringView sSQL)
 	#endif
 
 	CS_INT iNumRows;
-	kDebugLog (CTDEBUG, "calling {}...", "ct_res_info");
+	kDebug (KSQL2_CTDEBUG, "calling ct_res_info...");
 	if (ct_res_info (m_pCtCommand, CS_ROW_COUNT, &iNumRows, CS_UNUSED, nullptr) == CS_SUCCEED)
 	{
 		if ((long)iNumRows != -1)
 		{
 			m_iNumRowsAffected = (uint64_t) iNumRows;
 		}
-		kDebugLog (CTDEBUG, "m_iNumRowsAffected = {}", m_iNumRowsAffected);
+		kDebug (KSQL2_CTDEBUG, "m_iNumRowsAffected = {}", m_iNumRowsAffected);
 	}
 
 	uint32_t iNumErrors = ctlib_check_errors();
 	if (iNumErrors)
 	{
-		kDebugLog (CTDEBUG, "ctlib_execsql: returning false");
+		kDebug (KSQL2_CTDEBUG, "returning false");
 		return (false);
 	}
 	else
 	{
-		kDebugLog (CTDEBUG, "ctlib_execsql: returning true");
+		kDebug (KSQL2_CTDEBUG, "returning true");
 		return (true);
 	}
 
@@ -5966,7 +5988,7 @@ bool KSQL::ctlib_nextrow ()
 {
 	CS_INT iFetched;
 
-	kDebugLog (CTDEBUG, "ctlib_nextrow: calling ct_fetch...");
+	kDebug (KSQL2_CTDEBUG, "calling ct_fetch...");
 	if ((ct_fetch (m_pCtCommand, CS_UNUSED, CS_UNUSED, CS_UNUSED, &iFetched) == CS_SUCCEED) && (iFetched > 0))
 	{
 		for (uint32_t ii = 0; ii < m_iNumColumns; ++ii)
@@ -5974,7 +5996,11 @@ bool KSQL::ctlib_nextrow ()
 			// map SQL nullptr values to zero-terminated C strings:
 			if (m_dColInfo[ii].indp < 0)
 			{
-				m_dColInfo[ii].dszValue[0] = 0;
+				// check that the unique_ptr is allocated
+				if (m_dColInfo[ii].dszValue)
+				{
+					m_dColInfo[ii].dszValue.get()[0] = 0;
+				}
 			}
 		}
 
@@ -5990,7 +6016,7 @@ bool KSQL::ctlib_nextrow ()
 bool KSQL::ctlib_api_error (KStringView sContext)
 //-----------------------------------------------------------------------------
 {
-	kDebugLog (3, "ctlib_api_error ({})", sContext);
+	kDebug (3, sContext);
 
 	uint32_t iMessages = ctlib_check_errors ();
 	if (!iMessages)
@@ -6014,7 +6040,7 @@ uint32_t KSQL::ctlib_check_errors ()
 
 	m_sLastError.clear();
 
-	kDebugLog (CTDEBUG, " in ctlib_check_errors() calling ct_diag...");
+	kDebug (KSQL2_CTDEBUG, "calling ct_diag...");
 
 	if (ct_diag (m_pCtConnection, CS_STATUS, CS_CLIENTMSG_TYPE, CS_UNUSED, &iNumMsgs) != CS_SUCCEED)
 	{
@@ -6023,13 +6049,13 @@ uint32_t KSQL::ctlib_check_errors ()
 
 	if (iNumMsgs)
 	{
-		kDebugLog (GetDebugLevel(), "ctlib_check_errors: {} client messages", iNumMsgs);
+		kDebug (GetDebugLevel(), "{} client messages", iNumMsgs);
 	}
 
 	for (ii=0; ii < iNumMsgs; ++ii)
 	{
 
-		kDebugLog (CTDEBUG, "calling {}...", "ct_diag");
+		kDebug (KSQL2_CTDEBUG, "calling ct_diag...");
 
 		if (ct_diag (m_pCtConnection, CS_GET, CS_CLIENTMSG_TYPE, ii + 1, &ClientMsg) != CS_SUCCEED)
 		{
@@ -6096,7 +6122,7 @@ uint32_t KSQL::ctlib_check_errors ()
 		++iNumErrors;
 	}
 
-	kDebugLog (CTDEBUG, "calling {}...", "ct_diag");
+	kDebug (KSQL2_CTDEBUG, "calling ct_diag...");
 
 	if (ct_diag (m_pCtConnection, CS_STATUS, CS_SERVERMSG_TYPE, CS_UNUSED, &iNumMsgs) != CS_SUCCEED)
 	{
@@ -6105,12 +6131,12 @@ uint32_t KSQL::ctlib_check_errors ()
 
 	if (iNumMsgs)
 	{
-		kDebugLog (GetDebugLevel(), "ctlib_check_errors: {} server message", iNumMsgs);
+		kDebug (GetDebugLevel(), "{} server message", iNumMsgs);
 	}
 
 	for (ii=0; ii < iNumMsgs; ++ii) {
 
-		kDebugLog (CTDEBUG, "calling ct_diag... message #%i", ii);
+		kDebug (KSQL2_CTDEBUG, "calling ct_diag... message #{:02}", ii);
 
 		if (ct_diag (m_pCtConnection, CS_GET, CS_SERVERMSG_TYPE, ii + 1, &ServerMsg) != CS_SUCCEED)
 		{
@@ -6183,23 +6209,23 @@ bool KSQL::ctlib_clear_errors ()
 {
 	m_iErrorNum = 0;
 
-	kDebugLog (CTDEBUG, "calling {}...", "ct_diag");
+	kDebug (KSQL2_CTDEBUG, "calling ct_diag...");
 	if (ct_diag (m_pCtConnection, CS_CLEAR, CS_ALLMSG_TYPE, CS_UNUSED, nullptr) != CS_SUCCEED)
 	{
-		kDebugLog (1, "ctlib_clear_errors>cs_diag(CS_CLEAR) failed");
+		kDebug (1, "cs_diag(CS_CLEAR) failed");
 	}
 
 	CS_INT iNumMsgs = 0;
 
-	kDebugLog (CTDEBUG, "calling {}...", "ct_diag");
+	kDebug (KSQL2_CTDEBUG, "calling ct_diag...");
 	if (ct_diag (m_pCtConnection, CS_STATUS, CS_ALLMSG_TYPE, CS_UNUSED, &iNumMsgs) != CS_SUCCEED)
 	{
-		kDebugLog (1, "ctlib_clear_errors>cs_diag(CS_STATUS) failed");
+		kDebug (1, "cs_diag(CS_STATUS) failed");
 	}
 
 	if (iNumMsgs != 0)
 	{
-		kDebugLog (1,, "ctlib_clear_errors>cs_diag(CS_CLEAR) failed: there are still {} messages on queue.", iNumMsgs);
+		kDebug (1, "cs_diag(CS_CLEAR) failed: there are still {} messages on queue.", iNumMsgs);
 		return (false);
 	}
 
@@ -6212,60 +6238,60 @@ bool KSQL::ctlib_prepare_results ()
 //-----------------------------------------------------------------------------
 {
 	#if 0
-	kDebugLog (GetDebugLevel(), "KSQL::ctlib_prepare_results()  -- TODO/WIP");
+	kDebug (GetDebugLevel(), "-- TODO/WIP");
 	return (true);  // TODO: WIP
 	#endif
 
 	bool   fLooping    = true;
 	CS_INT iResultType;
 
-	kDebugLog (CTDEBUG, "ctlib_prepare_results: preparing for results...");
+	kDebug (KSQL2_CTDEBUG, "preparing for results...");
 
-	kDebugLog (CTDEBUG, "calling {}...", "ct_results");
+	kDebug (KSQL2_CTDEBUG, "calling ct_results...");
 	while (fLooping && (ct_results (m_pCtCommand, &iResultType) == CS_SUCCEED))
 	{
 		switch ((int) iResultType)
 		{
 			case CS_CMD_SUCCEED:
-				kDebugLog (CTDEBUG, "ExecQuery>ctlib_prepare_results>ct_results>{}", "CS_CMD_SUCCEED");
+				kDebug (KSQL2_CTDEBUG, "ct_results: CS_CMD_SUCCEED");
 				break;
 			case CS_CMD_DONE:
-				kDebugLog (CTDEBUG, "ExecQuery>ctlib_prepare_results>ct_results>{}", "CS_CMD_DONE");
+				kDebug (KSQL2_CTDEBUG, "ct_results: CS_CMD_DONE");
 				fLooping = false;
 				break;
 			case CS_STATUS_RESULT:
-				kDebugLog (CTDEBUG, "ExecQuery>ctlib_prepare_results>ct_results>{}", "CS_STATUS_RESULT");
+				kDebug (KSQL2_CTDEBUG, "ct_results: CS_STATUS_RESULT");
 				fLooping = false;
 				break;
 			case CS_CMD_FAIL:
-				kDebugLog (CTDEBUG, "ExecQuery>ctlib_prepare_results>ct_results>{}", "CS_CMD_FAIL");
+				kDebug (KSQL2_CTDEBUG, "ct_results: CS_CMD_FAIL");
 				return (ctlib_api_error ("ExecQuery>ctlib_prepare_results>ct_results>CS_CMD_FAIL"));
 			case CS_CURSOR_RESULT:
-				kDebugLog (CTDEBUG, "ExecQuery>ctlib_prepare_results>ct_results>{}", "CS_CURSOR_RESULT");
+				kDebug (KSQL2_CTDEBUG, "ct_results: CS_CURSOR_RESULT");
 				fLooping = false;
 				break; // ready for data
 			case CS_ROW_RESULT:
-				kDebugLog (CTDEBUG, "ExecQuery>ctlib_prepare_results>ct_results>{}", "CS_ROW_RESULT");
+				kDebug (KSQL2_CTDEBUG, "ct_results: CS_ROW_RESULT");
 				fLooping = false;
 				break; // ready for data
 			case CS_COMPUTE_RESULT:
-				kDebugLog (CTDEBUG, "ExecQuery>ctlib_prepare_results>ct_results>{}", "CS_COMPUTE_RESULT");
+				kDebug (KSQL2_CTDEBUG, "ct_results: CS_COMPUTE_RESULT");
 				return (ctlib_api_error ("ExecQuery>ctlib_prepare_results>ct_results>CS_COMPUTE_RESULT"));
 			default:
-				kDebugLog (CTDEBUG, "ExecQuery>ctlib_prepare_results>ct_results>{}", iResultType);
+				kDebug (KSQL2_CTDEBUG, "ct_results: {}", iResultType);
 				return (ctlib_api_error ("ExecQuery>ctlib_prepare_results>ct_results>???"));
 		}
 
 		if (fLooping)
 		{
-			kDebugLog (CTDEBUG, "calling {}...", "ct_results");
+			kDebug (KSQL2_CTDEBUG, "calling ct_results");
 		}
 	}
 
-	kDebugLog (CTDEBUG, "ctlib_prepare_results: ready for query results");
+	kDebug (KSQL2_CTDEBUG, "ready for query results");
 
 	CS_INT iNumCols;
-	kDebugLog (CTDEBUG, "calling {}...", "ct_res_info");
+	kDebug (KSQL2_CTDEBUG, "calling ct_res_info");
 	if (ct_res_info (m_pCtCommand, CS_NUMDATA, &iNumCols, CS_UNUSED, nullptr) != CS_SUCCEED)
 	{
 		ctlib_api_error ("NextRow>ct_res_info");
@@ -6278,12 +6304,12 @@ bool KSQL::ctlib_prepare_results ()
 
 	for (uint32_t ii = 0; ii < m_iNumColumns; ++ii)
 	{
-		kDebugLog (CTDEBUG, "  retrieving info about col # %02u", ii);
+		kDebug (KSQL2_CTDEBUG, "retrieving info about col #{:02}", ii);
 
 		CS_DATAFMT colinfo;
 		memset (&colinfo, 0, sizeof(colinfo));
 
-		kDebugLog (CTDEBUG, "using ct_describe() to get column info for col#%02u...", ii+1);
+		kDebug (KSQL2_CTDEBUG, "using ct_describe() to get column info for col#{:02}...", ii+1);
 		if (ct_describe (m_pCtCommand, ii+1, &colinfo) != CS_SUCCEED)
 		{
 			ctlib_api_error ("NextRow>ct_describe) failed for a column");
@@ -6292,27 +6318,27 @@ bool KSQL::ctlib_prepare_results ()
 
 		if (colinfo.status & CS_RETURN)
 		{
-			kDebugLog (GetDebugLevel, "CS_RETURN code: column {}  -- ignored", ii); // ignored
+			kDebug (GetDebugLevel(), "CS_RETURN code: column {}  -- ignored", ii); // ignored
 		}
 
 		KColInfo ColInfo;
 
 		// TODO check if DBT::SYBASE is the right DBType
-		ColInfo.SetColumnType(DBT::SYBASE, iDataType, std::max(colinfo.maxlength+2, 8000)); // <-- allocate at least the max-varchar length to avoid overflows
+		ColInfo.SetColumnType(DBT::SYBASE, ColInfo.iKSQLDataType, std::max(colinfo.maxlength+2, 8000)); // <-- allocate at least the max-varchar length to avoid overflows
 		ColInfo.sColName        = (colinfo.namelen) ? colinfo.name : "";
 
 		enum {SANITY_MAX = 50*1024};
 		if (ColInfo.iMaxDataLen > SANITY_MAX)
 		{
-			kDebugLog (CTDEBUG, " col#{:02}: name='{}':  maxlength changed from {} to {}",
+			kDebug (KSQL2_CTDEBUG, " col#{:02}: name='{}':  maxlength changed from {} to {}",
 					ii+1, ColInfo.sColName, ColInfo.iMaxDataLen, SANITY_MAX);
 			ColInfo.iMaxDataLen = SANITY_MAX;
 		}
 
-		kDebugLog (CTDEBUG, " col#{:02}: name='{}', maxlength={}, datatype={}", 
-				ii+1, ColInfo.sColName, ColInfo.iMaxDataLen, ColInfo.iDataType);
+		kDebug (KSQL2_CTDEBUG, " col#{:02}: name='{}', maxlength={}, datatype={}",
+				ii+1, ColInfo.sColName, ColInfo.iMaxDataLen, ColInfo.iKSQLDataType);
 
-		ColInfo.dszValue    = std::make_unique<char>(m_dColInfo[ii].iMaxDataLen + 1);
+		ColInfo.dszValue  = std::make_unique<char>(m_dColInfo[ii].iMaxDataLen + 1);
 
 		// set up bindings for the data:
 		CS_DATAFMT datafmt;
@@ -6323,8 +6349,8 @@ bool KSQL::ctlib_prepare_results ()
 		datafmt.count     = 1;
 		datafmt.locale    = nullptr;
 
-		kDebugLog (CTDEBUG, "calling {}...", "ct_bind");
-		if (ct_bind (m_pCtCommand, ii+1, &datafmt, ColInfo.dszValue, nullptr, &(ColInfo.indp)) != CS_SUCCEED)
+		kDebug (KSQL2_CTDEBUG, "calling ct_bind...");
+		if (ct_bind (m_pCtCommand, ii+1, &datafmt, ColInfo.dszValue.get(), nullptr, &(ColInfo.indp)) != CS_SUCCEED)
 		{
 			ctlib_api_error ("NextRow>ct_bind");
 			return (SQLError());
@@ -6342,69 +6368,69 @@ bool KSQL::ctlib_prepare_results ()
 void KSQL::ctlib_flush_results ()
 //-----------------------------------------------------------------------------
 {
-	kDebugLog (CTDEBUG, "ctlib_flush_results... [to flush prior results that might be dangling]");
+	kDebug (KSQL2_CTDEBUG, "[to flush prior results that might be dangling]");
 
 	CS_INT     iResultType;
 	bool       fLooping = true;
 	bool       fFlush   = false;
 
-	kDebugLog (CTDEBUG, "calling {}...", "ct_results");
+	kDebug (KSQL2_CTDEBUG, "calling ct_results...");
 	while (fLooping && (ct_results (m_pCtCommand, &iResultType) == CS_SUCCEED))
 	{
 		switch ((int) iResultType)
 		{
 		case CS_CMD_SUCCEED:
-			kDebugLog (CTDEBUG, "ctlib_flush_results>ct_results>{}", "CS_CMD_SUCCEED");
+			kDebug (KSQL2_CTDEBUG, "ct_results: CS_CMD_SUCCEED");
 			break;
 		case CS_CMD_DONE:
-			kDebugLog (CTDEBUG, "ctlib_flush_results>ct_results>{}", "CS_CMD_DONE");
+			kDebug (KSQL2_CTDEBUG, "ct_results: CS_CMD_DONE");
 			fLooping = false;
 			break;
 		case CS_STATUS_RESULT:
-			kDebugLog (CTDEBUG, "ctlib_flush_results>ct_results>{}", "CS_STATUS_RESULT");
+			kDebug (KSQL2_CTDEBUG, "ct_results: CS_STATUS_RESULT");
 			fLooping = false;
 			break;
 		case CS_CMD_FAIL:
-			kDebugLog (CTDEBUG, "ctlib_flush_results>ct_results>{}", "CS_CMD_FAIL");
+			kDebug (KSQL2_CTDEBUG, "ct_results: CS_CMD_FAIL");
 			fLooping = false;
 			break;
 		case CS_CURSOR_RESULT:
-			kDebugLog (CTDEBUG, "ctlib_flush_results>ct_results>{}", "CS_CURSOR_RESULT");
+			kDebug (KSQL2_CTDEBUG, "ct_results: CS_CURSOR_RESULT");
 			fLooping = false;
 			fFlush   = true;
 			break;
 		case CS_ROW_RESULT:
-			kDebugLog (CTDEBUG, "ctlib_flush_results>ct_results>{}", "CS_ROW_RESULT");
+			kDebug (KSQL2_CTDEBUG, "ct_results: CS_ROW_RESULT");
 			fLooping = false;
 			fFlush   = true;
 			break;
 		case CS_COMPUTE_RESULT:
-			kDebugLog (CTDEBUG, "ctlib_flush_results>ct_results>{}", "CS_COMPUTE_RESULT");
+			kDebug (KSQL2_CTDEBUG, "ct_results: CS_COMPUTE_RESULT");
 			fLooping = false;
 			break;
 		default:
-			kDebugLog (CTDEBUG, "ctlib_flush_results>ct_results>{}", iResultType);
+			kDebug (KSQL2_CTDEBUG, "ct_results: {}", iResultType);
 			fLooping = false;
 			break;
 		}
 
 		if (fLooping)
 		{
-			kDebugLog (CTDEBUG, "calling {}...", "ct_results");
+			kDebug (KSQL2_CTDEBUG, "calling ct_results...");
 		}
 	}
 
-	DebugLog (CTDEBUG, "calling {}...", "ct_cancel");
+	kDebug (KSQL2_CTDEBUG, "calling ct_cancel...");
 	if (ct_cancel(m_pCtConnection, nullptr, CS_CANCEL_ALL) != CS_SUCCEED)
 	{
 		ctlib_api_error ("ctlib_flush_results>ct_cancel");
 	}
 
 	CS_INT iFetched;
-	kDebugLog (CTDEBUG, "ctlib_nextrow: calling ct_fetch...");
+	kDebug (KSQL2_CTDEBUG, "ctlib_nextrow: calling ct_fetch...");
 	if (fFlush && (ct_fetch (m_pCtCommand, CS_UNUSED, CS_UNUSED, CS_UNUSED, &iFetched) == CS_SUCCEED) && (iFetched > 0))
 	{
-		kDebugLog (CTDEBUG, "ctlib_flush_results>ct_fetch> dumping row...\n");
+		kDebug (KSQL2_CTDEBUG, "dumping row...\n");
 	}
 
 } // ctlib_flush_results

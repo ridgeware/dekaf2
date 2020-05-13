@@ -5592,7 +5592,10 @@ bool KSQL::PurgeKey (KROW& OtherKeys, KStringView sPKEY, KStringView sValue, KJS
 		row.AddCol (col.first, col.second.sValue, col.second.GetFlags() | KROW::PKEY);
 	}
 
-	ChangesMade = KJSON::array();
+	if (ChangesMade.empty())
+	{
+		ChangesMade = KJSON::array();
+	}
 	KJSON DataDict = FindColumn (sPKEY);
 
 	if (!BeginTransaction ())

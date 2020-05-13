@@ -557,7 +557,7 @@ private:
 		void SetColumnType(DBT iDBType, int _iNativeDataType, KCOL::Len _iMaxDataLen);
 
 #if defined(DEKAF2_HAS_ORACLE) || defined(DEKAF2_HAS_CTLIB) || defined(DEKAF2_HAS_DBLIB)
-		std::unique_ptr<char> dszValue;
+		std::unique_ptr<char[]> dszValue;
 #endif
 		KString     sColName;
 		KCOL::Flags iKSQLDataType   { 0 };
@@ -702,6 +702,7 @@ protected:
 	#endif
 
 	#ifdef DEKAF2_HAS_CTLIB
+	bool ctlib_is_initialized  ();
 	bool ctlib_login           ();
 	bool ctlib_logout          ();
 	bool ctlib_execsql         (KStringView sSQL);

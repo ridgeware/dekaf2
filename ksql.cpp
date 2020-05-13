@@ -2355,7 +2355,7 @@ bool KSQL::ExecRawQuery (KStringView sSQL, Flags iFlags/*=0*/, KStringView sAPI/
 
 				ColInfo.SetColumnType(DBT::ORACLE8, iDataType, std::max(iMaxDataSize+2, 22+2)); // <-- always malloc at least 24 bytes
 				ColInfo.sColName.assign((char* )dszColName, iLenColName);
-				ColInfo.dszValue = std::make_unique<char>(ColInfo.iMaxDataLen + 1);
+				ColInfo.dszValue = std::make_unique<char[]>(ColInfo.iMaxDataLen + 1);
 
 				kDebug (GetDebugLevel()+1, "  oci8:column[{}]={}, namelen={}, datatype={}, maxwidth={}, willuse={}",
 					ii, ColInfo.sColName, iLenColName, iDataType, iMaxDataSize, ColInfo.iMaxDataLen);
@@ -2528,7 +2528,7 @@ bool KSQL::ExecRawQuery (KStringView sSQL, Flags iFlags/*=0*/, KStringView sAPI/
 
 				// allocate at least 20 bytes, which will cover datetimes and numerics:
 				ColInfo.iMaxDataLen = std::max (m_dColInfo.iMaxDataLen+2, 20);
-				ColInfo.dszValue    = std::make_unique<char>(ColInfo.iMaxDataLen + 1);
+				ColInfo.dszValue    = std::make_unique<char[]>(ColInfo.iMaxDataLen + 1);
 
 				// bind some memory to each column to hold the results which will be coming back:
 				kDebug (3, "    col[{}]: calling odefin() to bind memory...", ii);
@@ -2886,7 +2886,7 @@ bool KSQL::ExecParsedQuery ()
 
 				ColInfo.SetColumnType(DBT::ORACLE8, iDataType, std::max(iMaxDataSize+2, 22+2)); // <-- always malloc at least 24 bytes
 				ColInfo.sColName.assign(dszColName, iLenColName);
-				ColInfo.dszValue = std::make_unique<char>(ColInfo.iMaxDataLen + 1);
+				ColInfo.dszValue = std::make_unique<char[]>(ColInfo.iMaxDataLen + 1);
 
 				kDebug (GetDebugLevel()+1, "  oci8:column[{}]={}, namelen={}, datatype={}, maxwidth={}, willuse={}",
 						ii, ColInfo.sColName, iLenColName, iDataType, iMaxDataSize, ColInfo.iMaxDataLen);
@@ -5764,6 +5764,33 @@ uint64_t KSQL::GetLastInsertID ()
 } // GetLastInsertID
 
 #ifdef DEKAF2_HAS_CTLIB
+
+//-----------------------------------------------------------------------------
+bool KSQL::ctlib_is_initialized()
+//-----------------------------------------------------------------------------
+{
+	if (!m_pCtContext)
+	{
+		kDebug(KSQL2_CTDEBUG, "m_pCtContext is invalid");
+		return false;
+	}
+
+	if (!m_pCtConnection)
+	{
+		kDebug(KSQL2_CTDEBUG, "m_pCtConnection is invalid");
+		return false;
+	}
+
+	if (!m_pCtCommand)
+	{
+		kDebug(KSQL2_CTDEBUG, "m_pCtCommand is invalid");
+		return false;
+	}
+
+	return true;
+
+} // ctlib_is_initialized
+
 //-----------------------------------------------------------------------------
 bool KSQL::ctlib_login ()
 //-----------------------------------------------------------------------------
@@ -5868,27 +5895,42 @@ bool KSQL::ctlib_login ()
 bool KSQL::ctlib_logout ()
 //-----------------------------------------------------------------------------
 {
-	kDebug (KSQL2_CTDEBUG, "calling ct_cancel...");
-	if (ct_cancel(m_pCtConnection, nullptr, CS_CANCEL_ALL) != CS_SUCCEED)
+	if (m_pCtConnection)
 	{
-		ctlib_api_error ("ctlib_logout>ct_cancel");
-		return (SQLError());
+		kDebug (KSQL2_CTDEBUG, "calling ct_cancel...");
+		if (ct_cancel(m_pCtConnection, nullptr, CS_CANCEL_ALL) != CS_SUCCEED)
+		{
+			ctlib_api_error ("ctlib_logout>ct_cancel");
+			return (SQLError());
+		}
 	}
 
-	kDebug (KSQL2_CTDEBUG, "calling ct_cmd_drop...");
-	ct_cmd_drop (m_pCtCommand);
+	if (m_pCtCommand)
+	{
+		kDebug (KSQL2_CTDEBUG, "calling ct_cmd_drop...");
+		ct_cmd_drop (m_pCtCommand);
+		m_pCtCommand = nullptr;
+	}
 
-	kDebug (KSQL2_CTDEBUG, "calling ct_close...");
-	ct_close    (m_pCtConnection, CS_UNUSED);
+	if (m_pCtConnection)
+	{
+		kDebug (KSQL2_CTDEBUG, "calling ct_close...");
+		ct_close    (m_pCtConnection, CS_UNUSED);
 
-	kDebug (KSQL2_CTDEBUG, "calling ct_con_drop...");
-	ct_con_drop (m_pCtConnection);
+		kDebug (KSQL2_CTDEBUG, "calling ct_con_drop...");
+		ct_con_drop (m_pCtConnection);
+		m_pCtConnection = nullptr;
+	}
 
-	kDebug (KSQL2_CTDEBUG, "calling ct_exit...");
-	ct_exit     (m_pCtContext, CS_UNUSED);
+	if (m_pCtContext)
+	{
+		kDebug (KSQL2_CTDEBUG, "calling ct_exit...");
+		ct_exit     (m_pCtContext, CS_UNUSED);
 
-	kDebug (KSQL2_CTDEBUG, "calling cs_ctx_drop...");
-	cs_ctx_drop (m_pCtContext);
+		kDebug (KSQL2_CTDEBUG, "calling cs_ctx_drop...");
+		cs_ctx_drop (m_pCtContext);
+		m_pCtContext = nullptr;
+	}
 
 	return (true);
 
@@ -5898,6 +5940,11 @@ bool KSQL::ctlib_logout ()
 bool KSQL::ctlib_execsql (KStringView sSQL)
 //-----------------------------------------------------------------------------
 {
+	if (!ctlib_is_initialized())
+	{
+		return false;
+	}
+
 	m_iNumRowsAffected = 0;
 
 	CS_RETCODE iApiRtn;
@@ -5983,6 +6030,11 @@ bool KSQL::ctlib_execsql (KStringView sSQL)
 bool KSQL::ctlib_nextrow ()
 //-----------------------------------------------------------------------------
 {
+	if (!ctlib_is_initialized())
+	{
+		return false;
+	}
+
 	CS_INT iFetched;
 
 	kDebug (KSQL2_CTDEBUG, "calling ct_fetch...");
@@ -6029,7 +6081,12 @@ bool KSQL::ctlib_api_error (KStringView sContext)
 uint32_t KSQL::ctlib_check_errors ()
 //-----------------------------------------------------------------------------
 {
-	uint32_t         iNumErrors = 0;
+	if (!ctlib_is_initialized())
+	{
+		return 1;
+	}
+
+	uint32_t     iNumErrors = 0;
 	CS_INT       iNumMsgs   = 0;
 	CS_CLIENTMSG ClientMsg; memset (&ClientMsg, 0, sizeof(ClientMsg));
 	CS_SERVERMSG ServerMsg; memset (&ServerMsg, 0, sizeof(ServerMsg));
@@ -6192,7 +6249,6 @@ uint32_t KSQL::ctlib_check_errors ()
 
 		m_sLastError += ServerMsg.text;
 
-
 		++iNumErrors;
 	}
 
@@ -6204,6 +6260,11 @@ uint32_t KSQL::ctlib_check_errors ()
 bool KSQL::ctlib_clear_errors ()
 //-----------------------------------------------------------------------------
 {
+	if (!ctlib_is_initialized())
+	{
+		return false;
+	}
+
 	m_iErrorNum = 0;
 
 	kDebug (KSQL2_CTDEBUG, "calling ct_diag...");
@@ -6234,10 +6295,10 @@ bool KSQL::ctlib_clear_errors ()
 bool KSQL::ctlib_prepare_results ()
 //-----------------------------------------------------------------------------
 {
-	#if 0
-	kDebug (GetDebugLevel(), "-- TODO/WIP");
-	return (true);  // TODO: WIP
-	#endif
+	if (!ctlib_is_initialized())
+	{
+		return false;
+	}
 
 	bool   fLooping    = true;
 	CS_INT iResultType;
@@ -6335,7 +6396,10 @@ bool KSQL::ctlib_prepare_results ()
 		kDebug (KSQL2_CTDEBUG, " col#{:02}: name='{}', maxlength={}, datatype={}",
 				ii+1, ColInfo.sColName, ColInfo.iMaxDataLen, ColInfo.iKSQLDataType);
 
-		ColInfo.dszValue  = std::make_unique<char>(m_dColInfo[ii].iMaxDataLen + 1);
+		// allocate at least 20 bytes, which will cover datetimes and numerics:
+		ColInfo.iMaxDataLen = std::max (ColInfo.iMaxDataLen+2, KCOL::Len(20));
+
+		ColInfo.dszValue  = std::make_unique<char[]>(ColInfo.iMaxDataLen + 1);
 
 		// set up bindings for the data:
 		CS_DATAFMT datafmt;
@@ -6365,6 +6429,11 @@ bool KSQL::ctlib_prepare_results ()
 void KSQL::ctlib_flush_results ()
 //-----------------------------------------------------------------------------
 {
+	if (!ctlib_is_initialized())
+	{
+		return;
+	}
+
 	kDebug (KSQL2_CTDEBUG, "[to flush prior results that might be dangling]");
 
 	CS_INT     iResultType;

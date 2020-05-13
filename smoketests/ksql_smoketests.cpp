@@ -61,7 +61,7 @@ KStringViewZ g_sDbcFile;
 
 #define ORADATEFORM  "YYYYMMDDHH24MISS"
 
-void SimulateLostConnection (KSQL* pdb);
+void SimulateLostConnection (KSQL& db);
 
 //-----------------------------------------------------------------------------
 KString HereDoc (KStringView sString)
@@ -222,7 +222,6 @@ TEST_CASE("KSQL")
 		}
 
 		// establish BASE STATE by dropping tables from possible prior runs
-		kDebugLog (1, " ");
 		kDebugLog (1, "flag test: F_IgnoreSQLErrors (should only produce DBG output)...");
 		db.SetFlags (KSQL::F_IgnoreSQLErrors);
 		db.ExecSQL ("drop table TEST_KSQL");
@@ -769,7 +768,7 @@ TEST_CASE("KSQL")
 		kDebugLog (1, "Retry logic when connection dies during an ExecSQL");
 
 		db.ExecSQL ("insert into TEST_KSQL (astring) values ('retry1')");
-		SimulateLostConnection (&db);
+		SimulateLostConnection (db);
 
 		if (!db.ExecSQL ("insert into TEST_KSQL (astring) values ('retry2')")) {
 			INFO (db.GetLastSQL());
@@ -779,7 +778,7 @@ TEST_CASE("KSQL")
 		kDebugLog (1, "Retry logic when connection dies during an ExecQuery");
 
 		db.ExecSQL ("insert into TEST_KSQL (astring) values ('retry3')");
-		SimulateLostConnection (&db);
+		SimulateLostConnection (db);
 		iCount = db.SingleIntQuery ("select count(*) from TEST_KSQL where astring like 'retry{{PCT}}'");
 		if (iCount != 3) {
 			kWarning ("got: {} rows from TEST_KSQL and expected 3", iCount);
@@ -979,16 +978,16 @@ int64_t DumpRows (KSQL& db)
 } // DumpRows
 
 //-----------------------------------------------------------------------------
-void SimulateLostConnection (KSQL* pdb)
+void SimulateLostConnection (KSQL& db)
 //-----------------------------------------------------------------------------
 {
 	#if 0  // re-enable if retry logic goes into question
 
-	if (pdb->GetDBType() == KSQL::DBT_SQLSERVER)
+	if (db.GetDBType() == KSQL::DBT_SQLSERVER)
 	{
 		for (int ss=15; ss > 0; --ss)
 		{
-			int iSpid = pdb->SingleIntQuery ("select @@spid");
+			int iSpid = db.SingleIntQuery ("select @@spid");
 			if (iSpid < 0)
 				break; // connection is killed
 			printf ("You have %d seconds to issue: KILL %d\n", ss, iSpid);
@@ -998,7 +997,9 @@ void SimulateLostConnection (KSQL* pdb)
 
 	#else
 
-	pdb->CloseConnection (); // simulate connection being lost
+	kDebug(1, "closing connection to simulate a lost connection");
+	db.CloseConnection (); // simulate connection being lost
+	kDebug(2, "connection is closed");
 
 	#endif
 

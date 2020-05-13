@@ -215,6 +215,8 @@ public:
 	bool operator!= (const KSQL& other) const { return (GetHash() != other.GetHash()); }
 
 	bool   SetConnect (DBT iDBType, KStringView sUsername, KStringView sPassword, KStringView sDatabase, KStringView sHostname = {}, uint16_t iDBPortNum = 0);
+	bool   SetConnect (KSQL& Other);
+
 	bool   SetDBType (DBT iDBType);
 	bool   SetDBType (KStringView sDBType);
 	bool   SetDBUser (KStringView sUsername);

@@ -516,6 +516,27 @@ bool KSQL::SetConnect (DBT iDBType, KStringView sUsername, KStringView sPassword
 } // SetConnect
 
 //-----------------------------------------------------------------------------
+bool KSQL::SetConnect (KSQL& Other)
+//-----------------------------------------------------------------------------
+{
+	NOT_IF_ALREADY_OPEN("SetConnect");
+
+	m_iDBType    = Other.GetDBType();
+	m_iDBPortNum = Other.GetDBPort();
+	m_sUsername  = Other.GetDBUser();
+	m_sPassword  = Other.GetDBPass();
+	m_sDatabase  = Other.GetDBName();
+	m_sHostname  = Other.GetDBHost();
+	SetAPISet (Other.GetAPISet());
+
+	InvalidateConnectSummary();
+	kDebug (1, "{}", ConnectSummary());
+
+	return (true);
+
+} // SetConnect
+
+//-----------------------------------------------------------------------------
 bool KSQL::SetDBType (DBT iDBType)
 //-----------------------------------------------------------------------------
 {

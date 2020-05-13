@@ -702,6 +702,7 @@ protected:
 	#endif
 
 	#ifdef DEKAF2_HAS_CTLIB
+	uint64_t ctlib_get_rows_affected();
 	bool ctlib_is_initialized  ();
 	bool ctlib_login           ();
 	bool ctlib_logout          ();

@@ -103,7 +103,8 @@ static bool SqlServerIdentityInsert (KSQL& db, LPCTSTR pszTablename, KStringView
 		// Explicit value must be specified for identity column in table 'XXX' either when IDENTITY_INSERT is set to ON or when a replication user is inserting into a NOT FOR REPLICATION identity column.
 		return (db.ExecSQL ("set identity_insert %s %s", pszTablename, sOnOff));
 	}
-	else {
+	else
+	{
 		return (true);
 	}
 
@@ -225,6 +226,7 @@ TEST_CASE("KSQL")
 		kDebugLog (1, "flag test: F_IgnoreSQLErrors (should only produce DBG output)...");
 		db.SetFlags (KSQL::F_IgnoreSQLErrors);
 		db.ExecSQL ("drop table TEST_KSQL");
+		db.ExecSQL ("drop table TEST1_KSQL");
 		db.ExecSQL ("drop table TEST_KSQL_BLOB");
 		db.ExecSQL ("drop table BOGUS_TABLE");
 		db.ExecSQL ("drop table BOGUS_TABLE");
@@ -240,27 +242,94 @@ TEST_CASE("KSQL")
 		}
 
 		{
-			const KStringViewZ sBefore   = "insert into FRED values ('this is {{not}} a valid {{token}}', {{NOW}})";
-			const KStringViewZ sExpected = "insert into FRED values ('this is {{not}} a valid {{token}}', now())";
+			constexpr KStringViewZ sBefore   = "insert into FRED values ('this is {{not}} a valid {{token}}', {{NOW}})";
+			KStringViewZ sExpected;
+			switch (db.GetDBType())
+			{
+				case KSQL::DBT::MYSQL:
+				case KSQL::DBT::SQLITE3:
+					sExpected = "insert into FRED values ('this is {{not}} a valid {{token}}', now())";
+					break;
+
+				case KSQL::DBT::SQLSERVER:
+					sExpected = "insert into FRED values ('this is {{not}} a valid {{token}}', getdate())";
+					break;
+
+				default:
+					sExpected = "unknown";
+					break;
+			}
+
 			KString sSQL(sBefore);
 			db.DoTranslations (sSQL);
-			CHECK (sSQL == sExpected);
 		}
 
 		kDebugLog (1, "NEGATIVE TEST: exception handling for bad ojbect");
 
 		db.SetFlags (KSQL::F_IgnoreSQLErrors);
-		if (db.ExecQuery ("select bogus from BOGUS order by fubar")) {
+		if (db.ExecQuery ("select bogus from BOGUS order by fubar"))
+		{
 			FAIL_CHECK ("ExecQuery should have returned FALSE");
 		}
 
 		kDebugLog (1, "NEGATIVE TEST: exception handling for invalid sql function");
 
-		if (db.ExecQuery ("select junk('fred')")) {
+		if (db.ExecQuery ("select junk('fred')"))
+		{
 			FAIL_CHECK ("ExecQuery should have returned FALSE");
 		}
 
 		db.SetFlags (0);
+
+		// simple table tests
+
+		if (!db.ExecSQL (
+			"create table TEST1_KSQL (\n"
+			"    anum      int           not null,\n"
+			"    astring   char(100)     null\n"
+			")"))
+		{
+			INFO (db.GetLastSQL());
+			FAIL_CHECK (db.GetLastError());
+		}
+
+		if (!db.ExecSQL ("insert into TEST1_KSQL (anum,astring) values (1,'row-1')"))
+		{
+			INFO (db.GetLastSQL());
+			FAIL_CHECK (db.GetLastError());
+		}
+
+		if (db.GetNumRowsAffected() != 1)
+		{
+			kWarning ("GetNumRowsAffected() = {}, but should be 1", db.GetNumRowsAffected());
+		}
+		CHECK (db.GetNumRowsAffected() == 1);
+
+		if (!db.ExecSQL ("update TEST1_KSQL set anum=2 where astring='row-1'"))
+		{
+			INFO (db.GetLastSQL());
+			FAIL_CHECK (db.GetLastError());
+		}
+
+		if (db.GetNumRowsAffected() != 1)
+		{
+			kWarning ("GetNumRowsAffected() = {}, but should be 1", db.GetNumRowsAffected());
+		}
+		CHECK (db.GetNumRowsAffected() == 1);
+
+		auto iNum = db.SingleIntQuery ("select anum from TEST1_KSQL where astring='row-1'");
+		if (iNum != 2)
+		{
+			kWarning ("did not get anum of 2, but got {}", iNum);
+			INFO (db.GetLastError());
+			FAIL_CHECK (db.GetLastError());
+		}
+
+		if (!db.ExecSQL ("drop table TEST1_KSQL"))
+		{
+			INFO (db.GetLastError());
+			FAIL_CHECK (db.GetLastError());
+		}
 
 		kDebugLog (1, "AUTO INCREMENT");
 
@@ -298,6 +367,8 @@ TEST_CASE("KSQL")
 
 		for (uint32_t ii=1; ii<=9; ++ii)
 		{
+			kDebug (1, "round {}", ii);
+
 			bool bHasAutoIncrement = ((db.GetDBType() == KSQL::DBT::MYSQL) || (db.GetDBType() == KSQL::DBT::SQLSERVER));
 			bool bIsFirstRow       = (ii==1);
 
@@ -305,18 +376,21 @@ TEST_CASE("KSQL")
 			{
 				SqlServerIdentityInsert (db, "TEST_KSQL", "ON");
 
-				if (!db.ExecSQL ("insert into TEST_KSQL (anum,astring,bigstring,dtmnow) values (%u,'row-%u','',{{NOW}})", PRESEED+ii, ii)) {
+				if (!db.ExecSQL ("insert into TEST_KSQL (anum,astring,bigstring,dtmnow) values (%u,'row-%u','',{{NOW}})", PRESEED+ii, ii))
+				{
 					INFO (db.GetLastSQL());
 					FAIL_CHECK (db.GetLastError());
 				}
 			}
 			else
 			{
-				if (ii==2) {
+				if (ii==2)
+				{
 					SqlServerIdentityInsert (db, "TEST_KSQL", "OFF");
 				}
 				// do NOT specify the 'anum' column:
-				if (!db.ExecSQL ("insert into TEST_KSQL (astring,bigstring,dtmnow) values ('row-%u','',{{NOW}})", ii)) {
+				if (!db.ExecSQL ("insert into TEST_KSQL (astring,bigstring,dtmnow) values ('row-%u','',{{NOW}})", ii))
+				{
 					INFO (db.GetLastError());
 					FAIL_CHECK (db.GetLastError());
 				}
@@ -324,7 +398,8 @@ TEST_CASE("KSQL")
 
 			kDebugLog (1, ".GetNumRowsAffected()");
 
-			if (db.GetNumRowsAffected() != 1) {
+			if (db.GetNumRowsAffected() != 1)
+			{
 				kWarning ("GetNumRowsAffected() = {}, but should be 1", db.GetNumRowsAffected());
 			}
 			CHECK (db.GetNumRowsAffected() == 1);
@@ -334,7 +409,8 @@ TEST_CASE("KSQL")
 				kDebugLog (1, "last insert id");
 
 				auto iID = db.GetLastInsertID();
-				if (iID != PRESEED+ii) {
+				if (iID != PRESEED+ii)
+				{
 					kWarning ("should have gotten auto_increment value of {}, but got: {}", PRESEED+ii, iID);
 				}
 				CHECK (iID == PRESEED+ii);
@@ -391,7 +467,8 @@ TEST_CASE("KSQL")
 		kDebugLog (1, "single int query test (should return 0)");
 
 		iCount = db.SingleIntQuery ("select count(*) from TEST_KSQL where 1=0");
-		if (iCount != 0) {
+		if (iCount != 0)
+		{
 			kWarning ("did not get count(*) of 0, but got {}", iCount);
 			INFO (db.GetLastError());
 			FAIL_CHECK (db.GetLastError());
@@ -401,7 +478,8 @@ TEST_CASE("KSQL")
 
 		db.SetFlags (KSQL::F_IgnoreSQLErrors);
 		iCount = db.SingleIntQuery ("select count(*) from FLUBBERNUTTER");
-		if (iCount != -1) {
+		if (iCount != -1)
+		{
 			kWarning ("did not get -1 back from a bad single-int query");
 			INFO (db.GetLastError());
 			FAIL_CHECK (db.GetLastError());
@@ -424,7 +502,8 @@ TEST_CASE("KSQL")
 		db.ExecQuery ("select * from TEST_KSQL order by 1");
 		db.NextRow (); // should be 8 rows left
 		iCount = db.SingleIntQuery ("select count(*) from TEST_KSQL");
-		if (iCount != 9) {
+		if (iCount != 9)
+		{
 			FAIL_CHECK ("could not start another query with results pending");
 		}
 
@@ -437,7 +516,8 @@ TEST_CASE("KSQL")
 		TEST (400, "buffered results:1");
 		db.EndQuery();
 		db.SetFlags (KSQL::F_BufferResults);
-		if (!db.ExecQuery ("select * from TEST_KSQL order by 1")) {
+		if (!db.ExecQuery ("select * from TEST_KSQL order by 1"))
+		{
 			FAIL_CHECK (db.GetLastError());
 		}
 
@@ -461,7 +541,8 @@ TEST_CASE("KSQL")
 
 		kDebugLog (1, "testing truncate table");
 
-		if (!db.ExecSQL ("truncate table TEST_KSQL")) {
+		if (!db.ExecSQL ("truncate table TEST_KSQL"))
+		{
 			FAIL_CHECK (db.GetLastError());
 		}
 
@@ -542,18 +623,19 @@ TEST_CASE("KSQL")
 		{
 			FAIL_CHECK("failed to set environment variable");
 		}
-		if (!db.ExecSQLFile (sTmp1))
-		{
-			INFO (db.GetLastError());
-			FAIL_CHECK (db.GetLastError());
-		}
+//		if (!db.ExecSQLFile (sTmp1))
+//		{
+//			INFO (db.GetLastError());
+//			FAIL_CHECK (db.GetLastError());
+//		}
 
 		kRemoveFile (sTmp1);
 		kRemoveFile (sTmp2);
 
 		kDebugLog (1, "embedded query in sql file");
 
-		if (!db.NextRow()) {
+		if (!db.NextRow())
+		{
 			kWarning ("embedded query in sql file failed to return a row");
 			INFO (db.GetLastError());
 			FAIL_CHECK (db.GetLastError());
@@ -635,7 +717,8 @@ TEST_CASE("KSQL")
 		}
 		fp.close();
 
-		if (!db.ExecSQLFile (sTmp)) {
+		if (!db.ExecSQLFile (sTmp))
+		{
 			INFO (db.GetLastError());
 			FAIL_CHECK (db.GetLastError());
 		}
@@ -656,14 +739,16 @@ TEST_CASE("KSQL")
 		Row.AddCol ("anum",      UINT64_C(100),            KROW::PKEY);
 		Row.AddCol ("astring",   "krow insert");
 
-		if (!db.Insert (Row)) {
+		if (!db.Insert (Row))
+		{
 			FAIL_CHECK (db.GetLastError());
 		}
 
 		kDebugLog (1, "KROW update");
 
 		Row.AddCol ("astring", "krow update");
-		if (!db.Update (Row)) {
+		if (!db.Update (Row))
+		{
 			INFO (db.GetLastError());
 			FAIL_CHECK (db.GetLastError());
 		}
@@ -671,7 +756,8 @@ TEST_CASE("KSQL")
 		kDebugLog (1, "KROW delete");
 
 		Row.AddCol ("astring", "krow update");
-		if (!db.Delete (Row)) {
+		if (!db.Delete (Row))
+		{
 			INFO (db.GetLastError());
 			FAIL_CHECK (db.GetLastError());
 		}
@@ -695,15 +781,18 @@ TEST_CASE("KSQL")
 		KROW URow ("TEST_ASIAN");
 		URow.AddCol ("anum", UINT64_C(100), KROW::PKEY|KROW::NUMERIC);
 		URow.AddCol ("astring", ASIAN1);
-		if (!db.Insert(URow)) {
+		if (!db.Insert(URow))
+		{
 			INFO (db.GetLastError());
 			FAIL_CHECK (db.GetLastError());
 		}
-		if (!db.ExecQuery ("select * from TEST_ASIAN")) {
+		if (!db.ExecQuery ("select * from TEST_ASIAN"))
+		{
 			INFO (db.GetLastSQL());
 			FAIL_CHECK (db.GetLastError());
 		}
-		if (!db.NextRow (Cols)) {
+		if (!db.NextRow (Cols))
+		{
 			FAIL_CHECK ("expected a row back but did not get one");
 		}
 		if (Cols.GetValue(1) != ASIAN1)
@@ -715,15 +804,18 @@ TEST_CASE("KSQL")
 		}
 
 		URow.AddCol ("astring", ASIAN2);
-		if (!db.Update(URow)) {
+		if (!db.Update(URow))
+		{
 			INFO (db.GetLastError());
 			FAIL_CHECK (db.GetLastError());
 		}
-		if (!db.ExecQuery ("select * from TEST_ASIAN")) {
+		if (!db.ExecQuery ("select * from TEST_ASIAN"))
+		{
 			INFO (db.GetLastSQL());
 			FAIL_CHECK (db.GetLastError());
 		}
-		if (!db.NextRow (Cols)) {
+		if (!db.NextRow (Cols))
+		{
 			FAIL_CHECK ("expected a row back but did not get one");
 		}
 		if (Cols.GetValue(1) != ASIAN2)
@@ -755,7 +847,8 @@ TEST_CASE("KSQL")
 		db.Update (Row);
 		db.ExecQuery ("select astring from TEST_KSQL where anum=100");
 		db.NextRow ();
-		if (db.Get(1) != "clip me here") {
+		if (db.Get(1) != "clip me here")
+		{
 			kWarning ("string not clipped properly: '{}'", db.Get(1));
 			FAIL_CHECK (db.GetLastError());
 		}
@@ -770,7 +863,8 @@ TEST_CASE("KSQL")
 		db.ExecSQL ("insert into TEST_KSQL (astring) values ('retry1')");
 		SimulateLostConnection (db);
 
-		if (!db.ExecSQL ("insert into TEST_KSQL (astring) values ('retry2')")) {
+		if (!db.ExecSQL ("insert into TEST_KSQL (astring) values ('retry2')"))
+		{
 			INFO (db.GetLastSQL());
 			FAIL_CHECK (db.GetLastError());
 		}
@@ -780,7 +874,8 @@ TEST_CASE("KSQL")
 		db.ExecSQL ("insert into TEST_KSQL (astring) values ('retry3')");
 		SimulateLostConnection (db);
 		iCount = db.SingleIntQuery ("select count(*) from TEST_KSQL where astring like 'retry{{PCT}}'");
-		if (iCount != 3) {
+		if (iCount != 3)
+		{
 			kWarning ("got: {} rows from TEST_KSQL and expected 3", iCount);
 			FAIL_CHECK (db.GetLastSQL());
 		}
@@ -793,7 +888,8 @@ TEST_CASE("KSQL")
 		Row.clear();
 		Row.AddCol ("astring", QUOTES1);
 
-		if (!db.Insert (Row)) {
+		if (!db.Insert (Row))
+		{
 			INFO (db.GetLastError());
 			FAIL_CHECK (db.GetLastError());
 		}
@@ -804,7 +900,8 @@ TEST_CASE("KSQL")
 
 		Row.AddCol ("astring", QUOTES2, 0, 0);
 
-		if (!db.Update (Row)) {
+		if (!db.Update (Row))
+		{
 			INFO (db.GetLastError());
 			FAIL_CHECK (db.GetLastError());
 		}
@@ -816,12 +913,14 @@ TEST_CASE("KSQL")
 			INFO (db.GetLastError());
 			FAIL_CHECK (db.GetLastError());
 		}
-		else if (!db.NextRow (Row)) {
+		else if (!db.NextRow (Row))
+		{
 			kWarning ("did not get back a row");
 			INFO (db.GetLastError());
 			FAIL_CHECK (db.GetLastError());
 		}
-		else if (Row.Get("astring").sValue != QUOTES2) {
+		else if (Row.Get("astring").sValue != QUOTES2)
+		{
 			kWarning ("expected: {}", QUOTES2);
 			kWarning ("     got: {}", Row.Get ("astring").sValue);
 			INFO (db.GetLastError());
@@ -833,11 +932,13 @@ TEST_CASE("KSQL")
 		Row.clear();
 		Row.AddCol ("astring", QUOTES2, KROW::PKEY);
 
-		if (!db.Delete (Row)) {
+		if (!db.Delete (Row))
+		{
 			INFO (db.GetLastError());
 			FAIL_CHECK (db.GetLastError());
 		}
-		else if (db.GetNumRowsAffected() != 1) {
+		else if (db.GetNumRowsAffected() != 1)
+		{
 			kWarning ("row not found");
 			INFO (db.GetLastError());
 			FAIL_CHECK (db.GetLastError());
@@ -853,7 +954,8 @@ TEST_CASE("KSQL")
 		Row.AddCol ("astring", SLASHES1);
 
 		SqlServerIdentityInsert (db, "TEST_KSQL", "ON");
-		if (!db.Insert (Row)) {
+		if (!db.Insert (Row))
+		{
 			INFO (db.GetLastError());
 			FAIL_CHECK (db.GetLastError());
 		}
@@ -862,23 +964,27 @@ TEST_CASE("KSQL")
 
 		Row.AddCol ("astring", SLASHES2);
 
-		if (!db.Update (Row)) {
+		if (!db.Update (Row))
+		{
 			INFO (db.GetLastError());
 			FAIL_CHECK (db.GetLastError());
 		}
 
 		kDebugLog (1, "KROW slash test select");
 
-		if (!db.ExecQuery ("select * from TEST_KSQL where anum=98")) {
+		if (!db.ExecQuery ("select * from TEST_KSQL where anum=98"))
+		{
 			INFO (db.GetLastError());
 			FAIL_CHECK (db.GetLastError());
 		}
-		else if (!db.NextRow (Row)) {
+		else if (!db.NextRow (Row))
+		{
 			INFO ("did not get back a row");
 			INFO (db.GetLastError());
 			FAIL_CHECK (db.GetLastError());
 		}
-		else if (Row.Get("astring").sValue != SLASHES2) {
+		else if (Row.Get("astring").sValue != SLASHES2)
+		{
 			kWarning ("expected: {}", SLASHES2);
 			kWarning ("     got: {}", Row.Get ("astring").sValue);
 			INFO (db.GetLastError());
@@ -892,11 +998,13 @@ TEST_CASE("KSQL")
 
 		// { LPTSTR dszSANITY = (char*)malloc(75); kstrncpy (dszSANITY, "SANITY", 75); free (dszSANITY); }
 
-		if (!db.Delete (Row)) {
+		if (!db.Delete (Row))
+		{
 			INFO (db.GetLastError());
 			FAIL_CHECK (db.GetLastError());
 		}
-		else if (db.GetNumRowsAffected() != 1) {
+		else if (db.GetNumRowsAffected() != 1)
+		{
 			INFO ("row not found");
 			INFO (db.GetLastError());
 			FAIL_CHECK (db.GetLastError());
@@ -904,40 +1012,44 @@ TEST_CASE("KSQL")
 
 		kDebugLog (1, "cleanup");
 
-		if (!db.ExecSQL ("drop table TEST_KSQL")) {
+		if (!db.ExecSQL ("drop table TEST_KSQL"))
+		{
 			INFO (db.GetLastError());
 			FAIL_CHECK (db.GetLastError());
 		}
 
-		bool b;
+		if (db.GetDBType() == KSQL::DBT::MYSQL)
 		{
-			b = db.GetLock("TestLock", 1);
-			INFO ( "GetLock()" );
-			CHECK ( b );
-		}
+			bool b;
+			{
+				b = db.GetLock("TestLock", 1);
+				INFO ( "GetLock()" );
+				CHECK ( b );
+			}
 
-		{
-			b = db.IsLocked("TestLock");
-			INFO ( "IsLocked()" );
-			CHECK ( b );
-		}
+			{
+				b = db.IsLocked("TestLock");
+				INFO ( "IsLocked()" );
+				CHECK ( b );
+			}
 
-		{
-			b = db.ReleaseLock("TestLock");
-			INFO ( "ReleaseLock()" );
-			CHECK ( b );
-		}
+			{
+				b = db.ReleaseLock("TestLock");
+				INFO ( "ReleaseLock()" );
+				CHECK ( b );
+			}
 
-		{
-			b = db.IsLocked("TestLock");
-			INFO ( "IsLocked()" );
-			CHECK ( b == false );
-		}
+			{
+				b = db.IsLocked("TestLock");
+				INFO ( "IsLocked()" );
+				CHECK ( b == false );
+			}
 
-		{
-			b = db.ReleaseLock("TestLock");
-			INFO ( "ReleaseLock()" );
-			CHECK ( b == false );
+			{
+				b = db.ReleaseLock("TestLock");
+				INFO ( "ReleaseLock()" );
+				CHECK ( b == false );
+			}
 		}
 	}
 

@@ -1689,6 +1689,10 @@ bool KSQL::PreparedToRetry ()
 					case 20004:
 					case 20006:
 						fConnectionLost = true;
+						break;
+
+					case 0: // spurious error
+						return true; // simply repeat, without reconnect
 				}
 				break;
 #endif
@@ -5937,6 +5941,27 @@ bool KSQL::ctlib_logout ()
 } // ctlib_logout
 
 //-----------------------------------------------------------------------------
+uint64_t KSQL::ctlib_get_rows_affected()
+//-----------------------------------------------------------------------------
+{
+	if (!m_iNumRowsAffected && m_pCtCommand)
+	{
+		CS_INT iNumRows;
+		kDebug (KSQL2_CTDEBUG, "calling ct_res_info...");
+		if (ct_res_info (m_pCtCommand, CS_ROW_COUNT, &iNumRows, CS_UNUSED, nullptr) == CS_SUCCEED)
+		{
+			if ((long)iNumRows != -1)
+			{
+				m_iNumRowsAffected = (uint64_t) iNumRows;
+			}
+			kDebug (KSQL2_CTDEBUG, "m_iNumRowsAffected = {}", m_iNumRowsAffected);
+		}
+	}
+
+	return m_iNumRowsAffected;
+}
+
+//-----------------------------------------------------------------------------
 bool KSQL::ctlib_execsql (KStringView sSQL)
 //-----------------------------------------------------------------------------
 {
@@ -5977,14 +6002,17 @@ bool KSQL::ctlib_execsql (KStringView sSQL)
 		switch (iResultType)
 		{
 			case CS_CMD_SUCCEED:
+				ctlib_get_rows_affected();
 				break; // switch
 			case CS_CMD_DONE:
 				break; // switch
 			case CS_CMD_FAIL:
 				kDebug (KSQL2_CTDEBUG, "iResultType CS_CMD_FAIL");
 				break; // switch
+			case CS_ROW_RESULT:
+				break;
 			default:
-				kDebug (KSQL2_CTDEBUG, "iResultType ???");
+				kDebug (KSQL2_CTDEBUG, "iResultType ??? ({})", iResultType);
 				break; // switch
 		}
 	}
@@ -6000,17 +6028,6 @@ bool KSQL::ctlib_execsql (KStringView sSQL)
 			return (SQLError());
 	}
 	#endif
-
-	CS_INT iNumRows;
-	kDebug (KSQL2_CTDEBUG, "calling ct_res_info...");
-	if (ct_res_info (m_pCtCommand, CS_ROW_COUNT, &iNumRows, CS_UNUSED, nullptr) == CS_SUCCEED)
-	{
-		if ((long)iNumRows != -1)
-		{
-			m_iNumRowsAffected = (uint64_t) iNumRows;
-		}
-		kDebug (KSQL2_CTDEBUG, "m_iNumRowsAffected = {}", m_iNumRowsAffected);
-	}
 
 	uint32_t iNumErrors = ctlib_check_errors();
 	if (iNumErrors)
@@ -6188,8 +6205,8 @@ uint32_t KSQL::ctlib_check_errors ()
 		kDebug (GetDebugLevel(), "{} server message", iNumMsgs);
 	}
 
-	for (ii=0; ii < iNumMsgs; ++ii) {
-
+	for (ii=0; ii < iNumMsgs; ++ii)
+	{
 		kDebug (KSQL2_CTDEBUG, "calling ct_diag... message #{:02}", ii);
 
 		if (ct_diag (m_pCtConnection, CS_GET, CS_SERVERMSG_TYPE, ii + 1, &ServerMsg) != CS_SUCCEED)
@@ -6214,7 +6231,14 @@ uint32_t KSQL::ctlib_check_errors ()
 		// 	CS_INT sqlstatelen;
 		// } CS_SERVERMSG;
 
-		m_iErrorNum = ServerMsg.msgnumber;
+		if (!m_iErrorNum)
+		{
+			m_iErrorNum = ServerMsg.msgnumber;
+		}
+		else
+		{
+			kDebug(KSQL2_CTDEBUG, "error {} already set from client, server adds {}", ServerMsg.msgnumber);
+		}
 
 		if (ii)
 		{

@@ -70,6 +70,11 @@ namespace dekaf2
 /// No trimming is applied inside the quotes (but outside). The quote has to be the
 /// first character after applied trimming, and trailing content after the closing quote
 /// is not considered part of the token. Defaults to false.
+///
+/// @code
+/// std::vector<KStringView> Words;
+/// auto iWordCount = kSplit(Words, "This sentence has five words");
+/// @endcode
 template<typename Container,
 	typename std::enable_if_t<detail::has_key_type<Container>::value == false, int> = 0 >
 std::size_t kSplit (
@@ -233,6 +238,10 @@ std::size_t kSplit(
 /// No trimming is applied inside the quotes (but outside). The quote has to be the
 /// first character after applied trimming, and trailing content after the closing quote
 /// is not considered part of the token. Defaults to false.
+///
+/// @code
+/// auto Words = kSplits<std::vector<KStringView>>("This sentence has five words");
+/// @endcode
 template<typename Container = std::vector<KStringView>,
 	typename std::enable_if_t<detail::has_key_type<Container>::value == false, int> = 0 >
 Container kSplits(
@@ -277,6 +286,11 @@ KStringViewPair kSplitToPairInt(
 /// @param svPairDelim a string view that separates key from value. Defaults to "=".
 /// @param svTrim a string containing chars to remove from token ends. Defaults to " \t\r\n\b".
 /// @param chEscape Escape character for delimiters. Defaults to '\0' (disabled).
+///
+/// @code
+/// auto Pair = kSplitToPair("Apples = Oranges");
+/// // -> Pair.first == "Apples" and Pair.second == "Oranges"
+/// @endcode
 inline
 KStringViewPair kSplitToPair(
         KStringView svBuffer,
@@ -367,6 +381,13 @@ private:
 /// No trimming is applied inside the quotes (but outside). The quote has to be the
 /// first character after applied trimming, and trailing content after the closing quote
 /// is not considered part of the token. Defaults to false.
+///
+/// @code
+/// std::map<KStringView, KStringView> Pairs;
+/// auto iPairCount = kSplit(Pairs, "Apples = Oranges, Red = 1, Blue = 2,Green=3");
+/// // -> iPairCount == 4
+/// // -> Pairs == {{ "Apples", "Oranges" },{ "Red", "1" },{ "Blue, "2" },{ "Green", "3" }}
+/// @endcode
 template<typename Container,
 	typename std::enable_if_t<detail::has_key_type<Container>::value == true, int> = 0 >
 std::size_t kSplit(
@@ -404,6 +425,12 @@ std::size_t kSplit(
 /// No trimming is applied inside the quotes (but outside). The quote has to be the
 /// first character after applied trimming, and trailing content after the closing quote
 /// is not considered part of the token. Defaults to false.
+///
+/// @code
+/// auto Pairs = kSplits<std::map<KStringView, KStringView>>(Pairs, "Apples = Oranges, Red = 1, Blue = 2,Green=3");
+/// // -> Pairs == {{ "Apples", "Oranges" },{ "Red", "1" },{ "Blue, "2" },{ "Green", "3" }}
+/// @endcode
+
 template<typename Container,
 	typename std::enable_if_t<detail::has_key_type<Container>::value == true, int> = 0 >
 Container kSplits(
@@ -431,6 +458,11 @@ Container kSplits(
 /// @param svDelim a string view of delimiter characters. Defaults to " \t\r\n\b".
 /// @param svQuotes a string view of quote characters. Defaults to "\"'".
 /// @param chEscape Escape character for delimiters. Defaults to '\\'.
+///
+/// @code
+/// std::vector<char*> Words;
+/// bool bHaveWords = kSplitInPlace(Words, "This sentence has five words");
+/// @endcode
 template<typename Container, typename String>
 bool kSplitArgsInPlace(
 	Container&  cContainer,

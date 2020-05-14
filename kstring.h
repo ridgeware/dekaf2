@@ -68,33 +68,39 @@ class KStringViewZ;
 template <class Value> class KStack;
 
 //----------------------------------------------------------------------
+/// returns a copy of the string in uppercase (UTF8)
 KString kToUpper(KStringView sInput);
 //----------------------------------------------------------------------
 
 //----------------------------------------------------------------------
+/// returns a copy of the string in lowercase (UTF8)
 KString kToLower(KStringView sInput);
 //----------------------------------------------------------------------
 
 //----------------------------------------------------------------------
+/// returns a copy of the string in uppercase according to the current locale (does not work with UTF8 strings)
 KString kToUpperLocale(KStringView sInput);
 //----------------------------------------------------------------------
 
 //----------------------------------------------------------------------
+/// returns a copy of the string in lowercase according to the current locale (does not work with UTF8 strings)
 KString kToLowerLocale(KStringView sInput);
 //----------------------------------------------------------------------
 
 //----------------------------------------------------------------------
+/// returns a copy of the string in uppercase assuming ASCII encoding
 KString kToUpperASCII(KStringView sInput);
 //----------------------------------------------------------------------
 
 //----------------------------------------------------------------------
+/// returns a copy of the string in lowercase assuming ASCII encoding
 KString kToLowerASCII(KStringView sInput);
 //----------------------------------------------------------------------
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// dekaf2's own string class - a wrapper around std::string
+/// dekaf2's own string class - a wrapper around std::string or folly::fbstring
 /// that handles most error cases in a benign way and speeds up
-/// searching in a spectacular way
+/// searching up to 50 times compared to std::string implementations
 class KString 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -489,13 +495,13 @@ public:
 	/// changes the string to uppercase according to the current locale (does not work with UTF8 strings)
 	self& MakeUpperLocale();
 
-	/// returns a copy of the string in uppercase (UTF8)
 	/// changes the string to lowercase assuming ASCII encoding
 	self& MakeLowerASCII();
 
 	/// changes the string to uppercase assuming ASCII encoding
 	self& MakeUpperASCII();
 
+	/// returns a copy of the string in uppercase (UTF8)
 	KString ToUpper() const;
 
 	/// returns a copy of the string in lowercase (UTF8)
@@ -525,16 +531,16 @@ public:
 	/// returns rightmost iCount chars of string
 	KStringViewZ Right(size_type iCount) const;
 
-	/// returns leftmost iCount chars of string
+	/// returns leftmost iCount codepoints of string
 	KStringView LeftUTF8(size_type iCount) const;
 
-	/// returns substring starting at iStart until end of string
+	/// returns substring starting at codepoint iStart until end of string
 	KStringViewZ MidUTF8(size_type iStart) const;
 
-	/// returns substring starting at iStart for iCount chars
+	/// returns substring starting at codepoint iStart for iCount codepoints
 	KStringView MidUTF8(size_type iStart, size_type iCount) const;
 
-	/// returns rightmost iCount chars of string
+	/// returns rightmost codepoints chars of string
 	KStringViewZ RightUTF8(size_type iCount) const;
 
 	/// pads string at the left up to iWidth size with chPad
@@ -678,7 +684,10 @@ public:
 
 	// conversions
 
-	/// convert to bool
+	/// returns bool representation of the string:
+	/// "true" --> true
+	/// "false" --> false
+	/// as well as non-0 --> true
 	bool Bool() const noexcept;
 	/// convert to int16_t - set bIsHex to true if string is a hex number
 	int16_t Int16(bool bIsHex = false) const noexcept;
@@ -718,6 +727,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// convert a float into a string
 	static KString to_string(float f)
 	//-----------------------------------------------------------------------------
 	{
@@ -725,6 +735,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// convert a double into a string
 	static KString to_string(double f)
 	//-----------------------------------------------------------------------------
 	{

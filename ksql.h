@@ -152,6 +152,8 @@ namespace dekaf2 {
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// Dekaf2's general purpose database generalization. Supports MySQL/MariaDB
+/// and MS SQLServer / Sybase
 class KSQL : public detail::KCommonSQLBase
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -167,7 +169,7 @@ public:
 
 	enum OutputFormat
 	{
-		FORM_ASCII            = 'a',         // <-- for OutputQuery() method
+		FORM_ASCII            = 'a',        ///< for OutputQuery() method
 		FORM_CSV              = 'c',
 		FORM_HTML             = 'h'
 	};
@@ -175,32 +177,32 @@ public:
 	enum BlobType
 	{
 		// blob encoding schemes:
-		BT_ASCII              = 'A',        // ASCII:  only replace newlines and single quotes
-		BT_BINARY             = 'B',        // BINARY: encode every char into base 256 (2 digit hex)
+		BT_ASCII              = 'A',        ///< ASCII:  only replace newlines and single quotes
+		BT_BINARY             = 'B',        ///< BINARY: encode every char into base 256 (2 digit hex)
 	};
 
 	enum
 	{
-		MAX_BLOBCHUNKSIZE     =  2000,      // LCD between Oracle, Sybase, MySQL, and Informix
+		MAX_BLOBCHUNKSIZE     =  2000,       ///< LCD between Oracle, Sybase, MySQL, and Informix
 //		MAXLEN_CURSORNAME     =    50,
-		NUM_RETRIES           =     5,      // <-- when db connection is lost
-		MAX_CHARS_CTLIB       = 8000,       //varchar columns hold at most 8000 characters.
+		NUM_RETRIES           =     5,       ///< when db connection is lost
+		MAX_CHARS_CTLIB       = 8000,        ///< varchar columns hold at most 8000 characters.
 
-		F_IgnoreSQLErrors     = 1 << 0,      // <-- only effects the WarningLog
-		F_BufferResults       = 1 << 1,      // <-- for use with ResetBuffer()
-		F_NoAutoCommit        = 1 << 2,      // <-- only used by Oracle
-		F_NoTranslations      = 1 << 3,      // <-- turn off {{token}} translations in SQL
-		F_IgnoreSelectKeyword = 1 << 4,      // <-- override check in ExecQuery() for "select..."
-		F_NoKlogDebug         = 1 << 5,      // <-- quietly: do not output the customary klog debug statements
-		F_AutoReset           = 1 << 6,      // <-- For ctlib, refresh the connection to the server for each query
+		F_IgnoreSQLErrors     = 1 << 0,      ///< only effects the WarningLog
+		F_BufferResults       = 1 << 1,      ///< for use with ResetBuffer()
+		F_NoAutoCommit        = 1 << 2,      ///< only used by Oracle
+		F_NoTranslations      = 1 << 3,      ///< turn off {{token}} translations in SQL
+		F_IgnoreSelectKeyword = 1 << 4,      ///< override check in ExecQuery() for "select..."
+		F_NoKlogDebug         = 1 << 5,      ///< quietly: do not output the customary klog debug statements
+		F_AutoReset           = 1 << 6,      ///< For ctlib, refresh the connection to the server for each query
 
-		FAC_NORMAL            = 1 << 0,      /// FAC_NORMAL: handles empty string, single string and comma-delimed strings
-		FAC_NUMERIC           = 1 << 1,      /// FAC_NUMERIC: handles empty string, single number and comma-delimed numbers
-		FAC_SUBSELECT         = 1 << 2,      /// FAC_SUBSELECT: se code examples
-		FAC_BETWEEN           = 1 << 3,      /// FAC_BETWEEN: handles empty string, single number and number range with a dash
-		FAC_LIKE              = 1 << 4,      /// FAC_LIKE: use LIKE operator instead of EQUALS
-		FAC_TEXT_CONTAINS     = 1 << 5,      /// FAC_TEXT_CONTAINS: full-text search using SQL tolower and like operator
-		FAC_TIME_PERIODS      = 1 << 6       /// FAC_TIME_PERIODS: time intervals >= 'hour', 'day', 'week', 'month' or 'year'
+		FAC_NORMAL            = 1 << 0,      ///< FAC_NORMAL: handles empty string, single string and comma-delimed strings
+		FAC_NUMERIC           = 1 << 1,      ///< FAC_NUMERIC: handles empty string, single number and comma-delimed numbers
+		FAC_SUBSELECT         = 1 << 2,      ///< FAC_SUBSELECT: se code examples
+		FAC_BETWEEN           = 1 << 3,      ///< FAC_BETWEEN: handles empty string, single number and number range with a dash
+		FAC_LIKE              = 1 << 4,      ///< FAC_LIKE: use LIKE operator instead of EQUALS
+		FAC_TEXT_CONTAINS     = 1 << 5,      ///< FAC_TEXT_CONTAINS: full-text search using SQL tolower and like operator
+		FAC_TIME_PERIODS      = 1 << 6       ///< FAC_TIME_PERIODS: time intervals >= 'hour', 'day', 'week', 'month' or 'year'
 	};
 
 	const char* BAR = "--------------------------------------------------------------------------------"; // for printf() so keep this const char*
@@ -493,10 +495,13 @@ public:
 	///   e.g. Let's say you API has a column that the UI knows as "Status".  In the SQL query, the
 	///   status column is actually called "status_code" and is pulled from a table with the alias "C".
 	///   Your resulting Config (at compile time) should look something like this:
-	///    {
-	///       { "status",   "C.status_code" },
-	///       ...
-	///    }
+	///
+	///   @code
+	///   {
+	///      { "status",   "C.status_code" },
+	///      ...
+	///   }
+	///   @endcode
 	///
 	/// Note: all query parms are case-insentive, so "Status" and "status" are the same.
 	/// In the event of an error, the method returns false and KSQL's GetLastError() will explain it.

@@ -260,7 +260,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	// nonstandard
-	/// returns substring starting at iStart until end of string
+	/// returns substring starting at codepoint iStart until end of string
 	DEKAF2_CONSTEXPR_14
 	self_type MidUTF8(size_type iStart) const noexcept
 	//-----------------------------------------------------------------------------
@@ -275,7 +275,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	// nonstandard
-	/// returns substring starting at iStart with size iCount
+	/// returns substring starting at codepoint iStart with size iCount (in codepoints)
 	DEKAF2_CONSTEXPR_14
 	base_type MidUTF8(size_type iStart, size_type iCount) const noexcept
 	//-----------------------------------------------------------------------------
@@ -285,7 +285,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	// nonstandard
-	/// returns rightmost iCount UTF8 chars of string
+	/// returns rightmost iCount UTF8 codepoints of string
 	DEKAF2_CONSTEXPR_14
 	self_type RightUTF8(size_type iCount) const noexcept
 	//-----------------------------------------------------------------------------
@@ -340,6 +340,7 @@ public:
 	using base_type::In;
 
 	//-----------------------------------------------------------------------------
+	/// returns a sub-view of the current view from pos to end of view
 	DEKAF2_CONSTEXPR_14
 	self_type ToView(size_type pos = 0) const noexcept
 	//-----------------------------------------------------------------------------
@@ -353,6 +354,8 @@ public:
 	}
 
 	//----------------------------------------------------------------------
+	/// returns a sub-view of the current view from pos of view with size n,
+	/// return type is a KStringView as the trailing zero got lost
 	DEKAF2_CONSTEXPR_14
 	base_type ToView(size_type pos, size_type n) const noexcept
 	//----------------------------------------------------------------------
@@ -374,6 +377,8 @@ public:
 
 	} // ToView
 	//-----------------------------------------------------------------------------
+	/// returns a C style char array with trailing zero - the reason this class
+	/// exists
 	constexpr
 	const value_type* c_str() const noexcept
 	//-----------------------------------------------------------------------------
@@ -385,6 +390,8 @@ public:
 	// but we can implement two versions, one returning self_type, the other base_type
 
 	//-----------------------------------------------------------------------------
+	/// returns a sub-view of the current view from pos of view with size n,
+	/// return type is a KStringView as the trailing zero got lost
 	DEKAF2_CONSTEXPR_14
 	base_type substr(size_type pos, size_type count) const
 	//-----------------------------------------------------------------------------
@@ -393,6 +400,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// returns a sub-view of the current view from pos to end of view
 	DEKAF2_CONSTEXPR_14
 	self_type substr(size_type pos) const
 	//-----------------------------------------------------------------------------
@@ -408,7 +416,8 @@ public:
 	// but we can implement a version that permits prefix erase
 
 	//-----------------------------------------------------------------------------
-	/// nonstandard: emulate erase if range is at begin
+	/// nonstandard: emulate erase if range is at begin, otherwise does
+	/// nothing (but emits a warning to the debug log)
 	self& erase(size_type pos = 0, size_type n = npos)
 	//-----------------------------------------------------------------------------
 	{
@@ -425,7 +434,8 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	/// nonstandard: emulate erase if position is at begin
+	/// nonstandard: emulate erase if position is at begin, otherwise does
+	/// nothing (but emits a warning to the debug log)
 	iterator erase(const_iterator position)
 	//-----------------------------------------------------------------------------
 	{
@@ -439,7 +449,8 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	/// nonstandard: emulate erase if range is at begin
+	/// nonstandard: emulate erase if range is at begin, otherwise does
+	/// nothing (but emits a warning to the debug log)
 	iterator erase(const_iterator first, const_iterator last)
 	//-----------------------------------------------------------------------------
 	{

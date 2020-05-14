@@ -196,6 +196,10 @@ class KString;
 class KStringViewZ;
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// dekaf2's own string view class - a wrapper around std::string_view or
+/// folly::StringPiece, or our own implementation. Handles most errors without
+/// throwing and speeds up searching up to 50 times compared to std::string_view
+/// implementations.
 class KStringView {
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
@@ -652,6 +656,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	// nonstandard
+	/// returns a sub-view of the current view
 	DEKAF2_CONSTEXPR_14
 	self_type ToView(size_type pos = 0, size_type count = npos) const
 	//-----------------------------------------------------------------------------
@@ -775,6 +780,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	// nonstandard
+	/// does the string contain the sPattern?
 	bool Contains(self_type other) const
 	//-----------------------------------------------------------------------------
 	{
@@ -783,6 +789,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	// nonstandard
+	/// does the string contain the ch?
 	bool Contains(value_type ch) const
 	//-----------------------------------------------------------------------------
 	{
@@ -791,31 +798,37 @@ public:
 
 	//-----------------------------------------------------------------------------
 	// nonstandard
+	/// returns a copy of the string in uppercase (UTF8)
 	KString ToUpper() const;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	// nonstandard
+	/// returns a copy of the string in lowercase (UTF8)
 	KString ToLower() const;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	// nonstandard
+	/// returns a copy of the string in uppercase according to the current locale (does not work with UTF8 strings)
 	KString ToUpperLocale() const;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	// nonstandard
+	/// returns a copy of the string in lowercase according to the current locale (does not work with UTF8 strings)
 	KString ToLowerLocale() const;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	// nonstandard
+	/// returns a copy of the string in uppercase assuming ASCII encoding
 	KString ToUpperASCII() const;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	// nonstandard
+	/// returns a copy of the string in lowercase assuming ASCII encoding
 	KString ToLowerASCII() const;
 	//-----------------------------------------------------------------------------
 
@@ -858,7 +871,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	// nonstandard
-	/// returns leftmost iCount chars of string
+	/// returns leftmost iCount codepoints of string
 	DEKAF2_CONSTEXPR_14
 	KStringView LeftUTF8(size_type iCount) const
 	//-----------------------------------------------------------------------------
@@ -868,7 +881,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	// nonstandard
-	/// returns substring starting at iStart for iCount chars
+	/// returns substring starting at codepoint iStart for iCount codepoints
 	DEKAF2_CONSTEXPR_14
 	KStringView MidUTF8(size_type iStart, size_type iCount = npos) const
 	//-----------------------------------------------------------------------------
@@ -878,7 +891,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	// nonstandard
-	/// returns rightmost iCount chars of string
+	/// returns rightmost iCount UTF8 codepoints of string
 	DEKAF2_CONSTEXPR_14
 	KStringView RightUTF8(size_type iCount) const
 	//-----------------------------------------------------------------------------
@@ -1159,48 +1172,62 @@ public:
 	// conversions
 
 	//-----------------------------------------------------------------------------
+	/// returns bool representation of the string:
+	/// "true" --> true
+	/// "false" --> false
+	/// as well as non-0 --> true
 	bool Bool() const noexcept;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	/// convert to int16_t - set bIsHex to true if string is a hex number
 	int16_t Int16(bool bIsHex = false) const noexcept;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	/// convert to uint16_t - set bIsHex to true if string is a hex number
 	uint16_t UInt16(bool bIsHex = false) const noexcept;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	/// convert to int32_t - set bIsHex to true if string is a hex number
 	int32_t Int32(bool bIsHex = false) const noexcept;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	/// convert to uint32_t - set bIsHex to true if string is a hex number
 	uint32_t UInt32(bool bIsHex = false) const noexcept;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	/// convert to int64_t - set bIsHex to true if string is a hex number
 	int64_t Int64(bool bIsHex = false) const noexcept;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	/// convert to uint64_t - set bIsHex to true if string is a hex number
 	uint64_t UInt64(bool bIsHex = false) const noexcept;
 	//-----------------------------------------------------------------------------
 
 #ifdef DEKAF2_HAS_INT128
 	//-----------------------------------------------------------------------------
+	/// convert to int128_t - set bIsHex to true if string is a hex number
 	int128_t Int128(bool bIsHex = false) const noexcept;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	/// convert to uint128_t - set bIsHex to true if string is a hex number
 	uint128_t UInt128(bool bIsHex = false) const noexcept;
 	//-----------------------------------------------------------------------------
 #endif
 
 	//-----------------------------------------------------------------------------
+	/// convert to float
 	float Float() const noexcept;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	/// convert to double
 	double Double() const noexcept;
 	//-----------------------------------------------------------------------------
 

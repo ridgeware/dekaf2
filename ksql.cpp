@@ -1430,7 +1430,7 @@ bool KSQL::ExecRawSQL (KStringView sSQL, Flags iFlags/*=0*/, KStringView sAPI/*=
 		kDebugLog (GetDebugLevel(), "KSQL::{}(): {}\n", sAPI, sSQL);
 	}
 
-	m_iNumRowsAffected = 0;
+	m_iNumRowsAffected  = 0;
 	CopyIfNotSame(m_sLastSQL, sSQL);
 	EndQuery();
 
@@ -1450,74 +1450,74 @@ bool KSQL::ExecRawSQL (KStringView sSQL, Flags iFlags/*=0*/, KStringView sAPI/*=
 
 		switch (m_iAPISet)
 		{
-        #ifdef DEKAF2_HAS_MYSQL
-		// - - - - - - - - - - - - - - - - -
-		case API::MYSQL:
-		// - - - - - - - - - - - - - - - - -
-			do // once
-			{
-				if (!m_dMYSQL)
+			#ifdef DEKAF2_HAS_MYSQL
+			// - - - - - - - - - - - - - - - - -
+			case API::MYSQL:
+			// - - - - - - - - - - - - - - - - -
 				{
-					kDebug (1, "lost m_dMYSQL pointer.  Reopening connection ...");
-					CloseConnection();
-					OpenConnection();
-				}
-				if (!m_dMYSQL)
-				{
-					kDebug (1, "failed.  aborting query or SQL:\n{}", sSQL);
-					break; // once
-				}
-				kDebug (3, "mysql_query(): m_dMYSQL is {}, SQL is {} bytes long", m_dMYSQL ? "not null" : "nullptr", sSQL.size());
-				if (mysql_query (m_dMYSQL, m_sLastSQL.c_str()))
-				{
-					m_iErrorNum = mysql_errno (m_dMYSQL);
-					m_sLastError.Format ("{}MSQL-{}: {}", m_sErrorPrefix, GetLastErrorNum(), mysql_error(m_dMYSQL));
-					break; // inner do once
-				}
-				m_iNumRowsAffected = 0;
-				kDebug (3, "mysql_affected_rows()...");
-				my_ulonglong iNumRows = mysql_affected_rows (m_dMYSQL);
-				if ((uint64_t)iNumRows != (uint64_t)(-1))
-				{
-					m_iNumRowsAffected = (uint64_t) iNumRows;
-				}
+					if (!m_dMYSQL)
+					{
+						kDebug (1, "lost m_dMYSQL pointer.  Reopening connection ...");
 
-				kDebug (3, "mysql_insert_id()...");
-				my_ulonglong iNewID = mysql_insert_id (m_dMYSQL);
-				m_iLastInsertID = (uint64_t) iNewID;
-		
-				if (m_iLastInsertID)
-				{
-					kDebug (GetDebugLevel(), "last insert ID = {}", m_iLastInsertID);
-				}
-				else
-				{
-					kDebug (3, "no insert ID.");
-				}
+						CloseConnection();
+						OpenConnection();
 
-				bOK = true;
-			}
-			while (false); // do once
-			break;
-		#endif
+						if (!m_dMYSQL)
+						{
+							kDebug (1, "failed.  aborting query or SQL:\n{}", sSQL);
+							break;
+						}
+					}
 
-        #ifdef DEKAF2_HAS_ORACLE
-		// - - - - - - - - - - - - - - - - -
-		case API::OCI8:
-		// - - - - - - - - - - - - - - - - -
-			do // once
-			{
+					kDebug (3, "mysql_query(): m_dMYSQL is {}, SQL is {} bytes long", m_dMYSQL ? "not null" : "nullptr", sSQL.size());
+					if (mysql_query (m_dMYSQL, m_sLastSQL.c_str()))
+					{
+						m_iErrorNum = mysql_errno (m_dMYSQL);
+						m_sLastError.Format ("{}MSQL-{}: {}", m_sErrorPrefix, GetLastErrorNum(), mysql_error(m_dMYSQL));
+						break;
+					}
+
+					m_iNumRowsAffected = 0;
+					kDebug (3, "mysql_affected_rows()...");
+					my_ulonglong iNumRows = mysql_affected_rows (m_dMYSQL);
+					if ((uint64_t)iNumRows != (uint64_t)(-1))
+					{
+						m_iNumRowsAffected = (uint64_t) iNumRows;
+					}
+
+					kDebug (3, "mysql_insert_id()...");
+					my_ulonglong iNewID = mysql_insert_id (m_dMYSQL);
+					m_iLastInsertID = (uint64_t) iNewID;
+
+					if (m_iLastInsertID)
+					{
+						kDebug (GetDebugLevel(), "last insert ID = {}", m_iLastInsertID);
+					}
+					else
+					{
+						kDebug (3, "no insert ID.");
+					}
+
+					bOK = true;
+				}
+				break;
+			#endif
+
+			#ifdef DEKAF2_HAS_ORACLE
+			// - - - - - - - - - - - - - - - - -
+			case API::OCI8:
+			// - - - - - - - - - - - - - - - - -
 				kDebug (3, "OCIStmtPrepare...");
-				m_iErrorNum = OCIStmtPrepare ((OCIStmt*)m_dOCI8Statement, (OCIError*)m_dOCI8ErrorHandle, 
-				                             (text*)sSQL.data(), sSQL.size(), OCI_NTV_SYNTAX, OCI_DEFAULT);
+				m_iErrorNum = OCIStmtPrepare ((OCIStmt*)m_dOCI8Statement, (OCIError*)m_dOCI8ErrorHandle,
+											 (text*)sSQL.data(), sSQL.size(), OCI_NTV_SYNTAX, OCI_DEFAULT);
 
 				if (!WasOCICallOK("ExecSQL:OCIStmtPrepare"))
 				{
-					break; // inner do once
+					break;
 				}
-	
-				// Note: Using the OCI_COMMIT_ON_SUCCESS mode of the OCIExecute() call, the 
-				// application can selectively commit transactions at the end of each 
+
+				// Note: Using the OCI_COMMIT_ON_SUCCESS mode of the OCIExecute() call, the
+				// application can selectively commit transactions at the end of each
 				// statement execution, saving an extra roundtrip by calling OCITransCommit().
 				kDebug (3, "OCIStmtExecute...");
 				m_iErrorNum = OCIStmtExecute ((OCISvcCtx*)m_dOCI8ServerContext, (OCIStmt*)m_dOCI8Statement, (OCIError*)m_dOCI8ErrorHandle, 1, 0,
@@ -1525,47 +1525,43 @@ bool KSQL::ExecRawSQL (KStringView sSQL, Flags iFlags/*=0*/, KStringView sAPI/*=
 
 				if (!WasOCICallOK("ExecSQL:OCIStmtExecute"))
 				{
-					break; // inner do once
+					break;
 				}
-	
+
 				m_iNumRowsAffected = 0;
 				m_iErrorNum = OCIAttrGet ((OCIStmt*)m_dOCI8Statement, OCI_HTYPE_STMT, &m_iNumRowsAffected,
 					0, OCI_ATTR_ROW_COUNT, (OCIError*)m_dOCI8ErrorHandle);
 
 				bOK = true;
-			}
-			while (false); // do once
-			break;
+				break;
 
-		// - - - - - - - - - - - - - - - - -
-		case API::OCI6:
-		// - - - - - - - - - - - - - - - - -
-			do // once
-			{
+			// - - - - - - - - - - - - - - - - -
+			case API::OCI6:
+			// - - - - - - - - - - - - - - - - -
 				// let the RDBMS parse the SQL expression:
 				kDebug (3, "oparse...");
 				m_iErrorNum = oparse ((Cda_Def*)m_dOCI6ConnectionDataArea, (text *)m_sLastSQL.c_str(), (sb4) -1, (sword) PARSE_NO_DEFER, (ub4) PARSE_V7_LNG);
 				if (!WasOCICallOK("ExecSQL:oparse"))
 				{
-					break; // inner do once
+					break;
 				}
-		
+
 				// execute it:
 				kDebug (3, "oexec...");
 				m_iErrorNum = oexec ((Cda_Def*)m_dOCI6ConnectionDataArea);
 				if (!WasOCICallOK("ExecSQL:oexec"))
 				{
-					break; // inner do once
+					break;
 				}
-		
+
 				// now issue a "commit" or it will be rolled back automatically:
 				if (!IsFlag(F_NoAutoCommit))
 				{
 					m_iErrorNum = ocom ((Lda_Def*)m_dOCI6LoginDataArea);
 					if (!WasOCICallOK("ExecSQL:ocom"))
 					{
-						m_sLastError += "\non auto commit.";	
-						break; // inner do once
+						m_sLastError += "\non auto commit.";
+						break;
 					}
 				}
 
@@ -1575,31 +1571,44 @@ bool KSQL::ExecRawSQL (KStringView sSQL, Flags iFlags/*=0*/, KStringView sAPI/*=
 				ocan ((Cda_Def*)m_dOCI6ConnectionDataArea);  // <-- let cursor free it's resources
 
 				bOK = true;
-			}
-			while (false); // do once
-			break;
-		#endif
+				break;
+			#endif
 
-		#ifdef DEKAF2_HAS_CTLIB
-		// - - - - - - - - - - - - - - - - -
-		case API::CTLIB:
-		// - - - - - - - - - - - - - - - - -
-			bOK = ctlib_execsql (sSQL);
-			if (!bOK)
-			{
-				kDebug (3, "ctlib_execsql returned false");
-			}
-			break;
-		#endif
+			#ifdef DEKAF2_HAS_CTLIB
+			// - - - - - - - - - - - - - - - - -
+			case API::CTLIB:
+			// - - - - - - - - - - - - - - - - -
+				if (!ctlib_is_initialized())
+				{
+					kDebug (1, "lost CTLIB connection.  Reopening connection ...");
 
-		// - - - - - - - - - - - - - - - - -
-		case API::DBLIB:
-		case API::INFORMIX:
-		case API::ODBC:
-		default:
-		// - - - - - - - - - - - - - - - - -
-			kWarning ("unsupported API Set ({})", TxAPISet(m_iAPISet));
-			kCrashExit (CRASHCODE_DEKAFUSAGE);
+					CloseConnection();
+					OpenConnection();
+
+					if (!ctlib_is_initialized())
+					{
+						kDebug (1, "failed.  aborting query or SQL:\n{}", sSQL);
+						break; // once
+					}
+				}
+
+				bOK = ctlib_execsql (sSQL);
+
+				if (!bOK)
+				{
+					kDebug (3, "ctlib_execsql returned false");
+				}
+				break;
+			#endif
+
+			// - - - - - - - - - - - - - - - - -
+			case API::DBLIB:
+			case API::INFORMIX:
+			case API::ODBC:
+			default:
+			// - - - - - - - - - - - - - - - - -
+				kWarning ("unsupported API Set ({})", TxAPISet(m_iAPISet));
+				kCrashExit (CRASHCODE_DEKAFUSAGE);
 
 		} // switch
 
@@ -1754,9 +1763,7 @@ bool KSQL::PreparedToRetry ()
 	}
 	else
 	{
-#ifdef DEKAF2_HAS_MYSQL
-		kDebug (3, "FYI: cannot retry: {} [{},{}]: {}", GetLastErrorNum(), 2006, 2013, GetLastError());
-#endif
+		kDebug (3, "FYI: cannot retry: {}: {}", GetLastErrorNum(), GetLastError());
 		return (false); // <-- no not retry
 	}
 

@@ -6971,6 +6971,76 @@ KString KSQL::FormGroupBy (uint8_t iNumCols)
 } // FormGroupBy
 
 //-----------------------------------------------------------------------------
+bool KSQL::FormOrderBy (KStringView sCommaDelimedSort, KString& sOrderBy, const KJSON& Config)
+//-----------------------------------------------------------------------------
+{
+	kDebug (2, "...");
+
+	if (Config.is_null())
+	{
+		return true;
+	}
+	else if (! Config.is_object())
+	{
+		m_sLastError.Format ("BUG: FormOrderBy: Config is not object of key/value pairs: {}", Config.dump('\t'));
+		return false;
+	}
+
+	auto ParmList = sCommaDelimedSort.Split (",");
+
+	bool bResetFlag = KLog::getInstance().ShowStackOnJsonError(false);
+
+	for (auto parm : ParmList)
+	{
+		KString sParm (parm);
+		bool    bDesc = sParm.Contains(" desc");
+		bool    bFound{false};
+
+		sParm.Replace (" descending","");
+		sParm.Replace (" descend",   "");
+		sParm.Replace (" desc",      "");
+		sParm.Replace (" ascending", "");
+		sParm.Replace (" ascend",    "");
+		sParm.Replace (" asc",       "");
+		sParm.Replace (" ",          "");
+
+		for (auto& it : Config.items())
+		{
+			try
+			{
+				KString sMatchParm = it.key();
+				KString sDbCol     = it.value();
+
+				if (sMatchParm.ToLower() == sParm.ToLower())
+				{
+					sOrderBy += kFormat ("{} {}{}\n", sOrderBy ? "     ," : " order by", sDbCol, bDesc ? " desc" : "");
+					bFound = true;
+					break; // inner for
+				}
+			}
+			catch (const KJSON::exception& exc)
+			{
+				m_sLastError.Format ("BUG: FormOrderBy: Config is not object of key/value pairs: {}", Config.dump('\t'));
+				KLog::getInstance().ShowStackOnJsonError(bResetFlag);
+				return false;
+			}
+		}
+
+		if (!bFound)
+		{
+			// runtime/user error: attempt to sort by a column that is not specified in the Config:
+			m_sLastError.Format ("attempt to sort by unknown column '{}'", sParm);
+			KLog::getInstance().ShowStackOnJsonError(bResetFlag);
+			return false;
+		}
+	}
+
+	KLog::getInstance().ShowStackOnJsonError(bResetFlag);
+	return true;
+
+} // FormOrderBy
+
+//-----------------------------------------------------------------------------
 bool KSQL::GetLock (KStringView sName, int16_t iTimeoutSeconds)
 //-----------------------------------------------------------------------------
 {

@@ -472,7 +472,36 @@ public:
 	/// helper method to form AND clauses for dynamic SQL.
 	KString FormAndClause (KStringView sDbCol, KStringView sQueryParm, uint64_t iFlags=FAC_NORMAL, KStringView sSplitBy=",");
 
+	/// general purpose helper to create "group by 1,2,3,4..."
 	static KString FormGroupBy (uint8_t iNumCols);
+
+	/// General purpose helper method to create "order by X.column1 desc, Y.column2, ..."
+	/// Designed to support (among other things) ANT table sorting.
+	///
+	/// sCommaDelimedSort - The first argument is your UI's
+	///   query parameter (which ANT calls 'sort').  The value is a comma-delimed list of table
+	///   columns to sort the results by (which ANT or your UI framework builds as web users click on
+	///   UI elements to affect the sorting).
+	///
+	/// sOrderBy - The 2nd argument is the return value (SQL "order by" clause).  Note that you can
+	///   either pass in an empty string or you can pass in an initial "order by" and allow this
+	///   method to ammend it.  The method returns sOrderBy untouched if sCommaDelimedSort is empty
+	///   or if there is otherwise nothing to sort by.
+	///
+	/// Config - The last argument is an key/value object of mappings from column
+	///   names that the UI understands to physical database column expressions that are in your query.
+	///   e.g. Let's say you API has a column that the UI knows as "Status".  In the SQL query, the
+	///   status column is actually called "status_code" and is pulled from a table with the alias "C".
+	///   Your resulting Config (at compile time) should look something like this:
+	///    {
+	///       { "status",   "C.status_code" },
+	///       ...
+	///    }
+	///
+	/// Note: all query parms are case-insentive, so "Status" and "status" are the same.
+	/// In the event of an error, the method returns false and KSQL's GetLastError() will explain it.
+	/// The most common error would be an attempt to sort by a column that is not in your Config spec.
+	bool FormOrderBy (KStringView sCommaDelimedSort, KString& sOrderBy, const KJSON& Config);
 
 	/// shortcut to KROW::EscapeChars that automatically adds the DBType
 	KString EscapeString (KStringView sCol)

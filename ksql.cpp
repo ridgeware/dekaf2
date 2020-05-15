@@ -257,9 +257,9 @@ void KSQL::KColInfo::SetColumnType (DBT iDBType, int iNativeDataType, KCOL::Len 
 	switch (iDBType)
 	{
 		case DBT::MYSQL:
+		switch (iNativeDataType)
+		{
 #ifdef DEKAF2_HAS_MYSQL
-			switch (iNativeDataType)
-			{
 				// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 				// we only care about setting flags for non-string types:
 				// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -318,19 +318,57 @@ void KSQL::KColInfo::SetColumnType (DBT iDBType, int iNativeDataType, KCOL::Len 
 				case 252: // MYSQL_TYPE_BLOB:
 				case 253: // MYSQL_TYPE_VAR_STRING:
 				case 254: // MYSQL_TYPE_STRING:
+#endif // DEKAF2_HAS_MYSQL
 				default:
 					iKSQLDataType = KROW::NOFLAG;
 					break;
 			}
-#endif // DEKAF2_HAS_MYSQL
+			break;
+
+		case DBT::SQLSERVER:
+		case DBT::SYBASE:
+			switch (iNativeDataType)
+			{
+#ifdef DEKAF2_HAS_CTLIB
+				case CS_TINYINT_TYPE:
+				case CS_SMALLINT_TYPE:
+				case CS_USMALLINT_TYPE:
+				case CS_USHORT_TYPE:
+				case CS_INT_TYPE:
+				case CS_UINT_TYPE:
+				case CS_BIT_TYPE:
+				case CS_FLOAT_TYPE:
+				case CS_REAL_TYPE:
+					iKSQLDataType = KROW::NUMERIC;
+					break;
+
+				case CS_DECIMAL_TYPE:
+				case CS_NUMERIC_TYPE:
+				case CS_LONG_TYPE:
+					iKSQLDataType = KROW::NUMERIC;
+					if (iMaxDataLen >= 19)
+					{
+						// this is a large integer as well..
+						iKSQLDataType |= KROW::INT64NUMERIC;
+					}
+					break;
+
+				case CS_BIGINT_TYPE:
+				case CS_UBIGINT_TYPE:
+					iKSQLDataType = KROW::NUMERIC | KROW::INT64NUMERIC;
+					break;
+
+#endif
+				default:
+					iKSQLDataType = KROW::NOFLAG;
+					break;
+			}
 			break;
 
 		case DBT::ORACLE6:
 		case DBT::ORACLE7:
 		case DBT::ORACLE8:
 		case DBT::ORACLE:
-		case DBT::SQLSERVER:
-		case DBT::SYBASE:
 		case DBT::INFORMIX:
 		default:
 			iKSQLDataType = KROW::NOFLAG;
@@ -6036,38 +6074,40 @@ bool KSQL::ctlib_execsql (KStringView sSQL)
 	{
 		kDebug (KSQL2_CTDEBUG, "ct_results said iResultsType={} and returned {}", iResultType, iApiRtn);
 
+		// see http://infocenter.sybase.com/help/index.jsp?topic=/com.sybase.help.sdk_12.5.1.ctref/html/ctref/ctref334.htm
+
 		switch (iResultType)
 		{
 			case CS_CMD_SUCCEED:
-				ctlib_get_rows_affected();
-				break; // switch
+				break;
+
 			case CS_CMD_DONE:
-				break; // switch
+				ctlib_get_rows_affected();
+				break;
+
 			case CS_CMD_FAIL:
 				kDebug (KSQL2_CTDEBUG, "iResultType CS_CMD_FAIL");
-				break; // switch
+				break;
+
+			case CS_COMPUTE_RESULT:
+			case CS_CURSOR_RESULT:
+			case CS_PARAM_RESULT:
+			case CS_STATUS_RESULT:
 			case CS_ROW_RESULT:
-				kDebug (KSQL2_CTDEBUG, "receiving ROW results on a non-query: {}", sSQL);
+				kDebug (KSQL2_CTDEBUG, "receiving fetchable results on a non-query: {}", sSQL);
 				ctlib_flush_results();
 				return true; // false would trigger a retry ...
+
+			case CS_COMPUTEFMT_RESULT:
+			case CS_MSG_RESULT:
+			case CS_ROWFMT_RESULT:
+			case CS_DESCRIBE_RESULT:
 			default:
 				kDebug (KSQL2_CTDEBUG, "iResultType ??? ({})", iResultType);
 				ctlib_api_error ("ctlib_execsql>ct_results");
 				return (SQLError());
 		}
 	}
-
-	#if 0
-	switch (iApiRtn)
-	{
-		case CS_END_RESULTS:
-			break;
-		case CS_FAIL:
-		default:
-			ctlib_api_error ("ctlib_execsql>ct_results");
-			return (SQLError());
-	}
-	#endif
 
 	uint32_t iNumErrors = ctlib_check_errors();
 	if (iNumErrors)
@@ -6370,9 +6410,6 @@ bool KSQL::ctlib_prepare_results ()
 	bool   bFailed     = false;
 	CS_INT iResultType;
 
-	kDebug (KSQL2_CTDEBUG, "preparing for results...");
-
-	kDebug (KSQL2_CTDEBUG, "calling ct_results...");
 	while (bLooping && (ct_results (m_pCtCommand, &iResultType) == CS_SUCCEED))
 	{
 		switch ((int) iResultType)
@@ -6380,30 +6417,27 @@ bool KSQL::ctlib_prepare_results ()
 			case CS_CMD_SUCCEED:
 				kDebug (KSQL2_CTDEBUG, "ct_results: CS_CMD_SUCCEED");
 				break;
+
 			case CS_CMD_DONE:
 				kDebug (KSQL2_CTDEBUG, "ct_results: CS_CMD_DONE");
 				bLooping = false;
 				break;
-			case CS_STATUS_RESULT:
-				kDebug (KSQL2_CTDEBUG, "ct_results: CS_STATUS_RESULT");
-				bLooping = false;
-				break;
+
 			case CS_CMD_FAIL:
 				kDebug (KSQL2_CTDEBUG, "ct_results: CS_CMD_FAIL");
 				bFailed = true;
 				ctlib_api_error ("ExecQuery>ctlib_prepare_results>ct_results>CS_CMD_FAIL");
 				break;
-			case CS_CURSOR_RESULT:
-				kDebug (KSQL2_CTDEBUG, "ct_results: CS_CURSOR_RESULT");
-				bLooping = false;
-				break; // ready for data
-			case CS_ROW_RESULT:
-				kDebug (KSQL2_CTDEBUG, "ct_results: CS_ROW_RESULT");
-				bLooping = false;
-				break; // ready for data
+
 			case CS_COMPUTE_RESULT:
-				kDebug (KSQL2_CTDEBUG, "ct_results: CS_COMPUTE_RESULT");
-				return (ctlib_api_error ("ExecQuery>ctlib_prepare_results>ct_results>CS_COMPUTE_RESULT"));
+			case CS_CURSOR_RESULT:
+			case CS_PARAM_RESULT:
+			case CS_STATUS_RESULT:
+			case CS_ROW_RESULT:
+				kDebug (KSQL2_CTDEBUG, "ct_results: ready for data, got result type {}", iResultType);
+				bLooping = false;
+				break; // ready for data
+
 			default:
 				kDebug (KSQL2_CTDEBUG, "ct_results: {}", iResultType);
 				return (ctlib_api_error ("ExecQuery>ctlib_prepare_results>ct_results>???"));

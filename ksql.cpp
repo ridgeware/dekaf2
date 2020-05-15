@@ -126,7 +126,7 @@
 	#endif
   #include <ctpublic.h>        // CTLIB, alternative to DBLIB for Sybase and MS SQL Server
   #include <sybdb.h>	       // "sybdb.h is the only other file you need" (FreeTDS doc) -- ctpublic.h should actually already include it
-  #define KSQL2_CTDEBUG 2
+  #define KSQL2_CTDEBUG 3
 #endif
 
 // FYI: from ocidfn.h
@@ -334,7 +334,7 @@ void KSQL::KColInfo::SetColumnType (DBT iDBType, int iNativeDataType, KCOL::Len 
 		case DBT::INFORMIX:
 		default:
 			iKSQLDataType = KROW::NOFLAG;
-			// TODO: get column meta data rom query respose for other dbtypes
+			// TODO: get column meta data from query respose for other dbtypes
 			break;
 	}
 
@@ -859,7 +859,7 @@ bool KSQL::OpenConnection ()
 
 	kDebug (3, "...");
 
-	if (m_bConnectionIsOpen)
+	if (IsConnectionOpen())
 	{
 		return (true);
 	}
@@ -1256,7 +1256,7 @@ bool KSQL::OpenConnection ()
 	}
 	#endif
 
-	return (m_bConnectionIsOpen);
+	return (IsConnectionOpen());
 
 } // OpenConnection
 
@@ -1271,7 +1271,7 @@ void KSQL::CloseConnection (bool bDestructor/*=false*/)
 
 	m_sLastError.clear();
 
-	if (m_bConnectionIsOpen)
+	if (IsConnectionOpen())
 	{
 		if (!bDestructor)
 		{
@@ -1437,12 +1437,8 @@ bool KSQL::ExecRawSQL (KStringView sSQL, Flags iFlags/*=0*/, KStringView sAPI/*=
 	bool   bOK          = false;
 	int    iRetriesLeft = NUM_RETRIES;
 	int    iSleepFor    = 0;
-	time_t tStarted     = 0;
 
-	if (m_iWarnIfOverNumSeconds)
-	{
-		tStarted = Dekaf::getInstance().GetCurrentTime();
-	}
+	KStopTime Timer;
 
 	while (!bOK && iRetriesLeft && !m_bDisableRetries)
 	{
@@ -1647,10 +1643,17 @@ bool KSQL::ExecRawSQL (KStringView sSQL, Flags iFlags/*=0*/, KStringView sAPI/*=
 		return (SQLError());
 	}
 
+	auto iMilliSeconds = Timer.elapsed<std::chrono::milliseconds>().count();
+
+	if (!(iFlags & F_NoKlogDebug) && !(m_iFlags & F_NoKlogDebug))
+	{
+		kDebug (GetDebugLevel(), "[DB Exec Time]: {} ms", iMilliSeconds);
+	}
+
 	if (m_iWarnIfOverNumSeconds)
 	{
-		time_t tTook = Dekaf::getInstance().GetCurrentTime() - tStarted;
-		if (tTook >= m_iWarnIfOverNumSeconds) 
+		auto tTook = iMilliSeconds * 1000;
+		if (tTook >= m_iWarnIfOverNumSeconds)
 		{
 			KString sWarning;
 			sWarning.Format (
@@ -1722,6 +1725,9 @@ bool KSQL::PreparedToRetry ()
 						break;
 
 					case 0: // spurious error
+						kDebug(1, "CTLIB has a clogged queue, check where it was not emptied!");
+						ctlib_flush_results();
+						ctlib_clear_errors();
 						return true; // simply repeat, without reconnect
 				}
 				break;
@@ -1763,7 +1769,7 @@ bool KSQL::PreparedToRetry ()
 	}
 	else
 	{
-		kDebug (3, "FYI: cannot retry: {}: {}", GetLastErrorNum(), GetLastError());
+		kDebug (3, "FYI: will not retry: {}: {}", GetLastErrorNum(), GetLastError());
 		return (false); // <-- no not retry
 	}
 
@@ -1895,7 +1901,7 @@ bool KSQL::ExecSQLFile (KStringViewZ sFilename)
 	kDebug (3, "...");
 
 	EndQuery ();
-	if (!OpenConnection())
+	if (!IsConnectionOpen() && !OpenConnection())
 	{
 		return (false);
 	}
@@ -2208,23 +2214,20 @@ bool KSQL::ExecRawQuery (KStringView sSQL, Flags iFlags/*=0*/, KStringView sAPI/
 	}
 
 	CopyIfNotSame(m_sLastSQL, sSQL);
+
 	EndQuery();
 
-	time_t tStarted     = 0;
-	if (m_iWarnIfOverNumSeconds)
+	if (!IsConnectionOpen() && !OpenConnection())
 	{
-		tStarted = Dekaf::getInstance().GetCurrentTime();
+		return (false);
 	}
+
+	KStopTime Timer;
 
 	#if defined(DEKAF2_HAS_CTLIB)
 	uint32_t iRetriesLeft = NUM_RETRIES;
 	#endif
 	
-#ifndef _WIN32
-	timeval startTime;
-	gettimeofday (&startTime, nullptr);
-#endif
-
 	ResetErrorStatus ();
 
 	switch (m_iAPISet)
@@ -2259,8 +2262,7 @@ bool KSQL::ExecRawQuery (KStringView sSQL, Flags iFlags/*=0*/, KStringView sAPI/
 				return (SQLError());
 			}
 
-			kDebug (3, "getting col info from mysql...");
-			kDebug (3, "mysql_field_count()...");
+			kDebug (3, "getting col info from mysql...\nmysql_field_count()...");
 
 			m_iNumColumns = mysql_field_count (m_dMYSQL);
 
@@ -2607,7 +2609,7 @@ bool KSQL::ExecRawQuery (KStringView sSQL, Flags iFlags/*=0*/, KStringView sAPI/
 	// - - - - - - - - - - - - - - - - -
 	case API::CTLIB:
 	// - - - - - - - - - - - - - - - - -
-		do // once
+		do
 		{
 			kDebug (KSQL2_CTDEBUG, "ensuring that no dangling messages are in the ct queue...");
 			
@@ -2642,6 +2644,7 @@ bool KSQL::ExecRawQuery (KStringView sSQL, Flags iFlags/*=0*/, KStringView sAPI/
 				}
 				return (SQLError());
 			}
+
 			if (!ctlib_prepare_results ())
 			{
 				if (--iRetriesLeft && PreparedToRetry())
@@ -2650,6 +2653,7 @@ bool KSQL::ExecRawQuery (KStringView sSQL, Flags iFlags/*=0*/, KStringView sAPI/
 				}
 				return (SQLError());
 			}
+
 			if (ctlib_check_errors() != 0)
 			{
 				if (--iRetriesLeft && PreparedToRetry())
@@ -2698,24 +2702,18 @@ bool KSQL::ExecRawQuery (KStringView sSQL, Flags iFlags/*=0*/, KStringView sAPI/
 	m_iNumRowsAffected  = 0;
 
 	ClearErrorPrefix();
-	
-#ifndef _WIN32
-	int64_t iMicrSecs = 0;
-	timeval endTime;
-	gettimeofday (&endTime, 0);
-	iMicrSecs = (endTime.tv_sec - startTime.tv_sec) * 1000000 + endTime.tv_usec - startTime.tv_usec;
-	iMicrSecs /= 1000;
+
+	auto iMilliSeconds = Timer.elapsed<std::chrono::milliseconds>().count();
 	
 	if (!(iFlags & F_NoKlogDebug) && !(m_iFlags & F_NoKlogDebug))
 	{
-		kDebug (GetDebugLevel(), "[DB Query Time]: {} mls", iMicrSecs);
+		kDebug (GetDebugLevel(), "[DB Query Time]: {} ms", iMilliSeconds);
 	}
-#endif
 
 	if (m_iWarnIfOverNumSeconds)
 	{
-		time_t tTook = Dekaf::getInstance().GetCurrentTime() - tStarted;
-		if (tTook >= m_iWarnIfOverNumSeconds) 
+		auto tTook = iMilliSeconds * 1000;
+		if (tTook >= m_iWarnIfOverNumSeconds)
 		{
 			KString sWarning;
 			sWarning.Format (
@@ -3355,7 +3353,6 @@ bool KSQL::NextRow ()
 			case API::CTLIB:
 				// - - - - - - - - - - - - - - - - -
 				return (ctlib_nextrow());
-				break;
 #endif
 
 				// - - - - - - - - - - - - - - - - -
@@ -3571,13 +3568,15 @@ int64_t KSQL::SingleIntRawQuery (KStringView sSQL, Flags iFlags/*=0*/, KStringVi
 //-----------------------------------------------------------------------------
 {
 	EndQuery ();
-	if (!OpenConnection())
+	
+	if (!IsConnectionOpen() && !OpenConnection())
 	{
 		return (false);
 	}
 
 	Flags iHold = GetFlags();
 	m_iFlags |= F_IgnoreSQLErrors;
+	m_iFlags |= iFlags;
 
 	bool bOK = ExecRawQuery (sSQL, 0, sAPI);
 
@@ -3684,6 +3683,13 @@ void KSQL::EndQuery (bool bDestructor/*=false*/)
 	{
 		mysql_free_result (m_dMYSQLResult);
 		m_dMYSQLResult = nullptr;
+	}
+	#endif
+
+	#ifdef DEKAF2_HAS_CTLIB
+	if (GetDBType() == DBT::SQLSERVER || GetDBType() == DBT::SYBASE)
+	{
+		ctlib_flush_results();
 	}
 	#endif
 
@@ -6041,10 +6047,13 @@ bool KSQL::ctlib_execsql (KStringView sSQL)
 				kDebug (KSQL2_CTDEBUG, "iResultType CS_CMD_FAIL");
 				break; // switch
 			case CS_ROW_RESULT:
-				break;
+				kDebug (KSQL2_CTDEBUG, "receiving ROW results on a non-query: {}", sSQL);
+				ctlib_flush_results();
+				return true; // false would trigger a retry ...
 			default:
 				kDebug (KSQL2_CTDEBUG, "iResultType ??? ({})", iResultType);
-				break; // switch
+				ctlib_api_error ("ctlib_execsql>ct_results");
+				return (SQLError());
 		}
 	}
 
@@ -6083,7 +6092,7 @@ bool KSQL::ctlib_nextrow ()
 		return false;
 	}
 
-	CS_INT iFetched;
+	CS_INT iFetched = 0;
 
 	kDebug (KSQL2_CTDEBUG, "calling ct_fetch...");
 	if ((ct_fetch (m_pCtCommand, CS_UNUSED, CS_UNUSED, CS_UNUSED, &iFetched) == CS_SUCCEED) && (iFetched > 0))
@@ -6285,21 +6294,23 @@ uint32_t KSQL::ctlib_check_errors ()
 		{
 			m_sLastError += ServerMsg.proc;
 		}
+
 		if (ServerMsg.state)
 		{
 			sAdd.Format("State {}, ", ServerMsg.state);
 			m_sLastError += sAdd;
 		}
+
 		if (ServerMsg.severity)
 		{
 			sAdd.Format("Severity {}, ", ServerMsg.severity);
 			m_sLastError += sAdd;
 		}
+
 		if (ServerMsg.line)
 		{
 			sAdd.Format("Line {}, ", ServerMsg.line);
 			m_sLastError += sAdd;
-
 		}
 
 		m_sLastError += ServerMsg.text;
@@ -6325,7 +6336,7 @@ bool KSQL::ctlib_clear_errors ()
 	kDebug (KSQL2_CTDEBUG, "calling ct_diag...");
 	if (ct_diag (m_pCtConnection, CS_CLEAR, CS_ALLMSG_TYPE, CS_UNUSED, nullptr) != CS_SUCCEED)
 	{
-		kDebug (1, "cs_diag(CS_CLEAR) failed");
+		kDebug (1, "ct_diag(CS_CLEAR) failed");
 	}
 
 	CS_INT iNumMsgs = 0;
@@ -6333,12 +6344,12 @@ bool KSQL::ctlib_clear_errors ()
 	kDebug (KSQL2_CTDEBUG, "calling ct_diag...");
 	if (ct_diag (m_pCtConnection, CS_STATUS, CS_ALLMSG_TYPE, CS_UNUSED, &iNumMsgs) != CS_SUCCEED)
 	{
-		kDebug (1, "cs_diag(CS_STATUS) failed");
+		kDebug (1, "ct_diag(CS_STATUS) failed");
 	}
 
 	if (iNumMsgs != 0)
 	{
-		kDebug (1, "cs_diag(CS_CLEAR) failed: there are still {} messages on queue.", iNumMsgs);
+		kDebug (1, "ct_diag(CS_CLEAR) failed: there are still {} messages on queue.", iNumMsgs);
 		return (false);
 	}
 
@@ -6355,13 +6366,14 @@ bool KSQL::ctlib_prepare_results ()
 		return false;
 	}
 
-	bool   fLooping    = true;
+	bool   bLooping    = true;
+	bool   bFailed     = false;
 	CS_INT iResultType;
 
 	kDebug (KSQL2_CTDEBUG, "preparing for results...");
 
 	kDebug (KSQL2_CTDEBUG, "calling ct_results...");
-	while (fLooping && (ct_results (m_pCtCommand, &iResultType) == CS_SUCCEED))
+	while (bLooping && (ct_results (m_pCtCommand, &iResultType) == CS_SUCCEED))
 	{
 		switch ((int) iResultType)
 		{
@@ -6370,22 +6382,24 @@ bool KSQL::ctlib_prepare_results ()
 				break;
 			case CS_CMD_DONE:
 				kDebug (KSQL2_CTDEBUG, "ct_results: CS_CMD_DONE");
-				fLooping = false;
+				bLooping = false;
 				break;
 			case CS_STATUS_RESULT:
 				kDebug (KSQL2_CTDEBUG, "ct_results: CS_STATUS_RESULT");
-				fLooping = false;
+				bLooping = false;
 				break;
 			case CS_CMD_FAIL:
 				kDebug (KSQL2_CTDEBUG, "ct_results: CS_CMD_FAIL");
-				return (ctlib_api_error ("ExecQuery>ctlib_prepare_results>ct_results>CS_CMD_FAIL"));
+				bFailed = true;
+				ctlib_api_error ("ExecQuery>ctlib_prepare_results>ct_results>CS_CMD_FAIL");
+				break;
 			case CS_CURSOR_RESULT:
 				kDebug (KSQL2_CTDEBUG, "ct_results: CS_CURSOR_RESULT");
-				fLooping = false;
+				bLooping = false;
 				break; // ready for data
 			case CS_ROW_RESULT:
 				kDebug (KSQL2_CTDEBUG, "ct_results: CS_ROW_RESULT");
-				fLooping = false;
+				bLooping = false;
 				break; // ready for data
 			case CS_COMPUTE_RESULT:
 				kDebug (KSQL2_CTDEBUG, "ct_results: CS_COMPUTE_RESULT");
@@ -6395,10 +6409,15 @@ bool KSQL::ctlib_prepare_results ()
 				return (ctlib_api_error ("ExecQuery>ctlib_prepare_results>ct_results>???"));
 		}
 
-		if (fLooping)
+		if (bLooping)
 		{
 			kDebug (KSQL2_CTDEBUG, "calling ct_results");
 		}
+	}
+
+	if (bFailed)
+	{
+		return false;
 	}
 
 	kDebug (KSQL2_CTDEBUG, "ready for query results");
@@ -6437,7 +6456,7 @@ bool KSQL::ctlib_prepare_results ()
 		KColInfo ColInfo;
 
 		// TODO check if DBT::SYBASE is the right DBType
-		ColInfo.SetColumnType(DBT::SYBASE, ColInfo.iKSQLDataType, std::max(colinfo.maxlength+2, 8000)); // <-- allocate at least the max-varchar length to avoid overflows
+		ColInfo.SetColumnType(DBT::SYBASE, ColInfo.iKSQLDataType, std::max(colinfo.maxlength, 8000)); // <-- allocate at least the max-varchar length to avoid overflows
 		ColInfo.sColName        = (colinfo.namelen) ? colinfo.name : "";
 
 		enum {SANITY_MAX = 50*1024};
@@ -6492,11 +6511,11 @@ void KSQL::ctlib_flush_results ()
 	kDebug (KSQL2_CTDEBUG, "[to flush prior results that might be dangling]");
 
 	CS_INT     iResultType;
-	bool       fLooping = true;
-	bool       fFlush   = false;
+	bool       bLooping = true;
+	bool       bFlush   = false;
 
 	kDebug (KSQL2_CTDEBUG, "calling ct_results...");
-	while (fLooping && (ct_results (m_pCtCommand, &iResultType) == CS_SUCCEED))
+	while (bLooping && (ct_results (m_pCtCommand, &iResultType) == CS_SUCCEED))
 	{
 		switch ((int) iResultType)
 		{
@@ -6505,37 +6524,36 @@ void KSQL::ctlib_flush_results ()
 			break;
 		case CS_CMD_DONE:
 			kDebug (KSQL2_CTDEBUG, "ct_results: CS_CMD_DONE");
-			fLooping = false;
+			bLooping = false;
 			break;
 		case CS_STATUS_RESULT:
 			kDebug (KSQL2_CTDEBUG, "ct_results: CS_STATUS_RESULT");
-			fLooping = false;
+			bLooping = false;
 			break;
 		case CS_CMD_FAIL:
 			kDebug (KSQL2_CTDEBUG, "ct_results: CS_CMD_FAIL");
-			fLooping = false;
 			break;
 		case CS_CURSOR_RESULT:
 			kDebug (KSQL2_CTDEBUG, "ct_results: CS_CURSOR_RESULT");
-			fLooping = false;
-			fFlush   = true;
+			bLooping = false;
+			bFlush   = true;
 			break;
 		case CS_ROW_RESULT:
 			kDebug (KSQL2_CTDEBUG, "ct_results: CS_ROW_RESULT");
-			fLooping = false;
-			fFlush   = true;
+			bLooping = false;
+			bFlush   = true;
 			break;
 		case CS_COMPUTE_RESULT:
 			kDebug (KSQL2_CTDEBUG, "ct_results: CS_COMPUTE_RESULT");
-			fLooping = false;
+			bLooping = false;
 			break;
 		default:
 			kDebug (KSQL2_CTDEBUG, "ct_results: {}", iResultType);
-			fLooping = false;
+			bLooping = false;
 			break;
 		}
 
-		if (fLooping)
+		if (bLooping)
 		{
 			kDebug (KSQL2_CTDEBUG, "calling ct_results...");
 		}
@@ -6549,7 +6567,7 @@ void KSQL::ctlib_flush_results ()
 
 	CS_INT iFetched;
 	kDebug (KSQL2_CTDEBUG, "ctlib_nextrow: calling ct_fetch...");
-	if (fFlush && (ct_fetch (m_pCtCommand, CS_UNUSED, CS_UNUSED, CS_UNUSED, &iFetched) == CS_SUCCEED) && (iFetched > 0))
+	if (bFlush && (ct_fetch (m_pCtCommand, CS_UNUSED, CS_UNUSED, CS_UNUSED, &iFetched) == CS_SUCCEED) && (iFetched > 0))
 	{
 		kDebug (KSQL2_CTDEBUG, "dumping row...\n");
 	}

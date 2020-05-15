@@ -194,7 +194,7 @@ public:
 		F_NoTranslations      = 1 << 3,      ///< turn off {{token}} translations in SQL
 		F_IgnoreSelectKeyword = 1 << 4,      ///< override check in ExecQuery() for "select..."
 		F_NoKlogDebug         = 1 << 5,      ///< quietly: do not output the customary klog debug statements
-		F_AutoReset           = 1 << 6,      ///< For ctlib, refresh the connection to the server for each query
+		F_AutoReset           = 1 << 6,      ///< For ctlib: refresh the connection to the server for each query
 
 		FAC_NORMAL            = 1 << 0,      ///< FAC_NORMAL: handles empty string, single string and comma-delimed strings
 		FAC_NUMERIC           = 1 << 1,      ///< FAC_NUMERIC: handles empty string, single number and comma-delimed numbers
@@ -207,8 +207,17 @@ public:
 
 	const char* BAR = "--------------------------------------------------------------------------------"; // for printf() so keep this const char*
 
+	/// default constructor, can also be used to configure connection details
+	/// @param iDBType the DBType
+	/// @param sUsername the user name
+	/// @param sPassword the password
+	/// @param sDatabase the database to use
+	/// @param sHostname the database server hostname
+	/// @param iDBPortNum the database server port number
 	KSQL (DBT iDBType = DBT::MYSQL, KStringView sUsername = {}, KStringView sPassword = {}, KStringView sDatabase = {}, KStringView sHostname = {}, uint16_t iDBPortNum = 0);
+	/// copy constructor, only copies connection details from other instance, not internal state!
 	KSQL (const KSQL& other);
+	/// move constructor, moves all internal state
 	KSQL (KSQL&&) = default;
 
 	~KSQL ();
@@ -216,30 +225,59 @@ public:
 	bool operator== (const KSQL& other) const { return (GetHash() == other.GetHash()); }
 	bool operator!= (const KSQL& other) const { return (GetHash() != other.GetHash()); }
 
+	/// set all connection parameters
+	/// @param iDBType the DBType
+	/// @param sUsername the user name
+	/// @param sPassword the password
+	/// @param sDatabase the database to use
+	/// @param sHostname the database server hostname
+	/// @param iDBPortNum the database server port number
+	/// @return always returns true
 	bool   SetConnect (DBT iDBType, KStringView sUsername, KStringView sPassword, KStringView sDatabase, KStringView sHostname = {}, uint16_t iDBPortNum = 0);
+	/// copy connection parameters from another KSQL instance
+	/// @return always returns true
 	bool   SetConnect (KSQL& Other);
 
+	/// configure connection database server type by numeric DBT value
 	bool   SetDBType (DBT iDBType);
+	/// configure connection database server type by string (name)
 	bool   SetDBType (KStringView sDBType);
+	/// configure connection user name
 	bool   SetDBUser (KStringView sUsername);
+	/// configure connection password
 	bool   SetDBPass (KStringView sPassword);
+	/// configure server hostname to connect to
 	bool   SetDBHost (KStringView sHostname);
+	/// configure database name to use
 	bool   SetDBName (KStringView sDatabase);
+	/// configure server port to connect to
 	bool   SetDBPort (int iDBPortNum);
 
+	/// load connection parameters from a DBC file
 	bool   LoadConnect      (const KString& sDBCFile);
+	/// save connection parameters into a DBC file
 	bool   SaveConnect      (const KString& sDBCFile);
 	bool   SetConnect       (const KString& sDBCFile, const KString& sDBCFileContent);
 	API    GetAPISet        ()      { return (m_iAPISet); }
 	bool   SetAPISet        (API iAPISet);
+	/// Open a server connection with the configured connection parameters
 	bool   OpenConnection   ();
+	/// Open a server connection to the first responding host in a (comma separated) list.
+	/// Reuses all other configured connection parameters for each host.
+	/// @return true on success
 	bool   OpenConnection   (KStringView sListOfHosts, KStringView sDelimiter = ",");
+	/// Close an open database server connection
 	void   CloseConnection  (bool bDestructor=false);
+	/// returns true on an open server connection
 	bool   IsConnectionOpen ()      { return (m_bConnectionIsOpen); }
 
+	/// Insert one KROW object
 	bool   Insert          (KROW& Row, bool bIgnoreDupes=false);
+	/// Update with one KROW object
 	bool   Update          (KROW& Row);
+	/// Delete with one KROW object
 	bool   Delete          (KROW& Row);
+	/// Update or insert one KROW object
 	bool   UpdateOrInsert  (KROW& Row, KROW& AdditionalInsertCols, bool* pbInserted = nullptr);
 
 	/// cascading delete of a given key from the entire database (uses data dictionary tables). returns true/false and populates all changes made in given json array. expects a single string or number (without quotes)
@@ -290,13 +328,6 @@ public:
 	{
 		kDebug (3, "...");
 
-		EndQuery ();
-		
-		if (!OpenConnection())
-		{
-			return (false);
-		}
-
 		m_sLastSQL = kPrintf(std::forward<Args>(args)...);
 
 		if (!IsFlag(F_NoTranslations))
@@ -315,7 +346,7 @@ public:
 	} // ExecQuery
 
 
-	/// This is a special type of version of ExecQuery() in which only one row is fetched and cast to a integer.
+	/// Executes an SQL statement with format arguments that returns one single integer value or -1 on failure
 	template<class... Args>
 	int64_t SingleIntQuery (Args&&... args)
 	{
@@ -332,6 +363,10 @@ public:
 
 	} // KSQL::SingleIntQuery
 
+	/// Executes a verbatim SQL statement that returns one single integer value or -1 on failure
+	/// @param sSQL  a SQL statement that returns one integer column
+	/// @param Flags additional processing flags, default none
+	/// @param sAPI  the method name used for logging, default "ExecRawQuery"
 	int64_t        SingleIntRawQuery (KStringView sSQL, Flags iFlags=0, KStringView sAPI = "ExecRawQuery");
 
 	bool           ExecRawQuery   (KStringView sSQL, Flags iFlags=0, KStringView sAPI = "ExecRawQuery");
@@ -406,34 +441,55 @@ public:
 	}
 	#endif
 
+	/// returns configured database type
 	DBT            GetDBType ()    const { return (m_iDBType);         }
+	/// returns configured connection user
 	const KString& GetDBUser ()    const { return (m_sUsername);       }
+	/// returns configured connection password
 	const KString& GetDBPass ()    const { return (m_sPassword);       }
+	/// returns configured DB server host name
 	const KString& GetDBHost ()    const { return (m_sHostname);       }
+	/// returns configured database name
 	const KString& GetDBName ()    const { return (m_sDatabase);       }
+	/// returns configured connect to port number
 	uint16_t       GetDBPort ()    const { return (m_iDBPortNum);      }
+	/// returns hash value over connection details
 	uint64_t       GetHash ()      const { return kFormat("{}:{}:{}:{}:{}:{}", TxAPISet(m_iAPISet), m_sUsername, m_sPassword, m_sHostname, m_sDatabase, m_iDBPortNum).Hash(); }
+	/// returns connection details as string
 	const KString& ConnectSummary () const;
 	const KString& GetTempDir()    const { return (m_sTempDir);        }
 
+	/// returns last error string
 	const KString& GetLastError () const { return (m_sLastError);      }
+	/// returns last error number
 	uint32_t    GetLastErrorNum () const { return (m_iErrorNum);       }
+	/// returns true for MySQL duplicate index error
 	bool        WasDuplicateError() const { return (GetLastErrorNum() == 1062); /*TODO:MySQL only*/ }
 	int         GetLastOCIError () const { return (GetLastErrorNum()); }
+	/// returns last issued SQL statement
 	const KString& GetLastSQL ()   const { return (m_sLastSQL);        }
+	/// set configuration/processing flags, returns old flags
 	Flags       SetFlags (Flags iFlags);
+	/// add new flag(s) to existing configuration/processing flags (logical OR)
 	Flags       SetFlag (Flags iFlag) { return SetFlags (GetFlags() | iFlag); }
+	/// return configuration/processing flags
 	Flags       GetFlags ()         const { return (m_iFlags);          }
+	/// returns true if given configuration/processing flag(s) are set
 	bool        IsFlag (Flags iBit) const { return ((m_iFlags & iBit) == iBit); }
+	/// returns number of table rows changed/deleted/added by last SQL statement
 	uint64_t    GetNumRowsAffected () const { return (m_iNumRowsAffected); }
+	/// returns last inserted ID from autoincrement/identity column
 	uint64_t    GetLastInsertID ();
+	/// returns status text after insert/update statements (only for MySQL)
 	KString     GetLastInfo ();
 
 	void        SetTempDir (KStringView sTempDir)  { m_sTempDir = sTempDir; }
 
 	void        BuildTranslationList (TXList& pList, DBT iDBType = DBT::NONE);
 	void        DoTranslations (KString& sSQL);
+	/// returns iDBType as string @param iDBType a DBType
 	KStringView TxDBType (DBT iDBType) const;
+	/// returns iAPISet as string @param iAPISet an APISet
 	KStringView TxAPISet (API iAPISet) const;
 
 	#if 0

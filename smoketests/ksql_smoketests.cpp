@@ -111,6 +111,56 @@ static bool SqlServerIdentityInsert (KSQL& db, LPCTSTR pszTablename, KStringView
 } // SqlServerIdentityInsertOn
 
 //-----------------------------------------------------------------------------
+void Check_CtSend(KSQL& db)
+//-----------------------------------------------------------------------------
+{
+	// check if this is a SQLServer connection
+	if (db.GetDBType() != KSQL::DBT::SQLSERVER)
+	{
+		return;
+	}
+
+	// yes - setup the error case by issuing nonsense requests
+	auto iOld = db.SetFlags (KSQL::F_IgnoreSQLErrors);
+
+	db.ExecSQL ("drop table BOGUS_TABLE");
+	db.ExecSQL ("drop table BOGUS_TABLE");
+
+	db.ExecQuery ("select bogus from BOGUS order by fubar");
+	db.ExecQuery ("select bogus from BOGUS order by fubar");
+
+	db.ExecSQL (
+		"create table TEST1_KSQL (\n"
+		"    anum      int           not null,\n"
+		"    astring   char(100)     null\n"
+		")");
+
+	db.ExecSQL ("insert into TEST1_KSQL (anum,astring) values (1,'row-1')");
+	if (db.GetNumRowsAffected() != 1)
+	{
+		kDebug (1, "GetNumRowsAffected() = {}, but should be 1", db.GetNumRowsAffected());
+	}
+
+	db.ExecSQL ("update TEST1_KSQL set anum=2 where astring='row-1'");
+
+	if (db.GetNumRowsAffected() != 1)
+	{
+		kDebug (1, "GetNumRowsAffected() = {}, but should be 1", db.GetNumRowsAffected());
+	}
+
+	auto iNum = db.SingleIntQuery ("select anum from TEST1_KSQL where astring='row-1'");
+	if (iNum != 2)
+	{
+		kDebug (1, "did not get anum of 2, but got {}", iNum);
+	}
+
+	db.ExecSQL ("drop table TEST1_KSQL");
+
+	db.SetFlags (iOld);
+
+} // Check_CtSend
+
+//-----------------------------------------------------------------------------
 TEST_CASE("KSQL")
 //-----------------------------------------------------------------------------
 {
@@ -221,6 +271,9 @@ TEST_CASE("KSQL")
 			INFO ("FAILED TO CONNECT TO: " << db.ConnectSummary());
 			FAIL (db.GetLastError());  // <-- all other tests will be useless so ABORT
 		}
+
+		// check CTLIB desync case
+		Check_CtSend(db);
 
 		// establish BASE STATE by dropping tables from possible prior runs
 		kDebugLog (1, "flag test: F_IgnoreSQLErrors (should only produce DBG output)...");
@@ -600,8 +653,8 @@ TEST_CASE("KSQL")
 		    |insert into TEST_KSQL (anum) values (10);
 		    |insert into TEST_KSQL (anum) values (20);
 		    |#include "${INCLUDEME}"
-		    |//MSS|set identity_insert TEST_KSQL off
-		    |select count(*) from TEST_KSQL;;
+		    |//MSS|set identity_insert TEST_KSQL off;
+		    |select count(*) from TEST_KSQL;
 		)");
 
 		{
@@ -623,11 +676,12 @@ TEST_CASE("KSQL")
 		{
 			FAIL_CHECK("failed to set environment variable");
 		}
-//		if (!db.ExecSQLFile (sTmp1))
-//		{
-//			INFO (db.GetLastError());
-//			FAIL_CHECK (db.GetLastError());
-//		}
+
+		if (!db.ExecSQLFile (sTmp1))
+		{
+			INFO (db.GetLastError());
+			FAIL_CHECK (db.GetLastError());
+		}
 
 		kRemoveFile (sTmp1);
 		kRemoveFile (sTmp2);

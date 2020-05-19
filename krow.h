@@ -204,6 +204,14 @@ private:
 
 }; // KCOL
 
+bool operator==(const KCOL& left, const KCOL& right);
+inline
+bool operator!=(const KCOL& left, const KCOL& right)
+{
+	return !operator==(left, right);
+}
+
+
 using KCOLS = KProps <KString, KCOL, /*order-matters=*/true, /*unique-keys*/true>;
 
 //-----------------------------------------------------------------------------
@@ -423,7 +431,7 @@ public:
 //----------
 private:
 //----------
-	
+
 	KString m_sTablename;
 	mutable KString m_sLastError;
 

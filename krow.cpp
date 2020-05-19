@@ -55,6 +55,16 @@ constexpr KStringView ESCAPE_MSSQL { "\'"   };
 
 int16_t detail::KCommonSQLBase::m_iDebugLevel { 2 };
 
+
+//-----------------------------------------------------------------------------
+bool operator==(const KCOL& left, const KCOL& right)
+//-----------------------------------------------------------------------------
+{
+	return left.GetFlags() == right.GetFlags()
+		&& left.GetMaxLen() == right.GetMaxLen()
+		&& left.sValue == right.sValue;
+}
+
 //-----------------------------------------------------------------------------
 KString KROW::ColumnInfoForLogOutput (const KCOLS::value_type& it, Index iCol) const
 //-----------------------------------------------------------------------------
@@ -187,7 +197,7 @@ KString KROW::EscapeChars (const KROW::value_type& Col, KStringView sCharsToEsca
 	{
 		if (sEscaped.size() > iMaxLen)
 		{
-			kDebugLog (1, "KSQL: clipping {}='{:.10}...' to {} chars", Col.first, sEscaped, iMaxLen);
+			kDebug (1, "clipping {}='{:.10}...' to {} chars", Col.first, sEscaped, iMaxLen);
 
 			auto cClipped = sEscaped[iMaxLen-1];
 			// watch out for a trailing escape:
@@ -230,7 +240,7 @@ bool KROW::FormInsert (KString& sSQL, DBT iDBType, bool fIdentityInsert/*=false*
 	m_sLastError.clear(); // reset
 	sSQL.clear();
 
-	kDebugLog (3, "KROW:FormInsert: before: {}", sSQL);
+	kDebug (3, "before: {}", sSQL);
 	
 	if (empty())
 	{
@@ -242,14 +252,13 @@ bool KROW::FormInsert (KString& sSQL, DBT iDBType, bool fIdentityInsert/*=false*
 	if (m_sTablename.empty())
 	{
 		m_sLastError.Format("KROW::FormInsert(): no tablename defined.");
-
 		kDebugLog (1, "{}", m_sLastError);
 		return (false);
 	}
 
 	sSQL += kFormat("insert into {} (\n", GetTablename());
 
-	kDebugLog (3, "KROW:FormInsert: {}", GetTablename());
+	kDebug (3, GetTablename());
 
 	LogRowLayout();
 
@@ -301,7 +310,7 @@ bool KROW::FormInsert (KString& sSQL, DBT iDBType, bool fIdentityInsert/*=false*
 
 	sSQL += ")";
 	
-	if (fIdentityInsert)
+	if (fIdentityInsert && iDBType == DBT::SQLSERVER)
 	{
 		sSQL = kFormat("SET IDENTITY_INSERT {} ON \n"
 					"{} \n"
@@ -309,7 +318,7 @@ bool KROW::FormInsert (KString& sSQL, DBT iDBType, bool fIdentityInsert/*=false*
 					, GetTablename(), sSQL, GetTablename());
 	}
 	
-	kDebugLog (3, "KROW:FormInsert: after: {}", sSQL);
+	kDebug (3, "after: {}", sSQL);
 	
 	return (true);
 
@@ -340,7 +349,7 @@ bool KROW::FormUpdate (KString& sSQL, DBT iDBType) const
 
 	sSQL += kFormat ("update {} set\n", GetTablename());
 
-	kDebugLog (3, "KROW:FormUpdate: {}", m_sTablename);
+	kDebug (3, m_sTablename);
 
 	LogRowLayout();
 
@@ -353,8 +362,7 @@ bool KROW::FormUpdate (KString& sSQL, DBT iDBType) const
 		}
 		else if (it.second.IsFlag (PKEY))
 		{
-			KCOL col (it.second.sValue, it.second.GetFlags(), it.second.GetMaxLen());
-			Keys.Add (it.first, col);
+			Keys.Add (it.first, it.second);
 		}
 		else if (it.second.HasFlag (EXPRESSION | BOOLEAN))
 		{
@@ -382,7 +390,7 @@ bool KROW::FormUpdate (KString& sSQL, DBT iDBType) const
 		}
 	}
 
-	kDebugLog (GetDebugLevel()+1, "KROW::FormUpdate: update will rely on {} keys", Keys.size());
+	kDebug (GetDebugLevel()+1, "update will rely on {} keys", Keys.size());
 
 	if (Keys.empty())
 	{
@@ -438,7 +446,7 @@ bool KROW::FormSelect (KString& sSQL, DBT iDBType, bool bSelectAllColumns) const
 		return (false);
 	}
 
-	kDebug (3, m_sTablename);
+	kDebug (3, GetTablename());
 
 	if (!bSelectAllColumns)
 	{
@@ -446,21 +454,13 @@ bool KROW::FormSelect (KString& sSQL, DBT iDBType, bool bSelectAllColumns) const
 
 		LogRowLayout();
 
-		bool  bComma = false;
 		std::size_t iColumns { 0 };
 
 		for (const auto& it : *this)
 		{
-			if (it.second.IsFlag (NONCOLUMN))
+			if (!it.second.HasFlag (NONCOLUMN | PKEY))
 			{
-			}
-			else if (it.second.IsFlag (PKEY) )
-			{
-			}
-			else
-			{
-				++iColumns;
-				sSQL += kFormat("\t{} {}\n", (bComma) ? "," : "", it.first);
+				sSQL += kFormat("\t{} {}\n", (iColumns++) ? "," : "", it.first);
 			}
 		}
 
@@ -478,17 +478,13 @@ bool KROW::FormSelect (KString& sSQL, DBT iDBType, bool bSelectAllColumns) const
 
 	sSQL += kFormat("  from {}\n", GetTablename());
 
-	bool bFirstKey { true };
 	std::size_t iKeys { 0 };
 
 	for (const auto& it : *this)
 	{
 		if (it.second.IsFlag (PKEY) && !it.second.sValue.empty())
 		{
-			++iKeys;
-
-			KStringView sPrefix = bFirstKey ? " where " : "   and ";
-			bFirstKey = false;
+			KStringView sPrefix = !iKeys++ ? " where " : "   and ";
 
 			if (it.second.HasFlag(NUMERIC | EXPRESSION | BOOLEAN))
 			{
@@ -514,19 +510,19 @@ bool KROW::FormDelete (KString& sSQL, DBT iDBType) const
 	m_sLastError.clear(); // reset
 	sSQL.clear();
 
-	kDebugLog (3, "KROW:FormDelete: before: {}", sSQL);
+	kDebug (3, "before: {}", sSQL);
 
 	if (empty())
 	{
-		m_sLastError.Format("KROW::FormDelete(): no columns defined.");
-		kDebugLog (1, "{}", m_sLastError);
+		m_sLastError = "KROW::FormDelete(): no columns defined.";
+		kDebugLog (1, m_sLastError);
 		return (false);
 	}
 
 	if (m_sTablename.empty())
 	{
-		m_sLastError.Format("KROW::FormDelete(): no tablename defined.");
-		kDebugLog (1, "{}", m_sLastError);
+		m_sLastError = "KROW::FormDelete(): no tablename defined.";
+		kDebugLog (1, m_sLastError);
 		return (false);
 	}
 
@@ -536,7 +532,7 @@ bool KROW::FormDelete (KString& sSQL, DBT iDBType) const
 
 	sSQL += kFormat("delete from {}\n", GetTablename());
 
-	kDebugLog (3, "KROW:FormDelete: {}", m_sTablename);
+	kDebug (3, GetTablename());
 
 	for (const auto& it : *this)
 	{
@@ -564,11 +560,11 @@ bool KROW::FormDelete (KString& sSQL, DBT iDBType) const
 	if (!kk)
 	{
 		m_sLastError.Format("KROW::FormDelete({}): no primary key[s] defined in column list", GetTablename());
-		kDebugLog (1, "{}", m_sLastError);
+		kDebugLog (1, m_sLastError);
 		return (false);
 	}
 	
-	kDebugLog (3, "KROW:FormDelete: after: {}", sSQL);
+	kDebug (3, "after: {}", sSQL);
 
 	return (true);
 
@@ -613,7 +609,7 @@ bool KROW::AddCol (KStringView sColName, const KJSON& Value, KCOL::Flags iFlags,
 			}
 
 		case KJSON::value_t::discarded:
-			kDebugLog(2, "KROW: could not identify JSON type for {}", sColName);
+			kDebug(2, "could not identify JSON type for {}", sColName);
 			return false;
 	}
 
@@ -629,7 +625,7 @@ KJSON KROW::to_json (uint64_t iFlags/*=0*/) const
 
 	for (auto& col : *this)
 	{
-		kDebugLog (3, "KROW::to_json: {:35}: 0x{:08x} = {}", col.first, col.second.GetFlags(), KROW::FlagsToString(col.second.GetFlags()));
+		kDebug (3, "{:35}: 0x{:08x} = {}", col.first, col.second.GetFlags(), KROW::FlagsToString(col.second.GetFlags()));
 
 		KString sKey = col.first;
 		if (iFlags & KEYS_TO_LOWER)
@@ -773,7 +769,7 @@ KString KROW::to_csv (bool bHeaders/*=false*/, uint64_t iFlags/*=0*/)
 
 		for (const auto& col : *this)
 		{
-			kDebugLog (3, "KROW::to_csv: {:35}: 0x{:08x} = {}", col.first, col.second.GetFlags(), KROW::FlagsToString(col.second.GetFlags()));
+			kDebug (3, "{:35}: 0x{:08x} = {}", col.first, col.second.GetFlags(), KROW::FlagsToString(col.second.GetFlags()));
 
 			if (col.second.IsFlag(NONCOLUMN))
 			{
@@ -802,7 +798,7 @@ KString KROW::to_csv (bool bHeaders/*=false*/, uint64_t iFlags/*=0*/)
 
 		for (const auto& col : *this)
 		{
-			kDebugLog (3, "KROW::to_csv: {:35}: 0x{:08x} = {}", col.first, col.second.GetFlags(), KROW::FlagsToString(col.second.GetFlags()));
+			kDebug (3, "{:35}: 0x{:08x} = {}", col.first, col.second.GetFlags(), KROW::FlagsToString(col.second.GetFlags()));
 
 			if (col.second.IsFlag(NONCOLUMN))
 			{

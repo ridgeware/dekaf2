@@ -378,6 +378,12 @@ TEST_CASE("KSQL")
 			FAIL_CHECK (db.GetLastError());
 		}
 
+		KROW ARow("TEST1_KSQL");
+		CHECK ( db.LoadColumnLayout(ARow, "") );
+		CHECK ( ARow.size() == 2 );
+		CHECK ( ARow.GetName(0) == "anum" );
+		CHECK ( ARow.GetName(1) == "astring" );
+
 		if (!db.ExecSQL ("drop table TEST1_KSQL"))
 		{
 			INFO (db.GetLastError());

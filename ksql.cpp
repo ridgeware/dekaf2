@@ -3561,7 +3561,28 @@ bool KSQL::NextRow (KROW& Row, bool fTrimRight)
 
 	return (bGotOne);
 
-} // NextRow 
+} // NextRow
+
+//-----------------------------------------------------------------------------
+bool KSQL::LoadColumnLayout(KROW& Row, KStringView sColumns)
+//-----------------------------------------------------------------------------
+{
+	KStringView sExpandedColumns = sColumns.empty() ? "*" : sColumns;
+
+	if (!ExecRawQuery(kFormat("select {} from {} limit 0", sExpandedColumns, Row.GetTablename()), 0, "LoadColumnLayout"))
+	{
+		return false;
+	}
+
+	for (KROW::Index ii=1; ii <= GetNumCols(); ++ii)
+	{
+		const KColInfo& pInfo = GetColProps (ii);
+		Row.AddCol (pInfo.sColName, "", pInfo.iKSQLDataType, pInfo.iMaxDataLen);
+	}
+
+	return true;
+
+} // LoadColumnLayout
 
 //-----------------------------------------------------------------------------
 void KSQL::FreeBufferedColArray (bool fValuesOnly/*=false*/)

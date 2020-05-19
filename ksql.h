@@ -374,6 +374,10 @@ public:
 	KROW::Index    GetNumColumns  ()         { return (GetNumCols());       }
 	bool           NextRow        ();
 	bool           NextRow        (KROW& Row, bool fTrimRight=true);
+	/// Loads column layout into Row
+	/// @param Row a KROW that will receive the column definitions. Existing content in Row will not be erased (but updated).
+	/// @param sColumns comma separated list of columns to load, or empty for all columns
+	bool           LoadColumnLayout(KROW& Row, KStringView sColumns);
 	uint64_t       GetNumBuffered ()         { return (m_iNumRowsBuffered); }
 	bool           ResetBuffer    ();
 

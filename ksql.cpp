@@ -5569,7 +5569,7 @@ bool KSQL::BindByPos (uint32_t iPosition, uint64_t* piValue)
 #endif
 
 //-----------------------------------------------------------------------------
-bool KSQL::Insert (KROW& Row, bool bIgnoreDupes/*=false*/)
+bool KSQL::Insert (const KROW& Row, bool bIgnoreDupes/*=false*/)
 //-----------------------------------------------------------------------------
 {
 	if (!Row.FormInsert (m_sLastSQL, m_iDBType))
@@ -5609,7 +5609,7 @@ bool KSQL::Insert (KROW& Row, bool bIgnoreDupes/*=false*/)
 } // Insert
 
 //-----------------------------------------------------------------------------
-bool KSQL::Update (KROW& Row)
+bool KSQL::Update (const KROW& Row)
 //-----------------------------------------------------------------------------
 {
 	if (!Row.FormUpdate (m_sLastSQL, m_iDBType))
@@ -5632,7 +5632,7 @@ bool KSQL::Update (KROW& Row)
 } // Update
 
 //-----------------------------------------------------------------------------
-bool KSQL::Delete (KROW& Row)
+bool KSQL::Delete (const KROW& Row)
 //-----------------------------------------------------------------------------
 {
 	if (!Row.FormDelete (m_sLastSQL, m_iDBType))
@@ -5807,10 +5807,44 @@ bool KSQL::PurgeKeyList (KStringView sPKEY, KStringView sInClause, KJSON& Change
 } // PurgeKeyList
 
 //-----------------------------------------------------------------------------
-bool KSQL::UpdateOrInsert (KROW& Row, KROW& AdditionalInsertCols, bool* pbInserted/*=nullptr*/)
+bool KSQL::UpdateOrInsert (const KROW& Row, bool* pbInserted/*=nullptr*/)
 //-----------------------------------------------------------------------------
 {
-	if (pbInserted) {
+	if (pbInserted)
+	{
+		*pbInserted = false;
+	}
+
+	kDebug (GetDebugLevel()+1, "trying update first...");
+	if (!Update (Row))
+	{
+		return (false); // syntax error in SQL
+	}
+
+	if (GetNumRowsAffected() >= 1)
+	{
+		return (true); // update caught something
+	}
+
+	kDebug (GetDebugLevel(), "update caught no rows: proceed to insert...");
+
+	if (pbInserted)
+	{
+		*pbInserted = true;
+	}
+
+	kDebug (GetDebugLevel()+1, "attempting insert...");
+
+	return Insert (Row);
+
+} // UpdateOrInsert
+
+//-----------------------------------------------------------------------------
+bool KSQL::UpdateOrInsert (KROW& Row, const KROW& AdditionalInsertCols, bool* pbInserted/*=nullptr*/)
+//-----------------------------------------------------------------------------
+{
+	if (pbInserted)
+	{
 		*pbInserted = false;
 	}
 
@@ -5836,9 +5870,7 @@ bool KSQL::UpdateOrInsert (KROW& Row, KROW& AdditionalInsertCols, bool* pbInsert
 
 	Row += AdditionalInsertCols;
 
-	bool bOK = Insert (Row);
-
-	return (bOK);
+	return Insert (Row);
 
 } // UpdateOrInsert
 

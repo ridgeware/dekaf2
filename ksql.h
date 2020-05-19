@@ -272,13 +272,15 @@ public:
 	bool   IsConnectionOpen ()      { return (m_bConnectionIsOpen); }
 
 	/// Insert one KROW object
-	bool   Insert          (KROW& Row, bool bIgnoreDupes=false);
+	bool   Insert          (const KROW& Row, bool bIgnoreDupes=false);
 	/// Update with one KROW object
-	bool   Update          (KROW& Row);
+	bool   Update          (const KROW& Row);
 	/// Delete with one KROW object
-	bool   Delete          (KROW& Row);
+	bool   Delete          (const KROW& Row);
 	/// Update or insert one KROW object
-	bool   UpdateOrInsert  (KROW& Row, KROW& AdditionalInsertCols, bool* pbInserted = nullptr);
+	bool   UpdateOrInsert  (const KROW& Row, bool* pbInserted = nullptr);
+	/// Update or insert one KROW object
+	bool   UpdateOrInsert  (KROW& Row, const KROW& AdditionalInsertCols, bool* pbInserted = nullptr);
 
 	/// cascading delete of a given key from the entire database (uses data dictionary tables). returns true/false and populates all changes made in given json array. expects a single string or number (without quotes)
 	bool   PurgeKey        (KStringView sPKEY, KStringView sValue, KJSON& ChangesMade, KStringView sIgnoreRegex="");

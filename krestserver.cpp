@@ -292,14 +292,14 @@ void KRESTServer::VerifyPerThreadKLogToHeader(const Options& Options)
 		if (bToKLog)
 		{
 			KLog::getInstance().LogThisThreadToKLog(iKLogLevel);
-			kDebug(2, "per-thread {} logging, level {}", "klog", iKLogLevel);
+			kDebug(3, "per-thread {} logging, level {}", "klog", iKLogLevel);
 		}
 		else if (bToJSON)
 		{
 #ifdef DEKAF2_KLOG_WITH_TCP
 			m_JsonLogger = std::make_unique<KJSON>(KJSON::array());
 			KLog::getInstance().LogThisThreadToJSON(iKLogLevel, m_JsonLogger.get());
-			kDebug(2, "per-thread {} logging, level {}", "JSON", iKLogLevel);
+			kDebug(3, "per-thread {} logging, level {}", "JSON", iKLogLevel);
 #else
 			kDebug(2, "request to switch {} logging on, but compiled without support", "json response");
 			return;
@@ -309,7 +309,7 @@ void KRESTServer::VerifyPerThreadKLogToHeader(const Options& Options)
 		{
 #ifdef DEKAF2_KLOG_WITH_TCP
 			KLog::getInstance().LogThisThreadToResponseHeaders(iKLogLevel, Response, Options.sKLogHeader);
-			kDebug(2, "per-thread {} logging, level {}", "response header", iKLogLevel);
+			kDebug(3, "per-thread {} logging, level {}", "response header", iKLogLevel);
 			if (bHelp)
 			{
 				kDebugLog(1, s_sHeaderLoggingHelp);

@@ -48,6 +48,7 @@
 #include "kstringstream.h"
 #include "kstringutils.h"
 #include "kfrozen.h"
+#include "kregex.h"
 
 namespace dekaf2 {
 
@@ -244,7 +245,15 @@ void KRESTServer::VerifyPerThreadKLogToHeader(const Options& Options)
 
 					if (sGrep.empty())
 					{
-						sGrep = sArg;
+						sGrep = sArg.ToLower();
+						// now test the grep for valid syntax!
+						KRegex RE(sGrep);
+						if (!RE.Good())
+						{
+							// invalid regex, drop it!
+							sGrep.clear();
+							kDebug(1, "invalid regex: {}", sArg);
+						}
 					}
 					else
 					{

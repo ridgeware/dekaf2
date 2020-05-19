@@ -135,11 +135,11 @@ bool KLogSerializer::Matches(bool bEgrep, bool bInverted, KStringView sGrepExpre
 	{
 		if (bEgrep)
 		{
-			bMatches = !m_sFunctionName.MatchRegex(sGrepExpression).empty();
+			bMatches = !m_sFunctionName.ToLower().MatchRegex(sGrepExpression).empty();
 
 			if (!bMatches)
 			{
-				bMatches = !m_sMessage.MatchRegex(sGrepExpression).empty();
+				bMatches = !m_sMessage.ToLower().MatchRegex(sGrepExpression).empty();
 			}
 		}
 		else

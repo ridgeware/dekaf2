@@ -264,6 +264,12 @@ bool KREST::Simulate(const Options& Options, const KRESTRoutes& Routes, const KR
 		Method = Options.Simulate.sBody.empty() ? KHTTPMethod::GET : KHTTPMethod::POST;
 	}
 
+	KString sHeaders;
+	for (const auto& Header : Options.Simulate.AdditionalRequestHeaders)
+	{
+		sHeaders += kFormat("{}: {}\r\n", Header.first, Header.second);
+	}
+
 	KString sRequest;
 
 	if (!Options.Simulate.sBody.empty())
@@ -273,10 +279,12 @@ bool KREST::Simulate(const Options& Options, const KRESTRoutes& Routes, const KR
 						   "User-Agent: cli sim agent\r\n"
 						   "Connection: close\r\n"
 						   "Content-Length: {}\r\n"
+						   "{}"
 						   "\r\n",
 						   Method.Serialize(),
 						   API.Serialize(),
-						   Options.Simulate.sBody.size());
+						   Options.Simulate.sBody.size(),
+						   sHeaders);
 
 		sRequest += Options.Simulate.sBody;
 	}
@@ -286,9 +294,11 @@ bool KREST::Simulate(const Options& Options, const KRESTRoutes& Routes, const KR
 						   "Host: localhost\r\n"
 						   "User-Agent: cli sim agent\r\n"
 						   "Connection: close\r\n"
+						   "{}"
 						   "\r\n",
 						   Method.Serialize(),
-						   API.Serialize());
+						   API.Serialize(),
+						   sHeaders);
 	}
 
 	KInStringStream String(sRequest);

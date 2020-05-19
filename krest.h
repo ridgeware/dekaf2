@@ -78,6 +78,8 @@ public:
 		KHTTPMethod Method;
 		/// Post body if not read from file
 		KString sBody;
+		/// Additional request headers
+		KHTTPRequestHeaders::KHeaderMap AdditionalRequestHeaders;
 
 	}; // SimulationParms
 

@@ -5569,6 +5569,25 @@ bool KSQL::BindByPos (uint32_t iPosition, uint64_t* piValue)
 #endif
 
 //-----------------------------------------------------------------------------
+bool KSQL::Load (KROW& Row, bool bSelectAllColumns)
+//-----------------------------------------------------------------------------
+{
+	if (!Row.FormSelect (m_sLastSQL, m_iDBType, bSelectAllColumns))
+	{
+		m_sLastError = Row.GetLastError();
+		return (false);
+	}
+
+	if (!ExecRawQuery (m_sLastSQL, 0, "Load"))
+	{
+		return false;
+	}
+
+	return NextRow(Row);
+
+} // Load
+
+//-----------------------------------------------------------------------------
 bool KSQL::Insert (const KROW& Row, bool bIgnoreDupes/*=false*/)
 //-----------------------------------------------------------------------------
 {

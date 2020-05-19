@@ -384,6 +384,17 @@ TEST_CASE("KSQL")
 		CHECK ( ARow.GetName(0) == "anum" );
 		CHECK ( ARow.GetName(1) == "astring" );
 
+		KROW AnotherRow("TEST1_KSQL");
+		CHECK ( db.Load(AnotherRow) );
+		CHECK ( AnotherRow["anum"] == "2" );
+		CHECK ( AnotherRow["astring"] == "row-1" );
+
+		KROW AnotherRow2("TEST1_KSQL");
+		AnotherRow2.AddCol("astring", "row-1", KROW::PKEY);
+		CHECK ( db.Load(AnotherRow2) );
+		CHECK ( AnotherRow2["anum"] == "2" );
+		CHECK ( AnotherRow2["astring"] == "row-1" );
+
 		if (!db.ExecSQL ("drop table TEST1_KSQL"))
 		{
 			INFO (db.GetLastError());

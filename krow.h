@@ -339,6 +339,10 @@ public:
 	/// Note that at least one column must have the PKEY flag set (so that the framework knows what to put in the WHERE clause).
 	bool FormUpdate (KString& sSQL, DBT iDBType) const;
 
+	/// Formats the proper RDBMS DDL statement for selecting one row in the database for the given table and column structure.
+	/// Note that at least one column must have the PKEY flag set (so that the framework knows what to put in the WHERE clause).
+	bool FormSelect (KString& sSQL, DBT iDBType, bool bSelectAllColumns = false) const;
+
 	/// Formats the proper RDBMS DDL statement for deleting one row in the database for the given table and column structure.
 	/// Note that at least one column must have the PKEY flag set (so that the framework knows what to put in the WHERE clause).
 	bool FormDelete (KString& sSQL, DBT iDBType) const;

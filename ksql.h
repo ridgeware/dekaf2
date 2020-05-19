@@ -271,15 +271,17 @@ public:
 	/// returns true on an open server connection
 	bool   IsConnectionOpen ()      { return (m_bConnectionIsOpen); }
 
+	/// Load one KROW object (primary key selects which, can be left out or empty)
+	bool   Load            (KROW& Row, bool bSelectAllColumns = false);
 	/// Insert one KROW object
 	bool   Insert          (const KROW& Row, bool bIgnoreDupes=false);
-	/// Update with one KROW object
+	/// Update with one KROW object (primary key selects which)
 	bool   Update          (const KROW& Row);
-	/// Delete with one KROW object
+	/// Delete with one KROW object (primary key selects which)
 	bool   Delete          (const KROW& Row);
-	/// Update or insert one KROW object
+	/// Update or insert one KROW object (primary key selects which)
 	bool   UpdateOrInsert  (const KROW& Row, bool* pbInserted = nullptr);
-	/// Update or insert one KROW object
+	/// Update or insert one KROW object (primary key selects which)
 	bool   UpdateOrInsert  (KROW& Row, const KROW& AdditionalInsertCols, bool* pbInserted = nullptr);
 
 	/// cascading delete of a given key from the entire database (uses data dictionary tables). returns true/false and populates all changes made in given json array. expects a single string or number (without quotes)

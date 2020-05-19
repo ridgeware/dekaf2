@@ -324,15 +324,15 @@ bool KROW::FormUpdate (KString& sSQL, DBT iDBType) const
 	
 	if (!size())
 	{
-		m_sLastError.Format("KROW::FormUpdate(): no columns defined.");
-		kDebugLog (1, "{}", m_sLastError);
+		m_sLastError = "KROW::FormUpdate(): no columns defined.";
+		kDebugLog (1, m_sLastError);
 		return (false);
 	}
 
 	if (m_sTablename.empty())
 	{
-		m_sLastError.Format("KROW::FormUpdate(): no tablename defined.");
-		kDebugLog (1, "{}", m_sLastError);
+		m_sLastError = "KROW::FormUpdate(): no tablename defined.";
+		kDebugLog (1, m_sLastError);
 		return (false);
 	}
 
@@ -387,7 +387,7 @@ bool KROW::FormUpdate (KString& sSQL, DBT iDBType) const
 	if (Keys.empty())
 	{
 		m_sLastError.Format("KROW::FormUpdate({}): no primary key[s] defined in column list", GetTablename());
-		kDebugLog (1, "{}", m_sLastError);
+		kDebugLog (1, m_sLastError);
 		return (false);
 	}
 
@@ -418,6 +418,94 @@ bool KROW::FormUpdate (KString& sSQL, DBT iDBType) const
 	return (true);
 
 } // FormUpdate
+
+//-----------------------------------------------------------------------------
+bool KROW::FormSelect (KString& sSQL, DBT iDBType, bool bSelectAllColumns) const
+//-----------------------------------------------------------------------------
+{
+	m_sLastError.clear(); // reset
+	sSQL.clear();
+
+	if (!size())
+	{
+		bSelectAllColumns = true;
+	}
+
+	if (GetTablename().empty())
+	{
+		m_sLastError = "KROW::FormSelect(): no tablename defined.";
+		kDebugLog (1, m_sLastError);
+		return (false);
+	}
+
+	kDebug (3, m_sTablename);
+
+	if (!bSelectAllColumns)
+	{
+		sSQL = "select \n";
+
+		LogRowLayout();
+
+		bool  bComma = false;
+		std::size_t iColumns { 0 };
+
+		for (const auto& it : *this)
+		{
+			if (it.second.IsFlag (NONCOLUMN))
+			{
+			}
+			else if (it.second.IsFlag (PKEY) )
+			{
+			}
+			else
+			{
+				++iColumns;
+				sSQL += kFormat("\t{} {}\n", (bComma) ? "," : "", it.first);
+			}
+		}
+
+		if (!iColumns)
+		{
+			bSelectAllColumns = true;
+		}
+	}
+
+	if (bSelectAllColumns)
+	{
+		sSQL = "select * \n";
+	}
+
+
+	sSQL += kFormat("  from {}\n", GetTablename());
+
+	bool bFirstKey { true };
+	std::size_t iKeys { 0 };
+
+	for (const auto& it : *this)
+	{
+		if (it.second.IsFlag (PKEY) && !it.second.sValue.empty())
+		{
+			++iKeys;
+
+			KStringView sPrefix = bFirstKey ? " where " : "   and ";
+			bFirstKey = false;
+
+			if (it.second.HasFlag(NUMERIC | EXPRESSION | BOOLEAN))
+			{
+				sSQL += kFormat("{}{}={}\n", sPrefix, it.first, EscapeChars (it, iDBType));
+			}
+			else
+			{
+				sSQL += kFormat("{}{}='{}'\n", sPrefix, it.first, EscapeChars (it, iDBType));
+			}
+		}
+	}
+
+	kDebug (GetDebugLevel()+1, "KROW::FormSelect: select will rely on {} keys", iKeys);
+
+	return (true);
+
+} // FormSelect
 
 //-----------------------------------------------------------------------------
 bool KROW::FormDelete (KString& sSQL, DBT iDBType) const

@@ -279,6 +279,11 @@ public:
 	template<typename COLTYPE, typename std::enable_if_t<!detail::is_narrow_cpp_str<COLTYPE>::value, int> = 0>
 	bool AddCol (KStringView sColName, COLTYPE Value, KCOL::Flags iFlags=NUMERIC, KCOL::Len iMaxLen=0)
 	{
+		/*
+		 * JS 2020/05/20: we do not do this check for the moment, because due
+		 * to a bug this was inactive in all previous versions of dekaf2
+		 * - we have to verify the consequences first
+		 *
 		if (sizeof(COLTYPE) > 6 && (iFlags & NUMERIC))
 		{
 			// make sure we flag large integers - this is important when we want to
@@ -286,6 +291,8 @@ public:
 			// - values larger than that need to be represented as strings..
 			iFlags |= INT64NUMERIC;
 		}
+		 *
+		 */
 		return (KCOLS::Add (sColName, KCOL(kFormat("{}", Value), iFlags, iMaxLen)) != KCOLS::end());
 	}
 

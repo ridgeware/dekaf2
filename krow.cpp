@@ -255,6 +255,39 @@ std::size_t KROW::CreateColumns(KStringView sColumns)
 } // CreateColumns
 
 //-----------------------------------------------------------------------------
+bool KROW::SetValue (KStringView sColName, KStringView sValue)
+//-----------------------------------------------------------------------------
+{
+	auto it = KCOLS::find (sColName);
+	if (it == KCOLS::end())
+	{
+		return (KCOLS::Add (sColName, KCOL(sValue)) != KCOLS::end());
+	}
+	else
+	{
+		it->second.sValue = sValue;
+		return (true);
+	}
+}
+
+//-----------------------------------------------------------------------------
+// TODO remove if possible, it does not set the KSQL column type properly
+bool KROW::SetValue (KStringView sColName, int64_t iValue)
+//-----------------------------------------------------------------------------
+{
+	auto it = KCOLS::find (sColName);
+	if (it == KCOLS::end())
+	{
+		return (KCOLS::Add (sColName, KCOL(KString::to_string(iValue))) != KCOLS::end());
+	}
+	else
+	{
+		it->second.sValue = KString::to_string(iValue);
+		return (true);
+	}
+}
+
+//-----------------------------------------------------------------------------
 bool KROW::SetFlags (KStringView sColName, KCOL::Flags iFlags)
 //-----------------------------------------------------------------------------
 {

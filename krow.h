@@ -280,16 +280,10 @@ public:
 		return (KCOLS::Add (sColName, KCOL(kFormat("{}", Value), iFlags, iMaxLen)) != KCOLS::end());
 	}
 
-	bool SetValue (KStringView sColName, KStringView sValue)
-	{
-		return (KCOLS::Add (sColName, KCOL(sValue)) != KCOLS::end());
-	}
+	bool SetValue (KStringView sColName, KStringView sValue);
 
 	// TODO remove if possible, it does not set the KSQL column type properly
-	bool SetValue (KStringView sColName, int64_t iValue)
-	{
-		return (KCOLS::Add (sColName, KCOL(KString::to_string(iValue))) != KCOLS::end());
-	}
+	bool SetValue (KStringView sColName, int64_t iValue);
 
 	bool SetFlags (KStringView sColName, KCOL::Flags iFlags);
 

@@ -249,6 +249,15 @@ public:
 	/// @param sColumns comma separated list of column names to create
 	std::size_t CreateColumns(KStringView sColumns);
 
+	/// Create or set a column as the primary key and set its value or default it
+	/// @param sKeyColName name of the column for the primary key
+	/// @param Value a value for the primary key, or the default value for the type
+	template<typename COLTYPE = KStringView>
+	bool SetKey(KStringView sKeyColName, COLTYPE Value = COLTYPE{})
+	{
+		return AddCol(sKeyColName, Value, PKEY);
+	}
+
 	bool AddCol (KStringView sColName, const KJSON& Value, KCOL::Flags iFlags=NOFLAG, KCOL::Len iMaxLen=0);
 
 	bool AddCol (KStringView sColName, bool Value, KCOL::Flags iFlags=BOOLEAN, KCOL::Len iMaxLen=0)

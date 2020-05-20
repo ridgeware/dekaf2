@@ -299,6 +299,8 @@ public:
 			{ bool fOK = Row.FormUpdate (m_sLastSQL, m_iDBType); sSQL = m_sLastSQL; return (fOK); }
 	bool   FormDelete     (KROW& Row, KString& sSQL)
 			{ bool fOK = Row.FormDelete (m_sLastSQL, m_iDBType); sSQL = m_sLastSQL; return (fOK); }
+	bool   FormSelect     (KROW& Row, KString& sSQL, bool bSelectAllColumns = false)
+			{ bool fOK = Row.FormSelect (m_sLastSQL, m_iDBType, bSelectAllColumns); sSQL = m_sLastSQL; return (fOK); }
 
 	void   SetErrorPrefix   (KStringView sPrefix, uint32_t iLineNum = 0);
 	void   ClearErrorPrefix ()        { m_sErrorPrefix = "KSQL: "; }

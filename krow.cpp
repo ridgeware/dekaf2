@@ -234,6 +234,43 @@ KString KROW::EscapeChars (const KROW::value_type& Col, DBT iDBType)
 } // EscapeChars
 
 //-----------------------------------------------------------------------------
+std::size_t KROW::CreateColumns(KStringView sColumns)
+//-----------------------------------------------------------------------------
+{
+	std::size_t iCreated { 0 };
+
+	for (const auto sColumn : sColumns.Split())
+	{
+		if (!Exists(sColumn))
+		{
+			if (KCOLS::Add(sColumn) != KCOLS::end())
+			{
+				++iCreated;
+			}
+		}
+	}
+
+	return iCreated;
+
+} // CreateColumns
+
+//-----------------------------------------------------------------------------
+bool KROW::SetFlags (KStringView sColName, KCOL::Flags iFlags)
+//-----------------------------------------------------------------------------
+{
+	auto it = KCOLS::find (sColName);
+	if (it == KCOLS::end())
+	{
+		return (false);
+	}
+	else
+	{
+		it->second.SetFlags(iFlags);
+		return (true);
+	}
+}
+
+//-----------------------------------------------------------------------------
 bool KROW::FormInsert (KString& sSQL, DBT iDBType, bool fIdentityInsert/*=false*/) const
 //-----------------------------------------------------------------------------
 {

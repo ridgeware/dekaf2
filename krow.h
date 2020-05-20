@@ -245,31 +245,31 @@ public:
 		m_sTablename = sTablename;
 	}
 
+	/// Create default columms for the list of columns in sColumns
+	/// @param sColumns comma separated list of column names to create
+	std::size_t CreateColumns(KStringView sColumns);
+
 	bool AddCol (KStringView sColName, const KJSON& Value, KCOL::Flags iFlags=NOFLAG, KCOL::Len iMaxLen=0);
 
 	bool AddCol (KStringView sColName, bool Value, KCOL::Flags iFlags=BOOLEAN, KCOL::Len iMaxLen=0)
 	{
-		KCOL col (kFormat("{}", Value), iFlags, iMaxLen);
-		return (KCOLS::Add (sColName, std::move(col)) != KCOLS::end());
+		return (KCOLS::Add (sColName, KCOL(kFormat("{}", Value), iFlags, iMaxLen)) != KCOLS::end());
 	}
 
 	bool AddCol (KStringView sColName, const char* Value, KCOL::Flags iFlags=NOFLAG, KCOL::Len iMaxLen=0)
 	{
-		KCOL col (Value, iFlags, iMaxLen);
-		return (KCOLS::Add (sColName, std::move(col)) != KCOLS::end());
+		return (KCOLS::Add (sColName, KCOL(Value, iFlags, iMaxLen)) != KCOLS::end());
 	}
 
 	template<typename COLTYPE, typename std::enable_if_t<detail::is_narrow_cpp_str<COLTYPE>::value, int> = 0>
 	bool AddCol (KStringView sColName, COLTYPE Value, KCOL::Flags iFlags=0, KCOL::Len iMaxLen=0)
 	{
-		KCOL col (Value, iFlags, iMaxLen);
-		return (KCOLS::Add (sColName, std::move(col)) != KCOLS::end());
+		return (KCOLS::Add (sColName, KCOL(Value, iFlags, iMaxLen)) != KCOLS::end());
 	}
 
 	template<typename COLTYPE, typename std::enable_if_t<!detail::is_narrow_cpp_str<COLTYPE>::value, int> = 0>
 	bool AddCol (KStringView sColName, COLTYPE Value, KCOL::Flags iFlags=NUMERIC, KCOL::Len iMaxLen=0)
 	{
-		KCOL col (kFormat("{}", Value), iFlags, iMaxLen);
 		if (sizeof(COLTYPE) > 6 && (iFlags & NUMERIC))
 		{
 			// make sure we flag large integers - this is important when we want to
@@ -277,52 +277,21 @@ public:
 			// - values larger than that need to be represented as strings..
 			iFlags |= INT64NUMERIC;
 		}
-		return (KCOLS::Add (sColName, std::move(col)) != KCOLS::end());
+		return (KCOLS::Add (sColName, KCOL(kFormat("{}", Value), iFlags, iMaxLen)) != KCOLS::end());
 	}
 
 	bool SetValue (KStringView sColName, KStringView sValue)
 	{
-		auto it = KCOLS::find (sColName);
-		if (it == KCOLS::end())
-		{
-			return (KCOLS::Add (sColName, KCOL(sValue)) != KCOLS::end());
-		}
-		else
-		{
-			it->second.sValue = sValue;
-			return (true);
-		}
+		return (KCOLS::Add (sColName, KCOL(sValue)) != KCOLS::end());
 	}
 
 	// TODO remove if possible, it does not set the KSQL column type properly
 	bool SetValue (KStringView sColName, int64_t iValue)
 	{
-		KString sValue; sValue.Format ("{}", iValue);
-		auto it = KCOLS::find (sColName);
-		if (it == KCOLS::end())
-		{
-			return (KCOLS::Add (sColName, KCOL(std::move(sValue))) != KCOLS::end());
-		}
-		else
-		{
-			it->second.sValue = std::move(sValue);
-			return (true);
-		}
+		return (KCOLS::Add (sColName, KCOL(KString::to_string(iValue))) != KCOLS::end());
 	}
 
-	bool SetFlags (KStringView sColName, KCOL::Flags iFlags)
-	{
-		auto it = KCOLS::find (sColName);
-		if (it == KCOLS::end())
-		{
-			return (false);
-		}
-		else
-		{
-			it->second.SetFlags(iFlags);
-			return (true);
-		}
-	}
+	bool SetFlags (KStringView sColName, KCOL::Flags iFlags);
 
 	/// association arrays, e.g. row["column_name"] --> the value for that columm
 	KString& operator[] (KStringView sColName)              { return KCOLS::operator[](sColName).sValue; }

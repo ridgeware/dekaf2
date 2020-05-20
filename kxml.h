@@ -341,6 +341,11 @@ public:
 		return begin() == end();
 	}
 
+	/// true if we have content
+	operator bool() const
+	{
+		return !empty();
+	}
 	/// Add a default XML declaration to the start of DOM
 	void AddXMLDeclaration();
 

@@ -47,6 +47,7 @@ TEST_CASE("KMIME")
 	SECTION("KMIMEMultiPart")
 	{
 		KMIMEMultiPartFormData Parts;
+		Parts += KMIMEFormData("TheName", "TheValue");
 		Parts += KMIMEFile("This is file1 Русский\nWith line2\n", "file1.txt", KMIME::TEXT_UTF8);
 		Parts += KMIMEFile("This is file2 Русский\nwith line2\n", "file2.jpg");
 		Parts += KMIMEPart(KJSON
@@ -61,6 +62,12 @@ TEST_CASE("KMIME")
 		KString sExpected1 = Normalized(R"(Content-Type: multipart/form-data;
  boundary="----=_KMIME_Part_[SEQ]_[RANDOM1].[RANDOM2]----"
 
+------=_KMIME_Part_[SEQ]_[RANDOM1].[RANDOM2]----
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
+Content-Disposition: form-data; name="TheName"
+
+TheValue
 ------=_KMIME_Part_[SEQ]_[RANDOM1].[RANDOM2]----
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: quoted-printable
@@ -94,6 +101,11 @@ eyJtZXNzYWdlIjoiaW1wb3J0YW50IiwicGFydHMiOlsib25lIiwidHdvIiwidGhyZWUiXX0=
 
 )"));
 		KString sExpected2 = Normalized(R"(------=_KMIME_Part_[SEQ]_[RANDOM1].[RANDOM2]----
+Content-Type: text/plain; charset=UTF-8
+Content-Disposition: form-data; name="TheName"
+
+TheValue
+------=_KMIME_Part_[SEQ]_[RANDOM1].[RANDOM2]----
 Content-Type: text/plain; charset=UTF-8
 Content-Disposition: form-data; filename="file1.txt"
 

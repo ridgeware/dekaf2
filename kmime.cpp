@@ -232,7 +232,12 @@ bool KMIMEPart::Serialize(KString& sOut, KHTTPHeaders* Headers, const KReplacer&
 				{
 					if (ParentMIME == KMIME::MULTIPART_FORM_DATA)
 					{
-						sOut += "form-data; filename=\"";
+						sOut += "form-data; ";
+						if (!m_bIsForm)
+						{
+							sOut += "file";
+						}
+						sOut += "name=\"";
 						// TODO check if we should better use QuotedPrintable for UTF8 file names
 						sOut += m_sName;
 						sOut += '"';

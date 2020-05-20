@@ -258,6 +258,7 @@ public:
 
 	KMIMEPart(KMIME MIME = KMIME::NONE) : m_MIME(MIME) {}
 	KMIMEPart(KString sMessage, KMIME MIME) : m_MIME(MIME), m_Data(std::move(sMessage)) {}
+	KMIMEPart(KString sName, KString sValue, KMIME MIME, bool bIsForm) : m_MIME(MIME), m_Data(std::move(sValue)), m_sName(std::move(sName)), m_bIsForm(bIsForm) {}
 	KMIMEPart& operator=(KString str)  { m_Data = std::move(str); return *this; }
 	KMIMEPart& operator+=(KStringView sv) { m_Data += sv; return *this; }
 	/// Add content of file sFileName to MIME part, use sDispName as attachment name
@@ -300,6 +301,7 @@ protected:
 	KMIME   m_MIME;
 	KString m_Data;
 	KString m_sName;
+	bool m_bIsForm { false };
 
 	Storage m_Parts;
 
@@ -371,6 +373,21 @@ public:
 
 	/// sMessage sets the initial plain text (UTF8) message for this part
 	KMIMEText(KStringView sMessage = KStringView{}) : KMIMEPart(sMessage, KMIME::TEXT_UTF8) {}
+
+}; // KMIMEText
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// a MIME part holding a form field in UTF8 plain text
+class KMIMEFormData : public KMIMEPart
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+//----------
+public:
+//----------
+
+	/// sMessage sets the initial plain text (UTF8) message for this part
+	KMIMEFormData(KString sName, KString sValue) : KMIMEPart(std::move(sName), std::move(sValue), KMIME::TEXT_UTF8, true) {}
 
 }; // KMIMEText
 

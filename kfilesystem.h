@@ -481,8 +481,11 @@ public:
 //----------
 
 	/// create temp directory
-	KTempDir(bool bDeleteOnDestruction);
-	~KTempDir();
+	KTempDir (bool bDeleteOnDestruction, bool bCreateNow=true);
+	~KTempDir ();
+
+	/// in case the folder was not created during construction (because bCreateNow was false), create it now
+	bool MakeDir ();
 
 	/// get the name of the temp directory
 	const KString& Name() const

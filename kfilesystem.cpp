@@ -1405,7 +1405,7 @@ KString kMakeSafePathname(KStringView sName, bool bToLowercase, KStringView sEmp
 } // kMakeSafePathname
 
 //-----------------------------------------------------------------------------
-KTempDir::KTempDir(bool bDeleteOnDestruction)
+KTempDir::KTempDir (bool bDeleteOnDestruction, bool bCreateNow/*=true*/)
 //-----------------------------------------------------------------------------
 : m_bDeleteOnDestruction(bDeleteOnDestruction)
 {
@@ -1415,20 +1415,33 @@ KTempDir::KTempDir(bool bDeleteOnDestruction)
 							  kFirstNonEmpty(Dekaf::getInstance().GetProgName(), "dekaf"),
 							  kRandom (10000, 99999));
 
-	if (!kCreateDir (m_sTempDirName))
+	if (bCreateNow)
 	{
-		kWarning("could not create temp dir: {}", m_sTempDirName);
-		m_sTempDirName.clear();
-		m_bDeleteOnDestruction = false;
+		MakeDir ();
 	}
 
 } // KTempDir ctor
 
 //-----------------------------------------------------------------------------
+bool KTempDir::MakeDir ()
+//-----------------------------------------------------------------------------
+{
+	if (kDirExists(m_sTempDirName))
+	{
+		return true; // already exists
+	}
+	else
+	{
+		return kCreateDir (m_sTempDirName);
+	}
+
+} // MakeDir
+
+//-----------------------------------------------------------------------------
 KTempDir::~KTempDir()
 //-----------------------------------------------------------------------------
 {
-	if (m_bDeleteOnDestruction && !m_sTempDirName.empty())
+	if (m_bDeleteOnDestruction && kDirExists(m_sTempDirName))
 	{
 		kRemoveDir(m_sTempDirName);
 	}

@@ -46,6 +46,33 @@
 namespace dekaf2 {
 
 //-----------------------------------------------------------------------------
+bool KWget (KStringView sURL, const KString& sOutfile, const KJSON& Options/*=KJSON{}*/)
+//-----------------------------------------------------------------------------
+{
+	// TODO: someday support wget's cli interface in Options:
+	//   {
+	//       {"-s", ""},
+	//       {"-k", ""},
+	//       etc.
+	//   }
+
+	KWebClient http;
+	KString sResponse = http.HttpRequest (sURL);
+	if (http.HttpFailure())
+	{
+		return false;
+	}
+
+	if (!kWriteFile (sOutfile, sResponse))
+	{
+		return false;
+	}
+
+	return true;
+
+} // KWget
+
+//-----------------------------------------------------------------------------
 KWebClient::KWebClient(bool bVerifyCerts)
 //-----------------------------------------------------------------------------
 : KHTTPClient(bVerifyCerts)

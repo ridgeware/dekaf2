@@ -157,7 +157,7 @@ KMail& KMail::LoadBodyFrom(KStringViewZ sPath)
 	}
 	else
 	{
-		return Body(KMIMEFile(sPath));
+		return Body(KMIMEFile("", sPath));
 	}
 
 } // LoadBodyFrom
@@ -287,7 +287,7 @@ bool KMail::Attach(KStringView sFilename, KMIME MIME)
 //-----------------------------------------------------------------------------
 {
 	KMIMEPart File(MIME);
-	if (File.File(sFilename))
+	if (File.File("", sFilename))
 	{
 		Attach(std::move(File));
 		return true;

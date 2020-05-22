@@ -47,9 +47,9 @@ TEST_CASE("KMIME")
 	SECTION("KMIMEMultiPart")
 	{
 		KMIMEMultiPartFormData Parts;
-		Parts += KMIMEFormData("TheName", "TheValue");
-		Parts += KMIMEFile("This is file1 Русский\nWith line2\n", "file1.txt", KMIME::TEXT_UTF8);
-		Parts += KMIMEFile("This is file2 Русский\nwith line2\n", "file2.jpg");
+		Parts += KMIMEText("TheName", "TheValue");
+		Parts += KMIMEFile("", "This is file1 Русский\nWith line2\n", "file1.txt", KMIME::TEXT_UTF8);
+		Parts += KMIMEFile("", "This is file2 Русский\nwith line2\n", "file2.jpg");
 		Parts += KMIMEPart(KJSON
 						   {
 							{ "message", "important"               },

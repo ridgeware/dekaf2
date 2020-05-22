@@ -258,14 +258,19 @@ public:
 
 	KMIMEPart(KMIME MIME = KMIME::NONE) : m_MIME(MIME) {}
 	KMIMEPart(KString sMessage, KMIME MIME) : m_MIME(MIME), m_Data(std::move(sMessage)) {}
-	KMIMEPart(KString sName, KString sValue, KMIME MIME, bool bIsForm) : m_MIME(MIME), m_Data(std::move(sValue)), m_sName(std::move(sName)), m_bIsForm(bIsForm) {}
+	KMIMEPart(KString sControlName, KString sValue, KMIME MIME) : m_MIME(MIME), m_Data(std::move(sValue)), m_sControlName(std::move(sControlName)) {}
 	KMIMEPart& operator=(KString str)  { m_Data = std::move(str); return *this; }
 	KMIMEPart& operator+=(KStringView sv) { m_Data += sv; return *this; }
-	/// Add content of file sFileName to MIME part, use sDispName as attachment name
-	/// else basename of sFileName
-	bool File(KStringView sFilename, KStringView sDispname = KStringView{});
+	/// Load file into MIME part. If MIME type is not already set it will be determined by the file extension.
+	/// @param sControlName 'control' name for this MIME part. Can be used to distinguish multiple input file parts
+	/// @param sFileName file to load
+	/// @param sDispName name used for the attachment. If empty, basename of the filename will be used
+	bool File(KStringView sControlName, KStringView sFilename, KStringView sDispname = KStringView{});
 	/// Add content of Stream to MIME part
-	bool Stream(KInStream& Stream, KStringView sDispname = "untitled");
+	/// @param sControlName 'control' name for this MIME part. Can be used to distinguish multiple input stream parts
+	/// @param Stream stream to read from
+	/// @param sDispName name used for the attachment. By default, 'untitled' will be used
+	bool Stream(KStringView sControlName, KInStream& Stream, KStringView sDispname = "untitled");
 
 	/// Is this a multipart structure?
 	bool IsMultiPart() const;
@@ -273,6 +278,7 @@ public:
 	bool IsBinary() const;
 
 	/// Attach another part to this multipart structure - returns false if this->MIME type is not multipart
+	/// @param part the part to attach
 	bool Attach(KMIMEPart part);
 	/// Attach another part to this multipart structure - fails if this->MIME type is not multipart
 	KMIMEPart& operator+=(KMIMEPart part) { Attach(std::move(part)); return *this; }
@@ -281,16 +287,25 @@ public:
 	bool Serialize(KOutStream& Stream, KHTTPHeaders* Headers = nullptr, const KReplacer& Replacer = KReplacer{}, uint16_t recursion = 0) const;
 	KString Serialize(KHTTPHeaders* Headers = nullptr, const KReplacer& Replacer = KReplacer{}, uint16_t recursion = 0) const;
 
+	/// is this part empty?
 	bool empty() const { return m_Parts.empty(); }
+	/// how many (multi) parts does this struct contains
 	Storage::size_type size() const { return m_Parts.size(); }
+	/// return iterator to the begin of the struct of parts
 	iterator begin() { return m_Parts.begin(); }
+	/// return iterator to the end of the struct of parts
 	iterator end() { return m_Parts.end(); }
 	KMIMEPart& operator[](size_t pos) { return m_Parts[pos]; }
 	const KMIMEPart& operator[](size_t pos) const { return m_Parts[pos]; }
 
+	/// return the MIME type of this part
 	KMIME MIME() const { return m_MIME; }
+	/// return a reference on the content of this part
 	const KString& Data() const { return m_Data; }
-	const KString& Name() const { return m_sName; }
+	/// return a reference on the 'control' name of this part
+	const KString& ControlName() const { return m_sControlName; }
+	/// return a reference on the file name of this part (if any)
+	const KString& FileName() const { return m_sFileName; }
 
 //----------
 protected:
@@ -300,8 +315,8 @@ protected:
 
 	KMIME   m_MIME;
 	KString m_Data;
-	KString m_sName;
-	bool m_bIsForm { false };
+	KString m_sControlName;
+	KString m_sFileName;
 
 	Storage m_Parts;
 
@@ -371,23 +386,12 @@ class KMIMEText : public KMIMEPart
 public:
 //----------
 
-	/// sMessage sets the initial plain text (UTF8) message for this part
+	/// @param sMessage sets the initial plain text (UTF8) message for this part
 	KMIMEText(KStringView sMessage = KStringView{}) : KMIMEPart(sMessage, KMIME::TEXT_UTF8) {}
-
-}; // KMIMEText
-
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// a MIME part holding a form field in UTF8 plain text
-class KMIMEFormData : public KMIMEPart
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-{
-
-//----------
-public:
-//----------
-
-	/// sMessage sets the initial plain text (UTF8) message for this part
-	KMIMEFormData(KString sName, KString sValue) : KMIMEPart(std::move(sName), std::move(sValue), KMIME::TEXT_UTF8, true) {}
+	/// Create a name / value pair
+	/// @param sControlName sets the name of this control when used in a multipart message
+	/// @param sMessage sets the initial plain text (UTF8) message for this part
+	KMIMEText(KStringView sControlName, KStringView sMessage) : KMIMEPart(sControlName, sMessage, KMIME::TEXT_UTF8) {}
 
 }; // KMIMEText
 
@@ -403,6 +407,10 @@ public:
 
 	/// sMessage sets the initial HTML (UTF8) message for this part
 	KMIMEHTML(KStringView sMessage = KStringView{}) : KMIMEPart(sMessage, KMIME::HTML_UTF8) {}
+	/// Create a name / value pair
+	/// @param sControlName sets the name of this control when used in a multipart message
+	/// @param sMessage sets the initial plain text (UTF8) message for this part
+	KMIMEHTML(KStringView sControlName, KStringView sMessage) : KMIMEPart(sControlName, sMessage, KMIME::HTML_UTF8) {}
 
 }; // KMIMEHTML
 
@@ -418,9 +426,9 @@ public:
 
 	/// sFilename is loaded as data for this part. MIME type is automatically detected,
 	/// or can be set explicitly through the MIME parameter
-	KMIMEFile(KStringView sFilename, KMIME MIME = KMIME::NONE) : KMIMEPart(MIME) { File(sFilename); }
+	KMIMEFile(KStringView sControlName, KStringView sFilename, KMIME MIME = KMIME::NONE) : KMIMEPart(MIME) { File(sControlName, sFilename); }
 	/// set a KMIMEFile from sData, with sDispname and MIME MIME type
-	KMIMEFile(KStringView sData, KStringView sDispname, KMIME MIME = KMIME::NONE);
+	KMIMEFile(KStringView sControlName, KStringView sData, KStringView sDispname, KMIME MIME = KMIME::NONE);
 
 }; // KMIMEFile
 
@@ -436,9 +444,9 @@ public:
 
 	/// sFilename is loaded as data for this part. MIME type is automatically detected,
 	/// or can be set explicitly through the MIME parameter
-	KMIMEFileInline(KStringView sFilename, KMIME MIME = KMIME::NONE) : KMIMEPart(MIME) { File(sFilename); m_sName.erase(); }
+	KMIMEFileInline(KStringView sFilename, KMIME MIME = KMIME::NONE) : KMIMEPart(MIME) { File("", sFilename); m_sFileName.clear(); }
 	/// the open stream is loaded as data for this part. MIME type has to be set manually.
-	KMIMEFileInline(KInStream& stream, KMIME MIME) : KMIMEPart(MIME) { Stream(stream, KStringView{}); }
+	KMIMEFileInline(KInStream& stream, KMIME MIME) : KMIMEPart(MIME) { Stream("", stream, KStringView{}); }
 
 }; // KMIMEFile
 

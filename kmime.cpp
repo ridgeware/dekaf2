@@ -206,10 +206,10 @@ bool KMIMEPart::Serialize(KString& sOut, KHTTPHeaders* Headers, const KReplacer&
 				sOut += m_MIME;
 				sOut += "\r\n";
 
-				if (ParentMIME == KMIME::MULTIPART_RELATED && !m_sName.empty())
+				if (ParentMIME == KMIME::MULTIPART_RELATED && !m_sControlName.empty())
 				{
 					sOut += "Content-ID: ";
-					sOut += KQuotedPrintable::Encode(m_sName, true);
+					sOut += KQuotedPrintable::Encode(m_sControlName, true);
 					sOut += "\r\n";
 				}
 
@@ -228,24 +228,30 @@ bool KMIMEPart::Serialize(KString& sOut, KHTTPHeaders* Headers, const KReplacer&
 				}
 
 				sOut += "Content-Disposition: ";
-				if (!m_sName.empty() && ParentMIME != KMIME::MULTIPART_RELATED)
+				if ((!m_sControlName.empty() || !m_sFileName.empty()) && ParentMIME != KMIME::MULTIPART_RELATED)
 				{
 					if (ParentMIME == KMIME::MULTIPART_FORM_DATA)
 					{
-						sOut += "form-data; ";
-						if (!m_bIsForm)
+						sOut += "form-data;";
+						if (!m_sControlName.empty())
 						{
-							sOut += "file";
+							sOut += " name=\"";
+							// TODO check if we should better use QuotedPrintable for UTF8 file names
+							sOut += m_sControlName;
+							sOut += "\"";
 						}
-						sOut += "name=\"";
-						// TODO check if we should better use QuotedPrintable for UTF8 file names
-						sOut += m_sName;
-						sOut += '"';
+						if (!m_sFileName.empty())
+						{
+							sOut += " filename=\"";
+							// TODO check if we should better use QuotedPrintable for UTF8 file names
+							sOut += m_sFileName;
+							sOut += '"';
+						}
 					}
 					else
 					{
 						sOut += "attachment;\r\n filename=";
-						sOut += KQuotedPrintable::Encode(m_sName, true);
+						sOut += KQuotedPrintable::Encode(m_sFileName, true);
 					}
 				}
 				else
@@ -381,12 +387,13 @@ bool KMIMEPart::Attach(KMIMEPart part)
 } // Attach
 
 //-----------------------------------------------------------------------------
-bool KMIMEPart::Stream(KInStream& Stream, KStringView sDispname)
+bool KMIMEPart::Stream(KStringView sControlName, KInStream& Stream, KStringView sDispname)
 //-----------------------------------------------------------------------------
 {
 	if (Stream.ReadRemaining(m_Data))
 	{
-		m_sName = sDispname;
+		m_sControlName = sControlName;
+		m_sFileName = sDispname;
 		return true;
 	}
 	else
@@ -398,7 +405,7 @@ bool KMIMEPart::Stream(KInStream& Stream, KStringView sDispname)
 } // Stream
 
 //-----------------------------------------------------------------------------
-bool KMIMEPart::File(KStringView sFilename, KStringView sDispname)
+bool KMIMEPart::File(KStringView sControlName, KStringView sFilename, KStringView sDispname)
 //-----------------------------------------------------------------------------
 {
 	KInFile File(sFilename);
@@ -412,7 +419,7 @@ bool KMIMEPart::File(KStringView sFilename, KStringView sDispname)
 		{
 			m_MIME.ByExtension(sFilename, KMIME::BINARY);
 		}
-		return Stream(File, sDispname);
+		return Stream(sControlName, File, sDispname);
 	}
 	else
 	{
@@ -423,12 +430,13 @@ bool KMIMEPart::File(KStringView sFilename, KStringView sDispname)
 } // File
 
 //-----------------------------------------------------------------------------
-KMIMEFile::KMIMEFile(KStringView sData, KStringView sDispname, KMIME MIME)
+KMIMEFile::KMIMEFile(KStringView sControlName, KStringView sData, KStringView sDispname, KMIME MIME)
 //-----------------------------------------------------------------------------
 : KMIMEPart(MIME)
 {
 	m_Data = sData;
-	m_sName = sDispname;
+	m_sControlName = m_sControlName;
+	m_sFileName = sDispname;
 
 	if (MIME == KMIME::NONE)
 	{
@@ -515,7 +523,7 @@ KMIMEDirectory::KMIMEDirectory(KStringViewZ sPathname)
 			for (auto& it : Dir)
 			{
 				// add all other files as related to the first part
-				*this += KMIMEFile(it);
+				*this += KMIMEFile("", it);
 			}
 		}
 		else
@@ -525,7 +533,7 @@ KMIMEDirectory::KMIMEDirectory(KStringViewZ sPathname)
 
 			for (auto& it : Dir)
 			{
-				*this += KMIMEFile(it);
+				*this += KMIMEFile("", it);
 			}
 		}
 	}

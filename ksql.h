@@ -613,7 +613,23 @@ public:
 	/// get current schema version
 	uint16_t GetSchema (KStringView sTablename);
 
-	/// check for valid DB connection
+	/// Check for valid DB connection - if none, try to open one. Search
+	/// the connection parameters in
+	/// 1. an explicit dbc file given
+	/// 2. a dbc file given from environment or IniParms
+	/// 3. single environment vars prefixed with "sProgramName_"
+	/// 4. if dbc file name was empty, construct one from "/etc/sProgramName.dbc",
+	///    and if existing will be loaded
+	/// 5. single IniParms with connection parameters
+	///
+	/// All separate connection parameters are selected by the above logic in descending
+	/// precedence.
+	///
+	/// @param sProgramName name used as prefix for env vars to
+	/// load the configuration from.
+	/// @param sDBCFile dbc file to be used. Can be empty.
+	/// @param INI a property sheet with ini parameters which
+	/// will be searched as last resort to find connection parameters
 	bool EnsureConnected(KStringView sProgramName,
 						 KString sDBCFile,
 						 const IniParms& INI = IniParms{});

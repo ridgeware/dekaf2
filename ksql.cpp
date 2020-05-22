@@ -7448,17 +7448,38 @@ bool KSQL::EnsureConnected (KStringView sProgramName, KString sDBCFile, const In
 	KString sDBName (kFormat("{}_DBNAME", sUpperProgramName));
 	KString sDBPort (kFormat("{}_DBPORT", sUpperProgramName));
 	KString sLiveDB (kFormat("{}_DBLIVE", sUpperProgramName));
+	KString sDBC    (kFormat("{}_DBC"   , sUpperProgramName));
 
-	if (sDBCFile.empty())
+	if ((sDBCFile.empty() || !kFileExists(sDBCFile)) && !sDBC.empty() && kFileExists(kGetEnv(sDBC)))
 	{
-		sDBCFile.Format("/etc/{}.dbc", sProgramName.ToLower());
+		sDBCFile = kGetEnv(sDBC);
 	}
 
-	if (kWouldLog(2))
+	bool bIsDefaultDBCFile = sDBCFile.empty();
+
+	if (bIsDefaultDBCFile)
+	{
+		if (!INI.Get(sDBC).empty())
+		{
+			sDBCFile = INI.Get(sDBC);
+			if (!kFileExists(sDBCFile))
+			{
+				sDBCFile.clear();
+			}
+		}
+
+		if (sDBCFile.empty() && !sProgramName.empty())
+		{
+			// still no dbc file? try a default one
+			sDBCFile.Format("/etc/{}.dbc", sProgramName.ToLower());
+		}
+	}
+
+	if (kWouldLog(3))
 	{
 		kDebug (3, "looks like we need to connect...");
 
-		kDebug (3, 
+		kDebug (3,
 			" 1. environment vars:\n"
 			"    {:<18} : {}\n"
 			"    {:<18} : {}\n"
@@ -7475,14 +7496,14 @@ bool KSQL::EnsureConnected (KStringView sProgramName, KString sDBCFile, const In
 				sDBPort, kGetEnv(sDBPort),
 				sLiveDB, kGetEnv(sLiveDB));
 
-		kDebug (3, 
+		kDebug (3,
 			" 2. DBC FILE:\n"
 			"    {:<18} : {} ({})",
 					"dbcfile",
 					sDBCFile,
 					kFileExists(sDBCFile) ? "exists" : "does not exist");
 
-		kDebug (3, 
+		kDebug (3,
 			" 3. INI PARMS:\n"
 			"    {:<18} : {}\n"
 			"    {:<18} : {}\n"
@@ -7527,12 +7548,28 @@ bool KSQL::EnsureConnected (KStringView sProgramName, KString sDBCFile, const In
 		sSetDBPort = KString::to_string(GetDBPort());
 	}
 
-	SetDBType (kFirstNonEmpty<KStringView>(kGetEnv (sDBType), sSetDBType  , INI.Get (sDBType)));
-	SetDBUser (kFirstNonEmpty<KStringView>(kGetEnv (sDBUser), GetDBUser() , INI.Get (sDBUser)));
-	SetDBPass (kFirstNonEmpty<KStringView>(kGetEnv (sDBPass), GetDBPass() , INI.Get (sDBPass)));
-	SetDBHost (kFirstNonEmpty<KStringView>(kGetEnv (sDBHost), GetDBHost() , INI.Get (sDBHost)));
-	SetDBName (kFirstNonEmpty<KStringView>(kGetEnv (sDBName), GetDBName() , INI.Get (sDBName)));
-	SetDBPort (kFirstNonEmpty<KStringView>(kGetEnv (sDBPort), sSetDBPort  , INI.Get (sDBPort)).UInt32());
+	if (bIsDefaultDBCFile)
+	{
+		// we constructed the DBC file name ourselves - treat it only with higher precedence
+		// than the ini parms
+		SetDBType (kFirstNonEmpty<KStringView>(kGetEnv (sDBType), sSetDBType  , INI.Get (sDBType)));
+		SetDBUser (kFirstNonEmpty<KStringView>(kGetEnv (sDBUser), GetDBUser() , INI.Get (sDBUser)));
+		SetDBPass (kFirstNonEmpty<KStringView>(kGetEnv (sDBPass), GetDBPass() , INI.Get (sDBPass)));
+		SetDBHost (kFirstNonEmpty<KStringView>(kGetEnv (sDBHost), GetDBHost() , INI.Get (sDBHost)));
+		SetDBName (kFirstNonEmpty<KStringView>(kGetEnv (sDBName), GetDBName() , INI.Get (sDBName)));
+		SetDBPort (kFirstNonEmpty<KStringView>(kGetEnv (sDBPort), sSetDBPort  , INI.Get (sDBPort)).UInt32());
+	}
+	else
+	{
+		// we have an explicit DBC file given to us - honour it with the highest precedence
+		SetDBType (kFirstNonEmpty<KStringView>(sSetDBType  , kGetEnv (sDBType), INI.Get (sDBType)));
+		SetDBUser (kFirstNonEmpty<KStringView>(GetDBUser() , kGetEnv (sDBUser), INI.Get (sDBUser)));
+		SetDBPass (kFirstNonEmpty<KStringView>(GetDBPass() , kGetEnv (sDBPass), INI.Get (sDBPass)));
+		SetDBHost (kFirstNonEmpty<KStringView>(GetDBHost() , kGetEnv (sDBHost), INI.Get (sDBHost)));
+		SetDBName (kFirstNonEmpty<KStringView>(GetDBName() , kGetEnv (sDBName), INI.Get (sDBName)));
+		SetDBPort (kFirstNonEmpty<KStringView>(sSetDBPort  , kGetEnv (sDBPort), INI.Get (sDBPort)).UInt32());
+	}
+
 	m_bLiveDB= kFirstNonEmpty<KStringView>(kGetEnv (sLiveDB), INI.Get (sLiveDB)).Bool();
 
 	if (kWouldLog(1))

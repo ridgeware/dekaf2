@@ -44,7 +44,8 @@
 #include "klog.h"
 #include "kcsv.h"
 
-using namespace dekaf2;
+namespace dekaf2 {
+
 
 // MySQL requires NUL, the quotes and backslash to be escaped. Do not escape
 // by doubling the value, as the result then depends on the context (if inside
@@ -917,3 +918,4 @@ bool KROW::Exists (KStringView sColName) const
 
 } // Exists
 
+} // end of namespace dekaf2

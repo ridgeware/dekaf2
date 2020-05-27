@@ -72,8 +72,11 @@ public:
 	/// The individual request path will be added to the basic path, same for query parms.
 	self& SetURL    (KURL URL, bool bVerifyCerts = false);
 
-	/// Get the API URL
+	/// Get the API URL, const version
 	const KURL& GetURL() const      { return m_URL;                                              }
+
+	/// Get the API URL, non-const version
+	KURL& URL()                     { return m_URL;                                              }
 
 	/// Register an error code object and switch off exceptions - this setting is only valid
 	/// for the next request

@@ -391,6 +391,9 @@ public:
 	/// convert one row to CSV format (or just column headers):
 	KString to_csv (bool bheaders=false, uint64_t iFlags=0);
 
+	/// append columns from another krow object
+	KROW& operator+=(const KROW& another);
+
 	/// append a json object with a krow
 	KROW& operator+=(const KJSON& json);
 

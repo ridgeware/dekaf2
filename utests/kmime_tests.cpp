@@ -92,14 +92,9 @@ eyJtZXNzYWdlIjoiaW1wb3J0YW50IiwicGFydHMiOlsib25lIiwidHdvIiwidGhyZWUiXX0=
 )");
 		CHECK ( sFormData == sExpected1 );
 
-		KHTTPHeaders Headers;
-		sFormData = Normalized(Parts.Serialize(&Headers));
-		KString sHeaders;
-		KOutStringStream oss(sHeaders);
-		Headers.Serialize(oss);
-		KString sExpectedHeaders = Normalized((R"(Content-Type: multipart/form-data; boundary="----=_KMIME_Part_[SEQ]_[RANDOM1].[RANDOM2]----"
-
-)"));
+		sFormData = Normalized(Parts.Serialize(true));
+		KString sContentType = Parts.ContentType();
+		KString sExpectedContentType = Normalized((R"(multipart/form-data; boundary=----=_KMIME_Part_[SEQ]_[RANDOM1].[RANDOM2]----)"));
 		KString sExpected2 = Normalized(R"(------=_KMIME_Part_[SEQ]_[RANDOM1].[RANDOM2]----
 Content-Type: text/plain; charset=UTF-8
 Content-Disposition: form-data; name="TheName"
@@ -126,10 +121,10 @@ Content-Disposition: inline
 {"message":"important","parts":["one","two","three"]}
 ------=_KMIME_Part_[SEQ]_[RANDOM1].[RANDOM2]------
 )");
-		sHeaders .ReplaceRegex("_KMIME_Part_[0-9]+_[0-9]+\\.[0-9]+-", "_KMIME_Part_[SEQ]_[RANDOM1].[RANDOM2]-");
-		sFormData.ReplaceRegex("_KMIME_Part_[0-9]+_[0-9]+\\.[0-9]+-", "_KMIME_Part_[SEQ]_[RANDOM1].[RANDOM2]-");
-		CHECK ( sHeaders  == sExpectedHeaders );
-		CHECK ( sFormData == sExpected2 );
+		sContentType.ReplaceRegex("_KMIME_Part_[0-9]+_[0-9]+\\.[0-9]+-", "_KMIME_Part_[SEQ]_[RANDOM1].[RANDOM2]-");
+		sFormData   .ReplaceRegex("_KMIME_Part_[0-9]+_[0-9]+\\.[0-9]+-", "_KMIME_Part_[SEQ]_[RANDOM1].[RANDOM2]-");
+		CHECK ( sContentType == sExpectedContentType );
+		CHECK ( sFormData    == sExpected2 );
 
 
 	}

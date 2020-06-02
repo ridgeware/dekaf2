@@ -62,7 +62,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Construct an empty MIME type (NONE)
-	constexpr
+	DEKAF2_CONSTEXPR_20
 	KMIME()
 	//-----------------------------------------------------------------------------
 	    : m_mime()
@@ -70,10 +70,18 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Construct a MIME type with an arbitrary type
-	constexpr
-	KMIME(KStringView sv)
+	DEKAF2_CONSTEXPR_20
+	KMIME(KString&& sMIME)
 	//-----------------------------------------------------------------------------
-	    : m_mime(sv)
+	    : m_mime(std::move(sMIME))
+	{}
+
+	//-----------------------------------------------------------------------------
+	/// Construct a MIME type with an arbitrary type
+	DEKAF2_CONSTEXPR_20
+	KMIME(KStringView sMIME)
+	//-----------------------------------------------------------------------------
+		: m_mime(sMIME)
 	{}
 
 #ifdef _MSC_VER
@@ -81,10 +89,10 @@ public:
 	// MSC has issues with conversions from KStringViewZ to KStringView, therefore
 	// we add this constructor
 	/// Construct a MIME type with an arbitrary type
-	constexpr
-	KMIME(KStringViewZ svz)
+	DEKAF2_CONSTEXPR_20
+	KMIME(KStringViewZ sMIME)
 	//-----------------------------------------------------------------------------
-		: m_mime(svz)
+		: m_mime(sMIME)
 	{}
 #endif
 
@@ -101,16 +109,25 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// return the KStringView version of the MIME type
-	constexpr
-	operator KStringView() const
+	/// return the const KString& version of the MIME type
+	DEKAF2_CONSTEXPR_20
+	const KString& Serialize() const
 	//-----------------------------------------------------------------------------
 	{
 		return m_mime;
 	}
 
 	//-----------------------------------------------------------------------------
-	constexpr
+	/// return the const KString& version of the MIME type
+	DEKAF2_CONSTEXPR_20
+	operator const KString&() const
+	//-----------------------------------------------------------------------------
+	{
+		return Serialize();
+	}
+
+	//-----------------------------------------------------------------------------
+	DEKAF2_CONSTEXPR_20
 	bool operator==(const KMIME& other) const
 	//-----------------------------------------------------------------------------
 	{
@@ -118,7 +135,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	constexpr
+	DEKAF2_CONSTEXPR_20
 	bool operator!=(const KMIME& other) const
 	//-----------------------------------------------------------------------------
 	{
@@ -204,37 +221,37 @@ public:
 private:
 //------
 
-	KStringView m_mime{NONE};
+	KString m_mime { NONE };
 
 }; // KMIME
 
 //-----------------------------------------------------------------------------
-DEKAF2_CONSTEXPR_14
-inline bool operator==(KStringView left, const KMIME& right)
+DEKAF2_CONSTEXPR_20
+bool operator==(KStringView left, const KMIME& right)
 //-----------------------------------------------------------------------------
 {
 	return left.operator==(right);
 }
 
 //-----------------------------------------------------------------------------
-DEKAF2_CONSTEXPR_14
-inline bool operator==(const KMIME& left, KStringView right)
+DEKAF2_CONSTEXPR_20
+bool operator==(const KMIME& left, KStringView right)
 //-----------------------------------------------------------------------------
 {
 	return right.operator==(left);
 }
 
 //-----------------------------------------------------------------------------
-DEKAF2_CONSTEXPR_14
-inline bool operator!=(KStringView left, const KMIME& right)
+DEKAF2_CONSTEXPR_20
+bool operator!=(KStringView left, const KMIME& right)
 //-----------------------------------------------------------------------------
 {
 	return left.operator!=(right);
 }
 
 //-----------------------------------------------------------------------------
-DEKAF2_CONSTEXPR_14
-inline bool operator!=(const KMIME& left, KStringView right)
+DEKAF2_CONSTEXPR_20
+bool operator!=(const KMIME& left, KStringView right)
 //-----------------------------------------------------------------------------
 {
 	return right.operator!=(left);
@@ -256,9 +273,9 @@ public:
 	using Storage = boost::container::vector<KMIMEPart>;
 	using iterator = Storage::iterator;
 
-	KMIMEPart(KMIME MIME = KMIME::NONE) : m_MIME(MIME) {}
-	KMIMEPart(KString sMessage, KMIME MIME) : m_MIME(MIME), m_Data(std::move(sMessage)) {}
-	KMIMEPart(KString sControlName, KString sValue, KMIME MIME) : m_MIME(MIME), m_Data(std::move(sValue)), m_sControlName(std::move(sControlName)) {}
+	KMIMEPart(KMIME MIME = KMIME::NONE);
+	KMIMEPart(KString sMessage, KMIME MIME);
+	KMIMEPart(KString sControlName, KString sValue, KMIME MIME);
 	KMIMEPart& operator=(KString str)  { m_Data = std::move(str); return *this; }
 	KMIMEPart& operator+=(KStringView sv) { m_Data += sv; return *this; }
 	/// Load file into MIME part. If MIME type is not already set it will be determined by the file extension.
@@ -283,9 +300,9 @@ public:
 	/// Attach another part to this multipart structure - fails if this->MIME type is not multipart
 	KMIMEPart& operator+=(KMIMEPart part) { Attach(std::move(part)); return *this; }
 
-	bool Serialize(KString& sOut, KHTTPHeaders* Headers = nullptr, const KReplacer& Replacer = KReplacer{}, uint16_t recursion = 0, KMIME ParentMIME = KMIME::NONE) const;
-	bool Serialize(KOutStream& Stream, KHTTPHeaders* Headers = nullptr, const KReplacer& Replacer = KReplacer{}, uint16_t recursion = 0) const;
-	KString Serialize(KHTTPHeaders* Headers = nullptr, const KReplacer& Replacer = KReplacer{}, uint16_t recursion = 0) const;
+	bool Serialize(KString& sOut, bool bForHTTP = false, const KReplacer& Replacer = KReplacer{}, uint16_t recursion = 0, KMIME ParentMIME = KMIME::NONE) const;
+	bool Serialize(KOutStream& Stream, bool bForHTTP = false, const KReplacer& Replacer = KReplacer{}, uint16_t recursion = 0) const;
+	KString Serialize(bool bForHTTP = false, const KReplacer& Replacer = KReplacer{}, uint16_t recursion = 0) const;
 
 	/// is this part empty?
 	bool empty() const { return m_Parts.empty(); }
@@ -306,17 +323,22 @@ public:
 	const KString& ControlName() const { return m_sControlName; }
 	/// return a reference on the file name of this part (if any)
 	const KString& FileName() const { return m_sFileName; }
+	/// return a content type string with boundary if needed
+	KMIME ContentType() const;
 
 //----------
 protected:
 //----------
 
 	void MIME(KMIME _MIME) { m_MIME = _MIME; }
+	bool CreateMultiPartBoundary() const;
 
 	KMIME   m_MIME;
 	KString m_Data;
 	KString m_sControlName;
 	KString m_sFileName;
+	mutable uint32_t m_iRandom1 { 0 };
+	mutable uint32_t m_iRandom2 { 0 };
 
 	Storage m_Parts;
 
@@ -333,7 +355,7 @@ class KMIMEMultiPartFormData : public KMIMEMultiPart
 public:
 //----------
 
-	KMIMEMultiPartFormData() : KMIMEPart(KMIME::MULTIPART_FORM_DATA) {}
+	KMIMEMultiPartFormData() : KMIMEMultiPart(KMIME::MULTIPART_FORM_DATA) {}
 
 }; // KMIMEMultiPartFormData
 
@@ -346,7 +368,7 @@ class KMIMEMultiPartMixed : public KMIMEMultiPart
 public:
 //----------
 
-	KMIMEMultiPartMixed() : KMIMEPart(KMIME::MULTIPART_MIXED) {}
+	KMIMEMultiPartMixed() : KMIMEMultiPart(KMIME::MULTIPART_MIXED) {}
 
 }; // KMIMEMultiPartMixed
 
@@ -359,7 +381,7 @@ class KMIMEMultiPartRelated : public KMIMEMultiPart
 public:
 //----------
 
-	KMIMEMultiPartRelated() : KMIMEPart(KMIME::MULTIPART_RELATED) {}
+	KMIMEMultiPartRelated() : KMIMEMultiPart(KMIME::MULTIPART_RELATED) {}
 
 }; // KMIMEMultiPartRelated
 
@@ -372,7 +394,7 @@ class KMIMEMultiPartAlternative : public KMIMEMultiPart
 public:
 //----------
 
-	KMIMEMultiPartAlternative() : KMIMEPart(KMIME::MULTIPART_ALTERNATIVE) {}
+	KMIMEMultiPartAlternative() : KMIMEMultiPart(KMIME::MULTIPART_ALTERNATIVE) {}
 
 }; // KMIMEMultiPartAlternative
 

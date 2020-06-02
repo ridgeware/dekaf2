@@ -417,7 +417,7 @@ KString KMail::Serialize() const
 
 	if (m_Replacer)
 	{
-		m_Parts.Serialize(sBody, nullptr, *m_Replacer);
+		m_Parts.Serialize(sBody, false, *m_Replacer);
 	}
 	else
 	{

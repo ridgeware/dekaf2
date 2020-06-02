@@ -223,7 +223,7 @@ KString KRestClient::Request (KStringView sBody, KMIME mime)
 KString KRestClient::Request (const KMIMEMultiPart& MultiPart)
 //-----------------------------------------------------------------------------
 {
-	return Request(MultiPart.Serialize(&(KHTTPClient::Request)), MultiPart.MIME());
+	return Request(MultiPart.Serialize(true), MultiPart.ContentType());
 
 } // Request
 
@@ -302,7 +302,7 @@ KJSON KJsonRestClient::Request (const KJSON& json, KMIME Mime)
 KJSON KJsonRestClient::Request (const KMIMEMultiPart& MultiPart)
 //-----------------------------------------------------------------------------
 {
-	return RequestAndParseResponse(MultiPart.Serialize(&(KHTTPClient::Request)), MultiPart.MIME());
+	return RequestAndParseResponse(MultiPart.Serialize(true), MultiPart.ContentType());
 
 } // Request
 

@@ -659,7 +659,7 @@ bool KHTTPClient::SendRequest(KStringView svPostData, KMIME Mime)
 
 			if (!svPostData.empty())
 			{
-				AddHeader(KHTTPHeaders::CONTENT_TYPE, Mime);
+				AddHeader(KHTTPHeaders::CONTENT_TYPE, Mime.Serialize());
 			}
 		}
 	}
@@ -690,7 +690,7 @@ bool KHTTPClient::SendRequest(KStringView svPostData, KMIME Mime)
 
 	if (!svPostData.empty())
 	{
-		kDebug(2, "sending {} bytes of body with mime '{}'", svPostData.size(), Mime);
+		kDebug(2, "sending {} bytes of body with mime '{}'", svPostData.size(), Mime.Serialize());
 		kDebug(3, svPostData);
 		if (Request.Write(svPostData) != svPostData.size())
 		{

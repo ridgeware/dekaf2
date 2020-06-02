@@ -481,7 +481,7 @@ public:
 //----------
 
 	/// create temp directory
-	KTempDir (bool bDeleteOnDestruction, bool bCreateNow=true);
+	KTempDir (bool bDeleteOnDestruction=true, bool bCreateNow=true);
 	~KTempDir ();
 
 	/// in case the folder was not created during construction (because bCreateNow was false), create it now

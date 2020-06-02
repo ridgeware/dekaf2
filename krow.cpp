@@ -899,12 +899,24 @@ KString KROW::to_csv (bool bHeaders/*=false*/, uint64_t iFlags/*=0*/)
 } // to_csv
 
 //-----------------------------------------------------------------------------
+KROW& KROW::operator+=(const KROW& another)
+//-----------------------------------------------------------------------------
+{
+	for (auto& col : another)
+	{
+		AddCol (col.first, col.second.sValue, col.second.GetFlags(), col.second.GetMaxLen());
+	}
+	return *this;
+
+} // operator+=(KRON)
+
+//-----------------------------------------------------------------------------
 KROW& KROW::operator+=(const KJSON& json)
 //-----------------------------------------------------------------------------
 {
 	for (auto& it : json.items())
 	{
-		AddCol(it.key(), it.value());
+		AddCol (it.key(), it.value());
 	}
 	return *this;
 

@@ -116,6 +116,14 @@
 	#define DEKAF2_HAS_CPP_17 1
 #endif
 
+// this test is a bit bogus (by just testing if the cpp date
+// is younger than that of C++17), but it should probably even
+// be kept after C++20 defines an official date, as older
+// compilers would not know it (but support C++20)
+#if (__cplusplus > 201703L && !defined(DEKAF2_HAS_CPP_20))
+	#define DEKAF2_HAS_CPP_20 1
+#endif
+
 #ifdef DEKAF2_HAS_CPP_14
 	#define DEKAF2_CONSTEXPR_14 constexpr
 #else
@@ -126,6 +134,12 @@
 	#define DEKAF2_CONSTEXPR_17 constexpr
 #else
 	#define DEKAF2_CONSTEXPR_17 inline
+#endif
+
+#ifdef DEKAF2_HAS_CPP_20
+	#define DEKAF2_CONSTEXPR_20 constexpr
+#else
+	#define DEKAF2_CONSTEXPR_20 inline
 #endif
 
 // unfortunately GCC < 7 require the repetition of a constexpr variable

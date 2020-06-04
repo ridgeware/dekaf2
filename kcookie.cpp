@@ -133,6 +133,13 @@ bool KCookie::Parse(const KURL& URL, KStringView sInput)
 					break;
 
 				case "Secure"_hash:
+					if (URL.Protocol != url::KProtocol::HTTPS)
+					{
+						// a Secure cookie may only be set with a secure connection
+						kDebug(1, "rejecting cookie with Secure flag set via insecure connection: {}", Pair.second);
+						clear();
+						return false;
+					}
 					bNeedSecureKeyword = false;
 					m_bOnlyHTTPS = true;
 					break;
@@ -207,17 +214,10 @@ bool KCookie::WouldSerialize(const KURL& URL) const
 } // WouldSerialize
 
 //-----------------------------------------------------------------------------
-KString KCookie::Serialize(const KURL& URL, bool bForce) const
+KString KCookie::Serialize() const
 //-----------------------------------------------------------------------------
 {
-	KString sCookie;
-
-	if (!bForce && !WouldSerialize(URL))
-	{
-		return sCookie;
-	}
-
-	sCookie = m_sName;
+	KString sCookie { m_sName };
 
 	if (!m_sValue.empty())
 	{
@@ -226,6 +226,21 @@ KString KCookie::Serialize(const KURL& URL, bool bForce) const
 	}
 
 	return sCookie;
+
+} // Serialize
+
+//-----------------------------------------------------------------------------
+KString KCookie::Serialize(const KURL& URL) const
+//-----------------------------------------------------------------------------
+{
+	KString sCookie;
+
+	if (!WouldSerialize(URL))
+	{
+		return sCookie;
+	}
+
+	return Serialize();
 
 } // Serialize
 
@@ -275,7 +290,7 @@ KString KCookies::Serialize(const KURL& URL) const
 			{
 				sCookies += "; ";
 			}
-			sCookies += Cookie.Serialize(URL, true);
+			sCookies += Cookie.Serialize();
 		}
 	}
 

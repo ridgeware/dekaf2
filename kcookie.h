@@ -75,9 +75,13 @@ public:
 
 	/// serialize the value part of the Cookie header
 	/// @param URL the URL for which this cookie is serialized
-	/// @param bForce force serialization even when the URL context
 	/// is not valid
-	KString Serialize(const KURL& URL, bool bForce = false) const;
+	KString Serialize(const KURL& URL) const;
+
+	/// serialize the value part of the Cookie header unconditionally -
+	/// only use this after testing with WouldSerialize() that this
+	/// cookie is used in a valid context
+	KString Serialize() const;
 
 	/// returns true if the cookie is valid in context of the URL
 	/// @param URL the URL for which this cookie is serialized

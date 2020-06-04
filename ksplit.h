@@ -76,7 +76,8 @@ namespace dekaf2
 /// auto iWordCount = kSplit(Words, "This sentence has five words");
 /// @endcode
 template<typename Container,
-	typename std::enable_if_t<detail::has_key_type<Container>::value == false, int> = 0 >
+	typename std::enable_if_t<detail::has_key_type<Container>::value == false
+								&& std::is_constructible<typename Container::value_type, KStringViewPair>::value == false, int> = 0 >
 std::size_t kSplit (
         Container&  cContainer,
         KStringView svBuffer,
@@ -243,7 +244,8 @@ std::size_t kSplit(
 /// auto Words = kSplits<std::vector<KStringView>>("This sentence has five words");
 /// @endcode
 template<typename Container = std::vector<KStringView>,
-	typename std::enable_if_t<detail::has_key_type<Container>::value == false, int> = 0 >
+	typename std::enable_if_t<detail::has_key_type<Container>::value == false
+								&& std::is_constructible<typename Container::value_type, KStringViewPair>::value == false, int> = 0 >
 Container kSplits(
 //-----------------------------------------------------------------------------
 			  KStringView svBuffer,
@@ -320,6 +322,10 @@ class InsertPair
 public:
 //------
 
+	// the value_type is selected to satisfy the SFINAE condition of the first
+	// kSplit version (for sequential types) - it is _not_ the real value type
+	using value_type = KStringView;
+
 	//-----------------------------------------------------------------------------
 	InsertPair(
 	        Container& cContainer,
@@ -360,6 +366,63 @@ private:
 	const char m_chEscape;
 
 }; // InsertPair
+
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// helper template to use containers with push_back() on a pair instead of push_back(),
+/// splitting the value given to push_back() into a key value pair for push_back()
+template<typename Container>
+class PushBackPair
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+//------
+public:
+//------
+
+	// the value_type is selected to satisfy the SFINAE condition of the first
+	// kSplit version (for sequential types) - it is _not_ the real value type
+	using value_type = KStringView;
+
+	//-----------------------------------------------------------------------------
+	PushBackPair(
+			Container& cContainer,
+			KStringView svTrim,
+			KStringView svPairDelim,
+			const char chEscape
+			)
+	//-----------------------------------------------------------------------------
+		: m_Container(cContainer)
+		, m_svTrim(svTrim)
+		, m_svPairDelim(svPairDelim)
+		, m_chEscape(chEscape)
+	{
+	}
+
+	//-----------------------------------------------------------------------------
+	void push_back(KStringView sv)
+	//-----------------------------------------------------------------------------
+	{
+		KStringViewPair svPair = kSplitToPair(sv, m_svPairDelim, m_svTrim, m_chEscape);
+		m_Container.push_back({svPair.first, svPair.second});
+	}
+
+	//-----------------------------------------------------------------------------
+	std::size_t size() const
+	//-----------------------------------------------------------------------------
+	{
+		return m_Container.size();
+	}
+
+//------
+private:
+//------
+
+	Container& m_Container;
+	KStringView m_svTrim;
+	KStringView m_svPairDelim;
+	const char m_chEscape;
+
+}; // PushBackPair
 
 } // end of namespace container_adaptor
 } // end of namespace detail
@@ -433,6 +496,95 @@ std::size_t kSplit(
 
 template<typename Container,
 	typename std::enable_if_t<detail::has_key_type<Container>::value == true, int> = 0 >
+Container kSplits(
+			  KStringView svBuffer,
+			  KStringView svDelim  = ",",             // default: comma delimiter
+			  KStringView svPairDelim = "=",
+			  KStringView svTrim   = " \t\r\n\b",     // default: trim all whitespace
+			  const char  chEscape = '\0',            // default: ignore escapes
+			  bool        bCombineDelimiters = false, // default: create an element for each delimiter char found
+			  bool        bQuotesAreEscapes  = false  // default: treat double quotes like any other char
+//-----------------------------------------------------------------------------
+)
+{
+	Container cContainer;
+	kSplit(cContainer, svBuffer, svPairDelim, svDelim, svTrim, chEscape, bCombineDelimiters, bQuotesAreEscapes);
+	return cContainer;
+}
+
+//-----------------------------------------------------------------------------
+/// Splitting strings into a series of key value pairs (container is a sequence type
+/// like std::vector).
+/// @param cContainer needs to have a push_back() that can construct an element from
+/// a KStringViewPair (std::pair<KStringView, KStringView>).
+/// @return count of added key/value pairs.
+/// @param svBuffer the source char sequence.
+/// @param svPairDelim the string view that is used to separate keys and values in the sequence. Defaults to "=".
+/// @param svDelim a string view of delimiter characters. Defaults to ",".
+/// @param svTrim a string containing chars to remove from token ends. Defaults to " \t\r\n\b".
+/// @param chEscape Escape character for delimiters. Defaults to '\0' (disabled).
+/// @param bCombineDelimiters if true skips consecutive delimiters (an action always
+/// taken for found spaces if defined as delimiter). Defaults to false.
+/// @param bQuotesAreEscapes if true, escape characters and delimiters inside
+/// double quotes are treated as literal chars, and quotes themselves are removed.
+/// No trimming is applied inside the quotes (but outside). The quote has to be the
+/// first character after applied trimming, and trailing content after the closing quote
+/// is not considered part of the token. Defaults to false.
+///
+/// @code
+/// std::vector<std::pair<KStringView, KStringView>> Pairs;
+/// auto iPairCount = kSplit(Pairs, "Apples = Oranges, Red = 1, Blue = 2,Green=3");
+/// // -> iPairCount == 4
+/// // -> Pairs == {{ "Apples", "Oranges" },{ "Red", "1" },{ "Blue, "2" },{ "Green", "3" }}
+/// @endcode
+template<typename Container,
+	typename std::enable_if_t<detail::has_key_type<Container>::value == false
+								&& std::is_constructible<typename Container::value_type, KStringViewPair>::value == true, int> = 0 >
+std::size_t kSplit(
+        Container&  cContainer,
+        KStringView svBuffer,
+        KStringView svDelim  = ",",             // default: comma delimiter
+        KStringView svPairDelim = "=",
+        KStringView svTrim   = " \t\r\n\b",     // default: trim all whitespace
+        const char  chEscape = '\0',            // default: ignore escapes
+        bool        bCombineDelimiters = false, // default: create an element for each delimiter char found
+        bool        bQuotesAreEscapes  = false  // default: treat double quotes like any other char
+        )
+//-----------------------------------------------------------------------------
+{
+	detail::container_adaptor::PushBackPair<Container>
+	        cAdaptor(cContainer, svTrim, svPairDelim, chEscape);
+
+	return kSplit(cAdaptor, svBuffer, svDelim, svTrim, chEscape,
+	              bCombineDelimiters, bQuotesAreEscapes);
+}
+
+//-----------------------------------------------------------------------------
+/// Splitting strings into a series of key value pairs (container is a sequence type
+/// like std::vector).
+/// @return A new Container, its type needs to have a push_back() that can construct
+/// an element from a KStringViewPair (std::pair<KStringView, KStringView>).
+/// @param svBuffer the source char sequence.
+/// @param svPairDelim the string view that is used to separate keys and values in the sequence. Defaults to "=".
+/// @param svDelim a string view of delimiter characters. Defaults to ",".
+/// @param svTrim a string containing chars to remove from token ends. Defaults to " \t\r\n\b".
+/// @param chEscape Escape character for delimiters. Defaults to '\0' (disabled).
+/// @param bCombineDelimiters if true skips consecutive delimiters (an action always
+/// taken for found spaces if defined as delimiter). Defaults to false.
+/// @param bQuotesAreEscapes if true, escape characters and delimiters inside
+/// double quotes are treated as literal chars, and quotes themselves are removed.
+/// No trimming is applied inside the quotes (but outside). The quote has to be the
+/// first character after applied trimming, and trailing content after the closing quote
+/// is not considered part of the token. Defaults to false.
+///
+/// @code
+/// auto Pairs = kSplits<std::vector<std::pair<KStringView, KStringView>>>(Pairs, "Apples = Oranges, Red = 1, Blue = 2,Green=3");
+/// // -> Pairs == {{ "Apples", "Oranges" },{ "Red", "1" },{ "Blue, "2" },{ "Green", "3" }}
+/// @endcode
+
+template<typename Container,
+	typename std::enable_if_t<detail::has_key_type<Container>::value == false
+								&& std::is_constructible<typename Container::value_type, KStringViewPair>::value == true, int> = 0 >
 Container kSplits(
 			  KStringView svBuffer,
 			  KStringView svDelim  = ",",             // default: comma delimiter

@@ -809,6 +809,13 @@ inline bool operator!=(const char* left, const KProtocol& right)
 } // end of namespace url
 
 
+//-------------------------------------------------------------------------
+/// returns true if the second parameter is a subdomain of the first
+/// @param Domain the base domain
+/// @param SubDomain the sub domain
+bool kIsSubDomainOf(const url::KDomain& Domain, const url::KDomain& SubDomain);
+//-------------------------------------------------------------------------
+
 
 // forward declaration
 class KURL;

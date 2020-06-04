@@ -114,6 +114,30 @@ KString kGetBaseDomain (KStringView sHostName)
 	return sBaseName;
 }
 
+//-----------------------------------------------------------------------------
+bool kIsSubDomainOf(const url::KDomain& Domain, const url::KDomain& SubDomain)
+//-----------------------------------------------------------------------------
+{
+	KString sDomain    = Domain.get().ToLowerASCII();
+	KString sSubDomain = SubDomain.get().ToLowerASCII();
+
+	if (sSubDomain.ends_with(sDomain))
+	{
+		if (sSubDomain.size() == sDomain.size())
+		{
+			return true;
+		}
+		// check for real subdomain:
+		// Domain:        mydomain.com
+		// SubDomain: www.mydomain.com
+		else if (sSubDomain[sSubDomain.size() - sDomain.size() - 1] == '.')
+		{
+			return true;
+		}
+	}
+	return false;
+
+} // kIsSubDomainOf
 
 namespace url {
 

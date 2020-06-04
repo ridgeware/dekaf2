@@ -1138,6 +1138,17 @@ TEST_CASE ("KURL formerly missing")
 		CHECK ( URL.User.Decoded() == "user" );
 		CHECK ( URL.Password.Decoded() == "pass" );
 	}
+
+	SECTION("is subdomain")
+	{
+		url::KDomain Domain("my.domain");
+		CHECK ( kIsSubDomainOf(Domain, url::KDomain("www.my.domain")) == true );
+		CHECK ( kIsSubDomainOf(Domain, url::KDomain(".my.domain")) == true );
+		CHECK ( kIsSubDomainOf(Domain, url::KDomain("my.domain")) == true );
+		CHECK ( kIsSubDomainOf(Domain, url::KDomain("www.your.domain")) == false );
+		CHECK ( kIsSubDomainOf(Domain, url::KDomain("www.my.dot")) == false );
+		CHECK ( kIsSubDomainOf(Domain, url::KDomain("www.MY.DoMain")) == true );
+	}
 }
 
 TEST_CASE ("KURL regression tests")

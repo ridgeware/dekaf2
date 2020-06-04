@@ -254,7 +254,12 @@ KJSON KJsonRestClient::RequestAndParseResponse (KStringView sRequest, KMIME Mime
 
 	if (!kjson::Parse(jResponse, sResponse, sError))
 	{
-		return ThrowOrReturn (KHTTPError { KHTTPError::H5xx_ERROR, kFormat("bad rx json: {}", sError) });
+		if (HttpSuccess())
+		{
+			// only throw on bad JSON if this is a 200 response, else return the
+			// primary error
+			return ThrowOrReturn (KHTTPError { KHTTPError::H5xx_ERROR, kFormat("bad rx json: {}", sError) });
+		}
 	}
 
 	if (!HttpSuccess())
@@ -276,7 +281,7 @@ KJSON KJsonRestClient::RequestAndParseResponse (KStringView sRequest, KMIME Mime
 			sError += m_ErrorCallback(jResponse);
 		}
 
-		return ThrowOrReturn (KHTTPError { GetStatusCode(), kFormat("{} {}: HTTP-{} {}", m_sVerb.Serialize(), m_sPath, GetStatusCode(), sError) }, std::move(jResponse));
+		return ThrowOrReturn (KHTTPError { GetStatusCode(), kFormat("{} {}: HTTP-{} {} from {}", m_sVerb.Serialize(), m_sPath, GetStatusCode(), sError, m_URL.Serialize()) }, std::move(jResponse));
 	}
 
 	return jResponse;

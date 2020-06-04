@@ -46,6 +46,7 @@
 #include "kurl.h"
 #include "khttpclient.h"
 #include "kjson.h"
+#include "kcookie.h"
 
 /// @file kwebclient.h
 /// HTTP client implementation - high level
@@ -160,11 +161,22 @@ public:
 		return *this;
 	}
 
+	//-----------------------------------------------------------------------------
+	/// Accept or reject Set-Cookie requests - accepted per default
+	self& AcceptCookies(bool bYesNo = true)
+	//-----------------------------------------------------------------------------
+	{
+		m_bAcceptCookies = bYesNo;
+		return *this;
+	}
+
 //------
 protected:
 //------
 
 	uint16_t m_iMaxRedirects { 3 };
+	KCookies m_Cookies;
+	bool m_bAcceptCookies { true };
 	bool m_bQueryToWWWFormConversion { true };
 
 }; // KWebClient

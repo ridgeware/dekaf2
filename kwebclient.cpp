@@ -125,6 +125,19 @@ KString KWebClient::HttpRequest (KURL URL, KHTTPMethod RequestMethod/* = KHTTPMe
 
 			if (Resource(URL, RequestMethod))
 			{
+				if (m_bAcceptCookies)
+				{
+					// remove any cookie header if set
+					Request.Headers.Remove(KHTTPHeaders::COOKIE);
+
+					KString sCookie = m_Cookies.Serialize(URL);
+
+					if (!sCookie.empty())
+					{
+						AddHeader(KHTTPHeaders::COOKIE, sCookie);
+					}
+				}
+
 				TransferTime.resume();
 				
 				if (SendRequest (svRequestBody, MIME))
@@ -198,6 +211,18 @@ KString KWebClient::HttpRequest (KURL URL, KHTTPMethod RequestMethod/* = KHTTPMe
 		if (!sResponse.empty())
 		{
 			kDebug(2, "{}", sResponse);
+		}
+	}
+
+	if (m_bAcceptCookies && HttpSuccess())
+	{
+		// check for Set-Cookie headers
+		const auto Range = Response.Headers.equal_range(KHTTPHeaders::SET_COOKIE);
+
+		for (auto it = Range.first; it != Range.second; ++it)
+		{
+			// add each cookie
+			m_Cookies.Parse(URL, it->second);
 		}
 	}
 

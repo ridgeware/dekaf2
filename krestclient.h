@@ -139,6 +139,8 @@ public:
 	using base::AllowCompression;
 	using base::VerifyCerts;
 	using base::GetVerifyCerts;
+	using base::AllowQueryToWWWFormConversion;
+	using base::AcceptCookies;
 
 //----------
 protected:

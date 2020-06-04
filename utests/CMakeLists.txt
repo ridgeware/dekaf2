@@ -21,6 +21,7 @@ set (USOURCES
 	kbitfields_tests.cpp
 	kcasestring_tests.cpp
 	kcompression_tests.cpp
+	kcookie_tests.cpp
 	kcrc_tests.cpp
 	kcsv_tests.cpp
 	khash_tests.cpp

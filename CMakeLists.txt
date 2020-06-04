@@ -462,6 +462,7 @@ set(PUBLIC_HEADERS
 	kchunkedtransfer.h
 	kcompression.h
 	kconnection.h
+	kcookie.h
 	kcrashexit.h
 	kcrc.h
 	kcsv.h
@@ -595,6 +596,7 @@ set (SOURCES
 	kchunkedtransfer.cpp
 	kcompression.cpp
 	kconnection.cpp
+	kcookie.cpp
 	kcrashexit.cpp
 	kcrc.cpp
 	kcsv.cpp

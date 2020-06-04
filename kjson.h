@@ -125,18 +125,29 @@ namespace kjson
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 	/// Parse a string, throws with KJSON::exception in case of error
+	/// @param json the json output
+	/// @param sJSON the input string to parse
 	void Parse (KJSON& json, KStringView sJSON);
 
 	/// Parse a string, returns error in sError if any (does not throw)
+	/// @param json the json output
+	/// @param sJSON the input string to parse
+	/// @param sError the error string
 	bool Parse (KJSON& json, KStringView sJSON, KString& sError) noexcept;
 
 	/// Parse a stream, throws with KJSON::exception in case of error
+	/// @param json the json output
+	/// @param InStream the input stream to parse
 	void Parse (KJSON& json, KInStream& InStream);
 
 	/// Parse a stream, returns error in sError if any (does not throw)
+	/// @param json the json output
+	/// @param InStream the input stream to parse
+	/// @param sError the error string
 	bool Parse (KJSON& json, KInStream& InStream, KString& sError) noexcept;
 
 	/// returns a string representation for the KJSON object, never throws
+	/// @param json the json input
 	KString Print (const KJSON& json) noexcept;
 
 	/// Sets a JSON string from a KStringView, checks if the string was
@@ -144,24 +155,49 @@ namespace kjson
 	/// needed to avoid throws from the KJSON serializer on invalid UTF8.
 	/// Use this whenever you add string data coming from unreliable
 	/// input.
+	/// @param json the json output
+	/// @param sInput the string input
 	void SetStringFromUTF8orLatin1(KJSON& json, KStringView sInput);
 
-	/// Returns a ref for a string key, does never throw. Returns empty ref
+	/// Returns a string ref for a key, does never throw. Returns empty ref
 	/// for non-string values.
+	/// @param json the json input
+	/// @param sKey the key to search for
 	const KString& GetStringRef(const KJSON& json, KStringView sKey) noexcept;
 
-	/// Returns a value for a string key, does never throw. Prints non-string
+	/// Returns a string value for a key, does never throw. Prints non-string
 	/// values into string representation.
+	/// @param json the json input
+	/// @param sKey the key to search for
 	KString GetString(const KJSON& json, KStringView sKey) noexcept;
 
-	/// Returns a ref for an object key, does never throw. Returns empty ref
+	/// Returns a uint value for a key, does never throw. Returns 0 if value was
+	/// neither an integer nor a string representation of an integer.
+	/// @param json the json input
+	/// @param sKey the key to search for
+	uint64_t GetUInt(const KJSON& json, KStringView sKey) noexcept;
+
+	/// Returns an int value for a key, does never throw. Returns 0 if value was
+	/// neither an integer nor a string representation of an integer.
+	/// @param json the json input
+	/// @param sKey the key to search for
+	int64_t GetInt(const KJSON& json, KStringView sKey) noexcept;
+
+	/// Returns an object ref for a key, does never throw. Returns empty ref
 	/// for non-object values.
+	/// @param json the json input
+	/// @param sKey the key to search for
 	const KJSON& GetObjectRef (const KJSON& json, KStringView sKey) noexcept;
 
-	/// returns a value for an object key, does never throw
+	/// returns an object value for a key, does never throw. Returns empty
+	/// object for non-object values.
+	/// @param json the json input
+	/// @param sKey the key to search for
 	KJSON GetObject (const KJSON& json, KStringView sKey) noexcept;
 
 	/// returns true if the key exists
+	/// @param json the json input
+	/// @param sKey the key to search for
 	inline bool Exists(const KJSON& json, KStringView sKey) noexcept
 	{
 		auto it = json.find(sKey);
@@ -169,6 +205,8 @@ namespace kjson
 	}
 
 	/// returns true if the key exists and contains an object
+	/// @param json the json input
+	/// @param sKey the key to search for
 	inline bool IsObject(const KJSON& json, KStringView sKey) noexcept
 	{
 		auto it = json.find(sKey);
@@ -176,6 +214,8 @@ namespace kjson
 	}
 
 	/// returns true if the key exists and contains an array
+	/// @param json the json input
+	/// @param sKey the key to search for
 	inline bool IsArray(const KJSON& json, KStringView sKey) noexcept
 	{
 		auto it = json.find(sKey);
@@ -183,6 +223,8 @@ namespace kjson
 	}
 
 	/// returns true if the key exists and contains a string
+	/// @param json the json input
+	/// @param sKey the key to search for
 	inline bool IsString(const KJSON& json, KStringView sKey) noexcept
 	{
 		auto it = json.find(sKey);
@@ -190,6 +232,8 @@ namespace kjson
 	}
 
 	/// returns true if the key exists and contains an integer
+	/// @param json the json input
+	/// @param sKey the key to search for
 	inline bool IsInteger(const KJSON& json, KStringView sKey) noexcept
 	{
 		auto it = json.find(sKey);
@@ -197,6 +241,8 @@ namespace kjson
 	}
 
 	/// returns true if the key exists and contains a float
+	/// @param json the json input
+	/// @param sKey the key to search for
 	inline bool IsFloat(const KJSON& json, KStringView sKey) noexcept
 	{
 		auto it = json.find(sKey);
@@ -204,6 +250,8 @@ namespace kjson
 	}
 
 	/// returns true if the key exists and contains null
+	/// @param json the json input
+	/// @param sKey the key to search for
 	inline bool IsNull(const KJSON& json, KStringView sKey) noexcept
 	{
 		auto it = json.find(sKey);
@@ -211,6 +259,8 @@ namespace kjson
 	}
 
 	/// returns true if the key exists and contains a bool
+	/// @param json the json input
+	/// @param sKey the key to search for
 	inline bool IsBoolean(const KJSON& json, KStringView sKey) noexcept
 	{
 		auto it = json.find(sKey);
@@ -218,9 +268,13 @@ namespace kjson
 	}
 
 	/// proper json string escaping
+	/// @param sInput the unescaped input string
+	/// @param sOutput the escaped output string
 	void Escape (KStringView sInput, KString& sOutput);
 
 	/// proper json string escaping
+	/// @param sInput the unescaped input string
+	/// @returns the escaped output string
 	KString Escape (KStringView sInput);
 
 	/// returns true if object is a string array or an object and contains the given string
@@ -235,7 +289,11 @@ namespace kjson
 
 using kjson::Parse;
 using kjson::Print;
+using kjson::GetStringRef;
 using kjson::GetString;
+using kjson::GetUInt;
+using kjson::GetInt;
+using kjson::GetObjectRef;
 using kjson::GetObject;
 using kjson::Contains;
 

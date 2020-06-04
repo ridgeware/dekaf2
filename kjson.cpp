@@ -234,6 +234,52 @@ KString GetString(const KJSON& json, KStringView sKey) noexcept
 } // GetString
 
 //-----------------------------------------------------------------------------
+uint64_t GetUInt(const KJSON& json, KStringView sKey) noexcept
+//-----------------------------------------------------------------------------
+{
+	uint64_t iReturn { 0 };
+
+	auto it = json.find(sKey);
+	if (it != json.end())
+	{
+		if (it->is_number())
+		{
+			iReturn = it.value().get<uint64_t>();
+		}
+		else if (it->is_string())
+		{
+			iReturn = it.value().get_ref<const KString&>().UInt64();
+		}
+	}
+
+	return iReturn;
+
+} // GetUInt
+
+//-----------------------------------------------------------------------------
+int64_t GetInt(const KJSON& json, KStringView sKey) noexcept
+//-----------------------------------------------------------------------------
+{
+	int64_t iReturn { 0 };
+
+	auto it = json.find(sKey);
+	if (it != json.end())
+	{
+		if (it->is_number())
+		{
+			iReturn = it.value().get<int64_t>();
+		}
+		else if (it->is_string())
+		{
+			iReturn = it.value().get_ref<const KString&>().Int64();
+		}
+	}
+
+	return iReturn;
+
+} // GetInt
+
+//-----------------------------------------------------------------------------
 const KJSON& GetObjectRef (const KJSON& json, KStringView sKey) noexcept
 //-----------------------------------------------------------------------------
 {

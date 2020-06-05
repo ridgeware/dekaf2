@@ -212,7 +212,7 @@ KString KRestClient::Request (KStringView sBody, KMIME mime)
 			sError = Error();
 		}
 
-		return ThrowOrReturn (KHTTPError { GetStatusCode(), kFormat("{} {}: HTTP-{} {}", m_sVerb.Serialize(), m_sPath, GetStatusCode(), sError) }, std::move(sResponse));
+		return ThrowOrReturn (KHTTPError { GetStatusCode(), kFormat("{} {}: HTTP-{} {} from {}", m_sVerb.Serialize(), m_sPath, GetStatusCode(), sError, m_URL.Serialize()) }, std::move(sResponse));
 	}
 
 	return sResponse;

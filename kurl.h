@@ -134,6 +134,8 @@ public:
 				switch (Component)
 				{
 					case URIPart::User:
+						// we do not search for a ':' here on purpose, instead
+						// we search backwards for it from a found '@'
 						NextToken = "@/;?#";
 						break;
 					case URIPart::Password:
@@ -256,17 +258,32 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
-	/// generate content into string from members
+	/// generate content into string from members (not user or password)
+	template<URIPart C = Component, typename std::enable_if_t<C != URIPart::User && C != URIPart::Password, int> = 0 >
 	bool Serialize (KString& sTarget) const
 	//-------------------------------------------------------------------------
 	{
 		if (!m_sStorage.empty())
 		{
-			if (m_bHadStartSeparator)
+			if (RemoveStartSeparator && m_bHadStartSeparator)
 			{
 				sTarget += StartToken;
 			}
 
+			m_sStorage.Serialize(sTarget, Component);
+		}
+
+		return true;
+	}
+
+	//-------------------------------------------------------------------------
+	/// generate content into string from user or password
+	template<URIPart C = Component, typename std::enable_if_t<C == URIPart::User || C == URIPart::Password, int> = 0 >
+	bool Serialize (KString& sTarget, char chSuffix = '@') const
+	//-------------------------------------------------------------------------
+	{
+		if (!m_sStorage.empty())
+		{
 			if (Component == URIPart::Password)
 			{
 				if (!sTarget.empty())
@@ -274,17 +291,16 @@ public:
 					if (sTarget.back() == '@')
 					{
 						sTarget.erase(sTarget.size()-1, 1);
+						sTarget += ':';
 					}
-
-					sTarget += ':';
 				}
 			}
 
 			m_sStorage.Serialize(sTarget, Component);
 
-			if (Component == URIPart::User || Component == URIPart::Password)
+			if (chSuffix != '\0')
 			{
-				sTarget += '@';
+				sTarget += chSuffix;
 			}
 		}
 
@@ -292,31 +308,37 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
-	/// generate content into string from members
+	/// generate content into stream from members (not user or password)
+	template<URIPart C = Component, typename std::enable_if_t<C != URIPart::User && C != URIPart::Password, int> = 0 >
 	bool Serialize (KOutStream& sTarget) const
 	//-------------------------------------------------------------------------
 	{
 		if (!m_sStorage.empty())
 		{
-			if (m_bHadStartSeparator)
+			if (RemoveStartSeparator && m_bHadStartSeparator)
 			{
 				sTarget += StartToken;
 			}
 
-			if (Component == URIPart::Password)
-			{
-				// we should throw here or output an error as we cannot
-				// add a password to an existing stream (because we would
-				// have to rewind by one to remove the @ previously output).
-				kException("cannot serialize a password to a stream");
-				return false;
-			}
+			m_sStorage.Serialize(sTarget, Component);
+		}
 
+		return true;
+	}
+
+	//-------------------------------------------------------------------------
+	/// generate content into stream from user or password
+	template<URIPart C = Component, typename std::enable_if_t<C == URIPart::User || C == URIPart::Password, int> = 0 >
+	bool Serialize (KOutStream& sTarget, char chSuffix = '@') const
+	//-------------------------------------------------------------------------
+	{
+		if (!m_sStorage.empty())
+		{
 			m_sStorage.Serialize(sTarget, Component);
 
-			if (Component == URIPart::User)
+			if (chSuffix != '\0')
 			{
-				sTarget += '@';
+				sTarget += chSuffix;
 			}
 		}
 
@@ -521,7 +543,7 @@ private:
 //------
 
 	Storage m_sStorage;
-	mutable bool m_bHadStartSeparator{false};
+	mutable bool m_bHadStartSeparator { false };
 
 };
 

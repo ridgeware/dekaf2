@@ -463,8 +463,8 @@ bool KURL::Serialize(KString& sTarget) const
 	Port.WantStartSeparator();
 	Fragment.WantStartSeparator();
 	return Protocol.Serialize      (sTarget)
-	        && User.Serialize      (sTarget)
-	        && Password.Serialize  (sTarget)
+	        && User.Serialize      (sTarget, Password.empty() ? '@' : ':')
+	        && Password.Serialize  (sTarget, '@')
 	        && Domain.Serialize    (sTarget)
 	        && Port.Serialize      (sTarget)
 	        && KResource::Serialize(sTarget)
@@ -478,8 +478,8 @@ bool KURL::Serialize(KOutStream& sTarget) const
 	Port.WantStartSeparator();
 	Fragment.WantStartSeparator();
 	return Protocol.Serialize      (sTarget)
-	        && User.Serialize      (sTarget)
-	        && Password.Serialize  (sTarget)
+	        && User.Serialize      (sTarget, Password.empty() ? '@' : ':')
+	        && Password.Serialize  (sTarget, '@')
 	        && Domain.Serialize    (sTarget)
 	        && Port.Serialize      (sTarget)
 	        && KResource::Serialize(sTarget)

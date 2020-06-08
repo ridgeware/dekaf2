@@ -81,11 +81,9 @@ KWebClient::KWebClient(bool bVerifyCerts)
 }
 
 //-----------------------------------------------------------------------------
-KString KWebClient::HttpRequest (KURL URL, KHTTPMethod RequestMethod/* = KHTTPMethod::GET*/, KStringView svRequestBody/* = ""*/, KMIME MIME/* = KMIME::JSON*/)
+bool KWebClient::HttpRequest (KOutStream& OutStream, KURL URL, KHTTPMethod RequestMethod/* = KHTTPMethod::GET*/, KStringView svRequestBody/* = ""*/, KMIME MIME/* = KMIME::JSON*/)
 //-----------------------------------------------------------------------------
 {
-	KString sResponse;
-
 	uint16_t iHadRedirects = 0;
 
 	// placeholder for a web form we may generate from query parms
@@ -142,11 +140,9 @@ KString KWebClient::HttpRequest (KURL URL, KHTTPMethod RequestMethod/* = KHTTPMe
 				
 				if (SendRequest (svRequestBody, MIME))
 				{
-					Read (sResponse);
+					Read (OutStream);
 
 					TransferTime.halt();
-
-					kDebug(3, sResponse);
 				}
 				else
 				{
@@ -207,11 +203,6 @@ KString KWebClient::HttpRequest (KURL URL, KHTTPMethod RequestMethod/* = KHTTPMe
 		}
 
 		kDebug(2, "{} {} from URL {}", Response.iStatusCode, Response.sStatusString, URL.Serialize());
-
-		if (!sResponse.empty())
-		{
-			kDebug(2, "{}", sResponse);
-		}
 	}
 
 	if (m_bAcceptCookies && HttpSuccess())
@@ -224,6 +215,23 @@ KString KWebClient::HttpRequest (KURL URL, KHTTPMethod RequestMethod/* = KHTTPMe
 			// add each cookie
 			m_Cookies.Parse(URL, it->second);
 		}
+	}
+
+	return HttpSuccess();
+
+} // HttpRequest
+
+//-----------------------------------------------------------------------------
+KString KWebClient::HttpRequest (KURL URL, KHTTPMethod RequestMethod/* = KHTTPMethod::GET*/, KStringView svRequestBody/* = ""*/, KMIME MIME/* = KMIME::JSON*/)
+//-----------------------------------------------------------------------------
+{
+	KString sResponse;
+	KOutStringStream oss(sResponse);
+	HttpRequest(oss, URL, RequestMethod, svRequestBody, MIME);
+
+	if (!sResponse.empty())
+	{
+		kDebug(2, "{}", sResponse);
 	}
 
 	return sResponse;

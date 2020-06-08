@@ -92,6 +92,17 @@ public:
 	/// Throws or sets error object for non-200 responses.
 	KString Request ()              { return Request(KStringView{}, KMIME{});                    }
 
+	/// Send the REST request including body to the target. Expects unstructured data
+	/// written to OutStream as response.
+	/// Throws or sets error object for non-200 responses.
+	bool Request (KOutStream& OutStream, KStringView sBody, KMIME mime);
+	/// Send the REST request including a multipart form body to the target. Expects unstructured data
+	/// written to OutStream as response.
+	/// Throws or sets error object for non-200 responses.
+	bool Request (KOutStream& OutStream, const KMIMEMultiPart& MultiPart);
+	/// Send the REST request without body to the target and return the response.
+	/// Throws or sets error object for non-200 responses.
+
 	/// Set the 'Verb' (HTTP method) for the next request - can also be done implicitly
 	/// through one of the Get/Post/Put/Patch/Delete methods
 	self& Verb      (KHTTPMethod sVerb);
@@ -146,12 +157,12 @@ public:
 protected:
 //----------
 
-	/// Send the REST request including an eventual body to the target and return the response.
+	/// Send the REST request including an eventual body to the target and write the response to OutStream.
 	/// Does not throw
-	KString NoExceptRequest (KStringView sBody, KMIME mime) noexcept;
+	bool NoExceptRequest (KOutStream& OutStream, KStringView sBody, KMIME mime) noexcept;
 	/// Throws the error if no error object is set, otherwise sets the error object and
-	/// returns the retval
-	KString ThrowOrReturn (KHTTPError&& ec, KString&& retval = KString{});
+	/// returns false
+	bool ThrowOrReturn (KHTTPError&& ec, bool bRetval = false);
 	/// Calls clear once after a Request() to reset all state and setup except from ctor
 	void ResetAfterRequest();
 
@@ -213,6 +224,15 @@ public:
 	/// Send the REST request including a multipart form body to the target and return the response.
 	/// Throws or sets error object for non-200 responses.
 	KJSON Request (const KMIMEMultiPart& MultiPart);
+
+	/// Send the REST request including an eventual JSON body to the target. Expects unstructured data
+	/// written to OutStream as response.
+	/// Throws or sets error object for non-200 responses.
+	bool Request (KOutStream& OutStream, const KJSON& json = KJSON{}, KMIME Mime = KMIME::JSON);
+	/// Send the REST request including a multipart form body to the target. Expects unstructured data
+	/// written to OutStream as response.
+	/// Throws or sets error object for non-200 responses.
+	bool Request (KOutStream& OutStream, const KMIMEMultiPart& MultiPart);
 
 	/// Set the 'Verb' (HTTP method) for the next request - can also be done implicitly
 	/// through one of the Get/Post/Put/Patch/Delete methods

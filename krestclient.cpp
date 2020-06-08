@@ -185,7 +185,7 @@ KRestClient& KRestClient::AddHeader (KStringView sName, KStringView sValue)
 } // RestAddHeader
 
 //-----------------------------------------------------------------------------
-KString KRestClient::NoExceptRequest (KStringView sBody, KMIME mime) noexcept
+bool KRestClient::NoExceptRequest (KOutStream& OutStream, KStringView sBody, KMIME mime) noexcept
 //-----------------------------------------------------------------------------
 {
 	KURL URL { m_URL };
@@ -193,17 +193,15 @@ KString KRestClient::NoExceptRequest (KStringView sBody, KMIME mime) noexcept
 	URL.Query += m_Query;
 	m_bNeedReset = true;
 
-	return KWebClient::HttpRequest(URL, m_sVerb, sBody, mime);
+	return KWebClient::HttpRequest(OutStream, URL, m_sVerb, sBody, mime);
 
 } // NoExceptRequest
 
 //-----------------------------------------------------------------------------
-KString KRestClient::Request (KStringView sBody, KMIME mime)
+bool KRestClient::Request (KOutStream& OutStream, KStringView sBody, KMIME mime)
 //-----------------------------------------------------------------------------
 {
-	auto sResponse = NoExceptRequest(sBody, mime);
-
-	if (!HttpSuccess())
+	if (!NoExceptRequest(OutStream, sBody, mime))
 	{
 		KString sError;
 
@@ -212,9 +210,28 @@ KString KRestClient::Request (KStringView sBody, KMIME mime)
 			sError = Error();
 		}
 
-		return ThrowOrReturn (KHTTPError { GetStatusCode(), kFormat("{} {}: HTTP-{} {} from {}", m_sVerb.Serialize(), m_sPath, GetStatusCode(), sError, m_URL.Serialize()) }, std::move(sResponse));
+		return ThrowOrReturn (KHTTPError { GetStatusCode(), kFormat("{} {}: HTTP-{} {} from {}", m_sVerb.Serialize(), m_sPath, GetStatusCode(), sError, m_URL.Serialize()) });
 	}
 
+	return true;
+
+} // Request
+
+//-----------------------------------------------------------------------------
+bool KRestClient::Request (KOutStream& OutStream, const KMIMEMultiPart& MultiPart)
+//-----------------------------------------------------------------------------
+{
+	return Request(OutStream, MultiPart.Serialize(true), MultiPart.ContentType());
+
+} // Request
+
+//-----------------------------------------------------------------------------
+KString KRestClient::Request (KStringView sBody, KMIME mime)
+//-----------------------------------------------------------------------------
+{
+	KString sResponse;
+	KOutStringStream oss(sResponse);
+	Request(oss, sBody, mime);
 	return sResponse;
 
 } // Request
@@ -228,13 +245,13 @@ KString KRestClient::Request (const KMIMEMultiPart& MultiPart)
 } // Request
 
 //-----------------------------------------------------------------------------
-KString KRestClient::ThrowOrReturn(KHTTPError&& ec, KString&& retval)
+bool KRestClient::ThrowOrReturn(KHTTPError&& ec, bool bRetval)
 //-----------------------------------------------------------------------------
 {
 	if (m_ec)
 	{
 		*m_ec = std::move(ec);
-		return std::move(retval);
+		return bRetval;
 	}
 	else
 	{
@@ -247,7 +264,9 @@ KString KRestClient::ThrowOrReturn(KHTTPError&& ec, KString&& retval)
 KJSON KJsonRestClient::RequestAndParseResponse (KStringView sRequest, KMIME Mime)
 //-----------------------------------------------------------------------------
 {
-	KString sResponse = KRestClient::NoExceptRequest(sRequest, Mime);
+	KString sResponse;
+	KOutStringStream oss(sResponse);
+	KRestClient::NoExceptRequest(oss, sRequest, Mime);
 
 	KJSON jResponse;
 	KString sError;
@@ -308,6 +327,29 @@ KJSON KJsonRestClient::Request (const KMIMEMultiPart& MultiPart)
 //-----------------------------------------------------------------------------
 {
 	return RequestAndParseResponse(MultiPart.Serialize(true), MultiPart.ContentType());
+
+} // Request
+
+//-----------------------------------------------------------------------------
+bool KJsonRestClient::Request (KOutStream& OutStream, const KJSON& json, KMIME Mime)
+//-----------------------------------------------------------------------------
+{
+	try
+	{
+		return KRestClient::NoExceptRequest(OutStream, json.empty() ? "" : json.dump(iPretty), Mime);
+	}
+	catch (const KJSON::exception& ex)
+	{
+		return ThrowOrReturn (KHTTPError { KHTTPError::H5xx_ERROR, kFormat("bad tx json: {}", ex.what()) });
+	}
+
+} // Request
+
+//-----------------------------------------------------------------------------
+bool KJsonRestClient::Request (KOutStream& OutStream, const KMIMEMultiPart& MultiPart)
+//-----------------------------------------------------------------------------
+{
+	return KRestClient::NoExceptRequest(OutStream, MultiPart.Serialize(true), MultiPart.ContentType());
 
 } // Request
 

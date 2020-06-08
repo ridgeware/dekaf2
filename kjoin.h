@@ -45,6 +45,7 @@
 #include "bits/ktemplate.h"
 #include "kstringview.h"
 #include "kstring.h"
+#include "kformat.h"
 #include <type_traits>
 
 /// @file kjoin.h
@@ -54,10 +55,10 @@ namespace dekaf2
 {
 
 //-----------------------------------------------------------------------------
-/// join for sequential containers, outputs to string
+/// join for sequential containers, outputs to strings and streams
 template<typename Container, typename Result,
 	typename std::enable_if_t<detail::has_key_type<Container>::value == false
-								&& detail::has_size<Result>::value == true, int> = 0 >
+								&& std::is_constructible<KString, typename Container::value_type>::value == true, int> = 0 >
 void kJoin (Result& sBuffer,
 			const Container& ctContainer,
 			KStringView svDelim = ",",
@@ -93,10 +94,50 @@ void kJoin (Result& sBuffer,
 } // kJoin
 
 //-----------------------------------------------------------------------------
-/// join for associative containers, outputs to string
+/// join for sequential containers, outputs to strings and streams, converts through kFormat
+template<typename Container, typename Result,
+	typename std::enable_if_t<detail::has_key_type<Container>::value == false
+								&& std::is_constructible<KString, typename Container::value_type>::value == false, int> = 0 >
+void kJoin (Result& sBuffer,
+			const Container& ctContainer,
+			KStringView svDelim = ",",
+			// we add the svPairDelim here to give the same interface as for
+			// the associative containers - the value is not used
+			KStringView svPairDelim = "=",
+			bool bWriteLastDelimiter = false
+)
+//-----------------------------------------------------------------------------
+{
+	auto it = ctContainer.begin();
+	auto ie = ctContainer.end();
+
+	if (DEKAF2_LIKELY(!ctContainer.empty()))
+	{
+		for (;;)
+		{
+			sBuffer += kFormat("{}", *it);
+
+			if (DEKAF2_UNLIKELY(++it == ie))
+			{
+				if (bWriteLastDelimiter)
+				{
+					sBuffer += svDelim;
+				}
+				break;
+			}
+
+			sBuffer += svDelim;
+		}
+	}
+
+} // kJoin
+
+//-----------------------------------------------------------------------------
+/// join for associative containers, outputs to strings and streams
 template<typename Container, typename Result,
 	typename std::enable_if_t<detail::has_key_type<Container>::value == true
-								&& detail::has_size<Result>::value == true, int> = 0 >
+								&& std::is_constructible<KString, typename Container::key_type>::value == true
+								&& std::is_constructible<KString, typename Container::mapped_type>::value == true, int> = 0 >
 void kJoin (Result& sBuffer,
 			const Container& ctContainer,
 			KStringView svDelim = ",",
@@ -132,52 +173,12 @@ void kJoin (Result& sBuffer,
 } // kJoin
 
 //-----------------------------------------------------------------------------
-/// join for sequential containers, outputs to stream
-template<typename Container, typename Result,
-	typename std::enable_if_t<detail::has_key_type<Container>::value == false
-							&& detail::has_size<Result>::value == false, int> = 0 >
-Result& kJoin (Result& Output,
-			const Container& ctContainer,
-			KStringView svDelim = ",",
-			// we add the svPairDelim here to give the same interface as for
-			// the associative containers - the value is not used
-			KStringView svPairDelim = "=",
-			bool bWriteLastDelimiter = false
-)
-//-----------------------------------------------------------------------------
-{
-	auto it = ctContainer.begin();
-	auto ie = ctContainer.end();
-
-	if (DEKAF2_LIKELY(!ctContainer.empty()))
-	{
-		for (;;)
-		{
-			if (!Output.Write(*it)) break;
-
-			if (DEKAF2_UNLIKELY(++it == ie))
-			{
-				if (bWriteLastDelimiter)
-				{
-					Output.Write(svDelim);
-				}
-				break;
-			}
-
-			if (!Output.Write(svDelim)) break;
-		}
-	}
-
-	return Output;
-
-} // kJoin
-
-//-----------------------------------------------------------------------------
-/// join for associative containers, outputs to stream
+/// join for associative containers, outputs to strings and streams, converts through kFormat
 template<typename Container, typename Result,
 	typename std::enable_if_t<detail::has_key_type<Container>::value == true
-							&& detail::has_size<Result>::value == false, int> = 0 >
-Result& kJoin (Result& Output,
+								&& (std::is_constructible<KString, typename Container::key_type>::value == false
+								 || std::is_constructible<KString, typename Container::mapped_type>::value == false), int> = 0 >
+void kJoin (Result& sBuffer,
 			const Container& ctContainer,
 			KStringView svDelim = ",",
 			KStringView svPairDelim = "=",
@@ -192,50 +193,28 @@ Result& kJoin (Result& Output,
 	{
 		for (;;)
 		{
-			if (!Output.Write(it->first  )) break;
-			if (!Output.Write(svPairDelim)) break;
-			if (!Output.Write(it->second )) break;
+			sBuffer += kFormat("{}", it->first);
+			sBuffer += svPairDelim;
+			sBuffer += kFormat("{}", it->second);
 
 			if (DEKAF2_UNLIKELY(++it == ie))
 			{
 				if (bWriteLastDelimiter)
 				{
-					Output.Write(svDelim);
+					sBuffer += svDelim;
 				}
 				break;
 			}
 
-			if (!Output.Write(svDelim)) break;
+			sBuffer += svDelim;
 		}
 	}
-
-	return Output;
 
 } // kJoin
 
 //-----------------------------------------------------------------------------
-/// join for sequential containers, returns result
-template<typename Container, typename Result = KString,
-	typename std::enable_if_t<detail::has_key_type<Container>::value == false, int> = 0 >
-Result kJoined (
-			const Container& ctContainer,
-			KStringView svDelim = ",",
-			// we add the svPairDelim here to give the same interface as for
-			// the associative containers - the value is not used
-			KStringView svPairDelim = "=",
-			bool bWriteLastDelimiter = false
-)
-//-----------------------------------------------------------------------------
-{
-	Result result;
-	kJoin(result, ctContainer, svDelim, svPairDelim, bWriteLastDelimiter);
-	return result;
-}
-
-//-----------------------------------------------------------------------------
-/// join for associative containers, returns result
-template<typename Container, typename Result = KString,
-	typename std::enable_if_t<detail::has_key_type<Container>::value == true, int> = 0 >
+/// join for sequential and associative containers, returns result
+template<typename Container, typename Result = KString>
 Result kJoined (
 			const Container& ctContainer,
 			KStringView svDelim = ",",

@@ -224,6 +224,7 @@ public:
 	using const_range        = std::pair<const_map_iterator, const_map_iterator>;
 	using value_type         = Element;
 	using key_type           = Key;
+	using mapped_type        = Value;
 
 	KProps() = default;
 	KProps (std::initializer_list<value_type> il) : m_Storage(il) {}
@@ -466,7 +467,9 @@ public:
 				if (!Output.Write(svDelim)) break;
 			}
 
-			if (kJoin(Output, *this, svDelim, svPairDelim, true))
+			kJoin(Output, *this, svDelim, svPairDelim, true);
+			
+			if (Output)
 			{
 				iNewElements = size();
 			}

@@ -161,7 +161,12 @@ struct KAsioSSLStream
 
 			if (ec)
 			{
-				kDebug(2, "error shutting down socket: {}", ec.message());
+				// do not display the shutdown error message when the socket has
+				// already been disconnected
+				if (ec.value() != boost::asio::error::not_connected)
+				{
+					kDebug(2, "error shutting down socket: {} {}", ec.message());
+				}
 				return false;
 			}
 

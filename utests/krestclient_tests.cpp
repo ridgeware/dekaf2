@@ -85,7 +85,7 @@ TEST_CASE("KRESTCLIENT")
 
 		KJsonRestClient Host("http://localhost:6780/");
 
-		Host.SetErrorCallback([](const KJSON& json) -> KStringView
+		Host.SetErrorCallback([](const KJSON& json) -> KString
 		{
 			return kjson::GetStringRef(json, "message");
 		});
@@ -101,7 +101,7 @@ TEST_CASE("KRESTCLIENT")
 		CHECK ( ec.value() == 401 );
 		CHECK ( ec == true );
 		CHECK ( true == ec );
-		CHECK ( ec.message() == "GET login: HTTP-401 NOT AUTHORIZED - bad user or pass from http://localhost:6780/" );
+		CHECK ( ec.message() == "GET login: HTTP-401 NOT AUTHORIZED, bad user or pass from http://localhost:6780/" );
 		CHECK ( Host.HttpSuccess() == false );
 		CHECK ( Host.HttpFailure() == true  );
 		CHECK ( oResponse.empty()  == false );
@@ -116,7 +116,7 @@ TEST_CASE("KRESTCLIENT")
 		CHECK ( ec.value() == 405 );
 		CHECK ( ec == true );
 		CHECK ( true == ec );
-		CHECK ( ec.message() == "POST login: HTTP-405 METHOD NOT ALLOWED - request method POST not supported for path: /login from http://localhost:6780/" );
+		CHECK ( ec.message() == "POST login: HTTP-405 METHOD NOT ALLOWED, request method POST not supported for path: /login from http://localhost:6780/" );
 		CHECK ( Host.HttpSuccess() == false );
 		CHECK ( Host.HttpFailure() == true  );
 		CHECK ( oResponse.empty()  == false );
@@ -152,7 +152,7 @@ TEST_CASE("KRESTCLIENT")
 
 		CHECK ( ec.value() == 401 );
 		CHECK ( ec == true );
-		CHECK ( ec.message() == "POST user/Tom: HTTP-401 NOT AUTHORIZED - not authenticated from http://localhost:6780/" );
+		CHECK ( ec.message() == "POST user/Tom: HTTP-401 NOT AUTHORIZED, not authenticated from http://localhost:6780/" );
 		CHECK ( Host.HttpSuccess() == false );
 		CHECK ( Host.HttpFailure() == true  );
 		CHECK ( oResponse.empty()  == false );
@@ -171,7 +171,7 @@ TEST_CASE("KRESTCLIENT")
 
 		CHECK ( ec.value() == 404 );
 		CHECK ( ec == true );
-		CHECK ( ec.message() == "POST user/Tom: HTTP-404 NOT FOUND - unknown user from http://localhost:6780/" );
+		CHECK ( ec.message() == "POST user/Tom: HTTP-404 NOT FOUND, unknown user from http://localhost:6780/" );
 		CHECK ( Host.HttpSuccess() == false );
 		CHECK ( Host.HttpFailure() == true  );
 		CHECK ( oResponse.empty()  == false );

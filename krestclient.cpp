@@ -261,6 +261,36 @@ bool KRestClient::ThrowOrReturn(KHTTPError&& ec, bool bRetval)
 } // ThrowOrReturn
 
 //-----------------------------------------------------------------------------
+KString KJsonRestClient::DefaultErrorCallback(const KJSON& jResponse, KStringView sErrorProperties)
+//-----------------------------------------------------------------------------
+{
+	KString sError;
+
+	// our default message parse
+
+	KJSON::const_iterator it = jResponse.end();
+
+	for (auto sProp : sErrorProperties.Split())
+	{
+		it = jResponse.find(sProp);
+
+		if (it != jResponse.end() && !it->empty())
+		{
+			// found one
+			break;
+		}
+	}
+
+	if (it != jResponse.end())
+	{
+		sError += kjson::Print(*it);
+	}
+
+	return sError;
+
+} // DefaultErrorCallback
+
+//-----------------------------------------------------------------------------
 KJSON KJsonRestClient::RequestAndParseResponse (KStringView sRequest, KMIME Mime)
 //-----------------------------------------------------------------------------
 {
@@ -290,14 +320,21 @@ KJSON KJsonRestClient::RequestAndParseResponse (KStringView sRequest, KMIME Mime
 			sError = Error();
 		}
 
+		KString sDetailedError;
+
 		if (m_ErrorCallback)
 		{
-			if (!sError.empty())
-			{
-				sError += " - ";
-			}
+			sDetailedError = m_ErrorCallback(jResponse);
+		}
+		else
+		{
+			auto sDetailedError = DefaultErrorCallback(jResponse);
+		}
 
-			sError += m_ErrorCallback(jResponse);
+		if (!sDetailedError.empty())
+		{
+			sError += ", ";
+			sError += sDetailedError;
 		}
 
 		return ThrowOrReturn (KHTTPError { GetStatusCode(), kFormat("{} {}: HTTP-{} {} from {}", m_sVerb.Serialize(), m_sPath, GetStatusCode(), sError, m_URL.Serialize()) }, std::move(jResponse));

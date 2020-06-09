@@ -185,9 +185,11 @@ class KJsonRestClient : public KRestClient
 public:
 //----------
 
-	using ErrorCallback = std::function<KStringView(const KJSON&)>;
+	using ErrorCallback = std::function<KString(const KJSON&)>;
 	using self = KJsonRestClient;
 	using base = KRestClient;
+
+	static KString DefaultErrorCallback(const KJSON& jResponse, KStringView sErrorProperties = "message,messages,error,errors");
 
 	/// Default ctor - call SetURL() before any request
 	KJsonRestClient () = default;

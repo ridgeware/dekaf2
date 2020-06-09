@@ -189,7 +189,7 @@ public:
 	using self = KJsonRestClient;
 	using base = KRestClient;
 
-	static KString DefaultErrorCallback(const KJSON& jResponse, KStringView sErrorProperties = "message,messages,error,errors,errorMessage");
+	static KString DefaultErrorCallback(const KJSON& jResponse, KStringView sErrorProperties = "message,messages,errorMessage,error,errors");
 
 	/// Default ctor - call SetURL() before any request
 	KJsonRestClient () = default;

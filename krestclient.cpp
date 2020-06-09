@@ -276,6 +276,7 @@ KString KJsonRestClient::DefaultErrorCallback(const KJSON& jResponse, KStringVie
 
 		if (it != jResponse.end() && !it->empty())
 		{
+			kDebug(2, "found value for error property: {}", sProp);
 			// found one
 			break;
 		}
@@ -283,7 +284,15 @@ KString KJsonRestClient::DefaultErrorCallback(const KJSON& jResponse, KStringVie
 
 	if (it != jResponse.end())
 	{
-		sError += kjson::Print(*it);
+		if (it->is_array() && it->size() == 1)
+		{
+			sError = kjson::Print(*it->begin());
+		}
+		else
+		{
+			sError = kjson::Print(*it);
+		}
+		kDebug(1, sError);
 	}
 
 	return sError;
@@ -328,8 +337,10 @@ KJSON KJsonRestClient::RequestAndParseResponse (KStringView sRequest, KMIME Mime
 		}
 		else
 		{
-			auto sDetailedError = DefaultErrorCallback(jResponse);
+			sDetailedError = DefaultErrorCallback(jResponse);
 		}
+
+		sDetailedError.Trim();
 
 		if (!sDetailedError.empty())
 		{

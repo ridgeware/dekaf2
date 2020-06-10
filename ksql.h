@@ -383,7 +383,7 @@ public:
 	/// Loads column layout into Row
 	/// @param Row a KROW that will receive the column definitions. Existing content in Row will not be erased (but updated).
 	/// @param sColumns comma separated list of columns to load, or empty for all columns
-	bool           LoadColumnLayout(KROW& Row, KStringView sColumns);
+	bool           LoadColumnLayout(KROW& Row, KStringView sColumns = KStringView{});
 	uint64_t       GetNumBuffered ()         { return (m_iNumRowsBuffered); }
 	bool           ResetBuffer    ();
 

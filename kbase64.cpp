@@ -96,35 +96,39 @@ KString KBase64::Decode(KStringView sInput)
 
 	KString out;
 
-	DEKAF2_TRY_EXCEPTION
-
-	// calculate approximate size for decoded string (input may contain whitespace)
-	KString::size_type iSize = sInput.size() * 6 / 8;
-	// and reserve buffer to avoid reallocations
-	out.reserve(iSize);
-
-	// transform from base64
-	out.assign(base64_dec(sInput.begin()), base64_dec(sInput.end()));
-
-	// remove the padding
-	KStringView::size_type len = sInput.size();
-	if (len > 2 && out.size() > 1)
+	DEKAF2_TRY
 	{
-		// a padded sInput has at least 3 chars
-		if (sInput[len-1] == '=')
+		// calculate approximate size for decoded string (input may contain whitespace)
+		KString::size_type iSize = sInput.size() * 6 / 8;
+		// and reserve buffer to avoid reallocations
+		out.reserve(iSize);
+
+		// transform from base64
+		out.assign(base64_dec(sInput.begin()), base64_dec(sInput.end()));
+
+		// remove the padding
+		KStringView::size_type len = sInput.size();
+		if (len > 2 && out.size() > 1)
 		{
-			if (sInput[len-2] == '=')
+			// a padded sInput has at least 3 chars
+			if (sInput[len-1] == '=')
 			{
-				out.erase(out.size()-2, 2);
-			}
-			else
-			{
-				out.erase(out.size()-1, 1);
+				if (sInput[len-2] == '=')
+				{
+					out.erase(out.size()-2, 2);
+				}
+				else
+				{
+					out.erase(out.size()-1, 1);
+				}
 			}
 		}
 	}
-
-	DEKAF2_LOG_EXCEPTION
+	DEKAF2_CATCH(const std::exception& ex)
+	{
+		kDebug(1, "invalid base64: {}..", sInput.Left(40));
+		out.clear();
+	}
 
 	return out;
 
@@ -195,8 +199,6 @@ KString KBase64Url::Encode(KStringView sInput)
 
 	KString out;
 
-	DEKAF2_TRY_EXCEPTION
-
 	// calculate final size for encoded string
 	KString::size_type iSize = sInput.size() * 8 / 6;
 	// and reserve buffer to avoid reallocations
@@ -204,8 +206,6 @@ KString KBase64Url::Encode(KStringView sInput)
 
 	// transform to base64
 	out.assign(base64_enc(sInput.begin()), base64_enc(sInput.end()));
-
-	DEKAF2_LOG_EXCEPTION
 
 	return out;
 
@@ -285,35 +285,39 @@ KString KBase64Url::Decode(KStringView sInput)
 
 	KString out;
 
-	DEKAF2_TRY_EXCEPTION
-
-	// calculate approximate size for decoded string (input may contain whitespace)
-	KString::size_type iSize = sInput.size() * 6 / 8;
-	// and reserve buffer to avoid reallocations
-	out.reserve(iSize);
-
-	// transform from base64
-	out.assign(base64_dec(sInput.begin()), base64_dec(sInput.end()));
-
-	// remove the padding if any
-	KStringView::size_type len = sInput.size();
-	if (len > 2 && out.size() > 1)
+	DEKAF2_TRY
 	{
-		// a padded sInput has at least 3 chars
-		if (sInput[len-1] == '=')
+		// calculate approximate size for decoded string (input may contain whitespace)
+		KString::size_type iSize = sInput.size() * 6 / 8;
+		// and reserve buffer to avoid reallocations
+		out.reserve(iSize);
+
+		// transform from base64
+		out.assign(base64_dec(sInput.begin()), base64_dec(sInput.end()));
+
+		// remove the padding if any
+		KStringView::size_type len = sInput.size();
+		if (len > 2 && out.size() > 1)
 		{
-			if (sInput[len-2] == '=')
+			// a padded sInput has at least 3 chars
+			if (sInput[len-1] == '=')
 			{
-				out.erase(out.size()-2, 2);
-			}
-			else
-			{
-				out.erase(out.size()-1, 1);
+				if (sInput[len-2] == '=')
+				{
+					out.erase(out.size()-2, 2);
+				}
+				else
+				{
+					out.erase(out.size()-1, 1);
+				}
 			}
 		}
 	}
-
-	DEKAF2_LOG_EXCEPTION
+	DEKAF2_CATCH(const std::exception& ex)
+	{
+		kDebug(1, "invalid base64: {}..", sInput.Left(40));
+		out.clear();
+	}
 
 	return out;
 

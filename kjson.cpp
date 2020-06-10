@@ -280,6 +280,33 @@ int64_t GetInt(const KJSON& json, KStringView sKey) noexcept
 } // GetInt
 
 //-----------------------------------------------------------------------------
+bool GetBool(const KJSON& json, KStringView sKey) noexcept
+//-----------------------------------------------------------------------------
+{
+	bool bReturn { 0 };
+
+	auto it = json.find(sKey);
+	if (it != json.end())
+	{
+		if (it->is_boolean())
+		{
+			bReturn = it.value().get<bool>();
+		}
+		else if (it->is_number())
+		{
+			bReturn = it.value().get<int64_t>();
+		}
+		else if (it->is_string())
+		{
+			bReturn = it.value().get_ref<const KString&>().Bool();
+		}
+	}
+
+	return bReturn;
+
+} // GetBool
+
+//-----------------------------------------------------------------------------
 const KJSON& GetObjectRef (const KJSON& json, KStringView sKey) noexcept
 //-----------------------------------------------------------------------------
 {

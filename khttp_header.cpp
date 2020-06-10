@@ -41,6 +41,7 @@
 
 #include "khttp_header.h"
 #include "kctype.h"
+#include "kbase64.h"
 
 namespace dekaf2 {
 
@@ -300,6 +301,31 @@ bool KHTTPHeaders::SetError(KString sError) const
 	return false;
 
 } // SetError
+
+//-----------------------------------------------------------------------------
+KHTTPHeaders::BasicAuthParms KHTTPHeaders::GetBasicAuthParms()
+//-----------------------------------------------------------------------------
+{
+	BasicAuthParms Parms;
+
+	const auto it = Headers.find(AUTHORIZATION);
+	if (it != Headers.end())
+	{
+		if (it->second.starts_with("Basic "))
+		{
+			auto sDecoded = KBase64::Decode(it->second.Mid(6));
+			auto iPos = sDecoded.find(':');
+			if (iPos != KString::npos)
+			{
+				Parms.sUsername = sDecoded.Left(iPos);
+				Parms.sPassword = sDecoded.Mid(iPos+1);
+			}
+		}
+	}
+
+	return Parms;
+
+} // GetBasicAuthParms
 
 #ifdef DEKAF2_REPEAT_CONSTEXPR_VARIABLE
 

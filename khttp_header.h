@@ -102,6 +102,20 @@ public:
 		return m_sError;
 	}
 
+	struct BasicAuthParms
+	{
+		KString sUsername;
+		KString sPassword;
+
+		operator bool() const { return !sUsername.empty(); }
+	};
+
+	//-----------------------------------------------------------------------------
+	/// decodes if existing a Basic Authentication header and returns the clear text
+	/// username and password
+	BasicAuthParms GetBasicAuthParms();
+	//-----------------------------------------------------------------------------
+
 	// https://en.wikipedia.org/wiki/List_of_HTTP_header_fields#Field_names
 	// awk '{u = toupper($1); gsub(/[-]/,"_",u); printf ("\tstatic constexpr KStringViewZ %-32s = \"%s\";\n", u, $1)}'
 

@@ -339,7 +339,8 @@ TEST_CASE("KSQL")
 		if (!db.ExecSQL (
 			"create table TEST1_KSQL (\n"
 			"    anum      int           not null,\n"
-			"    astring   char(100)     null\n"
+			"    astring   char(100)     null,\n"
+			"    adate     datetime      not null default now()\n"
 			")"))
 		{
 			INFO (db.GetLastSQL());
@@ -380,9 +381,10 @@ TEST_CASE("KSQL")
 
 		KROW ARow("TEST1_KSQL");
 		CHECK ( db.LoadColumnLayout(ARow, "") );
-		CHECK ( ARow.size() == 2 );
+		CHECK ( ARow.size() == 3 );
 		CHECK ( ARow.GetName(0) == "anum" );
 		CHECK ( ARow.GetName(1) == "astring" );
+		CHECK ( ARow.GetName(2) == "adate" );
 
 		KROW AnotherRow("TEST1_KSQL");
 		CHECK ( db.Load(AnotherRow) );
@@ -394,7 +396,13 @@ TEST_CASE("KSQL")
 		CHECK ( db.Load(AnotherRow2) );
 		CHECK ( AnotherRow2["anum"] == "2" );
 		CHECK ( AnotherRow2["astring"] == "row-1" );
-
+/* fails
+		KROW NewRow("TEST1_KSQL");
+		CHECK ( db.LoadColumnLayout(NewRow) );
+		NewRow["anum"] = "42";
+		NewRow["astring"] = "42";
+		CHECK ( db.Insert(NewRow) );
+*/
 		if (!db.ExecSQL ("drop table TEST1_KSQL"))
 		{
 			INFO (db.GetLastError());

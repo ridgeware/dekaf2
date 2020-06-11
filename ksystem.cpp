@@ -359,7 +359,15 @@ KStringViewZ kGetHostname ()
 
 	if (!*s_szHostname)
 #else
-	if (gethostname (s_szHostname, sizeof (s_szHostname)) != 0)
+	auto sHostname = kReadAll("/etc/khostname");
+	sHostname.Trim();
+
+	if (!sHostname.empty())
+	{
+		std::strncpy(s_szHostname, sHostname.c_str(), MAXNAMELEN);
+		s_szHostname[MAXNAMELEN] = '\0';
+	}
+	else if (gethostname (s_szHostname, sizeof (s_szHostname)) != 0)
 #endif
 	{
 		kDebug (1, "cannot get hostname");

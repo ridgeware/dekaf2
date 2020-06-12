@@ -531,10 +531,10 @@ extern template KString kUrlDecode(KStringView sSource, bool bPlusAsSpace = fals
 extern template void kUrlEncode (KStringView sSource, KString& sTarget, const bool excludeTable[256], bool bSpaceAsPlus = false);
 
 extern template class KURLEncoded<KString>;
-extern template class KURLEncoded<KProps<KString, KString>, '&', '='>;
+extern template class KURLEncoded<KProps<KString, KString, true, false>, '&', '='>;
 #endif // of _MSC_VER
 
 using URLEncodedString = KURLEncoded<KString>;
-using URLEncodedQuery  = KURLEncoded<KProps<KString, KString>, '&', '='>;
+using URLEncodedQuery  = KURLEncoded<KProps<KString, KString, /*Sequential=*/true, /*Unique=*/false>, '&', '='>;
 
 } // end of namespace dekaf2

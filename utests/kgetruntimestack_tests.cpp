@@ -11,7 +11,6 @@ TEST_CASE("kGetRuntimeStack")
 	SECTION("backtrace")
 	{
 		KString sTrace = kGetRuntimeStack();
-		KString sExpected;
 		CHECK ( sTrace.Split("\n", "").size() > 6 );
 	}
 

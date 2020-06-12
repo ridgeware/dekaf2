@@ -199,7 +199,13 @@ namespace kjson
 	/// object for non-object values.
 	/// @param json the json input
 	/// @param sKey the key to search for
-	KJSON GetObject (const KJSON& json, KStringView sKey) noexcept;
+	const KJSON& GetObject (const KJSON& json, KStringView sKey) noexcept;
+
+	/// returns an array value for a key, never throws. Returns empty
+	/// array for non-array values.
+	/// @param json the json input
+	/// @param sKey the key to search for
+	const KJSON& GetArray (const KJSON& json, KStringView sKey) noexcept;
 
 	/// returns true if the key exists, never throws
 	/// @param json the json input
@@ -300,6 +306,7 @@ using kjson::GetString;
 using kjson::GetUInt;
 using kjson::GetInt;
 using kjson::GetBool;
+using kjson::GetArray;
 using kjson::GetObjectRef;
 using kjson::GetObject;
 using kjson::Contains;

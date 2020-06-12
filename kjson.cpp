@@ -200,12 +200,13 @@ void Parse (KJSON& json, KInStream& InStream)
 
 } // Parse
 
+const KString s_sEmpty {};
+const KJSON s_oEmpty {};
+
 //-----------------------------------------------------------------------------
 const KString& GetStringRef(const KJSON& json, KStringView sKey) noexcept
 //-----------------------------------------------------------------------------
 {
-	static KString s_sEmpty{};
-
 	auto it = json.find(sKey);
 	if (it != json.end() && it.value().is_string())
 	{
@@ -310,8 +311,6 @@ bool GetBool(const KJSON& json, KStringView sKey) noexcept
 const KJSON& GetObjectRef (const KJSON& json, KStringView sKey) noexcept
 //-----------------------------------------------------------------------------
 {
-	static KJSON s_oEmpty;
-
 	auto it = json.find(sKey);
 	if (it != json.end() && it.value().is_object())
 	{
@@ -323,17 +322,29 @@ const KJSON& GetObjectRef (const KJSON& json, KStringView sKey) noexcept
 } // GetObject
 
 //-----------------------------------------------------------------------------
-KJSON GetObject (const KJSON& json, KStringView sKey) noexcept
+const KJSON& GetArray (const KJSON& json, KStringView sKey) noexcept
 //-----------------------------------------------------------------------------
 {
-	KJSON oReturnMe;
+	auto it = json.find(sKey);
+	if (it != json.end() && it.value().is_array())
+	{
+		return it.value();
+	}
 
+	return s_oEmpty;
+
+} // GetObject
+
+//-----------------------------------------------------------------------------
+const KJSON& GetObject (const KJSON& json, KStringView sKey) noexcept
+//-----------------------------------------------------------------------------
+{
 	DEKAF2_TRY
 	{
 		auto it = json.find(sKey);
 		if (it != json.end())
 		{
-			oReturnMe = it.value();
+			return it.value();
 		}
 	}
 	DEKAF2_CATCH (const KJSON::exception& exc)
@@ -341,7 +352,7 @@ KJSON GetObject (const KJSON& json, KStringView sKey) noexcept
 		kDebug(1, "JSON[%03d]: %s", exc.id, exc.what());
 	}
 
-	return (oReturnMe);
+	return s_oEmpty;
 
 } // GetObject
 
@@ -424,8 +435,6 @@ void Escape (KStringView sInput, KString& sOutput)
 				}
 				else
 				{
-					// copy byte to buffer (all previous bytes
-					// been copied have in default case above)
 					sOutput += ch;
 				}
 				break;

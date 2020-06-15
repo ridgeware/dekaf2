@@ -469,8 +469,6 @@ bool kReadLine(std::istream& Stream,
                KString::value_type delimiter)
 //-----------------------------------------------------------------------------
 {
-	kDebug (3, "...");
-
 	if (DEKAF2_UNLIKELY(!Stream.good()))
 	{
 		sLine.clear();
@@ -594,8 +592,6 @@ bool KInStream::UnRead()
 std::istream::int_type KInStream::Read()
 //-----------------------------------------------------------------------------
 {
-	kDebug (3, "...");
-
 	auto streambuf = InStream().rdbuf();
 
 	if (DEKAF2_UNLIKELY(streambuf == nullptr))
@@ -619,8 +615,6 @@ std::istream::int_type KInStream::Read()
 size_t KInStream::Read(void* pAddress, size_t iCount)
 //-----------------------------------------------------------------------------
 {
-	kDebug (3, "...");
-
 	if (iCount)
 	{
 		auto streambuf = InStream().rdbuf();
@@ -648,8 +642,6 @@ size_t KInStream::Read(void* pAddress, size_t iCount)
 size_t KInStream::Read(KString& sBuffer, size_t iCount)
 //-----------------------------------------------------------------------------
 {
-	kDebug (3, "...");
-
 	auto iOldLen = sBuffer.size();
 
 	if (iCount == npos)
@@ -676,8 +668,6 @@ size_t KInStream::Read(KString& sBuffer, size_t iCount)
 size_t KInStream::Read(KOutStream& Stream, size_t iCount)
 //-----------------------------------------------------------------------------
 {
-	kDebug (3, "...");
-
 	enum { COPY_BUFSIZE = 4096 };
 	std::array<char, COPY_BUFSIZE> Buffer;
 	size_t iRead = 0;

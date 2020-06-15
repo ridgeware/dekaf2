@@ -111,7 +111,8 @@ void KRestClient::ResetAfterRequest()
 	{
 		clear();
 	}
-}
+
+} // ResetAfterRequest
 
 //-----------------------------------------------------------------------------
 KRestClient& KRestClient::SetError(KHTTPError& ec)
@@ -182,7 +183,7 @@ KRestClient& KRestClient::AddHeader (KStringView sName, KStringView sValue)
 	base::AddHeader(sName, sValue);
 	return *this;
 
-} // RestAddHeader
+} // AddHeader
 
 //-----------------------------------------------------------------------------
 bool KRestClient::NoExceptRequest (KOutStream& OutStream, KStringView sBody, KMIME mime) noexcept

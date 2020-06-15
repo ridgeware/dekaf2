@@ -41,7 +41,7 @@
 
 #pragma once
 
-/// @file kistringstream.h
+/// @file kinstringstream.h
 /// provides an input stream that reads from KStringViews
 
 #include <istream>

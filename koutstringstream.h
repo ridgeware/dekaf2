@@ -41,7 +41,7 @@
 
 #pragma once
 
-/// @file kostringstream.h
+/// @file koutstringstream.h
 /// provides an output stream that writes into a KString
 
 #include <ostream>

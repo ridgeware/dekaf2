@@ -1,5 +1,4 @@
 /*
-//-----------------------------------------------------------------------------//
 //
 // DEKAF(tm): Lighter, Faster, Smarter (tm)
 //
@@ -49,8 +48,6 @@ namespace dekaf2 {
 void KHTTPServer::clear()
 //-----------------------------------------------------------------------------
 {
-	kDebug (3, "...");
-
 	Request.clear();
 	Response.clear();
 	m_sError.clear();
@@ -62,8 +59,6 @@ void KHTTPServer::clear()
 KHTTPServer::KHTTPServer(KStream& Stream, KStringView sRemoteEndpoint)
 //-----------------------------------------------------------------------------
 {
-	kDebug (3, "...");
-
 	Accept(Stream, sRemoteEndpoint);
 
 } // Ctor
@@ -72,8 +67,6 @@ KHTTPServer::KHTTPServer(KStream& Stream, KStringView sRemoteEndpoint)
 bool KHTTPServer::Accept(KStream& Stream, KStringView sRemoteEndpoint)
 //-----------------------------------------------------------------------------
 {
-	kDebug (3, "...");
-
 	SetError(KStringView{});
 
 	RemoteEndpoint = sRemoteEndpoint;
@@ -94,8 +87,6 @@ bool KHTTPServer::Accept(KStream& Stream, KStringView sRemoteEndpoint)
 void KHTTPServer::Disconnect()
 //-----------------------------------------------------------------------------
 {
-	kDebug (3, "...");
-
 	Response.close();
 	Request.close();
 }
@@ -104,8 +95,6 @@ void KHTTPServer::Disconnect()
 bool KHTTPServer::Parse()
 //-----------------------------------------------------------------------------
 {
-	kDebug (3, "...");
-
 	Response.close();
 	
 	if (!Request.Parse())
@@ -130,8 +119,6 @@ bool KHTTPServer::Parse()
 bool KHTTPServer::Serialize()
 //-----------------------------------------------------------------------------
 {
-	kDebug (3, "...");
-
 	if (m_bConfigureCompression)
 	{
 		EnableCompressionIfPossible();
@@ -151,8 +138,6 @@ bool KHTTPServer::Serialize()
 KString KHTTPServer::GetBrowserIP() const
 //-----------------------------------------------------------------------------
 {
-	kDebug (3, "...");
-
 	KString sBrowserIP(Request.GetBrowserIP());
 
 	if (sBrowserIP.empty())
@@ -179,8 +164,6 @@ KString KHTTPServer::GetBrowserIP() const
 KString KHTTPServer::GetQueryParm(KStringView sKey, KStringView sDefault) const
 //-----------------------------------------------------------------------------
 {
-	kDebug (3, "...");
-
 	KString sValue = Request.Resource.Query.get().Get(sKey);
 
 	if (sValue.empty())
@@ -206,8 +189,6 @@ bool KHTTPServer::SetError(KStringView sError) const
 void KHTTPServer::EnableCompressionIfPossible()
 //-----------------------------------------------------------------------------
 {
-	kDebug (3, "...");
-
 	auto sCompression = Request.SupportedCompression();
 
 	if (sCompression == "gzip")

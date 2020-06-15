@@ -59,7 +59,7 @@ namespace dekaf2
 template<typename Container, typename Result,
 	typename std::enable_if_t<detail::has_key_type<Container>::value == false
 								&& std::is_constructible<KString, typename Container::value_type>::value == true, int> = 0 >
-void kJoin (Result& sBuffer,
+void kJoin (Result& Out,
 			const Container& ctContainer,
 			KStringView svDelim = ",",
 			// we add the svPairDelim here to give the same interface as for
@@ -69,25 +69,25 @@ void kJoin (Result& sBuffer,
 )
 //-----------------------------------------------------------------------------
 {
-	auto it = ctContainer.begin();
-	auto ie = ctContainer.end();
-
 	if (DEKAF2_LIKELY(!ctContainer.empty()))
 	{
+		auto it = ctContainer.begin();
+		auto ie = ctContainer.end();
+
 		for (;;)
 		{
-			sBuffer += *it;
+			Out += *it;
 
 			if (DEKAF2_UNLIKELY(++it == ie))
 			{
 				if (bWriteLastDelimiter)
 				{
-					sBuffer += svDelim;
+					Out += svDelim;
 				}
 				break;
 			}
 
-			sBuffer += svDelim;
+			Out += svDelim;
 		}
 	}
 
@@ -98,7 +98,7 @@ void kJoin (Result& sBuffer,
 template<typename Container, typename Result,
 	typename std::enable_if_t<detail::has_key_type<Container>::value == false
 								&& std::is_constructible<KString, typename Container::value_type>::value == false, int> = 0 >
-void kJoin (Result& sBuffer,
+void kJoin (Result& Out,
 			const Container& ctContainer,
 			KStringView svDelim = ",",
 			// we add the svPairDelim here to give the same interface as for
@@ -108,25 +108,25 @@ void kJoin (Result& sBuffer,
 )
 //-----------------------------------------------------------------------------
 {
-	auto it = ctContainer.begin();
-	auto ie = ctContainer.end();
-
 	if (DEKAF2_LIKELY(!ctContainer.empty()))
 	{
+		auto it = ctContainer.begin();
+		auto ie = ctContainer.end();
+
 		for (;;)
 		{
-			sBuffer += kFormat("{}", *it);
+			Out += kFormat("{}", *it);
 
 			if (DEKAF2_UNLIKELY(++it == ie))
 			{
 				if (bWriteLastDelimiter)
 				{
-					sBuffer += svDelim;
+					Out += svDelim;
 				}
 				break;
 			}
 
-			sBuffer += svDelim;
+			Out += svDelim;
 		}
 	}
 
@@ -138,7 +138,7 @@ template<typename Container, typename Result,
 	typename std::enable_if_t<detail::has_key_type<Container>::value == true
 								&& std::is_constructible<KString, typename Container::key_type>::value == true
 								&& std::is_constructible<KString, typename Container::mapped_type>::value == true, int> = 0 >
-void kJoin (Result& sBuffer,
+void kJoin (Result& Out,
 			const Container& ctContainer,
 			KStringView svDelim = ",",
 			KStringView svPairDelim = "=",
@@ -146,27 +146,27 @@ void kJoin (Result& sBuffer,
 )
 //-----------------------------------------------------------------------------
 {
-	auto it = ctContainer.begin();
-	auto ie = ctContainer.end();
-
 	if (DEKAF2_LIKELY(!ctContainer.empty()))
 	{
+		auto it = ctContainer.begin();
+		auto ie = ctContainer.end();
+
 		for (;;)
 		{
-			sBuffer += it->first;
-			sBuffer += svPairDelim;
-			sBuffer += it->second;
+			Out += it->first;
+			Out += svPairDelim;
+			Out += it->second;
 
 			if (DEKAF2_UNLIKELY(++it == ie))
 			{
 				if (bWriteLastDelimiter)
 				{
-					sBuffer += svDelim;
+					Out += svDelim;
 				}
 				break;
 			}
 
-			sBuffer += svDelim;
+			Out += svDelim;
 		}
 	}
 
@@ -178,7 +178,7 @@ template<typename Container, typename Result,
 	typename std::enable_if_t<detail::has_key_type<Container>::value == true
 								&& (std::is_constructible<KString, typename Container::key_type>::value == false
 								 || std::is_constructible<KString, typename Container::mapped_type>::value == false), int> = 0 >
-void kJoin (Result& sBuffer,
+void kJoin (Result& Out,
 			const Container& ctContainer,
 			KStringView svDelim = ",",
 			KStringView svPairDelim = "=",
@@ -186,27 +186,27 @@ void kJoin (Result& sBuffer,
 )
 //-----------------------------------------------------------------------------
 {
-	auto it = ctContainer.begin();
-	auto ie = ctContainer.end();
-
 	if (DEKAF2_LIKELY(!ctContainer.empty()))
 	{
+		auto it = ctContainer.begin();
+		auto ie = ctContainer.end();
+
 		for (;;)
 		{
-			sBuffer += kFormat("{}", it->first);
-			sBuffer += svPairDelim;
-			sBuffer += kFormat("{}", it->second);
+			Out += kFormat("{}", it->first);
+			Out += svPairDelim;
+			Out += kFormat("{}", it->second);
 
 			if (DEKAF2_UNLIKELY(++it == ie))
 			{
 				if (bWriteLastDelimiter)
 				{
-					sBuffer += svDelim;
+					Out += svDelim;
 				}
 				break;
 			}
 
-			sBuffer += svDelim;
+			Out += svDelim;
 		}
 	}
 

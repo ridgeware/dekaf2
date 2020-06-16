@@ -592,21 +592,14 @@ public:
 
 	using SchemaCallback = std::function<bool(uint16_t iFrom, uint16_t iTo)>;
 
-	/// lower level schema check, pick schema files manually
-	bool EnsureSchemaExecute (KStringView sTablename,
-							  uint16_t iCurrentSchema,
-							  uint16_t iInitialSchema,
-							  KStringView sSchemaFileFormat,
-							  bool bForce = false,
-							  const SchemaCallback& Callback = nullptr);
-
 	using IniParms = KProps<KString, KString, false, true>;
 
 	/// check for updates of the DB schema, try to setup params automatically
-	bool EnsureSchema (KStringView sProgramName,
+	bool EnsureSchema (KStringView sSchemaVersionTable,
+	                   KStringView sSchemaFolder,
+	                   KStringView sFilenamePrefix,
 					   uint16_t iCurrentSchema,
-					   uint16_t iInitialSchema = 100,
-					   const IniParms& INI = IniParms{},
+					   uint16_t iInitialSchema=100,
 					   bool bForce = false,
 					   const SchemaCallback& Callback = nullptr);
 

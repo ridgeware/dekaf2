@@ -7222,27 +7222,26 @@ bool KSQL::IsLocked (KStringView sName)
 static constexpr KStringView sColName = "schema_rev";
 
 //-----------------------------------------------------------------------------
-bool KSQL::EnsureSchemaExecute (KStringView sTablename,
-								uint16_t iCurrentSchema,
-								uint16_t iInitialSchema,
-								KStringView sSchemaFileFormat,
-								bool bForce,
-								const SchemaCallback& Callback)
+bool KSQL::EnsureSchema (KStringView sSchemaVersionTable,
+                         KStringView sSchemaFolder, 
+						 KStringView sFilenamePrefix,
+						 uint16_t iCurrentSchema,
+						 uint16_t iInitialSchema/*=100*/,
+						 bool bForce /* = false */,
+						 const SchemaCallback& Callback /* = nullptr */)
 //-----------------------------------------------------------------------------
 {
-	kDebug (1, "tbl={}, force={} ...", sTablename, bForce ? "true" : "false");
+	kDebug (1, "tbl={}, force={} ...", sSchemaVersionTable, bForce ? "true" : "false");
 
 	if (iCurrentSchema < iInitialSchema)
 	{
-		kWarning("requested schema {} is lower than the initial schema {}", iCurrentSchema, iInitialSchema);
-		return false;
+		kDebug (1, "requested schema {} is lower than the initial schema {}", iCurrentSchema, iInitialSchema);
+		return true;
 	}
 
-	KString sEscapedTablename = EscapeString(sTablename);
-
-	auto     iSigned    = (bForce) ? 0 : SingleIntQuery ("select %s from %s", sColName, sEscapedTablename);
+	auto     iSigned    = (bForce) ? 0 : SingleIntQuery ("select %s from %s", sColName, sSchemaVersionTable);
 	uint16_t iSchemaRev = (iSigned < 0) ? 0 : static_cast<uint16_t>(iSigned);
-	KString sError;
+	KString  sError;
 
 	kDebug (2, "current rev in db determined to be: {}", iSchemaRev);
 	kDebug (2, "current rev that code expected is:  {}", iCurrentSchema);
@@ -7252,15 +7251,15 @@ bool KSQL::EnsureSchemaExecute (KStringView sTablename,
 		return true; // all set
 	}
 
-	if (!GetLock(sTablename, 120))
+	if (!GetLock (sSchemaVersionTable, 120))
 	{
 		kWarning("Could not acquire schema update lock within 120 seconds. Another process may be updating the schema. Abort.");
-		m_sLastError = kFormat("schema updater for table {} is locked", sTablename);
+		m_sLastError = kFormat("schema updater for table {} is locked", sSchemaVersionTable);
 		return false;
 	}
 
 	// query rev again after acquiring the lock
-	iSigned    = (bForce) ? 0 : SingleIntQuery ("select %s from %s", sColName, sEscapedTablename);
+	iSigned    = (bForce) ? 0 : SingleIntQuery ("select %s from %s", sColName, sSchemaVersionTable);
 	iSchemaRev = (iSigned < 0) ? 0 : static_cast<uint16_t>(iSigned);
 
 	if (iSchemaRev < iCurrentSchema)
@@ -7278,7 +7277,7 @@ bool KSQL::EnsureSchemaExecute (KStringView sTablename,
 			kDebug (1, "attempting to apply schema version {} ...", ii);
 			kDebug (1, "{}", KLog::DASH);
 
-			KString sFile = kFormat(sSchemaFileFormat, ii);
+			KString sFile = kFormat ("{}/{}{}.ksql", sSchemaFolder, sFilenamePrefix, ii);
 
 			if (!kFileExists (sFile))
 			{
@@ -7296,23 +7295,23 @@ bool KSQL::EnsureSchemaExecute (KStringView sTablename,
 			{
 				if (!Callback(iFromRev++, ii))
 				{
-					sError = "Callback returned with abort request";
+					sError = "callback returned with abort request";
 					break;
 				}
 			}
 
 			if (ii == iInitialSchema)
 			{
-				ExecSQL ("DROP TABLE IF EXISTS %s", sEscapedTablename);
+				ExecSQL ("drop table if exists %s", sSchemaVersionTable);
 
-				if (!ExecSQL ("CREATE TABLE %s ( %s smallint not null primary key )", sEscapedTablename, sColName))
+				if (!ExecSQL ("create table %s ( %s smallint not null primary key )", sSchemaVersionTable, sColName))
 				{
 					sError= GetLastError();
 					break; // for
 				}
 			}
 
-			if (!ExecSQL ("update %s set %s=%u", sEscapedTablename, sColName, ii))
+			if (!ExecSQL ("update %s set %s=%u", sSchemaVersionTable, sColName, ii))
 			{
 				sError= GetLastError();
 				break; // for
@@ -7320,16 +7319,16 @@ bool KSQL::EnsureSchemaExecute (KStringView sTablename,
 
 			auto iUpdated = GetNumRowsAffected();
 
-			if (!iUpdated && !ExecSQL ("insert into %s values (%u)", sEscapedTablename, ii))
+			if (!iUpdated && !ExecSQL ("insert into %s values (%u)", sSchemaVersionTable, ii))
 			{
 				sError= GetLastError();
 				break; // for
 			}
 			else if (iUpdated > 1)
 			{
-				ExecSQL ("truncate table %s", sEscapedTablename);
+				ExecSQL ("truncate table %s", sSchemaVersionTable);
 
-				if (!ExecSQL ("insert into %s values (%u)", sEscapedTablename, ii))
+				if (!ExecSQL ("insert into %s values (%u)", sSchemaVersionTable, ii))
 				{
 					sError= GetLastError();
 					break; // for
@@ -7355,59 +7354,11 @@ bool KSQL::EnsureSchemaExecute (KStringView sTablename,
 
 	} // if upgrade was needed
 
-	ReleaseLock(sTablename);
+	ReleaseLock (sSchemaVersionTable);
 
 	kDebug (2, "schema should be all set at version {} now", iCurrentSchema);
 
 	return true;
-
-} // EnsureSchemaExecute
-
-//-----------------------------------------------------------------------------
-bool KSQL::EnsureSchema (KStringView sProgramName,
-						 uint16_t iCurrentSchema,
-						 uint16_t iInitialSchema /* = 100 */,
-						 const IniParms& INI /* = IniParms{} */,
-						 bool bForce /* = false */,
-						 const SchemaCallback& Callback /* = nullptr */)
-//-----------------------------------------------------------------------------
-{
-	kDebug (2, "program={} schema={} force={}", sProgramName, iCurrentSchema, bForce ? "true" : "false");
-
-	if (iCurrentSchema < iInitialSchema)
-	{
-		kWarning("requested schema {} is lower than the initial schema {}", iCurrentSchema, iInitialSchema);
-		return false;
-	}
-
-	KString sLowerProgramName = sProgramName.ToLower();
-	KString sUpperProgramName = sProgramName.ToUpper();
-
-	KString sSchemaDir = INI.Get (kFormat("{}_SCHEMA_DIR", sUpperProgramName));
-
-	if (sSchemaDir.empty())
-	{
-		sSchemaDir.Format("/usr/local/share/{}/schema", sLowerProgramName);
-		if (!kDirExists(sSchemaDir))
-		{
-			sSchemaDir.Format("/usr/share/{}/schema", sLowerProgramName);
-		}
-	}
-
-	if (!kGetEnv(kFormat("{}_SCHEMA_DIR", sUpperProgramName)).empty())
-	{
-		// override schema from environment
-		sSchemaDir = kGetEnv (kFormat("{}_SCHEMA_DIR", sUpperProgramName));
-	}
-
-	sSchemaDir += kFormat("/{}-{{}}.ksql", sLowerProgramName);
-
-	return KSQL::EnsureSchemaExecute (kFormat("{}_SCHEMA", sUpperProgramName),
-									  iCurrentSchema,
-									  iInitialSchema,
-									  sSchemaDir,
-									  bForce,
-									  Callback);
 
 } // EnsureSchema
 

@@ -75,6 +75,7 @@ set (USOURCES
 	kwords_tests.cpp
 	kwriter_tests.cpp
 	kxml_tests.cpp
+	kzip_tests.cpp
 )
 
 add_executable(dekaf2-utests EXCLUDE_FROM_ALL ${UHEADERS} ${USOURCES})

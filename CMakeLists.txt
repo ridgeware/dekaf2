@@ -234,6 +234,20 @@ else()
 
 endif()
 
+# ================================= libzip =====================================
+
+# libzip - if not available it's simply skipped
+# warning: libzip would collide with installed packages libtcod and minizip2
+# - uninstall them if needed, or uncomment
+
+find_package(libzip QUIET)
+if(LIBZIP_FOUND)
+	message(STATUS "configuring with libzip: ${LIBZIP_LIBRARY}")
+	set(DEKAF2_HAS_LIBZIP 1)
+else()
+	message(STATUS "No ZIP archive support. Install libzip package if needed")
+endif()
+
 # ================================ LIBPROC ====================================
 
 # check if we have the libproc library (or at least its headers)
@@ -569,6 +583,12 @@ if (DEKAF2_WITH_COMPATIBILITY_LAYER_TO_DEKAF1)
 	)
 endif ()
 
+if (DEKAF2_HAS_LIBZIP)
+	set(PUBLIC_HEADERS ${PUBLIC_HEADERS}
+		kzip.h
+	)
+endif ()
+
 set(HEADERS
 	${BITS_HEADERS}
 	${COMPAT_HEADERS}
@@ -682,6 +702,12 @@ set (SOURCES
 	khtmlentities5.cpp
 )
 
+if (DEKAF2_HAS_LIBZIP)
+	set(SOURCES ${SOURCES}
+		kzip.cpp
+	)
+endif ()
+
 # ============================= CONDITIONAL LIBS ==================================
 
 if (CMAKE_COMPILER_IS_GNUCC AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 6.0)
@@ -746,6 +772,7 @@ target_link_libraries(dekaf2
 		${FCGILIBS}
 		${FSLIB}
 		${libproc_LIBRARIES}
+		${LIBZIP_LIBRARY}
 		re2
 	)
 
@@ -760,6 +787,7 @@ target_include_directories(dekaf2
 	PRIVATE
 	$<BUILD_INTERFACE:${SQLITE3_INCLUDE_DIRS}>
 	$<BUILD_INTERFACE:${libproc_INCLUDE_DIRS}>
+	$<BUILD_INTERFACE:${LIBZIP_INCLUDE_DIR}>
 )
 
 target_compile_definitions(dekaf2 PRIVATE DEKAF2_LIBRARY_BUILD PUBLIC DEKAF2)

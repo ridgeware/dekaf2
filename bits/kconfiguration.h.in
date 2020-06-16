@@ -74,6 +74,7 @@
 #define DEKAF2_SHARED_DIRECTORY "@dekaf2_share_dest@"
 #cmakedefine DEKAF1_INCLUDE_PATH @DEKAF1_INCLUDE_PATH@
 
+#cmakedefine DEKAF2_HAS_LIBZIP
 #cmakedefine DEKAF2_HAS_LIBPROC
 #cmakedefine DEKAF2_HAS_MYSQL
 #cmakedefine DEKAF2_HAS_SQLITE3

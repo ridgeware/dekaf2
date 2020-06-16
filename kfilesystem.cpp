@@ -1446,12 +1446,14 @@ bool KTempDir::MakeDir ()
 				if (kCreateDir (sDirName))
 				{
 					m_sTempDirName = std::move(sDirName);
+					kDebug(2, "created temp directory: {}", m_sTempDirName);
 					return true;
 				}
 			}
 		}
 	}
 
+	kDebug (1, "failed to create temp directory");
 	return false;
 
 } // MakeDir
@@ -1464,7 +1466,14 @@ KTempDir::~KTempDir()
 		!m_sTempDirName.empty() &&
 		kDirExists(m_sTempDirName))
 	{
-		kRemoveDir(m_sTempDirName);
+		if (kRemoveDir(m_sTempDirName))
+		{
+			kDebug (2, "removed temp directory: {}", m_sTempDirName);
+		}
+		else
+		{
+			kDebug (1, "failed to remove temp directory: {}", m_sTempDirName);
+		}
 	}
 
 } // KTempDir dtor

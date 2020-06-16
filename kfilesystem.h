@@ -480,8 +480,10 @@ class KTempDir
 public:
 //----------
 
-	/// create temp directory
-	KTempDir (bool bDeleteOnDestruction=true, bool bCreateNow=true);
+	/// Create temp directory. The creation is not safe against race conditions.
+	/// @param bDeleteOnDestruction delete directory and contents on destruction?
+	/// @param bCreateNow create now, or later on request
+	KTempDir (bool bDeleteOnDestruction = true, bool bCreateNow = true);
 	~KTempDir ();
 
 	/// in case the folder was not created during construction (because bCreateNow was false), create it now

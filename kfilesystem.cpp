@@ -455,6 +455,9 @@ bool kCreateDir(KStringViewZ sPath, int iMode /* = DEKAF2_MODE_CREATE_DIR */)
 		sTmp.remove_suffix(1);
 		if (fs::create_directories(kToFilesystemPath(sTmp), ec))
 		{
+			// TODO set permissions if iMode != 0777, check ec instead of
+			// fs::create_directories() return value (is false on existing
+			// dir)
 			return true;
 		}
 	}
@@ -462,6 +465,7 @@ bool kCreateDir(KStringViewZ sPath, int iMode /* = DEKAF2_MODE_CREATE_DIR */)
 	{
 		if (fs::create_directories(kToFilesystemPath(sPath), ec))
 		{
+			// TODO see above
 			return true;
 		}
 	}
@@ -1409,12 +1413,6 @@ KTempDir::KTempDir (bool bDeleteOnDestruction, bool bCreateNow/*=true*/)
 //-----------------------------------------------------------------------------
 : m_bDeleteOnDestruction(bDeleteOnDestruction)
 {
-	m_sTempDirName = kFormat ("{}{}{}-{}",
-							  kGetTemp(),
-							  kDirSep,
-							  kFirstNonEmpty(Dekaf::getInstance().GetProgName(), "dekaf"),
-							  kRandom (10000, 99999));
-
 	if (bCreateNow)
 	{
 		MakeDir ();
@@ -1426,14 +1424,35 @@ KTempDir::KTempDir (bool bDeleteOnDestruction, bool bCreateNow/*=true*/)
 bool KTempDir::MakeDir ()
 //-----------------------------------------------------------------------------
 {
-	if (kDirExists(m_sTempDirName))
+	// create only once..
+	if (!m_sTempDirName.empty())
 	{
-		return true; // already exists
+		KString sDirName;
+
+		for (int i = 0; i < 100; ++i)
+		{
+			sDirName = kFormat ("{}{}{}-{}",
+								kGetTemp(),
+								kDirSep,
+								kFirstNonEmpty(Dekaf::getInstance().GetProgName(), "dekaf"),
+								kRandom (10000, 99999));
+
+			if (kDirExists(sDirName))
+			{
+				continue;
+			}
+			else
+			{
+				if (kCreateDir (sDirName))
+				{
+					m_sTempDirName = std::move(sDirName);
+					return true;
+				}
+			}
+		}
 	}
-	else
-	{
-		return kCreateDir (m_sTempDirName);
-	}
+
+	return false;
 
 } // MakeDir
 
@@ -1441,7 +1460,9 @@ bool KTempDir::MakeDir ()
 KTempDir::~KTempDir()
 //-----------------------------------------------------------------------------
 {
-	if (m_bDeleteOnDestruction && kDirExists(m_sTempDirName))
+	if (m_bDeleteOnDestruction &&
+		!m_sTempDirName.empty() &&
+		kDirExists(m_sTempDirName))
 	{
 		kRemoveDir(m_sTempDirName);
 	}

@@ -1,5 +1,7 @@
 #include "catch.hpp"
 
+#ifdef DEKAF2_HAS_LIBZIP
+
 #include <dekaf2/kzip.h>
 #include <dekaf2/kfilesystem.h>
 
@@ -22,3 +24,4 @@ TEST_CASE("KZip") {
 
 }
 
+#endif

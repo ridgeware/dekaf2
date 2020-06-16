@@ -1425,7 +1425,7 @@ bool KTempDir::MakeDir ()
 //-----------------------------------------------------------------------------
 {
 	// create only once..
-	if (!m_sTempDirName.empty())
+	if (m_sTempDirName.empty())
 	{
 		KString sDirName;
 

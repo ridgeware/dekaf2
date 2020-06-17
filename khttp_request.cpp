@@ -90,7 +90,7 @@ bool KHTTPRequestHeaders::Parse(KInStream& Stream)
 	Resource = Words[1];
 	sHTTPVersion = Words[2];
 
-	kDebug(2, "{} {} {}", Words[0], Words[1], Words[2]);
+	kDebug(1, "{} {} {}", Words[0], Words[1], Words[2]);
 
 	if (!sHTTPVersion.starts_with("HTTP/"))
 	{
@@ -109,7 +109,7 @@ bool KHTTPRequestHeaders::Serialize(KOutStream& Stream) const
 	{
 		if (!Endpoint.empty())
 		{
-			kDebug(2, "{} http://{}{} {}",
+			kDebug(1, "{} http://{}{} {}",
 					Method.Serialize(),
 					Endpoint.Serialize(),
 					Resource.Serialize(),
@@ -122,7 +122,7 @@ bool KHTTPRequestHeaders::Serialize(KOutStream& Stream) const
 		}
 		else
 		{
-			kDebug(2, "{} {} {}",
+			kDebug(1, "{} {} {}",
 					Method.Serialize(),
 					Resource.Serialize(),
 					sHTTPVersion);
@@ -136,7 +136,7 @@ bool KHTTPRequestHeaders::Serialize(KOutStream& Stream) const
 	{
 		if (!Endpoint.empty() && Method == KHTTPMethod::CONNECT)
 		{
-			kDebug(2, "{} {} {}",
+			kDebug(1, "{} {} {}",
 					Method.Serialize(),
 					Endpoint.Serialize(),
 					sHTTPVersion);
@@ -151,7 +151,7 @@ bool KHTTPRequestHeaders::Serialize(KOutStream& Stream) const
 			// special case, insert a single slash for the resource to
 			// satisfy the HTTP protocol
 			kDebug(1, "resource is empty, inserting /");
-			kDebug(2, "{} / {}",
+			kDebug(1, "{} / {}",
 						Method.Serialize(),
 						sHTTPVersion);
 			Stream.FormatLine("{} / {}",

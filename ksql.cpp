@@ -3623,42 +3623,70 @@ void KSQL::FreeBufferedColArray (bool fValuesOnly/*=false*/)
 } // FreeBufferedColArray
 
 //-----------------------------------------------------------------------------
+KROW KSQL::SingleRawQuery (KStringView sSQL, Flags iFlags/*=0*/, KStringView sAPI/*="SingleRawQuery"*/)
+//-----------------------------------------------------------------------------
+{
+	KROW ROW;
+
+	EndQuery ();
+
+	if (IsConnectionOpen() || OpenConnection())
+	{
+		Flags iHold = GetFlags();
+		m_iFlags |= F_IgnoreSQLErrors;
+		m_iFlags |= iFlags;
+
+		bool bOK = ExecRawQuery (sSQL, 0, sAPI);
+
+		m_iFlags = iHold;
+
+		if (!bOK)
+		{
+			kDebugLog (GetDebugLevel(), "KSQL::{}(): sql error: {}", sAPI, GetLastError());
+		}
+		else if (!NextRow(ROW))
+		{
+			kDebugLog (GetDebugLevel(), "KSQL::{}(): expected one row back and didn't get it", sAPI);
+		}
+
+		EndQuery();
+	}
+
+	return ROW;
+
+} // SingleRawQuery
+
+//-----------------------------------------------------------------------------
+KString KSQL::SingleStringRawQuery (KStringView sSQL, Flags iFlags/*=0*/, KStringView sAPI/*="SingleIntRawQuery"*/)
+//-----------------------------------------------------------------------------
+{
+	auto ROW = SingleRawQuery(sSQL, iFlags, sAPI);
+
+	if (ROW.empty())
+	{
+		return {};
+	}
+
+	kDebugLog (GetDebugLevel(), "KSQL::{}(): got {}\n", sAPI, ROW.GetValue(0));
+
+	return ROW.GetValue(0);
+
+} // SingleStringRawQuery
+
+//-----------------------------------------------------------------------------
 int64_t KSQL::SingleIntRawQuery (KStringView sSQL, Flags iFlags/*=0*/, KStringView sAPI/*="SingleIntRawQuery"*/)
 //-----------------------------------------------------------------------------
 {
-	EndQuery ();
-	
-	if (!IsConnectionOpen() && !OpenConnection())
+	auto sValue = SingleStringRawQuery(sSQL, iFlags, sAPI);
+
+	if (!kIsInteger(sValue))
 	{
-		return (false);
+		return -1;
 	}
-
-	Flags iHold = GetFlags();
-	m_iFlags |= F_IgnoreSQLErrors;
-	m_iFlags |= iFlags;
-
-	bool bOK = ExecRawQuery (sSQL, 0, sAPI);
-
-	m_iFlags = iHold;
-
-	if (!bOK)
+	else
 	{
-		kDebugLog (GetDebugLevel(), "KSQL::{}(): sql error, so we return -1", sAPI);
-		return (-1);
+		return sValue.Int64();
 	}
-
-	if (!NextRow())
-	{
-		kDebugLog (GetDebugLevel(), "KSQL::{}(): expected one row back and didn't get it, so we return -1", sAPI);
-		EndQuery();
-		return (-1);
-	}
-
-	int64_t iValue = Get (1).Int64();
-	kDebugLog (GetDebugLevel(), "KSQL::{}(): got {}\n", sAPI, iValue);
-
-	EndQuery();
-	return (iValue);
 
 } // SingleIntRawQuery
 
@@ -7178,7 +7206,7 @@ bool KSQL::GetLock (KStringView sName, int16_t iTimeoutSeconds)
 	if (m_iDBType == DBT::MYSQL)
 	{
 		m_sLastSQL = kFormat("SELECT GET_LOCK(\"{}\", {})", EscapeString(sName), iTimeoutSeconds);
-		return SingleIntRawQuery (m_sLastSQL, 0, "GetLock");
+		return SingleIntRawQuery (m_sLastSQL, 0, "GetLock") >= 1;
 	}
 
 	kDebug(1, "not supported for {}", TxDBType(m_iDBType));
@@ -7194,7 +7222,7 @@ bool KSQL::ReleaseLock (KStringView sName)
 	if (m_iDBType == DBT::MYSQL)
 	{
 		m_sLastSQL = kFormat("SELECT RELEASE_LOCK(\"{}\")", EscapeString(sName));
-		return SingleIntRawQuery (m_sLastSQL, 0, "ReleaseLock");
+		return SingleIntRawQuery (m_sLastSQL, 0, "ReleaseLock") >= 1;
 	}
 
 	kDebug(1, "not supported for {}", TxDBType(m_iDBType));
@@ -7210,7 +7238,7 @@ bool KSQL::IsLocked (KStringView sName)
 	if (m_iDBType == DBT::MYSQL)
 	{
 		m_sLastSQL = kFormat("SELECT IS_USED_LOCK(\"{}\")", EscapeString(sName));
-		return SingleIntRawQuery (m_sLastSQL, 0, "IsLocked");
+		return SingleIntRawQuery (m_sLastSQL, 0, "IsLocked") >= 1;
 	}
 
 	kDebug(1, "not supported for {}", TxDBType(m_iDBType));

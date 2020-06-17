@@ -351,13 +351,43 @@ public:
 
 	} // ExecQuery
 
+	/// Executes a verbatim SQL statement that returns one single integer value or -1 on failure
+	/// @param sSQL  a SQL statement that returns one integer column
+	/// @param Flags additional processing flags, default none
+	/// @param sAPI  the method name used for logging, default "ExecRawQuery"
+	int64_t        SingleIntRawQuery (KStringView sSQL, Flags iFlags=0, KStringView sAPI = "ExecRawQuery");
+
+	/// Executes a verbatim SQL statement that returns one single string value or "" on failure
+	/// @param sSQL  a SQL statement that returns one string column
+	/// @param Flags additional processing flags, default none
+	/// @param sAPI  the method name used for logging, default "ExecRawQuery"
+	KString        SingleStringRawQuery (KStringView sSQL, Flags iFlags=0, KStringView sAPI = "ExecRawQuery");
+
+	/// Executes a verbatim SQL statement that returns one single KROW
+	/// @param sSQL  a SQL statement
+	/// @param Flags additional processing flags, default none
+	/// @param sAPI  the method name used for logging, default "ExecRawQuery"
+	KROW           SingleRawQuery (KStringView sSQL, Flags iFlags=0, KStringView sAPI = "ExecRawQuery");
+
+	/// Executes an SQL statement with format arguments that returns one KROW
+	template<class... Args>
+	KROW SingleQuery (Args&&... args)
+	{
+		m_sLastSQL = kPrintf(std::forward<Args>(args)...);
+
+		if (!IsFlag(F_NoTranslations))
+		{
+			DoTranslations (m_sLastSQL);
+		}
+
+		return (SingleRawQuery (m_sLastSQL, 0, "SingleQuery"));
+
+	} // KSQL::SingleQuery
 
 	/// Executes an SQL statement with format arguments that returns one single integer value or -1 on failure
 	template<class... Args>
 	int64_t SingleIntQuery (Args&&... args)
 	{
-		kDebug (3, "...");
-
 		m_sLastSQL = kPrintf(std::forward<Args>(args)...);
 
 		if (!IsFlag(F_NoTranslations))
@@ -369,11 +399,20 @@ public:
 
 	} // KSQL::SingleIntQuery
 
-	/// Executes a verbatim SQL statement that returns one single integer value or -1 on failure
-	/// @param sSQL  a SQL statement that returns one integer column
-	/// @param Flags additional processing flags, default none
-	/// @param sAPI  the method name used for logging, default "ExecRawQuery"
-	int64_t        SingleIntRawQuery (KStringView sSQL, Flags iFlags=0, KStringView sAPI = "ExecRawQuery");
+	/// Executes an SQL statement with format arguments that returns one single string value or "" on failure
+	template<class... Args>
+	KString SingleStringQuery (Args&&... args)
+	{
+		m_sLastSQL = kPrintf(std::forward<Args>(args)...);
+
+		if (!IsFlag(F_NoTranslations))
+		{
+			DoTranslations (m_sLastSQL);
+		}
+
+		return (SingleStringRawQuery (m_sLastSQL, 0, "SingleStringQuery"));
+
+	} // KSQL::SingleStringQuery
 
 	bool           ExecRawQuery   (KStringView sSQL, Flags iFlags=0, KStringView sAPI = "ExecRawQuery");
 	KROW::Index    GetNumCols     ();

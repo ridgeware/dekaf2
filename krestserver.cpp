@@ -898,7 +898,7 @@ void KRESTServer::SetStatus (int iCode)
 		case KHTTPError::H2xx_CREATED:      Response.SetStatus (201, "CREATED");                break;
 		case KHTTPError::H2xx_UPDATED:      Response.SetStatus (201, "UPDATED");                break;
 		case KHTTPError::H2xx_DELETED:      Response.SetStatus (201, "DELETED");                break;
-		case KHTTPError::H2xx_ALREADY:      Response.SetStatus (200, "ALREADY DONE");           break; // DO NOT USE 204 STATUS (see below)
+		case KHTTPError::H2xx_ALREADY:      Response.SetStatus (208, "ALREADY DONE");           break;
 
 		// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 		// FALL THROUGH: blow up with a 500 error

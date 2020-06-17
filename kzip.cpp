@@ -58,7 +58,12 @@ inline zip* pZip(void* p)
 auto zipDeleter = [](void* data)
 //-----------------------------------------------------------------------------
 {
-	zip_close(static_cast<zip_t*>(data));
+	if (zip_close(static_cast<zip_t*>(data)))
+	{
+		kDebug(1, "cannot properly close ZIP archive - changes are discarded");
+		zip_discard(static_cast<zip_t*>(data));
+	}
+
 };
 
 //-----------------------------------------------------------------------------
@@ -93,6 +98,14 @@ bool KZip::SetError(int iError) const
 } // SetError
 
 //-----------------------------------------------------------------------------
+bool KZip::SetError() const
+//-----------------------------------------------------------------------------
+{
+	return SetError(zip_strerror(pZip(D.get())));
+
+} // SetError
+
+//-----------------------------------------------------------------------------
 bool KZip::Open(KStringViewZ sFilename, bool bWrite)
 //-----------------------------------------------------------------------------
 {
@@ -112,12 +125,28 @@ bool KZip::Open(KStringViewZ sFilename, bool bWrite)
 } // Open
 
 //-----------------------------------------------------------------------------
-bool KZip::Contains(KStringViewZ sName) const noexcept
+void KZip::Close()
 //-----------------------------------------------------------------------------
 {
-	return zip_name_locate(pZip(D.get()), sName.c_str(), 0) >= 0;
+	D.reset();
+
+} // Close
+
+//-----------------------------------------------------------------------------
+bool KZip::Contains(KStringViewZ sName, bool bNoPathCompare) const noexcept
+//-----------------------------------------------------------------------------
+{
+	return zip_name_locate(pZip(D.get()), sName.c_str(), bNoPathCompare ? ZIP_FL_NODIR : 0) >= 0;
 
 } // Contains
+
+//-----------------------------------------------------------------------------
+void KZip::DirEntry::clear()
+//-----------------------------------------------------------------------------
+{
+	memset(this, 0, sizeof(*this));
+
+} // clear
 
 //-----------------------------------------------------------------------------
 bool KZip::DirEntry::from_zip_stat(const void* vzip_stat)
@@ -143,6 +172,7 @@ bool KZip::DirEntry::from_zip_stat(const void* vzip_stat)
 
 	if (!stat)
 	{
+		clear();
 		return false;
 	}
 
@@ -154,28 +184,22 @@ bool KZip::DirEntry::from_zip_stat(const void* vzip_stat)
 	iCRC              = stat->crc;
 	iCompMethod       = stat->comp_method;
 	iEncryptionMethod = stat->encryption_method;
+	bIsDirectory      = !sName.empty() && *sName.rbegin() == '/';
 
 	return true;
 
 } // from_zip_stat
 
 //-----------------------------------------------------------------------------
-struct KZip::DirEntry KZip::DirEntry(std::size_t iIndex) const
+struct KZip::DirEntry KZip::Get(std::size_t iIndex) const
 //-----------------------------------------------------------------------------
 {
-	struct DirEntry File;
+	DirEntry File;
 	struct zip_stat stat;
 
 	if (zip_stat_index(pZip(D.get()), iIndex, 0, &stat) < 0)
 	{
-		if (m_bThrow)
-		{
-			throw std::runtime_error(zip_strerror(pZip(D.get())));
-		}
-		else
-		{
-			m_sError = zip_strerror(pZip(D.get()));
-		}
+		SetError();
 	}
 	else
 	{
@@ -185,25 +209,18 @@ struct KZip::DirEntry KZip::DirEntry(std::size_t iIndex) const
 
 	return File;
 
-}  // DirEntry
+}  // Get
 
 //-----------------------------------------------------------------------------
-struct KZip::DirEntry KZip::DirEntry(KStringViewZ sName) const
+struct KZip::DirEntry KZip::Get(KStringViewZ sName, bool bNoPathCompare) const
 //-----------------------------------------------------------------------------
 {
-	struct DirEntry File;
+	DirEntry File;
 	struct zip_stat stat;
 
-	if (zip_stat(pZip(D.get()), sName.c_str(), 0, &stat) < 0)
+	if (zip_stat(pZip(D.get()), sName.c_str(), bNoPathCompare ? ZIP_FL_NODIR : 0, &stat) < 0)
 	{
-		if (m_bThrow)
-		{
-			throw std::runtime_error(zip_strerror(pZip(D.get())));
-		}
-		else
-		{
-			m_sError = zip_strerror(pZip(D.get()));
-		}
+		SetError();
 	}
 	else
 	{
@@ -213,7 +230,7 @@ struct KZip::DirEntry KZip::DirEntry(KStringViewZ sName) const
 
 	return File;
 
-} // DirEntry
+} // Get
 
 //-----------------------------------------------------------------------------
 std::size_t KZip::size() const noexcept
@@ -224,12 +241,70 @@ std::size_t KZip::size() const noexcept
 } // size
 
 //-----------------------------------------------------------------------------
-bool KZip::Read(KOutStream& OutStream, const struct DirEntry& DirEntry)
+KZip::Directory KZip::Files() const
+//-----------------------------------------------------------------------------
+{
+	Directory Files;
+
+	for (std::size_t i = 0; i < size(); ++i)
+	{
+		auto Entry = Get(i);
+		if (!Entry.bIsDirectory)
+		{
+			Files.push_back(std::move(Entry));
+		}
+	}
+
+	return Files;
+
+} // Files
+
+//-----------------------------------------------------------------------------
+KZip::Directory KZip::Directories() const
+//-----------------------------------------------------------------------------
+{
+	Directory Directories;
+
+	for (std::size_t i = 0; i < size(); ++i)
+	{
+		auto Entry = Get(i);
+		if (Entry.bIsDirectory)
+		{
+			Directories.push_back(std::move(Entry));
+		}
+	}
+
+	return Directories;
+
+} // Directories
+
+//-----------------------------------------------------------------------------
+KZip::Directory KZip::FilesAndDirectories() const
+//-----------------------------------------------------------------------------
+{
+	Directory FilesAndDirectories;
+
+	for (std::size_t i = 0; i < size(); ++i)
+	{
+		FilesAndDirectories.push_back(Get(i));
+	}
+
+	return FilesAndDirectories;
+
+} // FilesAndDirectories
+
+//-----------------------------------------------------------------------------
+bool KZip::Read(KOutStream& OutStream, const DirEntry& DirEntry)
 //-----------------------------------------------------------------------------
 {
 	if (DirEntry.sName.empty())
 	{
 		return SetError("KZip: no file specified for reading");
+	}
+
+	if (DirEntry.bIsDirectory)
+	{
+		return SetError(kFormat("KZip: file is directory: {}", DirEntry.sName));
 	}
 
 	std::array<char, 4096> Buffer;
@@ -249,7 +324,7 @@ bool KZip::Read(KOutStream& OutStream, const struct DirEntry& DirEntry)
 
 	if (File.get() == nullptr)
 	{
-		return SetError(zip_strerror(pZip(D.get())));
+		return SetError();
 	}
 
 	for (;;)
@@ -260,7 +335,10 @@ bool KZip::Read(KOutStream& OutStream, const struct DirEntry& DirEntry)
 
 		if (iRead > 0)
 		{
-			OutStream.Write(Buffer.data(), iRead);
+			if (!OutStream.Write(Buffer.data(), iRead).Good())
+			{
+				return false;
+			}
 		}
 
 		if (iRead < static_cast<int64_t>(Buffer.size()))
@@ -280,7 +358,7 @@ bool KZip::Read(KOutStream& OutStream, const struct DirEntry& DirEntry)
 } // Read
 
 //-----------------------------------------------------------------------------
-bool KZip::Read(KStringViewZ sFileName, const struct DirEntry& DirEntry)
+bool KZip::Read(KStringViewZ sFileName, const DirEntry& DirEntry)
 //-----------------------------------------------------------------------------
 {
 	KOutFile OutFile(sFileName);
@@ -295,7 +373,7 @@ bool KZip::Read(KStringViewZ sFileName, const struct DirEntry& DirEntry)
 } // Read
 
 //-----------------------------------------------------------------------------
-KString KZip::Read(const struct DirEntry& DirEntry)
+KString KZip::Read(const DirEntry& DirEntry)
 //-----------------------------------------------------------------------------
 {
 	KString sBuffer;

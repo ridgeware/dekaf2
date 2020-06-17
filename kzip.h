@@ -46,6 +46,7 @@
 #include "kexception.h"
 #include "kwriter.h"
 #include "kreader.h"
+#include "kfilesystem.h"
 
 namespace dekaf2 {
 
@@ -61,20 +62,51 @@ public:
 //------
 
 	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	/// class that holds all information about one ZIP archive entry
 	struct DirEntry
 	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	{
-		KStringView sName;             ///< name of the file
-		std::size_t iIndex;            ///< index within archive
-		uint64_t    iSize;             ///< size of file (uncompressed)
-		uint64_t    iCompSize;         ///< size of file (compressed)
-		time_t      mtime;             ///< modification time
-		uint32_t    iCRC;              ///< crc of file data
-		uint16_t    iCompMethod;       ///< compression method used
-		uint16_t    iEncryptionMethod; ///< encryption method used
+
+	//------
+	public:
+	//------
+
+		KStringViewZ sName;              ///< name of the file
+		std::size_t  iIndex;             ///< index within archive
+		uint64_t     iSize;              ///< size of file (uncompressed)
+		uint64_t     iCompSize;          ///< size of file (compressed)
+		time_t       mtime;              ///< modification time
+		uint32_t     iCRC;               ///< crc of file data
+		uint16_t     iCompMethod;        ///< compression method used
+		uint16_t     iEncryptionMethod;  ///< encryption method used
+		bool         bIsDirectory;       ///< is this a directory?
+
+		/// clear the DirEntry struct
+		void        clear();
+
+		/// return a sanitized file name (no path, no escaping, no special characters)
+		KString     SafeName() const
+		{
+			return kMakeSafeFilename(kBasename(sName), false);
+		}
+
+		/// return a sanitized path name (no escaping, no special characters)
+		KString     SafePath() const
+		{
+			return kMakeSafePathname(sName, false);
+		}
+
+	//------
+	private:
+	//------
+
+		friend class KZip;
 
 		bool from_zip_stat(const void* vzip_stat);
-	};
+
+	}; // DirEntry
+
+	using Directory = std::vector<DirEntry>;
 
 	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	class iterator
@@ -92,21 +124,19 @@ public:
 		using difference_type   = int64_t;
 		using self_type         = iterator;
 
-		iterator(KZip& Zip, uint64_t index = 0) noexcept
+		iterator(KZip& Zip, uint64_t iIndex = 0) noexcept
 		: m_Zip(&Zip)
-		, m_index(index)
+		, m_iIndex(iIndex)
 		{
-			if (index < m_Zip->size())
+			if (iIndex < m_Zip->size())
 			{
-				m_DirEntry = m_Zip->DirEntry(index);
+				m_DirEntry = m_Zip->Get(iIndex);
 			}
 		}
 
-		iterator() noexcept = default;
-
 		reference operator*() const
 		{
-			if (m_index <= m_Zip->size())
+			if (m_iIndex <= m_Zip->size())
 			{
 				return m_DirEntry;
 			}
@@ -124,9 +154,9 @@ public:
 		// post increment
 		iterator& operator++() noexcept
 		{
-			if (++m_index < m_Zip->size())
+			if (++m_iIndex < m_Zip->size())
 			{
-				m_DirEntry = m_Zip->DirEntry(m_index);
+				m_DirEntry = m_Zip->Get(m_iIndex);
 			}
 			return *this;
 		}
@@ -135,9 +165,9 @@ public:
 		iterator operator++(int) noexcept
 		{
 			iterator Copy = *this;
-			if (++m_index < m_Zip->size())
+			if (++m_iIndex < m_Zip->size())
 			{
-				m_DirEntry = m_Zip->DirEntry(m_index);
+				m_DirEntry = m_Zip->Get(m_iIndex);
 			}
 			return Copy;
 		}
@@ -145,9 +175,9 @@ public:
 		// post decrement
 		iterator& operator--() noexcept
 		{
-			if (--m_index < m_Zip->size())
+			if (--m_iIndex < m_Zip->size())
 			{
-				m_DirEntry = m_Zip->DirEntry(m_index);
+				m_DirEntry = m_Zip->Get(m_iIndex);
 			}
 			return *this;
 		}
@@ -156,9 +186,9 @@ public:
 		iterator operator--(int) noexcept
 		{
 			iterator Copy = *this;
-			if (--m_index < m_Zip->size())
+			if (--m_iIndex < m_Zip->size())
 			{
-				m_DirEntry = m_Zip->DirEntry(m_index);
+				m_DirEntry = m_Zip->Get(m_iIndex);
 			}
 			return Copy;
 		}
@@ -166,18 +196,18 @@ public:
 		// increment
 		iterator operator+(difference_type iIncrement) const noexcept
 		{
-			return iterator(*m_Zip, m_index + iIncrement);
+			return iterator(*m_Zip, m_iIndex + iIncrement);
 		}
 
 		// decrement
 		iterator operator-(difference_type iDecrement) const noexcept
 		{
-			return iterator(*m_Zip, m_index + iDecrement);
+			return iterator(*m_Zip, m_iIndex + iDecrement);
 		}
 
 		bool operator==(const iterator& other) const noexcept
 		{
-			return m_Zip == other.m_Zip && m_index == other.m_index;
+			return m_Zip == other.m_Zip && m_iIndex == other.m_iIndex;
 		}
 
 		bool operator!=(const iterator& other) const noexcept
@@ -187,27 +217,28 @@ public:
 
 		DirEntry operator[](difference_type iIndex)
 		{
-			return m_Zip->DirEntry(m_index + iIndex);
+			return m_Zip->Get(m_iIndex + iIndex);
 		}
 
 	//------
 	private:
 	//------
 
-		KZip* m_Zip;
-		uint64_t m_index { 0 };
-		mutable DirEntry m_DirEntry {};
+		KZip*    m_Zip    { nullptr };
+		uint64_t m_iIndex { 0 };
+		mutable  DirEntry m_DirEntry;
 
 	}; // iterator
 
 	using const_iterator = iterator;
 
-	KZip(bool bThrow = true)
+	KZip(bool bThrow = false)
 	: m_bThrow(bThrow)
 	{
 	}
 
-	KZip(KStringViewZ sFilename, bool bWrite = false, bool bThrow = true)
+	KZip(KStringViewZ sFilename, bool bWrite = false, bool bThrow = false)
+	: m_bThrow(bThrow)
 	{
 		Open(sFilename, bWrite);
 	}
@@ -224,7 +255,18 @@ public:
 		return *this;
 	}
 
+	/// open a zip archive, either for reading or for reading and writing
 	bool Open(KStringViewZ sFilename, bool bWrite = false);
+
+	/// returns true if archive is opened
+	bool is_open() const
+	{
+		return D.get();
+	}
+
+	/// close a zip archive - not needed, will be done by dtor or opening
+	/// another one as well
+	void Close();
 
 	/// returns count of entries in zip
 	std::size_t size() const noexcept;
@@ -259,20 +301,48 @@ public:
 		return const_iterator(const_cast<KZip&>(*this), size());
 	}
 
-	/// returns DirEntry at iIndex
-	struct DirEntry DirEntry(std::size_t iIndex) const;
+	/// returns a DirEntry at iIndex
+	/// @param iIndex the index position in the archive directory
+	DirEntry Get(std::size_t iIndex) const;
 
-	/// returns DirEntry for file sName
-	struct DirEntry DirEntry(KStringViewZ sName) const;
+	/// returns a DirEntry for file sName
+	/// @param sName the file name searched for
+	/// @param bNoPathCompare if true, only the file name part of the path
+	/// is searched for
+	DirEntry Get(KStringViewZ sName, bool bNoPathCompare = false) const;
 
-	/// returns DirEntry, alias of DirEntry()
-	struct DirEntry Find(KStringViewZ sName) const
+	/// returns a DirEntry, alias of Get()
+	/// @param sName the file name searched for
+	/// @param bNoPathCompare if true, only the file name part of the path
+	/// is searched for
+	DirEntry Find(KStringViewZ sName, bool bNoPathCompare = false) const
 	{
-		return DirEntry(sName);
+		return Get(sName, bNoPathCompare);
 	}
 
 	/// returns true if file sName exists
-	bool Contains(KStringViewZ sName) const noexcept;
+	/// @param sName the file name searched for
+	/// @param bNoPathCompare if true, only the file name part of the path
+	/// is searched for
+	bool Contains(KStringViewZ sName, bool bNoPathCompare = false) const noexcept;
+
+	/// returns a vector with all DirEntries of files
+	Directory Files() const;
+
+	/// returns a vector with all DirEntries of directories
+	Directory Directories() const;
+
+	/// returns a vector with all DirEntries of files and directories
+	Directory FilesAndDirectories() const;
+
+	/// reads a DirEntry's file into a KOutStream
+	bool Read(KOutStream& OutStream, const DirEntry& DirEntry);
+
+	/// reads a DirEntry's file into a file sFileName
+	bool Read(KStringViewZ sFileName, const DirEntry& DirEntry);
+
+	/// reads a DirEntry's file into a string to return
+	KString Read(const DirEntry& DirEntry);
 
 	/// returns last error if class is not constructed to throw (default)
 	const KString& Error() const
@@ -280,20 +350,13 @@ public:
 		return m_sError;
 	}
 
-	bool Read(KOutStream& OutStream, const struct DirEntry& DirEntry);
-	bool Read(KStringViewZ sFileName, const struct DirEntry& DirEntry);
-	KString Read(const struct DirEntry& DirEntry);
-
-//------
-protected:
-//------
-
 //------
 private:
 //------
 
 	bool SetError(KString sError) const;
 	bool SetError(int iError) const;
+	bool SetError() const;
 
 	// helper types to allow for a unique_ptr<void>, which lets us hide all
 	// implementation headers from the interface and nonetheless keep exception safety
@@ -304,7 +367,7 @@ private:
 
 	KString m_sPassword;
 	mutable KString m_sError;
-	bool m_bThrow { true };
+	bool m_bThrow { false };
 
 }; // KZip
 

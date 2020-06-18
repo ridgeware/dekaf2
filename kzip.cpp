@@ -144,7 +144,15 @@ bool KZip::Contains(KStringViewZ sName, bool bNoPathCompare) const noexcept
 void KZip::DirEntry::clear()
 //-----------------------------------------------------------------------------
 {
-	memset(this, 0, sizeof(*this));
+	sName.clear();
+	iIndex            = 0;
+	iSize             = 0;
+	iCompSize         = 0;
+	mtime             = 0;
+	iCRC              = 0;
+	iCompMethod       = 0;
+	iEncryptionMethod = 0;
+	bIsDirectory      = false;
 
 } // clear
 

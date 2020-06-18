@@ -240,7 +240,7 @@ endif()
 # warning: libzip would collide with installed packages libtcod and minizip2
 # - uninstall them if needed, or uncomment
 
-find_package(libzip QUIET)
+find_package(LibZip QUIET)
 if(LIBZIP_FOUND)
 	message(STATUS "configuring with libzip: ${LIBZIP_LIBRARY}")
 	set(DEKAF2_HAS_LIBZIP 1)

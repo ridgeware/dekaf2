@@ -50,7 +50,7 @@ namespace dekaf2 {
 bool KREST::RealExecute(const Options& Options, const KRESTRoutes& Routes, KStream& Stream, KStringView sRemoteIP)
 //-----------------------------------------------------------------------------
 {
-	kDebug (3, "...");
+	kDebug (2, "...");
 
 	KRESTServer Request;
 	
@@ -66,7 +66,7 @@ bool KREST::RealExecute(const Options& Options, const KRESTRoutes& Routes, KStre
 bool KREST::ExecuteRequest(const Options& Options, const KRESTRoutes& Routes)
 //-----------------------------------------------------------------------------
 {
-	kDebug (3, "...");
+	kDebug (2, "...");
 
 	switch (Options.Type)
 	{
@@ -170,7 +170,7 @@ bool KREST::ExecuteRequest(const Options& Options, const KRESTRoutes& Routes)
 		case CLI:
 			{
 				KLog::getInstance().SetMode(KLog::CLI); // CLI mode is the default anyway..
-				kDebug (3, "normal CLI request...");
+				kDebug (2, "normal CLI request...");
 				KStream Stream(KIn, KOut);
 				Options.Out = KRESTServer::CLI;
 				RealExecute(Options, Routes, Stream, "127.0.0.1");
@@ -191,13 +191,13 @@ bool KREST::ExecuteRequest(const Options& Options, const KRESTRoutes& Routes)
 bool KREST::ExecuteFromFile(const Options& Options, const KRESTRoutes& Routes, KOutStream& OutStream)
 //-----------------------------------------------------------------------------
 {
-	kDebug (3, "...");
+	kDebug (2, "...");
 
 	switch (Options.Type)
 	{
 		case CGI:
 			{
-				kDebug(3, "simulated CGI request with input file: {}", Options.Simulate.sFilename);
+				kDebug(2, "simulated CGI request with input file: {}", Options.Simulate.sFilename);
 				KInFile File(Options.Simulate.sFilename);
 				KCGIInStream CGI(File);
 				if (!Options.sKLogHeader.empty())
@@ -212,7 +212,7 @@ bool KREST::ExecuteFromFile(const Options& Options, const KRESTRoutes& Routes, K
 
 		case LAMBDA:
 			{
-				kDebug(3, "simulated Lambda request with input file: {}", Options.Simulate.sFilename);
+				kDebug(2, "simulated Lambda request with input file: {}", Options.Simulate.sFilename);
 				KInFile File(Options.Simulate.sFilename);
 				KLambdaInStream Lambda(File);
 				KStream Stream(Lambda, OutStream);
@@ -248,7 +248,7 @@ bool KREST::ExecuteFromFile(const Options& Options, const KRESTRoutes& Routes, K
 bool KREST::Simulate(const Options& Options, const KRESTRoutes& Routes, const KResource& API, KOutStream& OutStream)
 //-----------------------------------------------------------------------------
 {
-	kDebug (3, "...");
+	kDebug (2, "...");
 
 	if (API.empty())
 	{
@@ -312,7 +312,7 @@ bool KREST::Simulate(const Options& Options, const KRESTRoutes& Routes, const KR
 bool KREST::Execute(const Options& Options, const KRESTRoutes& Routes)
 //-----------------------------------------------------------------------------
 {
-	kDebug (3, "...");
+	kDebug (1, "...");
 
 	switch (Options.Type)
 	{

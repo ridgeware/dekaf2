@@ -473,6 +473,9 @@ public:
 	/// After starting a query, this converts data in given column to a UNIX time (time_t).  Handles dates like "1965-03-31 12:00:00" and "20010302213436".
 	time_t       GetUnixTime (KROW::Index iOneBasedColNum);
 
+	/// convert various formats to something that the db can handle
+	static KString ConvertTimestamp (KStringView sTimestamp);
+
 	#if 0 // example usage
 	KSQL sql;
 	while (sql.NextRow())

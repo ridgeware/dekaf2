@@ -7580,8 +7580,32 @@ bool KSQL::EnsureConnected (KStringView sProgramName, KString sDBCFile, const In
 	// we have an open database connection
 	return true;
 
-} // DB::EnsureConnected
+} // KSQL::EnsureConnected
 
+//-----------------------------------------------------------------------------
+KString KSQL::ConvertTimestamp (KStringView sTimestamp)
+//-----------------------------------------------------------------------------
+{
+	KString sNew (sTimestamp);
+
+	// 0123 45 67 8 9A BC DE F
+	// 2020 05 12 T 23 45 39 Z --> 2020-05-12 23:45:39
+	if (sTimestamp.MatchRegex ("^[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]T[0-9][0-9][0-9][0-9][0-9][0-9]Z$"))
+	{
+		sNew = kFormat ("{}-{}-{} {}:{}:{}",
+			sTimestamp.Left(4), sTimestamp.Mid(4,2), sTimestamp.Mid(6,2),
+			sTimestamp.Mid(9,2), sTimestamp.Mid(11,2), sTimestamp.Mid(13,2));
+
+		kDebug (2, "{} --> {}", sTimestamp, sNew);
+	}
+	else
+	{
+		kDebug (2, "unchanged: {}", sTimestamp);
+	}
+
+	return sNew;
+
+} // ConvertTimestap
 
 KSQL::DBCCache KSQL::s_DBCCache;
 

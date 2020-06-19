@@ -73,7 +73,7 @@ void kCrashExitExt (int iSignalNum, siginfo_t* siginfo, void* context)
 	{
 #ifdef UNIX
 	case SIGTERM:  // <-- [STOP] in browser causes apache to send SIGTERM to CGIs
-		klog.warning ("|         * * * KILLED * * *%s\n",
+		klog.warning ("|         * * * KILLED * * *{}\n",
 			(getenv("REQUEST_METHOD")) ? "    -- web user hit [STOP] in browser" : "");
 		break;
 

@@ -1975,7 +1975,12 @@ bool KSQL::ExecSQLFile (KStringViewZ sFilename)
 	//   //ORA|                       -- line applies to Oracle only
 	//   //SYB|                       -- line applies to Sybase only
 	//   //MSS|                       -- line applies to (MS)SQLServer only
-	KString sLeader = kPrintf("//%3.3s|", (m_iDBType == DBT::SQLSERVER) ? "MSS" : TxDBType(m_iDBType).ToUpper());
+	KString sLeader = (m_iDBType == DBT::SQLSERVER) ? "MSS" : TxDBType(m_iDBType).ToUpper();
+	if (sLeader.size() > 3)
+	{
+		sLeader.erase(3);
+	}
+	sLeader += '|';
 
 	// Special strings for supporting the "delimiter" statement
 	constexpr KStringView sDefaultDelimiter = ";";

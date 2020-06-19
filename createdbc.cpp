@@ -63,7 +63,8 @@ int main (int argc, char* argv[])
 
 	for (int ii=1; ii < argc; ++ii)
 	{
-		if (kStrIn (argv[ii], "-d,-dd,-ddd")) {
+		if (kStrIn (argv[ii], "-d,-dd,-ddd"))
+		{
 			KLog::getInstance().SetLevel( static_cast<int>(strlen(argv[ii])) - 1 );
 			KLog::getInstance().SetDebugLog("stdout");
 			kDebugLog (0, "{}: debug now set to {}", argv[ii], KLog::getInstance().GetLevel());
@@ -90,41 +91,50 @@ int main (int argc, char* argv[])
 		}
 
 		// <file> <dbtype> <user> <pass> <dbname> <server>
-		else if (sTarget.empty()) {
+		else if (sTarget.empty())
+		{
 			sTarget = argv[ii];
 		}
-		else if (sDBType.empty()) {
+		else if (sDBType.empty())
+		{
 			sDBType = argv[ii];
 		}
-		else if (sDBUser.empty()) {
+		else if (sDBUser.empty())
+		{
 			sDBUser = argv[ii];
 		}
-		else if (sDBPass.empty()) {
+		else if (sDBPass.empty())
+		{
 			sDBPass = argv[ii];
 		}
-		else if (sDBName.empty()) {
+		else if (sDBName.empty())
+		{
 			sDBName = argv[ii];
 		}
-		else if (sDBHost.empty()) {
+		else if (sDBHost.empty())
+		{
 			sDBHost = argv[ii];
 		}
-		else if (sDBPort.empty()) {
+		else if (sDBPort.empty())
+		{
 			sDBPort = argv[ii];
 		}
 	}
 
 	if (sDBHost.empty())
 	{
-		for (int ii=0; g_Synopsis[ii]; ++ii) {
-			printf (" %s\n", g_Synopsis[ii]);
+		for (int ii=0; g_Synopsis[ii]; ++ii)
+		{
+			KOut.FormatLine (" {}", g_Synopsis[ii]);
 		}
 		return (1);
 	}
 
 	KSQL tmpdb;
 
-	if (!tmpdb.SetDBType (sDBType)) {
-		fprintf (stderr, "createdbc: %s\n", tmpdb.GetLastError().c_str());
+	if (!tmpdb.SetDBType (sDBType))
+	{
+		KErr.FormatLine ("createdbc: {}", tmpdb.GetLastError());
 		return (1);
 	}
 

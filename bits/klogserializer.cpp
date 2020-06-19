@@ -265,7 +265,7 @@ KString KLogTTYSerializer::PrintStatus(KStringView sLevel)
 
 	KString sPrefix;
 
-	sPrefix.Printf("| %3.3s | %5.5s | %5u | %5u | %s | ",
+	sPrefix.Format("| {:3.3s} | {:5.5s} | {:5d} | {:5d} | {} | ",
 				   sLevel, m_sShortName, m_Pid, m_Tid, kFormTimestamp(m_Time));
 
 	return sPrefix;
@@ -320,7 +320,7 @@ KString KLogHTTPHeaderSerializer::PrintStatus(KStringView sLevel)
 
 	KString sPrefix;
 
-	sPrefix.Printf("| %3.3s | %10.10s | ", sLevel, kFormNumber(m_iElapsedMicroSeconds.count()));
+	sPrefix.Format("| {:3.3s} | {:>10.10s} | ", sLevel, kFormNumber(m_iElapsedMicroSeconds.count()));
 
 	return sPrefix;
 

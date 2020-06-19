@@ -181,11 +181,11 @@ KString KBAR::GetBar (int chBlank/*=' '*/)
 	{
 		if (ii <= iNumBarsNow)
 		{
-			sBar += kPrintf ("%c", m_chDone);
+			sBar += m_chDone;
 		}
 		else
 		{
-			sBar += kPrintf ("%c", chBlank);
+			sBar += chBlank;
 		}
 	}
 

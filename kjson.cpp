@@ -112,7 +112,7 @@ bool Parse (KJSON& json, KStringView sJSON, KString& sError) noexcept
 	}
 	DEKAF2_CATCH (const KJSON::exception& exc)
 	{
-		sError.Printf ("JSON[%03d]: %s", exc.id, exc.what());
+		sError.Format ("JSON[{:03d}]: {}", exc.id, exc.what());
 		KLog::getInstance().ShowStackOnJsonError(bResetFlag);
 		return false;
 	}
@@ -181,7 +181,7 @@ bool Parse (KJSON& json, KInStream& InStream, KString& sError) noexcept
 	}
 	DEKAF2_CATCH (const KJSON::exception& exc)
 	{
-		sError.Printf ("JSON[%03d]: %s", exc.id, exc.what());
+		sError.Format ("JSON[{:03d}]: {}", exc.id, exc.what());
 		return false;
 	}
 
@@ -349,7 +349,7 @@ const KJSON& GetObject (const KJSON& json, KStringView sKey) noexcept
 	}
 	DEKAF2_CATCH (const KJSON::exception& exc)
 	{
-		kDebug(1, "JSON[%03d]: %s", exc.id, exc.what());
+		kDebug(1, "JSON[{:03d}]: {}", exc.id, exc.what());
 	}
 
 	return s_oEmpty;
@@ -490,7 +490,7 @@ KString Print (const KJSON& json) noexcept
 	}
 	DEKAF2_CATCH (const KJSON::exception& exc)
 	{
-		kDebug(1, "JSON[%03d]: %s", exc.id, exc.what());
+		kDebug(1, "JSON[{:03d}]: {}", exc.id, exc.what());
 		return "(ERROR)";
 	}
 
@@ -528,7 +528,7 @@ bool Contains (const KJSON& json, KStringView sString) noexcept
 
 	DEKAF2_CATCH (const KJSON::exception& exc)
 	{
-		kDebug(1, "JSON[%03d]: %s", exc.id, exc.what());
+		kDebug(1, "JSON[{:03d}]: {}", exc.id, exc.what());
 	}
 
 	return false;

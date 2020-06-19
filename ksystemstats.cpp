@@ -1304,7 +1304,7 @@ void KSystemStats::DumpPidTree (KOutStream& stream, uint64_t iFromPID, uint64_t 
 	else
 	{
 		KStringViewZ sCmd = m_Procs.at(idx).second.sValue;
-		stream.Printf ("%lu %s\n", iFromPID, sCmd);
+		stream.Format ("{} {}\n", iFromPID, sCmd);
 	}
 
 	// recurse through children:

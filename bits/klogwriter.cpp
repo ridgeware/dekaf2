@@ -340,7 +340,7 @@ bool KLogHTTPHeaderWriter::Write(int iLevel, bool bIsMultiline, KStringViewZ sOu
 
 			// it is a bug that we cannot use a KString as the key to add a new
 			// header but have to convert it into a KStringView first..
-			m_Headers.Headers.Add(kPrintf("%s-%5.5u", m_sHeader, m_iCounter++).ToView(), std::move(sValue));
+			m_Headers.Headers.Add(kFormat("{}-{:05d}", m_sHeader, m_iCounter++).ToView(), std::move(sValue));
 		}
 	}
 

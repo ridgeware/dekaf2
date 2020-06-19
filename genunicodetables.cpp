@@ -351,7 +351,7 @@ bool WriteTables(KStringViewZ sFileName)
 
 	for (auto& it : CodePoints)
 	{
-		File.Printf("\t{ %-23s , %-12s, %6d }, // %5d %s\n", it.sCategory, it.sType, it.iCaseFold, iCount++, it.sOriginalLine);
+		File.FormatLine("\t{{ {:23s} , {:12s}, {:6d} }}, // {:5d} {}", it.sCategory, it.sType, it.iCaseFold, iCount++, it.sOriginalLine);
 	}
 
 	File.WriteLine("};");

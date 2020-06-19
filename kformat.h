@@ -71,8 +71,17 @@ std::ostream& kfFormat(std::ostream& os, KStringView sFormat, Args&&... args)
 }
 
 //-----------------------------------------------------------------------------
+/// format no-op
+inline
+KString kFormat(KStringView sFormat)
+//-----------------------------------------------------------------------------
+{
+	return sFormat;
+}
+
+//-----------------------------------------------------------------------------
 /// formats a KString using Python syntax
-template<class... Args>
+template<class... Args, typename std::enable_if_t<sizeof...(Args) != 0, int> = 0>
 KString kFormat(KStringView sFormat, Args&&... args)
 //-----------------------------------------------------------------------------
 {
@@ -89,8 +98,17 @@ std::ostream& kfPrintf(std::ostream& os, KStringView sFormat, Args&&... args)
 }
 
 //-----------------------------------------------------------------------------
+/// format no-op
+inline
+KString kPrintf(KStringView sFormat)
+//-----------------------------------------------------------------------------
+{
+	return sFormat;
+}
+
+//-----------------------------------------------------------------------------
 /// formats a KString using POSIX printf syntax
-template<class... Args>
+template<class... Args, typename std::enable_if_t<sizeof...(Args) != 0, int> = 0>
 KString kPrintf(KStringView sFormat, Args&&... args)
 //-----------------------------------------------------------------------------
 {

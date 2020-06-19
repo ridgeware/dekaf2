@@ -369,6 +369,7 @@ private:
 	bool SetError(KString sError) const;
 	bool SetError(int iError) const;
 	bool SetError() const;
+	bool SetEncryptionForFile(uint64_t iIndex);
 
 	using Buffer = std::unique_ptr<char[]>;
 	std::vector<Buffer> m_WriteBuffers;

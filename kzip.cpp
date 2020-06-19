@@ -405,6 +405,26 @@ KString KZip::Read(const DirEntry& DirEntry)
 } // Read
 
 //-----------------------------------------------------------------------------
+bool KZip::SetEncryptionForFile(uint64_t iIndex)
+//-----------------------------------------------------------------------------
+{
+	if (zip_encryption_method_supported(ZIP_EM_AES_256, 0))
+	{
+		if (zip_file_set_encryption(pZip(D.get()), iIndex, ZIP_EM_AES_256, m_sPassword.c_str()) == -1)
+		{
+			return SetError();
+		}
+	}
+	else
+	{
+		return SetError("AES_256 encryption is not supported");
+	}
+
+	return true;
+
+} // SetEncryptionForFile
+
+//-----------------------------------------------------------------------------
 bool KZip::Write(KStringView sBuffer, KStringViewZ sDispname)
 //-----------------------------------------------------------------------------
 {
@@ -419,12 +439,17 @@ bool KZip::Write(KStringView sBuffer, KStringViewZ sDispname)
 
 	std::memcpy(pBuffer.get(), sBuffer.data(), sBuffer.size());
 
-	auto index = zip_file_add(pZip(D.get()), sDispname.c_str(), Source, ZIP_FL_OVERWRITE);
+	auto iIndex = zip_file_add(pZip(D.get()), sDispname.c_str(), Source, ZIP_FL_OVERWRITE);
 
-	if (index < 0)
+	if (iIndex < 0)
 	{
 		zip_source_free(Source);
 		return SetError();
+	}
+
+	if (!m_sPassword.empty())
+	{
+		SetEncryptionForFile(iIndex);
 	}
 
 	m_WriteBuffers.push_back(std::move(pBuffer));
@@ -463,12 +488,17 @@ bool KZip::WriteFile(KStringViewZ sFilename, KStringViewZ sDispname)
 		}
 	}
 
-	auto index = zip_file_add(pZip(D.get()), sDispname.c_str(), Source, ZIP_FL_OVERWRITE);
+	auto iIndex = zip_file_add(pZip(D.get()), sDispname.c_str(), Source, ZIP_FL_OVERWRITE);
 
-	if (index < 0)
+	if (iIndex < 0)
 	{
 		zip_source_free(Source);
 		return SetError();
+	}
+
+	if (!m_sPassword.empty())
+	{
+		SetEncryptionForFile(iIndex);
 	}
 
 	return true;

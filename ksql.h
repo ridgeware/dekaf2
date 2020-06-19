@@ -205,8 +205,6 @@ public:
 		FAC_TIME_PERIODS      = 1 << 6       ///< FAC_TIME_PERIODS: time intervals >= 'hour', 'day', 'week', 'month' or 'year'
 	};
 
-	const char* BAR = "--------------------------------------------------------------------------------"; // for printf() so keep this const char*
-
 	/// default constructor, can also be used to configure connection details
 	/// @param iDBType the DBType
 	/// @param sUsername the user name
@@ -311,15 +309,10 @@ public:
 
 	/// After establishing a database connection, this is how you sent DDL (create table, etc.) statements to the RDBMS.
 	template<class... Args>
-	bool ExecSQL (Args&&... args)
+	bool ExecSQL (KStringView sFormat, Args&&... args)
 	{
-		m_sLastSQL = kPrintf(std::forward<Args>(args)...);
-
-		if (!IsFlag(F_NoTranslations)) {
-			DoTranslations (m_sLastSQL);
-		}
-
-		bool bOK = ExecRawSQL (m_sLastSQL, 0, "ExecSQL");
+		m_sLastSQL = FormatSQLQuery (sFormat, std::forward<Args>(args)...);
+		bool bOK   = ExecRawSQL (m_sLastSQL, 0, "ExecSQL");
 		kDebug (GetDebugLevel(), "{} rows affected.", m_iNumRowsAffected);
 		return (bOK);
 
@@ -330,23 +323,9 @@ public:
 
 	/// After establishing a database connection, this is how you issue a SQL query and get results.
 	template<class... Args>
-	bool ExecQuery (Args&&... args)
+	bool ExecQuery (KStringView sFormat, Args&&... args)
 	{
-		kDebug (3, "...");
-
-		m_sLastSQL = kPrintf(std::forward<Args>(args)...);
-
-		if (!IsFlag(F_NoTranslations))
-		{
-			DoTranslations (m_sLastSQL);
-		}
-
-		if (!IsFlag(F_IgnoreSelectKeyword) && !m_sLastSQL.starts_with ("select") && !m_sLastSQL.starts_with("SELECT"))
-		{
-			m_sLastError.Format ("{}ExecQuery: query does not start with keyword 'select' [see F_IgnoreSelectKeyword]", m_sErrorPrefix);
-			return (SQLError());
-		}
-
+		m_sLastSQL = FormatSQLQuery (sFormat, std::forward<Args>(args)...);
 		return (ExecRawQuery (m_sLastSQL, 0, "ExecQuery"));
 
 	} // ExecQuery
@@ -371,45 +350,27 @@ public:
 
 	/// Executes an SQL statement with format arguments that returns one KROW
 	template<class... Args>
-	KROW SingleQuery (Args&&... args)
+	KROW SingleQuery (KStringView sFormat, Args&&... args)
 	{
-		m_sLastSQL = kPrintf(std::forward<Args>(args)...);
-
-		if (!IsFlag(F_NoTranslations))
-		{
-			DoTranslations (m_sLastSQL);
-		}
-
+		m_sLastSQL = FormatSQLQuery (sFormat, std::forward<Args>(args)...);
 		return (SingleRawQuery (m_sLastSQL, 0, "SingleQuery"));
 
 	} // KSQL::SingleQuery
 
 	/// Executes an SQL statement with format arguments that returns one single integer value or -1 on failure
 	template<class... Args>
-	int64_t SingleIntQuery (Args&&... args)
+	int64_t SingleIntQuery (KStringView sFormat, Args&&... args)
 	{
-		m_sLastSQL = kPrintf(std::forward<Args>(args)...);
-
-		if (!IsFlag(F_NoTranslations))
-		{
-			DoTranslations (m_sLastSQL);
-		}
-
+		m_sLastSQL = FormatSQLQuery (sFormat, std::forward<Args>(args)...);
 		return (SingleIntRawQuery (m_sLastSQL, 0, "SingleIntQuery"));
 
 	} // KSQL::SingleIntQuery
 
 	/// Executes an SQL statement with format arguments that returns one single string value or "" on failure
 	template<class... Args>
-	KString SingleStringQuery (Args&&... args)
+	KString SingleStringQuery (KStringView sFormat, Args&&... args)
 	{
-		m_sLastSQL = kPrintf(std::forward<Args>(args)...);
-
-		if (!IsFlag(F_NoTranslations))
-		{
-			DoTranslations (m_sLastSQL);
-		}
-
+		m_sLastSQL = FormatSQLQuery (sFormat, std::forward<Args>(args)...);
 		return (SingleStringRawQuery (m_sLastSQL, 0, "SingleStringQuery"));
 
 	} // KSQL::SingleStringQuery
@@ -745,6 +706,24 @@ private:
 //----------
 protected:
 //----------
+
+	//----------------------------------------------------------------------
+	template<class... Args>
+	KString FormatSQLQuery (KStringView sFormat, Args&&... args)
+	//----------------------------------------------------------------------
+	{
+		if (IsFlag(F_NoTranslations) || sFormat.find("{{") == KStringView::npos)
+		{
+			return kPrintf(sFormat, std::forward<Args>(args)...);
+		}
+		else
+		{
+			KString sSQL = sFormat;
+			DoTranslations (sSQL);
+			return kPrintf(sSQL, std::forward<Args>(args)...);
+		}
+
+	} // FormatSQLQuery
 
 	Flags      m_iFlags { 0 };                  // set by calling SetFlags()
 	uint32_t   m_iErrorNum { 0 };               // db error number (e.g. ORA code)

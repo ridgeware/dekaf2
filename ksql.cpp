@@ -2260,6 +2260,12 @@ bool KSQL::ExecRawQuery (KStringView sSQL, Flags iFlags/*=0*/, KStringView sAPI/
 		return (false);
 	}
 
+	if (!IsFlag(F_IgnoreSelectKeyword) && !m_sLastSQL.starts_with ("select") && !m_sLastSQL.starts_with("SELECT"))
+	{
+		m_sLastError.Format ("{}ExecQuery: query does not start with keyword 'select' [see F_IgnoreSelectKeyword]", m_sErrorPrefix);
+		return (SQLError());
+	}
+
 	KStopTime Timer;
 
 	#if defined(DEKAF2_HAS_CTLIB)
@@ -2768,7 +2774,7 @@ bool KSQL::ExecRawQuery (KStringView sSQL, Flags iFlags/*=0*/, KStringView sAPI/
 			}
 			else
 			{
-				kWarning ("{}", sWarning);
+				kWarning (sWarning);
 			}
 		}
 	}
@@ -6796,7 +6802,7 @@ size_t KSQL::OutputQuery (KStringView sSQL, OutputFormat iFormat/*=FORM_ASCII*/,
 					{
 						const KString& sName = it.first;
 						int iMax = static_cast<int>(Widths.Get (sName));
-						fprintf (fpout, "%s%-*.*s-+", (bFirst) ? "+-" : "-", iMax, iMax, BAR);
+						fprintf (fpout, "%s%-*.*s-+", (bFirst) ? "+-" : "-", iMax, iMax, KLog::BAR.c_str());
 						bFirst = false;
 					}
 					fprintf (fpout, "\n");
@@ -6812,7 +6818,7 @@ size_t KSQL::OutputQuery (KStringView sSQL, OutputFormat iFormat/*=FORM_ASCII*/,
 					{
 						const KString& sName = it.first;
 						int iMax = static_cast<int>(Widths.Get (sName));
-						fprintf (fpout, "%s%-*.*s-+", (bFirst) ? "+-" : "-", iMax, iMax, BAR);
+						fprintf (fpout, "%s%-*.*s-+", (bFirst) ? "+-" : "-", iMax, iMax, KLog::BAR.c_str());
 						bFirst = false;
 					}
 					fprintf (fpout, "\n");
@@ -6891,7 +6897,7 @@ size_t KSQL::OutputQuery (KStringView sSQL, OutputFormat iFormat/*=FORM_ASCII*/,
 				{
 					const KString& sName  = it.first;
 					int iMax  = static_cast<int>(Widths.Get (sName));
-					fprintf (fpout, "%s%-*.*s-+", (bFirst) ? "+-" : "-", iMax, iMax, BAR);
+					fprintf (fpout, "%s%-*.*s-+", (bFirst) ? "+-" : "-", iMax, iMax, KLog::BAR.c_str());
 					bFirst = false;
 				}
 				fprintf (fpout, "\n");

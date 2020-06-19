@@ -714,7 +714,30 @@ protected:
 	{
 		if (IsFlag(F_NoTranslations) || sFormat.find("{{") == KStringView::npos)
 		{
-			return kPrintf(sFormat, std::forward<Args>(args)...);
+			auto sFormatted = kPrintf(sFormat, std::forward<Args>(args)...);
+
+			if (sFormat == "%s")
+			{
+				kDebugLog (1, kFormat("printing string into single arg - remove the format string: {}", std::forward<Args>(args)...));
+
+				// check if we need to apply translations again - this was the previous,
+				// expected behaviour when formatting into "%s", and some queries
+				// rely on it..
+				if (IsFlag(F_NoTranslations) || sFormatted.find("{{") == KStringView::npos)
+				{
+					return sFormatted;
+				}
+				else
+				{
+					KString sSQL = sFormatted;
+					DoTranslations (sSQL);
+					return sSQL;
+				}
+			}
+			else
+			{
+				return sFormatted;
+			}
 		}
 		else
 		{

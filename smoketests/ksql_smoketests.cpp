@@ -359,7 +359,7 @@ TEST_CASE("KSQL")
 		}
 		CHECK (db.GetNumRowsAffected() == 1);
 
-		if (!db.ExecSQL ("update TEST1_KSQL set anum=2 where astring='row-1'"))
+		if (!db.ExecSQL ("%s", "update TEST1_KSQL set anum=2 where astring='row-1'"))
 		{
 			INFO (db.GetLastSQL());
 			FAIL_CHECK (db.GetLastError());

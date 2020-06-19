@@ -190,7 +190,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Write a fmt::printf() formatted argument list. Returns stream reference that
-	/// resolves to false on failure.
+	/// resolves to false on failure. Now DEPRECATED, please use Format()!
 	template<class... Args>
 	self_type& Printf(Args&&... args)
 	//-----------------------------------------------------------------------------

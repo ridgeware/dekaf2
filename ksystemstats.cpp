@@ -1279,7 +1279,7 @@ void KSystemStats::DumpPidTree (KOutStream& stream, uint64_t iFromPID, uint64_t 
 	// indentation:
 	if (iLevel > 0)
 	{
-		stream.Printf("  ");
+		stream.Write("  ");
 		for (uint64_t jj=1; jj < iLevel; ++jj)
 		{
 			stream.Write ("|   ");
@@ -1297,7 +1297,7 @@ void KSystemStats::DumpPidTree (KOutStream& stream, uint64_t iFromPID, uint64_t 
 		}
 		else
 		{
-			stream.Printf("invalid pid: %lu\n", iFromPID);
+			stream.Format("invalid pid: {}\n", iFromPID);
 			return;
 		}
 	}

@@ -225,7 +225,7 @@ void KBAR::Break (KStringView sMsg/*="!!!"*/)
 {
 	if (m_bSliding)
 	{
-		KOut.Format ("{}\n", sMsg);
+		KOut.WriteLine (sMsg);
 		m_bSliding = false;
 	}
 
@@ -259,27 +259,27 @@ void KBAR::_SliderAction (int iAction, uint64_t iSoFarLast, uint64_t iSoFarNow)
 	switch (iAction)
 	{
 	case KPS_START:
-		KOut.Format("v");
+		KOut.Write('v');
 		for (ii=0; ii<m_iWidth; ++ii)
 		{
-			KOut.Format("_");
+			KOut.Write('_');
 		}
-		KOut.Format("v\n|");
+		KOut.Write("v\n|");
 		break;
 
 	case KPS_ADD:
 		for (ii=iNumBarsLast; ii<iNumBarsNow; ++ii)
 		{
-			KOut.Printf("%c", m_chDone);
+			KOut.Write(m_chDone);
 		}
 		break;
 
 	case KPS_END:
 		for (ii=iNumBarsLast; ii<m_iWidth; ++ii)
 		{
-			KOut.Format(" ");
+			KOut.Write(' ');
 		}
-		KOut.Format("|\n");
+		KOut.Write("|\n");
 	}
 
 	KOut.Flush();

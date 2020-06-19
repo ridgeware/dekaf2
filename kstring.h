@@ -436,7 +436,7 @@ public:
 	template<class... Args>
 	self& Format(Args&&... args);
 
-	/// print arguments with fmt::printf
+	/// print arguments with fmt::printf - now DEPRECATED, please use Format()!
 	template<class... Args>
 	self& Printf(Args&&... args);
 
@@ -1784,7 +1784,7 @@ KString& KString::Format(Args&&... args)
 }
 
 //----------------------------------------------------------------------
-/// print arguments with fmt::printf
+/// print arguments with fmt::printf - now DEPRECATED, please use Format()!
 template<class... Args>
 KString& KString::Printf(Args&&... args)
 //----------------------------------------------------------------------

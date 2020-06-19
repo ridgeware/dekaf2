@@ -89,7 +89,7 @@ public:
 		int iCount { 0 };
 		for (auto it : FoldVec)
 		{
-			File.Printf("\t%6d , // %3d\n", it, iCount++);
+			File.FormatLine("\t{:6d} , // {:3d}", it, iCount++);
 		}
 
 		File.WriteLine("};");

@@ -344,6 +344,18 @@ public:
 	/// reads a DirEntry's file into a string to return
 	KString Read(const DirEntry& DirEntry);
 
+	/// add a stream to the archive
+	bool Write(KInStream& InStream, KStringViewZ sDispname);
+
+	/// add a string buffer to the archive
+	bool Write(KStringView sBuffer, KStringViewZ sDispname);
+
+	/// add a file to the archive
+	bool WriteFile(KStringViewZ sFilename, KStringViewZ sDispname = KStringViewZ{});
+
+	/// adds a directory entry to the archive (does not read a directory from disk!)
+	bool AddDirectory(KStringViewZ sDispname);
+
 	/// returns last error if class is not constructed to throw (default)
 	const KString& Error() const
 	{
@@ -358,16 +370,20 @@ private:
 	bool SetError(int iError) const;
 	bool SetError() const;
 
+	using Buffer = std::unique_ptr<char[]>;
+	std::vector<Buffer> m_WriteBuffers;
+	KString m_sPassword;
+	mutable KString m_sError;
+	bool m_bThrow { false };
+
 	// helper types to allow for a unique_ptr<void>, which lets us hide all
 	// implementation headers from the interface and nonetheless keep exception safety
 	using deleter_t = std::function<void(void *)>;
 	using unique_void_ptr = std::unique_ptr<void, deleter_t>;
 
+	// WARNING: D must always remain the last member, so that it is deleted
+	// first (we could also write an explicit destructor..)
 	unique_void_ptr D;
-
-	KString m_sPassword;
-	mutable KString m_sError;
-	bool m_bThrow { false };
 
 }; // KZip
 

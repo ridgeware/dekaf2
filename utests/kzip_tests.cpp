@@ -42,13 +42,28 @@ TEST_CASE("KZip") {
 
 		KString sZipFile = kFormat("{}/{}", ZipDir.Name(), "input.zip");
 
-		kSystem(kFormat("zip {} -r {} >/dev/null", sZipFile, InputDirectory.Name()));
+		{
+			// create the archive
+			KZip Zip(sZipFile, true);
+
+			CHECK (Zip.is_open() );
+
+			{
+				CHECK ( Zip.Write(kFormat("{}\n{}\n", sAlpha, sAlpha), "file1"        ) );
+				CHECK ( Zip.WriteFile(sFile2, "subdir/file2" ) );
+				sFile2 = "helloo";
+				KInFile File3(sFile3);
+				CHECK ( File3.is_open() );
+				CHECK ( Zip.Write(File3, "file3" ) );
+			}
+		}
 
 		KTempDir OutputDirectory;
 
 		KZip Zip(sZipFile);
 
 		CHECK ( Zip.is_open() );
+		CHECK ( Zip.size() == 3 );
 
 		for (const auto& File : Zip)
 		{

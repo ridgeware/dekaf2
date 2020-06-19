@@ -43,6 +43,7 @@
 #include "klog.h"
 #include "kexception.h"
 #include "koutstringstream.h"
+#include "kfilesystem.h"
 #include <zip.h>
 
 namespace dekaf2 {
@@ -119,6 +120,10 @@ bool KZip::Open(KStringViewZ sFilename, bool bWrite)
 	}
 
 	D = unique_void_ptr(zip, zipDeleter);
+
+	// do not clear before assigning a new zip - it could trigger the closure of
+	// the previous one, accessing on the buffers!
+	m_WriteBuffers.clear();
 
 	return D.get();
 
@@ -398,5 +403,101 @@ KString KZip::Read(const DirEntry& DirEntry)
 	return sBuffer;
 
 } // Read
+
+//-----------------------------------------------------------------------------
+bool KZip::Write(KStringView sBuffer, KStringViewZ sDispname)
+//-----------------------------------------------------------------------------
+{
+	auto pBuffer = std::make_unique<char[]>(sBuffer.size());
+
+	auto* Source = zip_source_buffer(pZip(D.get()), pBuffer.get(), sBuffer.length(), 0);
+
+	if (!Source)
+	{
+		return SetError();
+	}
+
+	std::memcpy(pBuffer.get(), sBuffer.data(), sBuffer.size());
+
+	auto index = zip_file_add(pZip(D.get()), sDispname.c_str(), Source, ZIP_FL_OVERWRITE);
+
+	if (index < 0)
+	{
+		zip_source_free(Source);
+		return SetError();
+	}
+
+	m_WriteBuffers.push_back(std::move(pBuffer));
+
+	return true;
+
+} // Write
+
+//-----------------------------------------------------------------------------
+bool KZip::WriteFile(KStringViewZ sFilename, KStringViewZ sDispname)
+//-----------------------------------------------------------------------------
+{
+	if (sFilename.empty())
+	{
+		return SetError("missing file name");
+	}
+
+	auto* Source = zip_source_file(pZip(D.get()), sFilename.c_str(), 0, -1);
+
+	if (!Source)
+	{
+		return SetError();
+	}
+
+	if (sDispname.empty())
+	{
+		auto pos = sFilename.find_last_of(detail::kAllowedDirSep);
+
+		if (pos != KStringView::npos)
+		{
+			sDispname = sFilename.substr(pos + 1);
+		}
+		else
+		{
+			sDispname = sFilename;
+		}
+	}
+
+	auto index = zip_file_add(pZip(D.get()), sDispname.c_str(), Source, ZIP_FL_OVERWRITE);
+
+	if (index < 0)
+	{
+		zip_source_free(Source);
+		return SetError();
+	}
+
+	return true;
+
+} // Write
+
+//-----------------------------------------------------------------------------
+bool KZip::Write(KInStream& InStream, KStringViewZ sDispname)
+//-----------------------------------------------------------------------------
+{
+	// TODO change to make use of a function that reads the stream
+
+	return Write (kReadAll(InStream), sDispname);
+
+} // Write
+
+//-----------------------------------------------------------------------------
+bool KZip::AddDirectory(KStringViewZ sDispname)
+//-----------------------------------------------------------------------------
+{
+	auto iIndex = zip_dir_add(pZip(D.get()), sDispname.c_str(), 0);
+
+	if (iIndex < 0)
+	{
+		return SetError();
+	}
+
+	return true;
+
+} // AddDirectory
 
 } // end of namespace dekaf2

@@ -408,7 +408,10 @@ KString KZip::Read(const DirEntry& DirEntry)
 bool KZip::SetEncryptionForFile(uint64_t iIndex)
 //-----------------------------------------------------------------------------
 {
-	if (zip_encryption_method_supported(ZIP_EM_AES_256, 0))
+	// zip_encryption_method_supported is only supported from v1.7 on - unfortunately
+	// there is no macro to check the version, but only a function..
+//	if (zip_encryption_method_supported(ZIP_EM_AES_256, 0))
+	if (true)
 	{
 		if (zip_file_set_encryption(pZip(D.get()), iIndex, ZIP_EM_AES_256, m_sPassword.c_str()) == -1)
 		{

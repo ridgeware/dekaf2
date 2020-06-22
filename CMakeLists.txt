@@ -564,6 +564,7 @@ set(PUBLIC_HEADERS
 	kwords.h
 	kwriter.h
 	kxml.h
+	kzip.h
 	# keep this one at the end
 	khtmlentities.h
 )
@@ -574,12 +575,6 @@ if (DEKAF2_WITH_COMPATIBILITY_LAYER_TO_DEKAF1)
 		compat/kprops.h
 		compat/kstack.h
 		compat/dekaf.h
-	)
-endif ()
-
-if (DEKAF2_HAS_LIBZIP)
-	set(PUBLIC_HEADERS ${PUBLIC_HEADERS}
-		kzip.h
 	)
 endif ()
 
@@ -692,15 +687,10 @@ set (SOURCES
 	kwords.cpp
 	kwriter.cpp
 	kxml.cpp
+	kzip.cpp
 	# keep this one at the end
 	khtmlentities5.cpp
 )
-
-if (DEKAF2_HAS_LIBZIP)
-	set(SOURCES ${SOURCES}
-		kzip.cpp
-	)
-endif ()
 
 # ============================= CONDITIONAL LIBS ==================================
 

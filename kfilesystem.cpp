@@ -766,10 +766,10 @@ size_t KDirectory::Open(KStringViewZ sDirectory, EntryType Type, bool bRecursive
 			m_DirEntries.emplace_back(sDirectory, Entry.path().filename().u8string(), Type);
 		}
 
-		if (bRecursive && ftype == fs::file_type::directory)
+		if (bRecursive && Entry.symlink_status().type() == fs::file_type::directory)
 		{
 			// recurse through the subdirectories
-			Open(kFormat("{}{}{}", sDirectory, kDirSep, dir->d_name), Type, true, false);
+			Open(kFormat("{}{}{}", sDirectory, kDirSep, Entry.path().filename().u8string()), Type, true, false);
 		}
 	}
 
@@ -994,6 +994,8 @@ KStringViewZ KDirectory::TypeAsString(EntryType Type)
 		case EntryType::OTHER:
 			return "OTHER";
 	}
+
+	return "OTHER"; // gcc wants this. we do not want default: above
 
 } // TypeAsString
 

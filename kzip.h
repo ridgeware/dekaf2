@@ -373,7 +373,7 @@ public:
 	/// add a string buffer to the archive
 	/// @param sBuffer the data buffer to add
 	/// @param sDispname the name for the buffer in the archive (including path)
-	bool Write(KStringView sBuffer, KStringViewZ sDispname);
+	bool WriteBuffer(KStringView sBuffer, KStringViewZ sDispname);
 
 	/// add a file to the archive
 	/// @param sFilename the file to add

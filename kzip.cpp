@@ -516,7 +516,7 @@ bool KZip::SetEncryptionForFile(uint64_t iIndex)
 } // SetEncryptionForFile
 
 //-----------------------------------------------------------------------------
-bool KZip::Write(KStringView sBuffer, KStringViewZ sDispname)
+bool KZip::WriteBuffer(KStringView sBuffer, KStringViewZ sDispname)
 //-----------------------------------------------------------------------------
 {
 	kDebug(2, "adding buffer with name {}", sDispname);
@@ -552,7 +552,7 @@ bool KZip::Write(KStringView sBuffer, KStringViewZ sDispname)
 
 	return true;
 
-} // Write
+} // WriteBuffer
 
 //-----------------------------------------------------------------------------
 bool KZip::WriteFile(KStringViewZ sFilename, KStringViewZ sDispname)
@@ -607,7 +607,7 @@ bool KZip::WriteFile(KStringViewZ sFilename, KStringViewZ sDispname)
 bool KZip::Write(KInStream& InStream, KStringViewZ sDispname)
 //-----------------------------------------------------------------------------
 {
-	return Write (kReadAll(InStream), sDispname);
+	return WriteBuffer (kReadAll(InStream), sDispname);
 
 } // Write
 

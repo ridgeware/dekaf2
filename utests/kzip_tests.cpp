@@ -50,7 +50,7 @@ TEST_CASE("KZip") {
 			CHECK (Zip.is_open() );
 
 			{
-				CHECK ( Zip.Write(kFormat("{}\n{}\n", sAlpha, sAlpha), "file1"        ) );
+				CHECK ( Zip.WriteBuffer(kFormat("{}\n{}\n", sAlpha, sAlpha), "file1"        ) );
 				CHECK ( Zip.WriteFile(sFile2, "subdir/file2" ) );
 				sFile2 = "helloolkdfsjlkdfjglksfjglfkdsjglkdjlgkjfdlgkjdsflkgjldskjglksnfjlkdfkhtklfjgksdjfjdgslkjdsglkhjslckhjsldhh";
 				KInFile File3(sFile3);

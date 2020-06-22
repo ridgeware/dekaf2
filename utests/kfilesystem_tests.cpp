@@ -149,9 +149,9 @@ TEST_CASE("KFilesystem") {
 		CHECK ( Dir.empty() == true );
 		CHECK ( Dir.Open(sDirectory, KDirectory::EntryType::REGULAR) == 2 );
 		CHECK ( Dir.size() == 2 );
-		CHECK ( Dir.Find("KFilesystem.test") == true );
-		CHECK ( Dir.Find("test.txt") == true );
-		CHECK ( Dir.Find("KFi*ystem.t?st") == true );
+		CHECK ( !Dir.Find("KFilesystem.test").empty() );
+		CHECK ( !Dir.Find("test.txt").empty() );
+		CHECK ( !Dir.Find("KFi*ystem.t?st").empty() );
 		CHECK ( Dir.WildCardMatch("KFilesystem.test") == 1 );
 		CHECK ( Dir.WildCardMatch("*.t?st") == 1 );
 		CHECK ( Dir.WildCardMatch("*.t?st", true) == 1 );

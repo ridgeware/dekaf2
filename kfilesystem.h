@@ -280,6 +280,8 @@ public:
 		OTHER
 	};
 
+	static KStringViewZ TypeAsString(EntryType Type);
+
 	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	/// helper type that keeps one directory entry, with its name, full path and type
 	class DirEntry
@@ -294,24 +296,24 @@ public:
 
 		DirEntry(KStringView BasePath, KStringView Name, EntryType Type);
 
-		bool operator<(const DirEntry& other)
+		bool operator<(const DirEntry& other) const
 		{
 			return m_Path < other.m_Path;
 		}
 
-		bool operator==(const DirEntry& other)
+		bool operator==(const DirEntry& other) const
 		{
 			return m_Path == other.m_Path && m_Type == other.m_Type;
 		}
 
 		/// returns full pathname (path + filename)
-		operator KStringViewZ() const
+		operator const KString&() const
 		{
 			return Path();
 		}
 
 		/// returns full pathname (path + filename)
-		KStringViewZ Path() const
+		const KString& Path() const
 		{
 			return m_Path;
 		}
@@ -328,67 +330,104 @@ public:
 			return m_Type;
 		}
 
+		/// returns directory entry type as name
+		KStringViewZ TypeAsString() const
+		{
+			return KDirectory::TypeAsString(m_Type);
+		}
+
 	//----------
 	private:
 	//----------
 
-		KString m_Path;
+		KString      m_Path;
 		KStringViewZ m_Filename;
-		EntryType m_Type;
+		EntryType    m_Type { EntryType::ALL };
 
 	}; // DirEntry
 
-	using DirEntries = std::vector<DirEntry>;
-	using iterator = DirEntries::iterator;
+	using DirEntries     = std::vector<DirEntry>;
+	using iterator       = DirEntries::iterator;
 	using const_iterator = DirEntries::const_iterator;
 
 	/// default ctor
 	KDirectory() = default;
 
 	/// ctor that will open a directory and store all entries that are of EntryType Type
-	KDirectory(KStringViewZ sDirectory, EntryType Type = EntryType::ALL)
+	/// @param sDirectory the direcory path to open
+	/// @param Type the EntryType to search for, default = ALL
+	/// @param bRecursive traverse subdirectories recursively, default = false
+	KDirectory(KStringViewZ sDirectory, EntryType Type = EntryType::ALL, bool bRecursive = false)
 	{
-		Open(sDirectory, Type);
+		Open(sDirectory, Type, bRecursive, false);
 	}
 
+	/// returns const_iterator to the start of the directory list
 	const_iterator cbegin() const { return m_DirEntries.begin(); }
+	/// returns const_iterator to the end of the directory list
 	const_iterator cend() const { return m_DirEntries.end(); }
+	/// returns const_iterator to the begin of the directory list
 	const_iterator begin() const { return m_DirEntries.begin(); }
+	/// returns const_iterator to the end of the directory list
 	const_iterator end() const { return m_DirEntries.end(); }
+	/// returns iterator to the start of the directory list
 	iterator begin() { return m_DirEntries.begin(); }
+	/// returns iterator to the end of the directory list
 	iterator end() { return m_DirEntries.end(); }
+
+	/// count of matched directory entries
 	size_t size() const { return m_DirEntries.size(); }
+
+	/// did no directory entry match?
 	bool empty() const { return m_DirEntries.empty(); }
+
+	/// clear list of directory entries
 	void clear();
 
 	/// open a directory and store all entries that are of EntryType Type
-	size_t Open(KStringViewZ sDirectory, EntryType Type = EntryType::ALL);
+	/// @param sDirectory the direcory path to open
+	/// @param Type the EntryType to search for, default = ALL
+	/// @param bRecursive traverse subdirectories recursively, default = false
+	/// @param bClear remove existing (previously found) directory entries, default = true
+	size_t Open(KStringViewZ sDirectory, EntryType Type = EntryType::ALL, bool bRecursive = false, bool bClear = true);
 
 	/// open a directory and store all entries that are of EntryType Type
-	size_t operator()(KStringViewZ sDirectory, EntryType Type = EntryType::ALL)
+	/// @param sDirectory the direcory path to open
+	/// @param Type the EntryType to search for, default = ALL
+	/// @param bRecursive traverse subdirectories recursively, default = false
+	/// @param bClear remove existing (previously found) directory entries, default = true
+	size_t operator()(KStringViewZ sDirectory, EntryType Type = EntryType::ALL, bool bRecursive = false, bool bClear = true)
 	{
-		return Open(sDirectory, Type);
+		return Open(sDirectory, Type, bRecursive, bClear);
 	}
 
 	/// remove all hidden files, that is, files that start with a dot
 	void RemoveHidden();
 
 	/// match or remove all files that have EntryType Type from the list, returns count of matched entries
+	/// @param Type the EntryType to search for
+	/// @param bRemoveMatches if true remove matches, else keep only those (default = false)
 	size_t Match(EntryType Type, bool bRemoveMatches = false);
 
 	/// match or remove all files that match the regular expression sRegex from the list, returns count of matched entries
+	/// @param sRegex the regular expression to search for
+	/// @param bRemoveMatches if true remove matches, else keep only those (default = false)
 	size_t Match(KStringView sRegex, bool bRemoveMatches = false);
 
 	/// match or remove all files that match the basic regular expression sWildCard from the list, returns count of matched entries
+	/// @param sWildCard the basic regular expression to search for (e.g. "*.tx?")
+	/// @param bRemoveMatches if true remove matches, else keep only those (default = false)
 	size_t WildCardMatch(KStringView sWildCard, bool bRemoveMatches = false);
 
-	/// returns true if the directory list contains sWildCard, wildcard matching is supported
-	bool Find(KStringView sWildCard) const;
+	/// returns first found file name if the directory list matches sWildCard, wildcard matching is supported
+	/// @param sWildCard the basic regular expression to search for (e.g. "*.tx?")
+	KStringViewZ Find(KStringView sWildCard) const;
 
 	/// returns true if the directory list contains sWildCard, wildcard matching is supported
+	/// @param sWildCard the basic regular expression to search for (e.g. "*.tx?")
 	bool Contains(KStringView sWildCard) const
 	{
-		return Find(sWildCard);
+		return Find(sWildCard).empty() == false;
 	}
 
 	/// sort the directory list

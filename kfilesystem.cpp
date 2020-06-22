@@ -476,7 +476,8 @@ bool kCreateDir(KStringViewZ sPath, int iMode /* = DEKAF2_MODE_CREATE_DIR */)
 	}
 	else
 	{
-		kDebug(2, "failure creating '{}', but no errorcode", sPath);
+		// this directory was already existing..
+		return true;
 	}
 
 	return false;
@@ -667,10 +668,13 @@ void KDirectory::clear()
 } // clear
 
 //-----------------------------------------------------------------------------
-size_t KDirectory::Open(KStringViewZ sDirectory, EntryType Type)
+size_t KDirectory::Open(KStringViewZ sDirectory, EntryType Type, bool bRecursive, bool bClear)
 //-----------------------------------------------------------------------------
 {
-	clear();
+	if (bClear)
+	{
+		clear();
+	}
 
 #if DEKAF2_HAS_STD_FILESYSTEM
 
@@ -762,6 +766,11 @@ size_t KDirectory::Open(KStringViewZ sDirectory, EntryType Type)
 			m_DirEntries.emplace_back(sDirectory, Entry.path().filename().u8string(), Type);
 		}
 
+		if (bRecursive && ftype == fs::file_type::directory)
+		{
+			// recurse through the subdirectories
+			Open(kFormat("{}{}{}", sDirectory, kDirSep, dir->d_name), Type, true, false);
+		}
 	}
 
 #else
@@ -841,6 +850,12 @@ size_t KDirectory::Open(KStringViewZ sDirectory, EntryType Type)
 				else if (dir->d_type == dtype)
 				{
 					m_DirEntries.emplace_back(sDirectory, dir->d_name, Type);
+				}
+
+				if (bRecursive && dir->d_type == DT_DIR)
+				{
+					// recurse through the subdirectories
+					Open(kFormat("{}{}{}", sDirectory, kDirSep, dir->d_name), Type, true, false);
 				}
 			}
 		}
@@ -931,7 +946,7 @@ size_t KDirectory::WildCardMatch(KStringView sWildCard, bool bRemoveMatches)
 } // WildCardMatch
 
 //-----------------------------------------------------------------------------
-bool KDirectory::Find(KStringView sWildCard) const
+KStringViewZ KDirectory::Find(KStringView sWildCard) const
 //-----------------------------------------------------------------------------
 {
 	KRegex Regex(kWildCard2Regex(sWildCard));
@@ -939,10 +954,10 @@ bool KDirectory::Find(KStringView sWildCard) const
 	{
 		if (Regex.Matches(it.Filename()))
 		{
-			return true;
+			return it.Filename();
 		}
 	}
-	return false;
+	return KStringViewZ{};
 
 } // Find
 
@@ -953,6 +968,34 @@ void KDirectory::Sort()
 	std::sort(m_DirEntries.begin(), m_DirEntries.end());
 
 } // Sort
+
+//-----------------------------------------------------------------------------
+KStringViewZ KDirectory::TypeAsString(EntryType Type)
+//-----------------------------------------------------------------------------
+{
+	switch (Type)
+	{
+		case EntryType::ALL:
+			return "ALL";
+		case EntryType::BLOCK:
+			return "BLOCK";
+		case EntryType::CHARACTER:
+			return "CHARACTER";
+		case EntryType::DIRECTORY:
+			return "DIRECTORY";
+		case EntryType::FIFO:
+			return "FIFO";
+		case EntryType::LINK:
+			return "LINK";
+		case EntryType::REGULAR:
+			return "REGULAR";
+		case EntryType::SOCKET:
+			return "SOCKET";
+		case EntryType::OTHER:
+			return "OTHER";
+	}
+
+} // TypeAsString
 
 //-----------------------------------------------------------------------------
 void KDiskStat::clear()

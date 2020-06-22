@@ -592,7 +592,7 @@ KMIMEDirectory::KMIMEDirectory(KStringViewZ sPathname)
 			for (auto& it : Dir)
 			{
 				// add all other files as related to the first part
-				*this += KMIMEFile("", it);
+				*this += KMIMEFile("", it.Path());
 			}
 		}
 		else
@@ -602,7 +602,7 @@ KMIMEDirectory::KMIMEDirectory(KStringViewZ sPathname)
 
 			for (auto& it : Dir)
 			{
-				*this += KMIMEFile("", it);
+				*this += KMIMEFile("", it.Path());
 			}
 		}
 	}

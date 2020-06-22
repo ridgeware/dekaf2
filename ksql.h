@@ -53,6 +53,7 @@
 #include "krow.h"
 #include "kjson.h"
 #include "kcache.h"
+#include "kexception.h"
 
 //
 // Note:
@@ -857,21 +858,121 @@ protected:
 	#endif
 
 	#ifdef DEKAF2_HAS_CTLIB
-	uint64_t ctlib_get_rows_affected();
-	bool ctlib_is_initialized  ();
-	bool ctlib_login           ();
-	bool ctlib_logout          ();
-	bool ctlib_execsql         (KStringView sSQL);
-	bool ctlib_nextrow         ();
-	bool ctlib_api_error       (KStringView sContext);
-	uint32_t ctlib_check_errors ();
-	bool ctlib_clear_errors    ();
-	bool ctlib_prepare_results ();
-	void ctlib_flush_results   ();
+	uint64_t ctlib_get_rows_affected ();
+	bool     ctlib_is_initialized    ();
+	bool     ctlib_login             ();
+	bool     ctlib_logout            ();
+	bool     ctlib_execsql           (KStringView sSQL);
+	bool     ctlib_nextrow           ();
+	bool     ctlib_api_error         (KStringView sContext);
+	uint32_t ctlib_check_errors      ();
+	bool     ctlib_clear_errors      ();
+	bool     ctlib_prepare_results   ();
+	void     ctlib_flush_results     ();
 	#endif
 
 	bool DecodeDBCData(KStringView sBuffer, KStringView sDBCFile);
 
 }; // KSQL
+
+/////////////////////////////////////////////////////////////////////////////
+class DbSemaphore
+/////////////////////////////////////////////////////////////////////////////
+{
+//----------
+public:
+//----------
+	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+	DbSemaphore (KSQL& db, KStringView sAction, bool bThrow=true, bool bWait=false)
+	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+		: m_db {db}
+		, m_sAction {sAction}
+		, m_bThrow {bThrow}
+	{
+		if (!bWait)
+		{
+			CreateSemaphore();
+		}
+	}
+
+	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+	~DbSemaphore ()
+	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+	{
+		ClearSemaphore();
+	}
+
+	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+	bool CreateSemaphore ()
+	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+	{
+		m_sTablename.Format ("KSQL_SEMAPHORE_{}", m_sAction);
+		m_sLastError.clear ();
+
+		auto iSave = m_db.GetFlags ();
+		m_db.SetFlags (KSQL::F_IgnoreSQLErrors);
+		auto bOK = m_db.ExecRawSQL (kFormat ("create table {} (a int)", m_sTablename));
+		m_db.SetFlags (iSave);
+
+		if (!bOK)
+		{
+			m_sLastError.Format ("could not create semaphore '{}', table '{}' already exits", m_sAction, m_sTablename);
+			m_sTablename.clear ();
+			if (m_bThrow)
+			{
+				throw KException(m_sLastError);
+			}
+			return false;
+		}
+		else
+		{
+			return true;
+		}
+	}
+
+	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+	bool ClearSemaphore ()
+	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+	{
+		if (!m_sTablename)
+		{
+			return true;  // never set
+		}
+		m_sLastError.clear ();
+
+		auto iSave = m_db.GetFlags ();
+		m_db.SetFlags (KSQL::F_IgnoreSQLErrors);
+		auto bOK = m_db.ExecRawSQL (kFormat ("drop table {}", m_sTablename));
+		m_db.SetFlags (iSave);
+
+		if (!bOK)
+		{
+			m_sLastError.Format ("could not drop semaphore '{}', table '{}'", m_sAction, m_sTablename);
+			if (m_bThrow)
+			{
+				throw KException(m_sLastError);
+			}
+			return false;
+		}
+		else
+		{
+			m_sTablename.clear ();
+			return true;
+		}
+	}
+
+	bool IsCreated () { return !m_sTablename.empty(); }
+	KStringView GetLastError() { return m_sLastError; }
+
+//----------
+private:
+//----------
+	KSQL&    m_db;
+	KString  m_sAction;
+	KString  m_sTablename;
+	bool     m_bThrow{false};
+	KString  m_sLastError;
+
+}; // DbSemaphore
 
 } // namespace dekaf2
